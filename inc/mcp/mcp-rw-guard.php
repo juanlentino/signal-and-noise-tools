@@ -549,7 +549,12 @@ function sn_mcp_rw_guard_run_route_applies( $request ) {
 	if ( '' === sn_mcp_rw_authenticated_app_password_uuid() ) {
 		return '';
 	}
-	if ( sn_mcp_rw_guard_ability_is_readonly( $slug ) ) {
+	// A slug on the rw allowlist is the door's business whatever its
+	// annotation says: describe-tags is returns-only (readonly => true,
+	// honestly) and sits on the rw door because it BILLS an AI call — the
+	// spend is the write. Annotation-only keying let it walk past.
+	$on_rw_door = function_exists( 'sn_mcp_rw_allowlist' ) && in_array( $slug, sn_mcp_rw_allowlist(), true );
+	if ( ! $on_rw_door && sn_mcp_rw_guard_ability_is_readonly( $slug ) ) {
 		return '';
 	}
 	return $slug;

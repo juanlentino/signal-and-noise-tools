@@ -35,7 +35,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param array $responses Keyed raw responses (body + headers per target).
  * @return array<string,array{ok:bool,detail:string}> Keyed by check name.
  */
-function snt_rights_probe_evaluate( $responses ) {
+function snt_rights_probe_evaluate( $responses, $expected_signal = null ) {
+	if ( null === $expected_signal ) {
+		$expected_signal = defined( 'SN_TDM_CONTENT_SIGNAL' ) ? (string) SN_TDM_CONTENT_SIGNAL : '';
+	}
 	$verdict = static function ( $ok, $good, $bad ) {
 		return array(
 			'ok'     => (bool) $ok,
@@ -98,12 +101,27 @@ function snt_rights_probe_evaluate( $responses ) {
 		&& false !== stripos( $rest_signal, 'ai-input=yes' );
 	$headers_ok     = $headers_ok && $rest_signal_ok;
 
+	// v13.111.0 (enforcement audit Phase 3): PARITY. The served Content-Signal
+	// is authored TWICE — the origin constant (inc/rest-hardening-policy.php)
+	// and the sn-rights-signals Worker, which set()s the same header on every
+	// response and therefore wins in production. Each repo pins its own
+	// literal; nothing compared them, and v10.70.1 found they had silently
+	// diverged (spaced three-term origin vs unspaced four-term edge). The
+	// values above are semantic checks; this one is byte-for-byte: what the
+	// edge serves must equal what the origin would serve without it, so a
+	// route change or a disabled Worker never changes the terms. An undefined
+	// origin constant is a failure, not a skip — there is nothing to be at
+	// parity WITH, and a green here would then say nothing.
+	$expected_signal = trim( (string) $expected_signal );
+	$parity_ok       = '' !== $expected_signal && $rest_signal === $expected_signal;
+
 	return array(
 		'tdmrep'  => $verdict( $tdmrep_ok, 'tdmrep.json answers 200 and parses as JSON.', 'tdmrep.json is missing, non-200, or not valid JSON.' ),
 		'rsl'     => $verdict( $rsl_ok, 'license.xml answers 200 and parses as XML.', 'license.xml is missing, non-200, or not well-formed XML.' ),
 		'signal'  => $verdict( $signal_ok, 'robots.txt carries one Content-Signal line with ai-input=yes and ai-train=no.', 'robots.txt Content-Signal drift: expected exactly one line carrying both ai-input=yes and ai-train=no.' ),
 		'license' => $verdict( $license_ok, 'robots.txt carries the License: line.', 'robots.txt is missing the License: line.' ),
 		'headers' => $verdict( $headers_ok, 'TDM-Reservation is 1 on both the HTML and /wp-json responses.', 'TDM-Reservation is missing or not 1 on the HTML and/or /wp-json response headers (0 would mean rights NOT reserved).' ),
+		'parity'  => $verdict( $parity_ok, 'The served Content-Signal equals the origin constant byte-for-byte.', '' === $expected_signal ? 'SN_TDM_CONTENT_SIGNAL is undefined at the origin, so there is nothing for the edge to be at parity with.' : 'Content-Signal PARITY drift: the edge serves "' . $rest_signal . '" but the origin constant is "' . $expected_signal . '". Change sn-rights-signals-worker src/constants.mjs and inc/rest-hardening-policy.php in the same release.' ),
 	);
 }
 
@@ -213,6 +231,7 @@ function snt_health_check_rights_signals() {
 		'signal'  => $targets['robots'],
 		'license' => $targets['robots'],
 		'headers' => $targets['html'],
+		'parity'  => $targets['wpjson'],
 	);
 	$findings   = array();
 	foreach ( $verdicts as $check => $verdict ) {

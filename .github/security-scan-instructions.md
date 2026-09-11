@@ -56,8 +56,11 @@ must pass untouched — that is the negative assertion in
 **Flag when a change:**
 
 - registers a mutating ability without a `readonly => false` / `destructive`
-  annotation (the guard keys on `readonly`; an unannotated write is treated as
-  a write, but an ability wrongly annotated `readonly => true` walks past it);
+  annotation (the guard keys on `readonly` for slugs OFF the rw allowlist; an
+  unannotated write is treated as a write, but an ability wrongly annotated
+  `readonly => true` walks past it unless it is on `sn_mcp_rw_allowlist()`,
+  which the guard checks first — `tests/mcp-capabilities.php` pins that every
+  read-door slug is `readonly => true` and names the rw-door exceptions);
 - adds a `rest_pre_dispatch` filter at priority < 10 on the abilities
   namespace, or returns a non-null result before the guard runs;
 - adds a filter on `sn_mcp_rw_allowlist` / `sn_mcp_allowlist` /

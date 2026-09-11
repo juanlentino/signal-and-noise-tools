@@ -12,7 +12,7 @@ Order is blast radius, not ease. Each phase is one PR (or one owner action).
 
 ---
 
-## Phase 1 — the abilities REST write surface (M4, M1, E3) — plugin PR, MINOR
+## Phase 1 — the abilities REST write surface (M4, M1, E3) — plugin PR, MINOR — **SHIPPED as v13.110.0 (#1165)**
 
 The seam: `POST /wp-abilities/v1/abilities/<slug>/run` reaches every
 `show_in_rest => true` ability with any `manage_options` application
@@ -59,7 +59,7 @@ credential — exactly the shape of the WAF rule.
 
 CHANGELOG under `[Unreleased]`; cut as MINOR (new user-visible control).
 
-## Phase 2 — GitHub rulesets and merge settings (R1, R2, R3, R11) — owner action, no code
+## Phase 2 — GitHub rulesets and merge settings (R1, R2, R3, R11) — owner action, no code — **DONE 2026-09-11** (see memory `a-cut-is-a-pull-request`)
 
 All via `gh api`; each is one call and reversible. Needs your go: these change
 your own workflow.
@@ -72,13 +72,13 @@ your own workflow.
 3. **`sn-provenance-worker` and `sn-remote-mcp-worker`:** a `Require PR on main` ruleset with `pull_request` + required `test` (their `test.yml` job), **no** bypass actor. Signing key and the remote door earn it. The other three workers, the ledger repo and the memory repo stay unprotected on purpose (single contributor, no key material, convention unbroken) — revisit when a second contributor appears.
 4. Update memory `main-protected-by-rulesets-not-classic` and `release-drafts-and-manual-deploy` with the new flow (commit + push the memory repo).
 
-## Phase 3 — cheap pins that make existing rules true (M9, W4, E4, P11) — plugin PR + worker PR, PATCH
+## Phase 3 — cheap pins that make existing rules true (M9, W4, E4, P11) — plugin PR + worker PR, PATCH — **SHIPPED 2026-09-11** (found two real defects: `reader-anomalies` lacked `readonly => true`; `describe-tags` walked past the run-route guard)
 
 1. **`tests/mcp-capabilities.php`** — every slug on `sn_mcp_allowlist()` must resolve to a registration whose meta has `readonly => true`; every rw slug must not. Turns the "readonly is a claim" line in the policy doc into a check. (Static source scan, same technique the retired-slug pin already uses.)
 2. **`tests/rest-routes.php`** (new, ~40 lines) — pins the `register_rest_route` count (22) and that exactly two are `__return_true`, by name. A third public route fails the sweep and has to be argued into the list.
 3. **`inc/health-check-rights-signals.php`** — compare the served `Content-Signal` on `/wp-json/` to `SN_TDM_CONTENT_SIGNAL` byte-for-byte. Divergence between the two repos' literals becomes a finding the same day instead of "silently diverged" (the v10.70.1 story).
 4. **Analytics worker `test/handle.spec.js`** — one assertion: no beacon response, accepted or rejected, carries `set-cookie`. Ten lines; the rule is currently true by accident.
-5. **`tests/run.sh` / `ci.yml`** — run `node --test tests/js/prov-verify-core.test.mjs` in the tests job (it is a plain node test; the other seven `tests/js/*.mjs` are browser harnesses and stay manual, say so in a comment).
+5. ~~run the node test in CI~~ — **withdrawn**: it already runs, via `tests/provenance-verify-core.php`. The audit row was wrong (see its correction).
 
 ## Phase 4 — theme parity (P16, T3, T8) — theme PR, PATCH
 

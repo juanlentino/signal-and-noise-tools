@@ -125,6 +125,11 @@ reset_state( $BOUND, $OTHER );
 $d = sn_mcp_rw_guard_run_route( null, null, new RG_Req( run_route( $legacy ) ) );
 ok( is_wp_error( $d ) && 'sn_mcp_rw_credential_not_authorized' === $d->get_error_code(), "a NON-door write ($legacy) is guarded too — the rule is the annotation, not the allowlist" );
 
+reset_state( $BOUND, $OTHER );
+$GLOBALS['__abilities']['signal-noise/describe-tags'] = true; // readonly => true, honestly — but on the rw door because it bills an AI call
+$d = sn_mcp_rw_guard_run_route( null, null, new RG_Req( run_route( 'signal-noise/describe-tags' ) ) );
+ok( is_wp_error( $d ) && 'sn_mcp_rw_credential_not_authorized' === $d->get_error_code(), 'a READONLY-annotated slug that sits on the rw door is guarded anyway — the allowlist outranks the annotation (describe-tags bills AI)' );
+
 reset_state( '', $BOUND );
 $d = sn_mcp_rw_guard_run_route( null, null, new RG_Req( run_route( $a_write ) ) );
 ok( is_wp_error( $d ) && 'sn_mcp_rw_rw_credential_unbound' === $d->get_error_code(), 'an UNBOUND door refuses every app password, the bound-looking one included (fail-closed)' );

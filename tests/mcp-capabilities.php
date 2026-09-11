@@ -407,5 +407,55 @@ ok( 0 === count( $verdict_absorption_planned ), 'NO ability is decided-but-unbui
 // gets to retire them — until then this pin holds the pair on the door.
 ok( in_array( 'signal-noise/ai-pair-suggest', $all_doors, true ) && in_array( 'signal-noise/ai-link-apply', $all_doors, true ), 'v13.0.0: the AI link pair stays doored TOGETHER — no sn-apply bridge exists for its fingerprint contract' );
 
+/* ════════════════════════════════════════════════════════════════════════
+ * READ DOOR = READONLY ANNOTATION (enforcement audit 2026-09-11, Phase 3).
+ *
+ * docs/ops/ability-permission-policy.md says the readonly annotation "is a
+ * CLAIM; the execute callback is the evidence" — and nothing checked the
+ * claim against the doors. Two consumers now key on it: the MCP tool
+ * projection (readOnlyHint) and the rw run-route guard
+ * (sn_mcp_rw_guard_run_route steps aside for readonly => true). A write
+ * ability registered with readonly => true walks past that guard; a read
+ * ability without it gets the door's credential check on the run route.
+ *
+ * Derived from source, same walk as the verdict scan above. Loop-registered
+ * tables (one wp_register_ability( $slug ...) call fed by an array) share
+ * the single annotation that follows the call.
+ * ════════════════════════════════════════════════════════════════════════ */
+$ro_map  = array(); // slug => bool (true = readonly annotation is literally true)
+$ro_iter = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( dirname( __DIR__ ) . '/inc', FilesystemIterator::SKIP_DOTS ) );
+foreach ( $ro_iter as $ro_file ) {
+	if ( ! $ro_file->isFile() || 'php' !== strtolower( $ro_file->getExtension() ) ) { continue; }
+	$ro_src = (string) file_get_contents( $ro_file->getPathname() );
+	// Literal registrations: the chunk from one call to the next carries its annotation.
+	$ro_chunks = preg_split( '/(?=wp_register_ability\s*\()/', $ro_src );
+	foreach ( $ro_chunks as $chunk ) {
+		if ( ! preg_match( '/^wp_register_ability\s*\(\s*[\'"](signal-noise\/[a-z0-9-]+)[\'"]/', $chunk, $cm ) ) { continue; }
+		$ro_map[ $cm[1] ] = (bool) preg_match( '/[\'"]readonly[\'"]\s*=>\s*true/', $chunk );
+	}
+	// Loop registrations: every array-key slug in the file takes the annotation after the call.
+	if ( preg_match( '/wp_register_ability\s*\(\s*\$.*?[\'"]readonly[\'"]\s*=>\s*(true|false)/s', $ro_src, $lm )
+		&& preg_match_all( '/[\'"](signal-noise\/[a-z0-9-]+)[\'"]\s*=>\s*array\(/', $ro_src, $lk ) ) {
+		foreach ( $lk[1] as $ls ) { if ( ! array_key_exists( $ls, $ro_map ) ) { $ro_map[ $ls ] = 'true' === $lm[1]; } }
+	}
+}
+ok( count( $ro_map ) >= 90, 'readonly scan resolved the ability population from source (' . count( $ro_map ) . ' found, floor 90)' );
+
+$ro_missing = array_values( array_filter( sn_mcp_allowlist(), static fn( $s ) => empty( $ro_map[ $s ] ) ) );
+ok( array() === $ro_missing, 'every READ-door slug is registered with readonly => true' . ( $ro_missing ? ' — NOT: ' . implode( ',', $ro_missing ) : '' ) );
+// An rw slug MAY be readonly => true when the "write" is a billed AI call and
+// the ability returns only — the annotation stays honest and the door stays
+// on the spend. Named, not inferred: a new one has to be argued onto this list.
+// The run-route guard keys on rw-allowlist membership BEFORE the annotation
+// (sn_mcp_rw_guard_run_route_applies), so these do not walk past it.
+$rw_readonly_billed = array( 'signal-noise/describe-tags' );
+$ro_leaked = array_values( array_filter( sn_mcp_rw_allowlist(), static fn( $s ) => ! empty( $ro_map[ $s ] ) && ! in_array( $s, $rw_readonly_billed, true ) ) );
+ok( array() === $ro_leaked, 'no RW-door slug is readonly => true except the named AI-billed returns-only ones' . ( $ro_leaked ? ' — LEAKED: ' . implode( ',', $ro_leaked ) : '' ) );
+foreach ( $rw_readonly_billed as $s ) { ok( ! empty( $ro_map[ $s ] ), "named exception $s really is readonly => true (else the exception is stale)" ); }
+$ro_unseen = array_values( array_filter( array_merge( sn_mcp_allowlist(), sn_mcp_rw_allowlist() ), static fn( $s ) => ! array_key_exists( $s, $ro_map ) ) );
+ok( array() === $ro_unseen, 'every doored slug was found by the scan (an unseen slug would pass the rw pin vacuously)' . ( $ro_unseen ? ' — UNSEEN: ' . implode( ',', $ro_unseen ) : '' ) );
+// Negative control: the scan can tell true from false.
+ok( isset( $ro_map['signal-noise/sn-apply'] ) && false === $ro_map['signal-noise/sn-apply'] && isset( $ro_map['signal-noise/sn-posts'] ) && true === $ro_map['signal-noise/sn-posts'], 'control: sn-apply reads false and sn-posts reads true' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
