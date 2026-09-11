@@ -291,7 +291,9 @@ function sn_maturity_roadmap_static_board() {
 		),
 		__( 'Machine learning', 'signal-and-noise-tools' )    => array(
 			'done'        => array(
-				__( 'A deterministic layer — related notes, topic clusters, cadence watch — computed from corpus statistics, with no model ever in the reader\'s browser', 'signal-and-noise-tools' ),
+				// The founding row graduated onto /maturity/machine-learning/ (v13.111.0)
+				// when this column hit the wall canary — the page's Corpus/Model/Compute
+				// layers already state it.
 				__( 'Draft-time echoes: while writing, the most similar existing note surfaces, so overlap is a choice instead of a surprise — the same corpus statistics the related layer already computes, asked from the draft\'s side, and below the bar it stays quiet rather than offering the least-bad match', 'signal-and-noise-tools' ),
 				// 2026-08-14 (v11.2.0 + v11.3.0): both R4 ML rows graduated in
 				// one sweep — considering → done, skipping planned, because the
@@ -300,10 +302,10 @@ function sn_maturity_roadmap_static_board() {
 				// moves to 1, honestly (see tests). Rewritten, not moved.
 				__( 'Corpus drift as an editorial mirror: the vocabulary\'s year-to-year movement shown to the writer as which terms rose, fell, entered, or went silent — and a year too thin to speak says so instead of publishing a confident zero — computed from corpus statistics, shown to the writer, never to a model', 'signal-and-noise-tools' ),
 				__( 'Reading paths from cluster geometry: each topic cluster carries a precomputed note-to-note chain, entered at its most central note, identical for every reader and recomputed only when the corpus changes — sequencing, not personalization', 'signal-and-noise-tools' ),
+				__( 'Search served by the kernel: the notes search box ranks by the same BM25 arithmetic that picks related notes — any word the reader typed can match, the best answer comes first, and each ranked row shows the sentence that answered with the words marked. Deterministic corpus arithmetic, no model in the browser; pages still follow in date order', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'Extend the deterministic layer pipeline by pipeline, as real editorial questions demand it', 'signal-and-noise-tools' ),
-				__( 'Search served by the kernel: the notes search box ranked by the same tf-idf mathematics that picks related notes — deterministic corpus arithmetic instead of database substring order, and still no model in the reader\'s browser — landing after the lexical-spine decision, so search ships on the spine the corpus will keep', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'The words a note owns: each note\'s distinctive vocabulary against the whole corpus, surfaced to the writer from the tf-idf arithmetic the related layer already computes — a new question asked of existing mathematics, not a new pipeline', 'signal-and-noise-tools' ),

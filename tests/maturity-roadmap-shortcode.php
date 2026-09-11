@@ -450,6 +450,17 @@ ok( false === strpos( $a11y_all, 'Alt-text quality' ), 'DR floor: and the alt-QU
 ok( false === strpos( implode( ' | ', $floor['Accessibility']['done'] ), 'fingerprint-safe' ), 'DR floor: the structural-scan row is GONE from done - it graduated onto the a11y page, and a row moves, it is never copied' );
 ok( 3 === count( $floor['Accessibility']['done'] ), 'DR floor: Accessibility done is at THREE — the alt-text pair graduated together (owner call: coverage and quality are one story), buying two slots where the ceiling demanded one' );
 
+// The founding Machine learning row RETIRED to /maturity/machine-learning/
+// (v13.111.0) when the search row's move planned -> done would have made 5 of
+// 5 and tripped the wall canary, same shape as the Analytics and AI
+// retirements above. Retirement is removal from the HUB only — the family
+// maturity page's Corpus/Model/Compute layers already state it — so the
+// floor must show the row in NO column at all, not merely out of done.
+$ml_all = implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Machine learning'] ) ) );
+ok( false === strpos( $ml_all, 'A deterministic layer' ), 'DR floor: the retired founding row appears in NO Machine learning column — it lives on the family page now' );
+ok( SN_MATURITY_ROADMAP_MAX_DONE - 1 === count( $floor['Machine learning']['done'] ), 'DR floor: Machine learning done is back AT the wall-canary limit — the headroom the retirement bought went to the search row, as intended' );
+ok( false !== strpos( implode( ' | ', $floor['Machine learning']['done'] ), 'Search served by the kernel' ), 'DR floor: the search row is DONE, stating what acts (v13.111.0) — ranked by the same BM25 arithmetic that picks related notes' );
+
 // delete_option returns the page to code-canonical.
 delete_option( SN_MATURITY_ROADMAP_OPTION );
 ok( $static_html === call_user_func( $GLOBALS['__shortcodes']['sn_maturity_roadmap'] ), 'deleting the override returns the render to code-canonical, byte-identical' );
