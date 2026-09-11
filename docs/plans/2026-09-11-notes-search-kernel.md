@@ -496,7 +496,7 @@ function snt_search_rank_notes( $term, $reset = false ) {
 - [ ] **Step 4: Run to verify the ranking group passes**
 
 Run: `php tests/notes-search-ranking.php`
-Expected: every line in "Group: ranking" PASS, `Result: 11 passed, 0 failed`.
+Expected: every line in "Group: ranking" PASS, `Result: 10 passed, 0 failed`.
 
 - [ ] **Step 5: Commit**
 
@@ -616,7 +616,7 @@ if ( function_exists( 'add_filter' ) ) {
 - [ ] **Step 4: Run to verify it passes**
 
 Run: `php tests/notes-search-ranking.php | grep -E "FAIL|Result"`
-Expected: `Result: 26 passed, 0 failed` (11 + 15).
+Expected: `Result: 27 passed, 0 failed` (10 + 12 pins + the 5-clause loop).
 
 - [ ] **Step 5: Commit**
 
@@ -768,7 +768,7 @@ if ( function_exists( 'add_filter' ) ) {
 - [ ] **Step 4: Run to verify it passes**
 
 Run: `php tests/notes-search-ranking.php | grep -E "FAIL|Result"`
-Expected: `Result: 39 passed, 0 failed`. If the "sentence chosen" pin fails on the exact string, print `$s` and adjust the fixture wording — not the rule.
+Expected: `Result: 41 passed, 0 failed` (27 + 14). If the "sentence chosen" pin fails on the exact string, print `$s` and adjust the fixture wording — not the rule.
 
 Note on the fixture: `sn_prov_normalize_v2()` is not loaded in this suite (it lives in `inc/provenance-core.php`, which pulls more of WordPress); the `wp_strip_all_tags` fallback branch is what runs here. Add one more pin so that is explicit:
 
@@ -828,7 +828,7 @@ Under `## [Unreleased]` add:
 
 ```markdown
 ### Added
-- **Search served by the kernel.** `/notes/?s=` now ranks notes with the kernel's BM25 over a search index the corpus build writes (`snt_ml_search_index`: term frequencies + idf, `autoload = no`, stamped with the build's `built_at` so a half-written pair is refused). Any word the reader typed can match — WordPress's search required every word — and the best answer comes first; pages and notes only `LIKE` found follow in date order exactly as before. The plugin shapes the theme's existing query through `posts_clauses` when the theme flags it (`sn_notes_search`): the `WHERE` is widened to the ranked ids (re-scoped to publish + no-password, so widening never out-scopes), `ORDER BY` gets `FIELD()` in rank order ahead of the date. Each ranked row shows its evidence through `sn_notes_search_snippet`: the sentence holding the rarest query token, escaped, the words in `<mark>`. Plugin off → today's search, byte for byte. Board row Machine learning → done. Spec `docs/proposals/2026-09-11-notes-search-kernel-design.md`; `tests/notes-search-ranking.php` (40 pins, the acceptance fixture red without the flag), `tests/ml-kernel.php` (+4), `tests/ml-artifacts.php` (+7). **Needs theme ≥ 13.0.0 for the flag and the snippet; older themes see no change.**
+- **Search served by the kernel.** `/notes/?s=` now ranks notes with the kernel's BM25 over a search index the corpus build writes (`snt_ml_search_index`: term frequencies + idf, `autoload = no`, stamped with the build's `built_at` so a half-written pair is refused). Any word the reader typed can match — WordPress's search required every word — and the best answer comes first; pages and notes only `LIKE` found follow in date order exactly as before. The plugin shapes the theme's existing query through `posts_clauses` when the theme flags it (`sn_notes_search`): the `WHERE` is widened to the ranked ids (re-scoped to publish + no-password, so widening never out-scopes), `ORDER BY` gets `FIELD()` in rank order ahead of the date. Each ranked row shows its evidence through `sn_notes_search_snippet`: the sentence holding the rarest query token, escaped, the words in `<mark>`. Plugin off → today's search, byte for byte. Board row Machine learning → done. Spec `docs/proposals/2026-09-11-notes-search-kernel-design.md`; `tests/notes-search-ranking.php` (42 pins, the acceptance fixture red without the flag), `tests/ml-kernel.php` (+4), `tests/ml-artifacts.php` (+7). **Needs theme ≥ 13.0.0 for the flag and the snippet; older themes see no change.**
 ```
 
 - [ ] **Step 6: Commit**
