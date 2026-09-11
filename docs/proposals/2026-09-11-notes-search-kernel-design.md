@@ -66,10 +66,12 @@ background block). Nothing else in the theme changes.
 **Plugin**, one new module `inc/notes-search-ranking.php`, loaded from
 `signal-and-noise-tools.php`, declarations `function_exists`-guarded:
 
-- `snt_search_rank_notes( string $term ): int[]` — reads the artifact the
-  way `snt_ml_related_for_post()` does, scores, sorts, returns ids. Empty
-  array when the artifact is missing, stale-shaped
-  (`snt_ml_stale_shape_check`), or the term tokenises to nothing. Filter
+- `snt_search_rank_notes( string $term ): int[]` — reads the search index
+  `snt_ml_search_index` (an option written by `snt_ml_build_corpus()` beside
+  the related rows: per note a term-frequency map and token length; corpus
+  `idf` and `avg_length`), scores with `snt_ml_bm25_score_tf()`, sorts,
+  returns ids. Empty array when the index is missing, its `built_at`
+  disagrees with the corpus meta, or the term tokenises to nothing. Filter
   `snt_search_ranking_ids( int[] $ids, string $term )` may replace the list —
   the plugin's usual seam, nothing more. Memoised per request.
 - `snt_search_posts_clauses( array $clauses, WP_Query $query ): array` on
@@ -96,7 +98,7 @@ widening are untouched because the query is the same query with a wider
 Only for notes the ranking scored; a `LIKE`-only note or a page keeps its
 excerpt (no evidence to show).
 
-1. Prose from blocks via `snt_corpus_render_text()` — the normaliser the
+1. Prose from blocks via `sn_prov_normalize_v2()` — the normaliser the
    provenance ledger signs; no block markup reaches a snippet.
 2. Pick the query token with the highest idf that occurs in the prose (the
    rarest word the reader typed is the strongest evidence); take the first
