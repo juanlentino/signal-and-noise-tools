@@ -256,6 +256,24 @@ function snt_corpus_integrity_find_date_issues( $text, $post_date ) {
 			continue;
 		}
 		$sentence = snt_corpus_integrity_sentence_at( $text, $pos );
+		// A dated editorial notice is the CONVENTION, not drift: the site's
+		// post-publish correction practice writes "Correction, September 3,
+		// 2026." (or "Update, …" / "Updated …") as its own sentence, and that
+		// date is later than post_date BY DESIGN — it names when the note was
+		// amended. Reported separately (see the caller) so the practice is
+		// visible without being flagged. The shape is deliberately narrow:
+		// the notice word opens the sentence and the date is the whole rest
+		// of it; a sentence that merely CONTAINS "correction" is still judged.
+		if ( snt_corpus_integrity_is_dated_notice( $sentence ) ) {
+			$out[] = array(
+				'found_date' => $raw,
+				'sentence'   => $sentence,
+				'severity'   => 'info',
+				'pos'        => $pos,
+				'notice'     => true,
+			);
+			continue;
+		}
 		$past_verb = (bool) preg_match(
 			'/\b(?:announced|shipped|launched|released|published|debuted|unveiled|introduced|reported|said|confirmed|went\s+live|rolled\s+out|found|flagged|filed)\b/i',
 			$sentence
@@ -277,7 +295,8 @@ function snt_corpus_integrity_find_date_issues( $text, $post_date ) {
  *
  * @return array<int,array>
  */
-function snt_corpus_integrity_detect_candidates() {
+function snt_corpus_integrity_detect_candidates( &$notices = null ) {
+	$notices = array();
 	$posts = get_posts( array(
 		'post_type'      => 'post',
 		'post_status'    => array( 'publish', 'future', 'draft', 'pending' ),
@@ -338,6 +357,11 @@ function snt_corpus_integrity_detect_candidates() {
 			}
 
 			foreach ( snt_corpus_integrity_find_date_issues( $row['text'], (string) ( $post->post_date ?? '' ) ) as $issue ) {
+				if ( ! empty( $issue['notice'] ) ) {
+					// The correction convention, practised. Counted, never a candidate.
+					$notices[] = array( 'post_id' => (int) $post->ID, 'sentence' => $issue['sentence'] );
+					continue;
+				}
 				if ( in_array( 'date_coherence:' . $fp, $dismissed, true ) ) {
 					continue;
 				}
@@ -358,13 +382,36 @@ function snt_corpus_integrity_detect_candidates() {
 }
 
 /**
+ * Is a sentence a dated editorial notice — the correction convention's own
+ * line — rather than prose that happens to carry a future date?
+ *
+ * Accepts: an opening notice word (Correction / Corrected / Update / Updated /
+ * Amended / Amendment / Errata / Erratum), an optional comma or colon, then a
+ * date (Month D, YYYY or YYYY-MM-DD) as the WHOLE remainder, with optional
+ * trailing punctuation. Case-insensitive on the word, strict on the shape.
+ *
+ * @since 13.111.0
+ * @param string $sentence
+ * @return bool
+ */
+function snt_corpus_integrity_is_dated_notice( $sentence ) {
+	$months = 'January|February|March|April|May|June|July|August|September|October|November|December';
+	$date   = '(?:(?:' . $months . ')\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}|\d{4}-\d{2}-\d{2})';
+	return 1 === preg_match(
+		'/^\s*(?:Correction|Corrected|Update|Updated|Amended|Amendment|Errata|Erratum)\s*[,:]?\s*(?:on\s+)?' . $date . '\s*[.:;]?\s*$/iu',
+		(string) $sentence
+	);
+}
+
+/**
  * Pure compute: detect + envelope, NO writes (the sn_scan read-only
  * contract, same split as the sibling scans).
  *
- * @return array{candidates:array,counts:array{intra_post_duplication:int,splice_artifact:int,date_coherence:int,posts_affected:int},scanned_at:int}
+ * @return array{candidates:array,counts:array{intra_post_duplication:int,splice_artifact:int,date_coherence:int,posts_affected:int,corrections:int},scanned_at:int}
  */
 function snt_corpus_integrity_compute() {
-	$candidates = snt_corpus_integrity_detect_candidates();
+	$notices    = array();
+	$candidates = snt_corpus_integrity_detect_candidates( $notices );
 
 	$counts   = array( 'intra_post_duplication' => 0, 'splice_artifact' => 0, 'date_coherence' => 0 );
 	$post_ids = array();
@@ -375,6 +422,10 @@ function snt_corpus_integrity_compute() {
 		$post_ids[ $c['post_id'] ] = true;
 	}
 	$counts['posts_affected'] = count( $post_ids );
+	// v13.111.0: dated correction notices — the post-publish convention,
+	// practised. A count so the practice is visible; not a finding, because
+	// a correction line carrying a later date is the convention working.
+	$counts['corrections'] = count( $notices );
 
 	return array(
 		'candidates' => $candidates,

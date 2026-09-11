@@ -80,13 +80,13 @@ your own workflow.
 4. **Analytics worker `test/handle.spec.js`** — one assertion: no beacon response, accepted or rejected, carries `set-cookie`. Ten lines; the rule is currently true by accident.
 5. ~~run the node test in CI~~ — **withdrawn**: it already runs, via `tests/provenance-verify-core.php`. The audit row was wrong (see its correction).
 
-## Phase 4 — theme parity (P16, T3, T8) — theme PR, PATCH
+## Phase 4 — theme parity (P16, T3, T8) — theme PR, PATCH — **PR juanlentino/signal-and-noise#301**
 
 1. Copy the "Every job declares a timeout" Ruby step from plugin `ci.yml:64-101` into theme `ci.yml` lint job.
 2. `smoke-test.yml` lint: PHP `8.2` → `8.4` (production).
 3. `CLAUDE.md` §Versioning: replace "Drafts stay drafts forever" with the 2026-09-10 rule (public by default), and the `git push origin HEAD:main` line with the PR flow from Phase 2.
 
-## Phase 5 — instrument and document fixes — plugin PR, PATCH (or fold into Phase 3)
+## Phase 5 — instrument and document fixes — plugin PR, PATCH — **SHIPPED 2026-09-11** (item 5 folded into the README's Public surface table rather than MACHINE-READERS.md, which is the rights-signals Worker's document)
 
 1. **`inc/corpus-integrity-scan.php` `date_coherence`** — a sentence matching `^Correction, <Month D, YYYY>\.$` (the practised correction line) is intentional, not drift: skip it, count it under a new `corrections` key so the practice is *visible* rather than flagged. Test with the two live sentences as fixtures.
 2. `phpstan.neon` header — delete "CI runs soft" (it is hard-failing, non-required; after Phase 2 it is required).

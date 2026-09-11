@@ -104,7 +104,27 @@ alt text, meta description, excerpt, OG title, brand-voice alignment, and conten
 
 ### Agent surface
 
-96 plugin-registered Abilities (alongside the theme's 15) reachable via `wp ability run` and the Abilities REST route, plus a native MCP JSON-RPC server with two curated doors: a read-only door at `signal-noise/v1/mcp` (33 slugs) and a read-write door at `signal-noise/v1/mcp-rw` (8 slugs) gated by a kill switch, a bound application password, a per-minute rate limit, and its own audit log. The write door is deliberately small: `sn-apply` is one tool covering every mutation, behind four gates (fingerprint, validation, capability, idempotency) with `dry_run` defaulting to true. **Both door sizes are pinned by `tests/mcp-capabilities.php`** — that suite, not this paragraph, is where the number is true
+96 plugin-registered Abilities (alongside the theme's 15) reachable via `wp ability run` and the Abilities REST route, plus a native MCP JSON-RPC server with two curated doors: a read-only door at `signal-noise/v1/mcp` (33 slugs) and a read-write door at `signal-noise/v1/mcp-rw` (8 slugs) gated by a kill switch, a bound application password, a per-minute rate limit, and its own audit log. The write door is deliberately small: `sn-apply` is one tool covering every mutation, behind four gates (fingerprint, validation, capability, idempotency) with `dry_run` defaulting to true. **Both door sizes are pinned by `tests/mcp-capabilities.php`** — that suite, not this paragraph, is where the number is true.
+
+The write door, by name: `sn-apply`, `ai-link-apply`, `ai-pair-suggest`, `describe-tags`, `apply-tag-description`, `prune-unused-tags`, `unschedule-cron-event`, `purge-all-caches`. `describe-tags` is returns-only and sits here because it bills an AI call.
+
+**The Abilities REST route is a write surface too.** Core registers `POST /wp-json/wp-abilities/v1/abilities/<slug>/run` for every `show_in_rest` ability — the write-door slugs and the pre-consolidation apply abilities included. Since v13.110.0 an application-password request there meets the same four controls as the write door (`sn_mcp_rw_guard_run_route`, `inc/mcp/mcp-rw-guard.php`); cookie-authenticated wp-admin buttons use the same route and pass untouched. A Cloudflare WAF rule also refuses `Authorization`-bearing requests to `/wp-abilities/` at the edge, and the `Cloudflare security headers` health check probes for it.
+
+### Public surface
+
+Everything reachable without a credential, so nothing is public by accident. The plugin's REST population and its public routes are pinned by `tests/rest-routes.php`; a new `__return_true` has to be argued onto that list.
+
+| Surface | Who serves it | Why it is public |
+| --- | --- | --- |
+| `POST /wp-json/signal-noise/v1/webmention` | plugin | W3C receiver; can only ever create an `unverified` row |
+| `GET /wp-json/sn-prov/v1/credential/{uid}` | plugin | a verifiable credential exists to be verified by anyone |
+| `POST /wp-json/signal-noise/v1/bridge` | plugin | bearer-checked in its handler; not registered unless armed; hidden from the index |
+| `GET /wp-json/` route index, `/wp/v2/posts` (metadata only) | plugin-hardened core | discovery stays; anonymous callers get no rendered content, no users, no comments, no `/batch/v1` |
+| `/_sn/version`, `/_sn/status`, `/_sn/verify` | `sn-provenance` Worker | build identity, anchoring status, the public verifier's API |
+| `/_sn/rights-signals/{version,taxonomy,crawler-list-status}` | `sn-rights-signals` Worker | build identity and the machine-reader taxonomy (see [docs/MACHINE-READERS.md](docs/MACHINE-READERS.md)); `machine-readers` on the same prefix is bearer-gated |
+| `/_sn/login-guard/status`, `/_sn/remote-mcp/status` | their Workers | presence booleans and contract version — never secrets |
+| `/_sn/px` | `sn-analytics` Worker | the beacon; token-gated, but the token ships in every page, so it is a bot filter, not authentication — rate-limited per IP |
+| `/.well-known/tdmrep.json`, `/license.xml`, `/robots.txt`, `/tdm-policy`, `/ns/tdm`, `/webmcp/bridge.js` | `sn-rights-signals` Worker | the rights surface itself |
 
 ### Self-updater
 
