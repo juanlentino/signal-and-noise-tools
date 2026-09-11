@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.110.1] - 2026-09-11 — the read door is readonly by pin, and the README's first screen is headlines
+
 ### Fixed
 - **`reader-anomalies` is annotated `readonly => true`.** Its description said read-only; its annotation did not, and two consumers key on the annotation — the MCP projection (`readOnlyHint`) and, since v13.110.0, the rw run-route guard, which was treating it as a write. Found by the new read-door pin below.
 - **The rw run-route guard now checks the rw allowlist before the annotation.** `describe-tags` is returns-only (`readonly => true`, honestly) and sits on the rw door because it BILLS an AI call — annotation-only keying let an application password reach it without the door's credential. Membership outranks the annotation (`sn_mcp_rw_guard_run_route_applies`; `tests/mcp-rw-guard-run-route.php` +1).
@@ -22,17 +24,6 @@ adds a bullet below. A release is a separate, deliberate act:
 - **`Rights signals` health check gains `parity`**: the served `/wp-json` `Content-Signal` must equal `SN_TDM_CONTENT_SIGNAL` byte-for-byte. The header is authored in two repos (origin constant, edge Worker) and v10.70.1 found them silently diverged; the semantic checks pass either spelling, so this is the one that would have caught it. An undefined origin constant is a failure, not a skip. The suite's fixture carried the pre-v10.70.1 spaced string and was corrected (`tests/health-check-rights-signals.php` +6).
 - (worker) `signal-and-noise-analytics-worker` #27 pins that no response ever sets a cookie.
 
-## [13.110.0] - 2026-09-11 — the abilities run route meets the write door
-
-### Security
-- **The abilities run route now meets the write door.** `POST /wp-abilities/v1/abilities/<slug>/run` is registered by core for every `show_in_rest` ability — all eight rw-door slugs and the seven pre-consolidation apply abilities — and was reachable with **any** `manage_options` application password while the rw door's four controls (kill switch, bound credential, 30/min rate limit, audit row) lived on `/signal-noise/v1/mcp-rw` alone. Found by the 2026-09-11 enforcement audit ([docs/audits/enforcement-audit-2026-09-11.md](docs/audits/enforcement-audit-2026-09-11.md)); for the life of the gap the only external control was a Cloudflare WAF rule in no repository. `sn_mcp_rw_guard_run_route()` (`inc/mcp/mcp-rw-guard.php`) on `rest_pre_dispatch` applies the door's controls, in the door's order and with the door's error codes, to any request that authenticated by application password against an ability not annotated `readonly`. It keys on the **credential, not the route**, because wp-admin's own buttons call the same route with cookie + nonce and must pass untouched — the negative assertion in `tests/mcp-rw-guard-run-route.php` (32 pins; verified failable by neutering the credential test: 11 red). Allowed calls are logged as `ok`/`error` on `rest_request_after_callbacks`, so the audit log shows this route the way it shows the door.
-- **The WAF rule has a witness.** `Cloudflare security headers` now also sends one `Authorization: Basic` request to the abilities catalogue and expects the edge to answer 403; a 401/200 *through* the edge (cf-ray present) is a finding naming the rule, and a response with no edge marker is `unknown` — never cached, never a pass (`tests/health-checks-cf-headers.php`, 5 new cases).
-
-### Fixed
-- `inc/sn-apply/gates.php` said an unbound or mismatched credential was "denied at the door, before sn_apply's execute_callback ever runs". True of the door, false of the run route; gate 3 held on its own because it reads the UUIDs itself. The comment now says what was live.
 
 ### Changed
-- `.github/security-scan-instructions.md` §2 names the run route as a write surface, the guard as its control, and five change shapes that widen it.
 - README: *What it does* is now thirteen one-line headlines; the paragraphs moved verbatim under a new **In depth** section, and OpenStation's became a table. First screen 6,400 → 1,400 chars.
-- README: an **OpenStation** bullet naming what the plugin ships for the shell — the three native windows, ten widgets, 22 palette commands, the dock / badge / Station Home / PWA / Copilot seams — every count re-derived from the tree.
-
