@@ -64,7 +64,7 @@ function sn_ml_maturity_scope() {
 		'analytics' => array( __( 'Topic-level analytics', 'signal-and-noise-tools' ), 'live' ), // v10.21.0: pipeline #4 + the Topics panel.
 		'cadence'   => array( __( 'Ops cadence flags', 'signal-and-noise-tools' ), 'live' ), // v10.22.0: pipeline #5 + health check #17.
 		'echoes'    => array( __( 'Draft-time echoes', 'signal-and-noise-tools' ), 'live' ), // v10.77.0: pipeline #7 — one draft against the corpus, editor-side read only.
-		'search'    => array( __( 'Ranked search', 'signal-and-noise-tools' ), 'live' ), // v10.20.1: flipped with theme v11.2.0's ⌘K ranked palette.
+		'search'    => array( __( 'Ranked search', 'signal-and-noise-tools' ), 'live' ), // v10.20.1: ⌘K ranked palette (theme v11.2.0); v14.0.0: the /notes search box, BM25 over the same index.
 		'drift'     => array( __( 'Vocabulary drift mirror', 'signal-and-noise-tools' ), 'live' ), // v11.2.0: pipeline #9 — writer-facing, admin-only by contract.
 		'paths'     => array( __( 'Reading paths', 'signal-and-noise-tools' ), 'live' ), // v11.3.0: pipeline #10 — reader-facing once the theme places the slot; the renderer self-gates until then.
 		'verdicts'  => array( __( 'Provenance verdicts', 'signal-and-noise-tools' ), 'never' ),
@@ -89,6 +89,10 @@ function sn_ml_maturity_principles() {
 		__( 'Statistics never verify: provenance verdicts belong to cryptography alone, and no heuristic participates in one.', 'signal-and-noise-tools' ),
 		__( 'Empty is an answer: a scan that finds nothing says so, and a model that has not been built yet reports not-built - never zero.', 'signal-and-noise-tools' ),
 		__( 'Small enough to explain: every step is arithmetic a reader could follow, which is the point - intelligence the site can vouch for line by line.', 'signal-and-noise-tools' ),
+		// Graduated off the hub roadmap board (v14.0.0): the family's founding
+		// row, retired when the done column hit the wall canary. Phrased as a
+		// claim, like its siblings.
+		__( 'Every ranking here — related notes, topic clusters, the cadence watch, and now the notes search — is corpus arithmetic: term statistics rebuilt from the published notes alone, reproducible by anyone with the same notes, with no model in the reader\'s browser and no reader data in the model.', 'signal-and-noise-tools' ),
 	);
 }
 

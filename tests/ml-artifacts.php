@@ -449,6 +449,22 @@ ok( isset( $GLOBALS['__test_actions']['transition_post_status'] )
 	'(g) all four hooks registered (transition, both cron hooks, the_content)' );
 
 // ─── (h) Empty corpus is an ANSWER ───────────────────────────────────
+echo "\nGroup: the search index (v14.0.0)\n";
+snt_ml_build_corpus();
+$idx = get_option( 'snt_ml_search_index', false );
+ok( is_array( $idx ) && isset( $idx['docs'], $idx['stats'], $idx['built_at'] ), 'build writes snt_ml_search_index with docs, stats, built_at' );
+$meta = get_option( SNT_ML_CORPUS_META_OPT, false );
+ok( is_array( $idx ) && is_array( $meta ) && $idx['built_at'] === $meta['built_at'], 'index built_at equals the corpus meta built_at (the pairing the reader checks)' );
+$any_id = is_array( $idx ) ? (int) array_key_first( $idx['docs'] ) : 0;
+ok( $any_id > 0 && isset( $idx['docs'][ $any_id ]['tf'], $idx['docs'][ $any_id ]['len'] ) && is_array( $idx['docs'][ $any_id ]['tf'] ) && $idx['docs'][ $any_id ]['len'] === array_sum( $idx['docs'][ $any_id ]['tf'] ), 'each doc carries a tf map and len == sum(tf)' );
+ok( is_array( $idx ) && isset( $idx['stats']['idf'], $idx['stats']['avg_length'] ) && is_array( $idx['stats']['idf'] ) && ! isset( $idx['stats']['doc_lengths'] ), 'stats carry idf + avg_length only (no per-doc lengths — they live on the docs)' );
+ok( function_exists( 'snt_ml_search_index' ) && is_array( snt_ml_search_index() ) && count( snt_ml_search_index()['docs'] ) === count( $idx['docs'] ), 'snt_ml_search_index() returns the stored index' );
+$GLOBALS['__options']['snt_ml_search_index']['built_at'] = 1;
+ok( function_exists( 'snt_ml_search_index' ) && null === snt_ml_search_index(), 'a built_at that disagrees with the corpus meta reads as NULL (stale index, not a half-answer)' );
+unset( $GLOBALS['__options']['snt_ml_search_index'] );
+ok( function_exists( 'snt_ml_search_index' ) && null === snt_ml_search_index(), 'a missing index reads as NULL' );
+snt_ml_build_corpus(); // restore for anything below
+
 echo "\nGroup (h): empty corpus\n";
 foreach ( $GLOBALS['__posts'] as $p ) { $p->post_status = 'draft'; }
 $empty_env = snt_ml_build_corpus();
@@ -458,6 +474,9 @@ ok( is_array( get_option( SNT_ML_CORPUS_META_OPT ) ) && 0 === get_option( SNT_ML
 	'(h) the option is still stamped: "built over nothing" ≠ "never built"' );
 ok( array() === snt_ml_related_for_post( 1, 4 ), '(h) reads under the empty corpus answer [] (stale rows all gated out), not null' );
 ok( array() === snt_ml_topics_get(), '(h) topics option is ALSO stamped on an empty build: built-over-nothing answers [] — never null' );
+$empty_idx = get_option( SNT_ML_SEARCH_OPT, false );
+ok( is_array( $empty_idx ) && array() === $empty_idx['docs'] && $empty_idx['built_at'] === get_option( SNT_ML_CORPUS_META_OPT )['built_at'], 'an empty corpus still writes the search index, with docs = [] and a matching built_at' );
+ok( is_array( snt_ml_search_index() ), 'and the reader returns that array — an empty corpus is an answer, not "not built"' );
 
 echo "\nGroup (i): no PHP notices/warnings anywhere in the suite\n";
 ok( array() === $GLOBALS['__php_errors'], '(i) zero notices/warnings/deprecations raised: ' . implode( ' | ', $GLOBALS['__php_errors'] ) );

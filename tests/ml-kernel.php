@@ -168,6 +168,13 @@ ok( feq( snt_ml_bm25_score( array( 'espresso', 'espresso' ), $bm_docs['on'], $bm
 	snt_ml_bm25_score( array( 'espresso' ), $bm_docs['on'], $bm_stats ) ),
 	'(e) duplicate query terms count once (short-query convention pinned)' );
 
+echo "\nGroup (e2): bm25 from a tf map equals bm25 from the token list\n";
+$on_tf = array_count_values( $bm_docs['on'] );
+ok( function_exists( 'snt_ml_bm25_score_tf' ), '(e2) snt_ml_bm25_score_tf exists' );
+ok( function_exists( 'snt_ml_bm25_score_tf' ) && feq( snt_ml_bm25_score_tf( $q, $on_tf, count( $bm_docs['on'] ), $bm_stats ), snt_ml_bm25_score( $q, $bm_docs['on'], $bm_stats ) ), '(e2) tf-map form equals token-list form on the pinned document' );
+ok( function_exists( 'snt_ml_bm25_score_tf' ) && 0.0 === snt_ml_bm25_score_tf( $q, array(), 0, $bm_stats ), '(e2) empty tf map scores exactly 0.0' );
+ok( function_exists( 'snt_ml_bm25_score_tf' ) && 0.0 === snt_ml_bm25_score_tf( array(), $on_tf, count( $bm_docs['on'] ), $bm_stats ), '(e2) empty query scores exactly 0.0' );
+
 echo "\nGroup (f): graph signals — jaccard edges, direct link both directions\n";
 $post_a = array( 'slug' => 'alpha', 'tags' => array( 'php', 'wp', 'ml' ), 'links_out' => array( 'x', 'y', 'z', 'beta' ) );
 $post_b = array( 'slug' => 'beta', 'tags' => array( 'wp', 'ml', 'seo' ), 'links_out' => array( 'y', 'z', 'w' ) );

@@ -30,6 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SNT_ML_RELATED_META       = '_snt_ml_related';
 const SNT_ML_CORPUS_META_OPT    = 'snt_ml_corpus_meta';
+const SNT_ML_SEARCH_OPT         = 'snt_ml_search_index'; // v14.0.0: tf maps + idf for notes search (autoload=no).
 const SNT_ML_REBUILD_HOOK       = 'snt_ml_rebuild';        // Daily recurring backstop.
 const SNT_ML_REBUILD_ASYNC_HOOK = 'snt_ml_rebuild_async';  // Coalesced publish-burst single event.
 const SNT_ML_TOP_N              = 10;
@@ -235,6 +236,29 @@ if ( ! function_exists( 'snt_ml_build_corpus' ) ) {
 			'posts'       => $n,
 		), false );
 
+		// v14.0.0: the SEARCH INDEX. The related rows above are per-post and
+		// the topics option is per-cluster; neither holds what a ranking needs —
+		// the term frequencies and the corpus idf. Written beside them, from the
+		// same $docs/$stats, stamped with the same built_at so the reader can
+		// refuse a half-updated pair. Term-frequency maps, not token lists: the
+		// map is what BM25 consumes and it is a fraction of the size.
+		$search_docs = array();
+		foreach ( $docs as $id => $tokens ) {
+			$search_docs[ (int) $id ] = array(
+				'tf'  => array_count_values( $tokens ),
+				'len' => count( $tokens ),
+			);
+		}
+		update_option( SNT_ML_SEARCH_OPT, array(
+			'built_at' => $built_at,
+			'built_by' => defined( 'SNT_VERSION' ) ? (string) SNT_VERSION : '',
+			'stats'    => array(
+				'idf'        => isset( $stats['idf'] ) ? $stats['idf'] : array(),
+				'avg_length' => isset( $stats['avg_length'] ) ? (float) $stats['avg_length'] : 0.0,
+			),
+			'docs'     => $search_docs,
+		), false );
+
 		return array(
 			'ok'       => true,
 			'posts'    => $n,
@@ -292,6 +316,29 @@ if ( ! function_exists( 'snt_ml_related_for_post' ) ) {
 			}
 		}
 		return $out;
+	}
+}
+
+if ( ! function_exists( 'snt_ml_search_index' ) ) {
+	/**
+	 * The search index, or null when there is nothing trustworthy to rank
+	 * with: never built, malformed, or built_at disagreeing with the corpus
+	 * meta (a rebuild that wrote one option and died before the other). Null
+	 * is "do not rank", which the caller turns into today's search.
+	 *
+	 * @since 14.0.0
+	 * @return array{built_at:int,stats:array{idf:array<string,float>,avg_length:float},docs:array<int,array{tf:array<string,int>,len:int}>}|null
+	 */
+	function snt_ml_search_index() {
+		$index = get_option( SNT_ML_SEARCH_OPT, false );
+		$meta  = get_option( SNT_ML_CORPUS_META_OPT, false );
+		if ( ! is_array( $index ) || ! is_array( $meta )
+			|| ! isset( $index['built_at'], $index['docs'], $index['stats'], $meta['built_at'] )
+			|| ! is_array( $index['docs'] ) || ! is_array( $index['stats'] )
+			|| (int) $index['built_at'] !== (int) $meta['built_at'] ) {
+			return null;
+		}
+		return $index;
 	}
 }
 

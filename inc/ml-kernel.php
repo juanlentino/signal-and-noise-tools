@@ -224,16 +224,37 @@ if ( ! function_exists( 'snt_ml_bm25_score' ) ) {
 		if ( array() === $query_tokens || array() === $doc_tokens ) {
 			return 0.0;
 		}
+		return snt_ml_bm25_score_tf( $query_tokens, array_count_values( $doc_tokens ), count( $doc_tokens ), $stats, $k1, $b );
+	}
+}
+
+if ( ! function_exists( 'snt_ml_bm25_score_tf' ) ) {
+	/**
+	 * BM25 from a term-frequency map and a token length — the form a stored
+	 * index holds (v14.0.0, notes search). snt_ml_bm25_score() delegates
+	 * here, so the two can never disagree.
+	 *
+	 * @param string[]          $query_tokens Query tokens.
+	 * @param array<string,int> $tf_map       Term => count in the document.
+	 * @param int               $doc_len      Total token count of the document.
+	 * @param array             $stats        snt_ml_corpus_stats() output (idf + avg_length are read).
+	 * @param float             $k1           TF saturation (default 1.2).
+	 * @param float             $b            Length-normalization strength (default 0.75).
+	 * @return float 0.0 when nothing overlaps or the doc is empty.
+	 */
+	function snt_ml_bm25_score_tf( array $query_tokens, array $tf_map, $doc_len, array $stats, $k1 = 1.2, $b = 0.75 ) {
+		$doc_len = (int) $doc_len;
+		if ( array() === $query_tokens || array() === $tf_map || $doc_len <= 0 ) {
+			return 0.0;
+		}
 		$idf_map = isset( $stats['idf'] ) && is_array( $stats['idf'] ) ? $stats['idf'] : array();
 		$avg_len = isset( $stats['avg_length'] ) ? (float) $stats['avg_length'] : 0.0;
-		$doc_len = count( $doc_tokens );
 		if ( $avg_len <= 0.0 ) {
 			$avg_len = (float) $doc_len; // Degenerate corpus: neutral length norm.
 		}
-		$tf_map = array_count_values( $doc_tokens );
-		$score  = 0.0;
+		$score = 0.0;
 		foreach ( array_unique( $query_tokens ) as $term ) {
-			$tf = $tf_map[ $term ] ?? 0;
+			$tf = (int) ( $tf_map[ $term ] ?? 0 );
 			if ( 0 === $tf || ! isset( $idf_map[ $term ] ) ) {
 				continue; // Out-of-corpus query terms carry no ranking signal.
 			}
