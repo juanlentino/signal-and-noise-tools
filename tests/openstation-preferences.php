@@ -517,6 +517,9 @@ ok( false !== strpos( $settings_js, 'syncDockTiles' ), 'client defines syncDockT
 ok( false !== strpos( $settings_js, "removeSystemItem( 'sn-analytics' )" ), 'client removes sn-analytics dock tile when disabled' );
 ok( false !== strpos( $settings_js, "removeSystemItem( 'sn-dashboard' )" ), 'client removes sn-dashboard dock tile when disabled' );
 ok( false !== strpos( $settings_js, 'os-registry-changed' ), 'client syncs dock tiles on os-registry-changed event' );
+// Sidebar glyph: an OS icon-set name on the tab registration (read by
+// OpenStation from 1.1.9, WordPress/openstation#808; ignored before).
+ok( 1 === preg_match( "/registerSettingsTab\( \{[^}]*\bicon: 'bell'/s", $settings_js ), 'settings tab names its sidebar glyph from the OS icon set' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

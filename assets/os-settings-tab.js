@@ -261,6 +261,9 @@
 				label: __( 'Signal & Noise', 'signal-and-noise-tools' ),
 				capability: 'manage_options',
 				order: 32,
+				// OS icon-set name; read by OpenStation from 1.1.9
+				// (WordPress/openstation#808), ignored before.
+				icon: 'bell',
 				owner: 'snt-os-settings-tab',
 				render: render
 			} );
