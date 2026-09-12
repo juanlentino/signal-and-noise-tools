@@ -72,6 +72,9 @@ if ( ! function_exists( 'get_post_meta' ) ) {
 		if ( '_wp_attachment_image_alt' === $key ) {
 			return $GLOBALS['__og']['alt'];
 		}
+		if ( '_sn_head_touched' === $key ) {
+			return $GLOBALS['__og']['head_touched'] ?? '';
+		}
 		return '';
 	}
 }
@@ -140,7 +143,12 @@ if ( ! function_exists( 'get_post_time' ) ) {
 	function get_post_time( $format, $gmt, $post ) { return $GLOBALS['__art']['published']; }
 }
 if ( ! function_exists( 'get_post_modified_time' ) ) {
-	function get_post_modified_time( $format, $gmt, $post ) { return $GLOBALS['__art']['modified']; }
+	function get_post_modified_time( $format, $gmt, $post ) {
+		if ( 'U' === $format ) {
+			return strtotime( $GLOBALS['__art']['modified'] );
+		}
+		return $GLOBALS['__art']['modified'];
+	}
 }
 if ( ! function_exists( 'wp_get_post_terms' ) ) {
 	function wp_get_post_terms( $id, $taxonomy, $args = array() ) {
@@ -258,6 +266,22 @@ if ( ! function_exists( 'content_url' ) ) {
 og_eq( array( 1200, 630 ), sn_seo_image_dimensions( 'https://example.test/wp-content/uploads/sn-og/post-383.png?v=9' ), 'generated /sn-og/ card → generator constant 1200x630 (cache-buster ignored)' );
 og_eq( null, sn_seo_image_dimensions( 'https://images.example.org/remote.png' ), 'remote (non-local) image → null (caller falls back, never guesses a size)' );
 og_eq( '', sn_seo_local_image_path( 'https://images.example.org/remote.png' ), 'off-site URL maps to no local path' );
+
+// ─── #1224: sn_seo_singular_last_modified_gmt() takes the max ────────
+// The update-post-surfaces write door (meta_description/og_card_title/
+// seo_title/focus_keyword) writes post meta directly and never calls
+// wp_update_post(), so post_modified is stale. The 304 validator must
+// see the later of post_modified and _sn_head_touched.
+$modified_gmt = strtotime( $GLOBALS['__art']['modified'] );
+
+$GLOBALS['__og']['head_touched'] = '';
+og_eq( $modified_gmt, sn_seo_singular_last_modified_gmt( $post ), 'no head_touched meta → falls back to post_modified' );
+
+$GLOBALS['__og']['head_touched'] = $modified_gmt - 1000;
+og_eq( $modified_gmt, sn_seo_singular_last_modified_gmt( $post ), 'an OLDER head_touched than post_modified is ignored (max wins)' );
+
+$GLOBALS['__og']['head_touched'] = $modified_gmt + 1000;
+og_eq( $modified_gmt + 1000, sn_seo_singular_last_modified_gmt( $post ), 'a NEWER head_touched than post_modified wins — this is the #1224 fix' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

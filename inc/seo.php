@@ -751,6 +751,26 @@ add_filter( 'breeze_exclude_css', function( $excluded ) {
  *
  * Added in v2.0.0 (Phase 13 TSF cutover).
  */
+/**
+ * Effective Last-Modified timestamp for a singular's 304 validator.
+ *
+ * post_modified only advances when wp_update_post() touches the post row.
+ * The update-post-surfaces write door (meta_description / og_card_title /
+ * seo_title / focus_keyword) writes post meta directly and never calls
+ * wp_update_post(), so it stamps '_sn_head_touched' on every write; take
+ * the max of the two so a head-only edit still busts a stale 304 (#1224).
+ *
+ * Pure function (CLI-testable).
+ *
+ * @param WP_Post|object $post
+ * @return int GMT unix timestamp, or 0 if neither value is known.
+ */
+function sn_seo_singular_last_modified_gmt( $post ) {
+	$modified_gmt = (int) get_post_modified_time( 'U', true, $post );
+	$head_touched = (int) get_post_meta( $post->ID, '_sn_head_touched', true );
+	return max( $modified_gmt, $head_touched );
+}
+
 add_action( 'template_redirect', function() {
 	if ( function_exists( 'the_seo_framework' ) ) {
 		return;
@@ -765,7 +785,7 @@ add_action( 'template_redirect', function() {
 		return;
 	}
 
-	$modified_gmt = (int) get_post_modified_time( 'U', true, $post );
+	$modified_gmt = sn_seo_singular_last_modified_gmt( $post );
 	if ( ! $modified_gmt ) {
 		return;
 	}

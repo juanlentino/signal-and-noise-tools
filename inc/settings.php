@@ -364,13 +364,26 @@ function sn_settings_save( $raw ) {
 		'site_name'        => sanitize_text_field( (string) ( $raw['identity_site_name'] ?? '' ) ),
 		'site_description' => sanitize_text_field( (string) ( $raw['identity_site_description'] ?? '' ) ),
 		'person_name'      => sanitize_text_field( (string) ( $raw['identity_person_name'] ?? '' ) ),
-		'job_title'        => sanitize_text_field( (string) ( $raw['identity_job_title'] ?? '' ) ),
-		'knows_about'      => $knows_about_clean,
 		'locale'           => sanitize_text_field( (string) ( $raw['identity_locale'] ?? 'en_US' ) ),
 		// v6.17.0 (D5): availability line. Part of the Identity form payload, so
 		// it persists directly with the rest of the identity subtree.
 		'availability'     => sanitize_text_field( (string) ( $raw['identity_availability'] ?? '' ) ),
 	);
+
+	// job_title / knows_about have no entry in sn_settings_defaults() — the
+	// fallback lives entirely in each sn_setting() call site's own $default
+	// arg (e.g. seo-schema.php's Person builder). array_replace_recursive()
+	// in sn_setting() keeps a present-but-empty key instead of falling
+	// through, so storing '' / [] here permanently overrides that fallback.
+	// Omit the key on a blank save so the field reverts to the caller
+	// default instead of emitting "jobTitle": "" / "knowsAbout": [] forever.
+	$job_title = sanitize_text_field( (string) ( $raw['identity_job_title'] ?? '' ) );
+	if ( '' !== $job_title ) {
+		$sanitized['identity']['job_title'] = $job_title;
+	}
+	if ( ! empty( $knows_about_clean ) ) {
+		$sanitized['identity']['knows_about'] = $knows_about_clean;
+	}
 
 	$same_as_raw   = (array) ( $raw['social_same_as'] ?? array() );
 	$same_as_clean = array();

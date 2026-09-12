@@ -52,7 +52,15 @@ if ( ! function_exists( 'is_home' ) ) {
 }
 if ( ! function_exists( 'is_page' ) ) {
 	function is_page( $page = '' ) {
-		return (bool) ( $GLOBALS['__ss']['is_page'] ?? false );
+		if ( ! ( $GLOBALS['__ss']['is_page'] ?? false ) ) {
+			return false;
+		}
+		if ( '' === $page ) {
+			return true;
+		}
+		$queried = $GLOBALS['__ss']['queried'] ?? null;
+		$slug    = is_object( $queried ) && isset( $queried->post_name ) ? $queried->post_name : '';
+		return $page === $slug;
 	}
 }
 if ( ! function_exists( 'is_front_page' ) ) {
@@ -423,6 +431,18 @@ $crumbs = sn_schema_breadcrumb_list();
 ss_true( is_array( $crumbs ) && ! empty( $crumbs['itemListElement'] ), 'non-front page: the node exists with a non-empty itemListElement' );
 ss_eq( $crumbs['@id'] ?? null, $inner['breadcrumb']['@id'] ?? 'MISSING', 'reference @id and node @id agree — the dangling-ref class is closed both ways' );
 $GLOBALS['__ss']['is_front_page'] = false;
+
+// ─── /notes: WebPage and CollectionPage must not share one @id (#1224) ───
+// is_page('notes') is also_singular(), so both sn_schema_webpage() and
+// sn_schema_collection_page() used to build for the same request, each
+// minting '@id' => the /notes/ URL — one graph, two nodes, one @id.
+echo "\nGroup: /notes duplicate @id (#1224)\n";
+$GLOBALS['__ss']['is_singular_post'] = true;
+$GLOBALS['__ss']['is_page']          = true;
+$GLOBALS['__ss']['is_front_page']    = false;
+$GLOBALS['__ss']['queried']          = (object) array( 'ID' => 20, 'post_title' => 'Notes', 'post_name' => 'notes' );
+$notes_webpage = sn_schema_webpage();
+ss_true( null === $notes_webpage, 'sn_schema_webpage() returns null on /notes — CollectionPage owns that @id' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -201,5 +201,10 @@ ok( ( $r->data['status'] ?? 0 ) === 429, 'throttle rejection carries HTTP 429' )
 $r = snt_ability_update_post_surfaces( array( 'post_id' => 10, 'meta_description' => 'other post' ) );
 ok( is_array( $r ) && true === $r['ok'], 'the throttle is PER POST — a different post still writes' );
 
+// ── #1224: a meta-only write stamps _sn_head_touched (304 validator) ──
+$GLOBALS['__meta'][10]['_sn_head_touched'] = null;
+$r = snt_ability_update_post_surfaces( array( 'post_id' => 10, 'seo_title' => 'Touched' ) );
+ok( is_array( $r ) && true === $r['ok'] && is_int( $GLOBALS['__meta'][10]['_sn_head_touched'] ?? null ), 'a meta-only surface write stamps _sn_head_touched with an int timestamp' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
