@@ -483,6 +483,19 @@ $GLOBALS['__test_options'][ 'snt_cron_last_fired_' . md5( $healthy25 ) ] = time(
 $r25 = snt_cron_site_health_result();
 assert_eq( 'recommended', $r25['status'], 'evidence cron IS firing escapes critical even with a separately overdue hook' );
 
+echo "\nTest 26: snt_cron_site_health_result — a next_run_ts in the PAST reads 'overdue', not 'in <time>' (#1222)\n";
+fix4_reset_healthy_fixture();
+$hooks26 = snt_cron_site_health_hooks();
+$past26  = $hooks26[0];
+// human_time_diff() takes the ABSOLUTE difference of its two args, so a
+// next_run_ts 300s in the PAST reads identically to one 300s in the future
+// unless the caller branches on which side of "now" it falls.
+$GLOBALS['__test_next_scheduled'][ $past26 ] = time() - 300;
+$r26      = snt_cron_site_health_result();
+$line26   = substr( $r26['description'], (int) strpos( $r26['description'], esc_html( $past26 ) ), 60 );
+assert_true( false !== strpos( $line26, 'overdue' ), 'a past next_run_ts is reported as overdue: ' . $line26 );
+assert_true( false === strpos( $line26, 'next run in' ), 'a past next_run_ts is never reported as "next run in <time>": ' . $line26 );
+
 
 /* ════════════════════════════════════════════════════════════════════════
  * v13.49.0 — snt_cron_schedule_event_impl(): booking, not dispatching.

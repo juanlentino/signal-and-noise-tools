@@ -57,7 +57,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * READ-ONLY: this helper performs a single query and shapes the result. It
  * mutates nothing and fires no action.
  *
- * @return array<int, array{id:int,title:string,scheduled_ts:int,scheduled_gmt:string,edit_link:string}>
+ * @return array<int, array{id:int,title:string,post_type:string,scheduled_ts:int,scheduled_gmt:string,edit_link:string}>
  */
 function sn_schedule_future_posts() {
 	$posts = get_posts( array(
@@ -90,6 +90,7 @@ function sn_schedule_future_posts() {
 		$out[] = array(
 			'id'            => $post_id,
 			'title'         => (string) get_the_title( $post ),
+			'post_type'     => (string) $post->post_type,
 			'scheduled_ts'  => $ts,
 			'scheduled_gmt' => $gmt,
 			'edit_link'     => is_string( $edit_link ) ? $edit_link : '',

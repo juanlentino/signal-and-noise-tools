@@ -343,6 +343,7 @@ function sn_admin_render_schedule_future_post_row( array $post ) {
 	$post_id   = isset( $post['id'] ) ? (int) $post['id'] : 0;
 	$edit_link = isset( $post['edit_link'] ) ? (string) $post['edit_link'] : '';
 	$gmt       = isset( $post['scheduled_gmt'] ) ? (string) $post['scheduled_gmt'] : '';
+	$type_label = 'page' === ( $post['post_type'] ?? '' ) ? __( 'Page', 'signal-and-noise-tools' ) : __( 'Post', 'signal-and-noise-tools' );
 
 	echo '<tr>';
 
@@ -358,8 +359,8 @@ function sn_admin_render_schedule_future_post_row( array $post ) {
 	}
 	echo '</th>';
 
-	// Type.
-	echo '<td data-colname="Type">' . esc_html__( 'Page', 'signal-and-noise-tools' ) . '</td>';
+	// Type: the row names whichever post type is actually scheduled (#1218).
+	echo '<td data-colname="Type">' . esc_html( $type_label ) . '</td>';
 
 	// Action: native posts always publish at their scheduled instant.
 	echo '<td data-colname="Action">' . esc_html__( 'Publish', 'signal-and-noise-tools' ) . '</td>';

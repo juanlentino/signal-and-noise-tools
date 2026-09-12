@@ -59,7 +59,7 @@ $GLOBALS['__sched_fragments'] = array(
 	array( 'id' => 203, 'target_ref' => 55, 'action' => 'hide', 'starts_at' => iso( -7200 ), 'ends_at' => iso( -3600 ), 'status' => 'done' ),
 );
 $GLOBALS['__sched_posts'] = array(
-	array( 'id' => 77, 'title' => 'Launch announcement', 'edit_link' => 'https://example.test/wp-admin/post.php?post=77&action=edit', 'scheduled_gmt' => iso( 10800 ) ),
+	array( 'id' => 77, 'title' => 'Launch announcement', 'post_type' => 'page', 'edit_link' => 'https://example.test/wp-admin/post.php?post=77&action=edit', 'scheduled_gmt' => iso( 10800 ) ),
 );
 $GLOBALS['__sched_pairs'] = array(
 	array(

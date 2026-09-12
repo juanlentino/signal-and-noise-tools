@@ -391,6 +391,23 @@ function sn_generate_og_card( $post_id ) {
 }
 
 /**
+ * Thin seam around imagettfbbox() (#1221). imagettfbbox is a real GD
+ * extension function, already loaded in every environment that runs this
+ * file, so a test cannot redeclare it the way this suite fakes absent WP
+ * functions. This wrapper CAN be pre-defined by a test before requiring
+ * this file (the function_exists() guard then skips this definition),
+ * giving tests a deterministic, controllable measurement without touching
+ * real font metrics.
+ *
+ * @return array{0:int,1:int,2:int,3:int,4:int,5:int,6:int,7:int} imagettfbbox()'s 8-element box.
+ */
+if ( ! function_exists( 'sn_og_imagettfbbox' ) ) {
+	function sn_og_imagettfbbox( $size, $angle, $font, $text ) {
+		return imagettfbbox( $size, $angle, $font, $text );
+	}
+}
+
+/**
  * Greedy word-wrap that uses imagettfbbox to measure exact pixel widths
  * for the active font and size. Truncates the last line with an
  * ellipsis if the remaining text would overflow.
@@ -408,7 +425,7 @@ function sn_og_wrap_lines( $text, $size, $font, $max_width, $max_lines ) {
 
 	foreach ( $words as $i => $word ) {
 		$candidate = ( '' === $current ) ? $word : ( $current . ' ' . $word );
-		$bbox      = imagettfbbox( $size, 0, $font, $candidate );
+		$bbox      = sn_og_imagettfbbox( $size, 0, $font, $candidate );
 		$width     = $bbox[2] - $bbox[0];
 
 		if ( $width <= $max_width ) {
@@ -435,9 +452,21 @@ function sn_og_wrap_lines( $text, $size, $font, $max_width, $max_lines ) {
 				// max_execution_time killed the process. Using mb_substr on
 				// $core keeps the operation character-aware, and rebuilding
 				// $rest each iteration prevents any encoding carry-over.
-				$core  = implode( ' ', array_slice( $words, $i ) );
+				$core = implode( ' ', array_slice( $words, $i ) );
+				$bbox = sn_og_imagettfbbox( $size, 0, $font, $core );
+				if ( ( $bbox[2] - $bbox[0] ) <= $max_width ) {
+					// #1221: the remaining words already fit on their own —
+					// measure $core FIRST and only ellipsize on actual
+					// overflow. Appending '…' unconditionally here made a
+					// title that fit exactly in $max_lines lines render with
+					// a spurious ellipsis, and made an exact-fit remainder
+					// shave real characters to make room for a mark it never
+					// needed.
+					$lines[] = $core;
+					return $lines;
+				}
 				$rest  = $core . '…';
-				$bbox  = imagettfbbox( $size, 0, $font, $rest );
+				$bbox  = sn_og_imagettfbbox( $size, 0, $font, $rest );
 				$guard = 0;
 				while ( ( $bbox[2] - $bbox[0] ) > $max_width
 					&& mb_strlen( $core, 'UTF-8' ) > 1
@@ -445,7 +474,7 @@ function sn_og_wrap_lines( $text, $size, $font, $max_width, $max_lines ) {
 					$core = mb_substr( $core, 0, -1, 'UTF-8' );
 					$core = rtrim( $core, ".,;:!? \t" );
 					$rest = $core . '…';
-					$bbox = imagettfbbox( $size, 0, $font, $rest );
+					$bbox = sn_og_imagettfbbox( $size, 0, $font, $rest );
 					$guard++;
 				}
 				$lines[] = $rest;

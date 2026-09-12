@@ -367,7 +367,7 @@ function home_pulse_html( array $data, $tab ) {
 		. '<div class="snt-home__pulse-group-label">' . esc_html__( 'Audience (7 days)', 'signal-and-noise-tools' ) . '</div>'
 		. '<div class="snt-home__pulse">'
 		. pulse_item_html( __( 'Views', 'signal-and-noise-tools' ), 'dashicons-visibility', $views_curr, $views_pct, admin_url( 'admin.php?page=sn-analytics&sn_range=7d' ) )
-		. pulse_item_html( __( 'Visits', 'signal-and-noise-tools' ), 'dashicons-groups', $visits_curr, $visits_pct, admin_url( 'admin.php?page=sn-analytics&sn_view=sessions&sn_range=7d' ) )
+		. pulse_item_html( __( 'Visits', 'signal-and-noise-tools' ), 'dashicons-groups', $visits_curr, $visits_pct, admin_url( 'admin.php?page=sn-analytics&sn_view=visits&sn_range=7d' ) )
 		. pulse_item_html( __( 'Engagement', 'signal-and-noise-tools' ), 'dashicons-performance', $engaged_val, $engaged_pct, admin_url( 'admin.php?page=sn-analytics&sn_range=7d' ) )
 		. pulse_item_html( __( 'Search clicks', 'signal-and-noise-tools' ), 'dashicons-search', $search_clicks, $search_detail, admin_url( 'admin.php?page=sn-analytics&sn_view=search' ) )
 		. '</div></div>';
@@ -385,7 +385,7 @@ function home_pulse_html( array $data, $tab ) {
 		. '<div class="snt-home__pulse-group-label">' . esc_html__( 'Trust & Operations', 'signal-and-noise-tools' ) . '</div>'
 		. '<div class="snt-home__pulse">'
 		. pulse_item_html( __( 'Plugin version', 'signal-and-noise-tools' ), 'dashicons-admin-plugins', $deploy_val, '', admin_url( 'admin.php?page=sn-theme-options&tab=dashboard' ), $tab )
-		. pulse_item_html( __( 'Provenance anchors', 'signal-and-noise-tools' ), 'dashicons-tag', $anchored_str, '', admin_url( 'admin.php?page=sn-theme-options&tab=connections&sub=provenance' ), $tab )
+		. pulse_item_html( __( 'Provenance anchors', 'signal-and-noise-tools' ), 'dashicons-tag', $anchored_str, '', admin_url( 'admin.php?page=sn-theme-options&tab=tools&sub=provenance' ), $tab )
 		. pulse_item_html( __( 'Site health', 'signal-and-noise-tools' ), 'dashicons-heart', $health_val, '', admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ), $tab )
 		. '</div></div>';
 
