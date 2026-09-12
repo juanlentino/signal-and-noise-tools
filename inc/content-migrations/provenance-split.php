@@ -79,7 +79,7 @@ function sn_migrate_provenance_split() {
 	// there, and our migration job is structural (move), not editorial.
 	$child = get_page_by_path( SN_PROVENANCE_SLUG . '/' . SN_OVER_DETECTION_SLUG );
 	if ( ! $child ) {
-		wp_insert_post( array(
+		wp_insert_post( wp_slash( array(
 			'post_title'    => 'Provenance Over Detection',
 			'post_name'     => SN_OVER_DETECTION_SLUG,
 			'post_parent'   => (int) $page->ID,
@@ -88,16 +88,16 @@ function sn_migrate_provenance_split() {
 			'post_content'  => $essay,
 			'post_excerpt'  => sn_seed_page_excerpts()[ SN_PROVENANCE_SLUG . '/' . SN_OVER_DETECTION_SLUG ],
 			'page_template' => 'page-provenance',
-		), false );
+		) ), false );
 	}
 
 	// Replace the parent body with the cards-only index. Title also
 	// updates so the WP admin reflects the new role of the page.
-	wp_update_post( array(
+	wp_update_post( wp_slash( array(
 		'ID'           => $page->ID,
 		'post_title'   => 'On Provenance',
 		'post_content' => sn_provenance_papers_index_markup(),
-	) );
+	) ) );
 
 	update_option( SN_PROV_SPLIT_MIGR_OPT, time(), true );
 }

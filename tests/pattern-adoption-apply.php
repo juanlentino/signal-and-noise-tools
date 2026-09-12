@@ -37,6 +37,8 @@ if ( ! function_exists( 'serialize_block' ) ) {
 if ( ! function_exists( 'serialize_blocks' ) ) {
 	function serialize_blocks( $blocks ) { return json_encode( $blocks ); }
 }
+// #1177: the writer now hands core wp_slash()ed data; the stub keeps the value as-is so the assertions below read what was sent.
+if ( ! function_exists( 'wp_slash' ) ) { function wp_slash( $v ) { return $v; } }
 if ( ! function_exists( 'wp_update_post' ) ) {
 	function wp_update_post( $args, $wp_error = false ) {
 		// Switch: tests that need to exercise the write-failure path set

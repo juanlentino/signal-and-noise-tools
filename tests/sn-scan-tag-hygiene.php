@@ -32,6 +32,12 @@ function is_wp_error( $t ) { return $t instanceof WP_Error; }
 
 $GLOBALS['__terms_result'] = array();
 function get_terms( $args ) { return $GLOBALS['__terms_result']; }
+// #1178: "unused" is decided on term relationships, not the publish-only count.
+// Here every fixture is published, so relationships == count; term_id is the index + 1.
+function get_objects_in_term( $term_id, $tax ) {
+	$t = $GLOBALS['__terms_result'][ (int) $term_id - 1 ] ?? null;
+	return ( $t && (int) $t->count > 0 ) ? range( 1, (int) $t->count ) : array();
+}
 
 // The real envelope helper's contract, restated (as in tests/health-check-tag-hygiene.php).
 function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) {
@@ -58,9 +64,9 @@ ok( array( 'undescribed_tag', 'unused_tag' ) === $det_ids, 'detector registry de
 
 echo "\nGroup: both detectors emit, with the right apply_hint\n";
 $GLOBALS['__terms_result'] = array(
-	(object) array( 'name' => 'Provenance', 'count' => 35, 'description' => 'Written.' ),
-	(object) array( 'name' => 'New Cluster', 'count' => 4, 'description' => '' ),
-	(object) array( 'name' => 'Typo Tagg', 'count' => 0, 'description' => '' ),
+	(object) array( 'term_id' => 1, 'name' => 'Provenance', 'count' => 35, 'description' => 'Written.' ),
+	(object) array( 'term_id' => 2, 'name' => 'New Cluster', 'count' => 4, 'description' => '' ),
+	(object) array( 'term_id' => 3, 'name' => 'Typo Tagg', 'count' => 0, 'description' => '' ),
 );
 $r = snt_sn_scan_adapter_tag_hygiene( null );
 ok( is_array( $r ) && 2 === count( $r['candidates'] ), 'the described tag is clean; the two dirty tags candidate (got ' . count( $r['candidates'] ?? array() ) . ')' );
@@ -76,7 +82,7 @@ ok( 3 === (int) $r['posts_examined'], 'posts_examined counts TERMS (3 in the voc
 echo "\nGroup: the fingerprint is the state\n";
 $fp_unused = $by_name['Typo Tagg']['content_fingerprint'];
 $GLOBALS['__terms_result'] = array(
-	(object) array( 'name' => 'Typo Tagg', 'count' => 2, 'description' => '' ),
+	(object) array( 'term_id' => 1, 'name' => 'Typo Tagg', 'count' => 2, 'description' => '' ),
 );
 $r2 = snt_sn_scan_adapter_tag_hygiene( null );
 ok( 'undescribed_tag' === ( $r2['candidates'][0]['evidence']['detector'] ?? '' ), 'the tag gaining posts moves it to undescribed_tag' );
@@ -84,8 +90,8 @@ ok( $r2['candidates'][0]['content_fingerprint'] !== $fp_unused, 'and its candida
 
 echo "\nGroup: determinism\n";
 $GLOBALS['__terms_result'] = array(
-	(object) array( 'name' => 'B Tag', 'count' => 2, 'description' => '' ),
-	(object) array( 'name' => 'A Tag', 'count' => 0, 'description' => '' ),
+	(object) array( 'term_id' => 1, 'name' => 'B Tag', 'count' => 2, 'description' => '' ),
+	(object) array( 'term_id' => 2, 'name' => 'A Tag', 'count' => 0, 'description' => '' ),
 );
 $a = snt_sn_scan_adapter_tag_hygiene( null );
 $b = snt_sn_scan_adapter_tag_hygiene( null );

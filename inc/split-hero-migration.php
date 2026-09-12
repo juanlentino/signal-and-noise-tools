@@ -109,10 +109,10 @@ function sn_split_hero_swap_page( $path, $hash, $seed ) {
 	}
 
 	wp_update_post(
-		array(
+		wp_slash( array(
 			'ID'           => $page->ID,
 			'post_content' => $new . substr( $content, $end + strlen( $closer ) ),
-		)
+		) )
 	);
 	return true;
 }
@@ -195,10 +195,10 @@ function sn_migrate_split_hero_v2() {
 	}
 	if ( $content !== (string) $page->post_content ) {
 		wp_update_post(
-			array(
+			wp_slash( array(
 				'ID'           => $page->ID,
 				'post_content' => $content,
-			)
+			) )
 		);
 	}
 
@@ -253,10 +253,10 @@ function sn_migrate_split_hero_v3() {
 	}
 	if ( $content !== (string) $page->post_content ) {
 		wp_update_post(
-			array(
+			wp_slash( array(
 				'ID'           => $page->ID,
 				'post_content' => $content,
-			)
+			) )
 		);
 	}
 
@@ -305,10 +305,10 @@ function sn_migrate_split_hero_v4() {
 	}
 	if ( $content !== (string) $page->post_content ) {
 		wp_update_post(
-			array(
+			wp_slash( array(
 				'ID'           => $page->ID,
 				'post_content' => $content,
-			)
+			) )
 		);
 	}
 
@@ -391,10 +391,10 @@ function sn_migrate_split_hero_v5() {
 		$content = str_replace( '"contentSize":"1400px"', '"contentSize":"1320px"', $content );
 		if ( $content !== (string) $page->post_content ) {
 			wp_update_post(
-				array(
+				wp_slash( array(
 					'ID'           => $page->ID,
 					'post_content' => $content,
-				)
+				) )
 			);
 		}
 	}
@@ -443,10 +443,10 @@ function sn_migrate_split_hero_v6() {
 		$content = sn_split_hero_apply_pairs( (string) $page->post_content, $pairs );
 		if ( $content !== (string) $page->post_content ) {
 			wp_update_post(
-				array(
+				wp_slash( array(
 					'ID'           => $page->ID,
 					'post_content' => $content,
-				)
+				) )
 			);
 		}
 	}
@@ -483,10 +483,10 @@ function sn_migrate_split_hero_v7() {
 	);
 	if ( $content !== (string) $page->post_content ) {
 		wp_update_post(
-			array(
+			wp_slash( array(
 				'ID'           => $page->ID,
 				'post_content' => $content,
-			)
+			) )
 		);
 	}
 	update_option( SN_SPLIT_HERO_V7_OPT, time(), false );
@@ -537,10 +537,10 @@ function sn_migrate_split_hero_v9() {
 
 ", $band ), '', $content );
 		wp_update_post(
-			array(
+			wp_slash( array(
 				'ID'           => $page->ID,
 				'post_content' => $content,
-			)
+			) )
 		);
 	}
 	// /now + /uses: one regenerate so the stored bodies pick up the

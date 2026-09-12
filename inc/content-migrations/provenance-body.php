@@ -72,10 +72,10 @@ function sn_migrate_provenance_body() {
 		return;
 	}
 
-	wp_update_post( array(
+	wp_update_post( wp_slash( array(
 		'ID'           => $page->ID,
 		'post_content' => $body,
-	) );
+	) ) );
 
 	update_option( SN_PROV_BODY_MIGRATED_OPT, time(), true );
 }
@@ -136,10 +136,10 @@ function sn_migrate_provenance_refinements() {
 	}
 
 	if ( $body !== $original ) {
-		wp_update_post( array(
+		wp_update_post( wp_slash( array(
 			'ID'           => $page->ID,
 			'post_content' => $body,
-		) );
+		) ) );
 	}
 
 	update_option( SN_PROV_REFINE_MIGR_OPT, time(), true );

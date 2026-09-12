@@ -37,6 +37,8 @@ $GLOBALS['__page']    = null;
 $GLOBALS['__updates'] = array();
 $GLOBALS['__inserts'] = array();
 function get_page_by_path( $path ) { return $GLOBALS['__page']; }
+// #1177: the writer now hands core wp_slash()ed data; the stub keeps the value as-is so the assertions below read what was sent.
+if ( ! function_exists( 'wp_slash' ) ) { function wp_slash( $v ) { return $v; } }
 function wp_update_post( $arr ) { $GLOBALS['__updates'][] = $arr; return $arr['ID'] ?? 0; }
 function wp_insert_post( $arr, $wp_error = false ) { $GLOBALS['__inserts'][] = $arr; return 777; }
 if ( ! defined( 'SN_RESUME_SLUG' ) ) { define( 'SN_RESUME_SLUG', 'resume' ); }

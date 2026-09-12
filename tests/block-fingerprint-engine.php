@@ -45,6 +45,8 @@ function parse_blocks( $content ) {
 function serialize_block( $block ) { return json_encode( $block ); }
 function serialize_blocks( $tree ) { return json_encode( $tree ); }
 function current_user_can( $cap, $post_id = null ) { return $GLOBALS['__test_capabilities']; }
+// #1177: the writer now hands core wp_slash()ed data; the stub keeps the value as-is so the assertions below read what was sent.
+if ( ! function_exists( 'wp_slash' ) ) { function wp_slash( $v ) { return $v; } }
 function wp_update_post( $args, $wp_error = false ) {
 	if ( $GLOBALS['__test_update_fail'] ) {
 		return new WP_Error( 'mock_update_fail', 'mocked failure' );

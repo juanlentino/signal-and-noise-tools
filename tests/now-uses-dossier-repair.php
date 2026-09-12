@@ -33,6 +33,8 @@ if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false )
 if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $a = null ) { $GLOBALS['__opt'][ $k ] = $v; return true; } }
 // /now Page exists (so the regen updates rather than inserts); nothing else resolves.
 if ( ! function_exists( 'get_page_by_path' ) ) { function get_page_by_path( $p, $o = OBJECT, $t = 'page' ) { return SN_NOW_SLUG === $p ? (object) array( 'ID' => 7, 'post_content' => 'old', 'post_excerpt' => 'x' ) : null; } }
+// #1177: the writer now hands core wp_slash()ed data; the stub keeps the value as-is so the assertions below read what was sent.
+if ( ! function_exists( 'wp_slash' ) ) { function wp_slash( $v ) { return $v; } }
 if ( ! function_exists( 'wp_update_post' ) ) { function wp_update_post( $a ) { $GLOBALS['__upd'][] = $a; return $a['ID']; } }
 if ( ! function_exists( 'wp_insert_post' ) ) { function wp_insert_post( $a, $e = false ) { return 9; } }
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }

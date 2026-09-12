@@ -93,6 +93,6 @@ function sn_migrate_music_body() {
 		$update['post_excerpt'] = 'Selected discography: releases produced, mixed, and engineered by Juan Lentino, with credits and streaming links.';
 	}
 
-	wp_update_post( $update );
+	wp_update_post( wp_slash( $update ) );
 	update_option( SN_MUSIC_BODY_MERGED_OPT, time(), true );
 }

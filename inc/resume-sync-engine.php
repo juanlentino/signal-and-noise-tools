@@ -359,12 +359,12 @@ function sn_resume_upsert_page( $body ) {
 		if ( '' === trim( (string) $page->post_excerpt ) ) {
 			$update['post_excerpt'] = $excerpt;
 		}
-		wp_update_post( $update );
+		wp_update_post( wp_slash( $update ) );
 		return (int) $page->ID;
 	}
 
 	$new_id = wp_insert_post(
-		array(
+		wp_slash( array(
 			'post_title'    => 'Resume',
 			'post_name'     => $slug,
 			'post_parent'   => 0,
@@ -373,7 +373,7 @@ function sn_resume_upsert_page( $body ) {
 			'post_content'  => $body,
 			'post_excerpt'  => $excerpt,
 			'page_template' => 'page-resume',
-		),
+		) ),
 		false
 	);
 

@@ -54,6 +54,8 @@ if ( ! function_exists( 'get_page_by_path' ) ) {
 if ( ! function_exists( 'wp_insert_post' ) ) {
 	// Record the insert; return a fixed synthetic ID. Tests seed existing
 	// pages manually into __pv_pages to exercise the idempotent path.
+// #1177: the writer now hands core wp_slash()ed data; the stub keeps the value as-is so the assertions below read what was sent.
+if ( ! function_exists( 'wp_slash' ) ) { function wp_slash( $v ) { return $v; } }
 	function wp_insert_post( $args = array(), $wp_error = false ) {
 		++$GLOBALS['__pv_inserts'];
 		$GLOBALS['__pv_last_insert'] = $args;

@@ -76,6 +76,6 @@ function sn_migrate_about_body() {
 		$update['post_excerpt'] = 'Music producer, mix engineer, and creative strategist based in Buenos Aires. The person behind the work, the studio, and the notes.';
 	}
 
-	wp_update_post( $update );
+	wp_update_post( wp_slash( $update ) );
 	update_option( SN_ABOUT_BODY_MIGRATED_OPT, time(), true );
 }

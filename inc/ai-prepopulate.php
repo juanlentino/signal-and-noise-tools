@@ -181,10 +181,10 @@ function snt_run_prepop( $post_id ) {
 		$res = snt_ai_excerpt_impl( $post_id, true );
 		if ( is_array( $res ) && ! empty( $res['excerpt'] ) ) {
 			$updated = wp_update_post(
-				array(
+				wp_slash( array(
 					'ID'           => $post_id,
 					'post_excerpt' => sanitize_textarea_field( $res['excerpt'] ),
-				),
+				) ),
 				true
 			);
 			if ( ! is_wp_error( $updated ) && $updated ) {
