@@ -71,7 +71,7 @@ function sn_analytics_posts_lifecycle_rows( $posts, $series_by_path, $now ) {
 		foreach ( $by_dol as $v ) {
 			$lifetime += (int) $v;
 		}
-		$age       = ( $publish > 0 ) ? (int) floor( ( (int) $now - $publish ) / DAY_IN_SECONDS ) : 0;
+		$age       = sn_analytics_posts_age( $publish, (int) $now );
 		$evergreen = ! empty( $p['evergreen'] );
 		$cls       = sn_analytics_lifecycle_classify( $by_dol, SN_POSTS_DECAY_DAYS, $evergreen );
 
