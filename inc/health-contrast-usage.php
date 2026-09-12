@@ -308,8 +308,13 @@ function sn_health_contrast_usage_rules( $css ) {
 	$rules = array();
 	if ( preg_match_all( '/([^{}]+)\{([^{}]*)\}/s', (string) $css, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE ) ) {
 		foreach ( $matches as $match ) {
-			$lines = preg_split( '/\R/', trim( $match[1][0] ) );
-			$sel   = trim( (string) end( $lines ) );
+			// #1185: `end( $lines )` kept only the LAST selector line, so a
+			// multi-line list (`.card-title,\n.card-note{…}`) scored only
+			// `.card-note`. Strip a leading @import/@charset statement (the
+			// case the last-line hack existed for -- it shares this capture
+			// with the real selector below it) instead, and keep the FULL
+			// selector list.
+			$sel = trim( (string) preg_replace( '/^.*;\s*/s', '', trim( $match[1][0] ) ) );
 			if ( '' === $sel || '@' === $sel[0] ) {
 				continue;
 			}
