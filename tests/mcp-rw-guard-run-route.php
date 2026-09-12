@@ -49,8 +49,11 @@ class RW_Ability {
 	public function __construct( $ro ) { $this->ro = $ro; }
 	public function get_meta() { return array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => $this->ro ) ); }
 }
+function wp_has_ability( $slug ) { return array_key_exists( $slug, $GLOBALS['__abilities'] ); }
+$GLOBALS['__unknown_fetches'] = array();
 function wp_get_ability( $slug ) {
-	return array_key_exists( $slug, $GLOBALS['__abilities'] ) ? new RW_Ability( $GLOBALS['__abilities'][ $slug ] ) : null;
+	if ( ! array_key_exists( $slug, $GLOBALS['__abilities'] ) ) { $GLOBALS['__unknown_fetches'][] = $slug; return null; } // core would emit a notice here
+	return new RW_Ability( $GLOBALS['__abilities'][ $slug ] );
 }
 
 // The audit sink: every row the guard writes lands here.
@@ -115,6 +118,7 @@ ok( null === sn_mcp_rw_guard_run_route( null, null, new RG_Req( run_route( $a_wr
 reset_state( $BOUND, $OTHER );
 ok( null === sn_mcp_rw_guard_run_route( null, null, new RG_Req( run_route( $a_read ) ) ), 'a READONLY ability passes even with the wrong app password — reads have their own guard' );
 ok( null === sn_mcp_rw_guard_run_route( null, null, new RG_Req( run_route( 'signal-noise/does-not-exist' ) ) ), 'an unregistered ability is not claimed (core answers 404; no enumeration oracle here)' );
+ok( array() === $GLOBALS['__unknown_fetches'], 'and the registry was asked first, so wp_get_ability() never saw the unknown name (#1214)' );
 ok( null === sn_mcp_rw_guard_run_route( null, null, new RG_Req( '/wp/v2/posts' ) ), 'an unrelated REST route is untouched' );
 $prior = new WP_Error( 'someone_elses_refusal', 'x', array( 'status' => 401 ) );
 ok( $prior === sn_mcp_rw_guard_run_route( $prior, null, new RG_Req( run_route( $a_write ) ) ), 'a non-null prior result passes through untouched' );

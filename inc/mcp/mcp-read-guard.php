@@ -409,6 +409,12 @@ function sn_mcp_read_guard_rate_limit_dispatch( $result, $server = null, $reques
 	if ( '' === $route || ! sn_mcp_read_guard_is_read_path( $route ) ) {
 		return $result;
 	}
+	// On the /mcp route the switch lives in the permission_callback, which
+	// runs after this hook, so nothing has answered yet here. Step aside for an
+	// engaged switch so the 403 wins over the 429, as on the run route (#1214).
+	if ( '' === sn_mcp_read_guard_route_slug( $route ) && sn_mcp_read_kill_switch_engaged() ) {
+		return $result;
+	}
 	$decision = sn_mcp_read_rate_limit_check(
 		sn_mcp_read_rate_limit_current_identity(),
 		sn_mcp_read_guard_route_is_remote( $route )

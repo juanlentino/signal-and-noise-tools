@@ -39,6 +39,7 @@ $GLOBALS['__abilities'] = array();
 if ( ! function_exists( 'wp_get_ability' ) ) { function wp_get_ability( $name ) { return $GLOBALS['__abilities'][ $name ] ?? null; } }
 if ( ! function_exists( 'wp_get_abilities' ) ) { function wp_get_abilities() { return array_values( $GLOBALS['__abilities'] ); } }
 
+require __DIR__ . '/../inc/mcp/mcp-capabilities.php'; // sn_mcp_get_ability(), as in the plugin's own load order.
 require __DIR__ . '/../inc/mcp/mcp-resources.php';
 
 $pass = 0; $fail = 0;

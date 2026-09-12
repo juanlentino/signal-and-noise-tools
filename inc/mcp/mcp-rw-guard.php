@@ -505,10 +505,7 @@ function sn_mcp_rw_guard_route_slug( $route ) {
  * @return bool
  */
 function sn_mcp_rw_guard_ability_is_readonly( $slug ) {
-	if ( ! function_exists( 'wp_get_ability' ) ) {
-		return true;
-	}
-	$ability = wp_get_ability( (string) $slug );
+	$ability = function_exists( 'sn_mcp_get_ability' ) ? sn_mcp_get_ability( $slug ) : null;
 	if ( ! $ability || ! method_exists( $ability, 'get_meta' ) ) {
 		return true;
 	}

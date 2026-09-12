@@ -127,6 +127,18 @@ ok( is_wp_error( $k ) && 'sn_mcp_read_disabled' === $k->get_error_code(), 'the s
 $k2 = sn_mcp_read_guard_rate_limit_dispatch( $k, null, new RL_Req( $run_route ) );
 ok( $k2 === $k, 'and the ceiling passes that 403 through untouched' );
 $GLOBALS['__options'] = array();
+// On the /mcp route the switch lives in the permission_callback, which runs
+// AFTER rest_pre_dispatch — so nothing has answered yet when the ceiling looks.
+// It must step aside for an engaged switch there too, or the 429 wins (#1214).
+$GLOBALS['__t'] = array();
+for ( $i = 0; $i < $cap; $i++ ) { sn_mcp_read_rate_limit_check( sn_mcp_read_rate_limit_current_identity() ); }
+$GLOBALS['__options']['sn_mcp_read_enabled'] = 0;
+ok( null === sn_mcp_read_guard_rate_limit_dispatch( null, null, new RL_Req( $mcp_route ) ), 'on /mcp with the switch engaged and the ceiling exhausted, the ceiling stands aside so the permission callback answers 403' );
+$GLOBALS['__options'] = array();
+$GLOBALS['__t'] = array();
+for ( $i = 0; $i < $cap; $i++ ) { sn_mcp_read_rate_limit_check( sn_mcp_read_rate_limit_current_identity() ); }
+$m2 = sn_mcp_read_guard_rate_limit_dispatch( null, null, new RL_Req( $mcp_route ) );
+ok( is_wp_error( $m2 ) && 429 === $m2->data['status'], 'control: switch open, the same exhausted state on /mcp still answers 429' );
 
 echo "\nGroup: fail-OPEN without a store, and it is documented as such\n";
 // Mirrors the write door: a throttle must not harden into an outage when its

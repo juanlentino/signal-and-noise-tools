@@ -63,7 +63,7 @@ function sn_mcp_telemetry_slug_reachable( $slug ) {
 	if ( ! function_exists( 'wp_get_ability' ) || ! function_exists( 'sn_mcp_project_tool' ) ) {
 		return null; // Abilities API absent — unknown, never an optimistic true.
 	}
-	$ability = wp_get_ability( $slug );
+	$ability = sn_mcp_get_ability( $slug );
 	if ( ! $ability ) {
 		return false;
 	}
