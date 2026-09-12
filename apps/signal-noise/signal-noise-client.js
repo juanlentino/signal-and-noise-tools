@@ -888,7 +888,9 @@
 		const columns = [
 			title,
 			{ key: 'statusLabel', label: __( 'Status' ), sortable: true },
-			{ key: 'dateLabel', label: __( 'Date' ), sortable: true },
+			// Sort on the instant, not the label: os-table compares the cell value
+			// as text, and "September 30" outranks "October 8" that way (v14.0.1).
+			{ key: 'dateLabel', label: __( 'Date' ), sortable: true, sortValue: ( row ) => Date.parse( row.date ) || 0 },
 			...extra,
 		];
 		if ( actionable ) {
@@ -909,6 +911,7 @@
 		title: item.title,
 		statusLabel: item.statusLabel,
 		dateLabel: item.dateLabel,
+		date: item.date,
 		...( item.columns || {} ),
 	} ) );
 

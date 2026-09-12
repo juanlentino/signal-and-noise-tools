@@ -371,5 +371,10 @@ ok(
 	'...and there are os-buttons to check -- ' . substr_count( $js, '<os-button' )
 );
 
+echo "\nGroup: the list sorts the Date column on the instant, not the label (v14.0.1)\n";
+ok( false !== strpos( $js, "key: 'dateLabel', label: __( 'Date' ), sortable: true, sortValue:" ), 'the Date column declares a sortValue -- os-table otherwise sorts the formatted label as text, and \"September 30\" outranks \"October 8\"' );
+ok( false !== strpos( $js, "sortValue: ( row ) => Date.parse( row.date ) || 0" ), 'sortValue parses the ISO date the row carries' );
+ok( false !== strpos( $js, "\t\tdate: item.date," ), 'the list row carries the ISO date beside the label so the sortValue can read it' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
