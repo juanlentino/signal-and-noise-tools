@@ -489,5 +489,24 @@ $GLOBALS['__att_no_alt'] = array();
 $r = sn_health_check_missing_alt();
 ok( null === $r['skipped'] && 0 === $r['count'], 'three empty result sets are a real pass: skipped is null' );
 
+// ── #1187: an apostrophe inside a double-quoted attribute value ────────────
+$apostrophe_img = '<img src="/logo.png" alt="Logo\'s original sketch">';
+$parsed_apos    = sn_health_extract_inline_imgs_with_alt( $apostrophe_img );
+ok( 1 === count( $parsed_apos ) && "Logo's original sketch" === ( $parsed_apos[0]['alt'] ?? '' ),
+	'#1187: alt="Logo\'s original sketch" is captured WHOLE, not cut at the apostrophe' );
+ok( '/logo.png' === ( $parsed_apos[0]['src'] ?? '' ), '#1187: src is unaffected alongside an apostrophe-carrying alt' );
+
+$single_quoted_img = "<img src='/x.png' alt='a \"quoted\" word'>";
+$parsed_single      = sn_health_extract_inline_imgs_with_alt( $single_quoted_img );
+ok( 1 === count( $parsed_single ) && 'a "quoted" word' === ( $parsed_single[0]['alt'] ?? '' ),
+	'#1187: a single-quoted alt containing a double quote is captured whole too' );
+
+// ── #1187: \bid must not match the `id` inside `data-id` ───────────────────
+$svg_data_id = '<svg data-id="tracking-123" role="img"><rect/></svg>';
+ok( 'unnamed' === sn_health_svg_accessible_name_status( ' data-id="tracking-123" role="img"', '<rect/>' ),
+	'#1187: data-id is not aria-label/aria-labelledby -- an svg with only data-id is still unnamed' );
+ok( false === strpos( sn_health_svg_hint( 1, ' data-id="tracking-123"' ), 'id="tracking-123"' ),
+	'#1187: the svg hint does not report a fake `id` sourced from `data-id`' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
