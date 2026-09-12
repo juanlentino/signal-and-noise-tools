@@ -13,6 +13,8 @@ define( 'ABSPATH', '/' );
 define( 'DAY_IN_SECONDS', 86400 );
 function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); }
 function get_permalink( $id ) { return $GLOBALS['__perma'][ $id ] ?? false; }
+// The site runs at UTC-4 (a summer-ET site): its calendar day is NOT the UTC day.
+function wp_date( $format, $ts = null ) { return ( new DateTime( '@' . (int) $ts ) )->setTimezone( new DateTimeZone( 'America/New_York' ) )->format( $format ); }
 // The verdict reuses the canonical delta primitive (stubbed to its real semantics).
 function sn_analytics_delta( $cur, $prev ) {
 	$cur = (float) $cur; $prev = (float) $prev;
@@ -34,7 +36,7 @@ ok( '/notes/the-signal/' === sn_analytics_post_path( 7 ), 'permalink → path ke
 ok( '' === sn_analytics_post_path( 404 ), 'unknown post → empty path (no crash)' );
 
 echo "\nGroup: daily series → views indexed by day-of-life\n";
-$pub = strtotime( '2026-06-01 00:00:00 UTC' );
+$pub = strtotime( '2026-06-01 12:00:00 UTC' ); // midday on 2026-06-01 in the site's zone too
 $series = array(
 	array( 'day' => '2026-06-01', 'views' => 10 ),
 	array( 'day' => '2026-06-03', 'views' => 5 ),
@@ -46,6 +48,18 @@ ok( ( $by_dol[0] ?? null ) === 10 && ( $by_dol[2] ?? null ) === 5 && ( $by_dol[3
 ok( ! isset( $by_dol[1] ), 'a day with no rows is simply absent (not zero-filled)' );
 ok( array() === sn_analytics_posts_daily_by_dol( array( array( 'day' => '2026-05-30', 'views' => 9 ) ), $pub ),
 	'a pre-publish day (negative day-of-life) is dropped' );
+
+// #1200 -- the rollup keys `day` on the SITE-LOCAL day (schema v4); a note
+// published 21:30 ET = 01:30 UTC next day had its launch-evening rows keyed on
+// the local day, which a UTC publish day turned into dol -1 and dropped.
+echo "\nGroup: publish day is the SITE-LOCAL day, like the rollup's day column (#1200)\n";
+$pub_evening = strtotime( '2026-06-02 01:30:00 UTC' ); // 21:30 ET on 2026-06-01
+$bd = sn_analytics_posts_daily_by_dol( array( array( 'day' => '2026-06-01', 'views' => 10 ), array( 'day' => '2026-06-02', 'views' => 4 ) ), $pub_evening );
+ok( ( $bd[0] ?? null ) === 10 && ( $bd[1] ?? null ) === 4, 'launch-evening rows (local day of publish) are day-of-life 0, not dropped as dol -1' );
+$now_after_midnight = strtotime( '2026-06-02 04:30:00 UTC' ); // 00:30 ET on 2026-06-02, 3h after publish
+ok( 1 === sn_analytics_posts_age( $pub_evening, $now_after_midnight ), 'age is a calendar-day difference in site-local days (published yesterday evening -> age 1), not a 24h count' );
+ok( 0 === sn_analytics_posts_age( $pub_evening, $pub_evening + 3600 ), 'same local day -> age 0' );
+ok( 0 === sn_analytics_posts_age( 0, $now_after_midnight ), 'no publish stamp -> age 0' );
 
 echo "\nGroup: cumulative views through a given age\n";
 $bd = array( 0 => 10, 2 => 5, 3 => 2 );

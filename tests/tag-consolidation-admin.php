@@ -88,6 +88,13 @@ ok( strpos( $h, '_wpnonce' ) !== false, 'preview: confirm form carries a nonce' 
 ok( strpos( $h, 'page=sn-content' ) !== false && strpos( $h, 'tab=content' ) !== false, 'preview: confirm form posts back to the sn-content page (dispatcher contract)' );
 ok( strpos( $h, 'name="sn_tag_from" value="10,11"' ) !== false, 'preview: confirm hidden field round-trips the ids as a comma string for the POST handler' );
 ok( strpos( $h, 'class="sn-glance"' ) === false, 'preview: the confirm panel stays focused — no glance hero on the confirm view' );
+
+// #1228: "Nothing to merge" path must close its ONE opening <div class="sn-fieldset">
+// with exactly one </div> — a stray extra </div> unbalances every markup after it.
+$_GET['sn_tag_preview'] = '1'; $_GET['sn_tag_from'] = array(); $_GET['sn_tag_into'] = '0';
+ob_start(); sn_admin_render_tag_cleanup_section(); $h_empty = ob_get_clean();
+ok( strpos( $h_empty, 'Nothing to merge' ) !== false, 'fixture: the empty-preview path really renders "Nothing to merge" (so this pin cannot be vacuous)' );
+ok( substr_count( $h_empty, '<div' ) === substr_count( $h_empty, '</div>' ), '#1228: the "Nothing to merge" panel has balanced div tags (no stray extra </div>)' );
 unset( $_GET['sn_tag_preview'], $_GET['sn_tag_from'], $_GET['sn_tag_into'] );
 
 // recent merges

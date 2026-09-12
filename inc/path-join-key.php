@@ -114,6 +114,13 @@ function sn_path_join_key( $uri ) {
  * @return array{joined:array<string,array{left:mixed,right:mixed}>,left_only:string[],right_only:string[],left_unjoinable:int,right_unjoinable:int}
  */
 function sn_path_join( $left, $right ) {
+	// #1228: two distinct raw keys can normalize to the same canonical key
+	// (e.g. a trailing-slash / case / encoding difference) — without the
+	// isset() guard the second silently overwrote the first with no count
+	// anywhere, the same silent-drop failure mode $unjoinable exists to
+	// prevent for an empty key. No caller reads this today, so this is the
+	// value from the FIRST raw key seen; the second counts as $unjoinable,
+	// same as an empty key — it never got a slot in the joined map either.
 	$norm = function ( $map, &$unjoinable ) {
 		$out = array();
 		foreach ( (array) $map as $k => $v ) {
@@ -121,6 +128,10 @@ function sn_path_join( $left, $right ) {
 			if ( '' === $key ) {
 				$unjoinable++;
 				continue; // never fold an unjoinable row onto '/'
+			}
+			if ( isset( $out[ $key ] ) ) {
+				$unjoinable++;
+				continue; // collision: first-seen wins, never a silent overwrite
 			}
 			$out[ $key ] = $v;
 		}

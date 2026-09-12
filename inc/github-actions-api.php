@@ -23,6 +23,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SNT_GH_RUNS_CACHE_KEY_PREFIX = 'sn_gh_recent_runs_';
+// #1223: the etag used to live INSIDE the data transient above, sharing its
+// 5-minute TTL. Every expiry took the etag with it, so If-None-Match was
+// never sent past the first request and the 304 branch below was dead —
+// every poll spent quota the comment above says it saves. A long-lived,
+// SEPARATE transient lets the etag outlive the data it once described.
+const SNT_GH_RUNS_ETAG_CACHE_KEY_PREFIX = 'sn_gh_recent_runs_etag_';
+const SNT_GH_RUNS_ETAG_TTL              = DAY_IN_SECONDS;
 // v1.15.2: bumped 60s → 5min after hitting 53/60 GitHub API rate limit on
 // the unauthenticated 60/h tier. ETag-based conditional requests (added in
 // v1.15.2 as the real fix) make the practical TTL essentially infinite for
@@ -61,18 +68,30 @@ function snt_gh_recent_runs( $repo, $count = 5 ) {
 	}
 	$count = max( 1, min( 30, (int) $count ) );
 
-	$cache_key = SNT_GH_RUNS_CACHE_KEY_PREFIX . sanitize_key( str_replace( '/', '-', $repo ) );
-	$cached    = get_site_transient( $cache_key );
+	// #1223: the key omits $count, so a 1-count poll (the desktop widget) and
+	// a 10-count poll (the dashboard) shared one cache entry — whichever
+	// polled last filled it, and the other read a truncated/over-long list
+	// for up to the full TTL. Include $count so each distinct request shape
+	// gets its own entry.
+	$repo_slug     = sanitize_key( str_replace( '/', '-', $repo ) );
+	$cache_key     = SNT_GH_RUNS_CACHE_KEY_PREFIX . $repo_slug . '-' . $count;
+	$etag_cache_key = SNT_GH_RUNS_ETAG_CACHE_KEY_PREFIX . $repo_slug . '-' . $count;
+	$cached        = get_site_transient( $cache_key );
+	$cached_etag   = (string) get_site_transient( $etag_cache_key );
 
-	// v1.15.2: cache shape upgraded to { data, etag, fetched_at } to
-	// support ETag conditional requests. Pre-v1.15.2 cached values are
-	// flat arrays of records — handle both shapes during the transition.
+	// v1.15.2: cache shape upgraded to { data, etag, fetched_at } to support
+	// ETag conditional requests; #1223 moved the etag to its own long-lived
+	// transient above, but a still-live entry from before that change may
+	// carry one inline — honor it as a fallback only when the new transient
+	// is empty. Pre-v1.15.2 cached values are flat arrays of records — handle
+	// all three shapes during the transition.
 	$cached_data = null;
-	$cached_etag = '';
 	if ( is_array( $cached ) ) {
 		if ( isset( $cached['data'] ) && is_array( $cached['data'] ) && array_key_exists( 'etag', $cached ) ) {
 			$cached_data = $cached['data'];
-			$cached_etag = (string) $cached['etag'];
+			if ( '' === $cached_etag ) {
+				$cached_etag = (string) $cached['etag'];
+			}
 		} else {
 			// Legacy v1.12-v1.15.1 flat shape — treat as data, no ETag.
 			$cached_data = $cached;
@@ -126,6 +145,9 @@ function snt_gh_recent_runs( $repo, $count = 5 ) {
 			'etag'       => $cached_etag,
 			'fetched_at' => time(),
 		), SNT_GH_RUNS_CACHE_TTL );
+		// #1223: the etag confirmed itself unchanged — keep it alive past
+		// the short data TTL so the NEXT expiry still has something to send.
+		set_site_transient( $etag_cache_key, $cached_etag, SNT_GH_RUNS_ETAG_TTL );
 		return $cached_data;
 	}
 
@@ -168,6 +190,12 @@ function snt_gh_recent_runs( $repo, $count = 5 ) {
 		'etag'       => $etag,
 		'fetched_at' => time(),
 	), SNT_GH_RUNS_CACHE_TTL );
+	// #1223: persisted separately from the data, on its own long TTL, so it
+	// survives the data cache's 5-minute expiry and the NEXT poll can still
+	// send If-None-Match instead of paying full quota for a repeat request.
+	if ( '' !== $etag ) {
+		set_site_transient( $etag_cache_key, $etag, SNT_GH_RUNS_ETAG_TTL );
+	}
 	return $records;
 }
 

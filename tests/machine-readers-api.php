@@ -177,6 +177,25 @@ ok( isset( $cached['version'] ) && '' === $cached['version'] && $again === $cach
 $GLOBALS['__cache_on']   = false;
 $GLOBALS['__transients'] = array();
 
+// #1206 -- the settings-save handler deleted `sn_mr_rows_30`, a key that
+// stopped existing in v10.79.0 (`sn_mr_rows_{days}_{view}`), so a new worker
+// URL / token kept serving the old credentials' rows for up to 15 minutes.
+// One flush beside the key builder, so a key change can never orphan it again.
+echo "\nGroup: #1206 — the cache flush clears every window/view key the fetch can build\n";
+function delete_transient( $k ) { unset( $GLOBALS['__transients'][ $k ] ); return true; }
+$GLOBALS['__cache_on']   = true;
+$GLOBALS['__transients'] = array(
+	'sn_mr_rows_30_aggregate' => array( 'ok' => true, 'rows' => array( 'stale' ) ),
+	'sn_mr_rows_30_unknown'   => array( 'ok' => true, 'rows' => array( 'stale' ) ),
+	'sn_mr_rows_7_rights'     => array( 'ok' => true, 'rows' => array( 'stale' ) ),
+	'sn_mr_rows_90_totals'    => array( 'ok' => true, 'rows' => array( 'stale' ) ),
+	'sn_mr_unrelated'         => 'keep',
+);
+snt_mr_cache_flush();
+ok( array( 'sn_mr_unrelated' => 'keep' ) === $GLOBALS['__transients'], 'snt_mr_cache_flush() deletes every rows key across windows and views and touches nothing else (#1206)' );
+$GLOBALS['__cache_on']   = false;
+$GLOBALS['__transients'] = array();
+
 echo "\nGroup: v9.86.0 — crawler-list status flattens last_check into scalars\n";
 $GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'worker' => 'sn-rights-signals', 'last_check' => array( 'ok' => true, 'drift' => false, 'checked_at' => '2026-07-27T07:23:00.000Z' ) ) ) );
 $st = snt_mr_crawler_list_status();

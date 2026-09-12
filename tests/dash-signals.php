@@ -100,5 +100,21 @@ $capped = sn_dash_signals_from_measurement( array( 'search_clicks' => 5, 'search
 ok( false !== strpos( sig( $capped, 'clicks' )['value'], '+' ),
 	'A CAPPED WINDOW RENDERS "5+" — the 250-page cap makes the sum a floor, and a floor shown as an exact number is a lie with a decimal point' );
 
+// #1228: an UNMEASURED signal with no compare must say "not measured", never
+// the "no prior period" fallback — that phrase implies the signal WAS
+// measured and simply has nothing to diff against, a different claim.
+echo "\nGroup: #1228 — unmeasured signal renders its own fallback wording\n";
+ob_start();
+sn_dash_render_signals( array( array( 'label' => 'Citations', 'value' => '—', 'measured' => false ) ) );
+$html = ob_get_clean();
+ok( false !== strpos( $html, 'not measured' ), 'an unmeasured signal with no compare says "not measured"' );
+ok( false === strpos( $html, 'no prior period' ), 'and never the "no prior period" wording, which implies it WAS measured' );
+
+ob_start();
+sn_dash_render_signals( array( array( 'label' => 'Views', 'value' => '120', 'measured' => true ) ) );
+$html2 = ob_get_clean();
+ok( false !== strpos( $html2, 'no prior period' ), 'a MEASURED signal with no compare still says "no prior period"' );
+ok( false === strpos( $html2, 'not measured' ), 'and never claims it was unmeasured' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

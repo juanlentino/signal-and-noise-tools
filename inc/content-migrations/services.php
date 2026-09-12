@@ -76,6 +76,6 @@ function sn_migrate_services_body() {
 		$update['post_excerpt'] = 'What Juan Lentino offers: production, mixing, mastering, songwriting, plus operations, AI strategy, and artist development, in-studio at Panacea or remote.';
 	}
 
-	wp_update_post( $update );
+	wp_update_post( wp_slash( $update ) );
 	update_option( SN_SERVICES_BODY_MIGRATED_OPT, time(), true );
 }

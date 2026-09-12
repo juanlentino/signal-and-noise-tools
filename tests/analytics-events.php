@@ -27,10 +27,11 @@ class EV_Stub_wpdb {
 			switch ( $m[0] ) { case '%d': return (string) (int) $a; case '%f': return (string) (float) $a; default: return "'" . addslashes( (string) $a ) . "'"; }
 		}, $query );
 	}
+	public $last_error = '';
 	public function query( $sql ) {
 		$this->queries[] = $sql;
-		// Count rows from VALUES clauses for upsert counting.
-		preg_match_all( '/\(%s,\s*%s,\s*%d,\s*%d\)/', $sql, $m );
+		if ( ! empty( $GLOBALS['__ev_query_fail'] ) ) { $this->last_error = 'Incorrect string value: \'\\xE2\\x82\' for column \'name\''; return false; }
+		$this->last_error = '';
 		return true;
 	}
 	public function get_results( $sql, $output = ARRAY_A ) {
@@ -119,6 +120,33 @@ ok( strpos( $last_sql, 'wp_sn_analytics_events' ) !== false, 'events_upsert: tar
 ok( strpos( $last_sql, "INSERT INTO" ) !== false, 'events_upsert: uses INSERT INTO' );
 // Verify prepare was called (quotes around string placeholders).
 ok( strpos( $last_sql, "'2026-05-" ) !== false, 'events_upsert: day bound via prepare (quoted string)' );
+// #1207 -- substr() cut by BYTES into a utf8mb4 VARCHAR(120): 'a' + 40 x '€'
+// is 121 bytes but 41 characters; the byte cut split the 40th euro sign,
+// strict-mode MySQL rejected the whole chunk, and nothing was logged.
+$GLOBALS['wpdb']->queries = array();
+$wide = 'a' . str_repeat( "\u{20ac}", 40 );
+sn_analytics_events_upsert( array( array( 'day' => '2026-05-10', 'name' => $wide, 'visitors' => 1, 'events' => 1 ) ) );
+ok( strpos( end( $GLOBALS['wpdb']->queries ), "'" . $wide . "'" ) !== false, 'events_upsert: a 41-character / 121-byte name is bound whole — the cap is characters, not bytes (#1207)' );
+$GLOBALS['wpdb']->queries = array();
+sn_analytics_events_upsert( array( array( 'day' => '2026-05-10', 'name' => str_repeat( "\u{20ac}", 130 ), 'visitors' => 1, 'events' => 1 ) ) );
+ok( strpos( end( $GLOBALS['wpdb']->queries ), "'" . str_repeat( "\u{20ac}", 120 ) . "'" ) !== false && strpos( end( $GLOBALS['wpdb']->queries ), str_repeat( "\u{20ac}", 121 ) ) === false, 'events_upsert: 130 characters cut to exactly 120 characters (#1207)' );
+$GLOBALS['wpdb']->queries = array();
+sn_analytics_event_props_upsert( array( array( 'day' => '2026-05-10', 'property' => str_repeat( "\u{20ac}", 70 ), 'value' => str_repeat( "\u{20ac}", 200 ), 'visitors' => 1, 'events' => 1 ) ) );
+$pq = end( $GLOBALS['wpdb']->queries );
+ok( strpos( $pq, "'" . str_repeat( "\u{20ac}", 60 ) . "', '" . str_repeat( "\u{20ac}", 180 ) . "'" ) !== false, 'event_props_upsert: property cut to 60 and value to 180 CHARACTERS (#1207)' );
+// A failed chunk is logged with the database error, never silently skipped.
+$ev_log = tempnam( sys_get_temp_dir(), 'sn-ev-log' );
+$ev_old = ini_set( 'error_log', $ev_log );
+$GLOBALS['__ev_query_fail'] = true;
+$GLOBALS['wpdb']->queries   = array();
+$ev_written = sn_analytics_events_upsert( array( array( 'day' => '2026-05-10', 'name' => 'click', 'visitors' => 1, 'events' => 1 ) ) );
+$pr_written = sn_analytics_event_props_upsert( array( array( 'day' => '2026-05-10', 'property' => 'plan', 'value' => 'pro', 'visitors' => 1, 'events' => 1 ) ) );
+$GLOBALS['__ev_query_fail'] = false;
+ini_set( 'error_log', $ev_old );
+$ev_logged = (string) file_get_contents( $ev_log );
+unlink( $ev_log );
+ok( 0 === $ev_written && 0 === $pr_written, 'a failed chunk counts nothing as written' );
+ok( 2 === substr_count( $ev_logged, 'Incorrect string value' ) && false !== strpos( $ev_logged, 'sn_analytics_events' ) && false !== strpos( $ev_logged, 'sn_analytics_event_props' ), 'a failed chunk in either writer is error_log()ged with $wpdb->last_error and the table (#1207)' );
 ok( sn_analytics_events_upsert( array() ) === 0, 'events_upsert: empty input returns 0' );
 ok( sn_analytics_events_upsert( 'not-array' ) === 0, 'events_upsert: non-array input returns 0' );
 

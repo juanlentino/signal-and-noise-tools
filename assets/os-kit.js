@@ -162,7 +162,11 @@
 		if ( ! state ) {
 			return;
 		}
-		var args = { sn_range: String( state.range || '' ), sn_class: String( state[ 'class' ] || '' ) };
+		// #1228: sn_compare was dropped on this tab-switch forward, so the
+		// active compare mode silently reset when jumping between analytics
+		// views — the sibling read path (apps/sn-analytics/parts/state.php)
+		// carries it as `compare`/`sn_compare` alongside range/class/from/to.
+		var args = { sn_range: String( state.range || '' ), sn_class: String( state[ 'class' ] || '' ), sn_compare: String( state.compare || '' ) };
 		if ( args.sn_range === 'custom' ) {
 			args.sn_from = String( state.from || '' );
 			args.sn_to = String( state.to || '' );

@@ -258,7 +258,17 @@ function sn_prov_webfinger_send( $uri ) {
  * template_redirect handler.
  */
 function sn_prov_webfinger_maybe_serve() {
-	$req = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+	// #1220: sanitize_text_field() strips every %xx octet from the raw
+	// REQUEST_URI (WP core's _sanitize_text_fields() removes anything
+	// LOOKING percent-encoded, regardless of context), so
+	// `?resource=acct%3Ajuan%40juanlentino.com` became
+	// `?resource=acctjuanjuanlentino.com` before urldecode() ever ran, and
+	// every resource match failed. The query is parsed and urldecoded
+	// per-value in sn_prov_webfinger_parse_query(); nothing read from it is
+	// ever echoed raw (sn_prov_webfinger_document() returns only this site's
+	// own fixed subject/aliases/links), so nothing here needs pre-sanitizing.
+	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- deliberately unsanitized (see comment above): sanitize_text_field() strips valid %xx octets, and every value read from this string is urldecode()'d per-field and never echoed raw.
+	$req = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
 	if ( sn_prov_webfinger_is_request( $req ) ) {
 		sn_prov_webfinger_send( $req );
 		exit;

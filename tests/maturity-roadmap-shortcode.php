@@ -473,5 +473,16 @@ ok( '' !== $rh, 'the roadmap renders under the test stubs' );
 ok( false !== strpos( $rh, '<h2>Roadmap</h2>' ), 'a11y: the board heading is an H2 -- the shortcode sits directly under the page H1' );
 ok( false === strpos( $rh, '<h3' ), 'a11y: no H3 anywhere in the board' );
 
+echo "\nGroup: #1227 — length caps are mb_-safe (characters, not bytes)\n";
+// A multibyte-heavy label/item can be well under the character cap while
+// exceeding it in bytes; strlen() would wrongly reject it.
+$mb_label_ok = str_repeat( 'Ω', 80 ); // exactly 80 chars, 160 bytes.
+$board_ok    = array( $mb_label_ok => array( 'done' => array( str_repeat( 'Ω', 400 ) ) ) );
+ok( array() === sn_maturity_roadmap_board_problems( $board_ok ), 'an 80-CHAR multibyte label + 400-CHAR multibyte item are accepted, not rejected on byte length' );
+
+$mb_label_over = str_repeat( 'Ω', 81 ); // 81 chars: genuinely over the cap.
+$board_over    = array( $mb_label_over => array( 'done' => array( 'fine' ) ) );
+ok( count( sn_maturity_roadmap_board_problems( $board_over ) ) > 0, 'an 81-CHAR label is still correctly rejected' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

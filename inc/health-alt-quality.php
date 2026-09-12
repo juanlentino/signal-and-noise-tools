@@ -23,6 +23,34 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Read one HTML attribute's value out of a raw attribute string.
+ *
+ * #1187: a single `["\']([^"\']*)["\']` value class excludes BOTH quote
+ * characters, so a double-quoted value containing an apostrophe (`alt="Logo's
+ * sketch"`) is cut at the apostrophe -- the class can't tell "the value ended"
+ * from "the other quote character showed up inside it". Matching each quote
+ * style separately (this function) lets a double-quoted value contain an
+ * apostrophe, and a single-quoted value contain a double quote.
+ *
+ * Also guards the attribute NAME with `(?<![\w-])`, so `\bid` -- which treats
+ * `-` as a boundary -- cannot match the `id` inside `data-id`.
+ *
+ * @param string $attrs Raw attribute text.
+ * @param string $name  Attribute name (no regex metacharacters expected).
+ * @return string|null The attribute's value, or null if it is not present.
+ */
+function sn_health_attr_value( $attrs, $name ) {
+	$pattern = '/(?<![\w-])' . preg_quote( $name, '/' ) . '\s*=\s*(?:"([^"]*)"|\'([^\']*)\')/i';
+	if ( ! preg_match( $pattern, (string) $attrs, $m ) ) {
+		return null;
+	}
+	// Siblings in an alternation: whichever branch did NOT match is simply
+	// absent from $m (not filled with ''), so this is unambiguous even when
+	// the matched value itself is the empty string.
+	return array_key_exists( 2, $m ) ? $m[2] : $m[1];
+}
+
+/**
  * Find inline <svg> elements that expose no accessible name and are not marked
  * decorative.
  *
@@ -80,8 +108,8 @@ function sn_health_svg_accessible_name_status( $attrs, $inner ) {
 
 	// Named by attribute. An EMPTY value names nothing.
 	foreach ( array( 'aria-label', 'aria-labelledby' ) as $attr ) {
-		if ( preg_match( '/\b' . preg_quote( $attr, '/' ) . '\s*=\s*["\']([^"\']*)["\']/i', $attrs, $am )
-			&& '' !== trim( $am[1] ) ) {
+		$val = sn_health_attr_value( $attrs, $attr );
+		if ( null !== $val && '' !== trim( $val ) ) {
 			return 'named';
 		}
 	}
@@ -142,8 +170,9 @@ function sn_health_svg_has_direct_child_title( $inner ) {
  */
 function sn_health_svg_hint( $ordinal, $attrs ) {
 	foreach ( array( 'id', 'class' ) as $attr ) {
-		if ( preg_match( '/\b' . $attr . '\s*=\s*["\']([^"\']+)["\']/i', $attrs, $m ) ) {
-			$val = trim( preg_replace( '/\s+/', ' ', $m[1] ) );
+		$raw = sn_health_attr_value( $attrs, $attr );
+		if ( null !== $raw ) {
+			$val = trim( preg_replace( '/\s+/', ' ', $raw ) );
 			if ( '' !== $val ) {
 				return sprintf( '<svg> #%d (%s="%s")', (int) $ordinal, $attr, substr( $val, 0, 60 ) );
 			}
@@ -421,19 +450,17 @@ function sn_health_extract_inline_imgs_with_alt( $content ) {
 
 	$out = array();
 	foreach ( $matches[1] as $i => $attr_hit ) {
-		$attrs = (string) $attr_hit[0];
-		if ( ! preg_match( '/\balt\s*=\s*["\']([^"\']*)["\']/i', $attrs, $am ) ) {
+		$attrs    = (string) $attr_hit[0];
+		$alt_attr = sn_health_attr_value( $attrs, 'alt' );
+		if ( null === $alt_attr ) {
 			continue; // No alt at all — that is the coverage pass's finding.
 		}
-		$alt = trim( $am[1] );
+		$alt = trim( $alt_attr );
 		if ( '' === $alt ) {
 			continue; // Explicit alt="" is a valid decorative marker.
 		}
 
-		$src = '';
-		if ( preg_match( '/\bsrc\s*=\s*["\']([^"\']+)["\']/i', $attrs, $sm ) ) {
-			$src = $sm[1];
-		}
+		$src = (string) ( sn_health_attr_value( $attrs, 'src' ) ?? '' );
 
 		$tag_end = $matches[0][ $i ][1] + strlen( $matches[0][ $i ][0] );
 		$out[]   = array(

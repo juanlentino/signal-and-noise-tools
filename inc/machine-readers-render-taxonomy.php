@@ -284,13 +284,18 @@ function snt_mr_rights_table( $visible ) {
 		__( 'User agent', 'signal-and-noise-tools' ) => '',
 	) );
 	foreach ( $visible as $r ) {
-		$when   = substr( preg_replace( '/[^0-9T:.\-Z]/', '', (string) ( $r['observed_at'] ?? '' ) ), 0, 20 );
+		// #1227: 20 chars lands exactly after the seconds' '.', cutting off
+		// every millisecond digit and leaving a bare trailing dot
+		// ("2026-06-10T12:00:00."). 24 chars fits the full
+		// "YYYY-MM-DDTHH:MM:SS.sssZ" shape.
+		$when   = substr( preg_replace( '/[^0-9T:.\-Z]/', '', (string) ( $r['observed_at'] ?? '' ) ), 0, 24 );
 		$vendor = snt_mr_normalize_vendor( $r['vendor'] ?? '' );
 		$out   .= '<tr><td class="column-primary"><code>' . esc_html( $when ) . '</code></td>'
 			. '<td data-colname="Vendor">' . esc_html( '' !== $vendor ? $vendor : '—' ) . '</td>'
 			. '<td data-colname="Purpose">' . esc_html( (string) ( $r['purpose'] ?? 'unknown' ) ) . '</td>'
-			. '<td data-colname="Document"><code>' . esc_html( substr( (string) ( $r['path'] ?? '' ), 0, 120 ) ) . '</code></td>'
-			. '<td data-colname="User agent"><code>' . esc_html( substr( (string) ( $r['user_agent'] ?? '' ), 0, 200 ) ) . '</code></td></tr>';
+			// mb_-safe (#1227): path/UA caps are character caps, not byte caps.
+			. '<td data-colname="Document"><code>' . esc_html( mb_substr( (string) ( $r['path'] ?? '' ), 0, 120 ) ) . '</code></td>'
+			. '<td data-colname="User agent"><code>' . esc_html( mb_substr( (string) ( $r['user_agent'] ?? '' ), 0, 200 ) ) . '</code></td></tr>';
 	}
 	$out .= '</tbody></table>';
 	return $out;

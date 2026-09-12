@@ -274,5 +274,25 @@ snt_cron_history_prune();
 $remaining = count( $GLOBALS['wpdb']->rows[ $old_table ] );
 ch_assert_eq( 1000, $remaining, 'cap pass trims to exactly 1000 rows' );
 
+// ─── Test 11: #1228 — post_cb records the REAL args, not always empty ──
+echo "\nTest 11: snt_cron_history_post_cb() records the real args\n";
+$GLOBALS['wpdb']->rows[ $old_table ] = array();
+$GLOBALS['__test_current_action'] = 'sn_some_cron_hook';
+snt_cron_history_pre_cb();
+// WP invokes the do_action callback with the hook's real scheduled args —
+// simulated here by calling post_cb with them directly (accepted_args on
+// the real add_action() is what makes WP do this on a live site).
+snt_cron_history_post_cb( 'post-id-42', 'some-arg' );
+$rows = snt_cron_history_for_hook( 'sn_some_cron_hook', 1 );
+$expected_sig = md5( serialize( array( 'post-id-42', 'some-arg' ) ) );
+$empty_sig    = md5( serialize( array() ) );
+ch_assert_eq( $expected_sig, $rows[0]['args_signature'] ?? null, 'args_signature reflects the REAL args the hook fired with' );
+ok_ne( $empty_sig, $rows[0]['args_signature'] ?? null, 'args_signature is NOT the always-empty-args hash (#1228)' );
+function ok_ne( $not_expected, $actual, $label ) {
+	global $pass, $fail;
+	if ( $not_expected !== $actual ) { $pass++; echo "PASS: $label\n"; }
+	else { $fail++; echo "FAIL: $label — got the excluded value " . var_export( $actual, true ) . "\n"; }
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

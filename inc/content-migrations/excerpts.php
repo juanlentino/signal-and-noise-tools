@@ -52,10 +52,10 @@ function sn_migrate_seed_page_excerpts() {
 		if ( '' !== trim( (string) ( $page->post_excerpt ?? '' ) ) ) {
 			continue;
 		}
-		wp_update_post( array(
+		wp_update_post( wp_slash( array(
 			'ID'           => (int) $page->ID,
 			'post_excerpt' => $excerpt,
-		) );
+		) ) );
 	}
 
 	update_option( SN_SEED_EXCERPTS_BACKFILL_OPT, time(), true );

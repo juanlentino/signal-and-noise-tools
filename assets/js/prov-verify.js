@@ -123,6 +123,13 @@
 	// record that outranks all of them.
 	var activeRetraction = null;
 
+	// #1219: a second submit while a paste-prefilled run is in flight let the
+	// first run's verdicts, proof walk and retraction paint over the second
+	// subject once its own network calls resolved later. Every runVerification()
+	// call gets the next number; its async callbacks check it still holds the
+	// most recent one before touching any shared UI state.
+	var runSeq = 0;
+
 	function paintVerdict() {
 		if ( ! verdictEl || 'function' !== typeof Core.deriveOverallVerdict ) {
 			return;
@@ -192,8 +199,18 @@
 	 * Paint one of the four checks. `state` is one of STATE.*; `detail` is the
 	 * plain-language sentence shown under it (never color alone — the state
 	 * word and an icon both change).
+	 *
+	 * `seq` (#1219) is the run-token the caller was given when it started; a
+	 * value that no longer matches runSeq means a later run has since taken
+	 * over the docket, and this write is a stale run's answer arriving late —
+	 * dropped rather than painted under the new subject. Callers outside a
+	 * run's own async chain (resetChecks, settlePendingChecks, the module's
+	 * own synchronous setup) omit it and always write.
 	 */
-	function setCheck( key, state, detail ) {
+	function setCheck( key, state, detail, seq ) {
+		if ( undefined !== seq && seq !== runSeq ) {
+			return;
+		}
 		var li = root.querySelector( '.sn-verify-check[data-check="' + key + '"]' );
 		if ( ! li ) {
 			return;
@@ -219,8 +236,8 @@
 	}
 
 	/** Paint a { state, detail } verdict the core derived onto a check row. */
-	function setVerdict( key, verdict ) {
-		setCheck( key, verdict.state, verdict.detail );
+	function setVerdict( key, verdict, seq ) {
+		setCheck( key, verdict.state, verdict.detail, seq );
 	}
 
 	/**
@@ -310,10 +327,10 @@
 	}
 
 	/** Signature check: cross-check the key across all three origins, then verify. */
-	function checkSignature( cred, didDoc, siteKeys, ledgerKeys ) {
+	function checkSignature( cred, didDoc, siteKeys, ledgerKeys, seq ) {
 		return ed25519Supported().then( function ( supported ) {
 			if ( ! supported ) {
-				setCheck( 'signature', STATE.NOTE, 'This browser does not support Ed25519 verification, so it shows the credential\'s facts and links below instead of a pass/fail verdict.' );
+				setCheck( 'signature', STATE.NOTE, 'This browser does not support Ed25519 verification, so it shows the credential\'s facts and links below instead of a pass/fail verdict.', seq );
 				return null; // caller renders the fallback facts panel.
 			}
 			// The key this credential NAMES — never whichever key is currently
@@ -323,13 +340,13 @@
 			var namedKeyId = ( cred && cred.proof && cred.proof.pubkey_id ) || '';
 			var agreement = Core.deriveKeyAgreement( didDoc, siteKeys, ledgerKeys, namedKeyId );
 			if ( agreement.verdict ) {
-				setVerdict( 'signature', agreement.verdict );
+				setVerdict( 'signature', agreement.verdict, seq );
 				return false;
 			}
 
 			var decoded = Core.decodeProofBytes( cred );
 			if ( decoded.malformed ) {
-				setVerdict( 'signature', decoded.verdict );
+				setVerdict( 'signature', decoded.verdict, seq );
 				return false;
 			}
 
@@ -339,11 +356,11 @@
 					return window.crypto.subtle.verify( 'Ed25519', key, decoded.sigBytes, decoded.payloadBytes );
 				} )
 				.then( function ( valid ) {
-					setVerdict( 'signature', Core.deriveSignatureVerdict( valid ) );
+					setVerdict( 'signature', Core.deriveSignatureVerdict( valid ), seq );
 					return valid;
 				} )
 				.catch( function () {
-					setCheck( 'signature', STATE.FAIL, 'The signature could not be verified.' );
+					setCheck( 'signature', STATE.FAIL, 'The signature could not be verified.', seq );
 					return false;
 				} );
 		} );
@@ -407,21 +424,21 @@
 	}
 
 	/** Content-hash check: SHA-256 of the signed payload bytes vs the credential's claim. */
-	function checkContentHash( cred ) {
+	function checkContentHash( cred, seq ) {
 		if ( ! window.crypto || ! window.crypto.subtle || ! window.crypto.subtle.digest ) {
-			setCheck( 'content-hash', STATE.UNREACHABLE, 'This browser has no SHA-256 support to run this check with.' );
+			setCheck( 'content-hash', STATE.UNREACHABLE, 'This browser has no SHA-256 support to run this check with.', seq );
 			return Promise.resolve( false );
 		}
 		var decoded = Core.decodeSignedPayloadBytes( cred );
 		if ( decoded.malformed ) {
-			setVerdict( 'content-hash', decoded.verdict );
+			setVerdict( 'content-hash', decoded.verdict, seq );
 			return Promise.resolve( false );
 		}
 
 		return window.crypto.subtle.digest( 'SHA-256', decoded.payloadBytes ).then( function ( digest ) {
 			var actual = Core.bytesToHex( new Uint8Array( digest ) );
 			var verdict = Core.deriveContentHashVerdict( actual, Core.claimedContentHash( cred ) );
-			setVerdict( 'content-hash', verdict );
+			setVerdict( 'content-hash', verdict, seq );
 			return STATE.PASS === verdict.state;
 		} );
 	}
@@ -430,10 +447,10 @@
 	 * Live-match check: never a FAIL (the core's deriveLiveMatchVerdict holds
 	 * the semantic). This wrapper only fetches the twin and paints.
 	 */
-	function checkLiveMatch( cred ) {
+	function checkLiveMatch( cred, seq ) {
 		var twinUrl = Core.liveMatchTwinUrl( cred );
 		if ( ! twinUrl ) {
-			setCheck( 'live-match', STATE.UNREACHABLE, 'This credential does not carry a live URL to compare against.' );
+			setCheck( 'live-match', STATE.UNREACHABLE, 'This credential does not carry a live URL to compare against.', seq );
 			return Promise.resolve();
 		}
 		// Same origin pin resolvePasted() enforces: the credential's claimed
@@ -446,15 +463,15 @@
 			twinOrigin = '';
 		}
 		if ( twinOrigin !== location.origin ) {
-			setCheck( 'live-match', STATE.NOTE, 'This credential\'s live URL is not on this site, so the live comparison is skipped rather than fetching a foreign origin.' );
+			setCheck( 'live-match', STATE.NOTE, 'This credential\'s live URL is not on this site, so the live comparison is skipped rather than fetching a foreign origin.', seq );
 			return Promise.resolve();
 		}
 		return fetchJSON( twinUrl ).then( function ( res ) {
 			if ( ! res.ok ) {
-				setCheck( 'live-match', STATE.UNREACHABLE, 'Could not reach the live version of this note to compare.' );
+				setCheck( 'live-match', STATE.UNREACHABLE, 'Could not reach the live version of this note to compare.', seq );
 				return;
 			}
-			setVerdict( 'live-match', Core.deriveLiveMatchVerdict( cred, res.json ) );
+			setVerdict( 'live-match', Core.deriveLiveMatchVerdict( cred, res.json ), seq );
 		} );
 	}
 
@@ -465,7 +482,10 @@
 	 * hrefs only from the fixed explorer base the core builds. Section
 	 * stays hidden until steps exist.
 	 */
-	function renderProofWalk( cred, ledgerRes, txRes ) {
+	function renderProofWalk( cred, ledgerRes, txRes, seq ) {
+		if ( undefined !== seq && seq !== runSeq ) {
+			return; // #1219: a stale run's walk must not paint over the new subject.
+		}
 		var section = document.querySelector( '[data-role="walk"]' );
 		var list    = document.querySelector( '[data-role="walk-steps"]' );
 		if ( ! section || ! list ) {
@@ -513,38 +533,38 @@
 	}
 
 	/** Anchor check: the Bitcoin confirmation, cross-attested against the independent ledger record. */
-	function checkAnchor( cred, uid, version ) {
+	function checkAnchor( cred, uid, version, kind, seq ) {
 		var plan = Core.deriveAnchorPlan( cred );
 		if ( plan.verdict ) {
-			setVerdict( 'anchor', plan.verdict );
+			setVerdict( 'anchor', plan.verdict, seq );
 			return Promise.resolve();
 		}
 		var anchor   = plan.anchor;
 		var evidence = plan.evidence;
 
 		if ( 'block-only' === plan.mode ) {
-			var ledgerOnlyUrl = Core.ledgerRecordUrl( config.ledgerBase, uid, version, evidence, config.kind );
+			var ledgerOnlyUrl = Core.ledgerRecordUrl( config.ledgerBase, uid, version, evidence, kind );
 			return fetchJSON( ledgerOnlyUrl ).then( function ( ledgerRes ) {
 				var outcome = Core.deriveBlockOnlyAnchor( anchor, evidence, ledgerRes );
 				if ( outcome.verdict ) {
-					setVerdict( 'anchor', outcome.verdict );
-					renderProofWalk( cred, ledgerRes.ok && ledgerRes.json, null );
+					setVerdict( 'anchor', outcome.verdict, seq );
+					renderProofWalk( cred, ledgerRes.ok && ledgerRes.json, null, seq );
 					return;
 				}
 				var ledgerTxUrl = Core.mempoolTxStatusUrl( config.mempoolBase, outcome.followTxid );
 				return fetchJSON( ledgerTxUrl ).then( function ( txRes2 ) {
-					setVerdict( 'anchor', Core.deriveLedgerTxAnchor( anchor, outcome.blockNote, txRes2 ) );
-					renderProofWalk( cred, ledgerRes.ok && ledgerRes.json, txRes2.ok && txRes2.json );
+					setVerdict( 'anchor', Core.deriveLedgerTxAnchor( anchor, outcome.blockNote, txRes2 ), seq );
+					renderProofWalk( cred, ledgerRes.ok && ledgerRes.json, txRes2.ok && txRes2.json, seq );
 				} );
 			} );
 		}
 
 		var txStatusUrl = Core.mempoolTxStatusUrl( config.mempoolBase, anchor.txid );
-		var ledgerUrl   = Core.ledgerRecordUrl( config.ledgerBase, uid, version, evidence, config.kind );
+		var ledgerUrl   = Core.ledgerRecordUrl( config.ledgerBase, uid, version, evidence, kind );
 
 		return Promise.all( [ fetchJSON( txStatusUrl ), fetchJSON( ledgerUrl ) ] ).then( function ( results ) {
-			setVerdict( 'anchor', Core.deriveTxAnchor( anchor, evidence, results[ 0 ], results[ 1 ] ) );
-			renderProofWalk( cred, results[ 1 ].ok && results[ 1 ].json, results[ 0 ].ok && results[ 0 ].json );
+			setVerdict( 'anchor', Core.deriveTxAnchor( anchor, evidence, results[ 0 ], results[ 1 ] ), seq );
+			renderProofWalk( cred, results[ 1 ].ok && results[ 1 ].json, results[ 0 ].ok && results[ 0 ].json, seq );
 		} );
 	}
 
@@ -655,8 +675,14 @@
 		} );
 	}
 
-	/** Orchestrate the whole run for a resolved { uid, version }. */
-	function runVerification( uid, version ) {
+	/** Orchestrate the whole run for a resolved { uid, version, kind }. */
+	function runVerification( uid, version, kind ) {
+		var seq = ++runSeq;
+		var isCurrent = function () {
+			return seq === runSeq;
+		};
+		kind = kind || config.kind;
+
 		resetChecks();
 		// A retraction from a previous lookup must never carry over onto the
 		// next record; stale here would withdraw an innocent Note.
@@ -668,6 +694,9 @@
 		var credUrl = config.credentialBase.replace( /\/?$/, '' ) + '/' + encodeURIComponent( uid ) + ( version ? '?v=' + encodeURIComponent( version ) : '' );
 
 		fetchJSON( credUrl ).then( function ( credRes ) {
+			if ( ! isCurrent() ) {
+				return 'stale'; // a later paste already opened its own verdict.
+			}
 			if ( ! credRes.ok ) {
 				setStatusLine( Core.credentialFailureStatus( credRes.status ) );
 				settlePendingChecks( 'Could not run: no credential to check.' );
@@ -678,22 +707,25 @@
 
 			var ledgerKeysUrl = Core.ledgerKeysUrl( config.ledgerBase );
 			return Promise.all( [ fetchJSON( config.didUrl ), fetchJSON( config.keysUrl ), fetchJSON( ledgerKeysUrl ) ] ).then( function ( results ) {
+				if ( ! isCurrent() ) {
+					return 'stale'; // a later paste already opened its own verdict.
+				}
 				var didRes = results[ 0 ];
 				var siteKeysRes = results[ 1 ];
 				var ledgerKeysRes = results[ 2 ];
 
 				if ( ! didRes.ok ) {
-					setCheck( 'signature', STATE.UNREACHABLE, 'Could not reach this site\'s did document.' );
+					setCheck( 'signature', STATE.UNREACHABLE, 'Could not reach this site\'s did document.', seq );
 				}
 				if ( ! ledgerKeysRes.ok ) {
 					announce( 'Could not reach the independent ledger key copy. Signature verification continues without that cross-check.' );
 				}
 
 				var signatureDone = didRes.ok
-					? checkSignature( cred, didRes.json, siteKeysRes.json, ledgerKeysRes.json ).then( function ( ok ) {
+					? checkSignature( cred, didRes.json, siteKeysRes.json, ledgerKeysRes.json, seq ).then( function ( ok ) {
 							// null = Ed25519 unsupported, false = crypto FAIL: both
 							// promise the facts/links panel, so both must render it.
-							if ( ! ok ) {
+							if ( ! ok && isCurrent() ) {
 								renderFallbackFacts( cred );
 							}
 					  } )
@@ -706,18 +738,24 @@
 				// in activeRetraction and repaints the band.
 				var retractionDone = checkRetraction( uid, effectiveVersion, didRes.json, siteKeysRes.json, ledgerKeysRes.json )
 					.then( function ( state ) {
+						if ( ! isCurrent() ) {
+							return;
+						}
 						activeRetraction = state;
 						renderRetraction( state && state.retraction, uid, effectiveVersion );
 						paintVerdict();
 					} );
 
-				return Promise.all( [ signatureDone, checkContentHash( cred ), checkLiveMatch( cred ), checkAnchor( cred, uid, effectiveVersion ), retractionDone ] );
+				return Promise.all( [ signatureDone, checkContentHash( cred, seq ), checkLiveMatch( cred, seq ), checkAnchor( cred, uid, effectiveVersion, kind, seq ), retractionDone ] );
 			} );
 		} ).then( function ( outcome ) {
-			if ( Core.shouldWriteDone( outcome ) ) {
+			if ( isCurrent() && Core.shouldWriteDone( outcome ) ) {
 				setStatusLine( 'Done.' );
 			}
 		} ).catch( function () {
+			if ( ! isCurrent() ) {
+				return;
+			}
 			setStatusLine( 'Something went wrong while running these checks.' );
 			settlePendingChecks( 'This check could not be completed.' );
 		} );
@@ -729,7 +767,7 @@
 			var value = input ? input.value : '';
 			resolvePasted( value ).then( function ( resolved ) {
 				if ( resolved && resolved.uid ) {
-					runVerification( resolved.uid, resolved.version );
+					runVerification( resolved.uid, resolved.version, resolved.kind );
 				} else if ( ! resolved && value.trim() ) {
 					// resolved === {handled:true} means a specific status line was
 					// already set — don't clobber it with the generic one.

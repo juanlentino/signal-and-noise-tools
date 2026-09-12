@@ -82,10 +82,10 @@ function sn_migrate_accessibility_page() {
 		if ( '' === trim( (string) $page->post_excerpt ) ) {
 			$update['post_excerpt'] = $excerpt;
 		}
-		wp_update_post( $update );
+		wp_update_post( wp_slash( $update ) );
 	} else {
 		wp_insert_post(
-			array(
+			wp_slash( array(
 				'post_title'    => 'Accessibility',
 				'post_name'     => SN_A11Y_SLUG,
 				'post_parent'   => 0,
@@ -94,7 +94,7 @@ function sn_migrate_accessibility_page() {
 				'post_content'  => $body,
 				'post_excerpt'  => $excerpt,
 				'page_template' => 'page-accessibility',
-			),
+			) ),
 			false
 		);
 	}

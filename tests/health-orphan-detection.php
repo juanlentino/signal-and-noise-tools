@@ -24,6 +24,7 @@ if ( ! defined( 'ARRAY_A' ) )         { define( 'ARRAY_A', 'ARRAY_A' ); }
 // ── Configurable corpus (what the substring search "finds") ──
 $GLOBALS['__post_bodies'] = array(); // post_content strings
 $GLOBALS['__meta_values'] = array(); // meta_value strings
+$GLOBALS['__meta_rows']   = array(); // array{post_id:int, value:string} — post_id-scoped rows
 $GLOBALS['__att_meta']    = array(); // id => wp_get_attachment_metadata() return
 $GLOBALS['__attachments'] = array(); // get_results() rows
 $GLOBALS['__featured']    = array(); // _thumbnail_id meta_values
@@ -45,13 +46,36 @@ class SnOrphanWpdb {
 	}
 	public function esc_like( $s ) { return $s; }
 	public function get_var( $sql ) {
-		$needle = isset( $this->last_args[0] ) ? trim( (string) $this->last_args[0], '%' ) : '';
+		// A `post_id <> %d AND meta_value LIKE %s` query carries the excluded
+		// post id as the first bound arg and the LIKE needle as the second —
+		// lets the fixture model a postmeta row belonging to the attachment
+		// ITSELF (its own _wp_attached_file / _wp_attachment_metadata), which
+		// must not count as a reference.
+		$excludes_post_id = ( false !== strpos( $this->last_sql, 'post_id <>' ) );
+		if ( $excludes_post_id ) {
+			$excluded_id = isset( $this->last_args[0] ) ? (int) $this->last_args[0] : 0;
+			$needle      = isset( $this->last_args[1] ) ? trim( (string) $this->last_args[1], '%' ) : '';
+			if ( '' === $needle ) { return 0; }
+			foreach ( $GLOBALS['__meta_rows'] as $row ) {
+				if ( (int) $row['post_id'] === $excluded_id ) { continue; }
+				if ( false !== strpos( (string) $row['value'], $needle ) ) { return 1; }
+			}
+			return 0;
+		}
+
+		$is_regexp = ( false !== stripos( $this->last_sql, 'REGEXP' ) );
+		$needle    = isset( $this->last_args[0] ) ? (string) $this->last_args[0] : '';
+		if ( ! $is_regexp ) { $needle = trim( $needle, '%' ); }
 		if ( '' === $needle ) { return 0; }
 		$corpus = ( false !== strpos( $this->last_sql, 'postmeta' ) )
 			? $GLOBALS['__meta_values']
 			: $GLOBALS['__post_bodies'];
 		foreach ( $corpus as $hay ) {
-			if ( false !== strpos( (string) $hay, $needle ) ) { return 1; }
+			if ( $is_regexp ) {
+				if ( 1 === preg_match( '/' . $needle . '/', (string) $hay ) ) { return 1; }
+			} elseif ( false !== strpos( (string) $hay, $needle ) ) {
+				return 1;
+			}
 		}
 		return 0;
 	}
@@ -119,12 +143,14 @@ od_true( true === sn_health_attachment_is_referenced( 200, $guid( 'orphan.jpg' )
 // 6. Post-meta reference (OG image / custom field) → referenced.
 $GLOBALS['__post_bodies'] = array();
 $GLOBALS['__meta_values'] = array( 'og_image=' . $guid( 'orphan.jpg' ) );
+$GLOBALS['__meta_rows']   = array( array( 'post_id' => -1, 'value' => 'og_image=' . $guid( 'orphan.jpg' ) ) );
 od_true( true === sn_health_attachment_is_referenced( 200, $guid( 'orphan.jpg' ), array(), array() ),
 	'image referenced in post meta is detected' );
 
 // 7. Genuine orphan (no body, no meta, no chrome, no sizes match) → NOT referenced.
 $GLOBALS['__post_bodies'] = array( 'unrelated content with no images' );
 $GLOBALS['__meta_values'] = array( 'some_setting=value' );
+$GLOBALS['__meta_rows']   = array( array( 'post_id' => -1, 'value' => 'some_setting=value' ) );
 od_true( false === sn_health_attachment_is_referenced( 200, $guid( 'orphan.jpg' ), array(), array() ),
 	'a genuinely unreferenced image is still flagged (false === not-referenced)' );
 
@@ -146,6 +172,26 @@ $ids   = array_map( function ( $f ) { return (int) $f['subject_id']; }, $check['
 od_true( ! in_array( 123, $ids, true ), 'full check: a block-referenced image (123) is NOT flagged' );
 od_true( ! in_array( 300, $ids, true ), 'full check: the site logo (300) is NOT flagged' );
 od_true( in_array( 200, $ids, true ) && 1 === (int) $check['count'], 'full check: only the true orphan (200) is flagged' );
+
+// 9. (#1182) Self-match: the attachment's OWN postmeta rows (_wp_attached_file,
+//    _wp_attachment_metadata) contain its own basename. Without a `post_id <>`
+//    exclusion, the meta search matches itself and every attachment reads as
+//    referenced — the orphan scan then reports 0 forever.
+$GLOBALS['__post_bodies'] = array();
+$GLOBALS['__meta_values'] = array( '2024/01/orphan.jpg' ); // legacy corpus (unused by the fixed query)
+$GLOBALS['__meta_rows']   = array( array( 'post_id' => 200, 'value' => '2024/01/orphan.jpg' ) ); // attachment 200's OWN meta
+od_true( false === sn_health_attachment_is_referenced( 200, $guid( 'orphan.jpg' ), array(), array() ),
+	'#1182: an attachment does not self-match its own postmeta (_wp_attached_file / _wp_attachment_metadata)' );
+
+// 10. (#1182) A prefix collision: attachment 12's numeric id is a PREFIX of
+//    another attachment's wp-image-<id> class (wp-image-123). A plain
+//    substring LIKE '%wp-image-12%' matches that unrelated reference to
+//    image 123, so image 12 falsely reads as referenced.
+$GLOBALS['__post_bodies'] = array( '<img class="wp-image-123" src="' . $guid( 'other-1024x576.jpg' ) . '">' );
+$GLOBALS['__meta_values'] = array();
+$GLOBALS['__meta_rows']   = array();
+od_true( false === sn_health_attachment_is_referenced( 12, $guid( 'twelve.jpg' ), array(), array() ),
+	'#1182: wp-image-12 does not false-match a wp-image-123 reference (prefix collision)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

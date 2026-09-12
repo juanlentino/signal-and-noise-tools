@@ -21,9 +21,15 @@ class PW_WPDB {
 	public $queries = array();
 	public $rows = array();   // per-path result
 	public $site = 0;         // site-wide count
-	public function prepare( $sql, ...$args ) { $this->queries[] = array( $sql, $args ); return vsprintf( str_replace( '%s', "'%s'", $sql ), $args ); }
+	public function prepare( $sql, ...$args ) {
+		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; } // WP accepts one array of bindings
+		$this->queries[] = array( $sql, $args );
+		return vsprintf( str_replace( '%s', "'%s'", $sql ), $args );
+	}
 	public function get_row( $sql, $out = OBJECT ) { return $this->rows; }
 	public function get_var( $sql ) { return $this->site; }
+	public $results = array();
+	public function get_results( $sql, $out = OBJECT ) { return $this->results; }
 }
 if ( ! defined( 'ARRAY_A' ) ) { define( 'ARRAY_A', 'ARRAY_A' ); }
 if ( ! defined( 'OBJECT' ) ) { define( 'OBJECT', 'OBJECT' ); }
@@ -33,6 +39,7 @@ $GLOBALS['wpdb'] = $wpdb;
 require __DIR__ . '/../inc/analytics-rollup.php';   // SN_ANALYTICS_DAILY_TABLE + canonical path helpers' file
 require __DIR__ . '/../inc/analytics-derive.php';
 require __DIR__ . '/../inc/analytics-posts.php';
+require __DIR__ . '/../inc/analytics-posts-lifecycle.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -69,6 +76,32 @@ ok( false !== strpos( $wpdb->queries[1][0], "class = 'human'" ) && array( '2026-
 $wpdb->site = null;
 $r = sn_analytics_path_window( '/notes/foo/', '2026-08-07', '2026-09-05' );
 ok( is_array( $r ) && null === $r['site_rows'] && 5 === $r['views'], 'a site-wide count that could not be read is null, never a 0 that reads as "no analytics"' );
+
+// #1199 -- the three sibling accessors were `WHERE path = %s` against a table
+// that stores paths VERBATIM: fed the canonical (unslashed) spelling from
+// sn_analytics_top_paths(), a pretty-permalink note read as empty.
+echo "\nGroup: the sibling accessors ask for both spellings too (#1199)\n";
+$wpdb->queries = array();
+sn_analytics_path_daily_series( '/notes/foo', '2026-08-07', '2026-09-05' );
+ok( false !== strpos( $wpdb->queries[0][0], 'path IN ( %s, %s )' ) && array( '/notes/foo', '/notes/foo/', '2026-08-07', '2026-09-05' ) === $wpdb->queries[0][1],
+	'path_daily_series binds the canonical AND the slashed spelling, then the window' );
+$wpdb->queries = array();
+sn_analytics_path_lifetime( '/notes/foo/' );
+ok( false !== strpos( $wpdb->queries[0][0], 'path IN ( %s, %s )' ) && array( '/notes/foo', '/notes/foo/' ) === $wpdb->queries[0][1],
+	'path_lifetime binds both spellings whichever one it is handed' );
+$wpdb->queries = array();
+sn_analytics_paths_daily_series( array( '/notes/foo', '/', '/notes/foo/' ) );
+ok( array( '/notes/foo', '/notes/foo/', '/' ) === $wpdb->queries[0][1] && substr_count( $wpdb->queries[0][0], '%s' ) === 3,
+	'paths_daily_series expands each path to both spellings, de-duplicated (root binds once)' );
+$wpdb->results = array(
+	array( 'path' => '/notes/foo', 'day' => '2026-09-02', 'views' => '3' ),
+	array( 'path' => '/notes/foo/', 'day' => '2026-09-01', 'views' => '10' ),
+	array( 'path' => '/notes/foo/', 'day' => '2026-09-02', 'views' => '4' ),
+);
+$series = sn_analytics_paths_daily_series( array( '/notes/foo/' ) );
+ok( array( '/notes/foo/' => array( array( 'day' => '2026-09-01', 'views' => 10 ), array( 'day' => '2026-09-02', 'views' => 7 ) ) ) === $series,
+	'rows under either spelling fold onto the spelling the caller asked with, one point per day, day-ascending' );
+$wpdb->results = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

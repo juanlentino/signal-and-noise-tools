@@ -414,5 +414,20 @@ ok( $dbg && 'literal' === $dbg['kind'] && '#ffffff' === $dbg['value'], 'a plain 
 $GLOBALS['__global_styles_bg'] = '';
 ok( null === sn_health_contrast_usage_document_background(), 'an empty global-styles background is unscoreable, not guessed' );
 
+// ─── Group 12 (#1185): a multi-line selector list keeps EVERY selector ──────
+// `end( $lines )` kept only the last selector line, so `.card-title,\n.card-note`
+// scored `.card-note` alone -- the theme's components.css has 25 such lists.
+echo "\nGroup 12: a multi-line selector list is not reduced to its last line\n";
+$multi = sn_health_contrast_usage_rules( ".card-title,\n.card-note{color:#cccccc}" );
+ok( 1 === count( $multi ), '#1185: still one rule for the combined selector' );
+ok( false !== strpos( $multi[0]['sel'], '.card-title' ) && false !== strpos( $multi[0]['sel'], '.card-note' ),
+	'#1185: the FULL selector list survives (.card-title AND .card-note), not just the last line' );
+
+// The case the last-line hack existed for: a leading @import/@charset
+// statement sharing the same pre-`{` capture as the real selector below it.
+$after_import = sn_health_contrast_usage_rules( "@import url(x.css);\n.card-note{color:#cccccc}" );
+ok( 1 === count( $after_import ) && '.card-note' === trim( $after_import[0]['sel'] ),
+	'#1185: a leading @import statement is still stripped, leaving just the selector' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -34,8 +34,10 @@ function human_time_diff( $from, $to = 0 ) { return '5 mins'; }
 class SNT_Probe_Error {}
 class SNT_Probe_Request {
 	private $route;
-	public function __construct( $route ) { $this->route = $route; }
+	private $params;
+	public function __construct( $route, $params = array() ) { $this->route = $route; $this->params = $params; }
 	public function get_route() { return $this->route; }
+	public function get_param( $key ) { return $this->params[ $key ] ?? null; }
 }
 class SNT_Probe_Response {
 	private $data; private $err;
@@ -55,8 +57,8 @@ function reset_state( $active = array( 'a/a.php', 'b/b.php' ) ) {
 function recorded() {
 	return isset( $GLOBALS['snt_options'][ SN_PLUGIN_REGISTRY_ANOMALY_OPTION ] );
 }
-function probe( $route, $data, $err = false ) {
-	return snt_plugin_registry_probe( new SNT_Probe_Response( $data, $err ), array(), new SNT_Probe_Request( $route ) );
+function probe( $route, $data, $err = false, $params = array() ) {
+	return snt_plugin_registry_probe( new SNT_Probe_Response( $data, $err ), array(), new SNT_Probe_Request( $route, $params ) );
 }
 
 echo "plugin-registry-probe — plugin v13.96.6\n\nGroup 1: it fires on the fault\n";
@@ -88,6 +90,17 @@ ok( ! recorded(), 'an empty list is NOT a fault when no plugins are active' );
 reset_state();
 snt_plugin_registry_probe( new SNT_Probe_Response( array() ), array(), null );
 ok( ! recorded(), 'a request object without get_route() does not fatal or record' );
+
+// #1186: GET /wp/v2/plugins?status=inactive on a site where every plugin is
+// active, or ?search=<no match>, legitimately returns [] -- that is a
+// filtered result, not a poisoned cache. Step aside when either param is set.
+reset_state();
+probe( '/wp/v2/plugins', array(), false, array( 'status' => 'inactive' ) );
+ok( ! recorded(), '#1186: an empty collection from ?status=inactive (a legitimate filter) is not recorded' );
+
+reset_state();
+probe( '/wp/v2/plugins', array(), false, array( 'search' => 'no-such-plugin' ) );
+ok( ! recorded(), '#1186: an empty collection from ?search=<no match> (a legitimate filter) is not recorded' );
 
 echo "\nGroup 3: the observation expires so the check can reach zero again\n";
 reset_state();

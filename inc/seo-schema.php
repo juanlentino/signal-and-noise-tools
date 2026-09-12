@@ -336,6 +336,13 @@ function sn_schema_webpage() {
 	if ( ! is_singular() ) {
 		return null;
 	}
+	// v13.109.22 (#1224): /notes is both is_singular() (a real Page) and
+	// is_page('notes') — sn_schema_collection_page() also builds for it and
+	// mints '@id' => the /notes/ URL. Without this gate the two builders
+	// emit two graph nodes sharing one @id. CollectionPage owns that @id.
+	if ( is_page( 'notes' ) ) {
+		return null;
+	}
 	$post = get_queried_object();
 	if ( ! $post ) {
 		return null;

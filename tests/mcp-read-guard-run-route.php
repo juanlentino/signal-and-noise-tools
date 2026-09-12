@@ -57,6 +57,7 @@ ok( '' === sn_mcp_read_guard_route_slug( '/wp-abilities/v1/abilities' ), 'the ca
 ok( '' === sn_mcp_read_guard_route_slug( '/wp/v2/posts' ), 'an unrelated namespace yields nothing' );
 ok( '' === sn_mcp_read_guard_route_slug( '/wp-abilities/v1/abilities/signal-noise/x/run/extra' ), 'a route that merely CONTAINS /run is not a run route' );
 ok( '' === sn_mcp_read_guard_route_slug( '' ), 'an empty route yields nothing' );
+ok( 'signal-noise/get-analytics-events' === sn_mcp_read_guard_route_slug( '/WP-Abilities/V1/Abilities/signal-noise/get-analytics-events/Run' ), 'a differently cased run route yields the same slug, verbatim (core routes case-insensitively)' );
 
 echo "\nGroup: with the switch OFF, nothing changes\n";
 $GLOBALS['__options'] = array();

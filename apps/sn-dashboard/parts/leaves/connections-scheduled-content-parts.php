@@ -214,13 +214,14 @@ function scheduled_content_fragment_row_html( array $row ) {
  * @return string
  */
 function scheduled_content_post_row_html( array $post ) {
-	$gmt    = (string) ( $post['scheduled_gmt'] ?? '' );
-	$next   = function_exists( 'sn_admin_schedule_next_transition' ) ? \sn_admin_schedule_next_transition( $gmt, null ) : '';
-	$window = function_exists( 'sn_admin_schedule_fmt_gmt' ) ? \snt_kit_esc( \sn_admin_schedule_fmt_gmt( $gmt ) ) : '';
+	$gmt        = (string) ( $post['scheduled_gmt'] ?? '' );
+	$next       = function_exists( 'sn_admin_schedule_next_transition' ) ? \sn_admin_schedule_next_transition( $gmt, null ) : '';
+	$window     = function_exists( 'sn_admin_schedule_fmt_gmt' ) ? \snt_kit_esc( \sn_admin_schedule_fmt_gmt( $gmt ) ) : '';
+	$type_label = 'page' === ( $post['post_type'] ?? '' ) ? __( 'Page', 'signal-and-noise-tools' ) : __( 'Post', 'signal-and-noise-tools' );
 
 	return scheduled_content_row_html(
 		scheduled_content_post_target_html( $post ),
-		__( 'Page', 'signal-and-noise-tools' ),
+		$type_label,
 		__( 'Publish', 'signal-and-noise-tools' ),
 		$window,
 		__( 'Scheduled', 'signal-and-noise-tools' ),

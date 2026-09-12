@@ -33,6 +33,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** Cron `at` freshness ceiling: the hourly cadence, doubled, plus slack. */
 const SN_COLLECTOR_STATUS_CRON_FRESH_SECS = 2 * 3600 + 900;
 
+/**
+ * #1228: tolerance for the worker's clock reading a few seconds AHEAD of
+ * this server's. Without it, ( $now - $at_ts ) >= 0 flips 'cron_fresh' to
+ * stalled the instant the worker's clock leads ours at all — a false
+ * negative on a cron that just ran.
+ */
+const SN_COLLECTOR_STATUS_CLOCK_SKEW_SECS = 60;
+
 /** HTTP timeout (seconds) — an agent call must never hang on a cold edge. */
 const SN_COLLECTOR_STATUS_TIMEOUT = 4;
 
@@ -106,7 +114,7 @@ function sn_collector_status_invariants( $json, $now ) {
 	} else {
 		$status = (string) ( $cron['refresh_status'] ?? '' );
 		$at_ts  = isset( $cron['at'] ) ? strtotime( (string) $cron['at'] ) : false;
-		$fresh  = false !== $at_ts && ( $now - $at_ts ) <= SN_COLLECTOR_STATUS_CRON_FRESH_SECS && ( $now - $at_ts ) >= 0;
+		$fresh  = false !== $at_ts && ( $now - $at_ts ) <= SN_COLLECTOR_STATUS_CRON_FRESH_SECS && ( $now - $at_ts ) >= -SN_COLLECTOR_STATUS_CLOCK_SKEW_SECS;
 		$ok     = ( 'ok' === $status ) && $fresh;
 		if ( 'ok' !== $status ) {
 			$detail = 'Cron refresh_status is "' . ( '' !== $status ? $status : 'absent' ) . '", not "ok": the last scheduled run failed.';

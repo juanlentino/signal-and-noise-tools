@@ -596,6 +596,21 @@ if ( function_exists( 'sn_prov_verify_send' ) ) {
 	vv_true( false !== strpos( $html_diff, 'data-role="compare"' ), 'shell renders the compare section' );
 }
 
+// (#1219) A pasted signed page's uid resolves through resolveTwinRef, but
+// runVerification defaulted to the page's OWN data-kind for the ledger
+// lookups, ignoring what the resolver found -- a page's uid, looked up in
+// notes/, 404s. kind must thread from the resolved ref through the run.
+vv_true( '' !== $js && false !== strpos( $js, 'function runVerification( uid, version, kind )' ), 'runVerification takes a kind, not just the page default' );
+vv_true( '' !== $js && false !== strpos( $js, 'resolved.uid, resolved.version, resolved.kind' ), 'the paste flow threads the RESOLVED kind into the run, not config.kind' );
+vv_true( '' !== $js && false !== strpos( $js, "kind = kind || config.kind" ), 'a run with no resolved kind (a raw pasted uid, or the page\'s own prefill) still falls back to the page\'s data-kind' );
+
+// (#1219) A second paste submitted while the first run is still in flight
+// must not let the first run's verdicts, proof walk, or retraction paint
+// under the second subject's already-open verdict header.
+vv_true( '' !== $js && false !== strpos( $js, 'var runSeq = 0;' ), 'the module tracks a run token' );
+vv_true( '' !== $js && false !== strpos( $js, 'var seq = ++runSeq;' ), 'each runVerification() call claims the next token' );
+vv_true( '' !== $js && substr_count( $js, 'isCurrent()' ) >= 3, 'multiple async boundaries check the token still holds before touching shared UI: ' . substr_count( $js, 'isCurrent()' ) . ' call sites' );
+
 $report = ob_get_clean();
 echo $report;
 echo "\nResult: $pass passed, $fail failed.\n";

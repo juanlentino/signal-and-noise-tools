@@ -74,10 +74,10 @@ function sn_migrate_provenance_card2_longform() {
 		return;
 	}
 
-	wp_update_post( array(
+	wp_update_post( wp_slash( array(
 		'ID'           => $page->ID,
 		'post_content' => sn_provenance_papers_index_markup(),
-	) );
+	) ) );
 
 	update_option( SN_PROV_CARD2_LF_MIGR_OPT, time(), true );
 }
@@ -127,10 +127,10 @@ function sn_migrate_provenance_catalog_numbers() {
 		return;
 	}
 
-	wp_update_post( array(
+	wp_update_post( wp_slash( array(
 		'ID'           => $page->ID,
 		'post_content' => sn_provenance_papers_index_markup(),
-	) );
+	) ) );
 
 	update_option( SN_PROV_CATALOG_NUMBERS_OPT, time(), true );
 }

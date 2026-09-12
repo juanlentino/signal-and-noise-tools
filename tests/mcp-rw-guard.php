@@ -226,6 +226,22 @@ $over = sn_mcp_rw_rate_limit_check( $key );
 ok( false === $over['allow'], 'the 31st call in the same window is denied' );
 ok( $over['retry_after'] > 0, 'a denied call carries a positive retry_after hint' );
 
+echo "\n-- R7 rate limit: fixed minute buckets, never a sliding window (#1210) --\n";
+// A window that re-arms its TTL on every accepted call counts "calls since 60s
+// of silence": a client at 6/min is refused after 30 calls and never recovers
+// while it keeps calling. The bucket is the UTC minute, as the read guard's is.
+$GLOBALS['__transients'] = array();
+$key = 'bucket-identity-' . uniqid();
+$t0  = 1_800_000_010; // ten seconds into a minute
+for ( $i = 0; $i < 30; $i++ ) {
+	sn_mcp_rw_rate_limit_check( $key, $t0 + $i );
+}
+$over = sn_mcp_rw_rate_limit_check( $key, $t0 + 40 );
+ok( false === $over['allow'], 'the 31st call inside the same minute is denied' );
+ok( 10 === $over['retry_after'], 'retry_after is the remainder of the minute, not a full window (' . $over['retry_after'] . ')' );
+$next = sn_mcp_rw_rate_limit_check( $key, $t0 + 50 );
+ok( true === $next['allow'], 'the first call of the NEXT minute is allowed, ten seconds after the last accepted one' );
+
 echo "\n-- R7 rate limit: live gate gathers real identity + is exempt for nothing but the caller decides the door --\n";
 $GLOBALS['__transients'] = array();
 $GLOBALS['__app_pw_uuid'] = $uuid_a;

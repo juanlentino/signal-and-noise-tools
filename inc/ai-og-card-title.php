@@ -180,7 +180,7 @@ function snt_ai_og_card_title_write( $post_id ) {
 	return array(
 		'ok'               => true,
 		'title'            => $title,
-		'length'           => strlen( $title ),
+		'length'           => mb_strlen( $title ), // #1227: characters, not bytes.
 		'card_regenerated' => $card_regenerated,
 		'card_url'         => $card_url,
 	);

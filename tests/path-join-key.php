@@ -76,6 +76,15 @@ ok( 2 === $r3['left_unjoinable'], 'unjoinable rows are COUNTED' );
 ok( 1 === count( $r3['joined'] ), 'and excluded from the join' );
 ok( ! array_key_exists( '/', $r3['joined'] ), 'the homepage is NOT credited with them — that is the inflation this rule prevents' );
 
+echo "\nGroup: #1228 — two raw keys colliding on one canonical key never silently overwrite\n";
+// 'https://juanlentino.com/notes/foo' and '/notes/foo/' both normalize to
+// '/notes/foo' — a real (if currently unexercised) collision shape.
+$colliding = array( 'https://juanlentino.com/notes/foo' => 'first', '/notes/foo/' => 'second' );
+$r4 = sn_path_join( $colliding, array( '/notes/foo' => 1 ) );
+ok( 1 === count( $r4['joined'] ), 'the collision still produces exactly one joined row (not two, not a fatal)' );
+ok( 'first' === $r4['joined']['/notes/foo']['left'], 'first-seen value wins deterministically, never silently clobbered by the second' );
+ok( 1 === $r4['left_unjoinable'], 'the collision is COUNTED (like an empty key), not dropped with no trace' );
+
 echo "\nGroup: the key is pure\n";
 ok( sn_path_join_key( '/notes/foo' ) === sn_path_join_key( '/notes/foo' ), 'same input, same key' );
 $src = (string) file_get_contents( __DIR__ . '/../inc/path-join-key.php' );

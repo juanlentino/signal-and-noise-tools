@@ -335,7 +335,23 @@ function sn_tag_untagged_notes( $limit = 20 ) {
 }
 
 /**
- * post_tag terms with zero posts. [{term_id,name,slug,count}].
+ * Whether a post_tag term has ZERO term relationships across every status.
+ *
+ * #1178: `term->count` is publish-only (core's _update_post_term_count), so a
+ * tag held only by scheduled or draft notes reads count 0 and was pruned,
+ * silently detaching it from those notes. Relationships are the ground truth;
+ * count is for display. A failed read is NOT unused (fail closed).
+ *
+ * @param int $term_id Term id.
+ * @return bool
+ */
+function sn_tag_is_unused( $term_id ) {
+	$objects = get_objects_in_term( (int) $term_id, 'post_tag' );
+	return is_array( $objects ) && array() === $objects;
+}
+
+/**
+ * post_tag terms with zero relationships. [{term_id,name,slug,count}].
  *
  * @return array
  */
@@ -343,7 +359,7 @@ function sn_tag_find_unused() {
 	$terms = get_terms( array( 'taxonomy' => 'post_tag', 'hide_empty' => false ) );
 	$out   = array();
 	foreach ( (array) $terms as $t ) {
-		if ( 0 === (int) $t->count ) {
+		if ( sn_tag_is_unused( $t->term_id ) ) {
 			$out[] = array( 'term_id' => (int) $t->term_id, 'name' => (string) $t->name, 'slug' => (string) $t->slug, 'count' => 0 );
 		}
 	}
@@ -357,7 +373,7 @@ function sn_tag_find_unused() {
 }
 
 /**
- * Delete count-0 post_tag terms. Validates each is a real, EMPTY term first (a
+ * Delete relationship-free post_tag terms. Validates each is a real, EMPTY term first (a
  * non-empty / unknown id aborts with WP_Error, zero deletion). Records a prune
  * history entry.
  *
@@ -372,7 +388,7 @@ function sn_tag_delete_unused( array $ids ) {
 	$slugs = array();
 	foreach ( $ids as $id ) {
 		$t = get_term( $id, 'post_tag' );
-		if ( ! $t || is_wp_error( $t ) || ( isset( $t->taxonomy ) && 'post_tag' !== $t->taxonomy ) || 0 !== (int) $t->count ) {
+		if ( ! $t || is_wp_error( $t ) || ( isset( $t->taxonomy ) && 'post_tag' !== $t->taxonomy ) || ! sn_tag_is_unused( $id ) ) {
 			return new WP_Error( 'sn_tag_not_unused', __( 'A selected tag is not an empty tag.', 'signal-and-noise-tools' ) );
 		}
 		$slugs[] = (string) $t->slug;

@@ -122,6 +122,18 @@ ok( false !== strpos( $js, 'e.shiftKey' ), 'Shift extends' );
 ok( false !== strpos( $js, 'is-selected' ) && false !== strpos( $js, 'aria-selected' ), 'a selected cell says so to the eye and to a screen reader' );
 ok( false !== strpos( $js, 'snt-status-bar' ), 'the count lives in a status footer the app paints -- the framework has no footer slot' );
 ok( false !== strpos( $js, "'%1\$d of %2\$d items'" ), '...reading the Explorer\'s "N of M items"' );
+// #1208: the status bar's own denominator. ctx.data.items is CAPPED at
+// SN_OS_APP_ITEM_CAP (payload.php slices it); a section holding more than the
+// cap read "N of 400" forever, because 400 is the cap, not the section's real
+// count. The real count survives uncapped in ctx.data.sections[].count
+// (payload.php computes it before slicing) — the status bar must read that,
+// not ( ctx.data.items || [] ).length.
+$bar_start = strpos( $js, 'const renderStatusBar = ( ctx, shown ) => {' );
+$bar_end   = strpos( $js, '// ---------------------------------------------------------------- the desk' );
+$bar_fn    = ( false !== $bar_start && false !== $bar_end && $bar_end > $bar_start ) ? (string) substr( $js, $bar_start, $bar_end - $bar_start ) : '';
+ok( '' !== $bar_fn, 'the status bar has one named renderer ahead of the desk-only listeners' );
+ok( false === strpos( $bar_fn, '( ctx.data.items || [] ).length' ), '#1208: the total is no longer read off the capped items array' );
+ok( false !== strpos( $bar_fn, 'ctx.data.sections' ), '...it reads the uncapped per-section count instead' );
 ok( false !== strpos( $js, 'selected' ) && false !== strpos( $js, '%d selected' ), '...and appending the selection only when there is one' );
 ok( false !== strpos( $js, 'aria-multiselectable' ), 'the canvas announces that more than one cell may be chosen' );
 ok( 3 === substr_count( $js, 'state.selected = [];' ), 'search, filter and the view switch each drop the selection -- a confirmed "Move N items" never acts on notes the reader cannot see' );
@@ -369,6 +381,15 @@ ok( 0 === $slotted_spans, 'no raw dashicons span is slotted into an os-button --
 ok(
 	substr_count( $js, '<os-button' ) >= 1,
 	'...and there are os-buttons to check -- ' . substr_count( $js, '<os-button' )
+);
+
+echo "\nGroup: the list sorts the Date column on the instant, not the label (#1216)\n";
+ok( false !== strpos( $js, "key: 'dateLabel', label: __( 'Date' ), sortable: true, sortValue:" ), 'the Date column declares a sortValue -- os-table otherwise sorts the formatted label as text' );
+ok( false !== strpos( $js, "parseStamp( row.date )" ), 'sortValue reads the row\'s raw date through a stamp parser, not a bare Date.parse' );
+ok( false !== strpos( $js, "\t\tdate: item.date," ), 'the list row carries the raw date beside the label so the sortValue can read it' );
+ok(
+	(bool) preg_match( '/\\breplace\\(\\s*\'\\s\'\\s*,\\s*\'T\'\\s*\\)\\s*\\+\\s*\'Z\'/', $js ),
+	'the stamp parser turns a bare MySQL "Y-m-d H:i:s" into an ISO instant before Date.parse sees it -- JavaScriptCore returns NaN for the bare form, Chrome\'s V8 does not, and Attention/Citations/Schedules all emit the bare form'
 );
 
 echo "\nResult: $pass passed, $fail failed.\n";

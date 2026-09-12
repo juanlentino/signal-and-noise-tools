@@ -189,16 +189,21 @@ snt_search_rank_notes( '', true );
 $GLOBALS['__posts'][11] = (object) array( 'ID' => 11, 'post_content' => "<p>It's a ledger &amp; 039 line.</p>" );
 $sa = snt_search_snippet( 'EXCERPT', 11, 'ledger 039 amp' );
 ok( false === strpos( $sa, '&#<mark>' ) && false === strpos( $sa, '&<mark>amp' ) && false !== strpos( $sa, '<mark>ledger</mark>' ), 'a token that spells an entity fragment (039, amp) never marks inside &#039; or &amp;; the real word still marks' );
-// Invalid-UTF-8 fallback pin: a sentence the shared helper truncates mid-codepoint must fall back to the excerpt, not an empty row.
+// mb_-safe cut pin (#1227): a multibyte-heavy sentence the shared helper
+// caps must stay valid UTF-8 — before the fix, a byte-based substr() could
+// truncate mid-codepoint, and the caller's /u-modifier strip then silently
+// degraded the row to the plain excerpt (never an empty row, but never the
+// real snippet either). Fixed, the sentence stays valid and the real
+// content — including the matched term — reaches the snippet.
 $accented = str_repeat( 'é', 140 ) . ' ledger.';
 $GLOBALS['__posts'][11] = (object) array( 'ID' => 11, 'post_content' => '<p>' . $accented . '</p>' );
 $raw_prose  = wp_strip_all_tags( preg_replace( '/<!--.*?-->/s', ' ', $GLOBALS['__posts'][11]->post_content ) );
 $raw_prose  = trim( preg_replace( '/\s+/u', ' ', $raw_prose ) );
 $raw_pos    = strpos( $raw_prose, 'ledger' );
 $raw_at     = snt_corpus_integrity_sentence_at( $raw_prose, $raw_pos );
-ok( false === mb_check_encoding( $raw_at, 'UTF-8' ), 'fixture: the shared helper\'s byte-level cut really does produce invalid UTF-8 here (so the fallback pin cannot be vacuous)' );
+ok( true === mb_check_encoding( $raw_at, 'UTF-8' ), 'the shared helper\'s cut is valid UTF-8, even mid-multibyte-run (#1227)' );
 $sacc = snt_search_snippet( 'EXCERPT', 11, 'ledger' );
-ok( 'EXCERPT' === $sacc, 'a sentence the shared helper truncates mid-codepoint falls back to the excerpt, never an empty row' );
+ok( 'EXCERPT' !== $sacc && false !== strpos( $sacc, '<mark>ledger</mark>' ), 'the real (accented) sentence reaches the snippet and marks the match, no longer degrading to the bare excerpt' );
 ok( ! function_exists( 'sn_prov_normalize_v2' ), 'harness note: the ledger normaliser is not loaded here, so these pins exercise the strip fallback; the normaliser has its own suite' );
 
 echo "\nGroup: two findings from the whole-branch review\n";

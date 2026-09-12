@@ -88,6 +88,10 @@ if ( ! function_exists( 'sn_analytics_period_deltas' ) ) {
 if ( ! function_exists( 'sn_analytics_engaged_rate_delta' ) ) {
 	function sn_analytics_engaged_rate_delta( $f, $t, $c = 'human' ) { return array( 'current' => 48, 'previous' => 44, 'pct' => 9, 'dir' => 'up' ); }
 }
+// The site runs at UTC-3; its calendar day is NOT the UTC day (#1201).
+if ( ! function_exists( 'wp_date' ) ) {
+	function wp_date( $format, $ts = null ) { return ( new DateTime( '@' . (int) ( $ts ?? time() ) ) )->setTimezone( new DateTimeZone( 'America/Sao_Paulo' ) )->format( $format ); }
+}
 if ( ! function_exists( 'sn_analytics_top_paths' ) ) {
 	function sn_analytics_top_paths( $f, $t, $c = 'human', $l = 25 ) { return array( array( 'path' => '/notes/x', 'views' => 420, 'visits' => 300, 'scroll_avg' => 70, 'time_avg' => 55 ) ); }
 }
@@ -224,6 +228,13 @@ eq( 120, strlen( $p['headline'] ), 'headline truncated to 120' );
 eq( 4, count( $p['paragraphs'] ), 'paragraphs capped at 4' );
 eq( 6, count( $p['highlights'] ), 'highlights capped at 6' );
 
+// #1227: a multibyte-heavy headline must be capped in CHARACTERS, not bytes
+// — a byte-based cap can split a multibyte character mid-sequence.
+$big_mb = '{"headline":"' . str_repeat( 'Ω', 200 ) . '","paragraphs":["a"],"highlights":[]}';
+$p_mb   = snt_narration_parse_response( $big_mb );
+eq( 120, mb_strlen( $p_mb['headline'] ), 'multibyte headline truncated to 120 CHARACTERS (#1227)' );
+ok( 1 === preg_match( '//u', $p_mb['headline'] ), 'the truncated multibyte headline is valid UTF-8' );
+
 // ── Test 7: cookieless guard present ──
 echo "\nTest 7: system instruction carries the cookieless guard\n";
 $sys = snt_narration_system_instruction();
@@ -304,6 +315,13 @@ $GLOBALS['__edge_pageviews'] = 0;
 $s = snt_narration_collect_signals();
 ok( ! isset( $s['machine'] ), 'no machine block when edge page_views = 0 (unconfigured/graceful)' );
 ok( isset( $s['totals'], $s['deltas'], $s['top_paths'], $s['top_sources'] ), 'human analytics present' );
+// #1201 -- the digest window was gmdate(): when cron fires in the evening
+// local, "to" is already tomorrow's UTC date and the rollup (site-day keyed)
+// has no row for it, so six data days were labelled a 7-day window.
+$evening = strtotime( '2026-06-02 01:30:00 UTC' ); // 22:30 on 2026-06-01 in Sao Paulo
+$sw = snt_narration_collect_signals( $evening );
+ok( '2026-06-01' === $sw['window']['to'], 'the digest window ends on the SITE-LOCAL day, the day the rollup keys on (#1201)' );
+ok( '2026-05-26' === $sw['window']['from'], 'and starts 6 local days earlier (an inclusive 7-day window)' );
 $GLOBALS['__edge_pageviews'] = 3000; // > human (1430) → machine split present
 $s = snt_narration_collect_signals();
 ok( isset( $s['machine'] ), 'machine block present when edge saw hits' );

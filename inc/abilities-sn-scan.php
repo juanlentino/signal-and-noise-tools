@@ -233,7 +233,7 @@ function snt_sn_scan_resolve_scope( $scope, $scan_type ) {
 	// post-backed types, image attachments for orphan_media) and resolve to
 	// the set of IDs whose modified/date timestamp is >= the parsed date.
 	$since_raw = isset( $scope['modified_since'] ) ? (string) $scope['modified_since'] : '';
-	$since_ts  = '' !== $since_raw ? strtotime( $since_raw ) : false;
+	$since_ts  = '' !== $since_raw ? strtotime( $since_raw . ' UTC' ) : false;
 	if ( false === $since_ts ) {
 		return snt_sn_scan_scope_error( __( 'scope.kind "modified_since" requires a parseable scope.modified_since date/time string.', 'signal-and-noise-tools' ) );
 	}
@@ -256,7 +256,9 @@ function snt_sn_scan_resolve_scope( $scope, $scan_type ) {
 	$posts = snt_corpus_fetch_posts( 'any', 'post' );
 	$ids   = array();
 	foreach ( $posts as $p ) {
-		$mts = strtotime( (string) ( $p->post_modified ?? '' ) );
+		// post_modified is SITE-LOCAL wall time; $since_ts is UTC.
+		// post_modified_gmt is the column that is actually UTC.
+		$mts = strtotime( (string) ( $p->post_modified_gmt ?? '' ) . ' UTC' );
 		if ( false !== $mts && $mts >= $since_ts ) {
 			$ids[] = (int) $p->ID;
 		}

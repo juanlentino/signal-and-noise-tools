@@ -345,6 +345,18 @@ $GLOBALS['__ae_mock_body'] = json_encode( array( 'meta' => array(), 'data' => ar
 $result = sn_analytics_query( "SELECT 1 WHERE 0=1" );
 ok( is_array( $result ) && count( $result ) === 0, 'query: empty data array returns []' );
 
+// #1209: a 200 whose JSON carries no `data` key returned null AFTER clearing
+// the error transient, so a refused read looked like a healthy one.
+echo "\nTest 17b: 200 without a data key → null + error recorded, not a cleared error\n";
+ae_reset();
+set_transient( SN_ANALYTICS_ERR_KEY, array( 'url' => 'x', 'code' => 503, 'message' => 'old', 'when' => time() - 60 ), 300 );
+$GLOBALS['__ae_mock_code'] = 200;
+$GLOBALS['__ae_mock_body'] = json_encode( array( 'errors' => array( array( 'message' => 'query rejected' ) ) ) );
+$result = sn_analytics_query( "SELECT 1" );
+ok( $result === null, 'query: 200 with no data key → null' );
+$err = sn_analytics_last_error();
+ok( is_array( $err ) && 200 === ( $err['code'] ?? 0 ) && false !== strpos( (string) $err['message'], 'query rejected' ), 'error: recorded with code 200 and the body excerpt, never cleared (#1209)' );
+
 // ── Test 18: malformed JSON → null + error recorded ──────────────────────────
 echo "\nTest 18: 200 but unparseable JSON → null + error recorded\n";
 ae_reset();

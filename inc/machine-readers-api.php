@@ -151,16 +151,48 @@ function snt_mr_normalize_rows( $data ) {
  *                     to 'aggregate' — the view never reaches the URL unvetted.
  * @return array{ok:bool,rows:array,error:?string}
  */
+/** The views snt_mr_fetch() accepts; anything else is coerced to 'aggregate'. */
+const SNT_MR_VIEWS = array( 'aggregate', 'unknown', 'rights', 'totals' );
+
+/**
+ * The display-transient key for one (window, view) pair — the ONE builder,
+ * so a flush and the fetch can never disagree on the spelling again (#1206).
+ *
+ * @param int    $days Window (already clamped by the caller).
+ * @param string $view One of SNT_MR_VIEWS.
+ * @return string
+ */
+function snt_mr_cache_key( $days, $view ) {
+	return 'sn_mr_rows_' . (int) $days . '_' . $view;
+}
+
+/**
+ * Drop every cached rows window/view. Called when the worker URL or token
+ * changes: the old handler deleted `sn_mr_rows_30`, a key that stopped
+ * existing in v10.79.0, so new credentials kept serving the previous result
+ * for up to 15 minutes (#1206). 90 windows x 4 views = 360 deletes at most,
+ * on a settings save; cheap, and correct by construction.
+ *
+ * @return void
+ */
+function snt_mr_cache_flush() {
+	for ( $days = 1; $days <= 90; $days++ ) {
+		foreach ( SNT_MR_VIEWS as $view ) {
+			delete_transient( snt_mr_cache_key( $days, $view ) );
+		}
+	}
+}
+
 function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 	$days = max( 1, min( 90, (int) $days ) );
-	$view = in_array( $view, array( 'aggregate', 'unknown', 'rights', 'totals' ), true ) ? $view : 'aggregate';
+	$view = in_array( $view, SNT_MR_VIEWS, true ) ? $view : 'aggregate';
 
 	$cfg = snt_mr_config();
 	if ( null === $cfg ) {
 		return array( 'ok' => false, 'rows' => array(), 'error' => 'not_configured' );
 	}
 
-	$cache_key = 'sn_mr_rows_' . $days . '_' . $view;
+	$cache_key = snt_mr_cache_key( $days, $view );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) && true === ( $cached['ok'] ?? false ) ) {
 		return $cached;

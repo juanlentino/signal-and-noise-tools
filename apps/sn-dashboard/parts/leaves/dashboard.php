@@ -322,8 +322,18 @@ function home_pulse_html( array $data, $tab ) {
 	if ( isset( $deltas['views']['current'] ) && $deltas['views']['current'] > 0 && isset( $deltas['visits']['current'] ) && $deltas['visits']['current'] > 0 ) {
 		$rate        = round( ( (int) $deltas['views']['current'] / max( 1, (int) $deltas['visits']['current'] ) ), 1 );
 		$engaged_val = number_format_i18n( $rate, 1 ) . ' v/s';
-		if ( isset( $deltas['views']['pct'] ) && null !== $deltas['views']['pct'] ) {
-			$engaged_pct = ( $deltas['views']['pct'] >= 0 ? '+' : '' ) . $deltas['views']['pct'] . '%';
+
+		// The tile is a RATIO (views per visit); its delta must be the ratio's
+		// own move, not the views delta — views and visits can move together
+		// (ratio unchanged) or apart (ratio moves opposite either input).
+		$prior_views  = (int) ( $deltas['views']['previous'] ?? 0 );
+		$prior_visits = (int) ( $deltas['visits']['previous'] ?? 0 );
+		if ( $prior_views > 0 && $prior_visits > 0 && function_exists( 'sn_analytics_delta' ) ) {
+			$prior_rate = $prior_views / $prior_visits;
+			$rate_delta = sn_analytics_delta( $rate, $prior_rate );
+			if ( null !== $rate_delta['pct'] ) {
+				$engaged_pct = ( $rate_delta['pct'] >= 0 ? '+' : '' ) . $rate_delta['pct'] . '%';
+			}
 		}
 	}
 
@@ -367,7 +377,7 @@ function home_pulse_html( array $data, $tab ) {
 		. '<div class="snt-home__pulse-group-label">' . esc_html__( 'Audience (7 days)', 'signal-and-noise-tools' ) . '</div>'
 		. '<div class="snt-home__pulse">'
 		. pulse_item_html( __( 'Views', 'signal-and-noise-tools' ), 'dashicons-visibility', $views_curr, $views_pct, admin_url( 'admin.php?page=sn-analytics&sn_range=7d' ) )
-		. pulse_item_html( __( 'Visits', 'signal-and-noise-tools' ), 'dashicons-groups', $visits_curr, $visits_pct, admin_url( 'admin.php?page=sn-analytics&sn_view=sessions&sn_range=7d' ) )
+		. pulse_item_html( __( 'Visits', 'signal-and-noise-tools' ), 'dashicons-groups', $visits_curr, $visits_pct, admin_url( 'admin.php?page=sn-analytics&sn_view=visits&sn_range=7d' ) )
 		. pulse_item_html( __( 'Engagement', 'signal-and-noise-tools' ), 'dashicons-performance', $engaged_val, $engaged_pct, admin_url( 'admin.php?page=sn-analytics&sn_range=7d' ) )
 		. pulse_item_html( __( 'Search clicks', 'signal-and-noise-tools' ), 'dashicons-search', $search_clicks, $search_detail, admin_url( 'admin.php?page=sn-analytics&sn_view=search' ) )
 		. '</div></div>';
@@ -385,7 +395,7 @@ function home_pulse_html( array $data, $tab ) {
 		. '<div class="snt-home__pulse-group-label">' . esc_html__( 'Trust & Operations', 'signal-and-noise-tools' ) . '</div>'
 		. '<div class="snt-home__pulse">'
 		. pulse_item_html( __( 'Plugin version', 'signal-and-noise-tools' ), 'dashicons-admin-plugins', $deploy_val, '', admin_url( 'admin.php?page=sn-theme-options&tab=dashboard' ), $tab )
-		. pulse_item_html( __( 'Provenance anchors', 'signal-and-noise-tools' ), 'dashicons-tag', $anchored_str, '', admin_url( 'admin.php?page=sn-theme-options&tab=connections&sub=provenance' ), $tab )
+		. pulse_item_html( __( 'Provenance anchors', 'signal-and-noise-tools' ), 'dashicons-tag', $anchored_str, '', admin_url( 'admin.php?page=sn-theme-options&tab=tools&sub=provenance' ), $tab )
 		. pulse_item_html( __( 'Site health', 'signal-and-noise-tools' ), 'dashicons-heart', $health_val, '', admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ), $tab )
 		. '</div></div>';
 
@@ -567,7 +577,8 @@ function home_attention_html( array $data, $tab ) {
  */
 function home_continue_working_html( $tab ) {
 	unset( $tab );
-	$items = array();
+	$items       = array();
+	$found_posts = 0;
 
 	if ( class_exists( 'WP_Query' ) ) {
 		$query = new \WP_Query(
@@ -583,6 +594,7 @@ function home_continue_working_html( $tab ) {
 				'update_post_term_cache' => false,
 			)
 		);
+		$found_posts = (int) $query->found_posts;
 
 		if ( ! empty( $query->posts ) ) {
 			foreach ( $query->posts as $p ) {
@@ -611,7 +623,11 @@ function home_continue_working_html( $tab ) {
 		}
 	}
 
-	$total_count  = count( $items );
+	// found_posts is the query's real total (paid for via no_found_rows=false);
+	// count( $items ) is only the 6-row display window and undercounts once
+	// more than 6 posts exist. Fall back to the window for a stub WP_Query
+	// (or no WP_Query at all) that never set found_posts.
+	$total_count  = $found_posts > 0 ? $found_posts : count( $items );
 	$visible_work = array_slice( $items, 0, 5 );
 
 	$out = '<section class="snt-home__section" aria-labelledby="snt-home-work-heading">'

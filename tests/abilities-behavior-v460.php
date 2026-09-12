@@ -233,6 +233,14 @@ bx_true( is_wp_error( $r ) && 'snt_invalid_hook' === $r->get_error_code(), 'A.1:
 $r = snt_ability_run_cron_event( array( 'hook' => 'sn_rss_tracker_daily_prune' ) );
 bx_true( is_wp_error( $r ) && 'snt_sn_hook_refused' === $r->get_error_code(), 'A.2: sn_* hook → snt_sn_hook_refused WP_Error' );
 
+// A.2b — #1195: 'sn_' as a 3-char LITERAL prefix does not match 'snt_' (the
+// 4th char is 't', not '_'), so an snt_-prefixed owned hook must still be
+// refused via the real owned-hook allowlist, not a string-prefix shortcut.
+foreach ( array( 'snt_cron_history_prune', 'snt_mr_snapshot_refresh', 'snt_deploy_workers_warm' ) as $owned_hook ) {
+	$r = snt_ability_run_cron_event( array( 'hook' => $owned_hook ) );
+	bx_true( is_wp_error( $r ) && 'snt_sn_hook_refused' === $r->get_error_code(), "A.2b: owned hook $owned_hook is refused (not dispatched as if it were a third party's)" );
+}
+
 // A.3 — ORPHAN hook (no callbacks) → impl's has_action() guard returns WP_Error.
 //        This is THE regression test: the old body did do_action on nothing
 //        and returned ok:true. Delegation now surfaces the orphan error.

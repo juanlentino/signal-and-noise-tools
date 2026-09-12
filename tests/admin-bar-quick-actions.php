@@ -521,5 +521,37 @@ ab_true( false !== $pos_confirm && false !== $pos_busy && $pos_confirm < $pos_bu
 // prose is ever edited.
 ab_true( false === stripos( $m[1] ?? '', '</script' ), '7.10: no raw closing-tag sequence in the emitted config' );
 
+// ── #1228: Clear DB Overrides must not report success when the theme
+// filter is absent (the CF-purge sibling already errors in that case) ──
+echo "\nGroup: #1228 — sn_handle_quick_clear_overrides errors when unhooked\n";
+$GLOBALS['__ab_filters']       = array(); // tag => registered?
+$GLOBALS['__ab_filter_values'] = array(); // tag => value a registered listener would return
+if ( ! function_exists( 'has_filter' ) ) {
+	function has_filter( $tag, $cb = false ) { return ! empty( $GLOBALS['__ab_filters'][ $tag ] ); }
+}
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( $tag, $value, ...$args ) {
+		return $GLOBALS['__ab_filters'][ $tag ] ?? false ? ( $GLOBALS['__ab_filter_values'][ $tag ] ?? $value ) : $value;
+	}
+}
+
+// No listener registered (theme module not loaded) → error, not "0 cleared".
+try {
+	sn_handle_quick_clear_overrides();
+	ab_true( false, '8.1: expected a thrown JSON response' );
+} catch ( SN_AB_JsonResponse $r ) {
+	ab_true( false === $r->success, '8.1: unhooked filter reports an ERROR, not a false "0 cleared" success' );
+}
+
+// A listener IS registered (theme loaded) → the real count reports success.
+$GLOBALS['__ab_filters']['sn_clear_template_overrides_result']       = true;
+$GLOBALS['__ab_filter_values']['sn_clear_template_overrides_result'] = 3;
+try {
+	sn_handle_quick_clear_overrides();
+	ab_true( false, '8.2: expected a thrown JSON response' );
+} catch ( SN_AB_JsonResponse $r ) {
+	ab_true( true === $r->success && false !== strpos( (string) ( $r->payload['message'] ?? '' ), '3 DB override(s)' ), '8.2: a hooked filter still reports its real count on success' );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

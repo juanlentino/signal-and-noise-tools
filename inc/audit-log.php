@@ -21,8 +21,9 @@
  * Storage:
  *   - Long-term: single autoloaded option `sn_audit_log_v1` (JSON-encoded,
  *     schema-versioned). Worst-case envelope ~100 KB after 90 days.
- *   - Ephemeral: transient `sn_audit_today_ips` (25h TTL), associative
- *     array of `{ hashed_ip_fragment => 1 }`.
+ *   - Ephemeral: transient `sn_audit_today_ips` (25h TTL), shaped
+ *     `{ day: 'Y-m-d', ips: { hashed_ip_fragment => 1 } }`. Keyed to its own
+ *     day so a day flip resets the set independent of the TTL (#1225).
  *
  * Retention: 90 days, enforced by daily cron `sn_audit_log_prune`.
  *
@@ -135,14 +136,24 @@ function snt_audit_increment_counter_impl( $event_type, $ip = null, $mfa_type = 
 	}
 
 	// Update unique-IPs transient set if we have an IP.
+	//
+	// #1225: the set's 25h TTL was refreshed on every new entry (set_transient
+	// re-arms the TTL each call), so under steady daily traffic it never
+	// expired — a returning IP from yesterday still matched today's "unique"
+	// check and was undercounted, and the transient grew without bound.
+	// Keying the set to its own day and resetting on a day flip makes today's
+	// uniqueness check independent of the TTL entirely.
 	if ( null !== $ip && '' !== $ip ) {
 		$hash = snt_audit_hash_ip( $ip );
 		$set  = get_transient( SN_AUDIT_TRANSIENT_IPS );
-		if ( ! is_array( $set ) ) {
-			$set = array();
+		if ( ! is_array( $set ) || ( $set['day'] ?? '' ) !== $today ) {
+			$set = array(
+				'day' => $today,
+				'ips' => array(),
+			);
 		}
-		if ( ! isset( $set[ $hash ] ) ) {
-			$set[ $hash ] = 1;
+		if ( ! isset( $set['ips'][ $hash ] ) ) {
+			$set['ips'][ $hash ] = 1;
 			set_transient( SN_AUDIT_TRANSIENT_IPS, $set, SN_AUDIT_IPS_TTL );
 			$blob['counters'][ $today ]['unique_ips_count'] = (int) ( $blob['counters'][ $today ]['unique_ips_count'] ?? 0 ) + 1;
 		}

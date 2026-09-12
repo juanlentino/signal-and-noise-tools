@@ -162,7 +162,12 @@ $GLOBALS['__filters']['snt_agent_anthropic_effort'] = array();
 add_filter( 'snt_agent_anthropic_effort', function () { return 'turbo'; } );
 $body = json_decode( snt_agent_budget_shape( array( 'body' => snt_test_body() ), $anthropic )['body'], true );
 ok( ! isset( $body['thinking'] ) && ! isset( $body['output_config'] ), 'a non-whitelisted effort value disables the injection' );
-ok( 8192 === ( $body['max_tokens'] ?? null ), '…while the ceiling headroom still applies' );
+// #1230: mirrors inc/insights-generation-budget.php's guard. With thinking
+// left UNBOUNDED (the effort injection disabled), the ceiling raise must
+// NOT apply — raising max_tokens on an unbounded request just makes the
+// eventual timeout bigger, exactly the failure the sibling seam already
+// refuses (v13.20.5).
+ok( 4096 === ( $body['max_tokens'] ?? null ), '…and the ceiling raise is WITHHELD — thinking is unbounded, so headroom would go to thinking, not the answer' );
 $GLOBALS['__filters']['snt_agent_anthropic_effort'] = array();
 
 add_filter( 'snt_agent_anthropic_max_tokens', function () { return 16384; } );

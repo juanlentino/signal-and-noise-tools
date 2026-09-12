@@ -112,10 +112,10 @@ function sn_migrate_as_substrate_post_date_displaytype() {
 		return;
 	}
 
-	wp_update_post( array(
+	wp_update_post( wp_slash( array(
 		'ID'           => $page->ID,
 		'post_content' => $new,
-	) );
+	) ) );
 
 	update_option( SN_AS_DATE_DISPLAYTYPE_OPT, time(), true );
 }

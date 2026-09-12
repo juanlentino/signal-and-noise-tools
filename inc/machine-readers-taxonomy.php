@@ -188,8 +188,10 @@ function snt_mr_normalize_rights_rows( $data ) {
 	}
 	$families = snt_mr_valid_families();
 	$purposes = snt_mr_valid_purposes();
-	$clip     = static function ( $v, $cap ) {
-		return substr( preg_replace( '/[\x00-\x1f\x7f]/', ' ', (string) $v ), 0, $cap );
+	// #1227: mb_-safe — UA/path/accept caps are described as character caps
+	// but a byte-based substr() could split a multibyte character.
+	$clip = static function ( $v, $cap ) {
+		return mb_substr( preg_replace( '/[\x00-\x1f\x7f]/', ' ', (string) $v ), 0, $cap );
 	};
 
 	$rows = array();

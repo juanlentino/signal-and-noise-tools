@@ -50,7 +50,7 @@ function sn_mcp_read_guard_route_slug( $route ) {
 	if ( ! is_string( $route ) || '' === $route ) {
 		return '';
 	}
-	if ( 1 !== preg_match( '#^/wp-abilities/v[0-9]+/abilities/(.+)/run$#', $route, $m ) ) {
+	if ( 1 !== preg_match( '#^/wp-abilities/v[0-9]+/abilities/(.+)/run$#i', $route, $m ) ) {
 		return '';
 	}
 	return (string) $m[1];
@@ -292,7 +292,7 @@ function sn_mcp_read_guard_is_read_path( $route ) {
 	$ns    = function_exists( 'sn_mcp_namespace' )
 		? sn_mcp_namespace()
 		: ( defined( 'SN_REST_NAMESPACE' ) ? SN_REST_NAMESPACE : 'signal-noise/v1' );
-	if ( '/' . $ns . '/mcp' === $route ) {
+	if ( 0 === strcasecmp( '/' . $ns . '/mcp', $route ) ) {
 		return true;
 	}
 	$slug = sn_mcp_read_guard_route_slug( $route );
@@ -407,6 +407,12 @@ function sn_mcp_read_guard_rate_limit_dispatch( $result, $server = null, $reques
 	}
 	$route = ( is_object( $request ) && method_exists( $request, 'get_route' ) ) ? (string) $request->get_route() : '';
 	if ( '' === $route || ! sn_mcp_read_guard_is_read_path( $route ) ) {
+		return $result;
+	}
+	// On the /mcp route the switch lives in the permission_callback, which
+	// runs after this hook, so nothing has answered yet here. Step aside for an
+	// engaged switch so the 403 wins over the 429, as on the run route (#1214).
+	if ( '' === sn_mcp_read_guard_route_slug( $route ) && sn_mcp_read_kill_switch_engaged() ) {
 		return $result;
 	}
 	$decision = sn_mcp_read_rate_limit_check(

@@ -55,6 +55,16 @@ $snap = series( $captured, 30, function ( $i ) { return 1 === $i ? null : 400; }
 $r = sn_health_check_machine_reader_liveness( $snap );
 ok( 1 === $r['count'], 'a day ABSENT from by_day is a zero day (a family with no rows is absent, not 0 -- same convention as by_family)' );
 
+// #1183: a sensor at ~450/day dead for 29 of a 30-day window. Yesterday (i=1)
+// and 28 of the 29 baseline days (i=2..29) are all 0; only i=30 still carries
+// the old ~450/day. A baseline mean over the WHOLE window (29 samples, one
+// non-zero) is 450/29 =~ 15.5 -- under SN_HEALTH_MR_QUIET_FLOOR (20) -- so the
+// check reads "too quiet to judge" and never flags, exactly when the outage
+// is oldest and most certain.
+$snap = series( $captured, 30, function ( $i ) { return $i <= 29 ? 0 : 450; } );
+$r = sn_health_check_machine_reader_liveness( $snap );
+ok( 1 === $r['count'] && null === $r['skipped'], '#1183: a 28-day-old outage against a real ~450/day sensor still flags (whole-window mean would have hidden it)' );
+
 echo "\nGroup 3: passes are passes\n";
 $snap = series( $captured, 30, function ( $i ) { return 1 === $i ? 12 : 400; } );
 $r = sn_health_check_machine_reader_liveness( $snap );

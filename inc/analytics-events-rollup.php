@@ -32,6 +32,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-derive.php'; // sn_analytics_rollup_day_exprs()
+
 // Per-day write caps (bound table growth; AE pre-sorts by events desc).
 const SN_ANALYTICS_EVENTS_ROLLUP_NAME_CAP = 100; // top names per day
 const SN_ANALYTICS_EVENTS_ROLLUP_PROP_CAP = 200; // top (property,value) per day
@@ -41,19 +43,21 @@ const SN_ANALYTICS_EVENTS_ROLLUP_PROP_CAP = 200; // top (property,value) per day
  * Human-only. $days is integer-cast + floored (defence in depth; callers pass a
  * constant). Returns a string in the proven AE dialect — NO LIMIT (PHP slices).
  *
- * @param int $days Trailing window in days.
+ * @param int    $days Trailing window in days.
+ * @param string $tz   Optional IANA zone (sn_analytics_site_tz_name()); '' = UTC.
  * @return string AE SQL.
  */
-function sn_analytics_events_rollup_sql( $days ) {
+function sn_analytics_events_rollup_sql( $days, $tz = '' ) {
 	$days = max( 1, (int) $days );
+	list( $day_col, $lower ) = sn_analytics_rollup_day_exprs( $days, $tz );
 
 	return implode( ' ', array(
-		"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
+		"SELECT {$day_col} AS day,",
 		'blob16 AS name,',
 		'sum(_sample_interval) AS events,',
 		'count(DISTINCT index1) AS visitors',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'ce' AND blob7 = 'human' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
+		"WHERE blob1 = 'ce' AND blob7 = 'human' AND timestamp >= {$lower}",
 		'GROUP BY day, name',
 		'ORDER BY day DESC, events DESC',
 	) );
@@ -63,20 +67,22 @@ function sn_analytics_events_rollup_sql( $days ) {
  * AE SQL: roll the trailing $days of cp rows into per-day-per-(property,value)
  * totals. Human-only. Proven AE dialect, NO LIMIT.
  *
- * @param int $days Trailing window in days.
+ * @param int    $days Trailing window in days.
+ * @param string $tz   Optional IANA zone (sn_analytics_site_tz_name()); '' = UTC.
  * @return string AE SQL.
  */
-function sn_analytics_event_props_rollup_sql( $days ) {
+function sn_analytics_event_props_rollup_sql( $days, $tz = '' ) {
 	$days = max( 1, (int) $days );
+	list( $day_col, $lower ) = sn_analytics_rollup_day_exprs( $days, $tz );
 
 	return implode( ' ', array(
-		"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
+		"SELECT {$day_col} AS day,",
 		'blob17 AS property,',
 		'blob18 AS value,',
 		'sum(_sample_interval) AS events,',
 		'count(DISTINCT index1) AS visitors',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'cp' AND blob7 = 'human' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
+		"WHERE blob1 = 'cp' AND blob7 = 'human' AND timestamp >= {$lower}",
 		'GROUP BY day, property, value',
 		'ORDER BY day DESC, events DESC',
 	) );
@@ -134,9 +140,16 @@ function sn_analytics_events_run_rollup() {
 		return;
 	}
 
+	// Roll by the SITE-LOCAL day like the pageview rollup (#1201), falling back
+	// to UTC within the run when the zoned query fails (pre-timezone AE -> 422).
+	$tz = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
+
 	// Events (blob1='ce'): AE aliases day/name/events/visitors already match the
 	// upsert's {day,name,visitors,events} shape — cap, then upsert.
-	$ce_rows = sn_analytics_query( sn_analytics_events_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS ) );
+	$ce_rows = sn_analytics_query( sn_analytics_events_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, $tz ) );
+	if ( '' !== $tz && ! is_array( $ce_rows ) ) {
+		$ce_rows = sn_analytics_query( sn_analytics_events_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, '' ) );
+	}
 	if ( is_array( $ce_rows ) && ! empty( $ce_rows ) ) {
 		$capped = sn_analytics_events_rollup_cap_per_day( $ce_rows, SN_ANALYTICS_EVENTS_ROLLUP_NAME_CAP );
 		if ( ! empty( $capped ) && function_exists( 'sn_analytics_events_upsert' ) ) {
@@ -146,7 +159,10 @@ function sn_analytics_events_run_rollup() {
 
 	// Event props (blob1='cp'): AE aliases day/property/value/events/visitors
 	// match the upsert's {day,property,value,visitors,events} shape — cap, upsert.
-	$cp_rows = sn_analytics_query( sn_analytics_event_props_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS ) );
+	$cp_rows = sn_analytics_query( sn_analytics_event_props_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, $tz ) );
+	if ( '' !== $tz && ! is_array( $cp_rows ) ) {
+		$cp_rows = sn_analytics_query( sn_analytics_event_props_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, '' ) );
+	}
 	if ( is_array( $cp_rows ) && ! empty( $cp_rows ) ) {
 		$capped = sn_analytics_events_rollup_cap_per_day( $cp_rows, SN_ANALYTICS_EVENTS_ROLLUP_PROP_CAP );
 		if ( ! empty( $capped ) && function_exists( 'sn_analytics_event_props_upsert' ) ) {

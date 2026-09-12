@@ -161,7 +161,8 @@ function snt_watch_ripe_integrity_resweep( $watch, $now ) {
 		if ( ! is_array( $row ) ) {
 			continue;
 		}
-		$checked = strtotime( (string) ( $row['last_checked'] ?? '' ) );
+		$lc      = $row['last_checked'] ?? '';
+		$checked = is_numeric( $lc ) ? (int) $lc : strtotime( (string) $lc );
 		if ( ! $checked || $checked < $cutoff ) {
 			continue;
 		}

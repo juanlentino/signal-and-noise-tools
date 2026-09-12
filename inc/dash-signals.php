@@ -51,8 +51,17 @@ function sn_dash_render_signals( array $signals ) {
 		$compare = (string) ( $sig['compare'] ?? '' );
 		$dir     = (string) ( $sig['dir'] ?? '' );
 		$dclass  = ( 'up' === $dir || 'down' === $dir ) ? ' sn-sig__compare--' . $dir : '';
+		// #1228: an empty $compare has two distinct causes — a real signal
+		// with nothing to compare against ("no prior period") vs. a signal
+		// this measurement never even ran ("not measured"). Collapsing both
+		// into "no prior period" told an unmeasured signal it HAD a period,
+		// just an absent one — a different claim than "never measured".
+		$is_unmeasured = array_key_exists( 'measured', $sig ) && false === $sig['measured'];
+		$fallback      = $is_unmeasured
+			? __( 'not measured', 'signal-and-noise-tools' )
+			: __( 'no prior period', 'signal-and-noise-tools' );
 		echo '<span class="sn-sig__compare' . esc_attr( $dclass ) . '">';
-		echo esc_html( '' !== $compare ? $compare : __( 'no prior period', 'signal-and-noise-tools' ) );
+		echo esc_html( '' !== $compare ? $compare : $fallback );
 		echo '</span>';
 		echo '</div>';
 	}

@@ -112,7 +112,17 @@ function snt_agent_budget_shape( $args, $url ) {
 
 	$changed = false;
 
-	if ( ! isset( $body['thinking'] ) && ! isset( $body['output_config'] ) ) {
+	// #1230: is thinking BOUNDED on this request — by someone else's
+	// decision, or by the effort config injected below? Mirrors
+	// inc/insights-generation-budget.php's guard: with thinking demand-
+	// bounded, headroom goes to the answer; with thinking ceiling-bounded
+	// (the effort filter disabled), headroom goes to thinking and the
+	// answer still never lands — raising max_tokens on an unbounded
+	// request just makes that timeout bigger. Never raise the ceiling of
+	// an unbounded request.
+	$bounded = isset( $body['thinking'] ) || isset( $body['output_config'] );
+
+	if ( ! $bounded ) {
 		/**
 		 * Filter the effort level injected on agent-run generations.
 		 *
@@ -127,14 +137,16 @@ function snt_agent_budget_shape( $args, $url ) {
 		if ( in_array( $effort, array( 'low', 'medium', 'high' ), true ) ) {
 			$body['thinking']      = array( 'type' => 'adaptive' );
 			$body['output_config'] = array( 'effort' => $effort );
+			$bounded               = true;
 			$changed               = true;
 		}
 	}
 
 	// Strict int 4096 only: the AI Client's pinned default. Any other
 	// value means upstream (or another plugin) already made a decision,
-	// and this seam defers to it. Raise-only.
-	if ( isset( $body['max_tokens'] ) && 4096 === $body['max_tokens'] ) {
+	// and this seam defers to it. Raise-only. #1230: gated on $bounded — see
+	// the guard above.
+	if ( $bounded && isset( $body['max_tokens'] ) && 4096 === $body['max_tokens'] ) {
 		/**
 		 * Filter the raised Anthropic max_tokens for agent runs.
 		 *

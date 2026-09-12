@@ -126,9 +126,15 @@ function cron_row_data( array $row ) {
 	}
 	$hook = (string) ( $row['hook'] ?? '' ) . ( ! empty( $tags ) ? ' [' . implode( ', ', $tags ) . ']' : '' );
 
-	$next_ts = (int) ( $row['next_run_ts'] ?? 0 );
-	/* translators: %s is a human-readable relative time, e.g., "5 mins" */
-	$next = wp_date( 'Y-m-d H:i:s', $next_ts ) . ' (' . sprintf( __( 'in %s', 'signal-and-noise-tools' ), human_time_diff( time(), $next_ts ) ) . ')';
+	$next_ts    = (int) ( $row['next_run_ts'] ?? 0 );
+	$next_label = function_exists( 'snt_cron_next_run_label' )
+		? snt_cron_next_run_label( time(), $next_ts )
+		/* translators: %s is a human-readable relative time, e.g., "5 mins" */
+		: sprintf( __( 'in %s', 'signal-and-noise-tools' ), human_time_diff( time(), $next_ts ) );
+	// #1222: same fix as the classic renderer (inc/cron-dashboard-admin.php) --
+	// human_time_diff() is an absolute difference, so a next_run_ts already in
+	// the past otherwise always read "in <time>" instead of "<time> overdue".
+	$next = wp_date( 'Y-m-d H:i:s', $next_ts ) . ' (' . $next_label . ')';
 
 	if ( ! empty( $row['schedule'] ) ) {
 		$recurrence = (string) $row['schedule'];

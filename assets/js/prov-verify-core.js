@@ -930,23 +930,33 @@
 			( j.provenance && j.provenance.uid ) ||
 			'';
 		var version = 0;
-		if ( ! uid && j.provenance && j.provenance.verify_url ) {
+		// v10.84.0 gave verify_url a &kind= for anything that is not a note
+		// ('note' is the pre-v10.84.0 default, carried by every older link and
+		// every twin whose verify_url omits the param). Read it whenever the
+		// URL is available — a twin that already emits note_uid directly may
+		// still be a page, so this is not folded into the uid-less branch below.
+		var kind = 'note';
+		var vu   = null;
+		if ( j.provenance && j.provenance.verify_url ) {
+			try {
+				vu   = new URL( j.provenance.verify_url, baseHref );
+				kind = vu.searchParams.get( 'kind' ) || 'note';
+			} catch ( e ) {
+				vu = null; // malformed URL: keep the 'note' default, fall through below.
+			}
+		}
+		if ( ! uid && vu ) {
 			// The one provenance field every deployed twin DOES carry is its own
 			// verify_url ("/verify?note=<uid>&v=<n>") — read the uid back out of
 			// it, so pasting a Note URL works against twins that predate the
 			// theme emitting note_uid directly.
-			try {
-				var vu = new URL( j.provenance.verify_url, baseHref );
-				uid = vu.searchParams.get( 'note' ) || '';
-				version = parseInt( vu.searchParams.get( 'v' ) || '0', 10 ) || 0;
-			} catch ( e ) {
-				uid = '';
-			}
+			uid     = vu.searchParams.get( 'note' ) || '';
+			version = parseInt( vu.searchParams.get( 'v' ) || '0', 10 ) || 0;
 		}
 		if ( ! uid ) {
 			return null;
 		}
-		return { uid: String( uid ).toLowerCase(), version: version };
+		return { uid: String( uid ).toLowerCase(), version: version, kind: kind };
 	}
 
 	/** Above this many words per side the LCS table is not worth building —

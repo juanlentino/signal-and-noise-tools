@@ -159,8 +159,11 @@ function snt_dashboard_tab_data() {
 	// the GHA-only feed froze at the last auto-on-tag-push deploy. The
 	// deploy-history module records wp-admin installs via the
 	// upgrader_process_complete hook; the merged view shows both sources.
+	// v1208: the Ops Wall reads this feed 6-deep ( array_slice( $runs, 0, 6 ) )
+	// and the Deploys glance card counts recent runs from it — a limit of 5
+	// starved both readings before either ever saw a 6th row.
 	$runs      = function_exists( 'snt_deploy_history_merged' )
-		? snt_deploy_history_merged( array_values( SNT_DEPLOY_REPOS ), 5 )
+		? snt_deploy_history_merged( array_values( SNT_DEPLOY_REPOS ), 6 )
 		: array();
 	$overrides = get_posts( array(
 		'post_type'      => snt_dashboard_override_post_types(),

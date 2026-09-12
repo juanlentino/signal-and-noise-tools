@@ -216,6 +216,17 @@ function snt_ability_update_post_surfaces( $input ) {
 		$updated[] = 'focus_keyword';
 	}
 
+	// #1224: these four writes go straight to post meta and never call
+	// wp_update_post(), so post_modified never advances — a crawler holding
+	// If-Modified-Since keeps 304ing against stale head data (title/OG/meta
+	// description/canonical-relevant fields). Stamp a touch time the seo.php
+	// 304 validator max()s against post_modified. (excerpt is excluded: it
+	// already goes through wp_update_post() above, which bumps post_modified
+	// itself.)
+	if ( null !== $meta_desc || null !== $og_title || null !== $seo_title || null !== $focus_kw ) {
+		update_post_meta( $post_id, '_sn_head_touched', wp_slash( time() ) );
+	}
+
 	set_transient( $throttle_key, $write_count + 1, SNT_SURFACES_THROTTLE_WINDOW );
 
 	return array(

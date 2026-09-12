@@ -214,9 +214,18 @@ $GLOBALS['__future_posts'] = array(
 	array(
 		'id'            => 99,
 		'title'         => 'My Scheduled Launch Post',
+		'post_type'     => 'post',
 		'scheduled_ts'  => 1893492000,
 		'scheduled_gmt' => '2030-01-01 10:00:00',
 		'edit_link'     => 'https://example.test/wp-admin/post.php?post=99&action=edit',
+	),
+	array(
+		'id'            => 100,
+		'title'         => 'My Scheduled Landing Page',
+		'post_type'     => 'page',
+		'scheduled_ts'  => 1893578400,
+		'scheduled_gmt' => '2030-01-02 10:00:00',
+		'edit_link'     => 'https://example.test/wp-admin/post.php?post=100&action=edit',
 	),
 );
 
@@ -232,11 +241,16 @@ ok( false !== strpos( $html, 'post=42' ), 'fragment row links to its target post
 ok( false !== strpos( $html, 'Fragment' ), 'fragment row carries the Fragment type label' );
 ok( false !== strpos( $html, 'reveal' ), 'fragment row shows its action (reveal)' );
 ok( false !== strpos( $html, 'queued' ), 'fragment row shows its status (queued)' );
-// Future post: its title appears, labelled Page, Scheduled status.
+// Future post: its title appears, labelled by its OWN post_type, Scheduled status.
 ok( false !== strpos( $html, 'My Scheduled Launch Post' ), 'future-post row shows the post title' );
 ok( false !== strpos( $html, 'post=99' ), 'future-post row links to its editor (id 99)' );
-ok( false !== strpos( $html, 'Page' ), 'future-post row carries the Page type label' );
 ok( false !== strpos( $html, 'Scheduled' ), 'future-post row status is Scheduled' );
+// #1218: a post_type of 'post' labels Post, not the hardcoded Page.
+$row_99 = substr( $html, (int) strpos( $html, 'My Scheduled Launch Post' ), 400 );
+ok( false !== strpos( $row_99, '>Post<' ), 'a scheduled POST is labelled Post, not Page (#1218)' );
+// A page still labels Page.
+$row_100 = substr( $html, (int) strpos( $html, 'My Scheduled Landing Page' ), 400 );
+ok( false !== strpos( $row_100, '>Page<' ), 'a scheduled PAGE is still labelled Page' );
 // Ops buttons present only for the fragment row.
 ok( false !== strpos( $html, 'schedule_run_now' ), 'fragment row exposes a Run now op (sn_action=schedule_run_now)' );
 ok( false !== strpos( $html, 'schedule_repurge' ), 'fragment row exposes a Re-purge op (sn_action=schedule_repurge)' );

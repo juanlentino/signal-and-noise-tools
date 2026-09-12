@@ -25,7 +25,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  PASS: 
 if ( ! function_exists( 'add_filter' ) ) { function add_filter() { return true; } }
 // wp_date sentinel: a value gmdate can NEVER produce (fixed past date), so
 // the site-timezone assertion below can only pass through the wp_date path.
-if ( ! function_exists( 'wp_date' ) ) { function wp_date( $fmt, $ts = null ) { return '1999-12-31'; } }
+if ( ! function_exists( 'wp_date' ) ) { function wp_date( $fmt, $ts = null ) { return $GLOBALS['__wp_date_override'] ?? '1999-12-31'; } }
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 $GLOBALS['__options'] = array();
 function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; }
@@ -67,6 +67,15 @@ ok( 3 === count( sn_now_page_sections() ), 'sn_now_page_sections() parses the st
 
 // unchanged content re-save → false (drives the "no changes" flash) but keeps the stamp shape.
 ok( false === sn_now_page_save( $raw ), 're-saving identical content returns false' );
+
+// #1228: identical content re-saved on a LATER day must still report no
+// real change — the stamp lives inside the compared array, so a naive save
+// bumped it every day and reported a change that never happened.
+$GLOBALS['__wp_date_override'] = '2000-01-15';
+ok( false === sn_now_page_save( $raw ), 'identical re-save on a LATER day still returns false (#1228)' );
+ok( '1999-12-31' === ( sn_now_page_get()['updated'] ?? '' ), 'the stamp is NOT bumped when content did not change' );
+unset( $GLOBALS['__wp_date_override'] );
+ok( true === sn_now_page_save( "$raw\nExtra." ), 'a REAL content change still returns true' );
 
 // empty save clears the option entirely (back to theme-file content).
 ok( true === sn_now_page_save( "  \n " ), 'whitespace-only save clears' );

@@ -68,7 +68,15 @@ function is_wp_error( $t ) { return $t instanceof WP_Error; }
 function wp_json_encode( $d ) { return json_encode( $d ); }
 function wp_is_post_revision( $id ) { return ! empty( $GLOBALS['__is_revision'] ); }
 function wp_is_post_autosave( $id ) { return ! empty( $GLOBALS['__is_autosave'] ); }
-function get_permalink( $id ) { return 'https://example.test/notes/post-' . (int) $id . '/'; }
+// Status-aware, like core: a non-viewable post (draft, trash) has no pretty
+// permalink and get_permalink() answers the plain ?p= form. That is the whole
+// #1180 defect -- a purge computed AFTER the status change names a URL the
+// edge never cached. Accepts an object, as core does.
+function get_permalink( $p ) {
+	$id = is_object( $p ) ? (int) $p->ID : (int) $p;
+	if ( is_object( $p ) && 'publish' !== $p->post_status ) { return 'https://example.test/?p=' . $id; }
+	return 'https://example.test/notes/post-' . $id . '/';
+}
 function home_url( $path = '/' ) { return 'https://example.test' . $path; }
 
 $GLOBALS['__http'] = array();
@@ -164,8 +172,20 @@ echo "\nGroup: the existing gates are untouched\n";
 $draft = fire( 'draft', 'draft' );
 ok( 0 === $draft['calls'], 'saving a draft fires nothing' );
 
+// #1180: the status gate used to run FIRST, so unpublishing or trashing a
+// live note left its permalink, /, /notes/ and the sitemap serving from the
+// edge until TTL. Now a transition OUT of publish purges the same set an edit
+// does, computed from the PRE-CHANGE post so the permalink is the one cached.
+echo "\nGroup: #1180 -- leaving publish purges what the edge holds\n";
 $unpublish = fire( 'draft', 'publish' );
-ok( 0 === $unpublish['calls'], 'unpublishing fires nothing (the status gate runs first)' );
+ok( ! $unpublish['everything'] && $unpublish['calls'] > 0, 'publish -> draft purges (narrow set, not the zone)' );
+ok( in_array( 'https://example.test/notes/post-7/', $unpublish['urls'], true ), 'the PRE-CHANGE pretty permalink is purged, not ?p=7' );
+ok( ! in_array( 'https://example.test/?p=7', $unpublish['urls'], true ), '...and the post-change ?p= form is not sent' );
+ok( in_array( 'https://example.test/', $unpublish['urls'], true ) && in_array( 'https://example.test/notes/', $unpublish['urls'], true ), 'plus / and /notes/' );
+$trash = fire( 'trash', 'publish' );
+ok( in_array( 'https://example.test/notes/post-7/', $trash['urls'], true ), 'publish -> trash purges the pre-change permalink set' );
+ok( 0 === fire( 'draft', 'draft' )['calls'], 'draft -> draft purges nothing' );
+ok( 0 === fire( 'trash', 'draft' )['calls'], 'draft -> trash purges nothing (it was never on the edge)' );
 
 $GLOBALS['__is_revision'] = true;
 $rev = fire( 'publish', null );

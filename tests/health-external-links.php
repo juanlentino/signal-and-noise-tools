@@ -121,6 +121,13 @@ ok( ! in_array( 'https://mysite.test/own', $ext, true ), 'drops same-host link' 
 ok( count( array_filter( $ext, fn( $u ) => strpos( $u, 'relative' ) !== false || strpos( $u, 'frag' ) !== false || strpos( $u, 'mailto' ) !== false ) ) === 0, 'drops relative/anchor/mailto' );
 ok( count( $ext ) === 2, 'dedupes (example.com appears once)' );
 
+// #1188: Gutenberg stores href HTML-escaped, so a query string with a
+// literal & is serialized as &amp; and must be decoded before probing.
+$escaped = '<a href="https://example.com/page?a=1&amp;lang=en">x</a>';
+$ext2    = sn_health_extract_external_links( $escaped, 'mysite.test' );
+ok( in_array( 'https://example.com/page?a=1&lang=en', $ext2, true ),
+	'#1188: &amp; in a stored href is decoded to & before the link is kept for probing' );
+
 // ─── 2. Probe SSRF guard ───
 ok( function_exists( 'sn_health_external_link_status' ), 'sn_health_external_link_status() defined' );
 

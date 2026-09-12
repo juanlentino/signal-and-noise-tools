@@ -66,8 +66,18 @@ add_filter( 'wp_speculation_rules_configuration', 'sn_speculation_configuration'
  * @return string[]
  */
 function sn_speculation_href_exclude_paths( $paths, $mode ) {
-	$paths   = (array) $paths;
-	$paths[] = '/' . ltrim( sn_login_get_slug(), '/' ) . '/*';
+	$paths = (array) $paths;
+	// #1229: sn_login_get_slug() is declared only when inc/login-hide.php
+	// does not return early (the SN_LOGIN_BYPASS constant, or wps-hide-login
+	// / rename-wp-login still active) — an unguarded call fatals every
+	// front-end render whenever perf.speculative_loading is on. Mirrors the
+	// existing guard in inc/admin-forms/login.php:33.
+	$slug = function_exists( 'sn_login_get_slug' ) ? sn_login_get_slug() : (string) sn_setting( 'login.slug', 'sn-login' );
+	$slug = ltrim( $slug, '/' );
+	// The bare '/sn-login' (no trailing segment) is what wp_login_url()
+	// itself emits; '/sn-login/*' alone never matches it.
+	$paths[] = '/' . $slug;
+	$paths[] = '/' . $slug . '/*';
 	$paths[] = '/contact/*';
 	return array_values( array_unique( $paths ) );
 }

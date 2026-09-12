@@ -473,6 +473,9 @@ function sn_mcp_rw_notify_maybe_send( $row ) {
 	$admin_email          = (string) get_option( 'admin_email', '' );
 
 	if ( '' === $admin_email || ! sn_mcp_rw_notify_valid_email( $admin_email ) ) {
+		// An attempt, so the window advances here too (#1214): otherwise every
+		// rw call re-reads and re-records the same invalid address.
+		update_option( SN_MCP_RW_NOTIFY_LAST_SENT_OPTION, $now, false );
 		update_option( SN_MCP_RW_NOTIFY_LAST_ERROR_OPTION, array( 'message' => 'admin_email missing or invalid', 'at' => $now ), false );
 		return false;
 	}

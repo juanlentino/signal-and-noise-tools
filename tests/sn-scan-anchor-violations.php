@@ -167,6 +167,14 @@ $r = snt_sn_scan_adapter_anchor_violations( null );
 $fps = array_column( $r['candidates'], 'content_fingerprint' );
 ok( 2 === count( $fps ) && $fps[0] !== $fps[1], 'adapter: byte-identical violations in one post are disambiguated by ordinal, never collapsed' );
 
+// #1227: rtrim()'s charlist is byte-wise. "\u{2026}" (ellipsis) is a 3-byte
+// UTF-8 sequence (E2 80 A6); its middle byte 0xA6 is also the SECOND byte of
+// 'æ' (UTF-8 C3 A6), so a byte-wise rtrim silently ate the trailing 'æ'.
+echo "\nGroup: normalize() is mb_-safe against ellipsis/multibyte byte collisions (#1227)\n";
+ok( 'The DAW signs the assembly' === snt_anchor_violations_normalize( 'The DAW signs the assembly.' ), 'a plain trailing period is still stripped' );
+ok( 'coelacanth minutiae' . "\xC3\xA6" === snt_anchor_violations_normalize( 'coelacanth minutiae' . "\xC3\xA6" ), 'a trailing æ (whose 2nd byte collides with the ellipsis) survives intact' );
+ok( 'signs the assembly' === snt_anchor_violations_normalize( "signs the assembly\xE2\x80\xA6" ), 'a real trailing ellipsis is still stripped as a whole character' );
+
 echo "\nGroup: no PHP notices/warnings anywhere in the suite\n";
 ok( array() === $GLOBALS['__php_errors'], 'zero notices/warnings raised: ' . implode( ' | ', $GLOBALS['__php_errors'] ) );
 

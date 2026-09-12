@@ -33,8 +33,14 @@ function sn_analytics_movers_uncached( $from, $to, $class = 'human', $limit = 3,
 	list( $pfrom, $pto ) = function_exists( 'sn_analytics_resolve_cwin' )
 		? sn_analytics_resolve_cwin( $cwin, $from, $to )
 		: sn_analytics_prior_window( $from, $to );
-	$cur = sn_analytics_top_paths( $from, $to, $class, 50 );
-	$pri = sn_analytics_top_paths( $pfrom, $pto, $class, 50 );
+	// Both windows at the accessor's cap (500), not a 50-row slice: a path in
+	// the prior top-50 but ranked 51+ now was emitted as views:0 / -prior
+	// ("dropped out") while it still had views (#1202). The read is one
+	// grouped query per window over the daily table, 15-min cached.
+	// ponytail: a site with >500 distinct paths in a window meets the same
+	// edge at the cap; re-fetch the misses via sn_analytics_path_window() then.
+	$cur = sn_analytics_top_paths( $from, $to, $class, 500 );
+	$pri = sn_analytics_top_paths( $pfrom, $pto, $class, 500 );
 
 	$prior_views = array();
 	foreach ( (array) $pri as $row ) {

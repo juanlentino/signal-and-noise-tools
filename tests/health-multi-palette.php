@@ -122,5 +122,36 @@ foreach ( array( '#ffffff', '#000000', '#e00404', '#0a0a0a', '#ff4c47', '#333333
 }
 ok( 6 === count( $hexes ), 'exactly the six distinct hexes across all three — a variation colour is a THEME colour, never drift' );
 
+// ── #1184: the hex scan must not match in-page anchors or hex-looking prose ──
+if ( ! defined( 'ARRAY_A' ) ) { define( 'ARRAY_A', 'ARRAY_A' ); }
+if ( ! function_exists( 'get_permalink' ) ) { function get_permalink( $id ) { return 'https://example.test/?p=' . $id; } }
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; } }
+class SnColorDriftWpdb {
+	public $posts = 'wp_posts';
+	public $__rows = array();
+	public function get_results( $sql, $output = null ) { return $this->__rows; }
+}
+$GLOBALS['wpdb'] = new SnColorDriftWpdb();
+
+// A post whose only "hex-looking" substrings are in-page anchors
+// (href="#add", href="#bed", href="#cab") and a hex-looking token in prose
+// (the changelog note "#580893") — none of these are colors.
+$GLOBALS['wpdb']->__rows = array( array(
+	'ID'           => 900,
+	'post_title'   => 'Anchors and prose',
+	'post_content' => '<a href="#add">Add</a> <a href="#bed">Bed</a> <a href="#cab">Cab</a> see commit #580893 for details',
+) );
+$r3 = sn_health_check_color_drift();
+ok( 0 === $r3['count'], '#1184: href="#add"/"#bed"/"#cab" anchors and a bare "#580893" in prose do not read as color drift' );
+
+// A genuine inline hex (not an allowed palette color) still flags.
+$GLOBALS['wpdb']->__rows = array( array(
+	'ID'           => 901,
+	'post_title'   => 'Real drift',
+	'post_content' => '<span style="color:#123abc">off-palette</span>',
+) );
+$r4 = sn_health_check_color_drift();
+ok( 1 === $r4['count'], '#1184: a genuine inline off-palette hex still flags' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -65,6 +65,11 @@ function sn_login_defense_widget_render() {
 		echo '<p class="sn-aw-err">' . esc_html__( 'Login defense stats need the Cloudflare analytics edge worker connected: see the Analytics widgets above for setup.', 'signal-and-noise-tools' ) . '</p>';
 		return;
 	}
+	if ( ! empty( $h['unavailable'] ) ) {
+		// #1204: a failed read is not a quiet week.
+		echo '<p class="sn-aw-err">' . esc_html__( 'Login defense stats could not be read right now (a read failure, not a quiet week).', 'signal-and-noise-tools' ) . '</p>';
+		return;
+	}
 	echo '<div class="sn-aw-grid">';
 	echo '<div class="sn-aw-stat"><div class="sn-aw-stat-n">' . esc_html( number_format_i18n( (int) $h['blocked'] ) ) . '</div>'
 		. '<div class="sn-aw-stat-l">' . esc_html__( 'Blocked (7d)', 'signal-and-noise-tools' ) . '</div></div>';

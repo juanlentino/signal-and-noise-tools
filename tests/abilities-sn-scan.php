@@ -74,6 +74,9 @@ function tf_post( $id, $status, $content, $extra = array() ) {
 	$p->post_type     = $extra['post_type'] ?? 'post';
 	$p->post_date     = $extra['date'] ?? '2026-06-01 10:00:00';
 	$p->post_modified = $extra['modified'] ?? '2026-07-01 10:00:00';
+	// #1196: post_modified is SITE-LOCAL; post_modified_gmt is the real UTC
+	// instant. Fixture simulates America/New_York (UTC-4 during DST).
+	$p->post_modified_gmt = $extra['modified_gmt'] ?? gmdate( 'Y-m-d H:i:s', strtotime( $p->post_modified . ' UTC' ) + 4 * 3600 );
 	$p->post_content  = $content;
 	$p->post_excerpt  = '';
 	return $p;
@@ -94,7 +97,12 @@ if ( ! function_exists( 'get_posts' ) ) {
 	function get_posts( $args ) {
 		$out = array();
 		foreach ( $GLOBALS['__posts'] as $p ) {
-			if ( $p->post_type !== ( $args['post_type'] ?? 'post' ) ) { continue; }
+			$want_type = $args['post_type'] ?? 'post';
+			// #1197: real get_posts() treats post_type 'any' as a WILDCARD
+			// (every registered type), not a literal type name — the stub
+			// modeled it as a literal and would silently hide the em-dash
+			// adapter's over-broad 'any' walk instead of exercising it.
+			if ( 'any' !== $want_type && $p->post_type !== $want_type ) { continue; }
 			if ( ! in_array( $p->post_status, (array) ( $args['post_status'] ?? array( 'publish' ) ), true ) ) { continue; }
 			// v13.2.0: the pattern_adoption adapter now scopes IN the query —
 			// the stub must honor post__in or the scope pins pass vacuously.
@@ -168,6 +176,8 @@ if ( ! function_exists( 'serialize_block' ) ) { function serialize_block( $block
 if ( ! function_exists( 'serialize_blocks' ) ) { function serialize_blocks( $tree ) { return json_encode( $tree ); } }
 if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $html ) { return $html; } }
 if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $cap, $post_id = null ) { return true; } }
+// #1177: the writer now hands core wp_slash()ed data; the stub keeps the value as-is so the assertions below read what was sent.
+if ( ! function_exists( 'wp_slash' ) ) { function wp_slash( $v ) { return $v; } }
 if ( ! function_exists( 'wp_update_post' ) ) {
 	function wp_update_post( $args, $wp_error = false ) {
 		$id = (int) ( $args['ID'] ?? 0 );
@@ -257,7 +267,10 @@ class SN_Test_Wpdb_Scan {
 	public function prepare( $sql, ...$args ) {
 		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }
 		foreach ( $args as $a ) {
-			$sql = preg_replace( '/%s/', "'" . str_replace( "'", "''", (string) $a ) . "'", $sql, 1 );
+			// Placeholders are consumed in the order they appear, %d or %s alike
+			// (mirrors $wpdb->prepare()) — needed since #1182's postmeta query is
+			// `post_id <> %d AND meta_value LIKE %s`.
+			$sql = preg_replace( '/%[ds]/', is_int( $a ) ? (string) (int) $a : "'" . str_replace( "'", "''", (string) $a ) . "'", $sql, 1 );
 		}
 		return str_replace( '%%', '%', $sql );
 	}
@@ -298,7 +311,32 @@ class SN_Test_Wpdb_Scan {
 				return $a['post_date_gmt'] < $cutoff;
 			} ) );
 		}
-		// A referenced-check substring-existence query (block_ref/in_body/in_meta).
+		// block_ref query (#1182): `post_content REGEXP '<pattern>'` — no quotes
+		// to strip, the pattern is inlined by prepare() as a bare string.
+		if ( false !== stripos( $sql, 'REGEXP' ) ) {
+			preg_match( "/REGEXP\\s+'([^']*)'/", $sql, $m );
+			$pattern = $m[1] ?? '';
+			if ( '' === $pattern ) { return 0; }
+			foreach ( $GLOBALS['__post_bodies'] as $hay ) {
+				if ( 1 === preg_match( '/' . $pattern . '/', (string) $hay ) ) { return 1; }
+			}
+			return 0;
+		}
+		// in_meta query (#1182): `post_id <> <id> AND meta_value LIKE '%needle%'`
+		// excludes the attachment's OWN postmeta row from the match.
+		if ( false !== strpos( $sql, 'post_id <>' ) ) {
+			preg_match( '/post_id <> (\d+)/', $sql, $pm );
+			$excluded_id = isset( $pm[1] ) ? (int) $pm[1] : 0;
+			$needle      = trim( $this->last_quoted( $sql ), '%' );
+			if ( '' === $needle ) { return 0; }
+			$rows = $GLOBALS['__meta_rows'] ?? array();
+			foreach ( $rows as $row ) {
+				if ( (int) $row['post_id'] === $excluded_id ) { continue; }
+				if ( false !== strpos( (string) $row['value'], $needle ) ) { return 1; }
+			}
+			return 0;
+		}
+		// A referenced-check substring-existence query (in_body).
 		$needle = trim( $this->last_quoted( $sql ), '%' );
 		if ( '' === $needle ) { return 0; }
 		$corpus = ( false !== strpos( $sql, 'postmeta' ) ) ? $GLOBALS['__meta_values'] : $GLOBALS['__post_bodies'];
@@ -475,6 +513,15 @@ ok( is_wp_error( $empty_ids ) && 'snt_scan_bad_scope' === $empty_ids->get_error_
 $bad_since = snt_ability_sn_scan( array( 'scan_type' => 'block_migrations', 'scope' => array( 'kind' => 'modified_since', 'modified_since' => 'not-a-date' ) ) );
 ok( is_wp_error( $bad_since ) && 'snt_scan_bad_scope' === $bad_since->get_error_code(), 'unparseable modified_since is rejected (422)' );
 
+// #1196: the post-backed modified_since resolver compared site-LOCAL
+// post_modified against the caller's UTC timestamp. Site tz America/New_York
+// (UTC-4): post modified 2026-08-31 21:00 LOCAL = 2026-09-01 01:00 UTC, AFTER
+// the 2026-09-01T00:00:00Z cutoff, so it must resolve as included.
+$GLOBALS['__posts'][304] = tf_post( 304, 'publish', json_encode( array() ), array( 'title' => 'Boundary post', 'slug' => 'boundary-post', 'modified' => '2026-08-31 21:00:00', 'modified_gmt' => '2026-09-01 01:00:00' ) );
+$since_ids = snt_sn_scan_resolve_scope( array( 'kind' => 'modified_since', 'modified_since' => '2026-09-01T00:00:00Z' ), 'block_migrations' );
+ok( is_array( $since_ids ) && in_array( 304, $since_ids, true ), 'a post modified after the UTC cutoff (but whose LOCAL clock reads earlier) resolves as included' );
+unset( $GLOBALS['__posts'][304] );
+
 $bad_cursor = snt_ability_sn_scan( array( 'scan_type' => 'block_migrations', 'cursor' => '***' ) );
 ok( is_wp_error( $bad_cursor ) && 'snt_scan_bad_cursor' === $bad_cursor->get_error_code(), 'malformed cursor is rejected (422)' );
 
@@ -638,6 +685,18 @@ ok( 801 === ( $em_c['targets'][0]['post_id'] ?? 0 ), 'emdash: targets carry the 
 ok( SNT_SN_SCAN_CONF_EMDASH === $em_c['confidence'], 'emdash: documented-constant confidence (was 0 live)' );
 ok( isset( $em_c['evidence']['phrase'], $em_c['evidence']['position'], $em_c['evidence']['replacement'], $em_c['evidence']['context_snippet'], $em_c['evidence']['fingerprint'] ), 'emdash: evidence carries everything emdash_replace needs (was silently dropped by the assembler)' );
 ok( 'signal-noise/sn-apply' === ( $em_c['apply_hint']['tool'] ?? '' ), 'emdash: apply_hint names sn-apply change.type emdash_replace' );
+
+// #1197: the em-dash adapter's OWN corpus walk (scope 'all'/null) used
+// snt_corpus_fetch_posts('any','any') — every post type — while the scope
+// resolver that turns modified_since into ids walks post_type 'post' only
+// (inc/abilities-sn-scan.php:257). A PAGE must not surface here: every
+// sibling adapter (e.g. duplicate_body at :394) walks 'post' only.
+$GLOBALS['__posts'][802] = tf_post( 802, 'publish', json_encode( array() ), array( 'title' => 'A page', 'slug' => 'emdash-page', 'post_type' => 'page' ) );
+$em_all = snt_ability_sn_scan( array( 'scan_type' => 'emdash', 'scope' => array( 'kind' => 'all' ) ) );
+$em_all_pids = array_map( static function ( $c ) { return (int) ( $c['targets'][0]['post_id'] ?? 0 ); }, $em_all['candidates'] );
+ok( ! in_array( 802, $em_all_pids, true ), 'emdash: scope "all" does not walk pages — matches the post-only corpus every sibling adapter uses' );
+ok( in_array( 801, $em_all_pids, true ), 'emdash: scope "all" still walks the post-type fixture' );
+unset( $GLOBALS['__posts'][802] );
 
 // The near_duplicate section above reset $GLOBALS['__posts'] to isolate its
 // own idf-sensitive fixture — restore the duplicate_body group-1 pair (same

@@ -128,6 +128,10 @@ foreach ( array( 'clientRequestPath', 'clientCountryName', 'clientASNDescription
 }
 ok( strpos( $atk, 'sampleInterval' ) !== false, 'attack: adaptive → sampleInterval present' );
 ok( strpos( $atk, '$from:Time!' ) !== false, 'attack: trailing-window Time variable' );
+// #1203: every adaptive document is bounded above too, so a day's snapshot cannot overlap the next.
+foreach ( array( 'firewall' => $fw, 'colo' => $colo, 'attack' => $atk, 'errors' => sn_edge_errors_query() ) as $name => $doc ) {
+	ok( strpos( $doc, '$to:Time!' ) !== false && substr_count( $doc, 'datetime_lt:$to' ) === substr_count( $doc, 'datetime_geq:$from' ), "$name: every datetime_geq:\$from is paired with datetime_lt:\$to (#1203)" );
+}
 
 echo "\nGroup: sampling correction (adaptive count × sampleInterval)\n";
 ok( sn_edge_corrected( array( 'count' => 12, 'avg' => array( 'sampleInterval' => 10 ) ) ) === 120, 'corrected: 12 × 10 = 120' );

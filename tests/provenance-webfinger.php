@@ -106,6 +106,48 @@ ok( in_array( 'http://webfinger.net/rel/profile-page', $brel, true ), 'the profi
 ok( $bare['subject'] === 'acct:juan@juanlentino.com', 'the identity still answers; it just claims less' );
 $GLOBALS['__pub'] = base64_encode( str_repeat( "\x01", 32 ) );
 
+// ── #1220: through the REAL entrypoint, with a REAL sanitize_text_field ─────
+// sn_prov_webfinger_send() above is called with the resource ALREADY typed
+// out plainly ('acct%3Ajuan%40...') — that bypasses
+// sn_prov_webfinger_maybe_serve() entirely, so it can never catch a bug that
+// lives only in maybe_serve()'s own REQUEST_URI handling. A subprocess is
+// required because maybe_serve() exit()s on a match, and because the bug is
+// specifically in WP core's sanitize_text_field() (its _sanitize_text_fields()
+// strips any %xx-looking octet before urldecode() ever runs) — a stub that
+// merely returns its input would make this pass for the wrong reason.
+$wf_script = 'define("ABSPATH", "/"); define("SN_PROV_WEBFINGER_TEST", true); define("SN_PROV_DID_TEST", true);'
+	. 'function home_url($p="") { return "https://juanlentino.com".$p; }'
+	. 'function wp_parse_url($u,$c=-1) { return parse_url($u,$c); }'
+	. 'function status_header($c) { $GLOBALS["__status"]=(int)$c; }'
+	. 'function wp_json_encode($d,$f=0) { return json_encode($d,$f); }'
+	. 'function add_action() { return true; }'
+	. 'function apply_filters($t,$v) { return $v; }'
+	. 'function get_option($n,$d=false) { return $d; }'
+	. 'function untrailingslashit($s) { return rtrim((string)$s,"/"); }'
+	. 'function sn_prov_pubkey_b64() { return base64_encode(str_repeat("\x01",32)); }'
+	. 'function wp_unslash($v) { return is_array($v) ? array_map("wp_unslash",$v) : (is_string($v) ? stripslashes($v) : $v); }'
+	// The real WP core algorithm (wp-includes/formatting.php
+	// _sanitize_text_fields()), not a passthrough stub: it strips %xx
+	// wherever it appears, which is the entire bug this test exists to catch.
+	. 'function sanitize_text_field($s) {'
+	. '  $s = trim(preg_replace("/[\r\n\t ]+/", " ", (string) $s));'
+	. '  while (preg_match("/%[a-f0-9]{2}/i", $s, $m)) { $s = str_replace($m[0], "", $s); }'
+	. '  return trim(preg_replace("/ +/", " ", $s));'
+	. '}'
+	. 'require ' . var_export( __DIR__ . '/../inc/provenance-did.php', true ) . ';'
+	. 'require ' . var_export( __DIR__ . '/../inc/provenance-webfinger.php', true ) . ';'
+	. '$_SERVER["REQUEST_URI"] = "/.well-known/webfinger?resource=acct%3Ajuan%40juanlentino.com";'
+	. 'sn_prov_webfinger_maybe_serve();';
+$wf_pipes = array();
+$wf_proc  = proc_open( array( PHP_BINARY, '-r', $wf_script ), array( 1 => array( 'pipe', 'w' ), 2 => array( 'redirect', 1 ) ), $wf_pipes );
+ok( is_resource( $wf_proc ), 'the maybe_serve() subprocess starts' );
+$wf_out = stream_get_contents( $wf_pipes[1] );
+fclose( $wf_pipes[1] );
+proc_close( $wf_proc );
+$wf_parsed = json_decode( $wf_out, true );
+ok( is_array( $wf_parsed ) && ( $wf_parsed['subject'] ?? '' ) === 'acct:juan@juanlentino.com',
+	'a %-encoded resource resolves through the REAL entrypoint (maybe_serve -> real sanitize_text_field -> urldecode), not just the parser called directly (#1220): got ' . $wf_out );
+
 $report = ob_get_clean(); echo $report;
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

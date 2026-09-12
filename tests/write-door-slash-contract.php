@@ -93,7 +93,23 @@ ok( $plain === wd_store_raw( $plain ) && $plain === wd_store_slashed( $plain ), 
 
 /* ── the census: every write site, derived from SOURCE ──────────────────── */
 echo "\nGroup: every write-door call that reaches core hands it slashed data\n";
-$files = array_merge( glob( __DIR__ . '/../inc/sn-apply/*.php' ), array( __DIR__ . '/../inc/abilities-update-post-surfaces.php' ) );
+// v13.109.22 (#1177): the census used to cover inc/sn-apply/*.php and the
+// surfaces writer only, so seven delegated writers (ai-link-suggest,
+// ai-drift-phrase-suggest, block-fingerprint-engine, resume-sync-engine,
+// page-sync-engine, reading-time, split-hero-migration) kept handing raw
+// post_content to core. Now EVERY wp_update_post()/wp_insert_post() under inc/
+// must slash; update_post_meta() stays scoped to the write door, where the
+// values are caller-composed prose (elsewhere it writes ints and flags).
+$door_files = array_merge( glob( __DIR__ . '/../inc/sn-apply/*.php' ), array( __DIR__ . '/../inc/abilities-update-post-surfaces.php' ) );
+$files = array_unique( array_map( 'realpath', array_merge( $door_files, wd_php_files( __DIR__ . '/../inc' ) ) ) );
+$door_files = array_map( 'realpath', $door_files );
+function wd_php_files( $dir ) {
+	$out = array();
+	foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ) ) as $file ) {
+		if ( 'php' === $file->getExtension() ) { $out[] = $file->getPathname(); }
+	}
+	return $out;
+}
 $total = 0; $unslashed = array();
 foreach ( $files as $f ) {
 	// Comment-stripped: a docblock naming wp_update_post() is not a call site,
@@ -101,7 +117,10 @@ foreach ( $files as $f ) {
 	$src = (string) file_get_contents( $f );
 	$src = preg_replace( '#/\*.*?\*/#s', '', $src );
 	$src = preg_replace( '#(?m)^\s*//.*$#', '', $src );
-	if ( preg_match_all( '/\b(wp_update_post|wp_insert_post|update_post_meta)\s*\(/', $src, $m, PREG_OFFSET_CAPTURE ) ) {
+	$fns = in_array( $f, $door_files, true ) ? 'wp_update_post|wp_insert_post|update_post_meta' : 'wp_update_post|wp_insert_post';
+	// `wp_update_post()` with EMPTY parens is prose (an ability description
+	// string saying "writes via wp_update_post()"), never a call: both take args.
+	if ( preg_match_all( '/\b(' . $fns . ')\s*\((?!\s*\))/', $src, $m, PREG_OFFSET_CAPTURE ) ) {
 		foreach ( $m[0] as $i => $hit ) {
 			$total++;
 			// The call's OWN argument list, by balanced parens -- NOT a fixed
@@ -123,7 +142,7 @@ foreach ( $files as $f ) {
 	}
 }
 // Guard the guard: a rotted regex finding nothing would pass the loop vacuously.
-ok( $total >= 14, "the census FINDS the write sites -- a zero-match sweep would pass over nothing ($total found)" );
+ok( $total >= 60, "the census FINDS the write sites across inc/** -- a zero-match sweep would pass over nothing ($total found)" );
 ok( array() === $unslashed, 'every write site slashes: ' . ( $unslashed ? implode( '; ', $unslashed ) : 'all ' . $total ) );
 
 /* ── NEGATIVE CONTROLS ──────────────────────────────────────────────────── */

@@ -457,5 +457,17 @@ ok( array() === $ro_unseen, 'every doored slug was found by the scan (an unseen 
 // Negative control: the scan can tell true from false.
 ok( isset( $ro_map['signal-noise/sn-apply'] ) && false === $ro_map['signal-noise/sn-apply'] && isset( $ro_map['signal-noise/sn-posts'] ) && true === $ro_map['signal-noise/sn-posts'], 'control: sn-apply reads false and sn-posts reads true' );
 
+echo "\n-- sn_mcp_get_ability: a lookup asks the registry before fetching (#1214) --\n";
+// wp_get_ability() on an unregistered name emits an E_USER_NOTICE from the
+// registry; with WP_DEBUG_DISPLAY that lands in the JSON body. Every MCP
+// lookup goes through this helper, which asks wp_has_ability() first.
+$GLOBALS['__registry'] = array( 'signal-noise/sn-status' => (object) array( 'name' => 'signal-noise/sn-status' ) );
+$GLOBALS['__fetched']  = array();
+function wp_has_ability( $n ) { return isset( $GLOBALS['__registry'][ $n ] ); }
+function wp_get_ability( $n ) { $GLOBALS['__fetched'][] = $n; return $GLOBALS['__registry'][ $n ] ?? null; }
+ok( $GLOBALS['__registry']['signal-noise/sn-status'] === sn_mcp_get_ability( 'signal-noise/sn-status' ), 'a registered slug resolves to its ability' );
+ok( null === sn_mcp_get_ability( 'signal-noise/does-not-exist' ), 'an unregistered slug resolves to null' );
+ok( array( 'signal-noise/sn-status' ) === $GLOBALS['__fetched'], 'and wp_get_ability() was never called for the unregistered slug' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

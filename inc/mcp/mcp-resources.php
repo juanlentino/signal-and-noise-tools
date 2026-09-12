@@ -211,7 +211,7 @@ function sn_mcp_changelog_latest_text( $limit = 5, $path = null ) {
  * @return array{uri:string,mimeType:string,text:string}
  */
 function sn_mcp_resource_ability_passthrough( $slug, $uri, $mime, $extract_key = null ) {
-	$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $slug ) : null;
+	$ability = sn_mcp_get_ability( $slug );
 	if ( ! $ability ) {
 		return sn_mcp_resource_content( $uri, 'text/plain', 'Unavailable: ability not registered (' . $slug . ').' );
 	}
