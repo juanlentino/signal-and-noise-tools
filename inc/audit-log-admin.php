@@ -100,7 +100,9 @@ function snt_audit_log_glance_cards( $summary ) {
 
 	return array(
 		array(
-			'label'     => 'Last 24h',
+			// #1225: this is a since-site-midnight count, not a rolling 24h
+			// window — "today" says what it actually measures.
+			'label'     => 'Today',
 			'value'     => number_format_i18n( (int) $summary['last_24h']['all_total'] ),
 			'meta_html' => esc_html( (int) $summary['last_24h']['failed_total'] . ' failed · ' . (int) $summary['last_24h']['recon_total'] . ' recon' ),
 		),
@@ -111,7 +113,7 @@ function snt_audit_log_glance_cards( $summary ) {
 			'pill'      => $trend_pill,
 		),
 		array(
-			'label'     => 'Unique IPs (24h)',
+			'label'     => 'Unique IPs (today)',
 			'value'     => number_format_i18n( (int) $summary['unique_attackers_24h'] ),
 			'meta_html' => 'hashed, not stored',
 		),
