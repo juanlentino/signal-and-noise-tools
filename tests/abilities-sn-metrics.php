@@ -131,5 +131,22 @@ $sn_rd = (string) ( $reg['input_schema']['properties']['range']['description'] ?
 ok( false !== strpos( $sn_rd, 'machine_readers' ), 'the range description names machine_readers and its clamp' );
 ok( false !== strpos( $sn_rd, '1-90' ), 'and states the range the sensor actually enforces' );
 
+// #1193: machine_readers, analytics_top_content, and 404_log were added to
+// the MAP (:100-105) but never given a row in $args_by_section, so
+// dispatching them warned "Undefined array key" and ran at whatever default
+// snt_sn_site_facts_dispatch()'s $ability->execute(null-ish) happened to use
+// instead of the caller's `range`. Their sources take `days`, not `range`.
+$GLOBALS['__abilities'][ $expected_map['machine_readers'] ]       = new SN_Test_Fact_Ability( true, array() );
+$GLOBALS['__abilities'][ $expected_map['analytics_top_content'] ] = new SN_Test_Fact_Ability( true, array() );
+$GLOBALS['__abilities'][ $expected_map['404_log'] ]               = new SN_Test_Fact_Ability( true, array() );
+$r = snt_ability_sn_metrics( array(
+	'sections' => array( 'machine_readers', 'analytics_top_content', '404_log' ),
+	'range'    => 7,
+) );
+ok( ! is_wp_error( $r ), 'dispatching the v13.44.0 sections does not error' );
+ok( array( 'days' => 7 ) === $GLOBALS['__abilities'][ $expected_map['machine_readers'] ]->last_call_args(), 'machine_readers receives range AS days (its own schema key)' );
+ok( array( 'days' => 7 ) === $GLOBALS['__abilities'][ $expected_map['analytics_top_content'] ]->last_call_args(), 'analytics_top_content receives range AS days (its own schema key)' );
+ok( array() === $GLOBALS['__abilities'][ $expected_map['404_log'] ]->last_call_args(), '404_log receives no args — its schema declares none' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
