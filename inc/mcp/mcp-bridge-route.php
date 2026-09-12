@@ -362,7 +362,10 @@ function sn_bridge_handle_request( $request ) {
 		sn_bridge_set_verified( false );
 	}
 
-	sn_bridge_report( 'dispatched', $slug );
+	// A WP_Error from execute() (schema, permission) is not a use: recording it
+	// as dispatched advanced last_used and the daily count for a call that
+	// did nothing (#1213).
+	sn_bridge_report( is_wp_error( $out ) ? 'refused_request' : 'dispatched', $slug );
 
 	return is_wp_error( $out ) ? $out : array( 'ok' => true, 'data' => $out );
 }
