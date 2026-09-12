@@ -102,16 +102,42 @@ function sn_mcp_rw_permission() {
  * @param string $door SN_MCP_DOOR_READ (default) or SN_MCP_DOOR_RW.
  * @return array{status:int,payload:array<string,mixed>|null}
  */
-function sn_mcp_dispatch_body( $body, $door = SN_MCP_DOOR_READ ) {
+function sn_mcp_dispatch_body( $body, $door = SN_MCP_DOOR_READ, $headers = array() ) {
 	$decoded = json_decode( (string) $body, true );
 	if ( null === $decoded && 'null' !== trim( (string) $body ) ) {
 		return array( 'status' => 200, 'payload' => sn_mcp_error_response( null, -32700, 'Parse error' ) );
+	}
+	// Dual-era (v14.2.0): a request that carries the modern per-request
+	// metadata, or names a modern version in its header, is served
+	// statelessly by mcp-modern.php. Everything else is the handshake path
+	// below, unchanged. See sn_mcp_is_modern_request().
+	if ( function_exists( 'sn_mcp_is_modern_request' ) && sn_mcp_is_modern_request( $headers, $decoded ) ) {
+		return sn_mcp_modern_handle( $headers, $decoded, $door );
 	}
 	$response = sn_mcp_handle_request( $decoded, $door );
 	if ( null === $response ) {
 		return array( 'status' => 202, 'payload' => null ); // notification: accepted, no body.
 	}
 	return array( 'status' => 200, 'payload' => $response );
+}
+
+/**
+ * The three mirrored headers the modern era reads, lowercase-keyed, absent
+ * keys omitted. WP_REST_Request::get_header() already canonicalises the
+ * name; nothing else from the request reaches the router.
+ *
+ * @param WP_REST_Request $request
+ * @return array<string,string>
+ */
+function sn_mcp_request_headers( $request ) {
+	$out = array();
+	foreach ( array( 'mcp-protocol-version', 'mcp-method', 'mcp-name' ) as $name ) {
+		$value = $request->get_header( $name );
+		if ( null !== $value && '' !== $value ) {
+			$out[ $name ] = (string) $value;
+		}
+	}
+	return $out;
 }
 
 /**
@@ -125,7 +151,7 @@ function sn_mcp_dispatch_body( $body, $door = SN_MCP_DOOR_READ ) {
  * @return WP_REST_Response
  */
 function sn_mcp_build_rest_response( $request, $door ) {
-	$out  = sn_mcp_dispatch_body( $request->get_body(), $door );
+	$out  = sn_mcp_dispatch_body( $request->get_body(), $door, sn_mcp_request_headers( $request ) );
 	$resp = new WP_REST_Response( $out['payload'], $out['status'] );
 	$resp->header( 'Cache-Control', 'no-store' );
 	return $resp;
