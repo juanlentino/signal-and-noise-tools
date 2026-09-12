@@ -147,8 +147,8 @@ function sn_edge_daily_query() {
  * @return string GraphQL document.
  */
 function sn_edge_firewall_query() {
-	return 'query($zone:string!,$from:Time!){viewer{zones(filter:{zoneTag:$zone}){'
-		. 'firewallEventsAdaptiveGroups(limit:100,filter:{datetime_geq:$from},orderBy:[count_DESC]){'
+	return 'query($zone:string!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
+		. 'firewallEventsAdaptiveGroups(limit:100,filter:{datetime_geq:$from,datetime_lt:$to},orderBy:[count_DESC]){'
 		. 'count avg{sampleInterval}'
 		. 'dimensions{action source ruleId clientCountryName}}}}}';
 }
@@ -162,8 +162,8 @@ function sn_edge_firewall_query() {
  * @return string GraphQL document.
  */
 function sn_edge_colo_query() {
-	return 'query($zone:string!,$from:Time!){viewer{zones(filter:{zoneTag:$zone}){'
-		. 'httpRequestsAdaptiveGroups(limit:200,filter:{datetime_geq:$from},orderBy:[count_DESC]){'
+	return 'query($zone:string!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
+		. 'httpRequestsAdaptiveGroups(limit:200,filter:{datetime_geq:$from,datetime_lt:$to},orderBy:[count_DESC]){'
 		. 'count avg{sampleInterval}sum{edgeResponseBytes}'
 		. 'dimensions{coloCode}}}}}';
 }
@@ -177,11 +177,11 @@ function sn_edge_colo_query() {
  * @return string GraphQL document.
  */
 function sn_edge_attack_query() {
-	return 'query($zone:string!,$from:Time!){viewer{zones(filter:{zoneTag:$zone}){'
-		. 'doors:httpRequestsAdaptiveGroups(limit:500,filter:{datetime_geq:$from,clientRequestPath_in:["/wp-login.php","/xmlrpc.php"]},orderBy:[count_DESC]){'
+	return 'query($zone:string!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
+		. 'doors:httpRequestsAdaptiveGroups(limit:500,filter:{datetime_geq:$from,datetime_lt:$to,clientRequestPath_in:["/wp-login.php","/xmlrpc.php"]},orderBy:[count_DESC]){'
 		. 'count avg{sampleInterval}'
 		. 'dimensions{clientRequestPath clientCountryName clientASNDescription clientAsn edgeResponseStatus clientRequestHTTPMethodName}}'
-		. 'probes:httpRequestsAdaptiveGroups(limit:25,filter:{datetime_geq:$from,edgeResponseStatus_geq:400,edgeResponseStatus_leq:499,clientRequestPath_notin:["/wp-login.php","/xmlrpc.php"]},orderBy:[count_DESC]){'
+		. 'probes:httpRequestsAdaptiveGroups(limit:25,filter:{datetime_geq:$from,datetime_lt:$to,edgeResponseStatus_geq:400,edgeResponseStatus_leq:499,clientRequestPath_notin:["/wp-login.php","/xmlrpc.php"]},orderBy:[count_DESC]){'
 		. 'count avg{sampleInterval}'
 		. 'dimensions{clientRequestPath edgeResponseStatus}}'
 		. '}}}';
@@ -217,8 +217,8 @@ function sn_edge_attack_query() {
  * @return string GraphQL document.
  */
 function sn_edge_errors_query() {
-	return 'query($zone:string!,$from:Time!){viewer{zones(filter:{zoneTag:$zone}){'
-		. 'errors:httpRequestsAdaptiveGroups(limit:50,filter:{datetime_geq:$from,edgeResponseStatus_geq:500},orderBy:[count_DESC]){'
+	return 'query($zone:string!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
+		. 'errors:httpRequestsAdaptiveGroups(limit:50,filter:{datetime_geq:$from,datetime_lt:$to,edgeResponseStatus_geq:500},orderBy:[count_DESC]){'
 		. 'count avg{sampleInterval}'
 		. 'dimensions{clientRequestPath edgeResponseStatus originResponseStatus cacheStatus}}'
 		. '}}}';

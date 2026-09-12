@@ -94,9 +94,9 @@ function eo_reset() {
 	$GLOBALS['wpdb'] = new Edge_Stub_wpdb();
 }
 /** The `from` window arg the rollup sent for a given adaptive dataset query. */
-function edge_from( $dataset ) {
+function edge_from( $dataset, $key = 'from' ) {
 	foreach ( $GLOBALS['__edge_calls'] as $c ) {
-		if ( (string) $c['query'] === $dataset ) { return $c['vars']['from'] ?? null; }
+		if ( (string) $c['query'] === $dataset ) { return $c['vars'][ $key ] ?? null; }
 	}
 	return null;
 }
@@ -220,18 +220,25 @@ ok( count( $GLOBALS['__edge_calls'] ) === 5, 'run: issues 5 GraphQL queries (dai
 $all_sql = implode( "\n", $GLOBALS['wpdb']->queries );
 ok( strpos( $all_sql, "'2026-06-18', 1000, 800, 5000000, 4000000, 3, 200, 900, 50, 40, 10" ) !== false, 'run: daily row parsed — status map bucketed 2xx/3xx/4xx/5xx' );
 ok( strpos( $all_sql, "'2026-06-18', 'country', 'US', 600, 3000000" ) !== false, 'run: countryMap melted into dims' );
-ok( strpos( $all_sql, "'2026-06-19', 'threat', 'block', 50" ) !== false, 'run: firewall sampling-corrected (5×10=50), attributed to today' );
-ok( strpos( $all_sql, "'2026-06-19', 'colo', 'IAD', 30, 100000" ) !== false, 'run: colo dims sampling-corrected — BOTH requests (15×2=30) AND bytes (50000×2=100000)' );
-// Adaptive window: no retention discovered (null) → a trailing 24h snapshot (today−86400).
-ok( edge_from( 'httpRequestsAdaptiveGroups' ) === '2026-06-18T00:00:00Z', 'run: adaptive window defaults to a trailing 24h (today−86400)' );
-ok( edge_from( 'firewallEventsAdaptiveGroups' ) === '2026-06-18T00:00:00Z', 'run: both adaptive datasets share the one trailing window' );
-ok( strpos( $all_sql, "'2026-06-19', 'atk_door', '/wp-login.php', 50" ) !== false, 'run: atk_door marginal SUMS both rows (30+20=50), sampling-corrected' );
-ok( strpos( $all_sql, "'2026-06-19', 'atk_country', 'US', 50" ) !== false, 'run: atk_country marginal sums across rows (50)' );
-ok( strpos( $all_sql, "'2026-06-19', 'atk_asn', 'DIGITALOCEAN-ASN', 30" ) !== false, 'run: atk_asn uses clientASNDescription' );
-ok( strpos( $all_sql, "'2026-06-19', 'atk_asn', 'AS9009', 20" ) !== false, 'run: atk_asn falls back to AS{clientAsn} when description empty' );
-ok( strpos( $all_sql, "'2026-06-19', 'atk_method', 'POST', 30" ) !== false, 'run: atk_method POST (credential attempts)' );
-ok( strpos( $all_sql, "'2026-06-19', 'atk_status', '404', 50" ) !== false, 'run: atk_status marginal' );
-ok( strpos( $all_sql, "'2026-06-19', 'atk_path', '/.env', 21" ) !== false, 'run: atk_path probe sampling-corrected (7×3=21)' );
+// #1203 -- the adaptive snapshot ran [today 00:00 − 24h, now) and was stored
+// under TODAY, so consecutive days overlapped by [yesterday 00:00, yesterday's
+// run time]: a day's threat/colo/atk_*/err_* rows covered ~38h and a week's
+// sn_edge_top_dim() counted most events twice. The window is now the COMPLETE
+// previous day [yesterday 00:00, today 00:00), attributed to yesterday.
+ok( strpos( $all_sql, "'2026-06-18', 'threat', 'block', 50" ) !== false, 'run: firewall sampling-corrected (5×10=50), attributed to the day the window covers (yesterday)' );
+ok( strpos( $all_sql, "'2026-06-18', 'colo', 'IAD', 30, 100000" ) !== false, 'run: colo dims sampling-corrected — BOTH requests (15×2=30) AND bytes (50000×2=100000)' );
+ok( strpos( $all_sql, "'2026-06-19', 'threat'" ) === false && strpos( $all_sql, "'2026-06-19', 'colo'" ) === false, 'run: nothing from the snapshot is stored under today (#1203)' );
+// Adaptive window: no retention discovered (null) → the complete previous day.
+ok( edge_from( 'httpRequestsAdaptiveGroups' ) === '2026-06-18T00:00:00Z', 'run: adaptive window starts at yesterday 00:00 (today−86400)' );
+ok( edge_from( 'httpRequestsAdaptiveGroups', 'to' ) === '2026-06-19T00:00:00Z', 'run: and is BOUNDED at today 00:00 — no overlap with the next run (#1203)' );
+ok( edge_from( 'firewallEventsAdaptiveGroups' ) === '2026-06-18T00:00:00Z' && edge_from( 'firewallEventsAdaptiveGroups', 'to' ) === '2026-06-19T00:00:00Z', 'run: both adaptive datasets share the one bounded window' );
+ok( strpos( $all_sql, "'2026-06-18', 'atk_door', '/wp-login.php', 50" ) !== false, 'run: atk_door marginal SUMS both rows (30+20=50), sampling-corrected' );
+ok( strpos( $all_sql, "'2026-06-18', 'atk_country', 'US', 50" ) !== false, 'run: atk_country marginal sums across rows (50)' );
+ok( strpos( $all_sql, "'2026-06-18', 'atk_asn', 'DIGITALOCEAN-ASN', 30" ) !== false, 'run: atk_asn uses clientASNDescription' );
+ok( strpos( $all_sql, "'2026-06-18', 'atk_asn', 'AS9009', 20" ) !== false, 'run: atk_asn falls back to AS{clientAsn} when description empty' );
+ok( strpos( $all_sql, "'2026-06-18', 'atk_method', 'POST', 30" ) !== false, 'run: atk_method POST (credential attempts)' );
+ok( strpos( $all_sql, "'2026-06-18', 'atk_status', '404', 50" ) !== false, 'run: atk_status marginal' );
+ok( strpos( $all_sql, "'2026-06-18', 'atk_path', '/.env', 21" ) !== false, 'run: atk_path probe sampling-corrected (7×3=21)' );
 $before = count( $GLOBALS['wpdb']->queries );
 sn_edge_run_rollup( '2026-06-19' );
 ok( strpos( implode( "\n", array_slice( $GLOBALS['wpdb']->queries, $before ) ), "'atk_door', '/wp-login.php', 50" ) !== false, 'run: same-day re-run re-emits 50 (ON DUPLICATE overwrite, not 100)' );
@@ -244,7 +251,7 @@ echo "\nGroup: adaptive window derives from discovered retention (not a hardcode
 eo_reset();
 $GLOBALS['__edge_retention'] = 3600; // 1h < 24h → the snapshot must shrink to what the node actually retains.
 sn_edge_run_rollup( '2026-06-19' );
-ok( edge_from( 'httpRequestsAdaptiveGroups' ) === '2026-06-18T23:00:00Z', 'run: window clamps to retention when retention < 24h (today−3600)' );
+ok( edge_from( 'httpRequestsAdaptiveGroups' ) === '2026-06-18T23:00:00Z' && edge_from( 'httpRequestsAdaptiveGroups', 'to' ) === '2026-06-19T00:00:00Z', 'run: window clamps to retention when retention < 24h (today−3600, still bounded at today)' );
 ok( edge_from( 'firewallEventsAdaptiveGroups' ) === '2026-06-18T23:00:00Z', 'run: clamp applies to both adaptive pulls' );
 eo_reset();
 $GLOBALS['__edge_retention'] = 2678400; // 31d ≥ 24h → no clamp; the daily snapshot stays 24h (no over-wide window).

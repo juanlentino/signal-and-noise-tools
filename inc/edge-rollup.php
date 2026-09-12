@@ -219,9 +219,15 @@ function sn_edge_errors_dims( array $rows ) {
 }
 
 /**
- * Daily rollup: pull the exact 1dGroups window + the trailing adaptive snapshot
- * (24h, clamped to the node's discovered retention), parse, and upsert. Dormant when
- * unconfigured; per-dataset failure (null) is skipped.
+ * Daily rollup: pull the exact 1dGroups window + the adaptive snapshot of the
+ * COMPLETE previous day (clamped to the node's discovered retention), parse,
+ * and upsert. Dormant when unconfigured; per-dataset failure (null) is skipped.
+ *
+ * The snapshot is [today 00:00 − 24h, today 00:00) and is stored under
+ * YESTERDAY. It used to run to `now` and be stored under today, so two
+ * consecutive days overlapped by [yesterday 00:00, yesterday's run time] —
+ * a day's threat / colo / atk_ / err_ rows covered ~38h and a week's
+ * sn_edge_top_dim() counted most events twice (#1203).
  *
  * @param string|null $today YYYY-MM-DD reference day (defaults to now, UTC).
  */
@@ -244,6 +250,8 @@ function sn_edge_run_rollup( $today = null ) {
 		$window = $retention;
 	}
 	$since = gmdate( 'Y-m-d\TH:i:s\Z', $today_ts - $window );
+	$until = gmdate( 'Y-m-d\TH:i:s\Z', $today_ts );
+	$snap  = gmdate( 'Y-m-d', $today_ts - DAY_IN_SECONDS ); // the day the snapshot covers
 
 	$daily_rows = array();
 	$dim_rows   = array();
@@ -283,20 +291,20 @@ function sn_edge_run_rollup( $today = null ) {
 		}
 	}
 
-	// 2. Threats (firewallEventsAdaptiveGroups) — sampled, trailing snapshot → today.
-	$zone = sn_edge_query( sn_edge_firewall_query(), array( 'from' => $since ) );
+	// 2. Threats (firewallEventsAdaptiveGroups) — sampled, previous-day snapshot → yesterday.
+	$zone = sn_edge_query( sn_edge_firewall_query(), array( 'from' => $since, 'to' => $until ) );
 	if ( is_array( $zone ) && is_array( $zone['firewallEventsAdaptiveGroups'] ?? null ) ) {
 		foreach ( $zone['firewallEventsAdaptiveGroups'] as $g ) {
 			$action = (string) ( $g['dimensions']['action'] ?? '' );
 			if ( '' === $action ) {
 				continue;
 			}
-			$dim_rows[] = array( 'day' => $today, 'dim' => 'threat', 'value' => $action, 'requests' => sn_edge_corrected( $g ), 'bytes' => 0 );
+			$dim_rows[] = array( 'day' => $snap, 'dim' => 'threat', 'value' => $action, 'requests' => sn_edge_corrected( $g ), 'bytes' => 0 );
 		}
 	}
 
-	// 3. Per-colo (httpRequestsAdaptiveGroups) — sampled, trailing snapshot → today.
-	$zone = sn_edge_query( sn_edge_colo_query(), array( 'from' => $since ) );
+	// 3. Per-colo (httpRequestsAdaptiveGroups) — sampled, previous-day snapshot → yesterday.
+	$zone = sn_edge_query( sn_edge_colo_query(), array( 'from' => $since, 'to' => $until ) );
 	if ( is_array( $zone ) && is_array( $zone['httpRequestsAdaptiveGroups'] ?? null ) ) {
 		foreach ( $zone['httpRequestsAdaptiveGroups'] as $g ) {
 			$colo = (string) ( $g['dimensions']['coloCode'] ?? '' );
@@ -304,13 +312,13 @@ function sn_edge_run_rollup( $today = null ) {
 				continue;
 			}
 			$si  = max( 1.0, (float) ( $g['avg']['sampleInterval'] ?? 1 ) );
-			$dim_rows[] = array( 'day' => $today, 'dim' => 'colo', 'value' => $colo, 'requests' => sn_edge_corrected( $g ), 'bytes' => (int) round( (int) ( $g['sum']['edgeResponseBytes'] ?? 0 ) * $si ) );
+			$dim_rows[] = array( 'day' => $snap, 'dim' => 'colo', 'value' => $colo, 'requests' => sn_edge_corrected( $g ), 'bytes' => (int) round( (int) ( $g['sum']['edgeResponseBytes'] ?? 0 ) * $si ) );
 		}
 	}
 
 	// 4. Attack-surface pressure (httpRequestsAdaptiveGroups, aliased doors+probes) —
-	// sampled, trailing snapshot → today. Marginalize the 5-dim door rows into atk_* keys.
-	$zone = sn_edge_query( sn_edge_attack_query(), array( 'from' => $since ) );
+	// sampled, previous-day snapshot → yesterday. Marginalize the 5-dim door rows into atk_* keys.
+	$zone = sn_edge_query( sn_edge_attack_query(), array( 'from' => $since, 'to' => $until ) );
 	if ( is_array( $zone ) ) {
 		$marg = array(); // dim => value => corrected sum
 		foreach ( (array) ( $zone['doors'] ?? array() ) as $g ) {
@@ -344,7 +352,7 @@ function sn_edge_run_rollup( $today = null ) {
 		}
 		foreach ( $marg as $dim => $vals ) {
 			foreach ( $vals as $val => $req ) {
-				$dim_rows[] = array( 'day' => $today, 'dim' => $dim, 'value' => (string) $val, 'requests' => (int) $req, 'bytes' => 0 );
+				$dim_rows[] = array( 'day' => $snap, 'dim' => $dim, 'value' => (string) $val, 'requests' => (int) $req, 'bytes' => 0 );
 			}
 		}
 	}
@@ -360,11 +368,11 @@ function sn_edge_run_rollup( $today = null ) {
 	//              Cloudflare or a Worker answering by itself.
 	// That second one is the datum eight external reproduction attempts could
 	// not produce, which is the whole reason this section exists.
-	$errz = sn_edge_query( sn_edge_errors_query(), array( 'from' => $since ) );
+	$errz = sn_edge_query( sn_edge_errors_query(), array( 'from' => $since, 'to' => $until ) );
 	if ( is_array( $errz ) ) {
 		foreach ( sn_edge_errors_dims( (array) ( $errz['errors'] ?? array() ) ) as $dim => $vals ) {
 			foreach ( $vals as $val => $req ) {
-				$dim_rows[] = array( 'day' => $today, 'dim' => $dim, 'value' => (string) $val, 'requests' => (int) $req, 'bytes' => 0 );
+				$dim_rows[] = array( 'day' => $snap, 'dim' => $dim, 'value' => (string) $val, 'requests' => (int) $req, 'bytes' => 0 );
 			}
 		}
 	}
