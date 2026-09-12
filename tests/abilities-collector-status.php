@@ -92,6 +92,14 @@ ok( true === inv( sn_collector_status_invariants( $edge, $NOW ), 'cron_fresh' )[
 $bad = $GOOD; $bad['cron']['at'] = 'not-a-time';
 ok( false === inv( sn_collector_status_invariants( $bad, $NOW ), 'cron_fresh' )['ok'], 'an unparseable at stamp fails, no notice' );
 
+// #1228: a worker clock a few seconds AHEAD of this server must not flip
+// cron_fresh to stalled — ( $now - $at_ts ) going slightly negative is
+// clock skew, not a cron that ran in the future.
+$skewed = $GOOD; $skewed['cron']['at'] = gmdate( 'Y-m-d\TH:i:s\Z', $NOW + 5 );
+ok( true === inv( sn_collector_status_invariants( $skewed, $NOW ), 'cron_fresh' )['ok'], 'a 5-second-ahead worker clock still reads cron_fresh (#1228)' );
+$far_future = $GOOD; $far_future['cron']['at'] = gmdate( 'Y-m-d\TH:i:s\Z', $NOW + 3600 );
+ok( false === inv( sn_collector_status_invariants( $far_future, $NOW ), 'cron_fresh' )['ok'], 'but an hour in the future is still rejected — the tolerance is small, not unbounded' );
+
 ok( false === sn_collector_status_invariants( array(), $NOW )['healthy'], 'an empty payload is wholly unhealthy, no throw' );
 
 echo "\nGroup: ability registration\n";

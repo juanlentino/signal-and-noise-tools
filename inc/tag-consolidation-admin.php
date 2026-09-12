@@ -179,7 +179,10 @@ function sn_admin_tag_render_confirm( $pv, $from, $into ) {
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Confirm merge', 'signal-and-noise-tools' ) . '</h2>';
 	if ( ! is_array( $pv ) || empty( $pv['from'] ) ) {
 		echo '<p>' . esc_html__( 'Nothing to merge (the selected tags are no longer valid).', 'signal-and-noise-tools' ) . '</p>';
-		echo '<p><a class="button" href="' . esc_url( sn_admin_tag_page_url() ) . '">' . esc_html__( 'Back', 'signal-and-noise-tools' ) . '</a></p></div></div>';
+		// #1228: was '</p></div></div>' — a stray extra </div> against the one
+		// <div class="sn-fieldset"> opened above (the happy path below closes
+		// with a single </div>, matching).
+		echo '<p><a class="button" href="' . esc_url( sn_admin_tag_page_url() ) . '">' . esc_html__( 'Back', 'signal-and-noise-tools' ) . '</a></p></div>';
 		return;
 	}
 	$names = array();

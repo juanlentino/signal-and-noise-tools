@@ -45,7 +45,10 @@ function sn_redirects_render_admin_tab() {
 		echo '<input type="hidden" name="source" value="' . esc_attr( $source ) . '">';
 		echo '<div class="sn-fieldset">';
 		echo '<h2 class="sn-fieldset-h sn-mono">' . esc_html( $source ) . '</h2>';
-		echo '<p class="sn-fieldset-intro">Added ' . esc_html( wp_date( 'Y-m-d', (int) ( $r['created_at'] ?? 0 ) ) ) . '</p>';
+		// #1228: a missing created_at rendered as "Added 1970-01-01" — the
+		// epoch, not a real date. Say plainly that it is unknown instead.
+		$created_at = (int) ( $r['created_at'] ?? 0 );
+		echo '<p class="sn-fieldset-intro">Added ' . ( $created_at > 0 ? esc_html( wp_date( 'Y-m-d', $created_at ) ) : 'date unknown' ) . '</p>';
 
 		echo '<div class="sn-field sn-field-w-lg">';
 		echo '<label class="sn-field-label" for="rd_to_' . esc_attr( md5( $source ) ) . '">Redirects to</label>';

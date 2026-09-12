@@ -405,9 +405,12 @@ function sn_webhook_enqueue( $webhook_id, $event = 'post.published', $post_id = 
 	if ( ! $delivery_id ) {
 		$delivery_id = 'del_' . wp_generate_password( 16, false, false );
 	}
-	// wp_schedule_single_event dedupes on (timestamp, hook, args), so
-	// double-firing on the same publish (e.g., quick edit re-publish)
-	// won't enqueue a duplicate at the same exact second.
+	// #1228: wp_schedule_single_event() DOES dedupe on (timestamp, hook,
+	// args), but $delivery_id is part of args and is freshly randomized on
+	// every call that doesn't pass one explicitly — so two enqueues of the
+	// "same" event never carry identical args, and this dedupe never
+	// actually fires for a double-firing publish. A caller that wants real
+	// dedup must pass the SAME $delivery_id across both calls.
 	wp_schedule_single_event(
 		time(),
 		SN_WEBHOOK_DISPATCH_HOOK,

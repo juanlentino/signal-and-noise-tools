@@ -114,6 +114,30 @@ ok( $m['position'] < 6.0, 'so the tiny row barely moves it (unweighted would be 
 ok( close_to( $m['ctr'], 12 / 1010 ), 'CTR is DERIVED after merging, never averaged' );
 ok( ! close_to( $m['ctr'], 0.105 ), 'and is not the mean of the two rates' );
 
+// #1228: 'capped' must reflect the RAW fetch hitting the row limit, not the
+// MERGED page count — merging can collapse the raw rows (http/https,
+// trailing slash) well under the limit even when Google's API truly
+// returned exactly SNT_GSC_PAGE_ROW_LIMIT rows and more ranked pages exist
+// beyond the cut.
+echo "\nGroup: #1228 — capped reflects the RAW fetch, not the merged count\n";
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+$raw_rows = array();
+for ( $i = 0; $i < SNT_GSC_PAGE_ROW_LIMIT; $i += 2 ) {
+	// Each pair collapses to ONE path: 250 raw rows -> 125 merged paths.
+	$raw_rows[] = array( 'key' => 'https://x.test/p' . $i,  'clicks' => 1, 'impressions' => 10, 'ctr' => 0.1, 'position' => 5.0 );
+	$raw_rows[] = array( 'key' => 'https://x.test/p' . $i . '/', 'clicks' => 1, 'impressions' => 10, 'ctr' => 0.1, 'position' => 5.0 );
+}
+$GLOBALS['__rows'] = array(
+	'page'  => $raw_rows,
+	'query' => array(),
+);
+$GLOBALS['__opts'] = array();
+$capped_payload = snt_gsc_sync();
+ok( SNT_GSC_PAGE_ROW_LIMIT === count( $raw_rows ), 'fixture: the raw fetch really did hit the row limit (so this pin cannot be vacuous)' );
+ok( count( $capped_payload['pages'] ) < SNT_GSC_PAGE_ROW_LIMIT, 'fixture: the merge really did collapse below the limit (so this pin cannot be vacuous)' );
+$capped_totals = snt_gsc_window_totals();
+ok( true === $capped_totals['capped'], 'capped is TRUE from the raw fetch, even though the merged page count is under the limit' );
+
 echo "\nGroup: the payload is stored unautoloaded\n";
 ok( false === $GLOBALS['__autoload'][ SNT_GSC_DATA_OPTION ], 'the option is written with autoload=false' );
 ok( 'sc-domain:x.test' === $payload['property'] && isset( $payload['window']['start'] ), 'the payload records WHICH property and WHICH window it describes' );

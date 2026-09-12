@@ -209,7 +209,12 @@ add_action( 'wp_loaded', function() {
 			// time but that still surfaces as "fired ok, ~0ms").
 			if ( $history_loaded ) {
 				add_action( $hook, 'snt_cron_history_pre_cb', -PHP_INT_MAX );
-				add_action( $hook, 'snt_cron_history_post_cb', PHP_INT_MAX );
+				// #1228: accepted_args was implicitly 1 (the add_action()
+				// default), so snt_cron_history_post_cb() never saw the
+				// hook's real args and always recorded args_signature
+				// against an empty array. 10 is a generous ceiling — no
+				// core or plugin cron hook here passes more.
+				add_action( $hook, 'snt_cron_history_post_cb', PHP_INT_MAX, 10 );
 			}
 		}
 	}

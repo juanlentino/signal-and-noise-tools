@@ -116,7 +116,7 @@ function sn_note_dossier_numbers( $post_id, $days ) {
 		$tone,
 		__( 'Not counted per note.', 'signal-and-noise-tools' ),
 		$meta,
-		__( 'daily snapshot', 'signal-and-noise-tools' ),
+		__( 'hourly snapshot', 'signal-and-noise-tools' ), // #1228: the refresh is hourly (see the stale-snapshot copy above), not daily.
 		function_exists( 'snt_desktop_admin_url' ) ? sn_note_dossier_door( __( 'Open Machine Readers in S&N Dashboard', 'signal-and-noise-tools' ), snt_desktop_admin_url( 'sn-monitoring', 'machine-readers' ) ) : null
 	);
 	return $blocks;

@@ -475,6 +475,10 @@ ad_eq( 'pending', $sys['genesis']['status'], 'genesis option passed through' );
 ad_eq( 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=', $sys['pubkey'], 'public key surfaced (public value, OK to include)' );
 ad_true( false !== strpos( (string) $sys['ledger_url'], 'signal-and-noise-provenance' ), 'ledger_url points at the ledger repo' );
 ad_true( ! in_array( 'hmac_secret', array_keys( $sys['config'] ), true ), 'config never carries a secret key' );
+// #1228: the status TOTALS query must survey every UID-tracked post, not
+// just the newest 100 (the live stepper's cap is deliberate; this is not it).
+$last_query = end( $GLOBALS['__pv_get_posts_args'] );
+ad_eq( -1, $last_query['numberposts'] ?? null, 'sn_prov_admin_system_status() surveys ALL posts (numberposts -1), not a 100-post window' );
 
 // SIGNING KEY IDENTITY (v13.38.0) — read-only, and the SOURCE is the point.
 // "Which key am I on, and did my wp-config edit actually take effect?" was

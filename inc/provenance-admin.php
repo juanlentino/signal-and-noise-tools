@@ -88,10 +88,14 @@ function sn_prov_admin_system_status() {
 	$reached      = false;
 	$last_contact = '';
 
+	// #1228: numberposts => 100 silently undercounted the status TOTALS once
+	// the site passed 100 provenance-tracked posts — unlike the live stepper
+	// above (which only needs the recent tail), this is a total, and a
+	// partial total presented as a total is wrong.
 	$ids = get_posts( array(
 		'post_type'   => function_exists( 'sn_prov_subject_post_types' ) ? sn_prov_subject_post_types() : 'post',
 		'post_status' => 'publish',
-		'numberposts' => 100,
+		'numberposts' => -1,
 		'fields'      => 'ids',
 		'meta_key'    => SN_PROV_UID_META,
 	) );

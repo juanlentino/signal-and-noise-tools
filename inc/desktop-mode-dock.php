@@ -207,9 +207,6 @@ function snt_desktop_admin_url( $slug, $sub = '' ) {
 	if ( $dest && ! empty( $dest['sub'] ) ) {
 		$url .= '&sub=' . rawurlencode( $dest['sub'] );
 	}
-	if ( $dest && ! empty( $dest['anchor'] ) ) {
-		$url .= '#sn-sec-' . rawurlencode( $dest['anchor'] );
-	}
 	// v10.46.0: an explicit leaf, for callers that want a sub-tab the slug
 	// resolver cannot express. Passing a query string as $slug (the previous
 	// Machine Readers bug) matches no slug, so the resolver fell through to
@@ -217,6 +214,14 @@ function snt_desktop_admin_url( $slug, $sub = '' ) {
 	// the exact failure the sn-analytics special case above was written for.
 	if ( '' !== $sub && ! ( $dest && ! empty( $dest['sub'] ) ) ) {
 		$url .= '&sub=' . rawurlencode( $sub );
+	}
+	// #1228: the anchor (a URL FRAGMENT) must be the LAST thing appended —
+	// it was being added before this trailing &sub=, which put &sub= after
+	// the '#' and made it part of the fragment, never reaching the server
+	// as a query param (latent: only triggered when both an anchor and an
+	// explicit $sub landed on the same destination).
+	if ( $dest && ! empty( $dest['anchor'] ) ) {
+		$url .= '#sn-sec-' . rawurlencode( $dest['anchor'] );
 	}
 	return $url;
 }

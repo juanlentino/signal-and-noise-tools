@@ -447,13 +447,18 @@ function sn_rss_tracker_handle_form() {
 		$flash = 'reset';
 	}
 
+	// #1228: the SN page moved from Appearance (themes.php, add_theme_page)
+	// to its own top-level menu (admin.php, add_menu_page) — see
+	// inc/admin-menu.php's docblock. themes.php ignores an unrecognized
+	// ?page= and just renders the Themes screen, so this redirect silently
+	// stranded the owner there instead of back on Connections -> RSS.
 	wp_safe_redirect( add_query_arg(
 		array(
 			'page'      => 'sn-theme-options',
 			'tab'       => 'rss',
 			'sn_rss_ok' => $flash,
 		),
-		admin_url( 'themes.php' )
+		admin_url( 'admin.php' )
 	) );
 	exit;
 }
@@ -515,9 +520,11 @@ function sn_rss_tracker_render_stats( $stats ) {
 
 function sn_rss_tracker_render_settings_form( $settings ) {
 	echo '<h2 class="sn-section-h">Settings</h2>';
-	// Empty action attr = POST to current URL. Page lives under themes.php
-	// (add_theme_page); easier to self-post and let admin_init route than
-	// to maintain a URL that has to match the registration site exactly.
+	// Empty action attr = POST to current URL. #1228: the page now lives
+	// under admin.php (add_menu_page, see inc/admin-menu.php) — themes.php
+	// is stale from before the move; easier to self-post and let admin_init
+	// route than to maintain a URL that has to match the registration site
+	// exactly.
 	echo '<form method="post" class="sn-rss-settings">';
 	wp_nonce_field( SN_RSS_TRACKER_NONCE );
 

@@ -92,5 +92,17 @@ ok( false !== strpos( $b[1]['meta'], 'No site-wide measurement' ), 'no snapshot:
 ok( array() === sn_note_dossier_numbers( 8, 30 ), 'a draft has no numbers: no URL a reader reaches' );
 ok( array() === sn_note_dossier_numbers( 999, 30 ), 'no post, no blocks' );
 
+// #1228: the machine-reads block's source label said "daily snapshot", but
+// the stale-snapshot copy elsewhere in this file names the refresh hourly.
+$GLOBALS['__snap'] = array( 'captured_at' => 1788600000, 'total' => 72597, 'days' => 30 );
+$b = sn_note_dossier_numbers( 7, 30 );
+$mr = null;
+foreach ( $b as $block ) {
+	if ( 'numbers' === ( $block['group'] ?? '' ) && 'Machine reads' === ( $block['heading'] ?? '' ) ) {
+		$mr = $block;
+	}
+}
+ok( is_array( $mr ) && 'hourly snapshot' === ( $mr['source'] ?? '' ), 'the machine-reads source label says "hourly snapshot", matching the actual refresh cadence' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

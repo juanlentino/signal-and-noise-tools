@@ -194,6 +194,12 @@ function snt_cron_history_post_cb() {
 	if ( '' === $hook ) {
 		return;
 	}
+	// #1228: this always recorded array() below, so args_signature was
+	// always the empty-args hash regardless of what the cron actually ran
+	// with. func_get_args() here + accepted_args on the add_action() call in
+	// inc/cron-dashboard.php (both bumped together) is what actually lets
+	// this callback see the real args.
+	$args = func_get_args();
 	$starts =& snt_cron_history_starts_ref();
 	$start = isset( $starts[ $hook ] ) ? (float) $starts[ $hook ] : null;
 	unset( $starts[ $hook ] );
@@ -208,7 +214,7 @@ function snt_cron_history_post_cb() {
 		return;
 	}
 
-	snt_cron_history_record( $hook, array(), $elapsed_ms );
+	snt_cron_history_record( $hook, $args, $elapsed_ms );
 }
 
 /**

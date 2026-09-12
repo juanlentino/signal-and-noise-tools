@@ -29,9 +29,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * uid. Pure read: one bounded post query + per-post chain meta reads —
  * fetch-on-render economics (never localized on page load).
  *
- * A Note with no chain yet is counted in `total` but listed nowhere:
- * "no chain" is not a pending anchor, and inventing a row for it would
- * fabricate state the ledger never recorded.
+ * A Note with no chain yet is counted in NEITHER `total` NOR listed
+ * anywhere (#1228 — this docblock previously claimed it was counted in
+ * `total`; tests/abilities-provenance.php pins the real rule): "no chain"
+ * is not a pending anchor, and inventing a row — or a count — for it
+ * would fabricate state the ledger never recorded.
  *
  * @since 9.78.0
  * @return array{pending:array<int,array>,confirmed:int,total:int}

@@ -30,7 +30,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  PASS: 
 // ── WP stubs ──
 if ( ! function_exists( 'add_filter' ) ) { function add_filter() { return true; } }
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
-if ( ! function_exists( 'wp_date' ) ) { function wp_date( $fmt, $ts = null ) { return '1999-12-31'; } }
+if ( ! function_exists( 'wp_date' ) ) { function wp_date( $fmt, $ts = null ) { return $GLOBALS['__wp_date_override'] ?? '1999-12-31'; } }
 $GLOBALS['__options'] = array();
 function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; }
 function update_option( $k, $v, $autoload = null ) {
@@ -76,6 +76,16 @@ $page = sn_uses_page_get();
 ok( is_array( $page ) && $raw === ( $page['raw'] ?? '' ), 'raw round-trips' );
 ok( '1999-12-31' === ( $page['updated'] ?? '' ), 'stamp uses wp_date (site timezone) — the v7.5.1 lesson, from day one here' );
 ok( false === sn_uses_page_save( $raw ), 'identical re-save returns false' );
+
+// #1228: a re-save with IDENTICAL content on a LATER day must still report
+// no real change — the date stamp lives inside the compared array, so a
+// naive save bumped it every day and reported a change that never happened.
+$GLOBALS['__wp_date_override'] = '2000-01-15';
+ok( false === sn_uses_page_save( $raw ), 'identical re-save on a LATER day still returns false (#1228)' );
+ok( '1999-12-31' === ( sn_uses_page_get()['updated'] ?? '' ), 'the stamp is NOT bumped when content did not change' );
+unset( $GLOBALS['__wp_date_override'] );
+ok( true === sn_uses_page_save( "$raw\nExtra." ), 'a REAL content change still returns true' );
+
 ok( true === sn_uses_page_save( '  ' ), 'whitespace-only save clears' );
 ok( null === sn_uses_page_get(), 'cleared → null' );
 $GLOBALS['__options']['sn_uses_page'] = 'hostile';

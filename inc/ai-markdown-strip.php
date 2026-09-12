@@ -39,7 +39,10 @@ function snt_ai_strip_markdown( $text ) {
 	// "**x**" never degrades into a stray emphasis pair.
 	$text = (string) preg_replace( '/\*\*(?!\s)([^*\n]+?)(?<!\s)\*\*/', '$1', $text );
 	$text = (string) preg_replace( '/(?<![A-Za-z0-9_])__(?!\s)([^_\n]+?)(?<!\s)__(?![A-Za-z0-9_])/', '$1', $text );
-	$text = (string) preg_replace( '/\*(?!\s)([^*\n]+?)(?<!\s)\*/', '$1', $text );
+	// #1228: digit-flanked '*' is multiplication ("5*3*2"), not italics —
+	// without the (?<!\d)/(?!\d) guards this rule ate the middle operand,
+	// turning "5*3*2" into "532".
+	$text = (string) preg_replace( '/(?<!\d)\*(?!\s)([^*\n]+?)(?<!\s)\*(?!\d)/', '$1', $text );
 	$text = (string) preg_replace( '/(?<![A-Za-z0-9_])_(?!\s)([^_\n]+?)(?<!\s)_(?![A-Za-z0-9_])/', '$1', $text );
 	return $text;
 }
@@ -75,8 +78,12 @@ function snt_ai_untrusted_display( $text ) {
 	// Tags out, inner text kept. Possessive quantifier: no backtracking on
 	// pathological input; an unclosed "<" with no ">" survives as literal text.
 	$text = (string) preg_replace( '/<[^>]*+>/', '', $text );
-	// Control characters except \n (x0A) and \t (x09).
-	$text = (string) preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text );
+	// Control characters except \n (x0A) and \t (x09). #1228: the docblock
+	// above claims "C0/C1 control characters removed", but this pattern only
+	// covered C0 (\x00-\x1F, \x7F) — the C1 range (U+0080-U+009F) was never
+	// matched. /u + \x{..} so a UTF-8-encoded C1 character (2 bytes) is
+	// matched as one codepoint, not stripped byte-by-byte.
+	$text = (string) preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\x{0080}-\x{009F}]/u', '', $text );
 	// Zero-width + bidi controls.
 	$text = (string) preg_replace( '/[\x{200B}-\x{200D}\x{FEFF}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u', '', $text );
 	return $text;
