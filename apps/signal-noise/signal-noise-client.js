@@ -1147,7 +1147,13 @@
 	 */
 	const renderStatusBar = ( ctx, shown ) => {
 		const selected = selectedIds( ctx.state );
-		const total = ( ctx.data.items || [] ).length;
+		// ctx.data.items is capped at SN_OS_APP_ITEM_CAP (payload.php slices it
+		// per section); the real per-section count survives uncapped on the
+		// matching entry in ctx.data.sections, computed before that slice.
+		const currentSection = ctx.data.section
+			? ( ctx.data.sections || [] ).find( ( s ) => s.id === ctx.data.section.id )
+			: null;
+		const total = currentSection ? currentSection.count : shown.length;
 		return html`
 			<footer class="snt-status-bar">
 				<span>${ sprintf( /* translators: 1: shown count. 2: total count. */ __( '%1$d of %2$d items' ), shown.length, total ) }${ selected.length ? sprintf( /* translators: %d: selected count. */ __( ' — %d selected' ), selected.length ) : '' }</span>

@@ -104,7 +104,7 @@ function snt_analytics_render_lifecycle_table( $rows, $total ) {
 		$kv_rows[] = array(
 			'<a href="' . esc_url( (string) $r['permalink'] ) . '"><strong>' . esc_html( (string) $r['title'] ) . '</strong></a> <span class="sn-an-muted">' . esc_html( (int) $r['age'] . 'd' ) . '</span>',
 			number_format_i18n( (int) $r['lifetime'] ),
-			number_format_i18n( (float) $r['per_day'] ),
+			number_format_i18n( (float) $r['per_day'], 1 ),
 			'' !== $decay ? esc_html( $decay ) : '<span class="sn-an-muted">&mdash;</span>',
 			sn_lifecycle_status_pill( $r ),
 		);
