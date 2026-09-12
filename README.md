@@ -92,6 +92,8 @@ Three native App Framework windows:
 
 A per-user preference picks native or classic-iframe windows for the two that have a classic twin. It lives as a **Signal & Noise** tab in OpenStation Preferences — registered server-side with `openstation_register_settings_tab()` and painted client-side through `wp.os.registerSettingsTab()` — and the two classic admin URLs are remapped to their native windows with `registerNativeUrlRemap()`, so a deep link into the old screen opens the new one when the preference says so.
 
+A **Provenance** column in the shell's own native Posts window (OpenStation ≥ 1.1.8, `openstation.postsWindow.columns`): the same anchor-status badge the Explorer paints, read from the `sn_provenance` REST field that already rides `/wp/v2/posts` — no extra request, no PHP; an unsigned Note paints nothing. The first of the Signal & Noise views to move onto the shell's surface instead of ours.
+
 Around the windows: 10 desktop widgets (site views, health, uptime, deploy status, cache, cron, quick actions, RSS subscribers, anchors, machine readers) · 22 `SN:` commands in the ⌘K palette · a dock entry with an update-count badge and two desktop icons · an attention badge carrying the plugin's real queues · an S&N Analytics card on Station Home (structured data, no plugin markup) · drop-to-draft on the shell's OS-file-drop pipeline · a repaired PWA manifest icon set · fixes to the shell's own Plugins window · a nav-id migration so dock placement survived the move from menus to apps.
 
 The AI Copilot gets its tool schemas repaired at the boundary, a prune list that keeps the tool budget paid, a system-prompt appendix teaching it the analytics vocabulary, and generation-budget shaping for ceiling-bounded reasoning (upstream #517).
