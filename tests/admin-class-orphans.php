@@ -95,7 +95,11 @@ $glob = static function ( $pat ) use ( $root ) {
 		// the plugin. Scanning them scored a class the current renderer no longer
 		// prints as a NEW orphan, from five worktrees' copies of the old file
 		// (2026-09-05, #1055). CI never has the directory; only a local run does.
-		if ( false !== strpos( $p, '/node_modules/' ) || false !== strpos( $p, '/vendor/' ) || false !== strpos( $p, '/.git/' ) || false !== strpos( $p, '/.claude/' ) ) {
+		// Test the path RELATIVE to $root: when this run IS one of those worktrees,
+		// the absolute path carries /.claude/ too, and the old check skipped the
+		// whole corpus — 0 files, 91 "orphans now styled" (2026-09-11).
+		$rel = substr( $p, strlen( $root ) );
+		if ( false !== strpos( $rel, '/node_modules/' ) || false !== strpos( $rel, '/vendor/' ) || false !== strpos( $rel, '/.git/' ) || false !== strpos( $rel, '/.claude/' ) ) {
 			continue;
 		}
 		if ( 1 === preg_match( $pat, $p ) ) { $out[] = $p; }
