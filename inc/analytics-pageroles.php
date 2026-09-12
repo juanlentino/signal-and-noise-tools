@@ -259,25 +259,27 @@ function sn_analytics_top_exit_pages( $from, $to, $limit = 25 ) {
  * unproven AE shape in this module. Stubbed tests cannot catch a 422 — the owner
  * MUST run this query once against live AE after deploy (v5.3.0 lesson).
  *
- * @param int $days Trailing window in days (floored to >= 1).
+ * @param int    $days Trailing window in days (floored to >= 1).
+ * @param string $tz   Optional IANA zone (sn_analytics_site_tz_name()); '' = UTC.
  * @return string AE SQL.
  */
-function sn_analytics_pageroles_rollup_sql( $days ) {
+function sn_analytics_pageroles_rollup_sql( $days, $tz = '' ) {
 	$days = max( 1, (int) $days );
+	list( $day_col, $lower ) = sn_analytics_rollup_day_exprs( $days, $tz );
 
 	$host = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
 	// Backslash-then-quote escape so the host can never break out of the literal.
 	$host = str_replace( array( '\\', "'" ), array( '\\\\', "\\'" ), $host );
 
 	return implode( ' ', array(
-		"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
+		"SELECT {$day_col} AS day,",
 		'blob2 AS path,',
 		'sum(_sample_interval) AS views,',
 		'count(DISTINCT index1) AS visits',
 		'FROM ' . SN_ANALYTICS_DATASET,
 		"WHERE blob1 = 'pv' AND blob7 = 'human'",
 		"AND ( blob3 = '' OR blob3 NOT IN ('{$host}','www.{$host}') )",
-		"AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
+		"AND timestamp >= {$lower}",
 		'GROUP BY day, path',
 		'ORDER BY day DESC, views DESC',
 	) );
@@ -289,6 +291,9 @@ function sn_analytics_pageroles_rollup_sql( $days ) {
  * cron callback — no new cron). No-ops when AE isn't configured; a query failure
  * (null) is skipped, not fatal. No-clobber: only writes days AE returns rows for,
  * so historical-import days stay untouched.
+ *
+ * Rolls by the SITE-LOCAL day like the pageview rollup (#1201), with the same
+ * fall-back to UTC within the run when the zoned query fails.
  */
 function sn_analytics_pageroles_run_rollup() {
 	if ( ! function_exists( 'sn_analytics_config' ) || ! function_exists( 'sn_analytics_query' ) ) {
@@ -298,7 +303,11 @@ function sn_analytics_pageroles_run_rollup() {
 		return;
 	}
 
-	$rows = sn_analytics_query( sn_analytics_pageroles_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS ) );
+	$tz   = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
+	$rows = sn_analytics_query( sn_analytics_pageroles_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, $tz ) );
+	if ( '' !== $tz && ! is_array( $rows ) ) {
+		$rows = sn_analytics_query( sn_analytics_pageroles_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, '' ) );
+	}
 	if ( ! is_array( $rows ) ) {
 		return;
 	}

@@ -112,11 +112,17 @@ function snt_narration_clear_last_error() {
 /**
  * Collect the compact 7-day signal projection for the digest prompt.
  *
+ * The window is SITE-LOCAL days — the day the rollup keys on. gmdate() here
+ * made an evening cron ask for tomorrow's UTC date, which had no row yet, so
+ * six data days were labelled a 7-day window (#1201).
+ *
+ * @param int|null $now Reference moment (tests); null = now.
  * @return array Structured signals (JSON-encoded as the prompt body).
  */
-function snt_narration_collect_signals() {
-	$to   = gmdate( 'Y-m-d' );
-	$from = gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS ); // inclusive 7-day window
+function snt_narration_collect_signals( $now = null ) {
+	$now  = null === $now ? time() : (int) $now;
+	$to   = wp_date( 'Y-m-d', $now );
+	$from = wp_date( 'Y-m-d', $now - 6 * DAY_IN_SECONDS ); // inclusive 7-day window
 
 	// v9.68.1: top_sources reports a FAILED durable read as null — this payload
 	// feeds an AI prompt, so it degrades to [] (the safe prompt shape); the
