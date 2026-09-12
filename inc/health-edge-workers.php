@@ -404,7 +404,15 @@ function sn_health_prov_status_probe() {
 	if ( ! is_array( $data ) || 'sn-provenance' !== (string) ( $data['worker'] ?? '' ) ) {
 		return null;
 	}
-	set_transient( 'sn_health_edge_prov_status', $data, SN_HEALTH_EDGE_LG_TTL );
+	// #1189: caching a DEGRADED body for 6h the same as a healthy one meant
+	// "Run health scan now" kept reporting degraded for up to 6h after the
+	// worker was repaired -- an outage that does not self-heal, contrary to
+	// the docblock above. Only a healthy read earns the 6h cache; a degraded
+	// one is returned for this scan but never persisted, so the next scan
+	// re-probes instead of replaying stale bad news.
+	if ( 'healthy' === (string) ( $data['status'] ?? '' ) ) {
+		set_transient( 'sn_health_edge_prov_status', $data, SN_HEALTH_EDGE_LG_TTL );
+	}
 	return $data;
 }
 
@@ -499,7 +507,15 @@ function sn_health_check_edge_workers() {
 	if ( ! is_array( $lg ) ) {
 		$probed = function_exists( 'sn_login_defense_status' ) ? sn_login_defense_status() : null;
 		if ( is_array( $probed ) ) {
-			set_transient( SN_HEALTH_EDGE_LG_TRANSIENT, $probed, SN_HEALTH_EDGE_LG_TTL );
+			// #1189: an explicit lastRefreshOk === false means the worker's OWN
+			// refresh cron failed -- caching that stale reading for 6h the same
+			// as a healthy one kept reporting the failure for up to 6h after the
+			// cron recovered. Only a reading that is not self-reporting a failed
+			// refresh earns the 6h cache; a failing one is used for this scan
+			// but not persisted, so the next scan re-probes instead of replaying it.
+			if ( ! ( isset( $probed['lastRefreshOk'] ) && false === $probed['lastRefreshOk'] ) ) {
+				set_transient( SN_HEALTH_EDGE_LG_TRANSIENT, $probed, SN_HEALTH_EDGE_LG_TTL );
+			}
 			$lg = $probed;
 		} else {
 			$lg = null;

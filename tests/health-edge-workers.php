@@ -83,12 +83,19 @@ $GLOBALS['__ew']['remote_mcp_resp']  = array(
 	'body' => json_encode( sn_ew_real_remote_mcp_body() ),
 );
 $GLOBALS['__ew']['remote_mcp_error'] = false;
-function wp_remote_get( $url, $args = array() ) { return $GLOBALS['__ew']['remote_mcp_resp']; }
+$GLOBALS['__ew']['prov_resp']        = null; // set by the #1189 group below
+function wp_remote_get( $url, $args = array() ) {
+	if ( false !== strpos( $url, '/_sn/status' ) && null !== $GLOBALS['__ew']['prov_resp'] ) {
+		return $GLOBALS['__ew']['prov_resp'];
+	}
+	return $GLOBALS['__ew']['remote_mcp_resp'];
+}
 function is_wp_error( $x ) { return $GLOBALS['__ew']['remote_mcp_error']; }
 function wp_remote_retrieve_response_code( $r ) { return $r['code'] ?? 0; }
 function wp_remote_retrieve_body( $r ) { return $r['body'] ?? ''; }
 function wp_parse_url( $url, $component = -1 ) { return parse_url( (string) $url, $component ); }
 function wp_http_validate_url( $url ) { return false !== filter_var( (string) $url, FILTER_VALIDATE_URL ) ? $url : false; }
+function untrailingslashit( $s ) { return rtrim( (string) $s, '/' ); }
 
 require __DIR__ . '/../inc/health-edge-workers.php';
 
@@ -175,6 +182,28 @@ $GLOBALS['__ew']['lg']        = null;
 $r = sn_health_check_edge_workers();
 ok( ! isset( $GLOBALS['__ew']['transient'][ SN_HEALTH_EDGE_LG_TRANSIENT ] ), 'an unreachable login-guard status is NOT cached (self-heal)' );
 ok( $r['count'] >= 1, 'unreachable login-guard yields a finding' );
+
+// #1189: a login-guard reading that self-reports a FAILED refresh must not
+// be cached 6h either -- otherwise a scan run right after the cron recovers
+// keeps replaying the old failure for up to 6h.
+$GLOBALS['__ew']['transient'] = array();
+$GLOBALS['__ew']['lg']        = array(
+	'denylistCount'      => 4586,
+	'compiledAt'         => gmdate( 'Y-m-d\TH:i:s' ) . '.000000Z',
+	'lastRefreshOk'      => false,
+	'lastRefreshReason'  => 'source-unreachable',
+);
+sn_health_check_edge_workers();
+ok( ! isset( $GLOBALS['__ew']['transient'][ SN_HEALTH_EDGE_LG_TRANSIENT ] ),
+	'#1189: a login-guard reading reporting lastRefreshOk=false is NOT cached (self-heals next scan)' );
+
+// A healthy login-guard reading (no failed-refresh flag) is still cached,
+// same as before -- this fix must not disable caching for the common case.
+$GLOBALS['__ew']['transient'] = array();
+$GLOBALS['__ew']['lg']        = array( 'denylistCount' => 4586, 'compiledAt' => gmdate( 'Y-m-d\TH:i:s' ) . '.000000Z' );
+sn_health_check_edge_workers();
+ok( isset( $GLOBALS['__ew']['transient'][ SN_HEALTH_EDGE_LG_TRANSIENT ] ),
+	'#1189: a healthy login-guard reading is still cached 6h' );
 
 
 /* v10.62.0 — four-worker expansion (cross-worker observability review). */
@@ -417,6 +446,34 @@ $f = sn_health_edge_worker_findings( true, 'u', array(
 ), $NOW, $STALE );
 ok( false === strpos( $f[0]['note'], '<script' ),
 	'edge JSON never reaches a Health note unsanitized — the v6 reason gets the same charset allowlist' );
+
+// ── #1189: the provenance probe does not cache a DEGRADED body for 6h ──────
+// sn_prov_worker_url() is undefined for every test ABOVE this point (it
+// returns '' -> sn_health_prov_status_probe() reads 'unconfigured' and the
+// wrapper skips it, exactly as before this pin group existed); only THIS
+// group opts in by setting __ew['prov_url'].
+function sn_prov_worker_url() { return $GLOBALS['__ew']['prov_url'] ?? ''; }
+function sn_prov_url_allowed( $url ) { return true; }
+$GLOBALS['__ew']['prov_url']  = 'https://prov.test';
+$GLOBALS['__ew']['transient'] = array();
+$GLOBALS['__ew']['prov_resp'] = array(
+	'code' => 503,
+	'body' => json_encode( array( 'worker' => 'sn-provenance', 'status' => 'degraded', 'reasons' => array( 'signing-key-unbound' ) ) ),
+);
+$degraded = sn_health_prov_status_probe();
+ok( is_array( $degraded ) && 'degraded' === $degraded['status'], 'a degraded 503 body is still returned for THIS scan' );
+ok( ! isset( $GLOBALS['__ew']['transient']['sn_health_edge_prov_status'] ),
+	'#1189: a degraded provenance body is NOT cached 6h — the next scan re-probes instead of replaying it' );
+
+$GLOBALS['__ew']['transient'] = array();
+$GLOBALS['__ew']['prov_resp'] = array(
+	'code' => 200,
+	'body' => json_encode( array( 'worker' => 'sn-provenance', 'status' => 'healthy' ) ),
+);
+$healthy = sn_health_prov_status_probe();
+ok( is_array( $healthy ) && 'healthy' === $healthy['status'], 'a healthy 200 body is returned' );
+ok( isset( $GLOBALS['__ew']['transient']['sn_health_edge_prov_status'] ),
+	'#1189: a healthy provenance body IS still cached 6h — this fix must not disable the common case' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
