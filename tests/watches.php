@@ -191,6 +191,16 @@ $GLOBALS['__integrity'] = array( 'notes' => array(
 ) );
 $v = snt_watch_ripe_integrity_resweep( array(), $T0 );
 ok( true === $v['ripe'], 'a check stamped exactly at the write instant counts as covering it' );
+
+// #1191: production writes last_checked as a unix INTEGER (see
+// inc/provenance-integrity.php's `'last_checked' => $now`), not an ISO
+// string. strtotime() on a numeric string returns false, so this shape must
+// still register as fresh instead of being silently skipped forever.
+$GLOBALS['__integrity'] = array( 'notes' => array(
+	11 => array( 'last_checked' => strtotime( $after ), 'failures' => array() ),
+) );
+$v = snt_watch_ripe_integrity_resweep( array(), $T0 );
+ok( true === $v['ripe'], 'a unix-integer last_checked (the shape production actually writes) is not silently dropped' );
 $GLOBALS['__integrity'] = null;
 
 echo "\nResult: $pass passed, $fail failed.\n";

@@ -186,11 +186,21 @@ function snt_roadmap_merge( $base, array $ours, array $theirs ) {
 			// override_held. Deciding $pick first and gating the report on
 			// it, rather than recording the entry inline with the branch
 			// that chose $pick, is what keeps that phantom out of the report.
+			//
+			// A REAL conflict is the one exception: when the override
+			// deleted a cell ($oc null) that code went on to independently
+			// EDIT ($tc a real, different value), the conflict branch above
+			// picks $oc (null) — the merged value is correctly absent, but
+			// the CONFLICT ITSELF still happened and must not disappear
+			// along with the cell. Gating 'conflicts' on $pick would silently
+			// resolve a real both-moved disagreement with no report entry at
+			// all, which is exactly what a dry-run's conflict list exists to
+			// surface.
 			if ( null !== $pick ) {
 				$cells[ $column ] = $pick;
-				if ( null !== $list ) {
-					$report[ $list ][] = array( 'family' => $family, 'column' => $column );
-				}
+			}
+			if ( null !== $list && ( null !== $pick || 'conflicts' === $list ) ) {
+				$report[ $list ][] = array( 'family' => $family, 'column' => $column );
 			}
 		}
 		if ( array() !== $cells ) {

@@ -459,10 +459,10 @@ function snt_ability_run_cron_event( $input ) {
 		return new WP_Error( 'snt_invalid_hook', 'Missing or empty hook name.', array( 'status' => 422 ) );
 	}
 
-	if ( str_starts_with( $hook, 'sn_' ) ) {
+	if ( function_exists( 'snt_cron_is_sn_owned' ) && snt_cron_is_sn_owned( $hook ) ) {
 		return new WP_Error(
 			'snt_sn_hook_refused',
-			'SN-internal hooks (sn_*) are not dispatchable via this ability: use the dedicated abilities for those actions.',
+			'SN-owned hooks are not dispatchable via this ability: use the dedicated abilities for those actions.',
 			array( 'status' => 422 )
 		);
 	}

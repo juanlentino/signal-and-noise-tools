@@ -141,15 +141,21 @@ function snt_ability_sn_metrics( $input ) {
 	$class = isset( $input['class'] ) ? (string) $input['class'] : 'human';
 
 	// Per-section args, forwarded only where the source schema declares them.
+	// machine_readers and analytics_top_content take `days`, not `range` — the
+	// sn-metrics-level `range` arg is renamed on the way in, same as `class` is
+	// scoped to analytics_summary only.
 	$args_by_section = array(
-		'analytics_summary' => array( 'range' => $range, 'class' => $class ),
-		'analytics_events'  => array( 'range' => $range ),
-		'rss_stats'         => array(),
+		'analytics_summary'     => array( 'range' => $range, 'class' => $class ),
+		'analytics_events'      => array( 'range' => $range ),
+		'rss_stats'             => array(),
+		'machine_readers'       => array( 'days' => $range ),
+		'analytics_top_content' => array( 'days' => $range ),
+		'404_log'               => array(),
 	);
 
 	$out = array();
 	foreach ( $sections as $section ) {
-		$out[ $section ] = snt_sn_site_facts_dispatch( $map[ $section ], $args_by_section[ $section ] );
+		$out[ $section ] = snt_sn_site_facts_dispatch( $map[ $section ], $args_by_section[ $section ] ?? array() );
 	}
 
 	return array(

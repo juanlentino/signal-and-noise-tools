@@ -3,24 +3,35 @@
  * WP 7.1 ability-execution lifecycle guard (forward-compat, v10.38.0).
  *
  * WordPress 7.1 standardizes the ability execution pipeline with core hooks.
- * The SHIPPED set is four FILTERS — no actions (corrected 2026-08-11, verified
- * against the 7.1 dev note "New execution lifecycle filters for the Abilities
- * API", 2026-07-29):
+ * The lifecycle this file cares about is SIX hooks, not four — verified
+ * directly against wp-includes/abilities-api/class-wp-ability.php's
+ * execute(): three ACTIONS bracketing the call plus three FILTERS inside it
+ * (corrected again here; the 2026-08-11 pass dropped the actions entirely):
  *
- *   wp_pre_execute_ability        ($pre, $name, $input, $ability)   — top of execute(), pre-normalization
- *   wp_ability_normalize_input    ($input, $name, $ability)         — after defaults applied (unused here)
- *   wp_ability_permission_result  ($permission, $name, $input, $ability)
- *   wp_ability_execute_result     ($result, $name, $input, $ability)
+ *   wp_ability_invoked            ($name, $input, $ability)          action — top of execute(), before ANY processing
+ *   wp_pre_execute_ability        ($pre, $name, $input, $ability)    filter — short-circuit point; default is a
+ *                                                                    WP_Filter_Sentinel instance, NEVER null
+ *   wp_ability_permission_result  ($permission, $name, $input, $ability) filter — after permission_callback runs
+ *   wp_before_execute_ability     ($name, $input, $ability)          action — after validation + permission pass
+ *   wp_ability_execute_result     ($result, $name, $input, $ability) filter — after the execute callback runs
+ *   wp_after_execute_ability      ($name, $input, $result, $ability) action — after output validation passes
+ *
+ * wp_ability_normalize_input / wp_ability_validate_input / wp_ability_validate_output
+ * also fire during execute() but are input/output SHAPE filters, not execution-flow
+ * hooks, and this file does not use them.
  *
  * WHAT THIS FILE GOT WRONG FROM v10.38.0 UNTIL THIS FIX, because the shape of the mistake is
  * the reason the correction is worth spelling out. The v10.38.0 prep pass was
  * written against pre-release information and registered an
  * `add_action( 'wp_ability_invoked', …, 10, 3 )` as its timing start point.
- * That hook does not exist in shipped 7.1 under any name. It was inert pre-7.1
- * like everything else here, so nothing failed; and it would have stayed inert
- * AFTER 7.1 landed, because a handler on a hook core never fires is
- * indistinguishable from a handler on a hook core has not shipped yet. The
- * visible symptom would have been a `direct`-door telemetry row whose
+ * That hook did not exist in the pre-release shape the v10.38.0 pass was
+ * written against — final 7.1 does ship `wp_ability_invoked` (see the
+ * inventory above), but this file never registered a handler on it, so the
+ * registration was dead from the start regardless. It was inert pre-7.1
+ * like everything else here, so nothing failed; and a handler on a hook
+ * whose shape moved out from under it is just as silent as one on a hook
+ * that never shipped. The visible symptom would have been a
+ * `direct`-door telemetry row whose
  * latency_ms was a permanent, plausible-looking 0 (see the note on
  * sn_ability_guard_filter_execute_result). tests/abilities-lifecycle-guard.php
  * asserted the registration and passed — it could only ever confirm OUR side of
@@ -60,27 +71,26 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The ability-lifecycle hooks WordPress 7.1 actually ships, as filter name =>
- * callback arity. The single source of truth for what this file is allowed to
- * register on, asserted in both directions by
+ * The SIX ability-lifecycle hooks WordPress 7.1 actually ships (verified
+ * directly against class-wp-ability.php's execute(), not just the dev note),
+ * as name => {kind, arity}. The single source of truth for what this file is
+ * allowed to register on, asserted in both directions by
  * tests/abilities-lifecycle-guard.php.
  *
  * A function rather than a const on purpose: a top-level const in a file the
  * CLI suites also include keeps the FIRST loader-order value on collision, and
  * the suites would never see the difference.
  *
- * Transcribed from the 7.1 dev note "New execution lifecycle filters for the
- * Abilities API" (make.wordpress.org, 2026-07-29). Re-verify against the note
- * — not against this array — before adding a name.
- *
- * @return array<string,int> filter name => expected accepted-args count.
+ * @return array<string,array{kind:string,arity:int}>
  */
 function sn_ability_lifecycle_hooks_71() {
 	return array(
-		'wp_pre_execute_ability'       => 4, // ($pre, $name, $input, $ability) — short-circuit filter.
-		'wp_ability_normalize_input'   => 3, // ($input, $name, $ability) — unused here.
-		'wp_ability_permission_result' => 4, // ($permission, $name, $input, $ability)
-		'wp_ability_execute_result'    => 4, // ($result, $name, $input, $ability)
+		'wp_ability_invoked'           => array( 'kind' => 'action', 'arity' => 3 ), // ($name, $input, $ability) — before ANY processing.
+		'wp_pre_execute_ability'       => array( 'kind' => 'filter', 'arity' => 4 ), // ($pre, $name, $input, $ability) — short-circuit filter.
+		'wp_ability_permission_result' => array( 'kind' => 'filter', 'arity' => 4 ), // ($permission, $name, $input, $ability)
+		'wp_before_execute_ability'    => array( 'kind' => 'action', 'arity' => 3 ), // ($name, $input, $ability) — after permission passes.
+		'wp_ability_execute_result'    => array( 'kind' => 'filter', 'arity' => 4 ), // ($result, $name, $input, $ability)
+		'wp_after_execute_ability'     => array( 'kind' => 'action', 'arity' => 4 ), // ($name, $input, $result, $ability)
 	);
 }
 
@@ -195,6 +205,13 @@ function sn_ability_guard_permission_decision( $permission, $is_ours, $is_write_
 /**
  * Live wp_ability_permission_result handler.
  *
+ * A denial here (upstream's own, or ours via the kill switch) means core
+ * returns from execute() BEFORE do_execute() runs, so wp_ability_execute_result
+ * never fires to pop the t0 that wp_pre_execute_ability stamped. Left alone
+ * that stamp would leak onto this ability's NEXT execution and report a
+ * latency measured from the wrong request. Discard it here whenever the
+ * result is not a clean `true`.
+ *
  * @param bool|WP_Error $permission
  * @param string        $ability_name
  * @param mixed         $input
@@ -203,12 +220,18 @@ function sn_ability_guard_permission_decision( $permission, $is_ours, $is_write_
  */
 function sn_ability_guard_filter_permission( $permission, $ability_name, $input = null, $ability = null ) {
 	$engaged = function_exists( 'sn_mcp_rw_kill_switch_engaged' ) && sn_mcp_rw_kill_switch_engaged();
-	return sn_ability_guard_permission_decision(
+	$result  = sn_ability_guard_permission_decision(
 		$permission,
 		sn_ability_guard_is_ours( $ability_name ),
 		sn_ability_guard_is_write_class( $ability_name, $ability ),
 		$engaged
 	);
+
+	if ( true !== $result && sn_ability_guard_is_ours( $ability_name ) && 0 === sn_ability_guard_mcp_depth() ) {
+		sn_ability_guard_t0( $ability_name ); // Pop and discard: no execute_result will ever come to pop it.
+	}
+
+	return $result;
 }
 
 /**
@@ -247,13 +270,16 @@ function sn_ability_guard_t0( $ability_name, $set = null ) {
  * abilities. Inside MCP dispatch the wrapper measures its own latency.
  *
  * This is a SHORT-CIRCUIT filter: core returns $pre instead of executing when
- * it comes back non-null. Two consequences this handler is built around.
+ * it comes back something other than the DEFAULT it was called with — a
+ * fresh `WP_Filter_Sentinel` instance, unique to this invocation, never
+ * `null`. Two consequences this handler is built around.
  *
  * 1. It returns $pre by identity, always. Observing must never become
- *    executing-by-accident: any non-null return here would silently replace
+ *    executing-by-accident: any other return here would silently replace
  *    every one of our abilities' results with whatever we returned.
- * 2. It does NOT stamp t0 when $pre is already non-null. A short circuit means
- *    the execute callback never runs, so wp_ability_execute_result never fires,
+ * 2. It does NOT stamp t0 when $pre is already not the sentinel (i.e. a
+ *    PRIOR filter already short-circuited). A short circuit means the
+ *    execute callback never runs, so wp_ability_execute_result never fires,
  *    so a t0 pushed here would never be popped — and the LIFO stack would hand
  *    that stale stamp to the NEXT execution of the same ability, reporting a
  *    latency measured from someone else's request. Residual, accepted: a filter
@@ -263,15 +289,16 @@ function sn_ability_guard_t0( $ability_name, $set = null ) {
  *    path, which 7.1 does not provide. Nothing in this plugin or theme
  *    registers on this hook, so the window is third-party-only.
  *
- * @param mixed       $pre          Short-circuit value; non-null means core skips execution.
+ * @param mixed       $pre          Short-circuit value; anything other than the incoming
+ *                                  WP_Filter_Sentinel means core will skip execution.
  * @param string      $ability_name
  * @param mixed       $input
  * @param object|null $ability
  * @return mixed $pre, unchanged.
  */
 function sn_ability_guard_filter_pre_execute( $pre, $ability_name, $input = null, $ability = null ) {
-	if ( null !== $pre ) {
-		return $pre;
+	if ( ! ( $pre instanceof WP_Filter_Sentinel ) ) {
+		return $pre; // A prior filter already short-circuited (or core's default shape changed again).
 	}
 	if ( ! sn_ability_guard_is_ours( $ability_name ) || sn_ability_guard_mcp_depth() > 0 ) {
 		return $pre;

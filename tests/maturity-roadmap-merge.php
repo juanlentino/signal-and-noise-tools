@@ -161,6 +161,22 @@ ok(
 	'and reports the exact conflict — code deleting "planned" (which the override never touched) names nothing'
 );
 
+// #1198: the MIRROR direction — the override DELETED F.done, and code went
+// on to independently EDIT it (a real value, not a re-deletion). This is
+// still a both-moved conflict, but the conflict branch always picks $oc
+// (the override's choice, here null), so the null-pick gate around report
+// recording dropped it from BOTH merged AND conflicts — a dry-run reported
+// nothing moved even though a genuine conflict occurred and was resolved
+// by silently deleting the cell.
+$ours5   = array( 'F' => array( 'planned' => array( 'p' ) ) ); // F.done deleted by the override
+$theirs5 = array( 'F' => array( 'done' => array( 'CODE-EDIT' ), 'planned' => array( 'p' ) ) ); // code edited it
+$r = snt_roadmap_merge( $base, $ours5, $theirs5 );
+ok( ! isset( $r['merged']['F']['done'] ), 'the override\'s deletion still wins the merged value (unchanged resolution)' );
+ok(
+	array( array( 'family' => 'F', 'column' => 'done' ) ) === $r['conflicts'],
+	'and the conflict IS reported even though it resolved to a deleted cell'
+);
+
 // Absence is a value: a column code removed, untouched by the override.
 $ours4   = $base;
 $theirs4 = array( 'F' => array( 'done' => array( 'a' ) ) );

@@ -335,11 +335,23 @@ function snt_ability_merge_tags( $input ) {
 	$from_slugs = isset( $input['from_slugs'] ) ? (array) $input['from_slugs'] : array();
 	$into_slug  = isset( $input['into_slug'] ) ? (string) $input['into_slug'] : '';
 	$from_ids   = array();
+	$unresolved = array();
 	foreach ( $from_slugs as $s ) {
-		$t = get_term_by( 'slug', (string) $s, 'post_tag' );
+		$s = (string) $s;
+		$t = get_term_by( 'slug', $s, 'post_tag' );
 		if ( $t ) {
 			$from_ids[] = (int) $t->term_id;
+		} else {
+			$unresolved[] = $s;
 		}
+	}
+	if ( ! empty( $unresolved ) ) {
+		return array(
+			'ok'          => false,
+			'posts_moved' => 0,
+			'into_slug'   => $into_slug,
+			'message'     => sprintf( 'Unknown tag slug(s): %s.', implode( ', ', $unresolved ) ),
+		);
 	}
 	$into = get_term_by( 'slug', $into_slug, 'post_tag' );
 	if ( ! $into || ! $from_ids || ! function_exists( 'sn_tag_merge' ) ) {
