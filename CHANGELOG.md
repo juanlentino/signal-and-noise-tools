@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **"Check for updates" no longer expires in the phone PWA.** An iOS standalone PWA keeps the last-rendered admin page in memory for days without reloading, so the `wp_nonce_url()` "Check now" link in it died after 24h (or a session-token rotation) with "The link you followed has expired." The three links now point at core's own nonce-free `update-core.php?force-check=1` (gated by `update_core`), and the plugin's cache clear runs there on `load-update-core.php`. The old admin-post door stays for bookmarks. `tests/force-check-no-nonce.php`.
+
 ## [14.0.2] - 2026-09-12 — worker follow-ups
 
 ### Fixed

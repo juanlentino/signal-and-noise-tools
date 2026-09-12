@@ -86,11 +86,8 @@ function snt_dashboard_render_api_summary() {
 		echo '</p></div>';
 	}
 
-	$refresh_url = wp_nonce_url(
-		admin_url( 'admin-post.php?action=sn_force_update_check' ),
-		'sn_force_update_check',
-		'sn_force_update_check_nonce'
-	);
+	// v14.0.3: core's nonce-free force check — a PWA page held for days cannot carry a nonce.
+	$refresh_url = admin_url( 'update-core.php?force-check=1' );
 
 	echo '<h2 class="sn-section-h">External APIs</h2>';
 	echo '<p class="sn-api-summary">';
