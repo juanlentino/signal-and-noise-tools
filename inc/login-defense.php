@@ -131,7 +131,14 @@ function sn_login_defense_headline() {
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		return array( 'configured' => false, 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '' );
 	}
-	$kpis = sn_login_defense_kpis_from_rows( sn_analytics_query( sn_login_defense_decisions_sql( 7 ) ) ?: array() );
+	// A failed decisions read (null) is UNAVAILABLE, not zeros: the `?: array()`
+	// fold cached an outage for 600s as configured:true / checked 0 / blocked 0
+	// (#1204). Reported as such and never cached, so the next call reads again.
+	$dec = sn_analytics_query( sn_login_defense_decisions_sql( 7 ) );
+	if ( ! is_array( $dec ) ) {
+		return array( 'configured' => true, 'unavailable' => true, 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '', 'trend' => array() );
+	}
+	$kpis = sn_login_defense_kpis_from_rows( $dec );
 	$asn  = sn_analytics_query( sn_login_defense_top_asn_sql( 7, 1 ) ) ?: array();
 	// v8.5.0: the 7d blocked trend rides the same cached headline (one extra
 	// AE query per 10 minutes, shared by every consumer — the widget renders

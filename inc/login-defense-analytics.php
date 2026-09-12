@@ -23,9 +23,10 @@ require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this
  * {pct,dir} delta and no derived sub_class), so the primitive's default
  * 'sn-delta-flat' reproduces the old hand-rolled loop byte-for-byte.
  */
-function sn_login_defense_render_kpi_cards( $k ) {
+function sn_login_defense_render_kpi_cards( $k, $days = 7 ) {
 	$cards = array(
-		array( 'l' => __( 'Checked (7d)', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $k['checked'] ?? 0 ) ), 'promoted' => true, 'sub' => __( 'seen', 'signal-and-noise-tools' ) ),
+		/* translators: %d: the selected range in days (7, 30 or 90). */
+		array( 'l' => sprintf( __( 'Checked (%dd)', 'signal-and-noise-tools' ), (int) $days ), 'n' => number_format_i18n( (int) ( $k['checked'] ?? 0 ) ), 'promoted' => true, 'sub' => __( 'seen', 'signal-and-noise-tools' ) ),
 		array( 'l' => __( 'Blocked', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $k['blocked'] ?? 0 ) ), 'promoted' => true, 'sub' => __( 'denied', 'signal-and-noise-tools' ) ),
 		array( 'l' => __( 'Throttled', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $k['throttled'] ?? 0 ) ), 'sub' => __( 'rate-limited', 'signal-and-noise-tools' ) ),
 		array( 'l' => __( 'Block rate', 'signal-and-noise-tools' ), 'n' => (int) ( $k['block_rate'] ?? 0 ) . '%', 'sub' => __( 'of checks', 'signal-and-noise-tools' ) ),
@@ -155,7 +156,23 @@ function sn_login_defense_render_header() {
 	);
 	echo '</div>';
 
-	$dec              = sn_analytics_query( sn_login_defense_decisions_sql( $days ) ) ?: array();
+	// A failed AE read is null, and null is UNAVAILABLE — never "no rows". The
+	// `?: array()` fold here rendered an outage as Checked 0 / Blocked 0 / 0%,
+	// a quiet week impersonated by a database failure (#1204); the Overview
+	// speaks the one read-failure sentence every other panel uses instead.
+	$dec = sn_analytics_query( sn_login_defense_decisions_sql( $days ) );
+	if ( ! is_array( $dec ) ) {
+		snt_an_panel_open(
+			__( 'Overview', 'signal-and-noise-tools' ),
+			array(
+				'panel_class'  => 'sn-overview',
+				'inside_class' => 'inside inside-flush sn-overview-inside',
+			)
+		);
+		echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( snt_an_read_failed_copy( __( 'Login decisions', 'signal-and-noise-tools' ) ) ) . '</p>';
+		snt_an_panel_close();
+		return;
+	}
 	$kpis             = sn_login_defense_kpis_from_rows( $dec );
 	$net              = sn_analytics_query( sn_login_defense_networks_sql( $days ) ) ?: array();
 	$kpis['networks'] = (int) ( $net[0]['networks'] ?? 0 );
@@ -172,7 +189,7 @@ function sn_login_defense_render_header() {
 			'inside_class' => 'inside inside-flush sn-overview-inside',
 		)
 	);
-	sn_login_defense_render_kpi_cards( $kpis );
+	sn_login_defense_render_kpi_cards( $kpis, $days );
 	sn_login_defense_render_trend_chart( sn_login_defense_trend_series( sn_analytics_query( sn_login_defense_trend_sql( $days ) ) ?: array() ) );
 	snt_an_panel_close();
 

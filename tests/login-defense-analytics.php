@@ -191,6 +191,19 @@ foreach ( array( 'block', 'pass', 'bypass', 'killswitch' ) as $sn_lg_d ) {
 }
 ok( strpos( $hd, 'Top attacker networks' ) === false,
 	'header: does NOT render the attacker tables (body-only)' );
+ok( strpos( $hd, 'Checked (7d)' ) !== false, 'header: the Checked card names the 7-day range' );
+// #1204 -- the range control drives 7/30/90 but the label said "Checked (7d)" regardless.
+$_GET['sn_lg_range'] = '30';
+ob_start(); sn_login_defense_render_header(); $hd30 = ob_get_clean();
+ok( strpos( $hd30, 'Checked (30d)' ) !== false && strpos( $hd30, 'Checked (7d)' ) === false, 'header: the Checked card label follows the selected range (#1204)' );
+unset( $_GET['sn_lg_range'] );
+// #1204 -- a failed AE read (null) rendered as Checked 0 / Blocked 0 / 0%:
+// a database failure impersonating a quiet week. Null is unavailable.
+$GLOBALS['__q'] = null;
+ob_start(); sn_login_defense_render_header(); $hdn = ob_get_clean();
+ok( strpos( $hdn, 'could not be read' ) !== false, 'header: a failed decisions read says so (#1204)' );
+ok( strpos( $hdn, 'sn-an-breakdown' ) === false && preg_match( '/>0<\/|>0%</', $hdn ) !== 1, 'header: no zero KPIs and no breakdown pills are printed from a failed read (#1204)' );
+$GLOBALS['__q'] = array( array( 'decision' => 'block', 'hits' => 3 ), array( 'decision' => 'pass', 'hits' => 7 ) );
 
 ob_start();
 sn_login_defense_render_body();
