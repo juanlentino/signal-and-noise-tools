@@ -365,24 +365,31 @@ function sn_mcp_rw_rate_limit_store_set( $key, $count, $ttl_seconds ) {
 /**
  * Check-and-increment for one identity: reads the current count, applies the
  * pure decision, and — ONLY when allowed — persists the incremented count
- * back with a fresh window TTL (a denied call never bumps the counter
- * further; it's already over, and re-arming the TTL on every denial would
- * turn a burst into an indefinitely-renewing lockout).
+ * back (a denied call never bumps the counter further).
  *
- * @param string $identity
+ * Fixed UTC minute buckets (#1210), as in the read guard: the key carries the
+ * minute index and the TTL is the remainder of that minute. Renewing a 60s
+ * TTL on every accepted call made the counter "calls since 60s of silence",
+ * so a client at a steady 6/min was refused after 30 calls and stayed refused
+ * while it kept calling.
+ *
+ * @param string   $identity
+ * @param int|null $now Clock seam for deterministic tests; never request input.
  * @return array{allow:bool,retry_after:int}
  */
-function sn_mcp_rw_rate_limit_check( $identity ) {
-	$key   = sn_mcp_rw_rate_limit_key( $identity );
+function sn_mcp_rw_rate_limit_check( $identity, $now = null ) {
+	$now   = null === $now ? time() : (int) $now;
+	$ttl   = SN_MCP_RW_RATE_LIMIT_WINDOW_SECONDS - ( $now % SN_MCP_RW_RATE_LIMIT_WINDOW_SECONDS );
+	$key   = sn_mcp_rw_rate_limit_key( $identity ) . '_' . (string) intdiv( $now, SN_MCP_RW_RATE_LIMIT_WINDOW_SECONDS );
 	$count = sn_mcp_rw_rate_limit_store_get( $key );
 	$count = null === $count ? 0 : $count;
 
 	$allowed = sn_mcp_rw_rate_limit_decision( $count, SN_MCP_RW_RATE_LIMIT_PER_MINUTE );
 	if ( $allowed ) {
-		sn_mcp_rw_rate_limit_store_set( $key, $count + 1, SN_MCP_RW_RATE_LIMIT_WINDOW_SECONDS );
+		sn_mcp_rw_rate_limit_store_set( $key, $count + 1, $ttl );
 		return array( 'allow' => true, 'retry_after' => 0 );
 	}
-	return array( 'allow' => false, 'retry_after' => SN_MCP_RW_RATE_LIMIT_WINDOW_SECONDS );
+	return array( 'allow' => false, 'retry_after' => $ttl );
 }
 
 /**
@@ -578,11 +585,15 @@ function sn_mcp_rw_guard_run_route( $result, $server = null, $request = null ) {
 		return $result;
 	}
 
-	$verdict = sn_mcp_rw_guard_run_route_decision(
-		sn_mcp_rw_kill_switch_engaged(),
-		sn_mcp_rw_credential_authorize(),
-		sn_mcp_rw_rate_limit_gate()
-	);
+	// The rate gate counts a call when it runs, so it runs only once the
+	// switch and the credential have allowed the call (#1210): a refused call
+	// must not consume the bucket.
+	$kill_engaged = sn_mcp_rw_kill_switch_engaged();
+	$credential   = sn_mcp_rw_credential_authorize();
+	$rate         = ( ! $kill_engaged && ! empty( $credential['allow'] ) )
+		? sn_mcp_rw_rate_limit_gate()
+		: array( 'allow' => true, 'retry_after' => 0 );
+	$verdict      = sn_mcp_rw_guard_run_route_decision( $kill_engaged, $credential, $rate );
 	if ( $verdict['allow'] ) {
 		// The door drops include_template_overrides from purge-all-caches
 		// before execute (mcp-tools.php); the same argument rule applies on

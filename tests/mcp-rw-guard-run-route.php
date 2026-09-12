@@ -173,6 +173,15 @@ for ( $i = 0; $i < SN_MCP_RW_RATE_LIMIT_PER_MINUTE + 1; $i++ ) {
 ok( null !== $refused && SN_MCP_RW_RATE_LIMIT_PER_MINUTE === $refused['at'], 'call #' . ( SN_MCP_RW_RATE_LIMIT_PER_MINUTE + 1 ) . ' in a window is refused' );
 ok( null !== $refused && 'sn_mcp_rw_rate_limited' === $refused['err']->get_error_code() && 429 === $refused['err']->data['status'], 'as a 429 carrying retry_after' );
 
+echo "\nGroup: a call refused by the switch or the credential does not consume the bucket (#1210)\n";
+reset_state( $BOUND, $BOUND );
+$GLOBALS['__options']['sn_mcp_rw_enabled'] = 0;
+for ( $i = 0; $i < SN_MCP_RW_RATE_LIMIT_PER_MINUTE; $i++ ) {
+	sn_mcp_rw_guard_run_route( null, null, new RG_Req( run_route( $a_write ) ) );
+}
+$GLOBALS['__options']['sn_mcp_rw_enabled'] = 1;
+ok( null === sn_mcp_rw_guard_run_route( null, null, new RG_Req( run_route( $a_write ) ) ), 'after ' . SN_MCP_RW_RATE_LIMIT_PER_MINUTE . ' calls refused by the kill switch, the first allowed call is not rate limited' );
+
 echo "\nGroup: the outcome of an allowed call is recorded after the callbacks\n";
 reset_state( $BOUND, $BOUND );
 $out = sn_mcp_rw_guard_run_route_audit( array( 'ok' => true ), null, new RG_Req( run_route( $a_write ) ) );
