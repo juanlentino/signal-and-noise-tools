@@ -43,8 +43,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * `snt_sn_apply_block_edit`'s byte-for-byte: core compares the target GMT date
  * against now and coerces when the gap is under a minute.
  *
- * Only `future` is at risk. A `draft` or `publish` post carries no scheduled
- * transition for core to resolve, so moving its date moves only the date.
+ * Only `future` is at risk of publishing early. A `draft` carries no scheduled
+ * transition, so moving its date moves only the date. A `publish` post has the
+ * OPPOSITE hazard -- core flips it to `future` when the target is >= 60 s
+ * ahead -- which snt_batch_date_would_unpublish() refuses separately (#1179).
  *
  * @since 13.56.0
  * @param string $status       The post's status.
@@ -64,6 +66,51 @@ function snt_batch_date_would_early_publish( $status, $new_date_gmt, $now_ts ) {
 	}
 	$minute = defined( 'MINUTE_IN_SECONDS' ) ? MINUTE_IN_SECONDS : 60;
 	return ( $target - (int) $now_ts ) < $minute;
+}
+
+/**
+ * Would writing this date on this post flip a PUBLISHED post to `future`?
+ *
+ * #1179: core's status resolution (wp_insert_post) turns `publish` into
+ * `future` whenever post_date_gmt is at least a minute ahead of now -- the
+ * mirror image of the early-publish coercion above. A batch "moving the date"
+ * of a live note would take it OFF the site. Refused, never silently done.
+ *
+ * @since 13.109.22
+ * @param string $status       The post's status.
+ * @param string $new_date_gmt The date being written, 'Y-m-d H:i:s' GMT.
+ * @param int    $now_ts       Unix time.
+ * @return bool True when the write would unpublish rather than redate.
+ */
+function snt_batch_date_would_unpublish( $status, $new_date_gmt, $now_ts ) {
+	if ( 'publish' !== (string) $status ) {
+		return false;
+	}
+	$target = strtotime( (string) $new_date_gmt );
+	if ( false === $target ) {
+		return true;
+	}
+	$minute = defined( 'MINUTE_IN_SECONDS' ) ? MINUTE_IN_SECONDS : 60;
+	return ( $target - (int) $now_ts ) >= $minute;
+}
+
+/**
+ * Validate the raw datetime-local value and return it as 'Y-m-d H:i:s' SITE time.
+ *
+ * #1179: this runs BEFORE get_gmt_from_date(), which returns
+ * '1970-01-01 00:00:00' for anything it cannot parse -- never '' -- so a guard
+ * after conversion cannot fire. A text-rendered field value (15/09/2026 10:30)
+ * rescheduled every selected post to 1970 and reported success.
+ *
+ * @since 13.109.22
+ * @param string $raw The field value as submitted.
+ * @return string 'Y-m-d H:i:s' site time, or '' when the shape is wrong.
+ */
+function snt_batch_schedule_parse_date( $raw ) {
+	if ( ! preg_match( '/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(:\d{2})?$/', (string) $raw, $m ) ) {
+		return '';
+	}
+	return $m[1] . ' ' . $m[2] . ( isset( $m[3] ) && '' !== $m[3] ? $m[3] : ':00' );
 }
 
 /**
@@ -88,6 +135,10 @@ function snt_batch_schedule_plan( $posts, $new_date_gmt, $now_ts ) {
 		$status = (string) ( $meta['status'] ?? '' );
 		if ( snt_batch_date_would_early_publish( $status, $new_date_gmt, $now_ts ) ) {
 			$refused[ $id ] = 'would_early_publish';
+			continue;
+		}
+		if ( snt_batch_date_would_unpublish( $status, $new_date_gmt, $now_ts ) ) {
+			$refused[ $id ] = 'would_unpublish';
 			continue;
 		}
 		$apply[] = $id;
@@ -158,11 +209,14 @@ function snt_batch_schedule_handle( $redirect, $action, $post_ids ) {
 	}
 
 	// The field is a datetime-local in SITE time; the guard and core both work
-	// in GMT. Converting here, once, keeps the planner clock-agnostic.
-	$gmt = get_gmt_from_date( str_replace( 'T', ' ', $raw ) . ':00' );
-	if ( ! is_string( $gmt ) || '' === $gmt ) {
+	// in GMT. The SHAPE is validated first (#1179): get_gmt_from_date() answers
+	// 1970 for garbage, never an error. Converting here, once, keeps the
+	// planner clock-agnostic.
+	$site = snt_batch_schedule_parse_date( $raw );
+	if ( '' === $site ) {
 		return add_query_arg( 'snt_batch_baddate', 1, $redirect );
 	}
+	$gmt = get_gmt_from_date( $site );
 
 	$posts = array();
 	foreach ( (array) $post_ids as $id ) {
@@ -179,11 +233,14 @@ function snt_batch_schedule_handle( $redirect, $action, $post_ids ) {
 	foreach ( $plan['apply'] as $id ) {
 		// post_date is SITE time, post_date_gmt is GMT — passing both keeps
 		// core from re-deriving one from the other and drifting by the offset.
+		// edit_date (#1179): a draft's post_date_gmt is zero, and without this
+		// flag core treats the date as untouched and resets it to now.
 		$res = wp_update_post(
 			wp_slash( array(
 				'ID'            => (int) $id,
 				'post_date'     => get_date_from_gmt( $gmt ),
 				'post_date_gmt' => $gmt,
+				'edit_date'     => true,
 			) ),
 			true
 		);
@@ -192,10 +249,12 @@ function snt_batch_schedule_handle( $redirect, $action, $post_ids ) {
 		}
 	}
 
+	$reasons = array_count_values( $plan['refused'] );
 	return add_query_arg(
 		array(
-			'snt_batch_moved'   => $moved,
-			'snt_batch_refused' => count( $plan['refused'] ),
+			'snt_batch_moved'     => $moved,
+			'snt_batch_refused'   => (int) ( $reasons['would_early_publish'] ?? 0 ),
+			'snt_batch_unpublish' => (int) ( $reasons['would_unpublish'] ?? 0 ),
 		),
 		$redirect
 	);
@@ -254,8 +313,9 @@ function snt_batch_schedule_notice() {
 	if ( ! isset( $req['snt_batch_moved'] ) ) {
 		return;
 	}
-	$moved   = (int) $req['snt_batch_moved'];
-	$refused = isset( $req['snt_batch_refused'] ) ? (int) $req['snt_batch_refused'] : 0;
+	$moved     = (int) $req['snt_batch_moved'];
+	$refused   = isset( $req['snt_batch_refused'] ) ? (int) $req['snt_batch_refused'] : 0;
+	$unpublish = isset( $req['snt_batch_unpublish'] ) ? (int) $req['snt_batch_unpublish'] : 0;
 
 	$msg = sprintf(
 		/* translators: %d: number of posts rescheduled. */
@@ -274,9 +334,21 @@ function snt_batch_schedule_notice() {
 			$refused
 		);
 	}
+	if ( $unpublish > 0 ) {
+		$msg .= ' ' . sprintf(
+			/* translators: %d: number of published posts left untouched. */
+			_n(
+				'%d published post was left untouched: moving it to a future date would have taken it off the site (WordPress flips it back to scheduled). Unpublish it deliberately first.',
+				'%d published posts were left untouched: moving them to a future date would have taken them off the site (WordPress flips them back to scheduled). Unpublish them deliberately first.',
+				$unpublish,
+				'signal-and-noise-tools'
+			),
+			$unpublish
+		);
+	}
 	printf(
 		'<div class="notice notice-%s"><p>%s</p></div>',
-		esc_attr( $refused > 0 ? 'warning' : 'success' ),
+		esc_attr( ( $refused + $unpublish ) > 0 ? 'warning' : 'success' ),
 		esc_html( $msg )
 	);
 }

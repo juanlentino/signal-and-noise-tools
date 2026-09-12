@@ -48,8 +48,23 @@ $posts = array(
 	14 => array( 'status' => 'publish', 'date_gmt' => at( -99999 ) ),
 );
 $safe = snt_batch_schedule_plan( $posts, at( 604800 ), $NOW );
-ok( 4 === count( $safe['apply'] ), 'a week-out target applies to every post in the batch' );
-ok( array() === $safe['refused'], 'and refuses none' );
+ok( array( 11, 12, 13 ) === $safe['apply'], 'a week-out target applies to the scheduled and draft posts' );
+ok( array( 14 => 'would_unpublish' ) === $safe['refused'], '...and refuses the PUBLISHED one: core flips publish to future when the date is >= 60 s ahead (#1179)' );
+
+echo "\nGroup: #1179 -- a published post moved into the future is an unpublish, not a date edit\n";
+ok( 'would_unpublish' === ( snt_batch_schedule_plan( array( 14 => array( 'status' => 'publish' ) ), at( 60 ), $NOW )['refused'][14] ?? '' ), 'exactly 60 s ahead: core would flip it to future, so it is refused' );
+ok( array( 14 ) === snt_batch_schedule_plan( array( 14 => array( 'status' => 'publish' ) ), at( 59 ), $NOW )['apply'], '59 s ahead stays published (core publishes within the minute), so it moves' );
+ok( array( 14 ) === snt_batch_schedule_plan( array( 14 => array( 'status' => 'publish' ) ), at( -86400 ), $NOW )['apply'], 'a backdate keeps it published, so it moves' );
+
+echo "\nGroup: #1179 -- the raw field value is validated BEFORE conversion\n";
+// get_gmt_from_date() returns 1970-01-01 00:00:00 for an unparseable string,
+// never '', so the old post-conversion guard could not fire: a text-rendered
+// datetime-local value rescheduled the whole batch to 1970.
+ok( '' === snt_batch_schedule_parse_date( '15/09/2026 10:30' ), 'a text-rendered dd/mm/yyyy value is refused' );
+ok( '' === snt_batch_schedule_parse_date( 'not a date' ), 'prose is refused' );
+ok( '' === snt_batch_schedule_parse_date( '' ), 'empty is refused' );
+ok( '2026-09-15 10:30:00' === snt_batch_schedule_parse_date( '2026-09-15T10:30' ), 'the datetime-local shape converts to Y-m-d H:i:s site time' );
+ok( '2026-09-15 10:30:45' === snt_batch_schedule_parse_date( '2026-09-15T10:30:45' ), '...with seconds when the browser sends them' );
 
 $unsafe = snt_batch_schedule_plan( $posts, at( 30 ), $NOW );
 ok( array( 13, 14 ) === $unsafe['apply'], 'a 30-second target applies ONLY to the non-future posts' );
@@ -105,6 +120,8 @@ $handler_body = $handler_m[0] ?? '';
 ok( '' !== $handler_body, 'vacuity: the handler body was actually extracted' );
 ok( false !== strpos( $handler_body, 'snt_batch_refused' ), 'the HANDLER puts the refusal count in the redirect, so a partial success can never report as a whole one' );
 ok( false !== strpos( $handler_body, 'snt_batch_moved' ), 'and the moved count beside it' );
+ok( false !== strpos( $handler_body, "'edit_date'     => true" ), '#1179: the write passes edit_date, or core resets a draft\'s date to now (a draft\'s post_date_gmt is zero)' );
+ok( false !== strpos( $handler_body, 'snt_batch_schedule_parse_date( $raw )' ), '#1179: the handler validates the raw field through the parser, not after conversion' );
 
 echo "\nGroup: registrations stay loadable standalone\n";
 ok( false !== strpos( $batch, "function_exists( 'add_filter' )" ), 'hook registrations are function_exists-guarded, so the pure planner still loads in a harness' );
