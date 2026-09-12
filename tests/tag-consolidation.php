@@ -113,8 +113,20 @@ $GLOBALS['__terms'] = array(
 	11 => (object) array( 'term_id' => 11, 'name' => 'Empty', 'slug' => 'empty', 'count' => 0, 'taxonomy' => 'post_tag' ),
 	12 => (object) array( 'term_id' => 12, 'name' => 'AlsoEmpty', 'slug' => 'also-empty', 'count' => 0, 'taxonomy' => 'post_tag' ),
 );
+$GLOBALS['__objects'] = array( 10 => array( 1, 2, 3 ) );
 $un = sn_tag_find_unused();
-ok( count( $un ) === 2 && $un[0]['count'] === 0, 'unused: only count-0 terms (Empty + AlsoEmpty)' );
+ok( count( $un ) === 2 && $un[0]['count'] === 0, 'unused: only relationship-free terms (Empty + AlsoEmpty)' );
+
+// #1178: a tag on scheduled/draft notes reads count 0 (publish-only) but HAS relationships.
+$GLOBALS['__terms'][13] = (object) array( 'term_id' => 13, 'name' => 'ScheduledOnly', 'slug' => 'scheduled-only', 'count' => 0, 'taxonomy' => 'post_tag' );
+$GLOBALS['__objects'][13]  = array( 900, 901 );
+$un = sn_tag_find_unused();
+$un_ids = array_column( $un, 'term_id' );
+ok( ! in_array( 13, $un_ids, true ) && count( $un ) === 2, 'unused: count 0 with relationships > 0 is NOT listed' );
+$GLOBALS['__deleted'] = array();
+$bad = sn_tag_delete_unused( array( 13 ) );
+ok( is_wp_error( $bad ) && empty( $GLOBALS['__deleted'] ), 'unused: delete refuses a count-0 term that still has relationships (zero deletion)' );
+unset( $GLOBALS['__terms'][13], $GLOBALS['__objects'][13] );
 
 $GLOBALS['__opts'] = array(); $GLOBALS['__deleted'] = array();
 $res = sn_tag_delete_unused( array( 11, 12 ) );

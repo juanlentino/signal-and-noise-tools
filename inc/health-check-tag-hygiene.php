@@ -53,7 +53,9 @@ function sn_health_check_tag_hygiene() {
 		if ( ! is_object( $term ) ) {
 			continue;
 		}
-		$posts = isset( $term->count ) ? (int) $term->count : 0;
+		// #1178: term->count is publish-only; a tag held only by scheduled or
+		// draft notes reads 0. Relationships across every status decide "unused".
+		$posts = count( (array) get_objects_in_term( (int) ( $term->term_id ?? 0 ), 'post_tag' ) );
 		if ( 0 === $posts ) {
 			// A zero-post tag reports ONCE, as unused: the fix is pruning,
 			// not describing, so the undescribed branch must not double it.
