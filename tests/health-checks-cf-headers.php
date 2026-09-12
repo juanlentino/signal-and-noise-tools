@@ -84,10 +84,22 @@ function wp_remote_head( $url, $args = array() ) {
 $GLOBALS['__test_get_response'] = array( 'response' => array( 'code' => 200 ), 'headers' => array() );
 $GLOBALS['__test_get_calls']    = 0;
 $GLOBALS['__test_get_headers']  = array();
+$GLOBALS['__test_get_urls']     = array();
 function wp_remote_get( $url, $args = array() ) {
 	$GLOBALS['__test_get_calls']++;
+	$GLOBALS['__test_get_urls'][]  = (string) $url;
 	$GLOBALS['__test_get_headers'] = isset( $args['headers'] ) ? (array) $args['headers'] : array();
 	return $GLOBALS['__test_get_response'];
+}
+function wp_remote_retrieve_body( $resp ) {
+	return ( is_array( $resp ) && isset( $resp['body'] ) ) ? (string) $resp['body'] : '';
+}
+// The Better Stack token: the WAF witness reads sn_uptime_status_configured(),
+// which reads this option. Unset by default so the header tests (1-9) see the
+// witness as unconfigured and stay about headers.
+$GLOBALS['__test_bs_token'] = '';
+function get_option( $key, $default = false ) {
+	return 'sn_betterstack_api_token' === $key ? $GLOBALS['__test_bs_token'] : $default;
 }
 function wp_remote_retrieve_response_code( $resp ) {
 	return ( is_array( $resp ) && isset( $resp['response']['code'] ) ) ? (int) $resp['response']['code'] : 0;
@@ -147,6 +159,10 @@ if ( ! isset( $GLOBALS['wpdb'] ) ) {
 }
 
 require_once __DIR__ . '/../inc/health-checks.php';
+// The REAL Better Stack client, so the witness is read through the same
+// wp_remote_get + JSON:API path production uses — a hand stub of
+// sn_uptime_status_api_get() would let the two drift.
+require_once __DIR__ . '/../inc/uptime-status.php';
 
 // ─── Harness ──────────────────────────────────────────────────────────
 $pass = 0; $fail = 0;
@@ -282,62 +298,143 @@ $GLOBALS['__test_head_response'] = array(
 $check = sn_health_check_cf_security_headers();
 cf_eq( 5, $check['count'], 'edge confirmed via server:cloudflare → all 5 genuinely-missing flagged' );
 
-// ─── Tests 10-14: the WAF probe (enforcement audit 2026-09-11, Phase 1) ──
+// ─── Tests 10-16: the WAF witness (enforcement audit 2026-09-11, Phase 1) ──
 // The rule "Block Basic-auth on abilities API" is the edge layer in front of
-// the abilities run route. It lives in the dashboard; this is its witness.
+// the abilities run route. It lives in the dashboard. Since 2026-09-12 the
+// plugin no longer probes it from the origin (the origin's own requests are
+// not judged by it — measured from an external host that day); it reads a
+// Better Stack monitor that sends the Authorization header from OUTSIDE and
+// expects the edge's 403. These fixtures are that monitor list.
+$GLOBALS['__all5_edge'] = $all5 + array( 'cf-ray' => '8a1b2c3d4e5f-EWR' );
 function waf_reset() {
 	cf_reset();
 	$GLOBALS['__test_get_calls']   = 0;
 	$GLOBALS['__test_get_headers'] = array();
-	// Edge confirmed for the header half, all 5 present, so any finding below is the probe's.
+	$GLOBALS['__test_get_urls']    = array();
+	$GLOBALS['__test_bs_token']    = 'bs-test-token';
+	// Edge confirmed for the header half, all 5 present, so any finding below is the witness's.
 	$GLOBALS['__test_head_response'] = array( 'response' => array( 'code' => 200 ), 'headers' => $GLOBALS['__all5_edge'] );
 }
-$GLOBALS['__all5_edge'] = $all5 + array( 'cf-ray' => '8a1b2c3d4e5f-EWR' );
+// A Better Stack v2/monitors payload. Each entry: [url, status, overrides].
+function bs_monitors( array $rows ) {
+	$data = array();
+	foreach ( $rows as $i => $row ) {
+		list( $url, $status ) = $row;
+		$attrs = array_merge( array(
+			'url'                   => $url,
+			'pronounceable_name'    => 'monitor ' . $i,
+			'status'                => $status,
+			'monitor_type'          => 'expected_status_code',
+			'expected_status_codes' => array( 403 ),
+			'request_headers'       => array( array( 'id' => '1', 'name' => 'Authorization', 'value' => 'Basic eA==' ) ),
+		), $row[2] ?? array() );
+		$data[] = array( 'id' => (string) ( 100 + $i ), 'type' => 'monitor', 'attributes' => $attrs );
+	}
+	return array( 'response' => array( 'code' => 200 ), 'headers' => array(), 'body' => json_encode( array( 'data' => $data ) ) );
+}
+$abilities_url  = 'https://juanlentino.com/wp-json/wp-abilities/v1/abilities';
+$rest_route_url = 'https://juanlentino.com/?rest_route=/wp-abilities/v1/abilities';
+$site_monitor   = array( 'https://juanlentino.com/', 'up', array( 'monitor_type' => 'status', 'expected_status_codes' => array(), 'request_headers' => array() ) );
 
-echo "\nTest 10: edge answers 403 with cf-ray → rule present, 0 findings, cached\n";
+echo "\nTest 10: a witness monitor is up → the rule refused the outside request, 0 findings, cached\n";
 waf_reset();
-$GLOBALS['__test_get_response'] = array( 'response' => array( 'code' => 403 ), 'headers' => array( 'cf-ray' => 'x', 'server' => 'cloudflare' ) );
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abilities_url, 'up' ) ) );
 $check = sn_health_check_cf_security_headers();
-cf_eq( 0, $check['count'], '403 at the edge → the rule is there, no finding' );
-cf_eq( 1, $GLOBALS['__test_get_calls'], 'probe fired once' );
-cf_true( isset( $GLOBALS['__test_get_headers']['Authorization'] ) && 0 === strpos( $GLOBALS['__test_get_headers']['Authorization'], 'Basic ' ), 'the probe carried an Authorization: Basic header (the header\'s presence IS the probe)' );
-cf_eq( 'blocked', $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ?? null, 'result cached as blocked' );
+cf_eq( 0, $check['count'], 'witness up → the rule is in force, no finding' );
+cf_eq( null, $check['skipped'], 'and the check RAN (not skipped)' );
+cf_eq( 1, $GLOBALS['__test_get_calls'], 'one GET: the Better Stack monitor list' );
+cf_true( 0 === strpos( $GLOBALS['__test_get_urls'][0], 'https://uptime.betterstack.com/api/v2/monitors' ), 'the GET went to Better Stack, not to the abilities route' );
+cf_true( 0 === strpos( (string) ( $GLOBALS['__test_get_headers']['Authorization'] ?? '' ), 'Bearer ' ), 'authenticated with the Better Stack bearer token' );
+cf_eq( 'blocked', $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ?? null, 'verdict cached as blocked' );
 
-echo "\nTest 11: edge answers 401 (WordPress rejected the credential) → the request went THROUGH → 1 finding\n";
+echo "\nTest 11: the witness is down → the edge did NOT refuse an outside Authorization-bearing request → 1 finding\n";
 waf_reset();
-$GLOBALS['__test_get_response'] = array( 'response' => array( 'code' => 401 ), 'headers' => array( 'cf-ray' => 'x' ) );
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abilities_url, 'down' ) ) );
 $check = sn_health_check_cf_security_headers();
-cf_eq( 1, $check['count'], 'a non-403 edge answer means the WAF rule is not in force → 1 finding' );
+cf_eq( 1, $check['count'], 'witness down → the WAF rule is not in force → 1 finding' );
 cf_eq( 'waf: Block Basic-auth on abilities API', $check['findings'][0]['subject_label'], 'finding names the rule' );
 cf_eq( 'https://juanlentino.com/wp-json/wp-abilities/v1/abilities', $check['findings'][0]['subject_url'], 'finding points at the abilities route' );
 cf_true( false !== strpos( $check['findings'][0]['note'], 'sn_mcp_rw_guard_run_route' ), 'note says the in-plugin guard still holds' );
-cf_eq( 'open', $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ?? null, 'result cached as open' );
+cf_true( false !== strpos( $check['findings'][0]['note'], 'Better Stack' ), 'note names the vantage that measured it' );
+cf_eq( 'open', $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ?? null, 'verdict cached as open' );
 
-echo "\nTest 12: 200 with cf-ray is ALSO open (the rule blocks, it does not authenticate)\n";
+echo "\nTest 12: a monitor on the URL that could not fail the rule is NOT a witness (negative control)\n";
+// A plain status monitor with no Authorization header reads up whether or
+// not the rule exists — WordPress answers 401, the rule never engages. The
+// check must refuse that green rather than cache it.
 waf_reset();
-$GLOBALS['__test_get_response'] = array( 'response' => array( 'code' => 200 ), 'headers' => array( 'cf-ray' => 'x' ) );
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abilities_url, 'up', array( 'request_headers' => array() ) ) ) );
 $check = sn_health_check_cf_security_headers();
-cf_eq( 1, $check['count'], '200 through the edge → open → 1 finding' );
+cf_eq( 0, $check['count'], 'no Authorization header on the monitor → nothing measured, no finding' );
+cf_true( false !== stripos( (string) $check['skipped'], 'not configured' ), 'skipped reason says the monitor is not configured as a witness' );
+cf_true( ! isset( $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ), 'and the non-verdict is NOT cached' );
+waf_reset();
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abilities_url, 'up', array( 'expected_status_codes' => array( 401 ) ) ) ) );
+$check = sn_health_check_cf_security_headers();
+cf_true( is_string( $check['skipped'] ) && ! isset( $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ), 'expecting 401 instead of 403 is not a witness either: skipped, not cached' );
+waf_reset();
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abilities_url, 'up', array( 'monitor_type' => 'status' ) ) ) );
+$check = sn_health_check_cf_security_headers();
+cf_true( is_string( $check['skipped'] ) && ! isset( $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ), 'a plain status monitor (403 = down) is not a witness: skipped, not cached' );
 
-echo "\nTest 13: no edge marker, or a transport error → unknown: 0 findings, NOT cached\n";
+echo "\nTest 13: nothing to read → unknown: 0 findings, reported as SKIPPED, never cached\n";
 waf_reset();
-$GLOBALS['__test_get_response'] = array( 'response' => array( 'code' => 403 ), 'headers' => array( 'server' => 'nginx' ) );
+$GLOBALS['__test_bs_token'] = '';
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abilities_url, 'up' ) ) );
 $check = sn_health_check_cf_security_headers();
-cf_eq( 0, $check['count'], 'a 403 with no cf-ray is not the edge speaking → nothing measured, no finding' );
-cf_true( ! isset( $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ), 'unknown is NOT cached (re-attempts next scan)' );
+cf_eq( 0, $check['count'], 'no Better Stack token → 0 findings' );
+cf_eq( 0, $GLOBALS['__test_get_calls'], 'and no request at all' );
+cf_true( false !== stripos( (string) $check['skipped'], 'token' ), 'skipped reason: no token' );
+cf_true( ! isset( $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ), 'unknown is NOT cached' );
 waf_reset();
 $GLOBALS['__test_get_response'] = new WP_Error( 'http_request_failed', 'timeout' );
 $check = sn_health_check_cf_security_headers();
-cf_eq( 0, $check['count'], 'WP_Error → 0 findings' );
+cf_true( is_string( $check['skipped'] ) && false !== stripos( $check['skipped'], 'Better Stack' ), 'API unreachable → skipped, reason names Better Stack' );
 cf_true( ! isset( $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ), 'and NOT cached' );
+waf_reset();
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor ) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 0, $check['count'], 'no monitor on the abilities URL → 0 findings' );
+cf_true( false !== strpos( (string) $check['skipped'], '/wp-abilities/v1/abilities' ), 'skipped reason tells the operator which URL to monitor' );
+cf_true( false !== strpos( (string) $check['skipped'], '403' ), 'and what it must expect' );
+cf_true( ! isset( $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ), 'NOT cached' );
+waf_reset();
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abilities_url, 'pending' ) ) );
+$check = sn_health_check_cf_security_headers();
+cf_true( is_string( $check['skipped'] ) && false !== strpos( $check['skipped'], 'pending' ), 'a pending witness has not measured yet → skipped, names the status' );
+cf_true( ! isset( $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ), 'NOT cached' );
 
-echo "\nTest 14: a cached verdict short-circuits the probe\n";
+echo "\nTest 14: a cached verdict short-circuits the read\n";
 waf_reset();
 $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] = 'open';
-$GLOBALS['__test_get_response'] = array( 'response' => array( 'code' => 403 ), 'headers' => array( 'cf-ray' => 'x' ) );
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abilities_url, 'up' ) ) );
 $check = sn_health_check_cf_security_headers();
-cf_eq( 0, $GLOBALS['__test_get_calls'], 'cached: wp_remote_get NOT called' );
+cf_eq( 0, $GLOBALS['__test_get_calls'], 'cached: Better Stack NOT called' );
 cf_eq( 1, $check['count'], 'the cached open verdict still surfaces as a finding' );
+
+echo "\nTest 15: the site itself is down → a down witness is uninformative (a timeout also reads down)\n";
+waf_reset();
+$GLOBALS['__test_get_response'] = bs_monitors( array( array( 'https://juanlentino.com/', 'down', array( 'monitor_type' => 'status', 'expected_status_codes' => array(), 'request_headers' => array() ) ), array( $abilities_url, 'down' ) ) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 0, $check['count'], 'site down + witness down → NOT read as the rule being gone' );
+cf_true( is_string( $check['skipped'] ) && false !== stripos( $check['skipped'], 'down' ), 'skipped reason says the site is down' );
+cf_true( ! isset( $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ), 'NOT cached' );
+
+echo "\nTest 16: two witnesses (both URL spellings) — one down outvotes one up; a foreign host is ignored\n";
+waf_reset();
+$GLOBALS['__test_get_response'] = bs_monitors( array(
+	$site_monitor,
+	array( $abilities_url, 'up' ),
+	array( $rest_route_url, 'down' ),
+	array( 'https://other.example/wp-json/wp-abilities/v1/abilities', 'down' ), // another site's witness: not ours
+) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 1, $check['count'], 'the ?rest_route= witness down → open (a rule on uri.path would produce exactly this)' );
+waf_reset();
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abilities_url, 'up' ), array( 'https://other.example/wp-json/wp-abilities/v1/abilities', 'down' ) ) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 0, $check['count'], 'a foreign host\'s witness does not count against this site' );
+cf_eq( 'blocked', $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ?? null, 'our witness up → blocked' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

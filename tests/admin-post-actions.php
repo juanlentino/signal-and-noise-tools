@@ -730,6 +730,13 @@ function sn_health_run_scan() { return $GLOBALS['__health_scan_result']; }
 pa_eq( 'health_scanned_clean', sn_handle_health_scan( array() ), '0 findings → health_scanned_clean (not "findings below")' );
 $GLOBALS['__health_scan_result']['checks']['b']['count'] = 3;
 pa_eq( 'health_scanned', sn_handle_health_scan( array() ), 'findings present → health_scanned' );
+// The manual re-run drops the two 6h edge transients so the scan measures
+// afresh — otherwise a stale WAF/header verdict survived the button press.
+$GLOBALS['__transients']['sn_health_cf_headers_probe']       = array( 'x-frame-options' );
+$GLOBALS['__transients']['sn_health_cf_waf_abilities_probe'] = 'open';
+sn_handle_health_scan( array() );
+pa_eq( false, get_transient( 'sn_health_cf_headers_probe' ), 'manual re-run drops the header-probe transient' );
+pa_eq( false, get_transient( 'sn_health_cf_waf_abilities_probe' ), 'manual re-run drops the WAF-witness transient' );
 
 // ─── v9.2.0: sn-analytics (Dashboard submenu) POST routing ───────────────────
 echo "\nTest: sn_admin_post_dashboard_redirect_url + allowlist (v9.2.0)\n";
