@@ -216,7 +216,16 @@ function sn_indexnow_on_transition( $new_status, $old_status, $post ) {
 	if ( 'publish' !== $old_status || 'publish' === $new_status ) {
 		return;
 	}
-	sn_indexnow_enqueue( sn_indexnow_urls_for_post( $post ) );
+	// #1181: by now $post carries the non-public status, so get_permalink()
+	// would answer the plain ?p=ID form -- and a trashed post's post_name
+	// already carries core's __trashed suffix. The URL search engines indexed
+	// is the one the post had while published: rebuild it from a clone that
+	// looks published again. No stashed state; get_permalink() reads the
+	// object it is handed.
+	$as_published              = clone $post;
+	$as_published->post_status = 'publish';
+	$as_published->post_name   = (string) preg_replace( '/__trashed$/', '', (string) $post->post_name );
+	sn_indexnow_enqueue( sn_indexnow_urls_for_post( $as_published ) );
 }
 add_action( 'transition_post_status', 'sn_indexnow_on_transition', 10, 3 );
 

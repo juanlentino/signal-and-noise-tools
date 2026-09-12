@@ -45,10 +45,19 @@ function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) ? ( $r['
 function is_wp_error( $t ) { return $t instanceof WP_Error; }
 class WP_Error { private $m; function __construct( $c = '', $m = '' ) { $this->m = $m; } function get_error_message() { return $this->m; } }
 function wp_json_encode( $d ) { return json_encode( $d ); }
-function get_permalink( $p ) { $id = is_object( $p ) ? $p->ID : $p; return 'https://example.com/notes/p' . $id . '/'; }
+// Status-aware, like core (#1181): a post whose status is not public has no
+// pretty permalink -- get_permalink() answers the plain ?p= form -- and a
+// trashed post's post_name already carries the __trashed suffix by the time
+// transition_post_status fires. The old stub returned the pretty form for
+// every status and masked exactly the defect the transition handler had.
+function get_permalink( $p ) {
+	if ( ! is_object( $p ) ) { return 'https://example.com/notes/p' . (int) $p . '/'; }
+	if ( 'publish' !== $p->post_status ) { return 'https://example.com/?p=' . (int) $p->ID; }
+	return 'https://example.com/notes/' . $p->post_name . '/';
+}
 function wp_is_post_revision( $id ) { return ! empty( $GLOBALS['__is_revision'] ); }
 function wp_is_post_autosave( $id ) { return ! empty( $GLOBALS['__is_autosave'] ); }
-function sn_in_test_post( $type, $status ) { $p = new stdClass(); $p->ID = 7; $p->post_type = $type; $p->post_status = $status; return $p; }
+function sn_in_test_post( $type, $status ) { $p = new stdClass(); $p->ID = 7; $p->post_type = $type; $p->post_status = $status; $p->post_name = 'trash' === $status ? 'p7__trashed' : 'p7'; return $p; }
 
 function sn_setting_update( $path, $value ) { $GLOBALS['__settings'][ $path ] = $value; return true; }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
@@ -162,10 +171,16 @@ ok( 0 === count( $GLOBALS['__scheduled'] ), 'insert: a non post/page type does N
 $GLOBALS['__scheduled'] = array();
 sn_indexnow_on_transition( 'draft', 'publish', sn_in_test_post( 'post', 'draft' ) );
 ok( 1 === count( $GLOBALS['__scheduled'] ), 'transition: publish→draft (unpublish) enqueues' );
+// #1181: the URL search engines indexed is the pretty permalink; the post
+// already carries its non-public status here, so a naive get_permalink()
+// answers ?p=7 and the indexed URL is never re-crawled.
+ok( in_array( 'https://example.com/notes/p7/', $GLOBALS['__scheduled'][0]['args'][0] ?? array(), true ), 'transition: unpublish submits the INDEXED pretty permalink, not ?p=7' );
+ok( ! in_array( 'https://example.com/?p=7', $GLOBALS['__scheduled'][0]['args'][0] ?? array(), true ), 'transition: ...and never the ?p= form' );
 
 $GLOBALS['__scheduled'] = array();
 sn_indexnow_on_transition( 'trash', 'publish', sn_in_test_post( 'post', 'trash' ) );
 ok( 1 === count( $GLOBALS['__scheduled'] ), 'transition: publish→trash enqueues' );
+ok( in_array( 'https://example.com/notes/p7/', $GLOBALS['__scheduled'][0]['args'][0] ?? array(), true ), 'transition: trash submits the pretty permalink with the __trashed suffix stripped' );
 
 $GLOBALS['__scheduled'] = array();
 sn_indexnow_on_transition( 'publish', 'publish', sn_in_test_post( 'post', 'publish' ) );
