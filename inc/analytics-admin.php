@@ -36,6 +36,26 @@ function snt_analytics_resolve_range( $raw ) {
 }
 
 /**
+ * Is $raw a member of the range vocabulary? The admin resolver above keeps
+ * its 7-day fallback for a URL parameter; the ability path refuses instead
+ * (#1239) — an unknown range silently answered as 7 days let a model report
+ * 60-day figures that were 7-day.
+ *
+ * @since 14.0.2
+ * @param mixed $raw
+ * @return bool
+ */
+function snt_analytics_range_is_valid( $raw ) {
+	if ( 'all' === (string) $raw ) {
+		return true;
+	}
+	if ( ! is_int( $raw ) && ! ( is_string( $raw ) && 1 === preg_match( '/^\d+$/', $raw ) ) ) {
+		return false;
+	}
+	return in_array( (int) $raw, SN_ANALYTICS_RANGES, true );
+}
+
+/**
  * Whitelist the ?sn_class GET value to a known class; default human.
  *
  * @param mixed $raw

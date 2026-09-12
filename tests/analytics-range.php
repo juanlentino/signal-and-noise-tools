@@ -56,6 +56,13 @@ require __DIR__ . '/../inc/analytics-admin.php';
 echo "\nGroup: resolve_range\n";
 ok( snt_analytics_resolve_range( 365 )   === 365,   '365 is accepted' );
 ok( snt_analytics_resolve_range( 'all' ) === 'all', "'all' is accepted verbatim" );
+
+// #1239: the admin resolver keeps its 7-day fallback (a URL param), but the
+// ability path must REFUSE an unknown value rather than silently answer 7.
+echo "\nGroup: range validity (#1239)\n";
+ok( function_exists( 'snt_analytics_range_is_valid' ), 'snt_analytics_range_is_valid() exists' );
+ok( snt_analytics_range_is_valid( 30 ) && snt_analytics_range_is_valid( '90' ) && snt_analytics_range_is_valid( 'all' ), 'members are valid (int, numeric string, all)' );
+ok( ! snt_analytics_range_is_valid( 60 ) && ! snt_analytics_range_is_valid( '1 month' ) && ! snt_analytics_range_is_valid( null ), '60, \'1 month\', null are not' );
 ok( snt_analytics_resolve_range( 999 )   === 7,     'unknown int → 7' );
 ok( snt_analytics_resolve_range( 90 )    === 90,    '90 still accepted' );
 

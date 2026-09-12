@@ -190,6 +190,9 @@ add_action( 'wp_abilities_api_init', function () {
  */
 function sn_ability_get_analytics_summary( $input ) {
 	$input = is_array( $input ) ? $input : array();
+	if ( isset( $input['range'] ) && function_exists( 'snt_analytics_range_is_valid' ) && ! snt_analytics_range_is_valid( $input['range'] ) ) {
+		return new WP_Error( 'ability_invalid_input', 'range must be one of 7, 14, 30, 90, 365 or "all".', array( 'status' => 400 ) ); // #1239
+	}
 	$range = snt_analytics_resolve_range( $input['range'] ?? 30 );
 	$class = snt_analytics_resolve_class( $input['class'] ?? 'human' );
 	list( $from, $to ) = snt_analytics_range_dates( $range );
@@ -216,6 +219,9 @@ function sn_ability_get_analytics_summary( $input ) {
  */
 function sn_ability_get_analytics_events( $input ) {
 	$input = is_array( $input ) ? $input : array();
+	if ( isset( $input['range'] ) && function_exists( 'snt_analytics_range_is_valid' ) && ! snt_analytics_range_is_valid( $input['range'] ) ) {
+		return new WP_Error( 'ability_invalid_input', 'range must be one of 7, 14, 30, 90, 365 or "all".', array( 'status' => 400 ) ); // #1239
+	}
 	$range = snt_analytics_resolve_range( $input['range'] ?? 30 );
 	list( $from, $to ) = snt_analytics_range_dates( $range );
 	return function_exists( 'sn_analytics_top_events' ) ? sn_analytics_top_events( $from, $to, 100 ) : array();

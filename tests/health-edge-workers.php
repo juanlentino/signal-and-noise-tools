@@ -124,6 +124,13 @@ ok( 1 === count( $f ) && 'sn-login-guard' === $f[0]['subject_label'] && false !=
 $f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 0, 'compiledAt' => $fresh ), $NOW, $STALE );
 ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'EMPTY' ), 'denylist count 0 → EMPTY finding' );
 
+// #1237: null means UNKNOWN (1.12.1 worker contract: meta unreadable), not a
+// measured zero — a warm isolate may still be enforcing.
+$f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => null, 'enforcedCount' => 4586, 'compiledAt' => $fresh ), $NOW, $STALE );
+ok( 1 === count( $f ) && false === strpos( $f[0]['note'], 'EMPTY' ) && false !== strpos( $f[0]['note'], 'UNKNOWN' ) && false !== strpos( $f[0]['note'], '4586' ), 'denylistCount null → UNKNOWN finding naming enforcedCount, never EMPTY' );
+$f = sn_health_edge_worker_findings( true, 'u', array( 'compiledAt' => $fresh ), $NOW, $STALE );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'UNKNOWN' ), 'a status with no denylistCount key at all is UNKNOWN too' );
+
 $f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $old ), $NOW, $STALE );
 ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'STALE' ) && false !== strpos( $f[0]['note'], '5 days' ), 'denylist 5 days old → STALE finding (with age)' );
 

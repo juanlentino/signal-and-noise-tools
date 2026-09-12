@@ -291,11 +291,25 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 		$lg_reason = ' Last refresh attempt failed: ' . $lg['lastRefreshReason'] . '.';
 	}
 
-	$count    = (int) ( $lg['denylistCount'] ?? 0 );
 	$compiled = (string) ( $lg['compiledAt'] ?? '' );
 	$ts       = '' !== $compiled ? strtotime( $compiled ) : false;
 
-	if ( $count <= 0 ) {
+	// #1237: null (or absent) means UNKNOWN — the worker answers null when its
+	// meta is unreadable (1.12.1 contract) while a warm isolate may still be
+	// enforcing the last good list. Only a measured 0 is EMPTY.
+	if ( ! isset( $lg['denylistCount'] ) ) {
+		$enforced   = (int) ( $lg['enforcedCount'] ?? 0 );
+		$findings[] = $mk(
+			'sn-login-guard',
+			'',
+			sprintf( 'Login-guard denylist size is UNKNOWN: the worker could not read its list meta (enforcedCount reports %d ranges in the isolate that answered). Check Workers Logs; this is not a measured zero.', $enforced ) . $lg_reason
+		);
+		$count = -1;
+	} else {
+		$count = (int) $lg['denylistCount'];
+	}
+
+	if ( 0 === $count ) {
 		$findings[] = $mk(
 			'sn-login-guard',
 			'',
