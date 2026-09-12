@@ -194,6 +194,28 @@ reset_state( $BOUND, '' );
 sn_mcp_rw_guard_run_route_audit( array( 'ok' => true ), null, new RG_Req( run_route( $a_write ) ) );
 ok( array() === $GLOBALS['__audit'], 'a cookie-auth call is not logged here either (the door\'s log is for app-password traffic)' );
 
+echo "\nGroup: on WordPress 7.1 the lifecycle guard sees the same result — one audit row, not two (#1211)\n";
+// Core 7.1 fires wp_ability_execute_result for a REST run at depth 0, and
+// inc/abilities-lifecycle-guard.php writes an rw audit row from it. The run
+// route's own after-callbacks audit wrote a second one. The route's dispatch
+// is now bracketed with the MCP depth flag, exactly as sn_mcp_call_tool()
+// brackets execute(), so the lifecycle observer stands down here too.
+require __DIR__ . '/../inc/abilities-lifecycle-guard.php';
+reset_state( $BOUND, $BOUND );
+$req = new RG_Req( run_route( $a_write ), array( 'input' => array( 'x' => 1 ) ) );
+ok( null === sn_mcp_rw_guard_run_route( null, null, $req ), 'pre-dispatch allows the bound credential' );
+sn_mcp_rw_guard_run_route_before( null, null, $req );
+$r = sn_ability_guard_filter_execute_result( array( 'ok' => true ), $a_write, array( 'x' => 1 ), wp_get_ability( $a_write ) );
+sn_mcp_rw_guard_run_route_audit( $r, null, $req );
+ok( array( array( $a_write, 'ok' ) ) === $GLOBALS['__audit'], 'one ok row for the call, from the route audit; the lifecycle observer stood down (' . count( $GLOBALS['__audit'] ) . ' rows)' );
+ok( 0 === sn_ability_guard_mcp_depth(), 'the depth flag is back at zero after the route' );
+reset_state( $BOUND, '' );
+$req = new RG_Req( run_route( $a_write ), array( 'input' => array( 'x' => 1 ) ) );
+sn_mcp_rw_guard_run_route_before( null, null, $req );
+$r = sn_ability_guard_filter_execute_result( array( 'ok' => true ), $a_write, array( 'x' => 1 ), wp_get_ability( $a_write ) );
+sn_mcp_rw_guard_run_route_audit( $r, null, $req );
+ok( array( array( $a_write, 'ok' ) ) === $GLOBALS['__audit'], 'a cookie-auth run is outside the bracket: the lifecycle observer still records it, once' );
+
 echo "\nGroup: every rw-door slug is covered, not a sample\n";
 $missed = array();
 foreach ( sn_mcp_rw_allowlist() as $slug ) {

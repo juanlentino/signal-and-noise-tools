@@ -472,8 +472,9 @@ function sn_mcp_rw_rate_limit_gate() {
  * and error vocabulary, so a refusal here is indistinguishable in code and
  * message from a refusal at /mcp-rw. Refusals write a 'denied' audit row
  * here; the outcome of an ALLOWED call is recorded on
- * rest_request_after_callbacks (the door records after execution, and this
- * hook is the only point on this route that sees the result).
+ * rest_request_after_callbacks (the door records after execution). On 7.1
+ * the lifecycle guard also sees the result, so the route's dispatch is
+ * bracketed with the MCP depth flag (#1211).
  * ════════════════════════════════════════════════════════════════════════ */
 
 /**
@@ -631,9 +632,33 @@ function sn_mcp_rw_guard_run_route( $result, $server = null, $request = null ) {
 }
 
 /**
- * rest_request_after_callbacks: record the outcome of an ALLOWED
- * app-password write on the run route, so the audit log shows the same
- * ok/error rows for this route that the door writes for /mcp-rw.
+ * rest_request_before_callbacks: open the MCP depth bracket around an
+ * app-password write on the run route (#1211). On WordPress 7.1 core fires
+ * wp_ability_execute_result for a REST run, and the lifecycle guard writes an
+ * audit row from it; with the route's own after-callbacks audit that made two
+ * rows per call. The bracket is the same one sn_mcp_call_tool() puts around
+ * execute(): while it is open the lifecycle observers stand down. This hook
+ * pairs with rest_request_after_callbacks by construction (both fire from
+ * respond_to_request, whatever the permission callback answers), which
+ * rest_pre_dispatch does not.
+ *
+ * @param mixed       $response
+ * @param mixed       $handler
+ * @param object|null $request
+ * @return mixed Untouched.
+ */
+function sn_mcp_rw_guard_run_route_before( $response, $handler = null, $request = null ) {
+	if ( function_exists( 'sn_ability_guard_mcp_depth' ) && '' !== sn_mcp_rw_guard_run_route_applies( $request ) ) {
+		sn_ability_guard_mcp_depth( 1 );
+	}
+	return $response;
+}
+
+/**
+ * rest_request_after_callbacks: close the depth bracket and record the
+ * outcome of an ALLOWED app-password write on the run route, so the audit
+ * log shows the same ok/error rows for this route that the door writes for
+ * /mcp-rw.
  *
  * @param mixed       $response
  * @param mixed       $handler
@@ -641,11 +666,14 @@ function sn_mcp_rw_guard_run_route( $result, $server = null, $request = null ) {
  * @return mixed Untouched.
  */
 function sn_mcp_rw_guard_run_route_audit( $response, $handler = null, $request = null ) {
-	if ( ! function_exists( 'sn_mcp_rw_audit_record' ) ) {
-		return $response;
-	}
 	$slug = sn_mcp_rw_guard_run_route_applies( $request );
 	if ( '' === $slug ) {
+		return $response;
+	}
+	if ( function_exists( 'sn_ability_guard_mcp_depth' ) ) {
+		sn_ability_guard_mcp_depth( -1 );
+	}
+	if ( ! function_exists( 'sn_mcp_rw_audit_record' ) ) {
 		return $response;
 	}
 	$args = ( is_object( $request ) && method_exists( $request, 'get_json_params' ) ) ? (array) $request->get_json_params() : array();
@@ -659,5 +687,6 @@ function sn_mcp_rw_guard_run_route_audit( $response, $handler = null, $request =
 
 if ( function_exists( 'add_filter' ) ) {
 	add_filter( 'rest_pre_dispatch', 'sn_mcp_rw_guard_run_route', 10, 3 );
+	add_filter( 'rest_request_before_callbacks', 'sn_mcp_rw_guard_run_route_before', 10, 3 );
 	add_filter( 'rest_request_after_callbacks', 'sn_mcp_rw_guard_run_route_audit', 10, 3 );
 }
