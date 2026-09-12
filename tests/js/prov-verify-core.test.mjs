@@ -569,6 +569,16 @@ console.log( '\nGroup 10: resolveTwinRef + pastedTwinUrl (9.75.0 — paste-a-URL
 	const r2 = core.resolveTwinRef( fx( 'twin-verify-url-only.json' ), base );
 	eq( '3f7c2a10-9d4e-4b6f-8a21-5e0c9b7d1f42', r2.uid, 'an older twin without note_uid resolves via its verify_url query string' );
 	eq( 2, r2.version, 'the verify_url &v= carries through' );
+	eq( 'note', r2.kind, 'a verify_url with no &kind= resolves to note -- the pre-v10.84.0 default' );
+
+	// #1219: a signed PAGE's verify_url carries &kind=page. Without reading it,
+	// pasting the page's URL resolves the uid but fixes 'note' as the kind, so
+	// every ledger lookup after that hits notes/<uid>/ and 404s -- a real uid,
+	// wrong directory, reported as "Note <uid> unreachable".
+	const r3 = core.resolveTwinRef( fx( 'twin-page-kind.json' ), base );
+	eq( '3f7c2a10-9d4e-4b6f-8a21-5e0c9b7d1f42', r3.uid, 'the page twin\'s uid resolves via its verify_url' );
+	eq( 1, r3.version, 'the verify_url &v= carries through for a page too' );
+	eq( 'page', r3.kind, 'the verify_url &kind=page carries through, not the note default' );
 
 	eq( null, core.resolveTwinRef( fx( 'twin-no-ref.json' ), base ), 'a twin with no provenance ref resolves to null (specific copy, not a generic error)' );
 	eq( null, core.resolveTwinRef( { provenance: { verify_url: 'https://' } }, base ), 'a malformed verify_url resolves to null, no throw' );

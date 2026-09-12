@@ -1,0 +1,16 @@
+{
+	"url": "https://juanlentino.com/about/",
+	"type": "page",
+	"title": "Fixture: a signed page",
+	"date_published": "2026-07-21T08:00:00-04:00",
+	"author": {
+		"name": "Juan Lentino",
+		"url": "https://juanlentino.com/about/"
+	},
+	"content_html": "<p>A signed page, not a note.</p>",
+	"content_text": "A signed page, not a note.",
+	"provenance": {
+		"verify_url": "https://juanlentino.com/verify?note=3f7c2a10-9d4e-4b6f-8a21-5e0c9b7d1f42&v=1&kind=page",
+		"note": "This page carries a Bitcoin-anchored authorship proof."
+	}
+}
