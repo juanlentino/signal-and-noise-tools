@@ -303,3 +303,27 @@ function snt_os_enqueue_posts_provenance_script() {
 	wp_enqueue_script( 'snt-os-posts-provenance' );
 }
 add_action( 'admin_enqueue_scripts', 'snt_os_enqueue_posts_provenance_script', 5 );
+
+/**
+ * Ship `sn_provenance` on the Posts window's list request.
+ *
+ * The window trims every `/wp/v2/posts` fetch with a `_fields` allowlist, so
+ * a registered REST field does not ride the list unless it is named there.
+ * v14.3.0 registered the column and left the cell empty on every row: the
+ * data never arrived. The shell's own filter exists for exactly this
+ * ("extend `_fields` to ship more columns" — docs/hooks-reference.md).
+ * Append, never replace: the shell owns the rest of the list.
+ *
+ * @param array<string,mixed> $args Default outbound query args.
+ * @return array<string,mixed>
+ */
+function snt_os_posts_window_query_args( $args ) {
+	$fields = isset( $args['_fields'] ) ? (string) $args['_fields'] : '';
+	$list   = array_filter( array_map( 'trim', explode( ',', $fields ) ) );
+	if ( '' !== $fields && ! in_array( 'sn_provenance', $list, true ) ) {
+		$list[]          = 'sn_provenance';
+		$args['_fields'] = implode( ',', $list );
+	}
+	return $args;
+}
+add_filter( 'openstation_posts_window_query_args', 'snt_os_posts_window_query_args' );
