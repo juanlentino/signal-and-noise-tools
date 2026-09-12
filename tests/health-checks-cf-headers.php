@@ -307,7 +307,7 @@ echo "\nTest 11: edge answers 401 (WordPress rejected the credential) → the re
 waf_reset();
 $GLOBALS['__test_get_response'] = array( 'response' => array( 'code' => 401 ), 'headers' => array( 'cf-ray' => 'x' ) );
 $check = sn_health_check_cf_security_headers();
-cf_eq( 1, $check['count'], 'a non-403 edge answer means the WAF rule is gone → 1 finding' );
+cf_eq( 1, $check['count'], 'a non-403 edge answer means the WAF rule is not in force → 1 finding' );
 cf_eq( 'waf: Block Basic-auth on abilities API', $check['findings'][0]['subject_label'], 'finding names the rule' );
 cf_eq( 'https://juanlentino.com/wp-json/wp-abilities/v1/abilities', $check['findings'][0]['subject_url'], 'finding points at the abilities route' );
 cf_true( false !== strpos( $check['findings'][0]['note'], 'sn_mcp_rw_guard_run_route' ), 'note says the in-plugin guard still holds' );

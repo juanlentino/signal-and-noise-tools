@@ -22,8 +22,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The 5 delegated headers (CSP / HSTS / X-Content-Type-Options /
  * X-Frame-Options / Referrer-Policy) are emitted at the Cloudflare edge
  * via a Transform Rule / Managed Headers — NOT by WordPress. If the rule
- * is dropped or misconfigured, the site silently loses its security
- * posture with no signal anywhere in wp-admin. This check fires ONE
+ * is absent, dropped or misconfigured, the site silently loses its
+ * security posture with no signal anywhere in wp-admin. This check fires ONE
  * HEAD request at home_url and asserts each header is present, surfacing
  * any absence as a finding.
  *
@@ -40,7 +40,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function sn_health_check_cf_security_headers() {
 	$label    = 'Cloudflare security headers';
-	$fix_hint = 'These 5 headers are delivered at the Cloudflare edge (Transform Rule / Managed Headers), not by WordPress, and the abilities Basic-auth block is a WAF custom rule. A missing header or an open abilities route means the edge rule was dropped or misconfigured: verify it in the Cloudflare dashboard.';
+	$fix_hint = 'These 5 headers are delivered at the Cloudflare edge (Transform Rule / Managed Headers), not by WordPress, and the abilities Basic-auth block is a WAF custom rule. A missing header means that Transform Rule is not in force. The abilities probe is weaker: it runs from this server, so it can say the route was not refused from here but cannot prove the WAF rule is absent. Verify both in the Cloudflare dashboard.';
 
 	// Allow the whole check to be filtered off (e.g., non-Cloudflare hosting).
 	if ( ! apply_filters( 'sn_health_cf_header_check_enabled', true ) ) {
@@ -138,11 +138,23 @@ function sn_health_check_cf_security_headers() {
 		set_transient( $cache_key, $missing, SN_HEALTH_CF_HEADERS_TTL );
 	}
 
-	// The WAF probe rides the same check: it is the same question ("is the
-	// edge rule still there?") about a rule the enforcement audit
-	// (2026-09-11) found to be the ONLY thing in front of the abilities run
-	// route for an external caller. Own cache key, same TTL; an
-	// indeterminate probe is never cached.
+	// The WAF probe rides the same check: the same question ("is the edge
+	// rule in force?") about a rule the enforcement audit (2026-09-11)
+	// recorded as the ONLY thing in front of the abilities run route for an
+	// external caller. Own cache key, same TTL; an indeterminate probe is
+	// never cached.
+	//
+	// KNOWN UNSOUND AS OF 2026-09-12 — this probe reports 'open' against a
+	// rule that is dashboard-confirmed present, Active, and correctly
+	// expressed. The reason is not established. The request originates from
+	// the ORIGIN SERVER (wp_remote_get on home_url), and `cf-ray` on the
+	// response proves only that the response traversed Cloudflare, NOT that
+	// the WAF custom-rule phase judged the request — an IP Access Rule or
+	// WAF exception covering the origin's own address would produce exactly
+	// this reading. So 'open' currently cannot separate "the rule is inert"
+	// from "the prober is exempt", and it must NOT be read as the former.
+	// Settling it needs a request from a host that is not the origin.
+	// See the finding note, which says only what is actually known.
 	$waf_key = 'sn_health_cf_waf_abilities_probe';
 	$waf     = get_transient( $waf_key );
 	if ( ! is_string( $waf ) || '' === $waf ) {
@@ -172,7 +184,7 @@ function sn_health_check_cf_security_headers() {
 			'subject_url'   => home_url( '/wp-json/wp-abilities/v1/abilities' ),
 			'subject_label' => 'waf: Block Basic-auth on abilities API',
 			'edit_url'      => '',
-			'note'          => 'The edge did not refuse an Authorization-bearing request to /wp-abilities/. The WAF custom rule "Block Basic-auth on abilities API" is absent or disabled; the in-plugin guard (sn_mcp_rw_guard_run_route) still holds, but the edge layer is gone.',
+			'note'          => 'The edge did not refuse an Authorization-bearing request to /wp-abilities/ sent FROM THIS SERVER. That is not proof the WAF rule is gone: this probe runs on the origin, and a request from the origin may never be judged by the zone\'s custom rules at all. Treat it as "unverified from here", not as "the rule is missing" — check the rule in the Cloudflare dashboard, and confirm its effect with a request from another host. The in-plugin guard (sn_mcp_rw_guard_run_route) holds this route either way.',
 		);
 	}
 
@@ -193,6 +205,13 @@ function sn_health_check_cf_security_headers() {
  * The credential is deliberately garbage: the point is that the header is
  * PRESENT, not that it authenticates. Mirrors the rule's own expression
  * (`any(http.request.headers.names[*] == "authorization")`).
+ *
+ * COVERAGE LIMIT: this probes the `/wp-json/` spelling only. WordPress also
+ * serves the same API at `/?rest_route=/wp-abilities/v1/...`, which moves the
+ * whole path into the QUERY STRING. A rule written on `http.request.uri.path`
+ * blocks the form probed here and leaves that alias open — this probe would
+ * read 'blocked' and be wrong. The rule must match on `http.request.uri`
+ * (path + query) to cover both.
  *
  * @since 13.110.0
  * @return string 'blocked'|'open'|'unknown'
