@@ -123,6 +123,11 @@ echo "\nTest: class follows the page filter\n";
 $GLOBALS['__paths_calls'] = array();
 sn_analytics_movers_uncached( '2026-07-01', '2026-07-07', 'bot', 3 );
 ok( 'bot' === ( $GLOBALS['__paths_calls'][0][2] ?? '' ) && 'bot' === ( $GLOBALS['__paths_calls'][1][2] ?? '' ), 'both window queries use the selected class' );
+// #1202 -- both windows were read at 50: a path in the prior top-50 but
+// ranked 51+ now came out as views:0 / delta:-prior ("dropped out") while it
+// still had views. Reading at the accessor's own cap (500) leaves no rank a
+// live page can fall out of.
+ok( 500 === ( $GLOBALS['__paths_calls'][0][3] ?? 0 ) && 500 === ( $GLOBALS['__paths_calls'][1][3] ?? 0 ), 'both windows are read at the accessor cap, not a 50-row slice (#1202)' );
 
 echo "\nTest: transient cache\n";
 $GLOBALS['__transients'] = array();
