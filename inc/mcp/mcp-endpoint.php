@@ -221,8 +221,79 @@ function sn_mcp_advertise_surface( $surfaces ) {
 	return $surfaces;
 }
 
+/**
+ * Answer 405 to GET and DELETE on both MCP doors.
+ *
+ * Streamable HTTP clients open a GET on the endpoint to ask for a
+ * server-push stream. The spec's answer from a server that offers none is
+ * 405 Method Not Allowed; a client reads that as "no stream, carry on".
+ * With only POST registered, core answered 404 rest_no_route instead, and
+ * mcp-remote treats anything but 405 as a transport error: two logged
+ * failures and a backoff retry on every bridge start. That retry is what
+ * pushed the bridge's initialize past Claude Desktop's 10 s connect budget
+ * on 2026-09-12, so the desktop published its tool set without sn/sn-write.
+ * DELETE is the session-termination request; 405 there means "no session
+ * to end", which is also what the spec allows.
+ *
+ * Registered on the same paths as the POST handlers: core keeps one route
+ * with one handler per method, so the read/rw registrations and their
+ * pins in tests/mcp-endpoint.php are untouched. Gated by the door's own
+ * permission callback — see sn_mcp_register_method_not_allowed_routes().
+ *
+ * @return WP_REST_Response
+ */
+function sn_mcp_method_not_allowed() {
+	return new WP_REST_Response(
+		array(
+			'code'    => 'sn_mcp_method_not_allowed',
+			'message' => 'This MCP endpoint speaks Streamable HTTP over POST only; it offers no server-push stream.',
+			'data'    => array( 'status' => 405 ),
+		),
+		405,
+		array( 'Allow' => 'POST' )
+	);
+}
+
+/**
+ * Register the 405 handlers for GET/DELETE on /mcp and /mcp-rw.
+ *
+ * Each handler is gated by the SAME permission callback as its door's POST
+ * twin. mcp-remote sends the Authorization header on the GET probe too, so an
+ * authenticated client gets the 405 it needs; an unauthenticated probe gets
+ * the door's ordinary refusal and learns nothing. The plugin's public REST
+ * surface (tests/rest-routes.php) therefore stays at exactly three routes.
+ *
+ * Two literal calls rather than a loop: the census parser reads the route
+ * argument as written in source.
+ *
+ * @return void
+ */
+function sn_mcp_register_method_not_allowed_routes() {
+	register_rest_route(
+		sn_mcp_namespace(),
+		'/mcp',
+		array(
+			'methods'             => 'GET, DELETE',
+			'callback'            => 'sn_mcp_method_not_allowed',
+			'permission_callback' => 'sn_mcp_read_permission',
+			'show_in_index'       => false,
+		)
+	);
+	register_rest_route(
+		sn_mcp_namespace(),
+		'/mcp-rw',
+		array(
+			'methods'             => 'GET, DELETE',
+			'callback'            => 'sn_mcp_method_not_allowed',
+			'permission_callback' => 'sn_mcp_rw_permission',
+			'show_in_index'       => false,
+		)
+	);
+}
+
 if ( ! defined( 'SN_MCP_TEST' ) || ! SN_MCP_TEST ) {
 	add_action( 'rest_api_init', 'sn_mcp_register_route' );
 	add_action( 'rest_api_init', 'sn_mcp_register_rw_route' );
+	add_action( 'rest_api_init', 'sn_mcp_register_method_not_allowed_routes' );
 	add_filter( 'sn_agents_surfaces', 'sn_mcp_advertise_surface' );
 }

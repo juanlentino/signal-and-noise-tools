@@ -267,5 +267,35 @@ ok( sn_mcp_read_permission() === false, 'switch off + non-admin → the same pla
 unset( $GLOBALS['__opts'][ SN_MCP_READ_ENABLED_OPTION ] );
 sn_test_reset_rw_guard_state();
 
+// --- v14.1.1: GET/DELETE on both doors answer 405 + Allow: POST, not core's
+//     404 rest_no_route. mcp-remote reads 405 as "no server-push stream";
+//     any other status is a transport error it retries with backoff, which
+//     on 2026-09-12 pushed the bridge's initialize past Claude Desktop's 10 s
+//     connect budget and the desktop published its tools without sn. ---
+if ( ! class_exists( 'WP_REST_Response' ) ) {
+	class WP_REST_Response {
+		public $data; public $status; public $headers;
+		public function __construct( $d = null, $s = 200, $h = array() ) { $this->data = $d; $this->status = $s; $this->headers = $h; }
+	}
+}
+$GLOBALS['__routes'] = array();
+sn_mcp_register_method_not_allowed_routes();
+$mna = array();
+foreach ( $GLOBALS['__routes'] as $r ) { $mna[ $r['route'] ] = $r; }
+ok( isset( $mna['/mcp'] ) && isset( $mna['/mcp-rw'] ), 'v14.1.1: a method-not-allowed handler is registered on BOTH doors' );
+ok( 2 === count( $GLOBALS['__routes'] ), 'v14.1.1: exactly two handlers — the POST registrations above are untouched' );
+foreach ( array( '/mcp', '/mcp-rw' ) as $door ) {
+	$m = (string) ( $mna[ $door ]['args']['methods'] ?? '' );
+	ok( false !== strpos( $m, 'GET' ) && false !== strpos( $m, 'DELETE' ) && false === strpos( $m, 'POST' ), "v14.1.1: $door 405 handler covers GET and DELETE and never POST" );
+	ok( $mna[ $door ]['namespace'] === $read_route['namespace'], "v14.1.1: $door 405 handler is on the same namespace as the read door" );
+	$twin = '/mcp' === $door ? 'sn_mcp_read_permission' : 'sn_mcp_rw_permission';
+	ok( $twin === ( $mna[ $door ]['args']['permission_callback'] ?? '' ), "v14.1.1: $door 405 handler is gated by the SAME permission callback as its POST twin ($twin) — the public surface stays at three" );
+	ok( false === ( $mna[ $door ]['args']['show_in_index'] ?? true ), "v14.1.1: $door 405 handler is absent from the REST index" );
+}
+$resp = sn_mcp_method_not_allowed();
+ok( $resp instanceof WP_REST_Response && 405 === $resp->status, 'v14.1.1: the handler answers 405' );
+ok( 'POST' === ( $resp->headers['Allow'] ?? '' ), 'v14.1.1: the 405 carries Allow: POST' );
+ok( 405 === ( $resp->data['data']['status'] ?? 0 ), 'v14.1.1: the body status matches the HTTP status (core error shape)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
