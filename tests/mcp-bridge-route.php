@@ -188,6 +188,7 @@ class SNB_Ability {
 		// cleanup has to survive it. See the throw group at the bottom.
 		if ( ! empty( $GLOBALS['__throw'] ) ) { throw new RuntimeException( 'the ability exploded' ); }
 		if ( ! empty( $GLOBALS['__refuse'] ) ) { return new WP_Error( 'sn_refused', 'the ability refused', array( 'status' => 403 ) ); }
+		if ( ! empty( $GLOBALS['__invalid'] ) ) { return new WP_Error( 'ability_invalid_input', 'bad input' ); } // core shape: no status
 		return array( 'ran' => $this->slug );
 	}
 }
@@ -421,6 +422,16 @@ $GLOBALS['__refuse']   = true;
 $refused_out           = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE ) ) );
 $GLOBALS['__refuse']   = false;
 ok( is_wp_error( $refused_out ) && array( array( 'refused_request', $REMOTE ) ) === $GLOBALS['__recorded'], 'a WP_Error from execute() records refused_request with the slug, not dispatched' );
+
+// #1238: core's ability_invalid_input carries no status, so REST answers 500
+// and the remote worker reads a rejected argument as an outage. The route
+// stamps 400 on that one code; a WP_Error that already carries a status keeps it.
+$GLOBALS['__invalid'] = true;
+$inv = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE ) ) );
+$GLOBALS['__invalid'] = false;
+ok( is_wp_error( $inv ) && 'ability_invalid_input' === $inv->code && 400 === ( $inv->data['status'] ?? 0 ), 'ability_invalid_input from execute() answers 400, not the 500 default' );
+$GLOBALS['__refuse'] = true; $r403 = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE ) ) ); $GLOBALS['__refuse'] = false;
+ok( 403 === ( $r403->data['status'] ?? 0 ), 'control: an error that carries its own status keeps it' );
 
 $GLOBALS['__recorded'] = array();
 sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => 'signal-noise/get-post-content' ) ) );

@@ -367,5 +367,17 @@ function sn_bridge_handle_request( $request ) {
 	// did nothing (#1213).
 	sn_bridge_report( is_wp_error( $out ) ? 'refused_request' : 'dispatched', $slug );
 
+	// #1238: core's ability_invalid_input carries no status, so the REST layer
+	// defaults it to 500 and the remote worker reads a rejected argument value
+	// as an origin outage. A refused input is the caller's 400. An error that
+	// already names its status keeps it.
+	if ( is_wp_error( $out ) && 'ability_invalid_input' === $out->get_error_code() ) {
+		$data = is_array( $out->data ?? null ) ? $out->data : array();
+		if ( ! isset( $data['status'] ) ) {
+			$data['status'] = 400;
+			$out->data      = $data;
+		}
+	}
+
 	return is_wp_error( $out ) ? $out : array( 'ok' => true, 'data' => $out );
 }
