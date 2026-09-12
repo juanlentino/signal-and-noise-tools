@@ -50,6 +50,7 @@ a PWA shell. Every seam this plugin uses survives that:
 | `openstation_ai_ability_tool_name`, `openstation_ai_tools` | present |
 | `openstation_is_shell_request` | present — checks whether current admin request is serving the OpenStation shell. Used in `inc/openstation-preferences.php`. |
 | `openstation_register_settings_tab` | present — documented **Stable** in upstream Preferences tab registration API. Used in `inc/openstation-preferences.php`. |
+| `openstation_posts_window_query_args` | present — documented **Experimental** in the upstream hook reference (`docs/hooks-reference.md`, `apps/posts/parts/query.php`, 1.1.8). The Posts window trims every `/wp/v2/posts` fetch with a `_fields` allowlist; this filter is the documented way to "extend `_fields` to ship more columns". We APPEND `sn_provenance` (the field behind the Provenance column, `openstation.postsWindow.columns`) and touch nothing else — `snt_os_posts_window_query_args()` in `inc/openstation-preferences.php`. Experimental status noted: if the arg shape changes, the column goes empty again, which `tests/openstation-preferences.php` cannot see — the live shell is the only witness (#1255). |
 | `wp.os.registerNativeUrlRemap()` | present — documented **Stable** in the upstream JavaScript reference. The settings-tab provider registers gated Dashboard and Analytics URL remaps without removing either app from the server registry. |
 
 Two seam files did change, and neither is behavioural for us:
