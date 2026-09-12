@@ -111,6 +111,9 @@ $result   = sn_speculation_href_exclude_paths( $existing, 'prerender' );
 assertContains( '/secret-area/*', $result, 'exclude-paths keeps the pre-existing path' );
 assertContains( '/sn-login/*', $result, 'exclude-paths adds the login slug path' );
 assertContains( '/contact/*', $result, 'exclude-paths adds /contact/*' );
+// #1229: wp_login_url() itself emits the BARE '/sn-login' (no trailing
+// segment) — '/sn-login/*' alone never matches that exact path.
+assertContains( '/sn-login', $result, 'exclude-paths also adds the bare login path (matches what wp_login_url() emits)' );
 
 // ── 5. Does NOT re-add core-owned exclusions (core already excludes these) ──
 assertNotContains( '/wp-admin/*', $result, 'exclude-paths does NOT re-add /wp-admin/*' );

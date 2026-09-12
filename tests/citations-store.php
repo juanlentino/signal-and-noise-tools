@@ -46,7 +46,8 @@ class Test_WPDB {
 	public $var     = null;
 	public $last_error = '';
 	public function prepare( $sql, ...$a ) { return vsprintf( str_replace( array( '%s', '%d' ), array( "'%s'", '%d' ), $sql ), $a ); }
-	public function insert( $t, $r ) { $this->inserts[] = array( $t, $r ); return 1; }
+	public $insert_fails = false; // simulate a UNIQUE-key rejection (concurrent insert already landed).
+	public function insert( $t, $r ) { $this->inserts[] = array( $t, $r ); return $this->insert_fails ? false : 1; }
 	public function update( $t, $r, $w ) { $this->updates[] = array( $t, $r, $w ); return 1; }
 	public function query( $s ) { $this->queries[] = $s; return 0; }
 	public function get_var( $s ) { $this->queries[] = $s; return $this->var; }
@@ -88,6 +89,16 @@ reset_db();
 $GLOBALS['wpdb']->var = 7; // pretend the pair already exists
 ok( sn_cit_record( 'https://example.com/post', 'https://juanlentino.com/notes/x/', 42 ) === 'exists', 'a re-ping does not duplicate' );
 ok( count( $GLOBALS['wpdb']->inserts ) === 0, 'a re-ping inserts nothing' );
+
+// ── #1226: concurrent duplicate insert must not report 'created' ───────────
+// SELECT-then-INSERT is a TOCTOU race: the SELECT (var) sees nothing (no
+// existing row YET), but a concurrent request wins the INSERT first and the
+// UNIQUE key on pair_hash rejects THIS insert.
+reset_db();
+$GLOBALS['wpdb']->var          = null; // the SELECT found nothing
+$GLOBALS['wpdb']->insert_fails = true;  // ...but the UNIQUE key rejects the insert
+ok( sn_cit_record( 'https://example.com/race', 'https://juanlentino.com/notes/x/', 42 ) === 'exists', 'a race-losing insert reports "exists", never "created"' );
+$GLOBALS['wpdb']->insert_fails = false;
 
 // ── verdicts ────────────────────────────────────────────────────────────────
 reset_db();

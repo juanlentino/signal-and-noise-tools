@@ -178,9 +178,12 @@ function snt_emdash_classify( $content, $pos, $ranges, $token = SNT_EMDASH ) {
 	$row['position'] = $pos - $lead;
 	$row['phrase']   = ( $lead ? ' ' : '' ) . $token . ( ( ' ' === $next ) ? ' ' : '' );
 
-	$rest      = ltrim( substr( $after, ( ' ' === $next ) ? 1 : 0 ) );
-	$first     = substr( $rest, 0, 1 );
-	$is_upper  = ( '' !== $first && ( ctype_upper( $first ) || ctype_digit( $first ) || '<' === $first || '&' === $first ) );
+	$rest  = ltrim( substr( $after, ( ' ' === $next ) ? 1 : 0 ) );
+	$first = mb_substr( $rest, 0, 1 );
+	// #1227: ctype_upper() is single-byte-only — it returns false for every
+	// multibyte character (e.g. 'É'), never true, so an accented capital
+	// never won this branch. \p{Lu} is the Unicode "uppercase letter" class.
+	$is_upper = ( '' !== $first && ( 1 === preg_match( '/^\p{Lu}$/u', $first ) || ctype_digit( $first ) || '<' === $first || '&' === $first ) );
 	$row['replacement'] = $is_upper ? '. ' : ': ';
 	return $row;
 }

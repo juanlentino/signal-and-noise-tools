@@ -41,15 +41,17 @@ const SNT_AUDIT_LOG_LOGINS_PAGE_CAP = 500; // Same magnitude as inc/audit-log.ph
  * @return string
  */
 function snt_audit_log_pii_mask_username( $username ) {
+	// #1227: mb_-safe — a byte-based substr(...,0,1) on a multibyte first
+	// character (e.g. 'É...') keeps only its first byte, an invalid fragment.
 	$username = (string) $username;
-	$len      = strlen( $username );
+	$len      = mb_strlen( $username );
 	if ( 0 === $len ) {
 		return '';
 	}
 	if ( 1 === $len ) {
 		return '*';
 	}
-	return substr( $username, 0, 1 ) . str_repeat( '*', $len - 1 );
+	return mb_substr( $username, 0, 1 ) . str_repeat( '*', $len - 1 );
 }
 
 /**

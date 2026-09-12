@@ -701,13 +701,16 @@ function snt_an_range_pills( $param, $allowed, $active_value, $opts = array() ) 
  *                                 today's two string-list adopters; kept as a
  *                                 passthrough seam since the primitive already
  *                                 supports it.
- *     @type bool   $data_colname Emit data-colname="<label>" on every <td>
- *                                 EXCEPT the primary, which must never label
- *                                 itself: under .wp-list-table core paints
- *                                 that label over the cell's own text (#1021).
- *                                 These tables no longer wear that class, so
- *                                 the attribute is inert today and kept as
- *                                 honest column metadata. Default false. Both string-list
+ *     @type bool   $data_colname Emit data-colname="<label>" on EVERY <td>,
+ *                                 the primary cell included (#1228: the
+ *                                 primary-exclusion this docblock used to
+ *                                 describe was a .wp-list-table-era concern —
+ *                                 core paints the label over the cell's own
+ *                                 text under that class (#1021) — but these
+ *                                 tables no longer wear .wp-list-table, so the
+ *                                 render never carried the exclusion; the
+ *                                 attribute is inert today and kept as honest
+ *                                 column metadata). Default false. Both string-list
  *                                 adopters keep their pre-adoption default
  *                                 (edge: true, login-defense: false); both
  *                                 spec-mode adopters (posts leaderboard,

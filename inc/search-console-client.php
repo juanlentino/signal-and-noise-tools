@@ -357,7 +357,10 @@ function snt_gsc_window( $days = 28, $lag_days = 3 ) {
 	$end = new DateTime( 'now', $pt );
 	$end->modify( '-' . max( 0, (int) $lag_days ) . ' days' );
 	$start = clone $end;
-	$start->modify( '-' . max( 1, (int) $days - 1 ) . ' days' );
+	// #1228: the floor was max(1, ...), so days=1 computed a 1-day BACK-OFFSET
+	// (start = end - 1 day) instead of a 1-day WINDOW (start === end) — every
+	// window came out one day wider than requested.
+	$start->modify( '-' . max( 0, (int) $days - 1 ) . ' days' );
 	return array( 'start' => $start->format( 'Y-m-d' ), 'end' => $end->format( 'Y-m-d' ) );
 }
 

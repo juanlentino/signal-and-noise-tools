@@ -115,7 +115,9 @@ function snt_corpus_integrity_sentence_at( $text, $pos ) {
 		$end = $m[0][1] + 1;
 	}
 	$sentence = trim( substr( $text, $start, $end - $start ) );
-	return ( strlen( $sentence ) > 280 ) ? substr( $sentence, 0, 277 ) . '...' : $sentence;
+	// #1227: mb_-safe — a byte-based cut can split a multibyte character,
+	// leaving an invalid UTF-8 tail that esc_html() then renders as ''.
+	return ( mb_strlen( $sentence ) > 280 ) ? mb_substr( $sentence, 0, 277 ) . '...' : $sentence;
 }
 
 /**
@@ -153,8 +155,9 @@ function snt_corpus_integrity_find_duplicates( $rows ) {
 					'path_b'  => $eligible[ $j ]['path'],
 					'block_a' => $eligible[ $i ]['block'],
 					'block_b' => $eligible[ $j ]['block'],
-					'text_a'  => substr( $eligible[ $i ]['text'], 0, 300 ),
-					'text_b'  => substr( $eligible[ $j ]['text'], 0, 300 ),
+					// #1227: mb_-safe display snippets (see sentence_at above).
+					'text_a'  => mb_substr( $eligible[ $i ]['text'], 0, 300 ),
+					'text_b'  => mb_substr( $eligible[ $j ]['text'], 0, 300 ),
 					'ratio'   => $ratio,
 				);
 			}

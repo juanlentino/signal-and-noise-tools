@@ -125,12 +125,21 @@ function sn_uses_page_save( $raw ) {
 	if ( '' === trim( $raw ) ) {
 		return delete_option( SN_USES_PAGE_OPTION );
 	}
+	// #1228: the 'updated' stamp lives INSIDE the compared array, so a re-save
+	// of byte-identical content on a later day changed the stored value (the
+	// date differs) and reported a real change that never happened. Compare
+	// the CONTENT first; only touch the stamp when it actually changed.
+	$existing        = get_option( SN_USES_PAGE_OPTION );
+	$content_changed = ! is_array( $existing ) || ! isset( $existing['raw'] ) || $existing['raw'] !== $raw;
+	$stamp           = $content_changed
+		? ( function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m-d' ) : gmdate( 'Y-m-d' ) )
+		: (string) ( $existing['updated'] ?? ( function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m-d' ) : gmdate( 'Y-m-d' ) ) );
 	$result = update_option(
 		SN_USES_PAGE_OPTION,
 		array(
 			'raw'     => $raw,
 			// Site-timezone stamp (wp_date), never UTC — the v7.5.1 lesson.
-			'updated' => function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m-d' ) : gmdate( 'Y-m-d' ),
+			'updated' => $stamp,
 		),
 		false // autoload=no: read by the editor + the page regenerator below.
 	);

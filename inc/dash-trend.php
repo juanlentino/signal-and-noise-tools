@@ -44,16 +44,36 @@ function sn_dash_render_trend( array $series ) {
 	$w    = 600.0;
 	$top  = 8.0;
 	$base = 88.0;
-	$step = $w / ( $n - 1 );
+
+	// #1228: the source query (sn_analytics_daily_series) GROUPs BY day with
+	// no zero-fill, so a day with zero rows is simply ABSENT from $series,
+	// not present with views=0 — the series can carry real gaps. Spacing
+	// points by array INDEX collapses those gaps, drawing a 3-day silence
+	// as if it were one day. Space by actual ELAPSED days instead, falling
+	// back to index-spacing only when a row's 'day' cannot be parsed (so a
+	// malformed date degrades to the old behavior for that point rather
+	// than producing a NaN coordinate).
+	$day_offset = array();
+	$first_ts   = strtotime( (string) ( $series[0]['day'] ?? '' ) );
+	$last_ts    = strtotime( (string) ( $series[ $n - 1 ]['day'] ?? '' ) );
+	$span_days  = ( false !== $first_ts && false !== $last_ts && $last_ts > $first_ts )
+		? ( $last_ts - $first_ts ) / DAY_IN_SECONDS
+		: null;
+	foreach ( $series as $i => $row ) {
+		$ts = strtotime( (string) ( $row['day'] ?? '' ) );
+		$day_offset[ $i ] = ( null !== $span_days && false !== $ts )
+			? ( $ts - $first_ts ) / DAY_IN_SECONDS / $span_days
+			: ( $n > 1 ? $i / ( $n - 1 ) : 0 );
+	}
 
 	$pts = array();
 	foreach ( $series as $i => $row ) {
-		$x     = round( $i * $step, 2 );
+		$x     = round( $day_offset[ $i ] * $w, 2 );
 		$y     = round( $base - ( (int) ( $row['views'] ?? 0 ) / $max ) * ( $base - $top ), 2 );
 		$pts[] = $x . ',' . $y;
 	}
 	$line = 'M ' . implode( ' L ', $pts );
-	$area = $line . ' L ' . round( ( $n - 1 ) * $step, 2 ) . ',' . $base . ' L 0,' . $base . ' Z';
+	$area = $line . ' L ' . round( $day_offset[ $n - 1 ] * $w, 2 ) . ',' . $base . ' L 0,' . $base . ' Z';
 	$last = explode( ',', $pts[ $n - 1 ] );
 
 	// Peak and latest are rendered as HTML beside the plot, never as SVG <text>:

@@ -144,5 +144,11 @@ ok(
 	'the add form is still reachable below a capped list -- actions: ' . implode( ',', snt_leaf_actions( $kit ) )
 );
 
+// ── #1228: a redirect with no created_at must not render "Added 1970-01-01" ──
+fixture( array( '/no-date' => array( 'to' => '/somewhere', 'status' => 301 ) ), array() );
+$classic = snt_leaf_classic_html( 'sn_admin_render_redirects_section' );
+ok( false === strpos( $classic, '1970-01-01' ), 'a missing created_at does not render the epoch as a real date' );
+ok( false !== strpos( $classic, 'Added date unknown' ), 'it says plainly that the date is unknown' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

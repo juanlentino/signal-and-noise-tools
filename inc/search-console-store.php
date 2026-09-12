@@ -132,12 +132,20 @@ function snt_gsc_sync( $force = false ) {
 		$by_path[ $path ]['ctr'] = $m['impressions'] > 0 ? $m['clicks'] / $m['impressions'] : 0.0;
 	}
 
+	// #1228: whether the RAW fetch hit SNT_GSC_PAGE_ROW_LIMIT, captured before
+	// $by_path merges duplicate paths (http/https, trailing slash). Merging
+	// only ever reduces the count, so a merged count that lands under the
+	// limit does NOT mean the API returned everything — recorded here rather
+	// than re-derived from the merged count downstream.
+	$pages_capped = count( $pages ) >= SNT_GSC_PAGE_ROW_LIMIT;
+
 	$payload = array(
-		'property'  => $property,
-		'window'    => $window,
-		'pages'     => $by_path,
-		'queries'   => array_slice( $queries, 0, 100 ),
-		'synced_at' => time(),
+		'property'     => $property,
+		'window'       => $window,
+		'pages'        => $by_path,
+		'pages_capped' => $pages_capped,
+		'queries'      => array_slice( $queries, 0, 100 ),
+		'synced_at'    => time(),
 	);
 	update_option( SNT_GSC_DATA_OPTION, $payload, false );
 	snt_gsc_history_append( $payload );
@@ -276,7 +284,12 @@ function snt_gsc_window_totals() {
 	// while presenting as exact — and the docblock saying so was no help to a
 	// caller, because the RETURN VALUE never mentioned it. A figure that is
 	// wrong in a knowable direction should be labelled, not annotated.
-	$capped = count( (array) $data['pages'] ) >= SNT_GSC_PAGE_ROW_LIMIT;
+	// #1228: prefer the RAW-fetch flag recorded at sync time; a stored
+	// payload from before that flag existed falls back to the (imprecise)
+	// merged-count comparison.
+	$capped = array_key_exists( 'pages_capped', $data )
+		? (bool) $data['pages_capped']
+		: count( (array) $data['pages'] ) >= SNT_GSC_PAGE_ROW_LIMIT;
 
 	return array( 'clicks' => $clicks, 'impressions' => $impressions, 'days' => $days, 'capped' => $capped );
 }

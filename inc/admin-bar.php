@@ -370,7 +370,13 @@ function sn_handle_quick_clear_overrides() {
 	}
 	// Dispatched via the sn_clear_template_overrides_result filter
 	// contract — theme module template-maintenance.php owns the
-	// implementation; returns 0 if not loaded.
+	// implementation. #1228: apply_filters() with no listener returns the
+	// default 0, which is indistinguishable from "cleared zero" — the
+	// purge sibling above already errors when its function is absent; do
+	// the same here via has_filter() rather than reporting a false success.
+	if ( ! has_filter( 'sn_clear_template_overrides_result' ) ) {
+		wp_send_json_error( array( 'message' => 'Template-override clearing unavailable.' ), 500 );
+	}
 	$count = (int) apply_filters( 'sn_clear_template_overrides_result', 0 );
 	wp_send_json_success( array(
 		'message' => $count . ' DB override(s) cleared.',

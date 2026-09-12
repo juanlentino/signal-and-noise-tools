@@ -72,11 +72,16 @@ function snt_ai_extract_inline_img_context( $post_content, $image_src, $window =
 	if ( false === $pos ) {
 		return '';  // src not in post — caller returns snt_ai_img_not_found.
 	}
+	// #1227: strpos() returns a BYTE offset; $window is a character count, and
+	// the window this feeds is what ships to the AI provider as context. Convert
+	// to a character offset before any mb_ slicing, or a multibyte post before
+	// $pos would land the window on the wrong text entirely.
+	$char_pos = mb_strlen( substr( $haystack, 0, $pos ) );
 
 	// Take a 2x-wider raw window because strip can compress significantly.
-	$wide_start = max( 0, $pos - ( $window * 2 ) );
-	$wide_end   = min( strlen( $haystack ), $pos + $window * 2 );
-	$wide       = substr( $haystack, $wide_start, $wide_end - $wide_start );
+	$wide_start = max( 0, $char_pos - ( $window * 2 ) );
+	$wide_end   = min( mb_strlen( $haystack ), $char_pos + $window * 2 );
+	$wide       = mb_substr( $haystack, $wide_start, $wide_end - $wide_start );
 
 	// Strip shortcodes first (their content may contain HTML that strip_all_tags shouldn't see),
 	// then strip HTML/markup, then collapse whitespace.
@@ -86,12 +91,13 @@ function snt_ai_extract_inline_img_context( $post_content, $image_src, $window =
 	$stripped = wp_strip_all_tags( $wide );
 	$stripped = trim( preg_replace( '/\s+/', ' ', $stripped ) );
 
-	// Truncate to $window chars at a word boundary.
-	if ( strlen( $stripped ) > $window ) {
-		$stripped = substr( $stripped, 0, $window );
-		$last_space = strrpos( $stripped, ' ' );
+	// Truncate to $window chars at a word boundary. mb_-safe (#1227): this
+	// text ships to the AI provider as context.
+	if ( mb_strlen( $stripped ) > $window ) {
+		$stripped   = mb_substr( $stripped, 0, $window );
+		$last_space = mb_strrpos( $stripped, ' ' );
 		if ( false !== $last_space && $last_space > $window - 50 ) {
-			$stripped = substr( $stripped, 0, $last_space );
+			$stripped = mb_substr( $stripped, 0, $last_space );
 		}
 	}
 
