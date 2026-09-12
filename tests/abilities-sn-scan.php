@@ -74,6 +74,9 @@ function tf_post( $id, $status, $content, $extra = array() ) {
 	$p->post_type     = $extra['post_type'] ?? 'post';
 	$p->post_date     = $extra['date'] ?? '2026-06-01 10:00:00';
 	$p->post_modified = $extra['modified'] ?? '2026-07-01 10:00:00';
+	// #1196: post_modified is SITE-LOCAL; post_modified_gmt is the real UTC
+	// instant. Fixture simulates America/New_York (UTC-4 during DST).
+	$p->post_modified_gmt = $extra['modified_gmt'] ?? gmdate( 'Y-m-d H:i:s', strtotime( $p->post_modified . ' UTC' ) + 4 * 3600 );
 	$p->post_content  = $content;
 	$p->post_excerpt  = '';
 	return $p;
@@ -474,6 +477,15 @@ ok( is_wp_error( $empty_ids ) && 'snt_scan_bad_scope' === $empty_ids->get_error_
 
 $bad_since = snt_ability_sn_scan( array( 'scan_type' => 'block_migrations', 'scope' => array( 'kind' => 'modified_since', 'modified_since' => 'not-a-date' ) ) );
 ok( is_wp_error( $bad_since ) && 'snt_scan_bad_scope' === $bad_since->get_error_code(), 'unparseable modified_since is rejected (422)' );
+
+// #1196: the post-backed modified_since resolver compared site-LOCAL
+// post_modified against the caller's UTC timestamp. Site tz America/New_York
+// (UTC-4): post modified 2026-08-31 21:00 LOCAL = 2026-09-01 01:00 UTC, AFTER
+// the 2026-09-01T00:00:00Z cutoff, so it must resolve as included.
+$GLOBALS['__posts'][304] = tf_post( 304, 'publish', json_encode( array() ), array( 'title' => 'Boundary post', 'slug' => 'boundary-post', 'modified' => '2026-08-31 21:00:00', 'modified_gmt' => '2026-09-01 01:00:00' ) );
+$since_ids = snt_sn_scan_resolve_scope( array( 'kind' => 'modified_since', 'modified_since' => '2026-09-01T00:00:00Z' ), 'block_migrations' );
+ok( is_array( $since_ids ) && in_array( 304, $since_ids, true ), 'a post modified after the UTC cutoff (but whose LOCAL clock reads earlier) resolves as included' );
+unset( $GLOBALS['__posts'][304] );
 
 $bad_cursor = snt_ability_sn_scan( array( 'scan_type' => 'block_migrations', 'cursor' => '***' ) );
 ok( is_wp_error( $bad_cursor ) && 'snt_scan_bad_cursor' === $bad_cursor->get_error_code(), 'malformed cursor is rejected (422)' );

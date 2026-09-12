@@ -286,20 +286,23 @@ function snt_sn_posts_resolve_walk( $kind, $scope, $include_content, $offset, $m
 
 	if ( 'modified_since' === $kind ) {
 		$since_raw = isset( $scope['modified_since'] ) ? (string) $scope['modified_since'] : '';
-		$since_ts  = '' !== $since_raw ? strtotime( $since_raw ) : false;
+		$since_ts  = '' !== $since_raw ? strtotime( $since_raw . ' UTC' ) : false;
 		if ( false === $since_ts ) {
 			return snt_sn_posts_scope_error( __( 'scope.kind "modified_since" requires a parseable scope.modified_since date/time string.', 'signal-and-noise-tools' ) );
 		}
+		// post_modified is SITE-LOCAL wall time; the caller's timestamp is UTC.
+		// Comparing local against UTC drifts by the site's offset near any
+		// boundary — post_modified_gmt is the column that is actually UTC.
 		$posts = array_values( array_filter( $posts, function( $p ) use ( $since_ts ) {
-			$mts = strtotime( (string) ( $p->post_modified ?? '' ) );
+			$mts = strtotime( (string) ( $p->post_modified_gmt ?? '' ) . ' UTC' );
 			return false !== $mts && $mts >= $since_ts;
 		} ) );
 		// Deterministic ordering (house rule: never database order): newest
 		// modified first, ID DESC as a tie-break so byte-identical output
 		// survives two runs against unchanged content.
 		usort( $posts, function( $a, $b ) {
-			$am = strtotime( (string) ( $a->post_modified ?? '' ) );
-			$bm = strtotime( (string) ( $b->post_modified ?? '' ) );
+			$am = strtotime( (string) ( $a->post_modified_gmt ?? '' ) . ' UTC' );
+			$bm = strtotime( (string) ( $b->post_modified_gmt ?? '' ) . ' UTC' );
 			return $am === $bm ? ( (int) $b->ID <=> (int) $a->ID ) : ( $bm <=> $am );
 		} );
 	} else {

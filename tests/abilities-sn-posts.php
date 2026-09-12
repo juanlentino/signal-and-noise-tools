@@ -47,6 +47,12 @@ function tf_post( $id, $status, $post_type, $date, $modified, $extra = array() )
 	$p->post_type     = $post_type;
 	$p->post_date     = $date;
 	$p->post_modified = $modified;
+	// #1196: post_modified is SITE-LOCAL wall time; post_modified_gmt is the
+	// real UTC instant. Fixture simulates a site tz of America/New_York
+	// (UTC-4 during DST: gmt = local + 4h) so a comparison that treats
+	// post_modified as if it were already UTC is distinguishable from one
+	// that correctly reads post_modified_gmt.
+	$p->post_modified_gmt = $extra['modified_gmt'] ?? gmdate( 'Y-m-d H:i:s', strtotime( $modified . ' UTC' ) + 4 * 3600 );
 	$p->post_content  = $extra['content'] ?? "Body of post $id.";
 	$p->post_excerpt  = '';
 	return $p;
@@ -189,6 +195,18 @@ ok( 22 === $since['posts'][1]['post_id'], 'second-newest is post 22 (modified 07
 
 $bad_since = snt_ability_sn_posts( array( 'scope' => array( 'kind' => 'modified_since', 'modified_since' => 'not-a-date-at-all-xyz' ) ) );
 ok( is_wp_error( $bad_since ) && 'snt_posts_bad_scope' === $bad_since->get_error_code(), 'unparseable modified_since is rejected (422)' );
+
+// #1196: the exact boundary from the issue. Site tz America/New_York
+// (UTC-4). Post modified 2026-08-31 21:00 LOCAL = 2026-09-01 01:00 UTC —
+// AFTER the 2026-09-01T00:00:00Z cutoff, so it must be INCLUDED. Comparing
+// the local string as if it were already UTC reads it as BEFORE the cutoff
+// and wrongly excludes it.
+$GLOBALS['__posts'][30] = tf_post( 30, 'publish', 'post', '2026-08-31 10:00:00', '2026-08-31 21:00:00', array( 'title' => 'Boundary post', 'modified_gmt' => '2026-09-01 01:00:00' ) );
+$boundary = snt_ability_sn_posts( array( 'scope' => array( 'kind' => 'modified_since', 'modified_since' => '2026-09-01T00:00:00Z' ) ) );
+ok( is_array( $boundary ) && true === $boundary['ok'], 'boundary modified_since returns an ok envelope' );
+$boundary_ids = array_column( $boundary['posts'], 'post_id' );
+ok( in_array( 30, $boundary_ids, true ), 'a post modified after the UTC cutoff (but whose LOCAL clock reads earlier) is included' );
+unset( $GLOBALS['__posts'][30] );
 
 // ─── scope.kind = 'post_ids' ─────────────────────────────────────────────
 $by_ids = snt_ability_sn_posts( array( 'scope' => array( 'kind' => 'post_ids', 'post_ids' => array( 1, 2, 25, 999, 1 ) ) ) );
