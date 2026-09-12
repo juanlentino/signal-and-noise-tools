@@ -239,6 +239,16 @@ namespace {
 		ok( false !== strpos( $cf_html, '<div class="snt-2up">' ), 'connections/cloudflare renders in .snt-2up two columns' );
 	}
 
+	// #1217: two of the pulse tile links on S&N Home pointed at doors that do
+	// not exist -- Visits used the removed sn_view=sessions slug (the slug
+	// stayed 'visits' by design, see inc/analytics-admin.php), and Provenance
+	// anchors pointed at tab=connections when the leaf lives under tab=tools.
+	$dashboard_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/dashboard.php' );
+	ok( false !== strpos( $dashboard_src, 'sn_view=visits&sn_range=7d' ), 'the Visits pulse tile links the live sn_view=visits slug, not the removed sn_view=sessions' );
+	ok( false === strpos( $dashboard_src, 'sn_view=sessions' ), '...and sn_view=sessions does not linger anywhere in the leaf' );
+	ok( false !== strpos( $dashboard_src, 'tab=tools&sub=provenance' ), 'the Provenance anchors pulse tile links tab=tools, where the provenance sub-tab actually lives' );
+	ok( false === strpos( $dashboard_src, 'tab=connections&sub=provenance' ), '...and tab=connections&sub=provenance does not linger anywhere in the leaf' );
+
 	echo "\nResult: $pass passed, $fail failed.\n";
 	exit( $fail > 0 ? 1 : 0 );
 }
