@@ -292,11 +292,8 @@ function snt_dashboard_tab_data() {
 		'subline'           => $subline,
 		'series'            => is_array( $series ) ? $series : array(),
 		'panels'            => sn_dash_ops_panels( $ops_data ),
-		'check_updates_url' => wp_nonce_url(
-			admin_url( 'admin-post.php?action=sn_force_update_check' ),
-			'sn_force_update_check',
-			'sn_force_update_check_nonce'
-		),
+		// v14.0.3: core's nonce-free force check — a PWA page held for days cannot carry a nonce.
+		'check_updates_url' => admin_url( 'update-core.php?force-check=1' ),
 		'attention'         => snt_dashboard_attention_items( $runs, count( $overrides ) ),
 		'overrides'         => snt_dashboard_override_names( $overrides ),
 		'runs'              => $runs,
@@ -816,11 +813,8 @@ function snt_dashboard_render_maintenance_actions() {
 	// (lower in this file) which clears both transients + redirects to
 	// update-core.php?force-check=1. Same handler as the API summary's
 	// "Refresh now" link — single source of truth for force-check.
-	$check_updates_url = wp_nonce_url(
-		admin_url( 'admin-post.php?action=sn_force_update_check' ),
-		'sn_force_update_check',
-		'sn_force_update_check_nonce'
-	);
+	// v14.0.3: core's nonce-free force check (load-update-core.php runs the plugin's clear).
+	$check_updates_url = admin_url( 'update-core.php?force-check=1' );
 	echo '<div class="sn-card">';
 	echo '<strong>Check for Updates</strong>';
 	echo '<p class="sn-helper">Clears the theme + plugin update caches and re-polls GitHub. Use after tagging a new release.</p>';

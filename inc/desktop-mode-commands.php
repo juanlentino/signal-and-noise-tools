@@ -153,6 +153,23 @@ function snt_cmd_impl_force_check() {
 	);
 }
 
+/**
+ * v14.0.3: run the same clear on core's own force-check screen. An iOS
+ * standalone PWA keeps the last-rendered admin page in memory for days
+ * without reloading, so a wp_nonce_url() "Check now" link in it dies after
+ * 24h (or a session-token rotation) with "The link you followed has
+ * expired". update-core.php?force-check=1 is core's nonce-free force check,
+ * gated by the update_core capability; every "check updates" link now
+ * points there and this hook does the plugin's half.
+ */
+function snt_cmd_force_check_on_update_core() {
+	if ( ! isset( $_GET['force-check'] ) || ! current_user_can( 'update_core' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- core's own screen accepts force-check without a nonce; capability is the gate.
+		return;
+	}
+	snt_cmd_impl_force_check();
+}
+add_action( 'load-update-core.php', 'snt_cmd_force_check_on_update_core' );
+
 function snt_cmd_impl_rss_stats() {
 	if ( ! function_exists( 'sn_rss_tracker_window_stats_multi' ) ) {
 		return new WP_Error(
