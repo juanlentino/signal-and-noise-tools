@@ -101,7 +101,11 @@ function sn_cit_record( $source, $target, $post_id = 0 ) {
 	if ( $existing ) {
 		return 'exists';
 	}
-	$wpdb->insert(
+	// #1226: SELECT-then-INSERT has a TOCTOU race — a concurrent request can
+	// insert the same pair_hash between the SELECT above and this INSERT. The
+	// UNIQUE key on pair_hash then rejects this insert (returns false), which
+	// was never checked, so the race loser still reported 'created'.
+	$inserted = $wpdb->insert(
 		$table,
 		array(
 			'pair_hash'      => $hash,
@@ -112,6 +116,9 @@ function sn_cit_record( $source, $target, $post_id = 0 ) {
 			'first_seen_gmt' => gmdate( 'Y-m-d H:i:s' ),
 		)
 	);
+	if ( false === $inserted ) {
+		return 'exists';
+	}
 	return 'created';
 }
 
