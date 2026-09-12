@@ -97,7 +97,12 @@ if ( ! function_exists( 'get_posts' ) ) {
 	function get_posts( $args ) {
 		$out = array();
 		foreach ( $GLOBALS['__posts'] as $p ) {
-			if ( $p->post_type !== ( $args['post_type'] ?? 'post' ) ) { continue; }
+			$want_type = $args['post_type'] ?? 'post';
+			// #1197: real get_posts() treats post_type 'any' as a WILDCARD
+			// (every registered type), not a literal type name — the stub
+			// modeled it as a literal and would silently hide the em-dash
+			// adapter's over-broad 'any' walk instead of exercising it.
+			if ( 'any' !== $want_type && $p->post_type !== $want_type ) { continue; }
 			if ( ! in_array( $p->post_status, (array) ( $args['post_status'] ?? array( 'publish' ) ), true ) ) { continue; }
 			// v13.2.0: the pattern_adoption adapter now scopes IN the query —
 			// the stub must honor post__in or the scope pins pass vacuously.
@@ -650,6 +655,18 @@ ok( 801 === ( $em_c['targets'][0]['post_id'] ?? 0 ), 'emdash: targets carry the 
 ok( SNT_SN_SCAN_CONF_EMDASH === $em_c['confidence'], 'emdash: documented-constant confidence (was 0 live)' );
 ok( isset( $em_c['evidence']['phrase'], $em_c['evidence']['position'], $em_c['evidence']['replacement'], $em_c['evidence']['context_snippet'], $em_c['evidence']['fingerprint'] ), 'emdash: evidence carries everything emdash_replace needs (was silently dropped by the assembler)' );
 ok( 'signal-noise/sn-apply' === ( $em_c['apply_hint']['tool'] ?? '' ), 'emdash: apply_hint names sn-apply change.type emdash_replace' );
+
+// #1197: the em-dash adapter's OWN corpus walk (scope 'all'/null) used
+// snt_corpus_fetch_posts('any','any') — every post type — while the scope
+// resolver that turns modified_since into ids walks post_type 'post' only
+// (inc/abilities-sn-scan.php:257). A PAGE must not surface here: every
+// sibling adapter (e.g. duplicate_body at :394) walks 'post' only.
+$GLOBALS['__posts'][802] = tf_post( 802, 'publish', json_encode( array() ), array( 'title' => 'A page', 'slug' => 'emdash-page', 'post_type' => 'page' ) );
+$em_all = snt_ability_sn_scan( array( 'scan_type' => 'emdash', 'scope' => array( 'kind' => 'all' ) ) );
+$em_all_pids = array_map( static function ( $c ) { return (int) ( $c['targets'][0]['post_id'] ?? 0 ); }, $em_all['candidates'] );
+ok( ! in_array( 802, $em_all_pids, true ), 'emdash: scope "all" does not walk pages — matches the post-only corpus every sibling adapter uses' );
+ok( in_array( 801, $em_all_pids, true ), 'emdash: scope "all" still walks the post-type fixture' );
+unset( $GLOBALS['__posts'][802] );
 
 // The near_duplicate section above reset $GLOBALS['__posts'] to isolate its
 // own idf-sensitive fixture — restore the duplicate_body group-1 pair (same

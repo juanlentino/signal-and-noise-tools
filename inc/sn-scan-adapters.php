@@ -570,7 +570,7 @@ function snt_sn_scan_adapter_emdash( $allowed_ids ) {
 		if ( ! function_exists( 'snt_corpus_fetch_posts' ) ) {
 			return new WP_Error( 'snt_helper_unavailable', __( 'Corpus inspect helper not loaded.', 'signal-and-noise-tools' ), array( 'status' => 503 ) );
 		}
-		$source_ids = array_map( static function ( $p ) { return (int) $p->ID; }, snt_corpus_fetch_posts( 'any', 'any' ) );
+		$source_ids = array_map( static function ( $p ) { return (int) $p->ID; }, snt_corpus_fetch_posts( 'any', 'post' ) );
 	}
 
 	$candidates = array();
