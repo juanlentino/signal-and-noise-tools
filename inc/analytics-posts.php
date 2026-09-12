@@ -176,8 +176,30 @@ function sn_analytics_posts_rank( $subject, $cohort ) {
 /* ───────────────────────── durable-rollup accessors ──────────────────────── */
 
 /**
- * Daily human views for one path over [from,to] — a `WHERE path = %s` clone of
- * sn_analytics_top_paths. views only (sample-corrected); visits is a raw estimate
+ * Both stored spellings of one path: canonical (no trailing slash) and slashed.
+ *
+ * The rollup stores paths VERBATIM (the 2026-08-19 finding), and the callers
+ * of these accessors hand over whichever spelling they hold — the permalink's
+ * slashed form, or sn_analytics_top_paths()'s canonical form. A `WHERE path =`
+ * on either alone reads a pretty-permalink note as empty (#1199); every
+ * per-path read here binds both.
+ *
+ * @param string $path Either spelling.
+ * @return array{0:string,1:string} [canonical, slashed]; the root is ['/', '/'].
+ */
+function sn_analytics_path_spellings( $path ) {
+	$path  = (string) $path;
+	$canon = function_exists( 'sn_analytics_canonical_path' ) ? sn_analytics_canonical_path( $path ) : rtrim( $path, '/' );
+	if ( '' === $canon ) {
+		$canon = '/';
+	}
+	return array( $canon, '/' === $canon ? '/' : $canon . '/' );
+}
+
+/**
+ * Daily human views for one path over [from,to] — a per-path clone of
+ * sn_analytics_top_paths (both spellings, see sn_analytics_path_spellings()).
+ * views only (sample-corrected); visits is a raw estimate
  * and is deliberately not surfaced as a count by this view.
  *
  * @param string $path
@@ -188,12 +210,14 @@ function sn_analytics_posts_rank( $subject, $cohort ) {
 function sn_analytics_path_daily_series( $path, $from, $to ) {
 	global $wpdb;
 	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
+	list( $canon, $slashed ) = sn_analytics_path_spellings( $path );
 	$rows  = $wpdb->get_results( $wpdb->prepare(
 		"SELECT day, SUM(views) AS views
 		 FROM {$table}
-		 WHERE path = %s AND class = 'human' AND day >= %s AND day <= %s
+		 WHERE path IN ( %s, %s ) AND class = 'human' AND day >= %s AND day <= %s
 		 GROUP BY day ORDER BY day ASC",
-		(string) $path,
+		$canon,
+		$slashed,
 		(string) $from,
 		(string) $to
 	), ARRAY_A );
@@ -215,9 +239,11 @@ function sn_analytics_path_daily_series( $path, $from, $to ) {
 function sn_analytics_path_lifetime( $path ) {
 	global $wpdb;
 	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
+	list( $canon, $slashed ) = sn_analytics_path_spellings( $path );
 	return (int) $wpdb->get_var( $wpdb->prepare(
-		"SELECT SUM(views) FROM {$table} WHERE path = %s AND class = 'human'",
-		(string) $path
+		"SELECT SUM(views) FROM {$table} WHERE path IN ( %s, %s ) AND class = 'human'",
+		$canon,
+		$slashed
 	) );
 }
 
@@ -253,12 +279,8 @@ function sn_analytics_path_window( $path, $from, $to ) {
 	if ( '' === $path || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $to ) ) {
 		return null;
 	}
-	$canon = function_exists( 'sn_analytics_canonical_path' ) ? sn_analytics_canonical_path( $path ) : rtrim( $path, '/' );
-	if ( '' === $canon ) {
-		$canon = '/';
-	}
-	$slashed = '/' === $canon ? '/' : $canon . '/';
-	$table   = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
+	list( $canon, $slashed ) = sn_analytics_path_spellings( $path );
+	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
 
 	$row = $wpdb->get_row( $wpdb->prepare(
 		"SELECT SUM(views) AS views, SUM(visits) AS visits, COUNT(DISTINCT day) AS days

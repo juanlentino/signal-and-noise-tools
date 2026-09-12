@@ -191,6 +191,15 @@ function sn_analytics_paths_daily_series( $paths ) {
 	if ( empty( $paths ) ) {
 		return array();
 	}
+	// Both stored spellings of each path (#1199); the series is folded back
+	// onto the spelling the caller asked with, so its lookup key still matches.
+	$asked = array();
+	foreach ( $paths as $p ) {
+		foreach ( sn_analytics_path_spellings( $p ) as $sp ) {
+			$asked[ $sp ] = $asked[ $sp ] ?? $p;
+		}
+	}
+	$paths = array_keys( $asked );
 	$table        = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
 	$placeholders = implode( ', ', array_fill( 0, count( $paths ), '%s' ) );
 	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $placeholders is a fixed %s list; $paths bound below.
@@ -201,9 +210,20 @@ function sn_analytics_paths_daily_series( $paths ) {
 	$out  = array();
 	if ( is_array( $rows ) ) {
 		foreach ( $rows as $r ) {
-			$out[ (string) $r['path'] ][] = array( 'day' => (string) $r['day'], 'views' => (int) $r['views'] );
+			$key = $asked[ (string) $r['path'] ] ?? (string) $r['path'];
+			$day = (string) $r['day'];
+			if ( isset( $out[ $key ][ $day ] ) ) {
+				$out[ $key ][ $day ]['views'] += (int) $r['views']; // both spellings on one day fold into one point
+			} else {
+				$out[ $key ][ $day ] = array( 'day' => $day, 'views' => (int) $r['views'] );
+			}
 		}
 	}
+	foreach ( $out as &$series ) {
+		ksort( $series ); // day-ascending across both spellings
+		$series = array_values( $series );
+	}
+	unset( $series );
 	return $out;
 }
 
