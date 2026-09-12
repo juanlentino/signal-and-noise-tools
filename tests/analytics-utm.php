@@ -146,6 +146,11 @@ foreach ( array( 'views', 'visits' ) as $col ) {
 au_reset();
 sn_analytics_utm_upsert( array( array( 'day' => '2026-07-11', 'packed' => 'newsletter' . $US . $US . $US . $US, 'class' => 'human', 'views' => 5, 'visits' => 4 ) ) );
 ok( strpos( $GLOBALS['wpdb']->queries[0], "'(none)'" ) !== false, 'upsert: empty medium/campaign → (none)' );
+// #1207 -- the 128 cap is CHARACTERS into a utf8mb4 column, not bytes.
+au_reset();
+$wide = 'a' . str_repeat( "\u{20ac}", 60 ); // 61 chars, 181 bytes
+sn_analytics_utm_upsert( array( array( 'day' => '2026-07-11', 'packed' => $wide . $US . 'cpc' . $US . 'x' . $US . $US, 'class' => 'human', 'views' => 1, 'visits' => 1 ) ) );
+ok( strpos( $GLOBALS['wpdb']->queries[0], "'" . $wide . "'" ) !== false, 'upsert: a 61-character / 181-byte source is bound whole (#1207)' );
 au_reset();
 ok( 0 === sn_analytics_utm_upsert( array( array( 'day' => 'not-a-day', 'packed' => 'a' . $US . 'b', 'class' => 'human', 'views' => 1, 'visits' => 1 ) ) ), 'upsert: malformed day skipped' );
 au_reset();

@@ -84,6 +84,15 @@ class PR_Stub_wpdb {
 }
 $GLOBALS['wpdb'] = new PR_Stub_wpdb();
 
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+if ( ! function_exists( 'add_filter' ) ) { function add_filter() { return true; } }
+if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $h, $v ) { return $v; } }
+// The site's named zone: the entry rollup must bucket on the SAME day the
+// pageview rollup does (#1201), so the real window-expression builder loads.
+function sn_analytics_site_tz_name() { return $GLOBALS['__pr_tz'] ?? 'America/Sao_Paulo'; }
+require_once __DIR__ . '/../inc/analytics-rollup.php';
 require_once __DIR__ . '/../inc/analytics-pageroles.php';
 
 $pass = 0; $fail = 0;
@@ -124,6 +133,11 @@ ok( strpos( $last, "'entry'" ) !== false, 'upsert: role bound via prepare' );
 ok( sn_analytics_pageroles_upsert( array( array( 'day' => '2026-05-10', 'role' => 'bogus', 'path' => '/x', 'views' => 1, 'visits' => 1 ) ) ) === 0, 'upsert: bad role skipped' );
 // Blank path skipped.
 ok( sn_analytics_pageroles_upsert( array( array( 'day' => '2026-05-10', 'role' => 'entry', 'path' => '', 'views' => 1, 'visits' => 1 ) ) ) === 0, 'upsert: blank path skipped' );
+// #1207 -- the 190 cap is CHARACTERS into a utf8mb4 column, not bytes.
+$GLOBALS['wpdb']->queries = array();
+$wide = '/' . str_repeat( "\u{20ac}", 100 ); // 101 chars, 301 bytes
+sn_analytics_pageroles_upsert( array( array( 'day' => '2026-05-10', 'role' => 'entry', 'path' => $wide, 'views' => 1, 'visits' => 1 ) ) );
+ok( strpos( end( $GLOBALS['wpdb']->queries ), "'" . $wide . "'" ) !== false, 'upsert: a 101-character / 301-byte path is bound whole (#1207)' );
 // Bad day skipped.
 ok( sn_analytics_pageroles_upsert( array( array( 'day' => 'nope', 'role' => 'entry', 'path' => '/x', 'views' => 1, 'visits' => 1 ) ) ) === 0, 'upsert: bad day skipped' );
 ok( sn_analytics_pageroles_upsert( array() ) === 0, 'upsert: empty input returns 0' );
@@ -167,7 +181,14 @@ ok( strpos( $rsql, "blob7 = 'human'" ) !== false, "rollup_sql: filters blob7 = '
 ok( strpos( $rsql, 'blob2 AS path' ) !== false, 'rollup_sql: selects blob2 AS path' );
 ok( strpos( $rsql, 'sum(_sample_interval) AS views' ) !== false, 'rollup_sql: sum(_sample_interval) AS views' );
 ok( strpos( $rsql, 'count(DISTINCT index1) AS visits' ) !== false, 'rollup_sql: count(DISTINCT index1) AS visits' );
-ok( strpos( $rsql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false, 'rollup_sql: floored 7-day lower bound' );
+ok( strpos( $rsql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false, 'rollup_sql: floored 7-day lower bound (UTC when no zone is passed)' );
+// #1201 -- entry pages bucketed on the UTC day beside "Views today" on the
+// site day: at UTC-3 the entry tile's "today" ran 21:00 yesterday-local to
+// 21:00 today-local. Zoned, the day column and the floor use the site's zone.
+$zsql = sn_analytics_pageroles_rollup_sql( 7, 'America/Sao_Paulo' );
+ok( strpos( $zsql, "formatDateTime(timestamp, '%Y-%m-%d', 'America/Sao_Paulo') AS day" ) !== false, 'rollup_sql (zoned): day is the SITE-LOCAL calendar day, like the pageview rollup (#1201)' );
+ok( strpos( $zsql, "toStartOfInterval(now(), INTERVAL '1' DAY, 'America/Sao_Paulo') - INTERVAL '7' DAY" ) !== false, 'rollup_sql (zoned): lower bound floored to a complete LOCAL day' );
+ok( strpos( $zsql, 'toStartOfDay(' ) === false, 'rollup_sql (zoned): no UTC day boundary survives' );
 ok( strpos( $rsql, 'GROUP BY day, path' ) !== false, 'rollup_sql: GROUP BY day, path' );
 ok( strpos( $rsql, 'ORDER BY day DESC, views DESC' ) !== false, 'rollup_sql: ORDER BY day DESC, views DESC' );
 // The external/direct-referrer clause (the unproven, live-AE-gated bit).
@@ -189,6 +210,7 @@ $GLOBALS['wpdb']->queries = array();
 sn_analytics_pageroles_run_rollup();
 $ran_sql = $GLOBALS['_pr_query_sql'];
 ok( strpos( $ran_sql, "blob1 = 'pv'" ) !== false, 'run_rollup: issued the entry rollup query' );
+ok( strpos( $ran_sql, "'America/Sao_Paulo'" ) !== false, 'run_rollup: rolls by the site zone (#1201)' );
 $upsert_sql = end( $GLOBALS['wpdb']->queries );
 ok( strpos( $upsert_sql, 'wp_sn_analytics_page_roles' ) !== false, 'run_rollup: upserts into page_roles' );
 ok( strpos( $upsert_sql, "'entry'" ) !== false, 'run_rollup: rows tagged role=entry' );

@@ -131,7 +131,7 @@ function sn_analytics_events_upsert( $rows ) {
 		}
 		$clean[] = array(
 			'day'      => $day,
-			'name'     => substr( $name, 0, 120 ),
+			'name'     => mb_substr( $name, 0, 120, 'UTF-8' ), // characters, not bytes: a byte cut inside a multibyte sequence is invalid UTF-8 and strict MySQL rejects the whole chunk (#1207)
 			'visitors' => max( 0, (int) ( $r['visitors'] ?? 0 ) ),
 			'events'   => max( 0, (int) ( $r['events'] ?? 0 ) ),
 		);
@@ -159,6 +159,9 @@ function sn_analytics_events_upsert( $rows ) {
 		$result = $wpdb->query( $wpdb->prepare( $sql, $values ) );
 		if ( false !== $result ) {
 			$written += count( $chunk );
+		} else {
+			// A rejected chunk is a lost day of data; say so where the operator can see it (#1207).
+			error_log( sprintf( '[signal-and-noise-tools] %s upsert: a %d-row chunk failed: %s', $table, count( $chunk ), (string) $wpdb->last_error ) );
 		}
 	}
 
@@ -191,8 +194,8 @@ function sn_analytics_event_props_upsert( $rows ) {
 		}
 		$clean[] = array(
 			'day'      => $day,
-			'property' => substr( $property, 0, 60 ),
-			'value'    => substr( $value, 0, 180 ),
+			'property' => mb_substr( $property, 0, 60, 'UTF-8' ), // characters, not bytes (#1207)
+			'value'    => mb_substr( $value, 0, 180, 'UTF-8' ),
 			'visitors' => max( 0, (int) ( $r['visitors'] ?? 0 ) ),
 			'events'   => max( 0, (int) ( $r['events'] ?? 0 ) ),
 		);
@@ -220,6 +223,9 @@ function sn_analytics_event_props_upsert( $rows ) {
 		$result = $wpdb->query( $wpdb->prepare( $sql, $values ) );
 		if ( false !== $result ) {
 			$written += count( $chunk );
+		} else {
+			// A rejected chunk is a lost day of data; say so where the operator can see it (#1207).
+			error_log( sprintf( '[signal-and-noise-tools] %s upsert: a %d-row chunk failed: %s', $table, count( $chunk ), (string) $wpdb->last_error ) );
 		}
 	}
 

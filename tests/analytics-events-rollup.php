@@ -39,6 +39,15 @@ $GLOBALS['__er_props_upserts']  = array();
 function sn_analytics_events_upsert( $rows ) { $GLOBALS['__er_events_upserts'][] = $rows; return is_array( $rows ) ? count( $rows ) : 0; }
 function sn_analytics_event_props_upsert( $rows ) { $GLOBALS['__er_props_upserts'][] = $rows; return is_array( $rows ) ? count( $rows ) : 0; }
 
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+if ( ! function_exists( 'add_filter' ) ) { function add_filter() { return true; } }
+if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $h, $v ) { return $v; } }
+if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $d; } }
+// The site's named zone (#1201): events must bucket on the same day pageviews do.
+function sn_analytics_site_tz_name() { return $GLOBALS['__er_tz'] ?? 'America/Sao_Paulo'; }
+require_once __DIR__ . '/../inc/analytics-rollup.php';
 require_once __DIR__ . '/../inc/analytics-events-rollup.php';
 
 $pass = 0; $fail = 0;
@@ -62,7 +71,9 @@ ok( strpos( $esql, 'blob16 AS name' ) !== false, 'events-sql: blob16 → name' )
 ok( strpos( $esql, 'sum(_sample_interval) AS events' ) !== false, 'events-sql: events = sample-corrected sum' );
 ok( strpos( $esql, 'count(DISTINCT index1) AS visitors' ) !== false, 'events-sql: visitors = distinct visitor-day hashes (bare column)' );
 ok( strpos( $esql, 'GROUP BY day, name' ) !== false, 'events-sql: groups by day, name' );
-ok( strpos( $esql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false, 'events-sql: floored trailing window' );
+ok( strpos( $esql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false, 'events-sql: floored trailing window (UTC when no zone is passed)' );
+$zsql = sn_analytics_events_rollup_sql( 7, 'America/Sao_Paulo' );
+ok( strpos( $zsql, "formatDateTime(timestamp, '%Y-%m-%d', 'America/Sao_Paulo') AS day" ) !== false && strpos( $zsql, 'toStartOfDay(' ) === false, 'events-sql (zoned): day is the SITE-LOCAL day, like pageviews (#1201)' );
 ok( strpos( $esql, 'count(*)' ) === false && strpos( $esql, 'count(DISTINCT if' ) === false, 'events-sql: no AE-invalid count(*)/count(DISTINCT <expr>)' );
 ok( stripos( $esql, ' LIMIT ' ) === false, 'events-sql: no LIMIT (PHP-slices instead)' );
 ok( strpos( sn_analytics_events_rollup_sql( '7; DROP TABLE x' ), 'DROP TABLE' ) === false, 'events-sql: $days integer-cast (no injection)' );
@@ -77,7 +88,9 @@ ok( strpos( $psql, 'blob18 AS value' ) !== false, 'props-sql: blob18 → value' 
 ok( strpos( $psql, 'sum(_sample_interval) AS events' ) !== false, 'props-sql: events = sample-corrected sum' );
 ok( strpos( $psql, 'count(DISTINCT index1) AS visitors' ) !== false, 'props-sql: visitors via bare-column DISTINCT' );
 ok( strpos( $psql, 'GROUP BY day, property, value' ) !== false, 'props-sql: groups by day, property, value' );
-ok( strpos( $psql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false, 'props-sql: floored trailing window' );
+ok( strpos( $psql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false, 'props-sql: floored trailing window (UTC when no zone is passed)' );
+$zsql = sn_analytics_event_props_rollup_sql( 7, 'America/Sao_Paulo' );
+ok( strpos( $zsql, "formatDateTime(timestamp, '%Y-%m-%d', 'America/Sao_Paulo') AS day" ) !== false && strpos( $zsql, 'toStartOfDay(' ) === false, 'props-sql (zoned): day is the SITE-LOCAL day, like pageviews (#1201)' );
 ok( strpos( $psql, 'count(*)' ) === false && strpos( $psql, 'count(DISTINCT if' ) === false, 'props-sql: no AE-invalid count forms' );
 ok( stripos( $psql, ' LIMIT ' ) === false, 'props-sql: no LIMIT' );
 
@@ -106,6 +119,7 @@ $GLOBALS['__er_query_return'] = function ( $sql ) {
 sn_analytics_events_run_rollup();
 
 ok( count( $GLOBALS['__er_query_calls'] ) === 2, 'run: issues two AE queries (events + props)' );
+ok( strpos( $GLOBALS['__er_query_calls'][0], "'America/Sao_Paulo'" ) !== false && strpos( $GLOBALS['__er_query_calls'][1], "'America/Sao_Paulo'" ) !== false, 'run: both queries roll by the site zone (#1201)' );
 
 ok( count( $GLOBALS['__er_events_upserts'] ) === 1, 'run: one events upsert call' );
 $ev_rows = $GLOBALS['__er_events_upserts'][0];

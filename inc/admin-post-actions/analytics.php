@@ -160,8 +160,9 @@ function sn_handle_machine_readers_save( $post ) {
 	$stored = get_option( SN_SETTINGS_OPTION, array() );
 	update_option( SN_SETTINGS_OPTION, snt_mr_settings_save( $fields, is_array( $stored ) ? $stored : array() ) );
 	sn_setting_reset_cache();
-	// The tab's display window; other windows age out on their own short TTL.
-	delete_transient( 'sn_mr_rows_30' );
+	// Every window/view the fetch can build (#1206): the flush lives beside the
+	// key builder, so a key change can never orphan this line again.
+	snt_mr_cache_flush();
 	return 'machine_readers_saved';
 }
 

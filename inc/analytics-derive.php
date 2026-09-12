@@ -197,6 +197,27 @@ if ( ! function_exists( 'sn_analytics_canonical_path' ) ) {
 }
 
 /**
+ * The (day column, floored lower bound) pair every AE day-bucketed rollup
+ * shares — sn_analytics_rollup_window_exprs() when the rollup module is
+ * loaded, the UTC pair otherwise. The entry-page and events rollups bucketed
+ * on the UTC day beside a pageview rollup on the site day, so one YYYY-MM-DD
+ * named two different windows across tabs (#1201).
+ *
+ * @param int    $days Trailing window in days (>= 1).
+ * @param string $tz   IANA zone name or '' for UTC.
+ * @return array{0:string,1:string}
+ */
+if ( ! function_exists( 'sn_analytics_rollup_day_exprs' ) ) {
+	function sn_analytics_rollup_day_exprs( $days, $tz = '' ) {
+		$days = max( 1, (int) $days );
+		if ( function_exists( 'sn_analytics_rollup_window_exprs' ) ) {
+			return sn_analytics_rollup_window_exprs( $days, $tz );
+		}
+		return array( "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d')", "toStartOfDay(now() - INTERVAL '{$days}' DAY)" );
+	}
+}
+
+/**
  * The SQL expression that canonicalises a path column, for use in GROUP BY.
  *
  * This belongs in the GROUP BY and NOT in PHP after the query. The reads that

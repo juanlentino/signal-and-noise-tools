@@ -47,15 +47,50 @@ function sn_analytics_post_path( $id ) {
 }
 
 /**
+ * The SITE-LOCAL calendar day of a timestamp, 'Y-m-d' — the same day the
+ * rollup keys its `day` column on (schema v4, inc/analytics-rollup.php).
+ *
+ * A note published 21:30 ET is 01:30 UTC the next day; its launch-evening rows
+ * sit under the local day, and a UTC publish day read them as dol -1 and
+ * dropped them (#1200). Standalone (no wp_date) this is the UTC day.
+ *
+ * @param int $ts Unix timestamp.
+ * @return string
+ */
+function sn_analytics_posts_local_day( $ts ) {
+	return function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m-d', (int) $ts ) : gmdate( 'Y-m-d', (int) $ts );
+}
+
+/**
+ * Age of a post in whole SITE-LOCAL calendar days — the unit `by_dol` is keyed
+ * in, so "views at age N" and the leaderboard's day-N bucket agree. A 24h
+ * count read a note published yesterday evening as age 0 while its rows sat
+ * under day 1, and the hero said "no recorded views yet" (#1200).
+ *
+ * @param int $publish_ts Publish moment (0 = unknown -> age 0).
+ * @param int $now        The reference moment.
+ * @return int
+ */
+function sn_analytics_posts_age( $publish_ts, $now ) {
+	$publish_ts = (int) $publish_ts;
+	if ( $publish_ts <= 0 ) {
+		return 0;
+	}
+	$pub = strtotime( sn_analytics_posts_local_day( $publish_ts ) . ' 00:00:00 UTC' );
+	$cur = strtotime( sn_analytics_posts_local_day( (int) $now ) . ' 00:00:00 UTC' );
+	return max( 0, (int) round( ( $cur - $pub ) / DAY_IN_SECONDS ) );
+}
+
+/**
  * Re-index a calendar-day series to day-of-life (publish day = 0). Days before
  * publish are dropped; gap days are simply absent (not zero-filled).
  *
  * @param array $series     [{day:'Y-m-d', views:int}] ascending.
- * @param int   $publish_ts Unix ts of the publish moment (floored to its UTC day).
+ * @param int   $publish_ts Unix ts of the publish moment (floored to its SITE-LOCAL day).
  * @return array<int,int> [day_of_life => views]
  */
 function sn_analytics_posts_daily_by_dol( $series, $publish_ts ) {
-	$pub_day = strtotime( gmdate( 'Y-m-d', (int) $publish_ts ) . ' 00:00:00 UTC' );
+	$pub_day = strtotime( sn_analytics_posts_local_day( (int) $publish_ts ) . ' 00:00:00 UTC' );
 	$out     = array();
 	foreach ( (array) $series as $row ) {
 		$day_ts = strtotime( (string) ( $row['day'] ?? '' ) . ' 00:00:00 UTC' );
@@ -176,8 +211,30 @@ function sn_analytics_posts_rank( $subject, $cohort ) {
 /* ───────────────────────── durable-rollup accessors ──────────────────────── */
 
 /**
- * Daily human views for one path over [from,to] — a `WHERE path = %s` clone of
- * sn_analytics_top_paths. views only (sample-corrected); visits is a raw estimate
+ * Both stored spellings of one path: canonical (no trailing slash) and slashed.
+ *
+ * The rollup stores paths VERBATIM (the 2026-08-19 finding), and the callers
+ * of these accessors hand over whichever spelling they hold — the permalink's
+ * slashed form, or sn_analytics_top_paths()'s canonical form. A `WHERE path =`
+ * on either alone reads a pretty-permalink note as empty (#1199); every
+ * per-path read here binds both.
+ *
+ * @param string $path Either spelling.
+ * @return array{0:string,1:string} [canonical, slashed]; the root is ['/', '/'].
+ */
+function sn_analytics_path_spellings( $path ) {
+	$path  = (string) $path;
+	$canon = function_exists( 'sn_analytics_canonical_path' ) ? sn_analytics_canonical_path( $path ) : rtrim( $path, '/' );
+	if ( '' === $canon ) {
+		$canon = '/';
+	}
+	return array( $canon, '/' === $canon ? '/' : $canon . '/' );
+}
+
+/**
+ * Daily human views for one path over [from,to] — a per-path clone of
+ * sn_analytics_top_paths (both spellings, see sn_analytics_path_spellings()).
+ * views only (sample-corrected); visits is a raw estimate
  * and is deliberately not surfaced as a count by this view.
  *
  * @param string $path
@@ -188,12 +245,14 @@ function sn_analytics_posts_rank( $subject, $cohort ) {
 function sn_analytics_path_daily_series( $path, $from, $to ) {
 	global $wpdb;
 	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
+	list( $canon, $slashed ) = sn_analytics_path_spellings( $path );
 	$rows  = $wpdb->get_results( $wpdb->prepare(
 		"SELECT day, SUM(views) AS views
 		 FROM {$table}
-		 WHERE path = %s AND class = 'human' AND day >= %s AND day <= %s
+		 WHERE path IN ( %s, %s ) AND class = 'human' AND day >= %s AND day <= %s
 		 GROUP BY day ORDER BY day ASC",
-		(string) $path,
+		$canon,
+		$slashed,
 		(string) $from,
 		(string) $to
 	), ARRAY_A );
@@ -215,9 +274,11 @@ function sn_analytics_path_daily_series( $path, $from, $to ) {
 function sn_analytics_path_lifetime( $path ) {
 	global $wpdb;
 	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
+	list( $canon, $slashed ) = sn_analytics_path_spellings( $path );
 	return (int) $wpdb->get_var( $wpdb->prepare(
-		"SELECT SUM(views) FROM {$table} WHERE path = %s AND class = 'human'",
-		(string) $path
+		"SELECT SUM(views) FROM {$table} WHERE path IN ( %s, %s ) AND class = 'human'",
+		$canon,
+		$slashed
 	) );
 }
 
@@ -253,12 +314,8 @@ function sn_analytics_path_window( $path, $from, $to ) {
 	if ( '' === $path || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $to ) ) {
 		return null;
 	}
-	$canon = function_exists( 'sn_analytics_canonical_path' ) ? sn_analytics_canonical_path( $path ) : rtrim( $path, '/' );
-	if ( '' === $canon ) {
-		$canon = '/';
-	}
-	$slashed = '/' === $canon ? '/' : $canon . '/';
-	$table   = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
+	list( $canon, $slashed ) = sn_analytics_path_spellings( $path );
+	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
 
 	$row = $wpdb->get_row( $wpdb->prepare(
 		"SELECT SUM(views) AS views, SUM(visits) AS visits, COUNT(DISTINCT day) AS days
@@ -336,14 +393,12 @@ function sn_analytics_posts_bundle( $limit = SN_POSTS_RECENT_LIMIT ) {
 	}
 
 	$now   = time();
-	$today = gmdate( 'Y-m-d', $now );
+	$today = sn_analytics_posts_local_day( $now );
 	$rows  = array();
 
 	foreach ( $posts as $p ) {
-		$age = ( $p['publish_ts'] > 0 )
-			? (int) floor( ( $now - $p['publish_ts'] ) / DAY_IN_SECONDS )
-			: 0;
-		$from   = gmdate( 'Y-m-d', $p['publish_ts'] > 0 ? $p['publish_ts'] : $now );
+		$age    = sn_analytics_posts_age( $p['publish_ts'], $now );
+		$from   = sn_analytics_posts_local_day( $p['publish_ts'] > 0 ? $p['publish_ts'] : $now );
 		$series = '' !== $p['path'] ? sn_analytics_path_daily_series( $p['path'], $from, $today ) : array();
 		$by_dol = sn_analytics_posts_daily_by_dol( $series, $p['publish_ts'] );
 		$life   = '' !== $p['path'] ? sn_analytics_path_lifetime( $p['path'] ) : 0;

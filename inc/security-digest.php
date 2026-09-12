@@ -86,7 +86,7 @@ function snt_security_digest_collect() {
 	// Guard side: the cached 7-day headline (+1 top-country query when active).
 	if ( function_exists( 'sn_login_defense_headline' ) ) {
 		$lg = sn_login_defense_headline();
-		if ( ! empty( $lg['configured'] ) ) {
+		if ( ! empty( $lg['configured'] ) && empty( $lg['unavailable'] ) ) { // #1204: a failed read is not zeros
 			$guard = array(
 				'checked'     => (int) ( $lg['checked'] ?? 0 ),
 				'blocked'     => (int) ( $lg['blocked'] ?? 0 ),

@@ -1070,6 +1070,19 @@ set_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY, time(), 0 );
 sn_analytics_rollup_warm();
 ok( count( $GLOBALS['__ar_single_events'] ) === 0, 'warmer: fresh within TTL → no schedule' );
 
+// #1209 -- without a persistent object cache the stamp round-trips the
+// options table as a STRING; is_int() was false, age = PHP_INT_MAX and a
+// rollup was scheduled on every admin_init. Dormant on live (Redis), real on
+// any other install.
+ar_reset();
+set_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY, (string) time(), 0 );
+sn_analytics_rollup_warm();
+ok( count( $GLOBALS['__ar_single_events'] ) === 0, 'warmer: a fresh stamp that comes back as a string (no object cache) still reads as fresh (#1209)' );
+ar_reset();
+set_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY, (string) ( time() - SN_ANALYTICS_ROLLUP_TTL - 60 ), 0 );
+sn_analytics_rollup_warm();
+ok( count( $GLOBALS['__ar_single_events'] ) === 1, 'warmer: a stale string stamp still schedules' );
+
 // Stale but an event is already queued → no duplicate schedule.
 ar_reset();
 $GLOBALS['__ar_scheduled'][] = SN_ANALYTICS_ROLLUP_HOOK;

@@ -881,8 +881,11 @@ function sn_analytics_rollup_warm() {
 		return;
 	}
 
-	$fresh = get_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY );
-	$age   = is_int( $fresh ) ? ( time() - $fresh ) : PHP_INT_MAX;
+	// (int), not is_int(): without a persistent object cache the stamp
+	// round-trips the options table as a STRING, and is_int() read every
+	// fresh stamp as absent — a rollup scheduled on every admin_init (#1209).
+	$fresh = (int) get_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY );
+	$age   = $fresh > 0 ? ( time() - $fresh ) : PHP_INT_MAX;
 
 	if ( $age > SN_ANALYTICS_ROLLUP_TTL && ! wp_next_scheduled( SN_ANALYTICS_ROLLUP_HOOK ) ) {
 		wp_schedule_single_event( time(), SN_ANALYTICS_ROLLUP_HOOK );

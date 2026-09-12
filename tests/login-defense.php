@@ -147,6 +147,14 @@ ok( $h['blocked'] === 4 && $h['block_rate'] === 40 && $h['top_network'] === 'Bad
 ok( isset( $GLOBALS['__t']['sn_lg_headline'] ), 'headline: cached in transient' );
 // v8.5.0: the trend rides the SAME transient (one shared cache, no widget-side query).
 ok( isset( $h['trend'] ) && 2 === count( $h['trend'] ) && 3 === (int) $h['trend'][1]['views'], 'headline: carries the 7d blocked trend as a sparkline series (blocked -> views)' );
+// #1204 -- a failed decisions read (null) was cached for 600s as
+// configured:true / checked 0 / blocked 0, a quiet week impersonated by an
+// outage. Null is unavailable: reported as such, never cached.
+$GLOBALS['__t']    = array();
+$GLOBALS['__lg_q'] = array( null, array(), array() );
+$hn = sn_login_defense_headline();
+ok( ! empty( $hn['configured'] ) && ! empty( $hn['unavailable'] ), 'headline: a failed decisions read is reported as unavailable, not as zeros (#1204)' );
+ok( ! isset( $GLOBALS['__t']['sn_lg_headline'] ), 'headline: the unavailable verdict is NOT cached — the next call reads again (#1204)' );
 
 // --- D1: Security panel is status-only (no decisions KPI; links to analytics) -
 function esc_html( $s ) { return (string) $s; }
