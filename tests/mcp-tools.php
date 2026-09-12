@@ -685,6 +685,18 @@ foreach ( array( 'READ' => SN_MCP_DOOR_READ, 'WRITE' => SN_MCP_DOOR_RW ) as $sn_
 		"$sn_dn door: an undeclared argument is refused (-32602), not silently dropped - got " . var_export( $sn_code, true ) );
 	ok( false !== strpos( $sn_msg, 'totally_undeclared_knob' ),
 		"$sn_dn door: the refusal NAMES the offending key" );
+	// #1212: the rw audit log claims every tools/call reaching the rw door, win
+	// or lose. A schema refusal is a loss and lands as a denied row; the read
+	// door's audit behavior is unchanged (no row).
+	$sn_rows = (array) ( get_option( SN_MCP_RW_AUDIT_OPTION )['rows'] ?? array() );
+	$sn_last = end( $sn_rows );
+	if ( 'WRITE' === $sn_dn ) {
+		ok( is_array( $sn_last ) && 'signal-noise/ai-pair-suggest' === $sn_last['slug'] && 'denied' === $sn_last['outcome'] && 'invalid_input' === ( $sn_last['error_code'] ?? null ),
+			'WRITE door: the schema refusal is audited as denied with error_code=invalid_input' );
+	} else {
+		ok( ! is_array( $sn_last ) || 'signal-noise/get-health-scan' !== $sn_last['slug'],
+			'READ door: the schema refusal writes no rw audit row' );
+	}
 }
 
 // ...and the common path is untouched: a no-argument read call still succeeds.

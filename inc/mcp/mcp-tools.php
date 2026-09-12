@@ -599,6 +599,11 @@ function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
 			sn_mcp_normalize_schema( $ability->get_input_schema() )
 		);
 		if ( null !== $sn_in_bad ) {
+			// #1212: the rw audit log claims every call reaching the rw door,
+			// win or lose; a schema refusal is a loss, as a permission denial is.
+			if ( SN_MCP_DOOR_RW === $door && function_exists( 'sn_mcp_rw_audit_record' ) ) {
+				sn_mcp_rw_audit_record( $slug, $args, 'denied', 'invalid_input' );
+			}
 			if ( function_exists( 'sn_mcp_telemetry_record' ) ) {
 				sn_mcp_telemetry_record( $tool_name, $arguments, $door, 'invalid_input', null, sn_mcp_telemetry_elapsed_ms( $sn_mcp_telemetry_t0 ) );
 			}
