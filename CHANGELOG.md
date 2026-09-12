@@ -13,6 +13,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Changed
+- **README: the OpenStation section names the settings-tab seam and the upstream record.** The per-user native/classic preference is now described where it lives (a `Signal & Noise` tab in OpenStation Preferences, `openstation_register_settings_tab()` + `wp.os.registerSettingsTab()`, classic URLs remapped with `registerNativeUrlRemap()`), and a closing paragraph lists the six merged upstream PRs (#366, #530, #706, #791, #792, #793) plus #809 in review — every one a seam this integration crossed first. Docs only.
 - **The OpenStation Preferences tab names its sidebar glyph.** The `Signal & Noise` tab rendered with an empty icon column because OpenStation's settings-tab registry had no icon field — no plugin could supply one ([WordPress/openstation#808](https://github.com/WordPress/openstation/issues/808)). The registration now passes `icon: 'bell'` (an OS icon-set name); OpenStation ≤ 1.1.8 ignores the key, 1.1.9+ draws it. Confirmed against 1.1.8: none of the 52 OpenStation symbols the plugin consumes changed between 1.1.7 and 1.1.8 — the five that appear in that diff are tests and docblocks only. Suite 99 → 100; the new guard mutation-checked red.
 
 ## [14.1.0] - 2026-09-12 — the WAF probe gets a witness

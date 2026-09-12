@@ -90,13 +90,15 @@ Three native App Framework windows:
 | **S&N Analytics** (`apps/sn-analytics`) | 13 report views — overview, visits, content, posts, engagement, campaigns, search, geography, technology, events, quality, edge, login defense | server views on the shell's `<os-*>` kit |
 | **Signal & Noise** (`apps/signal-noise`) | Notes, Pages, Discography, Citations, Schedules, Attention | native-only client view |
 
-A per-user preference picks native or classic-iframe windows for the two that have a classic twin.
+A per-user preference picks native or classic-iframe windows for the two that have a classic twin. It lives as a **Signal & Noise** tab in OpenStation Preferences — registered server-side with `openstation_register_settings_tab()` and painted client-side through `wp.os.registerSettingsTab()` — and the two classic admin URLs are remapped to their native windows with `registerNativeUrlRemap()`, so a deep link into the old screen opens the new one when the preference says so.
 
 Around the windows: 10 desktop widgets (site views, health, uptime, deploy status, cache, cron, quick actions, RSS subscribers, anchors, machine readers) · 22 `SN:` commands in the ⌘K palette · a dock entry with an update-count badge and two desktop icons · an attention badge carrying the plugin's real queues · an S&N Analytics card on Station Home (structured data, no plugin markup) · drop-to-draft on the shell's OS-file-drop pipeline · a repaired PWA manifest icon set · fixes to the shell's own Plugins window · a nav-id migration so dock placement survived the move from menus to apps.
 
 The AI Copilot gets its tool schemas repaired at the boundary, a prune list that keeps the tool budget paid, a system-prompt appendix teaching it the analytics vocabulary, and generation-budget shaping for ceiling-bounded reasoning (upstream #517).
 
 Every seam is pinned against a named upstream tag by `tests/openstation-compat.php`; `docs/openstation-compat.md` is the audit trail.
+
+What the integration hit on its way in went upstream. Six pull requests merged into [WordPress/openstation](https://github.com/WordPress/openstation) so far — tool-schema normalisation for the AI Copilot ([#366](https://github.com/WordPress/openstation/pull/366)), an empty final answer surfaced as an error instead of a silent success ([#530](https://github.com/WordPress/openstation/pull/530)), `--wp-admin-theme-color` registered so chromeless documents never compute it to transparent ([#706](https://github.com/WordPress/openstation/pull/706)), widget chrome buttons raised to the 24px target-size floor ([#791](https://github.com/WordPress/openstation/pull/791)), `hide-label` on `os-text-field` ([#792](https://github.com/WordPress/openstation/pull/792)), Post Stats chart chrome drawn in tokens ([#793](https://github.com/WordPress/openstation/pull/793)) — plus a seventh in review that lets a registered settings tab name its sidebar glyph ([#809](https://github.com/WordPress/openstation/pull/809)), and the issues that preceded each. None was sought out: every one is a seam this plugin crossed first, reported so the next integration doesn't have to.
 
 ### AI-assisted editorial
 
