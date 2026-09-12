@@ -48,6 +48,12 @@ if ( ! class_exists( 'WP_Error' ) ) {
 }
 if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $v ) { return $v instanceof WP_Error; } }
 
+// #1192: core 7.1 passes a WP_Filter_Sentinel instance as the DEFAULT $pre —
+// never null — verified against class-wp-ability.php's execute(). A stub
+// that kept feeding null here would let the guard's `null !== $pre` bug
+// pass unnoticed.
+if ( ! class_exists( 'WP_Filter_Sentinel' ) ) { class WP_Filter_Sentinel {} }
+
 // Hook-registration capture: the guard registers its handlers at include time.
 $GLOBALS['__hooks'] = array();
 if ( ! function_exists( 'add_filter' ) ) { function add_filter( $h, $cb, $prio = 10, $arity = 1 ) { $GLOBALS['__hooks'][] = array( 'filter', $h, $cb, $prio, $arity ); return true; } }
@@ -98,15 +104,17 @@ ok( isset( $hooked['wp_ability_execute_result'] ) && 'filter' === $hooked['wp_ab
 //     7.1's lifecycle hooks are filters without exception, so an `action` here
 //     means a return value core will discard.
 $shipped = sn_ability_lifecycle_hooks_71();
-ok( 4 === count( $shipped ), 'shipped set: 7.1 declares exactly four lifecycle filters' );
+ok( 6 === count( $shipped ), 'shipped set: 7.1 declares exactly six lifecycle hooks (3 actions + 3 filters this file cares about)' );
 $unknown = array();
 $wrong_arity = array();
 $not_filter  = array();
 foreach ( $GLOBALS['__hooks'] as $h ) {
 	list( $kind, $name, , , $arity ) = $h;
 	if ( ! array_key_exists( $name, $shipped ) ) { $unknown[] = $name; continue; }
-	if ( $shipped[ $name ] !== $arity ) { $wrong_arity[] = $name; }
-	if ( 'filter' !== $kind ) { $not_filter[] = $name; }
+	if ( $shipped[ $name ]['arity'] !== $arity ) { $wrong_arity[] = $name; }
+	// This file only ever registers via add_filter(), so every one of its OWN
+	// registrations must be on a hook the shipped set also declares a filter.
+	if ( 'filter' !== $kind || 'filter' !== $shipped[ $name ]['kind'] ) { $not_filter[] = $name; }
 }
 ok( array() === $unknown, 'membership: every registered hook exists in shipped 7.1' . ( $unknown ? ' (unknown: ' . implode( ', ', $unknown ) . ')' : '' ) );
 ok( array() === $wrong_arity, 'membership: every registered hook uses the arity 7.1 declares' . ( $wrong_arity ? ' (wrong: ' . implode( ', ', $wrong_arity ) . ')' : '' ) );
@@ -115,7 +123,12 @@ ok( array() === $not_filter, 'membership: every registered hook is attached as a
 // Mutation check: prove the membership assertion can actually fail, rather than
 // being vacuously true because $GLOBALS['__hooks'] is empty or the lookup is
 // wrong. A guard that cannot be made to fire is not a guard.
-ok( ! array_key_exists( 'wp_ability_invoked', $shipped ), 'membership: the v10.38.0 name wp_ability_invoked is NOT in the shipped set (the bug this check exists for)' );
+// #1192 corrected the header/inventory: wp_ability_invoked DOES ship in 7.1
+// (it is just not one of the three this file registers a handler on), so it
+// now belongs in the shipped set. The mutation check instead uses a name that
+// really does not exist on any WordPress release.
+ok( array_key_exists( 'wp_ability_invoked', $shipped ), 'membership: wp_ability_invoked (an action, not a filter) IS in the shipped set' );
+ok( ! array_key_exists( 'wp_ability_invoked_totally_fake', $shipped ), 'membership: a made-up hook name is NOT in the shipped set (the bug this check exists for)' );
 ok( 3 === count( $GLOBALS['__hooks'] ), 'membership: the loop actually inspected three registrations (not vacuously empty)' );
 
 // ---------------------------------------------------------------------------
@@ -151,6 +164,19 @@ ok( true === $res, 'live filter: core ability untouched even with switch engaged
 $GLOBALS['__rw_kill_engaged'] = false;
 $res = sn_ability_guard_filter_permission( true, 'signal-noise/update-post-surfaces', array(), null );
 ok( true === $res, 'live filter: write ability allowed when switch disengaged' );
+
+// #1192: a permission denial means do_execute() never runs, so
+// wp_ability_execute_result never fires to pop the t0 wp_pre_execute_ability
+// stamped. The permission filter must pop (and discard) it itself, or the
+// stamp leaks onto this ability's NEXT execution. Stamped directly (not via
+// the pre_execute filter) so this pin isolates the permission-side pop from
+// the separate pre_execute sentinel fix above.
+sn_ability_guard_t0( 'signal-noise/update-post-surfaces', microtime( true ) );
+$GLOBALS['__rw_kill_engaged'] = true;
+$res = sn_ability_guard_filter_permission( true, 'signal-noise/update-post-surfaces', array(), null );
+ok( is_wp_error( $res ), 'live filter: denial confirmed for the t0-leak check' );
+ok( null === sn_ability_guard_t0( 'signal-noise/update-post-surfaces' ), 'live filter: t0 popped on permission denial (does not leak to the next execution)' );
+$GLOBALS['__rw_kill_engaged'] = false;
 
 // ---------------------------------------------------------------------------
 // 4b. Write-class derivation — review finding: rw-allowlist membership alone
@@ -199,7 +225,7 @@ ok( 0 === sn_ability_guard_mcp_depth( -1 ), 'depth: floors at zero (unbalanced d
 $GLOBALS['__telemetry_rows'] = array();
 $GLOBALS['__audit_rows']     = array();
 
-sn_ability_guard_filter_pre_execute( null, 'signal-noise/sn-scan', array(), null );
+sn_ability_guard_filter_pre_execute( new WP_Filter_Sentinel(), 'signal-noise/sn-scan', array(), null );
 $out = array( 'a', 'b' );
 $ret = sn_ability_guard_filter_execute_result( $out, 'signal-noise/sn-scan', array(), null );
 ok( $out === $ret, 'observer: result passes through by identity' );
@@ -218,7 +244,8 @@ ok( array() === $GLOBALS['__audit_rows'], 'observer: read-class direct execution
 //     wp_ability_execute_result never fires, so the stamp would never be popped
 //     and would surface as the NEXT call's latency).
 // ---------------------------------------------------------------------------
-ok( null === sn_ability_guard_filter_pre_execute( null, 'signal-noise/sn-scan', array(), null ), 'pre_execute: returns null $pre unchanged (never short-circuits execution itself)' );
+$sentinel = new WP_Filter_Sentinel();
+ok( $sentinel === sn_ability_guard_filter_pre_execute( $sentinel, 'signal-noise/sn-scan', array(), null ), 'pre_execute: returns the sentinel $pre unchanged by identity (never short-circuits execution itself)' );
 sn_ability_guard_t0( 'signal-noise/sn-scan' ); // drain the stamp the assertion above pushed.
 
 $short = array( 'cached' => true );
@@ -226,13 +253,13 @@ ok( $short === sn_ability_guard_filter_pre_execute( $short, 'signal-noise/sn-sca
 ok( null === sn_ability_guard_t0( 'signal-noise/sn-scan' ), 'pre_execute: no t0 stamped when a prior filter short-circuited (stack stays clean)' );
 
 // A non-ours ability is never stamped either — same stack-hygiene reason.
-sn_ability_guard_filter_pre_execute( null, 'core/get-user-info', array(), null );
+sn_ability_guard_filter_pre_execute( new WP_Filter_Sentinel(), 'core/get-user-info', array(), null );
 ok( null === sn_ability_guard_t0( 'core/get-user-info' ), 'pre_execute: non-ours ability is not stamped' );
 
 // Inside MCP dispatch the wrapper already records — the observer stands down.
 $GLOBALS['__telemetry_rows'] = array();
 sn_ability_guard_mcp_depth( 1 );
-sn_ability_guard_filter_pre_execute( null, 'signal-noise/sn-scan', array(), null );
+sn_ability_guard_filter_pre_execute( new WP_Filter_Sentinel(), 'signal-noise/sn-scan', array(), null );
 $ret = sn_ability_guard_filter_execute_result( $out, 'signal-noise/sn-scan', array(), null );
 ok( $out === $ret && array() === $GLOBALS['__telemetry_rows'], 'observer: no double-record inside MCP dispatch' );
 sn_ability_guard_mcp_depth( -1 );
@@ -245,7 +272,7 @@ ok( 'x' === $ret && array() === $GLOBALS['__telemetry_rows'], 'observer: core ab
 // Write-class direct executions also land in the rw audit log — both outcomes.
 $GLOBALS['__telemetry_rows'] = array();
 $GLOBALS['__audit_rows']     = array();
-sn_ability_guard_filter_pre_execute( null, 'signal-noise/update-post-surfaces', array( 'post_id' => 7 ), null );
+sn_ability_guard_filter_pre_execute( new WP_Filter_Sentinel(), 'signal-noise/update-post-surfaces', array( 'post_id' => 7 ), null );
 sn_ability_guard_filter_execute_result( array( 'ok' => true ), 'signal-noise/update-post-surfaces', array( 'post_id' => 7 ), null );
 ok( 1 === count( $GLOBALS['__audit_rows'] ) && 'ok' === $GLOBALS['__audit_rows'][0]['outcome'] && 'signal-noise/update-post-surfaces' === $GLOBALS['__audit_rows'][0]['slug'], 'observer: write-class direct success audited' );
 
@@ -267,9 +294,9 @@ ok( 500 === ( $last['error_status'] ?? null ), 'observer: error_status travels t
 //    (review finding — the t0 store is a LIFO stack, not last-write-wins).
 // ---------------------------------------------------------------------------
 $GLOBALS['__telemetry_rows'] = array();
-sn_ability_guard_filter_pre_execute( null, 'signal-noise/sn-scan', array(), null ); // outer
+sn_ability_guard_filter_pre_execute( new WP_Filter_Sentinel(), 'signal-noise/sn-scan', array(), null ); // outer
 usleep( 2000 );
-sn_ability_guard_filter_pre_execute( null, 'signal-noise/sn-scan', array(), null ); // inner
+sn_ability_guard_filter_pre_execute( new WP_Filter_Sentinel(), 'signal-noise/sn-scan', array(), null ); // inner
 sn_ability_guard_filter_execute_result( array(), 'signal-noise/sn-scan', array(), null ); // inner completes
 usleep( 2000 );
 sn_ability_guard_filter_execute_result( array(), 'signal-noise/sn-scan', array(), null ); // outer completes
