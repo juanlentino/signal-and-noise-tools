@@ -65,6 +65,7 @@ class RG_Req {
 	public function __construct( $r, $b = array() ) { $this->route = $r; $this->body = $b; }
 	public function get_route() { return $this->route; }
 	public function get_json_params() { return $this->body; }
+	public function set_param( $k, $v ) { $this->body[ $k ] = $v; }
 }
 function run_route( $slug ) { return '/wp-abilities/v1/abilities/' . $slug . '/run'; }
 
@@ -146,6 +147,21 @@ ok( is_wp_error( $d ) && 'sn_mcp_rw_rw_disabled' === $d->get_error_code(), 'the 
 reset_state( $BOUND, $BOUND );
 ok( null === sn_mcp_rw_guard_run_route( null, null, new RG_Req( run_route( $a_write ) ) ), 'the BOUND app password, switch on, is allowed through' );
 ok( array() === $GLOBALS['__audit'], 'an allowed call writes nothing at pre_dispatch (the outcome is not known yet)' );
+
+echo "\nGroup: the door's purge argument rule applies here too\n";
+// The door drops include_template_overrides from purge-all-caches before
+// execute (mcp-tools.php): clear-template-overrides is held off both doors
+// and that flag reaches the same sweep. The run route must not be the one
+// path where the flag still arrives.
+$GLOBALS['__abilities']['signal-noise/purge-all-caches'] = false;
+reset_state( $BOUND, $BOUND );
+$req = new RG_Req( run_route( 'signal-noise/purge-all-caches' ), array( 'input' => array( 'include_template_overrides' => true, 'reason' => 'x' ) ) );
+ok( null === sn_mcp_rw_guard_run_route( null, null, $req ), 'a bound app password may still purge caches on the run route' );
+ok( array( 'reason' => 'x' ) === $req->get_json_params()['input'], 'but include_template_overrides is dropped from the input before dispatch, as the door drops it' );
+reset_state( $BOUND, '' );
+$req = new RG_Req( run_route( 'signal-noise/purge-all-caches' ), array( 'input' => array( 'include_template_overrides' => true ) ) );
+sn_mcp_rw_guard_run_route( null, null, $req );
+ok( array( 'include_template_overrides' => true ) === $req->get_json_params()['input'], 'a cookie-auth admin call is not rewritten (the rule is the door\'s, and the door is app-password traffic)' );
 
 echo "\nGroup: the rate limit rides along\n";
 reset_state( $BOUND, $BOUND );

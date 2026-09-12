@@ -584,6 +584,17 @@ function sn_mcp_rw_guard_run_route( $result, $server = null, $request = null ) {
 		sn_mcp_rw_rate_limit_gate()
 	);
 	if ( $verdict['allow'] ) {
+		// The door drops include_template_overrides from purge-all-caches
+		// before execute (mcp-tools.php); the same argument rule applies on
+		// this route. The run controller reads input from the parsed JSON
+		// body, which set_param() updates in place.
+		if ( 'signal-noise/purge-all-caches' === $slug && method_exists( $request, 'get_json_params' ) && method_exists( $request, 'set_param' ) ) {
+			$json = (array) $request->get_json_params();
+			if ( isset( $json['input'] ) && is_array( $json['input'] ) && array_key_exists( 'include_template_overrides', $json['input'] ) ) {
+				unset( $json['input']['include_template_overrides'] );
+				$request->set_param( 'input', $json['input'] );
+			}
+		}
 		return $result;
 	}
 
