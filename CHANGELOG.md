@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Two guard suites walked zero files from inside a linked worktree.** `tests/admin-class-orphans.php` and `tests/direct-access-guard-window.php` skip other sessions' worktrees by refusing any path containing `/.claude/` (#1055) — tested on the absolute path, so a run from `.claude/worktrees/<name>/` excluded its own root and scanned nothing. The orphan suite then reported all 91 baseline classes "now styled" and eight drift regressions; the guard-window suite held 0 files to the window. Both now test the path relative to the scan root, which keeps nested worktrees skipped and makes the root's own location irrelevant. The vacuity assertions caught it, as designed.
+
 ## [14.0.0] - 2026-09-11 — search served by the kernel
 
 ### Changed
