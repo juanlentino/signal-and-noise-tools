@@ -66,6 +66,9 @@ ok( count( $GLOBALS['wpdb']->queries ) === $count_before, 'cache hit: no DB quer
 $GLOBALS['__t'] = array();
 $GLOBALS['wpdb']->var = null;
 ok( sn_analytics_min_day() === gmdate( 'Y-m-d' ), 'empty table falls back to today' );
+// #1209: the fallback is NOT cached — an hour-long "today" would outlive the
+// first rollup and hide every earlier day the table gains meanwhile.
+ok( ! isset( $GLOBALS['__t']['sn_analytics_min_day'] ), 'the empty-table fallback is not cached (#1209)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -278,6 +278,13 @@ function sn_analytics_query( $sql ) {
 		return null;
 	}
 
+	if ( ! isset( $decoded['data'] ) ) {
+		// A 200 with no data key is a refused read (AE reports some errors this
+		// way) — record it; clearing the error here made it look healthy (#1209).
+		sn_analytics_record_error( $url, 200, substr( (string) $body, 0, 240 ) );
+		return null;
+	}
+
 	// Success — clear any stale error.
 	delete_transient( SN_ANALYTICS_ERR_KEY );
 
@@ -296,7 +303,7 @@ function sn_analytics_query( $sql ) {
 		);
 	}
 
-	return $decoded['data'] ?? null;
+	return $decoded['data'];
 }
 
 /**
