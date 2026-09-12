@@ -243,6 +243,7 @@ require_once SNT_PATH . 'inc/mcp/mcp-rw-audit.php'; // v9.51.0: rw-door audit lo
 require_once SNT_PATH . 'inc/mcp/mcp-resources.php'; // v9.50.0: resources/list + resources/read (lane PROTO)
 require_once SNT_PATH . 'inc/mcp/mcp-prompts.php';   // v9.50.0: prompts/list + prompts/get (lane PROTO)
 require_once SNT_PATH . 'inc/mcp/mcp-server.php';
+require_once SNT_PATH . 'inc/mcp/mcp-modern.php'; // v14.2.0: the 2026-07-28 revision, dual-era; after mcp-server.php because it reuses its envelope helpers and the same tool/resource/prompt handlers.
 require_once SNT_PATH . 'inc/mcp/mcp-rw-guard.php'; // v9.51.0: rw-door credential split + kill switch (lane SEC-A) — before mcp-endpoint.php, which calls it.
 require_once SNT_PATH . 'inc/mcp/mcp-read-guard.php'; // v10.9.0: read-door kill switch (isolated from the rw guard by design) — before mcp-endpoint.php, which calls it.
 require_once SNT_PATH . 'inc/mcp/mcp-remote-guard.php'; // R3 §3D Increment 1: remote analytics kill switch (fail-CLOSED on absence) — isolated from the read/rw guards by design.

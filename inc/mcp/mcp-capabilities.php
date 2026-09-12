@@ -471,6 +471,28 @@ function sn_mcp_capabilities_map() {
  * @return string
  */
 function sn_mcp_negotiate_version( $requested ) {
-	$supported = array( '2025-06-18', '2025-03-26', '2024-11-05' );
-	return in_array( (string) $requested, $supported, true ) ? (string) $requested : SN_MCP_PROTOCOL_VERSION;
+	return in_array( (string) $requested, sn_mcp_legacy_protocol_versions(), true ) ? (string) $requested : SN_MCP_PROTOCOL_VERSION;
+}
+
+/**
+ * Legacy (handshake-era) revisions this server answers for, newest first.
+ * 2025-11-25 joined in v14.2.0: it is the revision Claude's connector client
+ * opens with, and nothing it changed (tasks, URL elicitation, sampling)
+ * touches a tools/resources/prompts server, so echoing it is honest.
+ *
+ * @return string[]
+ */
+function sn_mcp_legacy_protocol_versions() {
+	return array( '2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05' );
+}
+
+/**
+ * Every revision this server speaks — modern first — for discover results
+ * and UnsupportedProtocolVersion bodies.
+ *
+ * @return string[]
+ */
+function sn_mcp_all_protocol_versions() {
+	$modern = defined( 'SN_MCP_MODERN_VERSIONS' ) ? SN_MCP_MODERN_VERSIONS : array();
+	return array_merge( $modern, sn_mcp_legacy_protocol_versions() );
 }
