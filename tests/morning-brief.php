@@ -41,7 +41,10 @@ function wp_mail( $to, $subject, $body ) { $GLOBALS['__mail'][] = compact( 'to',
 
 function sn_health_last_scan() { return array( 'scanned_at' => 100, 'checks' => array( 'links' => array(), 'seo' => array() ) ); }
 function sn_health_finding_total( $scan ) { return 2; }
-function sn_health_advisory_total( $scan ) { return 1; }
+// #1190: mirrors the real production shape -- all four advisory keys live on
+// the `worklist` surface, so the default $surface = 'health' counts none of
+// them (structural 0) and only $surface = null (every surface) sees them.
+function sn_health_advisory_total( $scan, $surface = 'health' ) { return null === $surface ? 4 : 0; }
 function snt_cron_get_events_impl() {
 	return array(
 		array( 'hook' => 'sn_one', 'is_sn_owned' => true, 'has_handler' => true ),
@@ -66,7 +69,8 @@ function ok( $condition, $message ) { global $pass, $fail; if ( $condition ) { $
 echo "\nTest: default and collector\n";
 ok( false === snt_morning_brief_enabled(), 'new mail surface defaults off' );
 $data = snt_morning_brief_collect();
-ok( 2 === $data['health']['findings'] && 1 === $data['health']['advisories'], 'collector reads cached health facts' );
+ok( 2 === $data['health']['findings'] && 4 === $data['health']['advisories'],
+	'#1190: collector counts advisories on the `worklist` surface (via $surface=null), not the health-only default' );
 ok( 2 === $data['cron']['total'] && 1 === $data['cron']['failed'], 'collector reads cron events and real history shape' );
 ok( 1 === $data['uptime']['up'] && 1 === $data['uptime']['attention'], 'collector summarizes uptime rows' );
 ok( 'available' === $data['deploy']['plugin']['state'], 'collector reads deploy status helper' );
@@ -130,6 +134,23 @@ $GLOBALS['__cron'][ SNT_MORNING_BRIEF_CRON_HOOK ] = array( 'timestamp' => $drift
 snt_morning_brief_maybe_schedule_cron();
 $re_anchored = ( new DateTimeImmutable( '@' . $GLOBALS['__cron'][ SNT_MORNING_BRIEF_CRON_HOOK ]['timestamp'] ) )->setTimezone( new DateTimeZone( 'America/New_York' ) )->format( 'H:i' );
 ok( '07:00' === $re_anchored, 'a DST-drifted firing (6:00 site time) is re-anchored to 7:00' );
+
+// #1190: if the mis-anchored occurrence already fired TODAY (LAST_SENT is
+// today, site time), re-anchoring must land on TOMORROW at 7:00 -- landing
+// back on today would send a second brief on the transition day.
+$GLOBALS['__options'][ SNT_MORNING_BRIEF_LAST_SENT ] =
+	( new DateTimeImmutable( '2026-08-17 06:00:00', new DateTimeZone( 'America/New_York' ) ) )->getTimestamp();
+$GLOBALS['__cron'][ SNT_MORNING_BRIEF_CRON_HOOK ] = array(
+	'timestamp'  => ( new DateTimeImmutable( '2026-08-17 06:00:00', new DateTimeZone( 'America/New_York' ) ) )->getTimestamp(),
+	'recurrence' => 'daily',
+);
+snt_morning_brief_maybe_schedule_cron();
+$re_anchored2 = ( new DateTimeImmutable( '@' . $GLOBALS['__cron'][ SNT_MORNING_BRIEF_CRON_HOOK ]['timestamp'] ) )
+	->setTimezone( new DateTimeZone( 'America/New_York' ) )->format( 'Y-m-d H:i' );
+ok( '2026-08-18 07:00' === $re_anchored2,
+	'#1190: already sent today -> re-anchor lands TOMORROW at 7:00, not a second send today' );
+unset( $GLOBALS['__options'][ SNT_MORNING_BRIEF_LAST_SENT ] );
+
 $GLOBALS['__settings']['operations.morning_brief_enabled'] = false;
 snt_morning_brief_maybe_schedule_cron();
 ok( false === wp_next_scheduled( SNT_MORNING_BRIEF_CRON_HOOK ), 'cron unschedules when disabled' );

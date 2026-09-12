@@ -150,7 +150,14 @@ function sn_health_check_color_drift() {
 		// Strip decimal (&#NNN;) and hex (&#xNN;) references before extraction;
 		// real inline hexes (style="color:#039") carry no leading &/trailing ;.
 		$content = (string) preg_replace( '/&#(?:x[0-9a-f]+|[0-9]+);/i', ' ', $content );
-		if ( ! preg_match_all( '/#(?:[0-9a-f]{6}|[0-9a-f]{3})\b/i', $content, $m ) ) {
+		// #1184: an in-page anchor (href="#add") looks exactly like a 3-digit
+		// hex, and a hex-looking token in prose (a commit SHA fragment "#580893",
+		// a GitHub issue "#123") is not a color either. Strip href="#…" links
+		// before extraction, and require a `:` or quote right before the `#` —
+		// the shape every real inline color (style="color:#e00404", bgcolor="#fff")
+		// actually has, which bare prose never does.
+		$content = (string) preg_replace( '/href\s*=\s*(["\'])#[^"\']*\1/i', '', $content );
+		if ( ! preg_match_all( '/(?<=[:"\'])#(?:[0-9a-f]{6}|[0-9a-f]{3})\b/i', $content, $m ) ) {
 			continue;
 		}
 		$offending = array();

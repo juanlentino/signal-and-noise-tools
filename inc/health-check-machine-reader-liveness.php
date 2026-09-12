@@ -68,13 +68,20 @@ function sn_health_check_machine_reader_liveness( $snap = null ) {
 	$yesterday = gmdate( 'Y-m-d', $captured - DAY_IN_SECONDS );
 	$window    = max( 2, (int) ( $snap['days'] ?? 30 ) );
 
-	// Baseline: every day in the window BEFORE yesterday, missing days as 0.
+	// Baseline: the mean over days that actually had hits, in the window
+	// before yesterday. A long-dead sensor fills the window with trailing
+	// zero days; averaging those IN drags the mean toward zero and hides the
+	// outage exactly when it is oldest (#1183). Zero days carry no signal
+	// about what "normal" looked like, so they are excluded, not counted as 0.
 	$sum = 0;
 	$n   = 0;
 	for ( $i = 2; $i <= $window; $i++ ) {
 		$day  = gmdate( 'Y-m-d', $captured - $i * DAY_IN_SECONDS );
-		$sum += max( 0, (int) ( $by_day[ $day ] ?? 0 ) );
-		$n++;
+		$hits = max( 0, (int) ( $by_day[ $day ] ?? 0 ) );
+		if ( $hits > 0 ) {
+			$sum += $hits;
+			$n++;
+		}
 	}
 	$mean = $n > 0 ? $sum / $n : 0;
 	if ( $mean < SN_HEALTH_MR_QUIET_FLOOR ) {

@@ -78,6 +78,15 @@ foreach ( $links as $l ) {
 	ok( 'example.test' === wp_parse_url( $l, PHP_URL_HOST ), "extracted link is same-host: $l" );
 }
 
+// #1188: Gutenberg stores href HTML-escaped; a same-host link with a real
+// query-string & must be decoded, or the probe requests a literal "amp;lang".
+$escaped_links = sn_health_extract_internal_links(
+	'<a href="https://example.test/page?a=1&amp;lang=en">x</a>',
+	'example.test'
+);
+ok( in_array( 'https://example.test/page?a=1&lang=en', $escaped_links, true ),
+	'#1188: &amp; in a same-host stored href is decoded to & before probing' );
+
 echo "\nGroup: the prober enforces same-host itself (defense-in-depth at the boundary)\n";
 $GLOBALS['__requested'] = array();
 $res = sn_health_link_status( 'https://evil.test/anything' );

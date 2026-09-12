@@ -63,8 +63,8 @@ function sn_health_attachment_is_referenced( $id, $guid, $featured, $chrome ) {
 	// Block-inserted images carry class="wp-image-<id>" regardless of the rendered
 	// size — the single most reliable signal on a modern block/FSE site.
 	$block_ref = (int) $wpdb->get_var( $wpdb->prepare(
-		"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_status != 'trash' AND post_content LIKE %s LIMIT 1",
-		'%' . $wpdb->esc_like( 'wp-image-' . $id ) . '%'
+		"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_status != 'trash' AND post_content REGEXP %s LIMIT 1",
+		'wp-image-' . $id . '([^0-9]|$)'
 	) );
 	if ( $block_ref > 0 ) {
 		return true;
@@ -98,9 +98,13 @@ function sn_health_attachment_is_referenced( $id, $guid, $featured, $chrome ) {
 		if ( $in_body > 0 ) {
 			return true;
 		}
-		// ...or in post meta (OG-image, custom-field / ACF image references).
+		// ...or in ANOTHER post's meta (OG-image, custom-field / ACF image
+		// references). Excludes the attachment's OWN row: `_wp_attached_file`
+		// and `_wp_attachment_metadata` on post_id = $id already contain this
+		// exact basename, which would otherwise self-match every attachment.
 		$in_meta = (int) $wpdb->get_var( $wpdb->prepare(
-			"SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE meta_value LIKE %s LIMIT 1",
+			"SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE post_id <> %d AND meta_value LIKE %s LIMIT 1",
+			$id,
 			$like
 		) );
 		if ( $in_meta > 0 ) {

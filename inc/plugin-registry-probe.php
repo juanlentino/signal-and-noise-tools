@@ -70,6 +70,15 @@ function snt_plugin_registry_probe( $response, $handler, $request ) {
 		return $response;
 	}
 
+	// #1186: `?status=inactive` on a site with every plugin active, or
+	// `?search=<no match>`, legitimately returns [] -- that is a filtered
+	// result, not a poisoned cache. Step aside rather than record it.
+	if ( method_exists( $request, 'get_param' ) ) {
+		if ( '' !== (string) $request->get_param( 'search' ) || '' !== (string) $request->get_param( 'status' ) ) {
+			return $response;
+		}
+	}
+
 	// An empty collection is only wrong if WordPress is running plugins.
 	$active = get_option( 'active_plugins' );
 	if ( ! is_array( $active ) || array() === $active ) {

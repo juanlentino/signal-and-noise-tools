@@ -267,7 +267,10 @@ class SN_Test_Wpdb_Scan {
 	public function prepare( $sql, ...$args ) {
 		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }
 		foreach ( $args as $a ) {
-			$sql = preg_replace( '/%s/', "'" . str_replace( "'", "''", (string) $a ) . "'", $sql, 1 );
+			// Placeholders are consumed in the order they appear, %d or %s alike
+			// (mirrors $wpdb->prepare()) — needed since #1182's postmeta query is
+			// `post_id <> %d AND meta_value LIKE %s`.
+			$sql = preg_replace( '/%[ds]/', is_int( $a ) ? (string) (int) $a : "'" . str_replace( "'", "''", (string) $a ) . "'", $sql, 1 );
 		}
 		return str_replace( '%%', '%', $sql );
 	}
@@ -308,7 +311,32 @@ class SN_Test_Wpdb_Scan {
 				return $a['post_date_gmt'] < $cutoff;
 			} ) );
 		}
-		// A referenced-check substring-existence query (block_ref/in_body/in_meta).
+		// block_ref query (#1182): `post_content REGEXP '<pattern>'` — no quotes
+		// to strip, the pattern is inlined by prepare() as a bare string.
+		if ( false !== stripos( $sql, 'REGEXP' ) ) {
+			preg_match( "/REGEXP\\s+'([^']*)'/", $sql, $m );
+			$pattern = $m[1] ?? '';
+			if ( '' === $pattern ) { return 0; }
+			foreach ( $GLOBALS['__post_bodies'] as $hay ) {
+				if ( 1 === preg_match( '/' . $pattern . '/', (string) $hay ) ) { return 1; }
+			}
+			return 0;
+		}
+		// in_meta query (#1182): `post_id <> <id> AND meta_value LIKE '%needle%'`
+		// excludes the attachment's OWN postmeta row from the match.
+		if ( false !== strpos( $sql, 'post_id <>' ) ) {
+			preg_match( '/post_id <> (\d+)/', $sql, $pm );
+			$excluded_id = isset( $pm[1] ) ? (int) $pm[1] : 0;
+			$needle      = trim( $this->last_quoted( $sql ), '%' );
+			if ( '' === $needle ) { return 0; }
+			$rows = $GLOBALS['__meta_rows'] ?? array();
+			foreach ( $rows as $row ) {
+				if ( (int) $row['post_id'] === $excluded_id ) { continue; }
+				if ( false !== strpos( (string) $row['value'], $needle ) ) { return 1; }
+			}
+			return 0;
+		}
+		// A referenced-check substring-existence query (in_body).
 		$needle = trim( $this->last_quoted( $sql ), '%' );
 		if ( '' === $needle ) { return 0; }
 		$corpus = ( false !== strpos( $sql, 'postmeta' ) ) ? $GLOBALS['__meta_values'] : $GLOBALS['__post_bodies'];

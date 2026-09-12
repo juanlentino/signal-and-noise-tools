@@ -67,7 +67,11 @@ function sn_health_extract_external_links( $content, $site_host ) {
 	$out = array();
 	if ( preg_match_all( '/<a\b[^>]*\bhref\s*=\s*["\']([^"\']+)["\']/i', $content, $m ) ) {
 		foreach ( $m[1] as $href ) {
-			$href = trim( $href );
+			// #1188: Gutenberg stores href HTML-escaped ("&amp;" for "&"), so a
+			// query string like `?a=1&amp;lang=en` was probed VERBATIM -- the
+			// server sees a literal `amp;lang` param, not `lang`, and a page
+			// that requires it 404s. Decode before anything else touches it.
+			$href = trim( html_entity_decode( $href, ENT_QUOTES ) );
 			if ( '' === $href || '#' === $href[0] || '/' === $href[0] ) {
 				continue; // empty, anchor, or root-relative (internal by definition)
 			}
