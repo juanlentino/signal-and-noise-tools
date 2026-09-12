@@ -71,9 +71,10 @@ must pass untouched — that is the negative assertion in
 - reads `rest_get_authenticated_app_password()` and treats a null as "the
   owner" rather than "no application password".
 
-A Cloudflare WAF rule ("Block Basic-auth on abilities API") was previously
-described here as refusing `Authorization`-bearing requests to `/wp-abilities/`
-at the edge. **It does not exist** — the health check
-`inc/health-check-cf-security-headers.php` probes for it, and on 2026-09-12
-measured the route open through the edge. Assume no edge control on this route:
-the in-plugin guard above is the only one, as it always has been.
+A Cloudflare WAF rule ("Block Basic-auth on abilities API") also targets
+`Authorization`-bearing requests to `/wp-abilities/` at the edge. It lives in
+the dashboard, not in this repo; it is confirmed present and Active, but its
+effect has never been measured from outside the origin — the health check
+`inc/health-check-cf-security-headers.php` probes it from the origin server,
+where the reading cannot separate "rule inert" from "prober exempt". Do not
+credit it as the control — the in-plugin guard above is.

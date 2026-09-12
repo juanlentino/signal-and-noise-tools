@@ -40,7 +40,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function sn_health_check_cf_security_headers() {
 	$label    = 'Cloudflare security headers';
-	$fix_hint = 'These 5 headers are delivered at the Cloudflare edge (Transform Rule / Managed Headers), not by WordPress, and the abilities Basic-auth block is a WAF custom rule. A missing header or an open abilities route means that edge rule is not in force — dropped, disabled, or never created: verify it in the Cloudflare dashboard.';
+	$fix_hint = 'These 5 headers are delivered at the Cloudflare edge (Transform Rule / Managed Headers), not by WordPress, and the abilities Basic-auth block is a WAF custom rule. A missing header means that Transform Rule is not in force. The abilities probe is weaker: it runs from this server, so it can say the route was not refused from here but cannot prove the WAF rule is absent. Verify both in the Cloudflare dashboard.';
 
 	// Allow the whole check to be filtered off (e.g., non-Cloudflare hosting).
 	if ( ! apply_filters( 'sn_health_cf_header_check_enabled', true ) ) {
@@ -138,16 +138,23 @@ function sn_health_check_cf_security_headers() {
 		set_transient( $cache_key, $missing, SN_HEALTH_CF_HEADERS_TTL );
 	}
 
-	// The WAF probe rides the same check. It was written as a drift probe
-	// ("is the edge rule still there?") for a rule the enforcement audit
-	// (2026-09-11) recorded as the ONLY thing in front of the abilities run
-	// route for an external caller. Its FIRST run, 2026-09-12, measured the
-	// route open, and the owner confirmed the rule was never created: the
-	// audit's premise came from memory, not from a measurement, and the
-	// in-plugin guard has always been the sole control. The probe therefore
-	// answers "is the edge rule in force?", which is the question that was
-	// wanted all along. Own cache key, same TTL; an indeterminate probe is
+	// The WAF probe rides the same check: the same question ("is the edge
+	// rule in force?") about a rule the enforcement audit (2026-09-11)
+	// recorded as the ONLY thing in front of the abilities run route for an
+	// external caller. Own cache key, same TTL; an indeterminate probe is
 	// never cached.
+	//
+	// KNOWN UNSOUND AS OF 2026-09-12 — this probe reports 'open' against a
+	// rule that is dashboard-confirmed present, Active, and correctly
+	// expressed. The reason is not established. The request originates from
+	// the ORIGIN SERVER (wp_remote_get on home_url), and `cf-ray` on the
+	// response proves only that the response traversed Cloudflare, NOT that
+	// the WAF custom-rule phase judged the request — an IP Access Rule or
+	// WAF exception covering the origin's own address would produce exactly
+	// this reading. So 'open' currently cannot separate "the rule is inert"
+	// from "the prober is exempt", and it must NOT be read as the former.
+	// Settling it needs a request from a host that is not the origin.
+	// See the finding note, which says only what is actually known.
 	$waf_key = 'sn_health_cf_waf_abilities_probe';
 	$waf     = get_transient( $waf_key );
 	if ( ! is_string( $waf ) || '' === $waf ) {
@@ -177,7 +184,7 @@ function sn_health_check_cf_security_headers() {
 			'subject_url'   => home_url( '/wp-json/wp-abilities/v1/abilities' ),
 			'subject_label' => 'waf: Block Basic-auth on abilities API',
 			'edit_url'      => '',
-			'note'          => 'The edge did not refuse an Authorization-bearing request to /wp-abilities/. The WAF custom rule "Block Basic-auth on abilities API" is not in force — absent, disabled, or never created. The in-plugin guard (sn_mcp_rw_guard_run_route) still holds; there is no edge layer behind it.',
+			'note'          => 'The edge did not refuse an Authorization-bearing request to /wp-abilities/ sent FROM THIS SERVER. That is not proof the WAF rule is gone: this probe runs on the origin, and a request from the origin may never be judged by the zone\'s custom rules at all. Treat it as "unverified from here", not as "the rule is missing" — check the rule in the Cloudflare dashboard, and confirm its effect with a request from another host. The in-plugin guard (sn_mcp_rw_guard_run_route) holds this route either way.',
 		);
 	}
 
