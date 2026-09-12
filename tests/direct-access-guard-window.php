@@ -94,8 +94,10 @@ foreach ( array( 'apps', 'inc' ) as $dir ) {
 	$it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/' . $dir, FilesystemIterator::SKIP_DOTS ) );
 	foreach ( $it as $file ) {
 		$path = (string) $file;
-		// Another session's worktree under .claude/ is not this tree.
-		if ( 'php' !== pathinfo( $path, PATHINFO_EXTENSION ) || false !== strpos( $path, '/.claude/' ) ) {
+		// Another session's worktree under .claude/ is not this tree — but this
+		// tree may itself sit under .claude/worktrees/, so test the path relative
+		// to $root, not the absolute one (0 files held to the window, 2026-09-11).
+		if ( 'php' !== pathinfo( $path, PATHINFO_EXTENSION ) || false !== strpos( substr( $path, strlen( $root ) ), '/.claude/' ) ) {
 			continue;
 		}
 		$files[] = $path;
