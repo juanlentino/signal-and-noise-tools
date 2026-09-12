@@ -33,7 +33,12 @@ function snt_morning_brief_collect() {
 			$data['health'] = array(
 				'scanned_at' => (int) ( $scan['scanned_at'] ?? 0 ),
 				'findings'   => function_exists( 'sn_health_finding_total' ) ? sn_health_finding_total( $scan ) : 0,
-				'advisories' => function_exists( 'sn_health_advisory_total' ) ? sn_health_advisory_total( $scan ) : 0,
+				// #1190: all four advisory keys live on the `worklist` surface
+				// (inc/health-check-surfaces.php); the default $surface = 'health'
+				// counts none of them, so this was structurally 0 forever.
+				// NULL counts every surface, matching what an agent-facing
+				// readout means by "how many advisories".
+				'advisories' => function_exists( 'sn_health_advisory_total' ) ? sn_health_advisory_total( $scan, null ) : 0,
 				'checks'     => function_exists( 'sn_health_check_total' ) ? sn_health_check_total( $scan ) : count( (array) ( $scan['checks'] ?? array() ) ),
 			);
 		}
@@ -115,7 +120,12 @@ function snt_morning_brief_compose( $data ) {
 	$h = is_array( $data['health'] ?? null ) ? $data['health'] : null;
 		$advisory_note = 1 === (int) ( $h['advisories'] ?? 0 ) ? ', with one advisory noted' : sprintf( ', with %d advisories noted', (int) ( $h['advisories'] ?? 0 ) );
 		$sentences[] = null === $h ? 'No cached health scan is available yet.' : ( (int) $h['findings'] > 0
-		? sprintf( 'The latest health scan found %d fault-tier issues across %d checks, with %d additional advisories.', $h['findings'], $h['checks'], $h['advisories'] )
+		? sprintf(
+			'The latest health scan found %d fault-tier issues across %d checks%s.',
+			$h['findings'],
+			$h['checks'],
+			(int) $h['advisories'] > 0 ? sprintf( ', with %d additional advisories', $h['advisories'] ) : ''
+		)
 		: sprintf( 'The latest health scan found no fault-tier issues across %d checks%s.', $h['checks'], (int) $h['advisories'] > 0 ? $advisory_note : '' ) );
 	$c = is_array( $data['cron'] ?? null ) ? $data['cron'] : null;
 	$sentences[] = null === $c ? 'Cron state is unavailable.' : sprintf( 'WordPress has %d scheduled events, %d owned by Signal & Noise; %d have no handler, and %d of the %d recent owned firings checked here failed.', $c['total'], $c['owned'], $c['orphans'], $c['failed'], $c['history'] );
@@ -213,9 +223,25 @@ function snt_morning_brief_send( $test = false ) {
 }
 
 function snt_morning_brief_next_run() {
-	$now = function_exists( 'current_datetime' ) ? current_datetime() : new DateTimeImmutable( 'now', function_exists( 'wp_timezone' ) ? wp_timezone() : new DateTimeZone( 'UTC' ) );
+	$tz   = function_exists( 'wp_timezone' ) ? wp_timezone() : new DateTimeZone( 'UTC' );
+	$now  = function_exists( 'current_datetime' ) ? current_datetime() : new DateTimeImmutable( 'now', $tz );
 	$next = $now->setTime( 7, 0 );
-	return ( $next <= $now ? $next->modify( '+1 day' ) : $next )->getTimestamp();
+	if ( $next <= $now ) {
+		$next = $next->modify( '+1 day' );
+	}
+	// #1190: a DST re-anchor (snt_morning_brief_maybe_schedule_cron) can call
+	// this mid-transition-day, AFTER the mis-anchored occurrence has already
+	// fired and sent today's brief. Landing back on "today at 7:00" here would
+	// schedule a SECOND send for the same day. If one already went out today,
+	// anchor to tomorrow instead.
+	$last_sent = (int) get_option( SNT_MORNING_BRIEF_LAST_SENT, 0 );
+	if ( $last_sent > 0 ) {
+		$last_sent_date = ( new DateTimeImmutable( '@' . $last_sent ) )->setTimezone( $tz )->format( 'Y-m-d' );
+		if ( $next->format( 'Y-m-d' ) === $last_sent_date ) {
+			$next = $next->modify( '+1 day' );
+		}
+	}
+	return $next->getTimestamp();
 }
 function snt_morning_brief_maybe_schedule_cron() {
 	$scheduled = wp_next_scheduled( SNT_MORNING_BRIEF_CRON_HOOK );
