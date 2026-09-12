@@ -65,6 +65,10 @@ $views_anom = array_values( array_filter( $sig, static function ( $s ) { return 
 ok( count( $views_anom ) === 1 && 'up' === $views_anom[0]['direction'], 'anomaly: catches the views spike, direction up' );
 ok( 'predictive' === $views_anom[0]['tier'] && 'anomaly' === $views_anom[0]['kind'], 'anomaly: tier/kind set' );
 ok( '' !== $views_anom[0]['plain_label'], 'anomaly: carries a plain_label' );
+// #1205 -- the sigma sat in a single-quoted sprintf format, so the label read "2.3\u{3c3}-robust" literally.
+$of = sn_analytics_anomaly_of( 'uptime', 'uptime', $series, '2026-06-14', '2026-06-20' );
+ok( 1 === count( $of ) && false !== strpos( $of[0]['plain_label'], "\u{3c3}-robust, median" ) && false === strpos( $of[0]['plain_label'], '\\u{' ), 'anomaly_of: the label prints the sigma character, not the escape (#1205)' );
+ok( false !== strpos( sn_analytics_trajectory_magnitude( 1.5 ), "\u{d7} the typical level" ) && false === strpos( sn_analytics_trajectory_magnitude( 1.5 ), '\\u{' ), 'trajectory magnitude prints the times character, not the escape (#1205)' );
 // Flat series → no anomaly (MAD 0 → skipped, no fake precision).
 $flat = array(); for ( $i = 0; $i < 20; $i++ ) { $flat[] = array( 'day' => sprintf( '2026-06-%02d', $i + 1 ), 'views' => 10, 'visits' => 10 ); }
 $GLOBALS['__daily'] = $flat;

@@ -223,7 +223,7 @@ function sn_analytics_anomaly_of( $subject, $label, $series, $from, $to, $opts =
 			'confidence'    => $conf,
 			'window'        => array( 'from' => (string) $from, 'to' => (string) $to, 'baseline_days' => count( $rows ) ),
 			'plain_label'   => sprintf(
-				'%s ran %s its %d-day norm on %s (%.1f\u{3c3}-robust, median %.0f)',
+				"%s ran %s its %d-day norm on %s (%.1f\u{3c3}-robust, median %.0f)",
 				(string) $label, $z > 0 ? 'above' : 'below', count( $rows ), $day, abs( $z ), $median
 			),
 			'severity'      => ( 'high' === $conf ) ? 3 : 2,
@@ -255,7 +255,7 @@ function sn_analytics_trajectory_magnitude( $rel ) {
 	if ( abs( $rel ) < 1.0 ) {
 		return sprintf( '%+.0f%%', $rel * 100 );
 	}
-	return sprintf( '%+.1f\u{d7} the typical level', $rel );
+	return sprintf( "%+.1f\u{d7} the typical level", $rel );
 }
 
 /** Classify one subject's daily-views series into a trajectory signal, or null if too short. */
