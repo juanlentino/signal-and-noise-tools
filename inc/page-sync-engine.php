@@ -148,12 +148,12 @@ function sn_now_upsert_page( $body ) {
 		if ( '' === trim( (string) $page->post_excerpt ) ) {
 			$update['post_excerpt'] = $excerpt;
 		}
-		wp_update_post( $update );
+		wp_update_post( wp_slash( $update ) );
 		return (int) $page->ID;
 	}
 
 	$new_id = wp_insert_post(
-		array(
+		wp_slash( array(
 			'post_title'    => 'Now',
 			'post_name'     => SN_NOW_SLUG,
 			'post_parent'   => 0,
@@ -162,7 +162,7 @@ function sn_now_upsert_page( $body ) {
 			'post_content'  => $body,
 			'post_excerpt'  => $excerpt,
 			'page_template' => 'page-now',
-		),
+		) ),
 		false
 	);
 
@@ -291,7 +291,7 @@ function sn_uses_upsert_page( $body ) {
 		if ( '' === trim( (string) $page->post_excerpt ) ) {
 			$update['post_excerpt'] = $excerpt;
 		}
-		wp_update_post( $update );
+		wp_update_post( wp_slash( $update ) );
 		return (int) $page->ID;
 	}
 
@@ -301,7 +301,7 @@ function sn_uses_upsert_page( $body ) {
 	}
 
 	$new_id = wp_insert_post(
-		array(
+		wp_slash( array(
 			'post_title'    => 'Uses',
 			'post_name'     => SN_USES_SLUG,
 			'post_parent'   => (int) $parent->ID,
@@ -310,7 +310,7 @@ function sn_uses_upsert_page( $body ) {
 			'post_content'  => $body,
 			'post_excerpt'  => $excerpt,
 			'page_template' => 'page-uses',
-		),
+		) ),
 		false
 	);
 

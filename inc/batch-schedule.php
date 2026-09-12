@@ -180,11 +180,11 @@ function snt_batch_schedule_handle( $redirect, $action, $post_ids ) {
 		// post_date is SITE time, post_date_gmt is GMT — passing both keeps
 		// core from re-deriving one from the other and drifting by the offset.
 		$res = wp_update_post(
-			array(
+			wp_slash( array(
 				'ID'            => (int) $id,
 				'post_date'     => get_date_from_gmt( $gmt ),
 				'post_date_gmt' => $gmt,
-			),
+			) ),
 			true
 		);
 		if ( ! is_wp_error( $res ) ) {

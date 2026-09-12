@@ -62,6 +62,8 @@ function current_user_can( $cap, $id = 0 ) { return $GLOBALS['__can_edit']; }
 
 $GLOBALS['__updated'] = null;   // captured wp_update_post payload
 $GLOBALS['__update_result'] = 1;
+// #1177: the writer now hands core wp_slash()ed data; the stub keeps the value as-is so the assertions below read what was sent.
+if ( ! function_exists( 'wp_slash' ) ) { function wp_slash( $v ) { return $v; } }
 function wp_update_post( $arr, $wp_error = false ) {
 	$GLOBALS['__updated'] = $arr;
 	return $GLOBALS['__update_result'];

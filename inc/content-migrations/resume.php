@@ -101,6 +101,6 @@ function sn_migrate_resume_body() {
 		$update['post_excerpt'] = '20+ years building studios, developing artists, and scaling creative businesses across the U.S. and Latin America: production, strategy, and mentorship. GRAMMY and Latin GRAMMY voting member.';
 	}
 
-	wp_update_post( $update );
+	wp_update_post( wp_slash( $update ) );
 	update_option( SN_RESUME_BODY_MERGED_OPT, time(), true );
 }

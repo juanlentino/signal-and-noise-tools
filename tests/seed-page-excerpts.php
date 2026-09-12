@@ -63,6 +63,8 @@ if ( ! function_exists( 'get_page_by_path' ) ) {
 	function get_page_by_path( $path, $output = OBJECT, $post_type = 'page' ) {
 		return $GLOBALS['__spe_pages'][ $path ] ?? null; }
 }
+// #1177: the writer now hands core wp_slash()ed data; the stub keeps the value as-is so the assertions below read what was sent.
+if ( ! function_exists( 'wp_slash' ) ) { function wp_slash( $v ) { return $v; } }
 if ( ! function_exists( 'wp_insert_post' ) ) {
 	function wp_insert_post( $args = array(), $wp_error = false ) {
 		++$GLOBALS['__spe_inserts'];

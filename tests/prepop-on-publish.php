@@ -49,6 +49,8 @@ if ( ! class_exists( 'WP_Error' ) ) {
 	class WP_Error { public $code; public function __construct( $code = '', $m = '', $d = array() ) { $this->code = $code; } }
 }
 if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $t ) { return $t instanceof WP_Error; } }
+// #1177: the writer now hands core wp_slash()ed data; the stub keeps the value as-is so the assertions below read what was sent.
+if ( ! function_exists( 'wp_slash' ) ) { function wp_slash( $v ) { return $v; } }
 if ( ! function_exists( 'wp_update_post' ) ) {
 	function wp_update_post( $arr, $wp_error = false ) {
 		if ( ! empty( $GLOBALS['__wp_update_fails'] ) ) { return $wp_error ? new WP_Error( 'fail' ) : 0; }

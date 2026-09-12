@@ -86,10 +86,10 @@ function sn_migrate_over_detection_eyebrow_dynamic() {
 		return;
 	}
 
-	wp_update_post( array(
+	wp_update_post( wp_slash( array(
 		'ID'           => $page->ID,
 		'post_content' => $new,
-	) );
+	) ) );
 
 	update_option( SN_OD_EYEBROW_DYN_OPT, time(), true );
 }

@@ -168,6 +168,8 @@ if ( ! function_exists( 'serialize_block' ) ) { function serialize_block( $block
 if ( ! function_exists( 'serialize_blocks' ) ) { function serialize_blocks( $tree ) { return json_encode( $tree ); } }
 if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $html ) { return $html; } }
 if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $cap, $post_id = null ) { return true; } }
+// #1177: the writer now hands core wp_slash()ed data; the stub keeps the value as-is so the assertions below read what was sent.
+if ( ! function_exists( 'wp_slash' ) ) { function wp_slash( $v ) { return $v; } }
 if ( ! function_exists( 'wp_update_post' ) ) {
 	function wp_update_post( $args, $wp_error = false ) {
 		$id = (int) ( $args['ID'] ?? 0 );

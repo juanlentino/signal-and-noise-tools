@@ -23,6 +23,8 @@ function update_option( $k, $v, $autoload = null ) { $GLOBALS['__options'][ $k ]
 $GLOBALS['__pages']   = array(); // path => WP_Post-ish object
 $GLOBALS['__updates'] = array();
 function get_page_by_path( $path ) { return $GLOBALS['__pages'][ $path ] ?? null; }
+// #1177: the writer now hands core wp_slash()ed data; the stub keeps the value as-is so the assertions below read what was sent.
+if ( ! function_exists( 'wp_slash' ) ) { function wp_slash( $v ) { return $v; } }
 function wp_update_post( $arr ) { $GLOBALS['__updates'][] = $arr; return $arr['ID'] ?? 0; }
 function add_action( $hook, $cb ) {}
 

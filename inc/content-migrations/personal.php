@@ -75,7 +75,7 @@ function sn_migrate_personal_page() {
 		if ( '' === trim( (string) $page->post_excerpt ) ) {
 			$update['post_excerpt'] = $excerpt;
 		}
-		wp_update_post( $update );
+		wp_update_post( wp_slash( $update ) );
 		update_option( SN_PERSONAL_PAGE_MIGRATED_OPT, time(), true );
 		return;
 	}
@@ -86,7 +86,7 @@ function sn_migrate_personal_page() {
 	}
 
 	wp_insert_post(
-		array(
+		wp_slash( array(
 			'post_title'    => 'Personal',
 			'post_name'     => SN_PERSONAL_SLUG,
 			'post_parent'   => (int) $parent->ID,
@@ -95,7 +95,7 @@ function sn_migrate_personal_page() {
 			'post_content'  => $body,
 			'post_excerpt'  => $excerpt,
 			'page_template' => 'page-personal',
-		),
+		) ),
 		false
 	);
 

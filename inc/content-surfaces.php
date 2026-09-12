@@ -136,7 +136,7 @@ function sn_ensure_notes_page() {
 		return (int) $existing->ID;
 	}
 
-	return wp_insert_post( array(
+	return wp_insert_post( wp_slash( array(
 		'post_title'    => 'Notes',
 		'post_name'     => SN_NOTES_PAGE_SLUG,
 		'post_status'   => 'publish',
@@ -144,7 +144,7 @@ function sn_ensure_notes_page() {
 		'post_content'  => '',
 		'post_excerpt'  => sn_seed_page_excerpts()[ SN_NOTES_PAGE_SLUG ],
 		'page_template' => 'page-notes',
-	), false );
+	) ), false );
 }
 
 /**
@@ -163,7 +163,7 @@ function sn_ensure_provenance_page() {
 		return (int) $existing->ID;
 	}
 
-	return wp_insert_post( array(
+	return wp_insert_post( wp_slash( array(
 		'post_title'    => 'On Provenance',
 		'post_name'     => SN_PROVENANCE_SLUG,
 		'post_status'   => 'publish',
@@ -171,7 +171,7 @@ function sn_ensure_provenance_page() {
 		'post_content'  => sn_load_provenance_body(),
 		'post_excerpt'  => sn_seed_page_excerpts()[ SN_PROVENANCE_SLUG ],
 		'page_template' => 'page-provenance',
-	), false );
+	) ), false );
 }
 
 /**
@@ -191,7 +191,7 @@ function sn_ensure_over_detection_page() {
 		return (int) $existing->ID;
 	}
 
-	return wp_insert_post( array(
+	return wp_insert_post( wp_slash( array(
 		'post_title'    => 'Provenance Over Detection',
 		'post_name'     => SN_OVER_DETECTION_SLUG,
 		'post_parent'   => $parent_id,
@@ -200,7 +200,7 @@ function sn_ensure_over_detection_page() {
 		'post_content'  => sn_load_over_detection_body(),
 		'post_excerpt'  => sn_seed_page_excerpts()[ SN_PROVENANCE_SLUG . '/' . SN_OVER_DETECTION_SLUG ],
 		'page_template' => 'page-provenance',
-	), false );
+	) ), false );
 }
 
 /**
@@ -218,7 +218,7 @@ function sn_ensure_as_substrate_page() {
 		return (int) $existing->ID;
 	}
 
-	return wp_insert_post( array(
+	return wp_insert_post( wp_slash( array(
 		'post_title'    => 'Provenance as Substrate',
 		'post_name'     => SN_AS_SUBSTRATE_SLUG,
 		'post_parent'   => $parent_id,
@@ -227,7 +227,7 @@ function sn_ensure_as_substrate_page() {
 		'post_content'  => sn_load_as_substrate_body(),
 		'post_excerpt'  => sn_seed_page_excerpts()[ SN_PROVENANCE_SLUG . '/' . SN_AS_SUBSTRATE_SLUG ],
 		'page_template' => 'page-provenance',
-	), false );
+	) ), false );
 }
 
 /**
@@ -252,7 +252,7 @@ function sn_ensure_verify_page() {
 		return (int) $existing->ID;
 	}
 
-	return wp_insert_post( array(
+	return wp_insert_post( wp_slash( array(
 		'post_title'    => 'Verify a Note',
 		'post_name'     => SN_VERIFY_SLUG,
 		'post_parent'   => $parent_id,
@@ -261,7 +261,7 @@ function sn_ensure_verify_page() {
 		'post_content'  => sn_load_verify_body(),
 		'post_excerpt'  => sn_seed_page_excerpts()[ SN_PROVENANCE_SLUG . '/' . SN_VERIFY_SLUG ],
 		'page_template' => 'page-provenance',
-	), false );
+	) ), false );
 }
 
 /**

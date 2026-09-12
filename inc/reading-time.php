@@ -306,14 +306,14 @@ function sn_apply_legacy_reading_time_cleanup() {
 			$new = preg_replace( SN_READING_TIME_LEGACY_REGEX, '', $post->post_content );
 			$new = preg_replace( '#<(p|span|small|em|strong|i|b)[^>]*>\s*</\1>#i', '', $new );
 			if ( $new !== $post->post_content ) {
-				wp_update_post( array( 'ID' => $post_id, 'post_content' => $new ) );
+				wp_update_post( wp_slash( array( 'ID' => $post_id, 'post_content' => $new ) ) );
 				$changed = true;
 			}
 		}
 		if ( $entry['excerpt'] ) {
 			$new = preg_replace( SN_READING_TIME_LEGACY_REGEX, '', $post->post_excerpt );
 			if ( $new !== $post->post_excerpt ) {
-				wp_update_post( array( 'ID' => $post_id, 'post_excerpt' => $new ) );
+				wp_update_post( wp_slash( array( 'ID' => $post_id, 'post_excerpt' => $new ) ) );
 				$changed = true;
 			}
 		}

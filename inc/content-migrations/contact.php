@@ -76,6 +76,6 @@ function sn_migrate_contact_body() {
 		$update['post_excerpt'] = 'How to reach Juan Lentino: remote mixing, mastering, and songwriting, or in-studio production at Panacea in Buenos Aires. Direct, no forms, no noise.';
 	}
 
-	wp_update_post( $update );
+	wp_update_post( wp_slash( $update ) );
 	update_option( SN_CONTACT_BODY_MIGRATED_OPT, time(), true );
 }

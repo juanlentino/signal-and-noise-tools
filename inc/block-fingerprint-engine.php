@@ -275,10 +275,10 @@ function snt_block_fp_apply( $args ) {
 	if ( is_callable( $write_callback ) ) {
 		$result = call_user_func( $write_callback, $post_id, $new_content );
 	} else {
-		$result = wp_update_post( array(
+		$result = wp_update_post( wp_slash( array(
 			'ID'           => $post_id,
 			'post_content' => $new_content,
-		), true );
+		) ), true );
 	}
 
 	if ( is_wp_error( $result ) ) {
