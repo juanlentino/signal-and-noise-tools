@@ -187,6 +187,7 @@ class SNB_Ability {
 		// remote timeout, a TypeError inside a callback — and the handler's
 		// cleanup has to survive it. See the throw group at the bottom.
 		if ( ! empty( $GLOBALS['__throw'] ) ) { throw new RuntimeException( 'the ability exploded' ); }
+		if ( ! empty( $GLOBALS['__refuse'] ) ) { return new WP_Error( 'sn_refused', 'the ability refused', array( 'status' => 403 ) ); }
 		return array( 'ran' => $this->slug );
 	}
 }
@@ -411,6 +412,15 @@ ok( array( array( 'dispatched', $REMOTE ) ) === $GLOBALS['__recorded'], 'a dispa
 $GLOBALS['__recorded'] = array();
 sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => $REMOTE ) ) );
 ok( array( array( 'refused_auth', $REMOTE ) ) === $GLOBALS['__recorded'], 'an anonymous call records refused_auth' );
+
+// #1213: a call the ability itself refuses (schema, permission) is not a use.
+// Recording it as dispatched advanced last_used and the daily count on the
+// admin card for a call that did nothing.
+$GLOBALS['__recorded'] = array();
+$GLOBALS['__refuse']   = true;
+$refused_out           = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE ) ) );
+$GLOBALS['__refuse']   = false;
+ok( is_wp_error( $refused_out ) && array( array( 'refused_request', $REMOTE ) ) === $GLOBALS['__recorded'], 'a WP_Error from execute() records refused_request with the slug, not dispatched' );
 
 $GLOBALS['__recorded'] = array();
 sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => 'signal-noise/get-post-content' ) ) );

@@ -134,6 +134,9 @@ $prior = new WP_Error( 'someone_elses_refusal', 'x', array( 'status' => 401 ) );
 ok( $prior === sn_mcp_remote_guard_run_route( $prior, null, new RemoteG_Req( $remote_route ) ), 'a non-null prior result passes through untouched — the guard never overrides another answer' );
 
 ok( null === sn_mcp_remote_guard_run_route( null, null, new RemoteG_Req( '/wp/v2/posts' ) ), 'an unrelated REST route is not a run route and is untouched' );
+$GLOBALS['__options'] = array();
+$denied_cased         = sn_mcp_remote_guard_run_route( null, null, new RemoteG_Req( '/WP-Abilities/V1/Abilities/' . $REMOTE . '/Run' ) );
+ok( is_wp_error( $denied_cased ) && 'sn_mcp_remote_disabled' === $denied_cased->get_error_code(), 'switch engaged -> a differently cased remote run route is refused the same way (core routes case-insensitively)' );
 
 echo "Group: the wp-config constant wins over an enabled option, LIVE and not only in the predicate\n";
 // Defined last, because define() cannot be undone: every assertion after this

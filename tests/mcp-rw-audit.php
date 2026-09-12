@@ -236,6 +236,7 @@ $r = sn_mcp_rw_notify_maybe_send( array( 'slug' => 'x', 'outcome' => 'ok', 'args
 ok( false === $r && array() === $GLOBALS['__mails_sent'], 'missing admin_email -> no send, no crash' );
 $last_err = get_option( SN_MCP_RW_NOTIFY_LAST_ERROR_OPTION );
 ok( is_array( $last_err ) && false !== strpos( $last_err['message'], 'admin_email' ), 'missing admin_email is recorded to the durable last-error option' );
+ok( (int) get_option( SN_MCP_RW_NOTIFY_LAST_SENT_OPTION ) > 0, 'and the attempt advances the last-sent stamp, so an invalid address is not retried on every rw call (#1214)' );
 
 update_option( SN_MCP_RW_NOTIFY_LAST_SENT_OPTION, 0, false );
 $GLOBALS['__opts']['admin_email'] = 'owner@example.com';

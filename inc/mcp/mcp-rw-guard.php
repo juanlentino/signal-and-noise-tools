@@ -365,24 +365,31 @@ function sn_mcp_rw_rate_limit_store_set( $key, $count, $ttl_seconds ) {
 /**
  * Check-and-increment for one identity: reads the current count, applies the
  * pure decision, and — ONLY when allowed — persists the incremented count
- * back with a fresh window TTL (a denied call never bumps the counter
- * further; it's already over, and re-arming the TTL on every denial would
- * turn a burst into an indefinitely-renewing lockout).
+ * back (a denied call never bumps the counter further).
  *
- * @param string $identity
+ * Fixed UTC minute buckets (#1210), as in the read guard: the key carries the
+ * minute index and the TTL is the remainder of that minute. Renewing a 60s
+ * TTL on every accepted call made the counter "calls since 60s of silence",
+ * so a client at a steady 6/min was refused after 30 calls and stayed refused
+ * while it kept calling.
+ *
+ * @param string   $identity
+ * @param int|null $now Clock seam for deterministic tests; never request input.
  * @return array{allow:bool,retry_after:int}
  */
-function sn_mcp_rw_rate_limit_check( $identity ) {
-	$key   = sn_mcp_rw_rate_limit_key( $identity );
+function sn_mcp_rw_rate_limit_check( $identity, $now = null ) {
+	$now   = null === $now ? time() : (int) $now;
+	$ttl   = SN_MCP_RW_RATE_LIMIT_WINDOW_SECONDS - ( $now % SN_MCP_RW_RATE_LIMIT_WINDOW_SECONDS );
+	$key   = sn_mcp_rw_rate_limit_key( $identity ) . '_' . (string) intdiv( $now, SN_MCP_RW_RATE_LIMIT_WINDOW_SECONDS );
 	$count = sn_mcp_rw_rate_limit_store_get( $key );
 	$count = null === $count ? 0 : $count;
 
 	$allowed = sn_mcp_rw_rate_limit_decision( $count, SN_MCP_RW_RATE_LIMIT_PER_MINUTE );
 	if ( $allowed ) {
-		sn_mcp_rw_rate_limit_store_set( $key, $count + 1, SN_MCP_RW_RATE_LIMIT_WINDOW_SECONDS );
+		sn_mcp_rw_rate_limit_store_set( $key, $count + 1, $ttl );
 		return array( 'allow' => true, 'retry_after' => 0 );
 	}
-	return array( 'allow' => false, 'retry_after' => SN_MCP_RW_RATE_LIMIT_WINDOW_SECONDS );
+	return array( 'allow' => false, 'retry_after' => $ttl );
 }
 
 /**
@@ -465,8 +472,9 @@ function sn_mcp_rw_rate_limit_gate() {
  * and error vocabulary, so a refusal here is indistinguishable in code and
  * message from a refusal at /mcp-rw. Refusals write a 'denied' audit row
  * here; the outcome of an ALLOWED call is recorded on
- * rest_request_after_callbacks (the door records after execution, and this
- * hook is the only point on this route that sees the result).
+ * rest_request_after_callbacks (the door records after execution). On 7.1
+ * the lifecycle guard also sees the result, so the route's dispatch is
+ * bracketed with the MCP depth flag (#1211).
  * ════════════════════════════════════════════════════════════════════════ */
 
 /**
@@ -481,7 +489,7 @@ function sn_mcp_rw_guard_route_slug( $route ) {
 	if ( ! is_string( $route ) || '' === $route ) {
 		return '';
 	}
-	if ( 1 !== preg_match( '#^/wp-abilities/v[0-9]+/abilities/(.+)/run$#', $route, $m ) ) {
+	if ( 1 !== preg_match( '#^/wp-abilities/v[0-9]+/abilities/(.+)/run$#i', $route, $m ) ) {
 		return '';
 	}
 	return (string) $m[1];
@@ -497,10 +505,7 @@ function sn_mcp_rw_guard_route_slug( $route ) {
  * @return bool
  */
 function sn_mcp_rw_guard_ability_is_readonly( $slug ) {
-	if ( ! function_exists( 'wp_get_ability' ) ) {
-		return true;
-	}
-	$ability = wp_get_ability( (string) $slug );
+	$ability = function_exists( 'sn_mcp_get_ability' ) ? sn_mcp_get_ability( $slug ) : null;
 	if ( ! $ability || ! method_exists( $ability, 'get_meta' ) ) {
 		return true;
 	}
@@ -578,12 +583,27 @@ function sn_mcp_rw_guard_run_route( $result, $server = null, $request = null ) {
 		return $result;
 	}
 
-	$verdict = sn_mcp_rw_guard_run_route_decision(
-		sn_mcp_rw_kill_switch_engaged(),
-		sn_mcp_rw_credential_authorize(),
-		sn_mcp_rw_rate_limit_gate()
-	);
+	// The rate gate counts a call when it runs, so it runs only once the
+	// switch and the credential have allowed the call (#1210): a refused call
+	// must not consume the bucket.
+	$kill_engaged = sn_mcp_rw_kill_switch_engaged();
+	$credential   = sn_mcp_rw_credential_authorize();
+	$rate         = ( ! $kill_engaged && ! empty( $credential['allow'] ) )
+		? sn_mcp_rw_rate_limit_gate()
+		: array( 'allow' => true, 'retry_after' => 0 );
+	$verdict      = sn_mcp_rw_guard_run_route_decision( $kill_engaged, $credential, $rate );
 	if ( $verdict['allow'] ) {
+		// The door drops include_template_overrides from purge-all-caches
+		// before execute (mcp-tools.php); the same argument rule applies on
+		// this route. The run controller reads input from the parsed JSON
+		// body, which set_param() updates in place.
+		if ( 'signal-noise/purge-all-caches' === $slug && method_exists( $request, 'get_json_params' ) && method_exists( $request, 'set_param' ) ) {
+			$json = (array) $request->get_json_params();
+			if ( isset( $json['input'] ) && is_array( $json['input'] ) && array_key_exists( 'include_template_overrides', $json['input'] ) ) {
+				unset( $json['input']['include_template_overrides'] );
+				$request->set_param( 'input', $json['input'] );
+			}
+		}
 		return $result;
 	}
 
@@ -609,9 +629,33 @@ function sn_mcp_rw_guard_run_route( $result, $server = null, $request = null ) {
 }
 
 /**
- * rest_request_after_callbacks: record the outcome of an ALLOWED
- * app-password write on the run route, so the audit log shows the same
- * ok/error rows for this route that the door writes for /mcp-rw.
+ * rest_request_before_callbacks: open the MCP depth bracket around an
+ * app-password write on the run route (#1211). On WordPress 7.1 core fires
+ * wp_ability_execute_result for a REST run, and the lifecycle guard writes an
+ * audit row from it; with the route's own after-callbacks audit that made two
+ * rows per call. The bracket is the same one sn_mcp_call_tool() puts around
+ * execute(): while it is open the lifecycle observers stand down. This hook
+ * pairs with rest_request_after_callbacks by construction (both fire from
+ * respond_to_request, whatever the permission callback answers), which
+ * rest_pre_dispatch does not.
+ *
+ * @param mixed       $response
+ * @param mixed       $handler
+ * @param object|null $request
+ * @return mixed Untouched.
+ */
+function sn_mcp_rw_guard_run_route_before( $response, $handler = null, $request = null ) {
+	if ( function_exists( 'sn_ability_guard_mcp_depth' ) && '' !== sn_mcp_rw_guard_run_route_applies( $request ) ) {
+		sn_ability_guard_mcp_depth( 1 );
+	}
+	return $response;
+}
+
+/**
+ * rest_request_after_callbacks: close the depth bracket and record the
+ * outcome of an ALLOWED app-password write on the run route, so the audit
+ * log shows the same ok/error rows for this route that the door writes for
+ * /mcp-rw.
  *
  * @param mixed       $response
  * @param mixed       $handler
@@ -619,11 +663,14 @@ function sn_mcp_rw_guard_run_route( $result, $server = null, $request = null ) {
  * @return mixed Untouched.
  */
 function sn_mcp_rw_guard_run_route_audit( $response, $handler = null, $request = null ) {
-	if ( ! function_exists( 'sn_mcp_rw_audit_record' ) ) {
-		return $response;
-	}
 	$slug = sn_mcp_rw_guard_run_route_applies( $request );
 	if ( '' === $slug ) {
+		return $response;
+	}
+	if ( function_exists( 'sn_ability_guard_mcp_depth' ) ) {
+		sn_ability_guard_mcp_depth( -1 );
+	}
+	if ( ! function_exists( 'sn_mcp_rw_audit_record' ) ) {
 		return $response;
 	}
 	$args = ( is_object( $request ) && method_exists( $request, 'get_json_params' ) ) ? (array) $request->get_json_params() : array();
@@ -637,5 +684,6 @@ function sn_mcp_rw_guard_run_route_audit( $response, $handler = null, $request =
 
 if ( function_exists( 'add_filter' ) ) {
 	add_filter( 'rest_pre_dispatch', 'sn_mcp_rw_guard_run_route', 10, 3 );
+	add_filter( 'rest_request_before_callbacks', 'sn_mcp_rw_guard_run_route_before', 10, 3 );
 	add_filter( 'rest_request_after_callbacks', 'sn_mcp_rw_guard_run_route_audit', 10, 3 );
 }

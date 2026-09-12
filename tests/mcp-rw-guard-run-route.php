@@ -49,8 +49,11 @@ class RW_Ability {
 	public function __construct( $ro ) { $this->ro = $ro; }
 	public function get_meta() { return array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => $this->ro ) ); }
 }
+function wp_has_ability( $slug ) { return array_key_exists( $slug, $GLOBALS['__abilities'] ); }
+$GLOBALS['__unknown_fetches'] = array();
 function wp_get_ability( $slug ) {
-	return array_key_exists( $slug, $GLOBALS['__abilities'] ) ? new RW_Ability( $GLOBALS['__abilities'][ $slug ] ) : null;
+	if ( ! array_key_exists( $slug, $GLOBALS['__abilities'] ) ) { $GLOBALS['__unknown_fetches'][] = $slug; return null; } // core would emit a notice here
+	return new RW_Ability( $GLOBALS['__abilities'][ $slug ] );
 }
 
 // The audit sink: every row the guard writes lands here.
@@ -65,6 +68,7 @@ class RG_Req {
 	public function __construct( $r, $b = array() ) { $this->route = $r; $this->body = $b; }
 	public function get_route() { return $this->route; }
 	public function get_json_params() { return $this->body; }
+	public function set_param( $k, $v ) { $this->body[ $k ] = $v; }
 }
 function run_route( $slug ) { return '/wp-abilities/v1/abilities/' . $slug . '/run'; }
 
@@ -87,6 +91,10 @@ ok( 'signal-noise/sn-apply' === sn_mcp_rw_guard_route_slug( run_route( 'signal-n
 ok( '' === sn_mcp_rw_guard_route_slug( '/wp-abilities/v1/abilities' ), 'the catalogue route is not a run route' );
 ok( '' === sn_mcp_rw_guard_route_slug( '/signal-noise/v1/mcp-rw' ), 'the door itself is not this guard\'s business' );
 ok( '' === sn_mcp_rw_guard_route_slug( run_route( 'x' ) . '/extra' ), 'a route that merely CONTAINS /run is not a run route' );
+// Core matches routes with the i flag (WP_REST_Server::dispatch), so a
+// differently cased path reaches the same handler; the slug stays verbatim
+// because the registry lookup is case-sensitive.
+ok( 'signal-noise/sn-apply' === sn_mcp_rw_guard_route_slug( '/WP-Abilities/V1/Abilities/signal-noise/sn-apply/Run' ), 'a differently cased run route yields the same slug, verbatim' );
 
 echo "\nGroup: the pure verdict runs the door's controls in the door's order\n";
 $allow_cred = array( 'allow' => true, 'code' => '' );
@@ -110,6 +118,7 @@ ok( null === sn_mcp_rw_guard_run_route( null, null, new RG_Req( run_route( $a_wr
 reset_state( $BOUND, $OTHER );
 ok( null === sn_mcp_rw_guard_run_route( null, null, new RG_Req( run_route( $a_read ) ) ), 'a READONLY ability passes even with the wrong app password — reads have their own guard' );
 ok( null === sn_mcp_rw_guard_run_route( null, null, new RG_Req( run_route( 'signal-noise/does-not-exist' ) ) ), 'an unregistered ability is not claimed (core answers 404; no enumeration oracle here)' );
+ok( array() === $GLOBALS['__unknown_fetches'], 'and the registry was asked first, so wp_get_ability() never saw the unknown name (#1214)' );
 ok( null === sn_mcp_rw_guard_run_route( null, null, new RG_Req( '/wp/v2/posts' ) ), 'an unrelated REST route is untouched' );
 $prior = new WP_Error( 'someone_elses_refusal', 'x', array( 'status' => 401 ) );
 ok( $prior === sn_mcp_rw_guard_run_route( $prior, null, new RG_Req( run_route( $a_write ) ) ), 'a non-null prior result passes through untouched' );
@@ -143,6 +152,21 @@ reset_state( $BOUND, $BOUND );
 ok( null === sn_mcp_rw_guard_run_route( null, null, new RG_Req( run_route( $a_write ) ) ), 'the BOUND app password, switch on, is allowed through' );
 ok( array() === $GLOBALS['__audit'], 'an allowed call writes nothing at pre_dispatch (the outcome is not known yet)' );
 
+echo "\nGroup: the door's purge argument rule applies here too\n";
+// The door drops include_template_overrides from purge-all-caches before
+// execute (mcp-tools.php): clear-template-overrides is held off both doors
+// and that flag reaches the same sweep. The run route must not be the one
+// path where the flag still arrives.
+$GLOBALS['__abilities']['signal-noise/purge-all-caches'] = false;
+reset_state( $BOUND, $BOUND );
+$req = new RG_Req( run_route( 'signal-noise/purge-all-caches' ), array( 'input' => array( 'include_template_overrides' => true, 'reason' => 'x' ) ) );
+ok( null === sn_mcp_rw_guard_run_route( null, null, $req ), 'a bound app password may still purge caches on the run route' );
+ok( array( 'reason' => 'x' ) === $req->get_json_params()['input'], 'but include_template_overrides is dropped from the input before dispatch, as the door drops it' );
+reset_state( $BOUND, '' );
+$req = new RG_Req( run_route( 'signal-noise/purge-all-caches' ), array( 'input' => array( 'include_template_overrides' => true ) ) );
+sn_mcp_rw_guard_run_route( null, null, $req );
+ok( array( 'include_template_overrides' => true ) === $req->get_json_params()['input'], 'a cookie-auth admin call is not rewritten (the rule is the door\'s, and the door is app-password traffic)' );
+
 echo "\nGroup: the rate limit rides along\n";
 reset_state( $BOUND, $BOUND );
 $refused = null;
@@ -152,6 +176,15 @@ for ( $i = 0; $i < SN_MCP_RW_RATE_LIMIT_PER_MINUTE + 1; $i++ ) {
 }
 ok( null !== $refused && SN_MCP_RW_RATE_LIMIT_PER_MINUTE === $refused['at'], 'call #' . ( SN_MCP_RW_RATE_LIMIT_PER_MINUTE + 1 ) . ' in a window is refused' );
 ok( null !== $refused && 'sn_mcp_rw_rate_limited' === $refused['err']->get_error_code() && 429 === $refused['err']->data['status'], 'as a 429 carrying retry_after' );
+
+echo "\nGroup: a call refused by the switch or the credential does not consume the bucket (#1210)\n";
+reset_state( $BOUND, $BOUND );
+$GLOBALS['__options']['sn_mcp_rw_enabled'] = 0;
+for ( $i = 0; $i < SN_MCP_RW_RATE_LIMIT_PER_MINUTE; $i++ ) {
+	sn_mcp_rw_guard_run_route( null, null, new RG_Req( run_route( $a_write ) ) );
+}
+$GLOBALS['__options']['sn_mcp_rw_enabled'] = 1;
+ok( null === sn_mcp_rw_guard_run_route( null, null, new RG_Req( run_route( $a_write ) ) ), 'after ' . SN_MCP_RW_RATE_LIMIT_PER_MINUTE . ' calls refused by the kill switch, the first allowed call is not rate limited' );
 
 echo "\nGroup: the outcome of an allowed call is recorded after the callbacks\n";
 reset_state( $BOUND, $BOUND );
@@ -164,6 +197,28 @@ ok( $e === $out && array( array( $a_write, 'error' ) ) === $GLOBALS['__audit'], 
 reset_state( $BOUND, '' );
 sn_mcp_rw_guard_run_route_audit( array( 'ok' => true ), null, new RG_Req( run_route( $a_write ) ) );
 ok( array() === $GLOBALS['__audit'], 'a cookie-auth call is not logged here either (the door\'s log is for app-password traffic)' );
+
+echo "\nGroup: on WordPress 7.1 the lifecycle guard sees the same result — one audit row, not two (#1211)\n";
+// Core 7.1 fires wp_ability_execute_result for a REST run at depth 0, and
+// inc/abilities-lifecycle-guard.php writes an rw audit row from it. The run
+// route's own after-callbacks audit wrote a second one. The route's dispatch
+// is now bracketed with the MCP depth flag, exactly as sn_mcp_call_tool()
+// brackets execute(), so the lifecycle observer stands down here too.
+require __DIR__ . '/../inc/abilities-lifecycle-guard.php';
+reset_state( $BOUND, $BOUND );
+$req = new RG_Req( run_route( $a_write ), array( 'input' => array( 'x' => 1 ) ) );
+ok( null === sn_mcp_rw_guard_run_route( null, null, $req ), 'pre-dispatch allows the bound credential' );
+sn_mcp_rw_guard_run_route_before( null, null, $req );
+$r = sn_ability_guard_filter_execute_result( array( 'ok' => true ), $a_write, array( 'x' => 1 ), wp_get_ability( $a_write ) );
+sn_mcp_rw_guard_run_route_audit( $r, null, $req );
+ok( array( array( $a_write, 'ok' ) ) === $GLOBALS['__audit'], 'one ok row for the call, from the route audit; the lifecycle observer stood down (' . count( $GLOBALS['__audit'] ) . ' rows)' );
+ok( 0 === sn_ability_guard_mcp_depth(), 'the depth flag is back at zero after the route' );
+reset_state( $BOUND, '' );
+$req = new RG_Req( run_route( $a_write ), array( 'input' => array( 'x' => 1 ) ) );
+sn_mcp_rw_guard_run_route_before( null, null, $req );
+$r = sn_ability_guard_filter_execute_result( array( 'ok' => true ), $a_write, array( 'x' => 1 ), wp_get_ability( $a_write ) );
+sn_mcp_rw_guard_run_route_audit( $r, null, $req );
+ok( array( array( $a_write, 'ok' ) ) === $GLOBALS['__audit'], 'a cookie-auth run is outside the bracket: the lifecycle observer still records it, once' );
 
 echo "\nGroup: every rw-door slug is covered, not a sample\n";
 $missed = array();

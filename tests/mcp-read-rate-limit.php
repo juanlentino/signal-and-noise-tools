@@ -64,6 +64,8 @@ ok( true === sn_mcp_read_guard_is_read_path( $run_route ), 'the abilities run ro
 ok( true === sn_mcp_read_guard_is_read_path( $mcp_route ), 'the MCP read route is on the read path' );
 ok( false === sn_mcp_read_guard_is_read_path( '/wp-abilities/v1/abilities/' . $rw_slug . '/run' ), 'a WRITE ability is NOT — it has its own door and its own limiter' );
 ok( false === sn_mcp_read_guard_is_read_path( '/wp/v2/posts' ), 'an unrelated route is not' );
+ok( true === sn_mcp_read_guard_is_read_path( strtoupper( $mcp_route ) ), 'the MCP read route in another case is still on the read path (core routes case-insensitively)' );
+ok( true === sn_mcp_read_guard_is_read_path( '/WP-Abilities/V1/Abilities/' . $read_slug . '/Run' ), 'the run route in another case is still on the read path' );
 
 echo "\nGroup: the decision is a pure comparison, testable without a store\n";
 ok( true === sn_mcp_read_rate_limit_decision( 0, 5 ), 'under the cap allows' );
@@ -125,6 +127,18 @@ ok( is_wp_error( $k ) && 'sn_mcp_read_disabled' === $k->get_error_code(), 'the s
 $k2 = sn_mcp_read_guard_rate_limit_dispatch( $k, null, new RL_Req( $run_route ) );
 ok( $k2 === $k, 'and the ceiling passes that 403 through untouched' );
 $GLOBALS['__options'] = array();
+// On the /mcp route the switch lives in the permission_callback, which runs
+// AFTER rest_pre_dispatch — so nothing has answered yet when the ceiling looks.
+// It must step aside for an engaged switch there too, or the 429 wins (#1214).
+$GLOBALS['__t'] = array();
+for ( $i = 0; $i < $cap; $i++ ) { sn_mcp_read_rate_limit_check( sn_mcp_read_rate_limit_current_identity() ); }
+$GLOBALS['__options']['sn_mcp_read_enabled'] = 0;
+ok( null === sn_mcp_read_guard_rate_limit_dispatch( null, null, new RL_Req( $mcp_route ) ), 'on /mcp with the switch engaged and the ceiling exhausted, the ceiling stands aside so the permission callback answers 403' );
+$GLOBALS['__options'] = array();
+$GLOBALS['__t'] = array();
+for ( $i = 0; $i < $cap; $i++ ) { sn_mcp_read_rate_limit_check( sn_mcp_read_rate_limit_current_identity() ); }
+$m2 = sn_mcp_read_guard_rate_limit_dispatch( null, null, new RL_Req( $mcp_route ) );
+ok( is_wp_error( $m2 ) && 429 === $m2->data['status'], 'control: switch open, the same exhausted state on /mcp still answers 429' );
 
 echo "\nGroup: fail-OPEN without a store, and it is documented as such\n";
 // Mirrors the write door: a throttle must not harden into an outage when its

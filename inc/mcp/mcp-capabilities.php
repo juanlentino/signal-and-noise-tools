@@ -385,6 +385,28 @@ function sn_mcp_allowlist_for_door( $door ) {
  * @param string $door SN_MCP_DOOR_READ (default) or SN_MCP_DOOR_RW.
  * @return bool
  */
+/**
+ * Resolve an ability by slug, asking the registry first (#1214).
+ *
+ * wp_get_ability() on an unregistered name emits an E_USER_NOTICE from the
+ * registry, per request; with WP_DEBUG_DISPLAY that lands in the JSON body.
+ * Every MCP lookup goes through here so an unknown name is a plain null.
+ *
+ * @param string $slug
+ * @return object|null WP_Ability, or null when absent or the API is missing.
+ */
+function sn_mcp_get_ability( $slug ) {
+	$slug = (string) $slug;
+	if ( ! function_exists( 'wp_get_ability' ) ) {
+		return null;
+	}
+	if ( function_exists( 'wp_has_ability' ) && ! wp_has_ability( $slug ) ) {
+		return null;
+	}
+	$ability = wp_get_ability( $slug );
+	return $ability ? $ability : null;
+}
+
 function sn_mcp_is_allowed( $slug, $door = SN_MCP_DOOR_READ ) {
 	return in_array( (string) $slug, sn_mcp_allowlist_for_door( $door ), true );
 }
