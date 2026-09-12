@@ -27,7 +27,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 $GLOBALS['__published'] = 39;   // notes on the site when this was written
 $GLOBALS['__per_page']  = 10;
 function home_url( $path = '/' ) { return 'https://example.test' . $path; }
-function get_permalink( $id ) { return 'https://example.test/notes/post-' . (int) $id . '/'; }
+function get_permalink( $p ) { return 'https://example.test/notes/post-' . ( is_object( $p ) ? (int) $p->ID : (int) $p ) . '/'; }
 function trailingslashit( $s ) { return rtrim( (string) $s, '/' ) . '/'; }
 function get_option( $k, $d = false ) { return 'posts_per_page' === $k ? $GLOBALS['__per_page'] : $d; }
 function wp_count_posts( $type = 'post' ) { return (object) array( 'publish' => $GLOBALS['__published'] ); }
@@ -38,7 +38,7 @@ function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
 
 require_once __DIR__ . '/../inc/cloudflare-purge.php';
 
-$post = (object) array( 'post_type' => 'post', 'post_status' => 'publish', 'post_parent' => 0 );
+$post = (object) array( 'ID' => 7, 'post_type' => 'post', 'post_status' => 'publish', 'post_parent' => 0 );
 $urls = sn_cf_post_purge_urls( 7, $post );
 
 echo "cloudflare-purge-coverage — plugin v13.96.2\n\nGroup 1: the surfaces that were missing\n";

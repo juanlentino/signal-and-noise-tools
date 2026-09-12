@@ -283,8 +283,11 @@ function sn_cf_purge_everything_verified() {
  * @return string[] Absolute URLs, filtered through `sn_cf_purge_urls_for_post`.
  */
 function sn_cf_post_purge_urls( $post_id, $post ) {
+	// The permalink of the post OBJECT handed in, not a fresh read by id
+	// (#1180): on unpublish/trash the caller passes the pre-change post, and a
+	// read by id would answer the plain ?p= form the edge never cached.
 	$urls = array(
-		get_permalink( $post_id ),
+		get_permalink( $post ),
 		home_url( '/' ),
 		home_url( '/notes/' ),
 		home_url( '/provenance/' ),
@@ -387,10 +390,21 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 	if ( ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
 		return;
 	}
-	if ( 'publish' !== $post->post_status ) {
-		return;
+	$is_published  = 'publish' === $post->post_status;
+	$was_published = ( $post_before instanceof WP_Post ) && 'publish' === $post_before->post_status;
+	if ( ! $is_published && ! $was_published ) {
+		return; // never on the edge: draft -> draft, draft -> trash, and so on.
 	}
 	if ( ! sn_cf_is_configured() ) {
+		return;
+	}
+
+	// #1180: LEAVING publish (unpublish, trash, private) purges the same set
+	// an edit does, computed from the PRE-CHANGE post -- the permalink the
+	// edge actually holds. $post already carries the new status, and its
+	// permalink would be ?p=ID (trash also renames post_name to *__trashed).
+	if ( ! $is_published ) {
+		sn_cf_purge_urls( sn_cf_post_purge_urls( $post_id, $post_before ) );
 		return;
 	}
 
@@ -411,7 +425,6 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 	// The test is a transition INTO publish, not $update: $update is true for a
 	// draft that already existed as a row, which is exactly the case that adds a
 	// new entry to the index.
-	$was_published = ( $post_before instanceof WP_Post ) && 'publish' === $post_before->post_status;
 	if ( ! $was_published ) {
 		/**
 		 * Filters whether a first publication purges the whole zone.
