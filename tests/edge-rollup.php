@@ -141,6 +141,10 @@ ok( strpos( $q, "'2026-06-18', 'country', 'US', 600, 3000000" ) !== false, 'dims
 eo_reset();
 sn_edge_dims_upsert( array( array( 'day' => '2026-06-18', 'dim' => 'colo', 'value' => str_repeat( 'x', 250 ), 'requests' => 1, 'bytes' => 0 ) ) );
 ok( strpos( $GLOBALS['wpdb']->queries[0], str_repeat( 'x', 161 ) ) === false, 'dims upsert: value truncated to 160' );
+// #1207 -- the 160 cap is CHARACTERS into a utf8mb4 column, not bytes.
+eo_reset();
+sn_edge_dims_upsert( array( array( 'day' => '2026-06-18', 'dim' => 'atk_path', 'value' => str_repeat( "\u{20ac}", 100 ), 'requests' => 1, 'bytes' => 0 ) ) );
+ok( strpos( $GLOBALS['wpdb']->queries[0], "'" . str_repeat( "\u{20ac}", 100 ) . "'" ) !== false, 'dims upsert: a 100-character / 300-byte value is bound whole (#1207)' );
 
 // Large row sets must be CHUNKED, not one INSERT. sn_edge_run_rollup() re-pulls
 // SN_EDGE_BACKFILL_DAYS (395) days of countryMap + adaptive threat/colo/attack dims

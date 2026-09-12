@@ -123,7 +123,7 @@ function sn_analytics_pageroles_upsert( $rows ) {
 		$clean[] = array(
 			'day'    => $day,
 			'role'   => $role,
-			'path'   => substr( $path, 0, 190 ),
+			'path'   => mb_substr( $path, 0, 190, 'UTF-8' ), // characters, not bytes (#1207)
 			'views'  => max( 0, (int) round( (float) ( $r['views'] ?? 0 ) ) ),
 			'visits' => max( 0, (int) round( (float) ( $r['visits'] ?? 0 ) ) ),
 		);

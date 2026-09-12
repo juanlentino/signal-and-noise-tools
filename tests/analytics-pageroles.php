@@ -133,6 +133,11 @@ ok( strpos( $last, "'entry'" ) !== false, 'upsert: role bound via prepare' );
 ok( sn_analytics_pageroles_upsert( array( array( 'day' => '2026-05-10', 'role' => 'bogus', 'path' => '/x', 'views' => 1, 'visits' => 1 ) ) ) === 0, 'upsert: bad role skipped' );
 // Blank path skipped.
 ok( sn_analytics_pageroles_upsert( array( array( 'day' => '2026-05-10', 'role' => 'entry', 'path' => '', 'views' => 1, 'visits' => 1 ) ) ) === 0, 'upsert: blank path skipped' );
+// #1207 -- the 190 cap is CHARACTERS into a utf8mb4 column, not bytes.
+$GLOBALS['wpdb']->queries = array();
+$wide = '/' . str_repeat( "\u{20ac}", 100 ); // 101 chars, 301 bytes
+sn_analytics_pageroles_upsert( array( array( 'day' => '2026-05-10', 'role' => 'entry', 'path' => $wide, 'views' => 1, 'visits' => 1 ) ) );
+ok( strpos( end( $GLOBALS['wpdb']->queries ), "'" . $wide . "'" ) !== false, 'upsert: a 101-character / 301-byte path is bound whole (#1207)' );
 // Bad day skipped.
 ok( sn_analytics_pageroles_upsert( array( array( 'day' => 'nope', 'role' => 'entry', 'path' => '/x', 'views' => 1, 'visits' => 1 ) ) ) === 0, 'upsert: bad day skipped' );
 ok( sn_analytics_pageroles_upsert( array() ) === 0, 'upsert: empty input returns 0' );

@@ -156,7 +156,7 @@ function sn_edge_dims_upsert( $rows ) {
 		$vals = array();
 		foreach ( $chunk as $r ) {
 			$ph[]   = '(%s, %s, %s, %d, %d)';
-			array_push( $vals, (string) $r['day'], (string) $r['dim'], substr( (string) $r['value'], 0, 160 ), max( 0, (int) ( $r['requests'] ?? 0 ) ), max( 0, (int) ( $r['bytes'] ?? 0 ) ) );
+			array_push( $vals, (string) $r['day'], (string) $r['dim'], mb_substr( (string) $r['value'], 0, 160, 'UTF-8' ), max( 0, (int) ( $r['requests'] ?? 0 ) ), max( 0, (int) ( $r['bytes'] ?? 0 ) ) );
 		}
 		$sql = "INSERT INTO {$table} (day, dim, value, requests, bytes) VALUES "
 			. implode( ', ', $ph ) . ' ON DUPLICATE KEY UPDATE requests=VALUES(requests), bytes=VALUES(bytes)';

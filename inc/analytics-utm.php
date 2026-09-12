@@ -159,7 +159,7 @@ function sn_analytics_utm_upsert( $rows ) {
 
 		$parts = sn_analytics_utm_split( $r['packed'] ?? '' );
 		$norm  = static function ( $v ) {
-			$v = substr( trim( (string) $v ), 0, 128 );
+			$v = mb_substr( trim( (string) $v ), 0, 128, 'UTF-8' ); // characters, not bytes (#1207)
 			return '' === $v ? '(none)' : $v;
 		};
 		$source   = $norm( $parts[0] );
