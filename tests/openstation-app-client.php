@@ -371,5 +371,14 @@ ok(
 	'...and there are os-buttons to check -- ' . substr_count( $js, '<os-button' )
 );
 
+echo "\nGroup: the list sorts the Date column on the instant, not the label (#1216)\n";
+ok( false !== strpos( $js, "key: 'dateLabel', label: __( 'Date' ), sortable: true, sortValue:" ), 'the Date column declares a sortValue -- os-table otherwise sorts the formatted label as text' );
+ok( false !== strpos( $js, "parseStamp( row.date )" ), 'sortValue reads the row\'s raw date through a stamp parser, not a bare Date.parse' );
+ok( false !== strpos( $js, "\t\tdate: item.date," ), 'the list row carries the raw date beside the label so the sortValue can read it' );
+ok(
+	(bool) preg_match( '/\\breplace\\(\\s*\'\\s\'\\s*,\\s*\'T\'\\s*\\)\\s*\\+\\s*\'Z\'/', $js ),
+	'the stamp parser turns a bare MySQL "Y-m-d H:i:s" into an ISO instant before Date.parse sees it -- JavaScriptCore returns NaN for the bare form, Chrome\'s V8 does not, and Attention/Citations/Schedules all emit the bare form'
+);
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

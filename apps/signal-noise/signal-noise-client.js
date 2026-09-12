@@ -218,6 +218,21 @@
 			} );
 	};
 
+	/**
+	 * An instant for a comparator: MySQL's bare 'Y-m-d H:i:s' (what Attention,
+	 * Citations and Schedules all emit) parses as NaN under JavaScriptCore --
+	 * only Chrome's V8 is lenient about the missing 'T' and zone. Coerce it to
+	 * an ISO instant first so every engine agrees. 0 for anything unreadable.
+	 */
+	const parseStamp = ( value ) => {
+		if ( ! value ) {
+			return 0;
+		}
+		const iso = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test( value ) ? value.replace( ' ', 'T' ) + 'Z' : value;
+		const t = Date.parse( iso );
+		return Number.isNaN( t ) ? 0 : t;
+	};
+
 	/** A time for a reader: local, short; the raw value when it cannot be parsed. */
 	const whenText = ( value ) => {
 		const d = typeof value === 'number' ? new Date( value * 1000 ) : new Date( value );
@@ -888,7 +903,9 @@
 		const columns = [
 			title,
 			{ key: 'statusLabel', label: __( 'Status' ), sortable: true },
-			{ key: 'dateLabel', label: __( 'Date' ), sortable: true },
+			// Sort on the instant, not the label: os-table compares the cell value
+			// as text, and "September 30" outranks "October 8" that way (#1216).
+			{ key: 'dateLabel', label: __( 'Date' ), sortable: true, sortValue: ( row ) => parseStamp( row.date ) },
 			...extra,
 		];
 		if ( actionable ) {
@@ -909,6 +926,7 @@
 		title: item.title,
 		statusLabel: item.statusLabel,
 		dateLabel: item.dateLabel,
+		date: item.date,
 		...( item.columns || {} ),
 	} ) );
 
