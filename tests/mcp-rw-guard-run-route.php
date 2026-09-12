@@ -87,6 +87,10 @@ ok( 'signal-noise/sn-apply' === sn_mcp_rw_guard_route_slug( run_route( 'signal-n
 ok( '' === sn_mcp_rw_guard_route_slug( '/wp-abilities/v1/abilities' ), 'the catalogue route is not a run route' );
 ok( '' === sn_mcp_rw_guard_route_slug( '/signal-noise/v1/mcp-rw' ), 'the door itself is not this guard\'s business' );
 ok( '' === sn_mcp_rw_guard_route_slug( run_route( 'x' ) . '/extra' ), 'a route that merely CONTAINS /run is not a run route' );
+// Core matches routes with the i flag (WP_REST_Server::dispatch), so a
+// differently cased path reaches the same handler; the slug stays verbatim
+// because the registry lookup is case-sensitive.
+ok( 'signal-noise/sn-apply' === sn_mcp_rw_guard_route_slug( '/WP-Abilities/V1/Abilities/signal-noise/sn-apply/Run' ), 'a differently cased run route yields the same slug, verbatim' );
 
 echo "\nGroup: the pure verdict runs the door's controls in the door's order\n";
 $allow_cred = array( 'allow' => true, 'code' => '' );

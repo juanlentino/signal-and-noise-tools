@@ -272,7 +272,7 @@ function sn_mcp_remote_guard_run_route( $result, $server = null, $request = null
 		return $result;
 	}
 	$route = ( is_object( $request ) && method_exists( $request, 'get_route' ) ) ? (string) $request->get_route() : '';
-	if ( 1 !== preg_match( '#^/wp-abilities/v[0-9]+/abilities/(.+)/run$#', $route, $m ) ) {
+	if ( 1 !== preg_match( '#^/wp-abilities/v[0-9]+/abilities/(.+)/run$#i', $route, $m ) ) {
 		return $result;
 	}
 	if ( ! in_array( (string) $m[1], sn_mcp_remote_slugs(), true ) ) {

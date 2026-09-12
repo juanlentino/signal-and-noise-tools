@@ -481,7 +481,7 @@ function sn_mcp_rw_guard_route_slug( $route ) {
 	if ( ! is_string( $route ) || '' === $route ) {
 		return '';
 	}
-	if ( 1 !== preg_match( '#^/wp-abilities/v[0-9]+/abilities/(.+)/run$#', $route, $m ) ) {
+	if ( 1 !== preg_match( '#^/wp-abilities/v[0-9]+/abilities/(.+)/run$#i', $route, $m ) ) {
 		return '';
 	}
 	return (string) $m[1];

@@ -50,7 +50,7 @@ function sn_mcp_read_guard_route_slug( $route ) {
 	if ( ! is_string( $route ) || '' === $route ) {
 		return '';
 	}
-	if ( 1 !== preg_match( '#^/wp-abilities/v[0-9]+/abilities/(.+)/run$#', $route, $m ) ) {
+	if ( 1 !== preg_match( '#^/wp-abilities/v[0-9]+/abilities/(.+)/run$#i', $route, $m ) ) {
 		return '';
 	}
 	return (string) $m[1];
@@ -292,7 +292,7 @@ function sn_mcp_read_guard_is_read_path( $route ) {
 	$ns    = function_exists( 'sn_mcp_namespace' )
 		? sn_mcp_namespace()
 		: ( defined( 'SN_REST_NAMESPACE' ) ? SN_REST_NAMESPACE : 'signal-noise/v1' );
-	if ( '/' . $ns . '/mcp' === $route ) {
+	if ( 0 === strcasecmp( '/' . $ns . '/mcp', $route ) ) {
 		return true;
 	}
 	$slug = sn_mcp_read_guard_route_slug( $route );

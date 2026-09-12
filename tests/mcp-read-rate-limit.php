@@ -64,6 +64,8 @@ ok( true === sn_mcp_read_guard_is_read_path( $run_route ), 'the abilities run ro
 ok( true === sn_mcp_read_guard_is_read_path( $mcp_route ), 'the MCP read route is on the read path' );
 ok( false === sn_mcp_read_guard_is_read_path( '/wp-abilities/v1/abilities/' . $rw_slug . '/run' ), 'a WRITE ability is NOT — it has its own door and its own limiter' );
 ok( false === sn_mcp_read_guard_is_read_path( '/wp/v2/posts' ), 'an unrelated route is not' );
+ok( true === sn_mcp_read_guard_is_read_path( strtoupper( $mcp_route ) ), 'the MCP read route in another case is still on the read path (core routes case-insensitively)' );
+ok( true === sn_mcp_read_guard_is_read_path( '/WP-Abilities/V1/Abilities/' . $read_slug . '/Run' ), 'the run route in another case is still on the read path' );
 
 echo "\nGroup: the decision is a pure comparison, testable without a store\n";
 ok( true === sn_mcp_read_rate_limit_decision( 0, 5 ), 'under the cap allows' );
