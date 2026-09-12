@@ -16,7 +16,7 @@ function esc_url( $s ) { return (string) $s; }
 function esc_html__( $s, $d = null ) { return (string) $s; }
 function __( $s, $d = null ) { return (string) $s; }
 function _n( $single, $plural, $n, $d = null ) { return 1 === (int) $n ? (string) $single : (string) $plural; }
-function number_format_i18n( $n ) { return number_format( (float) $n ); }
+function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, (int) $d ); }
 function get_edit_post_link( $id ) { return '/wp-admin/post.php?post=' . (int) $id; }
 // Reused shared helpers — stubbed to leave detectable markers (the real ones live
 // in analytics-admin-render.php; the point is the view DELEGATES to them, 1:1).
@@ -87,6 +87,15 @@ ok( strpos( $lb, 'spike' ) !== false && strpos( $lb, 'sustained' ) !== false, 'd
 // v9.40.0 D4: the catalog postbox is "plain" (no sn-overview) — adopts the primitive marker only.
 ok( strpos( $lb, 'class="postbox sn-an-postbox"' ) !== false, 'catalog panel adopts the primitive (plain, no sn-overview)' );
 
+// #1208: per_day rounded to 0 decimals prints a sub-1 rate as "0". A post
+// doing 0.4 views/day is real signal (it is alive at all); truncating it to
+// "0" reads as dead.
+$fractional_row = array(
+	array( 'id' => 3, 'title' => 'Trickle', 'permalink' => '/notes/z/', 'age' => 10, 'by_dol' => array(), 'lifetime' => 4, 'per_day' => 0.4, 'velocity' => 0, 'decay' => '' ),
+);
+$lb_fractional = cap( function () use ( $fractional_row ) { snt_analytics_render_posts_leaderboard( $fractional_row ); } );
+ok( strpos( $lb_fractional, '>0.4<' ) !== false, '#1208: per_day of 0.4 renders as "0.4", not rounded away to "0"' );
+
 echo "\nGroup: leaderboard: byte-parity pin (v9.43.0, pre-kv_table-migration)\n";
 // Literal capture of snt_analytics_render_posts_leaderboard()'s FULL output
 // under a fixed, hostile-char fixture, taken from the plugin at v9.43.0 before
@@ -100,7 +109,7 @@ $parity_rows = array(
 );
 $parity = cap( function () use ( $parity_rows ) { snt_analytics_render_posts_leaderboard( $parity_rows ); } );
 ok(
-	'<div class="postbox sn-an-postbox"><div class="postbox-header"><h2 class="hndle"><span>Your catalog</span></h2></div><div class="inside sn-an-table-inside"><table class="widefat striped"><thead><tr><th scope="col" class="manage-column column-primary">Post</th><th scope="col" class="manage-column num">Lifetime views</th><th scope="col" class="manage-column num">Per day</th><th scope="col" class="manage-column">Shape</th></tr></thead><tbody><tr><td class="column-primary" data-colname="Post"><a href="/notes/x/?a=1&b=2"><strong>My &quot;Great&quot; &lt;Note&gt; &amp; Co</strong></a> <span class="sn-an-muted">3d</span></td><td class="num" data-colname="Lifetime views">120</td><td class="num" data-colname="Per day">30</td><td data-colname="Shape">spike</td></tr><tr><td class="column-primary" data-colname="Post"><a href="/notes/y/"><strong>Older Note</strong></a> <span class="sn-an-muted">30d</span></td><td class="num" data-colname="Lifetime views">400</td><td class="num" data-colname="Per day">13</td><td data-colname="Shape"><span class="sn-an-muted">—</span></td></tr></tbody></table></div></div>' === $parity,
+	'<div class="postbox sn-an-postbox"><div class="postbox-header"><h2 class="hndle"><span>Your catalog</span></h2></div><div class="inside sn-an-table-inside"><table class="widefat striped"><thead><tr><th scope="col" class="manage-column column-primary">Post</th><th scope="col" class="manage-column num">Lifetime views</th><th scope="col" class="manage-column num">Per day</th><th scope="col" class="manage-column">Shape</th></tr></thead><tbody><tr><td class="column-primary" data-colname="Post"><a href="/notes/x/?a=1&b=2"><strong>My &quot;Great&quot; &lt;Note&gt; &amp; Co</strong></a> <span class="sn-an-muted">3d</span></td><td class="num" data-colname="Lifetime views">120</td><td class="num" data-colname="Per day">30.0</td><td data-colname="Shape">spike</td></tr><tr><td class="column-primary" data-colname="Post"><a href="/notes/y/"><strong>Older Note</strong></a> <span class="sn-an-muted">30d</span></td><td class="num" data-colname="Lifetime views">400</td><td class="num" data-colname="Per day">12.9</td><td data-colname="Shape"><span class="sn-an-muted">—</span></td></tr></tbody></table></div></div>' === $parity,
 	'leaderboard: full-string byte-parity pin holds (hostile title escapes, permalink escapes, empty-decay falls back to the literal em-dash span)'
 );
 
