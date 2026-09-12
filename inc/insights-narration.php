@@ -526,8 +526,8 @@ function snt_narration_parse_response( $raw ) {
 	if ( '' === $headline ) {
 		return new WP_Error( 'snt_narration_no_headline', 'AI digest is missing a headline.' );
 	}
-	if ( strlen( $headline ) > 120 ) {
-		$headline = substr( $headline, 0, 120 );
+	if ( mb_strlen( $headline ) > 120 ) { // #1227: characters, not bytes.
+		$headline = mb_substr( $headline, 0, 120 );
 	}
 
 	$paragraphs = array();

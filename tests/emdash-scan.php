@@ -82,6 +82,12 @@ ok( ': ' === ( $c[0]['replacement'] ?? '' ), 'lowercase continuation -> colon' )
 $cap = '<p>The cap is reached — AI features are paused until the next calendar month.</p>';
 ok( '. ' === ( prose_of( $cap )[0]['replacement'] ?? '' ), 'capitalised continuation -> period' );
 
+// #1227: an ACCENTED capital continuation must also read as a new sentence.
+// ctype_upper() is single-byte-only and returns false for every multibyte
+// character, so 'Édition' used to fall through to the colon branch.
+$accent = '<p>The catalog closes — Édition continues under a different imprint.</p>';
+ok( '. ' === ( prose_of( $accent )[0]['replacement'] ?? '' ), 'accented capital continuation -> period, not colon (mb_-safe)' );
+
 // Diagram caption. The owner wants these changed, so a caption is PROSE.
 $caption = '<figure><figcaption>Administrative codes — assigned by clerks</figcaption></figure>';
 ok( 1 === count( prose_of( $caption ) ), 'a figure caption is prose, not structural' );

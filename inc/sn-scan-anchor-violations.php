@@ -49,7 +49,12 @@ function snt_anchor_violations_normalize( $s ) {
 	$s = html_entity_decode( $s, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 	$s = preg_replace( '/[\s\x{00A0}]+/u', ' ', $s );
 	$s = trim( (string) $s );
-	return rtrim( $s, ".!?\u{2026}" );
+	// #1227: rtrim()'s charlist is byte-wise. "\u{2026}" is a 3-byte UTF-8
+	// sequence whose middle/last bytes can match the trailing byte of an
+	// unrelated multibyte character (e.g. 'æ' = C3 A6 shares 0xA6 with the
+	// ellipsis), silently truncating it. A Unicode-aware regex trims whole
+	// characters instead.
+	return (string) preg_replace( '/[.!?\x{2026}]+$/u', '', $s );
 }
 
 /**

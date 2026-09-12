@@ -179,6 +179,27 @@ $rhtml = snt_mr_render_rights_detail( $rd_hostile );
 ok( false === strpos( $rhtml, '<script>' ), 'the renderer escapes the un-allowlisted UA (its only defence)' );
 ok( false !== stripos( snt_mr_render_rights_detail( array() ), 'No reads of the rights surfaces' ), 'an empty window says so rather than rendering an empty table' );
 
+echo "\nGroup: #1227 — UA/path caps are mb_-safe, timestamp cap fits milliseconds\n";
+// A multibyte-heavy path/UA must not have its last character split into an
+// invalid byte fragment by the taxonomy normalizer's byte-based cap.
+$long_multibyte = str_repeat( 'Ω', 520 ); // 520 chars, well past the 512-char UA cap.
+$rd_mb = snt_mr_normalize_rights_rows( array( array(
+	'observed_at' => '2026-08-10T09:14:02.511Z',
+	'path'        => '/license.xml',
+	'user_agent'  => $long_multibyte,
+	'purpose'     => 'train',
+	'family'      => 'anthropic',
+) ) );
+ok( 512 === mb_strlen( $rd_mb[0]['user_agent'] ), 'a >512-char multibyte UA is clipped to exactly 512 CHARACTERS' );
+ok( 1 === preg_match( '//u', $rd_mb[0]['user_agent'] ), 'the clipped UA is valid UTF-8, not a split multibyte tail' );
+
+// The rendered timestamp must fit the full "YYYY-MM-DDTHH:MM:SS.sssZ" shape
+// (24 chars) instead of cutting right after the seconds' dot (20 chars),
+// which left a bare trailing "." with every millisecond digit gone.
+$ts_html = snt_mr_render_rights_detail( $rd_mb );
+ok( false !== strpos( $ts_html, '2026-08-10T09:14:02.511Z' ), 'the full millisecond timestamp renders, not truncated to a trailing dot' );
+ok( false === strpos( $ts_html, '2026-08-10T09:14:02.<' ), 'no bare trailing dot before the closing tag' );
+
 echo "\nGroup: MR1 , the rights log FOLDS (its cap was a caption, not a cap)\n";
 // Before MR1 the $limit argument was PRINTED in the footer and never applied:
 // every row the sensor handed over rendered, fully open, in arrival order. The

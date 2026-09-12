@@ -140,5 +140,12 @@ $res = snt_ai_og_card_title_write( 999 );
 og_true( is_wp_error( $res ), 'missing post → WP_Error' );
 og_eq( 'snt_ai_post_not_found', is_wp_error( $res ) ? $res->get_error_code() : null, '404 code' );
 
+// ─── Test 5: #1227 — 'length' is mb_-safe (characters, not bytes) ────
+echo "\nTest 5: #1227 title length is character count, not byte count\n";
+og_reset();
+$GLOBALS['__og_gen_return'] = str_repeat( 'É', 40 ); // 40 chars, 80 bytes.
+$res = snt_ai_og_card_title_write( 50 );
+og_eq( 40, is_array( $res ) ? $res['length'] : null, 'length is 40 (CHARACTERS), not 80 (bytes)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

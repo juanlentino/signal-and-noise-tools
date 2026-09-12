@@ -486,7 +486,7 @@ function sn_maturity_roadmap_board_problems( $board ) {
 	}
 	foreach ( $board as $family => $columns ) {
 		$label = is_string( $family ) ? trim( $family ) : '';
-		if ( '' === $label || strlen( $label ) > SN_MATURITY_ROADMAP_MAX_LABEL_LEN ) {
+		if ( '' === $label || mb_strlen( $label ) > SN_MATURITY_ROADMAP_MAX_LABEL_LEN ) { // #1227: message says "characters".
 			$problems[] = sprintf( 'family label "%s" must be a non-empty string of at most %d characters.', (string) $family, SN_MATURITY_ROADMAP_MAX_LABEL_LEN );
 		}
 		foreach ( sn_maturity_roadmap_banned_tokens() as $token ) {
@@ -526,7 +526,7 @@ function sn_maturity_roadmap_board_problems( $board ) {
 				);
 			}
 			foreach ( $items as $item ) {
-				if ( ! is_string( $item ) || '' === trim( $item ) || strlen( $item ) > SN_MATURITY_ROADMAP_MAX_ITEM_LEN ) {
+				if ( ! is_string( $item ) || '' === trim( $item ) || mb_strlen( $item ) > SN_MATURITY_ROADMAP_MAX_ITEM_LEN ) { // #1227: message says "characters".
 					$problems[] = sprintf( 'family "%s" status "%s" carries an item that is not a non-empty string of at most %d characters.', $label, (string) $status, SN_MATURITY_ROADMAP_MAX_ITEM_LEN );
 					continue;
 				}

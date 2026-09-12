@@ -224,6 +224,13 @@ eq( 120, strlen( $p['headline'] ), 'headline truncated to 120' );
 eq( 4, count( $p['paragraphs'] ), 'paragraphs capped at 4' );
 eq( 6, count( $p['highlights'] ), 'highlights capped at 6' );
 
+// #1227: a multibyte-heavy headline must be capped in CHARACTERS, not bytes
+// — a byte-based cap can split a multibyte character mid-sequence.
+$big_mb = '{"headline":"' . str_repeat( 'Ω', 200 ) . '","paragraphs":["a"],"highlights":[]}';
+$p_mb   = snt_narration_parse_response( $big_mb );
+eq( 120, mb_strlen( $p_mb['headline'] ), 'multibyte headline truncated to 120 CHARACTERS (#1227)' );
+ok( 1 === preg_match( '//u', $p_mb['headline'] ), 'the truncated multibyte headline is valid UTF-8' );
+
 // ── Test 7: cookieless guard present ──
 echo "\nTest 7: system instruction carries the cookieless guard\n";
 $sys = snt_narration_system_instruction();

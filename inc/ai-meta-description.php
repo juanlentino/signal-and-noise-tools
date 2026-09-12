@@ -168,7 +168,7 @@ function snt_ai_meta_desc_impl( $post_id, $concise = false, $focus_keyword = '' 
 	return array(
 		'ok'          => true,
 		'description' => $description,
-		'length'      => strlen( $description ),
+		'length'      => mb_strlen( $description ), // #1227: characters, not bytes.
 	);
 }
 

@@ -269,5 +269,25 @@ $GLOBALS['__test_post_meta'][108]['_snt_corpus_integrity_dismissed'] = array( $k
 $second = snt_corpus_integrity_compute();
 ci_eq( 0, count( $second['candidates'] ), 'Test 9.1: dismissed fingerprint excluded on re-scan' );
 
+// ─── Test 10: #1227 — mb_-safe sentence/snippet cuts ───────────────────
+// A byte-based substr() can split a multibyte character at the cap
+// boundary, leaving an invalid UTF-8 tail that esc_html() then renders as
+// '' (the whole sentence disappears, not just the overflow).
+echo "\nTest 10: #1227 mb_-safe sentence cut\n";
+if ( $sut_exists ) {
+	// A multibyte character deliberately placed so a byte-based substr(...,0,277)
+	// lands mid-character (276 ASCII bytes, then a 2-byte 'é' straddling the cut).
+	$long_sentence = str_repeat( 'a', 276 ) . 'é' . str_repeat( 'b', 50 ) . '. Next sentence follows here.';
+	$cut             = snt_corpus_integrity_sentence_at( $long_sentence, 0 );
+	ci_true( 1 === preg_match( '//u', $cut ), 'Test 10.1: the cut sentence is valid UTF-8 (no split multibyte tail)' );
+	ci_true( '' !== esc_html_test( $cut ), 'Test 10.2: esc_html() does not render the cut sentence as empty' );
+	ci_true( mb_strlen( $cut ) <= 280, 'Test 10.3: the cut respects the 280-CHARACTER cap' );
+}
+function esc_html_test( $s ) {
+	// Mirrors WP's esc_html() enough to reproduce the #1227 symptom: htmlspecialchars()
+	// with ENT_QUOTES returns '' when given a string containing invalid UTF-8 bytes.
+	return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

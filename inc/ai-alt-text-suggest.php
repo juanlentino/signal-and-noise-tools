@@ -291,7 +291,7 @@ function snt_ai_alt_apply_impl( $attachment_id, $alt_text ) {
 	if ( '' === $alt_text ) {
 		return new WP_Error( 'snt_ai_alt_empty', __( 'Alt text is empty.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
-	if ( strlen( $alt_text ) > SNT_AI_ALT_APPLY_MAX_LENGTH ) {
+	if ( mb_strlen( $alt_text ) > SNT_AI_ALT_APPLY_MAX_LENGTH ) { // #1227: characters, not bytes.
 		/* translators: %d is the maximum allowed number of characters */
 		return new WP_Error( 'snt_ai_alt_too_long', sprintf( __( 'Alt text exceeds %d characters.', 'signal-and-noise-tools' ), SNT_AI_ALT_APPLY_MAX_LENGTH ), array( 'status' => 422 ) );
 	}
