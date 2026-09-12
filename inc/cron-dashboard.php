@@ -618,6 +618,32 @@ function snt_cron_site_health_hooks() {
 }
 
 /**
+ * A next-run instant as a relative-time sentence: "in 5 mins" while it is
+ * still ahead, "5 mins overdue" once it is behind (#1222).
+ *
+ * human_time_diff() always returns the ABSOLUTE difference between its two
+ * timestamps, so calling it as human_time_diff($now, $next) and always
+ * wrapping the result in "in %s" reads a PAST next_run_ts (wp-cron simply
+ * hasn't fired it yet — a stalled or disabled cron, not a data error) as
+ * though it were still upcoming. Pure: takes both instants explicitly so it
+ * is directly testable without mocking time().
+ *
+ * @param int $now         Current Unix timestamp.
+ * @param int $next_run_ts The hook's next scheduled Unix timestamp.
+ * @return string
+ */
+function snt_cron_next_run_label( $now, $next_run_ts ) {
+	$now         = (int) $now;
+	$next_run_ts = (int) $next_run_ts;
+	$diff        = human_time_diff( $now, $next_run_ts );
+	return $next_run_ts < $now
+		/* translators: %s: human time diff. */
+		? sprintf( __( '%s overdue', 'signal-and-noise-tools' ), $diff )
+		/* translators: %s: human time diff. */
+		: sprintf( __( 'in %s', 'signal-and-noise-tools' ), $diff );
+}
+
+/**
  * Resolve a hook's recurrence interval in seconds (for staleness math).
  * Returns 0 when the schedule is unknown.
  */
@@ -767,7 +793,10 @@ function snt_cron_site_health_result() {
 			$unscheduled_label = __( 'not scheduled (feature off)', 'signal-and-noise-tools' );
 		}
 		$next_label = ( false !== $next && is_numeric( $next ) )
-			? sprintf( /* translators: %s: human time diff. */ __( 'next run in %s', 'signal-and-noise-tools' ), human_time_diff( $now, (int) $next ) )
+			// #1222: the sentence "next run %s" takes either half of
+			// snt_cron_next_run_label()'s "in 5 mins" / "5 mins overdue".
+			/* translators: %s: "in <human time diff>" or "<human time diff> overdue". */
+			? sprintf( __( 'next run %s', 'signal-and-noise-tools' ), snt_cron_next_run_label( $now, (int) $next ) )
 			: $unscheduled_label;
 
 		$last_label = ( null !== $last_fired )

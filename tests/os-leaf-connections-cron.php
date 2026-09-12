@@ -34,6 +34,18 @@ if ( ! function_exists( 'snt_cron_get_events_impl' ) ) {
 	}
 }
 
+// #1222: both leaves below call snt_cron_next_run_label() (inc/cron-dashboard.php),
+// which this fixture doesn't otherwise load (it stubs snt_cron_get_events_impl()
+// itself rather than requiring the real cron-dashboard.php and its own web of
+// WP dependencies). Faithful stub, not a passthrough: branches on which side of
+// "now" $next falls, matching the real function's contract.
+if ( ! function_exists( 'snt_cron_next_run_label' ) ) {
+	function snt_cron_next_run_label( $now, $next_run_ts ) {
+		$diff = human_time_diff( $now, $next_run_ts );
+		return $next_run_ts < $now ? "$diff overdue" : "in $diff";
+	}
+}
+
 require_once SNT_PATH . 'inc/admin-glance.php';
 require_once SNT_PATH . 'inc/cron-dashboard-admin.php';
 require_once SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-cron.php';
@@ -61,7 +73,7 @@ $rich_rows = array(
 	array(
 		'hook'           => 'sn_cache_sweep',
 		'args_signature' => 'sig-a',
-		'next_run_ts'    => 1000000,
+		'next_run_ts'    => time() + 1000000, // #1222: must be FUTURE-relative or snt_cron_next_run_label() reads it as overdue.
 		'schedule'       => 'hourly',
 		'interval_s'     => 3600,
 		'args'           => array(),
@@ -72,7 +84,7 @@ $rich_rows = array(
 	array(
 		'hook'           => 'some_orphan_hook',
 		'args_signature' => 'sig-b',
-		'next_run_ts'    => 1000500,
+		'next_run_ts'    => time() + 1000500, // #1222: must be FUTURE-relative or snt_cron_next_run_label() reads it as overdue.
 		'schedule'       => false,
 		'interval_s'     => null,
 		'args'           => array( 'foo' => 'bar' ),
@@ -83,7 +95,7 @@ $rich_rows = array(
 	array(
 		'hook'           => 'other_plugin_cron',
 		'args_signature' => 'sig-c',
-		'next_run_ts'    => 1001000,
+		'next_run_ts'    => time() + 1001000, // #1222: must be FUTURE-relative or snt_cron_next_run_label() reads it as overdue.
 		'schedule'       => 'daily',
 		'interval_s'     => 86400,
 		'args'           => array(),
@@ -173,7 +185,7 @@ $GLOBALS['__cron_rows'] = array(
 	array(
 		'hook'           => '<script>alert(1)</script>',
 		'args_signature' => 'sig-x',
-		'next_run_ts'    => 1000000,
+		'next_run_ts'    => time() + 1000000, // #1222: must be FUTURE-relative or snt_cron_next_run_label() reads it as overdue.
 		'schedule'       => false,
 		'interval_s'     => null,
 		'args'           => array(),

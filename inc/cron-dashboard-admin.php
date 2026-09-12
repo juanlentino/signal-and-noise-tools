@@ -211,12 +211,14 @@ function snt_cron_render_admin_tab() {
 		}
 		echo '</th>';
 
-		// Next run
+		// Next run. #1222: human_time_diff() takes the ABSOLUTE difference, so
+		// a next_run_ts already in the past (wp-cron simply hasn't fired it
+		// yet) read as though it were still upcoming ("in 5 mins" for a run
+		// that is 5 mins overdue). snt_cron_next_run_label() branches on which
+		// side of "now" the instant falls.
 		$next_str = wp_date( 'Y-m-d H:i:s', $row['next_run_ts'] );
-		$next_rel = human_time_diff( time(), $row['next_run_ts'] );
 		echo '<td>' . esc_html( $next_str ) . '<br><small>';
-		/* translators: %s is a human-readable relative time, e.g., "5 mins" */
-		printf( esc_html__( 'in %s', 'signal-and-noise-tools' ), esc_html( $next_rel ) );
+		echo esc_html( snt_cron_next_run_label( time(), $row['next_run_ts'] ) );
 		echo '</small></td>';
 
 		// Recurrence
