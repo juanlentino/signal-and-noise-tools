@@ -261,9 +261,12 @@ ok(
 	'THE STRIP PIN, STRENGTHENED: remote-get-deploy-status properties === array() — pins force_refresh and anything future, not just the one named key'
 );
 
-echo "Group: show_in_rest is false for all seven — #641, applied at birth\n";
-foreach ( array( $REMOTE_EVENTS, $REMOTE_INSIGHTS, $REMOTE_NARRATION, $REMOTE_UPTIME, $REMOTE_HEALTH, $REMOTE_RSS, $REMOTE_DEPLOY ) as $slug ) {
-	ok( false === $GLOBALS['__abilities'][ $slug ]['meta']['show_in_rest'], "#641: $slug carries no public run route (show_in_rest: false)" );
+echo "Group: show_in_rest is false for EVERY twin — #641, applied at birth; #1215 widened this to the full set\n";
+// Derived from the full remote set, not a hand-kept list: a twin added later
+// is held to the rule the day it lands, not the day someone remembers to add
+// it here (the three search twins shipped with `true` under a seven-slug pin).
+foreach ( $FULL_SET as $slug ) {
+	ok( isset( $GLOBALS['__abilities'][ $slug ] ) && false === $GLOBALS['__abilities'][ $slug ]['meta']['show_in_rest'], "#641: $slug carries no public run route (show_in_rest: false)" );
 }
 
 echo "Group: READ-DOOR ABSENCE — all eight remote slugs stay off the laptop door's lists\n";

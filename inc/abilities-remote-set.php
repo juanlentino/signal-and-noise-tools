@@ -588,7 +588,7 @@ add_action( 'wp_abilities_api_init', function () {
 			),
 			'output_schema'       => $table[ $t['admin'] ]['output'],
 			'meta'                => array(
-				'show_in_rest' => true,
+				'show_in_rest' => false, // the surface, not a setting — see file header (#1215).
 				'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
 			),
 		) );
