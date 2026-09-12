@@ -276,3 +276,30 @@ function snt_os_enqueue_settings_script() {
 }
 // The shell harvests registered settings-tab providers at priority 10.
 add_action( 'admin_enqueue_scripts', 'snt_os_enqueue_settings_script', 5 );
+
+/**
+ * Enqueue the Provenance column for OpenStation's native Posts window.
+ *
+ * Its own handle, on every shell request: the column is read by the Posts
+ * window's `openstation.postsWindow.columns` filter on each paint, so the
+ * registration has to exist before that window ever opens — which rules out
+ * riding the lazily-loaded Explorer bundle. Deps: wp-hooks only (the shell's
+ * loader does not walk the dependency graph; see the Explorer's docblock).
+ *
+ * @return void
+ */
+function snt_os_enqueue_posts_provenance_script() {
+	if ( ! function_exists( 'openstation_is_shell_request' ) || ! openstation_is_shell_request() ) {
+		return;
+	}
+	$plugin_file = defined( 'SNT_PATH' ) ? SNT_PATH . 'signal-and-noise-tools.php' : dirname( __DIR__ ) . '/signal-and-noise-tools.php';
+	wp_register_script(
+		'snt-os-posts-provenance',
+		plugins_url( 'assets/os-posts-provenance.js', $plugin_file ),
+		array( 'wp-hooks' ),
+		defined( 'SNT_VERSION' ) ? SNT_VERSION : '1.0.0',
+		true
+	);
+	wp_enqueue_script( 'snt-os-posts-provenance' );
+}
+add_action( 'admin_enqueue_scripts', 'snt_os_enqueue_posts_provenance_script', 5 );

@@ -517,6 +517,25 @@ ok( false !== strpos( $settings_js, 'syncDockTiles' ), 'client defines syncDockT
 ok( false !== strpos( $settings_js, "removeSystemItem( 'sn-analytics' )" ), 'client removes sn-analytics dock tile when disabled' );
 ok( false !== strpos( $settings_js, "removeSystemItem( 'sn-dashboard' )" ), 'client removes sn-dashboard dock tile when disabled' );
 ok( false !== strpos( $settings_js, 'os-registry-changed' ), 'client syncs dock tiles on os-registry-changed event' );
+// Provenance column in the native Posts window (OpenStation 1.1.8 seam
+// `openstation.postsWindow.columns`): its own handle, shell requests only,
+// wp-hooks as the sole dep (the shell's loader never walks the graph).
+$GLOBALS['__scripts'] = array(); $GLOBALS['__enqueued_scripts'] = array();
+$GLOBALS['__os_shell_request'] = false;
+snt_os_enqueue_posts_provenance_script();
+ok( empty( $GLOBALS['__scripts'] ), 'posts provenance: non-shell request registers nothing' );
+$GLOBALS['__os_shell_request'] = true;
+snt_os_enqueue_posts_provenance_script();
+$pp = $GLOBALS['__scripts']['snt-os-posts-provenance'] ?? null;
+ok( null !== $pp && isset( $GLOBALS['__enqueued_scripts']['snt-os-posts-provenance'] ), 'posts provenance: registered AND enqueued on a shell request' );
+ok( null !== $pp && array( 'wp-hooks' ) === $pp['deps'] && SNT_VERSION === $pp['ver'] && false !== strpos( $pp['src'], 'assets/os-posts-provenance.js' ), 'posts provenance: wp-hooks only, SNT_VERSION, the right file' );
+$pp_js = file_get_contents( SNT_PATH . 'assets/os-posts-provenance.js' );
+ok( false !== strpos( $pp_js, "'openstation.postsWindow.columns'" ), 'posts provenance: registers on the Posts window columns filter' );
+ok( false !== strpos( $pp_js, "key: 'sn_provenance'" ), 'posts provenance: the column reads the sn_provenance REST field the plugin already exposes' );
+ok( false !== strpos( $pp_js, "c.key === 'sn_provenance'" ), 'posts provenance: idempotent — the filter runs on every paint and the column is added once' );
+ok( 1 === preg_match( '/if \( ! value \|\| ! value\.versions \) \{\s*return document\.createElement/', $pp_js ), 'posts provenance: an unsigned Note paints an EMPTY node, never a gray badge (absent is not zero)' );
+ok( false === strpos( $pp_js, 'wp.os.' ) && false === strpos( $pp_js, 'wp.apiFetch' ), 'posts provenance: depends on nothing but wp.hooks (the loader will not have run anything else)' );
+
 // Sidebar glyph: an OS icon-set name on the tab registration (read by
 // OpenStation from 1.1.9, WordPress/openstation#808; ignored before).
 ok( 1 === preg_match( "/registerSettingsTab\( \{[^}]*\bicon: 'bell'/s", $settings_js ), 'settings tab names its sidebar glyph from the OS icon set' );
