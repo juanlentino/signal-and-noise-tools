@@ -27,6 +27,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  * HEAD request at home_url and asserts each header is present, surfacing
  * any absence as a finding.
  *
+ * The WAF custom rule "Block Basic-auth on abilities API" rides along, read
+ * from a Better Stack witness monitor rather than probed from here — see
+ * sn_health_cf_waf_abilities_probe() for why the origin cannot judge it. No
+ * witness, or a witness that has not measured, makes the check report
+ * itself as SKIPPED (a gap in evidence), never as a pass.
+ *
  * Probe result (the array of MISSING header names) caches for 6h in the
  * `sn_health_cf_headers_probe` transient. On a WP_Error probe we return a
  * probe-failed note WITHOUT caching, so the next scan re-attempts (the
@@ -40,7 +46,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function sn_health_check_cf_security_headers() {
 	$label    = 'Cloudflare security headers';
-	$fix_hint = 'These 5 headers are delivered at the Cloudflare edge (Transform Rule / Managed Headers), not by WordPress, and the abilities Basic-auth block is a WAF custom rule. A missing header means that Transform Rule is not in force. The abilities probe is weaker: it runs from this server, so it can say the route was not refused from here but cannot prove the WAF rule is absent. Verify both in the Cloudflare dashboard.';
+	$fix_hint = 'These 5 headers are delivered at the Cloudflare edge (Transform Rule / Managed Headers), not by WordPress, and the abilities Basic-auth block is a WAF custom rule. A missing header means that Transform Rule is not in force. The WAF rule is read from a Better Stack witness monitor that sends an Authorization header from outside the origin and expects 403; a witness reporting down means the rule is not in force. Verify either in the Cloudflare dashboard.';
 
 	// Allow the whole check to be filtered off (e.g., non-Cloudflare hosting).
 	if ( ! apply_filters( 'sn_health_cf_header_check_enabled', true ) ) {
@@ -138,27 +144,18 @@ function sn_health_check_cf_security_headers() {
 		set_transient( $cache_key, $missing, SN_HEALTH_CF_HEADERS_TTL );
 	}
 
-	// The WAF probe rides the same check: the same question ("is the edge
+	// The WAF witness rides the same check: the same question ("is the edge
 	// rule in force?") about a rule the enforcement audit (2026-09-11)
 	// recorded as the ONLY thing in front of the abilities run route for an
-	// external caller. Own cache key, same TTL; an indeterminate probe is
-	// never cached.
-	//
-	// KNOWN UNSOUND AS OF 2026-09-12 — this probe reports 'open' against a
-	// rule that is dashboard-confirmed present, Active, and correctly
-	// expressed. The reason is not established. The request originates from
-	// the ORIGIN SERVER (wp_remote_get on home_url), and `cf-ray` on the
-	// response proves only that the response traversed Cloudflare, NOT that
-	// the WAF custom-rule phase judged the request — an IP Access Rule or
-	// WAF exception covering the origin's own address would produce exactly
-	// this reading. So 'open' currently cannot separate "the rule is inert"
-	// from "the prober is exempt", and it must NOT be read as the former.
-	// Settling it needs a request from a host that is not the origin.
-	// See the finding note, which says only what is actually known.
+	// external caller. Own cache key, same TTL; an indeterminate read is
+	// never cached, and it is surfaced as a SKIP (below), never as a pass.
 	$waf_key = 'sn_health_cf_waf_abilities_probe';
 	$waf     = get_transient( $waf_key );
+	$waf_why = '';
 	if ( ! is_string( $waf ) || '' === $waf ) {
-		$waf = sn_health_cf_waf_abilities_probe();
+		$probe   = sn_health_cf_waf_abilities_probe();
+		$waf     = $probe['verdict'];
+		$waf_why = $probe['why'];
 		if ( 'unknown' !== $waf ) {
 			set_transient( $waf_key, $waf, SN_HEALTH_CF_HEADERS_TTL );
 		}
@@ -184,80 +181,134 @@ function sn_health_check_cf_security_headers() {
 			'subject_url'   => home_url( '/wp-json/wp-abilities/v1/abilities' ),
 			'subject_label' => 'waf: Block Basic-auth on abilities API',
 			'edit_url'      => '',
-			'note'          => 'The edge did not refuse an Authorization-bearing request to /wp-abilities/ sent FROM THIS SERVER. That is not proof the WAF rule is gone: this probe runs on the origin, and a request from the origin may never be judged by the zone\'s custom rules at all. Treat it as "unverified from here", not as "the rule is missing" — check the rule in the Cloudflare dashboard, and confirm its effect with a request from another host. The in-plugin guard (sn_mcp_rw_guard_run_route) holds this route either way.',
+			'note'          => 'The Better Stack witness monitor, probing from OUTSIDE the origin, reports that an Authorization-bearing request to /wp-abilities/ was not answered 403 at the edge: the WAF custom rule "Block Basic-auth on abilities API" is not in force. Check Security → WAF → Custom rules in the Cloudflare dashboard. The in-plugin guard (sn_mcp_rw_guard_run_route) holds this route either way.',
 		);
 	}
 
-	return sn_health_pack_check( $label, $findings, $fix_hint );
+	// An unmeasured WAF rule is a gap in evidence, not a pass. The packer's
+	// own ordering rule applies: header findings above outrank this skip.
+	$skipped = null;
+	if ( 'unknown' === $waf ) {
+		$skipped = 'Edge headers measured. The WAF rule "Block Basic-auth on abilities API" was NOT measured this scan: ' . $waf_why;
+	}
+
+	return sn_health_pack_check( $label, $findings, $fix_hint, $skipped );
 }
 
+
 /**
- * Probe the WAF custom rule "Block Basic-auth on abilities API": one GET to
- * the abilities catalogue carrying a throwaway Basic credential. The rule
- * answers 403 at the edge (cf-ray present) before the request ever reaches
- * WordPress. Anything else that is still an edge response — 401 from
- * WordPress rejecting the credential, 200, 404 — means the request went
- * THROUGH the edge unblocked: 'open'. A transport error, or a response with
- * no edge marker (the probe hit the origin directly, where the rule cannot
- * exist), is 'unknown' — nothing was measured, and the caller never caches
- * that.
+ * Read the witness of the WAF custom rule "Block Basic-auth on abilities
+ * API": a Better Stack HTTP monitor on the abilities URL that sends an
+ * `Authorization` header from OUTSIDE the origin and expects the edge's 403.
  *
- * The credential is deliberately garbage: the point is that the header is
- * PRESENT, not that it authenticates. Mirrors the rule's own expression
- * (`any(http.request.headers.names[*] == "authorization")`).
+ * WHY NOT A REQUEST FROM HERE. Until 2026-09-12 this function sent its own
+ * GET to home_url() with a throwaway Basic credential. That request leaves
+ * the ORIGIN SERVER, and the zone's custom rules do not refuse it — measured
+ * that day: the same request from an external host is answered 403 at the
+ * edge (cf-ray, no server-timing) on BOTH the /wp-json/ and the ?rest_route=
+ * spelling, while the origin's own reads "open" against the same rule. The
+ * mechanism (an IP Access Rule or WAF exception covering the origin's
+ * address is the leading candidate) is a dashboard fact, not a plugin one;
+ * what matters here is that NO request this plugin sends can judge the rule.
+ * A monitor that probes from Better Stack's network can.
  *
- * COVERAGE LIMIT: this probes the `/wp-json/` spelling only. WordPress also
- * serves the same API at `/?rest_route=/wp-abilities/v1/...`, which moves the
- * whole path into the QUERY STRING. A rule written on `http.request.uri.path`
- * blocks the form probed here and leaves that alias open — this probe would
- * read 'blocked' and be wrong. The rule must match on `http.request.uri`
- * (path + query) to cover both.
+ * WHAT COUNTS AS A WITNESS. A monitor on this site's host whose URL contains
+ * `wp-abilities` (the rule's own `http.request.uri contains` criterion), of
+ * type `expected_status_code` expecting 403, carrying a request header named
+ * `authorization`. The configuration is checked, not just the name: a plain
+ * status monitor without the header reads `up` whether or not the rule
+ * exists (WordPress answers 401 and the rule never engages), and a green
+ * that cannot go red is not evidence. Two witnesses — one per URL spelling —
+ * are read together; a rule narrowed to `http.request.uri.path` would leave
+ * the `?rest_route=` witness down, which is the coverage this probe could
+ * not see before.
+ *
+ * VERDICTS. Every witness `up` → 'blocked'. Any witness `down` → 'open',
+ * unless the site's own monitor is also down (a timeout reads `down` too,
+ * so a witness cannot speak for the rule while the site is unreachable).
+ * Anything else — no token, no witness, a misconfigured monitor, a witness
+ * that is pending/paused/validating, Better Stack unreachable — is
+ * 'unknown' with a `why` the caller surfaces as a skip; never cached.
+ *
+ * One authenticated GET to Better Stack per read, cached 6h by the caller —
+ * the same budget as the GET it replaces.
  *
  * @since 13.110.0
- * @return string 'blocked'|'open'|'unknown'
+ * @since 14.0.4 Reads the Better Stack witness instead of probing from the origin.
+ * @return array{verdict:string,why:string} verdict 'blocked'|'open'|'unknown'.
  */
 function sn_health_cf_waf_abilities_probe() {
-	$resp = wp_remote_get( home_url( '/wp-json/wp-abilities/v1/abilities' ), array(
-		'timeout'     => 5,
-		'redirection' => 0,
-		'sslverify'   => true,
-		'headers'     => array(
-			'User-Agent'    => 'SignalNoiseTools/' . ( defined( 'SNT_VERSION' ) ? SNT_VERSION : '?' ) . ' waf-drift-check',
-			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- a throwaway Basic credential; the header's presence is the probe.
-			'Authorization' => 'Basic ' . base64_encode( 'sn-waf-probe:not-a-password' ),
-		),
-	) );
-	if ( is_wp_error( $resp ) ) {
-		return 'unknown';
+	$unknown = static function ( $why ) {
+		return array( 'verdict' => 'unknown', 'why' => $why );
+	};
+	$witness_url = home_url( '/wp-json/wp-abilities/v1/abilities' );
+	$how_to      = 'add a Better Stack HTTP monitor on ' . $witness_url . ' (and one on the ?rest_route=/wp-abilities/v1/abilities spelling) with a request header "Authorization: Basic x" and expected status code 403.';
+
+	if ( ! function_exists( 'sn_uptime_status_configured' ) || ! function_exists( 'sn_uptime_status_api_get' ) ) {
+		return $unknown( 'the Better Stack module is not loaded.' );
+	}
+	if ( ! sn_uptime_status_configured() ) {
+		return $unknown( 'no Better Stack API token is configured (Uptime settings); ' . $how_to );
+	}
+	$monitors = sn_uptime_status_api_get( 'v2/monitors' );
+	if ( is_wp_error( $monitors ) ) {
+		return $unknown( 'Better Stack could not be read (' . $monitors->get_error_message() . ').' );
 	}
 
-	$raw     = wp_remote_retrieve_headers( $resp );
-	$is_edge = false;
-	$collect = static function ( $name, $value ) use ( &$is_edge ) {
-		$lower = strtolower( (string) $name );
-		if ( 'cf-ray' === $lower ) {
-			$is_edge = true;
+	$home_host     = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+	$witnesses     = array(); // name => status
+	$misconfigured = array();
+	$site_down     = false;
+	foreach ( (array) $monitors['data'] as $item ) {
+		$attrs = isset( $item['attributes'] ) && is_array( $item['attributes'] ) ? $item['attributes'] : array();
+		$url   = (string) ( $attrs['url'] ?? '' );
+		if ( '' === $home_host || (string) wp_parse_url( $url, PHP_URL_HOST ) !== $home_host ) {
+			continue;
 		}
-		if ( 'server' === $lower ) {
-			$server = is_array( $value ) ? implode( ' ', $value ) : (string) $value;
-			if ( false !== stripos( $server, 'cloudflare' ) ) {
-				$is_edge = true;
+		$status = (string) ( $attrs['status'] ?? '' );
+		$name   = (string) ( $attrs['pronounceable_name'] ?? $item['id'] ?? '' );
+		if ( false === stripos( $url, 'wp-abilities' ) ) {
+			if ( 'down' === $status ) {
+				$site_down = true;
+			}
+			continue;
+		}
+		$has_auth = false;
+		foreach ( (array) ( $attrs['request_headers'] ?? array() ) as $h ) {
+			if ( is_array( $h ) && 'authorization' === strtolower( (string) ( $h['name'] ?? '' ) ) ) {
+				$has_auth = true;
 			}
 		}
-	};
-	if ( is_object( $raw ) && method_exists( $raw, 'getAll' ) ) {
-		foreach ( (array) $raw->getAll() as $name => $value ) {
-			$collect( $name, $value );
+		$expects_403 = 'expected_status_code' === ( $attrs['monitor_type'] ?? '' )
+			&& in_array( 403, array_map( 'intval', (array) ( $attrs['expected_status_codes'] ?? array() ) ), true );
+		if ( ! $has_auth || ! $expects_403 ) {
+			$misconfigured[] = $name;
+			continue;
 		}
-	} elseif ( $raw instanceof \Traversable || is_array( $raw ) ) {
-		foreach ( $raw as $name => $value ) {
-			$collect( $name, $value );
-		}
-	}
-	if ( ! $is_edge ) {
-		return 'unknown';
+		$witnesses[ $name ] = $status;
 	}
 
-	$code = (int) wp_remote_retrieve_response_code( $resp );
-	return 403 === $code ? 'blocked' : 'open';
+	if ( empty( $witnesses ) ) {
+		$why = 'no witness monitor exists; ' . $how_to;
+		if ( $misconfigured ) {
+			$why .= ' (' . implode( ', ', $misconfigured ) . ': on that URL but not configured as a witness — needs the Authorization header and expected status 403.)';
+		}
+		return $unknown( $why );
+	}
+	if ( $site_down ) {
+		return $unknown( 'the site itself is down on Better Stack, so the witness reading is uninformative.' );
+	}
+	$pending = array();
+	foreach ( $witnesses as $name => $status ) {
+		if ( 'down' === $status ) {
+			return array( 'verdict' => 'open', 'why' => '' );
+		}
+		if ( 'up' !== $status ) {
+			$pending[] = $name . ' is ' . $status;
+		}
+	}
+	if ( $pending ) {
+		return $unknown( 'witness not reporting yet: ' . implode( '; ', $pending ) . '.' );
+	}
+	return array( 'verdict' => 'blocked', 'why' => '' );
 }

@@ -23,6 +23,12 @@ function sn_handle_health_scan( $post ) {
 	// v3.5.1: route through the central dispatcher per the established pattern.
 	// The impl module owns the work; this handler just dispatches + sets flash.
 	if ( function_exists( 'sn_health_run_scan' ) ) {
+		// A person pressing "Re-run scan" wants a fresh reading, but the two
+		// edge probes (security headers, WAF witness) serve a 6h transient
+		// first — so a stale verdict survived every manual re-run until the
+		// transient expired. Drop them here; the daily cron keeps the cache.
+		delete_transient( 'sn_health_cf_headers_probe' );
+		delete_transient( 'sn_health_cf_waf_abilities_probe' );
 		$scan = sn_health_run_scan();
 		// v8.0.1: findings-aware flash. The runner returns the fresh scan, so
 		// the count is free here — a clean run must not promise "findings below".

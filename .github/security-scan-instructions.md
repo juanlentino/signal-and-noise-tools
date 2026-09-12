@@ -73,8 +73,9 @@ must pass untouched — that is the negative assertion in
 
 A Cloudflare WAF rule ("Block Basic-auth on abilities API") also targets
 `Authorization`-bearing requests to `/wp-abilities/` at the edge. It lives in
-the dashboard, not in this repo; it is confirmed present and Active, but its
-effect has never been measured from outside the origin — the health check
-`inc/health-check-cf-security-headers.php` probes it from the origin server,
-where the reading cannot separate "rule inert" from "prober exempt". Do not
-credit it as the control — the in-plugin guard above is.
+the dashboard, not in this repo; it is confirmed present, Active, and measured
+in force from an external host (2026-09-12, both URL spellings). It does not
+refuse the origin's own requests, so `inc/health-check-cf-security-headers.php`
+reads a Better Stack witness monitor instead of probing it. It is gone on any
+direct-to-origin path. Do not credit it as the control — the in-plugin guard
+above is.
