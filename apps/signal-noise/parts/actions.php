@@ -76,10 +76,25 @@ function targets( State $state, array $args ) {
  * @param State $state Session state.
  * @return string
  */
-function section_post_type( State $state ) {
+function section_post_type( State $state, $post_id = 0 ) {
 	$section = \snt_os_app_section( (string) $state->get( 'section' ) );
 	$type    = is_array( $section ) ? (string) ( $section['post_type'] ?? '' ) : '';
-	return '' !== $type ? $type : 'post';
+	if ( '' !== $type ) {
+		return $type;
+	}
+	// v14.5.0: from the ATTENTION section a row resolves its own subject. The
+	// section a post belongs to is asked of the registry and the post itself
+	// (attention_section_for_post: offered to this user AND lists this post),
+	// never of the client -- so the answer is a section the reader could have
+	// opened and acted in, which is exactly the widening this gate refuses.
+	if ( 'attention' === (string) $state->get( 'section' ) && (int) $post_id > 0 && function_exists( __NAMESPACE__ . '\\attention_section_for_post' ) ) {
+		$home = \snt_os_app_section( attention_section_for_post( (int) $post_id ) );
+		$type = is_array( $home ) ? (string) ( $home['post_type'] ?? '' ) : '';
+		if ( '' !== $type ) {
+			return $type;
+		}
+	}
+	return 'post';
 }
 
 /**
@@ -228,9 +243,8 @@ function purge_action( State $state, Os $os, array $args ) {
 	}
 	$ids  = array();
 	$urls = array();
-	$type = section_post_type( $state );
 	foreach ( targets( $state, $args ) as $id ) {
-		if ( ! note_allowed( $os, $id, 'manage', $type ) ) {
+		if ( ! note_allowed( $os, $id, 'manage', section_post_type( $state, $id ) ) ) {
 			continue;
 		}
 		$ids[] = $id;
@@ -309,7 +323,7 @@ function purge_action( State $state, Os $os, array $args ) {
  */
 function anchor_action( State $state, Os $os, array $args ) {
 	$id = (int) ( $args['item'] ?? 0 );
-	if ( ! note_allowed( $os, $id, 'manage', section_post_type( $state ) ) ) {
+	if ( ! note_allowed( $os, $id, 'manage', section_post_type( $state, $id ) ) ) {
 		$os->toast( __( 'The dispatch could not be retried.', 'signal-and-noise-tools' ) );
 		return;
 	}
@@ -370,4 +384,37 @@ function anchor_action( State $state, Os $os, array $args ) {
 function anchor_worker_configured() {
 	return function_exists( 'sn_prov_worker_url' ) && '' !== (string) \sn_prov_worker_url()
 		&& function_exists( 'sn_prov_hmac_secret' ) && '' !== (string) \sn_prov_hmac_secret();
+}
+
+/**
+ * `ack`: acknowledge one Attention row. (v14.5.0)
+ *
+ * What "solving" means for a row whose fix is a read taken elsewhere -- a
+ * ripe watch, an integrity leg, a citation to look at. The row's key and its
+ * STAMP are stored; attention_visible_rows() hides the row while the stamp
+ * is unchanged and shows it again the moment the fact moves. An
+ * acknowledgement can therefore never bury a recurring fault: a new probe,
+ * a new sweep, a new commit is a new stamp.
+ *
+ * Site-wide, like the queue itself (one composition for every admin), and
+ * gated the same way the queue's rows are: manage_options.
+ *
+ * @param State               $state Session state.
+ * @param Os                  $os    Host handle.
+ * @param array<string,mixed> $args  { key, stamp }.
+ * @return void
+ */
+function ack_action( State $state, Os $os, array $args ) {
+	unset( $state );
+	if ( ! $os->can( 'manage_options' ) ) {
+		$os->toast( __( 'Only an administrator can acknowledge a row.', 'signal-and-noise-tools' ) );
+		return;
+	}
+	$key = (string) preg_replace( '/[^a-zA-Z0-9_-]/', '-', (string) ( $args['key'] ?? '' ) );
+	if ( '' === $key ) {
+		$os->toast( __( 'Nothing to acknowledge.', 'signal-and-noise-tools' ) );
+		return;
+	}
+	attention_ack( $key, (string) ( $args['stamp'] ?? '' ) );
+	$os->toast( __( 'Acknowledged. It comes back if the fact changes.', 'signal-and-noise-tools' ) );
 }

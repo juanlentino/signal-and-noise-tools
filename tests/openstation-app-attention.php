@@ -790,18 +790,21 @@ ok( array( 'fact', 'stamp' ) === array_keys( $one['columns'] ) && '2026-09-06 11
 ok( array( 'Subject', 'What', 'When', 'Source' ) === array_column( $one['detail']['facts'], 0 ), 'the four facts a queue row knows about itself' );
 ok( array() === $one['detail']['blocks'] && '' === $one['detail']['hero'], 'no blocks, no hero: a queue row is a sentence and a date' );
 
-$labels = array_column( $one['detail']['actions'], 'label' );
+// v14.5.0: every row also carries Acknowledge, and edge/anchors rows a
+// resolve button. The navigation pins below read the door + jump only.
+function t_nav( array $item ) { return array_values( array_filter( $item['detail']['actions'], static function ( $a ) { return ! in_array( $a['dispatch'] ?? '', array( 'ack', 'purge', 'anchor' ), true ); } ) ); }
+$labels = array_column( t_nav( $one ), 'label' );
 ok( array( 'Open Trust checks in S&N Dashboard', 'Open the note' ) === $labels, 'a row that names a post offers its leaf AND the note' );
 ok( 'jump' === $one['detail']['actions'][1]['dispatch'] && array( 'section' => 'notes', 'item' => '11' ) === $one['detail']['actions'][1]['args'], '   ...through the jump dispatch, carrying the section and the item together' );
 ok( false !== strpos( $one['detail']['actions'][0]['url'], 'page=sn-tools&sub=trust' ), '   ...and the door is resolved through the dock registry, never a literal query string' );
 $page_jump = t_item( $items, 'a-anchors-31-v2' )['detail']['actions'][1];
 ok( array( 'section' => 'pages', 'item' => '31' ) === $page_jump['args'] && 'Open the page' === $page_jump['label'], 'a SIGNED PAGE jumps to Pages and says "Open the page": both the section and the WORD come from what lists the post, not from the presence of a post id' );
 ok( false !== strpos( t_item( $items, 'a-health-broken_links' )['detail']['actions'][0]['url'], 'sub=health' ), 'the Health door names its leaf explicitly: sn-monitoring opens on Analytics, so the bare tab URL lands one leaf short' );
-ok( 1 === count( t_item( $items, 'a-citations-never-checked' )['detail']['actions'] ), 'a row that names no post offers the door alone' );
+ok( 1 === count( t_nav( t_item( $items, 'a-citations-never-checked' ) ) ), 'a row that names no post offers the door alone' );
 ok( array( 'section' => 'notes', 'item' => '' ) === t_item( $items, 'a-pending-post' )['detail']['actions'][0]['args'], 'the pending-review row jumps to the SECTION with no item: it counts posts, it does not name one' );
 
 $GLOBALS['__caps']['edit_pages'] = false;
-ok( 1 === count( t_item( t_items(), 'a-anchors-31-v2' )['detail']['actions'] ), 'no jump is offered into a section this user is not offered: the registry re-checks the capability on every call' );
+ok( 1 === count( t_nav( t_item( t_items(), 'a-anchors-31-v2' ) ) ), 'no jump is offered into a section this user is not offered: the registry re-checks the capability on every call' );
 t_fixtures();
 
 echo "\nGroup 5a: a jump is offered only into a section that LISTS the post\n";
@@ -810,20 +813,56 @@ echo "\nGroup 5a: a jump is offered only into a section that LISTS the post\n";
 // in the note category, so Notes lists it nowhere and "Open the note" would
 // land on nothing.
 $items = t_items();
-ok( array( 'Open Cloudflare in S&N Dashboard' ) === array_column( t_item( $items, 'a-edge-23' )['detail']['actions'], 'label' ), 'a post OUTSIDE the note category offers its leaf and NO jump: Notes lists the category, not the post type' );
+ok( array( 'Open Cloudflare in S&N Dashboard' ) === array_column( t_nav( t_item( $items, 'a-edge-23' ) ), 'label' ), 'a post OUTSIDE the note category offers its leaf and NO jump: Notes lists the category, not the post type' );
 ok( 'Open the note' === t_item( $items, 'a-integrity-11' )['detail']['actions'][1]['label'], '   ...while a post that IS in the category still jumps, and says note' );
 $GLOBALS['__posts'][32] = (object) array( 'ID' => 32, 'post_type' => 'page', 'post_title' => 'Colophon', 'post_status' => 'pending', 'post_author' => 5 );
 $unsigned = \SignalNoise\OpenStationApp\attention_item( \SignalNoise\OpenStationApp\attention_row( array( 'kind' => 'anchors', 'key' => '32-v1', 'title' => 'Colophon', 'post_id' => 32 ) ) );
-ok( array() === $unsigned['detail']['actions'], '   ...and a page that never opted into signing is on no list either: Pages lists the opt-in meta, so no jump is offered for it' );
+ok( array() === t_nav( $unsigned ), '   ...and a page that never opted into signing is on no list either: Pages lists the opt-in meta, so no jump is offered for it' );
 // A row that PRE-SETS its section must pass the same two gates -- offered, and
 // containing the post. It is the only kind of row that never went through
 // attention_section_for_post(), so it was the one never checked.
 $preset = \SignalNoise\OpenStationApp\attention_item( \SignalNoise\OpenStationApp\attention_row( array( 'kind' => 'anchors', 'key' => 'preset', 'title' => 'The ban failed', 'post_id' => 23, 'section' => 'notes' ) ) );
-ok( array() === $preset['detail']['actions'], 'a row that names its OWN section is gated too: Notes is offered, but it does not list post 23, so there is no jump' );
+ok( array() === t_nav( $preset ), 'a row that names its OWN section is gated too: Notes is offered, but it does not list post 23, so there is no jump' );
 $GLOBALS['__caps']['edit_posts'] = false;
-ok( 0 === count( t_item( t_items(), 'a-pending-post' )['detail']['actions'] ), '   ...and a pre-set section this user is not offered at all yields no jump: the gate is the same one a resolved section passes' );
+ok( 0 === count( t_nav( t_item( t_items(), 'a-pending-post' ) ) ), '   ...and a pre-set section this user is not offered at all yields no jump: the gate is the same one a resolved section passes' );
 $GLOBALS['__caps']['edit_posts'] = true;
 unset( $GLOBALS['__posts'][32] );
+t_fixtures();
+
+echo "\nGroup 5b: solve on the row (v14.5.0) -- resolve buttons and Acknowledge\n";
+$items = t_items();
+$edge_listed = t_item( $items, 'a-edge-11' ) ?? null;
+$anch = t_item( $items, 'a-anchors-31-v2' );
+$resolve = static function ( array $item ) { return array_values( array_filter( $item['detail']['actions'], static function ( $a ) { return in_array( $a['dispatch'] ?? '', array( 'purge', 'anchor' ), true ); } ) ); };
+$acks    = static function ( array $item ) { return array_values( array_filter( $item['detail']['actions'], static function ( $a ) { return 'ack' === ( $a['dispatch'] ?? '' ); } ) ); };
+ok( array( array( 'label' => 'Retry anchor', 'dispatch' => 'anchor', 'args' => array( 'item' => '31' ), 'variant' => 'primary' ) ) === $resolve( $anch ), 'an anchors row for a LISTED post offers Retry anchor -- the dossier\'s own dispatch, with the post as item' );
+ok( array() === $resolve( t_item( $items, 'a-edge-23' ) ), 'an edge row for an UNLISTED post offers no Purge: the resolve button sits behind the jump\'s gate' );
+ok( array() === $resolve( t_item( $items, 'a-integrity-11' ) ) && array() === $resolve( t_item( $items, 'a-citations-never-checked' ) ), 'kinds without a button get none' );
+foreach ( $items as $it ) {
+	$a = $acks( $it );
+	if ( 1 !== count( $a ) || 'ghost' !== $a[0]['variant'] || substr( $it['id'], 2 ) !== $a[0]['args']['key'] || $it['date'] !== $a[0]['args']['stamp'] ) {
+		ok( false, 'every row offers exactly one Acknowledge carrying its own key and stamp (' . $it['id'] . ')' );
+		break;
+	}
+}
+ok( true, 'every row offers exactly one Acknowledge carrying its own key and stamp' );
+$edge_row = \SignalNoise\OpenStationApp\attention_row( array( 'kind' => 'edge', 'key' => '31', 'title' => 'A signed page', 'post_id' => 31, 'stamp' => '2026-09-06 12:00:00' ) );
+ok( 'Purge edge' === $resolve( \SignalNoise\OpenStationApp\attention_item( $edge_row ) )[0]['label'], 'an edge row for a listed post offers Purge edge' );
+
+// Acknowledge: hidden at THIS stamp, back when the fact moves.
+$GLOBALS['__options']['snt_os_attention_acks'] = array();
+$before = count( \SignalNoise\OpenStationApp\attention_visible_rows() );
+\SignalNoise\OpenStationApp\attention_ack( 'anchors-31-v2', $anch['date'] );
+$after = \SignalNoise\OpenStationApp\attention_visible_rows();
+ok( $before - 1 === count( $after ) && ! in_array( 'a-anchors-31-v2', array_column( \SignalNoise\OpenStationApp\attention_items(), 'id' ), true ), 'an acknowledged row is hidden -- the queue is one shorter and the pill will count one fewer' );
+ok( array( 'anchors-31-v2' => $anch['date'] ) === get_option( 'snt_os_attention_acks' ), 'the store holds key => stamp, pruned to rows the queue still has' );
+$GLOBALS['__options']['snt_os_attention_acks'] = array( 'anchors-31-v2' => '2001-01-01 00:00:00', 'gone-row' => '' );
+ok( in_array( 'a-anchors-31-v2', array_column( \SignalNoise\OpenStationApp\attention_items(), 'id' ), true ), 'an acknowledgement at an OLDER stamp does not hide the row: the fact moved, it is back' );
+\SignalNoise\OpenStationApp\attention_ack( 'edge-23', '' );
+ok( ! array_key_exists( 'gone-row', get_option( 'snt_os_attention_acks' ) ), 'acknowledging prunes keys the queue no longer holds' );
+$GLOBALS['__options']['snt_os_attention_acks'] = 'garbage';
+ok( count( t_items() ) === $before, 'a corrupt store hides nothing' );
+unset( $GLOBALS['__options']['snt_os_attention_acks'] );
 t_fixtures();
 
 echo "\nGroup 5b: the registry is resolved ONCE per paint, not once per row\n";
