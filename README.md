@@ -142,7 +142,7 @@ GitHub-poll updater wired into WordPress's native update system
 
 ## Requirements
 
-- WordPress 7.0+ · PHP 8.3+ (the plugin header's `Requires PHP`; production runs 8.4, CI pins 8.3)
+- WordPress 7.0+, **tested up to and running on 7.1** (the plugin header's `Tested up to`; juanlentino.com runs 7.1 in production) · PHP 8.3+ (the plugin header's `Requires PHP`; production runs 8.4, CI pins 8.3)
 - The **Signal & Noise** theme at v8.2.0+ (the release that moved these modules out of the theme; the plugin shows an admin notice rather than fataling if the theme is older)
 
 ## Install
