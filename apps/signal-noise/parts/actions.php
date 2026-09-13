@@ -323,14 +323,23 @@ function anchor_action( State $state, Os $os, array $args ) {
 		$os->toast( __( 'The chain could not be read.', 'signal-and-noise-tools' ) );
 		return;
 	}
-	$versions = array();
+	// v14.4.2: a PENDING commit is also work for the reconcile — it asks the
+	// ledger whether the proof already confirmed and the callback was lost.
+	$unanchored = array();
+	$pending    = array();
 	foreach ( (array) \sn_prov_get_chain( $id ) as $commit ) {
-		if ( is_array( $commit ) && 'unanchored' === (string) ( $commit['status'] ?? '' ) ) {
-			$versions[] = 'v' . (int) ( $commit['version'] ?? 0 );
+		if ( ! is_array( $commit ) ) {
+			continue;
+		}
+		$status = (string) ( $commit['status'] ?? '' );
+		if ( 'unanchored' === $status ) {
+			$unanchored[] = 'v' . (int) ( $commit['version'] ?? 0 );
+		} elseif ( 'pending' === $status ) {
+			$pending[] = 'v' . (int) ( $commit['version'] ?? 0 );
 		}
 	}
-	if ( array() === $versions ) {
-		$os->toast( __( 'Nothing to dispatch: every version is anchored or pending.', 'signal-and-noise-tools' ) );
+	if ( array() === $unanchored && array() === $pending ) {
+		$os->toast( __( 'Nothing to do: every version is anchored.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	if ( ! function_exists( 'sn_prov_reconcile_post' ) || false === \sn_prov_reconcile_post( $id ) ) {
@@ -340,7 +349,16 @@ function anchor_action( State $state, Os $os, array $args ) {
 	// The chain's statuses are in flight; the shown verdict is about before.
 	// A REQUEST was made; the ledger, not this toast, says whether it landed.
 	$state->reset( 'verdict' );
-	$os->toast( sprintf( /* translators: %s: versions, e.g. "v3, v4". */ __( 'Re-dispatch requested for %s; the ledger answers when it lands.', 'signal-and-noise-tools' ), implode( ', ', $versions ) ) );
+	$parts = array();
+	if ( array() !== $unanchored ) {
+		/* translators: %s: versions, e.g. "v3, v4". */
+		$parts[] = sprintf( __( 'Re-dispatch requested for %s; the ledger answers when it lands.', 'signal-and-noise-tools' ), implode( ', ', $unanchored ) );
+	}
+	if ( array() !== $pending ) {
+		/* translators: %s: versions, e.g. "v1". */
+		$parts[] = sprintf( __( 'The ledger was asked about %s; a confirmed record lands now.', 'signal-and-noise-tools' ), implode( ', ', $pending ) );
+	}
+	$os->toast( implode( ' ', $parts ) );
 }
 
 /**

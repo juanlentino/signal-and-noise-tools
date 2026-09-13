@@ -545,12 +545,67 @@ function sn_prov_reconcile_post( $post_id ) {
 	}
 
 	foreach ( sn_prov_get_chain( $post_id ) as $commit ) {
-		if ( 'unanchored' !== ( $commit['status'] ?? '' ) ) {
+		$status = (string) ( $commit['status'] ?? '' );
+		if ( 'pending' === $status ) {
+			sn_prov_reconcile_pending( $post_id, $commit );
+			continue;
+		}
+		if ( 'unanchored' !== $status ) {
 			continue;
 		}
 		$canonical = isset( $commit['payload'] ) ? sn_prov_canonical_json( (array) $commit['payload'] ) : '';
 		sn_prov_dispatch( $post_id, $commit, $canonical );
 	}
+}
+
+/**
+ * A `pending` commit: ask the LEDGER, the authoritative record. (v14.4.2)
+ *
+ * `pending` means the Worker accepted the dispatch and the OpenTimestamps
+ * proof was in flight. The Worker's hourly sweep flips the ledger record to
+ * confirmed and posts a signed confirm callback here — and if that callback
+ * is lost or refused, the Worker drops its pending row (its v1.8.2 rule: a
+ * definitive rejection would reject identically every hour). From then on
+ * nothing on either side heals the row: the Worker has nothing pending, and
+ * this reconcile only re-dispatched `unanchored`. Measured on 2026-09-13:
+ * note 2584 v1 pending in WordPress for thirteen days while the public
+ * ledger had it confirmed at Bitcoin block 964812, same hash.
+ *
+ * So: read the record the whole verification story already trusts. If it
+ * says confirmed with a matching hash, apply it through the SAME gate the
+ * callback uses (sn_prov_apply_confirmation: hash must match, status
+ * allowlisted). Anything else — 404, outage, a record still pending, a
+ * hash that differs — changes nothing: absence of evidence is not a
+ * confirmation. A pending commit costs one GET per reconcile pass and
+ * pending commits are rare, so no age gate.
+ *
+ * @since 14.4.2
+ * @param int                 $post_id
+ * @param array<string,mixed> $commit  The pending chain entry.
+ * @return bool True when the commit was confirmed from the ledger.
+ */
+function sn_prov_reconcile_pending( $post_id, array $commit ) {
+	$version = (int) ( $commit['version'] ?? 0 );
+	$uid     = function_exists( 'sn_prov_note_uid' ) ? (string) sn_prov_note_uid( $post_id ) : '';
+	$kind    = function_exists( 'sn_prov_subject_kind' ) && function_exists( 'get_post' ) ? (string) sn_prov_subject_kind( get_post( $post_id ) ) : '';
+	$dir     = function_exists( 'sn_prov_ledger_dir' ) ? (string) sn_prov_ledger_dir( $kind ) : '';
+	if ( $version < 1 || '' === $uid || '' === $dir || ! function_exists( 'sn_prov_integrity_ledger_base' ) || ! function_exists( 'sn_prov_integrity_fetch_json' ) ) {
+		return false;
+	}
+	$url    = sn_prov_integrity_ledger_base() . $dir . '/' . rawurlencode( $uid ) . '/v' . $version . '.json';
+	$ledger = sn_prov_integrity_fetch_json( $url, 'sn_prov_integrity_http_fetch' );
+	$record = is_array( $ledger['json'] ?? null ) ? $ledger['json'] : null;
+	if ( null === $record || 'confirmed' !== (string) ( $record['ots']['status'] ?? '' ) ) {
+		return false;
+	}
+	$data = array(
+		'content_hash' => (string) preg_replace( '/^sha256:/', '', (string) ( $record['content_hash'] ?? '' ) ),
+		'status'       => 'confirmed',
+	);
+	if ( isset( $record['ots']['bitcoin_block'] ) ) {
+		$data['bitcoin_block'] = (int) $record['ots']['bitcoin_block'];
+	}
+	return (bool) sn_prov_apply_confirmation( $uid, $version, $data );
 }
 
 /**
