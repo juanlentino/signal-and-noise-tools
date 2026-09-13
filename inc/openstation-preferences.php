@@ -189,6 +189,7 @@ function snt_os_preferences_rest_update( $request ) {
  */
 const SNT_OS_ATTENTION_TRANSIENT = 'snt_os_attention';
 const SNT_OS_ATTENTION_TTL       = 60;
+const SNT_OS_ATTENTION_LAST_OPT  = 'snt_os_attention_last';
 
 /**
  * What the Posts window's Attention pill reads: the app's LAST composition,
@@ -208,15 +209,28 @@ const SNT_OS_ATTENTION_TTL       = 60;
 function snt_os_attention_snapshot( $now = null ) {
 	$now    = null === $now ? time() : (int) $now;
 	$cached = function_exists( 'get_transient' ) ? get_transient( SNT_OS_ATTENTION_TRANSIENT ) : false;
-	if ( ! is_array( $cached ) || ! isset( $cached['rows'], $cached['read_at'] ) || ! is_array( $cached['rows'] ) ) {
-		return array( 'count' => null, 'read_at' => null, 'stamp' => '', 'stale' => true );
+	if ( is_array( $cached ) && isset( $cached['rows'], $cached['read_at'] ) && is_array( $cached['rows'] ) ) {
+		$count   = count( $cached['rows'] );
+		$read_at = (int) $cached['read_at'];
+		$stamp   = (string) ( $cached['stamp'] ?? '' );
+	} else {
+		// The transient EXPIRES at 60 s (14.4.0 read only it, and the pill
+		// was blank whenever the app had not been opened within the minute).
+		// The app also keeps its last headline in an option that outlives
+		// the transient; still the app's own reading, never a composition.
+		$last = function_exists( 'get_option' ) ? get_option( SNT_OS_ATTENTION_LAST_OPT, array() ) : array();
+		if ( ! is_array( $last ) || ! isset( $last['count'], $last['read_at'] ) ) {
+			return array( 'count' => null, 'read_at' => null, 'stamp' => '', 'stale' => true );
+		}
+		$count   = (int) $last['count'];
+		$read_at = (int) $last['read_at'];
+		$stamp   = (string) ( $last['stamp'] ?? '' );
 	}
-	$read_at = (int) $cached['read_at'];
-	$age     = $now - $read_at;
+	$age = $now - $read_at;
 	return array(
-		'count'   => count( $cached['rows'] ),
+		'count'   => $count,
 		'read_at' => $read_at,
-		'stamp'   => (string) ( $cached['stamp'] ?? '' ),
+		'stamp'   => $stamp,
 		// Same rule attention_rows() applies before trusting its cache: a
 		// read_at in the future is a clock that moved, not a fresh read.
 		'stale'   => $age < 0 || $age >= SNT_OS_ATTENTION_TTL,

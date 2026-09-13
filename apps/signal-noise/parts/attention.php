@@ -56,6 +56,14 @@ const ATTENTION_CACHE_KEY = 'snt_os_attention';
 const ATTENTION_TTL = 60;
 
 /**
+ * The last composition's headline, kept past the transient's expiry. The
+ * Posts window's Attention pill reads this (snt_os_attention_snapshot()) when
+ * the transient is gone, so it can say "the app last saw N" instead of
+ * nothing — without composing. Only ever written beside a composition.
+ */
+const ATTENTION_LAST_OPT = 'snt_os_attention_last';
+
+/**
  * Now, in unix seconds.
  *
  * `$GLOBALS['__now']` is honoured so a fixture can hold the clock still: the
@@ -498,6 +506,9 @@ function attention_rows() {
 	);
 	if ( function_exists( 'set_transient' ) ) {
 		set_transient( ATTENTION_CACHE_KEY, $out, ATTENTION_TTL );
+	}
+	if ( function_exists( 'update_option' ) ) {
+		update_option( ATTENTION_LAST_OPT, array( 'count' => count( $out['rows'] ), 'read_at' => $now, 'stamp' => $out['stamp'] ), false );
 	}
 	return $out;
 }

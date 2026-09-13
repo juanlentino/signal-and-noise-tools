@@ -157,6 +157,8 @@ function update_user_meta( $user_id, $key, $value ) {
 $GLOBALS['__caps'] = array( 'manage_options' => true );
 $GLOBALS['__transients'] = array();
 function get_transient( $key ) { return $GLOBALS['__transients'][ $key ] ?? false; }
+$GLOBALS['__options'] = array();
+function get_option( $key, $d = false ) { return $GLOBALS['__options'][ $key ] ?? $d; }
 function current_user_can( $cap ) {
 	return ! empty( $GLOBALS['__caps'][ $cap ] );
 }
@@ -574,6 +576,16 @@ ok( true === snt_os_attention_snapshot( 4000 )['stale'], 'attention pill: a read
 $GLOBALS['__transients'][ SNT_OS_ATTENTION_TRANSIENT ] = array( 'rows' => 'not-an-array', 'read_at' => 4970 );
 ok( null === snt_os_attention_snapshot( 5000 )['count'], 'attention pill: a malformed transient is "not composed", not a count' );
 unset( $GLOBALS['__transients'][ SNT_OS_ATTENTION_TRANSIENT ] );
+// v14.4.1: the transient EXPIRES; the app's last headline outlives it.
+$GLOBALS['__options'][ SNT_OS_ATTENTION_LAST_OPT ] = array( 'count' => 7, 'read_at' => 4000, 'stamp' => 's0' );
+ok( array( 'count' => 7, 'read_at' => 4000, 'stamp' => 's0', 'stale' => true ) === snt_os_attention_snapshot( 5000 ), 'attention pill: transient gone → the app\'s LAST count (7), marked stale — the pill says what the app last saw, never blank' );
+$GLOBALS['__transients'][ SNT_OS_ATTENTION_TRANSIENT ] = array( 'rows' => array( 1 ), 'read_at' => 4990, 'stamp' => 's2' );
+ok( 1 === snt_os_attention_snapshot( 5000 )['count'], 'attention pill: a live transient WINS over the older option' );
+unset( $GLOBALS['__transients'][ SNT_OS_ATTENTION_TRANSIENT ] );
+$GLOBALS['__options'][ SNT_OS_ATTENTION_LAST_OPT ] = array( 'count' => 7 );
+ok( null === snt_os_attention_snapshot( 5000 )['count'], 'attention pill: an option without read_at is not a reading' );
+unset( $GLOBALS['__options'][ SNT_OS_ATTENTION_LAST_OPT ] );
+ok( 1 === preg_match( "/const ATTENTION_LAST_OPT\s*=\s*'" . preg_quote( SNT_OS_ATTENTION_LAST_OPT, '/' ) . "'/", $att_src ), 'attention pill: reads the SAME option the app writes (ATTENTION_LAST_OPT parity)' );
 // Comments stripped first: the docblock is allowed to EXPLAIN the rule by name.
 $pref_code = preg_replace( '~/\*.*?\*/|//[^\n]*~s', '', file_get_contents( SNT_PATH . 'inc/openstation-preferences.php' ) );
 ok( 0 === preg_match( '/attention_(compose|rows)\s*\(/', $pref_code ), 'attention pill: the route file never CALLS the composer — a window open cannot trigger nine readers' );

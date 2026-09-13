@@ -319,6 +319,8 @@ function sn_prov_admin_status() {
  * @param mixed  $d   Default.
  * @return mixed
  */
+$GLOBALS['__option_writes'] = array();
+function update_option( $key, $value, $autoload = null ) { $GLOBALS['__options'][ (string) $key ] = $value; $GLOBALS['__option_writes'][] = array( (string) $key, $autoload ); return true; }
 function get_option( $key, $d = false ) {
 	if ( SN_CF_PROBE_LOG_OPT === (string) $key ) {
 		t_read( 'edge' );
@@ -846,6 +848,16 @@ foreach ( \SignalNoise\OpenStationApp\attention_rows()['rows'] as $row ) {
 		++$with_post;
 	}
 }
+// v14.4.1: a composition also leaves its headline in an option that
+// OUTLIVES the 60 s transient — what the Posts window's Attention pill
+// reads once the transient has expired. Written beside the composition,
+// never autoloaded, never by a cache hit.
+$last = $GLOBALS['__options']['snt_os_attention_last'] ?? null;
+ok( is_array( $last ) && $with_post <= (int) $last['count'] && (int) $last['read_at'] > 0 && array( 'snt_os_attention_last', false ) === end( $GLOBALS['__option_writes'] ),
+	'a composition writes snt_os_attention_last { count, read_at, stamp } (autoload false) — the pill\'s fallback when the transient is gone' );
+$writes_before = count( $GLOBALS['__option_writes'] );
+\SignalNoise\OpenStationApp\attention_rows();
+ok( $writes_before === count( $GLOBALS['__option_writes'] ), 'a cache HIT rewrites nothing — the option only ever changes when the queue was actually composed' );
 ok( $with_post >= 5 && $GLOBALS['__registry_passes'] <= 2, 'one attention_items() call over ' . $with_post . ' post-bearing rows resolves the registry at most twice (' . (int) $GLOBALS['__registry_passes'] . '): the offered sections are threaded down, not re-asked per row' );
 t_fixtures();
 
