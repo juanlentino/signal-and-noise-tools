@@ -325,7 +325,16 @@ namespace {
 	);
 	$os = new \OpenStation\App\Os();
 	$app->actions['anchor']( st( $app ), $os, array( 'item' => '11' ) );
-	ok( array() === $GLOBALS['__reconciled'] && array( 'Nothing to dispatch: every version is anchored or pending.' ) === $os->toasts, 'a chain with nothing unanchored dispatches nothing and says why' );
+	ok( array() === $GLOBALS['__reconciled'] && array( 'Nothing to do: every version is anchored.' ) === $os->toasts, 'a chain with nothing unanchored or pending dispatches nothing and says why' );
+
+	// v14.4.2: a PENDING commit is work — the reconcile asks the ledger whether
+	// the proof confirmed and the callback was lost (note 2584 v1, 13 days).
+	$GLOBALS['__chains'][11][] = array( 'version' => 3, 'status' => 'pending' );
+	$os = new \OpenStation\App\Os();
+	$app->actions['anchor']( st( $app ), $os, array( 'item' => '11' ) );
+	ok( array( 11 ) === $GLOBALS['__reconciled'] && array( 'The ledger was asked about v3; a confirmed record lands now.' ) === $os->toasts, 'a pending commit reconciles (the ledger read) and the toast names it as a ledger question, not a re-dispatch' );
+	array_pop( $GLOBALS['__chains'][11] );
+	$GLOBALS['__reconciled'] = array();
 
 	$GLOBALS['__chains'][11][] = array( 'version' => 3, 'status' => 'unanchored' );
 	$os = new \OpenStation\App\Os();

@@ -436,10 +436,51 @@ sn_prov_reconcile_post( 77 );
 wh_eq( 1, count( $GLOBALS['__pv_http'] ), 'unanchored commit re-dispatched' );
 $chain = sn_prov_get_chain( 77 );
 wh_eq( 'pending', $chain[0]['status'], 'reconcile flips unanchored -> pending' );
-// A pending/confirmed commit is left alone.
+// A pending/confirmed commit is never re-dispatched.
 $GLOBALS['__pv_http'] = array();
 sn_prov_reconcile_post( 77 );
 wh_eq( 0, count( $GLOBALS['__pv_http'] ), 'already-pending commit not re-dispatched' );
+
+// ── v14.4.2: a PENDING commit asks the ledger ────────────────────────
+// note 2584 v1 sat pending in WordPress for thirteen days while the public
+// ledger had it confirmed (block 964812): the confirm callback was lost and
+// the Worker dropped its pending row. The reconcile now reads the record the
+// verification story already trusts, through the callback's own gate.
+$GLOBALS['__pv_ledger'] = array(); // url => array{code, body}
+$GLOBALS['__pv_ledger_gets'] = array();
+function sn_prov_integrity_ledger_base() { return 'https://ledger.test/'; }
+function sn_prov_integrity_http_fetch( $url ) { $GLOBALS['__pv_ledger_gets'][] = $url; return $GLOBALS['__pv_ledger'][ $url ] ?? array( 'code' => 404, 'body' => '' ); }
+function sn_prov_integrity_fetch_json( $url, $fetcher ) {
+	$res = call_user_func( $fetcher, $url );
+	$j   = 200 === (int) $res['code'] ? json_decode( (string) $res['body'], true ) : null;
+	return array( 'code' => (int) $res['code'], 'json' => is_array( $j ) ? $j : null );
+}
+$GLOBALS['__wh_post'] = (object) array( 'ID' => 77, 'post_type' => 'post' );
+$ledger_url = 'https://ledger.test/notes/w/v1.json';
+// (a) 404: nothing changes — absence of evidence is not a confirmation.
+sn_prov_reconcile_post( 77 );
+wh_eq( array( $ledger_url ), $GLOBALS['__pv_ledger_gets'], 'a pending commit asks the ledger for exactly its record: {base}{kind dir}/{uid}/v{n}.json' );
+wh_eq( 'pending', sn_prov_get_chain( 77 )[0]['status'], 'ledger 404 → still pending' );
+// (b) the record is there but its proof is still pending: nothing changes.
+$GLOBALS['__pv_ledger'][ $ledger_url ] = array( 'code' => 200, 'body' => json_encode( array( 'content_hash' => 'bb', 'ots' => array( 'status' => 'pending' ) ) ) );
+sn_prov_reconcile_post( 77 );
+wh_eq( 'pending', sn_prov_get_chain( 77 )[0]['status'], 'ledger record still pending → still pending' );
+// (c) confirmed on the ledger but a DIFFERENT hash: the callback gate refuses.
+$GLOBALS['__pv_ledger'][ $ledger_url ] = array( 'code' => 200, 'body' => json_encode( array( 'content_hash' => 'zz', 'ots' => array( 'status' => 'confirmed', 'bitcoin_block' => 964812 ) ) ) );
+sn_prov_reconcile_post( 77 );
+wh_eq( 'pending', sn_prov_get_chain( 77 )[0]['status'], 'ledger confirmed with a hash that is not ours → refused, still pending (the integrity belt)' );
+// (d) confirmed on the ledger, same hash (sha256:-prefixed, as the record may spell it): flips.
+$GLOBALS['__pv_ledger'][ $ledger_url ] = array( 'code' => 200, 'body' => json_encode( array( 'content_hash' => 'sha256:bb', 'ots' => array( 'status' => 'confirmed', 'bitcoin_block' => 964812 ) ) ) );
+$GLOBALS['__pv_http'] = array();
+sn_prov_reconcile_post( 77 );
+$healed = sn_prov_get_chain( 77 )[0];
+wh_eq( 'confirmed', $healed['status'], 'ledger confirmed with our hash → the commit is confirmed from the ledger' );
+wh_eq( 964812, (int) ( $healed['bitcoin_block'] ?? 0 ), 'the ledger\'s bitcoin_block rides along' );
+wh_eq( 0, count( $GLOBALS['__pv_http'] ), 'healing from the ledger posts nothing to the Worker' );
+$GLOBALS['__pv_ledger_gets'] = array();
+sn_prov_reconcile_post( 77 );
+wh_eq( array(), $GLOBALS['__pv_ledger_gets'], 'a confirmed commit never asks the ledger again' );
+$GLOBALS['__wh_post'] = (object) array( 'ID' => 42, 'post_type' => 'post' ); // as the earlier tasks left it
 
 // The cron sweep must not silently stop after the first 50 Notes.
 $GLOBALS['__pv_get_posts_pages'] = array(

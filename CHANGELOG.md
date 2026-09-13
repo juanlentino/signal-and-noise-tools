@@ -12,6 +12,12 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A `pending` anchor that the ledger had already confirmed stayed pending forever.** "Nobody can sign an absence" v1 sat `pending` in WordPress for thirteen days while the public ledger had it confirmed at Bitcoin block 964812, same hash: the Worker's confirm callback was lost, the Worker then dropped its pending row (its rule since 1.8.2), and nothing on either side could heal it — the app's Retry anchor and the hourly sweep only re-dispatched `unanchored`. `sn_prov_reconcile_post()` now also handles `pending`: it reads the commit's ledger record (the same record the integrity sweep already trusts) and, when it says confirmed with a matching hash, applies it through the callback's own gate (`sn_prov_apply_confirmation()`: hash must match, status allowlisted). A 404, an outage, a still-pending record or a foreign hash change nothing. Retry anchor in the app now covers pending commits and says so ("The ledger was asked about v1"). Guards: the exact ledger URL, four ledger answers, no Worker POST on a heal, no re-read once confirmed; mutations red: bypassing the hash gate, confirming from a still-pending record.
+
+### Changed
+- **Two watches retired, both ripe and read.** `integrity_resweep_after_silent_write`: fleet 43, every subject re-checked since the 2026-09-03 write, no `hash_mismatch` — the whole fleet cleared it; the ripen callable and `SNT_WATCH_SILENT_WRITE_AT` go with the row. `origin_503_recheck`: **5** origin-side 503s per 24 h (12/09 15:20 → 13/09 15:20) against the pre-v13.97.2 baseline of 10 — halved, not gone; the rest is the FPM pool, and at 0.06 % of ~8,500 requests/day it does not justify a resize. Watches 7 → 5.
+
 ## [14.4.1] - 2026-09-13 — the Attention pill keeps the app's last count
 
 ### Fixed
