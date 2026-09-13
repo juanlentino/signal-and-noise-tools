@@ -137,6 +137,11 @@ function sn_prov_get_chain( $post_id ) { return $GLOBALS['__chains'][ $post_id ]
 require SNT_PATH . 'inc/openstation-compat.php';
 require SNT_PATH . 'inc/discography-store.php';
 require SNT_PATH . 'inc/desktop-mode-explorer.php';
+// v14.4.0: the sn_edge field wraps the dossier's probe-log reader; the real
+// reader needs the log constants the verify module defines.
+const SN_CF_PROBE_LOG_OPT = 'sn_cf_purge_probe_log';
+const SN_CF_PROBE_ALGO    = 2;
+require SNT_PATH . 'inc/note-dossier-state.php';
 
 // ── Harness ──────────────────────────────────────────────────────────
 $pass = 0;
@@ -280,6 +285,31 @@ ok( '1' === ( $res->headers['X-WP-Total'] ?? null ) && '1' === ( $res->headers['
 $field = $GLOBALS['__rest_fields']['post:sn_provenance'] ?? null;
 ok( is_array( $field ) && is_callable( $field['get_callback'] ?? null ),
 	'the sn_provenance REST field is registered on post' );
+
+// ── sn_edge (v14.4.0): the Posts window's Edge column reads it ───────
+$edge_field = $GLOBALS['__rest_fields']['post:sn_edge'] ?? null;
+ok( is_array( $edge_field ) && 'snt_explorer_edge_field' === ( $edge_field['get_callback'] ?? null ),
+	'the sn_edge REST field is registered on post' );
+ok( in_array( 'view', $edge_field['schema']['context'] ?? array(), true ),
+	'sn_edge rides the VIEW context — the Posts window sends no context arg, so edit-only would never ship' );
+$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
+	array( 'time' => 2000, 'post_id' => 21, 'url' => 'https://x.test/b', 'result' => 'stale', 'escalated' => true, 'algo' => 2 ),
+	array( 'time' => 1500, 'post_id' => 22, 'url' => 'https://x.test/c', 'result' => 'fresh', 'algo' => 1 ),
+	array( 'time' => 1000, 'post_id' => 21, 'url' => 'https://x.test/b', 'result' => 'fresh', 'algo' => 2 ),
+);
+ok( null === snt_explorer_edge_field( array( 'id' => 20 ) ),
+	'a post with no probe row yields null — "no probe in the last twenty" is a gap, never fresh' );
+ok( array( 'state' => 'stale', 'verified_at' => 2000, 'escalated' => true ) === snt_explorer_edge_field( array( 'id' => 21 ) ),
+	'the NEWEST current-detector row wins: stale at 2000 over fresh at 1000' );
+ok( null === snt_explorer_edge_field( array( 'id' => 22 ) ),
+	'a retired-detector row (algo 1) is not a verdict' );
+$GLOBALS['__caps'] = array( 'manage_options' => false );
+ok( null === snt_explorer_edge_field( array( 'id' => 21 ) ),
+	'sn_edge is NOT public: a reader without manage_options gets null even when a row exists' );
+$GLOBALS['__caps'] = array();
+$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = 'not-an-array';
+ok( null === snt_explorer_edge_field( array( 'id' => 21 ) ), 'a corrupt log yields null, not a notice' );
+unset( $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] );
 
 // Field: null for non-Notes and for chainless Notes — never an empty struct.
 ok( null === snt_explorer_provenance_field( array( 'id' => 10 ) ),

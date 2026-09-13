@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **An Edge column in OpenStation's native Posts window.** Beside Provenance: the post's last edge-cache probe verdict — `fresh` or `stale`, with the probe time and whether a zone purge was forced in the title. A new `sn_edge` REST field on posts (`snt_explorer_edge_field()`) wraps `sn_note_dossier_last_probe()`, the reader the note dossier's Edge block already uses, so the column and the dossier cannot disagree about the same row. Not public: a reader without `manage_options` gets null. A post with no row in the site-wide twenty-row probe log paints nothing — a gap, never fresh. The column script is renamed `assets/os-posts-provenance.js` → `assets/os-posts.js` (handle `snt-os-posts`), one script for every column we add; the fields it needs ride the window's `_fields` allowlist from one list, `SNT_OS_POSTS_FIELDS`, and a guard checks every field PHP ships has a column the script renders. Phase 1 of `docs/plans/2026-09-12-posts-window-moves.md`.
+
 ## [14.3.1] - 2026-09-13 — the Provenance column ships its field
 
 ### Fixed
