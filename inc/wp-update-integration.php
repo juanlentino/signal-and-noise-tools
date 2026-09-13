@@ -163,6 +163,37 @@ add_action( 'admin_notices', 'sn_plugin_basename_mismatch_notice' );
  * @param array|WP_Error $response The wp_remote_get() return.
  * @return string A short human-readable reason. Never contains a credential.
  */
+/**
+ * The compatibility trio the self-updater reports, read from the plugin
+ * file HEADER. (v14.5.1)
+ *
+ * Two literals here said `tested = '7.0'` while the header said 7.1, and
+ * core paints the updater's value: the Updates page read "Compatibility
+ * with WordPress 7.1: Not tested" on a site running 7.1 with a plugin whose
+ * header said it was. One source — the header — so the two cannot drift
+ * again. A plain regex read, not get_file_data(): this runs inside update
+ * filters and in the standalone harness alike.
+ *
+ * @return array{requires:string,tested:string,requires_php:string}
+ */
+function sn_gh_plugin_compat() {
+	static $compat = null;
+	if ( null !== $compat ) {
+		return $compat;
+	}
+	$file   = defined( 'SNT_PATH' ) ? SNT_PATH . 'signal-and-noise-tools.php' : dirname( __DIR__ ) . '/signal-and-noise-tools.php';
+	$head   = is_readable( $file ) ? (string) file_get_contents( $file, false, null, 0, 8192 ) : '';
+	$read   = static function ( $label, $fallback ) use ( $head ) {
+		return preg_match( '/^\s*\*\s*' . preg_quote( $label, '/' ) . ':\s*([0-9.]+)/mi', $head, $m ) ? $m[1] : $fallback;
+	};
+	$compat = array(
+		'requires'     => $read( 'Requires at least', '7.0' ),
+		'tested'       => $read( 'Tested up to', '7.0' ),
+		'requires_php' => $read( 'Requires PHP', '8.3' ),
+	);
+	return $compat;
+}
+
 function sn_gh_fetch_failure_reason( $response ) {
 	if ( is_wp_error( $response ) ) {
 		// No HTTP response at all — timeout, DNS, TLS. This is the case the
@@ -486,9 +517,10 @@ add_filter( 'pre_set_site_transient_update_plugins', function( $transient ) {
 	// — bumping it as we test against newer WP. `requires` + `requires_php`
 	// mirror the values in the plugin file header for consistency with
 	// what the View Details modal renders (plugins_api filter below).
-	$plugin_data->tested       = '7.0';
-	$plugin_data->requires     = '7.0';
-	$plugin_data->requires_php = '8.3';
+	$compat                    = sn_gh_plugin_compat();
+	$plugin_data->tested       = $compat['tested'];
+	$plugin_data->requires     = $compat['requires'];
+	$plugin_data->requires_php = $compat['requires_php'];
 
 	if ( version_compare( $latest_version, $current_version, '>' ) ) {
 		if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) {
@@ -681,9 +713,10 @@ add_filter( 'plugins_api', function( $result, $action, $args ) {
 	$info->author            = '<a href="https://juanlentino.com">Juan Lentino</a>';
 	$info->author_profile    = 'https://juanlentino.com';
 	$info->homepage          = $repo_url;
-	$info->requires          = '7.0';
-	$info->tested            = '7.0';
-	$info->requires_php      = '8.3';
+	$compat                  = sn_gh_plugin_compat();
+	$info->requires          = $compat['requires'];
+	$info->tested            = $compat['tested'];
+	$info->requires_php      = $compat['requires_php'];
 	$info->download_link     = $latest_tag ? $repo_url . '/archive/refs/tags/' . $latest_tag . '.zip' : '';
 	$info->short_description = 'Operational + content tooling that powers juanlentino.com. SEO emission, cache controls, RSS subscriber tracking, OG card generation, GitHub-Actions deploy status, AI-assisted meta descriptions (WP 7.0+), and a WordPress/desktop-mode integration with on-desktop widgets.';
 	$info->sections          = array(

@@ -34,7 +34,22 @@ mf_check( isset( $v[1] ) && version_compare( $v[1], '5.0.0', '>=' ), 'plugin Ver
 
 $updater = (string) file_get_contents( $root . '/inc/wp-update-integration.php' );
 mf_check( false === strpos( $updater, "'6.4'" ), 'self-updater requires mirrors no longer report 6.4' );
-mf_check( 2 <= substr_count( $updater, "requires" ) && false !== strpos( $updater, "= '7.0'" ), 'self-updater requires mirrors report 7.0' );
+// v14.5.1: the updater reads the header, never a literal. Two literals said
+// tested 7.0 while the header said 7.1, and the Updates page read
+// "Compatibility with WordPress 7.1: Not tested" on a 7.1 site.
+mf_check( 0 === preg_match( "/->(tested|requires|requires_php)\s*=\s*'[0-9.]+'/", $updater ), 'self-updater assigns NO compatibility literal — every value comes from sn_gh_plugin_compat()' );
+mf_check( 2 === substr_count( $updater, '= sn_gh_plugin_compat()' ), 'both surfaces (update transient, View details modal) read the header helper' );
+if ( ! defined( 'SNT_PATH' ) ) { define( 'SNT_PATH', $root . '/' ); }
+if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
+foreach ( array( 'MINUTE_IN_SECONDS' => 60, 'HOUR_IN_SECONDS' => 3600, 'DAY_IN_SECONDS' => 86400 ) as $c => $v ) { if ( ! defined( $c ) ) { define( $c, $v ); } }
+if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
+if ( ! function_exists( 'add_filter' ) ) { function add_filter() {} }
+require_once $root . '/inc/wp-update-integration.php';
+preg_match( '/Tested up to:\s*([0-9.]+)/', $header, $t );
+preg_match( '/Requires PHP:\s*([0-9.]+)/', $header, $ph );
+$compat = sn_gh_plugin_compat();
+mf_check( ( $t[1] ?? '?' ) === $compat['tested'] && '7.1' === $compat['tested'], 'self-updater reports the header\'s Tested up to (' . $compat['tested'] . ') — the value core paints as "Compatibility with WordPress"' );
+mf_check( ( $m[1] ?? '?' ) === $compat['requires'] && ( $ph[1] ?? '?' ) === $compat['requires_php'], 'self-updater requires / requires_php mirror the header (' . $compat['requires'] . ' / ' . $compat['requires_php'] . ')' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
