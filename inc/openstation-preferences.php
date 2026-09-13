@@ -278,34 +278,41 @@ function snt_os_enqueue_settings_script() {
 add_action( 'admin_enqueue_scripts', 'snt_os_enqueue_settings_script', 5 );
 
 /**
- * Enqueue the Provenance column for OpenStation's native Posts window.
+ * Enqueue our columns for OpenStation's native Posts window.
  *
- * Its own handle, on every shell request: the column is read by the Posts
- * window's `openstation.postsWindow.columns` filter on each paint, so the
+ * One script (`assets/os-posts.js`: Provenance + Edge), its own handle, on
+ * every shell request: the columns are read by the Posts window's
+ * `openstation.postsWindow.columns` filter on each paint, so the
  * registration has to exist before that window ever opens — which rules out
  * riding the lazily-loaded Explorer bundle. Deps: wp-hooks only (the shell's
  * loader does not walk the dependency graph; see the Explorer's docblock).
  *
  * @return void
  */
-function snt_os_enqueue_posts_provenance_script() {
+function snt_os_enqueue_posts_script() {
 	if ( ! function_exists( 'openstation_is_shell_request' ) || ! openstation_is_shell_request() ) {
 		return;
 	}
 	$plugin_file = defined( 'SNT_PATH' ) ? SNT_PATH . 'signal-and-noise-tools.php' : dirname( __DIR__ ) . '/signal-and-noise-tools.php';
 	wp_register_script(
-		'snt-os-posts-provenance',
-		plugins_url( 'assets/os-posts-provenance.js', $plugin_file ),
+		'snt-os-posts',
+		plugins_url( 'assets/os-posts.js', $plugin_file ),
 		array( 'wp-hooks' ),
 		defined( 'SNT_VERSION' ) ? SNT_VERSION : '1.0.0',
 		true
 	);
-	wp_enqueue_script( 'snt-os-posts-provenance' );
+	wp_enqueue_script( 'snt-os-posts' );
 }
-add_action( 'admin_enqueue_scripts', 'snt_os_enqueue_posts_provenance_script', 5 );
+add_action( 'admin_enqueue_scripts', 'snt_os_enqueue_posts_script', 5 );
 
 /**
- * Ship `sn_provenance` on the Posts window's list request.
+ * The REST fields our Posts-window columns read. One list, so the PHP side
+ * (what rides `_fields`) and the JS side (what renders) cannot drift.
+ */
+const SNT_OS_POSTS_FIELDS = array( 'sn_provenance', 'sn_edge' );
+
+/**
+ * Ship our fields on the Posts window's list request.
  *
  * The window trims every `/wp/v2/posts` fetch with a `_fields` allowlist, so
  * a registered REST field does not ride the list unless it is named there.
@@ -319,11 +326,16 @@ add_action( 'admin_enqueue_scripts', 'snt_os_enqueue_posts_provenance_script', 5
  */
 function snt_os_posts_window_query_args( $args ) {
 	$fields = isset( $args['_fields'] ) ? (string) $args['_fields'] : '';
-	$list   = array_filter( array_map( 'trim', explode( ',', $fields ) ) );
-	if ( '' !== $fields && ! in_array( 'sn_provenance', $list, true ) ) {
-		$list[]          = 'sn_provenance';
-		$args['_fields'] = implode( ',', $list );
+	if ( '' === $fields ) {
+		return $args;
 	}
+	$list = array_filter( array_map( 'trim', explode( ',', $fields ) ) );
+	foreach ( SNT_OS_POSTS_FIELDS as $field ) {
+		if ( ! in_array( $field, $list, true ) ) {
+			$list[] = $field;
+		}
+	}
+	$args['_fields'] = implode( ',', $list );
 	return $args;
 }
 add_filter( 'openstation_posts_window_query_args', 'snt_os_posts_window_query_args' );

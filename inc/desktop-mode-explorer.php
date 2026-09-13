@@ -442,6 +442,42 @@ function snt_explorer_provenance_field( $post_arr ) {
 	);
 }
 
+/**
+ * REST field callback: `sn_edge` — the last edge-freshness verdict for a post.
+ *
+ * The Posts window's Edge column (v14.4.0) reads this. It wraps
+ * sn_note_dossier_last_probe(), the reader the note dossier already uses, so
+ * the column and the dossier cannot disagree about the same row. The probe
+ * log is a twenty-row SITE-WIDE buffer: a post with no row in it is
+ * "unprobed" — null here, nothing painted — never "fresh".
+ *
+ * Not public, unlike `sn_provenance`: a stale-edge verdict is an operating
+ * fact about the cache, not a fact about the Note. Anonymous readers get
+ * null, which the column paints as absence.
+ *
+ * @since 14.4.0
+ * @param array<string,mixed> $post_arr Prepared post row (needs only `id`).
+ * @return array{state:string,verified_at:int,escalated:bool}|null
+ */
+function snt_explorer_edge_field( $post_arr ) {
+	$post_id = (int) ( $post_arr['id'] ?? 0 );
+	if ( $post_id <= 0
+		|| ! function_exists( 'sn_note_dossier_last_probe' )
+		|| ! function_exists( 'current_user_can' )
+		|| ! current_user_can( 'manage_options' ) ) {
+		return null;
+	}
+	$probe = sn_note_dossier_last_probe( $post_id );
+	if ( null === $probe ) {
+		return null;
+	}
+	return array(
+		'state'       => (string) $probe['result'],
+		'verified_at' => (int) $probe['time'],
+		'escalated'   => (bool) $probe['escalated'],
+	);
+}
+
 add_action( 'rest_api_init', function () {
 	register_rest_route( 'signal-noise/v1', '/desktop/discography', array(
 		'methods'             => 'GET',
@@ -454,6 +490,19 @@ add_action( 'rest_api_init', function () {
 	// The provenance field registers regardless of shell presence: it is a
 	// statement about Notes, not about the Explorer, and other REST readers
 	// (the theme, the verifier) may use it. Guarded inside the callback.
+	register_rest_field( 'post', 'sn_edge', array(
+		'get_callback' => 'snt_explorer_edge_field',
+		'schema'       => array(
+			'description' => __( 'Last edge-cache probe verdict for the post: fresh, stale, or absent when no probe is in the log.', 'signal-and-noise-tools' ),
+			'type'        => array( 'object', 'null' ),
+			'readonly'    => true,
+			// `view` on purpose: the Posts window lists with no `context`
+			// arg, so an edit-only field would never ride it. The callback,
+			// not the context, is the gate.
+			'context'     => array( 'view', 'edit' ),
+		),
+	) );
+
 	register_rest_field( 'post', 'sn_provenance', array(
 		'get_callback' => 'snt_explorer_provenance_field',
 		'schema'       => array(
