@@ -28,6 +28,8 @@ namespace OpenStation {
 		public function state( array $d ) { $this->state = $d; return $this; }
 		public function title_bar_button( $id, array $a ) { $this->buttons[ $id ] = $a; return $this; }
 		public function action( $n, callable $cb ) { $this->actions[ $n ] = $cb; return $this; }
+		public $mount;
+		public function mount( callable $cb ) { $this->mount = $cb; return $this; }
 		public function view( callable $cb ) { $this->view = $cb; return $this; }
 		public function data( callable $cb ) { $this->data = $cb; return $this; }
 		public function client( $p ) { $this->client = $p; return $this; }
@@ -55,6 +57,8 @@ namespace OpenStation\App {
 		public function all() { return $this->d; }
 	}
 	class Os {
+		public $params = array();
+		public function param( $k, $f = null ) { return array_key_exists( $k, $this->params ) ? $this->params[ $k ] : $f; }
 		public $opened = array();
 		public function open_url( $u, $t = '', $i = '' ) { $this->opened[] = array( $u, $t, $i ); return $this; }
 		public function can( $c, ...$a ) { $GLOBALS['__can_calls'][] = array( $c, $a ); return $GLOBALS['__os_can'] ?? true; }
@@ -220,7 +224,26 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	echo "\nGroup 2: the definition\n";
 	ok( array( 'edit_posts' ) === $app->caps && 'dock' === $app->placement && array( 'post' ) === $app->watch, 'gated on edit_posts; a dock tile; repaints on post changes' );
 	ok( array( 'section', 'item', 'status', 'query', 'view', 'verdict', 'selected' ) === array_keys( $app->state ) && 'icons' === $app->state['view'] && array() === $app->state['verdict'] && array() === $app->state['selected'], 'state schema: section, item, status, query, view, verdict, selected (two array slots)' );
-	ok( array( 'go', 'edit', 'verify', 'jump', 'trash', 'publish', 'purge', 'anchor' ) === array_keys( $app->actions ), 'eight server actions: go, edit, verify, jump and the control surface\'s four -- everything else is local in the browser' );
+	ok( array( 'reopen', 'go', 'edit', 'verify', 'jump', 'trash', 'publish', 'purge', 'anchor' ) === array_keys( $app->actions ), 'nine server actions: reopen (the deep-link lifecycle), go, edit, verify, jump and the control surface\'s four -- everything else is local in the browser' );
+
+	// v14.4.0: a deep link from another surface (the Posts window's Attention
+	// pill) — `wp.os.openWindow( 'signal-noise', { params: { section } } )`.
+	// mount lands it on first open; reopen retargets a live window. Both
+	// route through the same function `go` uses, so the three cannot drift.
+	ok( is_callable( $app->mount ), 'the app declares a mount handler (a deep link waits for it)' );
+	$os = new \OpenStation\App\Os();
+	$os->params = array( 'section' => 'attention' );
+	$state = new \OpenStation\App\State( $app->state, array( 'item' => '7', 'selected' => array( '7' ) ) );
+	( $app->mount )( $state, $os );
+	ok( 'attention' === $state->get( 'section' ) && '' === $state->get( 'item' ) && array() === $state->get( 'selected' ), 'mount with params.section lands on that section with the facets reset, as go would' );
+	$os->params = array( 'section' => 'no-such-section' );
+	$state = new \OpenStation\App\State( $app->state, array( 'section' => 'notes' ) );
+	$app->actions['reopen']( $state, $os, array() );
+	ok( '' === $state->get( 'section' ), 'reopen with an unknown section lands on the root, never on a section the caller invented' );
+	$os->params = array();
+	$state = new \OpenStation\App\State( $app->state, array( 'section' => 'notes', 'item' => '7' ) );
+	( $app->mount )( $state, $os );
+	ok( 'notes' === $state->get( 'section' ) && '7' === $state->get( 'item' ), 'mount WITHOUT a section param touches nothing — a prewarmed or plain open keeps its state' );
 	ok( 'https://example.test/wp-json/wp-abilities/v1/abilities/signal-noise/note-dossier/run' === ( $app->config['dossierUrl'] ?? '' ), 'the ability run URL rides the window config, so the client never spells the abilities path' );
 	ok( SNT_VERSION === ( $app->config['version'] ?? '' ), 'the plugin version rides the window config: the half of the stale-build detector that FREEZES into the document at render' );
 

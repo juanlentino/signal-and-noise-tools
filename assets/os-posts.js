@@ -20,6 +20,12 @@
  * writing-desk cards and the inspector each render their own instance of a
  * visible column, and a shared singleton would be reparented between them.
  *
+ * Plus the ATTENTION PILL (`openstation.postsWindow.toolbarTrailing`): one
+ * button, "Attention · N", that opens our app on its Attention section. N is
+ * what the app LAST composed — the pill reads the app's 60 s cache through
+ * `/openstation/attention` and never triggers the nine-reader scan itself.
+ * No cache → "Attention" with no number, marked stale in the title.
+ *
  * Loaded on every shell request (beside the settings-tab script), not with
  * the lazily-loaded Explorer bundle: the Posts window paints its columns
  * whether or not the Explorer has ever been opened.
@@ -110,6 +116,91 @@
 			}
 		}
 	];
+
+	// ── Attention pill ───────────────────────────────────────────────────
+	var cfg = window.sntOsPosts || {};
+	var ATTENTION_TTL_MS = 60000; // the transient's own TTL; refreshing faster reads the same cache.
+	var pill = null;
+	var lastFetch = 0;
+
+	function paintPill( snap ) {
+		if ( ! pill ) {
+			return;
+		}
+		var n = snap && typeof snap.count === 'number' ? snap.count : null;
+		pill.textContent = n === null ? 'Attention' : 'Attention · ' + n;
+		pill.title = n === null
+			? 'Attention queue — not composed yet; open the app to compose it'
+			: ( snap.stale ? 'Attention queue — last composed over a minute ago; the app refreshes it' : 'Attention queue — composed within the last minute' );
+		pill.setAttribute( 'data-stale', snap && snap.stale ? '1' : '0' );
+	}
+
+	function fetchAttention( force ) {
+		var now = Date.now();
+		if ( ! cfg.attentionEndpoint || ( ! force && now - lastFetch < ATTENTION_TTL_MS ) ) {
+			return;
+		}
+		lastFetch = now;
+		window.fetch( cfg.attentionEndpoint, {
+			credentials: 'same-origin',
+			headers: { 'X-WP-Nonce': cfg.nonce || '' }
+		} ).then( function ( res ) {
+			if ( ! res.ok ) {
+				// 401/403: not ours to show. Remove, never paint a wrong 0.
+				if ( pill && pill.parentNode ) {
+					pill.parentNode.removeChild( pill );
+				}
+				return null;
+			}
+			return res.json();
+		} ).then( function ( snap ) {
+			if ( snap ) {
+				paintPill( snap );
+			}
+		} ).catch( function () { /* network: keep the last paint */ } );
+	}
+
+	function openAttention() {
+		// The one place the shell API is touched, and only on a click: by
+		// then wp.os exists (the shell is what rendered the button).
+		if ( window.wp.os && typeof window.wp.os.openWindow === 'function' ) {
+			window.wp.os.openWindow( 'signal-noise', { params: { section: 'attention' } } );
+		}
+	}
+
+	function makePill() {
+		// The shell's own toolbar element (Refresh and Add New are
+		// <os-button variant="ghost">), so the pill looks like a neighbour.
+		var node = document.createElement( 'os-button' );
+		node.setAttribute( 'variant', 'ghost' );
+		node.setAttribute( 'aria-live', 'polite' );
+		node.style.whiteSpace = 'nowrap';
+		node.textContent = 'Attention';
+		node.addEventListener( 'click', openAttention );
+		return node;
+	}
+
+	if ( cfg.attentionEndpoint ) {
+		hooks.addFilter(
+			'openstation.postsWindow.toolbarTrailing',
+			'signal-noise/attention-pill',
+			function ( nodes ) {
+				if ( ! Array.isArray( nodes ) ) {
+					return nodes;
+				}
+				// One node per render call, as the workspace docs require.
+				pill = makePill();
+				paintPill( { count: null, stale: true } );
+				return nodes.concat( [ pill ] );
+			}
+		);
+		hooks.addAction( 'openstation.postsWindow.opened', 'signal-noise/attention-pill', function () {
+			fetchAttention( true );
+		} );
+		hooks.addAction( 'openstation.postsWindow.dataLoaded', 'signal-noise/attention-pill', function () {
+			fetchAttention( false );
+		} );
+	}
 
 	hooks.addFilter(
 		'openstation.postsWindow.columns',

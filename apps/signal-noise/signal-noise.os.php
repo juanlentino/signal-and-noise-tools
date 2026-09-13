@@ -61,6 +61,23 @@ if ( file_exists( __DIR__ . '/parts/schedules.php' ) ) {
 
 const APP_ID = 'signal-noise';
 
+/**
+ * Land on a section (or the root for '' / unknown). One implementation for
+ * `go`, `mount` and `reopen`, so a deep link and a folder tap cannot drift.
+ *
+ * @param State  $state
+ * @param string $id Section id; '' = root.
+ */
+function go_to_section( State $state, string $id ): void {
+	$section = '' !== $id ? \snt_os_app_section( $id ) : null;
+	$state->set( 'section', $section ? $id : '' )
+		->reset( 'item' )
+		->reset( 'query' )
+		->reset( 'verdict' )
+		->reset( 'selected' )
+		->set( 'status', $section ? (string) ( $section['default_status'] ?? '' ) : '' );
+}
+
 /** Where the control surface's four handlers live (parts/actions.php). */
 
 // Sections are resolved at RENDER time (payload.php), never here: the
@@ -112,19 +129,30 @@ return App::define( APP_ID )
 	)
 	->client( __DIR__ . '/signal-noise-client.js' )
 	->data( __NAMESPACE__ . '\payload' )
+	// A deep link: `wp.os.openWindow( 'signal-noise', { params: { section } } )`
+	// from another surface (the Posts window's Attention pill, v14.4.0).
+	// `mount` lands it on first open; `reopen` retargets a live window. An
+	// unknown or absent section param is the root, exactly as `go` treats it.
+	->mount(
+		static function ( State $state, Os $os ) {
+			$section = (string) $os->param( 'section', '' );
+			if ( '' !== $section ) {
+				go_to_section( $state, $section );
+			}
+		}
+	)
+	->action(
+		'reopen',
+		static function ( State $state, Os $os, array $args ) {
+			go_to_section( $state, (string) $os->param( 'section', '' ) );
+		}
+	)
 	// Into a section (or back to the root with no section). New data, so a
 	// server action; the browser-side facets reset with it.
 	->action(
 		'go',
 		static function ( State $state, Os $os, array $args ) {
-			$id      = (string) ( $args['section'] ?? '' );
-			$section = '' !== $id ? \snt_os_app_section( $id ) : null;
-			$state->set( 'section', $section ? $id : '' )
-				->reset( 'item' )
-				->reset( 'query' )
-				->reset( 'verdict' )
-				->reset( 'selected' )
-				->set( 'status', $section ? (string) ( $section['default_status'] ?? '' ) : '' );
+			go_to_section( $state, (string) ( $args['section'] ?? '' ) );
 		}
 	)
 	// The item's editor as a window. The section owns the URL and the

@@ -181,11 +181,72 @@ function snt_os_preferences_rest_update( $request ) {
 }
 
 /**
+ * The Attention queue's cache key and TTL, as the app writes them
+ * (apps/signal-noise/parts/attention.php: ATTENTION_CACHE_KEY, ATTENTION_TTL).
+ * Literals here because those consts live in the App Framework namespace and
+ * exist only when the app part is loaded; tests/openstation-preferences.php
+ * pins the two spellings together.
+ */
+const SNT_OS_ATTENTION_TRANSIENT = 'snt_os_attention';
+const SNT_OS_ATTENTION_TTL       = 60;
+
+/**
+ * What the Posts window's Attention pill reads: the app's LAST composition,
+ * never a new one.
+ *
+ * THE DECISION (docs/plans/2026-09-12-posts-window-moves.md, phase 2): the
+ * pill never pays for a composition. attention_rows() runs nine readers and
+ * caches them for 60 s; the app window pays that when it opens, and the pill
+ * shows what the app last knew. No transient → `count: null, stale: true`,
+ * and the pill paints without a number. A number here is therefore always a
+ * number the owner could have seen in the app, and never a scan the Posts
+ * window triggered by being looked at.
+ *
+ * @param int|null $now Unix time; null = time().
+ * @return array{count:int|null,read_at:int|null,stamp:string,stale:bool}
+ */
+function snt_os_attention_snapshot( $now = null ) {
+	$now    = null === $now ? time() : (int) $now;
+	$cached = function_exists( 'get_transient' ) ? get_transient( SNT_OS_ATTENTION_TRANSIENT ) : false;
+	if ( ! is_array( $cached ) || ! isset( $cached['rows'], $cached['read_at'] ) || ! is_array( $cached['rows'] ) ) {
+		return array( 'count' => null, 'read_at' => null, 'stamp' => '', 'stale' => true );
+	}
+	$read_at = (int) $cached['read_at'];
+	$age     = $now - $read_at;
+	return array(
+		'count'   => count( $cached['rows'] ),
+		'read_at' => $read_at,
+		'stamp'   => (string) ( $cached['stamp'] ?? '' ),
+		// Same rule attention_rows() applies before trusting its cache: a
+		// read_at in the future is a clock that moved, not a fresh read.
+		'stale'   => $age < 0 || $age >= SNT_OS_ATTENTION_TTL,
+	);
+}
+
+/**
+ * REST GET handler for the Attention pill.
+ *
+ * @return mixed
+ */
+function snt_os_attention_rest_get() {
+	return rest_ensure_response( snt_os_attention_snapshot() );
+}
+
+/**
  * Register the REST routes for OpenStation preferences.
  *
  * @return void
  */
 function snt_os_register_preferences_rest() {
+	register_rest_route(
+		'signal-noise/v1',
+		'/openstation/attention',
+		array(
+			'methods'             => 'GET',
+			'callback'            => 'snt_os_attention_rest_get',
+			'permission_callback' => 'snt_os_preferences_rest_permission',
+		)
+	);
 	register_rest_route(
 		'signal-noise/v1',
 		'/openstation/preferences',
@@ -300,6 +361,14 @@ function snt_os_enqueue_posts_script() {
 		array( 'wp-hooks' ),
 		defined( 'SNT_VERSION' ) ? SNT_VERSION : '1.0.0',
 		true
+	);
+	wp_localize_script(
+		'snt-os-posts',
+		'sntOsPosts',
+		array(
+			'attentionEndpoint' => rest_url( 'signal-noise/v1/openstation/attention' ),
+			'nonce'             => wp_create_nonce( 'wp_rest' ),
+		)
 	);
 	wp_enqueue_script( 'snt-os-posts' );
 }
