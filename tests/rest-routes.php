@@ -13,7 +13,7 @@
  *
  * The audit's first count said 22; the grep that produced it counted a
  * function DEFINITION and a function_exists() guard as registrations. The
- * parser here reads the call itself: 19 then, 21 since v14.1.1 (the two
+ * parser here reads the call itself: 19 then, 21 since v14.1.1, 22 since v14.4.0 (the two
  * 405 handlers on the MCP doors, gated, not public).
  *
  * Source-derived, so a new route is counted the moment it is written. The
@@ -67,7 +67,10 @@ echo "\nGroup: the route count is pinned, so a new route is a deliberate edit he
 // /mcp and /mcp-rw that answer 405 (Streamable HTTP: "no server-push
 // stream") in place of core's 404, each gated by its door's own permission
 // callback. See sn_mcp_register_method_not_allowed_routes().
-$expected_count = 21;
+// 22 since v14.4.0 — GET /openstation/attention, the Posts window's
+// Attention pill; manage_options via snt_os_preferences_rest_permission;
+// reads the app's transient only, never composes.
+$expected_count = 22;
 ok( $expected_count === count( $calls ), "exactly $expected_count REST route registrations (found " . count( $calls ) . ')' . ( $expected_count !== count( $calls ) ? "\n        " . implode( "\n        ", array_map( static fn( $k, $c ) => "$k  {$c['ns']}{$c['route']}  [{$c['perm']}]", array_keys( $calls ), $calls ) ) : '' ) );
 
 echo "\nGroup: exactly these routes are public, each for a stated reason\n";

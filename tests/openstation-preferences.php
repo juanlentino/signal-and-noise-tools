@@ -155,6 +155,8 @@ function update_user_meta( $user_id, $key, $value ) {
 
 // ── Capabilities stub ─────────────────────────────────────────────────
 $GLOBALS['__caps'] = array( 'manage_options' => true );
+$GLOBALS['__transients'] = array();
+function get_transient( $key ) { return $GLOBALS['__transients'][ $key ] ?? false; }
 function current_user_can( $cap ) {
 	return ! empty( $GLOBALS['__caps'][ $cap ] );
 }
@@ -537,7 +539,7 @@ ok( false !== strpos( $pp_js, "key: 'sn_provenance'" ) && false !== strpos( $pp_
 ok( false !== strpos( $pp_js, 'c.key === col.key' ), 'posts columns: idempotent — the filter runs on every paint and each column is added once' );
 ok( 1 === preg_match( '/if \( ! value \|\| ! value\.versions \) \{\s*return document\.createElement/', $pp_js ), 'posts columns: an unsigned Note paints an EMPTY node, never a gray badge (absent is not zero)' );
 ok( 1 === preg_match( '/if \( ! value \|\| ! value\.state \) \{\s*return document\.createElement/', $pp_js ), 'posts columns: an unprobed post paints an EMPTY Edge cell — a gap, never fresh' );
-ok( false === strpos( $pp_js, 'wp.os.' ) && false === strpos( $pp_js, 'wp.apiFetch' ), 'posts columns: depends on nothing but wp.hooks (the loader will not have run anything else)' );
+ok( strpos( $pp_js, 'wp.os' ) > strpos( $pp_js, 'function openAttention' ) && false === strpos( $pp_js, 'wp.apiFetch' ), 'posts columns: at load, depends on nothing but wp.hooks — the first wp.os is inside the click handler (the loader will not have run anything else)' );
 
 // v14.3.1: the Posts window trims its list with a `_fields` allowlist, so the
 // fields behind our columns must be APPENDED there or the cells stay empty.
@@ -553,6 +555,34 @@ foreach ( SNT_OS_POSTS_FIELDS as $f ) {
 }
 $qa_cbs = array_column( $GLOBALS['__filters']['openstation_posts_window_query_args'][10] ?? array(), 'cb' );
 ok( in_array( 'snt_os_posts_window_query_args', $qa_cbs, true ), 'posts columns: registered on the shell\'s openstation_posts_window_query_args filter' );
+
+// ── Attention pill (v14.4.0, phase 2 of the Posts-window plan) ────────
+// THE DECISION: the pill reads the app's transient and NEVER composes.
+$l10n_posts = $GLOBALS['__localized_scripts']['snt-os-posts']['sntOsPosts'] ?? array();
+ok( 'https://example.test/wp-json/signal-noise/v1/openstation/attention' === ( $l10n_posts['attentionEndpoint'] ?? '' ) && 'nonce-wp_rest' === ( $l10n_posts['nonce'] ?? '' ), 'attention pill: the posts script is localized with the attention endpoint and a wp_rest nonce' );
+$att_route = $GLOBALS['__rest_routes']['signal-noise/v1']['/openstation/attention'] ?? null;
+ok( is_array( $att_route ) && 'GET' === ( $att_route['methods'] ?? '' ) && 'snt_os_preferences_rest_permission' === ( $att_route['permission_callback'] ?? '' ), 'attention pill: GET /openstation/attention is registered behind the manage_options permission' );
+$att_src = file_get_contents( SNT_PATH . 'apps/signal-noise/parts/attention.php' );
+ok( 1 === preg_match( "/const ATTENTION_CACHE_KEY\s*=\s*'" . preg_quote( SNT_OS_ATTENTION_TRANSIENT, '/' ) . "'/", $att_src ), 'attention pill: reads the SAME transient the app writes (ATTENTION_CACHE_KEY parity)' );
+ok( 1 === preg_match( '/const ATTENTION_TTL\s*=\s*' . SNT_OS_ATTENTION_TTL . '\b/', $att_src ), 'attention pill: the staleness horizon is the app\'s own TTL (ATTENTION_TTL parity)' );
+$snap = snt_os_attention_snapshot( 5000 );
+ok( array( 'count' => null, 'read_at' => null, 'stamp' => '', 'stale' => true ) === $snap, 'attention pill: no transient → count NULL and stale, never 0' );
+$GLOBALS['__transients'][ SNT_OS_ATTENTION_TRANSIENT ] = array( 'rows' => array( 1, 2, 3 ), 'read_at' => 4970, 'stamp' => 's1' );
+ok( array( 'count' => 3, 'read_at' => 4970, 'stamp' => 's1', 'stale' => false ) === snt_os_attention_snapshot( 5000 ), 'attention pill: a composition 30 s old → count 3, not stale' );
+ok( true === snt_os_attention_snapshot( 5030 )['stale'] && 3 === snt_os_attention_snapshot( 5030 )['count'], 'attention pill: at 60 s the count is still reported, marked stale' );
+ok( true === snt_os_attention_snapshot( 4000 )['stale'], 'attention pill: a read_at in the future is a moved clock — stale, as attention_rows() rules' );
+$GLOBALS['__transients'][ SNT_OS_ATTENTION_TRANSIENT ] = array( 'rows' => 'not-an-array', 'read_at' => 4970 );
+ok( null === snt_os_attention_snapshot( 5000 )['count'], 'attention pill: a malformed transient is "not composed", not a count' );
+unset( $GLOBALS['__transients'][ SNT_OS_ATTENTION_TRANSIENT ] );
+// Comments stripped first: the docblock is allowed to EXPLAIN the rule by name.
+$pref_code = preg_replace( '~/\*.*?\*/|//[^\n]*~s', '', file_get_contents( SNT_PATH . 'inc/openstation-preferences.php' ) );
+ok( 0 === preg_match( '/attention_(compose|rows)\s*\(/', $pref_code ), 'attention pill: the route file never CALLS the composer — a window open cannot trigger nine readers' );
+ok( false !== strpos( $pp_js, "'openstation.postsWindow.toolbarTrailing'" ) && false !== strpos( $pp_js, "'openstation.postsWindow.opened'" ) && false !== strpos( $pp_js, "'openstation.postsWindow.dataLoaded'" ), 'attention pill: registers on toolbarTrailing, fetches on opened, refreshes on dataLoaded' );
+ok( false !== strpos( $pp_js, 'ATTENTION_TTL_MS = 60000' ) && false !== strpos( $pp_js, 'now - lastFetch < ATTENTION_TTL_MS' ), 'attention pill: dataLoaded refreshes no more than once per 60 s (the transient\'s own TTL)' );
+ok( false !== strpos( $pp_js, "openWindow( 'signal-noise', { params: { section: 'attention' } } )" ), 'attention pill: a click opens OUR app on its Attention section — the section stays ours; the pill only points at it' );
+ok( 1 === substr_count( $pp_js, 'wp.os.openWindow(' ) && false === strpos( $pp_js, 'wp.apiFetch' ), 'attention pill: the shell API is touched in exactly one place (the click), never at load' );
+ok( false !== strpos( $pp_js, "createElement( 'os-button' )" ) && false !== strpos( $pp_js, "'aria-live', 'polite'" ), 'attention pill: the shell\'s own os-button, aria-live polite' );
+ok( 1 === preg_match( '/if \( ! res\.ok \) \{[^}]*removeChild/s', $pp_js ), 'attention pill: a refused fetch REMOVES the pill — never a painted 0 for a reader who cannot see the queue' );
 
 // Sidebar glyph: an OS icon-set name on the tab registration (read by
 // OpenStation from 1.1.9, WordPress/openstation#808; ignored before).

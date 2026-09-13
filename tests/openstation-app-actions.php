@@ -32,6 +32,8 @@ namespace OpenStation {
 		public function state( array $d ) { $this->state = $d; return $this; }
 		public function title_bar_button( $id, array $a ) { $this->buttons[ $id ] = $a; return $this; }
 		public function action( $n, callable $cb ) { $this->actions[ $n ] = $cb; return $this; }
+		public $mount;
+		public function mount( callable $cb ) { $this->mount = $cb; return $this; }
 		public function view( callable $cb ) { $this->view = $cb; return $this; }
 		public function data( callable $cb ) { $this->data = $cb; return $this; }
 		public function client( $p ) { $this->client = $p; return $this; }
@@ -50,6 +52,8 @@ namespace OpenStation\App {
 		public function all() { return $this->d; }
 	}
 	class Os {
+		public $params = array();
+		public function param( $k, $f = null ) { return array_key_exists( $k, $this->params ) ? $this->params[ $k ] : $f; }
 		public $opened = array(); public $toasts = array(); public $announced = array();
 		public function open_url( $u, $t = '', $i = '' ) { $this->opened[] = array( $u, $t, $i ); return $this; }
 		public function toast( $m ) { $this->toasts[] = (string) $m; return $this; }
