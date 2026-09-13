@@ -64,6 +64,12 @@ const ATTENTION_TTL = 60;
 const ATTENTION_LAST_OPT = 'snt_os_attention_last';
 
 /**
+ * Acknowledged rows: `row key => stamp at acknowledgement`. A row is hidden
+ * while its stamp equals the stored one, and reappears when the fact moves.
+ */
+const ATTENTION_ACK_OPT = 'snt_os_attention_acks';
+
+/**
  * Now, in unix seconds.
  *
  * `$GLOBALS['__now']` is honoured so a fixture can hold the clock still: the
@@ -560,6 +566,19 @@ function attention_item( array $row, $offered = null ) {
 			'args'     => array( 'section' => $section, 'item' => $post_id > 0 ? (string) $post_id : '' ),
 		);
 	}
+	// v14.5.0 -- SOLVE ON THE ROW. The two kinds with a button offer it here,
+	// dispatching to the SAME handlers the note dossier uses (purge_action,
+	// anchor_action: same guards, same toasts); the type gate resolves the
+	// post's own section server-side. Every row offers Acknowledge: hidden at
+	// this stamp, back when the fact moves.
+	// Offered under the jump's own gate: a section this reader is offered
+	// lists the post. An unlisted post gets no button, exactly as it gets no jump.
+	if ( '' !== $section && 'edge' === $kind ) {
+		$actions[] = array( 'label' => __( 'Purge edge', 'signal-and-noise-tools' ), 'dispatch' => 'purge', 'args' => array( 'item' => (string) $post_id ), 'variant' => 'primary' );
+	} elseif ( '' !== $section && 'anchors' === $kind ) {
+		$actions[] = array( 'label' => __( 'Retry anchor', 'signal-and-noise-tools' ), 'dispatch' => 'anchor', 'args' => array( 'item' => (string) $post_id ), 'variant' => 'primary' );
+	}
+	$actions[] = array( 'label' => __( 'Acknowledge', 'signal-and-noise-tools' ), 'dispatch' => 'ack', 'args' => array( 'key' => $kind . '-' . $key, 'stamp' => $stamp ), 'variant' => 'ghost' );
 	return array(
 		'id'          => 'a-' . $kind . '-' . $key,
 		'title'       => (string) ( $row['title'] ?? '' ),
@@ -598,6 +617,68 @@ function attention_item( array $row, $offered = null ) {
 }
 
 /**
+ * The acknowledgement store, sanitised on read.
+ *
+ * @return array<string,string> key => stamp.
+ */
+function attention_acks() {
+	$raw = function_exists( 'get_option' ) ? get_option( ATTENTION_ACK_OPT, array() ) : array();
+	$out = array();
+	foreach ( is_array( $raw ) ? $raw : array() as $key => $stamp ) {
+		$key = (string) preg_replace( '/[^a-zA-Z0-9_-]/', '-', (string) $key );
+		if ( '' !== $key ) {
+			$out[ $key ] = (string) $stamp;
+		}
+	}
+	return $out;
+}
+
+/**
+ * Record an acknowledgement, pruning keys the queue no longer holds so the
+ * store cannot grow past the queue's own size.
+ *
+ * @param string $key   Row key, sanitised.
+ * @param string $stamp The row's stamp at acknowledgement ('' for an unstamped row).
+ * @return void
+ */
+function attention_ack( $key, $stamp ) {
+	$acks = attention_acks();
+	$live = array();
+	foreach ( (array) attention_rows()['rows'] as $row ) {
+		if ( is_array( $row ) ) {
+			$live[ attention_row_key( $row ) ] = true;
+		}
+	}
+	$acks = array_intersect_key( $acks, $live );
+	$acks[ (string) $key ] = (string) $stamp;
+	if ( function_exists( 'update_option' ) ) {
+		update_option( ATTENTION_ACK_OPT, $acks, false );
+	}
+}
+
+/**
+ * One row's key as the client will echo it back: kind + sanitised key.
+ *
+ * @param array<string,mixed> $row
+ * @return string
+ */
+function attention_row_key( array $row ) {
+	return (string) ( $row['kind'] ?? '' ) . '-' . (string) preg_replace( '/[^a-zA-Z0-9_-]/', '-', (string) ( $row['key'] ?? '' ) );
+}
+
+/**
+ * Has this row been acknowledged AT ITS CURRENT STAMP?
+ *
+ * @param array<string,mixed>  $row
+ * @param array<string,string> $acks attention_acks().
+ * @return bool
+ */
+function attention_is_acked( array $row, array $acks ) {
+	$key = attention_row_key( $row );
+	return array_key_exists( $key, $acks ) && $acks[ $key ] === (string) ( $row['stamp'] ?? '' );
+}
+
+/**
  * The composed rows THIS user may see.
  *
  * The composition is one transient for every administrator, so a row whose
@@ -610,12 +691,17 @@ function attention_item( array $row, $offered = null ) {
  */
 function attention_visible_rows() {
 	$rows = array();
+	$acks = attention_acks();
 	foreach ( (array) attention_rows()['rows'] as $row ) {
 		if ( ! is_array( $row ) ) {
 			continue;
 		}
 		$requires = (string) ( $row['requires'] ?? '' );
 		if ( '' !== $requires && ! ( function_exists( 'current_user_can' ) && current_user_can( $requires ) ) ) {
+			continue;
+		}
+		// Acknowledged at this stamp: solved until the fact moves (v14.5.0).
+		if ( attention_is_acked( $row, $acks ) ) {
 			continue;
 		}
 		$rows[] = $row;

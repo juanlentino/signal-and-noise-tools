@@ -18,6 +18,9 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Changed
 - **Two watches retired, both ripe and read.** `integrity_resweep_after_silent_write`: fleet 43, every subject re-checked since the 2026-09-03 write, no `hash_mismatch` — the whole fleet cleared it; the ripen callable and `SNT_WATCH_SILENT_WRITE_AT` go with the row. `origin_503_recheck`: **5** origin-side 503s per 24 h (12/09 15:20 → 13/09 15:20) against the pre-v13.97.2 baseline of 10 — halved, not gone; the rest is the FPM pool, and at 0.06 % of ~8,500 requests/day it does not justify a resize. Watches 7 → 5.
 
+### Added
+- **Attention rows can be solved where they are.** Until now a row offered two doors — the Dashboard leaf and the note — and the fix was two clicks away. An `edge` row now offers **Purge edge** and an `anchors` row **Retry anchor**, dispatching to the app's existing `purge` / `anchor` handlers (same guards, same toasts). From the Attention section, which has no post type, `section_post_type()` resolves the post's *own* section — offered to this reader and listing this post — and takes its type, so a signed page's Retry anchor works from Attention exactly as under Pages; an unlisted post gets no button, as it gets no jump. Every row offers **Acknowledge** (new `ack` server action, `manage_options`): the row's key and stamp go to `snt_os_attention_acks`, `attention_visible_rows()` hides the row while the stamp is unchanged, and a new stamp brings it back — an acknowledgement cannot bury a recurring fault. The store is pruned to the queue's own keys on every write. Guards: buttons per kind and gate, hidden-at-stamp / back-on-newer-stamp / prune / corrupt-store, the page path from Attention with a negative control under Notes, the cap gate; mutations red: stamp ignored, fallback outside Attention, resolve ungated.
+
 ## [14.4.1] - 2026-09-13 — the Attention pill keeps the app's last count
 
 ### Fixed

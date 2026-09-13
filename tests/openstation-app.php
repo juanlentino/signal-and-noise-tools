@@ -224,7 +224,7 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	echo "\nGroup 2: the definition\n";
 	ok( array( 'edit_posts' ) === $app->caps && 'dock' === $app->placement && array( 'post' ) === $app->watch, 'gated on edit_posts; a dock tile; repaints on post changes' );
 	ok( array( 'section', 'item', 'status', 'query', 'view', 'verdict', 'selected' ) === array_keys( $app->state ) && 'icons' === $app->state['view'] && array() === $app->state['verdict'] && array() === $app->state['selected'], 'state schema: section, item, status, query, view, verdict, selected (two array slots)' );
-	ok( array( 'reopen', 'go', 'edit', 'verify', 'jump', 'trash', 'publish', 'purge', 'anchor' ) === array_keys( $app->actions ), 'nine server actions: reopen (the deep-link lifecycle), go, edit, verify, jump and the control surface\'s four -- everything else is local in the browser' );
+	ok( array( 'reopen', 'go', 'edit', 'verify', 'jump', 'trash', 'publish', 'purge', 'anchor', 'ack' ) === array_keys( $app->actions ), 'ten server actions: reopen (the deep-link lifecycle), go, edit, verify, jump, the control surface\'s four, and ack (an Attention row acknowledged) -- everything else is local in the browser' );
 
 	// v14.4.0: a deep link from another surface (the Posts window's Attention
 	// pill) — `wp.os.openWindow( 'signal-noise', { params: { section } } )`.

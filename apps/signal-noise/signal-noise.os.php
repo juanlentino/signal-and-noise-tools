@@ -211,4 +211,5 @@ return App::define( APP_ID )
 	->action( 'trash', __NAMESPACE__ . '\\trash_action' )
 	->action( 'publish', __NAMESPACE__ . '\\publish_action' )
 	->action( 'purge', __NAMESPACE__ . '\\purge_action' )
-	->action( 'anchor', __NAMESPACE__ . '\\anchor_action' );
+	->action( 'anchor', __NAMESPACE__ . '\\anchor_action' )
+	->action( 'ack', __NAMESPACE__ . '\\ack_action' );

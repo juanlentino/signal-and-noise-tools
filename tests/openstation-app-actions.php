@@ -97,6 +97,11 @@ namespace {
 	function current_user_can( $cap, ...$a ) { return (bool) ( $GLOBALS['__caps'][ $cap ] ?? false ); }
 	function get_post( $id ) { foreach ( $GLOBALS['__posts'] as $p ) { if ( (int) $p->ID === (int) $id ) { return $p; } } return null; }
 	function get_permalink( $post ) { return 'https://example.test/?p=' . ( is_object( $post ) ? $post->ID : (int) $post ); }
+	// v14.5.0: from the Attention section an action resolves the post's OWN
+	// section, which asks what each section lists: Notes the category, Pages
+	// the sign meta. 11 and 12 are notes; 44 is a signed page.
+	function has_category( $cat, $post = null ) { $id = is_object( $post ) ? (int) $post->ID : (int) $post; return 'notes' === (string) $cat && in_array( $id, array( 11, 12 ), true ); }
+	function get_post_meta( $id, $key = '', $single = false ) { return ( 44 === (int) $id && '_sn_prov_sign' === (string) $key ) ? '1' : ''; }
 
 	$GLOBALS['__trashed'] = array(); $GLOBALS['__untrashable'] = array();
 	function wp_trash_post( $post_id = 0 ) {
@@ -365,6 +370,49 @@ namespace {
 	$app->actions['anchor']( st( $app ), $os, array( 'item' => '11' ) );
 	ok( array() === $GLOBALS['__reconciled'] && array( 'The anchor worker is not configured here.' ) === $os->toasts, 'without a worker URL nothing is requested and the toast says why -- sn_prov_dispatch() would have bailed silently' );
 	$GLOBALS['__worker'] = 'https://example.com/anchor';
+
+	echo "\nGroup 5b: solve on the row -- from the Attention section, the post resolves its own type\n";
+	// The type gate reads the OPEN section's descriptor and refuses the client's
+	// word. Attention has no post type; a row there names a post, and the post's
+	// own section (offered + lists it) answers -- so a signed page's Retry anchor
+	// works from Attention exactly as it does under Pages, and a note's under Notes.
+	$GLOBALS['__chains'][44] = array( array( 'version' => 1, 'status' => 'unanchored' ) );
+	$GLOBALS['__reconciled'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['anchor']( st( $app, array( 'section' => 'attention' ) ), $os, array( 'item' => '44' ) );
+	ok( array( 44 ) === $GLOBALS['__reconciled'], 'Retry anchor from Attention on a signed PAGE resolves `page` through the Pages section and dispatches' );
+	$GLOBALS['__purged'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['purge']( st( $app, array( 'section' => 'attention' ) ), $os, array( 'item' => '44' ) );
+	ok( array( array( 'https://example.test/pages/a/' ) ) === $GLOBALS['__purged'], 'Purge edge from Attention on the page purges the page\'s URLs' );
+	$GLOBALS['__purged'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['purge']( st( $app, array( 'section' => 'attention' ) ), $os, array( 'item' => '11' ) );
+	ok( 1 === count( $GLOBALS['__purged'] ), 'Purge edge from Attention on a note purges the note' );
+	$GLOBALS['__purged'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['purge']( st( $app, array( 'section' => 'attention' ) ), $os, array( 'item' => '45' ) );
+	ok( array() === $GLOBALS['__purged'], 'a page NO section lists (unsigned) resolves to the narrow default and is refused from Attention' );
+	$GLOBALS['__purged'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['purge']( st( $app, array( 'section' => 'notes' ) ), $os, array( 'item' => '44' ) );
+	ok( array() === $GLOBALS['__purged'], 'NEGATIVE CONTROL: under Notes the page is still refused -- the fallback runs only where no section type exists' );
+	unset( $GLOBALS['__chains'][44] );
+
+	echo "\nGroup 5c: acknowledge\n";
+	$GLOBALS['__options'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['ack']( st( $app, array( 'section' => 'attention' ) ), $os, array( 'key' => 'watches-origin_503_recheck', 'stamp' => '2026-09-12' ) );
+	ok( in_array( 'snt_os_attention_acks', $GLOBALS['__options'], true ) && array( 'Acknowledged. It comes back if the fact changes.' ) === $os->toasts, 'ack writes the acknowledgement store and says what it means' );
+	$GLOBALS['__options'] = array();
+	$GLOBALS['__os_can'] = array( 'manage_options' => false );
+	$os = new \OpenStation\App\Os();
+	$app->actions['ack']( st( $app ), $os, array( 'key' => 'x', 'stamp' => '' ) );
+	ok( ! in_array( 'snt_os_attention_acks', $GLOBALS['__options'], true ) && array( 'Only an administrator can acknowledge a row.' ) === $os->toasts, 'a non-admin cannot acknowledge (the queue is site-wide)' );
+	$GLOBALS['__os_can'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['ack']( st( $app ), $os, array( 'key' => '', 'stamp' => '' ) );
+	ok( ! in_array( 'snt_os_attention_acks', $GLOBALS['__options'], true ), 'an empty key writes nothing' );
 
 	echo "\nGroup 6: go clears the selection with the rest of the facets\n";
 	$os = new \OpenStation\App\Os();
