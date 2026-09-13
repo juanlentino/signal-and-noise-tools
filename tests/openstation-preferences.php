@@ -536,6 +536,18 @@ ok( false !== strpos( $pp_js, "c.key === 'sn_provenance'" ), 'posts provenance: 
 ok( 1 === preg_match( '/if \( ! value \|\| ! value\.versions \) \{\s*return document\.createElement/', $pp_js ), 'posts provenance: an unsigned Note paints an EMPTY node, never a gray badge (absent is not zero)' );
 ok( false === strpos( $pp_js, 'wp.os.' ) && false === strpos( $pp_js, 'wp.apiFetch' ), 'posts provenance: depends on nothing but wp.hooks (the loader will not have run anything else)' );
 
+// v14.3.1: the Posts window trims its list with a `_fields` allowlist, so the
+// column's field has to be NAMED there or every cell is empty — which is how
+// 14.3.0 shipped. Appended through the shell's own filter, never replaced.
+$shell_default = array( '_embed' => 'author,wp:term,wp:featuredmedia', '_fields' => 'id,title,status,date,openstation_lock,_links,_embedded' );
+$out = snt_os_posts_window_query_args( $shell_default );
+ok( 'id,title,status,date,openstation_lock,_links,_embedded,sn_provenance' === $out['_fields'], 'posts provenance: sn_provenance is APPENDED to the window\'s _fields allowlist' );
+ok( 'author,wp:term,wp:featuredmedia' === $out['_embed'], 'posts provenance: every other query arg passes through untouched' );
+ok( $out === snt_os_posts_window_query_args( $out ), 'posts provenance: idempotent — a second pass adds nothing' );
+ok( array( 'post_type' => 'x' ) === snt_os_posts_window_query_args( array( 'post_type' => 'x' ) ), 'posts provenance: no _fields (a shell that ships everything) → nothing to append' );
+$qa_cbs = array_column( $GLOBALS['__filters']['openstation_posts_window_query_args'][10] ?? array(), 'cb' );
+ok( in_array( 'snt_os_posts_window_query_args', $qa_cbs, true ), 'posts provenance: registered on the shell\'s openstation_posts_window_query_args filter' );
+
 // Sidebar glyph: an OS icon-set name on the tab registration (read by
 // OpenStation from 1.1.9, WordPress/openstation#808; ignored before).
 ok( 1 === preg_match( "/registerSettingsTab\( \{[^}]*\bicon: 'bell'/s", $settings_js ), 'settings tab names its sidebar glyph from the OS icon set' );
