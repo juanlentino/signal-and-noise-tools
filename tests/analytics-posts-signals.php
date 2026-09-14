@@ -53,6 +53,7 @@ $GLOBALS['__chains'] = array();
 function sn_prov_get_chain( $id ) { return $GLOBALS['__chains'][ $id ] ?? array(); }
 function sn_note_dossier_anchored_commit( array $chain ) { for ( $i = count( $chain ) - 1; $i >= 0; $i-- ) { if ( 'confirmed' === ( $chain[ $i ]['status'] ?? '' ) && (int) ( $chain[ $i ]['version'] ?? 0 ) >= 1 ) { return $chain[ $i ]; } } return null; }
 function sn_prov_key_id() { return 'key-2026'; }
+function sn_prov_last_commit_gmt_from_chain( $chain ) { $n = ''; foreach ( (array) $chain as $e ) { $at = (string) ( $e['committed_at'] ?? '' ); if ( '' !== $at && ( '' === $n || strtotime( $at ) > strtotime( $n ) ) ) { $n = $at; } } return '' === $n ? '' : gmdate( 'Y-m-d H:i:s', strtotime( $n ) ); }
 $GLOBALS['__related'] = array();
 function snt_ml_related_for_post( $id, $limit ) { if ( ! is_array( get_option( SNT_ML_CORPUS_META_OPT, false ) ) ) { return null; } return $GLOBALS['__related'][ $id ] ?? array(); }
 function sn_analytics_post_path( $id ) { return '/notes/' . $GLOBALS['__posts'][ $id ]->post_name; }
@@ -158,6 +159,19 @@ ok( 4 === $c['total'] && 1 === $c['indexed'] && 1 === $c['with_impressions'] && 
 ok( 71627 === $all['strip']['machine_reads']['value'] && '2026-08-14' === $all['strip']['gsc_window']['start'] && 2 === $all['strip']['coverage_run']['inspected'], 'the strip carries machine reads (site-wide), the GSC window and the coverage run ONCE' );
 $GLOBALS['__mr'] = null;
 ok( 'no site-wide measurement yet' === sn_analytics_posts_signals()['strip']['machine_reads']['why'], 'no snapshot → the strip says so, no number' );
+
+echo "\nGroup 7b: stale crawl reads the BODY change, not post_modified (v14.6.1)\n";
+// Note 1: crawled 36 days ago, post_modified 3 days ago (Group 3 made that stale).
+// Give it a chain whose newest commit is 40 days old: the body has not changed
+// since the crawl, so the Sep-9-style bulk save is not a stale crawl.
+$GLOBALS['__chains'][1] = array( array( 'version' => 1, 'status' => 'confirmed', 'bitcoin_block' => 964812, 'pubkey_id' => 'key-2026', 'committed_at' => gmdate( 'Y-m-d\TH:i:s\Z', $NOW - 40 * DAY_IN_SECONDS ) ) );
+$r1 = row_for( 1 );
+ok( false === $r1['flags']['stale_crawl'] && $r1['body_changed_ts'] === $NOW - 40 * DAY_IN_SECONDS, 'signed note, body unchanged since the crawl, post_modified bumped by a bulk save → NOT stale' );
+$GLOBALS['__chains'][1][] = array( 'version' => 2, 'status' => 'pending', 'committed_at' => gmdate( 'Y-m-d\TH:i:s\Z', $NOW - 2 * DAY_IN_SECONDS ) );
+ok( true === row_for( 1 )['flags']['stale_crawl'], 'a new commit after the crawl (even pending) → stale: the words moved' );
+$GLOBALS['__chains'][1] = array( array( 'version' => 1, 'status' => 'confirmed', 'bitcoin_block' => 964812, 'pubkey_id' => 'key-2026' ) );
+ok( true === row_for( 1 )['flags']['stale_crawl'] && row_for( 1 )['body_changed_ts'] === $GLOBALS['__posts'][1]->mod, 'a chain with no committed_at falls back to post_modified' );
+$GLOBALS['__chains'][1] = array( array( 'version' => 1, 'status' => 'confirmed', 'bitcoin_block' => 964812, 'pubkey_id' => 'key-2026', 'committed_at' => gmdate( 'Y-m-d\TH:i:s\Z', $NOW - 40 * DAY_IN_SECONDS ) ) );
 
 echo "\nGroup 8: severity order for the queue\n";
 ok( sn_analytics_posts_severity( array( 'not_indexed' => true ) ) > sn_analytics_posts_severity( array( 'stale_crawl' => true, 'orphaned' => true ) ), 'not indexed outranks stale + orphaned together' );

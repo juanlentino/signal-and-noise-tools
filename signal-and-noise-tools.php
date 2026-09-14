@@ -277,6 +277,7 @@ require_once SNT_PATH . 'inc/batch-schedule.php';
 require_once SNT_PATH . 'inc/abilities-search-console.php';
 require_once SNT_PATH . 'inc/abilities-family-drift.php'; // v13.62.0: the family_drift sn-status source (stored report only). // v13.57.0: measurement weave Phase 1 — Search Console on the read door (sn-status sections).
 require_once SNT_PATH . 'inc/abilities-inbound-pass.php'; // v13.68.0: the inbound_pass sn-status source (stored report only).
+require_once SNT_PATH . 'inc/abilities-posts-signals.php'; // v14.6.1: the posts_signals sn-status source (the Posts tab as data).
 require_once SNT_PATH . 'inc/ssrf-guard.php';
 // v13.54.0 — Phase 0 of the breached-credential arc: the HIBP k-anonymity
 // client only. It registers NO hooks and cannot reject or warn about anything;

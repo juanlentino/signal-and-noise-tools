@@ -136,6 +136,10 @@ function sn_mcp_remote_verdicts() {
 		'search_coverage'      => $out( false, 'Names every post\'s index state and canonical, including pages Google declined to index — editorial state, not a public metric. Local until the search twins earn telemetry.' ),
 		'family_drift'         => $out( false, 'Names the classifier\'s blind spots (families that match nothing, operators we do not recognise) — a map of what the sensor cannot see. Defence-adjacent; local only.' ),
 		'inbound_pass'         => $out( false, 'Lists AI anchor nominations into notes published hours ago and the older notes chosen to carry them — an editorial worklist, not a public metric. Local only.' ),
+		// v14.6.1 — per-note index verdicts, inbound counts, kernel scores and the
+		// three editorial flags: the Posts tab as data. Same posture as
+		// search_coverage: editorial state, not a public metric. Local only.
+		'posts_signals'        => $out( false, 'One row per note with its index verdict, inbound links, kernel neighbours and the three editorial flags — editorial state over the whole corpus, not a public metric. Local only.' ),
 		// v13.88.0. NOT twinned, and the reason is close to funny: this section
 		// exists to decide whether a payload's shape is stable enough to FREEZE
 		// INTO A REMOTE TWIN. That question is asked at a laptop, in the minutes

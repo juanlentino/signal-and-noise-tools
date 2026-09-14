@@ -172,6 +172,17 @@ function sn_analytics_posts_row( $post, array $ctx ) {
 
 	// ── Provenance: the local chain ──────────────────────────────────────
 	$chain    = function_exists( 'sn_prov_get_chain' ) ? (array) sn_prov_get_chain( $id ) : array();
+	// v14.6.1: WHEN DID THE BODY LAST CHANGE. post_modified moves on a tag
+	// edit, a surfaces save, a bulk migration; the chain commits only when the
+	// normalized prose changes. Seventeen "stale crawls" on 2026-09-13 were
+	// Sep 9 and Sep 12 bulk saves that never touched a word. A signed note's
+	// body-change time is its newest commit; an unsigned post falls back to
+	// post_modified, the only stamp it has.
+	$last_commit_gmt = function_exists( 'sn_prov_last_commit_gmt_from_chain' ) ? (string) sn_prov_last_commit_gmt_from_chain( $chain ) : '';
+	$body_changed    = '' !== $last_commit_gmt ? (int) strtotime( $last_commit_gmt . ' UTC' ) : 0;
+	if ( $body_changed <= 0 ) {
+		$body_changed = $modified;
+	}
 	$anchored = function_exists( 'sn_note_dossier_anchored_commit' ) ? sn_note_dossier_anchored_commit( $chain ) : null;
 	if ( array() === $chain ) {
 		$anchor = sn_posts_field( null, 'unsigned' );
@@ -214,6 +225,7 @@ function sn_analytics_posts_row( $post, array $ctx ) {
 		'permalink'      => $permalink,
 		'publish_ts'     => $publish,
 		'modified_ts'    => $modified,
+		'body_changed_ts' => $body_changed,
 		'age'            => $age,
 		'words'          => $words,
 		'index'          => $index,
@@ -237,7 +249,7 @@ function sn_analytics_posts_row( $post, array $ctx ) {
  * because a gap is not evidence of the fault either.
  *
  *   not_indexed  coverage says Google is not indexing it (indexed === false).
- *   stale_crawl  last crawl predates the last edit.
+ *   stale_crawl  last crawl predates the last BODY change (newest commit; post_modified when unsigned).
  *   orphaned     inbound internal links <= SN_POSTS_ORPHAN_MAX_INBOUND.
  *
  * @param array<string,mixed> $row
@@ -247,9 +259,13 @@ function sn_analytics_posts_flags( array $row ) {
 	$indexed = $row['index']['value'] ?? null;
 	$crawl   = $row['last_crawl']['value'] ?? null;
 	$inbound = $row['inbound']['value'] ?? null;
+	// stale_crawl reads body_changed_ts (the newest signed commit, or
+	// post_modified when unsigned), never post_modified alone: a tag edit is
+	// not a reason to ask Google to come back.
+	$changed = (int) ( $row['body_changed_ts'] ?? $row['modified_ts'] ?? 0 );
 	return array(
 		'not_indexed' => false === $indexed,
-		'stale_crawl' => null !== $crawl && (int) $row['modified_ts'] > 0 && (int) $crawl < (int) $row['modified_ts'],
+		'stale_crawl' => null !== $crawl && $changed > 0 && (int) $crawl < $changed,
 		'orphaned'    => null !== $inbound && (int) $inbound <= SN_POSTS_ORPHAN_MAX_INBOUND,
 	);
 }

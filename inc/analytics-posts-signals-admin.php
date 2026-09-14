@@ -58,7 +58,7 @@ function sn_posts_flag_fix( $flag, array $row ) {
 		return __( 'Not in the index: read the coverage state and request indexing.', 'signal-and-noise-tools' );
 	}
 	if ( 'stale_crawl' === $flag ) {
-		return __( 'The last crawl predates the last edit: Google is serving the old text. Request indexing.', 'signal-and-noise-tools' );
+		return __( 'The last crawl predates the last body change: Google is serving the old text. Request indexing in Search Console.', 'signal-and-noise-tools' );
 	}
 	return __( 'At most one inbound internal link: link to it from a related note.', 'signal-and-noise-tools' );
 }
@@ -310,7 +310,7 @@ function sn_posts_td_crawl( array $r ) {
 	$date  = gmdate( 'Y-m-d', (int) $f['value'] );
 	$stale = ! empty( $r['flags']['stale_crawl'] );
 	$html  = $stale
-		? '<span class="sn-posts-stale" title="' . esc_attr( sprintf( /* translators: %s: date. */ __( 'Edited %s, after this crawl', 'signal-and-noise-tools' ), gmdate( 'Y-m-d', (int) $r['modified_ts'] ) ) ) . '">' . esc_html( $date ) . '</span>'
+		? '<span class="sn-posts-stale" title="' . esc_attr( sprintf( /* translators: %s: date. */ __( 'Body changed %s, after this crawl', 'signal-and-noise-tools' ), gmdate( 'Y-m-d', (int) ( $r['body_changed_ts'] ?? $r['modified_ts'] ) ) ) ) . '">' . esc_html( $date ) . '</span>'
 		: esc_html( $date );
 	return sn_posts_td( $html, $date );
 }
