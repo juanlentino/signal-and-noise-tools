@@ -326,9 +326,13 @@ function sn_prov_integrity_check_note( $post_id, $fetcher, $published_key_ids = 
 	if ( ! is_array( $twin['json'] ) ) {
 		$failures[] = 'twin_unreachable'; // network, 404, 5xx, non-JSON: a gap, never a drift claim.
 	} elseif ( is_array( $payload ) ) {
-		// The twin schema carries content_text (NOT `content` — the 2026-07-21
-		// live catch); keep the legacy fallback the /verify JS also keeps.
-		$live   = (string) ( $twin['json']['content_text'] ?? ( $twin['json']['content'] ?? '' ) );
+		// v14.7.1: prefer content_signed, the prose as signing sees it (the
+		// plugin adds it to the twin through the theme's document filter);
+		// rendered content_text made every signed Page read as drift, since
+		// a shortcode renders there and stays literal in the payload. Then
+		// content_text (NOT `content` — the 2026-07-21 live catch); keep the
+		// legacy fallback the /verify JS also keeps.
+		$live   = (string) ( $twin['json']['content_signed'] ?? ( $twin['json']['content_text'] ?? ( $twin['json']['content'] ?? '' ) ) );
 		$signed = (string) ( $payload['content'] ?? '' );
 		if ( sn_prov_integrity_flatten( $live ) !== sn_prov_integrity_flatten( $signed ) ) {
 			$failures[] = 'twin_drift';

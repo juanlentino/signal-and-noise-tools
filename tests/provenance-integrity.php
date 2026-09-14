@@ -673,6 +673,49 @@ ok( 'notes' === sn_prov_ledger_dir( 'note' ) && 'pages' === sn_prov_ledger_dir( 
 ok( '' === sn_prov_ledger_dir( '' ) && '' === sn_prov_ledger_dir( 'revision' ) && '' === sn_prov_ledger_dir( 'wibble' ),
 	'and returns EMPTY for anything else — no notes/ default, because a guessed directory in an append-only ledger is not recoverable' );
 
+// ── Group: leg (b) prefers content_signed (v14.7.1) ─────────────────────────
+// THE SIGNED-PAGE CLASS. A signed Page's body carries `[sn_reading_time]`
+// and a core/post-date block. The twin's content_text is RENDERED ("5 min
+// read · May 7, 2026"); the payload signs the RAW body ("[sn_reading_time]",
+// no date). Three pages read as twin_drift the moment they were minted
+// (2026-09-14) and nothing had drifted. The twin now carries content_signed,
+// the raw-normalized prose, added by sn_prov_twin_content_signed() through
+// the theme's document filter; leg (b) compares against THAT when present.
+echo "\nGroup: leg (b) — content_signed is compared when the twin carries it (the signed-Page class)\n";
+$RAW_PAGE  = "A short read · [sn_reading_time]\n\nMusic has a verification problem.";
+$RENDERED  = 'A short read · 5 min read May 7, 2026 Music has a verification problem.';
+pi_note( 104, $UID1, array( pi_commit( $UID1, 1, $RAW_PAGE, 'confirmed' ) ) );
+$commit104 = sn_prov_get_chain( 104 )[0];
+$ledger104 = array( '/notes/' . $UID1 . '/v1.json' => pi_json( array( 'content_hash' => 'sha256:' . $commit104['content_hash'] ) ) );
+$r = sn_prov_integrity_check_note( 104, pi_fetcher( array(
+	'/notes/note-104.json' => pi_json( array( 'content_text' => $RENDERED ) ),
+) + $ledger104 ) );
+ok( in_array( 'twin_drift', $r['failures'], true ),
+	'precondition: a twin with ONLY rendered content_text reads as drift against the raw-signed payload (the live 2026-09-14 class)' );
+$r = sn_prov_integrity_check_note( 104, pi_fetcher( array(
+	'/notes/note-104.json' => pi_json( array( 'content_text' => $RENDERED, 'content_signed' => sn_prov_normalize_v2( $RAW_PAGE ) ) ),
+) + $ledger104 ) );
+ok( array() === $r['failures'],
+	'the same twin carrying content_signed (the raw-normalized prose) passes clean: rendered text is no longer read as an edit' );
+$r = sn_prov_integrity_check_note( 104, pi_fetcher( array(
+	'/notes/note-104.json' => pi_json( array( 'content_text' => $RENDERED, 'content_signed' => sn_prov_normalize_v2( "A short read · [sn_reading_time]\n\nMusic has a verification PROBLEM, rewritten." ) ) ),
+) + $ledger104 ) );
+ok( in_array( 'twin_drift', $r['failures'], true ),
+	'content_signed that differs from the payload is still drift: the field is compared, never trusted' );
+
+// THE HOOK ITSELF. It adds the field only for a provenance subject and
+// computes it with the SAME normalization the payload used.
+$doc_in = array( 'content_text' => $RENDERED );
+$page_obj = (object) array( 'ID' => 201, 'post_type' => 'page', 'post_content' => $RAW_PAGE );
+$GLOBALS['__pi_meta'][201][ SN_PROV_SIGN_META ] = '1';
+$doc_out = sn_prov_twin_content_signed( $doc_in, $page_obj );
+ok( ( $doc_out['content_signed'] ?? null ) === sn_prov_normalize_v2( $RAW_PAGE ),
+	'sn_prov_twin_content_signed adds content_signed = sn_prov_normalize_v2( post_content ) for a signed page' );
+ok( ( $doc_out['content_text'] ?? '' ) === $RENDERED, 'and leaves content_text (the rendered reading) untouched' );
+$GLOBALS['__pi_meta'][201][ SN_PROV_SIGN_META ] = '';
+$doc_out = sn_prov_twin_content_signed( $doc_in, $page_obj );
+ok( ! isset( $doc_out['content_signed'] ), 'a page that is not a provenance subject gets no content_signed: the twin keeps its shape' );
+
 // ── Group: unverifiable is neither clean nor drift (v13.70.0) ───────────────
 // PLACED LAST, and it resets the fixtures: the groups above read accrued state
 // from sn_prov_integrity_state(), so a reset in the middle of the file silently

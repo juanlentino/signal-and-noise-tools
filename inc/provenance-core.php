@@ -738,3 +738,33 @@ function sn_prov_on_after_insert( $post_id, $post, $update, $post_before ) {
 	sn_prov_record( $post, sn_prov_author( $post ) );
 }
 add_action( 'wp_after_insert_post', 'sn_prov_on_after_insert', 20, 4 );
+
+/**
+ * The twin's `content_signed`: the subject's prose exactly as signing sees it.
+ *
+ * v14.7.1. The theme's .json twin publishes content_text from RENDERED
+ * the_content, while the payload signs sn_prov_normalize_v2( post_content ),
+ * the RAW body. For a Note the two agree (no shortcodes, no dynamic blocks).
+ * A signed Page carries `[sn_reading_time]` and a core/post-date block, so
+ * the twin says "5 min read · May 7, 2026" where the payload says
+ * "[sn_reading_time]" and nothing: every signed Page read as twin_drift the
+ * moment it was minted (three on 2026-09-14), and /verify called each one
+ * "edited since signing". Neither side was wrong; they measured different
+ * texts. This field lets both comparers measure the same one: the twin is
+ * still built live from the stored body, so an edit since signing still
+ * shows, and a rendered shortcode no longer does.
+ *
+ * Added only for a provenance subject; other documents keep their shape.
+ *
+ * @param array<string,mixed> $doc  The twin document.
+ * @param WP_Post|object      $post
+ * @return array<string,mixed>
+ */
+function sn_prov_twin_content_signed( $doc, $post ) {
+	if ( ! is_array( $doc ) || ! is_object( $post ) || '' === sn_prov_subject_kind( $post ) ) {
+		return $doc;
+	}
+	$doc['content_signed'] = sn_prov_normalize_v2( (string) ( $post->post_content ?? '' ) );
+	return $doc;
+}
+add_filter( 'sn_content_json_document', 'sn_prov_twin_content_signed', 10, 2 );

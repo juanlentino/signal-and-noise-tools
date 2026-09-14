@@ -466,7 +466,12 @@
 		// The theme's .json twin schema carries content_text / content_html —
 		// there is NO bare `content` field (reading one made this check report
 		// "edited since signing" on every Note, always; caught live 2026-07-21).
-		var liveRaw = ( twinJson && ( twinJson.content_text || twinJson.content || '' ) ) || '';
+		// v14.7.1: content_signed first — the prose as signing sees it, which
+		// the plugin adds to the twin. content_text is RENDERED, so a signed
+		// Page's shortcode ("5 min read") reads as an edit against the literal
+		// "[sn_reading_time]" the payload holds. Same fallback order as the
+		// PHP integrity sweep.
+		var liveRaw = ( twinJson && ( twinJson.content_signed || twinJson.content_text || twinJson.content || '' ) ) || '';
 		var liveNormalized = roughNormalize( liveRaw );
 		var matches = liveNormalized === roughNormalize( signedContent );
 		// A full match is the good outcome this check exists to report — stamp
