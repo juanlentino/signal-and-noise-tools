@@ -125,6 +125,22 @@ console.log( '\nGroup 2b: non-ASCII content survives base64 decoding (10.66.1)' 
 	eq( core.STATE.PASS, v.state, 'a Note carrying non-ASCII still MATCHES its unedited twin' );
 	ok( ! v.detail.includes( 'edited since signing' ), 'never claims an edit that did not happen' );
 
+	// v14.7.1: content_signed wins over content_text. A signed Page's twin
+	// renders its shortcode ("5 min read") where the payload holds the literal
+	// "[sn_reading_time]", so content_text alone claimed "edited since signing"
+	// on three unedited pages (live, 2026-09-14). The plugin now adds
+	// content_signed (the raw-normalized prose) and the verdict reads it first.
+	const rawPage = 'A short read · [sn_reading_time] Music has a verification problem.';
+	const rendered = 'A short read · 5 min read May 7, 2026 Music has a verification problem.';
+	const credPage = JSON.parse( JSON.stringify( credBlock ) );
+	credPage.proof.signedPayloadB64 = Buffer.from( JSON.stringify( { content: rawPage } ), 'utf8' ).toString( 'base64' );
+	eq( core.STATE.NOTE, core.deriveLiveMatchVerdict( credPage, { content_text: rendered } ).state,
+		'precondition: rendered content_text alone reads a signed Page as edited (the live class)' );
+	eq( core.STATE.PASS, core.deriveLiveMatchVerdict( credPage, { content_text: rendered, content_signed: rawPage } ).state,
+		'content_signed matching the payload → PASS, whatever content_text rendered' );
+	eq( core.STATE.NOTE, core.deriveLiveMatchVerdict( credPage, { content_text: rawPage, content_signed: rawPage + ' Rewritten.' } ).state,
+		'content_signed is compared, never trusted: a differing content_signed is an edit even when content_text happens to match' );
+
 	// The decoder itself, directly.
 	eq( text, core.base64ToUtf8( Buffer.from( text, 'utf8' ).toString( 'base64' ) ),
 		'base64ToUtf8 returns CHARACTERS, not bytes' );

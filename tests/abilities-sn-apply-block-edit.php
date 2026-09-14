@@ -70,6 +70,7 @@ if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $x ) { return 
 if ( ! function_exists( '__' ) )  { function __( $s, $d = null ) { return $s; } }
 if ( ! function_exists( 'wp_json_encode' ) ) { function wp_json_encode( $d, $opts = 0 ) { return json_encode( $d, $opts ); } }
 if ( ! function_exists( 'add_action' ) ) { function add_action( $t, $c, $p = 10, $a = 1 ) { return true; } }
+if ( ! function_exists( 'add_filter' ) ) { function add_filter( $t, $c, $p = 10, $a = 1 ) { return true; } } // v14.7.1: provenance-core hooks sn_content_json_document
 if ( ! function_exists( 'apply_filters' ) ) {
 	$GLOBALS['__filters'] = array();
 	function apply_filters( $h, $v ) { foreach ( $GLOBALS['__filters'][ $h ] ?? array() as $cb ) { $v = $cb( $v ); } return $v; }
