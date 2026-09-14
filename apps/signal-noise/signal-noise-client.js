@@ -39,7 +39,7 @@
 	const opensOnTap = () => isPhone() || ( typeof window.matchMedia === 'function' && window.matchMedia( '(pointer: coarse)' ).matches );
 
 	/** Client-only state that never travels. ONE bag per mounted view (ctx.ui runs its factory once), so everything lives here. */
-	const uiOf = ( ctx ) => ctx.ui( () => ( { folderSel: null, dossiers: new Map(), errors: new Map(), inflight: new Set(), days: 30, menu: null } ) );
+	const uiOf = ( ctx ) => ctx.ui( () => ( { folderSel: null, dossiers: new Map(), errors: new Map(), inflight: new Set(), days: 30, menu: null, mioLease: null } ) );
 	/** The fetched half of a dossier lives in the same bag; keys are `${id}:${days}`. */
 	const dossierOf = uiOf;
 
@@ -1273,6 +1273,141 @@
 	};
 
 	// ---------------------------------------------------------------- view
+
+	// ── MIO (14.8.0) ─────────────────────────────────────────────────────────
+	// The shell's companion inside this window: plain-text callouts that name
+	// the state an item is in (never a model call), and, when help is on, the
+	// plugin's Markdown help plus read-only tools over what the window shows.
+	// Both follow the per-user switches in OS Settings › Signal & Noise
+	// (window.sntMio, localized by inc/openstation-mio.php); the shell's own
+	// MIO switch sits above them, and Ask MIO stays hidden until the shell's
+	// AI gate opens. Nothing here writes.
+	const mioBag = () => window.sntMio || {};
+	const mioApi = () => ( window.wp && window.wp.os && window.wp.os.mio && typeof window.wp.os.mio.registerWindow === 'function' ) ? window.wp.os.mio : null;
+
+	/** The items as a read tool returns them: content the window already paints, nothing more. */
+	const mioItemRow = ( it ) => ( {
+		id: String( it.id || '' ),
+		kind: String( it.status || '' ),
+		kindLabel: String( it.statusLabel || '' ),
+		subject: String( it.title || '' ),
+		observation: String( it.subtitle || '' ),
+		asOf: String( it.dateLabel || '' ),
+		tone: String( it.tone || '' ),
+	} );
+
+	const mioAbilities = ( ctx ) => [
+		{
+			name: 'list_items',
+			description: 'List the items this window currently shows in the open section, after its filters. Read-only.',
+			parameters: { type: 'object', properties: { kind: { type: 'string', description: 'Optional kind (e.g. integrity, watches, search) to keep only that reader\'s items.' } }, additionalProperties: false },
+			effect: 'read',
+			validate: ( args ) => Object.keys( args || {} ).every( ( k ) => k === 'kind' ) && ( args.kind === undefined || typeof args.kind === 'string' ),
+			run: async ( args ) => {
+				const items = visibleItems( ctx.state, ctx.data || {} ).map( mioItemRow );
+				const kind = args && args.kind ? String( args.kind ) : '';
+				const rows = kind ? items.filter( ( r ) => r.kind === kind ) : items;
+				return { effect: 'read', section: String( ( ctx.data && ctx.data.section && ctx.data.section.id ) || '' ), count: rows.length, items: rows.slice( 0, 50 ), truncated: rows.length > 50 };
+			},
+		},
+		{
+			name: 'read_item',
+			description: 'Read one item by id: its facts (Subject, What, When, Source) and the actions the window offers on it. Read-only.',
+			parameters: { type: 'object', properties: { id: { type: 'string' } }, required: [ 'id' ], additionalProperties: false },
+			effect: 'read',
+			validate: ( args ) => !! args && typeof args.id === 'string' && Object.keys( args ).length === 1 && ( ( ctx.data && ctx.data.items ) || [] ).some( ( it ) => String( it.id ) === args.id ),
+			run: async ( args ) => {
+				const it = ( ( ctx.data && ctx.data.items ) || [] ).find( ( x ) => String( x.id ) === args.id );
+				if ( ! it ) {
+					return { effect: 'none', status: 'rejected', errors: [ { code: 'unknown_id', path: '$.id', message: 'No such item in this window.' } ], retryable: true };
+				}
+				const d = it.detail || {};
+				return { effect: 'read', ...mioItemRow( it ), facts: ( d.facts || [] ).map( ( f ) => ( { label: String( f[ 0 ] ), value: String( f[ 1 ] ) } ) ), actions: ( d.actions || [] ).map( ( a ) => String( a.label || '' ) ) };
+			},
+		},
+	];
+
+	/**
+	 * The tip for the selected item: the one sentence that says which state
+	 * it is in, beside the "as of" line. Dismissal is remembered per item id
+	 * for the life of the lease, so it is a tip, not a nag.
+	 */
+	const mioTipFor = ( ctx, item ) => {
+		if ( ! item ) {
+			return null;
+		}
+		const when = String( item.dateLabel || '' );
+		switch ( String( item.status || '' ) ) {
+			case 'integrity':
+				return __( 'This verdict is the integrity sweep\'s last reading (%s). A failing subject is re-read ahead of the rotation on the next sweep; nothing here re-reads it now.' ).replace( '%s', when );
+			case 'watches':
+				return /\bdue\b/.test( String( item.subtitle || '' ) )
+					? __( 'A date-only watch: a date passed and nothing was measured. Its read names what to look at; acknowledging keeps it until the date changes.' )
+					: __( 'A state watch: a measurement changed. Its read names the reading that ripened it.' );
+			case 'scheduled':
+				return __( 'This leaves the queue on its own when it publishes.' );
+			case 'search':
+				return __( 'Search Console\'s reading. Requesting indexing happens in Search Console; the coverage inspection here reads the result on its own clock.' );
+			default:
+				return null;
+		}
+	};
+
+	const mioSync = ( ctx ) => {
+		const ui = uiOf( ctx );
+		const lease = ui.mioLease;
+		if ( ! lease || ! mioBag().tips ) {
+			return;
+		}
+		const item = ctx.state.item ? ( ( ctx.data && ctx.data.items ) || [] ).find( ( x ) => String( x.id ) === String( ctx.state.item ) ) : null;
+		const message = mioTipFor( ctx, item );
+		if ( ! message ) {
+			if ( typeof lease.clearCallout === 'function' ) {
+				lease.clearCallout();
+			}
+			return;
+		}
+		lease.showCallout( {
+			id: 'item:' + String( item.id ),
+			target: () => ctx.root.querySelector( '.snt-detail__meta' ) || ctx.root.querySelector( '.snt-detail__title' ),
+			message,
+		} );
+	};
+
+	/** Register this window; returns the teardown. A shell without MIO, or a user with both switches off, registers nothing. */
+	const mioArm = ( ctx ) => {
+		const api = mioApi();
+		const bag = mioBag();
+		if ( ! api || ( ! bag.tips && ! bag.help ) || ! ctx.windowId ) {
+			return () => {};
+		}
+		let lease = null;
+		try {
+			lease = api.registerWindow( ctx.windowId, {
+				host: ctx.root,
+				title: __( 'Signal & Noise' ),
+				prompt: () => {
+					const data = ctx.data || {};
+					const section = String( ( data.section && data.section.label ) || ( data.section && data.section.id ) || '' );
+					const count = visibleItems( ctx.state, data ).length;
+					return String( ( bag.prompts && bag.prompts.app ) || '' ) + ' ' + __( 'Open section: %1$s. Items shown: %2$d.' ).replace( '%1$s', section ).replace( '%2$d', String( count ) );
+				},
+				documents: bag.help ? ( bag.documents || [] ) : [],
+				abilities: () => ( bag.help ? mioAbilities( ctx ) : [] ),
+			} );
+		} catch ( e ) {
+			return () => {};
+		}
+		uiOf( ctx ).mioLease = lease;
+		mioSync( ctx );
+		return () => {
+			uiOf( ctx ).mioLease = null;
+			try {
+				lease.dispose();
+			} catch ( e ) { /* a window torn down by the shell first has no lease left to dispose */ }
+		};
+	};
+
 	defineApp( 'signal-noise', {
 		local: {
 			open: ( state, args ) => {
@@ -1350,6 +1485,7 @@
 			if ( ctx.state.item && ctx.data && ctx.data.section && ctx.data.section.hasDossier ) {
 				loadDossier( ctx, ctx.state.item );
 			}
+			mioSync( ctx );
 			// The menu paints hidden and is placed HERE, a frame after the
 			// paint: the component's shadow root lands in a microtask, so a
 			// measure on the paint's own line reads nothing and a clamp built
@@ -1433,6 +1569,8 @@
 			};
 			document.addEventListener( 'os-mode-changed', onModeChange );
 			teardowns.push( () => document.removeEventListener( 'os-mode-changed', onModeChange ) );
+
+			teardowns.push( mioArm( ctx ) );
 
 			return () => {
 				if ( desk ) {

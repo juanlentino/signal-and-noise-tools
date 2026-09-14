@@ -154,6 +154,8 @@ function provenance_commits_empty_copy() {
 	$state = function_exists( 'sn_prov_integrity_state' ) ? sn_prov_integrity_state() : null;
 	if ( is_array( $state ) && (int) ( $state['failed'] ?? 0 ) > 0 ) {
 		$when  = (int) ( $state['swept_at'] ?? 0 );
+		// The host's MIO callout (assets/os-host.js) reads this marker: a plain
+		// tip beside the sentence, pointing at Trust checks.
 		$copy .= ' ' . sprintf(
 			/* translators: 1: failing subject count, 2: time of the sweep. */
 			_n( 'The integrity sweep\'s last reading (%2$s) reports %1$d subject failing; see Trust checks.', 'The integrity sweep\'s last reading (%2$s) reports %1$d subjects failing; see Trust checks.', (int) $state['failed'], 'signal-and-noise-tools' ),

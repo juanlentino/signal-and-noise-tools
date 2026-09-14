@@ -29,6 +29,14 @@ function snt_os_native_window_defaults() {
 	return array(
 		'dashboard'    => true,
 		'analytics'    => true,
+		// 14.8.0: what MIO, the shell's companion (OpenStation 1.1.9), may do in
+		// this plugin's windows. All three are per-user and live in the same
+		// OS Settings tab; the shell's own master switch (Features → MIO) still
+		// sits above them. `mio_look` is opt-in because it changes the mascot's
+		// colours site-wide for the user until they pick their own.
+		'mio_tips'     => true,  // plain-text callouts beside a control; never invoke AI
+		'mio_help'     => true,  // register help documents, a prompt and read-only tools for Ask MIO
+		'mio_look'     => false, // dress the mascot in the site's palette
 	);
 }
 
@@ -283,6 +291,9 @@ function snt_os_register_preferences_rest() {
 						'type'        => 'boolean',
 						'required'    => false,
 					),
+					'mio_tips'     => array( 'type' => 'boolean', 'required' => false ),
+					'mio_help'     => array( 'type' => 'boolean', 'required' => false ),
+					'mio_look'     => array( 'type' => 'boolean', 'required' => false ),
 				),
 			),
 		)

@@ -880,3 +880,14 @@ The port-complete guards live in `tests/openstation-app-dashboard.php` and
 `tests/openstation-app-analytics.php`: a leaf or piece without a kit painter
 fails the suite, so the classic scaffold the frames paint during a port can
 never ship.
+
+## MIO in this plugin's windows (14.8.0, OpenStation 1.1.9)
+
+OpenStation 1.1.9 (#816) lets a window opt into MIO, the shell's companion. This plugin consumes four seams, all Experimental at 1.1.9:
+
+- `openstation_mio_config` (PHP filter): the mascot's appearance and physics before the shell ships them in `openStationConfig.mio`. `snt_os_mio_config()` in `inc/openstation-mio.php` recolours the ring to the site's palette when the user's `mio_look` preference is on; every value is re-clamped client-side and the user's own saved look ("Make it yours") still wins.
+- `wp.os.mio.registerWindow( windowId, context )` (JS): a lease per window instance. The Signal & Noise app registers from `mounted( ctx )` with `ctx.windowId` and `ctx.root`; the two host windows register from `assets/os-host.js` with the instance id read off the shell's `wp-window-<id>` element. Both return `lease.dispose` on teardown.
+- `lease.showCallout()` / `lease.clearCallout()`: plain-text tips beside a control. Never a model call. The app shows one per selected item (integrity, watches, scheduled, search); the Provenance leaf shows one beside an empty Commits table that quotes failures.
+- `MioDocument` and `MioAbility`: the help under `apps/signal-noise/help/` and two read-effect tools (`list_items`, `read_item`) over what the window already shows. Offered only when the `mio_help` preference is on; Ask MIO itself stays behind the shell's AI switch and connector gate, so the plugin makes no model call of its own. No write-effect ability exists.
+
+The three preferences (`mio_tips`, `mio_help`, `mio_look`) live beside the two window switches in `inc/openstation-preferences.php` and OS Settings › Signal & Noise. Verified against the 1.1.9 sources: `docs/mio.md`, `docs/mio-window-assistant.md`, `src/native-url-remap.ts`, `src/window/dom.ts` (`el.id = \`wp-window-${ config.id }\``). Upstream gap filed and fixed alongside: WordPress/openstation#820 / #819 (the runtime's `open_url` skipped the remap registry).

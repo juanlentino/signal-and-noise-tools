@@ -12,7 +12,7 @@
 	var mountedStatus;
 	var mountedBody;
 	var preferences = Object.assign(
-		{ dashboard: true, analytics: true },
+		{ dashboard: true, analytics: true, mio_tips: true, mio_help: true, mio_look: false },
 		config.preferences || {}
 	);
 
@@ -245,6 +245,12 @@
 					status = mountedStatus;
 					status.textContent = __( 'Saved.', 'signal-and-noise-tools' );
 					status.style.color = 'var(--os-ui-success, #7bd88f)';
+					// The mascot's look is shipped in the shell's boot config
+					// (openstation_mio_config), so a change lands on the next
+					// reload; the other switches are read at the next paint.
+					if ( key === 'mio_look' ) {
+						status.textContent = __( 'Saved. MIO wears it on the next reload.', 'signal-and-noise-tools' );
+					}
 					// Shell refresh is secondary to persistence: its failure must not
 					// roll back a preference the server has already accepted.
 					Promise.resolve().then( function() {
@@ -305,6 +311,24 @@
 			'analytics',
 			__( 'Use the native S&N Analytics window', 'signal-and-noise-tools' ),
 			__( 'Replaces the classic S&N Analytics admin page with the native App Framework window.', 'signal-and-noise-tools' )
+		) );
+
+		// 14.8.0: what MIO, the shell's companion, may do in this plugin's
+		// windows. The shell's own MIO switch (Features) sits above these.
+		section.appendChild( createToggle(
+			'mio_tips',
+			__( 'MIO tips in Signal & Noise windows', 'signal-and-noise-tools' ),
+			__( 'Plain-text callouts that say which state an item is in. Never a model call.', 'signal-and-noise-tools' )
+		) );
+		section.appendChild( createToggle(
+			'mio_help',
+			__( 'Ask MIO about Signal & Noise', 'signal-and-noise-tools' ),
+			__( 'Registers the plugin\'s help and read-only tools for Ask MIO. Needs the shell\'s AI switch and a configured connector; makes no call of its own.', 'signal-and-noise-tools' )
+		) );
+		section.appendChild( createToggle(
+			'mio_look',
+			__( 'Dress MIO in the site\'s palette', 'signal-and-noise-tools' ),
+			__( 'Bone body, blood ring. Your own saved look in Make it yours still wins.', 'signal-and-noise-tools' )
 		) );
 
 		section.appendChild( status );
