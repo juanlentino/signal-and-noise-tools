@@ -422,11 +422,13 @@ function provenance_commits_html( array $data ) {
 			array( 'key' => 'ledger', 'label' => __( 'Ledger', 'signal-and-noise-tools' ) ),
 		),
 		$rows,
-		// Classic paints this copy into the empty <tbody> before the poller
-		// hydrates (inc/provenance-admin.php sn_prov_admin_render_commits_fieldset).
-		// A window has no poller, so the same sentence is the empty-table copy
-		// the leaf suite pins; the Refresh button next to it is the stand-in.
-		array( 'empty' => __( 'Loading anchor status…', 'signal-and-noise-tools' ) )
+		// A window has no poller: the rows are painted server-side, so an
+		// empty table means "nothing pending", not "not loaded yet". Until
+		// 14.7.2 this borrowed the classic page's pre-hydration copy ("Loading
+		// anchor status…"), which read as a stall the first time the queue
+		// drained (2026-09-14: 0 pending, 79 confirmed, the sentence stayed).
+		// The Refresh button next to it is the stand-in for the poller.
+		array( 'empty' => __( 'No pending proofs. Every commit is anchored; press Refresh after minting to see new ones here.', 'signal-and-noise-tools' ) )
 	);
 
 	$inner = '';

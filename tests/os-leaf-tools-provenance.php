@@ -145,7 +145,11 @@ ok(
 );
 ok( false !== strpos( $kit, 'os-arg-pipeline="admin-post"' ), 'every admin-post form declares the admin-post pipeline' );
 ok( false !== strpos( $kit, 'No contact yet' ) && false !== strpos( $kit, 'Not anchored' ), 'the glance hero shows an unreached Worker and an unanchored genesis' );
-ok( false !== strpos( $kit, 'Loading anchor status…' ) || false !== strpos( $kit, '&hellip;' ) || false !== strpos( $kit, 'Loading anchor status' ), 'the empty commits table carries the classic loading copy' );
+// 14.7.2: a window has no poller, so its empty table is a STATE (nothing
+// pending), never a wait. The classic pre-hydration copy read as a stall the
+// first time the queue drained.
+ok( false !== strpos( $kit, 'No pending proofs' ), 'the empty commits table says nothing is pending' );
+ok( false === strpos( $kit, 'Loading anchor status' ), 'and never borrows the classic page\'s pre-hydration "Loading…" (a window has no poller to finish it)' );
 ok( false !== strpos( $kit, '✗ Not set' ), 'unconfigured Worker URL/HMAC/pubkey read as not set' );
 ok( false !== strpos( $kit, 'Publish a commitment to the staged key' ) && false === strpos( $kit, 'Rotate to the committed key' ), 'no commitment: only the stage-key button is offered' );
 
