@@ -158,7 +158,7 @@ function provenance_commits_empty_copy() {
 			/* translators: 1: failing subject count, 2: time of the sweep. */
 			_n( 'The integrity sweep\'s last reading (%2$s) reports %1$d subject failing; see Trust checks.', 'The integrity sweep\'s last reading (%2$s) reports %1$d subjects failing; see Trust checks.', (int) $state['failed'], 'signal-and-noise-tools' ),
 			(int) $state['failed'],
-			$when > 0 ? gmdate( 'Y-m-d H:i', $when ) . ' UTC' : __( 'undated', 'signal-and-noise-tools' )
+			$when > 0 ? ( function_exists( 'wp_date' ) ? wp_date( 'Y-m-d H:i T', $when ) : gmdate( 'Y-m-d H:i', $when ) . ' UTC' ) : __( 'undated', 'signal-and-noise-tools' )
 		);
 	}
 	return $copy;

@@ -11,6 +11,7 @@
  *
  * Run: php tests/os-leaf-monitoring-rss.php
  */
+require_once __DIR__ . '/lib/site-timezone-stub.php'; // 14.7.4: the site's zone, not UTC
 require_once __DIR__ . '/lib/os-leaf-harness.php';
 
 if ( ! defined( 'ARRAY_A' ) ) {
@@ -105,7 +106,9 @@ ok( false !== strpos( $kit, 'os-arg-pipeline="rss"' ), 'the forms declare the rs
 ok( false !== strpos( $kit, '<os-stat value="3"' ) && false !== strpos( $kit, '2 unique' ), '24-hour count and uniques are shown' );
 ok( false !== strpos( $kit, '<os-stat value="41"' ) && false !== strpos( $kit, '9 unique' ), '7-day count and uniques are shown' );
 ok( false !== strpos( $kit, '<os-stat value="210"' ) && false !== strpos( $kit, '33 unique' ), '30-day count and uniques are shown' );
-ok( false !== strpos( $kit, '2026-09-05 12:00:00' ) && false !== strpos( $kit, 'UTC' ), 'the most-recent feed request timestamp is shown' );
+// 14.7.4: the tracker stores 2026-09-05 12:00:00 UTC; the owner reads Eastern.
+ok( false !== strpos( $kit, '2026-09-05 08:00:00 EDT' ), 'the most-recent feed request timestamp is shown in the SITE timezone with its zone (12:00 UTC → 08:00 EDT)' );
+ok( false === strpos( $kit, '12:00:00' ) && false === strpos( $kit, 'Time (UTC)' ), 'and nowhere as UTC: the column is Time, the value carries its zone' );
 ok( false !== strpos( $kit, 'https://example.test/feed/' ) && false !== strpos( $kit, 'abc123' ), 'the recent-requests table carries the fixture rows' );
 ok( false !== strpos( $kit, 'https://example.test/comments/feed/' ) && false !== strpos( $kit, 'def456' ), 'a second recent-requests row survives' );
 ok( false !== strpos( $kit, 'https://sn-px.workers.dev/_sn/px' ), 'the collector endpoint is shown read-only' );

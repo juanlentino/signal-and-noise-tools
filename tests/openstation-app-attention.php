@@ -37,6 +37,7 @@ define( 'SN_MR_SNAPSHOT_STALE_AFTER', 6 * 3600 );
 
 // The clock. Everything below is relative to it.
 $GLOBALS['__now'] = strtotime( '2026-09-06 12:00:00 UTC' );
+require_once __DIR__ . '/lib/site-timezone-stub.php'; // 14.7.4: stamps print in the site's zone (America/New_York), so 12:00 UTC reads 08:00 EDT
 $GLOBALS['__signals'] = null; // v14.7.0: the search reader's source; set per pin in Group 1.
 if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
 
@@ -622,8 +623,8 @@ t_fixtures();
 
 $rows = \SignalNoise\OpenStationApp\attention_anchors();
 ok( 2 === count( $rows['rows'] ), 'anchors: the unanchored and the pending commits, and NOT the confirmed one' );
-ok( 'v4 unanchored since 2026-09-06 09:00:00 UTC' === $rows['rows'][0]['subtitle'] && 'warning' === $rows['rows'][0]['tone'], '   ...an unanchored commit says its version and how long, and warns: the Worker never answered' );
-ok( 'v2 pending since 2026-09-06 10:00:00 UTC' === $rows['rows'][1]['subtitle'] && 'neutral' === $rows['rows'][1]['tone'], '   ...a pending one is NEUTRAL: a proof in flight is the system working, and no threshold for "too long" exists in the estate to invent one from' );
+ok( 'v4 unanchored since 2026-09-06 05:00:00 EDT' === $rows['rows'][0]['subtitle'] && 'warning' === $rows['rows'][0]['tone'], '   ...an unanchored commit says its version and how long, and warns: the Worker never answered' );
+ok( 'v2 pending since 2026-09-06 06:00:00 EDT' === $rows['rows'][1]['subtitle'] && 'neutral' === $rows['rows'][1]['tone'], '   ...a pending one is NEUTRAL: a proof in flight is the system working, and no threshold for "too long" exists in the estate to invent one from' );
 ok( '2026-09-06 10:00:00' === $rows['stamp'], '   ...the reader stamps with the NEWEST commit it saw' );
 ok( 'The signed commit chain (the newest hundred published subjects with a ledger UID)' === $rows['rows'][0]['source'], '   ...and the source DISCLOSES the window it read: sn_prov_admin_status() sees the newest hundred UID-carrying published subjects, so "the signed commit chain" alone would read as the whole chain' );
 
@@ -665,8 +666,8 @@ ok( empty( $rows['unreadable'] ) && 2 === count( $rows['rows'] ), '   ...and an 
 $rows = \SignalNoise\OpenStationApp\attention_schedule();
 ok( 3 === count( $rows['rows'] ), 'schedule: only the transitions inside 24 hours -- the one three days out and the one with no boundary at all are not rows' );
 $subs = array_column( $rows['rows'], 'subtitle' );
-ok( 'publishes at ' . gmdate( 'Y-m-d H:i:s', $now + 1800 ) . ' UTC' === $subs[0], '   ...a scheduled post says it publishes, and when' );
-ok( 'opens at ' . gmdate( 'Y-m-d H:i:s', $now + 3600 ) . ' UTC' === $subs[1] && 'closes at ' . gmdate( 'Y-m-d H:i:s', $now + 7200 ) . ' UTC' === $subs[2], '   ...a fragment says OPENS or CLOSES, read back off which boundary the ordered row resolved to' );
+ok( 'publishes at ' . wp_date( 'Y-m-d H:i:s', $now + 1800 ) . ' EDT' === $subs[0], '   ...a scheduled post says it publishes, and when' );
+ok( 'opens at ' . wp_date( 'Y-m-d H:i:s', $now + 3600 ) . ' EDT' === $subs[1] && 'closes at ' . wp_date( 'Y-m-d H:i:s', $now + 7200 ) . ' EDT' === $subs[2], '   ...a fragment says OPENS or CLOSES, read back off which boundary the ordered row resolved to' );
 ok( 'The fragment host' === $rows['rows'][1]['title'] && '(unlinked fragment)' === $rows['rows'][2]['title'], '   ...titled with the host post, or the leaf\'s own word for a fragment that has none' );
 
 // edit_others_pages is FALSE in the fixture, and the pages row is composed all
@@ -818,9 +819,9 @@ echo "\nGroup 5: an item as the client paints it\n";
 $items = t_items();
 $one   = t_item( $items, 'a-integrity-11' );
 ok( 'integrity' === $one['status'] && 'Integrity' === $one['statusLabel'], 'the status IS the kind -- the only axis a mixed queue has, and what the pills filter on' );
-ok( 'as of 2026-09-06 11:00:00 UTC' === $one['dateLabel'] && '2026-09-06 11:00:00' === $one['date'], 'the date label says AS OF, and names the instant in UTC: a row that cannot say when it was measured is not a reading' );
-ok( array( 'text' => 'Integrity', 'tone' => 'danger', 'title' => 'as of 2026-09-06 11:00:00 UTC' ) === $one['badge'], 'the badge carries the kind, the severity tone and the stamp' );
-ok( array( 'fact', 'stamp' ) === array_keys( $one['columns'] ) && '2026-09-06 11:00:00 UTC' === $one['columns']['stamp'], 'the two list columns are what statusLabel and dateLabel do NOT already carry' );
+ok( 'as of 2026-09-06 07:00:00 EDT' === $one['dateLabel'] && '2026-09-06 11:00:00' === $one['date'], 'the date label says AS OF, and names the instant in the SITE timezone (11:00 UTC → 07:00 EDT, the zone printed); the raw date field stays the UTC key: a row that cannot say when it was measured is not a reading' );
+ok( array( 'text' => 'Integrity', 'tone' => 'danger', 'title' => 'as of 2026-09-06 07:00:00 EDT' ) === $one['badge'], 'the badge carries the kind, the severity tone and the stamp' );
+ok( array( 'fact', 'stamp' ) === array_keys( $one['columns'] ) && '2026-09-06 07:00:00 EDT' === $one['columns']['stamp'], 'the two list columns are what statusLabel and dateLabel do NOT already carry' );
 ok( array( 'Subject', 'What', 'When', 'Source' ) === array_column( $one['detail']['facts'], 0 ), 'the four facts a queue row knows about itself' );
 ok( array() === $one['detail']['blocks'] && '' === $one['detail']['hero'], 'no blocks, no hero: a queue row is a sentence and a date' );
 
@@ -963,8 +964,15 @@ $GLOBALS['__watches']           = array();
 $GLOBALS['__snapshot']          = array( 'captured_at' => $now - 60 );
 delete_transient( 'snt_os_attention' );
 ok( 0 === \SignalNoise\OpenStationApp\attention_count() && array() === \SignalNoise\OpenStationApp\attention_items(), 'nine readers that all measured nothing produce no rows -- and no warning rows either' );
+// 14.7.4: the stamp is a KEY (acks, sort, the composer re-applies it over
+// readers' output) and must be idempotent in UTC; only attention_local() reads.
+$k = \SignalNoise\OpenStationApp\attention_stamp( $now );
+ok( '2026-09-06 12:00:00' === $k && $k === \SignalNoise\OpenStationApp\attention_stamp( $k ) && $k === \SignalNoise\OpenStationApp\attention_stamp( \SignalNoise\OpenStationApp\attention_stamp( $k ) ),
+	'attention_stamp() is UTC and idempotent: three passes over its own output do not move the instant (a site-zone stamp shifted four hours per pass)' );
+ok( '2026-09-06 08:00:00 EDT' === \SignalNoise\OpenStationApp\attention_local( $k ) && '' === \SignalNoise\OpenStationApp\attention_local( '' ),
+	'attention_local() reads the same key in the site timezone with its zone, and an empty stamp stays empty' );
 $note = \SignalNoise\OpenStationApp\attention_empty_note();
-ok( 'The newest reading is from 2026-09-06 12:00:00 UTC. Composed 2026-09-06 12:00:00 UTC.' === $note, 'the empty state says WHEN its readers last looked: an empty queue with no date cannot be told from a queue nobody read' );
+ok( 'The newest reading is from 2026-09-06 08:00:00 EDT. Composed 2026-09-06 08:00:00 EDT.' === $note, 'the empty state says WHEN its readers last looked: an empty queue with no date cannot be told from a queue nobody read' );
 $GLOBALS['__scan'] = null;
 delete_transient( 'snt_os_attention' );
 ok( 1 === \SignalNoise\OpenStationApp\attention_count(), '   ...and an empty queue with ONE unreadable signal is not empty: the warning row is the reading' );
