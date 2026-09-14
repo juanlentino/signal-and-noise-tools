@@ -29,7 +29,11 @@ function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['_
 function update_option( $k, $v, $a = null ) { $GLOBALS['__opt'][ $k ] = $v; $GLOBALS['__writes'][] = $k; return true; }
 $GLOBALS['__writes'] = array(); $GLOBALS['__seen_mid_run'] = array();
 $GLOBALS['__sched'] = array();
-function wp_next_scheduled( $h ) { return $GLOBALS['__sched'][ $h ] ?? false; }
+function wp_next_scheduled( $h, $args = array() ) { return $GLOBALS['__sched'][ $h . '|' . json_encode( $args ) ] ?? ( $GLOBALS['__sched'][ $h ] ?? false ); }
+function wp_schedule_single_event( $ts, $h, $args = array() ) { $GLOBALS['__sched'][ $h . '|' . json_encode( $args ) ] = array( $ts, 'single' ); $GLOBALS['__singles'][] = array( $ts, $h, $args ); return true; }
+$GLOBALS['__singles'] = array();
+$GLOBALS['__post_objects'] = array();
+function get_post( $id ) { return $GLOBALS['__post_objects'][ (int) $id ] ?? null; }
 function wp_schedule_event( $ts, $rec, $h ) { $GLOBALS['__sched'][ $h ] = array( $ts, $rec ); return true; }
 function wp_unschedule_event( $ts, $h ) { unset( $GLOBALS['__sched'][ $h ] ); return true; }
 $GLOBALS['__ready'] = true;
@@ -37,7 +41,7 @@ function snt_gsc_sync_is_ready() { return $GLOBALS['__ready']; }
 function sn_setting( $k, $d = null ) { return 'search_console.property' === $k ? 'https://example.test/' : $d; }
 $GLOBALS['__posts'] = array( 11 => 'https://example.test/notes/alpha/', 12 => 'https://example.test/notes/beta/', 13 => 'https://example.test/notes/gamma/' );
 function get_posts( $a ) { $GLOBALS['__get_posts_args'] = $a; return array_keys( $GLOBALS['__posts'] ); }
-function get_permalink( $id ) { return $GLOBALS['__posts'][ $id ] ?? ''; }
+function get_permalink( $id ) { $id = is_object( $id ) ? (int) $id->ID : $id; return $GLOBALS['__posts'][ $id ] ?? ''; }
 // The TAXONOMY seam (v13.109.0). Declared here, before the module loads, so
 // function_exists('get_terms') is TRUE — without these the tag branch is
 // skipped silently and every assertion about it passes vacuously.
@@ -199,6 +203,46 @@ $GLOBALS['__terms'] = array( 4242 => '' );
 $pe = snt_gsc_coverage_sync( true );
 ok( false === isset( $pe['entries'][''] ), 'a term with no resolvable link is skipped rather than inspected as an empty URL' );
 $GLOBALS['__terms'] = array();
+
+echo "\nGroup: one URL on its own clock (v14.7.0) -- publish schedules two single inspections\n";
+$GLOBALS['__ready'] = true;
+$GLOBALS['__sched'] = array(); $GLOBALS['__singles'] = array();
+$np = (object) array( 'ID' => 900, 'post_type' => 'post', 'post_status' => 'publish', 'post_password' => '' );
+$GLOBALS['__post_objects'][900] = $np; $GLOBALS['__posts'][900] = 'https://example.test/notes/new-note/';
+snt_gsc_coverage_on_publish( 'publish', 'future', $np );
+ok( 2 === count( $GLOBALS['__singles'] ) && array( 900, 3 ) === $GLOBALS['__singles'][0][2] && array( 900, 10 ) === $GLOBALS['__singles'][1][2], 'publish → two single events for THIS post, at day 3 and day 10' );
+ok( abs( $GLOBALS['__singles'][0][0] - ( time() + 3 * DAY_IN_SECONDS ) ) < 5 && abs( $GLOBALS['__singles'][1][0] - ( time() + 10 * DAY_IN_SECONDS ) ) < 5, '   ...at the right instants' );
+snt_gsc_coverage_on_publish( 'publish', 'future', $np );
+ok( 2 === count( $GLOBALS['__singles'] ), '   ...a second publish transition schedules nothing more (idempotent per post + pass)' );
+$GLOBALS['__singles'] = array(); $GLOBALS['__sched'] = array();
+snt_gsc_coverage_on_publish( 'publish', 'publish', $np );
+ok( array() === $GLOBALS['__singles'], '   ...an UPDATE (publish → publish) schedules nothing: two calls per new note, not per save' );
+snt_gsc_coverage_on_publish( 'draft', 'publish', $np );
+snt_gsc_coverage_on_publish( 'publish', 'draft', (object) array( 'ID' => 901, 'post_type' => 'page', 'post_status' => 'publish' ) );
+ok( array() === $GLOBALS['__singles'], '   ...an update, an unpublish, and a PAGE schedule nothing' );
+$GLOBALS['__ready'] = false;
+snt_gsc_coverage_on_publish( 'publish', 'draft', $np );
+ok( array() === $GLOBALS['__singles'], '   ...and nothing is scheduled while Search Console is not configured' );
+$GLOBALS['__ready'] = true;
+
+// The single inspection writes into the SAME map the weekly run writes.
+$GLOBALS['__opt'][ SNT_GSC_COVERAGE_OPTION ] = array( 'property' => 'https://example.test/', 'synced_at' => 100, 'started_at' => 100, 'complete' => true, 'inspected' => 1, 'errors' => 0, 'skipped' => 0, 'capped' => false, 'entries' => array( '/notes/old' => array( 'coverage_state' => 'Submitted and indexed', 'indexed' => true, 'inspected_at' => 100, 'post_id' => 1 ) ) );
+$GLOBALS['__api']['https://example.test/notes/new-note/'] = array( 'inspectionResult' => array( 'indexStatusResult' => array( 'coverageState' => 'Discovered - currently not indexed', 'verdict' => 'NEUTRAL' ) ) );
+$GLOBALS['__posted'] = array();
+$e = snt_gsc_inspect_one( 900, 3 );
+$map = get_option( SNT_GSC_COVERAGE_OPTION );
+ok( is_array( $e ) && 'Discovered - currently not indexed' === $e['coverage_state'] && 900 === $e['post_id'] && 1 === count( $GLOBALS['__posted'] ), 'inspect_one: ONE API call, the entry normalized like the weekly run\'s, tagged with the post' );
+ok( isset( $map['entries']['/notes/new-note'] ) && isset( $map['entries']['/notes/old'] ) && 2 === $map['inspected'] && $map['synced_at'] > 100, '   ...merged into the same map: the old entry kept, inspected 1 → 2, synced_at moved' );
+ok( true === $map['complete'], '   ...and the weekly run\'s completeness is untouched (this is not a run)' );
+$GLOBALS['__posted'] = array();
+ok( null === snt_gsc_inspect_one( 900, 10 ) && array() === $GLOBALS['__posted'], '   ...a second pass while the entry is fresh spends NOTHING (the weekly run may have got there first)' );
+$np->post_status = 'draft';
+ok( null === snt_gsc_inspect_one( 900, 10 ) && array() === $GLOBALS['__posted'], '   ...an unpublished post spends nothing' );
+$np->post_status = 'publish';
+$GLOBALS['__opt'][ SNT_GSC_COVERAGE_OPTION ] = null;
+$e = snt_gsc_inspect_one( 900, 3 );
+$map = get_option( SNT_GSC_COVERAGE_OPTION );
+ok( is_array( $e ) && is_array( $map ) && false === $map['complete'] && 1 === count( $map['entries'] ), '   ...with NO map yet, one is started and marked incomplete: a single inspection is never mistaken for a full run' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

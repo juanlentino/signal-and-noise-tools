@@ -675,3 +675,116 @@ function attention_readers() {
 	}
 }
 
+/**
+ * Notes Google is not indexing, and notes whose body moved after its last
+ * crawl. (v14.7.0, the tenth reader)
+ *
+ * SIX NOTES SAT "DISCOVERED, NOT INDEXED" FOR TWO MONTHS with no row anywhere:
+ * the coverage map was on a tab, and nine readers read everything but it.
+ * This reads the SAME rows the Posts tab paints (sn_analytics_posts_signals(),
+ * flags derived once) and applies a horizon so a note published on Wednesday
+ * is not a fault on Thursday:
+ *
+ *   not_indexed, "Crawled - currently not indexed"      on sight: a verdict, not a wait.
+ *   not_indexed, "Discovered - currently not indexed"   after ATTENTION_SEARCH_DISCOVERED_DAYS.
+ *   stale_crawl                                          after ATTENTION_SEARCH_STALE_DAYS since the body change.
+ *
+ * THE DOOR IS THE FIX. Google exposes no API to request indexing (the URL
+ * Inspection API reads; the Indexing API covers job postings). The row's door
+ * is Search Console's inspection page for that exact URL, where "Request
+ * indexing" is one click. A note the reader has decided to leave alone is
+ * acknowledged at its stamp and stays quiet until its state moves.
+ *
+ * @return array{rows:array,stamp:string,unreadable:bool}
+ */
+function attention_search() {
+	if ( ! function_exists( 'sn_analytics_posts_signals' ) ) {
+		return attention_read();
+	}
+	try {
+		$signals = \sn_analytics_posts_signals();
+		$rows    = array();
+		$newest  = '';
+		$now     = attention_now();
+		$run     = is_array( $signals['strip']['coverage_run'] ?? null ) ? (int) $signals['strip']['coverage_run']['finished_at'] : 0;
+		$stamp   = $run > 0 ? attention_stamp( $run ) : '';
+		if ( '' === $stamp ) {
+			return attention_read(); // No inspection has ever run: nothing to say, and nothing to blame.
+		}
+		foreach ( (array) $signals['rows'] as $r ) {
+			$flags = (array) ( $r['flags'] ?? array() );
+			$pid   = (int) ( $r['id'] ?? 0 );
+			$url   = (string) ( $r['permalink'] ?? '' );
+			$door  = attention_search_door( $url );
+			$age   = (int) ( $r['age']['value'] ?? 0 );
+			if ( ! empty( $flags['not_indexed'] ) ) {
+				$state     = (string) ( $r['coverage_state'] ?? '' );
+				$crawled   = 0 === stripos( $state, 'Crawled' );
+				if ( ! $crawled && $age < ATTENTION_SEARCH_DISCOVERED_DAYS ) {
+					continue; // Google knows the URL and has not got to it yet; give it the horizon.
+				}
+				$rows[] = attention_row( array(
+					'kind'       => 'search',
+					'key'        => $pid . '-index',
+					'title'      => (string) $r['title'],
+					'subtitle'   => $crawled
+						? __( 'Crawled and not indexed: a quality verdict. Deepen the note before requesting again.', 'signal-and-noise-tools' )
+						: sprintf( /* translators: %d: days since publish. */ __( 'Discovered and not crawled after %d days. Request indexing.', 'signal-and-noise-tools' ), $age ),
+					'tone'       => 'warning',
+					'stamp'      => $stamp,
+					'source'     => __( 'The weekly URL Inspection run (Search Console), read through the Posts view', 'signal-and-noise-tools' ),
+					'door'       => $door,
+					'door_label' => __( 'Inspect in Search Console', 'signal-and-noise-tools' ),
+					'post_id'    => $pid,
+				) );
+			}
+			if ( ! empty( $flags['stale_crawl'] ) ) {
+				$changed = (int) ( $r['body_changed_ts'] ?? 0 );
+				$crawl   = (int) ( $r['last_crawl']['value'] ?? 0 );
+				if ( $changed <= 0 || ( $now - $changed ) < ATTENTION_SEARCH_STALE_DAYS * DAY_IN_SECONDS ) {
+					continue; // Recently changed: Google's own revisit is still the likely path.
+				}
+				$rows[] = attention_row( array(
+					'kind'       => 'search',
+					'key'        => $pid . '-stale',
+					'title'      => (string) $r['title'],
+					'subtitle'   => sprintf( /* translators: 1: crawl date, 2: body change date. */ __( 'Google last crawled it on %1$s; the body changed on %2$s. The served text is old. Request indexing.', 'signal-and-noise-tools' ), gmdate( 'Y-m-d', $crawl ), gmdate( 'Y-m-d', $changed ) ),
+					'tone'       => 'neutral',
+					'stamp'      => attention_stamp( $changed ),
+					'source'     => __( 'The weekly URL Inspection run against the signed commit chain', 'signal-and-noise-tools' ),
+					'door'       => $door,
+					'door_label' => __( 'Inspect in Search Console', 'signal-and-noise-tools' ),
+					'post_id'    => $pid,
+				) );
+			}
+		}
+		foreach ( $rows as $row ) {
+			if ( $row['stamp'] > $newest ) {
+				$newest = $row['stamp'];
+			}
+		}
+		return attention_read( $rows, '' !== $newest ? $newest : $stamp );
+	} catch ( \Throwable $e ) {
+		return attention_unreadable();
+	}
+}
+
+/** Days a "Discovered - currently not indexed" note gets before it is a row. */
+const ATTENTION_SEARCH_DISCOVERED_DAYS = 7;
+/** Days after a body change before an un-recrawled note is a row. */
+const ATTENTION_SEARCH_STALE_DAYS = 14;
+
+/**
+ * Search Console's URL inspection page for one URL on the configured property.
+ * Where the fix lives, since no API can request indexing.
+ *
+ * @param string $url The page URL.
+ * @return string '' when the property is unknown.
+ */
+function attention_search_door( $url ) {
+	$property = function_exists( 'sn_setting' ) ? (string) \sn_setting( 'search_console.property', '' ) : '';
+	if ( '' === $property || '' === $url ) {
+		return '';
+	}
+	return 'https://search.google.com/search-console/inspect?resource_id=' . rawurlencode( $property ) . '&id=' . rawurlencode( $url );
+}

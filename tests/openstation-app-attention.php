@@ -1,7 +1,7 @@
 <?php
 /**
  * Standalone test: the Signal & Noise app's ATTENTION section (#1071, phase
- * four) -- the nine readers, the composition, its sixty-second cache, and the
+ * four) -- the ten readers, the composition, its sixty-second cache, and the
  * descriptor the client paints the queue from.
  *
  * Every signal is driven through a STUB of the reader the real section calls,
@@ -37,6 +37,8 @@ define( 'SN_MR_SNAPSHOT_STALE_AFTER', 6 * 3600 );
 
 // The clock. Everything below is relative to it.
 $GLOBALS['__now'] = strtotime( '2026-09-06 12:00:00 UTC' );
+$GLOBALS['__signals'] = null; // v14.7.0: the search reader's source; set per pin in Group 1.
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
 
 // ── WordPress, flat ──────────────────────────────────────────────────
 
@@ -696,6 +698,38 @@ ok( array() === \SignalNoise\OpenStationApp\attention_readers()['rows'], '   ...
 $GLOBALS['__snapshot'] = array( 'captured_at' => null );
 ok( array() === \SignalNoise\OpenStationApp\attention_readers()['rows'], '   ...and a snapshot that was NEVER measured is no row either: absent is not stale, and null must never be read as a verdict' );
 $GLOBALS['__snapshot'] = array( 'captured_at' => $now - 8 * 3600, 'total' => 40 );
+
+// ── search (v14.7.0): the tenth reader, over the Posts view's own rows ──
+// Six notes sat "Discovered, not indexed" for two months with no row anywhere.
+function sn_analytics_posts_signals() { return $GLOBALS['__signals'] ?? null; }
+function sn_setting( $k, $d = null ) { return 'search_console.property' === $k ? 'https://example.test/' : $d; }
+$sig_row = static function ( $id, $title, array $flags, array $over = array() ) use ( $now ) {
+	return array_merge( array( 'id' => $id, 'title' => $title, 'permalink' => "https://example.test/notes/$id/", 'age' => array( 'value' => 30, 'why' => '' ), 'coverage_state' => 'Submitted and indexed', 'last_crawl' => array( 'value' => $now - 20 * 86400, 'why' => '' ), 'body_changed_ts' => $now - 40 * 86400, 'flags' => array_merge( array( 'not_indexed' => false, 'stale_crawl' => false, 'orphaned' => false ), $flags ) ), $over );
+};
+$GLOBALS['__signals'] = array( 'rows' => array(
+	$sig_row( 41, 'Discovered, old', array( 'not_indexed' => true ), array( 'coverage_state' => 'Discovered - currently not indexed', 'age' => array( 'value' => 30, 'why' => '' ), 'last_crawl' => array( 'value' => null, 'why' => 'never crawled' ) ) ),
+	$sig_row( 42, 'Discovered, fresh', array( 'not_indexed' => true ), array( 'coverage_state' => 'Discovered - currently not indexed', 'age' => array( 'value' => 3, 'why' => '' ), 'last_crawl' => array( 'value' => null, 'why' => 'never crawled' ) ) ),
+	$sig_row( 43, 'Crawled, declined', array( 'not_indexed' => true ), array( 'coverage_state' => 'Crawled - currently not indexed', 'age' => array( 'value' => 2, 'why' => '' ) ) ),
+	$sig_row( 44, 'Stale, old change', array( 'stale_crawl' => true ), array( 'last_crawl' => array( 'value' => $now - 30 * 86400, 'why' => '' ), 'body_changed_ts' => $now - 20 * 86400 ) ),
+	$sig_row( 45, 'Stale, fresh change', array( 'stale_crawl' => true ), array( 'last_crawl' => array( 'value' => $now - 30 * 86400, 'why' => '' ), 'body_changed_ts' => $now - 3 * 86400 ) ),
+	$sig_row( 46, 'Orphan only', array( 'orphaned' => true ) ),
+	$sig_row( 47, 'Fine', array() ),
+), 'counts' => array(), 'strip' => array( 'coverage_run' => array( 'finished_at' => $now - 2 * 86400, 'inspected' => 7, 'errors' => 0 ) ) );
+$rows = \SignalNoise\OpenStationApp\attention_search();
+$keys = array_column( $rows['rows'], 'key' );
+ok( array( '41-index', '43-index', '44-stale' ) === $keys, 'search: three rows out of seven -- Discovered past 7 days, Crawled on sight, stale past 14 days; fresh Discovered, fresh stale, orphan-only and fine notes are NOT rows (' . implode( ',', $keys ) . ')' );
+$by = array_column( $rows['rows'], null, 'key' );
+ok( 'warning' === $by['41-index']['tone'] && false !== strpos( $by['41-index']['subtitle'], 'Discovered and not crawled after 30 days' ) && 41 === $by['41-index']['post_id'], '   ...a Discovered row says how long, and names the post' );
+ok( false !== strpos( $by['43-index']['subtitle'], 'quality verdict' ) && false !== strpos( $by['43-index']['subtitle'], 'Deepen' ), '   ...a Crawled row says it is a verdict, and what the fix is (not "request again")' );
+ok( 'neutral' === $by['44-stale']['tone'] && false !== strpos( $by['44-stale']['subtitle'], 'The served text is old' ), '   ...a stale row is neutral (Google revisits on its own) and says the text is old' );
+ok( 'https://search.google.com/search-console/inspect?resource_id=https%3A%2F%2Fexample.test%2F&id=https%3A%2F%2Fexample.test%2Fnotes%2F41%2F' === $by['41-index']['door'] && 'Inspect in Search Console' === $by['41-index']['door_label'], '   ...THE DOOR IS THE FIX: Search Console\'s inspection page for that exact URL on the configured property (no API can request indexing)' );
+ok( '2026-09-04 12:00:00' === $by['41-index']['stamp'], '   ...an index row is stamped with the inspection RUN, so Acknowledge holds until the next run says otherwise' );
+ok( $by['44-stale']['stamp'] === \SignalNoise\OpenStationApp\attention_stamp( $now - 20 * 86400 ), '   ...a stale row is stamped with the body change, so a new edit is a new row' );
+$GLOBALS['__signals']['strip']['coverage_run'] = null;
+ok( array() === \SignalNoise\OpenStationApp\attention_search()['rows'], '   ...no inspection has ever run → no rows: nothing to say, nothing to blame' );
+$GLOBALS['__signals'] = null;
+ok( true === \SignalNoise\OpenStationApp\attention_search()['unreadable'] || array() === \SignalNoise\OpenStationApp\attention_search()['rows'], '   ...a data layer that throws or answers nothing is unreadable or empty, never rows' );
+$GLOBALS['__signals'] = null; // the later groups pin the queue over the other nine readers' fixtures.
 
 echo "\nGroup 2: a reader that cannot answer says so -- never a zero\n";
 $GLOBALS['__citations_throws'] = true;
