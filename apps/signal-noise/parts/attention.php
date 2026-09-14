@@ -7,7 +7,7 @@
  *
  * THIS FILE IS THE COMPOSITION and touches no signal: the vocabulary (the
  * kinds, the stamps, the doors), the ordering, the cache, the item shape and
- * the descriptor. The nine readers live in parts/attention-readers.php, which
+ * the descriptor. The ten readers live in parts/attention-readers.php, which
  * is the only half that calls the estate. The two fail differently -- a reader
  * breaks when the thing it reads changes shape, this breaks when the queue's
  * own contract changes -- and the suite pins the seam by name, so a tenth
@@ -147,6 +147,7 @@ function attention_kinds() {
 		'health'    => __( 'Health', 'signal-and-noise-tools' ),
 		'watches'   => __( 'Watches', 'signal-and-noise-tools' ),
 		'readers'   => __( 'Machine readers', 'signal-and-noise-tools' ),
+		'search'    => __( 'Search', 'signal-and-noise-tools' ),
 	);
 }
 
@@ -178,6 +179,7 @@ function attention_kind_icon( $kind ) {
 		'health'    => 'dashicons-heart',
 		'watches'   => 'dashicons-visibility',
 		'readers'   => 'dashicons-rest-api',
+		'search'    => 'dashicons-search',
 	);
 	return isset( $icons[ (string) $kind ] ) ? $icons[ (string) $kind ] : 'dashicons-flag';
 }
@@ -198,6 +200,7 @@ function attention_signals() {
 		'health'    => __NAMESPACE__ . '\attention_health',
 		'watches'   => __NAMESPACE__ . '\attention_watches',
 		'readers'   => __NAMESPACE__ . '\attention_readers',
+		'search'    => __NAMESPACE__ . '\attention_search', // v14.7.0
 	);
 }
 

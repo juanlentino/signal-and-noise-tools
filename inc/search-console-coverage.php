@@ -347,3 +347,91 @@ function snt_gsc_coverage_schedule() {
 }
 add_action( 'init', 'snt_gsc_coverage_schedule' );
 add_action( SNT_GSC_COVERAGE_HOOK, 'snt_gsc_coverage_sync' );
+
+// ── One URL, on its own clock (v14.7.0) ───────────────────────────────────
+//
+// The weekly run is the floor. A note published on Wednesday was not looked
+// at until Monday, and a "Discovered - currently not indexed" verdict on a
+// new note is the one Google most often moves on its own within days. Two
+// single inspections per new post, at day 3 and day 10, keep the corpus
+// map current where it changes fastest, at two API calls against a daily
+// quota of 2,000. The result is written into the SAME map the weekly run
+// writes, so the Posts view and the Attention reader see it without a new
+// store.
+
+const SNT_GSC_INSPECT_ONE_HOOK = 'sn_gsc_inspect_one';
+/** Delays after publish, in days, at which one new post is inspected. */
+const SNT_GSC_INSPECT_ONE_DAYS = array( 3, 10 );
+
+/**
+ * On publish, schedule the two single inspections for that post.
+ *
+ * @param string  $new_status
+ * @param string  $old_status
+ * @param WP_Post $post
+ * @return void
+ */
+function snt_gsc_coverage_on_publish( $new_status, $old_status, $post ) {
+	if ( 'publish' !== (string) $new_status || 'publish' === (string) $old_status || 'post' !== (string) ( $post->post_type ?? '' ) ) {
+		return;
+	}
+	if ( ! function_exists( 'snt_gsc_sync_is_ready' ) || ! snt_gsc_sync_is_ready() ) {
+		return;
+	}
+	$id = (int) $post->ID;
+	foreach ( SNT_GSC_INSPECT_ONE_DAYS as $days ) {
+		$at = time() + (int) $days * DAY_IN_SECONDS;
+		if ( ! wp_next_scheduled( SNT_GSC_INSPECT_ONE_HOOK, array( $id, (int) $days ) ) ) {
+			wp_schedule_single_event( $at, SNT_GSC_INSPECT_ONE_HOOK, array( $id, (int) $days ) );
+		}
+	}
+}
+add_action( 'transition_post_status', 'snt_gsc_coverage_on_publish', 10, 3 );
+
+/**
+ * Inspect one published post now and merge the entry into the coverage map.
+ *
+ * Idempotent and quota-aware: a post that is no longer published, or whose
+ * entry is already fresher than SNT_GSC_COVERAGE_FRESH, spends nothing.
+ * Never touches the run status (that belongs to the weekly run); the map's
+ * `synced_at` moves so readers know the entry is current.
+ *
+ * @param int $post_id
+ * @param int $days    Which scheduled pass this is (for the log only).
+ * @return array|WP_Error|null The written entry, WP_Error, or null when skipped.
+ */
+function snt_gsc_inspect_one( $post_id, $days = 0 ) {
+	unset( $days );
+	if ( ! function_exists( 'snt_gsc_sync_is_ready' ) || ! snt_gsc_sync_is_ready() ) {
+		return new WP_Error( 'snt_gsc_not_ready', 'Search Console is not configured.' );
+	}
+	$post = function_exists( 'get_post' ) ? get_post( (int) $post_id ) : null;
+	if ( ! is_object( $post ) || 'publish' !== (string) ( $post->post_status ?? '' ) || '' !== (string) ( $post->post_password ?? '' ) ) {
+		return null;
+	}
+	$url = (string) get_permalink( $post );
+	$key = function_exists( 'sn_path_join_key' ) ? sn_path_join_key( $url ) : $url;
+	if ( '' === $url || '' === $key ) {
+		return null;
+	}
+	$d = snt_gsc_coverage_data();
+	$entries = is_array( $d ) ? (array) $d['entries'] : array();
+	$prev    = isset( $entries[ $key ] ) && is_array( $entries[ $key ] ) ? $entries[ $key ] : null;
+	if ( null !== $prev && ! isset( $prev['error'] ) && ( time() - (int) ( $prev['inspected_at'] ?? 0 ) ) < SNT_GSC_COVERAGE_FRESH ) {
+		return null; // the weekly run got there first.
+	}
+	$property         = (string) sn_setting( 'search_console.property', '' );
+	$entry            = snt_gsc_coverage_normalize( snt_gsc_inspect_url( $url, $property ), time() );
+	$entry['kind']    = 'post';
+	$entry['post_id'] = (int) $post->ID;
+	$entry['term_id'] = 0;
+	$entry['url']     = $url;
+	$entries[ $key ]  = $entry;
+	$payload = is_array( $d ) ? $d : array( 'property' => $property, 'started_at' => time(), 'complete' => false, 'inspected' => 0, 'errors' => 0, 'skipped' => 0, 'capped' => false );
+	$payload['entries']   = $entries;
+	$payload['synced_at'] = time();
+	$payload['inspected'] = count( $entries );
+	update_option( SNT_GSC_COVERAGE_OPTION, $payload, false );
+	return $entry;
+}
+add_action( SNT_GSC_INSPECT_ONE_HOOK, 'snt_gsc_inspect_one', 10, 2 );

@@ -86,6 +86,7 @@ function snt_cron_sn_owned_hooks() {
 		array( 'SN_INBOUND_PASS_PUBLISH_HOOK', 'sn_inbound_pass_after_publish' ), // v13.69.0 — single event after a publish; on-demand.
 		// v13.63.0 — weekly URL Inspection coverage sync (readiness-gated, see the opt-in map).
 		array( 'SNT_GSC_COVERAGE_HOOK', 'sn_gsc_coverage_weekly' ),
+		array( 'SNT_GSC_INSPECT_ONE_HOOK', 'sn_gsc_inspect_one' ), // v14.7.0 — single events at day 3 and day 10 after a publish; on-demand, readiness-gated at schedule time.
 		// v13.49.0 — NINE more, found by DERIVING the list instead of reading it.
 		// Every one of these is scheduled recurring by this plugin and was absent
 		// here, so the rw-doored unschedule-cron-event could stop any of them
