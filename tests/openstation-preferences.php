@@ -303,8 +303,9 @@ echo "openstation-preferences — Option B Unit Tests\n\n";
 echo "Group 1: Default preferences\n";
 $defaults = snt_os_native_window_defaults();
 ok( is_array( $defaults ), 'snt_os_native_window_defaults() returns an array' );
-ok( array( 'dashboard', 'analytics' ) === array_keys( $defaults ), 'defaults has exact keys: dashboard and analytics' );
-ok( true === $defaults['dashboard'] && true === $defaults['analytics'], 'all default values are boolean true' );
+ok( array( 'dashboard', 'analytics', 'mio_tips', 'mio_help', 'mio_look' ) === array_keys( $defaults ), 'defaults has exact keys: the two windows and the three MIO switches (14.8.0)' );
+ok( true === $defaults['dashboard'] && true === $defaults['analytics'] && true === $defaults['mio_tips'] && true === $defaults['mio_help'], 'windows and MIO tips/help default on' );
+ok( false === $defaults['mio_look'], 'the site palette on the mascot is opt-in: it recolours the companion until the user picks their own look' );
 
 $user_prefs = snt_os_native_window_preferences( 99 );
 ok( $defaults === $user_prefs, 'fresh user without stored meta receives defaults' );
@@ -344,7 +345,7 @@ $step_single = snt_os_save_native_window_preferences( array( 'signal-noise' => f
 ok( false === $step_single['dashboard'] && false === $step_single['analytics'] && ! isset( $step_single['signal-noise'] ), 'native-only Signal & Noise is ignored as a preference key' );
 
 $step3 = snt_os_save_native_window_preferences( array( 'unknown_window' => true, 'invalid_flag' => false ), 10 );
-ok( array( 'dashboard', 'analytics' ) === array_keys( $step3 ), 'saving unknown keys does not pollute preferences array' );
+ok( array( 'dashboard', 'analytics', 'mio_tips', 'mio_help', 'mio_look' ) === array_keys( $step3 ), 'saving unknown keys does not pollute preferences array' );
 
 $step4 = snt_os_save_native_window_preferences( array( 'dashboard' => 1, 'analytics' => 0, 'signal-noise' => true ), 10 );
 ok( true === $step4['dashboard'] && false === $step4['analytics'] && ! isset( $step4['signal-noise'] ), 'integer inputs 1 and 0 are strictly coerced to booleans' );
@@ -400,7 +401,7 @@ snt_os_save_native_window_preferences( array( 'dashboard' => true, 'analytics' =
 $get_response = snt_os_preferences_rest_get();
 ok( $get_response instanceof WP_REST_Response, 'GET handler returns WP_REST_Response' );
 ok( 200 === $get_response->get_status(), 'GET handler returns HTTP 200' );
-ok( array( 'dashboard' => true, 'analytics' => true ) === $get_response->get_data(), 'GET handler returns current preferences' );
+ok( array( 'dashboard' => true, 'analytics' => true, 'mio_tips' => true, 'mio_help' => true, 'mio_look' => false ) === $get_response->get_data(), 'GET handler returns current preferences' );
 
 $post_req = new WP_REST_Request( array( 'dashboard' => false ) );
 $post_response = snt_os_preferences_rest_update( $post_req );
@@ -511,6 +512,12 @@ ok( is_array( $l10n['preferences'] ?? null ), 'localized preferences contains cu
 $settings_js = file_get_contents( SNT_PATH . 'assets/os-settings-tab.js' );
 ok( is_string( $settings_js ), 'settings-tab client source is readable' );
 ok( 2 === substr_count( $settings_js, 'window.wp.os.registerNativeUrlRemap( {' ), 'client registers exactly two classic-page remaps' );
+// 14.8.0: the three MIO switches are on the same tab, and the look's save
+// says when it lands (the shell ships the look at boot).
+foreach ( array( 'mio_tips', 'mio_help', 'mio_look' ) as $k ) {
+	ok( false !== strpos( $settings_js, "createToggle(\n\t\t\t'$k'," ) || false !== strpos( $settings_js, "'$k'," ), "the settings tab paints a toggle for $k" );
+}
+ok( false !== strpos( $settings_js, "key === 'mio_look'" ) && false !== strpos( $settings_js, 'next reload' ), 'saving the look says it lands on the next reload, since openstation_mio_config ships at boot' );
 ok( false !== strpos( $settings_js, "nativeWindowId: 'sn-dashboard'" ), 'Dashboard classic page remaps to sn-dashboard' );
 ok( false !== strpos( $settings_js, "nativeWindowId: 'sn-analytics'" ), 'Analytics classic page remaps to sn-analytics' );
 ok( false !== strpos( $settings_js, "parsed.pathname.endsWith( '/admin.php' )" ), 'remaps are scoped to WordPress admin.php URLs' );

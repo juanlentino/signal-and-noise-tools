@@ -313,6 +313,10 @@ foreach ( $falsy_cases as $label => $val ) {
 echo "\nSection 2: snt_os_preferences_rest_update() payload stress testing\n";
 
 $GLOBALS['__user_id'] = 100;
+// 14.8.0: three MIO switches joined the schema. Every whole-shape pin below
+// spells the five keys; the MIO defaults are tips/help on, look off.
+$MIO_DEFAULTS = array( 'mio_tips' => true, 'mio_help' => true, 'mio_look' => false );
+$KEYS         = array( 'dashboard', 'analytics', 'mio_tips', 'mio_help', 'mio_look' );
 snt_os_save_native_window_preferences( array( 'dashboard' => true, 'analytics' => true ), 100 );
 
 // 2.1 Nested array value
@@ -349,26 +353,26 @@ $malicious_payload = array(
 );
 $res_malicious = snt_os_preferences_rest_update( $malicious_payload );
 $malicious_data = $res_malicious->get_data();
-ok( array( 'dashboard', 'analytics' ) === array_keys( $malicious_data ), 'malicious keys stripped: response contains only dashboard and analytics' );
+ok( $KEYS === array_keys( $malicious_data ), 'malicious keys stripped: response contains only the schema keys' );
 ok( ! isset( $malicious_data['user_id'] ), 'user_id key cannot be injected into preferences' );
 ok( ! isset( $malicious_data['__proto__'] ), '__proto__ key stripped' );
 
 // Verify user meta in storage was not polluted
 $stored_meta = get_user_meta( 100, SNT_OS_PREFERENCES_META, true );
-ok( array( 'dashboard', 'analytics' ) === array_keys( $stored_meta ), 'user meta in DB contains only allowed preference keys' );
+ok( $KEYS === array_keys( $stored_meta ), 'user meta in DB contains only allowed preference keys' );
 
 // 2.5 Empty payload `{}`
 $empty_req = new WP_REST_Request( array() );
 $res_empty = snt_os_preferences_rest_update( $empty_req );
 ok( $res_empty instanceof WP_REST_Response, 'empty JSON request returns WP_REST_Response' );
 ok( 200 === $res_empty->get_status(), 'empty JSON request returns 200' );
-ok( array( 'dashboard' => true, 'analytics' => true ) === $res_empty->get_data(), 'empty JSON request returns current preferences unchanged' );
+ok( array( 'dashboard' => true, 'analytics' => true ) + $MIO_DEFAULTS === $res_empty->get_data(), 'empty JSON request returns current preferences unchanged' );
 
 // 2.6 Sequential list payload (non-associative array)
 $list_payload = array( 'dashboard', 'analytics' );
 $res_list = snt_os_preferences_rest_update( $list_payload );
 ok( $res_list instanceof WP_REST_Response, 'sequential indexed array does not crash handler' );
-ok( array( 'dashboard' => true, 'analytics' => true ) === $res_list->get_data(), 'sequential indexed array leaves preferences untouched' );
+ok( array( 'dashboard' => true, 'analytics' => true ) + $MIO_DEFAULTS === $res_list->get_data(), 'sequential indexed array leaves preferences untouched' );
 
 // 2.7 Form-encoded fallback via get_params()
 $fallback_req = new WP_REST_Request( null, array( 'analytics' => '0' ) );
@@ -416,7 +420,7 @@ foreach ( $user_configs as $uid => $conf ) {
 // Verify isolation: reading any user does not leak into other users
 foreach ( $user_configs as $uid => $expected ) {
 	$actual = snt_os_native_window_preferences( $uid );
-	ok( $expected === $actual, "user $uid preferences match configured permutation exactly" );
+	ok( $expected + $MIO_DEFAULTS === $actual, "user $uid preferences match configured permutation exactly" );
 	ok( $expected['dashboard'] === snt_os_native_window_enabled( 'dashboard', $uid ), "user $uid dashboard helper matches" );
 	ok( $expected['analytics'] === snt_os_native_window_enabled( 'analytics', $uid ), "user $uid analytics helper matches" );
 }
@@ -441,7 +445,7 @@ ok( false === $user_201_prefs['dashboard'], 'anti-tampering: User 201 only modif
 // 3.3 Unauthenticated user (user_id = 0)
 $GLOBALS['__user_id'] = 0;
 $unauth_prefs = snt_os_native_window_preferences( 0 );
-ok( array( 'dashboard' => true, 'analytics' => true ) === $unauth_prefs, 'user_id 0 receives default preferences' );
+ok( array( 'dashboard' => true, 'analytics' => true ) + $MIO_DEFAULTS === $unauth_prefs, 'user_id 0 receives default preferences' );
 
 // Save attempt for user_id 0 does not store meta
 snt_os_save_native_window_preferences( array( 'dashboard' => false ), 0 );
@@ -461,7 +465,7 @@ foreach ( $corrupted_users as $c_uid => $corrupted_data ) {
 	update_user_meta( $c_uid, SNT_OS_PREFERENCES_META, $corrupted_data );
 	$recovered = snt_os_native_window_preferences( $c_uid );
 	ok( is_array( $recovered ), "corrupted user $c_uid recovers to array" );
-	ok( array( 'dashboard', 'analytics' ) === array_keys( $recovered ), "corrupted user $c_uid recovers exact key schema" );
+	ok( $KEYS === array_keys( $recovered ), "corrupted user $c_uid recovers exact key schema" );
 	ok( is_bool( $recovered['dashboard'] ) && is_bool( $recovered['analytics'] ), "corrupted user $c_uid all values are strictly boolean" );
 }
 

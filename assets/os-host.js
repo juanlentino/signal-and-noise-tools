@@ -176,6 +176,7 @@
 			window.snAdmin.init( root );
 		}
 		scrollToAnchor( root );
+		mioSync( root );
 		document.dispatchEvent( new CustomEvent( 'snt:paint', { detail: { root: root } } ) );
 	}
 
@@ -244,6 +245,83 @@
 		var found = node.querySelectorAll( ROOT_SELECTOR );
 		for ( var i = 0; i < found.length; i++ ) {
 			host( found[ i ] );
+		}
+	}
+
+
+	// ------------------------------------------------------------------- MIO
+	// 14.8.0. The shell's companion in the two host windows: the plugin's help
+	// and a prompt scoped to the window when help is on, and one plain-text
+	// callout when tips are on (an empty Commits table whose last sweep
+	// reported failures points at Trust checks). Both follow the per-user
+	// switches in OS Settings › Signal & Noise (window.sntMio, localized by
+	// inc/openstation-mio.php). A lease per root, disposed when the root
+	// leaves the document; the shell disposes it on its own too, this just
+	// keeps the map honest. Nothing here calls a model or writes.
+	var mioLeases = new WeakMap();
+
+	function mioBag() {
+		return window.sntMio || {};
+	}
+
+	function mioWindowId( root ) {
+		var win = root.closest ? root.closest( '.os-window' ) : null;
+		var id  = win && win.id ? String( win.id ) : '';
+		return id.indexOf( 'wp-window-' ) === 0 ? id.slice( 'wp-window-'.length ) : '';
+	}
+
+	function mioRegister( root ) {
+		var bag = mioBag();
+		var api = window.wp && window.wp.os && window.wp.os.mio;
+		if ( ! api || typeof api.registerWindow !== 'function' || ( ! bag.tips && ! bag.help ) ) {
+			return null;
+		}
+		var app      = root.getAttribute( 'data-os-app' ) === 'sn-analytics' ? 'analytics' : 'dashboard';
+		var windowId = mioWindowId( root );
+		if ( ! windowId ) {
+			return null;
+		}
+		var title = app === 'analytics' ? 'S&N Analytics' : 'S&N Home';
+		try {
+			return api.registerWindow( windowId, {
+				host: root,
+				title: title,
+				prompt: function () {
+					var where = app === 'analytics'
+						? 'View: ' + ( root.getAttribute( 'data-snt-view' ) || '' )
+						: 'Tab: ' + ( root.getAttribute( 'data-snt-tab' ) || '' );
+					return String( ( bag.prompts && bag.prompts[ app ] ) || '' ) + ' ' + where + '.';
+				},
+				documents: bag.help ? ( bag.documents || [] ) : [],
+				abilities: function () { return []; },
+			} );
+		} catch ( e ) {
+			return null;
+		}
+	}
+
+	function mioSync( root ) {
+		var lease = mioLeases.get( root );
+		if ( ! lease ) {
+			lease = mioRegister( root );
+			if ( ! lease ) {
+				return;
+			}
+			mioLeases.set( root, lease );
+		}
+		if ( ! mioBag().tips || typeof lease.showCallout !== 'function' ) {
+			return;
+		}
+		// The one tip: an empty Commits table that quotes a failing sweep.
+		var table = root.querySelector( 'os-table[empty*="failing"]' );
+		if ( table ) {
+			lease.showCallout( {
+				id: 'commits-failing',
+				target: function () { return root.querySelector( 'os-table[empty*="failing"]' ); },
+				message: 'This table lists pending proofs only. The failures it quotes are in Trust checks, with the sweep\'s time on each.',
+			} );
+		} else if ( typeof lease.clearCallout === 'function' ) {
+			lease.clearCallout();
 		}
 	}
 
