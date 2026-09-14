@@ -55,7 +55,76 @@
 		return params;
 	}
 
+	/**
+	 * The two remaps this plugin registers, as a function a click can call.
+	 *
+	 * 14.7.6. The shell's remap registry is consulted by the dock, the portal,
+	 * the top-window link interceptor and files-on-the-desktop, and NOT by an
+	 * app's `open_url` effect (WordPress/openstation#819 adds it). Until that
+	 * ships, every door the plugin paints to its own pages ("Open Trust checks
+	 * in S&N Dashboard", the Analytics gate) opened an iframe of the classic
+	 * page while the dock tile beside it opened the native window. This is
+	 * the same match and the same params as the registry entries below, so
+	 * the two can never disagree; it opens the native window with
+	 * wp.os.openWindow (the registry's own opener) and says whether it did.
+	 *
+	 * @param {string} url Any URL.
+	 * @return {boolean} True when a native window took it.
+	 */
+	function tryNativeRemap( url ) {
+		if ( ! url || ! window.wp || ! window.wp.os || typeof window.wp.os.openWindow !== 'function' ) {
+			return false;
+		}
+		var parsed;
+		try {
+			parsed = new URL( String( url ), window.location.href );
+		} catch ( e ) {
+			return false;
+		}
+		if ( parsed.origin !== window.location.origin ) {
+			return false;
+		}
+		if ( preferences.dashboard === true && isAdminPage( parsed, 'sn-theme-options' ) ) {
+			return window.wp.os.openWindow( 'sn-dashboard', { params: remapParams( parsed, [ 'tab', 'sub', 'anchor' ] ) } ) === true;
+		}
+		if ( preferences.analytics === true && isAdminPage( parsed, 'sn-analytics' ) ) {
+			return window.wp.os.openWindow( 'sn-analytics', { params: remapParams( parsed, [] ) } ) === true;
+		}
+		return false;
+	}
+
+	/**
+	 * A door painted by the kit (`<os-button os-action="door" os-arg-url>`)
+	 * that names one of this plugin's own pages opens the NATIVE window,
+	 * not the framework's iframe. Capture phase on the document, ahead of
+	 * the runtime's own click listener; when the native window took the
+	 * URL the framework never sees the click. Any other door is untouched.
+	 */
+	function armDoorClicks() {
+		if ( armDoorClicks.done ) {
+			return;
+		}
+		armDoorClicks.done = true;
+		document.addEventListener( 'click', function( e ) {
+			if ( e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey ) {
+				return;
+			}
+			var t = e.target;
+			var door = t && typeof t.closest === 'function' ? t.closest( '[os-action="door"][os-arg-url]' ) : null;
+			if ( ! door || door.hasAttribute( 'disabled' ) ) {
+				return;
+			}
+			if ( tryNativeRemap( door.getAttribute( 'os-arg-url' ) ) ) {
+				e.preventDefault();
+				e.stopImmediatePropagation();
+			}
+		}, true );
+	}
+
 	function wireUrlRemaps() {
+		config.tryNativeRemap = tryNativeRemap;
+		window.sntOpenStationPreferences = config;
+		armDoorClicks();
 		if ( ! window.wp || ! window.wp.os || typeof window.wp.os.registerNativeUrlRemap !== 'function' ) {
 			return;
 		}

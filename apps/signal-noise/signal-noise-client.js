@@ -262,9 +262,18 @@
 		}
 		if ( external ) {
 			window.open( url, '_blank', 'noopener,noreferrer' );
-		} else {
-			ctx.host.openUrl( url, label || url, icon || 'dashicons-admin-site-alt3' );
+			return;
 		}
+		// 14.7.6: a URL one of this plugin's native windows has claimed opens
+		// THAT window (assets/os-settings-tab.js owns the match, the same one
+		// its registry entries use). The host's openUrl skips the registry
+		// until WordPress/openstation#819 ships; without this, "Open Trust
+		// checks in S&N Dashboard" opened an iframe of the classic page.
+		const prefs = window.sntOpenStationPreferences;
+		if ( prefs && typeof prefs.tryNativeRemap === 'function' && prefs.tryNativeRemap( url ) ) {
+			return;
+		}
+		ctx.host.openUrl( url, label || url, icon || 'dashicons-admin-site-alt3' );
 	};
 
 	/** A door: an admin URL opens as a window. */
