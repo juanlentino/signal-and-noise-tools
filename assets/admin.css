@@ -3062,3 +3062,16 @@ a.sn-ops__label:hover, .sn-sys__v[href]:hover { text-decoration: underline; }
 		font-size: 16px;
 	}
 }
+
+/* ── Posts tab (v14.6.0): per-note signals ────────────────────────────────
+   A gap is a short muted reason, never a glyph; a stale crawl is marked in
+   place; every th is a button so the column sorts without leaving the page. */
+.sn-posts-gap { font-style: italic; white-space: nowrap; }
+.sn-posts-stale { color: var(--sn-warn, #dba617); text-decoration: underline dotted; text-underline-offset: 3px; }
+.sn-posts-table th[data-sort] { cursor: pointer; }
+.sn-posts-table .sn-posts-sort { all: unset; cursor: pointer; font: inherit; color: inherit; }
+.sn-posts-table th[aria-sort="asc"] .sn-posts-sort::after { content: " \2191"; }
+.sn-posts-table th[aria-sort="desc"] .sn-posts-sort::after { content: " \2193"; }
+.sn-posts-table td.column-primary { min-width: 260px; }
+.sn-posts-table td.column-primary strong { white-space: normal; }
+.sn-posts-table td { white-space: nowrap; }

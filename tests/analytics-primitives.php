@@ -299,7 +299,7 @@ ok( false !== strpos( $h, '<td class="column-primary"><strong>Plain Title</stron
 // Hostile-ish content survives the round trip for BOTH html=false and html=true
 // cells (this file's esc_html()/esc_attr() are identity stubs — see the kv-table
 // group's note above; real escaping fidelity for html=false is pinned by the
-// dedicated hostile-cell group in tests/analytics-posts-admin.php, whose
+// (formerly) hostile-cell group in tests/analytics-posts-admin.php, whose
 // esc_html is real htmlspecialchars).
 $h = cap( function () {
 	snt_an_kv_table(

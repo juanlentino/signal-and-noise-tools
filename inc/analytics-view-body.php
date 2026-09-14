@@ -23,11 +23,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 function snt_analytics_render_view_body( $view, $from, $to, $class, $granularity, $range, $compare ) {
 	switch ( $view ) {
 		case 'posts':
-			// Post-lifecycle view: hero + trajectory + catalog + velocity/decay.
-			// Manages its own layout (hero/trajectory full-width, then a grid).
-			snt_analytics_render_posts_view( sn_analytics_posts_bundle() );
-			// v8.11.0 (A4): the catalogue-wide decay census + refresh queue.
-			snt_analytics_render_lifecycle_section( sn_analytics_posts_lifecycle() );
+			// v14.6.0: one row per note over the dense synced signals (Search
+			// Console, coverage, link graph, provenance, kernel); pageviews raw.
+			snt_analytics_render_posts_signals_view( sn_analytics_posts_signals() );
 			break;
 
 		case 'technology':

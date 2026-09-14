@@ -14,10 +14,8 @@ namespace {
 	function snt_os_host_keep_forms( $html, ...$args ) { return $html; }
 	function snt_os_host_rewrite( $html, ...$args ) { return $html; }
 	function snt_os_analytics_keep_actions() { return array( 'analytics_export' ); }
-	function sn_analytics_posts_bundle() { return array( 'subject' => 'lifetime' ); }
-	function sn_analytics_posts_lifecycle() { return array( 'refresh' => 'queue' ); }
-	function snt_analytics_render_posts_view( $bundle ) { echo json_encode( array( 'posts', $bundle ) ); }
-	function snt_analytics_render_lifecycle_section( $bundle ) { echo json_encode( array( 'lifecycle', $bundle ) ); }
+	function sn_analytics_posts_signals() { return array( 'rows' => 'signals', 'counts' => array(), 'strip' => array() ); }
+	function snt_analytics_render_posts_signals_view( $signals ) { echo json_encode( array( 'posts', $signals ) ); }
 	function snt_analytics_render_view_overview( ...$args ) { echo json_encode( array( 'overview', $args ) ); }
 	function snt_analytics_render_view_content( ...$args ) { echo json_encode( array( 'content', $args ) ); }
 	function snt_analytics_render_view_campaigns( ...$args ) { echo json_encode( array( 'campaigns', $args ) ); }
@@ -49,7 +47,7 @@ namespace {
 	ok( $GLOBALS['captured_get'] === $ctx['get'], 'property and login range reach canonical capture' );
 	$ctx['view'] = 'posts';
 	$posts = \SignalNoise\OpenStationHost\Analytics\canonical_piece( 'view/posts', $ctx );
-	ok( strpos( $posts['html'], 'lifetime' ) !== false && strpos( $posts['html'], 'queue' ) !== false, 'Posts includes both lifetime report and lifecycle queue' );
+	ok( strpos( $posts['html'], 'signals' ) !== false && strpos( $posts['html'], 'lifecycle' ) === false, 'Posts is the per-note signals view; the lifecycle queue is gone (v14.6.0)' );
 	$header = \SignalNoise\OpenStationHost\Analytics\canonical_piece( 'chrome/header', $ctx );
 	$header_args = json_decode( $header['html'], true );
 	ok( $header['facts']['totals']['views'] === 92 && $header_args[7] === false, 'header retains totals and suppresses duplicate classic controls' );
