@@ -89,9 +89,12 @@ ok( null === has_id( snt_watches_ripe( $AFTER ), 'notes_drift_reread' ),
 
 // --- date-only watches ripen on their date and STAY ripe ------------------
 $GLOBALS['__drift'] = array();
-ok( null === has_id( snt_watches_ripe( $BEFORE ), 'search_coverage_reread' ), 'a date-only watch is quiet before its date' );
-$w = has_id( snt_watches_ripe( $AFTER ), 'search_coverage_reread' );
+// (search_coverage_reread retired 2026-09-14, answered; wave4_telemetry, due
+// 2026-09-25, now carries the date-only contract pins.)
+ok( null === has_id( snt_watches_ripe( $BEFORE ), 'wave4_telemetry' ), 'a date-only watch is quiet before its date' );
+$w = has_id( snt_watches_ripe( $AFTER ), 'wave4_telemetry' );
 ok( null !== $w && ! empty( $w['date_only'] ), 'and ripens after it, FLAGGED as date-only so a reader knows nothing was measured' );
+ok( null === has_id( snt_watches_ripe( $AFTER ), 'search_coverage_reread' ), 'search_coverage_reread is retired: its question was answered, a clock is not a finding' );
 
 // --- the IPv6 criterion: only ONE decision means act ----------------------
 // The gauge names its own decision, which is why this is a state watch and not

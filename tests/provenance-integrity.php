@@ -175,6 +175,22 @@ ok( array( 3, 1, 2 ) === sn_prov_integrity_select_batch( $ids, array( 1 => 50, 2
 	'never-checked (0) first, then oldest-checked ascending, capped at 3' );
 ok( array( 1, 2, 3, 4, 5 ) === sn_prov_integrity_select_batch( $ids, array(), 10 ),
 	'a cap above the fleet returns the whole fleet (stable id order for ties)' );
+// v14.7.3: a subject whose last verdict FAILED is re-read ahead of the
+// rotation, every run. Before this, 46 subjects at 10 a run meant a fix (or a
+// reversed edit) could not be confirmed for five days: three intact pages sat
+// in the Attention queue as twin drift for the whole rotation. Two guards:
+// never-read subjects still go first, and failing takes at most half the cap.
+$LC = array( 1 => 50, 2 => 60, 3 => 0, 4 => 70, 5 => 80 );
+ok( array( 3, 4, 1 ) === sn_prov_integrity_select_batch( $ids, $LC, 3, array( 4 ) ),
+	'never-read (3) first, then the failing subject (4) although checked most recently, then the rotation (1)' );
+ok( array( 3, 4, 5, 1 ) === sn_prov_integrity_select_batch( $ids, $LC, 4, array( 5, 4 ) ),
+	'several failing subjects sort oldest-checked first among themselves (4 before 5), then the rotation' );
+ok( array( 3, 1, 2 ) === sn_prov_integrity_select_batch( $ids, $LC, 3, array( 5, 4, 1 ) ),
+	'failing takes at most half the cap (3 → 1 slot): never-read 3, failing 1 (oldest of the three), rotation 2 — the rotation always moves' );
+ok( array( 3, 1, 2 ) === sn_prov_integrity_select_batch( $ids, $LC, 3 ),
+	'no failing list: the rotation is unchanged' );
+ok( array( 3 ) === sn_prov_integrity_select_batch( $ids, array( 1 => 50, 2 => 60, 3 => 30, 4 => 70, 5 => 80 ), 1, array( 4 ) ),
+	'cap 1: half a slot rounds to none, the rotation keeps its one — coverage before re-confirmation when there is room for only one' );
 ok( 10 === SN_PROV_INTEGRITY_NOTES_PER_RUN, 'the per-run cap is a named constant (10)' );
 
 // ── Group: check_note — clean pass ──────────────────────────────────────────
@@ -348,6 +364,28 @@ foreach ( array( 211, 212, 213 ) as $pid ) {
 	ok( isset( $state2['notes'][ $pid ] ), "note $pid (unvisited on run 1) was picked up by run 2's rotation" );
 }
 ok( 'ok' === $s2['keys'], 'the run-level keys verdict rides the sweep summary' );
+
+// v14.7.3: a FAILING subject is re-read before its turn in the rotation.
+// Give 202 a stored mismatch verdict from "yesterday" and the freshest
+// last_checked in the fleet; the old selector would have left it at the back
+// for a full rotation. Only mismatch-class failures qualify: 203 with an
+// outage-only verdict is a gap, not a verdict, and waits its turn.
+$state2 = get_option( SN_PROV_INTEGRITY_OPT );
+$t0 = time();
+foreach ( $state2['notes'] as $pid => $row ) { $state2['notes'][ $pid ]['last_checked'] = $t0 - 5000 - (int) $pid; }
+$state2['notes'][202]['failures']     = array( 'twin_drift' );
+$state2['notes'][202]['last_checked'] = $t0 - 2;   // freshest in the fleet
+$state2['notes'][203]['failures']     = array( 'twin_unreachable' );
+$state2['notes'][203]['last_checked'] = $t0 - 2;
+update_option( SN_PROV_INTEGRITY_OPT, $state2, false );
+sn_prov_integrity_run_sweep( $sweep_fetch );
+$state2b = get_option( SN_PROV_INTEGRITY_OPT );
+ok( (int) $state2b['notes'][202]['last_checked'] > $t0 - 2,
+	'a subject whose last verdict was twin_drift is re-read on the very next run, although it was the most recently checked' );
+ok( (int) $state2b['notes'][203]['last_checked'] === $t0 - 2,
+	'an outage-only verdict (twin_unreachable) does NOT jump the queue: a gap in evidence is not a finding to hurry back to' );
+ok( (int) $state2b['notes'][201]['last_checked'] === $t0 - 5000 - 201,
+	'nor does no_signed_commit (the other 11 chainless notes): absence is an owner-side state no re-read clears, so 202 was not crowded out by them' );
 
 // A deleted note's state row is pruned.
 $GLOBALS['__pi_fleet'] = array( 201, 202 );

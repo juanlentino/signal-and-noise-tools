@@ -70,15 +70,9 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_ipv6_criterion',
 		),
-		array(
-			'id'        => 'search_coverage_reread',
-			'label'     => 'zero-impression notes',
-			'why'       => 'Thirteen notes were not indexed and thirteen indexed-but-unasked-for. The editorial call needs a second reading, not a bigger sample.',
-			'read'      => 'sn-status{search_coverage}',
-			'date_only' => true,
-			'due'       => '2026-09-14',
-			'ripe'      => '',
-		),
+		// search_coverage_reread (due 2026-09-14) retired 2026-09-14: answered by
+		// the second coverage reading (6 not indexed, all queued for a GSC
+		// request) and carried daily by the Search Attention reader since 14.7.0.
 		array(
 			'id'        => 'wave4_telemetry',
 			'label'     => 'wave-4 tool retirement read',

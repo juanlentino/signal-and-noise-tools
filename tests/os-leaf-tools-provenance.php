@@ -149,6 +149,18 @@ ok( false !== strpos( $kit, 'No contact yet' ) && false !== strpos( $kit, 'Not a
 // pending), never a wait. The classic pre-hydration copy read as a stall the
 // first time the queue drained.
 ok( false !== strpos( $kit, 'No pending proofs' ), 'the empty commits table says nothing is pending' );
+ok( false === strpos( $kit, 'Every commit is anchored' ), '14.7.3: and claims nothing about intactness — anchored is not intact, and this table measures neither' );
+// 14.7.3: when the integrity sweep's last reading has failures, the empty
+// table SAYS SO and dates the reading, instead of sitting beside an Attention
+// queue full of twin drift while reading as "all is well" (2026-09-14).
+if ( ! function_exists( 'sn_prov_integrity_state' ) ) { function sn_prov_integrity_state() { return $GLOBALS['__prov_integrity'] ?? null; } }
+$GLOBALS['__prov_integrity'] = array( 'failed' => 3, 'swept_at' => 1789372828 );
+$kit_failing = prov_paint();
+ok( false !== strpos( $kit_failing, 'reports 3 subjects failing' ) && false !== strpos( $kit_failing, '2026-09-14 08:00 UTC' ) && false !== strpos( $kit_failing, 'Trust checks' ),
+	'with 3 failing in the last sweep, the empty table names the count, dates the reading and points at Trust checks' );
+$GLOBALS['__prov_integrity'] = array( 'failed' => 0, 'swept_at' => 1789372828 );
+ok( false === strpos( prov_paint(), 'failing' ), 'a clean sweep adds nothing: the sentence stays about pending proofs' );
+$GLOBALS['__prov_integrity'] = null;
 ok( false === strpos( $kit, 'Loading anchor status' ), 'and never borrows the classic page\'s pre-hydration "Loading…" (a window has no poller to finish it)' );
 ok( false !== strpos( $kit, '✗ Not set' ), 'unconfigured Worker URL/HMAC/pubkey read as not set' );
 ok( false !== strpos( $kit, 'Publish a commitment to the staged key' ) && false === strpos( $kit, 'Rotate to the committed key' ), 'no commitment: only the stage-key button is offered' );
