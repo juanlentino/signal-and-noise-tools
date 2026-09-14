@@ -132,6 +132,7 @@ if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { ret
 foreach ( array( 'openstation-kit', 'openstation-kit-display', 'openstation-kit-data', 'openstation-kit-forms', 'openstation-kit-triggers' ) as $snt_kit_file ) {
 	require_once SNT_PATH . 'inc/' . $snt_kit_file . '.php';
 }
+
 require_once SNT_PATH . 'inc/admin-tabs-data.php';
 require_once SNT_PATH . 'apps/sn-dashboard/parts/nav.php';
 require_once SNT_PATH . 'apps/sn-dashboard/parts/frame.php';

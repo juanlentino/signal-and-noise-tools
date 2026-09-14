@@ -97,8 +97,8 @@ $hostile = \SignalNoise\OpenStationHost\Dashboard\Leaves\links_card_html(
 ok(
 	false === strpos( $hostile, '<script>' )
 	&& false !== strpos( $hostile, '&lt;script&gt;x&lt;/script&gt;' )
-	&& false !== strpos( $hostile, 'href="https://example.test/?q=&quot;&gt;&lt;script&gt;y&lt;/script&gt;"' ),
-	'a hostile title and href are escaped'
+	&& false !== strpos( $hostile, 'os-arg-url="https://example.test/?q=&quot;&gt;&lt;script&gt;y&lt;/script&gt;"' ),
+	'a hostile title and href are escaped (the href now as the door arg, 14.7.5)'
 );
 ok( array() === snt_leaf_classic_markers( $hostile ), 'hostile fixture: no wp-admin markup survives either' );
 

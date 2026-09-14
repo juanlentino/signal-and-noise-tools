@@ -42,7 +42,7 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: 
 ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the form is an os-form dispatching post through the shared action table (no pipeline declared, as the classic posts to the current URL)' );
 ok( false !== strpos( $kit, 'submit-label="Save uses page"' ), 'the submit is "Save uses page"' );
 ok( false !== strpos( $kit, 'heading="Uses page"' ), 'the "Uses page" heading survives as the section heading' );
-ok( false !== strpos( $kit, 'href="https://example.test/about/uses"' ) && false !== strpos( $kit, '>/about/uses</a>' ), 'the /about/uses link is painted' );
+ok( false !== strpos( $kit, 'os-arg-url="https://example.test/about/uses"' ) && false !== strpos( $kit, '>/about/uses</os-button>' ), 'the /about/uses link is painted as a door (14.7.5: same origin is a window)' );
 ok( false !== strpos( $kit, 'the live ' ) && false !== strpos( $kit, 'Last saved: <os-code>2026-07-10</os-code>.' ), 'live: the intro names the live page and the save stamp as kit code' );
 ok( false !== strpos( $kit, 'name="uses[groups][0][label]" type="text" value="Interface"' ) && false !== strpos( $kit, 'name="uses[groups][1][label]" type="text" value="Audio"' ), 'both group labels are prefilled, indexed' );
 ok( false !== strpos( $kit, 'name="uses[groups][0][items]" value="SSL UF8 | Advanced DAW controller"' ), 'the first group\'s items collapse to one "name | note" line' );

@@ -65,7 +65,7 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: 
 ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the form is an os-form dispatching post through the shared sn_action table (no pipeline override)' );
 ok( false !== strpos( $kit, 'submit-label="Save now page"' ), 'the submit button reads "Save now page"' );
 ok( false !== strpos( $kit, '<os-section heading="Now page"' ), 'the "Now page" heading is the section heading' );
-ok( false !== strpos( $kit, 'editor for the live' ) && false !== strpos( $kit, 'href="https://example.test/now"' ) && false !== strpos( $kit, 'target="_blank"' ), 'the configured intro links the live /now page in a new tab' );
+ok( false !== strpos( $kit, 'editor for the live' ) && false !== strpos( $kit, 'os-action="door" os-arg-url="https://example.test/now"' ) && false === strpos( $kit, 'target="_blank"' ), 'the configured intro links the live /now page as a window (14.7.5: same origin is a door, never target=_blank)' );
 ok( false !== strpos( $kit, 'Last saved: <os-code>2026-09-01</os-code>' ), 'the last-saved stamp is inline kit code' );
 ok( false !== strpos( $kit, 'never silently blanked' ) && false !== strpos( $kit, 'Incomplete cards are refused at save' ), 'the helper text survives as a hint' );
 ok( false !== strpos( $kit, '<os-text-field name="now[groups][0][label]" type="text" value="Building" placeholder="Building"' ), 'card 0: the label is a kit text field carrying "Building"' );

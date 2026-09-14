@@ -280,7 +280,10 @@ $sn_analytics = App::define( APP_ID )
 				return;
 			}
 			$url = (string) ( $args['url'] ?? '' );
-			if ( '' !== $url && \snt_os_host_is_admin_url( $url ) ) {
+			// 14.7.5: any same-origin URL is a window (front-end pages included);
+			// another origin never is — the door refuses rather than iframing
+			// a site that will not be framed.
+			if ( '' !== $url && ( \snt_os_host_is_admin_url( $url ) || \snt_os_host_is_same_origin_url( $url ) ) ) {
 				$os->open_url( $url );
 			}
 		}

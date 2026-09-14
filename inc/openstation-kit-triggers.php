@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/openstation-host-urls.php'; // 14.7.5: door-or-tab needs the same-origin test
+
 /**
  * `<os-button>` with an action. Options: variant (primary|secondary|ghost|link|danger|holo),
  * confirm, confirm_title, confirm_label, danger, args (name => value, painted as os-arg-*), class, title, disabled.
@@ -105,12 +107,22 @@ function snt_kit_go( $label, array $target, array $opts = array() ) {
 }
 
 /**
- * An external link, opened in a new tab (a window must never navigate the desktop).
+ * A link out of the leaf. Same origin: a door, so it opens as a window
+ * (14.7.5: a `target="_blank"` to this site relaunched the installed PWA).
+ * Another origin: a new tab, because a window must never navigate the
+ * desktop and most sites refuse to be framed.
  *
  * @param string $label Text.
  * @param string $href  URL.
  * @return string
  */
 function snt_kit_link( $label, $href ) {
-	return snt_kit_tag( 'a', array( 'class' => 'snt-link', 'href' => (string) $href, 'target' => '_blank', 'rel' => 'noopener noreferrer' ), snt_kit_esc( $label ) );
+	$href = (string) $href;
+	if ( function_exists( 'snt_os_host_is_same_origin_url' ) && function_exists( 'snt_os_host_absolute_url' ) ) {
+		$absolute = snt_os_host_absolute_url( $href );
+		if ( '' !== $absolute && snt_os_host_is_same_origin_url( $absolute ) && ! ( function_exists( 'snt_os_host_is_download_url' ) && snt_os_host_is_download_url( $absolute ) ) ) {
+			return snt_kit_door( $label, $absolute, array( 'class' => 'snt-link' ) );
+		}
+	}
+	return snt_kit_tag( 'a', array( 'class' => 'snt-link', 'href' => $href, 'target' => '_blank', 'rel' => 'noopener noreferrer' ), snt_kit_esc( $label ) );
 }

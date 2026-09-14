@@ -100,7 +100,9 @@ ok( false !== strpos( $kit, '<os-disclosure heading="Review 3 candidates">' ) &&
 ok( 3 === substr_count( $kit, '<os-card compact>' ) && 3 === substr_count( $classic, '<tr>' ) - 1, 'one card per candidate, as one row per candidate' );
 ok( 3 === substr_count( $kit, '<dt class="snt-kv__k">Post</dt>' ) && 3 === substr_count( $kit, '<dt class="snt-kv__k">Pattern</dt>' ) && 3 === substr_count( $kit, '<dt class="snt-kv__k">Action</dt>' ), 'the three column labels (Post, Pattern, Action) label every card' );
 ok( 2 === substr_count( $kit, '<os-code>Two kinds of provenance</os-code>' ) && 1 === substr_count( $kit, '<os-code>Signal over noise</os-code>' ), 'every post title is printed as inline code' );
-ok( 2 === substr_count( $kit, '<a class="snt-link" href="https://example.test/notes/two-kinds-of-provenance/" target="_blank" rel="noopener noreferrer">https://example.test/notes/two-kinds-of-provenance/</a>' ) && 2 === substr_count( $kit, 'class="snt-link"' ) && 2 === substr_count( $classic, '<a href=' ), 'a permalink is an external link, and a candidate without one paints no link (2 of 3, as on the classic leaf)' );
+// 14.7.5: a permalink is SAME-ORIGIN, so it is a door (a window), never a
+// target=_blank anchor: in the installed PWA that relaunched the app.
+ok( 2 === substr_count( $kit, 'os-action="door"' ) && 2 === substr_count( $kit, 'os-arg-url="https://example.test/notes/two-kinds-of-provenance/"' ) && 0 === substr_count( $kit, 'target="_blank"' ) && 2 === substr_count( $classic, '<a href=' ), 'a permalink is a door (same origin → a window, never target=_blank), and a candidate without one paints no link (2 of 3, as on the classic leaf)' );
 ok( 2 === substr_count( $kit, '<os-badge tone="warning">pull-quote</os-badge>' ) && 1 === substr_count( $kit, '<os-badge tone="warning">steps-enumerated</os-badge>' ), 'every pattern type is a warn badge' );
 ok( snt_pa_data_attrs( $classic ) === snt_pa_data_attrs( $kit ) && 0 < count( snt_pa_data_attrs( $kit ) ), 'the Suggest / Dismiss data attributes match the classic row exactly: ' . implode( ' ', snt_pa_data_attrs( $kit ) ) );
 ok( 1 === preg_match( '/<os-button[^>]*data-fingerprint="d4e5f6"[^>]*data-snt-suggest="1" data-check="pattern_adoption_steps_enumerated" disabled[^>]*>Suggest<\/os-button>/', $kit ) && 1 === preg_match( '/<os-button[^>]*data-fingerprint="a1b2c3"[^>]*data-check="pattern_adoption_pull_quote" disabled[^>]*>Suggest<\/os-button>/', $kit ), 'Suggest carries the per-pattern check key and is disabled (the window paints no cell for its editor)' );
@@ -121,7 +123,7 @@ ok( false !== strpos( $kit, '>1 opportunity</os-badge>' ) && false !== strpos( $
 // ── Escaping: a hostile title, permalink and fingerprint never reach the markup raw.
 $GLOBALS['__pa_scan'] = snt_pa_scan( array( array( 'post_id' => 7, 'pattern_type' => 'pull-quote', 'block_fingerprint' => 'fp"onmouseover="z', 'block_path' => '0/0', 'post_title' => '"><script>x</script>', 'permalink' => 'https://example.test/"><script>y</script>' ) ) );
 $kit = snt_leaf_paint( 'content', 'pattern-adoption' );
-ok( false === strpos( $kit, '<script>' ) && false !== strpos( $kit, '&lt;script&gt;x&lt;/script&gt;' ) && false !== strpos( $kit, 'href="https://example.test/&quot;&gt;&lt;script&gt;' ), 'a hostile title and permalink are escaped' );
+ok( false === strpos( $kit, '<script>' ) && false !== strpos( $kit, '&lt;script&gt;x&lt;/script&gt;' ) && false !== strpos( $kit, 'os-arg-url="https://example.test/&quot;&gt;&lt;script&gt;' ), 'a hostile title and permalink are escaped (the permalink now as the door arg)' );
 ok( false !== strpos( $kit, 'data-fingerprint="fp&quot;onmouseover=&quot;z"' ) && false === strpos( $kit, 'onmouseover="z"' ), 'a hostile fingerprint is escaped inside the data attribute' );
 
 // ── A javascript: permalink scheme must be blanked, the way esc_url() blanks
