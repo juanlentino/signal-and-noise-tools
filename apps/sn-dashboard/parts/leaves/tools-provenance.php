@@ -141,6 +141,30 @@ function provenance_data( array $ctx ) {
 }
 
 /**
+ * The empty-table sentence: pending proofs are this table's whole subject,
+ * so it says there are none, and then defers to the integrity sweep's LAST
+ * READING when that reading disagrees with "all is well". Anchored (the
+ * proof landed) and intact (the twin still matches) are different questions;
+ * the sweep answers the second and this table never does.
+ *
+ * @return string
+ */
+function provenance_commits_empty_copy() {
+	$copy  = __( 'No pending proofs; press Refresh after minting to see new ones here.', 'signal-and-noise-tools' );
+	$state = function_exists( 'sn_prov_integrity_state' ) ? sn_prov_integrity_state() : null;
+	if ( is_array( $state ) && (int) ( $state['failed'] ?? 0 ) > 0 ) {
+		$when  = (int) ( $state['swept_at'] ?? 0 );
+		$copy .= ' ' . sprintf(
+			/* translators: 1: failing subject count, 2: time of the sweep. */
+			_n( 'The integrity sweep\'s last reading (%2$s) reports %1$d subject failing; see Trust checks.', 'The integrity sweep\'s last reading (%2$s) reports %1$d subjects failing; see Trust checks.', (int) $state['failed'], 'signal-and-noise-tools' ),
+			(int) $state['failed'],
+			$when > 0 ? gmdate( 'Y-m-d H:i', $when ) . ' UTC' : __( 'undated', 'signal-and-noise-tools' )
+		);
+	}
+	return $copy;
+}
+
+/**
  * The at-a-glance hero: Worker / Genesis / Pending / Confirmed, from the
  * classic leaf's own `sn_prov_admin_glance_cards()`.
  *
@@ -426,9 +450,11 @@ function provenance_commits_html( array $data ) {
 		// empty table means "nothing pending", not "not loaded yet". Until
 		// 14.7.2 this borrowed the classic page's pre-hydration copy ("Loading
 		// anchor status…"), which read as a stall the first time the queue
-		// drained (2026-09-14: 0 pending, 79 confirmed, the sentence stayed).
-		// The Refresh button next to it is the stand-in for the poller.
-		array( 'empty' => __( 'No pending proofs. Every commit is anchored; press Refresh after minting to see new ones here.', 'signal-and-noise-tools' ) )
+		// drained. 14.7.3: the sentence says only what THIS table measures
+		// (pending proofs) and hands the integrity verdict to the sweep that
+		// owns it; "every commit is anchored" read as "all is well" beside an
+		// Attention queue listing three twin-drift failures (2026-09-14).
+		array( 'empty' => provenance_commits_empty_copy() )
 	);
 
 	$inner = '';

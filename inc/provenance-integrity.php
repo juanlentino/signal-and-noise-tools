@@ -183,7 +183,21 @@ function sn_prov_integrity_is_outage( $code ) {
 }
 
 /**
- * Pick this run's batch: never-checked (0) first, then oldest-checked
+ * Whether a failure code names a MISMATCH a re-read could clear (v14.7.3):
+ * drift, a hash or ledger contradiction, a key the ledger no longer serves.
+ * Outages are gaps and absences are owner-side states; neither changes by
+ * looking again, so neither earns the sweep's early slot.
+ *
+ * @param string $code
+ * @return bool
+ */
+function sn_prov_integrity_is_reconfirmable( $code ) {
+	return in_array( (string) $code, array( 'twin_drift', 'hash_mismatch', 'ledger_missing', 'ledger_hash_mismatch', 'ledger_record_malformed', 'signing_key_unpublished', 'twin_missing', 'key_mismatch' ), true );
+}
+
+/**
+ * Pick this run's batch: never-checked (0) first, then subjects whose last
+ * verdict FAILED (v14.7.3, at most half the cap), then oldest-checked
  * ascending, ties broken by post id for a stable rotation, capped.
  * PURE — exhaustively testable.
  *
@@ -193,21 +207,39 @@ function sn_prov_integrity_is_outage( $code ) {
  * @param int             $cap
  * @return int[]
  */
-function sn_prov_integrity_select_batch( array $ids, array $last_checked, $cap ) {
-	$ids = array_values( array_map( 'intval', $ids ) );
-	sort( $ids );
-	usort(
-		$ids,
-		static function ( $a, $b ) use ( $last_checked ) {
-			$ta = (int) ( $last_checked[ $a ] ?? 0 );
-			$tb = (int) ( $last_checked[ $b ] ?? 0 );
-			if ( $ta === $tb ) {
-				return $a <=> $b;
-			}
-			return $ta <=> $tb;
+function sn_prov_integrity_select_batch( array $ids, array $last_checked, $cap, array $failing = array() ) {
+	$cap = max( 0, (int) $cap );
+	$ids = array_values( array_unique( array_map( 'intval', $ids ) ) );
+	$by_age = static function ( $a, $b ) use ( $last_checked ) {
+		$ta = (int) ( $last_checked[ $a ] ?? 0 );
+		$tb = (int) ( $last_checked[ $b ] ?? 0 );
+		return $ta === $tb ? $a <=> $b : $ta <=> $tb;
+	};
+	usort( $ids, $by_age );
+
+	// v14.7.3: a subject whose LAST stored verdict failed is re-read ahead of
+	// the rotation. Without this a failing subject came around only with the
+	// rotation (46 subjects at 10 a run: five days), so a fix, or the reversal
+	// of a real edit, could not be confirmed before then; three intact pages
+	// sat in the Attention queue as "twin drift" for the whole rotation
+	// (2026-09-14). Two guards keep coverage honest: a NEVER-read subject
+	// still goes first (no verdict is worse than a stale one), and failing
+	// subjects take at most half the cap, so a fleet that is mostly failing
+	// cannot starve the rotation (the full-coverage pin in the suite).
+	$failing = array_flip( array_map( 'intval', $failing ) );
+	$never   = array_values( array_filter( $ids, static function ( $id ) use ( $last_checked ) { return 0 === (int) ( $last_checked[ $id ] ?? 0 ); } ) );
+	$failed  = array_values( array_filter( $ids, static function ( $id ) use ( $failing, $last_checked ) { return isset( $failing[ $id ] ) && 0 !== (int) ( $last_checked[ $id ] ?? 0 ); } ) );
+	$batch   = array_slice( $never, 0, $cap );
+	$batch   = array_merge( $batch, array_slice( $failed, 0, max( 0, min( count( $failed ), intdiv( $cap, 2 ), $cap - count( $batch ) ) ) ) );
+	foreach ( $ids as $id ) {
+		if ( count( $batch ) >= $cap ) {
+			break;
 		}
-	);
-	return array_slice( $ids, 0, max( 0, (int) $cap ) );
+		if ( ! in_array( $id, $batch, true ) ) {
+			$batch[] = $id;
+		}
+	}
+	return $batch;
 }
 
 /**
@@ -456,11 +488,21 @@ function sn_prov_integrity_run_sweep( $fetcher = null ) {
 	$notes = array_intersect_key( $notes, array_flip( $ids ) ); // prune Notes gone from the fleet.
 
 	$last_checked = array();
+	$failing_ids  = array();
 	foreach ( $notes as $pid => $row ) {
 		$last_checked[ (int) $pid ] = (int) ( $row['last_checked'] ?? 0 );
+		// Only a verdict a re-read could CHANGE earns the early slot: a
+		// mismatch (drift, hash, ledger, key). An outage is a gap in
+		// yesterday's evidence, and absence (no signed commit, unresolved
+		// kind) is an owner-side state that no re-read clears; both wait
+		// their turn in the rotation.
+		$codes = is_array( $row['failures'] ?? null ) ? $row['failures'] : array();
+		if ( array() !== array_filter( $codes, 'sn_prov_integrity_is_reconfirmable' ) ) {
+			$failing_ids[] = (int) $pid;
+		}
 	}
 
-	$batch = sn_prov_integrity_select_batch( $ids, $last_checked, SN_PROV_INTEGRITY_NOTES_PER_RUN );
+	$batch = sn_prov_integrity_select_batch( $ids, $last_checked, SN_PROV_INTEGRITY_NOTES_PER_RUN, $failing_ids );
 	$keys_probe = array() !== $ids ? sn_prov_integrity_keys_probe( $fetcher ) : array( 'verdict' => 'skipped', 'code' => 0 );
 	$kv_result       = (string) $keys_probe['verdict'];
 	// v9.81.0 escalation: a 404 is a real "absent" answer. Persisted across
