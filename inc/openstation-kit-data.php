@@ -103,7 +103,11 @@ function snt_kit_list( array $rows, array $opts = array() ) {
 		if ( isset( $row['go'] ) && is_array( $row['go'] ) && function_exists( 'snt_kit_go' ) ) {
 			$inner .= snt_kit_go( (string) ( $row['label'] ?? '' ), $row['go'], array( 'class' => 'snt-list__label', 'variant' => 'link' ) );
 		} elseif ( '' !== (string) ( $row['href'] ?? '' ) ) {
-			$inner .= snt_kit_tag( 'a', array( 'class' => 'snt-list__label', 'href' => (string) $row['href'], 'target' => '_blank', 'rel' => 'noopener noreferrer' ), $label );
+			// 14.7.5: through snt_kit_link(), so a same-origin href is a door
+			// (a window) and only another origin opens a tab.
+			$inner .= function_exists( 'snt_kit_link' )
+				? str_replace( 'class="snt-link"', 'class="snt-list__label"', snt_kit_link( (string) ( $row['label'] ?? '' ), (string) $row['href'] ) )
+				: snt_kit_tag( 'a', array( 'class' => 'snt-list__label', 'href' => (string) $row['href'], 'target' => '_blank', 'rel' => 'noopener noreferrer' ), $label );
 		} else {
 			$inner .= snt_kit_tag( 'span', array( 'class' => 'snt-list__label' ), $label );
 		}

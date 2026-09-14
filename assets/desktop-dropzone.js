@@ -116,7 +116,19 @@
 					function ( n ) {
 						if ( n && n.close ) { n.close(); }
 						if ( post && post.id ) {
-							window.open( 'post.php?post=' + post.id + '&action=edit', '_blank' );
+							// 14.7.5: as a shell window, never window.open( …, '_blank' ):
+							// inside the installed PWA that relaunched the app. The
+							// shell's own opener honours native-window remaps (the
+							// Post editor window) the way a dock click does.
+							var editUrl = 'post.php?post=' + post.id + '&action=edit';
+							var os = window.wp && window.wp.os;
+							if ( os && os.windowManager && typeof os.windowManager.open === 'function' ) {
+								var abs = new URL( editUrl, window.location.href ).href;
+								var id  = typeof os.deriveWindowId === 'function' ? os.deriveWindowId( abs ) : 'post-' + post.id;
+								os.windowManager.open( { id: id, baseId: id, url: abs, title: 'Edit draft', icon: 'dashicons-edit' } );
+							} else {
+								window.location.assign( editUrl );
+							}
 						}
 					}
 				);

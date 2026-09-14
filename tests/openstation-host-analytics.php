@@ -675,10 +675,15 @@ namespace {
 	ok( array( array( 'https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=analytics', '', '' ) ) === $os->opened,
 		'the settings door opens the classic page as its own window -- the same screen the classic link lands on' );
 	$os = new \OpenStation\App\Os();
-	foreach ( array( 'https://evil.test/wp-admin/', 'https://example.test/notes/', 'javascript:alert(1)', '' ) as $bad ) {
+	// 14.7.5: the FRONT END of this site is a door too (a window); a same-origin
+	// target=_blank relaunched the installed PWA.
+	$app->actions['door']( st( $app ), $os, array( 'url' => 'https://example.test/notes/' ) );
+	ok( array( array( 'https://example.test/notes/', '', '' ) ) === $os->opened, 'a same-origin FRONT-END URL opens as a window' );
+	$os = new \OpenStation\App\Os();
+	foreach ( array( 'https://evil.test/wp-admin/', 'https://evil.test/notes/', 'javascript:alert(1)', '' ) as $bad ) {
 		$app->actions['door']( st( $app ), $os, array( 'url' => $bad ) );
 	}
-	ok( array() === $os->opened, 'another host, the front end, a javascript: URL and an empty one are all refused' );
+	ok( array() === $os->opened, 'another host (admin or not), a javascript: URL and an empty one are all refused' );
 
 	$GLOBALS['__caps']['manage_options'] = false;
 	$state                               = st( $app, array( 'view' => 'events' ) );

@@ -392,5 +392,18 @@ ok(
 	'the stamp parser turns a bare MySQL "Y-m-d H:i:s" into an ISO instant before Date.parse sees it -- JavaScriptCore returns NaN for the bare form, Chrome\'s V8 does not, and Attention/Citations/Schedules all emit the bare form'
 );
 
+// ── 14.7.5: one opener, one rule — same origin is a WINDOW, another origin a tab.
+// Inside the installed PWA a same-origin window.open( …, '_blank' ) relaunched
+// the app ("View the note", the dossier's URL actions). Pinned on the source
+// with comments stripped, so a comment naming the old call cannot pass it.
+echo "\nGroup: the app never opens a same-origin URL as _blank\n";
+$code = preg_replace( '~/\*.*?\*/~s', '', $js );
+$code = preg_replace( '~^\s*//.*$~m', '', (string) $code );
+ok( 1 === substr_count( (string) $code, 'window.open(' ), 'exactly ONE window.open in the client, inside openLink' );
+ok( false !== strpos( (string) $code, "origin !== window.location.origin" ) && false !== strpos( (string) $code, 'ctx.host.openUrl(' ), 'openLink branches on origin: external → window.open, same origin → ctx.host.openUrl (a shell window)' );
+ok( false !== strpos( (string) $code, 'openLink( ctx, item.link, item.title )' ), '"View the note" goes through openLink' );
+ok( false !== strpos( (string) $code, 'openLink( ctx, a.url, a.label )' ), 'a dossier URL action goes through openLink' );
+ok( false === strpos( (string) $code, "window.open( item.link" ) && false === strpos( (string) $code, "window.open( a.url" ), 'and neither calls window.open directly any more' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -52,6 +52,10 @@ if ( ! defined( 'SNT_OS_HOST_NONCE' ) ) {
 	define( 'SNT_OS_HOST_NONCE', 'sn_theme_options_nonce' );
 }
 
+// 14.7.5: the URL helpers (admin, same-origin, download) live beside the kit,
+// which needs them to decide door-or-tab without loading this whole host.
+require_once __DIR__ . '/openstation-host-urls.php';
+
 // The WRITE half: the four pipelines a submitted form can belong to, the
 // FormData expansion they all start with, and the redirect/die interceptor two
 // of them need. Required HERE rather than from the plugin's manifest so every
@@ -149,83 +153,9 @@ function snt_os_host_admin_bootstrap() {
 	}
 }
 
-/**
- * The site's `wp-admin/` base, as `[ host, path ]`, or null when WordPress is
- * not loaded (a standalone host, a suite).
- *
- * @return array{host:string,path:string}|null
- */
-function snt_os_host_admin_base() {
-	if ( ! function_exists( 'admin_url' ) ) {
-		return null;
-	}
-	$base = (string) admin_url( '/' );
-	$host = (string) wp_parse_url( $base, PHP_URL_HOST );
-	$path = (string) wp_parse_url( $base, PHP_URL_PATH );
-	if ( '' === $host || '' === $path ) {
-		return null;
-	}
-	return array(
-		'host' => strtolower( $host ),
-		'path' => $path,
-	);
-}
 
-/**
- * Whether a URL is an admin URL of THIS site.
- *
- * Host AND path prefix, never a bare `strpos` on the whole URL: `http` vs
- * `https` and a port would each make an identical screen look foreign.
- *
- * @param string $url Absolute URL.
- * @return bool
- */
-function snt_os_host_is_admin_url( $url ) {
-	$base = snt_os_host_admin_base();
-	if ( null === $base ) {
-		return false;
-	}
-	$url    = (string) $url;
-	$scheme = strtolower( (string) wp_parse_url( $url, PHP_URL_SCHEME ) );
-	if ( 'http' !== $scheme && 'https' !== $scheme ) {
-		return false;
-	}
-	$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
-	$path = (string) wp_parse_url( $url, PHP_URL_PATH );
-	return $host === $base['host'] && 0 === strpos( $path, $base['path'] );
-}
 
-/**
- * Resolve an href the way a browser sitting on an admin page would.
- *
- * A bare `admin.php?page=…` on an admin screen is relative to `wp-admin/`,
- * not to the site root — the one resolution that decides whether such a link
- * becomes a window action or is left to navigate the whole desktop away.
- *
- * @param string $href Raw href.
- * @return string Absolute URL, or '' when it cannot be resolved.
- */
-function snt_os_host_absolute_url( $href ) {
-	$href = trim( (string) $href );
-	if ( '' === $href ) {
-		return '';
-	}
-	if ( preg_match( '#^[a-z][a-z0-9+.\-]*:#i', $href ) ) {
-		return $href;
-	}
-	$base = snt_os_host_admin_base();
-	if ( null === $base ) {
-		return '';
-	}
-	$origin = (string) preg_replace( '#' . preg_quote( $base['path'], '#' ) . '$#', '', (string) admin_url( '/' ) );
-	if ( 0 === strpos( $href, '//' ) ) {
-		return $href;
-	}
-	if ( 0 === strpos( $href, '/' ) ) {
-		return $origin . $href;
-	}
-	return rtrim( (string) admin_url( '/' ), '/' ) . '/' . $href;
-}
+
 
 /**
  * The one rewrite pass. See the spec's table; the branches are in that order.
@@ -499,6 +429,7 @@ function snt_os_host_rewrite_submitter( $tags ) {
  * @param string[]              $own  `page=` slugs this window paints itself.
  * @return void
  */
+
 /**
  * Drop an anchor's `href` AND restore what the browser gave it for free.
  *
@@ -540,6 +471,16 @@ function snt_os_host_rewrite_link( $tags, array $own ) {
 
 	$absolute = snt_os_host_absolute_url( $href );
 	if ( '' === $absolute || ! snt_os_host_is_admin_url( $absolute ) ) {
+		// 14.7.5: a same-origin front-end link (a note, /verify, a policy
+		// file) is a door too, even when the leaf authored `target="_blank"`
+		// for the classic page: in the PWA that attribute relaunches the app.
+		if ( '' !== $absolute && snt_os_host_is_same_origin_url( $absolute ) && ! snt_os_host_is_download_url( $absolute ) ) {
+			snt_os_host_unhref( $tags );
+			$tags->remove_attribute( 'target' );
+			$tags->set_attribute( 'os-action', 'door' );
+			$tags->set_attribute( 'os-arg-url', $absolute );
+			return;
+		}
 		if ( null === $tags->get_attribute( 'target' ) ) {
 			$tags->set_attribute( 'target', '_blank' );
 			$tags->set_attribute( 'rel', snt_os_host_rel( $tags->get_attribute( 'rel' ) ) );

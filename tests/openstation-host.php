@@ -359,6 +359,9 @@ if ( '' === $api ) {
 		. '<a id="lnk-repo" href="https://github.com/juanlentino">Repo</a>'
 		. '<a id="lnk-ugc" href="https://sender.example/note" rel="nofollow ugc">Inbound mention</a>'
 		. '<a id="lnk-targeted" href="https://github.com/juanlentino" target="_self">Repo, targeted</a>'
+		. '<a id="lnk-note" href="https://example.test/notes/the-signer-keeps-moving/" target="_blank" rel="noopener">View the note</a>'
+		. '<a id="lnk-verify" href="https://example.test/verify/">Verification docket</a>'
+		. '<a id="lnk-rsl" href="https://example.test/license.xml" target="_blank" rel="noopener">RSL licence</a>'
 		. '<a id="lnk-frag" href="#sn-sec-identity">Identity</a>'
 		. '<a id="lnk-mail" href="mailto:juan@example.test">Mail</a>'
 		. '<a id="lnk-wired" os-action="jump" href="https://example.test/wp-admin/update-core.php">Already wired</a>'
@@ -430,6 +433,19 @@ if ( '' === $api ) {
 		'a link into another admin screen becomes `door` with the absolute URL -- same destination, opened as its own window' );
 	ok( 'https://example.test/wp-admin/admin.php?page=sn-analytics&sn_view=overview' === $attrs( $out, 'A', 'lnk-analytics' )['os-arg-url'],
 		'   ...including the Analytics page, which is a DIFFERENT window\'s surface and so a door from here, even though the POST allowlist accepts its slug' );
+	// 14.7.5: SAME-ORIGIN FRONT-END LINKS ARE DOORS. In the installed PWA a
+	// `target="_blank"` to this site is inside the app's scope, so the browser
+	// relaunched OpenStation instead of opening a tab ("View the note" started
+	// a second desktop). A window it is; only another origin earns a tab.
+	$note = $attrs( $out, 'A', 'lnk-note' );
+	ok( 'door' === $note['os-action'] && 'https://example.test/notes/the-signer-keeps-moving/' === $note['os-arg-url'] && null === $note['href'] && null === $note['target'],
+		'a same-origin front-end link authored target=_blank becomes a door: no href, no target, the URL as the arg' );
+	$verify = $attrs( $out, 'A', 'lnk-verify' );
+	ok( 'door' === $verify['os-action'] && 'https://example.test/verify/' === $verify['os-arg-url'] && null === $verify['target'],
+		'a targetless same-origin front-end link becomes a door too, never target=_blank' );
+	$rsl = $attrs( $out, 'A', 'lnk-rsl' );
+	ok( 'https://example.test/license.xml' === $rsl['href'] && '_blank' === $rsl['target'] && null === $rsl['os-action'],
+		'a same-origin FILE (license.xml) stays a navigation: an iframe window cannot show it and a download does not relaunch the PWA' );
 	$repo = $attrs( $out, 'A', 'lnk-repo' );
 	ok( 'https://github.com/juanlentino' === $repo['href'] && '_blank' === $repo['target'] && 'noopener noreferrer' === $repo['rel'],
 		'an external link keeps its href and gains target=_blank -- the one recorded deviation: targetless, it would replace the desktop' );

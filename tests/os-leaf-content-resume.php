@@ -145,7 +145,7 @@ ok( false !== strpos( $kit, 'name="resume[earlier][label]" type="text" value="' 
 ok( false !== strpos( $kit, 'placeholder="Role · Jan 2020 - Present"' ) && false !== strpos( $kit, 'placeholder="https://ssrn.com/abstract=…"' ), 'the classic placeholders survive' );
 
 // ── Intro, unsaved: the /resume link and the first-save takeover.
-ok( false !== strpos( $kit, 'prefilled from the current published content' ) && false !== strpos( $kit, 'href="https://example.test/resume"' ) && false === strpos( $kit, 'Last saved' ), 'unsaved intro explains the first-save takeover and links /resume' );
+ok( false !== strpos( $kit, 'prefilled from the current published content' ) && false !== strpos( $kit, 'os-arg-url="https://example.test/resume"' ) && false === strpos( $kit, 'Last saved' ), 'unsaved intro explains the first-save takeover and links /resume (as a door, 14.7.5)' );
 ok( false !== strpos( $kit, '<os-section heading="Resume page"' ), 'the leaf is one Resume page section' );
 
 // ── Intro, saved.

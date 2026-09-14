@@ -239,20 +239,36 @@
 		return Number.isNaN( d.getTime() ) ? String( value ) : d.toLocaleString();
 	};
 
-	/** A door: an admin URL opens as a window; any other origin opens a tab (the shell would iframe it, and most sites refuse to be framed). */
-	const openDoor = ( ctx, door ) => {
+	/**
+	 * Any URL out of the app: same origin opens as a WINDOW (admin screens and
+	 * front-end pages alike; the shell iframes the front end the way it iframes
+	 * previews); another origin opens a tab, because the shell would iframe it
+	 * and most sites refuse to be framed.
+	 *
+	 * 14.7.5: "View the note" and the dossier's URL actions used to call
+	 * window.open( url, '_blank' ). Inside the installed PWA a same-origin
+	 * `_blank` is inside the app's scope, so the browser launched a second
+	 * OpenStation instead of a tab. One opener, one rule.
+	 */
+	const openLink = ( ctx, url, label, icon ) => {
+		if ( ! url ) {
+			return;
+		}
 		let external = false;
 		try {
-			external = new URL( door.url, window.location.href ).origin !== window.location.origin;
+			external = new URL( url, window.location.href ).origin !== window.location.origin;
 		} catch ( e ) {
 			external = false;
 		}
 		if ( external ) {
-			window.open( door.url, '_blank', 'noopener,noreferrer' );
+			window.open( url, '_blank', 'noopener,noreferrer' );
 		} else {
-			ctx.host.openUrl( door.url, door.label, 'dashicons-shield-alt' );
+			ctx.host.openUrl( url, label || url, icon || 'dashicons-admin-site-alt3' );
 		}
 	};
+
+	/** A door: an admin URL opens as a window. */
+	const openDoor = ( ctx, door ) => openLink( ctx, door.url, door.label, 'dashicons-shield-alt' );
 
 	const norm = ( s ) => String( s || '' ).toLowerCase();
 
@@ -463,9 +479,7 @@
 			return;
 		}
 		if ( 'view' === id ) {
-			if ( item.link ) {
-				window.open( item.link, '_blank', 'noopener,noreferrer' );
-			}
+			openLink( ctx, item.link, item.title );
 			return;
 		}
 		if ( 'copy-link' === id ) {
@@ -1125,7 +1139,7 @@
 				${ ( d.actions || [] ).length
 					? html`<div class="snt-actions">
 						${ d.actions.map( ( a ) => a.url
-							? html`<os-button variant=${ a.variant || 'secondary' } @click=${ () => window.open( a.url, '_blank', 'noopener' ) }>${ a.label }</os-button>`
+							? html`<os-button variant=${ a.variant || 'secondary' } @click=${ () => openLink( ctx, a.url, a.label ) }>${ a.label }</os-button>`
 							: html`<os-button variant=${ a.variant || 'secondary' } @click=${ () => {
 								if ( a.dispatch === 'verify' ) {
 									// The trust blocks may change with the verdict: refetch.

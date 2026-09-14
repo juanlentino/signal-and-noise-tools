@@ -439,10 +439,16 @@ namespace {
 	ok( array( array( 'https://example.test/wp-admin/update-core.php', '', '' ) ) === $os->opened,
 		'an admin URL of this site opens as its own window -- the sn_force_update_check door still lands on update-core.php' );
 	$os = new \OpenStation\App\Os();
-	foreach ( array( 'https://evil.test/wp-admin/', 'https://example.test/notes/', 'javascript:alert(1)', '' ) as $bad ) {
+	// 14.7.5: the FRONT END of this site is a door too (a window; the shell
+	// iframes it like a preview). A same-origin target=_blank relaunched the
+	// installed PWA, which is why the front end moved from refused to opened.
+	$app->actions['door']( $st, $os, array( 'url' => 'https://example.test/notes/' ) );
+	ok( array( array( 'https://example.test/notes/', '', '' ) ) === $os->opened, 'a same-origin FRONT-END URL opens as a window' );
+	$os->opened = array();
+	foreach ( array( 'https://evil.test/wp-admin/', 'https://evil.test/notes/', 'javascript:alert(1)', '' ) as $bad ) {
 		$app->actions['door']( $st, $os, array( 'url' => $bad ) );
 	}
-	ok( array() === $os->opened, 'another host, the front end, a javascript: URL and an empty one are all refused' );
+	ok( array() === $os->opened, 'another host (admin or not), a javascript: URL and an empty one are all refused' );
 	$GLOBALS['__caps']['manage_options'] = false;
 	$app->actions['door']( $st, $os, array( 'url' => 'https://example.test/wp-admin/update-core.php' ) );
 	ok( array() === $os->opened, 'the door re-checks manage_options too' );
