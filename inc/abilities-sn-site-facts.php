@@ -167,6 +167,12 @@ function snt_sn_site_facts_map() {
 		'seo_route_meta'     => 'signal-and-noise/get-seo-route-meta',
 		'pillars'            => 'signal-and-noise/get-page-notes-pillars',
 		'reading_time'       => 'signal-and-noise/get-reading-time-for-slug',
+		// v14.7.0 — THE FACT TO CALL BEFORE COMPOSING MARKUP: every house
+		// editorial convention (patterns, block styles, className conventions,
+		// dynamic blocks, idioms) with an exemplar, placement and whether its
+		// text is anchor-reachable. The theme owns the data; sn-validate warns
+		// on markup that matches a shape here but not its form.
+		'editorial_conventions' => 'signal-and-noise/get-editorial-conventions',
 		// v10.61.0 — PLUGIN-INTERNAL, not an ability dispatch: resolved by a
 		// direct call to snt_scan_telemetry_summary() in the execute loop
 		// (the active_template special-case precedent). The sentinel value is

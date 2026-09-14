@@ -98,7 +98,7 @@ echo "sn_site_facts (consolidated) — plugin v10.26.0\n\n";
 
 // ─── Fact map: external + additive internal facts; retired source absent ───
 $map = snt_sn_site_facts_map();
-ok( 14 === count( $map ), 'the fact map has exactly 14 entries (configuration_drift added by R6a; pattern_content by v13.3.0)' );
+ok( 15 === count( $map ), 'the fact map has exactly 15 entries (editorial_conventions by v14.7.0, the fact to call before composing markup; configuration_drift added by R6a; pattern_content by v13.3.0)' );
 ok( ! in_array( 'signal-and-noise/get-design-system-summary', $map, true ), 'the retired ability is not a source for any fact' );
 $expected_map = array(
 	'theme_version'      => 'signal-and-noise/get-theme-version',
@@ -111,6 +111,7 @@ $expected_map = array(
 	'seo_route_meta'     => 'signal-and-noise/get-seo-route-meta',
 	'pillars'            => 'signal-and-noise/get-page-notes-pillars',
 	'reading_time'       => 'signal-and-noise/get-reading-time-for-slug',
+	'editorial_conventions' => 'signal-and-noise/get-editorial-conventions', // v14.7.0
 	'scan_telemetry'     => 'internal:scan-telemetry-summary',
 	'tool_telemetry'     => 'internal:tool-telemetry-summary',
 	'configuration_drift' => 'internal:configuration-drift-status',
@@ -236,7 +237,7 @@ ok( 'snt_ability_perm_manage_options' === ( $a['permission_callback'] ?? '' ), '
 ok( true === ( $a['meta']['annotations']['readonly'] ?? false ) && false === ( $a['meta']['annotations']['destructive'] ?? true ) && true === ( $a['meta']['annotations']['idempotent'] ?? false ), 'sn-site-facts is annotated readonly + non-destructive + idempotent' );
 ok( array( 'facts' ) === ( $a['input_schema']['required'] ?? array() ), 'sn-site-facts requires facts' );
 ok( 'object' === ( $a['input_schema']['type'] ?? '' ), 'sn-site-facts input type is plain object (required field present, no bodyless-GET union)' );
-ok( 14 === count( $a['input_schema']['properties']['facts']['items']['enum'] ?? array() ), 'the advertised facts[] enum lists exactly 14 values' );
+ok( 15 === count( $a['input_schema']['properties']['facts']['items']['enum'] ?? array() ), 'the advertised facts[] enum lists exactly 15 values' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * scan_telemetry (v10.61.0) — plugin-internal fact, the active_template

@@ -72,6 +72,8 @@ function snt_sn_scan_adapters() {
 		'tag_hygiene'       => 'snt_sn_scan_adapter_tag_hygiene',
 		// v13.57.0 — inc/sn-scan-search-disagreement.php (own file).
 		'search_disagreement' => 'snt_sn_scan_adapter_search_disagreement',
+		// v14.7.0 — house-convention drift over the corpus (own file, like the two above).
+		'editorial_conventions' => 'snt_sn_scan_adapter_editorial_conventions',
 	);
 	return apply_filters( 'sn_scan_adapters', $adapters );
 }

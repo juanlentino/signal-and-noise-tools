@@ -148,6 +148,14 @@ function snt_sn_scan_detector_registry() {
 				'triggers_on' => 'a SITE-LEVEL query with ' . SNT_GSC_DRIFT_MIN_IMPRESSIONS . '+ impressions none of whose words (4+ chars) appear in any post\'s TF-IDF keyword candidates; page-level "about X, found for Y" is NOT derivable — the sync stores page and query dimensions separately',
 			),
 		),
+		// v14.7.0: shape-not-form drift against the theme's convention registry.
+		'editorial_conventions' => array(
+			array( 'id' => 'correction',       'triggers_on' => 'a core/paragraph opening "<strong>Correction," without className sn-correction, or one that is not the last block' ),
+			array( 'id' => 'references',       'triggers_on' => 'a core/list directly under an H2 "References" without className is-style-references' ),
+			array( 'id' => 'lead',             'triggers_on' => 'a FIRST-block core/paragraph set wholly in <em> without className sn-lead' ),
+			array( 'id' => 'steps-enumerated', 'triggers_on' => 'an ordered core/list with two or more <strong>Term.</strong> items not carrying sn-steps__list' ),
+			array( 'id' => 'svg-figure',       'triggers_on' => 'a core/html <svg> missing role="img", aria-labelledby, <title> or <desc>, or with fill/stroke in fixed hex' ),
+		),
 	);
 
 	return apply_filters( 'sn_scan_detector_registry', $registry );
