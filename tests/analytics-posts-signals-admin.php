@@ -94,7 +94,7 @@ ok( 1 === preg_match( '/<td class="num" data-v=""><span class="sn-an-muted sn-po
 ok( false !== strpos( $t, 'data-v="0">0</td>' ), 'a real 0 (clicks) renders as 0 with data-v 0: real zeros stay zeros' );
 ok( false !== strpos( $t, 'title="Discovered - currently not indexed">Discovered, not indexed</span>' ), 'Index pill for Discovered, coverage_state verbatim in the title' );
 ok( false !== strpos( $t, '>Indexed</span>' ) && false !== strpos( $t, 'title="not inspected in the last run">not inspected</span>' ), 'Indexed pill and the uninspected gap' );
-ok( 1 === preg_match( '/<span class="sn-posts-stale" title="Edited 1970-01-01, after this crawl">1970-01-01<\/span>/', $t ), 'a stale crawl is marked and says when the edit was' );
+ok( 1 === preg_match( '/<span class="sn-posts-stale" title="Body changed 1970-01-01, after this crawl">1970-01-01<\/span>/', $t ), 'a stale crawl is marked and says when the edit was' );
 ok( false !== strpos( $t, 'title="Anchored by the followed key">v1 at 964,812</span>' ) && false !== strpos( $t, '>unsigned</span>' ), 'Anchor: version and block, green under the followed key; unsigned is a gap' );
 ok( false !== strpos( $t, 'title="top similarity 0.81">3</span>' ) && false !== strpos( $t, 'title="not in the kernel yet: built before this note">not in kernel</span>' ), 'Related: kernel count with the top score; not-in-kernel is a gap' );
 ok( false !== strpos( $t, 'title="Lifetime human pageviews. A raw count, not a verdict."' ), 'Views is labelled a raw count' );

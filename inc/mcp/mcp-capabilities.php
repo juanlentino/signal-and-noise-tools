@@ -181,6 +181,9 @@ function sn_mcp_allowlist() {
 		'signal-noise/search-coverage',
 		// v13.68.0 — stored inbound-pass report; never calls the model on read.
 		'signal-noise/inbound-pass',
+		// v14.6.1 — the Posts tab as data: per-note signals + the three flags,
+		// derived once; never inspects, syncs or probes on read.
+		'signal-noise/posts-signals',
 		// v13.1.0 — read-door coherence (owner-reopened consolidation, see the
 		// wave-3 decision amendment in retirement-verdicts-2026-08-25.md). Two
 		// SECTIONED-BATCH readouts on the sn-site-facts pattern — each answers
