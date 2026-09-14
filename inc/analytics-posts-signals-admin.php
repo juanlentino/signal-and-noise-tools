@@ -244,29 +244,28 @@ function sn_posts_render_table( array $rows, array $strip ) {
 	}
 	echo '</tr></thead><tbody>';
 	foreach ( $rows as $r ) {
-		echo '<tr>';
-		echo sn_posts_td( '<a href="' . esc_url( (string) $r['permalink'] ) . '"><strong>' . esc_html( (string) $r['title'] ) . '</strong></a>', (string) $r['title'], 'column-primary' );
-		echo sn_posts_td_num( $r['age'], 'd' );
-		echo sn_posts_td_num( $r['words'] );
-		echo sn_posts_td_index( $r );
-		echo sn_posts_td_crawl( $r );
-		echo sn_posts_td_num( $r['impressions'] );
-		echo sn_posts_td_num( $r['clicks'] );
-		echo sn_posts_td_num( $r['position'], '', 1 );
-		echo sn_posts_td_num( $r['inbound'] );
-		echo sn_posts_td_anchor( $r );
-		echo sn_posts_td_related( $r );
-		echo sn_posts_td_num( $r['views'] );
-		$pills = '';
-		$n     = 0;
+		$cells  = sn_posts_td( '<a href="' . esc_url( (string) $r['permalink'] ) . '"><strong>' . esc_html( (string) $r['title'] ) . '</strong></a>', (string) $r['title'], 'column-primary' );
+		$cells .= sn_posts_td_num( $r['age'], 'd' );
+		$cells .= sn_posts_td_num( $r['words'] );
+		$cells .= sn_posts_td_index( $r );
+		$cells .= sn_posts_td_crawl( $r );
+		$cells .= sn_posts_td_num( $r['impressions'] );
+		$cells .= sn_posts_td_num( $r['clicks'] );
+		$cells .= sn_posts_td_num( $r['position'], '', 1 );
+		$cells .= sn_posts_td_num( $r['inbound'] );
+		$cells .= sn_posts_td_anchor( $r );
+		$cells .= sn_posts_td_related( $r );
+		$cells .= sn_posts_td_num( $r['views'] );
+		$pills  = '';
+		$n      = 0;
 		foreach ( $vocab as $flag => $v ) {
 			if ( ! empty( $r['flags'][ $flag ] ) ) {
 				$pills .= sn_posts_pill( $v['label'], $v['tone'] ) . ' ';
 				++$n;
 			}
 		}
-		echo sn_posts_td( trim( $pills ), (string) $n );
-		echo '</tr>';
+		$cells .= sn_posts_td( trim( $pills ), (string) $n );
+		echo '<tr>' . $cells . '</tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every cell is built by the sn_posts_td_* helpers above, which escape each value they place (esc_html / esc_attr / esc_url) and compose only their own markup.
 	}
 	echo '</tbody></table></div>';
 	snt_an_panel_close();
