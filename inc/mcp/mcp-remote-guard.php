@@ -183,6 +183,7 @@ function sn_mcp_remote_verdicts() {
 		'latest_theme_tag'     => $out( false, 'Same fingerprinting surface as theme_version, one repo hop further out.' ),
 		'design_tokens'        => $out( false, 'Design-system internals. Not analytics scope.' ),
 		'block_patterns'       => $out( false, 'Authoring inventory, not a metric.' ),
+		'editorial_conventions' => $out( false, 'Authoring inventory (the house forms with exemplars), not a metric. Local only, like block_patterns.' ), // v14.7.0
 		'template_overrides'   => $out( false, 'Site Editor internals — and the surface v13.49.0 gave a WRITE change type. Read and write stay on the desktop together.' ),
 		'active_template'      => $out( false, 'Rendering internals for a given route. Not analytics scope.' ),
 		'llms_txt'             => $out( false, 'Already public at its own URL; a credentialed path adds nothing but a second way to fetch it.' ),

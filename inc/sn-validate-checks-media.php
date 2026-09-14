@@ -204,6 +204,34 @@ function snt_sn_validate_check_body( $value, $post_id ) {
 		}
 	}
 
+	// editorial_convention (v14.7.0) — markup matching a house convention's
+	// SHAPE but not its FORM. Warning, never blocking: a caller may be doing
+	// something new on purpose. The message names the convention and its id.
+	// ONE detector, shared with sn-scan (inc/editorial-conventions-detect.php),
+	// over the THEME's registry; when the theme does not provide the registry
+	// the check says so as info rather than passing silently.
+	if ( function_exists( 'snt_editorial_conventions_detect' ) && function_exists( 'parse_blocks' ) ) {
+		$drift = snt_editorial_conventions_detect( parse_blocks( (string) $value ) );
+		if ( null === $drift ) {
+			$findings[] = snt_sn_validate_finding(
+				'body', 'editorial_convention', 'info',
+				__( 'The editorial convention registry is unavailable (the theme does not provide sn_theme_editorial_conventions), so convention drift was not checked.', 'signal-and-noise-tools' ),
+				null, null, array(), $post_id . '|editorial_convention|unavailable'
+			);
+		} else {
+			foreach ( $drift as $d ) {
+				$findings[] = snt_sn_validate_finding(
+					'body', 'editorial_convention', 'warning',
+					(string) $d['message'],
+					(string) $d['block_name'] . ' at ' . (string) $d['block_path'],
+					(string) $d['id'],
+					array( 'convention_id' => (string) $d['id'], 'block_path' => (string) $d['block_path'], 'fix' => (string) $d['fix'], 'replacement' => (string) $d['replacement'], 'evidence' => (array) $d['evidence'], 'read' => 'sn-site-facts{editorial_conventions}' ),
+					$post_id . '|editorial_convention|' . $d['id'] . '|' . $d['block_path']
+				);
+			}
+		}
+	}
+
 	return $findings;
 }
 
