@@ -17,6 +17,7 @@
  *
  * Run: php tests/os-leaf-tools-provenance.php
  */
+require_once __DIR__ . '/lib/site-timezone-stub.php'; // 14.7.4: the site's zone, not UTC
 require_once __DIR__ . '/lib/os-leaf-harness.php';
 
 // ── Constants the classic readers rely on.
@@ -156,8 +157,8 @@ ok( false === strpos( $kit, 'Every commit is anchored' ), '14.7.3: and claims no
 if ( ! function_exists( 'sn_prov_integrity_state' ) ) { function sn_prov_integrity_state() { return $GLOBALS['__prov_integrity'] ?? null; } }
 $GLOBALS['__prov_integrity'] = array( 'failed' => 3, 'swept_at' => 1789372828 );
 $kit_failing = prov_paint();
-ok( false !== strpos( $kit_failing, 'reports 3 subjects failing' ) && false !== strpos( $kit_failing, '2026-09-14 08:00 UTC' ) && false !== strpos( $kit_failing, 'Trust checks' ),
-	'with 3 failing in the last sweep, the empty table names the count, dates the reading and points at Trust checks' );
+ok( false !== strpos( $kit_failing, 'reports 3 subjects failing' ) && false !== strpos( $kit_failing, '2026-09-14 04:00 EDT' ) && false !== strpos( $kit_failing, 'Trust checks' ),
+	'with 3 failing in the last sweep, the empty table names the count, dates the reading in the SITE timezone (08:00 UTC → 04:00 EDT) and points at Trust checks' );
 $GLOBALS['__prov_integrity'] = array( 'failed' => 0, 'swept_at' => 1789372828 );
 ok( false === strpos( prov_paint(), 'failing' ), 'a clean sweep adds nothing: the sentence stays about pending proofs' );
 $GLOBALS['__prov_integrity'] = null;

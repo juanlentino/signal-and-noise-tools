@@ -96,23 +96,65 @@ function attention_now() {
  * kinds of fact. A bare MySQL string is read as UTC, which is what every
  * producer here writes.
  *
+ * THIS IS A KEY, NOT A LABEL. Acknowledgements are held against it, rows
+ * sort by it, and the composer runs it over readers' own output, so it must
+ * be idempotent: UTC in, the same UTC out. 14.7.4 tried to make it print in
+ * the site timezone and every re-application shifted the instant another
+ * four hours (three passes read midnight). The reading lives in
+ * attention_local() at the print sites; storage and identity stay UTC.
+ *
  * @param mixed $when A unix int, a MySQL UTC string, or an ISO 8601 string.
  * @return string 'Y-m-d H:i:s' in UTC, or '' when unreadable or absent.
  */
 function attention_stamp( $when ) {
+	$ts = attention_stamp_ts( $when );
+	return $ts > 0 ? gmdate( 'Y-m-d H:i:s', $ts ) : '';
+}
+
+/**
+ * The unix instant behind a stored stamp, or 0.
+ *
+ * @param mixed $when
+ * @return int
+ */
+function attention_stamp_ts( $when ) {
 	if ( is_int( $when ) || is_float( $when ) || ( is_string( $when ) && ctype_digit( $when ) ) ) {
-		$ts = (int) $when;
-		return $ts > 0 ? gmdate( 'Y-m-d H:i:s', $ts ) : '';
+		return max( 0, (int) $when );
 	}
 	$when = trim( (string) $when );
 	if ( '' === $when ) {
-		return '';
+		return 0;
 	}
 	if ( preg_match( '/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/', $when ) ) {
 		$when .= ' UTC';
 	}
 	$ts = strtotime( $when );
-	return ( false === $ts || $ts <= 0 ) ? '' : gmdate( 'Y-m-d H:i:s', $ts );
+	return ( false === $ts || $ts <= 0 ) ? 0 : (int) $ts;
+}
+
+/**
+ * A stamp as the SITE reads it: 'Y-m-d H:i:s' in the timezone from
+ * Settings › General, followed by the zone's abbreviation ("EDT"), or ''
+ * for an empty stamp.
+ *
+ * 14.7.4: the owner reads the queue in Eastern time; a stamp that said
+ * "08:00 UTC" beside a clock reading 4:00 AM made every reading look four
+ * hours off. Storage stays UTC (attention_stamp()); every print site goes
+ * through here. Without WordPress the reading is UTC and says so.
+ *
+ * @param string $stamp attention_stamp() output.
+ * @return string
+ */
+function attention_local( $stamp ) {
+	$ts = attention_stamp_ts( $stamp );
+	if ( $ts <= 0 ) {
+		return '';
+	}
+	if ( ! function_exists( 'wp_date' ) ) {
+		return gmdate( 'Y-m-d H:i:s', $ts ) . ' UTC';
+	}
+	$abbr = (string) wp_date( 'T', $ts ); // resolved for THAT instant, so DST is right
+	return (string) wp_date( 'Y-m-d H:i:s', $ts ) . ' ' . ( '' !== $abbr ? $abbr : 'UTC' );
 }
 
 /**
@@ -126,8 +168,8 @@ function attention_asof( $stamp ) {
 	if ( '' === $stamp ) {
 		return __( 'not stamped', 'signal-and-noise-tools' );
 	}
-	/* translators: %s: a UTC timestamp, 'Y-m-d H:i:s'. */
-	return sprintf( __( 'as of %s UTC', 'signal-and-noise-tools' ), $stamp );
+	/* translators: %s: a timestamp in the site timezone with its zone, e.g. "2026-09-14 04:00:28 EDT". */
+	return sprintf( __( 'as of %s', 'signal-and-noise-tools' ), attention_local( $stamp ) );
 }
 
 /**
@@ -603,7 +645,7 @@ function attention_item( array $row, $offered = null ) {
 		// paints the kind and the date from statusLabel and dateLabel.
 		'columns'     => array(
 			'fact'  => (string) ( $row['subtitle'] ?? '' ),
-			'stamp' => '' !== $stamp ? $stamp . ' UTC' : __( 'not stamped', 'signal-and-noise-tools' ),
+			'stamp' => '' !== $stamp ? attention_local( $stamp ) : __( 'not stamped', 'signal-and-noise-tools' ),
 		),
 		'detail'      => array(
 			'hero'    => '',
@@ -752,11 +794,11 @@ function attention_empty_note() {
 	$read_at = attention_stamp( $read['read_at'] ?? 0 );
 	$stamp   = attention_stamp( $read['stamp'] ?? '' );
 	if ( '' === $stamp ) {
-		/* translators: %s: a UTC timestamp. */
-		return sprintf( __( 'No reader carried a stamp. Composed %s UTC.', 'signal-and-noise-tools' ), $read_at );
+		/* translators: %s: a timestamp in the site timezone with its zone. */
+		return sprintf( __( 'No reader carried a stamp. Composed %s.', 'signal-and-noise-tools' ), attention_local( $read_at ) );
 	}
-	/* translators: 1: a UTC timestamp. 2: a UTC timestamp. */
-	return sprintf( __( 'The newest reading is from %1$s UTC. Composed %2$s UTC.', 'signal-and-noise-tools' ), $stamp, $read_at );
+	/* translators: 1: a timestamp in the site timezone with its zone. 2: another. */
+	return sprintf( __( 'The newest reading is from %1$s. Composed %2$s.', 'signal-and-noise-tools' ), attention_local( $stamp ), attention_local( $read_at ) );
 }
 
 add_filter(

@@ -71,9 +71,25 @@ function rss_activity_html( array $stats ) {
 	}
 	$out .= '</div>';
 	$out .= ! empty( $stats['most_recent'] )
-		? '<p class="snt-prose">' . \snt_kit_esc( __( 'Most recent feed request:', 'signal-and-noise-tools' ) ) . ' <os-code>' . \snt_kit_esc( (string) $stats['most_recent'] ) . '</os-code> UTC</p>'
+		? '<p class="snt-prose">' . \snt_kit_esc( __( 'Most recent feed request:', 'signal-and-noise-tools' ) ) . ' <os-code>' . \snt_kit_esc( rss_local_stamp( (string) $stats['most_recent'] ) ) . '</os-code></p>'
 		: '<p class="snt-hint">' . \snt_kit_esc( __( 'No feed requests logged yet.', 'signal-and-noise-tools' ) ) . '</p>';
 	return $out;
+}
+
+/**
+ * A MySQL UTC stamp as the site timezone reads it ("Y-m-d H:i:s T"), or the
+ * input unchanged when it cannot be read. 14.7.4: the tracker stores UTC
+ * (current_time( 'mysql', true )); the owner reads in Eastern time.
+ *
+ * @param string $utc
+ * @return string
+ */
+function rss_local_stamp( $utc ) {
+	$ts = strtotime( trim( (string) $utc ) . ' UTC' );
+	if ( false === $ts || $ts <= 0 ) {
+		return (string) $utc;
+	}
+	return function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m-d H:i:s T', $ts ) : (string) $utc . ' UTC';
 }
 
 /**
@@ -86,7 +102,7 @@ function rss_recent_table_html( array $recent ) {
 	$rows = array();
 	foreach ( $recent as $row ) {
 		$rows[] = array(
-			'ts'       => (string) ( $row['ts'] ?? '' ),
+			'ts'       => rss_local_stamp( (string) ( $row['ts'] ?? '' ) ),
 			'feed_url' => (string) ( $row['feed_url'] ?? '' ),
 			'ua_hash'  => (string) ( $row['ua_hash'] ?? '' ),
 		);
@@ -95,7 +111,7 @@ function rss_recent_table_html( array $recent ) {
 		array(
 			array(
 				'key'   => 'ts',
-				'label' => __( 'Time (UTC)', 'signal-and-noise-tools' ),
+				'label' => __( 'Time', 'signal-and-noise-tools' ),
 			),
 			array(
 				'key'   => 'feed_url',

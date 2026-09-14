@@ -189,15 +189,15 @@ function attention_anchors() {
 			$pid     = (int) ( $commit['post_id'] ?? 0 );
 			$version = (int) ( $commit['version'] ?? 0 );
 			$stamp   = attention_stamp( $commit['committed_at'] ?? '' );
-			$since   = '' !== $stamp ? $stamp . ' UTC' : __( 'an unrecorded time', 'signal-and-noise-tools' );
+			$since   = '' !== $stamp ? attention_local( $stamp ) : __( 'an unrecorded time', 'signal-and-noise-tools' );
 			$rows[]  = attention_row( array(
 				'kind'       => 'anchors',
 				'key'        => $pid . '-v' . $version,
 				'title'      => attention_post_title( $pid, (string) ( $commit['note_uid'] ?? '' ) ),
 				'subtitle'   => 'unanchored' === $state
-					/* translators: 1: commit version. 2: a UTC timestamp. */
+					/* translators: 1: commit version. 2: a timestamp in the site timezone with its zone. */
 					? sprintf( __( 'v%1$d unanchored since %2$s', 'signal-and-noise-tools' ), $version, $since )
-					/* translators: 1: commit version. 2: a UTC timestamp. */
+					/* translators: 1: commit version. 2: a timestamp in the site timezone with its zone. */
 					: sprintf( __( 'v%1$d pending since %2$s', 'signal-and-noise-tools' ), $version, $since ),
 				// Unanchored is the Worker never answering; pending is a proof
 				// in flight, which is the system working.
@@ -416,14 +416,14 @@ function attention_schedule() {
 				continue;
 			}
 			$row  = isset( $entry['row'] ) && is_array( $entry['row'] ) ? $entry['row'] : array();
-			$when = attention_stamp( $ts ) . ' UTC';
+			$when = attention_local( attention_stamp( $ts ) );
 			if ( 'post' === (string) ( $entry['kind'] ?? '' ) ) {
 				$pid    = (int) ( $row['id'] ?? 0 );
 				$rows[] = attention_row( array(
 					'kind'       => 'schedule',
 					'key'        => 'post-' . $pid,
 					'title'      => '' !== (string) ( $row['title'] ?? '' ) ? (string) $row['title'] : attention_post_title( $pid ),
-					/* translators: %s: a UTC timestamp. */
+					/* translators: %s: a timestamp in the site timezone with its zone. */
 					'subtitle'   => sprintf( __( 'publishes at %s', 'signal-and-noise-tools' ), $when ),
 					'tone'       => 'neutral',
 					'stamp'      => $stamp,
@@ -446,9 +446,9 @@ function attention_schedule() {
 				'key'        => 'fragment-' . (int) ( $row['id'] ?? 0 ),
 				'title'      => $ref > 0 ? attention_post_title( $ref, __( '(unlinked fragment)', 'signal-and-noise-tools' ) ) : __( '(unlinked fragment)', 'signal-and-noise-tools' ),
 				'subtitle'   => $opens
-					/* translators: %s: a UTC timestamp. */
+					/* translators: %s: a timestamp in the site timezone with its zone. */
 					? sprintf( __( 'opens at %s', 'signal-and-noise-tools' ), $when )
-					/* translators: %s: a UTC timestamp. */
+					/* translators: %s: a timestamp in the site timezone with its zone. */
 					: sprintf( __( 'closes at %s', 'signal-and-noise-tools' ), $when ),
 				'tone'       => 'neutral',
 				'stamp'      => $stamp,
@@ -657,8 +657,8 @@ function attention_readers() {
 					'key'        => 'snapshot',
 					'title'      => __( 'Machine-reader snapshot', 'signal-and-noise-tools' ),
 					'subtitle'   => '' !== $stamp
-						/* translators: 1: a UTC timestamp. 2: the staleness window in hours. */
-						? sprintf( __( 'Captured %1$s UTC, older than the %2$d-hour window', 'signal-and-noise-tools' ), $stamp, $hours )
+						/* translators: 1: a timestamp in the site timezone with its zone. 2: the staleness window in hours. */
+						? sprintf( __( 'Captured %1$s, older than the %2$d-hour window', 'signal-and-noise-tools' ), attention_local( $stamp ), $hours )
 						/* translators: %d: the staleness window in hours. */
 						: sprintf( __( 'Older than the %d-hour window', 'signal-and-noise-tools' ), $hours ),
 					'tone'       => 'warning',
