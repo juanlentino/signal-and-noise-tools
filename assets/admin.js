@@ -528,3 +528,43 @@
 		}
 	} );
 } )();
+
+/**
+ * Sortable tables (v14.6.0): the Posts tab's table carries data-sortable; each
+ * th carries data-sort (num|text|date) and each td data-v, the value to sort
+ * on. A gap has an empty data-v and sorts LAST whichever way the column goes,
+ * so a missing signal never masquerades as a zero at the top or the bottom.
+ */
+( function () {
+	'use strict';
+	function keyOf( td, kind ) {
+		var v = td ? td.getAttribute( 'data-v' ) : '';
+		if ( null === v || '' === v ) { return null; }
+		if ( 'num' === kind ) { var n = parseFloat( v ); return isNaN( n ) ? null : n; }
+		if ( 'date' === kind ) { var t = Date.parse( v ); return isNaN( t ) ? null : t; }
+		return v.toLowerCase();
+	}
+	document.addEventListener( 'click', function ( e ) {
+		var btn = e.target.closest( '.sn-posts-sort' );
+		if ( ! btn ) { return; }
+		var th = btn.closest( 'th' );
+		var table = th.closest( 'table[data-sortable]' );
+		if ( ! table ) { return; }
+		var idx = Array.prototype.indexOf.call( th.parentNode.children, th );
+		var kind = th.getAttribute( 'data-sort' ) || 'text';
+		var dir = 'asc' === th.getAttribute( 'aria-sort' ) ? 'desc' : 'asc';
+		Array.prototype.forEach.call( th.parentNode.children, function ( h ) { h.removeAttribute( 'aria-sort' ); } );
+		th.setAttribute( 'aria-sort', dir );
+		var tbody = table.tBodies[ 0 ];
+		var rows = Array.prototype.slice.call( tbody.rows );
+		rows.sort( function ( a, b ) {
+			var ka = keyOf( a.cells[ idx ], kind ), kb = keyOf( b.cells[ idx ], kind );
+			if ( null === ka && null === kb ) { return 0; }
+			if ( null === ka ) { return 1; }
+			if ( null === kb ) { return -1; }
+			var c = ka < kb ? -1 : ( ka > kb ? 1 : 0 );
+			return 'asc' === dir ? c : -c;
+		} );
+		rows.forEach( function ( r ) { tbody.appendChild( r ); } );
+	} );
+} )();

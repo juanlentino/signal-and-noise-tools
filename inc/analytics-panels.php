@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // snt_analytics_smooth_path (trend). Guarded — a few CLI fixtures declare their
 // own stand-in for this fn before requiring this file (pre-dating this require);
 // an unconditional require_once here would redeclare it and fatal (see
-// tests/analytics-header-region.php, tests/analytics-posts-admin.php).
+// tests/analytics-header-region.php).
 if ( ! function_exists( 'snt_analytics_smooth_path' ) ) {
 	require_once __DIR__ . '/analytics-render-helpers.php';
 }

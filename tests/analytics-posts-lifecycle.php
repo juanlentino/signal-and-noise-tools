@@ -84,5 +84,21 @@ echo "\nGroup: leaderboard ordering (candidates surface to the top)\n";
 $ordered = sn_analytics_lifecycle_sort( $rows );
 ok( $ordered[0]['id'] === 1, 'refresh candidate sorts to the top' );
 
+// v14.6.0: A SHAPE NEEDS A SAMPLE. Measured live 2026-09-13: the highest
+// lifetime count across 41 notes was 14, and notes were classified on 6 and 7
+// views. Below SN_POSTS_SHAPE_MIN_VIEWS there is no shape and no candidate,
+// however spike-like the seven views look.
+$thin = array( 0 => 6, 1 => 1 ); // 7 views, all early: a textbook "spike" on no sample
+$c = sn_analytics_lifecycle_classify( $thin, SN_POSTS_DECAY_DAYS, false );
+ok( '' === $c['decay'] && false === $c['refresh_candidate'], 'seven views classify as NOTHING (floor ' . SN_POSTS_SHAPE_MIN_VIEWS . ')' );
+$edge = array( 0 => 2, 30 => 12 ); // 14 views, cooling-shaped: one short of the floor
+$c = sn_analytics_lifecycle_classify( $edge, SN_POSTS_DECAY_DAYS, false );
+ok( '' === $c['decay'] && false === $c['refresh_candidate'], 'fourteen views: still no shape, still no candidate' );
+$edge[30] = 13; // 15: the floor
+$c = sn_analytics_lifecycle_classify( $edge, SN_POSTS_DECAY_DAYS, false );
+ok( '' !== $c['decay'], 'fifteen views: a shape is claimed (' . $c['decay'] . ')' );
+$sum = sn_analytics_lifecycle_summary( sn_analytics_posts_lifecycle_rows( array( array( 'id' => 9, 'title' => 't', 'permalink' => '/n/t/', 'path' => '/n/t', 'publish_ts' => 0, 'modified_ts' => 0, 'evergreen' => false ) ), array( '/n/t' => array( array( 'day' => '1970-01-01', 'views' => 7 ) ) ), 40 * 86400 ) );
+ok( 1 === $sum['counts']['unknown'] && 0 === $sum['refresh_candidates'], 'a thin note buckets as unknown in the census and is never a refresh candidate' );
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail === 0 ? 0 : 1 );

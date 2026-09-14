@@ -78,10 +78,6 @@ echo "\nlifecycle\n";
 $sum = function ( $cooling, $sustained, $cands, $total ) {
 	return array( 'counts' => array( 'spike' => 0, 'cooling' => $cooling, 'sustained' => $sustained, 'unknown' => 0 ), 'refresh_candidates' => $cands, 'total' => $total );
 };
-an_eq( '4 of 20 posts are cooling, and 3 are refresh candidates.', sn_annotation_lifecycle( $sum( 4, 10, 3, 20 ) ), 'refresh-candidate read' );
-an_eq( 'Most of your catalogue holds: 15 of 20 posts have a sustained tail.', sn_annotation_lifecycle( $sum( 2, 15, 0, 20 ) ), 'sustained-majority read' );
-an_eq( null, sn_annotation_lifecycle( $sum( 1, 3, 0, 6 ) ), 'thin catalogue -> null' );
-an_eq( null, sn_annotation_lifecycle( $sum( 2, 5, 1, 12 ) ), 'no strong signal -> null' );
 
 echo "\noverview\n";
 $dv = function ( $pct, $dir ) { return array( 'views' => array( 'pct' => $pct, 'dir' => $dir ) ); };

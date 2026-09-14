@@ -160,9 +160,9 @@ require_once SNT_PATH . 'inc/analytics-pageroles.php'; // v6.10.0: durable entry
 require_once SNT_PATH . 'inc/analytics-derived.php'; // PHP-only derived: referrer categories, deltas, bot breakdown
 require_once SNT_PATH . 'inc/analytics-admin-render.php'; // page partials (loaded before the orchestrator)
 require_once SNT_PATH . 'inc/analytics-posts.php';       // v6.39.0: post-lifecycle data layer (durable per-path rollup)
-require_once SNT_PATH . 'inc/analytics-posts-admin.php'; // v6.39.0: Posts view render (reuses admin-render helpers)
-require_once SNT_PATH . 'inc/analytics-posts-lifecycle.php';       // v8.11.0 (A4): catalogue-wide decay census + refresh candidates
-require_once SNT_PATH . 'inc/analytics-posts-lifecycle-admin.php'; // v8.11.0 (A4): "Lifecycle at scale" render
+require_once SNT_PATH . 'inc/analytics-posts-lifecycle.php';       // v8.11.0 (A4): decay census, floored at v14.6.0; feeds signals + recommendations only
+require_once SNT_PATH . 'inc/analytics-posts-signals.php';         // v14.6.0: the Posts tab's per-note signal rows + the three flags
+require_once SNT_PATH . 'inc/analytics-posts-signals-admin.php';   // v14.6.0: the Posts tab render
 require_once SNT_PATH . 'inc/analytics-admin.php';  // dashboard renderer + Monitoring → Analytics settings
 require_once SNT_PATH . 'inc/analytics-signals.php';   // v9.30.0: predictive signal engine
 require_once SNT_PATH . 'inc/ai-markdown-strip.php';   // v9.64.2: shared markdown stripper for AI prose (narrator + narration)

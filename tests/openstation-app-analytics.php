@@ -250,7 +250,7 @@ namespace {
 	$quality_src = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/parts/painters/view-quality.php' );
 	ok( false !== strpos( $quality_src, 'snt-report-columns' ), 'Quality view arranges quality and bot confidence tables in snt-report-columns' );
 	$posts_src = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/parts/painters/view-posts.php' );
-	ok( false !== strpos( $posts_src, 'snt-report-columns' ), 'Posts view arranges catalog and decay tables in snt-report-columns' );
+	ok( false !== strpos( $posts_src, 'sn_analytics_posts_signals' ) && false === strpos( $posts_src, 'Evergreen' ), 'Posts painter (partial-host fallback) paints the signals counts + queue, no shape table (v14.6.0)' );
 	$camp_src = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/parts/painters/view-campaigns.php' );
 	ok( false !== strpos( $camp_src, 'snt-report-columns' ), 'Campaigns view arranges campaigns and sources in snt-report-columns' );
 	$login_src = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/parts/painters/view-login-defense.php' );

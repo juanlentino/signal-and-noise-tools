@@ -2,7 +2,9 @@
 /**
  * S&N Analytics — view/posts.
  *
- * Classic: snt_analytics_render_posts_view() in inc/analytics-posts-admin.php.
+ * Classic: snt_analytics_render_posts_signals_view() in inc/analytics-posts-signals-admin.php.
+ * Reached only by a partial host: the native window paints the classic body
+ * through canonical_piece().
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -20,42 +22,30 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function paint_view_posts( array $ctx ) {
 	unset( $ctx );
-	$bundle = function_exists( 'sn_analytics_posts_bundle' ) ? sn_analytics_posts_bundle() : null;
-	if ( ! is_array( $bundle ) || empty( $bundle['subject'] ) ) {
-		return \snt_kit_empty( __( 'Posts', 'signal-and-noise-tools' ), __( 'No published posts yet: this view tracks each Note over its lifetime once you publish and traffic arrives.', 'signal-and-noise-tools' ) );
+	$signals = function_exists( 'sn_analytics_posts_signals' ) ? sn_analytics_posts_signals() : null;
+	if ( ! is_array( $signals ) || empty( $signals['rows'] ) ) {
+		return \snt_kit_empty( __( 'Posts', 'signal-and-noise-tools' ), __( 'No published notes yet: this view reads each note against Search Console, the coverage inspection, the link graph and the provenance chain once you publish.', 'signal-and-noise-tools' ) );
 	}
-	$subject = (array) $bundle['subject'];
-	$cards   = array(
-		array( 'l' => __( 'Latest Note', 'signal-and-noise-tools' ), 'n' => (string) ( $subject['title'] ?? $subject['name'] ?? '' ) ),
-		array( 'l' => __( 'Views since publish', 'signal-and-noise-tools' ), 'n' => num( $subject['views'] ?? $subject['views_since_publish'] ?? 0 ) ),
+	$c     = (array) $signals['counts'];
+	$cards = array(
+		array( 'l' => __( 'Notes', 'signal-and-noise-tools' ), 'n' => num( $c['total'] ) ),
+		array( 'l' => __( 'Indexed', 'signal-and-noise-tools' ), 'n' => num( $c['indexed'] ) ),
+		array( 'l' => __( 'Not indexed', 'signal-and-noise-tools' ), 'n' => num( $c['not_indexed'] ) ),
+		array( 'l' => __( 'Stale crawls', 'signal-and-noise-tools' ), 'n' => num( $c['stale_crawl'] ) ),
+		array( 'l' => __( 'Zero inbound links', 'signal-and-noise-tools' ), 'n' => num( $c['zero_inbound'] ) ),
 	);
 	$board = array();
-	foreach ( (array) ( $bundle['leaderboard'] ?? array() ) as $row ) {
-		if ( ! is_array( $row ) ) {
+	foreach ( (array) $signals['rows'] as $row ) {
+		if ( ! in_array( true, (array) $row['flags'], true ) ) {
 			continue;
 		}
 		$board[] = array(
-			'value'  => (string) ( $row['title'] ?? '' ),
-			'views'  => $row['views'] ?? 0,
-			'visits' => $row['velocity'] ?? null,
+			'value'  => (string) $row['title'],
+			'views'  => implode( ', ', array_keys( array_filter( (array) $row['flags'] ) ) ),
+			'visits' => null,
 		);
 	}
-	$shape = array( 'sustained' => 0, 'cooling' => 0, 'spike' => 0 );
-	foreach ( (array) ( $bundle['leaderboard'] ?? array() ) as $row ) {
-		$d = (string) ( $row['decay'] ?? '' );
-		if ( isset( $shape[ $d ] ) ) {
-			++$shape[ $d ];
-		}
-	}
-	$decay = array();
-	foreach ( $shape as $label => $count ) {
-		$decay[] = array( 'label' => ucfirst( $label ), 'views' => $count );
-	}
-	return stats( $cards )
-		. '<div class="snt-report-columns">'
-		. dim_table( __( 'Catalog', 'signal-and-noise-tools' ), $board, __( 'No post traffic yet.', 'signal-and-noise-tools' ) )
-		. distribution_table( __( 'Evergreen vs spike', 'signal-and-noise-tools' ), $decay, __( 'No shape data yet.', 'signal-and-noise-tools' ) )
-		. '</div>';
+	return stats( $cards ) . dim_table( __( 'Queue', 'signal-and-noise-tools' ), $board, __( 'No note carries a flag.', 'signal-and-noise-tools' ) );
 }
 
 add_filter(

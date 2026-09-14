@@ -24,7 +24,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/analytics-posts.php'; // decay/velocity/by-dol primitives.
 
-const SN_POSTS_LIFECYCLE_MAX = 200;  // catalogue scan ceiling (matches the health stale-scan cap).
+const SN_POSTS_LIFECYCLE_MAX = 200;
+/** Lifetime views below which no decay shape is claimed (v14.6.0). */
+const SN_POSTS_SHAPE_MIN_VIEWS = 15;  // catalogue scan ceiling (matches the health stale-scan cap).
 const SN_POSTS_LIFECYCLE_TTL = 21600; // 6h transient — a whole-catalogue read, refreshed a few times a day.
 
 /* ─────────────────────────────── pure logic ─────────────────────────────── */
@@ -41,7 +43,16 @@ const SN_POSTS_LIFECYCLE_TTL = 21600; // 6h transient — a whole-catalogue read
  * @return array{decay:string,refresh_candidate:bool}
  */
 function sn_analytics_lifecycle_classify( $by_dol, $early_days, $is_evergreen ) {
-	$decay     = sn_analytics_posts_decay( $by_dol, $early_days );
+	// v14.6.0: A SHAPE NEEDS A SAMPLE. Measured 2026-09-13, the highest
+	// lifetime count across 41 notes was 14, and notes were classified on 6
+	// and 7 views. Below the floor there is no shape, only a gap, and every
+	// consumer (the insights forecast, the recommendation card) inherits
+	// that here rather than each deciding it.
+	$total = 0;
+	foreach ( (array) $by_dol as $v ) {
+		$total += (int) $v;
+	}
+	$decay     = $total >= SN_POSTS_SHAPE_MIN_VIEWS ? sn_analytics_posts_decay( $by_dol, $early_days ) : '';
 	$candidate = ( 'cooling' === $decay ) && ! $is_evergreen;
 	return array(
 		'decay'             => $decay,

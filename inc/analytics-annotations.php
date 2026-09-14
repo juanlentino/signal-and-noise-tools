@@ -200,43 +200,6 @@ function sn_annotation_anomalies( $anom ) {
 	return empty( $parts ) ? null : implode( ' ', $parts );
 }
 
-/**
- * Lifecycle read: the catalogue's shape. Fires on a refresh-candidate cluster,
- * else on a sustained majority. Null on a thin catalogue or no clear shape.
- *
- * @param array $summary { counts:{spike,cooling,sustained,unknown}, refresh_candidates, total } from sn_analytics_lifecycle_summary().
- * @return string|null
- */
-function sn_annotation_lifecycle( $summary ) {
-	$summary = is_array( $summary ) ? $summary : array();
-	$total   = (int) ( $summary['total'] ?? 0 );
-	if ( $total < SN_ANNOTATION_LIFECYCLE_MIN_TOTAL ) {
-		return null;
-	}
-	$counts    = is_array( $summary['counts'] ?? null ) ? $summary['counts'] : array();
-	$cooling   = (int) ( $counts['cooling'] ?? 0 );
-	$sustained = (int) ( $counts['sustained'] ?? 0 );
-	$cands     = (int) ( $summary['refresh_candidates'] ?? 0 );
-
-	if ( $cands >= SN_ANNOTATION_LIFECYCLE_MIN_CANDIDATES ) {
-		return sprintf(
-			/* translators: 1: cooling count, 2: total posts, 3: refresh-candidate count */
-			__( '%1$d of %2$d posts are cooling, and %3$d are refresh candidates.', 'signal-and-noise-tools' ),
-			$cooling,
-			$total,
-			$cands
-		);
-	}
-	if ( $sustained * 2 > $total ) {
-		return sprintf(
-			/* translators: 1: sustained count, 2: total posts */
-			__( 'Most of your catalogue holds: %1$d of %2$d posts have a sustained tail.', 'signal-and-noise-tools' ),
-			$sustained,
-			$total
-		);
-	}
-	return null;
-}
 
 /**
  * Overview read: volume moved but engagement diverged from it, the caveat the

@@ -71,7 +71,7 @@ const SN_ORPHAN_CLASS_BASELINE = array(
 	'sn-mr-empty', 'sn-mr-leaf', 'sn-mr-rights-log', 'sn-mr-sensor',
 	'sn-mr-truncated', 'sn-mr-unknown-log', 'sn-mr-vendor-purpose', 'sn-now-dek',
 	'sn-now-eyebrow', 'sn-now-headline', 'sn-now-hero', 'sn-now-item',
-	'sn-now-item-text', 'sn-now-meta', 'sn-posts-hero-h', 'sn-prov-paper-blurb',
+	'sn-now-item-text', 'sn-now-meta', 'sn-prov-paper-blurb',
 	'sn-prov-paper-card', 'sn-prov-paper-longform', 'sn-prov-paper-meta', 'sn-prov-paper-subtitle',
 	'sn-prov-paper-title', 'sn-prov-papers', 'sn-prov-series', 'sn-prov-series-footer',
 	'sn-prov-series-heading', 'sn-prov-series-intro', 'sn-prov-verify',
