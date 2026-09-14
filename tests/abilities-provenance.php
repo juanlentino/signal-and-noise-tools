@@ -34,12 +34,12 @@ require __DIR__ . '/../inc/abilities-provenance.php';
 
 // ─── Group A: overview degrades to the empty shape without its seams ─────
 $empty = snt_prov_anchor_overview();
-ok( array( 'pending' => array(), 'confirmed' => 0, 'total' => 0 ) === $empty,
+ok( array( 'pending' => array(), 'recording' => array(), 'confirmed' => 0, 'total' => 0 ) === $empty,
 	'overview returns the honest empty shape when WP seams are absent' );
 
 // ─── Group B: aggregation over a stubbed corpus ──────────────────────────
 define( 'SN_PROV_UID_META', '_sn_prov_uid' );
-function get_posts( $args ) { return array( 11, 22, 33, 44 ); }
+function get_posts( $args ) { return array( 11, 22, 33, 44, 55 ); }
 function get_the_title( $id ) { return 'Note ' . $id; }
 function sn_prov_get_chain( $id ) {
 	$chains = array(
@@ -54,12 +54,19 @@ function sn_prov_get_chain( $id ) {
 		33 => array( array( 'version' => 1, 'status' => 'pending' ) ),
 		// 44: uid meta exists but no chain yet — must not be counted or listed.
 		44 => array(),
+		// 55 (v14.6.2): a freshly minted v2, persisted `unanchored`, dispatch in
+		// the settle window. The theme shows RECORDING · V2; the widget said
+		// "no anchors pending". Neither confirmed nor pending: the THIRD state.
+		55 => array(
+			array( 'version' => 1, 'status' => 'confirmed', 'bitcoin_block' => 964812 ),
+			array( 'version' => 2, 'status' => 'unanchored' ),
+		),
 	);
 	return $chains[ $id ] ?? array();
 }
 
 $ov = snt_prov_anchor_overview();
-ok( 3 === $ov['total'], 'total counts only posts WITH a chain (chainless post excluded), got ' . $ov['total'] );
+ok( 4 === $ov['total'], 'total counts only posts WITH a chain (chainless post excluded), got ' . $ov['total'] );
 ok( 1 === $ov['confirmed'], 'one note fully confirmed' );
 ok( 2 === count( $ov['pending'] ), 'two pending rows' );
 
@@ -73,6 +80,8 @@ ok( null !== $p11 && 3 === $p11['confirmations'], 'pending row carries the live 
 ok( null !== $p11 && 0 === strpos( $p11['bitcoin_txid'], 'ab12cd34' ), 'pending row carries the in-flight txid' );
 ok( null !== $p11 && 'Note 11' === $p11['title'], 'pending row carries the post title' );
 ok( null !== $p33 && null === $p33['confirmations'], 'missing confirmation count stays null — never a fabricated 0' );
+ok( array( array( 'post_id' => 55, 'title' => 'Note 55', 'version' => 2 ) ) === $ov['recording'], 'a minted-not-yet-dispatched version is a RECORDING row (post 55 v2), not "anchored" and not "pending"' );
+ok( 1 === $ov['confirmed'] && 4 === $ov['total'] && 1 + count( $ov['pending'] ) + count( $ov['recording'] ) === $ov['total'], 'confirmed + pending + recording = total: no note falls between the lists' );
 
 // ─── Group C: registration on the canonical hook ─────────────────────────
 $GLOBALS['__abilities'] = array();
@@ -99,7 +108,7 @@ ok( false === ( $sw['meta']['annotations']['destructive'] ?? null ), 'anchor-swe
 
 // ─── Group D: execute callbacks ──────────────────────────────────────────
 $status = call_user_func( $st['execute_callback'] );
-ok( is_array( $status ) && 3 === $status['total'], 'anchor-status execute returns the overview' );
+ok( is_array( $status ) && 4 === $status['total'] && array_key_exists( 'recording', $status ), 'anchor-status execute returns the overview, recording list included' );
 
 $sweep_absent = call_user_func( $sw['execute_callback'] );
 ok( false === $sweep_absent['ok'] && 'unavailable' === $sweep_absent['error'],

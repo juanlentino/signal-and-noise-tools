@@ -16,7 +16,8 @@
  * the anchor-sweep ability for the action. Both via the shared run-path.
  *
  * Contract (snt_ability_anchor_status): { pending: [ { post_id, title,
- * version, bitcoin_txid, confirmations|null } ], confirmed, total }.
+ * version, bitcoin_txid, confirmations|null } ], recording: [ { post_id,
+ * title, version } ], confirmed, total }.
  * `confirmations: null` is "not recorded", never rendered as 0/6.
  *
  * @since plugin v9.78.0
@@ -85,12 +86,13 @@
 			} );
 
 			var pending   = ( overview && overview.pending ) || [];
+			var recording = ( overview && overview.recording ) || []; // v14.6.2: minted, not yet at the Worker.
 			var confirmed = overview ? Number( overview.confirmed ) || 0 : 0;
 			var total     = overview ? Number( overview.total ) || 0 : 0;
 
 			if ( ! overview ) {
 				wrap.appendChild( el( 'p', { style: 'margin:0;opacity:.7;', text: note || 'Anchor status unavailable.' } ) );
-			} else if ( ! pending.length ) {
+			} else if ( ! pending.length && ! recording.length ) {
 				// The honest idle state — this is what the widget shows most days.
 				wrap.appendChild( el( 'p', {
 					style: 'margin:0;font-weight:600;color:#3fb950;',
@@ -101,10 +103,29 @@
 					text:  'No anchors pending.',
 				} ) );
 			} else {
+				var parts = [];
+				if ( recording.length ) { parts.push( recording.length + ' recording' ); }
+				if ( pending.length )   { parts.push( pending.length + ' pending' ); }
 				wrap.appendChild( el( 'p', {
 					style: 'margin:0 0 6px;font-weight:600;color:#d29922;',
-					text:  pending.length + ' pending · ' + confirmed + ' anchored',
+					text:  parts.join( ' · ' ) + ' · ' + confirmed + ' of ' + total + ' anchored',
 				} ) );
+				// A freshly minted version: the commit exists, the Worker has not
+				// answered yet. Nothing to poll; the settle window does the work.
+				recording.forEach( function( row ) {
+					var line = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+					line.appendChild( el( 'span', {
+						text:  ( row.title || ( '#' + row.post_id ) ) + ' v' + row.version,
+						title: row.title || '',
+						style: 'opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+					} ) );
+					line.appendChild( el( 'span', {
+						text:  'recording',
+						title: 'Committed locally; the anchor dispatch has not reached the Worker yet.',
+						style: 'font-weight:600;color:#d29922;flex:0 0 auto;',
+					} ) );
+					wrap.appendChild( line );
+				} );
 				pending.forEach( function( row ) {
 					var line = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
 					line.appendChild( el( 'span', {
