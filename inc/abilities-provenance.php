@@ -36,11 +36,19 @@ if ( ! defined( 'ABSPATH' ) ) {
  * would fabricate state the ledger never recorded.
  *
  * @since 9.78.0
- * @return array{pending:array<int,array>,confirmed:int,total:int}
+ * @return array{pending:array<int,array>,recording:array<int,array>,confirmed:int,total:int}
  */
 function snt_prov_anchor_overview() {
 	$out = array(
 		'pending'   => array(),
+		// v14.6.2: the THIRD state. A commit is `unanchored` from the moment
+		// it is persisted until the settle-window dispatch reaches the Worker
+		// and the Worker answers `pending`; the theme presents that as
+		// "Recording". The overview counted only confirmed and pending, so a
+		// note that had just minted v2 read as "40 of 41 anchored, no anchors
+		// pending" while its page said RECORDING · V2. Absent from both lists
+		// is not the same as anchored.
+		'recording' => array(),
 		'confirmed' => 0,
 		'total'     => 0,
 	);
@@ -70,6 +78,14 @@ function snt_prov_anchor_overview() {
 		$status = (string) ( $latest['status'] ?? 'unanchored' );
 		if ( 'confirmed' === $status ) {
 			$out['confirmed']++;
+			continue;
+		}
+		if ( 'unanchored' === $status && (int) ( $latest['version'] ?? 0 ) >= 1 ) {
+			$out['recording'][] = array(
+				'post_id' => (int) $post_id,
+				'title'   => function_exists( 'get_the_title' ) ? (string) get_the_title( (int) $post_id ) : '',
+				'version' => (int) ( $latest['version'] ?? 0 ),
+			);
 			continue;
 		}
 		if ( 'pending' === $status ) {
@@ -122,6 +138,7 @@ function snt_abilities_provenance_register() {
 			'type'       => 'object',
 			'properties' => array(
 				'pending'   => array( 'type' => 'array' ),
+				'recording' => array( 'type' => 'array', 'description' => 'v14.6.2: commits persisted and not yet accepted by the Worker (the theme\'s "Recording" badge): {post_id, title, version}. Neither confirmed nor pending; a note here is NOT anchored yet.' ),
 				'confirmed' => array( 'type' => 'integer' ),
 				'total'     => array( 'type' => 'integer' ),
 			),
