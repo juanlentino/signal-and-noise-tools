@@ -111,7 +111,10 @@ function cloudflare_probes_html( array $d ) {
 }
 
 /**
- * The cache status box: configured (with the last purge) or not.
+ * The cache status: one facts list. Auto-purge, the last purge, the
+ * Cloudways leg when that module is configured, and the probe tally. 15.1.0
+ * folded three stacked notices into this; the not-configured state keeps its
+ * warning because it is a state, not a fact.
  *
  * @param array<string,mixed> $d From cloudflare_data().
  * @return string
@@ -125,26 +128,36 @@ function cloudflare_status_html( array $d ) {
 		);
 	}
 	$last = (array) $d['last_purge'];
-	$line = '';
+	$when = __( 'never', 'signal-and-noise-tools' );
 	if ( ! empty( $last['time'] ) ) {
 		$kind = ( 'all' === (string) ( $last['kind'] ?? '' ) )
 			? __( 'full zone', 'signal-and-noise-tools' )
 			/* translators: %d: URLs purged */
 			: sprintf( __( '%d URL(s)', 'signal-and-noise-tools' ), (int) ( $last['count'] ?? 0 ) );
 		/* translators: 1: how long ago, 2: what was purged */
-		$line = ' ' . sprintf( __( 'Last purge: %1$s ago (%2$s).', 'signal-and-noise-tools' ), human_time_diff( (int) $last['time'], time() ), $kind );
+		$when = sprintf( __( '%1$s ago (%2$s)', 'signal-and-noise-tools' ), human_time_diff( (int) $last['time'], time() ), $kind );
 	}
-	return \snt_kit_notice(
-		'ok',
-		'<b>' . \snt_kit_esc( __( 'Configured: auto-purge active', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_badge( 'ok', __( 'Active', 'signal-and-noise-tools' ) ) . '<br>'
-		. \snt_kit_esc( __( 'Cache purges fire automatically on post save, theme update, and via the REST endpoint.', 'signal-and-noise-tools' ) . $line )
+	$rows = array(
+		array( 'label' => __( 'Auto-purge', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_badge( 'ok', __( 'Active', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_esc( __( 'on post save, theme update and the REST endpoint', 'signal-and-noise-tools' ) ) ),
+		array( 'label' => __( 'Last purge', 'signal-and-noise-tools' ), 'value' => $when ),
 	);
+	$cw = cloudflare_cloudways_row( $d['cloudways'] );
+	if ( null !== $cw ) {
+		$rows[] = $cw;
+	}
+	$log = (array) ( $d['probe_log'] ?? array() );
+	if ( array() !== $log ) {
+		$stale = count( array_filter( $log, static function ( $r ) { return 'stale' === (string) ( $r['result'] ?? '' ); } ) );
+		$rows[] = array( 'label' => __( 'Post-purge probes', 'signal-and-noise-tools' ), 'value' => sprintf( /* translators: 1: retained, 2: stale */ __( '%1$d retained, %2$d stale', 'signal-and-noise-tools' ), count( $log ), $stale ), 'tone' => $stale > 0 ? 'warn' : '' );
+	}
+	return \snt_kit_kv( $rows );
 }
 
 /**
- * The manual purge card: `<os-card compact>` with header / body / footer
- * (kit-help "Card"), the button posting `cf_purge_now` through the shared
- * handler table and disabled until configured, as the classic button is.
+ * The manual purge card. 15.1.0: the button runs the SAME chain as
+ * Dashboard › Maintenance (object cache, Breeze, Varnish, then Cloudflare,
+ * verified). Until then it purged Cloudflare alone, and the edge refilled
+ * from the stale copy Varnish still held.
  *
  * @param array<string,mixed> $d From cloudflare_data().
  * @return string
@@ -153,29 +166,29 @@ function cloudflare_purge_html( array $d ) {
 	return \snt_kit_tag(
 		'os-card',
 		array( 'compact' => true ),
-		'<header><h3>' . \snt_kit_esc( __( 'Purge Everything Now', 'signal-and-noise-tools' ) ) . '</h3></header>'
-		. '<p>' . \snt_kit_esc( __( 'Clears the entire Cloudflare zone cache. Use after manual edits to global elements.', 'signal-and-noise-tools' ) ) . '</p>'
-		. '<footer>' . \snt_kit_action_button( __( 'Purge Cloudflare', 'signal-and-noise-tools' ), 'cf_purge_now', array( 'disabled' => empty( $d['is_configured'] ) ) ) . '</footer>'
+		'<header><h3>' . \snt_kit_esc( __( 'Purge all caches', 'signal-and-noise-tools' ) ) . '</h3></header>'
+		. '<p>' . \snt_kit_esc( __( 'Object cache, Breeze, Varnish, then Cloudflare, in that order, verified. The same action as Dashboard › Maintenance; it lives here too because this is where the token changes.', 'signal-and-noise-tools' ) ) . '</p>'
+		. '<footer>' . \snt_kit_action_button( __( 'Purge all caches', 'signal-and-noise-tools' ), 'cf_purge_now', array( 'disabled' => empty( $d['is_configured'] ) ) ) . '</footer>'
 	);
 }
 
 /**
- * The Cloudways purge status, when that module is configured: it rides the
- * same purge chain, so a failed leg is visible next to the rest of it.
+ * The Cloudways leg as one facts row, when that module is configured: it
+ * rides the same purge chain, so a failed leg is visible next to the rest.
  *
  * @param array<string,mixed>|null $cw SNT_CW_LAST_PURGE_OPT, or null when Cloudways is not configured.
- * @return string
+ * @return array<string,mixed>|null
  */
-function cloudflare_cloudways_html( $cw ) {
+function cloudflare_cloudways_row( $cw ) {
 	if ( ! is_array( $cw ) ) {
-		return '';
+		return null;
 	}
 	$attempted = ! empty( $cw['time'] );
 	$warn      = $attempted && empty( $cw['ok'] );
-	$line      = '';
+	$line      = __( 'Varnish leg of the same chain.', 'signal-and-noise-tools' );
 	if ( $attempted ) {
 		/* translators: %s: how long ago */
-		$line = ' ' . sprintf( __( 'Last attempt: %s ago.', 'signal-and-noise-tools' ), human_time_diff( (int) $cw['time'], time() ) );
+		$line .= ' ' . sprintf( __( 'Last attempt: %s ago.', 'signal-and-noise-tools' ), human_time_diff( (int) $cw['time'], time() ) );
 		if ( $warn ) {
 			$line .= ' HTTP ' . (string) ( $cw['http'] ?? 0 );
 			if ( '' !== trim( (string) ( $cw['error'] ?? '' ) ) ) {
@@ -184,9 +197,5 @@ function cloudflare_cloudways_html( $cw ) {
 		}
 	}
 	$pill = $warn ? __( 'Error', 'signal-and-noise-tools' ) : ( $attempted ? __( 'OK', 'signal-and-noise-tools' ) : __( 'Active', 'signal-and-noise-tools' ) );
-	return \snt_kit_notice(
-		$warn ? 'warn' : 'ok',
-		'<b>' . \snt_kit_esc( __( 'Cloudways purge', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_badge( $warn ? 'warn' : 'ok', $pill ) . '<br>'
-		. \snt_kit_esc( __( 'Rides the same purge chain (Varnish leg).', 'signal-and-noise-tools' ) . $line )
-	);
+	return array( 'label' => __( 'Cloudways purge', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_badge( $warn ? 'warn' : 'ok', $pill ) . ' ' . \snt_kit_esc( $line ), 'tone' => $warn ? 'warn' : '' );
 }

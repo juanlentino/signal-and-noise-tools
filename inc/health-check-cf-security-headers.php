@@ -235,6 +235,7 @@ function sn_health_check_cf_security_headers() {
  *
  * @since 13.110.0
  * @since 14.0.4 Reads the Better Stack witness instead of probing from the origin.
+ * @since 15.1.0 Reads Cloudflare's firewall log first; a custom-rule block on the abilities path is the rule firing.
  * @return array{verdict:string,why:string} verdict 'blocked'|'open'|'unknown'.
  */
 function sn_health_cf_waf_abilities_probe() {
@@ -243,6 +244,25 @@ function sn_health_cf_waf_abilities_probe() {
 	};
 	$witness_url = home_url( '/wp-json/wp-abilities/v1/abilities' );
 	$how_to      = 'add a Better Stack HTTP monitor on ' . $witness_url . ' (and one on the ?rest_route=/wp-abilities/v1/abilities spelling) with a request header "Authorization: Basic x" and expected status code 403.';
+
+	// 15.1.0: Cloudflare's own firewall log is a witness from the other side
+	// of the perimeter. A block by the custom rule on an abilities path in
+	// the last day IS the rule firing; no probe from here and no Better
+	// Stack monitor needed on such a day. An empty log proves nothing (nobody
+	// may have knocked), so it falls through to the outside witness below.
+	if ( function_exists( 'sn_cf_firewall_events_read' ) ) {
+		$log = sn_cf_firewall_events_read();
+		if ( is_array( $log ) && ! empty( $log['available'] ) && (int) ( $log['fetched_at'] ?? 0 ) > time() - 2 * DAY_IN_SECONDS ) {
+			$hits = sn_cf_firewall_events_abilities_blocks( (array) $log['rows'] );
+			if ( $hits ) {
+				$n = 0;
+				foreach ( $hits as $h ) {
+					$n += (int) ( $h['weight'] ?? 1 );
+				}
+				return array( 'verdict' => 'blocked', 'why' => sprintf( 'Cloudflare\'s firewall log shows the rule "%s" blocking %d request(s) on the abilities API in the last day.', (string) ( $hits[0]['description'] ?? '' ), $n ) );
+			}
+		}
+	}
 
 	if ( ! function_exists( 'sn_uptime_status_configured' ) || ! function_exists( 'sn_uptime_status_api_get' ) ) {
 		return $unknown( 'the Better Stack module is not loaded.' );

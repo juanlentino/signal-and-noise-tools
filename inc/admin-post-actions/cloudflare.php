@@ -54,7 +54,14 @@ function sn_handle_cf_save( $post ) {
 }
 
 function sn_handle_cf_purge_now( $post ) {
-	return sn_cf_purge_everything() ? 'cf_purged_ok' : 'cf_purged_unconfigured';
+	unset( $post );
+	if ( ! function_exists( 'sn_cf_is_configured' ) || ! sn_cf_is_configured() ) {
+		return 'cf_purged_unconfigured';
+	}
+	// 15.1.0: the full chain, verified, the same as purge_caches. Cloudflare
+	// alone left Varnish holding the stale copy the edge then refilled from.
+	apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false, 'verified' => true ) );
+	return 'purged';
 }
 
 /**
@@ -70,6 +77,9 @@ function sn_handle_cf_monitor_refresh( $post ) {
 		return 'cf_monitor_unavailable';
 	}
 	$r = sn_cf_monitor_refresh();
+	if ( function_exists( 'sn_cf_firewall_events_refresh' ) ) {
+		sn_cf_firewall_events_refresh(); // 15.1.0: the event log rides the same button.
+	}
 	return ! empty( $r['configured'] ) ? 'cf_monitor_refreshed' : 'cf_purged_unconfigured';
 }
 
