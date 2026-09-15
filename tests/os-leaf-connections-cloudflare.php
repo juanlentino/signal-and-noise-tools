@@ -29,6 +29,7 @@ require SNT_PATH . 'inc/admin-render-sections.php';
 require SNT_PATH . 'inc/cloudflare-purge-verify.php';
 require SNT_PATH . 'inc/cloudflare-purge.php';
 require SNT_PATH . 'inc/cloudflare-monitor.php'; // 14.9.0: the monitor section + its Refresh action, on both leaves
+require SNT_PATH . 'inc/cloudflare-firewall-events.php'; // 15.1.0: the event log's tops paint under the firewall reading
 require SNT_PATH . 'inc/cloudflare-credentials.php'; // 14.10.0: the account id + grant list
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-cloudflare.php';
 
@@ -155,6 +156,14 @@ ok( in_array( 'sn_cf_account_id', snt_leaf_names( $kit ), true ) && in_array( 's
 ok( false !== strpos( $kit, 'Grants this token needs' ) && false !== strpos( $kit, 'Account Analytics › Read' ) && false !== strpos( $kit, 'Cache Purge › Purge' ), 'the grant list paints on the kit leaf: one place to compare against the token summary' );
 // 14.9.0: the monitor section paints on the kit leaf, honest about never having run.
 ok( false !== strpos( $kit, 'The monitor has not run yet' ) && false !== strpos( $kit, 'cf_monitor_refresh' ), 'the Monitor section says the monitor has not run and offers Refresh now' );
+// 15.1.0: with a stored reading and an event log, the firewall block paints
+// the log's weighted tops (paths, countries) beside the by-action list.
+$opts_before = $GLOBALS['__options'];
+$GLOBALS['__options'][ SN_CF_MONITOR_OPT ]   = array( 'fetched_at' => time(), 'configured' => true, 'token' => array( 'verified' => true, 'status' => 'active', 'expires_on' => '', 'error' => '', 'kind' => 'user' ), 'zone' => array( 'available' => false, 'needs_permission' => false, 'error' => 'x' ), 'firewall' => array( 'available' => true, 'events' => 4, 'by_action' => array( 'block' => 4 ), 'top_rules' => array(), 'dataset' => 'raw', 'truncated' => false ) );
+$GLOBALS['__options'][ SN_CF_FW_EVENTS_OPT ] = array( 'fetched_at' => time(), 'configured' => true, 'available' => true, 'rows' => array( array( 'clientRequestPath' => '/xmlrpc.php', 'clientCountryName' => 'CN', 'weight' => 3 ), array( 'clientRequestPath' => '/wp-login.php', 'clientCountryName' => 'CN', 'weight' => 1 ) ), 'truncated' => true );
+$with_log = snt_leaf_paint( 'connections', 'cloudflare' );
+ok( false !== strpos( $with_log, 'Top paths acted on' ) && false !== strpos( $with_log, '/xmlrpc.php' ) && false !== strpos( $with_log, 'Top countries acted on' ) && strpos( $with_log, '/xmlrpc.php' ) < strpos( $with_log, '/wp-login.php' ) && false !== strpos( $with_log, 'these are a floor' ) && false !== strpos( $with_log, 'grouped dataset is not on this zone' ), 'the event log paints its tops, heaviest first, says the page was full, and the raw-dataset note shows' );
+$GLOBALS['__options'] = $opts_before;
 ok( false !== strpos( $kit, 'value="zoneconst0123456789" disabled' ), 'both locked: the zone field is disabled with the lock explained' );
 define( 'SN_CF_ACCOUNT_ID', 'acctconst0123456789' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );

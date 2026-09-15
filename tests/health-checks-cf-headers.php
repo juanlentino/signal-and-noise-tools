@@ -98,7 +98,11 @@ function wp_remote_retrieve_body( $resp ) {
 // which reads this option. Unset by default so the header tests (1-9) see the
 // witness as unconfigured and stay about headers.
 $GLOBALS['__test_bs_token'] = '';
+$GLOBALS['__test_fw_log']   = null; // 15.1.0: the stored firewall log (tests 17-18); null = never run, so 10-16 fall through to Better Stack.
 function get_option( $key, $default = false ) {
+	if ( 'sn_cf_firewall_events' === $key ) {
+		return null === $GLOBALS['__test_fw_log'] ? $default : $GLOBALS['__test_fw_log'];
+	}
 	return 'sn_betterstack_api_token' === $key ? $GLOBALS['__test_bs_token'] : $default;
 }
 function wp_remote_retrieve_response_code( $resp ) {
@@ -435,6 +439,43 @@ $GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abi
 $check = sn_health_check_cf_security_headers();
 cf_eq( 0, $check['count'], 'a foreign host\'s witness does not count against this site' );
 cf_eq( 'blocked', $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ?? null, 'our witness up → blocked' );
+
+// ─── Tests 17-18: Cloudflare's own firewall log as the witness (15.1.0) ──
+// The REAL reader and matcher, over the stored option (stubbed in
+// get_option above; null until here, so tests 10-16 fell through to Better
+// Stack exactly as before). A custom-rule block on an abilities path in a
+// fresh log IS the rule firing; an empty or stale log proves nothing and
+// the outside witness is read as before.
+if ( ! defined( 'SN_CF_MONITOR_HOOK' ) ) { define( 'SN_CF_MONITOR_HOOK', 'sn_cf_monitor_daily' ); }
+require_once dirname( __DIR__ ) . '/inc/cloudflare-firewall-events.php';
+$fw_hit = array( 'action' => 'block', 'source' => 'firewallCustom', 'description' => 'Block Basic-auth on abilities API', 'clientRequestPath' => '/wp-json/wp-abilities/v1/abilities', 'clientRequestQuery' => '', 'weight' => 3 );
+
+echo "\nTest 17: the firewall log shows the custom rule blocking the abilities API → blocked, Better Stack never asked\n";
+waf_reset();
+$GLOBALS['__test_fw_log'] = array( 'fetched_at' => time() - 3600, 'available' => true, 'rows' => array( $fw_hit ) );
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abilities_url, 'down' ) ) ); // a down witness that would say open, if read
+$check = sn_health_check_cf_security_headers();
+cf_eq( 0, $check['count'], 'the log is the witness: the rule fired, 0 findings' );
+cf_eq( 0, $GLOBALS['__test_get_calls'], 'Better Stack was not read' );
+cf_eq( 'blocked', $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ?? null, 'verdict cached as blocked' );
+$probe = sn_health_cf_waf_abilities_probe();
+cf_true( false !== strpos( $probe['why'], 'Block Basic-auth on abilities API' ) && false !== strpos( $probe['why'], 'blocking 3 request' ), 'the why names the rule and the weighted count' );
+
+echo "\nTest 18: an empty log, or a stale one, proves nothing → the outside witness decides as before\n";
+waf_reset();
+$GLOBALS['__test_fw_log'] = array( 'fetched_at' => time() - 3600, 'available' => true, 'rows' => array( $fw_hit + array( 'source' => 'firewallManaged' ) ) );
+$GLOBALS['__test_fw_log']['rows'][0]['source'] = 'firewallManaged';
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abilities_url, 'down' ) ) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 1, $check['count'], 'a managed-rule block is not this rule: fell through, and the down witness says open' );
+cf_eq( 1, $GLOBALS['__test_get_calls'], 'Better Stack was read' );
+waf_reset();
+$GLOBALS['__test_fw_log'] = array( 'fetched_at' => time() - 3 * 86400, 'available' => true, 'rows' => array( $fw_hit ) );
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abilities_url, 'up' ) ) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 0, $check['count'], 'a three-day-old hit is stale evidence: fell through, the up witness decided' );
+cf_eq( 1, $GLOBALS['__test_get_calls'], 'Better Stack was read for the stale log' );
+$GLOBALS['__test_fw_log'] = null;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

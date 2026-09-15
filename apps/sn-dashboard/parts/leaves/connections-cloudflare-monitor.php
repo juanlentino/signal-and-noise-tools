@@ -87,6 +87,21 @@ function cloudflare_monitor_html( array $d ) {
 			}
 			$inner .= '<h4 class="snt-h">' . \snt_kit_esc( sprintf( /* translators: %s: count. */ __( 'Firewall, 24 hours: %s events', 'signal-and-noise-tools' ), number_format_i18n( (int) $f['events'] ) ) ) . '</h4>';
 			$inner .= array() !== $rows ? \snt_kit_list( $rows ) : '<p class="snt-hint">' . \snt_kit_esc( __( 'No firewall events in the window.', 'signal-and-noise-tools' ) ) . '</p>';
+			// 15.1.0: from the event log, what the origin never saw: the paths
+			// and countries Cloudflare acted on. Weighted by sampleInterval.
+			$log = function_exists( 'sn_cf_firewall_events_read' ) ? sn_cf_firewall_events_read() : null;
+			if ( is_array( $log ) && ! empty( $log['available'] ) && array() !== (array) $log['rows'] ) {
+				foreach ( array( 'clientRequestPath' => __( 'Top paths acted on', 'signal-and-noise-tools' ), 'clientCountryName' => __( 'Top countries acted on', 'signal-and-noise-tools' ) ) as $field => $heading ) {
+					$top_rows = array();
+					foreach ( sn_cf_firewall_events_top( (array) $log['rows'], $field, 5 ) as $value => $n ) {
+						$top_rows[] = array( 'label' => (string) $value, 'value' => number_format_i18n( (int) $n ) );
+					}
+					$inner .= '<h4 class="snt-h">' . \snt_kit_esc( $heading ) . '</h4>' . \snt_kit_list( $top_rows );
+				}
+				if ( ! empty( $log['truncated'] ) ) {
+					$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'The event log had more rows than one page holds; these are a floor.', 'signal-and-noise-tools' ) ) . '</p>';
+				}
+			}
 			if ( 'raw' === (string) ( $f['dataset'] ?? '' ) ) {
 				// 15.0.1: the grouped dataset is not on this zone's plan; the raw one is.
 				$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Read from the raw firewallEventsAdaptive dataset and grouped here; the grouped dataset is not on this zone\'s plan.', 'signal-and-noise-tools' ) . ( ! empty( $f['truncated'] ) ? ' ' . __( 'The day had more events than one page holds; the counts are a floor.', 'signal-and-noise-tools' ) : '' ) ) . '</p>';
