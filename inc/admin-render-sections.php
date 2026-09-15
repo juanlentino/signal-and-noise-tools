@@ -30,6 +30,11 @@ function sn_admin_render_cloudflare_section() {
 }
 
 /** Connections → Cloudways (v12.17.0): display-only origin-cache status. */
+/** Connections → Credentials (15.2.0): the keyring's classic leaf. */
+function sn_admin_render_credentials_section() {
+	do_action( 'sn_admin_credentials_tab' );
+}
+
 function sn_admin_render_cloudways_section() {
 	do_action( 'sn_admin_cloudways_tab' );
 }

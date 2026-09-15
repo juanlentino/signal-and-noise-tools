@@ -187,24 +187,22 @@ function sn_webhooks_render_admin_tab() {
 	//
 	// The Spend-watch credentials (GitHub billing, Anthropic admin) render into
 	// this same fieldset from inc/spend-watch.php and are untouched.
-	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	// 15.2.0: the three monitoring credentials (Better Stack, the GitHub
+	// billing token, the Anthropic admin key) are rows on the keyring; this
+	// fieldset reads them and says where each comes from.
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Uptime monitoring</h2>';
-	echo '<p class="sn-fieldset-intro">Better Stack polls this site from outside and reports here. Add a read-scope Uptime API token to power the status rail on this tab and the S&amp;N Uptime dashboard widget.</p>';
-
-	// v8.2.0: Uptime API token — powers the in-admin status panel (the rail
-	// on this tab + the S&N Uptime dashboard widget). Saved by the same
-	// monitoring_save action; render + masking live in inc/uptime-status.php.
-	if ( function_exists( 'sn_uptime_status_token_field_html' ) ) {
-		echo sn_uptime_status_token_field_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper escapes at build.
+	echo '<p class="sn-fieldset-intro">Better Stack polls this site from outside and reports here. Its read-scope Uptime API token powers the status rail on this tab and the S&amp;N Uptime dashboard widget.</p>';
+	if ( function_exists( 'sn_keyring_source' ) ) {
+		echo '<table class="widefat"><tbody>';
+		foreach ( array( 'betterstack_token' => 'Better Stack API token', 'github_token' => 'GitHub billing token', 'anthropic_admin_key' => 'Anthropic admin key' ) as $id => $label ) {
+			$src = sn_keyring_source( $id );
+			echo '<tr><th scope="row">' . esc_html( $label ) . '</th><td>' . esc_html( 'constant' === $src ? 'locked in wp-config.php' : ( '' !== $src ? 'saved' : 'not set' ) ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
 	}
-
-	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" name="sn_action" value="monitoring_save" class="button button-primary">Save monitoring</button>';
-	echo '</div>';
+	echo '<p class="sn-field-helper">Set with every other key under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=connections&sub=credentials' ) ) . '">Connections › Credentials</a>.</p>';
 	echo '</div>'; // .sn-fieldset
-	echo '</form>';
 
 	// ── RAIL: at-a-glance status + payload reference ──
 	sn_admin_shell_rail( 'Status & reference' );

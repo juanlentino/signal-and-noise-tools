@@ -33,10 +33,13 @@ function sn_admin_post_handlers() {
 		'full_reset'                 => 'sn_handle_full_reset',
 		'save_identity'              => 'sn_handle_save_identity',
 		'save_login'                 => 'sn_handle_save_login',
-		'cf_save'                    => 'sn_handle_cf_save',
 		'cf_purge_now'               => 'sn_handle_cf_purge_now',
 		'cf_monitor_refresh'         => 'sn_handle_cf_monitor_refresh', // 14.9.0
-		'analytics_use_central_token' => 'sn_handle_analytics_use_central_token', // 14.10.0
+		// 15.2.0: cf_save, analytics_save, analytics_use_central_token and
+		// monitoring_save left the map with their forms; the keyring's two
+		// actions replace all four. Their handlers stay, deprecated, one release.
+		'keyring_save'               => 'sn_handle_keyring_save',   // 15.2.0
+		'keyring_verify'             => 'sn_handle_keyring_verify', // 15.2.0
 		'health_scan'                => 'sn_handle_health_scan',
 		'remote_toggle'              => 'sn_handle_remote_toggle',
 		'webhook_add'                => 'sn_handle_webhook_add',
@@ -63,7 +66,6 @@ function sn_admin_post_handlers() {
 		'resume_save'                => 'sn_handle_resume_save',
 		'pattern_adoption_scan'      => 'sn_handle_pattern_adoption_scan',
 		'block_migrations_scan'      => 'sn_handle_block_migrations_scan',
-		'monitoring_save'            => 'sn_handle_monitoring_save',
 		'perf_save'                  => 'sn_handle_perf_save',
 		'save_theme'                 => 'sn_handle_save_theme',
 		'ai_settings_save'           => 'sn_handle_ai_settings_save',
@@ -78,7 +80,6 @@ function sn_admin_post_handlers() {
 		'indexnow_save'              => 'sn_handle_indexnow_save',
 		'indexnow_regenerate'        => 'sn_handle_indexnow_regenerate',
 		'indexnow_ping_now'          => 'sn_handle_indexnow_ping_now',
-		'analytics_save'             => 'sn_handle_analytics_save',
 		'analytics_exclude_save'     => 'sn_handle_analytics_exclude_save',
 		'analytics_test'             => 'sn_handle_analytics_test',
 		'analytics_tuning_save'      => 'sn_handle_analytics_tuning_save',

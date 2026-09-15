@@ -165,6 +165,7 @@ function sn_mcp_remote_verdicts() {
 		// current content?" is worth answering from a phone, and the payload
 		// names no unpublished content). Revisit when the shape settles.
 		'cloudflare'           => $out( false, 'Carries the API token\'s status and expiry and the zone\'s traffic and firewall figures: operational detail about the perimeter, which is the one thing the remote door must not describe. Local only.' ),
+		'keyring'              => $out( false, 'Names every credential the plugin holds and which are unset or refused: a map of the perimeter\'s keys. Operational detail nobody needs from a phone, and a list an attacker would want.' ),
 		'cache'                => $out( false, 'A good remote candidate on the merits, but the payload shipped today and a twin freezes its shape byte-identically. Gated on the shape ledger reporting settled, which is the discipline this plugin built for exactly this decision. Local only for now.' ),
 		'search_crossexam'     => $out( true, 'Ratified by the owner 2026-09-01 (v13.67.0): a window-grain agreement verdict — impressions vs search-family fetch counts — with no paths in the payload; the ledger side is counts, not rows. Byte-identical twin.', 'signal-noise/remote-search-crossexam' ),
 		'cron_health'          => $out( true, 'The model the partition asked for (v13.52.0): status + derived summary + overdue evidence, sharing the Site Health overdue rule. Byte-identical twin of a section designed for the phone.', 'signal-noise/remote-cron-health-summary' ),

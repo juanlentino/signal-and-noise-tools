@@ -217,13 +217,16 @@ function sn_admin_top_tabs() {
 			'tab'      => 'connections',
 			'label'    => 'Connections',
 			'title'    => 'Signal & Noise. Connections',
-			'subtitle' => 'Everything that talks to a third party: Cloudflare, webhooks, IndexNow, the Spotify discography, and scheduled jobs.',
+			'subtitle' => 'Everything that talks to a third party: the credentials in one place, Cloudflare, webhooks, IndexNow, the Spotify discography, and scheduled jobs.',
 			'sub_tabs' => array(
 				// Cloudflare moved from Site; webhooks/indexnow/cron from the retired
 				// Automation tab (v6.18.0). 'wide' (Phase 3, v6.45.0): all
 				// Connections leaves use the full-width layout — Cloudflare/Webhooks lay
 				// out work + status/reference in the two-column sn_admin_shell; Cron and
 				// Scheduled lead with a glance hero over a full-width data table.
+				// 15.2.0: every credential in one place, first, because it is the
+				// precondition for every other leaf under this tab.
+				'credentials'       => array( 'label' => 'Credentials', 'render' => 'sn_admin_render_credentials_section', 'wide' => true ),
 				'cloudflare'        => array( 'label' => 'Cloudflare', 'render' => 'sn_admin_render_cloudflare_section', 'wide' => true ),
 				// v12.17.0: Cloudways sits directly under Cloudflare because the two
 				// are the same job at two layers — edge cache and origin cache — and

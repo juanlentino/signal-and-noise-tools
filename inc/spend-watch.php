@@ -302,6 +302,7 @@ function sn_spend_watch_handle_save( $post ) {
  *
  * @return string
  */
+// @deprecated 15.2.0: unreachable, its form moved to the keyring (Connections › Credentials); removed next release.
 function sn_spend_watch_settings_fields_html() {
 	$html   = '';
 	$fields = array(

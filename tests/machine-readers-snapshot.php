@@ -59,6 +59,7 @@ function add_action( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['__actions']
 
 // Real dependencies, not stubs: api.php's declarations are unguarded, so a stub
 // would fatal on redeclare and a hand-modelled shape would drift from the callee.
+if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $t, $v ) { return $v; } } // 15.2.0: the read token passes a filter
 require __DIR__ . '/../inc/machine-readers-taxonomy.php';
 require __DIR__ . '/../inc/machine-readers-api.php';
 require __DIR__ . '/../inc/machine-readers-snapshot.php';

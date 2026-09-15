@@ -21,6 +21,8 @@ function esc_url_raw( $url ) { $url = trim( (string) $url ); return false !== fi
 // v10.2.2 composition group: enough WP surface to render the whole tab.
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $s ) { return (string) $s; } }
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; } }
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
 // Real _n() shape: returns (never echoes) and selects on the count.
 function _n( $single, $plural, $n, $d = null ) { return 1 === (int) $n ? $single : $plural; }

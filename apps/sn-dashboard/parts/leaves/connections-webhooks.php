@@ -68,26 +68,26 @@ function webhooks_add_html() {
 }
 
 /**
- * The monitoring form: the Better Stack token, then the Spend-watch
- * credentials when that module is present — the fields
- * sn_uptime_status_token_field_html() emits, mirrored.
+ * The monitoring section, read-only since 15.2.0: where the Better Stack
+ * token and the spend-watch credentials come from, and the door to the
+ * keyring where they are set.
  *
  * @return string
  */
 function webhooks_monitoring_html() {
-	$fields = '';
-	if ( function_exists( 'sn_uptime_status_token_field_html' ) ) {
-		$fields = webhooks_token_field( 'sn_betterstack_token', __( 'Better Stack API token (optional)', 'signal-and-noise-tools' ), 'SN_BETTERSTACK_API_TOKEN', SN_UPTIME_STATUS_TOKEN_OPT, __( 'Uptime API token (read scope is enough). Powers the in-admin status panel: the dashboard widget and the rail on this tab. Leave the obscured value alone to keep the existing token.', 'signal-and-noise-tools' ), __( 'Paste a fresh token to update; type \'clear\' to remove', 'signal-and-noise-tools' ) );
-		if ( function_exists( 'sn_spend_watch_settings_fields_html' ) ) {
-			$paste   = __( 'Paste a fresh value to update; type \'clear\' to remove', 'signal-and-noise-tools' );
-			$fields .= webhooks_token_field( SN_SPEND_GH_TOKEN_OPT, __( 'GitHub billing token (optional)', 'signal-and-noise-tools' ), 'SN_SPEND_GH_TOKEN', SN_SPEND_GH_TOKEN_OPT, __( 'Classic PAT with the user scope. Powers the account-wide Actions-minutes line in the Health widget. Leave the obscured value alone to keep the existing token.', 'signal-and-noise-tools' ), $paste )
-				. webhooks_token_field( SN_SPEND_AI_KEY_OPT, __( 'Anthropic admin key (optional)', 'signal-and-noise-tools' ), 'SN_SPEND_AI_ADMIN_KEY', SN_SPEND_AI_KEY_OPT, __( 'Organization admin key for the cost report. Powers the month-to-date AI-spend line. Leave the obscured value alone to keep the existing key.', 'signal-and-noise-tools' ), $paste );
+	$rows = array();
+	if ( function_exists( 'sn_keyring_source' ) ) {
+		foreach ( array( 'betterstack_token' => __( 'Better Stack API token', 'signal-and-noise-tools' ), 'github_token' => __( 'GitHub billing token', 'signal-and-noise-tools' ), 'anthropic_admin_key' => __( 'Anthropic admin key', 'signal-and-noise-tools' ) ) as $id => $label ) {
+			$src    = sn_keyring_source( $id );
+			$rows[] = array( 'label' => $label, 'value' => 'constant' === $src ? __( 'locked in wp-config.php', 'signal-and-noise-tools' ) : ( '' !== $src ? __( 'saved', 'signal-and-noise-tools' ) : __( 'not set', 'signal-and-noise-tools' ) ), 'tone' => '' === $src ? 'warn' : '' );
 		}
 	}
+	$inner = ( array() !== $rows ? \snt_kit_kv( $rows ) : '' )
+		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Set with every other key under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'connections' ) ) . '.</p>';
 	return \snt_kit_section(
 		__( 'Uptime monitoring', 'signal-and-noise-tools' ),
-		\snt_kit_form( 'monitoring_save', $fields, array( 'submit' => __( 'Save monitoring', 'signal-and-noise-tools' ) ) ),
-		__( 'Better Stack polls this site from outside and reports here. Add a read-scope Uptime API token to power the status rail on this tab and the S&N Uptime dashboard widget.', 'signal-and-noise-tools' )
+		$inner,
+		__( 'Better Stack polls this site from outside and reports here. Its read-scope Uptime API token powers the status rail on this tab and the S&N Uptime dashboard widget.', 'signal-and-noise-tools' )
 	);
 }
 

@@ -45,9 +45,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string
  */
 function sn_bridge_secret() {
-	return ( defined( 'SN_BRIDGE_TOKEN' ) && '' !== (string) SN_BRIDGE_TOKEN )
+	$token = ( defined( 'SN_BRIDGE_TOKEN' ) && '' !== (string) SN_BRIDGE_TOKEN )
 		? (string) SN_BRIDGE_TOKEN
 		: '';
+	// 15.2.0: the keyring fills an empty constant (a saved row or the site secret).
+	return (string) apply_filters( 'sn_bridge_secret', $token );
 }
 
 /**

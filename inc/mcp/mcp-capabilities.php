@@ -171,6 +171,8 @@ function sn_mcp_allowlist() {
 		'signal-noise/cache-freshness',
 		// 14.9.0 — the Cloudflare monitor's stored record; the sn-status `cloudflare` source. Read door 34 → 35.
 		'signal-noise/cloudflare-status',
+		// 15.2.0 — the keyring's sources and verdicts; the sn-status `keyring` source. Read door 35 → 36.
+		'signal-noise/keyring-status',
 		// v13.57.0 — measurement weave Phase 1. Read-only over the stored
 		// Search Console window; the sn-status sources for search_*.
 		'signal-noise/search-performance',

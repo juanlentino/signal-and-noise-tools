@@ -73,6 +73,8 @@ $GLOBALS['__settings'] = array(
 function sn_setting( $key, $default = '' ) { return $GLOBALS['__settings'][ $key ] ?? $default; }
 $GLOBALS['__configured'] = false;
 function sn_analytics_config() { return $GLOBALS['__configured']; }
+// 15.2.0: the override source the fold reads (inc/cloudflare-credentials.php is the HTTP-side module, not loaded here).
+function sn_cf_analytics_override_source() { return ( defined( 'SN_CF_ANALYTICS_TOKEN' ) && '' !== (string) SN_CF_ANALYTICS_TOKEN ) ? 'constant' : ( '' !== (string) get_option( 'sn_cf_analytics_token', '' ) ? 'option' : '' ); }
 function sn_mask_secret( $s ) { return '' === (string) $s ? '' : str_repeat( '•', 4 ); }
 $GLOBALS['__roles'] = array( 'subscriber' => 'Subscriber', 'editor' => 'Editor' );
 function sn_beacon_excludable_roles() { return $GLOBALS['__roles']; }
@@ -137,7 +139,7 @@ function normalize_exclude_names( array $names ) {
 
 $classic_names = snt_leaf_names( $classic );
 $kit_names     = snt_leaf_names( $kit );
-$expected_names = array( '_wpnonce', 'sn_action', 'sn_an_collector_url', 'sn_anomaly_sensitivity', 'sn_cf_account_id', 'sn_cf_analytics_token', 'sn_exclude_roles[0]', 'sn_exclude_roles[1]', 'sn_funnels', 'sn_signal_baseline_days' );
+$expected_names = array( '_wpnonce', 'sn_action', 'sn_an_collector_url', 'sn_anomaly_sensitivity', 'sn_exclude_roles[0]', 'sn_exclude_roles[1]', 'sn_funnels', 'sn_signal_baseline_days' ); // 15.2.0: the two credential fields moved to the keyring
 sort( $expected_names );
 ok( $expected_names === $kit_names, 'kit field names are exactly the classic writable set (role list now indexed per role): ' . implode( ',', $kit_names ) . ' (classic: ' . implode( ',', $classic_names ) . ')' );
 ok( normalize_exclude_names( $classic_names ) === normalize_exclude_names( $kit_names ), 'the kit form fields match the classic forms name-for-name once the role list’s per-role indexed names are folded back to the classic’s one shared name' );
@@ -146,10 +148,10 @@ $kit_exclude_names = array_values( array_filter( $kit_names, static function ( $
 sort( $kit_exclude_names );
 ok( array( 'sn_exclude_roles[0]', 'sn_exclude_roles[1]' ) === $kit_exclude_names, 'the role list carries one DISTINCT field name per role, not a shared name that silently collapses to one key at runtime' );
 
-$expected_actions = array( 'analytics_collector_save', 'analytics_exclude_save', 'analytics_funnels_save', 'analytics_save', 'analytics_test', 'analytics_tuning_save' );
+$expected_actions = array( 'analytics_collector_save', 'analytics_exclude_save', 'analytics_funnels_save', 'analytics_test', 'analytics_tuning_save' ); // 15.2.0: analytics_save is gone with its fields
 sort( $expected_actions );
 $kit_actions = snt_leaf_actions( $kit );
-ok( $expected_actions === $kit_actions, 'all six sn_action values are offered: ' . implode( ',', $kit_actions ) );
+ok( $expected_actions === $kit_actions, 'all five sn_action values are offered: ' . implode( ',', $kit_actions ) );
 ok( snt_leaf_actions( $classic ) === $kit_actions, 'the kit actions match the classic actions set (analytics_test now a standalone action button)' );
 
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
@@ -157,7 +159,7 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: 
 // ── Specific readouts for the rich fixture.
 ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, 'Beacon token set' ), 'the beacon pill reads ok when the token resolves' );
 ok( false !== strpos( $kit, 'Zone ID set' ), 'the zone pill reads ok' );
-ok( false !== strpos( $kit, '<os-text-field name="sn_cf_account_id"' ), 'the account-ID field is a kit text field' );
+ok( false === strpos( $kit, 'name="sn_cf_account_id"' ) && false !== strpos( $kit, '>Account ID</dt>' ) && false !== strpos( $kit, 'Connections › Credentials' ) && false !== strpos( $kit, '>Reads with</dt>' ), '15.2.0: no account-ID field; the fold reads the source and points to the keyring' );
 ok( false !== strpos( $kit, 'zone-abc123' ), 'the Zone ID mirror shows the live zone' );
 ok( false !== strpos( $kit, 'sn-analytics' ) && false !== strpos( $kit, 'v1.14.2' ), 'the edge-worker card shows the live worker + version' );
 ok( false !== strpos( $kit, '2 salt keys at the edge' ), 'the salt-window card shows the live key count' );
@@ -193,9 +195,9 @@ $GLOBALS['__configured'] = true;
 $classic = snt_leaf_classic_html( '\snt_analytics_render_settings_section' );
 $kit     = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( ! in_array( 'sn_cf_account_id', snt_leaf_names( $kit ), true ) && ! in_array( 'sn_cf_analytics_token', snt_leaf_names( $kit ), true ), 'locked: neither credential field is offered by name' );
-ok( ! in_array( 'analytics_save', snt_leaf_actions( $kit ), true ) && ! in_array( 'analytics_test', snt_leaf_actions( $kit ), true ), 'locked: no save/test action is offered, matching the classic gate' );
+ok( ! in_array( 'analytics_save', snt_leaf_actions( $kit ), true ) && in_array( 'analytics_test', snt_leaf_actions( $kit ), true ), 'locked: no save action anywhere; the connection test stays (15.2.0: the constants configure, the test still proves)' );
 ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'locked: kit actions still match the classic actions set' );
-ok( false !== strpos( $kit, 'Locked by the' ) && false !== strpos( $kit, 'disabled' ), 'locked: the lock is explained and the fields are disabled' );
+ok( false !== strpos( $kit, 'locked by SN_CF_ACCOUNT_ID' ) && false !== strpos( $kit, 'the analytics token override' ), 'locked: the account source names its constant and the override reads as in force' );
 ok( normalize_exclude_names( snt_leaf_names( $classic ) ) === normalize_exclude_names( snt_leaf_names( $kit ) ), 'locked: kit field names still match the classic set (role list folded back to its shared name): ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 
 // ── Worker unreachable: the warning branch, no Test-connection field noise.

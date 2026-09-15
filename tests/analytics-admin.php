@@ -637,9 +637,9 @@ echo "\nGroup: settings section: the creds form + dashboard backlink\n";
 $GLOBALS['__aa_config'] = false;
 $GLOBALS['__aa_opts']   = array();
 $html = capture( 'snt_analytics_render_settings_section' );
-ok( strpos( $html, 'name="sn_cf_account_id"' ) !== false, 'settings: account_id input present' );
-ok( strpos( $html, 'name="sn_cf_analytics_token"' ) !== false, 'settings: token input present' );
-ok( strpos( $html, 'value="analytics_save"' ) !== false, 'settings: analytics_save submit present' );
+ok( strpos( $html, 'name="sn_cf_account_id"' ) === false, '15.2.0: no account_id input; the keyring holds it' );
+ok( strpos( $html, 'name="sn_cf_analytics_token"' ) === false, '15.2.0: no token input; the keyring holds it' );
+ok( strpos( $html, 'value="analytics_save"' ) === false && strpos( $html, 'Connections › Credentials' ) !== false, '15.2.0: no analytics_save submit; the fold points to Connections › Credentials' );
 ok( strpos( $html, 'value="analytics_test"' ) !== false, 'settings: analytics_test submit present' );
 ok( strpos( $html, 'wrangler' ) !== false && strpos( $html, 'SN_PX_TOKEN' ) !== false, 'settings: Worker-setup console present' );
 ok( stripos( $html, 'View dashboard' ) !== false, 'settings: links back to the read-only dashboard' );
@@ -674,7 +674,7 @@ ok( 1 === substr_count( $html, 'sn-fieldset--wide' ), 'settings: exactly ONE wid
 // leaf-scoped token-card CSS (analytics-admin.css) has something to hang off.
 ok( strpos( $html, 'class="sn-an-settings-leaf"' ) !== false, 'settings: wrapped in the sn-an-settings-leaf marker (S2 §6)' );
 ok( strpos( $html, 'sn-an-settings-leaf' ) < strpos( $html, 'sn-an-pipeline' ), 'settings: the leaf wrapper opens before the pipeline strip' );
-$acct_at = strpos( $html, 'name="sn_cf_account_id"' );
+$acct_at = strpos( $html, '<h3 class="sn-fieldset-h">Credentials</h3>' ); // 15.2.0: the fold's heading marks it, the field is gone
 // 'Cloudflare Worker setup' (the <summary> text), NOT 'wrangler': the pipeline
 // strip's warn note can also say "wrangler" once the worker stub lands, and the
 // strip renders ABOVE the columns — a 'wrangler' marker would false-fail order.
@@ -691,7 +691,7 @@ echo "\nGroup: settings hub composition (v9.36.0, layout A): status strip + oper
 // column's first marker is the mirrors card.
 $pipe    = strpos( $html, 'sn-an-pipeline' );
 $twoup   = strpos( $html, '<div class="sn-2up">' );
-$creds   = strpos( $html, 'name="sn_cf_account_id"' );
+$creds   = strpos( $html, '<h3 class="sn-fieldset-h">Credentials</h3>' ); // 15.2.0
 $excl    = strpos( $html, 'sn-an-exclude' );
 $tune    = strpos( $html, 'sn-an-tuning' );
 $funnels = strpos( $html, 'sn-an-funnels' ); // S2 §3 (v9.42.0 arc): funnels card, after engine tuning

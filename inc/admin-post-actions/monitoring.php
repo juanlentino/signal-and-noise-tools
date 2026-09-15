@@ -28,6 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * inc/spend-watch.php (GitHub billing, Anthropic admin) — each on its own
  * masked/'clear' contract.
  */
+// @deprecated 15.2.0: unreachable, its form moved to the keyring (Connections › Credentials); removed next release.
 function sn_handle_monitoring_save( $post ) {
 	// v8.2.0: Better Stack API token (status panel). Handled FIRST and
 	// independently of the push-URL https gate so a rejected URL never eats

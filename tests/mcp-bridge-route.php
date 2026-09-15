@@ -19,6 +19,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  ok  - 
 
 function __( $s, $d = null ) { return (string) $s; }
 function add_filter( $t, $c, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $t ][] = $c; return true; }
+if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $t, $v ) { return $v; } } // 15.2.0: the bridge secret passes a filter
 function remove_filter( $t, $c, $p = 10 ) { $GLOBALS['__removed'][] = $t; return true; }
 function add_action( $t, $c, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $t ][] = $c; return true; }
 

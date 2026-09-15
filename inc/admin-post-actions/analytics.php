@@ -101,6 +101,7 @@ function sn_handle_analytics_collector_save( $post ) {
  * @param array $post Raw $_POST.
  * @return string Flash code: 'analytics_saved' | 'analytics_unchanged' | 'analytics_locked'.
  */
+// @deprecated 15.2.0: unreachable, its form moved to the keyring (Connections › Credentials); removed next release.
 function sn_handle_analytics_save( $post ) {
 	$token_locked = defined( 'SN_CF_ANALYTICS_TOKEN' ) && '' !== (string) SN_CF_ANALYTICS_TOKEN;
 	$acct_locked  = defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) SN_CF_ACCOUNT_ID;
