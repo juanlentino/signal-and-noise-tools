@@ -465,6 +465,39 @@ os-button.snt-home__action:hover {
 	margin-block-end: 8px;
 }
 
+/* 15.3.3: the detail panels (Audience detail under the pulse, Operations
+ * detail under Systems) are flat columns under an eyebrow: one column per
+ * panel, a rule between, no card. The count comes from the painter so three
+ * panels never leave an orphan cell. */
+.snt-home__detail-group {
+	margin-block-start: 14px;
+}
+
+.snt-home__detail {
+	display: grid;
+	grid-template-columns: repeat( var( --snt-detail-cols, 3 ), minmax( 0, 1fr ) );
+	gap: 0 24px;
+	border-block-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	padding-block-start: 10px;
+}
+
+.snt-home__detail-col {
+	min-width: 0;
+}
+
+.snt-home__detail-col + .snt-home__detail-col {
+	border-inline-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	padding-inline-start: 24px;
+}
+
+.snt-home__detail-h {
+	margin: 0 0 4px;
+	font: 600 11px/1.2 var( --os-ui-font-mono, 'Geist Mono', monospace );
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
 .snt-home__pulse {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 170px, 1fr ) );
@@ -752,6 +785,16 @@ os-button.snt-sys__v { justify-self: start; display: inline-flex; align-items: c
 @container snt-dashboard ( max-width: 900px ) {
 	.snt-dashboard-home .snt-cols {
 		grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+	}
+
+	.snt-home__detail {
+		grid-template-columns: minmax( 0, 1fr );
+		gap: 16px 0;
+	}
+
+	.snt-home__detail-col + .snt-home__detail-col {
+		border-inline-start: 0;
+		padding-inline-start: 0;
 	}
 }
 
