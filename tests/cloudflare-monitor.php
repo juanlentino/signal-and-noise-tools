@@ -73,6 +73,12 @@ ok( true === $f['available'] && 47 === $f['events'] && array( 'block' => 42, 'ma
 ok( 'rule-a' === $f['top_rules'][0]['rule'] && 42 === $f['top_rules'][0]['count'] && 'waf' === $f['top_rules'][0]['source'], 'top rules merge the same source:rule and sort by count' );
 $f = sn_cf_monitor_firewall_from( array( 'http' => 200, 'body' => $refused, 'error' => '' ) );
 ok( true === $f['needs_permission'] && 0 === $f['events'] && array() === $f['by_action'], 'firewall without permission: a gap, zero events reported as absent, not as quiet' );
+// 14.9.1: the live refusal for the firewall dataset, with a token that reads
+// zone analytics fine. A different sentence, and a different grant.
+$live_refusal = array( 'data' => null, 'errors' => array( array( 'message' => "zone '319c5233e47cb32fdb6de197eff034cc' does not have access to the path. Refer to this page for more details about access controls: https://developers.cloudflare.com/analytics/graphql-api/errors/", 'path' => array( 'viewer', 'zones', '0', 'firewallEventsAdaptiveGroups' ), 'extensions' => array( 'code' => 'authz', 'timestamp' => '2026-09-15T13:59:00Z' ) ) ) );
+$f = sn_cf_monitor_firewall_from( array( 'http' => 200, 'body' => $live_refusal, 'error' => '' ) );
+ok( true === $f['needs_permission'] && false === $f['available'], '"does not have access to the path" is a permission gap, not an error (the live refusal, 2026-09-15)' );
+ok( false !== strpos( sn_cf_monitor_permission_hint( 'firewall' ), 'Firewall Services' ) && false !== strpos( sn_cf_monitor_permission_hint( 'zone' ), 'Analytics' ) && false === strpos( sn_cf_monitor_permission_hint( 'firewall' ), 'Analytics' ), 'the hint names the grant for the dataset: Firewall Services Read for the firewall log, Analytics Read for the zone' );
 
 // ── The API row: FIGURE-SIZED (14.9.1). The first cut put the whole sentence
 // in the value; the kit list's value never shrank and the label "Cloudflare

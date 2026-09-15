@@ -105,7 +105,10 @@ function sn_cf_graphql_needs_permission( array $body ) {
 	foreach ( (array) ( $body['errors'] ?? array() ) as $err ) {
 		$code = (int) ( $err['extensions']['code'] ?? $err['code'] ?? 0 );
 		$msg  = strtolower( (string) ( $err['message'] ?? '' ) );
-		if ( in_array( $code, array( 9109, 10000 ), true ) || false !== strpos( $msg, 'unauthorized' ) || false !== strpos( $msg, 'not authorized' ) || false !== strpos( $msg, 'authentication' ) ) {
+		// 14.9.1: "zone '…' does not have access to the path" is how the
+		// analytics API refuses a dataset the token was not granted (measured
+		// live on firewallEventsAdaptiveGroups with an Analytics-only token).
+		if ( in_array( $code, array( 9109, 10000 ), true ) || false !== strpos( $msg, 'unauthorized' ) || false !== strpos( $msg, 'not authorized' ) || false !== strpos( $msg, 'authentication' ) || false !== strpos( $msg, 'does not have access' ) ) {
 			return true;
 		}
 	}
@@ -281,8 +284,19 @@ add_action( 'init', 'sn_cf_monitor_schedule' );
  *
  * @return string
  */
-function sn_cf_monitor_permission_hint() {
-	return __( 'The token lacks Zone › Analytics › Read. Edit the token in the Cloudflare dashboard (My Profile › API Tokens) and add it; the purge permission stays as it is.', 'signal-and-noise-tools' );
+function sn_cf_monitor_permission_hint( $dataset = 'zone' ) {
+	// 14.9.1: the two datasets sit behind two grants. Zone analytics reads
+	// with Zone › Analytics › Read; the firewall log needs Zone › Firewall
+	// Services › Read as well (measured: the first grant alone answered
+	// "does not have access to the path" for firewallEventsAdaptiveGroups).
+	$grant = 'firewall' === $dataset
+		? __( 'Zone › Firewall Services › Read', 'signal-and-noise-tools' )
+		: __( 'Zone › Analytics › Read', 'signal-and-noise-tools' );
+	return sprintf(
+		/* translators: %s: the permission to add. */
+		__( 'The token lacks %s. Edit the token in the Cloudflare dashboard (My Profile › API Tokens) and add it; the permissions it already has stay as they are.', 'signal-and-noise-tools' ),
+		$grant
+	);
 }
 
 /**

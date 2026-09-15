@@ -83,7 +83,7 @@ function cloudflare_monitor_html( array $d ) {
 				$inner .= \snt_kit_list( $rule_rows );
 			}
 		} elseif ( ! empty( $f['needs_permission'] ) ) {
-			$inner .= \snt_kit_notice( 'warning', \snt_kit_esc( __( 'Firewall events: ', 'signal-and-noise-tools' ) . sn_cf_monitor_permission_hint() ) );
+			$inner .= \snt_kit_notice( 'warning', \snt_kit_esc( __( 'Firewall events: ', 'signal-and-noise-tools' ) . sn_cf_monitor_permission_hint( 'firewall' ) ) );
 		} else {
 			$inner .= \snt_kit_notice( 'error', \snt_kit_esc( sprintf( /* translators: %s: reason. */ __( 'Firewall events could not be read: %s', 'signal-and-noise-tools' ), (string) ( $f['error'] ?? '' ) ) ) );
 		}
