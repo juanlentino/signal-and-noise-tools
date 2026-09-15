@@ -45,6 +45,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_CF_MONITOR_OPT  = 'sn_cf_monitor';
 const SN_CF_MONITOR_HOOK = 'sn_cf_monitor_daily';
 const SN_CF_MONITOR_DAYS = 7;
+// ponytail: one page of raw events; a zone past 10,000 events a day reads truncated (the record says so). Page when it happens.
+const SN_CF_MONITOR_RAW_LIMIT = 10000;
 
 /**
  * A blocking GET against the v4 API. Same hardening as the purge POST: a
@@ -215,7 +217,12 @@ function sn_cf_monitor_firewall_from( array $res ) {
 		// deserves the sentence the API actually said.
 		return array( 'available' => false, 'needs_permission' => true, 'error' => (string) ( $res['body']['errors'][0]['message'] ?? '' ), 'events' => 0, 'by_action' => array(), 'top_rules' => array() );
 	}
-	$groups = $res['body']['data']['viewer']['zones'][0]['firewallEventsAdaptiveGroups'] ?? ( $res['body']['data']['viewer']['accounts'][0]['firewallEventsAdaptiveGroups'] ?? null );
+	// 15.0.1: two shapes. `firewallEventsAdaptiveGroups` arrives pre-grouped
+	// (count + dimensions); the raw `firewallEventsAdaptive`, the one every
+	// plan has, arrives one row per event and is grouped here.
+	$zone    = $res['body']['data']['viewer']['zones'][0] ?? array();
+	$dataset = isset( $zone['firewallEventsAdaptiveGroups'] ) ? 'groups' : ( isset( $zone['firewallEventsAdaptive'] ) ? 'raw' : '' );
+	$groups  = '' !== $dataset ? $zone[ 'groups' === $dataset ? 'firewallEventsAdaptiveGroups' : 'firewallEventsAdaptive' ] : null;
 	if ( ! is_array( $groups ) ) {
 		$msg = (string) ( $res['body']['errors'][0]['message'] ?? ( 'HTTP ' . (int) $res['http'] ) );
 		return array( 'available' => false, 'needs_permission' => false, 'error' => $msg, 'events' => 0, 'by_action' => array(), 'top_rules' => array() );
@@ -224,10 +231,11 @@ function sn_cf_monitor_firewall_from( array $res ) {
 	$rules     = array();
 	$events    = 0;
 	foreach ( $groups as $g ) {
-		$n      = (int) ( $g['count'] ?? 0 );
-		$action = (string) ( $g['dimensions']['action'] ?? 'unknown' );
-		$rule   = (string) ( $g['dimensions']['ruleId'] ?? '' );
-		$source = (string) ( $g['dimensions']['source'] ?? '' );
+		$dims   = 'raw' === $dataset ? $g : (array) ( $g['dimensions'] ?? array() );
+		$n      = 'raw' === $dataset ? 1 : (int) ( $g['count'] ?? 0 );
+		$action = (string) ( $dims['action'] ?? 'unknown' );
+		$rule   = (string) ( $dims['ruleId'] ?? '' );
+		$source = (string) ( $dims['source'] ?? '' );
 		$events += $n;
 		$by_action[ $action ] = ( $by_action[ $action ] ?? 0 ) + $n;
 		$key = $source . ':' . $rule;
@@ -235,7 +243,7 @@ function sn_cf_monitor_firewall_from( array $res ) {
 	}
 	arsort( $by_action );
 	usort( $rules, static function ( $a, $b ) { return $b['count'] <=> $a['count']; } );
-	return array( 'available' => true, 'needs_permission' => false, 'error' => '', 'events' => $events, 'by_action' => $by_action, 'top_rules' => array_slice( array_values( $rules ), 0, 8 ) );
+	return array( 'available' => true, 'needs_permission' => false, 'error' => '', 'events' => $events, 'by_action' => $by_action, 'top_rules' => array_slice( array_values( $rules ), 0, 8 ), 'dataset' => $dataset, 'truncated' => 'raw' === $dataset && count( $groups ) >= SN_CF_MONITOR_RAW_LIMIT );
 }
 
 /**
@@ -287,33 +295,28 @@ function sn_cf_monitor_refresh() {
 	$until   = gmdate( 'Y-m-d' );
 	$zone_q  = 'query ($zone: String!, $since: Date!, $until: Date!) { viewer { zones(filter: {zoneTag: $zone}) { httpRequests1dGroups(limit: 31, filter: {date_geq: $since, date_leq: $until}, orderBy: [date_ASC]) { dimensions { date } sum { requests cachedRequests bytes cachedBytes threats responseStatusMap { edgeResponseStatus requests } } } } } }';
 	$fw_q    = 'query ($zone: String!, $since: Time!) { viewer { zones(filter: {zoneTag: $zone}) { firewallEventsAdaptiveGroups(limit: 200, filter: {datetime_geq: $since}, orderBy: [count_DESC]) { count dimensions { action source ruleId } } } } }';
+	$fw_raw  = 'query ($zone: String!, $since: Time!) { viewer { zones(filter: {zoneTag: $zone}) { firewallEventsAdaptive(limit: ' . SN_CF_MONITOR_RAW_LIMIT . ', filter: {datetime_geq: $since}, orderBy: [datetime_DESC]) { action source ruleId } } } }';
+	$fw_args = array( 'zone' => $zone_id, 'since' => gmdate( 'Y-m-d\TH:i:s\Z', time() - DAY_IN_SECONDS ) );
 	$record  = array(
 		'fetched_at' => time(),
 		'configured' => true,
 		'token'      => sn_cf_monitor_verify( $zone_id ),
 		'zone'       => sn_cf_monitor_zone_from( sn_cf_graphql( $zone_q, array( 'zone' => $zone_id, 'since' => $since, 'until' => $until ) ) ),
-		'firewall'   => sn_cf_monitor_firewall_from( sn_cf_graphql( $fw_q, array( 'zone' => $zone_id, 'since' => gmdate( 'Y-m-d\TH:i:s\Z', time() - DAY_IN_SECONDS ) ) ) ),
+		'firewall'   => sn_cf_monitor_firewall_from( sn_cf_graphql( $fw_q, $fw_args ) ),
 	);
-	// 14.9.2: the firewall dataset refused the zone path under Analytics Read,
-	// then still under Firewall Services Read and Logs Read (2026-09-15), and
-	// Cloudflare documents no grant for it. So probe the other path the
-	// schema offers, the ACCOUNT viewer with the zone as a filter, and record
-	// which path answered. One extra GET for the account id, only on refusal.
+	// 15.0.1: "zone … does not have access to the path" is the PLAN, not a
+	// grant: the grouped dataset is not on Free zones, and every zone read
+	// grant Cloudflare offers (44 of them, 2026-09-15) left it refused. The
+	// raw firewallEventsAdaptive is open to all plans, so read that instead
+	// and group here. The grouped refusal is kept beside the reading.
 	if ( ! empty( $record['firewall']['needs_permission'] ) ) {
-		$zone_meta = sn_cf_api_get( '/zones/' . rawurlencode( $zone_id ) );
-		$account   = (string) ( $zone_meta['body']['result']['account']['id'] ?? '' );
-		$record['firewall']['probe'] = array( 'zone_path' => 'refused', 'account_path' => '' === $account ? 'no_account_id' : 'untried' );
-		if ( '' !== $account ) {
-			$fw_acct = 'query ($account: String!, $zone: String!, $since: Time!) { viewer { accounts(filter: {accountTag: $account}) { firewallEventsAdaptiveGroups(limit: 200, filter: {zoneTag: $zone, datetime_geq: $since}, orderBy: [count_DESC]) { count dimensions { action source ruleId } } } } }';
-			$via_acct = sn_cf_monitor_firewall_from( sn_cf_graphql( $fw_acct, array( 'account' => $account, 'zone' => $zone_id, 'since' => gmdate( 'Y-m-d\TH:i:s\Z', time() - DAY_IN_SECONDS ) ) ) );
-			$record['firewall']['probe']['account_path'] = ! empty( $via_acct['available'] ) ? 'answered' : ( ! empty( $via_acct['needs_permission'] ) ? 'refused' : 'error' );
-			if ( ! empty( $via_acct['available'] ) ) {
-				$via_acct['probe'] = $record['firewall']['probe'];
-				$via_acct['path']  = 'account';
-				$record['firewall'] = $via_acct;
-			} else {
-				$record['firewall']['error_account_path'] = (string) ( $via_acct['error'] ?? '' );
-			}
+		$refused = (string) $record['firewall']['error'];
+		$raw     = sn_cf_monitor_firewall_from( sn_cf_graphql( $fw_raw, $fw_args ) );
+		if ( ! empty( $raw['available'] ) ) {
+			$raw['groups_refused'] = $refused;
+			$record['firewall']    = $raw;
+		} else {
+			$record['firewall']['error_raw'] = (string) $raw['error'];
 		}
 	}
 	update_option( SN_CF_MONITOR_OPT, $record, false );
@@ -352,17 +355,13 @@ add_action( 'init', 'sn_cf_monitor_schedule' );
  * @return string
  */
 function sn_cf_monitor_permission_hint( $dataset = 'zone' ) {
-	// 14.9.1: the two datasets sit behind two grants. Zone analytics reads
-	// with Zone › Analytics › Read; the firewall log needs Zone › Firewall
-	// Services › Read as well (measured: the first grant alone answered
-	// "does not have access to the path" for firewallEventsAdaptiveGroups).
+	// Zone analytics reads with Zone › Analytics › Read (measured).
 	if ( 'firewall' === $dataset ) {
-		// 14.9.2: Cloudflare documents no grant for firewallEventsAdaptive.
-		// Measured refused under Zone Analytics Read alone, then still under
-		// Firewall Services Read and Logs Read (2026-09-15). The one grant left
-		// in Cloudflare's own "Read analytics and logs" template is
-		// account-level; the monitor also probes the account path itself.
-		return __( 'Cloudflare refused the firewall dataset and documents no grant for it; Analytics Read, Firewall Services Read and Logs Read on the zone did not open it. The one grant left in Cloudflare\'s "Read analytics and logs" token template is Account › Account Analytics › Read; the monitor also tries the account path and records what answered.', 'signal-and-noise-tools' );
+		// 15.0.1: the refusal names the ZONE, and that is a plan limit. The
+		// grouped dataset is not on Free zones; measured refused under every
+		// zone read grant Cloudflare offers (2026-09-15). The raw dataset is
+		// open to all plans and the monitor reads it instead.
+		return __( 'Cloudflare answers "does not have access to the path" for a dataset the zone\'s plan lacks, whatever the token holds; the grouped firewall dataset is not on this plan and the raw one, open to every plan, also refused. No grant changes that.', 'signal-and-noise-tools' );
 	}
 	return sprintf(
 		/* translators: %s: the permission to add. */

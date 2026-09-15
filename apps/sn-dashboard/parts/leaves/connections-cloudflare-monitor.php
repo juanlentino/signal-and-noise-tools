@@ -87,6 +87,10 @@ function cloudflare_monitor_html( array $d ) {
 			}
 			$inner .= '<h4 class="snt-h">' . \snt_kit_esc( sprintf( /* translators: %s: count. */ __( 'Firewall, 24 hours: %s events', 'signal-and-noise-tools' ), number_format_i18n( (int) $f['events'] ) ) ) . '</h4>';
 			$inner .= array() !== $rows ? \snt_kit_list( $rows ) : '<p class="snt-hint">' . \snt_kit_esc( __( 'No firewall events in the window.', 'signal-and-noise-tools' ) ) . '</p>';
+			if ( 'raw' === (string) ( $f['dataset'] ?? '' ) ) {
+				// 15.0.1: the grouped dataset is not on this zone's plan; the raw one is.
+				$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Read from the raw firewallEventsAdaptive dataset and grouped here; the grouped dataset is not on this zone\'s plan.', 'signal-and-noise-tools' ) . ( ! empty( $f['truncated'] ) ? ' ' . __( 'The day had more events than one page holds; the counts are a floor.', 'signal-and-noise-tools' ) : '' ) ) . '</p>';
+			}
 			if ( ! empty( $f['top_rules'] ) ) {
 				$rule_rows = array();
 				foreach ( (array) $f['top_rules'] as $r ) {
@@ -95,14 +99,10 @@ function cloudflare_monitor_html( array $d ) {
 				$inner .= \snt_kit_list( $rule_rows );
 			}
 		} elseif ( ! empty( $f['needs_permission'] ) ) {
-			// 14.9.2: the API's own sentence, the hint, and what the probe found.
-			$probe  = is_array( $f['probe'] ?? null ) ? $f['probe'] : array();
+			// 15.0.1: the API's two sentences, grouped and raw, beside the plan hint.
 			$detail = '' !== (string) ( $f['error'] ?? '' ) ? ' ' . sprintf( /* translators: %s: the API's message. */ __( 'The API said: “%s”', 'signal-and-noise-tools' ), (string) $f['error'] ) : '';
-			if ( array() !== $probe ) {
-				$detail .= ' ' . sprintf( /* translators: 1: zone path verdict, 2: account path verdict. */ __( 'Zone path: %1$s; account path: %2$s.', 'signal-and-noise-tools' ), (string) ( $probe['zone_path'] ?? '' ), (string) ( $probe['account_path'] ?? '' ) );
-				if ( '' !== (string) ( $f['error_account_path'] ?? '' ) ) {
-					$detail .= ' ' . sprintf( __( 'Account path said: “%s”', 'signal-and-noise-tools' ), (string) $f['error_account_path'] );
-				}
+			if ( '' !== (string) ( $f['error_raw'] ?? '' ) ) {
+				$detail .= ' ' . sprintf( /* translators: %s: the API's message for the raw dataset. */ __( 'The raw dataset said: “%s”', 'signal-and-noise-tools' ), (string) $f['error_raw'] );
 			}
 			$inner .= \snt_kit_notice( 'warning', \snt_kit_esc( __( 'Firewall events: ', 'signal-and-noise-tools' ) . sn_cf_monitor_permission_hint( 'firewall' ) . $detail ) );
 		} else {

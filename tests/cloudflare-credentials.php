@@ -40,7 +40,7 @@ ok( in_array( 'Zone › Cache Purge › Purge', $names, true ) && in_array( 'Zon
 foreach ( $grants as $g ) {
 	ok( in_array( $g['status'], array( 'documented', 'measured', 'candidate' ), true ), "{$g['grant']}: its status says how sure we are ({$g['status']})" );
 }
-ok( 2 === count( array_filter( $grants, static function ( $g ) { return 'candidate' === $g['status']; } ) ), 'the two firewall grants are candidates, not claims: refused so far, undocumented' );
+ok( 3 === count( $grants ) && array() === array_filter( $grants, static function ( $g ) { return 'candidate' === $g['status']; } ), '15.0.1: three grants, no candidates: the firewall needs none (the plan, not a grant, decides its dataset)' );
 
 // ── Migration: once, only into an empty central token, never over a constant
 $GLOBALS['__opt'] = array( SN_CF_ANALYTICS_TOKEN_OPT => 'legacy-tok' ); $GLOBALS['__writes'] = array();

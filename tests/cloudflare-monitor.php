@@ -19,7 +19,7 @@ function sn_cf_get_account_id() { return $GLOBALS['__acct'] ?? ''; }
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
 class WP_Error { public $m; function __construct( $c = '', $m = '' ) { $this->m = $m; } function get_error_message() { return $this->m; } }
 function wp_remote_get( $url, $args = array() ) { $GLOBALS['__calls'][] = array( 'GET', $url, $args ); return $GLOBALS['__http'][ $url ] ?? array( 'response' => array( 'code' => 404 ), 'body' => '' ); }
-function wp_remote_post( $url, $args = array() ) { $GLOBALS['__calls'][] = array( 'POST', $url, $args ); $body = json_decode( (string) ( $args['body'] ?? '' ), true ); $q = (string) ( $body['query'] ?? '' ); $key = $url . '#' . ( false !== strpos( $q, 'accounts(filter' ) ? 'fwacct' : ( false !== strpos( $q, 'firewallEvents' ) ? 'fw' : 'zone' ) ); return $GLOBALS['__http'][ $key ] ?? array( 'response' => array( 'code' => 404 ), 'body' => '' ); }
+function wp_remote_post( $url, $args = array() ) { $GLOBALS['__calls'][] = array( 'POST', $url, $args ); $body = json_decode( (string) ( $args['body'] ?? '' ), true ); $q = (string) ( $body['query'] ?? '' ); $key = $url . '#' . ( false !== strpos( $q, 'firewallEventsAdaptive(' ) ? 'fwraw' : ( false !== strpos( $q, 'firewallEvents' ) ? 'fw' : 'zone' ) ); return $GLOBALS['__http'][ $key ] ?? array( 'response' => array( 'code' => 404 ), 'body' => '' ); }
 function wp_remote_retrieve_response_code( $r ) { return (int) ( $r['response']['code'] ?? 0 ); }
 function wp_remote_retrieve_body( $r ) { return (string) ( $r['body'] ?? '' ); }
 function wp_json_encode( $d ) { return json_encode( $d ); }
@@ -83,8 +83,21 @@ ok( true === $f['needs_permission'] && false === $f['available'], '"does not hav
 // 14.9.2: two grants later the refusal read the same, and Cloudflare documents
 // none. The hint says exactly that, keeps the API's sentence, and the monitor
 // probes the account path rather than naming a fourth guess.
-ok( false !== strpos( sn_cf_monitor_permission_hint( 'firewall' ), 'documents no grant' ) && false !== strpos( sn_cf_monitor_permission_hint( 'firewall' ), 'Logs Read' ) && false !== strpos( sn_cf_monitor_permission_hint( 'zone' ), 'Zone › Analytics › Read' ), 'the firewall hint says the grant is undocumented and which three were tried; the zone hint still names Analytics Read' );
+ok( false !== strpos( sn_cf_monitor_permission_hint( 'firewall' ), 'plan' ) && false !== strpos( sn_cf_monitor_permission_hint( 'firewall' ), 'No grant' ) && false === strpos( sn_cf_monitor_permission_hint( 'firewall' ), 'Logs Read' ) && false !== strpos( sn_cf_monitor_permission_hint( 'zone' ), 'Zone › Analytics › Read' ), 'the firewall hint names the plan and says no grant changes it, naming no grant; the zone hint still names Analytics Read' );
 ok( false !== strpos( $f['error'], 'does not have access to the path' ), 'a refused firewall read keeps the API\'s own sentence' );
+// 15.0.1: the raw dataset, one row per event, groups here to the same shape.
+$fw_raw_ok = array( 'data' => array( 'viewer' => array( 'zones' => array( array( 'firewallEventsAdaptive' => array(
+	array( 'action' => 'block', 'source' => 'waf', 'ruleId' => 'r1' ),
+	array( 'action' => 'block', 'source' => 'waf', 'ruleId' => 'r1' ),
+	array( 'action' => 'managed_challenge', 'source' => 'bic', 'ruleId' => 'r2' ),
+) ) ) ) ) );
+$g = sn_cf_monitor_firewall_from( array( 'http' => 200, 'body' => $fw_raw_ok, 'error' => '' ) );
+ok( true === $g['available'] && 'raw' === $g['dataset'] && 3 === $g['events'] && array( 'block' => 2, 'managed_challenge' => 1 ) === $g['by_action'] && 'r1' === $g['top_rules'][0]['rule'] && 2 === $g['top_rules'][0]['count'] && false === $g['truncated'], 'the raw dataset groups to the same shape: 3 events, block 2, the top rule counted twice, not truncated' );
+$page = array_fill( 0, SN_CF_MONITOR_RAW_LIMIT, array( 'action' => 'block', 'source' => 'waf', 'ruleId' => 'r1' ) );
+$g = sn_cf_monitor_firewall_from( array( 'http' => 200, 'body' => array( 'data' => array( 'viewer' => array( 'zones' => array( array( 'firewallEventsAdaptive' => $page ) ) ) ) ), 'error' => '' ) );
+ok( true === $g['truncated'] && SN_CF_MONITOR_RAW_LIMIT === $g['events'], 'a full page of raw events is marked truncated: the counts are a floor' );
+$g = sn_cf_monitor_firewall_from( array( 'http' => 200, 'body' => $fw_ok, 'error' => '' ) );
+ok( 'groups' === $g['dataset'] && false === $g['truncated'], 'the grouped dataset is named and never truncated' );
 
 // ── The API row: FIGURE-SIZED (14.9.1). The first cut put the whole sentence
 // in the value; the kit list's value never shrank and the label "Cloudflare
@@ -134,22 +147,25 @@ $GLOBALS['__configured'] = true; $GLOBALS['__calls'] = array();
 $GLOBALS['__http'] = array(
 	SN_CF_API_BASE . '/user/tokens/verify' => $j( 200, array( 'success' => true, 'result' => array( 'status' => 'active' ) ) ),
 	SN_CF_API_BASE . '/graphql#zone'       => $j( 200, $zone_ok ),
-	SN_CF_API_BASE . '/graphql#fw'         => $j( 200, $refused ),
+	SN_CF_API_BASE . '/graphql#fw'         => $j( 200, $live_refusal ),
 );
 $r = sn_cf_monitor_refresh();
-// 14.9.2: on a firewall refusal the refresh probes the ACCOUNT path too: one
-// GET for the account id, one more GraphQL. Five requests, still no purge.
-ok( 4 === count( $GLOBALS['__calls'] ) && 'GET' === $GLOBALS['__calls'][0][0] && 'POST' === $GLOBALS['__calls'][1][0] && false !== strpos( $GLOBALS['__calls'][3][1], '/zones/zone123' ), 'a refresh with a refused firewall read asks for the zone record (four requests); with no account id in it the fifth is never made' );
-ok( 'refused' === $r['firewall']['probe']['zone_path'] && 'no_account_id' === $r['firewall']['probe']['account_path'], 'the probe records the zone path refused and, with no account id in the zone record, that the account path was not tried' );
-ok( true === $r['configured'] && 'active' === $r['token']['status'] && 1500 === $r['zone']['totals']['requests'] && true === $r['firewall']['needs_permission'], 'the record carries all three readings, each in its own truth' );
-// The account path answers: the firewall reading is taken from it and says so.
+// 15.0.1: on a grouped-dataset refusal the refresh reads the RAW dataset
+// (open to every plan) and groups here: four requests, still no purge.
+ok( 4 === count( $GLOBALS['__calls'] ) && 'GET' === $GLOBALS['__calls'][0][0] && 'POST' === $GLOBALS['__calls'][1][0] && false !== strpos( (string) ( json_decode( (string) $GLOBALS['__calls'][3][2]['body'], true )['query'] ?? '' ), 'firewallEventsAdaptive(limit: ' . SN_CF_MONITOR_RAW_LIMIT ), 'a refresh with the grouped dataset refused asks the raw one (four requests, one page of ' . SN_CF_MONITOR_RAW_LIMIT . ')' );
+ok( true === $r['firewall']['needs_permission'] && false !== strpos( $r['firewall']['error_raw'], 'HTTP 404' ), 'with the raw dataset unanswered too, the reading stays a gap and keeps the raw answer beside the grouped one' );
+ok( true === $r['configured'] && 'active' === $r['token']['status'] && 1500 === $r['zone']['totals']['requests'], 'the record carries all three readings, each in its own truth' );
+// The raw dataset answers: the firewall reading is taken from it and says so.
 $GLOBALS['__calls'] = array();
-$GLOBALS['__http'][ SN_CF_API_BASE . '/zones/zone123' ] = $j( 200, array( 'success' => true, 'result' => array( 'id' => 'zone123', 'account' => array( 'id' => 'acct9' ) ) ) );
-$fw_acct_ok = array( 'data' => array( 'viewer' => array( 'accounts' => array( array( 'firewallEventsAdaptiveGroups' => array( array( 'count' => 9, 'dimensions' => array( 'action' => 'block', 'source' => 'waf', 'ruleId' => 'r1' ) ) ) ) ) ) ) );
-$GLOBALS['__http'][ SN_CF_API_BASE . '/graphql#fw' ] = $j( 200, $refused );
-$GLOBALS['__http'][ SN_CF_API_BASE . '/graphql#fwacct' ] = $j( 200, $fw_acct_ok );
+$GLOBALS['__http'][ SN_CF_API_BASE . '/graphql#fwraw' ] = $j( 200, $fw_raw_ok );
 $r = sn_cf_monitor_refresh();
-ok( true === $r['firewall']['available'] && 9 === $r['firewall']['events'] && 'account' === $r['firewall']['path'] && 'answered' === $r['firewall']['probe']['account_path'], 'when the account path answers, the firewall reading comes from it and records the path' );
+ok( true === $r['firewall']['available'] && 3 === $r['firewall']['events'] && 'raw' === $r['firewall']['dataset'] && false !== strpos( $r['firewall']['groups_refused'], 'does not have access' ) && ! isset( $r['firewall']['probe'] ), 'when the raw dataset answers, the firewall reading comes from it, names the dataset and keeps the grouped refusal; no account probe is made' );
+ok( 4 === count( $GLOBALS['__calls'] ) && false === strpos( implode( ' ', array_column( $GLOBALS['__calls'], 1 ) ), '/zones/zone123' ), 'the account-id GET and the account path are gone: four requests, none for the zone record' );
+// The grouped dataset answers: one firewall request, the raw one never asked.
+$GLOBALS['__calls'] = array();
+$GLOBALS['__http'][ SN_CF_API_BASE . '/graphql#fw' ] = $j( 200, $fw_ok );
+$r = sn_cf_monitor_refresh();
+ok( 3 === count( $GLOBALS['__calls'] ) && 'groups' === $r['firewall']['dataset'] && 47 === $r['firewall']['events'], 'when the grouped dataset answers, three requests and the raw one is never asked' );
 ok( $GLOBALS['__opt'][ SN_CF_MONITOR_OPT ] === $r && $r === sn_cf_monitor_read(), 'stored in one option; the reader returns it unchanged' );
 foreach ( $GLOBALS['__calls'] as $c ) {
 	ok( 0 === (int) $c[2]['redirection'] && false === strpos( $c[1], 'purge' ), 'every request refuses redirects (a Bearer on a fixed host) and none is a purge: ' . $c[1] );
