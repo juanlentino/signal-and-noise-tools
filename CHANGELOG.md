@@ -12,6 +12,12 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **S&N Home: the audience lists leave Operations.** The Detail box under Operations held Recent deploys and API limits next to Top pages, Top sources and Top queries: audience numbers under the ops heading. Every panel now names its group; the audience three paint under Site pulse as "Audience detail, 7 days", the ops two stay as "Operations detail". Top queries names its column, "clicks, 28 days", so a list of zeros reads as what it is. The classic screen paints the same two blocks, audience first. Pinned on the panels, the native painter and the classic renderer.
+
+### Fixed
+- **S&N Home: Caches read "Checking…" under a line that said "verified fresh".** The card is async: `freshness-dot.js` finds it by id and writes the live verdict into `.sn-glance-card__value`. The classic wall carries both since v11.30.1; the native port dropped them, so the script appended its verdict under a placeholder it could not replace. The native wall now carries the id and the class; the verdict replaces the placeholder in place.
+
 ## [15.3.1] - 2026-09-15 — the credentials sweep
 
 ### Changed

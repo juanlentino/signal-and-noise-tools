@@ -45,9 +45,36 @@ function sn_dash_render_ops( array $panels ) {
 		return;
 	}
 
+	// 15.3.2: two details, not one. The audience panels (pages, sources,
+	// queries) are readings about the site; the ops panels (deploys, API
+	// limits) about running it. Same rule as the native Home, which paints
+	// the first group under Site pulse.
+	$groups = array(
+		'audience' => __( 'Audience detail, 7 days', 'signal-and-noise-tools' ),
+		'ops'      => __( 'Operations detail', 'signal-and-noise-tools' ),
+	);
+	foreach ( $groups as $group => $eyebrow ) {
+		$mine = array_values( array_filter( $panels, static function ( $panel ) use ( $group ) {
+			return is_array( $panel ) && (string) ( $panel['group'] ?? 'ops' ) === $group;
+		} ) );
+		if ( array() === $mine ) {
+			continue;
+		}
+		sn_dash_render_ops_group( $mine, $eyebrow );
+	}
+}
+
+/**
+ * One detail block: an eyebrow and its columns.
+ *
+ * @param array<int,array<string,mixed>> $panels  Panels of one group.
+ * @param string                         $eyebrow The block's label.
+ * @return void
+ */
+function sn_dash_render_ops_group( array $panels, $eyebrow ) {
 	echo '<section class="sn-scr__detail">';
 	echo '<header class="sn-card__head">';
-	echo '<span class="sn-card__eyebrow">' . esc_html__( 'Detail', 'signal-and-noise-tools' ) . '</span>';
+	echo '<span class="sn-card__eyebrow">' . esc_html( $eyebrow ) . '</span>';
 	echo '</header>';
 	echo '<div class="sn-scr__cols">';
 	foreach ( $panels as $panel ) {
@@ -60,7 +87,7 @@ function sn_dash_render_ops( array $panels ) {
 		// of non-data pixels competing for the same attention; a rule and a
 		// label group just as well and cost nothing.
 		echo '<section class="sn-scr__col">';
-		echo '<h2 class="sn-scr__colhead">' . esc_html( (string) ( $panel['title'] ?? '' ) ) . '</h2>';
+		echo '<h2 class="sn-scr__colhead">' . esc_html( (string) ( $panel['title'] ?? '' ) . ( '' !== (string) ( $panel['caption'] ?? '' ) ? ' · ' . (string) $panel['caption'] : '' ) ) . '</h2>';
 
 		if ( null === $rows ) {
 			echo '<p class="sn-ops__empty">' . esc_html( (string) ( $panel['unmeasured'] ?? '' ) ) . '</p>';

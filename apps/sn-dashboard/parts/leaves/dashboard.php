@@ -380,7 +380,11 @@ function home_pulse_html( array $data, $tab ) {
 		. pulse_item_html( __( 'Visits', 'signal-and-noise-tools' ), 'dashicons-groups', $visits_curr, $visits_pct, admin_url( 'admin.php?page=sn-analytics&sn_view=visits&sn_range=7d' ) )
 		. pulse_item_html( __( 'Engagement', 'signal-and-noise-tools' ), 'dashicons-performance', $engaged_val, $engaged_pct, admin_url( 'admin.php?page=sn-analytics&sn_range=7d' ) )
 		. pulse_item_html( __( 'Search clicks', 'signal-and-noise-tools' ), 'dashicons-search', $search_clicks, $search_detail, admin_url( 'admin.php?page=sn-analytics&sn_view=search' ) )
-		. '</div></div>';
+		. '</div>'
+		// 15.3.2: the audience lists (top pages, sources, queries) belong here,
+		// under the numbers they explain, not under Operations.
+		. detail_html( (array) ( $data['panels'] ?? array() ), 'audience', __( 'Audience detail, 7 days', 'signal-and-noise-tools' ) )
+		. '</div>';
 
 	// Group 2: Publishing.
 	$out .= '<div class="snt-home__pulse-group">'
@@ -683,7 +687,7 @@ function home_operations_html( array $data, $tab ) {
 		. '</div>';
 
 	$out .= systems_html( (array) ( $data['checks'] ?? array() ), (array) ( $data['components'] ?? array() ), $tab );
-	$out .= detail_html( (array) ( $data['panels'] ?? array() ) );
+	$out .= detail_html( (array) ( $data['panels'] ?? array() ), 'ops' );
 	$out .= toolbar_html( (string) ( $data['check_updates_url'] ?? '' ) );
 
 	if ( ! empty( $data['overrides'] ) ) {
@@ -721,11 +725,18 @@ function systems_html( array $checks, array $components, $tab ) {
 		$state = ( 'ok' !== $kind && \sn_admin_card_wants_attention( $card ) ) ? $kind : '';
 		$value = (string) ( $card['value'] ?? '' );
 		$go    = go_target( (string) ( $card['href'] ?? '' ) );
+		// 15.3.2: an ASYNC card (Caches: snt_freshness_card()) renders "Checking…"
+		// and assets/freshness-dot.js finds it BY ID and writes the live verdict
+		// into `.sn-glance-card__value`. The classic wall learned this in
+		// v11.30.0/v11.30.1; the port dropped both, so the native Home read
+		// "Checking…" forever under a meta line that already said "verified fresh".
+		$id     = (string) ( $card['id'] ?? '' );
+		$vclass = 'snt-sys__v' . ( '' !== $id ? ' sn-glance-card__value' : '' );
 		$body  = null !== $go
-			? \snt_kit_go( $value, $go + array( 'current' => $tab ), array( 'class' => 'snt-sys__v' ) )
-			: '<span class="snt-sys__v">' . \snt_kit_esc( $value ) . '</span>';
+			? \snt_kit_go( $value, $go + array( 'current' => $tab ), array( 'class' => $vclass ) )
+			: '<span class="' . $vclass . '">' . \snt_kit_esc( $value ) . '</span>';
 		$pill  = (string) ( $card['pill']['text'] ?? '' );
-		$cells .= '<div class="snt-sys' . ( '' !== $state ? ' snt-sys--' . \snt_kit_esc( $state ) : '' ) . '"' . ( '' !== $state ? ' data-tone="' . \snt_kit_tone( $state ) . '"' : '' ) . '>'
+		$cells .= '<div class="snt-sys' . ( '' !== $state ? ' snt-sys--' . \snt_kit_esc( $state ) : '' ) . '"' . ( '' !== $id ? ' id="' . \snt_kit_esc( $id ) . '"' : '' ) . ( '' !== $state ? ' data-tone="' . \snt_kit_tone( $state ) . '"' : '' ) . '>'
 			. '<span class="snt-sys__k">' . \snt_kit_esc( (string) ( $card['label'] ?? '' ) ) . '</span>'
 			. $body
 			. ( '' !== $pill && 'ok' !== $kind ? \snt_kit_badge( $kind, $pill ) : '' )
@@ -750,19 +761,26 @@ function systems_html( array $checks, array $components, $tab ) {
  * @param array<int,array<string,mixed>> $panels Panels.
  * @return string
  */
-function detail_html( array $panels ) {
+function detail_html( array $panels, $group = 'ops', $heading = null ) {
+	// 15.3.2: one painter, two homes. The audience panels (pages, sources,
+	// queries) paint under Site pulse; the ops panels (deploys, API limits)
+	// stay under Operations. A reading lives where its question is asked.
 	$cols = '';
 	foreach ( $panels as $panel ) {
-		if ( ! is_array( $panel ) ) {
+		if ( ! is_array( $panel ) || (string) ( $panel['group'] ?? 'ops' ) !== $group ) {
 			continue;
 		}
 		$rows  = array_key_exists( 'rows', $panel ) ? $panel['rows'] : null;
 		$inner = null === $rows
 			? '<p class="snt-list__empty">' . \snt_kit_esc( (string) ( $panel['unmeasured'] ?? '' ) ) . '</p>'
 			: \snt_kit_list( (array) $rows, array( 'empty' => (string) ( $panel['empty'] ?? '' ) ) );
-		$cols .= '<section class="snt-col"><h3 class="snt-col__h">' . \snt_kit_esc( (string) ( $panel['title'] ?? '' ) ) . '</h3>' . $inner . '</section>';
+		$title = (string) ( $panel['title'] ?? '' ) . ( '' !== (string) ( $panel['caption'] ?? '' ) ? ' · ' . (string) $panel['caption'] : '' );
+		$cols .= '<section class="snt-col"><h3 class="snt-col__h">' . \snt_kit_esc( $title ) . '</h3>' . $inner . '</section>';
 	}
-	return \snt_kit_section( __( 'Detail', 'signal-and-noise-tools' ), '<div class="snt-cols">' . $cols . '</div>' );
+	if ( '' === $cols ) {
+		return '';
+	}
+	return \snt_kit_section( null === $heading ? __( 'Operations detail', 'signal-and-noise-tools' ) : (string) $heading, '<div class="snt-cols">' . $cols . '</div>' );
 }
 
 /**
