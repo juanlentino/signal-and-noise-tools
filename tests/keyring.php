@@ -32,7 +32,7 @@ echo "keyring -- every credential in one place (15.2.0)\n";
 
 // ── Shape
 $rows = sn_keyring();
-ok( 16 === count( $rows ) && isset( $rows['site_secret'], $rows['mr_read_token'], $rows['cf_token'], $rows['betterstack_token'], $rows['cloudways_api_key'] ), '16 rows, the site secret first among them' );
+ok( 17 === count( $rows ) && isset( $rows['site_secret'], $rows['mr_read_token'], $rows['cf_token'], $rows['workers_ai_token'], $rows['betterstack_token'], $rows['cloudways_api_key'] ), '17 rows (15.3.1: + the Workers AI token), the site secret first among them' );
 foreach ( $rows as $id => $row ) {
 	ok( isset( $row['group'], $row['label'], $row['kind'], $row['about'], $row['feeds'] ) && in_array( $row['group'], array( 'site', 'cloudflare', 'issued' ), true ) && ( isset( $row['constant'] ) || isset( $row['option'] ) || isset( $row['setting'] ) ), "row $id carries group, label, kind, about, feeds and a home" );
 }
@@ -43,7 +43,7 @@ foreach ( $derived as $id ) {
 }
 ok( '' === sn_keyring_other_half_command( $rows['betterstack_token'] ), 'an issued token with no worker copy has no other half to print' );
 ok( false !== strpos( sn_keyring_other_half_command( $rows['cf_token'] ), 'sn-rights-signals-worker && npx wrangler secret put SN_MR_SQL_TOKEN' ), '15.2.2: the Cloudflare token has an other half, the sensor\'s SN_MR_SQL_TOKEN: rolling it has a second place to update' );
-ok( 'cloudflare_override' === ( $rows['cf_analytics_override']['probe'] ?? '' ), '15.2.2: the analytics override has its own probe, so a dead override reads refused, never no probe' );
+ok( 'cloudflare_token' === ( $rows['cf_analytics_override']['probe'] ?? '' ) && 'cloudflare_token' === ( $rows['workers_ai_token']['probe'] ?? '' ) && 'ml.embeddings_token' === ( $rows['workers_ai_token']['setting'] ?? '' ), '15.3.1: the analytics override and the Workers AI token verify with their own bytes; the Workers AI token keeps its settings-blob home' );
 
 // ── Resolution: '' → saved → site → constant
 ok( '' === sn_keyring_source( 'mr_read_token' ) && '' === sn_credential( 'mr_read_token' ), 'unset: no source, empty value' );

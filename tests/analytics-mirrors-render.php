@@ -66,7 +66,7 @@ ok( strpos( $h, 'width:42%' ) !== false, 'meter width reflects 4.2/10 spend' );
 // Zone ID row: value present (option-configured, not locked).
 ok( strpos( $h, 'Zone ID' ) !== false, 'zone row label shown' );
 ok( strpos( $h, '<code>zoneABC123</code>' ) !== false, 'zone value shown when the option is set' );
-ok( strpos( $h, 'tab=connections&sub=cloudflare' ) !== false, 'zone row links to Connections → Cloudflare' );
+ok( strpos( $h, 'tab=connections&sub=credentials' ) !== false, '15.3.1: zone row links to Connections → Credentials, the keyring' );
 ok( strpos( $h, 'Locked by the' ) === false, 'zone row carries no locked note when only the option is set' );
 
 // No budget cap → no meter, "no cap" copy instead.
@@ -119,7 +119,7 @@ ok( strpos( $h3, '<input' ) === false && strpos( $h3, '<button' ) === false && s
 $src = file_get_contents( __DIR__ . '/../inc/analytics-render-settings.php' );
 ok( strpos( $src, "esc_html__( 'Zone ID', 'signal-and-noise-tools' )" ) !== false, 'i18n: zone row label wrapped with text domain' );
 ok( strpos( $src, "esc_html__( 'Not set', 'signal-and-noise-tools' )" ) !== false, 'i18n: not-set state string wrapped with text domain' );
-ok( strpos( $src, "'Connections → Cloudflare →', 'signal-and-noise-tools'" ) !== false, 'i18n: zone deep-link label wrapped with text domain' );
+ok( strpos( $src, "'Connections → Credentials →', 'signal-and-noise-tools'" ) !== false, 'i18n: zone deep-link label wrapped with text domain' );
 ok( strpos( $src, "'Also gates cache purge and the Edge view.', 'signal-and-noise-tools'" ) !== false, 'i18n: zone caption wrapped with text domain' );
 
 echo "\n--- $pass passed, $fail failed ---\n";

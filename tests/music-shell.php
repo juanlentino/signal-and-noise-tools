@@ -23,6 +23,8 @@ if ( ! defined( 'SN_SPOTIFY_ID_OPT' ) ) { define( 'SN_SPOTIFY_ID_OPT', 'sn_spoti
 if ( ! defined( 'SN_SPOTIFY_SECRET_OPT' ) ) { define( 'SN_SPOTIFY_SECRET_OPT', 'sn_spotify_secret' ); }
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; } } // 15.3.1: the Spotify block links to the keyring
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $s ) { return (string) $s; } }
 if ( ! function_exists( 'esc_url' ) ) { function esc_url( $s ) { return (string) $s; } }
 if ( ! function_exists( 'current_user_can' ) ) { function current_user_can() { return true; } }
 if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a = -1 ) { echo '<input type="hidden" name="_wpnonce">'; } }

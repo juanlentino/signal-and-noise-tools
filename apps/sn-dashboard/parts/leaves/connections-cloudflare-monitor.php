@@ -138,20 +138,49 @@ function cloudflare_edge_html( array $d ) {
  * @return string
  */
 function cloudflare_firewall_html( array $d ) {
-	$record = cloudflare_monitor_record();
-	if ( ! is_array( $record ) || empty( $record['configured'] ) ) {
+	$parts = cloudflare_firewall_parts( $d );
+	if ( array() === $parts ) {
 		return '';
 	}
-	$inner = '';
-	// ── Firewall, 24 hours
-	$f = is_array( $record['firewall'] ) ? $record['firewall'] : array();
+	// 15.3.1: two columns. Left, what happened (events by action, the rules);
+	// right, to what (paths, countries). Notes and Refresh under the left.
+	return '<div class="snt-2up">'
+		. '<div class="snt-2up-col">' . \snt_kit_section( __( 'Firewall, 24 hours', 'signal-and-noise-tools' ), $parts['actions'] . $parts['rules'] . $parts['notes'] . $parts['footer'], __( 'What Cloudflare stopped before WordPress ran.', 'signal-and-noise-tools' ) ) . '</div>'
+		. '<div class="snt-2up-col">' . ( '' !== $parts['targets'] ? \snt_kit_section( __( 'Acted on', 'signal-and-noise-tools' ), $parts['targets'], __( 'The paths and countries behind the events, from the event log.', 'signal-and-noise-tools' ) ) : '' ) . '</div>'
+		. '</div>';
+}
+
+/**
+ * The firewall reading's pieces, so a leaf can lay them out: `actions`
+ * (the count and by-action list, or the refusal notice), `rules` (top rules
+ * under a heading), `targets` (the log's top paths and countries), `notes`
+ * (the raw-dataset and floor notes), `footer` (Refresh). Empty array when
+ * the monitor never ran or is unconfigured.
+ *
+ * @param array<string,mixed> $d From cloudflare_data().
+ * @return array<string,string>
+ */
+function cloudflare_firewall_parts( array $d ) {
+	$record = cloudflare_monitor_record();
+	if ( ! is_array( $record ) || empty( $record['configured'] ) ) {
+		return array();
+	}
+	$parts = array( 'actions' => '', 'rules' => '', 'targets' => '', 'notes' => '', 'footer' => cloudflare_monitor_footer_html( $d, $record ) );
+	$f     = is_array( $record['firewall'] ) ? $record['firewall'] : array();
 	if ( ! empty( $f['available'] ) ) {
 		$rows = array();
 		foreach ( (array) $f['by_action'] as $action => $n ) {
 			$rows[] = array( 'label' => (string) $action, 'value' => number_format_i18n( (int) $n ), 'tone' => in_array( $action, array( 'block', 'managed_challenge', 'challenge', 'jschallenge' ), true ) ? 'warn' : '' );
 		}
-		$inner .= '<h4 class="snt-h">' . \snt_kit_esc( sprintf( /* translators: %s: count. */ __( '%s events', 'signal-and-noise-tools' ), number_format_i18n( (int) $f['events'] ) ) ) . '</h4>';
-		$inner .= array() !== $rows ? \snt_kit_list( $rows ) : '<p class="snt-hint">' . \snt_kit_esc( __( 'No firewall events in the window.', 'signal-and-noise-tools' ) ) . '</p>';
+		$parts['actions'] = '<h4 class="snt-h">' . \snt_kit_esc( sprintf( /* translators: %s: count. */ __( '%s events', 'signal-and-noise-tools' ), number_format_i18n( (int) $f['events'] ) ) ) . '</h4>'
+			. ( array() !== $rows ? \snt_kit_list( $rows ) : '<p class="snt-hint">' . \snt_kit_esc( __( 'No firewall events in the window.', 'signal-and-noise-tools' ) ) . '</p>' );
+		if ( ! empty( $f['top_rules'] ) ) {
+			$rule_rows = array();
+			foreach ( (array) $f['top_rules'] as $r ) {
+				$rule_rows[] = array( 'label' => trim( (string) $r['source'] . ' ' . (string) $r['rule'] ) ?: __( '(unnamed)', 'signal-and-noise-tools' ), 'value' => (string) $r['action'] . ' × ' . number_format_i18n( (int) $r['count'] ) );
+			}
+			$parts['rules'] = '<h4 class="snt-h">' . \snt_kit_esc( __( 'Top rules', 'signal-and-noise-tools' ) ) . '</h4>' . \snt_kit_list( $rule_rows );
+		}
 		// 15.1.0: from the event log, what the origin never saw: the paths
 		// and countries Cloudflare acted on. Weighted by sampleInterval.
 		$log = function_exists( 'sn_cf_firewall_events_read' ) ? sn_cf_firewall_events_read() : null;
@@ -161,22 +190,15 @@ function cloudflare_firewall_html( array $d ) {
 				foreach ( sn_cf_firewall_events_top( (array) $log['rows'], $field, 5 ) as $value => $n ) {
 					$top_rows[] = array( 'label' => (string) $value, 'value' => number_format_i18n( (int) $n ) );
 				}
-				$inner .= '<h4 class="snt-h">' . \snt_kit_esc( $heading ) . '</h4>' . \snt_kit_list( $top_rows );
+				$parts['targets'] .= '<h4 class="snt-h">' . \snt_kit_esc( $heading ) . '</h4>' . \snt_kit_list( $top_rows );
 			}
 			if ( ! empty( $log['truncated'] ) ) {
-				$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'The event log had more rows than one page holds; these are a floor.', 'signal-and-noise-tools' ) ) . '</p>';
+				$parts['targets'] .= '<p class="snt-hint">' . \snt_kit_esc( __( 'The event log had more rows than one page holds; these are a floor.', 'signal-and-noise-tools' ) ) . '</p>';
 			}
 		}
 		if ( 'raw' === (string) ( $f['dataset'] ?? '' ) ) {
 			// 15.0.1: the grouped dataset is not on this zone's plan; the raw one is.
-			$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Read from the raw firewallEventsAdaptive dataset and grouped here; the grouped dataset is not on this zone\'s plan.', 'signal-and-noise-tools' ) . ( ! empty( $f['truncated'] ) ? ' ' . __( 'The day had more events than one page holds; the counts are a floor.', 'signal-and-noise-tools' ) : '' ) ) . '</p>';
-		}
-		if ( ! empty( $f['top_rules'] ) ) {
-			$rule_rows = array();
-			foreach ( (array) $f['top_rules'] as $r ) {
-				$rule_rows[] = array( 'label' => trim( (string) $r['source'] . ' ' . (string) $r['rule'] ) ?: __( '(unnamed)', 'signal-and-noise-tools' ), 'value' => (string) $r['action'] . ' × ' . number_format_i18n( (int) $r['count'] ) );
-			}
-			$inner .= \snt_kit_list( $rule_rows );
+			$parts['notes'] = '<p class="snt-hint">' . \snt_kit_esc( __( 'Read from the raw firewallEventsAdaptive dataset and grouped here; the grouped dataset is not on this zone\'s plan.', 'signal-and-noise-tools' ) . ( ! empty( $f['truncated'] ) ? ' ' . __( 'The day had more events than one page holds; the counts are a floor.', 'signal-and-noise-tools' ) : '' ) ) . '</p>';
 		}
 	} elseif ( ! empty( $f['needs_permission'] ) ) {
 		// 15.0.1: the API's two sentences, grouped and raw, beside the plan hint.
@@ -184,12 +206,11 @@ function cloudflare_firewall_html( array $d ) {
 		if ( '' !== (string) ( $f['error_raw'] ?? '' ) ) {
 			$detail .= ' ' . sprintf( /* translators: %s: the API's message for the raw dataset. */ __( 'The raw dataset said: “%s”', 'signal-and-noise-tools' ), (string) $f['error_raw'] );
 		}
-		$inner .= \snt_kit_notice( 'warning', \snt_kit_esc( __( 'Firewall events: ', 'signal-and-noise-tools' ) . sn_cf_monitor_permission_hint( 'firewall' ) . $detail ) );
+		$parts['actions'] = \snt_kit_notice( 'warning', \snt_kit_esc( __( 'Firewall events: ', 'signal-and-noise-tools' ) . sn_cf_monitor_permission_hint( 'firewall' ) . $detail ) );
 	} else {
-		$inner .= \snt_kit_notice( 'error', \snt_kit_esc( sprintf( /* translators: %s: reason. */ __( 'Firewall events could not be read: %s', 'signal-and-noise-tools' ), (string) ( $f['error'] ?? '' ) ) ) );
+		$parts['actions'] = \snt_kit_notice( 'error', \snt_kit_esc( sprintf( /* translators: %s: reason. */ __( 'Firewall events could not be read: %s', 'signal-and-noise-tools' ), (string) ( $f['error'] ?? '' ) ) ) );
 	}
-	$inner .= cloudflare_monitor_footer_html( $d, $record );
-	return \snt_kit_section( __( 'Firewall, 24 hours', 'signal-and-noise-tools' ), $inner, __( 'What Cloudflare stopped before WordPress ran.', 'signal-and-noise-tools' ) );
+	return $parts;
 }
 
 /**

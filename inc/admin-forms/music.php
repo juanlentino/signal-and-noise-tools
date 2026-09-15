@@ -96,10 +96,14 @@ function sn_admin_render_music_section() {
 
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Spotify (optional)</h2>';
-	echo '<p class="sn-fieldset-intro">Client-credentials app from <em>developer.spotify.com</em>. Resolves each release to its Spotify album for the lazy click-to-play embed. Stored non-autoloaded; lockable via <code>SN_SPOTIFY_CLIENT_ID</code> / <code>SN_SPOTIFY_CLIENT_SECRET</code> in <code>wp-config.php</code>. Leave the masked value to keep it; type <code>clear</code> to remove.</p>';
+	echo '<p class="sn-fieldset-intro">Client-credentials app from <em>developer.spotify.com</em>. Resolves each release to its Spotify album for the lazy click-to-play embed.</p>';
 
-	sn_music_render_cred_field( 'sn_spotify_id', 'Client ID', $id_opt, $id_const, 'SN_SPOTIFY_CLIENT_ID' );
-	sn_music_render_cred_field( 'sn_spotify_secret', 'Client Secret', $secret_opt, $secret_const, 'SN_SPOTIFY_CLIENT_SECRET' );
+	// 15.3.1: the client id and secret are keyring rows; this form reads them.
+	echo '<table class="widefat"><tbody>';
+	echo '<tr><th scope="row">Client ID</th><td>' . esc_html( $id_const ? 'wp-config (SN_SPOTIFY_CLIENT_ID)' : ( '' !== $id_opt ? 'Saved' : 'Not set' ) ) . '</td></tr>';
+	echo '<tr><th scope="row">Client Secret</th><td>' . esc_html( $secret_const ? 'wp-config (SN_SPOTIFY_CLIENT_SECRET)' : ( '' !== $secret_opt ? 'Saved' : 'Not set' ) ) . '</td></tr>';
+	echo '</tbody></table>';
+	echo '<p class="sn-field-helper">Set with every other key under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=connections&sub=credentials' ) ) . '">Connections › Credentials</a>.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-fieldset">';
@@ -165,24 +169,3 @@ function sn_admin_render_music_section() {
 	sn_admin_shell_close();
 }
 
-/**
- * Render one masked, constant-lockable credential field (Client ID / Secret).
- *
- * @param string $name     Field/POST name.
- * @param string $label    Visible label.
- * @param string $opt      Current stored value.
- * @param bool   $locked   Whether a wp-config constant locks this field.
- * @param string $const    The constant name (for the helper copy).
- * @return void
- */
-function sn_music_render_cred_field( $name, $label, $opt, $locked, $const ) {
-	echo '<div class="sn-field sn-field-w-lg">';
-	echo '<label class="sn-field-label" for="' . esc_attr( $name ) . '">' . esc_html( $label ) . '</label>';
-	if ( $locked ) {
-		echo '<input type="text" value="••••" disabled class="sn-mono">';
-		echo '<p class="sn-field-helper"><strong>Locked</strong> by <code>' . esc_html( $const ) . '</code>.</p>';
-	} else {
-		echo '<input type="text" id="' . esc_attr( $name ) . '" name="' . esc_attr( $name ) . '" value="' . esc_attr( sn_music_mask( $opt ) ) . '" class="sn-mono" autocomplete="off">';
-	}
-	echo '</div>';
-}

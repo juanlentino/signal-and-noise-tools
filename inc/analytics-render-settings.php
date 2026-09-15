@@ -611,7 +611,7 @@ function snt_analytics_render_mirrors() {
 		echo '<br><span class="sn-an-empty">' . sprintf( esc_html__( 'Locked by the %s constant.', 'signal-and-noise-tools' ), '<code>SN_CLOUDFLARE_ZONE_ID</code>' ) . '</span>';
 	}
 	echo '<br><span class="sn-an-settings-help">' . esc_html__( 'Also gates cache purge and the Edge view.', 'signal-and-noise-tools' ) . '</span>'
-		. '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=connections&sub=cloudflare' ) ) . '">' . esc_html__( 'Connections → Cloudflare →', 'signal-and-noise-tools' ) . '</a></div>';
+		. '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=connections&sub=credentials' ) ) . '">' . esc_html__( 'Connections → Credentials →', 'signal-and-noise-tools' ) . '</a></div>'; // 15.3.1: the zone id is a keyring row
 
 	echo '</div>';
 }

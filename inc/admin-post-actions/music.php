@@ -37,22 +37,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param bool   $changed Running changed flag.
  * @return bool Updated changed flag.
  */
-function sn_music_save_cred( $post, $field, $opt, $const, $changed ) {
-	if ( defined( $const ) && constant( $const ) ) {
-		return $changed; // locked by wp-config — admin edits are ignored.
-	}
-	$value = isset( $post[ $field ] ) ? sanitize_text_field( wp_unslash( $post[ $field ] ) ) : '';
-	if ( 'clear' === $value ) {
-		delete_option( $opt );
-		return true;
-	}
-	// Skip the masked placeholder (leaves the stored value untouched). A real
-	// pasted value never begins with the bullet run.
-	if ( '' !== $value && 0 !== strpos( $value, '••••' ) && update_option( $opt, $value, false ) ) {
-		return true;
-	}
-	return $changed;
-}
 
 /**
  * v4.13.0 (Music Identity, T6): save the Connections → Discography credentials.
@@ -80,8 +64,7 @@ function sn_handle_music_save( $post ) {
 	}
 
 	$changed = false;
-	$changed = sn_music_save_cred( $post, 'sn_spotify_id', SN_SPOTIFY_ID_OPT, 'SN_SPOTIFY_CLIENT_ID', $changed );
-	$changed = sn_music_save_cred( $post, 'sn_spotify_secret', SN_SPOTIFY_SECRET_OPT, 'SN_SPOTIFY_CLIENT_SECRET', $changed );
+	// 15.3.1: the Spotify client id and secret are saved on the keyring, not here.
 
 	// Muso profile id — plain (no mask), constant-lockable.
 	if ( ! ( defined( 'SN_MUSO_PROFILE_ID' ) && SN_MUSO_PROFILE_ID ) ) {

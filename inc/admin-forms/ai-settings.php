@@ -151,19 +151,17 @@ function sn_admin_render_ai_settings_form() {
 		echo '</div>';
 	}
 
-	// item 8: the Workers AI token for SHADOW semantic embeddings. Shipped in
-	// v11.22.0 with NO control to set it — the same failure v10.84.0 made with
-	// the page-signing gate, which then sat unreachable for thirty releases.
+	// item 8: the Workers AI token for SHADOW semantic embeddings. 15.3.1: a
+	// keyring row (Connections › Credentials); this form reads it and says so.
 	echo '<div class="sn-field">';
-	echo '<label class="sn-field-label" for="sn_ml_embeddings_token">' . esc_html__( 'Workers AI token (semantic embeddings)', 'signal-and-noise-tools' ) . '</label>';
+	echo '<span class="sn-field-label">' . esc_html__( 'Workers AI token (semantic embeddings)', 'signal-and-noise-tools' ) . '</span>';
 	$embed_token = function_exists( 'snt_ml_embed_token' ) ? snt_ml_embed_token() : '';
-	echo '<input type="text" id="sn_ml_embeddings_token" name="sn_ml_embeddings_token" class="regular-text" value="' . esc_attr( sn_mask_secret( $embed_token ) ) . '" placeholder="' . esc_attr__( 'Paste a token; type clear to remove', 'signal-and-noise-tools' ) . '">';
-	echo '<p class="sn-field-helper">' . esc_html__( 'Cloudflare dashboard → My Profile → API Tokens → Create Custom Token. The permission is under the ACCOUNT scope (not User or Zone), named "Workers AI", set to Read. The account ID is shared with Analytics.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-field-helper">' . ( '' !== $embed_token ? '<span class="sn-pill sn-pill--ok">' . esc_html__( 'set', 'signal-and-noise-tools' ) . '</span>' : '<span class="sn-pill sn-pill--warn">' . esc_html__( 'not set', 'signal-and-noise-tools' ) . '</span>' ) . ' ' . esc_html__( 'Set under', 'signal-and-noise-tools' ) . ' <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=connections&sub=credentials' ) ) . '">Connections › Credentials</a>.</p>';
 	if ( function_exists( 'snt_ml_embed_configured' ) ) {
 		if ( snt_ml_embed_configured() ) {
-			echo '<p class="sn-field-helper"><span class="sn-pill sn-pill--ok">' . esc_html__( 'Configured', 'signal-and-noise-tools' ) . '</span> ' . esc_html__( 'Embeddings run in SHADOW mode: they are computed and compared against the existing ranking, and nothing the site serves uses them yet.', 'signal-and-noise-tools' ) . '</p>';
+			echo '<p class="sn-field-helper"><span class="sn-pill sn-pill--ok">' . esc_html__( 'Configured', 'signal-and-noise-tools' ) . '</span> ' . esc_html__( 'Embeddings run in SHADOW mode: they are computed and compared, never shown to a reader.', 'signal-and-noise-tools' ) . '</p>';
 		} elseif ( '' === ( function_exists( 'snt_ml_embed_account_id' ) ? snt_ml_embed_account_id() : '' ) ) {
-			echo '<p class="sn-field-helper"><span class="sn-pill sn-pill--warn">' . esc_html__( 'No Cloudflare account ID — set it under Measurement → Analytics first.', 'signal-and-noise-tools' ) . '</span></p>';
+			echo '<p class="sn-field-helper"><span class="sn-pill sn-pill--warn">' . esc_html__( 'No Cloudflare account ID — set it under Connections › Credentials first.', 'signal-and-noise-tools' ) . '</span></p>';
 		} else {
 			echo '<p class="sn-field-helper"><span class="sn-pill">' . esc_html__( 'Not configured.', 'signal-and-noise-tools' ) . '</span></p>';
 		}

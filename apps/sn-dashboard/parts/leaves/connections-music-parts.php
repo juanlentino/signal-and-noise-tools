@@ -63,45 +63,31 @@ function music_locked_field( $label, $value, $const ) {
 }
 
 /**
- * One masked, constant-lockable credential (Client ID / Secret), as
- * sn_music_render_cred_field(): locked → "••••" disabled; else the stored
- * value through the shared mask (never raw).
- *
- * @param string $name   Field name.
- * @param string $label  Label.
- * @param string $opt    Stored value.
- * @param bool   $locked Whether a constant locks it.
- * @param string $const  The constant's name.
- * @return string
- */
-function music_cred_field( $name, $label, $opt, $locked, $const ) {
-	if ( $locked ) {
-		return music_locked_field( $label, '••••', $const );
-	}
-	$masked = function_exists( 'sn_mask_secret' ) ? (string) sn_mask_secret( $opt ) : '';
-	return \snt_kit_field( 'text', $name, $label, $masked, array( 'autocomplete' => 'off' ) );
-}
-
-/**
  * Spotify (optional): intro + the two credentials.
  *
  * @param array<string,mixed> $s From music_state().
  * @return string
  */
 function music_spotify_section( array $s ) {
+	// 15.3.1: the client id and secret are keyring rows (Connections ›
+	// Credentials); this section reads them and says where they come from.
+	$src = static function ( $locked, $const, $value ) {
+		if ( $locked ) {
+			return sprintf( /* translators: %s: constant name. */ __( 'wp-config (%s)', 'signal-and-noise-tools' ), $const );
+		}
+		return '' !== (string) $value ? __( 'Saved', 'signal-and-noise-tools' ) : __( 'Not set', 'signal-and-noise-tools' );
+	};
 	$intro = '<p class="snt-prose">'
 		. \snt_kit_esc( __( 'Client-credentials app from', 'signal-and-noise-tools' ) ) . ' <em>developer.spotify.com</em>. '
-		. \snt_kit_esc( __( 'Resolves each release to its Spotify album for the lazy click-to-play embed. Stored non-autoloaded; lockable via', 'signal-and-noise-tools' ) ) . ' '
-		. \snt_kit_code( 'SN_SPOTIFY_CLIENT_ID', false ) . ' / ' . \snt_kit_code( 'SN_SPOTIFY_CLIENT_SECRET', false ) . ' '
-		. \snt_kit_esc( __( 'in', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( 'wp-config.php', false ) . '. '
-		. \snt_kit_esc( __( 'Leave the masked value to keep it; type', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( 'clear', false ) . ' '
-		. \snt_kit_esc( __( 'to remove.', 'signal-and-noise-tools' ) )
+		. \snt_kit_esc( __( 'Resolves each release to its Spotify album for the lazy click-to-play embed.', 'signal-and-noise-tools' ) ) . ' '
+		. \snt_kit_esc( __( 'Set with every other key under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'connections' ) ) . '.'
 		. '</p>';
 	return \snt_kit_section(
 		__( 'Spotify (optional)', 'signal-and-noise-tools' ),
-		$intro
-		. music_cred_field( 'sn_spotify_id', __( 'Client ID', 'signal-and-noise-tools' ), $s['id_opt'], $s['id_const'], 'SN_SPOTIFY_CLIENT_ID' )
-		. music_cred_field( 'sn_spotify_secret', __( 'Client Secret', 'signal-and-noise-tools' ), $s['secret_opt'], $s['secret_const'], 'SN_SPOTIFY_CLIENT_SECRET' )
+		$intro . \snt_kit_kv( array(
+			array( 'label' => __( 'Client ID', 'signal-and-noise-tools' ), 'value' => $src( $s['id_const'], 'SN_SPOTIFY_CLIENT_ID', $s['id_opt'] ) ),
+			array( 'label' => __( 'Client Secret', 'signal-and-noise-tools' ), 'value' => $src( $s['secret_const'], 'SN_SPOTIFY_CLIENT_SECRET', $s['secret_opt'] ) ),
+		) )
 	);
 }
 

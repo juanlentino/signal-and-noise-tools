@@ -45,8 +45,10 @@ function sn_keyring_probe( $id, array $row ) {
 	switch ( (string) ( $row['probe'] ?? '' ) ) {
 		case 'cloudflare':
 			return sn_keyring_probe_cloudflare();
-		case 'cloudflare_override':
-			return sn_keyring_probe_cloudflare( sn_credential( 'cf_analytics_override' ) );
+		case 'cloudflare_token':
+			// 15.3.1: any Cloudflare token that is not the central one (the analytics
+			// override, the Workers AI token) verifies with its own bytes.
+			return sn_keyring_probe_cloudflare( sn_credential( $id ) );
 		case 'sensor':
 			return sn_keyring_probe_sensor( $row );
 		case 'betterstack':

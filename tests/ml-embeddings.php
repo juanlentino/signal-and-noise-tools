@@ -227,12 +227,11 @@ $handler = (string) implode( '', array_map( 'file_get_contents', array_merge(
 	array( __DIR__ . '/../inc/admin-post-actions.php' ),
 	glob( __DIR__ . '/../inc/admin-post-actions/*.php' ) ?: array()
 ) ) );
-ok( false !== strpos( $form, 'sn_ml_embeddings_token' ), 'the AI settings form renders a field for the token' );
-ok( false !== strpos( $form, 'sn_mask_secret' ), 'and masks it rather than echoing the secret back' );
-ok( false !== strpos( $form, 'Workers AI' ) && false !== strpos( $form, 'Read' ), 'and names the exact permission (ACCOUNT scope, Workers AI, Read) — the step that is easy to get wrong' );
-ok( false !== strpos( $handler, "sn_setting_update( 'ml.embeddings_token'" ), 'the save handler writes the leaf' );
-ok( false !== strpos( $handler, "0 !== strpos( \$embed, '••••' )" ), 'and IGNORES an un-edited mask, so saving the form never overwrites the real token with dots' );
-ok( false !== strpos( $handler, "'clear' === strtolower( \$embed )" ), 'with an explicit clear sentinel' );
+// 15.3.1: the token is a keyring row; the form reads it, the handler no longer writes it.
+$keyring = (string) file_get_contents( __DIR__ . '/../inc/keyring.php' );
+ok( false === strpos( $form, 'name="sn_ml_embeddings_token"' ) && false !== strpos( $form, 'Connections › Credentials' ) && false !== strpos( $form, 'snt_ml_embed_token()' ), 'the AI settings form carries no token field: it reads the token and points to the keyring' );
+ok( false === strpos( $handler, "sn_setting_update( 'ml.embeddings_token'" ), 'the save handler no longer writes the token' );
+ok( false !== strpos( $keyring, "'setting' => 'ml.embeddings_token'" ) && false !== strpos( $keyring, "Workers AI › Read" ) && false !== strpos( $keyring, "'probe' => 'cloudflare_token'" ), 'the keyring row keeps the setting as its home, names the exact permission (Account › Workers AI › Read) and verifies with its own bytes' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail === 0 ? 0 : 1 );
