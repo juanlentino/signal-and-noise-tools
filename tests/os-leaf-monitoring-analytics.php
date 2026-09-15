@@ -96,6 +96,15 @@ require SNT_PATH . 'inc/worker-version.php';
 require SNT_PATH . 'inc/analytics-salt-window.php';
 require SNT_PATH . 'inc/analytics-render-settings.php';
 require SNT_PATH . 'inc/analytics-admin.php';
+// 15.3.0: the Edge, 7 days section paints at the top of this leaf from the
+// Cloudflare monitor's stored record, through the Connections leaf's parts.
+if ( ! defined( 'SNT_CW_LAST_PURGE_OPT' ) ) { define( 'SNT_CW_LAST_PURGE_OPT', 'sn_cloudways_last_purge' ); }
+if ( ! function_exists( 'size_format' ) ) { function size_format( $b ) { return $b . ' B'; } }
+require SNT_PATH . 'inc/admin-glance.php';
+require SNT_PATH . 'inc/cloudflare-monitor.php'; // not the purge module: this suite stubs sn_cf_get_zone() itself
+require SNT_PATH . 'inc/cloudflare-firewall-events.php';
+require SNT_PATH . 'inc/cloudflare-readings-admin.php';
+require SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-cloudflare.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-analytics.php';
 
 $pass = 0; $fail = 0;
@@ -256,6 +265,16 @@ $GLOBALS['__http_body'] = wp_json_encode(
 );
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( false !== strpos( $kit, 'could not list its salt keys (KV read failed at the edge)' ) && false === strpos( $kit, 'could not read the worker.' ) && false === strpos( $kit, 'predates the salt window' ), 'salt kv-failed: its own copy prints, distinct from old-worker and unreachable' );
+
+// ── 15.3.0: Edge, 7 days at the top, from the Cloudflare monitor's stored record; absent before it ran.
+ok( false === strpos( $kit, 'heading="Edge, 7 days"' ) && false === strpos( $classic, 'Edge, 7 days' ), 'no Edge section before the monitor ran, on either leaf' );
+$GLOBALS['__options'][ SN_CF_MONITOR_OPT ] = array( 'fetched_at' => time(), 'configured' => true, 'token' => array( 'verified' => true, 'status' => 'active', 'expires_on' => '', 'error' => '', 'kind' => 'user' ), 'zone' => array( 'available' => true, 'needs_permission' => false, 'error' => '', 'days' => array(), 'totals' => array( 'requests' => 166684, 'cached' => 13500, 'bytes' => 2000000000, 'cached_bytes' => 1, 'threats' => 12804, 'status_4xx' => 0, 'status_5xx' => 4473, 'cache_share' => 8.1, 'status_5xx_codes' => array( 503 => 4314, 520 => 132 ) ) ), 'firewall' => array( 'available' => false, 'needs_permission' => true, 'error' => 'x', 'events' => 0, 'by_action' => array(), 'top_rules' => array() ) );
+$classic = snt_leaf_classic_html( '\snt_analytics_render_settings_section' );
+$kit     = snt_leaf_paint( 'monitoring', 'analytics' );
+ok( false !== strpos( $kit, 'heading="Edge, 7 days"' ) && strpos( $kit, 'heading="Edge, 7 days"' ) < strpos( $kit, '<div class="snt-2up">' ) && false !== strpos( $kit, '166,684' ) && false !== strpos( $kit, '8.1%' ) && false !== strpos( $kit, '503 · answered by the origin' ) && false !== strpos( $kit, '4,314' ), 'Edge, 7 days paints above the two columns: the five figures and the 5xx split' );
+ok( false !== strpos( $classic, 'Edge, 7 days' ) && false !== strpos( $classic, '166,684' ) && false !== strpos( $classic, '<th scope="row">503</th><td>4,314</td>' ) && strpos( $classic, 'Edge, 7 days' ) < strpos( $classic, '<div class="sn-2up">' ), 'the classic hub paints the same card above its columns' );
+ok( in_array( 'cf_monitor_refresh', snt_leaf_actions( $kit ), true ) && in_array( 'cf_monitor_refresh', snt_leaf_actions( $classic ), true ) && false === strpos( $kit, 'heading="Firewall, 24 hours"' ), 'the Edge section carries the monitor\'s Refresh on both leaves; no Firewall here' );
+unset( $GLOBALS['__options'][ SN_CF_MONITOR_OPT ] );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

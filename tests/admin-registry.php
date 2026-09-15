@@ -169,8 +169,8 @@ ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'provenance', 'trust',
 ok( ! empty( $by_tab['tools']['sub_tabs']['trust']['wide'] ), 'trust leaf is wide (glance hero + full-width table)' );
 ok( ! empty( $by_tab['ai']['sub_tabs']['models-budget']['wide'] ),
 	'models-budget is wide (v10.47.0: it joins the Phase-4a field grid instead of sitting as a 620px card in a 1200px tab)' );
-ok( array_keys( $by_tab['security']['sub_tabs'] ) === array( 'login', 'login-defense', 'audit-log' ),
-	'security leaves: login, login-defense, audit-log (unchanged)' );
+ok( array_keys( $by_tab['security']['sub_tabs'] ) === array( 'login', 'login-defense', 'firewall', 'audit-log' ),
+	'security leaves: login, login-defense, firewall (15.3.0: the edge\'s own log), audit-log' );
 
 // Moved leaves must carry their layout flags across verbatim — a dropped 'wide'
 // silently re-caps a two-column surface at 820px.

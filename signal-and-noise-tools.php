@@ -94,6 +94,7 @@ require_once SNT_PATH . 'inc/cloudflare-firewall-events.php'; // 15.1.0: the raw
 require_once SNT_PATH . 'inc/keyring.php';        // 15.2.0: every credential in one registry; the site secret the handshakes derive from.
 require_once SNT_PATH . 'inc/keyring-verify.php'; // 15.2.0: one probe per credential, verdicts stored; "Verify all".
 require_once SNT_PATH . 'inc/keyring-admin.php';  // 15.2.0: the row model both leaves paint; the classic Connections › Credentials leaf.
+require_once SNT_PATH . 'inc/cloudflare-readings-admin.php'; // 15.3.0: Edge (Measurement › Analytics) and Firewall (Security › Firewall), classic; the readings where their questions are asked.
 require_once SNT_PATH . 'inc/cloudways-purge.php';    // v8.6.0: reliable Varnish clear via the Cloudways API (rides breeze_clear_varnish)
 require_once SNT_PATH . 'inc/admin-forms/cloudways.php'; // v12.17.0: Connections → Cloudways status glance (display-only; reads SNT_CW_LAST_PURGE_OPT written by the purge above)
 require_once SNT_PATH . 'inc/freshness-indicator.php'; // v8.5.1: dashboard cache-freshness dot (client-checked CSS-hash)

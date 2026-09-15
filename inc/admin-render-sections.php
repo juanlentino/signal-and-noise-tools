@@ -30,6 +30,11 @@ function sn_admin_render_cloudflare_section() {
 }
 
 /** Connections → Cloudways (v12.17.0): display-only origin-cache status. */
+/** Security → Firewall (15.3.0): the edge's firewall log, classic. */
+function sn_admin_render_firewall_section() {
+	do_action( 'sn_admin_firewall_tab' );
+}
+
 /** Connections → Credentials (15.2.0): the keyring's classic leaf. */
 function sn_admin_render_credentials_section() {
 	do_action( 'sn_admin_credentials_tab' );

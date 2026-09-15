@@ -306,10 +306,13 @@ function sn_admin_top_tabs() {
 			'tab'      => 'security',
 			'label'    => 'Security',
 			'title'    => 'Signal & Noise. Security',
-			'subtitle' => 'Custom login URL and the admin audit log.',
+			'subtitle' => 'Custom login URL, login defense, the edge firewall and the admin audit log.',
 			'sub_tabs' => array(
 				'login'         => array( 'label' => 'Login URL', 'render' => 'sn_admin_render_login_section' ),
 				'login-defense' => array( 'label' => 'Login defense', 'render' => 'sn_login_defense_render' ),
+				// 15.3.0: the edge's own log, what Cloudflare stopped before WordPress
+				// ran, read daily with the monitor. 'wide': tables.
+				'firewall'      => array( 'label' => 'Firewall', 'render' => 'sn_admin_render_firewall_section', 'wide' => true ),
 				// v3.8.3: audit-log sub-tab. Adding the 2nd sub-tab automatically
 				// reveals the sub-tab nav row (sn_admin_render_sub_tabs() hides at count<2).
 				// 'wide' (v6.47.0): the audit log leads with a 4-card glance hero over a
