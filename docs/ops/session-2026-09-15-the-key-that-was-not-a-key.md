@@ -1,6 +1,6 @@
 # Session — 2026-09-15: the key that was not a key
 
-Five cuts in one day, 15.0.0 to 15.2.1, and every one of them was the same
+Seven cuts in one day, 15.0.0 to 15.2.2, and every one of them was the same
 question wearing a different coat: *which key is this, and who holds the other
 half?* The day started with a Cloudflare grant hunt and ended with a ledger of
 sixteen credentials that names, for each, what it is and what it is not. This is
