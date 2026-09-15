@@ -1,6 +1,6 @@
 # Session — 2026-09-15: the key that was not a key
 
-Nine cuts in one day, 15.0.0 to 15.3.1, and every one of them was the same
+Ten cuts in one day, 15.0.0 to 15.3.2, and every one of them was the same
 question wearing a different coat: *which key is this, and who holds the other
 half?* The day started with a Cloudflare grant hunt and ended with a ledger of
 sixteen credentials that names, for each, what it is and what it is not. This is
@@ -172,6 +172,24 @@ still sent the zone id to Connections › Cloudflare now say Credentials.
 
 Rule for the day, three times over: a column that is a single card over a
 screen of nothing is a layout that has not been looked at painted.
+
+## The Home, last
+
+The owner ended the day on S&N Home with three screens and "some problems". I
+read them wrong twice: first the Caches card's "Checking…" and three workers
+"warming…", which he pointed out do resolve (the warming is a one-load lag after
+a deploy, the Caches placeholder a real bug in the native port, fixed in the
+same cut); then a list of four other candidates. What he meant was the Detail
+box under Operations, where Recent deploys and API limits sat beside Top pages,
+Top sources and Top queries. Audience numbers under the ops heading: the day's
+rule one more time, and the last place I had not applied it. 15.3.2 gives each
+panel a group; the audience three paint under Site pulse, the ops two stay under
+Operations, and Top queries names its column, so six zeros read as clicks over
+a month rather than as a broken list.
+
+Two misreads before the right one is the note to keep: when the owner says a
+leaf has problems, the cheapest first move is to ask which box, not to list
+what I would fix.
 
 ## What the verify said, first run
 
