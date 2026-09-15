@@ -60,6 +60,17 @@ function cloudflare_monitor_html( array $d ) {
 				. \snt_kit_stat( number_format_i18n( (int) $tt['threats'] ), __( 'Threats', 'signal-and-noise-tools' ) )
 				. \snt_kit_stat( number_format_i18n( (int) $tt['status_5xx'] ), __( '5xx at the edge', 'signal-and-noise-tools' ), '', (int) $tt['status_5xx'] > 0 ? 'warn' : '' )
 				. '</div>';
+			// 14.9.1: which 5xx. 520/522/524 are Cloudflare failing to reach or
+			// wait for the origin; 503 is the origin's own answer (Varnish).
+			$codes = (array) ( $tt['status_5xx_codes'] ?? array() );
+			if ( array() !== $codes ) {
+				$code_rows = array();
+				$cf_side   = array( 520 => __( 'origin returned an unreadable or empty response', 'signal-and-noise-tools' ), 521 => __( 'origin refused the connection', 'signal-and-noise-tools' ), 522 => __( 'connection to the origin timed out', 'signal-and-noise-tools' ), 523 => __( 'origin unreachable', 'signal-and-noise-tools' ), 524 => __( 'origin took too long to answer', 'signal-and-noise-tools' ), 525 => __( 'TLS handshake with the origin failed', 'signal-and-noise-tools' ), 526 => __( 'origin certificate invalid', 'signal-and-noise-tools' ) );
+				foreach ( $codes as $code => $n ) {
+					$code_rows[] = array( 'label' => (string) $code . ' · ' . ( $cf_side[ (int) $code ] ?? __( 'answered by the origin', 'signal-and-noise-tools' ) ), 'value' => number_format_i18n( (int) $n ), 'tone' => 'warn' );
+				}
+				$inner .= \snt_kit_list( $code_rows );
+			}
 		} elseif ( ! empty( $z['needs_permission'] ) ) {
 			$inner .= \snt_kit_notice( 'warning', \snt_kit_esc( __( 'Zone analytics: ', 'signal-and-noise-tools' ) . sn_cf_monitor_permission_hint() ) );
 		} else {

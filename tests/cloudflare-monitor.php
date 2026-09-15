@@ -53,6 +53,7 @@ $z = sn_cf_monitor_zone_from( array( 'http' => 200, 'body' => $zone_ok, 'error' 
 ok( true === $z['available'] && false === $z['needs_permission'], 'a zone answer is available' );
 ok( 1500 === $z['totals']['requests'] && 900 === $z['totals']['cached'] && 60.0 === $z['totals']['cache_share'] && 3 === $z['totals']['threats'], 'totals sum the days: 1500 requests, 900 cached, 60.0% from cache, 3 threats' );
 ok( 40 === $z['totals']['status_4xx'] && 10 === $z['totals']['status_5xx'], '4xx and 5xx are counted from the status map, by class' );
+ok( array( 503 => 10 ) === $z['totals']['status_5xx_codes'], '14.9.1: the 5xx CODES are kept, so a Cloudflare 52x (could not reach the origin) is never blended with an origin 503 (Varnish)' );
 ok( '2026-09-13' === $z['days'][0]['date'] && '2026-09-14' === $z['days'][1]['date'], 'days are sorted ascending whatever order the API returned' );
 $refused = array( 'data' => null, 'errors' => array( array( 'message' => 'unauthorized to access requested resource', 'extensions' => array( 'code' => 'authz', 'timestamp' => '' ) ) ) );
 $z = sn_cf_monitor_zone_from( array( 'http' => 200, 'body' => $refused, 'error' => '' ) );

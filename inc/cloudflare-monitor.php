@@ -159,6 +159,11 @@ function sn_cf_monitor_zone_from( array $res ) {
 	}
 	$days   = array();
 	$totals = array( 'requests' => 0, 'cached' => 0, 'bytes' => 0, 'cached_bytes' => 0, 'threats' => 0, 'status_4xx' => 0, 'status_5xx' => 0 );
+	// 14.9.1: the 5xx CODES, not just the class. Cloudflare's own 520/522/524
+	// (it could not reach or wait for the origin) and the origin's 503
+	// (Varnish backend fetch) are different problems that a class count
+	// blends: the first week read 4,139 edge 5xx against 5 origin 503s a day.
+	$codes = array();
 	foreach ( $groups as $g ) {
 		$sum = is_array( $g['sum'] ?? null ) ? $g['sum'] : array();
 		$row = array(
@@ -175,7 +180,8 @@ function sn_cf_monitor_zone_from( array $res ) {
 			$code = (int) ( $s['edgeResponseStatus'] ?? 0 );
 			$n    = (int) ( $s['requests'] ?? 0 );
 			if ( $code >= 500 ) {
-				$row['status_5xx'] += $n;
+				$row['status_5xx']  += $n;
+				$codes[ $code ] = ( $codes[ $code ] ?? 0 ) + $n;
 			} elseif ( $code >= 400 ) {
 				$row['status_4xx'] += $n;
 			}
@@ -187,6 +193,8 @@ function sn_cf_monitor_zone_from( array $res ) {
 	}
 	usort( $days, static function ( $a, $b ) { return strcmp( $a['date'], $b['date'] ); } );
 	$totals['cache_share'] = $totals['requests'] > 0 ? round( 100 * $totals['cached'] / $totals['requests'], 1 ) : null;
+	arsort( $codes );
+	$totals['status_5xx_codes'] = $codes;
 	return array( 'available' => true, 'needs_permission' => false, 'error' => '', 'days' => $days, 'totals' => $totals );
 }
 
