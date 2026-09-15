@@ -39,10 +39,13 @@ function snt_mr_summary_payload( $days ) {
 
 	$result = snt_mr_fetch( $days );
 	if ( empty( $result['ok'] ) ) {
+		$error = (string) ( $result['error'] ?? 'unknown' );
 		return array(
 			'ok'    => false,
-			'error' => (string) ( $result['error'] ?? 'unknown' ),
+			'error' => $error,
 			'days'  => $days,
+			// 15.1.1: the sentence for the code, so every tile says the same thing.
+			'hint'  => snt_mr_error_hint( $error ),
 		);
 	}
 
@@ -215,4 +218,42 @@ function snt_mr_summary_payload( $days ) {
 		'sensor_version' => ( is_array( $info ) && isset( $info['version'] ) ) ? (string) $info['version'] : null,
 		'crawler_list'   => $verdict,
 	);
+}
+
+/**
+ * What a failed read MEANS, by its code, for the tiles that paint it.
+ *
+ * 15.1.1. The desktop tile said "Sensor unreachable" for every code but
+ * `not_configured`, and on 2026-09-15 that hid an `http_502`: the sensor
+ * was up (401 from outside) and had lost its Analytics Engine read because
+ * the Cloudflare token behind it lost Account › Account Analytics › Read.
+ * A readout that cannot separate two states is the house; this one can.
+ *
+ * @param string $error The code snt_mr_fetch() returned.
+ * @return array{title:string,detail:string}
+ */
+function snt_mr_error_hint( $error ) {
+	$error = (string) $error;
+	if ( 'not_configured' === $error ) {
+		return array( 'title' => __( 'Sensor not configured', 'signal-and-noise-tools' ), 'detail' => __( 'Add the read token on the Machine Readers tab.', 'signal-and-noise-tools' ) );
+	}
+	if ( 'http_502' === $error ) {
+		return array( 'title' => __( 'Sensor cannot read Analytics Engine', 'signal-and-noise-tools' ), 'detail' => __( 'The sensor answered 502 upstream: Cloudflare refused its Analytics Engine query. The token in the worker\'s SN_MR_SQL_TOKEN secret needs Account › Account Analytics › Read.', 'signal-and-noise-tools' ) );
+	}
+	if ( 'http_401' === $error || 'http_403' === $error ) {
+		return array( 'title' => __( 'Read token refused', 'signal-and-noise-tools' ), 'detail' => sprintf( /* translators: %s: HTTP status. */ __( 'The sensor refused this site\'s read token (HTTP %s). The token on the Machine Readers tab must match the worker\'s.', 'signal-and-noise-tools' ), substr( $error, 5 ) ) );
+	}
+	if ( 0 === strpos( $error, 'http_' ) ) {
+		return array( 'title' => __( 'Sensor errored', 'signal-and-noise-tools' ), 'detail' => sprintf( /* translators: %s: HTTP status. */ __( 'The sensor answered HTTP %s. The panel retries on the next load.', 'signal-and-noise-tools' ), substr( $error, 5 ) ) );
+	}
+	if ( 'blocked' === $error ) {
+		return array( 'title' => __( 'Sensor URL blocked', 'signal-and-noise-tools' ), 'detail' => __( 'The sensor URL failed the outbound guard: it must be https on a public host.', 'signal-and-noise-tools' ) );
+	}
+	if ( 'bad_schema' === $error ) {
+		return array( 'title' => __( 'Sensor answered an unexpected shape', 'signal-and-noise-tools' ), 'detail' => __( 'The sensor and this plugin disagree on the payload; deploy the sensor release these panels need.', 'signal-and-noise-tools' ) );
+	}
+	if ( 'unavailable' === $error ) {
+		return array( 'title' => __( 'Machine Readers module not loaded', 'signal-and-noise-tools' ), 'detail' => __( 'The module file is missing from this install.', 'signal-and-noise-tools' ) );
+	}
+	return array( 'title' => __( 'Sensor unreachable', 'signal-and-noise-tools' ), 'detail' => sprintf( /* translators: %s: error code. */ __( 'The request never got an answer (%s); it retries on the next load.', 'signal-and-noise-tools' ), '' !== $error ? $error : 'unknown' ) );
 }
