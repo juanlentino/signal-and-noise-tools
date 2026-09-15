@@ -115,12 +115,11 @@ function paint_connections_cloudflare( array $ctx ) {
 	}
 	$d = cloudflare_data();
 	// 15.1.0: two columns, by the question a reader brings. Left: is
-	// Cloudflare connected and allowed (Credentials, the token's health).
-	// Right: what is the edge doing (Cache, Edge, Firewall), each its own
-	// section, one Refresh footer under the last. Before this the Monitor
-	// nested inside Cache status and the probes fold sat alone on the left.
+	// Cloudflare connected and allowed (Credentials, the token's health, the
+	// monitor's Refresh). Right: the cache. 15.3.0 moved Edge and Firewall to
+	// the tabs that ask their questions.
 	$left  = cloudflare_credentials_html( $d );
-	$left .= function_exists( 'sn_cf_monitor_read' ) ? cloudflare_token_html() : '';
+	$left .= function_exists( 'sn_cf_monitor_read' ) ? cloudflare_token_html( $d ) : '';
 
 	$caching = \snt_kit_esc( __( "Auto-purges Cloudflare's edge cache when content changes. See", 'signal-and-noise-tools' ) ) . ' '
 		. \snt_kit_code( 'docs/CACHING.md', false ) . ' '
@@ -131,7 +130,8 @@ function paint_connections_cloudflare( array $ctx ) {
 		'',
 		array( 'stack' => true )
 	);
-	$right .= function_exists( 'sn_cf_monitor_read' ) ? cloudflare_monitor_html( $d ) : '';
+	// 15.3.0: Edge, 7 days lives on Measurement › Analytics and Firewall, 24
+	// hours on Security › Firewall; this leaf is wiring and cache.
 
 	return '<div class="snt-2up">'
 		. '<div class="snt-2up-col">' . $left . '</div>'
