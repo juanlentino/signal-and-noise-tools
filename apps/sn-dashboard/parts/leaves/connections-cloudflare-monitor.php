@@ -94,7 +94,16 @@ function cloudflare_monitor_html( array $d ) {
 				$inner .= \snt_kit_list( $rule_rows );
 			}
 		} elseif ( ! empty( $f['needs_permission'] ) ) {
-			$inner .= \snt_kit_notice( 'warning', \snt_kit_esc( __( 'Firewall events: ', 'signal-and-noise-tools' ) . sn_cf_monitor_permission_hint( 'firewall' ) ) );
+			// 14.9.2: the API's own sentence, the hint, and what the probe found.
+			$probe  = is_array( $f['probe'] ?? null ) ? $f['probe'] : array();
+			$detail = '' !== (string) ( $f['error'] ?? '' ) ? ' ' . sprintf( /* translators: %s: the API's message. */ __( 'The API said: “%s”', 'signal-and-noise-tools' ), (string) $f['error'] ) : '';
+			if ( array() !== $probe ) {
+				$detail .= ' ' . sprintf( /* translators: 1: zone path verdict, 2: account path verdict. */ __( 'Zone path: %1$s; account path: %2$s.', 'signal-and-noise-tools' ), (string) ( $probe['zone_path'] ?? '' ), (string) ( $probe['account_path'] ?? '' ) );
+				if ( '' !== (string) ( $f['error_account_path'] ?? '' ) ) {
+					$detail .= ' ' . sprintf( __( 'Account path said: “%s”', 'signal-and-noise-tools' ), (string) $f['error_account_path'] );
+				}
+			}
+			$inner .= \snt_kit_notice( 'warning', \snt_kit_esc( __( 'Firewall events: ', 'signal-and-noise-tools' ) . sn_cf_monitor_permission_hint( 'firewall' ) . $detail ) );
 		} else {
 			$inner .= \snt_kit_notice( 'error', \snt_kit_esc( sprintf( /* translators: %s: reason. */ __( 'Firewall events could not be read: %s', 'signal-and-noise-tools' ), (string) ( $f['error'] ?? '' ) ) ) );
 		}

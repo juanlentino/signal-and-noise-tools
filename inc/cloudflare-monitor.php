@@ -209,9 +209,13 @@ function sn_cf_monitor_firewall_from( array $res ) {
 		return array( 'available' => false, 'needs_permission' => false, 'error' => (string) $res['error'], 'events' => 0, 'by_action' => array(), 'top_rules' => array() );
 	}
 	if ( sn_cf_graphql_needs_permission( $res['body'] ) ) {
-		return array( 'available' => false, 'needs_permission' => true, 'error' => '', 'events' => 0, 'by_action' => array(), 'top_rules' => array() );
+		// 14.9.2: keep the API's own sentence beside the verdict. The first
+		// cut dropped it, and then the hint named a grant the docs never
+		// state; two grants later the refusal read the same. The reader
+		// deserves the sentence the API actually said.
+		return array( 'available' => false, 'needs_permission' => true, 'error' => (string) ( $res['body']['errors'][0]['message'] ?? '' ), 'events' => 0, 'by_action' => array(), 'top_rules' => array() );
 	}
-	$groups = $res['body']['data']['viewer']['zones'][0]['firewallEventsAdaptiveGroups'] ?? null;
+	$groups = $res['body']['data']['viewer']['zones'][0]['firewallEventsAdaptiveGroups'] ?? ( $res['body']['data']['viewer']['accounts'][0]['firewallEventsAdaptiveGroups'] ?? null );
 	if ( ! is_array( $groups ) ) {
 		$msg = (string) ( $res['body']['errors'][0]['message'] ?? ( 'HTTP ' . (int) $res['http'] ) );
 		return array( 'available' => false, 'needs_permission' => false, 'error' => $msg, 'events' => 0, 'by_action' => array(), 'top_rules' => array() );
@@ -257,6 +261,28 @@ function sn_cf_monitor_refresh() {
 		'zone'       => sn_cf_monitor_zone_from( sn_cf_graphql( $zone_q, array( 'zone' => $zone_id, 'since' => $since, 'until' => $until ) ) ),
 		'firewall'   => sn_cf_monitor_firewall_from( sn_cf_graphql( $fw_q, array( 'zone' => $zone_id, 'since' => gmdate( 'Y-m-d\TH:i:s\Z', time() - DAY_IN_SECONDS ) ) ) ),
 	);
+	// 14.9.2: the firewall dataset refused the zone path under Analytics Read,
+	// then still under Firewall Services Read and Logs Read (2026-09-15), and
+	// Cloudflare documents no grant for it. So probe the other path the
+	// schema offers, the ACCOUNT viewer with the zone as a filter, and record
+	// which path answered. One extra GET for the account id, only on refusal.
+	if ( ! empty( $record['firewall']['needs_permission'] ) ) {
+		$zone_meta = sn_cf_api_get( '/zones/' . rawurlencode( $zone_id ) );
+		$account   = (string) ( $zone_meta['body']['result']['account']['id'] ?? '' );
+		$record['firewall']['probe'] = array( 'zone_path' => 'refused', 'account_path' => '' === $account ? 'no_account_id' : 'untried' );
+		if ( '' !== $account ) {
+			$fw_acct = 'query ($account: String!, $zone: String!, $since: Time!) { viewer { accounts(filter: {accountTag: $account}) { firewallEventsAdaptiveGroups(limit: 200, filter: {zoneTag: $zone, datetime_geq: $since}, orderBy: [count_DESC]) { count dimensions { action source ruleId } } } } }';
+			$via_acct = sn_cf_monitor_firewall_from( sn_cf_graphql( $fw_acct, array( 'account' => $account, 'zone' => $zone_id, 'since' => gmdate( 'Y-m-d\TH:i:s\Z', time() - DAY_IN_SECONDS ) ) ) );
+			$record['firewall']['probe']['account_path'] = ! empty( $via_acct['available'] ) ? 'answered' : ( ! empty( $via_acct['needs_permission'] ) ? 'refused' : 'error' );
+			if ( ! empty( $via_acct['available'] ) ) {
+				$via_acct['probe'] = $record['firewall']['probe'];
+				$via_acct['path']  = 'account';
+				$record['firewall'] = $via_acct;
+			} else {
+				$record['firewall']['error_account_path'] = (string) ( $via_acct['error'] ?? '' );
+			}
+		}
+	}
 	update_option( SN_CF_MONITOR_OPT, $record, false );
 	return $record;
 }
@@ -297,13 +323,18 @@ function sn_cf_monitor_permission_hint( $dataset = 'zone' ) {
 	// with Zone › Analytics › Read; the firewall log needs Zone › Firewall
 	// Services › Read as well (measured: the first grant alone answered
 	// "does not have access to the path" for firewallEventsAdaptiveGroups).
-	$grant = 'firewall' === $dataset
-		? __( 'Zone › Firewall Services › Read', 'signal-and-noise-tools' )
-		: __( 'Zone › Analytics › Read', 'signal-and-noise-tools' );
+	if ( 'firewall' === $dataset ) {
+		// 14.9.2: Cloudflare documents no grant for firewallEventsAdaptive.
+		// Measured refused under Zone Analytics Read alone, then still under
+		// Firewall Services Read and Logs Read (2026-09-15). The one grant left
+		// in Cloudflare's own "Read analytics and logs" template is
+		// account-level; the monitor also probes the account path itself.
+		return __( 'Cloudflare refused the firewall dataset and documents no grant for it; Analytics Read, Firewall Services Read and Logs Read on the zone did not open it. The one grant left in Cloudflare\'s "Read analytics and logs" token template is Account › Account Analytics › Read; the monitor also tries the account path and records what answered.', 'signal-and-noise-tools' );
+	}
 	return sprintf(
 		/* translators: %s: the permission to add. */
 		__( 'The token lacks %s. Edit the token in the Cloudflare dashboard (My Profile › API Tokens) and add it; the permissions it already has stay as they are.', 'signal-and-noise-tools' ),
-		$grant
+		__( 'Zone › Analytics › Read', 'signal-and-noise-tools' )
 	);
 }
 
