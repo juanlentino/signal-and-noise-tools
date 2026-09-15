@@ -18,7 +18,7 @@ function sn_cf_get_zone() { return 'zone123'; }
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
 class WP_Error { public $m; function __construct( $c = '', $m = '' ) { $this->m = $m; } function get_error_message() { return $this->m; } }
 function wp_remote_get( $url, $args = array() ) { $GLOBALS['__calls'][] = array( 'GET', $url, $args ); return $GLOBALS['__http'][ $url ] ?? array( 'response' => array( 'code' => 404 ), 'body' => '' ); }
-function wp_remote_post( $url, $args = array() ) { $GLOBALS['__calls'][] = array( 'POST', $url, $args ); $body = json_decode( (string) ( $args['body'] ?? '' ), true ); $key = $url . '#' . ( false !== strpos( (string) ( $body['query'] ?? '' ), 'firewallEvents' ) ? 'fw' : 'zone' ); return $GLOBALS['__http'][ $key ] ?? array( 'response' => array( 'code' => 404 ), 'body' => '' ); }
+function wp_remote_post( $url, $args = array() ) { $GLOBALS['__calls'][] = array( 'POST', $url, $args ); $body = json_decode( (string) ( $args['body'] ?? '' ), true ); $q = (string) ( $body['query'] ?? '' ); $key = $url . '#' . ( false !== strpos( $q, 'accounts(filter' ) ? 'fwacct' : ( false !== strpos( $q, 'firewallEvents' ) ? 'fw' : 'zone' ) ); return $GLOBALS['__http'][ $key ] ?? array( 'response' => array( 'code' => 404 ), 'body' => '' ); }
 function wp_remote_retrieve_response_code( $r ) { return (int) ( $r['response']['code'] ?? 0 ); }
 function wp_remote_retrieve_body( $r ) { return (string) ( $r['body'] ?? '' ); }
 function wp_json_encode( $d ) { return json_encode( $d ); }
@@ -79,7 +79,11 @@ ok( true === $f['needs_permission'] && 0 === $f['events'] && array() === $f['by_
 $live_refusal = array( 'data' => null, 'errors' => array( array( 'message' => "zone '319c5233e47cb32fdb6de197eff034cc' does not have access to the path. Refer to this page for more details about access controls: https://developers.cloudflare.com/analytics/graphql-api/errors/", 'path' => array( 'viewer', 'zones', '0', 'firewallEventsAdaptiveGroups' ), 'extensions' => array( 'code' => 'authz', 'timestamp' => '2026-09-15T13:59:00Z' ) ) ) );
 $f = sn_cf_monitor_firewall_from( array( 'http' => 200, 'body' => $live_refusal, 'error' => '' ) );
 ok( true === $f['needs_permission'] && false === $f['available'], '"does not have access to the path" is a permission gap, not an error (the live refusal, 2026-09-15)' );
-ok( false !== strpos( sn_cf_monitor_permission_hint( 'firewall' ), 'Firewall Services' ) && false !== strpos( sn_cf_monitor_permission_hint( 'zone' ), 'Analytics' ) && false === strpos( sn_cf_monitor_permission_hint( 'firewall' ), 'Analytics' ), 'the hint names the grant for the dataset: Firewall Services Read for the firewall log, Analytics Read for the zone' );
+// 14.9.2: two grants later the refusal read the same, and Cloudflare documents
+// none. The hint says exactly that, keeps the API's sentence, and the monitor
+// probes the account path rather than naming a fourth guess.
+ok( false !== strpos( sn_cf_monitor_permission_hint( 'firewall' ), 'documents no grant' ) && false !== strpos( sn_cf_monitor_permission_hint( 'firewall' ), 'Logs Read' ) && false !== strpos( sn_cf_monitor_permission_hint( 'zone' ), 'Zone › Analytics › Read' ), 'the firewall hint says the grant is undocumented and which three were tried; the zone hint still names Analytics Read' );
+ok( false !== strpos( $f['error'], 'does not have access to the path' ), 'a refused firewall read keeps the API\'s own sentence' );
 
 // ── The API row: FIGURE-SIZED (14.9.1). The first cut put the whole sentence
 // in the value; the kit list's value never shrank and the label "Cloudflare
@@ -111,8 +115,19 @@ $GLOBALS['__http'] = array(
 	SN_CF_API_BASE . '/graphql#fw'         => $j( 200, $refused ),
 );
 $r = sn_cf_monitor_refresh();
-ok( 3 === count( $GLOBALS['__calls'] ) && 'GET' === $GLOBALS['__calls'][0][0] && 'POST' === $GLOBALS['__calls'][1][0], 'a refresh makes exactly three requests: verify, zone, firewall' );
+// 14.9.2: on a firewall refusal the refresh probes the ACCOUNT path too: one
+// GET for the account id, one more GraphQL. Five requests, still no purge.
+ok( 4 === count( $GLOBALS['__calls'] ) && 'GET' === $GLOBALS['__calls'][0][0] && 'POST' === $GLOBALS['__calls'][1][0] && false !== strpos( $GLOBALS['__calls'][3][1], '/zones/zone123' ), 'a refresh with a refused firewall read asks for the zone record (four requests); with no account id in it the fifth is never made' );
+ok( 'refused' === $r['firewall']['probe']['zone_path'] && 'no_account_id' === $r['firewall']['probe']['account_path'], 'the probe records the zone path refused and, with no account id in the zone record, that the account path was not tried' );
 ok( true === $r['configured'] && 'active' === $r['token']['status'] && 1500 === $r['zone']['totals']['requests'] && true === $r['firewall']['needs_permission'], 'the record carries all three readings, each in its own truth' );
+// The account path answers: the firewall reading is taken from it and says so.
+$GLOBALS['__calls'] = array();
+$GLOBALS['__http'][ SN_CF_API_BASE . '/zones/zone123' ] = $j( 200, array( 'success' => true, 'result' => array( 'id' => 'zone123', 'account' => array( 'id' => 'acct9' ) ) ) );
+$fw_acct_ok = array( 'data' => array( 'viewer' => array( 'accounts' => array( array( 'firewallEventsAdaptiveGroups' => array( array( 'count' => 9, 'dimensions' => array( 'action' => 'block', 'source' => 'waf', 'ruleId' => 'r1' ) ) ) ) ) ) ) );
+$GLOBALS['__http'][ SN_CF_API_BASE . '/graphql#fw' ] = $j( 200, $refused );
+$GLOBALS['__http'][ SN_CF_API_BASE . '/graphql#fwacct' ] = $j( 200, $fw_acct_ok );
+$r = sn_cf_monitor_refresh();
+ok( true === $r['firewall']['available'] && 9 === $r['firewall']['events'] && 'account' === $r['firewall']['path'] && 'answered' === $r['firewall']['probe']['account_path'], 'when the account path answers, the firewall reading comes from it and records the path' );
 ok( $GLOBALS['__opt'][ SN_CF_MONITOR_OPT ] === $r && $r === sn_cf_monitor_read(), 'stored in one option; the reader returns it unchanged' );
 foreach ( $GLOBALS['__calls'] as $c ) {
 	ok( 0 === (int) $c[2]['redirection'] && false === strpos( $c[1], 'purge' ), 'every request refuses redirects (a Bearer on a fixed host) and none is a purge: ' . $c[1] );
