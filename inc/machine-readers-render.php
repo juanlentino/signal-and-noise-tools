@@ -301,11 +301,13 @@ function snt_mr_sensor_pills( $info, $status, $result ) {
 	} elseif ( 'not_configured' === (string) ( $result['error'] ?? '' ) ) {
 		$pills[] = array( 'warn', __( 'Not configured', 'signal-and-noise-tools' ), __( 'The sensor cannot be read until the token above is set.', 'signal-and-noise-tools' ) );
 	} else {
+		// 15.1.1: the code's meaning, from the one map every tile reads.
+		$hint    = function_exists( 'snt_mr_error_hint' ) ? snt_mr_error_hint( (string) ( $result['error'] ?? 'unknown' ) ) : array( 'title' => __( 'Read failed', 'signal-and-noise-tools' ), 'detail' => '' );
 		$pills[] = array(
 			'warn',
-			__( 'Read failed', 'signal-and-noise-tools' ),
-			/* translators: %s: machine-readable error code. */
-			sprintf( __( 'The last read returned %s. The panel retries on the next load.', 'signal-and-noise-tools' ), (string) ( $result['error'] ?? 'unknown' ) ),
+			$hint['title'],
+			/* translators: 1: what the code means, 2: machine-readable error code. */
+			sprintf( __( '%1$s The last read returned %2$s.', 'signal-and-noise-tools' ), $hint['detail'], (string) ( $result['error'] ?? 'unknown' ) ),
 		);
 	}
 

@@ -114,7 +114,7 @@ function sn_cf_required_grants() {
 	return array(
 		array( 'scope' => 'Zone', 'grant' => 'Cache Purge › Purge', 'for' => __( 'edge purge on save and update', 'signal-and-noise-tools' ), 'status' => 'measured' ),
 		array( 'scope' => 'Zone', 'grant' => 'Analytics › Read', 'for' => __( 'the monitor\'s zone reading; the Edge view', 'signal-and-noise-tools' ), 'status' => 'measured' ),
-		array( 'scope' => 'Account', 'grant' => 'Account Analytics › Read', 'for' => __( 'Analytics Engine reads (S&N Analytics)', 'signal-and-noise-tools' ), 'status' => 'documented' ),
+		array( 'scope' => 'Account', 'grant' => 'Account Analytics › Read', 'for' => __( 'Analytics Engine reads: S&N Analytics here, and the Machine Readers sensor and analytics worker through their own secrets (the same token loses them all)', 'signal-and-noise-tools' ), 'status' => 'measured' ),
 	);
 }
 

@@ -66,6 +66,7 @@ function snt_mr_crawler_list_status() { return $GLOBALS['__status']; }
 // inc/machine-readers-taxonomy.php is the real snt_mr_taxonomy_absent()
 // (never-measured vs measured-zero) — stubbing it would hide the null
 // purposes contract the widget now has to honour.
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } } // 15.1.1: snt_mr_error_hint() speaks
 require __DIR__ . '/../inc/machine-readers-taxonomy.php';
 require __DIR__ . '/../inc/machine-readers-render.php';
 // v10.2.0: the ONE shared builder lives here now (both this ability and the
@@ -150,12 +151,21 @@ ok( 14 === ( $out['days'] ?? null ), 'the requested window is echoed back' );
 ok( ! array_key_exists( 'total', $out ), 'no total is invented (absent, not 0)' );
 ok( ! array_key_exists( 'families', $out ), 'no families array is invented' );
 ok( ! array_key_exists( 'ai_training', $out ), 'no ai_training count is invented' );
-ok( array( 'ok', 'error', 'days' ) === array_keys( $out ), 'failure shape matches the DM route exactly' );
+ok( array( 'ok', 'error', 'days', 'hint' ) === array_keys( $out ), 'failure shape matches the DM route exactly (15.1.1: + hint, the code\'s meaning)' );
 
 $GLOBALS['__mr'] = array( 'ok' => false, 'rows' => array(), 'error' => 'http_502' );
 $out = snt_ability_get_machine_readers_summary( null );
 ok( false === ( $out['ok'] ?? null ) && 'http_502' === ( $out['error'] ?? null ), 'a transport failure is equally loud (null input path)' );
 ok( 30 === ( $out['days'] ?? null ), 'null input falls back to the 30-day default' );
+// 15.1.1: the code's meaning rides along, so no tile flattens 502 into "unreachable".
+ok( 'Sensor cannot read Analytics Engine' === ( $out['hint']['title'] ?? null ) && false !== strpos( (string) ( $out['hint']['detail'] ?? '' ), 'Account › Account Analytics › Read' ) && false !== strpos( (string) ( $out['hint']['detail'] ?? '' ), 'SN_MR_SQL_TOKEN' ), 'http_502 is named: the sensor lost its Analytics Engine read, and the grant and the secret are named' );
+foreach ( array( 'http_401' => 'Read token refused', 'http_403' => 'Read token refused', 'http_500' => 'Sensor errored', 'network' => 'Sensor unreachable', 'blocked' => 'Sensor URL blocked', 'bad_schema' => 'Sensor answered an unexpected shape', 'unavailable' => 'Machine Readers module not loaded', 'not_configured' => 'Sensor not configured', '' => 'Sensor unreachable' ) as $code => $title ) {
+	$h = snt_mr_error_hint( $code );
+	ok( $title === $h['title'] && '' !== $h['detail'], "the code '$code' reads as '$title' with a detail" );
+}
+$titles = array();
+foreach ( array( 'http_502', 'http_401', 'network', 'blocked', 'bad_schema', 'not_configured' ) as $code ) { $titles[] = snt_mr_error_hint( $code )['title']; }
+ok( count( $titles ) === count( array_unique( $titles ) ), 'six causes, six different titles: the readout separates its states' );
 
 echo "\nGroup G: aggregation over canned rows\n";
 $GLOBALS['__mr'] = array(

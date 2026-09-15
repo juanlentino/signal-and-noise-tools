@@ -105,14 +105,20 @@
 			// so an unconfigured/unreachable sensor is the whole message — never
 			// a zero, which would read as "no crawlers came".
 			if ( ! payload.ok ) {
+				// 15.1.1: the payload carries the code's meaning (snt_mr_error_hint);
+				// an http_502 is the sensor losing Analytics Engine, not a network.
+				var hint = ( payload.hint && payload.hint.title ) ? payload.hint : {
+					title:  ( 'not_configured' === payload.error ) ? 'Sensor not configured' : 'Sensor unreachable',
+					detail: ( 'not_configured' === payload.error )
+						? 'Add the read token on the Machine Readers tab.'
+						: 'The edge sensor did not answer; it retries on the next load.'
+				};
 				body.appendChild( el( 'div', {
-					text:  ( 'not_configured' === payload.error ) ? 'Sensor not configured' : 'Sensor unreachable',
+					text:  hint.title,
 					style: 'font-size:12px;opacity:.6;'
 				} ) );
 				body.appendChild( el( 'div', {
-					text:  ( 'not_configured' === payload.error )
-						? 'Add the read token on the Machine Readers tab.'
-						: 'The edge sensor did not answer; it retries on the next load.',
+					text:  hint.detail + ( payload.error ? ' (' + payload.error + ')' : '' ),
 					style: 'font-size:11px;opacity:.45;margin-top:2px;'
 				} ) );
 				return;
