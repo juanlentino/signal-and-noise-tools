@@ -111,6 +111,29 @@ The same fix deleted the four handlers and two field helpers the keyring had mad
 unreachable, and carried over the one thing they still did that the keyring did
 not: dropping the caches a rotated key would otherwise serve stale.
 
+## The ledger caught it twice more
+
+The first Verify all on the ledger read four rows ending in the same four
+characters: the site secret, the sensor's read token, the Cloudflare API token
+and the analytics override, one value in four places. The Cloudflare token had
+been pasted as the site secret and as the sensor's password, the very confusion
+the leaf existed to prevent, and the leaf had accepted every paste without a
+word. Then the owner rolled the Cloudflare token and the sensor's verdict moved
+from "differ" to "the worker's SQL token lost Analytics Engine": the worker held
+a copy of the rolled token, and nothing on the leaf had said the token had a
+second home.
+
+15.2.2 closes both. `keyring_save` refuses an issued token pasted into the site
+secret or a worker row, by name, and refuses any value another row already
+holds; the analytics override verifies with its own bytes, so a dead override
+reads refused instead of "no probe"; and the Cloudflare row prints
+`wrangler secret put SN_MR_SQL_TOKEN` under Worker secrets, the fifth command.
+
+The pattern under all three: a form that accepts a value it could have
+recognised is a form that will accept the wrong one. The keyring knows every
+issued token it holds; matching a paste against them costs nothing and would
+have saved the afternoon.
+
 ## What the verify said, first run
 
 Cloudflare `ok`, an account token. Better Stack `ok`, four monitors. Spotify
@@ -120,8 +143,9 @@ fix it printed under it. That is what the day was for.
 
 ## Left open
 
-- The sensor's read token: set the same value on both sides (the row prints the
-  command), then Verify all.
+- Clear the analytics override and the stale site secret (both still hold the
+  rolled-away Cloudflare token); mint a real site secret when a worker row
+  should derive from one.
 - Worker #45 (vitest): its cooldown clears 2026-09-17 around 18:00Z.
 - Upstream OpenStation #819 / #820: with the maintainers.
 - The `firewallEventsAdaptive` page is a floor past 10,000 samples a day; page
