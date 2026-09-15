@@ -75,16 +75,27 @@ function analytics_credentials_html() {
 		? \snt_kit_tag( 'os-field-row', array( 'label' => __( 'Account ID', 'signal-and-noise-tools' ), 'hint' => sprintf( __( 'Locked by the %s constant.', 'signal-and-noise-tools' ), 'SN_CF_ACCOUNT_ID' ) ), \snt_kit_tag( 'os-text-field', array( 'value' => __( '(set in wp-config)', 'signal-and-noise-tools' ), 'disabled' => true ) ) )
 		: \snt_kit_field( 'text', 'sn_cf_account_id', __( 'Account ID', 'signal-and-noise-tools' ), $acct_opt, array( 'placeholder' => __( '32-char Cloudflare account ID', 'signal-and-noise-tools' ) ) );
 	$fields .= $token_locked
-		? \snt_kit_tag( 'os-field-row', array( 'label' => __( 'Account Analytics Read token', 'signal-and-noise-tools' ), 'hint' => sprintf( __( 'Locked by the %s constant.', 'signal-and-noise-tools' ), 'SN_CF_ANALYTICS_TOKEN' ) ), \snt_kit_tag( 'os-text-field', array( 'value' => '••••', 'disabled' => true ) ) )
-		: \snt_kit_field( 'text', 'sn_cf_analytics_token', __( 'Account Analytics Read token', 'signal-and-noise-tools' ), function_exists( '\sn_mask_secret' ) ? \sn_mask_secret( $token_opt ) : $token_opt, array( 'placeholder' => __( 'Paste a fresh token; type ‘clear’ to remove', 'signal-and-noise-tools' ) ) );
+		? \snt_kit_tag( 'os-field-row', array( 'label' => __( 'Separate analytics token (optional)', 'signal-and-noise-tools' ), 'hint' => sprintf( __( 'Locked by the %s constant.', 'signal-and-noise-tools' ), 'SN_CF_ANALYTICS_TOKEN' ) ), \snt_kit_tag( 'os-text-field', array( 'value' => '••••', 'disabled' => true ) ) )
+		: \snt_kit_field( 'text', 'sn_cf_analytics_token', __( 'Separate analytics token (optional)', 'signal-and-noise-tools' ), function_exists( '\sn_mask_secret' ) ? \sn_mask_secret( $token_opt ) : $token_opt, array( 'placeholder' => __( 'Empty: the Connections › Cloudflare token is used', 'signal-and-noise-tools' ) ) );
 
+	// 14.10.0: ONE token. Say which is in force.
+	$override = function_exists( '\sn_cf_analytics_override_source' ) ? (string) \sn_cf_analytics_override_source() : ( $token_locked ? 'constant' : ( '' !== $token_opt ? 'option' : '' ) );
+	$central  = function_exists( '\sn_cf_get_token' ) && '' !== (string) \sn_cf_get_token();
 	/* translators: 1: read-token constant name; 2: account-ID constant name. */
-	$body = '<p class="snt-prose">' . \snt_kit_esc( sprintf( __( 'Read-only Cloudflare credentials the dashboard uses to query Analytics Engine. A wp-config constant (%1$s / %2$s) overrides these and locks the field.', 'signal-and-noise-tools' ), 'SN_CF_ANALYTICS_TOKEN', 'SN_CF_ACCOUNT_ID' ) ) . '</p>';
+	$body = '<p class="snt-prose">' . \snt_kit_esc( sprintf( __( 'Analytics Engine reads use the ONE Cloudflare token under Connections › Cloudflare, with Account › Account Analytics › Read on it. The account ID is the same value as there. A wp-config constant (%1$s / %2$s) overrides these and locks the field.', 'signal-and-noise-tools' ), 'SN_CF_ANALYTICS_TOKEN', 'SN_CF_ACCOUNT_ID' ) ) . '</p>';
+	if ( '' !== $override ) {
+		$body .= \snt_kit_notice( 'warning', \snt_kit_esc( __( 'A separate analytics token is in force; the central token is not used for these reads.', 'signal-and-noise-tools' ) ) );
+	} elseif ( ! $central ) {
+		$body .= \snt_kit_notice( 'error', \snt_kit_esc( __( 'No token anywhere: set the Cloudflare token under Connections › Cloudflare.', 'signal-and-noise-tools' ) ) );
+	}
 	if ( $token_locked && $acct_locked ) {
 		$body .= $fields;
 	} else {
 		$body .= \snt_kit_form( 'analytics_save', $fields, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
 		$body .= \snt_kit_action_button( __( 'Test connection', 'signal-and-noise-tools' ), 'analytics_test', array( 'disabled' => ! $configured ) );
+		if ( 'option' === $override ) {
+			$body .= \snt_kit_action_button( __( 'Use the central token', 'signal-and-noise-tools' ), 'analytics_use_central_token', array( 'variant' => 'ghost' ) );
+		}
 	}
 
 	return \snt_kit_tag(

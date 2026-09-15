@@ -89,6 +89,7 @@ require_once SNT_PATH . 'inc/cloudflare-purge-verify.php'; // pure: render norma
 require_once SNT_PATH . 'inc/cloudflare-purge-probe.php';  // scheduled probe + bounded zone-purge escalation
 require_once SNT_PATH . 'inc/cloudflare-purge.php';
 require_once SNT_PATH . 'inc/cloudflare-monitor.php';    // 14.9.0: token verify, zone analytics, firewall events -- what the CF API will tell us (the rate monitor could never fill its row: CF sends no x-ratelimit headers).
+require_once SNT_PATH . 'inc/cloudflare-credentials.php'; // 14.10.0: ONE Cloudflare credential set; the analytics token is an override, migrated once.
 require_once SNT_PATH . 'inc/cloudways-purge.php';    // v8.6.0: reliable Varnish clear via the Cloudways API (rides breeze_clear_varnish)
 require_once SNT_PATH . 'inc/admin-forms/cloudways.php'; // v12.17.0: Connections → Cloudways status glance (display-only; reads SNT_CW_LAST_PURGE_OPT written by the purge above)
 require_once SNT_PATH . 'inc/freshness-indicator.php'; // v8.5.1: dashboard cache-freshness dot (client-checked CSS-hash)

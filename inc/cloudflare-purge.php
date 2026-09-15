@@ -525,7 +525,21 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	}
 	echo '</div>';
 
-	if ( ! $both_locked ) {
+	// Account ID (14.10.0: central; the same option the Analytics tab used to write)
+	$acct_const_set = defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) constant( 'SN_CF_ACCOUNT_ID' );
+	$acct_value     = function_exists( 'sn_cf_get_account_id' ) ? (string) sn_cf_get_account_id() : '';
+	echo '<div class="sn-field sn-field-w-md">';
+	echo '<label class="sn-field-label" for="sn_cf_account_id">Account ID</label>';
+	if ( $acct_const_set ) {
+		echo '<input type="text" id="sn_cf_account_id" value="' . esc_attr( $acct_value ) . '" disabled class="sn-mono">';
+		echo '<p class="sn-field-helper"><strong>Locked.</strong> Set via <code>SN_CF_ACCOUNT_ID</code> in <code>wp-config.php</code>.</p>';
+	} else {
+		echo '<input type="text" id="sn_cf_account_id" name="sn_cf_account_id" value="' . esc_attr( $acct_value ) . '" placeholder="32-char account ID; type ‘clear’ to remove" class="sn-mono">';
+		echo '<p class="sn-field-helper">Cloudflare dashboard → account home → the ID in the URL. Analytics Engine reads need it.</p>';
+	}
+	echo '</div>';
+
+	if ( ! ( $both_locked && $acct_const_set ) ) {
 		echo '<div class="sn-fieldset-actions">';
 		echo '<button type="submit" name="sn_action" value="cf_save" class="button button-primary">Save</button>';
 		echo '</div>';

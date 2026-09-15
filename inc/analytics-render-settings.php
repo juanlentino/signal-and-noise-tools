@@ -79,7 +79,15 @@ function snt_analytics_render_credentials() {
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Credentials', 'signal-and-noise-tools' ) . '</h3>';
 	/* translators: 1: the read-token wp-config constant name, wrapped in <code>; 2: the account-ID wp-config constant name, wrapped in <code>. */
-	echo '<p class="sn-an-settings-help">' . sprintf( esc_html__( 'Read-only Cloudflare credentials the dashboard uses to query Analytics Engine. A wp-config constant (%1$s / %2$s) overrides these and locks the field.', 'signal-and-noise-tools' ), '<code>SN_CF_ANALYTICS_TOKEN</code>', '<code>SN_CF_ACCOUNT_ID</code>' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . sprintf( esc_html__( 'Analytics Engine reads use the ONE Cloudflare token under Connections › Cloudflare, with Account › Account Analytics › Read on it. The account ID is the same value as there. A wp-config constant (%1$s / %2$s) overrides these and locks the field.', 'signal-and-noise-tools' ), '<code>SN_CF_ANALYTICS_TOKEN</code>', '<code>SN_CF_ACCOUNT_ID</code>' ) . '</p>';
+	// 14.10.0: say which token is in force.
+	$override = function_exists( 'sn_cf_analytics_override_source' ) ? (string) sn_cf_analytics_override_source() : ( $token_locked ? 'constant' : ( '' !== $token_opt ? 'option' : '' ) );
+	$central  = function_exists( 'sn_cf_get_token' ) && '' !== (string) sn_cf_get_token();
+	if ( '' !== $override ) {
+		echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'A separate analytics token is in force; the central token is not used for these reads.', 'signal-and-noise-tools' ) . '</p></div>';
+	} elseif ( ! $central ) {
+		echo '<div class="notice notice-error inline"><p>' . esc_html__( 'No token anywhere: set the Cloudflare token under Connections › Cloudflare.', 'signal-and-noise-tools' ) . '</p></div>';
+	}
 
 	// Account ID.
 	echo '<p><label for="sn_cf_account_id"><strong>' . esc_html__( 'Account ID', 'signal-and-noise-tools' ) . '</strong></label><br>';
@@ -93,15 +101,18 @@ function snt_analytics_render_credentials() {
 	echo '</p>';
 
 	// Read token (masked).
-	echo '<p><label for="sn_cf_analytics_token"><strong>' . esc_html__( 'Account Analytics Read token', 'signal-and-noise-tools' ) . '</strong></label><br>';
+	echo '<p><label for="sn_cf_analytics_token"><strong>' . esc_html__( 'Separate analytics token (optional)', 'signal-and-noise-tools' ) . '</strong></label><br>';
 	if ( $token_locked ) {
 		echo '<input type="text" id="sn_cf_analytics_token" value="••••" disabled class="regular-text">';
 		/* translators: %s: the wp-config constant name, wrapped in <code>. */
 		echo '<br><span class="sn-an-empty">' . sprintf( esc_html__( 'Locked by the %s constant.', 'signal-and-noise-tools' ), '<code>SN_CF_ANALYTICS_TOKEN</code>' ) . '</span>';
 	} else {
-		echo '<input type="text" id="sn_cf_analytics_token" name="sn_cf_analytics_token" value="' . esc_attr( sn_mask_secret( $token_opt ) ) . '" class="regular-text" placeholder="' . esc_attr__( 'Paste a fresh token; type ‘clear’ to remove', 'signal-and-noise-tools' ) . '">';
+		echo '<input type="text" id="sn_cf_analytics_token" name="sn_cf_analytics_token" value="' . esc_attr( sn_mask_secret( $token_opt ) ) . '" class="regular-text" placeholder="' . esc_attr__( 'Empty: the Connections › Cloudflare token is used', 'signal-and-noise-tools' ) . '">';
 	}
 	echo '</p>';
+	if ( 'option' === $override ) {
+		echo '<p><button type="submit" name="sn_action" value="analytics_use_central_token" class="button">' . esc_html__( 'Use the central token', 'signal-and-noise-tools' ) . '</button></p>';
+	}
 
 	if ( ! ( $token_locked && $acct_locked ) ) {
 		echo '<p><button type="submit" name="sn_action" value="analytics_save" class="button button-primary">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button> ';

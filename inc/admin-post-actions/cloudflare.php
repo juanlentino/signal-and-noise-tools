@@ -38,6 +38,18 @@ function sn_handle_cf_save( $post ) {
 			update_option( SN_CF_ZONE_OPT, $new_zone, true );
 		}
 	}
+	// 14.10.0: the account id lives here too (same option the Analytics tab
+	// used to write, so nothing moves in the database).
+	$acct_const = defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) constant( 'SN_CF_ACCOUNT_ID' );
+	$acct_opt   = defined( 'SN_CF_ACCOUNT_ID_OPT' ) ? SN_CF_ACCOUNT_ID_OPT : 'sn_cf_account_id';
+	if ( ! $acct_const && isset( $post['sn_cf_account_id'] ) ) {
+		$new_acct = sanitize_text_field( wp_unslash( $post['sn_cf_account_id'] ) );
+		if ( 'clear' === $new_acct ) {
+			delete_option( $acct_opt );
+		} elseif ( '' !== $new_acct ) {
+			update_option( $acct_opt, $new_acct, false );
+		}
+	}
 	return 'cf_saved';
 }
 
@@ -59,4 +71,20 @@ function sn_handle_cf_monitor_refresh( $post ) {
 	}
 	$r = sn_cf_monitor_refresh();
 	return ! empty( $r['configured'] ) ? 'cf_monitor_refreshed' : 'cf_purged_unconfigured';
+}
+
+/**
+ * 14.10.0: drop the separate analytics token so Analytics reads with the
+ * central one. The constant, when set, cannot be dropped from here.
+ *
+ * @param array<string,mixed> $post
+ * @return string Flash code.
+ */
+function sn_handle_analytics_use_central_token( $post ) {
+	unset( $post );
+	if ( defined( 'SN_CF_ANALYTICS_TOKEN' ) && '' !== (string) constant( 'SN_CF_ANALYTICS_TOKEN' ) ) {
+		return 'analytics_locked';
+	}
+	delete_option( defined( 'SN_CF_ANALYTICS_TOKEN_OPT' ) ? SN_CF_ANALYTICS_TOKEN_OPT : 'sn_cf_analytics_token' );
+	return 'analytics_central_token';
 }
