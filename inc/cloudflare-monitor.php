@@ -55,9 +55,10 @@ const SN_CF_MONITOR_RAW_LIMIT = 10000;
  * @param string $path Path starting with '/'.
  * @return array{http:int,body:array<string,mixed>,error:string}
  */
-function sn_cf_api_get( $path ) {
+function sn_cf_api_get( $path, $token = null ) {
+	// 15.2.2: an explicit token, so the keyring can verify the analytics override.
 	$res = wp_remote_get( SN_CF_API_BASE . $path, array(
-		'headers'     => array( 'Authorization' => 'Bearer ' . sn_cf_get_token() ),
+		'headers'     => array( 'Authorization' => 'Bearer ' . ( null === $token ? sn_cf_get_token() : (string) $token ) ),
 		'timeout'     => 8,
 		'sslverify'   => true,
 		'redirection' => 0,
@@ -201,6 +202,22 @@ function sn_cf_monitor_zone_from( array $res ) {
 }
 
 /**
+ * The firewall window: the last day, both bounds explicit, a minute under
+ * the Free plan's one-day cap so a clock skew cannot push it over (15.2.2).
+ *
+ * @param int|null $now Unix seconds; null = time().
+ * @return array{zone:string,since:string,until:string}
+ */
+function sn_cf_firewall_window( $now = null ) {
+	$now = null === $now ? time() : (int) $now;
+	return array(
+		'zone'  => function_exists( 'sn_cf_get_zone' ) ? (string) sn_cf_get_zone() : '',
+		'since' => gmdate( 'Y-m-d\TH:i:s\Z', $now - DAY_IN_SECONDS + MINUTE_IN_SECONDS ),
+		'until' => gmdate( 'Y-m-d\TH:i:s\Z', $now ),
+	);
+}
+
+/**
  * The firewall reading: pure over the GraphQL body.
  *
  * @param array{http:int,body:array<string,mixed>,error:string} $res
@@ -257,12 +274,13 @@ function sn_cf_monitor_firewall_from( array $res ) {
  * user route, and on refusal the account route when an account id is
  * known; record which kind answered.
  *
- * @param string $zone_id Unused for verify; kept for symmetry with the readers.
+ * @param string      $zone_id Unused for verify; kept for symmetry with the readers.
+ * @param string|null $token   15.2.2: a token other than the central one (the analytics override).
  * @return array<string,mixed> The token reading, plus `kind`: user | account | ''.
  */
-function sn_cf_monitor_verify( $zone_id ) {
+function sn_cf_monitor_verify( $zone_id, $token = null ) {
 	unset( $zone_id );
-	$user = sn_cf_monitor_token_from( sn_cf_api_get( '/user/tokens/verify' ) );
+	$user = sn_cf_monitor_token_from( sn_cf_api_get( '/user/tokens/verify', $token ) );
 	if ( ! empty( $user['verified'] ) ) {
 		$user['kind'] = 'user';
 		return $user;
@@ -272,7 +290,7 @@ function sn_cf_monitor_verify( $zone_id ) {
 		$user['kind'] = '';
 		return $user;
 	}
-	$acct = sn_cf_monitor_token_from( sn_cf_api_get( '/accounts/' . rawurlencode( $account ) . '/tokens/verify' ) );
+	$acct = sn_cf_monitor_token_from( sn_cf_api_get( '/accounts/' . rawurlencode( $account ) . '/tokens/verify', $token ) );
 	if ( ! empty( $acct['verified'] ) ) {
 		$acct['kind'] = 'account';
 		return $acct;
@@ -297,9 +315,13 @@ function sn_cf_monitor_refresh() {
 	$since   = gmdate( 'Y-m-d', time() - SN_CF_MONITOR_DAYS * DAY_IN_SECONDS );
 	$until   = gmdate( 'Y-m-d' );
 	$zone_q  = 'query ($zone: String!, $since: Date!, $until: Date!) { viewer { zones(filter: {zoneTag: $zone}) { httpRequests1dGroups(limit: 31, filter: {date_geq: $since, date_leq: $until}, orderBy: [date_ASC]) { dimensions { date } sum { requests cachedRequests bytes cachedBytes threats responseStatusMap { edgeResponseStatus requests } } } } } }';
-	$fw_q    = 'query ($zone: String!, $since: Time!) { viewer { zones(filter: {zoneTag: $zone}) { firewallEventsAdaptiveGroups(limit: 200, filter: {datetime_geq: $since}, orderBy: [count_DESC]) { count dimensions { action source ruleId } } } } }';
-	$fw_raw  = 'query ($zone: String!, $since: Time!) { viewer { zones(filter: {zoneTag: $zone}) { firewallEventsAdaptive(limit: ' . SN_CF_MONITOR_RAW_LIMIT . ', filter: {datetime_geq: $since}, orderBy: [datetime_DESC]) { action source ruleId sampleInterval } } } }';
-	$fw_args = array( 'zone' => $zone_id, 'since' => gmdate( 'Y-m-d\TH:i:s\Z', time() - DAY_IN_SECONDS ) );
+	// 15.2.2: both bounds explicit. With only `datetime_geq`, Cloudflare closed
+	// the window at ITS clock, a second past mine, and the Free plan's limit for
+	// the raw dataset is exactly one day: "your query time range spans
+	// 1d1s620ms" (measured 2026-09-15). A minute under a day, ended at my now.
+	$fw_q    = 'query ($zone: String!, $since: Time!, $until: Time!) { viewer { zones(filter: {zoneTag: $zone}) { firewallEventsAdaptiveGroups(limit: 200, filter: {datetime_geq: $since, datetime_leq: $until}, orderBy: [count_DESC]) { count dimensions { action source ruleId } } } } }';
+	$fw_raw  = 'query ($zone: String!, $since: Time!, $until: Time!) { viewer { zones(filter: {zoneTag: $zone}) { firewallEventsAdaptive(limit: ' . SN_CF_MONITOR_RAW_LIMIT . ', filter: {datetime_geq: $since, datetime_leq: $until}, orderBy: [datetime_DESC]) { action source ruleId sampleInterval } } } }';
+	$fw_args = sn_cf_firewall_window();
 	$record  = array(
 		'fetched_at' => time(),
 		'configured' => true,

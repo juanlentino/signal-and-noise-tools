@@ -166,6 +166,11 @@ $GLOBALS['__calls'] = array();
 $GLOBALS['__http'][ SN_CF_API_BASE . '/graphql#fw' ] = $j( 200, $fw_ok );
 $r = sn_cf_monitor_refresh();
 ok( 3 === count( $GLOBALS['__calls'] ) && 'groups' === $r['firewall']['dataset'] && 47 === $r['firewall']['events'], 'when the grouped dataset answers, three requests and the raw one is never asked' );
+// 15.2.2: the firewall window is bounded on both ends, a minute under the one-day cap.
+$w = sn_cf_firewall_window( 1789500000 );
+ok( '2026-09-15T19:20:00Z' === $w['until'] && '2026-09-14T19:21:00Z' === $w['since'] && 'zone123' === $w['zone'], 'the window ends at now and starts 23h59m earlier' );
+$fw_sent = json_decode( (string) $GLOBALS['__calls'][2][2]['body'], true );
+ok( false !== strpos( (string) $fw_sent['query'], 'datetime_leq: $until' ) && isset( $fw_sent['variables']['until'], $fw_sent['variables']['since'] ), 'the grouped firewall query sends both bounds' );
 ok( $GLOBALS['__opt'][ SN_CF_MONITOR_OPT ] === $r && $r === sn_cf_monitor_read(), 'stored in one option; the reader returns it unchanged' );
 foreach ( $GLOBALS['__calls'] as $c ) {
 	ok( 0 === (int) $c[2]['redirection'] && false === strpos( $c[1], 'purge' ), 'every request refuses redirects (a Bearer on a fixed host) and none is a purge: ' . $c[1] );

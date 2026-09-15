@@ -1,6 +1,6 @@
 # Session — 2026-09-15: the key that was not a key
 
-Five cuts in one day, 15.0.0 to 15.2.1, and every one of them was the same
+Seven cuts in one day, 15.0.0 to 15.2.2, and every one of them was the same
 question wearing a different coat: *which key is this, and who holds the other
 half?* The day started with a Cloudflare grant hunt and ended with a ledger of
 sixteen credentials that names, for each, what it is and what it is not. This is
@@ -111,6 +111,37 @@ The same fix deleted the four handlers and two field helpers the keyring had mad
 unreachable, and carried over the one thing they still did that the keyring did
 not: dropping the caches a rotated key would otherwise serve stale.
 
+## The ledger caught it twice more
+
+The first Verify all on the ledger read four rows ending in the same four
+characters: the site secret, the sensor's read token, the Cloudflare API token
+and the analytics override, one value in four places. The Cloudflare token had
+been pasted as the site secret and as the sensor's password, the very confusion
+the leaf existed to prevent, and the leaf had accepted every paste without a
+word. Then the owner rolled the Cloudflare token and the sensor's verdict moved
+from "differ" to "the worker's SQL token lost Analytics Engine": the worker held
+a copy of the rolled token, and nothing on the leaf had said the token had a
+second home.
+
+15.2.2 closes both. `keyring_save` refuses an issued token pasted into the site
+secret or a worker row, by name, and refuses any value another row already
+holds; the analytics override verifies with its own bytes, so a dead override
+reads refused instead of "no probe"; and the Cloudflare row prints
+`wrangler secret put SN_MR_SQL_TOKEN` under Worker secrets, the fifth command.
+
+The same fix bounded the firewall window on both ends. The raw dataset's first
+live read answered "cannot request a time range wider than 1d, but your query
+time range spans 1d1s620ms": the query sent only a start, Cloudflare closed the
+window at its own clock a second past mine, and the Free plan's cap for that
+dataset is exactly one day. The verdict machinery paid for itself there: the raw
+dataset's sentence was kept verbatim beside the grouped one, so the overrun, one
+second and change, was on the owner's screen instead of a generic refusal.
+
+The pattern under all three: a form that accepts a value it could have
+recognised is a form that will accept the wrong one. The keyring knows every
+issued token it holds; matching a paste against them costs nothing and would
+have saved the afternoon.
+
 ## What the verify said, first run
 
 Cloudflare `ok`, an account token. Better Stack `ok`, four monitors. Spotify
@@ -120,8 +151,9 @@ fix it printed under it. That is what the day was for.
 
 ## Left open
 
-- The sensor's read token: set the same value on both sides (the row prints the
-  command), then Verify all.
+- Clear the analytics override and the stale site secret (both still hold the
+  rolled-away Cloudflare token); mint a real site secret when a worker row
+  should derive from one.
 - Worker #45 (vitest): its cooldown clears 2026-09-17 around 18:00Z.
 - Upstream OpenStation #819 / #820: with the maintainers.
 - The `firewallEventsAdaptive` page is a floor past 10,000 samples a day; page

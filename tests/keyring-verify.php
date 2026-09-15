@@ -20,7 +20,7 @@ function is_wp_error( $x ) { return $x instanceof WP_Error; }
 function wp_remote_get( $url, $args = array() ) { $GLOBALS['__calls'][] = array( $url, $args ); $k = strtok( $url, '?' ); return $GLOBALS['__http'][ $k ] ?? array( 'response' => array( 'code' => 404 ), 'body' => '' ); }
 function wp_remote_retrieve_response_code( $r ) { return (int) ( $r['response']['code'] ?? 0 ); }
 function wp_remote_retrieve_body( $r ) { return (string) ( $r['body'] ?? '' ); }
-function sn_cf_monitor_verify( $z ) { return $GLOBALS['__cf']; }
+function sn_cf_monitor_verify( $z, $token = null ) { $GLOBALS['__cf_token'] = $token; return null === $token ? $GLOBALS['__cf'] : ( $GLOBALS['__cf_override'] ?? $GLOBALS['__cf'] ); }
 function sn_uptime_status_api_get( $r ) { return $GLOBALS['__bs']; }
 function sn_spotify_token() { return $GLOBALS['__spotify'] ?? ''; }
 
@@ -59,6 +59,14 @@ $GLOBALS['__cf'] = array( 'verified' => false, 'status' => 'invalid', 'kind' => 
 ok( 'refused' === sn_keyring_probe( 'cf_token', $rows['cf_token'] )['status'], 'an invalid Cloudflare token is refused' );
 $GLOBALS['__cf'] = array( 'verified' => false, 'status' => 'unreachable', 'kind' => '', 'error' => 'timeout' );
 ok( 'error' === sn_keyring_probe( 'cf_token', $rows['cf_token'] )['status'], 'an unreachable Cloudflare is an error' );
+
+// ── 15.2.2: the analytics override verifies with ITS value, not the central token.
+$GLOBALS['__opt']['sn_cf_analytics_token'] = 'override-dead';
+$GLOBALS['__cf_override'] = array( 'verified' => false, 'status' => 'invalid', 'kind' => '', 'error' => 'Invalid access token' );
+$v = sn_keyring_probe( 'cf_analytics_override', $rows['cf_analytics_override'] );
+ok( 'refused' === $v['status'] && 'override-dead' === $GLOBALS['__cf_token'], 'a dead override reads refused, verified with the override\'s own bytes' );
+unset( $GLOBALS['__opt']['sn_cf_analytics_token'] );
+ok( 'unset' === sn_keyring_probe( 'cf_analytics_override', $rows['cf_analytics_override'] )['status'], 'no override, nothing to verify' );
 
 // ── Better Stack, Spotify, GitHub.
 $GLOBALS['__opt']['sn_betterstack_api_token'] = 'bs-1';

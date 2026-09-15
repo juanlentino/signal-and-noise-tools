@@ -49,10 +49,10 @@ function sn_keyring() {
 		'srv_token'             => array( 'group' => 'site', 'label' => __( 'Analytics server token', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_SRV_TOKEN', 'option' => 'sn_srv_token', 'derive' => 'site', 'about' => __( 'The private token the origin sends the analytics worker so a server-side hit counts as human; also the refresh poke\'s secret.', 'signal-and-noise-tools' ), 'feeds' => __( 'the RSS tracker\'s collector POST; the analytics refresh route', 'signal-and-noise-tools' ), 'other_half' => array( 'repo' => 'signal-and-noise-analytics-worker', 'secret' => 'SN_SRV_TOKEN' ) ),
 		'bridge_token'          => array( 'group' => 'site', 'label' => __( 'Login guard bridge token', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_BRIDGE_TOKEN', 'option' => 'sn_bridge_token', 'derive' => 'site', 'about' => __( 'The bearer the login-guard worker presents on the bridge route.', 'signal-and-noise-tools' ), 'feeds' => __( 'the MCP bridge route', 'signal-and-noise-tools' ), 'other_half' => array( 'repo' => 'signal-and-noise-login-guard-worker', 'secret' => 'SN_BRIDGE_TOKEN' ) ),
 		'prov_hmac_secret'      => array( 'group' => 'site', 'label' => __( 'Provenance webhook HMAC secret', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_PROV_HMAC_SECRET', 'option' => 'sn_prov_hmac_secret', 'derive' => 'site', 'about' => __( 'Signs the anchor webhook both ways between this site and the provenance worker.', 'signal-and-noise-tools' ), 'feeds' => __( 'the provenance webhook', 'signal-and-noise-tools' ), 'other_half' => array( 'repo' => 'sn-provenance-worker', 'secret' => 'SN_PROV_HMAC_SECRET' ) ),
-		'cf_token'              => array( 'group' => 'cloudflare', 'label' => __( 'Cloudflare API token', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_CLOUDFLARE_API_TOKEN', 'option' => 'sn_cf_api_token', 'about' => __( 'The ONE Cloudflare token: Zone › Cache Purge › Purge, Zone › Analytics › Read, Account › Account Analytics › Read.', 'signal-and-noise-tools' ), 'feeds' => __( 'edge purge, the monitor, the Edge view, S&N Analytics', 'signal-and-noise-tools' ), 'probe' => 'cloudflare' ),
+		'cf_token'              => array( 'group' => 'cloudflare', 'label' => __( 'Cloudflare API token', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_CLOUDFLARE_API_TOKEN', 'option' => 'sn_cf_api_token', 'about' => __( 'The ONE Cloudflare token: Zone › Cache Purge › Purge, Zone › Analytics › Read, Account › Account Analytics › Read.', 'signal-and-noise-tools' ), 'feeds' => __( 'edge purge, the monitor, the Edge view, S&N Analytics; the sensor\'s Analytics Engine reads', 'signal-and-noise-tools' ), 'probe' => 'cloudflare', 'other_half' => array( 'repo' => 'sn-rights-signals-worker', 'secret' => 'SN_MR_SQL_TOKEN' ) ),
 		'cf_zone'               => array( 'group' => 'cloudflare', 'label' => __( 'Cloudflare zone ID', 'signal-and-noise-tools' ), 'kind' => 'id', 'constant' => 'SN_CLOUDFLARE_ZONE_ID', 'option' => 'sn_cf_zone_id', 'about' => __( 'Dashboard → site overview → API.', 'signal-and-noise-tools' ), 'feeds' => __( 'every zone call', 'signal-and-noise-tools' ) ),
 		'cf_account'            => array( 'group' => 'cloudflare', 'label' => __( 'Cloudflare account ID', 'signal-and-noise-tools' ), 'kind' => 'id', 'constant' => 'SN_CF_ACCOUNT_ID', 'option' => 'sn_cf_account_id', 'about' => __( 'Dashboard → account home → the ID in the URL.', 'signal-and-noise-tools' ), 'feeds' => __( 'Analytics Engine reads; the Account-token verify route', 'signal-and-noise-tools' ) ),
-		'cf_analytics_override' => array( 'group' => 'cloudflare', 'label' => __( 'Analytics token override', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_CF_ANALYTICS_TOKEN', 'option' => 'sn_cf_analytics_token', 'about' => __( 'Optional. Empty means S&N Analytics reads with the Cloudflare API token above.', 'signal-and-noise-tools' ), 'feeds' => __( 'S&N Analytics, when set', 'signal-and-noise-tools' ) ),
+		'cf_analytics_override' => array( 'group' => 'cloudflare', 'label' => __( 'Analytics token override', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_CF_ANALYTICS_TOKEN', 'option' => 'sn_cf_analytics_token', 'about' => __( 'Optional. Empty means S&N Analytics reads with the Cloudflare API token above.', 'signal-and-noise-tools' ), 'feeds' => __( 'S&N Analytics, when set', 'signal-and-noise-tools' ), 'probe' => 'cloudflare_override' ),
 		'betterstack_token'     => array( 'group' => 'issued', 'label' => __( 'Better Stack API token', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_BETTERSTACK_API_TOKEN', 'option' => 'sn_betterstack_api_token', 'about' => __( 'Issued by Better Stack (Uptime › API tokens).', 'signal-and-noise-tools' ), 'feeds' => __( 'the Uptime tab and tile; the WAF witness', 'signal-and-noise-tools' ), 'probe' => 'betterstack', 'flush' => array( 'sn_uptime_status_snapshot', 'sn_uptime_availability' ) ),
 		'spotify_client_id'     => array( 'group' => 'issued', 'label' => __( 'Spotify client ID', 'signal-and-noise-tools' ), 'kind' => 'id', 'constant' => 'SN_SPOTIFY_CLIENT_ID', 'option' => 'sn_spotify_client_id', 'about' => __( 'Issued by Spotify for Developers.', 'signal-and-noise-tools' ), 'feeds' => __( 'the Discography sync', 'signal-and-noise-tools' ), 'flush' => array( 'sn_spotify_token' ) ),
 		'spotify_client_secret' => array( 'group' => 'issued', 'label' => __( 'Spotify client secret', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_SPOTIFY_CLIENT_SECRET', 'option' => 'sn_spotify_client_secret', 'about' => __( 'Issued by Spotify for Developers.', 'signal-and-noise-tools' ), 'feeds' => __( 'the Discography sync', 'signal-and-noise-tools' ), 'probe' => 'spotify', 'flush' => array( 'sn_spotify_token' ) ),
@@ -61,6 +61,26 @@ function sn_keyring() {
 		'indexnow_key'          => array( 'group' => 'issued', 'label' => __( 'IndexNow key', 'signal-and-noise-tools' ), 'kind' => 'public', 'option' => 'sn_indexnow_key', 'about' => __( 'Minted here and published at its key URL; not a secret.', 'signal-and-noise-tools' ), 'feeds' => __( 'IndexNow pings', 'signal-and-noise-tools' ) ),
 		'cloudways_api_key'     => array( 'group' => 'issued', 'label' => __( 'Cloudways API key', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_CLOUDWAYS_API_KEY', 'about' => __( 'Account-wide, wp-config only by decision (with SN_CLOUDWAYS_EMAIL, SERVER_ID, APP_ID).', 'signal-and-noise-tools' ), 'feeds' => __( 'the Varnish purge leg', 'signal-and-noise-tools' ) ),
 	);
+}
+
+/**
+ * 15.2.2: the values a SHARED row must never equal: every issued token and id
+ * the keyring holds. A Cloudflare token pasted as the site secret was the
+ * 2026-09-15 mistake, twice.
+ *
+ * @return array<string,string> id => value, non-empty issued rows only.
+ */
+function sn_keyring_issued_values() {
+	$out = array();
+	foreach ( sn_keyring() as $id => $row ) {
+		if ( in_array( (string) $row['group'], array( 'cloudflare', 'issued' ), true ) ) {
+			$v = sn_credential( $id );
+			if ( '' !== $v ) {
+				$out[ $id ] = $v;
+			}
+		}
+	}
+	return $out;
 }
 
 /**
