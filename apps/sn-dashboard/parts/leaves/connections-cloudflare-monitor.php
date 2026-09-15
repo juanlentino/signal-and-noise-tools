@@ -1,7 +1,8 @@
 <?php
 /**
- * S&N Dashboard — Connections › Cloudflare: the monitor's three readings,
- * each where its question is asked (15.1.0).
+ * S&N Dashboard — the Cloudflare monitor's three readings, each where its
+ * question is asked: Token on Connections › Cloudflare, Edge on Measurement ›
+ * Analytics, Firewall on Security › Firewall (15.3.0). All from one record.
  *
  * Paints what inc/cloudflare-monitor.php stored. The token's health sits
  * under the Credentials (left column, next to the token); the zone's seven
@@ -47,9 +48,14 @@ function cloudflare_monitor_when( array $record ) {
  *
  * @return string
  */
-function cloudflare_token_html() {
+function cloudflare_token_html( array $d = array() ) {
 	$record = cloudflare_monitor_record();
-	if ( ! is_array( $record ) || empty( $record['configured'] ) ) {
+	// 15.3.0: the monitor's Refresh lives here now (it reads the token first);
+	// before the first run the section says so and offers it.
+	if ( ! is_array( $record ) ) {
+		return \snt_kit_section( __( 'Token', 'signal-and-noise-tools' ), '<p class="snt-hint">' . \snt_kit_esc( __( 'The monitor has not run yet. It runs daily; press Refresh to run it now.', 'signal-and-noise-tools' ) ) . '</p>' . cloudflare_monitor_footer_html( $d, null ), __( 'As Cloudflare reports it, read daily with the monitor.', 'signal-and-noise-tools' ) );
+	}
+	if ( empty( $record['configured'] ) ) {
 		return '';
 	}
 	$now   = time();
@@ -70,6 +76,7 @@ function cloudflare_token_html() {
 		$inner .= \snt_kit_notice( 'error', \snt_kit_esc( sprintf( /* translators: %s: reason. */ __( 'Token could not be verified: %s', 'signal-and-noise-tools' ), (string) ( $t['error'] ?: $t['status'] ) ) ) );
 	}
 
+	$inner .= cloudflare_monitor_footer_html( $d, $record );
 	return \snt_kit_section( __( 'Token', 'signal-and-noise-tools' ), $inner, __( 'As Cloudflare reports it, read daily with the monitor.', 'signal-and-noise-tools' ) );
 }
 
@@ -119,6 +126,7 @@ function cloudflare_edge_html( array $d ) {
 		$inner .= \snt_kit_notice( 'error', \snt_kit_esc( sprintf( /* translators: %s: reason. */ __( 'Zone analytics could not be read: %s', 'signal-and-noise-tools' ), (string) ( $z['error'] ?? '' ) ) ) );
 	}
 
+	$inner .= cloudflare_monitor_footer_html( $d, $record );
 	return \snt_kit_section( __( 'Edge, 7 days', 'signal-and-noise-tools' ), $inner, __( 'Requests, cache share, bytes, threats and 5xx, as the zone reports them.', 'signal-and-noise-tools' ) );
 }
 

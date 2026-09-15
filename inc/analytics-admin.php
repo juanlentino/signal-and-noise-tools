@@ -543,6 +543,10 @@ function snt_analytics_render_settings_section() {
 	if ( function_exists( 'snt_analytics_render_pipeline_status' ) ) {
 		snt_analytics_render_pipeline_status();
 	}
+	// 15.3.0: the edge's seven days, next to the analytics they belong with.
+	if ( function_exists( 'sn_cf_edge_card_render' ) ) {
+		sn_cf_edge_card_render();
+	}
 
 	echo '<div class="sn-2up">';
 

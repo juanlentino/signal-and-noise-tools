@@ -57,7 +57,15 @@ function paint_monitoring_analytics( array $ctx ) {
 	$right .= analytics_filter_reference_html();
 	$right .= analytics_worker_setup_html();
 
-	return analytics_pipeline_html()
+	// 15.3.0: the edge's seven days, painted by the Connections leaf's part from the same stored record.
+	// Painted only once the monitor has a configured record, as the classic card is;
+	// a site without Cloudflare keeps the hub as it was.
+	$edge   = '';
+	$record = function_exists( __NAMESPACE__ . '\\cloudflare_monitor_record' ) ? cloudflare_monitor_record() : null;
+	if ( is_array( $record ) && ! empty( $record['configured'] ) && function_exists( __NAMESPACE__ . '\\cloudflare_edge_html' ) && function_exists( __NAMESPACE__ . '\\cloudflare_data' ) ) {
+		$edge = cloudflare_edge_html( cloudflare_data() );
+	}
+	return analytics_pipeline_html() . $edge
 		. '<div class="snt-2up">'
 		. '<div class="snt-2up-col">' . $left . '</div>'
 		. '<div class="snt-2up-col">' . $right . '</div>'
