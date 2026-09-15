@@ -219,7 +219,10 @@ function sn_cf_monitor_firewall_from( array $res ) {
 	}
 	// 15.0.1: two shapes. `firewallEventsAdaptiveGroups` arrives pre-grouped
 	// (count + dimensions); the raw `firewallEventsAdaptive`, the one every
-	// plan has, arrives one row per event and is grouped here.
+	// plan has, arrives one row per SAMPLE and is grouped here. Adaptive
+	// sampling (Cloudflare's own word for it) means a row stands for
+	// `sampleInterval` events once the volume climbs, so a row weighs that,
+	// which is what the grouped `count` would have summed.
 	$zone    = $res['body']['data']['viewer']['zones'][0] ?? array();
 	$dataset = isset( $zone['firewallEventsAdaptiveGroups'] ) ? 'groups' : ( isset( $zone['firewallEventsAdaptive'] ) ? 'raw' : '' );
 	$groups  = '' !== $dataset ? $zone[ 'groups' === $dataset ? 'firewallEventsAdaptiveGroups' : 'firewallEventsAdaptive' ] : null;
@@ -232,7 +235,7 @@ function sn_cf_monitor_firewall_from( array $res ) {
 	$events    = 0;
 	foreach ( $groups as $g ) {
 		$dims   = 'raw' === $dataset ? $g : (array) ( $g['dimensions'] ?? array() );
-		$n      = 'raw' === $dataset ? 1 : (int) ( $g['count'] ?? 0 );
+		$n      = 'raw' === $dataset ? max( 1, (int) ( $g['sampleInterval'] ?? 1 ) ) : (int) ( $g['count'] ?? 0 );
 		$action = (string) ( $dims['action'] ?? 'unknown' );
 		$rule   = (string) ( $dims['ruleId'] ?? '' );
 		$source = (string) ( $dims['source'] ?? '' );
@@ -295,7 +298,7 @@ function sn_cf_monitor_refresh() {
 	$until   = gmdate( 'Y-m-d' );
 	$zone_q  = 'query ($zone: String!, $since: Date!, $until: Date!) { viewer { zones(filter: {zoneTag: $zone}) { httpRequests1dGroups(limit: 31, filter: {date_geq: $since, date_leq: $until}, orderBy: [date_ASC]) { dimensions { date } sum { requests cachedRequests bytes cachedBytes threats responseStatusMap { edgeResponseStatus requests } } } } } }';
 	$fw_q    = 'query ($zone: String!, $since: Time!) { viewer { zones(filter: {zoneTag: $zone}) { firewallEventsAdaptiveGroups(limit: 200, filter: {datetime_geq: $since}, orderBy: [count_DESC]) { count dimensions { action source ruleId } } } } }';
-	$fw_raw  = 'query ($zone: String!, $since: Time!) { viewer { zones(filter: {zoneTag: $zone}) { firewallEventsAdaptive(limit: ' . SN_CF_MONITOR_RAW_LIMIT . ', filter: {datetime_geq: $since}, orderBy: [datetime_DESC]) { action source ruleId } } } }';
+	$fw_raw  = 'query ($zone: String!, $since: Time!) { viewer { zones(filter: {zoneTag: $zone}) { firewallEventsAdaptive(limit: ' . SN_CF_MONITOR_RAW_LIMIT . ', filter: {datetime_geq: $since}, orderBy: [datetime_DESC]) { action source ruleId sampleInterval } } } }';
 	$fw_args = array( 'zone' => $zone_id, 'since' => gmdate( 'Y-m-d\TH:i:s\Z', time() - DAY_IN_SECONDS ) );
 	$record  = array(
 		'fetched_at' => time(),

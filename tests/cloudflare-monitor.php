@@ -87,12 +87,12 @@ ok( false !== strpos( sn_cf_monitor_permission_hint( 'firewall' ), 'plan' ) && f
 ok( false !== strpos( $f['error'], 'does not have access to the path' ), 'a refused firewall read keeps the API\'s own sentence' );
 // 15.0.1: the raw dataset, one row per event, groups here to the same shape.
 $fw_raw_ok = array( 'data' => array( 'viewer' => array( 'zones' => array( array( 'firewallEventsAdaptive' => array(
-	array( 'action' => 'block', 'source' => 'waf', 'ruleId' => 'r1' ),
-	array( 'action' => 'block', 'source' => 'waf', 'ruleId' => 'r1' ),
+	array( 'action' => 'block', 'source' => 'waf', 'ruleId' => 'r1', 'sampleInterval' => 1 ),
+	array( 'action' => 'block', 'source' => 'waf', 'ruleId' => 'r1', 'sampleInterval' => 4 ),
 	array( 'action' => 'managed_challenge', 'source' => 'bic', 'ruleId' => 'r2' ),
 ) ) ) ) ) );
 $g = sn_cf_monitor_firewall_from( array( 'http' => 200, 'body' => $fw_raw_ok, 'error' => '' ) );
-ok( true === $g['available'] && 'raw' === $g['dataset'] && 3 === $g['events'] && array( 'block' => 2, 'managed_challenge' => 1 ) === $g['by_action'] && 'r1' === $g['top_rules'][0]['rule'] && 2 === $g['top_rules'][0]['count'] && false === $g['truncated'], 'the raw dataset groups to the same shape: 3 events, block 2, the top rule counted twice, not truncated' );
+ok( true === $g['available'] && 'raw' === $g['dataset'] && 6 === $g['events'] && array( 'block' => 5, 'managed_challenge' => 1 ) === $g['by_action'] && 'r1' === $g['top_rules'][0]['rule'] && 5 === $g['top_rules'][0]['count'] && false === $g['truncated'], 'the raw dataset groups to the same shape, each row weighing its sampleInterval (1 + 4 + 1 = 6 events, block 5); a row without one weighs 1; not truncated' );
 $page = array_fill( 0, SN_CF_MONITOR_RAW_LIMIT, array( 'action' => 'block', 'source' => 'waf', 'ruleId' => 'r1' ) );
 $g = sn_cf_monitor_firewall_from( array( 'http' => 200, 'body' => array( 'data' => array( 'viewer' => array( 'zones' => array( array( 'firewallEventsAdaptive' => $page ) ) ) ) ), 'error' => '' ) );
 ok( true === $g['truncated'] && SN_CF_MONITOR_RAW_LIMIT === $g['events'], 'a full page of raw events is marked truncated: the counts are a floor' );
@@ -152,14 +152,14 @@ $GLOBALS['__http'] = array(
 $r = sn_cf_monitor_refresh();
 // 15.0.1: on a grouped-dataset refusal the refresh reads the RAW dataset
 // (open to every plan) and groups here: four requests, still no purge.
-ok( 4 === count( $GLOBALS['__calls'] ) && 'GET' === $GLOBALS['__calls'][0][0] && 'POST' === $GLOBALS['__calls'][1][0] && false !== strpos( (string) ( json_decode( (string) $GLOBALS['__calls'][3][2]['body'], true )['query'] ?? '' ), 'firewallEventsAdaptive(limit: ' . SN_CF_MONITOR_RAW_LIMIT ), 'a refresh with the grouped dataset refused asks the raw one (four requests, one page of ' . SN_CF_MONITOR_RAW_LIMIT . ')' );
+ok( 4 === count( $GLOBALS['__calls'] ) && 'GET' === $GLOBALS['__calls'][0][0] && 'POST' === $GLOBALS['__calls'][1][0] && false !== strpos( (string) ( json_decode( (string) $GLOBALS['__calls'][3][2]['body'], true )['query'] ?? '' ), 'firewallEventsAdaptive(limit: ' . SN_CF_MONITOR_RAW_LIMIT ) && false !== strpos( (string) ( json_decode( (string) $GLOBALS['__calls'][3][2]['body'], true )['query'] ?? '' ), 'sampleInterval' ), 'a refresh with the grouped dataset refused asks the raw one (four requests, one page of ' . SN_CF_MONITOR_RAW_LIMIT . ', sampleInterval requested)' );
 ok( true === $r['firewall']['needs_permission'] && false !== strpos( $r['firewall']['error_raw'], 'HTTP 404' ), 'with the raw dataset unanswered too, the reading stays a gap and keeps the raw answer beside the grouped one' );
 ok( true === $r['configured'] && 'active' === $r['token']['status'] && 1500 === $r['zone']['totals']['requests'], 'the record carries all three readings, each in its own truth' );
 // The raw dataset answers: the firewall reading is taken from it and says so.
 $GLOBALS['__calls'] = array();
 $GLOBALS['__http'][ SN_CF_API_BASE . '/graphql#fwraw' ] = $j( 200, $fw_raw_ok );
 $r = sn_cf_monitor_refresh();
-ok( true === $r['firewall']['available'] && 3 === $r['firewall']['events'] && 'raw' === $r['firewall']['dataset'] && false !== strpos( $r['firewall']['groups_refused'], 'does not have access' ) && ! isset( $r['firewall']['probe'] ), 'when the raw dataset answers, the firewall reading comes from it, names the dataset and keeps the grouped refusal; no account probe is made' );
+ok( true === $r['firewall']['available'] && 6 === $r['firewall']['events'] && 'raw' === $r['firewall']['dataset'] && false !== strpos( $r['firewall']['groups_refused'], 'does not have access' ) && ! isset( $r['firewall']['probe'] ), 'when the raw dataset answers, the firewall reading comes from it, names the dataset and keeps the grouped refusal; no account probe is made' );
 ok( 4 === count( $GLOBALS['__calls'] ) && false === strpos( implode( ' ', array_column( $GLOBALS['__calls'], 1 ) ), '/zones/zone123' ), 'the account-id GET and the account path are gone: four requests, none for the zone record' );
 // The grouped dataset answers: one firewall request, the raw one never asked.
 $GLOBALS['__calls'] = array();
