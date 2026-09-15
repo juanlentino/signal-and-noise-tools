@@ -129,6 +129,14 @@ holds; the analytics override verifies with its own bytes, so a dead override
 reads refused instead of "no probe"; and the Cloudflare row prints
 `wrangler secret put SN_MR_SQL_TOKEN` under Worker secrets, the fifth command.
 
+The same fix bounded the firewall window on both ends. The raw dataset's first
+live read answered "cannot request a time range wider than 1d, but your query
+time range spans 1d1s620ms": the query sent only a start, Cloudflare closed the
+window at its own clock a second past mine, and the Free plan's cap for that
+dataset is exactly one day. The verdict machinery paid for itself there: the raw
+dataset's sentence was kept verbatim beside the grouped one, so the overrun, one
+second and change, was on the owner's screen instead of a generic refusal.
+
 The pattern under all three: a form that accepts a value it could have
 recognised is a form that will accept the wrong one. The keyring knows every
 issued token it holds; matching a paste against them costs nothing and would
