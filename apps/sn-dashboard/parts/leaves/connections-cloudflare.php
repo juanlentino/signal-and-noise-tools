@@ -47,7 +47,7 @@ function cloudflare_data() {
 		'token_obscured'  => $obscured,
 		'zone'            => $zone,
 		// 14.10.0: the account id is central too (Analytics Engine reads and
-		// the monitor's account path); the constant locks it like the others.
+		// the Account-token verify route); the constant locks it like the others.
 		'account'         => function_exists( 'sn_cf_get_account_id' ) ? (string) sn_cf_get_account_id() : '',
 		'token_const_set' => defined( 'SN_CLOUDFLARE_API_TOKEN' ),
 		'zone_const_set'  => defined( 'SN_CLOUDFLARE_ZONE_ID' ),
@@ -102,7 +102,7 @@ function cloudflare_credentials_html( array $d ) {
 		? cloudflare_locked_field( __( 'Account ID', 'signal-and-noise-tools' ), (string) $d['account'], __( 'Locked. Set via SN_CF_ACCOUNT_ID in wp-config.php.', 'signal-and-noise-tools' ) )
 		: \snt_kit_field( 'text', 'sn_cf_account_id', __( 'Account ID', 'signal-and-noise-tools' ), (string) ( $d['account'] ?? '' ), array(
 			'placeholder' => __( '32-char account ID; type ‘clear’ to remove', 'signal-and-noise-tools' ),
-			'hint'        => __( 'Cloudflare dashboard → account home → the ID in the URL. Analytics Engine reads and the firewall reading\'s account path need it.', 'signal-and-noise-tools' ),
+			'hint'        => __( 'Cloudflare dashboard → account home → the ID in the URL. Analytics Engine reads and the Account-token verify route need it.', 'signal-and-noise-tools' ),
 		) );
 	$all_locked = $d['token_const_set'] && $d['zone_const_set'] && ! empty( $d['account_const_set'] );
 	$inner      = $all_locked

@@ -38,7 +38,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/cloudflare-status', array(
 		'label'               => 'Cloudflare Status',
-		'description'         => 'The Cloudflare monitor\'s last stored reading: the API token\'s status and expiry (GET /user/tokens/verify), the zone\'s last seven days from GraphQL httpRequests1dGroups (requests, cached share, bytes, threats, 4xx/5xx), and the firewall\'s last 24 hours from firewallEventsAdaptiveGroups (events by action, top rules). READ `needs_permission: true` AS A GAP, never as zero: the token lacks Zone › Analytics › Read and the reading was not made. `state: never_run` means the daily monitor has not stored anything yet. Cloudflare publishes no rate-limit headers, which is why this reading exists instead of a quota row. Read-only; never fetches, never purges.',
+		'description'         => 'The Cloudflare monitor\'s last stored reading: the API token\'s status and expiry (GET /user/tokens/verify), the zone\'s last seven days from GraphQL httpRequests1dGroups (requests, cached share, bytes, threats, 4xx/5xx), and the firewall\'s last 24 hours from firewallEventsAdaptiveGroups, or from the raw firewallEventsAdaptive grouped locally when the plan lacks the grouped one (`dataset: raw`; events by action, top rules). READ `needs_permission: true` AS A GAP, never as zero: for the zone reading the token lacks Zone › Analytics › Read; for the firewall the zone\'s plan lacks both datasets, and no grant changes that. `state: never_run` means the daily monitor has not stored anything yet. Cloudflare publishes no rate-limit headers, which is why this reading exists instead of a quota row. Read-only; never fetches, never purges.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_cloudflare_status',
@@ -51,7 +51,7 @@ add_action( 'wp_abilities_api_init', function () {
 				'configured' => array( 'type' => array( 'boolean', 'null' ) ),
 				'token'      => array( 'type' => array( 'object', 'null' ), 'description' => 'verified, status (active|expired|disabled|invalid|unreachable), expires_on, not_before, error.' ),
 				'zone'       => array( 'type' => array( 'object', 'null' ), 'description' => 'available, needs_permission, error, days[], totals{requests,cached,bytes,cached_bytes,threats,status_4xx,status_5xx,cache_share}.' ),
-				'firewall'   => array( 'type' => array( 'object', 'null' ), 'description' => 'available, needs_permission, error, events, by_action{}, top_rules[].' ),
+				'firewall'   => array( 'type' => array( 'object', 'null' ), 'description' => 'available, needs_permission, error, events, by_action{}, top_rules[], dataset (groups|raw), truncated, groups_refused.' ),
 			),
 		),
 		'meta'                => array(
