@@ -159,7 +159,7 @@ function sn_dash_ops_panels( array $data ) {
 				// token status and expiry, the last call, and the fact that no
 				// quota is advertised.
 				$row    = sn_cf_monitor_api_row( sn_cf_monitor_read(), (array) get_option( 'sn_cf_last_purge', array() ), time() );
-				$rows[] = array( 'label' => $label, 'value' => $row['value'], 'dot' => $row['dot'] );
+				$rows[] = array( 'label' => $label, 'value' => $row['value'], 'dot' => $row['dot'], 'title' => $row['title'] );
 				continue;
 			}
 			if ( null === $snap ) {

@@ -111,7 +111,9 @@ function snt_kit_list( array $rows, array $opts = array() ) {
 		} else {
 			$inner .= snt_kit_tag( 'span', array( 'class' => 'snt-list__label' ), $label );
 		}
-		$inner .= snt_kit_tag( 'span', array( 'class' => 'snt-list__value', 'data-tone' => isset( $row['tone'] ) ? snt_kit_tone( (string) $row['tone'] ) : null ), snt_kit_esc( (string) ( $row['value'] ?? '' ) ) );
+		// 14.9.1: an optional title carries the sentence a figure-sized value
+		// cannot; the row never widens for it.
+		$inner .= snt_kit_tag( 'span', array( 'class' => 'snt-list__value', 'data-tone' => isset( $row['tone'] ) ? snt_kit_tone( (string) $row['tone'] ) : null, 'title' => '' !== (string) ( $row['title'] ?? '' ) ? (string) $row['title'] : null ), snt_kit_esc( (string) ( $row['value'] ?? '' ) ) );
 		$items .= snt_kit_tag( 'li', array( 'class' => 'snt-list__row' ), $inner );
 	}
 	return snt_kit_tag( 'ul', array( 'class' => trim( 'snt-list ' . (string) ( $opts['class'] ?? '' ) ) ), $items );

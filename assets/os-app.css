@@ -96,7 +96,7 @@
 
 .snt-list__label {
 	flex: 1 1 auto;
-	min-width: 0;
+	min-width: 6em;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -108,7 +108,15 @@ a.snt-list__label:hover,
 a.snt-link:hover { text-decoration: underline; }
 
 .snt-list__value {
-	flex: 0 0 auto;
+	/* 14.9.1: a value may shrink, and the label keeps a floor, so a long
+	   reading can never erase the name of the row it belongs to. */
+	flex: 0 1 auto;
+	min-width: 0;
+	max-width: 60%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	text-align: right;
 	font-variant-numeric: tabular-nums;
 	color: var( --os-ui-fg-muted, #b3afb5 );
 	font-family: var( --os-ui-font-mono, ui-monospace, monospace );

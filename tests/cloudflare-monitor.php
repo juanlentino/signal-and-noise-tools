@@ -53,6 +53,7 @@ $z = sn_cf_monitor_zone_from( array( 'http' => 200, 'body' => $zone_ok, 'error' 
 ok( true === $z['available'] && false === $z['needs_permission'], 'a zone answer is available' );
 ok( 1500 === $z['totals']['requests'] && 900 === $z['totals']['cached'] && 60.0 === $z['totals']['cache_share'] && 3 === $z['totals']['threats'], 'totals sum the days: 1500 requests, 900 cached, 60.0% from cache, 3 threats' );
 ok( 40 === $z['totals']['status_4xx'] && 10 === $z['totals']['status_5xx'], '4xx and 5xx are counted from the status map, by class' );
+ok( array( 503 => 10 ) === $z['totals']['status_5xx_codes'], '14.9.1: the 5xx CODES are kept, so a Cloudflare 52x (could not reach the origin) is never blended with an origin 503 (Varnish)' );
 ok( '2026-09-13' === $z['days'][0]['date'] && '2026-09-14' === $z['days'][1]['date'], 'days are sorted ascending whatever order the API returned' );
 $refused = array( 'data' => null, 'errors' => array( array( 'message' => 'unauthorized to access requested resource', 'extensions' => array( 'code' => 'authz', 'timestamp' => '' ) ) ) );
 $z = sn_cf_monitor_zone_from( array( 'http' => 200, 'body' => $refused, 'error' => '' ) );
@@ -73,22 +74,34 @@ ok( true === $f['available'] && 47 === $f['events'] && array( 'block' => 42, 'ma
 ok( 'rule-a' === $f['top_rules'][0]['rule'] && 42 === $f['top_rules'][0]['count'] && 'waf' === $f['top_rules'][0]['source'], 'top rules merge the same source:rule and sort by count' );
 $f = sn_cf_monitor_firewall_from( array( 'http' => 200, 'body' => $refused, 'error' => '' ) );
 ok( true === $f['needs_permission'] && 0 === $f['events'] && array() === $f['by_action'], 'firewall without permission: a gap, zero events reported as absent, not as quiet' );
+// 14.9.1: the live refusal for the firewall dataset, with a token that reads
+// zone analytics fine. A different sentence, and a different grant.
+$live_refusal = array( 'data' => null, 'errors' => array( array( 'message' => "zone '319c5233e47cb32fdb6de197eff034cc' does not have access to the path. Refer to this page for more details about access controls: https://developers.cloudflare.com/analytics/graphql-api/errors/", 'path' => array( 'viewer', 'zones', '0', 'firewallEventsAdaptiveGroups' ), 'extensions' => array( 'code' => 'authz', 'timestamp' => '2026-09-15T13:59:00Z' ) ) ) );
+$f = sn_cf_monitor_firewall_from( array( 'http' => 200, 'body' => $live_refusal, 'error' => '' ) );
+ok( true === $f['needs_permission'] && false === $f['available'], '"does not have access to the path" is a permission gap, not an error (the live refusal, 2026-09-15)' );
+ok( false !== strpos( sn_cf_monitor_permission_hint( 'firewall' ), 'Firewall Services' ) && false !== strpos( sn_cf_monitor_permission_hint( 'zone' ), 'Analytics' ) && false === strpos( sn_cf_monitor_permission_hint( 'firewall' ), 'Analytics' ), 'the hint names the grant for the dataset: Firewall Services Read for the firewall log, Analytics Read for the zone' );
 
-// ── The API row
+// ── The API row: FIGURE-SIZED (14.9.1). The first cut put the whole sentence
+// in the value; the kit list's value never shrank and the label "Cloudflare
+// API" was squeezed to nothing on the live Dashboard. The sentence rides the
+// title attribute now; the value stays the length of "4,790 / 5,000".
 $now = 1789500000;
 $row = sn_cf_monitor_api_row( null, array(), $now );
-ok( false !== strpos( $row['value'], 'monitor has not run yet' ) && 'unknown' === $row['dot'], 'no record: the row says the monitor has not run (never "not seen")' );
+ok( 'not run yet' === $row['value'] && 'unknown' === $row['dot'] && false !== strpos( $row['title'], 'publishes no rate-limit headers' ), 'no record: the value says not run yet; the headers sentence rides the title' );
 $rec = array( 'fetched_at' => $now - 100, 'configured' => true, 'token' => array( 'verified' => true, 'status' => 'active', 'expires_on' => '', 'not_before' => '', 'error' => '' ), 'zone' => null, 'firewall' => null );
 $row = sn_cf_monitor_api_row( $rec, array( 'time' => $now - 7200, 'kind' => 'urls', 'count' => 3 ), $now );
-ok( 'token active · last call 2 hours ago · no rate-limit headers (Cloudflare publishes none)' === $row['value'] && '' === $row['dot'], 'a live token, the last call, and the truth about headers, on one line' );
+ok( 'token active' === $row['value'] && '' === $row['dot'] && false !== strpos( $row['title'], 'Last call 2 hours ago' ), 'a live token: two words in the value, the last call in the title' );
+foreach ( array( $row['value'], 'expires 2026-09-20', 'token expired', 'not configured' ) as $v ) {
+	ok( strlen( $v ) <= 20, "a row value stays figure-sized: '$v' (" . strlen( $v ) . ' chars, the GitHub row is 13)' );
+}
 $rec['token']['expires_on'] = gmdate( 'Y-m-d\TH:i:s\Z', $now + 5 * DAY_IN_SECONDS );
 $row = sn_cf_monitor_api_row( $rec, array(), $now );
-ok( false !== strpos( $row['value'], '(soon)' ) && 'warn' === $row['dot'], 'a token expiring within 14 days warns' );
+ok( 0 === strpos( $row['value'], 'expires ' ) && 'warn' === $row['dot'], 'a token expiring within 14 days: the value is the date, amber' );
 $rec['token'] = array( 'verified' => true, 'status' => 'expired', 'expires_on' => '2026-09-01T00:00:00Z', 'not_before' => '', 'error' => '' );
 $row = sn_cf_monitor_api_row( $rec, array(), $now );
-ok( false !== strpos( $row['value'], 'token expired' ) && 'err' === $row['dot'], 'an expired token is red' );
+ok( 'token expired' === $row['value'] && 'err' === $row['dot'], 'an expired token is red' );
 $row = sn_cf_monitor_api_row( array( 'fetched_at' => $now, 'configured' => false, 'token' => null, 'zone' => null, 'firewall' => null ), array(), $now );
-ok( false !== strpos( $row['value'], 'not configured' ), 'unconfigured says so' );
+ok( 'not configured' === $row['value'], 'unconfigured says so' );
 
 // ── Refresh: three requests, the record stored, nothing purged
 $GLOBALS['__configured'] = true;
@@ -110,6 +123,14 @@ ok( 'daily' === $GLOBALS['__scheduled'][1] && SN_CF_MONITOR_HOOK === $GLOBALS['_
 $GLOBALS['__configured'] = false; $GLOBALS['__calls'] = array();
 $r = sn_cf_monitor_refresh();
 ok( false === $r['configured'] && array() === $GLOBALS['__calls'], 'unconfigured: no request leaves the box, the record says so' );
+
+// ── The kit list's CSS keeps the label alive under a long value (14.9.1).
+$css = preg_replace( '~/\*.*?\*/~s', '', (string) file_get_contents( dirname( __DIR__ ) . '/assets/os-app.css' ) );
+preg_match( '/\.snt-list__label \{([^}]*)\}/s', (string) $css, $lab );
+preg_match( '/\.snt-list__value \{([^}]*)\}/s', (string) $css, $val );
+ok( isset( $lab[1] ) && preg_match( '/min-width:\s*6em/', $lab[1] ), 'the label keeps a 6em floor: a row always shows its name' );
+ok( isset( $val[1] ) && preg_match( '/flex:\s*0 1 auto/', $val[1] ) && preg_match( '/max-width:\s*60%/', $val[1] ) && preg_match( '/text-overflow:\s*ellipsis/', $val[1] ), 'the value may shrink (flex 0 1 auto, 60% cap, ellipsis): a long reading truncates instead of erasing the label' );
+ok( false !== strpos( (string) file_get_contents( dirname( __DIR__ ) . '/inc/openstation-kit-data.php' ), "'title' => '' !== (string) ( \$row['title'] ?? '' )" ), 'a list row may carry a title, where the sentence a figure cannot hold goes' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
