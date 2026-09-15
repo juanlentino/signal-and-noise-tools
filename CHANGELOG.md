@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Removed
+- **The four credential handlers the keyring replaced** (`sn_handle_cf_save`, `sn_handle_analytics_save`, `sn_handle_analytics_use_central_token`, `sn_handle_monitoring_save`), the two field helpers only their forms called (`sn_uptime_status_token_field_html`, `sn_spend_watch_settings_fields_html`), the spend-watch save helper only the monitoring handler called, and their six flash codes. Deprecated in 15.2.0, unreachable since; 221 lines gone. What they did on a change (drop the uptime snapshot, the spend usage caches, the Spotify token cache, the Machine Readers cache) the keyring handler now does from the registry: rows carry `flush` (transient keys) and `flush_fn`, and `sn_keyring_flush()` runs on every save or switch, so a rotated key never serves a stale reading.
+
 ## [15.2.0] - 2026-09-15 — every credential in one place
 
 ### Added

@@ -18,42 +18,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// @deprecated 15.2.0: unreachable, its form moved to the keyring (Connections › Credentials); removed next release.
-function sn_handle_cf_save( $post ) {
-	$token_const = defined( 'SN_CLOUDFLARE_API_TOKEN' );
-	$zone_const  = defined( 'SN_CLOUDFLARE_ZONE_ID' );
-
-	if ( ! $token_const ) {
-		$new_token = isset( $post['sn_cf_token'] ) ? sanitize_text_field( wp_unslash( $post['sn_cf_token'] ) ) : '';
-		if ( 'clear' === $new_token ) {
-			delete_option( SN_CF_TOKEN_OPT );
-		} elseif ( '' !== $new_token && 0 !== strpos( $new_token, '••••' ) ) {
-			update_option( SN_CF_TOKEN_OPT, $new_token, false ); // not autoloaded
-		}
-	}
-	if ( ! $zone_const ) {
-		$new_zone = isset( $post['sn_cf_zone'] ) ? sanitize_text_field( wp_unslash( $post['sn_cf_zone'] ) ) : '';
-		if ( 'clear' === $new_zone ) {
-			delete_option( SN_CF_ZONE_OPT );
-		} elseif ( '' !== $new_zone ) {
-			update_option( SN_CF_ZONE_OPT, $new_zone, true );
-		}
-	}
-	// 14.10.0: the account id lives here too (same option the Analytics tab
-	// used to write, so nothing moves in the database).
-	$acct_const = defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) constant( 'SN_CF_ACCOUNT_ID' );
-	$acct_opt   = defined( 'SN_CF_ACCOUNT_ID_OPT' ) ? SN_CF_ACCOUNT_ID_OPT : 'sn_cf_account_id';
-	if ( ! $acct_const && isset( $post['sn_cf_account_id'] ) ) {
-		$new_acct = sanitize_text_field( wp_unslash( $post['sn_cf_account_id'] ) );
-		if ( 'clear' === $new_acct ) {
-			delete_option( $acct_opt );
-		} elseif ( '' !== $new_acct ) {
-			update_option( $acct_opt, $new_acct, false );
-		}
-	}
-	return 'cf_saved';
-}
-
 function sn_handle_cf_purge_now( $post ) {
 	unset( $post );
 	if ( ! function_exists( 'sn_cf_is_configured' ) || ! sn_cf_is_configured() ) {
@@ -84,19 +48,3 @@ function sn_handle_cf_monitor_refresh( $post ) {
 	return ! empty( $r['configured'] ) ? 'cf_monitor_refreshed' : 'cf_purged_unconfigured';
 }
 
-/**
- * 14.10.0: drop the separate analytics token so Analytics reads with the
- * central one. The constant, when set, cannot be dropped from here.
- *
- * @param array<string,mixed> $post
- * @return string Flash code.
- */
-// @deprecated 15.2.0: unreachable, its form moved to the keyring (Connections › Credentials); removed next release.
-function sn_handle_analytics_use_central_token( $post ) {
-	unset( $post );
-	if ( defined( 'SN_CF_ANALYTICS_TOKEN' ) && '' !== (string) constant( 'SN_CF_ANALYTICS_TOKEN' ) ) {
-		return 'analytics_locked';
-	}
-	delete_option( defined( 'SN_CF_ANALYTICS_TOKEN_OPT' ) ? SN_CF_ANALYTICS_TOKEN_OPT : 'sn_cf_analytics_token' );
-	return 'analytics_central_token';
-}

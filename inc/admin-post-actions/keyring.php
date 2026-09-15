@@ -38,6 +38,7 @@ function sn_handle_keyring_save( $post ) {
 		if ( 'site' === $value && $can_derive ) {
 			if ( ! in_array( $id, $site_rows, true ) ) {
 				$site_rows[] = $id;
+				sn_keyring_flush( $row );
 				++$changed;
 			}
 			continue;
@@ -48,6 +49,7 @@ function sn_handle_keyring_save( $post ) {
 		} else {
 			sn_keyring_write( $row, $value );
 		}
+		sn_keyring_flush( $row );
 		++$changed;
 	}
 	update_option( SN_KEYRING_SITE_ROWS, $site_rows, false );
@@ -98,4 +100,24 @@ function sn_handle_keyring_verify( $post ) {
 		}
 	}
 	return $refused > 0 ? 'keyring_verified_with_refusals' : 'keyring_verified';
+}
+
+/**
+ * Drop what a rotated value would otherwise serve stale: the row's transients
+ * and its flush function (15.2.1; the deleted per-tab handlers did this each
+ * in its own way).
+ *
+ * @param array<string,mixed> $row Registry row.
+ * @return void
+ */
+function sn_keyring_flush( array $row ) {
+	foreach ( (array) ( $row['flush'] ?? array() ) as $key ) {
+		if ( function_exists( 'delete_transient' ) ) {
+			delete_transient( (string) $key );
+		}
+	}
+	$fn = (string) ( $row['flush_fn'] ?? '' );
+	if ( '' !== $fn && function_exists( $fn ) ) {
+		$fn();
+	}
 }

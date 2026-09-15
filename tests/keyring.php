@@ -18,6 +18,8 @@ function sn_setting( $path, $d = null ) { return $GLOBALS['__settings'][ $path ]
 function sn_setting_update( $path, $v ) { $GLOBALS['__settings'][ $path ] = $v; }
 function sn_setting_reset_cache() { $GLOBALS['__reset'] = ( $GLOBALS['__reset'] ?? 0 ) + 1; }
 function sanitize_text_field( $s ) { return trim( (string) $s ); }
+function delete_transient( $k ) { $GLOBALS['__flushed'][] = $k; return true; }
+function snt_mr_cache_flush() { $GLOBALS['__flushed'][] = 'mr'; }
 function wp_unslash( $s ) { return $s; }
 
 require dirname( __DIR__ ) . '/inc/keyring.php';
@@ -76,6 +78,16 @@ ok( 'keyring_saved' === sn_handle_keyring_save( array( 'key_cf_token' => 'clear'
 ok( 'keyring_saved' === sn_handle_keyring_save( array( 'key_cf_token' => 'site' ) ) && 'site' === $GLOBALS['__opt']['sn_cf_api_token'], '"site" on a row that cannot derive is saved literally: the leaf says which rows can' );
 ok( 'keyring_unchanged' === sn_handle_keyring_save( array( 'key_mr_read_token' => 'pasted' ) ) && ! isset( $GLOBALS['__settings']['machine_readers.read_token'] ), 'a constant-locked row is never written' );
 ok( 'keyring_saved' === sn_handle_keyring_save( array( 'key_srv_token' => 'x' ) ) && $GLOBALS['__reset'] > 0, 'the settings cache is reset after a save' );
+// 15.2.1: a rotated key drops what it would serve stale.
+$GLOBALS['__flushed'] = array();
+sn_handle_keyring_save( array( 'key_betterstack_token' => 'bs-2', 'key_github_token' => 'gh-2', 'key_spotify_client_secret' => 'sp-2' ) );
+ok( in_array( 'sn_uptime_status_snapshot', $GLOBALS['__flushed'], true ) && in_array( 'sn_uptime_availability', $GLOBALS['__flushed'], true ) && in_array( 'sn_spend_gh_usage', $GLOBALS['__flushed'], true ) && in_array( 'sn_spotify_token', $GLOBALS['__flushed'], true ), 'saving Better Stack, GitHub and Spotify rows drops their caches' );
+$GLOBALS['__flushed'] = array();
+sn_handle_keyring_save( array( 'key_bridge_token' => 'site' ) );
+ok( array() === $GLOBALS['__flushed'], 'a row with nothing to flush flushes nothing' );
+$GLOBALS['__flushed'] = array(); $GLOBALS['__opt'][ SN_KEYRING_SITE_ROWS ] = array();
+sn_handle_keyring_save( array( 'key_cf_token' => 'x' ) ); // mr is constant-locked in this run; the switch path is pinned through srv_token
+ok( array() === $GLOBALS['__flushed'], 'a row without flush entries flushes nothing' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

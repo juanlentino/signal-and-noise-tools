@@ -155,57 +155,6 @@ pa_reset_store();
 pa_eq( 'identity_saved', sn_handle_save_identity( array( 'identity_site_name' => 'Acme' ) ), 'first save → identity_saved' );
 pa_eq( 'identity_unchanged', sn_handle_save_identity( array( 'identity_site_name' => 'Acme' ) ), 'identical re-save → identity_unchanged' );
 
-echo "\nTest: sn_handle_cf_save() unlocked — masked-skip does NOT clobber the token\n";
-// MUST run before the constant-lock test below define()s SN_CLOUDFLARE_API_TOKEN /
-// SN_CLOUDFLARE_ZONE_ID — once defined, cf_save's unlocked branch is locked out
-// for the rest of this process (define() is irreversible).
-define( 'SN_CF_TOKEN_OPT', 'sn_cf_token' );
-define( 'SN_CF_ZONE_OPT', 'sn_cf_zone' );
-pa_reset_store();
-pa_eq( 'cf_saved', sn_handle_cf_save( array( 'sn_cf_token' => 'real-cf-token', 'sn_cf_zone' => 'zone-abc' ) ), 'fresh token + zone → cf_saved' );
-pa_eq( 'real-cf-token', get_option( 'sn_cf_token' ), 'cf token persisted' );
-pa_eq( 'zone-abc', get_option( 'sn_cf_zone' ), 'cf zone persisted' );
-// Re-submit the MASKED token placeholder (••••XXXX). cf_save always returns
-// 'cf_saved' (no changed-tracking), so the meaningful check is that the stored
-// token is NOT overwritten with the literal bullets (the substr-byte bug).
-sn_handle_cf_save( array( 'sn_cf_token' => '••••oken', 'sn_cf_zone' => 'zone-abc' ) );
-pa_eq( 'real-cf-token', get_option( 'sn_cf_token' ), 'masked re-submit does NOT clobber the cf token' );
-// 'clear' deletes the token option.
-pa_eq( 'cf_saved', sn_handle_cf_save( array( 'sn_cf_token' => 'clear' ) ), "'clear' → cf_saved" );
-pa_eq( false, array_key_exists( 'sn_cf_token', $GLOBALS['__options'] ), 'cf token deleted on clear' );
-
-echo "\nTest: sn_handle_cf_save() honors constant locks\n";
-define( 'SN_CLOUDFLARE_API_TOKEN', 'locked-tok' );
-define( 'SN_CLOUDFLARE_ZONE_ID', 'locked-zone' );
-pa_reset_store();
-pa_eq( 'cf_saved', sn_handle_cf_save( array( 'sn_cf_token' => 'attempt', 'sn_cf_zone' => 'attempt' ) ), 'returns cf_saved' );
-pa_eq( array(), $GLOBALS['__options'], 'no option written when both constants are defined (locked)' );
-
-// v12.19.0: the push-heartbeat URL and its https gate were REMOVED with the
-// feature. What survives on this action is credential handling, tested below.
-pa_reset_store();
-pa_eq( 'monitoring_saved', sn_handle_monitoring_save( array() ), 'an empty monitoring save still succeeds' );
-
-echo "\nTest: sn_handle_monitoring_save() Better Stack token field (v8.2.0)\n";
-// Mirrors the Cloudflare token contract: fresh value persists (non-autoloaded
-// option), the obscured round-trip and an empty field keep the existing
-// token, and only the literal 'clear' removes it.
-pa_reset_store();
-sn_handle_monitoring_save( array( 'sn_betterstack_token' => 'fresh-token-1234567890' ) );
-pa_eq( 'fresh-token-1234567890', $GLOBALS['__options']['sn_betterstack_api_token'] ?? '', 'fresh token persisted' );
-sn_handle_monitoring_save( array( 'sn_betterstack_token' => '••••7890' ) );
-pa_eq( 'fresh-token-1234567890', $GLOBALS['__options']['sn_betterstack_api_token'] ?? '', 'obscured round-trip keeps the existing token' );
-sn_handle_monitoring_save( array( 'sn_betterstack_token' => '' ) );
-pa_eq( 'fresh-token-1234567890', $GLOBALS['__options']['sn_betterstack_api_token'] ?? '', 'empty field keeps the existing token' );
-sn_handle_monitoring_save( array( 'sn_betterstack_token' => 'clear' ) );
-pa_eq( false, array_key_exists( 'sn_betterstack_api_token', $GLOBALS['__options'] ), "token removed on the literal 'clear'" );
-// v12.19.0: this used to assert the token survived a REJECTED push URL. There
-// is no push URL any more, so it now asserts the plainer property that outlived
-// it — an unrelated key in the payload never eats a freshly pasted token.
-pa_reset_store();
-sn_handle_monitoring_save( array( 'unrelated_field' => 'x', 'sn_betterstack_token' => 'kept-alongside-noise' ) );
-pa_eq( 'kept-alongside-noise', $GLOBALS['__options']['sn_betterstack_api_token'] ?? '', 'token saved alongside unrelated payload keys' );
-
 echo "\nTest: sn_handle_music_save() — masked creds + Muso profile (T6)\n";
 pa_reset_store();
 // Fresh Spotify creds + Muso profile id → saved + persisted.
@@ -295,48 +244,6 @@ if ( ! function_exists( 'sn_analytics_probe' ) ) {
 	}
 }
 
-echo "\nTest: sn_handle_analytics_save() — fresh credentials\n";
-pa_reset_store();
-pa_eq(
-	'analytics_saved',
-	sn_handle_analytics_save( array( 'sn_cf_account_id' => 'acct123', 'sn_cf_analytics_token' => 'tok-abc' ) ),
-	'fresh creds → analytics_saved'
-);
-pa_eq( 'acct123',  get_option( SN_CF_ACCOUNT_ID_OPT ),      'account id persisted' );
-pa_eq( 'tok-abc',  get_option( SN_CF_ANALYTICS_TOKEN_OPT ), 'token persisted' );
-
-echo "\nTest: sn_handle_analytics_save() — masked token (unchanged) re-submit\n";
-// Store a known token, then re-submit the masked placeholder.
-// The stored token must NOT be clobbered and the flash must be 'analytics_unchanged'.
-$GLOBALS['__options'][ SN_CF_ANALYTICS_TOKEN_OPT ] = 'real-stored-token';
-$GLOBALS['__options'][ SN_CF_ACCOUNT_ID_OPT ]      = 'acct123';
-pa_eq(
-	'analytics_unchanged',
-	sn_handle_analytics_save( array( 'sn_cf_account_id' => 'acct123', 'sn_cf_analytics_token' => '••••-abc' ) ),
-	'masked placeholder + same account → analytics_unchanged'
-);
-pa_eq( 'real-stored-token', get_option( SN_CF_ANALYTICS_TOKEN_OPT ), 'masked re-submit does NOT clobber the stored token' );
-
-echo "\nTest: sn_handle_analytics_save() — 'clear' token\n";
-pa_reset_store();
-$GLOBALS['__options'][ SN_CF_ANALYTICS_TOKEN_OPT ] = 'tok-to-clear';
-pa_eq(
-	'analytics_saved',
-	sn_handle_analytics_save( array( 'sn_cf_analytics_token' => 'clear' ) ),
-	"'clear' token → analytics_saved"
-);
-pa_eq( false, array_key_exists( SN_CF_ANALYTICS_TOKEN_OPT, $GLOBALS['__options'] ), 'token option deleted on clear' );
-
-echo "\nTest: sn_handle_analytics_save() — 'clear' account id\n";
-pa_reset_store();
-$GLOBALS['__options'][ SN_CF_ACCOUNT_ID_OPT ] = 'acct-to-clear';
-pa_eq(
-	'analytics_saved',
-	sn_handle_analytics_save( array( 'sn_cf_account_id' => 'clear' ) ),
-	"'clear' account id → analytics_saved"
-);
-pa_eq( false, array_key_exists( SN_CF_ACCOUNT_ID_OPT, $GLOBALS['__options'] ), 'account id option deleted on clear' );
-
 echo "\nTest: sn_handle_analytics_test() — unconfigured, ok, err\n";
 $GLOBALS['__analytics_config'] = null;
 pa_eq( 'analytics_test_unconfigured', sn_handle_analytics_test( array() ), 'null config → analytics_test_unconfigured' );
@@ -345,26 +252,6 @@ $GLOBALS['__analytics_probe']  = true;
 pa_eq( 'analytics_test_ok', sn_handle_analytics_test( array() ), 'probe ok → analytics_test_ok' );
 $GLOBALS['__analytics_probe'] = false;
 pa_eq( 'analytics_test_err', sn_handle_analytics_test( array() ), 'probe err → analytics_test_err' );
-
-echo "\nTest: sn_handle_analytics_save() — account changed + token masked in one submit\n";
-// account CHANGED + token MASKED in one submit → saved; account written, token untouched.
-$GLOBALS['__options'][ SN_CF_ACCOUNT_ID_OPT ]      = 'old-acct';
-$GLOBALS['__options'][ SN_CF_ANALYTICS_TOKEN_OPT ] = 'real-stored-token';
-pa_eq( 'analytics_saved', sn_handle_analytics_save( array( 'sn_cf_account_id' => 'new-acct', 'sn_cf_analytics_token' => '••••oken' ) ), 'account changed + masked token → analytics_saved' );
-pa_eq( 'new-acct', get_option( SN_CF_ACCOUNT_ID_OPT ), 'account id updated' );
-pa_eq( 'real-stored-token', get_option( SN_CF_ANALYTICS_TOKEN_OPT ), 'masked token NOT clobbered when account changes' );
-
-// Constant-locked test LAST — define() is permanent in-process.
-echo "\nTest: sn_handle_analytics_save() — both creds constant-locked\n";
-define( 'SN_CF_ANALYTICS_TOKEN', 'x' );
-define( 'SN_CF_ACCOUNT_ID', 'y' );
-pa_reset_store();
-pa_eq(
-	'analytics_locked',
-	sn_handle_analytics_save( array( 'sn_cf_account_id' => 'attempt', 'sn_cf_analytics_token' => 'attempt' ) ),
-	'both constants defined → analytics_locked'
-);
-pa_eq( array(), $GLOBALS['__options'], 'no option written when both constants are defined (locked)' );
 
 echo "\nTest: sn_handle_analytics_exclude_save (v6.23.0 owner/role exclusion)\n";
 $GLOBALS['__options']['sn_settings'] = array();

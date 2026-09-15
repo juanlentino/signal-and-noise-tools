@@ -170,14 +170,8 @@ ok( true === $paged['ok'] && 1.50 === $paged['total'],
 	'AI cost follows next_page and sums all pages (100c + 50c = $1.50)' );
 $GLOBALS['__http_fn'] = null;
 
-// --- save handler contract (mirrors the Better Stack idiom) ------------------
-$GLOBALS['__opts'] = array();
-sn_spend_watch_handle_save( array( 'sn_spend_gh_token' => 'ghp_new', 'sn_spend_ai_admin_key' => '••••abcd' ) );
-ok( 'ghp_new' === ( $GLOBALS['__opts']['sn_spend_gh_token'] ?? null ), 'save: fresh GH token stored' );
-ok( ! isset( $GLOBALS['__opts']['sn_spend_ai_admin_key'] ), 'save: an obscured round-trip value is NEVER written' );
-sn_spend_watch_handle_save( array( 'sn_spend_gh_token' => 'clear' ) );
-ok( ! isset( $GLOBALS['__opts']['sn_spend_gh_token'] ) && in_array( 'sn_spend_gh_token', $GLOBALS['__deleted'], true ),
-	'save: the literal clear removes the stored token' );
+// 15.2.1: the save handler and the fieldset are gone; both credentials are keyring rows
+// (tests/keyring.php pins the verbs, tests/os-leaf-connections-keyring.php the fields).
 
 // --- mount guards ------------------------------------------------------------
 $widget = (string) file_get_contents( __DIR__ . '/../inc/site-health-widget.php' );
@@ -189,9 +183,9 @@ $save = (string) implode( '', array_map( 'file_get_contents', array_merge(
 	array( __DIR__ . '/../inc/admin-post-actions.php' ),
 	glob( __DIR__ . '/../inc/admin-post-actions/*.php' ) ?: array()
 ) ) );
-ok( strpos( $save, 'sn_spend_watch_handle_save' ) !== false, 'the monitoring save handler routes the spend fields' );
-$fieldset = (string) file_get_contents( __DIR__ . '/../inc/uptime-status.php' );
-ok( strpos( $fieldset, 'sn_spend_watch_settings_fields_html' ) !== false, 'the monitoring fieldset renders the spend fields' );
+ok( strpos( $save, 'sn_spend_watch_handle_save' ) === false && strpos( $save, 'function sn_handle_keyring_save' ) !== false, '15.2.1: no spend save handler of its own; the keyring handler saves every row by its registry option' );
+$keyring = (string) file_get_contents( __DIR__ . '/../inc/keyring.php' );
+ok( strpos( $keyring, "'option' => 'sn_spend_gh_token'" ) !== false && strpos( $keyring, "'option' => 'sn_spend_ai_admin_key'" ) !== false && strpos( $keyring, "'flush' => array( 'sn_spend_gh_usage' )" ) !== false, 'both spend credentials are keyring rows, and a rotated GitHub token drops its usage cache' );
 $main = (string) file_get_contents( __DIR__ . '/../signal-and-noise-tools.php' );
 ok( strpos( $main, "inc/spend-watch.php" ) !== false, 'the plugin bootstrap requires the spend module' );
 
