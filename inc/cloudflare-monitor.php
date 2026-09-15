@@ -286,43 +286,40 @@ function sn_cf_monitor_permission_hint() {
 }
 
 /**
- * The API-limits row for Cloudflare: what is actually known, in one line.
+ * The API-limits row for Cloudflare: a FIGURE-SIZED reading, like the
+ * GitHub row beside it. 14.9.1: the first cut put the whole sentence here
+ * (token, expiry, last call, the note about headers) and the kit list's
+ * value never shrinks, so the label "Cloudflare API" was squeezed to nothing
+ * on the live Dashboard. The sentence lives in the Monitor section; this
+ * row says the one thing a glance needs.
  *
  * @param array<string,mixed>|null $record sn_cf_monitor_read().
  * @param array<string,mixed>      $last_purge get_option( 'sn_cf_last_purge' ).
  * @param int                      $now
- * @return array{value:string,dot:string}
+ * @return array{value:string,dot:string,title:string}
  */
 function sn_cf_monitor_api_row( $record, array $last_purge, $now ) {
-	$parts = array();
-	$dot   = 'unknown';
-	if ( ! is_array( $record ) ) {
-		$parts[] = __( 'monitor has not run yet', 'signal-and-noise-tools' );
-	} elseif ( empty( $record['configured'] ) ) {
-		$parts[] = __( 'not configured', 'signal-and-noise-tools' );
-	} else {
-		$t = is_array( $record['token'] ) ? $record['token'] : array();
-		if ( ! empty( $t['verified'] ) ) {
-			$status  = (string) $t['status'];
-			$dot     = 'active' === $status ? '' : 'err';
-			$parts[] = sprintf( /* translators: %s: token status. */ __( 'token %s', 'signal-and-noise-tools' ), $status );
-			if ( '' !== (string) $t['expires_on'] ) {
-				$exp     = strtotime( (string) $t['expires_on'] );
-				$parts[] = $exp && $exp < $now + 14 * DAY_IN_SECONDS
-					? sprintf( /* translators: %s: date. */ __( 'expires %s (soon)', 'signal-and-noise-tools' ), wp_date( 'Y-m-d', $exp ) )
-					: sprintf( /* translators: %s: date. */ __( 'expires %s', 'signal-and-noise-tools' ), $exp ? wp_date( 'Y-m-d', $exp ) : (string) $t['expires_on'] );
-				if ( $exp && $exp < $now + 14 * DAY_IN_SECONDS && '' === $dot ) {
-					$dot = 'warn';
-				}
-			}
-		} else {
-			$dot     = 'err';
-			$parts[] = sprintf( /* translators: %s: reason. */ __( 'token %s', 'signal-and-noise-tools' ), (string) ( $t['status'] ?? 'unverified' ) );
-		}
-	}
+	$title = __( 'Cloudflare publishes no rate-limit headers; this reads the daily monitor.', 'signal-and-noise-tools' );
 	if ( ! empty( $last_purge['time'] ) ) {
-		$parts[] = sprintf( /* translators: %s: a relative time. */ __( 'last call %s ago', 'signal-and-noise-tools' ), human_time_diff( (int) $last_purge['time'], $now ) );
+		$title .= ' ' . sprintf( /* translators: %s: a relative time. */ __( 'Last call %s ago.', 'signal-and-noise-tools' ), human_time_diff( (int) $last_purge['time'], $now ) );
 	}
-	$parts[] = __( 'no rate-limit headers (Cloudflare publishes none)', 'signal-and-noise-tools' );
-	return array( 'value' => implode( ' · ', $parts ), 'dot' => $dot );
+	if ( ! is_array( $record ) ) {
+		return array( 'value' => __( 'not run yet', 'signal-and-noise-tools' ), 'dot' => 'unknown', 'title' => $title );
+	}
+	if ( empty( $record['configured'] ) ) {
+		return array( 'value' => __( 'not configured', 'signal-and-noise-tools' ), 'dot' => 'unknown', 'title' => $title );
+	}
+	$t = is_array( $record['token'] ) ? $record['token'] : array();
+	if ( empty( $t['verified'] ) ) {
+		return array( 'value' => sprintf( /* translators: %s: status. */ __( 'token %s', 'signal-and-noise-tools' ), (string) ( $t['status'] ?? 'unverified' ) ), 'dot' => 'err', 'title' => $title . ' ' . (string) ( $t['error'] ?? '' ) );
+	}
+	$status = (string) $t['status'];
+	if ( 'active' !== $status ) {
+		return array( 'value' => sprintf( __( 'token %s', 'signal-and-noise-tools' ), $status ), 'dot' => 'err', 'title' => $title );
+	}
+	$exp = '' !== (string) $t['expires_on'] ? strtotime( (string) $t['expires_on'] ) : 0;
+	if ( $exp && $exp < $now + 14 * DAY_IN_SECONDS ) {
+		return array( 'value' => sprintf( /* translators: %s: date. */ __( 'expires %s', 'signal-and-noise-tools' ), wp_date( 'Y-m-d', $exp ) ), 'dot' => 'warn', 'title' => $title );
+	}
+	return array( 'value' => __( 'token active', 'signal-and-noise-tools' ), 'dot' => '', 'title' => $title . ( $exp ? ' ' . sprintf( __( 'Expires %s.', 'signal-and-noise-tools' ), wp_date( 'Y-m-d', $exp ) ) : '' ) );
 }

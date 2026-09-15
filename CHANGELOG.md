@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The Cloudflare API row erased its own label (#1313).** 14.9.0 put a whole sentence in the row's value; the kit list's value never shrinks and the label "Cloudflare API" was ellipsised to nothing on the live Dashboard. `sn_cf_monitor_api_row()` now returns a figure-sized value ("token active", "expires 2026-09-20" in amber inside 14 days, "token expired" in red, "not run yet", "not configured") and carries the sentence (headers, last call, expiry) on the row's `title`; `snt_kit_list()` accepts that title, and `assets/os-app.css` gives the label a 6em floor and lets the value shrink with an ellipsis at 60%, so no reading can do this again. Pins in `tests/cloudflare-monitor.php` (every value under 20 characters; the CSS floor and cap; the title seam).
+
 ## [14.9.0] - 2026-09-15 — a Cloudflare monitor over token, zone and firewall
 
 ### Added
