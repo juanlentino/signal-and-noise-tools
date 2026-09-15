@@ -2,10 +2,10 @@
 /**
  * Signal & Noise Tools — admin-post actions: the keyring (15.2.0).
  *
- * `keyring_save`: one form for every credential. Per row, the field
- * `key_<id>` reads: '' or the obscured value → keep; 'clear' → remove;
- * 'site' → derive from the site secret (rows that can); anything else →
- * save it and stop deriving. A row a constant sets is never written.
+ * `keyring_save`: one row per save. `key_id` names the row; `key_value` is
+ * the verb: '' or an obscured value → nothing; 'clear' → remove; 'site' →
+ * derive from the site secret (rows that can); anything else → save it and
+ * stop deriving. A row a constant sets, or one with no home, is never written.
  * `keyring_verify`: run every probe, store the verdicts.
  *
  * @package SignalNoiseTools
@@ -24,39 +24,36 @@ function sn_handle_keyring_save( $post ) {
 	if ( ! function_exists( 'sn_keyring' ) ) {
 		return 'keyring_unavailable';
 	}
-	$site_rows = sn_keyring_site_rows();
-	$changed   = 0;
-	foreach ( sn_keyring() as $id => $row ) {
-		if ( ! isset( $post[ 'key_' . $id ] ) || 'constant' === sn_keyring_source( $id ) ) {
-			continue;
+	// 15.2.1: one row per save: `key_id` names it, `key_value` is the verb.
+	$id    = isset( $post['key_id'] ) ? sanitize_key( (string) $post['key_id'] ) : '';
+	$value = isset( $post['key_value'] ) ? sanitize_text_field( wp_unslash( (string) $post['key_value'] ) ) : '';
+	$rows  = sn_keyring();
+	if ( '' === $id || ! isset( $rows[ $id ] ) ) {
+		return 'keyring_unknown_row';
+	}
+	$row = $rows[ $id ];
+	if ( 'constant' === sn_keyring_source( $id ) || ( ! isset( $row['option'] ) && ! isset( $row['setting'] ) ) ) {
+		return 'keyring_locked';
+	}
+	if ( '' === $value || 0 === strpos( $value, '••••' ) ) {
+		return 'keyring_unchanged';
+	}
+	$site_rows  = sn_keyring_site_rows();
+	$can_derive = 'site' === ( $row['derive'] ?? '' );
+	if ( 'site' === $value && $can_derive ) {
+		if ( ! in_array( $id, $site_rows, true ) ) {
+			$site_rows[] = $id;
 		}
-		$value = sanitize_text_field( wp_unslash( (string) $post[ 'key_' . $id ] ) );
-		if ( '' === $value || 0 === strpos( $value, '••••' ) ) {
-			continue;
-		}
-		$can_derive = 'site' === ( $row['derive'] ?? '' );
-		if ( 'site' === $value && $can_derive ) {
-			if ( ! in_array( $id, $site_rows, true ) ) {
-				$site_rows[] = $id;
-				sn_keyring_flush( $row );
-				++$changed;
-			}
-			continue;
-		}
+	} else {
 		$site_rows = array_values( array_diff( $site_rows, array( $id ) ) );
-		if ( 'clear' === $value ) {
-			sn_keyring_write( $row, '' );
-		} else {
-			sn_keyring_write( $row, $value );
-		}
-		sn_keyring_flush( $row );
-		++$changed;
+		sn_keyring_write( $row, 'clear' === $value ? '' : $value );
 	}
 	update_option( SN_KEYRING_SITE_ROWS, $site_rows, false );
+	sn_keyring_flush( $row );
 	if ( function_exists( 'sn_setting_reset_cache' ) ) {
 		sn_setting_reset_cache();
 	}
-	return $changed > 0 ? 'keyring_saved' : 'keyring_unchanged';
+	return 'keyring_saved';
 }
 
 /**

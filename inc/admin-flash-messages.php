@@ -68,6 +68,8 @@ function sn_admin_flash_messages() {
 		'keyring_verified'          => array( 'success', 'Every credential with a probe was accepted.' ),
 		'keyring_verified_with_refusals' => array( 'warning', 'Verified: at least one credential was refused. Each row says which side to fix.' ),
 		'keyring_unavailable'       => array( 'error', 'The keyring module is not loaded.' ),
+		'keyring_unknown_row'       => array( 'error', 'No such credential row.' ),
+		'keyring_locked'            => array( 'error', 'That credential is set in wp-config.php; edit it there.' ),
 		'cf_monitor_unavailable'    => array( 'error', 'The Cloudflare monitor module is not loaded.' ),
 		'purged'                    => array( 'success', 'All caches purged.' ),
 		'wh_updated'                => array( 'success', 'Webhook updated.' ),
