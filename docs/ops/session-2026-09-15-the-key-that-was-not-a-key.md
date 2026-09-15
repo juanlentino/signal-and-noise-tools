@@ -1,6 +1,6 @@
 # Session — 2026-09-15: the key that was not a key
 
-Eight cuts in one day, 15.0.0 to 15.3.0, and every one of them was the same
+Nine cuts in one day, 15.0.0 to 15.3.1, and every one of them was the same
 question wearing a different coat: *which key is this, and who holds the other
 half?* The day started with a Cloudflare grant hunt and ended with a ledger of
 sixteen credentials that names, for each, what it is and what it is not. This is
@@ -154,6 +154,24 @@ gives the firewall log its own leaf under Security, beside Login defense, where
 "what is being kept out" is already the question. Connections › Cloudflare is
 back to wiring and cache: Credentials, Token with the monitor's Refresh, Cache.
 One stored record feeds all three leaves; the cron and the ability did not move.
+
+## The sweep, and three screens
+
+The owner asked for a sweep: where else does a credential sit beside numbers?
+Three leaves. AI › Models & budget kept the Workers AI token inside the budget
+form; Connections › Discography kept the Spotify pair inside the sync form; Search
+Console keeps a service-account JSON, which is a file and stays in its own box.
+15.3.1 moves the first two to the keyring (seventeen rows now) and the leaves read
+the sources like the others. The same cut balanced three leaves the owner sent
+screens of: the new Firewall leaf was one narrow card over an empty half and is
+two columns now, what happened left and to what right, with the rules under a
+heading they never had; the Edge band on Analytics moved into the left column
+above the five folds it had been leaving over nothing; and Insights' Scan status
+went under the Run Analysis button whose result it is. Two stale pointers that
+still sent the zone id to Connections › Cloudflare now say Credentials.
+
+Rule for the day, three times over: a column that is a single card over a
+screen of nothing is a layout that has not been looked at painted.
 
 ## What the verify said, first run
 
