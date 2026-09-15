@@ -673,9 +673,9 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	// ── MANUAL PURGE ACTION CARD ──
 	echo '<form method="post" class="sn-card sn-card--narrow">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<strong>Purge Everything Now</strong>';
-	echo '<p class="sn-helper">Clears the entire Cloudflare zone cache. Use after manual edits to global elements.</p>';
-	echo '<button type="submit" name="sn_action" value="cf_purge_now" class="button"' . ( $is_configured ? '' : ' disabled' ) . '>Purge Cloudflare</button>';
+	echo '<strong>Purge all caches</strong>';
+	echo '<p class="sn-helper">Object cache, Breeze, Varnish, then Cloudflare, in that order, verified. The same action as Dashboard &rsaquo; Maintenance.</p>';
+	echo '<button type="submit" name="sn_action" value="cf_purge_now" class="button"' . ( $is_configured ? '' : ' disabled' ) . '>Purge all caches</button>';
 	echo '</form>';
 
 	// ── 14.9.0: THE MONITOR (token, zone, firewall) ──

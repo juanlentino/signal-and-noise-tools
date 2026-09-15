@@ -139,21 +139,25 @@ function paint_connections_cloudflare( array $ctx ) {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return \snt_kit_empty( __( 'This account cannot manage options.', 'signal-and-noise-tools' ) );
 	}
-	$d   = cloudflare_data();
-	$left  = '<p class="snt-prose">'
-		. \snt_kit_esc( __( "Auto-purges Cloudflare's edge cache when content changes. See", 'signal-and-noise-tools' ) ) . ' '
-		. \snt_kit_code( 'docs/CACHING.md', false ) . ' '
-		. \snt_kit_esc( __( "for the dashboard-side Cache Rule that turns on HTML caching to begin with: without that, this module purges nothing useful (origin pages aren't cached at the edge).", 'signal-and-noise-tools' ) )
-		. '</p>';
-	$left .= cloudflare_credentials_html( $d );
-	$left .= cloudflare_probes_html( $d );
+	$d = cloudflare_data();
+	// 15.1.0: two columns, by the question a reader brings. Left: is
+	// Cloudflare connected and allowed (Credentials, the token's health).
+	// Right: what is the edge doing (Cache, Edge, Firewall), each its own
+	// section, one Refresh footer under the last. Before this the Monitor
+	// nested inside Cache status and the probes fold sat alone on the left.
+	$left  = cloudflare_credentials_html( $d );
+	$left .= function_exists( 'sn_cf_monitor_read' ) ? cloudflare_token_html() : '';
 
+	$caching = \snt_kit_esc( __( "Auto-purges Cloudflare's edge cache when content changes. See", 'signal-and-noise-tools' ) ) . ' '
+		. \snt_kit_code( 'docs/CACHING.md', false ) . ' '
+		. \snt_kit_esc( __( "for the dashboard-side Cache Rule that turns on HTML caching to begin with: without that, purging clears nothing useful (origin pages aren't cached at the edge).", 'signal-and-noise-tools' ) );
 	$right = \snt_kit_section(
-		__( 'Cache status', 'signal-and-noise-tools' ),
-		cloudflare_status_html( $d ) . cloudflare_purge_html( $d ) . cloudflare_cloudways_html( $d['cloudways'] ) . ( function_exists( 'sn_cf_monitor_read' ) ? cloudflare_monitor_html( $d ) : '' ),
+		__( 'Cache', 'signal-and-noise-tools' ),
+		cloudflare_status_html( $d ) . cloudflare_purge_html( $d ) . cloudflare_probes_html( $d ) . '<p class="snt-hint">' . $caching . '</p>',
 		'',
 		array( 'stack' => true )
 	);
+	$right .= function_exists( 'sn_cf_monitor_read' ) ? cloudflare_monitor_html( $d ) : '';
 
 	return '<div class="snt-2up">'
 		. '<div class="snt-2up-col">' . $left . '</div>'

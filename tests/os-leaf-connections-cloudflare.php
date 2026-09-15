@@ -43,7 +43,7 @@ function cf_table_prop( $html, $prop ) {
 }
 /** Whether the cf_purge_now button is painted disabled: true, false, or null when there is no such button. */
 function cf_purge_disabled( $html ) {
-	if ( ! preg_match( '/<os-button[^>]*os-arg-action="cf_purge_now"[^>]*>Purge Cloudflare</', $html, $m ) ) { return null; }
+	if ( ! preg_match( '/<os-button[^>]*os-arg-action="cf_purge_now"[^>]*>Purge all caches</', $html, $m ) ) { return null; }
 	return 1 === preg_match( '/\sdisabled(\s|>)/', $m[0] );
 }
 
@@ -62,9 +62,10 @@ ok( false !== strpos( $kit, '<os-text-field name="sn_cf_token" type="text" value
 ok( false !== strpos( $kit, 'Paste a fresh token to update; type ‘clear’ to remove' ) && false !== strpos( $kit, '32-char zone ID from Cloudflare dashboard' ), 'the placeholders and hints survive' );
 ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, 'Not configured' ) && false !== strpos( $kit, '>Inactive</os-badge>' ), 'the unconfigured state paints a warning notice with the Inactive badge' );
 ok( true === cf_purge_disabled( $kit ), 'the purge button is disabled until configured' );
-ok( false !== strpos( $kit, 'Purge Everything Now' ) && false !== strpos( $kit, 'Clears the entire Cloudflare zone cache' ), 'the purge card keeps its title and helper' );
+ok( false !== strpos( $kit, '<h3>Purge all caches</h3>' ) && false !== strpos( $kit, 'Object cache, Breeze, Varnish, then Cloudflare, in that order, verified' ) && false === strpos( $kit, 'Purge Cloudflare' ), '15.1.0: the purge card runs the full chain and says so; the Cloudflare-only button is gone' );
 ok( false === strpos( $kit, 'Post-purge probes' ) && false === strpos( $kit, 'Cloudways purge' ), 'no probes fold and no Cloudways box when neither has anything to say' );
-ok( false !== strpos( $kit, '<os-code>docs/CACHING.md</os-code>' ) && false !== strpos( $kit, 'heading="Credentials"' ) && false !== strpos( $kit, 'heading="Cache status"' ), 'the intro, the Credentials section and the Cache status section are painted' );
+ok( false !== strpos( $kit, '<os-code>docs/CACHING.md</os-code>' ) && false !== strpos( $kit, 'heading="Credentials"' ) && false !== strpos( $kit, 'heading="Cache"' ) && false !== strpos( $kit, 'heading="Edge, 7 days"' ) && strpos( $kit, 'heading="Credentials"' ) < strpos( $kit, 'heading="Cache"' ) && strpos( $kit, 'heading="Cache"' ) < strpos( $kit, '<os-code>docs/CACHING.md</os-code>' ), '15.1.0: Credentials, then Cache (with the CACHING.md note as its hint, not the leaf\'s opener), then Edge; no Token section and no Firewall section before the monitor ran' );
+ok( false === strpos( $kit, 'heading="Token"' ) && false === strpos( $kit, 'heading="Firewall, 24 hours"' ) && false !== strpos( $kit, 'The monitor has not run yet' ) && false !== strpos( $kit, 'cf_monitor_refresh' ), 'before the monitor ran: Edge says so and offers Refresh; Token and Firewall wait' );
 
 // ── Configured, with a full-zone purge an hour ago.
 cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef', 'sn_cf_last_purge' => array( 'time' => time() - 3600, 'kind' => 'all' ) ) );
@@ -73,13 +74,13 @@ $kit     = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'configured: names and actions still match the classic leaf' );
 ok( false !== strpos( $kit, 'value="••••1234"' ) && false === strpos( $kit, 'cf-token-abcdef1234' ), 'the token is shown obscured, never raw' );
 ok( false !== strpos( $kit, 'value="zone0123456789abcdef"' ), 'the zone id is shown' );
-ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, 'Configured: auto-purge active' ) && false !== strpos( $kit, '>Active</os-badge>' ), 'the configured state paints a success notice with the Active badge' );
-ok( false !== strpos( $kit, 'Last purge: 1 hour ago (full zone).' ), 'the last full-zone purge is read out' );
+ok( false === strpos( $kit, 'Configured: auto-purge active' ) && false !== strpos( $kit, '>Auto-purge</dt>' ) && false !== strpos( $kit, '>Active</os-badge>' ) && false !== strpos( $kit, 'on post save, theme update and the REST endpoint' ), '15.1.0: the configured state is a facts row with the Active badge, not a notice' );
+ok( false !== strpos( $kit, '>Last purge</dt>' ) && false !== strpos( $kit, '1 hour ago (full zone)' ), 'the last full-zone purge is read out' );
 ok( false === cf_purge_disabled( $kit ), 'the purge button is live once configured' );
 
 cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef', 'sn_cf_last_purge' => array( 'time' => time() - 60, 'kind' => 'urls', 'count' => 7 ) ) );
 $kit = snt_leaf_paint( 'connections', 'cloudflare' );
-ok( false !== strpos( $kit, 'Last purge: 1 hour ago (7 URL(s)).' ), 'a per-URL purge is read out with its count' );
+ok( false !== strpos( $kit, '1 hour ago (7 URL(s))' ), 'a per-URL purge is read out with its count' );
 
 // ── The probes fold: counts in the hint, open when the newest is stale, every row in the table.
 $log = array(
@@ -116,7 +117,7 @@ ok( false === strpos( $classic, 'Post-purge probes' ) && false === strpos( $kit,
 $GLOBALS['__cw_configured'] = true;
 cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef', 'sn_cloudways_last_purge' => array( 'time' => time() - 120, 'ok' => true ) ) );
 $kit = snt_leaf_paint( 'connections', 'cloudflare' );
-ok( false !== strpos( $kit, 'Cloudways purge' ) && false !== strpos( $kit, '>OK</os-badge>' ) && false !== strpos( $kit, 'Rides the same purge chain (Varnish leg). Last attempt: 1 hour ago.' ), 'a successful Cloudways purge reads OK with its age' );
+ok( false !== strpos( $kit, '>Cloudways purge</dt>' ) && false !== strpos( $kit, '>OK</os-badge>' ) && false !== strpos( $kit, 'Varnish leg of the same chain. Last attempt: 1 hour ago.' ), 'a successful Cloudways purge reads OK with its age, as a facts row' );
 cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef', 'sn_cloudways_last_purge' => array( 'time' => time() - 120, 'ok' => false, 'http' => 422, 'error' => 'field validation failed' ) ) );
 $kit = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( false !== strpos( $kit, '>Error</os-badge>' ) && false !== strpos( $kit, 'Last attempt: 1 hour ago. HTTP 422: field validation failed' ) && substr_count( $kit, 'tone="warning"' ) >= 1, 'a failed Cloudways purge reads Error with the HTTP status and message in a warning notice' );
@@ -163,13 +164,17 @@ $GLOBALS['__options'][ SN_CF_MONITOR_OPT ]   = array( 'fetched_at' => time(), 'c
 $GLOBALS['__options'][ SN_CF_FW_EVENTS_OPT ] = array( 'fetched_at' => time(), 'configured' => true, 'available' => true, 'rows' => array( array( 'clientRequestPath' => '/xmlrpc.php', 'clientCountryName' => 'CN', 'weight' => 3 ), array( 'clientRequestPath' => '/wp-login.php', 'clientCountryName' => 'CN', 'weight' => 1 ) ), 'truncated' => true );
 $with_log = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( false !== strpos( $with_log, 'Top paths acted on' ) && false !== strpos( $with_log, '/xmlrpc.php' ) && false !== strpos( $with_log, 'Top countries acted on' ) && strpos( $with_log, '/xmlrpc.php' ) < strpos( $with_log, '/wp-login.php' ) && false !== strpos( $with_log, 'these are a floor' ) && false !== strpos( $with_log, 'grouped dataset is not on this zone' ), 'the event log paints its tops, heaviest first, says the page was full, and the raw-dataset note shows' );
+ok( false !== strpos( $with_log, 'heading="Token"' ) && false !== strpos( $with_log, 'active · user' ) && false !== strpos( $with_log, '>Verified</dt>' ) && strpos( $with_log, 'heading="Token"' ) < strpos( $with_log, 'heading="Cache"' ), '15.1.0: the token\'s health is its own section on the left, under Credentials, with when it was verified' );
+ok( false !== strpos( $with_log, 'heading="Edge, 7 days"' ) && false !== strpos( $with_log, 'heading="Firewall, 24 hours"' ) && strpos( $with_log, 'heading="Cache"' ) < strpos( $with_log, 'heading="Edge, 7 days"' ) && strpos( $with_log, 'heading="Edge, 7 days"' ) < strpos( $with_log, 'heading="Firewall, 24 hours"' ) && false === strpos( $with_log, 'heading="Monitor"' ), 'the right column runs Cache, Edge, Firewall; no Monitor section nests them' );
+ok( 1 === substr_count( $with_log, 'os-arg-action="cf_monitor_refresh"' ) && strpos( $with_log, 'os-arg-action="cf_monitor_refresh"' ) > strpos( $with_log, 'heading="Firewall, 24 hours"' ) && false !== strpos( $with_log, 'Refresh reads the token, the edge and the firewall again' ), 'one Refresh footer, under Firewall, saying what it refreshes' );
+ok( array( 'cf_monitor_refresh', 'cf_purge_now', 'cf_save' ) === snt_leaf_actions( $with_log ), 'still the three actions' );
 $GLOBALS['__options'] = $opts_before;
 ok( false !== strpos( $kit, 'value="zoneconst0123456789" disabled' ), 'both locked: the zone field is disabled with the lock explained' );
 define( 'SN_CF_ACCOUNT_ID', 'acctconst0123456789' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
 $kit     = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( false === strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'nothing to save here' ) && array( 'cf_monitor_refresh', 'cf_purge_now' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'all three locked: no form, no Save, the lock explained, on both leaves' );
-ok( false !== strpos( $kit, 'Configured: auto-purge active' ) && false === cf_purge_disabled( $kit ), 'both locked: the constants configure the module and the purge button is live' );
+ok( false !== strpos( $kit, '>Auto-purge</dt>' ) && false !== strpos( $kit, '>Active</os-badge>' ) && false === cf_purge_disabled( $kit ), 'both locked: the constants configure the module and the purge button is live' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
