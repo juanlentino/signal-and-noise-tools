@@ -765,7 +765,11 @@ function detail_html( array $panels, $group = 'ops', $heading = null ) {
 	// 15.3.2: one painter, two homes. The audience panels (pages, sources,
 	// queries) paint under Site pulse; the ops panels (deploys, API limits)
 	// stay under Operations. A reading lives where its question is asked.
-	$cols = '';
+	// 15.3.3: flat columns under an eyebrow, one column per panel, no box in
+	// a box: the panels used to be shaded cards inside a section inside the
+	// pulse, three of them in a two-column grid with an orphan.
+	$cols  = '';
+	$count = 0;
 	foreach ( $panels as $panel ) {
 		if ( ! is_array( $panel ) || (string) ( $panel['group'] ?? 'ops' ) !== $group ) {
 			continue;
@@ -775,12 +779,17 @@ function detail_html( array $panels, $group = 'ops', $heading = null ) {
 			? '<p class="snt-list__empty">' . \snt_kit_esc( (string) ( $panel['unmeasured'] ?? '' ) ) . '</p>'
 			: \snt_kit_list( (array) $rows, array( 'empty' => (string) ( $panel['empty'] ?? '' ) ) );
 		$title = (string) ( $panel['title'] ?? '' ) . ( '' !== (string) ( $panel['caption'] ?? '' ) ? ' · ' . (string) $panel['caption'] : '' );
-		$cols .= '<section class="snt-col"><h3 class="snt-col__h">' . \snt_kit_esc( $title ) . '</h3>' . $inner . '</section>';
+		$cols .= '<section class="snt-home__detail-col"><h3 class="snt-home__detail-h">' . \snt_kit_esc( $title ) . '</h3>' . $inner . '</section>';
+		++$count;
 	}
 	if ( '' === $cols ) {
 		return '';
 	}
-	return \snt_kit_section( null === $heading ? __( 'Operations detail', 'signal-and-noise-tools' ) : (string) $heading, '<div class="snt-cols">' . $cols . '</div>' );
+	$label = null === $heading ? __( 'Operations detail', 'signal-and-noise-tools' ) : (string) $heading;
+	return '<div class="snt-home__detail-group">'
+		. '<div class="snt-home__pulse-group-label">' . \snt_kit_esc( $label ) . '</div>'
+		. '<div class="snt-home__detail" style="--snt-detail-cols:' . (int) $count . '">' . $cols . '</div>'
+		. '</div>';
 }
 
 /**

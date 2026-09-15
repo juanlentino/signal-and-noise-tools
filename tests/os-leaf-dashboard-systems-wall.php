@@ -38,8 +38,8 @@ $panels = array(
 );
 $ops = \SignalNoise\OpenStationHost\Dashboard\Leaves\detail_html( $panels, 'ops' );
 $aud = \SignalNoise\OpenStationHost\Dashboard\Leaves\detail_html( $panels, 'audience', 'Audience detail, 7 days' );
-ok( false !== strpos( $ops, 'heading="Operations detail"' ) && false !== strpos( $ops, '>Recent deploys</h3>' ) && false !== strpos( $ops, '>API limits</h3>' ) && false === strpos( $ops, 'Top pages' ) && false === strpos( $ops, 'Top queries' ), 'the ops detail holds deploys and API limits only' );
-ok( false !== strpos( $aud, 'heading="Audience detail, 7 days"' ) && false !== strpos( $aud, '>Top pages</h3>' ) && false !== strpos( $aud, '>Top queries · clicks, 28 days</h3>' ) && false === strpos( $aud, 'Recent deploys' ), 'the audience detail holds pages and queries, the queries column named by its unit' );
+ok( false !== strpos( $ops, '<div class="snt-home__pulse-group-label">Operations detail</div>' ) && false !== strpos( $ops, '>Recent deploys</h3>' ) && false !== strpos( $ops, '>API limits</h3>' ) && false === strpos( $ops, 'Top pages' ) && false === strpos( $ops, 'Top queries' ) && false !== strpos( $ops, '--snt-detail-cols:2' ) && false === strpos( $ops, '<os-section' ) && false === strpos( $ops, 'snt-col"' ), '15.3.3: the ops detail is an eyebrow over two flat columns, no section, no card: deploys and API limits only' );
+ok( false !== strpos( $aud, '<div class="snt-home__pulse-group-label">Audience detail, 7 days</div>' ) && false !== strpos( $aud, '>Top pages</h3>' ) && false !== strpos( $aud, '>Top queries · clicks, 28 days</h3>' ) && false === strpos( $aud, 'Recent deploys' ) && false !== strpos( $aud, '--snt-detail-cols:2' ) && 2 === substr_count( $aud, 'class="snt-home__detail-col"' ), 'the audience detail is the same eyebrow shape, one column per panel, the queries column named by its unit' );
 ok( '' === \SignalNoise\OpenStationHost\Dashboard\Leaves\detail_html( array( $panels[0] ), 'audience' ), 'a group with no panels paints nothing, not an empty section' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

@@ -1,6 +1,6 @@
 # Session — 2026-09-15: the key that was not a key
 
-Ten cuts in one day, 15.0.0 to 15.3.2, and every one of them was the same
+Eleven cuts in one day, 15.0.0 to 15.3.3, and every one of them was the same
 question wearing a different coat: *which key is this, and who holds the other
 half?* The day started with a Cloudflare grant hunt and ended with a ledger of
 sixteen credentials that names, for each, what it is and what it is not. This is
@@ -186,6 +186,16 @@ rule one more time, and the last place I had not applied it. 15.3.2 gives each
 panel a group; the audience three paint under Site pulse, the ops two stay under
 Operations, and Top queries names its column, so six zeros read as clicks over
 a month rather than as a broken list.
+
+Then he zoomed the window out and sent the whole Home at once, and what 15.3.2
+had painted was plain at that size: the three audience panels were shaded cards
+inside a section inside the pulse, a box in a box beside flat tiles, in a
+two-column grid that left Top queries alone with an empty cell, under a section
+heading where every sibling label is a small-caps eyebrow. 15.3.3 makes both
+details an eyebrow over flat columns, one column per panel from the painter's
+own count, a rule between and no card. The lesson is the one from the ledger
+again, at a different scale: a layout is not looked at until it is looked at
+whole, and a zoomed-out screenshot is the cheapest whole there is.
 
 Two misreads before the right one is the note to keep: when the owner says a
 leaf has problems, the cheapest first move is to ask which box, not to list
