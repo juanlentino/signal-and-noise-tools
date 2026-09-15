@@ -60,7 +60,7 @@ ok( 'refused' === sn_keyring_probe( 'cf_token', $rows['cf_token'] )['status'], '
 $GLOBALS['__cf'] = array( 'verified' => false, 'status' => 'unreachable', 'kind' => '', 'error' => 'timeout' );
 ok( 'error' === sn_keyring_probe( 'cf_token', $rows['cf_token'] )['status'], 'an unreachable Cloudflare is an error' );
 
-// ── 15.2.2: the analytics override verifies with ITS value, not the central token.
+// ── 15.2.2: the analytics override verifies with ITS value, not the central token (15.3.1: probe kind cloudflare_token).
 $GLOBALS['__opt']['sn_cf_analytics_token'] = 'override-dead';
 $GLOBALS['__cf_override'] = array( 'verified' => false, 'status' => 'invalid', 'kind' => '', 'error' => 'Invalid access token' );
 $v = sn_keyring_probe( 'cf_analytics_override', $rows['cf_analytics_override'] );

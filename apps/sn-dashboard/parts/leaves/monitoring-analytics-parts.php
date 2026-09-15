@@ -437,7 +437,7 @@ function analytics_mirrors_html( $tab ) {
 	$out .= '<os-cluster gap="8">'
 		. \snt_kit_go( __( 'AI → Models & Budget →', 'signal-and-noise-tools' ), array( 'tab' => 'ai', 'sub' => 'models-budget', 'current' => $tab ) )
 		. \snt_kit_go( __( 'Measurement → Insights →', 'signal-and-noise-tools' ), array( 'tab' => 'monitoring', 'sub' => 'insights', 'current' => $tab ) )
-		. \snt_kit_go( __( 'Connections → Cloudflare →', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'cloudflare', 'current' => $tab ) )
+		. \snt_kit_go( __( 'Connections → Credentials →', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => $tab ) ) // 15.3.1: the zone id is a keyring row
 		. '</os-cluster>';
 
 	return \snt_kit_section( __( 'Configured elsewhere', 'signal-and-noise-tools' ), $out );

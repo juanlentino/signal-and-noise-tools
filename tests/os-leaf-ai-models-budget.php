@@ -64,7 +64,7 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match th
 ok( array( 'ai_settings_save' ) === snt_leaf_actions( $kit ) && array( 'ai_settings_save' ) === snt_leaf_actions( $classic ), 'unconfigured: only ai_settings_save is offered (the comparison button is gated off), matching the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ), 'the settings form is an os-form dispatching post' );
-ok( false !== strpos( $kit, 'name="theme_ai_model"' ) && false !== strpos( $kit, 'name="theme_ai_alt_model"' ) && false !== strpos( $kit, 'name="theme_ai_monthly_budget"' ) && false !== strpos( $kit, 'name="sn_ml_embeddings_token"' ), 'all four classic fields survive as kit fields' );
+ok( false !== strpos( $kit, 'name="theme_ai_model"' ) && false !== strpos( $kit, 'name="theme_ai_alt_model"' ) && false !== strpos( $kit, 'name="theme_ai_monthly_budget"' ) && false === strpos( $kit, 'name="sn_ml_embeddings_token"' ), '15.3.1: three classic fields survive as kit fields; the token field is the keyring\'s now: all four classic fields survive as kit fields' );
 ok( false !== strpos( $kit, 'No cap set' ) && false !== strpos( $kit, 'Spent this month: $0.00' ), 'no-cap state reads the same as the classic leaf' );
 $model_ids = array_keys( sn_theme_ai_models() );
 $vision_ids = array_keys( sn_theme_ai_vision_models() );
@@ -116,7 +116,7 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' );
 $kit     = snt_leaf_paint( 'ai', 'models-budget' );
 ok( array( 'ai_settings_save', 'ml_embed_compare' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'configured: both actions are offered, matching the classic leaf: ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( false !== strpos( $kit, 'Not run yet' ) && false !== strpos( $kit, 'Run comparison' ), 'configured, not run yet: the runner prompt and button paint' );
-ok( false !== strpos( $kit, '••••' ) && false === strpos( $kit, 'a-real-token-value' ), 'the embeddings token is masked, never round-tripped raw' );
+ok( false === strpos( $kit, 'a-real-token-value' ) && false !== strpos( $kit, '>set</os-badge>' ) && false !== strpos( $kit, 'Connections › Credentials' ), '15.3.1: the token is never on the leaf; a set badge and the door to the keyring are' );
 ok( false !== strpos( $kit, 'Configured' ), 'the embeddings-token status pill reads Configured' );
 
 // ── Embeddings NOT configured, and no Cloudflare account ID: the pill must

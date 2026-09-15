@@ -105,7 +105,7 @@ function models_budget_embed_status_html( array $d ) {
 		return \snt_kit_notice( 'ok', \snt_kit_badge( 'ok', __( 'Configured', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_esc( __( 'Embeddings run in SHADOW mode: they are computed and compared against the existing ranking, and nothing the site serves uses them yet.', 'signal-and-noise-tools' ) ) );
 	}
 	if ( '' === $d['embed_account_id'] ) {
-		return \snt_kit_notice( 'warn', \snt_kit_badge( 'warn', __( 'No Cloudflare account ID — set it under Measurement → Analytics first.', 'signal-and-noise-tools' ) ) );
+		return \snt_kit_notice( 'warn', \snt_kit_badge( 'warn', __( 'No Cloudflare account ID — set it under Connections › Credentials first.', 'signal-and-noise-tools' ) ) );
 	}
 	return \snt_kit_notice( 'info', \snt_kit_badge( '', __( 'Not configured.', 'signal-and-noise-tools' ) ) );
 }
@@ -226,10 +226,9 @@ function paint_ai_models_budget( array $ctx ) {
 		'min'  => 0,
 		'step' => 0.5,
 	) );
-	$fields .= \snt_kit_field( 'text', 'sn_ml_embeddings_token', __( 'Workers AI token (semantic embeddings)', 'signal-and-noise-tools' ), sn_mask_secret( $d['embed_token'] ), array(
-		'placeholder' => __( 'Paste a token; type clear to remove', 'signal-and-noise-tools' ),
-		'hint'        => __( 'Cloudflare dashboard → My Profile → API Tokens → Create Custom Token. The permission is under the ACCOUNT scope (not User or Zone), named "Workers AI", set to Read. The account ID is shared with Analytics.', 'signal-and-noise-tools' ),
-	) );
+	// 15.3.1: the Workers AI token is a keyring row (Connections › Credentials);
+	// this leaf reads it and says so.
+	$fields .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Workers AI token (semantic embeddings):', 'signal-and-noise-tools' ) ) . ' ' . ( '' !== (string) $d['embed_token'] ? \snt_kit_badge( 'ok', __( 'set', 'signal-and-noise-tools' ) ) : \snt_kit_badge( 'warn', __( 'not set', 'signal-and-noise-tools' ) ) ) . ' ' . \snt_kit_esc( __( 'Set under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'monitoring' ) ) . '.</p>';
 
 	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Which models this plugin calls, and the ceiling on what they may cost. Every AI feature here (drafts, insights, meta descriptions, alt text) draws on the same monthly budget.', 'signal-and-noise-tools' ) ) . '</p>';
 	$left  = \snt_kit_section(

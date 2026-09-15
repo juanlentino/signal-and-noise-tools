@@ -39,10 +39,12 @@ function paint_monitoring_insights( array $ctx ) {
 
 	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Cross-system synthesis: reads your Plausible analytics, publish history, webhook delivery patterns, and cron freshness, then surfaces unexplored open questions worth developing for your Notes (or nothing, when none clears the bar). One AI call per scan; results cached 7 days.', 'signal-and-noise-tools' ) ) . '</p>';
 	$left  = insights_run_form_html( $last, $ai_ready );
+	// 15.3.1: the scan's status sits under the button that makes it; the left
+	// column was one card over a screen of nothing.
+	$left .= \snt_kit_section( __( 'Scan status', 'signal-and-noise-tools' ), insights_status_html( $last ) );
 	$left .= insights_recommendations_html( $last );
 
-	$right  = \snt_kit_section( __( 'Scan status', 'signal-and-noise-tools' ), insights_status_html( $last ) );
-	$right .= insights_usage_html();
+	$right  = insights_usage_html();
 	$right .= insights_cache_probe_html();
 	$right .= insights_settings_html();
 

@@ -62,6 +62,8 @@ ok( false !== strpos( $kit, 'Top paths acted on' ) && strpos( $kit, '>/<' ) < st
 ok( false !== strpos( $classic, '3,015 events, 24 hours' ) && false !== strpos( $classic, '<td>skip</td>' ) && false !== strpos( $classic, '/wp-json/wp-abilities/v1/abilities' ) && false !== strpos( $classic, 'grouped dataset is not on this zone' ), 'the classic leaf paints the same reading' );
 ok( 1 === substr_count( $kit, 'os-arg-action="cf_monitor_refresh"' ) && false !== strpos( $kit, 'Refresh reads the token, the edge and the firewall again' ) && false !== strpos( $classic, 'value="cf_monitor_refresh"' ), 'one Refresh on each leaf, saying what it refreshes' );
 ok( false === strpos( $kit, 'heading="Edge, 7 days"' ) && false === strpos( $kit, 'heading="Token"' ) && false === strpos( $kit, 'heading="Cache"' ), 'only the firewall: no Edge, Token or Cache here' );
+// 15.3.1: two columns: what happened (events, rules) left; to what (paths, countries) right.
+ok( false !== strpos( $kit, '<div class="snt-2up">' ) && false !== strpos( $kit, 'heading="Acted on"' ) && strpos( $kit, 'heading="Firewall, 24 hours"' ) < strpos( $kit, 'heading="Acted on"' ) && false !== strpos( $kit, '>Top rules</h4>' ) && strpos( $kit, '>Top rules</h4>' ) < strpos( $kit, 'heading="Acted on"' ) && strpos( $kit, 'Top paths acted on' ) > strpos( $kit, 'heading="Acted on"' ) && strpos( $kit, 'os-arg-action="cf_monitor_refresh"' ) < strpos( $kit, 'heading="Acted on"' ), 'two columns: events and the top rules (with a heading) left with Refresh; the paths and countries right under Acted on' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

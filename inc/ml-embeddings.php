@@ -47,6 +47,7 @@ function snt_ml_embed_account_id() {
 }
 
 function snt_ml_embed_token() {
+	// 15.3.1: set on the keyring (Connections › Credentials); the setting stays its home.
 	return (string) sn_setting( 'ml.embeddings_token', '' );
 }
 

@@ -44,7 +44,17 @@ function paint_monitoring_analytics( array $ctx ) {
 		. ( '' !== $dashboard_url ? \snt_kit_door( __( 'View dashboard →', 'signal-and-noise-tools' ), $dashboard_url ) : '' )
 		. '</p>';
 
-	$left  = $intro;
+	// 15.3.0: the edge's seven days, painted by the Connections leaf's part from the same stored record.
+	// Painted only once the monitor has a configured record, as the classic card is;
+	// a site without Cloudflare keeps the hub as it was.
+	$edge   = '';
+	$record = function_exists( __NAMESPACE__ . '\\cloudflare_monitor_record' ) ? cloudflare_monitor_record() : null;
+	if ( is_array( $record ) && ! empty( $record['configured'] ) && function_exists( __NAMESPACE__ . '\\cloudflare_edge_html' ) && function_exists( __NAMESPACE__ . '\\cloudflare_data' ) ) {
+		$edge = cloudflare_edge_html( cloudflare_data() );
+	}
+	// 15.3.1: the Edge, 7 days section heads the LEFT column, above the folds;
+	// as a full-width band it left five short folds over an empty half.
+	$left  = $intro . $edge;
 	$left .= analytics_credentials_html();
 	$left .= analytics_collector_html();
 	$left .= analytics_exclusion_html();
@@ -57,15 +67,7 @@ function paint_monitoring_analytics( array $ctx ) {
 	$right .= analytics_filter_reference_html();
 	$right .= analytics_worker_setup_html();
 
-	// 15.3.0: the edge's seven days, painted by the Connections leaf's part from the same stored record.
-	// Painted only once the monitor has a configured record, as the classic card is;
-	// a site without Cloudflare keeps the hub as it was.
-	$edge   = '';
-	$record = function_exists( __NAMESPACE__ . '\\cloudflare_monitor_record' ) ? cloudflare_monitor_record() : null;
-	if ( is_array( $record ) && ! empty( $record['configured'] ) && function_exists( __NAMESPACE__ . '\\cloudflare_edge_html' ) && function_exists( __NAMESPACE__ . '\\cloudflare_data' ) ) {
-		$edge = cloudflare_edge_html( cloudflare_data() );
-	}
-	return analytics_pipeline_html() . $edge
+	return analytics_pipeline_html()
 		. '<div class="snt-2up">'
 		. '<div class="snt-2up-col">' . $left . '</div>'
 		. '<div class="snt-2up-col">' . $right . '</div>'

@@ -155,23 +155,12 @@ pa_reset_store();
 pa_eq( 'identity_saved', sn_handle_save_identity( array( 'identity_site_name' => 'Acme' ) ), 'first save → identity_saved' );
 pa_eq( 'identity_unchanged', sn_handle_save_identity( array( 'identity_site_name' => 'Acme' ) ), 'identical re-save → identity_unchanged' );
 
-echo "\nTest: sn_handle_music_save() — masked creds + Muso profile (T6)\n";
+echo "\nTest: sn_handle_music_save() — Muso profile; the Spotify creds are the keyring's now (15.3.1)\n";
 pa_reset_store();
-// Fresh Spotify creds + Muso profile id → saved + persisted.
-pa_eq( 'music_saved', sn_handle_music_save( array( 'sn_spotify_id' => 'real-id', 'sn_spotify_secret' => 'real-secret', 'sn_muso_profile' => 'pid-123' ) ), 'fresh creds → music_saved' );
-pa_eq( 'real-id', get_option( SN_SPOTIFY_ID_OPT ), 'spotify client id persisted (non-autoloaded)' );
-pa_eq( 'real-secret', get_option( SN_SPOTIFY_SECRET_OPT ), 'spotify client secret persisted' );
+pa_eq( 'music_saved', sn_handle_music_save( array( 'sn_spotify_id' => 'real-id', 'sn_spotify_secret' => 'real-secret', 'sn_muso_profile' => 'pid-123' ) ), 'profile → music_saved' );
 pa_eq( 'pid-123', get_option( SN_MUSO_PROFILE_OPT ), 'muso profile id persisted' );
-
-// Re-submit the MASKED placeholder (••••XXXX) with the same profile → nothing
-// changes, and the stored secret is NOT clobbered (the bug pl_save/cf_save have).
-pa_eq( 'music_unchanged', sn_handle_music_save( array( 'sn_spotify_id' => '••••l-id', 'sn_spotify_secret' => '••••cret', 'sn_muso_profile' => 'pid-123' ) ), 'masked placeholders + same profile → music_unchanged' );
-pa_eq( 'real-secret', get_option( SN_SPOTIFY_SECRET_OPT ), 'masked re-submit does NOT clobber the secret' );
-pa_eq( 'real-id', get_option( SN_SPOTIFY_ID_OPT ), 'masked re-submit does NOT clobber the id' );
-
-// 'clear' removes the option.
-pa_eq( 'music_saved', sn_handle_music_save( array( 'sn_spotify_secret' => 'clear' ) ), "'clear' → music_saved" );
-pa_eq( false, array_key_exists( SN_SPOTIFY_SECRET_OPT, $GLOBALS['__options'] ), 'secret option deleted on clear' );
+pa_eq( false, array_key_exists( SN_SPOTIFY_ID_OPT, $GLOBALS['__options'] ) || array_key_exists( SN_SPOTIFY_SECRET_OPT, $GLOBALS['__options'] ), '15.3.1: posted Spotify fields are ignored here; the keyring handler owns those options' );
+pa_eq( 'music_unchanged', sn_handle_music_save( array( 'sn_muso_profile' => 'pid-123' ) ), 'same profile → music_unchanged' );
 
 // Changing the profile to a new value → music_saved.
 pa_reset_store();
@@ -209,12 +198,6 @@ pa_eq( false, array_key_exists( SN_MUSIC_FEATURED_OPT, $GLOBALS['__options'] ), 
 // Re-submitting the same featured (the round-tripped open URL) → unchanged.
 $GLOBALS['__options'][ SN_MUSIC_FEATURED_OPT ] = array( 'type' => 'album', 'id' => '4m2880jivSbbyEGAKfITCa' );
 pa_eq( 'music_unchanged', sn_handle_music_save( array( 'sn_music_featured' => 'https://open.spotify.com/album/4m2880jivSbbyEGAKfITCa' ) ), 'same featured re-submitted → music_unchanged' );
-
-echo "\nTest: sn_handle_music_save() honors the Spotify secret constant lock\n";
-define( 'SN_SPOTIFY_CLIENT_SECRET', 'locked-secret' );
-pa_reset_store();
-sn_handle_music_save( array( 'sn_spotify_secret' => 'attempt-override' ) );
-pa_eq( false, array_key_exists( SN_SPOTIFY_SECRET_OPT, $GLOBALS['__options'] ), 'locked secret: no option written when constant is defined' );
 
 // ─── Analytics credential handlers (S2) ──────────────────────────────────────
 // Define the option-name constants (mirrors analytics-api.php). Done here (not
