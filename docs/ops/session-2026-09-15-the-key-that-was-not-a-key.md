@@ -1,6 +1,6 @@
 # Session — 2026-09-15: the key that was not a key
 
-Seven cuts in one day, 15.0.0 to 15.2.2, and every one of them was the same
+Eight cuts in one day, 15.0.0 to 15.3.0, and every one of them was the same
 question wearing a different coat: *which key is this, and who holds the other
 half?* The day started with a Cloudflare grant hunt and ended with a ledger of
 sixteen credentials that names, for each, what it is and what it is not. This is
@@ -141,6 +141,19 @@ The pattern under all three: a form that accepts a value it could have
 recognised is a form that will accept the wrong one. The keyring knows every
 issued token it holds; matching a paste against them costs nothing and would
 have saved the afternoon.
+
+## A reading belongs where its question is asked
+
+With the firewall finally answering (3,015 events in a day, 1,843 skipped and
+1,172 blocked, the abilities route the top blocked path at 487), the owner
+looked at the Cloudflare leaf and said Edge and Firewall could be elsewhere. He
+was right for the same reason the ledger was right: Connections is where you
+wire a thing up, and these two are readings. 15.3.0 puts the seven-day edge
+figures above the Analytics hub, next to the analytics they belong with, and
+gives the firewall log its own leaf under Security, beside Login defense, where
+"what is being kept out" is already the question. Connections › Cloudflare is
+back to wiring and cache: Credentials, Token with the monitor's Refresh, Cache.
+One stored record feeds all three leaves; the cron and the ability did not move.
 
 ## What the verify said, first run
 
