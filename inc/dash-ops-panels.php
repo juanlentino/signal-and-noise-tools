@@ -58,6 +58,7 @@ function sn_dash_ops_panels( array $data ) {
 	$deploys = $get( 'deploys' );
 	$panels[] = array(
 		'title'      => __( 'Recent deploys', 'signal-and-noise-tools' ),
+		'group'      => 'ops', // 15.3.2: painted under Operations
 		'rows'       => null === $deploys ? null : array_values( array_map(
 			function ( $run ) {
 				$run = is_array( $run ) ? $run : array();
@@ -83,6 +84,7 @@ function sn_dash_ops_panels( array $data ) {
 	$pages = $get( 'pages' );
 	$panels[] = array(
 		'title'      => __( 'Top pages', 'signal-and-noise-tools' ),
+		'group'      => 'audience', // 15.3.2: painted under Site pulse › Audience
 		'rows'       => null === $pages ? null : array_values( array_map(
 			function ( $row ) {
 				$row = is_array( $row ) ? $row : array();
@@ -100,6 +102,7 @@ function sn_dash_ops_panels( array $data ) {
 	$sources = $get( 'sources' );
 	$panels[] = array(
 		'title'      => __( 'Top sources', 'signal-and-noise-tools' ),
+		'group'      => 'audience',
 		'rows'       => null === $sources ? null : array_values( array_map(
 			function ( $row ) {
 				$row = is_array( $row ) ? $row : array();
@@ -120,6 +123,9 @@ function sn_dash_ops_panels( array $data ) {
 	$queries = $get( 'queries' );
 	$panels[] = array(
 		'title'      => __( 'Top queries', 'signal-and-noise-tools' ),
+		'group'      => 'audience',
+		// 15.3.2: the column is CLICKS over 28 days; a list of zeros read as broken.
+		'caption'    => __( 'clicks, 28 days', 'signal-and-noise-tools' ),
 		'rows'       => null === $queries ? null : array_values( array_map(
 			function ( $row ) {
 				$row = is_array( $row ) ? $row : array();
@@ -194,6 +200,7 @@ function sn_dash_ops_panels( array $data ) {
 
 	$panels[] = array(
 		'title'      => __( 'API limits', 'signal-and-noise-tools' ),
+		'group'      => 'ops',
 		// v11.29.2: shown ALWAYS. It used to render only when a host was warn
 		// or crit — the collapse rule again, and the reason the page was empty
 		// on a healthy site. A limit at 99% is the answer to "is it fine?".

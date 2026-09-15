@@ -191,6 +191,15 @@ ob_start(); sn_dash_render_systems( $healthy_cards, $components ); $sysout = ob_
 ok( false !== strpos( $sysout, 'sn-card__eyebrow' ), 'the systems card is labelled too' );
 ob_start(); sn_dash_render_ops( $panels ); $opsout = ob_get_clean();
 ok( false !== strpos( $opsout, 'sn-card__eyebrow' ), 'and so is the detail card' );
+// 15.3.2: the classic screen paints TWO details, audience first, ops second,
+// each with its eyebrow; a panel without a group is ops.
+ob_start(); sn_dash_render_ops( array(
+	array( 'title' => 'Recent deploys', 'group' => 'ops', 'rows' => array() ),
+	array( 'title' => 'Top queries', 'group' => 'audience', 'caption' => 'clicks, 28 days', 'rows' => array() ),
+	array( 'title' => 'API limits', 'rows' => array() ),
+) ); $split = ob_get_clean();
+ok( 2 === substr_count( $split, 'sn-scr__detail' ) && false !== strpos( $split, 'Audience detail, 7 days' ) && false !== strpos( $split, 'Operations detail' ) && strpos( $split, 'Audience detail, 7 days' ) < strpos( $split, 'Operations detail' ), 'two detail blocks, audience before operations' );
+ok( false !== strpos( $split, '>Top queries · clicks, 28 days</h2>' ) && strpos( $split, 'Top queries' ) < strpos( $split, 'Operations detail' ) && strpos( $split, 'API limits' ) > strpos( $split, 'Operations detail' ), 'queries sit in the audience block with their unit; a groupless panel is ops' );
 
 // ── THE CELL RENDERS WHAT THE CARD ACTUALLY CARRIES ─────────────────────────
 // v11.31.0. Glance cards carry `meta_html` — a pre-escaped detail line built by
