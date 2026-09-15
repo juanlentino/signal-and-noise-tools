@@ -60,7 +60,7 @@ ok( false !== strpos( $api, '$token      = sn_cf_analytics_token();' ) && false 
 $edge = $strip( 'inc/edge-analytics.php' );
 ok( false !== strpos( $edge, '? sn_cf_analytics_token()' ), 'sn_edge_config() resolves the token through the module' );
 $handler = $strip( 'inc/admin-post-actions/cloudflare.php' );
-ok( false !== strpos( $handler, "isset( \$post['sn_cf_account_id'] )" ) && false !== strpos( $handler, 'function sn_handle_analytics_use_central_token' ), 'cf_save stores the account id; analytics_use_central_token drops the override' );
+ok( false === strpos( $handler, 'function sn_handle_cf_save' ) && false === strpos( $handler, 'function sn_handle_analytics_use_central_token' ), '15.2.1: cf_save and analytics_use_central_token are gone; the keyring saves the account id and clears the override' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

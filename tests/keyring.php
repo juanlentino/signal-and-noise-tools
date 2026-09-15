@@ -18,7 +18,10 @@ function sn_setting( $path, $d = null ) { return $GLOBALS['__settings'][ $path ]
 function sn_setting_update( $path, $v ) { $GLOBALS['__settings'][ $path ] = $v; }
 function sn_setting_reset_cache() { $GLOBALS['__reset'] = ( $GLOBALS['__reset'] ?? 0 ) + 1; }
 function sanitize_text_field( $s ) { return trim( (string) $s ); }
+function delete_transient( $k ) { $GLOBALS['__flushed'][] = $k; return true; }
+function snt_mr_cache_flush() { $GLOBALS['__flushed'][] = 'mr'; }
 function wp_unslash( $s ) { return $s; }
+function sanitize_key( $s ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $s ) ); }
 
 require dirname( __DIR__ ) . '/inc/keyring.php';
 require dirname( __DIR__ ) . '/inc/admin-post-actions/keyring.php';
@@ -66,16 +69,28 @@ ok( 'given' === apply_filters( 'sn_server_token', 'given' ) && 'given' === apply
 $GLOBALS['__opt'][ SN_KEYRING_SITE_ROWS ] = array();
 ok( '' === apply_filters( 'sn_server_token', '' ), 'not switched, nothing saved: the filter leaves it empty (fail closed stays closed)' );
 
-// ── The save handler: keep, clear, site, value; a constant never written.
-$GLOBALS['__opt'] = array(); $GLOBALS['__settings'] = array(); $GLOBALS['__reset'] = 0;
-ok( 'keyring_unchanged' === sn_handle_keyring_save( array( 'key_cf_token' => '', 'key_cf_zone' => '••••abcd' ) ) && array() === array_diff_key( $GLOBALS['__opt'], array( SN_KEYRING_SITE_ROWS => 1 ) ), 'empty and obscured fields change nothing' );
-ok( 'keyring_saved' === sn_handle_keyring_save( array( 'key_cf_token' => 'tok-1', 'key_cf_zone' => 'zone-1', 'key_site_secret' => 'ss-1' ) ) && 'tok-1' === $GLOBALS['__opt']['sn_cf_api_token'] && false === $GLOBALS['__autoload']['sn_cf_api_token'] && 'zone-1' === $GLOBALS['__opt']['sn_cf_zone_id'] && 'ss-1' === $GLOBALS['__opt'][ SN_SITE_SECRET_OPT ], 'values save to their own options, never autoloaded' );
-ok( 'keyring_saved' === sn_handle_keyring_save( array( 'key_srv_token' => 'site' ) ) && array( 'srv_token' ) === sn_keyring_site_rows() && 'ss-1' === sn_credential( 'srv_token' ), '"site" switches a derivable row; it now resolves to the site secret' );
-ok( 'keyring_saved' === sn_handle_keyring_save( array( 'key_srv_token' => 'own-1' ) ) && array() === sn_keyring_site_rows() && 'own-1' === sn_credential( 'srv_token' ), 'a pasted value un-switches the row and is what it resolves to' );
-ok( 'keyring_saved' === sn_handle_keyring_save( array( 'key_cf_token' => 'clear' ) ) && ! isset( $GLOBALS['__opt']['sn_cf_api_token'] ), '"clear" deletes the option' );
-ok( 'keyring_saved' === sn_handle_keyring_save( array( 'key_cf_token' => 'site' ) ) && 'site' === $GLOBALS['__opt']['sn_cf_api_token'], '"site" on a row that cannot derive is saved literally: the leaf says which rows can' );
-ok( 'keyring_unchanged' === sn_handle_keyring_save( array( 'key_mr_read_token' => 'pasted' ) ) && ! isset( $GLOBALS['__settings']['machine_readers.read_token'] ), 'a constant-locked row is never written' );
-ok( 'keyring_saved' === sn_handle_keyring_save( array( 'key_srv_token' => 'x' ) ) && $GLOBALS['__reset'] > 0, 'the settings cache is reset after a save' );
+// ── The save handler (15.2.1: one row per save, `key_id` + `key_value`):
+//    nothing, clear, site, value; a constant never written; the flushes.
+$GLOBALS['__opt'] = array(); $GLOBALS['__settings'] = array(); $GLOBALS['__reset'] = 0; $GLOBALS['__flushed'] = array();
+$save = static function ( $id, $value ) { return sn_handle_keyring_save( array( 'key_id' => $id, 'key_value' => $value ) ); };
+ok( 'keyring_unchanged' === $save( 'cf_token', '' ) && 'keyring_unchanged' === $save( 'cf_zone', '••••abcd' ) && array() === $GLOBALS['__opt'], 'an empty or obscured value changes nothing' );
+ok( 'keyring_unknown_row' === $save( 'nope', 'x' ) && 'keyring_unknown_row' === sn_handle_keyring_save( array( 'key_value' => 'x' ) ), 'an unknown or missing row id is refused by name' );
+ok( 'keyring_saved' === $save( 'cf_token', 'tok-1' ) && 'tok-1' === $GLOBALS['__opt']['sn_cf_api_token'] && false === $GLOBALS['__autoload']['sn_cf_api_token'], 'a value saves to its own option, never autoloaded' );
+ok( 'keyring_saved' === $save( 'site_secret', 'ss-1' ) && 'ss-1' === sn_site_secret(), 'the site secret is a row like any other' );
+ok( 'keyring_saved' === $save( 'srv_token', 'site' ) && array( 'srv_token' ) === sn_keyring_site_rows() && 'ss-1' === sn_credential( 'srv_token' ), '"site" switches a derivable row; it now resolves to the site secret' );
+ok( 'keyring_saved' === $save( 'srv_token', 'own-1' ) && array() === sn_keyring_site_rows() && 'own-1' === sn_credential( 'srv_token' ), 'a pasted value un-switches the row and is what it resolves to' );
+ok( 'keyring_saved' === $save( 'cf_token', 'clear' ) && ! isset( $GLOBALS['__opt']['sn_cf_api_token'] ), '"clear" deletes the option' );
+ok( 'keyring_saved' === $save( 'cf_token', 'site' ) && 'site' === $GLOBALS['__opt']['sn_cf_api_token'], '"site" on a row that cannot derive is saved literally: the form says which rows can' );
+ok( 'keyring_locked' === $save( 'mr_read_token', 'pasted' ) && ! isset( $GLOBALS['__settings']['machine_readers.read_token'] ), 'a constant-locked row is refused, never written' );
+ok( 'keyring_locked' === $save( 'cloudways_api_key', 'pasted' ), 'a wp-config-only row is refused too' );
+ok( 'keyring_saved' === $save( 'cf_zone', 'z' ) && $GLOBALS['__reset'] > 0, 'the settings cache is reset after a save' );
+// 15.2.1: a rotated key drops what it would serve stale.
+$GLOBALS['__flushed'] = array();
+$save( 'betterstack_token', 'bs-2' ); $save( 'github_token', 'gh-2' ); $save( 'spotify_client_secret', 'sp-2' );
+ok( in_array( 'sn_uptime_status_snapshot', $GLOBALS['__flushed'], true ) && in_array( 'sn_uptime_availability', $GLOBALS['__flushed'], true ) && in_array( 'sn_spend_gh_usage', $GLOBALS['__flushed'], true ) && in_array( 'sn_spotify_token', $GLOBALS['__flushed'], true ), 'saving Better Stack, GitHub and Spotify rows drops their caches' );
+$GLOBALS['__flushed'] = array();
+$save( 'bridge_token', 'site' );
+ok( array() === $GLOBALS['__flushed'], 'a row with nothing to flush flushes nothing' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

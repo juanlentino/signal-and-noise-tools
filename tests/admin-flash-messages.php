@@ -110,7 +110,7 @@ fm_eq( true, false !== stripos( $note[1], 'Connectors' ), 'genuine ai-unavailabl
 
 echo "\nTest 6: coordination guard: every exact code the dispatcher emits resolves\n";
 $emitted = array(
-	'identity_saved','identity_unchanged','login_empty','login_failed','cf_saved','cf_purged_ok','cf_purged_unconfigured',
+	'identity_saved','identity_unchanged','login_empty','login_failed','cf_purged_ok','cf_purged_unconfigured',
 	'purged','wh_updated','wh_deleted','wh_invalid','wh_not_found','insights_scanned','insights_failed','insights_ai_unavailable',
 	'insights_dismissed','insights_snoozed','insights_done','insights_settings_saved','health_scanned','health_scanned_clean',
 	'pattern_adoption_scanned','block_migrations_scanned','audit_retention_saved','audit_retention_unchanged',

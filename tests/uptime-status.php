@@ -357,10 +357,8 @@ $mount = sn_uptime_status_mount_html();
 us_ok( false !== strpos( $mount, 'data-sn-uptime-status' ), 'mount carries the JS hook attribute' );
 us_ok( false === strpos( $mount, 'sn-status-box' ), 'mount is its own container (never a child of .sn-status-box)' );
 
-$field = sn_uptime_status_token_field_html();
-us_ok( false !== strpos( $field, 'name="sn_betterstack_token"' ), 'field posts as sn_betterstack_token' );
-us_ok( false === strpos( $field, 'secret-token-abcd1234' ), 'raw token NEVER rendered' );
-us_ok( false !== strpos( $field, '••••1234' ), 'masked token shown (last 4)' );
+// 15.2.1: the token field is a keyring row (tests/os-leaf-connections-keyring.php pins the masking).
+us_ok( ! function_exists( 'sn_uptime_status_token_field_html' ), 'the token field helper is gone with the form' );
 
 // ─── Test 10: unconfigured execute + empty-token field ───────────────
 echo "\nTest 10: unconfigured ability + field\n";
@@ -376,10 +374,6 @@ echo "\nTest 11: SN_BETTERSTACK_API_TOKEN constant\n";
 define( 'SN_BETTERSTACK_API_TOKEN', 'const-token-wxyz9876' );
 update_option( 'sn_betterstack_api_token', 'option-should-lose', false );
 us_eq( 'const-token-wxyz9876', sn_uptime_status_token(), 'constant wins over option' );
-$field = sn_uptime_status_token_field_html();
-us_ok( false !== strpos( $field, 'disabled' ), 'constant-locked field is disabled' );
-us_ok( false !== strpos( $field, 'SN_BETTERSTACK_API_TOKEN' ), 'locked helper names the constant' );
-us_ok( false === strpos( $field, 'const-token-wxyz9876' ), 'raw constant token never rendered' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

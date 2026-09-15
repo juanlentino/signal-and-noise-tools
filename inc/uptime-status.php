@@ -541,31 +541,3 @@ function sn_uptime_status_mount_html() {
 		. '</div>';
 }
 
-/**
- * The API-token field for the Uptime monitoring fieldset. Mirrors the
- * Cloudflare token field: constant-locked → disabled input naming the
- * wp-config constant; otherwise obscured value, paste a fresh token to
- * update, type 'clear' to remove. The raw token never renders.
- *
- * @return string
- */
-// @deprecated 15.2.0: unreachable, its form moved to the keyring (Connections › Credentials); removed next release.
-function sn_uptime_status_token_field_html() {
-	$html = '<div class="sn-field sn-field-w-lg">';
-	$html .= '<label class="sn-field-label" for="sn_betterstack_token">' . esc_html__( 'Better Stack API token (optional)', 'signal-and-noise-tools' ) . '</label>';
-	if ( defined( 'SN_BETTERSTACK_API_TOKEN' ) && SN_BETTERSTACK_API_TOKEN ) {
-		$html .= '<input type="text" id="sn_betterstack_token" value="' . esc_attr( '••••' ) . '" disabled class="sn-mono">';
-		$html .= '<p class="sn-field-helper"><strong>' . esc_html__( 'Locked.', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( 'Set via', 'signal-and-noise-tools' ) . ' <code>SN_BETTERSTACK_API_TOKEN</code> ' . esc_html__( 'in', 'signal-and-noise-tools' ) . ' <code>wp-config.php</code>.</p>';
-	} else {
-		$obscured = sn_mask_secret( (string) get_option( SN_UPTIME_STATUS_TOKEN_OPT, '' ) );
-		$html .= '<input type="text" id="sn_betterstack_token" name="sn_betterstack_token" value="' . esc_attr( $obscured ) . '" placeholder="' . esc_attr__( 'Paste a fresh token to update; type \'clear\' to remove', 'signal-and-noise-tools' ) . '" class="sn-mono">';
-		$html .= '<p class="sn-field-helper">' . esc_html__( 'Uptime API token (read scope is enough). Powers the in-admin status panel: the dashboard widget and the rail on this tab. Leave the obscured value alone to keep the existing token.', 'signal-and-noise-tools' ) . '</p>';
-	}
-	$html .= '</div>';
-	// v10.75.0: the Spend-watch credentials render in the same monitoring
-	// fieldset (module owns the markup; '' when the module is absent).
-	if ( function_exists( 'sn_spend_watch_settings_fields_html' ) ) {
-		$html .= sn_spend_watch_settings_fields_html();
-	}
-	return $html;
-}
