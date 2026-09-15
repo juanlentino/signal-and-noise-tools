@@ -78,6 +78,8 @@ function snt_cron_sn_owned_hooks() {
 		array( 'SN_HEALTH_CRON_HOOK', 'sn_health_scan_daily' ),
 		// v13.62.0 — weekly enum-drift check (weave Phase 5). Always-on.
 		array( 'SN_FAMILY_DRIFT_HOOK', 'sn_family_drift_weekly' ),
+		// 14.9.0 — the daily Cloudflare monitor (token verify, zone, firewall). Always-on.
+		array( 'SN_CF_MONITOR_HOOK', 'sn_cf_monitor_daily' ),
 		// v13.91.0: the daily IPv6-criterion store, so the watch reading it costs
 		// an option read rather than an uncached analytics query.
 		array( 'SNT_IPV6_CRITERION_HOOK', 'snt_ipv6_criterion_refresh' ),

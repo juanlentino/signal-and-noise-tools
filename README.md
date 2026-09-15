@@ -72,7 +72,7 @@ a W3C Webmention receiver at `signal-noise/v1/webmention`, advertised both ways 
 
 ### Edge cache
 
-automatic Cloudflare purge on save / theme update
+automatic Cloudflare purge on save / theme update, plus a daily Cloudflare monitor (`inc/cloudflare-monitor.php`, Connections › Cloudflare › Monitor, `sn-status{cloudflare}`): the API token's status and expiry, the zone's last seven days (requests, cached share, bytes, threats, 4xx/5xx) and the firewall's last 24 hours (events by action, top rules). A reading the token cannot make names the permission to add (Zone › Analytics › Read) and is never counted as zero. It exists because Cloudflare publishes no rate-limit headers, so the API-limits row could never fill; that row now reads the monitor.
 
 ### Music / discography
 

@@ -88,6 +88,7 @@ require_once SNT_PATH . 'inc/rest-hardening.php'; // v9.83.0: anonymous REST sur
 require_once SNT_PATH . 'inc/cloudflare-purge-verify.php'; // pure: render normalization + staleness decision
 require_once SNT_PATH . 'inc/cloudflare-purge-probe.php';  // scheduled probe + bounded zone-purge escalation
 require_once SNT_PATH . 'inc/cloudflare-purge.php';
+require_once SNT_PATH . 'inc/cloudflare-monitor.php';    // 14.9.0: token verify, zone analytics, firewall events -- what the CF API will tell us (the rate monitor could never fill its row: CF sends no x-ratelimit headers).
 require_once SNT_PATH . 'inc/cloudways-purge.php';    // v8.6.0: reliable Varnish clear via the Cloudways API (rides breeze_clear_varnish)
 require_once SNT_PATH . 'inc/admin-forms/cloudways.php'; // v12.17.0: Connections → Cloudways status glance (display-only; reads SNT_CW_LAST_PURGE_OPT written by the purge above)
 require_once SNT_PATH . 'inc/freshness-indicator.php'; // v8.5.1: dashboard cache-freshness dot (client-checked CSS-hash)
@@ -485,6 +486,7 @@ require_once __DIR__ . '/inc/ipv6-criterion-store.php';  // v13.91.0: the criter
 require_once __DIR__ . '/inc/watches.php';  // v13.90.0: the things that come due later. Silent until ripe; state-tested where a state exists, dated only where nothing can be measured.
 require_once __DIR__ . '/inc/health-check-gsc-history.php';  // v13.89.0: the GSC sync firing while its history stops growing — the half cron_health cannot see.
 require_once __DIR__ . '/inc/abilities-cache-freshness.php';  // v13.92.0: the cache verdict finally has a machine reader — six releases were verified by asking a human to read a widget.
+require_once __DIR__ . '/inc/abilities-cloudflare-status.php'; // 14.9.0: the Cloudflare monitor on the read door (token, zone, firewall).
 require_once __DIR__ . '/inc/abilities-watches.php';  // v13.90.0: the watch registry's agent reader — the brief mails it to a human, this answers "what is outstanding?".
 require_once __DIR__ . '/inc/abilities-shape-stability.php';  // v13.88.0: the shape ledger's FIRST reader. It had a writer since v13.85.0 and sn_shape_stability() was called only from tests.
 require_once __DIR__ . '/inc/abilities-purge-verification-log.php';  // v13.86.0: the purge-verification trail IN ROWS. The log had two render surfaces and no agent reader, so "the stale count is climbing — what do those probes share?" needed a screenshot and a guess.

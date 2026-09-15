@@ -28,6 +28,7 @@ require SNT_PATH . 'inc/admin-shell.php';
 require SNT_PATH . 'inc/admin-render-sections.php';
 require SNT_PATH . 'inc/cloudflare-purge-verify.php';
 require SNT_PATH . 'inc/cloudflare-purge.php';
+require SNT_PATH . 'inc/cloudflare-monitor.php'; // 14.9.0: the monitor section + its Refresh action, on both leaves
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-cloudflare.php';
 
 $pass = 0; $fail = 0;
@@ -52,7 +53,7 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
 $kit     = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic forms: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
-ok( array( 'cf_purge_now', 'cf_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the two actions are cf_purge_now and cf_save, as on the classic leaf' );
+ok( array( 'cf_monitor_refresh', 'cf_purge_now', 'cf_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the three actions are cf_monitor_refresh (14.9.0), cf_purge_now and cf_save, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false !== strpos( $kit, 'name="sn_action" value="cf_save"' ), 'the credentials form is an os-form dispatching post with cf_save' );
 ok( false !== strpos( $kit, '<os-text-field name="sn_cf_token" type="text" value=""' ) && false !== strpos( $kit, '<os-text-field name="sn_cf_zone" type="text" value=""' ), 'both credential fields are kit text fields, empty' );
@@ -138,7 +139,7 @@ cf_opts( array( 'sn_cf_zone_id' => 'zone0123456789abcdef' ) );
 $classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
 $kit     = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && ! in_array( 'sn_cf_token', snt_leaf_names( $kit ), true ), 'token locked: names match and neither form carries sn_cf_token: ' . implode( ',', snt_leaf_names( $kit ) ) );
-ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && array( 'cf_purge_now', 'cf_save' ) === snt_leaf_actions( $kit ), 'token locked: Save is still offered for the zone' );
+ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && array( 'cf_monitor_refresh', 'cf_purge_now', 'cf_save' ) === snt_leaf_actions( $kit ), 'token locked: Save is still offered for the zone' );
 ok( 1 === preg_match( '/<os-field-row label="API token" hint="Locked\. Set via SN_CLOUDFLARE_API_TOKEN in wp-config\.php\."><os-text-field type="text" value="••••9876" disabled>/', $kit ), 'token locked: a nameless disabled field shows the obscured constant and explains the lock' );
 
 // ── Both locked: no credentials form at all, only the purge action, as on the classic leaf.
@@ -146,7 +147,9 @@ define( 'SN_CLOUDFLARE_ZONE_ID', 'zoneconst0123456789' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
 $kit     = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( ! in_array( 'sn_cf_zone', snt_leaf_names( $classic ), true ) && ! in_array( 'sn_cf_zone', snt_leaf_names( $kit ), true ) && ! in_array( 'sn_cf_token', snt_leaf_names( $kit ), true ), 'both locked: neither form carries an editable credential' );
-ok( array( 'cf_purge_now' ) === snt_leaf_actions( $classic ) && array( 'cf_purge_now' ) === snt_leaf_actions( $kit ), 'both locked: the only action is cf_purge_now (no Save on the classic leaf either)' );
+ok( array( 'cf_monitor_refresh', 'cf_purge_now' ) === snt_leaf_actions( $classic ) && array( 'cf_monitor_refresh', 'cf_purge_now' ) === snt_leaf_actions( $kit ), 'both locked: the actions are cf_monitor_refresh and cf_purge_now (no Save on the classic leaf either)' );
+// 14.9.0: the monitor section paints on the kit leaf, honest about never having run.
+ok( false !== strpos( $kit, 'The monitor has not run yet' ) && false !== strpos( $kit, 'cf_monitor_refresh' ), 'the Monitor section says the monitor has not run and offers Refresh now' );
 ok( false === strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'value="zoneconst0123456789" disabled' ) && false !== strpos( $kit, 'nothing to save here' ), 'both locked: no form, both fields disabled, the lock explained' );
 ok( false !== strpos( $kit, 'Configured: auto-purge active' ) && false === cf_purge_disabled( $kit ), 'both locked: the constants configure the module and the purge button is live' );
 

@@ -24,6 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/connections-cloudflare-parts.php';
+require_once __DIR__ . '/connections-cloudflare-monitor.php'; // 14.9.0
 
 /**
  * The leaf's readings, taken the way the classic closure takes them.
@@ -125,7 +126,7 @@ function paint_connections_cloudflare( array $ctx ) {
 
 	$right = \snt_kit_section(
 		__( 'Cache status', 'signal-and-noise-tools' ),
-		cloudflare_status_html( $d ) . cloudflare_purge_html( $d ) . cloudflare_cloudways_html( $d['cloudways'] ),
+		cloudflare_status_html( $d ) . cloudflare_purge_html( $d ) . cloudflare_cloudways_html( $d['cloudways'] ) . ( function_exists( 'sn_cf_monitor_read' ) ? cloudflare_monitor_html( $d ) : '' ),
 		'',
 		array( 'stack' => true )
 	);

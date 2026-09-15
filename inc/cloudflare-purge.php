@@ -664,6 +664,20 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	echo '<button type="submit" name="sn_action" value="cf_purge_now" class="button"' . ( $is_configured ? '' : ' disabled' ) . '>Purge Cloudflare</button>';
 	echo '</form>';
 
+	// ── 14.9.0: THE MONITOR (token, zone, firewall) ──
+	// The native leaf paints the full reading (connections-cloudflare-monitor.php);
+	// the classic page keeps the one-line summary and the same Refresh action,
+	// so the two leaves offer the same actions (the leaf suite pins parity).
+	if ( function_exists( 'sn_cf_monitor_api_row' ) ) {
+		$mon = sn_cf_monitor_api_row( sn_cf_monitor_read(), (array) get_option( SN_CF_LAST_PURGE_OPT, array() ), time() );
+		echo '<form method="post" class="sn-card sn-card--narrow">';
+		wp_nonce_field( 'sn_theme_options_nonce' );
+		echo '<strong>Monitor</strong>';
+		echo '<p class="sn-helper">' . esc_html( $mon['value'] ) . '</p>';
+		echo '<button type="submit" name="sn_action" value="cf_monitor_refresh" class="button"' . ( $is_configured ? '' : ' disabled' ) . '>Refresh now</button>';
+		echo '</form>';
+	}
+
 	// ── CLOUDWAYS PURGE STATUS (render hardening FIX 3b) ──
 	// Cloudways purge rides this SAME purge chain (breeze_clear_varnish — see
 	// inc/cloudways-purge.php); surfaced here rather than invisible, so a failed
