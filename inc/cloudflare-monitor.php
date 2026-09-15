@@ -55,9 +55,10 @@ const SN_CF_MONITOR_RAW_LIMIT = 10000;
  * @param string $path Path starting with '/'.
  * @return array{http:int,body:array<string,mixed>,error:string}
  */
-function sn_cf_api_get( $path ) {
+function sn_cf_api_get( $path, $token = null ) {
+	// 15.2.2: an explicit token, so the keyring can verify the analytics override.
 	$res = wp_remote_get( SN_CF_API_BASE . $path, array(
-		'headers'     => array( 'Authorization' => 'Bearer ' . sn_cf_get_token() ),
+		'headers'     => array( 'Authorization' => 'Bearer ' . ( null === $token ? sn_cf_get_token() : (string) $token ) ),
 		'timeout'     => 8,
 		'sslverify'   => true,
 		'redirection' => 0,
@@ -257,12 +258,13 @@ function sn_cf_monitor_firewall_from( array $res ) {
  * user route, and on refusal the account route when an account id is
  * known; record which kind answered.
  *
- * @param string $zone_id Unused for verify; kept for symmetry with the readers.
+ * @param string      $zone_id Unused for verify; kept for symmetry with the readers.
+ * @param string|null $token   15.2.2: a token other than the central one (the analytics override).
  * @return array<string,mixed> The token reading, plus `kind`: user | account | ''.
  */
-function sn_cf_monitor_verify( $zone_id ) {
+function sn_cf_monitor_verify( $zone_id, $token = null ) {
 	unset( $zone_id );
-	$user = sn_cf_monitor_token_from( sn_cf_api_get( '/user/tokens/verify' ) );
+	$user = sn_cf_monitor_token_from( sn_cf_api_get( '/user/tokens/verify', $token ) );
 	if ( ! empty( $user['verified'] ) ) {
 		$user['kind'] = 'user';
 		return $user;
@@ -272,7 +274,7 @@ function sn_cf_monitor_verify( $zone_id ) {
 		$user['kind'] = '';
 		return $user;
 	}
-	$acct = sn_cf_monitor_token_from( sn_cf_api_get( '/accounts/' . rawurlencode( $account ) . '/tokens/verify' ) );
+	$acct = sn_cf_monitor_token_from( sn_cf_api_get( '/accounts/' . rawurlencode( $account ) . '/tokens/verify', $token ) );
 	if ( ! empty( $acct['verified'] ) ) {
 		$acct['kind'] = 'account';
 		return $acct;

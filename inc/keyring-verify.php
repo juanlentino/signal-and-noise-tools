@@ -45,6 +45,8 @@ function sn_keyring_probe( $id, array $row ) {
 	switch ( (string) ( $row['probe'] ?? '' ) ) {
 		case 'cloudflare':
 			return sn_keyring_probe_cloudflare();
+		case 'cloudflare_override':
+			return sn_keyring_probe_cloudflare( sn_credential( 'cf_analytics_override' ) );
 		case 'sensor':
 			return sn_keyring_probe_sensor( $row );
 		case 'betterstack':
@@ -57,12 +59,15 @@ function sn_keyring_probe( $id, array $row ) {
 	return sn_keyring_verdict( 'none', __( 'No probe for this credential; the tab that uses it is the witness.', 'signal-and-noise-tools' ) );
 }
 
-/** @return array{status:string,detail:string,at:int} */
-function sn_keyring_probe_cloudflare() {
+/**
+ * @param string|null $token 15.2.2: null verifies the central token; a string verifies that one (the override).
+ * @return array{status:string,detail:string,at:int}
+ */
+function sn_keyring_probe_cloudflare( $token = null ) {
 	if ( ! function_exists( 'sn_cf_monitor_verify' ) ) {
 		return sn_keyring_verdict( 'none', __( 'The Cloudflare monitor is not loaded.', 'signal-and-noise-tools' ) );
 	}
-	$t = sn_cf_monitor_verify( '' );
+	$t = sn_cf_monitor_verify( '', $token );
 	if ( ! empty( $t['verified'] ) ) {
 		/* translators: 1: status, 2: token kind. */
 		return sn_keyring_verdict( 'ok', sprintf( __( 'Cloudflare answers %1$s (%2$s token).', 'signal-and-noise-tools' ), (string) $t['status'], '' !== (string) ( $t['kind'] ?? '' ) ? (string) $t['kind'] : __( 'unknown kind', 'signal-and-noise-tools' ) ) );

@@ -70,6 +70,8 @@ function sn_admin_flash_messages() {
 		'keyring_unavailable'       => array( 'error', 'The keyring module is not loaded.' ),
 		'keyring_unknown_row'       => array( 'error', 'No such credential row.' ),
 		'keyring_locked'            => array( 'error', 'That credential is set in wp-config.php; edit it there.' ),
+		'keyring_issued_as_shared'  => array( 'error', 'That is a token another service issued (it is already on the keyring); a site secret or worker secret must be its own value. Mint one: openssl rand -hex 32.' ),
+		'keyring_duplicate'         => array( 'error', 'That value is already on another row. Two rows sharing a value means one leak opens both; use a different one.' ),
 		'cf_monitor_unavailable'    => array( 'error', 'The Cloudflare monitor module is not loaded.' ),
 		'purged'                    => array( 'success', 'All caches purged.' ),
 		'wh_updated'                => array( 'success', 'Webhook updated.' ),

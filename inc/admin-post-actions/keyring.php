@@ -38,6 +38,22 @@ function sn_handle_keyring_save( $post ) {
 	if ( '' === $value || 0 === strpos( $value, '••••' ) ) {
 		return 'keyring_unchanged';
 	}
+	// 15.2.2: a shared secret must be its own value. An issued token pasted
+	// into the site secret or a worker row is refused by name; the same value
+	// on two rows of any kind is refused too, because one leak then opens both.
+	$shared = 'site' === (string) $row['group'];
+	if ( 'clear' !== $value && 'site' !== $value ) {
+		foreach ( sn_keyring_issued_values() as $other_id => $other ) {
+			if ( $other_id !== $id && hash_equals( $other, $value ) ) {
+				return $shared ? 'keyring_issued_as_shared' : 'keyring_duplicate';
+			}
+		}
+		foreach ( sn_keyring() as $other_id => $other_row ) {
+			if ( $other_id !== $id && 'site' === (string) $other_row['group'] && '' !== sn_credential( $other_id ) && hash_equals( sn_credential( $other_id ), $value ) ) {
+				return 'keyring_duplicate';
+			}
+		}
+	}
 	$site_rows  = sn_keyring_site_rows();
 	$can_derive = 'site' === ( $row['derive'] ?? '' );
 	if ( 'site' === $value && $can_derive ) {

@@ -41,7 +41,9 @@ ok( array( 'mr_read_token', 'srv_token', 'bridge_token', 'prov_hmac_secret' ) ==
 foreach ( $derived as $id ) {
 	ok( '' !== sn_keyring_other_half_command( $rows[ $id ] ) && false !== strpos( sn_keyring_other_half_command( $rows[ $id ] ), 'wrangler secret put ' . $rows[ $id ]['other_half']['secret'] ), "$id prints the wrangler command for its other half" );
 }
-ok( '' === sn_keyring_other_half_command( $rows['cf_token'] ), 'an issued token has no other half to print' );
+ok( '' === sn_keyring_other_half_command( $rows['betterstack_token'] ), 'an issued token with no worker copy has no other half to print' );
+ok( false !== strpos( sn_keyring_other_half_command( $rows['cf_token'] ), 'sn-rights-signals-worker && npx wrangler secret put SN_MR_SQL_TOKEN' ), '15.2.2: the Cloudflare token has an other half, the sensor\'s SN_MR_SQL_TOKEN: rolling it has a second place to update' );
+ok( 'cloudflare_override' === ( $rows['cf_analytics_override']['probe'] ?? '' ), '15.2.2: the analytics override has its own probe, so a dead override reads refused, never no probe' );
 
 // ── Resolution: '' → saved → site → constant
 ok( '' === sn_keyring_source( 'mr_read_token' ) && '' === sn_credential( 'mr_read_token' ), 'unset: no source, empty value' );
@@ -91,6 +93,16 @@ ok( in_array( 'sn_uptime_status_snapshot', $GLOBALS['__flushed'], true ) && in_a
 $GLOBALS['__flushed'] = array();
 $save( 'bridge_token', 'site' );
 ok( array() === $GLOBALS['__flushed'], 'a row with nothing to flush flushes nothing' );
+// 15.2.2: the guard. A shared row refuses an issued token; any row refuses a value another row holds.
+$GLOBALS['__opt']['sn_cf_api_token'] = 'cf-issued-token-value';
+ok( 'keyring_issued_as_shared' === $save( 'site_secret', 'cf-issued-token-value' ) && 'cf-issued-token-value' !== sn_site_secret(), 'the Cloudflare token pasted as the site secret is refused by name and not written' );
+ok( 'keyring_issued_as_shared' === $save( 'mr_read_token', 'cf-issued-token-value' ) || 'keyring_locked' === $save( 'mr_read_token', 'cf-issued-token-value' ), 'the same paste into the sensor row is refused (locked by the constant in this run, refused as issued otherwise)' );
+ok( 'keyring_duplicate' === $save( 'cf_analytics_override', 'cf-issued-token-value' ) && '' === sn_credential( 'cf_analytics_override' ), 'the API token pasted as the analytics override is a duplicate, refused' );
+ok( 'keyring_duplicate' === $save( 'github_token', 'cf-issued-token-value' ), 'an issued token pasted into another issued row is a duplicate' );
+$GLOBALS['__opt'][ SN_SITE_SECRET_OPT ] = 'own-site-secret';
+ok( 'keyring_duplicate' === $save( 'bridge_token', 'own-site-secret' ), 'the site secret\'s bytes pasted into a worker row is a duplicate (type site instead)' );
+ok( 'keyring_saved' === $save( 'bridge_token', 'site' ) && 'keyring_saved' === $save( 'cf_token', 'clear' ), '"site" and "clear" pass the guard untouched' );
+ok( 'keyring_saved' === $save( 'github_token', 'gh-own-3' ), 'a value no other row holds saves' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

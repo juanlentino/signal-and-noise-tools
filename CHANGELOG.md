@@ -12,6 +12,11 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The keyring refuses a shared secret that is really an issued token.** Twice on 2026-09-15 the Cloudflare API token was pasted into the site secret, the sensor's read token and the analytics override; the leaf accepted all three and the sensor said only "differ". `keyring_save` now refuses, by name, an issued token pasted into the site secret or a worker row (`keyring_issued_as_shared`: "a site secret or worker secret must be its own value; openssl rand -hex 32"), and refuses any value another row already holds (`keyring_duplicate`: one leak would open both). `site` and `clear` pass untouched. Pinned six ways; mutation red.
+- **The analytics override has its own probe.** When set, S&N Analytics reads with it, and after today's token roll it held a dead token while the ledger said `no probe`. `sn_cf_monitor_verify()` and `sn_cf_api_get()` take an explicit token; the override row verifies with its own bytes and reads `refused` when they are dead.
+- **The Cloudflare API token names its other half.** The sensor's `SN_MR_SQL_TOKEN` is a copy of it, and rolling the token left the worker on the dead one (502 "upstream") with nothing on the leaf saying where to update. The row now prints `wrangler secret put SN_MR_SQL_TOKEN` under Worker secrets like the four shared ones; five commands.
+
 ## [15.2.1] - 2026-09-15 — the Credentials leaf is a ledger
 
 ### Changed
