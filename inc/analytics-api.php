@@ -116,13 +116,22 @@ const SN_CF_ACCOUNT_ID_OPT      = 'sn_cf_account_id';
  * @return array{account_id: string, token: string}|null
  */
 function sn_analytics_config() {
-	$token = ( defined( 'SN_CF_ANALYTICS_TOKEN' ) && '' !== (string) SN_CF_ANALYTICS_TOKEN )
-		? (string) SN_CF_ANALYTICS_TOKEN
-		: (string) get_option( SN_CF_ANALYTICS_TOKEN_OPT, '' );
+	// 14.10.0: ONE credential set (inc/cloudflare-credentials.php). The
+	// analytics token is an override; empty means the Connections ›
+	// Cloudflare token. Guarded so a harness without the module keeps the
+	// pre-14.10 resolution.
+	if ( function_exists( 'sn_cf_analytics_token' ) ) {
+		$token      = sn_cf_analytics_token();
+		$account_id = sn_cf_get_account_id();
+	} else {
+		$token = ( defined( 'SN_CF_ANALYTICS_TOKEN' ) && '' !== (string) SN_CF_ANALYTICS_TOKEN )
+			? (string) SN_CF_ANALYTICS_TOKEN
+			: (string) get_option( SN_CF_ANALYTICS_TOKEN_OPT, '' );
 
-	$account_id = ( defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) SN_CF_ACCOUNT_ID )
-		? (string) SN_CF_ACCOUNT_ID
-		: (string) get_option( SN_CF_ACCOUNT_ID_OPT, '' );
+		$account_id = ( defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) SN_CF_ACCOUNT_ID )
+			? (string) SN_CF_ACCOUNT_ID
+			: (string) get_option( SN_CF_ACCOUNT_ID_OPT, '' );
+	}
 
 	if ( '' === $token || '' === $account_id ) {
 		return null;

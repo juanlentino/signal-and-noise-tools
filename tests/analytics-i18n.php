@@ -150,18 +150,18 @@ require_once __DIR__ . '/../inc/analytics-render-settings.php';
 echo "\nTest: settings surface: credentials form (unlocked) routes labels/help/placeholders/buttons through i18n\n";
 $html = capture( 'snt_analytics_render_credentials' );
 ok( sn_i18n_seen( 'Credentials' ), 'credentials heading translatable' );
-ok( sn_i18n_seen( 'Read-only Cloudflare credentials the dashboard uses to query Analytics Engine. A wp-config constant (%1$s / %2$s) overrides these and locks the field.' ), 'credentials help prose is a translatable sprintf msgid' );
+ok( sn_i18n_seen( 'Analytics Engine reads use the ONE Cloudflare token under Connections › Cloudflare, with Account › Account Analytics › Read on it. The account ID is the same value as there. A wp-config constant (%1$s / %2$s) overrides these and locks the field.' ), 'credentials help prose is a translatable sprintf msgid' );
 ok( sn_i18n_seen( 'Account ID' ), 'Account ID label translatable' );
-ok( sn_i18n_seen( 'Account Analytics Read token' ), 'Account Analytics Read token label translatable' );
+ok( sn_i18n_seen( 'Separate analytics token (optional)' ), 'the override token label translatable (14.10.0: one central token; this field is the optional override)' );
 ok( sn_i18n_seen( '32-char Cloudflare account ID' ), 'account-id placeholder translatable' );
-ok( sn_i18n_seen( 'Paste a fresh token; type ‘clear’ to remove' ), 'token placeholder translatable' );
+ok( sn_i18n_seen( 'Empty: the Connections › Cloudflare token is used' ), 'token placeholder translatable, and says what empty means' );
 ok( sn_i18n_seen( 'Save' ), 'Save button translatable' );
 ok( sn_i18n_seen( 'Test connection' ), 'Test connection button translatable' );
 ok( false !== strpos( $html, '<h3 class="sn-fieldset-h">Credentials</h3>' ), 'credentials heading English byte-identical' );
 ok( false !== strpos( $html, 'A wp-config constant (<code>SN_CF_ANALYTICS_TOKEN</code> / <code>SN_CF_ACCOUNT_ID</code>) overrides these and locks the field.' ), 'credentials help prose English byte-identical (the two <code> constants stay outside the msgid)' );
-ok( false !== strpos( $html, '<strong>Account ID</strong>' ) && false !== strpos( $html, '<strong>Account Analytics Read token</strong>' ), 'field labels English byte-identical' );
+ok( false !== strpos( $html, '<strong>Account ID</strong>' ) && false !== strpos( $html, '<strong>Separate analytics token (optional)</strong>' ), 'field labels English byte-identical' );
 ok( false !== strpos( $html, 'placeholder="32-char Cloudflare account ID"' ), 'account-id placeholder English byte-identical' );
-ok( false !== strpos( $html, 'placeholder="Paste a fresh token; type ‘clear’ to remove"' ), 'token placeholder English byte-identical (curly quotes: htmlspecialchars/ENT_QUOTES only touches ASCII \' , same dodge the file already uses at lines 143/175/263/308/386)' );
+ok( false !== strpos( $html, 'placeholder="Empty: the Connections › Cloudflare token is used"' ), 'token placeholder English byte-identical (curly quotes: htmlspecialchars/ENT_QUOTES only touches ASCII \' , same dodge the file already uses at lines 143/175/263/308/386)' );
 ok( false !== strpos( $html, '>Save</button>' ) && false !== strpos( $html, '>Test connection</button>' ), 'button labels English byte-identical' );
 
 echo "\nTest: settings surface: credentials form (locked) routes the locked-value copy through i18n\n";
@@ -249,12 +249,12 @@ $contract = array(
 	),
 	'inc/analytics-render-settings.php'   => array(
 		"esc_html__( 'Credentials', 'signal-and-noise-tools' )",
-		"esc_html__( 'Read-only Cloudflare credentials the dashboard uses to query Analytics Engine. A wp-config constant (%1\$s / %2\$s) overrides these and locks the field.', 'signal-and-noise-tools' )",
+		"esc_html__( 'Analytics Engine reads use the ONE Cloudflare token under Connections › Cloudflare, with Account › Account Analytics › Read on it. The account ID is the same value as there. A wp-config constant (%1\$s / %2\$s) overrides these and locks the field.', 'signal-and-noise-tools' )",
 		"esc_html__( 'Account ID', 'signal-and-noise-tools' )",
 		"esc_attr__( '(set in wp-config)', 'signal-and-noise-tools' )",
 		"esc_attr__( '32-char Cloudflare account ID', 'signal-and-noise-tools' )",
-		"esc_html__( 'Account Analytics Read token', 'signal-and-noise-tools' )",
-		"esc_attr__( 'Paste a fresh token; type ‘clear’ to remove', 'signal-and-noise-tools' )",
+		"esc_html__( 'Separate analytics token (optional)', 'signal-and-noise-tools' )",
+		"esc_attr__( 'Empty: the Connections › Cloudflare token is used', 'signal-and-noise-tools' )",
 		"esc_html__( 'Save', 'signal-and-noise-tools' )",
 		"esc_html__( 'Test connection', 'signal-and-noise-tools' )",
 		"esc_html__( 'Cloudflare Worker setup (manual, one-time)', 'signal-and-noise-tools' )",

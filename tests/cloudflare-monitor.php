@@ -15,6 +15,7 @@ function update_option( $k, $v, $a = null ) { $GLOBALS['__opt'][ $k ] = $v; retu
 function sn_cf_is_configured() { return ! empty( $GLOBALS['__configured'] ); }
 function sn_cf_get_token() { return 'tok'; }
 function sn_cf_get_zone() { return 'zone123'; }
+function sn_cf_get_account_id() { return $GLOBALS['__acct'] ?? ''; }
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
 class WP_Error { public $m; function __construct( $c = '', $m = '' ) { $this->m = $m; } function get_error_message() { return $this->m; } }
 function wp_remote_get( $url, $args = array() ) { $GLOBALS['__calls'][] = array( 'GET', $url, $args ); return $GLOBALS['__http'][ $url ] ?? array( 'response' => array( 'code' => 404 ), 'body' => '' ); }
@@ -107,8 +108,29 @@ ok( 'token expired' === $row['value'] && 'err' === $row['dot'], 'an expired toke
 $row = sn_cf_monitor_api_row( array( 'fetched_at' => $now, 'configured' => false, 'token' => null, 'zone' => null, 'firewall' => null ), array(), $now );
 ok( 'not configured' === $row['value'], 'unconfigured says so' );
 
+// ── Verify: a User token answers /user, an Account token answers /accounts/{id}
+$GLOBALS['__http'] = array( SN_CF_API_BASE . '/user/tokens/verify' => $j( 200, array( 'success' => true, 'result' => array( 'status' => 'active' ) ) ) );
+$GLOBALS['__acct'] = 'acct9'; $GLOBALS['__calls'] = array();
+$t = sn_cf_monitor_verify( 'zone123' );
+ok( 'user' === $t['kind'] && 'active' === $t['status'] && 1 === count( $GLOBALS['__calls'] ), 'a User token verifies on /user and is marked user; the account route is never asked' );
+$GLOBALS['__http'] = array(
+	SN_CF_API_BASE . '/user/tokens/verify'           => $j( 400, array( 'success' => false, 'errors' => array( array( 'code' => 6003, 'message' => 'Invalid request headers' ) ) ) ),
+	SN_CF_API_BASE . '/accounts/acct9/tokens/verify' => $j( 200, array( 'success' => true, 'result' => array( 'status' => 'active', 'expires_on' => '2027-01-01T00:00:00Z' ) ) ),
+);
+$GLOBALS['__calls'] = array();
+$t = sn_cf_monitor_verify( 'zone123' );
+ok( 'account' === $t['kind'] && 'active' === $t['status'] && '2027-01-01T00:00:00Z' === $t['expires_on'] && 2 === count( $GLOBALS['__calls'] ), 'an Account token refused on /user verifies on /accounts/{id} and is marked account' );
+$GLOBALS['__acct'] = '';
+$t = sn_cf_monitor_verify( 'zone123' );
+ok( '' === $t['kind'] && 'invalid' === $t['status'], 'without an account id the account route cannot be asked: the user refusal stands, kind unknown' );
+$GLOBALS['__acct'] = 'acct9';
+$GLOBALS['__http'][ SN_CF_API_BASE . '/accounts/acct9/tokens/verify' ] = $j( 400, array( 'success' => false, 'errors' => array( array( 'message' => 'not a token of this account' ) ) ) );
+$t = sn_cf_monitor_verify( 'zone123' );
+ok( '' === $t['kind'] && 'invalid' === $t['status'] && false !== strpos( $t['error'], 'Invalid request headers' ) && false !== strpos( $t['error'], 'not a token of this account' ), 'both routes refusing: invalid, with both sentences kept' );
+$GLOBALS['__acct'] = '';
+
 // ── Refresh: three requests, the record stored, nothing purged
-$GLOBALS['__configured'] = true;
+$GLOBALS['__configured'] = true; $GLOBALS['__calls'] = array();
 $GLOBALS['__http'] = array(
 	SN_CF_API_BASE . '/user/tokens/verify' => $j( 200, array( 'success' => true, 'result' => array( 'status' => 'active' ) ) ),
 	SN_CF_API_BASE . '/graphql#zone'       => $j( 200, $zone_ok ),

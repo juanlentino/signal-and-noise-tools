@@ -239,6 +239,39 @@ function sn_cf_monitor_firewall_from( array $res ) {
 }
 
 /**
+ * Verify the token whatever its KIND. A User token answers
+ * GET /user/tokens/verify; an Account token has no /user and answers
+ * GET /accounts/{account}/tokens/verify instead (measured 2026-09-15: the
+ * site ran one of each, in two tabs, until 14.10.0 made them one). Ask the
+ * user route, and on refusal the account route when an account id is
+ * known; record which kind answered.
+ *
+ * @param string $zone_id Unused for verify; kept for symmetry with the readers.
+ * @return array<string,mixed> The token reading, plus `kind`: user | account | ''.
+ */
+function sn_cf_monitor_verify( $zone_id ) {
+	unset( $zone_id );
+	$user = sn_cf_monitor_token_from( sn_cf_api_get( '/user/tokens/verify' ) );
+	if ( ! empty( $user['verified'] ) ) {
+		$user['kind'] = 'user';
+		return $user;
+	}
+	$account = function_exists( 'sn_cf_get_account_id' ) ? (string) sn_cf_get_account_id() : '';
+	if ( '' === $account || 'unreachable' === (string) ( $user['status'] ?? '' ) ) {
+		$user['kind'] = '';
+		return $user;
+	}
+	$acct = sn_cf_monitor_token_from( sn_cf_api_get( '/accounts/' . rawurlencode( $account ) . '/tokens/verify' ) );
+	if ( ! empty( $acct['verified'] ) ) {
+		$acct['kind'] = 'account';
+		return $acct;
+	}
+	$user['kind']  = '';
+	$user['error'] = trim( (string) $user['error'] . ' / ' . (string) $acct['error'], ' /' );
+	return $user;
+}
+
+/**
  * Fetch all three readings and store them. The producer.
  *
  * @return array<string,mixed> The stored record.
@@ -257,7 +290,7 @@ function sn_cf_monitor_refresh() {
 	$record  = array(
 		'fetched_at' => time(),
 		'configured' => true,
-		'token'      => sn_cf_monitor_token_from( sn_cf_api_get( '/user/tokens/verify' ) ),
+		'token'      => sn_cf_monitor_verify( $zone_id ),
 		'zone'       => sn_cf_monitor_zone_from( sn_cf_graphql( $zone_q, array( 'zone' => $zone_id, 'since' => $since, 'until' => $until ) ) ),
 		'firewall'   => sn_cf_monitor_firewall_from( sn_cf_graphql( $fw_q, array( 'zone' => $zone_id, 'since' => gmdate( 'Y-m-d\TH:i:s\Z', time() - DAY_IN_SECONDS ) ) ) ),
 	);

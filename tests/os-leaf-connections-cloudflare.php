@@ -29,6 +29,7 @@ require SNT_PATH . 'inc/admin-render-sections.php';
 require SNT_PATH . 'inc/cloudflare-purge-verify.php';
 require SNT_PATH . 'inc/cloudflare-purge.php';
 require SNT_PATH . 'inc/cloudflare-monitor.php'; // 14.9.0: the monitor section + its Refresh action, on both leaves
+require SNT_PATH . 'inc/cloudflare-credentials.php'; // 14.10.0: the account id + grant list
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-cloudflare.php';
 
 $pass = 0; $fail = 0;
@@ -147,10 +148,18 @@ define( 'SN_CLOUDFLARE_ZONE_ID', 'zoneconst0123456789' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
 $kit     = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( ! in_array( 'sn_cf_zone', snt_leaf_names( $classic ), true ) && ! in_array( 'sn_cf_zone', snt_leaf_names( $kit ), true ) && ! in_array( 'sn_cf_token', snt_leaf_names( $kit ), true ), 'both locked: neither form carries an editable credential' );
-ok( array( 'cf_monitor_refresh', 'cf_purge_now' ) === snt_leaf_actions( $classic ) && array( 'cf_monitor_refresh', 'cf_purge_now' ) === snt_leaf_actions( $kit ), 'both locked: the actions are cf_monitor_refresh and cf_purge_now (no Save on the classic leaf either)' );
+// 14.10.0: the account id is the third credential; with only token and zone
+// locked it is still editable, so Save stays offered on both leaves.
+ok( array( 'cf_monitor_refresh', 'cf_purge_now', 'cf_save' ) === snt_leaf_actions( $classic ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'token and zone locked: Save is still offered, for the account id, on both leaves' );
+ok( in_array( 'sn_cf_account_id', snt_leaf_names( $kit ), true ) && in_array( 'sn_cf_account_id', snt_leaf_names( $classic ), true ), 'the account id field is on both leaves (14.10.0: one credential set)' );
+ok( false !== strpos( $kit, 'Grants this token needs' ) && false !== strpos( $kit, 'Account Analytics › Read' ) && false !== strpos( $kit, 'Cache Purge › Purge' ), 'the grant list paints on the kit leaf: one place to compare against the token summary' );
 // 14.9.0: the monitor section paints on the kit leaf, honest about never having run.
 ok( false !== strpos( $kit, 'The monitor has not run yet' ) && false !== strpos( $kit, 'cf_monitor_refresh' ), 'the Monitor section says the monitor has not run and offers Refresh now' );
-ok( false === strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'value="zoneconst0123456789" disabled' ) && false !== strpos( $kit, 'nothing to save here' ), 'both locked: no form, both fields disabled, the lock explained' );
+ok( false !== strpos( $kit, 'value="zoneconst0123456789" disabled' ), 'both locked: the zone field is disabled with the lock explained' );
+define( 'SN_CF_ACCOUNT_ID', 'acctconst0123456789' );
+$classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
+$kit     = snt_leaf_paint( 'connections', 'cloudflare' );
+ok( false === strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'nothing to save here' ) && array( 'cf_monitor_refresh', 'cf_purge_now' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'all three locked: no form, no Save, the lock explained, on both leaves' );
 ok( false !== strpos( $kit, 'Configured: auto-purge active' ) && false === cf_purge_disabled( $kit ), 'both locked: the constants configure the module and the purge button is live' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

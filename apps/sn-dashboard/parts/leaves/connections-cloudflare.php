@@ -46,8 +46,13 @@ function cloudflare_data() {
 	return array(
 		'token_obscured'  => $obscured,
 		'zone'            => $zone,
+		// 14.10.0: the account id is central too (Analytics Engine reads and
+		// the monitor's account path); the constant locks it like the others.
+		'account'         => function_exists( 'sn_cf_get_account_id' ) ? (string) sn_cf_get_account_id() : '',
 		'token_const_set' => defined( 'SN_CLOUDFLARE_API_TOKEN' ),
 		'zone_const_set'  => defined( 'SN_CLOUDFLARE_ZONE_ID' ),
+		'account_const_set' => defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) constant( 'SN_CF_ACCOUNT_ID' ),
+		'analytics_override' => function_exists( 'sn_cf_analytics_override_source' ) ? (string) sn_cf_analytics_override_source() : '',
 		'last_purge'      => is_array( $last_purge ) ? $last_purge : array(),
 		'is_configured'   => function_exists( 'sn_cf_is_configured' ) && sn_cf_is_configured(),
 		'probe_log'       => is_array( $probe_log ) ? $probe_log : array(),
@@ -85,7 +90,7 @@ function cloudflare_credentials_html( array $d ) {
 		? cloudflare_locked_field( __( 'API token', 'signal-and-noise-tools' ), '' !== $d['token_obscured'] ? $d['token_obscured'] : '••••', __( 'Locked. Set via SN_CLOUDFLARE_API_TOKEN in wp-config.php.', 'signal-and-noise-tools' ) )
 		: \snt_kit_field( 'text', 'sn_cf_token', __( 'API token', 'signal-and-noise-tools' ), $d['token_obscured'], array(
 			'placeholder' => __( 'Paste a fresh token to update; type ‘clear’ to remove', 'signal-and-noise-tools' ),
-			'hint'        => __( 'Cloudflare API token with Cache Purge permission scoped to your zone. Leave the obscured value alone to keep the existing token.', 'signal-and-noise-tools' ),
+			'hint'        => __( 'The ONE Cloudflare token every part of this plugin uses; the grants it needs are listed below. Leave the obscured value alone to keep the existing token.', 'signal-and-noise-tools' ),
 		) );
 	$fields .= $d['zone_const_set']
 		? cloudflare_locked_field( __( 'Zone ID', 'signal-and-noise-tools' ), $d['zone'], __( 'Locked. Set via SN_CLOUDFLARE_ZONE_ID in wp-config.php.', 'signal-and-noise-tools' ) )
@@ -93,14 +98,33 @@ function cloudflare_credentials_html( array $d ) {
 			'placeholder' => __( 'Paste zone ID; type ‘clear’ to remove', 'signal-and-noise-tools' ),
 			'hint'        => __( '32-char zone ID from Cloudflare dashboard → site overview → API.', 'signal-and-noise-tools' ),
 		) );
-	$both_locked = $d['token_const_set'] && $d['zone_const_set'];
-	$inner       = $both_locked
-		? $fields . '<p class="snt-hint">' . \snt_kit_esc( __( 'Both credentials are set in wp-config.php; there is nothing to save here.', 'signal-and-noise-tools' ) ) . '</p>'
+	$fields .= ! empty( $d['account_const_set'] )
+		? cloudflare_locked_field( __( 'Account ID', 'signal-and-noise-tools' ), (string) $d['account'], __( 'Locked. Set via SN_CF_ACCOUNT_ID in wp-config.php.', 'signal-and-noise-tools' ) )
+		: \snt_kit_field( 'text', 'sn_cf_account_id', __( 'Account ID', 'signal-and-noise-tools' ), (string) ( $d['account'] ?? '' ), array(
+			'placeholder' => __( '32-char account ID; type ‘clear’ to remove', 'signal-and-noise-tools' ),
+			'hint'        => __( 'Cloudflare dashboard → account home → the ID in the URL. Analytics Engine reads and the firewall reading\'s account path need it.', 'signal-and-noise-tools' ),
+		) );
+	$all_locked = $d['token_const_set'] && $d['zone_const_set'] && ! empty( $d['account_const_set'] );
+	$inner      = $all_locked
+		? $fields . '<p class="snt-hint">' . \snt_kit_esc( __( 'All three credentials are set in wp-config.php; there is nothing to save here.', 'signal-and-noise-tools' ) ) . '</p>'
 		: \snt_kit_form( 'cf_save', $fields, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
+	// 14.10.0: the grant list, one place to compare against the token summary.
+	if ( function_exists( 'sn_cf_required_grants' ) ) {
+		$rows = array();
+		foreach ( sn_cf_required_grants() as $g ) {
+			$rows[] = array( 'label' => $g['scope'] . ' › ' . $g['grant'] . ' · ' . $g['for'], 'value' => $g['status'], 'tone' => 'candidate' === $g['status'] ? 'warn' : '' );
+		}
+		$inner .= '<h4 class="snt-h">' . \snt_kit_esc( __( 'Grants this token needs', 'signal-and-noise-tools' ) ) . '</h4>' . \snt_kit_list( $rows );
+	}
+	if ( '' !== (string) ( $d['analytics_override'] ?? '' ) ) {
+		$inner .= \snt_kit_notice( 'warning', \snt_kit_esc( 'constant' === $d['analytics_override']
+			? __( 'Analytics still reads with the SN_CF_ANALYTICS_TOKEN constant, not this token. Remove the constant from wp-config.php to use one token.', 'signal-and-noise-tools' )
+			: __( 'Analytics still reads with a separate token saved under Measurement › Analytics › Credentials. Drop it there to use this one.', 'signal-and-noise-tools' ) ) );
+	}
 	return \snt_kit_section(
 		__( 'Credentials', 'signal-and-noise-tools' ),
 		$inner,
-		__( 'API token + zone ID from your Cloudflare dashboard. Both required.', 'signal-and-noise-tools' )
+		__( 'The one Cloudflare token, the zone and the account, for every Cloudflare call this plugin makes.', 'signal-and-noise-tools' )
 	);
 }
 

@@ -53,9 +53,12 @@ const SN_EDGE_RETENTION_TTL_FAIL  = 21600;  // 6 hours — re-probe sooner after
  * @return array{token:string, zone:string}|null
  */
 function sn_edge_config() {
-	$token = ( defined( 'SN_CF_ANALYTICS_TOKEN' ) && '' !== (string) SN_CF_ANALYTICS_TOKEN )
-		? (string) SN_CF_ANALYTICS_TOKEN
-		: (string) get_option( SN_CF_ANALYTICS_TOKEN_OPT, '' );
+	// 14.10.0: the central token unless the analytics override is set.
+	$token = function_exists( 'sn_cf_analytics_token' )
+		? sn_cf_analytics_token()
+		: ( ( defined( 'SN_CF_ANALYTICS_TOKEN' ) && '' !== (string) SN_CF_ANALYTICS_TOKEN )
+			? (string) SN_CF_ANALYTICS_TOKEN
+			: (string) get_option( SN_CF_ANALYTICS_TOKEN_OPT, '' ) );
 	// sn_cf_get_zone() (inc/cloudflare-purge.php — the loader requires it before
 	// this file): SN_CLOUDFLARE_ZONE_ID constant > option. Pre-v9.43.x this read
 	// a dead SN_CF_ZONE constant no code defines, so a constant-configured site

@@ -41,8 +41,9 @@ function cloudflare_monitor_html( array $d ) {
 			$exp_ts = '' !== (string) $t['expires_on'] ? strtotime( (string) $t['expires_on'] ) : 0;
 			$exp    = $exp_ts ? ( function_exists( 'wp_date' ) ? wp_date( 'Y-m-d', $exp_ts ) : gmdate( 'Y-m-d', $exp_ts ) ) : __( 'never', 'signal-and-noise-tools' );
 			$tone   = 'active' === (string) $t['status'] ? ( $exp_ts && $exp_ts < $now + 14 * DAY_IN_SECONDS ? 'warn' : 'ok' ) : 'err';
+			$kind   = (string) ( $t['kind'] ?? '' );
 			$inner .= \snt_kit_list( array(
-				array( 'label' => __( 'Token', 'signal-and-noise-tools' ), 'value' => (string) $t['status'], 'tone' => $tone ),
+				array( 'label' => __( 'Token', 'signal-and-noise-tools' ), 'value' => (string) $t['status'] . ( '' !== $kind ? ' · ' . $kind : '' ), 'tone' => $tone ),
 				array( 'label' => __( 'Expires', 'signal-and-noise-tools' ), 'value' => $exp ),
 			) );
 		} else {
