@@ -202,6 +202,22 @@ function sn_cf_monitor_zone_from( array $res ) {
 }
 
 /**
+ * The firewall window: the last day, both bounds explicit, a minute under
+ * the Free plan's one-day cap so a clock skew cannot push it over (15.2.2).
+ *
+ * @param int|null $now Unix seconds; null = time().
+ * @return array{zone:string,since:string,until:string}
+ */
+function sn_cf_firewall_window( $now = null ) {
+	$now = null === $now ? time() : (int) $now;
+	return array(
+		'zone'  => function_exists( 'sn_cf_get_zone' ) ? (string) sn_cf_get_zone() : '',
+		'since' => gmdate( 'Y-m-d\TH:i:s\Z', $now - DAY_IN_SECONDS + MINUTE_IN_SECONDS ),
+		'until' => gmdate( 'Y-m-d\TH:i:s\Z', $now ),
+	);
+}
+
+/**
  * The firewall reading: pure over the GraphQL body.
  *
  * @param array{http:int,body:array<string,mixed>,error:string} $res
@@ -299,9 +315,13 @@ function sn_cf_monitor_refresh() {
 	$since   = gmdate( 'Y-m-d', time() - SN_CF_MONITOR_DAYS * DAY_IN_SECONDS );
 	$until   = gmdate( 'Y-m-d' );
 	$zone_q  = 'query ($zone: String!, $since: Date!, $until: Date!) { viewer { zones(filter: {zoneTag: $zone}) { httpRequests1dGroups(limit: 31, filter: {date_geq: $since, date_leq: $until}, orderBy: [date_ASC]) { dimensions { date } sum { requests cachedRequests bytes cachedBytes threats responseStatusMap { edgeResponseStatus requests } } } } } }';
-	$fw_q    = 'query ($zone: String!, $since: Time!) { viewer { zones(filter: {zoneTag: $zone}) { firewallEventsAdaptiveGroups(limit: 200, filter: {datetime_geq: $since}, orderBy: [count_DESC]) { count dimensions { action source ruleId } } } } }';
-	$fw_raw  = 'query ($zone: String!, $since: Time!) { viewer { zones(filter: {zoneTag: $zone}) { firewallEventsAdaptive(limit: ' . SN_CF_MONITOR_RAW_LIMIT . ', filter: {datetime_geq: $since}, orderBy: [datetime_DESC]) { action source ruleId sampleInterval } } } }';
-	$fw_args = array( 'zone' => $zone_id, 'since' => gmdate( 'Y-m-d\TH:i:s\Z', time() - DAY_IN_SECONDS ) );
+	// 15.2.2: both bounds explicit. With only `datetime_geq`, Cloudflare closed
+	// the window at ITS clock, a second past mine, and the Free plan's limit for
+	// the raw dataset is exactly one day: "your query time range spans
+	// 1d1s620ms" (measured 2026-09-15). A minute under a day, ended at my now.
+	$fw_q    = 'query ($zone: String!, $since: Time!, $until: Time!) { viewer { zones(filter: {zoneTag: $zone}) { firewallEventsAdaptiveGroups(limit: 200, filter: {datetime_geq: $since, datetime_leq: $until}, orderBy: [count_DESC]) { count dimensions { action source ruleId } } } } }';
+	$fw_raw  = 'query ($zone: String!, $since: Time!, $until: Time!) { viewer { zones(filter: {zoneTag: $zone}) { firewallEventsAdaptive(limit: ' . SN_CF_MONITOR_RAW_LIMIT . ', filter: {datetime_geq: $since, datetime_leq: $until}, orderBy: [datetime_DESC]) { action source ruleId sampleInterval } } } }';
+	$fw_args = sn_cf_firewall_window();
 	$record  = array(
 		'fetched_at' => time(),
 		'configured' => true,

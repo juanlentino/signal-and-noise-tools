@@ -36,7 +36,8 @@ const SN_CF_FW_ABILITIES_RULE = 'abilities';
  * @return string
  */
 function sn_cf_firewall_events_query() {
-	return 'query ($zone: String!, $since: Time!) { viewer { zones(filter: {zoneTag: $zone}) { firewallEventsAdaptive(limit: ' . SN_CF_FW_EVENTS_LIMIT . ', filter: {datetime_geq: $since}, orderBy: [datetime_DESC]) { ' . SN_CF_FW_EVENTS_FIELDS . ' } } } }';
+	// 15.2.2: both bounds explicit, a minute under the plan's one-day cap (see sn_cf_firewall_window()).
+	return 'query ($zone: String!, $since: Time!, $until: Time!) { viewer { zones(filter: {zoneTag: $zone}) { firewallEventsAdaptive(limit: ' . SN_CF_FW_EVENTS_LIMIT . ', filter: {datetime_geq: $since, datetime_leq: $until}, orderBy: [datetime_DESC]) { ' . SN_CF_FW_EVENTS_FIELDS . ' } } } }';
 }
 
 /**
@@ -84,7 +85,7 @@ function sn_cf_firewall_events_refresh() {
 		update_option( SN_CF_FW_EVENTS_OPT, $record, false );
 		return $record;
 	}
-	$res    = sn_cf_graphql( sn_cf_firewall_events_query(), array( 'zone' => sn_cf_get_zone(), 'since' => gmdate( 'Y-m-d\TH:i:s\Z', time() - DAY_IN_SECONDS ) ) );
+	$res    = sn_cf_graphql( sn_cf_firewall_events_query(), sn_cf_firewall_window() );
 	$record = array( 'fetched_at' => time(), 'configured' => true ) + sn_cf_firewall_events_from( $res );
 	update_option( SN_CF_FW_EVENTS_OPT, $record, false );
 	return $record;

@@ -81,7 +81,7 @@ $GLOBALS['__configured'] = true; $GLOBALS['__calls'] = array();
 $GLOBALS['__http'][ SN_CF_API_BASE . '/graphql' ] = $j( 200, $body );
 $rec = sn_cf_firewall_events_refresh();
 $sent = json_decode( (string) $GLOBALS['__calls'][0][2]['body'], true );
-ok( 1 === count( $GLOBALS['__calls'] ) && 'POST' === $GLOBALS['__calls'][0][0] && 'zone123' === $sent['variables']['zone'] && 1 === preg_match( '/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/', $sent['variables']['since'] ) && abs( strtotime( $sent['variables']['since'] ) - ( time() - DAY_IN_SECONDS ) ) < 5, 'one GraphQL POST for the zone, since 24 hours ago' );
+ok( 1 === count( $GLOBALS['__calls'] ) && 'POST' === $GLOBALS['__calls'][0][0] && 'zone123' === $sent['variables']['zone'] && 1 === preg_match( '/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/', $sent['variables']['since'] ) && abs( strtotime( $sent['variables']['until'] ) - time() ) < 5 && DAY_IN_SECONDS - MINUTE_IN_SECONDS === strtotime( $sent['variables']['until'] ) - strtotime( $sent['variables']['since'] ) && false !== strpos( $sent['query'], 'datetime_leq: $until' ), '15.2.2: one GraphQL POST for the zone, both bounds explicit, the window a minute under a day (the plan\'s cap is exactly 1d and Cloudflare\'s clock closed an open window a second past it)' );
 ok( true === $rec['available'] && 3 === count( $rec['rows'] ) && $rec === sn_cf_firewall_events_read() && $rec['fetched_at'] >= time() - 5, 'the reading is stored and read back unchanged' );
 ok( in_array( array( 'sn_cf_firewall_events_refresh', 20 ), $GLOBALS['__actions'][ SN_CF_MONITOR_HOOK ] ?? array(), true ), 'rides the monitor\'s daily hook, after the monitor' );
 foreach ( $GLOBALS['__calls'] as $c ) {
