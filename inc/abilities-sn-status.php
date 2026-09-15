@@ -135,6 +135,8 @@ function snt_sn_status_map() {
 		// v13.92.0 — is the edge serving the current render? Same derive layer both
 		// widgets render, so three surfaces cannot disagree.
 		'cache'                => 'signal-noise/cache-freshness',
+		// 14.9.0 — the Cloudflare monitor: token, zone, firewall (stored daily).
+		'cloudflare'           => 'signal-noise/cloudflare-status',
 	);
 }
 

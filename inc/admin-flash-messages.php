@@ -63,6 +63,8 @@ function sn_admin_flash_messages() {
 		'cf_saved'                  => array( 'success', 'Cloudflare settings saved.' ),
 		'cf_purged_ok'              => array( 'success', 'Cloudflare zone purge dispatched.' ),
 		'cf_purged_unconfigured'    => array( 'warning', 'Cloudflare not configured: set the API token and zone ID first.' ),
+		'cf_monitor_refreshed'      => array( 'success', 'Cloudflare monitor refreshed: token, zone and firewall read.' ),
+		'cf_monitor_unavailable'    => array( 'error', 'The Cloudflare monitor module is not loaded.' ),
 		'purged'                    => array( 'success', 'All caches purged.' ),
 		'wh_updated'                => array( 'success', 'Webhook updated.' ),
 		'wh_deleted'                => array( 'success', 'Webhook deleted. Pending retries (if any) will drop on next dispatch.' ),

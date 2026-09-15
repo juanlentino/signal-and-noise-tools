@@ -44,3 +44,19 @@ function sn_handle_cf_save( $post ) {
 function sn_handle_cf_purge_now( $post ) {
 	return sn_cf_purge_everything() ? 'cf_purged_ok' : 'cf_purged_unconfigured';
 }
+
+/**
+ * 14.9.0: run the Cloudflare monitor now (token verify, zone, firewall).
+ * Read-only against Cloudflare.
+ *
+ * @param array<string,mixed> $post
+ * @return string Flash code.
+ */
+function sn_handle_cf_monitor_refresh( $post ) {
+	unset( $post );
+	if ( ! function_exists( 'sn_cf_monitor_refresh' ) ) {
+		return 'cf_monitor_unavailable';
+	}
+	$r = sn_cf_monitor_refresh();
+	return ! empty( $r['configured'] ) ? 'cf_monitor_refreshed' : 'cf_purged_unconfigured';
+}

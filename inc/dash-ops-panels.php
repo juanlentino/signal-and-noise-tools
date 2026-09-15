@@ -152,6 +152,16 @@ function sn_dash_ops_panels( array $data ) {
 			$label = (string) ( $st['label'] ?? $host );
 			$snap  = isset( $st['snapshot'] ) && is_array( $st['snapshot'] ) ? $st['snapshot'] : null;
 
+			if ( null === $snap && 'api.cloudflare.com' === $host && function_exists( 'sn_cf_monitor_api_row' ) ) {
+				// 14.9.0: Cloudflare publishes no rate-limit headers, so this row
+				// could never fill and "not seen yet" read as "never used" while
+				// purges fired daily. The monitor's reading is what IS known:
+				// token status and expiry, the last call, and the fact that no
+				// quota is advertised.
+				$row    = sn_cf_monitor_api_row( sn_cf_monitor_read(), (array) get_option( 'sn_cf_last_purge', array() ), time() );
+				$rows[] = array( 'label' => $label, 'value' => $row['value'], 'dot' => $row['dot'] );
+				continue;
+			}
 			if ( null === $snap ) {
 				// No request to this host has been observed. Not measured — and
 				// emphatically not a healthy limit.
