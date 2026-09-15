@@ -61,6 +61,7 @@ function sn_ssrf_host_blocked( $host ) { $GLOBALS['__ssrf_hosts'][] = (string) $
 // dependency is loaded rather than stubbed — these declarations are unguarded,
 // and a stub would either fatal on redeclare or model a shape the callee does
 // not actually have.
+if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $t, $v ) { return $v; } } // 15.2.0: the read token passes a filter
 require __DIR__ . '/../inc/machine-readers-taxonomy.php';
 require __DIR__ . '/../inc/machine-readers-api.php';
 // v12.15.0: the rights SUBSET lives in its own module, and the invariant below

@@ -61,53 +61,27 @@ function cloudflare_data() {
 }
 
 /**
- * A field the wp-config constant locks: the classic disabled input carries no
- * `name`, so this is `<os-field-row label hint>` around a nameless, disabled
- * `<os-text-field>` (kit-help "Field row" / "Text field").
- *
- * @param string $label Label.
- * @param string $value Shown value.
- * @param string $hint  The lock explanation.
- * @return string
- */
-function cloudflare_locked_field( $label, $value, $hint ) {
-	return \snt_kit_tag(
-		'os-field-row',
-		array( 'label' => (string) $label, 'hint' => (string) $hint ),
-		\snt_kit_tag( 'os-text-field', array( 'type' => 'text', 'value' => (string) $value, 'disabled' => true ) )
-	);
-}
-
-/**
- * The Credentials section: the two fields and, unless both are locked, the
- * `cf_save` form around them.
+ * The Credentials section, read-only since 15.2.0: where each of the three
+ * comes from, the grant list, and the door to Connections › Credentials,
+ * where every key is set. This leaf never carries a field again.
  *
  * @param array<string,mixed> $d From cloudflare_data().
  * @return string
  */
 function cloudflare_credentials_html( array $d ) {
-	$fields = $d['token_const_set']
-		? cloudflare_locked_field( __( 'API token', 'signal-and-noise-tools' ), '' !== $d['token_obscured'] ? $d['token_obscured'] : '••••', __( 'Locked. Set via SN_CLOUDFLARE_API_TOKEN in wp-config.php.', 'signal-and-noise-tools' ) )
-		: \snt_kit_field( 'text', 'sn_cf_token', __( 'API token', 'signal-and-noise-tools' ), $d['token_obscured'], array(
-			'placeholder' => __( 'Paste a fresh token to update; type ‘clear’ to remove', 'signal-and-noise-tools' ),
-			'hint'        => __( 'The ONE Cloudflare token every part of this plugin uses; the grants it needs are listed below. Leave the obscured value alone to keep the existing token.', 'signal-and-noise-tools' ),
-		) );
-	$fields .= $d['zone_const_set']
-		? cloudflare_locked_field( __( 'Zone ID', 'signal-and-noise-tools' ), $d['zone'], __( 'Locked. Set via SN_CLOUDFLARE_ZONE_ID in wp-config.php.', 'signal-and-noise-tools' ) )
-		: \snt_kit_field( 'text', 'sn_cf_zone', __( 'Zone ID', 'signal-and-noise-tools' ), $d['zone'], array(
-			'placeholder' => __( 'Paste zone ID; type ‘clear’ to remove', 'signal-and-noise-tools' ),
-			'hint'        => __( '32-char zone ID from Cloudflare dashboard → site overview → API.', 'signal-and-noise-tools' ),
-		) );
-	$fields .= ! empty( $d['account_const_set'] )
-		? cloudflare_locked_field( __( 'Account ID', 'signal-and-noise-tools' ), (string) $d['account'], __( 'Locked. Set via SN_CF_ACCOUNT_ID in wp-config.php.', 'signal-and-noise-tools' ) )
-		: \snt_kit_field( 'text', 'sn_cf_account_id', __( 'Account ID', 'signal-and-noise-tools' ), (string) ( $d['account'] ?? '' ), array(
-			'placeholder' => __( '32-char account ID; type ‘clear’ to remove', 'signal-and-noise-tools' ),
-			'hint'        => __( 'Cloudflare dashboard → account home → the ID in the URL. Analytics Engine reads and the Account-token verify route need it.', 'signal-and-noise-tools' ),
-		) );
-	$all_locked = $d['token_const_set'] && $d['zone_const_set'] && ! empty( $d['account_const_set'] );
-	$inner      = $all_locked
-		? $fields . '<p class="snt-hint">' . \snt_kit_esc( __( 'All three credentials are set in wp-config.php; there is nothing to save here.', 'signal-and-noise-tools' ) ) . '</p>'
-		: \snt_kit_form( 'cf_save', $fields, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
+	$source = static function ( $const_set, $const, $value, $shown ) {
+		if ( $const_set ) {
+			/* translators: %s: constant name. */
+			return sprintf( __( 'locked by %s', 'signal-and-noise-tools' ), $const );
+		}
+		return '' !== (string) $value ? (string) $shown : __( 'not set', 'signal-and-noise-tools' );
+	};
+	$inner = \snt_kit_kv( array(
+		array( 'label' => __( 'API token', 'signal-and-noise-tools' ), 'value' => $source( $d['token_const_set'], 'SN_CLOUDFLARE_API_TOKEN', $d['token_obscured'], $d['token_obscured'] ) ),
+		array( 'label' => __( 'Zone ID', 'signal-and-noise-tools' ), 'value' => $source( $d['zone_const_set'], 'SN_CLOUDFLARE_ZONE_ID', $d['zone'], $d['zone'] ) ),
+		array( 'label' => __( 'Account ID', 'signal-and-noise-tools' ), 'value' => $source( ! empty( $d['account_const_set'] ), 'SN_CF_ACCOUNT_ID', (string) ( $d['account'] ?? '' ), (string) ( $d['account'] ?? '' ) ) ),
+	) );
+	$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Set with every other key under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'connections' ) ) . '. ' . \snt_kit_esc( __( 'This leaf only reads them.', 'signal-and-noise-tools' ) ) . '</p>';
 	// 14.10.0: the grant list, one place to compare against the token summary.
 	if ( function_exists( 'sn_cf_required_grants' ) ) {
 		$rows = array();
@@ -124,7 +98,7 @@ function cloudflare_credentials_html( array $d ) {
 	return \snt_kit_section(
 		__( 'Credentials', 'signal-and-noise-tools' ),
 		$inner,
-		__( 'The one Cloudflare token, the zone and the account, for every Cloudflare call this plugin makes.', 'signal-and-noise-tools' )
+		__( 'The one Cloudflare token, the zone and the account, for every Cloudflare call this plugin makes; set on the keyring.', 'signal-and-noise-tools' )
 	);
 }
 

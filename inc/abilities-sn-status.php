@@ -137,6 +137,8 @@ function snt_sn_status_map() {
 		'cache'                => 'signal-noise/cache-freshness',
 		// 14.9.0 — the Cloudflare monitor: token, zone, firewall (stored daily).
 		'cloudflare'           => 'signal-noise/cloudflare-status',
+		// 15.2.0 — every credential's source and last verdict; never a value.
+		'keyring'              => 'signal-noise/keyring-status',
 	);
 }
 

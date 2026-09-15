@@ -547,22 +547,15 @@ function machine_readers_settings_html( array $d ) {
 				: __( 'Blank uses the built-in live endpoint. A SN_MR_WORKER_URL constant in wp-config.php overrides both.', 'signal-and-noise-tools' ),
 		)
 	);
-	$fields .= \snt_kit_field(
-		'password',
-		'sn_mr_read_token',
-		__( 'Read token', 'signal-and-noise-tools' ),
-		'',
-		array(
-			'disabled' => $d['token_locked'],
-			'hint'     => $d['token_locked']
-				? __( 'Locked by the SN_MR_READ_TOKEN constant in wp-config.php.', 'signal-and-noise-tools' )
-				: __( 'Write-only: the stored token is never shown here. Leave blank to keep the current value.', 'signal-and-noise-tools' ),
-		)
-	);
+	// 15.2.0: the read token is a row on the keyring; a shared secret with the
+	// sensor, not a Cloudflare token. This form keeps the URL.
+	$fields .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Read token:', 'signal-and-noise-tools' ) ) . ' ' . $badge . ' ' . ( $d['token_locked']
+		? \snt_kit_esc( __( 'Locked by the SN_MR_READ_TOKEN constant in wp-config.php.', 'signal-and-noise-tools' ) )
+		: \snt_kit_esc( __( 'Set under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'monitoring' ) ) . ': ' . \snt_kit_esc( __( 'a shared secret with the sensor, the same value as the worker\'s SN_MR_READ_TOKEN. Not a Cloudflare token.', 'signal-and-noise-tools' ) ) ) . '</p>';
 
 	$form = \snt_kit_form(
 		'machine_readers_save',
-		$badge . $fields,
+		$fields,
 		array(
 			'submit' => __( 'Save sensor settings', 'signal-and-noise-tools' ),
 			'hidden' => array( 'tab' => 'monitoring', 'sub' => 'machine-readers' ),

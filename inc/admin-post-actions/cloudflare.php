@@ -18,6 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// @deprecated 15.2.0: unreachable, its form moved to the keyring (Connections › Credentials); removed next release.
 function sn_handle_cf_save( $post ) {
 	$token_const = defined( 'SN_CLOUDFLARE_API_TOKEN' );
 	$zone_const  = defined( 'SN_CLOUDFLARE_ZONE_ID' );
@@ -90,6 +91,7 @@ function sn_handle_cf_monitor_refresh( $post ) {
  * @param array<string,mixed> $post
  * @return string Flash code.
  */
+// @deprecated 15.2.0: unreachable, its form moved to the keyring (Connections › Credentials); removed next release.
 function sn_handle_analytics_use_central_token( $post ) {
 	unset( $post );
 	if ( defined( 'SN_CF_ANALYTICS_TOKEN' ) && '' !== (string) constant( 'SN_CF_ANALYTICS_TOKEN' ) ) {

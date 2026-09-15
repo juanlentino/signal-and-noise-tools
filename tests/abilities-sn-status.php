@@ -61,7 +61,7 @@ echo "sn_status (consolidated) — plugin v13.1.0\n\n";
 
 // ─── Section map: ten sections, all plugin-namespace sources ───
 $map = snt_sn_status_map();
-ok( 24 === count( $map ), 'the section map has exactly 24 entries (v14.9.0 ADDED cloudflare, the monitor: token, zone, firewall; v14.6.1 ADDED posts_signals, the Posts tab as data; v13.92.0 ADDED cache; v13.90.0 ADDED watches, the agent reader beside the morning brief; v13.88.0 ADDED shape_stability, the first reader the shape ledger has had; v13.68.0 ADDED inbound_pass; v13.63.0 ADDED search_coverage; v13.62.0 ADDED family_drift — weave Phase 5; v13.57.0 ADDED search_performance/search_drift/search_crossexam — weave Phase 1; v13.52.0 ADDED cron_health, the model over cron_scheduled/cron_history)' );
+ok( 25 === count( $map ), 'the section map has exactly 25 entries (15.2.0 ADDED keyring, every credential\'s source and verdict; v14.9.0 ADDED cloudflare, the monitor: token, zone, firewall; v14.6.1 ADDED posts_signals, the Posts tab as data; v13.92.0 ADDED cache; v13.90.0 ADDED watches, the agent reader beside the morning brief; v13.88.0 ADDED shape_stability, the first reader the shape ledger has had; v13.68.0 ADDED inbound_pass; v13.63.0 ADDED search_coverage; v13.62.0 ADDED family_drift — weave Phase 5; v13.57.0 ADDED search_performance/search_drift/search_crossexam — weave Phase 1; v13.52.0 ADDED cron_health, the model over cron_scheduled/cron_history)' );
 $expected_map = array(
 	'uptime'               => 'signal-noise/uptime-status',
 	'deploy'               => 'signal-noise/get-deploy-status',
@@ -91,6 +91,7 @@ $expected_map = array(
 	'watches'              => 'signal-noise/watches',
 	'cache'                => 'signal-noise/cache-freshness',
 	'cloudflare'           => 'signal-noise/cloudflare-status',
+	'keyring'              => 'signal-noise/keyring-status', // 15.2.0
 );
 ok( $expected_map === $map, 'the map matches its sources exactly, in a pinned order' );
 ok( array() === array_filter( $map, static fn( $s ) => strpos( $s, 'signal-noise/' ) !== 0 ), 'every source is a PLUGIN slug — no section crosses into the theme' );

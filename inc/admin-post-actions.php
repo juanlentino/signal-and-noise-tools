@@ -45,6 +45,7 @@ require_once __DIR__ . '/admin-post-actions/scans.php';
 require_once __DIR__ . '/admin-post-actions/monitoring.php';
 require_once __DIR__ . '/admin-post-actions/theme-ai.php';
 require_once __DIR__ . '/admin-post-actions/music.php';
+require_once __DIR__ . '/admin-post-actions/keyring.php'; // 15.2.0: one form for every credential; Verify all
 require_once __DIR__ . '/admin-post-actions/tags.php';
 require_once __DIR__ . '/admin-post-actions/indexnow.php';
 require_once __DIR__ . '/admin-post-actions/analytics.php';

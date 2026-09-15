@@ -19,6 +19,10 @@ Linked from the leaf's "Developer filter seams →" line
 | `sn_analytics_recommender` | Override the recommendations payload. |
 | `sn_analytics_refresh_secret` | Override the cron-refresh auth secret (default SN_SRV_TOKEN). |
 | `sn_beacon_token` | Override the beacon/collector token (default SN_BEACON_TOKEN). |
+| `sn_server_token` | Override the private server token (default SN_SRV_TOKEN); the keyring fills an empty one from the site secret when the row is switched (15.2.0). |
+| `sn_mr_read_token` | Override the Machine Readers sensor read token; the keyring fills an empty one (15.2.0). |
+| `sn_bridge_secret` | Override the login-guard bridge bearer (default SN_BRIDGE_TOKEN); the keyring fills an empty one (15.2.0). |
+| `sn_prov_hmac_secret` | Override the provenance webhook HMAC secret (default SN_PROV_HMAC_SECRET); the keyring fills an empty one (15.2.0). |
 | `sn_analytics_self_hosts` | Hosts folded as self-referrals in Sources. |
 | `snt_ai_model_preference` | Route AI features to a specific model. |
 | `snt_ai_economy_features` | Which AI features ride the economy tier. |

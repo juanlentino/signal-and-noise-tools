@@ -84,7 +84,8 @@ function sn_prov_worker_url() {
 	return sn_prov_config( 'SN_PROV_WORKER_URL', 'sn_prov_worker_url' );
 }
 function sn_prov_hmac_secret() {
-	return sn_prov_config( 'SN_PROV_HMAC_SECRET', 'sn_prov_hmac_secret' );
+	// 15.2.0: the keyring fills an empty value (the site secret, when switched).
+	return (string) apply_filters( 'sn_prov_hmac_secret', sn_prov_config( 'SN_PROV_HMAC_SECRET', 'sn_prov_hmac_secret' ) );
 }
 function sn_prov_pubkey_b64() {
 	return sn_prov_public_config( 'SN_PROV_PUBKEY_B64', 'sn_prov_pubkey_b64', 'sn_prov_is_ed25519_public_key' );

@@ -136,8 +136,8 @@ ok( ( $by_tab['content']['sub_tabs']['pattern-adoption']['render'] ?? '' ) === '
 // origin cache, the same job at two layers. ORDER is asserted, not just
 // membership: a purge that clears one and not the other is the confusing case,
 // and the two leaves reading adjacently is what makes that legible.
-ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'cloudflare', 'cloudways', 'webhooks', 'indexnow', 'music', 'cron', 'scheduled-content' ),
-	'connections leaves: cloudflare, cloudways, webhooks, indexnow, music, cron, scheduled-content (Music is an external API credential form, Redirects left for Site)' );
+ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'credentials', 'cloudflare', 'cloudways', 'webhooks', 'indexnow', 'music', 'cron', 'scheduled-content' ),
+	'connections leaves: credentials (15.2.0, first: the precondition for the rest), cloudflare, cloudways, webhooks, indexnow, music, cron, scheduled-content' );
 ok( ( $by_tab['connections']['sub_tabs']['cloudways']['render'] ?? '' ) === 'sn_admin_render_cloudways_section',
 	'cloudways names its own leaf render fn' );
 ok( ! empty( $by_tab['connections']['sub_tabs']['cloudways']['wide'] ),

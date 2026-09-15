@@ -26,6 +26,7 @@ require SNT_PATH . 'inc/uptime-status.php';
 require SNT_PATH . 'inc/spend-watch.php';
 require SNT_PATH . 'inc/admin-shell.php';
 require SNT_PATH . 'inc/admin-render-sections.php';
+require SNT_PATH . 'inc/keyring.php'; // 15.2.0: the monitoring block reads sources from the keyring
 require SNT_PATH . 'inc/webhooks-admin.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-webhooks.php';
 
@@ -61,9 +62,9 @@ unset( $_GET['new_id'] );
 $kit = snt_leaf_paint( 'connections', 'webhooks', array( 'flash' => 'wh_added_wh_beta' ) );
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic forms: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
-ok( array( 'monitoring_save', 'webhook_add', 'webhook_delete', 'webhook_update' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the four actions are offered, as on the classic leaf: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( array( 'webhook_add', 'webhook_delete', 'webhook_update' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '15.2.0: three actions, as on the classic leaf; monitoring_save is gone with its fields: ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( 3 === substr_count( $kit, '<os-form class="snt-form" os-action="post"' ), 'three os-forms dispatch post: two webhooks x delete, plus monitoring (update and add are native forms)' );
+ok( 2 === substr_count( $kit, '<os-form class="snt-form" os-action="post"' ), 'two os-forms dispatch post: two webhooks x delete (update and add are native forms; 15.2.0: no monitoring form)' );
 ok( 3 === substr_count( $kit, '<form class="snt-form snt-form--native" method="post" os-action="post">' ), 'three native forms dispatch post: two webhook_update editors plus webhook_add' );
 ok( false !== strpos( $kit, 'heading="Alpha flow"' ) && false !== strpos( $kit, 'heading="Beta flow"' ), 'each webhook is a section headed by its name' );
 ok( false !== strpos( $kit, '<os-code>wh_alpha</os-code>: created ' . gmdate( 'Y-m-d', 1756684800 ) ), 'the id and creation date are shown' );
@@ -95,7 +96,7 @@ $newest = strpos( $kit, '&quot;fired_at&quot;:&quot;' . gmdate( 'Y-m-d H:i:s', 1
 $oldest = strpos( $kit, '&quot;http&quot;:&quot;500&quot;,&quot;status&quot;:&quot;fail&quot;,&quot;response&quot;:&quot;upstream timeout&quot;' );
 ok( false !== $newest && false !== $oldest && $newest < $oldest, 'log rows carry fired-at, attempt, HTTP, ok/fail and the response, newest first' );
 ok( false !== strpos( $kit, '<b>2 webhooks configured</b> <os-badge tone="success">Active</os-badge><br>1 enabled, 1 disabled.' ), 'the status box counts configured and enabled webhooks with an Active pill' );
-ok( false !== strpos( $kit, '<os-text-field name="sn_betterstack_token" type="text" value="••••7890"' ) && false !== strpos( $kit, 'name="sn_spend_gh_token" type="text" value="••••••••"' ) && false !== strpos( $kit, 'name="sn_spend_ai_admin_key" type="text" value=""' ), 'the monitoring form carries the obscured Better Stack and spend-watch tokens' );
+ok( false === strpos( $kit, 'name="sn_betterstack_token"' ) && false === strpos( $kit, 'name="sn_spend_gh_token"' ) && false === strpos( $kit, 'ABCD7890' ) && false === strpos( $kit, '••••7890' ) && false !== strpos( $kit, '>Better Stack API token</dt>' ) && false !== strpos( $kit, '>saved</dd>' ) && false !== strpos( $kit, 'Connections › Credentials' ), '15.2.0: no token field and no value; the sources read saved and the section points to the keyring' );
 ok( false !== strpos( $kit, 'heading="Better Stack status"' ) && false !== strpos( $kit, 'data-sn-uptime-status' ), 'with a token, the Better Stack mount is painted for the shell script to fill' );
 ok( false !== strpos( $kit, 'SignalNoiseTools/' . SNT_VERSION . ' webhook' ) && false !== strpos( $kit, '&quot;site&quot;: &quot;https://example.test/&quot;' ) && false !== strpos( $kit, 'POST &lt;your URL&gt; HTTP/1.1' ), 'the payload reference names the version, the site and the request line' );
 ok( false !== strpos( $kit, '<os-row gap="16"><os-stack col="8" gap="12">' ) && false !== strpos( $kit, '<aside col="4" aria-label="Status &amp; reference">' ), 'the two-column shell is an os-row: the work, then the status and reference rail' );
@@ -168,7 +169,7 @@ ok( false === strpos( $kit, '<script>' ) && false === strpos( $kit, '<img' ) && 
 fixture( array( 'sn_webhooks' => array() ) );
 $classic = snt_leaf_classic_html( 'sn_admin_render_webhooks_section' );
 $kit     = snt_leaf_paint( 'connections', 'webhooks' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'monitoring_save', 'webhook_add' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'empty: names and the two remaining actions match the classic leaf' );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'webhook_add' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'empty: names and the one remaining action match the classic leaf' );
 ok( false !== strpos( $kit, '<os-notice tone="warning" not-dismissible><b>No webhooks configured</b> <os-badge tone="warning">Inactive</os-badge>' ), 'empty: the rail paints the warning status box with an Inactive pill' );
 
 // ── All disabled: configured but inactive.
@@ -179,7 +180,7 @@ ok( false !== strpos( $kit, '<b>1 webhook configured</b> <os-badge tone="warning
 // ── No Better Stack token: no panel, an empty token field.
 fixture( array( 'sn_betterstack_api_token' => '' ) );
 $kit = snt_leaf_paint( 'connections', 'webhooks' );
-ok( false === strpos( $kit, 'data-sn-uptime-status' ) && false !== strpos( $kit, '<os-text-field name="sn_betterstack_token" type="text" value=""' ), 'unconfigured: no Better Stack panel, the token field is empty' );
+ok( false === strpos( $kit, 'data-sn-uptime-status' ) && false !== strpos( $kit, '>not set</dd>' ), 'unconfigured: no Better Stack panel, the token source reads not set' );
 
 // ── Constant-locked token: no name on the field, the lock is explained, the panel is up.
 define( 'SN_BETTERSTACK_API_TOKEN', 'wp-config-token' );
@@ -187,7 +188,7 @@ fixture();
 $classic = snt_leaf_classic_html( 'sn_admin_render_webhooks_section' );
 $kit     = snt_leaf_paint( 'connections', 'webhooks' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && ! in_array( 'sn_betterstack_token', snt_leaf_names( $kit ), true ), 'locked: neither form carries sn_betterstack_token: ' . implode( ',', snt_leaf_names( $kit ) ) );
-ok( false !== strpos( $kit, '<b>Locked.</b> Set via <os-code>SN_BETTERSTACK_API_TOKEN</os-code> in <os-code>wp-config.php</os-code>.' ) && false !== strpos( $kit, 'data-sn-uptime-status' ), 'locked: the constant is named and the Better Stack panel is painted' );
+ok( false !== strpos( $kit, '>locked in wp-config.php</dd>' ) && false !== strpos( $kit, 'data-sn-uptime-status' ), 'locked: the source says wp-config and the Better Stack panel is painted' );
 webhooks_test_prose_oracle( $classic, $kit, 'constant-locked fixture' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

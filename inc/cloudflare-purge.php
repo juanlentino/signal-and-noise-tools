@@ -486,6 +486,8 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	$both_locked      = $token_const_set && $zone_const_set;
 	$last_purge       = get_option( SN_CF_LAST_PURGE_OPT, array() );
 	$is_configured    = sn_cf_is_configured();
+	$acct_const_set   = defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) constant( 'SN_CF_ACCOUNT_ID' );
+	$acct_value       = function_exists( 'sn_cf_get_account_id' ) ? (string) sn_cf_get_account_id() : '';
 
 	echo '<p class="sn-prose">Auto-purges Cloudflare\'s edge cache when content changes. See <code>docs/CACHING.md</code> for the dashboard-side Cache Rule that turns on HTML caching to begin with: without that, this module purges nothing useful (origin pages aren\'t cached at the edge).</p>';
 
@@ -493,60 +495,31 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	// the main column, the module status + manual-purge action in the rail.
 	sn_admin_shell_open();
 
-	// ── MAIN: CREDENTIALS FIELDSET ──
-	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-
+	// ── MAIN: WHERE THE CREDENTIALS LIVE (15.2.0: Connections › Credentials) ──
+	// The token, zone and account are set on the keyring with every other key;
+	// this leaf reads them and says where each comes from.
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Credentials</h2>';
-	echo '<p class="sn-fieldset-intro">API token + zone ID from your Cloudflare dashboard. Both required.</p>';
-
-	// API Token
-	echo '<div class="sn-field sn-field-w-lg">';
-	echo '<label class="sn-field-label" for="sn_cf_token">API token</label>';
-	if ( $token_const_set ) {
-		echo '<input type="text" id="sn_cf_token" value="' . esc_attr( $token_obscured ? $token_obscured : '••••' ) . '" disabled class="sn-mono">';
-		echo '<p class="sn-field-helper"><strong>Locked.</strong> Set via <code>SN_CLOUDFLARE_API_TOKEN</code> in <code>wp-config.php</code>.</p>';
-	} else {
-		echo '<input type="text" id="sn_cf_token" name="sn_cf_token" value="' . esc_attr( $token_obscured ) . '" placeholder="Paste a fresh token to update; type ‘clear’ to remove" class="sn-mono">';
-		echo '<p class="sn-field-helper">Cloudflare API token with <code>Cache Purge</code> permission scoped to your zone. Leave the obscured value alone to keep the existing token.</p>';
+	echo '<p class="sn-field-helper">Set under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=connections&sub=credentials' ) ) . '">Connections › Credentials</a>, with every other key. This leaf only reads them.</p>';
+	$sources = array(
+		'API token'  => $token_const_set ? 'locked by SN_CLOUDFLARE_API_TOKEN' : ( '' !== $token ? 'saved (' . $token_obscured . ')' : 'not set' ),
+		'Zone ID'    => $zone_const_set ? 'locked by SN_CLOUDFLARE_ZONE_ID' : ( '' !== $zone ? $zone : 'not set' ),
+		'Account ID' => $acct_const_set ? 'locked by SN_CF_ACCOUNT_ID' : ( '' !== $acct_value ? $acct_value : 'not set' ),
+	);
+	echo '<table class="widefat"><tbody>';
+	foreach ( $sources as $k => $v ) {
+		echo '<tr><th scope="row">' . esc_html( $k ) . '</th><td class="sn-mono">' . esc_html( $v ) . '</td></tr>';
+	}
+	echo '</tbody></table>';
+	// 14.10.0: the grant list, one place to compare against the token summary.
+	if ( function_exists( 'sn_cf_required_grants' ) ) {
+		echo '<h3 class="sn-fieldset-h">Grants this token needs</h3><ul>';
+		foreach ( sn_cf_required_grants() as $g ) {
+			echo '<li><code>' . esc_html( $g['scope'] . ' › ' . $g['grant'] ) . '</code> · ' . esc_html( $g['for'] ) . ' <em>' . esc_html( $g['status'] ) . '</em></li>';
+		}
+		echo '</ul>';
 	}
 	echo '</div>';
-
-	// Zone ID
-	echo '<div class="sn-field sn-field-w-md">';
-	echo '<label class="sn-field-label" for="sn_cf_zone">Zone ID</label>';
-	if ( $zone_const_set ) {
-		echo '<input type="text" id="sn_cf_zone" value="' . esc_attr( $zone ) . '" disabled class="sn-mono">';
-		echo '<p class="sn-field-helper"><strong>Locked.</strong> Set via <code>SN_CLOUDFLARE_ZONE_ID</code> in <code>wp-config.php</code>.</p>';
-	} else {
-		echo '<input type="text" id="sn_cf_zone" name="sn_cf_zone" value="' . esc_attr( $zone ) . '" placeholder="Paste zone ID; type ‘clear’ to remove" class="sn-mono">';
-		echo '<p class="sn-field-helper">32-char zone ID from Cloudflare dashboard → site overview → API.</p>';
-	}
-	echo '</div>';
-
-	// Account ID (14.10.0: central; the same option the Analytics tab used to write)
-	$acct_const_set = defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) constant( 'SN_CF_ACCOUNT_ID' );
-	$acct_value     = function_exists( 'sn_cf_get_account_id' ) ? (string) sn_cf_get_account_id() : '';
-	echo '<div class="sn-field sn-field-w-md">';
-	echo '<label class="sn-field-label" for="sn_cf_account_id">Account ID</label>';
-	if ( $acct_const_set ) {
-		echo '<input type="text" id="sn_cf_account_id" value="' . esc_attr( $acct_value ) . '" disabled class="sn-mono">';
-		echo '<p class="sn-field-helper"><strong>Locked.</strong> Set via <code>SN_CF_ACCOUNT_ID</code> in <code>wp-config.php</code>.</p>';
-	} else {
-		echo '<input type="text" id="sn_cf_account_id" name="sn_cf_account_id" value="' . esc_attr( $acct_value ) . '" placeholder="32-char account ID; type ‘clear’ to remove" class="sn-mono">';
-		echo '<p class="sn-field-helper">Cloudflare dashboard → account home → the ID in the URL. Analytics Engine reads need it.</p>';
-	}
-	echo '</div>';
-
-	if ( ! ( $both_locked && $acct_const_set ) ) {
-		echo '<div class="sn-fieldset-actions">';
-		echo '<button type="submit" name="sn_action" value="cf_save" class="button button-primary">Save</button>';
-		echo '</div>';
-	}
-
-	echo '</div>'; // .sn-fieldset
-	echo '</form>';
 
 	// ── POST-PURGE PROBES ────────────────────────────────────────────────
 	// v13.71.2. Shipped one release earlier into the RAIL, with three class

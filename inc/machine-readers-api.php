@@ -73,6 +73,8 @@ function snt_mr_config() {
 	$token = ( defined( 'SN_MR_READ_TOKEN' ) && '' !== (string) SN_MR_READ_TOKEN )
 		? (string) SN_MR_READ_TOKEN
 		: ( function_exists( 'sn_setting' ) ? (string) sn_setting( 'machine_readers.read_token', '' ) : '' );
+	// 15.2.0: the keyring fills an empty value (the site secret, when switched).
+	$token = (string) apply_filters( 'sn_mr_read_token', $token );
 
 	$url = ( defined( 'SN_MR_WORKER_URL' ) && '' !== (string) SN_MR_WORKER_URL )
 		? (string) SN_MR_WORKER_URL

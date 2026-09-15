@@ -69,55 +69,29 @@ function snt_an_credentials_fold_open() {
  * @since 6.44.0 (was inline in snt_analytics_render_settings since 3.x)
  */
 function snt_analytics_render_credentials() {
+	$acct_locked = defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) SN_CF_ACCOUNT_ID;
+	$acct_opt    = (string) get_option( SN_CF_ACCOUNT_ID_OPT, '' );
+	$configured  = (bool) ( function_exists( 'sn_analytics_config' ) && sn_analytics_config() );
 	$token_locked = defined( 'SN_CF_ANALYTICS_TOKEN' ) && '' !== (string) SN_CF_ANALYTICS_TOKEN;
-	$acct_locked  = defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) SN_CF_ACCOUNT_ID;
-	$acct_opt     = (string) get_option( SN_CF_ACCOUNT_ID_OPT, '' );
-	$token_opt    = (string) get_option( SN_CF_ANALYTICS_TOKEN_OPT, '' );
-	$configured   = (bool) ( function_exists( 'sn_analytics_config' ) && sn_analytics_config() );
+	$override    = function_exists( 'sn_cf_analytics_override_source' ) ? (string) sn_cf_analytics_override_source() : ( $token_locked ? 'constant' : ( '' !== (string) get_option( SN_CF_ANALYTICS_TOKEN_OPT, '' ) ? 'option' : '' ) );
+	$central     = function_exists( 'sn_cf_get_token' ) && '' !== (string) sn_cf_get_token();
 
+	// 15.2.0: no fields here. The token, the override and the account id are
+	// rows on the keyring (Connections › Credentials); this fold reads them,
+	// says which token is in force, and keeps the connection test.
 	echo '<form method="post" class="sn-an-settings">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Credentials', 'signal-and-noise-tools' ) . '</h3>';
-	/* translators: 1: the read-token wp-config constant name, wrapped in <code>; 2: the account-ID wp-config constant name, wrapped in <code>. */
-	echo '<p class="sn-an-settings-help">' . sprintf( esc_html__( 'Analytics Engine reads use the ONE Cloudflare token under Connections › Cloudflare, with Account › Account Analytics › Read on it. The account ID is the same value as there. A wp-config constant (%1$s / %2$s) overrides these and locks the field.', 'signal-and-noise-tools' ), '<code>SN_CF_ANALYTICS_TOKEN</code>', '<code>SN_CF_ACCOUNT_ID</code>' ) . '</p>';
-	// 14.10.0: say which token is in force.
-	$override = function_exists( 'sn_cf_analytics_override_source' ) ? (string) sn_cf_analytics_override_source() : ( $token_locked ? 'constant' : ( '' !== $token_opt ? 'option' : '' ) );
-	$central  = function_exists( 'sn_cf_get_token' ) && '' !== (string) sn_cf_get_token();
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Set under Connections › Credentials, with every other key. Analytics Engine reads use the Cloudflare API token (Account › Account Analytics › Read on it) unless an analytics token override is set there.', 'signal-and-noise-tools' ) . '</p>';
 	if ( '' !== $override ) {
-		echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'A separate analytics token is in force; the central token is not used for these reads.', 'signal-and-noise-tools' ) . '</p></div>';
+		echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'An analytics token override is in force; the Cloudflare API token is not used for these reads. Clear the override on the keyring to use one token.', 'signal-and-noise-tools' ) . '</p></div>';
 	} elseif ( ! $central ) {
-		echo '<div class="notice notice-error inline"><p>' . esc_html__( 'No token anywhere: set the Cloudflare token under Connections › Cloudflare.', 'signal-and-noise-tools' ) . '</p></div>';
-	}
-
-	// Account ID.
-	echo '<p><label for="sn_cf_account_id"><strong>' . esc_html__( 'Account ID', 'signal-and-noise-tools' ) . '</strong></label><br>';
-	if ( $acct_locked ) {
-		echo '<input type="text" id="sn_cf_account_id" value="' . esc_attr__( '(set in wp-config)', 'signal-and-noise-tools' ) . '" disabled class="regular-text">';
-		/* translators: %s: the wp-config constant name, wrapped in <code>. */
-		echo '<br><span class="sn-an-empty">' . sprintf( esc_html__( 'Locked by the %s constant.', 'signal-and-noise-tools' ), '<code>SN_CF_ACCOUNT_ID</code>' ) . '</span>';
+		echo '<div class="notice notice-error inline"><p>' . esc_html__( 'No token anywhere: set the Cloudflare API token under Connections › Credentials.', 'signal-and-noise-tools' ) . '</p></div>';
 	} else {
-		echo '<input type="text" id="sn_cf_account_id" name="sn_cf_account_id" value="' . esc_attr( $acct_opt ) . '" class="regular-text" placeholder="' . esc_attr__( '32-char Cloudflare account ID', 'signal-and-noise-tools' ) . '">';
+		echo '<p class="sn-an-empty">' . esc_html__( 'Reading with the Cloudflare API token.', 'signal-and-noise-tools' ) . '</p>';
 	}
-	echo '</p>';
-
-	// Read token (masked).
-	echo '<p><label for="sn_cf_analytics_token"><strong>' . esc_html__( 'Separate analytics token (optional)', 'signal-and-noise-tools' ) . '</strong></label><br>';
-	if ( $token_locked ) {
-		echo '<input type="text" id="sn_cf_analytics_token" value="••••" disabled class="regular-text">';
-		/* translators: %s: the wp-config constant name, wrapped in <code>. */
-		echo '<br><span class="sn-an-empty">' . sprintf( esc_html__( 'Locked by the %s constant.', 'signal-and-noise-tools' ), '<code>SN_CF_ANALYTICS_TOKEN</code>' ) . '</span>';
-	} else {
-		echo '<input type="text" id="sn_cf_analytics_token" name="sn_cf_analytics_token" value="' . esc_attr( sn_mask_secret( $token_opt ) ) . '" class="regular-text" placeholder="' . esc_attr__( 'Empty: the Connections › Cloudflare token is used', 'signal-and-noise-tools' ) . '">';
-	}
-	echo '</p>';
-	if ( 'option' === $override ) {
-		echo '<p><button type="submit" name="sn_action" value="analytics_use_central_token" class="button">' . esc_html__( 'Use the central token', 'signal-and-noise-tools' ) . '</button></p>';
-	}
-
-	if ( ! ( $token_locked && $acct_locked ) ) {
-		echo '<p><button type="submit" name="sn_action" value="analytics_save" class="button button-primary">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button> ';
-		echo '<button type="submit" name="sn_action" value="analytics_test" class="button"' . ( $configured ? '' : ' disabled' ) . '>' . esc_html__( 'Test connection', 'signal-and-noise-tools' ) . '</button></p>';
-	}
+	echo '<p class="sn-an-empty">' . esc_html__( 'Account ID:', 'signal-and-noise-tools' ) . ' <code>' . esc_html( $acct_locked ? 'locked by SN_CF_ACCOUNT_ID' : ( '' !== $acct_opt ? $acct_opt : 'not set' ) ) . '</code></p>';
+	echo '<p><button type="submit" name="sn_action" value="analytics_test" class="button"' . ( $configured ? '' : ' disabled' ) . '>' . esc_html__( 'Test connection', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
 }
 

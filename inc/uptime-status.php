@@ -549,6 +549,7 @@ function sn_uptime_status_mount_html() {
  *
  * @return string
  */
+// @deprecated 15.2.0: unreachable, its form moved to the keyring (Connections › Credentials); removed next release.
 function sn_uptime_status_token_field_html() {
 	$html = '<div class="sn-field sn-field-w-lg">';
 	$html .= '<label class="sn-field-label" for="sn_betterstack_token">' . esc_html__( 'Better Stack API token (optional)', 'signal-and-noise-tools' ) . '</label>';

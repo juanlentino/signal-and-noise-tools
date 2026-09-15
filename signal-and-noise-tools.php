@@ -91,6 +91,9 @@ require_once SNT_PATH . 'inc/cloudflare-purge.php';
 require_once SNT_PATH . 'inc/cloudflare-monitor.php';    // 14.9.0: token verify, zone analytics, firewall events -- what the CF API will tell us (the rate monitor could never fill its row: CF sends no x-ratelimit headers).
 require_once SNT_PATH . 'inc/cloudflare-credentials.php'; // 14.10.0: ONE Cloudflare credential set; the analytics token is an override, migrated once.
 require_once SNT_PATH . 'inc/cloudflare-firewall-events.php'; // 15.1.0: the raw firewall event log (open to every plan), read daily: the WAF witness from Cloudflare's side; top blocked paths and countries.
+require_once SNT_PATH . 'inc/keyring.php';        // 15.2.0: every credential in one registry; the site secret the handshakes derive from.
+require_once SNT_PATH . 'inc/keyring-verify.php'; // 15.2.0: one probe per credential, verdicts stored; "Verify all".
+require_once SNT_PATH . 'inc/keyring-admin.php';  // 15.2.0: the row model both leaves paint; the classic Connections › Credentials leaf.
 require_once SNT_PATH . 'inc/cloudways-purge.php';    // v8.6.0: reliable Varnish clear via the Cloudways API (rides breeze_clear_varnish)
 require_once SNT_PATH . 'inc/admin-forms/cloudways.php'; // v12.17.0: Connections → Cloudways status glance (display-only; reads SNT_CW_LAST_PURGE_OPT written by the purge above)
 require_once SNT_PATH . 'inc/freshness-indicator.php'; // v8.5.1: dashboard cache-freshness dot (client-checked CSS-hash)
@@ -489,6 +492,7 @@ require_once __DIR__ . '/inc/watches.php';  // v13.90.0: the things that come du
 require_once __DIR__ . '/inc/health-check-gsc-history.php';  // v13.89.0: the GSC sync firing while its history stops growing — the half cron_health cannot see.
 require_once __DIR__ . '/inc/abilities-cache-freshness.php';  // v13.92.0: the cache verdict finally has a machine reader — six releases were verified by asking a human to read a widget.
 require_once __DIR__ . '/inc/abilities-cloudflare-status.php'; // 14.9.0: the Cloudflare monitor on the read door (token, zone, firewall).
+require_once __DIR__ . '/inc/abilities-keyring-status.php';    // 15.2.0: every credential's source and verdict on the read door; never a value.
 require_once __DIR__ . '/inc/abilities-watches.php';  // v13.90.0: the watch registry's agent reader — the brief mails it to a human, this answers "what is outstanding?".
 require_once __DIR__ . '/inc/abilities-shape-stability.php';  // v13.88.0: the shape ledger's FIRST reader. It had a writer since v13.85.0 and sn_shape_stability() was called only from tests.
 require_once __DIR__ . '/inc/abilities-purge-verification-log.php';  // v13.86.0: the purge-verification trail IN ROWS. The log had two render surfaces and no agent reader, so "the stale count is climbing — what do those probes share?" needed a screenshot and a guess.
