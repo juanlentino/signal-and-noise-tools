@@ -354,14 +354,66 @@ Five green dots at the end: Full (strict), TLS 1.2, HTTPS forced, Development
 Mode off, DNSSEC active, four custom rules enabled and named. Both were
 invisible from wp-admin this morning and both are read daily now.
 
+## The reader's agent gets the site's own arithmetic
+
+The evening went somewhere the morning did not expect. "Is there any very
+small model to manage the Notes recommendations?" There already was one:
+`bge-base` at the edge, ranking 55 notes at rebuild, the smallest thing that
+does the job. The honest answer was that the model is not the interesting
+part; the browser is. Since August every page carries a WebMCP bridge that
+registers tools with the reader's own agent, and the reader's agent brings
+its own model. So the question became: what should the page offer it?
+
+Four tools, in two arcs, with one rule kept from August: a bridge tool reads
+public bytes and calls no authenticated door. The owner reversed his own
+two-tool decision from the 28th, in his words, and the design note records
+both the reversal and the rule. Arc one shipped the same night across three
+repos in the order the design demanded: the plugin first (15.5.0: a
+related-notes manifest on every note beside the verification one, and
+`/notes/index.json`, the machine twin of the whole site, "the sitemap should
+have everything"), then the rights-signals worker (1.25.0: `related-notes`,
+`get-site-map`, `get-citation` with the owner's author form and ORCID on
+every note, and a beacon so tool use is a number rather than a guess), and
+the provenance sweep minted the new bridge version on its own.
+
+"I hope no one can abuse these tools at all." The abuse map was short
+because the tools are read-only over public bytes; the one write, the
+beacon, was shaped to write nothing unless everything about the call is
+right, and to answer 204 whatever it did. The per-IP ceiling did not spend
+the zone's one rate-limiting rule: the Workers Rate Limiting binding does
+the same thing inside the worker, failing closed, and shipped as 1.25.1.
+
+Then the owner wanted the tools where he could see them, "somewhere,
+somehow", and then more precisely: under AI, where MCP lives, and with all
+the tools there, the MCP ones too. 15.6.0 is that leaf: Agent tools, every
+tool an agent can call on this site by door, and whether it does. On the
+page, the bridge's five with calls and outcomes, reported by browsers; what
+they read, with a dot each; through MCP, the call log open and the four
+doors folded, moved out of MCP Clients, which now says only how to connect;
+through Copilot, the leaf that used to stand alone. Config, config,
+observation.
+
+Two things the build taught, both already in memory by the time this was
+written. The Machine Readers normalizer folds an unknown family into
+`other-bot` and an unknown surface into `html`, so the beacon's rows had to
+be split off before it ran or a tool call would have read as a bot fetching
+a page. And the summary ability is a remote-MCP contract twin: one additive
+field is a version bump and a worker redeploy, so a figure that reads zero
+until agents arrive rides the fetch result and the leaf instead, and joins
+the payload when it has a number. Arc two, the semantic search on the
+worker, is gated on exactly that number.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
   rolled-away Cloudflare token); mint a real site secret when a worker row
   should derive from one.
 - Worker #45 (vitest): its cooldown clears 2026-09-17 around 18:00Z.
-- Plugin 15.4.1 (the posture's words, the scopes measured): cut in progress;
-  installs through the updater.
+- Plugin 15.6.0 (Agent tools): cut in progress; installs through the updater.
+- WebMCP bridge v2 arc two (`search-notes` on the worker): gated on a month
+  of beacon rows on AI › Agent tools, or the owner saying build it.
+- The provenance sweep's `webmcp-bridge/v2` record: confirm in the ledger
+  index on the next read.
 - Upstream OpenStation #819 / #820: with the maintainers.
 - The `firewallEventsAdaptive` page is a floor past 10,000 samples a day; page
   it when a day gets there.
