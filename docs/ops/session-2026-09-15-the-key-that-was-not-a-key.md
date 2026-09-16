@@ -255,6 +255,35 @@ missed. A list is only as good as the census that checks it.
 The owner's rule from this, recorded: where the reference names THE way to
 do a thing, do it that way, no hand-rolled twin, no doubt.
 
+## The same sweep, on the theme
+
+"Also do the same sweep on the theme repo." Same points, the Theme Handbook's
+and the theme.json reference's this time, under bash, the sibling worktrees
+excluded from the grep. Clean on most of it: pattern headers and their
+category, template part areas, custom template post types, fonts through
+`fontFace`, the JS blocks on `block.json`, the variation, the screenshot,
+hook timings. Three drifts.
+
+The text domain was `signal-noise` against a slug of `signal-and-noise`, the
+mismatch the plugin fixed in 8.7.2 and Theme Check flags. Sixty-four calls,
+the header, three manifests, the updater's upload identity constant and the
+phpcs property. The same string is also the pattern category, the block
+category and the block namespace, none of them a text domain, so the census
+that pins it scans the domain argument of each i18n call with balanced
+parentheses rather than the literal. The nine PHP-only furniture blocks from
+13.1.0 registered from PHP argument arrays; they have `block.json` and
+`render.php` now, the Block Editor Handbook's canonical form, and the registry
+is a loop over the directories.
+
+The third I got wrong before I got it right. I read `settings.viewport` as a
+key theme.json does not know, from memory of the 7.0 schema, and deleted it.
+The theme's own suite, pinned to the 7.1 dev note on configurable viewports,
+went red, and it was right: the key is 7.1's, the file's `$schema` still said
+7.0, and the drift was the pointer. I fetched both schemas and counted the
+key before touching it again. A `$schema` line is a version claim, and it now
+has to equal `Tested up to`. Theme 13.2.3 carries all three, pinned by
+derivation in `tests/reference-conformance.php`.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
