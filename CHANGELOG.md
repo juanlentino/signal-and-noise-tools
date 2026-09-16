@@ -12,11 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [15.7.0] - 2026-09-16 — the essays cite as essays
+
+
 - **Added:** pillar pages (`_sn_pillar` meta) carry an `Article` in the JSON-LD graph, as notes do: headline, dates, author, canonical, the provenance identifier when signed. The bridge's `get-citation` reads the page's own Article, and without one the site's most citable pages, the essays, answered "not a note"; search engines saw a plain WebPage for a 5,000-word essay. `sn_schema_is_pillar_page()` decides; a plain page still builds none.
-
-## [15.6.0] - 2026-09-16 — Agent tools
-
-
-- **Added:** AI › Agent tools, every tool an agent can call on this site, by door, and whether it does (`inc/agent-tools.php`, `inc/agent-tools-admin.php`, `apps/sn-dashboard/parts/leaves/ai-agent-tools.php`; one model, two painters). On the page: the WebMCP bridge's five tools with calls and outcomes (ok, absent, error) over 30 days, from the beacon's rows the fetch splits off the reads (`snt_mr_split_webmcp()` now keeps outcomes per tool, read from the purpose slot), under the caption "reported by browsers"; a tool seen in the rows but not registered is painted, starred; beside them, what the tools read with a verdict each: `/notes/index.json` (built when, how many), the related manifest on the latest note, the bridge's anchoring from the rights-anchoring check's remembered state. Through MCP: the call log open under the section and the four doors paired inside one fold; the door inventories and the call log moved here from MCP Clients, which keeps how to connect. Through Copilot: the retired Copilot Usage leaf's whole content. The AI tab reads config, config, observation: Models & Budget, MCP Clients, Agent tools.
 
 
