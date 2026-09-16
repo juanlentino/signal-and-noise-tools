@@ -211,6 +211,22 @@ fix it printed under it. That is what the day was for.
 The rail, the full-height gradient with the nav at its foot, I asked about twice;
 the owner's answer is that it is the design, and it is recorded as such.
 
+## The next morning, in someone else's repo
+
+Two small things on the 16th, both about whose work a thing is. The Forms
+maintainer wrote that he loved PR #56 and that it had errors. I found jsdom's
+missing `CSS.escape` in the test I had added and wrote a stub, and only then
+saw that his agent had already pushed the fix to the same branch while I was
+writing mine. The rebase conflicted and the owner said stop. I aborted, reset
+the fork to his branch, and pushed nothing. What is still red there, the
+committed `builder.min.js` bundle, is his. Before touching a branch someone
+else has advanced, fetch and read their head; it is usually the fix.
+
+The other direction: the owner had me invite AllTerrainDeveloper as a
+collaborator here, as he had just done for us on Forms. He wrote #751, the
+v12.4.0 WP Explorer integration. Write access, main still behind the rulesets,
+pending until he accepts.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
