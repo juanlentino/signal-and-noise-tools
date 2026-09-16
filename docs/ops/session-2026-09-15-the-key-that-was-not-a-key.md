@@ -286,10 +286,24 @@ derivation in `tests/reference-conformance.php`.
 
 ## Left open
 
-- Clear the analytics override and the stale site secret (both still hold the
-  rolled-away Cloudflare token); mint a real site secret when a worker row
-  should derive from one.
-- Worker #45 (vitest): its cooldown clears 2026-09-17 around 18:00Z.
+Refreshed 2026-09-16 evening, each line read from its source rather than
+carried over.
+
+- The analytics override is cleared (`keyring-status`: unset) and the site
+  secret now derives a sensor token the sensor accepts, so the two stale
+  copies of the rolled Cloudflare token are gone. Closed.
+- Verify all, 19:09Z: every probed row `ok`, the Workers AI token included
+  (it answers as an account token, like the API token; one token in two rows
+  is fine if meant, and the row is where a narrower one goes). Closed.
+- Plugin 15.3.4 and theme 13.2.3 installed through the WP updater; the
+  deploy reading says current equals latest for both and all five workers.
+  Closed.
+- AllTerrainDeveloper's write invitation is pending (sent 17:00Z today).
+- Forms PR #56 is merged by the maintainer and shipped as Forms 1.2.0 ("A
+  better builder on your phone", 16:33Z); the owner synced our fork to it and
+  closed its own #2. Closed.
+- sn-provenance-worker #45 (vitest 4.1.11): the cooldown clears 2026-09-17
+  around 18:00Z; merge after it.
 - Upstream OpenStation #819 / #820: with the maintainers.
-- The `firewallEventsAdaptive` page is a floor past 10,000 samples a day; page
-  it when a day gets there.
+- The `firewallEventsAdaptive` page is a floor past 10,000 samples a day;
+  page it when a day gets there.
