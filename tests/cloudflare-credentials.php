@@ -41,7 +41,7 @@ foreach ( $grants as $g ) {
 	ok( in_array( $g['status'], array( 'documented', 'measured', 'candidate' ), true ), "{$g['grant']}: its status says how sure we are ({$g['status']})" );
 }
 ok( 6 === count( $grants ) && array() === array_filter( $grants, static function ( $g ) { return 'candidate' === $g['status']; } ), '15.4.0: six grants, no candidates: three measured, three the endpoints\' API reference names for the posture reads (the firewall still needs none: the plan decides its dataset)' );
-ok( array( 'Zone Settings › Read', 'Zone WAF › Read', 'DNS › Read' ) === array_column( array_slice( $grants, 3 ), 'grant' ) && array() === array_diff( array_column( array_slice( $grants, 3 ), 'status' ), array( 'documented', 'measured' ) ), 'the three posture scopes are named as the endpoint docs name them' );
+ok( array( 'Zone Settings › Read', 'Zone WAF › Read', 'DNS › Read' ) === array_column( array_slice( $grants, 3 ), 'grant' ) && array( 'measured', 'measured', 'measured' ) === array_column( array_slice( $grants, 3 ), 'status' ), '15.4.1: the three posture scopes, named as the endpoint docs name them, all measured (2026-09-16)' );
 
 // ── Migration: once, only into an empty central token, never over a constant
 $GLOBALS['__opt'] = array( SN_CF_ANALYTICS_TOKEN_OPT => 'legacy-tok' ); $GLOBALS['__writes'] = array();
