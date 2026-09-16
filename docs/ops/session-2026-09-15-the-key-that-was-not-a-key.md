@@ -292,10 +292,12 @@ carried over.
 - The analytics override is cleared (`keyring-status`: unset) and the site
   secret now derives a sensor token the sensor accepts, so the two stale
   copies of the rolled Cloudflare token are gone. Closed.
-- The Workers AI token row (15.3.1) has no verdict yet; the last Verify all
-  ran on the 15th at 21:23Z, before the row existed. One click on Verify all.
-- Plugin 15.3.4 and theme 13.2.3 are released; the site installs them
-  through the WP updater on its next check, never by hand.
+- Verify all, 19:09Z: every probed row `ok`, the Workers AI token included
+  (it answers as an account token, like the API token; one token in two rows
+  is fine if meant, and the row is where a narrower one goes). Closed.
+- Plugin 15.3.4 and theme 13.2.3 installed through the WP updater; the
+  deploy reading says current equals latest for both and all five workers.
+  Closed.
 - AllTerrainDeveloper's write invitation is pending (sent 17:00Z today).
 - Forms PR #56 is merged by the maintainer; nothing further there. Our fork
   of `forms` still holds one open PR (#2, the phone-layer fold) on our side.
