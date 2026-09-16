@@ -323,16 +323,45 @@ followed would have swept anything written into the same worktree into the
 cut. This section was written from a second worktree for that reason. A
 gate merges and stops; it never decides where HEAD is.
 
+## What the first read found, and what changed because of it
+
+The posture's first live read had two red dots, and neither was a false one.
+DNSSEC was `disabled` at the zone. SSL mode was `full`: the edge encrypted
+to the origin but did not check who the origin was. The owner asked whether
+to switch to Full (strict), and the right answer needed one measurement
+first: a TLS handshake to the Cloudways server with the site's name. It
+answered with Cloudways' own `*.cloudwaysapps.com` wildcard, trusted but not
+for juanlentino.com; strict would have refused the origin and served 526 to
+everyone. The Cloudways record agreed (`lets_encrypt: null`) where the
+owner's memory said a certificate was there. A Cloudflare Origin CA
+certificate, minted on Cloudflare and pasted into Cloudways as Custom SSL,
+put the right name on the origin, valid to 2041; the handshake confirmed it
+before the mode was touched; the next read said `strict`.
+
+DNSSEC took twenty minutes. Cloudflare mints the DS record; Namecheap hides
+the form for it behind a toggle on the Advanced DNS tab, where a custom-DNS
+domain otherwise shows nothing, which is what "I can't add the DS record"
+meant. `pending` at 20:03, `active` at 20:21.
+
+Two smaller things the read taught. The DNS Read scope went first onto a
+user token, not the account-owned one the plugin holds; the read that had
+already succeeded, zone settings, said which token was in use, because the
+edited token lacked that scope. And Cloudflare reports TLS 1.3 with 0-RTT as
+`zrt`, which the leaf showed raw for a few hours. 15.4.1 carries the word
+and flips the three scopes to measured.
+
+Five green dots at the end: Full (strict), TLS 1.2, HTTPS forced, Development
+Mode off, DNSSEC active, four custom rules enabled and named. Both were
+invisible from wp-admin this morning and both are read daily now.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
   rolled-away Cloudflare token); mint a real site secret when a worker row
   should derive from one.
 - Worker #45 (vitest): its cooldown clears 2026-09-17 around 18:00Z.
-- Plugin 15.4.0 (the edge posture): cut in progress. After it installs and
-  one Refresh now, read `cloudflare-status.posture` and flip the three new
-  grants (Zone Settings Read, Zone WAF Read, DNS Read) from `documented` to
-  `measured`.
+- Plugin 15.4.1 (the posture's words, the scopes measured): cut in progress;
+  installs through the updater.
 - Upstream OpenStation #819 / #820: with the maintainers.
 - The `firewallEventsAdaptive` page is a floor past 10,000 samples a day; page
   it when a day gets there.
