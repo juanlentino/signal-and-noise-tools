@@ -299,8 +299,9 @@ carried over.
   deploy reading says current equals latest for both and all five workers.
   Closed.
 - AllTerrainDeveloper's write invitation is pending (sent 17:00Z today).
-- Forms PR #56 is merged by the maintainer; nothing further there. Our fork
-  of `forms` still holds one open PR (#2, the phone-layer fold) on our side.
+- Forms PR #56 is merged by the maintainer and shipped as Forms 1.2.0 ("A
+  better builder on your phone", 16:33Z); the owner synced our fork to it and
+  closed its own #2. Closed.
 - sn-provenance-worker #45 (vitest 4.1.11): the cooldown clears 2026-09-17
   around 18:00Z; merge after it.
 - Upstream OpenStation #819 / #820: with the maintainers.
