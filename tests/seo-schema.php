@@ -42,6 +42,10 @@ $GLOBALS['__ss'] = array(
 if ( ! function_exists( 'is_singular' ) ) {
 	function is_singular( $type = '' ) {
 		// Article/WebPage emitters call is_singular('post'); collection uses none.
+		// 15.7.0: the Article builder also asks is_singular('page') for pillars.
+		if ( 'page' === $type ) {
+			return (bool) ( $GLOBALS['__ss']['is_page'] ?? false );
+		}
 		return (bool) $GLOBALS['__ss']['is_singular_post'];
 	}
 }
@@ -66,6 +70,11 @@ if ( ! function_exists( 'is_page' ) ) {
 if ( ! function_exists( 'is_front_page' ) ) {
 	function is_front_page() {
 		return (bool) ( $GLOBALS['__ss']['is_front_page'] ?? false );
+	}
+}
+if ( ! function_exists( 'get_post_meta' ) ) {
+	function get_post_meta( $id, $key = '', $single = false ) {
+		return $GLOBALS['__ss']['meta'][ $id ][ $key ] ?? '';
 	}
 }
 if ( ! function_exists( 'get_queried_object' ) ) {
@@ -217,6 +226,20 @@ ss_true( isset( $article['wordCount'] ) && is_int( $article['wordCount'] ) && $a
 ss_eq( 'PT4M', $article['timeRequired'] ?? null, 'timeRequired === PT4M' );
 ss_eq( 'foo, bar', $article['keywords'] ?? null, 'keywords === "foo, bar"' );
 ss_eq( 'Music', $article['articleSection'] ?? null, 'articleSection === first category name' );
+
+// 15.7.0: a pillar PAGE (`_sn_pillar` meta) gets an Article too; a plain page does not.
+echo "\n15.7.0: pillar pages carry an Article; plain pages do not\n";
+$saved = $GLOBALS['__ss'];
+$GLOBALS['__ss']['is_singular_post'] = false;
+$GLOBALS['__ss']['is_page']          = true;
+$GLOBALS['__ss']['queried']          = (object) array( 'ID' => 12, 'post_name' => 'over-detection', 'post_parent' => 0, 'post_content' => 'The essay body, five words.', 'post_date' => '2026-07-25 10:00:00' );
+$GLOBALS['__ss']['meta']             = array( 12 => array( '_sn_pillar' => '1' ) );
+$pillar = sn_schema_article();
+ss_true( is_array( $pillar ) && 'Article' === $pillar['@type'] && 'https://example.com/notes/post-12/#article' === $pillar['@id'], 'a pillar page builds an Article with its own @id' );
+ss_true( isset( $pillar['datePublished'], $pillar['dateModified'], $pillar['mainEntityOfPage'] ), 'with dates and mainEntityOfPage, what get-citation reads' );
+$GLOBALS['__ss']['meta'] = array( 12 => array() );
+ss_true( null === sn_schema_article(), 'a plain page (no _sn_pillar) builds none' );
+$GLOBALS['__ss'] = $saved;
 
 // T2 negative: no terms → keys absent.
 echo "\nT2 negative: no terms → keywords/articleSection absent\n";
