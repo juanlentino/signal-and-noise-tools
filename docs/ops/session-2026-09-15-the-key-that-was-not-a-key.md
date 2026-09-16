@@ -452,8 +452,9 @@ engines wanted anyway.
   the deploy reading says current equals latest for the plugin, the theme and the
   five workers. The two worker versions merged tonight had no tags until then,
   and the deploy reading names `latest` from tags: tagged, and the row agrees.
-- Theme 13.2.4 (the footnotes popover's document target) and plugin 15.7.0
-  (pillar Articles): cuts in progress; worker 1.25.2 live and tagged.
+- Theme 13.2.4 (the footnotes popover's document target, 22:59Z) and plugin
+  15.7.0 (pillar Articles, 23:12Z) released; worker 1.25.2 live and tagged.
+  After 15.7.0 installs, cite a pillar through the bridge as the proof.
 - Cloudflare Web Analytics vs the CSP: the beacon is blocked on every page;
   turn Web Analytics off, or allow `static.cloudflareinsights.com` in the
   script-src of the transform rule. Owner's call.
