@@ -409,7 +409,10 @@ worker, is gated on exactly that number.
   rolled-away Cloudflare token); mint a real site secret when a worker row
   should derive from one.
 - Worker #45 (vitest): its cooldown clears 2026-09-17 around 18:00Z.
-- Plugin 15.6.0 (Agent tools) released 22:18Z; installs through the updater.
+- Plugin 15.6.0 (Agent tools) released 22:18Z and installed on the site by 22:40Z;
+  the deploy reading says current equals latest for the plugin, the theme and the
+  five workers. The two worker versions merged tonight had no tags until then,
+  and the deploy reading names `latest` from tags: tagged, and the row agrees.
 - WordPress 7.1.1 is imminent (its schedule was posted 2026-09-02); the site
   takes it through the updater, never by hand. Core's move to Node 24 and
   npm 11 touches nothing here: the plugin and the theme have no Node
