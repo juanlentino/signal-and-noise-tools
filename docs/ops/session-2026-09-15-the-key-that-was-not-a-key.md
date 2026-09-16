@@ -227,6 +227,34 @@ collaborator here, as he had just done for us on Forms. He wrote #751, the
 v12.4.0 WP Explorer integration. Write access, main still behind the rulesets,
 pending until he accepts.
 
+## The reference, and the one thing it caught
+
+The owner asked whether we had used developer.wordpress.org and then whether
+anything in the plugin or the theme "needs some rightness" by it. Not a
+question to answer from memory. I swept both repos for the points the
+reference is authoritative on and code drifts from silently: deprecated
+functions, string autoloads, translation calls before `init`, REST routes
+without a permission callback, abilities without annotations, `theme.json`
+and `block.json` versions, cron scheduled and never cleared. The first pass
+returned zeros everywhere, which was the shell: zsh does not split a variable
+of grep flags into words, so every grep got one bogus argument. Under bash the
+sweep read clean on every point but one.
+
+The plugin armed thirty-eight cron hooks, twenty-four recurring and fourteen
+single, and had no deactivation hook. The Plugin Handbook's cron page says a
+plugin unschedules its events on deactivation, because the events outlive it
+in the `cron` option and WP-Cron keeps firing them into a callback that is
+gone. 15.3.4 does it the documented way and no other: one list, one
+`register_deactivation_hook( __FILE__, ... )` beside the activation hook that
+was already there, `wp_unschedule_hook()` on each, chosen over
+`wp_clear_scheduled_hook()` because the single events carry arguments and only
+the first ignores them. The suite derives the scheduled set from source and
+pins the list both ways; on its first run it named two hooks my hand list had
+missed. A list is only as good as the census that checks it.
+
+The owner's rule from this, recorded: where the reference names THE way to
+do a thing, do it that way, no hand-rolled twin, no doubt.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
