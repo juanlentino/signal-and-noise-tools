@@ -284,12 +284,55 @@ key before touching it again. A `$schema` line is a version claim, and it now
 has to equal `Tested up to`. Theme 13.2.3 carries all three, pinned by
 derivation in `tests/reference-conformance.php`.
 
+## What the edge is set to
+
+"Since we have a firewall now, should we have something else for security
+that comes from Cloudflare?" The honest inventory: the plugin read two
+endpoints, the firewall log and the token verify, and the headers probe read
+the edge from outside. What none of them could see is what the edge is set
+to. A Flexible SSL mode looks identical to Full (strict) from the origin,
+because the edge terminates TLS either way; Development Mode left on after a
+debugging session bypasses the cache for three hours with nothing in
+wp-admin saying so. Cloudflare's own docs name a read for each: zone
+settings, DNSSEC, and the custom ruleset, each on the Free plan, each with a
+scope the API reference names.
+
+15.4.0 reads the three daily on the monitor's hook and on Refresh now, one
+option, never at request time. The owner asked that the readings be placed
+"with some taste and sense", so the Firewall leaf keeps its two columns and
+the posture sits under Acted on: the five judged rows as a dotted list in
+words (Full (strict), TLS 1.2, on, off, active), the plain readings as one
+quiet line, the custom rules by name with their state, and a refused read as
+one notice naming the scope while the rest still paints. The Top rules list
+on the left names its rules now instead of showing ids. Health check 27 turns
+a drift into a finding, and a refused read into a finding too, never a pass.
+
+The witness for the abilities rule gained its best source. The ruleset read
+says whether the rule exists and is enabled, from the side that enforces it,
+on a quiet day with no blocks. It reads first; the log second; Better Stack
+third. A disabled rule reads open even with a fresh block in the log,
+because that block was yesterday's rule. The order encodes what each source
+can prove: configuration from the enforcer, then behaviour from the enforcer,
+then behaviour from outside.
+
+One thing nearly went wrong, and is recorded. The background gate for the
+morning's docs PR ended by detaching this worktree to origin/main, and it
+fired while the posture module sat uncommitted on a feature branch. Git
+carried the edits across, so nothing was lost, but the release chain that
+followed would have swept anything written into the same worktree into the
+cut. This section was written from a second worktree for that reason. A
+gate merges and stops; it never decides where HEAD is.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
   rolled-away Cloudflare token); mint a real site secret when a worker row
   should derive from one.
 - Worker #45 (vitest): its cooldown clears 2026-09-17 around 18:00Z.
+- Plugin 15.4.0 (the edge posture): cut in progress. After it installs and
+  one Refresh now, read `cloudflare-status.posture` and flip the three new
+  grants (Zone Settings Read, Zone WAF Read, DNS Read) from `documented` to
+  `measured`.
 - Upstream OpenStation #819 / #820: with the maintainers.
 - The `firewallEventsAdaptive` page is a floor past 10,000 samples a day; page
   it when a day gets there.
