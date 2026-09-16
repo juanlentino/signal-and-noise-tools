@@ -39,7 +39,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 // reference documents sn_beacon_token (inc/rss-feed-tracker.php) — without it
 // the no-phantom-docs assertion below could never hold. \s* + /s keep the
 // match multi-line safe (snt_ai_economy_features is applied across lines).
-$prefixes = 'sn_analytics_|snt_ai_|sn_beacon_|sn_server_|sn_mr_|sn_bridge_|sn_prov_hmac_'; // 15.2.0: the four keyring-filled handshake seams are documented too
+$prefixes = 'sn_analytics_|snt_ai_|sn_beacon_|sn_server_|sn_mr_|sn_bridge_|sn_prov_hmac_|sn_site_map_'; // 15.2.0: the four keyring-filled handshake seams are documented too; 15.5.0: the site-map papers list
 $found    = array();
 $files    = snt_test_inc_files(); // #987: depth-agnostic; was inc/*.php + inc/*/*.php, correct only to depth 2.
 foreach ( $files as $f ) {
