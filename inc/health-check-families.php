@@ -97,6 +97,7 @@ function sn_health_check_family_map() {
 
 		// Edge & security: what Cloudflare and the Workers are doing.
 		'cf_security_headers'  => 'edge',
+		'cf_edge_posture'      => 'edge',
 		'edge_workers'         => 'edge',
 		// Not content, links, ml, provenance, analytics or edge: this one is
 		// about the site's own plugin registry. 'other' is a DECLARED family

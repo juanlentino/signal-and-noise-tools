@@ -62,7 +62,7 @@ function sn_admin_flash_messages() {
 		'login_failed'              => array( 'error', 'Login slug save failed.' ),
 		'cf_purged_ok'              => array( 'success', 'Cloudflare zone purge dispatched.' ),
 		'cf_purged_unconfigured'    => array( 'warning', 'Cloudflare not configured: set the API token and zone ID first.' ),
-		'cf_monitor_refreshed'      => array( 'success', 'Cloudflare monitor refreshed: token, zone and firewall read.' ),
+		'cf_monitor_refreshed'      => array( 'success', 'Cloudflare monitor refreshed: token, zone, firewall and edge posture read.' ),
 		'keyring_saved'             => array( 'success', 'Credentials saved. Press Verify all to check them.' ),
 		'keyring_unchanged'         => array( 'info', 'Nothing changed: every field was empty or still obscured.' ),
 		'keyring_verified'          => array( 'success', 'Every credential with a probe was accepted.' ),

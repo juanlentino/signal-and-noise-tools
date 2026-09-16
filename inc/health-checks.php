@@ -147,6 +147,9 @@ function sn_health_run_scan() {
 			// served core's spacing scale for its whole life that way (theme #284).
 			'theme_presets'       => sn_health_check_theme_presets(),
 			'cf_security_headers' => sn_health_check_cf_security_headers(),
+			// 27th check (15.4.0): what the edge is SET TO (SSL mode, min TLS, Always
+			// Use HTTPS, Development Mode, DNSSEC), which the headers probe cannot see.
+			'cf_edge_posture'     => sn_health_check_cf_edge_posture(),
 			'edge_workers'        => sn_health_check_edge_workers(),
 			// 12th check (v9.65.0): the reader of sn_analytics_integrity_alert —
 			// the never-invert guard's alarm finally lands somewhere.
@@ -248,6 +251,7 @@ require_once __DIR__ . '/health-check-drift-time-phrases.php';
 require_once __DIR__ . '/health-check-color-drift.php';
 require_once __DIR__ . '/health-check-unlinked-mentions.php';
 require_once __DIR__ . '/health-check-cf-security-headers.php';
+require_once __DIR__ . '/health-check-cf-edge-posture.php';
 // v9.85.0 (Session 3 lane 3): the rights-signals drift probe, same pattern as
 // the cf-security-headers module above.
 require_once __DIR__ . '/health-check-rights-signals.php';

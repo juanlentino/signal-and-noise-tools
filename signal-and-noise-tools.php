@@ -91,6 +91,7 @@ require_once SNT_PATH . 'inc/cloudflare-purge.php';
 require_once SNT_PATH . 'inc/cloudflare-monitor.php';    // 14.9.0: token verify, zone analytics, firewall events -- what the CF API will tell us (the rate monitor could never fill its row: CF sends no x-ratelimit headers).
 require_once SNT_PATH . 'inc/cloudflare-credentials.php'; // 14.10.0: ONE Cloudflare credential set; the analytics token is an override, migrated once.
 require_once SNT_PATH . 'inc/cloudflare-firewall-events.php'; // 15.1.0: the raw firewall event log (open to every plan), read daily: the WAF witness from Cloudflare's side; top blocked paths and countries.
+require_once SNT_PATH . 'inc/cloudflare-posture.php';         // 15.4.0: zone settings, DNSSEC and the custom WAF rules, read daily: what the edge is SET TO, which a headers probe cannot see.
 require_once SNT_PATH . 'inc/keyring.php';        // 15.2.0: every credential in one registry; the site secret the handshakes derive from.
 require_once SNT_PATH . 'inc/keyring-verify.php'; // 15.2.0: one probe per credential, verdicts stored; "Verify all".
 require_once SNT_PATH . 'inc/keyring-admin.php';  // 15.2.0: the row model both leaves paint; the classic Connections › Credentials leaf.
