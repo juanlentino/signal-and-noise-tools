@@ -520,6 +520,8 @@ require_once __DIR__ . '/inc/ml-artifacts.php';        // v10.15.0: corpus build
 // 15.5.0 (WebMCP bridge v2, arc one): after the artifacts, whose hooks and reader they use.
 require_once __DIR__ . '/inc/ml-related-manifest.php';
 require_once __DIR__ . '/inc/site-map-json.php';
+require_once __DIR__ . '/inc/agent-tools.php';         // 15.6.0: every tool an agent can call, by door; the bridge's half of the model.
+require_once __DIR__ . '/inc/agent-tools-admin.php';   // 15.6.0: AI › Agent tools, classic.
 require_once __DIR__ . '/inc/notes-search-ranking.php'; // v14.0.0: notes search ranked by the kernel (reads the search index ml-artifacts writes; shapes the theme's /notes/?s= query via posts_clauses; snippet via sn_notes_search_snippet)
 require_once __DIR__ . '/inc/note-dossier.php';            // v13.100.0: the note dossier vocabulary + composer (needs nothing at load)
 require_once __DIR__ . '/inc/note-dossier-trust.php';      // trust: ledger record, signer, citations, the re-check (readers guarded)

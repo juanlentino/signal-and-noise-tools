@@ -119,17 +119,18 @@ ok( false === $r['ok'], 'schema mismatch fails closed (ok=false)' );
 echo "\nGroup: 15.5.0 — the WebMCP bridge's tool calls (family webmcp) split off at the fetch\n";
 $GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'worker' => 'sn-rights-signals', 'days' => 7, 'data' => array(
 	array( 'family' => 'openai', 'surface' => 'llms', 'day' => '2026-07-28', 'hits' => 4 ),
-	array( 'family' => 'webmcp', 'surface' => 'verify-page', 'day' => '2026-07-28', 'hits' => 3 ),
-	array( 'family' => 'webmcp', 'surface' => 'related-notes', 'day' => '2026-07-28', 'hits' => 5 ),
-	array( 'family' => 'webmcp', 'surface' => 'verify-page', 'day' => '2026-07-29', 'hits' => 2 ),
+	array( 'family' => 'webmcp', 'surface' => 'verify-page', 'purpose' => 'ok', 'day' => '2026-07-28', 'hits' => 3 ),
+	array( 'family' => 'webmcp', 'surface' => 'related-notes', 'purpose' => 'absent', 'day' => '2026-07-28', 'hits' => 5 ),
+	array( 'family' => 'webmcp', 'surface' => 'verify-page', 'purpose' => 'error', 'day' => '2026-07-29', 'hits' => 2 ),
 ) ) ) );
 $r = snt_mr_fetch( 7 );
 ok( true === $r['ok'] && 1 === count( $r['rows'] ) && 'openai' === $r['rows'][0]['family'], 'the rows are page reads only: the three webmcp rows are gone from them' );
 ok( 10 === $r['webmcp']['calls'] && array( 'verify-page' => 5, 'related-notes' => 5 ) === $r['webmcp']['by_tool'], 'the calls have their own figure, by tool, summed across days' );
+ok( array( 'ok' => 3, 'error' => 2 ) === $r['webmcp']['outcomes']['verify-page'] && array( 'absent' => 5 ) === $r['webmcp']['outcomes']['related-notes'], 'and by outcome per tool, read from the purpose slot' );
 $r = snt_mr_fetch( 7, 'totals' );
 ok( true === $r['ok'] && 0 === $r['webmcp']['calls'], 'the totals view carries a zero figure (the worker excludes the family there)' );
 $split = snt_mr_split_webmcp( array( array( 'family' => 'anthropic', 'surface' => 'html', 'hits' => 1 ) ) );
-ok( 1 === count( $split['rows'] ) && 0 === $split['webmcp']['calls'] && array() === $split['webmcp']['by_tool'], 'negative control: no webmcp rows → nothing split, zero calls' );
+ok( 1 === count( $split['rows'] ) && 0 === $split['webmcp']['calls'] && array() === $split['webmcp']['by_tool'] && array() === $split['webmcp']['outcomes'], 'negative control: no webmcp rows → nothing split, zero calls' );
 
 echo "\nGroup: v9.85.1 regression — a stored-blank worker_url means the default endpoint\n";
 // The settings form says "Blank uses the built-in live endpoint" and the save

@@ -40,7 +40,7 @@ function snt_analytics_render_settings_section() { $GLOBALS['__calls'][] = 'fn:s
 function sn_admin_render_music_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_music_section'; }
 function sn_admin_render_links_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_links_section'; }
 function sn_admin_render_mcp_connect_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_mcp_connect_section'; } // v9.47.0: Tools → Connect an MCP client
-function snt_ai_tool_invocations_render() { $GLOBALS['__calls'][] = 'fn:snt_ai_tool_invocations_render'; } // v9.62.2: Tools → Copilot Usage (real fn lives in inc/ai-tool-invocation-log.php)
+function sn_admin_render_agent_tools_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_agent_tools_section'; } // 15.6.0: AI → Agent tools (real fn lives in inc/agent-tools-admin.php); absorbed Copilot Usage.
 function sn_admin_render_performance_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_performance_section'; }
 function sn_admin_render_release_notes_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_release_notes_section'; }
 function sn_admin_render_provenance_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_provenance_section'; } // v9.8.0: Tools → Provenance (real fn lives in inc/provenance-admin.php)
@@ -156,12 +156,12 @@ ok( in_array( 'search-console', array_keys( $by_tab['monitoring']['sub_tabs'] ),
 
 // AI: the surface that had no home — budget was field 10 of a render-knobs form.
 ok( ( $by_tab['ai']['slug'] ?? '' ) === 'sn-ai', "ai tab slug is 'sn-ai' (allow-lists itself — sn_admin_post_allowed_pages derives from this registry)" );
-ok( array_keys( $by_tab['ai']['sub_tabs'] ) === array( 'models-budget', 'mcp-connect', 'copilot-usage' ),
-	'ai leaves: models-budget, mcp-connect, copilot-usage — both config leaves before the observation one (v10.47.0)' );
+ok( array_keys( $by_tab['ai']['sub_tabs'] ) === array( 'models-budget', 'mcp-connect', 'agent-tools' ),
+	'ai leaves: models-budget, mcp-connect, agent-tools — both config leaves before the observation one (v10.47.0; 15.6.0: Agent tools absorbed Copilot Usage and the MCP inventories)' );
 ok( ( $by_tab['ai']['sub_tabs']['models-budget']['render'] ?? '' ) === 'sn_admin_render_ai_settings_form',
 	'models-budget names the extracted AI settings form' );
-ok( ! empty( $by_tab['ai']['sub_tabs']['copilot-usage']['wide'] ),
-	'copilot-usage leaf keeps its wide flag across the move (bare .sn-section — no card-in-a-card around the fn’s own .sn-card)' );
+ok( ! empty( $by_tab['ai']['sub_tabs']['agent-tools']['wide'] ),
+	'agent-tools leaf is wide (bare .sn-section — its renderers own their cards)' );
 
 ok( ( $by_tab['tools']['label'] ?? '' ) === 'Integrity', "tools relabelled 'Integrity' — KEY still 'tools' (v10.47.0)" );
 ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'provenance', 'trust', 'reports', 'citations', 'links' ),
@@ -208,12 +208,12 @@ sn_admin_render_active_tab( 'connections', 'music' );
 ok( $GLOBALS['__calls'] === array( 'subtabs:connections', 'section:music', 'fn:sn_admin_render_music_section' ),
 	'route connections/music → nav + section(music) + music renderer' );
 
-// ai/copilot-usage: function-backed leaf (v9.62.2, wide) — section-wrapped, then
+// ai/agent-tools: function-backed leaf (15.6.0, wide; the ex Copilot Usage route) — section-wrapped, then
 // the renderer fires. (v10.46.0: moved from tools.)
 $GLOBALS['__calls'] = array();
-sn_admin_render_active_tab( 'ai', 'copilot-usage' );
-ok( $GLOBALS['__calls'] === array( 'subtabs:ai', 'section:copilot-usage', 'fn:snt_ai_tool_invocations_render' ),
-	'route ai/copilot-usage → nav + section(copilot-usage) + usage renderer' );
+sn_admin_render_active_tab( 'ai', 'agent-tools' );
+ok( $GLOBALS['__calls'] === array( 'subtabs:ai', 'section:agent-tools', 'fn:sn_admin_render_agent_tools_section' ),
+	'route ai/agent-tools → nav + section(agent-tools) + the Agent tools renderer' );
 
 // content/pattern-adoption: the extracted leaf routes like any other
 // function-backed leaf — proving the promotion is a real leaf, not a section

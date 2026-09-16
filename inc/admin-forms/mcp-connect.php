@@ -57,16 +57,8 @@ function sn_admin_render_mcp_connect_section() {
 	// the live slug inventories. No disclosure wrapping here — that is M2.
 	sn_admin_render_mcp_rw_binding();
 	sn_admin_render_mcp_owner_steps();
-	sn_admin_render_mcp_door_native();
-	sn_admin_render_mcp_door_native_write();
-	sn_admin_render_mcp_resources_prompts();
-	sn_admin_render_mcp_door_adapter();
-
-	// After the inventories, because it describes what those slugs actually
-	// did. Folded: on a healthy site this is a long list nobody needs open.
-	if ( function_exists( 'sn_admin_render_mcp_usage' ) ) {
-		sn_admin_render_mcp_usage();
-	}
+	// 15.6.0: the door inventories and the call log moved to AI › Agent tools
+	// (inc/agent-tools-admin.php); this leaf keeps how to connect.
 
 	echo '<div class="sn-callout">';
 	echo '<p class="sn-callout-h">' . esc_html__( 'Not the same as Connector Approvals', 'signal-and-noise-tools' ) . '</p>';
