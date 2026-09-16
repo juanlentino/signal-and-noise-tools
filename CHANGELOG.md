@@ -12,14 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [15.3.3] - 2026-09-15 — the Home details are flat columns
+
 ### Fixed
 - **S&N Home: the detail panels are flat columns under an eyebrow.** Zoomed out, the owner saw what 15.3.2 had painted: three audience panels as shaded cards inside a section inside the pulse (a box in a box, next to flat tiles), in a two-column grid that left Top queries alone with an empty cell, under a section heading where its siblings use small-caps eyebrows; Operations detail with the same nested weight. Both details are now an eyebrow ("Audience detail, 7 days" / "Operations detail") over flat columns, one column per panel from the painter's count so three never orphan, a rule between columns and no card; under 900px the columns stack. Pinned (7).
-
-## [15.3.2] - 2026-09-15 — the Home reads where its questions are asked
-
-### Changed
-- **S&N Home: the audience lists leave Operations.** The Detail box under Operations held Recent deploys and API limits next to Top pages, Top sources and Top queries: audience numbers under the ops heading. Every panel now names its group; the audience three paint under Site pulse as "Audience detail, 7 days", the ops two stay as "Operations detail". Top queries names its column, "clicks, 28 days", so a list of zeros reads as what it is. The classic screen paints the same two blocks, audience first. Pinned on the panels, the native painter and the classic renderer.
-
-### Fixed
-- **S&N Home: Caches read "Checking…" under a line that said "verified fresh".** The card is async: `freshness-dot.js` finds it by id and writes the live verdict into `.sn-glance-card__value`. The classic wall carries both since v11.30.1; the native port dropped them, so the script appended its verdict under a placeholder it could not replace. The native wall now carries the id and the class; the verdict replaces the placeholder in place.
 

@@ -208,6 +208,9 @@ Cloudflare `ok`, an account token. Better Stack `ok`, four monitors. Spotify
 `SN_MR_READ_TOKEN` differ. One sentence, the right side named, and the command to
 fix it printed under it. That is what the day was for.
 
+The rail, the full-height gradient with the nav at its foot, I asked about twice;
+the owner's answer is that it is the design, and it is recorded as such.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
