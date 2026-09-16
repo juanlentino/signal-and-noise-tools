@@ -430,6 +430,18 @@ Design and DM Sans, present in neither the served HTML nor the clean pane.
 The rule, recorded: curl the page, then load it clean, then blame the
 extension.
 
+Two more things fell out of asking whether the theme was compatible with
+all of this, which is a question answered by curling every page kind and
+counting what each carries. Every kind carries the bridge tag with a
+matching SRI, and the ledger already held `webmcp-bridge/v2`. But the notes
+archive carries ten `Article` nodes, one per listed note, and the bridge's
+citation tool took the first Article in the graph, so on the archive it
+would have cited the first listed note as the page; worker 1.25.2 matches
+the Article to the page's canonical URL instead. And the pillar pages, the
+essays, carried no Article at all, so the most citable pages on the site
+answered "not a note"; plugin 15.7.0 builds one for them, which search
+engines wanted anyway.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -440,7 +452,8 @@ extension.
   the deploy reading says current equals latest for the plugin, the theme and the
   five workers. The two worker versions merged tonight had no tags until then,
   and the deploy reading names `latest` from tags: tagged, and the row agrees.
-- Theme 13.2.4 (the footnotes popover's document target): cut in progress.
+- Theme 13.2.4 (the footnotes popover's document target) and plugin 15.7.0
+  (pillar Articles): cuts in progress; worker 1.25.2 live and tagged.
 - Cloudflare Web Analytics vs the CSP: the beacon is blocked on every page;
   turn Web Analytics off, or allow `static.cloudflareinsights.com` in the
   script-src of the transform rule. Owner's call.
