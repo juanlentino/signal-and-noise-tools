@@ -17,6 +17,10 @@ caught the Cloudflare incident.
 
 ## Decisions already made (owner, 2026-08-28)
 
+> Amended 2026-09-16: the two-tool pack was reversed by the owner; the bridge grows
+> in two arcs. See `docs/webmcp-bridge-v2-design.md`. The principle above and the
+> anchoring dance below are unchanged.
+
 - Tag on **all HTML site-wide** (worker-rendered pages and WordPress pass-throughs).
 - Bridge **is** anchored: fifth `RIGHTS_SIGNALS` row in the provenance sweep.
 - Tool pack at launch: **`verify-page` + `get-rights-terms` only.** No third tool
