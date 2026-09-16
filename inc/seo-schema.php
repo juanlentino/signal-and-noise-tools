@@ -224,11 +224,29 @@ function sn_schema_article_description( $post ) {
 }
 
 /**
- * Build the Article schema for the current singular post.
- * Returns null if not on a singular post.
+ * Is the queried object a pillar page? `_sn_pillar` meta, seeded by
+ * inc/pillar-meta-seed.php and read by the site map the same way.
+ *
+ * @return bool
+ */
+function sn_schema_is_pillar_page() {
+	if ( ! is_singular( 'page' ) ) {
+		return false;
+	}
+	$page = get_queried_object();
+	return $page && '1' === (string) get_post_meta( (int) $page->ID, '_sn_pillar', true );
+}
+
+/**
+ * Build the Article schema for the current singular post, or pillar page.
+ * Returns null elsewhere.
  */
 function sn_schema_article() {
-	if ( ! is_singular( 'post' ) ) {
+	// 15.7.0: a pillar page (`_sn_pillar` meta) is an essay and gets an Article
+	// too. The bridge's get-citation reads the page's own Article; without one
+	// the site's most citable pages answered "not a note", and search engines
+	// saw a plain WebPage for a 5,000-word essay.
+	if ( ! is_singular( 'post' ) && ! sn_schema_is_pillar_page() ) {
 		return null;
 	}
 	$post = get_queried_object();
