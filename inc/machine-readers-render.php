@@ -219,7 +219,7 @@ function snt_mr_render_sensor_card( $info ) {
  * @param int|null $feed_total Feed fetches in the same window, or null to omit.
  * @return string HTML.
  */
-function snt_mr_render_summary_chips( $rows, $days, $feed_total = null ) {
+function snt_mr_render_summary_chips( $rows, $days, $feed_total = null, $tool_calls = null ) {
 	$totals = snt_mr_sum_hits_by( $rows, 'family' );
 	$total  = 0;
 	foreach ( $totals as $hits ) {
@@ -242,6 +242,10 @@ function snt_mr_render_summary_chips( $rows, $days, $feed_total = null ) {
 		. $card( __( 'AI-training reads', 'signal-and-noise-tools' ), number_format_i18n( $ai ) )
 		. ( null !== $feed_total
 			? $card( sprintf( /* translators: %s: window length in days. */ __( 'feed fetches, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ), number_format_i18n( (int) $feed_total ) )
+			: '' )
+		// 15.5.0: the WebMCP bridge's tool calls; never summed with reads.
+		. ( null !== $tool_calls
+			? $card( sprintf( /* translators: %s: window length in days. */ __( 'agent tool calls, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ), number_format_i18n( (int) $tool_calls ) )
 			: '' )
 		. '</div>';
 }

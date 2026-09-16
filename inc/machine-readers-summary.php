@@ -75,6 +75,14 @@ function snt_mr_summary_payload( $days ) {
 		}
 	}
 	$truncated = ! empty( $result['truncated'] );
+	// 15.5.0: the WebMCP bridge's tool calls (family `webmcp`) are split off
+	// the rows at the fetch (snt_mr_split_webmcp) and carried in
+	// $result['webmcp']; the tile and the classic tab read them there. They
+	// are NOT in this payload yet: this summary is a remote twin whose
+	// output_schema hashes into SN_REMOTE_CONTRACT_VERSION, and a field that
+	// reads zero until the bridge ships is not worth a contract bump and a
+	// worker redeploy. It joins in bridge v2 arc two, with a number.
+
 	$totals  = function_exists( 'snt_mr_sum_hits_by' ) ? snt_mr_sum_hits_by( $rows, 'family' ) : array();
 	$ai_set  = function_exists( 'snt_mr_ai_training_families' ) ? snt_mr_ai_training_families() : array();
 	$total   = 0;

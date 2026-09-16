@@ -224,6 +224,7 @@ function snt_mr_render_tab() {
 		// and reached no renderer, so a capped read was invisible on the page.
 		'truncated'          => ! empty( $result['truncated'] ),
 		'rows'               => $rows,
+		'webmcp'             => is_array( $result['webmcp'] ?? null ) ? $result['webmcp'] : array( 'calls' => 0, 'by_tool' => array() ), // 15.5.0
 		'feed'               => $feed,
 		'feed_total'         => $feed_total,
 		'rights_rows'        => $rights_rows,

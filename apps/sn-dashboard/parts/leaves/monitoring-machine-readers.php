@@ -42,7 +42,7 @@ function machine_readers_hero_html( array $d ) {
 		if ( ! empty( $d['result']['truncated'] ) ) {
 			$out .= \snt_kit_notice( 'warn', \snt_kit_esc( __( 'The edge capped this read at its row limit, so every figure on this tab — the headline included — is a floor, not a count. A capped read does not look degraded; it looks like fewer machine reads. Narrow the window to get a complete one.', 'signal-and-noise-tools' ) ) );
 		}
-		$out .= machine_readers_summary_stats_html( $d['rows'], $d['days'], $d['feed_total'] );
+		$out .= machine_readers_summary_stats_html( $d['rows'], $d['days'], $d['feed_total'], (int) ( $d['webmcp']['calls'] ?? 0 ) );
 		$out .= machine_readers_identity_stats_html( $d['rows'], $d['days'] );
 	}
 	return \snt_kit_section( __( 'Sensor status', 'signal-and-noise-tools' ), $out );
