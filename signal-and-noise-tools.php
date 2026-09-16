@@ -639,4 +639,7 @@ require_once SNT_PATH . 'inc/speculation-rules.php'; // v4.10.0: opt-in Speculat
 // register_activation_hook fires only on WP-upgrader-driven activations;
 // the admin_init handler covers SSH-based git-checkout deploys.
 register_activation_hook( __FILE__, 'sn_settings_seed_legacy_values' );
+// 15.3.4: the plugin's cron events leave with the plugin (Plugin Handbook, Cron).
+require_once SNT_PATH . 'inc/cron-lifecycle.php';
+register_deactivation_hook( __FILE__, 'sn_cron_deactivate' );
 add_action( 'admin_init', 'sn_settings_lazy_migration_check' );
