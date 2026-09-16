@@ -276,7 +276,8 @@ function sn_cf_posture_model( $record = null ) {
 		'email_obfuscation'        => __( 'Email obfuscation', 'signal-and-noise-tools' ),
 		'challenge_ttl'            => __( 'Challenge TTL', 'signal-and-noise-tools' ),
 	);
-	$words  = array( 'strict' => __( 'Full (strict)', 'signal-and-noise-tools' ), 'full' => __( 'Full', 'signal-and-noise-tools' ), 'flexible' => __( 'Flexible', 'signal-and-noise-tools' ), 'off' => __( 'off', 'signal-and-noise-tools' ), 'on' => __( 'on', 'signal-and-noise-tools' ) );
+	// 15.4.1: `zrt` is Cloudflare's value for TLS 1.3 on with 0-RTT (measured on the first live read).
+	$words  = array( 'strict' => __( 'Full (strict)', 'signal-and-noise-tools' ), 'full' => __( 'Full', 'signal-and-noise-tools' ), 'flexible' => __( 'Flexible', 'signal-and-noise-tools' ), 'off' => __( 'off', 'signal-and-noise-tools' ), 'on' => __( 'on', 'signal-and-noise-tools' ), 'zrt' => __( 'on (0-RTT)', 'signal-and-noise-tools' ) );
 	$drift  = array();
 	foreach ( sn_cf_posture_findings( $record ) as $f ) {
 		$drift[ $f['key'] ] = true;

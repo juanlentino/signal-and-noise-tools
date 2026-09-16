@@ -111,6 +111,9 @@ ok( 'Full (strict)' === $m['checks'][0]['value'] && true === $m['checks'][0]['ok
 ok( 'on' === $m['checks'][3]['value'] && false === $m['checks'][3]['ok'], 'development mode on reads not ok, the same verdict the findings give' );
 ok( 1 === count( $m['refused'] ) && false !== strpos( $m['refused'][0], 'DNS › Read' ), 'the refused DNSSEC read is one sentence naming the scope' );
 ok( 8 === count( $m['also'] ) && '30 mins' === $m['also'][7]['value'], 'the readings are the "also" line; challenge TTL is a duration' );
+ok( 'on' === $m['also'][0]['value'], 'TLS 1.3 on reads on' );
+$GLOBALS['__opt']['sn_cf_posture'] = array( 'fetched_at' => time(), 'configured' => true ) + sn_cf_posture_from( $settings( array( 'tls_1_3' => 'zrt' ) ), $dnssec( 'active' ), $rules( array() ) );
+ok( 'on (0-RTT)' === sn_cf_posture_model()['also'][0]['value'], '15.4.1: zrt, the live zone\'s value, reads "on (0-RTT)" not the API id' );
 ok( 2 === count( $m['rules'] ) && false === $m['rules'][1]['enabled'] && 'Guard' === $m['rules'][1]['name'], 'rules by name with their state' );
 $GLOBALS['__opt'] = array();
 ok( 'never' === sn_cf_posture_model()['state'], 'no record reads never' );
