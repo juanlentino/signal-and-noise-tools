@@ -298,7 +298,12 @@ function sn_admin_top_tabs() {
 				// v9.62.2: Copilot tool-usage diagnostic. 'wide' => true so the
 				// wrapper emits a bare .sn-section: the render fn owns its own
 				// .sn-card, so a capped .sn-fieldset here would nest a card in a card.
-				'copilot-usage' => array( 'label' => 'Copilot Usage', 'render' => 'snt_ai_tool_invocations_render', 'wide' => true ),
+				// 15.6.0: Agent tools, every tool an agent can call on this site by
+				// door (the WebMCP bridge on the page, the MCP doors, Copilot) and
+				// whether it does. Absorbs the door inventories and the call log from
+				// MCP Clients and the whole Copilot Usage leaf. 'wide' => true: the
+				// renderers own their cards.
+				'agent-tools'   => array( 'label' => 'Agent tools', 'render' => 'sn_admin_render_agent_tools_section', 'wide' => true ),
 			),
 		),
 		array(

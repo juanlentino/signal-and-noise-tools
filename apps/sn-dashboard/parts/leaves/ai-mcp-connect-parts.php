@@ -250,15 +250,19 @@ function mcp_connect_door_adapter_html() {
  *
  * @return string
  */
-function mcp_connect_usage_html() {
+function mcp_connect_usage_html( $open = false ) {
+	// 15.6.0: `$open` returns the body without its own wrapper (the empty
+	// states as one hint line, the table open with its summary as a hint), for
+	// AI › Agent tools, whose section is the wrapper. The default keeps the
+	// folded form the leaf painted until then.
 	if ( ! function_exists( 'sn_mcp_telemetry_usage' ) ) {
 		return '';
 	}
+	$wrap  = static function ( $inner ) use ( $open ) { return $open ? $inner : \snt_kit_section( __( 'Tool usage', 'signal-and-noise-tools' ), $inner ); };
 	$usage = sn_mcp_telemetry_usage();
 	if ( null === $usage ) {
 		$installed = function_exists( 'sn_mcp_telemetry_table_exists' ) && sn_mcp_telemetry_table_exists();
-		return \snt_kit_section(
-			__( 'Tool usage', 'signal-and-noise-tools' ),
+		return $wrap(
 			'<p class="snt-hint">' . \snt_kit_esc(
 				$installed
 					? __( 'The call log exists but could not be read — a database error, not an absence of calls. Nothing here should be treated as usage evidence.', 'signal-and-noise-tools' )
@@ -269,7 +273,7 @@ function mcp_connect_usage_html() {
 
 	$since = $usage['measured_since'] ?? null;
 	if ( null === $since ) {
-		return \snt_kit_section( __( 'Tool usage', 'signal-and-noise-tools' ), '<p class="snt-hint">' . \snt_kit_esc( __( 'The call log is installed and has recorded nothing. That is not the same as these tools going unused — no call has been made through either door yet.', 'signal-and-noise-tools' ) ) . '</p>' );
+		return $wrap( '<p class="snt-hint">' . \snt_kit_esc( __( 'The call log is installed and has recorded nothing. That is not the same as these tools going unused — no call has been made through either door yet.', 'signal-and-noise-tools' ) ) . '</p>' );
 	}
 
 	$zero = (array) ( $usage['zero_call'] ?? array() );
@@ -318,6 +322,9 @@ function mcp_connect_usage_html() {
 
 	$body = $partial . $table . $zero_html . '<p class="snt-hint">' . sprintf( /* translators: %d: total recorded calls. */ \snt_kit_esc( __( '%d calls recorded in this window, including calls that never resolved to a tool.', 'signal-and-noise-tools' ) ), (int) ( $usage['total_rows'] ?? 0 ) ) . '</p>';
 
+	if ( $open ) {
+		return '<p class="snt-hint">' . \snt_kit_esc( $summary ) . '</p>' . $body;
+	}
 	return \snt_kit_tag( 'os-disclosure', array( 'heading' => __( 'Tool usage', 'signal-and-noise-tools' ), 'hint' => $summary ), $body );
 }
 

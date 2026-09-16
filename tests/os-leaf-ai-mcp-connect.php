@@ -42,6 +42,18 @@ require SNT_PATH . 'inc/admin-glance.php';
 require SNT_PATH . 'inc/admin-forms/mcp-connect.php';
 require SNT_PATH . 'inc/admin-forms/mcp-usage-block.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/ai-mcp-connect.php';
+// 15.6.0: the door inventories and the call log moved to AI › Agent tools. The
+// two leaves are painted as ONE string here (and the two classic sections as
+// one), so every assertion below still reads the whole of what MCP Clients
+// used to say; the split itself is pinned in tests/os-leaf-ai-agent-tools.php.
+if ( ! function_exists( 'snt_mr_fetch' ) ) { function snt_mr_fetch( $d ) { return array( 'ok' => false, 'error' => 'no sensor in this suite' ); } }
+if ( ! function_exists( 'get_posts' ) ) { function get_posts( $a ) { return array(); } }
+if ( ! function_exists( 'snt_ai_tool_invocations_render' ) ) { function snt_ai_tool_invocations_render() { echo ''; } }
+require SNT_PATH . 'inc/agent-tools.php';
+require SNT_PATH . 'inc/agent-tools-admin.php';
+require SNT_PATH . 'apps/sn-dashboard/parts/leaves/ai-agent-tools.php';
+function ai_leaf_both() { return snt_leaf_paint( 'ai', 'mcp-connect' ) . snt_leaf_paint( 'ai', 'agent-tools' ); }
+function ai_classic_both() { return snt_leaf_classic_html( 'sn_admin_render_mcp_connect_section' ) . snt_leaf_classic_html( 'sn_admin_render_agent_tools_section' ); }
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -56,8 +68,8 @@ $GLOBALS['__rw_slugs']     = array( 'signal-noise/sn-apply', 'signal-noise/purge
 $GLOBALS['__remote_kill_engaged'] = false;
 $GLOBALS['__bridge_secret']       = 'shh';
 
-$classic = snt_leaf_classic_html( 'sn_admin_render_mcp_connect_section' );
-$kit     = snt_leaf_paint( 'ai', 'mcp-connect' );
+$classic = ai_classic_both();
+$kit     = ai_leaf_both();
 ok( '' !== $kit, 'the kit leaf paints' );
 // The classic remote-toggle form's submit_button() emits a stray name="submit"
 // input — bog-standard wp-admin boilerplate no handler ever reads (sn_handle_remote_toggle()
@@ -82,26 +94,26 @@ ok( false !== strpos( $kit, 'claude mcp add --transport http' ) && false !== str
 
 // ── Escaping: a hostile Application Password name never reaches the markup raw.
 $GLOBALS['__passwords'] = array( array( 'uuid' => 'uuid-1', 'name' => '"><script>x</script>', 'created' => time(), 'last_used' => 0 ) );
-$kit = snt_leaf_paint( 'ai', 'mcp-connect' );
+$kit = ai_leaf_both();
 ok( false === strpos( $kit, '<script>x</script>' ) && false !== strpos( $kit, '&lt;script&gt;' ), 'a hostile Application Password name is escaped' );
 
 // ── State: no Application Passwords yet — the binding form is skipped, a door offered instead.
 $GLOBALS['__passwords']     = array();
 $GLOBALS['__rw_bound_uuid'] = '';
-$classic = snt_leaf_classic_html( 'sn_admin_render_mcp_connect_section' );
-$kit     = snt_leaf_paint( 'ai', 'mcp-connect' );
+$classic = ai_classic_both();
+$kit     = ai_leaf_both();
 ok( ! in_array( 'sn_mcp_rw_uuid', snt_leaf_names( $kit ), true ) && ! in_array( 'sn_mcp_rw_uuid', snt_leaf_names( $classic ), true ), 'no-passwords state: neither leaf offers the credential picker' );
 ok( false !== strpos( $kit, 'no Application Passwords yet' ) && ! in_array( 'bind_mcp_rw_credential', snt_leaf_actions( $kit ), true ), 'no-passwords state: explained, and the bind action is not offered' );
 
 // ── State: bound credential unresolvable (UUID matches no owned password).
 $GLOBALS['__passwords']     = array( array( 'uuid' => 'uuid-2', 'name' => 'Other', 'created' => time(), 'last_used' => 0 ) );
 $GLOBALS['__rw_bound_uuid'] = 'uuid-does-not-exist';
-$kit = snt_leaf_paint( 'ai', 'mcp-connect' );
+$kit = ai_leaf_both();
 ok( false !== strpos( $kit, 'no longer matches any of your own Application Passwords' ), 'unresolvable state: the mismatch is explained' );
 
 // ── State: write door switched off (option_off) vs remote bridge_ready toggled off.
 $GLOBALS['__remote_kill_engaged'] = true;
-$kit = snt_leaf_paint( 'ai', 'mcp-connect' );
+$kit = ai_leaf_both();
 ok( false !== strpos( $kit, 'Switched off' ), 'remote-door state: option-off reads Switched off' );
 $GLOBALS['__remote_kill_engaged'] = false;
 
@@ -112,15 +124,15 @@ $GLOBALS['__remote_kill_engaged'] = false;
 // `return '';` still passed 21/21 before this block existed).
 $GLOBALS['__usage']               = null;
 $GLOBALS['__telemetry_installed'] = false;
-$kit = snt_leaf_paint( 'ai', 'mcp-connect' );
+$kit = ai_leaf_both();
 ok( false !== strpos( $kit, 'not installed yet' ), 'usage state: table not installed yet reads "not installed yet"' );
 
 $GLOBALS['__telemetry_installed'] = true;
-$kit = snt_leaf_paint( 'ai', 'mcp-connect' );
+$kit = ai_leaf_both();
 ok( false !== strpos( $kit, 'could not be read' ), 'usage state: table installed but unreadable reads "could not be read"' );
 
 $GLOBALS['__usage'] = array( 'measured_since' => null );
-$kit = snt_leaf_paint( 'ai', 'mcp-connect' );
+$kit = ai_leaf_both();
 ok( false !== strpos( $kit, 'has recorded nothing' ), 'usage state: installed with zero rows reads "has recorded nothing"' );
 
 // ── Populated usage fixture: 2 tools, a partial window, one unused + one
@@ -140,8 +152,8 @@ $GLOBALS['__usage'] = array(
 		array( 'slug' => 'signal-noise/broken-thing', 'verdict' => 'unreachable' ),
 	),
 );
-$classic = snt_leaf_classic_html( 'sn_admin_render_mcp_connect_section' );
-$kit     = snt_leaf_paint( 'ai', 'mcp-connect' );
+$classic = ai_classic_both();
+$kit     = ai_leaf_both();
 ok( false !== strpos( $kit, '20 days of a 30-day window' ) && false !== strpos( $kit, '2 tools with no calls' ), 'usage state: the window/zero-call summary carries the measured numbers' );
 ok( false !== strpos( $kit, 'sn-status' ) && false !== strpos( $kit, '42' ) && false !== strpos( $kit, 'sn-apply' ) && false !== strpos( $kit, '7' ), 'usage state: the per-tool table rows carry both tools and their call counts' );
 ok( false !== strpos( $kit, 'No calls in this window' ), 'usage state: the zero-call list keeps its heading' );
@@ -185,7 +197,11 @@ function ai_mcp_connect_split_sentences( $html ) {
 }
 $kit_norm = ai_mcp_connect_normalize_text( $kit ) . ' ' . implode( ' ', ai_mcp_connect_split_sentences( $kit ) );
 $missing  = '';
-foreach ( ai_mcp_connect_split_sentences( $classic ) as $sentence ) {
+// 15.6.0: Agent tools' data tables (the bridge's tool rows, the documents)
+// are pinned cell by cell in tests/os-leaf-ai-agent-tools.php; the kit paints
+// them as an <os-table> attribute the normalizer strips with the tag, so the
+// prose oracle reads the classic side without them.
+foreach ( ai_mcp_connect_split_sentences( preg_replace( '#<table.*?</table>#s', '', $classic ) ) as $sentence ) {
 	$sentence = trim( (string) $sentence );
 	if ( strlen( $sentence ) <= 40 ) {
 		continue;
@@ -202,7 +218,7 @@ ok( '' === $missing, 'every classic sentence over 40 chars survives into the kit
 // ── State: the remote door killed by the wp-config constant wins unconditionally
 // (constants can't be un-defined, so this runs last).
 define( 'SN_MCP_REMOTE_DISABLED', true );
-$kit = snt_leaf_paint( 'ai', 'mcp-connect' );
+$kit = ai_leaf_both();
 ok( false !== strpos( $kit, 'Killed in wp-config' ) && false !== strpos( $kit, 'disabled' ), 'remote-door state: the wp-config kill switch reads Killed in wp-config and disables the toggle' );
 
 
@@ -211,9 +227,9 @@ ok( false !== strpos( $kit, 'Killed in wp-config' ) && false !== strpos( $kit, '
 // puts them side by side; the body used to explain the same four one under the
 // other, each in a full-width section whose prose used under half of it.
 // Measured live 2026-09-10: 2,852px -> 2,136px once paired, cards at 865px.
-$kit = snt_leaf_paint( 'ai', 'mcp-connect' );
+$kit = ai_leaf_both();
 
-ok( 3 === substr_count( $kit, '<div class="snt-cols">' ), 'three paired rows are painted -- ' . substr_count( $kit, '<div class="snt-cols">' ) );
+ok( 3 === substr_count( $kit, '<div class="snt-cols">' ), 'three paired rows are painted across the two leaves (two door pairs on Agent tools, the footer pair on MCP Clients) -- ' . substr_count( $kit, '<div class="snt-cols">' ) );
 
 // Each pair, by the two headings it must hold, in order.
 $pairs = array(
@@ -221,8 +237,10 @@ $pairs = array(
 	array( 'Door 2: the Abilities-registry adapter', 'Resources &amp; prompts' ),
 );
 foreach ( $pairs as $i => $pair ) {
-	if ( preg_match_all( '/<div class="snt-cols">(.*?)<\/div>/s', $kit, $m ) && isset( $m[1][ $i ] ) ) {
-		$row = $m[1][ $i ];
+	// 15.6.0: MCP Clients paints first (its footer pair is row 0); the two door
+	// pairs follow on Agent tools.
+	if ( preg_match_all( '/<div class="snt-cols">(.*?)<\/div>/s', $kit, $m ) && isset( $m[1][ $i + 1 ] ) ) {
+		$row = $m[1][ $i + 1 ];
 		ok(
 			false !== strpos( $row, $pair[0] ) && false !== strpos( $row, $pair[1] ),
 			'row ' . ( $i + 1 ) . ' pairs ' . $pair[0] . ' with ' . $pair[1]

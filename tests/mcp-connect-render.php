@@ -148,9 +148,29 @@ ok( function_exists( 'sn_admin_render_mcp_connect_section' ), 'sn_admin_render_m
 ok( empty( $tools['sub_tabs']['mcp-connect']['wide'] ), 'mcp-connect is a capped leaf (like Links), not wide' );
 
 // ── Render drive ──
+// 15.6.0: the door inventories and the call log live on AI › Agent tools
+// (inc/agent-tools-admin.php); MCP Clients keeps how to connect. Both classic
+// sections render here; the shared assertions read the pair, and two pins
+// below say which half carries what.
+if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $c ) { return true; } }
+if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n ) { return (string) $n; } }
+if ( ! function_exists( 'get_posts' ) ) { function get_posts( $a ) { return array(); } }
+if ( ! function_exists( 'snt_mr_fetch' ) ) { function snt_mr_fetch( $d ) { return array( 'ok' => false, 'error' => 'no sensor in this suite' ); } }
+if ( ! function_exists( 'snt_ai_tool_invocations_render' ) ) { function snt_ai_tool_invocations_render() { echo '<p>copilot-usage-stub</p>'; } }
+require __DIR__ . '/../inc/agent-tools.php';
+require __DIR__ . '/../inc/agent-tools-admin.php';
 ob_start();
 sn_admin_render_mcp_connect_section();
-$html = ob_get_clean();
+$html_connect = ob_get_clean();
+ob_start();
+sn_admin_render_agent_tools_section();
+$html_tools = ob_get_clean();
+$html = $html_connect . $html_tools;
+ok( false === strpos( $html_connect, 'read-only tools exposed' ) && false !== strpos( $html_tools, 'read-only tools exposed' ), '15.6.0: the read door\'s inventory paints on Agent tools, not on MCP Clients' );
+ok( false !== strpos( $html_connect, 'claude_desktop_config.json' ) && false === strpos( $html_tools, 'claude_desktop_config.json' ), '15.6.0: how to connect stays on MCP Clients' );
+ok( false !== strpos( $html_tools, 'On the page' ) && false !== strpos( $html_tools, 'Through MCP' ) && false !== strpos( $html_tools, 'Through Copilot' ) && false !== strpos( $html_tools, 'copilot-usage-stub' ), 'Agent tools: three doors in order, Copilot rendered through its own renderer' );
+ok( false !== strpos( $html_tools, 'verify-page' ) && false !== strpos( $html_tools, 'get-citation' ) && false !== strpos( $html_tools, 'Reported by browsers' ), 'the bridge\'s five tools have rows even with no sensor, under the caption' );
+ok( false !== strpos( $html_tools, 'no sensor in this suite' ) && false !== strpos( $html_tools, 'not built yet' ), 'a dead sensor and an unbuilt site map are said, never hidden' );
 
 // The live allowlist — this suite asserts against the REAL function's output
 // (never a hardcoded number) so a future addition/removal is caught, not

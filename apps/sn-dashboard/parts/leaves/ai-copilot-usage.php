@@ -71,33 +71,5 @@ function copilot_usage_list_html( array $tools ) {
 	return \snt_kit_tag( 'ul', array( 'class' => 'snt-list' ), $items );
 }
 
-/**
- * The leaf.
- *
- * @param array<string,mixed> $ctx tab, sub, state, os.
- * @return string
- */
-function paint_ai_copilot_usage( array $ctx ) {
-	unset( $ctx );
-	$ranked = copilot_usage_data();
-
-	if ( 0 === $ranked['distinct'] ) {
-		// Single msgid, matching the classic leaf exactly (inc/ai-tool-invocation-log.php:169)
-		// so any existing/future translation of it still applies here.
-		$inner = \snt_kit_empty(
-			__( 'No Ask AI tool calls recorded yet. Counts appear here once Desktop Mode’s Copilot has run (logging started in v9.60.0).', 'signal-and-noise-tools' )
-		);
-		return \snt_kit_section( __( 'Copilot tool usage', 'signal-and-noise-tools' ), $inner );
-	}
-
-	$inner = copilot_usage_summary_html( $ranked ) . copilot_usage_list_html( $ranked['tools'] );
-	return \snt_kit_section( __( 'Copilot tool usage', 'signal-and-noise-tools' ), $inner );
-}
-
-add_filter(
-	'snt_os_dashboard_painters',
-	static function ( array $painters ) {
-		$painters['ai/copilot-usage'] = __NAMESPACE__ . '\\paint_ai_copilot_usage';
-		return $painters;
-	}
-);
+// 15.6.0: the leaf retired into AI › Agent tools (ai-agent-tools.php), which
+// paints these parts under "Through Copilot". No painter registers here.

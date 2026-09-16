@@ -104,27 +104,10 @@ function paint_ai_mcp_connect( array $ctx ) {
 	$out .= mcp_connect_rw_binding_html();
 	$out .= mcp_connect_owner_steps_html();
 
-	// THE REFERENCE PATH, as a 2x2 grid rather than a 1,000px vertical essay.
-	//
-	// The tile row at the top of this leaf already says there are FOUR doors and
-	// puts them side by side. The body then explained the same four one under the
-	// other, each in a full-width section whose prose used under half of it --
-	// the header knew the shape of the content and the body ignored it. Measured
-	// live 2026-09-10: these four sections stacked to 1,008px inside a 1,748px
-	// leaf. Paired, they mirror the tiles above and read as what they are, four
-	// parallel things, at ~830px each: a better measure for the prose than 1,700.
-	$out .= \snt_kit_tag(
-		'div',
-		array( 'class' => 'snt-cols' ),
-		mcp_connect_door_native_html() . mcp_connect_door_native_write_html()
-	);
-	$out .= \snt_kit_tag(
-		'div',
-		array( 'class' => 'snt-cols' ),
-		mcp_connect_door_adapter_html() . mcp_connect_resources_prompts_html()
-	);
-
-	$out .= mcp_connect_usage_html();
+	// 15.6.0: the four door inventories and the call log moved to AI › Agent
+	// tools (ai-agent-tools.php), one inventory of every tool an agent can call,
+	// by door. This leaf keeps how to connect: the glance, the binding, the
+	// steps, the Claude app config and the deep links.
 
 	// The footer pairs the caveat with the deep links: two short blocks that each
 	// took a full-width band of their own for no reason.

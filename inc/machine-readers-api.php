@@ -249,7 +249,7 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 	// into `other-bot` and an unknown surface into `html`, which would turn a
 	// tool call into a bot read of an HTML page.
 	$split  = 'rights' === $view || 'totals' === $view
-		? array( 'rows' => $decoded['data'], 'webmcp' => array( 'calls' => 0, 'by_tool' => array() ) )
+		? array( 'rows' => $decoded['data'], 'webmcp' => array( 'calls' => 0, 'by_tool' => array(), 'outcomes' => array() ) )
 		: snt_mr_split_webmcp( (array) $decoded['data'] );
 	$result = array(
 		'ok'        => true,
@@ -478,11 +478,11 @@ function snt_mr_crawler_list_status() {
  * `by_tool` is tool => calls, largest first.
  *
  * @param array<int,mixed> $rows Raw aggregate rows from the worker.
- * @return array{rows:array<int,mixed>,webmcp:array{calls:int,by_tool:array<string,int>}}
+ * @return array{rows:array<int,mixed>,webmcp:array{calls:int,by_tool:array<string,int>,outcomes:array<string,array<string,int>>}}
  */
 function snt_mr_split_webmcp( array $rows ) {
 	$keep   = array();
-	$webmcp = array( 'calls' => 0, 'by_tool' => array() );
+	$webmcp = array( 'calls' => 0, 'by_tool' => array(), 'outcomes' => array() );
 	foreach ( $rows as $row ) {
 		if ( ! is_array( $row ) || 'webmcp' !== (string) ( $row['family'] ?? '' ) ) {
 			$keep[] = $row;
@@ -491,8 +491,12 @@ function snt_mr_split_webmcp( array $rows ) {
 		$tool = substr( preg_replace( '/[^a-z0-9_-]/', '', strtolower( (string) ( $row['surface'] ?? '' ) ) ), 0, 64 );
 		$tool = '' !== $tool ? $tool : 'unknown';
 		$hits = max( 0, (int) ( $row['hits'] ?? 0 ) );
-		$webmcp['calls']           += $hits;
-		$webmcp['by_tool'][ $tool ] = (int) ( $webmcp['by_tool'][ $tool ] ?? 0 ) + $hits;
+		// The outcome rides the purpose slot (worker src/webmcp-call.mjs): ok, absent, error.
+		$outcome = (string) ( $row['purpose'] ?? '' );
+		$outcome = in_array( $outcome, array( 'ok', 'absent', 'error' ), true ) ? $outcome : 'unknown';
+		$webmcp['calls']                         += $hits;
+		$webmcp['by_tool'][ $tool ]               = (int) ( $webmcp['by_tool'][ $tool ] ?? 0 ) + $hits;
+		$webmcp['outcomes'][ $tool ][ $outcome ]  = (int) ( $webmcp['outcomes'][ $tool ][ $outcome ] ?? 0 ) + $hits;
 	}
 	arsort( $webmcp['by_tool'] );
 	return array( 'rows' => $keep, 'webmcp' => $webmcp );
