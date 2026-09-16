@@ -403,6 +403,33 @@ until agents arrive rides the fetch result and the leaf instead, and joins
 the payload when it has a number. Arc two, the semantic search on the
 worker, is gated on exactly that number.
 
+## Being the agent, and five red lines
+
+With 15.6.0 on the site the owner asked how to test the WebMCP. The honest
+way is to be the agent: hand the bridge a fake `navigator.modelContext` that
+records what it registers, then call each tool's `execute` over a real note.
+The page's CSP forbids `eval`, so the bridge has to be imported as a module
+rather than evaluated, which is how it should be. In the clean browser pane,
+on the latest note, all five answered: five related notes with scores and
+shared tags, the site map with 43 notes and 3 pillars, a BibTeX entry with
+the anchored hash and the ledger record, the ODRL policy, and a verdict of
+"Authentic, qualified" with the Bitcoin anchor still confirming. Five beacons,
+five 204s, the first rows on Agent tools. The owner ran the same three lines
+in his own Chrome and got a citation back.
+
+His console also showed five red lines, and they were three different
+things. One was ours: the theme's footnote popover captures `pointerleave`
+on the document, so the pointer leaving the window fires with the document
+itself as the target, which has no `closest()`; 13.2.4 guards the four
+handlers through one helper, with a node suite that goes red on the old file.
+One was the zone's: Cloudflare Web Analytics injects its beacon at the edge
+on every page, and the CSP transform rule blocks it, so it has been a console
+error on every visit; the owner's call whether to turn the analytics off or
+allow the host. Two were the owner's browser: an extension injecting Ant
+Design and DM Sans, present in neither the served HTML nor the clean pane.
+The rule, recorded: curl the page, then load it clean, then blame the
+extension.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -413,6 +440,10 @@ worker, is gated on exactly that number.
   the deploy reading says current equals latest for the plugin, the theme and the
   five workers. The two worker versions merged tonight had no tags until then,
   and the deploy reading names `latest` from tags: tagged, and the row agrees.
+- Theme 13.2.4 (the footnotes popover's document target): cut in progress.
+- Cloudflare Web Analytics vs the CSP: the beacon is blocked on every page;
+  turn Web Analytics off, or allow `static.cloudflareinsights.com` in the
+  script-src of the transform rule. Owner's call.
 - WordPress 7.1.1 is imminent (its schedule was posted 2026-09-02); the site
   takes it through the updater, never by hand. Core's move to Node 24 and
   npm 11 touches nothing here: the plugin and the theme have no Node
