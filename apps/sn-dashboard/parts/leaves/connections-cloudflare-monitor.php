@@ -146,8 +146,55 @@ function cloudflare_firewall_html( array $d ) {
 	// right, to what (paths, countries). Notes and Refresh under the left.
 	return '<div class="snt-2up">'
 		. '<div class="snt-2up-col">' . \snt_kit_section( __( 'Firewall, 24 hours', 'signal-and-noise-tools' ), $parts['actions'] . $parts['rules'] . $parts['notes'] . $parts['footer'], __( 'What Cloudflare stopped before WordPress ran.', 'signal-and-noise-tools' ) ) . '</div>'
-		. '<div class="snt-2up-col">' . ( '' !== $parts['targets'] ? \snt_kit_section( __( 'Acted on', 'signal-and-noise-tools' ), $parts['targets'], __( 'The paths and countries behind the events, from the event log.', 'signal-and-noise-tools' ) ) : '' ) . '</div>'
+		. '<div class="snt-2up-col">' . ( '' !== $parts['targets'] ? \snt_kit_section( __( 'Acted on', 'signal-and-noise-tools' ), $parts['targets'], __( 'The paths and countries behind the events, from the event log.', 'signal-and-noise-tools' ) ) : '' ) . cloudflare_posture_html() . '</div>'
 		. '</div>';
+}
+
+/**
+ * Edge posture (15.4.0): what the edge is SET TO, beside what it did. The
+ * judged settings and DNSSEC as a dotted list, the plain readings as one
+ * quiet line, the custom rules by name with their state, and a refused read
+ * as a notice naming the scope. Paints from sn_cf_posture_model(); the
+ * classic card paints the same model.
+ *
+ * @return string
+ */
+function cloudflare_posture_html() {
+	if ( ! function_exists( 'sn_cf_posture_model' ) ) {
+		return '';
+	}
+	$m = sn_cf_posture_model();
+	$h = __( 'Edge posture', 'signal-and-noise-tools' );
+	$d = __( 'What the edge is set to, read daily with the firewall.', 'signal-and-noise-tools' );
+	if ( 'read' !== $m['state'] ) {
+		return \snt_kit_section( $h, '<p class="snt-hint">' . \snt_kit_esc( __( 'Not read yet; it reads with Refresh now.', 'signal-and-noise-tools' ) ) . '</p>', $d );
+	}
+	$inner = '';
+	foreach ( $m['refused'] as $why ) {
+		$inner .= \snt_kit_notice( 'warning', \snt_kit_esc( $why ) );
+	}
+	if ( array() !== $m['checks'] ) {
+		$rows = array();
+		foreach ( $m['checks'] as $c ) {
+			$rows[] = array( 'label' => $c['label'], 'value' => $c['value'], 'dot' => $c['ok'] ? 'ok' : 'err', 'tone' => $c['ok'] ? '' : 'warn' );
+		}
+		$inner .= \snt_kit_list( $rows );
+	}
+	if ( array() !== $m['also'] ) {
+		$bits = array();
+		foreach ( $m['also'] as $a ) {
+			$bits[] = $a['label'] . ' ' . $a['value'];
+		}
+		$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Also set:', 'signal-and-noise-tools' ) . ' ' . implode( ' · ', $bits ) . '.' ) . '</p>';
+	}
+	if ( array() !== $m['rules'] ) {
+		$rows = array();
+		foreach ( $m['rules'] as $r ) {
+			$rows[] = array( 'label' => $r['name'], 'value' => $r['enabled'] ? $r['action'] : __( 'disabled', 'signal-and-noise-tools' ), 'dot' => $r['enabled'] ? 'ok' : 'err', 'tone' => $r['enabled'] ? '' : 'warn' );
+		}
+		$inner .= '<h4 class="snt-h">' . \snt_kit_esc( __( 'Custom rules', 'signal-and-noise-tools' ) ) . '</h4>' . \snt_kit_list( $rows );
+	}
+	return \snt_kit_section( $h, $inner, $d );
 }
 
 /**
@@ -177,7 +224,10 @@ function cloudflare_firewall_parts( array $d ) {
 		if ( ! empty( $f['top_rules'] ) ) {
 			$rule_rows = array();
 			foreach ( (array) $f['top_rules'] as $r ) {
-				$rule_rows[] = array( 'label' => trim( (string) $r['source'] . ' ' . (string) $r['rule'] ) ?: __( '(unnamed)', 'signal-and-noise-tools' ), 'value' => (string) $r['action'] . ' × ' . number_format_i18n( (int) $r['count'] ) );
+				// 15.4.0: the rule's name from the ruleset read when the posture has
+				// it; the source and id otherwise, as before.
+				$name        = function_exists( 'sn_cf_posture_rule_name' ) ? sn_cf_posture_rule_name( (string) $r['rule'] ) : '';
+				$rule_rows[] = array( 'label' => '' !== $name ? $name : ( trim( (string) $r['source'] . ' ' . (string) $r['rule'] ) ?: __( '(unnamed)', 'signal-and-noise-tools' ) ), 'value' => (string) $r['action'] . ' × ' . number_format_i18n( (int) $r['count'] ), 'title' => '' !== $name ? trim( (string) $r['source'] . ' ' . (string) $r['rule'] ) : '' );
 			}
 			$parts['rules'] = '<h4 class="snt-h">' . \snt_kit_esc( __( 'Top rules', 'signal-and-noise-tools' ) ) . '</h4>' . \snt_kit_list( $rule_rows );
 		}

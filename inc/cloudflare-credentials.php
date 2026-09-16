@@ -115,6 +115,12 @@ function sn_cf_required_grants() {
 		array( 'scope' => 'Zone', 'grant' => 'Cache Purge › Purge', 'for' => __( 'edge purge on save and update', 'signal-and-noise-tools' ), 'status' => 'measured' ),
 		array( 'scope' => 'Zone', 'grant' => 'Analytics › Read', 'for' => __( 'the monitor\'s zone reading; the Edge view', 'signal-and-noise-tools' ), 'status' => 'measured' ),
 		array( 'scope' => 'Account', 'grant' => 'Account Analytics › Read', 'for' => __( 'Analytics Engine reads: S&N Analytics here, and the Machine Readers sensor and analytics worker through their own secrets (the same token loses them all)', 'signal-and-noise-tools' ), 'status' => 'measured' ),
+		// 15.4.0: the edge posture. Each scope is the one the endpoint's API
+		// reference names (developers.cloudflare.com/api); `documented` until
+		// the first live read flips it to measured.
+		array( 'scope' => 'Zone', 'grant' => 'Zone Settings › Read', 'for' => __( 'the edge posture: SSL mode, minimum TLS, Always Use HTTPS, Development Mode (Security › Firewall)', 'signal-and-noise-tools' ), 'status' => 'documented' ),
+		array( 'scope' => 'Zone', 'grant' => 'Zone WAF › Read', 'for' => __( 'the custom firewall rules by name and state; the abilities rule\'s first witness', 'signal-and-noise-tools' ), 'status' => 'documented' ),
+		array( 'scope' => 'Zone', 'grant' => 'DNS › Read', 'for' => __( 'DNSSEC status', 'signal-and-noise-tools' ), 'status' => 'documented' ),
 	);
 }
 

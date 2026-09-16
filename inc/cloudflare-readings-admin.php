@@ -109,7 +109,8 @@ function sn_admin_firewall_render() {
 		if ( ! empty( $f['top_rules'] ) ) {
 			echo '<h3 class="sn-fieldset-h">Top rules</h3><table class="widefat striped"><thead><tr><th>Rule</th><th>Action</th><th>Events</th></tr></thead><tbody>';
 			foreach ( (array) $f['top_rules'] as $r ) {
-				echo '<tr><td class="sn-mono">' . esc_html( trim( (string) $r['source'] . ' ' . (string) $r['rule'] ) ?: '(unnamed)' ) . '</td><td>' . esc_html( (string) $r['action'] ) . '</td><td>' . esc_html( number_format_i18n( (int) $r['count'] ) ) . '</td></tr>';
+				$name = function_exists( 'sn_cf_posture_rule_name' ) ? sn_cf_posture_rule_name( (string) $r['rule'] ) : ''; // 15.4.0: by name when the ruleset was read.
+				echo '<tr><td' . ( '' !== $name ? '' : ' class="sn-mono"' ) . '>' . esc_html( '' !== $name ? $name : ( trim( (string) $r['source'] . ' ' . (string) $r['rule'] ) ?: '(unnamed)' ) ) . '</td><td>' . esc_html( (string) $r['action'] ) . '</td><td>' . esc_html( number_format_i18n( (int) $r['count'] ) ) . '</td></tr>';
 			}
 			echo '</tbody></table>';
 		}
@@ -135,6 +136,50 @@ function sn_admin_firewall_render() {
 	} else {
 		echo '<div class="notice notice-error inline"><p>' . esc_html( 'Firewall events could not be read: ' . (string) ( $f['error'] ?? '' ) ) . '</p></div>';
 	}
+	sn_cf_posture_card_render();
 	sn_cf_readings_refresh_form( $record );
 }
 add_action( 'sn_admin_firewall_tab', 'sn_admin_firewall_render' );
+
+/**
+ * Edge posture, classic (15.4.0): the same model the native leaf paints.
+ * Judged rows first with their verdict, the readings as one line, the custom
+ * rules by name with their state; a refused read is a notice naming the scope.
+ */
+function sn_cf_posture_card_render() {
+	if ( ! function_exists( 'sn_cf_posture_model' ) ) {
+		return;
+	}
+	$m = sn_cf_posture_model();
+	echo '<div class="sn-fieldset sn-fieldset--wide"><h2 class="sn-fieldset-h">Edge posture</h2>';
+	echo '<p class="sn-field-helper">What the edge is set to, read daily with the firewall.</p>';
+	if ( 'read' !== $m['state'] ) {
+		echo '<p class="sn-field-helper">Not read yet; it reads with Refresh now.</p></div>';
+		return;
+	}
+	foreach ( $m['refused'] as $why ) {
+		echo '<div class="notice notice-warning inline"><p>' . esc_html( $why ) . '</p></div>';
+	}
+	if ( array() !== $m['checks'] ) {
+		echo '<table class="widefat striped"><thead><tr><th>Setting</th><th>Value</th><th>Verdict</th></tr></thead><tbody>';
+		foreach ( $m['checks'] as $c ) {
+			echo '<tr><td>' . esc_html( $c['label'] ) . '</td><td>' . esc_html( $c['value'] ) . '</td><td>' . ( $c['ok'] ? 'ok' : '<strong>drift</strong>' ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
+	}
+	if ( array() !== $m['also'] ) {
+		$bits = array();
+		foreach ( $m['also'] as $a ) {
+			$bits[] = $a['label'] . ' ' . $a['value'];
+		}
+		echo '<p class="sn-field-helper">' . esc_html( 'Also set: ' . implode( ' · ', $bits ) . '.' ) . '</p>';
+	}
+	if ( array() !== $m['rules'] ) {
+		echo '<h3 class="sn-fieldset-h">Custom rules</h3><table class="widefat striped"><thead><tr><th>Rule</th><th>Action</th><th>State</th></tr></thead><tbody>';
+		foreach ( $m['rules'] as $r ) {
+			echo '<tr><td>' . esc_html( $r['name'] ) . '</td><td>' . esc_html( $r['action'] ) . '</td><td>' . ( $r['enabled'] ? 'enabled' : '<strong>disabled</strong>' ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
+	}
+	echo '</div>';
+}

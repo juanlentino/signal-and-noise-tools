@@ -245,6 +245,26 @@ function sn_health_cf_waf_abilities_probe() {
 	$witness_url = home_url( '/wp-json/wp-abilities/v1/abilities' );
 	$how_to      = 'add a Better Stack HTTP monitor on ' . $witness_url . ' (and one on the ?rest_route=/wp-abilities/v1/abilities spelling) with a request header "Authorization: Basic x" and expected status code 403.';
 
+	// 15.4.0: the ruleset itself is the first witness. Cloudflare's own list
+	// of custom rules says whether the abilities rule exists and is enabled;
+	// that is the fact, on a day with no blocks too, read from the side that
+	// enforces it. A rule that is disabled is the rule NOT in force, whatever
+	// the log or the outside monitor last saw. No ruleset read (scope missing,
+	// never run) falls through to the log, then to the outside witness.
+	if ( function_exists( 'sn_cf_posture_read' ) && function_exists( 'sn_cf_posture_abilities_rule' ) ) {
+		$posture = sn_cf_posture_read();
+		if ( is_array( $posture ) && ! empty( $posture['rules']['available'] ) && (int) ( $posture['fetched_at'] ?? 0 ) > time() - 2 * DAY_IN_SECONDS ) {
+			$rule = sn_cf_posture_abilities_rule( $posture );
+			if ( is_array( $rule ) && ! empty( $rule['enabled'] ) && 'block' === (string) $rule['action'] ) {
+				return array( 'verdict' => 'blocked', 'why' => sprintf( 'Cloudflare\'s ruleset lists the custom rule "%s", enabled, action block.', (string) $rule['description'] ) );
+			}
+			if ( is_array( $rule ) ) {
+				return array( 'verdict' => 'open', 'why' => sprintf( 'Cloudflare\'s ruleset lists the custom rule "%s" but it is %s.', (string) $rule['description'], empty( $rule['enabled'] ) ? 'disabled' : 'not a block (action ' . (string) $rule['action'] . ')' ) );
+			}
+			return array( 'verdict' => 'open', 'why' => 'Cloudflare\'s ruleset has no custom rule naming the abilities API.' );
+		}
+	}
+
 	// 15.1.0: Cloudflare's own firewall log is a witness from the other side
 	// of the perimeter. A block by the custom rule on an abilities path in
 	// the last day IS the rule firing; no probe from here and no Better

@@ -23,6 +23,7 @@ require SNT_PATH . 'inc/cloudflare-purge-verify.php';
 require SNT_PATH . 'inc/cloudflare-purge.php';
 require SNT_PATH . 'inc/cloudflare-monitor.php';
 require SNT_PATH . 'inc/cloudflare-firewall-events.php';
+require SNT_PATH . 'inc/cloudflare-posture.php'; // 15.4.0: the edge posture beside the firewall
 require SNT_PATH . 'inc/cloudflare-credentials.php';
 require SNT_PATH . 'inc/cloudflare-readings-admin.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-cloudflare.php'; // the parts the Security leaf paints through
@@ -64,6 +65,28 @@ ok( 1 === substr_count( $kit, 'os-arg-action="cf_monitor_refresh"' ) && false !=
 ok( false === strpos( $kit, 'heading="Edge, 7 days"' ) && false === strpos( $kit, 'heading="Token"' ) && false === strpos( $kit, 'heading="Cache"' ), 'only the firewall: no Edge, Token or Cache here' );
 // 15.3.1: two columns: what happened (events, rules) left; to what (paths, countries) right.
 ok( false !== strpos( $kit, '<div class="snt-2up">' ) && false !== strpos( $kit, 'heading="Acted on"' ) && strpos( $kit, 'heading="Firewall, 24 hours"' ) < strpos( $kit, 'heading="Acted on"' ) && false !== strpos( $kit, '>Top rules</h4>' ) && strpos( $kit, '>Top rules</h4>' ) < strpos( $kit, 'heading="Acted on"' ) && strpos( $kit, 'Top paths acted on' ) > strpos( $kit, 'heading="Acted on"' ) && strpos( $kit, 'os-arg-action="cf_monitor_refresh"' ) < strpos( $kit, 'heading="Acted on"' ), 'two columns: events and the top rules (with a heading) left with Refresh; the paths and countries right under Acted on' );
+
+// 15.4.0: the posture, right column under Acted on. Before it is read: one
+// hint. Read: the judged settings as a dotted list in words, the readings as
+// one quiet line, the custom rules by name with their state, and the top rule
+// on the left now carries its NAME (the id kept as a title).
+ok( false !== strpos( $kit, 'heading="Edge posture"' ) && strpos( $kit, 'heading="Edge posture"' ) > strpos( $kit, 'heading="Acted on"' ) && false !== strpos( $kit, 'Not read yet; it reads with Refresh now.' ), 'posture never read: the section sits under Acted on and says so' );
+$posture = array( 'fetched_at' => time(), 'configured' => true,
+	'settings' => array( 'available' => true, 'needs_permission' => false, 'error' => '', 'values' => array( 'ssl' => 'strict', 'min_tls_version' => '1.2', 'always_use_https' => 'on', 'development_mode' => 'on', 'security_level' => 'medium', 'browser_check' => 'on' ) ),
+	'dnssec'   => array( 'available' => false, 'needs_permission' => true, 'error' => 'The token lacks Zone › DNS › Read. Authentication error', 'status' => '' ),
+	'rules'    => array( 'available' => true, 'needs_permission' => false, 'error' => '', 'rules' => array( array( 'id' => 'r1', 'description' => 'Block Basic-auth on abilities API', 'action' => 'block', 'enabled' => true, 'expression' => '' ), array( 'id' => 'r2', 'description' => 'Old guard', 'action' => 'block', 'enabled' => false, 'expression' => '' ) ) ),
+);
+fw_opts( $GLOBALS['__options'] + array( SN_CF_POSTURE_OPT => $posture ) );
+$classic = snt_leaf_classic_html( 'sn_admin_render_firewall_section' );
+$kit     = snt_leaf_paint( 'security', 'firewall' );
+ok( false !== strpos( $kit, '>SSL mode<' ) && false !== strpos( $kit, '>Full (strict)<' ) && false !== strpos( $kit, '>TLS 1.2<' ) && false !== strpos( $kit, 'snt-dot--ok' ), 'judged settings in words with an ok dot' );
+ok( false !== strpos( $kit, '>Development mode<' ) && 2 === substr_count( $kit, 'snt-dot--err' ) && 4 === substr_count( $kit, 'snt-dot--ok' ), 'two err dots (development mode on, the disabled rule) against four ok (three settings, the enabled rule)' );
+ok( false !== strpos( $kit, 'Also set: Security level medium · Browser integrity check on.' ), 'the readings are one quiet line' );
+ok( false !== strpos( $kit, 'The token lacks Zone › DNS › Read' ) && false !== strpos( $kit, '<os-notice tone="warning"' ), 'the refused DNSSEC read is a warning notice naming the scope' );
+ok( false !== strpos( $kit, '>Custom rules</h4>' ) && false !== strpos( $kit, '>Old guard<' ) && false !== strpos( $kit, '>disabled<' ) && strpos( $kit, '>Custom rules</h4>' ) > strpos( $kit, 'heading="Edge posture"' ), 'custom rules by name; a disabled one says so' );
+ok( false !== strpos( $kit, '>Block Basic-auth on abilities API<' ) && false === strpos( $kit, '>firewallCustom r1<' ) && false !== strpos( $kit, 'title="firewallCustom r1"' ), 'the top rule on the left now carries its name, the id as a title' );
+ok( false !== strpos( $classic, 'Edge posture' ) && false !== strpos( $classic, '<td>Full (strict)</td>' ) && false !== strpos( $classic, '<strong>drift</strong>' ) && false !== strpos( $classic, 'Zone › DNS › Read' ) && false !== strpos( $classic, '<td>Block Basic-auth on abilities API</td>' ) && false !== strpos( $classic, '<strong>disabled</strong>' ), 'the classic leaf paints the same posture' );
+ok( array() === snt_leaf_classic_markers( $kit ) && array( 'cf_monitor_refresh' ) === snt_leaf_actions( $kit ), 'still one action and no wp-admin markup with the posture painted' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

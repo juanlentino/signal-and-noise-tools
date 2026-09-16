@@ -45,6 +45,9 @@ function sn_handle_cf_monitor_refresh( $post ) {
 	if ( function_exists( 'sn_cf_firewall_events_refresh' ) ) {
 		sn_cf_firewall_events_refresh(); // 15.1.0: the event log rides the same button.
 	}
+	if ( function_exists( 'sn_cf_posture_refresh' ) ) {
+		sn_cf_posture_refresh(); // 15.4.0: settings, DNSSEC and the custom rules too.
+	}
 	return ! empty( $r['configured'] ) ? 'cf_monitor_refreshed' : 'cf_purged_unconfigured';
 }
 

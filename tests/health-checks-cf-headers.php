@@ -99,9 +99,13 @@ function wp_remote_retrieve_body( $resp ) {
 // witness as unconfigured and stay about headers.
 $GLOBALS['__test_bs_token'] = '';
 $GLOBALS['__test_fw_log']   = null; // 15.1.0: the stored firewall log (tests 17-18); null = never run, so 10-16 fall through to Better Stack.
+$GLOBALS['__test_posture']  = null; // 15.4.0: the stored posture record (tests 19-21); null = never read, so everything before falls through to the log and Better Stack.
 function get_option( $key, $default = false ) {
 	if ( 'sn_cf_firewall_events' === $key ) {
 		return null === $GLOBALS['__test_fw_log'] ? $default : $GLOBALS['__test_fw_log'];
+	}
+	if ( 'sn_cf_posture' === $key ) {
+		return null === $GLOBALS['__test_posture'] ? $default : $GLOBALS['__test_posture'];
 	}
 	return 'sn_betterstack_api_token' === $key ? $GLOBALS['__test_bs_token'] : $default;
 }
@@ -476,6 +480,59 @@ $check = sn_health_check_cf_security_headers();
 cf_eq( 0, $check['count'], 'a three-day-old hit is stale evidence: fell through, the up witness decided' );
 cf_eq( 1, $GLOBALS['__test_get_calls'], 'Better Stack was read for the stale log' );
 $GLOBALS['__test_fw_log'] = null;
+
+// ─── Tests 19-21: the ruleset itself is the first witness (15.4.0) ────────
+// The REAL reader over the stored posture option. A rule that exists and is
+// enabled is the fact, on a day with no blocks and no monitor; disabled or
+// absent is open, whatever the log or the monitor say; a refused or stale
+// ruleset read falls through to the log and the monitor as before.
+if ( ! defined( 'SN_CF_FW_ABILITIES_RULE' ) ) { define( 'SN_CF_FW_ABILITIES_RULE', 'abilities' ); }
+if ( ! function_exists( 'update_option' ) ) { function update_option() { return true; } }
+if ( ! function_exists( 'human_time_diff' ) ) { function human_time_diff() { return ''; } }
+require_once dirname( __DIR__ ) . '/inc/cloudflare-posture.php';
+$rule_on  = array( 'id' => '55a1a3', 'description' => 'Block Basic-auth on abilities API', 'action' => 'block', 'enabled' => true, 'expression' => 'http.request.uri.path contains "wp-abilities"' );
+$posture  = static function ( array $rules, $avail = true, $age = 3600 ) { return array( 'fetched_at' => time() - $age, 'configured' => true, 'settings' => null, 'dnssec' => null, 'rules' => array( 'available' => $avail, 'needs_permission' => ! $avail, 'error' => $avail ? '' : 'The token lacks Zone › Zone WAF › Read.', 'rules' => $rules ) ); };
+
+echo "\nTest 19: the ruleset lists the abilities rule, enabled, block → blocked; neither the log nor Better Stack asked\n";
+waf_reset();
+$GLOBALS['__test_posture'] = $posture( array( $rule_on ) );
+$GLOBALS['__test_fw_log'] = array( 'fetched_at' => time() - 3600, 'available' => true, 'rows' => array() );
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abilities_url, 'down' ) ) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 0, $check['count'], 'the ruleset is the witness: 0 findings on an empty log with a down monitor' );
+cf_eq( 0, $GLOBALS['__test_get_calls'], 'Better Stack was not read' );
+$probe = sn_health_cf_waf_abilities_probe();
+cf_true( 'blocked' === $probe['verdict'] && false !== strpos( $probe['why'], 'ruleset lists' ) && false !== strpos( $probe['why'], 'Block Basic-auth on abilities API' ), 'the why names the ruleset and the rule' );
+
+echo "\nTest 20: the rule is disabled, or missing → open, whatever the log and the monitor say\n";
+waf_reset();
+$GLOBALS['__test_posture'] = $posture( array( array( 'enabled' => false ) + $rule_on ) );
+$GLOBALS['__test_fw_log'] = array( 'fetched_at' => time() - 3600, 'available' => true, 'rows' => array( $fw_hit ) );
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abilities_url, 'up' ) ) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 1, $check['count'], 'disabled in the ruleset is the rule NOT in force: 1 finding despite a fresh hit and an up monitor' );
+$probe = sn_health_cf_waf_abilities_probe();
+cf_true( 'open' === $probe['verdict'] && false !== strpos( $probe['why'], 'disabled' ), 'the why says disabled' );
+waf_reset();
+$GLOBALS['__test_posture'] = $posture( array( array( 'id' => 'z', 'description' => 'Something else', 'action' => 'skip', 'enabled' => true, 'expression' => 'true' ) ) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 1, $check['count'], 'no rule naming the abilities API in the ruleset: open' );
+
+echo "\nTest 21: a refused or stale ruleset read falls through to the log, then the monitor\n";
+waf_reset();
+$GLOBALS['__test_posture'] = $posture( array(), false );
+$GLOBALS['__test_fw_log'] = array( 'fetched_at' => time() - 3600, 'available' => true, 'rows' => array( $fw_hit ) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 0, $check['count'], 'refused ruleset: the log decided (a fresh block)' );
+cf_eq( 0, $GLOBALS['__test_get_calls'], 'Better Stack not needed' );
+waf_reset();
+$GLOBALS['__test_posture'] = $posture( array( $rule_on ), true, 3 * 86400 );
+$GLOBALS['__test_fw_log'] = array( 'fetched_at' => time() - 3600, 'available' => true, 'rows' => array() );
+$GLOBALS['__test_get_response'] = bs_monitors( array( $site_monitor, array( $abilities_url, 'down' ) ) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 1, $check['count'], 'a three-day-old ruleset read is stale evidence: fell through, empty log, the down monitor said open' );
+cf_eq( 1, $GLOBALS['__test_get_calls'], 'Better Stack was read' );
+$GLOBALS['__test_posture'] = null; $GLOBALS['__test_fw_log'] = null;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
