@@ -409,7 +409,15 @@ worker, is gated on exactly that number.
   rolled-away Cloudflare token); mint a real site secret when a worker row
   should derive from one.
 - Worker #45 (vitest): its cooldown clears 2026-09-17 around 18:00Z.
-- Plugin 15.6.0 (Agent tools): cut in progress; installs through the updater.
+- Plugin 15.6.0 (Agent tools) released 22:18Z; installs through the updater.
+- WordPress 7.1.1 is imminent (its schedule was posted 2026-09-02); the site
+  takes it through the updater, never by hand. Core's move to Node 24 and
+  npm 11 touches nothing here: the plugin and the theme have no Node
+  toolchain, and both workers already pin Node 24 in CI.
+- WordPress 7.2: Beta 1 on 20 to 22 October, RC 1 on 17 to 19 November,
+  final on 8 to 10 December 2026, with a new default theme. Test both repos
+  against Beta 1 when it lands (the day the 7.2 stubs publish, the phpstan
+  gate can move with them).
 - WebMCP bridge v2 arc two (`search-notes` on the worker): gated on a month
   of beacon rows on AI › Agent tools, or the owner saying build it.
 - The provenance sweep's `webmcp-bridge/v2` record: confirm in the ledger
