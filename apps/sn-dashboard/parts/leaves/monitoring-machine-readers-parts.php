@@ -28,6 +28,7 @@ function machine_readers_data() {
 	$days   = 30;
 	$result = function_exists( '\snt_mr_fetch' ) ? \snt_mr_fetch( $days ) : array( 'ok' => false, 'rows' => array() );
 	$rows   = ! empty( $result['ok'] ) && is_array( $result['rows'] ?? null ) ? $result['rows'] : array();
+	$webmcp = ! empty( $result['ok'] ) && is_array( $result['webmcp'] ?? null ) ? $result['webmcp'] : array( 'calls' => 0, 'by_tool' => array() ); // 15.5.0
 
 	$feed       = function_exists( '\sn_rss_tracker_window_stats_multi' ) ? (array) \sn_rss_tracker_window_stats_multi( array( 7, 30 ) ) : array();
 	$feed_total = isset( $feed['windows'][30]['total'] ) ? (int) $feed['windows'][30]['total'] : null;
@@ -59,6 +60,7 @@ function machine_readers_data() {
 		'rows'         => $rows,
 		'feed'         => $feed,
 		'feed_total'   => $feed_total,
+		'webmcp'       => $webmcp,
 		'info'         => $info,
 		'status'       => $status,
 		'unknown_rows' => $unknown_rows,
@@ -105,7 +107,7 @@ function machine_readers_pills_html( array $pills ) {
 }
 
 /** @param array $rows @param int $days @param int|null $feed_total @return string */
-function machine_readers_summary_stats_html( array $rows, $days, $feed_total ) {
+function machine_readers_summary_stats_html( array $rows, $days, $feed_total, $tool_calls = null ) {
 	$totals = \snt_mr_sum_hits_by( $rows, 'family' );
 	$total  = array_sum( $totals );
 	$top    = ! empty( $totals ) ? (string) array_key_first( $totals ) : '—';
@@ -119,6 +121,12 @@ function machine_readers_summary_stats_html( array $rows, $days, $feed_total ) {
 	$out .= \snt_kit_stat( number_format_i18n( $ai ), __( 'AI-training reads', 'signal-and-noise-tools' ) );
 	if ( null !== $feed_total ) {
 		$out .= \snt_kit_stat( number_format_i18n( (int) $feed_total ), sprintf( __( 'feed fetches, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ) );
+	}
+	// 15.5.0: the WebMCP bridge's tool calls, the reader's agent acting on the
+	// page. Never summed with reads; a fifth figure beside them. Zero until the
+	// bridge with the beacon ships, and zero is the honest reading then.
+	if ( null !== $tool_calls ) {
+		$out .= \snt_kit_stat( number_format_i18n( (int) $tool_calls ), sprintf( __( 'agent tool calls, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ) );
 	}
 	return $out . '</div>';
 }

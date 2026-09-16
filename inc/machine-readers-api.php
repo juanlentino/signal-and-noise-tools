@@ -240,6 +240,17 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 		return array( 'ok' => false, 'rows' => array(), 'error' => 'bad_schema' );
 	}
 
+	// 15.5.0: the WebMCP bridge's tool calls ride the same dataset as family
+	// `webmcp` (one row per tool; `surface` is the tool). A call is not a page
+	// read: the page that made it was already counted. Split once, here, so
+	// every reader's rows are page reads only and the calls have their own
+	// figure (the worker's totals view excludes the family too).
+	// The split runs on the RAW rows: the normalizer folds an unknown family
+	// into `other-bot` and an unknown surface into `html`, which would turn a
+	// tool call into a bot read of an HTML page.
+	$split  = 'rights' === $view || 'totals' === $view
+		? array( 'rows' => $decoded['data'], 'webmcp' => array( 'calls' => 0, 'by_tool' => array() ) )
+		: snt_mr_split_webmcp( (array) $decoded['data'] );
 	$result = array(
 		'ok'        => true,
 		// The rights view returns a different row shape (full UA, path, Accept,
@@ -250,7 +261,8 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 			? snt_mr_normalize_rights_rows( $decoded['data'] )
 			: ( 'totals' === $view
 				? snt_mr_normalize_totals_rows( $decoded['data'] )
-				: snt_mr_normalize_rows( $decoded['data'] ) ),
+				: snt_mr_normalize_rows( $split['rows'] ) ),
+		'webmcp'    => $split['webmcp'],
 		// Worker v1.23.0. UNTRUSTED like every other field: cast, never trusted
 		// as shape. A read that says it is truncated must not be summed into a
 		// headline, which is the whole reason the worker now reports it.
@@ -459,3 +471,29 @@ function snt_mr_crawler_list_status() {
 	return $flat;
 }
 
+/**
+ * Split the bridge's tool-call rows (family `webmcp`) off the page reads,
+ * BEFORE normalization (see the call site). Pure; the worker's values are
+ * untrusted: the tool name is a bounded string, the hits an int.
+ * `by_tool` is tool => calls, largest first.
+ *
+ * @param array<int,mixed> $rows Raw aggregate rows from the worker.
+ * @return array{rows:array<int,mixed>,webmcp:array{calls:int,by_tool:array<string,int>}}
+ */
+function snt_mr_split_webmcp( array $rows ) {
+	$keep   = array();
+	$webmcp = array( 'calls' => 0, 'by_tool' => array() );
+	foreach ( $rows as $row ) {
+		if ( ! is_array( $row ) || 'webmcp' !== (string) ( $row['family'] ?? '' ) ) {
+			$keep[] = $row;
+			continue;
+		}
+		$tool = substr( preg_replace( '/[^a-z0-9_-]/', '', strtolower( (string) ( $row['surface'] ?? '' ) ) ), 0, 64 );
+		$tool = '' !== $tool ? $tool : 'unknown';
+		$hits = max( 0, (int) ( $row['hits'] ?? 0 ) );
+		$webmcp['calls']           += $hits;
+		$webmcp['by_tool'][ $tool ] = (int) ( $webmcp['by_tool'][ $tool ] ?? 0 ) + $hits;
+	}
+	arsort( $webmcp['by_tool'] );
+	return array( 'rows' => $keep, 'webmcp' => $webmcp );
+}

@@ -94,6 +94,10 @@ $aggregate_rows = array(
 	array( 'family' => 'anthropic', 'surface' => 'html', 'day' => '2026-09-02', 'hits' => 30, 'vendor' => 'anthropic', 'agent' => 'claude-bot', 'purpose' => 'train', 'taxonomy_version' => '1', 'signed_agent' => 'invalid' ),
 	array( 'family' => 'uptime', 'surface' => 'html', 'day' => '2026-09-02', 'hits' => 500, 'vendor' => 'betterstack', 'purpose' => 'ops', 'taxonomy_version' => '1', 'first_party' => '1' ),
 	array( 'family' => 'other-bot', 'surface' => 'html', 'day' => '2026-09-01', 'hits' => 8, 'taxonomy_version' => '1' ),
+	// 15.5.0: the WebMCP bridge's tool calls ride the same dataset as family
+	// `webmcp`; they must leave the reads (663 stays 663) and get their own stat.
+	array( 'family' => 'webmcp', 'surface' => 'verify-page', 'day' => '2026-09-02', 'hits' => 7 ),
+	array( 'family' => 'webmcp', 'surface' => 'related-notes', 'day' => '2026-09-02', 'hits' => 2 ),
 );
 $unknown_rows_raw = array(
 	array( 'family' => 'other-bot', 'surface' => 'html', 'day' => '2026-09-01', 'hits' => 8, 'user_agent' => 'SomeCrawlerBot/1.0 review-me', 'taxonomy_version' => '1' ),
@@ -126,6 +130,8 @@ ok( false !== strpos( $kit, '663' ), 'the total-reads stat sums every row (120+5
 ok( false !== strpos( $kit, 'openai' ) && false !== strpos( $kit, 'top family' ), 'the top-family stat names openai' );
 ok( false !== strpos( $kit, '155' ) && false !== strpos( $kit, 'AI-training reads' ), 'the AI-training-reads stat sums openai+anthropic (120+5+30=155)' );
 ok( false !== strpos( $kit, '210' ) && false !== strpos( $kit, 'feed fetches' ), 'the feed-fetches stat carries the 30d feed total' );
+ok( false !== strpos( $kit, '<os-stat value="9" label="agent tool calls, 30d">' ) && false !== strpos( $kit, '<os-stat value="663" label="machine reads, 30d">' ), '15.5.0: the tool-calls stat sums the webmcp rows (7+2=9) and the reads stat did not grow (663)' );
+ok( false !== strpos( $classic, 'agent tool calls, 30d' ) && false !== strpos( $classic, '<p class="sn-kpi-value">9</p>' ) && false === strpos( $kit, '>webmcp<' ) && false === strpos( $classic, '>webmcp<' ), 'the classic tab paints the same figure; webmcp is not a family on either leaf' );
 ok( false !== strpos( $kit, '125 / 155' ), 'the proved-identity stat is valid/measured (125 valid of 155 measured)' );
 ok( false !== strpos( $kit, '120' ) && false !== strpos( $kit, 'asked for markdown' ), 'the markdown-adoption stat carries the markdown count' );
 

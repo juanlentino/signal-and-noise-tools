@@ -28,6 +28,7 @@ Linked from the leaf's "Developer filter seams →" line
 | `snt_ai_economy_features` | Which AI features ride the economy tier. |
 | `snt_ai_economy_model` | Which model the economy tier uses. |
 | `snt_ai_cache_probe_enabled` | Kill switch for the read-only Anthropic prompt-cache probe (`inc/ai-cache-probe.php`). Return false to stop recording. |
+| `sn_site_map_papers` | The papers list in `/notes/index.json` (15.5.0), the one hand-kept list there: `{title, venue, status, id, url}` rows. |
 | `snt_ai_cache_probe_min_prefix` | A model's minimum cacheable prefix in tokens, used by the probe's verdict. Return an int to teach it a model it doesn't know, or null to withhold a claim. |
 
 `tests/analytics-filter-reference-parity.php` scans `inc/` for `apply_filters()`
