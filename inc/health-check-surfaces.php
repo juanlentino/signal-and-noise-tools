@@ -67,6 +67,10 @@ function sn_health_check_surface_map() {
 		// pageview pays for a 10.6s job), reaches zero with one wp-config line,
 		// and unowned elsewhere - the three tests for this surface.
 		'wp_cron_request_path'  => 'health',
+		// 28th (15.9.0): a note's title tag without a query-shaped subtitle. A
+		// defect (nobody searches the aphorism), reaches zero one line at a
+		// time, unowned elsewhere.
+		'search_titles'         => 'health',
 		// 25th + 26th (v13.98.0). Both defects (a sensor that stopped writing;
 		// a theme.json that lies), both reach zero, both unowned elsewhere.
 		'machine_reader_liveness' => 'health',
