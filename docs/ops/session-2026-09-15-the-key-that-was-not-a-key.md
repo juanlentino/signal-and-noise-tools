@@ -533,6 +533,57 @@ moves the attested time to the re-stamp; a merge is the upgrade path if it
 ever matters. Each new pin verified red by mutation: the throw-on-5xx
 restored, the fork marker moved.
 
+## The queue has a face
+
+The owner asked where an Activity-style reading could live, core's box with
+its recently published and scheduled posts, and whether it should be a widget
+at all. OpenStation cannot host core's dashboard boxes; it ships Drafts (drafts
+only) and Post Stats (counts per month). None of our nine widgets is the home:
+they read site condition and ops, and published-and-coming is editorial. The
+real queue settled the shape: 26 notes scheduled, one every four days, from
+tomorrow to 27 December. So the question is not "what is my activity" but "is
+the queue fed, and what goes out next", and the number no surface on the
+desktop showed was the depth.
+
+Plugin 15.8.0, "the queue has a face" (#1383, #1384, #1385): SN Queue,
+registered second beside Site Views. The next note as the headline with its
+time, the depth line (`26 scheduled · runs to Dec 27`), three more upcoming,
+the last three published, each row opening the editor as a native window.
+Four and three, not five and five: at a four-day cadence the fifth upcoming is
+three weeks out and says nothing the depth line does not, and five published
+reaches back into old. Behind it `signal-noise/content-queue`, readonly,
+`edit_posts`, three cheap reads and the cached count, every label computed in
+PHP in the site timezone ("Today 21:38", "Tomorrow 09:38", "Sat 11:38",
+"Sep 26", "Jan 3, 2027", "Overdue"). Absorbed by `sn-posts` on the door; the
+verdict is recorded. The shaper is pure and tolerates junk; the widget guards
+every read and gates every callback on teardown. The owner asked for
+defensive design the way OpenStation and core do it, and that is the shape.
+
+He added it and it disappeared. I read his shell from Chrome: the server
+payload carried `sn-queue` with the right script URL, the ability answered 26
+scheduled and every label right, and the card said `Queue read failed: empty
+response`. The run-path returns an ability's output as is; only abilities that
+wrap themselves, `get-rss-stats` among them, come back as `{ok, data}`, and I
+had copied that shape from the RSS widget instead of reading the runner's
+contract. With the read patched in the page for a minute the card rendered as
+designed and measured 365, so the pin is 380, not the 300 I had budgeted for a
+one-line title.
+
+Then: "the toasters in the widgets are weird, they make the widget expand",
+and "that happens in all widgets". Quick Actions appended its result strip
+inside the card for 3.5 seconds; Anchors appended its sweep note under the
+status until the next refresh. A docked card sizes to its content, so both
+grew the card by a row and shrank it back. OpenStation has a shell toast,
+`wp.os.showToast`, Stable in its JavaScript reference; it paints at the top of
+the shell and never touches the card. Both widgets report through it now, the
+in-card strips remain only as the fallback for a shell without it, and the
+shell call is pinned to come first. Verified live before shipping: the toast
+rendered in `<os-toast>` and the Quick Actions card's height did not move.
+Plugin 15.8.1, "the queue reads what it is handed" (#1386, #1387, #1388); the
+Anchors half was pushed onto the release branch before its gate cleared, so
+one cut carried both. The documented way, twice in one release: the shell
+already had a toast, and the runner's contract was in the file.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -570,8 +621,10 @@ restored, the fork marker moved.
   through bob within hours. Release drafts for v1.18.3 and v1.19.0 created
   from their tags and changelog blocks; the worker's draft list runs unbroken
   from 1.18.2 to 1.20.0.
-- Plugin 15.7.1 (the runner's empty-hand POST) released and installed; the
-  widget's `Sweep now` runs.
+- Plugin 15.7.1 (the runner's empty-hand POST), 15.8.0 (SN Queue) and 15.8.1
+  (the bare payload, the shell toasts) released and installed; the desktop
+  reads as designed. The Quick Actions card keeps a persisted docked height
+  from the toast-strip days; one drag of its bottom edge resets it.
 - Upstream OpenStation #819 / #820: with the maintainers.
 - The `firewallEventsAdaptive` page is a floor past 10,000 samples a day; page
   it when a day gets there.
