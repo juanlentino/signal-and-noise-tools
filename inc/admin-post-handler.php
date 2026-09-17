@@ -80,6 +80,10 @@ function sn_admin_post_handlers() {
 		'indexnow_save'              => 'sn_handle_indexnow_save',
 		'indexnow_regenerate'        => 'sn_handle_indexnow_regenerate',
 		'indexnow_ping_now'          => 'sn_handle_indexnow_ping_now',
+		// 15.11.0: Zenodo DOIs.
+		'zenodo_env_save'            => 'sn_handle_zenodo_env_save',
+		'zenodo_deposit_batch'       => 'sn_handle_zenodo_deposit_batch',
+		'zenodo_deposit_one'         => 'sn_handle_zenodo_deposit_one',
 		'analytics_exclude_save'     => 'sn_handle_analytics_exclude_save',
 		'analytics_test'             => 'sn_handle_analytics_test',
 		'analytics_tuning_save'      => 'sn_handle_analytics_tuning_save',

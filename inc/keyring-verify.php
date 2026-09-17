@@ -57,6 +57,8 @@ function sn_keyring_probe( $id, array $row ) {
 			return sn_keyring_probe_spotify();
 		case 'github':
 			return sn_keyring_probe_github();
+		case 'zenodo':
+			return sn_keyring_probe_zenodo( $id );
 	}
 	return sn_keyring_verdict( 'none', __( 'No probe for this credential; the tab that uses it is the witness.', 'signal-and-noise-tools' ) );
 }
@@ -153,6 +155,29 @@ function sn_keyring_probe_github() {
 	}
 	/* translators: %d: HTTP status. */
 	return sn_keyring_verdict( 401 === $code ? 'refused' : 'error', sprintf( __( 'GitHub answered HTTP %d.', 'signal-and-noise-tools' ), $code ) );
+}
+
+/**
+ * 15.11.0: Zenodo answers a bearer GET on the depositions list with 200 and
+ * names the environment that answered, so a sandbox token in the production
+ * row (or the reverse) reads as refused, not as fine.
+ *
+ * @return array{status:string,detail:string,at:int}
+ */
+function sn_keyring_probe_zenodo( $id ) {
+	$env  = 'zenodo_sandbox_token' === (string) $id ? 'sandbox' : 'production';
+	$base = function_exists( 'sn_zenodo_api_base' ) ? sn_zenodo_api_base( $env ) : ( 'sandbox' === $env ? 'https://sandbox.zenodo.org/api' : 'https://zenodo.org/api' );
+	$resp = wp_remote_get( $base . '/deposit/depositions?size=1', array( 'timeout' => 8, 'redirection' => 0, 'sslverify' => true, 'headers' => array( 'Authorization' => 'Bearer ' . sn_credential( $id ), 'Accept' => 'application/json', 'User-Agent' => 'signal-and-noise-tools' ) ) );
+	if ( is_wp_error( $resp ) ) {
+		return sn_keyring_verdict( 'error', $resp->get_error_message() );
+	}
+	$code = (int) wp_remote_retrieve_response_code( $resp );
+	if ( 200 === $code ) {
+		/* translators: %s: environment name. */
+		return sn_keyring_verdict( 'ok', sprintf( __( 'Zenodo %s answers; the token can list depositions.', 'signal-and-noise-tools' ), $env ) );
+	}
+	/* translators: 1: environment name, 2: HTTP status. */
+	return sn_keyring_verdict( in_array( $code, array( 401, 403 ), true ) ? 'refused' : 'error', sprintf( __( 'Zenodo %1$s answered HTTP %2$d.', 'signal-and-noise-tools' ), $env, $code ) );
 }
 
 /**

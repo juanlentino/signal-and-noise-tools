@@ -505,7 +505,20 @@ function sn_prov_apply_confirmation( $uid, $version, array $data ) {
 	if ( isset( $data['confirmations'] ) ) {
 		$fields['confirmations'] = max( 0, (int) $data['confirmations'] );
 	}
-	return sn_prov_update_commit( $post_id, (int) $version, $fields );
+	$written = sn_prov_update_commit( $post_id, (int) $version, $fields );
+	if ( $written && 'confirmed' === $status ) {
+		/**
+		 * Fires when a commit's anchor is Bitcoin-confirmed (15.11.0). The
+		 * Zenodo deposit hooks this: a record is minted only once the proof
+		 * it files is final.
+		 *
+		 * @param int   $post_id
+		 * @param int   $version
+		 * @param array $fields  What the confirmation wrote (status, block, txid).
+		 */
+		do_action( 'sn_prov_confirmed', (int) $post_id, (int) $version, $fields );
+	}
+	return $written;
 }
 
 /**

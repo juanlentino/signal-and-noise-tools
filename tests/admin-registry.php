@@ -35,6 +35,7 @@ function sn_login_defense_render() { $GLOBALS['__calls'][] = 'fn:sn_login_defens
 function sn_login_defense_view_render() { $GLOBALS['__calls'][] = 'fn:sn_login_defense_view_render'; }
 function snt_audit_log_render_tab() { $GLOBALS['__calls'][] = 'fn:snt_audit_log_render_tab'; }
 function sn_admin_render_indexnow_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_indexnow_section'; }
+function sn_admin_render_zenodo_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_zenodo_section'; } // 15.11.0: Connections → Zenodo (real fn lives in inc/admin-forms/zenodo.php)
 function sn_admin_render_citations_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_citations_section'; }
 function snt_analytics_render_settings_section() { $GLOBALS['__calls'][] = 'fn:snt_analytics_render_settings_section'; }
 function sn_admin_render_music_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_music_section'; }
@@ -136,8 +137,8 @@ ok( ( $by_tab['content']['sub_tabs']['pattern-adoption']['render'] ?? '' ) === '
 // origin cache, the same job at two layers. ORDER is asserted, not just
 // membership: a purge that clears one and not the other is the confusing case,
 // and the two leaves reading adjacently is what makes that legible.
-ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'credentials', 'cloudflare', 'cloudways', 'webhooks', 'indexnow', 'music', 'cron', 'scheduled-content' ),
-	'connections leaves: credentials (15.2.0, first: the precondition for the rest), cloudflare, cloudways, webhooks, indexnow, music, cron, scheduled-content' );
+ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'credentials', 'cloudflare', 'cloudways', 'webhooks', 'indexnow', 'zenodo', 'music', 'cron', 'scheduled-content' ),
+	'connections leaves: credentials (15.2.0, first: the precondition for the rest), cloudflare, cloudways, webhooks, indexnow, zenodo (15.11.0), music, cron, scheduled-content' );
 ok( ( $by_tab['connections']['sub_tabs']['cloudways']['render'] ?? '' ) === 'sn_admin_render_cloudways_section',
 	'cloudways names its own leaf render fn' );
 ok( ! empty( $by_tab['connections']['sub_tabs']['cloudways']['wide'] ),

@@ -142,6 +142,8 @@ function sn_health_run_scan() {
 			// Born from the Search Console pressure test: 40 of 43 without a
 			// query-shaped subtitle, 21 never shown. A defect that reaches zero.
 			'search_titles'        => sn_health_check_search_titles(),
+			// 29th check (15.11.0): confirmed documents without a production DOI.
+			'zenodo_doi'           => sn_health_check_zenodo_doi(),
 			// 25th check (v13.98.0): the machine-reader dataset went quiet. The
 			// worker's sensor readout is isolate memory and reads null for both a
 			// fresh isolate and a sensor that never fires; the dataset can tell.

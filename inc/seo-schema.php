@@ -343,6 +343,21 @@ function sn_schema_article() {
 		}
 	}
 
+	// 15.11.0: the DOI. A production DOI joins the identifier list as its own
+	// PropertyValue (propertyID "DOI", the schema.org convention) and the
+	// doi.org URL rides sameAs, so a citation manager, Scholar and the
+	// bridge's get-citation all read one thing. A sandbox DOI never lands.
+	$sn_doi = function_exists( 'sn_zenodo_doi_for' ) ? sn_zenodo_doi_for( (int) $post->ID ) : '';
+	if ( '' !== $sn_doi ) {
+		$sn_doi_ident = array( '@type' => 'PropertyValue', 'propertyID' => 'DOI', 'value' => $sn_doi );
+		if ( isset( $article['identifier'] ) ) {
+			$article['identifier'] = isset( $article['identifier']['@type'] ) ? array( $article['identifier'], $sn_doi_ident ) : array_merge( (array) $article['identifier'], array( $sn_doi_ident ) );
+		} else {
+			$article['identifier'] = $sn_doi_ident;
+		}
+		$article['sameAs'] = 'https://doi.org/' . $sn_doi;
+	}
+
 	// wordCount — strip shortcodes + tags before counting words.
 	$word_count = snt_word_count( wp_strip_all_tags( strip_shortcodes( $post->post_content ) ) ); // v10.24.0: Unicode-safe — str_word_count published wrong schema.org numbers for digit-bearing prose.
 	if ( $word_count > 0 ) {
