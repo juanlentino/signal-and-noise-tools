@@ -104,5 +104,16 @@ $d = sn_seo_robots_directives();
 ok( is_array( $d ) && in_array( 'max-snippet:-1', $d, true ), 'a listener returning a non-array cannot break the emitter' );
 unset( $GLOBALS['__filters']['sn_seo_robots_directives'] );
 
+// 15.10.0: a thin tag archive is noindex; a hub tag is not. inc/sitemap.php
+// owns the line (three notes); this branch reads it.
+function is_tag() { return (bool) $GLOBALS['__is_tag']; }
+function sn_sitemap_tag_is_hub( $count ) { return (int) $count >= 3; }
+$GLOBALS['__singular'] = false; $GLOBALS['__is_tag'] = true;
+$GLOBALS['__queried'] = (object) array( 'count' => 2 );
+ok( in_array( 'noindex', sn_seo_robots_directives(), true ), '15.10.0: a tag archive with two notes is noindex' );
+$GLOBALS['__queried'] = (object) array( 'count' => 3 );
+ok( ! in_array( 'noindex', sn_seo_robots_directives(), true ), 'a tag archive with three notes is indexable (a hub)' );
+$GLOBALS['__is_tag'] = false;
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

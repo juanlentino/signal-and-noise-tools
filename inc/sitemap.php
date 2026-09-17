@@ -104,12 +104,76 @@ add_filter(
 	10,
 	2
 );
+/**
+ * 15.10.0: a tag archive with this many notes is a topical hub, not a thin
+ * page. Every tag carries an owner-written description (the archive paints
+ * it as the intro and the meta description), so a tag with three notes is a
+ * real page about "music metadata" or "AI disclosure". Below the line it is
+ * a list of one or two links and stays out of the sitemap, with noindex.
+ */
+const SN_SITEMAP_TAG_MIN_NOTES = 3;
+
+/**
+ * Is a tag a hub (in the sitemap, indexable) by its note count? PURE.
+ *
+ * @since 15.10.0
+ * @param int $count Published notes carrying the tag.
+ * @return bool
+ */
+function sn_sitemap_tag_is_hub( $count ) {
+	return (int) $count >= SN_SITEMAP_TAG_MIN_NOTES;
+}
+
+/**
+ * The term ids of tags BELOW the hub line, for the taxonomy provider's
+ * `exclude`. Reads the live counts; the rule itself is sn_sitemap_tag_is_hub().
+ *
+ * @since 15.10.0
+ * @return int[]
+ */
+function sn_sitemap_thin_tag_ids() {
+	if ( ! function_exists( 'get_terms' ) ) {
+		return array();
+	}
+	$terms = get_terms( array( 'taxonomy' => 'post_tag', 'hide_empty' => false, 'fields' => 'all' ) );
+	if ( ! is_array( $terms ) ) {
+		return array();
+	}
+	$thin = array();
+	foreach ( $terms as $term ) {
+		if ( is_object( $term ) && ! sn_sitemap_tag_is_hub( (int) ( $term->count ?? 0 ) ) ) {
+			$thin[] = (int) $term->term_id;
+		}
+	}
+	return $thin;
+}
+
 add_filter(
 	'wp_sitemaps_taxonomies',
 	function ( $taxonomies ) {
-		unset( $taxonomies['post_tag'], $taxonomies['category'] );
+		// 15.10.0: post_tag STAYS (the hubs); category goes (one category, a
+		// duplicate of /notes/). Until now both were dropped, and Google's URL
+		// Inspection read every tag archive as "URL is unknown to Google"
+		// although each note links four of them: discovery needed the sitemap.
+		unset( $taxonomies['category'] );
 		return $taxonomies;
 	}
+);
+
+add_filter(
+	'wp_sitemaps_taxonomies_query_args',
+	function ( $args, $taxonomy ) {
+		if ( 'post_tag' !== $taxonomy ) {
+			return $args;
+		}
+		$thin = sn_sitemap_thin_tag_ids();
+		if ( array() !== $thin ) {
+			$args['exclude'] = array_values( array_unique( array_merge( (array) ( $args['exclude'] ?? array() ), $thin ) ) );
+		}
+		return $args;
+	},
+	10,
+	2
 );
 
 /**
