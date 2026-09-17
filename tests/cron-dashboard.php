@@ -47,6 +47,7 @@ if ( ! function_exists( 'add_filter' ) ) { function add_filter() {} }
 if ( ! function_exists( 'register_rest_route' ) ) { function register_rest_route() {} }
 if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://x/wp-json/' . ltrim( $p, '/' ); } }
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
+if ( ! function_exists( '_n' ) ) { function _n( $s, $p, $n, $d = null ) { return 1 === (int) $n ? $s : $p; } } // 15.8.2: the orphan note's plural; the summary now runs with orphans in the fixture
 
 // (render hardening FIX 4): stubs for snt_cron_site_health_result(),
 // previously untested by this suite. wp_next_scheduled / wp_get_schedule /
@@ -65,6 +66,7 @@ if ( ! function_exists( 'apply_filters' ) ) {
 	}
 }
 $GLOBALS['__test_next_scheduled'] = array(); // hook => timestamp|false
+$GLOBALS['__gate_morning'] = true; // 15.8.2: seeded early; the opt-in group below flips it
 if ( ! function_exists( 'wp_next_scheduled' ) ) {
 	function wp_next_scheduled( $hook, $args = array() ) { return $GLOBALS['__test_next_scheduled'][ $hook ] ?? false; }
 }
@@ -650,6 +652,8 @@ assert_eq( array(), $sn_uncovered, 'PARITY: every recurring hook this plugin sch
 /* ════════════════════════════════════════════════════════════════════════
  * v13.56.1 — opt-in modules are not "missing" when they are OFF.
  * ════════════════════════════════════════════════════════════════════════ */
+// (the global is seeded near the top of the file since 15.8.2: the localize
+// summary now runs the health model, which reads this gate)
 $GLOBALS['__gate_morning'] = false;
 function snt_morning_brief_enabled() { return $GLOBALS['__gate_morning']; }
 $GLOBALS['__test_actions']['snt_morning_brief_daily'] = true;
@@ -668,6 +672,33 @@ assert_true( ! in_array( 'snt_morning_brief_daily', $sum['missing'], true ), 'su
 $GLOBALS['__gate_morning'] = true;
 $sum = snt_cron_health_summary_impl( time() );
 assert_true( in_array( 'snt_morning_brief_daily', $sum['missing'], true ), 'summary: the SAME module switched ON with no schedule IS reported missing — the negative control' );
+
+// 15.8.2 — sn_gsc_inspect_one is an on-demand single event (day 3 / day 10
+// after a publish) and was never in the on-demand list, so it read as an
+// expected recurring job with no schedule: "1 expected but not scheduled" on
+// every cron-health read since 14.7.0.
+echo "\n15.8.2: single-event hooks are on-demand, never missing\n";
+assert_true( snt_cron_hook_is_on_demand( 'sn_gsc_inspect_one' ), 'sn_gsc_inspect_one is on-demand' );
+unset( $GLOBALS['__test_next_scheduled']['sn_gsc_inspect_one'] );
+$sum = snt_cron_health_summary_impl( time() );
+assert_true( ! in_array( 'sn_gsc_inspect_one', $sum['missing'], true ), 'an unscheduled sn_gsc_inspect_one is NOT reported missing (the false alarm this fixes)' );
+// DERIVED: every owned hook whose registry comment calls it a single event
+// must be on-demand. Scans the list's own source so the next single event
+// cannot repeat this.
+$sn_owned_src = (string) file_get_contents( __DIR__ . '/../inc/cron-dashboard.php' );
+preg_match_all( "/array\( '[A-Z_]+', '([a-z_]+)' \),[^\n]*single event/", $sn_owned_src, $sn_single_m );
+assert_true( count( $sn_single_m[1] ) >= 2, 'vacuity: the scan found the single-event hooks in the registry (' . count( $sn_single_m[1] ) . ', floor 2)' );
+foreach ( $sn_single_m[1] as $sn_single_hook ) {
+	assert_true( snt_cron_hook_is_on_demand( $sn_single_hook ), "registry says single event, so on-demand: $sn_single_hook" );
+}
+
+// 15.8.2 — the localize summary carries the verdict and the next SN job.
+echo "\n15.8.2: the localize summary judges, not only counts\n";
+$GLOBALS['__test_cron_array'] = $__cron_fixture;
+$sum_l = snt_cron_summary_for_localize();
+assert_true( isset( $sum_l['health']['ok'] ) && isset( $sum_l['health']['summary'] ), 'health carries ok + summary' );
+assert_true( is_array( $sum_l['next'] ) && '' !== (string) $sum_l['next']['hook'] && is_int( $sum_l['next']['in_s'] ), 'next names the soonest SN job with its seconds-until' );
+assert_true( snt_cron_is_sn_owned( $sum_l['next']['hook'] ), 'and it is one of ours' );
 
 // PARITY, derived: every module that unschedules its own hook beside an
 // enable predicate must have a gate entry. Vacuity guards first.

@@ -125,6 +125,18 @@
 				style: 'font-size:11px;opacity:.55;margin-top:2px;'
 			} ) );
 		}
+		// 15.8.2: WHAT the verdict covers. "Edge fresh" reads as site-wide; the
+		// probe fetches the post's own URL only (archive, sitemap and feed are
+		// purged, not probed). The ability says to read probe_scope before
+		// `last`; the card now says it too. A fact, not a tally: the v13.87.3
+		// ruling against standing counts on this card stands.
+		if ( 'permalink' === summary.probe_scope ) {
+			wrap.appendChild( el( 'div', {
+				text:  'Verdict covers the post\'s own URL',
+				title: 'The post-save probe fetches the permalink. Archive pages, the sitemap and the feed are purged but not probed.',
+				style: 'font-size:10px;opacity:.45;margin-top:4px;'
+			} ) );
+		}
 
 		var list = el( 'div', {
 			style: 'margin-top:8px;padding-top:8px;border-top:1px solid ' + HAIRLINE + ';'
@@ -181,6 +193,15 @@
 			history.appendChild( el( 'p', { text: 'Historical results, not the current cache state. Purging does not reset this history.', style: 'opacity:.7;line-height:1.4;' } ) );
 			history.appendChild( list );
 			wrap.appendChild( history );
+		}
+
+		var cloudflareUrl = ( window.snDesktopData && window.snDesktopData.pages && window.snDesktopData.pages.cloudflare ) || '';
+		if ( cloudflareUrl ) {
+			wrap.appendChild( el( 'a', {
+				href:  cloudflareUrl,
+				text:  'Open Cloudflare →',
+				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:10px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;'
+			} ) );
 		}
 
 		container.appendChild( wrap );

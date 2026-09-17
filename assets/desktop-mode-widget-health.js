@@ -41,7 +41,7 @@
 	window.desktopModeWidgets = window.openStationWidgets = __osWidgets;
 
 	var data       = window.snDesktopData || {};
-	var healthUrl  = ( data.pages && data.pages.dashboard ) || '';
+	var healthUrl  = ( data.pages && ( data.pages.health || data.pages.dashboard ) ) || ''; // 15.8.2: Monitoring › Health, the leaf the reading lives on
 
 	function el( tag, opts ) {
 		var node = document.createElement( tag );

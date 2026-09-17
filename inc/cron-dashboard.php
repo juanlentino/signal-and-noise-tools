@@ -592,12 +592,44 @@ function snt_cron_summary_for_localize() {
 		$note = sprintf( _n( '%d event has no handler', '%d events have no handler', $orphans, 'signal-and-noise-tools' ), $orphans );
 	}
 
+	// 15.8.2: the widget judged nothing; it counted. Two more readings, from
+	// producers that already exist: the cron-health verdict (the Site Health
+	// test's facts, minus the HTML) and the soonest SN-owned event, so the card
+	// can say the pipeline is alive and not merely registered.
+	$health = array();
+	if ( function_exists( 'snt_cron_health_summary_impl' ) ) {
+		$h      = snt_cron_health_summary_impl();
+		$health = array(
+			'ok'      => (bool) ( $h['ok'] ?? false ),
+			'status'  => (string) ( $h['status'] ?? '' ),
+			'summary' => (string) ( $h['summary'] ?? '' ),
+			'missing' => array_values( (array) ( $h['missing'] ?? array() ) ),
+			'overdue' => count( (array) ( $h['overdue'] ?? array() ) ),
+		);
+	}
+	$next = null;
+	$now  = time();
+	foreach ( $rows as $row ) {
+		// Rows arrive SN-first, then next_run_ts ascending: the first SN row
+		// is the soonest of ours. A past next_run_ts is wp-cron lagging, and
+		// the widget words it as "due", never as a negative "in".
+		if ( ! empty( $row['is_sn_owned'] ) ) {
+			$next = array(
+				'hook'  => (string) $row['hook'],
+				'in_s'  => (int) $row['next_run_ts'] - $now,
+			);
+			break;
+		}
+	}
+
 	return array(
 		'total'    => $total,
 		'sn_count' => $sn_count,
 		'orphans'  => $orphans,
 		'state'    => $state,
 		'note'     => $note,
+		'health'   => $health,
+		'next'     => $next,
 	);
 }
 
@@ -753,7 +785,13 @@ function snt_cron_hook_is_on_demand( $hook ) {
 	$warmer  = defined( 'SN_ANALYTICS_ROLLUP_HOOK' ) ? SN_ANALYTICS_ROLLUP_HOOK : 'sn_analytics_rollup';
 	// v13.69.0 — the inbound pass's after-publish run: a single event that clears after firing.
 	$inbound = defined( 'SN_INBOUND_PASS_PUBLISH_HOOK' ) ? SN_INBOUND_PASS_PUBLISH_HOOK : 'sn_inbound_pass_after_publish';
-	return $hook === $warmer || $hook === $inbound;
+	// 15.8.2 — the URL Inspection single events (day 3 and day 10 after a
+	// publish, v14.7.0). Never listed here, so cron health read the hook as an
+	// expected recurring job with no schedule and said "1 expected but not
+	// scheduled" on every read since 14.7.0; the Cron widget did not paint the
+	// verdict, which is how a standing false alarm stayed invisible.
+	$inspect = defined( 'SNT_GSC_INSPECT_ONE_HOOK' ) ? SNT_GSC_INSPECT_ONE_HOOK : 'sn_gsc_inspect_one';
+	return $hook === $warmer || $hook === $inbound || $hook === $inspect;
 }
 
 /**

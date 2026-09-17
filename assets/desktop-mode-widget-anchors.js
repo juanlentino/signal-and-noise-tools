@@ -49,7 +49,7 @@
 	window.desktopModeWidgets = window.openStationWidgets = __osWidgets;
 
 	var data         = window.snDesktopData || {};
-	var dashboardUrl = ( data.pages && data.pages.dashboard ) || '';
+	var dashboardUrl = ( data.pages && ( data.pages.provenance || data.pages.dashboard ) ) || ''; // 15.8.2: Tools › Provenance
 
 	function el( tag, opts ) {
 		var node = document.createElement( tag );
@@ -184,7 +184,7 @@
 			if ( dashboardUrl ) {
 				actions.appendChild( el( 'a', {
 					style: 'display:inline-flex;align-items:center;min-height:24px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;',
-					text:  'Open Dashboard →',
+					text:  'Open Provenance →',
 					href:  dashboardUrl,
 				} ) );
 			}

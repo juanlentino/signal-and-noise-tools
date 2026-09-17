@@ -96,10 +96,12 @@
 		// An orphan is the only thing here that asks for action: an event that
 		// fires into nothing. Count alone is not a verdict, so the dot tracks
 		// orphans, not total.
+		var healthNotOk = !! ( summary.health && typeof summary.health === 'object'
+			&& Object.prototype.hasOwnProperty.call( summary.health, 'ok' ) && ! summary.health.ok );
 		var row = el( 'div', { style: 'display:flex;align-items:center;gap:8px;' } );
 		row.appendChild( el( 'span', {
 			style: 'width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:' +
-				( orphans > 0 ? WARN_FG : OK_FG ) + ';'
+				( orphans > 0 || healthNotOk ? WARN_FG : OK_FG ) + ';'
 		} ) );
 		row.appendChild( el( 'span', {
 			text:  total + ( 1 === total ? ' event scheduled' : ' events scheduled' ),
@@ -126,7 +128,28 @@
 
 		list.appendChild( detail( 'Signal & Noise', ours ) );
 		list.appendChild( detail( 'Orphaned', orphans, orphans > 0 ? WARN_FG : '' ) );
+		// 15.8.2: the soonest SN job. "Next: … in 4 min" says the pipeline is
+		// alive; a count says only that it is registered. A past due time is
+		// wp-cron lagging, worded as "due", never a negative "in".
+		var next = summary.next && typeof summary.next === 'object' ? summary.next : null;
+		if ( next && next.hook ) {
+			var inS = num( next.in_s );
+			var when = inS <= 0 ? 'due' : ( inS < 90 ? 'in ' + Math.max( 1, Math.round( inS ) ) + ' s' : ( inS < 5400 ? 'in ' + Math.round( inS / 60 ) + ' min' : 'in ' + Math.round( inS / 3600 ) + ' h' ) );
+			list.appendChild( detail( 'Next', String( next.hook ).replace( /^snt?_/, '' ) + ' · ' + when ) );
+		}
 		wrap.appendChild( list );
+
+		// 15.8.2: the cron-health VERDICT, painted only when it is not ok. The
+		// counts above cannot say "a recurring job is expected and not
+		// scheduled"; this line can, and did not exist while exactly that was
+		// true of sn_gsc_inspect_one for months.
+		var health = summary.health && typeof summary.health === 'object' ? summary.health : null;
+		if ( health && Object.prototype.hasOwnProperty.call( health, 'ok' ) && ! health.ok && health.summary ) {
+			wrap.appendChild( el( 'div', {
+				text:  String( health.summary ),
+				style: 'font-size:10px;margin-top:6px;color:' + WARN_FG + ';'
+			} ) );
+		}
 
 		if ( orphans > 0 ) {
 			wrap.appendChild( el( 'div', {

@@ -96,9 +96,11 @@
 		return line;
 	}
 
+	// Sentence case at 11px/.55, the house label idiom (Top pages, Purposes);
+	// 15.8.0 shipped these uppercase and letter-spaced, the one card that did.
 	function heading( text ) {
 		return el( 'p', {
-			style: 'margin:12px 0 6px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;opacity:.5;',
+			style: 'margin:12px 0 2px;font-size:11px;opacity:.55;',
 			text:  text,
 		} );
 	}
@@ -145,6 +147,17 @@
 		if ( done.length ) {
 			wrap.appendChild( heading( 'Just published' ) );
 			done.forEach( function( item ) { wrap.appendChild( row( item, true ) ); } );
+		}
+
+		// 15.8.2: the leaf where the queue lives (Connections › Scheduled folds
+		// native future posts with the fragment queue).
+		var scheduledUrl = ( window.snDesktopData && window.snDesktopData.pages && window.snDesktopData.pages.scheduled ) || '';
+		if ( scheduledUrl ) {
+			wrap.appendChild( el( 'a', {
+				href:  scheduledUrl,
+				text:  'Open Scheduled →',
+				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:10px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;',
+			} ) );
 		}
 
 		container.appendChild( wrap );

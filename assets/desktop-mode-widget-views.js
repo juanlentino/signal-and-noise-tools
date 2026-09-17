@@ -204,7 +204,7 @@
 					style: 'opacity:.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
 				} ) );
 				mv.appendChild( el( 'span', {
-					text:  ( mvUp ? '▲ +' : '▼ ' ) + payload.top_mover.delta,
+					text:  ( mvUp ? '▲ +' : '▼ ' ) + Math.abs( payload.top_mover.delta ), // 15.8.2: the arrow carries the sign; "▼ -16" doubled it
 					style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;color:' + ( mvUp ? '#3fb950' : '#c9503f' ) + ';'
 				} ) );
 				stats.appendChild( mv );
