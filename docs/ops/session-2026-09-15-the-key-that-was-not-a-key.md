@@ -567,8 +567,9 @@ restored, the fork marker moved.
 - The provenance queue: seven proofs on a stalled alice; worker 1.20.0
   (every calendar, one-day restamp) is live. Read the ledger tomorrow: the
   seven should carry `re-stamp stale pending` commits by 02:00Z and confirm
-  through bob within hours. Release drafts for v1.18.3 and v1.19.0 are still
-  missing.
+  through bob within hours. Release drafts for v1.18.3 and v1.19.0 created
+  from their tags and changelog blocks; the worker's draft list runs unbroken
+  from 1.18.2 to 1.20.0.
 - Plugin 15.7.1 (the runner's empty-hand POST) released and installed; the
   widget's `Sweep now` runs.
 - Upstream OpenStation #819 / #820: with the maintainers.
