@@ -651,6 +651,48 @@ Dashboard, which is their leaf, and Uptime's link now says so); the views
 sign; the queue headings; the uppercase ban derived from the directory with a
 floor. Through the door after the update, `cron_health` reads ok.
 
+## 7.1.1 lands, and two things to read for 7.2
+
+Core 7.1.1 arrived and the owner took it through the updater. Read the site
+afterwards through the door and from outside: front, notes and REST answer
+(18 namespaces); deploy current everywhere; cron health `ok`, "All 23
+recurring jobs are firing on schedule", which is the 15.8.2 fix confirmed
+live (23, because the single event no longer counts as recurring); four
+monitors up; edge fresh, 20 post-save probes, none stale. The theme says
+"Tested up to: 7.1" and core reads the minor. The last health scan predates
+the update by twelve hours; the daily run covers it, or "Run scan" on
+Monitoring › Health, since the run ability is off the doors by design.
+
+Then two reads. `WordPress/ipsum`, the 7.2 default theme (created 2026-09-11):
+a block theme built as a blank canvas around blogging, as little CSS as it
+can manage, everything in `theme.json` for Global Styles. Ten templates with
+sidebar variants registered as template types through `default_template_types`,
+eight parts, thirty patterns, seven colour variations named by hour, five
+typography variations, one block-section variation, seven bundled fonts, a
+block-bindings source for the comments call to action, one block style, and
+`@view-transition { navigation: auto }` at the top of `style.css`. Against
+ours: every mechanism it uses we already use (bindings, block styles, section
+variations, view transitions with the reduced-motion guard, fluid type, the
+7.1 schema); the differences are choices (fifteen CSS files because the
+split-hero is a designed system, no root-padding-aware alignments because the
+theme owns its cascade). Two signals for December: Ipsum does not use the 7.1
+`viewport` setting at all, and its `contentSize` is 600px against our 760.
+Taste, not rules. Nothing to change.
+
+The DataForm call for testing (make.wordpress.org, 2026-09-17): the Post tab
+is being rebuilt on DataForm, the form Quick Edit already uses in the Site
+Editor, a Gutenberg 24.0 experiment aimed at 7.2. `PluginDocumentSettingPanel`,
+`PluginPrePublishPanel`, `PluginPostPublishPanel`, `PluginSidebar`,
+`PluginPostStatusInfo` and `removeEditorPanel` keep working; `PluginPostExcerpt`
+is not ported and may never be, `editor.PostFeaturedImage` is not ported, the
+featured-image picker does not go through `editor.MediaUpload` yet, and
+anything styled against the classic panels' markup breaks. Our whole exposure
+is `assets/pre-publish-gate.js`, a `PluginPrePublishPanel`, on the
+keeps-working list; grep finds nothing else in plugin or theme. The test at
+Beta 1 is one sentence: open a note with the experiment on and confirm the
+gate still lists its checks. The fields API, also aimed at 7.2, is where the
+gate's readings could one day become inspector fields visible in Quick Edit.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -676,10 +718,12 @@ floor. Through the door after the update, `cron_health` reads ok.
   takes it through the updater, never by hand. Core's move to Node 24 and
   npm 11 touches nothing here: the plugin and the theme have no Node
   toolchain, and both workers already pin Node 24 in CI.
-- WordPress 7.2: Beta 1 on 20 to 22 October, RC 1 on 17 to 19 November,
-  final on 8 to 10 December 2026, with a new default theme. Test both repos
-  against Beta 1 when it lands (the day the 7.2 stubs publish, the phpstan
-  gate can move with them).
+- WordPress 7.1.1 installed 2026-09-17, site read clean afterwards. 7.2:
+  Beta 1 on 20 to 22 October, RC 1 on 17 to 19 November, final on 8 to 10
+  December 2026, with Ipsum as the default theme. At Beta 1: test both repos,
+  move the phpstan gate when the 7.2 stubs publish, and open a note with
+  "Editor Inspector: Use DataForm" on to confirm the pre-publish gate's panel
+  (the plugin's one inspector extension) still lists its checks.
 - WebMCP bridge v2 arc two (`search-notes` on the worker): gated on a month
   of beacon rows on AI › Agent tools, or the owner saying build it.
 - The provenance queue: seven proofs on a stalled alice; worker 1.20.0
