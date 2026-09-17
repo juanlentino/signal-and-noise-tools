@@ -225,6 +225,16 @@ ss_true( is_array( $article ), 'Article schema is built on a singular post' );
 ss_true( isset( $article['wordCount'] ) && is_int( $article['wordCount'] ) && $article['wordCount'] > 0, 'wordCount is a positive int' );
 ss_eq( 'PT4M', $article['timeRequired'] ?? null, 'timeRequired === PT4M' );
 ss_eq( 'foo, bar', $article['keywords'] ?? null, 'keywords === "foo, bar"' );
+// 15.9.2: dateModified is the PROVENANCE COMMIT when there is one; the row's
+// post_modified only without it. A title-tag override on every note bumped
+// post_modified on all 43 and told Google every note changed that day.
+ss_eq( '2026-06-02T00:00:00+00:00', $article['dateModified'] ?? null, 'without a provenance commit, dateModified is post_modified (the fallback)' );
+$GLOBALS['__ss']['meta'][7]['_sn_prov_last_commit_gmt'] = '2026-05-20 10:30:00';
+$article = sn_schema_article();
+ss_eq( '2026-05-20T10:30:00+00:00', $article['dateModified'] ?? null, 'THE PIN: with a provenance commit, dateModified is the commit, not the later post_modified' );
+unset( $GLOBALS['__ss']['meta'][7]['_sn_prov_last_commit_gmt'] );
+ss_true( true === ( $article['isAccessibleForFree'] ?? null ), 'the Article says it is free to read' );
+ss_true( isset( $article['license'] ) && false !== strpos( (string) $article['license'], '/license.xml' ), 'the Article names the RSL license the edge links as rel=license' );
 ss_eq( 'Music', $article['articleSection'] ?? null, 'articleSection === first category name' );
 
 // 15.7.0: a pillar PAGE (`_sn_pillar` meta) gets an Article too; a plain page does not.
