@@ -471,16 +471,18 @@ echo "\n── v9.52.4: the chrome owns the title (no doubled headings) ──\n
 // existed and became a duplicate the moment dragging was enabled: the card
 // then read "SN Quick Actions" (chrome) directly above "QUICK ACTIONS" (body).
 // The label registered in PHP is the single source of truth for a card's name.
+// 15.8.2: DERIVED from the directory, not hand-kept. The hand-kept list had
+// eight of eleven files; cache, cron and queue were outside it, and the queue
+// shipped uppercase headings through a green suite (the drift trap, again).
 $sn_widget_js = array(
 	'desktop-mode-widget.js'         => 'Signal & Noise',
 	'desktop-mode-widget-actions.js' => 'Quick actions',
 	'desktop-mode-widget-rss.js'     => 'RSS subscribers',
-	'desktop-mode-widget-views.js'   => null,
-	'desktop-mode-widget-uptime.js'  => null,
-	'desktop-mode-widget-health.js'  => null,
-	'desktop-mode-widget-machine-readers.js' => null,
-	'desktop-mode-widget-anchors.js' => null,
 );
+foreach ( glob( __DIR__ . '/../assets/desktop-mode-widget*.js' ) as $sn_widget_path ) {
+	$sn_widget_js += array( basename( $sn_widget_path ) => null );
+}
+ok( count( $sn_widget_js ) >= 11, 'the widget-file scan found every widget script (' . count( $sn_widget_js ) . ', floor 11)' );
 foreach ( $sn_widget_js as $file => $old_heading ) {
 	$code = strip_js_comments( file_get_contents( __DIR__ . '/../assets/' . $file ) );
 	ok( strpos( $code, 'text-transform:uppercase' ) === false,
@@ -583,6 +585,27 @@ ok( false !== $aj_shell && false !== $aj_strip && $aj_shell < $aj_strip,
 	'Quick Actions tries the shell toast before painting anything inside the card' );
 ok( strpos( $aj_code, 'if ( shellToast( message ) ) { return; }' ) !== false,
 	'a shell toast that painted ends the toast path; the card is untouched' );
+// 15.8.2: every "Open … →" lands on the LEAF where its reading lives, not on
+// the Dashboard tab. Uptime and Deploy keep the dashboard, which is their leaf.
+$sn_pages_src = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-assets.php' );
+foreach ( array( "'health'          => snt_desktop_admin_url( 'sn-monitoring', 'health' )", "'provenance'      => snt_desktop_admin_url( 'sn-tools', 'provenance' )", "'scheduled'       => snt_desktop_admin_url( 'sn-connections', 'scheduled-content' )" ) as $sn_page_line ) {
+	ok( false !== strpos( $sn_pages_src, $sn_page_line ), 'the localized pages carry the leaf: ' . trim( explode( '=>', $sn_page_line )[0] ) );
+}
+foreach ( array(
+	'desktop-mode-widget-health.js'  => 'data.pages.health',
+	'desktop-mode-widget-anchors.js' => 'data.pages.provenance',
+	'desktop-mode-widget-queue.js'   => 'pages.scheduled',
+	'desktop-mode-widget-cache.js'   => 'pages.cloudflare',
+) as $sn_w => $sn_key ) {
+	ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../assets/' . $sn_w ), $sn_key ), "$sn_w links to its own leaf ($sn_key)" );
+}
+ok( false === strpos( strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-uptime.js' ) ), "'Open Uptime →'" ),
+	'the uptime card names where its link goes (the Dashboard leaf), not a leaf that does not exist' );
+$sn_views_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' ) );
+ok( false !== strpos( $sn_views_code, "'▼ ' ) + Math.abs( payload.top_mover.delta )" ), 'the top-mover delta never prints a minus after the down arrow' );
+$sn_cache_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-cache.js' ) );
+ok( false !== strpos( $sn_cache_code, "'permalink' === summary.probe_scope" ), 'the cache card says what its verdict covers' );
+ok( false === strpos( $sn_cache_code, "detail( 'Verdicts recorded'" ), 'and still paints no standing tally (v13.87.3 ruling)' );
 // Same rule for SN Anchors' Sweep now: the result is a shell toast, the card
 // only refreshes; the in-card note is the fallback.
 $an_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
@@ -1791,10 +1814,15 @@ ok( false === strpos( $cron_js, 'apiFetch' ) && false === strpos( $cron_js, 'snt
 ok( false !== strpos( $cron_js, "hasOwnProperty.call( summary, 'total' )" ),
 	'CRON TILE DISTINGUISHES ABSENT FROM ZERO via hasOwnProperty, not a falsy check' );
 
-// The dot tracks ORPHANS, not the event count: a count is not a verdict, and an
-// orphan is the only thing here that asks for action.
-ok( false !== strpos( $cron_js, 'orphans > 0 ? WARN_FG : OK_FG' ),
-	'the cron dot tracks orphans rather than the raw event count' );
+// The dot tracks ORPHANS and the cron-health VERDICT, never the event count:
+// a count is not a verdict. 15.8.2 added the verdict after sn_gsc_inspect_one
+// sat "expected but not scheduled" for months behind a green dot.
+ok( false !== strpos( $cron_js, 'orphans > 0 || healthNotOk ? WARN_FG : OK_FG' ),
+	'the cron dot tracks orphans and the cron-health verdict rather than the raw event count' );
+ok( false !== strpos( $cron_js, '! health.ok && health.summary' ),
+	'the cron-health summary line paints only when the verdict is not ok' );
+ok( false !== strpos( $cron_js, "detail( 'Next'" ) && false !== strpos( $cron_js, "inS <= 0 ? 'due'" ),
+	'the next SN job paints with its due time, and a past time reads "due", never a negative' );
 
 // The PHP seam the JS guard depends on: when the accessor is missing the payload
 // must be an EMPTY array (no `total` key), not a zeroed struct.

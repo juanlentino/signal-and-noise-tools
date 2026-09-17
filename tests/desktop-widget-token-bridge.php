@@ -43,7 +43,7 @@ foreach ( $files as $f ) {
 	$color  += substr_count( $js, 'var(--os-window-link-color, #4a9eff)' );
 }
 ok( 0 === $bare, 'no widget view hardcodes the link blue (bare color:#4a9eff count is ' . $bare . ')' );
-ok( 10 === $accent, 'exactly 10 link bridges ride -accent (found ' . $accent . ')' );
+ok( 12 === $accent, 'exactly 12 link bridges ride -accent (found ' . $accent . ') — 15.8.2 added the cache and queue links' );
 ok( 1 === $color, 'exactly 1 spark-line bridge rides -color (found ' . $color . ')' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

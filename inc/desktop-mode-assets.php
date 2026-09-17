@@ -273,6 +273,12 @@ add_action( 'admin_enqueue_scripts', function() {
 			'reading_time' => snt_desktop_admin_url( 'sn-reading-time' ),
 			'analytics'    => snt_desktop_admin_url( 'sn-analytics' ),
 			'machine_readers' => snt_desktop_admin_url( 'sn-monitoring', 'machine-readers' ),
+			// 15.8.2: every "Open … →" lands on the LEAF where its reading lives,
+			// not on the Dashboard tab. Uptime and Deploy keep 'dashboard': that
+			// leaf is where those two readings are painted.
+			'health'          => snt_desktop_admin_url( 'sn-monitoring', 'health' ),
+			'provenance'      => snt_desktop_admin_url( 'sn-tools', 'provenance' ),
+			'scheduled'       => snt_desktop_admin_url( 'sn-connections', 'scheduled-content' ),
 		),
 	);
 	// v4.1.1 (D-08): localize once. Both 'sn-desktop-mode' and

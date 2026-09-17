@@ -177,7 +177,7 @@
 		if ( dashboardUrl ) {
 			wrap.appendChild( el( 'a', {
 				href: dashboardUrl,
-				text: 'Open Uptime →',
+				text: 'Open Dashboard →', // 15.8.2: the uptime reading lives on the Dashboard leaf; say where the link goes
 				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;'
 			} ) );
 		}
