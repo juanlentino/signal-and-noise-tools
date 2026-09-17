@@ -159,13 +159,25 @@
 				}
 				sweepBtn.disabled = true;
 				sweepBtn.textContent = 'Sweeping…';
-				window.sntAbilityRun( 'anchor-sweep', {} ).then( function( res ) {
-					var msg = res && res.ok
-						? res.upgraded + ' upgraded, ' + res.still_pending + ' still pending.'
-						: 'Sweep could not run (' + ( ( res && res.error ) || 'unknown' ) + ').';
+				// 15.8.1: the sweep's result goes to the shell toast
+				// (wp.os.showToast, Stable) and the card just refreshes; the
+				// in-card note line grew the card by a row until the next
+				// refresh. The note stays as the fallback for a shell without
+				// showToast. `still_pending` counts the worker's whole queue
+				// (notes AND rights-signal documents), so say so.
+				function report( msg ) {
+					var os = ( window.wp && ( window.wp.os || window.wp.desktop ) ) || null;
+					if ( os && typeof os.showToast === 'function' ) {
+						try { os.showToast( { message: msg, duration: 3500, source: 'sn-anchors' } ); load(); return; } catch ( e ) { /* fall through */ }
+					}
 					load( msg );
+				}
+				window.sntAbilityRun( 'anchor-sweep', {} ).then( function( res ) {
+					report( res && res.ok
+						? 'Sweep: ' + res.upgraded + ' upgraded, ' + res.still_pending + ' still pending in the worker\'s queue.'
+						: 'Sweep could not run (' + ( ( res && res.error ) || 'unknown' ) + ').' );
 				} ).catch( function( err ) {
-					load( 'Sweep failed: ' + ( ( err && err.message ) || 'unknown error' ) );
+					report( 'Sweep failed: ' + ( ( err && err.message ) || 'unknown error' ) );
 				} );
 			} );
 			actions.appendChild( sweepBtn );

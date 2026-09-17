@@ -583,6 +583,13 @@ ok( false !== $aj_shell && false !== $aj_strip && $aj_shell < $aj_strip,
 	'Quick Actions tries the shell toast before painting anything inside the card' );
 ok( strpos( $aj_code, 'if ( shellToast( message ) ) { return; }' ) !== false,
 	'a shell toast that painted ends the toast path; the card is untouched' );
+// Same rule for SN Anchors' Sweep now: the result is a shell toast, the card
+// only refreshes; the in-card note is the fallback.
+$an_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
+$an_shell = strpos( $an_code, "typeof os.showToast === 'function'" );
+$an_note  = strpos( $an_code, 'load( msg );' );
+ok( false !== $an_shell && false !== $an_note && $an_shell < $an_note,
+	'SN Anchors reports the sweep through the shell toast before falling back to the in-card note' );
 ok( strpos( $aj_code, 'mouseenter' ) !== false || strpos( $aj_code, 'mouseover' ) !== false,
 	'Quick Actions buttons have a real hover state (the transition existed but nothing changed on hover)' );
 
