@@ -72,7 +72,8 @@ function sn_seo_current_paged() {
  *
  * Precedence: _sn_seo_title per-page override → sn_seo_singular_title theme
  * fallback (v9.3.0 seam, defaults '') → get_the_title(). The " — {site_name}"
- * suffix is always appended, matching pre-v9.3.0 behavior for every singular.
+ * suffix is appended for every singular EXCEPT posts (15.9.1): a note's title
+ * tag is the aphorism and its plain-words subtitle, nothing else.
  * Named + pure so the chain is CLI-testable independent of document_title_parts.
  *
  * @since 9.3.0
@@ -89,6 +90,15 @@ function sn_seo_resolve_singular_title( $post ) {
 	$base = ( '' !== $override )
 		? wp_strip_all_tags( $override )
 		: wp_strip_all_tags( get_the_title( $post ) );
+	// 15.9.1: a NOTE's title tag carries no site-name suffix. Since 2022
+	// Google paints the site name on its own line from the WebSite schema
+	// (which every page emits), and the notes' titles are now "Aphorism:
+	// plain words" (median 84 characters with the suffix, display cut near
+	// 60): the suffix was the part that got cut, and it said nothing the
+	// schema does not. Pages keep the "Page — Site" shape; the 404 too.
+	if ( isset( $post->post_type ) && 'post' === (string) $post->post_type ) {
+		return $base;
+	}
 	$site = sn_setting( 'identity.site_name', get_bloginfo( 'name' ) );
 	return $base . ' — ' . $site;
 }

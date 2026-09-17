@@ -42,9 +42,16 @@ ok( 'Theme Title' . $suffix === sn_seo_resolve_singular_title( $post ), 'theme f
 $GLOBALS['__filter'] = '';
 ok( 'Real Page Title' . $suffix === sn_seo_resolve_singular_title( $post ), 'derived title when neither set' );
 
-echo "\nGroup: suffix always applied\n";
+echo "\nGroup: suffix applied to pages, never to notes (15.9.1)\n";
 $GLOBALS['__override'] = 'X';
-ok( false !== strpos( sn_seo_resolve_singular_title( $post ), $suffix ), 'site-name suffix present with an override' );
+ok( false !== strpos( sn_seo_resolve_singular_title( $post ), $suffix ), 'site-name suffix present with an override (a page)' );
+$page = (object) array( 'ID' => 3, 'post_type' => 'page' );
+ok( 'X' . $suffix === sn_seo_resolve_singular_title( $page ), 'a page keeps the "Page — Site" shape' );
+$note = (object) array( 'ID' => 3, 'post_type' => 'post' );
+$GLOBALS['__override'] = 'The pen is not the notary: DAW makers, liability and music provenance';
+ok( 'The pen is not the notary: DAW makers, liability and music provenance' === sn_seo_resolve_singular_title( $note ), 'a NOTE carries no site-name suffix: Google paints the site name from the WebSite schema, and the suffix was the part the display cut' );
+$GLOBALS['__override'] = '';
+ok( 'Real Page Title' === sn_seo_resolve_singular_title( $note ), 'a note without an override is its title alone, no suffix' );
 
 // ── The 404 title uses the SAME separator as every other page ──
 // The em-dash in a document title is the site-wide TITLE SEPARATOR, not prose, and is

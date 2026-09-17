@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **A note's title tag carries no site-name suffix.** The 2026-09-17 audit read the 43 notes' title tags at a median of 84 characters with "— Juan Lentino" at the end; Google cuts the display near 60 and paints the site name on its own line from the WebSite schema (every page emits it), so the suffix was the part that got cut and said nothing the schema does not. `sn_seo_resolve_singular_title()` returns the bare title for posts; pages, the archives and the 404 keep the "Page — Site" shape. Pinned both ways in `tests/seo-title-override.php`.
+
 ## [15.9.0] - 2026-09-17 — the title says what the note is about
 
 ### Added
