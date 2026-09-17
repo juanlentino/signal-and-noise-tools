@@ -452,6 +452,18 @@ citation should carry. Worker 1.25.3: padded ISO dates, TeX-escaped values,
 anchor as a `note`; and a plain APA-shaped line for the agent that wants to
 paste a reference rather than a `.bib` entry.
 
+CodeQL had the last word on the citation. It read my BibTeX escaper and
+said it did not escape backslashes, and it was right: a title carrying
+`\input{…}` would have walked a TeX command into a reader's `.bib` file. The
+fix that satisfied the analyzer was also the safer shape, one pass over one
+character class with the backslash inside it. On the way I pushed a commit
+with a red test, because a `grep` that finds the word FAIL exits zero and
+the `&&` chain behind it kept going; the next push was gated on the exact
+green line. The same evening's push also surfaced a Dependabot alert on
+`sharp`, a dev-side dependency reached through miniflare and pinned by an
+override; the override moved to 0.35.4 and the alert reads fixed. Worker
+1.25.4, the fifth worker cut of the day.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -464,7 +476,8 @@ paste a reference rather than a `.bib` entry.
   and the deploy reading names `latest` from tags: tagged, and the row agrees.
 - Theme 13.2.4 (the footnotes popover's document target, 22:59Z) and plugin
   15.7.0 (pillar Articles, 23:12Z) released and installed; worker 1.25.3 (the citation's dates and fields)
-  cut; the pillar citation proof is in this doc.
+  and 1.25.4 (sharp 0.35.4) live and tagged; zero open CodeQL or Dependabot
+  alerts on the worker.
 - Cloudflare Web Analytics vs the CSP: the beacon is blocked on every page;
   turn Web Analytics off, or allow `static.cloudflareinsights.com` in the
   script-src of the transform rule. Owner's call.
