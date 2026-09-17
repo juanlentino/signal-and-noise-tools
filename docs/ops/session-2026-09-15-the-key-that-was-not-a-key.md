@@ -607,6 +607,50 @@ by pulling the corpus out to the agent's machine, the opposite direction from
 ours. Nothing to adopt from either; both set down here so the next reading
 starts from what was already read.
 
+## Every card says where it points
+
+"Are the widgets saying all they should be saying? Are they also complete in
+terms of design?" Read against the live data through the door rather than the
+screenshot alone. Mostly yes. Four were not saying what they should, and the
+smallest of them was mine.
+
+Health said "13/14 checks passed" with nothing under it; the fourteenth is
+skipped, not failing (the AI-dependent check, while the Claude API is off),
+and the owner chose to leave the card as it is. Cron sat green with "81
+events · Orphaned 0" while cron health through the door read not ok: "23 of
+24 recurring on schedule; 1 expected but not scheduled: `sn_gsc_inspect_one`".
+The card never read cron health, only counts, and the verdict itself was a
+false alarm since 14.7.0: the hook is an on-demand single event (day 3 and
+day 10 after a publish) that was never added to `snt_cron_hook_is_on_demand()`,
+so the model judged it as a missing recurring job on every read. A blind
+readout and a false alarm hid each other for months. Site Views printed
+"▼ -16", the arrow and the sign both. And SN Queue's headings were uppercase
+and letter-spaced, the one card that was; the suite's ban on uppercase in
+widget files scans a hand-kept list of eight files, and cache, cron and queue
+were outside it.
+
+Then the owner: "those `Open X →` should deeplink to each leaf of the
+settings, not open settings in the main leaf." Health and Anchors pointed at
+the Dashboard tab; Cache and Queue had no link at all. And "are they enriched
+enough?": yes, except Cache, which said "Edge fresh" about one URL as if it
+were the site, and Cron, which counted and did not judge. I had proposed a
+post-save probe tally for Cache; the record says v13.87.3 removed exactly
+that tally on the owner's ruling ("if it's fresh, it is fresh"), so the line
+that shipped is the fact, not the count: "Verdict covers the post's own URL".
+
+Plugin 15.8.2, "every card says where it points" (#1391, #1392, #1393): the
+on-demand list carries `sn_gsc_inspect_one`, with a derived test that scans
+the registry's own comments for "single event" and requires each such hook
+to be on-demand, verified red without the fix; the Cron summary carries the
+verdict and the soonest SN job, and the card paints "Next: job · in N min"
+(a past due time reads "due") and the verdict in amber only when it is not
+ok, the dot tracking it; every Open link lands on its leaf (Health to
+Monitoring › Health, Anchors to Tools › Provenance, Cache to Connections ›
+Cloudflare, Queue to Connections › Scheduled; Uptime and Deploy keep the
+Dashboard, which is their leaf, and Uptime's link now says so); the views
+sign; the queue headings; the uppercase ban derived from the directory with a
+floor. Through the door after the update, `cron_health` reads ok.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -644,10 +688,14 @@ starts from what was already read.
   through bob within hours. Release drafts for v1.18.3 and v1.19.0 created
   from their tags and changelog blocks; the worker's draft list runs unbroken
   from 1.18.2 to 1.20.0.
-- Plugin 15.7.1 (the runner's empty-hand POST), 15.8.0 (SN Queue) and 15.8.1
-  (the bare payload, the shell toasts) released and installed; the desktop
-  reads as designed. The Quick Actions card keeps a persisted docked height
-  from the toast-strip days; one drag of its bottom edge resets it.
+- Plugin 15.7.1, 15.8.0, 15.8.1 and 15.8.2 released and installed; the
+  desktop reads as designed and every Open link lands on its leaf. Left as
+  the owner chose: Health says "13/14" with the skipped check unnamed while
+  the Claude API is off; the Quick Actions card keeps a persisted docked
+  height until its edge is dragged once.
+- `Automattic/Agent-Use-Cases`, `m/taxonomist` and `typesafe-ai/skills` read;
+  nothing installed or adopted (ADR-0001). TypeSafe is a vendor skill for a
+  paid model, refused on the ADR with the extract path offered.
 - Upstream OpenStation #819 / #820: with the maintainers.
 - The `firewallEventsAdaptive` page is a floor past 10,000 samples a day; page
   it when a day gets there.
