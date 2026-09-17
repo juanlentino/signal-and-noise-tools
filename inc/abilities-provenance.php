@@ -160,7 +160,7 @@ function snt_abilities_provenance_register() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_anchor_sweep',
 		'input_schema'        => array(
-			'type'                 => 'object',
+			'type'                 => array( 'object', 'null' ), // 15.7.1: an input-less call arrives as null.
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),

@@ -171,5 +171,15 @@ $call_at  = strpos( $cp_src, 'window.sntAbilityRun( name, input )' );
 t( false !== $guard_at && false !== $call_at && $guard_at < $call_at, 'D.7 command-palette.js guards the runner global before calling it' );
 t( false !== strpos( $cp_src, 'snt-ability-run.js did not load' ), 'D.8 the guard names the missing sibling script in its error' );
 
+// 15.7.1: a POST always carries an input object. The runner used to drop an
+// empty {} (no body at all), so the controller validated null and every
+// write ability typed plain 'object' with no required list refused the call
+// ("input is not of type object" — the SN Anchors widget's Sweep now,
+// 2026-09-17). Group E in abilities-categories.php exempted write abilities
+// on the premise that POST always carries a body; this pin makes the
+// premise true instead of assumed.
+t( false !== strpos( $runner_src, "opts.data = { input: hasInput ? input : {} };" ), 'D.9 runner sends an input object on every POST, {} when the caller gave none' );
+t( false === strpos( $runner_src, "if ( hasInput ) {\n\t\t\tif ( 'POST' === verb )" ), 'D.10 the POST body is no longer gated on a non-empty input' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

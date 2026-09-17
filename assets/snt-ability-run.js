@@ -71,15 +71,17 @@
 		if ( options && options.signal ) { opts.signal = options.signal; }
 
 		var hasInput = input && 'object' === typeof input && Object.keys( input ).length > 0;
-		if ( hasInput ) {
-			if ( 'POST' === verb ) {
-				opts.data = { input: input };
-			} else {
-				var pairs = [];
-				encodeInput( input, 'input', pairs );
-				if ( pairs.length ) {
-					opts.path += '?' + pairs.join( '&' );
-				}
+		// 15.7.1: a POST always carries an input object. With no body the
+		// controller validates a missing input as null, and an ability whose
+		// schema says `object` refuses it ("input is not of type object", the
+		// anchor-sweep widget on 2026-09-17). GET keeps its query transport.
+		if ( 'POST' === verb ) {
+			opts.data = { input: hasInput ? input : {} };
+		} else if ( hasInput ) {
+			var pairs = [];
+			encodeInput( input, 'input', pairs );
+			if ( pairs.length ) {
+				opts.path += '?' + pairs.join( '&' );
 			}
 		}
 		return window.wp.apiFetch( opts );

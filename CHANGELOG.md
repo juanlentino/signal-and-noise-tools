@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A POST with no input now carries `{}`, so `Sweep now` on the SN Anchors widget runs again.** The shared runner (`assets/snt-ability-run.js`) dropped an empty input on POST and sent no body at all; the abilities controller validates a missing input as `null`, and any write ability typed plain `object` refused it ("input is not of type object"). One line in the runner closes the class for every caller. `anchor-sweep`, `block-migrations-scan` and `corpus-integrity-scan` also take the `[object,null]` union, the house rule the read abilities already follow, so a bodyless curl or MCP call is accepted too.
+- Tests: `ability-run-client.php` D.9/D.10 pin the runner's POST body (red against the old runner); Group E's comment in `abilities-categories.php` no longer claims POST always carried a body.
+
 ## [15.7.0] - 2026-09-16 — the essays cite as essays
 
 

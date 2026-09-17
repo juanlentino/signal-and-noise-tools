@@ -143,7 +143,9 @@ foreach ( $cited as $slug => $files ) {
 // list (i.e. it is legally callable bodyless) MUST type its input as the
 // array( 'object', 'null' ) union. Abilities with a `required` list are
 // exempt (a bodyless call is invalid for them anyway), as are write-verb
-// (readonly=false) abilities (POST run-path always carries a body).
+// (readonly=false) abilities: since 15.7.1 the shared runner sends {} on a
+// POST with no input (tests/ability-run-client.php D.9); before that it
+// dropped the body and anchor-sweep refused the widget's Sweep now.
 // Scans every inc/*.php wp_register_ability() call site with balanced-paren
 // extraction, same spirit as Group D: a new read ability shipped with a
 // write ability's schema shape now fails this suite instead of the live site.

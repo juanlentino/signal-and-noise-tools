@@ -28,7 +28,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_corpus_integrity_scan',
 		'input_schema'        => array(
-			'type'                 => 'object',
+			'type'                 => array( 'object', 'null' ), // 15.7.1: an input-less call arrives as null.
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),
