@@ -27,28 +27,38 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** The separator that makes a title query-shaped: "Aphorism: subtitle". */
-const SN_HEALTH_SEARCH_TITLE_SEPARATOR = ': ';
-
 /**
- * Is this override a query-shaped title? PURE.
+ * Is this override a title written for search? PURE.
  *
- * A subtitle after ": " with at least two words. An override that merely
- * repeats the aphorism, or carries a colon with nothing useful after it, is
- * not one.
+ * Two shapes pass: "Aphorism: plain words" (the ranking notes' shape) and a
+ * plain alternative title the owner wrote in full ("Why provenance records do
+ * not survive lossy encoding", three scheduled notes on 2026-09-17). What
+ * fails is no override at all, or an override that merely repeats the post
+ * title, with or without a colon and a word after it.
  *
  * @since 15.9.0
- * @param string $seo_title The `_sn_seo_title` override (may be empty).
+ * @param string $seo_title  The `_sn_seo_title` override (may be empty).
+ * @param string $post_title The post's own title (the H1).
  * @return bool
  */
-function sn_health_search_title_is_shaped( $seo_title ) {
-	$seo_title = trim( (string) $seo_title );
-	$at        = strpos( $seo_title, SN_HEALTH_SEARCH_TITLE_SEPARATOR );
-	if ( false === $at ) {
+function sn_health_search_title_is_shaped( $seo_title, $post_title = '' ) {
+	$seo_title  = trim( (string) $seo_title );
+	$post_title = trim( (string) $post_title );
+	if ( '' === $seo_title ) {
 		return false;
 	}
-	$subtitle = trim( substr( $seo_title, $at + strlen( SN_HEALTH_SEARCH_TITLE_SEPARATOR ) ) );
-	return '' !== $subtitle && str_word_count( $subtitle ) >= 2;
+	$norm = static function ( $t ) {
+		return strtolower( preg_replace( '/\s+/', ' ', trim( $t, " \t\n\r\0\x0B:" ) ) );
+	};
+	if ( '' !== $post_title && $norm( $seo_title ) === $norm( $post_title ) ) {
+		return false;
+	}
+	// "Aphorism: X" with fewer than two words after the colon is a stub.
+	$at = strpos( $seo_title, ': ' );
+	if ( false !== $at && '' !== $post_title && $norm( substr( $seo_title, 0, $at ) ) === $norm( $post_title ) ) {
+		return str_word_count( trim( substr( $seo_title, $at + 2 ) ) ) >= 2;
+	}
+	return str_word_count( $seo_title ) >= 2;
 }
 
 /**
@@ -61,7 +71,7 @@ function sn_health_search_title_is_shaped( $seo_title ) {
 function sn_health_search_titles_judge( $rows ) {
 	$findings = array();
 	foreach ( (array) $rows as $r ) {
-		if ( ! is_array( $r ) || sn_health_search_title_is_shaped( $r['seo_title'] ?? '' ) ) {
+		if ( ! is_array( $r ) || sn_health_search_title_is_shaped( $r['seo_title'] ?? '', $r['post_title'] ?? '' ) ) {
 			continue;
 		}
 		$has_override = '' !== trim( (string) ( $r['seo_title'] ?? '' ) );
@@ -72,7 +82,7 @@ function sn_health_search_titles_judge( $rows ) {
 			'subject_label' => (string) ( $r['post_title'] ?? '' ),
 			'edit_url'      => (string) ( $r['edit_url'] ?? '' ),
 			'note'          => $has_override
-				? 'The SEO title carries no subtitle after ": ". Keep the aphorism, add the plain words a reader would search.'
+				? 'The SEO title repeats the aphorism. Keep the aphorism as the H1; make the SEO title the plain words a reader would search, or "Aphorism: plain words".'
 				: 'No SEO title: the title tag is the aphorism alone. Add "Aphorism: plain words a reader would search" in the post\'s Signal & Noise box.',
 		);
 	}
@@ -80,7 +90,9 @@ function sn_health_search_titles_judge( $rows ) {
 }
 
 /**
- * The rows: every published note with its override.
+ * The rows: every published AND scheduled note with its override. Scheduled
+ * on the owner's word (2026-09-17): a note should carry its title before it
+ * goes out, not be caught by the check the morning after.
  *
  * @since 15.9.0
  * @return array|null Rows, or null when the query could not run.
@@ -96,7 +108,7 @@ function sn_health_search_titles_rows() {
 		 LEFT JOIN {$wpdb->postmeta} pm
 		        ON pm.post_id = p.ID
 		       AND pm.meta_key = '_sn_seo_title'
-		 WHERE p.post_status = 'publish'
+		 WHERE p.post_status IN ( 'publish', 'future' )
 		   AND p.post_type = 'post'
 		 ORDER BY p.post_date_gmt DESC
 		 LIMIT 500",
@@ -122,7 +134,7 @@ function sn_health_search_titles_rows() {
 function sn_health_check_search_titles() {
 	$rows = sn_health_search_titles_rows();
 	return sn_health_pack_check(
-		'Notes without a query-shaped title',
+		'Notes without a query-shaped title (published and scheduled)',
 		null === $rows ? array() : sn_health_search_titles_judge( $rows ),
 		'The H1 stays the aphorism. Set the SEO title in the post\'s Signal & Noise box as "Aphorism: plain words a reader would search" (the shape the ranking notes already use); it changes only the title tag.',
 		null === $rows ? 'The posts table could not be read.' : null
