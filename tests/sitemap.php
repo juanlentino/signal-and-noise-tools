@@ -81,18 +81,39 @@ sm_eq( false, apply_filters( 'wp_sitemaps_add_provider', $fake_provider, 'users'
 sm_eq( $fake_provider, apply_filters( 'wp_sitemaps_add_provider', $fake_provider, 'posts' ), "'posts' provider kept (unchanged)" );
 sm_eq( $fake_provider, apply_filters( 'wp_sitemaps_add_provider', $fake_provider, 'taxonomies' ), "'taxonomies' provider kept (unchanged)" );
 
-// ─── wp_sitemaps_taxonomies ───────────────────────────────────────────
-echo "\nwp_sitemaps_taxonomies: drop post_tag + category, keep custom\n";
+// ─── wp_sitemaps_taxonomies (15.10.0: tags STAY, category goes) ──────
+echo "\nwp_sitemaps_taxonomies: keep post_tag (the hubs), drop category, keep custom\n";
 $taxes  = array(
 	'post_tag' => 'PT',
 	'category' => 'CAT',
 	'custom'   => 'CUSTOM',
 );
 $result = apply_filters( 'wp_sitemaps_taxonomies', $taxes );
-sm_true( ! isset( $result['post_tag'] ), 'post_tag removed from taxonomies' );
-sm_true( ! isset( $result['category'] ), 'category removed from taxonomies' );
+sm_true( isset( $result['post_tag'] ), '15.10.0: post_tag KEPT — every tag has an owner-written description and a hub tag is a real page' );
+sm_true( ! isset( $result['category'] ), 'category removed from taxonomies (one category, a duplicate of /notes/)' );
 sm_true( isset( $result['custom'] ) && 'CUSTOM' === $result['custom'], 'custom taxonomy preserved' );
-sm_eq( 1, count( $result ), 'exactly one taxonomy left (the custom one)' );
+sm_eq( 2, count( $result ), 'exactly two taxonomies left' );
+
+echo "\n15.10.0: the hub line and the thin-tag exclusion\n";
+sm_true( true === sn_sitemap_tag_is_hub( 3 ) && true === sn_sitemap_tag_is_hub( 13 ), 'three or more notes make a hub' );
+sm_true( false === sn_sitemap_tag_is_hub( 2 ) && false === sn_sitemap_tag_is_hub( 0 ), 'two or fewer do not' );
+sm_eq( 3, SN_SITEMAP_TAG_MIN_NOTES, 'the line is three (the 2026-09-17 vocabulary: 21 tags at or above it, 4 below)' );
+if ( ! function_exists( 'get_terms' ) ) {
+	function get_terms( $args ) {
+		return array(
+			(object) array( 'term_id' => 11, 'count' => 13 ),
+			(object) array( 'term_id' => 12, 'count' => 3 ),
+			(object) array( 'term_id' => 13, 'count' => 2 ),
+			(object) array( 'term_id' => 14, 'count' => 1 ),
+			'junk',
+		);
+	}
+}
+sm_eq( array( 13, 14 ), sn_sitemap_thin_tag_ids(), 'the thin ids are exactly the tags under the line; junk rows are dropped' );
+$qa = apply_filters( 'wp_sitemaps_taxonomies_query_args', array( 'exclude' => array( 99 ) ), 'post_tag' );
+sm_eq( array( 99, 13, 14 ), $qa['exclude'], 'the taxonomy provider excludes the thin tags, keeping any exclude it already had' );
+$qa = apply_filters( 'wp_sitemaps_taxonomies_query_args', array( 'x' => 1 ), 'custom' );
+sm_eq( array( 'x' => 1 ), $qa, 'another taxonomy\'s args are untouched' );
 
 
 // ─── v13.66.0: per-URL lastmod ───

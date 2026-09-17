@@ -419,6 +419,17 @@ function sn_seo_robots_directives() {
 	$directives[] = 'max-image-preview:large';
 	$directives[] = 'max-video-preview:-1';
 
+	// 15.10.0: a tag archive below the hub line (fewer than three notes) is
+	// a list of one or two links; it stays out of the index and the sitemap
+	// alike (inc/sitemap.php owns the line). A hub tag is indexable, and its
+	// description is the page.
+	if ( function_exists( 'is_tag' ) && is_tag() && function_exists( 'sn_sitemap_tag_is_hub' ) ) {
+		$term = get_queried_object();
+		if ( $term && isset( $term->count ) && ! sn_sitemap_tag_is_hub( (int) $term->count ) ) {
+			$directives[] = 'noindex';
+		}
+	}
+
 	$filtered = apply_filters( 'sn_seo_robots_directives', $directives );
 	if ( ! is_array( $filtered ) ) {
 		$filtered = $directives;
