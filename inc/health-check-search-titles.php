@@ -80,7 +80,9 @@ function sn_health_search_titles_judge( $rows ) {
 }
 
 /**
- * The rows: every published note with its override.
+ * The rows: every published AND scheduled note with its override. Scheduled
+ * on the owner's word (2026-09-17): a note should carry its title before it
+ * goes out, not be caught by the check the morning after.
  *
  * @since 15.9.0
  * @return array|null Rows, or null when the query could not run.
@@ -96,7 +98,7 @@ function sn_health_search_titles_rows() {
 		 LEFT JOIN {$wpdb->postmeta} pm
 		        ON pm.post_id = p.ID
 		       AND pm.meta_key = '_sn_seo_title'
-		 WHERE p.post_status = 'publish'
+		 WHERE p.post_status IN ( 'publish', 'future' )
 		   AND p.post_type = 'post'
 		 ORDER BY p.post_date_gmt DESC
 		 LIMIT 500",
@@ -122,7 +124,7 @@ function sn_health_search_titles_rows() {
 function sn_health_check_search_titles() {
 	$rows = sn_health_search_titles_rows();
 	return sn_health_pack_check(
-		'Notes without a query-shaped title',
+		'Notes without a query-shaped title (published and scheduled)',
 		null === $rows ? array() : sn_health_search_titles_judge( $rows ),
 		'The H1 stays the aphorism. Set the SEO title in the post\'s Signal & Noise box as "Aphorism: plain words a reader would search" (the shape the ranking notes already use); it changes only the title tag.',
 		null === $rows ? 'The posts table could not be read.' : null

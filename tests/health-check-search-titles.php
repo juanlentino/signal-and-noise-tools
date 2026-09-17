@@ -48,7 +48,7 @@ $GLOBALS['wpdb']->rows = array( array( 'ID' => 7, 'post_title' => 'Nobody signs 
 $r = sn_health_check_search_titles();
 ok( 1 === $r['count'] && null === $r['skipped'], 'one bare note is one finding, and the check RAN' );
 ok( 'https://x.test/notes/7/' === $r['findings'][0]['subject_url'] && false !== strpos( $r['findings'][0]['edit_url'], 'post=7' ), 'the query row gains its permalink and edit link' );
-ok( false !== strpos( $GLOBALS['wpdb']->sql, "post_status = 'publish'" ) && false !== strpos( $GLOBALS['wpdb']->sql, "post_type = 'post'" ) && false !== strpos( $GLOBALS['wpdb']->sql, '_sn_seo_title' ), 'the query reads published posts and the override meta' );
+ok( false !== strpos( $GLOBALS['wpdb']->sql, "post_status IN ( 'publish', 'future' )" ) && false !== strpos( $GLOBALS['wpdb']->sql, "post_type = 'post'" ) && false !== strpos( $GLOBALS['wpdb']->sql, '_sn_seo_title' ), 'the query reads published AND scheduled posts and the override meta (a note carries its title before it goes out)' );
 ok( false !== strpos( $r['fix_hint'], 'H1 stays the aphorism' ), 'the fix hint says the voice is untouched' );
 $GLOBALS['wpdb']->rows = null;
 $r = sn_health_check_search_titles();
