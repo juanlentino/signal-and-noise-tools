@@ -238,6 +238,25 @@ function sn_schema_is_pillar_page() {
 }
 
 /**
+ * The Article's dateModified: the provenance commit when there is one.
+ *
+ * @since 15.9.2
+ * @param WP_Post $post Post object.
+ * @return string ISO 8601, UTC.
+ */
+function sn_schema_date_modified( $post ) {
+	$meta   = defined( 'SN_PROV_LAST_COMMIT_META' ) ? SN_PROV_LAST_COMMIT_META : '_sn_prov_last_commit_gmt';
+	$commit = (string) get_post_meta( $post->ID, $meta, true );
+	if ( '' !== $commit ) {
+		$ts = strtotime( $commit . ' UTC' );
+		if ( false !== $ts && $ts > 0 ) {
+			return gmdate( 'c', $ts );
+		}
+	}
+	return get_post_modified_time( 'c', true, $post );
+}
+
+/**
  * Build the Article schema for the current singular post, or pillar page.
  * Returns null elsewhere.
  */
@@ -270,7 +289,12 @@ function sn_schema_article() {
 		'@id'              => $permalink . '#article',
 		'headline'         => $title,
 		'datePublished'    => get_post_time( 'c', true, $post ),
-		'dateModified'     => get_post_modified_time( 'c', true, $post ),
+		// 15.9.2: WHEN THE PROSE LAST CHANGED, not when the row was last saved.
+		// A title-tag override on every note (2026-09-17) bumped post_modified
+		// on all 43 and told Google every note changed that day. The provenance
+		// commit is the honest clock (the stale-posts check's since 11.11.8);
+		// post_modified only for a post with no commit.
+		'dateModified'     => sn_schema_date_modified( $post ),
 		'mainEntityOfPage' => $permalink,
 		// v4.4.3 (Bug-E1): read from Identity locale setting (same as WebSite
 		// schema on line 83 and WebPage schema on line 194). Hardcoded 'en-US'
@@ -287,6 +311,13 @@ function sn_schema_article() {
 	if ( '' !== $description ) {
 		$article['description'] = $description;
 	}
+
+	// 15.9.2: what the headers already say, in the schema an answer engine
+	// reads: the notes are free to read, and the machine license is the RSL
+	// file the edge links as rel="license". Research register; a reader or a
+	// model can cite without guessing at terms.
+	$article['isAccessibleForFree'] = true;
+	$article['license']             = home_url( '/license.xml' );
 
 	if ( $image_url ) {
 		$article['image'] = array(
