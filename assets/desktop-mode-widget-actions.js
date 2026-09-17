@@ -160,7 +160,25 @@
 		} );
 	}
 
+	// 15.8.1: the shell's own toast (wp.os.showToast, Stable in OpenStation's
+	// JavaScript reference) paints at the top of the shell and never touches
+	// the card. The in-card strip below was appended INSIDE the widget, so
+	// every action grew the card by a row for 3.5s and shrank it back; the
+	// owner called it weird, and it was. The strip stays only as the fallback
+	// for a shell without showToast.
+	function shellToast( message ) {
+		var os = ( window.wp && ( window.wp.os || window.wp.desktop ) ) || null;
+		if ( ! os || typeof os.showToast !== 'function' ) { return false; }
+		try {
+			os.showToast( { message: String( message ), duration: TOAST_MS, source: 'sn-quick-actions' } );
+			return true;
+		} catch ( e ) {
+			return false;
+		}
+	}
+
 	function toast( widget, message, success ) {
+		if ( shellToast( message ) ) { return; }
 		var existing = widget.querySelector( '.sn-dm-toast' );
 		if ( existing ) { existing.remove(); }
 

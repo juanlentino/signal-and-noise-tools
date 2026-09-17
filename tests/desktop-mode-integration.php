@@ -435,7 +435,7 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 // Changing a card's content SHOULD fail this test. Re-measure, don't re-guess.
 $expected_height = array(
 	'sn-site-views'       => 510, // budgeted: 450 + 3 glance rows (today/engaged/top_mover) ~+60
-	'sn-queue'            => 300, // 15.8.0 BUDGETED: headline block ~64 + depth line ~22 + two headings + six rows ~156 + padding; re-measure once live
+	'sn-queue'            => 380, // measured 365 live (15.8.1): two-line headline + depth line + two headings + six rows
 	'sn-health'           => 160, // measured 148 all-passing
 	'sn-uptime'           => 220, // measured 210
 	'sn-deploy-status'    => 310, // v11.11.2 budgeted: measured-192 two-row grid + five worker rows ~22px each
@@ -573,6 +573,16 @@ ok( strpos( $aj_code, '#dff4dc' ) === false && strpos( $aj_code, '#fbe2e2' ) ===
 	'Quick Actions toasts are not light pastel fills on dark glass' );
 ok( preg_match( '/rgba\(\s*255\s*,\s*255\s*,\s*255/', $aj_code ) === 1,
 	'Quick Actions styles light-on-dark (translucent white), matching the card idiom' );
+// 15.8.1: an action's result goes to the SHELL toast (wp.os.showToast, Stable),
+// never into the card. The in-card strip grew the card by a row for 3.5s and
+// shrank it back on every click; it remains only as the no-showToast fallback,
+// and the shell call must be tried FIRST.
+$aj_shell = strpos( $aj_code, "typeof os.showToast !== 'function'" );
+$aj_strip = strpos( $aj_code, "querySelector( '.sn-dm-toast' )" );
+ok( false !== $aj_shell && false !== $aj_strip && $aj_shell < $aj_strip,
+	'Quick Actions tries the shell toast before painting anything inside the card' );
+ok( strpos( $aj_code, 'if ( shellToast( message ) ) { return; }' ) !== false,
+	'a shell toast that painted ends the toast path; the card is untouched' );
 ok( strpos( $aj_code, 'mouseenter' ) !== false || strpos( $aj_code, 'mouseover' ) !== false,
 	'Quick Actions buttons have a real hover state (the transition existed but nothing changed on hover)' );
 
