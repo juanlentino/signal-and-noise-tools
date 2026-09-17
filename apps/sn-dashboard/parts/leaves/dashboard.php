@@ -730,11 +730,17 @@ function systems_html( array $checks, array $components, $tab ) {
 		// into `.sn-glance-card__value`. The classic wall learned this in
 		// v11.30.0/v11.30.1; the port dropped both, so the native Home read
 		// "Checking…" forever under a meta line that already said "verified fresh".
+		// 15.10.1: the filler finds the value by a DATA ATTRIBUTE, not by the
+		// classic `.sn-glance-card__value` class. Borrowing that class brought
+		// the classic stylesheet with it (color: var(--sn-text), the light
+		// admin's near-black) and the value painted as a dark, unreadable
+		// figure on the dark leaf; the classic `.sn-pill--ok` did the same to
+		// the badge. The attribute carries no style.
 		$id     = (string) ( $card['id'] ?? '' );
-		$vclass = 'snt-sys__v' . ( '' !== $id ? ' sn-glance-card__value' : '' );
+		$vattr  = '' !== $id ? ' data-snt-freshness-value="1"' : '';
 		$body  = null !== $go
-			? \snt_kit_go( $value, $go + array( 'current' => $tab ), array( 'class' => $vclass ) )
-			: '<span class="' . $vclass . '">' . \snt_kit_esc( $value ) . '</span>';
+			? \snt_kit_go( $value, $go + array( 'current' => $tab ), array( 'class' => 'snt-sys__v' . ( '' !== $id ? ' sn-glance-card__value' : '' ) ) )
+			: '<span class="snt-sys__v"' . $vattr . '>' . \snt_kit_esc( $value ) . '</span>';
 		$pill  = (string) ( $card['pill']['text'] ?? '' );
 		$cells .= '<div class="snt-sys' . ( '' !== $state ? ' snt-sys--' . \snt_kit_esc( $state ) : '' ) . '"' . ( '' !== $id ? ' id="' . \snt_kit_esc( $id ) . '"' : '' ) . ( '' !== $state ? ' data-tone="' . \snt_kit_tone( $state ) . '"' : '' ) . '>'
 			. '<span class="snt-sys__k">' . \snt_kit_esc( (string) ( $card['label'] ?? '' ) ) . '</span>'

@@ -24,8 +24,12 @@ $components = array( array( 'label' => 'Plugin', 'value' => '15.3.2', 'measured'
 $html = \SignalNoise\OpenStationHost\Dashboard\Leaves\systems_html( $checks, $components, 'dashboard' );
 
 ok( 1 === preg_match( '/<div class="snt-sys" id="snt-freshness-card">/', $html ), 'the async Caches card carries the id freshness-dot.js finds it by' );
-ok( 1 === preg_match( '/id="snt-freshness-card">.*?<span class="snt-sys__v sn-glance-card__value">Checking…<\/span>/s', $html ), 'its value span carries the class the filler writes into, so "Checking…" is replaced in place' );
-ok( 1 === substr_count( $html, 'sn-glance-card__value' ) && 1 === substr_count( $html, ' id="' ), 'only the card with a filler carries the id and the class; the other two do not' );
+ok( 1 === preg_match( '/id="snt-freshness-card">.*?<span class="snt-sys__v" data-snt-freshness-value="1">Checking…<\/span>/s', $html ), '15.10.1: its value span carries the DATA ATTRIBUTE the filler writes into (not the classic class, which dragged the light admin\'s colour onto the dark leaf)' );
+ok( 1 === substr_count( $html, 'data-snt-freshness-value' ) && 1 === substr_count( $html, ' id="' ), 'only the card with a filler carries the id and the attribute; the other two do not' );
+ok( false === strpos( $html, 'sn-glance-card__value' ), 'the native wall carries no classic glance class at all' );
+$sn_fd = (string) file_get_contents( __DIR__ . '/../assets/freshness-dot.js' );
+ok( false !== strpos( $sn_fd, "querySelector('[data-snt-freshness-value], .sn-glance-card__value')" ), 'the filler finds the value by the attribute first, the classic class second' );
+ok( false !== strpos( $sn_fd, "document.createElement(native ? 'os-badge' : 'span')" ) && false !== strpos( $sn_fd, "pill.setAttribute('tone'" ), 'on the native leaf the badge is the kit\'s <os-badge tone>, never the classic pill' );
 ok( false !== strpos( $html, 'Last purge 19 seconds ago' ) && false !== strpos( $html, '>15.3.2</span>' ), 'the meta line and the plain cards paint as before' );
 
 // ── 15.3.2: the Detail split. detail_html paints ONE group; the audience group
