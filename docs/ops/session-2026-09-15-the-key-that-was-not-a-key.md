@@ -518,7 +518,7 @@ branch, so one stalled aggregator costs nothing. The worker's `spliceUpgrade`
 refuses branched proofs on the stated ground that the worker only stamps one
 calendar; with the fork at the root, each calendar's pending attestation is
 still the sole terminal of its own chain, so the upgrade primitive holds as
-written. Recommended to the owner as worker 1.26.0: stamp every reachable
+written. Recommended to the owner as provenance worker 1.20.0: stamp every reachable
 calendar in parallel and serialize the fork; lower the restamp threshold from
 seven days to one so the seven in the queue re-anchor across all calendars by
 tomorrow morning. Not built; awaiting the word.
@@ -528,7 +528,10 @@ tomorrow morning. Not built; awaiting the word.
 - Clear the analytics override and the stale site secret (both still hold the
   rolled-away Cloudflare token); mint a real site secret when a worker row
   should derive from one.
-- Worker #45 (vitest): its cooldown clears 2026-09-17 around 18:00Z.
+- Provenance worker #45 (vitest 4.1.11): the cooldown's last young package is
+  `nanoid@3.3.19`, published 2026-09-10T18:00Z; a scheduled job re-runs the
+  check at 18:02Z on the 17th and merges on CLEAN. No version bump in it; it
+  rides 1.20.0. Tags v1.18.3 and v1.19.0 exist without release drafts.
 - Plugin 15.6.0 (Agent tools) released 22:18Z and installed on the site by 22:40Z;
   the deploy reading says current equals latest for the plugin, the theme and the
   five workers. The two worker versions merged tonight had no tags until then,
@@ -553,7 +556,7 @@ tomorrow morning. Not built; awaiting the word.
   of beacon rows on AI › Agent tools, or the owner saying build it.
 - The provenance queue: seven pending proofs, all on alice, none confirmed in
   fifteen hours while alice shows 150,000 pending commitments and no
-  transaction in flight. Proposed worker 1.26.0: multi-calendar stamping and
+  transaction in flight. Proposed provenance worker 1.20.0: multi-calendar stamping and
   a one-day restamp. Owner's call.
 - Plugin 15.7.1 (the runner's empty-hand POST) released and installed; the
   widget's `Sweep now` runs.
