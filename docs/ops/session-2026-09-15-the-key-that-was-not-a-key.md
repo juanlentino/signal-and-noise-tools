@@ -442,6 +442,16 @@ essays, carried no Article at all, so the most citable pages on the site
 answered "not a note"; plugin 15.7.0 builds one for them, which search
 engines wanted anyway.
 
+The proof, with 15.7.0 installed: the bridge on the live pillar answered
+`@online{lentino2026provenance, …}` with the essay's date, the ORCID, the
+anchored content hash and the ledger record. The owner read one flaw in it,
+`urldate = {2026-9-16}` unpadded, and asked for that and whatever else the
+citation should carry. Worker 1.25.3: padded ISO dates, TeX-escaped values,
+`organization`, biblatex `date`, `keywords`, `version` on signed pages,
+`language`; the CSL-JSON gains `abstract`, `keyword`, `language` and the
+anchor as a `note`; and a plain APA-shaped line for the agent that wants to
+paste a reference rather than a `.bib` entry.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -453,8 +463,8 @@ engines wanted anyway.
   five workers. The two worker versions merged tonight had no tags until then,
   and the deploy reading names `latest` from tags: tagged, and the row agrees.
 - Theme 13.2.4 (the footnotes popover's document target, 22:59Z) and plugin
-  15.7.0 (pillar Articles, 23:12Z) released; worker 1.25.2 live and tagged.
-  After 15.7.0 installs, cite a pillar through the bridge as the proof.
+  15.7.0 (pillar Articles, 23:12Z) released and installed; worker 1.25.3 (the citation's dates and fields)
+  cut; the pillar citation proof is in this doc.
 - Cloudflare Web Analytics vs the CSP: the beacon is blocked on every page;
   turn Web Analytics off, or allow `static.cloudflareinsights.com` in the
   script-src of the transform rule. Owner's call.
