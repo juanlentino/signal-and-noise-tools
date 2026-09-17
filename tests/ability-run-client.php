@@ -181,5 +181,12 @@ t( false !== strpos( $cp_src, 'snt-ability-run.js did not load' ), 'D.8 the guar
 t( false !== strpos( $runner_src, "opts.data = { input: hasInput ? input : {} };" ), 'D.9 runner sends an input object on every POST, {} when the caller gave none' );
 t( false === strpos( $runner_src, "if ( hasInput ) {\n\t\t\tif ( 'POST' === verb )" ), 'D.10 the POST body is no longer gated on a non-empty input' );
 
+// 15.8.1: the run-path hands an ability's output back AS IS. A widget that
+// reads `res.data` sees undefined unless the ability wraps itself. The queue
+// widget must read the bare payload (and tolerate the wrapped one).
+$qw_src = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-queue.js' );
+t( false !== strpos( $qw_src, "typeof res.data === 'object' ? res.data : res" ), 'D.11 the queue widget reads the bare run-path payload, wrapped or not' );
+t( false !== strpos( $qw_src, "Array.isArray( data.next )" ), 'D.12 the queue widget recognises the payload by its own keys, not by an envelope' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

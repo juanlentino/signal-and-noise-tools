@@ -172,8 +172,13 @@
 			Promise.resolve( run )
 				.then( function( res ) {
 					if ( torn ) { return; }
-					if ( res && res.data && typeof res.data === 'object' ) {
-						renderCard( container, res.data );
+					// 15.8.1: the run-path returns the ability's output AS IS;
+					// only abilities that wrap themselves (get-rss-stats) come
+					// back as { ok, data }. 15.8.0 read res.data and painted
+					// "empty response" over a perfect payload. Accept both.
+					var data = res && res.data && typeof res.data === 'object' ? res.data : res;
+					if ( data && typeof data === 'object' && ( Array.isArray( data.next ) || Array.isArray( data.published ) ) ) {
+						renderCard( container, data );
 					} else {
 						renderError( container, 'empty response' );
 					}

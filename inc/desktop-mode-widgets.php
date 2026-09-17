@@ -151,11 +151,11 @@ add_action( 'init', function() {
 			'description'    => 'The next scheduled note, how deep the queue runs, and the last three published.',
 			'icon'           => 'dashicons-calendar-alt',
 			'script'         => 'sn-desktop-mode-widget-queue',
-			// BUDGETED 300, not browser-measured: headline block (~64) +
-			// depth line (~22) + "Then" heading + 3 rows (~78) + "Just
-			// published" heading + 3 rows (~78) + padding, rounded up to the
-			// next 10 with slack. Re-measure at the docked width once live.
-			'default_height' => 300,
+			// Measured 365 (15.8.1, live at the docked width with the real
+			// queue: a two-line headline, the depth line, two headings, six
+			// rows), rounded up to the next 10 with slack. The 15.8.0 budget
+			// of 300 undershot the two-line title.
+			'default_height' => 380,
 		) ) );
 
 		snt_os_register_widget( 'sn-health', array_merge( $sn_drag, array(
