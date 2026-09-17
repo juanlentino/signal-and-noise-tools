@@ -486,7 +486,7 @@ counterexample. One line in the runner (a POST always sends `{ input: ... }`,
 `origin/main` and it is red there. The three bodyless write abilities also
 take the union so a curl or an MCP door that POSTs nothing is accepted.
 Plugin 15.7.1, "the sweep button asks with an empty hand" (#1377, #1378,
-#1379), released 09:2xZ and installed.
+#1379), released 09:24Z and installed.
 
 The second one is not ours to fix in the plugin, and it is not one note. The
 widget's sweep line says `0 upgraded, 7 still pending`; the pending count in
