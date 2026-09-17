@@ -465,14 +465,31 @@
 		if ( typeof window.MutationObserver !== 'function' ) {
 			return;
 		}
+		// 15.9.0: a root can EARN its identity after it is inserted. Measured in
+		// the owner's shell on 2026-09-17: the runtime inserts a bare <div>,
+		// then sets class="snt-app …" and data-os-app by attribute morph, so
+		// an addedNodes-only watch never saw a root (13 analytics roots, zero
+		// paints; the Caches tile sat on "Checking…" under a meta line that
+		// said "verified fresh"). An attribute record on those two names
+		// re-scans its target; host() is idempotent, so a root already hosted
+		// is a no-op.
 		new window.MutationObserver( function ( records ) {
 			for ( var i = 0; i < records.length; i++ ) {
+				if ( 'attributes' === records[ i ].type ) {
+					scan( records[ i ].target );
+					continue;
+				}
 				var added = records[ i ].addedNodes;
 				for ( var j = 0; j < added.length; j++ ) {
 					scan( added[ j ] );
 				}
 			}
-		} ).observe( document.body, { childList: true, subtree: true } );
+		} ).observe( document.body, {
+			childList: true,
+			subtree: true,
+			attributes: true,
+			attributeFilter: [ 'class', 'data-os-app' ],
+		} );
 	}
 
 	if ( 'loading' === document.readyState ) {

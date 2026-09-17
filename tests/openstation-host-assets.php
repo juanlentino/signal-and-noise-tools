@@ -161,6 +161,12 @@ ok( false !== strpos( $host, '.snt-app[data-os-app="sn-analytics"]' ), 'it selec
 $start = snt_region( $host, 'function start(' );
 ok( '' !== $start && false !== strpos( $start, 'scan( document.body )' ), 'VACUITY+PIN: start() is extracted and scans the body that is already there' );
 ok( snt_has_all( $start, array( 'MutationObserver', 'document.body', 'addedNodes', 'childList' ) ), 'start() observes document.body for ADDED nodes, so a window opened later is hosted (a window almost always opens after this file loads)' );
+// 15.9.0: the runtime inserts a bare <div> and sets class="snt-app" and
+// data-os-app AFTERWARDS by attribute morph (measured live 2026-09-17: 13
+// analytics roots, zero paints, the Caches tile stuck on "Checking…"). An
+// addedNodes-only watch never sees a root; the observer must also take the
+// two attributes and re-scan their target.
+ok( snt_has_all( $start, array( "'attributes' === records[ i ].type", 'scan( records[ i ].target )', "attributeFilter: [ 'class', 'data-os-app' ]" ) ), 'start() also re-scans a node that EARNS its root identity by attribute (class / data-os-app set after insertion)' );
 ok( false !== strpos( $host, 'document.readyState' ) && false !== strpos( $host, 'DOMContentLoaded' ), 'it waits for a body when the document is still loading' );
 $scan = snt_region( $host, 'function scan(' );
 ok( '' !== $scan && snt_has_all( $scan, array( 'node.matches( ROOT_SELECTOR )', 'node.querySelectorAll( ROOT_SELECTOR )' ) ), 'scan() hosts a root that IS the added node and roots INSIDE it — the shell may add either' );
