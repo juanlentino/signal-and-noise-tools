@@ -72,21 +72,50 @@ function paint_connections_scheduled_content( array $ctx ) {
 		return $out;
 	}
 
-	$rows = scheduled_content_row_head_html();
+	// 15.10.1: two producers, two shapes. The native future posts carry no
+	// op (core publishes them), so they take the house table (<os-table>, the
+	// Cron leaf's shape: sortable, filterable, every column its own width)
+	// instead of seven cramped list cells. The fragments keep the list: each
+	// row carries a live <form> (Run now / Re-purge), which a data-driven
+	// table cannot hold (see the parts file's header).
+	$post_rows = array();
+	$frag_rows = '';
 	foreach ( $d['shown'] as $entry ) {
 		if ( ! is_array( $entry ) ) {
 			continue;
 		}
-		$rows .= 'post' === (string) ( $entry['kind'] ?? '' )
-			? scheduled_content_post_row_html( (array) ( $entry['row'] ?? array() ) )
-			: scheduled_content_fragment_row_html( (array) ( $entry['row'] ?? array() ) );
+		if ( 'post' === (string) ( $entry['kind'] ?? '' ) ) {
+			$post_rows[] = scheduled_content_post_table_row( (array) ( $entry['row'] ?? array() ) );
+		} else {
+			$frag_rows .= scheduled_content_fragment_row_html( (array) ( $entry['row'] ?? array() ) );
+		}
 	}
 
-	/* translators: %d: total scheduled items. */
-	$summary = sprintf( _n( '%d scheduled item', '%d scheduled items', $d['total'], 'signal-and-noise-tools' ), (int) $d['total'] );
-	$body    = '<ul class="snt-list">' . $rows . '</ul>';
+	if ( array() !== $post_rows ) {
+		$columns = array(
+			array( 'key' => 'title', 'label' => __( 'Title', 'signal-and-noise-tools' ), 'filter' => 'text' ),
+			array( 'key' => 'type', 'label' => __( 'Type', 'signal-and-noise-tools' ) ),
+			array( 'key' => 'publishes', 'label' => __( 'Publishes', 'signal-and-noise-tools' ) ),
+			array( 'key' => 'in', 'label' => __( 'In', 'signal-and-noise-tools' ) ),
+			array( 'key' => 'id', 'label' => __( 'ID', 'signal-and-noise-tools' ), 'align' => 'end' ),
+		);
+		/* translators: %d: scheduled posts and pages */
+		$posts_heading = sprintf( _n( '%d scheduled post', '%d scheduled posts', count( $post_rows ), 'signal-and-noise-tools' ), count( $post_rows ) );
+		$out .= \snt_kit_section(
+			$posts_heading,
+			\snt_kit_table( $columns, $post_rows, array( 'empty' => __( 'No scheduled posts.', 'signal-and-noise-tools' ) ) ),
+			__( 'WordPress publishes these itself on the date shown (site timezone), soonest first. Open one from the Posts window to move it.', 'signal-and-noise-tools' )
+		);
+	}
+
+	if ( '' !== $frag_rows ) {
+		/* translators: %d: scheduled fragments */
+		$frag_heading = sprintf( _n( '%d scheduled fragment', '%d scheduled fragments', count( $d['fragments'] ), 'signal-and-noise-tools' ), count( $d['fragments'] ) );
+		$out .= \snt_kit_tag( 'os-disclosure', array( 'heading' => $frag_heading, 'open' => true ), '<ul class="snt-list">' . scheduled_content_row_head_html() . $frag_rows . '</ul>' );
+	}
+
 	if ( $d['remainder'] > 0 ) {
-		$body .= '<p class="snt-hint snt-schedule-remainder">' . \snt_kit_esc(
+		$out .= '<p class="snt-hint snt-schedule-remainder">' . \snt_kit_esc(
 			sprintf(
 				/* translators: %d: hidden row count */
 				_n( '+%d more scheduled item, sorted soonest-first — the tail is the furthest out.', '+%d more scheduled items, sorted soonest-first — the tail is the furthest out.', $d['remainder'], 'signal-and-noise-tools' ),
@@ -94,7 +123,6 @@ function paint_connections_scheduled_content( array $ctx ) {
 			)
 		) . '</p>';
 	}
-	$out .= \snt_kit_tag( 'os-disclosure', array( 'heading' => $summary ), $body );
 
 	return $out;
 }

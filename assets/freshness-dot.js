@@ -71,7 +71,11 @@
 	}
 
 	function render(card, results) {
-		var valueEl = card.querySelector('.sn-glance-card__value');
+		// 15.10.1: the native leaf marks its value with a data attribute (the
+		// classic class dragged the light admin's text colour onto the dark
+		// leaf); the classic page still carries the class.
+		var valueEl = card.querySelector('[data-snt-freshness-value], .sn-glance-card__value');
+		var native  = !! (card.closest && card.closest('.snt-app'));
 		var total = results.length;
 		var fresh = results.filter(function (r) { return r === 'fresh'; }).length;
 		var stale = results.filter(function (r) { return r === 'stale'; }).length;
@@ -94,14 +98,22 @@
 
 		if (valueEl) { valueEl.textContent = value; }
 
-		var pill = card.querySelector('.sn-pill');
+		var pill = card.querySelector(native ? 'os-badge' : '.sn-pill');
 		if (kind) {
 			if (!pill) {
-				pill = document.createElement('span');
+				// 15.10.1: on the native leaf the badge is the kit's <os-badge>
+				// (tone ok|warn), the element the wall paints for every other
+				// card; the classic .sn-pill is a light-admin chip and read as
+				// a pastel block on dark glass.
+				pill = document.createElement(native ? 'os-badge' : 'span');
 				if (valueEl) { valueEl.insertAdjacentElement('afterend', pill); }
 				else { card.appendChild(pill); }
 			}
-			pill.className = 'sn-pill sn-pill--' + kind;
+			if (native) {
+				pill.setAttribute('tone', kind === 'warn' ? 'warn' : 'ok');
+			} else {
+				pill.className = 'sn-pill sn-pill--' + kind;
+			}
 			pill.textContent = text;
 		}
 	}
