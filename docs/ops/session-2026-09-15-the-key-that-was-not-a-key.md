@@ -584,6 +584,29 @@ Anchors half was pushed onto the release branch before its gate cleared, so
 one cut carried both. The documented way, twice in one release: the shell
 already had a toast, and the runner's contract was in the file.
 
+## Two repos, read and set down
+
+The owner sent two links. `Automattic/Agent-Use-Cases` (created 2026-09-16,
+Eric Binnion, GPL-3) is a Claude Code plugin marketplace where each "plugin"
+teaches an agent to use a stock WordPress.com site as an application, through
+the WordPress.com MCP only: no PHP, no custom post types, no meta. One use
+case so far, a private site as a personal health record, with a candid README
+about hosted content and transcripts as a second copy. Nothing runs against a
+self-hosted site; ADR-0001 keeps third-party agent skills out of the repos
+anyway. The one thing to watch is the facade shape its MCP expects (a few
+tools, each taking an `operation`), in case core's adapter converges on it;
+our eight remote twins would be where it shows.
+
+`m/taxonomist` is Matt Mullenweg's (March 2026, 47 stars, Jeremy Herve's
+WP-CLI fixes in June): five agent prompts and a small lib that export every
+post, batch them to parallel agents for a category structure, and apply it
+through WP-CLI, REST, WordPress.com or XML-RPC with a backup first. The
+problem it solves is the one this site closed in August (83 tags to 23, one
+category, the vocabulary held in the plugin's own abilities), and it solves it
+by pulling the corpus out to the agent's machine, the opposite direction from
+ours. Nothing to adopt from either; both set down here so the next reading
+starts from what was already read.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
