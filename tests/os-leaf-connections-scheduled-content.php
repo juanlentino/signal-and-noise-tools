@@ -85,8 +85,12 @@ ok( false !== strpos( $kit, 'value="3"' ) && false !== strpos( $kit, 'label="Fra
 
 ok( false !== strpos( $kit, 'Home page' ) && false !== strpos( $kit, 'os-arg-url="https://example.test/wp-admin/post.php?post=55&amp;action=edit"' ), 'the linked fragment target is a kit door to its editor, not a raw admin <a>' );
 ok( false !== strpos( $kit, '(unlinked fragment)' ), 'the unlinked fragment falls back to its classic label' );
-ok( false !== strpos( $kit, 'Launch announcement' ) && false !== strpos( $kit, 'Publish' ) && false !== strpos( $kit, 'Page' ), 'the native future post shows its title, type (Page) and action (Publish)' );
-ok( false !== strpos( $kit, 'native' ) && false !== strpos( $kit, 'Run now' ), 'the native post is marked "native" while fragment rows still carry Run now' );
+ok( false !== strpos( $kit, 'Launch announcement' ) && false !== strpos( $kit, 'Page' ), 'the native future post shows its title and type (Page)' );
+// 15.10.1: native posts take the house table; fragments keep the list their forms need.
+ok( 1 === preg_match( '/<os-table[^>]*os-prop-columns=/', $kit ) && false !== strpos( $kit, '&quot;key&quot;:&quot;publishes&quot;' ), 'the native posts paint as an <os-table> with a Publishes column, the Cron leaf\'s shape' );
+ok( false !== strpos( $kit, '1 scheduled post' ) && false !== strpos( $kit, '3 scheduled fragments' ), 'the two producers get their own headings and counts' );
+ok( false === strpos( $kit, '>native<' ), 'no row is labelled "native" any more: the table IS the native section' );
+ok( false !== strpos( $kit, 'Run now' ) && false !== strpos( $kit, 'snt-list__row' ), 'fragment rows still paint as list rows and still carry Run now' );
 
 ok( false !== strpos( $kit, 'active → queued' ), 'the version-swap pair shows its hide→show status' );
 ok( false !== strpos( $kit, 'Run swap now' ) && false !== strpos( $kit, 'name="hide_id" value="301"' ) && false !== strpos( $kit, 'name="show_id" value="302"' ), 'the swap row carries the same hide_id/show_id the classic op posts' );
@@ -117,7 +121,7 @@ for ( $i = 1; $i <= 30; $i++ ) {
 }
 $GLOBALS['__sched_fragments'] = $many;
 $kit = snt_leaf_paint( 'connections', 'scheduled-content' );
-ok( false !== strpos( $kit, '30 scheduled items' ), 'the fold summary carries the TRUE total, not the capped count' );
+ok( false !== strpos( $kit, '30 scheduled fragments' ), 'the fragments fold carries the TRUE total, not the capped count' );
 ok( false !== strpos( $kit, '+5 more scheduled items, sorted soonest-first' ), 'the remainder line reports the hidden tail (30 - 25 cap = 5)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

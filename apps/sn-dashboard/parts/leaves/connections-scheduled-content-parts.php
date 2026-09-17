@@ -231,6 +231,26 @@ function scheduled_content_post_row_html( array $post ) {
 }
 
 /**
+ * One native-scheduled-post row as an <os-table> row (15.10.1): scalar
+ * cells, the shape the Cron leaf paints. The title is text (a data-driven
+ * table takes no door); the Posts window is where a scheduled post is moved.
+ *
+ * @param array<string,mixed> $post A sn_schedule_future_posts() row.
+ * @return array<string,string>
+ */
+function scheduled_content_post_table_row( array $post ) {
+	$gmt  = (string) ( $post['scheduled_gmt'] ?? '' );
+	$next = function_exists( 'sn_admin_schedule_next_transition' ) ? (string) \sn_admin_schedule_next_transition( $gmt, null ) : '';
+	return array(
+		'title'     => html_entity_decode( (string) ( $post['title'] ?? '' ), ENT_QUOTES, 'UTF-8' ),
+		'type'      => 'page' === ( $post['post_type'] ?? '' ) ? __( 'Page', 'signal-and-noise-tools' ) : __( 'Post', 'signal-and-noise-tools' ),
+		'publishes' => function_exists( 'sn_admin_schedule_fmt_gmt' ) ? (string) \sn_admin_schedule_fmt_gmt( $gmt ) : $gmt,
+		'in'        => '' !== $next ? $next : '—',
+		'id'        => (string) (int) ( $post['id'] ?? 0 ),
+	);
+}
+
+/**
  * One version-swap row (v8.0.0): same reads as sn_admin_render_schedule_swaps()'s
  * per-pair body — 5 columns (no Type/Action; the pair IS the operation).
  *
