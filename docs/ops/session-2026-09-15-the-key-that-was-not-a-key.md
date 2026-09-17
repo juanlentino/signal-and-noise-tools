@@ -464,6 +464,65 @@ green line. The same evening's push also surfaced a Dependabot alert on
 override; the override moved to 0.35.4 and the alert reads fixed. Worker
 1.25.4, the fifth worker cut of the day.
 
+## The sweep button asks with an empty hand
+
+The morning after, the dashboard screenshot carried two things. The SN
+Anchors widget's `Sweep now` answered `Sweep failed: Ability
+"signal-noise/anchor-sweep" has invalid input. Reason: input is not of type
+object.` And the note signed at 19:00Z the day before still said `awaiting
+tx`.
+
+The first one was the shared runner, not the widget. `sntAbilityRun` drops an
+empty `{}` on POST and sends no body at all; the abilities controller
+validates a missing input as `null`, and `anchor-sweep` types its input as a
+plain `object`. Its GET twin `anchor-status` already carries the
+`[object,null]` union, with a comment that calls this the third bite of the
+same trap (v9.78.1). Group E of `abilities-categories.php` sweeps every
+readonly ability for the union and exempts write abilities because "POST
+always carries a body". The comment was the premise; the runner was the
+counterexample. One line in the runner (a POST always sends `{ input: ... }`,
+`{}` when the caller gave none) closes the class for every caller, and D.9 in
+`ability-run-client.php` pins it: I ran the pin against the runner on
+`origin/main` and it is red there. The three bodyless write abilities also
+take the union so a curl or an MCP door that POSTs nothing is accepted.
+Plugin 15.7.1, "the sweep button asks with an empty hand" (#1377, #1378,
+#1379), released 09:2xZ and installed.
+
+The second one is not ours to fix in the plugin, and it is not one note. The
+widget's sweep line says `0 upgraded, 7 still pending`; the pending count in
+the same widget says 1. Both are true. The 1 is what WordPress knows, the
+notes. The 7 is the provenance worker's queue, read from `pending.json` in
+the ledger: the note (v1 of 8cf78cdb, 19:00Z) plus six rights-signal
+documents, `tdm-policy` v6, v7, v8 and `webmcp-bridge` v3, v4, v5, anchored
+by the hourly rights sweep at 22:00Z, 23:00Z and 01:00Z as the three worker
+deploys of the evening changed the bridge's bytes (the TDM policy document
+carries the bridge's hash, so it re-anchored in step). Six of the seven are
+the previous night's releases being anchored, which is the design.
+
+Why none of the seven has confirmed is the calendar. The ledger shows the
+last two confirmations on 2026-09-15 landing within ninety minutes of their
+stamps. Every stamp since 19:00Z on the 16th went to
+`alice.btc.calendar.opentimestamps.org`, the first calendar in the worker's
+list, and alice's own status page this morning reads 150,000 pending
+commitments and zero transactions waiting for confirmation. Bob reads 2,725
+pending and one transaction in flight. Alice is accepting digests and not
+broadcasting. The worker tries the calendars in order and stops at the first
+that accepts, so every proof is single-calendar and every proof of the last
+fifteen hours sits on the stalled one; the worker's own restamp waits seven
+days before it tries again, and the retry would go to alice first too.
+
+The reading that matters: a calendar that accepts is not a calendar that
+confirms. `submitToCalendar` returning 200 measures reachability. The
+standard OpenTimestamps client submits to every calendar and keeps every
+branch, so one stalled aggregator costs nothing. The worker's `spliceUpgrade`
+refuses branched proofs on the stated ground that the worker only stamps one
+calendar; with the fork at the root, each calendar's pending attestation is
+still the sole terminal of its own chain, so the upgrade primitive holds as
+written. Recommended to the owner as worker 1.26.0: stamp every reachable
+calendar in parallel and serialize the fork; lower the restamp threshold from
+seven days to one so the seven in the queue re-anchor across all calendars by
+tomorrow morning. Not built; awaiting the word.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -478,9 +537,10 @@ override; the override moved to 0.35.4 and the alert reads fixed. Worker
   15.7.0 (pillar Articles, 23:12Z) released and installed; worker 1.25.3 (the citation's dates and fields)
   and 1.25.4 (sharp 0.35.4) live and tagged; zero open CodeQL or Dependabot
   alerts on the worker.
-- Cloudflare Web Analytics vs the CSP: the beacon is blocked on every page;
-  turn Web Analytics off, or allow `static.cloudflareinsights.com` in the
-  script-src of the transform rule. Owner's call.
+- Cloudflare Web Analytics vs the CSP: resolved on the 17th; the owner kept
+  Web Analytics and added `static.cloudflareinsights.com` to script-src and
+  `cloudflareinsights.com` to connect-src in the transform rule (verified
+  live, 200 on the beacon).
 - WordPress 7.1.1 is imminent (its schedule was posted 2026-09-02); the site
   takes it through the updater, never by hand. Core's move to Node 24 and
   npm 11 touches nothing here: the plugin and the theme have no Node
@@ -491,8 +551,12 @@ override; the override moved to 0.35.4 and the alert reads fixed. Worker
   gate can move with them).
 - WebMCP bridge v2 arc two (`search-notes` on the worker): gated on a month
   of beacon rows on AI › Agent tools, or the owner saying build it.
-- The provenance sweep's `webmcp-bridge/v2` record: confirm in the ledger
-  index on the next read.
+- The provenance queue: seven pending proofs, all on alice, none confirmed in
+  fifteen hours while alice shows 150,000 pending commitments and no
+  transaction in flight. Proposed worker 1.26.0: multi-calendar stamping and
+  a one-day restamp. Owner's call.
+- Plugin 15.7.1 (the runner's empty-hand POST) released and installed; the
+  widget's `Sweep now` runs.
 - Upstream OpenStation #819 / #820: with the maintainers.
 - The `firewallEventsAdaptive` page is a floor past 10,000 samples a day; page
   it when a day gets there.
