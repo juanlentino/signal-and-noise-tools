@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise Tools — the eight desktop widgets.
+ * Signal & Noise Tools — the desktop widgets (eleven since 15.8.0).
  *
  * Registration on `init` priority 6, in the same closure shape the commands
  * use. ORDER IS REGISTRATION ORDER — openstation_register_widget() has no
@@ -139,6 +139,23 @@ add_action( 'init', function() {
 			// (today + engaged + top_mover) × ~20px = +60. "Today so far"
 			// rides the 15-min payload transient so the number lags ≤15 min.
 			'default_height' => 510,
+		) ) );
+
+		// 15.8.0: SN Queue — "is the queue fed, and what goes out next". The
+		// editorial pair with Site Views sits at the top of the column: the
+		// next note as the headline, the depth line (N scheduled · runs to
+		// Dec 27), three more, the last three published. Fetch-on-render via
+		// the content-queue ability; labels are the site timezone's.
+		snt_os_register_widget( 'sn-queue', array_merge( $sn_drag, array(
+			'label'          => 'SN Queue',
+			'description'    => 'The next scheduled note, how deep the queue runs, and the last three published.',
+			'icon'           => 'dashicons-calendar-alt',
+			'script'         => 'sn-desktop-mode-widget-queue',
+			// BUDGETED 300, not browser-measured: headline block (~64) +
+			// depth line (~22) + "Then" heading + 3 rows (~78) + "Just
+			// published" heading + 3 rows (~78) + padding, rounded up to the
+			// next 10 with slack. Re-measure at the docked width once live.
+			'default_height' => 300,
 		) ) );
 
 		snt_os_register_widget( 'sn-health', array_merge( $sn_drag, array(

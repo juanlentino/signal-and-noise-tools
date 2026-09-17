@@ -385,6 +385,7 @@ require_once SNT_PATH . 'inc/analytics-salt-window.php';
 // get-collector-status ability (v9.81.0): named invariants over the same
 // /_sn/version payload (config bindings, salt window, version, cron freshness).
 require_once SNT_PATH . 'inc/abilities-collector-status.php';
+require_once SNT_PATH . 'inc/abilities-content-queue.php'; // 15.8.0: the content_queue read behind the SN Queue widget.
 
 // Login defense panel: reads the sn_login_guard AE dataset + probes the
 // sn-login-guard Worker status. Loads after analytics-api + ssrf-guard +

@@ -326,7 +326,7 @@ echo "\n── REGISTRATION TIMING (the v9.52.1 root cause) ──\n";
 // a refresh — so a late registry can also actively remove live widgets.
 fire( 'init' );
 $widgets = $GLOBALS['__dm_widgets'];
-ok( count( $widgets ) === 10, 'all ten widgets are registered by the end of init (NOT admin_enqueue_scripts), got ' . count( $widgets ) );
+ok( count( $widgets ) === 11, 'all eleven widgets are registered by the end of init (NOT admin_enqueue_scripts), got ' . count( $widgets ) );
 ok( count( $GLOBALS['__dm_commands'] ) === 22, 'all 22 Cmd+K commands are registered by the end of init, got ' . count( $GLOBALS['__dm_commands'] ) );
 ok( count( $GLOBALS['__dm_icons'] ) === 2, 'both desktop icons are registered on init (this part was always correct)' );
 foreach ( array( 'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-widget-views', 'sn-desktop-mode-widget-uptime', 'sn-desktop-mode-widget-health' ) as $h ) {
@@ -346,6 +346,7 @@ foreach ( array(
 	'sn-desktop-mode-widget-rss', 'sn-desktop-mode-widget-machine-readers',
 	'sn-desktop-mode-widget-anchors', 'sn-desktop-mode-widget-views',
 	'sn-desktop-mode-widget-health', 'sn-desktop-mode-widget-uptime',
+	'sn-desktop-mode-widget-queue',
 ) as $h ) {
 	$deps = $GLOBALS['__scripts'][ $h ]['deps'] ?? array();
 	ok( in_array( 'sn-desktop-mode-os-compat', $deps, true ), "$h depends directly on sn-desktop-mode-os-compat" );
@@ -364,7 +365,8 @@ foreach ( $widgets as $id => $args ) {
 // one row Pulse alone carried — uptime — becomes its own SN Uptime widget.
 // Registration order IS picker order: traffic, then site condition, then ops.
 // v9.78.0 appends SN Anchors (provenance) at the end of the ops group.
-ok( array_keys( $widgets ) === array( 'sn-site-views', 'sn-health', 'sn-uptime', 'sn-deploy-status', 'sn-cache', 'sn-cron', 'sn-quick-actions', 'sn-rss-subscribers', 'sn-anchors', 'sn-machine-readers' ),
+// 15.8.0 slots SN Queue second: the editorial pair with Site Views.
+ok( array_keys( $widgets ) === array( 'sn-site-views', 'sn-queue', 'sn-health', 'sn-uptime', 'sn-deploy-status', 'sn-cache', 'sn-cron', 'sn-quick-actions', 'sn-rss-subscribers', 'sn-anchors', 'sn-machine-readers' ),
 	'widgets register one-per-domain in display order (Site Views first, no Pulse)' );
 ok( ! isset( $widgets['sn-pulse'] ), 'SN Pulse is retired — it duplicated Site Views + Health' );
 
@@ -433,6 +435,7 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 // Changing a card's content SHOULD fail this test. Re-measure, don't re-guess.
 $expected_height = array(
 	'sn-site-views'       => 510, // budgeted: 450 + 3 glance rows (today/engaged/top_mover) ~+60
+	'sn-queue'            => 300, // 15.8.0 BUDGETED: headline block ~64 + depth line ~22 + two headings + six rows ~156 + padding; re-measure once live
 	'sn-health'           => 160, // measured 148 all-passing
 	'sn-uptime'           => 220, // measured 210
 	'sn-deploy-status'    => 310, // v11.11.2 budgeted: measured-192 two-row grid + five worker rows ~22px each
@@ -580,7 +583,7 @@ $widgets = $GLOBALS['__dm_widgets'];
 ok( isset( $widgets['sn-site-views'] ), 'W1: registers the sn-site-views widget' );
 ok( isset( $widgets['sn-uptime'] ),     'W2: registers the sn-uptime widget' );
 ok( isset( $widgets['sn-health'] ),     'W3: registers the sn-health widget' );
-ok( count( $widgets ) === 10, 'all ten widgets register (v11.29.0 adds SN Cache + SN Cron), got ' . count( $widgets ) );
+ok( count( $widgets ) === 11, 'all eleven widgets register (v11.29.0 adds SN Cache + SN Cron; 15.8.0 SN Queue), got ' . count( $widgets ) );
 
 ok( ( $widgets['sn-site-views']['label'] ?? '' ) === 'SN Site Views', 'W1 carries its label' );
 ok( ( $widgets['sn-uptime']['label'] ?? '' ) === 'SN Uptime',         'W2 carries its label' );

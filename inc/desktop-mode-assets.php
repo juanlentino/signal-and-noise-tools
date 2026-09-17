@@ -140,6 +140,16 @@ add_action( 'init', function() {
 		true
 	);
 
+	// 15.8.0: SN Queue widget — rides the content-queue ability read only, so
+	// snt-ability-run is the sole real dependency.
+	wp_register_script(
+		'sn-desktop-mode-widget-queue',
+		plugins_url( 'assets/desktop-mode-widget-queue.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array( 'sn-desktop-mode-os-compat', 'snt-ability-run' ),
+		SNT_VERSION,
+		true
+	);
+
 	// v9.78.0: SN Anchors widget — everything rides the abilities run-path
 	// (anchor-status read + anchor-sweep action), so snt-ability-run is the
 	// sole real dependency; sn-desktop-mode orders the snDesktopData global
