@@ -2,8 +2,8 @@
 
 ## One sentence
 
-Every document on the provenance track (the two papers, the three pillar
-essays, every note) gets a DOI minted on Zenodo, with the signed provenance
+Every document the site itself publishes on the provenance track (the three
+pillar essays, every note) gets a DOI minted on Zenodo, with the signed provenance
 record and the Bitcoin proof filed beside the text, and the DOI flows back
 into the schema, the citation tool, the site map and the byline.
 
@@ -24,11 +24,14 @@ a publisher.
   argument; ND keeps the text whole and restricts no citation. Not NC:
   commercial reuse is not the risk, and NC would complicate citation in
   commercial contexts.
-- **`upload_type: publication`. `publication_type`: notes and pillar essays
-  `other`** (Zenodo's vocabulary has nothing truer; they are not preprints),
-  **papers `workingpaper`** (what an SSRN version is).
+- **`upload_type: publication`, `publication_type: other`** for notes and
+  pillar essays (Zenodo's vocabulary has nothing truer; they are not
+  preprints).
+- **The papers stay with SSRN.** Owner, 2026-09-17: SSRN handles the papers'
+  license and record; the plugin does not deposit them. Their SSRN URLs are
+  already in the site map and the Person schema.
 - **One record per document, one version per provenance version.** A note is
-  evergreen: one DOI, no versions. A pillar or paper that changes gets a new
+  evergreen: one DOI, no versions. A pillar essay that changes gets a new
   version under the same concept DOI (`actions/newversion`).
 - **Record title = the document's H1** (the aphorism). The search title is a
   title-tag concern; a citation names the work.
@@ -45,7 +48,7 @@ a publisher.
 
 ```
 upload_type          publication
-publication_type     other | workingpaper
+publication_type     other
 title                <H1>
 description          <excerpt, HTML allowed>
 creators             [{ name: "Lentino, Juan", orcid: "0009-0006-8151-5920" }]
@@ -63,10 +66,6 @@ files                <slug>.md            the note as Markdown (the site's own t
                      <slug>.provenance.json   the signed ledger record
                      <slug>.ots           the Bitcoin-confirmed proof
 ```
-
-Papers: the record needs the PDF. The plugin cannot fetch SSRN's; the owner
-attaches the PDF to the media library and names the attachment on the
-Zenodo leaf. Until then the paper is listed as "awaiting PDF", not deposited.
 
 ## Components (plugin 15.11.0)
 
@@ -116,8 +115,7 @@ Zenodo leaf. Until then the paper is listed as "awaiting PDF", not deposited.
 
 ## Testing
 
-Pure metadata builder (every field, the two publication types, the pillar
-relation, the notes line); client request shaping against a recorded fixture
+Pure metadata builder (every field, the pillar relation, the notes line); client request shaping against a recorded fixture
 (headers, no redirects, bucket upload PUT); the deposit flow over a fake
 transport (create → upload ×3 → metadata → publish, and the resume path);
 the schema, citation and site-map flow-back with and without a DOI; the
