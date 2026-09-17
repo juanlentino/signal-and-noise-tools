@@ -518,10 +518,20 @@ branch, so one stalled aggregator costs nothing. The worker's `spliceUpgrade`
 refuses branched proofs on the stated ground that the worker only stamps one
 calendar; with the fork at the root, each calendar's pending attestation is
 still the sole terminal of its own chain, so the upgrade primitive holds as
-written. Recommended to the owner as provenance worker 1.20.0: stamp every reachable
-calendar in parallel and serialize the fork; lower the restamp threshold from
-seven days to one so the seven in the queue re-anchor across all calendars by
-tomorrow morning. Not built; awaiting the word.
+written. Built as provenance worker 1.20.0 (#46, #47, tagged on the squash commit,
+draft release, live by 14:20Z on `f6e6c29`): `stampDigest` submits to all four
+calendars in parallel and keeps every subtree that came back, `0xff` before
+each non-terminal one, the reference client's shape; it throws only when no
+calendar took the digest. A one-subtree proof is byte-identical to the 1.19.x
+shape, pinned against the real block-957,333 proof, so nothing already in the
+ledger changes meaning. `upgradeOts` no longer lets one calendar's 5xx abort
+the loop before the next calendar is read. The restamp threshold is a day, not
+a week; the seven on alice cross it between 19:00Z tonight and 01:00Z, two per
+sweep, and re-anchor across every calendar. The re-stamp replaces the proof
+rather than merging the old branches in, which drops alice's commitment and
+moves the attested time to the re-stamp; a merge is the upgrade path if it
+ever matters. Each new pin verified red by mutation: the throw-on-5xx
+restored, the fork marker moved.
 
 ## Left open
 
@@ -554,10 +564,11 @@ tomorrow morning. Not built; awaiting the word.
   gate can move with them).
 - WebMCP bridge v2 arc two (`search-notes` on the worker): gated on a month
   of beacon rows on AI › Agent tools, or the owner saying build it.
-- The provenance queue: seven pending proofs, all on alice, none confirmed in
-  fifteen hours while alice shows 150,000 pending commitments and no
-  transaction in flight. Proposed provenance worker 1.20.0: multi-calendar stamping and
-  a one-day restamp. Owner's call.
+- The provenance queue: seven proofs on a stalled alice; worker 1.20.0
+  (every calendar, one-day restamp) is live. Read the ledger tomorrow: the
+  seven should carry `re-stamp stale pending` commits by 02:00Z and confirm
+  through bob within hours. Release drafts for v1.18.3 and v1.19.0 are still
+  missing.
 - Plugin 15.7.1 (the runner's empty-hand POST) released and installed; the
   widget's `Sweep now` runs.
 - Upstream OpenStation #819 / #820: with the maintainers.
