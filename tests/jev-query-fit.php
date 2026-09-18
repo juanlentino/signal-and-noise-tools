@@ -58,15 +58,15 @@ mkpost( 1, 'One' ); mkpost( 2, 'Two' );
 $map = sn_jev_fit_path_map();
 ok( array( '/notes/n1' => 1, '/notes/n2' => 2 ) === $map, 'A1 path map from permalinks, trailing slash dropped' );
 $rows = array();
-for ( $i = 1; $i <= 10; $i++ ) { $rows[] = grow( array( 'https://x.test/notes/n1/', "q$i" ), 20 + $i, $i ); }
-$rows[] = grow( array( 'https://x.test/notes/n1/', 'tiny' ), 19, 5 );
+for ( $i = 1; $i <= 10; $i++ ) { $rows[] = grow( array( 'https://x.test/notes/n1/', "q$i" ), 5 + $i, $i ); }
+$rows[] = grow( array( 'https://x.test/notes/n1/', 'tiny' ), 4, 5 );
 $rows[] = grow( array( 'https://x.test/notes/n2/', 'two only' ), 40 );
 $rows[] = grow( array( 'https://x.test/about/', 'a page' ), 500 );
 $rows[] = array( 'key' => 'https://x.test/notes/n2/', 'clicks' => 1, 'impressions' => 99 ); // one-dimension row, no keys
 $by = sn_jev_fit_group( $rows, $map );
 ok( array( 1, 2 ) === array_keys( $by ), 'A2 grouped by note; a non-note path is dropped' );
 ok( SN_JEV_FIT_QUERIES_PER_NOTE === count( $by[1] ) && 'q10' === $by[1][0]['query'] && 'q3' === $by[1][7]['query'], 'A3 top eight by impressions, desc' );
-ok( ! in_array( 'tiny', array_column( $by[1], 'query' ), true ), 'A4 under 20 impressions is dropped' );
+ok( ! in_array( 'tiny', array_column( $by[1], 'query' ), true ), 'A4 under 5 impressions is dropped (16.5.1: the floor is 5)' );
 ok( 1 === count( $by[2] ) && 'two only' === $by[2][0]['query'], 'A5 a row without keys is ignored' );
 
 // B: state and questions.
@@ -111,7 +111,7 @@ $GLOBALS['__f']['ready'] = true;
 $ab = $GLOBALS['__f']['abilities'];
 ok( false === $ab['signal-noise/jev-fit-now']['meta']['annotations']['readonly'] && true === $ab['signal-noise/jev-query-fit']['meta']['annotations']['readonly'], 'E1 fit-now writes, query-fit reads' );
 $out = snt_ability_jev_query_fit();
-ok( $out['judged'] && 2 === $out['notes'] && 9 === count( $out['gaps'] ) && 0 === count( $out['stray'] ), 'E2 query-fit: every 0.5 row is a gap; none is stray (0.5 is not under 0.5)' );
+ok( $out['judged'] && 2 === $out['notes'] && 9 === count( $out['gaps'] ) && 0 === count( $out['stray'] ) && 8 === count( $out['judged_notes'][1]['rows'] ) && 'One' === $out['judged_notes'][1]['title'], 'E2 query-fit: every 0.5 row is a gap; none is stray (0.5 is not under 0.5); judged_notes carries the rows (16.5.1)' );
 ok( 'weekly' === ( function () { foreach ( $GLOBALS['__f']['actions']['init'] as $cb ) { $cb(); } return $GLOBALS['__f']['scheduled'][ SN_JEV_FIT_HOOK ] ?? ''; } )(), 'E3 weekly schedule when ready' );
 
 // F: the band's three states.
