@@ -39,6 +39,9 @@ This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/bing-search-performance` | `manage_options` | diagnostics | — | READ-DOOR (16.2.0; the Bing twin of search-performance: totals and top queries from the daily sync, `source: bing`) |
 | `signal-noise/jev-notes` | `manage_options` | diagnostics | — | READ-DOOR (16.3.0; the stored daily Jev pass: findings above the confidence floor, the unsure count, usage; 16.3.2 every note's readings) |
 | `signal-noise/jev-pass-now` | `manage_options` | maintenance | WRITE | RW-DOOR (16.3.3; runs the Jev pass now, idempotent, one request per note) |
+| `signal-noise/jev-collision-check` | `manage_options` | maintenance | WRITE | RW-DOOR (16.4.0; judges one draft against every published note, stores the reading on the post) |
+| `signal-noise/jev-lane-map` | `manage_options` | maintenance | WRITE | RW-DOOR (16.4.0; every published note against the others; the pairs at or above 0.5) |
+| `signal-noise/jev-lanes` | `manage_options` | diagnostics | — | READ-DOOR (16.4.0; the stored lane map) |
 | `signal-noise/get-404-log` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-collector-status` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-insights` | `manage_options` | diagnostics | ✓ | READ-DOOR |

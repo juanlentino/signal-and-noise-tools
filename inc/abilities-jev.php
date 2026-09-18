@@ -117,3 +117,70 @@ add_action( 'wp_abilities_api_init', function () {
 		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
 	) );
 } );
+
+/**
+ * 16.4.0: the collision gate's two doors. `jev-collision-check` (WRITE, rw
+ * door) judges one note now and stores the reading on it; `jev-lane-map`
+ * (WRITE, rw door) judges every published note against the others and
+ * stores the pairs; `jev-lanes` (READ) hands the stored map out.
+ */
+function snt_ability_jev_collision_check( $input = array() ) {
+	$id = (int) ( is_array( $input ) ? ( $input['post_id'] ?? 0 ) : 0 );
+	if ( $id <= 0 ) {
+		return array( 'ok' => false, 'error' => 'post_id required' );
+	}
+	if ( ! function_exists( 'sn_jev_collision_check' ) ) {
+		return array( 'ok' => false, 'error' => 'unavailable' );
+	}
+	$r = sn_jev_collision_check( $id, ! empty( $input['force'] ) );
+	return array_merge( array( 'ok' => empty( $r['error'] ) ), $r );
+}
+
+function snt_ability_jev_lane_map( $input = array() ) {
+	return function_exists( 'sn_jev_lane_map' ) ? sn_jev_lane_map() : array( 'ok' => false, 'error' => 'unavailable' );
+}
+
+function snt_ability_jev_lanes( $input = array() ) {
+	$d = function_exists( 'sn_jev_lanes' ) ? sn_jev_lanes() : null;
+	if ( null === $d ) {
+		return array( 'ok' => true, 'mapped' => false, 'at' => 0, 'judged' => 0, 'pairs' => array(), 'note' => 'No lane map yet; run jev-lane-map.' );
+	}
+	return array( 'ok' => true, 'mapped' => true, 'at' => (int) $d['at'], 'judged' => (int) $d['judged'], 'failed' => (int) ( $d['failed'] ?? 0 ), 'pairs' => (array) $d['pairs'], 'input_tokens' => (int) ( $d['input_tokens'] ?? 0 ), 'error' => (string) ( $d['error'] ?? '' ), 'note' => 'Pairs at or above 0.5: two published notes Jev reads as making the same argument. Notes are never edited; the remedy is the next note, not these.' );
+}
+
+add_action( 'wp_abilities_api_init', function () {
+	if ( ! function_exists( 'wp_register_ability' ) ) {
+		return;
+	}
+	$rw = array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) );
+	wp_register_ability( 'signal-noise/jev-collision-check', array(
+		'label'               => 'Jev: does this draft re-argue a published note?',
+		'description'         => 'Judges one note (draft, pending or scheduled; a published one is allowed but pointless) against every published note now, one request, one Noul per note, and stores the reading on the post for the pre-publish panel. Skips the request when the draft has not changed since the last reading unless force is true. Rows are the top five by probability; collisions counts those at or above 0.5.',
+		'category'            => 'maintenance',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_jev_collision_check',
+		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array( 'post_id' => array( 'type' => 'integer' ), 'force' => array( 'type' => 'boolean' ) ), 'additionalProperties' => false ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'rows' => array( 'type' => 'array' ), 'collisions' => array( 'type' => 'integer' ), 'against' => array( 'type' => 'integer' ), 'at' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
+		'meta'                => $rw,
+	) );
+	wp_register_ability( 'signal-noise/jev-lane-map', array(
+		'label'               => 'Jev: map the lanes the published notes share',
+		'description'         => 'Judges every published note against the others (one request per note) and stores the pairs at or above 0.5 as the lane map. About seventy requests; a cent.',
+		'category'            => 'maintenance',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_jev_lane_map',
+		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'pairs' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
+		'meta'                => $rw,
+	) );
+	wp_register_ability( 'signal-noise/jev-lanes', array(
+		'label'               => 'Jev: the stored lane map',
+		'description'         => 'The pairs of published notes Jev read as making the same argument (probability at or above 0.5), from the last lane map. Read-only.',
+		'category'            => 'diagnostics',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_jev_lanes',
+		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'mapped' => array( 'type' => 'boolean' ), 'at' => array( 'type' => 'integer' ), 'judged' => array( 'type' => 'integer' ), 'pairs' => array( 'type' => 'array' ), 'note' => array( 'type' => 'string' ) ) ),
+		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+	) );
+} );
