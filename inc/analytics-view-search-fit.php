@@ -50,7 +50,7 @@ function snt_analytics_render_search_fit() {
 	$title = __( 'Query fit (Jev)', 'signal-and-noise-tools' );
 	if ( ! sn_jev_fit_is_ready() ) {
 		snt_an_panel_open( $title );
-		echo '<p>' . esc_html__( 'Needs a TypeSafe key and a Search Console property, both under Connections › Credentials.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p>' . esc_html__( 'Needs the TypeSafe key (Connector for TypeSafe Jev, under Settings › Connectors) and a Search Console property (Connections › Credentials).', 'signal-and-noise-tools' ) . '</p>';
 		snt_an_panel_close();
 		return;
 	}

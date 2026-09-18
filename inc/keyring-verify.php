@@ -61,8 +61,6 @@ function sn_keyring_probe( $id, array $row ) {
 			return sn_keyring_probe_zenodo( $id );
 		case 'bing':
 			return sn_keyring_probe_bing();
-		case 'typesafe':
-			return sn_keyring_probe_typesafe();
 	}
 	return sn_keyring_verdict( 'none', __( 'No probe for this credential; the tab that uses it is the witness.', 'signal-and-noise-tools' ) );
 }
@@ -230,27 +228,3 @@ function sn_keyring_probe_bing() {
 	return sn_keyring_verdict( 'ok', __( 'Bing answers; this site is listed and verified.', 'signal-and-noise-tools' ) );
 }
 
-/**
- * TypeSafe: one Noul about a fixed sentence, through the same request the
- * daily pass uses. ok when Jev answers with a probability; 401/403 refused;
- * anything else is TypeSafe's side.
- *
- * @since 16.3.0
- */
-function sn_keyring_probe_typesafe() {
-	if ( ! function_exists( 'sn_jev_ask' ) ) {
-		return sn_keyring_verdict( 'error', __( 'The TypeSafe module is not loaded.', 'signal-and-noise-tools' ) );
-	}
-	$r = sn_jev_ask( 'The sky over the harbour was clear and blue all morning.', array( 'probe' => array( 'type' => 'noul', 'instructions' => 'Is this sentence about the weather?' ) ) );
-	if ( ! $r['ok'] ) {
-		$refused = in_array( (int) $r['code'], array( 401, 403 ), true );
-		/* translators: %s: the error TypeSafe returned. */
-		return sn_keyring_verdict( $refused ? 'refused' : 'error', sprintf( __( 'TypeSafe answered: %s', 'signal-and-noise-tools' ), (string) $r['error'] ) );
-	}
-	$p = (float) ( $r['answers']['probe']['noul'] ?? -1 );
-	if ( $p < 0 ) {
-		return sn_keyring_verdict( 'error', __( 'TypeSafe answered without the probe\'s value.', 'signal-and-noise-tools' ) );
-	}
-	/* translators: %s: a probability. */
-	return sn_keyring_verdict( 'ok', sprintf( __( 'Jev answers (the probe sentence read as weather at %s).', 'signal-and-noise-tools' ), number_format( $p, 2 ) ) );
-}

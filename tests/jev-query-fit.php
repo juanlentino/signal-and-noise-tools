@@ -117,7 +117,7 @@ ok( 'weekly' === ( function () { foreach ( $GLOBALS['__f']['actions']['init'] as
 // F: the band's three states.
 function band() { $GLOBALS['__f']['out'] = ''; ob_start(); snt_analytics_render_search_fit(); $GLOBALS['__f']['out'] .= ob_get_clean(); }
 $GLOBALS['__f']['ready'] = false; band();
-ok( str_contains( $GLOBALS['__f']['out'], 'Needs a TypeSafe key' ), 'F1 not ready names the two credentials' );
+ok( str_contains( $GLOBALS['__f']['out'], 'Settings › Connectors' ) && str_contains( $GLOBALS['__f']['out'], 'Connections › Credentials' ), 'F1 not ready names the connector and the keyring (16.5.2)' );
 $GLOBALS['__f']['ready'] = true; $GLOBALS['__f']['opt'] = array(); band();
 ok( str_contains( $GLOBALS['__f']['out'], 'jev-fit-now' ), 'F2 nothing synced names the ability' );
 $GLOBALS['__f']['opt'][ SN_JEV_FIT_OPTION ] = array_merge( $data, array( 'synced_at' => time(), 'usage' => array(), 'last_error' => '' ) );

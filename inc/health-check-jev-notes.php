@@ -92,7 +92,7 @@ function sn_health_check_jev_notes() {
 	$label = 'Notes Jev reads below "names the subject" (search title or description)';
 	$hint  = 'Jev, TypeSafe\'s judge, read each note\'s title, search title, description and opening. Rewrite the search title as the words a searcher types, or the description as the argument in one sentence; the next daily pass re-reads it.';
 	if ( ! function_exists( 'sn_jev_is_ready' ) || ! sn_jev_is_ready() ) {
-		return sn_health_pack_check( $label, array(), $hint, 'No TypeSafe key in the keyring; the daily Jev pass does not run.' );
+		return sn_health_pack_check( $label, array(), $hint, SN_JEV_NOT_READY . ' The daily Jev pass does not run without it.' );
 	}
 	$data = function_exists( 'sn_jev_data' ) ? sn_jev_data() : null;
 	if ( null === $data ) {

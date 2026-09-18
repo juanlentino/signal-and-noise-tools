@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** PURE. */
 function sn_jev_status_shape( $data, $ready ) {
 	if ( ! is_array( $data ) ) {
-		return array( 'ok' => true, 'source' => 'typesafe-jev', 'ready' => (bool) $ready, 'synced' => false, 'synced_at' => 0, 'model' => '', 'judged' => 0, 'unsure' => 0, 'findings' => array(), 'usage' => null, 'last_error' => '', 'note' => $ready ? 'A key is stored; the first daily pass has not run.' : 'No TypeSafe key in the keyring.' );
+		return array( 'ok' => true, 'source' => 'typesafe-jev', 'ready' => (bool) $ready, 'synced' => false, 'synced_at' => 0, 'model' => '', 'judged' => 0, 'unsure' => 0, 'findings' => array(), 'usage' => null, 'last_error' => '', 'note' => $ready ? 'A key is stored; the first daily pass has not run.' : SN_JEV_NOT_READY );
 	}
 	$j = function_exists( 'sn_health_jev_notes_judge' ) ? sn_health_jev_notes_judge( $data['notes'] ?? array() ) : array( 'findings' => array(), 'unsure' => 0, 'judged' => 0 );
 	return array(
