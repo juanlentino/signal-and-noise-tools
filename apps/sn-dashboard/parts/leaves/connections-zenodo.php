@@ -103,11 +103,9 @@ function zenodo_ledger_html( array $d ) {
  * @return string
  */
 function zenodo_rail_html( array $d ) {
-	if ( ! $d['enabled'] ) {
-		$status = \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'No token', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_badge( 'warn', __( 'Off', 'signal-and-noise-tools' ) ) . '<br>' . \snt_kit_esc( sprintf( /* translators: %s: environment */ __( 'Add the %s token under Credentials.', 'signal-and-noise-tools' ), $d['env'] ) ) );
-	} else {
-		$status = \snt_kit_notice( 'ok', '<b>' . \snt_kit_esc( ucfirst( $d['env'] ) ) . '</b> ' . \snt_kit_badge( 'ok', __( 'On', 'signal-and-noise-tools' ) ) . '<br>' . \snt_kit_esc( sprintf( /* translators: 1: minted, 2: total */ __( '%1$d minted of %2$d documents.', 'signal-and-noise-tools' ), (int) ( $d['counts']['minted'] ?? 0 ), count( $d['rows'] ) ) ) );
-	}
+	// 16.2.2: the tile reads the keyring's verdict, not "a token is stored".
+	$tile   = \sn_zenodo_tile_state( $d['enabled'], $d['verdict'] ?? null, $d['env'], (int) ( $d['counts']['minted'] ?? 0 ), count( $d['rows'] ) );
+	$status = \snt_kit_notice( $tile['tone'], '<b>' . \snt_kit_esc( $d['enabled'] ? ucfirst( $d['env'] ) : __( 'No token', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_badge( $tile['tone'], $tile['badge'] ) . '<br>' . \snt_kit_esc( $tile['body'] ) );
 	$rows = array();
 	foreach ( $d['counts'] as $state => $n ) {
 		$rows[] = array( 'label' => \sn_zenodo_state_label( $state ), 'value' => (string) (int) $n );

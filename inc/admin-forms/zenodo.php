@@ -29,6 +29,7 @@ function sn_zenodo_leaf_data() {
 		'env'     => function_exists( 'sn_zenodo_env' ) ? sn_zenodo_env() : 'sandbox',
 		'ledger'  => function_exists( 'sn_zenodo_ledger_doi' ) ? sn_zenodo_ledger_doi() : '',
 		'enabled' => function_exists( 'sn_zenodo_is_enabled' ) && sn_zenodo_is_enabled(),
+		'verdict' => function_exists( 'sn_zenodo_token_verdict' ) ? sn_zenodo_token_verdict() : null,
 		'rows'    => $rows,
 		'counts'  => $counts,
 		'batch'   => (array) get_transient( 'sn_zenodo_last_batch' ),
@@ -58,6 +59,28 @@ function sn_zenodo_state_label( $state ) {
  *
  * @since 15.11.0
  */
+/**
+ * The tile's word for the active environment, from the token AND the
+ * verdict. PURE. A stored token with a refused verdict is "refused", not
+ * "on": the 16.1.x tile read On for a sandbox row the keyring had refused.
+ *
+ * @since 16.2.2
+ * @return array{tone:string,badge:string,body:string}
+ */
+function sn_zenodo_tile_state( $has_token, $verdict, $env, $minted, $total ) {
+	if ( ! $has_token ) {
+		return array( 'tone' => 'warn', 'badge' => 'Off', 'body' => sprintf( 'Add the %s token under Credentials.', $env ) );
+	}
+	$status = is_array( $verdict ) ? (string) ( $verdict['status'] ?? '' ) : '';
+	if ( 'refused' === $status || 'error' === $status ) {
+		return array( 'tone' => 'error', 'badge' => 'refused' === $status ? 'Refused' : 'Error', 'body' => (string) ( $verdict['detail'] ?? '' ) );
+	}
+	if ( 'ok' !== $status ) {
+		return array( 'tone' => 'warn', 'badge' => 'Unverified', 'body' => sprintf( 'The %s token is stored but Verify all has not run for it; the first deposit is the test.', $env ) );
+	}
+	return array( 'tone' => 'ok', 'badge' => 'On', 'body' => sprintf( '%1$d minted of %2$d documents.', (int) $minted, (int) $total ) );
+}
+
 function sn_admin_render_zenodo_section() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
@@ -101,11 +124,10 @@ function sn_admin_render_zenodo_section() {
 	echo '</div>';
 
 	sn_admin_shell_rail( 'Zenodo status' );
-	if ( ! $d['enabled'] ) {
-		echo '<div class="sn-status-box sn-status-box--warn"><div><p class="sn-status-box-title">No token</p><p class="sn-status-box-body">Add the ' . esc_html( $d['env'] ) . ' token under Connections &rsaquo; Credentials.</p></div><span class="sn-pill sn-pill--warn">Off</span></div>';
-	} else {
-		echo '<div class="sn-status-box"><div><p class="sn-status-box-title">' . esc_html( ucfirst( $d['env'] ) ) . '</p><p class="sn-status-box-body">' . (int) ( $d['counts']['minted'] ?? 0 ) . ' minted of ' . count( $d['rows'] ) . ' documents.</p></div><span class="sn-pill sn-pill--ok">On</span></div>';
-	}
+	$tile = sn_zenodo_tile_state( $d['enabled'], $d['verdict'], $d['env'], (int) ( $d['counts']['minted'] ?? 0 ), count( $d['rows'] ) );
+	$mod  = 'ok' === $tile['tone'] ? '' : ' sn-status-box--' . ( 'error' === $tile['tone'] ? 'err' : 'warn' );
+	$pill = 'ok' === $tile['tone'] ? 'ok' : ( 'error' === $tile['tone'] ? 'err' : 'warn' );
+	echo '<div class="sn-status-box' . esc_attr( $mod ) . '"><div><p class="sn-status-box-title">' . esc_html( $d['enabled'] ? ucfirst( $d['env'] ) : 'No token' ) . '</p><p class="sn-status-box-body">' . esc_html( $tile['body'] ) . '</p></div><span class="sn-pill sn-pill--' . esc_attr( $pill ) . '">' . esc_html( $tile['badge'] ) . '</span></div>';
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">States</h2><table class="form-table sn-status-table sn-status-table--full"><tbody>';
 	foreach ( $d['counts'] as $state => $n ) {
 		echo '<tr><th>' . esc_html( sn_zenodo_state_label( $state ) ) . '</th><td>' . (int) $n . '</td></tr>';

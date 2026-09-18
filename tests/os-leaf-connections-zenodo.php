@@ -9,9 +9,10 @@ function current_user_can( $cap ) { return $GLOBALS['__can'] ?? true; }
 // Bound before the harness's guarded stub so the last-pass transient can be driven.
 function get_transient( $k ) { return $GLOBALS['__transients'][ $k ] ?? false; }
 require_once __DIR__ . '/lib/os-leaf-harness.php';
-$GLOBALS['__zl'] = array( 'env' => 'sandbox', 'enabled' => true, 'rows' => array() );
+$GLOBALS['__zl'] = array( 'env' => 'sandbox', 'enabled' => true, 'rows' => array(), 'verdict' => array( 'status' => 'ok', 'detail' => 'creates a draft', 'at' => 1 ) );
 function sn_zenodo_env() { return $GLOBALS['__zl']['env']; }
 function sn_zenodo_is_enabled() { return $GLOBALS['__zl']['enabled']; }
+function sn_zenodo_token_verdict() { return $GLOBALS['__zl']['verdict'] ?? null; }
 function sn_zenodo_ledger() { return $GLOBALS['__zl']['rows']; }
 if ( ! defined( 'SN_ZENODO_PASS_MAX' ) ) { define( 'SN_ZENODO_PASS_MAX', 5 ); }
 if ( ! function_exists( 'selected' ) ) { function selected( $a, $b, $echo = true ) { return $a === $b ? ' selected="selected"' : ''; } }
@@ -41,6 +42,14 @@ ok( false !== strpos( $kit, 'Anchor pending' ) && false !== strpos( $kit, 'Sandb
 ok( false !== strpos( $kit, '1 published, 1 failed, of 2' ), 'the last pass is reported' );
 ok( false !== strpos( $kit, 'The papers stay with SSRN' ) && false !== strpos( $kit, 'never reach a public surface' ), 'the prose says what is deposited and what a sandbox DOI is' );
 ok( false !== strpos( $kit, 'col="4" aria-label="Zenodo status"' ) && false !== strpos( $kit, '<os-row gap="16"' ), 'the rail keeps its landmark; the two-column shell survives' );
+// 16.2.2: the tile reads the keyring's verdict. A stored token the keyring REFUSED is not On.
+$GLOBALS['__zl']['verdict'] = array( 'status' => 'refused', 'detail' => 'Zenodo sandbox refused to create a draft (HTTP 403: Permission denied.).', 'at' => 1 );
+$kit = snt_leaf_paint( 'connections', 'zenodo' );
+ok( false !== strpos( $kit, '>Refused</os-badge>' ) && false !== strpos( $kit, 'tone="danger"' ) && false !== strpos( $kit, 'HTTP 403' ) && false === strpos( $kit, '>On</os-badge>' ), 'a refused token: the tile says Refused in the danger tone with the keyring\'s detail, never On (the 16.1.x tile said On beside a refused row)' );
+$GLOBALS['__zl']['verdict'] = null;
+$kit = snt_leaf_paint( 'connections', 'zenodo' );
+ok( false !== strpos( $kit, '>Unverified</os-badge>' ) && false !== strpos( $kit, 'Verify all has not run' ), 'a token never verified: Unverified, and the body says what to run' );
+$GLOBALS['__zl']['verdict'] = array( 'status' => 'ok', 'detail' => 'creates a draft', 'at' => 1 );
 $GLOBALS['__zl']['enabled'] = false;
 $kit = snt_leaf_paint( 'connections', 'zenodo' );
 ok( false !== strpos( $kit, '<b>No token</b>' ) && false !== strpos( $kit, 'disabled' ), 'no token: the rail says so and the deposit button is disabled' );

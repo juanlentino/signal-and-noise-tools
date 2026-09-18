@@ -229,6 +229,45 @@ function sn_zenodo_publish( $id, $env = null ) {
 }
 
 /**
+ * Delete an unpublished draft.
+ *
+ * @since 16.2.2
+ */
+function sn_zenodo_delete_deposition( $id, $env = null ) {
+	return sn_zenodo_request( 'DELETE', sn_zenodo_api_base( null === $env ? sn_zenodo_env() : $env ) . '/deposit/depositions/' . rawurlencode( (string) $id ), null, $env );
+}
+
+/**
+ * The probe the keyring runs for a Zenodo token: create a draft, delete it.
+ * "Can list" proved a token reaches the API and nothing about the account
+ * (16.1.x: a refused sandbox row sat beside a green tile); "can create" is
+ * the verb the deposit flow uses. Returns {status, detail} in the keyring's
+ * vocabulary: ok, refused (401/403), error (anything else).
+ *
+ * @since 16.2.2
+ */
+function sn_zenodo_probe( $env ) {
+	$env = 'production' === (string) $env ? 'production' : 'sandbox';
+	if ( '' === sn_zenodo_token( $env ) ) {
+		return array( 'status' => 'error', 'detail' => sprintf( 'No %s token stored.', $env ) );
+	}
+	$r = sn_zenodo_create_deposition( $env );
+	if ( ! $r['ok'] || ! is_array( $r['body'] ) || empty( $r['body']['id'] ) ) {
+		$code = (int) $r['code'];
+		return array(
+			'status' => in_array( $code, array( 401, 403 ), true ) ? 'refused' : 'error',
+			'detail' => sprintf( 'Zenodo %1$s refused to create a draft (HTTP %2$d: %3$s). %4$s', $env, $code, (string) $r['error'], in_array( $code, array( 401, 403 ), true ) ? 'A token minted on the other environment reads exactly like this; sandbox and production are separate accounts.' : '' ),
+		);
+	}
+	$id  = (string) $r['body']['id'];
+	$del = sn_zenodo_delete_deposition( $id, $env );
+	if ( ! $del['ok'] ) {
+		return array( 'status' => 'ok', 'detail' => sprintf( 'Zenodo %1$s creates a draft; the test draft %2$s could not be deleted (HTTP %3$d) and is yours to remove.', $env, $id, (int) $del['code'] ) );
+	}
+	return array( 'status' => 'ok', 'detail' => sprintf( 'Zenodo %s creates a draft (a test draft was created and deleted).', $env ) );
+}
+
+/**
  * Open a new version of a published record; the answer's links.latest_draft
  * is the deposition to fill.
  *
