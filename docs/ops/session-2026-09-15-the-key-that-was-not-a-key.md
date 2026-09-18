@@ -825,6 +825,44 @@ script waited on `pgrep -f chain1412.sh`, and the monitor I had started to
 watch that chain had the same string in its own command line. The gate saw
 its watcher. Bracket the pattern.
 
+## Bing reads the titles the day after
+
+Bing Webmaster Tools' first scan came back with three lists. Two were noise:
+44 `/verify` URLs and `/privacy-policy/` "missing a description" all serve
+`noindex`, and a page nobody indexes needs no description. `/notes/tags/`
+was the one real row in that list: a theme route WordPress sees as a 404 the
+theme clears, so the SEO view dispatcher recognised nothing and printed
+neither canonical nor description. The H1 list had one page,
+`/contact/personal/`, which had no heading at all; it took the theme's own
+Hero, Dossier pattern, the shape `/contact/` and About use, with
+"Dossier · Personal", PERSONAL, a rust intro and a meta line.
+
+The third list was the one that mattered: 18 title tags at 71 to 91
+characters, the day after the query-shaped overrides went in. Bing flags
+past 70 and Google shows about 60. The causes were three. The pillars still
+carried " — Juan Lentino", which notes had lost in 15.9.1; the
+`/provenance/` title lives in a setting, and the setting's own value had the
+suffix typed into it; and sixteen notes overstepped by one to five
+characters because nothing anywhere said how long a search title may be.
+My own count was off too: `wc -c` counts bytes, and the em dash is three.
+
+16.1.2: a written override is the whole title tag on any type (a page
+without one, and a title the theme's route filter supplies, keep "Page —
+Site"); check 28 reads pages with overrides too and flags a search title past
+65 characters, saying the count; `/notes/tags/` gets its branch. The
+eighteen overrides were rewritten to 55 to 64 characters through the REST
+meta from the owner's Chrome session, the setting through the native
+Identity & SEO form (an `os-form` whose Save button sits in a shadow root),
+one purge, and the live pages read back.
+
+The first sandbox pass with the `{}` fix installed answered "Permission
+denied" on create. Verify all had said the token "can list depositions",
+and it can; listing needs the scope, creating needs the account, and a
+fresh sandbox.zenodo.org account with an unconfirmed email lists and does
+not write. A probe proves the verb it uses. Zenodo minted the ledger's
+concept DOI, `10.5281/zenodo.22821768`, and the owner pasted it into the
+leaf before I got there.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -878,10 +916,15 @@ its watcher. Bracket the pattern.
   mints a sandbox token, Connections › Credentials › Verify all, then
   Connections › Zenodo › Deposit the next batch; then the production token,
   flip the environment, and the hourly pass mints the rest.
-- Ledger PR #26 merged and `ledger-2026-09` released; Zenodo's record and
-  the concept DOI were not yet visible when this was written. Read the badge
-  on Zenodo › GitHub, then paste the concept DOI into Connections › Zenodo
-  (16.1.1). The plugin's release PR #1418 was gating at the time of writing.
+- `ledger-2026-09` is `10.5281/zenodo.22821769` under concept
+  `10.5281/zenodo.22821768`, and the concept DOI is in the Zenodo leaf. The
+  sandbox deposits wait on the sandbox account (confirm its email on
+  sandbox.zenodo.org, then Deposit the next batch). The Zenodo probe should
+  create and delete a draft rather than list, so Verify all says "can
+  create"; small, not yet built.
+- 16.1.2 (the title ceiling, the tags glossary) was on its chain at the
+  time of writing; the three pillar pages and start-here lose the suffix
+  when it installs.
 - Bing Webmaster Tools: nothing in the plugin takes its API key yet; IndexNow
   is the only Bing surface. The reading it would buy is the Bing twin of
   `search-performance`, its own arc after the Zenodo steps.
