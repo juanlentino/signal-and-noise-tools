@@ -295,6 +295,11 @@ function snt_analytics_render_view_search() {
 		__( 'No pages in this window.', 'signal-and-noise-tools' )
 	);
 
+	// 16.2.0: Bing, from the daily Bing Webmaster sync, in the same shape.
+	if ( function_exists( 'snt_analytics_render_search_bing' ) ) {
+		snt_analytics_render_search_bing();
+	}
+
 	// R6b: the cross-exam. Placed AFTER the tables because it is a check ON
 	// them, not another table — and it is skipped silently when the ledger
 	// module or sensor is unavailable, since "could not ask" is not a finding.

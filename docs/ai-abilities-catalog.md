@@ -36,6 +36,7 @@ This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/anchor-status` | `manage_options` | diagnostics | — | READ-DOOR (v9.82.0) |
 | `signal-noise/provenance-integrity-status` | `manage_options` | diagnostics | — | READ-DOOR (v9.82.0) |
 | `signal-noise/zenodo-status` | `manage_options` | diagnostics | — | READ-DOOR (15.11.0; the DOI ledger: environment, token, states, the rows not minted) |
+| `signal-noise/bing-search-performance` | `manage_options` | diagnostics | — | READ-DOOR (16.2.0; the Bing twin of search-performance: totals and top queries from the daily sync, `source: bing`) |
 | `signal-noise/get-404-log` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-collector-status` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-insights` | `manage_options` | diagnostics | ✓ | READ-DOOR |

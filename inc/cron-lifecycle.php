@@ -53,6 +53,7 @@ function sn_cron_hooks() {
 		SN_SECURITY_DIGEST_CRON_HOOK,
 		SN_SESSION_ROLLUP_HOOK,
 		SN_ZENODO_PASS_HOOK,
+		SN_BING_SYNC_HOOK,
 		'snt_deploy_workers_warm',
 		// Single events, some with arguments.
 		SNT_DEPLOY_HISTORY_PURGE_HOOK,
