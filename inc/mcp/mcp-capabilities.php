@@ -115,6 +115,7 @@ function sn_mcp_allowlist() {
 		'signal-noise/zenodo-status',
 		'signal-noise/bing-search-performance', // 16.2.0: the Bing reading, same tier as search-performance
 		'signal-noise/jev-notes', // 16.3.0: the stored Jev pass, same tier
+		'signal-noise/jev-lanes', // 16.4.0: the stored lane map, same tier
 		// v10.6.0 — corpus inspection: list-posts + get-post-content moved to
 		// the wave-2 retirement block above (absorbed by sn-posts).
 		// v10.16.0 (2026-07-30) — near-duplicate cousin scan: PURE-READ by
@@ -363,6 +364,9 @@ function sn_mcp_rw_allowlist() {
 		'signal-noise/sn-apply',
 		// 16.3.3 — one bounded pass over the notes through TypeSafe, idempotent, a fifth of a cent; the rw envelope is the right one.
 		'signal-noise/jev-pass-now',
+		// 16.4.0 — the collision gate's two writes: one note now, or the whole map; bounded, idempotent, a cent at most.
+		'signal-noise/jev-collision-check',
+		'signal-noise/jev-lane-map',
 		// Theme (signal-and-noise/) — 5, all AI-billed + return-only.
 	);
 

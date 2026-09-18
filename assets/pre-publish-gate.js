@@ -60,6 +60,39 @@
 		return count;
 	}
 
+	// 16.4.0: the collision reading → warning strings. Pure; exported on the
+	// gate's namespace for the test's sake.
+	function collisionWarnings( raw ) {
+		var out = [];
+		if ( ! raw || 'string' !== typeof raw ) {
+			return out;
+		}
+		var rec;
+		try {
+			rec = JSON.parse( raw );
+		} catch ( e ) {
+			return out;
+		}
+		if ( ! rec || ! Array.isArray( rec.rows ) ) {
+			return out;
+		}
+		rec.rows.forEach( function( r ) {
+			if ( r && typeof r.noul === 'number' && r.noul >= 0.5 ) {
+				out.push(
+					__( 'Jev reads this draft as making the argument of', 'signal-noise-tools' ) +
+					' \u201c' + String( r.title ) + '\u201d (' + r.noul.toFixed( 2 ) + '). ' +
+					__( 'Notes are never edited after publication: if the lane is the same, merge or hold.', 'signal-noise-tools' )
+				);
+			}
+		} );
+		if ( rec.error ) {
+			out.push( __( 'Jev could not read this draft on the last save:', 'signal-noise-tools' ) + ' ' + String( rec.error ) );
+		}
+		return out;
+	}
+	window.sntPrePublishGate = window.sntPrePublishGate || {};
+	window.sntPrePublishGate.collisionWarnings = collisionWarnings;
+
 	// Compute the advisory warning strings from an editor-store selector.
 	// Returns a (possibly empty) array of plain strings. Takes the selected
 	// `core/editor` store object so the caller can subscribe via useSelect.
@@ -113,6 +146,12 @@
 			if ( ! excerpt || ! String( excerpt ).trim() ) {
 				warnings.push( __( 'No excerpt set. Cards, feeds, and the .json twin fall back to a truncated body.', 'signal-noise-tools' ) );
 			}
+
+			// 16.4.0: the collision gate. The server asked Jev on the last save
+			// (inc/jev-collision.php) and stored the reading as JSON meta; this
+			// panel only reads it. A note over the line is a note this draft may
+			// re-argue; the author decides. No meta = no key, or not saved yet.
+			warnings = warnings.concat( collisionWarnings( meta._sn_jev_collision ) );
 		}
 
 		return warnings;
