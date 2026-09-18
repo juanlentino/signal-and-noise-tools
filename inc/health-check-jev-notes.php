@@ -17,19 +17,26 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * 16.3.2: a score runs from 0 to the highest level number (docs, primitives/score),
- * so a three-level rubric scores 0..2 and "low" is closer to level 0 than to
- * level 1. 16.3.0 drew the line at 1.5 as if levels ran 1..3 and counted 68 of 69
- * notes as unsure on the first pass.
+ * so a three-level rubric scores 0..2.
+ * 16.3.4: a finding is a position BELOW level one ("names the subject"),
+ * whatever the confidence. The 16.3.0 floor (0.9) was the docs' "act
+ * automatically" line; a health finding is the opposite of acting, it is
+ * routing to the human, which the docs prescribe for every reading under
+ * 0.5. On 16.3.3's first pass the positions were informative (a spread from
+ * 0.58 to 1.88 that matched a human read) and the confidences were not (one
+ * of 69 over 0.9), so a floor hid every reading. The note carries the
+ * confidence; under 0.5 it says so.
  */
-const SN_JEV_TITLE_FINDING_MAX = 0.5;
-const SN_JEV_DESCRIPTION_FINDING_MAX = 0.5;
+const SN_JEV_TITLE_FINDING_BELOW = 1.0;
+const SN_JEV_DESCRIPTION_FINDING_BELOW = 1.0;
+const SN_JEV_LOW_CONFIDENCE = 0.5;
 
 /**
  * Judge the stored notes. PURE.
  *
  * @since 16.3.0
  * @param array $notes {id: {title, verdict|null, at, error}}.
- * @return array{findings:array,unsure:int,judged:int}
+ * @return array{findings:array,unsure:int,judged:int} `unsure` counts findings whose confidence is under 0.5.
  */
 function sn_health_jev_notes_judge( $notes ) {
 	$findings = array();
@@ -40,22 +47,28 @@ function sn_health_jev_notes_judge( $notes ) {
 			continue;
 		}
 		$judged++;
-		$v     = $n['verdict'];
+		$v         = $n['verdict'];
 		$notes_out = array();
-		foreach ( array( 'title' => SN_JEV_TITLE_FINDING_MAX, 'description' => SN_JEV_DESCRIPTION_FINDING_MAX ) as $field => $max ) {
+		$low_conf  = false;
+		foreach ( array( 'title' => SN_JEV_TITLE_FINDING_BELOW, 'description' => SN_JEV_DESCRIPTION_FINDING_BELOW ) as $field => $below ) {
 			$f = $v[ $field ] ?? array();
-			if ( (float) ( $f['score'] ?? 2 ) <= $max ) {
-				if ( ! empty( $f['sure'] ) ) {
-					$notes_out[] = 'title' === $field
-						? sprintf( 'Jev reads the search title as an aphorism, not a query (rubric %.1f of 2, confidence %.2f).', (float) $f['score'], (float) $f['confidence'] )
-						: sprintf( 'Jev reads the description as a fragment or a repeat of the title (rubric %.1f of 2, confidence %.2f).', (float) $f['score'], (float) $f['confidence'] );
-				} else {
-					$unsure++;
-				}
+			if ( ! isset( $f['score'] ) || (float) $f['score'] >= $below ) {
+				continue;
+			}
+			$conf = (float) ( $f['confidence'] ?? 0 );
+			$tail = $conf < SN_JEV_LOW_CONFIDENCE ? sprintf( 'rubric %.2f of 2, confidence %.2f: Jev is unsure; read it yourself', (float) $f['score'], $conf ) : sprintf( 'rubric %.2f of 2, confidence %.2f', (float) $f['score'], $conf );
+			$notes_out[] = 'title' === $field
+				? 'Jev reads the search title below "names the subject" (' . $tail . ').'
+				: 'Jev reads the description below "says what it is about" (' . $tail . ').';
+			if ( $conf < SN_JEV_LOW_CONFIDENCE ) {
+				$low_conf = true;
 			}
 		}
 		if ( array() === $notes_out ) {
 			continue;
+		}
+		if ( $low_conf ) {
+			$unsure++;
 		}
 		$findings[] = array(
 			'subject_type'  => 'post',
@@ -76,7 +89,7 @@ function sn_health_jev_notes_judge( $notes ) {
  * @return array
  */
 function sn_health_check_jev_notes() {
-	$label = 'Notes Jev would not search for (search title or description, confidence at or above ' . SN_JEV_CONFIDENCE_FLOOR . ')';
+	$label = 'Notes Jev reads below "names the subject" (search title or description)';
 	$hint  = 'Jev, TypeSafe\'s judge, read each note\'s title, search title, description and opening. Rewrite the search title as the words a searcher types, or the description as the argument in one sentence; the next daily pass re-reads it.';
 	if ( ! function_exists( 'sn_jev_is_ready' ) || ! sn_jev_is_ready() ) {
 		return sn_health_pack_check( $label, array(), $hint, 'No TypeSafe key in the keyring; the daily Jev pass does not run.' );
@@ -87,8 +100,8 @@ function sn_health_check_jev_notes() {
 	}
 	$j = sn_health_jev_notes_judge( $data['notes'] ?? array() );
 	if ( $j['unsure'] > 0 ) {
-		/* translators: %d: notes below the floor */
-		$hint .= sprintf( ' %d reading(s) fell below the confidence floor and are not findings.', (int) $j['unsure'] );
+		/* translators: %d: findings Jev is unsure about */
+		$hint .= sprintf( ' %d of them Jev is unsure about (confidence under %s); the position is the reading, the confidence is the caveat.', (int) $j['unsure'], SN_JEV_LOW_CONFIDENCE );
 	}
 	return sn_health_pack_check( $label, $j['findings'], $hint, null );
 }
