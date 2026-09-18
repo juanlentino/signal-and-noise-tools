@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The Zenodo draft slot is per environment.** Flipping from production to sandbox read the production draft ids on sandbox, where "The persistent identifier does not exist" is a 404, and the 16.1.3 rule forgot them: five resumable production drafts became orphans. Production keeps the original meta key (every id stored before this fix is a production id); sandbox has its own, and neither environment reads or forgets the other's. Pinned.
+- **The shell toast decodes entities.** The flash strings carry `&rsquo;`, `&mdash;` and `&hellip;` for the HTML notice, and the toast printed them as text ("Zenodo&rsquo;s answer"). Pinned.
+
 ## [16.2.0] - 2026-09-18 — the other index, read
 
 ### Added
