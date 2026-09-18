@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Docs
+- **AI.md: what every model does in the ecosystem.** A root document (linked from the README's first lines and from its AI section) with the rule (a model reads, relates or judges, and suggests; a human clicks), the three kinds of model and their one job each, Jev's four readings with their rubrics, costs and pins, the site as something models read (the rights surfaces, the ledger, the doors), where each key lives, what is deliberately not built, and how the thresholds moved. README counts refreshed: 109 abilities, read door 41, write door 12, 30 health checks, 26 check modules.
+
 ## [16.5.2] - 2026-09-18 — the key is the connector's
 
 ### Fixed
