@@ -83,10 +83,9 @@ add_action( 'plugins_loaded', 'sn_jev_migrate_legacy_key', 20 );
  * @since 16.3.0
  * @param string|array $state     Text, an object of named fields, or an array of texts.
  * @param array        $questions Map of question objects (type noul|score|choice).
- * @param string|null  $key       Unused since 16.5.3; kept so callers need not change.
+ * @param string       $feature   16.6.0: the meter's bucket (notes | collision | lane_map | fit | other).
  */
-function sn_jev_ask( $state, array $questions, $key = null ) {
-	unset( $key );
+function sn_jev_ask( $state, array $questions, $feature = 'other' ) {
 	$no = static function ( $code, $error ) {
 		return array( 'ok' => false, 'code' => (int) $code, 'answers' => array(), 'usage' => array(), 'error' => (string) $error );
 	};
@@ -99,14 +98,31 @@ function sn_jev_ask( $state, array $questions, $key = null ) {
 	if ( array() === $questions ) {
 		return $no( 0, 'no-questions' );
 	}
-	$r = \JevConnector\ask( $state, $questions, array( 'model' => SN_JEV_MODEL ) );
+	// 16.6.0: a hit on the connector's cache is a request that costs nothing.
+	// The payload is built the way the connector builds it (state, model,
+	// questions, then its filter) so the key matches; a miss here and a hit
+	// inside would only over-count, never under.
+	$args    = array( 'model' => SN_JEV_MODEL );
+	$payload = apply_filters( 'jevc_request_payload', array( 'state' => $state, 'model' => SN_JEV_MODEL, 'questions' => $questions ), $args );
+	$cached  = class_exists( 'JevConnector\\Cache' ) && method_exists( 'JevConnector\\Cache', 'get' ) && null !== \JevConnector\Cache::get( (array) $payload );
+	$meter   = function_exists( 'sn_jev_meter_record' ) ? 'sn_jev_meter_record' : null;
+	$r = \JevConnector\ask( $state, $questions, $args );
 	if ( is_wp_error( $r ) ) {
 		$data = $r->get_error_data();
+		if ( $meter ) {
+			$meter( $feature, 0, 0, false, true );
+		}
 		return $no( is_array( $data ) ? (int) ( $data['status'] ?? 0 ) : 0, $r->get_error_message() );
 	}
 	$parsed = is_object( $r ) && method_exists( $r, 'to_array' ) ? sn_jev_parse( $r->to_array() ) : null;
 	if ( null === $parsed ) {
+		if ( $meter ) {
+			$meter( $feature, 0, 0, false, true );
+		}
 		return $no( 200, 'unparsed' );
+	}
+	if ( $meter ) {
+		$meter( $feature, (int) $parsed['usage']['input_tokens'], (int) $parsed['usage']['output_tokens'], $cached );
 	}
 	return array( 'ok' => true, 'code' => 200, 'answers' => $parsed['answers'], 'usage' => $parsed['usage'], 'error' => '' );
 }

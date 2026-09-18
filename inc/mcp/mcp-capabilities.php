@@ -117,6 +117,7 @@ function sn_mcp_allowlist() {
 		'signal-noise/jev-notes', // 16.3.0: the stored Jev pass, same tier
 		'signal-noise/jev-lanes', // 16.4.0: the stored lane map, same tier
 		'signal-noise/jev-query-fit', // 16.5.0: the stored fit pass, same tier
+		'signal-noise/jev-meter', // 16.6.0: the Jev meter, same tier
 		// v10.6.0 — corpus inspection: list-posts + get-post-content moved to
 		// the wave-2 retirement block above (absorbed by sn-posts).
 		// v10.16.0 (2026-07-30) — near-duplicate cousin scan: PURE-READ by

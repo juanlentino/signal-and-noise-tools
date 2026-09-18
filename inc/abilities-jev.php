@@ -224,3 +224,28 @@ add_action( 'wp_abilities_api_init', function () {
 		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
 	) );
 } );
+
+/** 16.6.0: the Jev meter (READ). This cycle's spend per feature, from the site's own priced ledger. */
+function snt_ability_jev_meter( $input = array() ) {
+	if ( ! function_exists( 'sn_jev_meter_reading' ) ) {
+		return array( 'ok' => false, 'error' => 'unavailable' );
+	}
+	$r = sn_jev_meter_reading();
+	return array_merge( array( 'ok' => true, 'ready' => function_exists( 'sn_jev_is_ready' ) && sn_jev_is_ready(), 'price_per_m_input' => SN_JEV_PRICE_PER_M_INPUT ), $r, array( 'note' => 'USD from the tokens each answer reports, priced at the pinned rate; cached requests hit the connector\'s one-hour cache and cost nothing. The cycle runs from the credit day. Nothing is projected; the TypeSafe console is the bill.' ) );
+}
+
+add_action( 'wp_abilities_api_init', function () {
+	if ( ! function_exists( 'wp_register_ability' ) ) {
+		return;
+	}
+	wp_register_ability( 'signal-noise/jev-meter', array(
+		'label'               => 'Jev: this cycle\'s spend, by feature',
+		'description'         => 'The site\'s own priced ledger of Jev use: requests, cached hits, failures, input tokens and USD per feature (notes, collision, lane_map, fit) for the current credit cycle, with the credit, the remaining amount and the days left. Priced from reported tokens at the pinned rate; never projected. Read-only.',
+		'category'            => 'diagnostics',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_jev_meter',
+		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'ready' => array( 'type' => 'boolean' ), 'cycle' => array( 'type' => 'object' ), 'credit' => array( 'type' => 'number' ), 'spent' => array( 'type' => 'number' ), 'remaining' => array( 'type' => 'number' ), 'requests' => array( 'type' => 'integer' ), 'cached' => array( 'type' => 'integer' ), 'by_feature' => array( 'type' => 'object' ), 'note' => array( 'type' => 'string' ) ) ),
+		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+	) );
+} );

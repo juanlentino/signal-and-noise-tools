@@ -139,6 +139,8 @@ function snt_sn_status_map() {
 		'cloudflare'           => 'signal-noise/cloudflare-status',
 		// 15.2.0 — every credential's source and last verdict; never a value.
 		'keyring'              => 'signal-noise/keyring-status',
+		// 16.6.0 — Jev's spend this credit cycle, from the site's own ledger.
+		'jev_spend'            => 'signal-noise/jev-meter',
 	);
 }
 

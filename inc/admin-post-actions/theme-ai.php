@@ -133,6 +133,10 @@ function sn_handle_ai_settings_save( $post ) {
 	// v9.26.0: monthly AI budget in USD. Clamp to >= 0 at cents precision; 0 = off.
 	$ok &= sn_setting_update( 'theme.ai_monthly_budget', round( max( 0, (float) ( $post['theme_ai_monthly_budget'] ?? 0 ) ), 2 ) );
 
+	// 16.6.0: the Jev credit (USD, cents) and the cycle day (1..28).
+	$ok &= sn_setting_update( 'theme.jev_credit', round( max( 0, (float) ( $post['theme_jev_credit'] ?? 5 ) ), 2 ) );
+	$ok &= sn_setting_update( 'theme.jev_cycle_day', max( 1, min( 28, (int) ( $post['theme_jev_cycle_day'] ?? 17 ) ) ) );
+
 	// 15.3.1: the Workers AI token is saved on the keyring, not here.
 
 	return $ok ? 'ai_settings_saved' : 'ai_settings_unchanged';

@@ -155,7 +155,7 @@ function sn_jev_fit_sync() {
 		if ( ! $post ) {
 			continue;
 		}
-		$r = sn_jev_ask( sn_jev_fit_state( $post, $queries ), sn_jev_fit_questions( $queries ) );
+		$r = sn_jev_ask( sn_jev_fit_state( $post, $queries ), sn_jev_fit_questions( $queries ), 'fit' );
 		if ( ! $r['ok'] ) {
 			$failed++;
 			$err = (string) $r['error'];
