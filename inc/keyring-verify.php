@@ -59,6 +59,8 @@ function sn_keyring_probe( $id, array $row ) {
 			return sn_keyring_probe_github();
 		case 'zenodo':
 			return sn_keyring_probe_zenodo( $id );
+		case 'bing':
+			return sn_keyring_probe_bing();
 	}
 	return sn_keyring_verdict( 'none', __( 'No probe for this credential; the tab that uses it is the witness.', 'signal-and-noise-tools' ) );
 }
@@ -202,4 +204,31 @@ function sn_keyring_verify_all() {
 function sn_keyring_verdicts() {
 	$v = get_option( SN_KEYRING_VERDICTS_OPT, array() );
 	return is_array( $v ) ? $v : array();
+}
+
+/**
+ * Bing Webmaster: GetUserSites with the stored key; ok only when THIS site
+ * is in the list and verified, because a key that answers for another site
+ * would sync nothing and read as an empty search.
+ *
+ * @since 16.2.0
+ */
+function sn_keyring_probe_bing() {
+	if ( ! function_exists( 'sn_bing_request' ) ) {
+		return sn_keyring_verdict( 'error', __( 'The Bing module is not loaded.', 'signal-and-noise-tools' ) );
+	}
+	$r = sn_bing_request( 'GetUserSites' );
+	if ( ! $r['ok'] ) {
+		$refused = in_array( (int) $r['code'], array( 401, 403 ), true ) || false !== stripos( (string) $r['error'], 'apikey' ) || false !== stripos( (string) $r['error'], 'api key' );
+		/* translators: %s: the error Bing returned. */
+		return sn_keyring_verdict( $refused ? 'refused' : 'error', sprintf( __( 'Bing answered: %s', 'signal-and-noise-tools' ), (string) $r['error'] ) );
+	}
+	$state = sn_bing_site_state( $r['body'], sn_bing_site_url() );
+	if ( ! $state['listed'] ) {
+		return sn_keyring_verdict( 'refused', __( 'The key answers, but this site is not among its sites; add and verify it in Bing Webmaster Tools.', 'signal-and-noise-tools' ) );
+	}
+	if ( ! $state['verified'] ) {
+		return sn_keyring_verdict( 'refused', __( 'This site is listed but not verified in Bing Webmaster Tools; nothing syncs until it is.', 'signal-and-noise-tools' ) );
+	}
+	return sn_keyring_verdict( 'ok', __( 'Bing answers; this site is listed and verified.', 'signal-and-noise-tools' ) );
 }

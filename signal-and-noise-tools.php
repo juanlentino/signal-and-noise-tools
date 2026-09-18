@@ -388,6 +388,9 @@ require_once SNT_PATH . 'inc/analytics-salt-window.php';
 require_once SNT_PATH . 'inc/abilities-collector-status.php';
 require_once SNT_PATH . 'inc/abilities-content-queue.php'; // 15.8.0: the content_queue read behind the SN Queue widget.
 require_once SNT_PATH . 'inc/zenodo-client.php';   // 15.11.0: the Zenodo deposit API (bearer, two environments).
+require_once SNT_PATH . 'inc/bing-webmaster.php';  // 16.2.0: Bing Webmaster Tools (the key, the daily sync, the stored reading).
+require_once SNT_PATH . 'inc/abilities-bing.php';  // 16.2.0: bing-search-performance.
+require_once SNT_PATH . 'inc/analytics-view-search-bing.php'; // 16.2.0: the Bing panel of S&N Analytics › Search.
 require_once SNT_PATH . 'inc/zenodo-records.php';  // 15.11.0: what a document's record is, the bundle, the deposit flow, the triggers.
 require_once SNT_PATH . 'inc/abilities-zenodo.php'; // 15.11.0: zenodo-status on the read door.
 
