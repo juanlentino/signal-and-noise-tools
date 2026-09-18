@@ -863,6 +863,35 @@ not write. A probe proves the verb it uses. Zenodo minted the ledger's
 concept DOI, `10.5281/zenodo.22821768`, and the owner pasted it into the
 leaf before I got there.
 
+## The bucket takes bytes, and the other index
+
+The screenshot said Sandbox and "create: Permission denied"; the site's own
+`zenodo-status` ability said production and "upload: Invalid 'Content-Type'
+header. Expected one of: application/octet-stream". The owner had flipped to
+production, and on production every create succeeded and every upload
+failed, because Zenodo's bucket is a raw byte store that refuses any type
+but octet-stream and derives the MIME type from the filename later. The
+test had pinned `text/markdown` as the type the client meant to send.
+Fifteen empty drafts sat on zenodo.org: five remembered on their posts and
+resumable, ten orphans from the rule that forgot a draft id on any failed
+resume read. 16.1.3 sends octet-stream on every upload and forgets a draft
+only on a 404. The orphans are the owner's to delete; a draft is invisible
+until publish, and the flow will not publish a record whose files did not
+land, which is why going to production without a sandbox run cost nothing.
+
+The Bing Webmaster key needed a place, and a place is only honest with a
+reader. 16.2.0 is that arc: the keyring row with a probe that passes only
+when this site is listed and verified in the key's account (Bing answers a
+bad key with a 400 and a Message, not a 401); a daily sync of
+GetRankAndTrafficStats and GetQueryStats into one option, the window ending
+on the newest day Bing reports, the last good record kept with the failure
+beside it; a Bing panel in S&N Analytics › Search after Google's tables in
+the same table shape; and `bing-search-performance` on the read door with
+`source: bing`. Copilot and the engines that read Bing's index sit behind
+those numbers, which is why they sit beside Google's. The branch rebased
+onto 16.1.3 before it went up, so the CHANGELOG conflict was resolved once,
+by hand, rather than found by the gate.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -922,9 +951,13 @@ leaf before I got there.
   sandbox.zenodo.org, then Deposit the next batch). The Zenodo probe should
   create and delete a draft rather than list, so Verify all says "can
   create"; small, not yet built.
-- 16.1.2 (the title ceiling, the tags glossary) was on its chain at the
-  time of writing; the three pillar pages and start-here lose the suffix
-  when it installs.
+- 16.1.2 and 16.1.3 released. After 16.1.3 installs: Deposit the next batch
+  on the Zenodo leaf (five drafts resume and publish), then delete the ten
+  "No title" orphans on zenodo.org by hand.
+- 16.2.0 (Bing Webmaster) on its chain at the time of writing. After it
+  installs: mint the key at Bing Webmaster Tools › Settings › API access,
+  paste it under Connections › Credentials, Verify all; the first sync runs
+  within ten minutes and the Search view shows Bing.
 - Bing Webmaster Tools: nothing in the plugin takes its API key yet; IndexNow
   is the only Bing surface. The reading it would buy is the Bing twin of
   `search-performance`, its own arc after the Zenodo steps.
