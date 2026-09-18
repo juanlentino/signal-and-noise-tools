@@ -2,7 +2,7 @@
 
 Companion plugin to the [**Signal & Noise** theme](https://github.com/juanlentino/signal-and-noise) for [juanlentino.com](https://juanlentino.com). It holds the operational tooling that doesn't belong in a presentation theme — SEO, security, analytics, admin surfaces, and AI-assisted editorial helpers — so the theme stays focused on design and the plugin owns behaviour.
 
-Built on WordPress 7.0's Abilities API and AI Client: it both registers the site's capabilities for AI agents and ships in-editor AI helpers (alt text, meta descriptions, excerpts, brand-voice checks) that call the site owner's configured model provider.
+Built on WordPress 7.0's Abilities API and AI Client (what every model does here, and what agents read, is in [AI.md](AI.md)): it both registers the site's capabilities for AI agents and ships in-editor AI helpers (alt text, meta descriptions, excerpts, brand-voice checks) that call the site owner's configured model provider.
 
 <!-- screenshot placeholder — admin UI (Appearance → Signal & Noise) -->
 <!-- ![Signal & Noise Tools admin](docs/screenshot.png) -->
@@ -12,15 +12,15 @@ Built on WordPress 7.0's Abilities API and AI Client: it both registers the site
 - **SEO** — meta, canonicals, OG cards, sitemaps + IndexNow, a redirect manager with a 404 log
 - **Security** — WordPress hardening, a custom login slug, a read-only panel over the edge login guard
 - **Analytics** — first-party, cookieless, edge-collected; SQL rollups, a dashboard, AI narration
-- **Content health** — an 18-check scan from Measurement → Health or the `run-health-scan` ability
+- **Content health** — a 30-check scan from Measurement → Health or the `run-health-scan` ability
 - **Provenance** — every Note Ed25519-signed and Bitcoin-anchored; readers verify without trusting the site
 - **Citation graph** — a Webmention receiver that treats every claim as unverified until cron checks it
 - **Edge cache** — automatic Cloudflare purge on save / theme update
 - **Music / discography** — a daily Muso.AI + Spotify sync the theme's `/music` page reads
 - **Admin UI** — eight tabs, the analytics dashboard, command palette, cron, audit log, deploy/health
 - **OpenStation** — three native windows, 10 widgets, 22 palette commands, the Copilot seams
-- **AI-assisted editorial** — alt text, meta, excerpt, OG title, brand voice; opt-in suggest-and-apply
-- **Agent surface** — 97 abilities; an MCP server with a read door (34 tools) and a write door (8)
+- **AI, models and Jev** — three kinds of model, one job each: a text model suggests, an embedding model relates, and Jev judges; nothing a model says is written to a note without a human's click
+- **Agent surface** — 109 abilities; an MCP server with a read door (41 tools) and a write door (12); the site as something agents read, with the rights terms they read it under
 - **Self-updater** — GitHub-poll updater wired into WordPress's native update system
 
 Each of these is expanded under [In depth](#in-depth).
@@ -60,7 +60,7 @@ The queue closes the loop. A tenth Attention reader, **Search**, reads the same 
 
 ### Content health
 
-an 18-check scan (missing alt text, orphaned media, broken internal + rotted external links, stale posts, time-phrase and color drift, unlinked mentions, link opportunities, edge security-header drift, edge-Worker reachability, analytics integrity, the provenance integrity sweep, the rights-signals drift probe, the public ledger's own CI, ML cousins, publishing cadence, and the rights-signal anchoring gap), run from Measurement → Health or the `run-health-scan` ability (`inc/health-check-*.php` — 22 modules; a check is only live once it carries all four of its registrations)
+a 30-check scan (missing alt text, orphaned media, broken internal + rotted external links, stale posts, time-phrase and color drift, unlinked mentions, link opportunities, edge security-header drift, edge-Worker reachability, analytics integrity, the provenance integrity sweep, the rights-signals drift probe, the public ledger's own CI, ML cousins, publishing cadence, the rights-signal anchoring gap, search titles, Zenodo DOIs, and Jev's reading of every note's search title and description), run from Measurement → Health or the `run-health-scan` ability (`inc/health-check-*.php` — 26 modules; a check is only live once it carries all four of its registrations)
 
 ### Provenance
 
@@ -112,17 +112,17 @@ Every seam is pinned against a named upstream tag by `tests/openstation-compat.p
 
 What the integration hit on its way in went upstream. Six pull requests merged into [WordPress/openstation](https://github.com/WordPress/openstation) so far — tool-schema normalisation for the AI Copilot ([#366](https://github.com/WordPress/openstation/pull/366)), an empty final answer surfaced as an error instead of a silent success ([#530](https://github.com/WordPress/openstation/pull/530)), `--wp-admin-theme-color` registered so chromeless documents never compute it to transparent ([#706](https://github.com/WordPress/openstation/pull/706)), widget chrome buttons raised to the 24px target-size floor ([#791](https://github.com/WordPress/openstation/pull/791)), `hide-label` on `os-text-field` ([#792](https://github.com/WordPress/openstation/pull/792)), Post Stats chart chrome drawn in tokens ([#793](https://github.com/WordPress/openstation/pull/793)) — plus a seventh in review that lets a registered settings tab name its sidebar glyph ([#809](https://github.com/WordPress/openstation/pull/809)), and the issues that preceded each. None was sought out: every one is a seam this plugin crossed first, reported so the next integration doesn't have to.
 
-### AI-assisted editorial
+### AI, models and Jev
 
-alt text, meta description, excerpt, OG title, brand-voice alignment, and content-opportunity suggestions, each an opt-in suggest-and-apply surface
+Three kinds of model run in the ecosystem, and each has exactly one job: a text model (Claude, through WordPress's AI Client) suggests, an embedding model (Workers AI) relates, and Jev (TypeSafe's System One, through [Connector for TypeSafe Jev](https://github.com/juanlentino/jev-connector)) judges. A human clicks before anything a model said reaches a published note, and the site is itself a thing models read, under stated rights terms. The whole map, with every reading, its rubric, its cost and where it is pinned, is [AI.md](AI.md).
 
 ### Agent surface
 
-97 plugin-registered Abilities (alongside the theme's 16) reachable via `wp ability run` and the Abilities REST route, plus a native MCP JSON-RPC server with two curated doors: a read-only door at `signal-noise/v1/mcp` (33 slugs) and a read-write door at `signal-noise/v1/mcp-rw` (8 slugs) gated by a kill switch, a bound application password, a per-minute rate limit, and its own audit log. The write door is deliberately small: `sn-apply` is one tool covering every mutation, behind four gates (fingerprint, validation, capability, idempotency) with `dry_run` defaulting to true. **Both door sizes are pinned by `tests/mcp-capabilities.php`** — that suite, not this paragraph, is where the number is true.
+109 plugin-registered Abilities (alongside the theme's 16) reachable via `wp ability run` and the Abilities REST route, plus a native MCP JSON-RPC server with two curated doors: a read-only door at `signal-noise/v1/mcp` (41 slugs) and a read-write door at `signal-noise/v1/mcp-rw` (12 slugs) gated by a kill switch, a bound application password, a per-minute rate limit, and its own audit log. The write door is deliberately small: `sn-apply` is one tool covering every mutation, behind four gates (fingerprint, validation, capability, idempotency) with `dry_run` defaulting to true. **Both door sizes are pinned by `tests/mcp-capabilities.php`** — that suite, not this paragraph, is where the number is true.
 
 Both doors are **dual-era**: the legacy `initialize` handshake (`2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05`) and the modern per-request-metadata revision (`2026-07-28`) on the same endpoint, selected by how the request opens — modern `_meta` or a modern `MCP-Protocol-Version` header goes to `inc/mcp/mcp-modern.php`; an `initialize` goes to the legacy router in `inc/mcp/mcp-server.php`, byte-for-byte as before. The modern layer implements `server/discover`, validates the mirrored `Mcp-Method` / `Mcp-Name` headers against the body (`-32020`), answers an unknown version with `-32022` and the supported list, pairs `-32601` with HTTP 404, and decorates every result with `resultType` and `serverInfo`, list and read results with `ttlMs` / `cacheScope: "private"`. It is the same layer, check for check, as `src/modern.mjs` in the remote Worker; `tests/mcp-modern.php` mirrors the Worker's suite. A GET or DELETE on either door answers 405.
 
-The write door, by name: `sn-apply`, `ai-link-apply`, `ai-pair-suggest`, `describe-tags`, `apply-tag-description`, `prune-unused-tags`, `unschedule-cron-event`, `purge-all-caches`. `describe-tags` is returns-only and sits here because it bills an AI call.
+The write door, by name: `sn-apply`, `ai-link-apply`, `ai-pair-suggest`, `describe-tags`, `apply-tag-description`, `prune-unused-tags`, `unschedule-cron-event`, `purge-all-caches`, and the four Jev passes (`jev-pass-now`, `jev-collision-check`, `jev-lane-map`, `jev-fit-now`). `describe-tags` is returns-only and sits here because it bills an AI call; the Jev passes are idempotent and sit here because each one spends a request per note.
 
 **The Abilities REST route is a write surface too.** Core registers `POST /wp-json/wp-abilities/v1/abilities/<slug>/run` for every `show_in_rest` ability — the write-door slugs and the pre-consolidation apply abilities included. Since v13.110.0 an application-password request there meets the same four controls as the write door (`sn_mcp_rw_guard_run_route`, `inc/mcp/mcp-rw-guard.php`); cookie-authenticated wp-admin buttons use the same route and pass untouched. A Cloudflare WAF rule also refuses `Authorization`-bearing requests to `/wp-abilities/` at the edge, and the `Cloudflare security headers` health check probes for it.
 
