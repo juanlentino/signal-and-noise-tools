@@ -2,8 +2,8 @@
 /**
  * Signal & Noise Tools — TypeSafe Jev client (System One).
  *
- * One documented request: POST https://api.typesafe.ai/v1/systemone with a
- * bearer key, `{state, model, questions}`; the answer is a map keyed like the
+ * One documented request, sent by Connector for TypeSafe Jev (16.5.3):
+ * `{state, model, questions}`; the answer is a map keyed like the
  * questions, each a typed value (noul 0..1; score with probabilities and
  * confidence; choice with probabilities and confidence) plus usage. Jev
  * generates nothing; it decides. The key is the connector's (16.5.2:
@@ -22,7 +22,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SN_JEV_API              = 'https://api.typesafe.ai/v1/systemone';
 const SN_JEV_MODEL            = 'jev-latest';
 const SN_JEV_CONFIDENCE_FLOOR = 0.9;
 
@@ -75,42 +74,39 @@ function sn_jev_migrate_legacy_key() {
 add_action( 'plugins_loaded', 'sn_jev_migrate_legacy_key', 20 );
 
 /**
- * One request. Returns {ok, code, answers, usage, error} and never throws.
+ * One request, through Connector for TypeSafe Jev (16.5.3). Returns
+ * {ok, code, answers, usage, error} and never throws. The connector owns the
+ * transport (three attempts, Retry-After honoured, a one-hour cache keyed on
+ * the payload, per-status messages); this plugin owns the questions and the
+ * parser. Without the connector nothing is sent.
  *
  * @since 16.3.0
  * @param string|array $state     Text, an object of named fields, or an array of texts.
  * @param array        $questions Map of question objects (type noul|score|choice).
- * @param string|null  $key       Injected for the probe; null reads the keyring.
+ * @param string|null  $key       Unused since 16.5.3; kept so callers need not change.
  */
 function sn_jev_ask( $state, array $questions, $key = null ) {
-	$key = null === $key ? sn_jev_key() : (string) $key;
-	if ( '' === $key ) {
-		return array( 'ok' => false, 'code' => 0, 'answers' => array(), 'usage' => array(), 'error' => 'no-key' );
+	unset( $key );
+	$no = static function ( $code, $error ) {
+		return array( 'ok' => false, 'code' => (int) $code, 'answers' => array(), 'usage' => array(), 'error' => (string) $error );
+	};
+	if ( ! function_exists( 'JevConnector\\ask' ) ) {
+		return $no( 0, 'no-connector' );
+	}
+	if ( '' === sn_jev_key() ) {
+		return $no( 0, 'no-key' );
 	}
 	if ( array() === $questions ) {
-		return array( 'ok' => false, 'code' => 0, 'answers' => array(), 'usage' => array(), 'error' => 'no-questions' );
+		return $no( 0, 'no-questions' );
 	}
-	$resp = wp_remote_post( SN_JEV_API, array(
-		'timeout'     => 20,
-		'redirection' => 0,
-		'sslverify'   => true,
-		'headers'     => array(
-			'Authorization' => 'Bearer ' . $key,
-			'Content-Type'  => 'application/json',
-			'Accept'        => 'application/json',
-			'User-Agent'    => 'signal-and-noise-tools',
-		),
-		'body'        => wp_json_encode( array( 'state' => $state, 'model' => SN_JEV_MODEL, 'questions' => $questions ) ),
-	) );
-	if ( is_wp_error( $resp ) ) {
-		return array( 'ok' => false, 'code' => 0, 'answers' => array(), 'usage' => array(), 'error' => str_replace( $key, '[key]', $resp->get_error_message() ) );
+	$r = \JevConnector\ask( $state, $questions, array( 'model' => SN_JEV_MODEL ) );
+	if ( is_wp_error( $r ) ) {
+		$data = $r->get_error_data();
+		return $no( is_array( $data ) ? (int) ( $data['status'] ?? 0 ) : 0, $r->get_error_message() );
 	}
-	$code    = (int) wp_remote_retrieve_response_code( $resp );
-	$decoded = json_decode( (string) wp_remote_retrieve_body( $resp ), true );
-	$parsed  = sn_jev_parse( $decoded );
-	if ( 200 !== $code || null === $parsed ) {
-		$msg = is_array( $decoded ) ? (string) ( $decoded['error']['message'] ?? $decoded['message'] ?? $decoded['detail'] ?? '' ) : '';
-		return array( 'ok' => false, 'code' => $code, 'answers' => array(), 'usage' => array(), 'error' => str_replace( $key, '[key]', '' !== $msg ? $msg : 'http-' . $code ) );
+	$parsed = is_object( $r ) && method_exists( $r, 'to_array' ) ? sn_jev_parse( $r->to_array() ) : null;
+	if ( null === $parsed ) {
+		return $no( 200, 'unparsed' );
 	}
 	return array( 'ok' => true, 'code' => 200, 'answers' => $parsed['answers'], 'usage' => $parsed['usage'], 'error' => '' );
 }

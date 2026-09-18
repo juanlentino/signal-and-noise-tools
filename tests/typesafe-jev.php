@@ -26,9 +26,8 @@ function admin_url( $p ) { return 'https://x.test/wp-admin/' . $p; }
 function wp_strip_all_tags( $s ) { return strip_tags( $s ); }
 function strip_shortcodes( $s ) { return preg_replace( '/\[[^\]]+\]/', '', $s ); }
 function wp_json_encode( $v ) { return json_encode( $v ); }
-class WP_Error { public $m; function __construct( $c = '', $m = '' ) { $this->m = $m; } function get_error_message() { return $this->m; } }
+class WP_Error { public $m; public $d; function __construct( $c = '', $m = '', $d = null ) { $this->m = $m; $this->d = $d; } function get_error_message() { return $this->m; } function get_error_data() { return $this->d; } }
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
-function wp_remote_post( $url, $args = array() ) { $GLOBALS['__j']['calls'][] = array( 'url' => $url, 'body' => json_decode( $args['body'], true ), 'auth' => $args['headers']['Authorization'] ?? '' ); $a = $GLOBALS['__j']['answer']; return is_callable( $a ) ? $a( json_decode( $args['body'], true ) ) : $a; }
 function wp_remote_get( $url, $args = array() ) { return array( 'response' => array( 'code' => 404 ), 'body' => '' ); }
 function wp_remote_retrieve_response_code( $r ) { return (int) ( $r['response']['code'] ?? 0 ); }
 function wp_remote_retrieve_body( $r ) { return (string) ( $r['body'] ?? '' ); }
@@ -45,8 +44,7 @@ function sn_spotify_token() { return ''; }
 function delete_option( $k ) { unset( $GLOBALS['__j']['opt'][ $k ] ); return true; }
 // 16.5.2: the connector owns the key. The stub reads the same test switch the
 // pre-16.5.2 tests flipped, so every group below keeps its shape.
-final class __JevConnectorStub { const SETTING_NAME = 'connectors_typesafe_api_key'; public static function get_api_key(): string { return (string) ( $GLOBALS['__j']['opt']['sn_typesafe_api_key'] ?? '' ); } }
-class_alias( '__JevConnectorStub', 'JevConnector\\Connector' );
+require __DIR__ . '/stubs/jev-connector.php';
 
 require dirname( __DIR__ ) . '/inc/keyring.php';
 require dirname( __DIR__ ) . '/inc/keyring-verify.php';
@@ -77,12 +75,12 @@ ok( 'no-questions' === sn_jev_ask( 's', array() )['error'] && array() === $GLOBA
 $GLOBALS['__j']['answer'] = $ok200( array( 'q' => array( 'type' => 'noul', 'noul' => 0.2 ) ) );
 $r = sn_jev_ask( array( 'title' => 'x' ), array( 'q' => array( 'type' => 'noul', 'instructions' => 'x' ) ) );
 $c = end( $GLOBALS['__j']['calls'] );
-ok( true === $r['ok'] && 'https://api.typesafe.ai/v1/systemone' === $c['url'] && 'Bearer ts-secret' === $c['auth'] && 'jev-latest' === $c['body']['model'] && array( 'title' => 'x' ) === $c['body']['state'] && isset( $c['body']['questions']['q'] ), 'the documented request: endpoint, bearer, model, state, questions' );
+ok( true === $r['ok'] && 'jev-latest' === $c['model'] && array( 'title' => 'x' ) === $c['state'] && isset( $c['questions']['q'] ), 'the request goes through JevConnector\\ask() with the model, state and questions (16.5.3: the connector owns the transport)' );
 $GLOBALS['__j']['answer'] = array( 'response' => array( 'code' => 401 ), 'body' => '{"error":{"message":"invalid key ts-secret"}}' );
 $r = sn_jev_ask( 's', array( 'q' => array( 'type' => 'noul', 'instructions' => 'x' ) ) );
-ok( false === $r['ok'] && 401 === $r['code'] && 'invalid key [key]' === $r['error'], 'a 401 carries the message with the key redacted' );
+ok( false === $r['ok'] && 401 === $r['code'] && 'TypeSafe returned HTTP 401.' === $r['error'], 'a 401 carries the connector\'s status and message (16.5.3: the connector never puts the key in a message)' );
 $GLOBALS['__j']['answer'] = array( 'response' => array( 'code' => 200 ), 'body' => '{"model":"jev-latest"}' );
-ok( 'http-200' === sn_jev_ask( 's', array( 'q' => array( 'type' => 'noul', 'instructions' => 'x' ) ) )['error'], 'a 200 without answers is not ok' );
+ok( 'unparsed' === sn_jev_ask( 's', array( 'q' => array( 'type' => 'noul', 'instructions' => 'x' ) ) )['error'], 'a 200 without answers is not ok: unparsed' );
 
 echo "\nGroup C: questions, state, verdict\n";
 $q = sn_jev_note_questions();
@@ -111,7 +109,7 @@ ok( true === $d['notes'][8]['verdict']['title']['sure'] && 0.2 === $d['notes'][8
 $GLOBALS['__j']['answer'] = array( 'response' => array( 'code' => 529 ), 'body' => '{"message":"overloaded"}' );
 $r = sn_jev_sync();
 $d = sn_jev_data();
-ok( false === $r['ok'] && 2 === $r['failed'] && 0.2 === $d['notes'][8]['verdict']['title']['score'] && false !== strpos( $d['notes'][8]['error'], 'overloaded' ) && false !== strpos( $d['last_error'], 'overloaded' ), 'a failed request keeps the previous verdict with the error beside it' );
+ok( false === $r['ok'] && 2 === $r['failed'] && 0.2 === $d['notes'][8]['verdict']['title']['score'] && false !== strpos( $d['notes'][8]['error'], 'HTTP 529' ) && false !== strpos( $d['last_error'], 'HTTP 529' ), 'a failed request keeps the previous verdict with the error beside it' );
 $GLOBALS['__j']['answer'] = array( 'response' => array( 'code' => 401 ), 'body' => '{"message":"nope"}' ); $GLOBALS['__j']['calls'] = array();
 sn_jev_sync();
 ok( 1 === count( $GLOBALS['__j']['calls'] ), 'a refused key stops the pass after one request' );
