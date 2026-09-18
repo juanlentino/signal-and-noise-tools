@@ -264,6 +264,10 @@ if ( vv_require_fn( 'sn_prov_verify_send' ) ) {
 		(bool) preg_match( '/<meta\s+name=["\']robots["\']\s+content=["\'][^"\']*noindex[^"\']*["\']/i', $html ),
 		'page carries a noindex robots meta tag'
 	);
+	// 16.2.4: a description and a self-canonical on the standalone document, so a site scanner sees one described page, not one row per note.
+	vv_true( (bool) preg_match( '/<meta\s+name=["\']description["\']\s+content=["\'][^"\']{60,}["\']/i', $html ), 'page carries a meta description (a scanner listed every ?note= variant without one)' );
+	vv_true( false !== strpos( $html, '<link rel="canonical" href="https://example.com/verify">' ), 'the canonical is the bare /verify on every variant' );
+	vv_true( 1 === substr_count( $html, 'rel="canonical"' ) && 1 === substr_count( $html, 'name="description"' ), 'exactly one of each' );
 	vv_true( false !== strpos( $html, 'class="sn-verify"' ), 'page root element carries the .sn-verify class' );
 	// v13.97.5 (#1040): the panels live in a <main> landmark between the header and footer.
 	vv_true( 1 === substr_count( $html, '<main' ), 'exactly one <main> landmark' );

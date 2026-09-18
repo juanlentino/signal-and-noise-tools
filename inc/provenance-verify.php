@@ -170,6 +170,14 @@ function sn_prov_verify_send() {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
+<?php // 16.2.4: a description and a self-canonical. The page is noindex, but
+// site scanners (Bing's, 2026-09-18) audit whatever they crawl and listed
+// every ?note= variant as a page without a description, one row per note,
+// a row more for every note the queue publishes. The canonical folds the
+// variants into one URL for any reader that honours it; the description
+// says what the page is. Neither changes the noindex. ?>
+<meta name="description" content="Verify a note from juanlentino.com: recompute its content hash, check the Ed25519 signature under the published key, and confirm the OpenTimestamps proof against the Bitcoin block. Client-side, no account.">
+<link rel="canonical" href="<?php echo esc_url( function_exists( 'home_url' ) ? home_url( '/verify' ) : '/verify' ); ?>">
 <?php // The &mdash; here is the site-wide DOCUMENT-TITLE separator, matching
 // inc/seo.php's "Page Name — Site Name" format, not prose. Deliberately left
 // by the em-dash sweep, the same exemption v10.48.2 applied across wp-admin.
