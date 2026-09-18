@@ -6,8 +6,9 @@
  * bearer key, `{state, model, questions}`; the answer is a map keyed like the
  * questions, each a typed value (noul 0..1; score with probabilities and
  * confidence; choice with probabilities and confidence) plus usage. Jev
- * generates nothing; it decides. The key lives in the keyring
- * (`typesafe_api_key`) and is redacted from every error string.
+ * generates nothing; it decides. The key is the connector's (16.5.2:
+ * Connector for TypeSafe Jev registers `typesafe` with Core's Connectors
+ * API; Settings › Connectors holds it) and is redacted from every error string.
  *
  * Read against docs.typesafe.ai on 2026-09-18: api.md, models.md (jev-1.13,
  * 64k tokens a request, 32k of state), confidence.md (act above ~0.9, never
@@ -25,10 +26,53 @@ const SN_JEV_API              = 'https://api.typesafe.ai/v1/systemone';
 const SN_JEV_MODEL            = 'jev-latest';
 const SN_JEV_CONFIDENCE_FLOOR = 0.9;
 
-/** The key, from the keyring; '' when none. */
+const SN_JEV_CONNECTOR_CLASS  = 'JevConnector\\Connector';
+const SN_JEV_LEGACY_OPTION    = 'sn_typesafe_api_key';
+const SN_JEV_NOT_READY        = 'Install Connector for TypeSafe Jev and add the key under Settings › Connectors.';
+
+/**
+ * The key, from the connector; '' when the connector is absent or empty.
+ *
+ * 16.5.2: the keyring row is gone. Connector for TypeSafe Jev resolves env,
+ * then constant, then Core's `connectors_typesafe_api_key`; this plugin
+ * holds no second path.
+ */
 function sn_jev_key() {
-	return function_exists( 'sn_credential' ) ? (string) sn_credential( 'typesafe_api_key' ) : '';
+	if ( ! class_exists( SN_JEV_CONNECTOR_CLASS ) || ! method_exists( SN_JEV_CONNECTOR_CLASS, 'get_api_key' ) ) {
+		return '';
+	}
+	return (string) call_user_func( array( SN_JEV_CONNECTOR_CLASS, 'get_api_key' ) );
 }
+
+/**
+ * One-shot migration: the key this plugin stored before 16.5.2 moves into
+ * Core's connector option when the connector is active and has none, and
+ * the old option is deleted either way once the connector is present. Runs
+ * on every load until the old option is gone; a no-op after.
+ *
+ * @return string moved | dropped | none
+ */
+function sn_jev_migrate_legacy_key() {
+	$old = (string) get_option( SN_JEV_LEGACY_OPTION, '' );
+	if ( '' === $old ) {
+		return 'none';
+	}
+	if ( ! class_exists( SN_JEV_CONNECTOR_CLASS ) ) {
+		return 'none'; // keep it until the connector is here to receive it.
+	}
+	$target = 'connectors_typesafe_api_key';
+	if ( defined( SN_JEV_CONNECTOR_CLASS . '::SETTING_NAME' ) ) {
+		$target = (string) constant( SN_JEV_CONNECTOR_CLASS . '::SETTING_NAME' );
+	}
+	$moved = false;
+	if ( '' === trim( (string) get_option( $target, '' ) ) ) {
+		update_option( $target, $old, false );
+		$moved = true;
+	}
+	delete_option( SN_JEV_LEGACY_OPTION );
+	return $moved ? 'moved' : 'dropped';
+}
+add_action( 'plugins_loaded', 'sn_jev_migrate_legacy_key', 20 );
 
 /**
  * One request. Returns {ok, code, answers, usage, error} and never throws.

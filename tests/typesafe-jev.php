@@ -42,6 +42,11 @@ function sn_seo_resolve_singular_description( $p ) { return (string) $p->post_ex
 function sn_cf_monitor_verify( $z, $t = null ) { return null; }
 function sn_uptime_status_api_get( $r ) { return null; }
 function sn_spotify_token() { return ''; }
+function delete_option( $k ) { unset( $GLOBALS['__j']['opt'][ $k ] ); return true; }
+// 16.5.2: the connector owns the key. The stub reads the same test switch the
+// pre-16.5.2 tests flipped, so every group below keeps its shape.
+final class __JevConnectorStub { const SETTING_NAME = 'connectors_typesafe_api_key'; public static function get_api_key(): string { return (string) ( $GLOBALS['__j']['opt']['sn_typesafe_api_key'] ?? '' ); } }
+class_alias( '__JevConnectorStub', 'JevConnector\\Connector' );
 
 require dirname( __DIR__ ) . '/inc/keyring.php';
 require dirname( __DIR__ ) . '/inc/keyring-verify.php';
@@ -138,16 +143,18 @@ $GLOBALS['__j']['opt'][ SN_JEV_DATA_OPTION ] = array( 'synced_at' => 1, 'notes' 
 $c = sn_health_check_jev_notes();
 ok( 1 === $c['count'] && null === $c['skipped'] && false !== strpos( $c['fix_hint'], '1 of them Jev is unsure about' ) && false !== strpos( $c['label'], 'below "names the subject"' ), 'a pass with one low unsure reading: ONE finding (routed to the human), the check RAN, the hint says Jev is unsure about it' );
 
-echo "\nGroup F: the probe\n";
-$rows = sn_keyring();
-ok( isset( $rows['typesafe_api_key'] ) && 'typesafe' === $rows['typesafe_api_key']['probe'] && 'secret' === $rows['typesafe_api_key']['kind'], 'the keyring row: issued, secret, probed as typesafe' );
-$GLOBALS['__j']['answer'] = $ok200( array( 'probe' => array( 'type' => 'noul', 'noul' => 0.97 ) ) );
-$v = sn_keyring_probe( 'typesafe_api_key', $rows['typesafe_api_key'] );
-ok( 'ok' === $v['status'] && false !== strpos( $v['detail'], '0.97' ), 'Jev answers the probe: ok, with the probability' );
-$GLOBALS['__j']['answer'] = array( 'response' => array( 'code' => 401 ), 'body' => '{"error":{"message":"Invalid API key"}}' );
-ok( 'refused' === sn_keyring_probe( 'typesafe_api_key', $rows['typesafe_api_key'] )['status'], 'a 401 is refused' );
-$GLOBALS['__j']['answer'] = array( 'response' => array( 'code' => 529 ), 'body' => '' );
-ok( 'error' === sn_keyring_probe( 'typesafe_api_key', $rows['typesafe_api_key'] )['status'], 'a 529 is TypeSafe\'s side: error' );
+echo "
+Group F: the key is the connector's (16.5.2)
+";
+ok( ! isset( sn_keyring()['typesafe_api_key'] ), 'the keyring holds no TypeSafe row' );
+ok( 'ts-secret' === sn_jev_key(), 'the key reads through JevConnector\Connector::get_api_key()' );
+$GLOBALS['__j']['opt']['sn_typesafe_api_key'] = 'legacy-key'; unset( $GLOBALS['__j']['opt']['connectors_typesafe_api_key'] );
+ok( 'moved' === sn_jev_migrate_legacy_key() && 'legacy-key' === $GLOBALS['__j']['opt']['connectors_typesafe_api_key'] && ! isset( $GLOBALS['__j']['opt']['sn_typesafe_api_key'] ), 'the legacy option moves into Core\'s connector option once and is deleted' );
+ok( 'none' === sn_jev_migrate_legacy_key(), 'a second run is a no-op' );
+$GLOBALS['__j']['opt']['sn_typesafe_api_key'] = 'stale'; $GLOBALS['__j']['opt']['connectors_typesafe_api_key'] = 'theirs';
+ok( 'dropped' === sn_jev_migrate_legacy_key() && 'theirs' === $GLOBALS['__j']['opt']['connectors_typesafe_api_key'] && ! isset( $GLOBALS['__j']['opt']['sn_typesafe_api_key'] ), 'when the connector already holds a key the legacy one is dropped, never overwrites' );
+ok( in_array( 'sn_jev_migrate_legacy_key', $GLOBALS['__j']['actions']['plugins_loaded'] ?? array(), true ), 'the migration hangs on plugins_loaded' );
+$GLOBALS['__j']['opt']['sn_typesafe_api_key'] = 'ts-secret';
 
 echo "\nGroup G: the ability\n";
 foreach ( $GLOBALS['__j']['actions']['wp_abilities_api_init'] as $cb ) { $cb(); }
