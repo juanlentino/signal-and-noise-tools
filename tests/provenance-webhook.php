@@ -17,6 +17,7 @@ $GLOBALS['__pv_get_posts_pages'] = array();
 $GLOBALS['__pv_get_posts_calls'] = array();
 
 if ( ! function_exists( 'add_action' ) ) {
+	function do_action() {}
 	function add_action() {
 		return true; }
 }

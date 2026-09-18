@@ -75,6 +75,7 @@ function sn_site_map_pillars( array $pages ) {
 			'title'       => html_entity_decode( (string) get_the_title( $p->ID ), ENT_QUOTES, 'UTF-8' ),
 			'url'         => $url,
 			'designation' => (string) get_post_meta( (int) $p->ID, '_sn_pillar_designation', true ),
+			'doi'         => function_exists( 'sn_zenodo_doi_for' ) ? sn_zenodo_doi_for( (int) $p->ID ) : '', // 15.11.0
 			'tag'         => (string) strtok( $path, '/' ),
 		);
 	}
@@ -125,6 +126,8 @@ function sn_site_map_build() {
 			'tags'      => $tags,
 			'pillar'    => $pillar,
 			'signed'    => function_exists( 'sn_prov_machine_pointers_manifest' ) && null !== sn_prov_machine_pointers_manifest( (int) $p->ID ),
+			// 15.11.0: the production DOI, '' until minted (a sandbox DOI never lands here).
+			'doi'       => function_exists( 'sn_zenodo_doi_for' ) ? sn_zenodo_doi_for( (int) $p->ID ) : '',
 		);
 	}
 

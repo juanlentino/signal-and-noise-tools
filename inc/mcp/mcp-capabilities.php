@@ -110,6 +110,9 @@ function sn_mcp_allowlist() {
 		// they return is status an agent should be able to see for itself.
 		'signal-noise/anchor-status',
 		'signal-noise/provenance-integrity-status',
+		// 15.11.0 — the DOI ledger: readonly, sub-second, status an agent citing
+		// a note should be able to see for itself.
+		'signal-noise/zenodo-status',
 		// v10.6.0 — corpus inspection: list-posts + get-post-content moved to
 		// the wave-2 retirement block above (absorbed by sn-posts).
 		// v10.16.0 (2026-07-30) — near-duplicate cousin scan: PURE-READ by

@@ -71,6 +71,10 @@ function sn_health_check_surface_map() {
 		// defect (nobody searches the aphorism), reaches zero one line at a
 		// time, unowned elsewhere.
 		'search_titles'         => 'health',
+		// 29th (15.11.0): a confirmed document without a DOI. A defect (the
+		// scholarly record cannot resolve it), reaches zero one pass at a
+		// time, unowned elsewhere.
+		'zenodo_doi'            => 'health',
 		// 25th + 26th (v13.98.0). Both defects (a sensor that stopped writing;
 		// a theme.json that lies), both reach zero, both unowned elsewhere.
 		'machine_reader_liveness' => 'health',

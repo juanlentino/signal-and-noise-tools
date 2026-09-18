@@ -32,7 +32,7 @@ echo "keyring -- every credential in one place (15.2.0)\n";
 
 // ── Shape
 $rows = sn_keyring();
-ok( 17 === count( $rows ) && isset( $rows['site_secret'], $rows['mr_read_token'], $rows['cf_token'], $rows['workers_ai_token'], $rows['betterstack_token'], $rows['cloudways_api_key'] ), '17 rows (15.3.1: + the Workers AI token), the site secret first among them' );
+ok( 19 === count( $rows ) && isset( $rows['site_secret'], $rows['mr_read_token'], $rows['cf_token'], $rows['workers_ai_token'], $rows['betterstack_token'], $rows['cloudways_api_key'], $rows['zenodo_token'], $rows['zenodo_sandbox_token'] ), '19 rows (15.11.0: + the two Zenodo tokens; 15.3.1: + the Workers AI token), the site secret first among them' );
 foreach ( $rows as $id => $row ) {
 	ok( isset( $row['group'], $row['label'], $row['kind'], $row['about'], $row['feeds'] ) && in_array( $row['group'], array( 'site', 'cloudflare', 'issued' ), true ) && ( isset( $row['constant'] ) || isset( $row['option'] ) || isset( $row['setting'] ) ), "row $id carries group, label, kind, about, feeds and a home" );
 }

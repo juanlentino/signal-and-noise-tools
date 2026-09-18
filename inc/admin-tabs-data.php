@@ -237,6 +237,7 @@ function sn_admin_top_tabs() {
 				'cloudways'         => array( 'label' => 'Cloudways', 'render' => 'sn_admin_render_cloudways_section', 'wide' => true ),
 				'webhooks'          => array( 'label' => 'Webhooks', 'render' => 'sn_admin_render_webhooks_section', 'wide' => true ),
 				'indexnow'          => array( 'label' => 'IndexNow', 'render' => 'sn_admin_render_indexnow_section', 'wide' => true ),
+				'zenodo'            => array( 'label' => 'Zenodo', 'render' => 'sn_admin_render_zenodo_section', 'wide' => true ), // 15.11.0: DOIs for the signed documents
 				// v10.46.0: Music moves here from Content. What the leaf actually
 				// holds is a Spotify client-id/secret credential form plus a sync —
 				// an external-API connection that happens to be about records.

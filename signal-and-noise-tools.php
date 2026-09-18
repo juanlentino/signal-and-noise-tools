@@ -227,6 +227,7 @@ require_once SNT_PATH . 'inc/admin-forms/front-end.php';     // v4.12.0: Site �
 require_once SNT_PATH . 'inc/admin-forms/ai-settings.php';   // v10.46.0: AI → Models & Budget (extracted out of front-end.php)
 require_once SNT_PATH . 'inc/admin-forms/music.php';         // v4.13.0: Connections → Discography (Spotify creds + Muso profile + Sync now)
 require_once SNT_PATH . 'inc/admin-forms/indexnow.php';     // v5.1.0: Automation → IndexNow (enable toggle + key URL + backfill)
+require_once SNT_PATH . 'inc/admin-forms/zenodo.php';       // 15.11.0: Connections → Zenodo (environment, ledger, deposit)
 require_once SNT_PATH . 'inc/theme-filters.php';             // v4.12.0: supply configured theme.* values to theme/plugin filters (front-end)
 require_once SNT_PATH . 'inc/now-page.php';                  // v7.5.0: /now content editor data layer + sn_now_sections/sn_now_updated feed
 require_once SNT_PATH . 'inc/uses-page.php';                 // v7.6.0: /uses content editor data layer + sn_uses_groups feed (shares the /now section grammar)
@@ -386,6 +387,9 @@ require_once SNT_PATH . 'inc/analytics-salt-window.php';
 // /_sn/version payload (config bindings, salt window, version, cron freshness).
 require_once SNT_PATH . 'inc/abilities-collector-status.php';
 require_once SNT_PATH . 'inc/abilities-content-queue.php'; // 15.8.0: the content_queue read behind the SN Queue widget.
+require_once SNT_PATH . 'inc/zenodo-client.php';   // 15.11.0: the Zenodo deposit API (bearer, two environments).
+require_once SNT_PATH . 'inc/zenodo-records.php';  // 15.11.0: what a document's record is, the bundle, the deposit flow, the triggers.
+require_once SNT_PATH . 'inc/abilities-zenodo.php'; // 15.11.0: zenodo-status on the read door.
 
 // Login defense panel: reads the sn_login_guard AE dataset + probes the
 // sn-login-guard Worker status. Loads after analytics-api + ssrf-guard +
@@ -622,6 +626,7 @@ require_once SNT_PATH . 'inc/provenance-integrity.php'; // 13th check (v9.80.0):
 require_once SNT_PATH . 'inc/plugin-registry-probe.php'; // v13.96.6 (#1026): records an empty /wp/v2/plugins served with a 200 - the poisoning is transient and a scheduled check alone would miss it
 require_once SNT_PATH . 'inc/health-check-wp-cron-request-path.php'; // 24th check (v13.97.4): cron still spawned in-request - invisible in cron_disabled_constant, which is a problem flag rather than the constant's value
 require_once SNT_PATH . 'inc/health-check-search-titles.php'; // 28th check (15.9.0): notes whose title tag is the aphorism alone; the Search Console pressure test's gap, kept from reopening.
+require_once SNT_PATH . 'inc/health-check-zenodo-doi.php'; // 29th check (15.11.0): confirmed documents without a production DOI.
 require_once SNT_PATH . 'inc/health-check-plugin-registry.php'; // 23rd check (v13.96.6): active_plugins vs get_plugins() - a stale object cache reports "no plugins installed" with a 200
 require_once SNT_PATH . 'inc/health-check-families.php';
 require_once SNT_PATH . 'inc/health-render-findings.php';
