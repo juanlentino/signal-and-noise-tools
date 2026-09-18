@@ -114,6 +114,7 @@ function sn_mcp_allowlist() {
 		// a note should be able to see for itself.
 		'signal-noise/zenodo-status',
 		'signal-noise/bing-search-performance', // 16.2.0: the Bing reading, same tier as search-performance
+		'signal-noise/jev-notes', // 16.3.0: the stored Jev pass, same tier
 		// v10.6.0 — corpus inspection: list-posts + get-post-content moved to
 		// the wave-2 retirement block above (absorbed by sn-posts).
 		// v10.16.0 (2026-07-30) — near-duplicate cousin scan: PURE-READ by

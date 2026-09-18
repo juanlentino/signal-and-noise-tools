@@ -144,6 +144,7 @@ function sn_health_run_scan() {
 			'search_titles'        => sn_health_check_search_titles(),
 			// 29th check (15.11.0): confirmed documents without a production DOI.
 			'zenodo_doi'           => sn_health_check_zenodo_doi(),
+			'jev_notes'            => sn_health_check_jev_notes(),
 			// 25th check (v13.98.0): the machine-reader dataset went quiet. The
 			// worker's sensor readout is isolate memory and reads null for both a
 			// fresh isolate and a sensor that never fires; the dataset can tell.

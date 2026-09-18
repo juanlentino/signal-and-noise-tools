@@ -75,6 +75,7 @@ function sn_health_check_surface_map() {
 		// scholarly record cannot resolve it), reaches zero one pass at a
 		// time, unowned elsewhere.
 		'zenodo_doi'            => 'health',
+		'jev_notes'             => 'health',
 		// 25th + 26th (v13.98.0). Both defects (a sensor that stopped writing;
 		// a theme.json that lies), both reach zero, both unowned elsewhere.
 		'machine_reader_liveness' => 'health',
