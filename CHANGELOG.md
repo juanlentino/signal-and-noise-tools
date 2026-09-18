@@ -12,11 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [16.2.4] - 2026-09-18 — one page, not one row per note
+
 ### Fixed
 - **`/verify` carries a description and a self-canonical.** The page is `noindex, nofollow` and stays so, but a site scanner (Bing's, 2026-09-18) audits what it crawls and listed every `?note=` variant as a page without a description: 44 rows today, one more for every note the queue publishes. The standalone document now says what it is in a meta description and names the bare `/verify` as its canonical, so the variants fold into one described page for any reader that honours either. Pinned on every variant.
-
-## [16.2.3] - 2026-09-18 — the search view reads in two bands
-
-### Fixed
-- **The Search view reads in two bands.** 16.2.0 wedged the Bing panel and its full-width one-row table between Google's pages and Google's cross-exam, and the view ran two and a half screens. Google's story now runs unbroken (window, queries beside topics, pages, cross-exam, coverage, seen-but-never-clicked, drift, its empty fold), then Bing as the last band in one panel with its queries inside it. Every metrics table (Google queries, pages, Bing queries) sits behind the house ten-row clamp with "View all N"; nothing is dropped, the scroll is. Bing's empty states are visible panels, because the band paints after the view's fold has flushed and a note collected there would leak into the next view. The topic-interest test fixture takes the renderer's real shape (it warned six times a run). Pinned.
 
