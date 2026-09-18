@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SN_JEV_FIT_OPTION          = 'sn_jev_query_fit';
 const SN_JEV_FIT_HOOK            = 'sn_jev_fit_weekly';
-const SN_JEV_FIT_MIN_IMPRESSIONS = 20;
+const SN_JEV_FIT_MIN_IMPRESSIONS = 5; // 16.5.1: 20 left one note standing on a 469-impression month; the site's scale, not the rubric's
 const SN_JEV_FIT_QUERIES_PER_NOTE = 8;
 const SN_JEV_FIT_ROW_LIMIT       = 2000;
 const SN_JEV_FIT_OPENING         = 1200;

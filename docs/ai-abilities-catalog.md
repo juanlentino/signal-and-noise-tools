@@ -43,7 +43,7 @@ This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/jev-lane-map` | `manage_options` | maintenance | WRITE | RW-DOOR (16.4.0; every published note against the others; the pairs at or above 0.5) |
 | `signal-noise/jev-lanes` | `manage_options` | diagnostics | — | READ-DOOR (16.4.0; the stored lane map) |
 | `signal-noise/jev-fit-now` | `manage_options` | maintenance | WRITE | RW-DOOR (16.5.0; one GSC page × query read, one Jev request per note with queries; stores the pass) |
-| `signal-noise/jev-query-fit` | `manage_options` | diagnostics | — | READ-DOOR (16.5.0; gaps and stray traffic from the stored fit pass) |
+| `signal-noise/jev-query-fit` | `manage_options` | diagnostics | — | READ-DOOR (16.5.0; gaps and stray traffic from the stored fit pass; 16.5.1 adds `judged_notes` with every row) |
 | `signal-noise/get-404-log` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-collector-status` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-insights` | `manage_options` | diagnostics | ✓ | READ-DOOR |
