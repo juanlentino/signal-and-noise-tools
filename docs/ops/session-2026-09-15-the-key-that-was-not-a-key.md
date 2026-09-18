@@ -796,6 +796,35 @@ escaped, and Plugin Check's own EscapeOutput sniff reads the composed
 variable as unescaped whatever `phpcs.xml.dist` says. `wp_kses_post()`
 around the cell is the house answer. 16.1.0 is the cut.
 
+## The ledger gets a DOI of its own, and the first pass fails on a bracket
+
+The owner flipped Zenodo's GitHub switch on the ledger repository. That
+integration mints per release and never per commit, and the repository's
+one release was the verifier, so nothing would have minted on its own.
+`ledger-snapshot.yml` now tags `ledger-YYYY-MM` on the first of each month
+and publishes a release naming the record count; `.zenodo.json` makes the
+record a CC BY 4.0 dataset with the ORCID creator (the ledger is hashes,
+signatures and proofs, not prose, and a dataset nobody may derive from is a
+dataset nobody can build a verifier on); `.gitattributes` marks the CI, the
+test files and the lockfile `export-ignore`, so what Zenodo keeps is the
+ledger and the verifier, 1.5 MB. The cron-liveness guard learned that a 404
+for a workflow the pull request itself adds is PENDING, not unreadable. The
+first snapshot, `ledger-2026-09`, carries 43 records, 43 confirmed.
+
+Plugin 16.1.1 lets the Zenodo leaf take the ledger's concept DOI and names it
+on every deposit as `isPartOf` a dataset. It also carries the fix for the
+first sandbox pass, which failed five of five with Zenodo's bare "internal
+error" while Zenodo's own banner said they were under bot strain. The row's
+text and the banner agreed, and both were beside the point: the create step
+sent an empty PHP array, which encodes as `[]`, a JSON list, where Zenodo's
+first step wants `{}`. The test had pinned `[]` under the label "an empty
+JSON body". `new stdClass()` now, and the pin names the shape.
+
+Two docs pull requests sat CLEAN for twenty minutes because their merge
+script waited on `pgrep -f chain1412.sh`, and the monitor I had started to
+watch that chain had the same string in its own command line. The gate saw
+its watcher. Bracket the pattern.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -849,6 +878,13 @@ around the cell is the house answer. 16.1.0 is the cut.
   mints a sandbox token, Connections › Credentials › Verify all, then
   Connections › Zenodo › Deposit the next batch; then the production token,
   flip the environment, and the hourly pass mints the rest.
+- Ledger PR #26 merged and `ledger-2026-09` released; Zenodo's record and
+  the concept DOI were not yet visible when this was written. Read the badge
+  on Zenodo › GitHub, then paste the concept DOI into Connections › Zenodo
+  (16.1.1). The plugin's release PR #1418 was gating at the time of writing.
+- Bing Webmaster Tools: nothing in the plugin takes its API key yet; IndexNow
+  is the only Bing surface. The reading it would buy is the Bing twin of
+  `search-performance`, its own arc after the Zenodo steps.
 - Not built yet: the rights-signals worker's `get-citation` reading the DOI
   from the Article (`doi` in BibTeX and CSL); the theme byline's DOI line and
   the DOI in `llms-full.txt`; the `www` Redirect Rule (owner's dashboard);
