@@ -693,6 +693,109 @@ Beta 1 is one sentence: open a note with the experiment on and confirm the
 gate still lists its checks. The fields API, also aimed at 7.2, is where the
 gate's readings could one day become inspector fields visible in Quick Edit.
 
+## The page that had every signal and no query
+
+"How can I make my page go up in Google and all that in general?" The
+pressure test read the site the way a search engine and an answer engine
+read it: sitemap, robots, Content-Signal, the Article schema on a note,
+`llms.txt`, the Markdown negotiation, and Search Console's own emails in
+Gmail. The technical layer was already whole. What was missing was the
+thing a query matches: every note's title tag was its aphorism. "Detection
+scales the wrong way" is a good title and a bad query. Nobody types it.
+
+The fix was not to rename the notes. It was a second name. `_sn_seo_title`
+already existed as post meta with `show_in_rest`; the owner's Chrome
+session wrote a query-shaped override on every note and pillar, sixty
+titles in batches of seven (the first attempt at sixty-three in one call
+timed out the CDP bridge). Health check 28 (15.9.0) now names a published
+or scheduled note whose search title is still its aphorism, so the next
+note cannot ship without one. The `/provenance/` hub keeps its title in the
+`seo_copy.provenance_title` setting, not in page meta, and took its value
+through the classic form.
+
+Three things fell out of the write, each its own fix:
+
+- The edge kept serving the old titles after the REST writes, because a
+  meta update fires no purge. Three zone purges cleared it, and during the
+  storm the edge cached a 358-byte empty 200 for `/provenance/` for a few
+  minutes. A purge storm is its own hazard.
+- Sixty title writes bumped `post_modified` on forty-three notes at once,
+  and both the byline's "Updated" line and the Article's `dateModified`
+  read that clock. Theme 13.2.7 and plugin 15.9.2 moved both to the
+  provenance commit (`_sn_prov_last_commit_gmt`): modified means the prose
+  moved, and a title override is not the prose.
+- A note's title tag carried " | Signal & Noise" after the override, which
+  spent the query's characters on the site name. 15.9.1 drops the suffix
+  for posts.
+
+Then the owner's phone showed the home page half-styled while desktop
+DevTools' phone emulation showed it whole. The theme deleted the previous
+`sn-styles-<hash>.css` on every rebuild, and a page cached on the phone
+still named the old hash. Theme 13.2.5 keeps a superseded stylesheet for
+seven days. The real browser is for looking, and it looked.
+
+`llms.txt` led with a summary that did not name the subject (13.2.6), and
+`llms-full.txt` now carries the search titles and a Topics section built
+from the tag vocabulary (13.3.0).
+
+## A tag with three notes is a page
+
+Search Console's inspection read every tag archive as "URL is unknown to
+Google" although each note links four of them. Both taxonomies had been
+dropped from the sitemap. The owner writes a description for every tag and
+the archive paints it as its intro, so a tag with three notes is a real
+page about music metadata or AI disclosure, and a tag with one note is a
+duplicate of that note. 16.0.0 keeps `post_tag` in the sitemap, excludes the
+tags under three notes (`sn_sitemap_tag_is_hub`, pure and pinned), and adds
+`noindex` to a thin archive's robots line. On the day's vocabulary: 21 hubs
+in, 4 thin out. Category still goes; one category is `/notes/` twice.
+
+The `/notes/start-here/` page is not a pillar and not an Article. Marking
+it as one would put it in the pillars shortcode, so it stays a page with
+instructions and gets its query-shaped title like the rest.
+
+The Search Console emails were read for what they were: "Some fixes failed"
+was validation of exclusions we chose (do not request those), and the
+"Redirect error" came from `www.juanlentino.com/notes/` serving 200 because
+the notes route skips the canonical redirect. That is a Cloudflare Redirect
+Rule for `www` to the apex, on the owner's dashboard, not plugin code. The
+`/provenance/` opening paragraph went to Claude chat as a prompt; it is a
+public page, and the edit waits for a said yes.
+
+16.0.1 gave the Caches tile its verdict in the leaf's own colours (the
+classic `.sn-glance-card__value` and `.sn-pill` had been bleeding onto the
+dark leaf, which read as a green "Checking…" that never changed) and made
+the Scheduled leaf's native posts an `os-table`.
+
+## A note becomes a citable record
+
+Zenodo, read from `developers.zenodo.org`: a deposit is created, a file is
+put in its bucket, metadata is set, and publish mints a DOI and a concept
+DOI; a new version hangs off the concept. A personal token with
+`deposit:write` and `deposit:actions` is the whole credential, and the
+sandbox mints `10.5072` DOIs against the same shape.
+
+What fits what the owner does: pillars and notes only. The papers have
+their license and their record with SSRN and are not touched. A note
+deposits when its provenance anchor confirms, on a new `sn_prov_confirmed`
+action the webhook fires, so the DOI names a document whose hash is already
+on Bitcoin; an hourly pass backfills the rest, five at a time. The bundle is
+the note as the site's own `text/markdown`, plus the ledger's `.json` and
+`.ots` from the repository. The environment is a setting (sandbox first,
+then production), the token rows live in the keyring like every other key,
+and the DOI reaches the Article schema as `identifier` and `sameAs`, and the
+site map JSON on every note and pillar. Connections › Zenodo is a ledger
+with one small form. Health check 29 reads the ledger.
+
+The branch went DIRTY twice while it waited, once behind 16.0.0 and once
+behind 16.0.1; each rebase kept both sides of the CHANGELOG and, the second
+time, dropped a `[15.9.2]` block that main had already archived into
+`docs/changelog/v15.md`. The first CI run after the rebase failed on one
+line: the ledger's DOI cell was a string composed from pieces that were each
+escaped, and Plugin Check's own EscapeOutput sniff reads the composed
+variable as unescaped whatever `phpcs.xml.dist` says. `wp_kses_post()`
+around the cell is the house answer. 16.1.0 is the cut.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -740,6 +843,17 @@ gate's readings could one day become inspector fields visible in Quick Edit.
 - `Automattic/Agent-Use-Cases`, `m/taxonomist` and `typesafe-ai/skills` read;
   nothing installed or adopted (ADR-0001). TypeSafe is a vendor skill for a
   paid model, refused on the ADR with the extract path offered.
+- Plugin 15.9.0 through 16.0.1 and theme 13.2.5 through 13.3.0 released and
+  installed; the sixty query-shaped titles are live and the edge serves
+  them. Zenodo (PR #1412, 16.1.0) is on its chain. After it lands: the owner
+  mints a sandbox token, Connections › Credentials › Verify all, then
+  Connections › Zenodo › Deposit the next batch; then the production token,
+  flip the environment, and the hourly pass mints the rest.
+- Not built yet: the rights-signals worker's `get-citation` reading the DOI
+  from the Article (`doi` in BibTeX and CSL); the theme byline's DOI line and
+  the DOI in `llms-full.txt`; the `www` Redirect Rule (owner's dashboard);
+  the `/provenance/` opening paragraph (owner's yes). Read search drift and
+  performance at four and eight weeks from 2026-09-17.
 - Upstream OpenStation #819 / #820: with the maintainers.
 - The `firewallEventsAdaptive` page is a floor past 10,000 samples a day; page
   it when a day gets there.
