@@ -138,7 +138,7 @@ ok( false === snt_ability_jev_lanes()['mapped'], 'I5 no map yet reads as mapped=
 // J: the client-side warnings, from the JS source.
 $js = file_get_contents( __DIR__ . '/../assets/pre-publish-gate.js' );
 ok( str_contains( $js, 'collisionWarnings' ) && str_contains( $js, '_sn_jev_collision' ) && str_contains( $js, 'Notes are never edited after publication' ), 'J1 the gate reads the meta and names the irreversibility' );
-ok( str_contains( $js, 'noul >= 0.5' ) || str_contains( $js, 'COLLISION_LINE = 0.5' ), 'J2 the client line matches the server line' );
+ok( str_contains( $js, 'r.noul >= 0.6' ) && ! str_contains( $js, 'r.noul >= 0.5' ), 'J2 the panel warns at 0.6 (16.4.1); the server keeps 0.5 for the count and the map' );
 
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail ? 1 : 0 );
