@@ -135,7 +135,7 @@ ok( sn_mcp_negotiate_version( '1999-01-01' ) === SN_MCP_PROTOCOL_VERSION, 'negot
 echo "\nMCP rw-door allowlist (v9.50.0)\n\n";
 
 $rw = sn_mcp_rw_allowlist();
-ok( is_array( $rw ) && count( $rw ) === 8, 'rw allowlist is exactly 8 slugs (v13.25.0 WIDENED by 2, owner-directed: the tag-vocabulary pair describe-tags + apply-tag-description beside prune-unused-tags; v13.0.0 wave 2 had retired 4, wave 1 (v12.0.0) 26)' );
+ok( is_array( $rw ) && count( $rw ) === 9, 'rw allowlist is exactly 9 slugs (16.3.3 + jev-pass-now, the on-demand Jev pass; v13.25.0 WIDENED by 2, owner-directed: the tag-vocabulary pair describe-tags + apply-tag-description beside prune-unused-tags; v13.0.0 wave 2 had retired 4, wave 1 (v12.0.0) 26)' );
 
 // --- exact membership: the 8 plugin slugs, pinned individually ---
 // v13.0.0: down to sn-apply, the deliberately-kept AI link pair (see the KEPT
@@ -151,8 +151,9 @@ $rw_plugin = array(
 	'signal-noise/ai-pair-suggest',
 	'signal-noise/describe-tags',
 	'signal-noise/apply-tag-description',
+	'signal-noise/jev-pass-now',
 );
-ok( count( $rw_plugin ) === 8, 'sanity: the pinned plugin rw list itself is 8 (v13.25.0)' );
+ok( count( $rw_plugin ) === 9, 'sanity: the pinned plugin rw list itself is 9 (16.3.3)' );
 foreach ( $rw_plugin as $slug ) {
 	ok( in_array( $slug, $rw, true ), "rw-door plugin slug present: $slug" );
 }
