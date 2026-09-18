@@ -994,6 +994,32 @@ take it over, merged and tagged 16.2.4 while my gate was still reading.
 Before branching or cutting on this repo: fetch, read the last commits,
 list the open PRs.
 
+## A judge, not a generator
+
+TypeSafe's Jev answers typed questions with a value and a confidence and
+generates nothing, which is the shape the prose checks were missing: check
+28 accepts a search title by shape and cannot tell a query from a
+well-formed slogan. I read the documentation this time before designing,
+the API, models, confidence and jaggedness pages: one state per request,
+$0.042 a million input tokens, act above 0.9 and never below 0.5, literal
+reading, no arithmetic, no dates, small state. 16.3.0: a keyring row and a
+probe (one Noul about a sentence), a client against the documented request,
+a daily pass sending each note as four short fields with three questions,
+check 30 over the stored pass with a confidence floor, `jev-notes` on the
+read door. The five-dollar monthly credit expires unused: a pass is a fifth
+of a cent, and there is no way to spend it at this site's size.
+
+Two fixes followed within the hour. Check 28 had flagged "Where AI actually
+saves time in record production" with an override equal to itself and then
+with none; the rule assumed every title is an aphorism, and now a title
+that opens with a searcher's word passes as its own query (16.3.1, with the
+host re-nudging a table that held its rows behind its empty state). And the
+first Jev pass, 69 notes, 51k tokens, no errors, read 68 as unsure, because
+a score runs from 0 to the highest level number and I had drawn the line
+for 1..3 (16.3.2, the readings now on the ability). The chain for 16.3.2
+died after its merge on a ref lock from a concurrent fetch and was resumed
+from the cut by hand.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -1055,8 +1081,13 @@ list the open PRs.
   wrong environment (the keyring said refused all along); mint one on
   sandbox.zenodo.org if a sandbox run is ever wanted. The fifteen orphan
   drafts on zenodo.org are the owner's to delete.
-- 16.2.1 through 16.2.4 released. Run Verify all once so the production
-  Zenodo row carries the create-and-delete verdict.
+- 16.2.1 through 16.3.2 released. The Jev key is verified (probe 0.98).
+  Read `jev-notes` after the next daily pass on 16.3.2: the score
+  distribution and how many readings clear 0.9 decide whether the rubric
+  wording or the floor moves before the collision gate (16.4.0) is built.
+- Chains: `git fetch` after a merge can hit a ref lock when another worktree
+  fetches at the same instant; retry the fetch, or keep the cut as its own
+  script.
 - Theme 13.3.1 (the no-store floor) on its chain at the time of writing.
   The next time a page reads empty at the edge: `curl -D -` it, save headers
   and body, THEN purge; the render's cause is still open.
