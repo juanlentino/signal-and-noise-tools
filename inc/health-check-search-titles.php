@@ -44,12 +44,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 function sn_health_search_title_is_shaped( $seo_title, $post_title = '' ) {
 	$seo_title  = trim( (string) $seo_title );
 	$post_title = trim( (string) $post_title );
+	$norm       = static function ( $t ) {
+		return strtolower( preg_replace( '/\s+/', ' ', trim( $t, " \t\n\r\0\x0B:" ) ) );
+	};
+	// 16.3.1: a title that is itself the query needs no second name. "Where
+	// AI actually saves time in record production" was flagged twice: once
+	// for an override equal to it, once for having none. The rule assumed
+	// every note title is an aphorism; this one is a plain sentence.
+	if ( '' !== $post_title && sn_health_title_is_query_shaped( $post_title ) && ( '' === $seo_title || $norm( $seo_title ) === $norm( $post_title ) ) ) {
+		return true;
+	}
 	if ( '' === $seo_title ) {
 		return false;
 	}
-	$norm = static function ( $t ) {
-		return strtolower( preg_replace( '/\s+/', ' ', trim( $t, " \t\n\r\0\x0B:" ) ) );
-	};
 	if ( '' !== $post_title && $norm( $seo_title ) === $norm( $post_title ) ) {
 		return false;
 	}
@@ -59,6 +66,28 @@ function sn_health_search_title_is_shaped( $seo_title, $post_title = '' ) {
 		return str_word_count( trim( substr( $seo_title, $at + 2 ) ) ) >= 2;
 	}
 	return str_word_count( $seo_title ) >= 2;
+}
+
+/**
+ * Is a note's OWN title already the words a searcher types? PURE. Word
+ * count cannot tell "Where AI actually saves time in record production"
+ * from "Payment systems pay what they can name" (seven words each), so the
+ * rule is the searcher's opening word: a title that starts with how, why,
+ * what, where, when, which or who, runs six or more words, carries no colon
+ * and no sentence-final punctuation, is a query. Everything else is an
+ * aphorism until an override says otherwise.
+ *
+ * @since 16.3.1
+ */
+function sn_health_title_is_query_shaped( $title ) {
+	$t = trim( (string) $title );
+	if ( '' === $t || false !== strpos( $t, ':' ) || preg_match( '/[.!?]$/u', $t ) ) {
+		return false;
+	}
+	if ( ! preg_match( '/^(how|why|what|where|when|which|who)\b/i', $t ) ) {
+		return false;
+	}
+	return str_word_count( $t ) >= 6;
 }
 
 /**

@@ -170,8 +170,36 @@
 	 *
 	 * @param {Element} root App root.
 	 */
+	/**
+	 * 16.3.1: an <os-table> painted into a leaf right after an action (the
+	 * Health leaf after "Re-run scan") can hold its rows in `data` and still
+	 * show the empty state: the component rendered before its os-prop-data
+	 * landed and did not render again. Reopening the leaf fixed it, which is
+	 * the tell. Re-assigning the same rows makes it render once more. Only a
+	 * table in exactly that state is touched; a table with rows on screen, or
+	 * with no rows, is left alone. Upstream watch: OpenStation (os-table renders once
+	 * before late props), beside #808/#809.
+	 *
+	 * @param {Element} root App root.
+	 */
+	function renudgeTables( root ) {
+		var tables = root.querySelectorAll( 'os-table' );
+		for ( var i = 0; i < tables.length; i++ ) {
+			var t = tables[ i ];
+			if ( ! Array.isArray( t.data ) || ! t.data.length || ! t.shadowRoot ) {
+				continue;
+			}
+			var rows = t.shadowRoot.querySelectorAll( 'tbody tr' );
+			var empty = t.getAttribute( 'empty' ) || '';
+			if ( rows.length === 1 && empty && ( rows[ 0 ].textContent || '' ).trim() === empty ) {
+				t.data = t.data.slice();
+			}
+		}
+	}
+
 	function pass( root ) {
 		runScripts( root );
+		renudgeTables( root );
 		if ( window.snAdmin && typeof window.snAdmin.init === 'function' ) {
 			window.snAdmin.init( root );
 		}

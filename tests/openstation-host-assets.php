@@ -478,5 +478,8 @@ ok( '' !== $zoom_fn && false !== strpos( $zoom_fn, "wrap.closest('[data-snt-quer
 ok( false !== strpos( $zoom_fn, "key === 'sn_range' || key === 'sn_from' || key === 'sn_to'" ), '...merging its own window over the three window keys and carrying every other param verbatim' );
 ok( false !== strpos( $zoom_fn, "carrier.setAttribute('os-arg-' + key," ) && strpos( $zoom_fn, "carrier.setAttribute('os-arg-' + key," ) < strpos( $zoom_fn, "carrier.setAttribute('os-arg-sn_range', 'custom')" ), '...as os-arg-* pairs set BEFORE the window keys, so a go applied wholesale keeps the view, the class and the comparison' );
 
+// 16.3.1: the table re-nudge runs inside the paint pass and touches only a table holding rows while showing its empty state.
+ok( false !== strpos( $host, 'function renudgeTables( root )' ) && false !== strpos( $host, 'renudgeTables( root );' ) && false !== strpos( $host, 't.data = t.data.slice();' ) && false !== strpos( $host, 'rows.length === 1 && empty' ), 'the paint pass re-nudges an <os-table> that holds rows yet shows its empty state (the Health leaf after Re-run scan), by re-assigning the same rows, and nothing else' );
+
 echo "\nResult: $pass passed, $fail failed" . ( $skip > 0 ? ", $skip skipped" : '' ) . ".\n";
 exit( $fail > 0 ? 1 : 0 );
