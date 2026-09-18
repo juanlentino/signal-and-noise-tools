@@ -148,7 +148,10 @@ function sn_zenodo_request( $method, $url, $body = null, $env = null, array $hea
 	);
 	if ( is_array( $body ) ) {
 		$args['headers']['Content-Type'] = 'application/json';
-		$args['body']                    = wp_json_encode( $body );
+		// 16.1.1: an empty PHP array encodes as `[]`, a JSON list. Zenodo's
+		// create step wants `{}` (an object) and answered the list with a
+		// bare 500, "internal error", on every deposit of the first pass.
+		$args['body']                    = wp_json_encode( array() === $body ? new stdClass() : $body );
 	} elseif ( is_string( $body ) ) {
 		$args['headers']['Content-Type'] = isset( $headers['Content-Type'] ) ? $headers['Content-Type'] : 'application/octet-stream';
 		$args['body']                    = $body;

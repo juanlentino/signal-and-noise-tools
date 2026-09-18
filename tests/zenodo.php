@@ -97,7 +97,7 @@ echo "\nGroup C: the client shapes a bearer request and never throws\n";
 $GLOBALS['__z']['cred']['zenodo_sandbox_token'] = 'sbx-secret';
 $r = sn_zenodo_create_deposition( 'sandbox' );
 $last = end( $GLOBALS['__z']['log'] );
-ok( 'POST' === $last['method'] && 'https://sandbox.zenodo.org/api/deposit/depositions' === $last['url'] && 'Bearer sbx-secret' === $last['headers']['Authorization'] && 0 === $last['redirection'] && '[]' === $last['body'], 'create: POST, bearer, no redirects, an empty JSON body' );
+ok( 'POST' === $last['method'] && 'https://sandbox.zenodo.org/api/deposit/depositions' === $last['url'] && 'Bearer sbx-secret' === $last['headers']['Authorization'] && 0 === $last['redirection'] && '{}' === $last['body'], 'create: POST, bearer, no redirects, an empty JSON OBJECT (`[]` drew a bare 500 from Zenodo on 2026-09-18)' );
 ok( false === $r['ok'] && 404 === $r['code'] && 'not found' === $r['error'], 'a 404 comes back as {ok:false, code, error}, no exception' );
 ok( false === sn_zenodo_request( 'GET', 'https://zenodo.org/api/x', null, 'production' )['ok'] && 'no-token' === sn_zenodo_request( 'GET', 'https://zenodo.org/api/x', null, 'production' )['error'], 'no token for the environment: refused locally, no request made' );
 sn_zenodo_upload_file( 'https://sandbox.zenodo.org/api/files/bucket-1', 'note.md', "# hi", 'sandbox', 'text/markdown' );
