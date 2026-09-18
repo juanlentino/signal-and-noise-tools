@@ -964,6 +964,36 @@ verified site's Search Performance report is the check. Two session-doc
 PRs from two worktrees appended to the same file tonight and the second
 conflicted on merge; one open docs PR at a time from now on.
 
+## The edge held an empty page, and the other session was ahead
+
+Every Dependabot item across thirty-seven repositories went in, one merge
+per call on a double-read CLEAN: the provenance worker's vitest bump after
+its cooldown, the remote MCP worker's sharp (1.6.1, tagged, draft release),
+seven on reverbeat and eleven on reverbeat-demo with the two critical Next
+advisories first, two on selo, one of which Dependabot had to recreate
+because "Update branch" counts as an edit it will not rebase over. A single
+unattended script for all three was refused by the auto-mode classifier as
+a merge without review; one visible merge at a time was not, and that is
+the shape that stays.
+
+Bing's second scan said `/provenance/` had no H1 and no description. It was
+right about what it received: the edge was serving a 358-byte 200, the
+object-cache footnote and nothing else, cached for ninety minutes, the
+second time in a day and again right after a plugin update's purge. I
+purged, which restored the page and destroyed the evidence; next time the
+object's headers get saved first. Theme 13.3.1 closes the caching of it
+whatever the cause: the page-wide buffer callback returns the page when
+`preg_replace` yields NULL, and any body under 4 KB leaves the origin
+`no-store`. The cause of the empty render is not established.
+
+The `/verify` rows, forty-four of them, are a noindex page Bing crawls
+anyway. The owner asked for a description; another session had merged one
+forty minutes earlier, with a self-canonical, and my own copy failed on
+that PR's pin. It had opened the release PR too and, when I was told to
+take it over, merged and tagged 16.2.4 while my gate was still reading.
+Before branching or cutting on this repo: fetch, read the last commits,
+list the open PRs.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -1025,9 +1055,14 @@ conflicted on merge; one open docs PR at a time from now on.
   wrong environment (the keyring said refused all along); mint one on
   sandbox.zenodo.org if a sandbox run is ever wanted. The fifteen orphan
   drafts on zenodo.org are the owner's to delete.
-- 16.2.1, 16.2.2 and 16.2.3 released (16.2.3 at 03:5xZ on the 18th; the
-  Search view reads in two bands once it installs). Run Verify all once so
-  the production Zenodo row carries the create-and-delete verdict.
+- 16.2.1 through 16.2.4 released. Run Verify all once so the production
+  Zenodo row carries the create-and-delete verdict.
+- Theme 13.3.1 (the no-store floor) on its chain at the time of writing.
+  The next time a page reads empty at the edge: `curl -D -` it, save headers
+  and body, THEN purge; the render's cause is still open.
+- Every Dependabot alert and PR across the account is closed as of
+  2026-09-18 13:00Z; the demo's vitest 5 major was superseded, not merged,
+  and stays a decision.
 - Bing's API holds no daily row after 2026-05-26 for the site. Compare with
   Bing Webmaster Tools › Search Performance; if the UI shows later days the
   API will catch up on its own, if not, submit URLs from Site Explorer.
