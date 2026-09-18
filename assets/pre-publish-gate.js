@@ -76,8 +76,11 @@
 		if ( ! rec || ! Array.isArray( rec.rows ) ) {
 			return out;
 		}
+		// 16.4.1: the panel warns at 0.6. The server keeps 0.5 for the record's
+		// count and the lane map; the first live map (44 notes, 19 pairs at 0.5)
+		// read the 0.5..0.6 band as shared vocabulary, not a shared argument.
 		rec.rows.forEach( function( r ) {
-			if ( r && typeof r.noul === 'number' && r.noul >= 0.5 ) {
+			if ( r && typeof r.noul === 'number' && r.noul >= 0.6 ) {
 				out.push(
 					__( 'Jev reads this draft as making the argument of', 'signal-noise-tools' ) +
 					' \u201c' + String( r.title ) + '\u201d (' + r.noul.toFixed( 2 ) + '). ' +

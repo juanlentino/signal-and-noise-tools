@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_JEV_COLLISION_META    = '_sn_jev_collision';
-const SN_JEV_COLLISION_LINE    = 0.5;
+const SN_JEV_COLLISION_LINE    = 0.5; // the record's count and the lane map; the panel warns at 0.6 (assets/pre-publish-gate.js)
 const SN_JEV_COLLISION_OPENING = 1200;
 const SN_JEV_COLLISION_KEEP    = 5;
 
