@@ -118,24 +118,25 @@ $GLOBALS['__j']['opt']['sn_typesafe_api_key'] = 'ts-secret';
 foreach ( $GLOBALS['__j']['actions']['init'] as $cb ) { $cb(); }
 ok( 'daily' === ( $GLOBALS['__j']['scheduled'][ SN_JEV_SYNC_HOOK ] ?? '' ), 'a key: the daily pass is scheduled once' );
 
-echo "\nGroup E: check 30\n";
+echo "\nGroup E: check 30 (16.3.4: below level one is a finding; confidence is the caveat)\n";
 $j = sn_health_jev_notes_judge( array(
-	7 => array( 'title' => 'Sure and fine', 'verdict' => array( 'title' => array( 'score' => 1.8, 'confidence' => 0.95, 'sure' => true ), 'description' => array( 'score' => 1.5, 'confidence' => 0.95, 'sure' => true ), 'opening' => array( 'noul' => 0.7 ) ), 'at' => 1, 'error' => '' ),
-	8 => array( 'title' => 'Aphorism, sure', 'verdict' => array( 'title' => array( 'score' => 0.1, 'confidence' => 0.95, 'sure' => true ), 'description' => array( 'score' => 0.0, 'confidence' => 0.5, 'sure' => false ), 'opening' => array( 'noul' => 0.2 ) ), 'at' => 1, 'error' => '' ),
-	9 => array( 'title' => 'Low but unsure', 'verdict' => array( 'title' => array( 'score' => 0.0, 'confidence' => 0.6, 'sure' => false ), 'description' => array( 'score' => 2.0, 'confidence' => 0.9, 'sure' => true ), 'opening' => array( 'noul' => 0.9 ) ), 'at' => 1, 'error' => '' ),
-	10 => array( 'title' => 'Never judged', 'verdict' => null, 'at' => 0, 'error' => 'x' ),
+	7 => array( 'title' => 'Fine', 'verdict' => array( 'title' => array( 'score' => 1.5, 'confidence' => 0.3, 'sure' => false ), 'description' => array( 'score' => 2.0, 'confidence' => 0.95, 'sure' => true ), 'opening' => array( 'noul' => 0.7 ) ), 'at' => 1, 'error' => '' ),
+	8 => array( 'title' => 'Low and sure', 'verdict' => array( 'title' => array( 'score' => 0.58, 'confidence' => 0.7, 'sure' => false ), 'description' => array( 'score' => 2.0, 'confidence' => 0.9, 'sure' => true ), 'opening' => array( 'noul' => 0.2 ) ), 'at' => 1, 'error' => '' ),
+	9 => array( 'title' => 'Low and unsure', 'verdict' => array( 'title' => array( 'score' => 0.66, 'confidence' => 0.02, 'sure' => false ), 'description' => array( 'score' => 0.4, 'confidence' => 0.2, 'sure' => false ), 'opening' => array( 'noul' => 0.9 ) ), 'at' => 1, 'error' => '' ),
+	10 => array( 'title' => 'Exactly one', 'verdict' => array( 'title' => array( 'score' => 1.0, 'confidence' => 0.9, 'sure' => true ), 'description' => array( 'score' => 1.0, 'confidence' => 0.9, 'sure' => true ), 'opening' => array( 'noul' => 0.5 ) ), 'at' => 1, 'error' => '' ),
+	11 => array( 'title' => 'Never judged', 'verdict' => null, 'at' => 0, 'error' => 'x' ),
 	'junk',
 ) );
-ok( 3 === $j['judged'] && 1 === count( $j['findings'] ) && 8 === $j['findings'][0]['subject_id'] && false !== strpos( $j['findings'][0]['note'], 'aphorism, not a query' ) && false !== strpos( $j['findings'][0]['note'], 'of 2' ) && false === strpos( $j['findings'][0]['note'], 'fragment' ), 'THE PIN: a finding needs a low position AND the floor; note 8 fires on the title only (its description is low but unsure); the note says "of 2"' );
-ok( 0.5 === SN_JEV_TITLE_FINDING_MAX && array() === sn_health_jev_notes_judge( array( 1 => array( 'title' => 'Level one', 'verdict' => array( 'title' => array( 'score' => 1.0, 'confidence' => 0.99, 'sure' => true ), 'description' => array( 'score' => 1.0, 'confidence' => 0.99, 'sure' => true ), 'opening' => array( 'noul' => 0.5 ) ), 'at' => 1, 'error' => '' ) ) )['findings'], 'THE SCALE PIN (16.3.2): a score is 0..2, level one (names the subject, phrased differently) is NOT low; 16.3.0 drew the line at 1.5 and read 68 of 69 notes as unsure' );
-ok( 2 === $j['unsure'], 'two readings below the floor are counted as unsure, never as findings (note 8 description, note 9 title)' );
+ok( 4 === $j['judged'] && array( 8, 9 ) === array_column( $j['findings'], 'subject_id' ), 'THE PIN: a position below level one is a finding whatever the confidence; level one itself and above are not (the 0.9 floor hid every reading on 16.3.3\'s pass: one of 69 cleared it)' );
+ok( false !== strpos( $j['findings'][0]['note'], 'rubric 0.58 of 2, confidence 0.70' ) && false === strpos( $j['findings'][0]['note'], 'unsure' ), 'confidence at or above 0.5: the note carries the numbers and no caveat' );
+ok( false !== strpos( $j['findings'][1]['note'], 'confidence 0.02: Jev is unsure; read it yourself' ) && false !== strpos( $j['findings'][1]['note'], 'below "says what it is about"' ) && 1 === $j['unsure'], 'confidence under 0.5: the note says Jev is unsure; both fields can fire on one note; unsure counts findings, not readings' );
 $GLOBALS['__j']['opt']['sn_typesafe_api_key'] = '';
 ok( is_string( sn_health_check_jev_notes()['skipped'] ) && 0 === sn_health_check_jev_notes()['count'], 'no key: SKIPPED, never a pass' );
 $GLOBALS['__j']['opt']['sn_typesafe_api_key'] = 'ts-secret'; unset( $GLOBALS['__j']['opt'][ SN_JEV_DATA_OPTION ] );
 ok( false !== strpos( (string) sn_health_check_jev_notes()['skipped'], 'has not run' ), 'a key but no pass yet: skipped, says so' );
 $GLOBALS['__j']['opt'][ SN_JEV_DATA_OPTION ] = array( 'synced_at' => 1, 'notes' => array( 8 => array( 'title' => 'A', 'verdict' => array( 'title' => array( 'score' => 0.3, 'confidence' => 0.4, 'sure' => false ), 'description' => array( 'score' => 2, 'confidence' => 0.9, 'sure' => true ), 'opening' => array( 'noul' => 0.5 ) ), 'at' => 1, 'error' => '' ) ) );
 $c = sn_health_check_jev_notes();
-ok( 0 === $c['count'] && null === $c['skipped'] && false !== strpos( $c['fix_hint'], '1 reading(s) fell below' ), 'a pass with one unsure reading: zero findings, the check RAN, the hint says one fell below the floor' );
+ok( 1 === $c['count'] && null === $c['skipped'] && false !== strpos( $c['fix_hint'], '1 of them Jev is unsure about' ) && false !== strpos( $c['label'], 'below "names the subject"' ), 'a pass with one low unsure reading: ONE finding (routed to the human), the check RAN, the hint says Jev is unsure about it' );
 
 echo "\nGroup F: the probe\n";
 $rows = sn_keyring();
@@ -153,7 +154,7 @@ foreach ( $GLOBALS['__j']['actions']['wp_abilities_api_init'] as $cb ) { $cb(); 
 $ab = $GLOBALS['__j']['abilities']['signal-noise/jev-notes'] ?? null;
 ok( is_array( $ab ) && array( 'object', 'null' ) === $ab['input_schema']['type'] && true === $ab['meta']['annotations']['readonly'], 'registers readonly with the [object,null] input union' );
 $out = snt_ability_jev_notes();
-ok( 'typesafe-jev' === $out['source'] && true === $out['synced'] && 1 === $out['judged'] && 1 === $out['unsure'] && array() === $out['findings'] && 1 === count( $out['notes'] ) && 0.3 === $out['notes'][0]['title_score'] && 0.4 === $out['notes'][0]['title_confidence'], 'the ability reads the stored pass, names its source, and hands every note\'s readings out for tuning' );
+ok( 'typesafe-jev' === $out['source'] && true === $out['synced'] && 1 === $out['judged'] && 1 === $out['unsure'] && 1 === count( $out['findings'] ) && 1 === count( $out['notes'] ) && 0.3 === $out['notes'][0]['title_score'] && 0.4 === $out['notes'][0]['title_confidence'], 'the ability reads the stored pass, names its source, and hands every note\'s readings out for tuning' );
 unset( $GLOBALS['__j']['opt'][ SN_JEV_DATA_OPTION ] );
 ok( false === snt_ability_jev_notes()['synced'] && true === snt_ability_jev_notes()['ready'], 'nothing stored: synced false, ready true' );
 $ab = $GLOBALS['__j']['abilities']['signal-noise/jev-pass-now'] ?? null;
