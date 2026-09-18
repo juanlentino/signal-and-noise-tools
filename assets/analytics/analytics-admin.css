@@ -710,3 +710,6 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 @media screen and (max-width: 782px) {
 	.sn-an-custom-form input[type="date"] { font-size: 16px; }
 }
+
+/* 16.2.3: a table's title inside a panel that already has a header (the Bing band). */
+.sn-an-postbox .inside .sn-an-subhead { margin: 14px 0 6px; font-size: 13px; font-weight: 600; }

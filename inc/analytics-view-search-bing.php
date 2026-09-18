@@ -24,8 +24,13 @@ function snt_analytics_render_search_bing() {
 	if ( ! function_exists( 'sn_bing_data' ) || ! function_exists( 'snt_gsc_render_metrics_table' ) ) {
 		return;
 	}
+	// The band paints AFTER the view's empty fold has flushed, so its own
+	// empty states are visible panels, never collected notes (a note
+	// collected here would leak into the next view; see the flush contract).
 	if ( ! sn_bing_is_ready() ) {
-		snt_an_note_empty( __( 'Bing', 'signal-and-noise-tools' ), __( 'No Bing Webmaster API key yet. Mint one at Bing Webmaster Tools › Settings › API access and paste it under Connections › Credentials.', 'signal-and-noise-tools' ) );
+		snt_an_panel_open( __( 'Bing', 'signal-and-noise-tools' ) );
+		echo '<p>' . esc_html__( 'No Bing Webmaster API key yet. Mint one at Bing Webmaster Tools › Settings › API access and paste it under Connections › Credentials.', 'signal-and-noise-tools' ) . '</p>';
+		snt_an_panel_close();
 		return;
 	}
 	$data = sn_bing_data();
@@ -35,7 +40,9 @@ function snt_analytics_render_search_bing() {
 			/* translators: %s: the last sync error. */
 			$why = sprintf( __( 'The last sync failed: %s', 'signal-and-noise-tools' ), (string) $data['last_error'] );
 		}
-		snt_an_note_empty( __( 'Bing', 'signal-and-noise-tools' ), $why );
+		snt_an_panel_open( __( 'Bing', 'signal-and-noise-tools' ) );
+		echo '<p>' . esc_html( $why ) . '</p>';
+		snt_an_panel_close();
 		return;
 	}
 
@@ -67,12 +74,14 @@ function snt_analytics_render_search_bing() {
 		) );
 	}
 	echo '<p class="description">' . esc_html__( 'Bing counts impressions and clicks across web, chat, news, images and video. Traffic updates daily, query positions weekly; the window ends on the newest day Bing reports. Copilot and the engines that read Bing\'s index sit behind these numbers, which is why they are here beside Google\'s.', 'signal-and-noise-tools' ) . '</p>';
-	snt_an_panel_close();
-
+	// 16.2.3: the queries live INSIDE the Bing panel (one band, one panel),
+	// clamped at ten like every other table in this view.
 	snt_gsc_render_metrics_table(
 		__( 'Top Bing queries', 'signal-and-noise-tools' ),
 		__( 'Query', 'signal-and-noise-tools' ),
 		array_slice( (array) $data['queries'], 0, 25 ),
-		__( 'No queries in this window.', 'signal-and-noise-tools' )
+		__( 'No queries in this window.', 'signal-and-noise-tools' ),
+		true
 	);
+	snt_an_panel_close();
 }

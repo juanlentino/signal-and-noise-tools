@@ -40,6 +40,13 @@ function snt_an_flush_empty_fold() {
 }
 function snt_an_panel_open( $title, $args = array() ) { echo '<div class="postbox"><h2>' . esc_html( $title ) . '</h2><div class="inside">'; }
 function snt_an_panel_close() { echo '</div></div>'; }
+// 16.2.3: the row clamp, as markers carrying the total and the visible count.
+function snt_an_clamp_open( $total, $visible = 5 ) { echo '<div class="sn-an-clamp" data-total="' . (int) $total . '" data-visible="' . (int) $visible . '">'; }
+function snt_an_clamp_close( $total, $visible = 5 ) { echo ( (int) $total > (int) $visible ? '<button class="sn-an-viewall">View all ' . (int) $total . '</button>' : '' ) . '</div>'; }
+// 16.2.3: the Bing band, from its own file.
+$GLOBALS['__bing'] = null;
+function sn_bing_is_ready() { return null !== $GLOBALS['__bing']; }
+function sn_bing_data() { return is_array( $GLOBALS['__bing'] ) ? $GLOBALS['__bing'] : null; }
 
 // v13.82.0: the side-by-side row. Stubbed as real markers so assertions can read
 // WHICH panels fell inside the row, not merely that a wrapper was emitted.
@@ -67,6 +74,7 @@ function snt_gsc_coverage_data() { return $GLOBALS['__coverage']; }
 function snt_gsc_coverage_summary( $d, $inbound = null ) { return is_array( $d ) ? $d : null; }
 
 require __DIR__ . '/../inc/analytics-view-search.php';
+require __DIR__ . '/../inc/analytics-view-search-bing.php';
 
 function render() {
 	$GLOBALS['__fold'] = array();
@@ -198,7 +206,8 @@ $GLOBALS['__data'] = array(
 	'pages' => array( '/notes/where-ai-actually-saves-time-in-record-production' => array( 'clicks' => 0, 'impressions' => 3, 'ctr' => 0, 'position' => 6.3 ) ),
 );
 $GLOBALS['__totals'] = array( 'clicks' => 3, 'impressions' => 233, 'days' => 28, 'capped' => false );
-$GLOBALS['__topic']  = array( array( 'topic' => 'stamps', 'notes' => 2, 'impressions' => 0, 'clicks' => 0, 'position' => null ) );
+// 16.2.3: the fixture takes the renderer's real shape ({clusters, outside}); the old list shape warned six times a run and rendered an empty table.
+$GLOBALS['__topic']  = array( 'clusters' => array( array( 'label' => 'stamps', 'members' => 2, 'impressions' => 0, 'clicks' => 0, 'position' => null ) ), 'outside' => array( 'impressions' => 0, 'clicks' => 0, 'paths' => 0 ) );
 $out = render();
 
 $open  = strpos( $out, '<div class="sn-an-cols">' );
@@ -222,6 +231,22 @@ $open  = strpos( $out, '<div class="sn-an-cols">' );
 $close = strpos( $out, '</div><!--/cols-->' );
 ok( false !== $open && false !== $close, 'the row still renders with only one member' );
 ok( false === strpos( $out, 'Search interest by topic</h2>' ), 'and the absent panel emits no heading' );
+
+echo "\nGroup: two bands, one engine each; long tables clamp at ten (16.2.3)\n";
+$GLOBALS['__topic'] = null;
+$GLOBALS['__bing'] = array( 'synced_at' => time() - 600, 'site' => 'https://x.test/', 'window' => array( 'start' => '2026-08-20', 'end' => '2026-09-16', 'days' => 28 ), 'totals' => array( 'clicks' => 1, 'impressions' => 40, 'days' => 28 ), 'daily' => array(), 'queries' => array( array( 'key' => 'juan lentino', 'clicks' => 1, 'impressions' => 40, 'ctr' => 0.025, 'position' => 4.0 ) ), 'last_error' => '' );
+$out  = render();
+$bing = strpos( $out, '<h2>Bing</h2>' );
+ok( false !== $bing && $bing > strrpos( $out, 'Pages by impressions' ) && ( false === strpos( $out, 'sn-an-empty-fold' ) || $bing > strpos( $out, 'sn-an-empty-fold' ) ), 'Bing is the LAST band: after every Google panel and after Google\'s empty fold' );
+$bing_panel = substr( $out, $bing );
+ok( false !== strpos( $bing_panel, 'sn-an-subhead">Top Bing queries' ) && false !== strpos( $bing_panel, 'juan lentino' ) && 0 === substr_count( $bing_panel, '<div class="postbox">' ), 'the Bing queries table sits INSIDE the Bing panel as a subhead, not a second panel' );
+ok( substr_count( $out, 'data-visible="10"' ) >= 3, 'every metrics table carries the ten-row clamp' );
+$GLOBALS['__bing'] = array( 'synced_at' => 0, 'last_error' => '2026-09-18T03:00:00+00:00 GetQueryStats: http-500' );
+$out = render();
+ok( false !== strpos( $out, '<h2>Bing</h2>' ) && false !== strpos( $out, 'The last sync failed: 2026-09-18T03:00:00+00:00 GetQueryStats: http-500' ), 'a failed sync is a VISIBLE panel naming the error, never a note collected after the fold has flushed' );
+$GLOBALS['__bing'] = null;
+$out = render();
+ok( false !== strpos( $out, 'No Bing Webmaster API key yet' ), 'no key: a visible panel naming the next step' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail === 0 ? 0 : 1 );
