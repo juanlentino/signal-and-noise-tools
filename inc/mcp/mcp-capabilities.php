@@ -361,6 +361,8 @@ function sn_mcp_rw_allowlist() {
 		// idempotency) on TOP of this door's existing hardening — see
 		// inc/abilities-sn-apply.php.
 		'signal-noise/sn-apply',
+		// 16.3.3 — one bounded pass over the notes through TypeSafe, idempotent, a fifth of a cent; the rw envelope is the right one.
+		'signal-noise/jev-pass-now',
 		// Theme (signal-and-noise/) — 5, all AI-billed + return-only.
 	);
 

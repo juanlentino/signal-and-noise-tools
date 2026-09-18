@@ -42,31 +42,59 @@ function sn_jev_note_questions() {
 	return array(
 		'title_query'      => array(
 			'type'         => 'score',
-			'instructions' => 'Read search_title as the title tag a search engine shows for an article about the subject in description and opening. Rate how closely search_title matches what a person would type into a search engine to find that article.',
+			'instructions' => array(
+				'question' => 'Rate `query_part` as the words a person would type into a search engine to find this article. The article\'s subject is described by `description`.',
+				'note'     => 'Judge `query_part` only. `title` is the article\'s heading and is not being rated; `search_title` is shown for context.',
+			),
 			'criteria'     => array(
-				'search_title is an aphorism, slogan or wordplay; a person looking for an article on this subject would not type these words',
-				'search_title names the subject in plain words, but a person searching would phrase the need differently or with different key terms',
-				'search_title reads like what a person would type into a search engine to find exactly this article: the subject in the words a searcher uses',
+				array(
+					'summary' => '`query_part` is a slogan, an aphorism or wordplay; nobody looking for this subject would type it',
+					'signals' => array( 'A metaphor or a turn of phrase', 'Names no subject a searcher has a word for', 'Reads like a headline meant to intrigue' ),
+				),
+				array(
+					'summary' => '`query_part` names the subject in plain words, but a searcher would phrase the need differently or use other key terms',
+					'signals' => array( 'The topic is clear but the wording is the author\'s, not a searcher\'s', 'Missing the term a person would actually search (a product, a standard, a practice)' ),
+				),
+				array(
+					'summary' => '`query_part` is close to what a person would type to find exactly this article',
+					'signals' => array( 'Plain nouns a searcher uses', 'Names the subject and the angle', 'Could be pasted into a search box as is' ),
+				),
 			),
 		),
 		'description_says' => array(
 			'type'         => 'score',
-			'instructions' => 'Rate description as the summary a search result shows under the title.',
+			'instructions' => array(
+				'question' => 'Rate `description` as the summary a search result shows under the title.',
+				'note'     => 'A description that only names the topic is level two; a description that states what the article argues or concludes is level three.',
+			),
 			'criteria'     => array(
-				'description is missing, a fragment, or repeats the title without adding what the article says',
-				'description says what the article is about but not what it argues or concludes',
-				'description states the subject and the argument in one or two complete sentences a reader could act on',
+				array(
+					'summary' => '`description` is missing, a fragment, or repeats `title` without adding what the article says',
+					'signals' => array( 'Empty', 'Under a full sentence', 'The same words as the title' ),
+				),
+				array(
+					'summary' => '`description` says what the article is about but not what it argues',
+					'signals' => array( 'Names the topic', 'No claim, no conclusion, no position', 'Could describe several different articles on the topic' ),
+				),
+				array(
+					'summary' => '`description` states the subject and the argument in one or two complete sentences',
+					'signals' => array( 'A claim a reader could agree or disagree with', 'A conclusion or a distinction', 'Could describe only this article' ),
+				),
 			),
 		),
 		'opening_names'    => array(
 			'type'         => 'noul',
-			'instructions' => 'Do the first two sentences of opening name the subject a reader would have searched for, in plain words, rather than opening with an anecdote, a question or a metaphor?',
+			'instructions' => 'Do the first two sentences of `opening` name the subject a reader would have searched for?',
+			'criteria'     => array(
+				'true'  => array( 'what' => 'The subject is named in plain words within the first two sentences.', 'examples' => array( 'Provenance records do not survive lossy encoding, and this note explains why.' ) ),
+				'false' => array( 'what' => 'The opening starts with an anecdote, a question, a metaphor or a scene, and the subject is not named in them.', 'examples' => array( 'It was 3 a.m. when the engineer noticed the file had changed.' ) ),
+			),
 		),
 	);
 }
 
 /**
- * A note's state: four short fields. PURE given the post and its meta.
+ * A note's state: five short fields. PURE given the post and its meta.
  *
  * @since 16.3.0
  */
@@ -85,12 +113,41 @@ function sn_jev_note_state( $post ) {
 	} else {
 		$opening = substr( $opening, 0, SN_JEV_OPENING_MAX );
 	}
+	$search = '' !== $seo ? $seo : $title;
 	return array(
 		'title'        => $title,
-		'search_title' => '' !== $seo ? $seo : $title,
+		'search_title' => $search,
+		// 16.3.3: the half Jev is asked to rate. "Aphorism: plain words" carries
+		// the aphorism in front, and the first pass read the compound
+		// literally (0.5 on 45 of 69 titles, sure on none); the rubric's
+		// level zero names an aphorism, so it hedged. The query is the part
+		// after the colon when the front matches the title; else the whole.
+		'query_part'   => sn_jev_query_part( $search, $title ),
 		'description'  => $desc,
 		'opening'      => $opening,
 	);
+}
+
+/**
+ * The query half of a search title. PURE. "Aphorism: plain words" whose
+ * front is the note's own title yields "plain words"; anything else is
+ * returned whole.
+ *
+ * @since 16.3.3
+ */
+function sn_jev_query_part( $search_title, $title ) {
+	$search_title = trim( (string) $search_title );
+	$title        = trim( (string) $title );
+	$at           = strpos( $search_title, ': ' );
+	if ( false === $at ) {
+		return $search_title;
+	}
+	$norm = static function ( $t ) {
+		return strtolower( preg_replace( '/\s+/', ' ', trim( $t, " \t\n\r\0\x0B:.?!" ) ) );
+	};
+	$front = substr( $search_title, 0, $at );
+	$rest  = trim( substr( $search_title, $at + 2 ) );
+	return ( '' !== $rest && $norm( $front ) === $norm( $title ) ) ? $rest : $search_title;
 }
 
 /**

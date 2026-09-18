@@ -80,3 +80,40 @@ add_action( 'wp_abilities_api_init', function () {
 		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
 	) );
 } );
+
+/**
+ * 16.3.3: `signal-noise/jev-pass-now`, WRITE: runs the daily pass now and
+ * returns its counts. One bounded pass (one request per note, the refused-key
+ * stop, the last-good-verdict rule) behind the rw door's envelope, so a
+ * rubric change is read in minutes, not a day.
+ */
+function snt_ability_jev_pass_now( $input = array() ) {
+	if ( ! function_exists( 'sn_jev_sync' ) ) {
+		return array( 'ok' => false, 'error' => 'unavailable' );
+	}
+	$r = sn_jev_sync();
+	$d = function_exists( 'sn_jev_data' ) ? sn_jev_data() : null;
+	return array(
+		'ok'     => (bool) $r['ok'],
+		'judged' => (int) $r['judged'],
+		'failed' => (int) $r['failed'],
+		'error'  => (string) $r['error'],
+		'usage'  => is_array( $d ) ? ( $d['usage'] ?? null ) : null,
+	);
+}
+
+add_action( 'wp_abilities_api_init', function () {
+	if ( ! function_exists( 'wp_register_ability' ) ) {
+		return;
+	}
+	wp_register_ability( 'signal-noise/jev-pass-now', array(
+		'label'               => 'Run the Jev pass now',
+		'description'         => 'Runs the daily Jev pass over every published and scheduled note now (one request per note, a refused key stops after one, a failed request keeps the note\'s previous verdict) and returns judged, failed and the pass\'s usage. Idempotent: the same notes produce the same stored verdicts; the cost is a fifth of a cent.',
+		'category'            => 'maintenance',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_jev_pass_now',
+		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ), 'usage' => array( 'type' => array( 'object', 'null' ) ) ) ),
+		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
+	) );
+} );
