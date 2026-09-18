@@ -91,7 +91,7 @@ function sn_admin_render_zenodo_section() {
 		echo '<table class="widefat striped sn-status-table sn-status-table--full"><thead><tr><th>Document</th><th>Kind</th><th>State</th><th>DOI</th><th>Deposited</th></tr></thead><tbody>';
 		foreach ( $d['rows'] as $r ) {
 			$doi = '' !== $r['doi'] ? ( 'minted' === $r['state'] ? '<a href="https://doi.org/' . esc_attr( $r['doi'] ) . '" target="_blank" rel="noopener"><code>' . esc_html( $r['doi'] ) . '</code></a>' : '<code>' . esc_html( $r['doi'] ) . '</code>' ) : '&mdash;';
-			echo '<tr><td><a href="' . esc_url( admin_url( 'post.php?post=' . (int) $r['id'] . '&action=edit' ) ) . '">' . esc_html( $r['title'] ) . '</a></td><td>' . esc_html( $r['kind'] ) . '</td><td>' . esc_html( sn_zenodo_state_label( $r['state'] ) ) . ( '' !== $r['error'] ? '<br><code>' . esc_html( $r['error'] ) . '</code>' : '' ) . '</td><td>' . $doi . '</td><td>' . ( '' !== $r['at'] ? esc_html( $r['at'] ) : '&mdash;' ) . '</td></tr>';
+			echo '<tr><td><a href="' . esc_url( admin_url( 'post.php?post=' . (int) $r['id'] . '&action=edit' ) ) . '">' . esc_html( $r['title'] ) . '</a></td><td>' . esc_html( $r['kind'] ) . '</td><td>' . esc_html( sn_zenodo_state_label( $r['state'] ) ) . ( '' !== $r['error'] ? '<br><code>' . esc_html( $r['error'] ) . '</code>' : '' ) . '</td><td>' . wp_kses_post( $doi ) . '</td><td>' . ( '' !== $r['at'] ? esc_html( $r['at'] ) : '&mdash;' ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
 	}
