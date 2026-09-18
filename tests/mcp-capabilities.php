@@ -33,7 +33,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 echo "MCP capabilities — plugin v9.22.0\n\n";
 
 $list = sn_mcp_allowlist();
-ok( is_array( $list ) && count( $list ) === 40, 'read-door allowlist has exactly 40 slugs (16.4.0 ADDED jev-lanes; 16.3.0 ADDED jev-notes, the stored Jev pass; 16.2.0 ADDED bing-search-performance, the Bing twin; 15.11.0 ADDED zenodo-status, the DOI ledger; 15.2.0 ADDED keyring-status, sources and verdicts, never a value; v14.9.0 ADDED cloudflare-status, the monitor: token, zone, firewall; v14.6.1 ADDED posts-signals, the Posts tab as data so the three flags are read, not re-derived; v13.92.0 ADDED cache-freshness, the verdict six releases were verified by asking a human to read a widget; v13.90.0 ADDED watches, the agent reader beside the morning brief; v13.88.0 ADDED shape-stability, the first reader the shape ledger has had; v13.86.0 ADDED purge-verification-log, the rows behind the five aggregate numbers both cache widgets render; v13.76.0 ADDED reader-anomalies, the first ML consumer in the machine-reader subsystem; v13.68.0 ADDED inbound-pass; v13.63.0 ADDED search-coverage; v13.62.0 ADDED family-drift; v13.57.0 ADDED search-performance/search-drift/search-crossexam, the weave Phase 1 sources; v13.45.0 ADDED draft-echoes, a single with no consolidated home and no prior verdict; v13.1.0 ADDED sn-status + sn-metrics, the sectioned-batch coherence readouts, new-alongside-old; v13.0.0 wave 2 retired 5: pattern-adoption-scan to sn-scan, list-posts + get-post-content to sn-posts, and the get-insights/get-narration pair; v12.11.0 had ADDED login-defense-ipv6-criterion; wave 1 (v12.0.0) retired 15)' );
+ok( is_array( $list ) && count( $list ) === 41, 'read-door allowlist has exactly 41 slugs (16.5.0 ADDED jev-query-fit; 16.4.0 ADDED jev-lanes; 16.3.0 ADDED jev-notes, the stored Jev pass; 16.2.0 ADDED bing-search-performance, the Bing twin; 15.11.0 ADDED zenodo-status, the DOI ledger; 15.2.0 ADDED keyring-status, sources and verdicts, never a value; v14.9.0 ADDED cloudflare-status, the monitor: token, zone, firewall; v14.6.1 ADDED posts-signals, the Posts tab as data so the three flags are read, not re-derived; v13.92.0 ADDED cache-freshness, the verdict six releases were verified by asking a human to read a widget; v13.90.0 ADDED watches, the agent reader beside the morning brief; v13.88.0 ADDED shape-stability, the first reader the shape ledger has had; v13.86.0 ADDED purge-verification-log, the rows behind the five aggregate numbers both cache widgets render; v13.76.0 ADDED reader-anomalies, the first ML consumer in the machine-reader subsystem; v13.68.0 ADDED inbound-pass; v13.63.0 ADDED search-coverage; v13.62.0 ADDED family-drift; v13.57.0 ADDED search-performance/search-drift/search-crossexam, the weave Phase 1 sources; v13.45.0 ADDED draft-echoes, a single with no consolidated home and no prior verdict; v13.1.0 ADDED sn-status + sn-metrics, the sectioned-batch coherence readouts, new-alongside-old; v13.0.0 wave 2 retired 5: pattern-adoption-scan to sn-scan, list-posts + get-post-content to sn-posts, and the get-insights/get-narration pair; v12.11.0 had ADDED login-defense-ipv6-criterion; wave 1 (v12.0.0) retired 15)' );
 ok( in_array( 'signal-noise/sn-validate', $list, true ), 'v10.30.0: sn-validate is allowlisted on the read door' );
 ok( in_array( 'signal-noise/ai-cache-probe-status', $list, true ), 'v10.69.0: ai-cache-probe-status is allowlisted on the read door — registering the ability alone would leave it invisible to MCP' );
 ok( in_array( 'signal-noise/topic-clusters', $list, true ), 'v10.21.0: topic-clusters is allowlisted on the read door' );
@@ -97,6 +97,7 @@ $v9820_read_slugs = array(
 	'signal-noise/bing-search-performance', // 16.2.0: the Bing reading, same tier
 	'signal-noise/jev-notes', // 16.3.0: the stored Jev pass, same tier
 	'signal-noise/jev-lanes', // 16.4.0: the stored lane map
+	'signal-noise/jev-query-fit', // 16.5.0: the stored fit pass
 );
 foreach ( $v9820_read_slugs as $slug ) {
 	ok( in_array( $slug, $list, true ), "v9.82.0 new read-door slug present: $slug" );
@@ -116,7 +117,7 @@ foreach ( array( 'signal-noise/keyword-candidates' ) as $slug ) {
 // still-correct count.
 $read_plugin = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-noise/' ) === 0; } );
 $read_theme  = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-and-noise/' ) === 0; } );
-ok( count( $read_plugin ) === 40, 'read door carries exactly 40 plugin slugs (-> 40 in 16.4.0: jev-lanes; -> 39 in 16.3.0: jev-notes; -> 38 in 16.2.0: bing-search-performance; -> 37 in 15.11.0: zenodo-status; -> 36 in 15.2.0: keyring-status; -> 35 in v14.9.0: cloudflare-status; -> 34 in v14.6.1: posts-signals; -> 33 in v13.92.0: cache-freshness; -> 32 in v13.90.0: watches; -> 31 in v13.88.0: shape-stability; -> 30 in v13.86.0: purge-verification-log; -> 29 in v13.76.0: reader-anomalies; -> 28 in v13.68.0: inbound-pass; -> 27 in v13.63.0: search-coverage; -> 26 in v13.62.0: family-drift; -> 25 in v13.57.0: three search-console reads added; -> 22 in v13.45.0: draft-echoes added; -> 21 in v13.1.0: sn-status + sn-metrics added; -> 19 in v13.0.0 wave 2; -> 24 in v12.11.0; 23 in v11.34.0; was 28 before wave 1, plugin-namespace)' );
+ok( count( $read_plugin ) === 41, 'read door carries exactly 41 plugin slugs (-> 41 in 16.5.0: jev-query-fit; -> 40 in 16.4.0: jev-lanes; -> 39 in 16.3.0: jev-notes; -> 38 in 16.2.0: bing-search-performance; -> 37 in 15.11.0: zenodo-status; -> 36 in 15.2.0: keyring-status; -> 35 in v14.9.0: cloudflare-status; -> 34 in v14.6.1: posts-signals; -> 33 in v13.92.0: cache-freshness; -> 32 in v13.90.0: watches; -> 31 in v13.88.0: shape-stability; -> 30 in v13.86.0: purge-verification-log; -> 29 in v13.76.0: reader-anomalies; -> 28 in v13.68.0: inbound-pass; -> 27 in v13.63.0: search-coverage; -> 26 in v13.62.0: family-drift; -> 25 in v13.57.0: three search-console reads added; -> 22 in v13.45.0: draft-echoes added; -> 21 in v13.1.0: sn-status + sn-metrics added; -> 19 in v13.0.0 wave 2; -> 24 in v12.11.0; 23 in v11.34.0; was 28 before wave 1, plugin-namespace)' );
 ok( count( $read_theme ) === 0, 'read door carries ZERO theme slugs (v11.34.0 — sn-site-facts DISPATCHES to them and is itself a plugin-namespace slug)' );
 ok( count( array_unique( $list ) ) === count( $list ), 'read allowlist has no duplicate slugs' );
 
@@ -136,7 +137,7 @@ ok( sn_mcp_negotiate_version( '1999-01-01' ) === SN_MCP_PROTOCOL_VERSION, 'negot
 echo "\nMCP rw-door allowlist (v9.50.0)\n\n";
 
 $rw = sn_mcp_rw_allowlist();
-ok( is_array( $rw ) && count( $rw ) === 11, 'rw allowlist is exactly 11 slugs (16.4.0 + jev-collision-check + jev-lane-map; 16.3.3 + jev-pass-now, the on-demand Jev pass; v13.25.0 WIDENED by 2, owner-directed: the tag-vocabulary pair describe-tags + apply-tag-description beside prune-unused-tags; v13.0.0 wave 2 had retired 4, wave 1 (v12.0.0) 26)' );
+ok( is_array( $rw ) && count( $rw ) === 12, 'rw allowlist is exactly 12 slugs (16.5.0 + jev-fit-now; 16.4.0 + jev-collision-check + jev-lane-map; 16.3.3 + jev-pass-now, the on-demand Jev pass; v13.25.0 WIDENED by 2, owner-directed: the tag-vocabulary pair describe-tags + apply-tag-description beside prune-unused-tags; v13.0.0 wave 2 had retired 4, wave 1 (v12.0.0) 26)' );
 
 // --- exact membership: the 8 plugin slugs, pinned individually ---
 // v13.0.0: down to sn-apply, the deliberately-kept AI link pair (see the KEPT
@@ -155,8 +156,9 @@ $rw_plugin = array(
 	'signal-noise/jev-pass-now',
 	'signal-noise/jev-collision-check',
 	'signal-noise/jev-lane-map',
+	'signal-noise/jev-fit-now',
 );
-ok( count( $rw_plugin ) === 11, 'sanity: the pinned plugin rw list itself is 11 (16.4.0)' );
+ok( count( $rw_plugin ) === 12, 'sanity: the pinned plugin rw list itself is 12 (16.5.0)' );
 foreach ( $rw_plugin as $slug ) {
 	ok( in_array( $slug, $rw, true ), "rw-door plugin slug present: $slug" );
 }

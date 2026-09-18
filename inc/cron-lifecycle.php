@@ -55,6 +55,7 @@ function sn_cron_hooks() {
 		SN_ZENODO_PASS_HOOK,
 		SN_BING_SYNC_HOOK,
 		SN_JEV_SYNC_HOOK,
+		SN_JEV_FIT_HOOK, // 16.5.0: weekly query-to-page fit.
 		'snt_deploy_workers_warm',
 		// Single events, some with arguments.
 		SNT_DEPLOY_HISTORY_PURGE_HOOK,
