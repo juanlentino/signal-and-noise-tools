@@ -38,14 +38,27 @@ function snt_gsc_fmt_position( $p ) {
  * @param array  $rows      Each ['key','clicks','impressions','ctr','position'].
  * @param string $empty
  */
-function snt_gsc_render_metrics_table( $title, $key_label, $rows, $empty ) {
+function snt_gsc_render_metrics_table( $title, $key_label, $rows, $empty, $in_panel = false ) {
 	// The shared panel helper, not hand-rolled markup: it owns .postbox +
 	// .sn-an-postbox and the header shape every other view already uses.
+	// 16.2.3: $in_panel renders the table inside a panel the caller has open
+	// (the Bing band is one panel); rows past ten sit behind the house
+	// "View all N" clamp, so a 25-row table costs ten rows of scroll.
 	if ( empty( $rows ) ) {
-		snt_an_note_empty( $title, $empty );
+		if ( $in_panel ) {
+			echo '<p class="description">' . esc_html( $empty ) . '</p>';
+		} else {
+			snt_an_note_empty( $title, $empty );
+		}
 		return;
 	}
-	snt_an_panel_open( $title, array( 'inside_class' => 'inside sn-an-table-inside' ) );
+	if ( ! $in_panel ) {
+		snt_an_panel_open( $title, array( 'inside_class' => 'inside sn-an-table-inside' ) );
+	} else {
+		echo '<h3 class="sn-an-subhead">' . esc_html( $title ) . '</h3>';
+	}
+	$rows = array_values( (array) $rows );
+	snt_an_clamp_open( count( $rows ), 10 );
 	echo '<div class="snt-scroll-table"><table class="widefat striped"><thead><tr>';
 	echo '<th scope="col">' . esc_html( $key_label ) . '</th>';
 	echo '<th scope="col" class="snt-col-20">' . esc_html__( 'Clicks', 'signal-and-noise-tools' ) . '</th>';
@@ -63,7 +76,10 @@ function snt_gsc_render_metrics_table( $title, $key_label, $rows, $empty ) {
 		echo '</tr>';
 	}
 	echo '</tbody></table></div>';
-	snt_an_panel_close();
+	snt_an_clamp_close( count( $rows ), 10 );
+	if ( ! $in_panel ) {
+		snt_an_panel_close();
+	}
 }
 
 /**
@@ -295,11 +311,6 @@ function snt_analytics_render_view_search() {
 		__( 'No pages in this window.', 'signal-and-noise-tools' )
 	);
 
-	// 16.2.0: Bing, from the daily Bing Webmaster sync, in the same shape.
-	if ( function_exists( 'snt_analytics_render_search_bing' ) ) {
-		snt_analytics_render_search_bing();
-	}
-
 	// R6b: the cross-exam. Placed AFTER the tables because it is a check ON
 	// them, not another table — and it is skipped silently when the ledger
 	// module or sensor is unavailable, since "could not ask" is not a finding.
@@ -423,4 +434,11 @@ function snt_analytics_render_view_search() {
 	// flushes its own fold. Omitting this renders nothing AND leaks these notes
 	// into whichever view flushes next.
 	snt_an_flush_empty_fold();
+
+	// 16.2.3: Bing is the second band, after every Google panel and after
+	// Google's empty fold, so each engine's story reads unbroken. One panel:
+	// window, KPIs, queries.
+	if ( function_exists( 'snt_analytics_render_search_bing' ) ) {
+		snt_analytics_render_search_bing();
+	}
 }
