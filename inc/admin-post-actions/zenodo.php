@@ -16,6 +16,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 function sn_handle_zenodo_env_save( $post ) {
 	$env = ( isset( $post['zenodo_env'] ) && 'production' === (string) $post['zenodo_env'] ) ? 'production' : 'sandbox';
 	update_option( SN_ZENODO_ENV_OPT, $env );
+	// 16.1.1: the ledger's concept DOI rides the same form. A non-DOI paste
+	// clears the option rather than storing a string the API would reject.
+	update_option( SN_ZENODO_LEDGER_DOI_OPT, sn_zenodo_normalize_doi( wp_unslash( (string) ( $post['zenodo_ledger_doi'] ?? '' ) ) ) );
 	return 'zenodo_env_saved';
 }
 

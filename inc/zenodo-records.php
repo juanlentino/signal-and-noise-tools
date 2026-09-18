@@ -42,7 +42,7 @@ function sn_zenodo_is_enabled() {
  * @param array $doc {
  *   title, description, url, date (YYYY-MM-DD), keywords (string[]),
  *   version (int), pillar_url (string|''), pubkey_id (string),
- *   bitcoin_block (int|null), verify_url (string)
+ *   bitcoin_block (int|null), verify_url (string), ledger_doi (string|'')
  * }
  * @return array
  */
@@ -55,6 +55,11 @@ function sn_zenodo_metadata_for( array $doc ) {
 	}
 	if ( '' !== (string) ( $doc['pillar_url'] ?? '' ) ) {
 		$related[] = array( 'identifier' => (string) $doc['pillar_url'], 'relation' => 'isPartOf', 'resource_type' => 'publication-other' );
+	}
+	if ( '' !== (string) ( $doc['ledger_doi'] ?? '' ) ) {
+		// 16.1.1: the ledger itself has a concept DOI (a monthly snapshot
+		// release on the ledger repository); every document is part of it.
+		$related[] = array( 'identifier' => (string) $doc['ledger_doi'], 'relation' => 'isPartOf', 'resource_type' => 'dataset' );
 	}
 	$block = isset( $doc['bitcoin_block'] ) && (int) $doc['bitcoin_block'] > 0 ? (int) $doc['bitcoin_block'] : 0;
 	$notes = sprintf(
@@ -159,6 +164,7 @@ function sn_zenodo_document( $post_id, array $commit ) {
 		'pubkey_id'     => (string) ( $commit['pubkey_id'] ?? '' ),
 		'bitcoin_block' => isset( $commit['bitcoin_block'] ) ? (int) $commit['bitcoin_block'] : null,
 		'verify_url'    => home_url( '/verify' ),
+		'ledger_doi'    => sn_zenodo_ledger_doi(),
 	);
 }
 

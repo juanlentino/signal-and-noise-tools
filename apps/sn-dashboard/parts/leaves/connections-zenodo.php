@@ -37,9 +37,19 @@ function zenodo_main_html( array $d ) {
 			'help'    => __( 'Each environment reads its own token from Credentials.', 'signal-and-noise-tools' ),
 		)
 	);
+	$doi_field = \snt_kit_field(
+		'text',
+		'zenodo_ledger_doi',
+		__( 'Ledger concept DOI', 'signal-and-noise-tools' ),
+		(string) ( $d['ledger'] ?? '' ),
+		array(
+			'placeholder' => '10.5281/zenodo.NNNNNNN',
+			'help'        => __( 'The DOI Zenodo minted for the ledger repository (the concept DOI). Every deposit names it as the record it is part of. Empty until the first snapshot release.', 'signal-and-noise-tools' ),
+		)
+	);
 	$env = \snt_kit_section(
 		__( 'Environment', 'signal-and-noise-tools' ),
-		\snt_kit_form( 'zenodo_env_save', $env_field, array( 'submit' => __( 'Save environment', 'signal-and-noise-tools' ), 'hidden' => array( 'tab' => 'connections', 'sub' => 'zenodo' ) ) )
+		\snt_kit_form( 'zenodo_env_save', $env_field . $doi_field, array( 'submit' => __( 'Save environment', 'signal-and-noise-tools' ), 'hidden' => array( 'tab' => 'connections', 'sub' => 'zenodo' ) ) )
 	);
 	$deposit = \snt_kit_section(
 		__( 'Deposit', 'signal-and-noise-tools' ),

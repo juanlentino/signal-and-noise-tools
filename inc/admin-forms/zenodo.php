@@ -27,6 +27,7 @@ function sn_zenodo_leaf_data() {
 	}
 	return array(
 		'env'     => function_exists( 'sn_zenodo_env' ) ? sn_zenodo_env() : 'sandbox',
+		'ledger'  => function_exists( 'sn_zenodo_ledger_doi' ) ? sn_zenodo_ledger_doi() : '',
 		'enabled' => function_exists( 'sn_zenodo_is_enabled' ) && sn_zenodo_is_enabled(),
 		'rows'    => $rows,
 		'counts'  => $counts,
@@ -76,6 +77,8 @@ function sn_admin_render_zenodo_section() {
 	echo '<h2 class="sn-fieldset-h">Environment</h2>';
 	echo '<div class="sn-field"><label for="sn_zenodo_env">Environment</label><select id="sn_zenodo_env" name="zenodo_env"><option value="sandbox"' . selected( $d['env'], 'sandbox', false ) . '>Sandbox (sandbox.zenodo.org): test DOIs, never public</option><option value="production"' . selected( $d['env'], 'production', false ) . '>Production (zenodo.org)</option></select></div>';
 	echo '<p class="sn-helper">Each environment reads its own token from Connections &rsaquo; Credentials.</p>';
+	echo '<div class="sn-field"><label for="sn_zenodo_ledger_doi">Ledger concept DOI</label><input type="text" id="sn_zenodo_ledger_doi" name="zenodo_ledger_doi" value="' . esc_attr( $d['ledger'] ) . '" placeholder="10.5281/zenodo.NNNNNNN" autocomplete="off"></div>';
+	echo '<p class="sn-helper">The DOI Zenodo minted for the ledger repository\'s monthly snapshot (the concept DOI, which resolves to the latest snapshot). Every deposit names it as the record it is part of. Empty until the first snapshot release.</p>';
 	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">Save environment</button></div></form>';
 
 	echo '<form method="post" class="sn-card sn-card--narrow"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="zenodo">';

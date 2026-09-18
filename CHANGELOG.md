@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Every deposit names the ledger's own DOI.** Zenodo's GitHub integration is on for the ledger repository and a monthly snapshot release mints a concept DOI for the whole ledger (provenance repo #26). The Zenodo leaf's environment form takes that DOI (`sn_zenodo_ledger_doi`, normalized from a pasted `doi.org` URL, refused when it is not a DOI), and `sn_zenodo_metadata_for` adds it to `related_identifiers` as `isPartOf` a dataset, so a note's record points at the ledger it belongs to. Empty until the first snapshot mints. Pinned.
+
 ## [16.1.0] - 2026-09-18 — a note becomes a citable record
 
 ### Added
