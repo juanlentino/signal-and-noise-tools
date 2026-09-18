@@ -391,6 +391,9 @@ require_once SNT_PATH . 'inc/zenodo-client.php';   // 15.11.0: the Zenodo deposi
 require_once SNT_PATH . 'inc/bing-webmaster.php';  // 16.2.0: Bing Webmaster Tools (the key, the daily sync, the stored reading).
 require_once SNT_PATH . 'inc/abilities-bing.php';  // 16.2.0: bing-search-performance.
 require_once SNT_PATH . 'inc/analytics-view-search-bing.php'; // 16.2.0: the Bing panel of S&N Analytics › Search.
+require_once SNT_PATH . 'inc/typesafe-client.php';  // 16.3.0: TypeSafe Jev, one request, pure parser.
+require_once SNT_PATH . 'inc/jev-notes.php';        // 16.3.0: the daily Jev pass over the notes.
+require_once SNT_PATH . 'inc/abilities-jev.php';    // 16.3.0: jev-notes.
 require_once SNT_PATH . 'inc/zenodo-records.php';  // 15.11.0: what a document's record is, the bundle, the deposit flow, the triggers.
 require_once SNT_PATH . 'inc/abilities-zenodo.php'; // 15.11.0: zenodo-status on the read door.
 
@@ -629,6 +632,7 @@ require_once SNT_PATH . 'inc/provenance-integrity.php'; // 13th check (v9.80.0):
 require_once SNT_PATH . 'inc/plugin-registry-probe.php'; // v13.96.6 (#1026): records an empty /wp/v2/plugins served with a 200 - the poisoning is transient and a scheduled check alone would miss it
 require_once SNT_PATH . 'inc/health-check-wp-cron-request-path.php'; // 24th check (v13.97.4): cron still spawned in-request - invisible in cron_disabled_constant, which is a problem flag rather than the constant's value
 require_once SNT_PATH . 'inc/health-check-search-titles.php'; // 28th check (15.9.0): notes whose title tag is the aphorism alone; the Search Console pressure test's gap, kept from reopening.
+require_once SNT_PATH . 'inc/health-check-jev-notes.php'; // 30th check (16.3.0): notes Jev would not search for.
 require_once SNT_PATH . 'inc/health-check-zenodo-doi.php'; // 29th check (15.11.0): confirmed documents without a production DOI.
 require_once SNT_PATH . 'inc/health-check-plugin-registry.php'; // 23rd check (v13.96.6): active_plugins vs get_plugins() - a stale object cache reports "no plugins installed" with a 200
 require_once SNT_PATH . 'inc/health-check-families.php';

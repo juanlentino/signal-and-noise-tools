@@ -92,6 +92,7 @@ function snt_cron_sn_owned_hooks() {
 		// 15.11.0 — Zenodo: the hourly backfill pass (token-gated, see the opt-in map) and the per-document deposit booked by an anchor confirmation.
 		array( 'SN_ZENODO_PASS_HOOK', 'sn_zenodo_backfill_pass' ),
 		array( 'SN_BING_SYNC_HOOK', 'sn_bing_sync_daily' ), // 16.2.0 — daily Bing Webmaster sync.
+		array( 'SN_JEV_SYNC_HOOK', 'sn_jev_notes_daily' ), // 16.3.0 — daily Jev pass over the notes.
 		array( 'SN_ZENODO_HOOK', 'sn_zenodo_deposit_one' ), // 15.11.0 — single event after an anchor confirms; on-demand.
 		// v13.49.0 — NINE more, found by DERIVING the list instead of reading it.
 		// Every one of these is scheduled recurring by this plugin and was absent
@@ -763,6 +764,7 @@ function snt_cron_opt_in_gates() {
 		array( 'SNT_GSC_SYNC_HOOK',             'sn_gsc_sync_daily',         'snt_gsc_sync_is_ready' ),
 		array( 'SN_ZENODO_PASS_HOOK',           'sn_zenodo_backfill_pass',   'sn_zenodo_is_enabled' ),
 		array( 'SN_BING_SYNC_HOOK',             'sn_bing_sync_daily',        'sn_bing_is_ready' ),
+		array( 'SN_JEV_SYNC_HOOK',              'sn_jev_notes_daily',        'sn_jev_is_ready' ),
 		// v13.63.0 — same readiness predicate, weekly.
 		array( 'SNT_GSC_COVERAGE_HOOK',         'sn_gsc_coverage_weekly',    'snt_gsc_sync_is_ready' ),
 	);
