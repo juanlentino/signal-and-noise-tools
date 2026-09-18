@@ -892,6 +892,27 @@ those numbers, which is why they sit beside Google's. The branch rebased
 onto 16.1.3 before it went up, so the CHANGELOG conflict was resolved once,
 by hand, rather than found by the gate.
 
+## A draft belongs to its environment
+
+With 16.1.3 installed and the environment back on sandbox, every row read
+"resume: The persistent identifier does not exist." The five draft ids on
+those posts were production ids; on sandbox they are a 404, and the 16.1.3
+rule forgot them. Right rule, wrong scope: one slot per post, not one per
+environment, so the flip turned five resumable drafts into orphans, fifteen
+now. 16.2.1 keys the slot by environment (production keeps the old name,
+because every id stored before it was a production id) and decodes the
+entities the shell toast had been printing as text. Its gate read DIRTY
+seconds after the session-doc PR landed on main; GitHub's mergeability is
+recomputed lazily and the first read after main moves can be the old
+verdict. `git merge-tree` said zero conflicts, the second read said
+mergeable, the chain restarted.
+
+16.2.0 is released: the Bing key has a row, a probe, a daily sync, a panel
+and an ability. My recommendation for the next Zenodo pass is production,
+not sandbox: the sandbox's "Permission denied" was never explained by
+Zenodo's code, production has proved the create step, and a draft is
+invisible until the flow publishes it.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -954,10 +975,13 @@ by hand, rather than found by the gate.
 - 16.1.2 and 16.1.3 released. After 16.1.3 installs: Deposit the next batch
   on the Zenodo leaf (five drafts resume and publish), then delete the ten
   "No title" orphans on zenodo.org by hand.
-- 16.2.0 (Bing Webmaster) on its chain at the time of writing. After it
-  installs: mint the key at Bing Webmaster Tools › Settings › API access,
-  paste it under Connections › Credentials, Verify all; the first sync runs
-  within ten minutes and the Search view shows Bing.
+- 16.2.0 released. Mint the Bing key at Bing Webmaster Tools › Settings ›
+  API access, paste it under Connections › Credentials, Verify all; the
+  first sync runs within ten minutes and the Search view shows Bing.
+- 16.2.1 (the per-environment draft slot, the toast entities) on its chain
+  at the time of writing. After it installs: environment to production,
+  Deposit the next batch, read the ledger for five 10.5281 DOIs; delete the
+  fifteen orphan drafts on zenodo.org.
 - Bing Webmaster Tools: nothing in the plugin takes its API key yet; IndexNow
   is the only Bing surface. The reading it would buy is the Bing twin of
   `search-performance`, its own arc after the Zenodo steps.
