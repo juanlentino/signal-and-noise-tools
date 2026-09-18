@@ -1025,9 +1025,9 @@ conflicted on merge; one open docs PR at a time from now on.
   wrong environment (the keyring said refused all along); mint one on
   sandbox.zenodo.org if a sandbox run is ever wanted. The fifteen orphan
   drafts on zenodo.org are the owner's to delete.
-- 16.2.1 and 16.2.2 released and installed; 16.2.3 (the Search view in two
-  bands) on its chain at the time of writing. Run Verify all once so the
-  production Zenodo row carries the create-and-delete verdict.
+- 16.2.1, 16.2.2 and 16.2.3 released (16.2.3 at 03:5xZ on the 18th; the
+  Search view reads in two bands once it installs). Run Verify all once so
+  the production Zenodo row carries the create-and-delete verdict.
 - Bing's API holds no daily row after 2026-05-26 for the site. Compare with
   Bing Webmaster Tools › Search Performance; if the UI shows later days the
   API will catch up on its own, if not, submit URLs from Site Explorer.
