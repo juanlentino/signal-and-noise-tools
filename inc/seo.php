@@ -81,9 +81,10 @@ function sn_seo_current_paged() {
  * @return string
  */
 function sn_seo_resolve_singular_title( $post ) {
-	$override = function_exists( 'sn_post_settings_get_seo_title' )
-		? sn_post_settings_get_seo_title( $post->ID )
+	$written  = function_exists( 'sn_post_settings_get_seo_title' )
+		? (string) sn_post_settings_get_seo_title( $post->ID )
 		: '';
+	$override = $written;
 	if ( '' === $override ) {
 		$override = (string) apply_filters( 'sn_seo_singular_title', '', $post );
 	}
@@ -95,8 +96,13 @@ function sn_seo_resolve_singular_title( $post ) {
 	// (which every page emits), and the notes' titles are now "Aphorism:
 	// plain words" (median 84 characters with the suffix, display cut near
 	// 60): the suffix was the part that got cut, and it said nothing the
-	// schema does not. Pages keep the "Page — Site" shape; the 404 too.
-	if ( isset( $post->post_type ) && 'post' === (string) $post->post_type ) {
+	// schema does not.
+	// 16.1.2: neither does an OVERRIDE on any type. A written search title
+	// is the whole title; the pillars' overrides ran 73 to 91 characters
+	// with the suffix and Bing flagged every one (past 70). A page WITHOUT
+	// an override keeps the "Page — Site" shape, and so does a title the
+	// theme's route filter supplies; the 404 too.
+	if ( '' !== $written || ( isset( $post->post_type ) && 'post' === (string) $post->post_type ) ) {
 		return $base;
 	}
 	$site = sn_setting( 'identity.site_name', get_bloginfo( 'name' ) );
@@ -211,6 +217,14 @@ function sn_seo_meta_for_current_view() {
 		$title       = sn_setting( 'seo_copy.home_title', '' );
 		$description = sn_setting( 'seo_copy.home_description', '' );
 		$url         = home_url( '/' );
+	} elseif ( function_exists( 'sn_notes_is_tags_request' ) && sn_notes_is_tags_request() ) {
+		// 16.1.2: the /notes/tags/ glossary is a theme route WordPress sees
+		// as a 404 the theme clears, so it fell through every branch here and
+		// served no canonical and no description (Bing, 2026-09-18). The
+		// theme owns the <title>; this supplies what was missing.
+		$title       = '';
+		$description = sn_seo_tags_glossary_description();
+		$url         = home_url( '/notes/tags/' );
 	} elseif ( is_page( 'notes' ) || is_home() ) {
 		$title       = sn_setting( 'seo_copy.notes_title', '' );
 		$description = sn_setting( 'seo_copy.notes_description', '' );
@@ -276,6 +290,26 @@ function sn_seo_meta_for_current_view() {
 	}
 
 	return array( $title, $description, $url );
+}
+
+/**
+ * The /notes/tags/ glossary's description, from the live tag count. PURE
+ * given the count; the count is every non-empty tag.
+ *
+ * @since 16.1.2
+ * @param int|null $count Injected for tests; null reads the taxonomy.
+ * @return string
+ */
+function sn_seo_tags_glossary_description( $count = null ) {
+	if ( null === $count ) {
+		$count = function_exists( 'wp_count_terms' ) ? wp_count_terms( array( 'taxonomy' => 'post_tag', 'hide_empty' => true ) ) : 0;
+		$count = is_wp_error( $count ) ? 0 : (int) $count;
+	}
+	$count = (int) $count;
+	if ( $count < 1 ) {
+		return 'Every tag on the notes, with what it gathers and how many notes carry it.';
+	}
+	return sprintf( 'The %d tags on the notes, each with what it gathers and how many notes carry it.', $count );
 }
 
 /**
