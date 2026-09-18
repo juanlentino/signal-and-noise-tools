@@ -34,7 +34,7 @@ $suffix = ' — Signal & Noise';
 echo "Group: precedence\n";
 $GLOBALS['__override'] = 'Manual SEO Title';
 $GLOBALS['__filter']   = 'Theme Title';
-ok( 'Manual SEO Title' . $suffix === sn_seo_resolve_singular_title( $post ), 'override wins' );
+ok( 'Manual SEO Title' === sn_seo_resolve_singular_title( $post ), 'override wins (and is the whole title, 16.1.2)' );
 
 $GLOBALS['__override'] = '';
 ok( 'Theme Title' . $suffix === sn_seo_resolve_singular_title( $post ), 'theme fallback wins when no override' );
@@ -42,11 +42,14 @@ ok( 'Theme Title' . $suffix === sn_seo_resolve_singular_title( $post ), 'theme f
 $GLOBALS['__filter'] = '';
 ok( 'Real Page Title' . $suffix === sn_seo_resolve_singular_title( $post ), 'derived title when neither set' );
 
-echo "\nGroup: suffix applied to pages, never to notes (15.9.1)\n";
-$GLOBALS['__override'] = 'X';
-ok( false !== strpos( sn_seo_resolve_singular_title( $post ), $suffix ), 'site-name suffix present with an override (a page)' );
+echo "\nGroup: suffix on a page WITHOUT an override, never on a note, never on an override (15.9.1, 16.1.2)\n";
+$GLOBALS['__override'] = 'Provenance as substrate: cryptographic identity for music';
+ok( 'Provenance as substrate: cryptographic identity for music' === sn_seo_resolve_singular_title( $post ), 'an override is the WHOLE title on any type: no suffix (the pillars ran 73 to 91 with it; Bing flags past 70)' );
 $page = (object) array( 'ID' => 3, 'post_type' => 'page' );
-ok( 'X' . $suffix === sn_seo_resolve_singular_title( $page ), 'a page keeps the "Page — Site" shape' );
+ok( 'Provenance as substrate: cryptographic identity for music' === sn_seo_resolve_singular_title( $page ), 'a page with an override: no suffix either' );
+$GLOBALS['__override'] = '';
+$GLOBALS['__filter']   = '';
+ok( 'Real Page Title' . $suffix === sn_seo_resolve_singular_title( $page ), 'a page WITHOUT an override keeps the "Page — Site" shape' );
 $note = (object) array( 'ID' => 3, 'post_type' => 'post' );
 $GLOBALS['__override'] = 'The pen is not the notary: DAW makers, liability and music provenance';
 ok( 'The pen is not the notary: DAW makers, liability and music provenance' === sn_seo_resolve_singular_title( $note ), 'a NOTE carries no site-name suffix: Google paints the site name from the WebSite schema, and the suffix was the part the display cut' );

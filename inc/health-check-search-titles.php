@@ -71,22 +71,50 @@ function sn_health_search_title_is_shaped( $seo_title, $post_title = '' ) {
 function sn_health_search_titles_judge( $rows ) {
 	$findings = array();
 	foreach ( (array) $rows as $r ) {
-		if ( ! is_array( $r ) || sn_health_search_title_is_shaped( $r['seo_title'] ?? '', $r['post_title'] ?? '' ) ) {
+		if ( ! is_array( $r ) ) {
 			continue;
 		}
-		$has_override = '' !== trim( (string) ( $r['seo_title'] ?? '' ) );
-		$findings[]   = array(
-			'subject_type'  => 'post',
+		$seo     = trim( (string) ( $r['seo_title'] ?? '' ) );
+		$is_page = 'page' === (string) ( $r['post_type'] ?? 'post' );
+		$note    = '';
+		if ( ! $is_page && ! sn_health_search_title_is_shaped( $seo, $r['post_title'] ?? '' ) ) {
+			$note = '' !== $seo
+				? 'The SEO title repeats the aphorism. Keep the aphorism as the H1; make the SEO title the plain words a reader would search, or "Aphorism: plain words".'
+				: 'No SEO title: the title tag is the aphorism alone. Add "Aphorism: plain words a reader would search" in the post\'s Signal & Noise box.';
+		} elseif ( sn_health_search_title_is_long( $seo ) ) {
+			// 16.1.2: a good query with no ceiling. Bing flags a title past
+			// 70 characters and Google shows about 60; 18 pages ran 71 to 91
+			// on 2026-09-18. Pages are judged on length only: a page without
+			// an override is not a finding.
+			$note = sprintf( 'The SEO title runs %d characters; Bing flags past 70 and Google shows about 60. Cut it to %d or fewer, the query kept.', sn_health_search_title_length( $seo ), SN_HEALTH_SEARCH_TITLE_MAX );
+		}
+		if ( '' === $note ) {
+			continue;
+		}
+		$findings[] = array(
+			'subject_type'  => $is_page ? 'page' : 'post',
 			'subject_id'    => (int) ( $r['ID'] ?? 0 ),
 			'subject_url'   => (string) ( $r['permalink'] ?? '' ),
 			'subject_label' => (string) ( $r['post_title'] ?? '' ),
 			'edit_url'      => (string) ( $r['edit_url'] ?? '' ),
-			'note'          => $has_override
-				? 'The SEO title repeats the aphorism. Keep the aphorism as the H1; make the SEO title the plain words a reader would search, or "Aphorism: plain words".'
-				: 'No SEO title: the title tag is the aphorism alone. Add "Aphorism: plain words a reader would search" in the post\'s Signal & Noise box.',
+			'note'          => $note,
 		);
 	}
 	return $findings;
+}
+
+/** 16.1.2: the ceiling. Bing flags past 70, Google shows about 60; 65 keeps both. */
+const SN_HEALTH_SEARCH_TITLE_MAX = 65;
+
+/** Characters as a search engine counts them (multibyte aware). PURE. */
+function sn_health_search_title_length( $seo_title ) {
+	$t = trim( (string) $seo_title );
+	return function_exists( 'mb_strlen' ) ? mb_strlen( $t, 'UTF-8' ) : strlen( $t );
+}
+
+/** PURE. */
+function sn_health_search_title_is_long( $seo_title ) {
+	return sn_health_search_title_length( $seo_title ) > SN_HEALTH_SEARCH_TITLE_MAX;
 }
 
 /**
@@ -103,13 +131,13 @@ function sn_health_search_titles_rows() {
 		return null;
 	}
 	$rows = $wpdb->get_results(
-		"SELECT p.ID, p.post_title, COALESCE( pm.meta_value, '' ) AS seo_title
+		"SELECT p.ID, p.post_title, p.post_type, COALESCE( pm.meta_value, '' ) AS seo_title
 		 FROM {$wpdb->posts} p
 		 LEFT JOIN {$wpdb->postmeta} pm
 		        ON pm.post_id = p.ID
 		       AND pm.meta_key = '_sn_seo_title'
 		 WHERE p.post_status IN ( 'publish', 'future' )
-		   AND p.post_type = 'post'
+		   AND ( p.post_type = 'post' OR ( p.post_type = 'page' AND pm.meta_value IS NOT NULL ) )
 		 ORDER BY p.post_date_gmt DESC
 		 LIMIT 500",
 		ARRAY_A
@@ -134,7 +162,7 @@ function sn_health_search_titles_rows() {
 function sn_health_check_search_titles() {
 	$rows = sn_health_search_titles_rows();
 	return sn_health_pack_check(
-		'Notes without a query-shaped title (published and scheduled)',
+		'Notes without a query-shaped title, or a search title over 65 characters (published and scheduled)',
 		null === $rows ? array() : sn_health_search_titles_judge( $rows ),
 		'The H1 stays the aphorism. Set the SEO title in the post\'s Signal & Noise box as "Aphorism: plain words a reader would search" (the shape the ranking notes already use); it changes only the title tag.',
 		null === $rows ? 'The posts table could not be read.' : null
