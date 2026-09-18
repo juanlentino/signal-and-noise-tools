@@ -441,4 +441,8 @@ function snt_analytics_render_view_search() {
 	if ( function_exists( 'snt_analytics_render_search_bing' ) ) {
 		snt_analytics_render_search_bing();
 	}
+	// 16.5.0: the third band, what Jev reads about the queries Google sends.
+	if ( function_exists( 'snt_analytics_render_search_fit' ) ) {
+		snt_analytics_render_search_fit();
+	}
 }

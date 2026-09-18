@@ -406,6 +406,7 @@ function snt_gsc_query( $property, $dimensions, $window, $row_limit = 250 ) {
 		}
 		$rows[] = array(
 			'key'         => (string) $row['keys'][0],
+			'keys'        => array_map( 'strval', (array) $row['keys'] ), // 16.5.0: every dimension, for two-dimension queries (page × query).
 			'clicks'      => (int) round( (float) ( $row['clicks'] ?? 0 ) ),
 			'impressions' => (int) round( (float) ( $row['impressions'] ?? 0 ) ),
 			'ctr'         => (float) ( $row['ctr'] ?? 0 ),

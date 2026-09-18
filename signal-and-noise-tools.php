@@ -391,9 +391,11 @@ require_once SNT_PATH . 'inc/zenodo-client.php';   // 15.11.0: the Zenodo deposi
 require_once SNT_PATH . 'inc/bing-webmaster.php';  // 16.2.0: Bing Webmaster Tools (the key, the daily sync, the stored reading).
 require_once SNT_PATH . 'inc/abilities-bing.php';  // 16.2.0: bing-search-performance.
 require_once SNT_PATH . 'inc/analytics-view-search-bing.php'; // 16.2.0: the Bing panel of S&N Analytics › Search.
+require_once SNT_PATH . 'inc/analytics-view-search-fit.php';  // 16.5.0: the query-fit band of S&N Analytics › Search.
 require_once SNT_PATH . 'inc/typesafe-client.php';  // 16.3.0: TypeSafe Jev, one request, pure parser.
 require_once SNT_PATH . 'inc/jev-notes.php';        // 16.3.0: the daily Jev pass over the notes.
 require_once SNT_PATH . 'inc/jev-collision.php';    // 16.4.0: the collision gate and the lane map.
+require_once SNT_PATH . 'inc/jev-query-fit.php';    // 16.5.0: query-to-page fit, weekly.
 require_once SNT_PATH . 'inc/abilities-jev.php';    // 16.3.0: jev-notes.
 require_once SNT_PATH . 'inc/zenodo-records.php';  // 15.11.0: what a document's record is, the bundle, the deposit flow, the triggers.
 require_once SNT_PATH . 'inc/abilities-zenodo.php'; // 15.11.0: zenodo-status on the read door.

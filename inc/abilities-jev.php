@@ -184,3 +184,43 @@ add_action( 'wp_abilities_api_init', function () {
 		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
 	) );
 } );
+
+/** 16.5.0: query-to-page fit. `jev-fit-now` (WRITE, rw door) runs the pass; `jev-query-fit` (READ) hands the two lists out. */
+function snt_ability_jev_fit_now( $input = array() ) {
+	return function_exists( 'sn_jev_fit_sync' ) ? sn_jev_fit_sync() : array( 'ok' => false, 'error' => 'unavailable' );
+}
+
+function snt_ability_jev_query_fit( $input = array() ) {
+	$d = function_exists( 'sn_jev_fit_data' ) ? sn_jev_fit_data() : null;
+	if ( null === $d || empty( $d['synced_at'] ) ) {
+		return array( 'ok' => true, 'judged' => false, 'at' => 0, 'gaps' => array(), 'stray' => array(), 'note' => 'No fit pass yet; run jev-fit-now.' );
+	}
+	$r = sn_jev_fit_readings( $d );
+	return array( 'ok' => true, 'judged' => true, 'at' => (int) $d['synced_at'], 'window' => (array) ( $d['window'] ?? array() ), 'notes' => count( (array) $d['notes'] ), 'gaps' => $r['gaps'], 'stray' => $r['stray'], 'input_tokens' => (int) ( $d['usage']['input_tokens'] ?? 0 ), 'error' => (string) ( $d['last_error'] ?? '' ), 'note' => 'gaps: queries with 20+ impressions in the window the note scores under 1 of 2 on (the next note). stray: clicks on a query scored under 0.5 (a title chasing the wrong search).' );
+}
+
+add_action( 'wp_abilities_api_init', function () {
+	if ( ! function_exists( 'wp_register_ability' ) ) {
+		return;
+	}
+	wp_register_ability( 'signal-noise/jev-fit-now', array(
+		'label'               => 'Jev: judge the queries Google sends to each note, now',
+		'description'         => 'One Search Console read (page × query, the 28-day window), then one Jev request per note that has queries with 20 or more impressions (top eight per note), one Score per query: does the note answer it (2), touch it (1), or did the query land on vocabulary (0). Stores the pass; the weekly hook runs the same. About forty requests; a cent at most.',
+		'category'            => 'maintenance',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_jev_fit_now',
+		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'queries' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
+		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
+	) );
+	wp_register_ability( 'signal-noise/jev-query-fit', array(
+		'label'               => 'Jev: the queries each note is seen for and does not answer',
+		'description'         => 'The stored fit pass as two lists. gaps: queries with real impressions the note scores under 1 of 2 on, by impressions; the raw material for the next note. stray: clicks on a query the note scores under 0.5 on; a title chasing the wrong search. Read-only.',
+		'category'            => 'diagnostics',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_jev_query_fit',
+		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'boolean' ), 'at' => array( 'type' => 'integer' ), 'gaps' => array( 'type' => 'array' ), 'stray' => array( 'type' => 'array' ), 'note' => array( 'type' => 'string' ) ) ),
+		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+	) );
+} );
