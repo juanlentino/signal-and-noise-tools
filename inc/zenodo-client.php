@@ -24,6 +24,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** Sandbox switch: an option, so the leaf can flip it. */
 const SN_ZENODO_ENV_OPT = 'sn_zenodo_env';
 
+/** 16.1.1: the ledger's own concept DOI (Zenodo's GitHub integration on the ledger repository), named on every deposit as isPartOf. */
+const SN_ZENODO_LEDGER_DOI_OPT = 'sn_zenodo_ledger_doi';
+
 /** Per-post meta: the minted identifiers and the last error. */
 const SN_ZENODO_DOI_META         = '_sn_zenodo_doi';
 const SN_ZENODO_CONCEPT_DOI_META = '_sn_zenodo_concept_doi';
@@ -42,6 +45,29 @@ const SN_ZENODO_ERROR_META       = '_sn_zenodo_last_error';
 function sn_zenodo_env() {
 	$env = (string) get_option( SN_ZENODO_ENV_OPT, 'sandbox' );
 	return 'production' === $env ? 'production' : 'sandbox';
+}
+
+/**
+ * A DOI as Zenodo wants it in related_identifiers: bare `10.prefix/suffix`,
+ * with a pasted `https://doi.org/` or `doi:` stripped. '' when the value is
+ * not a DOI. PURE.
+ *
+ * @since 16.1.1
+ */
+function sn_zenodo_normalize_doi( $raw ) {
+	$doi = trim( (string) $raw );
+	$doi = (string) preg_replace( '#^(?:https?://(?:dx\.)?doi\.org/|doi:)#i', '', $doi );
+	return preg_match( '#^10\.\d{4,9}/\S+$#', $doi ) ? $doi : '';
+}
+
+/**
+ * The ledger's concept DOI, '' until the owner pastes it (it exists only after
+ * the ledger repository's first snapshot release mints one).
+ *
+ * @since 16.1.1
+ */
+function sn_zenodo_ledger_doi() {
+	return sn_zenodo_normalize_doi( get_option( SN_ZENODO_LEDGER_DOI_OPT, '' ) );
 }
 
 /**
@@ -122,7 +148,10 @@ function sn_zenodo_request( $method, $url, $body = null, $env = null, array $hea
 	);
 	if ( is_array( $body ) ) {
 		$args['headers']['Content-Type'] = 'application/json';
-		$args['body']                    = wp_json_encode( $body );
+		// 16.1.1: an empty PHP array encodes as `[]`, a JSON list. Zenodo's
+		// create step wants `{}` (an object) and answered the list with a
+		// bare 500, "internal error", on every deposit of the first pass.
+		$args['body']                    = wp_json_encode( array() === $body ? new stdClass() : $body );
 	} elseif ( is_string( $body ) ) {
 		$args['headers']['Content-Type'] = isset( $headers['Content-Type'] ) ? $headers['Content-Type'] : 'application/octet-stream';
 		$args['body']                    = $body;

@@ -71,6 +71,18 @@ $m2 = sn_zenodo_metadata_for( array( 'title' => 'Bare', 'url' => '', 'keywords' 
 ok( ! isset( $m2['related_identifiers'] ) && ! isset( $m2['keywords'] ) && 'Bare' === $m2['description'] && 'v1' === $m2['version'], 'no URL and no tags: no related list, no keywords key, description falls back to the title, version v1' );
 ok( false !== strpos( $m2['notes'], 'key unknown' ) && false === strpos( $m2['notes'], 'block' ), 'no key and no block: the notes line says so and names no block' );
 
+echo "\nGroup A2: the ledger's concept DOI (16.1.1)\n";
+ok( '10.5281/zenodo.1234567' === sn_zenodo_normalize_doi( ' https://doi.org/10.5281/zenodo.1234567 ' ) && '10.5281/zenodo.1234567' === sn_zenodo_normalize_doi( 'doi:10.5281/zenodo.1234567' ), 'a pasted doi.org URL or doi: prefix normalizes to the bare DOI' );
+ok( '' === sn_zenodo_normalize_doi( 'zenodo.1234567' ) && '' === sn_zenodo_normalize_doi( '10.5281/' ) && '' === sn_zenodo_normalize_doi( '' ), 'not a DOI: empty, never stored' );
+ok( '' === sn_zenodo_ledger_doi(), 'unset: no ledger DOI' );
+update_option( SN_ZENODO_LEDGER_DOI_OPT, 'https://doi.org/10.5281/zenodo.7654321' );
+ok( '10.5281/zenodo.7654321' === sn_zenodo_ledger_doi(), 'the accessor normalizes what was stored' );
+$m3 = sn_zenodo_metadata_for( array( 'title' => 'With ledger', 'url' => 'https://juanlentino.com/notes/x/', 'pillar_url' => '', 'ledger_doi' => '10.5281/zenodo.7654321' ) );
+ok( 2 === count( $m3['related_identifiers'] ) && array( 'identifier' => '10.5281/zenodo.7654321', 'relation' => 'isPartOf', 'resource_type' => 'dataset' ) === $m3['related_identifiers'][1], 'a ledger DOI rides related_identifiers as isPartOf a dataset' );
+$m4 = sn_zenodo_metadata_for( array( 'title' => 'Without', 'url' => '', 'pillar_url' => '', 'ledger_doi' => '' ) );
+ok( ! isset( $m4['related_identifiers'] ), 'no ledger DOI: no row' );
+update_option( SN_ZENODO_LEDGER_DOI_OPT, '' );
+
 echo "\nGroup B: environments, tokens, sandbox DOIs\n";
 ok( 'https://sandbox.zenodo.org/api' === sn_zenodo_api_base( 'sandbox' ) && 'https://zenodo.org/api' === sn_zenodo_api_base( 'production' ), 'two bases' );
 ok( 'sandbox' === sn_zenodo_env(), 'the environment defaults to sandbox' );
@@ -85,7 +97,7 @@ echo "\nGroup C: the client shapes a bearer request and never throws\n";
 $GLOBALS['__z']['cred']['zenodo_sandbox_token'] = 'sbx-secret';
 $r = sn_zenodo_create_deposition( 'sandbox' );
 $last = end( $GLOBALS['__z']['log'] );
-ok( 'POST' === $last['method'] && 'https://sandbox.zenodo.org/api/deposit/depositions' === $last['url'] && 'Bearer sbx-secret' === $last['headers']['Authorization'] && 0 === $last['redirection'] && '[]' === $last['body'], 'create: POST, bearer, no redirects, an empty JSON body' );
+ok( 'POST' === $last['method'] && 'https://sandbox.zenodo.org/api/deposit/depositions' === $last['url'] && 'Bearer sbx-secret' === $last['headers']['Authorization'] && 0 === $last['redirection'] && '{}' === $last['body'], 'create: POST, bearer, no redirects, an empty JSON OBJECT (`[]` drew a bare 500 from Zenodo on 2026-09-18)' );
 ok( false === $r['ok'] && 404 === $r['code'] && 'not found' === $r['error'], 'a 404 comes back as {ok:false, code, error}, no exception' );
 ok( false === sn_zenodo_request( 'GET', 'https://zenodo.org/api/x', null, 'production' )['ok'] && 'no-token' === sn_zenodo_request( 'GET', 'https://zenodo.org/api/x', null, 'production' )['error'], 'no token for the environment: refused locally, no request made' );
 sn_zenodo_upload_file( 'https://sandbox.zenodo.org/api/files/bucket-1', 'note.md', "# hi", 'sandbox', 'text/markdown' );
