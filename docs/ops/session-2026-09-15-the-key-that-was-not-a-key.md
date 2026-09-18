@@ -913,6 +913,33 @@ not sandbox: the sandbox's "Permission denied" was never explained by
 Zenodo's code, production has proved the create step, and a draft is
 invisible until the flow publishes it.
 
+## Five DOIs, and the surface that had the answer
+
+"Zenodo keeps erroring. I think we'll need to research." I researched:
+zenodo-rdm's permission policy, invenio-rdm-records' components, the
+legacy resource, the moderation handlers, three GitHub issues, two
+diagnoses (an unconfirmed sandbox email, a missing scope), none of which the
+code supported. Then I ran `keyring-status`, which the site had carried the
+whole time: the sandbox row's stored verdict was refused, "HTTP 403", since
+the first Verify all, and the production row was ok. The Zenodo tile had
+said Sandbox On because `sn_zenodo_is_enabled()` reads whether a token is
+stored. Two surfaces disagreed and the one that had asked Zenodo lost.
+
+The owner flipped to production and pressed Deposit the next batch: five
+published, none failed. `10.5281/zenodo.22822315`, "Recognition was always
+downstream", reads back from Zenodo's public API as designed: CC BY-ND 4.0,
+the ORCID, `isIdenticalTo` the note, `isPartOf` the ledger's concept DOI,
+the Markdown, the signed record and the `.ots` proof, v1 dated the note's
+publish day. The hourly pass mints five at a time; the corpus is on DOIs by
+morning. The fifteen orphan drafts are the owner's to delete on Zenodo.
+
+16.2.2 closes the two readouts: `sn_zenodo_tile_state` (pure) says Off,
+Unverified, Refused with the keyring's detail, or On, in both painters; and
+the probe creates a draft and deletes it, so "verified" means the verb the
+flow uses, with a 403 naming the likeliest cause (a token minted on the
+other environment). The ledger repository's README gets the badge Zenodo
+issued and a short section on citing the ledger versus citing a note.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -967,29 +994,24 @@ invisible until the flow publishes it.
   Connections › Zenodo › Deposit the next batch; then the production token,
   flip the environment, and the hourly pass mints the rest.
 - `ledger-2026-09` is `10.5281/zenodo.22821769` under concept
-  `10.5281/zenodo.22821768`, and the concept DOI is in the Zenodo leaf. The
-  sandbox deposits wait on the sandbox account (confirm its email on
-  sandbox.zenodo.org, then Deposit the next batch). The Zenodo probe should
-  create and delete a draft rather than list, so Verify all says "can
-  create"; small, not yet built.
-- 16.1.2 and 16.1.3 released. After 16.1.3 installs: Deposit the next batch
-  on the Zenodo leaf (five drafts resume and publish), then delete the ten
-  "No title" orphans on zenodo.org by hand.
-- 16.2.0 released. Mint the Bing key at Bing Webmaster Tools › Settings ›
-  API access, paste it under Connections › Credentials, Verify all; the
-  first sync runs within ten minutes and the Search view shows Bing.
-- 16.2.1 (the per-environment draft slot, the toast entities) on its chain
-  at the time of writing. After it installs: environment to production,
-  Deposit the next batch, read the ledger for five 10.5281 DOIs; delete the
-  fifteen orphan drafts on zenodo.org.
-- Bing Webmaster Tools: nothing in the plugin takes its API key yet; IndexNow
-  is the only Bing surface. The reading it would buy is the Bing twin of
-  `search-performance`, its own arc after the Zenodo steps.
+  `10.5281/zenodo.22821768`; the concept DOI is in the Zenodo leaf and on the
+  ledger repository's README badge (provenance #28).
+- Five DOIs minted on production (16.2.0 with the upload fix); 44 ready, the
+  hourly pass takes five each. The sandbox row's token was minted on the
+  wrong environment (the keyring said refused all along); mint one on
+  sandbox.zenodo.org if a sandbox run is ever wanted. The fifteen orphan
+  drafts on zenodo.org are the owner's to delete.
+- 16.2.1 released; 16.2.2 (the tile reads the keyring's verdict, the probe
+  creates and deletes a draft) on its chain at the time of writing.
+- 16.2.0 released and the Bing key verified ("this site is listed and
+  verified"); the first sync ran on its own. Read the Search view's Bing
+  panel after a week of syncs.
 - Not built yet: the rights-signals worker's `get-citation` reading the DOI
   from the Article (`doi` in BibTeX and CSL); the theme byline's DOI line and
   the DOI in `llms-full.txt`; the `www` Redirect Rule (owner's dashboard);
-  the `/provenance/` opening paragraph (owner's yes). Read search drift and
-  performance at four and eight weeks from 2026-09-17.
+  the `/provenance/` opening paragraph (owner's yes); a "Delete empty
+  drafts" action on the Zenodo leaf only if the owner asks. Read search
+  drift and performance at four and eight weeks from 2026-09-17.
 - Upstream OpenStation #819 / #820: with the maintainers.
 - The `firewallEventsAdaptive` page is a floor past 10,000 samples a day; page
   it when a day gets there.
