@@ -92,6 +92,16 @@ function sn_zenodo_metadata_for( array $doc ) {
 }
 
 /**
+ * The draft slot for an environment: production keeps the original key (the
+ * ids stored before 16.1.4 are production ids); sandbox has its own.
+ *
+ * @since 16.1.4
+ */
+function sn_zenodo_draft_meta_key( $env ) {
+	return 'sandbox' === (string) $env ? SN_ZENODO_DRAFT_META . '_sandbox' : SN_ZENODO_DRAFT_META;
+}
+
+/**
  * The head commit of a subject's chain, or null.
  *
  * @since 15.11.0
@@ -246,21 +256,26 @@ function sn_zenodo_deposit( $post_id ) {
 		return $fail( 'bundle', $bundle['error'] );
 	}
 
-	// Resume an interrupted flow rather than minting a duplicate.
-	$draft = (string) get_post_meta( $post_id, SN_ZENODO_DRAFT_META, true );
+	// Resume an interrupted flow rather than minting a duplicate. 16.1.4: the
+	// draft slot is per ENVIRONMENT. A production draft id read on sandbox
+	// answered "The persistent identifier does not exist" and, under the
+	// 16.1.3 rule, was forgotten: flipping the environment orphaned five
+	// production drafts. Now each environment keeps its own slot.
+	$draft_key = sn_zenodo_draft_meta_key( $env );
+	$draft     = (string) get_post_meta( $post_id, $draft_key, true );
 	$dep   = '' !== $draft ? sn_zenodo_get_deposition( $draft, $env ) : sn_zenodo_create_deposition( $env );
 	if ( ! $dep['ok'] || ! is_array( $dep['body'] ) || empty( $dep['body']['id'] ) ) {
 		// 16.1.3: only a 404 means the draft is gone. Forgetting the id on a
 		// 5xx or a timeout made the next pass mint a fresh draft each time;
 		// ten orphan drafts on the first production day.
 		if ( '' !== $draft && 404 === (int) ( $dep['code'] ?? 0 ) ) {
-			delete_post_meta( $post_id, SN_ZENODO_DRAFT_META );
+			delete_post_meta( $post_id, $draft_key );
 		}
 		return $fail( '' !== $draft ? 'resume' : 'create', $dep['error'] ?: 'no-id' );
 	}
 	$id     = (string) $dep['body']['id'];
 	$bucket = (string) ( $dep['body']['links']['bucket'] ?? '' );
-	update_post_meta( $post_id, SN_ZENODO_DRAFT_META, $id );
+	update_post_meta( $post_id, $draft_key, $id );
 	if ( '' === $bucket ) {
 		return $fail( 'create', 'no-bucket' );
 	}
@@ -289,7 +304,7 @@ function sn_zenodo_deposit( $post_id ) {
 	update_post_meta( $post_id, SN_ZENODO_RECORD_META, (string) ( $pub['body']['id'] ?? $id ) );
 	update_post_meta( $post_id, SN_ZENODO_ENV_META, $env );
 	update_post_meta( $post_id, SN_ZENODO_AT_META, gmdate( 'c' ) );
-	delete_post_meta( $post_id, SN_ZENODO_DRAFT_META );
+	delete_post_meta( $post_id, $draft_key );
 	delete_post_meta( $post_id, SN_ZENODO_ERROR_META );
 	return array( 'ok' => true, 'state' => 'published', 'doi' => $doi, 'error' => '' );
 }

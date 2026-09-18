@@ -641,7 +641,9 @@ function snt_os_host_toast_text( $notice ) {
 		return '';
 	}
 	$text = function_exists( 'wp_strip_all_tags' ) ? wp_strip_all_tags( (string) $notice[1] ) : (string) $notice[1];
-	return trim( (string) $text );
+	// 16.1.4: the flash strings carry entities (&rsquo;, &mdash;, &hellip;)
+	// for the HTML notice; a toast is text and printed "Zenodo&rsquo;s".
+	return trim( html_entity_decode( (string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
 }
 
 /**

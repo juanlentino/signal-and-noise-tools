@@ -133,7 +133,7 @@ $methods = array_map( static function ( $l ) { return $l['method'] . ' ' . preg_
 ok( array( 'POST deposit/depositions', 'PUT files/b-1/two-kinds-of-provenance.md', 'PUT files/b-1/two-kinds-of-provenance.provenance.json', 'PUT files/b-1/two-kinds-of-provenance.ots', 'PUT deposit/depositions/542201', 'POST deposit/depositions/542201/actions/publish' ) === $methods, 'THE PIN: create → three uploads → metadata → publish, in that order' );
 $meta_sent = json_decode( $GLOBALS['__z']['log'][4]['body'], true );
 ok( 'Two kinds of provenance' === $meta_sent['metadata']['title'] && 'v1' === $meta_sent['metadata']['version'] && false !== strpos( $meta_sent['metadata']['notes'], 'block 957333' ), 'the metadata PUT carries the built record (title, version, the block)' );
-ok( '10.5072/zenodo.542201' === get_post_meta( 7, SN_ZENODO_DOI_META ) && 'sandbox' === get_post_meta( 7, SN_ZENODO_ENV_META ) && '' === get_post_meta( 7, SN_ZENODO_DRAFT_META ) && '' === get_post_meta( 7, SN_ZENODO_ERROR_META ), 'the post carries the DOI and the environment; the draft and error metas are cleared' );
+ok( '10.5072/zenodo.542201' === get_post_meta( 7, SN_ZENODO_DOI_META ) && 'sandbox' === get_post_meta( 7, SN_ZENODO_ENV_META ) && '' === get_post_meta( 7, sn_zenodo_draft_meta_key( 'sandbox' ) ) && '' === get_post_meta( 7, SN_ZENODO_ERROR_META ), 'the post carries the DOI and the environment; the draft and error metas are cleared' );
 ok( 'already' === sn_zenodo_deposit( 7 )['state'], 'a second call in the same environment is a no-op (already)' );
 ok( '' === sn_zenodo_doi_for( 7 ), 'a sandbox DOI never flows back to a public surface' );
 // Interrupted flow: the publish fails; the draft id is kept; the next call resumes with GET, not POST.
@@ -147,7 +147,7 @@ foreach ( array( 'the-pen.md', 'the-pen.provenance.json', 'the-pen.ots' ) as $f 
 $GLOBALS['__z']['http']['PUT https://sandbox.zenodo.org/api/deposit/depositions/777'] = array( 'code' => 200, 'body' => '{}' );
 $GLOBALS['__z']['http']['POST https://sandbox.zenodo.org/api/deposit/depositions/777/actions/publish'] = array( 'code' => 500, 'body' => '{"message":"down"}' );
 $r = sn_zenodo_deposit( 9 );
-ok( false === $r['ok'] && 'publish' === $r['state'] && '777' === get_post_meta( 9, SN_ZENODO_DRAFT_META ) && false !== strpos( get_post_meta( 9, SN_ZENODO_ERROR_META ), 'publish: down' ), 'a failed publish keeps the draft id and records the error' );
+ok( false === $r['ok'] && 'publish' === $r['state'] && '777' === get_post_meta( 9, sn_zenodo_draft_meta_key( 'sandbox' ) ) && false !== strpos( get_post_meta( 9, SN_ZENODO_ERROR_META ), 'publish: down' ), 'a failed publish keeps the draft id and records the error' );
 $GLOBALS['__z']['http']['GET https://sandbox.zenodo.org/api/deposit/depositions/777'] = array( 'code' => 200, 'body' => json_encode( array( 'id' => 777, 'links' => array( 'bucket' => 'https://sandbox.zenodo.org/api/files/b-9' ) ) ) );
 $GLOBALS['__z']['http']['POST https://sandbox.zenodo.org/api/deposit/depositions/777/actions/publish'] = array( 'code' => 202, 'body' => json_encode( array( 'id' => 777, 'doi' => '10.5072/zenodo.777', 'conceptdoi' => '' ) ) );
 $GLOBALS['__z']['log'] = array();
@@ -159,13 +159,19 @@ $GLOBALS['__z']['chain'][11] = array( array( 'version' => 1, 'status' => 'confir
 $GLOBALS['__z']['http']['GET https://juanlentino.com/notes/resume-500/'] = array( 'code' => 200, 'body' => "---\ntitle: x\n---\nBody" );
 $GLOBALS['__z']['http']['GET https://raw.githubusercontent.com/juanlentino/signal-and-noise-provenance/main/notes/uid-11/v1.json'] = array( 'code' => 200, 'body' => '{"signature":"s"}' );
 $GLOBALS['__z']['http']['GET https://raw.githubusercontent.com/juanlentino/signal-and-noise-provenance/main/notes/uid-11/v1.ots'] = array( 'code' => 200, 'body' => 'OTS' );
-update_post_meta( 11, SN_ZENODO_DRAFT_META, '888' );
+update_post_meta( 11, sn_zenodo_draft_meta_key( 'sandbox' ), '888' );
 $GLOBALS['__z']['http']['GET https://sandbox.zenodo.org/api/deposit/depositions/888'] = array( 'code' => 500, 'body' => '{"message":"internal"}' );
 $r = sn_zenodo_deposit( 11 );
-ok( false === $r['ok'] && 'resume' === $r['state'] && '888' === get_post_meta( 11, SN_ZENODO_DRAFT_META ), 'a 500 on the resume read keeps the draft id and names the step "resume" (ten orphan drafts on the first production day)' );
+ok( false === $r['ok'] && 'resume' === $r['state'] && '888' === get_post_meta( 11, sn_zenodo_draft_meta_key( 'sandbox' ) ), 'a 500 on the resume read keeps the draft id and names the step "resume" (ten orphan drafts on the first production day)' );
 $GLOBALS['__z']['http']['GET https://sandbox.zenodo.org/api/deposit/depositions/888'] = array( 'code' => 404, 'body' => '{"message":"not found"}' );
 $r = sn_zenodo_deposit( 11 );
-ok( false === $r['ok'] && '' === get_post_meta( 11, SN_ZENODO_DRAFT_META ), 'a 404 on the resume read forgets the draft; the next pass starts clean' );
+ok( false === $r['ok'] && '' === get_post_meta( 11, sn_zenodo_draft_meta_key( 'sandbox' ) ), 'a 404 on the resume read forgets the draft; the next pass starts clean' );
+// 16.1.4: the slot is per environment. A production draft id is not read on sandbox (and not forgotten by it).
+ok( '_sn_zenodo_draft_id' === sn_zenodo_draft_meta_key( 'production' ) && '_sn_zenodo_draft_id_sandbox' === sn_zenodo_draft_meta_key( 'sandbox' ), 'production keeps the original key (pre-16.1.4 ids are production ids); sandbox has its own' );
+update_post_meta( 11, SN_ZENODO_DRAFT_META, '555' ); // a production draft
+$GLOBALS['__z']['log'] = array();
+$r = sn_zenodo_deposit( 11 ); // environment is sandbox here
+ok( 'POST https://sandbox.zenodo.org/api/deposit/depositions' === $GLOBALS['__z']['log'][0]['method'] . ' ' . $GLOBALS['__z']['log'][0]['url'] && '555' === get_post_meta( 11, SN_ZENODO_DRAFT_META ), 'on sandbox a production draft is neither resumed nor forgotten; sandbox creates its own' );
 unset( $GLOBALS['__z']['posts'][11], $GLOBALS['__z']['meta'][11], $GLOBALS['__z']['chain'][11] ); // this post is not part of the later counts
 // Bundle gate: no proof, no deposit.
 mkpost( 10, 'no-proof', 'No proof' );

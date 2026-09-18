@@ -722,6 +722,7 @@ ok( null === snt_os_host_notice( 'not_a_real_code' ) && null === snt_os_host_not
 ok( 'Login slug saved. New URL: https://example.test/sn-login' === snt_os_host_toast_text( array( 'success', 'Login slug saved. New URL: <a href="x">https://example.test/sn-login</a>' ) ),
 	'the toast is the notice as plain text: a toast has no tone and no markup, so the <a> stays in the in-window notice' );
 ok( '' === snt_os_host_toast_text( null ), 'no notice, no toast' );
+ok( 'Zenodo’s answer — a draft…' === snt_os_host_toast_text( array( 'error', 'Zenodo&rsquo;s answer &mdash; a draft&hellip;' ) ), 'the toast is TEXT: entities the HTML notice needs are decoded (16.1.4; the shell printed "Zenodo&rsquo;s")' );
 
 echo "\nGroup 5: where a (tab, sub) pair lands\n";
 $_GET = array();
