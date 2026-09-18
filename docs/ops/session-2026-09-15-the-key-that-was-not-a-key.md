@@ -940,6 +940,30 @@ flow uses, with a 403 naming the likeliest cause (a token minted on the
 other environment). The ledger repository's README gets the badge Zenodo
 issued and a short section on citing the ledger versus citing a note.
 
+## The house already had a row clamp
+
+"The search tab in Analytics is a mess of a scroll now." It was: 16.2.0 had
+put the Bing panel between Google's pages table and Google's cross-exam,
+with a full-width table for one row, and the view ran two and a half
+screens. The fix was placement, not mechanism. Google's story runs unbroken
+and Bing is the last band, one panel with its queries inside it; every
+metrics table sits behind the house ten-row clamp with "View all N", a
+helper `inc/analytics-panels.php` had carried for a year and the Search
+view had never called. Bing's empty states became visible panels, because
+the band paints after the view's fold has flushed and a note collected
+there would leak into the next view. A test fixture that had warned six
+times a run took the renderer's real shape. 16.2.3, queued behind 16.2.2.
+
+On 16.2.2 the site read: Zenodo production, fifteen minted of forty-nine,
+the sandbox row cleared; the production verdict still the old probe's
+sentence until Verify all runs again. Bing synced, and its window ended on
+2026-05-26 with zeros: the newest daily row Bing's API holds for the site,
+which the panel states rather than pretends. Whether Bing's UI shows later
+days decides if the API is lagging or Bing is not crawling much; the
+verified site's Search Performance report is the check. Two session-doc
+PRs from two worktrees appended to the same file tonight and the second
+conflicted on merge; one open docs PR at a time from now on.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -1001,8 +1025,12 @@ issued and a short section on citing the ledger versus citing a note.
   wrong environment (the keyring said refused all along); mint one on
   sandbox.zenodo.org if a sandbox run is ever wanted. The fifteen orphan
   drafts on zenodo.org are the owner's to delete.
-- 16.2.1 released; 16.2.2 (the tile reads the keyring's verdict, the probe
-  creates and deletes a draft) on its chain at the time of writing.
+- 16.2.1 and 16.2.2 released and installed; 16.2.3 (the Search view in two
+  bands) on its chain at the time of writing. Run Verify all once so the
+  production Zenodo row carries the create-and-delete verdict.
+- Bing's API holds no daily row after 2026-05-26 for the site. Compare with
+  Bing Webmaster Tools › Search Performance; if the UI shows later days the
+  API will catch up on its own, if not, submit URLs from Site Explorer.
 - 16.2.0 released and the Bing key verified ("this site is listed and
   verified"); the first sync ran on its own. Read the Search view's Bing
   panel after a week of syncs.
