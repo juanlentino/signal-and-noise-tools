@@ -83,6 +83,25 @@ $m4 = sn_zenodo_metadata_for( array( 'title' => 'Without', 'url' => '', 'pillar_
 ok( ! isset( $m4['related_identifiers'] ), 'no ledger DOI: no row' );
 update_option( SN_ZENODO_LEDGER_DOI_OPT, '' );
 
+echo "\nGroup A3: the probe creates and deletes a draft (16.2.2)\n";
+$GLOBALS['__z']['cred'] = array( 'zenodo_sandbox_token' => 'sbx-secret', 'zenodo_token' => 'prod-secret' );
+$GLOBALS['__z']['http']['POST https://sandbox.zenodo.org/api/deposit/depositions'] = array( 'code' => 201, 'body' => json_encode( array( 'id' => 9001, 'links' => array( 'bucket' => 'b' ) ) ) );
+$GLOBALS['__z']['http']['DELETE https://sandbox.zenodo.org/api/deposit/depositions/9001'] = array( 'code' => 204, 'body' => '' );
+$GLOBALS['__z']['log'] = array();
+$p = sn_zenodo_probe( 'sandbox' );
+ok( 'ok' === $p['status'] && 'DELETE https://sandbox.zenodo.org/api/deposit/depositions/9001' === end( $GLOBALS['__z']['log'] )['method'] . ' ' . end( $GLOBALS['__z']['log'] )['url'] && false !== strpos( $p['detail'], 'created and deleted' ), 'create 201 then delete: ok, and the draft is gone' );
+$GLOBALS['__z']['http']['DELETE https://sandbox.zenodo.org/api/deposit/depositions/9001'] = array( 'code' => 500, 'body' => '' );
+$p = sn_zenodo_probe( 'sandbox' );
+ok( 'ok' === $p['status'] && false !== strpos( $p['detail'], '9001' ) && false !== strpos( $p['detail'], 'yours to remove' ), 'create ok but delete fails: still ok (the account can write), and the detail names the draft left behind' );
+$GLOBALS['__z']['http']['POST https://sandbox.zenodo.org/api/deposit/depositions'] = array( 'code' => 403, 'body' => '{"message":"Permission denied.","status":403}' );
+$p = sn_zenodo_probe( 'sandbox' );
+ok( 'refused' === $p['status'] && false !== strpos( $p['detail'], 'HTTP 403: Permission denied.' ) && false !== strpos( $p['detail'], 'other environment' ), 'a 403 on create is refused, and the detail names the likeliest cause: a token minted on the other environment' );
+$GLOBALS['__z']['http']['POST https://sandbox.zenodo.org/api/deposit/depositions'] = array( 'code' => 500, 'body' => '' );
+ok( 'error' === sn_zenodo_probe( 'sandbox' )['status'], 'a 500 is Zenodo\'s side: error' );
+$GLOBALS['__z']['cred'] = array();
+ok( 'error' === sn_zenodo_probe( 'production' )['status'] && false !== strpos( sn_zenodo_probe( 'production' )['detail'], 'No production token' ), 'no token: error, named' );
+unset( $GLOBALS['__z']['http']['POST https://sandbox.zenodo.org/api/deposit/depositions'], $GLOBALS['__z']['http']['DELETE https://sandbox.zenodo.org/api/deposit/depositions/9001'] ); // this group's mocks stay in this group
+
 echo "\nGroup B: environments, tokens, sandbox DOIs\n";
 ok( 'https://sandbox.zenodo.org/api' === sn_zenodo_api_base( 'sandbox' ) && 'https://zenodo.org/api' === sn_zenodo_api_base( 'production' ), 'two bases' );
 ok( 'sandbox' === sn_zenodo_env(), 'the environment defaults to sandbox' );

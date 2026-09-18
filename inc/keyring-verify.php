@@ -167,19 +167,14 @@ function sn_keyring_probe_github() {
  * @return array{status:string,detail:string,at:int}
  */
 function sn_keyring_probe_zenodo( $id ) {
-	$env  = 'zenodo_sandbox_token' === (string) $id ? 'sandbox' : 'production';
-	$base = function_exists( 'sn_zenodo_api_base' ) ? sn_zenodo_api_base( $env ) : ( 'sandbox' === $env ? 'https://sandbox.zenodo.org/api' : 'https://zenodo.org/api' );
-	$resp = wp_remote_get( $base . '/deposit/depositions?size=1', array( 'timeout' => 8, 'redirection' => 0, 'sslverify' => true, 'headers' => array( 'Authorization' => 'Bearer ' . sn_credential( $id ), 'Accept' => 'application/json', 'User-Agent' => 'signal-and-noise-tools' ) ) );
-	if ( is_wp_error( $resp ) ) {
-		return sn_keyring_verdict( 'error', $resp->get_error_message() );
+	$env = 'zenodo_sandbox_token' === (string) $id ? 'sandbox' : 'production';
+	if ( ! function_exists( 'sn_zenodo_probe' ) ) {
+		return sn_keyring_verdict( 'error', __( 'The Zenodo module is not loaded.', 'signal-and-noise-tools' ) );
 	}
-	$code = (int) wp_remote_retrieve_response_code( $resp );
-	if ( 200 === $code ) {
-		/* translators: %s: environment name. */
-		return sn_keyring_verdict( 'ok', sprintf( __( 'Zenodo %s answers; the token can list depositions.', 'signal-and-noise-tools' ), $env ) );
-	}
-	/* translators: 1: environment name, 2: HTTP status. */
-	return sn_keyring_verdict( in_array( $code, array( 401, 403 ), true ) ? 'refused' : 'error', sprintf( __( 'Zenodo %1$s answered HTTP %2$d.', 'signal-and-noise-tools' ), $env, $code ) );
+	// 16.2.2: create a draft and delete it. Listing proved nothing about
+	// whether the account can write (16.1.x).
+	$p = sn_zenodo_probe( $env );
+	return sn_keyring_verdict( $p['status'], $p['detail'] );
 }
 
 /**

@@ -36,6 +36,23 @@ function sn_zenodo_is_enabled() {
 }
 
 /**
+ * The keyring's stored verdict for the active environment's token, or null
+ * when Verify all has never run for it. Never probes.
+ *
+ * @since 16.2.2
+ * @return array{status:string,detail:string,at:int}|null
+ */
+function sn_zenodo_token_verdict( $env = null ) {
+	if ( ! function_exists( 'sn_keyring_verdicts' ) ) {
+		return null;
+	}
+	$all = sn_keyring_verdicts();
+	$id  = sn_zenodo_token_id( null === $env ? sn_zenodo_env() : (string) $env );
+	return isset( $all[ $id ] ) && is_array( $all[ $id ] ) ? $all[ $id ] : null;
+}
+
+
+/**
  * The record's metadata. PURE: plain inputs in, Zenodo's `metadata` object out.
  *
  * @since 15.11.0
