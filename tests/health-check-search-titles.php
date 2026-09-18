@@ -32,6 +32,13 @@ ok( true === sn_health_search_title_is_shaped( 'Two kinds of provenance: authors
 ok( false === sn_health_search_title_is_shaped( 'Provenance', $h1 ), 'a single word is not a title for search' );
 ok( true === sn_health_search_title_is_shaped( '  Five layers, one system: ISRC, ISWC and music identifiers  ', 'Five layers, one system' ), 'whitespace around the override is ignored' );
 
+echo "\nGroup 1b: a title that is itself the query (16.3.1)\n";
+$q = 'Where AI actually saves time in record production';
+ok( true === sn_health_title_is_query_shaped( $q ) && true === sn_health_title_is_query_shaped( 'How a music file gets corrected' ), 'a title opening with a searcher\'s word, six or more words, no colon, no stop, is a query' );
+ok( false === sn_health_title_is_query_shaped( 'Payment systems pay what they can name' ) && false === sn_health_title_is_query_shaped( 'The pen is not the notary' ) && false === sn_health_title_is_query_shaped( 'Who vouches for the independent artist?' ) && false === sn_health_title_is_query_shaped( 'Why platforms wait: streaming' ) && false === sn_health_title_is_query_shaped( 'Why wait' ), 'seven aphoristic words, a question mark, a colon, or too few words: not a query (word count alone cannot separate these)' );
+ok( true === sn_health_search_title_is_shaped( '', $q ) && true === sn_health_search_title_is_shaped( $q, $q ), 'THE PIN: a query-shaped title passes with no override AND with an override equal to itself (it was flagged both ways)' );
+ok( false === sn_health_search_title_is_shaped( '', 'Two kinds of provenance' ) && false === sn_health_search_title_is_shaped( 'Two kinds of provenance', 'Two kinds of provenance' ), 'an aphorism still needs its second name' );
+
 echo "\nGroup 2: the judge\n";
 $rows = array(
 	array( 'ID' => 1, 'post_title' => 'The estate cannot sign', 'seo_title' => 'The estate cannot sign: key succession and music provenance', 'permalink' => 'https://x.test/notes/1/', 'edit_url' => 'e1' ),

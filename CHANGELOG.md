@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A title that is itself the query passes check 28.** "Where AI actually saves time in record production" was flagged with an override equal to itself and again with none; the rule assumed every note title is an aphorism. A title opening with how, why, what, where, when, which or who, six or more words, no colon, no sentence-final punctuation, is a query and needs no second name (word count alone cannot separate it from a seven-word aphorism). Pinned both ways.
+- **The Health leaf's table after Re-run scan paints its rows.** An `<os-table>` inserted by an action's re-paint held its row in `data` and showed "No rows." until the leaf was reopened. The host's paint pass now re-assigns the rows of a table in exactly that state (rows held, empty state shown) and touches no other. The fork has issues off; the upstream OpenStation watch (#808/#809) gains this row. Pinned.
+
 ## [16.3.0] - 2026-09-18 — a judge, not a generator
 
 ### Added
