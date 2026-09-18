@@ -95,6 +95,15 @@ function sn_admin_render_ai_settings_form() {
 	echo '<label class="sn-field-label" for="sn_theme_ai_monthly_budget">' . esc_html__( 'Monthly budget (USD)', 'signal-and-noise-tools' ) . '</label>';
 	echo '<input type="number" min="0" step="0.5" id="sn_theme_ai_monthly_budget" name="theme_ai_monthly_budget" value="' . esc_attr( number_format( $budget, 2, '.', '' ) ) . '">';
 	echo '</div>';
+	// 16.6.0: the Jev credit and its cycle day, the same two fields the native leaf carries.
+	echo '<div class="sn-field sn-field-w-xs">';
+	echo '<label class="sn-field-label" for="sn_theme_jev_credit">' . esc_html__( 'Jev monthly credit (USD)', 'signal-and-noise-tools' ) . '</label>';
+	echo '<input type="number" min="0" step="0.5" id="sn_theme_jev_credit" name="theme_jev_credit" value="' . esc_attr( number_format( (float) sn_setting( 'theme.jev_credit', 5 ), 2, '.', '' ) ) . '">';
+	echo '</div>';
+	echo '<div class="sn-field sn-field-w-xs">';
+	echo '<label class="sn-field-label" for="sn_theme_jev_cycle_day">' . esc_html__( 'Jev credit renews on day', 'signal-and-noise-tools' ) . '</label>';
+	echo '<input type="number" min="1" max="28" step="1" id="sn_theme_jev_cycle_day" name="theme_jev_cycle_day" value="' . esc_attr( (string) (int) sn_setting( 'theme.jev_cycle_day', 17 ) ) . '">';
+	echo '</div>';
 
 	echo '<div class="sn-field">';
 	if ( $budget > 0 ) {

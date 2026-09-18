@@ -40,7 +40,64 @@ function models_budget_data() {
 		'embed_configured' => function_exists( 'snt_ml_embed_configured' ) && snt_ml_embed_configured(),
 		'embed_account_id' => function_exists( 'snt_ml_embed_account_id' ) ? snt_ml_embed_account_id() : '',
 		'cmp'              => get_transient( 'snt_ml_embed_compare' ),
+		'jev'              => function_exists( 'sn_jev_meter_reading' ) ? sn_jev_meter_reading() : null,
+		'jev_ready'        => function_exists( 'sn_jev_is_ready' ) && sn_jev_is_ready(),
 	);
+}
+
+/**
+ * 16.6.0: the Jev meter. The site's own priced ledger per feature per credit
+ * cycle, from the tokens each answer reports; a cache hit costs nothing.
+ * Absent when the meter module is not loaded.
+ *
+ * @param array $d From models_budget_data().
+ * @return string
+ */
+function models_budget_jev_html( array $d ) {
+	if ( ! is_array( $d['jev'] ) ) {
+		return '';
+	}
+	$j = $d['jev'];
+	if ( ! $d['jev_ready'] ) {
+		return \snt_kit_section( __( 'Jev', 'signal-and-noise-tools' ), '<p class="snt-prose">' . \snt_kit_esc( __( 'Not connected. Install Connector for TypeSafe Jev and add the key under Settings › Connectors.', 'signal-and-noise-tools' ) ) . '</p>' );
+	}
+	$out = '<p class="snt-prose">' . sprintf(
+		/* translators: 1: spent USD, 2: credit USD, 3: cycle start, 4: cycle end, 5: days left. */
+		esc_html__( 'Spent this cycle: $%1$s of the $%2$s credit (%3$s to %4$s, %5$d days left).', 'signal-and-noise-tools' ),
+		\snt_kit_esc( number_format_i18n( $j['spent'], $j['spent'] < 0.01 ? 4 : 2 ) ),
+		\snt_kit_esc( number_format_i18n( $j['credit'], 2 ) ),
+		\snt_kit_esc( $j['cycle']['start'] ),
+		\snt_kit_esc( $j['cycle']['end'] ),
+		(int) $j['cycle']['days_left']
+	) . '</p>';
+	if ( $j['credit'] > 0 ) {
+		$pct  = (int) round( 100 * $j['spent'] / $j['credit'] );
+		$out .= \snt_kit_tag( 'os-progress-bar', array( 'value' => (string) max( 0, min( 100, $pct ) ), 'max' => '100', 'tone' => $j['spent'] >= $j['credit'] ? 'danger' : 'default' ) );
+	}
+	$rows = array();
+	foreach ( $j['by_feature'] as $feature => $r ) {
+		$rows[] = array(
+			'feature'  => (string) $feature,
+			'requests' => number_format_i18n( (int) $r['requests'] ),
+			'cached'   => number_format_i18n( (int) $r['cached'] ),
+			'tokens'   => number_format_i18n( (int) $r['input_tokens'] ),
+			'cost'     => '$' . number_format_i18n( (float) $r['cost'], (float) $r['cost'] < 0.01 ? 4 : 2 ),
+		);
+	}
+	$inner = $out;
+	if ( array() !== $rows ) {
+		$inner .= \snt_kit_table( array(
+			array( 'key' => 'feature', 'label' => __( 'Feature', 'signal-and-noise-tools' ) ),
+			array( 'key' => 'requests', 'label' => __( 'Requests', 'signal-and-noise-tools' ), 'align' => 'end' ),
+			array( 'key' => 'cached', 'label' => __( 'Cached', 'signal-and-noise-tools' ), 'align' => 'end' ),
+			array( 'key' => 'tokens', 'label' => __( 'Input tokens', 'signal-and-noise-tools' ), 'align' => 'end' ),
+			array( 'key' => 'cost', 'label' => __( 'Cost', 'signal-and-noise-tools' ), 'align' => 'end' ),
+		), $rows );
+	} else {
+		$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'No request this cycle yet.', 'signal-and-noise-tools' ) ) . '</p>';
+	}
+	$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Priced here at $0.042 per million input tokens from what each answer reports; output is free. A cached request hit the connector\'s one-hour cache and cost nothing. Nothing is projected; the console at typesafe.ai is the bill.', 'signal-and-noise-tools' ) ) . ( $j['seeded'] ? ' ' . \snt_kit_esc( __( 'This cycle was seeded from the passes stored before the meter existed.', 'signal-and-noise-tools' ) ) : '' ) . '</p>';
+	return \snt_kit_section( __( 'Jev, this cycle', 'signal-and-noise-tools' ), $inner );
 }
 
 /**
@@ -226,6 +283,9 @@ function paint_ai_models_budget( array $ctx ) {
 		'min'  => 0,
 		'step' => 0.5,
 	) );
+	// 16.6.0: the Jev credit and its cycle day; the meter reads both.
+	$fields .= \snt_kit_field( 'number', 'theme_jev_credit', __( 'Jev monthly credit (USD)', 'signal-and-noise-tools' ), number_format( (float) sn_setting( 'theme.jev_credit', 5 ), 2, '.', '' ), array( 'min' => 0, 'step' => 0.5, 'hint' => __( 'TypeSafe\'s credit, as the console states it. A readout, not a cap.', 'signal-and-noise-tools' ) ) );
+	$fields .= \snt_kit_field( 'number', 'theme_jev_cycle_day', __( 'Jev credit renews on day', 'signal-and-noise-tools' ), (string) (int) sn_setting( 'theme.jev_cycle_day', 17 ), array( 'min' => 1, 'max' => 28, 'step' => 1 ) );
 	// 15.3.1: the Workers AI token is a keyring row (Connections › Credentials);
 	// this leaf reads it and says so.
 	$fields .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Workers AI token (semantic embeddings):', 'signal-and-noise-tools' ) ) . ' ' . ( '' !== (string) $d['embed_token'] ? \snt_kit_badge( 'ok', __( 'set', 'signal-and-noise-tools' ) ) : \snt_kit_badge( 'warn', __( 'not set', 'signal-and-noise-tools' ) ) ) . ' ' . \snt_kit_esc( __( 'Set under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'monitoring' ) ) . '.</p>';
@@ -237,6 +297,7 @@ function paint_ai_models_budget( array $ctx ) {
 		__( 'Model changes apply to the next AI call. The budget is evaluated per calendar month.', 'signal-and-noise-tools' )
 	);
 	$right  = models_budget_spend_html( $d );
+	$right .= models_budget_jev_html( $d );
 	$right .= models_budget_embed_status_html( $d );
 	if ( $d['embed_configured'] ) {
 		$right .= models_budget_compare_html( $d );

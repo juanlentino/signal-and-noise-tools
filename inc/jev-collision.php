@@ -162,7 +162,7 @@ function sn_jev_collision_check( $post_id, $force = false ) {
 	if ( ! $force && is_array( $prev ) && ( $prev['hash'] ?? '' ) === $hash ) {
 		return $prev;
 	}
-	$r = sn_jev_ask( $state, sn_jev_collision_questions( $corpus ) );
+	$r = sn_jev_ask( $state, sn_jev_collision_questions( $corpus ), 'collision' );
 	if ( ! $r['ok'] ) {
 		$record = array_merge( is_array( $prev ) ? $prev : array( 'rows' => array(), 'collisions' => 0, 'at' => 0, 'hash' => '' ), array( 'error' => gmdate( 'c' ) . ' ' . $r['error'] ) );
 		update_post_meta( (int) $post_id, SN_JEV_COLLISION_META, wp_json_encode( $record ) );
@@ -233,7 +233,7 @@ function sn_jev_lane_map() {
 		}
 		$corpus = $all;
 		unset( $corpus[ $id ] );
-		$r = sn_jev_ask( sn_jev_collision_state( $post, $corpus ), sn_jev_collision_questions( $corpus ) );
+		$r = sn_jev_ask( sn_jev_collision_state( $post, $corpus ), sn_jev_collision_questions( $corpus ), 'lane_map' );
 		if ( ! $r['ok'] ) {
 			$failed++;
 			$err = (string) $r['error'];

@@ -20,6 +20,13 @@ final class Response {
 	public function to_array(): array { return $this->data; }
 }
 
+/** The cache: a hit when the test sets $GLOBALS['__j']['cache']. */
+final class Cache {
+	public static function get( array $payload ): ?Response {
+		return ! empty( $GLOBALS['__j']['cache'] ) ? new Response( array() ) : null;
+	}
+}
+
 function ask( $state, array $questions, array $args = array() ) {
 	$GLOBALS['__j']['calls'][] = array( 'state' => $state, 'questions' => $questions, 'model' => (string) ( $args['model'] ?? '' ) );
 	$a = $GLOBALS['__j']['answer'];

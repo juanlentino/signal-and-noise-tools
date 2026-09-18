@@ -27,7 +27,7 @@ TypeSafe's System One model (Jev) answers typed questions with a probability, a 
 - **Query-to-page fit, weekly.** For the queries Search Console already sends to each note, one Score per query: does the note answer it (2), touch it (1), or did the query land on shared vocabulary (0)? Two lists on Analytics › Search: gaps (seen with impressions, not answered; the next note) and stray traffic (clicked, answered at zero; a title chasing the wrong search). `jev-fit-now`, `jev-query-fit`.
 - **The connector's own modules,** off by default: a comment guardrail (two questions must agree, never worse than spam, an outage changes nothing) and term suggestions from existing terms only.
 
-At the site's scale this costs cents: a full pass over the notes is about 80k input tokens, the lane map about 500k, the fit pass under 10k, at $0.042 per million. The rubric numbers above were each set by reading a live pass and moving a line, and are pinned in `tests/typesafe-jev.php`, `tests/jev-collision.php`, `tests/jev-query-fit.php`.
+Every request is metered (16.6.0): per feature per credit cycle, priced from reported tokens, on AI › Models & Budget beside the Claude itemization and through `jev-meter`. At the site's scale this costs cents: a full pass over the notes is about 80k input tokens, the lane map about 500k, the fit pass under 10k, at $0.042 per million. The rubric numbers above were each set by reading a live pass and moving a line, and are pinned in `tests/typesafe-jev.php`, `tests/jev-collision.php`, `tests/jev-query-fit.php`.
 
 ## AI as reader
 

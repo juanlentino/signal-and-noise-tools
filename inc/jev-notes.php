@@ -211,7 +211,7 @@ function sn_jev_sync() {
 		if ( ! $post ) {
 			continue;
 		}
-		$r = sn_jev_ask( sn_jev_note_state( $post ), $questions );
+		$r = sn_jev_ask( sn_jev_note_state( $post ), $questions, 'notes' );
 		if ( ! $r['ok'] ) {
 			$failed++;
 			$last_err = (string) $r['error'];
