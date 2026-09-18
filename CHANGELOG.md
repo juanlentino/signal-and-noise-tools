@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Every bucket upload goes as `application/octet-stream`.** The first production pass created its drafts and then failed every upload with Zenodo's "Invalid 'Content-Type' header. Expected one of: application/octet-stream": the bucket takes that type and no other, and the file's own type rides its extension. The test had pinned `text/markdown` as correct. Pinned to octet-stream.
+- **A failed resume read keeps the draft.** When the read of a stored draft came back with anything but success the code forgot the draft id and the next pass minted a fresh one; ten empty drafts on the first production day. Now only a 404 forgets it, and the step is named `resume`, not `create`. Pinned at 500 and 404.
+
 ## [16.1.2] - 2026-09-18 — the title is the query, nothing more
 
 ### Fixed
