@@ -27,10 +27,34 @@ function sn_jev_status_shape( $data, $ready ) {
 		'judged'     => (int) $j['judged'],
 		'unsure'     => (int) $j['unsure'],
 		'findings'   => array_map( static function ( $f ) { return array( 'id' => $f['subject_id'], 'title' => $f['subject_label'], 'note' => $f['note'] ); }, $j['findings'] ),
+		// 16.3.2: every note's readings, so the distribution can be read rather than guessed at when tuning the rubric or the floor.
+		'notes'      => sn_jev_notes_readings( $data['notes'] ?? array() ),
 		'usage'      => $data['usage'] ?? null,
 		'last_error' => (string) ( $data['last_error'] ?? '' ),
 		'note'       => 'One request per note per day; a finding needs a low rubric position AND confidence at or above the floor.',
 	);
+}
+
+/** PURE: {id, title, title_score, title_confidence, description_score, description_confidence, opening_noul, error} per judged note, scores on 0..2. */
+function sn_jev_notes_readings( $notes ) {
+	$out = array();
+	foreach ( (array) $notes as $id => $n ) {
+		if ( ! is_array( $n ) ) {
+			continue;
+		}
+		$v = is_array( $n['verdict'] ?? null ) ? $n['verdict'] : array();
+		$out[] = array(
+			'id'                     => (int) $id,
+			'title'                  => (string) ( $n['title'] ?? '' ),
+			'title_score'            => isset( $v['title']['score'] ) ? round( (float) $v['title']['score'], 2 ) : null,
+			'title_confidence'       => isset( $v['title']['confidence'] ) ? round( (float) $v['title']['confidence'], 2 ) : null,
+			'description_score'      => isset( $v['description']['score'] ) ? round( (float) $v['description']['score'], 2 ) : null,
+			'description_confidence' => isset( $v['description']['confidence'] ) ? round( (float) $v['description']['confidence'], 2 ) : null,
+			'opening_noul'           => isset( $v['opening']['noul'] ) ? round( (float) $v['opening']['noul'], 2 ) : null,
+			'error'                  => (string) ( $n['error'] ?? '' ),
+		);
+	}
+	return $out;
 }
 
 function snt_ability_jev_notes( $input = array() ) {
@@ -51,7 +75,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'output_schema'       => array( 'type' => 'object', 'properties' => array(
 			'ok' => array( 'type' => 'boolean' ), 'source' => array( 'type' => 'string' ), 'ready' => array( 'type' => 'boolean' ), 'synced' => array( 'type' => 'boolean' ),
 			'synced_at' => array( 'type' => 'integer' ), 'model' => array( 'type' => 'string' ), 'judged' => array( 'type' => 'integer' ), 'unsure' => array( 'type' => 'integer' ),
-			'findings' => array( 'type' => 'array' ), 'usage' => array( 'type' => array( 'object', 'null' ) ), 'last_error' => array( 'type' => 'string' ), 'note' => array( 'type' => 'string' ),
+			'findings' => array( 'type' => 'array' ), 'notes' => array( 'type' => 'array', 'description' => 'Every judged note with its scores (0..2) and confidences.' ), 'usage' => array( 'type' => array( 'object', 'null' ) ), 'last_error' => array( 'type' => 'string' ), 'note' => array( 'type' => 'string' ),
 		) ),
 		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
 	) );

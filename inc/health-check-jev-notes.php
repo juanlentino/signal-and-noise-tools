@@ -15,10 +15,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** Rubric position at or below which the search title is a finding (of 1..3). */
-const SN_JEV_TITLE_FINDING_MAX = 1.5;
-/** Rubric position at or below which the description is a finding (of 1..3). */
-const SN_JEV_DESCRIPTION_FINDING_MAX = 1.5;
+/**
+ * 16.3.2: a score runs from 0 to the highest level number (docs, primitives/score),
+ * so a three-level rubric scores 0..2 and "low" is closer to level 0 than to
+ * level 1. 16.3.0 drew the line at 1.5 as if levels ran 1..3 and counted 68 of 69
+ * notes as unsure on the first pass.
+ */
+const SN_JEV_TITLE_FINDING_MAX = 0.5;
+const SN_JEV_DESCRIPTION_FINDING_MAX = 0.5;
 
 /**
  * Judge the stored notes. PURE.
@@ -40,11 +44,11 @@ function sn_health_jev_notes_judge( $notes ) {
 		$notes_out = array();
 		foreach ( array( 'title' => SN_JEV_TITLE_FINDING_MAX, 'description' => SN_JEV_DESCRIPTION_FINDING_MAX ) as $field => $max ) {
 			$f = $v[ $field ] ?? array();
-			if ( (float) ( $f['score'] ?? 3 ) <= $max ) {
+			if ( (float) ( $f['score'] ?? 2 ) <= $max ) {
 				if ( ! empty( $f['sure'] ) ) {
 					$notes_out[] = 'title' === $field
-						? sprintf( 'Jev reads the search title as an aphorism, not a query (rubric %.1f of 3, confidence %.2f).', (float) $f['score'], (float) $f['confidence'] )
-						: sprintf( 'Jev reads the description as a fragment or a repeat of the title (rubric %.1f of 3, confidence %.2f).', (float) $f['score'], (float) $f['confidence'] );
+						? sprintf( 'Jev reads the search title as an aphorism, not a query (rubric %.1f of 2, confidence %.2f).', (float) $f['score'], (float) $f['confidence'] )
+						: sprintf( 'Jev reads the description as a fragment or a repeat of the title (rubric %.1f of 2, confidence %.2f).', (float) $f['score'], (float) $f['confidence'] );
 				} else {
 					$unsure++;
 				}
