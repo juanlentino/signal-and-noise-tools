@@ -200,7 +200,13 @@ function sn_zenodo_get_deposition( $id, $env = null ) {
  * @param string $bytes      File contents.
  */
 function sn_zenodo_upload_file( $bucket_url, $filename, $bytes, $env = null, $content_type = 'application/octet-stream' ) {
-	return sn_zenodo_request( 'PUT', rtrim( (string) $bucket_url, '/' ) . '/' . rawurlencode( (string) $filename ), (string) $bytes, $env, array( 'Content-Type' => $content_type ) );
+	// 16.1.3: the bucket takes application/octet-stream and nothing else
+	// ("Invalid 'Content-Type' header. Expected one of: application/octet-stream",
+	// every upload of the first production pass). The file's own type is
+	// carried by its extension; $content_type stays in the signature so
+	// callers need not change, and is deliberately not sent.
+	unset( $content_type );
+	return sn_zenodo_request( 'PUT', rtrim( (string) $bucket_url, '/' ) . '/' . rawurlencode( (string) $filename ), (string) $bytes, $env, array( 'Content-Type' => 'application/octet-stream' ) );
 }
 
 /**

@@ -250,10 +250,13 @@ function sn_zenodo_deposit( $post_id ) {
 	$draft = (string) get_post_meta( $post_id, SN_ZENODO_DRAFT_META, true );
 	$dep   = '' !== $draft ? sn_zenodo_get_deposition( $draft, $env ) : sn_zenodo_create_deposition( $env );
 	if ( ! $dep['ok'] || ! is_array( $dep['body'] ) || empty( $dep['body']['id'] ) ) {
-		if ( '' !== $draft ) {
-			delete_post_meta( $post_id, SN_ZENODO_DRAFT_META ); // a dead draft; next pass starts clean
+		// 16.1.3: only a 404 means the draft is gone. Forgetting the id on a
+		// 5xx or a timeout made the next pass mint a fresh draft each time;
+		// ten orphan drafts on the first production day.
+		if ( '' !== $draft && 404 === (int) ( $dep['code'] ?? 0 ) ) {
+			delete_post_meta( $post_id, SN_ZENODO_DRAFT_META );
 		}
-		return $fail( 'create', $dep['error'] ?: 'no-id' );
+		return $fail( '' !== $draft ? 'resume' : 'create', $dep['error'] ?: 'no-id' );
 	}
 	$id     = (string) $dep['body']['id'];
 	$bucket = (string) ( $dep['body']['links']['bucket'] ?? '' );

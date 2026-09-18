@@ -102,7 +102,7 @@ ok( false === $r['ok'] && 404 === $r['code'] && 'not found' === $r['error'], 'a 
 ok( false === sn_zenodo_request( 'GET', 'https://zenodo.org/api/x', null, 'production' )['ok'] && 'no-token' === sn_zenodo_request( 'GET', 'https://zenodo.org/api/x', null, 'production' )['error'], 'no token for the environment: refused locally, no request made' );
 sn_zenodo_upload_file( 'https://sandbox.zenodo.org/api/files/bucket-1', 'note.md', "# hi", 'sandbox', 'text/markdown' );
 $last = end( $GLOBALS['__z']['log'] );
-ok( 'PUT' === $last['method'] && 'https://sandbox.zenodo.org/api/files/bucket-1/note.md' === $last['url'] && "# hi" === $last['body'] && 'text/markdown' === $last['headers']['Content-Type'], 'upload: PUT raw bytes into the bucket under the filename, with its content type' );
+ok( 'PUT' === $last['method'] && 'https://sandbox.zenodo.org/api/files/bucket-1/note.md' === $last['url'] && "# hi" === $last['body'] && 'application/octet-stream' === $last['headers']['Content-Type'], 'upload: PUT raw bytes into the bucket under the filename as application/octet-stream, whatever type the caller names (the bucket refuses every other type, measured 2026-09-18)' );
 
 echo "\nGroup D: readiness\n";
 mkpost( 7, 'two-kinds-of-provenance', 'Two kinds of provenance' );
@@ -153,6 +153,20 @@ $GLOBALS['__z']['http']['POST https://sandbox.zenodo.org/api/deposit/depositions
 $GLOBALS['__z']['log'] = array();
 $r = sn_zenodo_deposit( 9 );
 ok( true === $r['ok'] && 'GET https://sandbox.zenodo.org/api/deposit/depositions/777' === $GLOBALS['__z']['log'][0]['method'] . ' ' . $GLOBALS['__z']['log'][0]['url'], 'the next pass RESUMES the draft with GET; it never mints a second deposition' );
+// 16.1.3: a resume read that fails with a 5xx KEEPS the draft id (the next pass tries the same draft again); only a 404 forgets it.
+mkpost( 11, 'resume-500', 'Resume 500' );
+$GLOBALS['__z']['chain'][11] = array( array( 'version' => 1, 'status' => 'confirmed' ) );
+$GLOBALS['__z']['http']['GET https://juanlentino.com/notes/resume-500/'] = array( 'code' => 200, 'body' => "---\ntitle: x\n---\nBody" );
+$GLOBALS['__z']['http']['GET https://raw.githubusercontent.com/juanlentino/signal-and-noise-provenance/main/notes/uid-11/v1.json'] = array( 'code' => 200, 'body' => '{"signature":"s"}' );
+$GLOBALS['__z']['http']['GET https://raw.githubusercontent.com/juanlentino/signal-and-noise-provenance/main/notes/uid-11/v1.ots'] = array( 'code' => 200, 'body' => 'OTS' );
+update_post_meta( 11, SN_ZENODO_DRAFT_META, '888' );
+$GLOBALS['__z']['http']['GET https://sandbox.zenodo.org/api/deposit/depositions/888'] = array( 'code' => 500, 'body' => '{"message":"internal"}' );
+$r = sn_zenodo_deposit( 11 );
+ok( false === $r['ok'] && 'resume' === $r['state'] && '888' === get_post_meta( 11, SN_ZENODO_DRAFT_META ), 'a 500 on the resume read keeps the draft id and names the step "resume" (ten orphan drafts on the first production day)' );
+$GLOBALS['__z']['http']['GET https://sandbox.zenodo.org/api/deposit/depositions/888'] = array( 'code' => 404, 'body' => '{"message":"not found"}' );
+$r = sn_zenodo_deposit( 11 );
+ok( false === $r['ok'] && '' === get_post_meta( 11, SN_ZENODO_DRAFT_META ), 'a 404 on the resume read forgets the draft; the next pass starts clean' );
+unset( $GLOBALS['__z']['posts'][11], $GLOBALS['__z']['meta'][11], $GLOBALS['__z']['chain'][11] ); // this post is not part of the later counts
 // Bundle gate: no proof, no deposit.
 mkpost( 10, 'no-proof', 'No proof' );
 $GLOBALS['__z']['chain'][10] = array( array( 'version' => 1, 'status' => 'confirmed' ) );
