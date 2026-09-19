@@ -106,10 +106,14 @@ $r = sn_jev_sync();
 $d = sn_jev_data();
 ok( true === $r['ok'] && 2 === $r['judged'] && 2 === count( $GLOBALS['__j']['calls'] ) && 2 === count( $d['notes'] ) && 624 === $d['usage']['input_tokens'] && 'jev-latest' === $d['model'], 'one request per note, every note, usage summed, one option' );
 ok( true === $d['notes'][8]['verdict']['title']['sure'] && 0.2 === $d['notes'][8]['verdict']['title']['score'] && false === $d['notes'][8]['verdict']['description']['sure'], 'the stored verdict is the shaped answer' );
+ok( array_key_exists( 'previous', $d['notes'][8] ) && null === $d['notes'][8]['previous'], '16.8.1: the first pass stores previous as null' );
+$GLOBALS['__j']['answer'] = $ok200( array( 'title_query' => array( 'type' => 'score', 'score' => 1.7, 'confidence' => 0.8 ), 'description_says' => array( 'type' => 'score', 'score' => 2.0, 'confidence' => 0.9 ), 'opening_names' => array( 'type' => 'noul', 'noul' => 0.5 ) ) );
+sn_jev_sync();
+ok( 0.2 === sn_jev_data()['notes'][8]['previous']['title']['score'] && 1.7 === sn_jev_data()['notes'][8]['verdict']['title']['score'], '16.8.1: the second pass keeps the first verdict as previous' );
 $GLOBALS['__j']['answer'] = array( 'response' => array( 'code' => 529 ), 'body' => '{"message":"overloaded"}' );
 $r = sn_jev_sync();
 $d = sn_jev_data();
-ok( false === $r['ok'] && 2 === $r['failed'] && 0.2 === $d['notes'][8]['verdict']['title']['score'] && false !== strpos( $d['notes'][8]['error'], 'HTTP 529' ) && false !== strpos( $d['last_error'], 'HTTP 529' ), 'a failed request keeps the previous verdict with the error beside it' );
+ok( false === $r['ok'] && 2 === $r['failed'] && 1.7 === $d['notes'][8]['verdict']['title']['score'] && false !== strpos( $d['notes'][8]['error'], 'HTTP 529' ) && false !== strpos( $d['last_error'], 'HTTP 529' ), 'a failed request keeps the previous verdict with the error beside it' );
 $GLOBALS['__j']['answer'] = array( 'response' => array( 'code' => 401 ), 'body' => '{"message":"nope"}' ); $GLOBALS['__j']['calls'] = array();
 sn_jev_sync();
 ok( 1 === count( $GLOBALS['__j']['calls'] ), 'a refused key stops the pass after one request' );
@@ -131,6 +135,15 @@ $j = sn_health_jev_notes_judge( array(
 	'junk',
 ) );
 ok( 4 === $j['judged'] && array( 8, 9 ) === array_column( $j['findings'], 'subject_id' ), 'THE PIN: a position below level one is a finding whatever the confidence; level one itself and above are not (the 0.9 floor hid every reading on 16.3.3\'s pass: one of 69 cleared it)' );
+// 16.8.1: an edge reading is taken twice.
+$two = sn_health_jev_notes_judge( array(
+	20 => array( 'title' => 'Flapped', 'verdict' => array( 'title' => array( 'score' => 0.98, 'confidence' => 0.4, 'sure' => false ), 'description' => array( 'score' => 2.0, 'confidence' => 0.9, 'sure' => true ), 'opening' => array( 'noul' => 0.5 ) ), 'previous' => array( 'title' => array( 'score' => 1.0, 'confidence' => 0.9, 'sure' => true ), 'description' => array( 'score' => 2.0, 'confidence' => 0.9, 'sure' => true ), 'opening' => array( 'noul' => 0.5 ) ), 'at' => 2, 'error' => '' ),
+	21 => array( 'title' => 'Held', 'verdict' => array( 'title' => array( 'score' => 0.7, 'confidence' => 0.3, 'sure' => false ), 'description' => array( 'score' => 2.0, 'confidence' => 0.9, 'sure' => true ), 'opening' => array( 'noul' => 0.5 ) ), 'previous' => array( 'title' => array( 'score' => 0.8, 'confidence' => 0.2, 'sure' => false ), 'description' => array( 'score' => 2.0, 'confidence' => 0.9, 'sure' => true ), 'opening' => array( 'noul' => 0.5 ) ), 'at' => 2, 'error' => '' ),
+	22 => array( 'title' => 'First read', 'verdict' => array( 'title' => array( 'score' => 0.6, 'confidence' => 0.6, 'sure' => false ), 'description' => array( 'score' => 2.0, 'confidence' => 0.9, 'sure' => true ), 'opening' => array( 'noul' => 0.5 ) ), 'at' => 1, 'error' => '' ),
+	23 => array( 'title' => 'Description held, title flapped', 'verdict' => array( 'title' => array( 'score' => 0.9, 'confidence' => 0.6, 'sure' => false ), 'description' => array( 'score' => 0.5, 'confidence' => 0.9, 'sure' => false ), 'opening' => array( 'noul' => 0.5 ) ), 'previous' => array( 'title' => array( 'score' => 1.4, 'confidence' => 0.6, 'sure' => false ), 'description' => array( 'score' => 0.4, 'confidence' => 0.9, 'sure' => false ), 'opening' => array( 'noul' => 0.5 ) ), 'at' => 2, 'error' => '' ),
+) );
+ok( array( 21, 22, 23 ) === array_column( $two['findings'], 'subject_id' ), '16.8.1: a note below the line today but above it yesterday is not listed; below on both passes is; a first reading with no previous pass still counts' );
+ok( false === strpos( $two['findings'][2]['note'], 'search title' ) && false !== strpos( $two['findings'][2]['note'], 'description below' ), '16.8.1: the two-pass rule is per field: the description that held is listed, the title that flapped is not' );
 ok( false !== strpos( $j['findings'][0]['note'], 'rubric 0.58 of 2, confidence 0.70' ) && false === strpos( $j['findings'][0]['note'], 'unsure' ), 'confidence at or above 0.5: the note carries the numbers and no caveat' );
 ok( false !== strpos( $j['findings'][1]['note'], 'confidence 0.02: Jev is unsure; read it yourself' ) && false !== strpos( $j['findings'][1]['note'], 'below "says what it is about"' ) && 1 === $j['unsure'], 'confidence under 0.5: the note says Jev is unsure; both fields can fire on one note; unsure counts findings, not readings' );
 $GLOBALS['__j']['opt']['sn_typesafe_api_key'] = '';

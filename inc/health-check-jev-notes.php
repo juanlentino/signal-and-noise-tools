@@ -48,11 +48,20 @@ function sn_health_jev_notes_judge( $notes ) {
 		}
 		$judged++;
 		$v         = $n['verdict'];
+		$prev      = is_array( $n['previous'] ?? null ) ? $n['previous'] : null;
 		$notes_out = array();
 		$low_conf  = false;
 		foreach ( array( 'title' => SN_JEV_TITLE_FINDING_BELOW, 'description' => SN_JEV_DESCRIPTION_FINDING_BELOW ) as $field => $below ) {
 			$f = $v[ $field ] ?? array();
 			if ( ! isset( $f['score'] ) || (float) $f['score'] >= $below ) {
+				continue;
+			}
+			// 16.8.1: an edge reading is taken twice. A note read at 1.00 one day
+			// and 0.98 the next flapped in and out of the red count; a finding now
+			// needs the previous pass below the line too. A first reading (no
+			// previous pass) still counts: a read is a read until the next one.
+			$p = is_array( $prev ) ? ( $prev[ $field ] ?? array() ) : array();
+			if ( isset( $p['score'] ) && (float) $p['score'] >= $below ) {
 				continue;
 			}
 			$conf = (float) ( $f['confidence'] ?? 0 );
@@ -90,7 +99,7 @@ function sn_health_jev_notes_judge( $notes ) {
  */
 function sn_health_check_jev_notes() {
 	$label = 'Notes Jev reads below "names the subject" (search title or description)';
-	$hint  = 'Jev, TypeSafe\'s judge, read each note\'s title, search title, description and opening. Rewrite the search title as the words a searcher types, or the description as the argument in one sentence; the next daily pass re-reads it.';
+	$hint  = 'Jev, TypeSafe\'s judge, read each note\'s title, search title, description and opening. A note is listed when two consecutive daily passes read it below the line (an edge reading is taken twice). Rewrite the search title as the words a searcher types, or the description as the argument in one sentence; the next daily pass re-reads it.';
 	if ( ! function_exists( 'sn_jev_is_ready' ) || ! sn_jev_is_ready() ) {
 		return sn_health_pack_check( $label, array(), $hint, SN_JEV_NOT_READY . ' The daily Jev pass does not run without it.' );
 	}
