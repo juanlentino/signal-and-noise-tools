@@ -216,50 +216,136 @@ add_action( 'init', function () {
  */
 const SN_JEV_LANES_OPTION = 'sn_jev_lanes';
 
-function sn_jev_lane_map() {
+const SN_JEV_LANE_CHUNK = 300; // pair questions per request; 300 × ~30 tokens + the corpus once stays far under the 64k cap
+
+/**
+ * 16.7.1: every unordered pair as one terse Noul, the corpus sent ONCE per
+ * chunk instead of once per note. Output is free; input is the state plus
+ * every question's text, so the rubric rides on the first question of a
+ * chunk and the rest name the pair. PURE.
+ *
+ * @param array<int,int> $ids
+ * @return array<int,array<string,array>> chunks of questions keyed nA_nB
+ */
+function sn_jev_lane_pair_questions( array $ids, $chunk = SN_JEV_LANE_CHUNK ) {
+	$ids    = array_values( array_map( 'intval', $ids ) );
+	$chunks = array();
+	$cur    = array();
+	$n      = count( $ids );
+	for ( $i = 0; $i < $n; $i++ ) {
+		for ( $j = $i + 1; $j < $n; $j++ ) {
+			$a = min( $ids[ $i ], $ids[ $j ] );
+			$b = max( $ids[ $i ], $ids[ $j ] );
+			$q = array( 'type' => 'noul', 'instructions' => 'Do `notes.n' . $a . '` and `notes.n' . $b . '` make the same central argument, so that a reader of one would learn nothing new from the other?' );
+			if ( array() === $cur ) {
+				$q['criteria'] = array(
+					'true'  => array( 'what' => 'The same central claim, even in different words or with different examples; the two would compete for the same reader and the same search.', 'examples' => array( 'Both argue that detection cannot replace provenance because a score is not a signature.' ) ),
+					'false' => array( 'what' => 'The same topic but a different claim, a different angle, or a step the other note leaves open; a reader of one still learns from the other.', 'examples' => array( 'One argues detection fails on cost, the other that it fails on falsifiability.' ) ),
+				);
+			}
+			$cur[ 'n' . $a . '_n' . $b ] = $q;
+			if ( count( $cur ) >= max( 1, (int) $chunk ) ) {
+				$chunks[] = $cur;
+				$cur      = array();
+			}
+		}
+	}
+	if ( array() !== $cur ) {
+		$chunks[] = $cur;
+	}
+	return $chunks;
+}
+
+/** The pair answers at or above the line, as lane rows. PURE. */
+function sn_jev_lane_judge_pairs( array $answers, array $all ) {
+	$pairs = array();
+	foreach ( $answers as $key => $a ) {
+		if ( 'noul' !== (string) ( $a['type'] ?? '' ) || ! preg_match( '/^n(\d+)_n(\d+)$/', (string) $key, $m ) ) {
+			continue;
+		}
+		$x    = (int) $m[1];
+		$y    = (int) $m[2];
+		$noul = round( (float) $a['noul'], 2 );
+		if ( $noul < SN_JEV_COLLISION_LINE || ! isset( $all[ $x ], $all[ $y ] ) ) {
+			continue;
+		}
+		$pairs[ $x . '-' . $y ] = array( 'a' => $x, 'b' => $y, 'a_title' => (string) $all[ $x ]['title'], 'b_title' => (string) $all[ $y ]['title'], 'noul' => $noul );
+	}
+	return $pairs;
+}
+
+/**
+ * @param string $mode pairs (16.7.1, the corpus once per chunk) | notes (16.4.0, one request per note)
+ */
+function sn_jev_lane_map( $mode = 'pairs' ) {
 	if ( ! function_exists( 'sn_jev_is_ready' ) || ! sn_jev_is_ready() ) {
 		return array( 'ok' => false, 'judged' => 0, 'failed' => 0, 'pairs' => 0, 'error' => 'no-key' );
 	}
+	$mode   = 'notes' === $mode ? 'notes' : 'pairs';
 	$all    = sn_jev_collision_corpus( 0 );
 	$pairs  = array();
 	$judged = 0;
 	$failed = 0;
 	$tokens = 0;
+	$reqs   = 0;
 	$err    = '';
-	foreach ( array_keys( $all ) as $id ) {
-		$post = get_post( $id );
-		if ( ! $post ) {
-			continue;
+	if ( 'pairs' === $mode ) {
+		$state = array( 'notes' => array() );
+		foreach ( $all as $id => $n ) {
+			$state['notes'][ 'n' . (int) $id ] = $n;
 		}
-		$corpus = $all;
-		unset( $corpus[ $id ] );
-		$r = sn_jev_ask( sn_jev_collision_state( $post, $corpus ), sn_jev_collision_questions( $corpus ), 'lane_map' );
-		if ( ! $r['ok'] ) {
-			$failed++;
-			$err = (string) $r['error'];
-			if ( in_array( (int) $r['code'], array( 401, 403 ), true ) ) {
-				break;
-			}
-			continue;
-		}
-		$judged++;
-		$tokens += (int) ( $r['usage']['input_tokens'] ?? 0 );
-		foreach ( sn_jev_collision_judge( $r['answers'], $corpus )['rows'] as $row ) {
-			if ( $row['noul'] < SN_JEV_COLLISION_LINE ) {
+		foreach ( sn_jev_lane_pair_questions( array_keys( $all ) ) as $questions ) {
+			$reqs++;
+			$r = sn_jev_ask( $state, $questions, 'lane_map' );
+			if ( ! $r['ok'] ) {
+				$failed++;
+				$err = (string) $r['error'];
+				if ( in_array( (int) $r['code'], array( 401, 403 ), true ) ) {
+					break;
+				}
 				continue;
 			}
-			// One row per unordered pair, keeping the higher of the two readings.
-			$key = min( $id, $row['id'] ) . '-' . max( $id, $row['id'] );
-			if ( ! isset( $pairs[ $key ] ) || $pairs[ $key ]['noul'] < $row['noul'] ) {
-				$pairs[ $key ] = array( 'a' => min( $id, $row['id'] ), 'b' => max( $id, $row['id'] ), 'a_title' => (string) $all[ min( $id, $row['id'] ) ]['title'], 'b_title' => (string) $all[ max( $id, $row['id'] ) ]['title'], 'noul' => $row['noul'] );
+			$tokens += (int) ( $r['usage']['input_tokens'] ?? 0 );
+			$pairs   = array_merge( $pairs, sn_jev_lane_judge_pairs( $r['answers'], $all ) );
+		}
+		$judged = $failed > 0 ? 0 : count( $all );
+	} else {
+		foreach ( array_keys( $all ) as $id ) {
+			$post = get_post( $id );
+			if ( ! $post ) {
+				continue;
+			}
+			$corpus = $all;
+			unset( $corpus[ $id ] );
+			$reqs++;
+			$r = sn_jev_ask( sn_jev_collision_state( $post, $corpus ), sn_jev_collision_questions( $corpus ), 'lane_map' );
+			if ( ! $r['ok'] ) {
+				$failed++;
+				$err = (string) $r['error'];
+				if ( in_array( (int) $r['code'], array( 401, 403 ), true ) ) {
+					break;
+				}
+				continue;
+			}
+			$judged++;
+			$tokens += (int) ( $r['usage']['input_tokens'] ?? 0 );
+			foreach ( sn_jev_collision_judge( $r['answers'], $corpus )['rows'] as $row ) {
+				if ( $row['noul'] < SN_JEV_COLLISION_LINE ) {
+					continue;
+				}
+				// One row per unordered pair, keeping the higher of the two readings.
+				$key = min( $id, $row['id'] ) . '-' . max( $id, $row['id'] );
+				if ( ! isset( $pairs[ $key ] ) || $pairs[ $key ]['noul'] < $row['noul'] ) {
+					$pairs[ $key ] = array( 'a' => min( $id, $row['id'] ), 'b' => max( $id, $row['id'] ), 'a_title' => (string) $all[ min( $id, $row['id'] ) ]['title'], 'b_title' => (string) $all[ max( $id, $row['id'] ) ]['title'], 'noul' => $row['noul'] );
+				}
 			}
 		}
 	}
 	usort( $pairs, static function ( $x, $y ) {
 		return $y['noul'] <=> $x['noul'];
 	} );
-	update_option( SN_JEV_LANES_OPTION, array( 'at' => time(), 'judged' => $judged, 'failed' => $failed, 'pairs' => array_values( $pairs ), 'input_tokens' => $tokens, 'error' => $err ), false );
-	return array( 'ok' => 0 === $failed, 'judged' => $judged, 'failed' => $failed, 'pairs' => count( $pairs ), 'error' => $err );
+	update_option( SN_JEV_LANES_OPTION, array( 'at' => time(), 'mode' => $mode, 'requests' => $reqs, 'judged' => $judged, 'failed' => $failed, 'pairs' => array_values( $pairs ), 'input_tokens' => $tokens, 'error' => $err ), false );
+	return array( 'ok' => 0 === $failed, 'mode' => $mode, 'requests' => $reqs, 'judged' => $judged, 'failed' => $failed, 'pairs' => count( $pairs ), 'input_tokens' => $tokens, 'error' => $err );
 }
 
 /** The stored map, or null. */

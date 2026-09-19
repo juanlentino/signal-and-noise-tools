@@ -115,15 +115,33 @@ $GLOBALS['__c']['answer'] = function ( $state, $q ) {
 	$ans = array(); foreach ( $map[ $id ] as $k => $v ) { $ans[ $k ] = array( 'type' => 'noul', 'noul' => $v ); }
 	return array( 'ok' => true, 'code' => 200, 'answers' => $ans, 'usage' => array( 'input_tokens' => 10 ), 'error' => '' );
 };
-$m = sn_jev_lane_map();
+$m = sn_jev_lane_map( 'notes' );
 ok( $m['ok'] && 3 === $m['judged'] && 0 === $m['failed'] && 2 === $m['pairs'] && 3 === count( $GLOBALS['__c']['calls'] ), 'H1 one request per note, two pairs at or above the line' );
 $lanes = sn_jev_lanes();
 ok( 0.9 === $lanes['pairs'][0]['noul'] && 1 === $lanes['pairs'][0]['a'] && 2 === $lanes['pairs'][0]['b'] && 'One' === $lanes['pairs'][0]['a_title'], 'H2 pair 1-2 keeps the higher of 0.6 and 0.9, sorted first' );
 ok( 0.5 === $lanes['pairs'][1]['noul'] && 2 === $lanes['pairs'][1]['a'] && 3 === $lanes['pairs'][1]['b'] && 30 === $lanes['input_tokens'], 'H3 pair 2-3 at exactly 0.5 counts; tokens summed' );
 $GLOBALS['__c']['answer'] = array( 'ok' => false, 'code' => 401, 'answers' => array(), 'usage' => array(), 'error' => 'unauthorized' );
 $GLOBALS['__c']['calls'] = array();
-$m2 = sn_jev_lane_map();
+$m2 = sn_jev_lane_map( 'notes' );
 ok( ! $m2['ok'] && 1 === $m2['failed'] && 1 === count( $GLOBALS['__c']['calls'] ) && 'unauthorized' === $m2['error'], 'H4 a 401 stops the map after one request' );
+
+// H2: 16.7.1, the pairs mode: the corpus once per chunk, one terse Noul per unordered pair, the rubric on the first question of a chunk only.
+$ch = sn_jev_lane_pair_questions( array( 3, 1, 2 ), 2 );
+ok( 2 === count( $ch ) && array( 'n1_n3', 'n2_n3' ) === array_keys( $ch[0] ) && array( 'n1_n2' ) === array_keys( $ch[1] ), 'P1 three ids give three unordered pairs, keyed low_high, chunked at two' );
+ok( isset( $ch[0]['n1_n3']['criteria']['true']['examples'] ) && ! isset( $ch[0]['n2_n3']['criteria'] ) && isset( $ch[1]['n1_n2']['criteria'] ), 'P2 the rubric rides on the first question of each chunk; the rest name the pair' );
+ok( str_contains( $ch[0]['n1_n3']['instructions'], 'notes.n1' ) && str_contains( $ch[0]['n1_n3']['instructions'], 'notes.n3' ) && str_contains( $ch[0]['n1_n3']['instructions'], 'same central argument' ), 'P3 the pair question names both notes' );
+ok( array() === sn_jev_lane_pair_questions( array( 7 ) ) && 946 === array_sum( array_map( 'count', sn_jev_lane_pair_questions( range( 1, 44 ) ) ) ) && 4 === count( sn_jev_lane_pair_questions( range( 1, 44 ) ) ), 'P4 one id has no pair; 44 ids give 946 pairs in four chunks of 300' );
+$GLOBALS['__c']['calls'] = array(); $GLOBALS['__c']['opt'] = array();
+$GLOBALS['__c']['answer'] = function ( $state, $q ) { $a = array(); foreach ( array_keys( $q ) as $k ) { $a[ $k ] = array( 'type' => 'noul', 'noul' => 'n1_n2' === $k ? 0.9 : ( 'n2_n3' === $k ? 0.5 : 0.2 ) ); } return array( 'ok' => true, 'code' => 200, 'answers' => $a, 'usage' => array( 'input_tokens' => 5000 ), 'error' => '' ); };
+$m3 = sn_jev_lane_map();
+ok( $m3['ok'] && 'pairs' === $m3['mode'] && 1 === $m3['requests'] && 3 === $m3['judged'] && 2 === $m3['pairs'] && 5000 === $m3['input_tokens'] && 1 === count( $GLOBALS['__c']['calls'] ), 'P5 default mode is pairs: ONE request for three notes, two pairs at or above the line' );
+ok( array( 'n1', 'n2', 'n3' ) === array_keys( $GLOBALS['__c']['calls'][0]['state']['notes'] ) && 'One' === $GLOBALS['__c']['calls'][0]['state']['notes']['n1']['title'] && 3 === count( $GLOBALS['__c']['calls'][0]['questions'] ), 'P6 the state is the corpus keyed nID, sent once' );
+$l3 = sn_jev_lanes();
+ok( 'pairs' === $l3['mode'] && 0.9 === $l3['pairs'][0]['noul'] && 1 === $l3['pairs'][0]['a'] && 2 === $l3['pairs'][0]['b'] && 'Two' === $l3['pairs'][0]['b_title'] && 0.5 === $l3['pairs'][1]['noul'], 'P7 pairs sorted desc with titles; 0.5 exactly counts; mode stored' );
+$GLOBALS['__c']['answer'] = array( 'ok' => false, 'code' => 401, 'answers' => array(), 'usage' => array(), 'error' => 'unauthorized' );
+$m4 = sn_jev_lane_map();
+ok( ! $m4['ok'] && 1 === $m4['failed'] && 0 === $m4['judged'] && 0 === $m4['pairs'], 'P8 a refused chunk: failed, nothing judged' );
+ok( 'notes' === snt_ability_jev_lane_map( array( 'mode' => 'notes' ) )['mode'] && 'pairs' === snt_ability_jev_lane_map( array( 'mode' => 'bogus' ) )['mode'], 'P9 the ability takes mode notes; anything else is pairs' );
 
 // I: the three abilities.
 $ab = $GLOBALS['__c']['abilities'];
@@ -131,7 +149,7 @@ ok( isset( $ab['signal-noise/jev-collision-check'], $ab['signal-noise/jev-lane-m
 ok( false === $ab['signal-noise/jev-collision-check']['meta']['annotations']['readonly'] && false === $ab['signal-noise/jev-lane-map']['meta']['annotations']['readonly'] && true === $ab['signal-noise/jev-lanes']['meta']['annotations']['readonly'], 'I2 two writes, one read' );
 ok( ! snt_ability_jev_collision_check( array() )['ok'] && 'post_id required' === snt_ability_jev_collision_check( array() )['error'], 'I3 collision-check requires post_id' );
 $l = snt_ability_jev_lanes();
-ok( $l['ok'] && $l['mapped'] && 0 === count( $l['pairs'] ) && 1 === $l['failed'], 'I4 jev-lanes hands the stored map out (the failed one from H4: zero pairs, failed=1)' );
+ok( $l['ok'] && $l['mapped'] && 0 === count( $l['pairs'] ) && 1 === $l['failed'] && 'pairs' === $l['mode'], 'I4 jev-lanes hands the stored map out (the failed one from P8: zero pairs, failed=1, mode pairs)' );
 $GLOBALS['__c']['opt'] = array();
 ok( false === snt_ability_jev_lanes()['mapped'], 'I5 no map yet reads as mapped=false' );
 

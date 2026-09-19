@@ -137,7 +137,8 @@ function snt_ability_jev_collision_check( $input = array() ) {
 }
 
 function snt_ability_jev_lane_map( $input = array() ) {
-	return function_exists( 'sn_jev_lane_map' ) ? sn_jev_lane_map() : array( 'ok' => false, 'error' => 'unavailable' );
+	$mode = is_array( $input ) && 'notes' === ( $input['mode'] ?? '' ) ? 'notes' : 'pairs';
+	return function_exists( 'sn_jev_lane_map' ) ? sn_jev_lane_map( $mode ) : array( 'ok' => false, 'error' => 'unavailable' );
 }
 
 function snt_ability_jev_lanes( $input = array() ) {
@@ -145,7 +146,7 @@ function snt_ability_jev_lanes( $input = array() ) {
 	if ( null === $d ) {
 		return array( 'ok' => true, 'mapped' => false, 'at' => 0, 'judged' => 0, 'pairs' => array(), 'note' => 'No lane map yet; run jev-lane-map.' );
 	}
-	return array( 'ok' => true, 'mapped' => true, 'at' => (int) $d['at'], 'judged' => (int) $d['judged'], 'failed' => (int) ( $d['failed'] ?? 0 ), 'pairs' => (array) $d['pairs'], 'input_tokens' => (int) ( $d['input_tokens'] ?? 0 ), 'error' => (string) ( $d['error'] ?? '' ), 'note' => 'Pairs at or above 0.5: two published notes Jev reads as making the same argument. Notes are never edited; the remedy is the next note, not these.' );
+	return array( 'ok' => true, 'mapped' => true, 'at' => (int) $d['at'], 'mode' => (string) ( $d['mode'] ?? 'notes' ), 'requests' => (int) ( $d['requests'] ?? 0 ), 'judged' => (int) $d['judged'], 'failed' => (int) ( $d['failed'] ?? 0 ), 'pairs' => (array) $d['pairs'], 'input_tokens' => (int) ( $d['input_tokens'] ?? 0 ), 'error' => (string) ( $d['error'] ?? '' ), 'note' => 'Pairs at or above 0.5: two published notes Jev reads as making the same argument. Notes are never edited; the remedy is the next note, not these.' );
 }
 
 add_action( 'wp_abilities_api_init', function () {
@@ -165,12 +166,12 @@ add_action( 'wp_abilities_api_init', function () {
 	) );
 	wp_register_ability( 'signal-noise/jev-lane-map', array(
 		'label'               => 'Jev: map the lanes the published notes share',
-		'description'         => 'Judges every published note against the others (one request per note) and stores the pairs at or above 0.5 as the lane map. About seventy requests; a cent.',
+		'description'         => 'Judges every unordered pair of published notes and stores the pairs at or above 0.5 as the lane map. mode pairs (default, 16.7.1): the corpus is sent once per chunk of 300 pair questions, three or four requests, a tenth of a cent. mode notes (16.4.0): one request per note with the corpus re-sent each time, about seventy requests, two cents; kept for comparing the two readings.',
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_lane_map',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
-		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'pairs' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
+		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array( 'mode' => array( 'type' => 'string', 'enum' => array( 'pairs', 'notes' ) ) ), 'additionalProperties' => false ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'mode' => array( 'type' => 'string' ), 'requests' => array( 'type' => 'integer' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'pairs' => array( 'type' => 'integer' ), 'input_tokens' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
 		'meta'                => $rw,
 	) );
 	wp_register_ability( 'signal-noise/jev-lanes', array(
