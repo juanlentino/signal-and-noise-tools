@@ -52,6 +52,8 @@ This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/jev-tags` | `manage_options` | diagnostics | — | READ-DOOR (16.8.0; the stored tag-fit pass; check 31 reads the same. 16.9.2: misfits only, a tag whose subject the note does not touch, under 0.5 at confidence 0.7; every attached score beside them; no proposed tags) |
 | `signal-noise/get-machine-readers-crosstab` | `manage_options` | analytics | — | READ-DOOR (17.0.0; family x purpose x agent cells over the edge sensor's aggregate rows, with days seen and hits per surface; `taxonomy_absent` and `truncated` flags) |
 | `signal-noise/get-rights-reads` | `manage_options` | analytics | — | READ-DOOR (17.0.0; every fetch of the rights surfaces from the full-fidelity stream, no user-agent string; cadence per family and path with a poller flag; the ai_rights count taken from both datasets) |
+| `signal-noise/rights-evidence` | `manage_options` | diagnostics | — | READ-DOOR (17.0.0; the stored ledger of monthly rights-evidence records per AI-training family: uuid, hash, status, ledger path; never the bytes) |
+| `signal-noise/rights-evidence-now` | `manage_options` | maintenance | WRITE | RW-DOOR (17.0.0; composes and posts the last complete month's records to the provenance worker; idempotent; publishes to the append-only ledger) |
 | `signal-noise/get-404-log` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-collector-status` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-insights` | `manage_options` | diagnostics | ✓ | READ-DOOR |
@@ -115,6 +117,8 @@ These 15 were registered across v9.x–v10.x but never entered this catalog, so 
 | `signal-noise/get-machine-readers-summary` | Get Machine Readers Summary | [`abilities-machine-readers.php`](../inc/abilities-machine-readers.php) |
 | `signal-noise/get-machine-readers-crosstab` | Get Machine Readers Crosstab | [`abilities-machine-readers-ledger.php`](../inc/abilities-machine-readers-ledger.php) |
 | `signal-noise/get-rights-reads` | Get Rights Reads | [`abilities-machine-readers-ledger.php`](../inc/abilities-machine-readers-ledger.php) |
+| `signal-noise/rights-evidence` | Rights evidence: the monthly records | [`abilities-rights-evidence.php`](../inc/abilities-rights-evidence.php) |
+| `signal-noise/rights-evidence-now` | Rights evidence: compose and post the last month now | [`abilities-rights-evidence.php`](../inc/abilities-rights-evidence.php) |
 | `signal-noise/get-post-content` | Fetch full bodies for a bounded set of posts | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
 | `signal-noise/keyword-candidates` | Rank a post's own terms as keyword candidates (TF-IDF) | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
 | `signal-noise/link-candidates` | Suggest related notes the post does not link to yet | [`abilities-corpus.php`](../inc/abilities-corpus.php) |

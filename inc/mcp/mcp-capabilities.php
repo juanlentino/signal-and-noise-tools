@@ -124,6 +124,7 @@ function sn_mcp_allowlist() {
 		// behind a display transient, folded; no post bodies, no UA strings.
 		'signal-noise/get-machine-readers-crosstab',
 		'signal-noise/get-rights-reads',
+		'signal-noise/rights-evidence', // 17.0.0: the stored ledger of monthly records; the bytes stay home
 		// v10.6.0 — corpus inspection: list-posts + get-post-content moved to
 		// the wave-2 retirement block above (absorbed by sn-posts).
 		// v10.16.0 (2026-07-30) — near-duplicate cousin scan: PURE-READ by
@@ -379,6 +380,7 @@ function sn_mcp_rw_allowlist() {
 		'signal-noise/jev-tells-check', // 16.7.0: the anti-tell pass on one note
 		'signal-noise/jev-tells-pass', // 16.7.0: the anti-tell pass over the corpus
 		'signal-noise/jev-tags-now', // 16.8.0: the tag-fit pass now
+		'signal-noise/rights-evidence-now', // 17.0.0: compose and post the last month now (publishes to the ledger)
 		// Theme (signal-and-noise/) — 5, all AI-billed + return-only.
 	);
 
