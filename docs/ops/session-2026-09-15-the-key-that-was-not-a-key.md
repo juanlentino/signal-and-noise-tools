@@ -1119,8 +1119,66 @@ above 0.41 against 44. The connector's own settings link points at
 `options-connectors.php`. Filed as jev-connector#8, with the two things
 this install confirmed for its "still unverified" list.
 
+## Two scans, a hollow page, and the roadmap
+
+The morning's Dependabot sweep went across all 37 repositories one merge at
+a time on a re-read CLEAN: the two S&N workers (vitest on provenance,
+sharp on remote-mcp, tagged v1.6.1 with a draft), seven on reverbeat and
+eleven on reverbeat-demo with the two critical Next advisories first, two
+on selo where "Update branch" had made Dependabot refuse to rebase and
+`@dependabot recreate` was the way out. A single unattended script for
+the lot was refused by the auto-mode classifier as merging without
+review; one visible merge per call was accepted, and that is the shape
+that stays.
+
+Bing's second Site Scan listed 44 `/verify?note=` rows without a
+description and `/provenance/` without an H1 or a description. The 44 are
+one page: 16.2.4 gives the standalone verifier a description and a
+self-canonical, noindex unchanged, one row now instead of one per note
+the queue publishes. `/provenance/` was hollow again: the edge held a
+358-byte 200 for ninety minutes, the object-cache footnote and nothing
+else, cached by the first render after my own purge. The sibling session
+in the theme checkout found the cause while I was reading headers:
+`sn_strip_generator_meta` is a `preg_replace` output-buffer callback, and
+`preg_replace` returns null when PCRE hits its backtrack limit on the
+largest page, and a callback that returns null sends an empty body with a
+200. Theme 13.3.1 keeps the page on a failed rewrite and marks a body
+under 4 KB no-store. I purged once more and read the three key pages back
+full.
+
+`/privacy-policy/` was noindex and I called it "by design" from the live
+tag. No code sets it; the owner had ticked the page's box once. He
+unticked it and asked why I had said design. A setting is not a design
+until you know who set it; that went into memory as a rule. He wrote the
+description through his session, as he had the thirty-two remaining
+titles over 65 characters (fifteen published at 66 to 70, seventeen
+scheduled at 67 to 98), all read back at 49 to 65.
+
+Then the 7.2 roadmap. I read the post, the Secrets API proposal, seven
+AI-track issues and nine Trac tickets against 16.6.0, and sorted them by
+what is ours to drop. The keyring's storage folds into the Secrets API at
+Beta 1 (`wp_set_secret`, libsodium at rest, `->reveal()`, rotation slots;
+the registry, probes and verdicts are the half core does not ship). The
+hand-rolled MCP transport becomes duplicate when WordPress/mcp-adapter
+reaches the directory with 2026-07-28; a watch ripens on the adapter
+class and the read door retires first. Trac #65551 is live today: Core's
+connector save wipes a key it cannot validate, null included, and the
+TypeSafe key has lived there since 16.5.2; a watch ripens on 7.2, and
+until then the Connectors screen is not re-saved while TypeSafe is down.
+The HTML API is the fix for the regex output rewrites that made the
+hollow page. Concatenation removal (#57548) is wp-admin only; the theme's
+combine is untouched. 16.6.1 carries the two watches and the read lives
+in `docs/ops/wordpress-7-2-roadmap-read.md`.
+
 ## Left open
 
+- 16.6.1 (the two 7.2 watches) on its chain at the time of writing, behind
+  another session's #1488; whichever merges second rebases.
+- Beta 1, 20 to 22 October: keyring storage over the Secrets API; the tag
+  processor for the generator strip and the head rewrites; Guideline
+  records from the conventions registry; the DataForm inspector test; the
+  phpstan gate to the 7.2 stubs. The plan is in the roadmap read.
+- The fifteen orphan drafts on zenodo.org are still the owner's to delete.
 - Clear the analytics override and the stale site secret (both still hold the
   rolled-away Cloudflare token); mint a real site secret when a worker row
   should derive from one.
