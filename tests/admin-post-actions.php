@@ -245,7 +245,7 @@ pa_eq( 'analytics_exclude_unchanged', sn_handle_analytics_exclude_save( array( '
 pa_eq( 'analytics_exclude_saved', sn_handle_analytics_exclude_save( array() ), 'exclude-save: no checkboxes clears the set' );
 pa_eq( array(), sn_setting( 'analytics.exclude_roles', 'SENTINEL' ), 'exclude-save: cleared set persists as empty array' );
 
-// ─── sn_handle_tag_fit_apply — stored-pass allow-list enforcement (16.9.0; the shape of v6.39.2's; 16.9.2 remove only) ─
+// ─── sn_handle_tag_fit_apply: stored-pass allow-list enforcement (16.9.0; the shape of v6.39.2's; 16.9.2 remove only) ─
 //
 // The apply handler must NOT trust client-supplied (post,term) pairs. Jev's
 // stored tag-fit pass is the allow-list: remove only a tag it read as
@@ -306,7 +306,7 @@ function pa_removed_for( $pid ) {
 
 echo "\nTest: sn_handle_tag_fit_apply() honors the stored-pass allow-list\n";
 
-// Happy path — both listed misfits removed, the pass forgets them, the fine tag stays.
+// Happy path: both listed misfits removed, the pass forgets them, the fine tag stays.
 $GLOBALS['__test_set_terms_calls'] = array(); $GLOBALS['__test_remove_terms_calls'] = array();
 $GLOBALS['__test_post_types']      = array();
 $GLOBALS['__test_caps']            = array();
@@ -316,13 +316,13 @@ pa_eq( array( 31, 32 ), pa_removed_for( 101 ), 'both listed misfits removed' );
 pa_eq( array( 77 ), array_column( $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ]['notes'][101]['attached'], 'id' ), 'applied pairs leave the stored pass; the fine tag stays' );
 pa_eq( 0, count( $GLOBALS['__test_set_terms_calls'] ), 'nothing is ever assigned' );
 
-// Forged TERM — a term id Jev never listed as a misfit for this post is dropped, the fine tag included.
+// Forged TERM: a term id Jev never listed as a misfit for this post is dropped, the fine tag included.
 $GLOBALS['__test_remove_terms_calls'] = array();
 pa_fit_pass( array( 101 => array( 31 ) ) );
 sn_handle_tag_fit_apply( array( 'remove' => array( 101 => array( 31, 77, 99 ) ) ) );
 pa_eq( array( 31 ), pa_removed_for( 101 ), 'unlisted term 99 and the fine tag 77 intersected out; only 31 removed' );
 
-// assign[] is not a form — a well-formed assign map writes nothing.
+// assign[] is not a form: a well-formed assign map writes nothing.
 $GLOBALS['__test_set_terms_calls'] = array(); $GLOBALS['__test_remove_terms_calls'] = array();
 pa_fit_pass( array( 101 => array( 31 ) ) );
 pa_eq( 'tag_fit_nothing', sn_handle_tag_fit_apply( array( 'assign' => array( 101 => array( 11 ) ) ) ), 'assign[] is ignored since 16.9.2' );
@@ -349,13 +349,13 @@ pa_fit_pass( array( 404 => array( 31 ) ) );
 sn_handle_tag_fit_apply( array( 'remove' => array( 404 => array( 31 ) ) ) );
 pa_eq( null, pa_removed_for( 404 ), 'edit_post denied → no wp_remove_object_terms call' );
 
-// A shrug is not a misfit — a stored row under the line at low confidence is not removable.
+// A shrug is not a misfit: a stored row under the line at low confidence is not removable.
 $GLOBALS['__test_remove_terms_calls'] = array();
 $GLOBALS['__test_caps']            = array();
 $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 9, 'notes' => array( 101 => array( 'title' => 'N', 'attached' => array( array( 'id' => 31, 'name' => 'T31', 'score' => 0.3, 'confidence' => 0.6 ) ) ) ), 'usage' => array(), 'last_error' => '' );
 pa_eq( 'tag_fit_nothing', sn_handle_tag_fit_apply( array( 'remove' => array( 101 => array( 31 ) ) ) ), 'a 0.6-confidence row is not on the allow-list' );
 
-// No pass at all — nothing is applied (can't validate → reject).
+// No pass at all: nothing is applied (cannot validate, so reject).
 $GLOBALS['__test_remove_terms_calls'] = array();
 unset( $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] );
 pa_eq( 'tag_fit_nothing', sn_handle_tag_fit_apply( array( 'remove' => array( 101 => array( 31 ) ) ) ), 'no stored pass → nothing applied' );
