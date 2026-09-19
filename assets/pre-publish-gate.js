@@ -96,6 +96,55 @@
 	window.sntPrePublishGate = window.sntPrePublishGate || {};
 	window.sntPrePublishGate.collisionWarnings = collisionWarnings;
 
+	/**
+	 * 16.7.0: the anti-tell pass. The server counted the regex tells and
+	 * asked Jev about the ones that need a reading on the last save
+	 * (inc/jev-tells.php); this panel only reads the stored JSON. One line
+	 * per Jev row at or above the line, one line for the regex tells.
+	 */
+	var TELL_LABEL = {
+		tricolon: 'a three-part list built for rhythm',
+		anaphora: 'consecutive openings repeated for effect',
+		symmetric: 'the "It is not X. It is Y." pair',
+		closer: 'a closer that restates the thesis',
+		em_dash: 'em dash',
+		quietly: '"quietly" as an intensifier',
+		not_just: '"not just X but Y"',
+		hedge_cluster: 'a hedge cluster',
+		uniform_rhythm: 'three same-length sentences in a row'
+	};
+	function tellWarnings( raw ) {
+		var out = [];
+		if ( ! raw || 'string' !== typeof raw ) {
+			return out;
+		}
+		var rec;
+		try {
+			rec = JSON.parse( raw );
+		} catch ( e ) {
+			return out;
+		}
+		if ( ! rec ) {
+			return out;
+		}
+		( Array.isArray( rec.rows ) ? rec.rows : [] ).forEach( function( r ) {
+			if ( r && 'number' === typeof r.noul && r.noul >= 0.6 ) {
+				out.push( 'Jev reads paragraph ' + r.p + ' as ' + ( TELL_LABEL[ r.tell ] || r.tell ) + ' (' + r.noul.toFixed( 2 ) + '): "' + String( r.excerpt || '' ) + '…"' );
+			}
+		} );
+		var det = Array.isArray( rec.deterministic ) ? rec.deterministic : [];
+		if ( det.length ) {
+			out.push( 'Tells the playbook bans, counted: ' + det.map( function( d ) {
+				return d.count + ' × ' + ( TELL_LABEL[ d.tell ] || d.tell );
+			} ).join( ', ' ) + '. Notes are never edited after publication.' );
+		}
+		if ( rec.error && ! String( rec.error ).endsWith( 'no-key' ) ) {
+			out.push( 'The anti-tell pass could not run on the last save: ' + String( rec.error ) );
+		}
+		return out;
+	}
+	window.sntPrePublishGate.tellWarnings = tellWarnings;
+
 	// Compute the advisory warning strings from an editor-store selector.
 	// Returns a (possibly empty) array of plain strings. Takes the selected
 	// `core/editor` store object so the caller can subscribe via useSelect.
@@ -155,6 +204,8 @@
 			// panel only reads it. A note over the line is a note this draft may
 			// re-argue; the author decides. No meta = no key, or not saved yet.
 			warnings = warnings.concat( collisionWarnings( meta._sn_jev_collision ) );
+			// 16.7.0: the anti-tell pass, same contract.
+			warnings = warnings.concat( tellWarnings( meta._sn_jev_tells ) );
 		}
 
 		return warnings;

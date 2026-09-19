@@ -397,6 +397,7 @@ require_once SNT_PATH . 'inc/jev-notes.php';        // 16.3.0: the daily Jev pas
 require_once SNT_PATH . 'inc/jev-collision.php';    // 16.4.0: the collision gate and the lane map.
 require_once SNT_PATH . 'inc/jev-query-fit.php';    // 16.5.0: query-to-page fit, weekly.
 require_once SNT_PATH . 'inc/jev-meter.php';        // 16.6.0: the Jev meter, per feature per credit cycle.
+require_once SNT_PATH . 'inc/jev-tells.php';        // 16.7.0: the anti-tell pass on drafts, and over the corpus on demand.
 require_once SNT_PATH . 'inc/abilities-jev.php';    // 16.3.0: jev-notes.
 require_once SNT_PATH . 'inc/zenodo-records.php';  // 15.11.0: what a document's record is, the bundle, the deposit flow, the triggers.
 require_once SNT_PATH . 'inc/abilities-zenodo.php'; // 15.11.0: zenodo-status on the read door.

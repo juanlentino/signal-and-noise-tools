@@ -21,7 +21,7 @@ const SN_JEV_METER_CYCLES       = 12;
 const SN_JEV_PRICE_PER_M_INPUT  = 0.042; // USD per million input tokens; output is free (docs.typesafe.ai, read 2026-09-18)
 const SN_JEV_CREDIT_DEFAULT     = 5.0;
 const SN_JEV_CYCLE_DAY_DEFAULT  = 17;
-const SN_JEV_FEATURES           = array( 'notes', 'collision', 'lane_map', 'fit', 'other' );
+const SN_JEV_FEATURES           = array( 'notes', 'collision', 'lane_map', 'fit', 'tells', 'other' );
 
 /** The credit and the cycle day, from settings. */
 function sn_jev_credit() {
