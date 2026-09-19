@@ -50,6 +50,8 @@ This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/jev-tells` | `manage_options` | diagnostics | — | READ-DOOR (16.7.0; the stored anti-tell pass, flagged notes only) |
 | `signal-noise/jev-tags-now` | `manage_options` | maintenance | WRITE | RW-DOOR (16.8.0; one request per note that carries tags, a Score per attached tag; 16.9.2 asks whether the note touches what the tag names and proposes nothing; stores the pass) |
 | `signal-noise/jev-tags` | `manage_options` | diagnostics | — | READ-DOOR (16.8.0; the stored tag-fit pass; check 31 reads the same. 16.9.2: misfits only, a tag whose subject the note does not touch, under 0.5 at confidence 0.7; every attached score beside them; no proposed tags) |
+| `signal-noise/get-machine-readers-crosstab` | `manage_options` | analytics | — | READ-DOOR (17.0.0; family x purpose x agent cells over the edge sensor's aggregate rows, with days seen and hits per surface; `taxonomy_absent` and `truncated` flags) |
+| `signal-noise/get-rights-reads` | `manage_options` | analytics | — | READ-DOOR (17.0.0; every fetch of the rights surfaces from the full-fidelity stream, no user-agent string; cadence per family and path with a poller flag; the ai_rights count taken from both datasets) |
 | `signal-noise/get-404-log` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-collector-status` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-insights` | `manage_options` | diagnostics | ✓ | READ-DOOR |
@@ -111,6 +113,8 @@ These 15 were registered across v9.x–v10.x but never entered this catalog, so 
 | `signal-noise/cadence-flags` | Scan operational rhythms for cadence deviations | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
 | `signal-noise/duplicate-body-scan` | Scan the corpus for posts with identical bodies | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
 | `signal-noise/get-machine-readers-summary` | Get Machine Readers Summary | [`abilities-machine-readers.php`](../inc/abilities-machine-readers.php) |
+| `signal-noise/get-machine-readers-crosstab` | Get Machine Readers Crosstab | [`abilities-machine-readers-ledger.php`](../inc/abilities-machine-readers-ledger.php) |
+| `signal-noise/get-rights-reads` | Get Rights Reads | [`abilities-machine-readers-ledger.php`](../inc/abilities-machine-readers-ledger.php) |
 | `signal-noise/get-post-content` | Fetch full bodies for a bounded set of posts | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
 | `signal-noise/keyword-candidates` | Rank a post's own terms as keyword candidates (TF-IDF) | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
 | `signal-noise/link-candidates` | Suggest related notes the post does not link to yet | [`abilities-corpus.php`](../inc/abilities-corpus.php) |

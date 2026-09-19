@@ -120,6 +120,10 @@ function sn_mcp_allowlist() {
 		'signal-noise/jev-meter', // 16.6.0: the Jev meter, same tier
 		'signal-noise/jev-tells', // 16.7.0: the stored anti-tell pass, same tier
 		'signal-noise/jev-tags', // 16.8.0: the stored tag-fit pass, same tier
+		// 17.0.0: the machine-readers ledger reads. PURE-READ: snt_mr_fetch()
+		// behind a display transient, folded; no post bodies, no UA strings.
+		'signal-noise/get-machine-readers-crosstab',
+		'signal-noise/get-rights-reads',
 		// v10.6.0 — corpus inspection: list-posts + get-post-content moved to
 		// the wave-2 retirement block above (absorbed by sn-posts).
 		// v10.16.0 (2026-07-30) — near-duplicate cousin scan: PURE-READ by
