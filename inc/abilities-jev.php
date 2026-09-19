@@ -249,3 +249,71 @@ add_action( 'wp_abilities_api_init', function () {
 		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
 	) );
 } );
+
+/** 16.7.0: the anti-tell pass. `jev-tells-check` (WRITE) judges one note now; `jev-tells-pass` (WRITE) judges every published note; `jev-tells` (READ) hands the stored pass out. */
+function snt_ability_jev_tells_check( $input = array() ) {
+	$id = (int) ( is_array( $input ) ? ( $input['post_id'] ?? 0 ) : 0 );
+	if ( $id <= 0 ) {
+		return array( 'ok' => false, 'error' => 'post_id required' );
+	}
+	if ( ! function_exists( 'sn_jev_tells_check' ) ) {
+		return array( 'ok' => false, 'error' => 'unavailable' );
+	}
+	$r = sn_jev_tells_check( $id, ! empty( $input['force'] ) );
+	return array_merge( array( 'ok' => empty( $r['error'] ) ), $r );
+}
+
+function snt_ability_jev_tells_pass( $input = array() ) {
+	return function_exists( 'sn_jev_tells_pass' ) ? sn_jev_tells_pass() : array( 'ok' => false, 'error' => 'unavailable' );
+}
+
+function snt_ability_jev_tells( $input = array() ) {
+	$d = function_exists( 'sn_jev_tells_data' ) ? sn_jev_tells_data() : null;
+	if ( null === $d ) {
+		return array( 'ok' => true, 'judged' => false, 'at' => 0, 'notes' => array(), 'note' => 'No anti-tell pass yet; run jev-tells-pass.' );
+	}
+	$flagged = array();
+	foreach ( (array) $d['notes'] as $id => $n ) {
+		if ( array() !== (array) ( $n['rows'] ?? array() ) || array() !== (array) ( $n['deterministic'] ?? array() ) ) {
+			$flagged[ (int) $id ] = $n;
+		}
+	}
+	return array( 'ok' => true, 'judged' => true, 'at' => (int) $d['at'], 'notes_judged' => (int) $d['judged'], 'failed' => (int) $d['failed'], 'flagged' => count( $flagged ), 'notes' => $flagged, 'input_tokens' => (int) ( $d['input_tokens'] ?? 0 ), 'error' => (string) ( $d['error'] ?? '' ), 'note' => 'rows: Jev at or above 0.6 per paragraph (tricolon, anaphora, symmetric, closer). deterministic: regex counts (em_dash, quietly, not_just, hedge_cluster, uniform_rhythm). Published notes are never edited; this is a reading of the voice, and the gate on drafts is where it acts.' );
+}
+
+add_action( 'wp_abilities_api_init', function () {
+	if ( ! function_exists( 'wp_register_ability' ) ) {
+		return;
+	}
+	$rw = array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) );
+	wp_register_ability( 'signal-noise/jev-tells-check', array(
+		'label'               => 'Jev: the anti-tell pass on one note, now',
+		'description'         => 'Counts the regex tells (em dash, "quietly", "not just X but Y", hedge clusters, three same-length sentences) and asks Jev, one request, three Nouls per paragraph (tricolon for rhythm, anaphora, the symmetric pair) and one for the closer. Stores the reading on the post for the pre-publish panel. Skips the request when the paragraphs have not changed unless force is true.',
+		'category'            => 'maintenance',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_jev_tells_check',
+		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array( 'post_id' => array( 'type' => 'integer' ), 'force' => array( 'type' => 'boolean' ) ), 'additionalProperties' => false ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'rows' => array( 'type' => 'array' ), 'deterministic' => array( 'type' => 'array' ), 'paragraphs' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
+		'meta'                => $rw,
+	) );
+	wp_register_ability( 'signal-noise/jev-tells-pass', array(
+		'label'               => 'Jev: the anti-tell pass over every published note',
+		'description'         => 'One request per published note; stores the rows at or above 0.6 and the regex counts per note. A reading of the voice, never a remedy: published notes are not edited. About seventy requests; two cents.',
+		'category'            => 'maintenance',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_jev_tells_pass',
+		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'flagged' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
+		'meta'                => $rw,
+	) );
+	wp_register_ability( 'signal-noise/jev-tells', array(
+		'label'               => 'Jev: the stored anti-tell pass',
+		'description'         => 'The notes the last corpus pass flagged, with Jev\'s rows per paragraph and the regex counts. Read-only.',
+		'category'            => 'diagnostics',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_jev_tells',
+		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'boolean' ), 'flagged' => array( 'type' => 'integer' ), 'notes' => array( 'type' => 'object' ), 'note' => array( 'type' => 'string' ) ) ),
+		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+	) );
+} );
