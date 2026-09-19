@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Tag fit rides the advisory tier, not the fault count.** 16.8.0 put check 31 on the health surface, against the closed Health arc (v11.13.0: a check earns the red number only if its finding is a defect, can reach zero and stay there, and no other surface owns the list). A tag a note should carry never reaches zero; the names already itemize on `jev-tags`. Same move as `tag_hygiene` in v13.24.0: advisory tier, worklist surface, count in wp-admin, names on the door. The Health number reads 17 checks again. Pinned.
+
 ## [16.8.1] - 2026-09-19 — an edge reading is taken twice
 
 ### Fixed

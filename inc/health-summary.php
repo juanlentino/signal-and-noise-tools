@@ -45,7 +45,9 @@ function sn_health_advisory_checks() {
 	// only WHERE it renders (the worklist surface), not what it is.
 	// tag_hygiene (v13.24.0): same reasoning — new tags keep arriving and a
 	// nudge that can re-open belongs in the advisory tier, not the fault tally.
-	return array( 'external_links', 'link_opportunities', 'stale_posts_evergreen', 'tag_hygiene' );
+	// jev_tags (16.8.2): a tag a note should carry, or one attached for reach,
+	// as Jev reads it; re-opens as notes and tags arrive. Never a fault.
+	return array( 'external_links', 'link_opportunities', 'stale_posts_evergreen', 'tag_hygiene', 'jev_tags' );
 }
 
 /**

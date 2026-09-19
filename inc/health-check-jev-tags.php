@@ -62,7 +62,7 @@ function sn_health_jev_tags_judge( $notes ) {
  */
 function sn_health_check_jev_tags() {
 	$label = 'Notes whose tags Jev reads as not fitting (attached for reach, or a tag the note should carry)';
-	$hint  = 'Tags are not prose: a tag change moves nothing the signature covers, so a published note can take the fix. Remove a tag the note does not argue about; add one a reader browsing it would expect. Jev read each tag\'s DESCRIPTION, so a wrong reading of a right tag is the description to fix (Content › Tags), not the tag. The weekly pass re-reads; jev-tags-now runs it now.';
+	$hint  = 'An advisory, not a fault: it re-opens as notes and tags arrive, and the names itemize on the jev-tags ability. Tags are not prose: a tag change moves nothing the signature covers, so a published note can take the fix. Remove a tag the note does not argue about; add one a reader browsing it would expect. Jev read each tag\'s DESCRIPTION, so a wrong reading of a right tag is the description to fix (Content › Tags), not the tag. The weekly pass re-reads; jev-tags-now runs it now.';
 	if ( ! function_exists( 'sn_jev_is_ready' ) || ! sn_jev_is_ready() ) {
 		return sn_health_pack_check( $label, array(), $hint, SN_JEV_NOT_READY . ' The tag-fit pass does not run without it.' );
 	}
