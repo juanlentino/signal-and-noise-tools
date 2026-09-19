@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Docs
+- Session doc extended: "The file is named, and the option the form never posted" (16.7.0 through 16.7.2: the anti-tell pass and its first corpus reading, the lane map on one copy of the corpus, the logo that named a deleted file, and the Settings › General banner traced to the AI plugin registering `admin_email` into the General save; WordPress/ai#1048). Left open updated.
+
 ## [16.7.2] - 2026-09-19 — the file is named, not read
 
 ### Fixed
