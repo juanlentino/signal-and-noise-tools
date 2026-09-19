@@ -275,77 +275,45 @@ function sn_jev_lane_judge_pairs( array $answers, array $all ) {
 }
 
 /**
- * @param string $mode pairs (16.7.1, the corpus once per chunk) | notes (16.4.0, one request per note)
+ * The lane map (16.7.2: one mode). The corpus once per chunk, every
+ * unordered pair as one Noul. The per-note path of 16.4.0 was kept through
+ * 16.7.1 for a live comparison: same four pairs at the top, in the same
+ * order, values ~0.08 lower, nine times cheaper; it is gone.
  */
-function sn_jev_lane_map( $mode = 'pairs' ) {
+function sn_jev_lane_map() {
 	if ( ! function_exists( 'sn_jev_is_ready' ) || ! sn_jev_is_ready() ) {
 		return array( 'ok' => false, 'judged' => 0, 'failed' => 0, 'pairs' => 0, 'error' => 'no-key' );
 	}
-	$mode   = 'notes' === $mode ? 'notes' : 'pairs';
 	$all    = sn_jev_collision_corpus( 0 );
 	$pairs  = array();
-	$judged = 0;
 	$failed = 0;
 	$tokens = 0;
 	$reqs   = 0;
 	$err    = '';
-	if ( 'pairs' === $mode ) {
-		$state = array( 'notes' => array() );
-		foreach ( $all as $id => $n ) {
-			$state['notes'][ 'n' . (int) $id ] = $n;
-		}
-		foreach ( sn_jev_lane_pair_questions( array_keys( $all ) ) as $questions ) {
-			$reqs++;
-			$r = sn_jev_ask( $state, $questions, 'lane_map' );
-			if ( ! $r['ok'] ) {
-				$failed++;
-				$err = (string) $r['error'];
-				if ( in_array( (int) $r['code'], array( 401, 403 ), true ) ) {
-					break;
-				}
-				continue;
-			}
-			$tokens += (int) ( $r['usage']['input_tokens'] ?? 0 );
-			$pairs   = array_merge( $pairs, sn_jev_lane_judge_pairs( $r['answers'], $all ) );
-		}
-		$judged = $failed > 0 ? 0 : count( $all );
-	} else {
-		foreach ( array_keys( $all ) as $id ) {
-			$post = get_post( $id );
-			if ( ! $post ) {
-				continue;
-			}
-			$corpus = $all;
-			unset( $corpus[ $id ] );
-			$reqs++;
-			$r = sn_jev_ask( sn_jev_collision_state( $post, $corpus ), sn_jev_collision_questions( $corpus ), 'lane_map' );
-			if ( ! $r['ok'] ) {
-				$failed++;
-				$err = (string) $r['error'];
-				if ( in_array( (int) $r['code'], array( 401, 403 ), true ) ) {
-					break;
-				}
-				continue;
-			}
-			$judged++;
-			$tokens += (int) ( $r['usage']['input_tokens'] ?? 0 );
-			foreach ( sn_jev_collision_judge( $r['answers'], $corpus )['rows'] as $row ) {
-				if ( $row['noul'] < SN_JEV_COLLISION_LINE ) {
-					continue;
-				}
-				// One row per unordered pair, keeping the higher of the two readings.
-				$key = min( $id, $row['id'] ) . '-' . max( $id, $row['id'] );
-				if ( ! isset( $pairs[ $key ] ) || $pairs[ $key ]['noul'] < $row['noul'] ) {
-					$pairs[ $key ] = array( 'a' => min( $id, $row['id'] ), 'b' => max( $id, $row['id'] ), 'a_title' => (string) $all[ min( $id, $row['id'] ) ]['title'], 'b_title' => (string) $all[ max( $id, $row['id'] ) ]['title'], 'noul' => $row['noul'] );
-				}
-			}
-		}
+	$state  = array( 'notes' => array() );
+	foreach ( $all as $id => $n ) {
+		$state['notes'][ 'n' . (int) $id ] = $n;
 	}
+	foreach ( sn_jev_lane_pair_questions( array_keys( $all ) ) as $questions ) {
+		$reqs++;
+		$r = sn_jev_ask( $state, $questions, 'lane_map' );
+		if ( ! $r['ok'] ) {
+			$failed++;
+			$err = (string) $r['error'];
+			if ( in_array( (int) $r['code'], array( 401, 403 ), true ) ) {
+				break;
+			}
+			continue;
+		}
+		$tokens += (int) ( $r['usage']['input_tokens'] ?? 0 );
+		$pairs   = array_merge( $pairs, sn_jev_lane_judge_pairs( $r['answers'], $all ) );
+	}
+	$judged = $failed > 0 ? 0 : count( $all );
 	usort( $pairs, static function ( $x, $y ) {
 		return $y['noul'] <=> $x['noul'];
 	} );
-	update_option( SN_JEV_LANES_OPTION, array( 'at' => time(), 'mode' => $mode, 'requests' => $reqs, 'judged' => $judged, 'failed' => $failed, 'pairs' => array_values( $pairs ), 'input_tokens' => $tokens, 'error' => $err ), false );
-	return array( 'ok' => 0 === $failed, 'mode' => $mode, 'requests' => $reqs, 'judged' => $judged, 'failed' => $failed, 'pairs' => count( $pairs ), 'input_tokens' => $tokens, 'error' => $err );
+	update_option( SN_JEV_LANES_OPTION, array( 'at' => time(), 'requests' => $reqs, 'judged' => $judged, 'failed' => $failed, 'pairs' => array_values( $pairs ), 'input_tokens' => $tokens, 'error' => $err ), false );
+	return array( 'ok' => 0 === $failed, 'requests' => $reqs, 'judged' => $judged, 'failed' => $failed, 'pairs' => count( $pairs ), 'input_tokens' => $tokens, 'error' => $err );
 }
 
 /** The stored map, or null. */
