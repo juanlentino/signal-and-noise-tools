@@ -248,7 +248,7 @@ function sn_admin_tag_render_fit_section() {
 		echo '<p>' . esc_html__( 'Install Connector for TypeSafe Jev and add the key under Settings › Connectors.', 'signal-and-noise-tools' ) . '</p></div>';
 		return;
 	}
-	$action = esc_url( admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' ) );
+	$action = admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' );
 	$data   = function_exists( 'sn_jev_tags_data' ) ? sn_jev_tags_data() : null;
 	$rows   = null === $data ? array() : sn_jev_tags_rows( $data );
 	if ( null === $data ) {
@@ -257,7 +257,7 @@ function sn_admin_tag_render_fit_section() {
 		echo '<p>' . esc_html( sprintf( /* translators: %s: how long ago */ __( 'Last read %s ago: every tag on every note fits, and no note is missing one a reader would expect.', 'signal-and-noise-tools' ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>';
 	} else {
 		echo '<p>' . esc_html( sprintf( /* translators: 1: notes flagged, 2: how long ago */ __( '%1$d notes, read %2$s ago. Jev read each tag\'s description: a wrong reading of a right tag is the description to fix. Tags are not prose; a published note can take the change.', 'signal-and-noise-tools' ), count( $rows ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>';
-		echo '<form method="post" action="' . $action . '">';
+		echo '<form method="post" action="' . esc_url( $action ) . '">';
 		wp_nonce_field( 'sn_theme_options_nonce' );
 		echo '<input type="hidden" name="sn_action" value="tag_fit_apply">';
 		foreach ( $rows as $pid => $row ) {
@@ -273,7 +273,7 @@ function sn_admin_tag_render_fit_section() {
 		echo '<p><button type="submit" class="button button-primary">' . esc_html__( 'Apply selected', 'signal-and-noise-tools' ) . '</button></p>';
 		echo '</form>';
 	}
-	echo '<form method="post" action="' . $action . '">';
+	echo '<form method="post" action="' . esc_url( $action ) . '">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<input type="hidden" name="sn_action" value="tag_fit_run">';
 	echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Read tags now', 'signal-and-noise-tools' ) . '</button>';
