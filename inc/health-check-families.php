@@ -69,6 +69,7 @@ function sn_health_check_family_map() {
 		'search_titles'        => 'content',
 		'zenodo_doi'           => 'provenance',
 		'jev_notes'            => 'content',
+		'jev_tags'             => 'content',
 
 		// Links: the graph, internal and out.
 		'broken_links'         => 'links',

@@ -12,7 +12,7 @@ Built on WordPress 7.0's Abilities API and AI Client (what every model does here
 - **SEO** — meta, canonicals, OG cards, sitemaps + IndexNow, a redirect manager with a 404 log
 - **Security** — WordPress hardening, a custom login slug, a read-only panel over the edge login guard
 - **Analytics** — first-party, cookieless, edge-collected; SQL rollups, a dashboard, AI narration
-- **Content health** — a 30-check scan from Measurement → Health or the `run-health-scan` ability
+- **Content health** — a 31-check scan from Measurement → Health or the `run-health-scan` ability
 - **Provenance** — every Note Ed25519-signed and Bitcoin-anchored; readers verify without trusting the site
 - **Citation graph** — a Webmention receiver that treats every claim as unverified until cron checks it
 - **Edge cache** — automatic Cloudflare purge on save / theme update
@@ -60,7 +60,7 @@ The queue closes the loop. A tenth Attention reader, **Search**, reads the same 
 
 ### Content health
 
-a 30-check scan (missing alt text, orphaned media, broken internal + rotted external links, stale posts, time-phrase and color drift, unlinked mentions, link opportunities, edge security-header drift, edge-Worker reachability, analytics integrity, the provenance integrity sweep, the rights-signals drift probe, the public ledger's own CI, ML cousins, publishing cadence, the rights-signal anchoring gap, search titles, Zenodo DOIs, and Jev's reading of every note's search title and description), run from Measurement → Health or the `run-health-scan` ability (`inc/health-check-*.php` — 26 modules; a check is only live once it carries all four of its registrations)
+a 31-check scan (missing alt text, orphaned media, broken internal + rotted external links, stale posts, time-phrase and color drift, unlinked mentions, link opportunities, edge security-header drift, edge-Worker reachability, analytics integrity, the provenance integrity sweep, the rights-signals drift probe, the public ledger's own CI, ML cousins, publishing cadence, the rights-signal anchoring gap, search titles, Zenodo DOIs, Jev's reading of every note's search title and description, and Jev's reading of every note against its tags), run from Measurement → Health or the `run-health-scan` ability (`inc/health-check-*.php` — 27 modules; a check is only live once it carries all four of its registrations)
 
 ### Provenance
 

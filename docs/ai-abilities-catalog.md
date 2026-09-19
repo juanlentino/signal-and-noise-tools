@@ -48,6 +48,8 @@ This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/jev-tells-check` | `manage_options` | maintenance | WRITE | RW-DOOR (16.7.0; the anti-tell pass on one note, stored on the post for the pre-publish panel) |
 | `signal-noise/jev-tells-pass` | `manage_options` | maintenance | WRITE | RW-DOOR (16.7.0; every published note, one request each; a reading, never a remedy) |
 | `signal-noise/jev-tells` | `manage_options` | diagnostics | — | READ-DOOR (16.7.0; the stored anti-tell pass, flagged notes only) |
+| `signal-noise/jev-tags-now` | `manage_options` | maintenance | WRITE | RW-DOOR (16.8.0; one request per note, a Score per attached tag and a Noul per candidate tag; stores the pass) |
+| `signal-noise/jev-tags` | `manage_options` | diagnostics | — | READ-DOOR (16.8.0; the stored tag-fit pass: misfits and missing tags per note; check 31 reads the same) |
 | `signal-noise/get-404-log` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-collector-status` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-insights` | `manage_options` | diagnostics | ✓ | READ-DOOR |
