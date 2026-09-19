@@ -44,6 +44,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * The tag count at which the gate asks the author to look again. A nudge,
+ * not a rule: the rule is the tag's description (a tag on a note is right
+ * when the note covers what its description says, /notes/tags), and Jev's
+ * tag-fit pass measures that. 16.9.2 also listed notes over this line on
+ * Content › Tags and in tag hygiene; 16.9.3 dropped both, because the five
+ * notes it listed carried five fitting tags each.
+ */
+const SN_TAG_CEILING = 4;
+
 add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 	// Only the single-post/page block editor screens.
 	if ( 'post.php' !== $hook_suffix && 'post-new.php' !== $hook_suffix ) {
@@ -65,11 +75,8 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 
 	wp_enqueue_script( 'snt-pre-publish-gate' );
 
-	// 16.9.2: the tag ceiling, the ONE constant (inc/health-check-tag-hygiene.php),
-	// handed to the gate so the warning and the health check cannot disagree.
-	if ( defined( 'SN_TAG_CEILING' ) ) {
-		wp_add_inline_script( 'snt-pre-publish-gate', 'window.sntPrePublishGateConfig = ' . wp_json_encode( array( 'tagCeiling' => (int) SN_TAG_CEILING ) ) . ';', 'before' );
-	}
+	// 16.9.2: the nudge line, handed to the gate so no number lives in the JS.
+	wp_add_inline_script( 'snt-pre-publish-gate', 'window.sntPrePublishGateConfig = ' . wp_json_encode( array( 'tagCeiling' => (int) SN_TAG_CEILING ) ) . ';', 'before' );
 
 	if ( function_exists( 'wp_set_script_translations' ) ) {
 		wp_set_script_translations( 'snt-pre-publish-gate', 'signal-and-noise-tools' );

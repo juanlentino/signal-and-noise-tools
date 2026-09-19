@@ -103,7 +103,6 @@ function paint_content_tags( array $ctx ) {
 	}
 	$out .= tags_picker_html();
 	$out .= tags_fit_html();
-	$out .= tags_ceiling_html();
 	$out .= tags_unused_html( $data['unused'] );
 	$out .= tags_recent_html();
 	return $out;
