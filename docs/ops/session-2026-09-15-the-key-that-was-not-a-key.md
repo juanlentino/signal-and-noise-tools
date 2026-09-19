@@ -1170,6 +1170,77 @@ hollow page. Concatenation removal (#57548) is wp-admin only; the theme's
 combine is untouched. 16.6.1 carries the two watches and the read lives
 in `docs/ops/wordpress-7-2-roadmap-read.md`.
 
+## The file is named, and the option the form never posted
+
+The anti-tell pass went out as 16.7.0: the playbook's banned constructions,
+the ones a regex can see counted for free (em dashes, "quietly", "not just
+X but Y", hedge clusters, three same-length sentences in a row) and the
+ones that need a reading sent to Jev as three Nouls per paragraph and one
+for the closer, warned at 0.6 in the pre-publish panel, stored on the
+post, hash-skipped on an unchanged draft. The test that mattered was the
+one that sent an answer for a paragraph that did not exist; the judge let
+it through with an empty excerpt until the pin asked. The corpus pass over
+44 published notes (21 seconds, 314k tokens, $0.013) flagged 39, mostly
+real symmetric pairs in the older notes ("The system's value is not in any
+single signature. It is in the chain.", 0.96), zero em dashes anywhere,
+and the newest scheduled note clean on eight paragraphs. A reading, never
+a remedy: nothing published is edited.
+
+The owner asked whether we use Jev's free output. Partly: output is the
+answers, input is the state plus every question's text, so the lever is
+one state with many questions hanging off it, and four of five readings
+already had that shape. The lane map did not: 44 requests each re-sending
+the corpus, 485k tokens for 946 pair readings. 16.7.1 asks every unordered
+pair against one copy of the corpus per chunk of 300 terse Nouls, the
+rubric riding on the first question of each chunk, four requests, 55k
+tokens. Run beside the old map on the same corpus in the same hour: the
+same four pairs at the top in the same order, values about 0.08 lower, the
+0.5 to 0.6 vocabulary band mostly under the line, nine times cheaper.
+16.7.2 dropped the per-note path. The sn-write door's cached schema had
+dropped the `mode` input, so the comparison ran through the REST route
+with a nonce; a new input on an existing tool needs the app restarted
+before the door carries it.
+
+Then two things broke that were not ours. The logo 404'd sitewide: at
+00:02 site time the logo and favicon had been re-uploaded as WebP under
+`uploads/2026/09/` and the February PNGs removed, and the theme's header
+names the logo file rather than reading a setting (deliberate: no
+database read on the LCP element). Theme 13.3.2 names the new files; the
+plugin's OG default did the same in 16.7.2. The file is named, not read,
+and the changelog says so where the next replacement will find it.
+
+The other took four hours and was worth every one. Settings › General
+showed "The email address entered did not appear to be a valid email
+address" on every save, with the address correct. I reproduced it inside
+OpenStation and with the identical POST outside it, proved through the
+REST schema validator that `is_email()` accepted the address on this site,
+read the sources of every plugin I could reach (the eight on wordpress.org
+unpacked and grepped, the public ones on GitHub, ours, the theme, the
+connector, wpcomsh in the Jetpack monorepo) for a filter on `is_email` or
+`sanitize_email`, found none, and had the owner run `wp eval` in admin
+context: no hooks, the address survives, no error. Everything I could read
+was clean, which is the moment to stop reading and instrument. A six-line
+mu-plugin logging every `sanitize_email` call with a backtrace answered in
+one save: the address passed, and then a second call came through with
+`NULL`, from `options.php:345`, the loop that saves every option in the
+"general" group whether the form posted it or not. The notice's own
+element id said `invalid_admin_email`. Core registers `admin_email` into
+that group only in `register_initial_settings()`, hooked on
+`rest_api_init`, which never fires during an admin form save; the AI
+plugin (1.2.0, WordPress/ai#856) calls that function directly on
+`wp_abilities_api_init` so its settings ability can see Core's settings,
+and any plugin that initialises the Abilities registry in an admin request
+lights the fuse. Nobody had filed it. WordPress/ai#1048 has the trace, the
+five-line reproduction and three fixes; 16.7.2 carries a one-filter guard
+that drops `admin_email` from the group at save time, with its removal
+condition in the header.
+
+Two lessons. A NULL in a sanitizer log is an option the form never posted:
+read the loop, not the validator. And when every source you can read is
+clean, a backtrace from inside the failing request costs one save and
+names the caller; four hours of reading found nothing the trace did not
+say in six lines.
+
 ## Left open
 
 - 16.6.1 (the two 7.2 watches) on its chain at the time of writing, behind
@@ -1238,10 +1309,13 @@ in `docs/ops/wordpress-7-2-roadmap-read.md`.
   wrong environment (the keyring said refused all along); mint one on
   sandbox.zenodo.org if a sandbox run is ever wanted. The fifteen orphan
   drafts on zenodo.org are the owner's to delete.
-- 16.3.3 through 16.6.0 released; AI.md and jev-connector#8 filed. Still
-  unconfirmed from outside: whether the `ai_decision` card renders on
-  Settings › Connectors (the screen is JS-rendered); the owner's look is
-  the check. Query fit waits on traffic; re-read `jev-query-fit` when a
+- 16.3.3 through 16.7.2 released; AI.md, jev-connector#8 (fixed upstream
+  in 0.2.3) and WordPress/ai#1048 filed. Remove `inc/general-save-guard.php`
+  when #1048 ships; a watch ripens on `admin_email` leaving the general
+  group. Still unconfirmed from outside: whether the `ai_decision` card
+  renders on Settings › Connectors; the owner's look is the check. Run
+  `jev-tells-check` over the 25 scheduled notes when there are five minutes
+  to read the result. Query fit waits on traffic; re-read `jev-query-fit` when a
   month passes a few thousand impressions. The lane map's 0.5 edge moved
   19 to 14 between two runs on the same corpus; take it twice before
   acting. Next in the agreed order: the anti-tell pass per paragraph
