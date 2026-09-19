@@ -104,7 +104,7 @@ function sn_admin_render_tag_cleanup_section() {
 	}
 
 	sn_admin_tag_render_manual_picker();
-	sn_admin_tag_render_ai_section();
+	sn_admin_tag_render_fit_section();
 	sn_admin_tag_render_unused_section();
 	sn_admin_tag_render_recent_merges();
 }
@@ -236,51 +236,47 @@ function sn_admin_tag_render_recent_merges() {
 }
 
 /**
- * AI section: suggest existing tags for untagged Notes (Suggest -> review -> Apply).
- * Dormant when no AI provider is configured.
+ * 16.9.0: Jev tag fit (Read tags now -> review -> Apply). Replaces the Claude
+ * suggest section, which saw only untagged notes and only proposed. Reads the
+ * stored pass; the rows are the allow-list the apply handler enforces.
  *
  * @return void
  */
-function sn_admin_tag_render_ai_section() {
-	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'AI: suggest tags for untagged Notes', 'signal-and-noise-tools' ) . '</h2>';
-	if ( ! function_exists( 'snt_ai_is_available' ) || ! snt_ai_is_available() ) {
-		echo '<p>' . esc_html__( 'Connect an AI provider (Settings > Connectors) to suggest tags.', 'signal-and-noise-tools' ) . '</p></div>';
+function sn_admin_tag_render_fit_section() {
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Jev: tag fit', 'signal-and-noise-tools' ) . '</h2>';
+	if ( ! function_exists( 'sn_jev_is_ready' ) || ! sn_jev_is_ready() ) {
+		echo '<p>' . esc_html__( 'Install Connector for TypeSafe Jev and add the key under Settings › Connectors.', 'signal-and-noise-tools' ) . '</p></div>';
 		return;
 	}
-
-	$suggestions = function_exists( 'get_transient' ) ? get_transient( 'sn_tag_ai_suggestions_' . get_current_user_id() ) : false;
-	if ( is_array( $suggestions ) && $suggestions ) {
-		echo '<p>' . esc_html__( 'Review the AI suggestions, then apply the ones you want. Suggestions are limited to your existing tags.', 'signal-and-noise-tools' ) . '</p>';
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' ) ) . '">';
+	$action = esc_url( admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' ) );
+	$data   = function_exists( 'sn_jev_tags_data' ) ? sn_jev_tags_data() : null;
+	$rows   = null === $data ? array() : sn_jev_tags_rows( $data );
+	if ( null === $data ) {
+		echo '<p>' . esc_html__( 'Jev reads every published and scheduled note against its tags and against the tags it does not carry, the tag descriptions as the state. About seventy requests; a cent or two.', 'signal-and-noise-tools' ) . '</p>';
+	} elseif ( array() === $rows ) {
+		echo '<p>' . esc_html( sprintf( /* translators: %s: how long ago */ __( 'Last read %s ago: every tag on every note fits, and no note is missing one a reader would expect.', 'signal-and-noise-tools' ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>';
+	} else {
+		echo '<p>' . esc_html( sprintf( /* translators: 1: notes flagged, 2: how long ago */ __( '%1$d notes, read %2$s ago. Jev read each tag\'s description: a wrong reading of a right tag is the description to fix. Tags are not prose; a published note can take the change.', 'signal-and-noise-tools' ), count( $rows ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>';
+		echo '<form method="post" action="' . $action . '">';
 		wp_nonce_field( 'sn_theme_options_nonce' );
-		echo '<input type="hidden" name="sn_action" value="tag_ai_apply">';
-		foreach ( $suggestions as $s ) {
-			$pid = (int) ( $s['post_id'] ?? 0 );
-			if ( ! $pid || empty( $s['suggested'] ) ) {
-				continue;
+		echo '<input type="hidden" name="sn_action" value="tag_fit_apply">';
+		foreach ( $rows as $pid => $row ) {
+			echo '<p><strong><a href="' . esc_url( get_edit_post_link( (int) $pid ) ?: '' ) . '">' . esc_html( $row['title'] ) . '</a></strong><br>';
+			foreach ( $row['remove'] as $t ) {
+				echo '<label class="snt-label-inline"><input type="checkbox" name="remove[' . esc_attr( (int) $pid ) . '][]" value="' . esc_attr( (int) $t['id'] ) . '"> ' . esc_html( sprintf( /* translators: 1: tag, 2: score */ __( 'Remove "%1$s" (attached for reach, %2$s of 2)', 'signal-and-noise-tools' ), (string) $t['name'], number_format_i18n( (float) $t['score'], 2 ) ) ) . '</label>';
 			}
-			echo '<p><strong>' . esc_html( (string) ( $s['title'] ?? ( '#' . $pid ) ) ) . '</strong><br>';
-			foreach ( $s['suggested'] as $tag ) {
-				echo '<label class="snt-label-inline"><input type="checkbox" name="assign[' . esc_attr( $pid ) . '][]" value="' . esc_attr( (int) $tag['term_id'] ) . '" checked> ' . esc_html( (string) $tag['name'] ) . '</label>';
+			foreach ( $row['add'] as $t ) {
+				echo '<label class="snt-label-inline"><input type="checkbox" name="assign[' . esc_attr( (int) $pid ) . '][]" value="' . esc_attr( (int) $t['id'] ) . '"> ' . esc_html( sprintf( /* translators: 1: tag, 2: probability */ __( 'Add "%1$s" (a reader would expect it, %2$s)', 'signal-and-noise-tools' ), (string) $t['name'], number_format_i18n( (float) $t['noul'], 2 ) ) ) . '</label>';
 			}
 			echo '</p>';
 		}
 		echo '<p><button type="submit" class="button button-primary">' . esc_html__( 'Apply selected', 'signal-and-noise-tools' ) . '</button></p>';
-		echo '</form></div>';
-		return;
+		echo '</form>';
 	}
-
-	$untagged = function_exists( 'sn_tag_untagged_notes' ) ? sn_tag_untagged_notes( 20 ) : array();
-	if ( ! $untagged ) {
-		echo '<p>' . esc_html__( 'Every published Note has at least one tag. Nothing to suggest.', 'signal-and-noise-tools' ) . '</p></div>';
-		return;
-	}
-	echo '<p>' . esc_html( sprintf( /* translators: %d: count */ _n( '%d untagged Note.', '%d untagged Notes.', count( $untagged ), 'signal-and-noise-tools' ), count( $untagged ) ) ) . ' '
-		. esc_html__( 'Runs on demand on your AI key; up to 20 per click.', 'signal-and-noise-tools' ) . '</p>';
-	echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' ) ) . '">';
+	echo '<form method="post" action="' . $action . '">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="tag_ai_suggest">';
-	echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Suggest tags', 'signal-and-noise-tools' ) . '</button>';
+	echo '<input type="hidden" name="sn_action" value="tag_fit_run">';
+	echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Read tags now', 'signal-and-noise-tools' ) . '</button>';
 	echo '</form></div>';
 }
 

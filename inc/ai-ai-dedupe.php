@@ -41,10 +41,8 @@
  *     Health "missing_alt" AUDIT — find every image missing alt across the
  *     site, suggest→apply in bulk. ai/ai's is a per-image button in the editor.
  *     One is a11y remediation, the other is inline convenience.
- *   - SN tag-suggest (inc/ai-tag-suggest.php) is constrained to your EXISTING
- *     vocabulary (tag hygiene for untagged Notes; never invents a tag). ai/ai's
- *     suggest-cats/tags is GENERATIVE classification (proposes new terms). One
- *     keeps the taxonomy tight, the other expands it.
+ *   - SN tag fit (inc/jev-tags.php, 16.9.0) reads existing tags only: Jev judges,
+ *     never invents a term.
  * They live on separate surfaces (Health page / Content→Tags vs the editor), so
  * there is no double-button collision. Do NOT disable either side — that would
  * delete genuine distinct value. If a future ai/ai release adds a site-wide alt

@@ -245,20 +245,24 @@ pa_eq( 'analytics_exclude_unchanged', sn_handle_analytics_exclude_save( array( '
 pa_eq( 'analytics_exclude_saved', sn_handle_analytics_exclude_save( array() ), 'exclude-save: no checkboxes clears the set' );
 pa_eq( array(), sn_setting( 'analytics.exclude_roles', 'SENTINEL' ), 'exclude-save: cleared set persists as empty array' );
 
-// ─── sn_handle_tag_ai_apply — transient allow-list enforcement (v6.39.2) ─
+// ─── sn_handle_tag_fit_apply — stored-pass allow-list enforcement (16.9.0; the shape of v6.39.2's) ─
 //
-// The apply handler must NOT trust client-supplied (post,term) pairs. It must
-// load this user's cached suggestion transient and apply ONLY pairs that SN
-// actually proposed, on an editable Note (post_type 'post') the user can edit.
+// The apply handler must NOT trust client-supplied (post,term) pairs. Jev's
+// stored tag-fit pass is the allow-list: assign only a tag Jev listed as
+// missing for that post, remove only one it read as attached for reach, on
+// an editable Note the user can edit. Applied pairs leave the stored pass.
 $GLOBALS['__test_set_terms_calls'] = array();
+$GLOBALS['__test_remove_terms_calls'] = array();
 if ( ! function_exists( 'wp_set_object_terms' ) ) {
 	function wp_set_object_terms( $object_id, $terms, $taxonomy, $append = false ) {
-		$GLOBALS['__test_set_terms_calls'][] = array(
-			'post'  => (int) $object_id,
-			'terms' => array_values( array_map( 'intval', (array) $terms ) ),
-			'tax'   => $taxonomy,
-		);
+		$GLOBALS['__test_set_terms_calls'][] = array( 'post' => (int) $object_id, 'terms' => array_values( array_map( 'intval', (array) $terms ) ), 'tax' => $taxonomy, 'append' => (bool) $append );
 		return array_map( 'intval', (array) $terms );
+	}
+}
+if ( ! function_exists( 'wp_remove_object_terms' ) ) {
+	function wp_remove_object_terms( $object_id, $terms, $taxonomy ) {
+		$GLOBALS['__test_remove_terms_calls'][] = array( 'post' => (int) $object_id, 'terms' => array_values( array_map( 'intval', (array) $terms ) ), 'tax' => $taxonomy );
+		return true;
 	}
 }
 $GLOBALS['__test_post_types'] = array();
@@ -277,14 +281,20 @@ if ( ! function_exists( 'current_user_can' ) ) {
 if ( ! function_exists( 'absint' ) ) {
 	function absint( $v ) { return abs( (int) $v ); }
 }
+require_once dirname( __DIR__ ) . '/inc/jev-tags.php';
 
-/** Build a suggestion-transient row matching snt_ai_tag_suggest_impl()'s shape. */
-function pa_sugg_row( $post_id, array $term_ids ) {
-	$suggested = array();
-	foreach ( $term_ids as $tid ) {
-		$suggested[] = array( 'term_id' => (int) $tid, 'name' => 'T' . $tid, 'slug' => 't' . $tid );
+/** A stored pass: post => [missing term ids], post => [misfit term ids]. */
+function pa_fit_pass( array $missing, array $misfits = array() ) {
+	$notes = array();
+	foreach ( $missing as $pid => $ids ) {
+		$notes[ $pid ]['title']   = 'Note ' . $pid;
+		$notes[ $pid ]['missing'] = array_map( static function ( $t ) { return array( 'id' => (int) $t, 'name' => 'T' . $t, 'noul' => 0.8 ); }, $ids );
 	}
-	return array( 'ok' => true, 'post_id' => (int) $post_id, 'suggested' => $suggested, 'title' => 'Note ' . $post_id );
+	foreach ( $misfits as $pid => $ids ) {
+		$notes[ $pid ]['title']    = 'Note ' . $pid;
+		$notes[ $pid ]['attached'] = array_map( static function ( $t ) { return array( 'id' => (int) $t, 'name' => 'T' . $t, 'score' => 0.3, 'confidence' => 0.7 ); }, $ids );
+	}
+	$GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 9, 'notes' => $notes, 'usage' => array(), 'last_error' => '' );
 }
 
 /** Did wp_set_object_terms get called for $pid, and with which term ids? */
@@ -294,56 +304,75 @@ function pa_terms_for( $pid ) {
 	}
 	return null;
 }
+function pa_removed_for( $pid ) {
+	foreach ( $GLOBALS['__test_remove_terms_calls'] as $c ) {
+		if ( $c['post'] === (int) $pid ) { return $c['terms']; }
+	}
+	return null;
+}
 
-echo "\nTest: sn_handle_tag_ai_apply() honors the suggestion transient allow-list\n";
-$tkey = 'sn_tag_ai_suggestions_' . get_current_user_id();
+echo "\nTest: sn_handle_tag_fit_apply() honors the stored-pass allow-list\n";
 
-// Happy path — both suggested terms applied to the suggested Note.
-$GLOBALS['__test_set_terms_calls'] = array();
+// Happy path — both listed terms assigned (appended), the misfit removed, the pass forgets them.
+$GLOBALS['__test_set_terms_calls'] = array(); $GLOBALS['__test_remove_terms_calls'] = array();
 $GLOBALS['__test_post_types']      = array();
 $GLOBALS['__test_caps']            = array();
-$GLOBALS['__transients'][ $tkey ]  = array( pa_sugg_row( 101, array( 11, 12 ) ) );
-pa_eq( 'tag_ai_applied', sn_handle_tag_ai_apply( array( 'assign' => array( 101 => array( 11, 12 ) ) ) ), 'returns tag_ai_applied' );
-pa_eq( array( 11, 12 ), pa_terms_for( 101 ), 'both suggested terms applied to the Note' );
-pa_eq( false, isset( $GLOBALS['__transients'][ $tkey ] ), 'transient cleared after apply' );
+pa_fit_pass( array( 101 => array( 11, 12 ) ), array( 101 => array( 31 ) ) );
+pa_eq( 'tag_fit_applied', sn_handle_tag_fit_apply( array( 'assign' => array( 101 => array( 11, 12 ) ), 'remove' => array( 101 => array( 31 ) ) ) ), 'returns tag_fit_applied' );
+pa_eq( array( 11, 12 ), pa_terms_for( 101 ), 'both listed terms assigned to the Note' );
+pa_eq( true, $GLOBALS['__test_set_terms_calls'][0]['append'], 'assigned by APPENDING, never replacing the note\'s tags' );
+pa_eq( array( 31 ), pa_removed_for( 101 ), 'the misfit removed' );
+pa_eq( array(), $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ]['notes'][101]['missing'], 'applied pairs leave the stored pass (missing)' );
+pa_eq( array(), $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ]['notes'][101]['attached'], 'applied pairs leave the stored pass (attached)' );
 
-// Forged TERM — a term id that was never suggested for this post is dropped.
+// Forged TERM — a term id Jev never listed for this post is dropped.
 $GLOBALS['__test_set_terms_calls'] = array();
-$GLOBALS['__transients'][ $tkey ]  = array( pa_sugg_row( 101, array( 11 ) ) );
-sn_handle_tag_ai_apply( array( 'assign' => array( 101 => array( 11, 99 ) ) ) );
-pa_eq( array( 11 ), pa_terms_for( 101 ), 'unsuggested term 99 intersected out; only 11 applied' );
+pa_fit_pass( array( 101 => array( 11 ) ) );
+sn_handle_tag_fit_apply( array( 'assign' => array( 101 => array( 11, 99 ) ) ) );
+pa_eq( array( 11 ), pa_terms_for( 101 ), 'unlisted term 99 intersected out; only 11 applied' );
 
-// Forged POST — a post id absent from the suggestions is rejected entirely.
+// Crossed lists — a missing tag cannot be "removed", a misfit cannot be "assigned".
+$GLOBALS['__test_set_terms_calls'] = array(); $GLOBALS['__test_remove_terms_calls'] = array();
+pa_fit_pass( array( 101 => array( 11 ) ), array( 101 => array( 31 ) ) );
+pa_eq( 'tag_fit_nothing', sn_handle_tag_fit_apply( array( 'assign' => array( 101 => array( 31 ) ), 'remove' => array( 101 => array( 11 ) ) ) ), 'a term listed for one action is refused for the other' );
+pa_eq( 0, count( $GLOBALS['__test_set_terms_calls'] ) + count( $GLOBALS['__test_remove_terms_calls'] ), 'nothing written' );
+
+// Forged POST — a post id absent from the pass is rejected entirely.
 $GLOBALS['__test_set_terms_calls'] = array();
-$GLOBALS['__transients'][ $tkey ]  = array( pa_sugg_row( 101, array( 11 ) ) );
-sn_handle_tag_ai_apply( array( 'assign' => array( 202 => array( 11 ) ) ) );
-pa_eq( null, pa_terms_for( 202 ), 'post 202 (never suggested) gets no wp_set_object_terms call' );
+pa_fit_pass( array( 101 => array( 11 ) ) );
+sn_handle_tag_fit_apply( array( 'assign' => array( 202 => array( 11 ) ) ) );
+pa_eq( null, pa_terms_for( 202 ), 'post 202 (never listed) gets no wp_set_object_terms call' );
 
-// Wrong POST TYPE — suggested post is not a Note (e.g. a page) → rejected.
+// Wrong POST TYPE — listed post is not a Note (e.g. a page) → rejected.
 $GLOBALS['__test_set_terms_calls'] = array();
 $GLOBALS['__test_post_types']      = array( 303 => 'page' );
-$GLOBALS['__transients'][ $tkey ]  = array( pa_sugg_row( 303, array( 11 ) ) );
-sn_handle_tag_ai_apply( array( 'assign' => array( 303 => array( 11 ) ) ) );
-pa_eq( null, pa_terms_for( 303 ), 'non-Note (page) post rejected even though it was in the cache' );
+pa_fit_pass( array( 303 => array( 11 ) ) );
+sn_handle_tag_fit_apply( array( 'assign' => array( 303 => array( 11 ) ) ) );
+pa_eq( null, pa_terms_for( 303 ), 'non-Note (page) post rejected even though it was in the pass' );
 
 // No CAP — user cannot edit_post the target → rejected.
 $GLOBALS['__test_set_terms_calls'] = array();
 $GLOBALS['__test_post_types']      = array();
 $GLOBALS['__test_caps']            = array( 404 => false );
-$GLOBALS['__transients'][ $tkey ]  = array( pa_sugg_row( 404, array( 11 ) ) );
-sn_handle_tag_ai_apply( array( 'assign' => array( 404 => array( 11 ) ) ) );
+pa_fit_pass( array( 404 => array( 11 ) ) );
+sn_handle_tag_fit_apply( array( 'assign' => array( 404 => array( 11 ) ) ) );
 pa_eq( null, pa_terms_for( 404 ), 'edit_post denied → no wp_set_object_terms call' );
 
-// No transient at all — nothing is applied (can't validate → reject).
+// No pass at all — nothing is applied (can't validate → reject).
 $GLOBALS['__test_set_terms_calls'] = array();
 $GLOBALS['__test_caps']            = array();
-unset( $GLOBALS['__transients'][ $tkey ] );
-sn_handle_tag_ai_apply( array( 'assign' => array( 101 => array( 11 ) ) ) );
-pa_eq( 0, count( $GLOBALS['__test_set_terms_calls'] ), 'no suggestion cache → nothing applied' );
+unset( $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] );
+pa_eq( 'tag_fit_nothing', sn_handle_tag_fit_apply( array( 'assign' => array( 101 => array( 11 ) ) ) ), 'no stored pass → nothing applied' );
+pa_eq( 0, count( $GLOBALS['__test_set_terms_calls'] ), 'no stored pass → no wp_set_object_terms call' );
+
+// tag_fit_run: no key → unavailable; the sync's verdict maps to the flash.
+$GLOBALS['__fit_ready'] = false;
+if ( ! function_exists( 'sn_jev_is_ready' ) ) { function sn_jev_is_ready() { return $GLOBALS['__fit_ready']; } }
+pa_eq( 'tag_fit_unavailable', sn_handle_tag_fit_run( array() ), 'tag_fit_run without a key: unavailable' );
 
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 65, count( $map ), 'map has 65 actions' ); // 15.11.0: +3 zenodo_env_save, zenodo_deposit_batch, zenodo_deposit_one (Connections → Zenodo) · 15.2.0: +2 keyring_save, keyring_verify; −4 cf_save, analytics_save, analytics_use_central_token, monitoring_save (their forms moved to the keyring) · 14.10.0: +1 analytics_use_central_token (drop the separate analytics token; one Cloudflare credential set) · 14.9.0: +1 cf_monitor_refresh (the Cloudflare monitor: token verify, zone analytics, firewall events) · item 8: +1 ml_embed_compare (the TF-IDF vs embeddings runner — the instrument shipped without a caller) · R6b: +3 gsc_test / gsc_property_save / gsc_sync (the client chain: prove the credential, choose the property, pull the window) · R6b: +1 gsc_credential_save (Measurement → Search Console; the service-account key the search reports will spend) · R6a: +1 scheduled_reads_save (read-door-only daily runs) · R6a: +1 morning_brief_save · R3 §3D Increment 1 (bridge half): +1 remote_toggle (the remote analytics door's wp-admin switch — sn_mcp_remote_enabled is absent-means-OFF, so without this the door needed WP-CLI to turn on AND off) · v10.47.0: +1 redirect_404_clear_probes (dismiss scanner noise, keep real broken links) · v10.46.0: +2 ai_settings_save (AI tab, split out of save_theme) + analytics_collector_save (collector endpoint moved off Content → RSS) · v10.33.0: +1 resume_save (/resume structured editor) · v10.0.0: -2 release_notes_draft (Release Notes surface retired) + apply_reading_time_cleanup (broken legacy-cleanup UI retired; the finder/applier functions and the shortcode stay) · v9.85.0: +1 machine_readers_save (Machine Readers sensor settings, Session 3) · v9.68.0: -1 analytics_landing_preview_save (the flag-gated Overview (preview) graduated to the permanent default tab — no flag, no toggle) · v9.67.0: +1 analytics_landing_preview_save (Overview (preview) flag toggle; handler lived in inc/analytics-view-overview-lab.php, the schedule-admin precedent) · v9.51.0 (R9, lane SEC-C): +1 bind_mcp_rw_credential (MCP write-door credential binding) · S2 §3: +1 analytics_funnels_save (owner-defined session funnels) · v9.36.0: +1 analytics_tuning_save (settings hub engine tuning) · v9.5.0: -2 narration_run + narration_settings_save (weekly-digest surface retired, R2) · v9.2.0: +1 narration_settings_save (relocated to the Intelligence tab, then retired) · v9.0.0: -1 analytics_import (Plausible-CSV importer retired, D1) · v8.10.0: +5 redirect_add/update/delete + redirect_404_delete/clear (Redirects arc) · v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused · v6.40.0: +2 schedule_run_now/schedule_repurge · v6.51.0: -1 insights_create_draft (advisor no longer prescribes posts) · v7.2.0: +1 security_digest_save · v7.5.0: +1 now_save (/now page editor) · v7.6.0: +1 uses_save (/uses page editor) · v8.0.0: +1 schedule_swap_run_now (version swaps)
+pa_eq( 65, count( $map ), 'map has 65 actions' ); // 16.9.0: tag_ai_suggest + tag_ai_apply OUT, tag_fit_run + tag_fit_apply IN · 15.11.0: +3 zenodo_env_save, zenodo_deposit_batch, zenodo_deposit_one (Connections → Zenodo) · 15.2.0: +2 keyring_save, keyring_verify; −4 cf_save, analytics_save, analytics_use_central_token, monitoring_save (their forms moved to the keyring) · 14.10.0: +1 analytics_use_central_token (drop the separate analytics token; one Cloudflare credential set) · 14.9.0: +1 cf_monitor_refresh (the Cloudflare monitor: token verify, zone analytics, firewall events) · item 8: +1 ml_embed_compare (the TF-IDF vs embeddings runner — the instrument shipped without a caller) · R6b: +3 gsc_test / gsc_property_save / gsc_sync (the client chain: prove the credential, choose the property, pull the window) · R6b: +1 gsc_credential_save (Measurement → Search Console; the service-account key the search reports will spend) · R6a: +1 scheduled_reads_save (read-door-only daily runs) · R6a: +1 morning_brief_save · R3 §3D Increment 1 (bridge half): +1 remote_toggle (the remote analytics door's wp-admin switch — sn_mcp_remote_enabled is absent-means-OFF, so without this the door needed WP-CLI to turn on AND off) · v10.47.0: +1 redirect_404_clear_probes (dismiss scanner noise, keep real broken links) · v10.46.0: +2 ai_settings_save (AI tab, split out of save_theme) + analytics_collector_save (collector endpoint moved off Content → RSS) · v10.33.0: +1 resume_save (/resume structured editor) · v10.0.0: -2 release_notes_draft (Release Notes surface retired) + apply_reading_time_cleanup (broken legacy-cleanup UI retired; the finder/applier functions and the shortcode stay) · v9.85.0: +1 machine_readers_save (Machine Readers sensor settings, Session 3) · v9.68.0: -1 analytics_landing_preview_save (the flag-gated Overview (preview) graduated to the permanent default tab — no flag, no toggle) · v9.67.0: +1 analytics_landing_preview_save (Overview (preview) flag toggle; handler lived in inc/analytics-view-overview-lab.php, the schedule-admin precedent) · v9.51.0 (R9, lane SEC-C): +1 bind_mcp_rw_credential (MCP write-door credential binding) · S2 §3: +1 analytics_funnels_save (owner-defined session funnels) · v9.36.0: +1 analytics_tuning_save (settings hub engine tuning) · v9.5.0: -2 narration_run + narration_settings_save (weekly-digest surface retired, R2) · v9.2.0: +1 narration_settings_save (relocated to the Intelligence tab, then retired) · v9.0.0: -1 analytics_import (Plausible-CSV importer retired, D1) · v8.10.0: +5 redirect_add/update/delete + redirect_404_delete/clear (Redirects arc) · v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused · v6.40.0: +2 schedule_run_now/schedule_repurge · v6.51.0: -1 insights_create_draft (advisor no longer prescribes posts) · v7.2.0: +1 security_digest_save · v7.5.0: +1 now_save (/now page editor) · v7.6.0: +1 uses_save (/uses page editor) · v8.0.0: +1 schedule_swap_run_now (version swaps)
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }

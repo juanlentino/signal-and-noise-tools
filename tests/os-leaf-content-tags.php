@@ -25,6 +25,7 @@ $GLOBALS['__preview']   = null;
 $GLOBALS['__alltags']   = array();
 $GLOBALS['__ai']        = false;
 $GLOBALS['__transient'] = false;
+$GLOBALS['__jev']       = false; // 16.9.0: the connector's key
 $GLOBALS['__untagged']  = array();
 $GLOBALS['__unused']    = array();
 function sn_tag_find_duplicate_clusters() { return $GLOBALS['__clusters']; }
@@ -34,6 +35,9 @@ function sn_tag_merge_preview( $f, $i ) { return ( is_array( $f ) && $f && $i ) 
 function sn_tag_find_unused() { return $GLOBALS['__unused']; }
 function sn_tag_untagged_notes( $l = 20 ) { return $GLOBALS['__untagged']; }
 function snt_ai_is_available() { return $GLOBALS['__ai']; }
+function sn_jev_is_ready() { return $GLOBALS['__jev']; }
+function human_time_diff( $a, $b = 0 ) { return '2 hours'; }
+if ( ! function_exists( 'get_edit_post_link' ) ) { function get_edit_post_link( $id ) { return 'https://x.test/wp-admin/post.php?post=' . (int) $id . '&action=edit'; } }
 function get_terms( $args = array() ) {
 	if ( isset( $args['fields'] ) && 'count' === $args['fields'] ) { return (string) count( $GLOBALS['__alltags'] ); }
 	return $GLOBALS['__alltags'];
@@ -42,6 +46,7 @@ if ( ! class_exists( 'WP_Error' ) ) { class WP_Error {} }
 
 require_once SNT_PATH . 'inc/admin-glance.php';
 require SNT_PATH . 'inc/tag-consolidation-admin.php';
+require_once SNT_PATH . 'inc/jev-tags.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/content-tags.php';
 
 $pass = 0; $fail = 0;
@@ -64,6 +69,7 @@ $GLOBALS['__clusters'] = array( array(
 	'suggested' => 10,
 ) );
 $GLOBALS['__ai']       = true;
+$GLOBALS['__jev']      = true;
 $GLOBALS['__untagged'] = array( array( 'id' => 7, 'title' => 'Untagged Note' ) );
 $GLOBALS['__unused']   = array( array( 'term_id' => 9, 'name' => 'Empty', 'slug' => 'empty', 'count' => 0 ) );
 $GLOBALS['__options']['sn_tag_merge_history'] = array(
@@ -74,7 +80,7 @@ $classic = classic_tags();
 $kit     = kit_tags();
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic forms: ' . names_line( $classic, $kit ) );
-ok( array( 'tag_ai_suggest', 'tag_prune_unused' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the list view offers tag_ai_suggest and tag_prune_unused, as the classic leaf does: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( array( 'tag_fit_run', 'tag_prune_unused' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '16.9.0: the list view offers tag_fit_run and tag_prune_unused, as the classic leaf does: ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
 // Glance: the same three cards, pill text as caption, warn kind as a swatch.
@@ -97,8 +103,8 @@ ok( false !== strpos( $kit, 'heading="Merge any two tags"' ) && false !== strpos
 ok( false !== strpos( $kit, '<os-select name="sn_tag_from[]"' ) && false !== strpos( $kit, '<os-select name="sn_tag_into"' ) && substr_count( $kit, '<os-option value="5">Jazz (4)</os-option>' ) === 2, 'picker: Fold/into selects list every tag with its count' );
 ok( false !== strpos( $kit, 'label="Fold"' ) && false !== strpos( $kit, 'label="into"' ), 'picker: the Fold/into labels the classic prints around the selects survive' );
 
-// AI: available with one untagged Note -> the suggest form.
-ok( false !== strpos( $kit, 'heading="AI: suggest tags for untagged Notes"' ) && false !== strpos( $kit, '1 untagged Note. Runs on demand on your AI key; up to 20 per click.' ) && false !== strpos( $kit, 'submit-label="Suggest tags"' ), 'AI: the untagged count and the Suggest tags form' );
+// Jev ready, no pass yet: the section explains the pass and offers Read tags now.
+ok( false !== strpos( $kit, 'heading="Jev: tag fit"' ) && false !== strpos( $kit, 'About seventy requests; a cent or two.' ) && false !== strpos( $kit, 'submit-label="Read tags now"' ), '16.9.0: Jev ready, no pass: the explainer and the Read tags now form' );
 
 // Unused: a native POST form with the checked term, confirmed and marked dangerous as the classic onsubmit confirm.
 ok( false !== strpos( $kit, 'os-action="post" os-confirm="Delete the selected unused tags?" os-confirm-danger>' ), 'unused: the prune form confirms with the classic question, marked dangerous' );
@@ -117,30 +123,31 @@ ok( false === strpos( $kit, '<script>' ) && substr_count( $kit, '&lt;script&gt;'
 array_pop( $GLOBALS['__alltags'] ); array_pop( $GLOBALS['__clusters'][0]['terms'] ); array_pop( $GLOBALS['__unused'] );
 
 // ── The empty list view: no clusters, no unused, no AI provider, no history.
-$GLOBALS['__clusters'] = array(); $GLOBALS['__unused'] = array(); $GLOBALS['__ai'] = false; $GLOBALS['__options']['sn_tag_merge_history'] = array();
+$GLOBALS['__clusters'] = array(); $GLOBALS['__unused'] = array(); $GLOBALS['__ai'] = false; $GLOBALS['__jev'] = false; $GLOBALS['__options']['sn_tag_merge_history'] = array();
 $classic = classic_tags();
 $kit     = kit_tags();
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'empty view: field names match (the picker alone): ' . names_line( $classic, $kit ) );
 ok( array() === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'empty view: no write is offered' );
 ok( false !== strpos( $kit, 'heading="Duplicate tags"' ) && false !== strpos( $kit, 'heading="No duplicate tags detected."' ), 'empty view: No duplicate tags detected' );
 ok( false !== strpos( $kit, 'heading="No unused tags."' ), 'empty view: No unused tags' );
-ok( false !== strpos( $kit, 'Connect an AI provider (Settings &gt; Connectors) to suggest tags.' ), 'empty view: the dormant AI note' );
+ok( false !== strpos( $kit, 'Install Connector for TypeSafe Jev and add the key under Settings › Connectors.' ), '16.9.0: empty view, no key: the section names the connector' );
 ok( false === strpos( $kit, 'Recent tag operations' ), 'empty view: no history, no Recent section' );
 ok( false !== strpos( $kit, 'caption="clean"' ) && false === strpos( $kit, 'swatch' ), 'empty view: the glance pills read clean with no swatch' );
 
-// ── AI available, every Note tagged.
-$GLOBALS['__ai'] = true; $GLOBALS['__untagged'] = array();
+// ── Jev ready, a pass with nothing flagged.
+$GLOBALS['__ai'] = true; $GLOBALS['__jev'] = true; $GLOBALS['__untagged'] = array();
+$GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 3, 'notes' => array( 7 => array( 'title' => 'Fine', 'attached' => array( array( 'id' => 2, 'name' => 'Jazz', 'score' => 1.9, 'confidence' => 0.9 ) ), 'missing' => array() ) ), 'usage' => array(), 'last_error' => '' );
 $kit = kit_tags();
-ok( false !== strpos( $kit, 'heading="Every published Note has at least one tag. Nothing to suggest."' ), 'AI: nothing to suggest when every Note is tagged' );
+ok( false !== strpos( $kit, 'Last read 2 hours ago: every tag on every note fits' ) && false !== strpos( $kit, 'submit-label="Read tags now"' ) && false === strpos( $kit, 'tag_fit_apply' ), '16.9.0: a clean pass says so and still offers Read tags now; no apply form' );
 
-// ── AI suggestions pending: the review form with per-post checkboxes.
-$GLOBALS['__transient'] = array( array( 'post_id' => 7, 'title' => 'Untagged Note', 'suggested' => array( array( 'term_id' => 2, 'name' => 'Jazz', 'slug' => 'jazz' ), array( 'term_id' => 5, 'name' => 'Blues', 'slug' => 'blues' ) ) ) );
+// ── A pass with rows: the review form with per-post remove/add checkboxes.
+$GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 3, 'notes' => array( 7 => array( 'title' => 'Untagged Note', 'attached' => array( array( 'id' => 9, 'name' => 'Empty', 'score' => 0.3, 'confidence' => 0.7 ) ), 'missing' => array( array( 'id' => 2, 'name' => 'Jazz', 'noul' => 0.8 ), array( 'id' => 5, 'name' => 'Blues', 'noul' => 0.65 ) ) ) ), 'usage' => array(), 'last_error' => '' );
 $classic = classic_tags();
 $kit     = kit_tags();
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && in_array( 'assign[7][]', snt_leaf_names( $kit ), true ), 'AI review: field names match, assign[7][] included: ' . names_line( $classic, $kit ) );
-ok( array( 'tag_ai_apply' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'AI review: the one write is tag_ai_apply' );
-ok( false !== strpos( $kit, '<strong>Untagged Note</strong>' ) && false !== strpos( $kit, 'name="assign[7][]" value="2" checked> Jazz' ) && false !== strpos( $kit, 'name="assign[7][]" value="5" checked> Blues' ) && false !== strpos( $kit, '>Apply selected</button>' ) && false !== strpos( $kit, 'Review the AI suggestions' ), 'AI review: the Note, both suggested tags checked, Apply selected' );
-$GLOBALS['__transient'] = false;
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && in_array( 'assign[7][]', snt_leaf_names( $kit ), true ) && in_array( 'remove[7][]', snt_leaf_names( $kit ), true ), '16.9.0 review: field names match, assign[7][] and remove[7][] included: ' . names_line( $classic, $kit ) );
+ok( array( 'tag_fit_apply', 'tag_fit_run' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '16.9.0 review: the two writes are tag_fit_apply and tag_fit_run, same on both leaves' );
+ok( false !== strpos( $kit, '>Untagged Note</a></strong>' ) && false !== strpos( $kit, 'name="remove[7][]" value="9"> Remove &quot;Empty&quot; (attached for reach, 0.30 of 2)' ) && false !== strpos( $kit, 'name="assign[7][]" value="2"> Add &quot;Jazz&quot; (a reader would expect it, 0.80)' ) && false !== strpos( $kit, '>Apply selected</button>' ) && false !== strpos( $kit, '1 notes, read 2 hours ago.' ), '16.9.0 review: the note links to its editor, the misfit unchecked with its score, the missing unchecked with its probability, Apply selected' );
+unset( $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] );
 
 // ── The GET preview -> confirm panel: the classic reads $_GET, the window reads its params state.
 $_GET['sn_tag_preview'] = '1'; $_GET['sn_tag_from'] = array( '10', '11' ); $_GET['sn_tag_into'] = '12';
