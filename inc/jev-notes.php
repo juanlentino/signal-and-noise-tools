@@ -223,7 +223,9 @@ function sn_jev_sync() {
 		}
 		$judged++;
 		$tokens      += (int) ( $r['usage']['input_tokens'] ?? 0 );
-		$notes[ $id ] = array( 'title' => (string) $post->post_title, 'verdict' => sn_jev_verdict_shape( $r['answers'] ), 'at' => time(), 'error' => '' );
+		// 16.8.1: keep the previous pass's verdict beside the new one; check 30 needs two consecutive readings below the line before it lists a note.
+		$prev_verdict = is_array( $notes[ $id ]['verdict'] ?? null ) ? $notes[ $id ]['verdict'] : null;
+		$notes[ $id ] = array( 'title' => (string) $post->post_title, 'verdict' => sn_jev_verdict_shape( $r['answers'] ), 'previous' => $prev_verdict, 'at' => time(), 'error' => '' );
 	}
 	update_option( SN_JEV_DATA_OPTION, array(
 		'synced_at'  => time(),
