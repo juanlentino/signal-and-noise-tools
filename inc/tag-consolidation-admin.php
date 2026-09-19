@@ -105,6 +105,7 @@ function sn_admin_render_tag_cleanup_section() {
 
 	sn_admin_tag_render_manual_picker();
 	sn_admin_tag_render_fit_section();
+	sn_admin_tag_render_ceiling_section();
 	sn_admin_tag_render_unused_section();
 	sn_admin_tag_render_recent_merges();
 }
@@ -275,6 +276,26 @@ function sn_admin_tag_render_fit_section() {
 	echo '<input type="hidden" name="sn_action" value="tag_fit_run">';
 	echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Read tags now', 'signal-and-noise-tools' ) . '</button>';
 	echo '</form></div>';
+}
+
+/**
+ * 16.9.2: notes over the tag ceiling, each a link to its editor (see
+ * tags_ceiling_html() on the native leaf; same rows, same words).
+ *
+ * @return void
+ */
+function sn_admin_tag_render_ceiling_section() {
+	$rows = function_exists( 'sn_tag_notes_over_ceiling' ) ? sn_tag_notes_over_ceiling() : array();
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html( sprintf( /* translators: %d: the ceiling */ __( 'Notes over %d tags', 'signal-and-noise-tools' ), defined( 'SN_TAG_CEILING' ) ? (int) SN_TAG_CEILING : 0 ) ) . '</h2>';
+	if ( array() === $rows ) {
+		echo '<p>' . esc_html__( 'Every note sits at or under the ceiling.', 'signal-and-noise-tools' ) . '</p></div>';
+		return;
+	}
+	echo '<p>' . esc_html__( 'Past the ceiling the peripheral notes fill the archives and every archive starts to read as the whole corpus. Keep the facets the note is about; the pre-publish gate warns at the same line.', 'signal-and-noise-tools' ) . '</p><ul>';
+	foreach ( $rows as $r ) {
+		echo '<li><a href="' . esc_url( get_edit_post_link( (int) $r['post_id'] ) ?: '' ) . '">' . esc_html( $r['title'] ) . '</a> ' . esc_html( sprintf( /* translators: %d: tag count */ __( '(%d tags)', 'signal-and-noise-tools' ), (int) $r['tags'] ) ) . '</li>';
+	}
+	echo '</ul></div>';
 }
 
 /**

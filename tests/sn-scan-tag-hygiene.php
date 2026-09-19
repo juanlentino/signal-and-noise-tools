@@ -50,6 +50,13 @@ function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = nul
 	);
 }
 
+
+// 16.9.2: the ceiling walk reads posts and their tag ids; the fixture maps id => tag ids.
+$GLOBALS['__posts'] = array();
+function get_posts( $args ) { return array_keys( $GLOBALS['__posts'] ); }
+function wp_get_post_tags( $id, $args = array() ) { return $GLOBALS['__posts'][ (int) $id ] ?? array(); }
+function get_the_title( $id ) { return 'Note ' . (int) $id; }
+
 require_once __DIR__ . '/../inc/health-check-tag-hygiene.php';
 require_once __DIR__ . '/../inc/sn-scan-detectors.php';
 require_once __DIR__ . '/../inc/sn-scan-adapters.php';
@@ -60,7 +67,7 @@ echo "Group: registries carry the type\n";
 ok( array_key_exists( 'tag_hygiene', snt_sn_scan_adapters() ), 'adapter registry has tag_hygiene' );
 $dets = snt_sn_scan_detectors_for( 'tag_hygiene' );
 $det_ids = array_map( static function ( $d ) { return $d['id']; }, $dets );
-ok( array( 'undescribed_tag', 'unused_tag' ) === $det_ids, 'detector registry declares undescribed_tag + unused_tag' );
+ok( array( 'undescribed_tag', 'unused_tag', 'over_ceiling' ) === $det_ids, 'detector registry declares undescribed_tag + unused_tag + over_ceiling (16.9.2)' );
 
 echo "\nGroup: both detectors emit, with the right apply_hint\n";
 $GLOBALS['__terms_result'] = array(
@@ -102,6 +109,18 @@ echo "\nGroup: a skip is an error, never an empty-clean\n";
 $GLOBALS['__terms_result'] = new WP_Error( 'invalid_taxonomy' );
 $r = snt_sn_scan_adapter_tag_hygiene( null );
 ok( is_wp_error( $r ), 'unmeasurable taxonomy → WP_Error, not zero candidates' );
+
+echo "\nGroup: 16.9.2 over_ceiling rides the same source, post-level, no apply\n";
+$GLOBALS['__terms_result'] = array( (object) array( 'term_id' => 1, 'name' => 'Provenance', 'count' => 3, 'description' => 'Written.' ) );
+$GLOBALS['__rels'] = array( 1 => array( 8 ) );
+$GLOBALS['__posts'] = array( 8 => array( 1, 2, 3, 4, 5 ) );
+$r = snt_sn_scan_adapter_tag_hygiene( null );
+$c = $r['candidates'][0] ?? array();
+ok( 1 === count( $r['candidates'] ) && 'post:8' === ( $c['target_identity'] ?? '' ) && 'over_ceiling' === ( $c['evidence']['detector'] ?? '' ) && null === $c['apply_hint'] && 5 === ( $c['targets'][0]['tags'] ?? 0 ) && 'Note 8' === ( $c['targets'][0]['title'] ?? '' ), 'a note over the ceiling is one candidate keyed post:<id>, detector over_ceiling, apply_hint null, the count and title on the target' );
+$fp = $c['content_fingerprint'];
+$GLOBALS['__posts'] = array( 8 => array( 1, 2, 3, 4, 5, 6 ) );
+ok( $fp !== snt_sn_scan_adapter_tag_hygiene( null )['candidates'][0]['content_fingerprint'], 'the fingerprint is the count: a different count above the line is a new candidate' );
+$GLOBALS['__posts'] = array(); $GLOBALS['__rels'] = array();
 
 echo "\nGroup: scope discipline (resolver source)\n";
 $src = file_get_contents( __DIR__ . '/../inc/abilities-sn-scan.php' );

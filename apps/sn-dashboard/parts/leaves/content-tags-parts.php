@@ -278,6 +278,26 @@ function tags_fit_html() {
 }
 
 /**
+ * 16.9.2: notes over the tag ceiling, each a link to its editor. No form:
+ * which facets to keep is an editorial call made in the editor, where the
+ * pre-publish gate warns at the same line.
+ *
+ * @return string
+ */
+function tags_ceiling_html() {
+	$heading = sprintf( /* translators: %d: the ceiling */ __( 'Notes over %d tags', 'signal-and-noise-tools' ), defined( 'SN_TAG_CEILING' ) ? (int) SN_TAG_CEILING : 0 );
+	$rows    = function_exists( 'sn_tag_notes_over_ceiling' ) ? \sn_tag_notes_over_ceiling() : array();
+	if ( array() === $rows ) {
+		return \snt_kit_section( $heading, \snt_kit_empty( __( 'Every note sits at or under the ceiling.', 'signal-and-noise-tools' ) ) );
+	}
+	$items = '';
+	foreach ( $rows as $r ) {
+		$items .= '<li><a href="' . esc_url( get_edit_post_link( (int) $r['post_id'] ) ?: '' ) . '">' . \snt_kit_esc( $r['title'] ) . '</a> ' . \snt_kit_esc( sprintf( /* translators: %d: tag count */ __( '(%d tags)', 'signal-and-noise-tools' ), (int) $r['tags'] ) ) . '</li>';
+	}
+	return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'Past the ceiling the peripheral notes fill the archives and every archive starts to read as the whole corpus. Keep the facets the note is about; the pre-publish gate warns at the same line.', 'signal-and-noise-tools' ) ) . '</p><ul class="snt-list">' . $items . '</ul>' );
+}
+
+/**
  * Unused-tag cleanup: every count-0 term checked, deleted on confirm.
  *
  * @param array $unused From sn_tag_find_unused().
