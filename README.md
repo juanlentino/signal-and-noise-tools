@@ -12,7 +12,7 @@ Built on WordPress 7.0's Abilities API and AI Client (what every model does here
 - **SEO** — meta, canonicals, OG cards, sitemaps + IndexNow, a redirect manager with a 404 log
 - **Security** — WordPress hardening, a custom login slug, a read-only panel over the edge login guard
 - **Analytics** — first-party, cookieless, edge-collected; SQL rollups, a dashboard, AI narration
-- **Content health** — a 31-check scan from Measurement → Health or the `run-health-scan` ability
+- **Content health** — a 31-check scan from Measurement → Health or the `run-health-scan` ability (the tag-fit reading rides the advisory tier, not the fault count)
 - **Provenance** — every Note Ed25519-signed and Bitcoin-anchored; readers verify without trusting the site
 - **Citation graph** — a Webmention receiver that treats every claim as unverified until cron checks it
 - **Edge cache** — automatic Cloudflare purge on save / theme update

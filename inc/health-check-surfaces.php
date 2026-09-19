@@ -76,7 +76,6 @@ function sn_health_check_surface_map() {
 		// time, unowned elsewhere.
 		'zenodo_doi'            => 'health',
 		'jev_notes'             => 'health',
-		'jev_tags'              => 'health',
 		// 25th + 26th (v13.98.0). Both defects (a sensor that stopped writing;
 		// a theme.json that lies), both reach zero, both unowned elsewhere.
 		'machine_reader_liveness' => 'health',
@@ -135,6 +134,11 @@ function sn_health_check_surface_map() {
 		// yet written, zero-post tags are prune candidates — opportunities
 		// that re-open as tags arrive, never defects.
 		'tag_hygiene'           => 'worklist',
+		// 16.8.2: tag fit (16.8.0) shipped on the health surface and failed the
+		// Health test the way tag_hygiene did: a tag a note should carry never
+		// reaches zero. Advisory tier, worklist surface; the names itemize on
+		// the jev-tags ability.
+		'jev_tags'              => 'worklist',
 		// Same shape: a mention that could be a link. Zero-AI at scan time,
 		// applied through ai-link-suggest — the same door as the pairs above.
 		'unlinked_mentions'     => 'worklist',
