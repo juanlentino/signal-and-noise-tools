@@ -56,7 +56,7 @@ ok( array() === sn_jev_tags_judge( array( 'c30' => array( 'type' => 'noul', 'nou
 
 // C: the pass.
 mkpost( 2, 'Untagged', array() );
-$GLOBALS['__k']['answer'] = static function ( $state, $q ) { $a = array(); foreach ( $q as $k => $qq ) { $a[ $k ] = 'score' === $qq['type'] ? array( 'type' => 'score', 'score' => 'a20' === $k ? 0.3 : 1.9, 'confidence' => 0.8 ) : array( 'type' => 'noul', 'noul' => 'c10' === $k ? 0.7 : 0.1 ); } return array( 'ok' => true, 'code' => 200, 'answers' => $a, 'usage' => array( 'input_tokens' => 2500 ), 'error' => '' ); };
+$GLOBALS['__k']['answer'] = static function ( $state, $q ) { $a = array(); foreach ( $q as $k => $qq ) { $a[ $k ] = 'score' === $qq['type'] ? array( 'type' => 'score', 'score' => 'a20' === $k ? 0.3 : 1.9, 'confidence' => 0.8 ) : array( 'type' => 'noul', 'noul' => 'c10' === $k ? 0.85 : 0.1 ); } return array( 'ok' => true, 'code' => 200, 'answers' => $a, 'usage' => array( 'input_tokens' => 2500 ), 'error' => '' ); };
 $r = sn_jev_tags_sync();
 ok( $r['ok'] && 2 === $r['judged'] && 1 === $r['misfits'] && 1 === $r['missing'] && 2 === count( $GLOBALS['__k']['calls'] ) && 'tags' === $GLOBALS['__k']['calls'][0]['feature'], 'C1 one request per note under the tags feature; one misfit (royalties on note 1), one missing (provenance on note 2)' );
 ok( array( 30 ) === array_keys( array_flip( array_map( static function ( $qk ) { return (int) substr( $qk, 1 ); }, array_keys( array_filter( $GLOBALS['__k']['calls'][0]['questions'], static function ( $qq ) { return 'noul' === $qq['type']; } ) ) ) ) ), 'C2 candidates are the pool minus the attached' );
@@ -70,7 +70,7 @@ ok( 'weekly' === ( $GLOBALS['__k']['scheduled'][ SN_JEV_TAGS_HOOK ] ?? '' ), 'C5
 
 // D: check 31.
 $c = sn_health_check_jev_tags();
-ok( 2 === $c['count'] && null === $c['skipped'] && str_contains( $c['findings'][0]['note'], 'attached for reach (0.30 of 2, confidence 0.80)' ) && str_contains( $c['findings'][1]['note'], 'browsing "provenance" would expect this note (0.70)' ) && 2 === $c['findings'][1]['subject_id'], 'D1 a finding per note: the misfit and the missing tag, with the numbers' );
+ok( 2 === $c['count'] && null === $c['skipped'] && str_contains( $c['findings'][0]['note'], 'attached for reach (0.30 of 2, confidence 0.80)' ) && str_contains( $c['findings'][1]['note'], 'browsing "provenance" would expect this note (0.85)' ) && 2 === $c['findings'][1]['subject_id'], 'D1 a finding per note: the misfit and the missing tag, with the numbers' );
 ok( str_contains( $c['fix_hint'], 'DESCRIPTION' ) && str_contains( $c['fix_hint'], 'not prose' ), 'D2 the hint says tags are not prose and the description is what Jev read' );
 $GLOBALS['__k']['opt'] = array();
 ok( is_string( sn_health_check_jev_tags()['skipped'] ) && 0 === sn_health_check_jev_tags()['count'], 'D3 no pass yet: skipped, never a pass' );
@@ -85,6 +85,23 @@ ok( false === snt_ability_jev_tags()['judged'], 'E2 no pass yet' );
 sn_jev_tags_sync();
 $o = snt_ability_jev_tags();
 ok( $o['judged'] && 2 === $o['flagged'] && 'royalties' === $o['notes'][1]['misfits'][0]['name'] && 'provenance' === $o['notes'][2]['missing'][0]['name'], 'E3 jev-tags hands the flagged notes out with misfits and missing' );
+
+// F: 16.9.1, the lines off the first live pass.
+ok( sn_jev_tag_is_misfit( array( 'score' => 0.3, 'confidence' => 0.5 ) ) && ! sn_jev_tag_is_misfit( array( 'score' => 0.9, 'confidence' => 0.26 ) ) && ! sn_jev_tag_is_misfit( array( 'score' => 1.0, 'confidence' => 0.9 ) ), 'F1 a misfit is under 1 AT confidence 0.5 or better; 0.9 at 0.26 is a shrug, 1.0 is not under' );
+ok( sn_jev_tag_is_add( array( 'noul' => 0.8 ) ) && ! sn_jev_tag_is_add( array( 'noul' => 0.79 ) ), 'F2 an add starts at 0.8' );
+$stored = array( 'notes' => array(
+	1 => array( 'title' => 'a', 'attached' => array( array( 'id' => 20, 'name' => 'royalties', 'score' => 0.9, 'confidence' => 0.1 ) ), 'missing' => array( array( 'id' => 10, 'name' => 'provenance', 'noul' => 0.7 ), array( 'id' => 30, 'name' => 'orphan', 'noul' => 0.65 ) ) ),
+	2 => array( 'title' => 'b', 'attached' => array( array( 'id' => 10, 'name' => 'provenance', 'score' => 1.9, 'confidence' => 0.9 ) ), 'missing' => array( array( 'id' => 30, 'name' => 'orphan', 'noul' => 0.6 ) ) ),
+	3 => array( 'title' => 'c', 'attached' => array(), 'missing' => array( array( 'id' => 10, 'name' => 'provenance', 'noul' => 0.9 ) ) ),
+) );
+ok( array( 3 ) === array_keys( sn_jev_tags_rows( $stored ) ) && array() === sn_jev_tags_rows( $stored )[3]['remove'] && 'provenance' === sn_jev_tags_rows( $stored )[3]['add'][0]['name'], 'F3 rows: the shrug misfit and the 0.6 to 0.79 adds drop out; only the 0.9 add on note 3 is a row' );
+$u = sn_jev_tags_umbrellas( $stored );
+ok( 2 === count( $u ) && 'orphan' === $u[0]['name'] && 2 === $u[0]['suggested'] && 0 === $u[0]['attached'] && 'provenance' === $u[1]['name'] && 2 === $u[1]['suggested'] && 1 === $u[1]['attached'] && 3 === $u[1]['notes'], 'F4 umbrellas: suggested on a third or more of the notes at the stored line, with how many carry it; by suggested then name' );
+ok( array() === sn_jev_tags_umbrellas( array( 'notes' => array() ) ) && array() === sn_jev_tags_umbrellas( array( 'notes' => array( 1 => array( 'missing' => array( array( 'id' => 10, 'name' => 'p', 'noul' => 0.6 ) ) ), 2 => array( 'missing' => array() ), 3 => array( 'missing' => array() ), 4 => array( 'missing' => array() ) ) ) ), 'F5 no notes, no umbrellas; one of four is under a third' );
+$GLOBALS['__k']['opt'][ SN_JEV_TAGS_OPTION ] = $stored + array( 'synced_at' => 1, 'tags' => 3 );
+$o = snt_ability_jev_tags();
+ok( 1 === $o['flagged'] && isset( $o['notes'][3] ) && 2 === count( $o['umbrellas'] ) && str_contains( $o['note'], 'shrug' ), 'F6 jev-tags flags on the same lines and hands the umbrellas out' );
+ok( 1 === sn_health_check_jev_tags()['count'], 'F7 check 31 reads the same lines: one finding' );
 
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail ? 1 : 0 );

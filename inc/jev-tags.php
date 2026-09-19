@@ -22,7 +22,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_JEV_TAGS_OPTION        = 'sn_jev_tags';
 const SN_JEV_TAGS_HOOK          = 'sn_jev_tags_weekly';
 const SN_JEV_TAG_MISFIT_BELOW   = 1.0; // an attached tag under "touches it"
-const SN_JEV_TAG_MISSING_AT     = 0.6; // a candidate tag a reader would expect
+const SN_JEV_TAG_MISSING_AT     = 0.6; // a candidate tag the pass KEEPS (the vocabulary reading)
+// 16.9.1, from the first live pass (69 notes, 216 attached tags): 27 of 40
+// misfits sat at 0.5 to 0.99 with confidence 0 to 0.26, shrugs painted as
+// verdicts; 171 adds at 0.6 were four umbrella tags suggested on 15 to 25
+// notes each. A misfit is a score under the line AT a confidence; a per-note
+// add starts at 0.8; a tag Jev would add to a third of the corpus is a
+// vocabulary finding, said once, never a row per note.
+const SN_JEV_TAG_MISFIT_CONFIDENCE = 0.5;
+const SN_JEV_TAG_ADD_AT            = 0.8;
+const SN_JEV_TAG_UMBRELLA_SHARE    = 1 / 3;
 const SN_JEV_TAGS_CANDIDATES    = 60;  // candidates per note, most-used first
 const SN_JEV_TAGS_OPENING       = 1200;
 
@@ -121,6 +130,67 @@ function sn_jev_tags_judge( array $answers, array $attached, array $candidates, 
 }
 
 /**
+ * An attached tag Jev read as attached for reach: under the line, and read
+ * with enough confidence to be a verdict rather than a shrug.
+ *
+ * @param array $t A stored attached row {score, confidence}.
+ * @return bool
+ */
+function sn_jev_tag_is_misfit( $t ) {
+	return (float) ( $t['score'] ?? 2 ) < SN_JEV_TAG_MISFIT_BELOW && (float) ( $t['confidence'] ?? 0 ) >= SN_JEV_TAG_MISFIT_CONFIDENCE;
+}
+
+/**
+ * A missing tag worth a row on the note: the pass keeps candidates from
+ * SN_JEV_TAG_MISSING_AT, the note lists them from SN_JEV_TAG_ADD_AT.
+ *
+ * @param array $t A stored missing row {noul}.
+ * @return bool
+ */
+function sn_jev_tag_is_add( $t ) {
+	return (float) ( $t['noul'] ?? 0 ) >= SN_JEV_TAG_ADD_AT;
+}
+
+/**
+ * Umbrella tags: the ones Jev would add to SN_JEV_TAG_UMBRELLA_SHARE of the
+ * notes read or more, at the stored line. A tag that fits a third of the
+ * corpus is a category, or a description to narrow; it is one finding, not
+ * twenty-five rows. PURE given the stored pass.
+ *
+ * @return array<int,array{id:int,name:string,suggested:int,attached:int,notes:int}> By suggested, descending.
+ */
+function sn_jev_tags_umbrellas( $data ) {
+	$notes = (array) ( $data['notes'] ?? array() );
+	$total = count( $notes );
+	if ( 0 === $total ) {
+		return array();
+	}
+	$by = array();
+	foreach ( $notes as $n ) {
+		foreach ( (array) ( $n['missing'] ?? array() ) as $t ) {
+			$id = (int) ( $t['id'] ?? 0 );
+			$by[ $id ] = ( $by[ $id ] ?? array( 'id' => $id, 'name' => (string) ( $t['name'] ?? '' ), 'suggested' => 0, 'attached' => 0, 'notes' => $total ) );
+			++$by[ $id ]['suggested'];
+		}
+	}
+	foreach ( $notes as $n ) {
+		foreach ( (array) ( $n['attached'] ?? array() ) as $t ) {
+			$id = (int) ( $t['id'] ?? 0 );
+			if ( isset( $by[ $id ] ) ) {
+				++$by[ $id ]['attached'];
+			}
+		}
+	}
+	$out = array_values( array_filter( $by, static function ( $r ) use ( $total ) {
+		return $r['suggested'] >= $total * SN_JEV_TAG_UMBRELLA_SHARE;
+	} ) );
+	usort( $out, static function ( $x, $y ) {
+		return $y['suggested'] <=> $x['suggested'] ?: strcmp( $x['name'], $y['name'] );
+	} );
+	return $out;
+}
+
+/**
  * The pass: one request per published or scheduled note, one option.
  *
  * @return array{ok:bool,judged:int,failed:int,misfits:int,missing:int,error:string}
@@ -162,11 +232,11 @@ function sn_jev_tags_sync() {
 		$tokens += (int) ( $r['usage']['input_tokens'] ?? 0 );
 		$rows    = sn_jev_tags_judge( $r['answers'], $attached, $candidates, $pool );
 		foreach ( $rows['attached'] as $row ) {
-			if ( $row['score'] < SN_JEV_TAG_MISFIT_BELOW ) {
+			if ( sn_jev_tag_is_misfit( $row ) ) {
 				$misfits++;
 			}
 		}
-		$missing           += count( $rows['missing'] );
+		$missing           += count( array_filter( $rows['missing'], 'sn_jev_tag_is_add' ) );
 		$notes[ (int) $id ] = array( 'title' => (string) $post->post_title, 'attached' => $rows['attached'], 'missing' => $rows['missing'] );
 	}
 	update_option( SN_JEV_TAGS_OPTION, array(
@@ -181,18 +251,17 @@ function sn_jev_tags_sync() {
 
 /**
  * The rows the Tags leaf paints and the apply handler allows: per flagged
- * note, the attached tags Jev read as attached for reach (score under 1)
- * and the tags a reader would expect (0.6+). PURE given the stored pass.
+ * note, the attached tags Jev read as attached for reach (score under 1,
+ * confidence 0.5 or better) and the tags a reader would expect (0.8+).
+ * PURE given the stored pass.
  *
  * @return array<int,array{title:string,remove:array,add:array}>
  */
 function sn_jev_tags_rows( $data ) {
 	$rows = array();
 	foreach ( (array) ( $data['notes'] ?? array() ) as $id => $n ) {
-		$remove = array_values( array_filter( (array) ( $n['attached'] ?? array() ), static function ( $t ) {
-			return (float) ( $t['score'] ?? 2 ) < SN_JEV_TAG_MISFIT_BELOW;
-		} ) );
-		$add    = (array) ( $n['missing'] ?? array() );
+		$remove = array_values( array_filter( (array) ( $n['attached'] ?? array() ), 'sn_jev_tag_is_misfit' ) );
+		$add    = array_values( array_filter( (array) ( $n['missing'] ?? array() ), 'sn_jev_tag_is_add' ) );
 		if ( array() === $remove && array() === $add ) {
 			continue;
 		}

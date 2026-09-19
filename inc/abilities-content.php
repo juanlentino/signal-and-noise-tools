@@ -383,6 +383,9 @@ function snt_ability_suggest_tags( $input ) {
 	$note      = (array) ( $data['notes'][ $post_id ] ?? array() );
 	$suggested = array();
 	foreach ( (array) ( $note['missing'] ?? array() ) as $t ) {
+		if ( ! sn_jev_tag_is_add( $t ) ) {
+			continue; // 16.9.1: the same line the Tags leaf lists from.
+		}
 		$suggested[] = array( 'term_id' => (int) $t['id'], 'name' => (string) $t['name'], 'probability' => (float) $t['noul'] );
 	}
 	return array( 'post_id' => $post_id, 'suggested' => $suggested, 'read_at' => (int) $data['synced_at'], 'note' => array() === $suggested && ! isset( $data['notes'][ $post_id ] ) ? 'The pass did not include this post; run jev-tags-now.' : '' );

@@ -147,6 +147,18 @@ $kit     = kit_tags();
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && in_array( 'assign[7][]', snt_leaf_names( $kit ), true ) && in_array( 'remove[7][]', snt_leaf_names( $kit ), true ), '16.9.0 review: field names match, assign[7][] and remove[7][] included: ' . names_line( $classic, $kit ) );
 ok( array( 'tag_fit_apply', 'tag_fit_run' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '16.9.0 review: the two writes are tag_fit_apply and tag_fit_run, same on both leaves' );
 ok( false !== strpos( $kit, '>Untagged Note</a></strong>' ) && false !== strpos( $kit, 'name="remove[7][]" value="9"> Remove &quot;Empty&quot; (attached for reach, 0.30 of 2)' ) && false !== strpos( $kit, 'name="assign[7][]" value="2"> Add &quot;Jazz&quot; (a reader would expect it, 0.80)' ) && false !== strpos( $kit, '>Apply selected</button>' ) && false !== strpos( $kit, '1 notes, read 2 hours ago.' ), '16.9.0 review: the note links to its editor, the misfit unchecked with its score, the missing unchecked with its probability, Apply selected' );
+ok( false === strpos( $kit, 'Add &quot;Blues&quot;' ) && false !== strpos( $kit, 'confidence 0.5 or better' ), '16.9.1 review: a 0.65 add is stored but not a row; the prose names both lines' );
+
+// ── 16.9.1: a shrug is not a misfit; an umbrella tag is one line, not a row per note.
+$GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 3, 'notes' => array(
+	7 => array( 'title' => 'One', 'attached' => array( array( 'id' => 9, 'name' => 'Empty', 'score' => 0.9, 'confidence' => 0.2 ) ), 'missing' => array( array( 'id' => 2, 'name' => 'Jazz', 'noul' => 0.7 ) ) ),
+	8 => array( 'title' => 'Two', 'attached' => array( array( 'id' => 2, 'name' => 'Jazz', 'score' => 1.8, 'confidence' => 0.9 ) ), 'missing' => array() ),
+	9 => array( 'title' => 'Three', 'attached' => array(), 'missing' => array( array( 'id' => 2, 'name' => 'Jazz', 'noul' => 0.85 ) ) ),
+), 'usage' => array(), 'last_error' => '' );
+$classic = classic_tags();
+$kit     = kit_tags();
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'assign[9][]' ) === array_values( array_filter( snt_leaf_names( $kit ), static fn( $n ) => str_starts_with( $n, 'assign' ) || str_starts_with( $n, 'remove' ) ) ), '16.9.1: the shrug misfit on One and the 0.7 add are not fields; only the 0.85 add on Three is: ' . names_line( $classic, $kit ) );
+ok( false !== strpos( $kit, '<strong>Umbrella tags</strong>' ) && false !== strpos( $kit, '<li>Jazz: Jev would add it to 2 of 3 notes; 1 carry it.</li>' ) && false !== strpos( $classic, 'Jazz: Jev would add it to 2 of 3 notes; 1 carry it.' ), '16.9.1: the umbrella line on both surfaces, said once' );
 unset( $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] );
 
 // ── The GET preview -> confirm panel: the classic reads $_GET, the window reads its params state.
