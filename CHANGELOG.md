@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Two ledger reads on the read door: `get-machine-readers-crosstab` and `get-rights-reads`.** The summary collapses the sensor's rows into per-family and per-purpose totals, so "which purpose did each family read for" and "who fetched the rights files, when, and how regularly" needed shell access to the origin. The crosstab folds the aggregate rows into family x purpose x agent cells (hits, distinct days seen, hits per surface), with `taxonomy_absent` when the edge sent no taxonomy and `truncated` when the read hit the edge's row cap. The rights reads carry every fetch of `/.well-known/tdmrep.json`, `/license.xml` and `/tdm-policy` from the full-fidelity stream (observed_at, family, vendor, purpose, path, hits; the user-agent string and Accept header never leave the plugin), a cadence fold per family and path (median interval, regularity as the coefficient of variation of the gaps, `poller` at three reads or more within 0.5), and `ai_rights` counted twice, from the aggregate and from the stream, because the two are written by different paths at the edge and a gap between them is a sensor finding. Both are folds over `snt_mr_fetch()`; nothing new is fetched, no remote twin's shape moves, and the durable snapshot gains `by_family_purpose` (family => purpose => hits) beside `by_family`. Read door 44 to 46. `inc/machine-readers-ledger.php`, `inc/abilities-machine-readers-ledger.php`, `tests/machine-readers-ledger.php` (40).
+
 ## [16.9.3] - 2026-09-19 — the rule is the description
 
 ### Fixed

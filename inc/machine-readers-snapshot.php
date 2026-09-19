@@ -77,13 +77,14 @@ add_action( SN_MR_SNAPSHOT_HOOK, 'snt_mr_snapshot_refresh' );
  * known family list, not read it out of a map that never claimed completeness.
  *
  * @param array $rows snt_mr_fetch() normalized rows.
- * @return array{total:int,by_family:array<string,int>,by_surface:array<string,int>}
+ * @return array{total:int,by_family:array<string,int>,by_surface:array<string,int>,by_day:array<string,int>,by_family_purpose:array<string,array<string,int>>}
  */
 function snt_mr_snapshot_aggregate( $rows ) {
 	$total      = 0;
 	$by_family  = array();
 	$by_surface = array();
 	$by_day     = array(); // v13.98.0: YYYY-MM-DD => hits, for the liveness check.
+	$by_fam_pur = array(); // 17.0.0: family => purpose => hits; the durable copy of the crosstab's first two axes.
 	foreach ( (array) $rows as $row ) {
 		if ( ! is_array( $row ) ) {
 			continue;
@@ -94,6 +95,8 @@ function snt_mr_snapshot_aggregate( $rows ) {
 		$total  += $hits;
 		if ( '' !== $family ) {
 			$by_family[ $family ] = ( $by_family[ $family ] ?? 0 ) + $hits;
+			$purpose              = isset( $row['purpose'] ) ? (string) $row['purpose'] : 'unknown';
+			$by_fam_pur[ $family ][ $purpose ] = ( $by_fam_pur[ $family ][ $purpose ] ?? 0 ) + $hits;
 		}
 		if ( '' !== $surface ) {
 			$by_surface[ $surface ] = ( $by_surface[ $surface ] ?? 0 ) + $hits;
@@ -105,10 +108,11 @@ function snt_mr_snapshot_aggregate( $rows ) {
 	}
 	ksort( $by_day );
 	return array(
-		'total'      => $total,
-		'by_family'  => $by_family,
-		'by_surface' => $by_surface,
-		'by_day'     => $by_day,
+		'total'             => $total,
+		'by_family'         => $by_family,
+		'by_surface'        => $by_surface,
+		'by_day'            => $by_day,
+		'by_family_purpose' => $by_fam_pur,
 	);
 }
 

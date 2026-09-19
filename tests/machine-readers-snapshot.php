@@ -68,8 +68,8 @@ $sensor_body = json_encode( array(
 	'worker' => 'sn-rights-signals',
 	'days'   => 30,
 	'data'   => array(
-		array( 'family' => 'openai',    'surface' => 'llms',   'day' => '2026-08-10', 'hits' => 12 ),
-		array( 'family' => 'openai',    'surface' => 'robots', 'day' => '2026-08-11', 'hits' => 3 ),
+		array( 'family' => 'openai',    'surface' => 'llms',   'day' => '2026-08-10', 'hits' => 12, 'purpose' => 'train' ),
+		array( 'family' => 'openai',    'surface' => 'robots', 'day' => '2026-08-11', 'hits' => 3, 'purpose' => 'search' ),
 		array( 'family' => 'anthropic', 'surface' => 'rights', 'day' => '2026-08-10', 'hits' => 5 ),
 	),
 ) );
@@ -106,6 +106,9 @@ ok( ! isset( $snap['by_family']['perplexity'] ), 'a family with no rows is ABSEN
 // by_family: a day with no rows is absent, never 0; keys sorted ascending.
 ok( is_array( $snap['by_day'] ?? null ) && array_sum( $snap['by_day'] ) === $snap['total'], 'by_day sums to the same total as the window' );
 ok( array_keys( $snap['by_day'] ) === array_values( array_unique( array_keys( $snap['by_day'] ) ) ) && $snap['by_day'] === ( function ( $m ) { ksort( $m ); return $m; } )( $snap['by_day'] ), 'by_day is keyed by day, ascending' );
+// 17.0.0: the purpose axis, family => purpose => hits; a row with no purpose lands on unknown.
+ok( array( 'train' => 12, 'search' => 3 ) === ( $snap['by_family_purpose']['openai'] ?? null ), 'by_family_purpose splits a family by purpose' );
+ok( array_sum( array_map( 'array_sum', $snap['by_family_purpose'] ) ) === $snap['total'] && isset( $snap['by_family_purpose'][ array_key_first( array_diff_key( $snap['by_family'], array( 'openai' => 1 ) ) ) ]['unknown'] ), 'by_family_purpose sums to the total; a purposeless row is unknown, never dropped' );
 ok( 0 === $GLOBALS['__http_calls'], 'THE GATE: reading a fresh snapshot made no outbound call' );
 
 echo "\nGroup: a stale snapshot states its own age and still never fetches\n";
