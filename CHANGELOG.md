@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Two watches from the WordPress 7.2 roadmap read.** `connector_key_wipe_65551`: since 16.5.2 the TypeSafe key is Core's connector's, and Core's settings save deletes a key it cannot validate, `null` included (Trac #65551, unmerged); the watch ripens on WordPress 7.2, when the fix is to be verified. `mcp_adapter_read_door`: the plugin hand-rolls its MCP transport and WordPress/mcp-adapter is heading for the directory with the 2026-07-28 revision; the watch ripens when the adapter class is loaded, when the abilities register with it and the read door retires first. Both state-ripe, both pinned. The full read is `docs/ops/wordpress-7-2-roadmap-read.md`.
+
 ## [16.7.1] - 2026-09-19 — the corpus goes once
 
 ### Fixed

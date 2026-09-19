@@ -73,6 +73,25 @@ function snt_watches() {
 		// search_coverage_reread (due 2026-09-14) retired 2026-09-14: answered by
 		// the second coverage reading (6 not indexed, all queued for a GSC
 		// request) and carried daily by the Search Attention reader since 14.7.0.
+		// 16.6.1 — two watches from the WordPress 7.2 roadmap read (2026-09-18).
+		array(
+			'id'        => 'connector_key_wipe_65551',
+			'label'     => 'Core connector wipes a key it cannot validate (Trac #65551)',
+			'why'       => 'Since 16.5.2 the TypeSafe key lives in Core\'s connector, and Core\'s settings save deletes a stored key whenever validation is not strictly true, INCLUDING null for "the provider did not answer". A Connectors-screen save during a TypeSafe blip erases the key with no notice. The fix is on the 7.2 list, unmerged. Until the ticket closes: do not re-save Connectors while TypeSafe is down. Ripe when WordPress reports 7.2 or later, which is when to verify the fix landed and retire this.',
+			'read'      => 'https://core.trac.wordpress.org/ticket/65551',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_wp_72',
+		),
+		array(
+			'id'        => 'mcp_adapter_read_door',
+			'label'     => 'retire the MCP read door into the core adapter',
+			'why'       => 'The plugin hand-rolls its MCP transport (inc/mcp/). WordPress/mcp-adapter is heading for the plugin directory with the 2026-07-28 revision beside 2025-11-25, and the AI plugin will expose MCP with minimal setup. The abilities, the allowlists as policy, the rw audit and the telemetry are ours and stay; the JSON-RPC routing and version negotiation become duplicate. Ripe when the adapter class is loaded on this site, which is when to register the abilities with it and retire /mcp (read) first, /mcp-rw only once its per-door hardening matches mcp-rw-guard.',
+			'read'      => 'Connections › MCP connect (adapter_active)',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_mcp_adapter',
+		),
 		array(
 			'id'        => 'wave4_telemetry',
 			'label'     => 'wave-4 tool retirement read',
@@ -224,4 +243,45 @@ function snt_watches_ripe( $now = null, $rows = null ) {
 	}
 
 	return $ripe;
+}
+
+/**
+ * Ripe once the running WordPress is 7.2 or later. PURE given the version.
+ *
+ * @since 16.6.1
+ * @param array $watch The watch row.
+ * @param int   $now   Unix time (unused).
+ * @param string|null $version Injected for tests; null reads the global.
+ * @return array{ripe:bool,note:string}
+ */
+function snt_watch_ripe_wp_72( $watch, $now, $version = null ) {
+	unset( $watch, $now );
+	if ( null === $version ) {
+		$version = isset( $GLOBALS['wp_version'] ) ? (string) $GLOBALS['wp_version'] : '';
+	}
+	if ( '' === $version ) {
+		return array( 'ripe' => false, 'note' => 'WordPress version unreadable' );
+	}
+	return version_compare( $version, '7.2', '>=' )
+		? array( 'ripe' => true, 'note' => 'WordPress ' . $version . ': verify Trac #65551 landed, then retire this watch' )
+		: array( 'ripe' => false, 'note' => 'WordPress ' . $version . ', before 7.2' );
+}
+
+/**
+ * Ripe once WordPress/mcp-adapter's class is loaded on this site.
+ *
+ * @since 16.6.1
+ * @param array $watch The watch row.
+ * @param int   $now   Unix time (unused).
+ * @param bool|null $loaded Injected for tests; null asks class_exists().
+ * @return array{ripe:bool,note:string}
+ */
+function snt_watch_ripe_mcp_adapter( $watch, $now, $loaded = null ) {
+	unset( $watch, $now );
+	if ( null === $loaded ) {
+		$loaded = class_exists( 'WP\\MCP\\Core\\McpAdapter' );
+	}
+	return $loaded
+		? array( 'ripe' => true, 'note' => 'the adapter is loaded: register the abilities with it and retire the read door' )
+		: array( 'ripe' => false, 'note' => 'no adapter on this site' );
 }
