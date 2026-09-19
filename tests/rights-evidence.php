@@ -14,6 +14,11 @@ function __( $s, $d = null ) { return $s; }
 function add_action( $t, $c, $p = 10, $a = 1 ) { $GLOBALS['__k']['actions'][ $t ][] = $c; return true; }
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__k']['opt'] ) ? $GLOBALS['__k']['opt'][ $k ] : $d; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['__k']['opt'][ $k ] = $v; return true; }
+$GLOBALS['__k']['transients'] = array();
+function get_transient( $k ) { return $GLOBALS['__k']['transients'][ $k ] ?? false; }
+function set_transient( $k, $v, $t = 0 ) { $GLOBALS['__k']['transients'][ $k ] = $v; return true; }
+function delete_transient( $k ) { unset( $GLOBALS['__k']['transients'][ $k ] ); return true; }
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
 function wp_next_scheduled( $h ) { return $GLOBALS['__k']['scheduled'][ $h ] ?? false; }
 function wp_schedule_event( $t, $r, $h ) { $GLOBALS['__k']['scheduled'][ $h ] = $r; return true; }
 function wp_register_ability( $slug, $args ) { $GLOBALS['__k']['abilities'][ $slug ] = $args; }
@@ -146,6 +151,28 @@ ok( 'not-ready' === sn_rights_evidence_run( $now )['error'], 'F4 no sensor, not 
 $GLOBALS['__k']['mr'] = true;
 $GLOBALS['__k']['rows_aggregate'] = array( 'ok' => false, 'rows' => array(), 'error' => 'network' );
 ok( 'sensor: network' === sn_rights_evidence_run( $now )['error'], 'F5 a failed aggregate read is named' );
+$GLOBALS['__k']['rows_aggregate'] = $aggregate;
+
+// E3: a 409 is terminal: the ledger's record stands, the path is derived from the id, nothing is retried.
+$GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['index'] = $index;
+$GLOBALS['__k']['post_reply'] = array( 'code' => 409, 'body' => json_encode( array( 'error' => 'record path already exists with different immutable bytes' ) ) );
+$r = sn_rights_evidence_run( $now );
+$e = sn_rights_evidence_data()['2026-08']['openai'];
+ok( ! $r['ok'] && 2 === $r['failed'] && 'conflict' === $e['status'] && 'rights-evidence/' . $e['uuid'] . '/v1.json' === $e['ledger_path'] && ! isset( $e['canonical'] ), 'E3 a 409 is conflict with the deterministic ledger path and no bytes kept' );
+$GLOBALS['__k']['posts'] = array();
+$r = sn_rights_evidence_run( $now + DAY_IN_SECONDS );
+ok( $r['ok'] && 2 === $r['anchored'] && array() === $GLOBALS['__k']['posts'], 'E4 the next day a conflict counts as on the ledger and is not re-sent' );
+// E5: the lock.
+$GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['posts'] = array();
+$GLOBALS['__k']['transients']['sn_rights_evidence_lock'] = 1;
+ok( 'a pass is already running' === sn_rights_evidence_run( $now )['error'] && array() === $GLOBALS['__k']['posts'], 'E5 a running pass refuses a second one' );
+$GLOBALS['__k']['transients'] = array();
+$GLOBALS['__k']['post_reply'] = array( 'code' => 202, 'body' => json_encode( array( 'ok' => true, 'ots_status' => 'pending', 'ledger_path' => 'x.json' ) ) );
+sn_rights_evidence_run( $now );
+ok( ! isset( $GLOBALS['__k']['transients']['sn_rights_evidence_lock'] ), 'E6 the lock is released after the pass' );
+$GLOBALS['__k']['rows_aggregate'] = array( 'ok' => false, 'rows' => array(), 'error' => 'network' );
+sn_rights_evidence_run( $now );
+ok( ! isset( $GLOBALS['__k']['transients']['sn_rights_evidence_lock'] ), 'E7 and after a sensor refusal' );
 $GLOBALS['__k']['rows_aggregate'] = $aggregate;
 
 // G: the abilities and the schedule.

@@ -19,7 +19,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/rights-evidence', array(
 		'label'               => 'Rights evidence: the monthly records',
-		'description'         => 'The site\'s ledger of rights-evidence records: per month, per AI-training crawler family the sensor saw, the record\'s uuid, content hash, status (composed, unanchored, pending, confirmed), ledger path and the last error. One record per family per month, composed from the edge sensor on the first daily pass after the month closes: the reservation in force (the public ledger\'s rights-signal versions and hashes), every fetch of the rights files by that family, and its crawling per day with the training share. The worker signs and OpenTimestamps-anchors it under `rights-evidence/<uuid>/v1`; `ledger_base` + ledger_path + `.json` is the record, `.ots` its proof. `ready` says whether the worker, its secret and the sensor are configured. Read-only.',
+		'description'         => 'The site\'s ledger of rights-evidence records: per month, per AI-training crawler family the sensor saw, the record\'s uuid, content hash, status (composed, unanchored, pending, confirmed, conflict), ledger path and the last error. One record per family per month, composed from the edge sensor on the first daily pass after the month closes: the reservation in force (the public ledger\'s rights-signal versions and hashes), every fetch of the rights files by that family, and its crawling per day with the training share. The worker signs and OpenTimestamps-anchors it under `rights-evidence/<uuid>/v1`; `ledger_base` + ledger_path + `.json` is the record, `.ots` its proof. `ready` says whether the worker, its secret and the sensor are configured. Read-only.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_rights_evidence',
@@ -52,7 +52,7 @@ function snt_ability_rights_evidence( $input = array() ) {
 		'ready'       => sn_rights_evidence_is_ready(),
 		'ledger_base' => function_exists( 'sn_prov_integrity_ledger_base' ) ? sn_prov_integrity_ledger_base() : '',
 		'months'      => $months,
-		'note'        => 'One record per AI-training family per month. status: composed (bytes stored, not yet posted), unanchored (the post failed; re-sent daily), pending (on the ledger, awaiting the Bitcoin block), confirmed. The record and its .ots proof live at ledger_base + ledger_path.',
+		'note'        => 'One record per AI-training family per month. status: composed (bytes stored, not yet posted), unanchored (the post failed; re-sent daily), pending (on the ledger, awaiting the Bitcoin block), confirmed, conflict (the ledger already held other bytes at that path; its record stands, nothing is retried). The record and its .ots proof live at ledger_base + ledger_path.',
 	);
 }
 

@@ -102,6 +102,14 @@ function sn_rights_evidence_run( $now = null ) {
 		$out['error'] = 'not-ready';
 		return $out;
 	}
+	// One pass at a time: cron and rights-evidence-now overlapping would compose
+	// the same month twice with different composed_at, and the loser's bytes
+	// would draw a 409 from the ledger.
+	if ( get_transient( 'sn_rights_evidence_lock' ) ) {
+		$out['error'] = 'a pass is already running';
+		return $out;
+	}
+	set_transient( 'sn_rights_evidence_lock', 1, 5 * MINUTE_IN_SECONDS );
 	$month        = sn_rights_evidence_month( $now );
 	$out['month'] = $month['month'];
 	$data         = sn_rights_evidence_data();
@@ -109,6 +117,7 @@ function sn_rights_evidence_run( $now = null ) {
 	$aggregate    = snt_mr_fetch( $days );
 	if ( empty( $aggregate['ok'] ) ) {
 		$out['error'] = 'sensor: ' . (string) ( $aggregate['error'] ?? 'unknown' );
+		delete_transient( 'sn_rights_evidence_lock' );
 		return $out;
 	}
 	$site = home_url( '/' );
@@ -160,6 +169,14 @@ function sn_rights_evidence_run( $now = null ) {
 			$entry['error']       = '';
 			unset( $entry['canonical'] ); // The ledger holds the bytes now.
 			$out['posted']++;
+		} elseif ( 409 === $r['code'] ) {
+			// The path exists with other bytes: the ledger's record is the record.
+			// Terminal, never retried; the path is deterministic from the id.
+			$entry['status']      = 'conflict';
+			$entry['ledger_path'] = SN_RIGHTS_EVIDENCE_KIND . '/' . $entry['uuid'] . '/v1.json';
+			$entry['error']       = '409 ' . (string) ( $r['body']['error'] ?? '' );
+			unset( $entry['canonical'] );
+			$out['failed']++;
 		} else {
 			$entry['status'] = 'unanchored';
 			$entry['error']  = $r['code'] . ' ' . (string) ( $r['body']['error'] ?? '' );
@@ -169,6 +186,7 @@ function sn_rights_evidence_run( $now = null ) {
 		$data[ $month['month'] ][ $family ] = $entry;
 		update_option( SN_RIGHTS_EVIDENCE_OPTION, $data, false );
 	}
+	delete_transient( 'sn_rights_evidence_lock' );
 	$out['ok'] = '' === $out['error'] && 0 === $out['failed'];
 	return $out;
 }
