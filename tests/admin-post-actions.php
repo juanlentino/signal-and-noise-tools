@@ -245,12 +245,13 @@ pa_eq( 'analytics_exclude_unchanged', sn_handle_analytics_exclude_save( array( '
 pa_eq( 'analytics_exclude_saved', sn_handle_analytics_exclude_save( array() ), 'exclude-save: no checkboxes clears the set' );
 pa_eq( array(), sn_setting( 'analytics.exclude_roles', 'SENTINEL' ), 'exclude-save: cleared set persists as empty array' );
 
-// ─── sn_handle_tag_fit_apply — stored-pass allow-list enforcement (16.9.0; the shape of v6.39.2's) ─
+// ─── sn_handle_tag_fit_apply: stored-pass allow-list enforcement (16.9.0; the shape of v6.39.2's; 16.9.2 remove only) ─
 //
 // The apply handler must NOT trust client-supplied (post,term) pairs. Jev's
-// stored tag-fit pass is the allow-list: assign only a tag Jev listed as
-// missing for that post, remove only one it read as attached for reach, on
-// an editable Note the user can edit. Applied pairs leave the stored pass.
+// stored tag-fit pass is the allow-list: remove only a tag it read as
+// attached for reach, on an editable Note the user can edit. Applied pairs
+// leave the stored pass. Since 16.9.2 the pass proposes no tags, so an
+// assign[] map is not a form the handler reads at all.
 $GLOBALS['__test_set_terms_calls'] = array();
 $GLOBALS['__test_remove_terms_calls'] = array();
 if ( ! function_exists( 'wp_set_object_terms' ) ) {
@@ -283,27 +284,19 @@ if ( ! function_exists( 'absint' ) ) {
 }
 require_once dirname( __DIR__ ) . '/inc/jev-tags.php';
 
-/** A stored pass: post => [missing term ids], post => [misfit term ids]. */
-function pa_fit_pass( array $missing, array $misfits = array() ) {
+/** A stored pass: post => [misfit term ids] (score 0.3, confidence 0.7) plus one fine tag 77 per post. */
+function pa_fit_pass( array $misfits ) {
 	$notes = array();
-	foreach ( $missing as $pid => $ids ) {
-		$notes[ $pid ]['title']   = 'Note ' . $pid;
-		$notes[ $pid ]['missing'] = array_map( static function ( $t ) { return array( 'id' => (int) $t, 'name' => 'T' . $t, 'noul' => 0.8 ); }, $ids );
-	}
 	foreach ( $misfits as $pid => $ids ) {
 		$notes[ $pid ]['title']    = 'Note ' . $pid;
-		$notes[ $pid ]['attached'] = array_map( static function ( $t ) { return array( 'id' => (int) $t, 'name' => 'T' . $t, 'score' => 0.3, 'confidence' => 0.7 ); }, $ids );
+		$notes[ $pid ]['attached'] = array_merge(
+			array( array( 'id' => 77, 'name' => 'T77', 'score' => 1.8, 'confidence' => 0.9 ) ),
+			array_map( static function ( $t ) { return array( 'id' => (int) $t, 'name' => 'T' . $t, 'score' => 0.3, 'confidence' => 0.7 ); }, $ids )
+		);
 	}
 	$GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 9, 'notes' => $notes, 'usage' => array(), 'last_error' => '' );
 }
 
-/** Did wp_set_object_terms get called for $pid, and with which term ids? */
-function pa_terms_for( $pid ) {
-	foreach ( $GLOBALS['__test_set_terms_calls'] as $c ) {
-		if ( $c['post'] === (int) $pid ) { return $c['terms']; }
-	}
-	return null;
-}
 function pa_removed_for( $pid ) {
 	foreach ( $GLOBALS['__test_remove_terms_calls'] as $c ) {
 		if ( $c['post'] === (int) $pid ) { return $c['terms']; }
@@ -313,57 +306,60 @@ function pa_removed_for( $pid ) {
 
 echo "\nTest: sn_handle_tag_fit_apply() honors the stored-pass allow-list\n";
 
-// Happy path — both listed terms assigned (appended), the misfit removed, the pass forgets them.
+// Happy path: both listed misfits removed, the pass forgets them, the fine tag stays.
 $GLOBALS['__test_set_terms_calls'] = array(); $GLOBALS['__test_remove_terms_calls'] = array();
 $GLOBALS['__test_post_types']      = array();
 $GLOBALS['__test_caps']            = array();
-pa_fit_pass( array( 101 => array( 11, 12 ) ), array( 101 => array( 31 ) ) );
-pa_eq( 'tag_fit_applied', sn_handle_tag_fit_apply( array( 'assign' => array( 101 => array( 11, 12 ) ), 'remove' => array( 101 => array( 31 ) ) ) ), 'returns tag_fit_applied' );
-pa_eq( array( 11, 12 ), pa_terms_for( 101 ), 'both listed terms assigned to the Note' );
-pa_eq( true, $GLOBALS['__test_set_terms_calls'][0]['append'], 'assigned by APPENDING, never replacing the note\'s tags' );
-pa_eq( array( 31 ), pa_removed_for( 101 ), 'the misfit removed' );
-pa_eq( array(), $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ]['notes'][101]['missing'], 'applied pairs leave the stored pass (missing)' );
-pa_eq( array(), $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ]['notes'][101]['attached'], 'applied pairs leave the stored pass (attached)' );
+pa_fit_pass( array( 101 => array( 31, 32 ) ) );
+pa_eq( 'tag_fit_applied', sn_handle_tag_fit_apply( array( 'remove' => array( 101 => array( 31, 32 ) ) ) ), 'returns tag_fit_applied' );
+pa_eq( array( 31, 32 ), pa_removed_for( 101 ), 'both listed misfits removed' );
+pa_eq( array( 77 ), array_column( $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ]['notes'][101]['attached'], 'id' ), 'applied pairs leave the stored pass; the fine tag stays' );
+pa_eq( 0, count( $GLOBALS['__test_set_terms_calls'] ), 'nothing is ever assigned' );
 
-// Forged TERM — a term id Jev never listed for this post is dropped.
-$GLOBALS['__test_set_terms_calls'] = array();
-pa_fit_pass( array( 101 => array( 11 ) ) );
-sn_handle_tag_fit_apply( array( 'assign' => array( 101 => array( 11, 99 ) ) ) );
-pa_eq( array( 11 ), pa_terms_for( 101 ), 'unlisted term 99 intersected out; only 11 applied' );
+// Forged TERM: a term id Jev never listed as a misfit for this post is dropped, the fine tag included.
+$GLOBALS['__test_remove_terms_calls'] = array();
+pa_fit_pass( array( 101 => array( 31 ) ) );
+sn_handle_tag_fit_apply( array( 'remove' => array( 101 => array( 31, 77, 99 ) ) ) );
+pa_eq( array( 31 ), pa_removed_for( 101 ), 'unlisted term 99 and the fine tag 77 intersected out; only 31 removed' );
 
-// Crossed lists — a missing tag cannot be "removed", a misfit cannot be "assigned".
+// assign[] is not a form: a well-formed assign map writes nothing.
 $GLOBALS['__test_set_terms_calls'] = array(); $GLOBALS['__test_remove_terms_calls'] = array();
-pa_fit_pass( array( 101 => array( 11 ) ), array( 101 => array( 31 ) ) );
-pa_eq( 'tag_fit_nothing', sn_handle_tag_fit_apply( array( 'assign' => array( 101 => array( 31 ) ), 'remove' => array( 101 => array( 11 ) ) ) ), 'a term listed for one action is refused for the other' );
+pa_fit_pass( array( 101 => array( 31 ) ) );
+pa_eq( 'tag_fit_nothing', sn_handle_tag_fit_apply( array( 'assign' => array( 101 => array( 11 ) ) ) ), 'assign[] is ignored since 16.9.2' );
 pa_eq( 0, count( $GLOBALS['__test_set_terms_calls'] ) + count( $GLOBALS['__test_remove_terms_calls'] ), 'nothing written' );
 
 // Forged POST — a post id absent from the pass is rejected entirely.
-$GLOBALS['__test_set_terms_calls'] = array();
-pa_fit_pass( array( 101 => array( 11 ) ) );
-sn_handle_tag_fit_apply( array( 'assign' => array( 202 => array( 11 ) ) ) );
-pa_eq( null, pa_terms_for( 202 ), 'post 202 (never listed) gets no wp_set_object_terms call' );
+$GLOBALS['__test_remove_terms_calls'] = array();
+pa_fit_pass( array( 101 => array( 31 ) ) );
+sn_handle_tag_fit_apply( array( 'remove' => array( 202 => array( 31 ) ) ) );
+pa_eq( null, pa_removed_for( 202 ), 'post 202 (never listed) gets no wp_remove_object_terms call' );
 
 // Wrong POST TYPE — listed post is not a Note (e.g. a page) → rejected.
-$GLOBALS['__test_set_terms_calls'] = array();
+$GLOBALS['__test_remove_terms_calls'] = array();
 $GLOBALS['__test_post_types']      = array( 303 => 'page' );
-pa_fit_pass( array( 303 => array( 11 ) ) );
-sn_handle_tag_fit_apply( array( 'assign' => array( 303 => array( 11 ) ) ) );
-pa_eq( null, pa_terms_for( 303 ), 'non-Note (page) post rejected even though it was in the pass' );
+pa_fit_pass( array( 303 => array( 31 ) ) );
+sn_handle_tag_fit_apply( array( 'remove' => array( 303 => array( 31 ) ) ) );
+pa_eq( null, pa_removed_for( 303 ), 'non-Note (page) post rejected even though it was in the pass' );
 
 // No CAP — user cannot edit_post the target → rejected.
-$GLOBALS['__test_set_terms_calls'] = array();
+$GLOBALS['__test_remove_terms_calls'] = array();
 $GLOBALS['__test_post_types']      = array();
 $GLOBALS['__test_caps']            = array( 404 => false );
-pa_fit_pass( array( 404 => array( 11 ) ) );
-sn_handle_tag_fit_apply( array( 'assign' => array( 404 => array( 11 ) ) ) );
-pa_eq( null, pa_terms_for( 404 ), 'edit_post denied → no wp_set_object_terms call' );
+pa_fit_pass( array( 404 => array( 31 ) ) );
+sn_handle_tag_fit_apply( array( 'remove' => array( 404 => array( 31 ) ) ) );
+pa_eq( null, pa_removed_for( 404 ), 'edit_post denied → no wp_remove_object_terms call' );
 
-// No pass at all — nothing is applied (can't validate → reject).
-$GLOBALS['__test_set_terms_calls'] = array();
+// A shrug is not a misfit: a stored row under the line at low confidence is not removable.
+$GLOBALS['__test_remove_terms_calls'] = array();
 $GLOBALS['__test_caps']            = array();
+$GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 9, 'notes' => array( 101 => array( 'title' => 'N', 'attached' => array( array( 'id' => 31, 'name' => 'T31', 'score' => 0.3, 'confidence' => 0.6 ) ) ) ), 'usage' => array(), 'last_error' => '' );
+pa_eq( 'tag_fit_nothing', sn_handle_tag_fit_apply( array( 'remove' => array( 101 => array( 31 ) ) ) ), 'a 0.6-confidence row is not on the allow-list' );
+
+// No pass at all: nothing is applied (cannot validate, so reject).
+$GLOBALS['__test_remove_terms_calls'] = array();
 unset( $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] );
-pa_eq( 'tag_fit_nothing', sn_handle_tag_fit_apply( array( 'assign' => array( 101 => array( 11 ) ) ) ), 'no stored pass → nothing applied' );
-pa_eq( 0, count( $GLOBALS['__test_set_terms_calls'] ), 'no stored pass → no wp_set_object_terms call' );
+pa_eq( 'tag_fit_nothing', sn_handle_tag_fit_apply( array( 'remove' => array( 101 => array( 31 ) ) ) ), 'no stored pass → nothing applied' );
+pa_eq( 0, count( $GLOBALS['__test_remove_terms_calls'] ), 'no stored pass → no wp_remove_object_terms call' );
 
 // tag_fit_run: no key → unavailable; the sync's verdict maps to the flash.
 $GLOBALS['__fit_ready'] = false;

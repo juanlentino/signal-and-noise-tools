@@ -104,7 +104,7 @@ ok( false !== strpos( $kit, '<os-select name="sn_tag_from[]"' ) && false !== str
 ok( false !== strpos( $kit, 'label="Fold"' ) && false !== strpos( $kit, 'label="into"' ), 'picker: the Fold/into labels the classic prints around the selects survive' );
 
 // Jev ready, no pass yet: the section explains the pass and offers Read tags now.
-ok( false !== strpos( $kit, 'heading="Jev: tag fit"' ) && false !== strpos( $kit, 'About seventy requests; a cent or two.' ) && false !== strpos( $kit, 'submit-label="Read tags now"' ), '16.9.0: Jev ready, no pass: the explainer and the Read tags now form' );
+ok( false !== strpos( $kit, 'heading="Jev: tag fit"' ) && false !== strpos( $kit, 'About seventy requests; under a cent.' ) && false !== strpos( $kit, 'submit-label="Read tags now"' ), '16.9.0: Jev ready, no pass: the explainer and the Read tags now form' );
 
 // Unused: a native POST form with the checked term, confirmed and marked dangerous as the classic onsubmit confirm.
 ok( false !== strpos( $kit, 'os-action="post" os-confirm="Delete the selected unused tags?" os-confirm-danger>' ), 'unused: the prune form confirms with the classic question, marked dangerous' );
@@ -138,27 +138,19 @@ ok( false !== strpos( $kit, 'caption="clean"' ) && false === strpos( $kit, 'swat
 $GLOBALS['__ai'] = true; $GLOBALS['__jev'] = true; $GLOBALS['__untagged'] = array();
 $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 3, 'notes' => array( 7 => array( 'title' => 'Fine', 'attached' => array( array( 'id' => 2, 'name' => 'Jazz', 'score' => 1.9, 'confidence' => 0.9 ) ), 'missing' => array() ) ), 'usage' => array(), 'last_error' => '' );
 $kit = kit_tags();
-ok( false !== strpos( $kit, 'Last read 2 hours ago: every tag on every note fits' ) && false !== strpos( $kit, 'submit-label="Read tags now"' ) && false === strpos( $kit, 'tag_fit_apply' ), '16.9.0: a clean pass says so and still offers Read tags now; no apply form' );
+ok( false !== strpos( $kit, 'Last read 2 hours ago: every tag on every note touches its subject.' ) && false !== strpos( $kit, 'submit-label="Read tags now"' ) && false === strpos( $kit, 'tag_fit_apply' ), '16.9.0: a clean pass says so and still offers Read tags now; no apply form' );
 
-// ── A pass with rows: the review form with per-post remove/add checkboxes.
-$GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 3, 'notes' => array( 7 => array( 'title' => 'Untagged Note', 'attached' => array( array( 'id' => 9, 'name' => 'Empty', 'score' => 0.3, 'confidence' => 0.7 ) ), 'missing' => array( array( 'id' => 2, 'name' => 'Jazz', 'noul' => 0.8 ), array( 'id' => 5, 'name' => 'Blues', 'noul' => 0.65 ) ) ) ), 'usage' => array(), 'last_error' => '' );
-$classic = classic_tags();
-$kit     = kit_tags();
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && in_array( 'assign[7][]', snt_leaf_names( $kit ), true ) && in_array( 'remove[7][]', snt_leaf_names( $kit ), true ), '16.9.0 review: field names match, assign[7][] and remove[7][] included: ' . names_line( $classic, $kit ) );
-ok( array( 'tag_fit_apply', 'tag_fit_run' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '16.9.0 review: the two writes are tag_fit_apply and tag_fit_run, same on both leaves' );
-ok( false !== strpos( $kit, '>Untagged Note</a></strong>' ) && false !== strpos( $kit, 'name="remove[7][]" value="9"> Remove &quot;Empty&quot; (attached for reach, 0.30 of 2)' ) && false !== strpos( $kit, 'name="assign[7][]" value="2"> Add &quot;Jazz&quot; (a reader would expect it, 0.80)' ) && false !== strpos( $kit, '>Apply selected</button>' ) && false !== strpos( $kit, '1 notes, read 2 hours ago.' ), '16.9.0 review: the note links to its editor, the misfit unchecked with its score, the missing unchecked with its probability, Apply selected' );
-ok( false === strpos( $kit, 'Add &quot;Blues&quot;' ) && false !== strpos( $kit, 'confidence 0.5 or better' ), '16.9.1 review: a 0.65 add is stored but not a row; the prose names both lines' );
-
-// ── 16.9.1: a shrug is not a misfit; an umbrella tag is one line, not a row per note.
+// ── A pass with rows: the review form with per-post Remove checkboxes (16.9.2: remove only).
 $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 3, 'notes' => array(
-	7 => array( 'title' => 'One', 'attached' => array( array( 'id' => 9, 'name' => 'Empty', 'score' => 0.9, 'confidence' => 0.2 ) ), 'missing' => array( array( 'id' => 2, 'name' => 'Jazz', 'noul' => 0.7 ) ) ),
-	8 => array( 'title' => 'Two', 'attached' => array( array( 'id' => 2, 'name' => 'Jazz', 'score' => 1.8, 'confidence' => 0.9 ) ), 'missing' => array() ),
-	9 => array( 'title' => 'Three', 'attached' => array(), 'missing' => array( array( 'id' => 2, 'name' => 'Jazz', 'noul' => 0.85 ) ) ),
+	7 => array( 'title' => 'Untagged Note', 'attached' => array( array( 'id' => 9, 'name' => 'Empty', 'score' => 0.3, 'confidence' => 0.7 ), array( 'id' => 2, 'name' => 'Jazz', 'score' => 1.8, 'confidence' => 0.9 ) ), 'missing' => array( array( 'id' => 5, 'name' => 'Blues', 'noul' => 0.9 ) ) ),
+	8 => array( 'title' => 'Shrug', 'attached' => array( array( 'id' => 9, 'name' => 'Empty', 'score' => 0.3, 'confidence' => 0.6 ) ) ),
 ), 'usage' => array(), 'last_error' => '' );
 $classic = classic_tags();
 $kit     = kit_tags();
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'assign[9][]' ) === array_values( array_filter( snt_leaf_names( $kit ), static fn( $n ) => str_starts_with( $n, 'assign' ) || str_starts_with( $n, 'remove' ) ) ), '16.9.1: the shrug misfit on One and the 0.7 add are not fields; only the 0.85 add on Three is: ' . names_line( $classic, $kit ) );
-ok( false !== strpos( $kit, '<strong>Umbrella tags</strong>' ) && false !== strpos( $kit, '<li>Jazz: Jev would add it to 2 of 3 notes; 1 carry it.</li>' ) && false !== strpos( $classic, 'Jazz: Jev would add it to 2 of 3 notes; 1 carry it.' ), '16.9.1: the umbrella line on both surfaces, said once' );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && in_array( 'remove[7][]', snt_leaf_names( $kit ), true ) && ! array_filter( snt_leaf_names( $kit ), static fn( $n ) => str_starts_with( $n, 'assign' ) ), '16.9.2 review: field names match, remove[7][] included, no assign field anywhere: ' . names_line( $classic, $kit ) );
+ok( array( 'tag_fit_apply', 'tag_fit_run' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '16.9.0 review: the two writes are tag_fit_apply and tag_fit_run, same on both leaves' );
+ok( false !== strpos( $kit, '>Untagged Note</a></strong>' ) && false !== strpos( $kit, 'name="remove[7][]" value="9"> Remove &quot;Empty&quot; (attached for reach, 0.30 of 2)' ) && false !== strpos( $kit, '>Apply selected</button>' ) && false !== strpos( $kit, '1 notes, read 2 hours ago.' ), '16.9.0 review: the note links to its editor, the misfit unchecked with its score, Apply selected' );
+ok( false === strpos( $kit, 'Add &quot;' ) && false === strpos( $kit, 'Shrug' ) && false === strpos( $kit, 'Umbrella' ) && false !== strpos( $kit, 'confidence 0.7 or better' ) && false !== strpos( $kit, 'Jev proposes no tags' ), '16.9.2 review: a stored 16.9.1 missing list paints no Add box, a 0.6-confidence misfit is no row, no umbrella section; the prose names the lines and says Jev proposes nothing' );
 unset( $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] );
 
 // ── The GET preview -> confirm panel: the classic reads $_GET, the window reads its params state.

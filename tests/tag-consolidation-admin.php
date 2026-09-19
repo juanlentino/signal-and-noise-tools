@@ -125,11 +125,11 @@ ok( strpos( $h, 'Install Connector for TypeSafe Jev' ) !== false && strpos( $h, 
 
 $GLOBALS['__ai'] = true; $GLOBALS['__jev'] = true; $GLOBALS['__fit'] = false;
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
-ok( strpos( $h, 'Read tags now' ) !== false && strpos( $h, 'value="tag_fit_run"' ) !== false && strpos( $h, 'a cent or two' ) !== false, 'Jev: a key and no pass: the explainer and Read tags now' );
+ok( strpos( $h, 'Read tags now' ) !== false && strpos( $h, 'value="tag_fit_run"' ) !== false && strpos( $h, 'under a cent' ) !== false, 'Jev: a key and no pass: the explainer and Read tags now' );
 
 $GLOBALS['__fit'] = array( 'synced_at' => 1, 'tags' => 3, 'notes' => array( 7 => array( 'title' => 'Untagged Note', 'attached' => array( array( 'id' => 9, 'name' => 'Empty', 'score' => 0.3, 'confidence' => 0.7 ) ), 'missing' => array( array( 'id' => 2, 'name' => 'Jazz', 'noul' => 0.8 ) ) ) ), 'usage' => array(), 'last_error' => '' );
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
-ok( strpos( $h, 'Untagged Note' ) !== false && strpos( $h, 'name="assign[7][]" value="2"' ) !== false && strpos( $h, 'name="remove[7][]" value="9"' ) !== false && strpos( $h, 'value="tag_fit_apply"' ) !== false && stripos( $h, 'Apply selected' ) !== false && strpos( $h, 'checked' ) === false, 'Jev: the review form renders the note, an add box and a remove box, unchecked, under tag_fit_apply' );
+ok( strpos( $h, 'Untagged Note' ) !== false && strpos( $h, 'name="assign[' ) === false && strpos( $h, 'name="remove[7][]" value="9"' ) !== false && strpos( $h, 'value="tag_fit_apply"' ) !== false && stripos( $h, 'Apply selected' ) !== false && strpos( $h, 'checked' ) === false && strpos( $h, 'Jev proposes no tags' ) !== false, 'Jev: the review form renders the note and a remove box, unchecked, under tag_fit_apply; a stored missing list paints no add box (16.9.2)' );
 $GLOBALS['__fit'] = false;
 
 // --- Unused section ------------------------------------------------------------
@@ -146,7 +146,7 @@ ok( strpos( $h, 'No unused tags' ) !== false, 'Unused: empty state' );
 $GLOBALS['__clusters'] = array( array( 'key' => 'k', 'terms' => array( array( 'term_id' => 10, 'name' => 'A', 'slug' => 'a', 'count' => 1 ), array( 'term_id' => 11, 'name' => 'B', 'slug' => 'b', 'count' => 1 ) ), 'suggested' => 10 ) );
 $GLOBALS['__hist'] = array( array( 'from' => array( 'a' ), 'into' => 'b', 'posts' => 1, 'user' => 1, 'ts' => 1 ) );
 $GLOBALS['__ai'] = true;
-$GLOBALS['__jev'] = true; $GLOBALS['__fit'] = array( 'synced_at' => 1, 'tags' => 3, 'notes' => array( 7 => array( 'title' => 'N', 'attached' => array(), 'missing' => array( array( 'id' => 2, 'name' => 'Jazz', 'noul' => 0.8 ) ) ) ), 'usage' => array(), 'last_error' => '' );
+$GLOBALS['__jev'] = true; $GLOBALS['__fit'] = array( 'synced_at' => 1, 'tags' => 3, 'notes' => array( 7 => array( 'title' => 'N', 'attached' => array( array( 'id' => 2, 'name' => 'Jazz', 'score' => 0.2, 'confidence' => 0.9 ) ) ) ), 'usage' => array(), 'last_error' => '' );
 $GLOBALS['__unused'] = array( array( 'term_id' => 9, 'name' => 'Empty', 'slug' => 'empty', 'count' => 0 ) );
 ob_start(); sn_admin_render_tag_cleanup_section(); $view_list = ob_get_clean();
 $_GET['sn_tag_preview'] = '1'; $_GET['sn_tag_from'] = array( '10' ); $_GET['sn_tag_into'] = '12';
