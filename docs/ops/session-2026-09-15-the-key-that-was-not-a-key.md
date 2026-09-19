@@ -1020,6 +1020,105 @@ for 1..3 (16.3.2, the readings now on the ability). The chain for 16.3.2
 died after its merge on a ref lock from a concurrent fetch and was resumed
 from the cut by hand.
 
+## Every reading moved a line
+
+The second pass on 16.3.3 put Jev's positions where a human would (search
+titles spread 0.58 to 1.88 of 2, the bottom four matched my own read) and
+its confidences nowhere useful (one of 69 cleared 0.9). The 0.9 floor from
+the docs was a floor for acting, and I had used it as a floor for routing:
+it hid every reading. 16.3.4: a position below level one is a finding
+whatever the confidence, and under 0.5 the note says "Jev is unsure; read
+it yourself". Before that, 16.3.3 had already changed what Jev is asked:
+"Aphorism: plain words" titles read literally as aphorisms and hedged at
+0.5 on 45 of 69, so the pass now rates the query half, the part after the
+colon when the front is the title. Three of the four titles the pass
+flagged moved above level one on a rewrite; the fourth, the version-number
+note, stayed at 0.74 with 0.20 confidence, which is the reading doing its
+job. Two passes cost one cent.
+
+The owner then said to put everything through Jev, and I set the order by
+what each reading would change: the collision gate, then query fit, then
+the anti-tell pass, then tags and citations. 16.4.0 is the gate: on every
+save of a draft, pending or scheduled note, one Noul per published note
+("does `draft` make the same central argument that `notes.nID` makes, so a
+reader of that note would learn nothing new?"), the top five stored on the
+post, the pre-publish panel warning per note at or above the line. The
+same question over the whole corpus is the lane map. Its first run, 44
+notes in 26 seconds for two cents, put 19 pairs at 0.5 and 9 at 0.6, and
+the 0.5 to 0.6 band read as shared vocabulary ("the master", "the field",
+"the absence") rather than a shared argument, so 16.4.1 raised the panel's
+line to 0.6 and kept 0.5 for the map. A second lane map over the same
+corpus that evening gave 14 pairs; the 0.5 edge moves between runs.
+
+16.5.0 is query fit: Search Console says which queries land on which note,
+Jev is asked whether the note answers them, one three-level Score per
+query. Neither store held page × query rows (the GSC sync keeps pages and
+queries apart by design, Bing has no per-page API), so the pass makes its
+own two-dimension read and `snt_gsc_query` now carries every dimension
+under `keys`. The cron deactivation list, a derived guard, went red the
+moment the weekly hook existed without an entry, which is the thirty
+seconds that guard exists to cost. The first live pass judged one note on
+two queries: a 20-impression floor on a page × query pair, on a month of
+469 impressions across 47 pages, left one pair standing. 16.5.1 set the
+floor to 5 and returned the judged rows on the ability; the second pass
+judged the same one note, because the impressions really are spread one
+and two at a time. This band waits on traffic. What it did say is worth
+keeping: "crypto music error", 75 impressions and no clicks, lands on "How
+a music file gets corrected" and Jev scores the fit 1.96 with 0.94
+confidence. Jev read "crypto" as cryptographic, which the note is about; a
+person typing it wants a wallet error. The literal reading the jaggedness
+page names, and the zero clicks are the evidence Jev cannot see.
+
+Then the key left. The owner is shipping Connector for TypeSafe Jev to the
+directory: it registers `typesafe` with Core's Connectors API as
+`ai_decision`, deliberately not `ai_provider` (Core validates those keys
+against the generative AI Client and clears what it cannot verify), and
+resolves the key env, then constant, then Core's option. 16.5.2 reads the
+key through the connector and nothing else, drops the keyring row and its
+probe (21 rows to 20), and moves a stored legacy key into Core's option
+once, on the first load with both plugins active. 16.5.3 routes the
+request itself through `JevConnector\ask()`: the connector owns retries,
+`Retry-After`, a one-hour cache keyed on the payload and per-status
+messages that never carry the key; the plugin keeps the questions and the
+pinned parser over `Response::to_array()`, with a namespaced stub standing
+in for the connector in the suites. The cache TTL is one hour, not the
+thirty days I had said before reading it, so it dedupes a draft saved five
+times in ten minutes and touches nothing daily.
+
+16.6.0 is the meter, because the owner wanted Jev metered the way Claude
+is. Every request names its feature and lands in a bucket per feature per
+credit cycle (TypeSafe's credit renews on the 17th, so the cycle, not the
+calendar month, is the bucket), priced from reported input tokens at the
+pinned rate; a hit on the connector's cache is counted and free. It paints
+under the Claude spend on AI › Models & Budget, hands out through
+`jev-meter` and `sn-status{jev_spend}`, and seeded this cycle from the
+passes already stored. Three derived guards fired on the new section, each
+a different contract: the section count, "every local section names a
+remote verdict" (the phone door cannot inherit a payload by accident), and
+"the classic form and the native leaf carry the same field names". After
+the update the meter read $0.0238 seeded against the console's $0.03, the
+gap being the collision checks on the owner's own saves, which live on the
+posts.
+
+The owner asked what the models do across the whole ecosystem, and that
+became `AI.md` at the repo root rather than a README section: the rule (a
+model reads, relates or judges, and suggests; a human clicks), three kinds
+of model with one job each, Jev's four readings with their rubrics, costs
+and pins, the site as something models read, where each key lives, what is
+deliberately not built, how every threshold moved. GitHub only makes tabs
+of its own community files, so the README links it from its first lines.
+
+The AI › Agent tools leaf then listed ten tools with no calls, the eight
+Jev ones among them, as retirement candidates. The MCP proxy's tool list
+was the one it cached before 16.3.0, so I could not call them through the
+doors until the owner restarted the app; after that all ten answered, four
+reads and four writes, and the meter closed the run at $0.048 of $5 for 118
+requests. The collision check on the newest scheduled note found nothing
+above 0.41 against 44. The connector's own settings link points at
+`options-general.php?page=connectors`, which Core refuses; the screen is
+`options-connectors.php`. Filed as jev-connector#8, with the two things
+this install confirmed for its "still unverified" list.
+
 ## Left open
 
 - Clear the analytics override and the stale site secret (both still hold the
@@ -1081,10 +1180,14 @@ from the cut by hand.
   wrong environment (the keyring said refused all along); mint one on
   sandbox.zenodo.org if a sandbox run is ever wanted. The fifteen orphan
   drafts on zenodo.org are the owner's to delete.
-- 16.2.1 through 16.3.2 released. The Jev key is verified (probe 0.98).
-  Read `jev-notes` after the next daily pass on 16.3.2: the score
-  distribution and how many readings clear 0.9 decide whether the rubric
-  wording or the floor moves before the collision gate (16.4.0) is built.
+- 16.3.3 through 16.6.0 released; AI.md and jev-connector#8 filed. Still
+  unconfirmed from outside: whether the `ai_decision` card renders on
+  Settings › Connectors (the screen is JS-rendered); the owner's look is
+  the check. Query fit waits on traffic; re-read `jev-query-fit` when a
+  month passes a few thousand impressions. The lane map's 0.5 edge moved
+  19 to 14 between two runs on the same corpus; take it twice before
+  acting. Next in the agreed order: the anti-tell pass per paragraph
+  (16.7.0), then tag fit and citation support.
 - Chains: `git fetch` after a merge can hit a ref lock when another worktree
   fetches at the same instant; retry the fetch, or keep the cut as its own
   script.

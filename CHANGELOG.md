@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Docs
+- Session doc extended: "Every reading moved a line" (16.3.3 through 16.6.0: the floor that routed instead of acted, the query half, the collision gate and the lane map's moving edge, query fit at the site's scale and the literal reading of "crypto", the key and then the transport to Connector for TypeSafe Jev, the meter per credit cycle, AI.md, all ten door tools called, jev-connector#8). Left open updated.
+
 ## [16.6.0] - 2026-09-18 — the meter is the site's own ledger
 
 ### Added
