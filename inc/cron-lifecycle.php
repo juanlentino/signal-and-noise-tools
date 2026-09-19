@@ -57,6 +57,7 @@ function sn_cron_hooks() {
 		SN_JEV_SYNC_HOOK,
 		SN_JEV_FIT_HOOK, // 16.5.0: weekly query-to-page fit.
 		SN_JEV_TAGS_HOOK, // 16.8.0: weekly tag fit.
+		SN_RIGHTS_EVIDENCE_HOOK, // 17.0.0: daily rights evidence.
 		'snt_deploy_workers_warm',
 		// Single events, some with arguments.
 		SNT_DEPLOY_HISTORY_PURGE_HOOK,
