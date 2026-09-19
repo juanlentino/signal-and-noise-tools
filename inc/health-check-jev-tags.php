@@ -4,9 +4,10 @@
  * fitting (16.8.0).
  *
  * Over the stored tag-fit pass (inc/jev-tags.php). A finding per note:
- * an attached tag the note does not argue about (score under 1 of 2) and
- * a tag the note does not carry that a reader browsing it would expect
- * (probability 0.6 or above). Tags are not prose, so a published note can
+ * an attached tag the note does not argue about (score under 1 of 2, read
+ * with confidence 0.5 or better) and a tag the note does not carry that a
+ * reader browsing it would expect (probability 0.8 or above; 16.9.1 moved
+ * both lines off the first live pass). Tags are not prose, so a published note can
  * take the fix; and the tag's description is what Jev read, so a wrong
  * reading of a right tag is a description to fix, not a tag to remove.
  *
@@ -32,11 +33,14 @@ function sn_health_jev_tags_judge( $notes ) {
 		$judged++;
 		$parts = array();
 		foreach ( (array) ( $n['attached'] ?? array() ) as $t ) {
-			if ( (float) $t['score'] < SN_JEV_TAG_MISFIT_BELOW ) {
+			if ( sn_jev_tag_is_misfit( $t ) ) {
 				$parts[] = sprintf( 'Jev reads the tag "%s" as attached for reach (%.2f of 2, confidence %.2f).', (string) $t['name'], (float) $t['score'], (float) $t['confidence'] );
 			}
 		}
 		foreach ( (array) ( $n['missing'] ?? array() ) as $t ) {
+			if ( ! sn_jev_tag_is_add( $t ) ) {
+				continue;
+			}
 			$parts[] = sprintf( 'A reader browsing "%s" would expect this note (%.2f).', (string) $t['name'], (float) $t['noul'] );
 		}
 		if ( array() === $parts ) {

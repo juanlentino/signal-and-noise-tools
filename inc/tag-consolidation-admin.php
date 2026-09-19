@@ -251,12 +251,15 @@ function sn_admin_tag_render_fit_section() {
 	$action = admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' );
 	$data   = function_exists( 'sn_jev_tags_data' ) ? sn_jev_tags_data() : null;
 	$rows   = null === $data ? array() : sn_jev_tags_rows( $data );
+	if ( null !== $data ) {
+		sn_admin_tag_render_umbrellas( sn_jev_tags_umbrellas( $data ) );
+	}
 	if ( null === $data ) {
 		echo '<p>' . esc_html__( 'Jev reads every published and scheduled note against its tags and against the tags it does not carry, the tag descriptions as the state. About seventy requests; a cent or two.', 'signal-and-noise-tools' ) . '</p>';
 	} elseif ( array() === $rows ) {
 		echo '<p>' . esc_html( sprintf( /* translators: %s: how long ago */ __( 'Last read %s ago: every tag on every note fits, and no note is missing one a reader would expect.', 'signal-and-noise-tools' ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>';
 	} else {
-		echo '<p>' . esc_html( sprintf( /* translators: 1: notes flagged, 2: how long ago */ __( '%1$d notes, read %2$s ago. Jev read each tag\'s description: a wrong reading of a right tag is the description to fix. Tags are not prose; a published note can take the change.', 'signal-and-noise-tools' ), count( $rows ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>';
+		echo '<p>' . esc_html( sprintf( /* translators: 1: notes flagged, 2: how long ago */ __( '%1$d notes, read %2$s ago. A misfit is a tag Jev scored under 1 of 2 with confidence 0.5 or better; an add is a tag a reader would expect at 0.8 or better. Jev read each tag\'s description: a wrong reading of a right tag is the description to fix. Tags are not prose; a published note can take the change.', 'signal-and-noise-tools' ), count( $rows ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>';
 		echo '<form method="post" action="' . esc_url( $action ) . '">';
 		wp_nonce_field( 'sn_theme_options_nonce' );
 		echo '<input type="hidden" name="sn_action" value="tag_fit_apply">';
@@ -278,6 +281,23 @@ function sn_admin_tag_render_fit_section() {
 	echo '<input type="hidden" name="sn_action" value="tag_fit_run">';
 	echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Read tags now', 'signal-and-noise-tools' ) . '</button>';
 	echo '</form></div>';
+}
+
+/**
+ * 16.9.1: the umbrella tags, one line each (see sn_jev_tags_umbrellas()).
+ *
+ * @param array $umbrellas
+ * @return void
+ */
+function sn_admin_tag_render_umbrellas( array $umbrellas ) {
+	if ( array() === $umbrellas ) {
+		return;
+	}
+	echo '<p><strong>' . esc_html__( 'Umbrella tags', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( 'A tag that fits a third of the corpus is a category, or a description to narrow. Attach it everywhere or tighten it; the rows below leave it out.', 'signal-and-noise-tools' ) . '</p><ul>';
+	foreach ( $umbrellas as $u ) {
+		echo '<li>' . esc_html( sprintf( /* translators: 1: tag, 2: notes Jev would add it to, 3: notes read, 4: notes carrying it */ __( '%1$s: Jev would add it to %2$d of %3$d notes; %4$d carry it.', 'signal-and-noise-tools' ), (string) $u['name'], (int) $u['suggested'], (int) $u['notes'], (int) $u['attached'] ) ) . '</li>';
+	}
+	echo '</ul>';
 }
 
 /**
