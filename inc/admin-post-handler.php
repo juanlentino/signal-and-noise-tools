@@ -74,8 +74,8 @@ function sn_admin_post_handlers() {
 		'music_save'                 => 'sn_handle_music_save',
 		'music_sync'                 => 'sn_handle_music_sync',
 		'tag_merge'                  => 'sn_handle_tag_merge',
-		'tag_ai_suggest'             => 'sn_handle_tag_ai_suggest',
-		'tag_ai_apply'               => 'sn_handle_tag_ai_apply',
+		'tag_fit_run'                => 'sn_handle_tag_fit_run',   // 16.9.0: Jev reads every note against its tags
+		'tag_fit_apply'              => 'sn_handle_tag_fit_apply', // 16.9.0: apply the checked rows (allow-listed by the stored pass)
 		'tag_prune_unused'           => 'sn_handle_tag_prune_unused',
 		'indexnow_save'              => 'sn_handle_indexnow_save',
 		'indexnow_regenerate'        => 'sn_handle_indexnow_regenerate',

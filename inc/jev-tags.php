@@ -179,6 +179,53 @@ function sn_jev_tags_sync() {
 	return array( 'ok' => 0 === $failed, 'judged' => $judged, 'failed' => $failed, 'misfits' => $misfits, 'missing' => $missing, 'error' => $err );
 }
 
+/**
+ * The rows the Tags leaf paints and the apply handler allows: per flagged
+ * note, the attached tags Jev read as attached for reach (score under 1)
+ * and the tags a reader would expect (0.6+). PURE given the stored pass.
+ *
+ * @return array<int,array{title:string,remove:array,add:array}>
+ */
+function sn_jev_tags_rows( $data ) {
+	$rows = array();
+	foreach ( (array) ( $data['notes'] ?? array() ) as $id => $n ) {
+		$remove = array_values( array_filter( (array) ( $n['attached'] ?? array() ), static function ( $t ) {
+			return (float) ( $t['score'] ?? 2 ) < SN_JEV_TAG_MISFIT_BELOW;
+		} ) );
+		$add    = (array) ( $n['missing'] ?? array() );
+		if ( array() === $remove && array() === $add ) {
+			continue;
+		}
+		$rows[ (int) $id ] = array( 'title' => (string) ( $n['title'] ?? '' ), 'remove' => $remove, 'add' => $add );
+	}
+	return $rows;
+}
+
+/**
+ * Drop applied (post, term) pairs from the stored pass so the leaf does not
+ * re-list what the owner just did; the next pass re-reads everything.
+ *
+ * @param array<int,int[]> $assigned post id => term ids added.
+ * @param array<int,int[]> $removed  post id => term ids removed.
+ */
+function sn_jev_tags_forget( array $assigned, array $removed ) {
+	$data = sn_jev_tags_data();
+	if ( null === $data ) {
+		return;
+	}
+	foreach ( array( 'missing' => $assigned, 'attached' => $removed ) as $key => $map ) {
+		foreach ( $map as $pid => $ids ) {
+			if ( ! isset( $data['notes'][ $pid ][ $key ] ) ) {
+				continue;
+			}
+			$data['notes'][ $pid ][ $key ] = array_values( array_filter( (array) $data['notes'][ $pid ][ $key ], static function ( $t ) use ( $ids ) {
+				return ! in_array( (int) ( $t['id'] ?? 0 ), array_map( 'intval', (array) $ids ), true );
+			} ) );
+		}
+	}
+	update_option( SN_JEV_TAGS_OPTION, $data, false );
+}
+
 /** The stored pass, or null. */
 function sn_jev_tags_data() {
 	$d = get_option( SN_JEV_TAGS_OPTION, null );

@@ -87,7 +87,7 @@ Line numbers are from the 1,682-line original at v12.21.0.
 | `monitoring.php` | monitoring_save, perf_save | 654–718 | 65 |
 | `theme-ai.php` | sn_theme_ai_models, sn_theme_ai_vision_models, save_theme, ai_settings_save, ml_embed_compare | 719–906 | 150 |
 | `music.php` | music_save_cred, music_save, music_sync | 907–1001 | 95 |
-| `tags.php` | tag_merge, tag_ai_suggest, tag_ai_apply, tag_prune_unused | 1002–1126 | 125 |
+| `tags.php` | tag_merge, tag_fit_run, tag_fit_apply (16.9.0; tag_ai_suggest + tag_ai_apply retired), tag_prune_unused | 1002–1126 | 125 |
 | `indexnow.php` | indexnow_save, indexnow_regenerate, indexnow_ping_now | 1127–1179 | 55 |
 | `analytics.php` | analytics_save/test/exclude/tuning/funnels/export, funnels_error_flash_code, collector_save, machine_readers_save | 814, 1180–1229, 1370–1622 | 250 |
 | `gsc.php` | gsc_property_save, gsc_sync, gsc_test, gsc_credential_save | 1230–1369 | 140 |

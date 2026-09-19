@@ -93,9 +93,13 @@ function tags_post_hidden( $sn_action ) {
  * @param string $label Painted label HTML (escaped by the caller).
  * @return string
  */
-function tags_check_row( $name, $value, $label ) {
+function tags_check_row( $name, $value, $label, $checked = true ) {
+	$attrs = array( 'type' => 'checkbox', 'name' => (string) $name, 'value' => (string) (int) $value );
+	if ( $checked ) {
+		$attrs['checked'] = true; // 16.9.0: the tag-fit rows start unchecked; the owner decides each one
+	}
 	return '<li class="snt-list__row"><label class="snt-list__label">'
-		. \snt_kit_tag( 'input', array( 'type' => 'checkbox', 'name' => (string) $name, 'value' => (string) (int) $value, 'checked' => true ) )
+		. \snt_kit_tag( 'input', $attrs )
 		. ' ' . $label . '</label></li>';
 }
 
@@ -235,46 +239,42 @@ function tags_confirm_html( $pv, array $from, $into, $tab ) {
 }
 
 /**
- * AI section: dormant note, the review/apply form, the nothing-to-suggest
- * state, or the suggest form — the classic's four branches in order.
+ * 16.9.0: Jev tag fit. Replaces the Claude suggest (untagged notes only, a
+ * proposal only): Jev reads every note against every tag. The rows are the
+ * allow-list sn_handle_tag_fit_apply() enforces; this only paints them.
  *
  * @return string
  */
-function tags_ai_html() {
-	$heading = __( 'AI: suggest tags for untagged Notes', 'signal-and-noise-tools' );
-	if ( ! function_exists( 'snt_ai_is_available' ) || ! \snt_ai_is_available() ) {
-		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'Connect an AI provider (Settings > Connectors) to suggest tags.', 'signal-and-noise-tools' ) ) . '</p>' );
+function tags_fit_html() {
+	$heading = __( 'Jev: tag fit', 'signal-and-noise-tools' );
+	if ( ! function_exists( 'sn_jev_is_ready' ) || ! \sn_jev_is_ready() ) {
+		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'Install Connector for TypeSafe Jev and add the key under Settings › Connectors.', 'signal-and-noise-tools' ) ) . '</p>' );
 	}
-	$suggestions = function_exists( 'get_transient' ) ? get_transient( 'sn_tag_ai_suggestions_' . get_current_user_id() ) : false;
-	if ( is_array( $suggestions ) && $suggestions ) {
-		$rows = '';
-		foreach ( $suggestions as $s ) {
-			$pid = (int) ( $s['post_id'] ?? 0 );
-			if ( ! $pid || empty( $s['suggested'] ) ) {
-				continue;
-			}
-			$boxes = '';
-			foreach ( (array) $s['suggested'] as $tag ) {
-				$boxes .= tags_check_row( 'assign[' . $pid . '][]', (int) ( $tag['term_id'] ?? 0 ), \snt_kit_esc( (string) ( $tag['name'] ?? '' ) ) );
-			}
-			$rows .= '<p class="snt-prose"><strong>' . \snt_kit_esc( (string) ( $s['title'] ?? ( '#' . $pid ) ) ) . '</strong></p><ul class="snt-list">' . $boxes . '</ul>';
+	$data = function_exists( 'sn_jev_tags_data' ) ? \sn_jev_tags_data() : null;
+	$rows = null === $data ? array() : \sn_jev_tags_rows( $data );
+	$run  = \snt_kit_form( 'tag_fit_run', '', array( 'submit' => __( 'Read tags now', 'signal-and-noise-tools' ) ) );
+	if ( null === $data ) {
+		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'Jev reads every published and scheduled note against its tags and against the tags it does not carry, the tag descriptions as the state. About seventy requests; a cent or two.', 'signal-and-noise-tools' ) ) . '</p>' . $run );
+	}
+	if ( array() === $rows ) {
+		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: %s: how long ago */ __( 'Last read %s ago: every tag on every note fits, and no note is missing one a reader would expect.', 'signal-and-noise-tools' ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>' . $run );
+	}
+	$inner = '';
+	foreach ( $rows as $pid => $row ) {
+		$boxes = '';
+		foreach ( $row['remove'] as $t ) {
+			$boxes .= tags_check_row( 'remove[' . (int) $pid . '][]', (int) $t['id'], \snt_kit_esc( sprintf( /* translators: 1: tag, 2: score */ __( 'Remove "%1$s" (attached for reach, %2$s of 2)', 'signal-and-noise-tools' ), (string) $t['name'], number_format_i18n( (float) $t['score'], 2 ) ) ), false );
 		}
-		return \snt_kit_section(
-			$heading,
-			'<p class="snt-prose">' . \snt_kit_esc( __( 'Review the AI suggestions, then apply the ones you want. Suggestions are limited to your existing tags.', 'signal-and-noise-tools' ) ) . '</p>'
-			. tags_form( 'post', tags_post_hidden( 'tag_ai_apply' ), $rows, __( 'Apply selected', 'signal-and-noise-tools' ) )
-		);
+		foreach ( $row['add'] as $t ) {
+			$boxes .= tags_check_row( 'assign[' . (int) $pid . '][]', (int) $t['id'], \snt_kit_esc( sprintf( /* translators: 1: tag, 2: probability */ __( 'Add "%1$s" (a reader would expect it, %2$s)', 'signal-and-noise-tools' ), (string) $t['name'], number_format_i18n( (float) $t['noul'], 2 ) ) ), false );
+		}
+		$inner .= '<p class="snt-prose"><strong><a href="' . esc_url( get_edit_post_link( (int) $pid ) ?: '' ) . '">' . \snt_kit_esc( $row['title'] ) . '</a></strong></p><ul class="snt-list">' . $boxes . '</ul>';
 	}
-	$untagged = function_exists( 'sn_tag_untagged_notes' ) ? \sn_tag_untagged_notes( 20 ) : array();
-	if ( ! $untagged ) {
-		return \snt_kit_section( $heading, \snt_kit_empty( __( 'Every published Note has at least one tag. Nothing to suggest.', 'signal-and-noise-tools' ) ) );
-	}
-	$count = sprintf( /* translators: %d: count */ _n( '%d untagged Note.', '%d untagged Notes.', count( $untagged ), 'signal-and-noise-tools' ), count( $untagged ) )
-		. ' ' . __( 'Runs on demand on your AI key; up to 20 per click.', 'signal-and-noise-tools' );
 	return \snt_kit_section(
 		$heading,
-		'<p class="snt-prose">' . \snt_kit_esc( $count ) . '</p>'
-		. \snt_kit_form( 'tag_ai_suggest', '', array( 'submit' => __( 'Suggest tags', 'signal-and-noise-tools' ) ) )
+		'<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: 1: notes flagged, 2: how long ago */ __( '%1$d notes, read %2$s ago. Jev read each tag\'s description: a wrong reading of a right tag is the description to fix. Tags are not prose; a published note can take the change.', 'signal-and-noise-tools' ), count( $rows ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>'
+		. tags_form( 'post', tags_post_hidden( 'tag_fit_apply' ), $inner, __( 'Apply selected', 'signal-and-noise-tools' ) )
+		. $run
 	);
 }
 

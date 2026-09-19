@@ -487,7 +487,6 @@ require_once __DIR__ . '/inc/ai-link-suggest.php'; // v7.4.0: unlinked-mention S
 require_once __DIR__ . '/inc/ai-pair-suggest.php'; // v8.1.0: semantic-pair Suggest (link_opportunities; Apply rides ai-link-apply)
 require_once __DIR__ . '/inc/ai-orphan-suggest.php';
 require_once __DIR__ . '/inc/ai-excerpt.php';
-require_once __DIR__ . '/inc/ai-tag-suggest.php';
 require_once __DIR__ . '/inc/ai-tag-describe.php'; // v13.25.0: draft the one-sentence tag description in the house voice (few-shot from the v13.23.0 seed map); apply is separate + never clobbers
 require_once __DIR__ . '/inc/ai-meta-description.php';
 require_once __DIR__ . '/inc/ai-og-card-title.php';

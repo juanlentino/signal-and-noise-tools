@@ -164,7 +164,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/suggest-tags', array(
 		'label'               => 'Suggest tags for a post',
-		'description'         => 'Reads a post and suggests relevant tags chosen ONLY from the existing post_tag vocabulary (never invents tags). Read-only: returns suggestions to apply, does not assign anything.',
+		'description'         => 'The tags a reader would expect this post under, from Jev\'s stored tag-fit pass (16.9.0; the Claude suggester is retired): existing post_tag terms only, never an invented one, with Jev\'s probability. Read-only: returns suggestions to apply, does not assign anything. `run jev-tags-now` first if the pass is older than the post.',
 		'category'            => 'content',
 		'permission_callback' => 'snt_ability_perm_edit_post',
 		'execute_callback'    => 'snt_ability_suggest_tags',
@@ -372,10 +372,20 @@ function snt_ability_merge_tags( $input ) {
  */
 function snt_ability_suggest_tags( $input ) {
 	$post_id = isset( $input['post_id'] ) ? (int) $input['post_id'] : 0;
-	if ( ! $post_id || ! function_exists( 'snt_ai_tag_suggest_impl' ) ) {
+	if ( ! $post_id || ! function_exists( 'sn_jev_tags_data' ) ) {
 		return new WP_Error( 'snt_tag_suggest_unavailable', 'Tag suggestion is unavailable.', array( 'status' => 400 ) );
 	}
-	return snt_ai_tag_suggest_impl( $post_id );
+	// 16.9.0: Jev's stored tag-fit pass is the source; nothing is generated here.
+	$data = sn_jev_tags_data();
+	if ( null === $data ) {
+		return new WP_Error( 'snt_tag_suggest_no_pass', 'No tag-fit pass yet; run jev-tags-now.', array( 'status' => 409 ) );
+	}
+	$note      = (array) ( $data['notes'][ $post_id ] ?? array() );
+	$suggested = array();
+	foreach ( (array) ( $note['missing'] ?? array() ) as $t ) {
+		$suggested[] = array( 'term_id' => (int) $t['id'], 'name' => (string) $t['name'], 'probability' => (float) $t['noul'] );
+	}
+	return array( 'post_id' => $post_id, 'suggested' => $suggested, 'read_at' => (int) $data['synced_at'], 'note' => array() === $suggested && ! isset( $data['notes'][ $post_id ] ) ? 'The pass did not include this post; run jev-tags-now.' : '' );
 }
 
 /**

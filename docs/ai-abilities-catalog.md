@@ -83,7 +83,7 @@ This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/pattern-adoption-apply` | `edit_post` | ai-generation | — | RW-DOOR |
 | `signal-noise/block-migrations-suggest` | `edit_post` | diagnostics | — | RW-DOOR |
 | `signal-noise/block-migrations-apply` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/suggest-tags` | `edit_post` | ai-generation | — | RW-DOOR |
+| `signal-noise/suggest-tags` | `edit_post` | content | — | RW-DOOR (16.9.0: reads Jev's stored tag-fit pass; the Claude suggester is retired; nothing generated) |
 | `signal-noise/regenerate-og-card` | `edit_post` | content | — | RW-DOOR |
 | `signal-noise/content-queue` | `edit_posts` | content | — | ABSORBED by `sn-posts` (15.8.0; the SN Queue widget's read: next four scheduled with site-timezone labels, scheduled total + runs-to date, last three published) |
 | `signal-noise/dismiss-candidate` | `edit_post` | maintenance | — | RW-DOOR |
