@@ -141,5 +141,15 @@ foreach ( snt_watches() as $watch ) {
 }
 
 
+echo "\nGroup: the two 7.2-roadmap watches (16.6.1)\n";
+$w72 = snt_watch_ripe_wp_72( array(), 0, '7.1.1' );
+ok( false === $w72['ripe'] && false !== strpos( $w72['note'], 'before 7.2' ), 'on 7.1.1 the connector-wipe watch is quiet and says why' );
+$w72 = snt_watch_ripe_wp_72( array(), 0, '7.2' );
+ok( true === $w72['ripe'] && false !== strpos( $w72['note'], '65551' ), 'on 7.2 it ripens and names the ticket to verify' );
+ok( true === snt_watch_ripe_wp_72( array(), 0, '7.2.1' )['ripe'] && false === snt_watch_ripe_wp_72( array(), 0, '' )['ripe'], '7.2.1 ripens; an unreadable version never does' );
+ok( false === snt_watch_ripe_mcp_adapter( array(), 0, false )['ripe'] && true === snt_watch_ripe_mcp_adapter( array(), 0, true )['ripe'], 'the adapter watch ripens on the adapter class being loaded, never on a date' );
+$ids = array_column( snt_watches(), 'id' );
+ok( in_array( 'connector_key_wipe_65551', $ids, true ) && in_array( 'mcp_adapter_read_door', $ids, true ), 'both watches are registered' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
