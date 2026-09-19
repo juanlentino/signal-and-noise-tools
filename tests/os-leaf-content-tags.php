@@ -153,19 +153,8 @@ ok( false !== strpos( $kit, '>Untagged Note</a></strong>' ) && false !== strpos(
 ok( false === strpos( $kit, 'Add &quot;' ) && false === strpos( $kit, 'Shrug' ) && false === strpos( $kit, 'Umbrella' ) && false !== strpos( $kit, 'confidence 0.7 or better' ) && false !== strpos( $kit, 'Jev proposes no tags' ), '16.9.2 review: a stored 16.9.1 missing list paints no Add box, a 0.6-confidence misfit is no row, no umbrella section; the prose names the lines and says Jev proposes nothing' );
 unset( $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] );
 
-// ── 16.9.2: notes over the tag ceiling, listed on both surfaces, no form.
-if ( ! defined( 'SN_TAG_CEILING' ) ) { define( 'SN_TAG_CEILING', 4 ); }
-$GLOBALS['__over'] = array();
-function sn_tag_notes_over_ceiling() { return $GLOBALS['__over'] ?? array(); }
-$classic = classic_tags();
-$kit     = kit_tags();
-ok( false !== strpos( $kit, 'heading="Notes over 4 tags"' ) && false !== strpos( $kit, 'heading="Every note sits at or under the ceiling."' ) && false !== strpos( $classic, 'Every note sits at or under the ceiling.' ), '16.9.2 ceiling: the empty state on both surfaces' );
-$GLOBALS['__over'] = array( array( 'post_id' => 7, 'title' => 'Five facets <b>', 'tags' => 5 ) );
-$classic = classic_tags();
-$kit     = kit_tags();
-ok( false !== strpos( $kit, '>Five facets &lt;b&gt;</a> (5 tags)</li>' ) && false !== strpos( $classic, '>Five facets &lt;b&gt;</a> (5 tags)</li>' ) && false === strpos( $kit, 'name="ceiling' ), '16.9.2 ceiling: the note links to its editor with its count on both surfaces, escaped, and no form' );
-ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && snt_leaf_names( $classic ) === snt_leaf_names( $kit ), '16.9.2 ceiling: parity holds (no writes, no fields added)' );
-$GLOBALS['__over'] = array();
+// ── 16.9.3: no ceiling section on either surface (the rule is the description, the gate nudges).
+ok( false === strpos( kit_tags(), 'Notes over' ) && false === strpos( classic_tags(), 'Notes over' ), '16.9.3: no Notes-over-N section on either surface' );
 
 // ── The GET preview -> confirm panel: the classic reads $_GET, the window reads its params state.
 $_GET['sn_tag_preview'] = '1'; $_GET['sn_tag_from'] = array( '10', '11' ); $_GET['sn_tag_into'] = '12';

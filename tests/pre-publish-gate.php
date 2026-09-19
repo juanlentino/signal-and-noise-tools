@@ -102,9 +102,6 @@ if ( ! function_exists( 'wp_add_inline_script' ) ) {
 if ( ! function_exists( 'wp_json_encode' ) ) {
 	function wp_json_encode( $v ) { return json_encode( $v ); }
 }
-if ( ! defined( 'SN_TAG_CEILING' ) ) {
-	define( 'SN_TAG_CEILING', 4 ); // the real constant lives in inc/health-check-tag-hygiene.php
-}
 if ( ! function_exists( 'plugins_url' ) ) {
 	function plugins_url( $path = '', $plugin = '' ) {
 		return 'https://example.test/wp-content/plugins/sn/' . ltrim( (string) $path, '/' );
@@ -207,7 +204,8 @@ pg_eq( 'before', $inline['position'] ?? '', 'and is printed before the gate runs
 pg_eq( 'window.sntPrePublishGateConfig = {"tagCeiling":4};', $inline['data'] ?? '', 'the ceiling is SN_TAG_CEILING, the one constant' );
 pg_true( false !== strpos( $gate_js, 'cfg.tagCeiling' ) && false !== strpos( $gate_js, 'tagCount > ceiling' ), 'the JS reads the ceiling from the config and compares the edited tag count against it' );
 pg_true( ! preg_match( '/ceiling\s*[=:]\s*\d/', $gate_js ), 'no ceiling number is written in the JS' );
-pg_true( false !== strpos( $gate_js, 'the house ceiling is' ), 'the over-ceiling advisory copy exists' );
+pg_true( false !== strpos( $gate_js, 'promises the note covers its description' ), 'the nudge names the real rule, the tag description, not a count' );
+pg_eq( 4, SN_TAG_CEILING, 'the gate file owns the one constant (16.9.3)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

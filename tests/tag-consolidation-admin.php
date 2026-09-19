@@ -140,16 +140,9 @@ $GLOBALS['__unused'] = array();
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
 ok( strpos( $h, 'No unused tags' ) !== false, 'Unused: empty state' );
 
-// --- 16.9.2: the ceiling section -----------------------------------------------
-if ( ! defined( 'SN_TAG_CEILING' ) ) { define( 'SN_TAG_CEILING', 4 ); }
-$GLOBALS['__over'] = array();
-function sn_tag_notes_over_ceiling() { return $GLOBALS['__over'] ?? array(); }
+// --- 16.9.3: no ceiling section (the rule is the description; the gate nudges) ---
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
-ok( strpos( $h, 'Notes over 4 tags' ) !== false && strpos( $h, 'Every note sits at or under the ceiling.' ) !== false, 'Ceiling: heading names the line; empty state' );
-$GLOBALS['__over'] = array( array( 'post_id' => 7, 'title' => 'Five facets', 'tags' => 5 ) );
-ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
-ok( strpos( $h, '>Five facets</a> (5 tags)</li>' ) !== false && strpos( $h, 'post=7' ) !== false, 'Ceiling: the note links to its editor with its count' );
-$GLOBALS['__over'] = array();
+ok( strpos( $h, 'Notes over' ) === false, 'No Notes-over-N section' );
 
 // --- v8.0.2 cohesion contract: system card vocabulary on every view -------------
 // Three captures cover all 7 panel sites: maximal list (clusters + history + AI

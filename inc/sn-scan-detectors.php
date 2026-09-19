@@ -122,10 +122,6 @@ function snt_sn_scan_detector_registry() {
 				'id'          => 'unused_tag',
 				'triggers_on' => 'a zero-post post_tag term (usually typo-minted; reports ONCE even when also undescribed)',
 			),
-			array(
-				'id'          => 'over_ceiling',
-				'triggers_on' => 'a published or scheduled note carrying more than SN_TAG_CEILING (4) tags; the one post-level row here, fixed in the editor',
-			),
 		),
 		'anchor_violations' => array(
 			array(
