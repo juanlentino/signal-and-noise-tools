@@ -119,6 +119,7 @@ function sn_mcp_allowlist() {
 		'signal-noise/jev-query-fit', // 16.5.0: the stored fit pass, same tier
 		'signal-noise/jev-meter', // 16.6.0: the Jev meter, same tier
 		'signal-noise/jev-tells', // 16.7.0: the stored anti-tell pass, same tier
+		'signal-noise/jev-tags', // 16.8.0: the stored tag-fit pass, same tier
 		// v10.6.0 — corpus inspection: list-posts + get-post-content moved to
 		// the wave-2 retirement block above (absorbed by sn-posts).
 		// v10.16.0 (2026-07-30) — near-duplicate cousin scan: PURE-READ by
@@ -373,6 +374,7 @@ function sn_mcp_rw_allowlist() {
 		'signal-noise/jev-fit-now', // 16.5.0: the fit pass now
 		'signal-noise/jev-tells-check', // 16.7.0: the anti-tell pass on one note
 		'signal-noise/jev-tells-pass', // 16.7.0: the anti-tell pass over the corpus
+		'signal-noise/jev-tags-now', // 16.8.0: the tag-fit pass now
 		// Theme (signal-and-noise/) — 5, all AI-billed + return-only.
 	);
 

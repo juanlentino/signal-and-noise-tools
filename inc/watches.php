@@ -92,6 +92,16 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_mcp_adapter',
 		),
+		// 16.8.0 — the General-save guard (16.7.2) is a workaround for WordPress/ai#1048.
+		array(
+			'id'        => 'general_save_guard_ai_1048',
+			'label'     => 'retire the General-save guard (WordPress/ai#1048)',
+			'why'       => 'The AI plugin (1.2.0+) calls register_initial_settings() on wp_abilities_api_init, which puts admin_email into the General allowed group during an admin save; options.php then saves it as NULL and Core rejects it. inc/general-save-guard.php drops the name from the group. Ripe when admin_email stops appearing in the group after the abilities registry has initialised, which is upstream having shipped (or the plugin gone): verify a General save is clean without the guard, then remove the guard and this watch.',
+			'read'      => 'https://github.com/WordPress/ai/issues/1048',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_general_save_guard',
+		),
 		array(
 			'id'        => 'wave4_telemetry',
 			'label'     => 'wave-4 tool retirement read',
@@ -265,6 +275,36 @@ function snt_watch_ripe_wp_72( $watch, $now, $version = null ) {
 	return version_compare( $version, '7.2', '>=' )
 		? array( 'ripe' => true, 'note' => 'WordPress ' . $version . ': verify Trac #65551 landed, then retire this watch' )
 		: array( 'ripe' => false, 'note' => 'WordPress ' . $version . ', before 7.2' );
+}
+
+/**
+ * Ripe once `admin_email` no longer lands in the "general" allowed group
+ * after the Abilities registry has initialised (WordPress/ai#1048 shipped,
+ * or the AI plugin is gone). Reads the same global options.php reads.
+ *
+ * @since 16.8.0
+ * @param array $watch The watch row.
+ * @param int   $now   Unix time (unused).
+ * @param array|null $state Injected for tests: {abilities_init:bool, general:string[]}; null reads the globals.
+ * @return array{ripe:bool,note:string}
+ */
+function snt_watch_ripe_general_save_guard( $watch, $now, $state = null ) {
+	unset( $watch, $now );
+	if ( null === $state ) {
+		if ( function_exists( 'wp_get_abilities' ) && ! did_action( 'wp_abilities_api_init' ) ) {
+			wp_get_abilities(); // initialise the registry the way an admin request would
+		}
+		$state = array(
+			'abilities_init' => (bool) did_action( 'wp_abilities_api_init' ),
+			'general'        => (array) ( $GLOBALS['new_allowed_options']['general'] ?? array() ),
+		);
+	}
+	if ( empty( $state['abilities_init'] ) ) {
+		return array( 'ripe' => false, 'note' => 'the abilities registry has not initialised in this request; cannot tell' );
+	}
+	return in_array( 'admin_email', (array) $state['general'], true )
+		? array( 'ripe' => false, 'note' => 'admin_email still lands in the General group; the guard is still needed' )
+		: array( 'ripe' => true, 'note' => 'admin_email no longer lands in the General group: verify a save without the guard, then remove inc/general-save-guard.php and this watch' );
 }
 
 /**

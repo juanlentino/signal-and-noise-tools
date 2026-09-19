@@ -399,6 +399,7 @@ require_once SNT_PATH . 'inc/jev-collision.php';    // 16.4.0: the collision gat
 require_once SNT_PATH . 'inc/jev-query-fit.php';    // 16.5.0: query-to-page fit, weekly.
 require_once SNT_PATH . 'inc/jev-meter.php';        // 16.6.0: the Jev meter, per feature per credit cycle.
 require_once SNT_PATH . 'inc/jev-tells.php';        // 16.7.0: the anti-tell pass on drafts, and over the corpus on demand.
+require_once SNT_PATH . 'inc/jev-tags.php';         // 16.8.0: tag fit, weekly.
 require_once SNT_PATH . 'inc/abilities-jev.php';    // 16.3.0: jev-notes.
 require_once SNT_PATH . 'inc/zenodo-records.php';  // 15.11.0: what a document's record is, the bundle, the deposit flow, the triggers.
 require_once SNT_PATH . 'inc/abilities-zenodo.php'; // 15.11.0: zenodo-status on the read door.
@@ -639,6 +640,7 @@ require_once SNT_PATH . 'inc/plugin-registry-probe.php'; // v13.96.6 (#1026): re
 require_once SNT_PATH . 'inc/health-check-wp-cron-request-path.php'; // 24th check (v13.97.4): cron still spawned in-request - invisible in cron_disabled_constant, which is a problem flag rather than the constant's value
 require_once SNT_PATH . 'inc/health-check-search-titles.php'; // 28th check (15.9.0): notes whose title tag is the aphorism alone; the Search Console pressure test's gap, kept from reopening.
 require_once SNT_PATH . 'inc/health-check-jev-notes.php'; // 30th check (16.3.0): notes Jev would not search for.
+require_once SNT_PATH . 'inc/health-check-jev-tags.php';  // 31st check (16.8.0): tags Jev reads as not fitting.
 require_once SNT_PATH . 'inc/health-check-zenodo-doi.php'; // 29th check (15.11.0): confirmed documents without a production DOI.
 require_once SNT_PATH . 'inc/health-check-plugin-registry.php'; // 23rd check (v13.96.6): active_plugins vs get_plugins() - a stale object cache reports "no plugins installed" with a 200
 require_once SNT_PATH . 'inc/health-check-families.php';

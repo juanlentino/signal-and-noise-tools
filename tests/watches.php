@@ -26,6 +26,8 @@ if ( ! defined( 'SN_PROV_INTEGRITY_OPT' ) ) { define( 'SN_PROV_INTEGRITY_OPT', '
 $GLOBALS['__integrity'] = null;
 function get_option( $k, $d = false ) { return null === $GLOBALS['__integrity'] ? $d : $GLOBALS['__integrity']; }
 
+// 16.8.0: the guard watch reads the registry state; the harness says "not initialised" so the list read never ripens by accident.
+if ( ! function_exists( 'did_action' ) ) { function did_action( $h ) { return 0; } }
 require __DIR__ . '/../inc/watches.php';
 
 $pass = 0; $fail = 0;
@@ -150,6 +152,9 @@ ok( true === snt_watch_ripe_wp_72( array(), 0, '7.2.1' )['ripe'] && false === sn
 ok( false === snt_watch_ripe_mcp_adapter( array(), 0, false )['ripe'] && true === snt_watch_ripe_mcp_adapter( array(), 0, true )['ripe'], 'the adapter watch ripens on the adapter class being loaded, never on a date' );
 $ids = array_column( snt_watches(), 'id' );
 ok( in_array( 'connector_key_wipe_65551', $ids, true ) && in_array( 'mcp_adapter_read_door', $ids, true ), 'both watches are registered' );
+$gs = static function ( $init, $general ) { return snt_watch_ripe_general_save_guard( array(), 0, array( 'abilities_init' => $init, 'general' => $general ) ); };
+ok( false === $gs( true, array( 'blogname', 'admin_email' ) )['ripe'] && true === $gs( true, array( 'blogname', 'preferred_languages' ) )['ripe'] && false === $gs( false, array() )['ripe'], '16.8.0: the General-save guard watch ripens when admin_email leaves the group after the registry initialised; never when the registry did not initialise' );
+ok( in_array( 'general_save_guard_ai_1048', $ids, true ), 'the guard watch is registered' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

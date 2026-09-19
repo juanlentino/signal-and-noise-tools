@@ -94,6 +94,7 @@ function snt_cron_sn_owned_hooks() {
 		array( 'SN_BING_SYNC_HOOK', 'sn_bing_sync_daily' ), // 16.2.0 — daily Bing Webmaster sync.
 		array( 'SN_JEV_SYNC_HOOK', 'sn_jev_notes_daily' ), // 16.3.0 — daily Jev pass over the notes.
 		array( 'SN_JEV_FIT_HOOK', 'sn_jev_fit_weekly' ), // 16.5.0 — weekly query-to-page fit.
+		array( 'SN_JEV_TAGS_HOOK', 'sn_jev_tags_weekly' ), // 16.8.0 — weekly tag fit.
 		array( 'SN_ZENODO_HOOK', 'sn_zenodo_deposit_one' ), // 15.11.0 — single event after an anchor confirms; on-demand.
 		// v13.49.0 — NINE more, found by DERIVING the list instead of reading it.
 		// Every one of these is scheduled recurring by this plugin and was absent
@@ -767,6 +768,7 @@ function snt_cron_opt_in_gates() {
 		array( 'SN_BING_SYNC_HOOK',             'sn_bing_sync_daily',        'sn_bing_is_ready' ),
 		array( 'SN_JEV_SYNC_HOOK',              'sn_jev_notes_daily',        'sn_jev_is_ready' ),
 		array( 'SN_JEV_FIT_HOOK',               'sn_jev_fit_weekly',         'sn_jev_fit_is_ready' ),
+		array( 'SN_JEV_TAGS_HOOK',              'sn_jev_tags_weekly',        'sn_jev_is_ready' ),
 		// v13.63.0 — same readiness predicate, weekly.
 		array( 'SNT_GSC_COVERAGE_HOOK',         'sn_gsc_coverage_weekly',    'snt_gsc_sync_is_ready' ),
 	);

@@ -145,6 +145,8 @@ function sn_health_run_scan() {
 			// 29th check (15.11.0): confirmed documents without a production DOI.
 			'zenodo_doi'           => sn_health_check_zenodo_doi(),
 			'jev_notes'            => sn_health_check_jev_notes(),
+			// 31st check (16.8.0): tags Jev reads as not fitting; tags are the one field a published note can still change.
+			'jev_tags'             => sn_health_check_jev_tags(),
 			// 25th check (v13.98.0): the machine-reader dataset went quiet. The
 			// worker's sensor readout is isolate memory and reads null for both a
 			// fresh isolate and a sensor that never fires; the dataset can tell.
