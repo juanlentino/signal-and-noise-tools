@@ -554,7 +554,8 @@ function sn_settings_seed_legacy_values() {
 				),
 			),
 			'og' => array(
-				'default_image_url' => home_url( '/wp-content/uploads/2026/02/cropped-jl_logo-min-300x300.png' ),
+				// 16.7.2: the February PNG was replaced by a WebP upload on 2026-09-19; the file is named, not read.
+				'default_image_url' => home_url( '/wp-content/uploads/2026/09/cropped-jl_logo-min-300x300.webp' ),
 				'card_width'        => 1200,
 				'card_height'       => 630,
 			),

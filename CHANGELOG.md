@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The OG default image pointed at a file that no longer exists.** `og.default_image_url` named the February logo PNG; the logo was re-uploaded as WebP under `uploads/2026/09/` on 2026-09-19 and the PNGs removed (the theme's header had the same path, theme 13.3.2). The default is now the 300 WebP. It is only the fallback for a route with no generated card, which is why nothing visible broke on the notes.
+
 ### Added
 - **Two watches from the WordPress 7.2 roadmap read.** `connector_key_wipe_65551`: since 16.5.2 the TypeSafe key is Core's connector's, and Core's settings save deletes a key it cannot validate, `null` included (Trac #65551, unmerged); the watch ripens on WordPress 7.2, when the fix is to be verified. `mcp_adapter_read_door`: the plugin hand-rolls its MCP transport and WordPress/mcp-adapter is heading for the directory with the 2026-07-28 revision; the watch ripens when the adapter class is loaded, when the abilities register with it and the read door retires first. Both state-ripe, both pinned. The full read is `docs/ops/wordpress-7-2-roadmap-read.md`.
 
