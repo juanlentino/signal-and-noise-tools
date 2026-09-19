@@ -699,13 +699,11 @@ ap_true( ( $mt['input_schema']['required'] ?? array() ) === array( 'from_slugs',
 ap_eq( 'snt_ability_perm_manage_options', $mt['permission_callback'] ?? '', 'merge-tags: gated on manage_options' );
 ap_true( ( $mt['meta']['annotations']['idempotent'] ?? null ) === false && ( $mt['meta']['annotations']['destructive'] ?? null ) === true, 'merge-tags: non-idempotent + destructive' );
 
-// v6.37.0: suggest-tags + prune-unused-tags abilities.
+// v6.37.0: suggest-tags + prune-unused-tags abilities. 16.9.2: suggest-tags is
+// gone; its only source (the tag-fit pass's proposed tags) was retired, and an
+// ability that always answers an empty list is a lie with a schema.
 echo "\nCategory: tag-hygiene abilities (registration + config)\n";
-$st = $GLOBALS['__test_registered_abilities']['signal-noise/suggest-tags'] ?? null;
-ap_true( is_array( $st ), 'suggest-tags: registered' );
-ap_true( isset( $st['input_schema']['properties']['post_id'] ), 'suggest-tags: schema takes post_id' );
-ap_eq( 'snt_ability_perm_edit_post', $st['permission_callback'] ?? '', 'suggest-tags: per-post edit permission' );
-ap_true( ( $st['meta']['annotations']['readonly'] ?? null ) === true, 'suggest-tags: readonly (no mutation)' );
+ap_true( ! isset( $GLOBALS['__test_registered_abilities']['signal-noise/suggest-tags'] ), 'suggest-tags: not registered since 16.9.2 (the pass proposes no tags)' );
 $pu = $GLOBALS['__test_registered_abilities']['signal-noise/prune-unused-tags'] ?? null;
 ap_true( is_array( $pu ), 'prune-unused-tags: registered' );
 ap_eq( 'snt_ability_perm_manage_options', $pu['permission_callback'] ?? '', 'prune-unused-tags: manage_options' );

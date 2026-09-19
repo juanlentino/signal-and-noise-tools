@@ -53,57 +53,49 @@ function sn_handle_tag_fit_run( $post ) {
 }
 
 /**
- * Apply the tag-fit rows the owner checked. Reads assign[post_id][] and
- * remove[post_id][] = term_id.
+ * Apply the tag-fit rows the owner checked. Reads remove[post_id][] = term_id.
+ * 16.9.2: remove only; the pass no longer proposes tags to add.
  *
  * SECURITY (same shape as the retired sn_handle_tag_ai_apply, v6.39.2): the
- * POSTed maps are attacker-controllable, so the stored pass is the
- * allow-list. A pair is applied ONLY when Jev listed that exact term for that
- * exact post (a missing tag for assign, a misfit for remove), the post is a
- * Note, and the current user can edit_post it. Forged ids riding beside a
- * legitimate one are dropped. Applied pairs leave the stored pass.
+ * POSTed map is attacker-controllable, so the stored pass is the allow-list.
+ * A pair is removed ONLY when Jev listed that exact term as a misfit for that
+ * exact post, the post is a Note, and the current user can edit_post it.
+ * Forged ids riding beside a legitimate one are dropped. Applied pairs leave
+ * the stored pass.
  *
  * @param array $post Raw $_POST.
  * @return string flash code.
  */
 function sn_handle_tag_fit_apply( $post ) {
-	$assign = isset( $post['assign'] ) && is_array( $post['assign'] ) ? wp_unslash( $post['assign'] ) : array();
 	$remove = isset( $post['remove'] ) && is_array( $post['remove'] ) ? wp_unslash( $post['remove'] ) : array();
 	$rows   = function_exists( 'sn_jev_tags_rows' ) && function_exists( 'sn_jev_tags_data' ) ? sn_jev_tags_rows( sn_jev_tags_data() ) : array();
-	$done   = array( 'assign' => array(), 'remove' => array() );
-	foreach ( array( 'assign' => array( $assign, 'add' ), 'remove' => array( $remove, 'remove' ) ) as $what => $pair ) {
-		list( $map, $key ) = $pair;
-		foreach ( $map as $pid => $term_ids ) {
-			$pid = (int) $pid;
-			if ( $pid <= 0 || empty( $rows[ $pid ][ $key ] ) ) {
-				continue; // Jev never listed this post for this action.
-			}
-			if ( 'post' !== get_post_type( $pid ) || ! current_user_can( 'edit_post', $pid ) ) {
-				continue;
-			}
-			$allowed = array_map( 'intval', array_column( $rows[ $pid ][ $key ], 'id' ) );
-			$ids     = array();
-			foreach ( (array) $term_ids as $tid ) {
-				$tid = (int) $tid;
-				if ( $tid > 0 && in_array( $tid, $allowed, true ) ) {
-					$ids[ $tid ] = $tid;
-				}
-			}
-			if ( array() === $ids ) {
-				continue;
-			}
-			if ( 'assign' === $what ) {
-				wp_set_object_terms( $pid, array_values( $ids ), 'post_tag', true );
-			} else {
-				wp_remove_object_terms( $pid, array_values( $ids ), 'post_tag' );
-			}
-			$done[ $what ][ $pid ] = array_values( $ids );
+	$done   = array();
+	foreach ( $remove as $pid => $term_ids ) {
+		$pid = (int) $pid;
+		if ( $pid <= 0 || empty( $rows[ $pid ]['remove'] ) ) {
+			continue; // Jev never listed this post.
 		}
+		if ( 'post' !== get_post_type( $pid ) || ! current_user_can( 'edit_post', $pid ) ) {
+			continue;
+		}
+		$allowed = array_map( 'intval', array_column( $rows[ $pid ]['remove'], 'id' ) );
+		$ids     = array();
+		foreach ( (array) $term_ids as $tid ) {
+			$tid = (int) $tid;
+			if ( $tid > 0 && in_array( $tid, $allowed, true ) ) {
+				$ids[ $tid ] = $tid;
+			}
+		}
+		if ( array() === $ids ) {
+			continue;
+		}
+		wp_remove_object_terms( $pid, array_values( $ids ), 'post_tag' );
+		$done[ $pid ] = array_values( $ids );
 	}
-	if ( function_exists( 'sn_jev_tags_forget' ) && ( $done['assign'] || $done['remove'] ) ) {
-		sn_jev_tags_forget( $done['assign'], $done['remove'] );
+	if ( function_exists( 'sn_jev_tags_forget' ) && $done ) {
+		sn_jev_tags_forget( $done );
 	}
-	return ( $done['assign'] || $done['remove'] ) ? 'tag_fit_applied' : 'tag_fit_nothing';
+	return $done ? 'tag_fit_applied' : 'tag_fit_nothing';
 }
 
 /**

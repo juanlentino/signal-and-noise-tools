@@ -3,11 +3,10 @@
  * Signal & Noise Tools — Content Health check 31: tags Jev reads as not
  * fitting (16.8.0).
  *
- * Over the stored tag-fit pass (inc/jev-tags.php). A finding per note:
- * an attached tag the note does not argue about (score under 1 of 2, read
- * with confidence 0.5 or better) and a tag the note does not carry that a
- * reader browsing it would expect (probability 0.8 or above; 16.9.1 moved
- * both lines off the first live pass). Tags are not prose, so a published note can
+ * Over the stored tag-fit pass (inc/jev-tags.php). A finding per note: an
+ * attached tag whose subject the note does not touch (score under 0.5 of 2,
+ * read with confidence 0.7 or better; the lines moved off two live passes,
+ * 16.9.1 and 16.9.2, and the add side is gone since 16.9.2). Tags are not prose, so a published note can
  * take the fix; and the tag's description is what Jev read, so a wrong
  * reading of a right tag is a description to fix, not a tag to remove.
  *
@@ -37,12 +36,6 @@ function sn_health_jev_tags_judge( $notes ) {
 				$parts[] = sprintf( 'Jev reads the tag "%s" as attached for reach (%.2f of 2, confidence %.2f).', (string) $t['name'], (float) $t['score'], (float) $t['confidence'] );
 			}
 		}
-		foreach ( (array) ( $n['missing'] ?? array() ) as $t ) {
-			if ( ! sn_jev_tag_is_add( $t ) ) {
-				continue;
-			}
-			$parts[] = sprintf( 'A reader browsing "%s" would expect this note (%.2f).', (string) $t['name'], (float) $t['noul'] );
-		}
 		if ( array() === $parts ) {
 			continue;
 		}
@@ -65,8 +58,8 @@ function sn_health_jev_tags_judge( $notes ) {
  * @return array
  */
 function sn_health_check_jev_tags() {
-	$label = 'Notes whose tags Jev reads as not fitting (attached for reach, or a tag the note should carry)';
-	$hint  = 'An advisory, not a fault: it re-opens as notes and tags arrive, and the names itemize on the jev-tags ability. Tags are not prose: a tag change moves nothing the signature covers, so a published note can take the fix. Remove a tag the note does not argue about; add one a reader browsing it would expect. Jev read each tag\'s DESCRIPTION, so a wrong reading of a right tag is the description to fix (Content › Tags), not the tag. The weekly pass re-reads; jev-tags-now runs it now.';
+	$label = 'Notes carrying a tag Jev reads as attached for reach (the subject is absent from the note)';
+	$hint  = 'An advisory, not a fault: it re-opens as notes and tags arrive, and the names itemize on the jev-tags ability. Tags are not prose: a tag change moves nothing the signature covers, so a published note can take the fix. Remove a tag whose subject the note does not touch. Jev read each tag\'s DESCRIPTION, so a wrong reading of a right tag is the description to fix (Content › Tags), not the tag. The weekly pass re-reads; jev-tags-now runs it now.';
 	if ( ! function_exists( 'sn_jev_is_ready' ) || ! sn_jev_is_ready() ) {
 		return sn_health_pack_check( $label, array(), $hint, SN_JEV_NOT_READY . ' The tag-fit pass does not run without it.' );
 	}

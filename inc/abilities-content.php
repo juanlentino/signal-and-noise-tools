@@ -162,34 +162,6 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 	) );
 
-	wp_register_ability( 'signal-noise/suggest-tags', array(
-		'label'               => 'Suggest tags for a post',
-		'description'         => 'The tags a reader would expect this post under, from Jev\'s stored tag-fit pass (16.9.0; the Claude suggester is retired): existing post_tag terms only, never an invented one, with Jev\'s probability. Read-only: returns suggestions to apply, does not assign anything. `run jev-tags-now` first if the pass is older than the post.',
-		'category'            => 'content',
-		'permission_callback' => 'snt_ability_perm_edit_post',
-		'execute_callback'    => 'snt_ability_suggest_tags',
-		'input_schema'        => array(
-			'type'                 => 'object',
-			'required'             => array( 'post_id' ),
-			'properties'           => array(
-				'post_id' => array( 'type' => 'integer', 'minimum' => 1, 'description' => 'The post to suggest tags for.' ),
-			),
-			'additionalProperties' => false,
-		),
-		'output_schema'       => array(
-			'type'       => 'object',
-			'properties' => array(
-				'ok'        => array( 'type' => 'boolean' ),
-				'post_id'   => array( 'type' => 'integer' ),
-				'suggested' => array( 'type' => 'array' ),
-			),
-		),
-		'meta'                => array(
-			'show_in_rest' => true,
-			'annotations'  => array( 'readonly' => true ),
-		),
-	) );
-
 	wp_register_ability( 'signal-noise/prune-unused-tags', array(
 		'label'               => 'Delete unused (zero-post) tags',
 		'description'         => 'Deletes every post_tag term that has zero posts. Destructive. Use to clear tag cruft after merges/imports.',
@@ -364,32 +336,6 @@ function snt_ability_merge_tags( $input ) {
 	return array( 'ok' => true, 'posts_moved' => (int) $res['posts_moved'], 'into_slug' => (string) $res['into_slug'], 'message' => 'Merged.' );
 }
 
-/**
- * Ability execute: suggest existing tags for a post.
- *
- * @param array $input { post_id:int }.
- * @return array|WP_Error
- */
-function snt_ability_suggest_tags( $input ) {
-	$post_id = isset( $input['post_id'] ) ? (int) $input['post_id'] : 0;
-	if ( ! $post_id || ! function_exists( 'sn_jev_tags_data' ) ) {
-		return new WP_Error( 'snt_tag_suggest_unavailable', 'Tag suggestion is unavailable.', array( 'status' => 400 ) );
-	}
-	// 16.9.0: Jev's stored tag-fit pass is the source; nothing is generated here.
-	$data = sn_jev_tags_data();
-	if ( null === $data ) {
-		return new WP_Error( 'snt_tag_suggest_no_pass', 'No tag-fit pass yet; run jev-tags-now.', array( 'status' => 409 ) );
-	}
-	$note      = (array) ( $data['notes'][ $post_id ] ?? array() );
-	$suggested = array();
-	foreach ( (array) ( $note['missing'] ?? array() ) as $t ) {
-		if ( ! sn_jev_tag_is_add( $t ) ) {
-			continue; // 16.9.1: the same line the Tags leaf lists from.
-		}
-		$suggested[] = array( 'term_id' => (int) $t['id'], 'name' => (string) $t['name'], 'probability' => (float) $t['noul'] );
-	}
-	return array( 'post_id' => $post_id, 'suggested' => $suggested, 'read_at' => (int) $data['synced_at'], 'note' => array() === $suggested && ! isset( $data['notes'][ $post_id ] ) ? 'The pass did not include this post; run jev-tags-now.' : '' );
-}
 
 /**
  * Ability execute: delete all zero-post tags.

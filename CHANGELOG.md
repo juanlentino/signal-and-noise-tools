@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Tag fit reads the tags a note carries, asks the house question, and proposes nothing.** The second live pass showed both walls came from one mismatch: Jev was asked whether a note ARGUES what a tag names, and the site tags by what a note TOUCHES. Under the strict question a broad facet fit 44 of 69 notes (so Jev wanted Authorship everywhere, "The unlabeled majority" drew seven adds) and a touched-not-argued tag read 0.07 (so "Market harm names no track" lost three of four). The add side is gone: no Noul per candidate (60 questions a note, most of the 422k tokens), no umbrella lines, no Add boxes, no `assign[]` in the apply handler, and `signal-noise/suggest-tags` is unregistered (its only source went with them); what a note carries is the owner's call. The attached-tag question now asks whether the note touches what the tag names so a reader browsing the tag would find it relevant (0 the subject is absent, 1 touches it, 2 is about it), and a misfit is under 0.5 of 2 at confidence 0.7 or better: a short list Jev is sure about, or nothing. The stored 16.9.1 pass is still readable (its proposals are ignored); Read tags now replaces it for under a cent. `jev-tags-now` loses `missing`, `jev-tags` loses `umbrellas` and carries every attached score beside the misfits. Tests: jev-tags 21, admin-post-actions 215, os-leaf-content-tags 44, tag-consolidation-admin 31, abilities-integration 183.
+
 ## [16.9.1] - 2026-09-19 — a shrug is not a verdict
 
 ### Fixed

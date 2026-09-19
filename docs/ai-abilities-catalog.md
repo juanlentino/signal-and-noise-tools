@@ -48,8 +48,8 @@ This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/jev-tells-check` | `manage_options` | maintenance | WRITE | RW-DOOR (16.7.0; the anti-tell pass on one note, stored on the post for the pre-publish panel) |
 | `signal-noise/jev-tells-pass` | `manage_options` | maintenance | WRITE | RW-DOOR (16.7.0; every published note, one request each; a reading, never a remedy) |
 | `signal-noise/jev-tells` | `manage_options` | diagnostics | — | READ-DOOR (16.7.0; the stored anti-tell pass, flagged notes only) |
-| `signal-noise/jev-tags-now` | `manage_options` | maintenance | WRITE | RW-DOOR (16.8.0; one request per note, a Score per attached tag and a Noul per candidate tag; stores the pass) |
-| `signal-noise/jev-tags` | `manage_options` | diagnostics | — | READ-DOOR (16.8.0; the stored tag-fit pass: misfits and missing tags per note; check 31 reads the same; 16.9.1 misfits need confidence 0.5, adds start at 0.8, `umbrellas` names the tags suggested on a third of the notes) |
+| `signal-noise/jev-tags-now` | `manage_options` | maintenance | WRITE | RW-DOOR (16.8.0; one request per note that carries tags, a Score per attached tag; 16.9.2 asks whether the note touches what the tag names and proposes nothing; stores the pass) |
+| `signal-noise/jev-tags` | `manage_options` | diagnostics | — | READ-DOOR (16.8.0; the stored tag-fit pass; check 31 reads the same. 16.9.2: misfits only, a tag whose subject the note does not touch, under 0.5 at confidence 0.7; every attached score beside them; no proposed tags) |
 | `signal-noise/get-404-log` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-collector-status` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-insights` | `manage_options` | diagnostics | ✓ | READ-DOOR |
@@ -83,7 +83,7 @@ This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/pattern-adoption-apply` | `edit_post` | ai-generation | — | RW-DOOR |
 | `signal-noise/block-migrations-suggest` | `edit_post` | diagnostics | — | RW-DOOR |
 | `signal-noise/block-migrations-apply` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/suggest-tags` | `edit_post` | content | — | RW-DOOR (16.9.0: reads Jev's stored tag-fit pass; the Claude suggester is retired; nothing generated) |
+| `signal-noise/suggest-tags` | `edit_post` | content | — | RETIRED 16.9.2 (its only source, the tag-fit pass's proposed tags, went with them; 16.9.0 had it read the pass, 16.9.2 unregistered it) |
 | `signal-noise/regenerate-og-card` | `edit_post` | content | — | RW-DOOR |
 | `signal-noise/content-queue` | `edit_posts` | content | — | ABSORBED by `sn-posts` (15.8.0; the SN Queue widget's read: next four scheduled with site-timezone labels, scheduled total + runs-to date, last three published) |
 | `signal-noise/dismiss-candidate` | `edit_post` | maintenance | — | RW-DOOR |
@@ -385,8 +385,7 @@ These abilities spend AI budget and/or modify content. Exposed on write door onl
 - `signal-noise/ai-generate-meta-description` | `edit_post` — 140–160 char SEO description
 - `signal-noise/ai-generate-og-card-title` | `edit_post` — 60–90 char social-share variant
 
-#### Tag Suggestions + Pruning (2 abilities)
-- `signal-noise/suggest-tags` | `edit_post` — Suggest tags from vocabulary
+#### Tag Pruning (1 ability; suggest-tags retired 16.9.2)
 - `signal-noise/prune-unused-tags` | `manage_options` — Delete all zero-post tags (destructive)
 
 #### Tag Consolidation

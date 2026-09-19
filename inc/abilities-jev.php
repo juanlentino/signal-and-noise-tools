@@ -331,12 +331,11 @@ function snt_ability_jev_tags( $input = array() ) {
 	$flagged = array();
 	foreach ( (array) $d['notes'] as $id => $n ) {
 		$misfits = array_values( array_filter( (array) ( $n['attached'] ?? array() ), 'sn_jev_tag_is_misfit' ) );
-		$missing = array_values( array_filter( (array) ( $n['missing'] ?? array() ), 'sn_jev_tag_is_add' ) );
-		if ( array() !== $misfits || array() !== $missing ) {
-			$flagged[ (int) $id ] = array( 'title' => (string) $n['title'], 'misfits' => $misfits, 'missing' => $missing, 'attached' => (array) $n['attached'] );
+		if ( array() !== $misfits ) {
+			$flagged[ (int) $id ] = array( 'title' => (string) $n['title'], 'misfits' => $misfits, 'attached' => (array) $n['attached'] );
 		}
 	}
-	return array( 'ok' => true, 'judged' => true, 'at' => (int) $d['synced_at'], 'tags' => (int) ( $d['tags'] ?? 0 ), 'notes_judged' => count( (array) $d['notes'] ), 'flagged' => count( $flagged ), 'notes' => $flagged, 'umbrellas' => sn_jev_tags_umbrellas( $d ), 'input_tokens' => (int) ( $d['usage']['input_tokens'] ?? 0 ), 'error' => (string) ( $d['last_error'] ?? '' ), 'note' => 'misfits: attached tags scored under 1 of 2 at confidence 0.5 or better (the note does not argue what the tag names; a lower confidence is a shrug, not a verdict, and is not listed). missing: tags the note does not carry that a reader browsing them would expect, 0.8 or better. umbrellas: tags Jev would add to a third of the notes or more at 0.6, said once with how many notes carry them; a tag that fits a third of the corpus is a category, or a description to narrow. Jev read each tag\'s description; a wrong reading of a right tag is the description to fix. Tags are not prose: a published note can take the change.' );
+	return array( 'ok' => true, 'judged' => true, 'at' => (int) $d['synced_at'], 'tags' => (int) ( $d['tags'] ?? 0 ), 'notes_judged' => count( (array) $d['notes'] ), 'flagged' => count( $flagged ), 'notes' => $flagged, 'input_tokens' => (int) ( $d['usage']['input_tokens'] ?? 0 ), 'error' => (string) ( $d['last_error'] ?? '' ), 'note' => 'misfits: attached tags whose subject the note does not touch, scored under 0.5 of 2 at confidence 0.7 or better (a lower confidence is a shrug, not a verdict, and is not listed). `attached` carries every tag\'s score for the record. Jev does not propose tags: what a note carries is the owner\'s call. Jev read each tag\'s description; a wrong reading of a right tag is the description to fix. Tags are not prose: a published note can take the change.' );
 }
 
 add_action( 'wp_abilities_api_init', function () {
@@ -345,22 +344,22 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/jev-tags-now', array(
 		'label'               => 'Jev: read every note against its tags, now',
-		'description'         => 'One request per published or scheduled note: one Score per attached tag (does the note argue what the tag names: 0 attached for reach, 1 touches it, 2 argues it) and one Noul per tag the note does not carry (would a reader browsing it expect this note), the tag descriptions as the state. Stores the pass; the weekly hook runs the same. About seventy requests; a cent or two.',
+		'description'         => 'One request per published or scheduled note that carries tags: one Score per attached tag (does the note touch what the tag names, so a reader browsing the tag would find it relevant: 0 the subject is absent, attached for reach; 1 touches it; 2 is about it), the tag descriptions as the state. Stores the pass; the weekly hook runs the same. About seventy requests; under a cent.',
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_tags_now',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
-		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'misfits' => array( 'type' => 'integer' ), 'missing' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'misfits' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
 	) );
 	wp_register_ability( 'signal-noise/jev-tags', array(
 		'label'               => 'Jev: the stored tag-fit pass',
-		'description'         => 'The notes the last tag-fit pass flagged: attached tags scored under 1 of 2 at confidence 0.5 or better, and tags the note does not carry that a reader would expect (0.8+). `umbrellas` names the tags Jev would add to a third of the notes or more, once each: a vocabulary finding, not rows. Read-only; check 31 and the Tags leaf read the same lines.',
+		'description'         => 'The notes the last tag-fit pass flagged: attached tags whose subject the note does not touch, scored under 0.5 of 2 at confidence 0.7 or better, with every attached tag\'s score beside them. No proposed tags: what a note carries is the owner\'s call. Read-only; check 31 and the Tags leaf read the same lines.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_tags',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
-		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'boolean' ), 'flagged' => array( 'type' => 'integer' ), 'notes' => array( 'type' => 'object' ), 'umbrellas' => array( 'type' => 'array' ), 'note' => array( 'type' => 'string' ) ) ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'boolean' ), 'flagged' => array( 'type' => 'integer' ), 'notes' => array( 'type' => 'object' ), 'note' => array( 'type' => 'string' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
 	) );
 } );

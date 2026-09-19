@@ -5,7 +5,7 @@
  * WHY THREE OF THE FORMS ARE A NATIVE `<form>`. `<os-form>` collects its
  * values by name, later-wins, and reads every checkbox as a boolean
  * (os-form.ts `getValues()` / `_readField()`, OpenStation 1.1.6). The classic
- * cluster form (`sn_tag_from[]`), the AI apply form (`assign[{post}][]`) and
+ * cluster form (`sn_tag_from[]`), the tag-fit apply form (`remove[{post}][]`) and
  * the prune form (`sn_tag_unused[]`) are lists of checkboxes whose VALUE is a
  * term id, and every handler reads those values — through an `<os-form>` they
  * would arrive as one boolean under one name (the prune would delete term 1).
@@ -240,8 +240,10 @@ function tags_confirm_html( $pv, array $from, $into, $tab ) {
 
 /**
  * 16.9.0: Jev tag fit. Replaces the Claude suggest (untagged notes only, a
- * proposal only): Jev reads every note against every tag. The rows are the
- * allow-list sn_handle_tag_fit_apply() enforces; this only paints them.
+ * proposal only). 16.9.2: Jev reads every note against the tags it carries
+ * and lists the ones whose subject it could not find; it proposes none. The
+ * rows are the allow-list sn_handle_tag_fit_apply() enforces; this only
+ * paints them.
  *
  * @return string
  */
@@ -254,11 +256,10 @@ function tags_fit_html() {
 	$rows = null === $data ? array() : \sn_jev_tags_rows( $data );
 	$run  = \snt_kit_form( 'tag_fit_run', '', array( 'submit' => __( 'Read tags now', 'signal-and-noise-tools' ) ) );
 	if ( null === $data ) {
-		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'Jev reads every published and scheduled note against its tags and against the tags it does not carry, the tag descriptions as the state. About seventy requests; a cent or two.', 'signal-and-noise-tools' ) ) . '</p>' . $run );
+		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'Jev reads every published and scheduled note against the tags it carries, the tag descriptions as the state: a tag whose subject the note does not touch is listed for removal. About seventy requests; under a cent.', 'signal-and-noise-tools' ) ) . '</p>' . $run );
 	}
-	$umbrellas = tags_umbrellas_html( \sn_jev_tags_umbrellas( $data ) );
 	if ( array() === $rows ) {
-		return \snt_kit_section( $heading, $umbrellas . '<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: %s: how long ago */ __( 'Last read %s ago: every tag on every note fits, and no note is missing one a reader would expect.', 'signal-and-noise-tools' ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>' . $run );
+		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: %s: how long ago */ __( 'Last read %s ago: every tag on every note touches its subject.', 'signal-and-noise-tools' ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>' . $run );
 	}
 	$inner = '';
 	foreach ( $rows as $pid => $row ) {
@@ -266,36 +267,14 @@ function tags_fit_html() {
 		foreach ( $row['remove'] as $t ) {
 			$boxes .= tags_check_row( 'remove[' . (int) $pid . '][]', (int) $t['id'], \snt_kit_esc( sprintf( /* translators: 1: tag, 2: score */ __( 'Remove "%1$s" (attached for reach, %2$s of 2)', 'signal-and-noise-tools' ), (string) $t['name'], number_format_i18n( (float) $t['score'], 2 ) ) ), false );
 		}
-		foreach ( $row['add'] as $t ) {
-			$boxes .= tags_check_row( 'assign[' . (int) $pid . '][]', (int) $t['id'], \snt_kit_esc( sprintf( /* translators: 1: tag, 2: probability */ __( 'Add "%1$s" (a reader would expect it, %2$s)', 'signal-and-noise-tools' ), (string) $t['name'], number_format_i18n( (float) $t['noul'], 2 ) ) ), false );
-		}
 		$inner .= '<p class="snt-prose"><strong><a href="' . esc_url( get_edit_post_link( (int) $pid ) ?: '' ) . '">' . \snt_kit_esc( $row['title'] ) . '</a></strong></p><ul class="snt-list">' . $boxes . '</ul>';
 	}
 	return \snt_kit_section(
 		$heading,
-		$umbrellas
-		. '<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: 1: notes flagged, 2: how long ago */ __( '%1$d notes, read %2$s ago. A misfit is a tag Jev scored under 1 of 2 with confidence 0.5 or better; an add is a tag a reader would expect at 0.8 or better. Jev read each tag\'s description: a wrong reading of a right tag is the description to fix. Tags are not prose; a published note can take the change.', 'signal-and-noise-tools' ), count( $rows ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>'
+		'<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: 1: notes flagged, 2: how long ago */ __( '%1$d notes, read %2$s ago. A misfit is a tag whose subject Jev could not find in the note, scored under 0.5 of 2 with confidence 0.7 or better; nothing else is listed, and Jev proposes no tags. Jev read each tag\'s description: a wrong reading of a right tag is the description to fix. Tags are not prose; a published note can take the change.', 'signal-and-noise-tools' ), count( $rows ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>'
 		. tags_form( 'post', tags_post_hidden( 'tag_fit_apply' ), $inner, __( 'Apply selected', 'signal-and-noise-tools' ) )
 		. $run
 	);
-}
-
-/**
- * 16.9.1: the umbrella tags, one line each. A tag Jev would add to a third
- * of the notes is a category or a description to narrow, not thirty rows.
- *
- * @param array $umbrellas From sn_jev_tags_umbrellas().
- * @return string '' when there are none.
- */
-function tags_umbrellas_html( array $umbrellas ) {
-	if ( array() === $umbrellas ) {
-		return '';
-	}
-	$items = '';
-	foreach ( $umbrellas as $u ) {
-		$items .= '<li>' . \snt_kit_esc( sprintf( /* translators: 1: tag, 2: notes Jev would add it to, 3: notes read, 4: notes carrying it */ __( '%1$s: Jev would add it to %2$d of %3$d notes; %4$d carry it.', 'signal-and-noise-tools' ), (string) $u['name'], (int) $u['suggested'], (int) $u['notes'], (int) $u['attached'] ) ) . '</li>';
-	}
-	return '<p class="snt-prose"><strong>' . \snt_kit_esc( __( 'Umbrella tags', 'signal-and-noise-tools' ) ) . '</strong> ' . \snt_kit_esc( __( 'A tag that fits a third of the corpus is a category, or a description to narrow. Attach it everywhere or tighten it; the rows below leave it out.', 'signal-and-noise-tools' ) ) . '</p><ul class="snt-list">' . $items . '</ul>';
 }
 
 /**
