@@ -91,6 +91,20 @@ if ( ! function_exists( 'wp_enqueue_script' ) ) {
 if ( ! function_exists( 'wp_set_script_translations' ) ) {
 	function wp_set_script_translations( $handle, $domain = 'default', $path = null ) { return true; }
 }
+// 16.9.2: the ceiling reaches the gate as an inline config; capture it.
+$GLOBALS['__test_inline'] = array();
+if ( ! function_exists( 'wp_add_inline_script' ) ) {
+	function wp_add_inline_script( $handle, $data, $position = 'after' ) {
+		$GLOBALS['__test_inline'][] = array( 'handle' => $handle, 'data' => $data, 'position' => $position );
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_json_encode' ) ) {
+	function wp_json_encode( $v ) { return json_encode( $v ); }
+}
+if ( ! defined( 'SN_TAG_CEILING' ) ) {
+	define( 'SN_TAG_CEILING', 4 ); // the real constant lives in inc/health-check-tag-hygiene.php
+}
 if ( ! function_exists( 'plugins_url' ) ) {
 	function plugins_url( $path = '', $plugin = '' ) {
 		return 'https://example.test/wp-content/plugins/sn/' . ltrim( (string) $path, '/' );
@@ -182,6 +196,18 @@ pg_true( false !== strpos( $gate_js, "getEditedPostAttribute( 'excerpt' )" ), 'e
 pg_true( false !== strpos( $gate_js, 'No excerpt set' ), 'the empty-excerpt advisory copy exists' );
 pg_true( false === strpos( $gate_js, 'lockPostSaving(' ), 'the gate NEVER calls lockPostSaving — advisory only, forever (the docblock may name it, code may not)' );
 pg_true( false === strpos( $gate_js, 'apiFetch' ), 'the gate makes zero network calls (wp.data only)' );
+
+echo "\nTest: 16.9.2 the tag ceiling reaches the gate from PHP\n";
+$GLOBALS['__test_caps'] = array( 'edit_posts' => true );
+$GLOBALS['__test_inline'] = array();
+pg_fire( 'post.php' );
+$inline = $GLOBALS['__test_inline'][0] ?? array();
+pg_eq( 'snt-pre-publish-gate', $inline['handle'] ?? '', 'the config rides the gate handle' );
+pg_eq( 'before', $inline['position'] ?? '', 'and is printed before the gate runs' );
+pg_eq( 'window.sntPrePublishGateConfig = {"tagCeiling":4};', $inline['data'] ?? '', 'the ceiling is SN_TAG_CEILING, the one constant' );
+pg_true( false !== strpos( $gate_js, 'cfg.tagCeiling' ) && false !== strpos( $gate_js, 'tagCount > ceiling' ), 'the JS reads the ceiling from the config and compares the edited tag count against it' );
+pg_true( ! preg_match( '/ceiling\s*[=:]\s*\d/', $gate_js ), 'no ceiling number is written in the JS' );
+pg_true( false !== strpos( $gate_js, 'the house ceiling is' ), 'the over-ceiling advisory copy exists' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -10,6 +10,8 @@
  *   - noindex left ON          → post & page
  *   - empty SN meta description → post & page
  *   - zero tags                → post only
+ *   - tags over the ceiling    → post only (16.9.2; the line arrives from PHP
+ *     as window.sntPrePublishGateConfig.tagCeiling, never a number here)
  *
  * No JSX (classic-script IIFE, matching assets/command-palette.js): every
  * node is built with wp.element.createElement.
@@ -191,6 +193,11 @@
 			var tagCount = Array.isArray( tags ) ? tags.length : 0;
 			if ( tagCount === 0 ) {
 				warnings.push( __( 'No tags assigned. Tags help readers discover related posts.', 'signal-noise-tools' ) );
+			}
+			var cfg = window.sntPrePublishGateConfig || {};
+			var ceiling = parseInt( cfg.tagCeiling, 10 );
+			if ( ceiling > 0 && tagCount > ceiling ) {
+				warnings.push( tagCount + ' ' + __( 'tags assigned; the house ceiling is', 'signal-noise-tools' ) + ' ' + ceiling + '. ' + __( 'Keep the facets the note is about.', 'signal-noise-tools' ) );
 			}
 
 			// Empty excerpt — posts only (the theme's cards + feeds lean on it).

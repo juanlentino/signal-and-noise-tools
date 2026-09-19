@@ -728,6 +728,24 @@ function snt_sn_scan_adapter_tag_hygiene( $allowed_ids ) {
 	foreach ( $findings as $f ) {
 		$type = (string) ( $f['type'] ?? '' );
 		$name = (string) ( $f['name'] ?? '' );
+		if ( 'over_ceiling' === $type ) {
+			// 16.9.2: the one post-level row in a term-level scan. Fixed in
+			// the editor, so no apply hint; the fingerprint is the count, so
+			// a trim to a different count above the line is a new candidate.
+			$pid          = (int) ( $f['post_id'] ?? 0 );
+			$candidates[] = array(
+				'target_identity'     => 'post:' . $pid,
+				'content_fingerprint' => md5( 'over_ceiling|' . $pid . '|' . (int) ( $f['tags'] ?? 0 ) ),
+				'targets'             => array( array( 'post_id' => $pid, 'title' => $name, 'tags' => (int) ( $f['tags'] ?? 0 ) ) ),
+				'confidence'          => SNT_SN_SCAN_CONF_TAG_HYGIENE,
+				'evidence'            => array(
+					'detector' => 'over_ceiling',
+					'note'     => 'A note carrying more than ' . SN_TAG_CEILING . ' tags; keep the facets it is about.',
+				),
+				'apply_hint'          => null,
+			);
+			continue;
+		}
 		if ( '' === $name || ! in_array( $type, array( 'undescribed', 'unused' ), true ) ) {
 			continue;
 		}

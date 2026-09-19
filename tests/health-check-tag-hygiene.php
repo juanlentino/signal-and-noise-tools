@@ -44,6 +44,13 @@ function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = nul
 	);
 }
 
+
+// 16.9.2: the ceiling walk reads posts and their tag ids; the fixture maps id => tag ids.
+$GLOBALS['__posts'] = array();
+function get_posts( $args ) { return array_keys( $GLOBALS['__posts'] ); }
+function wp_get_post_tags( $id, $args = array() ) { return $GLOBALS['__posts'][ (int) $id ] ?? array(); }
+function get_the_title( $id ) { return 'Note ' . (int) $id; }
+
 require_once __DIR__ . '/../inc/health-check-tag-hygiene.php';
 
 echo "health check: tag hygiene\n\n";
@@ -96,6 +103,17 @@ echo "\nGroup: empty vocabulary is a real, clean answer\n";
 $GLOBALS['__terms_result'] = array();
 $r = sn_health_check_tag_hygiene();
 ok( 0 === $r['count'] && null === $r['skipped'], 'no tags at all → ran, zero findings' );
+
+echo "\nGroup: 16.9.2 the ceiling\n";
+ok( 4 === SN_TAG_CEILING, 'the ceiling is 4' );
+$GLOBALS['__terms_result'] = array();
+$GLOBALS['__posts'] = array( 7 => array( 1, 2, 3, 4 ), 8 => array( 1, 2, 3, 4, 5 ), 9 => array( 1, 2, 3, 4, 5, 6 ), 10 => array() );
+$over = sn_tag_notes_over_ceiling();
+ok( array( 9, 8 ) === array_column( $over, 'post_id' ) && 6 === $over[0]['tags'] && 'Note 9' === $over[0]['title'], 'notes over the ceiling, most tags first; four is not over, zero is not over' );
+$r = sn_health_check_tag_hygiene();
+ok( 2 === $r['count'] && 'over_ceiling' === $r['findings'][0]['type'] && 8 === $r['findings'][1]['post_id'] && 5 === $r['findings'][1]['tags'], 'the check carries an over_ceiling finding per note with the id and the count' );
+ok( str_contains( $r['fix_hint'], 'more than 4 tags' ), 'the hint names the line' );
+$GLOBALS['__posts'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
