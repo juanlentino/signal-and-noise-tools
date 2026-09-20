@@ -3,13 +3,16 @@
  *
  * The Posts workspace (OpenStation 1.1.8, #779) lists `/wp/v2/posts` and lets
  * a plugin append cells through the `openstation.postsWindow.columns` filter.
- * Both values ride the list request the window already makes (the PHP side
- * appends `sn_provenance` and `sn_edge` to the window's `_fields`): no extra
- * fetch per row.
+ * All three values ride the list request the window already makes (the PHP
+ * side appends `sn_provenance`, `sn_edge` and `meta._sn_evergreen` to the
+ * window's `_fields`): no extra fetch per row.
  *
  *   Provenance — the anchor-status badge the Explorer paints (`sn_provenance`).
  *   Edge       — the last edge-cache probe verdict for the post (`sn_edge`),
  *                the same row the note dossier's Edge block reads.
+ *   Evergreen  - the `_sn_evergreen` flag (`meta._sn_evergreen`), the classic
+ *                list-table column's twin (inc/post-evergreen.php); not
+ *                flagged paints nothing.
  *
  * ABSENT IS NOT ZERO. A Note without `sn_provenance` is unsigned; a post with
  * no `sn_edge` has no probe in the site-wide twenty-row log. Either cell stays
@@ -113,6 +116,29 @@
 					return document.createElement( 'span' );
 				}
 				return edgeBadge( value );
+			}
+		},
+		{
+			key: 'meta._sn_evergreen',
+			label: 'Evergreen',
+			render: function ( _value, row ) {
+				// os-table hands row[key], a flat lookup; the flag lives under
+				// row.meta. Not flagged, or the meta never arrived: an empty node.
+				var meta = row && row.meta;
+				if ( ! meta || true !== meta._sn_evergreen ) {
+					return document.createElement( 'span' );
+				}
+				var node = document.createElement( 'span' );
+				node.style.cssText =
+					'display:inline-flex;align-items:center;gap:4px;font-size:11px;line-height:1;white-space:nowrap;' +
+					'color: var( --os-ui-fg-muted, #8b949e );';
+				var dot = document.createElement( 'span' );
+				dot.style.cssText = 'width:6px;height:6px;border-radius:50%;background:#3fb950;';
+				node.appendChild( dot );
+				node.appendChild( document.createTextNode( 'Evergreen' ) );
+				node.title = 'Flagged evergreen: intentionally timeless. The stale-posts check labels it; the lifecycle leaderboard does not list it for refresh.';
+				node.setAttribute( 'aria-label', node.title );
+				return node;
 			}
 		}
 	];
