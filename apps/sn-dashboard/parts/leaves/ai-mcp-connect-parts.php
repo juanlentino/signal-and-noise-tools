@@ -278,13 +278,16 @@ function mcp_connect_usage_html( $open = false ) {
 
 	$zero = (array) ( $usage['zero_call'] ?? array() );
 	$by_tool = (array) ( $usage['by_tool'] ?? array() );
-	uasort( $by_tool, static function ( $a, $b ) { return (int) $b['calls'] <=> (int) $a['calls']; } );
+	// Door calls lead, since that is the column; the polls only break ties.
+	uasort( $by_tool, static function ( $a, $b ) { return ( (int) ( $b['door_calls'] ?? 0 ) <=> (int) ( $a['door_calls'] ?? 0 ) ) ?: ( (int) $b['calls'] <=> (int) $a['calls'] ); } );
 
+	// The words are the classic block's (inc/admin-forms/mcp-usage-block.php),
+	// read through its helpers so the two surfaces cannot drift.
 	$rows = array();
 	foreach ( $by_tool as $name => $row ) {
 		$rows[] = array(
 			'tool'      => (string) $name,
-			'calls'     => number_format_i18n( (int) ( $row['calls'] ?? 0 ) ),
+			'calls'     => function_exists( 'sn_admin_mcp_usage_calls_cell' ) ? sn_admin_mcp_usage_calls_cell( $row ) : number_format_i18n( (int) ( $row['door_calls'] ?? 0 ) ),
 			'last_seen' => (string) ( $row['last_seen'] ?? '—' ),
 			'doors'     => implode( ', ', (array) ( $row['doors'] ?? array() ) ),
 		);
@@ -304,13 +307,16 @@ function mcp_connect_usage_html( $open = false ) {
 		: '<p class="snt-prose"><b>' . \snt_kit_esc( __( 'No calls in this window', 'signal-and-noise-tools' ) ) . '</b></p>'
 			. '<ul class="snt-plain">' . implode( '', array_map( static function ( $entry ) use ( $labels ) {
 				$verdict = (string) ( $entry['verdict'] ?? '' );
+				if ( 'first_party_only' === $verdict && function_exists( 'sn_admin_mcp_usage_first_party_label' ) ) {
+					$labels[ $verdict ] = sn_admin_mcp_usage_first_party_label( $entry ); // The closure's own copy; the count rides in.
+				}
 				return '<li>' . \snt_kit_code( (string) ( $entry['slug'] ?? '' ), false ) . ' — ' . \snt_kit_esc( $labels[ $verdict ] ?? $verdict ) . '</li>';
 			}, $zero ) ) . '</ul>'
 			. '<p class="snt-hint">' . \snt_kit_esc( __( 'Only “retirement candidate” entries are evidence for removal. A tool that cannot be projected has no calls because it cannot be called — retiring it would delete the evidence of the defect. Reachability is checked from inside the plugin, so it cannot see a client proxy rejecting a schema; treat it as necessary, not sufficient.', 'signal-and-noise-tools' ) ) . '</p>';
 
 	$summary = sprintf(
-		/* translators: 1: measured days, 2: window days, 3: zero-call tool count. */
-		__( 'Measured over %1$d days of a %2$d-day window · %3$d tools with no calls', 'signal-and-noise-tools' ),
+		/* translators: 1: measured days, 2: window days, 3: count of tools with no calls through a door. */
+		__( 'Measured over %1$d days of a %2$d-day window · %3$d tools with no calls through a door', 'signal-and-noise-tools' ),
 		(int) ( $usage['measured_days'] ?? 0 ),
 		(int) ( $usage['window_days'] ?? 0 ),
 		count( $zero )
@@ -320,7 +326,8 @@ function mcp_connect_usage_html( $open = false ) {
 		? '<p class="snt-hint">' . sprintf( /* translators: 1: first recorded date, 2: window days. */ \snt_kit_esc( __( 'Partial window. Recording began %1$s, so this covers less than the full %2$d days asked for. A tool with no calls here may simply predate the sensor.', 'signal-and-noise-tools' ) ), \snt_kit_esc( (string) $since ), (int) ( $usage['window_days'] ?? 0 ) ) . '</p>'
 		: '';
 
-	$body = $partial . $table . $zero_html . '<p class="snt-hint">' . sprintf( /* translators: %d: total recorded calls. */ \snt_kit_esc( __( '%d calls recorded in this window, including calls that never resolved to a tool.', 'signal-and-noise-tools' ) ), (int) ( $usage['total_rows'] ?? 0 ) ) . '</p>';
+	$split = function_exists( 'sn_admin_mcp_usage_door_split' ) ? sn_admin_mcp_usage_door_split( $usage ) : '';
+	$body  = $partial . $table . $zero_html . ( '' === $split ? '' : '<p class="snt-hint">' . \snt_kit_esc( $split ) . '</p>' );
 
 	if ( $open ) {
 		return '<p class="snt-hint">' . \snt_kit_esc( $summary ) . '</p>' . $body;

@@ -49,8 +49,8 @@ function sn_admin_render_mcp_usage() {
 	}
 
 	$summary = sprintf(
-		/* translators: 1: measured days, 2: window days, 3: zero-call tool count. */
-		__( 'Measured over %1$d days of a %2$d-day window · %3$d tools with no calls', 'signal-and-noise-tools' ),
+		/* translators: 1: measured days, 2: window days, 3: count of tools with no calls through a door. */
+		__( 'Measured over %1$d days of a %2$d-day window · %3$d tools with no calls through a door', 'signal-and-noise-tools' ),
 		(int) $usage['measured_days'],
 		(int) $usage['window_days'],
 		count( $zero )
@@ -74,14 +74,47 @@ function sn_admin_render_mcp_usage() {
 	sn_admin_render_mcp_usage_table( $usage['by_tool'] );
 	sn_admin_render_mcp_usage_zero( $zero );
 
-	echo '<p class="description">' . esc_html(
-		sprintf(
-			/* translators: %d: total recorded calls. */
-			__( '%d calls recorded in this window, including calls that never resolved to a tool.', 'signal-and-noise-tools' ),
-			(int) $usage['total_rows']
-		)
-	) . '</p>';
+	echo '<p class="description">' . esc_html( sn_admin_mcp_usage_door_split( $usage ) ) . '</p>';
 	echo '</details>';
+}
+
+/**
+ * The door split, one sentence. First-party is the plugin's own surfaces
+ * polling through the lifecycle guard; the three doors are the callers a
+ * retirement reading is about. Same words on the native leaf.
+ *
+ * @param array $usage From sn_mcp_telemetry_usage().
+ * @return string
+ */
+function sn_admin_mcp_usage_door_split( $usage ) {
+	$by_door = (array) ( $usage['by_door'] ?? array() );
+	return sprintf(
+		/* translators: 1: total calls, 2: direct (first-party) calls, 3: read-door calls, 4: rw-door calls, 5: agent-door calls. */
+		__( '%1$s calls: %2$s first-party (direct), %3$s read door, %4$s rw, %5$s agent. The total includes calls that never resolved to a tool.', 'signal-and-noise-tools' ),
+		number_format_i18n( (int) ( $usage['total_rows'] ?? 0 ) ),
+		number_format_i18n( (int) ( $by_door['direct'] ?? 0 ) ),
+		number_format_i18n( (int) ( $by_door['read'] ?? 0 ) ),
+		number_format_i18n( (int) ( $by_door['rw'] ?? 0 ) ),
+		number_format_i18n( (int) ( $by_door['agent'] ?? 0 ) )
+	);
+}
+
+/**
+ * The Calls cell: door calls, with the direct count in parentheses when there
+ * is one. Parentheses over a fifth column because both tables keep their
+ * shape and the kit table needs no new key. Same words on the native leaf.
+ *
+ * @param array $row One by_tool entry.
+ * @return string
+ */
+function sn_admin_mcp_usage_calls_cell( $row ) {
+	$doors  = number_format_i18n( (int) ( $row['door_calls'] ?? 0 ) );
+	$direct = (int) ( $row['direct_calls'] ?? 0 );
+	if ( $direct <= 0 ) {
+		return $doors;
+	}
+	/* translators: 1: calls through a door, 2: direct (first-party) calls. */
+	return sprintf( __( '%1$s (%2$s direct)', 'signal-and-noise-tools' ), $doors, number_format_i18n( $direct ) );
 }
 
 /**
@@ -93,7 +126,8 @@ function sn_admin_render_mcp_usage_table( $by_tool ) {
 	if ( empty( $by_tool ) ) {
 		return;
 	}
-	uasort( $by_tool, function ( $a, $b ) { return $b['calls'] <=> $a['calls']; } );
+	// Door calls lead, since that is the column; the polls only break ties.
+	uasort( $by_tool, function ( $a, $b ) { return ( ( $b['door_calls'] ?? 0 ) <=> ( $a['door_calls'] ?? 0 ) ) ?: ( $b['calls'] <=> $a['calls'] ); } );
 
 	echo '<table class="widefat striped"><thead><tr>';
 	echo '<th>' . esc_html__( 'Tool', 'signal-and-noise-tools' ) . '</th>';
@@ -104,7 +138,7 @@ function sn_admin_render_mcp_usage_table( $by_tool ) {
 	foreach ( $by_tool as $name => $row ) {
 		echo '<tr>';
 		echo '<td><code>' . esc_html( (string) $name ) . '</code></td>';
-		echo '<td>' . esc_html( number_format_i18n( (int) $row['calls'] ) ) . '</td>';
+		echo '<td>' . esc_html( sn_admin_mcp_usage_calls_cell( $row ) ) . '</td>';
 		echo '<td>' . esc_html( (string) ( $row['last_seen'] ?? '—' ) ) . '</td>';
 		echo '<td>' . esc_html( implode( ', ', (array) $row['doors'] ) ) . '</td>';
 		echo '</tr>';
@@ -138,9 +172,20 @@ function sn_admin_render_mcp_usage_zero( $zero ) {
 	foreach ( $zero as $entry ) {
 		$verdict = (string) $entry['verdict'];
 		echo '<li><code>' . esc_html( (string) $entry['slug'] ) . '</code> — ';
-		echo esc_html( $labels[ $verdict ] ?? $verdict );
+		echo esc_html( 'first_party_only' === $verdict ? sn_admin_mcp_usage_first_party_label( $entry ) : ( $labels[ $verdict ] ?? $verdict ) );
 		echo '</li>';
 	}
 	echo '</ul>';
 	echo '<p class="description">' . esc_html__( 'Only “retirement candidate” entries are evidence for removal. A tool that cannot be projected has no calls because it cannot be called — retiring it would delete the evidence of the defect. Reachability is checked from inside the plugin, so it cannot see a client proxy rejecting a schema; treat it as necessary, not sufficient.', 'signal-and-noise-tools' ) . '</p>';
+}
+
+/**
+ * The first-party-only verdict carries its count. Same words on the native leaf.
+ *
+ * @param array $entry One zero_call entry.
+ * @return string
+ */
+function sn_admin_mcp_usage_first_party_label( $entry ) {
+	/* translators: %s: direct (first-party) call count. */
+	return sprintf( __( 'no caller through a door; the plugin\'s own surfaces called it %s times. Not a retirement candidate for the code, only for the door allowlist', 'signal-and-noise-tools' ), number_format_i18n( (int) ( $entry['calls'] ?? 0 ) ) );
 }

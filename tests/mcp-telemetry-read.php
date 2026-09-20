@@ -152,6 +152,63 @@ ok( array( 'read', 'rw' ) === $u['by_tool'][ $first_tool ]['doors'], 'both doors
 ok( 3 === $u['by_tool'][ $first_tool ]['outcomes']['success'] && 2 === $u['by_tool'][ $first_tool ]['outcomes']['refused'], 'outcomes are counted separately' );
 ok( $u['by_tool'][ $first_tool ]['last_seen'] === $ago( 1 ), 'last_seen is the LATEST across groups' );
 
+echo "\nGroup: one ability is one row, whichever door spelled it (#1587)\n";
+// The MCP doors write the projected name, the direct door writes the slug core
+// hands it, and a bare tail is folded too; a theme tool is not ours to fold.
+$first_slug = sn_mcp_allowlist()[0];
+$first_tail = substr( strrchr( $first_slug, '/' ), 1 );
+$expected   = sn_mcp_telemetry_expected_tools();
+ok( $first_tool === sn_mcp_telemetry_canonical_tool( $first_tool, $expected ) && $first_tool === sn_mcp_telemetry_canonical_tool( $first_slug, $expected ) && $first_tool === sn_mcp_telemetry_canonical_tool( $first_tail, $expected ), 'canonical: projected name, slug and bare tail all fold onto the projected name' );
+ok( 'signal-and-noise__verify-page' === sn_mcp_telemetry_canonical_tool( 'signal-and-noise__verify-page', $expected ) && '' === sn_mcp_telemetry_canonical_tool( '', $expected ), 'canonical: a theme tool and a blank stay as recorded' );
+// No row under the projected spelling on purpose: the unfixed reader saw this
+// tool as zero-call while it carried three door calls under the other two.
+$wpdb->rows = array(
+	sn_test_row( $first_tail, 2, $ago( 4 ), $ago( 3 ), 'read' ),
+	sn_test_row( $first_slug, 1, $ago( 2 ), $ago( 2 ), 'rw' ),
+	sn_test_row( $first_slug, 30000, $ago( 5 ), $ago( 1 ), 'direct' ),
+	sn_test_row( 'signal-and-noise__verify-page', 4, $ago( 2 ), $ago( 2 ), 'read' ),
+);
+$u = sn_mcp_telemetry_usage( 90 );
+ok( 2 === count( $u['by_tool'] ) && isset( $u['by_tool'][ $first_tool ] ) && isset( $u['by_tool']['signal-and-noise__verify-page'] ), 'the three spellings are ONE row under the projected name; the theme tool keeps its own' );
+ok( 30003 === $u['by_tool'][ $first_tool ]['calls'] && 3 === $u['by_tool'][ $first_tool ]['door_calls'] && 30000 === $u['by_tool'][ $first_tool ]['direct_calls'], 'calls is every door; door_calls leaves direct out (one rw + two read = 3 against 30,000 direct)' );
+ok( array( 'read', 'rw', 'direct' ) === $u['by_tool'][ $first_tool ]['doors'] && $ago( 1 ) === $u['by_tool'][ $first_tool ]['last_seen'], 'the folded row carries every door and the latest last_seen' );
+ok( array( 'read' => 6, 'rw' => 1, 'direct' => 30000 ) === $u['by_door'] && array_sum( $u['by_door'] ) === $u['total_rows'], 'by_door is door => calls and sums to total_rows' );
+ok( ! in_array( $first_tool, array_column( $u['zero_call'], 'tool' ), true ), 'a tool with door calls under the other spellings is NOT a zero-call entry' );
+
+echo "\nGroup: first-party polls are not door traffic\n";
+$wpdb->rows = array(
+	sn_test_row( $first_slug, 28689, $ago( 5 ), $ago( 1 ), 'direct' ),
+	sn_test_row( $second_tool, 1, $ago( 2 ), $ago( 2 ), 'rw' ),
+	sn_test_row( $second_tool, 30000, $ago( 5 ), $ago( 1 ), 'direct' ),
+);
+$u     = sn_mcp_telemetry_usage( 90 );
+$entry = null;
+foreach ( $u['zero_call'] as $e ) { if ( $first_tool === $e['tool'] ) { $entry = $e; } }
+ok( is_array( $entry ) && 'first_party_only' === $entry['verdict'] && 28689 === $entry['calls'], 'a direct-only tool is listed as first_party_only WITH its direct count, not unused' );
+ok( 'unused' !== ( $entry['verdict'] ?? null ), 'and it is never a retirement candidate for the code' );
+ok( 1 === $u['by_tool'][ $second_tool ]['door_calls'] && 30000 === $u['by_tool'][ $second_tool ]['direct_calls'], 'one rw call under 30,000 direct calls is door_calls 1' );
+ok( ! in_array( $second_tool, array_column( $u['zero_call'], 'tool' ), true ), 'one door call keeps a tool out of the zero-call list' );
+ok( array( 'direct' => 58689, 'rw' => 1 ) === $u['by_door'] && 58690 === $u['total_rows'], 'by_door sums equal total_rows here too' );
+$GLOBALS['__abilities'] = array_values( array_diff( $GLOBALS['__abilities'], array( $first_slug ) ) );
+$v = array_column( sn_mcp_telemetry_usage( 90 )['zero_call'], 'verdict', 'tool' );
+ok( 'unreachable' === $v[ $first_tool ], 'a bug outranks first-party polls: an unprojectable tool with direct calls is still unreachable' );
+sn_test_all_reachable();
+
+// The null state cannot be produced in this harness (mcp-tools.php is loaded, so
+// sn_mcp_project_tool exists). A fresh process WITHOUT it is the real absent-API
+// state, the same idiom as mcp-read-rate-window.php: no stub over projection.
+$script = 'define("ABSPATH","/"); define("DAY_IN_SECONDS",86400); define("MINUTE_IN_SECONDS",60); define("ARRAY_A","ARRAY_A");'
+	. ' function apply_filters($h,$v){return $v;} function add_filter(){return true;} function add_action(){return true;} function __($s,$d=null){return $s;} function get_option($k,$d=false){return $d;} function update_option(){return true;} function wp_json_encode($d,$f=0){return json_encode($d,$f);}'
+	. ' class W { public $prefix="wp_"; public $rows=array(); public function prepare($q,...$a){return $q;} public function get_var($q){return "wp_".SN_MCP_TELEMETRY_TABLE;} public function get_results($q,$o=null){return $this->rows;} }'
+	. ' $GLOBALS["wpdb"]=new W(); $d=' . var_export( __DIR__ . '/../inc/mcp/', true ) . '; require $d."mcp-capabilities.php"; require $d."mcp-telemetry.php"; require $d."mcp-telemetry-read.php";'
+	. ' $s=sn_mcp_allowlist()[0]; $n=gmdate("Y-m-d H:i:s"); $GLOBALS["wpdb"]->rows=array(array("tool_name"=>$s,"door"=>"direct","outcome"=>"success","error_code"=>null,"calls"=>5,"first_seen"=>$n,"last_seen"=>$n));'
+	. ' echo json_encode(array_column(sn_mcp_telemetry_usage(90)["zero_call"],"verdict","slug")[$s] ?? "MISSING");';
+$pipes = array();
+$proc  = proc_open( array( PHP_BINARY, '-r', $script ), array( 1 => array( 'pipe', 'w' ), 2 => array( 'redirect', 1 ) ), $pipes );
+$out   = is_resource( $proc ) ? stream_get_contents( $pipes[1] ) : '';
+if ( is_resource( $proc ) ) { fclose( $pipes[1] ); proc_close( $proc ); }
+ok( 'undetermined' === json_decode( $out, true ), 'an unknown projection (Abilities API absent) stays undetermined under direct calls, never first_party_only' );
+
 echo "\nGroup: error_code splits the GROUP BY without corrupting tool totals\n";
 // The v11.10-line GROUP BY adds error_code, so one tool's calls arrive as
 // MORE sql rows than before. by_tool and zero_call must re-sum across the
@@ -217,9 +274,9 @@ echo "\nGroup: the verdict vocabulary is closed\n";
 // projection — testing the stub, not the reader. What IS pinned is that no
 // fourth verdict can appear and that no zero-call entry escapes classification.
 $all_verdicts = array_unique( array_column( $u2['zero_call'], 'verdict' ) );
-ok( array() === array_diff( $all_verdicts, array( 'unused', 'unreachable', 'undetermined' ) ), 'every verdict is one of the three known values' );
+ok( array() === array_diff( $all_verdicts, array( 'unused', 'first_party_only', 'unreachable', 'undetermined' ) ), 'every verdict is one of the four known values' );
 ok( count( array_filter( array_column( $u2['zero_call'], 'verdict' ) ) ) === count( $u2['zero_call'] ), 'no zero-call entry is left unclassified' );
-ok( 0 === count( array_filter( array_column( $u2['zero_call'], 'calls' ) ) ), 'every zero_call entry really has zero calls' );
+ok( 0 === count( array_filter( array_column( $u2['zero_call'], 'calls' ) ) ), 'every zero_call entry really has zero calls when nothing polled directly' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
