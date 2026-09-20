@@ -93,7 +93,7 @@ ok( 1 === $r['by_feature']['collision']['cached'] && 0 === $r['by_feature']['col
 $ab = $GLOBALS['__j']['abilities']['signal-noise/jev-meter'] ?? null;
 ok( is_array( $ab ) && true === $ab['meta']['annotations']['readonly'] && 'diagnostics' === $ab['category'], 'F1 jev-meter registers read-only under diagnostics' );
 $o = snt_ability_jev_meter();
-ok( $o['ok'] && $o['ready'] && 0.042 === $o['price_per_m_input'] && isset( $o['by_feature']['fit'] ) && 2.5 === $o['credit'], 'F2 the ability hands the reading out with the pinned price' );
+ok( $o['ok'] && $o['ready'] && 0.042 === $o['price_per_m_input'] && isset( ( (array) $o['by_feature'] )['fit'] ) && 2.5 === $o['credit'], 'F2 the ability hands the reading out with the pinned price' );
 
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail ? 1 : 0 );

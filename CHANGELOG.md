@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **An empty map is `{}` at the door, never `[]`.** The MCP proxy validates every tool's output against its schema, and 17.1.0's first clean tag pass drew `data/notes must be object` from `jev-tags`: with zero misfits PHP's empty array encodes as a JSON list. Every object-typed map an ability can hand back empty is now cast at the door: `jev-tags` and `jev-tells` `notes` (and their no-pass states), `jev-query-fit` `judged_notes`, `jev-meter` `by_feature`, `rights-evidence` `months`. Pinned as the encoded bytes (`{}`), the shape the proxy checks; verified red without the cast.
+
 ## [17.1.0] - 2026-09-20 — what a reader of the archive gets
 
 ### Added

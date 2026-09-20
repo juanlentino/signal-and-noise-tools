@@ -121,7 +121,7 @@ $d = sn_jev_tells_data();
 ok( $p['ok'] && 2 === $p['judged'] && 2 === count( $GLOBALS['__t']['calls'] ) && 6000 === $d['input_tokens'] && ! isset( $d['notes'][6] ), 'F1 one request per published note with paragraphs; the heading-only note is skipped' );
 ok( 2 === $p['flagged'] && 'anaphora' === $d['notes'][5]['rows'][0]['tell'], 'F2 flagged counts notes with a row or a regex tell' );
 $out = snt_ability_jev_tells();
-ok( $out['judged'] && 2 === $out['flagged'] && isset( $out['notes'][5] ), 'F3 jev-tells hands the flagged notes out' );
+ok( $out['judged'] && 2 === $out['flagged'] && isset( ( (array) $out['notes'] )[5] ), 'F3 jev-tells hands the flagged notes out' );
 $GLOBALS['__t']['opt'] = array();
 ok( false === snt_ability_jev_tells()['judged'], 'F4 no pass yet' );
 

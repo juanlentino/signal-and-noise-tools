@@ -111,7 +111,7 @@ $GLOBALS['__f']['ready'] = true;
 $ab = $GLOBALS['__f']['abilities'];
 ok( false === $ab['signal-noise/jev-fit-now']['meta']['annotations']['readonly'] && true === $ab['signal-noise/jev-query-fit']['meta']['annotations']['readonly'], 'E1 fit-now writes, query-fit reads' );
 $out = snt_ability_jev_query_fit();
-ok( $out['judged'] && 2 === $out['notes'] && 9 === count( $out['gaps'] ) && 0 === count( $out['stray'] ) && 8 === count( $out['judged_notes'][1]['rows'] ) && 'One' === $out['judged_notes'][1]['title'], 'E2 query-fit: every 0.5 row is a gap; none is stray (0.5 is not under 0.5); judged_notes carries the rows (16.5.1)' );
+ok( $out['judged'] && 2 === $out['notes'] && 9 === count( $out['gaps'] ) && 0 === count( $out['stray'] ) && 8 === count( ( (array) $out['judged_notes'] )[1]['rows'] ) && 'One' === ( (array) $out['judged_notes'] )[1]['title'], 'E2 query-fit: every 0.5 row is a gap; none is stray (0.5 is not under 0.5); judged_notes carries the rows (16.5.1)' );
 ok( 'weekly' === ( function () { foreach ( $GLOBALS['__f']['actions']['init'] as $cb ) { $cb(); } return $GLOBALS['__f']['scheduled'][ SN_JEV_FIT_HOOK ] ?? ''; } )(), 'E3 weekly schedule when ready' );
 
 // F: the band's three states.

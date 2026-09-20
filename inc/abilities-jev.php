@@ -196,7 +196,7 @@ function snt_ability_jev_query_fit( $input = array() ) {
 		return array( 'ok' => true, 'judged' => false, 'at' => 0, 'gaps' => array(), 'stray' => array(), 'note' => 'No fit pass yet; run jev-fit-now.' );
 	}
 	$r = sn_jev_fit_readings( $d );
-	return array( 'ok' => true, 'judged' => true, 'at' => (int) $d['synced_at'], 'window' => (array) ( $d['window'] ?? array() ), 'notes' => count( (array) $d['notes'] ), 'judged_notes' => (array) $d['notes'], 'gaps' => $r['gaps'], 'stray' => $r['stray'], 'input_tokens' => (int) ( $d['usage']['input_tokens'] ?? 0 ), 'error' => (string) ( $d['last_error'] ?? '' ), 'note' => 'judged_notes: every note judged with its rows (query, counts, score, confidence). gaps: queries with 5+ impressions in the window the note scores under 1 of 2 on (the next note). stray: clicks on a query scored under 0.5 (a title chasing the wrong search).' );
+	return array( 'ok' => true, 'judged' => true, 'at' => (int) $d['synced_at'], 'window' => (array) ( $d['window'] ?? array() ), 'notes' => count( (array) $d['notes'] ), 'judged_notes' => (object) (array) $d['notes'], 'gaps' => $r['gaps'], 'stray' => $r['stray'], 'input_tokens' => (int) ( $d['usage']['input_tokens'] ?? 0 ), 'error' => (string) ( $d['last_error'] ?? '' ), 'note' => 'judged_notes: every note judged with its rows (query, counts, score, confidence). gaps: queries with 5+ impressions in the window the note scores under 1 of 2 on (the next note). stray: clicks on a query scored under 0.5 (a title chasing the wrong search).' );
 }
 
 add_action( 'wp_abilities_api_init', function () {
@@ -231,6 +231,7 @@ function snt_ability_jev_meter( $input = array() ) {
 		return array( 'ok' => false, 'error' => 'unavailable' );
 	}
 	$r = sn_jev_meter_reading();
+	$r['by_feature'] = (object) ( $r['by_feature'] ?? array() ); // an empty cycle is {} at the door, never []
 	return array_merge( array( 'ok' => true, 'ready' => function_exists( 'sn_jev_is_ready' ) && sn_jev_is_ready(), 'price_per_m_input' => SN_JEV_PRICE_PER_M_INPUT ), $r, array( 'note' => 'USD from the tokens each answer reports, priced at the pinned rate; cached requests hit the connector\'s one-hour cache and cost nothing. The cycle runs from the credit day. Nothing is projected; the TypeSafe console is the bill.' ) );
 }
 
@@ -270,7 +271,7 @@ function snt_ability_jev_tells_pass( $input = array() ) {
 function snt_ability_jev_tells( $input = array() ) {
 	$d = function_exists( 'sn_jev_tells_data' ) ? sn_jev_tells_data() : null;
 	if ( null === $d ) {
-		return array( 'ok' => true, 'judged' => false, 'at' => 0, 'notes' => array(), 'note' => 'No anti-tell pass yet; run jev-tells-pass.' );
+		return array( 'ok' => true, 'judged' => false, 'at' => 0, 'notes' => new stdClass(), 'note' => 'No anti-tell pass yet; run jev-tells-pass.' );
 	}
 	$flagged = array();
 	foreach ( (array) $d['notes'] as $id => $n ) {
@@ -278,7 +279,7 @@ function snt_ability_jev_tells( $input = array() ) {
 			$flagged[ (int) $id ] = $n;
 		}
 	}
-	return array( 'ok' => true, 'judged' => true, 'at' => (int) $d['at'], 'notes_judged' => (int) $d['judged'], 'failed' => (int) $d['failed'], 'flagged' => count( $flagged ), 'notes' => $flagged, 'input_tokens' => (int) ( $d['input_tokens'] ?? 0 ), 'error' => (string) ( $d['error'] ?? '' ), 'note' => 'rows: Jev at or above 0.6 per paragraph (tricolon, anaphora, symmetric, closer). deterministic: regex counts (em_dash, quietly, not_just, hedge_cluster, uniform_rhythm). Published notes are never edited; this is a reading of the voice, and the gate on drafts is where it acts.' );
+	return array( 'ok' => true, 'judged' => true, 'at' => (int) $d['at'], 'notes_judged' => (int) $d['judged'], 'failed' => (int) $d['failed'], 'flagged' => count( $flagged ), 'notes' => (object) $flagged, 'input_tokens' => (int) ( $d['input_tokens'] ?? 0 ), 'error' => (string) ( $d['error'] ?? '' ), 'note' => 'rows: Jev at or above 0.6 per paragraph (tricolon, anaphora, symmetric, closer). deterministic: regex counts (em_dash, quietly, not_just, hedge_cluster, uniform_rhythm). Published notes are never edited; this is a reading of the voice, and the gate on drafts is where it acts.' );
 }
 
 add_action( 'wp_abilities_api_init', function () {
@@ -326,7 +327,7 @@ function snt_ability_jev_tags_now( $input = array() ) {
 function snt_ability_jev_tags( $input = array() ) {
 	$d = function_exists( 'sn_jev_tags_data' ) ? sn_jev_tags_data() : null;
 	if ( null === $d ) {
-		return array( 'ok' => true, 'judged' => false, 'at' => 0, 'notes' => array(), 'note' => 'No tag-fit pass yet; run jev-tags-now.' );
+		return array( 'ok' => true, 'judged' => false, 'at' => 0, 'notes' => new stdClass(), 'by_tag' => array(), 'note' => 'No tag-fit pass yet; run jev-tags-now.' );
 	}
 	$flagged = array();
 	foreach ( (array) $d['notes'] as $id => $n ) {
@@ -335,7 +336,7 @@ function snt_ability_jev_tags( $input = array() ) {
 			$flagged[ (int) $id ] = array( 'title' => (string) $n['title'], 'misfits' => $misfits, 'attached' => (array) $n['attached'] );
 		}
 	}
-	return array( 'ok' => true, 'judged' => true, 'at' => (int) $d['synced_at'], 'tags' => (int) ( $d['tags'] ?? 0 ), 'notes_judged' => count( (array) $d['notes'] ), 'flagged' => count( $flagged ), 'notes' => $flagged, 'by_tag' => sn_jev_tags_by_tag( $d ), 'input_tokens' => (int) ( $d['usage']['input_tokens'] ?? 0 ), 'error' => (string) ( $d['last_error'] ?? '' ), 'note' => 'misfits: attached tags whose subject the note does not touch, scored under 0.5 of 2 at confidence 0.7 or better (a lower confidence is a shrug, not a verdict, and is not listed). `attached` carries every tag\'s score for the record. by_tag: the pass pivoted per tag, what a reader of that archive gets: every note carrying the tag counted, the mean score, and `touching`, the notes under 1 of 2 (they touch the tag rather than being about it), by touching share descending. Jev does not propose tags: what a note carries is the owner\'s call. Jev read each tag\'s description; a wrong reading of a right tag is the description to fix. Tags are not prose: a published note can take the change.' );
+	return array( 'ok' => true, 'judged' => true, 'at' => (int) $d['synced_at'], 'tags' => (int) ( $d['tags'] ?? 0 ), 'notes_judged' => count( (array) $d['notes'] ), 'flagged' => count( $flagged ), 'notes' => (object) $flagged, 'by_tag' => sn_jev_tags_by_tag( $d ), 'input_tokens' => (int) ( $d['usage']['input_tokens'] ?? 0 ), 'error' => (string) ( $d['last_error'] ?? '' ), 'note' => 'misfits: attached tags whose subject the note does not touch, scored under 0.5 of 2 at confidence 0.7 or better (a lower confidence is a shrug, not a verdict, and is not listed). `attached` carries every tag\'s score for the record. by_tag: the pass pivoted per tag, what a reader of that archive gets: every note carrying the tag counted, the mean score, and `touching`, the notes under 1 of 2 (they touch the tag rather than being about it), by touching share descending. Jev does not propose tags: what a note carries is the owner\'s call. Jev read each tag\'s description; a wrong reading of a right tag is the description to fix. Tags are not prose: a published note can take the change.' );
 }
 
 add_action( 'wp_abilities_api_init', function () {
