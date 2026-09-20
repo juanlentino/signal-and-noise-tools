@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/tag-consolidation-rows.php'; // #1573: the two ledgers' rows, shared with the native leaf.
+
 /**
  * The page URL the Tags sub-tab forms post/link to (carries page/tab/sub so the
  * central dispatcher accepts the POST and the flash lands on this sub-tab).
@@ -209,7 +211,8 @@ function sn_admin_tag_render_confirm( $pv, $from, $into ) {
 }
 
 /**
- * Recent merges list (the domain-appropriate "audit").
+ * Recent merges and prunes (the domain-appropriate "audit"). #1573: a table
+ * (Operation, Tags), the last ten, "+N more" under it.
  *
  * @return void
  */
@@ -218,23 +221,10 @@ function sn_admin_tag_render_recent_merges() {
 	if ( ! is_array( $hist ) || ! $hist ) {
 		return;
 	}
-	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Recent tag operations', 'signal-and-noise-tools' ) . '</h2><ul class="ul-disc">';
-	foreach ( array_slice( $hist, 0, 10 ) as $h ) {
-		$slugs = implode( ', ', array_map( 'strval', (array) ( $h['from'] ?? array() ) ) );
-		if ( 'prune' === ( $h['op'] ?? 'merge' ) ) {
-			$line = sprintf( /* translators: %s: deleted tag slugs */ __( 'deleted unused: %s', 'signal-and-noise-tools' ), $slugs );
-		} else {
-			$line = sprintf(
-				/* translators: 1: source slugs, 2: canonical slug, 3: post count */
-				__( '%1$s into "%2$s" (%3$d posts)', 'signal-and-noise-tools' ),
-				$slugs,
-				(string) ( $h['into'] ?? '' ),
-				(int) ( $h['posts'] ?? 0 )
-			);
-		}
-		echo '<li>' . esc_html( $line ) . '</li>';
-	}
-	echo '</ul></div>';
+	$ledger = sn_admin_tag_recent_rows( $hist );
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Recent tag operations', 'signal-and-noise-tools' ) . '</h2>';
+	echo sn_admin_tag_table_html( sn_admin_tag_recent_columns(), $ledger['rows'] ) . sn_admin_tag_more_line( $ledger['more'], 'description' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every cell escaped in the builder.
+	echo '</div>';
 }
 
 /**
@@ -282,6 +272,9 @@ function sn_admin_tag_render_fit_section() {
 /**
  * 17.1.0: the pass pivoted per tag (see tags_by_tag_html() on the native leaf).
  * 17.2.1: a summary line, then only the tags with notes that only touch them.
+ * #1573: those tags as a table (Tag, Notes, Mean, Only touching, the touching
+ * titles with score and confidence), thirty rows then "+N more"; the
+ * paragraphs were a 1,329px column.
  *
  * @return void
  */
@@ -301,15 +294,9 @@ function sn_admin_tag_render_by_tag_section() {
 	}
 	$wide = array_values( array_filter( $rows, static fn( $r ) => array() !== $r['touching'] ) );
 	echo '<p>' . esc_html( sprintf( /* translators: 1: tags, 2: tags with touching notes, 3: their names */ __( '%1$d tags in the last pass; %2$d carry notes that only touch them: %3$s.', 'signal-and-noise-tools' ), count( $rows ), count( $wide ), $wide ? implode( ', ', array_column( $wide, 'name' ) ) : __( 'none', 'signal-and-noise-tools' ) ) ) . ' ' . esc_html__( 'A note under 1 of 2 touches the tag rather than being about it; which tags a note carries stays your call.', 'signal-and-noise-tools' ) . '</p>';
-	foreach ( $wide as $r ) {
-		echo '<p><strong>' . esc_html( sprintf( /* translators: 1: tag, 2: notes, 3: mean score, 4: touching count */ __( '%1$s: %2$d notes, mean %3$s of 2, %4$d only touching it', 'signal-and-noise-tools' ), $r['name'], (int) $r['notes'], number_format_i18n( (float) $r['mean'], 2 ), count( $r['touching'] ) ) ) . '</strong></p>';
-		if ( $r['touching'] ) {
-			echo '<ul>';
-			foreach ( $r['touching'] as $t ) {
-				echo '<li><a href="' . esc_url( get_edit_post_link( (int) $t['post_id'] ) ?: '' ) . '">' . esc_html( $t['title'] ) . '</a> ' . esc_html( sprintf( /* translators: 1: score, 2: confidence */ __( '(%1$s of 2, confidence %2$s)', 'signal-and-noise-tools' ), number_format_i18n( (float) $t['score'], 2 ), number_format_i18n( (float) $t['confidence'], 2 ) ) ) . '</li>';
-			}
-			echo '</ul>';
-		}
+	if ( $wide ) {
+		$ledger = sn_admin_tag_by_tag_rows( $wide );
+		echo sn_admin_tag_table_html( sn_admin_tag_by_tag_columns(), $ledger['rows'] ) . sn_admin_tag_more_line( $ledger['more'], 'description' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every cell escaped in the builder.
 	}
 	echo '</div>';
 }
