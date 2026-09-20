@@ -78,6 +78,15 @@ function go_to_section( State $state, string $id ): void {
 		->set( 'status', $section ? (string) ( $section['default_status'] ?? '' ) : '' );
 }
 
+/**
+ * The icons-or-list choice, clamped to the two values it can hold.
+ *
+ * @param mixed $view Whatever arrived: the store, the bound state.
+ */
+function view_or_icons( $view ): string {
+	return 'list' === $view ? 'list' : 'icons';
+}
+
 /** Where the control surface's four handlers live (parts/actions.php). */
 
 // Sections are resolved at RENDER time (payload.php), never here: the
@@ -99,7 +108,7 @@ return App::define( APP_ID )
 			'item'     => '', // The open item's id; '' when the dossier is closed. Local.
 			'status'   => '', // The status pill; '' = All. Local.
 			'query'    => '', // The search field. Local.
-			'view'     => 'icons', // icons | list. Local, and the FALLBACK only: the client seeds this from the viewer's stored preference on mount (sn-signal-noise-view).
+			'view'     => 'icons', // icons | list. A per-user PREFERENCE: mount seeds it from $os->stored( 'view' ), the `view` action stores it.
 			'verdict'  => array(), // The last re-check verdict { post_id, tone, text, meta, checked_at }; cleared by go. Server-only.
 			'selected' => array(), // Selected post ids as strings. Local, except that trash and go reset it.
 		)
@@ -133,12 +142,30 @@ return App::define( APP_ID )
 	// from another surface (the Posts window's Attention pill, v14.4.0).
 	// `mount` lands it on first open; `reopen` retargets a live window. An
 	// unknown or absent section param is the root, exactly as `go` treats it.
+	// Every mount (deep link or not) also restores the icons-or-list choice.
+	// The client's first dispatch carries the schema default; the value the
+	// user stored wins, and it IS the hydrated state (the mount answer's
+	// `state`), so nothing overwrites it. `$os->stored()` keeps it in one
+	// user-meta row (App Framework, Experimental at 1.1.10), so the phone
+	// PWA and the desk agree.
 	->mount(
 		static function ( State $state, Os $os ) {
+			$state->set( 'view', view_or_icons( $os->stored( 'view', 'icons' ) ) );
 			$section = (string) $os->param( 'section', '' );
 			if ( '' !== $section ) {
 				go_to_section( $state, $section );
 			}
+		}
+	)
+	// The view switch: the client flips locally first (instant), then
+	// dispatches this with the bound value already in the state. Clamp it
+	// and remember it for the next window, on any device.
+	->action(
+		'view',
+		static function ( State $state, Os $os, array $args ) {
+			$view = view_or_icons( $state->get( 'view' ) );
+			$state->set( 'view', $view );
+			$os->store( 'view', $view );
 		}
 	)
 	->action(

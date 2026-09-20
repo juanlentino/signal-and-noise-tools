@@ -43,67 +43,6 @@
 	/** The fetched half of a dossier lives in the same bag; keys are `${id}:${days}`. */
 	const dossierOf = uiOf;
 
-	/**
-	 * The view switch is a PREFERENCE, not a selection.
-	 *
-	 * `state.view` is declared Local in the PHP schema alongside `query`,
-	 * `status`, `item` and `selected` -- and those are right to be ephemeral:
-	 * nobody wants yesterday's search restored. A view choice is different in
-	 * kind. Measured live 2026-09-10: set to List, it survives navigating to the
-	 * root and back, and resets to icons on every RELOAD -- dropping the reader
-	 * back into a 104px tile grid that clipped 63% of Notes titles and 57% of
-	 * Attention's, because those items are sentences.
-	 *
-	 * Stored per viewer, per browser, which is what this preference is. The
-	 * plugin already keeps `sn-theme` and `sn-an-panel-uptime-detail` the same
-	 * way. Every access is wrapped: a private window, cleared site data or a
-	 * browser set to block storage all throw on access rather than returning
-	 * null, and a thrown preference must not take the app down with it.
-	 */
-	// `sn-`, not `snt-`: the orphan-class guard treats every `snt-*` string this
-	// client emits as a CSS class and flagged the key as an undefined one. The
-	// plugin's other stored preferences (`sn-theme`, `sn-an-panel-uptime-detail`)
-	// use the same prefix.
-	const VIEW_KEY = 'sn-signal-noise-view';
-	const readView = () => {
-		try {
-			const v = window.localStorage.getItem( VIEW_KEY );
-			return 'list' === v || 'icons' === v ? v : null;
-		} catch ( e ) {
-			return null;
-		}
-	};
-	/**
-	 * The view actually painted. STORAGE WINS; `state.view` is the fallback.
-	 *
-	 * v13.109.15 seeded `state.view` from storage in `mounted()` and it did not
-	 * work: the seed ran, then the app hydrated `state` from the PHP schema whose
-	 * `'view' => 'icons'` overwrote it. Measured on the shipped build -- stored
-	 * `list`, `state.view` `icons`, forty tiles on screen. Dispatching the same
-	 * action LATER works fine, so the action was never the problem; the timing
-	 * was, and there is no post-hydration hook to move the seed into.
-	 *
-	 * Reading through storage at PAINT time removes the race instead of trying to
-	 * win it: the render function runs after every hydration, so there is no
-	 * moment at which a stale `state.view` can be painted. Nothing is dispatched
-	 * during render, and no "already seeded" flag is needed.
-	 */
-	const currentView = ( state ) => {
-		const stored = readView();
-		if ( 'list' === stored || 'icons' === stored ) {
-			return stored;
-		}
-		return 'list' === state.view ? 'list' : 'icons';
-	};
-
-	const writeView = ( v ) => {
-		try {
-			window.localStorage.setItem( VIEW_KEY, 'list' === v ? 'list' : 'icons' );
-		} catch ( e ) {
-			/* Storage unavailable: the choice still holds for this session. */
-		}
-	};
-
 	const WINDOWS = [ 7, 30, 90 ];
 	/** A failed fetch is remembered this long before a repaint retries it. */
 	const ERROR_TTL_MS = 15000;
@@ -743,6 +682,17 @@
 
 	// ---------------------------------------------------------------- toolbar
 	const renderToolbar = ( ctx, shown ) => {
+		// The icons / list switch: instant locally, remembered by the server
+		// (`$os->store()`, one user-meta row), so the phone PWA and the desk
+		// open on the same view. The WP Explorer's own switch is wired this way.
+		const pickView = ( e ) => {
+			const view = String( ( e.detail && e.detail.value ) || '' );
+			if ( ( 'icons' !== view && 'list' !== view ) || view === ctx.state.view ) {
+				return;
+			}
+			ctx.local( 'set-view', { view } );
+			void ctx.dispatch( 'view' );
+		};
 		const { state, data } = ctx;
 		const section = data.section;
 		const segments = [ { value: '', label: __( 'All' ) }, ...( section.statuses || [] ) ];
@@ -763,7 +713,7 @@
 						os-action="search"
 						os-debounce="120"
 					></os-text-field>
-					<os-segmented class="snt-view" os-bind="view" os-action="set-view" value=${ currentView( state ) } label=${ __( 'View' ) }>
+					<os-segmented class="snt-view" value=${ state.view } label=${ __( 'View' ) } @os-pick=${ pickView }>
 						<os-segment value="icons" title=${ __( 'Icons' ) }><os-icon name="dashicons-grid-view"></os-icon></os-segment>
 						<os-segment value="list" title=${ __( 'List' ) }><os-icon name="dashicons-list-view"></os-icon></os-segment>
 					</os-segmented>
@@ -1439,10 +1389,8 @@
 				state.selected = [];
 			},
 			'set-view': ( state, args ) => {
-				// `os-bind="view"` already wrote the pick; this only keeps it to the two values.
-				const picked = args.value !== undefined ? args.value : state.view;
-				state.view = picked === 'list' ? 'list' : 'icons';
-				writeView( state.view );
+				// The instant half of the switch; the `view` dispatch that follows stores it.
+				state.view = 'list' === args.view ? 'list' : 'icons';
 				state.selected = [];
 			},
 		},
@@ -1457,7 +1405,7 @@
 			const phone = isPhone();
 			const shown = visibleItems( state, data );
 			const item = openItem( state, data );
-			const body = 'list' === currentView( state ) ? renderList( ctx, shown ) : renderCanvas( ctx, shown );
+			const body = 'list' === state.view ? renderList( ctx, shown ) : renderCanvas( ctx, shown );
 			return html`
 				<div class="snt-app ${ item ? 'is-open' : '' }">
 					${ renderCrumbs( ctx ) }
