@@ -13,9 +13,11 @@
  * Passwords both flow through current_user_can() correctly. Never __return_true
  * — these routes expose personal-site analytics.
  *
- * Query params shared by all four routes:
- *   range  int|string  7 | 14 | 30 | 90 | 365 | "all"  (default 30)
- *   class  string      human | suspect | bot       (default human)
+ * Query params shared by all five routes, registered as an args schema
+ * (#1620): an unknown range or class is a 400 rest_invalid_param from core,
+ * never a silent 7-day window, and OPTIONS on any route lists the values.
+ *   range  string  7 | 14 | 30 | 90 | 365 | all  (default 30)
+ *   class  string  human | suspect | bot          (default human)
  *
  * @package SignalAndNoiseTools
  * @since   6.1.0
@@ -44,34 +46,68 @@ function sn_analytics_rest_can_read() {
 add_action( 'rest_api_init', function () {
 	$ns = defined( 'SN_REST_NAMESPACE' ) ? SN_REST_NAMESPACE : 'signal-noise/v1';
 
+	// #1620: the window vocabulary as a schema. Core validates an enum before
+	// the callback runs (rest_invalid_param, 400, the parameter named), so
+	// snt_analytics_resolve_range()'s 7-day fallback is unreachable from here.
+	// Query strings arrive as strings, so the enum is the string spelling;
+	// the resolver still maps it to int|'all'. Derived from the constants the
+	// resolvers read, never retyped.
+	$window_args = array(
+		'range' => array(
+			'type'        => 'string',
+			'enum'        => array_merge( array_map( 'strval', SN_ANALYTICS_RANGES ), array( 'all' ) ),
+			'default'     => '30',
+			'description' => 'Window in days, or "all" for every day the rollup holds.',
+		),
+		'class' => array(
+			'type'        => 'string',
+			'enum'        => SN_ANALYTICS_CLASSES,
+			'default'     => 'human',
+			'description' => 'Traffic class the figures are read for.',
+		),
+	);
+
 	register_rest_route( $ns, '/analytics/series', array(
 		'methods'             => WP_REST_Server::READABLE,
 		'permission_callback' => 'sn_analytics_rest_can_read',
 		'callback'            => 'sn_analytics_rest_series',
+		'args'                => $window_args,
 	) );
 
 	register_rest_route( $ns, '/analytics/dimension/(?P<dim>[a-z]+)', array(
 		'methods'             => WP_REST_Server::READABLE,
 		'permission_callback' => 'sn_analytics_rest_can_read',
 		'callback'            => 'sn_analytics_rest_dimension',
+		'args'                => $window_args,
 	) );
 
 	register_rest_route( $ns, '/analytics/distribution/(?P<metric>[a-z]+)', array(
 		'methods'             => WP_REST_Server::READABLE,
 		'permission_callback' => 'sn_analytics_rest_can_read',
 		'callback'            => 'sn_analytics_rest_distribution',
+		'args'                => $window_args,
 	) );
 
+	// `property` stays a plain string: ingest stores property names verbatim
+	// (inc/analytics-events.php, mb_substr to 60 chars), so a lowercasing
+	// sanitizer here would miss a stored `ctaId`. The accessor binds it with %s.
 	register_rest_route( $ns, '/analytics/event-props', array(
 		'methods'             => WP_REST_Server::READABLE,
 		'permission_callback' => 'sn_analytics_rest_can_read',
 		'callback'            => 'sn_analytics_rest_event_props',
+		'args'                => $window_args + array(
+			'property' => array(
+				'type'        => 'string',
+				'description' => 'Optional event property name to break down; empty for every property.',
+			),
+		),
 	) );
 
 	register_rest_route( $ns, '/analytics/anomalies', array(
 		'methods'             => WP_REST_Server::READABLE,
 		'permission_callback' => 'sn_analytics_rest_can_read',
 		'callback'            => 'sn_analytics_rest_anomalies',
+		'args'                => $window_args,
 	) );
 } );
 

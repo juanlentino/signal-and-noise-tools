@@ -360,5 +360,23 @@ ok(
 	'the compat layer cites no upstream line numbers either' . ( $cm[0] ? ' — found ' . count( $cm[0] ) . ': ' . implode( ', ', array_unique( $cm[0] ) ) : '' )
 );
 
+// 3. #1619: the #819 sentence states the upstream STATE and agrees with the
+//    code. While the runtime's open_url skips the remap registry the plugin
+//    carries two interceptors (armDoorClicks in assets/os-settings-tab.js and
+//    the app's openLink asking tryNativeRemap first, 14.7.6). The doc read
+//    "filed and fixed alongside" for an OPEN pull request, the one record
+//    that read as if the interceptors were already redundant. When #819
+//    merges and ships in a release the site runs, the interceptors go and
+//    this sentence moves with them: the pin below fails in either direction.
+$m819 = array();
+preg_match( '/[^\n]*WordPress\/openstation#820[^\n]*/', $doc, $m819 );
+$s819 = (string) ( $m819[0] ?? '' );
+$has_interceptor = false !== strpos( (string) file_get_contents( __DIR__ . '/../assets/os-settings-tab.js' ), 'function armDoorClicks' );
+ok( '' !== $s819 && false === strpos( $s819, 'fixed alongside' ), 'the doc names the #820 gap without calling #819 fixed' );
+ok( $has_interceptor && false !== strpos( $s819, '#819 (open, unmerged' ),
+	'the #819 sentence reads open/unmerged while assets/os-settings-tab.js still carries armDoorClicks, the interceptor that exists because it is' );
+ok( false !== strpos( $s819, 'os-settings-tab.js' ) && false !== strpos( $s819, 'tryNativeRemap' ),
+	'...and it records both interceptors, so the compat doc no longer reads as if they were redundant' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
