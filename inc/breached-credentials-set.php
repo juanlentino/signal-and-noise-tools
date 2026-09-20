@@ -24,6 +24,10 @@
  * Hooks:
  *   user_profile_update_errors  — profile screen / Users > Add New (pass1)
  *   validate_password_reset     — the reset-password form (pass1)
+ *   rest_pre_insert_user        — PUT/POST wp/v2/users (password); the
+ *                                 native profile window saves here, and
+ *                                 neither classic hook fires on that path
+ *                                 (17.2.2: the refusal was classic-only).
  * NOT registration_errors: core registration takes no password (the user sets
  * one through the reset link, which lands on validate_password_reset).
  *
@@ -176,5 +180,34 @@ function sn_hibp_on_validate_password_reset( $errors, $user = null ) {
 	sn_hibp_set_time_guard( $errors, sn_hibp_set_submitted_password() );
 }
 
+/**
+ * rest_pre_insert_user: ( stdClass|WP_Error $prepared, WP_REST_Request $request ).
+ *
+ * Core's users controller hands the request's plaintext `password` to
+ * wp_update_user() without ever running the profile-form hooks, so the
+ * native profile window (PUT wp/v2/users/{id}) reached the hash with no
+ * check. Returning a WP_Error here is the documented refusal: update_item()
+ * and create_item() return it as the response. `params.password` names the
+ * field for a client that maps REST param errors; the message is the same
+ * one the classic screen shows.
+ *
+ * @param stdClass|WP_Error $prepared The user core is about to write.
+ * @param object            $request  WP_REST_Request (ArrayAccess).
+ * @return stdClass|WP_Error
+ */
+function sn_hibp_on_rest_pre_insert_user( $prepared, $request = null ) {
+	if ( is_wp_error( $prepared ) || ! is_object( $request ) || ! isset( $request['password'] ) || ! is_string( $request['password'] ) ) {
+		return $prepared;
+	}
+	$errors = new WP_Error();
+	if ( ! sn_hibp_set_time_guard( $errors, (string) $request['password'] ) ) {
+		return $prepared;
+	}
+	$code    = (string) $errors->get_error_codes()[0];
+	$message = (string) $errors->get_error_message( $code );
+	return new WP_Error( $code, $message, array( 'status' => 400, 'params' => array( 'password' => $message ) ) );
+}
+
 add_action( 'user_profile_update_errors', 'sn_hibp_on_profile_update_errors', 10, 3 );
 add_action( 'validate_password_reset', 'sn_hibp_on_validate_password_reset', 10, 2 );
+add_filter( 'rest_pre_insert_user', 'sn_hibp_on_rest_pre_insert_user', 10, 2 );

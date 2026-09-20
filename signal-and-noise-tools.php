@@ -295,7 +295,7 @@ require_once SNT_PATH . 'inc/ssrf-guard.php';
 // Mode A (set-time, fail-closed) and Mode B (login-time, advisory) are later
 // phases, and a test asserts this file stays hookless until then.
 require_once SNT_PATH . 'inc/breached-credentials.php';
-require_once SNT_PATH . 'inc/breached-credentials-set.php'; // v13.58.0: Mode A — set-time, blocking, FAIL-CLOSED (user_profile_update_errors + validate_password_reset).
+require_once SNT_PATH . 'inc/breached-credentials-set.php'; // v13.58.0: Mode A — set-time, blocking, FAIL-CLOSED (user_profile_update_errors + validate_password_reset; 17.2.2: + rest_pre_insert_user, the native profile window's path).
 require_once SNT_PATH . 'inc/breached-credentials-login.php'; // v13.59.0: Mode B — login-time, advisory, fail-OPEN, memoized against the stored hash (authenticate @30).
 require_once SNT_PATH . 'inc/breached-credentials-surface.php'; // v13.60.0: Phase 3 — Site Health row + security-digest section over Mode A's counts and Mode B's memos.
 // v11.27.0: the verified citation graph. Loads AFTER ssrf-guard — the verifier

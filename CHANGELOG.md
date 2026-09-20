@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A breached password was refused on the classic profile screen and accepted from the native one.** Mode A (13.58.0) ran on `user_profile_update_errors` and `validate_password_reset`, the two hooks core's profile form and reset form fire. OpenStation's profile window saves through `PUT wp/v2/users/{id}`, and core's users controller hands the request's `password` to `wp_update_user()` without either hook, so on the owner's own path a breached or uncheckable password reached the hash with no check; the fail-closed promise in the file's header was false there. Now `rest_pre_insert_user` runs the same guard over `$request['password']` and returns the refusal as core's documented `WP_Error` response (400, `params.password` naming the field, the same message the classic screen shows; the window maps both). Counts the rejection like any other; a request with no password, an empty one, or an earlier filter's error passes through unread. Pinned: the three hooks and nothing else, breached and unreachable both refused at the door, clean and password-less untouched; red without the filter. Found by the native-twin audit of 2026-09-20 (#1 of eleven).
+
 ## [17.2.1] - 2026-09-20 — boxes share a row
 
 ### Fixed
