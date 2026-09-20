@@ -462,11 +462,13 @@ function analytics_worker_setup_html() {
 	if ( function_exists( '\sn_analytics_pipeline_complete' ) && \sn_analytics_pipeline_complete() ) {
 		return '';
 	}
-	$body = '<ol class="snt-plain">'
-		. '<li>' . sprintf( \snt_kit_esc( __( 'Read token (for the fields above): Cloudflare dashboard → My Profile → API Tokens → create a token with %1$s. The Account ID is in the dashboard URL: %2$s.', 'signal-and-noise-tools' ) ), '<os-code>Account · Analytics · Read</os-code>', '<os-code>dash.cloudflare.com/&lt;account_id&gt;</os-code>' ) . '</li>'
-		. '<li>' . \snt_kit_esc( __( 'Deploy the edge Worker + its secrets (from the analytics-worker repo: this can’t be done from WordPress):', 'signal-and-noise-tools' ) ) . \snt_kit_code( "wrangler secret put SN_PX_TOKEN\nwrangler secret put SN_PX_SALT_SEED\nwrangler deploy" ) . '</li>'
-		. '<li>' . \snt_kit_esc( __( 'Theme beacon: set SN_BEACON_TOKEN in wp-config.php to the SAME value as the Worker’s SN_PX_TOKEN so the front-end beacon is accepted.', 'signal-and-noise-tools' ) ) . '</li>'
-		. '<li>' . \snt_kit_esc( __( 'Hit Test connection above once the token + account ID are saved to confirm the read side works. Pageview data appears within ~15 minutes.', 'signal-and-noise-tools' ) ) . '</li>'
-		. '</ol>';
+	$body = \snt_kit_steps(
+		array(
+			sprintf( \snt_kit_esc( __( 'Read token (for the fields above): Cloudflare dashboard → My Profile → API Tokens → create a token with %1$s. The Account ID is in the dashboard URL: %2$s.', 'signal-and-noise-tools' ) ), '<os-code>Account · Analytics · Read</os-code>', '<os-code>dash.cloudflare.com/&lt;account_id&gt;</os-code>' ),
+			\snt_kit_esc( __( 'Deploy the edge Worker + its secrets (from the analytics-worker repo: this can’t be done from WordPress):', 'signal-and-noise-tools' ) ) . \snt_kit_code( "wrangler secret put SN_PX_TOKEN\nwrangler secret put SN_PX_SALT_SEED\nwrangler deploy" ),
+			\snt_kit_esc( __( 'Theme beacon: set SN_BEACON_TOKEN in wp-config.php to the SAME value as the Worker’s SN_PX_TOKEN so the front-end beacon is accepted.', 'signal-and-noise-tools' ) ),
+			\snt_kit_esc( __( 'Hit Test connection above once the token + account ID are saved to confirm the read side works. Pageview data appears within ~15 minutes.', 'signal-and-noise-tools' ) ),
+		)
+	);
 	return \snt_kit_tag( 'os-disclosure', array( 'heading' => __( 'Cloudflare Worker setup (manual, one-time)', 'signal-and-noise-tools' ) ), $body );
 }

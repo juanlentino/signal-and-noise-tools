@@ -112,6 +112,23 @@ function snt_kit_code( $text, $block = true ) {
 }
 
 /**
+ * `<os-steps>` of bare `<os-step>`s: a setup sequence, numbered by the kit's
+ * CSS counter (OpenStation `src/ui/components/os-steps`, Stable). Each body is
+ * already-escaped markup; the step has no title, the sentence is the body.
+ *
+ * @param string[] $bodies One escaped body per step.
+ * @return string
+ * @since 17.4.4
+ */
+function snt_kit_steps( array $bodies ) {
+	$steps = '';
+	foreach ( $bodies as $body ) {
+		$steps .= snt_kit_tag( 'os-step', array(), (string) $body );
+	}
+	return snt_kit_tag( 'os-steps', array(), $steps );
+}
+
+/**
  * `<os-empty-state icon heading description>`.
  *
  * @param string $heading     Heading.

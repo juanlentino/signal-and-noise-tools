@@ -121,6 +121,20 @@ ok( '' !== $kit, 'the kit leaf paints' );
 ok( false !== strpos( $kit, '<div class="snt-2up">' ), 'the kit leaf arranges content into .snt-2up two columns' );
 ok( false !== strpos( $kit, '<div class="snt-2up-col">' ), 'the kit leaf has .snt-2up-col columns' );
 
+// 17.4.4 (#1602): __configured is false here, so sn_analytics_pipeline_complete()
+// reads false (the read-credentials pill is not ok, the same seam
+// tests/analytics-settings-folds.php:76 drives) and the Worker setup fold
+// paints. Its four steps are the kit's <os-steps>; the wrangler block sits
+// inside the second step.
+$setup = strpos( $kit, 'heading="Cloudflare Worker setup (manual, one-time)"' );
+ok( false !== $setup, 'pipeline incomplete: the Cloudflare Worker setup fold paints' );
+$setup_html = false !== $setup ? substr( $kit, $setup, strpos( $kit, '</os-disclosure>', $setup ) - $setup ) : '';
+ok( 1 === substr_count( $setup_html, '<os-steps>' ) && 4 === substr_count( $setup_html, '<os-step>' ), 'the Worker setup is one <os-steps> of four <os-step> -- ' . substr_count( $setup_html, '<os-steps>' ) . '/' . substr_count( $setup_html, '<os-step>' ) );
+$second = strpos( $setup_html, '<os-step>', strpos( $setup_html, '<os-step>' ) + 1 );
+$second_end = false !== $second ? strpos( $setup_html, '</os-step>', $second ) : false;
+ok( false !== $second && false !== $second_end && false !== strpos( substr( $setup_html, $second, $second_end - $second ), 'wrangler deploy' ) && false !== strpos( substr( $setup_html, $second, $second_end - $second ), '<os-code block wrap>' ), 'the wrangler os-code block sits inside the second step' );
+ok( false === strpos( $kit, '<ol' ), 'no browser ordered list survives on Analytics' );
+
 
 // A shared `sn_exclude_roles[]` name per checkbox is silent-by-construction
 // at runtime (OsForm.getValues() collapses N same-named controls to ONE key,

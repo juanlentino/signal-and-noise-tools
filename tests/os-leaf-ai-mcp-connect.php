@@ -266,6 +266,18 @@ ok(
 	'Connect a client is NOT paired -- the code block keeps the full width'
 );
 
+// 17.4.4 (#1602): the two setup sequences are the kit's <os-steps>, not a
+// browser <ol>. Three owner steps in Connect a client, four inside the Claude
+// desktop app fold; the fold's hint still counts them.
+$mcp = snt_leaf_paint( 'ai', 'mcp-connect' );
+ok( 2 === substr_count( $mcp, '<os-steps>' ) && 7 === substr_count( $mcp, '<os-step>' ), 'two <os-steps> and seven <os-step> paint the Connect a client and Claude desktop app sequences -- ' . substr_count( $mcp, '<os-steps>' ) . '/' . substr_count( $mcp, '<os-step>' ) );
+ok( false === strpos( $mcp, '<ol' ), 'no browser ordered list survives on MCP Clients' );
+$fold      = strpos( $mcp, 'hint="Show the 4 setup steps"' );
+$fold_end  = false !== $fold ? strpos( $mcp, '</os-disclosure>', $fold ) : false;
+$fold_html = false !== $fold_end ? substr( $mcp, $fold, $fold_end - $fold ) : '';
+ok( false !== $fold && 4 === substr_count( $fold_html, '<os-step>' ) && false !== strpos( $fold_html, 'Install Node.js' ), 'the Claude desktop app fold holds its four steps as <os-step> inside its </os-disclosure>, starting with Install Node.js -- ' . substr_count( $fold_html, '<os-step>' ) );
+ok( false !== strpos( $mcp, '<os-step>Create an <os-button variant="link" os-action="door" os-arg-url="https://example.test/wp-admin/profile.php#application-passwords-section"' ), 'the first owner step keeps the Application Password door inside the step body' );
+
 // Nothing was dropped in the rearrangement: every section still paints.
 foreach ( array( 'Status at a glance', 'Bind the write-door credential', 'Connect a client', 'Door 1: the native MCP server', 'Door 1b: the native write door', 'Resources &amp; prompts', 'Door 2: the Abilities-registry adapter', 'More' ) as $heading ) {
 	ok( false !== strpos( $kit, $heading ), "still painted after the regroup: $heading" );
