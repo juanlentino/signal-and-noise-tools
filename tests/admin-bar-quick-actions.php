@@ -480,6 +480,50 @@ if ( ! function_exists( 'wp_json_encode' ) ) {
 	function wp_json_encode( $data, $flags = 0, $depth = 512 ) { return json_encode( $data, (int) $flags, (int) $depth ); }
 }
 
+// #1623: the block rides core's `admin-bar` handles (wp_add_inline_script /
+// wp_add_inline_style), never a raw tag. Record what is attached to which
+// handle, and what the shell branch enqueues. Each stub models the real
+// callee's signature (the stub-drift trap).
+$GLOBALS['__ab_inline_scripts'] = array(); // handle => data
+$GLOBALS['__ab_inline_styles']  = array(); // handle => data
+$GLOBALS['__ab_enqueued']       = array(); // handles passed to wp_enqueue_script
+$GLOBALS['__ab_shell']          = false;   // openstation_is_shell_request()
+if ( ! function_exists( 'wp_add_inline_script' ) ) {
+	function wp_add_inline_script( $handle, $data, $position = 'after' ) {
+		$GLOBALS['__ab_inline_scripts'][ (string) $handle ] = (string) $data;
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_add_inline_style' ) ) {
+	function wp_add_inline_style( $handle, $data ) {
+		$GLOBALS['__ab_inline_styles'][ (string) $handle ] = (string) $data;
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_enqueue_script' ) ) {
+	function wp_enqueue_script( $handle, $src = '', $deps = array(), $ver = false, $args = array() ) {
+		$GLOBALS['__ab_enqueued'][] = (string) $handle;
+	}
+}
+if ( ! function_exists( 'openstation_is_shell_request' ) ) {
+	function openstation_is_shell_request() { return ! empty( $GLOBALS['__ab_shell'] ); }
+}
+/**
+ * Run the script attacher and return [ echoed output, recorded inline script ].
+ * Against the unfixed code the recording stays null and the echo carries the
+ * raw <script>; the delivery pins below read whichever exists so the swap-in
+ * reads as the hygiene pins alone going red, not a cascade.
+ */
+function ab_capture_script() {
+	$GLOBALS['__ab_inline_scripts'] = array();
+	$GLOBALS['__ab_enqueued']       = array();
+	ob_start();
+	sn_admin_bar_print_script();
+	$echoed = (string) ob_get_clean();
+	$rec    = $GLOBALS['__ab_inline_scripts']['admin-bar'] ?? null;
+	return array( $echoed, $rec );
+}
+
 // Front end, so the destructive guard allows the item through.
 $GLOBALS['__ab_manage_options'] = true;
 $GLOBALS['__ab_is_admin']       = false;
@@ -487,11 +531,12 @@ $GLOBALS['__ab_is_singular']    = false;
 $GLOBALS['__ab_screen_base']    = '';
 $GLOBALS['__ab_screen_id']      = '';
 
-ob_start();
-sn_admin_bar_print_script();
-$printed = (string) ob_get_clean();
+list( $echoed, $rec ) = ab_capture_script();
+$printed = null !== $rec ? $rec : $echoed;
 
-ab_true( '' !== $printed, '7.4: print_script emitted output' );
+ab_eq( '', $echoed, '7.4: print_script echoes nothing (#1623: no raw <script> tag)' );
+ab_true( null !== $rec && '' !== $rec, '7.4b: the block is attached to core\'s admin-bar script handle via wp_add_inline_script' );
+ab_true( false === stripos( (string) $rec, '<script' ), '7.4c: the attached block carries no <script> tag of its own' );
 // Pull the JSON config back out of the <script> block and decode it, so the
 // assertion is about the DATA the client receives, not about substring luck.
 $matched = (bool) preg_match( '/const cfg = (\{.*?\});/s', $printed, $m );
@@ -509,17 +554,29 @@ foreach ( (array) ( $cfg['nodes'] ?? array() ) as $node_id => $node ) {
 }
 ab_eq( array( 'sn-quick-clear-overrides' ), $delivered_with_confirm, '7.7: exactly one node ships a confirm to the client' );
 
-// The JS gate itself: present, reads meta.confirm, and sits BEFORE the busy
-// flag so a declined confirm leaves the row re-clickable rather than spinning.
+// The JS gate itself: present, reads meta.confirm, and sits BEFORE the label
+// swap so a declined confirm leaves the row untouched rather than spinning.
+// The busy flag is NOT the marker: since the second review of #1623 it is
+// taken before the gate (a second click while the shell's dialog is open
+// must not mount a second dialog) and handed back on decline.
 ab_true( false !== strpos( $printed, 'window.confirm(meta.confirm)' ), '7.8: the click handler gates on window.confirm(meta.confirm)' );
 $pos_confirm = strpos( $printed, 'window.confirm(meta.confirm)' );
-$pos_busy    = strpos( $printed, "link.dataset.snBusy = '1'" );
-ab_true( false !== $pos_confirm && false !== $pos_busy && $pos_confirm < $pos_busy, '7.9: the confirm gate precedes the busy flag (declining leaves the row clickable)' );
+$pos_swap    = strpos( $printed, "link.textContent = '… '" );
+ab_true( false !== $pos_confirm && false !== $pos_swap && $pos_confirm < $pos_swap, '7.9: the confirm gate precedes the label swap (declining leaves the row untouched)' );
 
 // A closing-tag sequence must never survive into the script block. The confirm
 // is a server literal today, but this is the property that keeps it safe if the
 // prose is ever edited.
 ab_true( false === stripos( $m[1] ?? '', '</script' ), '7.10: no raw closing-tag sequence in the emitted config' );
+
+// Off the shell the transport is unchanged: per-pageload nonces, admin-ajax.
+$off_nonce = 0; $off_ability = 0;
+foreach ( (array) ( $cfg['nodes'] ?? array() ) as $node ) {
+	if ( isset( $node['nonce'] ) )   { $off_nonce++; }
+	if ( isset( $node['ability'] ) ) { $off_ability++; }
+}
+ab_true( $off_nonce > 0 && $off_nonce === count( (array) ( $cfg['nodes'] ?? array() ) ) && 0 === $off_ability, '7.11: off the shell every node carries a nonce and none an ability' );
+ab_true( false !== strpos( $printed, "body.set('_ajax_nonce', meta.nonce)" ), '7.12: off the shell the body carries _ajax_nonce' );
 
 // ── #1228: Clear DB Overrides must not report success when the theme
 // filter is absent (the CF-purge sibling already errors in that case) ──
@@ -551,6 +608,155 @@ try {
 	ab_true( false, '8.2: expected a thrown JSON response' );
 } catch ( SN_AB_JsonResponse $r ) {
 	ab_true( true === $r->success && false !== strpos( (string) ( $r->payload['message'] ?? '' ), '3 DB override(s)' ), '8.2: a hooked filter still reports its real count on success' );
+}
+
+/* ════════════════════════════════════════════════════════════════════
+ * Test 9 (#1623): on the shell document the quick actions ride the ability
+ * twins over sntAbilityRun, gate through wp.os.confirm and land as a station
+ * toast. The shell has no bounded lifetime, so a page-load nonce dies after
+ * a day and every click past that read a red "Done." off the 403's bare -1.
+ * ════════════════════════════════════════════════════════════════════ */
+echo "\nTest 9: #1623 the shell branch carries abilities, not nonces\n";
+$GLOBALS['__ab_shell']       = true;
+$GLOBALS['__ab_is_admin']    = true;
+$GLOBALS['__ab_screen_base'] = 'toplevel_page_openstation';
+$GLOBALS['__ab_screen_id']   = '';
+
+list( $echoed, $rec ) = ab_capture_script();
+$printed = null !== $rec ? $rec : $echoed;
+$cfg     = preg_match( '/const cfg = (\{.*?\});/s', $printed, $m ) ? json_decode( $m[1], true ) : null;
+$nodes   = (array) ( $cfg['nodes'] ?? array() );
+ab_true( count( $nodes ) >= 4, '9.0: the shell config carries the rendered nodes' );
+
+$with_nonce = array(); $without_ability = array();
+foreach ( $nodes as $node_id => $node ) {
+	if ( isset( $node['nonce'] ) )     { $with_nonce[] = $node_id; }
+	if ( empty( $node['ability'] ) )   { $without_ability[] = $node_id; }
+}
+ab_eq( array(), $with_nonce, '9.1: no shell node carries a nonce (it would die at the nonce tick)' );
+ab_eq( array(), $without_ability, '9.2: every shell node carries an ability slug' );
+ab_eq( $confirm, $nodes['sn-quick-clear-overrides']['confirm'] ?? null, '9.3: the destructive confirm still reaches the shell client byte-identical' );
+ab_eq( 'get-deploy-status', $nodes['sn-quick-force-update-check']['ability'] ?? null, '9.4: Force Update Check is get-deploy-status' );
+ab_eq( array( 'force_refresh' => true ), $nodes['sn-quick-force-update-check']['input'] ?? null, '9.4b: ... with force_refresh true (the palette\'s own input)' );
+ab_eq( 'pattern-adoption-scan', $nodes['sn-quick-scan-patterns']['ability'] ?? null, '9.4c: Scan Pattern Adoption is pattern-adoption-scan' );
+ab_eq( 'purge-all-caches', $nodes['sn-quick-purge-caches']['ability'] ?? null, '9.4d: Purge All Caches is purge-all-caches' );
+ab_eq( 'purge-all-caches', $nodes['sn-quick-cf-purge']['ability'] ?? null, '9.5: Purge Cloudflare routes to purge-all-caches (no zone-only ability; its message names the CF verdict)' );
+ab_eq( 'clear-template-overrides', $nodes['sn-quick-clear-overrides']['ability'] ?? null, '9.5b: Clear DB Overrides is clear-template-overrides' );
+ab_true( ! isset( $nodes['sn-quick-regen-og-card'] ), '9.5c: Regen OG Card does not render on the shell (no post in context)' );
+
+// The transport and the two Stable OpenStation seams, in the script text.
+ab_true( false !== strpos( $printed, 'window.sntAbilityRun(meta.ability' ), '9.6: the shell transport is window.sntAbilityRun (never a built /wp-abilities/ path)' );
+ab_true( false === strpos( $printed, '/wp-abilities/' ), '9.6b: the inline script never builds the run path itself (ability-run-client D.1)' );
+ab_true( false !== strpos( $printed, 'os.confirm(' ) && false !== strpos( $printed, 'window.wp.os' ), '9.7: the destructive gate is wp.os.confirm on the shell' );
+$pos_os_confirm = strpos( $printed, 'os.confirm(' );
+$pos_swap       = strpos( $printed, "link.textContent = '… '" );
+$pos_busy       = strpos( $printed, "link.dataset.snBusy = '1'" );
+ab_true( false !== $pos_os_confirm && false !== $pos_swap && $pos_os_confirm < $pos_swap, '9.8: wp.os.confirm precedes the label swap (declining leaves the row untouched)' );
+ab_true( false !== $pos_busy && false !== $pos_os_confirm && $pos_busy < $pos_os_confirm, '9.8b: the busy flag is taken BEFORE wp.os.confirm (core\'s bar paints above the dialog scrim; a second click must not mount a second dialog)' );
+ab_true( false !== strpos( $printed, 'os.showToast(' ), '9.9: the result lands as wp.os.showToast on the shell' );
+ab_true( false === strpos( $printed, 'os.fetch' ), '9.10: the admin-ajax POST is never routed through wp.os.fetch (it stamps X-WP-Nonce on REST URLs only)' );
+ab_true( in_array( 'snt-ability-run', $GLOBALS['__ab_enqueued'], true ), '9.11: the shared runner is enqueued on the shell request' );
+
+// Off the shell the runner is not pulled in (it is admin-only and the front
+// end keeps admin-ajax).
+$GLOBALS['__ab_shell']       = false;
+$GLOBALS['__ab_is_admin']    = false;
+$GLOBALS['__ab_screen_base'] = '';
+list( $echoed, $rec ) = ab_capture_script();
+ab_true( ! in_array( 'snt-ability-run', $GLOBALS['__ab_enqueued'], true ), '9.12: off the shell the runner is not enqueued' );
+
+/* ════════════════════════════════════════════════════════════════════
+ * Test 10 (#1623): the label rule rides core's admin-bar style handle.
+ * ════════════════════════════════════════════════════════════════════ */
+echo "\nTest 10: #1623 the style rides the admin-bar handle\n";
+$GLOBALS['__ab_inline_styles'] = array();
+ob_start();
+sn_admin_bar_print_style();
+$style_echo = (string) ob_get_clean();
+$style_rec  = $GLOBALS['__ab_inline_styles']['admin-bar'] ?? null;
+ab_eq( '', $style_echo, '10.1: print_style echoes nothing (#1623: no raw <style> tag)' );
+ab_true( null !== $style_rec && false !== strpos( $style_rec, '#wp-admin-bar-sn-quick' ), '10.2: the label rule is attached to core\'s admin-bar style handle via wp_add_inline_style' );
+ab_true( false === stripos( (string) $style_rec, '<style' ), '10.3: the attached CSS carries no <style> tag of its own' );
+
+/* ════════════════════════════════════════════════════════════════════
+ * Test 11 (#1623, second review): the recorded block, EXECUTED. Every
+ * substring pin above (9.6 through 9.10) held while the shipped `toast()`
+ * read an `os` declared inside the click listener and threw ReferenceError
+ * on every click, on every surface: the request fired, the label restored,
+ * no toast ever painted. A substring cannot see scope. tests/js/
+ * admin-bar-quick-actions.mjs runs the block the attacher recorded against a
+ * click per surface, with only DOM, fetch, the runner and wp.os faked, and
+ * reports each scenario; a missing scenario is red here, not silent.
+ * ════════════════════════════════════════════════════════════════════ */
+echo "\nTest 11: the recorded block executes under node on both surfaces\n";
+/**
+ * Run the node harness on a recorded block. Returns [ exit code, results by
+ * name ]. Node availability is asserted by the caller, never skipped: a skip
+ * would delete this coverage silently (the false green tests/run.sh exists
+ * to prevent).
+ */
+function ab_execute_script( $rec, $surface ) {
+	$tmp = tempnam( sys_get_temp_dir(), 'sn-ab-' );
+	file_put_contents( $tmp, (string) $rec );
+	$pipes = array();
+	$proc  = @proc_open(
+		array( 'node', __DIR__ . '/js/admin-bar-quick-actions.mjs', $tmp, $surface ),
+		array( 1 => array( 'pipe', 'w' ), 2 => array( 'redirect', 1 ) ),
+		$pipes
+	);
+	if ( ! is_resource( $proc ) ) {
+		unlink( $tmp );
+		return array( 127, array() );
+	}
+	$out  = (string) stream_get_contents( $pipes[1] );
+	fclose( $pipes[1] );
+	$code = (int) proc_close( $proc );
+	unlink( $tmp );
+	$json    = json_decode( trim( $out ), true );
+	$by_name = array();
+	foreach ( (array) ( $json['results'] ?? array() ) as $r ) {
+		$by_name[ (string) ( $r['name'] ?? '' ) ] = $r;
+	}
+	if ( array() === $by_name ) {
+		echo "  harness output was:\n$out\n";
+	}
+	return array( $code, $by_name );
+}
+
+$expected_scenarios = array(
+	'classic' => array(
+		'classic: a click paints the toast',
+		'classic: the request fired once and the label restored',
+		'classic: declining window.confirm fires nothing and leaves the row re-clickable',
+		'classic: confirming posts admin-ajax with the page-load nonce and toasts',
+	),
+	'shell'   => array(
+		'shell: a click paints the toast',
+		'shell: the request fired once and the label restored',
+		'shell: two clicks on the destructive item open one confirm',
+		'shell: the confirm carries the title, the prose and the danger flag',
+		'shell: declining leaves the row untouched and re-clickable',
+		'shell: confirming dispatches the ability once and toasts',
+	),
+);
+
+foreach ( $expected_scenarios as $surface => $names ) {
+	$GLOBALS['__ab_shell']       = 'shell' === $surface;
+	$GLOBALS['__ab_is_admin']    = 'shell' === $surface;
+	$GLOBALS['__ab_screen_base'] = 'shell' === $surface ? 'toplevel_page_openstation' : '';
+	$GLOBALS['__ab_screen_id']   = '';
+	list( , $rec ) = ab_capture_script();
+	list( $code, $by_name ) = ab_execute_script( $rec, $surface );
+	ab_true( 127 !== $code, "11.0 ($surface): node is available to execute the harness (asserted, never skipped)" );
+	foreach ( $names as $name ) {
+		$got = $by_name[ $name ] ?? null;
+		ab_true(
+			is_array( $got ) && ! empty( $got['pass'] ),
+			'11: ' . $name . ( is_array( $got ) ? ' [' . $got['detail'] . ']' : ' [SCENARIO MISSING FROM HARNESS]' )
+		);
+	}
+	ab_eq( count( $names ), count( $by_name ), "11.9 ($surface): the harness ran exactly the scenarios this suite pins (a new scenario must be mirrored here)" );
+	ab_eq( 0, $code, "11.10 ($surface): the harness process exited 0" );
 }
 
 echo "\nResult: $pass passed, $fail failed.\n";
