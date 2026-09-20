@@ -31,6 +31,12 @@ $GLOBALS['__spend']        = 0.0;
 $GLOBALS['__spend_by_feat'] = array();
 function snt_ai_spend_this_month() { return $GLOBALS['__spend']; }
 function snt_ai_spend_this_month_by_feature() { return $GLOBALS['__spend_by_feat']; }
+// #1597: the Copilot bucket (inc/ai-copilot-spend.php), a reader of its own,
+// and the count of turns it could not price.
+$GLOBALS['__copilot']          = 0.0;
+$GLOBALS['__copilot_unpriced'] = 0;
+function snt_ai_copilot_spend_this_month() { return $GLOBALS['__copilot']; }
+function snt_ai_copilot_unpriced_this_month() { return $GLOBALS['__copilot_unpriced']; }
 
 $GLOBALS['__embed_token']      = '';
 $GLOBALS['__embed_configured'] = false;
@@ -237,6 +243,52 @@ ok( false !== strpos( $box, 'the Anthropic key has no probe' ), 'the notice does
 ok( false !== strpos( $box, 'Connections › Credentials' ) && false !== strpos( $box, 'data-snt-tab="connections"' ) && false !== strpos( $box, 'data-snt-sub="credentials"' ), 'the hint carries the door to Connections › Credentials' );
 $GLOBALS['__gh'] = null;
 $GLOBALS['__ai'] = null;
+
+// ── #1597: the Copilot line, inside the by-feature box, beside the cap and
+// never in it. Read between the box's heading and its close so the platform
+// box's figures cannot satisfy a pin.
+function feature_box( $html ) {
+	$start = strpos( $html, 'heading="This month, by feature"' );
+	if ( false === $start ) { return ''; }
+	$end = strpos( $html, '</os-section>', $start );
+	return substr( $html, $start, $end - $start );
+}
+// (a) no turn yet: a recorded $0.00 on its own row, the total untouched.
+$GLOBALS['__settings']['theme.ai_monthly_budget'] = 50.0;
+$GLOBALS['__spend']         = 12.5;
+$GLOBALS['__spend_by_feat'] = array( 'drafts' => 9.0 );
+$GLOBALS['__copilot']       = 0.0;
+$box = feature_box( snt_leaf_paint( 'ai', 'models-budget' ) );
+ok( false !== strpos( $box, 'Copilot (Ask AI), not counted against the cap' ), '#1597: the Copilot row paints inside the by-feature box, marked as outside the cap' );
+ok( preg_match( '#Copilot \(Ask AI\), not counted against the cap</span><span class="snt-list__value">\$0\.00</span>#', $box ) === 1, '#1597: before the first turn the row reads a recorded $0.00, not an absent reading' );
+ok( false !== strpos( $box, 'at list rates' ), '#1597: the figure says it is priced at list rates' );
+ok( false === strpos( $box, 'no list price on file' ), '#1597: with no unpriced turn the box carries no unpriced hint' );
+// (a2) turns ran on an id the table does not price: $0.00 stays, and one hint
+// separates it from "no Ask AI this month", the Insights leaf's wording.
+$GLOBALS['__copilot_unpriced'] = 3;
+$box = feature_box( snt_leaf_paint( 'ai', 'models-budget' ) );
+ok( false !== strpos( $box, '3 Copilot turn(s) this month reported no usage, or a model with no list price on file, and are not in the dollar figure.' ), '#1597: unpriced turns paint as a count with the Insights wording, so a silent $0.00 cannot pass for no Ask AI' );
+ok( preg_match( '#Copilot \(Ask AI\), not counted against the cap</span><span class="snt-list__value">\$0\.00</span>#', $box ) === 1, '#1597: the unpriced count leaves the dollar figure at $0.00' );
+$GLOBALS['__copilot_unpriced'] = 0;
+// (b) a priced turn: the figure on the Copilot row, the total and the meter exactly as before.
+$GLOBALS['__copilot'] = 0.0075;
+$kit = snt_leaf_paint( 'ai', 'models-budget' );
+$box = feature_box( $kit );
+ok( preg_match( '#Copilot \(Ask AI\), not counted against the cap</span><span class="snt-list__value">\$0\.0075</span>#', $box ) === 1, '#1597: a sub-cent Copilot figure paints at four decimals on its own row, the feature rows\' rule' );
+$GLOBALS['__copilot'] = 0.0105;
+$kit = snt_leaf_paint( 'ai', 'models-budget' );
+$box = feature_box( $kit );
+ok( preg_match( '#Copilot \(Ask AI\), not counted against the cap</span><span class="snt-list__value">\$0\.01</span>#', $box ) === 1, '#1597: the issue\'s 1000-in 500-out Sonnet turn (0.0105) paints as $0.01' );
+ok( false !== strpos( $box, 'Spent this month: $12.50 of $50.00 (25%)' ) && false !== strpos( $kit, '<os-progress-bar value="25" max="100"' ), '#1597: the total and the meter do not move for a Copilot turn' );
+ok( false !== strpos( $box, '>drafts</span>' ) && false === strpos( $box, '>Copilot</span>' ), '#1597: the feature rows are the ledger the cap reads; Copilot is not one of them' );
+$GLOBALS['__copilot'] = 3.5;
+$box = feature_box( snt_leaf_paint( 'ai', 'models-budget' ) );
+ok( preg_match( '#Copilot \(Ask AI\), not counted against the cap</span><span class="snt-list__value">\$3\.50</span>#', $box ) === 1, '#1597: a Copilot figure over a cent paints at two decimals' );
+$GLOBALS['__copilot']          = 0.0;
+$GLOBALS['__copilot_unpriced'] = 0;
+$GLOBALS['__spend']            = 0.0;
+$GLOBALS['__spend_by_feat']    = array();
+$GLOBALS['__settings']['theme.ai_monthly_budget'] = 0;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

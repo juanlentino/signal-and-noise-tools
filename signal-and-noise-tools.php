@@ -484,6 +484,7 @@ require_once __DIR__ . '/inc/desktop-mode-dropzone.php';
 require_once __DIR__ . '/inc/ai-bootstrap.php';
 require_once __DIR__ . '/inc/ai-cache-probe.php'; // v10.50.0: read-only http_response probe — the cache-token split the AI Client's TokenUsage DTO flattens away
 require_once __DIR__ . '/inc/ai-tool-invocation-log.php';
+require_once __DIR__ . '/inc/ai-copilot-spend.php'; // #1597: Copilot turns priced from openstation_ai_search_completed, a bucket beside the cap
 require_once __DIR__ . '/inc/ai-alt-text-suggest.php';   // primary: owns the shared SNT_AI_ALT_BASE_RULES — must load first
 require_once __DIR__ . '/inc/ai-alt-inline-suggest.php'; // sibling: composes its prompt from that base
 require_once __DIR__ . '/inc/emdash-scan.php'; // v10.50.0: prose-vs-structural em-dash classifier; feeds sn-scan 'emdash' + sn-apply 'emdash_replace'.
