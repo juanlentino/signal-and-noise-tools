@@ -504,12 +504,13 @@ ok( isset( $GLOBALS['__actions']['admin_enqueue_scripts'][5] ), 'settings provid
 
 $l10n = $GLOBALS['__localized_scripts']['snt-os-settings-tab']['sntOpenStationPreferences'] ?? array();
 ok( 'https://example.test/wp-json/signal-noise/v1/openstation/preferences' === ( $l10n['endpoint'] ?? '' ), 'localized endpoint matches REST preferences URL' );
-ok( 'nonce-wp_rest' === ( $l10n['nonce'] ?? '' ), 'localized nonce created for wp_rest' );
+ok( ! array_key_exists( 'nonce', $l10n ), 'no localized nonce: a PWA page cannot carry one (the shell\'s fetch stamps its own, heartbeat-refreshed)' );
 ok( is_array( $l10n['preferences'] ?? null ), 'localized preferences contains current preferences array' );
 
 // Client remap contract: two classic screens map to their native windows,
 // both are preference-gated, and their deep-link parameters are forwarded.
 $settings_js = file_get_contents( SNT_PATH . 'assets/os-settings-tab.js' );
+ok( false !== strpos( $settings_js, 'window.wp.os.fetch( config.endpoint' ) && false === strpos( $settings_js, 'X-WP-Nonce' ) && false === strpos( $settings_js, 'config.nonce' ) && false === strpos( $settings_js, 'window.fetch(' ), 'settings tab: the save goes through wp.os.fetch, no hand-set nonce header, no localized nonce, no raw fetch (a load-time nonce 403s once the shell sits open past its window)' );
 ok( is_string( $settings_js ), 'settings-tab client source is readable' );
 ok( 2 === substr_count( $settings_js, 'window.wp.os.registerNativeUrlRemap( {' ), 'client registers exactly two classic-page remaps' );
 // 14.8.0: the three MIO switches are on the same tab, and the look's save

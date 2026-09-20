@@ -386,6 +386,11 @@ ok( false !== strpos( $inline, 'categories=7' ) && false !== strpos( $inline, 'p
 	'notesCountUrl carries the category-scoped folder-count probe — same shape as the shell\'s own, PLUS the listQuery its probe ignores' );
 ok( false !== strpos( $inline, '"notesLabel":"Notes"' ),
 	'notesLabel rides along so the bundle can find the folder tile to repaint' );
+ok( false === strpos( $inline, 'restNonce' ),
+	'no nonce in the blob: a PWA page cannot carry one; the shell\'s fetch stamps its own, heartbeat-refreshed' );
+$explorer_js = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-explorer.js' );
+ok( 2 === substr_count( $explorer_js, 'shellFetch(' ) - 1 && false === strpos( $explorer_js, 'X-WP-Nonce' ) && false === strpos( $explorer_js, 'restNonce' ) && false !== strpos( $explorer_js, 'api.fetch( url, init )' ),
+	'both reads (the folder count, the discography) go through the shell\'s fetch: no hand-set nonce header, no inline nonce (a load-time nonce 403s once the shell sits open past its window)' );
 
 $GLOBALS['__inline'] = array();
 $GLOBALS['__caps']   = array( 'edit_posts' => true, 'manage_options' => false );

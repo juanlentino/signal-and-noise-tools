@@ -193,5 +193,12 @@ foreach ( $form_rules as $sel ) {
 	);
 }
 
+// The phone rule: under 640px an os-row stacks its cells, and a column-header
+// row (Block Migrations, Health) becomes four labels with nothing beside them.
+$css_src = (string) file_get_contents( $css_path );
+$phone   = strpos( $css_src, '@container snt-dashboard ( max-width: 640px )' );
+$hide    = strpos( $css_src, '.snt-leaf os-row[role="row"] {' );
+ok( false !== $phone && false !== $hide && $hide > $phone && 1 === preg_match( '/\.snt-leaf os-row\[role="row"\] \{\s*display: none !important;/', $css_src ), 'phone: a column-header row (os-row[role="row"]) is hidden inside the 640px container block, where the cells stack and the labels would sit beside nothing' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

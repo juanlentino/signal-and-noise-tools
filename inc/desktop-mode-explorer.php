@@ -310,7 +310,6 @@ add_action( 'admin_enqueue_scripts', function () {
 		'discographyUrl' => current_user_can( 'manage_options' )
 			? esc_url_raw( rest_url( 'signal-noise/v1/desktop/discography' ) )
 			: '',
-		'restNonce'      => wp_create_nonce( 'wp_rest' ),
 	);
 
 	// The category-scoped count probe behind the folder-tile repaint. Same
