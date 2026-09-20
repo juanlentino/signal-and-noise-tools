@@ -232,6 +232,11 @@
 				e.preventDefault();
 				dismiss();
 			} else if ( 'Enter' === e.key && 'TEXTAREA' !== ( e.target && e.target.tagName ) ) {
+				// A button runs its own click on Enter: Cancel and the close x must
+				// cancel, not apply. Read the target through the shadow root, the
+				// document sees the <os-button> or <os-modal> host in the kit.
+				var src = e.composedPath ? e.composedPath()[ 0 ] : e.target;
+				if ( src && src.closest && src.closest( 'button, os-button' ) ) { return; }
 				e.preventDefault();
 				accept();
 			}

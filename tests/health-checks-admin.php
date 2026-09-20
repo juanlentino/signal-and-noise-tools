@@ -214,5 +214,11 @@ hca_true( false !== strpos( $js, "back.shadowRoot.querySelector( 'button' )" ) &
 hca_true( false === strpos( $js, "'busy'" ) && false === strpos( $js, '.busy' ), 'the busy attribute is not used: the disabled guards would not see it (17.3.0 read, held)' );
 hca_true( 3 === substr_count( $js, ".hasAttribute( 'disabled' )" ) && 0 === preg_match( '/if \( ! \w+ \|\| \w+\.disabled \)/', $js ), 'disabled is still read as an attribute (a host getter returns the string) (17.3.0 read, held)' );
 
+echo "\nTest: Enter on the modal's Cancel or close x cancels, it does not apply\n";
+$js = file_get_contents( __DIR__ . '/../assets/health-suggest-actions.js' );
+hca_true( 1 === substr_count( $js, "closest( 'button, os-button' )" ), 'the keydown handler tests the Enter target for a button (native, or the kit host a shadow-root keydown retargets to)' );
+hca_true( false !== strpos( $js, 'e.composedPath()[ 0 ]' ), 'the target is read through the shadow root: the document sees <os-button> or <os-modal>, the real button sits inside' );
+hca_true( 1 === preg_match( "/closest\( 'button, os-button' \) \) \{ return; \}\s*e\.preventDefault\(\);\s*accept\(\);/", $js ), 'a button gets its own click (Cancel cancels, Apply applies once); Enter anywhere else still applies' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Enter on the Apply modal's Cancel (or its close x) cancels; it used to apply.** The document keydown handler in `assets/health-suggest-actions.js` read every Enter outside a textarea as Apply: `preventDefault()` ate the focused button's own click and `accept()` ran, so a keyboard user who Tabbed to Cancel and pressed Enter committed the write (ai-alt-apply, ai-drift-apply, ai-orphan-apply, ai-link-apply, pattern-adoption-apply, block-migrations-apply). Now the handler reads the Enter target through the shadow root (`e.composedPath()[ 0 ]`; the document only sees the `<os-button>` or `<os-modal>` host in the kit) and, when it is a button, lets that button run its own click: Cancel and the close x cancel, Apply applies once, Enter anywhere else still applies. Driven with real key events in headless Chromium against the classic box and the kit `<os-modal>`: both cancel controls committed on the unfixed script, both cancel on the fixed one. Pinned: the button test, the shadow-root read, the return before `preventDefault`; three red against the unfixed script.
+
 ### Documentation
 - The 2026-09-20 session doc carries the second arc (17.4.0, readings find their homes).
 
