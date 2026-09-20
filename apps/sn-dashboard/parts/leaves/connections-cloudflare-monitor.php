@@ -144,17 +144,20 @@ function cloudflare_firewall_html( array $d ) {
 	}
 	// 15.3.1: two columns. Left, what happened (events by action, the rules);
 	// right, to what (paths, countries). Notes and Refresh under the left.
-	return '<div class="snt-2up">'
-		. '<div class="snt-2up-col">' . \snt_kit_section( __( 'Firewall, 24 hours', 'signal-and-noise-tools' ), $parts['actions'] . $parts['rules'] . $parts['notes'] . $parts['footer'], __( 'What Cloudflare stopped before WordPress ran.', 'signal-and-noise-tools' ) ) . '</div>'
-		. '<div class="snt-2up-col">' . ( '' !== $parts['targets'] ? \snt_kit_section( __( 'Acted on', 'signal-and-noise-tools' ), $parts['targets'], __( 'The paths and countries behind the events, from the event log.', 'signal-and-noise-tools' ) ) : '' ) . cloudflare_posture_html() . '</div>'
-		. '</div>';
+	// #1573: the two are of a height (700 against 604 live), so they share
+	// one .snt-cols row; the posture stands alone at full width under it,
+	// never stacked under Acted on beside a hole. A log with no rows paints
+	// no Acted on and leaves the Firewall box alone (the tags_pair idiom).
+	$fw    = \snt_kit_section( __( 'Firewall, 24 hours', 'signal-and-noise-tools' ), $parts['actions'] . $parts['rules'] . $parts['notes'] . $parts['footer'], __( 'What Cloudflare stopped before WordPress ran.', 'signal-and-noise-tools' ) );
+	$acted = '' !== $parts['targets'] ? \snt_kit_section( __( 'Acted on', 'signal-and-noise-tools' ), $parts['targets'], __( 'The paths and countries behind the events, from the event log.', 'signal-and-noise-tools' ) ) : '';
+	return ( '' === $acted ? $fw : \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $fw . $acted ) ) . cloudflare_posture_html();
 }
 
 /**
- * Edge posture (15.4.0): what the edge is SET TO, beside what it did. The
- * judged settings and DNSSEC as a dotted list, the plain readings as one
- * quiet line, the custom rules by name with their state, and a refused read
- * as a notice naming the scope. Paints from sn_cf_posture_model(); the
+ * Edge posture (15.4.0): what the edge is SET TO, under what it did (full
+ * width under the row since #1573). The judged settings and DNSSEC as a
+ * dotted list, the plain readings as one quiet line, the custom rules by
+ * name with their state, and a refused read as a notice naming the scope. Paints from sn_cf_posture_model(); the
  * classic card paints the same model.
  *
  * @return string
