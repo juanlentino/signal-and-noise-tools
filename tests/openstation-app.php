@@ -62,6 +62,10 @@ namespace OpenStation\App {
 		public $opened = array();
 		public function open_url( $u, $t = '', $i = '' ) { $this->opened[] = array( $u, $t, $i ); return $this; }
 		public function can( $c, ...$a ) { $GLOBALS['__can_calls'][] = array( $c, $a ); return $GLOBALS['__os_can'] ?? true; }
+		/** The framework's per-user store (class-os.php stored()/store(); one user-meta row in the WordPress adapter), flat. */
+		public $stored = array();
+		public function stored( $k, $f = null, $scope = 'user' ) { return array_key_exists( $k, $this->stored ) ? $this->stored[ $k ] : $f; }
+		public function store( $k, $v, $scope = 'user' ) { $this->stored[ $k ] = $v; return $this; }
 	}
 }
 
@@ -224,7 +228,7 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	echo "\nGroup 2: the definition\n";
 	ok( array( 'edit_posts' ) === $app->caps && 'dock' === $app->placement && array( 'post' ) === $app->watch, 'gated on edit_posts; a dock tile; repaints on post changes' );
 	ok( array( 'section', 'item', 'status', 'query', 'view', 'verdict', 'selected' ) === array_keys( $app->state ) && 'icons' === $app->state['view'] && array() === $app->state['verdict'] && array() === $app->state['selected'], 'state schema: section, item, status, query, view, verdict, selected (two array slots)' );
-	ok( array( 'reopen', 'go', 'edit', 'verify', 'jump', 'trash', 'publish', 'purge', 'anchor', 'ack' ) === array_keys( $app->actions ), 'ten server actions: reopen (the deep-link lifecycle), go, edit, verify, jump, the control surface\'s four, and ack (an Attention row acknowledged) -- everything else is local in the browser' );
+	ok( array( 'view', 'reopen', 'go', 'edit', 'verify', 'jump', 'trash', 'publish', 'purge', 'anchor', 'ack' ) === array_keys( $app->actions ), 'eleven server actions: view (the remembered switch, beside the mount that restores it), reopen (the deep-link lifecycle), go, edit, verify, jump, the control surface\'s four, and ack (an Attention row acknowledged) -- everything else is local in the browser' );
 
 	// v14.4.0: a deep link from another surface (the Posts window's Attention
 	// pill) — `wp.os.openWindow( 'signal-noise', { params: { section } } )`.
@@ -244,6 +248,30 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	$state = new \OpenStation\App\State( $app->state, array( 'section' => 'notes', 'item' => '7' ) );
 	( $app->mount )( $state, $os );
 	ok( 'notes' === $state->get( 'section' ) && '7' === $state->get( 'item' ), 'mount WITHOUT a section param touches nothing — a prewarmed or plain open keeps its state' );
+
+	// #1605: the icons-or-list choice is a per-user PREFERENCE kept through
+	// the framework's store ($os->stored() / $os->store(), one user-meta row),
+	// not window.localStorage: the phone PWA and the desk agree, and cleared
+	// site data does not reset it. The mount seed IS the hydrated state (the
+	// mount answer's `state`), which is where v13.109.15's client-side seed
+	// lost to hydration.
+	$os->stored = array( 'view' => 'list' );
+	$state      = new \OpenStation\App\State( $app->state );
+	( $app->mount )( $state, $os );
+	ok( 'list' === $state->get( 'view' ), 'mount seeds state.view from $os->stored( \'view\' ): the stored List wins over the schema default' );
+	$os->stored = array( 'view' => 'bogus' );
+	$state      = new \OpenStation\App\State( $app->state );
+	( $app->mount )( $state, $os );
+	ok( 'icons' === $state->get( 'view' ), 'a stored value outside icons|list mounts as icons' );
+	// A no-op stand-in when the action is absent, so the two pins below report red instead of the suite dying.
+	$view_action = $app->actions['view'] ?? static function () {};
+	$os->stored  = array();
+	$state       = new \OpenStation\App\State( $app->state, array( 'view' => 'list' ) );
+	$view_action( $state, $os, array() );
+	ok( 'list' === $state->get( 'view' ) && 'list' === ( $os->stored['view'] ?? null ), 'the view action stores the bound value (the client flipped locally first)' );
+	$state = new \OpenStation\App\State( $app->state, array( 'view' => 'bogus' ) );
+	$view_action( $state, $os, array() );
+	ok( 'icons' === $state->get( 'view' ) && 'icons' === ( $os->stored['view'] ?? null ), 'the view action clamps a bogus value to icons in both the state and the store' );
 	ok( 'https://example.test/wp-json/wp-abilities/v1/abilities/signal-noise/note-dossier/run' === ( $app->config['dossierUrl'] ?? '' ), 'the ability run URL rides the window config, so the client never spells the abilities path' );
 	ok( SNT_VERSION === ( $app->config['version'] ?? '' ), 'the plugin version rides the window config: the half of the stale-build detector that FREEZES into the document at render' );
 

@@ -306,54 +306,32 @@ ok( 0 === preg_match( '/set(?:Timeout|Interval)\(.{0,120}?reload/s', $js ), 'and
 // can check them; a tautology in the file is not evidence and reads as if it is.
 
 
-// ── The view switch is a PREFERENCE and survives a reload. ──
-// v13.109.15 seeded `state.view` from storage in `mounted()`. It did NOT work:
-// the seed ran, then the app hydrated `state` from the PHP schema, whose
-// `'view' => 'icons'` overwrote it. Measured on the shipped build -- stored
-// `list`, state.view `icons`, forty tiles painted. The action was never the
-// problem (dispatching it later works); the timing was, and the framework
-// offers no post-hydration hook.
-//
-// The fix reads through storage at PAINT time, so there is no moment at which
-// a stale `state.view` can be painted, nothing is dispatched during render, and
-// no "already seeded" flag is needed.
-ok( false !== strpos( $js, "const VIEW_KEY = 'sn-signal-noise-view'" ), 'the view preference has a storage key' );
-ok( preg_match( '/\'set-view\':[^}]*writeView\(/s', $js ), 'set-view writes the choice' );
+// ── The view switch is a PREFERENCE the SERVER remembers (#1605). ──
+// It used to live in window.localStorage under `sn-signal-noise-view`, read
+// through at paint time: one browser's choice, so the phone PWA and the desk
+// disagreed and cleared site data reset it. The framework keeps the window's
+// own preferences per user ($os->stored() / $os->store(), one user-meta row;
+// docs/app-framework.md, the porting table's "User meta / options" row), and
+// its own WP Explorer wires its switch the same way (my-wordpress.os.ts): the
+// pick flips locally for an instant switch, then dispatches `view` so PHP
+// stores it, and mount seeds `state.view` from the store. The mount answer IS
+// the hydrated state, so the seed cannot lose to hydration the way
+// v13.109.15's client-side seed did.
+ok( false === strpos( $js, 'localStorage' ), 'the client never touches localStorage: the preference lives on the server' );
+ok(
+	preg_match( '/const pickView = \( e \) => \{[\s\S]{0,400}?ctx\.local\( \'set-view\', \{ view \} \);\s*void ctx\.dispatch\( \'view\' \);/', $js ),
+	'a pick flips locally (set-view) and then dispatches view, so the switch is instant and the server remembers it'
+);
+ok( false !== strpos( $js, '<os-segmented class="snt-view" value=${ state.view } label=${ __( \'View\' ) } @os-pick=${ pickView }>' ), 'the toggle paints from state.view and answers the pick; no os-bind/os-action, which would skip the local flip' );
+ok( 0 === preg_match( '/\'set-view\':[^}]*writeView\(/s', $js ), 'the set-view reducer writes no storage' );
+ok( preg_match( "/const body = 'list' === state\.view \? renderList/", $js ), 'the BODY is painted from state.view, the hydrated state the mount seed set' );
 
-// STORAGE WINS at read time -- this is the half v13.109.15 got wrong.
-ok( preg_match( '/const currentView = \( state \) => \{[^}]*readView\(\)/s', $js ), 'currentView() resolves through storage first' );
-ok(
-	preg_match( "/const body = 'list' === currentView\( state \)/", $js ),
-	'...and the BODY is painted from it, not from state.view'
-);
-ok(
-	false !== strpos( $js, 'value=${ currentView( state ) }' ),
-	'...and so is the toggle, so the control matches what is painted'
-);
-
-// The seed that lost the race must NOT come back.
-ok(
-	! preg_match( '/mounted:[\s\S]{0,600}?readView\(\)/', $js ),
-	'mounted() does NOT seed the view -- that lost to hydration and is why .15 did not work'
-);
-ok(
-	0 === preg_match( "/state\.view === 'list' \? renderList/", $js ),
-	'no render path still branches on the un-resolved state.view'
-);
-
-// Every access is wrapped. A private window, cleared site data, or a browser
-// set to block storage THROWS on access rather than returning null.
-ok(
-	2 === preg_match_all( '/try \{\s*(?:const v = )?window\.localStorage\.(?:get|set)Item/', $js ),
-	'both reads and writes are inside try/catch'
-);
-
-// The PHP default is now a fallback, and says so: a reader who finds `icons`
-// there must not conclude the app opens in icons.
+// The PHP default is the fallback the mount seed reads past, and says so: a
+// reader who finds `icons` there must not conclude the app opens in icons.
 $os_php = (string) file_get_contents( SNT_PATH . 'apps/signal-noise/signal-noise.os.php' );
 ok(
-	preg_match( "/'view'\s*=>\s*'icons',\s*\/\/[^\n]*FALLBACK/", $os_php ),
-	'the state schema names its default a FALLBACK, not the value'
+	preg_match( "/'view'\s*=>\s*'icons',\s*\/\/[^\n]*\\\$os->stored\( 'view' \)/", $os_php ),
+	'the state schema comment names the store the mount seeds from, not the retired localStorage key'
 );
 
 
