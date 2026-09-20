@@ -228,7 +228,7 @@ namespace {
 	ok( false === strpos( $models_src, 'snt-2up' ) && false !== strpos( $models_src, '<div class="snt-cols"><section class="snt-col">' ), 'ai/models-budget renders .snt-cols rows, not the .snt-2up' );
 
 	$insights_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-insights.php' );
-	ok( false !== strpos( $insights_src, '<div class="snt-2up">' ), 'monitoring/insights renders in .snt-2up two columns' );
+	ok( false !== strpos( $insights_src, "'snt-cols'" ) && false === strpos( $insights_src, '<div class="snt-2up">' ), 'monitoring/insights paints .snt-cols rows, not the .snt-2up column pair (#1573)' );
 
 	$gsc_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-search-console.php' );
 	ok( false !== strpos( $gsc_src, '<div class="snt-2up">' ), 'monitoring/search-console renders in .snt-2up two columns' );
