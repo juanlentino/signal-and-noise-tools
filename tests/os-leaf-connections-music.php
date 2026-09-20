@@ -75,7 +75,15 @@ ok( false !== strpos( $kit, '<dt class="snt-kv__k">Last sync</dt><dd class="snt-
 ok( false !== strpos( $kit, 'Muso.AI profile <os-code>' . SN_MUSO_DEFAULT_PROFILE . '</os-code> <os-badge tone="success">no credential</os-badge>' ), 'the Data source fact names the profile as code and the credential-free pill' );
 ok( false !== strpos( $kit, '<os-badge tone="success">Configured</os-badge> — album embeds + artwork enrichment active' ) && false === strpos( $kit, 'Last error' ), 'Spotify media reads Configured; no Last error row when there is none' );
 ok( false !== strpos( $kit, 'description="Runs the full Muso → Spotify → store pass immediately. Keeps the last-good discography if a source fails."' ), 'the Sync now helper survives as the section description' );
-ok( 2 === substr_count( $kit, 'class="snt-col"' ) && false !== strpos( $kit, '<div class="snt-cols">' ) && false !== strpos( $kit, 'aria-label="Sync status"' ), 'the two-column shell becomes the app column grid: form column, then the rail with its landmark name' );
+// 17.4.1 (#1573): the composition. The form (906px live) no longer shares a
+// row with the 349px rail; the two short boxes share one, the form stands alone.
+$row = strpos( $kit, '<aside class="snt-cols" aria-label="Sync status">' );
+ok( false !== $row && 0 === substr_count( $kit, 'class="snt-col"' ) && 1 === substr_count( $kit, 'snt-cols' ), 'the Status row: Status and Sync now share one .snt-cols row carrying the landmark name; no column cards, no other row' );
+$order = array( strpos( $kit, '<p class="snt-prose">' ), strpos( $kit, '<os-notice' ), $row, strpos( $kit, 'heading="Status"' ), strpos( $kit, 'heading="Sync now"' ), strpos( $kit, '</aside>' ), strpos( $kit, 'heading="Spotify (optional)"' ) );
+$sorted = $order;
+sort( $sorted );
+ok( ! in_array( false, $order, true ) && $order === $sorted, 'the order: intro, the sync notice, the Status row (Status then Sync now), then the form alone under it: ' . implode( ' < ', $order ) );
+ok( strpos( $kit, 'value="music_sync"' ) < strpos( $kit, '</aside>' ) && strpos( $kit, 'value="music_save"' ) > strpos( $kit, '</aside>' ), 'the sync form is inside the row, the save form after it' );
 
 // ── Stale state: releases cached but the last sync failed.
 music_fixture( array( 'store' => array( 'last_error' => 'Muso: HTTP 502' ) ) );
@@ -94,6 +102,7 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_music_section' );
 $kit     = snt_leaf_paint( 'connections', 'music' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'music_save', 'music_sync' ) === snt_leaf_actions( $kit ), 'pending: field names and both actions still match the classic forms' );
 ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, '<b>Not yet synced</b> <os-badge tone="warning">Pending</os-badge><br>Hit “Sync now”' ), 'pending: a warning notice — Not yet synced / pill Pending' );
+ok( false === strpos( $kit, 'on the right' ), 'the notice no longer points right: the row is below it' );
 ok( false !== strpos( $kit, '<dd class="snt-kv__v"><em>never</em></dd>' ) && false !== strpos( $kit, '<dt class="snt-kv__k">Releases cached</dt><dd class="snt-kv__v">0</dd>' ), 'pending: last sync never, 0 releases cached' );
 ok( false !== strpos( $kit, '<os-badge tone="warning">Not configured</os-badge> — Muso artwork only, no embeds (optional)' ), 'pending: Spotify media reads Not configured' );
 ok( false !== strpos( $kit, '>Not set</dd>' ) && false !== strpos( $kit, 'name="sn_music_featured" type="text" value=""' ) && false !== strpos( $kit, 'No manual pick — <os-code>/music</os-code> auto-features your newest release.' ), 'pending: the Spotify sources read Not set, the featured field is empty, the auto-feature helper paints' );
