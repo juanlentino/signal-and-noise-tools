@@ -2,7 +2,7 @@
 /**
  * S&N Dashboard — Connections → Cloudflare: the readouts under the form.
  *
- * The folded Post-purge probes table, the cache status box, the manual purge
+ * The Post-purge probes ledger, the cache status box, the manual purge
  * card and the Cloudways purge status, each painted from the kit for the same
  * readings the classic closure in inc/cloudflare-purge.php prints. Required
  * by connections-cloudflare.php.
@@ -16,6 +16,9 @@ namespace SignalNoise\OpenStationHost\Dashboard\Leaves;
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
+
+/** 17.4.1: the probes ledger lists this many newest rows, then "more". */
+const CF_PROBE_ROWS = 8;
 
 /**
  * One probe-log entry as a table row: when, the verdict (with its escalation
@@ -51,10 +54,12 @@ function cloudflare_probe_row( array $row ) {
 }
 
 /**
- * The Post-purge probes fold: `<os-disclosure heading hint open>` (kit-help
- * "Disclosure") — open only when the NEWEST probe is stale, as the classic
- * `<details>` is — around the intro and the When / Result / Page table.
- * Painted only when configured and the log has entries, the classic gate.
+ * The Post-purge probes ledger: its own box since 17.4.1 (#1573), the intro
+ * as the description, the When / Result / Page table capped at
+ * CF_PROBE_ROWS newest rows with a "more" line for the rest, no fold. Until
+ * then an `<os-disclosure>` inside Cache, open only when the newest probe
+ * was stale. Painted only when configured and the log has entries, the
+ * classic gate; the tally (retained, stale) is a Cache facts row.
  *
  * @param array<string,mixed> $d From cloudflare_data().
  * @return string
@@ -63,21 +68,8 @@ function cloudflare_probes_html( array $d ) {
 	if ( empty( $d['is_configured'] ) || empty( $d['probe_log'] ) ) {
 		return '';
 	}
-	$stale  = 0;
-	$newest = '';
-	$rows   = array();
-	foreach ( $d['probe_log'] as $row ) {
-		if ( ! is_array( $row ) ) {
-			continue;
-		}
-		if ( '' === $newest ) {
-			$newest = (string) ( $row['result'] ?? '' );
-		}
-		if ( 'stale' === (string) ( $row['result'] ?? '' ) ) {
-			++$stale;
-		}
-	}
-	foreach ( array_slice( $d['probe_log'], 0, 20 ) as $row ) {
+	$rows = array();
+	foreach ( array_slice( $d['probe_log'], 0, CF_PROBE_ROWS ) as $row ) {
 		if ( is_array( $row ) ) {
 			$rows[] = cloudflare_probe_row( $row );
 		}
@@ -85,29 +77,24 @@ function cloudflare_probes_html( array $d ) {
 	$delay = defined( 'SN_CF_PROBE_DELAY' ) ? (int) SN_CF_PROBE_DELAY : 0;
 	$intro = sprintf(
 		/* translators: %d: seconds between a purge and its probe */
-		__( 'Each row is one check of the page a reader would actually get, %d seconds after its purge. A stale row escalated to a full zone purge at the time, so it records a purge that needed a second attempt — not a page still stale now.', 'signal-and-noise-tools' ),
+		__( 'Each row is one check of the page a reader would actually get, %d seconds after its purge. A stale row escalated to a full zone purge at the time, so it records a purge that needed a second attempt, not a page still stale now.', 'signal-and-noise-tools' ),
 		$delay
 	);
-	$hint = sprintf(
-		/* translators: 1: probes retained, 2: how many of them were stale */
-		_n( '%1$d retained, %2$d stale', '%1$d retained, %2$d stale', count( $d['probe_log'] ), 'signal-and-noise-tools' ),
-		count( $d['probe_log'] ),
-		$stale
+	$inner = \snt_kit_table(
+		array(
+			array( 'key' => 'when', 'label' => __( 'When', 'signal-and-noise-tools' ) ),
+			array( 'key' => 'result', 'label' => __( 'Result', 'signal-and-noise-tools' ) ),
+			array( 'key' => 'page', 'label' => __( 'Page', 'signal-and-noise-tools' ) ),
+		),
+		$rows,
+		array( 'empty' => __( 'No probes recorded.', 'signal-and-noise-tools' ) )
 	);
-	return \snt_kit_tag(
-		'os-disclosure',
-		array( 'heading' => __( 'Post-purge probes', 'signal-and-noise-tools' ), 'hint' => $hint, 'open' => 'stale' === $newest ),
-		'<p class="snt-prose">' . \snt_kit_esc( $intro ) . '</p>'
-		. \snt_kit_table(
-			array(
-				array( 'key' => 'when', 'label' => __( 'When', 'signal-and-noise-tools' ) ),
-				array( 'key' => 'result', 'label' => __( 'Result', 'signal-and-noise-tools' ) ),
-				array( 'key' => 'page', 'label' => __( 'Page', 'signal-and-noise-tools' ) ),
-			),
-			$rows,
-			array( 'empty' => __( 'No probes recorded.', 'signal-and-noise-tools' ) )
-		)
-	);
+	$n = count( $d['probe_log'] );
+	if ( $n > CF_PROBE_ROWS ) {
+		/* translators: %d: probes retained but not listed */
+		$inner .= '<p class="snt-hint">' . \snt_kit_esc( sprintf( __( '…and %d more', 'signal-and-noise-tools' ), $n - CF_PROBE_ROWS ) ) . '</p>';
+	}
+	return \snt_kit_section( __( 'Post-purge probes', 'signal-and-noise-tools' ), $inner, $intro );
 }
 
 /**
