@@ -97,19 +97,24 @@ $boot          = 'define(\'ABSPATH\',\'/\');'
 	. 'require ' . var_export( SNT_PATH . 'inc/resume-page.php', true ) . ';'
 	. '$in=json_decode(file_get_contents("php://stdin"),true);'
 	. 'echo json_encode(sn_resume_doc_normalize($in));';
-$spec  = array( 0 => array( 'pipe', 'r' ), 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) );
-$pipes = array();
-$proc  = @proc_open( array( PHP_BINARY ?: 'php', '-r', $boot ), $spec, $pipes );
-$back  = null;
-if ( is_resource( $proc ) ) {
-	fwrite( $pipes[0], (string) json_encode( $resume_posted ) );
+// One child process per boot: the JSON on stdin is the posted `resume`
+// array, the JSON on stdout is whatever the boot echoes.
+$spawn = function ( $boot, $in ) {
+	$spec  = array( 0 => array( 'pipe', 'r' ), 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) );
+	$pipes = array();
+	$proc  = @proc_open( array( PHP_BINARY ?: 'php', '-r', $boot ), $spec, $pipes );
+	if ( ! is_resource( $proc ) ) {
+		return null;
+	}
+	fwrite( $pipes[0], (string) json_encode( $in ) );
 	fclose( $pipes[0] );
 	$out = stream_get_contents( $pipes[1] );
 	fclose( $pipes[1] );
 	fclose( $pipes[2] );
 	proc_close( $proc );
-	$back = json_decode( (string) $out, true );
-}
+	return json_decode( (string) $out, true );
+};
+$back  = $spawn( $boot, $resume_posted );
 $want = $seed;
 unset( $want['updated'] );
 ok( is_array( $back ) && $back === $want, 'round trip: the live blank template rows the kit now posts (__S__/__E__/__R__/__X__/__Y__/__D__/__A__/__P__/__K__) are pruned by the real sn_resume_doc_normalize() — the saved document is byte-identical to the painted one' );
@@ -132,7 +137,79 @@ foreach ( array( 'The opening band: summary, credential chips, contact line, and
 foreach ( array( '+ Add stat', '+ Add role', '+ Add employer', '+ Add earlier employer', '+ Add education', '+ Add affiliation', '+ Add publication', '+ Add skills row' ) as $add ) {
 	ok( false !== strpos( $kit, '<os-disclosure heading="' . $add . '"' ), 'the classic add button survives as a fold: ' . $add );
 }
-ok( false !== strpos( $kit, 'rows keep the order shown' ), 'the dropped row-reorder behaviour is acknowledged in the add-fold hint' );
+ok( false !== strpos( $kit, 'rows keep the order shown' ) && false !== strpos( $kit, 'the arrows reorder' ), 'the add-fold hint says the arrows reorder and rows keep the order shown' );
+
+// ── Reorder (#1560): the classic arrows, verbatim. The classic page reorders
+// in the DOM (assets/resume-admin.js moves the [data-rsm-row] element, the
+// whole document posts afterwards, the handler has no move logic), and that
+// script is already in the window's script list. So the twin is the classic
+// mark and class names on kit buttons, and one selector in the script that
+// also matches an <os-button> host (a click inside its shadow root retargets
+// to the host at the document listener). The classic bakes its controls into
+// inert <template>s the kit never clones, so the oracle is the classic page
+// with its templates stripped: every LIVE classic row has the arrows, every
+// kit row that is not a fold's blank row has them.
+$classic_live = preg_replace( '#<template\b.*?</template>#s', '', $classic );
+$n_up         = substr_count( $classic_live, 'sn-rsm-up' );
+ok( $n_up > 20 && $n_up === substr_count( $kit, 'class="sn-rsm-up"' ) && $n_up === substr_count( $kit, 'class="sn-rsm-down"' ), 'every live classic row\'s Move up / Move down is a kit button carrying the classic class name (' . $n_up . ' rows)' );
+ok( $n_up === substr_count( $kit, 'data-rsm-row' ) && $n_up === substr_count( $classic_live, 'data-rsm-row' ), 'every kit row with arrows carries the classic data-rsm-row mark the script walks to (' . $n_up . ')' );
+ok( preg_match_all( '/<os-button [^>]*class="sn-rsm-(?:up|down)"[^>]*>/', $kit, $arrows ) === 2 * $n_up && ! preg_grep( '/os-action|\sname=|os-arg-/', $arrows[0] ) && count( preg_grep( '/\btype="button"/', $arrows[0] ) ) === 2 * $n_up, 'the arrows are os-buttons with no action, no name and no os-arg, type=button' );
+// The name: the kit does not forward a host aria-label to the inner button
+// (os-button.ts props: variant/disabled/type/busy/fill-cell), so the classic
+// "Move up" / "Move down" is slotted hidden text, and a host aria-label (the
+// inert spelling) fails.
+ok( $n_up === substr_count( $kit, '<span aria-hidden="true">&uarr;</span><span class="snt-sr-only">Move up</span></os-button>' ) && $n_up === substr_count( $kit, '<span aria-hidden="true">&darr;</span><span class="snt-sr-only">Move down</span></os-button>' ) && false === strpos( $kit, 'aria-label="Move' ), 'every arrow is named "Move up" / "Move down" through slotted hidden text, the glyph hidden, never through a host aria-label the kit drops' );
+ok( preg_match( '/\.snt-sr-only\s*\{[^}]*position:\s*absolute;[^}]*clip-path:\s*inset\( 50% \)/', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) ) === 1, 'the dashboard stylesheet hides .snt-sr-only text visually and keeps it readable' );
+preg_match_all( '/<os-card [^>]*os-key="([^"]*)"[^>]*>/', $kit, $cards );
+$blank_marked = 0; $indexed_unmarked = 0;
+foreach ( $cards[0] as $i => $card ) {
+	$marked = false !== strpos( $card, 'data-rsm-row' );
+	if ( false !== strpos( $cards[1][ $i ], '__' ) ) {
+		$blank_marked += $marked ? 1 : 0;
+	} else {
+		$indexed_unmarked += $marked ? 0 : 1;
+	}
+}
+ok( count( $cards[0] ) > $n_up && 0 === $blank_marked && 0 === $indexed_unmarked, 'a fold\'s blank row (a __TOKEN__ key) has no data-rsm-row and no arrows; every indexed row has both' );
+ok( substr_count( $kit, '<div class="snt-rsm-list">' ) === substr_count( $kit, '+ Add ' ), 'each list\'s rows sit in one wrapper, the add fold outside it, so the arrows\' sibling walk meets rows only' );
+ok( preg_match( '/<div class="snt-rsm-list">\s*<\/div>/', snt_leaf_paint( 'content', 'resume' ) ) === 0, 'on the seed no list wrapper is empty' );
+// Negative control: the action pin at the top can fail. A planted per-row
+// server action would be a second action.
+ok( array( 'resume_move', 'resume_save' ) === snt_leaf_actions( $kit . '<os-button os-action="post" os-arg-action="resume_move">Up</os-button>' ), 'the action pin discriminates: a planted resume_move os-button reads as a second action' );
+// The script side: the one-token widening and the markup contract it walks.
+$js = (string) file_get_contents( SNT_PATH . 'assets/resume-admin.js' );
+ok( false !== strpos( $js, "closest( 'button, os-button' )" ), 'resume-admin.js finds the clicked control by button OR os-button (the shadow host the click retargets to)' );
+ok( false !== strpos( $js, "closest( '[data-rsm-row]' )" ) && false !== strpos( $js, "'sn-rsm-up'" ) && false !== strpos( $js, "'sn-rsm-down'" ) && false !== strpos( $js, 'previousElementSibling' ), 'resume-admin.js still walks data-rsm-row and the sn-rsm-up / sn-rsm-down classes the kit rows carry' );
+// The round trip through the HANDLER: a DOM move changes element order, never
+// a name, so the post arrives with stats[1] before stats[0] and the handler
+// (no move logic, no ksort) saves the order posted.
+$moved = array();
+foreach ( $values as $k => $v ) {
+	if ( 0 === strpos( $k, 'resume[stats][1]' ) ) {
+		$moved[ $k ] = $v;
+	}
+}
+foreach ( $values as $k => $v ) {
+	if ( 0 !== strpos( $k, 'resume[stats][1]' ) ) {
+		$moved[ $k ] = $v;
+	}
+}
+$handler_boot = 'define(\'ABSPATH\',\'/\');'
+	. 'function wp_unslash($v){return $v;} function get_option($k){return false;} function update_option($k,$v){$GLOBALS[\'saved\']=$v;return true;}'
+	. 'require ' . var_export( SNT_PATH . 'inc/admin-post-actions/content.php', true ) . ';'
+	. 'require ' . var_export( SNT_PATH . 'inc/resume-page.php', true ) . ';'
+	. '$in=json_decode(file_get_contents("php://stdin"),true);'
+	. 'echo json_encode(array(sn_handle_resume_save($in),$GLOBALS[\'saved\']??null));';
+$saved = $spawn( $handler_boot, array( 'resume' => snt_os_host_expand( $moved )['resume'] ?? array() ) );
+$doc   = is_array( $saved ) ? (array) ( $saved[1] ?? array() ) : array();
+unset( $doc['updated'] );
+$want_moved = $want;
+$want_moved['stats'] = array( $want['stats'][1], $want['stats'][0], $want['stats'][2], $want['stats'][3] );
+ok( is_array( $saved ) && 'resume_saved' === $saved[0] && $doc === $want_moved, 'a moved row posts through the real handler and saves in the order shown: stats 1 and 0 swapped, every other section byte-identical' );
+$control = $spawn( $handler_boot, array( 'resume' => $resume_posted ) );
+$cdoc    = is_array( $control ) ? (array) ( $control[1] ?? array() ) : array();
+unset( $cdoc['updated'] );
+ok( is_array( $control ) && 'resume_saved' === $control[0] && $cdoc === $want, 'control: the unmoved post saves in the painted order through the same handler' );
 
 // ── The seed prefills the kit fields.
 ok( false !== strpos( $kit, 'name="resume[experience][0][org]" type="text" value="INDEPENDENT PRACTICE"' ), 'seed org prefilled' );

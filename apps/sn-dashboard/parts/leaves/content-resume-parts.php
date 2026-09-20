@@ -39,9 +39,34 @@ function resume_pair( $a, $b ) {
 	return \snt_kit_tag( 'os-grid', array( 'columns' => '2', 'gap' => '12' ), $a . $b );
 }
 
-/** One record row — the classic `.sn-rsm-row.sn-rsm-card`. @param string $key Morph identity (the name prefix). @param string $inner @param bool $compact Nested rows are compact. @return string */
+/**
+ * One record row, the classic `.sn-rsm-row.sn-rsm-card`.
+ *
+ * An indexed row carries the classic `data-rsm-row` mark and the two arrows
+ * in its footer slot, as kit buttons with the classic class names:
+ * assets/resume-admin.js is already in the window's script list and moves
+ * the row in the DOM on click; the whole document posts afterwards in the
+ * order shown, the way the classic page reorders. No action, no name: the
+ * arrows never post anything. The classic "Move up" / "Move down" name is
+ * slotted hidden text: the kit does not forward a host aria-label to the
+ * inner button (the dashboard's refresh button does the same). A fold's
+ * blank row (its key carries a template token, `__S__`, `__R__`, ...) has
+ * no siblings to move among and gets neither.
+ *
+ * @param string $key     Morph identity (the name prefix).
+ * @param string $inner   Row fields.
+ * @param bool   $compact Nested rows are compact.
+ * @return string
+ */
 function resume_card( $key, $inner, $compact = false ) {
-	return \snt_kit_tag( 'os-card', array( 'os-key' => (string) $key, 'compact' => (bool) $compact ), $inner );
+	$movable = false === strpos( (string) $key, '__' );
+	if ( $movable ) {
+		$inner .= '<div slot="footer" class="snt-rsm-controls">'
+			. \snt_kit_tag( 'os-button', array( 'variant' => 'ghost', 'type' => 'button', 'class' => 'sn-rsm-up' ), '<span aria-hidden="true">&uarr;</span><span class="snt-sr-only">' . \snt_kit_esc( __( 'Move up', 'signal-and-noise-tools' ) ) . '</span>' )
+			. \snt_kit_tag( 'os-button', array( 'variant' => 'ghost', 'type' => 'button', 'class' => 'sn-rsm-down' ), '<span aria-hidden="true">&darr;</span><span class="snt-sr-only">' . \snt_kit_esc( __( 'Move down', 'signal-and-noise-tools' ) ) . '</span>' )
+			. '</div>';
+	}
+	return \snt_kit_tag( 'os-card', array( 'os-key' => (string) $key, 'compact' => (bool) $compact, 'data-rsm-row' => $movable ), $inner );
 }
 
 /**
@@ -57,7 +82,7 @@ function resume_card( $key, $inner, $compact = false ) {
  * @return string
  */
 function resume_add_fold( $label, $inner ) {
-	return \snt_kit_tag( 'os-disclosure', array( 'heading' => (string) $label, 'hint' => __( 'Blank a row and save to remove it; rows keep the order shown', 'signal-and-noise-tools' ) ), $inner );
+	return \snt_kit_tag( 'os-disclosure', array( 'heading' => (string) $label, 'hint' => __( 'Blank a row and save to remove it; the arrows reorder, rows keep the order shown', 'signal-and-noise-tools' ) ), $inner );
 }
 
 /** One role: title + bullets — sn_rsm_role_row(). @param string $prefix @param array $role {title,bullets[]} (empty for the blank row). @return string */
@@ -71,7 +96,9 @@ function resume_role_row( $prefix, array $role ) {
 }
 
 /**
- * The roles under an employer: every role, then the "+ Add role" fold.
+ * The roles under an employer: every role in one list wrapper (so the
+ * arrows' sibling walk meets rows only, never the employer's dates pair or
+ * the fold), then the "+ Add role" fold.
  *
  * @param string $prefix Employer name prefix.
  * @param array  $roles  Roles.
@@ -85,7 +112,7 @@ function resume_roles_list( $prefix, array $roles, $token ) {
 		$out .= resume_role_row( $prefix . '[roles][' . $i . ']', (array) $role );
 		$i++;
 	}
-	return $out . resume_add_fold( __( '+ Add role', 'signal-and-noise-tools' ), resume_role_row( $prefix . '[roles][' . $token . ']', array() ) );
+	return '<div class="snt-rsm-list">' . $out . '</div>' . resume_add_fold( __( '+ Add role', 'signal-and-noise-tools' ), resume_role_row( $prefix . '[roles][' . $token . ']', array() ) );
 }
 
 /**
@@ -154,8 +181,9 @@ function resume_skills_row( $prefix, array $row ) {
 }
 
 /**
- * A repeatable list: every row through its painter, then the "+ Add" fold
- * holding the painter's blank row under the template token.
+ * A repeatable list: every row through its painter in one list wrapper
+ * (the arrows walk siblings, so the fold stays outside it), then the
+ * "+ Add" fold holding the painter's blank row under the template token.
  *
  * @param array    $items     Rows.
  * @param callable $painter   fn( string $prefix, array $row ): string.
@@ -172,5 +200,5 @@ function resume_list( array $items, callable $painter, $base, $token, $add_label
 		$out .= call_user_func( $painter, $base . '[' . $i . ']', (array) $row );
 		$i++;
 	}
-	return $out . resume_add_fold( $add_label, call_user_func( $painter, $base . '[' . $token . ']', $blank ) );
+	return '<div class="snt-rsm-list">' . $out . '</div>' . resume_add_fold( $add_label, call_user_func( $painter, $base . '[' . $token . ']', $blank ) );
 }

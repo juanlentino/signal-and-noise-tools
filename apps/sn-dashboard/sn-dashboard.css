@@ -387,7 +387,8 @@ os-button.snt-home__action:hover {
 .snt-home__refresh::part( button ),
 .snt-leaf-refresh::part( button ) { min-height: 44px; min-width: 44px; }
 
-.snt-home__refresh-label {
+/* Hidden text that names a kit button through its slot (the host aria-label is not forwarded). */
+.snt-sr-only {
 	position: absolute;
 	width: 1px;
 	height: 1px;
