@@ -191,6 +191,47 @@ function sn_jev_tags_rows( $data ) {
 	return $rows;
 }
 
+/** A note that only TOUCHES a tag scores under this; at or above it, the note is about it. */
+const SN_JEV_TAG_ABOUT_AT = 1.0;
+
+/**
+ * The pass pivoted per tag: what a reader of that tag's archive gets. Every
+ * note carrying the tag with Jev's score, the mean, and the notes under
+ * SN_JEV_TAG_ABOUT_AT (they touch the tag; a reader browsing it may find
+ * them beside the point). No lines, no boxes: a reading of the archives.
+ * PURE given the stored pass.
+ *
+ * @return array<int,array{id:int,name:string,notes:int,mean:float,touching:array<int,array{post_id:int,title:string,score:float,confidence:float}>}> By touching share, descending.
+ */
+function sn_jev_tags_by_tag( $data ) {
+	$tags = array();
+	foreach ( (array) ( $data['notes'] ?? array() ) as $pid => $n ) {
+		foreach ( (array) ( $n['attached'] ?? array() ) as $t ) {
+			$id = (int) ( $t['id'] ?? 0 );
+			if ( ! isset( $tags[ $id ] ) ) {
+				$tags[ $id ] = array( 'id' => $id, 'name' => (string) ( $t['name'] ?? '' ), 'notes' => 0, 'sum' => 0.0, 'touching' => array() );
+			}
+			$score = (float) ( $t['score'] ?? 0 );
+			++$tags[ $id ]['notes'];
+			$tags[ $id ]['sum'] += $score;
+			if ( $score < SN_JEV_TAG_ABOUT_AT ) {
+				$tags[ $id ]['touching'][] = array( 'post_id' => (int) $pid, 'title' => (string) ( $n['title'] ?? '' ), 'score' => round( $score, 2 ), 'confidence' => round( (float) ( $t['confidence'] ?? 0 ), 2 ) );
+			}
+		}
+	}
+	$out = array();
+	foreach ( $tags as $t ) {
+		usort( $t['touching'], static fn( $a, $b ) => $a['score'] <=> $b['score'] );
+		$out[] = array( 'id' => $t['id'], 'name' => $t['name'], 'notes' => $t['notes'], 'mean' => round( $t['sum'] / max( 1, $t['notes'] ), 2 ), 'touching' => $t['touching'] );
+	}
+	usort( $out, static function ( $a, $b ) {
+		$sa = count( $a['touching'] ) / max( 1, $a['notes'] );
+		$sb = count( $b['touching'] ) / max( 1, $b['notes'] );
+		return $sb <=> $sa ?: $b['notes'] <=> $a['notes'] ?: strcmp( $a['name'], $b['name'] );
+	} );
+	return $out;
+}
+
 /**
  * Drop removed (post, term) pairs from the stored pass so the leaf does not
  * re-list what the owner just did; the next pass re-reads everything.

@@ -101,5 +101,19 @@ $GLOBALS['__k']['opt'][ SN_JEV_TAGS_OPTION ] = $stored + array( 'synced_at' => 1
 sn_jev_tags_forget( array( 2 => array( 20 ) ) );
 ok( array() === sn_jev_tags_rows( sn_jev_tags_data() ) && 1 === count( sn_jev_tags_data()['notes'][2]['attached'] ), 'F2 a removed pair leaves the stored pass; the other attached row stays' );
 
+// G: the pass pivoted per tag (17.1.0).
+$pivot = sn_jev_tags_by_tag( array( 'notes' => array(
+	1 => array( 'title' => 'a', 'attached' => array( array( 'id' => 10, 'name' => 'provenance', 'score' => 1.9, 'confidence' => 0.9 ), array( 'id' => 20, 'name' => 'royalties', 'score' => 0.6, 'confidence' => 0.4 ) ) ),
+	2 => array( 'title' => 'b', 'attached' => array( array( 'id' => 10, 'name' => 'provenance', 'score' => 0.9, 'confidence' => 0.8 ), array( 'id' => 20, 'name' => 'royalties', 'score' => 0.2, 'confidence' => 0.9 ) ) ),
+	3 => array( 'title' => 'c', 'attached' => array( array( 'id' => 10, 'name' => 'provenance', 'score' => 2.0, 'confidence' => 1.0 ) ) ),
+) ) );
+ok( array( 'royalties', 'provenance' ) === array_column( $pivot, 'name' ), 'G1 by touching share: royalties (2 of 2 touching) before provenance (1 of 3)' );
+ok( 3 === $pivot[1]['notes'] && 1.6 === $pivot[1]['mean'] && array( 2 ) === array_column( $pivot[1]['touching'], 'post_id' ) && 0.9 === $pivot[1]['touching'][0]['score'], 'G2 notes, mean, the touching notes with their score' );
+ok( array( 2, 1 ) === array_column( $pivot[0]['touching'], 'post_id' ), 'G3 touching notes ascend by score, the weakest first' );
+ok( array() === sn_jev_tags_by_tag( array( 'notes' => array() ) ), 'G4 no pass, no tags' );
+$GLOBALS['__k']['opt'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 2, 'notes' => array( 1 => array( 'title' => 'a', 'attached' => array( array( 'id' => 10, 'name' => 'provenance', 'score' => 0.7, 'confidence' => 0.9 ) ) ) ) );
+$o = snt_ability_jev_tags();
+ok( 0 === $o['flagged'] && 1 === count( $o['by_tag'] ) && 'provenance' === $o['by_tag'][0]['name'] && 1 === count( $o['by_tag'][0]['touching'] ) && str_contains( $o['note'], 'by_tag' ), 'G5 jev-tags hands the pivot out beside the misfits' );
+
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail ? 1 : 0 );
