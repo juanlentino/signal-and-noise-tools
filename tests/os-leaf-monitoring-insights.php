@@ -86,6 +86,7 @@ ok( array( 'insights_run', 'save_insights_settings' ) === snt_leaf_actions( $kit
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, 'No scan run yet' ) && false !== strpos( $kit, 'tone="warning"' ), 'the status box says no scan run yet' );
 ok( false === strpos( $kit, 'name="force"' ), 'no-scan state: no force checkbox is offered yet' );
+ok( 2 === substr_count( $kit, '<div class="snt-cols">' ) && false === strpos( $kit, '<os-grid' ), '#1573 no-scan state: two rows, no card grid between them' );
 
 // ── State 2: AI unavailable — the setup-steps notice + gated form. ──
 $GLOBALS['__ai_ready'] = false;
@@ -127,6 +128,20 @@ ok( false !== strpos( $kit, 'Mark done' ) && false !== strpos( $kit, 'Already ha
 // but the done badge for it must appear once.
 ok( 1 === substr_count( $kit, '>done<' ), 'active-recs state: exactly one recommendation is badged done' );
 ok( false !== strpos( $kit, 'os-confirm="It' ) || false !== strpos( $kit, "It won't appear again" ), 'active-recs state: dismiss carries the classic confirm text' );
+// ── #1573: boxes on rows of comparable height (live at 1581px: Run Analysis 223
+// beside Settings 222; Scan status 129 alone at full width; AI usage & spend 494
+// beside the probe 371), the recommendation cards at full width between the rows. ──
+$row1 = strpos( $kit, '<div class="snt-cols">' );
+$row2 = false === $row1 ? false : strpos( $kit, '<div class="snt-cols">', $row1 + 1 );
+$grid = strpos( $kit, '<os-grid' );
+$settings_at = strpos( $kit, 'heading="Settings"' );
+$status_at   = strpos( $kit, 'heading="Scan status"' );
+ok( 2 === substr_count( $kit, '<div class="snt-cols">' ) && false === strpos( $kit, '<div class="snt-2up">' ), '#1573: two .snt-cols rows, no .snt-2up column pair' );
+ok( false !== $row1 && $row1 < strpos( $kit, 'heading="Run Analysis"' ) && strpos( $kit, 'heading="Run Analysis"' ) < $settings_at && $settings_at < $status_at && $status_at < $grid, '#1573: row one is Run Analysis beside Settings; Scan status stands under it at full width' );
+ok( false !== $grid && $grid > $settings_at && false !== $row2 && $grid < $row2, '#1573: the recommendation cards sit at full width between the rows, not inside a column' );
+ok( false !== $row2 && strpos( $kit, 'heading="AI usage' ) > $row2 && strpos( $kit, 'heading="Prompt-cache probe"' ) > $row2, '#1573: row two is AI usage & spend beside the Prompt-cache probe' );
+$pair = '\\SignalNoise\\OpenStationHost\\Dashboard\\Leaves\\insights_pair';
+ok( function_exists( $pair ) && 'b' === $pair( '', 'b' ) && 'a' === $pair( 'a', '' ) && '<div class="snt-cols">ab</div>' === $pair( 'a', 'b' ), '#1573: a side that paints nothing leaves the other at full width (the tags_pair shape)' );
 $GLOBALS['__state']['done_ids'] = array();
 $GLOBALS['__transient']         = array( 'scanned_at' => time() - 3600, 'elapsed_ms' => 1234, 'recommendations' => array() );
 
