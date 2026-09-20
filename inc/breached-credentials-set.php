@@ -24,10 +24,14 @@
  * Hooks:
  *   user_profile_update_errors  — profile screen / Users > Add New (pass1)
  *   validate_password_reset     — the reset-password form (pass1)
- *   rest_pre_insert_user        — PUT/POST wp/v2/users (password); the
- *                                 native profile window saves here, and
- *                                 neither classic hook fires on that path
- *                                 (17.2.2: the refusal was classic-only).
+ *   rest_dispatch_request       — POST/PUT/PATCH on the users controller
+ *                                 (password); the native profile window
+ *                                 saves here, and neither classic hook fires
+ *                                 on that path (17.2.2: the refusal was
+ *                                 classic-only). NOT rest_pre_insert_user:
+ *                                 core's users controller never reads a
+ *                                 WP_Error back from it, so a refusal there
+ *                                 becomes a silent 200 that drops the save.
  * NOT registration_errors: core registration takes no password (the user sets
  * one through the reset link, which lands on validate_password_reset).
  *
@@ -181,27 +185,44 @@ function sn_hibp_on_validate_password_reset( $errors, $user = null ) {
 }
 
 /**
- * rest_pre_insert_user: ( stdClass|WP_Error $prepared, WP_REST_Request $request ).
+ * rest_dispatch_request: ( mixed $result, WP_REST_Request $request, string $route, array $handler ).
  *
- * Core's users controller hands the request's plaintext `password` to
- * wp_update_user() without ever running the profile-form hooks, so the
- * native profile window (PUT wp/v2/users/{id}) reached the hash with no
- * check. Returning a WP_Error here is the documented refusal: update_item()
- * and create_item() return it as the response. `params.password` names the
- * field for a client that maps REST param errors; the message is the same
- * one the classic screen shows.
+ * The native profile window saves through PUT wp/v2/users/{id}; core's users
+ * controller hands the request's plaintext `password` to wp_update_user()
+ * without the profile-form hooks. This filter runs after the route's
+ * permission callback (an unauthenticated request never reaches the breach
+ * client) and after core sanitised the params, and a non-null return is the
+ * response core sends, so the refusal is a 400 with `params.password`
+ * naming the field and the same message the classic screen shows.
  *
- * @param stdClass|WP_Error $prepared The user core is about to write.
- * @param object            $request  WP_REST_Request (ArrayAccess).
- * @return stdClass|WP_Error
+ * Only a write on the users controller carries a password to hash:
+ * create_item, update_item, update_current_item. A read can carry
+ * `?password=` in its query string and must not be judged on it.
+ *
+ * @param mixed  $result  Another filter's short-circuit, or null.
+ * @param object $request WP_REST_Request (ArrayAccess, get_method()).
+ * @param string $route   Matched route pattern (unused).
+ * @param array  $handler Route handler; callback names the controller.
+ * @return mixed
  */
-function sn_hibp_on_rest_pre_insert_user( $prepared, $request = null ) {
-	if ( is_wp_error( $prepared ) || ! is_object( $request ) || ! isset( $request['password'] ) || ! is_string( $request['password'] ) ) {
-		return $prepared;
+function sn_hibp_on_rest_dispatch_request( $result, $request = null, $route = '', $handler = array() ) {
+	unset( $route );
+	if ( null !== $result || ! is_object( $request ) || ! method_exists( $request, 'get_method' ) ) {
+		return $result;
+	}
+	$callback = is_array( $handler ) && isset( $handler['callback'] ) ? $handler['callback'] : null;
+	if ( ! is_array( $callback ) || ! isset( $callback[0] ) || ! ( $callback[0] instanceof WP_REST_Users_Controller ) ) {
+		return $result;
+	}
+	if ( ! in_array( (string) $request->get_method(), array( 'POST', 'PUT', 'PATCH' ), true ) ) {
+		return $result;
+	}
+	if ( ! isset( $request['password'] ) || ! is_string( $request['password'] ) ) {
+		return $result;
 	}
 	$errors = new WP_Error();
 	if ( ! sn_hibp_set_time_guard( $errors, (string) $request['password'] ) ) {
-		return $prepared;
+		return $result;
 	}
 	$code    = (string) $errors->get_error_codes()[0];
 	$message = (string) $errors->get_error_message( $code );
@@ -210,4 +231,4 @@ function sn_hibp_on_rest_pre_insert_user( $prepared, $request = null ) {
 
 add_action( 'user_profile_update_errors', 'sn_hibp_on_profile_update_errors', 10, 3 );
 add_action( 'validate_password_reset', 'sn_hibp_on_validate_password_reset', 10, 2 );
-add_filter( 'rest_pre_insert_user', 'sn_hibp_on_rest_pre_insert_user', 10, 2 );
+add_filter( 'rest_dispatch_request', 'sn_hibp_on_rest_dispatch_request', 10, 4 );

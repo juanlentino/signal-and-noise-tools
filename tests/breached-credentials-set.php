@@ -11,9 +11,13 @@
  * (6) the NEGATIVE CONTROL: a password KNOWN to be in the corpus, fed through
  * the real client over the captured 5BAA6 fixture, goes red — a breach check
  * that passes a breached password is worse than none; (7) the REST door
- * (17.2.2): PUT wp/v2/users/{id} with a breached or uncheckable password is
- * refused with a 400 that names the `password` param, a clean one and a
- * request with no password pass core's prepared user through untouched.
+ * (17.2.2): a write on the users controller with a breached or uncheckable
+ * password is refused at rest_dispatch_request with a 400 that names the
+ * `password` param; a clean one, a read, another controller, a request with
+ * no password and another filter's result all pass through untouched. The
+ * seam is pinned by NAME: core's users controller never reads a WP_Error
+ * back from rest_pre_insert_user (update_item casts the prepared object and
+ * writes), so a refusal there is a silent 200 that drops the save.
  */
 
 $pass = 0; $fail = 0;
@@ -38,14 +42,18 @@ class WP_Error {
 	public function get_error_message( $code = '' ) { $code = '' === $code ? $this->get_error_code() : $code; return $this->errors[ $code ][0] ?? ''; }
 	public function get_error_data( $code = '' ) { $code = '' === $code ? $this->get_error_code() : $code; return $this->data[ $code ] ?? null; }
 }
-// WP_REST_Request is ArrayAccess over its params; that is all the filter reads.
+// WP_REST_Request is ArrayAccess over its params plus get_method(); that is all the filter reads.
 class WP_REST_Request implements ArrayAccess {
-	private $p; public function __construct( $p = array() ) { $this->p = $p; }
+	private $p; private $m;
+	public function __construct( $p = array(), $m = 'PUT' ) { $this->p = $p; $this->m = $m; }
+	public function get_method() { return $this->m; }
 	public function offsetExists( $k ): bool { return isset( $this->p[ $k ] ); }
 	public function offsetGet( $k ): mixed { return $this->p[ $k ] ?? null; }
 	public function offsetSet( $k, $v ): void { $this->p[ $k ] = $v; }
 	public function offsetUnset( $k ): void { unset( $this->p[ $k ] ); }
 }
+class WP_REST_Users_Controller { public function update_item( $r ) { return 'wrote'; } }
+class WP_REST_Posts_Controller { public function update_item( $r ) { return 'wrote'; } }
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
 // The client's network seam. Drive it with the captured fixture or a failure.
 $GLOBALS['__remote'] = null;
@@ -97,23 +105,34 @@ ok( 1 === sn_hibp_set_stats()['breached_count'], 'stats: one breached rejection 
 $e4 = new WP_Error();
 ok( false === sn_hibp_set_time_guard( $e4, 'correct-horse-battery-staple-9x!' ) && array() === $e4->get_error_codes(), 'a password whose suffix is absent from the served range passes (the stub serves 5BAA6 for every prefix; this one is not in it)' );
 
-// ─── (7) the REST door: PUT wp/v2/users/{id} ───
-$prepared = (object) array( 'ID' => 1, 'user_pass' => 'password' );
-$r = sn_hibp_on_rest_pre_insert_user( $prepared, new WP_REST_Request( array( 'id' => 1, 'password' => 'password' ) ) );
-ok( is_wp_error( $r ) && 'sn_hibp_breached' === $r->get_error_code(), 'REST: a breached password is REFUSED (the prepared user is replaced by the WP_Error core returns as the response)' );
-ok( 400 === ( $r->get_error_data()['status'] ?? 0 ) && false !== strpos( (string) ( $r->get_error_data()['params']['password'] ?? '' ), '52,372,427' ), 'REST: 400, and params.password carries the refusal so the field lights up' );
+// ─── (7) the REST door: a write on the users controller ───
+$users = new WP_REST_Users_Controller();
+$users_h = array( 'callback' => array( $users, 'update_item' ) );
+$req = static fn( $params, $m = 'PUT' ) => new WP_REST_Request( $params, $m );
+$r = sn_hibp_on_rest_dispatch_request( null, $req( array( 'id' => 1, 'password' => 'password' ) ), '/wp/v2/users/(?P<id>[\\d]+)', $users_h );
+ok( is_wp_error( $r ) && 'sn_hibp_breached' === $r->get_error_code(), 'REST: a breached password on PUT wp/v2/users/{id} is REFUSED as the dispatch result (core sends a non-null return as the response, before the controller runs)' );
+ok( 400 === ( $r->get_error_data()['status'] ?? 0 ) && false !== strpos( (string) ( $r->get_error_data()['params']['password'] ?? '' ), '52,372,427' ), 'REST: 400, and params.password carries the refusal so the window lights the field' );
 ok( 2 === sn_hibp_set_stats()['breached_count'], 'REST: the rejection is counted like any other' );
+ok( is_wp_error( sn_hibp_on_rest_dispatch_request( null, $req( array( 'password' => 'password' ), 'POST' ), '/wp/v2/users', array( 'callback' => array( $users, 'create_item' ) ) ) ), 'REST: a new user with a breached password (POST create_item) is refused too' );
 $GLOBALS['__remote'] = array( 'code' => 500, 'body' => '' );
-$r2 = sn_hibp_on_rest_pre_insert_user( $prepared, new WP_REST_Request( array( 'password' => 'hunter2!' ) ) );
+$r2 = sn_hibp_on_rest_dispatch_request( null, $req( array( 'password' => 'hunter2!' ) ), '', $users_h );
 ok( is_wp_error( $r2 ) && 'sn_hibp_unavailable' === $r2->get_error_code() && 400 === ( $r2->get_error_data()['status'] ?? 0 ), 'REST FAIL-CLOSED: the check unreachable → refused, never "not breached"' );
 $GLOBALS['__remote'] = array( 'code' => 200, 'body' => (string) file_get_contents( $fixture ) );
-ok( $prepared === sn_hibp_on_rest_pre_insert_user( $prepared, new WP_REST_Request( array( 'password' => 'correct-horse-battery-staple-9x!' ) ) ), 'REST: a clean password hands core its own prepared user back' );
+ok( null === sn_hibp_on_rest_dispatch_request( null, $req( array( 'password' => 'correct-horse-battery-staple-9x!' ) ), '', $users_h ), 'REST: a clean password leaves the dispatch to core (null)' );
 $GLOBALS['__remote_url'] = null;
-ok( $prepared === sn_hibp_on_rest_pre_insert_user( $prepared, new WP_REST_Request( array( 'name' => 'Juan' ) ) ) && null === $GLOBALS['__remote_url'], 'REST: no password in the request → untouched, no request leaves' );
-ok( $prepared === sn_hibp_on_rest_pre_insert_user( $prepared, new WP_REST_Request( array( 'password' => '' ) ) ) && null === $GLOBALS['__remote_url'], 'REST: an empty password is "no change" → untouched' );
+ok( null === sn_hibp_on_rest_dispatch_request( null, $req( array( 'name' => 'Juan' ) ), '', $users_h ) && null === $GLOBALS['__remote_url'], 'REST: no password in the request → untouched, no request leaves' );
+ok( null === sn_hibp_on_rest_dispatch_request( null, $req( array( 'password' => '' ) ), '', $users_h ) && null === $GLOBALS['__remote_url'], 'REST: an empty password is "no change" → untouched' );
+ok( null === sn_hibp_on_rest_dispatch_request( null, $req( array( 'password' => 'password' ), 'GET' ), '', array( 'callback' => array( $users, 'get_items' ) ) ) && null === $GLOBALS['__remote_url'], 'REST: a READ carrying ?password= is not judged on it (GET never hashes)' );
+ok( null === sn_hibp_on_rest_dispatch_request( null, $req( array( 'password' => 'password' ) ), '', array( 'callback' => array( new WP_REST_Posts_Controller(), 'update_item' ) ) ) && null === $GLOBALS['__remote_url'], 'REST: another controller\'s write is not this filter\'s business' );
 $upstream = new WP_Error( 'rest_cannot_edit', 'Sorry.' );
-ok( $upstream === sn_hibp_on_rest_pre_insert_user( $upstream, new WP_REST_Request( array( 'password' => 'password' ) ) ) && null === $GLOBALS['__remote_url'], 'REST: an earlier filter\'s WP_Error passes through unread, no request leaves' );
-ok( $prepared === sn_hibp_on_rest_pre_insert_user( $prepared, null ), 'REST: no request object → untouched' );
+ok( $upstream === sn_hibp_on_rest_dispatch_request( $upstream, $req( array( 'password' => 'password' ) ), '', $users_h ) && null === $GLOBALS['__remote_url'], 'REST: an earlier filter\'s result passes through unread, no request leaves' );
+ok( null === sn_hibp_on_rest_dispatch_request( null, null, '', $users_h ) && null === sn_hibp_on_rest_dispatch_request( null, $req( array( 'password' => 'password' ) ), '', array() ), 'REST: no request object, or no handler → untouched' );
+// The seam that looked right and is not: core's update_item() takes prepare_item_for_database()'s
+// return without an is_wp_error() check, sets ->ID on it and writes (array) of it. A WP_Error
+// there has no user_pass, so the breached password is not written but the client gets a 200 and
+// every other field in the PUT is dropped. Pin the file OFF that hook by name.
+$set_src = (string) file_get_contents( __DIR__ . '/../inc/breached-credentials-set.php' );
+ok( false === strpos( $set_src, "'rest_pre_insert_user'" ), 'the file never hooks rest_pre_insert_user: core reads no refusal back from it (a WP_Error there is a silent 200 that drops the save)' );
 
 // ─── (4) the kill switch ───
 define( 'SN_HIBP_SET_DISABLED', true );
@@ -123,9 +142,9 @@ ok( true === sn_hibp_set_disabled() && false === sn_hibp_set_time_guard( $e5, 'p
 // ─── (5) hooks: exactly the two set-time hooks ───
 $tags = array_map( static fn( $h ) => $h[0], $GLOBALS['__hooks'] );
 sort( $tags );
-ok( array( 'rest_pre_insert_user', 'user_profile_update_errors', 'validate_password_reset' ) === $tags, 'registers user_profile_update_errors + validate_password_reset + rest_pre_insert_user and NOTHING else (no registration_errors: core registration has no password; no login hook: that is Mode B)' );
-$rest_args = array_values( array_filter( $GLOBALS['__hooks'], static fn( $h ) => 'rest_pre_insert_user' === $h[0] ) )[0][2] ?? 0;
-ok( 2 === $rest_args, 'rest_pre_insert_user registered with 2 accepted args (prepared, request)' );
+ok( array( 'rest_dispatch_request', 'user_profile_update_errors', 'validate_password_reset' ) === $tags, 'registers user_profile_update_errors + validate_password_reset + rest_dispatch_request and NOTHING else (no registration_errors: core registration has no password; no login hook: that is Mode B; no rest_pre_insert_user: core reads no refusal back from it)' );
+$rest_args = array_values( array_filter( $GLOBALS['__hooks'], static fn( $h ) => 'rest_dispatch_request' === $h[0] ) )[0][2] ?? 0;
+ok( 4 === $rest_args, 'rest_dispatch_request registered with 4 accepted args (result, request, route, handler)' );
 foreach ( $GLOBALS['__hooks'] as $h ) { ok( function_exists( $h[1] ), "hook callback {$h[1]} exists" ); }
 $profile_args = array_values( array_filter( $GLOBALS['__hooks'], static fn( $h ) => 'user_profile_update_errors' === $h[0] ) )[0][2] ?? 0;
 ok( 3 === $profile_args, 'user_profile_update_errors registered with 3 accepted args (errors, update, user)' );
