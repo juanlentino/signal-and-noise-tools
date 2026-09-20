@@ -63,7 +63,11 @@ function models_budget_spend_html( array $d ) {
 	if ( $budget > 0 ) {
 		$pct_true  = (int) round( ( $spent / $budget ) * 100 );
 		$pct_width = max( 0, min( 100, $pct_true ) );
-		$out      .= '<p class="snt-prose">' . sprintf(
+		// 17.4.1: a problem is a notice on top of its box.
+		if ( $spent >= $budget ) {
+			$out .= \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'The cap is reached. AI features are paused until the next calendar month, or until you raise this number.', 'signal-and-noise-tools' ) ) . '</b>' );
+		}
+		$out .= '<p class="snt-prose">' . sprintf(
 			esc_html__( 'Spent this month: $%1$s of $%2$s (%3$s%%).', 'signal-and-noise-tools' ),
 			\snt_kit_esc( number_format_i18n( $spent, 2 ) ),
 			\snt_kit_esc( number_format_i18n( $budget, 2 ) ),
@@ -74,9 +78,6 @@ function models_budget_spend_html( array $d ) {
 			'max'   => '100',
 			'tone'  => $spent >= $budget ? 'danger' : 'default',
 		) );
-		if ( $spent >= $budget ) {
-			$out .= \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'The cap is reached. AI features are paused until the next calendar month, or until you raise this number.', 'signal-and-noise-tools' ) ) . '</b>' );
-		}
 		$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Set 0 to remove the cap.', 'signal-and-noise-tools' ) ) . '</p>';
 	} else {
 		$out .= '<p class="snt-prose">' . sprintf(
@@ -91,9 +92,10 @@ function models_budget_spend_html( array $d ) {
 			$decimals = $feature_cost < 0.01 ? 4 : 2;
 			$rows[]   = array( 'label' => (string) $feature_slug, 'value' => '$' . number_format_i18n( $feature_cost, $decimals ) );
 		}
-		$out .= \snt_kit_section( __( 'This month, by feature', 'signal-and-noise-tools' ), \snt_kit_list( $rows ) );
+		$out .= \snt_kit_list( $rows );
 	}
-	return $out;
+	// 17.4.1: one box, the total as its lead, so it can share a row with the form.
+	return \snt_kit_section( __( 'This month, by feature', 'signal-and-noise-tools' ), $out );
 }
 
 /**
@@ -117,16 +119,20 @@ function models_budget_embed_status_html( array $d ) {
 	return \snt_kit_notice( 'info', \snt_kit_badge( '', __( 'Not configured.', 'signal-and-noise-tools' ) ) );
 }
 
+/** Divergent-pair rows painted before the "+N more" line. */
+const MODELS_BUDGET_DIVERGENT_MAX = 25;
+
 /**
  * The TF-IDF vs embeddings comparison (item 8's runner), gated to when
  * embeddings are configured — same gate the classic leaf uses.
  *
- * @param array $d From models_budget_data().
+ * @param array  $d    From models_budget_data().
+ * @param string $lead The embeddings status notice, on top of its box.
  * @return string
  */
-function models_budget_compare_html( array $d ) {
+function models_budget_compare_html( array $d, $lead = '' ) {
 	$cmp  = $d['cmp'];
-	$body = '';
+	$body = $lead;
 	if ( is_array( $cmp ) && empty( $cmp['ok'] ) ) {
 		$body .= \snt_kit_notice( 'warn', \snt_kit_esc( (string) ( $cmp['error'] ?? '' ) ) );
 	} elseif ( is_array( $cmp ) && ! empty( $cmp['ok'] ) ) {
@@ -173,30 +179,28 @@ function models_budget_compare_html( array $d ) {
 		$div = (array) ( $res['divergent'] ?? array() );
 		if ( $div ) {
 			$div_rows = array();
-			foreach ( array_slice( $div, 0, 25 ) as $row ) {
+			foreach ( array_slice( $div, 0, MODELS_BUDGET_DIVERGENT_MAX ) as $row ) {
 				$names = array();
 				foreach ( (array) $row['only_embedding'] as $o ) {
 					$names[] = (string) $o['title'];
 				}
 				$div_rows[] = array( 'note' => (string) $row['title'], 'found' => implode( ' · ', $names ) );
 			}
-			$div_table = \snt_kit_table(
+			// 17.4.1: a ledger, not a fold: the count as the lead, the table capped, a "+N more" line.
+			$body .= '<p class="snt-prose">' . \snt_kit_esc( sprintf(
+				_n( '%d note has a pair TF-IDF does not find', '%d notes have pairs TF-IDF does not find', count( $div ), 'signal-and-noise-tools' ),
+				count( $div )
+			) ) . '</p>';
+			$body .= \snt_kit_table(
 				array(
 					array( 'key' => 'note', 'label' => __( 'Note', 'signal-and-noise-tools' ) ),
 					array( 'key' => 'found', 'label' => __( 'Found only by embeddings', 'signal-and-noise-tools' ) ),
 				),
 				$div_rows
 			);
-			$body .= \snt_kit_tag(
-				'os-disclosure',
-				array(
-					'heading' => sprintf(
-						_n( '%d note has a pair TF-IDF does not find', '%d notes have pairs TF-IDF does not find', count( $div ), 'signal-and-noise-tools' ),
-						count( $div )
-					),
-				),
-				$div_table
-			);
+			if ( count( $div ) > MODELS_BUDGET_DIVERGENT_MAX ) {
+				$body .= '<p class="snt-hint">' . \snt_kit_esc( sprintf( __( '+%d more, the list is capped.', 'signal-and-noise-tools' ), count( $div ) - MODELS_BUDGET_DIVERGENT_MAX ) ) . '</p>';
+			}
 		} else {
 			$body .= '<p class="snt-prose">' . \snt_kit_esc( __( 'No divergence at all: TF-IDF already found every pair the embeddings did. That is a real answer, and it argues against adopting a hosted model.', 'signal-and-noise-tools' ) ) . '</p>';
 		}
@@ -241,23 +245,41 @@ function paint_ai_models_budget( array $ctx ) {
 	$fields .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Workers AI token (semantic embeddings):', 'signal-and-noise-tools' ) ) . ' ' . ( '' !== (string) $d['embed_token'] ? \snt_kit_badge( 'ok', __( 'set', 'signal-and-noise-tools' ) ) : \snt_kit_badge( 'warn', __( 'not set', 'signal-and-noise-tools' ) ) ) . ' ' . \snt_kit_esc( __( 'Set under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'monitoring' ) ) . '.</p>';
 
 	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Which models this plugin calls, and the ceiling on what they may cost. Every AI feature here (drafts, insights, meta descriptions, alt text) draws on the same monthly budget.', 'signal-and-noise-tools' ) ) . '</p>';
-	$left  = \snt_kit_section(
+	$form  = \snt_kit_section(
 		__( 'Models & budget', 'signal-and-noise-tools' ),
 		\snt_kit_form( 'ai_settings_save', $fields, array( 'submit' => __( 'Save AI settings', 'signal-and-noise-tools' ), 'columns' => 'auto' ) ),
 		__( 'Model changes apply to the next AI call. The budget is evaluated per calendar month.', 'signal-and-noise-tools' )
 	);
-	$right  = models_budget_spend_html( $d );
-	$right .= models_budget_platform_html( $d );
-	$right .= models_budget_jev_html( $d );
-	$right .= models_budget_embed_status_html( $d );
-	if ( $d['embed_configured'] ) {
-		$right .= models_budget_compare_html( $d );
-	}
+	// 17.4.1 (#1573): boxes on rows of comparable height. The form beside the
+	// two readouts it is read against; the Jev meter beside the comparison box
+	// while that box is short (configured, no result yet). A bare status
+	// notice, or a comparison carrying its result (a ledger), stands alone at
+	// full width under the Jev box rather than beside a hole.
+	$embed  = models_budget_embed_status_html( $d );
+	$right  = $d['embed_configured'] ? models_budget_compare_html( $d, $embed ) : $embed;
+	$beside = $d['embed_configured'] && ! ( is_array( $d['cmp'] ) && ! empty( $d['cmp']['ok'] ) );
 	return $intro
-		. '<div class="snt-2up">'
-		. '<div class="snt-2up-col">' . $left . '</div>'
-		. '<div class="snt-2up-col">' . $right . '</div>'
-		. '</div>';
+		. models_budget_pair( $form, models_budget_spend_html( $d ) . models_budget_platform_html( $d ) )
+		. models_budget_pair( models_budget_jev_html( $d ), $beside ? $right : '' )
+		. ( $beside ? '' : $right );
+}
+
+/**
+ * Two sides on one row (the cron_settings_row_html shape, connections-cron-parts.php;
+ * the tags_pair idiom for an empty side). Each side is one .snt-col cell because
+ * a side may stack two boxes, and bare os-sections in .snt-cols would each take
+ * a cell. A side that painted nothing leaves the other alone at full width,
+ * not beside a hole.
+ *
+ * @param string $left  Painted HTML, or ''.
+ * @param string $right Painted HTML, or ''.
+ * @return string
+ */
+function models_budget_pair( $left, $right ) {
+	if ( '' === $left || '' === $right ) {
+		return $left . $right;
+	}
+	return '<div class="snt-cols"><section class="snt-col">' . $left . '</section><section class="snt-col">' . $right . '</section></div>';
 }
 
 add_filter(

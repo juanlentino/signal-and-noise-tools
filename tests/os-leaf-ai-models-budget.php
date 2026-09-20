@@ -86,6 +86,15 @@ ok(
 ok( false !== strpos( $kit, 'value="claude-sonnet-5"' ), 'the stored prose-model value lands on its os-select' );
 // no-cap fixture: the "Set 0 to remove the cap" hint is absent (classic only prints it when budget > 0).
 ok( false === strpos( $kit, 'Set 0 to remove the cap.' ), 'no-cap fixture: the remove-cap hint is absent, mirroring the classic branch' );
+// 17.4.1 (#1573): rows of comparable height, no 2up. The form beside the spend
+// box and the platform box stacked; nothing configured, the Jev box stands
+// alone at full width with the bare status notice under it, not beside it.
+ok( 1 === substr_count( $kit, '<div class="snt-cols">' ) && false === strpos( $kit, 'snt-2up' ), '17.4.1: one .snt-cols row when nothing is configured, no .snt-2up' );
+ok( false !== strpos( $kit, 'heading="This month, by feature"' ) && strpos( $kit, 'heading="This month, by feature"' ) < strpos( $kit, 'No cap set' ), '17.4.1: the spend line is the lead of the by-feature box, which paints even with no feature rows' );
+// The row closes as </section></div>; a kv row's </div> inside a box is not it.
+$row1 = preg_match( '#<div class="snt-cols">.*?</section></div>#s', $kit, $m ) ? $m[0] : '';
+ok( false !== strpos( $row1, 'heading="Models &amp; budget"' ) && false !== strpos( $row1, 'heading="This month, by feature"' ) && false !== strpos( $row1, 'heading="Platform-reported, this month"' ) && false === strpos( $row1, 'heading="Jev' ) && strpos( $kit, 'heading="Jev' ) > strpos( $kit, $row1 ) + strlen( $row1 ), '17.4.1: row one is the form beside the two spend readouts; Jev is under the row' );
+ok( 0 === preg_match( '#<section class="snt-col"><os-section heading="Jev"#', $kit ) && false !== strpos( $kit, 'first.</os-badge></os-notice>' ) && false === strpos( $kit, 'first.</os-badge></os-notice></section>' ) && strpos( $kit, 'first.</os-badge>' ) > strpos( $kit, 'heading="Jev' ), '17.4.1: nothing configured, the Jev box stands alone at full width and the status notice follows it, not beside it' );
 
 // ── Budget set, under cap, with a by-feature breakdown.
 $GLOBALS['__settings']['theme.ai_monthly_budget'] = 50.0;
@@ -103,6 +112,7 @@ ok( false !== strpos( $kit, 'Set 0 to remove the cap.' ) && false !== strpos( $k
 $GLOBALS['__spend'] = 50.0;
 $kit = snt_leaf_paint( 'ai', 'models-budget' );
 ok( false !== strpos( $kit, 'The cap is reached' ) && false !== strpos( $kit, 'tone="warning"' ), 'cap reached: the pause notice paints as a warning' );
+ok( strpos( $kit, 'The cap is reached' ) < strpos( $kit, 'Spent this month: $50.00' ) && strpos( $kit, 'The cap is reached' ) > strpos( $kit, 'heading="This month, by feature"' ), '17.4.1: the cap notice sits on top of its box, above the spend line' );
 ok( false !== strpos( $kit, '<os-progress-bar value="100" max="100" tone="danger"' ), 'the meter clamps at 100 and turns danger, as the classic clamped its width' );
 $GLOBALS['__spend']         = 0.0;
 $GLOBALS['__spend_by_feat'] = array();
@@ -128,6 +138,9 @@ ok( array( 'ai_settings_save', 'ml_embed_compare' ) === snt_leaf_actions( $kit )
 ok( false !== strpos( $kit, 'Not run yet' ) && false !== strpos( $kit, 'Run comparison' ), 'configured, not run yet: the runner prompt and button paint' );
 ok( false === strpos( $kit, 'a-real-token-value' ) && false !== strpos( $kit, '>set</os-badge>' ) && false !== strpos( $kit, 'Connections › Credentials' ), '15.3.1: the token is never on the leaf; a set badge and the door to the keyring are' );
 ok( false !== strpos( $kit, 'Configured' ), 'the embeddings-token status pill reads Configured' );
+ok( strpos( $kit, '>Configured</os-badge>' ) > strpos( $kit, 'heading="TF-IDF vs embeddings"' ) && strpos( $kit, '>Configured</os-badge>' ) < strpos( $kit, 'Not run yet' ), '17.4.1: configured, the status notice is the lead of the comparison box' );
+$row2 = substr( $kit, (int) strrpos( $kit, '<div class="snt-cols">' ) );
+ok( 2 === substr_count( $kit, '<div class="snt-cols">' ) && 1 === preg_match( '#<section class="snt-col"><os-section heading="Jev#', $row2 ) && false !== strpos( $row2, 'heading="TF-IDF vs embeddings"' ), '17.4.1: configured with no result, the short comparison box sits beside the Jev box on row two' );
 
 // ── Embeddings NOT configured, and no Cloudflare account ID: the pill must
 // tell the operator to set the account id, not claim they are "Not configured."
@@ -176,7 +189,12 @@ $GLOBALS['__transients']['snt_ml_embed_compare'] = array(
 );
 $kit = snt_leaf_paint( 'ai', 'models-budget' );
 ok( false !== strpos( $kit, '40 notes embedded' ) && false !== strpos( $kit, 'Centred (recommended)' ), 'a successful comparison shows the scope line and marks the recommended variant' );
-ok( false !== strpos( $kit, '<os-disclosure' ) && false !== strpos( $kit, 'note has a pair TF-IDF does not find' ), 'the divergent pairs fold into a kit disclosure' );
+ok( false === strpos( $kit, '<os-disclosure' ) && false !== strpos( $kit, 'note has a pair TF-IDF does not find' ) && false !== strpos( $kit, 'Found only by embeddings' ) && false === strpos( $kit, 'more, the list is capped' ), '17.4.1: the divergent pairs are a ledger under their count line, no fold, no "+N more" under the cap' );
+// 27 divergent notes: the table holds 25, the line says +2 more.
+$GLOBALS['__transients']['snt_ml_embed_compare']['result']['divergent'] = array_fill( 0, 27, array( 'title' => 'Note A', 'only_embedding' => array( array( 'title' => 'Note B' ) ) ) );
+$kit = snt_leaf_paint( 'ai', 'models-budget' );
+ok( false !== strpos( $kit, '27 notes have pairs' ) && 25 === substr_count( $kit, '&quot;note&quot;:&quot;Note A&quot;' ) && false !== strpos( $kit, '+2 more, the list is capped.' ), '17.4.1: over the cap, 25 rows paint and the "+2 more" line says so' );
+ok( 1 === substr_count( $kit, '<div class="snt-cols">' ) && strpos( $kit, 'heading="TF-IDF vs embeddings"' ) > strrpos( $kit, '</section></div>' ) && strpos( $kit, 'heading="TF-IDF vs embeddings"' ) > strpos( $kit, 'heading="Jev' ), '17.4.1: with a result on the leaf the ledger box stands alone at full width under the Jev box' );
 
 // ── Comparison run: success, no divergence.
 $GLOBALS['__transients']['snt_ml_embed_compare']['result']['divergent'] = array();

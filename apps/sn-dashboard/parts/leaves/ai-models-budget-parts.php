@@ -1,6 +1,6 @@
 <?php
 /**
- * S&N Dashboard, AI > Models & Budget: the right column's readouts.
+ * S&N Dashboard, AI > Models & Budget: the readouts with no classic twin.
  *
  * The Jev meter (16.6.0) and the platform-reported spend box (17.3.x), both
  * readouts with no classic twin: the classic leaf carries the form and the
