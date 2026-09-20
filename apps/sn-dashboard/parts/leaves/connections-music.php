@@ -10,6 +10,11 @@
  * (`sn_action=music_sync`) in the rail. Same readers, same forms, same fields,
  * same handlers; the kit's parts (connections-music-parts.php) instead of wp-admin's.
  *
+ * 17.4.1 (#1573): the classic's two columns paired the 906px form beside the
+ * 349px rail, leaving the rail's column a hole. Now the intro and the sync
+ * notice sit on top, the two short boxes (Status, Sync now) share one row,
+ * and the form stands alone under them.
+ *
  * @package SignalNoiseTools
  * @since 13.106.0
  */
@@ -82,7 +87,7 @@ function music_status_html( array $s ) {
 		$title = __( 'Showing last-good data', 'signal-and-noise-tools' );
 		$pill  = __( 'Stale', 'signal-and-noise-tools' );
 		/* translators: %d: cached releases */
-		$body = sprintf( __( '%d release(s) still cached, but the last sync failed. The page never blanks — check the error and re-sync from the status panel on the right (below on narrow screens).', 'signal-and-noise-tools' ), $count );
+		$body = sprintf( __( '%d release(s) still cached, but the last sync failed. The page never blanks: check the error and re-sync from the Sync status row below.', 'signal-and-noise-tools' ), $count );
 	} elseif ( '' !== $s['last_error'] ) {
 		$kind  = 'err';
 		$title = __( 'Sync failed — no data yet', 'signal-and-noise-tools' );
@@ -92,7 +97,7 @@ function music_status_html( array $s ) {
 		$kind  = 'warn';
 		$title = __( 'Not yet synced', 'signal-and-noise-tools' );
 		$pill  = __( 'Pending', 'signal-and-noise-tools' );
-		$body  = __( 'Hit “Sync now” in the status panel on the right (below on narrow screens) to populate the discography. The daily cron will keep it fresh after that.', 'signal-and-noise-tools' );
+		$body  = __( 'Hit “Sync now” in the Sync status row below to populate the discography. The daily cron will keep it fresh after that.', 'signal-and-noise-tools' );
 	}
 	return \snt_kit_notice( $kind, '<b>' . \snt_kit_esc( $title ) . '</b> ' . \snt_kit_badge( $kind, $pill ) . '<br>' . \snt_kit_esc( $body ) );
 }
@@ -114,9 +119,10 @@ function music_form_html( array $s ) {
 }
 
 /**
- * The leaf: the main column (intro, status box, the form), then the rail
- * (Status facts, Sync now) — the classic shell's two columns as the app's
- * column grid, the rail keeping its landmark name.
+ * The leaf: the intro, the sync notice, then the Status row (the Status facts
+ * beside Sync now, both short, the rail's landmark name kept on the row), then
+ * the form alone under them, at os-form's own 760px measure. The notice points
+ * at "the Sync status row below", where the row now is.
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
@@ -127,17 +133,14 @@ function paint_connections_music( array $ctx ) {
 		return \snt_kit_empty( __( 'This account cannot manage options.', 'signal-and-noise-tools' ) );
 	}
 	$s = music_state();
-	return '<div class="snt-cols">'
-		. '<section class="snt-col">'
-		. music_intro_html()
+	return music_intro_html()
 		. music_status_html( $s )
-		. music_form_html( $s )
-		. '</section>'
-		. '<aside class="snt-col" aria-label="' . \snt_kit_esc( __( 'Sync status', 'signal-and-noise-tools' ) ) . '">'
-		. music_rail_status_html( $s )
-		. music_sync_html()
-		. '</aside>'
-		. '</div>';
+		. \snt_kit_tag(
+			'aside',
+			array( 'class' => 'snt-cols', 'aria-label' => __( 'Sync status', 'signal-and-noise-tools' ) ),
+			music_rail_status_html( $s ) . music_sync_html()
+		)
+		. music_form_html( $s );
 }
 
 add_filter(
