@@ -55,6 +55,11 @@ function tag_obj( $id, $name, $slug, $count ) { return (object) array( 'term_id'
 function classic_tags() { return snt_leaf_classic_html( 'sn_admin_render_tag_cleanup_section' ); }
 function kit_tags( array $state = array() ) { return snt_leaf_paint( 'content', 'tags', $state ); }
 function names_line( $classic, $kit ) { return implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')'; }
+// #1573: the rows of the kit table inside the section with this heading (os-prop-data is JSON in an attribute).
+function ledger_rows( $kit, $heading ) {
+	if ( ! preg_match( '/<os-section heading="' . preg_quote( $heading, '/' ) . '">.*?os-prop-data="([^"]*)"/s', $kit, $m ) ) { return null; }
+	return json_decode( html_entity_decode( $m[1], ENT_QUOTES, 'UTF-8' ), true );
+}
 
 ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['content/tags'] ), 'the painter is registered under content/tags' );
 
@@ -110,8 +115,20 @@ ok( false !== strpos( $kit, 'heading="Jev: tag fit"' ) && false !== strpos( $kit
 ok( false !== strpos( $kit, 'os-action="post" os-confirm="Delete the selected unused tags?" os-confirm-danger>' ), 'unused: the prune form confirms with the classic question, marked dangerous' );
 ok( false !== strpos( $kit, '<input type="checkbox" name="sn_tag_unused[]" value="9" checked> <strong>Empty</strong> <os-code>empty</os-code>' ) && false !== strpos( $kit, '>Delete selected</button>' ), 'unused: the count-0 term is checked, with its slug, and Delete selected' );
 
-// Recent operations: a merge line and a prune line.
-ok( false !== strpos( $kit, 'heading="Recent tag operations"' ) && false !== strpos( $kit, '<li>ai-generated-music-2, ai-generated-music-3 into &quot;music&quot; (3 posts)</li>' ) && false !== strpos( $kit, '<li>deleted unused: stale-tag</li>' ), 'recent: the merge and the prune lines' );
+// Recent operations (#1573): a table, Operation / Tags, a merge row and a prune row, on both surfaces; no paragraph per event; the stored ts stays unpainted, as the list left it.
+$recent = ledger_rows( $kit, 'Recent tag operations' );
+ok( array( array( 'op' => 'merged into "music" (3 posts)', 'tags' => 'ai-generated-music-2, ai-generated-music-3' ), array( 'op' => 'deleted unused', 'tags' => 'stale-tag' ) ) === $recent && false === strpos( $kit, '<ul class="snt-plain">' ) && false === strpos( $kit, '2 hours ago</td>' ) && false === strpos( $kit, 'ago&quot;' ), '#1573 recent: a kit table with the merge row and the prune row (Operation, Tags), no list, no When column the list never painted' );
+ok( false !== strpos( $classic, '<h2 class="sn-fieldset-h">Recent tag operations</h2><table class="widefat striped"><thead><tr><th>Operation</th><th>Tags</th></tr></thead>' ) && false !== strpos( $classic, '<tr><td>merged into &quot;music&quot; (3 posts)</td><td>ai-generated-music-2, ai-generated-music-3</td></tr>' ) && false !== strpos( $classic, '<td>deleted unused</td><td>stale-tag</td>' ), '#1573 recent: the classic twin paints the same table' );
+// The cap: eleven operations paint ten rows and "+1 more"; six slugs name five then "+1".
+$GLOBALS['__options']['sn_tag_merge_history'] = array_merge( array( array( 'op' => 'prune', 'from' => array( 'a', 'b', 'c', 'd', 'e', 'f' ), 'user' => 1, 'ts' => 100 ) ), array_fill( 0, 10, array( 'op' => 'prune', 'from' => array( 'z' ), 'user' => 1, 'ts' => 100 ) ) );
+$kit = kit_tags(); $classic = classic_tags();
+$recent = ledger_rows( $kit, 'Recent tag operations' );
+ok( 10 === count( (array) $recent ) && 'a, b, c, d, e +1' === $recent[0]['tags'] && false !== strpos( $kit, '<p class="snt-hint">+1 more; the list is capped, not complete.</p>' ) && 10 === substr_count( $classic, '<td>deleted unused</td>' ) && false !== strpos( $classic, '<td>a, b, c, d, e +1</td>' ) && false !== strpos( $classic, '<p class="description">+1 more; the list is capped, not complete.</p>' ), '#1573 recent: ten rows then +1 more, five slugs then +1, both surfaces' );
+$GLOBALS['__options']['sn_tag_merge_history'] = array(
+	array( 'from' => array( 'ai-generated-music-2', 'ai-generated-music-3' ), 'into' => 'music', 'posts' => 3, 'user' => 1, 'ts' => 100 ),
+	array( 'op' => 'prune', 'from' => array( 'stale-tag' ), 'user' => 1, 'ts' => 90 ),
+);
+$kit = kit_tags();
 
 // ── Escaping: a hostile tag name never reaches the markup raw (cluster, picker, unused).
 $hostile = '"><script>x</script>';
@@ -151,9 +168,24 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && in_array( 'remove[7
 ok( array( 'tag_fit_apply', 'tag_fit_run', 'tag_group_apply' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '16.9.0/17.2.0 review: the writes are tag_fit_apply, tag_fit_run and tag_group_apply, same on both leaves; run, same on both leaves' );
 ok( false !== strpos( $kit, '>Untagged Note</a></strong>' ) && false !== strpos( $kit, 'name="remove[7][]" value="9"> Remove &quot;Empty&quot; (attached for reach, 0.30 of 2)' ) && false !== strpos( $kit, '>Apply selected</button>' ) && false !== strpos( $kit, '1 notes, read 2 hours ago.' ), '16.9.0 review: the note links to its editor, the misfit unchecked with its score, Apply selected' );
 ok( false === strpos( $kit, 'Add &quot;' ) && false === strpos( $kit, 'name="remove[8][]"' ) && false === strpos( $kit, 'Umbrella' ) && false !== strpos( $kit, 'confidence 0.7 or better' ) && false !== strpos( $kit, 'Jev proposes no tags' ), '16.9.2 review: a stored 16.9.1 missing list paints no Add box, a 0.6-confidence misfit is no row, no umbrella section; the prose names the lines and says Jev proposes nothing' );
-// ── 17.1.0: the pass pivoted per tag, on both surfaces, no boxes.
-ok( false !== strpos( $kit, 'heading="Jev: by tag"' ) && false !== strpos( $kit, '2 tags in the last pass; 1 carry notes that only touch them: Empty.' ) && false !== strpos( $kit, '<strong>Empty: 2 notes, mean 0.30 of 2, 2 only touching it</strong>' ) && false === strpos( $kit, '<strong>Jazz: 1 notes' ), '17.1.0/17.2.1 by tag: the summary counts every tag and names the wide ones; only Empty gets a line, Jazz (every note about it) does not' );
-ok( false !== strpos( $kit, '>Untagged Note</a> (0.30 of 2, confidence 0.70)</li>' ) && false !== strpos( $kit, '>Shrug</a> (0.30 of 2, confidence 0.60)</li>' ) && false !== strpos( $classic, 'Empty: 2 notes, mean 0.30 of 2, 2 only touching it' ) && false !== strpos( $classic, '>Shrug</a> (0.30 of 2, confidence 0.60)</li>' ), '17.1.0 by tag: the touching notes link to their editor with score and confidence, on both surfaces' );
+// ── 17.1.0: the pass pivoted per tag, on both surfaces, no boxes. #1573: a ledger (a kit table), not a paragraph per tag.
+ok( false !== strpos( $kit, 'heading="Jev: by tag"' ) && false !== strpos( $kit, '2 tags in the last pass; 1 carry notes that only touch them: Empty.' ) && false === strpos( $kit, '<strong>Empty: 2 notes' ) && false === strpos( $kit, '<strong>Jazz: 1 notes' ), '17.1.0/17.2.1 by tag: the summary counts every tag and names the wide ones; no per-tag paragraph' );
+$bytag = ledger_rows( $kit, 'Jev: by tag' );
+ok( array( array( 'tag' => 'Empty', 'notes' => 2, 'mean' => '0.30', 'touching' => 2, 'titles' => 'Untagged Note (0.30 of 2, confidence 0.70), Shrug (0.30 of 2, confidence 0.60)' ) ) === $bytag && false !== strpos( $kit, '{&quot;key&quot;:&quot;mean&quot;,&quot;label&quot;:&quot;Mean (of 2)&quot;},{&quot;key&quot;:&quot;touching&quot;,&quot;label&quot;:&quot;Only touching&quot;},{&quot;key&quot;:&quot;titles&quot;,&quot;label&quot;:&quot;Touching notes&quot;}' ), '#1573 by tag: one row per wide tag (Tag, Notes, Mean, Only touching, the touching titles weakest-first, each with its score and confidence); Jazz (every note about it) gets no row' );
+ok( false !== strpos( $classic, '<th>Tag</th><th>Notes</th><th>Mean (of 2)</th><th>Only touching</th><th>Touching notes</th>' ) && false !== strpos( $classic, '<tr><td>Empty</td><td>2</td><td>0.30</td><td>2</td><td>Untagged Note (0.30 of 2, confidence 0.70), Shrug (0.30 of 2, confidence 0.60)</td></tr>' ) && false === strpos( $classic, 'Empty: 2 notes, mean' ), '#1573 by tag: the classic twin paints the same table with the score and confidence per note, no paragraph per tag' );
+// The cap: thirty-one wide tags paint thirty rows and "+1 more"; four touching titles name three then "+1".
+$notes = array();
+for ( $i = 1; $i <= 31; $i++ ) { $notes[ $i ] = array( 'title' => 'N' . $i, 'attached' => array( array( 'id' => $i, 'name' => 'T' . $i, 'score' => 0.3, 'confidence' => 0.7 ) ) ); }
+foreach ( array( 40, 41, 42 ) as $i ) { $notes[ $i ] = array( 'title' => 'N' . $i, 'attached' => array( array( 'id' => 1, 'name' => 'T1', 'score' => 0.2, 'confidence' => 0.7 ) ) ); }
+$GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 31, 'notes' => $notes, 'usage' => array(), 'last_error' => '' );
+$kit = kit_tags(); $classic = classic_tags();
+$bytag = ledger_rows( $kit, 'Jev: by tag' );
+ok( 30 === count( (array) $bytag ) && 'T1' === $bytag[0]['tag'] && 4 === $bytag[0]['touching'] && 'N40 (0.20 of 2, confidence 0.70), N41 (0.20 of 2, confidence 0.70), N42 (0.20 of 2, confidence 0.70) +1' === $bytag[0]['titles'] && false !== strpos( $kit, '<p class="snt-hint">+1 more; the list is capped, not complete.</p>' ) && 30 === substr_count( $classic, '<td>0.30</td>' ) + substr_count( $classic, '<td>0.22</td>' ) + substr_count( $classic, '<td>0.23</td>' ) /* 0.225 rounds to 0.23 on PHP 8.3 (pre-rounding) and 0.22 on 8.4+, the production line */ && false !== strpos( $classic, '<td>N40 (0.20 of 2, confidence 0.70), N41 (0.20 of 2, confidence 0.70), N42 (0.20 of 2, confidence 0.70) +1</td>' ) && false !== strpos( $classic, '<p class="description">+1 more; the list is capped, not complete.</p>' ), '#1573 by tag: thirty rows then +1 more, three titles then +1, the widest tag first, both surfaces' );
+$GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 3, 'notes' => array(
+	7 => array( 'title' => 'Untagged Note', 'attached' => array( array( 'id' => 9, 'name' => 'Empty', 'score' => 0.3, 'confidence' => 0.7 ), array( 'id' => 2, 'name' => 'Jazz', 'score' => 1.8, 'confidence' => 0.9 ) ), 'missing' => array( array( 'id' => 5, 'name' => 'Blues', 'noul' => 0.9 ) ) ),
+	8 => array( 'title' => 'Shrug', 'attached' => array( array( 'id' => 9, 'name' => 'Empty', 'score' => 0.3, 'confidence' => 0.6 ) ) ),
+), 'usage' => array(), 'last_error' => '' );
+$classic = classic_tags(); $kit = kit_tags();
 ok( false === strpos( $kit, 'name="bytag' ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '17.1.0 by tag: a reading, no form, parity holds' );
 unset( $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] );
 
@@ -167,13 +199,21 @@ $classic = classic_tags(); $kit = kit_tags();
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && in_array( 'file_tag', snt_leaf_names( $kit ), true ) && in_array( 'file_group', snt_leaf_names( $kit ), true ) && ! array_filter( snt_leaf_names( $kit ), static fn( $n ) => str_starts_with( $n, 'group[' ) ) && in_array( 'tag_group_apply', snt_leaf_actions( $kit ), true ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '17.2.1 groups: ONE form (a tag, a heading), never a select per tag; the write is tag_group_apply; parity: ' . names_line( $classic, $kit ) );
 ok( false !== strpos( $kit, '<li><strong>The record</strong>: Jazz</li>' ) && false !== strpos( $kit, '<li><strong>Why it isn’t built</strong>: nothing yet</li>' ) && false !== strpos( $kit, '<li><strong>Not yet filed</strong>: Empty</li>' ), '17.2.1 groups: the ledger names each heading\'s tags, an empty heading says nothing yet, the unfiled tag is listed once; the entity decoded once then escaped' );
 ok( false !== strpos( $classic, '<strong>The record</strong>: Jazz' ) && false !== strpos( $classic, '<strong>Not yet filed</strong>: Empty' ) && false !== strpos( $classic, 'name="file_tag"' ) && false !== strpos( $classic, '<option value="built">Why it isn’t built</option>' ) && false !== strpos( $kit, 'submit-label="File"' ), '17.2.1 groups: the classic twin paints the same ledger and the same small form' );
-$GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 2, 'notes' => array( 7 => array( 'title' => 'N', 'attached' => array( array( 'id' => 2, 'name' => 'Jazz', 'score' => 1.8, 'confidence' => 0.9 ) ) ) ), 'usage' => array(), 'last_error' => '' );
+$GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 2, 'notes' => array( 7 => array( 'title' => 'N', 'attached' => array( array( 'id' => 2, 'name' => 'Jazz', 'score' => 0.5, 'confidence' => 0.9 ) ) ) ), 'usage' => array(), 'last_error' => '' );
+$GLOBALS['__options']['sn_tag_merge_history'] = array( array( 'op' => 'prune', 'from' => array( 'stale-tag' ), 'user' => 1, 'ts' => 90 ) );
 $kit = kit_tags();
-ok( 3 === substr_count( $kit, '<div class="snt-cols">' ), '17.2.1: three paired rows (duplicates + picker, fit + by tag, groups + unused); the glance and the recent list stand alone' );
+// #1573: ROW[Duplicate tags | Merge any two tags]; ROW[Jev: tag fit | Groups on /notes/tags]; then the by-tag ledger, the unused box and the recent ledger, each on a row of its own (a ten-row ledger beside a 96px box is a hole).
+$fit_row = strpos( $kit, '<div class="snt-cols"><os-section heading="Jev: tag fit"' );
+$by_tag  = strpos( $kit, '</div><os-section heading="Jev: by tag"' );
+$last    = strpos( $kit, '</os-section><os-section heading="Unused tags"' );
+ok( 2 === substr_count( $kit, '<div class="snt-cols">' ) && false !== strpos( $kit, '<div class="snt-cols"><os-section heading="Duplicate tags"' ) && false !== $fit_row && false !== $by_tag && false !== $last && $fit_row < strpos( $kit, 'heading="Groups on /notes/tags"' ) && strpos( $kit, 'heading="Groups on /notes/tags"' ) < $by_tag && $by_tag < $last && false !== strpos( $kit, '</os-section><os-section heading="Recent tag operations"' ) && $last < strpos( $kit, 'heading="Recent tag operations"' ), '#1573: two paired rows (duplicates + picker, fit + groups); the by-tag ledger, the unused box and the recent ledger each stand alone at full width, in that order' );
+$GLOBALS['__options']['sn_tag_merge_history'] = array();
+$kit = kit_tags();
+ok( 2 === substr_count( $kit, '<div class="snt-cols">' ) && false !== strpos( $kit, '</os-section><os-section heading="Unused tags"' ) && false === strpos( $kit, 'Recent tag operations' ) && str_ends_with( trim( $kit ), '</os-section>' ), '#1573: no history: no recent box, the unused box closes the leaf, the two pairs stand' );
 $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = null; unset( $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] );
 $GLOBALS['__jev'] = false;
 $kit = kit_tags();
-ok( 2 === substr_count( $kit, '<div class="snt-cols">' ) && false !== strpos( $kit, 'heading="Jev: tag fit"' ), '17.2.1: a side that paints nothing (no Jev pass: no by-tag box) leaves the fit box alone at full width, the other two pairs stand' );
+ok( 2 === substr_count( $kit, '<div class="snt-cols">' ) && false !== strpos( $kit, '<div class="snt-cols"><os-section heading="Jev: tag fit"' ) && false === strpos( $kit, 'Jev: by tag' ), '#1573: no Jev pass: no by-tag box, the fit box still pairs with the groups box' );
 $GLOBALS['__jev'] = true;
 
 // ── 16.9.3: no ceiling section on either surface (the rule is the description, the gate nudges).

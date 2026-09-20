@@ -22,6 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/content-tags-parts.php';
+require_once __DIR__ . '/content-tags-rows.php';
 
 /**
  * The `sn_*` params the window carries — the classic page's `$_GET`.
@@ -103,12 +104,15 @@ function paint_content_tags( array $ctx ) {
 		}
 	}
 	// 17.2.1: boxes share a row. Two columns (assets/os-app.css .snt-cols, one
-	// column under 640px), the pairs by what the owner reads together: the
-	// duplicates beside the picker that folds them, the fit beside the
-	// per-tag reading it comes from, the headings beside the unused tags.
+	// column under 640px). #1573: two boxes share a row only when their heights
+	// are comparable (live at 1581px: duplicates 96 / picker 145, fit 238 /
+	// groups 260); the by-tag ledger stood 1,329px beside a 238px box and the
+	// recent ledger (ten rows, 277px as a list) would stand beside a 96px
+	// unused box, so each ledger takes a row of its own.
 	$out .= tags_pair( $dups, tags_picker_html() );
-	$out .= tags_pair( tags_fit_html(), tags_by_tag_html() );
-	$out .= tags_pair( tags_groups_html(), tags_unused_html( $data['unused'] ) );
+	$out .= tags_pair( tags_fit_html(), tags_groups_html() );
+	$out .= tags_by_tag_html();
+	$out .= tags_unused_html( $data['unused'] );
 	$out .= tags_recent_html();
 	return $out;
 }
