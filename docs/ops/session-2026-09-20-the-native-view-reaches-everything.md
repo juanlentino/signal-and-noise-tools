@@ -134,10 +134,49 @@ had disarmed (a substring grep over the whole leaf), an accessible name on an
 that promised a Verify verdict for a key that has no probe, a raw and a
 formatted rendering of the same number inside one box.
 
+## The third arc: Enter on Cancel applied (#1572)
+
+A keyboard reading of the Suggest modal, not a screen. The document keydown
+handler read every Enter outside a textarea as Apply: `preventDefault()` ate
+the focused button's own click and `accept()` ran, so Tab to Cancel (or the
+close x), press Enter, and the write went through on every Apply ability the
+modal fronts. Pre-existing on the classic box since the modal replaced
+`window.confirm()` in 4.0.3; the `<os-modal>` twin in flight in another
+worktree carried the same line unchanged.
+
+The fix is five lines in the one handler: read the Enter target through the
+shadow root (`e.composedPath()[ 0 ]`; at the document a keydown inside a kit
+host retargets to the `<os-button>`, or to `<os-modal>` for its own close x),
+and when it is a button, return before `preventDefault` so the button runs
+its own click. Cancel cancels, Apply applies once through its listener, Enter
+anywhere else still applies. The `composedPath` read is the one deviation
+from the brief, which named `e.target`: that read cannot see the kit modal's
+close x, which sits inside `<os-modal>`'s shadow root, and Enter there would
+still have committed.
+
+The verification taught me the day's second instrument lesson. The desktop
+pane's key tool delivers a keydown with no activation: Chrome never
+synthesizes the button's click from it, so on the fixed page "modal still
+open, no apply" looked like a pass and on the unfixed page nothing happened
+at all. A control button with its own click listener, pressed the same way,
+showed no click and named the artifact in one step. Playwright's
+`press('Enter')` carries the text the browser needs; driven headless against
+four fixture pages (classic and kit, each unfixed and fixed, one Health row
+and a stubbed `sntAbilityRun` that logs calls), both cancel controls
+committed on both unfixed pages and both cancelled on both fixed ones, Apply
+applied once, Enter elsewhere applied. The kit page ran a scratch copy of the
+17.4.1 script with the same five lines; the sibling worktree stayed untouched.
+
+Three pins in the file's own `substr_count`/`preg_match` shape, red against
+the unfixed script by `git apply -R`, green with it; the sweep at 706 suites
+and 31,580 assertions. Merged on `CLEAN` after a fresh re-read, squash, no
+bump; rides the next cut.
+
 ## What is open
 
 The Suggest modal itself is still a wp-admin box appended outside the kit
-shell; `<os-modal>` is the twin and a larger diff. The shell-level breach
+shell; `<os-modal>` is the twin and a larger diff, in flight in a sibling
+worktree as 17.4.1, and the Enter fix rebases onto it byte for byte. The shell-level breach
 banner waits on OpenStation's window-notices surface reading Stable. The live
 shell is the remaining witness for the Reschedule modal on the real Posts
 window and the Pages-window toast.

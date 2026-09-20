@@ -17,6 +17,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Documentation
 - The 2026-09-20 session doc carries the second arc (17.4.0, readings find their homes).
+- The 2026-09-20 session doc carries the third arc (#1572, Enter on the Suggest modal's Cancel), with the instrument lesson: the pane's key tool sends a keydown with no activation, so a fixture with a control button shows it, and Playwright's press('Enter') is the driver for native Enter.
 
 ## [17.4.0] - 2026-09-20 — readings find their homes
 
