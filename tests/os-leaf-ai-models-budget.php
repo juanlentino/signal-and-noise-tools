@@ -39,6 +39,16 @@ function snt_ml_embed_token() { return $GLOBALS['__embed_token']; }
 function snt_ml_embed_configured() { return $GLOBALS['__embed_configured']; }
 function snt_ml_embed_account_id() { return $GLOBALS['__embed_account_id']; }
 
+// 17.3.x: the platform-reported spend readers (inc/spend-watch.php), driven
+// from globals: null = keyring row absent, ok=false = the read failed.
+$GLOBALS['__gh'] = null;
+$GLOBALS['__ai'] = null;
+function sn_spend_gh_usage() { return $GLOBALS['__gh']; }
+function sn_spend_ai_cost() { return $GLOBALS['__ai']; }
+// The Jev meter, loaded but not connected: paints its heading so the order pin can fail.
+function sn_jev_meter_reading() { return array(); }
+function sn_jev_is_ready() { return false; }
+
 // sn_mask_secret() is pure PHP (inc/settings.php) — mirrored verbatim rather
 // than pulling the 575-line settings file in for one helper.
 function sn_mask_secret( $value ) {
@@ -172,6 +182,43 @@ ok( false !== strpos( $kit, '<os-disclosure' ) && false !== strpos( $kit, 'note 
 $GLOBALS['__transients']['snt_ml_embed_compare']['result']['divergent'] = array();
 $kit = snt_leaf_paint( 'ai', 'models-budget' );
 ok( false !== strpos( $kit, 'No divergence at all' ), 'a successful comparison with nothing divergent says so, and argues against adopting a hosted model' );
+
+// ── 17.3.x: the platform-reported box, under the estimate and before the Jev
+// meter, in the leaf's own right column. Read between its heading and the
+// next section so the estimate's "$0.00" cannot satisfy or spoil a pin.
+function platform_box( $html ) {
+	$start = strpos( $html, 'heading="Platform-reported, this month"' );
+	if ( false === $start ) { return ''; }
+	$end = strpos( $html, '</os-section>', $start );
+	return substr( $html, $start, $end - $start );
+}
+$GLOBALS['__transients'] = array();
+$GLOBALS['__embed_configured'] = false;
+$GLOBALS['__embed_token']      = '';
+// (a) both keyring rows absent: the box paints, both rows say not set, no figure.
+$kit = snt_leaf_paint( 'ai', 'models-budget' );
+$box = platform_box( $kit );
+ok( '' !== $box, 'the platform-reported box paints on the leaf' );
+ok( strpos( $kit, 'heading="Platform-reported, this month"' ) > strpos( $kit, 'Spent this month' ) && strpos( $kit, 'heading="Platform-reported, this month"' ) < strpos( $kit, 'heading="Jev' ), 'the box sits under the estimate and before the Jev meter' );
+ok( 2 === substr_count( $box, '>not set</dd>' ) && false !== strpos( $box, 'Anthropic bill (month to date)' ) && false !== strpos( $box, 'GitHub Actions minutes (account, month to date)' ), 'both rows read "not set" when their keyring rows are absent' );
+ok( false === strpos( $box, '$0.00' ) && ! preg_match( '/\d min\b/', $box ) && false === strpos( $box, '<os-notice' ), 'absent is not zero: no dollar figure, no minute figure, no notice in the box' );
+ok( false !== strpos( $box, 'never estimated' ), 'the box says it is platform-reported, against the estimate above' );
+// (b) both reads ok: the platform figures, verbatim, with no quota beside the minutes.
+$GLOBALS['__gh'] = array( 'ok' => true, 'src' => 'usage', 'used' => 1234, 'billed' => 0.0 );
+$GLOBALS['__ai'] = array( 'ok' => true, 'total' => 120.39 );
+$box = platform_box( snt_leaf_paint( 'ai', 'models-budget' ) );
+ok( false !== strpos( $box, '1,234 min, $0.00 billed' ) && false !== strpos( $box, '>$120.39</dd>' ), 'both figures paint from the fixture: 1,234 min, $0.00 billed; $120.39' );
+ok( false === strpos( $box, 'of 3,000' ) && false === strpos( $box, 'of 3000' ) && false === strpos( $box, 'not set' ) && false === strpos( $box, '<os-notice' ), 'no invented quota, no absent wording, no notice when both reads are ok' );
+// (c) the GitHub read failed: unknown in words, a warn notice on the box, no minute figure.
+$GLOBALS['__gh'] = array( 'ok' => false );
+$box = platform_box( snt_leaf_paint( 'ai', 'models-budget' ) );
+ok( false !== strpos( $box, '>unknown, the billing read failed</dd>' ) && false !== strpos( $box, '<os-notice tone="warning"' ) && ! preg_match( '/\d min\b/', $box ), 'a failed read says unknown with a warning notice on the box, never a number' );
+ok( false !== strpos( $box, '>$120.39</dd>' ), 'the other row still paints its figure' );
+ok( false !== strpos( $box, 'the Anthropic key has no probe' ), 'the notice does not send an Anthropic failure to a probe that does not exist' );
+// (d) the door to the keyring, from the ai tab to connections/credentials.
+ok( false !== strpos( $box, 'Connections › Credentials' ) && false !== strpos( $box, 'data-snt-tab="connections"' ) && false !== strpos( $box, 'data-snt-sub="credentials"' ), 'the hint carries the door to Connections › Credentials' );
+$GLOBALS['__gh'] = null;
+$GLOBALS['__ai'] = null;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -50,7 +50,11 @@ are different answers.
 ## Wiring notes
 
 - Home: the health dashboard (`inc/` health scan family) — same card chrome,
-  same "unknown" posture as cron/uptime/deploy state.
+  same "unknown" posture as cron/uptime/deploy state. That widget never
+  registers since 11.30.0, so since 17.3.x the surface is AI › Models & Budget
+  in the window: one "Platform-reported, this month" box in the right column,
+  under the plugin's own estimate, painted from `sn_spend_gh_usage()` and
+  `sn_spend_ai_cost()` (apps/sn-dashboard/parts/leaves/ai-models-budget-parts.php).
 - Cache: these are slow-moving numbers; a transient with hours-scale TTL is
   fine. Distinguish "cached at HH:MM" from "unknown".
 - Keep secrets in options/env like existing worker tokens; presence-boolean in

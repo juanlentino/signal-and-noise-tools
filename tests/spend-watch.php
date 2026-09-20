@@ -174,8 +174,10 @@ $GLOBALS['__http_fn'] = null;
 // (tests/keyring.php pins the verbs, tests/os-leaf-connections-keyring.php the fields).
 
 // --- mount guards ------------------------------------------------------------
-$widget = (string) file_get_contents( __DIR__ . '/../inc/site-health-widget.php' );
-ok( strpos( $widget, 'sn_spend_watch_health_section' ) !== false, 'the S&N Health widget mounts the spend section' );
+// 17.3.x: the readers paint on AI › Models & Budget (the home widget that
+// mounted the section never registers since 11.30.0, so they went unpainted).
+$leaf = (string) file_get_contents( __DIR__ . '/../apps/sn-dashboard/parts/leaves/ai-models-budget.php' );
+ok( strpos( $leaf, 'sn_spend_gh_usage' ) !== false && strpos( $leaf, 'sn_spend_ai_cost' ) !== false, 'AI › Models & Budget reads both spend readers' );
 // Reads the admin-post LAYER, not one file: the handlers live in
 // inc/admin-post-actions/*.php behind a thin loader (v12.21.2), so scanning
 // the loader alone would find nothing.
