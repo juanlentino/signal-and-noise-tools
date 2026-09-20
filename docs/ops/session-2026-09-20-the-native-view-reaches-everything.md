@@ -110,12 +110,34 @@ Plugin 17.3.0, one cut for the arc (#1554): #1544, #1547, #1550, #1551, #1553.
 Memory: the obvious REST seam reads no refusal back; a PWA page's scripts
 cannot carry a nonce either; the audit's gaps #5 to #11 with their files.
 
+## The second arc, the same day: readings find their homes (17.4.0)
+
+"Go." The seven remaining items went as one arc: eight mappers (one per gap,
+one placement critic), seven builders in parallel worktrees, two verifiers
+and a repair round each, seven security reviews, seven gated merges, one cut.
+The critic's rule for each was the house's: a reading lives where its question
+is asked. So the breached-password figures and the login memo landed on
+Security › Login defense (a second box beside the lone one, the memo as the
+notice on top); the Action Scheduler backlog on Connections › Cron, painted
+directly on the on-demand leaf rather than behind a fold; the
+platform-reported spend on AI › Models & Budget under the plugin's own token
+estimate, a missing key saying so in words; the slow admin requests on
+Site › Performance, hosts only; the Evergreen flag as a Posts-window column;
+and the resume arrows as kit buttons the classic script already handles,
+after tracing that DOM order survives the kit form's harvest, the replay's
+expand and the normalizer's reindex. The Suggest script mints kit buttons
+inside the kit now.
+
+The verifiers earned their keep again: a silent-green toggle pin the new box
+had disarmed (a substring grep over the whole leaf), an accessible name on an
+`<os-button>` host that the kit never forwards to its inner button, a warning
+that promised a Verify verdict for a key that has no probe, a raw and a
+formatted rendering of the same number inside one box.
+
 ## What is open
 
-Gaps #5 to #11 (the login memo unseen in the window, the Spend section painted
-nowhere, resume row reorder, two Site Health rows, the evergreen column, the
-slow-HTTP panel): readings without a home, each a fold onto an existing leaf,
-none built without a said yes. The buttons the Suggest script mints inside the
-kit (Discard, Apply, the modal) are still wp-admin `.button`s. The live shell
-is the remaining witness for the modal on the real Posts window and the
-Pages-window toast.
+The Suggest modal itself is still a wp-admin box appended outside the kit
+shell; `<os-modal>` is the twin and a larger diff. The shell-level breach
+banner waits on OpenStation's window-notices surface reading Stable. The live
+shell is the remaining witness for the Reschedule modal on the real Posts
+window and the Pages-window toast.
