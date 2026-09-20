@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Documentation
+- Session doc: [the evidence outlives the sensor](docs/ops/session-2026-09-19-the-evidence-outlives-the-sensor.md) (16.9.1 to 17.0.0, the two workers, the ledger's verifier and the policy's 1.3).
+
 ## [17.0.0] - 2026-09-19 — the evidence outlives the sensor
 
 ### Added
