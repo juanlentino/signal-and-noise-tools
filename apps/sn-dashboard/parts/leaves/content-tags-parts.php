@@ -278,6 +278,39 @@ function tags_fit_html() {
 }
 
 /**
+ * 17.1.0: the pass pivoted per tag, what a reader of each archive gets. Per
+ * tag: how many notes carry it, the mean score, and the notes that only
+ * touch it (under 1 of 2), by touching share. No boxes: which tag a note
+ * carries is the owner's call; this is the reading behind the call.
+ *
+ * @return string
+ */
+function tags_by_tag_html() {
+	$heading = __( 'Jev: by tag', 'signal-and-noise-tools' );
+	if ( ! function_exists( 'sn_jev_is_ready' ) || ! \sn_jev_is_ready() ) {
+		return '';
+	}
+	$data = function_exists( 'sn_jev_tags_data' ) ? \sn_jev_tags_data() : null;
+	if ( null === $data ) {
+		return '';
+	}
+	$rows = \sn_jev_tags_by_tag( $data );
+	if ( array() === $rows ) {
+		return \snt_kit_section( $heading, \snt_kit_empty( __( 'No tags in the last pass.', 'signal-and-noise-tools' ) ) );
+	}
+	$inner = '';
+	foreach ( $rows as $r ) {
+		$line = sprintf( /* translators: 1: tag, 2: notes, 3: mean score, 4: touching count */ __( '%1$s: %2$d notes, mean %3$s of 2, %4$d only touching it', 'signal-and-noise-tools' ), $r['name'], (int) $r['notes'], number_format_i18n( (float) $r['mean'], 2 ), count( $r['touching'] ) );
+		$items = '';
+		foreach ( $r['touching'] as $t ) {
+			$items .= '<li><a href="' . esc_url( get_edit_post_link( (int) $t['post_id'] ) ?: '' ) . '">' . \snt_kit_esc( $t['title'] ) . '</a> ' . \snt_kit_esc( sprintf( /* translators: 1: score, 2: confidence */ __( '(%1$s of 2, confidence %2$s)', 'signal-and-noise-tools' ), number_format_i18n( (float) $t['score'], 2 ), number_format_i18n( (float) $t['confidence'], 2 ) ) ) . '</li>';
+		}
+		$inner .= '<p class="snt-prose"><strong>' . \snt_kit_esc( $line ) . '</strong></p>' . ( '' !== $items ? '<ul class="snt-list">' . $items . '</ul>' : '' );
+	}
+	return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'What a reader of each tag archive gets: every note carrying the tag, scored by the last pass. A note under 1 of 2 touches the tag rather than being about it; an archive with many of those reads wide. Which tags a note carries stays your call.', 'signal-and-noise-tools' ) ) . '</p>' . $inner );
+}
+
+/**
  * Unused-tag cleanup: every count-0 term checked, deleted on confirm.
  *
  * @param array $unused From sn_tag_find_unused().

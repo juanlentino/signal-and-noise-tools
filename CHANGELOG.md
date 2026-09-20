@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Jev: by tag, the pass pivoted per tag.** The tag-fit pass holds every note's score for every tag it carries (0 the subject is absent, 1 touches it, 2 is about it); the leaf and `jev-tags` surfaced only the absent end. What a reader of a tag archive feels is the middle: notes that only touch the tag. Content › Tags gains a "Jev: by tag" section on both surfaces, and `jev-tags` a `by_tag` list: per tag, the notes carrying it, the mean score, and the notes under 1 of 2 with score and confidence, by touching share descending. A reading from the stored pass, no Jev spend, no boxes: which tags a note carries stays the owner's call. `sn_jev_tags_by_tag()`; tests jev-tags 26, os-leaf-content-tags 48.
+
 ### Documentation
 - Session doc: [the evidence outlives the sensor](docs/ops/session-2026-09-19-the-evidence-outlives-the-sensor.md) (16.9.1 to 17.0.0, the two workers, the ledger's verifier and the policy's 1.3).
 

@@ -105,6 +105,7 @@ function sn_admin_render_tag_cleanup_section() {
 
 	sn_admin_tag_render_manual_picker();
 	sn_admin_tag_render_fit_section();
+	sn_admin_tag_render_by_tag_section();
 	sn_admin_tag_render_unused_section();
 	sn_admin_tag_render_recent_merges();
 }
@@ -275,6 +276,39 @@ function sn_admin_tag_render_fit_section() {
 	echo '<input type="hidden" name="sn_action" value="tag_fit_run">';
 	echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Read tags now', 'signal-and-noise-tools' ) . '</button>';
 	echo '</form></div>';
+}
+
+/**
+ * 17.1.0: the pass pivoted per tag (see tags_by_tag_html() on the native leaf).
+ *
+ * @return void
+ */
+function sn_admin_tag_render_by_tag_section() {
+	if ( ! function_exists( 'sn_jev_is_ready' ) || ! sn_jev_is_ready() ) {
+		return;
+	}
+	$data = function_exists( 'sn_jev_tags_data' ) ? sn_jev_tags_data() : null;
+	if ( null === $data ) {
+		return;
+	}
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Jev: by tag', 'signal-and-noise-tools' ) . '</h2>';
+	$rows = sn_jev_tags_by_tag( $data );
+	if ( array() === $rows ) {
+		echo '<p>' . esc_html__( 'No tags in the last pass.', 'signal-and-noise-tools' ) . '</p></div>';
+		return;
+	}
+	echo '<p>' . esc_html__( 'What a reader of each tag archive gets: every note carrying the tag, scored by the last pass. A note under 1 of 2 touches the tag rather than being about it; an archive with many of those reads wide. Which tags a note carries stays your call.', 'signal-and-noise-tools' ) . '</p>';
+	foreach ( $rows as $r ) {
+		echo '<p><strong>' . esc_html( sprintf( /* translators: 1: tag, 2: notes, 3: mean score, 4: touching count */ __( '%1$s: %2$d notes, mean %3$s of 2, %4$d only touching it', 'signal-and-noise-tools' ), $r['name'], (int) $r['notes'], number_format_i18n( (float) $r['mean'], 2 ), count( $r['touching'] ) ) ) . '</strong></p>';
+		if ( $r['touching'] ) {
+			echo '<ul>';
+			foreach ( $r['touching'] as $t ) {
+				echo '<li><a href="' . esc_url( get_edit_post_link( (int) $t['post_id'] ) ?: '' ) . '">' . esc_html( $t['title'] ) . '</a> ' . esc_html( sprintf( /* translators: 1: score, 2: confidence */ __( '(%1$s of 2, confidence %2$s)', 'signal-and-noise-tools' ), number_format_i18n( (float) $t['score'], 2 ), number_format_i18n( (float) $t['confidence'], 2 ) ) ) . '</li>';
+			}
+			echo '</ul>';
+		}
+	}
+	echo '</div>';
 }
 
 /**
