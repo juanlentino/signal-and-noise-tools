@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Documentation
+- The 2026-09-20 session doc carries the second arc (17.4.0, readings find their homes).
+
 ## [17.4.0] - 2026-09-20 — readings find their homes
 
 ### Added
