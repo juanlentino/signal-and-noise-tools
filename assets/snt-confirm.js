@@ -71,6 +71,23 @@
 	 */
 	function sntConfirm( opts ) {
 		opts = opts || {};
+		// 17.4.4 (#1606): on the station, wp.os.confirm (Stable in OpenStation's
+		// JavaScript reference) is the shell's own os-confirm-dialog, the one
+		// every kit trigger beside these buttons already opens. Same option
+		// shape; the dialog restores focus to the opener itself, so
+		// originatingButton is not forwarded. An iframe window carries a
+		// wp.os with no confirm, so classic pages and chromeless windows keep
+		// the modal below. One guard here reaches every caller, imperative
+		// and declarative.
+		if ( window.wp && window.wp.os && typeof window.wp.os.confirm === 'function' ) {
+			return window.wp.os.confirm( {
+				title:        opts.title,
+				message:      String( opts.message || '' ),
+				confirmLabel: opts.confirmLabel,
+				cancelLabel:  opts.cancelLabel,
+				danger:       !! opts.danger,
+			} );
+		}
 		return new Promise( function ( resolve ) {
 			// Close any existing dialog before opening a new one.
 			if ( activeBackdrop ) { closeActiveBackdrop(); }

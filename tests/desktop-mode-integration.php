@@ -399,6 +399,36 @@ $orphan = array_values( array_diff( $wired, $registered ) );
 ok( empty( $orphan ),
 	'no JS command handler is orphaned without a PHP registration' . ( $orphan ? ' [ORPHAN: ' . implode( ', ', $orphan ) . ']' : '' ) );
 
+echo "\n── 17.4.4 (#1606): the palette's verdict, door and question are the station's ──\n";
+// The station never sees a page load or the browser dialog from a command.
+// `$dm_js` is the comment-stripped source from the block above: the fix notes
+// name both offenders in prose, and a raw read would flag the explanation.
+ok( strpos( $dm_js, 'location.href' ) === false,
+	'desktop-mode.js never assigns location.href (an open command is a window: the native remap, then ctx.openInWindow)' );
+ok( strpos( $dm_js, 'window.confirm(' ) === false,
+	'desktop-mode.js never calls window.confirm( (Full reset asks wp.os.confirm)' );
+ok( strpos( $dm_js, 'showToast' ) !== false && strpos( $dm_js, '.notify(' ) === false,
+	'desktop-mode.js toasts through wp.os.showToast, not wp.os.notify (the PWA notification entry, which drops a payload with no title)' );
+ok( preg_match( '/tryNativeRemap\(.*?openInWindow\(/s', $dm_js ) === 1,
+	'navigate() tries the plugin\'s own native remap before the palette\'s ctx.openInWindow' );
+// One guard at the top of sntConfirm() reaches every caller, imperative and
+// declarative: the shell's dialog when wp.os.confirm exists, the modal below
+// it otherwise (an iframe window carries a wp.os with no confirm).
+// The pinned token is `return window.wp.os.confirm(`, not the bare call: a
+// guard that calls without returning opens the station's dialog AND falls
+// through to the modal, the two-dialogs state this arc removes, and the
+// caller's promise resolves from the modal (#1630 review).
+$sc_js      = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/snt-confirm.js' ) );
+$sc_guard   = strpos( $sc_js, "typeof window.wp.os.confirm === 'function'" );
+$sc_call    = strpos( $sc_js, 'return window.wp.os.confirm(' );
+$sc_backdrop = strpos( $sc_js, "'snt-confirm-backdrop'" );
+ok( false !== $sc_guard && false !== $sc_call && false !== $sc_backdrop && $sc_guard < $sc_call && $sc_call < $sc_backdrop,
+	'snt-confirm.js RETURNS wp.os.confirm() when the shell has it, before it builds the snt-confirm-backdrop modal' );
+// `danger: !! opts.danger`, not any `danger:` (a `danger: false` literal would
+// have passed the looser shape and painted every destructive button blue).
+ok( preg_match( '/window\.wp\.os\.confirm\(\s*\{[^}]*danger:\s*!!\s*opts\.danger/s', $sc_js ) === 1,
+	'the guard forwards the caller\'s danger flag (the red button) to the station\'s dialog' );
+
 echo "\n── v9.52.2: drag-and-drop + sizing ──\n";
 // movable:true lets the user drag a card out of the right-side column and
 // place it anywhere; desktop-mode then renders a chrome header (grip + label +

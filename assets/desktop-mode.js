@@ -8,8 +8,10 @@
  * Pattern: each PHP-registered command has a matching wp.desktop.
  * registerCommand({ slug, run }) call here that attaches the JS callback.
  * Maintenance commands hit REST via wp.apiFetch (auto _wpnonce);
- * Navigation commands set window.location.href; Info commands read
- * from window.snDesktopData (localized in PHP) and dispatch a toast.
+ * Navigation commands open a window (the plugin's native remap first, then
+ * the palette's own ctx.openInWindow); Info commands read from
+ * window.snDesktopData (localized in PHP) and dispatch a toast. Every run()
+ * returns the message it toasted, so the palette paints the answer too.
  *
  * Gracefully no-ops if neither wp.desktop nor wp.os is available (defensive
  * — script shouldn't be loaded in that case, but better safe).
@@ -114,24 +116,29 @@
 	};
 
 	/**
-	 * Toast helper. desktop-mode exposes wp.desktop.notify() per the
-	 * hooks reference; we fall back to wp.data dispatch or console if
-	 * not available (defensive across shell versions).
+	 * Toast helper. 17.4.4 (#1606): wp.os.showToast (Stable in OpenStation's
+	 * JavaScript reference) paints at the top of the shell. The old target,
+	 * wp.os.notify, is the PWA browser-notification entry, and its first guard
+	 * drops any intent with no `title`, so every one of these toasts was a
+	 * no-op. Returns the message so a command's run() can hand it back to the
+	 * palette as its answer. `type` only reaches the wp.data fallback.
 	 */
 	function toast( message, type ) {
 		type = type || 'success';
-		if ( window.wp.desktop.notify && typeof window.wp.desktop.notify === 'function' ) {
-			window.wp.desktop.notify( { message: message, type: type } );
-			return;
+		var os = window.wp.os || window.wp.desktop;
+		if ( os && typeof os.showToast === 'function' ) {
+			os.showToast( { message: String( message ) } );
+			return message;
 		}
 		// Fallback: dispatch a WP notice via the standard data store.
 		if ( window.wp.data && window.wp.data.dispatch && window.wp.data.dispatch( 'core/notices' ) ) {
 			window.wp.data.dispatch( 'core/notices' ).createNotice( type, message, { isDismissible: true } );
-			return;
+			return message;
 		}
-		// Last resort: console + native alert (avoid alert; just log).
+		// Last resort: console (never alert).
 		// eslint-disable-next-line no-console
 		console.log( '[SN]', message );
+		return message;
 	}
 
 	/**
@@ -147,24 +154,45 @@
 	}
 
 	/**
-	 * Navigation helper. Inside desktop-mode, location nav within the
-	 * window triggers the shell's iframe routing automatically — same
-	 * behavior as clicking a wp-admin link.
+	 * Navigation helper. 17.4.4 (#1606): a window, never a page load. On the
+	 * shell document `location.href` was a top-frame load: admin_init
+	 * redirected back into the shell with the URL as its target, the desktop
+	 * rebooted and restored its session to open one window. The plugin's own
+	 * tryNativeRemap (assets/os-settings-tab.js, enqueued on every shell
+	 * request) opens the native S&N window through wp.os.openWindow when the
+	 * page has a twin and the preference allows it; otherwise the palette's
+	 * ctx.openInWindow (CommandContext, Stable) opens the page as an iframe
+	 * window and closes the palette itself.
+	 *
+	 * @param {string} url   A server-localized admin_url() value.
+	 * @param {Object} ctx   The CommandContext the palette hands run().
+	 * @param {string} title Window title for the iframe fallback.
 	 */
-	function navigate( url ) {
+	function navigate( url, ctx, title ) {
 		if ( ! url ) {
 			return;
 		}
 		// Defense-in-depth: every caller passes a server-localized admin_url()
 		// value, but resolve + same-origin-check the target anyway, so a future
 		// caller can't turn this into an open-redirect or a javascript: sink.
+		var dest;
 		try {
-			var dest = new URL( url, window.location.origin );
-			if ( dest.origin === window.location.origin ) {
-				window.location.href = dest.href;
-			}
+			dest = new URL( url, window.location.origin );
 		} catch ( e ) {
-			// Malformed URL — refuse to navigate.
+			return;
+		}
+		if ( dest.origin !== window.location.origin ) {
+			return;
+		}
+		var prefs = window.sntOpenStationPreferences;
+		if ( prefs && typeof prefs.tryNativeRemap === 'function' && prefs.tryNativeRemap( dest.href ) ) {
+			if ( ctx && typeof ctx.close === 'function' ) {
+				ctx.close();
+			}
+			return;
+		}
+		if ( ctx && typeof ctx.openInWindow === 'function' ) {
+			ctx.openInWindow( dest.href, title || 'Signal & Noise' );
 		}
 	}
 
@@ -184,7 +212,7 @@
 		} else {
 			msg += ' (state unknown)';
 		}
-		toast( msg, state === 'available' ? 'info' : 'success' );
+		return toast( msg, state === 'available' ? 'info' : 'success' );
 	}
 
 	/* ── COMMAND BINDINGS ──────────────────────────────────────────────── */
@@ -208,7 +236,7 @@
 		label: 'SN: Force-check updates',
 		aiCallable: true, // v2.5.5: idempotent, clears transients only — safe.
 		run: function() {
-			callRest( 'force-check' )
+			return callRest( 'force-check' )
 				// v7.7.0: get-deploy-status returns { theme, plugin, last_deploy }
 				// (no message field; + last_gha_run since v9.63.3) — build the
 				// toast from the fresh states.
@@ -216,9 +244,9 @@
 					var detail = ( res && res.theme && res.plugin )
 						? ' Theme ' + res.theme.current + ' (' + res.theme.state + '), plugin ' + res.plugin.current + ' (' + res.plugin.state + ').'
 						: '';
-					toast( 'Update check refreshed.' + detail );
+					return toast( 'Update check refreshed.' + detail );
 				} )
-				.catch( function( err ) { toast( 'Force-check failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+				.catch( function( err ) { return toast( 'Force-check failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
 		},
 	} );
 
@@ -227,9 +255,9 @@
 		label: 'SN: Purge all caches',
 		// v2.5.5: aiCallable INTENTIONALLY OMITTED — destructive. Manual ⌘K only.
 		run: function() {
-			callRest( 'purge-caches' )
-				.then( function( res ) { toast( res.message || 'Purge completed.', res.ok === false ? 'error' : undefined ); } )
-				.catch( function( err ) { toast( 'Purge failed: ' + ( err.message || 'unknown error' ), 'error' ); } )
+			return callRest( 'purge-caches' )
+				.then( function( res ) { return toast( res.message || 'Purge completed.', res.ok === false ? 'error' : undefined ); } )
+				.catch( function( err ) { return toast( 'Purge failed: ' + ( err.message || 'unknown error' ), 'error' ); } )
 				.finally( function() { document.dispatchEvent( new CustomEvent( 'snt-cache-purged' ) ); } );
 		},
 	} );
@@ -239,9 +267,9 @@
 		label: 'SN: Clear template overrides',
 		// v2.5.5: aiCallable INTENTIONALLY OMITTED — deletes DB rows. Manual only.
 		run: function() {
-			callRest( 'clear-overrides' )
-				.then( function( res ) { toast( res.message || 'Overrides cleared.' ); } )
-				.catch( function( err ) { toast( 'Clear overrides failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+			return callRest( 'clear-overrides' )
+				.then( function( res ) { return toast( res.message || 'Overrides cleared.' ); } )
+				.catch( function( err ) { return toast( 'Clear overrides failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
 		},
 	} );
 
@@ -251,44 +279,49 @@
 		// v2.5.5: aiCallable INTENTIONALLY OMITTED — combines the two destructive
 		// commands above; even bigger blast radius. Manual ⌘K only.
 		run: function() {
-			// v4.1.1 (U-01): sntConfirm replaces window.confirm (which is blocked
-			// inside the desktop-mode portal iframe by the chrome-extension boundary).
-			// Falls back to native confirm if snt-confirm.js didn't enqueue.
-			var prompt = ( typeof window.sntConfirm === 'function' )
-				? window.sntConfirm( {
-					title:        'Run Full Reset?',
-					message:      'This clears every template override AND purges every cache. There is no undo.',
-					confirmLabel: 'Full Reset',
-					danger:       true,
-				} )
-				: Promise.resolve( window.confirm( 'Run Full Reset?\n\nThis clears every template override AND purges every cache.' ) );
-			prompt.then( function ( confirmed ) {
-				if ( ! confirmed ) { return; }
-				callRest( 'full-reset' )
-					.then( function( res ) { toast( res.message || 'Full reset complete.' ); } )
-					.catch( function( err ) { toast( 'Full reset failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+			// 17.4.4 (#1606): wp.os.confirm (Stable) is the station's own
+			// os-confirm-dialog with the same option shape. snt-confirm.js is
+			// not enqueued on the shell document, so the old chain landed on
+			// window.confirm, the call the shell's own lint forbids. sntConfirm
+			// stays as the fallback for a shell without confirm; with neither
+			// the reset is not run.
+			var opts = {
+				title:        'Run Full Reset?',
+				message:      'This clears every template override AND purges every cache. There is no undo.',
+				confirmLabel: 'Full Reset',
+				danger:       true,
+			};
+			var os = window.wp.os || window.wp.desktop;
+			var prompt = ( os && typeof os.confirm === 'function' )
+				? os.confirm( opts )
+				: ( typeof window.sntConfirm === 'function' ? window.sntConfirm( opts ) : Promise.resolve( false ) );
+			return prompt.then( function ( confirmed ) {
+				if ( ! confirmed ) { return 'Full reset cancelled.'; }
+				return callRest( 'full-reset' )
+					.then( function( res ) { return toast( res.message || 'Full reset complete.' ); } )
+					.catch( function( err ) { return toast( 'Full reset failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
 			} );
 		},
 	} );
 
 	// Navigation. All aiCallable — pure navigation, no state change.
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-dashboard', label: 'SN: Open Dashboard',    aiCallable: true, run: function() { navigate( pages.dashboard ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-identity', label: 'SN: Open Identity',     aiCallable: true, run: function() { navigate( pages.identity ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-login', label: 'SN: Open Login',        aiCallable: true, run: function() { navigate( pages.login ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-cloudflare', label: 'SN: Open Cloudflare',   aiCallable: true, run: function() { navigate( pages.cloudflare ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-rss', label: 'SN: Open RSS',          aiCallable: true, run: function() { navigate( pages.rss ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-reading-time', label: 'SN: Open Reading Time', aiCallable: true, run: function() { navigate( pages.reading_time ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-dashboard', label: 'SN: Open Dashboard',    aiCallable: true, run: function( args, ctx ) { navigate( pages.dashboard, ctx, 'Dashboard' ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-identity', label: 'SN: Open Identity',     aiCallable: true, run: function( args, ctx ) { navigate( pages.identity, ctx, 'Identity' ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-login', label: 'SN: Open Login',        aiCallable: true, run: function( args, ctx ) { navigate( pages.login, ctx, 'Login' ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-cloudflare', label: 'SN: Open Cloudflare',   aiCallable: true, run: function( args, ctx ) { navigate( pages.cloudflare, ctx, 'Cloudflare' ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-rss', label: 'SN: Open RSS',          aiCallable: true, run: function( args, ctx ) { navigate( pages.rss, ctx, 'RSS' ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-reading-time', label: 'SN: Open Reading Time', aiCallable: true, run: function( args, ctx ) { navigate( pages.reading_time, ctx, 'Reading Time' ); } } );
 
 	// Info. Both aiCallable — read-only toast.
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-version-theme', label: 'SN: Theme version',  aiCallable: true, run: function() { versionToast( 'theme' ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-version-plugin', label: 'SN: Plugin version', aiCallable: true, run: function() { versionToast( 'plugin' ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-version-theme', label: 'SN: Theme version',  aiCallable: true, run: function() { return versionToast( 'theme' ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-version-plugin', label: 'SN: Plugin version', aiCallable: true, run: function() { return versionToast( 'plugin' ); } } );
 
 	// Cron Dashboard (v3.0.0) — both aiCallable, read-only.
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-cron-health',
 		label: 'SN: Cron health overview',
 		aiCallable: true,
-		run: function() {
+		run: function( args, ctx ) {
 			var summary = data.cronSummary || {};
 			toast(
 				'Cron: ' + ( summary.total || 0 ) + ' events, ' +
@@ -296,7 +329,7 @@
 				( summary.orphans || 0 ) + ' orphan' + ( summary.orphans === 1 ? '' : 's' ),
 				'info'
 			);
-			navigate( pages.cron );
+			navigate( pages.cron, ctx, 'Cron' );
 		}
 	} );
 
@@ -304,8 +337,8 @@
 		slug: 'sn-cmd-cron-list',
 		label: 'SN: Open Cron tab',
 		aiCallable: true,
-		run: function() {
-			navigate( pages.cron );
+		run: function( args, ctx ) {
+			navigate( pages.cron, ctx, 'Cron' );
 		}
 	} );
 
@@ -314,7 +347,7 @@
 		slug: 'sn-cmd-insights',
 		label: 'SN: Open Insights tab',
 		aiCallable: true,
-		run: function() {
+		run: function( args, ctx ) {
 			var summary = data.insightsSummary || {};
 			if ( summary.active_count !== undefined ) {
 				toast(
@@ -324,7 +357,7 @@
 					'info'
 				);
 			}
-			navigate( pages.insights );
+			navigate( pages.insights, ctx, 'Insights' );
 		}
 	} );
 
@@ -335,12 +368,11 @@
 		aiCallable: true,
 		run: function() {
 			if ( ! window.sntAbilityRun ) {
-				toast( 'sntAbilityRun unavailable.', 'error' );
-				return;
+				return toast( 'sntAbilityRun unavailable.', 'error' );
 			}
 			// v7.7.0/v8.0.0: get-audit-summary was removed — same payload rides
 			// under get-audit-log's `summary` key. v7.7.2: GET via the runner.
-			window.sntAbilityRun( 'get-audit-log', { view: 'summary' } )
+			return window.sntAbilityRun( 'get-audit-log', { view: 'summary' } )
 				.then( function( res ) {
 					var s = ( res && res.summary ) || { last_24h: {}, last_7d_vs_prior: {}, lla: {} };
 					// v8.0.4: pct through a numeric fallback like every sibling
@@ -353,10 +385,10 @@
 						'7d trend: ' + ( pct >= 0 ? '+' : '' ) + pct + '%. ' +
 						'Unique IPs (24h): ' + ( s.unique_attackers_24h || 0 ) + '. ' +
 						'LLA lockouts: ' + ( s.lla.active_lockouts || 0 ) + '.';
-					toast( msg, 'info' );
+					return toast( msg, 'info' );
 				} )
 				.catch( function( err ) {
-					toast( 'Audit summary failed: ' + ( err.message || 'unknown error' ), 'error' );
+					return toast( 'Audit summary failed: ' + ( err.message || 'unknown error' ), 'error' );
 				} );
 		}
 	} );
@@ -367,25 +399,23 @@
 		aiCallable: true,
 		run: function() {
 			if ( ! window.sntAbilityRun ) {
-				toast( 'sntAbilityRun unavailable.', 'error' );
-				return;
+				return toast( 'sntAbilityRun unavailable.', 'error' );
 			}
 			// v7.7.0/v8.0.0: get-audit-login-successes was removed — the rows ride
 			// under get-audit-log's `logins` key. v7.7.2: GET via the runner.
-			window.sntAbilityRun( 'get-audit-log', { view: 'logins', days: 30 } )
+			return window.sntAbilityRun( 'get-audit-log', { view: 'logins', days: 30 } )
 				.then( function( res ) {
 					var rows = ( res && res.logins ) || [];
 					if ( ! rows || ! rows.length ) {
-						toast( 'No successful logins in last 30 days.', 'info' );
-						return;
+						return toast( 'No successful logins in last 30 days.', 'info' );
 					}
 					var last10 = rows.slice( 0, 10 );
 					var msg = 'Last ' + last10.length + ' logins: ' +
 						last10.map( function( r ) { return r.formatted + ' (' + r.user + ')'; } ).join( '; ' );
-					toast( msg, 'info' );
+					return toast( msg, 'info' );
 				} )
 				.catch( function( err ) {
-					toast( 'Recent logins failed: ' + ( err.message || 'unknown error' ), 'error' );
+					return toast( 'Recent logins failed: ' + ( err.message || 'unknown error' ), 'error' );
 				} );
 		}
 	} );
@@ -399,13 +429,13 @@
 		slug: 'sn-cmd-health-scan',
 		label: 'SN: Run health scan',
 		run: function() {
-			callRest( 'run-health-scan' )
+			return callRest( 'run-health-scan' )
 				.then( function( res ) {
-					toast( res && res.ok
+					return toast( res && res.ok
 						? 'Health scan done: ' + res.flagged + ' flagged of ' + res.total + ' checks.'
 						: 'Health scan could not run.', res && res.ok && 0 === res.flagged ? 'info' : undefined );
 				} )
-				.catch( function( err ) { toast( 'Health scan failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+				.catch( function( err ) { return toast( 'Health scan failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
 		},
 	} );
 
@@ -413,9 +443,9 @@
 		slug: 'sn-cmd-insights-scan',
 		label: 'SN: Run insights scan',
 		run: function() {
-			callRest( 'run-insights-scan' )
-				.then( function() { toast( 'Insights scan complete.' ); } )
-				.catch( function( err ) { toast( 'Insights scan failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+			return callRest( 'run-insights-scan' )
+				.then( function() { return toast( 'Insights scan complete.' ); } )
+				.catch( function( err ) { return toast( 'Insights scan failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
 		},
 	} );
 
@@ -423,9 +453,9 @@
 		slug: 'sn-cmd-narration',
 		label: 'SN: Run narration',
 		run: function() {
-			callRest( 'run-narration' )
-				.then( function() { toast( 'Narration regenerated.' ); } )
-				.catch( function( err ) { toast( 'Narration failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+			return callRest( 'run-narration' )
+				.then( function() { return toast( 'Narration regenerated.' ); } )
+				.catch( function( err ) { return toast( 'Narration failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
 		},
 	} );
 
@@ -433,13 +463,13 @@
 		slug: 'sn-cmd-prune-tags',
 		label: 'SN: Prune unused tags',
 		run: function() {
-			callRest( 'prune-unused-tags' )
+			return callRest( 'prune-unused-tags' )
 				.then( function( res ) {
 					// Output contract: { ok, deleted: string[], count: int }.
 					var n = res && 'number' === typeof res.count ? res.count : null;
-					toast( null === n ? 'Unused tags pruned.' : n + ' unused tag' + ( 1 === n ? '' : 's' ) + ' pruned.' );
+					return toast( null === n ? 'Unused tags pruned.' : n + ' unused tag' + ( 1 === n ? '' : 's' ) + ' pruned.' );
 				} )
-				.catch( function( err ) { toast( 'Tag prune failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+				.catch( function( err ) { return toast( 'Tag prune failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
 		},
 	} );
 
@@ -447,13 +477,13 @@
 		slug: 'sn-cmd-anchor-sweep',
 		label: 'SN: Sweep anchors',
 		run: function() {
-			callRest( 'anchor-sweep' )
+			return callRest( 'anchor-sweep' )
 				.then( function( res ) {
-					toast( res && res.ok
+					return toast( res && res.ok
 						? 'Anchor sweep: ' + res.upgraded + ' upgraded, ' + res.still_pending + ' still pending.'
 						: 'Anchor sweep could not run (' + ( ( res && res.error ) || 'unknown' ) + ').' );
 				} )
-				.catch( function( err ) { toast( 'Anchor sweep failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+				.catch( function( err ) { return toast( 'Anchor sweep failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
 		},
 	} );
 

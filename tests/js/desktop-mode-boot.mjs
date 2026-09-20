@@ -44,7 +44,10 @@ function makeContext() {
 	const listeners = {};
 	const ctx = {
 		console,
+		URL,
 		registered: [],
+		commands: {},
+		location: { origin: 'https://example.test', href: 'https://example.test/wp-admin/' },
 		document: {
 			readyState: 'loading',
 			addEventListener: ( ev, cb ) => {
@@ -93,6 +96,7 @@ function makeRegisterCommand( ctx ) {
 			);
 		}
 		ctx.registered.push( c.slug );
+		ctx.commands[ c.slug ] = c;
 	};
 }
 
@@ -101,6 +105,8 @@ function installShellApi( ctx ) {
 	const api = {
 		registerCommand: makeRegisterCommand( ctx ),
 		notify: () => {},
+		showToast: () => () => {},
+		confirm: () => Promise.resolve( false ),
 		dock: { setBadge: () => {} },
 		sideDock: null, // v1.1.0 default 'unified' layout — genuinely null.
 		icons: { setBadge: () => {} },
@@ -198,6 +204,92 @@ const check = ( name, pass, detail ) => results.push( { name, pass: !! pass, det
 		'no-shell: registers nothing and does not throw',
 		ctx.registered.length === 0 && threw === null,
 		`registered ${ ctx.registered.length }, threw: ${ threw }`
+	);
+}
+
+// ── Scenario 5, #1606: a verdict paints the station's toast and is the
+// palette's answer. wp.os.notify is the PWA browser-notification entry whose
+// first guard drops any intent with no `title`; every toast went there and
+// showed nothing, and run() returned nothing, so the palette stayed empty.
+{
+	const { ctx } = makeContext();
+	const api = installShellApi( ctx );
+	const toasts = [];
+	let notified = 0;
+	api.showToast = ( opts ) => { toasts.push( opts ); return () => {}; };
+	api.notify = () => { notified++; };
+	ctx.snDesktopData = { pages: {}, plugin: { current: '17.4.4', state: 'ok' } };
+	const threw = attempt( () => run( SRC, ctx ) );
+	const cmd = ctx.commands[ 'sn-cmd-version-plugin' ];
+	const answer = cmd && cmd.run( '', {} );
+	check(
+		'#1606 toast: a verdict is one wp.os.showToast({ message }) and zero wp.os.notify',
+		threw === null && toasts.length === 1 && typeof toasts[ 0 ].message === 'string' &&
+			toasts[ 0 ].message.indexOf( '17.4.4' ) !== -1 && notified === 0,
+		`showToast calls: ${ toasts.length }, payload: ${ JSON.stringify( toasts[ 0 ] ) }, notify calls: ${ notified }, threw: ${ threw }`
+	);
+	check(
+		'#1606 toast: run() returns the message so the palette paints it',
+		typeof answer === 'string' && answer === ( toasts[ 0 ] && toasts[ 0 ].message ),
+		`run() returned ${ JSON.stringify( answer ) }`
+	);
+}
+
+// ── Scenario 6, #1606: an open command is a window, never a page load.
+// The native remap first (the plugin's own opener, wp.os.openWindow behind
+// it); when it declines, the palette's ctx.openInWindow; location.href never.
+{
+	const { ctx } = makeContext();
+	installShellApi( ctx );
+	ctx.snDesktopData = { pages: { cron: 'https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=connections&sub=cron' } };
+	const remapped = [];
+	const opened = [];
+	let closed = 0;
+	ctx.sntOpenStationPreferences = { tryNativeRemap: ( url ) => { remapped.push( url ); return true; } };
+	const palette = { openInWindow: ( url, title ) => opened.push( { url, title } ), close: () => closed++ };
+	const threw = attempt( () => run( SRC, ctx ) );
+	const cmd = ctx.commands[ 'sn-cmd-cron-list' ];
+	attempt( () => cmd.run( '', palette ) );
+	check(
+		'#1606 open: the native remap takes the URL, the palette closes, no iframe window, no page load',
+		threw === null && remapped.length === 1 && remapped[ 0 ].indexOf( 'sub=cron' ) !== -1 &&
+			opened.length === 0 && closed === 1 && ctx.location.href === 'https://example.test/wp-admin/',
+		`remap calls: ${ remapped.length }, openInWindow calls: ${ opened.length }, close calls: ${ closed }, location.href: ${ ctx.location.href }, threw: ${ threw }`
+	);
+	// The remap declines (preference off, or a page with no native twin).
+	ctx.sntOpenStationPreferences.tryNativeRemap = () => false;
+	attempt( () => cmd.run( '', palette ) );
+	check(
+		'#1606 open: when the remap declines, ctx.openInWindow opens the page; location.href untouched',
+		opened.length === 1 && opened[ 0 ].url.indexOf( 'sub=cron' ) !== -1 && typeof opened[ 0 ].title === 'string' &&
+			ctx.location.href === 'https://example.test/wp-admin/',
+		`openInWindow calls: ${ opened.length }, first: ${ JSON.stringify( opened[ 0 ] ) }, location.href: ${ ctx.location.href }`
+	);
+}
+
+// ── Scenario 7, #1606: Full reset asks in the station's dialog. snt-confirm
+// is never enqueued on the shell document, so the old chain landed on
+// window.confirm, which the shell's own lint forbids.
+{
+	const { ctx } = makeContext();
+	const api = installShellApi( ctx );
+	const asked = [];
+	let nativeConfirm = 0;
+	api.confirm = ( opts ) => { asked.push( opts ); return Promise.resolve( false ); };
+	ctx.confirm = () => { nativeConfirm++; return true; };
+	ctx.sntAbilityRun = () => Promise.resolve( { message: 'ran' } );
+	const threw = attempt( () => run( SRC, ctx ) );
+	const cmd = ctx.commands[ 'sn-cmd-full-reset' ];
+	let answer;
+	attempt( () => { const p = cmd.run( '', {} ); if ( p && p.then ) { p.then( ( a ) => { answer = a; } ); } } );
+	await Promise.resolve();
+	await Promise.resolve();
+	check(
+		'#1606 confirm: Full reset asks wp.os.confirm with the red button and never window.confirm',
+		threw === null && asked.length === 1 && asked[ 0 ].danger === true && asked[ 0 ].confirmLabel === 'Full Reset' &&
+			typeof asked[ 0 ].title === 'string' && typeof asked[ 0 ].message === 'string' && nativeConfirm === 0 &&
+			answer === 'Full reset cancelled.',
+		`wp.os.confirm calls: ${ asked.length }, payload: ${ JSON.stringify( asked[ 0 ] ) }, window.confirm calls: ${ nativeConfirm }, answer: ${ JSON.stringify( answer ) }, threw: ${ threw }`
 	);
 }
 

@@ -91,6 +91,14 @@ $expected = array(
 	'shell-first: commands register synchronously, no event needed',
 	'pre-rename family: still registers via wp.desktop alone',
 	'no-shell: registers nothing and does not throw',
+	// 17.4.4 (#1606): the palette's three seams, executed against a recording
+	// shell. wp.os.notify dropped every toast (no title), location.href
+	// reloaded the station, window.confirm asked in the browser dialog.
+	'#1606 toast: a verdict is one wp.os.showToast({ message }) and zero wp.os.notify',
+	'#1606 toast: run() returns the message so the palette paints it',
+	'#1606 open: the native remap takes the URL, the palette closes, no iframe window, no page load',
+	'#1606 open: when the remap declines, ctx.openInWindow opens the page; location.href untouched',
+	'#1606 confirm: Full reset asks wp.os.confirm with the red button and never window.confirm',
 );
 
 foreach ( $expected as $name ) {
