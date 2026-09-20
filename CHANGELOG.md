@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Groups on /notes/tags, from Content › Tags.** Theme 13.4.0 put the heading a tag files under on WordPress's own Posts › Tags screen, which the native view never shows. The same control now sits on Content › Tags, both surfaces: one select per tag with the heading it renders under today, unfiled tags first, one File tags button. The headings and the meta are the theme's (`sn_notes_tag_groups()`, `sn_tag_group`); without them the section says so and offers no form. `tag_group_apply` writes only what changes, only on a tag the user can `edit_term`, never junk (an unknown id unfiles), and unfiling a tag the theme's seed list still names is a no-op, since the page would keep filing it. Handler map 66. `docs/REFACTOR-admin-post-actions.md` and the flash lines follow.
+
 ### Fixed
 - **An empty map is `{}` at the door, never `[]`.** The MCP proxy validates every tool's output against its schema, and 17.1.0's first clean tag pass drew `data/notes must be object` from `jev-tags`: with zero misfits PHP's empty array encodes as a JSON list. Every object-typed map an ability can hand back empty is now cast at the door: `jev-tags` and `jev-tells` `notes` (and their no-pass states), `jev-query-fit` `judged_notes`, `jev-meter` `by_feature`, `rights-evidence` `months`. Pinned as the encoded bytes (`{}`), the shape the proxy checks; verified red without the cast.
 

@@ -80,7 +80,7 @@ $classic = classic_tags();
 $kit     = kit_tags();
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic forms: ' . names_line( $classic, $kit ) );
-ok( array( 'tag_fit_run', 'tag_prune_unused' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '16.9.0: the list view offers tag_fit_run and tag_prune_unused, as the classic leaf does: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( array( 'tag_fit_run', 'tag_group_apply', 'tag_prune_unused' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '16.9.0/17.2.0: the list view offers tag_fit_run, tag_group_apply and tag_prune_unused, as the classic leaf does: ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
 // Glance: the same three cards, pill text as caption, warn kind as a swatch.
@@ -127,7 +127,7 @@ $GLOBALS['__clusters'] = array(); $GLOBALS['__unused'] = array(); $GLOBALS['__ai
 $classic = classic_tags();
 $kit     = kit_tags();
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'empty view: field names match (the picker alone): ' . names_line( $classic, $kit ) );
-ok( array() === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'empty view: no write is offered' );
+ok( array( 'tag_group_apply' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'empty view: the one write is filing the tags that exist (17.2.0); nothing else' );
 ok( false !== strpos( $kit, 'heading="Duplicate tags"' ) && false !== strpos( $kit, 'heading="No duplicate tags detected."' ), 'empty view: No duplicate tags detected' );
 ok( false !== strpos( $kit, 'heading="No unused tags."' ), 'empty view: No unused tags' );
 ok( false !== strpos( $kit, 'Install Connector for TypeSafe Jev and add the key under Settings › Connectors.' ), '16.9.0: empty view, no key: the section names the connector' );
@@ -148,7 +148,7 @@ $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' =>
 $classic = classic_tags();
 $kit     = kit_tags();
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && in_array( 'remove[7][]', snt_leaf_names( $kit ), true ) && ! array_filter( snt_leaf_names( $kit ), static fn( $n ) => str_starts_with( $n, 'assign' ) ), '16.9.2 review: field names match, remove[7][] included, no assign field anywhere: ' . names_line( $classic, $kit ) );
-ok( array( 'tag_fit_apply', 'tag_fit_run' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '16.9.0 review: the two writes are tag_fit_apply and tag_fit_run, same on both leaves' );
+ok( array( 'tag_fit_apply', 'tag_fit_run', 'tag_group_apply' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '16.9.0/17.2.0 review: the writes are tag_fit_apply, tag_fit_run and tag_group_apply, same on both leaves; run, same on both leaves' );
 ok( false !== strpos( $kit, '>Untagged Note</a></strong>' ) && false !== strpos( $kit, 'name="remove[7][]" value="9"> Remove &quot;Empty&quot; (attached for reach, 0.30 of 2)' ) && false !== strpos( $kit, '>Apply selected</button>' ) && false !== strpos( $kit, '1 notes, read 2 hours ago.' ), '16.9.0 review: the note links to its editor, the misfit unchecked with its score, Apply selected' );
 ok( false === strpos( $kit, 'Add &quot;' ) && false === strpos( $kit, 'name="remove[8][]"' ) && false === strpos( $kit, 'Umbrella' ) && false !== strpos( $kit, 'confidence 0.7 or better' ) && false !== strpos( $kit, 'Jev proposes no tags' ), '16.9.2 review: a stored 16.9.1 missing list paints no Add box, a 0.6-confidence misfit is no row, no umbrella section; the prose names the lines and says Jev proposes nothing' );
 // ── 17.1.0: the pass pivoted per tag, on both surfaces, no boxes.
@@ -156,6 +156,21 @@ ok( false !== strpos( $kit, 'heading="Jev: by tag"' ) && false !== strpos( $kit,
 ok( false !== strpos( $kit, '>Untagged Note</a> (0.30 of 2, confidence 0.70)</li>' ) && false !== strpos( $kit, '>Shrug</a> (0.30 of 2, confidence 0.60)</li>' ) && false !== strpos( $classic, 'Empty: 2 notes, mean 0.30 of 2, 2 only touching it' ) && false !== strpos( $classic, '>Shrug</a> (0.30 of 2, confidence 0.60)</li>' ), '17.1.0 by tag: the touching notes link to their editor with score and confidence, on both surfaces' );
 ok( false === strpos( $kit, 'name="bytag' ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '17.1.0 by tag: a reading, no form, parity holds' );
 unset( $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] );
+
+// ── 17.2.0: Groups on /notes/tags, the theme's headings from here, both surfaces.
+$classic = classic_tags(); $kit = kit_tags();
+// (The theme stubs below are hoisted, so the "theme absent" branch is pinned in tests/tag-consolidation-admin.php.)
+if ( ! defined( 'SN_TAG_GROUP_META' ) ) { define( 'SN_TAG_GROUP_META', 'sn_tag_group' ); }
+function sn_notes_tag_groups() { return array( array( 'id' => 'record', 'title' => 'The record', 'dek' => 'd', 'slugs' => array( 'jazz' ) ), array( 'id' => 'built', 'title' => 'Why it isn&rsquo;t built', 'dek' => 'd', 'slugs' => array() ) ); }
+function sn_notes_tag_group_effective( $t ) { return 'jazz' === $t->slug ? 'record' : ''; }
+$GLOBALS['__alltags'] = array( tag_obj( 2, 'Jazz', 'jazz', 3 ), tag_obj( 9, 'Empty', 'empty', 0 ) );
+$classic = classic_tags(); $kit = kit_tags();
+$names = array_values( array_filter( snt_leaf_names( $kit ), static fn( $n ) => str_starts_with( $n, 'group[' ) ) );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 2 === count( $names ) && in_array( 'tag_group_apply', snt_leaf_actions( $kit ), true ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '17.2.0 groups: one select per tag, the write is tag_group_apply, parity on both: ' . names_line( $classic, $kit ) );
+ok( false !== strpos( $kit, 'submit-label="File tags"' ) && false !== strpos( $kit, 'value="built">Why it isn’t built</os-option>' ), '17.2.0 groups: File tags; the entity in a heading is decoded once, then escaped' );
+$pos_unfiled = strpos( $kit, 'name="group[9]"' ); $pos_jazz = strpos( $kit, 'name="group[2]"' );
+ok( false !== $pos_unfiled && false !== $pos_jazz && $pos_unfiled < $pos_jazz, '17.2.0 groups: the unfiled tag (Empty) comes before the filed one (Jazz)' );
+ok( false !== strpos( $classic, 'name="group[2]"' ) && false !== strpos( $classic, '<option value="record" selected="selected">The record</option>' ), '17.2.0 groups: the classic select shows the effective group selected' );
 
 // ── 16.9.3: no ceiling section on either surface (the rule is the description, the gate nudges).
 ok( false === strpos( kit_tags(), 'Notes over' ) && false === strpos( classic_tags(), 'Notes over' ), '16.9.3: no Notes-over-N section on either surface' );

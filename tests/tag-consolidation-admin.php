@@ -140,6 +140,10 @@ $GLOBALS['__unused'] = array();
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
 ok( strpos( $h, 'No unused tags' ) !== false, 'Unused: empty state' );
 
+// --- 17.2.0: Groups on /notes/tags without the theme: says so, no form ------------
+ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
+ok( strpos( $h, 'Groups on /notes/tags' ) !== false && strpos( $h, 'not available' ) !== false && strpos( $h, 'value="tag_group_apply"' ) === false, 'Groups: without the theme functions the section says so and offers no form' );
+
 // --- 16.9.3: no ceiling section (the rule is the description; the gate nudges) ---
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
 ok( strpos( $h, 'Notes over' ) === false, 'No Notes-over-N section' );

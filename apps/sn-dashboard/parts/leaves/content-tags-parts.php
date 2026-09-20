@@ -311,6 +311,50 @@ function tags_by_tag_html() {
 }
 
 /**
+ * 17.2.0: file tags under /notes/tags' headings from here, since the native
+ * view never shows WordPress's own tag screen where the theme put its field
+ * (theme 13.4.0). One kit select per tag, the effective group selected,
+ * unfiled tags first; one form. The headings and the meta are the theme's.
+ *
+ * @return string
+ */
+function tags_groups_html() {
+	$heading = __( 'Groups on /notes/tags', 'signal-and-noise-tools' );
+	if ( ! function_exists( 'sn_notes_tag_groups' ) || ! function_exists( 'sn_notes_tag_group_effective' ) ) {
+		return \snt_kit_section( $heading, \snt_kit_empty( __( 'The theme\'s tag groups are not available (Signal & Noise theme 13.4.0 or later).', 'signal-and-noise-tools' ) ) );
+	}
+	$options = array( '' => __( 'Not yet filed', 'signal-and-noise-tools' ) );
+	foreach ( \sn_notes_tag_groups() as $g ) {
+		$options[ (string) $g['id'] ] = html_entity_decode( (string) $g['title'], ENT_QUOTES, 'UTF-8' );
+	}
+	$tags = get_terms( array( 'taxonomy' => 'post_tag', 'hide_empty' => false ) );
+	$rows = array();
+	foreach ( (array) $tags as $t ) {
+		if ( is_object( $t ) && isset( $t->term_id ) ) {
+			$rows[] = array( 'id' => (int) $t->term_id, 'name' => (string) $t->name, 'group' => (string) \sn_notes_tag_group_effective( $t ) );
+		}
+	}
+	if ( array() === $rows ) {
+		return \snt_kit_section( $heading, \snt_kit_empty( __( 'No tags.', 'signal-and-noise-tools' ) ) );
+	}
+	usort( $rows, static fn( $a, $b ) => ( '' === $a['group'] ? 0 : 1 ) <=> ( '' === $b['group'] ? 0 : 1 ) ?: strcasecmp( $a['name'], $b['name'] ) );
+	$inner = '';
+	foreach ( $rows as $r ) {
+		$inner .= \snt_kit_field( 'select', 'group[' . $r['id'] . ']', $r['name'], $r['group'], array( 'options' => $options ) );
+	}
+	$hidden = '';
+	foreach ( tags_post_hidden( 'tag_group_apply' ) as $name => $value ) {
+		$hidden .= \snt_kit_field( 'hidden', $name, '', $value );
+	}
+	$form = \snt_kit_tag(
+		'os-form',
+		array( 'class' => 'snt-form', 'os-action' => 'post', 'submit-label' => __( 'File tags', 'signal-and-noise-tools' ), 'show-reset' => 'false', 'columns' => '2' ),
+		$inner . $hidden
+	);
+	return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'The heading each tag sits under on /notes/tags. Unfiled tags come first; the page reads a change the moment it is filed.', 'signal-and-noise-tools' ) ) . '</p>' . $form );
+}
+
+/**
  * Unused-tag cleanup: every count-0 term checked, deleted on confirm.
  *
  * @param array $unused From sn_tag_find_unused().
