@@ -418,6 +418,20 @@ $edge_panel = $edge_info['snt_httpdiag'];
 ok( isset( $edge_panel['fields']['slow_0'] ) && ! isset( $edge_panel['fields']['slow_1'] ), 'exactly-at-the-retention-window entry is kept, one second past it is hidden' );
 
 // ═══════════════════════════════════════════════════════════════════════
+echo "\nGroup: sn_httpdiag_visible: the one retention prune both paths apply\n";
+
+$vis_now = 1700000000;
+$vis_log = array(
+	array( 't' => $vis_now - 10, 'screen' => 'fresh', 'wall_s' => 1.0, 'http' => array() ),
+	array( 'screen' => 'no-t', 'wall_s' => 1.0, 'http' => array() ),
+	array( 't' => $vis_now - ( 40 * 86400 ), 'screen' => 'stale', 'wall_s' => 1.0, 'http' => array() ),
+	array( 't' => $vis_now - SN_HTTPDIAG_RETENTION_S, 'screen' => 'edge', 'wall_s' => 1.0, 'http' => array() ),
+);
+$vis_screens = array_column( sn_httpdiag_visible( $vis_log, $vis_now ), 'screen' );
+ok( array( 'fresh', 'no-t', 'edge' ) === $vis_screens, 'kept in order: a fresh entry, one with no t, one exactly at the edge; the 40-day entry dropped (' . implode( ',', $vis_screens ) . ')' );
+ok( array( 0, 1, 2 ) === array_keys( sn_httpdiag_visible( $vis_log, $vis_now ) ), 'the result is re-indexed' );
+
+// ═══════════════════════════════════════════════════════════════════════
 echo "\nGroup: sn_httpdiag_register_hooks — admin-only wiring\n";
 
 $GLOBALS['__test_hooks']    = array();

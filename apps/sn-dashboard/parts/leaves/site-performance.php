@@ -20,6 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once __DIR__ . '/site-performance-parts.php';
+
 /**
  * The module's state, read the way the classic leaf reads it: the setting,
  * default on, reduced to a boolean before anything is painted.
@@ -109,7 +111,8 @@ function performance_profile_html() {
 
 /**
  * The leaf: the form column, then the status rail — the classic shell's
- * two columns as the app's column grid, the rail keeping its landmark name.
+ * two columns as the app's column grid, the rail keeping its landmark name;
+ * then, at full width, the slow admin requests ledger (the parts file).
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
@@ -125,7 +128,8 @@ function paint_site_performance( array $ctx ) {
 		. performance_status_html( $s )
 		. performance_profile_html()
 		. '</aside>'
-		. '</div>';
+		. '</div>'
+		. performance_slow_calls_html();
 }
 
 add_filter(
