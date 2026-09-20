@@ -62,6 +62,7 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: 
 ok( false !== strpos( $kit, 'Not configured.' ) && false !== strpos( $kit, 'ENABLE the &quot;Google Search Console API&quot;' ), 'not-configured: the pill and the four onboarding steps are painted' );
 ok( false !== strpos( $kit, '<os-textarea name="sn_gsc_credential"' ), 'the credential textarea is a kit textarea carrying the classic field name' );
 ok( false === strpos( $kit, 'Property' ), 'not-configured: the Property section is not painted (no identity yet)' );
+ok( false === strpos( $kit, 'snt-cols' ) && false === strpos( $kit, 'snt-2up' ) && strpos( $kit, 'heading="Search Console credential"' ) < strpos( $kit, 'heading="Set the credential"' ), '17.4.1: not-configured: no row; the readout box then the form box, each at full width' );
 
 // ── Unparseable-but-stored state (non-hostile raw value, since snt_gsc_credential_raw()
 // is only ever consumed as a boolean by the painter — a hostile value placed there
@@ -102,6 +103,10 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'configured: no wp-admin marku
 ok( false !== strpos( $kit, 'svc@project.iam.gserviceaccount.com' ) && false !== strpos( $kit, 'project-123' ) && false !== strpos( $kit, 'sha256:deadbeef0000' ), 'configured: the identity card carries the service account, project and fingerprint' );
 ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, 'openssl available' ), 'configured: signing-ready paints a success badge' );
 ok( false !== strpos( $kit, 'Run Test connection above' ), 'configured: the Property section nudges toward Test connection (no sites yet)' );
+$row = strpos( $kit, '<div class="snt-cols">' );
+ok( 1 === substr_count( $kit, '<div class="snt-cols">' ) && false === strpos( $kit, 'snt-2up' ) && $row < strpos( $kit, 'heading="Search Console credential"' ) && strpos( $kit, 'heading="Search Console credential"' ) < strpos( $kit, 'heading="Property"' ) && strpos( $kit, 'heading="Property"' ) < strrpos( $kit, '</div>' ) && strrpos( $kit, '</div>' ) < strpos( $kit, 'heading="Set the credential"' ), '17.4.1: one .snt-cols row pairs the credential readout with Property; the form box stands alone after the row (#1573)' );
+$form = strpos( $kit, 'heading="Set the credential"' );
+ok( strpos( $kit, 'os-arg-action="gsc_test"' ) < strpos( $kit, 'heading="Property"' ) && false !== $form && strpos( $kit, '<os-textarea name="sn_gsc_credential"' ) > $form, '17.4.1: Test connection sits in the readout box, before Property; the textarea sits in the form box' );
 
 // ── Signing NOT ready.
 $GLOBALS['__gsc_identity']['signing_ready'] = false;

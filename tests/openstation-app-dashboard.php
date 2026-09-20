@@ -231,7 +231,7 @@ namespace {
 	ok( false !== strpos( $insights_src, "'snt-cols'" ) && false === strpos( $insights_src, '<div class="snt-2up">' ), 'monitoring/insights paints .snt-cols rows, not the .snt-2up column pair (#1573)' );
 
 	$gsc_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-search-console.php' );
-	ok( false !== strpos( $gsc_src, '<div class="snt-2up">' ), 'monitoring/search-console renders in .snt-2up two columns' );
+	ok( false !== strpos( $gsc_src, "'class' => 'snt-cols'" ) && false === strpos( $gsc_src, 'snt-2up' ), 'monitoring/search-console pairs its readouts on one .snt-cols row (17.4.1, #1573), no .snt-2up' );
 
 	ok( false !== strpos( $css, '.snt-leaf os-row' ) && false !== strpos( $css, 'flex-direction: column' ), 'sn-dashboard.css collapses os-row under responsive containers' );
 
