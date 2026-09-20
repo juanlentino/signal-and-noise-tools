@@ -2,17 +2,24 @@
 /**
  * S&N Dashboard — Connections → Cron, painted from the kit.
  *
- * The classic leaf (inc/cron-dashboard-admin.php, `snt_cron_render_admin_tab()`,
- * hooked to `sn_admin_cron_tab`) has NO forms and NO `sn_action` at all: every
- * mutating control (Run now, Unschedule, the per-row history fetch) is a plain
- * client-side JS call against the `run-cron-event` / `get-cron-history` /
+ * The classic tab is the whole `sn_admin_cron_tab` hook, three callbacks. The
+ * events table (inc/cron-dashboard-admin.php, `snt_cron_render_admin_tab()`,
+ * priority 10) has no form and no `sn_action`: every mutating control there
+ * (Run now, Unschedule, the per-row history fetch) is a plain client-side JS
+ * call against the `run-cron-event` / `get-cron-history` /
  * `unschedule-cron-event` REST abilities, never `sn_handle_admin_post()`. This
  * window's action set is fixed to `go` / `post` / `door` / `refresh` /
  * `reopen` (apps/sn-dashboard/sn-dashboard.os.php) and a leaf painter cannot
  * add a new one, so those three controls cannot dispatch here; they paint as
  * the SAME per-row facts the classic buttons' enabled/disabled/title state
  * already encodes (which action is available, and why not), as read-only
- * text instead of a control. See the report for exactly what changed shape.
+ * text instead of a control.
+ *
+ * The other two callbacks, `snt_morning_brief_render_settings()` (priority 20)
+ * and `snt_scheduled_reads_render_settings()` (priority 30), each carry one
+ * classic form and one `sn_action` (`morning_brief_save`, `scheduled_reads_save`).
+ * They paint here with the same names through snt_kit_form(), one paired row
+ * under the ledger: connections-cron-parts.php.
  *
  * Same readers as the classic leaf: `snt_cron_get_events_impl()` for the rows,
  * `snt_cron_glance_cards()` (inc/cron-dashboard-admin.php) for the hero.
@@ -36,6 +43,8 @@ namespace SignalNoise\OpenStationHost\Dashboard\Leaves;
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
+
+require_once __DIR__ . '/connections-cron-parts.php';
 
 /**
  * Longest Args cell rendered verbatim, in characters. See cron_args_summary().
@@ -235,6 +244,8 @@ function paint_connections_cron( array $ctx ) {
 	$rows = function_exists( 'snt_cron_get_events_impl' ) ? snt_cron_get_events_impl() : array();
 	// Re-read this live snapshot without exposing the classic mutating actions.
 	$refresh = '<div class="snt-toolbar">' . \snt_kit_button( __( 'Refresh', 'signal-and-noise-tools' ), 'refresh', array( 'variant' => 'ghost', 'class' => 'snt-leaf-refresh' ) ) . '</div>';
+	// do_action paints the two settings callbacks whether or not cron has rows.
+	$settings = cron_settings_row_html();
 
 	if ( empty( $rows ) ) {
 		// Classic runs this sentence through wp_kses_post() so the four hook
@@ -250,7 +261,7 @@ function paint_connections_cron( array $ctx ) {
 			\snt_kit_code( 'wp_update_themes', false ),
 			\snt_kit_code( 'wp_scheduled_delete', false )
 		) . '</p>';
-		return $out;
+		return $out . $settings;
 	}
 
 	$count = count( $rows );
@@ -260,7 +271,7 @@ function paint_connections_cron( array $ctx ) {
 		\snt_kit_esc( number_format_i18n( $count ) )
 	) . '</p>';
 	$out  .= cron_table_html( $rows );
-	return $out;
+	return $out . $settings;
 }
 
 add_filter(
