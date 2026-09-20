@@ -37,6 +37,10 @@ function models_budget_data() {
 		'budget'           => (float) sn_setting( 'theme.ai_monthly_budget', 0 ),
 		'spent'            => function_exists( 'snt_ai_spend_this_month' ) ? (float) snt_ai_spend_this_month() : 0.0,
 		'by_feature'       => function_exists( 'snt_ai_spend_this_month_by_feature' ) ? snt_ai_spend_this_month_by_feature() : array(),
+		// #1597: Copilot turns, priced from the station's completion hook into a bucket of their own (inc/ai-copilot-spend.php),
+		// and the turns that ran on an id the pricing table lacks, counted rather than dropped.
+		'copilot'          => function_exists( 'snt_ai_copilot_spend_this_month' ) ? (float) snt_ai_copilot_spend_this_month() : 0.0,
+		'copilot_unpriced' => function_exists( 'snt_ai_copilot_unpriced_this_month' ) ? (int) snt_ai_copilot_unpriced_this_month() : 0,
 		'embed_token'      => function_exists( 'snt_ml_embed_token' ) ? snt_ml_embed_token() : '',
 		'embed_has_check'  => function_exists( 'snt_ml_embed_configured' ),
 		'embed_configured' => function_exists( 'snt_ml_embed_configured' ) && snt_ml_embed_configured(),
@@ -93,6 +97,22 @@ function models_budget_spend_html( array $d ) {
 			$rows[]   = array( 'label' => (string) $feature_slug, 'value' => '$' . number_format_i18n( $feature_cost, $decimals ) );
 		}
 		$out .= \snt_kit_list( $rows );
+	}
+	// #1597: Copilot (Ask AI) runs on the same connector but the station calls
+	// it directly, so the cap never reads it and never pauses it. A row of its
+	// own, never folded into the total or the feature rows above. $0.00 is a
+	// recorded zero (the subscriber is always bound) and the unpriced hint
+	// below is what separates "no turn this month" from "turns the pricing
+	// table could not price": the Insights leaf's wording for the same state.
+	$copilot  = (float) $d['copilot'];
+	$unpriced = (int) ( $d['copilot_unpriced'] ?? 0 );
+	$out     .= \snt_kit_list( array( array(
+		'label' => __( 'Copilot (Ask AI), not counted against the cap', 'signal-and-noise-tools' ),
+		'value' => '$' . number_format_i18n( $copilot, $copilot > 0 && $copilot < 0.01 ? 4 : 2 ),
+	) ) );
+	$out     .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Copilot is priced at list rates from the tokens the station reports, with no prompt-cache discount, so it reads high on a warm cache.', 'signal-and-noise-tools' ) ) . '</p>';
+	if ( $unpriced > 0 ) {
+		$out .= '<p class="snt-hint">' . \snt_kit_esc( sprintf( __( '%s Copilot turn(s) this month reported no usage, or a model with no list price on file, and are not in the dollar figure.', 'signal-and-noise-tools' ), number_format_i18n( $unpriced ) ) ) . '</p>';
 	}
 	// 17.4.1: one box, the total as its lead, so it can share a row with the form.
 	return \snt_kit_section( __( 'This month, by feature', 'signal-and-noise-tools' ), $out );

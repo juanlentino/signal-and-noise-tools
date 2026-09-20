@@ -145,7 +145,7 @@ rather than by filename, constant, or text domain — the register function is
 what every consumer already depends on, and it is the thing that actually
 renamed.
 
-## The 11 PHP hooks this plugin consumes
+## The 12 PHP hooks this plugin consumes
 
 Note on the two WP Explorer rows (v12.4.0): the pre-rename v0.9.8 shell
 predates the WP Explorer feature entirely, so their old-family names exist
@@ -162,6 +162,7 @@ construction (id/handle dedupe), so no seen-once guard applies.
 | `desktop_mode_ai_tools` | `openstation_ai_tools` | `includes/ai-copilot/search.php` — `apply_filters( 'openstation_ai_tools', $tools, $context )` (2nd arg is post-rename; our callback still declares only `$tools`) | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — Anthropic tool-schema normalizer + Copilot prune list |
 | `desktop_mode_ai_system_prompt_appendix` | `openstation_ai_system_prompt_appendix` | `includes/ai-copilot/search.php` — `apply_filters( 'openstation_ai_system_prompt_appendix', '', $ctx_for_filter )` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — analytics-vocabulary appendix |
 | `desktop_mode_ai_tool_called` | `openstation_ai_tool_called` | `includes/ai-copilot/search.php` — `do_action( 'openstation_ai_tool_called', array( 'tool_name' => …, 'args' => …, 'user_id' => …, 'request_id' => … ) )` | [inc/ai-tool-invocation-log.php](../inc/ai-tool-invocation-log.php) — Copilot tool-invocation log |
+| `desktop_mode_ai_search_completed` (v0.9.8 `includes/ai-copilot/search.php`, Stable in its `docs/hooks-reference.md`; arrived with #15, renamed by #475 like the rest of this table) | `openstation_ai_search_completed` | `includes/ai-copilot/search.php` (Stable at 1.1.10, `docs/hooks-reference.md`): `do_action( 'openstation_ai_search_completed', array( 'query' => …, 'user_id' => …, 'request_id' => …, 'answer_type' => …, 'iterations' => …, 'usage' => { prompt, completion, total } or null, 'model' => { id, name } or null ) )` on the three main run paths; the follow-up leg dispatches it without `usage` or `model` | [inc/ai-copilot-spend.php](../inc/ai-copilot-spend.php), the Copilot (Ask AI) month spend, priced from the reported tokens into a bucket beside the cap, with the turns it cannot price counted in a sibling option (#1597). Dual-registered; the option increment is guarded by `snt_os_compat_seen_once()` |
 | `desktop_mode_agent_completed` | `openstation_agent_completed` | `includes/agents/runner.php` — `do_action( 'openstation_agent_completed', (int) $user->ID, $message, $result, (array) $context )` | [inc/mcp/mcp-telemetry-agents.php](../inc/mcp/mcp-telemetry-agents.php) — seam 2, failure-visibility backfill |
 | `desktop_mode_agent_tool_result` | `openstation_agent_tool_result` | `includes/agents/runner.php` — `apply_filters( 'openstation_agent_tool_result', $output, $slug, $args, $agent_user_id )` | [inc/mcp/mcp-telemetry-agents.php](../inc/mcp/mcp-telemetry-agents.php) — seam 1, success-path telemetry |
 | `desktop_mode_living_tree_traffic` | `openstation_living_tree_traffic` | `includes/living-tree/helpers.php` — `apply_filters( 'openstation_living_tree_traffic', $views )`, inside `openstation_living_tree_traffic()` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — wallpaper wind driven by real 14-day traffic |
@@ -355,7 +356,7 @@ Then, from the clone, assert that every upstream name this plugin references
 still exists — a count of `0` on any row is the finding:
 
 ```bash
-for n in openstation_agent_completed openstation_agent_runner_generate openstation_agent_tool_result openstation_ai_ability_tool_name openstation_ai_system_prompt_appendix openstation_ai_tool_called openstation_ai_tools openstation_dock_items openstation_dock_placement openstation_icon_url openstation_is_enabled openstation_living_tree_traffic openstation_plugins_window_icon_url openstation_register_command openstation_register_icon openstation_register_widget openstation_resolve_script_payload; do printf '%4s  %s\n' "$(grep -rho "\b$n\b" includes/ --include='*.php' | wc -l | tr -d ' ')" "$n"; done
+for n in openstation_agent_completed openstation_agent_runner_generate openstation_agent_tool_result openstation_ai_ability_tool_name openstation_ai_search_completed openstation_ai_system_prompt_appendix openstation_ai_tool_called openstation_ai_tools openstation_dock_items openstation_dock_placement openstation_icon_url openstation_is_enabled openstation_living_tree_traffic openstation_plugins_window_icon_url openstation_register_command openstation_register_icon openstation_register_widget openstation_resolve_script_payload; do printf '%4s  %s\n' "$(grep -rho "\b$n\b" includes/ --include='*.php' | wc -l | tr -d ' ')" "$n"; done
 ```
 
 Regenerate that name list from our own source rather than pasting it, so a
