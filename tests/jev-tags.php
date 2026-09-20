@@ -87,7 +87,7 @@ ok( ! isset( $ab['signal-noise/jev-tags-now']['output_schema']['properties']['mi
 ok( false === snt_ability_jev_tags()['judged'], 'E2 no pass yet' );
 sn_jev_tags_sync();
 $o = snt_ability_jev_tags();
-ok( $o['judged'] && 1 === $o['flagged'] && 'royalties' === $o['notes'][3]['misfits'][0]['name'] && 2 === count( $o['notes'][3]['attached'] ) && ! isset( $o['umbrellas'] ) && str_contains( $o['note'], 'does not propose' ), 'E3 jev-tags hands the flagged note out with its misfit and every attached score; no proposals' );
+ok( $o['judged'] && 1 === $o['flagged'] && 'royalties' === ( (array) $o['notes'] )[3]['misfits'][0]['name'] && 2 === count( ( (array) $o['notes'] )[3]['attached'] ) && ! isset( $o['umbrellas'] ) && str_contains( $o['note'], 'does not propose' ), 'E3 jev-tags hands the flagged note out with its misfit and every attached score; no proposals' );
 
 // F: rows, forget.
 $stored = array( 'notes' => array(
@@ -114,6 +114,12 @@ ok( array() === sn_jev_tags_by_tag( array( 'notes' => array() ) ), 'G4 no pass, 
 $GLOBALS['__k']['opt'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 2, 'notes' => array( 1 => array( 'title' => 'a', 'attached' => array( array( 'id' => 10, 'name' => 'provenance', 'score' => 0.7, 'confidence' => 0.9 ) ) ) ) );
 $o = snt_ability_jev_tags();
 ok( 0 === $o['flagged'] && 1 === count( $o['by_tag'] ) && 'provenance' === $o['by_tag'][0]['name'] && 1 === count( $o['by_tag'][0]['touching'] ) && str_contains( $o['note'], 'by_tag' ), 'G5 jev-tags hands the pivot out beside the misfits' );
+
+// H: an empty map is {} at the door, never [] (the MCP proxy validates output_schema; 17.1.0's first clean pass drew "data/notes must be object").
+$GLOBALS['__k']['opt'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 2, 'notes' => array( 1 => array( 'title' => 'a', 'attached' => array( array( 'id' => 10, 'name' => 'provenance', 'score' => 1.9, 'confidence' => 0.9 ) ) ) ) );
+ok( '{}' === json_encode( snt_ability_jev_tags()['notes'] ), 'H1 zero misfits: notes encodes as {}' );
+$GLOBALS['__k']['opt'] = array();
+ok( '{}' === json_encode( snt_ability_jev_tags()['notes'] ), 'H2 no pass yet: notes encodes as {}' );
 
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail ? 1 : 0 );

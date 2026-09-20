@@ -181,9 +181,12 @@ ok( true === $ab['signal-noise/rights-evidence']['meta']['annotations']['readonl
 $GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['post_reply'] = static function ( $url, $args ) { return array( 'code' => 202, 'body' => json_encode( array( 'ok' => true, 'ots_status' => 'pending', 'ledger_path' => 'x.json' ) ) ); };
 snt_ability_rights_evidence_now();
 $o = snt_ability_rights_evidence();
-ok( $o['ok'] && $o['ready'] && 'https://raw.example/ledger/main/' === $o['ledger_base'] && isset( $o['months']['2026-08']['openai']['uuid'] ) && ! isset( $o['months']['2026-08']['openai']['canonical'] ), 'G2 the read hands out the ledger with the base URL and never the bytes' );
+ok( $o['ok'] && $o['ready'] && 'https://raw.example/ledger/main/' === $o['ledger_base'] && isset( ( (array) $o['months'] )['2026-08']['openai']['uuid'] ) && ! isset( ( (array) $o['months'] )['2026-08']['openai']['canonical'] ), 'G2 the read hands out the ledger with the base URL and never the bytes' );
 foreach ( $GLOBALS['__k']['actions']['init'] as $cb ) { $cb(); }
 ok( 'daily' === ( $GLOBALS['__k']['scheduled'][ SN_RIGHTS_EVIDENCE_HOOK ] ?? '' ), 'G3 daily when ready' );
+
+$GLOBALS['__k']['opt'] = array();
+ok( '{}' === json_encode( snt_ability_rights_evidence()['months'] ), 'G4 no records yet: months encodes as {} at the door, never []' );
 
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail ? 1 : 0 );

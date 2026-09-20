@@ -51,7 +51,7 @@ function snt_ability_rights_evidence( $input = array() ) {
 		'ok'          => true,
 		'ready'       => sn_rights_evidence_is_ready(),
 		'ledger_base' => function_exists( 'sn_prov_integrity_ledger_base' ) ? sn_prov_integrity_ledger_base() : '',
-		'months'      => $months,
+		'months'      => (object) $months, // no records yet is {} at the door, never []
 		'note'        => 'One record per AI-training family per month. status: composed (bytes stored, not yet posted), unanchored (the post failed; re-sent daily), pending (on the ledger, awaiting the Bitcoin block), confirmed, conflict (the ledger already held other bytes at that path; its record stands, nothing is retried). The record and its .ots proof live at ledger_base + ledger_path.',
 	);
 }
