@@ -17,11 +17,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 add_action( 'sn_admin_cron_tab', 'snt_cron_render_admin_tab' );
 
 /**
- * Register the cron dashboard script with its strings, once.
+ * Register the cron dashboard script, once.
  *
  * Shared by the classic admin page (below) and the S&N Dashboard host
  * window (inc/openstation-host.php), which cannot ride the
- * `admin_enqueue_scripts` gate: one registrar, one source of strings.
+ * `admin_enqueue_scripts` gate: one registrar.
+ *
+ * #1611: the strings live in assets/cron-dashboard.js as wp.i18n.__()
+ * calls and reach it through wp_set_script_translations(), the documented
+ * way (developer.wordpress.org/reference/functions/wp_set_script_translations/).
+ * The 25-string sntCronI18n localize object that rode beside a translations
+ * call the script never read is gone; wp-i18n is a declared dependency.
  *
  * @return void
  */
@@ -32,56 +38,10 @@ function snt_cron_dashboard_register_script() {
 	wp_register_script(
 		'sn-cron-dashboard',
 		plugins_url( 'assets/cron-dashboard.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-api-fetch', 'wp-data', 'snt-ability-run' ),
+		array( 'wp-api-fetch', 'wp-data', 'wp-i18n', 'snt-ability-run' ),
 		SNT_VERSION,
 		true
 	);
-
-	// v3.0.2: localize user-facing JS strings so they're translatable
-	// (no .pot file yet, but the call site uses sntCronI18n rather than
-	// inline English, which means future translation work is a config
-	// change, not a code change).
-	wp_localize_script( 'sn-cron-dashboard', 'sntCronI18n', array(
-		/* translators: button label while a cron event is being dispatched */
-		'running'          => __( 'Running…', 'signal-and-noise-tools' ),
-		/* translators: button label when idle */
-		'runNow'           => __( 'Run now', 'signal-and-noise-tools' ),
-		/* translators: relative-time label shown immediately after a manual run */
-		'justNow'          => __( 'just now', 'signal-and-noise-tools' ),
-		/* translators: %s is the cron hook name (e.g., wp_version_check) */
-		'confirmRun'       => __( "Run cron event '%s' now?", 'signal-and-noise-tools' ),
-		'apiFetchMissing'  => __( 'wp.apiFetch unavailable: cannot dispatch.', 'signal-and-noise-tools' ),
-		'unknownError'     => __( 'unknown error', 'signal-and-noise-tools' ),
-		/* translators: 1: hook name, 2: elapsed time in milliseconds */
-		'firedTemplate'    => __( '%1$s fired in %2$dms', 'signal-and-noise-tools' ),
-		/* translators: %s is the error message returned by the REST endpoint */
-		'runFailedTemplate' => __( 'Run failed: %s', 'signal-and-noise-tools' ),
-		/* translators: button label while a cron event is being unscheduled (v3.1.0) */
-		'unscheduling'     => __( 'Unscheduling…', 'signal-and-noise-tools' ),
-		/* translators: button label when idle (v3.1.0) */
-		'unschedule'       => __( 'Unschedule', 'signal-and-noise-tools' ),
-		/* translators: %s is the cron hook name — confirmation prompt before destructive unschedule */
-		'confirmUnschedule' => __( "Permanently unschedule '%s'?\n\nThis removes both the next firing AND the recurring schedule if any. Cannot be undone — the event will re-appear only if a plugin re-registers it.", 'signal-and-noise-tools' ),
-		/* translators: 1: hook name, 2: number of events cleared */
-		'unscheduledTemplate' => __( "%1\$s unscheduled (%2\$d event(s) cleared)", 'signal-and-noise-tools' ),
-		'unscheduledNoMatch' => __( 'No matching scheduled event found: likely already gone.', 'signal-and-noise-tools' ),
-		/* translators: %s is the error message returned by the REST endpoint */
-		'unscheduleFailedTemplate' => __( 'Unschedule failed: %s', 'signal-and-noise-tools' ),
-		// v3.2.0: cron history panel
-		'historyShow'      => __( 'history', 'signal-and-noise-tools' ),
-		'historyHide'      => __( 'hide', 'signal-and-noise-tools' ),
-		'historyLoading'   => __( 'Loading history…', 'signal-and-noise-tools' ),
-		'historyEmpty'     => __( 'No firings recorded yet (history tracking landed in plugin v3.2.0).', 'signal-and-noise-tools' ),
-		'historyHeaderTime'    => __( 'Fired at', 'signal-and-noise-tools' ),
-		'historyHeaderElapsed' => __( 'Elapsed', 'signal-and-noise-tools' ),
-		'historyHeaderStatus'  => __( 'Status', 'signal-and-noise-tools' ),
-		'historyOk'        => __( 'ok', 'signal-and-noise-tools' ),
-		'historyFail'      => __( 'fail', 'signal-and-noise-tools' ),
-		/* translators: %d is the elapsed time in milliseconds */
-		'historyMs'        => __( '%dms', 'signal-and-noise-tools' ),
-		/* translators: %s is the error message returned by the REST endpoint */
-		'historyFetchFailed' => __( 'Could not load history: %s', 'signal-and-noise-tools' ),
-	) );
 
 	if ( function_exists( 'wp_set_script_translations' ) ) {
 		wp_set_script_translations( 'sn-cron-dashboard', 'signal-and-noise-tools' );

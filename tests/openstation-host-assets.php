@@ -430,6 +430,18 @@ ok( false !== $i_ret && false !== $i_a && $i_ret < $i_a, 'ORDER: ...and the earl
 ok( false !== $i_add && false !== $i_a && $i_add < $i_a, 'ORDER: and the element is recorded before it is bound' );
 ok( false === strpos( $cron, 'document.getElementById' ) && false === strpos( $cron, 'document.querySelectorAll' ), 'and it scans the given root, never the desktop document that holds every other open window' );
 
+echo "\nGroup P2b: #1611 the cron strings come through wp.i18n\n";
+// The localize bag is gone from PHP (pinned in tests/openstation-host.php);
+// this side pins that the script reads the registry the translations call
+// fills, under the plugin's exact text domain. Eight sibling scripts pass
+// 'signal-noise-tools' and every lookup falls back to English in silence.
+ok( false !== strpos( $cron, "wp.i18n.__( text, 'signal-and-noise-tools' )" ), 'cron-dashboard reads wp.i18n.__() under the text domain the PHP side loads, signal-and-noise-tools' );
+ok( false !== strpos( $cron, 'wp.i18n.sprintf' ), 'and fills its templates with wp.i18n.sprintf' );
+ok( false === strpos( $cron, 'sntCronI18n' ), 'the sntCronI18n localize bag is no longer read' );
+ok( 0 === preg_match( "/\\.replace\\( '%/", $cron ), 'no hand String.replace template fill remains' );
+$cron_code = (string) preg_replace( '/\/\*.*?\*\/|\/\/[^\n]*/s', '', $cron );
+ok( 0 === preg_match( "/__\\( '[^']*', '/", $cron_code ) && false === strpos( $cron_code, "'signal-noise-tools'" ), 'no call site passes a domain of its own, so the misspelt sibling domain cannot creep in' );
+
 $upt = (string) file_get_contents( __DIR__ . '/../assets/uptime-status.js' );
 $boot_fn = snt_js_code( snt_region( $upt, 'function boot( root )' ) );
 $i_mark  = strpos( $boot_fn, 'm.setAttribute( PAINTED' );

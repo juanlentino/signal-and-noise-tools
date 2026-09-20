@@ -782,7 +782,14 @@ ok( array( 'wp-api-fetch', 'wp-i18n', 'snt-status', 'snt-ability-run' ) === ( $G
 	'the Suggest script keeps its four deps, and both shared utilities were registered by their OWN registrars -- a missing dep makes WP silently DROP the dependent script' );
 ok( in_array( 'snt-health-suggest-actions', $GLOBALS['__i18n'], true ), '   ...with its script translations set, as its own enqueue sets them' );
 ok( array( 'sn-admin' ) === ( $GLOBALS['__scripts']['snt-os-host'][1] ?? array() ), 'the host script loads after admin.js, whose init() seam it calls' );
-ok( isset( $GLOBALS['__scripts']['sn-cron-dashboard'] ) && 'sntCronI18n' === ( $GLOBALS['__localized']['sn-cron-dashboard'][0] ?? '' ) && isset( $GLOBALS['__localized']['sn-cron-dashboard'][1]['confirmUnschedule'] ), 'the cron script rides with its strings, from its own registrar -- Run now, history and Unschedule all go through it' );
+// #1611: the cron strings ride as script translations, the documented way.
+// The 25-string sntCronI18n localize object sat beside a
+// wp_set_script_translations() the script never read; now wp-i18n is a
+// declared dep, the translations are set, and no localize object exists.
+ok( array( 'wp-api-fetch', 'wp-data', 'wp-i18n', 'snt-ability-run' ) === ( $GLOBALS['__scripts']['sn-cron-dashboard'][1] ?? array() ),
+	'the cron script rides from its own registrar with wp-i18n declared: wp.i18n.__() is what Run now, history and Unschedule read' );
+ok( in_array( 'sn-cron-dashboard', $GLOBALS['__i18n'], true ) && ! isset( $GLOBALS['__localized']['sn-cron-dashboard'] ),
+	'   ...with its script translations set and NO localize object: the strings live in the script, not in an inline JSON bag on every admin page' );
 ok( isset( $GLOBALS['__styles']['sn-provenance-admin'], $GLOBALS['__scripts']['sn-provenance-admin'] ), 'the provenance stepper sheet and script ride too: Integrity -> Provenance polls its own route through them' );
 ok( isset( $GLOBALS['__styles']['snt-audit-log'] ), 'and the audit-log sheet: Security -> Audit log is laid out by it' );
 ok( array( 'sn-admin' ) === ( $GLOBALS['__styles']['sn-machine-readers'][1] ?? array() ),

@@ -27,9 +27,14 @@ $GLOBALS['__rest_dim'] = array(); // v9.68.1: null models the accessor's failed-
 function sn_analytics_top_dimension( $d, $f, $t, $c = 'human', $l = 25 ) { return $GLOBALS['__rest_dim']; }
 function sn_analytics_distribution( $m, $f, $t, $c = 'human' ) { return array(); }
 function sn_analytics_granularity( $d ) { return ( (int) $d > 90 ) ? 'week' : 'day'; }
-function snt_analytics_resolve_range( $r ) { return 'all' === (string) $r ? 'all' : ( (int) $r ?: 30 ); }
-function snt_analytics_resolve_class( $c ) { return $c ?: 'human'; }
-function snt_analytics_range_dates( $r, $n = null ) { return array( '2026-06-01', '2026-06-12' ); }
+// #1620: the REAL resolvers and SN_ANALYTICS_RANGES. The stub this replaces
+// fell back to 30 where production falls back to 7, a fixture looser than
+// the runtime, which is how ?range=60 answering a week stayed invisible.
+// SN_ANALYTICS_CLASSES lives in inc/analytics-rollup.php (DB-bound), so it
+// is defined here the way every analytics sibling suite defines it.
+define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) );
+function __( $s, $d = '' ) { return $s; }
+require __DIR__ . '/../inc/analytics-admin.php';
 // event-accessor stubs (sentinel values to verify passthrough):
 function sn_analytics_top_events( $f, $t, $l = 25 ) { return array( array( 'name' => 'pageview', 'events' => 42, 'visitors' => 17 ) ); }
 function sn_analytics_top_event_props( $f, $t, $property = '', $l = 50 ) { return array( array( 'property' => $property, 'value' => 'blog', 'events' => 5, 'visitors' => 3 ) ); }
@@ -52,6 +57,22 @@ ok( sn_analytics_rest_can_read() === true, 'shared read gate allows with manage_
 ok( isset( $GLOBALS['__routes']['signal-noise/v1/analytics/series'] ), 'series route registered' );
 ok( isset( $GLOBALS['__routes']['signal-noise/v1/analytics/dimension/(?P<dim>[a-z]+)'] ), 'dimension route registered' );
 ok( isset( $GLOBALS['__routes']['signal-noise/v1/analytics/distribution/(?P<metric>[a-z]+)'] ), 'distribution route registered' );
+
+echo "\nGroup: #1620 the window vocabulary is an args schema on every route\n";
+// Derived from the constants the resolvers read, not retyped: a range added
+// to SN_ANALYTICS_RANGES must reach the schema, or core refuses it.
+$range_enum = array_merge( array_map( 'strval', SN_ANALYTICS_RANGES ), array( 'all' ) );
+ok( 7 === snt_analytics_resolve_range( '60' ), 'the production resolver still falls back to 7 for an unknown range (the fallback the schema now makes unreachable from REST)' );
+foreach ( array( 'series', 'dimension/(?P<dim>[a-z]+)', 'distribution/(?P<metric>[a-z]+)', 'event-props', 'anomalies' ) as $key ) {
+	$a = $GLOBALS['__routes'][ 'signal-noise/v1/analytics/' . $key ]['args'] ?? array();
+	ok( $range_enum === ( $a['range']['enum'] ?? null ) && 'string' === ( $a['range']['type'] ?? '' ) && '30' === ( $a['range']['default'] ?? '' ),
+		"$key: range is a string enum of SN_ANALYTICS_RANGES + all, default 30, so ?range=60 is rest_invalid_param and not a 7-day window" );
+	ok( SN_ANALYTICS_CLASSES === ( $a['class']['enum'] ?? null ) && 'human' === ( $a['class']['default'] ?? '' ),
+		"$key: class is an enum of SN_ANALYTICS_CLASSES, default human" );
+}
+ok( 'string' === ( $GLOBALS['__routes']['signal-noise/v1/analytics/event-props']['args']['property']['type'] ?? '' )
+	&& ! isset( $GLOBALS['__routes']['signal-noise/v1/analytics/event-props']['args']['property']['sanitize_callback'] ),
+	'event-props declares property as a plain string with no lowercasing sanitizer: ingest stores names verbatim' );
 
 echo "\nGroup: events routes (event-props kept; /analytics/events removed in v7.0.0)\n";
 ok( ! isset( $GLOBALS['__routes']['signal-noise/v1/analytics/events'] ), 'events route REMOVED in v7.0.0' );

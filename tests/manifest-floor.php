@@ -32,6 +32,12 @@ mf_check( isset( $m[1] ) && '7.0' === $m[1], 'plugin header "Requires at least: 
 preg_match( '/Version:\s*([0-9.]+)/', $header, $v );
 mf_check( isset( $v[1] ) && version_compare( $v[1], '5.0.0', '>=' ), 'plugin Version >= 5.0.0 (got ' . ( $v[1] ?? '?' ) . ')' );
 
+// #1615: the Update URI header. Without it every update check posts the slug
+// to api.wordpress.org unmarked, and a same-name directory plugin would land
+// on the Updates page. With a github.com hostname the .org API ignores the
+// plugin; the transient filter in inc/wp-update-integration.php still runs.
+mf_check( 1 === preg_match( '/^ \* Update URI:\s*https:\/\/github\.com\/juanlentino\/signal-and-noise-tools\s*$/m', $header ), 'plugin header carries Update URI on the github.com hostname, the repo the updater reads tags from' );
+
 $updater = (string) file_get_contents( $root . '/inc/wp-update-integration.php' );
 mf_check( false === strpos( $updater, "'6.4'" ), 'self-updater requires mirrors no longer report 6.4' );
 // v14.5.1: the updater reads the header, never a literal. Two literals said

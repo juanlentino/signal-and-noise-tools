@@ -55,49 +55,16 @@
 		return true;
 	}
 
-	// v3.0.2: strings come from PHP via wp_localize_script (sntCronI18n).
-	// Defensive fallback to English so the module still works if the
-	// localize call ever fails to enqueue (e.g., during a botched deploy).
-	var I = ( typeof window !== 'undefined' && window.sntCronI18n ) || {
-		running:           'Running…',
-		runNow:            'Run now',
-		justNow:           'just now',
-		confirmRun:        "Run cron event '%s' now?",
-		apiFetchMissing:   'wp.apiFetch unavailable — cannot dispatch.',
-		unknownError:      'unknown error',
-		firedTemplate:     '%1$s fired in %2$dms',
-		runFailedTemplate: 'Run failed: %s',
-		// v3.1.0: unschedule strings
-		unscheduling:        'Unscheduling…',
-		unschedule:          'Unschedule',
-		confirmUnschedule:   "Permanently unschedule '%s'?\n\nThis removes both the next firing AND the recurring schedule if any.",
-		unscheduledTemplate: "%1$s unscheduled (%2$d event(s) cleared)",
-		unscheduledNoMatch:  'No matching scheduled event found — likely already gone.',
-		unscheduleFailedTemplate: 'Unschedule failed: %s',
-		// v3.2.0: cron history panel fallbacks
-		historyShow:           'history',
-		historyHide:           'hide',
-		historyLoading:        'Loading history…',
-		historyEmpty:          'No firings recorded yet.',
-		historyHeaderTime:     'Fired at',
-		historyHeaderElapsed:  'Elapsed',
-		historyHeaderStatus:   'Status',
-		historyOk:             'ok',
-		historyFail:           'fail',
-		historyMs:             '%dms',
-		historyFetchFailed:    'Could not load history: %s'
-	};
-
-	function fmt1( tmpl, a ) { return String( tmpl ).replace( '%s', a ); }
-	function fmtFired( hook, ms ) {
-		return String( I.firedTemplate )
-			.replace( '%1$s', hook )
-			.replace( '%2$d', Math.round( ms ) );
+	// #1611: strings come through wp.i18n, fed by wp_set_script_translations()
+	// on the handle in inc/cron-dashboard-admin.php; wp-i18n is a declared
+	// dependency, so it is on the page before this file runs. The domain is
+	// the plugin's text domain exactly: wp.i18n keys its registry by domain,
+	// and a misspelt one falls back to the source string in silence.
+	function __( text ) {
+		return window.wp.i18n.__( text, 'signal-and-noise-tools' );
 	}
-	function fmtUnscheduled( hook, count ) {
-		return String( I.unscheduledTemplate )
-			.replace( '%1$s', hook )
-			.replace( '%2$d', count );
+	function sprintf() {
+		return window.wp.i18n.sprintf.apply( null, arguments );
 	}
 
 	function toast( msg, type ) {
@@ -124,7 +91,7 @@
 		cell.appendChild( document.createTextNode( formatted ) );
 		cell.appendChild( document.createElement( 'br' ) );
 		var sm = document.createElement( 'small' );
-		sm.textContent = I.justNow;
+		sm.textContent = __( 'just now' );
 		cell.appendChild( sm );
 	}
 
@@ -159,25 +126,27 @@
 					return;
 				}
 				var hook = tr.getAttribute( 'data-hook' );
+				/* translators: %s is the cron hook name (e.g., wp_version_check) */
+				var confirmRun = sprintf( __( "Run cron event '%s' now?" ), hook );
 				// v4.1.1 (U-01): sntConfirm replaces window.confirm (which is
 				// blocked by the desktop-mode portal iframe). Falls back to
 				// window.confirm if the snt-confirm helper failed to enqueue.
 				var prompt = ( typeof window.sntConfirm === 'function' )
 					? window.sntConfirm( {
-						title:             I.confirmRunTitle || 'Run cron event now?',
-						message:           fmt1( I.confirmRun, hook ),
-						confirmLabel:      I.confirmRunLabel || 'Run now',
+						title:             __( 'Run cron event now?' ),
+						message:           confirmRun,
+						confirmLabel:      __( 'Run now' ),
 						originatingButton: btn,
 					} )
-					: Promise.resolve( window.confirm( fmt1( I.confirmRun, hook ) ) );
+					: Promise.resolve( window.confirm( confirmRun ) );
 				prompt.then( function ( confirmed ) {
 					if ( ! confirmed ) { return; }
 					if ( ! window.wp || ! window.wp.apiFetch ) {
-						toast( I.apiFetchMissing, 'error' );
+						toast( __( 'wp.apiFetch unavailable: cannot dispatch.' ), 'error' );
 						return;
 					}
 					btn.disabled = true;
-					btn.textContent = I.running;
+					btn.textContent = __( 'Running…' );
 					// v6.55.0: dispatch via the run-cron-event ability run-path.
 					// The ability now additively returns ok/last_fired_formatted/
 					// elapsed_ms/error, so the inline cell update + toast are
@@ -188,15 +157,17 @@
 							// timezone, matches the rest of the table) instead
 							// of client-side UTC toISOString.
 							updateLastFiredCell( tr, res.last_fired_formatted );
-							toast( fmtFired( hook, res.elapsed_ms ), 'success' );
+							/* translators: 1: hook name, 2: elapsed time in milliseconds */
+							toast( sprintf( __( '%1$s fired in %2$dms' ), hook, Math.round( res.elapsed_ms ) ), 'success' );
 						} else {
-							toast( fmt1( I.runFailedTemplate, ( res && res.error ) || I.unknownError ), 'error' );
+							/* translators: %s is the error message returned by the ability */
+							toast( sprintf( __( 'Run failed: %s' ), ( res && res.error ) || __( 'unknown error' ) ), 'error' );
 						}
 					} ).catch( function( err ) {
-						toast( fmt1( I.runFailedTemplate, err.message || err ), 'error' );
+						toast( sprintf( __( 'Run failed: %s' ), err.message || err ), 'error' );
 					} ).finally( function() {
 						btn.disabled = false;
-						btn.textContent = I.runNow;
+						btn.textContent = __( 'Run now' );
 					} );
 				} );
 			} );
@@ -217,25 +188,26 @@
 				if ( expanded ) {
 					panel.hidden = true;
 					btn.setAttribute( 'aria-expanded', 'false' );
-					btn.textContent = I.historyShow;
+					btn.textContent = __( 'history' );
 					return;
 				}
 
 				// Expanding: show + fetch.
 				btn.setAttribute( 'aria-expanded', 'true' );
-				btn.textContent = I.historyHide;
+				btn.textContent = __( 'hide' );
 				panel.hidden = false;
 
 				// Loading state.
 				while ( panel.firstChild ) { panel.removeChild( panel.firstChild ); }
 				var loading = document.createElement( 'small' );
-				loading.textContent = I.historyLoading;
+				loading.textContent = __( 'Loading history…' );
 				panel.appendChild( loading );
 
 				if ( ! window.wp || ! window.wp.apiFetch ) {
 					panel.removeChild( loading );
 					var err = document.createElement( 'small' );
-					err.textContent = fmt1( I.historyFetchFailed, I.apiFetchMissing );
+					/* translators: %s is the error message returned by the ability */
+					err.textContent = sprintf( __( 'Could not load history: %s' ), __( 'wp.apiFetch unavailable: cannot dispatch.' ) );
 					panel.appendChild( err );
 					return;
 				}
@@ -252,7 +224,7 @@
 				} ).catch( function( fetchErr ) {
 					while ( panel.firstChild ) { panel.removeChild( panel.firstChild ); }
 					var msg = document.createElement( 'small' );
-					msg.textContent = fmt1( I.historyFetchFailed, fetchErr.message || fetchErr );
+					msg.textContent = sprintf( __( 'Could not load history: %s' ), fetchErr.message || fetchErr );
 					panel.appendChild( msg );
 				} );
 			} );
@@ -264,7 +236,7 @@
 
 		if ( ! rows.length ) {
 			var em = document.createElement( 'small' );
-			em.textContent = I.historyEmpty;
+			em.textContent = __( 'No firings recorded yet (history tracking landed in plugin v3.2.0).' );
 			panel.appendChild( em );
 			return;
 		}
@@ -280,7 +252,7 @@
 
 		var thead = document.createElement( 'thead' );
 		var thr   = document.createElement( 'tr' );
-		[ I.historyHeaderTime, I.historyHeaderElapsed, I.historyHeaderStatus ].forEach( function( label ) {
+		[ __( 'Fired at' ), __( 'Elapsed' ), __( 'Status' ) ].forEach( function( label ) {
 			var th = document.createElement( 'th' );
 			th.scope = 'col';
 			th.textContent = label;
@@ -307,12 +279,13 @@
 			var tdMs = document.createElement( 'td' );
 			tdMs.textContent = ( r.elapsed_ms === null || typeof r.elapsed_ms === 'undefined' )
 				? '—'
-				: String( I.historyMs ).replace( '%d', r.elapsed_ms );
+				/* translators: %d is the elapsed time in milliseconds */
+				: sprintf( __( '%dms' ), r.elapsed_ms );
 			tdMs.style.padding = '2px 6px';
 			trEl.appendChild( tdMs );
 
 			var tdStatus = document.createElement( 'td' );
-			tdStatus.textContent = r.success ? I.historyOk : I.historyFail;
+			tdStatus.textContent = r.success ? __( 'ok' ) : __( 'fail' );
 			tdStatus.style.padding = '2px 6px';
 			if ( ! r.success ) {
 				tdStatus.style.color = '#dc3232';
@@ -336,20 +309,22 @@
 					return;
 				}
 				var hook = tr.getAttribute( 'data-hook' );
+				/* translators: %s is the cron hook name; confirmation prompt before a destructive unschedule */
+				var confirmUnschedule = sprintf( __( "Permanently unschedule '%s'?\n\nThis removes both the next firing AND the recurring schedule if any. Cannot be undone: the event will re-appear only if a plugin re-registers it." ), hook );
 				// v4.1.1 (U-01): sntConfirm replaces window.confirm.
 				var prompt = ( typeof window.sntConfirm === 'function' )
 					? window.sntConfirm( {
-						title:             I.confirmUnscheduleTitle || 'Unschedule this cron event?',
-						message:           fmt1( I.confirmUnschedule, hook ),
-						confirmLabel:      I.confirmUnscheduleLabel || 'Unschedule',
+						title:             __( 'Unschedule this cron event?' ),
+						message:           confirmUnschedule,
+						confirmLabel:      __( 'Unschedule' ),
 						danger:            true,
 						originatingButton: btn,
 					} )
-					: Promise.resolve( window.confirm( fmt1( I.confirmUnschedule, hook ) ) );
+					: Promise.resolve( window.confirm( confirmUnschedule ) );
 				prompt.then( function ( confirmed ) {
 					if ( ! confirmed ) { return; }
 					if ( ! window.wp || ! window.wp.apiFetch ) {
-						toast( I.apiFetchMissing, 'error' );
+						toast( __( 'wp.apiFetch unavailable: cannot dispatch.' ), 'error' );
 						return;
 					}
 					// Parse args off the data attribute so we send the exact
@@ -368,7 +343,7 @@
 						args = [];
 					}
 					btn.disabled = true;
-					btn.textContent = I.unscheduling;
+					btn.textContent = __( 'Unscheduling…' );
 					// Also disable the Run-now button on the same row during
 					// dispatch so users can't double-act on a half-removed event.
 					var runBtn = tr.querySelector( '.sn-cron-run-now' );
@@ -385,9 +360,10 @@
 					window.sntAbilityRun( 'unschedule-cron-event', { hook: hook, args: args } ).then( function( res ) {
 					if ( res && res.success ) {
 						if ( res.cleared > 0 ) {
-							toast( fmtUnscheduled( hook, res.cleared ), 'success' );
+							/* translators: 1: hook name, 2: number of events cleared */
+							toast( sprintf( __( '%1$s unscheduled (%2$d event(s) cleared)' ), hook, res.cleared ), 'success' );
 						} else {
-							toast( I.unscheduledNoMatch, 'info' );
+							toast( __( 'No matching scheduled event found: likely already gone.' ), 'info' );
 						}
 						// Remove the row from the table. Wrapped in a
 						// short fade so the change isn't jarring.
@@ -399,15 +375,16 @@
 							}
 						}, 260 );
 					} else {
-						toast( fmt1( I.unscheduleFailedTemplate, ( res && res.error ) || I.unknownError ), 'error' );
+						/* translators: %s is the error message returned by the ability */
+						toast( sprintf( __( 'Unschedule failed: %s' ), ( res && res.error ) || __( 'unknown error' ) ), 'error' );
 						btn.disabled = false;
-						btn.textContent = I.unschedule;
+						btn.textContent = __( 'Unschedule' );
 						if ( runBtn ) { runBtn.disabled = false; }
 					}
 				} ).catch( function( err ) {
-					toast( fmt1( I.unscheduleFailedTemplate, err.message || err ), 'error' );
+					toast( sprintf( __( 'Unschedule failed: %s' ), err.message || err ), 'error' );
 					btn.disabled = false;
-					btn.textContent = I.unschedule;
+					btn.textContent = __( 'Unschedule' );
 					if ( runBtn ) { runBtn.disabled = false; }
 				} );
 				} ); // close prompt.then
