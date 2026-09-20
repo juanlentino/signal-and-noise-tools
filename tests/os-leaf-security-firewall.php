@@ -26,6 +26,7 @@ require SNT_PATH . 'inc/cloudflare-firewall-events.php';
 require SNT_PATH . 'inc/cloudflare-posture.php'; // 15.4.0: the edge posture beside the firewall
 require SNT_PATH . 'inc/cloudflare-credentials.php';
 require SNT_PATH . 'inc/cloudflare-readings-admin.php';
+require SNT_PATH . 'inc/ssrf-guard.php'; // #1599: the pinning verdict the leaf paints as a posture box
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-cloudflare.php'; // the parts the Security leaf paints through
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/security-firewall.php';
 
@@ -100,6 +101,36 @@ ok( false !== strpos( $kit, '>Custom rules</h4>' ) && false !== strpos( $kit, '>
 ok( false !== strpos( $kit, '>Block Basic-auth on abilities API<' ) && false === strpos( $kit, '>firewallCustom r1<' ) && false !== strpos( $kit, 'title="firewallCustom r1"' ), 'the top rule on the left now carries its name, the id as a title' );
 ok( false !== strpos( $classic, 'Edge posture' ) && false !== strpos( $classic, '<td>Full (strict)</td>' ) && false !== strpos( $classic, '<strong>drift</strong>' ) && false !== strpos( $classic, 'Zone › DNS › Read' ) && false !== strpos( $classic, '<td>Block Basic-auth on abilities API</td>' ) && false !== strpos( $classic, '<strong>disabled</strong>' ), 'the classic leaf paints the same posture' );
 ok( array() === snt_leaf_classic_markers( $kit ) && array( 'cf_monitor_refresh' ) === snt_leaf_actions( $kit ), 'still one action and no wp-admin markup with the posture painted' );
+
+// ── #1599: the SSRF guard's Site Health verdict as the "Outbound pinning"
+// posture box, full width under the Cloudflare reading in every state of
+// the monitor. sn_ssrf_pinning_health() over sn_ssrf_pinning_available() and
+// the sn_ssrf_unpinned_last option, exactly the Site Health row's reads. The
+// good branch needs the cURL transport on this host, as it would live.
+function fw_pinning_box( $html ) {
+	$at = strpos( $html, 'heading="Outbound pinning"' );
+	if ( false === $at ) { return ''; }
+	$start = strrpos( substr( $html, 0, $at ), '<os-section' );
+	$end   = strpos( $html, '</os-section>', $at );
+	return substr( $html, $start, $end - $start );
+}
+ok( sn_ssrf_pinning_available(), 'this host has the cURL transport, so the good branch is readable' );
+// (a) Read state, nothing unpinned: under the posture, outside the row, the hint line and two facts rows.
+$box = fw_pinning_box( $kit );
+ok( '' !== $box && strpos( $kit, 'heading="Edge posture"' ) < strpos( $kit, 'heading="Outbound pinning"' ) && 1 === substr_count( $kit, 'snt-cols' ) && false === strpos( $kit, 'snt-2up' ), 'the pinning box paints under the posture at full width; the one row is still Firewall and Acted on' );
+ok( false === strpos( $box, '<os-notice' ) && false !== strpos( $box, '<p class="snt-hint">Outbound requests are pinned to the addresses the SSRF guard validated' ), 'pinned, nothing unpinned: the summary is the hint line, no notice' );
+ok( false !== strpos( $box, '<dt class="snt-kv__k">cURL transport</dt><dd class="snt-kv__v">present, the pin fires on every outbound request</dd>' ) && false !== strpos( $box, '<dt class="snt-kv__k">Last unpinned request</dt><dd class="snt-kv__v">none recorded</dd>' ), 'two facts rows: the transport present, no unpinned request recorded, neither toned' );
+// (b) A request went out unpinned: the recommended verdict is a warning naming the host, the row toned and dated.
+fw_opts( $GLOBALS['__options'] + array( 'sn_ssrf_unpinned_last' => array( 'host' => 'api.example.net', 'at' => time() - 3600 ) ) );
+$kit = snt_leaf_paint( 'security', 'firewall' );
+$box = fw_pinning_box( $kit );
+ok( false !== strpos( $box, '<os-notice tone="warning"' ) && false !== strpos( $box, 'at least one outbound request went unpinned (last: api.example.net)' ), 'an unpinned request: the summary is a warning notice naming the host' );
+ok( false !== strpos( $box, '<dd class="snt-kv__v" data-tone="warning">api.example.net, 1 hour ago</dd>' ), 'the last-unpinned row carries the host and its age, warn toned' );
+ok( array() === snt_leaf_classic_markers( $kit ) && array( 'cf_monitor_refresh' ) === snt_leaf_actions( $kit ), 'still one action and no wp-admin markup with the pinning box painted' );
+// (c) Before the monitor ever ran, the box is there too: the posture does not wait for Cloudflare.
+fw_opts( array() );
+$kit = snt_leaf_paint( 'security', 'firewall' );
+ok( false !== strpos( $kit, 'The monitor has not run yet' ) && '' !== fw_pinning_box( $kit ) && strpos( $kit, 'heading="Firewall, 24 hours"' ) < strpos( $kit, 'heading="Outbound pinning"' ), 'never run: the pinning box still paints under the Firewall box' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

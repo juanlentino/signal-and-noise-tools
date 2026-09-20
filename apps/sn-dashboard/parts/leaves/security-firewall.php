@@ -18,6 +18,53 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * The "Outbound pinning" box (#1599): the SSRF guard's Site Health verdict
+ * (inc/ssrf-guard.php, `sn_ssrf_pinning_health()`) painted where the
+ * perimeter question is asked. The row stays off the curated Health tab
+ * because it never fires on a healthy host; a posture box on a leaf is the
+ * 17.4.0 Breached-passwords shape, not a defects row. The verdict on top
+ * (a warning when not good, the hint line when good), then the two facts it
+ * is derived from: whether the cURL transport is there, and the last
+ * request that went out unpinned, from the same option the Site Health row
+ * reads. Nothing is computed here. '' when the module is absent.
+ *
+ * @return string
+ */
+function firewall_pinning_html() {
+	if ( ! function_exists( 'sn_ssrf_pinning_health' ) || ! function_exists( 'sn_ssrf_pinning_available' ) ) {
+		return '';
+	}
+	$last      = get_option( 'sn_ssrf_unpinned_last', null );
+	$last      = is_array( $last ) && ! empty( $last['at'] ) ? $last : null;
+	$available = (bool) \sn_ssrf_pinning_available();
+	$v         = \sn_ssrf_pinning_health( $available, $last );
+	$rows      = array(
+		array(
+			'label' => __( 'cURL transport', 'signal-and-noise-tools' ),
+			'value' => $available ? __( 'present, the pin fires on every outbound request', 'signal-and-noise-tools' ) : __( 'absent, so requests fall back to fsockopen unpinned', 'signal-and-noise-tools' ),
+			'tone'  => $available ? null : 'warn',
+		),
+		array(
+			'label' => __( 'Last unpinned request', 'signal-and-noise-tools' ),
+			'value' => null === $last
+				? __( 'none recorded', 'signal-and-noise-tools' )
+				: sprintf(
+					/* translators: 1: host name, 2: human time diff */
+					__( '%1$s, %2$s ago', 'signal-and-noise-tools' ),
+					(string) ( $last['host'] ?? 'unknown' ),
+					human_time_diff( (int) $last['at'], time() )
+				),
+			'tone'  => null === $last ? null : 'warn',
+		),
+	);
+	return \snt_kit_section(
+		__( 'Outbound pinning', 'signal-and-noise-tools' ),
+		\snt_kit_verdict( is_array( $v ) ? $v : array() ) . \snt_kit_kv( $rows ),
+		__( 'Whether outbound requests are bound to the addresses the SSRF guard validated, so a DNS answer that changes between validation and connect cannot be followed.', 'signal-and-noise-tools' )
+	);
+}
+
+/**
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
  */
@@ -26,6 +73,18 @@ function paint_security_firewall( array $ctx ) {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return \snt_kit_empty( __( 'This account cannot manage options.', 'signal-and-noise-tools' ) );
 	}
+	// #1599: the pinning posture stands alone at full width under the
+	// Cloudflare reading, in every state of the monitor.
+	return firewall_cloudflare_html() . firewall_pinning_html();
+}
+
+/**
+ * The Cloudflare reading: the firewall row, the posture under it, or the
+ * sentence that says why there is none yet.
+ *
+ * @return string
+ */
+function firewall_cloudflare_html() {
 	if ( ! function_exists( __NAMESPACE__ . '\\cloudflare_firewall_html' ) || ! function_exists( __NAMESPACE__ . '\\cloudflare_data' ) ) {
 		return \snt_kit_empty( __( 'The Cloudflare monitor is not loaded.', 'signal-and-noise-tools' ) );
 	}

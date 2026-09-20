@@ -70,6 +70,14 @@ require SNT_PATH . 'inc/machine-readers-render-taxonomy.php';
 require SNT_PATH . 'inc/machine-readers-insights.php';
 require SNT_PATH . 'inc/machine-readers-compose.php';
 require SNT_PATH . 'inc/machine-readers-admin.php';
+// #1599: the two Site Health verdicts the leaf paints as boxes. The drift
+// verdict is pure over two options; the anomalies pipeline is stubbed to a
+// fixture (it would otherwise pull analytics-derived, -signals and mr-series)
+// and only its pure health function is loaded.
+$GLOBALS['__anomalies'] = null;
+function snt_ml_reader_anomalies( $now = null ) { return $GLOBALS['__anomalies']; }
+require SNT_PATH . 'inc/family-drift.php';
+require SNT_PATH . 'inc/ml-reader-anomalies-health.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers.php';
 
 $pass = 0; $fail = 0;
@@ -168,8 +176,54 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'still no wp-admin markup in t
 $GLOBALS['__sn_settings']             = array( 'machine_readers.read_token' => 'shh-token' );
 $GLOBALS['__mr_fixtures']['aggregate'] = mr_body( $aggregate_rows, true );
 $GLOBALS['__mr_fixtures']['version']   = json_encode( array( 'version' => '1.20.0' ) );
+snt_mr_memo( null ); // a new request: the fetch memoizes per request (#1635 review)
 $kit = snt_leaf_paint( 'monitoring', 'machine-readers' );
 ok( false !== strpos( $kit, 'The edge capped this read at its row limit' ), 'the truncation notice shows when the sensor reports a capped read' );
+
+// ── #1599: the two Site Health verdicts about machine readers, as one row
+// of two boxes between the hero and the columns. Each box carries its
+// summary as the notice when the verdict is not good (danger for critical,
+// warning otherwise) and as the hint line when it is. Same reads as the
+// Site Health rows and the abilities: sn_family_drift_health() over the two
+// drift options, snt_ml_reader_anomalies_health() over the pipeline's report.
+function mr_leaf_box( $html, $heading ) {
+	$at = strpos( $html, 'heading="' . $heading . '"' );
+	if ( false === $at ) { return ''; }
+	$start = strrpos( substr( $html, 0, $at ), '<os-section' );
+	$end   = strpos( $html, '</os-section>', $at );
+	return substr( $html, $start, $end - $start );
+}
+$now = time();
+// (a) Never run, sensor unread: both boxes on one row under the hero, both warnings.
+unset( $GLOBALS['__options'][ SN_FAMILY_DRIFT_LAST_OPTION ], $GLOBALS['__options'][ SN_FAMILY_DRIFT_OK_OPTION ] );
+$GLOBALS['__anomalies'] = array( 'state' => 'unavailable', 'reason' => 'fetch_failed' );
+$kit   = snt_leaf_paint( 'monitoring', 'machine-readers' );
+$drift = mr_leaf_box( $kit, 'Crawler-family drift' );
+$anoms = mr_leaf_box( $kit, 'Reader behaviour' );
+ok( '' !== $drift && '' !== $anoms, 'the drift and reader-behaviour boxes paint under their headings' );
+$row_at = strpos( $kit, '<div class="snt-cols">' );
+ok( false !== $row_at && strpos( $kit, 'heading="Sensor status"' ) < $row_at && $row_at < strpos( $kit, 'heading="Crawler-family drift"' ) && strpos( $kit, 'heading="Crawler-family drift"' ) < strpos( $kit, 'heading="Reader behaviour"' ) && strpos( $kit, 'heading="Reader behaviour"' ) < strpos( $kit, '<div class="snt-2up">' ), 'the two share one .snt-cols row between the sensor hero and the columns, drift first' );
+ok( false !== strpos( $drift, '<os-notice tone="warning"' ) && false !== strpos( $drift, 'The family-drift check has never run' ), 'drift never run: the summary is a warning notice' );
+ok( false !== strpos( $anoms, '<os-notice tone="warning"' ) && false !== strpos( $anoms, 'did not answer (fetch_failed)' ), 'sensor unread: the reason is a warning notice, not a calm box' );
+// (b) Mirror parity failed: critical is a danger notice, not a warning.
+$GLOBALS['__options'][ SN_FAMILY_DRIFT_OK_OPTION ] = array( 'computed_at' => $now, 'mirror_parity' => array( 'ok' => false, 'plugin_only' => array( 'newbot' ), 'worker_only' => array(), 'order_ok' => true ) );
+$kit   = snt_leaf_paint( 'monitoring', 'machine-readers' );
+$drift = mr_leaf_box( $kit, 'Crawler-family drift' );
+ok( false !== strpos( $drift, '<os-notice tone="danger"' ) && false !== strpos( $drift, 'MIRROR PARITY FAILED' ) && false !== strpos( $drift, 'plugin-only: newbot' ) && false === strpos( $drift, 'tone="warning"' ), 'mirror parity failed: a danger notice naming the plugin-only family' );
+// (c) Good on both: the summary is the hint line and no notice is in the box.
+$GLOBALS['__options'][ SN_FAMILY_DRIFT_OK_OPTION ] = array( 'computed_at' => $now, 'mirror_parity' => array( 'ok' => true ), 'ours_unmatched' => array(), 'unobservable' => array(), 'counts' => array( 'worker_families' => 12 ), 'sources' => array( 'worker_commit' => 'abcdef0123' ), 'upstream_unmapped' => array(), 'vendor_gap' => array(), 'respect_flips' => array() );
+$GLOBALS['__anomalies'] = array( 'state' => 'ok', 'counts' => array( 'anomalies' => 0, 'silences' => 0, 'families_eligible' => 4, 'families_seen' => 9 ) );
+$kit   = snt_leaf_paint( 'monitoring', 'machine-readers' );
+$drift = mr_leaf_box( $kit, 'Crawler-family drift' );
+$anoms = mr_leaf_box( $kit, 'Reader behaviour' );
+ok( false === strpos( $drift, '<os-notice' ) && false !== strpos( $drift, '<p class="snt-hint">Plugin and deployed worker agree on 12 families (commit abcdef0)' ), 'drift good: the summary is the hint line, no notice' );
+ok( false === strpos( $anoms, '<os-notice' ) && false !== strpos( $anoms, '<p class="snt-hint">4 of 9 crawler families carry enough presence to measure.' ), 'reader behaviour good: the summary is the hint line, no notice' );
+// (d) A deviation on a measured family: recommended is a warning naming the count.
+$GLOBALS['__anomalies'] = array( 'state' => 'ok', 'counts' => array( 'anomalies' => 2, 'silences' => 1, 'families_eligible' => 4, 'families_seen' => 9 ) );
+$kit   = snt_leaf_paint( 'monitoring', 'machine-readers' );
+$anoms = mr_leaf_box( $kit, 'Reader behaviour' );
+ok( false !== strpos( $anoms, '<os-notice tone="warning"' ) && false !== strpos( $anoms, '2 deviation(s) from the 30-day norm and 1 family-day(s) of total silence' ), 'a deviation and a silence: a warning notice with both counts' );
+ok( array() === snt_leaf_classic_markers( $kit ) && array( 'machine_readers_save' ) === snt_leaf_actions( $kit ), 'still one action and no wp-admin markup with the two boxes painted' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

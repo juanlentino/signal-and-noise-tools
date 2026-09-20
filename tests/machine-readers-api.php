@@ -113,9 +113,37 @@ $auth = $last['args']['headers']['Authorization'] ?? ( $last['args']['headers'][
 ok( 'Bearer test-token' === $auth, 'Bearer token rides the request header' );
 ok( in_array( 'juanlentino.com', $GLOBALS['__ssrf_hosts'], true ), 'outbound host was consulted through the SSRF guard' );
 $GLOBALS['__response'] = array( 'code' => 200, 'body' => '{"data":"not-an-array"}' );
+snt_mr_memo( null ); // a new request (#1635 review: one call per window/view per request)
 $r = snt_mr_fetch( 7 );
 ok( false === $r['ok'], 'schema mismatch fails closed (ok=false)' );
 
+
+echo "\nGroup: #1635 review: one outbound call per (window, view) per request, whatever the outcome\n";
+// The transient keeps successes only, on purpose: a dead sensor must not be
+// remembered for 15 minutes. But the Machine Readers leaf reads the same
+// 30-day window from the hero, the anomalies pipeline and the abilities, and
+// each waited the 6 s timeout in turn when the sensor was down (2 calls per
+// paint, measured). The memo lives for the request; a flush empties it.
+snt_mr_memo( null );
+$GLOBALS['__requests'] = array();
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => '', 'wp_error' => true );
+$hero  = snt_mr_fetch( 30 );
+$anoms = snt_mr_fetch( 30, 'aggregate' ); // what snt_ml_reader_anomalies() asks for
+ok( 1 === count( $GLOBALS['__requests'] ), 'a failed 30-day read is not retried within the request: two callers, one wp_remote_get' );
+ok( false === $hero['ok'] && 'network' === $hero['error'] && $anoms === $hero, 'the second caller gets the same failure verbatim' );
+snt_mr_fetch( 30, 'unknown' );
+ok( 2 === count( $GLOBALS['__requests'] ), 'negative control: another view is another call (the memo is keyed on window and view)' );
+unset( $GLOBALS['__response']['wp_error'] );
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'data' => array() ) ) );
+$still = snt_mr_fetch( 30 );
+ok( 2 === count( $GLOBALS['__requests'] ) && false === $still['ok'], 'within the request the failure stands even once the sensor answers: no third call' );
+snt_mr_cache_flush();
+$fresh = snt_mr_fetch( 30 );
+ok( 3 === count( $GLOBALS['__requests'] ) && true === $fresh['ok'], 'snt_mr_cache_flush() empties the memo: the next read goes out' );
+$fresh_again = snt_mr_fetch( 30 );
+ok( 3 === count( $GLOBALS['__requests'] ) && $fresh_again === $fresh, 'a success is memoized too, with no transient store at all' );
+$GLOBALS['__requests'] = array();
+snt_mr_memo( null );
 echo "\nGroup: 15.5.0 — the WebMCP bridge's tool calls (family webmcp) split off at the fetch\n";
 $GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'worker' => 'sn-rights-signals', 'days' => 7, 'data' => array(
 	array( 'family' => 'openai', 'surface' => 'llms', 'day' => '2026-07-28', 'hits' => 4 ),
@@ -123,6 +151,7 @@ $GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'wo
 	array( 'family' => 'webmcp', 'surface' => 'related-notes', 'purpose' => 'absent', 'day' => '2026-07-28', 'hits' => 5 ),
 	array( 'family' => 'webmcp', 'surface' => 'verify-page', 'purpose' => 'error', 'day' => '2026-07-29', 'hits' => 2 ),
 ) ) ) );
+snt_mr_memo( null ); // a new request
 $r = snt_mr_fetch( 7 );
 ok( true === $r['ok'] && 1 === count( $r['rows'] ) && 'openai' === $r['rows'][0]['family'], 'the rows are page reads only: the three webmcp rows are gone from them' );
 ok( 10 === $r['webmcp']['calls'] && array( 'verify-page' => 5, 'related-notes' => 5 ) === $r['webmcp']['by_tool'], 'the calls have their own figure, by tool, summed across days' );
@@ -138,6 +167,7 @@ echo "\nGroup: v9.85.1 regression — a stored-blank worker_url means the defaul
 $GLOBALS['__settings']['machine_readers.worker_url'] = '';
 $GLOBALS['__settings']['machine_readers.read_token'] = 'test-token';
 $GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'worker' => 'sn-rights-signals', 'days' => 7, 'data' => array() ) ) );
+snt_mr_memo( null ); // a new request
 $r = snt_mr_fetch( 7 );
 ok( true === $r['ok'], 'blank stored URL + token set: fetch works (the v9.85.0 yellow-banner bug)' );
 $last = end( $GLOBALS['__requests'] );

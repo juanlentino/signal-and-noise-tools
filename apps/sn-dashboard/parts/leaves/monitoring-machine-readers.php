@@ -26,6 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/monitoring-machine-readers-parts.php';
+require_once __DIR__ . '/monitoring-machine-readers-health.php';
 
 /**
  * The hero: sensor pipeline pills, then (when the read succeeded) the
@@ -112,7 +113,10 @@ function machine_readers_reference_html( array $d ) {
 function paint_monitoring_machine_readers( array $ctx ) {
 	unset( $ctx );
 	$d = machine_readers_data();
+	// #1599: the two Site Health verdicts about machine readers, one row of
+	// two boxes of a height, under the hero and above the columns.
 	return machine_readers_hero_html( $d )
+		. machine_readers_health_row_html()
 		. '<div class="snt-2up">'
 		. '<div class="snt-2up-col">' . machine_readers_evidence_html( $d ) . '</div>'
 		. '<div class="snt-2up-col">' . machine_readers_reference_html( $d ) . '</div>'
