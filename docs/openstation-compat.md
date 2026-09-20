@@ -338,10 +338,24 @@ which is the assumption the double-fire guard's family-awareness rests on —
 see [REJECT #11](#review-round--reject-11) below.
 
 **PR #549 — "AI: add a filter for the model config sent to the provider."**
-New seam, `openstation_ai_model_config`. Not consumed, and nothing requires
-us to. Noted here because it is a cleaner hook than the `http_request_args`
-route currently used to reach Anthropic-specific request fields, should that
-layer ever be revisited.
+New seam, `openstation_ai_model_config` (Experimental). Consumed since #1613
+by [inc/openstation-agent-output-budget.php](../inc/openstation-agent-output-budget.php):
+on `$context['source'] === 'agents/runner'` it returns `max_tokens` 8192 plus
+`custom_options` `thinking: {type: adaptive}` and `output_config: {effort}`,
+and pins `model` to `SN_AI_DEFAULT_MODEL` as a soft preference, deferring to
+whatever an earlier callback already put there (a config carrying `thinking`
+or `output_config` comes back byte-identical). That replaced
+the `http_request_args` body rewrite the module armed from
+`openstation_agent_runner_generate`, which is no longer consumed. The guard
+reads `openstation_ai_apply_model_config()` on `plugins_loaded`.
+
+**`openstation_agent_abilities_catalogue`** (Experimental, no `desktop_mode_`
+alias) is consumed since #1594 by
+[inc/desktop-mode-ai.php](../inc/desktop-mode-ai.php): the fourteen
+remote-door twins in `sn_mcp_remote_slugs()` drop from the agents Tools
+picker, as they drop from the Copilot tool list on `openstation_ai_tools`.
+The applying function loads on `plugins_loaded` at priority 5 only while the
+agents feature is on, so the guard reads at priority 10.
 
 ## Re-verifying after an upstream release
 
@@ -356,7 +370,7 @@ Then, from the clone, assert that every upstream name this plugin references
 still exists — a count of `0` on any row is the finding:
 
 ```bash
-for n in openstation_agent_completed openstation_agent_runner_generate openstation_agent_tool_result openstation_ai_ability_tool_name openstation_ai_search_completed openstation_ai_system_prompt_appendix openstation_ai_tool_called openstation_ai_tools openstation_dock_items openstation_dock_placement openstation_icon_url openstation_is_enabled openstation_living_tree_traffic openstation_plugins_window_icon_url openstation_register_command openstation_register_icon openstation_register_widget openstation_resolve_script_payload; do printf '%4s  %s\n' "$(grep -rho "\b$n\b" includes/ --include='*.php' | wc -l | tr -d ' ')" "$n"; done
+for n in openstation_agent_abilities_catalogue openstation_agent_completed openstation_agent_runner_generate openstation_agent_tool_result openstation_agents_abilities_catalogue openstation_ai_ability_tool_name openstation_ai_apply_model_config openstation_ai_model_config openstation_ai_search_completed openstation_ai_system_prompt_appendix openstation_ai_tool_called openstation_ai_tools openstation_dock_items openstation_dock_placement openstation_icon_url openstation_is_enabled openstation_living_tree_traffic openstation_plugins_window_icon_url openstation_register_command openstation_register_icon openstation_register_widget openstation_resolve_script_payload; do printf '%4s  %s\n' "$(grep -rho "\b$n\b" includes/ --include='*.php' | wc -l | tr -d ' ')" "$n"; done
 ```
 
 Regenerate that name list from our own source rather than pasting it, so a

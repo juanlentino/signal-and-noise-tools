@@ -1,12 +1,10 @@
 <?php
 /**
- * Standalone fixture tests for inc/openstation-agent-output-budget.php —
- * the WordPress/openstation#517 seam, corrected: raising max_tokens alone
- * was FALSIFIED live (thinking is ceiling-bounded and consumes any raise);
- * the working configuration injects Claude 5's adaptive thinking + an
- * effort level (demand-bounded thinking) and gives the pinned ceiling
- * text headroom. Armed only during agent runs, Claude-5-only, deferential
- * to any existing config, byte-identical pass-through otherwise.
+ * Standalone fixture tests for inc/openstation-agent-output-budget.php: the
+ * agent-run generation budget on OpenStation's openstation_ai_model_config
+ * seam (#1613). Adaptive thinking plus an effort level (demand-bounded
+ * thinking) and a raised ceiling, on the agents runner only, both keys
+ * leaving together or neither; the body rewrite it replaced is gone.
  *
  * Run: php tests/openstation-agent-output-budget.php
  */
@@ -17,13 +15,14 @@ define( 'ABSPATH', '/' );
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
-// ── WP stubs ─────────────────────────────────────────────────────────
-// apply_filters honours priority ([[test-stub-drift-invents-shapes]] /
-// the v9.53.2 harness lesson: a stub replaying registration order cannot
-// express "runs last").
+/* WP stubs. apply_filters honours priority and accepted_args. */
 $GLOBALS['__filters'] = array();
+$GLOBALS['__actions'] = array();
 function add_filter( $hook, $cb, $p = 10, $a = 1 ) {
 	$GLOBALS['__filters'][ $hook ][] = array( 'cb' => $cb, 'p' => $p, 'a' => $a );
+}
+function add_action( $hook, $cb, $p = 10, $a = 1 ) {
+	$GLOBALS['__actions'][ $hook ][] = $cb;
 }
 function has_filter( $hook, $cb = false ) {
 	if ( empty( $GLOBALS['__filters'][ $hook ] ) ) { return false; }
@@ -42,144 +41,123 @@ function apply_filters( $hook, $value, ...$args ) {
 	}
 	return $value;
 }
+function fire( $hook ) {
+	foreach ( $GLOBALS['__actions'][ $hook ] ?? array() as $cb ) { $cb(); }
+}
 function wp_json_encode( $data ) { return json_encode( $data ); }
 
+// The loader's first OpenStation module (signal-and-noise-tools.php); every
+// openstation-*.php may call into it, so the harness loads it the same way.
 require_once __DIR__ . '/../inc/openstation-compat.php';
 require_once __DIR__ . '/../inc/openstation-agent-output-budget.php';
 
-echo "openstation-agent-output-budget — #517 seam (adaptive+effort)\n\n";
+echo "openstation-agent-output-budget: the agent budget on openstation_ai_model_config (#1613)\n\n";
 
-$anthropic = 'https://api.anthropic.com/v1/messages';
-function snt_test_body( $over = array() ) {
-	return json_encode( array_merge( array(
-		'model'      => 'claude-sonnet-5',
-		'max_tokens' => 4096,
-		'messages'   => array( array( 'role' => 'user', 'content' => 'hi' ) ),
-	), $over ) );
+$runner = array( 'source' => 'agents/runner', 'user_id' => 7, 'request_id' => 'r1', 'has_tools' => true, 'has_schema' => true );
+
+/* 1. Registration. The seam is Experimental; the guard reads on
+ *    plugins_loaded for openstation_ai_apply_model_config(), the function
+ *    in includes/ai-copilot/client.php that applies the filter. First fire
+ *    with the function absent: the guard must FAIL. */
+
+ok( ! function_exists( 'snt_agent_budget_shape' ), 'the http_request_args body rewrite is gone (snt_agent_budget_shape is not defined)' );
+ok( ! function_exists( 'snt_agent_budget_arm' ), 'the runner pre-filter arm is gone (snt_agent_budget_arm is not defined)' );
+ok( false === has_filter( 'http_request_args' ), 'nothing of ours sits on http_request_args' );
+
+fire( 'plugins_loaded' );
+ok( false === has_filter( 'openstation_ai_model_config' ), 'without OpenStation the seam is not hooked: the guard can fail' );
+
+// Declared conditionally so it is not hoisted above the first fire.
+if ( ! function_exists( 'openstation_ai_apply_model_config' ) ) {
+	function openstation_ai_apply_model_config( $builder, array $context ) { return $builder; }
 }
+fire( 'plugins_loaded' );
+ok( 10 === has_filter( 'openstation_ai_model_config', 'snt_agent_model_config' ), 'with the client present the seam is hooked at priority 10 after plugins_loaded' );
+ok( 2 === $GLOBALS['__filters']['openstation_ai_model_config'][0]['a'], 'registered with accepted_args 2: the source lives in $context' );
+ok( false === has_filter( 'http_request_args' ), 'and still nothing on http_request_args once plugins_loaded has fired with the client present (a re-arm inside the closure would land here)' );
 
-/* ════════════════════════════════════════════════════════════════════════
- * 1. Registration — the arm callback rides the runner pre-filter seam
- *    under BOTH hook families; the shaper exists only after an agent run
- *    arms it (the Copilot and SN's own AI calls never see it).
- * ════════════════════════════════════════════════════════════════════════ */
+/* 2. The shaping on the agents runner. */
 
-ok( false !== has_filter( 'desktop_mode_agent_runner_generate', 'snt_agent_budget_arm' ), 'arm registered on desktop_mode_agent_runner_generate' );
-ok( false !== has_filter( 'openstation_agent_runner_generate', 'snt_agent_budget_arm' ), 'arm registered on openstation_agent_runner_generate (rename-ready)' );
-ok( false === has_filter( 'http_request_args', 'snt_agent_budget_shape' ), 'shaper NOT hooked before any agent run' );
+$out = apply_filters( 'openstation_ai_model_config', array(), $runner );
+ok( 8192 === ( $out['max_tokens'] ?? null ), 'agents/runner: max_tokens 8192 (headroom for the answer plus markup-bearing tool calls)' );
+ok( 'adaptive' === ( $out['custom_options']['thinking']['type'] ?? null ), 'agents/runner: custom_options.thinking.type adaptive (the Claude 5 shape)' );
+ok( 'low' === ( $out['custom_options']['output_config']['effort'] ?? null ), 'agents/runner: custom_options.output_config.effort low (the live-verified default)' );
+ok( array( 'thinking', 'output_config' ) === array_keys( (array) ( $out['custom_options'] ?? array() ) ), 'exactly the two provider-native keys travel, nothing the connector could refuse' );
+ok( ! isset( $out['model'] ), 'no model pin while SN_AI_DEFAULT_MODEL is undefined (the client picks)' );
+ok( ! isset( $out['temperature'] ), 'temperature is left to the client' );
 
-/* ════════════════════════════════════════════════════════════════════════
- * 2. Arming — pass-through contract + idempotence.
- * ════════════════════════════════════════════════════════════════════════ */
+/* 3. Every other source comes back untouched. */
 
-ok( null === snt_agent_budget_arm( null ), 'arm returns null unchanged (runner proceeds to the AI Client)' );
-$sentinel = array( 'text' => 'short-circuit', 'function_calls' => array() );
-ok( $sentinel === snt_agent_budget_arm( $sentinel ), 'arm returns a non-null pre-filter result byte-identical' );
-ok( PHP_INT_MAX === has_filter( 'http_request_args', 'snt_agent_budget_shape' ), 'arming hooks the shaper at PHP_INT_MAX (runs last, sees the final body)' );
-
-snt_agent_budget_arm( null );
-$count = 0;
-foreach ( $GLOBALS['__filters']['http_request_args'] as $entry ) {
-	if ( 'snt_agent_budget_shape' === $entry['cb'] ) { $count++; }
+foreach ( array( 'ai-copilot/search', 'ai-copilot/followup', 'ai-copilot/comment-analysis', 'widgets/drafts-suggestions', 'mio/window', '' ) as $source ) {
+	$out = apply_filters( 'openstation_ai_model_config', array(), array( 'source' => $source ) );
+	ok( array() === $out, "source '$source': the config comes back empty" );
 }
-ok( 1 === $count, 'arming twice does not double-hook the shaper' );
+$foreign = array( 'temperature' => 0.2, 'custom_options' => array( 'metadata' => array( 'x' => 1 ) ) );
+ok( $foreign === apply_filters( 'openstation_ai_model_config', $foreign, array( 'source' => 'ai-copilot/search' ) ), "another plugin's config on another source is byte-identical" );
+ok( array() === apply_filters( 'openstation_ai_model_config', array(), array() ), 'a context with no source is not the runner' );
+ok( function_exists( 'snt_agent_model_config' ) && array() === snt_agent_model_config( 'nope', array( 'source' => 'ai-copilot/search' ) ), 'a non-array config is normalised to an empty array, never echoed' );
+ok( function_exists( 'snt_agent_model_config' ) && 8192 === ( snt_agent_model_config( null, $runner )['max_tokens'] ?? null ), 'a null config on the runner is shaped from empty' );
 
-/* ════════════════════════════════════════════════════════════════════════
- * 3. Model-family gate.
- * ════════════════════════════════════════════════════════════════════════ */
+/* 3b. Deference. The seam starts empty, but WP convention is that priority
+ *     10 builds on priority 5, and OpenStation already stores a per-agent
+ *     model override the runner could one day feed in. */
 
-ok( snt_agent_budget_model_is_claude5( 'claude-sonnet-5' ), 'claude-sonnet-5 is Claude 5 family' );
-ok( snt_agent_budget_model_is_claude5( 'claude-fable-5' ), 'claude-fable-5 is Claude 5 family' );
-ok( snt_agent_budget_model_is_claude5( 'claude-opus-5.1' ), 'a point release stays in family' );
-ok( ! snt_agent_budget_model_is_claude5( 'claude-haiku-4-5-20251001' ), 'claude-haiku-4-5 is NOT (4.5 family, enabled-shape thinking API)' );
-ok( ! snt_agent_budget_model_is_claude5( 'claude-opus-4-1' ), 'claude-opus-4-1 is NOT' );
-ok( ! snt_agent_budget_model_is_claude5( 'gpt-5' ), 'non-Claude model is NOT' );
+$prior = array(
+	'model'          => 'claude-opus-5',
+	'max_tokens'     => 16384,
+	'custom_options' => array(
+		'metadata'      => array( 'user_id' => 'u7' ),
+		'thinking'      => array( 'type' => 'adaptive' ),
+		'output_config' => array( 'effort' => 'high' ),
+	),
+);
+add_filter( 'openstation_ai_model_config', function () use ( $prior ) { return $prior; }, 5, 2 );
+ok( function_exists( 'snt_agent_model_config' ) && $prior === apply_filters( 'openstation_ai_model_config', array(), $runner ), 'a priority-5 config already carrying thinking and output_config (metadata, 16384, effort high, a model) comes back byte-identical: the pin defers' );
+$GLOBALS['__filters']['openstation_ai_model_config'] = array_values( array_filter( $GLOBALS['__filters']['openstation_ai_model_config'], function ( $e ) { return 5 !== $e['p']; } ) );
 
-/* ════════════════════════════════════════════════════════════════════════
- * 4. Byte-identical pass-throughs — every non-matching shape.
- * ════════════════════════════════════════════════════════════════════════ */
+$partial = array( 'model' => 'claude-opus-5', 'max_tokens' => 16384, 'custom_options' => array( 'metadata' => array( 'user_id' => 'u7' ) ) );
+$out     = function_exists( 'snt_agent_model_config' ) ? snt_agent_model_config( $partial, $runner ) : array();
+ok( 16384 === ( $out['max_tokens'] ?? null ), 'a ceiling an earlier callback raised above 8192 stays: the pin only ever raises' );
+ok( array( 'user_id' => 'u7' ) === ( $out['custom_options']['metadata'] ?? null ), 'a sibling custom_options key (metadata) survives: the pin adds, never replaces' );
+ok( 'low' === ( $out['custom_options']['output_config']['effort'] ?? null ) && 'adaptive' === ( $out['custom_options']['thinking']['type'] ?? null ), 'and the two thinking keys still land beside it' );
+ok( 'claude-opus-5' === ( $out['model'] ?? null ), 'a model an earlier callback chose stays (SN_AI_DEFAULT_MODEL is still undefined here; see 4)' );
 
-$args = array( 'body' => snt_test_body(), 'timeout' => 30 );
-ok( $args === snt_agent_budget_shape( $args, 'https://api.openai.com/v1/chat/completions' ), 'non-Anthropic URL untouched' );
-ok( $args === snt_agent_budget_shape( $args, 'https://api.anthropic.com/v1/models' ), 'Anthropic non-messages endpoint untouched' );
+/* 4. The model pin. SN_AI_DEFAULT_MODEL loads later than this module in
+ *    production (inc/ai-bootstrap.php), so the read is at filter time. */
 
-$a = array( 'body' => snt_test_body( array( 'model' => 'claude-haiku-4-5-20251001' ) ) );
-ok( $a === snt_agent_budget_shape( $a, $anthropic ), 'non-Claude-5 model untouched — the effort keys would 400 on the older API shape' );
+define( 'SN_AI_DEFAULT_MODEL', 'claude-sonnet-5' );
+$out = apply_filters( 'openstation_ai_model_config', array(), $runner );
+ok( 'claude-sonnet-5' === ( $out['model'] ?? null ), 'with SN_AI_DEFAULT_MODEL defined the runner turn prefers it: the thinking keys are a Claude 5 shape and the seam carries no resolved model to gate on' );
+ok( function_exists( 'snt_agent_model_config' ) && 'claude-opus-5' === ( snt_agent_model_config( array( 'model' => 'claude-opus-5' ), $runner )['model'] ?? null ), 'and with the constant defined a model an earlier callback chose still wins: the constant fills a gap, never overrides' );
 
-$a = array( 'body' => '{not json' );
-ok( $a === snt_agent_budget_shape( $a, $anthropic ), 'malformed JSON body passes through untouched' );
-
-$a = array( 'timeout' => 30 );
-ok( $a === snt_agent_budget_shape( $a, $anthropic ), 'args with no body key pass through untouched' );
-
-$a = array( 'body' => array( 'model' => 'claude-sonnet-5' ) );
-ok( $a === snt_agent_budget_shape( $a, $anthropic ), 'a non-string (already-array) body passes through untouched' );
-
-$a = array( 'body' => snt_test_body( array( 'thinking' => array( 'type' => 'adaptive' ), 'output_config' => array( 'effort' => 'high' ), 'max_tokens' => 8192 ) ) );
-ok( $a === snt_agent_budget_shape( $a, $anthropic ), 'a request that already carries thinking + output_config + a non-pinned ceiling is FULLY untouched — the seam self-neutralizes when upstream ships its own config' );
-
-/* ════════════════════════════════════════════════════════════════════════
- * 5. The shaping — injection + headroom on the matching request.
- * ════════════════════════════════════════════════════════════════════════ */
-
-$args   = array( 'body' => snt_test_body(), 'timeout' => 30 );
-$shaped = snt_agent_budget_shape( $args, $anthropic );
-$body   = json_decode( $shaped['body'], true );
-ok( array( 'type' => 'adaptive' ) === ( $body['thinking'] ?? null ), 'thinking: adaptive injected' );
-ok( array( 'effort' => 'low' ) === ( $body['output_config'] ?? null ), 'output_config: effort low injected (the live-verified default)' );
-ok( 8192 === ( $body['max_tokens'] ?? null ), 'pinned 4096 raised to 8192 (headroom for answer + markup-bearing tool calls)' );
-ok( 30 === $shaped['timeout'], 'sibling args keys preserved' );
-$before = json_decode( $args['body'], true );
-unset( $before['max_tokens'], $body['max_tokens'], $body['thinking'], $body['output_config'] );
-ok( $before === $body, 'every other body field byte-equal after the shaping' );
-
-/* ════════════════════════════════════════════════════════════════════════
- * 6. Deference — partial existing config suppresses injection but not the
- *    headroom, and vice versa.
- * ════════════════════════════════════════════════════════════════════════ */
-
-$a      = array( 'body' => snt_test_body( array( 'thinking' => array( 'type' => 'adaptive' ) ) ) );
-$shaped = snt_agent_budget_shape( $a, $anthropic );
-$body   = json_decode( $shaped['body'], true );
-ok( ! isset( $body['output_config'] ), 'existing thinking config suppresses the effort injection entirely' );
-ok( 8192 === ( $body['max_tokens'] ?? null ), '…but the pinned ceiling still gets its headroom' );
-
-$a      = array( 'body' => snt_test_body( array( 'max_tokens' => 6144 ) ) );
-$shaped = snt_agent_budget_shape( $a, $anthropic );
-$body   = json_decode( $shaped['body'], true );
-ok( 6144 === ( $body['max_tokens'] ?? null ), 'a non-pinned ceiling (6144) is never rewritten — someone already decided' );
-ok( array( 'effort' => 'low' ) === ( $body['output_config'] ?? null ), '…but the effort injection still applies' );
-
-/* ════════════════════════════════════════════════════════════════════════
- * 7. Filters — effort level, effort disable, ceiling raise-only.
- * ════════════════════════════════════════════════════════════════════════ */
+/* 5. Filters: effort level, effort disable, the ceiling. */
 
 add_filter( 'snt_agent_anthropic_effort', function () { return 'medium'; } );
-$body = json_decode( snt_agent_budget_shape( array( 'body' => snt_test_body() ), $anthropic )['body'], true );
-ok( array( 'effort' => 'medium' ) === ( $body['output_config'] ?? null ), 'snt_agent_anthropic_effort filter honoured' );
-
+$out = apply_filters( 'openstation_ai_model_config', array(), $runner );
+ok( 'medium' === ( $out['custom_options']['output_config']['effort'] ?? null ), 'snt_agent_anthropic_effort filter honoured' );
 $GLOBALS['__filters']['snt_agent_anthropic_effort'] = array();
+
 add_filter( 'snt_agent_anthropic_effort', function () { return 'turbo'; } );
-$body = json_decode( snt_agent_budget_shape( array( 'body' => snt_test_body() ), $anthropic )['body'], true );
-ok( ! isset( $body['thinking'] ) && ! isset( $body['output_config'] ), 'a non-whitelisted effort value disables the injection' );
-// #1230: mirrors inc/insights-generation-budget.php's guard. With thinking
-// left UNBOUNDED (the effort injection disabled), the ceiling raise must
-// NOT apply — raising max_tokens on an unbounded request just makes the
-// eventual timeout bigger, exactly the failure the sibling seam already
-// refuses (v13.20.5).
-ok( 4096 === ( $body['max_tokens'] ?? null ), '…and the ceiling raise is WITHHELD — thinking is unbounded, so headroom would go to thinking, not the answer' );
+$out = apply_filters( 'openstation_ai_model_config', array(), $runner );
+ok( array() === $out, 'a value outside low/medium/high disables the shaping entirely: no keys, no ceiling raise, no model pin (unbounded thinking would eat the headroom)' );
 $GLOBALS['__filters']['snt_agent_anthropic_effort'] = array();
 
 add_filter( 'snt_agent_anthropic_max_tokens', function () { return 16384; } );
-$body = json_decode( snt_agent_budget_shape( array( 'body' => snt_test_body() ), $anthropic )['body'], true );
-ok( 16384 === ( $body['max_tokens'] ?? null ), 'snt_agent_anthropic_max_tokens filter honoured' );
+$out = apply_filters( 'openstation_ai_model_config', array(), $runner );
+ok( 16384 === ( $out['max_tokens'] ?? null ), 'snt_agent_anthropic_max_tokens filter honoured' );
 $GLOBALS['__filters']['snt_agent_anthropic_max_tokens'] = array();
 
 add_filter( 'snt_agent_anthropic_max_tokens', function () { return 1024; } );
-$body = json_decode( snt_agent_budget_shape( array( 'body' => snt_test_body() ), $anthropic )['body'], true );
-ok( 4096 === ( $body['max_tokens'] ?? null ), 'a filtered ceiling at or below the pin leaves the ceiling untouched — this seam only ever raises' );
-ok( array( 'effort' => 'low' ) === ( $body['output_config'] ?? null ), '…and the injection still lands, so the request is still shaped' );
+$out = apply_filters( 'openstation_ai_model_config', array(), $runner );
+ok( 4096 === ( $out['max_tokens'] ?? null ), "a filtered ceiling at or below the client's 4096 pin leaves the pin: this seam only ever raises" );
+ok( 'low' === ( $out['custom_options']['output_config']['effort'] ?? null ), 'and the effort still lands, so the request is still shaped' );
 $GLOBALS['__filters']['snt_agent_anthropic_max_tokens'] = array();
+
+/* 6. The module never reads the wire. */
+
+$src = (string) file_get_contents( __DIR__ . '/../inc/openstation-agent-output-budget.php' );
+ok( false === strpos( $src, "'http_request_args'" ), "no 'http_request_args' hook literal anywhere in the module (the history paragraph names it in backticks)" );
+ok( false === strpos( $src, 'json_decode' ) && false === strpos( $src, 'wp_json_encode' ), 'no JSON decode or re-encode: the client builds the body' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

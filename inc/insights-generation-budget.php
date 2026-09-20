@@ -10,7 +10,9 @@
  *
  * RAISING THE CEILING DOES NOT FIX IT, and this is the second time that has
  * been established here. v10.53.0 tried it on the agent path and was falsified
- * the same night (see inc/openstation-agent-output-budget.php); v13.20.5 tried
+ * the same night (the history is in inc/openstation-agent-output-budget.php's
+ * docblock; since #1613 that module rides openstation_ai_model_config, a seam
+ * this SN-only call never reaches); v13.20.5 tried
  * it here, 2048 -> 4096, and the bigger thinking block simply took longer than
  * the 30s HTTP timeout — cURL error 28, 0 bytes received. Do not try it a third
  * time.

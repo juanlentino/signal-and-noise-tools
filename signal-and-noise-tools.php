@@ -75,7 +75,7 @@ require_once SNT_PATH . 'inc/openstation-mio.php';          // 14.8.0: MIO in th
 require_once SNT_PATH . 'inc/openstation-pwa-icons.php';  // v13.96.4 (#1017): the Site-Icon-derived manifest declared 192x192 on a 300x300 RGBA file; iOS composited the alpha to black behind dark ink
 require_once SNT_PATH . 'inc/openstation-app.php';       // v13.98.0: the Signal & Noise window on the App Framework (apps/signal-noise), successor to the WP Explorer folder that 1.1.6 retired.
 require_once SNT_PATH . 'inc/openstation-host.php';      // #1074: the HOST seams -- capture, rewrite, replay, assets -- that let the classic admin page paint inside a window unchanged (apps/sn-dashboard).
-require_once SNT_PATH . 'inc/openstation-agent-output-budget.php'; // WordPress/openstation#517 seam: inject adaptive thinking + effort (Claude 5) and ceiling headroom on agent-run generations; inert while the agents feature is off; remove per the conditions in its docblock (openstation#530/#531)
+require_once SNT_PATH . 'inc/openstation-agent-output-budget.php'; // #1613: adaptive thinking + effort (Claude 5) and ceiling headroom on agent-run generations, on openstation_ai_model_config; inert while the agents feature is off
 require_once SNT_PATH . 'inc/settings.php';
 require_once SNT_PATH . 'inc/config-drift.php'; // R6a: durable effective-settings baseline + unexplained-drift diff
 require_once SNT_PATH . 'inc/beacon-owner-exclusion.php'; // v6.23.0: Plausible-style owner/role analytics exclusion (sn_beacon_enabled filter)

@@ -1200,6 +1200,10 @@ echo "\n── v9.52.5: the AI Copilot tool-schema normalizer ──\n";
 // a path nobody knew existed. desktop_mode_ai_tools exists to "transform the
 // full tool list just before it goes to the provider" — that's the seam.
 require_once __DIR__ . '/../inc/mcp/mcp-tools.php';
+// #1594: the prune list appends sn_mcp_remote_slugs(), which the loader
+// requires before this module (signal-and-noise-tools.php); the suite loads it
+// the same way, before the first apply.
+require_once __DIR__ . '/../inc/mcp/mcp-remote-guard.php';
 
 ok( isset( $GLOBALS['__filters']['desktop_mode_ai_tools'] ), 'the desktop_mode_ai_tools filter is registered' );
 
@@ -1548,6 +1552,7 @@ $prune_in    = array(
 	array( 'type' => 'function', 'name' => 'pattern_adoption_suggest',      'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // ours — prune
 	array( 'type' => 'function', 'name' => 'export_audit_log',              'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // ours — prune
 	array( 'type' => 'function', 'name' => 'block_migrations_suggest',      'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // ours — prune
+	array( 'type' => 'function', 'name' => 'remote_get_analytics_summary',  'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // ours, a remote-door twin: prune (#1594)
 	array( 'type' => 'function', 'name' => 'get_analytics_summary',         'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // ours — EARNS its rent, keep
 	array( 'type' => 'function', 'name' => 'search_posts',                  'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // desktop-mode's own, keep
 	array( 'type' => 'function', 'name' => 'get_active_template_structure', 'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // the THEME's, keep
@@ -1567,8 +1572,45 @@ ok( in_array( 'search_posts', $prune_names, true ),
 	"desktop-mode's OWN tool is never pruned — we prune only ours" );
 ok( in_array( 'get_active_template_structure', $prune_names, true ),
 	"the THEME's tool is never pruned either — not ours to cut" );
+ok( ! in_array( 'remote_get_analytics_summary', $prune_names, true ),
+	'remote_get_analytics_summary is pruned: its permission callback passes only the bridge principal, so the in-process Copilot loop can never run it (#1594)' );
 ok( count( $prune_out ) === 3,
-	'exactly the three approved tools were removed; the other three survive' );
+	'exactly the four listed tools were removed; the other three survive' );
+ok( count( array_intersect( sn_mcp_remote_slugs(), snt_dm_ai_pruned_abilities() ) ) === count( sn_mcp_remote_slugs() ),
+	'every slug the remote guard owns is on the prune list, so a twin added there drops from the Copilot without a second edit (#1594)' );
+
+echo "\n── #1594: the agents Tools picker drops the remote-door twins ──\n";
+// openstation_agent_abilities_catalogue is applied by
+// openstation_agents_abilities_catalogue(), which OpenStation requires on
+// plugins_loaded:5 only while agents are on. The guard reads at priority 10.
+// First fire: the function is absent and the guard must FAIL (no filter).
+fire( 'plugins_loaded' );
+ok( empty( $GLOBALS['__filters']['openstation_agent_abilities_catalogue'] ),
+	'without the picker function the catalogue seam is not hooked: the guard can fail' );
+// The stub is declared conditionally so it is not hoisted above the first fire.
+if ( ! function_exists( 'openstation_agents_abilities_catalogue' ) ) {
+	function openstation_agents_abilities_catalogue() { return array(); }
+}
+fire( 'plugins_loaded' );
+ok( ! empty( $GLOBALS['__filters']['openstation_agent_abilities_catalogue'] ),
+	'with the picker function present the catalogue seam is hooked after plugins_loaded (#1594)' );
+$catalogue_in  = array(
+	array( 'slug' => 'signal-noise/remote-search-drift',  'label' => 'Remote search drift', 'description' => '', 'category' => 'signal-noise', 'readonly' => true ),
+	array( 'slug' => 'signal-noise/get-analytics-summary', 'label' => 'Analytics summary',   'description' => '', 'category' => 'signal-noise', 'readonly' => true ),
+	array( 'slug' => 'openstation/search-posts',           'label' => 'Search posts',        'description' => '', 'category' => 'openstation',  'readonly' => true ),
+);
+$catalogue_out = apply_filters( 'openstation_agent_abilities_catalogue', $catalogue_in );
+$catalogue_slugs = array_map( static function ( $r ) { return is_array( $r ) ? ( $r['slug'] ?? '' ) : ''; }, $catalogue_out );
+ok( ! in_array( 'signal-noise/remote-search-drift', $catalogue_slugs, true ),
+	'a remote-door twin is gone from the picker: the runner executes in-process and the twin refuses everyone but the bridge (#1594)' );
+ok( in_array( 'signal-noise/get-analytics-summary', $catalogue_slugs, true ),
+	'a local SN ability keeps its row' );
+ok( in_array( 'openstation/search-posts', $catalogue_slugs, true ),
+	"OpenStation's own row is untouched" );
+ok( array( 0, 1 ) === array_keys( $catalogue_out ),
+	'the surviving rows are re-indexed (a list, not a sparse map)' );
+ok( 'nope' === apply_filters( 'openstation_agent_abilities_catalogue', 'nope' ),
+	'a non-array catalogue passes through untouched' );
 
 echo "\n── v9.59.0: the analytics-vocabulary appendix (every word is rent) ──\n";
 ok( isset( $GLOBALS['__filters']['desktop_mode_ai_system_prompt_appendix'] ),
