@@ -15,10 +15,13 @@
  *      kind via wp.os.myWordpress.registerEntityKind(): cover-art grid with
  *      a right-hand preview pane (roles, identifiers, track list with
  *      per-track roles + Spotify/Muso links). Fetches the plugin's own
- *      /desktop/discography route with window.fetch + the inline-config
- *      nonce — NOT wp.apiFetch, because the shell's lazy loader injects
- *      script tags by URL and never walks the dependency graph, so nothing
- *      here may assume another handle ran first (the REJECT #11 lesson).
+ *      /desktop/discography route through the shell's fetch, which stamps
+ *      its REST nonce at call time and refreshes it on every heartbeat tick
+ *      (an inline nonce went stale once the shell, a PWA, sat open past the
+ *      nonce window). NOT wp.apiFetch, because the shell's lazy loader
+ *      injects script tags by URL and never walks the dependency graph, so
+ *      nothing here may assume another handle ran first (the REJECT #11
+ *      lesson).
  *
  * ABSENT IS NOT ZERO. A Note without `sn_provenance` is unsigned — the badge
  * and pane render NOTHING, never an empty ledger. A discography fetch error
@@ -55,6 +58,16 @@
 	function osApi() {
 		var wp = window.wp || {};
 		return wp.os || wp.desktop || null;
+	}
+
+	/**
+	 * The shell's fetch (its heartbeat-refreshed REST nonce rides along), or
+	 * the bare one when no shell is live, which the callers' non-ok branch
+	 * then reports rather than painting an empty shelf.
+	 */
+	function shellFetch( url, init ) {
+		var api = osApi();
+		return api && typeof api.fetch === 'function' ? api.fetch( url, init ) : window.fetch( url, init );
 	}
 
 	function notesEntityId() {
@@ -204,11 +217,7 @@
 			if ( ! ctx || ! ctx.container || ctx.groupId !== ( conf.groupId || 'plugin:signal-and-noise-tools' ) || ! conf.notesCountUrl ) {
 				return;
 			}
-			var countPromise = window
-				.fetch( conf.notesCountUrl, {
-					credentials: 'same-origin',
-					headers: { 'X-WP-Nonce': conf.restNonce || '' }
-				} )
+			var countPromise = shellFetch( conf.notesCountUrl, { credentials: 'same-origin' } )
 				.then( function ( response ) {
 					if ( ! response.ok ) {
 						throw new Error( 'HTTP ' + response.status );
@@ -276,11 +285,7 @@
 		if ( ! url ) {
 			return Promise.reject( new Error( 'no-endpoint' ) );
 		}
-		discographyPromise = window
-			.fetch( url, {
-				credentials: 'same-origin',
-				headers: { 'X-WP-Nonce': cfg().restNonce || '' }
-			} )
+		discographyPromise = shellFetch( url, { credentials: 'same-origin' } )
 			.then( function ( response ) {
 				if ( ! response.ok ) {
 					throw new Error( 'HTTP ' + response.status );

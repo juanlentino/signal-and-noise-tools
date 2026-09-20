@@ -20,12 +20,15 @@
 		if ( ! config.endpoint ) {
 			return Promise.reject( new Error( __( 'Missing preferences endpoint.', 'signal-and-noise-tools' ) ) );
 		}
-		return window.fetch( config.endpoint, {
+		// The shell's fetch stamps its own REST nonce header, refreshed on
+		// every heartbeat tick; a nonce localized at load went stale once the
+		// shell (a PWA) sat open past the nonce window. save() runs on a click,
+		// so the shell API exists by then.
+		return window.wp.os.fetch( config.endpoint, {
 			method: 'POST',
 			credentials: 'same-origin',
 			headers: {
-				'Content-Type': 'application/json',
-				'X-WP-Nonce': config.nonce
+				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify( patch )
 		} ).then( function( response ) {

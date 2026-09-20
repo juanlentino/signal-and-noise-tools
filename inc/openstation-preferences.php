@@ -353,7 +353,6 @@ function snt_os_enqueue_settings_script() {
 		'sntOpenStationPreferences',
 		array(
 			'endpoint'    => rest_url( 'signal-noise/v1/openstation/preferences' ),
-			'nonce'       => wp_create_nonce( 'wp_rest' ),
 			'preferences' => snt_os_native_window_preferences(),
 		)
 	);
