@@ -11,7 +11,9 @@
  * classic `<form>` and one `sn_action` (`security_digest_save`), the click
  * differentiated by an extra `sn_digest_test` field only the test button
  * carries. Same readings, same field names, same one action; the kit's parts
- * instead of wp-admin's.
+ * instead of wp-admin's. Beside the status card, a "Breached passwords" box
+ * (security-login-defense-parts.php) carries the viewer's login memo and the
+ * Site Health row's figures, two classic readings that had no leaf at all.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -22,6 +24,8 @@ namespace SignalNoise\OpenStationHost\Dashboard\Leaves;
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
+
+require_once __DIR__ . '/security-login-defense-parts.php';
 
 /**
  * The worker-status readout, read the way the classic leaf reads it.
@@ -161,7 +165,11 @@ function paint_security_login_defense( array $ctx ) {
 	if ( '' !== $analytics_url ) {
 		$status_inner .= \snt_kit_door( __( 'View login defense analytics →', 'signal-and-noise-tools' ), $analytics_url );
 	}
-	$out = \snt_kit_section( __( 'Login guard status', 'signal-and-noise-tools' ), $status_inner );
+	$status_box = \snt_kit_section( __( 'Login guard status', 'signal-and-noise-tools' ), $status_inner );
+	// 17.2.1: boxes share a row. A side that paints nothing (module absent)
+	// leaves the status box at full width.
+	$breach = login_defense_breach_html();
+	$out    = '' === $breach ? $status_box : \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $status_box . $breach );
 
 	// v7.2.1: the digest settings card mounts AFTER the status card (mirrors
 	// the classic leaf's own ordering — see inc/login-defense.php).

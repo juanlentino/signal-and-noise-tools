@@ -174,9 +174,10 @@ function sn_hibp_login_memo( $user_id ) {
  *
  * @param array|null $memo
  * @param string     $profile_url
+ * @param string     $link_html   Optional painted link standing in for the anchor (the native leaf passes a kit door).
  * @return string HTML-safe text with one link.
  */
-function sn_hibp_login_notice_html( $memo, $profile_url ) {
+function sn_hibp_login_notice_html( $memo, $profile_url, $link_html = '' ) {
 	if ( ! is_array( $memo ) || SN_HIBP_BREACHED !== (string) ( $memo['verdict'] ?? '' ) ) {
 		return '';
 	}
@@ -184,7 +185,7 @@ function sn_hibp_login_notice_html( $memo, $profile_url ) {
 		/* translators: 1: number of breaches the password appears in, 2: profile URL. */
 		esc_html__( 'Your current password appears %1$s times in known data breaches. It still works, but change it — %2$s.', 'signal-and-noise-tools' ),
 		esc_html( number_format_i18n( (int) ( $memo['count'] ?? 0 ) ) ),
-		'<a href="' . esc_url( $profile_url ) . '">' . esc_html__( 'open your profile', 'signal-and-noise-tools' ) . '</a>'
+		'' !== (string) $link_html ? (string) $link_html : '<a href="' . esc_url( $profile_url ) . '">' . esc_html__( 'open your profile', 'signal-and-noise-tools' ) . '</a>'
 	);
 }
 
