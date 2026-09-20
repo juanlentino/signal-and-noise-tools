@@ -3,7 +3,8 @@
  *
  * Generic list mechanics for the Content → Resume Page structured form:
  * [data-rsm-add] clones its <template data-rsm-tpl> into the matching
- * [data-rsm-list]; row controls move or remove their [data-rsm-row].
+ * [data-rsm-list]; row controls (<button> or <os-button>) move or remove
+ * their [data-rsm-row].
  *
  * Nested lists: templates bake placeholder tokens (declared as
  * data-rsm-token) into input names and data-rsm ids. At clone time every
@@ -12,7 +13,10 @@
  * traversable), so no markup strings are ever written. PHP receives string
  * array keys and reindexes at normalize, so uniqueness is all that matters.
  *
- * Self-gating: no [data-rsm-add] on the page → this file does nothing.
+ * Self-gating: with no [data-rsm-add] and no [data-rsm-row] on the page this
+ * file does nothing. The native Resume leaf (apps/sn-dashboard/parts/leaves/
+ * content-resume-parts.php) has rows but no add button: its arrows are kit
+ * <os-button>s with the same class names, so only the move branch runs there.
  */
 ( function () {
 	'use strict';
@@ -62,7 +66,9 @@
 	}
 
 	document.addEventListener( 'click', function ( e ) {
-		var btn = e.target.closest ? e.target.closest( 'button' ) : null;
+		// A click inside an <os-button> retargets to the host at this
+		// listener (shadow root), so the kit twin's arrows match too.
+		var btn = e.target.closest ? e.target.closest( 'button, os-button' ) : null;
 		if ( ! btn ) {
 			return;
 		}
