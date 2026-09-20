@@ -100,11 +100,13 @@ function mcp_connect_owner_steps_html() {
 	$native_url  = ( function_exists( 'rest_url' ) && function_exists( 'sn_mcp_namespace' ) ) ? (string) rest_url( sn_mcp_namespace() . '/mcp' ) : '';
 	$profile_url = function_exists( 'get_edit_profile_url' ) ? get_edit_profile_url() . '#application-passwords-section' : '';
 
-	$steps = '<ol class="snt-plain">'
-		. '<li>' . sprintf( /* translators: %s: a door to the Application Passwords section. */ \snt_kit_esc( __( 'Create an %s under your own WordPress user. MCP clients authenticate as you, over Basic auth, never with your normal password.', 'signal-and-noise-tools' ) ), \snt_kit_door( __( 'Application Password', 'signal-and-noise-tools' ), $profile_url ) ) . '</li>'
-		. '<li>' . \snt_kit_esc( __( 'Copy the endpoint URL for whichever door you’re using. Door 1 above for the read-only tool allowlist, Door 2 for abilities that opt in to the adapter (none of ours do).', 'signal-and-noise-tools' ) ) . '</li>'
-		. '<li>' . \snt_kit_esc( __( 'Paste the client config below, swapping in your WordPress username and the Application Password you just created.', 'signal-and-noise-tools' ) ) . '</li>'
-		. '</ol>';
+	$steps = \snt_kit_steps(
+		array(
+			sprintf( /* translators: %s: a door to the Application Passwords section. */ \snt_kit_esc( __( 'Create an %s under your own WordPress user. MCP clients authenticate as you, over Basic auth, never with your normal password.', 'signal-and-noise-tools' ) ), \snt_kit_door( __( 'Application Password', 'signal-and-noise-tools' ), $profile_url ) ),
+			\snt_kit_esc( __( 'Copy the endpoint URL for whichever door you’re using. Door 1 above for the read-only tool allowlist, Door 2 for abilities that opt in to the adapter (none of ours do).', 'signal-and-noise-tools' ) ),
+			\snt_kit_esc( __( 'Paste the client config below, swapping in your WordPress username and the Application Password you just created.', 'signal-and-noise-tools' ) ),
+		)
+	);
 
 	$config = '{
   "mcpServers": {
@@ -136,12 +138,14 @@ function mcp_connect_owner_steps_html() {
  * @return string
  */
 function mcp_connect_claude_app_html() {
-	$steps = '<ol class="snt-plain">'
-		. '<li>' . \snt_kit_esc( __( 'Install Node.js if the machine does not have it: the config below runs the proxy via npx.', 'signal-and-noise-tools' ) ) . '</li>'
-		. '<li>' . \snt_kit_esc( __( 'Open the app’s local MCP config file, claude_desktop_config.json: macOS ~/Library/Application Support/Claude/ · Windows %APPDATA%\\Claude\\ (Claude → Settings → Developer → Edit Config opens it for you).', 'signal-and-noise-tools' ) ) . '</li>'
-		. '<li>' . \snt_kit_esc( __( 'Paste the proxy config above into that file (merge into an existing "mcpServers" object if one is there), with your real username and Application Password swapped in.', 'signal-and-noise-tools' ) ) . '</li>'
-		. '<li>' . \snt_kit_esc( __( 'Fully restart the Claude app (quit, not just close the window). The site’s tools appear in the tools menu of a new chat.', 'signal-and-noise-tools' ) ) . '</li>'
-		. '</ol>'
+	$steps = \snt_kit_steps(
+		array(
+			\snt_kit_esc( __( 'Install Node.js if the machine does not have it: the config below runs the proxy via npx.', 'signal-and-noise-tools' ) ),
+			\snt_kit_esc( __( 'Open the app’s local MCP config file, claude_desktop_config.json: macOS ~/Library/Application Support/Claude/ · Windows %APPDATA%\\Claude\\ (Claude → Settings → Developer → Edit Config opens it for you).', 'signal-and-noise-tools' ) ),
+			\snt_kit_esc( __( 'Paste the proxy config above into that file (merge into an existing "mcpServers" object if one is there), with your real username and Application Password swapped in.', 'signal-and-noise-tools' ) ),
+			\snt_kit_esc( __( 'Fully restart the Claude app (quit, not just close the window). The site’s tools appear in the tools menu of a new chat.', 'signal-and-noise-tools' ) ),
+		)
+	)
 		. '<p class="snt-prose">' . \snt_kit_esc( __( 'Do not use Settings → Connectors → “Add custom connector” for this endpoint: that flow is for remote servers reached from Anthropic’s own infrastructure and only supports OAuth: an application password will not work there.', 'signal-and-noise-tools' ) ) . '</p>';
 	return \snt_kit_tag( 'os-disclosure', array( 'heading' => __( 'Claude desktop app', 'signal-and-noise-tools' ), 'hint' => __( 'Show the 4 setup steps', 'signal-and-noise-tools' ) ), $steps );
 }

@@ -60,6 +60,9 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'not-configured: fiel
 ok( array( 'gsc_credential_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'not-configured: only gsc_credential_save is offered' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, 'Not configured.' ) && false !== strpos( $kit, 'ENABLE the &quot;Google Search Console API&quot;' ), 'not-configured: the pill and the four onboarding steps are painted' );
+// 17.4.4 (#1602): the four credential steps are the kit's <os-steps>, not a browser <ol>.
+ok( 1 === substr_count( $kit, '<os-steps>' ) && 4 === substr_count( $kit, '<os-step>' ) && false !== strpos( $kit, '<os-step>In Google Cloud, ENABLE the &quot;Google Search Console API&quot;' ), 'not-configured: one <os-steps> of four <os-step>, the first carrying the ENABLE sentence -- ' . substr_count( $kit, '<os-steps>' ) . '/' . substr_count( $kit, '<os-step>' ) );
+ok( false === strpos( $kit, '<ol' ), 'not-configured: no browser ordered list survives' );
 ok( false !== strpos( $kit, '<os-textarea name="sn_gsc_credential"' ), 'the credential textarea is a kit textarea carrying the classic field name' );
 ok( false === strpos( $kit, 'Property' ), 'not-configured: the Property section is not painted (no identity yet)' );
 ok( false === strpos( $kit, 'snt-cols' ) && false === strpos( $kit, 'snt-2up' ) && strpos( $kit, 'heading="Search Console credential"' ) < strpos( $kit, 'heading="Set the credential"' ), '17.4.1: not-configured: no row; the readout box then the form box, each at full width' );

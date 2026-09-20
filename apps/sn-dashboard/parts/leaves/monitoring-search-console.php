@@ -92,7 +92,7 @@ function search_console_credential_html( array $s ) {
 			__( 'In Search Console → Settings → Users and permissions, add that service account\'s email as a user on the property.', 'signal-and-noise-tools' ),
 			__( 'Paste the whole JSON key file below, then Test connection.', 'signal-and-noise-tools' ),
 		);
-		$out .= '<ol class="snt-plain">' . implode( '', array_map( static function ( $step ) { return '<li>' . \snt_kit_esc( $step ) . '</li>'; }, $steps ) ) . '</ol>';
+		$out .= \snt_kit_steps( array_map( '\snt_kit_esc', $steps ) );
 	}
 	if ( null !== $s['identity'] ) {
 		$out .= \snt_kit_action_button( __( 'Test connection', 'signal-and-noise-tools' ), 'gsc_test' );
