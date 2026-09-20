@@ -278,10 +278,10 @@ function tags_fit_html() {
 }
 
 /**
- * 17.1.0: the pass pivoted per tag, what a reader of each archive gets. Per
- * tag: how many notes carry it, the mean score, and the notes that only
- * touch it (under 1 of 2), by touching share. No boxes: which tag a note
- * carries is the owner's call; this is the reading behind the call.
+ * 17.1.0: the pass pivoted per tag, what a reader of each archive gets.
+ * 17.2.1: one summary line, then only the tags that carry notes which only
+ * touch them, each with those notes. The tags where every note is about the
+ * tag are the summary's count, not a line each.
  *
  * @return string
  */
@@ -298,8 +298,9 @@ function tags_by_tag_html() {
 	if ( array() === $rows ) {
 		return \snt_kit_section( $heading, \snt_kit_empty( __( 'No tags in the last pass.', 'signal-and-noise-tools' ) ) );
 	}
+	$wide = array_values( array_filter( $rows, static fn( $r ) => array() !== $r['touching'] ) );
 	$inner = '';
-	foreach ( $rows as $r ) {
+	foreach ( $wide as $r ) {
 		$line = sprintf( /* translators: 1: tag, 2: notes, 3: mean score, 4: touching count */ __( '%1$s: %2$d notes, mean %3$s of 2, %4$d only touching it', 'signal-and-noise-tools' ), $r['name'], (int) $r['notes'], number_format_i18n( (float) $r['mean'], 2 ), count( $r['touching'] ) );
 		$items = '';
 		foreach ( $r['touching'] as $t ) {
@@ -307,14 +308,19 @@ function tags_by_tag_html() {
 		}
 		$inner .= '<p class="snt-prose"><strong>' . \snt_kit_esc( $line ) . '</strong></p>' . ( '' !== $items ? '<ul class="snt-list">' . $items . '</ul>' : '' );
 	}
-	return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'What a reader of each tag archive gets: every note carrying the tag, scored by the last pass. A note under 1 of 2 touches the tag rather than being about it; an archive with many of those reads wide. Which tags a note carries stays your call.', 'signal-and-noise-tools' ) ) . '</p>' . $inner );
+	$summary = sprintf( /* translators: 1: tags, 2: tags with touching notes, 3: their names */ __( '%1$d tags in the last pass; %2$d carry notes that only touch them: %3$s.', 'signal-and-noise-tools' ), count( $rows ), count( $wide ), $wide ? implode( ', ', array_column( $wide, 'name' ) ) : __( 'none', 'signal-and-noise-tools' ) );
+	return \snt_kit_section(
+		$heading,
+		'<p class="snt-prose">' . \snt_kit_esc( $summary ) . ' ' . \snt_kit_esc( __( 'A note under 1 of 2 touches the tag rather than being about it; which tags a note carries stays your call.', 'signal-and-noise-tools' ) ) . '</p>' . $inner
+	);
 }
 
 /**
  * 17.2.0: file tags under /notes/tags' headings from here, since the native
  * view never shows WordPress's own tag screen where the theme put its field
- * (theme 13.4.0). One kit select per tag, the effective group selected,
- * unfiled tags first; one form. The headings and the meta are the theme's.
+ * (theme 13.4.0). 17.2.1: a ledger, not a form. One line per heading naming
+ * its tags, "Not yet filed" only when a tag is, and ONE small form (a tag,
+ * a heading, File). Twenty-six selects were a scroll.
  *
  * @return string
  */
@@ -323,35 +329,92 @@ function tags_groups_html() {
 	if ( ! function_exists( 'sn_notes_tag_groups' ) || ! function_exists( 'sn_notes_tag_group_effective' ) ) {
 		return \snt_kit_section( $heading, \snt_kit_empty( __( 'The theme\'s tag groups are not available (Signal & Noise theme 13.4.0 or later).', 'signal-and-noise-tools' ) ) );
 	}
-	$options = array( '' => __( 'Not yet filed', 'signal-and-noise-tools' ) );
-	foreach ( \sn_notes_tag_groups() as $g ) {
-		$options[ (string) $g['id'] ] = html_entity_decode( (string) $g['title'], ENT_QUOTES, 'UTF-8' );
-	}
-	$tags = get_terms( array( 'taxonomy' => 'post_tag', 'hide_empty' => false ) );
-	$rows = array();
-	foreach ( (array) $tags as $t ) {
-		if ( is_object( $t ) && isset( $t->term_id ) ) {
-			$rows[] = array( 'id' => (int) $t->term_id, 'name' => (string) $t->name, 'group' => (string) \sn_notes_tag_group_effective( $t ) );
-		}
-	}
-	if ( array() === $rows ) {
+	$ledger = tags_groups_ledger();
+	if ( array() === $ledger['tags'] ) {
 		return \snt_kit_section( $heading, \snt_kit_empty( __( 'No tags.', 'signal-and-noise-tools' ) ) );
 	}
-	usort( $rows, static fn( $a, $b ) => ( '' === $a['group'] ? 0 : 1 ) <=> ( '' === $b['group'] ? 0 : 1 ) ?: strcasecmp( $a['name'], $b['name'] ) );
-	$inner = '';
-	foreach ( $rows as $r ) {
-		$inner .= \snt_kit_field( 'select', 'group[' . $r['id'] . ']', $r['name'], $r['group'], array( 'options' => $options ) );
+	$lines = '';
+	foreach ( $ledger['groups'] as $g ) {
+		$lines .= '<li><strong>' . \snt_kit_esc( $g['title'] ) . '</strong>: ' . \snt_kit_esc( $g['names'] ? implode( ', ', $g['names'] ) : __( 'nothing yet', 'signal-and-noise-tools' ) ) . '</li>';
 	}
+	if ( $ledger['unfiled'] ) {
+		$lines .= '<li><strong>' . \snt_kit_esc( __( 'Not yet filed', 'signal-and-noise-tools' ) ) . '</strong>: ' . \snt_kit_esc( implode( ', ', $ledger['unfiled'] ) ) . '</li>';
+	}
+	$tag_opts = array();
+	foreach ( $ledger['tags'] as $t ) {
+		$tag_opts[ (string) $t['id'] ] = $t['name'];
+	}
+	$first  = (string) array_key_first( $tag_opts );
+	$inner  = \snt_kit_field( 'select', 'file_tag', __( 'Tag', 'signal-and-noise-tools' ), $first, array( 'options' => $tag_opts ) )
+		. \snt_kit_field( 'select', 'file_group', __( 'Heading', 'signal-and-noise-tools' ), '', array( 'options' => $ledger['options'] ) );
 	$hidden = '';
 	foreach ( tags_post_hidden( 'tag_group_apply' ) as $name => $value ) {
 		$hidden .= \snt_kit_field( 'hidden', $name, '', $value );
 	}
 	$form = \snt_kit_tag(
 		'os-form',
-		array( 'class' => 'snt-form', 'os-action' => 'post', 'submit-label' => __( 'File tags', 'signal-and-noise-tools' ), 'show-reset' => 'false', 'columns' => '2' ),
+		array( 'class' => 'snt-form', 'os-action' => 'post', 'submit-label' => __( 'File', 'signal-and-noise-tools' ), 'show-reset' => 'false', 'columns' => '2' ),
 		$inner . $hidden
 	);
-	return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'The heading each tag sits under on /notes/tags. Unfiled tags come first; the page reads a change the moment it is filed.', 'signal-and-noise-tools' ) ) . '</p>' . $form );
+	return \snt_kit_section( $heading, '<ul class="snt-list">' . $lines . '</ul>' . $form );
+}
+
+/**
+ * The ledger behind the Groups section: every tag with the heading it
+ * renders under, grouped; the unfiled ones; the select options. PURE given
+ * the theme's two functions and get_terms(). Shared by both surfaces.
+ *
+ * @return array{groups:array,unfiled:array,tags:array,options:array}
+ */
+function tags_groups_ledger() {
+	// The theme owns these; the guard lives here so the builder stands alone.
+	if ( ! function_exists( 'sn_notes_tag_groups' ) || ! function_exists( 'sn_notes_tag_group_effective' ) ) {
+		return array( 'groups' => array(), 'unfiled' => array(), 'tags' => array(), 'options' => array() );
+	}
+	$options = array( '' => __( 'Not yet filed', 'signal-and-noise-tools' ) );
+	$groups  = array();
+	foreach ( \sn_notes_tag_groups() as $g ) {
+		$title = html_entity_decode( (string) $g['title'], ENT_QUOTES, 'UTF-8' );
+		$options[ (string) $g['id'] ] = $title;
+		$groups[ (string) $g['id'] ] = array( 'title' => $title, 'names' => array() );
+	}
+	$terms   = get_terms( array( 'taxonomy' => 'post_tag', 'hide_empty' => false ) );
+	$tags    = array();
+	$unfiled = array();
+	foreach ( (array) $terms as $t ) {
+		if ( ! is_object( $t ) || ! isset( $t->term_id ) ) {
+			continue;
+		}
+		$gid    = (string) \sn_notes_tag_group_effective( $t );
+		$tags[] = array( 'id' => (int) $t->term_id, 'name' => (string) $t->name, 'group' => $gid );
+		if ( isset( $groups[ $gid ] ) ) {
+			$groups[ $gid ]['names'][] = (string) $t->name;
+		} else {
+			$unfiled[] = (string) $t->name;
+		}
+	}
+	usort( $tags, static fn( $a, $b ) => strcasecmp( $a['name'], $b['name'] ) );
+	foreach ( $groups as &$g ) {
+		sort( $g['names'], SORT_FLAG_CASE | SORT_STRING );
+	}
+	unset( $g );
+	sort( $unfiled, SORT_FLAG_CASE | SORT_STRING );
+	return array( 'groups' => array_values( $groups ), 'unfiled' => $unfiled, 'tags' => $tags, 'options' => $options );
+}
+
+/**
+ * 17.2.1: two boxes on one row. A missing side (a section that painted
+ * nothing) leaves the other alone at full width rather than beside a hole.
+ *
+ * @param string $left  Painted section HTML, or ''.
+ * @param string $right Painted section HTML, or ''.
+ * @return string
+ */
+function tags_pair( $left, $right ) {
+	if ( '' === $left || '' === $right ) {
+		return $left . $right;
+	}
+	return \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $left . $right );
 }
 
 /**

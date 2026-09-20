@@ -281,6 +281,7 @@ function sn_admin_tag_render_fit_section() {
 
 /**
  * 17.1.0: the pass pivoted per tag (see tags_by_tag_html() on the native leaf).
+ * 17.2.1: a summary line, then only the tags with notes that only touch them.
  *
  * @return void
  */
@@ -298,8 +299,9 @@ function sn_admin_tag_render_by_tag_section() {
 		echo '<p>' . esc_html__( 'No tags in the last pass.', 'signal-and-noise-tools' ) . '</p></div>';
 		return;
 	}
-	echo '<p>' . esc_html__( 'What a reader of each tag archive gets: every note carrying the tag, scored by the last pass. A note under 1 of 2 touches the tag rather than being about it; an archive with many of those reads wide. Which tags a note carries stays your call.', 'signal-and-noise-tools' ) . '</p>';
-	foreach ( $rows as $r ) {
+	$wide = array_values( array_filter( $rows, static fn( $r ) => array() !== $r['touching'] ) );
+	echo '<p>' . esc_html( sprintf( /* translators: 1: tags, 2: tags with touching notes, 3: their names */ __( '%1$d tags in the last pass; %2$d carry notes that only touch them: %3$s.', 'signal-and-noise-tools' ), count( $rows ), count( $wide ), $wide ? implode( ', ', array_column( $wide, 'name' ) ) : __( 'none', 'signal-and-noise-tools' ) ) ) . ' ' . esc_html__( 'A note under 1 of 2 touches the tag rather than being about it; which tags a note carries stays your call.', 'signal-and-noise-tools' ) . '</p>';
+	foreach ( $wide as $r ) {
 		echo '<p><strong>' . esc_html( sprintf( /* translators: 1: tag, 2: notes, 3: mean score, 4: touching count */ __( '%1$s: %2$d notes, mean %3$s of 2, %4$d only touching it', 'signal-and-noise-tools' ), $r['name'], (int) $r['notes'], number_format_i18n( (float) $r['mean'], 2 ), count( $r['touching'] ) ) ) . '</strong></p>';
 		if ( $r['touching'] ) {
 			echo '<ul>';
@@ -314,6 +316,7 @@ function sn_admin_tag_render_by_tag_section() {
 
 /**
  * 17.2.0: file tags under /notes/tags' headings (see tags_groups_html()).
+ * 17.2.1: a ledger and one small form, never a select per tag.
  *
  * @return void
  */
@@ -323,34 +326,73 @@ function sn_admin_tag_render_groups_section() {
 		echo '<p>' . esc_html__( 'The theme\'s tag groups are not available (Signal & Noise theme 13.4.0 or later).', 'signal-and-noise-tools' ) . '</p></div>';
 		return;
 	}
-	$options = array( '' => __( 'Not yet filed', 'signal-and-noise-tools' ) );
-	foreach ( sn_notes_tag_groups() as $g ) {
-		$options[ (string) $g['id'] ] = html_entity_decode( (string) $g['title'], ENT_QUOTES, 'UTF-8' );
-	}
-	$tags = get_terms( array( 'taxonomy' => 'post_tag', 'hide_empty' => false ) );
-	$rows = array();
-	foreach ( (array) $tags as $t ) {
-		if ( is_object( $t ) && isset( $t->term_id ) ) {
-			$rows[] = array( 'id' => (int) $t->term_id, 'name' => (string) $t->name, 'group' => (string) sn_notes_tag_group_effective( $t ) );
-		}
-	}
-	if ( array() === $rows ) {
+	$ledger = sn_admin_tag_groups_ledger();
+	if ( array() === $ledger['tags'] ) {
 		echo '<p>' . esc_html__( 'No tags.', 'signal-and-noise-tools' ) . '</p></div>';
 		return;
 	}
-	usort( $rows, static fn( $a, $b ) => ( '' === $a['group'] ? 0 : 1 ) <=> ( '' === $b['group'] ? 0 : 1 ) ?: strcasecmp( $a['name'], $b['name'] ) );
-	echo '<p>' . esc_html__( 'The heading each tag sits under on /notes/tags. Unfiled tags come first; the page reads a change the moment it is filed.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<ul>';
+	foreach ( $ledger['groups'] as $g ) {
+		echo '<li><strong>' . esc_html( $g['title'] ) . '</strong>: ' . esc_html( $g['names'] ? implode( ', ', $g['names'] ) : __( 'nothing yet', 'signal-and-noise-tools' ) ) . '</li>';
+	}
+	if ( $ledger['unfiled'] ) {
+		echo '<li><strong>' . esc_html__( 'Not yet filed', 'signal-and-noise-tools' ) . '</strong>: ' . esc_html( implode( ', ', $ledger['unfiled'] ) ) . '</li>';
+	}
+	echo '</ul>';
 	echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' ) ) . '">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<input type="hidden" name="sn_action" value="tag_group_apply">';
-	foreach ( $rows as $r ) {
-		echo '<p><label>' . esc_html( $r['name'] ) . ' <select name="group[' . esc_attr( (string) $r['id'] ) . ']">';
-		foreach ( $options as $value => $label ) {
-			echo '<option value="' . esc_attr( (string) $value ) . '"' . selected( (string) $value, $r['group'], false ) . '>' . esc_html( $label ) . '</option>';
-		}
-		echo '</select></label></p>';
+	echo '<label>' . esc_html__( 'Tag', 'signal-and-noise-tools' ) . ' <select name="file_tag">';
+	foreach ( $ledger['tags'] as $t ) {
+		echo '<option value="' . esc_attr( (string) $t['id'] ) . '">' . esc_html( $t['name'] ) . '</option>';
 	}
-	echo '<p><button type="submit" class="button button-primary">' . esc_html__( 'File tags', 'signal-and-noise-tools' ) . '</button></p></form></div>';
+	echo '</select></label> <label>' . esc_html__( 'Heading', 'signal-and-noise-tools' ) . ' <select name="file_group">';
+	foreach ( $ledger['options'] as $value => $label ) {
+		echo '<option value="' . esc_attr( (string) $value ) . '">' . esc_html( $label ) . '</option>';
+	}
+	echo '</select></label> <button type="submit" class="button button-primary">' . esc_html__( 'File', 'signal-and-noise-tools' ) . '</button></form></div>';
+}
+
+/**
+ * The ledger behind the Groups section (the classic twin of
+ * tags_groups_ledger() on the native leaf; same rows, same words).
+ *
+ * @return array{groups:array,unfiled:array,tags:array,options:array}
+ */
+function sn_admin_tag_groups_ledger() {
+	// The theme owns these; PHPStan reads the guard here, not in the caller.
+	if ( ! function_exists( 'sn_notes_tag_groups' ) || ! function_exists( 'sn_notes_tag_group_effective' ) ) {
+		return array( 'groups' => array(), 'unfiled' => array(), 'tags' => array(), 'options' => array() );
+	}
+	$options = array( '' => __( 'Not yet filed', 'signal-and-noise-tools' ) );
+	$groups  = array();
+	foreach ( sn_notes_tag_groups() as $g ) {
+		$title = html_entity_decode( (string) $g['title'], ENT_QUOTES, 'UTF-8' );
+		$options[ (string) $g['id'] ] = $title;
+		$groups[ (string) $g['id'] ] = array( 'title' => $title, 'names' => array() );
+	}
+	$terms   = get_terms( array( 'taxonomy' => 'post_tag', 'hide_empty' => false ) );
+	$tags    = array();
+	$unfiled = array();
+	foreach ( (array) $terms as $t ) {
+		if ( ! is_object( $t ) || ! isset( $t->term_id ) ) {
+			continue;
+		}
+		$gid    = (string) sn_notes_tag_group_effective( $t );
+		$tags[] = array( 'id' => (int) $t->term_id, 'name' => (string) $t->name, 'group' => $gid );
+		if ( isset( $groups[ $gid ] ) ) {
+			$groups[ $gid ]['names'][] = (string) $t->name;
+		} else {
+			$unfiled[] = (string) $t->name;
+		}
+	}
+	usort( $tags, static fn( $a, $b ) => strcasecmp( $a['name'], $b['name'] ) );
+	foreach ( $groups as &$g ) {
+		sort( $g['names'], SORT_FLAG_CASE | SORT_STRING );
+	}
+	unset( $g );
+	sort( $unfiled, SORT_FLAG_CASE | SORT_STRING );
+	return array( 'groups' => array_values( $groups ), 'unfiled' => $unfiled, 'tags' => $tags, 'options' => $options );
 }
 
 /**
