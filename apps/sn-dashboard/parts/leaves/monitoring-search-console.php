@@ -15,6 +15,12 @@
  * Same readers, same fields, same actions, same three-state credential card
  * and three-state scheduled-sync paragraph.
  *
+ * Composition (17.4.1, #1573): the classic credential section was one box,
+ * 635px live against Property's 311. It is now two: the readout (identity
+ * card or its two other states, plus Test connection, which acts on the
+ * stored credential rather than the textarea) shares a row with Property;
+ * the textarea form stands alone below it at full width.
+ *
  * @package SignalNoiseTools
  * @since 13.106.0
  */
@@ -64,8 +70,8 @@ function search_console_identity_html( array $identity ) {
 }
 
 /**
- * The credential section: identity card / unparseable warning / onboarding
- * steps, the textarea field, Save, and Test connection once an identity exists.
+ * The credential readout: identity card / unparseable warning / onboarding
+ * steps, and Test connection once an identity exists.
  *
  * @param array<string,mixed> $s From search_console_state().
  * @return string
@@ -88,16 +94,39 @@ function search_console_credential_html( array $s ) {
 		);
 		$out .= '<ol class="snt-plain">' . implode( '', array_map( static function ( $step ) { return '<li>' . \snt_kit_esc( $step ) . '</li>'; }, $steps ) ) . '</ol>';
 	}
-
-	$placeholder = $s['stored']
-		? __( 'Paste a fresh key file to replace; type clear to remove; leave empty to keep the current one', 'signal-and-noise-tools' )
-		: __( '{ "type": "service_account", … }', 'signal-and-noise-tools' );
-	$field = \snt_kit_field( 'textarea', 'sn_gsc_credential', __( 'Service-account JSON', 'signal-and-noise-tools' ), '', array( 'rows' => 8, 'placeholder' => $placeholder ) );
-	$out  .= \snt_kit_form( 'gsc_credential_save', $field, array( 'submit' => __( 'Save credential', 'signal-and-noise-tools' ) ) );
 	if ( null !== $s['identity'] ) {
 		$out .= \snt_kit_action_button( __( 'Test connection', 'signal-and-noise-tools' ), 'gsc_test' );
 	}
 	return $out;
+}
+
+/**
+ * The credential form: the textarea field and Save.
+ *
+ * @param array<string,mixed> $s From search_console_state().
+ * @return string
+ */
+function search_console_credential_form_html( array $s ) {
+	$placeholder = $s['stored']
+		? __( 'Paste a fresh key file to replace; type clear to remove; leave empty to keep the current one', 'signal-and-noise-tools' )
+		: __( '{ "type": "service_account", … }', 'signal-and-noise-tools' );
+	$field = \snt_kit_field( 'textarea', 'sn_gsc_credential', __( 'Service-account JSON', 'signal-and-noise-tools' ), '', array( 'rows' => 8, 'placeholder' => $placeholder ) );
+	return \snt_kit_form( 'gsc_credential_save', $field, array( 'submit' => __( 'Save credential', 'signal-and-noise-tools' ) ) );
+}
+
+/**
+ * Two boxes on one row; a side that paints nothing leaves the other at full
+ * width (the tags_pair() shape, content-tags-parts.php).
+ *
+ * @param string $left  Section markup or ''.
+ * @param string $right Section markup or ''.
+ * @return string
+ */
+function search_console_pair( $left, $right ) {
+	if ( '' === $left || '' === $right ) {
+		return $left . $right;
+	}
+	return \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $left . $right );
 }
 
 /**
@@ -198,24 +227,19 @@ function search_console_sync_html( array $s ) {
  */
 function paint_monitoring_search_console( array $ctx ) {
 	unset( $ctx );
-	$s    = search_console_state();
-	$left = \snt_kit_section(
-		__( 'Search Console credential', 'signal-and-noise-tools' ),
-		search_console_credential_html( $s )
-	);
-
+	$s     = search_console_state();
+	$left  = \snt_kit_section( __( 'Search Console credential', 'signal-and-noise-tools' ), search_console_credential_html( $s ) );
+	$right = '';
 	if ( null !== $s['identity'] ) {
 		$inner = search_console_property_html( $s );
 		if ( '' !== $s['current'] ) {
 			$inner .= search_console_sync_html( $s );
 		}
 		$right = \snt_kit_section( __( 'Property', 'signal-and-noise-tools' ), $inner );
-		return '<div class="snt-2up">'
-			. '<div class="snt-2up-col">' . $left . '</div>'
-			. '<div class="snt-2up-col">' . $right . '</div>'
-			. '</div>';
 	}
-	return $left;
+	// The two readouts share the row; the form stands alone below at full width.
+	return search_console_pair( $left, $right )
+		. \snt_kit_section( __( 'Set the credential', 'signal-and-noise-tools' ), search_console_credential_form_html( $s ) );
 }
 
 add_filter(
