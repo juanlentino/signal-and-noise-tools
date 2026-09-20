@@ -7,7 +7,8 @@
  * The gate — "every number read from what the platforms actually report,
  * never estimated" — is structural here: there is no code path that
  * multiplies, projects, or defaults a figure. A platform read either
- * returns the number or the tile says "unknown".
+ * returns the number or the row says "unknown". Painted on AI › Models &
+ * Budget (apps/sn-dashboard/parts/leaves/ai-models-budget-parts.php).
  *
  * Two optional credentials, each Better-Stack idiom (constant wins over a
  * non-autoloaded option; masked round-trip; the literal 'clear' removes):
@@ -21,9 +22,9 @@
  *   shape is summed defensively (every reported amount); a shape mismatch
  *   is "unknown", never a guess — verify on first configure.
  *
- * Unconfigured = the section is absent entirely (the uptime-widget
- * precedent): "unknown" is for a credentialed read that failed, not a nag
- * to configure one.
+ * Unconfigured = the reader returns null and the box on AI › Models &
+ * Budget reads "not set": "unknown" is for a credentialed read that
+ * failed, never a guessed figure.
  *
  * @package SignalNoiseTools
  */
@@ -224,48 +225,3 @@ function sn_spend_ai_cost() {
 	set_transient( SN_SPEND_AI_TRANSIENT, $snap, $snap['ok'] ? SN_SPEND_TTL_OK : SN_SPEND_TTL_FAIL );
 	return $snap;
 }
-
-/**
- * The Spend section for the S&N Health widget. '' when neither credential
- * is configured; otherwise one line per configured signal — the reported
- * number or "unknown", nothing else.
- *
- * @return string Escaped-at-build HTML.
- */
-function sn_spend_watch_health_section() {
-	$gh = sn_spend_gh_usage();
-	$ai = sn_spend_ai_cost();
-	if ( null === $gh && null === $ai ) {
-		return '';
-	}
-	$html = '<div class="sn-aw-spend"><p class="sn-aw-trend-l">' . esc_html__( 'Spend', 'signal-and-noise-tools' ) . '</p>';
-	if ( null !== $gh ) {
-		if ( ! empty( $gh['ok'] ) ) {
-			// Enhanced-report source: usage only — the plan quota is not
-			// reported by this endpoint, so no "of N" is ever shown.
-			$html .= '<p>' . esc_html(
-				sprintf(
-					/* translators: 1: minutes used, 2: billed dollars */
-					__( 'Actions minutes used (account, month to date): %1$s — $%2$s billed', 'signal-and-noise-tools' ),
-					number_format_i18n( (int) $gh['used'] ),
-					number_format( (float) $gh['billed'], 2 )
-				)
-			) . '</p>';
-		} else {
-			$html .= '<p>' . esc_html__( 'Actions minutes: unknown (billing read failed).', 'signal-and-noise-tools' ) . '</p>';
-		}
-	}
-	if ( null !== $ai ) {
-		$html .= ! empty( $ai['ok'] )
-			? '<p>' . esc_html(
-				sprintf(
-					/* translators: %s: month-to-date cost in USD */
-					__( 'AI spend (month to date): $%s', 'signal-and-noise-tools' ),
-					number_format( (float) $ai['total'], 2 )
-				)
-			) . '</p>'
-			: '<p>' . esc_html__( 'AI spend: unknown (cost read failed).', 'signal-and-noise-tools' ) . '</p>';
-	}
-	return $html . '</div>';
-}
-

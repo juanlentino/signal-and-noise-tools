@@ -70,13 +70,17 @@ foreach ( array(
 	'sn_login_defense'       => 'login-defense-widget',
 	'sn_plausible_snapshot'  => 'analytics-widget',
 	'sn_plausible_pages'     => 'analytics-widget',
-	'sn_site_health'         => 'site-health-widget',
 ) as $id => $module ) {
 	ok( ! isset( $GLOBALS['__widgets'][ $id ] ), "no $id widget registered any more" );
 	$src = (string) file_get_contents( __DIR__ . '/../inc/' . $module . '.php' );
 	ok( false === strpos( $src, "wp_add_dashboard_widget( '" . $id ),
 		"inc/$module.php contains no registration call for $id" );
 }
+// The fourth box's module (inc/site-health-widget.php) registered nothing since
+// 11.30.0 and nothing called its render; the file itself is gone, not just the
+// registration, so its guard is the file's absence.
+ok( ! isset( $GLOBALS['__widgets']['sn_site_health'] ), 'no sn_site_health widget registered any more' );
+ok( ! file_exists( __DIR__ . '/../inc/site-health-widget.php' ), 'inc/site-health-widget.php no longer exists (a module with no caller since 11.30.0)' );
 
 // ── ZERO COST. index.php renders on every admin login. ──────────────────────
 echo "\nZero-cost render\n";
@@ -133,8 +137,9 @@ ok( 0 === $GLOBALS['__scans'], 'STILL NO SCAN' );
 // health widget into THIS box but carried only its glance, so
 // sn_uptime_status_health_section() was left with no production caller at all
 // while its assets were still enqueued on index.php. Uptime had quietly left
-// the dashboard, and tests/site-health-widget.php asserted the render function
-// still EXISTED — which stayed true the whole time it was unreachable.
+// the dashboard, and the health widget's own suite (deleted with the module)
+// asserted the render function still EXISTED, which stayed true the whole
+// time it was unreachable.
 echo "\nUptime is reachable from the box that absorbed it\n";
 $GLOBALS['__uptime_calls'] = 0;
 function sn_uptime_status_health_section() {

@@ -61,7 +61,7 @@ const SN_ORPHAN_CLASS_BASELINE = array(
 	'sn-ai-usage--empty', 'sn-an-botbreak', 'sn-an-breakdown', 'sn-an-collector',
 	'sn-an-exclude', 'sn-an-funnels', 'sn-an-gate', 'sn-an-heatmap-panel',
 	'sn-an-mirrors', 'sn-an-prior-note', 'sn-an-refcats', 'sn-an-status',
-	'sn-an-tuning-radios', 'sn-audit-logins-log', 'sn-availability', 'sn-aw-spend',
+	'sn-an-tuning-radios', 'sn-audit-logins-log', 'sn-availability',
 	'sn-catalog-number', 'sn-colophon', 'sn-colophon-items',
 	'sn-colophon-versions', 'sn-cron-dashboard', 'sn-dash-briefing', 'sn-dash-zone-label',
 	'sn-geo', 'sn-health-advisory', 'sn-health-contrast-arithmetic', 'sn-health-contrast-conditional',

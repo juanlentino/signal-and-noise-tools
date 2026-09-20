@@ -1,8 +1,9 @@
 <?php
 /**
  * Standalone fixture tests for inc/uptime-status-widget.php — since v8.3.0
- * the Uptime SECTION of the S&N Health widget (the standalone "S&N Uptime"
- * widget was consolidated away, owner call 2026-07-02).
+ * the Uptime SECTION of a home widget (the standalone "S&N Uptime" widget
+ * was consolidated away, owner call 2026-07-02): S&N Health first, the
+ * "Signal & Noise" box (inc/dash-widget.php) since 11.30.0.
  *
  * Contract under test:
  *   - REMOVAL GUARDS: no standalone dashboard widget registration remains
@@ -13,9 +14,9 @@
  *     mount → shipping JS/CSS would be wasted requests), dep on
  *     snt-ability-run, nowhere else
  *
- * The integration (S&N Health widget appends the section via its
- * registered sn_site_health_widget_render_full callback) is asserted in
- * tests/site-health-widget.php.
+ * The integration (the Signal & Noise box calls the section from its render)
+ * is asserted in tests/dash-widget.php ("Uptime is reachable from the box
+ * that absorbed it"); the S&N Health widget and its suite are deleted.
  *
  * Run: php tests/uptime-status-widget.php
  *

@@ -170,9 +170,9 @@ $wg_no_comments = (string) preg_replace( '/\/\*.*?\*\//s', '', $wg );
 foreach ( array( '#646970', '#1d2327', '#0a7c2f', '#f6f7f7', '#d63638', '#2271b1', '#dcdcde', '#c4b5fd', '#9ec2e6', '#7c3aed', '#b32d2e', '#00a32a', '#8a6100', '#fcf0d6', '#e5f3ea' ) as $hex ) {
 	ok( false === stripos( $wg_no_comments, $hex ), "widget: no raw $hex outside comments (tokenized)" );
 }
-ok( substr_count( $wg, 'var(--sn-an-muted)' ) === 12, 'widget: all 12 #646970 rule-occurrences read the muted token' );
-ok( substr_count( $wg, 'var(--sn-an-text)' ) === 5, 'widget: all 5 #1d2327 rule-occurrences read the text token' );
-ok( substr_count( $wg, 'var(--sn-an-up)' ) === 4, 'widget: all 4 up-token rule-occurrences read the up token (mover-up now included — FIX2)' );
+ok( substr_count( $wg, 'var(--sn-an-muted)' ) === 10, 'widget: all 10 #646970 rule-occurrences read the muted token (12 before the S&N Health rules left with the widget)' );
+ok( substr_count( $wg, 'var(--sn-an-text)' ) === 4, 'widget: all 4 #1d2327 rule-occurrences read the text token (5 before the S&N Health rules left)' );
+ok( substr_count( $wg, 'var(--sn-an-up)' ) === 2, 'widget: all 2 up-token rule-occurrences read the up token (mover-up included, FIX2; the S&N Health ok pair left with the widget)' );
 ok( substr_count( $wg, 'var(--sn-an-surface-2)' ) === 3, 'widget: all 3 #f6f7f7 rule-occurrences read the surface-2 token' );
 ok( substr_count( $wg, 'var(--sn-an-down)' ) === 3, 'widget: all 3 down-token rule-occurrences read the down token (delta-down now included — FIX2)' );
 ok( substr_count( $wg, 'var(--sn-an-accent)' ) === 2, 'widget: all 2 #2271b1 rule-occurrences read the accent token' );
@@ -205,13 +205,11 @@ ok( false === strpos( $wg, "warn/ok state colors) or belong to a different, unto
 $header_comment = substr( $wg, 0, (int) strpos( $wg, '*/' ) );
 ok( false !== stripos( $header_comment, 'mover' ) && false !== stripos( $header_comment, 'ok/warn' ), 'widget: header comment still documents the mover + ok/warn tokens, just correctly now (not silently deleted)' );
 
-echo "\nTest: FIX3 — warn/ok state-color unification (S&N Health widget + admin pill)\n";
-$ok_ico_block = tok_block( $wg, '.sn-hw-head--ok .sn-hw-ico{' );
-ok( '' !== $ok_ico_block && false !== strpos( $ok_ico_block, 'var(--sn-an-ok-bg)' ) && false === strpos( $ok_ico_block, '#' ), 'widget: ok-state icon background reads --sn-an-ok-bg (was raw #e5f3ea)' );
-$warn_ico_block = tok_block( $wg, '.sn-hw-head--warn .sn-hw-ico{' );
-ok( '' !== $warn_ico_block && false !== strpos( $warn_ico_block, 'var(--sn-an-warn-bg)' ) && false !== strpos( $warn_ico_block, 'var(--sn-an-warn-text)' ) && false === strpos( $warn_ico_block, '#' ), 'widget: warn-state icon background AND text read the shared warn tokens (bg was raw #fcf0d6, text was raw #8a6100)' );
-// DELIBERATE VISUAL CHANGE: the widget's warn amber darkens #8a6100 -> #996800
-// (var(--sn-an-warn-text)) to match the dashboard pill's warn color.
+echo "\nTest: FIX3, warn/ok state-color unification (admin pill; the S&N Health widget half is deleted with the widget)\n";
+// The widget's .sn-hw-* state rules were the other reader of these tokens;
+// they left with inc/site-health-widget.php, a module nothing called since
+// 11.30.0. No rule may bring the widget's vocabulary back.
+ok( false === strpos( $wg, '.sn-hw-' ), 'widget: no .sn-hw-* rule remains (the S&N Health widget is deleted)' );
 ok( false === stripos( $wg, '8a6100' ), 'widget: the darker pre-unification warn amber (#8a6100) is fully gone' );
 
 $pill_warn_block = tok_block( $an, '.sn-an-pill--warn {' );
@@ -316,7 +314,6 @@ $widget_rem_to_px = array(
 	'.sn-aw-big{'     => '40px',
 	'.sn-aw-nt-v{'    => '28.8px',
 	'.sn-aw-nt-k{'    => '11.52px',
-	'.sn-hw-h{'       => '16.8px',
 );
 foreach ( $widget_rem_to_px as $sel => $px ) {
 	$block = tok_block( $wg, $sel );
@@ -330,7 +327,7 @@ ok( false !== strpos( $kpi_glance, 'font-size: 21.6px' ), 'admin: .sn-an-postbox
 $kpi_glance_promo = tok_block( $an, '.sn-an-postbox .sn-kpi-promoted .sn-kpi-value {' );
 ok( false !== strpos( $kpi_glance_promo, 'font-size: 27.2px' ), 'admin: .sn-an-postbox .sn-kpi-promoted .sn-kpi-value converged 1.7rem -> 27.2px' );
 
-echo "\nTest: analytics-widget.css's 9 em font-sizes stay literal (unprovable context, reported not guessed)\n";
+echo "\nTest: analytics-widget.css's 8 em font-sizes stay literal (unprovable context, reported not guessed)\n";
 $widget_unconverted_em = array(
 	'.sn-aw-stat-l{'         => '0.85em',
 	'.sn-aw-big-l{'          => '0.85em',
@@ -340,13 +337,12 @@ $widget_unconverted_em = array(
 	'.sn-aw-empty{'          => '0.875em',
 	'.sn-aw-err{'            => '0.9em',
 	'.sn-aw-config-snippet{' => '0.85em',
-	'.sn-hw-sub{'            => '0.85em',
 );
 foreach ( $widget_unconverted_em as $sel => $em ) {
 	$block = tok_block( $wg, $sel );
 	ok( false !== strpos( $block, "font-size:$em" ), "widget: $sel kept as $em — no same-file ancestor pins its parent font-size, so px parity can't be proven" );
 }
-ok( preg_match_all( '/font-size:\s*[0-9.]+em(?!\w)/', $wg ) === 9, 'widget: exactly 9 unprovable em font-sizes remain (none silently converted, none silently dropped)' );
+ok( preg_match_all( '/font-size:\s*[0-9.]+em(?!\w)/', $wg ) === 8, 'widget: exactly 8 unprovable em font-sizes remain (none silently converted, none silently dropped; .sn-hw-sub left with the widget)' );
 
 echo "\nTest: token-polish riders — value-identical swaps in the shared .sn-an-tier base block\n";
 $tier_admin = tok_block( $an, '.sn-an-tier{' );

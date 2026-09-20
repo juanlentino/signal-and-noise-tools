@@ -419,7 +419,6 @@ require_once SNT_PATH . 'inc/login-defense-gauges.php';
 // (reads the same query builders); and the dashboard widget (owner-requested glance).
 require_once SNT_PATH . 'inc/login-defense-analytics.php';
 require_once SNT_PATH . 'inc/login-defense-widget.php';
-require_once SNT_PATH . 'inc/site-health-widget.php'; // v7.0.0: "S&N Health" home dashboard widget (owner-approved 2nd widget exception)
 
 // ── Guard #3 (v1.3.0): function-redeclare defense ──────────────────
 //
@@ -612,7 +611,7 @@ require_once SNT_PATH . 'inc/webhooks-admin.php';
 require_once SNT_PATH . 'inc/uptime-heartbeat-removal.php'; // v12.19.0: one-shot janitor for the REMOVED push heartbeat — unschedules the live sn_uptime_kuma_heartbeat event and drops its two settings keys. Delete once every install has upgraded past 12.19.0.
 require_once SNT_PATH . 'inc/uptime-status.php';
 require_once SNT_PATH . 'inc/spend-watch.php'; // v10.75.0: Actions minutes + AI spend as owner-only health signals (never estimated)        // v8.2.0: Better Stack status data layer + ability + field/mount helpers (v8.3.0: + 30d availability)
-require_once SNT_PATH . 'inc/uptime-status-widget.php'; // v8.3.0: Uptime section of the S&N Health widget (standalone widget consolidated away) + panel assets
+require_once SNT_PATH . 'inc/uptime-status-widget.php'; // v8.3.0: Uptime section of the home widget (S&N Health then, the Signal & Noise box in inc/dash-widget.php since 11.30.0) + panel assets
 require_once SNT_PATH . 'inc/admin-heartbeat.php';
 require_once SNT_PATH . 'inc/insights-generation-budget.php'; // v13.20.6: http_request_args seam giving the Insights generation adaptive thinking + an effort level (Claude 5) so thinking is DEMAND-bounded, plus wire ceiling + timeout headroom; armed only around snt_insights_call_ai()
 require_once SNT_PATH . 'inc/insights.php';
@@ -629,7 +628,7 @@ require_once SNT_PATH . 'inc/sn-validate-checks.php';       // v10.30.0: MCP con
 require_once SNT_PATH . 'inc/sn-validate-checks-media.php'; // v10.30.0: MCP consolidation session 5 — sn_validate deterministic checks, part 2 (alt_text/links/body/brand_voice); needs health-checks.php's sn_health_drift_time_patterns() + sn_health_contains_note_link(), both loaded above
 require_once SNT_PATH . 'inc/abilities-sn-validate.php';    // v10.30.0: MCP consolidation session 5 — signal-noise/sn-validate, the consolidated read-door validation tool
 require_once SNT_PATH . 'inc/abilities-sn-apply.php';    // signal-noise/sn-apply, the consolidated write tool. This is now the LOADER for the whole family: it requires inc/sn-apply/*.php in the order the bootstrap used to, so the 13 sibling require_once lines that stood here are gone. The public path is unchanged.
-require_once SNT_PATH . 'inc/health-summary.php'; // v7.0.0: shared scan-summary accessors (finding total + ranked flagged checks) — glance card, attention strip, S&N Health widget
+require_once SNT_PATH . 'inc/health-summary.php'; // v7.0.0: shared scan-summary accessors (finding total + ranked flagged checks): glance card, attention strip, Signal & Noise home widget
 require_once SNT_PATH . 'inc/health-external-links.php'; // D1 (v6.13.0): 7th check — external link-rot (off-host cited sources)
 require_once SNT_PATH . 'inc/health-link-opportunities.php'; // v8.1.0: advisory check — semantic pairs that should link (C2 approach C)
 require_once SNT_PATH . 'inc/health-edge-workers.php'; // 8th check (v6.49.0): owned-Worker reachability + login-guard denylist freshness

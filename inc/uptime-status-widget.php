@@ -1,7 +1,7 @@
 <?php
 /**
- * Uptime section of the "S&N Health" dashboard widget + the status-panel
- * asset enqueues (v8.3.0).
+ * Uptime section of the "Signal & Noise" dashboard widget (inc/dash-widget.php)
+ * + the status-panel asset enqueues (v8.3.0).
  *
  * v8.2.0 shipped this as a standalone "S&N Uptime" widget; v8.3.0 folds it
  * into the S&N Health widget (owner call, 2026-07-02: one "is everything
@@ -19,11 +19,12 @@
  *
  * Unconfigured installs render NOTHING (empty string): the section simply
  * doesn't exist rather than prompting — the token field on Connections →
- * Webhooks documents the feature, and the Health widget shouldn't carry
+ * Webhooks documents the feature, and the home widget shouldn't carry
  * an ad for it.
  *
  * @package SignalNoiseTools
- * @since 8.2.0 (standalone widget), 8.3.0 (folded into S&N Health)
+ * @since 8.2.0 (standalone widget), 8.3.0 (folded into S&N Health), 11.30.0
+ *        (S&N Health folded into the Signal & Noise box, which calls this)
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -31,10 +32,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The Uptime section appended to the S&N Health widget render — see
- * sn_site_health_widget_render_full() in inc/site-health-widget.php (the
- * inner health render keeps its early-return states, so the section is
- * appended by the registered wrapper, never inline).
+ * The Uptime section the "Signal & Noise" home box appends to its render
+ * (sn_dash_widget_render() in inc/dash-widget.php). Its old host, the S&N
+ * Health widget, is deleted: nothing called its render since 11.30.0.
  *
  * @return string Section HTML, or '' when no token is configured.
  */
@@ -80,7 +80,8 @@ function sn_uptime_status_rail_strip() {
 
 /**
  * Panel assets for the two Dashboard-menu surfaces: the home dashboard
- * (S&N Health widget section) and the Analytics page (monitor section).
+ * (the Signal & Noise widget's Uptime section) and the Analytics page
+ * (monitor section).
  * Gated on a configured token — with no token there is no mount, so
  * shipping the JS/CSS would be wasted requests. The SN admin pages
  * (Webhooks-tab rail) get the same handles from the shared enqueue in

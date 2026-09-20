@@ -3,7 +3,7 @@
  *
  * Populates every [data-sn-uptime-status] mount from ONE call to the
  * readonly signal-noise/uptime-status ability via sntAbilityRun. Two mount
- * flavors: plain status lists (the S&N Health widget section + the
+ * flavors: plain status lists (the Signal & Noise widget's Uptime section + the
  * Webhooks-tab rail) and [data-sn-uptime-detail] (the Analytics page
  * monitor: table with availability windows + response times, plus the
  * incidents log). If ANY detail mount is on the page the single call is

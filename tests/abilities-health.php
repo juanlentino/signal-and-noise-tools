@@ -4,7 +4,7 @@
  *
  * Read-only agent exposure of the cached Content-Health scan, projected through
  * the shared summary accessors (inc/health-summary.php, loaded FOR REAL) so it
- * matches the S&N Health widget + the Health tab exactly. Asserts registration
+ * matches the Signal & Noise home widget + the Health tab exactly. Asserts registration
  * shape + the summary projection (finding_total, ranked flagged checks,
  * passed/total tally, null when no scan). Never triggers a scan.
  *

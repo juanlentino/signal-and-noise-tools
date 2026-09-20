@@ -14,8 +14,8 @@
  * the ability calls sn_uptime_status_fetch() here, which GETs the Uptime
  * API (monitors + heartbeats, Bearer token) and caches the normalized
  * snapshot in a 90s transient. Renders are therefore ZERO-COST (the
- * dashboard renders on every admin login — same discipline as
- * inc/site-health-widget.php); the remote round-trip only ever happens
+ * dashboard renders on every admin login, the discipline every home box
+ * keeps; see inc/dash-widget.php); the remote round-trip only ever happens
  * inside the ability call. Failures return WP_Error and are NEVER
  * cached, so a Better Stack blip clears on the next panel load.
  *
@@ -29,7 +29,7 @@
  * Two payload tiers since v8.4.0 (the stats display moved to the
  * Dashboard → Analytics page, owner call):
  *   - LIGHT (sn_uptime_status_fetch): statuses only, 2 calls, 90s cache.
- *     Feeds the S&N Health widget section + the Webhooks rail.
+ *     Feeds the Signal & Noise widget's Uptime section + the Webhooks rail.
  *   - DETAIL (sn_uptime_status_detail): + 30d/90d availability, avg
  *     response times (24h), and the incidents log. Feeds the Analytics
  *     page monitor. Every stat tier is independently cached, fails SOFT
