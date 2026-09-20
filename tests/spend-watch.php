@@ -94,10 +94,6 @@ $fg = sn_spend_gh_usage();
 ok( true === $fg['ok'] && 131 === $fg['used'],
 	'fetch: the usage report is requested directly (no dead legacy call first)' );
 
-$h_fg = sn_spend_watch_health_section();
-ok( strpos( $h_fg, '131' ) !== false && strpos( $h_fg, '1.19' ) !== false && strpos( $h_fg, 'of ' ) === false,
-	'render (usage source): used minutes + billed dollars, and NO invented "of <quota>"' );
-
 // Endpoint failing -> unknown, as before.
 $GLOBALS['__transients'] = array();
 $GLOBALS['__http']['settings/billing/usage'] = array( 'response' => array( 'code' => 500 ), 'body' => '' );
@@ -106,50 +102,21 @@ ok( false === $both['ok'], 'fetch: a failing usage read records ok=false (render
 unset( $GLOBALS['__http']['settings/billing/usage'] );
 $GLOBALS['__transients'] = array();
 $GLOBALS['__opts'] = array();
+ok( null === sn_spend_gh_usage() && null === sn_spend_ai_cost(), 'unconfigured: both readers return null (the leaf reads "not set" from that, never a zero)' );
 
-// --- section: owner-only mount + zero-vs-null honesty ------------------------
-ok( '' === sn_spend_watch_health_section(), 'unconfigured: the section is absent (the uptime precedent), not a nag' );
-
-$GLOBALS['__opts']['sn_spend_gh_token'] = 'github_pat_test';
-$GLOBALS['__http']['api.github.com']    = array(
-	'response' => array( 'code' => 200 ),
-	'body'     => json_encode( array( 'usageItems' => array(
-		array( 'product' => 'actions', 'sku' => 'actions_linux', 'quantity' => 2905, 'unitType' => 'Minutes', 'netAmount' => 0 ),
-	) ) ),
-);
-$h = sn_spend_watch_health_section();
-ok( strpos( $h, '2,905' ) !== false && strpos( $h, '0.00' ) !== false,
-	'configured + healthy fetch: the section shows platform-reported minutes + billed dollars' );
-ok( strpos( $h, 'unknown' ) === false, 'healthy fetch: no stray unknown' );
-
-// PROVEN HONEST: an API failure renders unknown — never a fabricated figure.
-$GLOBALS['__transients'] = array(); // drop the cached snapshot
-$GLOBALS['__http']['api.github.com'] = array( 'response' => array( 'code' => 410 ), 'body' => '' );
-$u = sn_spend_watch_health_section();
-ok( stripos( $u, 'unknown' ) !== false && strpos( $u, '2,905' ) === false && strpos( $u, '0%' ) === false,
-	'fetch failure: Actions minutes read unknown — no stale figure, no fake zero' );
-
-// Failure snapshots cache SHORT: the marker must be distinguishable.
-ok( isset( $GLOBALS['__transients']['sn_spend_gh_usage']['ok'] ) && false === $GLOBALS['__transients']['sn_spend_gh_usage']['ok'],
-	'failure snapshot cached with ok=false (a retry can tell failure from absence)' );
-
-// AI side: configured + amounts -> dollar figure from the platform only.
-$GLOBALS['__transients'] = array();
-$GLOBALS['__opts']['sn_spend_ai_admin_key'] = 'sk-ant-admin-test';
-$GLOBALS['__http']['api.anthropic.com']     = array(
-	'response' => array( 'code' => 200 ),
-	'body'     => json_encode( array( 'data' => array( array( 'results' => array( array( 'amount' => '750' ) ) ) ), 'has_more' => false ) ),
-);
-$GLOBALS['__http']['api.github.com'] = array(
-	'response' => array( 'code' => 200 ),
-	'body'     => json_encode( array( 'total_minutes_used' => 100, 'included_minutes' => 3000 ) ),
-);
-$a = sn_spend_watch_health_section();
-ok( strpos( $a, '7.50' ) !== false, 'AI spend renders the platform-reported month figure (7.50)' );
+// --- the section is gone --------------------------------------------------------
+// The Spend section rendered only inside the S&N Health home widget's full
+// renderer, which nothing called since 11.30.0. 17.4.0 painted the readers on
+// AI › Models & Budget (the mount guards below); the section builder is gone
+// with the widget, and this module must not grow a reference to it back.
+$spend_src = (string) file_get_contents( __DIR__ . '/../inc/spend-watch.php' );
+ok( ! function_exists( 'sn_spend_watch_health_section' ) && strpos( $spend_src, 'health_section' ) === false && strpos( $spend_src, 'S&N Health' ) === false,
+	'no Spend section builder, and the module no longer names the dead widget' );
 
 // Pagination: has_more pages must ALL be summed — a single-page read of a
 // month silently under-counts (the endpoint buckets daily).
 $GLOBALS['__transients'] = array();
+$GLOBALS['__opts']['sn_spend_ai_admin_key'] = 'sk-ant-admin-test';
 $GLOBALS['__page'] = 0;
 $GLOBALS['__http'] = array();
 function sn_test_paged_response( $url ) {

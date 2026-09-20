@@ -45,7 +45,7 @@
 	font-variant-numeric: tabular-nums;
 }
 
-/* Section chrome when the panel lives inside the S&N Health widget (v8.3.0). */
+/* Section chrome when the panel lives inside the Signal & Noise home widget (v8.3.0; S&N Health then, inc/dash-widget.php since 11.30.0). */
 .sn-uw-section {
 	margin-top: 12px;
 	padding-top: 10px;

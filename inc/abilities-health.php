@@ -4,7 +4,7 @@
  *
  * Exposes the cached Content-Health scan (inc/health-checks.php) to AI /
  * automation callers as a compact summary — the agent-readable equivalent of the
- * "S&N Health" dashboard widget + the Health tab. Projected through the shared
+ * "Signal & Noise" home widget + the Health tab. Projected through the shared
  * summary accessors (inc/health-summary.php) so it never disagrees with those
  * surfaces on "what is off".
  *

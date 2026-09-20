@@ -196,6 +196,11 @@ ok( SN_HEALTH_PAIRS_MAX_PER_SOURCE === $from_one, 'source capped at SN_HEALTH_PA
 
 echo "\nTest: advisory tier registration\n";
 ok( in_array( 'link_opportunities', sn_health_advisory_checks(), true ), 'link_opportunities is advisory-tier' );
+// The whole tier, pinned in order (moved here from the deleted S&N Health
+// widget suite, which was its only home): a check joins or leaves the tier
+// by a deliberate flip of this line, never by drift.
+ok( sn_health_advisory_checks() === array( 'external_links', 'link_opportunities', 'stale_posts_evergreen', 'tag_hygiene', 'jev_tags' ), 'advisory tier is exactly external_links, link_opportunities, stale_posts_evergreen, tag_hygiene, jev_tags (16.8.2)' );
+ok( 0 === sn_health_finding_total( null ) && 0 === sn_health_advisory_total( null ) && array() === sn_health_flagged_checks( null ) && 0 === sn_health_check_total( null ), 'a null scan is 0 / empty on every accessor, never a fatal (moved from the deleted widget suite)' );
 
 echo "\nTest: empty / single-post corpus packs 0\n";
 $GLOBALS['wpdb']->rows = array();

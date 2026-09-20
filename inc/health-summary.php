@@ -7,7 +7,7 @@
  * "what is off":
  *   - the Dashboard tab first-glance Health card + attention strip
  *     (inc/admin-tab-dashboard.php),
- *   - the "S&N Health" home dashboard widget (inc/site-health-widget.php),
+ *   - the "Signal & Noise" home dashboard widget (inc/dash-widget.php),
  *   - the Health-tab hero (inc/health-checks-admin.php),
  *   - the get-health-scan ability (inc/abilities-health.php).
  *

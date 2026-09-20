@@ -87,7 +87,7 @@ function snt_health_glance_cards( $scan ) {
 	// caller handing a RAW scan mixed a scoped numerator with a raw denominator.
 	$check_count = sn_health_check_total( $scan );
 	// Shared accessors (inc/health-summary.php) so this hero, the Dashboard-tab
-	// glance card + attention strip, and the S&N Health widget never disagree.
+	// glance card + attention strip, and the Signal & Noise home widget never disagree.
 	$total    = sn_health_finding_total( $scan );
 	$advisory = sn_health_advisory_total( $scan );
 	// v8.0.4: the passed RATIO uses the RAW count split so it always agrees

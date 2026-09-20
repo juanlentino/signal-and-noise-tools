@@ -51,9 +51,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   - Music joins Connections: it is an external-API credential form.
  *   - Tools stops being a junk drawer.
  *
- * LABELS CHANGED, KEYS DID NOT. `tab=monitoring&sub=health` is hardcoded in
- * five call sites (inc/admin-tab-dashboard.php, inc/site-health-widget.php,
- * inc/analytics-recommendations.php); keeping the key keeps all five valid.
+ * LABELS CHANGED, KEYS DID NOT. `tab=monitoring&sub=health` is hardcoded
+ * across inc/ and apps/ (inc/admin-tab-dashboard.php,
+ * inc/analytics-recommendations.php, inc/integrity-trust-admin.php, the
+ * dashboard and tools-trust leaves); keeping the key keeps every one valid.
  * Every leaf that changed parent tab has a line in sn_admin_subtab_moves()
  * (inc/admin-legacy-redirect.php), which feeds BOTH the GET 301 and the POST
  * PRG — so bookmarks and in-flight saves land identically.

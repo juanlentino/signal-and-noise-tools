@@ -27,10 +27,11 @@
  * loads first): the text, muted, accent, hairline, up, down, and ok/warn
  * state tokens all reappear here verbatim, reconciling what used to be a
  * parallel hex vocabulary against analytics-admin.css. That now includes
- * this file's own mover deltas (.sn-aw-mv-up / .sn-aw-delta--down) and the
- * "S&N Health" widget's warn/ok state colors — both used to sit outside the
- * shared vocabulary as undocumented one-off literals, which was drift, not a
- * deliberate design choice (see tests/analytics-tokens.php). A couple of
+ * this file's own mover deltas (.sn-aw-mv-up / .sn-aw-delta--down), which
+ * used to sit outside the shared vocabulary as undocumented one-off
+ * literals, drift rather than a deliberate design choice (see
+ * tests/analytics-tokens.php); the ok/warn state rules that once sat beside
+ * them belonged to the S&N Health widget, deleted with it. A couple of
  * literals still stay outside the token layer on purpose: they're genuinely
  * unrelated to this vocabulary (the list-row hairline, the empty-state
  * dashed border) or belong to a different, untouched token contract (the
@@ -73,22 +74,6 @@
 .sn-aw-empty::before{content:"";flex:none;width:14px;height:14px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238c8f94' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E") no-repeat center / contain;}
 .sn-aw-err{color:var(--sn-an-down);font-size:0.9em;margin:0;}
 .sn-aw-config-snippet{background:var(--sn-an-surface-2);border:1px solid #e0e0e0;padding:6px 10px;margin:6px 0 0;font-size:0.85em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
-
-/* "S&N Health" widget (inc/site-health-widget.php) — a state-colored status
- * header shared by all three states (dormant / ok / warn), on the native
- * wp-admin palette. The round glyph badge carries the state color; the headline
- * inherits the default admin text (green on all-clear for a positive read). */
-.sn-hw-head{display:flex;align-items:flex-start;gap:12px;margin:2px 0 2px;}
-.sn-hw-ico{flex:0 0 auto;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
-.sn-hw-ico svg{width:19px;height:19px;display:block;fill:currentColor;}
-.sn-hw-head--ok .sn-hw-ico{background:var(--sn-an-ok-bg);color:var(--sn-an-up);}
-.sn-hw-head--warn .sn-hw-ico{background:var(--sn-an-warn-bg);color:var(--sn-an-warn-text);}
-.sn-hw-head--dormant .sn-hw-ico{background:#f0f0f1;color:var(--sn-an-muted);}
-.sn-hw-txt{min-width:0;}
-.sn-hw-h{font-size:16.8px;font-weight:600;color:var(--sn-an-text);margin:0;line-height:1.25;}
-.sn-hw-head--ok .sn-hw-h{color:var(--sn-an-up);}
-.sn-hw-sub{font-size:0.85em;color:var(--sn-an-muted);margin:2px 0 0;}
-.sn-hw-list{margin-top:14px;}
 
 /* ── v8.5.0 pairing: share bars, today line, mover deltas ─────────────────── */
 .sn-aw-list--bars li { position: relative; }
