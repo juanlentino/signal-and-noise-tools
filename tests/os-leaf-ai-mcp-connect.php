@@ -136,26 +136,34 @@ $kit = ai_leaf_both();
 ok( false !== strpos( $kit, 'has recorded nothing' ), 'usage state: installed with zero rows reads "has recorded nothing"' );
 
 // ── Populated usage fixture: 2 tools, a partial window, one unused + one
-// unreachable zero-call entry.
+// unreachable + one first-party-only zero-call entry, the live door split of
+// 2026-09-20 (#1587).
 $GLOBALS['__usage'] = array(
 	'measured_since' => '2026-01-01',
 	'measured_days'  => 20,
 	'window_days'    => 30,
 	'complete'       => false,
-	'total_rows'     => 137,
+	'total_rows'     => 75874,
+	'by_door'        => array( 'direct' => 72182, 'read' => 1446, 'rw' => 1042, 'agent' => 1204 ),
 	'by_tool'        => array(
-		'sn-status' => array( 'calls' => 42, 'last_seen' => '2026-02-01', 'doors' => array( 'read' ) ),
-		'sn-apply'  => array( 'calls' => 7, 'last_seen' => '2026-01-20', 'doors' => array( 'write' ) ),
+		'sn-status' => array( 'calls' => 42, 'door_calls' => 42, 'direct_calls' => 0, 'last_seen' => '2026-02-01', 'doors' => array( 'read' ) ),
+		'sn-apply'  => array( 'calls' => 30001, 'door_calls' => 1, 'direct_calls' => 30000, 'last_seen' => '2026-01-20', 'doors' => array( 'rw', 'direct' ) ),
 	),
 	'zero_call'      => array(
-		array( 'slug' => 'signal-noise/unused-thing', 'verdict' => 'unused' ),
-		array( 'slug' => 'signal-noise/broken-thing', 'verdict' => 'unreachable' ),
+		array( 'slug' => 'signal-noise/unused-thing', 'verdict' => 'unused', 'calls' => 0 ),
+		array( 'slug' => 'signal-noise/broken-thing', 'verdict' => 'unreachable', 'calls' => 0 ),
+		array( 'slug' => 'signal-noise/get-deploy-status', 'verdict' => 'first_party_only', 'calls' => 28689 ),
 	),
 );
+ok( array_sum( $GLOBALS['__usage']['by_door'] ) === $GLOBALS['__usage']['total_rows'], 'usage fixture: by_door sums to total_rows, as the reader pins for a live read' );
 $classic = ai_classic_both();
 $kit     = ai_leaf_both();
-ok( false !== strpos( $kit, '20 days of a 30-day window' ) && false !== strpos( $kit, '2 tools with no calls' ), 'usage state: the window/zero-call summary carries the measured numbers' );
-ok( false !== strpos( $kit, 'sn-status' ) && false !== strpos( $kit, '42' ) && false !== strpos( $kit, 'sn-apply' ) && false !== strpos( $kit, '7' ), 'usage state: the per-tool table rows carry both tools and their call counts' );
+ok( false !== strpos( $kit, '20 days of a 30-day window' ) && false !== strpos( $kit, '3 tools with no calls through a door' ) && false !== strpos( $classic, '3 tools with no calls through a door' ), 'usage state: the summary counts tools with no calls THROUGH A DOOR, on both surfaces' );
+ok( false !== strpos( $kit, 'sn-status' ) && false !== strpos( $kit, '42' ) && false !== strpos( $kit, 'sn-apply' ) && false !== strpos( $kit, '1 (30,000 direct)' ) && false !== strpos( $classic, '1 (30,000 direct)' ), 'usage state: the Calls cell is door calls with the direct count in parentheses, on both surfaces' );
+$door_split = '75,874 calls: 72,182 first-party (direct), 1,446 read door, 1,042 rw, 1,204 agent';
+ok( false !== strpos( $kit, $door_split ) && false !== strpos( $classic, $door_split ), 'usage state: the door-split sentence paints with the same words on both surfaces' );
+$first_party = "the plugin's own surfaces called it 28,689 times";
+ok( false !== strpos( html_entity_decode( $kit, ENT_QUOTES, 'UTF-8' ), $first_party ) && false !== strpos( html_entity_decode( $classic, ENT_QUOTES, 'UTF-8' ), $first_party ) && false !== strpos( $kit, 'only for the door allowlist' ), 'usage state: a first-party-only tool is labelled with its direct count and as an allowlist (not code) candidate, on both surfaces' );
 ok( false !== strpos( $kit, 'No calls in this window' ), 'usage state: the zero-call list keeps its heading' );
 ok( false !== strpos( $kit, 'predate the sensor' ), 'usage state: the partial-window caveat keeps its interpretive sentence' );
 ok( false !== strpos( $kit, 'retirement candidate' ) && false !== strpos( $kit, 'evidence for removal' ), 'usage state: the zero-call trailing paragraph survives' );

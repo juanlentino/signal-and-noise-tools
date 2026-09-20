@@ -106,14 +106,31 @@ function sn_mcp_telemetry_expected_tools() {
 	}
 	$map = array();
 	foreach ( array_unique( $slugs ) as $slug ) {
-		// Telemetry stores the PROJECTED tool_name, not the slug. Diffing slugs
-		// against tool_names would report every tool as zero-call — the whole
-		// corpus, confidently, and wrongly.
+		// Valued by the PROJECTED name every door's spelling folds onto (sn_mcp_telemetry_canonical_tool).
 		$map[ $slug ] = function_exists( 'sn_mcp_tool_name_from_slug' )
 			? sn_mcp_tool_name_from_slug( $slug )
 			: str_replace( '/', '__', (string) $slug );
 	}
 	return $map;
+}
+
+/**
+ * One allowlisted ability, one name, at READ time (the log is append-only
+ * evidence, never rewritten): the MCP doors' `signal-noise__x`, the direct
+ * door's slug `signal-noise/x` and a bare `x` fold onto the projected name.
+ * Only EXPECTED tools fold; a theme tool or a blank stays as recorded.
+ *
+ * @param string               $name     tool_name as recorded.
+ * @param array<string,string> $expected slug => projected name.
+ * @return string
+ */
+function sn_mcp_telemetry_canonical_tool( $name, $expected ) {
+	foreach ( $expected as $slug => $projected ) {
+		if ( in_array( (string) $name, array( $projected, (string) $slug, substr( (string) strrchr( '/' . $slug, '/' ), 1 ) ), true ) ) {
+			return $projected;
+		}
+	}
+	return (string) $name;
 }
 
 /**
@@ -157,9 +174,11 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
 	}
 
 	$by_tool     = array();
+	$by_door     = array();
 	$error_codes = array();
 	$total_rows  = 0;
 	$earliest    = null;
+	$expected    = sn_mcp_telemetry_expected_tools();
 
 	foreach ( $rows as $row ) {
 		$name    = (string) ( $row['tool_name'] ?? '' );
@@ -171,27 +190,31 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
 		$code    = (string) ( $row['error_code'] ?? '' );
 
 		$total_rows += $calls;
+		$by_door[ $door ] = ( $by_door[ $door ] ?? 0 ) + $calls;
 		if ( '' !== $first && ( null === $earliest || $first < $earliest ) ) {
 			$earliest = $first;
 		}
 
-		// Schema-error rows are recorded with an EMPTY tool_name
-		// (mcp-tools.php:436) because the call never resolved to a tool. They
-		// are real traffic and count toward the total, but attributing them to
-		// a tool would invent a caller.
+		// Schema-error rows carry an EMPTY tool_name (mcp-tools.php:436): the
+		// call never resolved to a tool. Real traffic, counted in the total,
+		// never attributed to a tool (that would invent a caller).
 		if ( '' === $name ) {
 			continue;
 		}
+		$name = sn_mcp_telemetry_canonical_tool( $name, $expected );
 
 		if ( ! isset( $by_tool[ $name ] ) ) {
 			$by_tool[ $name ] = array(
-				'calls'     => 0,
-				'last_seen' => null,
-				'doors'     => array(),
-				'outcomes'  => array(),
+				'calls'        => 0,
+				'door_calls'   => 0,
+				'direct_calls' => 0,
+				'last_seen'    => null,
+				'doors'        => array(),
+				'outcomes'     => array(),
 			);
 		}
 		$by_tool[ $name ]['calls'] += $calls;
+		$by_tool[ $name ][ 'direct' === $door ? 'direct_calls' : 'door_calls' ] += $calls;
 		if ( null === $by_tool[ $name ]['last_seen'] || $last > $by_tool[ $name ]['last_seen'] ) {
 			$by_tool[ $name ]['last_seen'] = $last;
 		}
@@ -223,6 +246,7 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
 		'window_days'    => $days,
 		'complete'       => ( null !== $measured_days && $measured_days >= $days ),
 		'by_tool'        => $by_tool,
+		'by_door'        => $by_door,
 		'by_error_code'  => $error_codes,
 		'zero_call'      => sn_mcp_telemetry_zero_call( $by_tool ),
 		'total_rows'     => $total_rows,
@@ -238,29 +262,35 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
  * refuses to collapse them.
  *
  * A tool may only be retired on verdict `unused`. `unreachable` is a BUG
- * REPORT: retiring it would delete the evidence of a defect.
+ * REPORT: retiring it would delete the evidence of a defect. "No calls" means
+ * none THROUGH A DOOR (read, rw, agent); `direct` is the plugin's own surfaces
+ * polling (the large majority of 74,670 calls on 2026-09-20), and a tool only they call is
+ * `first_party_only`: a door-allowlist candidate, never a code one.
  *
- * @param array $by_tool Grouped usage keyed by tool_name.
+ * @param array $by_tool Grouped usage keyed by canonical tool_name.
  * @return array<int,array{tool:string,slug:string,calls:int,reachable:bool|null,verdict:string}>
  */
 function sn_mcp_telemetry_zero_call( $by_tool ) {
 	$out = array();
 	foreach ( sn_mcp_telemetry_expected_tools() as $slug => $tool_name ) {
-		if ( isset( $by_tool[ $tool_name ] ) && $by_tool[ $tool_name ]['calls'] > 0 ) {
+		if ( (int) ( $by_tool[ $tool_name ]['door_calls'] ?? 0 ) > 0 ) {
 			continue;
 		}
+		$direct    = (int) ( $by_tool[ $tool_name ]['direct_calls'] ?? 0 );
 		$reachable = sn_mcp_telemetry_slug_reachable( $slug );
-		if ( true === $reachable ) {
-			$verdict = 'unused';
-		} elseif ( false === $reachable ) {
-			$verdict = 'unreachable';
+		if ( false === $reachable ) {
+			$verdict = 'unreachable'; // A bug outranks a quiet door: the direct calls prove nothing about projection.
+		} elseif ( null === $reachable ) {
+			$verdict = 'undetermined'; // Unknown projection cannot name a door-allowlist candidate either.
+		} elseif ( $direct > 0 ) {
+			$verdict = 'first_party_only';
 		} else {
-			$verdict = 'undetermined';
+			$verdict = 'unused';
 		}
 		$out[] = array(
 			'tool'      => $tool_name,
 			'slug'      => $slug,
-			'calls'     => 0,
+			'calls'     => $direct, // Door calls are 0 by construction, so this is the direct count.
 			'reachable' => $reachable,
 			'verdict'   => $verdict,
 		);
