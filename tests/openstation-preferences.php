@@ -518,7 +518,7 @@ ok( 2 === substr_count( $settings_js, 'window.wp.os.registerNativeUrlRemap( {' )
 foreach ( array( 'mio_tips', 'mio_help', 'mio_look' ) as $k ) {
 	ok( false !== strpos( $settings_js, "createToggle(\n\t\t\t'$k'," ) || false !== strpos( $settings_js, "'$k'," ), "the settings tab paints a toggle for $k" );
 }
-ok( false !== strpos( $settings_js, "key === 'mio_look'" ) && false !== strpos( $settings_js, 'next reload' ), 'saving the look says it lands on the next reload, since openstation_mio_config ships at boot' );
+ok( false !== strpos( $settings_js, "key === 'mio_look'" ) && 1 === preg_match( "/'Saved\. MIO [^']*reload\.'/", $settings_js ), 'saving the look says it lands on reload, since openstation_mio_config ships at boot' );
 ok( false !== strpos( $settings_js, "nativeWindowId: 'sn-dashboard'" ), 'Dashboard classic page remaps to sn-dashboard' );
 ok( false !== strpos( $settings_js, "nativeWindowId: 'sn-analytics'" ), 'Analytics classic page remaps to sn-analytics' );
 ok( false !== strpos( $settings_js, "parsed.pathname.endsWith( '/admin.php' )" ), 'remaps are scoped to WordPress admin.php URLs' );
@@ -529,6 +529,29 @@ ok( false !== strpos( $settings_js, 'syncDockTiles' ), 'client defines syncDockT
 ok( false !== strpos( $settings_js, "removeSystemItem( 'sn-analytics' )" ), 'client removes sn-analytics dock tile when disabled' );
 ok( false !== strpos( $settings_js, "removeSystemItem( 'sn-dashboard' )" ), 'client removes sn-dashboard dock tile when disabled' );
 ok( false !== strpos( $settings_js, 'os-registry-changed' ), 'client syncs dock tiles on os-registry-changed event' );
+// #1610: the save line is the kit's pill (os-save-status, Stable), driven
+// by `phase`, the failure text in `error`, the MIO line in `saved-label`;
+// no hand-painted paragraph, no phase colour written by hand.
+ok( false !== strpos( $settings_js, "createElement( 'os-save-status' )" ) && false !== strpos( $settings_js, "'mode', 'pill'" ) && false === strpos( $settings_js, "'role', 'status'" ), 'settings tab: the save line is the kit\'s os-save-status pill, not a hand-painted <p role="status">' );
+ok( false === strpos( $settings_js, 'style.color' ) && false === strpos( $settings_js, 'textContent = __( \'Sav' ), 'settings tab: no phase colour or phase text is written by hand' );
+ok( false !== strpos( $settings_js, "'phase', 'saving'" ) && false !== strpos( $settings_js, "'phase', 'saved'" ) && 2 === substr_count( $settings_js, "'phase', 'failed'" ), 'settings tab: the three phases are set on the pill, failed on both the in-place and the re-rendered status' );
+// The order is immaterial to the paint: the kit's base class collapses
+// same-tick attribute writes into one microtask render (component.ts
+// _scheduleRender), so `error` after `phase` paints the same. Setting
+// `error` first only completes the detail of the os-save-status-change
+// event. Two matches: the in-place site and the re-rendered one.
+ok( 2 === preg_match_all( "/setAttribute\( 'error', __\( 'Could not save preference\.'[^\n]*\n\s*[a-zA-Z.]*\.setAttribute\( 'phase', 'failed' \)/", $settings_js ), 'settings tab: the failure text rides `error` at both failed sites, the in-place pill and the re-rendered one' );
+ok( 1 === preg_match( "/setAttribute\( 'saved-label', key === 'mio_look'/", $settings_js ), 'settings tab: the MIO next-reload line rides saved-label' );
+// The pill's label is capped at 200px with an ellipsis (os-save-status
+// .styles.ts; no CSS prop widens it). "Saved. MIO wears it on the next
+// reload." measured 209px under the system-ui fallback (clipped to "next
+// rel...") and 199px under Geist; the short line measures 166px / 157px.
+ok( false !== strpos( $settings_js, "'Saved. MIO changes on reload.'" ) && false === strpos( $settings_js, 'MIO wears it on the next reload' ), 'settings tab: the MIO saved label is the short line that fits the pill\'s 200px label cap under the fallback face' );
+// #1610: two older-shell shims are gone. The 1.1.7 blank-glyph mask matched
+// nothing once the shell read `icon` (1.1.9); the dock DOM scrape queried
+// attributes no rail emits (the rails carry data-icon-id / data-system-id).
+ok( false === strpos( $settings_js, 'nav-glyph-blank' ) && false === strpos( $settings_js, 'snt-preferences-icon' ), 'settings tab: no style masks the 1.1.7 blank glyph; the icon name on the registration is the glyph' );
+ok( false === strpos( $settings_js, 'data-tile-id' ) && false === strpos( $settings_js, 'removeChild' ) && false === strpos( $settings_js, 'document.querySelector(' ), 'settings tab: no DOM scrape beside Dock.removeSystemItem and the refreshMenu payload rebuild' );
 // Our columns in the native Posts window (OpenStation 1.1.8 seam
 // `openstation.postsWindow.columns`): one script, its own handle, shell
 // requests only, wp-hooks as the sole dep (the shell's loader never walks
