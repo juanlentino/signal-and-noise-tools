@@ -99,18 +99,38 @@ function paint_monitoring_rss( array $ctx ) {
 	$params = is_array( $params ) ? $params : array();
 	$flash  = isset( $params['sn_rss_ok'] ) ? (string) $params['sn_rss_ok'] : '';
 
+	// Two rows, paired by height (#1573, live at 1581px: Activity 189,
+	// Maintenance 177, Settings 507, Recent requests 507). Activity's three
+	// age windows sit beside the purge-older-than-days form, both age-windowed
+	// views of the same log; the settings form sits beside the ledger it is
+	// read against: flip the switch and watch rows land, the event name is the
+	// one the rows post under, retention against the oldest stamp. Settings
+	// beside Maintenance (507 vs 177) left a hole under the purge form.
 	$out  = rss_flash_html( $flash );
-	$out .= \snt_kit_section( __( 'Activity', 'signal-and-noise-tools' ), rss_activity_html( $state['stats'] ) );
-	$out .= \snt_kit_section( __( 'Recent requests', 'signal-and-noise-tools' ), rss_recent_table_html( $state['recent'] ) );
-	// Activity and Recent requests keep the width -- one is a stat row, the other
-	// a table. Settings and Maintenance are siblings: both manage the feed.
-	$out .= \snt_kit_tag(
-		'div',
-		array( 'class' => 'snt-cols' ),
-		\snt_kit_section( __( 'Settings', 'signal-and-noise-tools' ), rss_settings_form_html( $state['settings'], $tab ) . rss_reset_form_html() )
-		. rss_maintenance_html( $state['settings'] )
+	$out .= rss_pair(
+		\snt_kit_section( __( 'Activity', 'signal-and-noise-tools' ), rss_activity_html( $state['stats'] ) ),
+		rss_maintenance_html( $state['settings'] )
+	);
+	$out .= rss_pair(
+		\snt_kit_section( __( 'Settings', 'signal-and-noise-tools' ), rss_settings_form_html( $state['settings'], $tab ) . rss_reset_form_html() ),
+		\snt_kit_section( __( 'Recent requests', 'signal-and-noise-tools' ), rss_recent_table_html( $state['recent'] ) )
 	);
 	return $out;
+}
+
+/**
+ * Two boxes on one `.snt-cols` row; a side that paints nothing leaves the
+ * other at full width (the tags_pair() shape).
+ *
+ * @param string $left  Painted box or ''.
+ * @param string $right Painted box or ''.
+ * @return string
+ */
+function rss_pair( $left, $right ) {
+	if ( '' === $left || '' === $right ) {
+		return $left . $right;
+	}
+	return \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $left . $right );
 }
 
 add_filter(
