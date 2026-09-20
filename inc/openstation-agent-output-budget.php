@@ -1,47 +1,45 @@
 <?php
 /**
- * Signal & Noise Tools — agent generation-budget shaping for
- * WordPress/openstation#517.
+ * Signal & Noise Tools: the generation budget of an agent-run turn.
  *
- * The Core AI Client pins `max_tokens: 4096` on every Anthropic
- * /v1/messages request and sends neither `thinking` nor `output_config`.
- * On models with uncontrolled-effort reasoning (measured live on
- * claude-sonnet-5), thinking is CEILING-BOUNDED: it consumes whatever
- * output budget exists — 4096/4096 at the pin, 6144/6144 with the pin
- * raised, still reasoning past ~7.4k at 16384 — so the turn truncates
- * inside the thinking block, carries no text part, and the run surfaces
- * as "The agent finished without a text answer". Raising the ceiling
- * alone therefore fixes nothing (the v10.53.0 approach, falsified live
- * the same night it shipped).
+ * WHY A BUDGET AT ALL. The Core AI Client pins `max_tokens: 4096` on every
+ * Anthropic /v1/messages request and sends neither `thinking` nor
+ * `output_config`. On claude-sonnet-5 thinking is then CEILING-BOUNDED: it
+ * consumes whatever output budget exists (4096 of 4096, 6144 of 6144, still
+ * reasoning past 7.4k at 16384), the turn truncates inside the thinking
+ * block, no text part lands, and the run reads "The agent finished without
+ * a text answer". Raising the ceiling alone fixes nothing (v10.53.0,
+ * falsified live the night it shipped). The working configuration, verified
+ * live 2026-08-07: an explicit effort makes thinking DEMAND-BOUNDED (about
+ * 3.7k tokens for a sentence-edit plan at any ceiling), and a ceiling above
+ * that demand leaves the answer room. Both keys travel together: the ceiling
+ * is raised only when thinking is bounded, or the headroom goes to thinking.
  *
- * The working configuration, live-verified 2026-08-07: an explicit
- * effort config makes thinking DEMAND-BOUNDED (~3.7k tokens for a
- * sentence-edit plan regardless of ceiling), and a ceiling modestly
- * above demand leaves room for the answer — stop_reason "end_turn",
- * full structured text. This seam injects both:
+ * THE SEAM (#1613). `openstation_ai_model_config`, Experimental, shipped in
+ * OpenStation 1.1.0 (docs/hooks-reference.md; recipe
+ * docs/examples/ai-model-config.md, "Spend effort only where it pays"). The
+ * AI client applies it on every generating path with `$context['source']`
+ * naming the caller; `agents/runner` is the one this module shapes. Keys:
+ * `max_tokens` goes through ModelConfig::setMaxTokens, `custom_options` are
+ * provider-native parameter names copied verbatim into the request body
+ * (WordPress/ai-provider-for-anthropic 1.0.4 forwards `thinking` and
+ * `output_config` untouched), and a string `model` is a soft preference via
+ * using_model_preference(): picked when the connector lists it, otherwise
+ * the client's own choice stands.
  *
- *   1. ONLY during agent runs — armed from the runner's own
- *      `*_agent_runner_generate` pre-filter, so the Copilot and SN's own
- *      AI helpers never see it (they pin their own budgets).
- *   2. ONLY for Anthropic `/v1/messages` requests carrying a Claude 5
- *      family model (`claude-<name>-5…`): the effort keys are
- *      model-family-specific — `thinking.type: "enabled"` is REJECTED by
- *      Claude 5 (400: use adaptive + output_config.effort), and adaptive
- *      would 400 on older families. Non-matching requests pass through
- *      BYTE-IDENTICAL.
- *   3. DEFERENTIAL: any request already carrying `thinking` or
- *      `output_config` is left untouched, and the ceiling is rewritten
- *      only when it still holds the exact pinned int 4096 — the moment
- *      upstream ships its own config (openstation#531) or changes the
- *      pin, this seam self-neutralizes.
+ * DEFERENTIAL. The seam starts empty, but a callback at a lower priority (a
+ * per-agent model override, another plugin's budget) may already have shaped
+ * the config, and this callback builds on it rather than over it: a config
+ * already carrying `thinking` or `output_config` comes back byte-identical,
+ * a higher `max_tokens` stays, sibling `custom_options` keys stay, and a
+ * `model` already chosen stays. The pin only ever raises and only ever adds.
  *
- * `max_tokens` is a ceiling, not a spend — the raise costs nothing
- * unless the answer actually uses the headroom.
- *
- * REMOVE when upstream ships and the installed OpenStation release
- * carries a generation config for reasoning models (openstation#531)
- * plus the empty-answer error surface (openstation#530) — the v0.9.8 pin
- * guard in docs/openstation-compat.md applies.
+ * Through 17.4.3 this module armed `http_request_args` at PHP_INT_MAX from the
+ * runner's pre-filter and rewrote the JSON body after the client had built
+ * it: a decode and re-encode of every outbound request for the rest of the
+ * PHP request, and a Claude 5 gate read off the body. The filter carries no
+ * resolved model, so the gate became the model pin below, which is what SN's
+ * own features already do (SN_AI_DEFAULT_MODEL, inc/ai-bootstrap.php).
  *
  * @package SignalNoiseTools
  */
@@ -51,131 +49,67 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Arm the request shaper for the current request.
+ * Shape the model config of an agent-run turn.
  *
- * Rides the runner's pre-filter seam (`desktop_mode_agent_runner_generate`
- * / post-rename `openstation_agent_runner_generate`), which fires once per
- * generate turn inside an agent run and nowhere else. The seam is a
- * short-circuit filter: returning the incoming value untouched lets the
- * runner proceed to the AI Client — arming is a side effect, never a
- * result. The shaper stays hooked for the remainder of the request, which
- * is deliberate: every subsequent generate turn of the same run benefits.
- *
- * @param mixed $generated Whatever an earlier pre-filter produced (null
- *                         when none did — the normal case).
- * @return mixed The same value, untouched.
+ * @param mixed $config  { model?, max_tokens?, temperature?, custom_options? }.
+ * @param mixed $context { user_id, request_id, source, has_tools, has_schema }.
+ * @return mixed The config, shaped only when the source is the agents runner.
  */
-function snt_agent_budget_arm( $generated = null ) {
-	if ( false === has_filter( 'http_request_args', 'snt_agent_budget_shape' ) ) {
-		add_filter( 'http_request_args', 'snt_agent_budget_shape', PHP_INT_MAX, 2 );
+function snt_agent_model_config( $config, $context = array() ) {
+	if ( ! is_array( $config ) ) {
+		$config = array();
 	}
-	return $generated;
+	if ( 'agents/runner' !== ( is_array( $context ) ? ( $context['source'] ?? '' ) : '' ) ) {
+		return $config;
+	}
+
+	// An earlier callback that already bounded the thinking owns the turn.
+	$existing = ( isset( $config['custom_options'] ) && is_array( $config['custom_options'] ) ) ? $config['custom_options'] : array();
+	if ( isset( $existing['thinking'] ) || isset( $existing['output_config'] ) ) {
+		return $config;
+	}
+
+	/**
+	 * Filter the effort level of agent-run generations.
+	 *
+	 * Return '' (or any value outside the list) to disable the shaping
+	 * entirely: thinking is then unbounded, so the ceiling is left alone
+	 * too. "low" is the live-verified default.
+	 *
+	 * @param string $effort One of 'low'|'medium'|'high', or '' to disable.
+	 */
+	$effort = (string) apply_filters( 'snt_agent_anthropic_effort', 'low' );
+	if ( ! in_array( $effort, array( 'low', 'medium', 'high' ), true ) ) {
+		return $config;
+	}
+
+	/**
+	 * Filter the raised max_tokens of agent-run generations.
+	 *
+	 * With effort bounding the thinking, 8192 leaves room for a full
+	 * structured answer plus a tool call carrying whole post markup. A value
+	 * at or below the client's 4096 pin leaves the pin in place, and a
+	 * ceiling an earlier callback already raised higher stays.
+	 *
+	 * @param int $max_tokens Raised ceiling. Default 8192.
+	 */
+	$config['max_tokens']     = max( (int) ( $config['max_tokens'] ?? 0 ), 4096, (int) apply_filters( 'snt_agent_anthropic_max_tokens', 8192 ) );
+	$config['custom_options'] = $existing + array(
+		'thinking'      => array( 'type' => 'adaptive' ),
+		'output_config' => array( 'effort' => $effort ),
+	);
+	if ( ! isset( $config['model'] ) && defined( 'SN_AI_DEFAULT_MODEL' ) ) {
+		$config['model'] = SN_AI_DEFAULT_MODEL;
+	}
+	return $config;
 }
 
-/**
- * Whether a request body's model is Claude 5 family (adaptive-thinking
- * API shape: claude-sonnet-5, claude-opus-5, claude-fable-5, including
- * dated/point variants).
- *
- * @param string $model Model id from the request body.
- * @return bool
- */
-function snt_agent_budget_model_is_claude5( $model ) {
-	return 1 === preg_match( '/^claude-[a-z]+-5([.\-]|$)/', (string) $model );
-}
-
-/**
- * Shape an agent-run Anthropic request so the answer can complete:
- * inject adaptive thinking + an effort level, and give the pinned
- * ceiling text headroom.
- *
- * Every non-matching request returns BYTE-IDENTICAL args — a decode +
- * re-encode of an untouched body would still perturb the transport, so
- * the body is only rewritten when at least one shaping actually applies.
- *
- * @param array  $args Request args (body is a JSON string on this path).
- * @param string $url  Request URL.
- * @return array Possibly-rewritten args.
- */
-function snt_agent_budget_shape( $args, $url ) {
-	if ( false === strpos( (string) $url, 'api.anthropic.com/v1/messages' ) ) {
-		return $args;
+// The seam is Experimental and lives in includes/ai-copilot/client.php,
+// which OpenStation requires at plugin load; the guard reads on
+// plugins_loaded so plugin order cannot decide it.
+add_action( 'plugins_loaded', function () {
+	if ( ! function_exists( 'openstation_ai_apply_model_config' ) ) {
+		return;
 	}
-	if ( ! is_array( $args ) || ! isset( $args['body'] ) || ! is_string( $args['body'] ) ) {
-		return $args;
-	}
-
-	$body = json_decode( $args['body'], true );
-	if ( ! is_array( $body ) || ! snt_agent_budget_model_is_claude5( $body['model'] ?? '' ) ) {
-		return $args;
-	}
-
-	$changed = false;
-
-	// #1230: is thinking BOUNDED on this request — by someone else's
-	// decision, or by the effort config injected below? Mirrors
-	// inc/insights-generation-budget.php's guard: with thinking demand-
-	// bounded, headroom goes to the answer; with thinking ceiling-bounded
-	// (the effort filter disabled), headroom goes to thinking and the
-	// answer still never lands — raising max_tokens on an unbounded
-	// request just makes that timeout bigger. Never raise the ceiling of
-	// an unbounded request.
-	$bounded = isset( $body['thinking'] ) || isset( $body['output_config'] );
-
-	if ( ! $bounded ) {
-		/**
-		 * Filter the effort level injected on agent-run generations.
-		 *
-		 * Return '' (or any non-whitelisted value) to disable the
-		 * injection entirely. "low" is the live-verified default: it
-		 * bounds thinking by demand (~3.7k tokens on a sentence-edit
-		 * plan) instead of by ceiling.
-		 *
-		 * @param string $effort One of 'low'|'medium'|'high', or '' to disable.
-		 */
-		$effort = (string) apply_filters( 'snt_agent_anthropic_effort', 'low' );
-		if ( in_array( $effort, array( 'low', 'medium', 'high' ), true ) ) {
-			$body['thinking']      = array( 'type' => 'adaptive' );
-			$body['output_config'] = array( 'effort' => $effort );
-			$bounded               = true;
-			$changed               = true;
-		}
-	}
-
-	// Strict int 4096 only: the AI Client's pinned default. Any other
-	// value means upstream (or another plugin) already made a decision,
-	// and this seam defers to it. Raise-only. #1230: gated on $bounded — see
-	// the guard above.
-	if ( $bounded && isset( $body['max_tokens'] ) && 4096 === $body['max_tokens'] ) {
-		/**
-		 * Filter the raised Anthropic max_tokens for agent runs.
-		 *
-		 * With effort bounding the thinking (~3.7k), 8192 leaves room
-		 * for a full structured answer plus a tool call carrying whole
-		 * post markup. A value at or below the pinned 4096 leaves the
-		 * ceiling untouched.
-		 *
-		 * @param int $max_tokens Raised ceiling. Default 8192.
-		 */
-		$raised = (int) apply_filters( 'snt_agent_anthropic_max_tokens', 8192 );
-		if ( $raised > 4096 ) {
-			$body['max_tokens'] = $raised;
-			$changed            = true;
-		}
-	}
-
-	if ( ! $changed ) {
-		return $args;
-	}
-
-	$args['body'] = wp_json_encode( $body );
-	return $args;
-}
-
-snt_os_compat_add_filter(
-	'desktop_mode_agent_runner_generate',
-	'openstation_agent_runner_generate',
-	'snt_agent_budget_arm',
-	5,
-	1
-);
+	add_filter( 'openstation_ai_model_config', 'snt_agent_model_config', 10, 2 );
+} );

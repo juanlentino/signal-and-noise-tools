@@ -174,6 +174,16 @@ snt_os_compat_add_filter( 'desktop_mode_ai_tools', 'openstation_ai_tools', funct
  * REST-callable, MCP-exposed, and driven by the wp-admin UI + the
  * scan→suggest→apply pipeline. To restore one, delete its line.
  *
+ * #1594: the fourteen remote-door twins in sn_mcp_remote_slugs() ride along.
+ * Each is readonly, so the Copilot enrols it, but its permission callback
+ * passes only a caller holding sn_read_remote_analytics, and the only grant
+ * of that capability is the bridge's own execute() (inc/mcp/mcp-bridge-route.php).
+ * The Copilot loop runs abilities in-process, never through the bridge, so
+ * every call it could make is refused inside WP_Ability::execute(). The slug
+ * list the guard owns is the one source of that policy; nothing is repeated
+ * here. inc/mcp/mcp-remote-guard.php loads before this file
+ * (signal-and-noise-tools.php), and the call runs at filter time regardless.
+ *
  * OURS ONLY, with a seam caveat: the caller matches on the STRIPPED tool name
  * desktop-mode produces, because the namespace is gone before any plugin can
  * filter the tool list (desktop_mode_ai_search_ability_names() exposes no filter).
@@ -185,12 +195,50 @@ snt_os_compat_add_filter( 'desktop_mode_ai_tools', 'openstation_ai_tools', funct
  * @return string[] Full SN ability names to drop from the Copilot tool list.
  */
 function snt_dm_ai_pruned_abilities() {
-	return array(
-		'signal-noise/pattern-adoption-suggest',
-		'signal-noise/export-audit-log',
-		'signal-noise/block-migrations-suggest',
+	return array_merge(
+		array(
+			'signal-noise/pattern-adoption-suggest',
+			'signal-noise/export-audit-log',
+			'signal-noise/block-migrations-suggest',
+		),
+		sn_mcp_remote_slugs()
 	);
 }
+
+/**
+ * Drop the remote-door twins from the agents Tools picker (#1594).
+ *
+ * The picker projects every registered ability into a row (OpenStation
+ * includes/agents/abilities.php) and the agent runner executes the pick
+ * in-process, so a remote twin is a row that can never run: the same refusal
+ * as the Copilot case above. Same policy source, sn_mcp_remote_slugs().
+ *
+ * @param mixed $rows Catalogue rows, each { slug, label, description, category, readonly }.
+ * @return mixed The rows without the remote twins; a non-array passes through.
+ */
+function snt_dm_agent_catalogue_prune( $rows ) {
+	if ( ! is_array( $rows ) ) {
+		return $rows;
+	}
+	$drop = array_flip( sn_mcp_remote_slugs() );
+	return array_values( array_filter( $rows, static function ( $row ) use ( $drop ) {
+		$slug = ( is_array( $row ) && isset( $row['slug'] ) ) ? (string) $row['slug'] : '';
+		return '' === $slug || ! isset( $drop[ $slug ] );
+	} ) );
+}
+
+// openstation_agent_abilities_catalogue is an Experimental seam (OpenStation
+// docs/hooks-reference.md) with no desktop_mode_ alias: it shipped after the
+// rename. The function that applies it lives in includes/agents/abilities.php,
+// which OpenStation requires on plugins_loaded at priority 5 and only while
+// the agents feature is on, so the guard reads at priority 10, after it. A
+// load-time function_exists here would never pass.
+add_action( 'plugins_loaded', function () {
+	if ( ! function_exists( 'openstation_agents_abilities_catalogue' ) ) {
+		return;
+	}
+	add_filter( 'openstation_agent_abilities_catalogue', 'snt_dm_agent_catalogue_prune' );
+} );
 
 /**
  * Teach the Copilot the analytics vocabulary its own tools return but never
