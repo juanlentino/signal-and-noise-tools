@@ -86,6 +86,7 @@ ok( 0 === $GLOBALS['__http_calls'], 'THE GATE: reading a never-written snapshot 
 
 echo "\nGroup: the cron refresh is the only writer, and the only fetcher\n";
 $GLOBALS['__response']   = array( 'code' => 200, 'body' => $sensor_body );
+snt_mr_memo( null ); // a new request (#1635 review)
 $GLOBALS['__http_calls'] = 0;
 $written = snt_mr_snapshot_refresh();
 ok( 1 === $GLOBALS['__http_calls'], 'refresh() performs exactly one sensor fetch' );
@@ -125,6 +126,7 @@ ok( 0 === $GLOBALS['__http_calls'], 'THE GATE: a STALE snapshot does not trigger
 
 echo "\nGroup: a failed refresh never destroys the last good measurement\n";
 $GLOBALS['__response']   = array( 'code' => 503, 'body' => '' );
+snt_mr_memo( null ); // a new request (#1635 review)
 $GLOBALS['__http_calls'] = 0;
 $written = snt_mr_snapshot_refresh();
 ok( false === $written, 'a failing sensor read reports no capture' );
@@ -137,6 +139,7 @@ ok( is_int( $snap['last_attempt_at'] ?? null ), 'the attempt is timestamped sepa
 echo "\nGroup: a failure BEFORE any capture stays unknown — never a confident zero\n";
 $GLOBALS['__options'] = array();
 $GLOBALS['__response'] = array( 'code' => 503, 'body' => '' );
+snt_mr_memo( null ); // a new request (#1635 review)
 $written = snt_mr_snapshot_refresh();
 ok( false === $written, 'first-ever refresh fails' );
 $snap = snt_mr_snapshot();
@@ -155,6 +158,7 @@ $GLOBALS['__settings']['machine_readers.read_token'] = 'test-token';
 // where 0 is the honest answer, and it must not collapse into "unknown".
 $GLOBALS['__options'] = array();
 $GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'worker' => 'sn-rights-signals', 'days' => 30, 'data' => array() ) ) );
+snt_mr_memo( null ); // a new request (#1635 review)
 ok( true === snt_mr_snapshot_refresh(), 'an empty-but-successful read IS a capture' );
 $snap = snt_mr_snapshot();
 ok( true === snt_mr_snapshot_has_measurement( $snap ), 'zero rows still counts as measured' );
@@ -173,6 +177,7 @@ function sn_analytics_top_sources( $from, $to, $class = 'human', $limit = 10 ) {
 }
 $GLOBALS['__options'] = array();
 $GLOBALS['__response'] = array( 'code' => 200, 'body' => $sensor_body );
+snt_mr_memo( null ); // a new request (#1635 review)
 ok( true === snt_mr_snapshot_refresh(), 'a refresh with both sides available captures' );
 $snap = snt_mr_snapshot();
 $refs = snt_mr_snapshot_referrals( $snap );

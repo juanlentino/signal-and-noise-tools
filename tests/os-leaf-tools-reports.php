@@ -48,6 +48,29 @@ if ( ! function_exists( 'get_edit_post_link' ) ) {
 
 require SNT_PATH . 'inc/admin-render-sections.php';
 require SNT_PATH . 'inc/health-render-reports.php';
+
+// #1599: the three Info-panel facts the leaf paints as a box. The JS-package
+// reader over a stubbed script registry (the shape tests/script-package-origin.php
+// uses), the override count stubbed (it lives in the classic Dashboard tab),
+// and the footprint module real, its scan pointed at a fixture directory.
+if ( ! function_exists( 'content_url' ) ) { function content_url( $p = '' ) { return 'https://example.test/wp-content' . $p; } }
+$GLOBALS['__registered'] = array();
+function wp_scripts() {
+	$o             = new stdClass();
+	$o->registered = array();
+	foreach ( (array) $GLOBALS['__registered'] as $handle => $src ) {
+		$dep                      = new stdClass();
+		$dep->src                 = $src;
+		$o->registered[ $handle ] = $dep;
+	}
+	return $o;
+}
+$GLOBALS['__overrides'] = 0;
+function snt_dashboard_override_count() { return $GLOBALS['__overrides']; }
+if ( ! function_exists( 'current_time' ) ) { function current_time( $t ) { return time(); } }
+if ( ! function_exists( 'is_admin' ) ) { function is_admin() { return false; } }
+require SNT_PATH . 'inc/script-package-origin.php';
+require SNT_PATH . 'inc/plugin-footprint.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/tools-reports.php';
 
 $pass = 0;
@@ -270,6 +293,50 @@ $GLOBALS['__scan'] = $degenerate;
 $classic            = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
 $kit                = snt_leaf_paint( 'tools', 'reports' );
 ok( false !== strpos( $classic, 'Every declared motion has a reduced-motion counterpart' ) && false !== strpos( $kit, 'Every declared motion has a reduced-motion counterpart' ), 'motion_scan with zero uncovered: both leaves say every declared motion is covered' );
+
+// ── #1599: the "Plugin environment" box under the reports in every state:
+// the three facts the Site Health Info panels carried and no leaf painted,
+// from the same readers (snt_script_package_override_summary(),
+// snt_dashboard_override_count(), sn_footprint_scan() and the shared
+// sn_footprint_janitor_line()).
+function reports_leaf_facts_box( $html ) {
+	$at = strpos( $html, 'heading="Plugin environment"' );
+	if ( false === $at ) { return ''; }
+	$start = strrpos( substr( $html, 0, $at ), '<os-section' );
+	$end   = strpos( $html, '</os-section>', $at );
+	return substr( $html, $start, $end - $start );
+}
+$GLOBALS['__registered'] = array(
+	'wp-components' => 'https://example.test/wp-content/plugins/gutenberg/build/components/index.js',
+	'wp-element'    => 'https://example.test/wp-includes/js/dist/element.js',
+);
+$GLOBALS['__overrides']  = 3;
+$GLOBALS['__options']['snt_janitor_log'] = array( 'version' => '9.9.9', 'freed_bytes' => 123456, 'errors_total' => 0, 'errors' => array(), 'time' => time() );
+// (a) The rich scan: the box sits under the report cards, one row per fact.
+$GLOBALS['__scan'] = $rich_scan;
+$kit = snt_leaf_paint( 'tools', 'reports' );
+$box = reports_leaf_facts_box( $kit );
+ok( '' !== $box && strrpos( $kit, 'class="snt-cols"' ) < strpos( $kit, 'heading="Plugin environment"' ), 'the environment box paints under the last report row' );
+ok( false !== strpos( $box, '<dt class="snt-kv__k">WordPress JS packages served by</dt><dd class="snt-kv__v">plugin:gutenberg' ) && false !== strpos( $box, '1 handles (wp-components)' ), 'the JS-package row names the plugin that serves the wp-* handles, as the Info panel does' );
+ok( false !== strpos( $box, '<dt class="snt-kv__k">Database template/navigation overrides</dt><dd class="snt-kv__v">3</dd>' ), 'the override-count row carries the count' );
+ok( (bool) preg_match( '#<dt class="snt-kv__k">Total plugin-directory size</dt><dd class="snt-kv__v">[0-9.,]+ (B|KB|MB|GB)#', $box ), 'the footprint total is a formatted size' );
+ok( false !== strpos( $box, '<dt class="snt-kv__k">Last janitor sweep</dt><dd class="snt-kv__v">freed 121 KB on v9.9.9</dd>' ), 'the sweep row is the Info panel\'s sentence from the same option' );
+ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup with the box painted' );
+// (b) The footprint rows over a fixture: one legacy leftover counted and warn toned, the total summed.
+$fixture = sys_get_temp_dir() . '/snt-reports-facts-' . getmypid();
+@mkdir( $fixture . '/docs', 0777, true );
+@mkdir( $fixture . '/inc', 0777, true );
+file_put_contents( $fixture . '/docs/a.md', str_repeat( 'x', 2048 ) );
+file_put_contents( $fixture . '/inc/b.php', str_repeat( 'y', 1024 ) );
+$rows = function_exists( '\SignalNoise\OpenStationHost\Dashboard\Leaves\tools_reports_footprint_rows' ) ? \SignalNoise\OpenStationHost\Dashboard\Leaves\tools_reports_footprint_rows( $fixture ) : array();
+ok( 3 === count( $rows ) && '3.0 KB' === $rows[0]['value'] && 'Legacy deploy leftovers' === $rows[1]['label'] && '1' === $rows[1]['value'] && 'warn' === $rows[1]['tone'], 'over a fixture: 3.0 KB total, the one manifest name (docs) counted as a legacy leftover and warn toned' );
+unlink( $fixture . '/docs/a.md' ); unlink( $fixture . '/inc/b.php' ); rmdir( $fixture . '/docs' ); rmdir( $fixture . '/inc' ); rmdir( $fixture );
+// (c) No sweep stored: no sweep row, the box still paints; and before any scan the box is there under the sentence.
+unset( $GLOBALS['__options']['snt_janitor_log'] );
+$GLOBALS['__scan'] = null;
+$kit = snt_leaf_paint( 'tools', 'reports' );
+$box = reports_leaf_facts_box( $kit );
+ok( '' !== $box && false === strpos( $box, 'Last janitor sweep' ) && strpos( $kit, 'No scan yet' ) < strpos( $kit, 'heading="Plugin environment"' ), 'no scan and no sweep: the box paints under the no-scan sentence without a sweep row' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

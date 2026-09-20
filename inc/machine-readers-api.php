@@ -178,11 +178,39 @@ function snt_mr_cache_key( $days, $view ) {
  * @return void
  */
 function snt_mr_cache_flush() {
+	snt_mr_memo( null );
 	for ( $days = 1; $days <= 90; $days++ ) {
 		foreach ( SNT_MR_VIEWS as $view ) {
 			delete_transient( snt_mr_cache_key( $days, $view ) );
 		}
 	}
+}
+
+/**
+ * The per-request memo behind snt_mr_fetch(): one outbound call per
+ * (window, view) per request, whatever the outcome (#1635 review).
+ *
+ * The transient keeps successes only, on purpose: a dead sensor must not be
+ * remembered for 15 minutes. But a paint of the Machine Readers leaf reads the
+ * same 30-day window from the hero, the anomalies pipeline and the abilities,
+ * and each of those waited the 6 s timeout in turn when the sensor was down.
+ * A failure is memoized here for the rest of the request and nowhere else;
+ * snt_mr_cache_flush() (the settings save, a key rotation) empties it.
+ *
+ * @param string|null $key   A snt_mr_cache_key(); null empties the memo.
+ * @param array|null  $value A result to remember under $key; null reads.
+ * @return array|null The remembered result, or null when there is none.
+ */
+function snt_mr_memo( $key, $value = null ) {
+	static $memo = array();
+	if ( null === $key ) {
+		$memo = array();
+		return null;
+	}
+	if ( null !== $value ) {
+		$memo[ $key ] = $value;
+	}
+	return $memo[ $key ] ?? null;
 }
 
 function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
@@ -195,7 +223,11 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 	}
 
 	$cache_key = snt_mr_cache_key( $days, $view );
-	$cached    = get_transient( $cache_key );
+	$memo      = snt_mr_memo( $cache_key );
+	if ( is_array( $memo ) ) {
+		return $memo;
+	}
+	$cached = get_transient( $cache_key );
 	if ( is_array( $cached ) && true === ( $cached['ok'] ?? false ) ) {
 		return $cached;
 	}
@@ -213,7 +245,7 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 		|| 'https' !== wp_parse_url( $url, PHP_URL_SCHEME )
 		|| ( function_exists( 'sn_ssrf_host_blocked' ) && sn_ssrf_host_blocked( $host ) )
 	) {
-		return array( 'ok' => false, 'rows' => array(), 'error' => 'blocked' );
+		return snt_mr_memo( $cache_key, array( 'ok' => false, 'rows' => array(), 'error' => 'blocked' ) );
 	}
 
 	$resp = wp_remote_get( $url, array(
@@ -228,16 +260,16 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 	) );
 
 	if ( is_wp_error( $resp ) ) {
-		return array( 'ok' => false, 'rows' => array(), 'error' => 'network' );
+		return snt_mr_memo( $cache_key, array( 'ok' => false, 'rows' => array(), 'error' => 'network' ) );
 	}
 	$code = (int) wp_remote_retrieve_response_code( $resp );
 	if ( 200 !== $code ) {
-		return array( 'ok' => false, 'rows' => array(), 'error' => 'http_' . $code );
+		return snt_mr_memo( $cache_key, array( 'ok' => false, 'rows' => array(), 'error' => 'http_' . $code ) );
 	}
 
 	$decoded = json_decode( (string) wp_remote_retrieve_body( $resp ), true );
 	if ( ! is_array( $decoded ) || ! isset( $decoded['data'] ) || ! is_array( $decoded['data'] ) ) {
-		return array( 'ok' => false, 'rows' => array(), 'error' => 'bad_schema' );
+		return snt_mr_memo( $cache_key, array( 'ok' => false, 'rows' => array(), 'error' => 'bad_schema' ) );
 	}
 
 	// 15.5.0: the WebMCP bridge's tool calls ride the same dataset as family
@@ -271,7 +303,7 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 		'error'     => null,
 	);
 	set_transient( $cache_key, $result, 15 * MINUTE_IN_SECONDS );
-	return $result;
+	return snt_mr_memo( $cache_key, $result );
 }
 
 /**

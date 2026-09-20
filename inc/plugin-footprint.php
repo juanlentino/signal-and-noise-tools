@@ -424,6 +424,57 @@ function sn_footprint_format_bytes( $bytes ) {
 	return number_format( $value, $decimals ) . ' ' . $units[ $i ];
 }
 
+/**
+ * The last janitor sweep as one sentence ("freed 3.2 MB on v17.4.0, 2
+ * error(s)" / "removed nothing on v17.4.0. 2 error(s)" / "nothing to remove
+ * (v17.4.0)"), or '' when no sweep is stored. PURE: the Site Health panel and
+ * the Integrity > Reports leaf paint the same line from the same option
+ * (#1599). Every past sweep has a row (A1: the option is written
+ * unconditionally, "nothing to remove" included), so presence is keyed on
+ * the log existing at all, never on freed_bytes being truthy.
+ *
+ * @param mixed $log The `snt_janitor_log` option.
+ * @return string
+ */
+function sn_footprint_janitor_line( $log ) {
+	if ( ! is_array( $log ) || ! isset( $log['version'] ) ) {
+		return '';
+	}
+	$version_str  = (string) $log['version'];
+	$freed        = (int) ( $log['freed_bytes'] ?? 0 );
+	$errors_total = (int) ( $log['errors_total'] ?? 0 );
+
+	if ( $freed > 0 ) {
+		$value = sprintf(
+			/* translators: 1: freed size (e.g. "3.2 MB"), 2: plugin version the sweep ran on. */
+			__( 'freed %1$s on v%2$s', 'signal-and-noise-tools' ),
+			sn_footprint_format_bytes( $freed ),
+			$version_str
+		);
+		if ( $errors_total > 0 ) {
+			$value .= sprintf(
+				/* translators: %d: number of errors encountered during the sweep. */
+				__( ', %d error(s)', 'signal-and-noise-tools' ),
+				$errors_total
+			);
+		}
+		return $value;
+	}
+	if ( $errors_total > 0 ) {
+		return sprintf(
+			/* translators: 1: plugin version the sweep ran on, 2: number of errors encountered. */
+			__( 'removed nothing on v%1$s. %2$d error(s)', 'signal-and-noise-tools' ),
+			$version_str,
+			$errors_total
+		);
+	}
+	return sprintf(
+		/* translators: %s: plugin version the sweep ran on. */
+		__( 'nothing to remove (v%s)', 'signal-and-noise-tools' ),
+		$version_str
+	);
+}
+
 if ( function_exists( 'add_action' ) ) {
 
 	add_action( 'admin_init', 'sn_footprint_janitor_maybe_run' );
@@ -540,44 +591,12 @@ if ( function_exists( 'add_action' ) ) {
 			);
 		}
 
-		// Every past sweep gets a row now (A1: the option is written
-		// unconditionally, "nothing to remove" included) — so presence is
-		// keyed on the log existing at all, not on freed_bytes being
-		// truthy (a real, error-free sweep can legitimately free 0 bytes).
-		$log = get_option( 'snt_janitor_log' );
-		if ( is_array( $log ) && isset( $log['version'] ) ) {
-			$version_str  = (string) $log['version'];
-			$freed        = (int) ( $log['freed_bytes'] ?? 0 );
+		// The sweep line is sn_footprint_janitor_line()'s (#1599: the Reports
+		// leaf paints the same sentence); '' means no sweep is stored.
+		$log   = get_option( 'snt_janitor_log' );
+		$value = sn_footprint_janitor_line( $log );
+		if ( '' !== $value ) {
 			$errors_total = (int) ( $log['errors_total'] ?? 0 );
-
-			if ( $freed > 0 ) {
-				$value = sprintf(
-					/* translators: 1: freed size (e.g. "3.2 MB"), 2: plugin version the sweep ran on. */
-					__( 'freed %1$s on v%2$s', 'signal-and-noise-tools' ),
-					sn_footprint_format_bytes( $freed ),
-					$version_str
-				);
-				if ( $errors_total > 0 ) {
-					$value .= sprintf(
-						/* translators: %d: number of errors encountered during the sweep. */
-						__( ', %d error(s)', 'signal-and-noise-tools' ),
-						$errors_total
-					);
-				}
-			} elseif ( $errors_total > 0 ) {
-				$value = sprintf(
-					/* translators: 1: plugin version the sweep ran on, 2: number of errors encountered. */
-					__( 'removed nothing on v%1$s. %2$d error(s)', 'signal-and-noise-tools' ),
-					$version_str,
-					$errors_total
-				);
-			} else {
-				$value = sprintf(
-					/* translators: %s: plugin version the sweep ran on. */
-					__( 'nothing to remove (v%s)', 'signal-and-noise-tools' ),
-					$version_str
-				);
-			}
 
 			$fields['janitor_log'] = array(
 				'label' => __( 'Last janitor sweep', 'signal-and-noise-tools' ),

@@ -27,6 +27,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/tools-reports-parts.php';
+require_once __DIR__ . '/tools-reports-facts.php';
 
 /**
  * The leaf's data: which of the three states, and the reports to paint.
@@ -79,12 +80,23 @@ function tools_reports_renderers() {
 }
 
 /**
- * The leaf.
+ * The leaf: the reports, then the environment facts box (#1599) under them
+ * at full width in every state, since the facts do not depend on a scan.
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
  */
 function paint_tools_reports( array $ctx ) {
+	return tools_reports_scan_html( $ctx ) . tools_reports_facts_html();
+}
+
+/**
+ * The scan's reports, or the sentence that says why there are none.
+ *
+ * @param array<string,mixed> $ctx tab, sub, state, os.
+ * @return string
+ */
+function tools_reports_scan_html( array $ctx ) {
 	unset( $ctx );
 	$data = tools_reports_data();
 	if ( 'no_scan' === $data['state'] ) {

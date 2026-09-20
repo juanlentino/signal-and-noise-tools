@@ -81,6 +81,25 @@ function snt_kit_notice( $kind, $inner, $dismissible = false ) {
 }
 
 /**
+ * A Site Health verdict ({status, summary}) as the top of a kit box: the
+ * summary as a hint line when the status is `good`, else as a notice, danger
+ * for `critical` and warning for anything else. The 17.4.0 box shape
+ * (Breached passwords, Action Scheduler backlog), shared since #1599 by the
+ * drift, reader-behaviour and pinning boxes.
+ *
+ * @param array<string,mixed> $verdict status + summary, as the health functions return it.
+ * @return string
+ */
+function snt_kit_verdict( array $verdict ) {
+	$status  = (string) ( $verdict['status'] ?? '' );
+	$summary = snt_kit_esc( (string) ( $verdict['summary'] ?? '' ) );
+	if ( 'good' === $status ) {
+		return '<p class="snt-hint">' . $summary . '</p>';
+	}
+	return snt_kit_notice( 'critical' === $status ? 'err' : 'warn', $summary );
+}
+
+/**
  * `<os-badge tone>` and `<os-chip tone>`.
  *
  * @param string $kind Pill kind or tone.
