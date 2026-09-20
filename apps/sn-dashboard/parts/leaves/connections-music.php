@@ -87,7 +87,7 @@ function music_status_html( array $s ) {
 		$title = __( 'Showing last-good data', 'signal-and-noise-tools' );
 		$pill  = __( 'Stale', 'signal-and-noise-tools' );
 		/* translators: %d: cached releases */
-		$body = sprintf( __( '%d release(s) still cached, but the last sync failed. The page never blanks — check the error and re-sync from the Sync status row below.', 'signal-and-noise-tools' ), $count );
+		$body = sprintf( __( '%d release(s) still cached, but the last sync failed. The page never blanks: check the error and re-sync from the Sync status row below.', 'signal-and-noise-tools' ), $count );
 	} elseif ( '' !== $s['last_error'] ) {
 		$kind  = 'err';
 		$title = __( 'Sync failed — no data yet', 'signal-and-noise-tools' );
