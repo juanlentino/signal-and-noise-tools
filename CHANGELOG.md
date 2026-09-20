@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Documentation
+- The 2026-09-20 session doc carries the fourth arc (17.4.1, boxes match their partners).
+
 ## [17.4.1] - 2026-09-20 — boxes match their partners
 
 ### Fixed

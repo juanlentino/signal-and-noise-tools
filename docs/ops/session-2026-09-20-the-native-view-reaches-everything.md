@@ -172,6 +172,40 @@ the unfixed script by `git apply -R`, green with it; the sweep at 706 suites
 and 31,580 assertions. Merged on `CLEAN` after a fresh re-read, squash, no
 bump; rides the next cut.
 
+## The fourth arc: boxes match their partners (17.4.1)
+
+Two screenshots, one sentence each. AI › Models & Budget: "You could've done
+this more tidily." Content › Tags: "The tags leaf is impossible, too." Both
+showed the same shape: a row pairing a short box with a tall one, so a
+column sat empty for a screen or two, and in Tags a per-tag reading painted
+as nineteen paragraphs beside a box a fifth its height. My critic had judged
+each 17.4.0 placement by the question it answered and never looked at the
+whole leaf.
+
+I measured instead of guessing: through the owner's own session, the
+dashboard app's cross-tab door opened every leaf in turn and a script read
+the two sides of every row and every column of every two-column split, with
+the live data. Eight leaves were past 1.5x. Eight worktrees, one rule ("a
+row pairs boxes of comparable height; a long per-item reading is a capped
+table; a tall box stands alone"), two verifiers each, and a chain of eight
+gated merges with a CHANGELOG-only conflict resolver, then one fix cut.
+
+The chain taught me two things at the owner's expense. It rebased each PR
+before its gate but only pushed after a conflicting rebase, so a clean one
+left CI gating the stale head; and the Tags fixture's mean of 0.225 formats
+as 0.23 on PHP 8.3 (CI's sweep, pre-rounding) and 0.22 on 8.4 and after
+(production and my machine), which one pin had hard-coded. A local PHP 8.3
+reproduced it before the fix. The same day also closed the dead S&N Health
+widget module (652 lines nothing had called since 11.30.0), moved the
+Suggest preview onto the kit's modal, and sent two upstream OpenStation PRs
+(#856 the bulk-actions filter learns the window mode, #857 os-button forwards
+a host aria-label) with their issues filed first and no duplicate found.
+
+Re-measured after the install: Tags 2950 to 1789 tall, Models & Budget 1336
+to 1053, Insights 1247 to 958, RSS 1345 to 864, and every row within about
+1.5x. The Standards tag description, rewritten to what its seven notes argue,
+took the archive's mean from 0.96 to 1.37 with two shrugs left.
+
 ## What is open
 
 The Suggest modal itself is still a wp-admin box appended outside the kit
