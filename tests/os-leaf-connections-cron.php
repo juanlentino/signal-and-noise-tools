@@ -345,5 +345,120 @@ ok( 'morning_brief_saved' === sn_handle_morning_brief_save( \snt_os_host_expand(
 ok( 'scheduled_reads_saved' === sn_handle_scheduled_reads_save( \snt_os_host_expand( array( 'sn_action' => 'scheduled_reads_save', 'snt_scheduled_reads_enabled' => false ) ) ) && false === ( $GLOBALS['__written']['operations.scheduled_reads_enabled'] ?? null ), 'native unchecked reads toggle saves OFF' );
 ok( 'scheduled_reads_saved' === sn_handle_scheduled_reads_save( \snt_os_host_expand( array( 'sn_action' => 'scheduled_reads_save', 'snt_scheduled_reads_enabled' => true ) ) ) && true === ( $GLOBALS['__written']['operations.scheduled_reads_enabled'] ?? null ), 'native checked reads toggle saves ON' );
 
+// ── 17) The Action Scheduler backlog box: the Site Health reading on the leaf. ──
+// snt_asb_snapshot() reads $GLOBALS['wpdb'], which this suite never set: without
+// a stub every paint says "not installed" and greens, a silent-green shape. The
+// stub mirrors tests/scheduled-actions-health.php: SHOW TABLES answers from
+// $table_exists, the GROUP BY returns $status_rows, the overdue COUNT $overdue,
+// and every SQL string is recorded so the paint's query count can be pinned.
+if ( ! defined( 'ARRAY_A' ) ) { define( 'ARRAY_A', 'ARRAY_A' ); }
+require_once SNT_PATH . 'inc/scheduled-actions-health.php';
+class Cron_Leaf_Stub_wpdb {
+	public $prefix       = 'wp_';
+	public $table_exists = true;
+	public $status_rows  = array();
+	public $overdue      = 0;
+	public $queries      = array();
+	public function prepare( $sql, ...$args ) {
+		foreach ( $args as $arg ) {
+			$pos = strpos( $sql, '%s' );
+			if ( false !== $pos ) { $sql = substr_replace( $sql, "'" . $arg . "'", $pos, 2 ); }
+		}
+		return $sql;
+	}
+	public function get_var( $sql ) {
+		$this->queries[] = $sql;
+		if ( false !== stripos( $sql, 'SHOW TABLES' ) ) { return $this->table_exists ? $this->prefix . 'actionscheduler_actions' : null; }
+		return (string) $this->overdue;
+	}
+	public function get_results( $sql, $output = ARRAY_A ) { $this->queries[] = $sql; return $this->status_rows; }
+}
+function cron_leaf_backlog_box( $html ) {
+	$at = strpos( $html, 'heading="Action Scheduler backlog"' );
+	if ( false === $at ) { return ''; }
+	$start = strrpos( substr( $html, 0, $at ), '<os-section' );
+	$end   = strpos( $html, '</os-section>', $at );
+	return substr( $html, $start, $end - $start );
+}
+$GLOBALS['__cron_rows'] = $rich_rows;
+$GLOBALS['__drift']     = array( 'has_drift' => false, 'count' => 0 );
+unset( $GLOBALS['__options'][ SNT_MORNING_BRIEF_LAST_ERROR ] );
+
+// (a) Counts from the fixture, the box between the ledger and the settings row, no fold, one snapshot.
+$db              = new Cron_Leaf_Stub_wpdb();
+$db->status_rows = array( array( 'status' => 'pending', 'n' => '12' ), array( 'status' => 'complete', 'n' => '1204' ), array( 'status' => 'failed', 'n' => '8' ) );
+$db->overdue     = 3;
+$GLOBALS['wpdb'] = $db;
+$kit = snt_leaf_paint( 'connections', 'cron', array() );
+$box = cron_leaf_backlog_box( $kit );
+ok( '' !== $box, 'the backlog box paints under its heading' );
+$box_at = strpos( $kit, 'heading="Action Scheduler backlog"' );
+ok( strpos( $kit, '<os-table' ) < $box_at && $box_at < strpos( $kit, 'class="snt-cols"' ), 'the box sits under the events ledger and above the settings row' );
+ok( false === strpos( $box, '<os-disclosure' ), 'a reading is painted directly, not behind a fold' );
+ok( (bool) preg_match( '#<dt class="snt-kv__k">pending</dt><dd class="snt-kv__v">12 \(3 overdue\)</dd>#', $box ), 'pending row: 12 with 3 overdue, no tone under the line' );
+ok( false !== strpos( $box, '<dt class="snt-kv__k">complete</dt><dd class="snt-kv__v">1204</dd>' ), 'complete row: raw status label, the raw figure the Info row prints' );
+ok( false !== strpos( $box, '<dt class="snt-kv__k">total</dt><dd class="snt-kv__v">1224</dd>' ), 'total row sums every status' );
+ok( false === strpos( $box, 'tone="warning"' ), 'a quiet table paints no warning notice' );
+ok( 3 === count( $db->queries ), 'one snapshot per paint: 3 queries, not 6: ' . count( $db->queries ) );
+
+// (b) The box adds no field and no action: parity with the classic hook holds.
+$classic = snt_leaf_classic_html( 'sn_admin_render_cron_section' );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 6 === count( snt_leaf_names( $kit ) ), 'the box adds no field name: ' . json_encode( snt_leaf_names( $kit ) ) );
+ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the box adds no sn_action' );
+ok( array() === snt_leaf_classic_markers( $kit ), 'the box carries no classic markers: ' . json_encode( snt_leaf_classic_markers( $kit ) ) );
+
+// (c) Overdue at the line: one warn notice on top of the box, the pending row toned.
+$db->overdue = SN_ASB_OVERDUE_WARN;
+$db->queries = array();
+$box = cron_leaf_backlog_box( snt_leaf_paint( 'connections', 'cron', array() ) );
+ok( 1 === substr_count( $box, '<os-notice tone="warning"' ) && false !== strpos( $box, '50 pending actions are overdue' ), 'overdue at the line: exactly one warning notice naming the count' );
+ok( strpos( $box, '<os-notice' ) < strpos( $box, '<dl class="snt-kv"' ), 'the notice sits on top of the box, above the facts' );
+ok( (bool) preg_match( '#<dt class="snt-kv__k">pending</dt><dd class="snt-kv__v" data-tone="warning">#', $box ), 'the pending row carries the warning tone' );
+
+// (d) One under the line: no notice, no tone (boundary).
+$db->overdue = SN_ASB_OVERDUE_WARN - 1;
+$box = cron_leaf_backlog_box( snt_leaf_paint( 'connections', 'cron', array() ) );
+ok( false === strpos( $box, '<os-notice' ) && false === strpos( $box, 'data-tone' ), 'one under the overdue line: no notice, no tone' );
+
+// (e) Total at the bloat line: the page-load sentence, the total row toned; both lines: two notices.
+$db->status_rows = array( array( 'status' => 'complete', 'n' => (string) SN_ASB_ROWS_WARN ) );
+$db->overdue     = 0;
+$box = cron_leaf_backlog_box( snt_leaf_paint( 'connections', 'cron', array() ) );
+ok( 1 === substr_count( $box, '<os-notice tone="warning"' ) && false !== strpos( $box, 'every page load' ), 'total at the bloat line: one warning notice naming the per-page cost' );
+ok( (bool) preg_match( '#<dt class="snt-kv__k">total</dt><dd class="snt-kv__v" data-tone="warning">100000</dd>#', $box ), 'the total row carries the warning tone, the same raw figure the notice above it names' );
+$db->status_rows = array( array( 'status' => 'pending', 'n' => '80' ), array( 'status' => 'complete', 'n' => (string) SN_ASB_ROWS_WARN ) );
+$db->overdue     = SN_ASB_OVERDUE_WARN + 10;
+$box = cron_leaf_backlog_box( snt_leaf_paint( 'connections', 'cron', array() ) );
+ok( 2 === substr_count( $box, '<os-notice tone="warning"' ), 'both lines crossed: two warning notices' );
+
+// (f) The door is gated on the AS UI existing, the Site Health gate. The class
+// is declared inside a conditional so PHP binds it at execution time; an
+// unconditional class is hoisted and the no-door pin could never fail.
+ok( false === strpos( $box, 'tools.php?page=action-scheduler' ), 'no ActionScheduler class: no door to a Tools page that is not there' );
+if ( ! class_exists( 'ActionScheduler' ) ) {
+	class ActionScheduler {}
+}
+$box = cron_leaf_backlog_box( snt_leaf_paint( 'connections', 'cron', array() ) );
+ok( (bool) preg_match( '#<os-button[^>]*os-action="door"[^>]*os-arg-url="[^"]*tools\.php\?page=action-scheduler"[^>]*>Open Scheduled Actions</os-button>#', $box ), 'with ActionScheduler loaded, a door to Scheduled Actions inside the box' );
+
+// (g) Absent table: the box says so, no rows, no notice, one query.
+$db->table_exists = false;
+$db->queries      = array();
+$box = cron_leaf_backlog_box( snt_leaf_paint( 'connections', 'cron', array() ) );
+ok( false !== strpos( $box, 'Action Scheduler not installed' ) && false === strpos( $box, '<dl class="snt-kv"' ) && false === strpos( $box, '<os-notice' ), 'absent table: the box says not installed, paints no facts and no notice' );
+ok( 1 === count( $db->queries ), 'absent table: only the existence probe ran' );
+
+// (h) No wpdb at all: the Info-row degrade, no fatal.
+$GLOBALS['wpdb'] = null;
+$box = cron_leaf_backlog_box( snt_leaf_paint( 'connections', 'cron', array() ) );
+ok( false !== strpos( $box, 'Action Scheduler not installed' ), 'no wpdb: the box degrades to not installed' );
+
+// (i) The no-rows branch paints the box too.
+$GLOBALS['__cron_rows'] = array();
+$GLOBALS['wpdb']        = $db;
+$kit_empty = snt_leaf_paint( 'connections', 'cron', array() );
+ok( false !== strpos( $kit_empty, 'heading="Action Scheduler backlog"' ) && strpos( $kit_empty, 'No scheduled events.' ) < strpos( $kit_empty, 'heading="Action Scheduler backlog"' ), 'empty cron: the box still paints, after the empty state' );
+$GLOBALS['wpdb'] = null;
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

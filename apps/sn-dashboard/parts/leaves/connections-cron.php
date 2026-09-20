@@ -19,7 +19,9 @@
  * and `snt_scheduled_reads_render_settings()` (priority 30), each carry one
  * classic form and one `sn_action` (`morning_brief_save`, `scheduled_reads_save`).
  * They paint here with the same names through snt_kit_form(), one paired row
- * under the ledger: connections-cron-parts.php.
+ * under the ledger: connections-cron-parts.php. Between the ledger and that
+ * row sits the Action Scheduler backlog box (same file), the Site Health
+ * reading on the leaf where scheduled jobs are asked about.
  *
  * Same readers as the classic leaf: `snt_cron_get_events_impl()` for the rows,
  * `snt_cron_glance_cards()` (inc/cron-dashboard-admin.php) for the hero.
@@ -244,8 +246,9 @@ function paint_connections_cron( array $ctx ) {
 	$rows = function_exists( 'snt_cron_get_events_impl' ) ? snt_cron_get_events_impl() : array();
 	// Re-read this live snapshot without exposing the classic mutating actions.
 	$refresh = '<div class="snt-toolbar">' . \snt_kit_button( __( 'Refresh', 'signal-and-noise-tools' ), 'refresh', array( 'variant' => 'ghost', 'class' => 'snt-leaf-refresh' ) ) . '</div>';
-	// do_action paints the two settings callbacks whether or not cron has rows.
-	$settings = cron_settings_row_html();
+	// do_action paints the two settings callbacks whether or not cron has rows;
+	// the backlog box sits above them on both branches.
+	$settings = cron_backlog_html() . cron_settings_row_html();
 
 	if ( empty( $rows ) ) {
 		// Classic runs this sentence through wp_kses_post() so the four hook

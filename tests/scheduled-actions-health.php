@@ -138,6 +138,12 @@ ok( false !== strpos( $line, 'total 1224' ) || false !== strpos( $line, 'total 1
 $quiet = snt_asb_summary_line( array( 'counts' => array( 'pending' => 2 ), 'total' => 2, 'overdue_pending' => 0 ) );
 ok( false === strpos( $quiet, 'overdue' ), 'a zero overdue count is omitted from the summary, not rendered as "(0 overdue)"' );
 
+// ─── Group: warnings (pure) ───────────────────────────────────────────
+echo "\nGroup: snt_asb_warnings: the threshold sentences, one source for two surfaces\n";
+ok( array() === snt_asb_warnings( array( 'counts' => array( 'pending' => 2 ), 'total' => 2, 'overdue_pending' => 0 ) ), 'a quiet snapshot yields no warning' );
+$warnings = snt_asb_warnings( array( 'counts' => array( 'pending' => SN_ASB_ROWS_WARN ), 'total' => SN_ASB_ROWS_WARN, 'overdue_pending' => SN_ASB_OVERDUE_WARN ) );
+ok( 2 === count( $warnings ) && false !== strpos( $warnings[0], 'overdue' ) && false !== strpos( $warnings[1], 'every page load' ), 'both lines crossed: two sentences, overdue first, the per-page cost second' );
+
 // ─── Group: Site Health result — healthy ──────────────────────────────
 echo "\nGroup: snt_asb_site_health_result — healthy states\n";
 $db               = new ASB_Stub_wpdb();

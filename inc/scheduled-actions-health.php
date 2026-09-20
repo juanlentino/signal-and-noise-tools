@@ -14,9 +14,11 @@
  * when it is the thing taxing every page, and let the owner watch it drain.
  *
  * Read-only by design: two SELECTs (a status GROUP BY + an overdue COUNT),
- * fired ONLY from Site Health surfaces (the async status test's REST
- * callback and the Info panel row in inc/admin-tab-dashboard.php) — never
- * on ordinary page loads, which are exactly what a bloated table taxes.
+ * fired ONLY on demand: the Site Health surfaces (the async status test's
+ * REST callback and the Info panel row in inc/dash-debug-info.php) and the
+ * Cron leaf paint in the window (apps/sn-dashboard/parts/leaves/
+ * connections-cron-parts.php, cron_backlog_html()). Never on ordinary page
+ * loads, which are exactly what a bloated table taxes.
  *
  * @package SignalNoiseTools
  * @since 9.48.0
@@ -53,7 +55,7 @@ function snt_asb_snapshot( $db = null, $now_gmt = null ) {
 
 	$table = $db->prefix . 'actionscheduler_actions';
 
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only existence probe, Site Health surfaces only.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only existence probe, Site Health surfaces and the Cron leaf paint only.
 	$exists = $db->get_var( $db->prepare( 'SHOW TABLES LIKE %s', $table ) );
 	if ( $exists !== $table ) {
 		return null;
@@ -62,7 +64,7 @@ function snt_asb_snapshot( $db = null, $now_gmt = null ) {
 	$counts = array();
 	$total  = 0;
 	// Table name is $wpdb->prefix + a fixed literal — no user input can reach it.
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- read-only aggregate on another plugin's table, Site Health surfaces only.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- read-only aggregate on another plugin's table, Site Health surfaces and the Cron leaf paint only.
 	$rows = $db->get_results( "SELECT status, COUNT(*) AS n FROM `{$table}` GROUP BY status", ARRAY_A );
 	foreach ( is_array( $rows ) ? $rows : array() as $row ) {
 		$status = isset( $row['status'] ) ? (string) $row['status'] : '';
@@ -75,7 +77,7 @@ function snt_asb_snapshot( $db = null, $now_gmt = null ) {
 	}
 
 	$cutoff = gmdate( 'Y-m-d H:i:s', is_numeric( $now_gmt ) ? (int) $now_gmt : time() );
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- read-only aggregate on another plugin's table, Site Health surfaces only.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- read-only aggregate on another plugin's table, Site Health surfaces and the Cron leaf paint only.
 	$overdue = (int) $db->get_var( $db->prepare( "SELECT COUNT(*) FROM `{$table}` WHERE status = 'pending' AND scheduled_date_gmt <= %s", $cutoff ) );
 
 	return array(
@@ -86,7 +88,8 @@ function snt_asb_snapshot( $db = null, $now_gmt = null ) {
 }
 
 /**
- * One-line snapshot summary for the Site Health Info panel row. Pure
+ * One-line snapshot summary for the Site Health Info panel row and, at
+ * null, the not-installed line of the Cron leaf box. Pure
  * formatting over raw AS status identifiers (DB enum values, not prose) —
  * untranslated by module stance, mirroring sn_httpdiag_format_call().
  *
@@ -113,6 +116,37 @@ function snt_asb_summary_line( $snapshot ) {
 }
 
 /**
+ * The threshold sentences for a snapshot, zero to two, plain text: the
+ * overdue-pending backlog at or past SN_ASB_OVERDUE_WARN, the total row
+ * count at or past SN_ASB_ROWS_WARN. One source for the Site Health result
+ * and the Cron leaf box, so the two surfaces cannot drift.
+ *
+ * @param array $snapshot A non-null snt_asb_snapshot() result.
+ * @return string[]
+ */
+function snt_asb_warnings( array $snapshot ) {
+	$lines = array();
+
+	if ( (int) ( $snapshot['overdue_pending'] ?? 0 ) >= SN_ASB_OVERDUE_WARN ) {
+		$lines[] = sprintf(
+			/* translators: %d: number of pending scheduled actions already past their run date. */
+			__( '%d pending actions are overdue. A backlog this size usually means the queue runner is not keeping up (this site\'s cron was disabled for a long stretch); it should drain now that cron runs: if the number is not shrinking across visits, inspect Tools → Scheduled Actions for failing recurring actions.', 'signal-and-noise-tools' ),
+			(int) $snapshot['overdue_pending']
+		);
+	}
+
+	if ( (int) ( $snapshot['total'] ?? 0 ) >= SN_ASB_ROWS_WARN ) {
+		$lines[] = sprintf(
+			/* translators: %d: total rows in the actionscheduler_actions table. */
+			__( 'The actions table holds %d rows. Action Scheduler counts pending-and-due actions on every page load, so a table this large taxes every request; its cleaner purges old completed actions now that cron runs, or prune retained rows from Tools → Scheduled Actions.', 'signal-and-noise-tools' ),
+			(int) $snapshot['total']
+		);
+	}
+
+	return $lines;
+}
+
+/**
  * The Site Health test result. GOOD when Action Scheduler is absent or the
  * table is small and current; RECOMMENDED (never critical — this is perf
  * hygiene, not an outage) when the overdue-pending backlog or the total
@@ -134,22 +168,9 @@ function snt_asb_site_health_result( $db = null, $now_gmt = null ) {
 	} else {
 		$lines[] = esc_html( snt_asb_summary_line( $snapshot ) );
 
-		if ( $snapshot['overdue_pending'] >= SN_ASB_OVERDUE_WARN ) {
+		foreach ( snt_asb_warnings( $snapshot ) as $warning ) {
 			$status  = 'recommended';
-			$lines[] = sprintf(
-				/* translators: %d: number of pending scheduled actions already past their run date. */
-				esc_html__( '%d pending actions are overdue. A backlog this size usually means the queue runner is not keeping up (this site\'s cron was disabled for a long stretch); it should drain now that cron runs: if the number is not shrinking across visits, inspect Tools → Scheduled Actions for failing recurring actions.', 'signal-and-noise-tools' ),
-				(int) $snapshot['overdue_pending']
-			);
-		}
-
-		if ( $snapshot['total'] >= SN_ASB_ROWS_WARN ) {
-			$status  = 'recommended';
-			$lines[] = sprintf(
-				/* translators: %d: total rows in the actionscheduler_actions table. */
-				esc_html__( 'The actions table holds %d rows. Action Scheduler counts pending-and-due actions on every page load, so a table this large taxes every request; its cleaner purges old completed actions now that cron runs, or prune retained rows from Tools → Scheduled Actions.', 'signal-and-noise-tools' ),
-				(int) $snapshot['total']
-			);
+			$lines[] = esc_html( $warning );
 		}
 	}
 
