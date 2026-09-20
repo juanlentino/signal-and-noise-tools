@@ -202,10 +202,10 @@ echo "\nTest: the buttons the script mints inside a kit leaf are kit buttons (#1
 $js = file_get_contents( __DIR__ . '/../assets/health-suggest-actions.js' );
 hca_true( 1 === substr_count( $js, "createElement( kit ? 'os-button' : 'button' )" ), 'one fork mints every row button: os-button in a kit app, .button elsewhere' );
 hca_true( false !== strpos( $js, "cell.closest( '.snt-app' )" ), 'the kit test is the app root the leaves paint in' );
-hca_true( 0 === preg_match( "/\.className = 'button[^']*button-small/", $js ), 'no row call site sets a wp-admin class itself (the modal pair keeps its full-size .button, out of scope)' );
+hca_true( 0 === preg_match( "/\.className = 'button[^']*button/", $js ), 'no call site sets a wp-admin button class itself (the modal pair is through the helper too since 17.4.1)' );
 hca_true( 1 === substr_count( $js, "'button button-primary button-small'" ) && 1 === substr_count( $js, "'button button-small snt-verdict-delete-btn'" ), 'the classic classes live in the one variant map, byte-equal to what the tab painted' );
-hca_true( 10 === substr_count( $js, 'mintButton(' ), 'nine row buttons through the helper (Copy, Apply, Discard x4, Link it, Delete, Suggest) plus its definition' );
-hca_true( 3 === substr_count( $js, "createElement( 'button' )" ), 'the only native <button>s left are the modal close x and its Cancel/Apply pair (the modal sits on body, out of scope)' );
+hca_true( 12 === substr_count( $js, 'mintButton(' ), 'nine row buttons and the modal pair through the helper (Copy, Apply, Discard x4, Link it, Delete, Suggest, Cancel, Apply) plus its definition' );
+hca_true( 1 === substr_count( $js, "createElement( 'button' )" ), 'the only native <button> left is the classic box\'s close x (the kit modal paints its own)' );
 hca_true( false !== strpos( $js, "mintButton( __( 'Suggest', 'signal-noise-tools' ), 'secondary', cell )" ), 'the rebuilt Suggest carries the weight the PHP twin paints (secondary)' );
 hca_true( 2 === substr_count( $js, "'primary', cell )" ) && false !== strpos( $js, "mintButton( __( 'Apply', 'signal-noise-tools' ), 'primary', cell )" ), 'Apply and Link it keep the classic button-primary weight' );
 hca_true( 4 === substr_count( $js, "mintButton( __( 'Discard', 'signal-noise-tools' ), 'secondary', cell )" ) && false !== strpos( $js, "mintButton( __( 'Copy', 'signal-noise-tools' ), 'secondary', cell )" ), 'all four Discards and Copy are secondary' );
@@ -213,6 +213,27 @@ hca_true( false !== strpos( $js, "mintButton( __( 'Delete', 'signal-noise-tools'
 hca_true( false !== strpos( $js, "back.shadowRoot.querySelector( 'button' )" ) && 0 === substr_count( $js, 'originatingButton.focus()' ), 'closing the modal focuses the shadow button of a host, never the host (no delegatesFocus)' );
 hca_true( false === strpos( $js, "'busy'" ) && false === strpos( $js, '.busy' ), 'the busy attribute is not used: the disabled guards would not see it (17.3.0 read, held)' );
 hca_true( 3 === substr_count( $js, ".hasAttribute( 'disabled' )" ) && 0 === preg_match( '/if \( ! \w+ \|\| \w+\.disabled \)/', $js ), 'disabled is still read as an attribute (a host getter returns the string) (17.3.0 read, held)' );
+
+echo "\nTest: the Apply preview inside a kit leaf is the kit's <os-modal> (17.4.1, the diff #1562 deferred)\n";
+$js = file_get_contents( __DIR__ . '/../assets/health-suggest-actions.js' );
+hca_true( 1 === substr_count( $js, "opts.originatingButton.closest( '.snt-app' )" ), 'the host forks on the same test mintButton runs, from the button that opened it' );
+hca_true( 1 === substr_count( $js, "createElement( 'os-modal' )" ), 'the kit host is one <os-modal>' );
+hca_true( false !== strpos( $js, "host.setAttribute( 'size', 'lg' )" ) && false !== strpos( $js, "host.setAttribute( 'title', opts.title )" ), 'the kit host carries the size and the title the classic box painted' );
+hca_true( 2 === substr_count( $js, "setAttribute( 'slot', 'footer' )" ), 'Cancel and Apply sit in the footer slot' );
+hca_true( false !== strpos( $js, "mintButton( __( 'Cancel', 'signal-noise-tools' ), 'secondary', opts.originatingButton )" ) && false !== strpos( $js, "mintButton( __( 'Apply', 'signal-noise-tools' ), 'primary', opts.originatingButton )" ), 'the modal pair goes through mintButton, keyed off the originating button' );
+hca_true( 1 === substr_count( $js, "'Escape' === e.key && ! kit" ) && 1 === substr_count( $js, "'Escape' === e.key" ), 'the script handles Escape on the classic box only: the kit modal cancels on Escape itself' );
+hca_true( 1 === preg_match( "/addEventListener\( 'os-modal-cancel', function\( e \) \{\s*e\.preventDefault\(\);\s*dismiss\(\);/", $js ), 'the component cancel is taken over: the element is removed, never hidden, so its own focus return never runs' );
+hca_true( 0 === preg_match( '/if \( ! kit \) \{\s*focusHandler/', $js ) && false !== strpos( $js, 'host.contains( e.target )' ) && false !== strpos( $js, 'focusButton( applyBtn );' ), 'the focusin trap is installed on both paths, against the host: the kit modal\'s own Tab trap does not count slotted <os-button> hosts' );
+hca_true( 2 === substr_count( $js, "document.addEventListener( 'keydown', escapeHandler )" ) && 2 === substr_count( $js, "document.addEventListener( 'focusin', focusHandler )" ) && 1 === preg_match( "/document\.body\.appendChild\( host \);\s*host\.setAttribute\( 'open', '' \);\s*document\.addEventListener\( 'keydown'/", $js ), 'the document listeners go in with the host on both paths, never before the dialog is on screen' );
+hca_true( 1 === preg_match( '/\}, function\(\) \{\s*\/\/[^\n]*\n\s*if \( activeModal && activeModal\.host === host \) \{ dismiss\(\); \}/', $js ), 'a kit bundle that cannot be fetched disarms the modal instead of leaving Enter armed with no dialog' );
+hca_true( 1 === preg_match( "/'Enter' === e\.key \) \{\s*if \( 'TEXTAREA' === \( e\.target && e\.target\.tagName \) \) \{ return; \}/", $js ), 'Enter in the textarea keeps its newline before the button test (#1572 owns the button test below)' );
+hca_true( 1 === substr_count( $js, 'queueMicrotask( function() { focusButton( applyBtn ); } )' ) && 1 === substr_count( $js, 'function focusButton( back )' ) && false !== strpos( $js, 'focusButton( activeModal.originatingButton )' ), 'the kit modal lands on Apply after the component\'s own focus microtask, through the one shadow-button helper close uses too' );
+hca_true( false !== strpos( $js, "loadComponents( [ 'os-modal' ] )" ), 'the tag is loaded through the kit\'s own route before the host is appended (the reschedule precedent)' );
+hca_true( false !== strpos( $js, "host.className = 'snt-modal-backdrop'" ) && false !== strpos( $js, "box.className = 'snt-modal-box'" ) && false !== strpos( $js, "footer.className = 'snt-modal-footer'" ), 'the classic box is still built: backdrop, box, footer' );
+hca_true( false !== strpos( $js, 'activeModal.host.parentNode.removeChild( activeModal.host )' ), 'close removes the host on both paths' );
+$css = file_get_contents( __DIR__ . '/../assets/admin.css' );
+hca_true( 1 === preg_match( '/os-modal > \.snt-modal-body \{\s*padding: 0;\s*--sn-text: var\(--os-ui-fg\);\s*--sn-text-muted: var\(--os-ui-fg-muted\);\s*--sn-border: var\(--os-ui-border\);/', $css ), 'inside the dark dialog the three plugin tokens the panes read follow the kit, and the grid drops its own padding' );
+hca_true( 1 === preg_match( '/os-modal \.snt-modal-textarea,\s*os-modal \.snt-modal-snippet \{\s*background: var\(--os-window-bg\);/', $css ), 'the two light boxes take the dialog field surface' );
 
 echo "\nTest: Enter on the modal's Cancel or close x cancels, it does not apply\n";
 $js = file_get_contents( __DIR__ . '/../assets/health-suggest-actions.js' );
