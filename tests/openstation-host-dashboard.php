@@ -460,8 +460,23 @@ namespace {
 	ok( false !== strpos( $html, 'data-snt-leaf="health"' ), 'the active leaf is named on the body' );
 	ok( false !== strpos( $html, '<div class="snt-dashboard-body">' ) && strpos( $html, '<div class="snt-dashboard-body">' ) < strpos( $html, 'data-snt-leaf="health"' ),
 		'the active leaf sits in the single scrolling body, matching Station Home geometry' );
-	ok( false !== strpos( $html, '<os-tabs' ) && false !== strpos( $html, 'os-bind="sub"' ),
-		'a tab with leaves paints the kit sub-strip, bound to sub' );
+	// 17.4.3: the leaf bar is the native list toolbar's status control, both
+	// twins bound to sub; the os-tabs strip (the kit's rose underline beside
+	// the chrome's bold white) is gone from this level.
+	ok( false !== strpos( $html, '<header class="os-app-list__toolbar snt-subbar"><div class="os-app-list__toolbar-left"><os-segmented class="os-app-list__status" value="health" os-bind="sub" label="Sections">' )
+		&& false !== strpos( $html, '<os-segment value="health">' )
+		&& false !== strpos( $html, '<os-select class="os-app-list__status snt-subbar__phone" value="health" os-bind="sub" aria-label="Sections">' )
+		&& false !== strpos( $html, '<os-option value="health">' ),
+		'a tab with leaves paints the native toolbar: a segmented control for the desk and a select for the phone, both bound to sub' );
+	ok( false === strpos( $html, '<os-tabs' ) && false === strpos( $html, 'os-app-list__tabs' ),
+		'   ...and no os-tabs strip at this level' );
+	ok( false !== strpos( $html, '<header class="os-app-list__toolbar' ) && strpos( $html, '<header class="os-app-list__toolbar' ) < strpos( $html, '<div class="snt-dashboard-body">' ),
+		'   ...above the body, where the native list puts its toolbar' );
+	$css = (string) preg_replace( '/\s+/', ' ', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) );
+	ok( false !== strpos( $css, '.snt-subbar__phone { display: none; }' )
+		&& false !== strpos( $css, 'html[data-os-mode="mobile"] .snt-subbar__phone { display: block; }' )
+		&& false !== strpos( $css, 'html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmented { display: none; }' ),
+		'   ...the phone twin shows only under the shell`s mobile stamp and the desk twin only off it' );
 	ok( false === strpos( $html, '<h1 class="sn-page-h1">' ) && false === strpos( $html, 'nav-tab-wrapper' ),
 		'the classic page heading and wp-admin tab strip are gone -- the window chrome is the strip' );
 

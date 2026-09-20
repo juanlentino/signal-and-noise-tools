@@ -17,9 +17,25 @@
 	overflow: hidden;
 }
 
-.snt-app[data-os-app="sn-dashboard"][data-snt-layout="dashboard"] > .snt-subtabs {
+/* The leaf bar (17.4.3): the runtime's `.os-app-list__toolbar` shape, so it
+   wears the runtime sheet's padding, border and elevated surface. Both twins
+   ship from the server (a paint cannot read the shell's mode); the phone
+   select shows only under the shell's mobile stamp, the segmented only
+   off it, mirroring `statusControl()` in the runtime's list-ui.ts. */
+.snt-app[data-os-app="sn-dashboard"][data-snt-layout="dashboard"] > .snt-subbar {
 	flex: 0 0 auto;
-	margin: 0;
+}
+
+.snt-subbar__phone {
+	display: none;
+}
+
+html[data-os-mode="mobile"] .snt-subbar__phone {
+	display: block;
+}
+
+html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmented {
+	display: none;
 }
 
 .snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body {

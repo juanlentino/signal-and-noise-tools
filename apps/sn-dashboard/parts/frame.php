@@ -113,6 +113,9 @@ function tab_view( $tab ) {
 		$leaves = leaves_for( $tab );
 		$anchor = (string) $state->get( 'anchor' );
 		echo '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="' . \snt_kit_esc( $tab ) . '" data-snt-layout="dashboard"' . ( '' !== $anchor ? ' data-snt-anchor="' . \snt_kit_esc( $anchor ) . '"' : '' ) . '>';
+		// 17.4.3: the leaf bar is the native list toolbar's status control
+		// (segmented on a desk, a select on a phone), bound to `sub`, not an
+		// os-tabs strip: see snt_kit_tabs().
 		if ( count( $leaves ) > 1 ) {
 			echo \snt_kit_tabs( $sub, $leaves, 'sub', __( 'Sections', 'signal-and-noise-tools' ) );
 		}

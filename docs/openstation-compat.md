@@ -867,7 +867,9 @@ help` blocks) and in the sandbox before a line was written:
   Kit fields are not form-associated, so a native `<form>` sees none of them:
   the kit form is the only form shape a painter uses (the streaming export
   form is the one exception, kept real with `target="_blank"`).
-- **`os-bind`** on `<os-tabs>` (the sub-leaf strip) and on a segmented
+- **`os-bind`** on the leaf bar's `<os-segmented>` / `<os-select>` twins
+  (`snt_kit_tabs()`, the native list toolbar's status control since 17.4.3;
+  an `<os-tabs>` strip before) and on a segmented
   control writes the pick and repaints; the Analytics controls dispatch `go`
   with `{ key, value }` instead, because a pick must become the next query by
   the classic link rules (`picked()` in `apps/sn-analytics/sn-analytics.os.php`).
