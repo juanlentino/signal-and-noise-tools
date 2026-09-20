@@ -106,6 +106,7 @@ function sn_admin_render_tag_cleanup_section() {
 	sn_admin_tag_render_manual_picker();
 	sn_admin_tag_render_fit_section();
 	sn_admin_tag_render_by_tag_section();
+	sn_admin_tag_render_groups_section();
 	sn_admin_tag_render_unused_section();
 	sn_admin_tag_render_recent_merges();
 }
@@ -309,6 +310,47 @@ function sn_admin_tag_render_by_tag_section() {
 		}
 	}
 	echo '</div>';
+}
+
+/**
+ * 17.2.0: file tags under /notes/tags' headings (see tags_groups_html()).
+ *
+ * @return void
+ */
+function sn_admin_tag_render_groups_section() {
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Groups on /notes/tags', 'signal-and-noise-tools' ) . '</h2>';
+	if ( ! function_exists( 'sn_notes_tag_groups' ) || ! function_exists( 'sn_notes_tag_group_effective' ) ) {
+		echo '<p>' . esc_html__( 'The theme\'s tag groups are not available (Signal & Noise theme 13.4.0 or later).', 'signal-and-noise-tools' ) . '</p></div>';
+		return;
+	}
+	$options = array( '' => __( 'Not yet filed', 'signal-and-noise-tools' ) );
+	foreach ( sn_notes_tag_groups() as $g ) {
+		$options[ (string) $g['id'] ] = html_entity_decode( (string) $g['title'], ENT_QUOTES, 'UTF-8' );
+	}
+	$tags = get_terms( array( 'taxonomy' => 'post_tag', 'hide_empty' => false ) );
+	$rows = array();
+	foreach ( (array) $tags as $t ) {
+		if ( is_object( $t ) && isset( $t->term_id ) ) {
+			$rows[] = array( 'id' => (int) $t->term_id, 'name' => (string) $t->name, 'group' => (string) sn_notes_tag_group_effective( $t ) );
+		}
+	}
+	if ( array() === $rows ) {
+		echo '<p>' . esc_html__( 'No tags.', 'signal-and-noise-tools' ) . '</p></div>';
+		return;
+	}
+	usort( $rows, static fn( $a, $b ) => ( '' === $a['group'] ? 0 : 1 ) <=> ( '' === $b['group'] ? 0 : 1 ) ?: strcasecmp( $a['name'], $b['name'] ) );
+	echo '<p>' . esc_html__( 'The heading each tag sits under on /notes/tags. Unfiled tags come first; the page reads a change the moment it is filed.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' ) ) . '">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<input type="hidden" name="sn_action" value="tag_group_apply">';
+	foreach ( $rows as $r ) {
+		echo '<p><label>' . esc_html( $r['name'] ) . ' <select name="group[' . esc_attr( (string) $r['id'] ) . ']">';
+		foreach ( $options as $value => $label ) {
+			echo '<option value="' . esc_attr( (string) $value ) . '"' . selected( (string) $value, $r['group'], false ) . '>' . esc_html( $label ) . '</option>';
+		}
+		echo '</select></label></p>';
+	}
+	echo '<p><button type="submit" class="button button-primary">' . esc_html__( 'File tags', 'signal-and-noise-tools' ) . '</button></p></form></div>';
 }
 
 /**

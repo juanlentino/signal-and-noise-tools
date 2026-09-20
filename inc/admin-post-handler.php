@@ -76,6 +76,7 @@ function sn_admin_post_handlers() {
 		'tag_merge'                  => 'sn_handle_tag_merge',
 		'tag_fit_run'                => 'sn_handle_tag_fit_run',   // 16.9.0: Jev reads every note against its tags
 		'tag_fit_apply'              => 'sn_handle_tag_fit_apply', // 16.9.0: apply the checked rows (allow-listed by the stored pass)
+		'tag_group_apply'            => 'sn_handle_tag_group_apply', // 17.2.0: file tags under /notes/tags' headings (theme term meta)
 		'tag_prune_unused'           => 'sn_handle_tag_prune_unused',
 		'indexnow_save'              => 'sn_handle_indexnow_save',
 		'indexnow_regenerate'        => 'sn_handle_indexnow_regenerate',

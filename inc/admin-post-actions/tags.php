@@ -99,6 +99,51 @@ function sn_handle_tag_fit_apply( $post ) {
 }
 
 /**
+ * 17.2.0: file tags under /notes/tags' headings from Content › Tags. Reads
+ * group[term_id] = group id ('' for unfiled). The heading list and the meta
+ * key are the theme's (sn_notes_tag_group_ids(), SN_TAG_GROUP_META, theme
+ * 13.4.0); without them the handler refuses rather than inventing a key.
+ * Each pair is written only when the user can edit_term that tag and the
+ * value differs from what the tag renders under today.
+ *
+ * @param array $post Raw $_POST.
+ * @return string flash code.
+ */
+function sn_handle_tag_group_apply( $post ) {
+	if ( ! function_exists( 'sn_notes_tag_group_ids' ) || ! function_exists( 'sn_notes_tag_group_effective' ) || ! function_exists( 'sn_notes_tag_group_of' ) || ! defined( 'SN_TAG_GROUP_META' ) ) {
+		return 'tag_group_unavailable';
+	}
+	$map  = isset( $post['group'] ) && is_array( $post['group'] ) ? wp_unslash( $post['group'] ) : array();
+	$ids  = sn_notes_tag_group_ids();
+	$done = 0;
+	foreach ( $map as $tid => $gid ) {
+		$tid = (int) $tid;
+		$gid = is_string( $gid ) ? sanitize_key( $gid ) : '';
+		$gid = in_array( $gid, $ids, true ) ? $gid : '';
+		$term = $tid > 0 ? get_term( $tid, 'post_tag' ) : null;
+		if ( ! $term || is_wp_error( $term ) || ! current_user_can( 'edit_term', $tid ) ) {
+			continue;
+		}
+		if ( $gid === sn_notes_tag_group_effective( $term ) ) {
+			continue; // Already renders there; nothing to write.
+		}
+		if ( '' === $gid ) {
+			// Unfiling only removes the owner's filing; a tag the theme's seed
+			// list names keeps rendering there, so with no meta to remove
+			// there is nothing this form can change.
+			if ( '' === sn_notes_tag_group_of( $term ) ) {
+				continue;
+			}
+			delete_term_meta( $tid, SN_TAG_GROUP_META );
+		} else {
+			update_term_meta( $tid, SN_TAG_GROUP_META, $gid );
+		}
+		$done++;
+	}
+	return $done ? 'tag_group_applied' : 'tag_group_nothing';
+}
+
+/**
  * Delete the selected unused (count-0) tags. Reads sn_tag_unused[] = term_id.
  *
  * @param array $post Raw $_POST.
