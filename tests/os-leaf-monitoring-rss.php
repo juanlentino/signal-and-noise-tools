@@ -164,12 +164,20 @@ $kit = snt_leaf_paint( 'monitoring', 'rss', array( 'params' => array( 'sn_rss_ok
 ok( false !== strpos( $kit, 'Purged' ) && false !== strpos( $kit, '12' ), 'the purged-N flash reports the count' );
 
 
-// ── Siblings pair; a stack is for steps. ──
-// Measured live 2026-09-10; see the painter for the per-leaf numbers.
+// ── Boxes pair by height (#1573). ──
+// Measured live 2026-09-20 at 1581px; see the painter for the per-box numbers.
 $kitP = snt_leaf_paint( 'monitoring', 'rss' );
 ok(
-	1 === substr_count( $kitP, '<div class="snt-cols">' ),
-	'the sibling sections are painted in 1 paired row(s) -- ' . substr_count( $kitP, '<div class="snt-cols">' )
+	2 === substr_count( $kitP, '<div class="snt-cols">' ),
+	'the four boxes are painted in 2 paired rows -- ' . substr_count( $kitP, '<div class="snt-cols">' )
 );
+preg_match_all( '/<div class="snt-cols">(.*?)<\/div>\s*(?=<div class="snt-cols">|$)/s', $kitP, $rowsP );
+$rowP = static function ( $i ) use ( $rowsP ) {
+	preg_match_all( '/<os-section heading="([^"]+)"/', (string) ( $rowsP[1][ $i ] ?? '' ), $h );
+	return $h[1];
+};
+ok( array( 'Activity', 'Maintenance' ) === $rowP( 0 ), '#1573: row one pairs Activity (189) with Maintenance (177) -- ' . implode( ' | ', $rowP( 0 ) ) );
+ok( array( 'Settings', 'Recent requests' ) === $rowP( 1 ), '#1573: row two pairs the Settings form (507) with the Recent requests ledger it is read against (507) -- ' . implode( ' | ', $rowP( 1 ) ) );
+ok( substr_count( $kitP, '<os-section heading=' ) === count( $rowP( 0 ) ) + count( $rowP( 1 ) ), '#1573: every box sits in a row; none stands alone above or below them -- ' . substr_count( $kitP, '<os-section heading=' ) . ' boxes, ' . ( count( $rowP( 0 ) ) + count( $rowP( 1 ) ) ) . ' in rows' );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
