@@ -70,7 +70,10 @@ echo "\nGroup: the route count is pinned, so a new route is a deliberate edit he
 // 22 since v14.4.0 — GET /openstation/attention, the Posts window's
 // Attention pill; manage_options via snt_os_preferences_rest_permission;
 // reads the app's transient only, never composes.
-$expected_count = 22;
+// 23 since 17.3.0: POST /openstation/reschedule, the classic batch
+// reschedule's native twin; edit_others_posts via
+// snt_batch_schedule_rest_permission, one shared write with the bulk action.
+$expected_count = 23;
 ok( $expected_count === count( $calls ), "exactly $expected_count REST route registrations (found " . count( $calls ) . ')' . ( $expected_count !== count( $calls ) ? "\n        " . implode( "\n        ", array_map( static fn( $k, $c ) => "$k  {$c['ns']}{$c['route']}  [{$c['perm']}]", array_keys( $calls ), $calls ) ) : '' ) );
 
 echo "\nGroup: exactly these routes are public, each for a stated reason\n";

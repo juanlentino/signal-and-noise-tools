@@ -141,9 +141,13 @@
 			return;
 		}
 		lastFetch = now;
-		window.fetch( cfg.attentionEndpoint, {
-			credentials: 'same-origin',
-			headers: { 'X-WP-Nonce': cfg.nonce || '' }
+		// The shell's fetch stamps its own REST nonce header, refreshed on
+		// every heartbeat tick; a nonce localized at load went stale once the
+		// shell (a PWA) sat open past the nonce window, and the pill vanished
+		// on a 403. Runs on the window's opened/dataLoaded hooks, so the shell
+		// API exists by then.
+		window.wp.os.fetch( cfg.attentionEndpoint, {
+			credentials: 'same-origin'
 		} ).then( function ( res ) {
 			if ( ! res.ok ) {
 				// 401/403: not ours to show. Remove, never paint a wrong 0.

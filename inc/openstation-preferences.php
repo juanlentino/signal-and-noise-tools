@@ -391,11 +391,27 @@ function snt_os_enqueue_posts_script() {
 		'snt-os-posts',
 		'sntOsPosts',
 		array(
-			'attentionEndpoint' => rest_url( 'signal-noise/v1/openstation/attention' ),
-			'nonce'             => wp_create_nonce( 'wp_rest' ),
+			'attentionEndpoint'  => rest_url( 'signal-noise/v1/openstation/attention' ),
+			'rescheduleEndpoint' => rest_url( 'signal-noise/v1/openstation/reschedule' ),
+			'timezone'           => function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : '',
 		)
 	);
 	wp_enqueue_script( 'snt-os-posts' );
+
+	// The Reschedule bulk action (17.3.0): gated as the classic dropdown is,
+	// so no button paints that the route would 403. Depends on snt-os-posts
+	// for the localized object; both ride the ordinary admin_enqueue_scripts
+	// path on the shell request, not the shell's lazy loader.
+	if ( current_user_can( 'edit_others_posts' ) ) {
+		wp_register_script(
+			'snt-os-posts-reschedule',
+			plugins_url( 'assets/os-posts-reschedule.js', $plugin_file ),
+			array( 'wp-hooks', 'snt-os-posts' ),
+			defined( 'SNT_VERSION' ) ? SNT_VERSION : '1.0.0',
+			true
+		);
+		wp_enqueue_script( 'snt-os-posts-reschedule' );
+	}
 }
 add_action( 'admin_enqueue_scripts', 'snt_os_enqueue_posts_script', 5 );
 

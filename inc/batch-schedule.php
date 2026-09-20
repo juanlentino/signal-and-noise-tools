@@ -155,6 +155,127 @@ function snt_batch_schedule_plan( $posts, $new_date_gmt, $now_ts ) {
  * ════════════════════════════════════════════════════════════════════════ */
 
 /**
+ * Write one batch: look the posts up, ask the planner, write what it allowed.
+ *
+ * The one write site, shared by the classic bulk action and the native Posts
+ * window's REST route (17.3.0), so the two surfaces cannot drift. Two guards
+ * sit here at the trust boundary rather than in either caller, counted as
+ * `skipped`: a non-post (the classic dropdown is posts-only by its screen,
+ * the REST surface has no screen) and a post the operator may not edit (the
+ * batch-level capability says they may edit others' posts in general, not
+ * this one). Both halves of the planner's answer are reported, never dropped.
+ *
+ * @since 17.3.0
+ * @param int[]  $post_ids Selected ids.
+ * @param string $gmt      Target date, 'Y-m-d H:i:s' GMT.
+ * @param int    $now_ts   Unix time; injectable so a test is not a race.
+ * @return array{moved:int,refused:int,unpublish:int,skipped:int}
+ */
+function snt_batch_schedule_apply( $post_ids, $gmt, $now_ts ) {
+	$posts   = array();
+	$skipped = 0;
+	// array_unique: the REST body can carry an id twice; the write below is
+	// keyed by id, so the skip count must be too.
+	foreach ( array_unique( array_map( 'intval', (array) $post_ids ) ) as $id ) {
+		$post = get_post( $id );
+		if ( ! $post ) {
+			continue;
+		}
+		if ( 'post' !== (string) $post->post_type || ! current_user_can( 'edit_post', $id ) ) {
+			$skipped++;
+			continue;
+		}
+		$posts[ $id ] = array( 'status' => (string) $post->post_status );
+	}
+
+	$plan = snt_batch_schedule_plan( $posts, $gmt, $now_ts );
+
+	$moved = 0;
+	foreach ( $plan['apply'] as $id ) {
+		// post_date is SITE time, post_date_gmt is GMT: passing both keeps
+		// core from re-deriving one from the other and drifting by the offset.
+		// edit_date (#1179): a draft's post_date_gmt is zero, and without this
+		// flag core treats the date as untouched and resets it to now.
+		$res = wp_update_post(
+			wp_slash( array(
+				'ID'            => (int) $id,
+				'post_date'     => get_date_from_gmt( $gmt ),
+				'post_date_gmt' => $gmt,
+				'edit_date'     => true,
+			) ),
+			true
+		);
+		if ( ! is_wp_error( $res ) ) {
+			$moved++;
+		}
+	}
+
+	$reasons = array_count_values( $plan['refused'] );
+	return array(
+		'moved'     => $moved,
+		'refused'   => (int) ( $reasons['would_early_publish'] ?? 0 ),
+		'unpublish' => (int) ( $reasons['would_unpublish'] ?? 0 ),
+		'skipped'   => $skipped,
+	);
+}
+
+/**
+ * The sentence both surfaces report, unescaped; each caller escapes for its
+ * own medium (the notice through esc_html, the REST answer through JSON).
+ *
+ * @since 17.3.0
+ * @param int $moved
+ * @param int $refused
+ * @param int $unpublish
+ * @param int $skipped   Not a post, or not this operator's to edit (17.3.0).
+ * @return string
+ */
+function snt_batch_schedule_message( $moved, $refused, $unpublish, $skipped = 0 ) {
+	$msg = sprintf(
+		/* translators: %d: number of posts rescheduled. */
+		_n( '%d post rescheduled.', '%d posts rescheduled.', $moved, 'signal-and-noise-tools' ),
+		$moved
+	);
+	if ( $refused > 0 ) {
+		$msg .= ' ' . sprintf(
+			/* translators: %d: number of scheduled posts left untouched. */
+			_n(
+				'%d scheduled post was left untouched: the new date is within a minute of now, and WordPress would have published it immediately instead of rescheduling it.',
+				'%d scheduled posts were left untouched: the new date is within a minute of now, and WordPress would have published them immediately instead of rescheduling them.',
+				$refused,
+				'signal-and-noise-tools'
+			),
+			$refused
+		);
+	}
+	if ( $unpublish > 0 ) {
+		$msg .= ' ' . sprintf(
+			/* translators: %d: number of published posts left untouched. */
+			_n(
+				'%d published post was left untouched: moving it to a future date would have taken it off the site (WordPress flips it back to scheduled). Unpublish it deliberately first.',
+				'%d published posts were left untouched: moving them to a future date would have taken them off the site (WordPress flips them back to scheduled). Unpublish them deliberately first.',
+				$unpublish,
+				'signal-and-noise-tools'
+			),
+			$unpublish
+		);
+	}
+	if ( $skipped > 0 ) {
+		$msg .= ' ' . sprintf(
+			/* translators: %d: number of selected items left untouched. */
+			_n(
+				'%d selected item was left untouched: it is not a post, or you may not edit it.',
+				'%d selected items were left untouched: they are not posts, or you may not edit them.',
+				$skipped,
+				'signal-and-noise-tools'
+			),
+			$skipped
+		);
+	}
+	return $msg;
+}
+
+/**
  * Add the action to the posts-list bulk dropdown.
  *
  * Posts only. Pages and other types carry no scheduled-publication workflow on
@@ -218,43 +339,13 @@ function snt_batch_schedule_handle( $redirect, $action, $post_ids ) {
 	}
 	$gmt = get_gmt_from_date( $site );
 
-	$posts = array();
-	foreach ( (array) $post_ids as $id ) {
-		$post = get_post( (int) $id );
-		if ( ! $post ) {
-			continue;
-		}
-		$posts[ (int) $id ] = array( 'status' => (string) $post->post_status );
-	}
-
-	$plan = snt_batch_schedule_plan( $posts, $gmt, time() );
-
-	$moved = 0;
-	foreach ( $plan['apply'] as $id ) {
-		// post_date is SITE time, post_date_gmt is GMT — passing both keeps
-		// core from re-deriving one from the other and drifting by the offset.
-		// edit_date (#1179): a draft's post_date_gmt is zero, and without this
-		// flag core treats the date as untouched and resets it to now.
-		$res = wp_update_post(
-			wp_slash( array(
-				'ID'            => (int) $id,
-				'post_date'     => get_date_from_gmt( $gmt ),
-				'post_date_gmt' => $gmt,
-				'edit_date'     => true,
-			) ),
-			true
-		);
-		if ( ! is_wp_error( $res ) ) {
-			$moved++;
-		}
-	}
-
-	$reasons = array_count_values( $plan['refused'] );
+	$r = snt_batch_schedule_apply( $post_ids, $gmt, time() );
 	return add_query_arg(
 		array(
-			'snt_batch_moved'     => $moved,
-			'snt_batch_refused'   => (int) ( $reasons['would_early_publish'] ?? 0 ),
-			'snt_batch_unpublish' => (int) ( $reasons['would_unpublish'] ?? 0 ),
+			'snt_batch_moved'     => $r['moved'],
+			'snt_batch_refused'   => $r['refused'],
+			'snt_batch_unpublish' => $r['unpublish'],
+			'snt_batch_skipped'   => $r['skipped'],
 		),
 		$redirect
 	);
@@ -316,39 +407,12 @@ function snt_batch_schedule_notice() {
 	$moved     = (int) $req['snt_batch_moved'];
 	$refused   = isset( $req['snt_batch_refused'] ) ? (int) $req['snt_batch_refused'] : 0;
 	$unpublish = isset( $req['snt_batch_unpublish'] ) ? (int) $req['snt_batch_unpublish'] : 0;
+	$skipped   = isset( $req['snt_batch_skipped'] ) ? (int) $req['snt_batch_skipped'] : 0;
 
-	$msg = sprintf(
-		/* translators: %d: number of posts rescheduled. */
-		_n( '%d post rescheduled.', '%d posts rescheduled.', $moved, 'signal-and-noise-tools' ),
-		$moved
-	);
-	if ( $refused > 0 ) {
-		$msg .= ' ' . sprintf(
-			/* translators: %d: number of scheduled posts left untouched. */
-			_n(
-				'%d scheduled post was left untouched: the new date is within a minute of now, and WordPress would have published it immediately instead of rescheduling it.',
-				'%d scheduled posts were left untouched: the new date is within a minute of now, and WordPress would have published them immediately instead of rescheduling them.',
-				$refused,
-				'signal-and-noise-tools'
-			),
-			$refused
-		);
-	}
-	if ( $unpublish > 0 ) {
-		$msg .= ' ' . sprintf(
-			/* translators: %d: number of published posts left untouched. */
-			_n(
-				'%d published post was left untouched: moving it to a future date would have taken it off the site (WordPress flips it back to scheduled). Unpublish it deliberately first.',
-				'%d published posts were left untouched: moving them to a future date would have taken them off the site (WordPress flips them back to scheduled). Unpublish them deliberately first.',
-				$unpublish,
-				'signal-and-noise-tools'
-			),
-			$unpublish
-		);
-	}
+	$msg = snt_batch_schedule_message( $moved, $refused, $unpublish, $skipped );
 	printf(
 		'<div class="notice notice-%s"><p>%s</p></div>',
-		esc_attr( ( $refused + $unpublish ) > 0 ? 'warning' : 'success' ),
+		esc_attr( ( $refused + $unpublish + $skipped ) > 0 ? 'warning' : 'success' ),
 		esc_html( $msg )
 	);
 }
