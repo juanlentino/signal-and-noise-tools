@@ -81,6 +81,35 @@
 	// continue to work via this local alias.
 	var setStatus = window.sntSetStatus;
 
+	// Classic class per kit variant. The kit twins paint Suggest as
+	// `secondary` (apps/sn-dashboard/parts/leaves/*); the buttons this
+	// script mints carry the same weights, Apply and Link it as `primary`,
+	// Delete as `danger`. Every row button is button-small on the classic tab.
+	var CLASSIC_CLASS = {
+		primary:   'button button-primary button-small',
+		secondary: 'button button-small',
+		danger:    'button button-small snt-verdict-delete-btn',
+	};
+
+	/**
+	 * Mint a row button: an <os-button variant> when the cell sits inside a
+	 * kit app (.snt-app), a wp-admin .button otherwise. Disabled is read as
+	 * an attribute everywhere in this file (17.3.0) and written as a
+	 * boolean, which the kit's accessor reflects to the attribute.
+	 */
+	function mintButton( label, variant, cell ) {
+		var kit = !! ( cell && cell.closest && cell.closest( '.snt-app' ) );
+		var btn = document.createElement( kit ? 'os-button' : 'button' );
+		btn.setAttribute( 'type', 'button' );
+		if ( kit ) {
+			btn.setAttribute( 'variant', variant );
+		} else {
+			btn.className = CLASSIC_CLASS[ variant ];
+		}
+		btn.textContent = label;
+		return btn;
+	}
+
 	/**
 	 * Open the Apply preview modal.
 	 *
@@ -244,7 +273,10 @@
 		}
 
 		if ( activeModal.originatingButton ) {
-			activeModal.originatingButton.focus();
+			// An <os-button> host is not focusable (no delegatesFocus); its
+			// control is the <button> in the shadow root.
+			var back = activeModal.originatingButton;
+			( ( back.shadowRoot && back.shadowRoot.querySelector( 'button' ) ) || back ).focus();
 		}
 
 		activeModal = null;
@@ -509,10 +541,7 @@
 			ta.readOnly = true;
 			setStatus( status, __( 'Open the editor to apply.', 'signal-noise-tools' ), 'info' );
 
-			var copyBtn = document.createElement( 'button' );
-			copyBtn.type = 'button';
-			copyBtn.className = 'button button-small';
-			copyBtn.textContent = __( 'Copy', 'signal-noise-tools' );
+			var copyBtn = mintButton( __( 'Copy', 'signal-noise-tools' ), 'secondary', cell );
 			copyBtn.addEventListener( 'click', function() {
 				if ( window.navigator && window.navigator.clipboard ) {
 					window.navigator.clipboard.writeText( ta.value ).then( function() {
@@ -527,19 +556,13 @@
 			actions.appendChild( copyBtn );
 		} else {
 			// Standard Apply + Discard flow (unchanged from v4.0.0).
-			var applyBtn = document.createElement( 'button' );
-			applyBtn.type = 'button';
-			applyBtn.className = 'button button-primary button-small';
-			applyBtn.textContent = __( 'Apply', 'signal-noise-tools' );
+			var applyBtn = mintButton( __( 'Apply', 'signal-noise-tools' ), 'primary', cell );
 			applyBtn.addEventListener( 'click', function() {
 				onApplyClick( cell, ta, status, applyBtn, applyAbility, input, checkType, res );
 			} );
 			actions.appendChild( applyBtn );
 
-			var discardBtn = document.createElement( 'button' );
-			discardBtn.type = 'button';
-			discardBtn.className = 'button button-small';
-			discardBtn.textContent = __( 'Discard', 'signal-noise-tools' );
+			var discardBtn = mintButton( __( 'Discard', 'signal-noise-tools' ), 'secondary', cell );
 			discardBtn.addEventListener( 'click', function() {
 				resetCellToSuggestButton( cell, checkType, input, res );
 			} );
@@ -614,19 +637,13 @@
 			anchorEl.textContent = '"' + ( res.anchor || '' ) + '" → ' + ( res.target_url || '' );
 			wrap.appendChild( anchorEl );
 
-			var linkBtn = document.createElement( 'button' );
-			linkBtn.type = 'button';
-			linkBtn.className = 'button button-primary button-small';
-			linkBtn.textContent = __( 'Link it', 'signal-noise-tools' );
+			var linkBtn = mintButton( __( 'Link it', 'signal-noise-tools' ), 'primary', cell );
 			linkBtn.addEventListener( 'click', function() {
 				onLinkApplyClick( cell, status, linkBtn, applyAbility, input, res );
 			} );
 			actions.appendChild( linkBtn );
 
-			var discardBtnLink = document.createElement( 'button' );
-			discardBtnLink.type = 'button';
-			discardBtnLink.className = 'button button-small';
-			discardBtnLink.textContent = __( 'Discard', 'signal-noise-tools' );
+			var discardBtnLink = mintButton( __( 'Discard', 'signal-noise-tools' ), 'secondary', cell );
 			discardBtnLink.addEventListener( 'click', function() {
 				resetCellToSuggestButton( cell, checkType, input, res );
 			} );
@@ -648,19 +665,13 @@
 			wrap.appendChild( headline );
 			wrap.appendChild( reasonEl );
 
-			var deleteBtn = document.createElement( 'button' );
-			deleteBtn.type = 'button';
-			deleteBtn.className = 'button button-small snt-verdict-delete-btn';
-			deleteBtn.textContent = __( 'Delete', 'signal-noise-tools' );
+			var deleteBtn = mintButton( __( 'Delete', 'signal-noise-tools' ), 'danger', cell );
 			deleteBtn.addEventListener( 'click', function() {
 				onOrphanDeleteClick( cell, status, deleteBtn, applyAbility, input, res );
 			} );
 			actions.appendChild( deleteBtn );
 
-			var discardBtn = document.createElement( 'button' );
-			discardBtn.type = 'button';
-			discardBtn.className = 'button button-small';
-			discardBtn.textContent = __( 'Discard', 'signal-noise-tools' );
+			var discardBtn = mintButton( __( 'Discard', 'signal-noise-tools' ), 'secondary', cell );
 			discardBtn.addEventListener( 'click', function() {
 				resetCellToSuggestButton( cell, checkType, input, res );
 			} );
@@ -674,10 +685,7 @@
 			wrap.appendChild( headline );
 			wrap.appendChild( reasonEl );
 
-			var discardBtnKeep = document.createElement( 'button' );
-			discardBtnKeep.type = 'button';
-			discardBtnKeep.className = 'button button-small';
-			discardBtnKeep.textContent = __( 'Discard', 'signal-noise-tools' );
+			var discardBtnKeep = mintButton( __( 'Discard', 'signal-noise-tools' ), 'secondary', cell );
 			discardBtnKeep.addEventListener( 'click', function() {
 				resetCellToSuggestButton( cell, checkType, input, res );
 			} );
@@ -1071,15 +1079,12 @@
 	 */
 	function resetCellToSuggestButton( cell, checkType, suggestInput, suggestRes ) {
 		while ( cell.firstChild ) { cell.removeChild( cell.firstChild ); }
-		var btn = buildSuggestButton( checkType, suggestInput );
+		var btn = buildSuggestButton( checkType, suggestInput, cell );
 		cell.appendChild( btn );
 	}
 
-	function buildSuggestButton( checkType, input ) {
-		var btn = document.createElement( 'button' );
-		btn.type = 'button';
-		btn.className = 'button button-small';
-		btn.textContent = __( 'Suggest', 'signal-noise-tools' );
+	function buildSuggestButton( checkType, input, cell ) {
+		var btn = mintButton( __( 'Suggest', 'signal-noise-tools' ), 'secondary', cell );
 		btn.setAttribute( 'data-snt-suggest', '1' );
 		btn.setAttribute( 'data-check', checkType );
 		if ( 'missing_alt' === checkType ) {

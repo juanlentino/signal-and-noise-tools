@@ -198,5 +198,21 @@ hca_true( array( 'missing_alt', 'drift_time_phrases', 'orphaned_media', 'pattern
 $css = file_get_contents( __DIR__ . '/../assets/admin.css' );
 hca_true( 1 === preg_match( '/os-cluster > \.snt-suggest-panel,\s*os-cluster > \.snt-verdict-panel \{\s*flex: 1 1 100%;\s*min-width: 0;/', $css ), 'the Suggest and verdict panels fill an os-cluster cell (a flex host paints a child shrink-to-fit; the classic <td> does not)' );
 
+echo "\nTest: the buttons the script mints inside a kit leaf are kit buttons (#1562)\n";
+$js = file_get_contents( __DIR__ . '/../assets/health-suggest-actions.js' );
+hca_true( 1 === substr_count( $js, "createElement( kit ? 'os-button' : 'button' )" ), 'one fork mints every row button: os-button in a kit app, .button elsewhere' );
+hca_true( false !== strpos( $js, "cell.closest( '.snt-app' )" ), 'the kit test is the app root the leaves paint in' );
+hca_true( 0 === preg_match( "/\.className = 'button[^']*button-small/", $js ), 'no row call site sets a wp-admin class itself (the modal pair keeps its full-size .button, out of scope)' );
+hca_true( 1 === substr_count( $js, "'button button-primary button-small'" ) && 1 === substr_count( $js, "'button button-small snt-verdict-delete-btn'" ), 'the classic classes live in the one variant map, byte-equal to what the tab painted' );
+hca_true( 10 === substr_count( $js, 'mintButton(' ), 'nine row buttons through the helper (Copy, Apply, Discard x4, Link it, Delete, Suggest) plus its definition' );
+hca_true( 3 === substr_count( $js, "createElement( 'button' )" ), 'the only native <button>s left are the modal close x and its Cancel/Apply pair (the modal sits on body, out of scope)' );
+hca_true( false !== strpos( $js, "mintButton( __( 'Suggest', 'signal-noise-tools' ), 'secondary', cell )" ), 'the rebuilt Suggest carries the weight the PHP twin paints (secondary)' );
+hca_true( 2 === substr_count( $js, "'primary', cell )" ) && false !== strpos( $js, "mintButton( __( 'Apply', 'signal-noise-tools' ), 'primary', cell )" ), 'Apply and Link it keep the classic button-primary weight' );
+hca_true( 4 === substr_count( $js, "mintButton( __( 'Discard', 'signal-noise-tools' ), 'secondary', cell )" ) && false !== strpos( $js, "mintButton( __( 'Copy', 'signal-noise-tools' ), 'secondary', cell )" ), 'all four Discards and Copy are secondary' );
+hca_true( false !== strpos( $js, "mintButton( __( 'Delete', 'signal-noise-tools' ), 'danger', cell )" ), 'Delete is the danger variant' );
+hca_true( false !== strpos( $js, "back.shadowRoot.querySelector( 'button' )" ) && 0 === substr_count( $js, 'originatingButton.focus()' ), 'closing the modal focuses the shadow button of a host, never the host (no delegatesFocus)' );
+hca_true( false === strpos( $js, "'busy'" ) && false === strpos( $js, '.busy' ), 'the busy attribute is not used: the disabled guards would not see it (17.3.0 read, held)' );
+hca_true( 3 === substr_count( $js, ".hasAttribute( 'disabled' )" ) && 0 === preg_match( '/if \( ! \w+ \|\| \w+\.disabled \)/', $js ), 'disabled is still read as an attribute (a host getter returns the string) (17.3.0 read, held)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
