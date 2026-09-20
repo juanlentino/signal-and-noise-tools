@@ -100,7 +100,8 @@ function sn_handle_tag_fit_apply( $post ) {
 
 /**
  * 17.2.0: file tags under /notes/tags' headings from Content › Tags. Reads
- * group[term_id] = group id ('' for unfiled). The heading list and the meta
+ * group[term_id] = group id ('' for unfiled), or file_tag + file_group (the
+ * one-tag form, 17.2.1). The heading list and the meta
  * key are the theme's (sn_notes_tag_group_ids(), SN_TAG_GROUP_META, theme
  * 13.4.0); without them the handler refuses rather than inventing a key.
  * Each pair is written only when the user can edit_term that tag and the
@@ -113,7 +114,11 @@ function sn_handle_tag_group_apply( $post ) {
 	if ( ! function_exists( 'sn_notes_tag_group_ids' ) || ! function_exists( 'sn_notes_tag_group_effective' ) || ! function_exists( 'sn_notes_tag_group_of' ) || ! defined( 'SN_TAG_GROUP_META' ) ) {
 		return 'tag_group_unavailable';
 	}
-	$map  = isset( $post['group'] ) && is_array( $post['group'] ) ? wp_unslash( $post['group'] ) : array();
+	$map = isset( $post['group'] ) && is_array( $post['group'] ) ? wp_unslash( $post['group'] ) : array();
+	// 17.2.1: the small form (one tag, one heading) beside the per-tag map.
+	if ( isset( $post['file_tag'] ) && isset( $post['file_group'] ) ) {
+		$map[ (int) $post['file_tag'] ] = wp_unslash( $post['file_group'] );
+	}
 	$ids  = sn_notes_tag_group_ids();
 	$done = 0;
 	foreach ( $map as $tid => $gid ) {

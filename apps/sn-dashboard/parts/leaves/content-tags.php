@@ -91,21 +91,24 @@ function paint_content_tags( array $ctx ) {
 
 	$data = tags_data();
 	$out  = tags_glance_html( $data['clusters'], $data['unused'], $data['total'] );
+	$dups = '';
 	if ( ! $data['clusters'] ) {
-		$out .= \snt_kit_section(
+		$dups = \snt_kit_section(
 			__( 'Duplicate tags', 'signal-and-noise-tools' ),
 			\snt_kit_empty( __( 'No duplicate tags detected.', 'signal-and-noise-tools' ) )
 		);
 	} else {
 		foreach ( $data['clusters'] as $c ) {
-			$out .= tags_cluster_html( (array) $c );
+			$dups .= tags_cluster_html( (array) $c );
 		}
 	}
-	$out .= tags_picker_html();
-	$out .= tags_fit_html();
-	$out .= tags_by_tag_html();
-	$out .= tags_groups_html();
-	$out .= tags_unused_html( $data['unused'] );
+	// 17.2.1: boxes share a row. Two columns (assets/os-app.css .snt-cols, one
+	// column under 640px), the pairs by what the owner reads together: the
+	// duplicates beside the picker that folds them, the fit beside the
+	// per-tag reading it comes from, the headings beside the unused tags.
+	$out .= tags_pair( $dups, tags_picker_html() );
+	$out .= tags_pair( tags_fit_html(), tags_by_tag_html() );
+	$out .= tags_pair( tags_groups_html(), tags_unused_html( $data['unused'] ) );
 	$out .= tags_recent_html();
 	return $out;
 }
