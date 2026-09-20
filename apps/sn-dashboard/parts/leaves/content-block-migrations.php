@@ -24,10 +24,6 @@
  * assistive tech; `role="row"` / `role="columnheader"` restore the ARIA
  * relationship without inventing a kit prop.
  *
- * Refresh is an ADDITION, not a port: the classic leaf has no live-refresh
- * behaviour, but a kit row's Dismiss can't remove its own row (see below), so
- * Refresh is the only way to clear a dismissed candidate from view.
- *
  * @package SignalNoiseTools
  * @since 13.106.0
  */
@@ -86,18 +82,12 @@ function block_migrations_row( array $c ) {
 		. ( '' !== $permalink ? '<p class="snt-hint">' . \snt_kit_link( $permalink, $permalink ) . '</p>' : '' );
 	$issue     = \snt_kit_badge( 'warn', 'h' . (int) ( $c['current_level'] ?? 0 ) . ' → h' . (int) ( $c['target_level'] ?? 0 ) );
 	$data      = array( 'data-post-id' => $post_id, 'data-fingerprint' => $fp, 'data-migration-type' => $type );
-	// Suggest replaces the classic table CELL with its editor (`closest( 'td,th' )`
-	// in health-suggest-actions.js); a window paints no cell, so the button is
-	// present, disabled, and the queue's hint (block_migrations_queue_html())
-	// says where it runs (mirrors the structural twin, content-pattern-adoption.php).
 	$actions   = \snt_kit_tag(
 		'os-button',
 		array(
 			'variant'          => 'secondary',
 			'data-snt-suggest' => '1',
 			'data-check'       => 'block_migrations_heading_skip',
-			'disabled'         => true,
-			'title'            => __( 'Suggest runs on the classic Content → Block Migrations page.', 'signal-and-noise-tools' ),
 		) + $data,
 		\snt_kit_esc( __( 'Suggest', 'signal-and-noise-tools' ) )
 	) . \snt_kit_tag(
@@ -131,12 +121,6 @@ function block_migrations_queue_html( array $candidates ) {
 			$rows .= block_migrations_row( $c );
 		}
 	}
-	// Dismiss removes the row's server-side record, but health-suggest-actions.js's
-	// `btn.closest( 'tr' )` finds nothing in a kit row, so the row survives until a
-	// repaint: Refresh (an ADDITION — the classic leaf has no live-refresh of its
-	// own) re-runs the leaf's data() and clears it.
-	$toolbar = \snt_kit_button( __( 'Refresh', 'signal-and-noise-tools' ), 'refresh', array( 'variant' => 'ghost' ) );
-	$hint    = '<p class="snt-hint">' . \snt_kit_esc( __( 'Suggest opens its editor inside the classic table cell, which this window does not paint: run Suggest and Apply from the classic Content → Block Migrations page. A dismissed candidate stays on screen until Refresh — the dismissal itself is already written.', 'signal-and-noise-tools' ) ) . '</p>';
 	return \snt_kit_tag(
 		'os-disclosure',
 		array(
@@ -146,7 +130,7 @@ function block_migrations_queue_html( array $candidates ) {
 				count( $candidates )
 			),
 		),
-		$hint . \snt_kit_tag( 'os-stack', array( 'gap' => '8' ), $toolbar . \snt_kit_tag( 'os-stack', array( 'gap' => '8' ), $rows ) )
+		\snt_kit_tag( 'os-stack', array( 'gap' => '8' ), $rows )
 	);
 }
 

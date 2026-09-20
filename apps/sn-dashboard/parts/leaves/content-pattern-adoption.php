@@ -42,7 +42,7 @@ function pattern_adoption_count_badge( array $scan ) {
  * One candidate: the classic table row (Post · Pattern · Action) as a compact
  * card of labelled values, the two buttons carrying the data attributes the
  * classic row carries. `<os-card>` / `<os-button>`: kit-help os-card (compact),
- * os-button (variant, disabled).
+ * os-button (variant).
  *
  * @param array<string,mixed> $c A candidate from the scan.
  * @return string
@@ -63,20 +63,18 @@ function pattern_adoption_candidate_html( array $c ) {
 	);
 	$post   = \snt_kit_code( (string) ( $c['post_title'] ?? '' ), false )
 		. ( '' !== $raw ? '<p class="snt-hint">' . $safe_link . '</p>' : '' );
-	// Suggest replaces the classic table CELL with its editor (`closest( 'td,th' )`
-	// in health-suggest-actions.js); a window paints no cell, so the button is
-	// present, disabled, and the queue's hint says where it runs.
 	$suggest = \snt_kit_tag(
 		'os-button',
 		$common + array(
 			'data-snt-suggest' => '1',
 			'data-check'       => 'pull-quote' === $type ? 'pattern_adoption_pull_quote' : 'pattern_adoption_steps_enumerated',
-			'disabled'         => true,
-			'title'            => __( 'Suggest runs on the classic Content → Pattern Adoption page.', 'signal-and-noise-tools' ),
 		),
 		\snt_kit_esc( __( 'Suggest', 'signal-and-noise-tools' ) )
 	);
 	$dismiss = \snt_kit_tag( 'os-button', $common + array( 'data-snt-dismiss' => '1' ), \snt_kit_esc( __( 'Dismiss', 'signal-and-noise-tools' ) ) );
+	// The pair sits in an os-cluster: the action cell health-suggest-actions.js
+	// paints its editor into (CELL_SEL), as on the Block Migrations row.
+	$actions = \snt_kit_tag( 'os-cluster', array( 'gap' => '6' ), $suggest . $dismiss );
 	return \snt_kit_tag(
 		'os-card',
 		array( 'compact' => true ),
@@ -84,7 +82,7 @@ function pattern_adoption_candidate_html( array $c ) {
 			array(
 				array( 'label' => __( 'Post', 'signal-and-noise-tools' ), 'value' => $post, 'html' => true ),
 				array( 'label' => __( 'Pattern', 'signal-and-noise-tools' ), 'value' => \snt_kit_badge( 'warn', $type ), 'html' => true ),
-				array( 'label' => __( 'Action', 'signal-and-noise-tools' ), 'value' => $suggest . ' ' . $dismiss, 'html' => true ),
+				array( 'label' => __( 'Action', 'signal-and-noise-tools' ), 'value' => $actions, 'html' => true ),
 			)
 		)
 	);
@@ -113,8 +111,7 @@ function pattern_adoption_queue_html( array $candidates ) {
 	return \snt_kit_tag(
 		'os-disclosure',
 		array( 'heading' => $heading ),
-		'<p class="snt-hint">' . \snt_kit_esc( __( 'Suggest opens its editor inside the classic table cell, which this window does not paint: run Suggest and Apply from the classic Content → Pattern Adoption page. A dismissed candidate stays on screen showing "Dismissing…" until the next scan — the dismissal itself is already written.', 'signal-and-noise-tools' ) ) . '</p>'
-		. \snt_kit_tag( 'os-stack', array( 'gap' => '8' ), $rows )
+		\snt_kit_tag( 'os-stack', array( 'gap' => '8' ), $rows )
 	);
 }
 

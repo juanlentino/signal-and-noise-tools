@@ -16,12 +16,6 @@
  * `inc/health-check-surfaces.php` accessors every other surface uses), the
  * kit's parts instead of wp-admin's tables and fieldsets.
  *
- * NOT PORTED: the per-finding "Suggest" / "Apply" AI buttons. The classic
- * leaf's own docblock says they are plain `<button type="button">` wired to
- * client JS (assets/health-suggest-actions.js) hitting the REST Abilities
- * endpoint directly — not the sn_action replay pipeline a window understands,
- * and inline scripts never run in a window. See the report for the reasoning.
- *
  * @package SignalNoiseTools
  * @since 13.106.0
  */
@@ -99,6 +93,7 @@ function health_data() {
 	return array(
 		'scan'         => $health_scan,
 		'glance'       => $glance,
+		'ai_available' => function_exists( 'snt_ai_is_available' ) && snt_ai_is_available(),
 		'faults'       => $faults,
 		'advisories'   => $advisories,
 		'reports'      => function_exists( 'sn_health_report_checks' ) ? sn_health_report_checks( $health_scan ) : array(),
@@ -129,7 +124,7 @@ function paint_monitoring_health( array $ctx ) {
 		return $out;
 	}
 
-	$out .= health_findings_html( (array) $data['faults'], (array) $data['advisories'] );
+	$out .= health_findings_html( (array) $data['faults'], (array) $data['advisories'], (bool) $data['ai_available'] );
 	$out .= health_reports_html( (array) $data['reports'] );
 	$out .= health_passing_html( (array) $data['passing'], (int) $data['check_total'], (int) $data['report_count'] );
 	$out .= health_skipped_html( (array) $data['skipped'] );

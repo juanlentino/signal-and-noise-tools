@@ -191,5 +191,12 @@ foreach ( array( 'inline_svg', 'attachment_alt_quality', 'inline_img_alt_quality
 $cell = sn_health_render_suggest_cell( 'missing_alt', array( 'subject_id' => 99 ) );
 hca_true( '' === $cell, 'missing_alt with a MISSING subject_type emits no button rather than guessing attachment' );
 
+echo "\nTest: the data contract builder the kit row shares with the classic cell (17.2.2)\n";
+hca_true( array() === sn_health_suggest_cell_attrs( 'missing_alt', array( 'subject_type' => 'inline_svg', 'subject_id' => 99 ) ), 'a no-button subject type builds an empty contract' );
+hca_true( array( 'data-snt-suggest' => '1', 'data-check' => 'missing_alt', 'data-attachment-id' => 77 ) === sn_health_suggest_cell_attrs( 'missing_alt', array( 'subject_type' => 'attachment', 'subject_id' => 77 ) ), 'the contract starts with data-snt-suggest and carries the check key and the id, in the classic attribute order' );
+hca_true( array( 'missing_alt', 'drift_time_phrases', 'orphaned_media', 'pattern_adoption_pull_quote', 'pattern_adoption_steps_enumerated', 'unlinked_mentions', 'link_opportunities' ) === sn_health_suggest_supported_checks(), 'the supported-check list is one function, the seven keys the classic tab gated on' );
+$css = file_get_contents( __DIR__ . '/../assets/admin.css' );
+hca_true( 1 === preg_match( '/os-cluster > \.snt-suggest-panel,\s*os-cluster > \.snt-verdict-panel \{\s*flex: 1 1 100%;\s*min-width: 0;/', $css ), 'the Suggest and verdict panels fill an os-cluster cell (a flex host paints a child shrink-to-fit; the classic <td> does not)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

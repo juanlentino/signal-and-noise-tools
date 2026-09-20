@@ -30,6 +30,11 @@
 
 	var __ = ( window.wp.i18n && window.wp.i18n.__ ) || function( s ) { return s; };
 	var SUGGEST_THROTTLE_MS = 500;
+	// Classic paints a table cell in a table row; the kit leaves paint the action
+	// pair in an <os-cluster> inside an <os-row> (Block Migrations, Health) or an
+	// <os-card> (Pattern Adoption). One walk serves both shapes.
+	var CELL_SEL = 'td,th,os-cluster';
+	var ROW_SEL  = 'tr,os-row,os-card';
 
 
 	var ABILITY_BY_CHECK = {
@@ -357,14 +362,20 @@
 	 */
 	function onSuggestClick( event ) {
 		var btn = event.target.closest( '[data-snt-suggest]' );
-		if ( ! btn || btn.disabled ) { return; }
+		// hasAttribute, not .disabled: an <os-button> host's disabled getter
+		// returns the attribute STRING ('' when set), which is falsy.
+		if ( ! btn || btn.hasAttribute( 'disabled' ) ) { return; }
 
 		var checkType = btn.getAttribute( 'data-check' );
 		var slugs     = ABILITY_BY_CHECK[ checkType ];
 		if ( ! slugs ) { return; }
 
-		var cell = btn.closest( 'td,th' );
-		if ( ! cell ) { return; }
+		var cell = btn.closest( CELL_SEL );
+		if ( ! cell ) {
+			// Never silent again: a button with no action cell is a painter bug.
+			console.warn( 'snt: Suggest button has no action cell (' + CELL_SEL + ')', btn );
+			return;
+		}
 
 		// Build input object from data attributes (per check type).
 		// Supported as of v4.1.0:
@@ -586,7 +597,7 @@
 			noiseSpan.className = 'snt-cell-applied';
 			noiseSpan.textContent = '— ' + __( 'No link to apply — clears on next scan', 'signal-noise-tools' );
 			cell.appendChild( noiseSpan );
-			var noiseRow = cell.closest( 'tr' );
+			var noiseRow = cell.closest( ROW_SEL );
 			if ( noiseRow ) { noiseRow.style.opacity = '0.5'; }
 			return;
 		}
@@ -714,7 +725,7 @@
 					span.className = 'snt-cell-applied';
 					span.textContent = '✓ ' + __( 'Deleted', 'signal-noise-tools' );
 					cell.appendChild( span );
-					var row = cell.closest( 'tr' );
+					var row = cell.closest( ROW_SEL );
 					if ( row ) { row.style.opacity = '0.5'; }
 				} )
 				.catch( function( err ) {
@@ -797,7 +808,7 @@
 			} )
 				.then( function() {
 					renderApplied( cell );
-					var row = cell.closest( 'tr' );
+					var row = cell.closest( ROW_SEL );
 					if ( row ) { row.style.opacity = '0.5'; }
 				} )
 				.catch( function( err ) {
@@ -1010,7 +1021,7 @@
 			callAbility( applyAbility, applyInput )
 				.then( function() {
 					renderApplied( cell );
-					var row = cell.closest( 'tr' );
+					var row = cell.closest( ROW_SEL );
 					if ( row ) { row.style.opacity = '0.5'; }
 				} )
 				.catch( function( err ) {
@@ -1107,9 +1118,9 @@
 	 */
 	function onSuggestAllClick( event ) {
 		var btn = event.target.closest( '[data-snt-suggest-all]' );
-		if ( ! btn || btn.disabled ) { return; }
+		if ( ! btn || btn.hasAttribute( 'disabled' ) ) { return; }
 
-		var section = btn.closest( '.sn-fieldset' );
+		var section = btn.closest( '.sn-fieldset,.snt-check' );
 		if ( ! section ) { return; }
 
 		var buttons = section.querySelectorAll( '[data-snt-suggest]:not([disabled])' );
@@ -1136,7 +1147,7 @@
 				return;
 			}
 			var nextBtn = buttons[ i ];
-			if ( ! nextBtn || nextBtn.disabled ) {
+			if ( ! nextBtn || nextBtn.hasAttribute( 'disabled' ) ) {
 				step( i + 1 );
 				return;
 			}
@@ -1174,7 +1185,7 @@
 		callAbility( 'dismiss-candidate', {
 			surface: 'pattern-adoption', post_id: postId, block_fingerprint: fingerprint, candidate_type: patternType,
 		} ).then( function() {
-			var row = btn.closest( 'tr' );
+			var row = btn.closest( ROW_SEL );
 			if ( row ) { row.remove(); }
 		} ).catch( function( err ) {
 			btn.disabled = false;
@@ -1208,7 +1219,7 @@
 		callAbility( 'dismiss-candidate', {
 			surface: 'block-migrations', post_id: postId, block_fingerprint: fingerprint, candidate_type: migrationType,
 		} ).then( function() {
-			var row = btn.closest( 'tr' );
+			var row = btn.closest( ROW_SEL );
 			if ( row ) { row.remove(); }
 		} ).catch( function( err ) {
 			btn.disabled = false;

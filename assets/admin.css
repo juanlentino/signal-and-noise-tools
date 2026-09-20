@@ -1847,6 +1847,14 @@
 	gap: 6px;
 }
 
+/* Inside an os-cluster (the kit leaves' action cell) the panel is a flex
+   item: without a basis it shrinks to fit, where the classic <td> fills. */
+os-cluster > .snt-suggest-panel,
+os-cluster > .snt-verdict-panel {
+	flex: 1 1 100%;
+	min-width: 0;
+}
+
 .snt-suggest-textarea {
 	width: 100%;
 	font-family: inherit;

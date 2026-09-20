@@ -45,6 +45,16 @@ function snt_health_suggest_all_button_html( $count ) {
 		. '</button>';
 }
 
+/**
+ * The check keys with a Suggest path. One list, read by the classic tab and
+ * by the kit leaf (apps/sn-dashboard/parts/leaves/monitoring-health-parts.php).
+ *
+ * @return string[]
+ */
+function sn_health_suggest_supported_checks() {
+	return array( 'missing_alt', 'drift_time_phrases', 'orphaned_media', 'pattern_adoption_pull_quote', 'pattern_adoption_steps_enumerated', 'unlinked_mentions', 'link_opportunities' );
+}
+
 add_action( 'sn_admin_health_tab', 'sn_health_render_admin_tab' );
 
 // snt_health_format_elapsed() moved to inc/health-summary.php in v8.0.4
@@ -140,7 +150,7 @@ function sn_health_render_admin_tab() {
 	}
 
 	$ai_available             = function_exists( 'snt_ai_is_available' ) && snt_ai_is_available();
-	$suggest_supported_checks = array( 'missing_alt', 'drift_time_phrases', 'orphaned_media', 'pattern_adoption_pull_quote', 'pattern_adoption_steps_enumerated', 'unlinked_mentions', 'link_opportunities' );
+	$suggest_supported_checks = sn_health_suggest_supported_checks();
 
 	$last_scan = sn_health_last_scan();
 
@@ -325,14 +335,35 @@ function sn_health_render_elsewhere_section( $scan ) {
  * @since 4.0.0
  */
 function sn_health_render_suggest_cell( $check_key, $finding ) {
+	$attrs = sn_health_suggest_cell_attrs( $check_key, $finding );
+	if ( ! $attrs ) {
+		return '';
+	}
+	$attrs = array( 'type' => 'button', 'class' => 'button button-small' ) + $attrs;
+
+	$html = '<button';
+	foreach ( $attrs as $k => $v ) {
+		$html .= ' ' . esc_attr( $k ) . '="' . esc_attr( (string) $v ) . '"';
+	}
+	$html .= '>' . esc_html__( 'Suggest', 'signal-and-noise-tools' ) . '</button>';
+
+	return $html;
+}
+
+/**
+ * The data-* contract a Suggest button carries for one finding, starting with
+ * `data-snt-suggest`. Empty when the subject type has no suggest path. The
+ * classic cell and the kit row both paint from this one builder.
+ *
+ * @param string $check_key The Health check key.
+ * @param array  $finding   One finding row from the scan result.
+ * @return array<string,string|int>
+ */
+function sn_health_suggest_cell_attrs( $check_key, $finding ) {
 	// v4.0.2: inline-img findings now emit a Suggest button (was empty in v4.0.0).
 	// The button uses a distinct check key so the JS dispatch table can route to
 	// the sibling ability signal-noise/ai-alt-inline-suggest with apply: null.
-	$attrs = array(
-		'type'             => 'button',
-		'class'            => 'button button-small',
-		'data-snt-suggest' => '1',
-	);
+	$attrs = array( 'data-snt-suggest' => '1' );
 
 	if ( 'missing_alt' === $check_key ) {
 		// v10.77.0: this was a BINARY (inline_img ? inline : attachment). The
@@ -355,7 +386,7 @@ function sn_health_render_suggest_cell( $check_key, $finding ) {
 			$attrs['data-check']         = 'missing_alt';
 			$attrs['data-attachment-id'] = (int) ( $finding['subject_id'] ?? 0 );
 		} else {
-			return '';
+			return array();
 		}
 	} elseif ( 'drift_time_phrases' === $check_key ) {
 		$attrs['data-check']    = $check_key;
@@ -386,11 +417,5 @@ function sn_health_render_suggest_cell( $check_key, $finding ) {
 		$attrs['data-pattern-type']  = (string) ( $finding['pattern_type'] ?? '' );
 	}
 
-	$html = '<button';
-	foreach ( $attrs as $k => $v ) {
-		$html .= ' ' . esc_attr( $k ) . '="' . esc_attr( (string) $v ) . '"';
-	}
-	$html .= '>' . esc_html__( 'Suggest', 'signal-and-noise-tools' ) . '</button>';
-
-	return $html;
+	return $attrs;
 }
