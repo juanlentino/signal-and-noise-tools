@@ -131,9 +131,22 @@ function snt_kit_empty( $heading, $description = '', $icon = '' ) {
 }
 
 /**
- * The in-body tab strip (`<os-tabs class="os-app-list__tabs">`) bound to a
- * state key: a pick writes the key and repaints. No panels — the server
- * paints the chosen leaf.
+ * The leaf bar: the list toolbar every native window paints, with its
+ * status control bound to a state key. A pick writes the key and repaints;
+ * no panels, the server paints the chosen leaf.
+ *
+ * 17.4.3: this was `<os-tabs class="os-app-list__tabs">`, whose active tab
+ * wears the station's accent underline while the window chrome's active tab
+ * is bold white; the two navigation rows never shared a colour. Pages, Posts,
+ * Users and Plugins paint this level as `statusControl()` does
+ * (app-runtime `list-ui.ts`): `<os-segmented class="os-app-list__status">`
+ * on a desk, `<os-select class="os-app-list__status">` on a phone, where nine
+ * pills in 360px wrap into ragged rows. The runtime decides by
+ * `isMobileStamped()` at paint time; a server paint cannot, so both twins
+ * ship and `apps/sn-dashboard/sn-dashboard.css` shows one by
+ * `html[data-os-mode="mobile"]`; off the stamp the pill row scrolls
+ * sideways in a window narrower than its nine pills. The two components
+ * share the `os-pick` contract, so `os-bind` is the same on both.
  *
  * @param string               $active Active value.
  * @param array<string,string> $items  value => label, in order.
@@ -142,18 +155,29 @@ function snt_kit_empty( $heading, $description = '', $icon = '' ) {
  * @return string
  */
 function snt_kit_tabs( $active, array $items, $bind = 'sub', $label = '' ) {
-	$tabs = '';
+	$segments = '';
+	$options  = '';
 	foreach ( $items as $value => $text ) {
-		$tabs .= snt_kit_tag( 'os-tab', array( 'value' => (string) $value ), snt_kit_esc( $text ) );
+		$segments .= snt_kit_tag( 'os-segment', array( 'value' => (string) $value ), snt_kit_esc( $text ) );
+		$options  .= snt_kit_tag( 'os-option', array( 'value' => (string) $value ), snt_kit_esc( $text ) );
 	}
+	$label = '' !== (string) $label ? (string) $label : null;
+	$desk  = snt_kit_tag(
+		'os-segmented',
+		array( 'class' => 'os-app-list__status', 'value' => (string) $active, 'os-bind' => (string) $bind, 'label' => $label ),
+		$segments
+	);
+	$phone = snt_kit_tag(
+		'os-select',
+		// os-key: os-select mints an auto id on connect and the morph keys a live
+		// node by os-key or id, so an un-keyed server paint replaces it on every
+		// repaint (#1116 fixed the Analytics selects the same way).
+		array( 'class' => 'os-app-list__status snt-subbar__phone', 'os-key' => 'subbar-phone', 'value' => (string) $active, 'os-bind' => (string) $bind, 'aria-label' => $label ),
+		$options
+	);
 	return snt_kit_tag(
-		'os-tabs',
-		array(
-			'class'   => 'os-app-list__tabs snt-subtabs',
-			'value'   => (string) $active,
-			'os-bind' => (string) $bind,
-			'label'   => '' !== (string) $label ? (string) $label : null,
-		),
-		$tabs
+		'header',
+		array( 'class' => 'os-app-list__toolbar snt-subbar' ),
+		snt_kit_tag( 'div', array( 'class' => 'os-app-list__toolbar-left' ), $desk . $phone )
 	);
 }

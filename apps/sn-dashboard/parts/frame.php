@@ -5,8 +5,9 @@
  * The window's tabs are the framework's (`->tab()` per top tab; the main view
  * is the Dashboard tab), so the strip lives in the window chrome and each tab
  * is its own session. A tab view paints: the notice the last write produced,
- * the sub-leaf strip (`<os-tabs os-bind="sub">` — a pick writes `sub` and
- * repaints), and the active leaf through its kit painter. A leaf without a
+ * the leaf bar (the native list toolbar's status control, `os-segmented` on
+ * a desk and `os-select` on a phone, `os-bind="sub"`: a pick writes `sub`
+ * and repaints; 17.4.3), and the active leaf through its kit painter. A leaf without a
  * painter yet paints its classic markup through the capture (the port's
  * scaffolding; tests/openstation-app-dashboard.php counts what is left).
  *
@@ -113,6 +114,9 @@ function tab_view( $tab ) {
 		$leaves = leaves_for( $tab );
 		$anchor = (string) $state->get( 'anchor' );
 		echo '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="' . \snt_kit_esc( $tab ) . '" data-snt-layout="dashboard"' . ( '' !== $anchor ? ' data-snt-anchor="' . \snt_kit_esc( $anchor ) . '"' : '' ) . '>';
+		// 17.4.3: the leaf bar is the native list toolbar's status control
+		// (segmented on a desk, a select on a phone), bound to `sub`, not an
+		// os-tabs strip: see snt_kit_tabs().
 		if ( count( $leaves ) > 1 ) {
 			echo \snt_kit_tabs( $sub, $leaves, 'sub', __( 'Sections', 'signal-and-noise-tools' ) );
 		}
