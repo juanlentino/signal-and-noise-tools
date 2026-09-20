@@ -367,6 +367,10 @@ function tags_groups_html() {
  * @return array{groups:array,unfiled:array,tags:array,options:array}
  */
 function tags_groups_ledger() {
+	// The theme owns these; the guard lives here so the builder stands alone.
+	if ( ! function_exists( 'sn_notes_tag_groups' ) || ! function_exists( 'sn_notes_tag_group_effective' ) ) {
+		return array( 'groups' => array(), 'unfiled' => array(), 'tags' => array(), 'options' => array() );
+	}
 	$options = array( '' => __( 'Not yet filed', 'signal-and-noise-tools' ) );
 	$groups  = array();
 	foreach ( \sn_notes_tag_groups() as $g ) {

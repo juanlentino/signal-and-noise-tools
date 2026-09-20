@@ -360,6 +360,10 @@ function sn_admin_tag_render_groups_section() {
  * @return array{groups:array,unfiled:array,tags:array,options:array}
  */
 function sn_admin_tag_groups_ledger() {
+	// The theme owns these; PHPStan reads the guard here, not in the caller.
+	if ( ! function_exists( 'sn_notes_tag_groups' ) || ! function_exists( 'sn_notes_tag_group_effective' ) ) {
+		return array( 'groups' => array(), 'unfiled' => array(), 'tags' => array(), 'options' => array() );
+	}
 	$options = array( '' => __( 'Not yet filed', 'signal-and-noise-tools' ) );
 	$groups  = array();
 	foreach ( sn_notes_tag_groups() as $g ) {
