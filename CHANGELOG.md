@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A breached password was refused on the classic profile screen and accepted from the native one.** Mode A (13.58.0) ran on `user_profile_update_errors` and `validate_password_reset`, the two hooks core's profile form and reset form fire. OpenStation's profile window saves through `PUT wp/v2/users/{id}`, and core's users controller hands the request's `password` to `wp_update_user()` without either hook, so on the owner's own path a breached or uncheckable password reached the hash with no check; the fail-closed promise in the file's header was false there. Now `rest_dispatch_request` runs the same guard over `$request['password']` on a write to the users controller (create, update, update-current) and hands core the refusal as the dispatch result (400, `params.password` naming the field, the same message the classic screen shows; the window maps both). It runs after the route's permission callback, so an unauthenticated request never reaches the breach client, and a read carrying `?password=` is not judged. Counts the rejection like any other; a clean password, no password, another controller, or an earlier filter's result pass through unread. NOT `rest_pre_insert_user`, the obvious seam and the wrong one: core's `update_item()` takes `prepare_item_for_database()`'s return without an `is_wp_error()` check, sets `->ID` on it and writes `(array)` of it, so a `WP_Error` there is a silent 200 that drops every field in the save; the file is pinned off that hook by name. Pinned: the three hooks and nothing else, breached and unreachable both refused at the door, clean, read, foreign-controller and password-less untouched; red without the filter. Found by the native-twin audit of 2026-09-20 (#1 of eleven); the seam by the workflow's core-flow skeptic, against my own review.
+
 ## [17.2.1] - 2026-09-20 — boxes share a row
 
 ### Fixed
