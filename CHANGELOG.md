@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Documentation
+- Session doc for 2026-09-20, the native-twin arc: `docs/ops/session-2026-09-20-the-native-view-reaches-everything.md`.
+
 ## [17.3.0] - 2026-09-20 — the native view reaches everything
 
 ### Added
