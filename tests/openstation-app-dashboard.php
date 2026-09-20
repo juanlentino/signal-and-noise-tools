@@ -224,7 +224,8 @@ namespace {
 	ok( false !== strpos( $mr_parts_src, '<os-cluster gap="8">' ), 'machine-readers-parts wraps sensor pills in os-cluster' );
 
 	$models_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/ai-models-budget.php' );
-	ok( false !== strpos( $models_src, '<div class="snt-2up">' ), 'ai/models-budget renders in .snt-2up two columns' );
+	// 17.4.1 (#1573): rows of comparable height, the tags_pair idiom, no 2up.
+	ok( false === strpos( $models_src, 'snt-2up' ) && false !== strpos( $models_src, '<div class="snt-cols"><section class="snt-col">' ), 'ai/models-budget renders .snt-cols rows, not the .snt-2up' );
 
 	$insights_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-insights.php' );
 	ok( false !== strpos( $insights_src, '<div class="snt-2up">' ), 'monitoring/insights renders in .snt-2up two columns' );
