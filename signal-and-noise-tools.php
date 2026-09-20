@@ -285,6 +285,7 @@ require_once SNT_PATH . 'inc/path-join-key.php';
 // Deliberately NOT an sn-apply change type: that would weaken the flat
 // "post_date never moves" invariant protecting MCP writes.
 require_once SNT_PATH . 'inc/batch-schedule.php';
+require_once SNT_PATH . 'inc/batch-schedule-rest.php';
 require_once SNT_PATH . 'inc/abilities-search-console.php';
 require_once SNT_PATH . 'inc/abilities-family-drift.php'; // v13.62.0: the family_drift sn-status source (stored report only). // v13.57.0: measurement weave Phase 1 — Search Console on the read door (sn-status sections).
 require_once SNT_PATH . 'inc/abilities-inbound-pass.php'; // v13.68.0: the inbound_pass sn-status source (stored report only).

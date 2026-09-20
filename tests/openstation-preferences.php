@@ -548,7 +548,7 @@ ok( false !== strpos( $pp_js, "key: 'sn_provenance'" ) && false !== strpos( $pp_
 ok( false !== strpos( $pp_js, 'c.key === col.key' ), 'posts columns: idempotent — the filter runs on every paint and each column is added once' );
 ok( 1 === preg_match( '/if \( ! value \|\| ! value\.versions \) \{\s*return document\.createElement/', $pp_js ), 'posts columns: an unsigned Note paints an EMPTY node, never a gray badge (absent is not zero)' );
 ok( 1 === preg_match( '/if \( ! value \|\| ! value\.state \) \{\s*return document\.createElement/', $pp_js ), 'posts columns: an unprobed post paints an EMPTY Edge cell — a gap, never fresh' );
-ok( strpos( $pp_js, 'wp.os' ) > strpos( $pp_js, 'function openAttention' ) && false === strpos( $pp_js, 'wp.apiFetch' ), 'posts columns: at load, depends on nothing but wp.hooks — the first wp.os is inside the click handler (the loader will not have run anything else)' );
+ok( strpos( $pp_js, 'wp.os' ) > strpos( $pp_js, 'function fetchAttention' ) && false === strpos( $pp_js, 'wp.apiFetch' ), 'posts columns: at load, depends on nothing but wp.hooks; the first wp.os is inside fetchAttention, which runs on the window\'s opened hook (the shell exists by then)' );
 
 // v14.3.1: the Posts window trims its list with a `_fields` allowlist, so the
 // fields behind our columns must be APPENDED there or the cells stay empty.
@@ -568,7 +568,8 @@ ok( in_array( 'snt_os_posts_window_query_args', $qa_cbs, true ), 'posts columns:
 // ── Attention pill (v14.4.0, phase 2 of the Posts-window plan) ────────
 // THE DECISION: the pill reads the app's transient and NEVER composes.
 $l10n_posts = $GLOBALS['__localized_scripts']['snt-os-posts']['sntOsPosts'] ?? array();
-ok( 'https://example.test/wp-json/signal-noise/v1/openstation/attention' === ( $l10n_posts['attentionEndpoint'] ?? '' ) && 'nonce-wp_rest' === ( $l10n_posts['nonce'] ?? '' ), 'attention pill: the posts script is localized with the attention endpoint and a wp_rest nonce' );
+ok( 'https://example.test/wp-json/signal-noise/v1/openstation/attention' === ( $l10n_posts['attentionEndpoint'] ?? '' ) && ! array_key_exists( 'nonce', $l10n_posts ), 'attention pill: the posts script is localized with the attention endpoint and NO nonce (a PWA page cannot carry one: the shell\'s fetch stamps its own, heartbeat-refreshed)' );
+ok( false !== strpos( $pp_js, 'window.wp.os.fetch( cfg.attentionEndpoint' ) && false === strpos( $pp_js, 'X-WP-Nonce' ) && false === strpos( $pp_js, 'window.fetch(' ), 'attention pill: the read goes through wp.os.fetch, no hand-set X-WP-Nonce, no raw fetch (a load-time nonce 403s once the shell sits open past its window)' );
 $att_route = $GLOBALS['__rest_routes']['signal-noise/v1']['/openstation/attention'] ?? null;
 ok( is_array( $att_route ) && 'GET' === ( $att_route['methods'] ?? '' ) && 'snt_os_preferences_rest_permission' === ( $att_route['permission_callback'] ?? '' ), 'attention pill: GET /openstation/attention is registered behind the manage_options permission' );
 $att_src = file_get_contents( SNT_PATH . 'apps/signal-noise/parts/attention.php' );
@@ -599,9 +600,38 @@ ok( 0 === preg_match( '/attention_(compose|rows)\s*\(/', $pref_code ), 'attentio
 ok( false !== strpos( $pp_js, "'openstation.postsWindow.toolbarTrailing'" ) && false !== strpos( $pp_js, "'openstation.postsWindow.opened'" ) && false !== strpos( $pp_js, "'openstation.postsWindow.dataLoaded'" ), 'attention pill: registers on toolbarTrailing, fetches on opened, refreshes on dataLoaded' );
 ok( false !== strpos( $pp_js, 'ATTENTION_TTL_MS = 60000' ) && false !== strpos( $pp_js, 'now - lastFetch < ATTENTION_TTL_MS' ), 'attention pill: dataLoaded refreshes no more than once per 60 s (the transient\'s own TTL)' );
 ok( false !== strpos( $pp_js, "openWindow( 'signal-noise', { params: { section: 'attention' } } )" ), 'attention pill: a click opens OUR app on its Attention section — the section stays ours; the pill only points at it' );
-ok( 1 === substr_count( $pp_js, 'wp.os.openWindow(' ) && false === strpos( $pp_js, 'wp.apiFetch' ), 'attention pill: the shell API is touched in exactly one place (the click), never at load' );
+ok( 1 === substr_count( $pp_js, 'wp.os.openWindow(' ) && 1 === substr_count( $pp_js, 'wp.os.fetch(' ) && 4 === preg_match_all( '/window\.wp\.os\b/', $pp_js ) && false === strpos( $pp_js, 'wp.apiFetch' ), 'attention pill: the shell API is touched in exactly two functions (fetchAttention on the window\'s hooks: one call; openAttention on the click: a guard, a typeof and a call), never at load' );
 ok( false !== strpos( $pp_js, "createElement( 'os-button' )" ) && false !== strpos( $pp_js, "'aria-live', 'polite'" ), 'attention pill: the shell\'s own os-button, aria-live polite' );
 ok( 1 === preg_match( '/if \( ! res\.ok \) \{[^}]*removeChild/s', $pp_js ), 'attention pill: a refused fetch REMOVES the pill — never a painted 0 for a reader who cannot see the queue' );
+
+// ── Reschedule bulk action (17.3.0, native-twin audit gap #2) ─────────
+// The classic posts list's "Reschedule (Signal & Noise)" bulk action had no
+// twin in the native Posts window. One entry on `openstation.postsWindow.bulkActions`,
+// a date asked in <os-modal>, the write through POST /openstation/reschedule.
+ok( 'https://example.test/wp-json/signal-noise/v1/openstation/reschedule' === ( $l10n_posts['rescheduleEndpoint'] ?? '' ), 'reschedule: the posts script is localized with the reschedule endpoint (one object, one nonce)' );
+ok( array_key_exists( 'timezone', $l10n_posts ), 'reschedule: the site zone rides the same object, for the modal\'s label' );
+$GLOBALS['__scripts'] = array(); $GLOBALS['__enqueued_scripts'] = array();
+$GLOBALS['__caps'] = array( 'manage_options' => true );
+snt_os_enqueue_posts_script();
+ok( ! isset( $GLOBALS['__scripts']['snt-os-posts-reschedule'] ) && ! isset( $GLOBALS['__enqueued_scripts']['snt-os-posts-reschedule'] ), 'reschedule: without edit_others_posts the script is neither registered nor enqueued (no button the route would 403)' );
+$GLOBALS['__caps'] = array( 'edit_others_posts' => true );
+snt_os_enqueue_posts_script();
+$rs = $GLOBALS['__scripts']['snt-os-posts-reschedule'] ?? null;
+ok( null !== $rs && isset( $GLOBALS['__enqueued_scripts']['snt-os-posts-reschedule'] ), 'reschedule: with edit_others_posts the script is registered AND enqueued' );
+ok( null !== $rs && array( 'wp-hooks', 'snt-os-posts' ) === $rs['deps'] && SNT_VERSION === $rs['ver'] && false !== strpos( $rs['src'], 'assets/os-posts-reschedule.js' ), 'reschedule: deps wp-hooks + snt-os-posts (the localized object), SNT_VERSION, the right file' );
+$GLOBALS['__caps'] = array( 'manage_options' => true );
+$rs_js = (string) file_get_contents( SNT_PATH . 'assets/os-posts-reschedule.js' );
+ok( false !== strpos( $rs_js, "'openstation.postsWindow.bulkActions'" ) && false !== strpos( $rs_js, "id: 'snt-reschedule'" ), 'reschedule: registers one bulk action, snt-reschedule' );
+ok( false !== strpos( $rs_js, "a.id === 'snt-reschedule'" ), 'reschedule: idempotent add' );
+ok( false !== strpos( $rs_js, "input.type = 'datetime-local'" ) && false !== strpos( $rs_js, "createElement( 'os-modal' )" ) && false !== strpos( $rs_js, 'site time' ), 'reschedule: the date is a native datetime-local inside the shell\'s os-modal, labelled as site time' );
+ok( false !== strpos( $rs_js, 'window.wp.os.fetch( cfg.rescheduleEndpoint' ) && false !== strpos( $rs_js, "method: 'POST'" ) && false === strpos( $rs_js, 'X-WP-Nonce' ) && false === strpos( $rs_js, 'cfg.nonce' ) && false === strpos( $rs_js, 'window.fetch(' ) && false === strpos( $rs_js, 'wp.apiFetch' ), 'reschedule: the write is a POST through wp.os.fetch (the shell\'s heartbeat-refreshed nonce), no hand-set header, no localized nonce, no raw fetch, never apiFetch' );
+ok( false !== strpos( $rs_js, 'wp.os.showToast' ) && false !== strpos( $rs_js, "wp.os.loadComponents( [ 'os-modal' ] )" ), 'reschedule: the verdict is a toast; os-modal is upgraded on demand' );
+ok( strpos( $rs_js, 'wp.os' ) > strpos( $rs_js, 'function toast' ) && strpos( $rs_js, 'wp.os' ) > strpos( $rs_js, "var cfg = window.sntOsPosts" ), 'reschedule: at load, depends on nothing but wp.hooks; every wp.os is inside a click-time function' );
+ok( 1 === preg_match( '/if \( ! date \) \{\s*return false;/', $rs_js ) && 1 === preg_match( '/os-modal-cancel[^\n]*done\( \'\' \)/', $rs_js ), 'reschedule: a cancelled modal returns false, so the selection survives and nothing refreshes' );
+ok( 1 === preg_match( '/desktop-mode-pages[^\n]*\)\s*\)\s*\{\s*toast\( \'Reschedule is for posts only\.\' \);\s*return false;/s', $rs_js ), 'reschedule: the Pages window (root class desktop-mode-pages, read from apps/posts/parts/app.ts) gets the posts-only toast and false' );
+ok( 1 === preg_match( '/res\.status === 403[^\n]*\n\s*\?\s*\'Not allowed, or your session expired/', $rs_js ), 'reschedule: a 403 (the session gone, or the capability) toasts a reload hint, never retries' );
+ok( 1 === preg_match( '/\.catch\( function \(\) \{[^}]*toast\( \'Nothing was rescheduled: the request did not reach the site\.\' \);\s*return false;/', $rs_js ), 'reschedule: a dropped request (fetch or the os-modal bundle rejecting) is a toast and false, so the selection survives; the shell\'s runner otherwise treats a rejection as done and clears it' );
+ok( false === strpos( $rs_js, 'confirm:' ) && false === strpos( $rs_js, 'wp.os.broadcast' ), 'reschedule: no confirm (the modal is the confirmation) and no broadcast' );
 
 // Sidebar glyph: an OS icon-set name on the tab registration (read by
 // OpenStation from 1.1.9, WordPress/openstation#808; ignored before).
