@@ -178,7 +178,7 @@ t( false !== strpos( $cp_src, 'snt-ability-run.js did not load' ), 'D.8 the guar
 // 2026-09-17). Group E in abilities-categories.php exempted write abilities
 // on the premise that POST always carries a body; this pin makes the
 // premise true instead of assumed.
-t( false !== strpos( $runner_src, "opts.data = { input: hasInput ? input : {} };" ), 'D.9 runner sends an input object on every POST, {} when the caller gave none' );
+t( false !== strpos( $runner_src, "data = { input: hasInput ? input : {} };" ), 'D.9 runner sends an input object on every POST, {} when the caller gave none' );
 t( false === strpos( $runner_src, "if ( hasInput ) {\n\t\t\tif ( 'POST' === verb )" ), 'D.10 the POST body is no longer gated on a non-empty input' );
 
 // 15.8.1: the run-path hands an ability's output back AS IS. A widget that
@@ -187,6 +187,60 @@ t( false === strpos( $runner_src, "if ( hasInput ) {\n\t\t\tif ( 'POST' === verb
 $qw_src = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-queue.js' );
 t( false !== strpos( $qw_src, "typeof res.data === 'object' ? res.data : res" ), 'D.11 the queue widget reads the bare run-path payload, wrapped or not' );
 t( false !== strpos( $qw_src, "Array.isArray( data.next )" ), 'D.12 the queue widget recognises the payload by its own keys, not by an envelope' );
+
+// ════ Group E: the transport is the shell's fetch inside the station (#1601) ═
+// Through wp.apiFetch a native window's ability calls were invisible to the
+// shell: the title bar's status ring never moved for Suggest or Apply, the
+// 401/403 fast path never saw the response. wp.os.fetch (Stable) is "every
+// HTTP call from a plugin"; the classic pages and the editor iframe have no
+// shell, so wp.apiFetch stays behind a typeof guard.
+echo "\nGroup E: wp.os.fetch inside the station, wp.apiFetch elsewhere (#1601)\n";
+t( false !== strpos( $runner_src, 'window.wp.os.fetch(' ) && false !== strpos( $runner_src, 'window.wp.apiFetch(' ), 'E.1 the runner sends through wp.os.fetch and still through wp.apiFetch' );
+t( false !== strpos( $runner_src, "'function' === typeof window.wp.os.fetch" ), 'E.2 the shell seam is a typeof guard (the same script loads on classic pages)' );
+t( 1 === preg_match( '/silent: !! \( options && options\.silent \)/', $runner_src ), 'E.3 options.silent is forwarded, so a timer never lights a window the owner did not touch' );
+t( false !== strpos( $runner_src, 'if ( ! res.ok ) { throw body; }' ) && false !== strpos( $runner_src, 'res.json()' ), 'E.4 the shell branch keeps wp.apiFetch\'s contract: parsed JSON resolves, the parsed WP_Error body rejects' );
+t( false !== strpos( $runner_src, "cfg.root || '/wp-json/'" ) && 1 === preg_match( "/-1 === ROOT\.indexOf\( '\?' \) \? '\?' : '&'/", $runner_src ), 'E.5 the URL is built on the localized rest_url() root and joins a query with & when the root already carries ? (plain permalinks)' );
+
+// The localizer hands the runner rest_url() beside the verb map.
+if ( ! defined( 'SNT_PATH' ) ) { define( 'SNT_PATH', __DIR__ . '/../' ); }
+if ( ! defined( 'SNT_VERSION' ) ) { define( 'SNT_VERSION', '0.0.0' ); }
+if ( ! function_exists( 'wp_script_is' ) ) { function wp_script_is( $h, $l = 'enqueued' ) { return false; } }
+if ( ! function_exists( 'wp_register_script' ) ) { function wp_register_script() { return true; } }
+if ( ! function_exists( 'plugins_url' ) ) { function plugins_url( $p = '', $f = '' ) { return 'https://example.test/wp-content/plugins/x/' . $p; } }
+if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . $p; } }
+if ( ! function_exists( 'wp_localize_script' ) ) { function wp_localize_script( $h, $n, $d ) { $GLOBALS['__test_localized'][ $h ][ $n ] = $d; return true; } }
+$GLOBALS['__test_localized'] = array();
+if ( function_exists( 'snt_ability_run_client_register' ) ) {
+	snt_ability_run_client_register();
+}
+$l10n = $GLOBALS['__test_localized']['snt-ability-run']['sntAbilityRunData'] ?? array();
+t_eq( 'https://example.test/wp-json/', $l10n['root'] ?? null, 'E.6 sntAbilityRunData carries rest_url() as root (openStationConfig.restUrl is the same value; the runner stays shell-agnostic)' );
+t( is_array( $l10n['verbs'] ?? null ), 'E.7 the verb map still rides the same object' );
+
+// Every widget that refreshes on a timer or at mount passes silent: true. A
+// desktop widget is not a window; through the focused-window default its
+// poll would breathe the ring of whatever window the owner last clicked.
+// Pinned per slug: a file-wide regex could not tell which of the anchors
+// widget's two calls carried the flag (the click-driven sweep must not).
+$silent_calls = array(
+	'desktop-mode-widget.js'         => "window.sntAbilityRun( 'get-deploy-status', undefined, { signal: controller ? controller.signal : undefined, silent: true } )",
+	'desktop-mode-widget-uptime.js'  => "window.sntAbilityRun( 'uptime-status', { detail: true }, { signal: controller ? controller.signal : undefined, silent: true } )",
+	'desktop-mode-widget-rss.js'     => "window.sntAbilityRun( 'get-rss-stats', undefined, { silent: true } )",
+	'desktop-mode-widget-queue.js'   => "window.sntAbilityRun( 'content-queue', undefined, { silent: true } )",
+	'desktop-mode-widget-cache.js'   => "window.sntAbilityRun( 'cache-freshness', undefined, { silent: true } )",
+	'desktop-mode-widget-anchors.js' => "window.sntAbilityRun( 'anchor-status', {}, { silent: true } )",
+);
+foreach ( $silent_calls as $base => $call ) {
+	$src = (string) file_get_contents( __DIR__ . '/../assets/' . $base );
+	t( false !== strpos( $src, $call ), "E.8 $base passes silent: true on its background refresh call" );
+}
+t( false !== strpos( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ), "window.sntAbilityRun( 'anchor-sweep', {} )" ), 'E.8b the anchors Sweep, a click, stays loud (no silent flag)' );
+
+// A refused response whose body is not JSON (an HTML 503 from Varnish, a
+// challenge page, the WAF's 403 page) rejected with a raw SyntaxError, code
+// undefined; apiFetch normalizes it to code invalid_json. The catch sits on
+// res.json() itself, before the ok test, so a JSON WP_Error is never masked.
+t( false !== strpos( $runner_src, 'res.json().catch( function () {' ) && false !== strpos( $runner_src, "throw { code: 'invalid_json', message: 'The response is not a valid JSON response.', data: { status: res.status } };" ), 'E.9 a non-JSON body rejects as apiFetch does (code invalid_json) and carries the HTTP status' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

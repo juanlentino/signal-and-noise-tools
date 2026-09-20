@@ -177,7 +177,7 @@
 			}
 			var run;
 			try {
-				run = window.sntAbilityRun( 'content-queue' );
+				run = window.sntAbilityRun( 'content-queue', undefined, { silent: true } );
 			} catch ( e ) {
 				renderError( container, e && e.message ? e.message : 'unknown' );
 				return;

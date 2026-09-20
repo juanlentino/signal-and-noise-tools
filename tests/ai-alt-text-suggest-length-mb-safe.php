@@ -3,6 +3,10 @@
  * Regression test (#1227): snt_ai_alt_apply_impl()'s length cap must be
  * character count, not byte count — a 240-char accented alt text was
  * rejected as ">250" because strlen() counted its ~450 UTF-8 bytes.
+ *
+ * Second group (#1621): a landed write is recorded into OpenStation's
+ * realtime layer, so the Media Library window learns of it; a refused one
+ * is not. Same harness, the only standalone one that runs the real impl.
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
@@ -28,6 +32,8 @@ function update_post_meta( $id, $key, $val ) { return true; }
 class wpdb_stub { public $last_error = ''; }
 $GLOBALS['wpdb'] = new wpdb_stub();
 function snt_ai_require_text_generation() { return null; }
+$GLOBALS['__recorded'] = array();
+function openstation_content_changes_record( $type, $id, $action ) { $GLOBALS['__recorded'][] = array( $type, (int) $id, $action ); return true; }
 
 require __DIR__ . '/../inc/ai-alt-text-suggest.php';
 
@@ -43,6 +49,14 @@ ok( is_array( $res ), '240 accented CHARACTERS (well under the 250 cap) is accep
 $accented_251 = str_repeat( 'É', 251 );
 $res2         = snt_ai_alt_apply_impl( 5, $accented_251 );
 ok( is_wp_error( $res2 ) && 'snt_ai_alt_too_long' === $res2->code, '251 CHARACTERS is still correctly rejected as too long' );
+
+echo "\nGroup: #1621, a landed alt-text write is recorded for the station's windows\n";
+// The realtime layer has no post-meta publisher, so before this the Media
+// Library window never learned of an alt-text apply, not even on a heartbeat.
+ok( array( array( 'attachment', 5, 'updated' ) ) === $GLOBALS['__recorded'], 'the accepted write called openstation_content_changes_record( attachment, 5, updated ) once; the refused one added nothing' );
+$GLOBALS['__recorded'] = array();
+$res3 = snt_ai_alt_apply_impl( 5, '' );
+ok( is_wp_error( $res3 ) && array() === $GLOBALS['__recorded'], 'an empty alt text is refused and records nothing' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

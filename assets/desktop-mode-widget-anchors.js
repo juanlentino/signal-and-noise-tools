@@ -197,7 +197,7 @@
 				render( null, 'The abilities client is unavailable.' );
 				return;
 			}
-			window.sntAbilityRun( 'anchor-status', {} ).then( function( overview ) {
+			window.sntAbilityRun( 'anchor-status', {}, { silent: true } ).then( function( overview ) {
 				render( overview, note );
 			} ).catch( function( err ) {
 				render( null, ( err && err.message ) || 'Could not load anchor status.' );

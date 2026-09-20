@@ -1,7 +1,15 @@
 /**
  * Signal & Noise Tools — shared Abilities run-path client (v7.7.2).
  *
- * window.sntAbilityRun( slug, input ) → Promise (wp.apiFetch)
+ * window.sntAbilityRun( slug, input, options ) → Promise
+ *
+ * Inside the station the request rides the shell's fetch (wp.os.fetch,
+ * Stable, docs/javascript-reference.md "Every HTTP call from a plugin"): the
+ * title bar's status ring moves, the heartbeat-refreshed nonce is stamped at
+ * call time, a 401/403 reaches the shell's auth recovery. On a classic page
+ * (no shell) it is wp.apiFetch, as before. Either way the promise keeps
+ * wp.apiFetch's contract: parsed JSON on success, the parsed WP_Error body as
+ * the rejection. options.silent skips the ring (background polls). #1601
  *
  * ONE transport for every ability call. The run controller enforces the HTTP
  * verb by the ability's annotations (validate_request_method in
@@ -30,6 +38,9 @@
 
 	var cfg   = window.sntAbilityRunData || {};
 	var VERBS = cfg.verbs || {};
+	// rest_url() from the server, so the shell branch builds a full URL that
+	// routes on plain permalinks too (the same value as openStationConfig.restUrl).
+	var ROOT  = ( cfg.root || '/wp-json/' ).replace( /\/$/, '' );
 
 	/**
 	 * Bracket-encode an input object for GET/DELETE query transport.
@@ -52,13 +63,47 @@
 	}
 
 	/**
+	 * Send one run-path request: the shell's fetch inside the station,
+	 * wp.apiFetch elsewhere. The seam is a typeof guard because the same
+	 * script loads on classic pages and in the block editor's iframe.
+	 */
+	function send( path, verb, query, data, options ) {
+		var signal = options && options.signal;
+		if ( ! ( window.wp.os && 'function' === typeof window.wp.os.fetch ) ) {
+			var opts = { path: path + ( query ? '?' + query : '' ), method: verb };
+			if ( signal ) { opts.signal = signal; }
+			if ( data ) { opts.data = data; }
+			return window.wp.apiFetch( opts );
+		}
+		var url  = ROOT + path + ( query ? ( -1 === ROOT.indexOf( '?' ) ? '?' : '&' ) + query : '' );
+		var init = { method: verb, credentials: 'same-origin' };
+		if ( signal ) { init.signal = signal; }
+		if ( data ) {
+			init.headers = { 'Content-Type': 'application/json' };
+			init.body    = JSON.stringify( data );
+		}
+		return window.wp.os.fetch( url, init, { silent: !! ( options && options.silent ) } ).then( function ( res ) {
+			// A native Response: parse it and hand back what wp.apiFetch would.
+			// A body that is not JSON (an HTML 503 from Varnish, a challenge
+			// page, the WAF's 403 page) rejects as apiFetch's parseJsonAndNormalizeError
+			// does, code invalid_json, plus the HTTP status the SyntaxError lost.
+			return res.json().catch( function () {
+				throw { code: 'invalid_json', message: 'The response is not a valid JSON response.', data: { status: res.status } };
+			} ).then( function ( body ) {
+				if ( ! res.ok ) { throw body; }
+				return body;
+			} );
+		} );
+	}
+
+	/**
 	 * Execute an ability via the run path with the annotation-correct verb.
 	 *
 	 * @param {string} slug  Ability slug — bare ('get-audit-log') or
 	 *                       namespaced ('signal-noise/get-audit-log').
 	 * @param {Object} [input] Ability input; omit/empty for input-less calls.
-	 * @param {Object} [options] Optional AbortSignal only; cannot override verb/path.
-	 * @return {Promise} wp.apiFetch promise resolving to the ability output.
+	 * @param {Object} [options] { signal, silent } only; cannot override verb/path.
+	 * @return {Promise} Resolves to the ability output; rejects with the WP_Error body.
 	 */
 	window.sntAbilityRun = function ( slug, input, options ) {
 		var name = -1 === slug.indexOf( '/' ) ? 'signal-noise/' + slug : slug;
@@ -66,9 +111,9 @@
 		// POST — the controller's own default expectation for un-annotated
 		// abilities; a 404/405 there is loud, not silent.
 		var verb = VERBS[ name ] || 'POST';
-		var path = '/wp-abilities/v1/abilities/' + name + '/run';
-		var opts = { path: path, method: verb };
-		if ( options && options.signal ) { opts.signal = options.signal; }
+		var path  = '/wp-abilities/v1/abilities/' + name + '/run';
+		var query = '';
+		var data  = null;
 
 		var hasInput = input && 'object' === typeof input && Object.keys( input ).length > 0;
 		// 15.7.1: a POST always carries an input object. With no body the
@@ -76,14 +121,12 @@
 		// schema says `object` refuses it ("input is not of type object", the
 		// anchor-sweep widget on 2026-09-17). GET keeps its query transport.
 		if ( 'POST' === verb ) {
-			opts.data = { input: hasInput ? input : {} };
+			data = { input: hasInput ? input : {} };
 		} else if ( hasInput ) {
 			var pairs = [];
 			encodeInput( input, 'input', pairs );
-			if ( pairs.length ) {
-				opts.path += '?' + pairs.join( '&' );
-			}
+			query = pairs.join( '&' );
 		}
-		return window.wp.apiFetch( opts );
+		return send( path, verb, query, data, options );
 	};
 } )();

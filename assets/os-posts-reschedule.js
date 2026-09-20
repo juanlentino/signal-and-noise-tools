@@ -119,6 +119,10 @@
 						return false;
 					}
 					toast( body.message );
+					// The write went through our own endpoint, so no other window saw
+					// it; the shell's producer (wp.os.announceContentChange, Stable)
+					// tells them now rather than on the next heartbeat. #1621
+					window.wp.os.announceContentChange( 'post', 'updated', ids, 'signal-noise' );
 					return undefined; // the window clears the selection and refreshes.
 				} );
 			} );

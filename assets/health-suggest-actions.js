@@ -70,8 +70,29 @@
 	// v7.7.2: transport via the shared runner — the verb comes from the
 	// server-annotation map (the old always-POST 405'd block-migrations-suggest,
 	// which is readonly => GET).
+	// #1621: an Apply writes through our own ability, so no other window sees
+	// it; the shell's producer (wp.os.announceContentChange, Stable) tells
+	// them on resolve. The heartbeat catch-all would deliver a post write 15
+	// to 60 s later and an attachment write never (no post-meta or
+	// delete_attachment publisher). Behind a typeof guard: the same script
+	// runs on the classic leaves, where there is no shell.
+	var APPLY_SLUGS = Object.keys( ABILITY_BY_CHECK ).map( function( k ) { return ABILITY_BY_CHECK[ k ].apply; } );
+	function announceApply( abilitySlug, input ) {
+		if ( -1 === APPLY_SLUGS.indexOf( abilitySlug ) || ! input || ! ( window.wp.os && 'function' === typeof window.wp.os.announceContentChange ) ) {
+			return;
+		}
+		if ( input.attachment_id ) {
+			window.wp.os.announceContentChange( 'attachment', 'ai-orphan-apply' === abilitySlug ? 'deleted' : 'updated', Number( input.attachment_id ), 'signal-noise' );
+		} else if ( input.post_id ) {
+			window.wp.os.announceContentChange( 'post', 'updated', Number( input.post_id ), 'signal-noise' );
+		}
+	}
+
 	function callAbility( abilitySlug, input ) {
-		return window.sntAbilityRun( abilitySlug, input ).catch( function( err ) {
+		return window.sntAbilityRun( abilitySlug, input ).then( function( res ) {
+			announceApply( abilitySlug, input );
+			return res;
+		} ).catch( function( err ) {
 			// v8.1.1: an empty-message REST error (an SDK error wrapped with no
 			// text) used to render as "Unknown error." — surface the error code
 			// so the failure is diagnosable from the UI.

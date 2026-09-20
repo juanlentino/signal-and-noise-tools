@@ -659,6 +659,12 @@ ok( 1 === preg_match( '/desktop-mode-pages[^\n]*\)\s*\)\s*\{\s*toast\( \'Resched
 ok( 1 === preg_match( '/res\.status === 403[^\n]*\n\s*\?\s*\'Not allowed, or your session expired/', $rs_js ), 'reschedule: a 403 (the session gone, or the capability) toasts a reload hint, never retries' );
 ok( 1 === preg_match( '/\.catch\( function \(\) \{[^}]*toast\( \'Nothing was rescheduled: the request did not reach the site\.\' \);\s*return false;/', $rs_js ), 'reschedule: a dropped request (fetch or the os-modal bundle rejecting) is a toast and false, so the selection survives; the shell\'s runner otherwise treats a rejection as done and clears it' );
 ok( false === strpos( $rs_js, 'confirm:' ) && false === strpos( $rs_js, 'wp.os.broadcast' ), 'reschedule: no confirm (the modal is the confirmation) and no broadcast' );
+// #1621: the write went through our own endpoint, so a second Posts window,
+// WP Explorer and the S&N app learned of it on the next heartbeat, 15 to
+// 60 s later. The typed producer (wp.os.announceContentChange, Stable) on
+// the ok branch, before the undefined that refreshes the window that ran it.
+ok( 1 === preg_match( "/toast\( body\.message \);.*?window\.wp\.os\.announceContentChange\( 'post', 'updated', ids, 'signal-noise' \);\s*return undefined;/s", $rs_js ), 'reschedule: a landed write announces post/updated for the ids through wp.os.announceContentChange before returning undefined, tagged signal-noise' );
+ok( 1 === substr_count( $rs_js, 'announceContentChange(' ) && strpos( $rs_js, 'announceContentChange(' ) > strpos( $rs_js, 'if ( ! res.ok ) {' ), 'reschedule: one announce, after the ok test, never on a refused write' );
 
 // Sidebar glyph: an OS icon-set name on the tab registration (read by
 // OpenStation from 1.1.9, WordPress/openstation#808; ignored before).

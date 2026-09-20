@@ -207,7 +207,7 @@
 			Promise.resolve().then( function() {
 				if ( torn ) { return; }
 				if ( typeof window.sntAbilityRun !== 'function' ) { throw new Error( 'sntAbilityRun unavailable' ); }
-				return window.sntAbilityRun( 'uptime-status', { detail: true }, { signal: controller ? controller.signal : undefined } );
+				return window.sntAbilityRun( 'uptime-status', { detail: true }, { signal: controller ? controller.signal : undefined, silent: true } );
 			} ).then( function( res ) {
 				if ( torn ) { return; }
 				if ( ! res || typeof res.configured !== 'boolean' || ( res.configured && ( ! Array.isArray( res.rows ) || ! res.rows.every( function( row ) { return row && typeof row === 'object' && ! Array.isArray( row ); } ) ) ) ) { throw new Error( 'Invalid uptime response' ); }

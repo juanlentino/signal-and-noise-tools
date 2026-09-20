@@ -162,7 +162,15 @@
    */
   function arm(live) {
     function poll() {
-      fetch(live.getAttribute('data-endpoint'), { headers: { 'X-WP-Nonce': live.getAttribute('data-nonce') } })
+      var endpoint = live.getAttribute('data-endpoint');
+      // Inside the station the shell's fetch (wp.os.fetch, Stable) stamps its
+      // heartbeat-refreshed nonce at call time, silent because a 30 s tick is
+      // not the owner's activity; the data-nonce the server painted expires
+      // under a long-open window. The classic tab keeps the bare fetch. #1601
+      var shell = window.wp && window.wp.os && typeof window.wp.os.fetch === 'function';
+      ( shell
+        ? window.wp.os.fetch(endpoint, { credentials: 'same-origin' }, { silent: true })
+        : fetch(endpoint, { headers: { 'X-WP-Nonce': live.getAttribute('data-nonce') } }) )
         .then(function (r) {
           if (!r.ok) { throw new Error('HTTP ' + r.status); }
           return r.json();

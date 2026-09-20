@@ -214,6 +214,20 @@ hca_true( false !== strpos( $js, "back.shadowRoot.querySelector( 'button' )" ) &
 hca_true( false === strpos( $js, "'busy'" ) && false === strpos( $js, '.busy' ), 'the busy attribute is not used: the disabled guards would not see it (17.3.0 read, held)' );
 hca_true( 3 === substr_count( $js, ".hasAttribute( 'disabled' )" ) && 0 === preg_match( '/if \( ! \w+ \|\| \w+\.disabled \)/', $js ), 'disabled is still read as an attribute (a host getter returns the string) (17.3.0 read, held)' );
 
+echo "\nTest: every Apply announces its write to the other windows (#1621)\n";
+// The five post writes reached a second window on the next heartbeat; the
+// alt-text write (post meta) and the orphan delete (delete_attachment) never
+// did. One seam in callAbility covers the three call sites and any Apply
+// added later; the same script runs on the classic leaves, where wp.os is
+// undefined, so the producer sits behind a typeof guard.
+$js = file_get_contents( __DIR__ . '/../assets/health-suggest-actions.js' );
+hca_true( false !== strpos( $js, "'function' === typeof window.wp.os.announceContentChange" ), 'the producer is behind a typeof guard (the classic leaves have no shell)' );
+hca_true( false !== strpos( $js, "ABILITY_BY_CHECK[ k ].apply" ) && false !== strpos( $js, 'APPLY_SLUGS.indexOf( abilitySlug )' ), 'the apply slugs are the apply column of ABILITY_BY_CHECK, read once' );
+hca_true( false !== strpos( $js, "announceContentChange( 'attachment', 'ai-orphan-apply' === abilitySlug ? 'deleted' : 'updated', Number( input.attachment_id ), 'signal-noise' )" ), 'an attachment_id input announces attachment: deleted for the orphan apply, updated for alt text' );
+hca_true( false !== strpos( $js, "announceContentChange( 'post', 'updated', Number( input.post_id ), 'signal-noise' )" ), 'a post_id input announces post/updated' );
+hca_true( 1 === preg_match( '/return window\.sntAbilityRun\( abilitySlug, input \)\.then\( function\( res \) \{\s*announceApply\( abilitySlug, input \);\s*return res;/', $js ), 'the announce sits on callAbility\'s resolve, so the three Apply paths and dismiss share one seam and the payload is untouched' );
+hca_true( 2 === substr_count( $js, 'announceContentChange(' ) && 2 === substr_count( $js, 'announceApply( abilitySlug, input )' ), 'no call site announces on its own: two producer calls inside announceApply, and announceApply appears twice (its definition and the one call in callAbility)' );
+
 echo "\nTest: the Apply preview inside a kit leaf is the kit's <os-modal> (17.4.1, the diff #1562 deferred)\n";
 $js = file_get_contents( __DIR__ . '/../assets/health-suggest-actions.js' );
 hca_true( 1 === substr_count( $js, "opts.originatingButton.closest( '.snt-app' )" ), 'the host forks on the same test mintButton runs, from the button that opened it' );
