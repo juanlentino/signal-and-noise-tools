@@ -6,8 +6,14 @@
  * orphaned_media, pattern-adoption, block-migrations, unlinked_mentions)
  * via data-attribute-driven dispatch — single module, no per-check JS.
  *
- * Enqueued on the SN admin page via inc/admin-page.php / settings hook
- * (only when snt_ai_is_available() returns true).
+ * Runs on the classic Health tab and, since 17.3.0, inside the kit leaves
+ * (Content > Block Migrations, Content > Pattern Adoption, Monitoring >
+ * Health, all under .snt-app): there every button it mints is an
+ * <os-button> and the Apply preview is the kit's <os-modal>; elsewhere the
+ * wp-admin .button and the script's own box.
+ *
+ * Enqueued via inc/admin-menu.php (classic) and inc/openstation-host-assets.php
+ * (the kit host), only when snt_ai_is_available() returns true.
  *
  * Calls the Abilities API REST surface:
  *   signal-noise/ai-alt-suggest · ai-alt-apply · ai-drift-suggest ·
@@ -50,8 +56,9 @@
 	};
 
 	// v4.0.3: Active modal state. Only one modal can be open at a time.
-	// Stores { backdrop, originatingButton, escapeHandler, focusHandler, applyCallback, cancelCallback }
-	// or null when no modal is open.
+	// Stores { host, originatingButton, escapeHandler, focusHandler } or null
+	// when no modal is open; host is the <os-modal> in a kit app, the backdrop
+	// on the classic tab.
 	var activeModal = null;
 
 	/**
@@ -111,11 +118,21 @@
 	}
 
 	/**
+	 * Focus a minted button. An <os-button> host is not focusable (no
+	 * delegatesFocus); its control is the <button> in the shadow root.
+	 */
+	function focusButton( back ) {
+		( ( back.shadowRoot && back.shadowRoot.querySelector( 'button' ) ) || back ).focus();
+	}
+
+	/**
 	 * Open the Apply preview modal.
 	 *
 	 * Builds the modal DOM, appends to body, installs event listeners,
 	 * moves focus into the modal. Calls onApply() if user accepts;
 	 * onCancel() if user cancels (or modal is dismissed via Esc/backdrop/×).
+	 * Inside a kit app (.snt-app) the host is the kit's <os-modal>; on the
+	 * classic tab it is the script's own backdrop and box.
 	 *
 	 * @param {object}   opts
 	 * @param {string}   opts.title        Modal title text
@@ -131,37 +148,11 @@
 			closeApplyModal();
 		}
 
+		// The originating button sits in the row's cell, so the test mintButton
+		// runs picks the host too: the kit's <os-modal> inside a kit app, the
+		// wp-admin box on the classic tab.
+		var kit = !! ( opts.originatingButton && opts.originatingButton.closest && opts.originatingButton.closest( '.snt-app' ) );
 		var isMobile = window.matchMedia && window.matchMedia( '(max-width: 600px)' ).matches;
-
-		var backdrop = document.createElement( 'div' );
-		backdrop.className = 'snt-modal-backdrop';
-
-		var box = document.createElement( 'div' );
-		box.className = 'snt-modal-box';
-		// v4.1.1 (U-10): dialog semantics for screen readers — announce as a modal
-		// dialog on open, anchor the accessible name to the title <h2>.
-		box.setAttribute( 'role', 'dialog' );
-		box.setAttribute( 'aria-modal', 'true' );
-
-		var header = document.createElement( 'div' );
-		header.className = 'snt-modal-header';
-
-		var titleEl = document.createElement( 'h2' );
-		titleEl.className = 'snt-modal-title';
-		titleEl.textContent = opts.title;
-		// v4.1.1 (U-10): unique id-per-instance so multiple modal opens don't collide.
-		titleEl.id = 'snt-modal-title-' + Date.now() + '-' + Math.floor( Math.random() * 1e6 );
-		box.setAttribute( 'aria-labelledby', titleEl.id );
-		header.appendChild( titleEl );
-
-		var closeBtn = document.createElement( 'button' );
-		closeBtn.type = 'button';
-		closeBtn.className = 'snt-modal-close';
-		closeBtn.textContent = '×';
-		closeBtn.setAttribute( 'aria-label', __( 'Close', 'signal-noise-tools' ) );
-		header.appendChild( closeBtn );
-
-		box.appendChild( header );
 
 		var body = document.createElement( 'div' );
 		body.className = 'snt-modal-body';
@@ -193,45 +184,91 @@
 		afterPane.appendChild( opts.afterNode );
 		body.appendChild( afterPane );
 
-		box.appendChild( body );
-
-		var footer = document.createElement( 'div' );
-		footer.className = 'snt-modal-footer';
-
-		var cancelBtn = document.createElement( 'button' );
-		cancelBtn.type = 'button';
-		cancelBtn.className = 'button';
-		cancelBtn.textContent = __( 'Cancel', 'signal-noise-tools' );
-		footer.appendChild( cancelBtn );
-
-		var applyBtn = document.createElement( 'button' );
-		applyBtn.type = 'button';
-		applyBtn.className = 'button button-primary';
-		applyBtn.textContent = __( 'Apply', 'signal-noise-tools' );
-		footer.appendChild( applyBtn );
-
-		box.appendChild( footer );
-		backdrop.appendChild( box );
-		document.body.appendChild( backdrop );
+		var cancelBtn = mintButton( __( 'Cancel', 'signal-noise-tools' ), 'secondary', opts.originatingButton );
+		var applyBtn  = mintButton( __( 'Apply', 'signal-noise-tools' ), 'primary', opts.originatingButton );
 
 		// Wire up close paths.
 		var dismiss = function() { closeApplyModal(); opts.onCancel(); };
 		var accept  = function() { closeApplyModal(); opts.onApply(); };
 
-		closeBtn.addEventListener( 'click', dismiss );
 		cancelBtn.addEventListener( 'click', dismiss );
 		applyBtn.addEventListener( 'click', accept );
-		backdrop.addEventListener( 'click', function( e ) {
-			if ( e.target === backdrop ) { dismiss(); }
-		} );
 
-		// Keyboard handler: Escape = cancel, Enter (not in textarea) = apply.
-		var escapeHandler = function( e ) {
-			if ( ! activeModal ) { return; }
-			if ( 'Escape' === e.key ) {
+		var host;
+		if ( kit ) {
+			// <os-modal> paints the scrim, the title and the close x, and handles
+			// Escape and click-outside itself. It does not handle Enter, its Tab
+			// trap does not count slotted <os-button> hosts, and its own focus
+			// return cannot reach one, so the handlers below and closeApplyModal
+			// keep those three.
+			host = document.createElement( 'os-modal' );
+			host.setAttribute( 'size', 'lg' );
+			host.setAttribute( 'title', opts.title );
+			host.appendChild( body );
+			cancelBtn.setAttribute( 'slot', 'footer' );
+			applyBtn.setAttribute( 'slot', 'footer' );
+			host.appendChild( cancelBtn );
+			host.appendChild( applyBtn );
+			// Cancelled at the component so it never hides itself: the element is
+			// removed, and focus goes back the way closeApplyModal sends it.
+			host.addEventListener( 'os-modal-cancel', function( e ) {
 				e.preventDefault();
 				dismiss();
-			} else if ( 'Enter' === e.key && 'TEXTAREA' !== ( e.target && e.target.tagName ) ) {
+			} );
+		} else {
+			host = document.createElement( 'div' );
+			host.className = 'snt-modal-backdrop';
+
+			var box = document.createElement( 'div' );
+			box.className = 'snt-modal-box';
+			// v4.1.1 (U-10): dialog semantics for screen readers: announce as a modal
+			// dialog on open, anchor the accessible name to the title <h2>.
+			box.setAttribute( 'role', 'dialog' );
+			box.setAttribute( 'aria-modal', 'true' );
+
+			var header = document.createElement( 'div' );
+			header.className = 'snt-modal-header';
+
+			var titleEl = document.createElement( 'h2' );
+			titleEl.className = 'snt-modal-title';
+			titleEl.textContent = opts.title;
+			// v4.1.1 (U-10): unique id-per-instance so multiple modal opens don't collide.
+			titleEl.id = 'snt-modal-title-' + Date.now() + '-' + Math.floor( Math.random() * 1e6 );
+			box.setAttribute( 'aria-labelledby', titleEl.id );
+			header.appendChild( titleEl );
+
+			var closeBtn = document.createElement( 'button' );
+			closeBtn.type = 'button';
+			closeBtn.className = 'snt-modal-close';
+			closeBtn.textContent = '×';
+			closeBtn.setAttribute( 'aria-label', __( 'Close', 'signal-noise-tools' ) );
+			closeBtn.addEventListener( 'click', dismiss );
+			header.appendChild( closeBtn );
+
+			box.appendChild( header );
+			box.appendChild( body );
+
+			var footer = document.createElement( 'div' );
+			footer.className = 'snt-modal-footer';
+			footer.appendChild( cancelBtn );
+			footer.appendChild( applyBtn );
+			box.appendChild( footer );
+
+			host.appendChild( box );
+			host.addEventListener( 'click', function( e ) {
+				if ( e.target === host ) { dismiss(); }
+			} );
+		}
+
+		// Keyboard handler: Enter (not in textarea) = apply; Escape = cancel on
+		// the classic box, the kit modal cancels on Escape itself (above).
+		var escapeHandler = function( e ) {
+			if ( ! activeModal ) { return; }
+			if ( 'Escape' === e.key && ! kit ) {
+				e.preventDefault();
+				dismiss();
+			} else if ( 'Enter' === e.key ) {
+				if ( 'TEXTAREA' === ( e.target && e.target.tagName ) ) { return; }
 				// A button runs its own click on Enter: Cancel and the close x must
 				// cancel, not apply. Read the target through the shadow root, the
 				// document sees the <os-button> or <os-modal> host in the kit.
@@ -241,27 +278,51 @@
 				accept();
 			}
 		};
-		document.addEventListener( 'keydown', escapeHandler );
 
-		// Focus trap: redirect any focus escaping the modal back to Apply button.
+		// Focus trap: redirect any focus escaping the modal back to the Apply
+		// button. The kit modal's own Tab trap does not count slotted
+		// <os-button> hosts, so Tab past Apply would leave the dialog.
 		var focusHandler = function( e ) {
 			if ( ! activeModal ) { return; }
-			if ( ! box.contains( e.target ) ) {
+			if ( ! host.contains( e.target ) ) {
 				e.preventDefault();
-				applyBtn.focus();
+				focusButton( applyBtn );
 			}
 		};
-		document.addEventListener( 'focusin', focusHandler );
 
 		activeModal = {
-			backdrop:            backdrop,
+			host:                host,
 			originatingButton:   opts.originatingButton,
 			escapeHandler:       escapeHandler,
 			focusHandler:        focusHandler,
 		};
 
-		// Move focus to the Apply button (primary action).
-		applyBtn.focus();
+		// The document listeners go in with the host: armed before the dialog
+		// is on screen, Enter would apply blind.
+		if ( kit ) {
+			// The kit's own route to a tag the page may not have registered; a
+			// registered tag costs a lookup (assets/os-posts-reschedule.js).
+			window.wp.os.loadComponents( [ 'os-modal' ] ).then( function() {
+				if ( activeModal && activeModal.host === host ) {
+					document.body.appendChild( host );
+					host.setAttribute( 'open', '' );
+					document.addEventListener( 'keydown', escapeHandler );
+					document.addEventListener( 'focusin', focusHandler );
+					// The component focuses its first control (the close x) in a
+					// microtask; Apply after it, the primary action, as classic.
+					queueMicrotask( function() { focusButton( applyBtn ); } );
+				}
+			}, function() {
+				// The kit could not be fetched: disarm, or Enter would apply blind.
+				if ( activeModal && activeModal.host === host ) { dismiss(); }
+			} );
+		} else {
+			document.body.appendChild( host );
+			document.addEventListener( 'keydown', escapeHandler );
+			document.addEventListener( 'focusin', focusHandler );
+			// Move focus to the Apply button (primary action).
+			applyBtn.focus();
+		}
 	}
 
 	/**
@@ -273,15 +334,12 @@
 		document.removeEventListener( 'keydown', activeModal.escapeHandler );
 		document.removeEventListener( 'focusin', activeModal.focusHandler );
 
-		if ( activeModal.backdrop && activeModal.backdrop.parentNode ) {
-			activeModal.backdrop.parentNode.removeChild( activeModal.backdrop );
+		if ( activeModal.host && activeModal.host.parentNode ) {
+			activeModal.host.parentNode.removeChild( activeModal.host );
 		}
 
 		if ( activeModal.originatingButton ) {
-			// An <os-button> host is not focusable (no delegatesFocus); its
-			// control is the <button> in the shadow root.
-			var back = activeModal.originatingButton;
-			( ( back.shadowRoot && back.shadowRoot.querySelector( 'button' ) ) || back ).focus();
+			focusButton( activeModal.originatingButton );
 		}
 
 		activeModal = null;

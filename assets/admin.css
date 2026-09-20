@@ -1747,6 +1747,25 @@
 	border-top: 1px solid #e0e0e0;
 }
 
+/* The kit host. Inside a kit leaf the Apply preview opens in the kit's
+   <os-modal>, whose dialog is dark and which re-points the kit's surface
+   tokens on itself (--os-ui-fg, --os-ui-fg-muted, --os-ui-border,
+   --os-window-bg). The panes below are light-surface content reading the
+   plugin's own tokens, so those follow the dialog here; the two light boxes
+   take the dialog's field surface; and the grid drops its own padding, the
+   component's body already carries one. The classic box is untouched. */
+os-modal > .snt-modal-body {
+	padding: 0;
+	--sn-text: var(--os-ui-fg);
+	--sn-text-muted: var(--os-ui-fg-muted);
+	--sn-border: var(--os-ui-border);
+}
+
+os-modal .snt-modal-textarea,
+os-modal .snt-modal-snippet {
+	background: var(--os-window-bg);
+}
+
 /* Modal content — per-type (alt thumbnail, drift snippet, orphan-delete warning). */
 
 .snt-modal-thumb {
