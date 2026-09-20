@@ -159,6 +159,14 @@
 		} );
 	}
 
+	/**
+	 * A disabled window's tile leaves the rails through Dock.removeSystemItem
+	 * (Stable, OpenStation docs/api-index.md); the wp.os.refreshMenu() after
+	 * a save rebuilds both rails from the server payload, which drops every
+	 * item the plugin's openstation_dock_placement filter marks hidden. No
+	 * DOM scrape beside it: the rails key their nodes by icon id and system
+	 * id, and the tile selectors an older shell answered match nothing now.
+	 */
 	function syncDockTiles( prefs ) {
 		if ( ! window.wp || ! window.wp.os ) {
 			return;
@@ -171,10 +179,6 @@
 			if ( os.sideDock && typeof os.sideDock.removeSystemItem === 'function' ) {
 				os.sideDock.removeSystemItem( 'sn-analytics' );
 			}
-			var nativeTile = document.querySelector( '[data-tile-id="sn-analytics"], [data-id="sn-analytics"]' );
-			if ( nativeTile && nativeTile.parentNode ) {
-				nativeTile.parentNode.removeChild( nativeTile );
-			}
 		}
 		if ( ! prefs.dashboard ) {
 			if ( os.dock && typeof os.dock.removeSystemItem === 'function' ) {
@@ -182,10 +186,6 @@
 			}
 			if ( os.sideDock && typeof os.sideDock.removeSystemItem === 'function' ) {
 				os.sideDock.removeSystemItem( 'sn-dashboard' );
-			}
-			var nativeDbTile = document.querySelector( '[data-tile-id="sn-dashboard"], [data-id="sn-dashboard"]' );
-			if ( nativeDbTile && nativeDbTile.parentNode ) {
-				nativeDbTile.parentNode.removeChild( nativeDbTile );
 			}
 		}
 	}
@@ -200,14 +200,15 @@
 		section.setAttribute( 'description', __( 'Choose whether to use OpenStation native windows or classic WordPress admin windows for the S&N Home and Analytics screens. Signal & Noise is native-only.', 'signal-and-noise-tools' ) );
 		section.setAttribute( 'stack', '' );
 
-		var status = document.createElement( 'p' );
-		status.setAttribute( 'role', 'status' );
-		status.setAttribute( 'aria-live', 'polite' );
-		status.style.margin = '4px 0 0';
-		status.style.fontSize = '12px';
-		status.style.color = 'var(--os-ui-fg-muted, #b3afb5)';
+		// The kit's save indicator (os-save-status, Stable), the same pill
+		// the window title bar wears; the shell's window bundle defines it
+		// before any tab renders. `phase` is set by hand because the save is
+		// this plugin's REST call, not the shell's own settings lifecycle.
+		var status = document.createElement( 'os-save-status' );
+		status.setAttribute( 'mode', 'pill' );
+		status.setAttribute( 'saving-label', __( 'Saving…', 'signal-and-noise-tools' ) );
 		mountedStatus = status;
-		if ( saving ) { status.textContent = __( 'Saving…', 'signal-and-noise-tools' ); }
+		if ( saving ) { status.setAttribute( 'phase', 'saving' ); }
 
 		function createToggle( key, label, desc ) {
 			var item = document.createElement( 'div' );
@@ -237,8 +238,8 @@
 				preferences[ key ] = checked;
 				mountedControls.forEach( function( entry ) { entry.control.setAttribute( 'disabled', '' ); } );
 				status = mountedStatus;
-				status.textContent = __( 'Saving…', 'signal-and-noise-tools' );
-				status.style.color = 'var(--os-ui-fg-muted, #b3afb5)';
+				status.removeAttribute( 'error' );
+				status.setAttribute( 'phase', 'saving' );
 
 				var patch = {};
 				patch[ key ] = checked;
@@ -246,14 +247,17 @@
 				save( patch ).then( function( saved ) {
 					preferences = Object.assign( {}, preferences, saved );
 					status = mountedStatus;
-					status.textContent = __( 'Saved.', 'signal-and-noise-tools' );
-					status.style.color = 'var(--os-ui-success, #7bd88f)';
 					// The mascot's look is shipped in the shell's boot config
 					// (openstation_mio_config), so a change lands on the next
 					// reload; the other switches are read at the next paint.
-					if ( key === 'mio_look' ) {
-						status.textContent = __( 'Saved. MIO wears it on the next reload.', 'signal-and-noise-tools' );
-					}
+					// The pill's label is capped at 200px with an ellipsis
+					// (os-save-status.styles.ts, no CSS prop for the width):
+					// this string measures 166px under system-ui, 157px under
+					// Geist; a longer one clips on the fallback face.
+					status.setAttribute( 'saved-label', key === 'mio_look'
+						? __( 'Saved. MIO changes on reload.', 'signal-and-noise-tools' )
+						: __( 'Saved.', 'signal-and-noise-tools' ) );
+					status.setAttribute( 'phase', 'saved' );
 					// Shell refresh is secondary to persistence: its failure must not
 					// roll back a preference the server has already accepted.
 					Promise.resolve().then( function() {
@@ -276,8 +280,8 @@
 						sw.removeAttribute( 'checked' );
 					}
 					status = mountedStatus;
-					status.textContent = __( 'Could not save preference.', 'signal-and-noise-tools' );
-					status.style.color = 'var(--os-ui-danger, #ff5a5a)';
+					status.setAttribute( 'error', __( 'Could not save preference.', 'signal-and-noise-tools' ) );
+					status.setAttribute( 'phase', 'failed' );
 				} ).finally( function() {
 					saving = false;
 					mountedControls.forEach( function( entry ) {
@@ -289,8 +293,8 @@
 						// native input property. Recreate it from the restored state.
 						var restoreFocus = mountedControls.some( function( entry ) { return document.activeElement === entry.control; } );
 						render( mountedBody );
-						mountedStatus.textContent = __( 'Could not save preference.', 'signal-and-noise-tools' );
-						mountedStatus.style.color = 'var(--os-ui-danger, #ff5a5a)';
+						mountedStatus.setAttribute( 'error', __( 'Could not save preference.', 'signal-and-noise-tools' ) );
+						mountedStatus.setAttribute( 'phase', 'failed' );
 						if ( restoreFocus ) {
 							window.requestAnimationFrame( function() {
 								var entry = mountedControls.find( function( item ) { return item.key === key; } );
@@ -339,13 +343,6 @@
 	}
 
 	function init() {
-		// 1.1.7 reserves a blank glyph for third-party tabs; style only ours.
-		if ( ! document.getElementById( 'snt-preferences-icon' ) ) {
-			var iconStyle = document.createElement( 'style' );
-			iconStyle.id = 'snt-preferences-icon';
-			iconStyle.textContent = '.os-settings os-tab[value="signal-noise"] > .os-settings__nav-glyph-blank { background: currentColor; mask: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Cpath d=%27M3 12h4l3-8 4 16 3-8h4%27 fill=%27none%27 stroke=%27black%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center / contain no-repeat; }';
-			document.head.appendChild( iconStyle );
-		}
 		wireUrlRemaps();
 		syncDockTiles( preferences );
 		document.addEventListener( 'os-registry-changed', function() {
@@ -358,7 +355,8 @@
 				capability: 'manage_options',
 				order: 32,
 				// OS icon-set name; read by OpenStation from 1.1.9
-				// (WordPress/openstation#808), ignored before.
+				// (WordPress/openstation#808). The sidebar glyph is this
+				// and nothing else: no style masks the shell's blank spacer.
 				icon: 'bell',
 				owner: 'snt-os-settings-tab',
 				render: render
