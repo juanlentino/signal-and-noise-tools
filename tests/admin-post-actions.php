@@ -766,5 +766,33 @@ pa_eq( 'PANACEA STUDIO', sn_resume_doc_get()['experience'][0]['org'] ?? '', 'ref
 pa_eq( 3, count( $GLOBALS['__purged_url_sets'] ), 'refused save → NO extra purge (count still at the string-keyed save\'s 3)' );
 pa_eq( 'resume_refused', sn_handle_resume_save( array() ), 'missing resume[] entirely → resume_refused, no fatal' );
 
+// ─── Gap #4 (native Connections › Cron): the two toggles read a native OFF ───
+// An unchecked os-checkbox-label arrives as boolean false and expands to ''
+// (snt_os_host_expand); isset('') is true, so the isset() read could switch
+// either toggle ON but never OFF. The digest twin (v7.2.0) already read
+// ! empty(); these two now do too. The secondary verbs are pinned alongside:
+// each returns its own flash and writes no toggle.
+echo "\nTest: morning_brief_save / scheduled_reads_save read a native unchecked box as OFF\n";
+require_once __DIR__ . '/../inc/openstation-host-pipelines.php';
+$GLOBALS['__brief_sends'] = 0; $GLOBALS['__reads_runs'] = 0; $GLOBALS['__drift_acks'] = 0;
+function snt_morning_brief_send( $test = false ) { $GLOBALS['__brief_sends']++; return true; }
+function snt_scheduled_reads_run() { $GLOBALS['__reads_runs']++; return array( 'ran_at' => 1 ); }
+function snt_config_drift_acknowledge() { $GLOBALS['__drift_acks']++; }
+pa_reset_store();
+pa_eq( 'morning_brief_saved', sn_handle_morning_brief_save( snt_os_host_expand( array( 'snt_morning_brief_enabled' => true ) ) ), 'native checked brief box → morning_brief_saved' );
+pa_eq( true, sn_setting( 'operations.morning_brief_enabled' ), 'native checked brief box turns the toggle ON' );
+pa_eq( 'morning_brief_saved', sn_handle_morning_brief_save( snt_os_host_expand( array( 'snt_morning_brief_enabled' => false ) ) ), 'native unchecked brief box → morning_brief_saved' );
+pa_eq( false, sn_setting( 'operations.morning_brief_enabled' ), 'native unchecked brief box (\'\' after expand) turns the toggle OFF' );
+pa_eq( 'scheduled_reads_saved', sn_handle_scheduled_reads_save( snt_os_host_expand( array( 'snt_scheduled_reads_enabled' => true ) ) ), 'native checked reads box → scheduled_reads_saved' );
+pa_eq( true, sn_setting( 'operations.scheduled_reads_enabled' ), 'native checked reads box turns the toggle ON' );
+pa_eq( 'scheduled_reads_saved', sn_handle_scheduled_reads_save( snt_os_host_expand( array( 'snt_scheduled_reads_enabled' => false ) ) ), 'native unchecked reads box → scheduled_reads_saved' );
+pa_eq( false, sn_setting( 'operations.scheduled_reads_enabled' ), 'native unchecked reads box (\'\' after expand) turns the toggle OFF' );
+$before = $GLOBALS['__options'];
+pa_eq( 'morning_brief_test_sent', sn_handle_morning_brief_save( snt_os_host_expand( array( 'snt_morning_brief_test' => '1' ) ) ), 'Send test brief → morning_brief_test_sent' );
+pa_eq( 'config_drift_acknowledged', sn_handle_morning_brief_save( snt_os_host_expand( array( 'snt_config_drift_acknowledge' => '1' ) ) ), 'Acknowledge current settings → config_drift_acknowledged' );
+pa_eq( 'scheduled_reads_ran', sn_handle_scheduled_reads_save( snt_os_host_expand( array( 'snt_scheduled_reads_now' => '1' ) ) ), 'Run now → scheduled_reads_ran' );
+pa_eq( array( 1, 1, 1 ), array( $GLOBALS['__brief_sends'], $GLOBALS['__drift_acks'], $GLOBALS['__reads_runs'] ), 'each secondary verb ran its own routine once' );
+pa_eq( $before, $GLOBALS['__options'], 'the secondary verbs write no toggle' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

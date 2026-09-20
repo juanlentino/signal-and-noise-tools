@@ -52,7 +52,8 @@ function sn_handle_morning_brief_save( $post ) {
 		snt_config_drift_acknowledge();
 		return 'config_drift_acknowledged';
 	}
-	sn_setting_update( 'operations.morning_brief_enabled', isset( $post['snt_morning_brief_enabled'] ) );
+	// ! empty(), not isset(): a native unchecked box arrives as '' (see the digest twin above).
+	sn_setting_update( 'operations.morning_brief_enabled', ! empty( $post['snt_morning_brief_enabled'] ) );
 	if ( function_exists( 'snt_morning_brief_maybe_schedule_cron' ) ) {
 		snt_morning_brief_maybe_schedule_cron();
 	}
@@ -64,7 +65,8 @@ function sn_handle_scheduled_reads_save( $post ) {
 	if ( isset( $post['snt_scheduled_reads_now'] ) ) {
 		return null !== snt_scheduled_reads_run() ? 'scheduled_reads_ran' : 'scheduled_reads_run_failed';
 	}
-	sn_setting_update( 'operations.scheduled_reads_enabled', isset( $post['snt_scheduled_reads_enabled'] ) );
+	// ! empty(), not isset(): a native unchecked box arrives as '' (see the digest twin above).
+	sn_setting_update( 'operations.scheduled_reads_enabled', ! empty( $post['snt_scheduled_reads_enabled'] ) );
 	if ( function_exists( 'snt_scheduled_reads_maybe_schedule_cron' ) ) {
 		snt_scheduled_reads_maybe_schedule_cron();
 	}

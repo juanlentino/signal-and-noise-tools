@@ -2,10 +2,15 @@
 /**
  * Suite: apps/sn-dashboard/parts/leaves/connections-cron.php
  *
- * The classic leaf (inc/cron-dashboard-admin.php) has no forms and no
- * sn_action at all, so the faithfulness oracle here is: same hook names,
- * same glance counts, same per-row Run-now/Unschedule facts, same empty
- * state, zero classic markup, and a hostile hook name escaped.
+ * The classic tab is the whole `sn_admin_cron_tab` hook, captured through
+ * the real wrapper sn_admin_render_cron_section() (inc/admin-render-sections.php)
+ * the way tests/os-leaf-connections-cloudways.php captures: the events table
+ * (priority 10, no form), the morning brief settings (priority 20, one form,
+ * morning_brief_save) and the scheduled read-only runs (priority 30, one form,
+ * scheduled_reads_save). The oracle: same field names, same sn_action values,
+ * same glance counts, same per-row Run-now/Unschedule facts, same readouts,
+ * same empty state, zero classic markup, a hostile hook name escaped, and the
+ * toggles' OFF state surviving the handler.
  *
  * @package SignalNoiseTools
  */
@@ -46,9 +51,48 @@ if ( ! function_exists( 'snt_cron_next_run_label' ) ) {
 	}
 }
 
+// ── The two settings callbacks' readers and writers: fixture-driven.
+$GLOBALS['__settings'] = array();
+$GLOBALS['__written']  = array();
+$GLOBALS['__cron']     = array();
+$GLOBALS['__drift']    = array( 'has_drift' => false, 'count' => 0 );
+function sn_setting( $key, $default = null ) { return array_key_exists( $key, $GLOBALS['__settings'] ) ? $GLOBALS['__settings'][ $key ] : $default; }
+function sn_setting_update( $key, $value ) { $GLOBALS['__settings'][ $key ] = $value; $GLOBALS['__written'][ $key ] = $value; return true; }
+function snt_config_drift_status() { return $GLOBALS['__drift']; }
+function wp_next_scheduled( $hook ) { return $GLOBALS['__cron'][ $hook ] ?? false; }
+function wp_schedule_event( $ts, $recurrence, $hook ) { $GLOBALS['__cron'][ $hook ] = $ts; return true; }
+function wp_unschedule_event( $ts, $hook ) { unset( $GLOBALS['__cron'][ $hook ] ); return true; }
+function wp_timezone() { return new DateTimeZone( 'UTC' ); }
+function current_datetime() { return new DateTimeImmutable( 'now', new DateTimeZone( 'UTC' ) ); }
+if ( ! defined( 'SN_MCP_DOOR_READ' ) ) { define( 'SN_MCP_DOOR_READ', 'read' ); }
+
 require_once SNT_PATH . 'inc/admin-glance.php';
+require_once SNT_PATH . 'inc/admin-render-sections.php';
 require_once SNT_PATH . 'inc/cron-dashboard-admin.php';
+require_once SNT_PATH . 'inc/morning-brief.php';
+require_once SNT_PATH . 'inc/scheduled-reads.php';
+require_once SNT_PATH . 'inc/admin-post-actions/reports.php';
+require_once SNT_PATH . 'inc/openstation-host-pipelines.php'; // snt_os_host_expand(), the round-trip pin.
 require_once SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-cron.php';
+
+/**
+ * Mirror of os-form.ts's `_readField()` (copied from
+ * tests/os-leaf-security-login-defense.php): a checkbox-shaped tag reads its
+ * boolean off `checked`; anything else falls through to its static `value`.
+ */
+function os_form_read_field( $html, $name ) {
+	if ( ! preg_match( '/<([a-z-]+)([^>]*\bname="' . preg_quote( $name, '/' ) . '"[^>]*)>/i', $html, $m ) ) {
+		return null;
+	}
+	$tag   = strtoupper( $m[1] );
+	$attrs = $m[2];
+	$is_checkbox_shaped = in_array( $tag, array( 'OS-CHECKBOX', 'OS-CHECKBOX-LABEL' ), true )
+		|| ( 'INPUT' === $tag && false !== strpos( $attrs, 'type="checkbox"' ) );
+	if ( $is_checkbox_shaped ) {
+		return (bool) preg_match( '/(^|\s)checked(\s|=|$|>)/', $attrs );
+	}
+	return preg_match( '/\bvalue="([^"]*)"/', $attrs, $vm ) ? $vm[1] : null;
+}
 
 $pass = 0;
 $fail = 0;
@@ -111,10 +155,14 @@ $kit = snt_leaf_paint( 'connections', 'cron', array() );
 ok( '' !== $kit, 'painter registered under connections/cron produced output' );
 ok( 1 === substr_count( $kit, 'os-action="refresh"' ) && false !== strpos( $kit, '>Refresh</os-button>' ), 'live cron snapshot has one local read-only Refresh even when mobile hides the titlebar' );
 
-// Classic HTML for the same fixture.
-$classic = snt_leaf_classic_html( 'snt_cron_render_admin_tab' );
+// Classic HTML for the same fixture: the WHOLE hook through the real wrapper,
+// not the priority-10 table alone (which has no form, so [] === [] greened
+// the two comparisons below while two forms went unpainted).
+$classic = snt_leaf_classic_html( 'sn_admin_render_cron_section' );
+ok( array( 'morning_brief_save', 'scheduled_reads_save' ) === snt_leaf_actions( $classic ), 'fixture sanity: the classic hook carries both sn_action values' );
+ok( 2 === substr_count( $classic, '<form' ), 'fixture sanity: the classic hook paints two forms' );
 
-// 2) Same field names (both empty — neither leaf has a form).
+// 2) Same field names.
 $classic_names = snt_leaf_names( $classic );
 $kit_names     = snt_leaf_names( $kit );
 ok(
@@ -122,7 +170,7 @@ ok(
 	'snt_leaf_names match: classic=' . json_encode( $classic_names ) . ' kit=' . json_encode( $kit_names )
 );
 
-// 3) Same sn_action values (both empty — the classic leaf has none).
+// 3) Same sn_action values.
 $classic_actions = snt_leaf_actions( $classic );
 $kit_actions     = snt_leaf_actions( $kit );
 ok(
@@ -205,8 +253,11 @@ ok( array() === snt_leaf_classic_markers( $hostile ), 'hostile fixture carries n
 // 11) The empty state, both leaves.
 $GLOBALS['__cron_rows'] = array();
 $kit_empty     = snt_leaf_paint( 'connections', 'cron', array() );
-$classic_empty = snt_leaf_classic_html( 'snt_cron_render_admin_tab' );
+$classic_empty = snt_leaf_classic_html( 'sn_admin_render_cron_section' );
 ok( false !== strpos( $kit_empty, 'No scheduled events.' ), 'kit empty state: heading' );
+// do_action paints all three callbacks whether or not cron has rows, so the
+// settings row must be on the empty branch too.
+ok( snt_leaf_actions( $classic_empty ) === snt_leaf_actions( $kit_empty ) && 2 === count( snt_leaf_actions( $kit_empty ) ), 'empty cron: the settings row still paints both sn_action values' );
 ok( 1 === substr_count( $kit_empty, 'os-action="refresh"' ), 'empty cron snapshot can be refreshed after events are restored' );
 ok( false !== strpos( $classic_empty, 'No scheduled events.' ), 'classic empty state: heading (sanity check on the fixture)' );
 ok( false !== strpos( $kit_empty, 'wp_version_check' ), 'kit empty state: names the core hooks WP schedules at install' );
@@ -238,6 +289,61 @@ ok( false === strpos( $short_cell, '…' ), '...with no ellipsis' );
 // The clamp must reach the painted table, not just the helper.
 $kit_rows = \SignalNoise\OpenStationHost\Dashboard\Leaves\cron_row_data( array( 'hook' => 'snt_rollup', 'args' => $long_payload, 'next_run_ts' => time(), 'last_fired_ts' => time() ) );
 ok( mb_strlen( $kit_rows['args'] ) < 120, 'the row builder uses the clamp, not raw wp_json_encode' );
+
+// ── The settings row: one paired row under the ledger, readouts, round trip. ──
+$GLOBALS['__cron_rows'] = $rich_rows;
+
+// 12) Layout: exactly one .snt-cols with two .snt-col children, the ledger
+// outside it at full width (17.2.1: boxes share a row).
+$kit = snt_leaf_paint( 'connections', 'cron', array() );
+ok( 1 === substr_count( $kit, 'class="snt-cols"' ), 'exactly one snt-cols row' );
+ok( 2 === substr_count( $kit, 'class="snt-col"' ), 'the row holds exactly two snt-col boxes' );
+$cols_at  = strpos( $kit, 'class="snt-cols"' );
+$table_at = strpos( $kit, '<os-table' );
+ok( false !== $table_at && $table_at < $cols_at, 'the events table sits above the row, not inside it' );
+ok( false !== strpos( $kit, 'heading="Morning operations brief"' ) && false !== strpos( $kit, 'heading="Scheduled read-only runs"' ), 'both settings boxes carry their classic headings' );
+
+// 13) Readouts absent when their state is absent.
+ok( false === strpos( $kit, 'Last sent' ) && false === strpos( $kit, 'Last send failed' ) && false === strpos( $kit, 'settings differ' ) && false === strpos( $kit, 'Last run' ), 'no last-sent, last-error, drift or last-run readout without state' );
+ok( false === strpos( $kit, 'Acknowledge current settings' ) && false === strpos( $kit, 'name="snt_config_drift_acknowledge"' ), 'no Acknowledge form without drift' );
+ok( 6 === count( snt_leaf_names( $kit ) ), 'six field names without drift: ' . json_encode( snt_leaf_names( $kit ) ) );
+
+// 14) Readouts present with state, and drift ON adds the seventh name on BOTH sides.
+$GLOBALS['__options'][ SNT_MORNING_BRIEF_LAST_SENT ]  = time() - 3600;
+$GLOBALS['__options'][ SNT_MORNING_BRIEF_LAST_ERROR ] = array( 'message' => 'smtp <b>down</b>' );
+$GLOBALS['__options'][ SNT_SCHEDULED_READS_HISTORY ]  = array( array( 'ran_at' => time() - 3600, 'door' => 'read', 'tools' => array( 'a' => array( 'error' => true ), 'b' => array( 'error' => false ) ) ) );
+$GLOBALS['__drift'] = array( 'has_drift' => true, 'count' => 2 );
+$kit     = snt_leaf_paint( 'connections', 'cron', array() );
+$classic = snt_leaf_classic_html( 'sn_admin_render_cron_section' );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 7 === count( snt_leaf_names( $kit ) ), 'drift ON: seven names on both sides: ' . json_encode( snt_leaf_names( $kit ) ) );
+ok( false !== strpos( $kit, 'Last sent 1 hour ago.' ), 'last-sent hint' );
+ok( false !== strpos( $kit, 'Last send failed' ) && false !== strpos( $kit, 'smtp &lt;b&gt;down&lt;/b&gt;' ) && false === strpos( $kit, '<b>down</b>' ), 'last-error notice, message escaped' );
+ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, '2 settings differ' ), 'drift is a warn notice naming the count' );
+ok( strpos( $kit, 'settings differ' ) < strpos( $kit, 'name="snt_morning_brief_enabled"' ), 'the drift notice sits on top of the brief box' );
+ok( false !== strpos( $kit, 'Acknowledge current settings' ) && false !== strpos( $kit, 'name="snt_config_drift_acknowledge"' ), 'drift ON paints the Acknowledge form with its differentiator' );
+ok( false !== strpos( $kit, 'Last run 1 hour ago: 1 of 2 reads failed.' ), 'last-run hint tallies the errors' );
+ok( false !== strpos( $kit, 'Send test brief' ) && false !== strpos( $kit, 'name="snt_morning_brief_test"' ), 'Send test brief form carries its differentiator' );
+ok( false !== strpos( $kit, 'Run now</' ) || false !== strpos( $kit, 'submit-label="Run now"' ), 'Run now form paints' );
+ok( false !== strpos( $kit, 'name="snt_scheduled_reads_now"' ), 'Run now form carries its differentiator' );
+ok( array() === snt_leaf_classic_markers( $kit ), 'the settings row carries no classic markers: ' . json_encode( snt_leaf_classic_markers( $kit ) ) );
+
+// 15) Round trip: painted OFF reads false and expands empty; ON reads true and expands non-empty.
+foreach ( array( 'snt_morning_brief_enabled' => 'operations.morning_brief_enabled', 'snt_scheduled_reads_enabled' => 'operations.scheduled_reads_enabled' ) as $field => $setting ) {
+	$GLOBALS['__settings'][ $setting ] = false;
+	$off = os_form_read_field( snt_leaf_paint( 'connections', 'cron', array() ), $field );
+	ok( false === $off && empty( \snt_os_host_expand( array( $field => $off ) )[ $field ] ), "$field painted OFF reads false and expands empty" );
+	$GLOBALS['__settings'][ $setting ] = true;
+	$on = os_form_read_field( snt_leaf_paint( 'connections', 'cron', array() ), $field );
+	ok( true === $on && ! empty( \snt_os_host_expand( array( $field => $on ) )[ $field ] ), "$field painted ON reads true and expands non-empty" );
+}
+
+// 16) The handler reads the native OFF (an unchecked os-checkbox-label arrives
+// as false, expands to '') as OFF: isset('') is true, ! empty('') is not.
+$GLOBALS['__written'] = array();
+ok( 'morning_brief_saved' === sn_handle_morning_brief_save( \snt_os_host_expand( array( 'sn_action' => 'morning_brief_save', 'snt_morning_brief_enabled' => false ) ) ) && false === ( $GLOBALS['__written']['operations.morning_brief_enabled'] ?? null ), 'native unchecked brief toggle saves OFF' );
+ok( 'morning_brief_saved' === sn_handle_morning_brief_save( \snt_os_host_expand( array( 'sn_action' => 'morning_brief_save', 'snt_morning_brief_enabled' => true ) ) ) && true === ( $GLOBALS['__written']['operations.morning_brief_enabled'] ?? null ), 'native checked brief toggle saves ON' );
+ok( 'scheduled_reads_saved' === sn_handle_scheduled_reads_save( \snt_os_host_expand( array( 'sn_action' => 'scheduled_reads_save', 'snt_scheduled_reads_enabled' => false ) ) ) && false === ( $GLOBALS['__written']['operations.scheduled_reads_enabled'] ?? null ), 'native unchecked reads toggle saves OFF' );
+ok( 'scheduled_reads_saved' === sn_handle_scheduled_reads_save( \snt_os_host_expand( array( 'sn_action' => 'scheduled_reads_save', 'snt_scheduled_reads_enabled' => true ) ) ) && true === ( $GLOBALS['__written']['operations.scheduled_reads_enabled'] ?? null ), 'native checked reads toggle saves ON' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
