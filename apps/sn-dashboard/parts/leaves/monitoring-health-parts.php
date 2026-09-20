@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once __DIR__ . '/monitoring-health-rows.php';
+
 /**
  * The hero stat row — same three (or one) cards `snt_health_glance_cards()`
  * builds for the classic tab.
@@ -56,59 +58,20 @@ function health_scan_form_html( $has_scan ) {
 }
 
 /**
- * One check's finding/advisory table: subject, note, edit — capped at 50 rows
- * with the same "+N more" hint the classic table carries.
+ * One check's card: label, count badge, the Suggest-all button when the AI
+ * column shows (the classic gate: a provider, and a check with a Suggest
+ * path), optional fix hint, the rows (an advisory's rows sit behind a
+ * disclosure, matching the classic `<details>`).
  *
- * @param array $check       Check envelope.
- * @param bool  $is_advisory Advisory tier (only changes the "+N more" noun).
+ * @param string $key          Check key.
+ * @param array  $check        Check envelope.
+ * @param bool   $is_advisory  Advisory tier.
+ * @param bool   $ai_available Whether an AI provider is configured.
  * @return string
  */
-function health_finding_table_html( array $check, $is_advisory ) {
-	$findings = isset( $check['findings'] ) && is_array( $check['findings'] ) ? $check['findings'] : array();
-	$visible  = array_slice( $findings, 0, 50 );
-	$hidden   = count( $findings ) - count( $visible );
-
-	$rows = array();
-	foreach ( $visible as $f ) {
-		$rows[] = array(
-			'subject' => (string) ( $f['subject_label'] ?? '' ),
-			'note'    => (string) ( $f['note'] ?? '' ),
-			'edit'    => (string) ( $f['edit_url'] ?? '' ),
-		);
-	}
-	$table = \snt_kit_table(
-		array(
-			array( 'key' => 'subject', 'label' => __( 'Subject', 'signal-and-noise-tools' ) ),
-			array( 'key' => 'note', 'label' => __( 'Note', 'signal-and-noise-tools' ) ),
-			array( 'key' => 'edit', 'label' => __( 'Edit', 'signal-and-noise-tools' ) ),
-		),
-		$rows,
-		array( 'empty' => __( 'No rows.', 'signal-and-noise-tools' ) )
-	);
-	if ( $hidden > 0 ) {
-		$table .= '<p class="snt-hint">' . \snt_kit_esc(
-			sprintf(
-				/* translators: 1: hidden row count, 2: "findings" or "advisories" */
-				__( '+%1$d more %2$s: re-run scan after fixing the top batch.', 'signal-and-noise-tools' ),
-				$hidden,
-				$is_advisory ? __( 'advisories', 'signal-and-noise-tools' ) : __( 'findings', 'signal-and-noise-tools' )
-			)
-		) . '</p>';
-	}
-	return $table;
-}
-
-/**
- * One check's card: label, count badge, optional fix hint, the table (an
- * advisory's table sits behind a disclosure, matching the classic `<details>`).
- *
- * @param string $key         Check key.
- * @param array  $check       Check envelope.
- * @param bool   $is_advisory Advisory tier.
- * @return string
- */
-function health_finding_card_html( $key, array $check, $is_advisory ) {
-	$count = (int) ( $check['count'] ?? 0 );
+function health_finding_card_html( $key, array $check, $is_advisory, $ai_available ) {
+	$count   = (int) ( $check['count'] ?? 0 );
+	$show_ai = $ai_available && function_exists( 'sn_health_suggest_supported_checks' ) && in_array( $key, sn_health_suggest_supported_checks(), true );
 	$label = (string) ( $check['label'] ?? $key );
 	$badge = $is_advisory
 		/* translators: %d: advisory count */
@@ -116,19 +79,19 @@ function health_finding_card_html( $key, array $check, $is_advisory ) {
 		/* translators: %d: finding count */
 		: \snt_kit_badge( 'warn', sprintf( _n( '%d finding', '%d findings', $count, 'signal-and-noise-tools' ), $count ) );
 
-	$out = '<div class="snt-check"><h3 class="snt-check__h">' . \snt_kit_esc( $label ) . ' ' . $badge . '</h3>';
+	$out = '<div class="snt-check"><h3 class="snt-check__h">' . \snt_kit_esc( $label ) . ' ' . $badge . ( $show_ai ? ' ' . health_suggest_all_html( $count ) : '' ) . '</h3>';
 	if ( ! empty( $check['fix_hint'] ) ) {
 		$out .= '<p class="snt-hint">' . \snt_kit_esc( (string) $check['fix_hint'] ) . '</p>';
 	}
-	$table = health_finding_table_html( $check, $is_advisory );
-	$out  .= $is_advisory
+	$rows = health_finding_rows_html( $key, $check, $is_advisory, $show_ai );
+	$out .= $is_advisory
 		? \snt_kit_tag(
 			'os-disclosure',
 			/* translators: %d: advisory count */
 			array( 'heading' => sprintf( _n( 'Show %d advisory', 'Show %d advisories', $count, 'signal-and-noise-tools' ), $count ) ),
-			$table
+			$rows
 		)
-		: $table;
+		: $rows;
 	$out .= '</div>';
 	return $out;
 }
@@ -137,11 +100,12 @@ function health_finding_card_html( $key, array $check, $is_advisory ) {
  * The Findings section: faults grouped by family, advisories folded under
  * their own subhead — same shape as `sn_health_render_findings_section()`.
  *
- * @param array<string,array> $faults     Non-advisory checks with findings.
- * @param array<string,array> $advisories Advisory-tier checks with findings.
+ * @param array<string,array> $faults       Non-advisory checks with findings.
+ * @param array<string,array> $advisories   Advisory-tier checks with findings.
+ * @param bool                $ai_available Whether an AI provider is configured.
  * @return string
  */
-function health_findings_html( array $faults, array $advisories ) {
+function health_findings_html( array $faults, array $advisories, $ai_available ) {
 	if ( empty( $faults ) && empty( $advisories ) ) {
 		return '';
 	}
@@ -155,14 +119,14 @@ function health_findings_html( array $faults, array $advisories ) {
 		}
 		$inner .= '<h3 class="snt-subhead">' . \snt_kit_esc( (string) $family['label'] ) . '</h3>';
 		foreach ( $family['checks'] as $key => $check ) {
-			$inner .= health_finding_card_html( $key, $check, false );
+			$inner .= health_finding_card_html( $key, $check, false, $ai_available );
 		}
 	}
 	if ( ! empty( $advisories ) ) {
 		$inner .= '<h3 class="snt-subhead">' . \snt_kit_esc( __( 'Advisories', 'signal-and-noise-tools' ) ) . '</h3>';
 		$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Surfaced, never alarming: these do not count toward the findings total above, and a clean site can carry them indefinitely.', 'signal-and-noise-tools' ) ) . '</p>';
 		foreach ( $advisories as $key => $check ) {
-			$inner .= health_finding_card_html( $key, $check, true );
+			$inner .= health_finding_card_html( $key, $check, true, $ai_available );
 		}
 	}
 	return \snt_kit_section( __( 'Findings', 'signal-and-noise-tools' ), $inner );

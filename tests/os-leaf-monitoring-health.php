@@ -18,6 +18,23 @@ function sn_health_last_scan() {
 	return $GLOBALS['__health_scan'];
 }
 
+// ── The AI gate both leaves read, fixture-controlled. ──
+$GLOBALS['__ai'] = false;
+function snt_ai_is_available() {
+	return $GLOBALS['__ai'];
+}
+
+// The Suggest / Suggest-all data attributes a blob carries, sorted: the same
+// oracle the pattern-adoption suite uses to pin the kit row to the classic cell.
+function snt_health_suggest_attrs( $html ) {
+	preg_match_all( '/\s(data-(?:snt-suggest|snt-suggest-all|snt-suggest-all-max|check|attachment-id|post-id|image-src))="([^"]*)"/', (string) $html, $m );
+	$pairs = array();
+	foreach ( $m[1] as $i => $name ) { $pairs[] = $name . '=' . $m[2][ $i ]; }
+	$pairs = array_values( array_unique( $pairs ) );
+	sort( $pairs );
+	return $pairs;
+}
+
 // ── Pure accessor + family/surface modules (no WordPress DB calls). ──
 require SNT_PATH . 'inc/health-check-families.php';
 require SNT_PATH . 'inc/health-check-surfaces.php';
@@ -86,6 +103,14 @@ $GLOBALS['__health_scan'] = array(
 				array( 'subject_label' => 'Malicious <b>title</b>', 'note' => '"><script>x</script>', 'edit_url' => '' ),
 			),
 		),
+		'missing_alt'      => array(
+			'label'    => 'Missing alt',
+			'count'    => 2,
+			'findings' => array(
+				array( 'subject_type' => 'attachment', 'subject_id' => 77, 'subject_label' => 'hero.jpg', 'note' => 'no alt', 'edit_url' => 'https://example.test/wp-admin/post.php?post=77&action=edit' ),
+				array( 'subject_type' => 'inline_svg', 'subject_id' => 78, 'subject_label' => 'logo.svg', 'note' => 'no title', 'edit_url' => '' ),
+			),
+		),
 		'test_gamma_check' => array(
 			'label' => 'Gamma check',
 			'count' => 0,
@@ -115,7 +140,7 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( '_wpnonce', 
 ok( array( 'health_scan' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'rich scan: still the one health_scan action' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'rich scan: no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, 'Re-run scan' ), 'rich scan: the button relabels to "Re-run scan"' );
-ok( false !== strpos( $kit, '53 findings' ), 'rich scan: the hero total is 53 findings (52 + 1, worklist-surfaced link_opportunities excluded)' );
+ok( false !== strpos( $kit, '55 findings' ), 'rich scan: the hero total is 55 findings (52 + 1 + 2, worklist-surfaced link_opportunities excluded)' );
 ok( false !== strpos( $kit, '812ms' ), 'rich scan: the last-scan elapsed time is formatted (812ms)' );
 ok( false !== strpos( $kit, 'Alpha check' ) && false !== strpos( $kit, '52 findings' ), 'rich scan: the Alpha check card shows its label and its 52-finding count' );
 ok( false !== strpos( $kit, '+2 more findings' ), 'rich scan: the 52-row table caps at 50 and names the remainder' );
@@ -126,6 +151,31 @@ ok( false === strpos( $kit, 'Findings') || ( false === strpos( $kit, 'Link oppor
 
 // ── Escaping: a hostile subject/note never reaches the markup raw.
 ok( false === strpos( $kit, '<script>' ) && false === strpos( $kit, '<b>title</b>' ), 'rich scan: a hostile finding subject/note is escaped' );
+
+// ── The rows: the Block Migrations shape (os-row + os-cluster), Edit as a
+// link, never the raw URL as text; no AI column without a provider.
+ok( 3 === substr_count( $kit, '<span col="5" class="snt-col__h" role="columnheader">Subject</span>' ) && 3 === substr_count( $kit, '<span col="2" class="snt-col__h" role="columnheader">Edit</span>' ) && false === strpos( $kit, 'AI fix' ), 'no provider: three column headers per card (Subject, Note, Edit), no AI fix column' );
+ok( false !== strpos( $kit, '<os-row gap="12"><div col="5"><os-code>Post 0</os-code></div><div col="5">missing width</div><div col="2"><os-button class="snt-link" variant="link" os-action="door" os-arg-url="https://example.test/wp-admin/post.php?post=0&amp;action=edit">Edit</os-button></div></os-row>' ), 'no provider: a finding is an os-row of subject, note and an Edit door (the URL is a link, not text)' );
+ok( false === strpos( $kit, 'data-snt-suggest' ) && false !== strpos( $classic, 'Missing alt' ) && false === strpos( $classic, 'data-snt-suggest' ), 'no provider: no Suggest button on either leaf' );
+
+// ── With a provider: the AI fix column paints on the supported check only,
+// with the classic cell's exact data contract on a kit button in the cluster.
+$GLOBALS['__ai'] = true;
+$classic = snt_leaf_classic_html( 'sn_health_render_admin_tab' );
+$kit     = snt_leaf_paint( 'monitoring', 'health' );
+$GLOBALS['__ai'] = false;
+ok( array() === snt_leaf_classic_markers( $kit ), 'provider: no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
+ok( 1 === substr_count( $kit, '<span col="4" class="snt-col__h" role="columnheader">AI fix</span>' ) && 2 === substr_count( $kit, '<span col="5" class="snt-col__h" role="columnheader">Subject</span>' ) && 1 === substr_count( $classic, '>AI fix<' ), 'provider: the AI fix column paints on the one supported check (missing_alt), as on the classic leaf' );
+ok( false !== strpos( $kit, '<os-cluster col="4" gap="6"><os-button variant="secondary" data-snt-suggest="1" data-check="missing_alt" data-attachment-id="77">Suggest</os-button></os-cluster></os-row>' ), 'provider: the attachment finding paints Suggest in an os-cluster inside its os-row, with the classic data contract' );
+ok( 1 === preg_match( '/<div col="4"><os-code>logo\.svg<\/os-code><\/div>.*?<os-cluster col="4" gap="6"><\/os-cluster><\/os-row>/s', $kit ) && 1 === substr_count( $kit, 'data-snt-suggest="1"' ), 'provider: the inline_svg finding paints an empty cluster, the classic no-button path' );
+ok( snt_health_suggest_attrs( $classic ) === snt_health_suggest_attrs( $kit ) && 0 < count( snt_health_suggest_attrs( $kit ) ), 'provider: the Suggest / Suggest-all data attributes match the classic leaf exactly: ' . implode( ' ', snt_health_suggest_attrs( $kit ) ) );
+ok( 1 === preg_match( '/<h3 class="snt-check__h">Missing alt <os-badge[^>]*>2 findings<\/os-badge> <os-button variant="secondary" data-snt-suggest-all="1" data-snt-suggest-all-max="50">Suggest all 2<\/os-button><\/h3>/', $kit ), 'provider: the card heading carries Suggest all 2 with the batch cap the shared script reads' );
+
+// ── A javascript: edit_url is blanked, not painted as a door, the way the
+// classic cell's esc_url() blanks it (the Block Migrations permalink rule).
+$GLOBALS['__health_scan']['checks']['test_beta_check']['findings'][0]['edit_url'] = 'javascript:alert(1)';
+$kit = snt_leaf_paint( 'monitoring', 'health' );
+ok( false === strpos( $kit, 'javascript:' ), 'a javascript: edit_url is blanked, not linked, matching esc_url()' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
