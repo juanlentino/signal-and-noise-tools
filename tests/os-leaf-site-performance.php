@@ -5,7 +5,9 @@
  * The oracle is the classic leaf: the kit form must carry the same field
  * name and the same sn_action in both the on and the off state, every rail
  * readout (status box, pill, profile reference) must survive, and none of
- * wp-admin's markup may.
+ * wp-admin's markup may. Second oracle: the Site Health panel
+ * (sn_httpdiag_debug_information) for the slow admin requests ledger the
+ * leaf paints at full width under the row.
  *
  * Run: php tests/os-leaf-site-performance.php
  */
@@ -14,6 +16,10 @@ require_once __DIR__ . '/lib/os-leaf-harness.php';
 // The leaf's one reader: the setting by dot-path, default when unset.
 $GLOBALS['__settings'] = array();
 function sn_setting( $path, $default = null ) { return array_key_exists( $path, $GLOBALS['__settings'] ) ? $GLOBALS['__settings'][ $path ] : $default; }
+
+// The ledger's module: its load-time hook wiring asks is_admin(), which the harness lacks.
+function is_admin() { return false; }
+require SNT_PATH . 'inc/http-diagnostics.php';
 
 require SNT_PATH . 'inc/admin-shell.php';
 require SNT_PATH . 'inc/admin-forms/performance.php';
@@ -62,6 +68,64 @@ $GLOBALS['__settings'] = array( 'perf.speculative_loading' => '"><script>x</scri
 $kit = snt_leaf_paint( 'site', 'performance' );
 ok( false === strpos( $kit, '<script>' ) && false === strpos( $kit, 'script&gt;' ) && false !== strpos( $kit, ' checked ' ), 'a hostile stored value is reduced to the boolean it truthy-casts to; nothing of it reaches the markup' );
 $GLOBALS['__settings'] = array();
+
+// ── Slow admin requests: the ledger under the row, read from the module's log.
+// The empty state first: no option, no table, the sentence.
+unset( $GLOBALS['__options']['snt_httpdiag_log'] );
+$kit = snt_leaf_paint( 'site', 'performance' );
+ok( false !== strpos( $kit, 'heading="Slow admin requests"' ) && false !== strpos( $kit, '<os-empty-state heading="No slow call was captured."' ) && false === strpos( $kit, '<os-table' ), 'empty: the section says no slow call was captured, and paints no table' );
+
+$now     = time();
+$fixture = array(
+	array( 't' => $now - 120, 'screen' => 'admin.php?page=sn-theme-options&tab=health', 'wall_s' => 10.1, 'http' => array(
+		array( 'url' => 'https://api.example.com/v1/things', 'ms' => 300, 'code' => 200, 'error' => false ),
+		array( 'url' => 'https://slow.example.com/b', 'ms' => 9800, 'code' => 500, 'error' => false ),
+	) ),
+	array( 't' => $now - 7200, 'screen' => 'index.php', 'wall_s' => 3.5, 'http' => array(
+		array( 'url' => 'https://dead.example.com/hook', 'ms' => 4000, 'code' => 0, 'error' => true ),
+	) ),
+	array( 't' => $now - 3 * 86400, 'screen' => 'edit.php', 'wall_s' => 4.2, 'http' => array() ),
+	array( 't' => $now - 40 * 86400, 'screen' => 'stale-page', 'wall_s' => 99.0, 'http' => array(
+		array( 'url' => 'https://stale.example.com/z', 'ms' => 99999, 'code' => 200, 'error' => false ),
+	) ),
+	array( 'screen' => '"><script>x</script>', 'wall_s' => 1.0, 'http' => array(
+		array( 'url' => 'https://not.example.com/p?token=abc#frag', 'ms' => 50, 'code' => 200, 'error' => false ),
+	) ),
+);
+$GLOBALS['__options']['snt_httpdiag_log'] = $fixture;
+$classic = snt_leaf_classic_html( 'sn_admin_render_performance_section' );
+$kit     = snt_leaf_paint( 'site', 'performance' );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'perf_save' ) === snt_leaf_actions( $kit ) && array() === snt_leaf_classic_markers( $kit ) && 2 === substr_count( $kit, 'class="snt-col"' ), 'with a log: names, the one action, no classic markers and the two-column row are unchanged' );
+ok( strrpos( $kit, '</div>' ) < strpos( $kit, 'heading="Slow admin requests"' ), 'the ledger section sits after the .snt-cols row, at full width' );
+preg_match( '/<os-table[^>]* os-prop-columns="([^"]*)"[^>]* os-prop-data="([^"]*)"/', $kit, $m );
+$cols = json_decode( html_entity_decode( $m[1] ?? '', ENT_QUOTES, 'UTF-8' ), true );
+$rows = json_decode( html_entity_decode( $m[2] ?? '', ENT_QUOTES, 'UTF-8' ), true );
+ok( array( 'screen', 'host', 'ms', 'when' ) === array_column( (array) $cols, 'key' ), 'the columns are Screen, Host, Duration, When' );
+ok( array( 'slow.example.com', 'dead.example.com', 'api.example.com', 'not.example.com' ) === array_column( (array) $rows, 'host' ) && array( 9800, 4000, 300, 50 ) === array_column( (array) $rows, 'ms' ), 'rows are every call across the visible pages, slowest first; the 40-day-old 99999ms call is hidden by retention' );
+ok( 'admin.php?page=sn-theme-options&tab=health' === ( $rows[0]['screen'] ?? '' ) && '2m ago' === ( $rows[0]['when'] ?? '' ) && '' === ( $rows[3]['when'] ?? 'x' ), 'a row carries the screen that fired the call and its age; an entry with no t has an empty When, not a fatal' );
+ok( false === strpos( $kit, 'example.com/' ) && false === strpos( $kit, 'token=' ) && false === strpos( $kit, '#frag' ), 'the host alone is painted: no path, query string or fragment reaches the window' );
+ok( false !== strpos( $kit, '<os-notice tone="warning" not-dismissible>2 failed calls; the slowest was slow.example.com.</os-notice>' ), 'failed calls (a 500 and a WP_Error) are a warning on top of the box naming the slowest failed host' );
+ok( false !== strpos( $kit, '<os-notice tone="info" not-dismissible>1 page load over 2.0s captured no outbound call; the slow part was not an HTTP request this module can see.</os-notice>' ), 'a page load over the slow line with nothing captured is an info notice' );
+ok( false !== strpos( $kit, '1 older entry hidden (older than 30 days).' ), 'the retention caption counts the hidden entry, singular' );
+ok( false === strpos( $kit, '<script>' ) && false !== strpos( $kit, '&quot;&gt;&lt;script' ), 'a hostile stored screen reaches the markup escaped, never raw' );
+
+// Parity with the Site Health panel, the classic reader of the same log:
+// every host it paints in a slow_* field is in the ledger.
+$panel = sn_httpdiag_debug_information( array(), $fixture, $now );
+$panel_hosts = array();
+foreach ( $panel['snt_httpdiag']['fields'] as $key => $field ) {
+	if ( 0 !== strpos( $key, 'slow_' ) || '(no HTTP calls captured)' === $field['value'] ) { continue; }
+	foreach ( explode( ' | ', $field['value'] ) as $call ) { $panel_hosts[] = (string) wp_parse_url( substr( $call, 0, (int) strpos( $call, '. ' ) ), PHP_URL_HOST ); }
+}
+ok( 4 === count( $panel_hosts ) && array() === array_diff( $panel_hosts, array_column( (array) $rows, 'host' ) ), 'parity: every host the Site Health panel paints is in the ledger (' . implode( ',', $panel_hosts ) . ')' );
+unset( $GLOBALS['__options']['snt_httpdiag_log'] );
+
+// A stored url of '' (the sanitizer's answer to a URL with no parseable host)
+// is an absent host, named as such in the row and in the warning.
+$GLOBALS['__options']['snt_httpdiag_log'] = array( array( 't' => $now - 10, 'screen' => 'index.php', 'wall_s' => 1.0, 'http' => array( array( 'url' => '', 'ms' => 700, 'code' => 0, 'error' => true ) ) ) );
+$kit = snt_leaf_paint( 'site', 'performance' );
+ok( false !== strpos( $kit, '1 failed call; the slowest was (no host).</os-notice>' ) && false !== strpos( $kit, '&quot;host&quot;:&quot;(no host)&quot;' ), 'a call with no host is painted as (no host) in the row and the warning, never a blank' );
+unset( $GLOBALS['__options']['snt_httpdiag_log'] );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

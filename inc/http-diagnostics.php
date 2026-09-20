@@ -187,17 +187,7 @@ function sn_httpdiag_record( array $http, $wall_s, $pagenow_override = null, $qu
 	// second, later time() call — deterministic against this one $entry).
 	// Entries with no usable `t` are kept: an unknown age is never treated
 	// as stale at write time.
-	$cutoff = $entry['t'] - SN_HTTPDIAG_RETENTION_S;
-	$log    = array_values(
-		array_filter(
-			$log,
-			function ( $row ) use ( $cutoff ) {
-				return ! isset( $row['t'] ) || ! is_numeric( $row['t'] ) || (int) $row['t'] >= $cutoff;
-			}
-		)
-	);
-
-	$log = array_slice( $log, 0, SN_HTTPDIAG_RING_MAX );
+	$log = array_slice( sn_httpdiag_visible( $log, $entry['t'] ), 0, SN_HTTPDIAG_RING_MAX );
 
 	update_option( 'snt_httpdiag_log', $log, false );
 
@@ -280,6 +270,28 @@ function sn_httpdiag_find_slowest_call( array $log ) {
 	}
 
 	return $slowest_url;
+}
+
+/**
+ * The entries still inside the retention window relative to $now: the one
+ * prune both the write path (sn_httpdiag_record) and the read paths (the
+ * Site Health panel, the Site > Performance ledger) apply. Entries with no
+ * usable `t` are kept: an unknown age is never treated as stale.
+ *
+ * @param array $log
+ * @param int   $now Reference "now" (the entry being written, or time()).
+ * @return array Re-indexed, order preserved.
+ */
+function sn_httpdiag_visible( array $log, $now ) {
+	$cutoff = (int) $now - SN_HTTPDIAG_RETENTION_S;
+	return array_values(
+		array_filter(
+			$log,
+			function ( $row ) use ( $cutoff ) {
+				return ! isset( $row['t'] ) || ! is_numeric( $row['t'] ) || (int) $row['t'] >= $cutoff;
+			}
+		)
+	);
 }
 
 if ( function_exists( 'add_action' ) ) {
@@ -419,15 +431,7 @@ if ( function_exists( 'add_action' ) ) {
 		// where record() may never fire again to prune write-side. A read
 		// path — this NEVER writes the option back. Entries with no usable
 		// `t` are kept, same "unknown age isn't stale" stance as write-time.
-		$cutoff  = $now - SN_HTTPDIAG_RETENTION_S;
-		$visible = array_values(
-			array_filter(
-				$log,
-				function ( $row ) use ( $cutoff ) {
-					return ! isset( $row['t'] ) || ! is_numeric( $row['t'] ) || (int) $row['t'] >= $cutoff;
-				}
-			)
-		);
+		$visible      = sn_httpdiag_visible( $log, $now );
 		$hidden_count = count( $log ) - count( $visible );
 
 		$fields = array();
