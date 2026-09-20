@@ -1,6 +1,6 @@
 <?php
 /**
- * S&N Dashboard: Connections → Cron, the settings row.
+ * S&N Dashboard: Connections → Cron, the readout box and the settings row.
  *
  * The classic tab is do_action( 'sn_admin_cron_tab' ), and two of its three
  * callbacks carry a form: the morning brief (inc/morning-brief.php,
@@ -97,6 +97,55 @@ function cron_scheduled_reads_html() {
 	$out  = \snt_kit_form( 'scheduled_reads_save', $inner, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
 	$out .= \snt_kit_form( 'scheduled_reads_save', \snt_kit_field( 'hidden', 'snt_scheduled_reads_now', '', '1' ), array( 'submit' => __( 'Run now', 'signal-and-noise-tools' ) ) );
 	return \snt_kit_section( __( 'Scheduled read-only runs', 'signal-and-noise-tools' ), $out );
+}
+
+/**
+ * The Action Scheduler backlog box: the Site Health reading
+ * (inc/scheduled-actions-health.php) painted where the scheduled-jobs
+ * question is asked. One snapshot per paint, shared by the notices and the
+ * rows; each threshold crossed is a problem, so it is a warn notice on top
+ * of the box. Row labels are the raw status enums the Info row prints. An
+ * absent table says so: absence is an answer, never a row of zeros.
+ *
+ * @return string
+ */
+function cron_backlog_html() {
+	if ( ! function_exists( 'snt_asb_snapshot' ) ) {
+		return '';
+	}
+	$snap = \snt_asb_snapshot();
+	$top  = '';
+	$door = '';
+	if ( null === $snap ) {
+		$body = '<p class="snt-hint">' . \snt_kit_esc( \snt_asb_summary_line( null ) ) . '</p>';
+	} else {
+		foreach ( \snt_asb_warnings( $snap ) as $warning ) {
+			$top .= \snt_kit_notice( 'warn', \snt_kit_esc( $warning ) );
+		}
+		$overdue = (int) $snap['overdue_pending'];
+		$rows    = array();
+		foreach ( (array) $snap['counts'] as $status => $n ) {
+			// Raw figures, as the Info row and the shared threshold sentences print them.
+			$row = array( 'label' => (string) $status, 'value' => (string) (int) $n );
+			if ( 'pending' === $status && $overdue > 0 ) {
+				/* translators: %d: pending actions already past their run date */
+				$row['value'] .= sprintf( __( ' (%d overdue)', 'signal-and-noise-tools' ), $overdue );
+				$row['tone']   = $overdue >= SN_ASB_OVERDUE_WARN ? 'warn' : null;
+			}
+			$rows[] = $row;
+		}
+		$rows[] = array( 'label' => 'total', 'value' => (string) (int) $snap['total'], 'tone' => (int) $snap['total'] >= SN_ASB_ROWS_WARN ? 'warn' : null );
+		$body   = \snt_kit_kv( $rows );
+		// The same gate as the Site Health result: no door to a Tools page that is not there.
+		if ( class_exists( 'ActionScheduler' ) ) {
+			$door = '<p>' . \snt_kit_door( __( 'Open Scheduled Actions', 'signal-and-noise-tools' ), admin_url( 'tools.php?page=action-scheduler' ) ) . '</p>';
+		}
+	}
+	return \snt_kit_section(
+		__( 'Action Scheduler backlog', 'signal-and-noise-tools' ),
+		$top . $body . $door,
+		__( 'Another plugin\'s queue; its pending-and-due count runs on every page load, so its size is this site\'s concern.', 'signal-and-noise-tools' )
+	);
 }
 
 /**
