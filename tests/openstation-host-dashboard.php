@@ -465,18 +465,26 @@ namespace {
 	// the chrome's bold white) is gone from this level.
 	ok( false !== strpos( $html, '<header class="os-app-list__toolbar snt-subbar"><div class="os-app-list__toolbar-left"><os-segmented class="os-app-list__status" value="health" os-bind="sub" label="Sections">' )
 		&& false !== strpos( $html, '<os-segment value="health">' )
-		&& false !== strpos( $html, '<os-select class="os-app-list__status snt-subbar__phone" value="health" os-bind="sub" aria-label="Sections">' )
+		&& false !== strpos( $html, '<os-select class="os-app-list__status snt-subbar__phone" os-key="subbar-phone" value="health" os-bind="sub" aria-label="Sections">' )
 		&& false !== strpos( $html, '<os-option value="health">' ),
 		'a tab with leaves paints the native toolbar: a segmented control for the desk and a select for the phone, both bound to sub' );
 	ok( false === strpos( $html, '<os-tabs' ) && false === strpos( $html, 'os-app-list__tabs' ),
 		'   ...and no os-tabs strip at this level' );
 	ok( false !== strpos( $html, '<header class="os-app-list__toolbar' ) && strpos( $html, '<header class="os-app-list__toolbar' ) < strpos( $html, '<div class="snt-dashboard-body">' ),
 		'   ...above the body, where the native list puts its toolbar' );
-	$css = (string) preg_replace( '/\s+/', ' ', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) );
-	ok( false !== strpos( $css, '.snt-subbar__phone { display: none; }' )
-		&& false !== strpos( $css, 'html[data-os-mode="mobile"] .snt-subbar__phone { display: block; }' )
-		&& false !== strpos( $css, 'html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmented { display: none; }' ),
-		'   ...the phone twin shows only under the shell`s mobile stamp and the desk twin only off it' );
+	// Each rule is matched from its own start (a rule boundary or the sheet's
+	// start), so a mobile-scoped hide cannot satisfy the off-mobile pin by
+	// suffix; comments are stripped first so a rule inside one never counts.
+	$css = (string) preg_replace( '#/\\*.*?\\*/#s', '', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) );
+	$css = (string) preg_replace( '/\\s+/', ' ', $css );
+	$rule = static fn( $sel, $body ) => (bool) preg_match( '/(?:^|\\}) ?' . preg_quote( $sel, '/' ) . ' \\{ ' . preg_quote( $body, '/' ) . ' \\}/', $css );
+	ok( $rule( 'html:not([data-os-mode="mobile"]) .snt-subbar__phone', 'display: none;' )
+		&& $rule( 'html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmented', 'display: none;' )
+		&& ! $rule( '.snt-subbar__phone', 'display: none;' ),
+		'   ...the phone twin hides only off the shell`s mobile stamp and the desk twin only under it, each by its own rule' );
+	ok( $rule( '.snt-subbar > .os-app-list__toolbar-left', 'min-width: 0; overflow-x: auto; scrollbar-width: none;' )
+		&& $rule( '.snt-subbar os-segment', 'flex: 0 0 auto;' ),
+		'   ...and the pill row scrolls sideways in a window narrower than its pills, the parent scrolling and the segments unshrinkable' );
 	ok( false === strpos( $html, '<h1 class="sn-page-h1">' ) && false === strpos( $html, 'nav-tab-wrapper' ),
 		'the classic page heading and wp-admin tab strip are gone -- the window chrome is the strip' );
 

@@ -136,16 +136,17 @@ function snt_kit_empty( $heading, $description = '', $icon = '' ) {
  * no panels, the server paints the chosen leaf.
  *
  * 17.4.3: this was `<os-tabs class="os-app-list__tabs">`, whose active tab
- * wears the kit's rose underline while the window chrome's active tab is
- * bold white; the two navigation rows never shared a colour. Pages, Posts,
+ * wears the station's accent underline while the window chrome's active tab
+ * is bold white; the two navigation rows never shared a colour. Pages, Posts,
  * Users and Plugins paint this level as `statusControl()` does
  * (app-runtime `list-ui.ts`): `<os-segmented class="os-app-list__status">`
  * on a desk, `<os-select class="os-app-list__status">` on a phone, where nine
  * pills in 360px wrap into ragged rows. The runtime decides by
  * `isMobileStamped()` at paint time; a server paint cannot, so both twins
  * ship and `apps/sn-dashboard/sn-dashboard.css` shows one by
- * `html[data-os-mode="mobile"]`. The two components share the `os-pick`
- * contract, so `os-bind` is the same on both.
+ * `html[data-os-mode="mobile"]`; off the stamp the pill row scrolls
+ * sideways in a window narrower than its nine pills. The two components
+ * share the `os-pick` contract, so `os-bind` is the same on both.
  *
  * @param string               $active Active value.
  * @param array<string,string> $items  value => label, in order.
@@ -168,7 +169,10 @@ function snt_kit_tabs( $active, array $items, $bind = 'sub', $label = '' ) {
 	);
 	$phone = snt_kit_tag(
 		'os-select',
-		array( 'class' => 'os-app-list__status snt-subbar__phone', 'value' => (string) $active, 'os-bind' => (string) $bind, 'aria-label' => $label ),
+		// os-key: os-select mints an auto id on connect and the morph keys a live
+		// node by os-key or id, so an un-keyed server paint replaces it on every
+		// repaint (#1116 fixed the Analytics selects the same way).
+		array( 'class' => 'os-app-list__status snt-subbar__phone', 'os-key' => 'subbar-phone', 'value' => (string) $active, 'os-bind' => (string) $bind, 'aria-label' => $label ),
 		$options
 	);
 	return snt_kit_tag(

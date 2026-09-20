@@ -20,22 +20,36 @@
 /* The leaf bar (17.4.3): the runtime's `.os-app-list__toolbar` shape, so it
    wears the runtime sheet's padding, border and elevated surface. Both twins
    ship from the server (a paint cannot read the shell's mode); the phone
-   select shows only under the shell's mobile stamp, the segmented only
-   off it, mirroring `statusControl()` in the runtime's list-ui.ts. */
+   select shows only under the shell's mobile stamp, the segmented only off
+   it, mirroring `statusControl()` in the runtime's list-ui.ts. One rule per
+   twin, hiding: the select keeps its own :host display when shown. */
 .snt-app[data-os-app="sn-dashboard"][data-snt-layout="dashboard"] > .snt-subbar {
 	flex: 0 0 auto;
 }
 
-.snt-subbar__phone {
+html:not([data-os-mode="mobile"]) .snt-subbar__phone {
 	display: none;
-}
-
-html[data-os-mode="mobile"] .snt-subbar__phone {
-	display: block;
 }
 
 html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmented {
 	display: none;
+}
+
+/* Nine pills need 819px and the toolbar-left keeps min-width:auto, so a
+   tablet (768, the desktop experience) or a desk window pulled in clipped
+   the trailing leaves with no way to reach them. The PARENT scrolls, never
+   the segmented host: the thumb is measured with getBoundingClientRect and
+   drifts by scrollLeft if the host itself scrolls. Segments flex 0 0 auto,
+   else the runtime's 1 1 auto overprints the nowrap labels before the host
+   overflows. Precedent: the recycle bin's narrow segmented (recycle-bin.css). */
+.snt-subbar > .os-app-list__toolbar-left {
+	min-width: 0;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.snt-subbar os-segment {
+	flex: 0 0 auto;
 }
 
 .snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body {
