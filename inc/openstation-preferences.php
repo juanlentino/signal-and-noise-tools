@@ -365,7 +365,7 @@ add_action( 'admin_enqueue_scripts', 'snt_os_enqueue_settings_script', 5 );
 /**
  * Enqueue our columns for OpenStation's native Posts window.
  *
- * One script (`assets/os-posts.js`: Provenance + Edge), its own handle, on
+ * One script (`assets/os-posts.js`: Provenance, Edge, Evergreen), its own handle, on
  * every shell request: the columns are read by the Posts window's
  * `openstation.postsWindow.columns` filter on each paint, so the
  * registration has to exist before that window ever opens — which rules out
@@ -417,8 +417,12 @@ add_action( 'admin_enqueue_scripts', 'snt_os_enqueue_posts_script', 5 );
 /**
  * The REST fields our Posts-window columns read. One list, so the PHP side
  * (what rides `_fields`) and the JS side (what renders) cannot drift.
+ * The evergreen flag is core's `meta` field (register_post_meta with
+ * show_in_rest, inc/post-settings.php), so the list names the nested path:
+ * core's `_fields` accepts `meta.<key>` and ships that one key alone, never
+ * the other keys registered on the post.
  */
-const SNT_OS_POSTS_FIELDS = array( 'sn_provenance', 'sn_edge' );
+const SNT_OS_POSTS_FIELDS = array( 'sn_provenance', 'sn_edge', 'meta._sn_evergreen' );
 
 /**
  * Ship our fields on the Posts window's list request.
