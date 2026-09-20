@@ -52,6 +52,8 @@
 				input.type = 'datetime-local';
 				input.required = true;
 				input.id = 'snt-reschedule-date';
+				// Fill the modal body as a kit field would; the phone's picker is native.
+				input.style.cssText = 'width:100%;box-sizing:border-box;';
 				label.htmlFor = input.id;
 				modal.appendChild( label );
 				modal.appendChild( input );
