@@ -65,9 +65,12 @@ ok( false === strpos( $kit, 'Paste a fresh token' ) && false === strpos( $classi
 ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, 'Not configured' ) && false !== strpos( $kit, '>Inactive</os-badge>' ), 'the unconfigured state paints a warning notice with the Inactive badge' );
 ok( true === cf_purge_disabled( $kit ), 'the purge button is disabled until configured' );
 ok( false !== strpos( $kit, '<h3>Purge all caches</h3>' ) && false !== strpos( $kit, 'Object cache, Breeze, Varnish, then Cloudflare, in that order, verified' ) && false === strpos( $kit, 'Purge Cloudflare' ), '15.1.0: the purge card runs the full chain and says so; the Cloudflare-only button is gone' );
-ok( false === strpos( $kit, 'Post-purge probes' ) && false === strpos( $kit, 'Cloudways purge' ), 'no probes fold and no Cloudways box when neither has anything to say' );
-ok( false !== strpos( $kit, '<os-code>docs/CACHING.md</os-code>' ) && false !== strpos( $kit, 'heading="Credentials"' ) && false !== strpos( $kit, 'heading="Cache"' ) && false === strpos( $kit, 'heading="Edge, 7 days"' ) && false === strpos( $kit, 'heading="Firewall, 24 hours"' ) && strpos( $kit, 'heading="Credentials"' ) < strpos( $kit, 'heading="Cache"' ) && strpos( $kit, 'heading="Cache"' ) < strpos( $kit, '<os-code>docs/CACHING.md</os-code>' ), '15.3.0: Credentials, Token, then Cache (with the CACHING.md note as its hint); Edge and Firewall live on Measurement and Security now' );
+ok( false === strpos( $kit, 'Post-purge probes' ) && false === strpos( $kit, 'Cloudways purge' ), 'no probes box and no Cloudways box when neither has anything to say' );
+ok( false !== strpos( $kit, '<os-code>docs/CACHING.md</os-code>' ) && false !== strpos( $kit, 'heading="Credentials"' ) && false !== strpos( $kit, 'heading="Cache"' ) && false === strpos( $kit, 'heading="Edge, 7 days"' ) && false === strpos( $kit, 'heading="Firewall, 24 hours"' ) && strpos( $kit, 'heading="Credentials"' ) < strpos( $kit, 'heading="Cache"' ) && strpos( $kit, 'heading="Cache"' ) < strpos( $kit, '<os-code>docs/CACHING.md</os-code>' ), '15.3.0: Credentials, then Cache (with the CACHING.md note as its hint); Edge and Firewall live on Measurement and Security now' );
 ok( false !== strpos( $kit, 'heading="Token"' ) && false !== strpos( $kit, 'The monitor has not run yet' ) && false !== strpos( $kit, 'cf_monitor_refresh' ), '15.3.0: before the monitor ran, the Token section says so and offers Refresh' );
+// 17.4.1 (#1573): boxes on rows of comparable height. Credentials beside
+// Cache; Token under them, alone at full width when there is no probes ledger.
+ok( 1 === substr_count( $kit, '<div class="snt-cols">' ) && false === strpos( $kit, 'snt-2up' ) && 1 === preg_match( '/<div class="snt-cols"><os-section heading="Credentials".*?<\/os-section><os-section heading="Cache".*?<\/os-section><\/div><os-section heading="Token"/s', $kit ), '17.4.1: one paired row, Credentials beside Cache, then Token alone at full width; no snt-2up columns' );
 
 // ── Configured, with a full-zone purge an hour ago.
 cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef', 'sn_cf_last_purge' => array( 'time' => time() - 3600, 'kind' => 'all' ) ) );
@@ -96,7 +99,8 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
 $kit     = snt_leaf_paint( 'connections', 'cloudflare' );
 $rows    = cf_table_prop( $kit, 'data' );
 $columns = cf_table_prop( $kit, 'columns' );
-ok( false !== strpos( $classic, 'Post-purge probes' ) && 1 === preg_match( '/<os-disclosure heading="Post-purge probes" hint="4 retained, 2 stale" open>/', $kit ), 'the probes fold carries the counts and opens on a stale newest probe' );
+ok( false !== strpos( $classic, 'Post-purge probes' ) && false === strpos( $kit, '<os-disclosure' ) && 1 === preg_match( '/<os-section heading="Post-purge probes" description="Each row is one check[^"]*">/', $kit ) && false !== strpos( $kit, '>4 retained, 2 stale</dd>' ), '17.4.1: the probes are a ledger box with the intro as its description, no fold; the tally is a Cache facts row' );
+ok( 2 === substr_count( $kit, '<div class="snt-cols">' ) && 1 === preg_match( '/<div class="snt-cols"><os-section heading="Token".*?<\/os-section><os-section heading="Post-purge probes"/s', $kit ), '17.4.1: with a ledger, Token and Post-purge probes share the second row' );
 ok( false !== strpos( $kit, '120 seconds after its purge' ), 'the probe delay is read out in the intro' );
 ok( false !== strpos( $kit, '<os-table' ) && is_array( $rows ) && 4 === count( $rows ), 'the probes table carries all four rows' );
 ok( is_array( $rows ) && array( 'when' => '1 hour ago', 'result' => 'stale → zone purge', 'page' => '/notes/foo/' ) === $rows[0], 'an escalated stale probe reads stale → zone purge with its path' );
@@ -108,7 +112,14 @@ ok( is_array( $columns ) && array( 'When', 'Result', 'Page' ) === array_column( 
 array_unshift( $log, array( 'time' => time() - 10, 'result' => 'fresh', 'algo' => 2, 'url' => 'https://example.test/new/' ) );
 cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef', 'sn_cf_purge_probe_log' => $log ) );
 $kit = snt_leaf_paint( 'connections', 'cloudflare' );
-ok( 1 === preg_match( '/<os-disclosure heading="Post-purge probes" hint="5 retained, 2 stale">/', $kit ), 'a fresh newest probe leaves the fold closed; history stays folded' );
+ok( false === strpos( $kit, '<os-disclosure' ) && 5 === count( cf_table_prop( $kit, 'data' ) ) && false === strpos( $kit, 'more</p>' ), 'a fresh newest probe changes nothing: no fold to open or close, five rows, no "more" line under the cap' );
+// The cap: the newest CF_PROBE_ROWS rows in the table, the rest as one line.
+$long = array();
+for ( $i = 0; $i < 11; $i++ ) { $long[] = array( 'time' => time() - 60 * ( $i + 1 ), 'result' => 'fresh', 'algo' => 2, 'url' => 'https://example.test/p' . $i . '/' ); }
+cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef', 'sn_cf_purge_probe_log' => $long ) );
+$kit = snt_leaf_paint( 'connections', 'cloudflare' );
+$rows = cf_table_prop( $kit, 'data' );
+ok( is_array( $rows ) && 8 === count( $rows ) && '/p0/' === $rows[0]['page'] && '/p7/' === $rows[7]['page'] && false !== strpos( $kit, '<p class="snt-hint">…and 3 more</p>' ) && false !== strpos( $kit, '>11 retained, 0 stale</dd>' ), '17.4.1: eleven probes paint the eight newest rows and "…and 3 more"; the Cache tally still counts all eleven' );
 
 cf_opts( array( 'sn_cf_purge_probe_log' => $log ) );
 $classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
@@ -166,9 +177,9 @@ $GLOBALS['__options'][ SN_CF_MONITOR_OPT ]   = array( 'fetched_at' => time(), 'c
 $GLOBALS['__options'][ SN_CF_FW_EVENTS_OPT ] = array( 'fetched_at' => time(), 'configured' => true, 'available' => true, 'rows' => array( array( 'clientRequestPath' => '/xmlrpc.php', 'clientCountryName' => 'CN', 'weight' => 3 ), array( 'clientRequestPath' => '/wp-login.php', 'clientCountryName' => 'CN', 'weight' => 1 ) ), 'truncated' => true );
 $with_log = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( false === strpos( $with_log, 'Top paths acted on' ) && false === strpos( $with_log, 'heading="Firewall, 24 hours"' ) && false === strpos( $with_log, 'heading="Edge, 7 days"' ), '15.3.0: with a stored reading, this leaf still paints no Edge and no Firewall (they moved)' );
-ok( false !== strpos( $with_log, 'heading="Token"' ) && false !== strpos( $with_log, 'active · user' ) && false !== strpos( $with_log, '>Verified</dt>' ) && strpos( $with_log, 'heading="Token"' ) < strpos( $with_log, 'heading="Cache"' ), '15.1.0: the token\'s health is its own section on the left, under Credentials, with when it was verified' );
-ok( false !== strpos( $with_log, 'heading="Cache"' ) && false === strpos( $with_log, 'heading="Monitor"' ), 'the right column is the Cache alone; no Monitor section' );
-ok( 1 === substr_count( $with_log, 'os-arg-action="cf_monitor_refresh"' ) && strpos( $with_log, 'os-arg-action="cf_monitor_refresh"' ) > strpos( $with_log, 'heading="Token"' ) && strpos( $with_log, 'os-arg-action="cf_monitor_refresh"' ) < strpos( $with_log, 'heading="Cache"' ) && false !== strpos( $with_log, 'Refresh reads the token, the edge and the firewall again' ), '15.3.0: one Refresh footer, under Token, saying what it refreshes' );
+ok( false !== strpos( $with_log, 'heading="Token"' ) && false !== strpos( $with_log, 'active · user' ) && false !== strpos( $with_log, '>Verified</dt>' ) && strpos( $with_log, 'heading="Token"' ) > strpos( $with_log, 'heading="Cache"' ), '15.1.0: the token\'s health is its own section, with when it was verified; 17.4.1 seats it on the row under Credentials and Cache' );
+ok( false !== strpos( $with_log, 'heading="Cache"' ) && false === strpos( $with_log, 'heading="Monitor"' ), 'the Cache box stands; no Monitor section' );
+ok( 1 === substr_count( $with_log, 'os-arg-action="cf_monitor_refresh"' ) && strpos( $with_log, 'os-arg-action="cf_monitor_refresh"' ) > strpos( $with_log, 'heading="Token"' ) && false !== strpos( $with_log, 'Refresh reads the token, the edge and the firewall again' ), '15.3.0: one Refresh footer, under Token, saying what it refreshes' );
 ok( array( 'cf_monitor_refresh', 'cf_purge_now' ) === snt_leaf_actions( $with_log ), 'still the two actions' );
 $GLOBALS['__options'] = $opts_before;
 ok( false !== strpos( $kit, '>locked by SN_CLOUDFLARE_ZONE_ID</dd>' ) && false === strpos( $kit, 'zoneconst0123456789' ), 'both locked: the zone reads as locked and its constant value is not painted' );

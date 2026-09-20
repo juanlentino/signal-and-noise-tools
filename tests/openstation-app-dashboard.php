@@ -237,7 +237,8 @@ namespace {
 
 	if ( isset( $painters['connections/cloudflare'] ) ) {
 		$cf_html = call_user_func( $painters['connections/cloudflare'], array( 'tab' => 'connections', 'sub' => 'cloudflare' ) );
-		ok( false !== strpos( $cf_html, '<div class="snt-2up">' ), 'connections/cloudflare renders in .snt-2up two columns' );
+		// 17.4.1 (#1573): boxes on .snt-cols rows of comparable height, not two stacked columns.
+		ok( false !== strpos( $cf_html, '<div class="snt-cols">' ) && false === strpos( $cf_html, 'snt-2up' ), 'connections/cloudflare renders its boxes on a .snt-cols row, no .snt-2up columns' );
 	}
 
 	// #1217: two of the pulse tile links on S&N Home pointed at doors that do

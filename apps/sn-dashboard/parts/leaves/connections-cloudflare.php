@@ -11,7 +11,7 @@
  * disabled until configured) and the Cloudways purge status. Same readings
  * (the token, the zone, SN_CF_LAST_PURGE_OPT, SN_CF_PROBE_LOG_OPT,
  * SNT_CW_LAST_PURGE_OPT), same forms, same handlers; the kit's parts instead
- * of wp-admin's, stacked in the shell's DOM order (main, then rail).
+ * of wp-admin's, on two rows of paired boxes since 17.4.1 (#1573).
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -103,6 +103,21 @@ function cloudflare_credentials_html( array $d ) {
 }
 
 /**
+ * 17.4.1: two boxes on one row, the tags_pair() idiom (#1573). A side that
+ * painted nothing leaves the other alone at full width, never beside a hole.
+ *
+ * @param string $left  Painted section HTML, or ''.
+ * @param string $right Painted section HTML, or ''.
+ * @return string
+ */
+function cloudflare_pair( $left, $right ) {
+	if ( '' === $left || '' === $right ) {
+		return $left . $right;
+	}
+	return \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $left . $right );
+}
+
+/**
  * The leaf.
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
@@ -114,29 +129,23 @@ function paint_connections_cloudflare( array $ctx ) {
 		return \snt_kit_empty( __( 'This account cannot manage options.', 'signal-and-noise-tools' ) );
 	}
 	$d = cloudflare_data();
-	// 15.1.0: two columns, by the question a reader brings. Left: is
-	// Cloudflare connected and allowed (Credentials, the token's health, the
-	// monitor's Refresh). Right: the cache. 15.3.0 moved Edge and Firewall to
-	// the tabs that ask their questions.
-	$left  = cloudflare_credentials_html( $d );
-	$left .= function_exists( 'sn_cf_monitor_read' ) ? cloudflare_token_html( $d ) : '';
-
 	$caching = \snt_kit_esc( __( "Auto-purges Cloudflare's edge cache when content changes. See", 'signal-and-noise-tools' ) ) . ' '
 		. \snt_kit_code( 'docs/CACHING.md', false ) . ' '
 		. \snt_kit_esc( __( "for the dashboard-side Cache Rule that turns on HTML caching to begin with: without that, purging clears nothing useful (origin pages aren't cached at the edge).", 'signal-and-noise-tools' ) );
-	$right = \snt_kit_section(
+	$cache = \snt_kit_section(
 		__( 'Cache', 'signal-and-noise-tools' ),
-		cloudflare_status_html( $d ) . cloudflare_purge_html( $d ) . cloudflare_probes_html( $d ) . '<p class="snt-hint">' . $caching . '</p>',
+		cloudflare_status_html( $d ) . cloudflare_purge_html( $d ) . '<p class="snt-hint">' . $caching . '</p>',
 		'',
 		array( 'stack' => true )
 	);
-	// 15.3.0: Edge, 7 days lives on Measurement › Analytics and Firewall, 24
-	// hours on Security › Firewall; this leaf is wiring and cache.
-
-	return '<div class="snt-2up">'
-		. '<div class="snt-2up-col">' . $left . '</div>'
-		. '<div class="snt-2up-col">' . $right . '</div>'
-		. '</div>';
+	// 17.4.1 (#1573): boxes on rows of comparable height, measured live at
+	// 1581px. Credentials (518) beside Cache (449); under them Token (300)
+	// beside the probes ledger, which left the Cache box's fold to stand as a
+	// capped table. Before: Credentials + Token stacked to 860 beside Cache
+	// alone. 15.3.0 moved Edge and Firewall to the tabs that ask their questions.
+	$token = function_exists( 'sn_cf_monitor_read' ) ? cloudflare_token_html( $d ) : '';
+	return cloudflare_pair( cloudflare_credentials_html( $d ), $cache )
+		. cloudflare_pair( $token, cloudflare_probes_html( $d ) );
 }
 
 add_filter(
