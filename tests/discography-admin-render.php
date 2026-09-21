@@ -63,6 +63,8 @@ if ( ! function_exists( 'sanitize_title' ) ) {
 	}
 }
 
+// 17.4.4 (#1612): settings.php hooks register_setting() on init at file scope.
+if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
 require __DIR__ . '/../inc/settings.php';   // sn_mask_secret() — music.php's credential mask delegates here (v4.14.2).
 require __DIR__ . '/../inc/discography-store.php';
 require __DIR__ . '/../inc/muso-api.php';

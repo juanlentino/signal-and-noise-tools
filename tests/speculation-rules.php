@@ -50,6 +50,8 @@ if ( ! function_exists( 'add_filter' ) ) { function add_filter() {} }
 $GLOBALS['__login_slug'] = 'sn-login';
 function sn_login_get_slug() { return $GLOBALS['__login_slug']; }
 
+// 17.4.4 (#1612): settings.php hooks register_setting() on init at file scope.
+if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
 require __DIR__ . '/../inc/settings.php';
 require __DIR__ . '/../inc/speculation-rules.php';
 
