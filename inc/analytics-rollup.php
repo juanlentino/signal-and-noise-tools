@@ -133,9 +133,20 @@ const SN_ANALYTICS_INTEGRITY_ALERT_OPT = 'sn_analytics_integrity_alert';
  */
 function sn_analytics_is_excluded_path( $path ) {
 	$path = (string) $path;
-	return '/wp-admin' === $path
-		|| 0 === strpos( $path, '/wp-admin/' )
-		|| 0 === strpos( $path, '/wp-login.php' );
+	if ( '/wp-admin' === $path || 0 === strpos( $path, '/wp-admin/' ) || 0 === strpos( $path, '/wp-login.php' ) ) {
+		return true;
+	}
+	// 17.5.1: the beacon's path is client-supplied and a replayed one planted
+	// /wp-content/uploads/sn-css/$h as a pageview. No theme page lives under
+	// these prefixes or ends in a file extension; the edge (analytics worker
+	// 1.21.4, isExcludedPath) drops the same set, this is the rollup's twin.
+	foreach ( array( '/wp-content/', '/wp-includes/', '/wp-json/' ) as $prefix ) {
+		if ( 0 === strpos( $path, $prefix ) ) {
+			return true;
+		}
+	}
+	$last = (string) substr( $path, (int) strrpos( $path, '/' ) + 1 );
+	return 1 === preg_match( '/\.[a-z0-9]{1,8}$/i', $last );
 }
 
 /**
