@@ -3,8 +3,8 @@
  * Tests: pillar essay meta (_sn_pillar / _sn_pillar_designation) is Pages-only.
  * Registration (page yes, post no; show_in_rest pinned false), the per-resource
  * auth_callback (edit_post on the object id, real register_meta signature),
- * the meta box render gate, output escaping, and the save path including the
- * post-type guard. (plugin v9.79.0)
+ * the panel's Pages-only gate (#1608), and the REST write path (the classic
+ * save handler is gone). (plugin v9.79.0)
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
@@ -24,7 +24,7 @@ $GLOBALS['__cap_calls']  = array();
 $GLOBALS['__cap_result'] = true;
 
 function register_post_meta( $type, $key, $args ) { $GLOBALS['__registered'][ $type ][ $key ] = $args; }
-function add_action( $h, $c, $p = 10, $a = 1 ) {}
+function add_action( $h, $c, $p = 10, $a = 1 ) { $GLOBALS['__hooks'][ $h ][] = $c; }
 function add_meta_box() {}
 function current_user_can( $cap, $id = null ) {
 	$GLOBALS['__cap_calls'][] = array( $cap, $id );
@@ -77,40 +77,25 @@ echo "\nGroup: the opt-in EXISTS at all\n";
 ok( isset( $GLOBALS['__registered']['page']['_sn_prov_sign'] ), 'the sign meta is REGISTERED for pages' );
 ok( ! isset( $GLOBALS['__registered']['post']['_sn_prov_sign'] ), 'and NOT for posts — a post is a subject by category, so the control would decide nothing there' );
 
-echo "\nGroup: the checkbox renders, on pages only\n";
-$page = (object) array( 'ID' => 11, 'post_type' => 'page' );
-ob_start(); sn_post_settings_render( $page ); $html_page = ob_get_clean();
-ok( false !== strpos( $html_page, 'name="sn_prov_sign"' ), 'a PAGE shows the signing checkbox' );
-ok( false !== strpos( $html_page, 'Sign this page' ), 'labelled in plain words' );
-ob_start(); sn_post_settings_render( (object) array( 'ID' => 12, 'post_type' => 'post' ) ); $html_post = ob_get_clean();
-ok( false === strpos( $html_post, 'name="sn_prov_sign"' ), 'a POST does not' );
+echo "\nGroup: the checkbox is painted, on pages only (#1608: the document panel)\n";
+$js = (string) file_get_contents( __DIR__ . '/../assets/post-settings-panel.js' );
+ok( ! function_exists( 'sn_post_settings_render' ), 'no classic meta box render remains' );
+ok( false !== strpos( $js, "key: '_sn_prov_sign', kind: 'flag', page: true" ), 'the panel declares the signing flag as Pages-only' );
+ok( false !== strpos( $js, "return ! f.page || isPage;" ), 'and drops page-only rows for a post: a post is a subject by category, so the control would decide nothing there' );
+ok( false !== strpos( $js, 'Sign this page (provenance)' ), 'labelled in plain words' );
 
 echo "\nGroup: the helper says what cannot be undone\n";
-ok( false !== stripos( $html_page, 'permanent' ), 'the helper uses the word permanent' );
-ok( false !== stripos( $html_page, 'cannot withdraw' ), 'and says unticking cannot withdraw an anchored record — the ledger is append-only' );
+$help_at = strpos( $js, "key: '_sn_prov_sign'" );
+$help    = substr( $js, $help_at, 600 );
+ok( false !== stripos( $help, 'permanent' ), 'the helper uses the word permanent' );
+ok( false !== stripos( $help, 'cannot withdraw' ), 'and says unticking cannot withdraw an anchored record: the ledger is append-only' );
 
-echo "\nGroup: markup is well formed (the bug the first draft had)\n";
-// The first draft inserted this control INSIDE the freshness field's already-open
-// <label>, nesting a <p> and a second <label> in it. Count tags rather than
-// trusting that it looked fine.
-ok( substr_count( $html_page, '<label' ) === substr_count( $html_page, '</label>' ), 'labels balance' );
-ok( substr_count( $html_page, '<div' ) === substr_count( $html_page, '</div>' ), 'divs balance' );
-
-echo "\nGroup: checked state + save\n";
-$GLOBALS['__meta'][11]['_sn_prov_sign'] = '1';
-ob_start(); sn_post_settings_render( $page ); $checked = ob_get_clean();
-$seg = substr( $checked, strpos( $checked, 'sn_prov_sign' ), 80 );
-ok( false !== strpos( $seg, 'checked' ), 'a signed page shows the box ticked' );
-
-$GLOBALS['__meta'][11] = array();
-$GLOBALS['__post_types'] = array( 11 => 'page' );
-$_POST = array( 'sn_post_settings_nonce' => 'x', 'sn_prov_sign' => '1' );
-sn_post_settings_save( 11 );
-ok( '1' === ( $GLOBALS['__meta'][11]['_sn_prov_sign'] ?? '' ), 'ticking it writes the meta the resolver reads' );
-
-$_POST = array( 'sn_post_settings_nonce' => 'x' );
-sn_post_settings_save( 11 );
-ok( ! isset( $GLOBALS['__meta'][11]['_sn_prov_sign'] ), 'unticking removes it — future versions stop; the anchored record is untouched' );
+echo "\nGroup: checked state + the REST write\n";
+ok( false !== strpos( $js, 'checked: !! value' ), 'a stored flag paints the box ticked' );
+ok( false !== strpos( $js, "props.set( f.key, v ? true : null )" ), 'ticking writes true (stored 1), unticking writes null (deleted)' );
+ok( false !== strpos( $js, "if ( '' === next[ k ] || false === next[ k ] ) {" ) && 2 === substr_count( $js, 'setMeta( normalize( next ) );' ), 'a never-ticked flag goes back as null too, so no empty row is stored for a page that is not signed' );
+ok( 'rest_sanitize_boolean' === ( $GLOBALS['__registered']['page']['_sn_prov_sign']['sanitize_callback'] ?? '' ), 'the flag sanitizes as a REST boolean' );
+ok( ! function_exists( 'sn_post_settings_save' ) && ! isset( $GLOBALS['__hooks']['save_post'] ), 'no classic save handler remains: the resolver reads what the entity save stored' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
