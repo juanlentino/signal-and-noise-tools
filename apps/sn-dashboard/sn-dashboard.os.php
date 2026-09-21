@@ -8,7 +8,7 @@
  * notice says the same thing. Nothing is redesigned, dropped or simplified,
  * and the classic page stays exactly where it is — a removal is not a port.
  *
- * SIX ACTIONS, and each is one seam a document has and a window does not:
+ * EIGHT ACTIONS. Six are each one seam a document has and a window does not:
  *
  *   go     A tab, a sub-tab, an anchor, and the `sn_*` params that ARE state
  *          on the classic page. Everything the URL used to carry.
@@ -24,6 +24,10 @@
  *          repaint IS the live refresh; `refresh` cannot be the tick because
  *          it drops the notice and the flash the Webhooks leaf keys its
  *          show-once secret off.
+ *   cron_run, cron_unschedule
+ *          The Cron leaf's per-row controls (#1604): the registered
+ *          `run-cron-event` / `unschedule-cron-event` abilities, the same
+ *          code path the classic buttons and the MCP door take.
  * Framework tabs (`App::tab()`) declare the window chrome tabs (Dashboard,
  * Site, Content, Connections, Measurement, AI, Security, Integrity). Each tab
  * is its own server session painted by the frame, while `sub` and parameters
@@ -146,6 +150,69 @@ function refusal_text( $reason, $detail = '' ) {
 }
 
 /**
+ * One registered ability, run for a leaf's control (#1604): the way the
+ * classic buttons, the MCP door and `snt_sn_site_facts_dispatch()` all reach
+ * it. `wp_get_ability()` resolves the slug, `check_permissions()` is the
+ * ability's own capability gate (asked again here, not trusted from the
+ * menu), `execute()` carries every refusal the impl owns. The verdict is the
+ * one line a toast can show.
+ *
+ * @param string              $slug  The registered slug, e.g. `signal-noise/run-cron-event`.
+ * @param array<string,mixed> $input The ability's input.
+ * @return string What happened, in the ability's own words.
+ */
+function ability_verdict( $slug, array $input ) {
+	if ( ! function_exists( 'wp_get_ability' ) ) {
+		return __( 'Nothing was done: the Abilities API is not loaded.', 'signal-and-noise-tools' );
+	}
+	$ability = \wp_get_ability( $slug );
+	if ( ! $ability ) {
+		return sprintf(
+			/* translators: %s: the ability slug. */
+			__( 'Nothing was done: %s is not registered.', 'signal-and-noise-tools' ),
+			$slug
+		);
+	}
+	$perm = $ability->check_permissions( $input );
+	if ( \is_wp_error( $perm ) || false === $perm ) {
+		return refusal_text( 'capability' );
+	}
+	$result = $ability->execute( $input );
+	if ( \is_wp_error( $result ) ) {
+		return (string) $result->get_error_message();
+	}
+	if ( is_array( $result ) && isset( $result['message'] ) ) {
+		return (string) $result['message'];
+	}
+	if ( is_array( $result ) && isset( $result['cleared'] ) ) {
+		return sprintf(
+			/* translators: 1: events cleared, 2: the hook name. */
+			_n( 'Unscheduled %1$s event on %2$s.', 'Unscheduled %1$s events on %2$s.', (int) $result['cleared'], 'signal-and-noise-tools' ),
+			number_format_i18n( (int) $result['cleared'] ),
+			(string) ( $result['hook'] ?? $input['hook'] ?? '' )
+		);
+	}
+	return __( 'Done.', 'signal-and-noise-tools' );
+}
+
+/**
+ * The hook and args a cron control sends: `os-arg-hook` verbatim (a hook
+ * name is matched exactly, never sanitize_key()ed), `os-arg-args` as the
+ * JSON the row painted, decoded back to the scheduled signature.
+ *
+ * @param array<string,mixed> $args The dispatch's arguments.
+ * @return array{hook:string,args:array<mixed>}
+ */
+function cron_input( array $args ) {
+	$hook = isset( $args['hook'] ) && is_scalar( $args['hook'] ) ? trim( (string) $args['hook'] ) : '';
+	$list = isset( $args['args'] ) ? $args['args'] : array();
+	if ( is_string( $list ) ) {
+		$list = json_decode( $list, true );
+	}
+	return array( 'hook' => $hook, 'args' => is_array( $list ) ? $list : array() );
+}
+
+/**
  * A section slug as the element id the page actually carries.
  *
  * State holds an ELEMENT ID, because that is what assets/os-host.js looks up
@@ -222,6 +289,7 @@ $sn_dashboard = App::define( APP_ID )
 			'notice' => null,        // [ severity, html ] — the classic notice, or null.
 			'params' => array(),     // The `sn_*` query params that ARE state on the classic page.
 			'post'   => array(),     // ONE paint's $_POST, for the form its own leaf handles.
+			'filter' => '',          // A leaf's text filter (the Cron leaf's #sn-cron-filter twin, #1604), written by os-bind through the built-in `set`.
 		)
 	)
 	->title_bar_button(
@@ -247,7 +315,8 @@ $sn_dashboard = App::define( APP_ID )
 				->set( 'params', \snt_os_host_params( $in ) )
 				->set( 'flash', '' )
 				->set( 'post', array() )
-				->set( 'notice', null );
+				->set( 'notice', null )
+				->set( 'filter', '' );
 		}
 	)
 	->action(
@@ -351,6 +420,35 @@ $sn_dashboard = App::define( APP_ID )
 				return;
 			}
 			$os->badge( badge_count() );
+		}
+	)
+	// The Cron leaf's two per-row controls (#1604): the classic page's
+	// `.sn-cron-run-now` and `.sn-cron-unschedule` buttons, dispatching the
+	// SAME registered abilities the classic JS and the MCP door call, so the
+	// manage_options gate, the orphan pre-flight and the SN-owned refusal
+	// live in one place. The repaint after the dispatch re-reads Last fired;
+	// the toast is the ability's own verdict. Neither touches state, so a
+	// poll tick (#1607) between two presses changes nothing.
+	->action(
+		'cron_run',
+		static function ( State $state, Os $os, array $args ) {
+			unset( $state );
+			if ( ! may_manage() ) {
+				$os->toast( refusal_text( 'capability' ) );
+				return;
+			}
+			$os->toast( ability_verdict( 'signal-noise/run-cron-event', cron_input( $args ) ) );
+		}
+	)
+	->action(
+		'cron_unschedule',
+		static function ( State $state, Os $os, array $args ) {
+			unset( $state );
+			if ( ! may_manage() ) {
+				$os->toast( refusal_text( 'capability' ) );
+				return;
+			}
+			$os->toast( ability_verdict( 'signal-noise/unschedule-cron-event', cron_input( $args ) ) );
 		}
 	);
 

@@ -163,7 +163,7 @@ ok( false !== strpos( $kit, '<div class="snt-watch"><span class="snt-hint">Watch
 $kit_watch = snt_leaf_paint( 'connections', 'cron', array( 'params' => array( 'sn_watch' => '1' ) ) );
 ok( 1 === substr_count( $kit_watch, '<span os-action="poll" os-poll="30000" hidden></span>' ) && false === strpos( $kit_watch, 'os-action="refresh"' ), 'watching: one hidden os-poll trigger on the no-op poll action, every 30 s, never on refresh' );
 ok( array() === snt_leaf_actions( $kit_watch ) && false === strpos( $kit_watch, '<os-form' ) && false === strpos( $kit_watch, 'snt_morning_brief_enabled' ), 'watching: both settings forms are folded away, so no checkbox exists for a tick to revert' );
-ok( false !== strpos( $kit_watch, '<os-table' ) && false !== strpos( $kit_watch, 'heading="Cron at a glance"' ) && false !== strpos( $kit_watch, '<os-button variant="ghost" os-action="go" os-arg-sub="cron">Stop watching</os-button>' ), 'watching: the ledger and the glance row still paint, and a Stop watching go without sn_watch unfolds the forms' );
+ok( false !== strpos( $kit_watch, 'heading="Scheduled events"' ) && false !== strpos( $kit_watch, 'os-action="cron_run"' ) && false !== strpos( $kit_watch, 'heading="Cron at a glance"' ) && false !== strpos( $kit_watch, '<os-button variant="ghost" os-action="go" os-arg-sub="cron">Stop watching</os-button>' ), 'watching: the ledger with its controls and the glance row still paint, and a Stop watching go without sn_watch unfolds the forms' );
 ok( 1 === preg_match( '/<os-field-row hint="A deterministic prose reading[^"]*"><os-checkbox-label name="snt_morning_brief_enabled"/', $kit ) && 1 === preg_match( '/<os-field-row hint="Read door only[^"]*"><os-checkbox-label name="snt_scheduled_reads_enabled"/', $kit ), '#1600: each toggle\'s helper is the hint of the field row around the checkbox, the layout every other field already has' );
 ok( '<os-field-row hint="x"><os-checkbox-label name="t" value="1" label="T"></os-checkbox-label></os-field-row>' === \snt_kit_field( 'checkbox', 't', 'T', false, array( 'hint' => 'x' ) ) && '<os-checkbox-label name="t" value="1" label="T"></os-checkbox-label>' === \snt_kit_field( 'checkbox', 't', 'T' ), '#1600: snt_kit_field( checkbox ) with a hint wraps the control in an os-field-row carrying hint=; without one it stays the bare control' );
 
@@ -204,13 +204,20 @@ ok( false !== strpos( $kit, 'sn_cache_sweep [SN]' ), 'SN-owned hook tagged [SN]'
 ok( false !== strpos( $kit, 'some_orphan_hook [orphan]' ), 'orphan hook tagged [orphan]' );
 ok( false !== strpos( $kit, 'other_plugin_cron' ) && false === strpos( $kit, 'other_plugin_cron [' ), 'plain foreign hook carries no tag' );
 
-// 7) Run-now / Unschedule facts per row, matching the classic button states.
-ok( false !== strpos( $kit, 'Not runnable here' ), 'SN-owned+handled hook: Run now says not runnable here' );
-ok( false !== strpos( $kit, 'No handler' ), 'orphan hook: Run now says no handler' );
-ok( false !== strpos( $kit, 'Locked' ), 'SN-owned hook: Unschedule says locked' );
-// Count "Available" occurrences: other_plugin_cron gets it for BOTH columns,
-// some_orphan_hook gets it for Unschedule only == 3 total.
-ok( 3 === substr_count( $kit, 'Available' ), 'exactly 3 Available cells (foreign hook x2, orphan unschedule x1)' );
+// 7) Run now / Unschedule are CONTROLS per row (#1604): kit buttons on the
+// app's cron_run / cron_unschedule actions carrying the row's hook and args,
+// the shell's confirm dialog before each (danger-styled on Unschedule), the
+// classic button's disabled state with its reason as the title. Red on 17.4.4,
+// where the two cells were the strings "Available" / "Locked".
+ok( 3 === substr_count( $kit, 'os-action="cron_run"' ) && 3 === substr_count( $kit, 'os-action="cron_unschedule"' ), 'every row carries a Run now and an Unschedule button on the app`s two cron actions' );
+ok( false === strpos( $kit, 'Available' ), 'no "Available" string cell remains: the state is the control, not a word under a heading' );
+ok( 1 === preg_match( '/<os-button[^>]*os-action="cron_run"[^>]*os-arg-hook="other_plugin_cron"[^>]*os-arg-args="\[\]"[^>]*>Run now<\/os-button>/', $kit, $m ) && false === strpos( $m[0], 'disabled' ) && false !== strpos( $m[0], 'os-confirm="Run other_plugin_cron now?' ), 'foreign hook: Run now is enabled, carries the hook and its [] args, and asks first' );
+ok( 1 === preg_match( '/<os-button[^>]*os-action="cron_run"[^>]*os-arg-hook="sn_cache_sweep"[^>]*>/', $kit, $m ) && false !== strpos( $m[0], ' disabled' ) && false !== strpos( $m[0], 'title="Not runnable here' ), 'SN-owned+handled hook: Run now is disabled with the not-runnable reason as its title' );
+ok( 1 === preg_match( '/<os-button[^>]*os-action="cron_run"[^>]*os-arg-hook="some_orphan_hook"[^>]*>/', $kit, $m ) && false !== strpos( $m[0], ' disabled' ) && false !== strpos( $m[0], 'title="No handler' ), 'orphan hook: Run now is disabled with the no-handler reason as its title' );
+ok( 1 === preg_match( '/<os-button[^>]*os-action="cron_unschedule"[^>]*os-arg-hook="sn_cache_sweep"[^>]*>/', $kit, $m ) && false !== strpos( $m[0], ' disabled' ) && false !== strpos( $m[0], 'title="Locked' ), 'SN-owned hook: Unschedule is disabled with the locked reason as its title' );
+ok( 1 === preg_match( '/<os-button[^>]*os-action="cron_unschedule"[^>]*os-arg-hook="some_orphan_hook"[^>]*>/', $kit, $m ) && false === strpos( $m[0], 'disabled' ) && false !== strpos( $m[0], 'os-confirm-danger' ) && false !== strpos( $m[0], 'os-arg-args="{&quot;foo&quot;:&quot;bar&quot;}"' ), 'orphan hook: Unschedule is enabled, danger-confirmed, and carries the row`s args JSON so the impl matches the scheduled signature' );
+ok( 3 === substr_count( $kit, 'os-confirm-danger' ) && 6 === substr_count( $kit, 'os-confirm="' ), 'every Unschedule is danger-confirmed and every control asks before dispatching' );
+ok( false === strpos( $kit, '<os-table' ) && 4 === substr_count( $kit, '<li class="snt-list__row"' ) && 3 === substr_count( $kit, ' os-key="' ), 'the ledger is a list of rows (a control cannot ride an os-table cell, upstream #862): one header row, three keyed rows the poll morph moves rather than rebuilds' );
 
 // 8) Recurrence + args readouts.
 ok( false !== strpos( $kit, 'hourly (1 hour)' ), 'recurrence: hourly with interval' );
@@ -222,14 +229,37 @@ ok( false !== strpos( $kit, 'single event' ), 'recurrence: single event for the 
 ok( false !== strpos( $kit, 'daily (1 hour)' ), 'recurrence: daily with its 86400s interval' );
 ok( false !== strpos( $kit, 'foo' ) && false !== strpos( $kit, 'bar' ), 'args JSON for the orphan row carries foo/bar' );
 
-// 8b) Column labels: every classic <th> heading survives as an os-table column.
+// 8b) Column labels: every classic <th> heading survives as the header row's cells.
 foreach ( array( 'Hook', 'Next run', 'Recurrence', 'Last fired', 'Args', 'Run now', 'Unschedule' ) as $lbl ) {
-	ok( false !== strpos( $kit, '&quot;label&quot;:&quot;' . $lbl . '&quot;' ), "column label present: $lbl" );
+	ok( false !== strpos( $kit, '">' . $lbl . '</span>' ), "column label present: $lbl" );
 }
 
-// 8c) The hook column carries the live substring filter classic's
-// #sn-cron-filter input gave (os-table's own client-side column filter).
-ok( false !== strpos( $kit, '&quot;filter&quot;:&quot;text&quot;' ), 'hook column carries the live substring filter the classic #sn-cron-filter input gave' );
+// 8c) The classic #sn-cron-filter substring filter is a search field above
+// the ledger bound to the app's `filter` state key (#1604): a keystroke is
+// the framework's built-in `set`, the repaint keeps the rows whose hook
+// contains the text, case-insensitively, as the classic keystroke handler
+// did. Red on 17.4.4 (an os-table column filter) and on the first cut of
+// #1604 (no filter at all).
+ok( 1 === preg_match( '/<os-text-field[^>]*>/', $kit, $m ) && false !== strpos( $m[0], 'type="search"' ) && false !== strpos( $m[0], 'os-bind="filter"' ) && false !== strpos( $m[0], ' clearable' ) && false !== strpos( $m[0], 'placeholder="Filter by hook name"' ) && false !== strpos( $m[0], 'label="Filter cron events by hook name"' ) && false !== strpos( $m[0], ' hide-label' ), 'the classic #sn-cron-filter twin: one search field bound to the filter key, clearable, the classic placeholder, the classic screen-reader label hidden' );
+ok( false === strpos( $kit, '&quot;filter&quot;:&quot;text&quot;' ) && strpos( $kit, '<os-text-field' ) < strpos( $kit, 'snt-list--ledger' ), 'it is not an os-table column filter, and it sits above the ledger' );
+$kit_f = snt_leaf_paint( 'connections', 'cron', array( 'filter' => 'ORPHAN' ) );
+ok( 1 === substr_count( $kit_f, ' os-key="' ) && false !== strpos( $kit_f, 'os-key="some_orphan_hook|' ) && false === strpos( $kit_f, 'os-arg-hook="sn_cache_sweep"' ) && 2 === substr_count( $kit_f, '<li class="snt-list__row"' ), 'filter "ORPHAN": only the orphan row survives, matched case-insensitively, under the header row' );
+ok( false !== strpos( $kit_f, 'value="ORPHAN"' ) && false !== strpos( $kit_f, '3 scheduled events.' ), 'the field repaints with its text (the morph keeps the focused value) and the count line still counts every scheduled event' );
+$kit_f = snt_leaf_paint( 'connections', 'cron', array( 'filter' => 'nothing-like-this' ) );
+ok( 0 === substr_count( $kit_f, ' os-key="' ) && 1 === substr_count( $kit_f, '<li class="snt-list__row"' ) && false !== strpos( $kit_f, '<li class="snt-list__empty">No hook matches the filter.</li>' ), 'a filter no hook contains leaves the header row and says so' );
+ok( 3 === substr_count( snt_leaf_paint( 'connections', 'cron', array( 'filter' => '   ' ) ), ' os-key="' ), 'whitespace is no filter' );
+
+// 8e) The ledger's seven cells per row share seven column tracks (#1604):
+// a plain .snt-list__row is a content-sized flex row, so a header cell and
+// the value under it never share an x. The list is the grid, each row a
+// subgrid of it. Pinned in the stylesheet with its comments stripped, the
+// way tests/os-grid-auto-fit.php reads the same sheet.
+ok( 1 === substr_count( $kit, '<div class="snt-ledger"><ul class="snt-list snt-list--ledger">' ), 'the ledger list wears the ledger modifier inside a scrolling wrapper' );
+$sheet = preg_replace( '#/\*.*?\*/#s', '', (string) file_get_contents( dirname( __DIR__ ) . '/assets/os-app.css' ) );
+ok( 1 === preg_match( '/\.snt-list--ledger\s*\{([^}]*)\}/', $sheet, $m ) && false !== strpos( $m[1], 'display: grid' ) && 1 === preg_match( '/grid-template-columns:\s*minmax\( 8em, 2fr \) repeat\( 4, minmax\( 4em, 1fr \) \) max-content max-content/', $m[1] ), 'os-app.css: the ledger list is a grid of seven tracks (hook flexes, four readings share, two controls take their width)' );
+ok( 1 === preg_match( '/\.snt-list--ledger \.snt-list__row\s*\{([^}]*)\}/', $sheet, $m ) && false !== strpos( $m[1], 'grid-template-columns: subgrid' ) && false !== strpos( $m[1], 'grid-column: 1 / -1' ), 'os-app.css: each row is a subgrid spanning the tracks, so every cell sits in the column its header names' );
+ok( 1 === preg_match( '/\.snt-list--ledger \.snt-list__label,\s*\.snt-list--ledger \.snt-list__value\s*\{([^}]*)\}/', $sheet, $m ) && false !== strpos( $m[1], 'max-width: none' ) && false !== strpos( $m[1], 'text-align: left' ), 'os-app.css: the 60% value cap and the right alignment of a two-cell row are lifted inside the ledger' );
+ok( 1 === preg_match( '/\.snt-ledger\s*\{([^}]*)\}/', $sheet, $m ) && false !== strpos( $m[1], 'overflow-x: auto' ), 'os-app.css: the wrapper scrolls sideways under the ledger`s minimum width, the classic .snt-scroll-table' );
 
 // 8d) next_run / last_fired cell values, not just non-empty output — a
 // negative-control mutation that deleted both columns from the painter
@@ -280,8 +310,8 @@ ok( array() === snt_leaf_classic_markers( $kit_empty ), 'empty state carries no 
 // Measured live 2026-09-10: an analytics rollup event carried 1315 characters of
 // JSON, and under `table-layout: auto` that single unbreakable cell took 2668px
 // of a 3369px table -- every other column collapsed to its minimum and the
-// timestamps wrapped onto four lines. The cells sit in os-table's shadow root,
-// which exposes only `part=scroll`, so this cannot be fixed in CSS.
+// timestamps wrapped onto four lines. The list row's ellipsis now bounds the
+// cell on screen; the clamp keeps the painted markup one line.
 $long_payload = array( 'rollup' => str_repeat( 'abcdefghij', 140 ) );      // ~1400 chars, no spaces to break on
 $short_payload = array( 'gravatars' );
 
@@ -311,8 +341,8 @@ $kit = snt_leaf_paint( 'connections', 'cron', array() );
 ok( 1 === substr_count( $kit, 'class="snt-cols"' ), 'exactly one snt-cols row' );
 ok( 2 === substr_count( $kit, 'class="snt-col"' ), 'the row holds exactly two snt-col boxes' );
 $cols_at  = strpos( $kit, 'class="snt-cols"' );
-$table_at = strpos( $kit, '<os-table' );
-ok( false !== $table_at && $table_at < $cols_at, 'the events table sits above the row, not inside it' );
+$table_at = strpos( $kit, 'heading="Scheduled events"' );
+ok( false !== $table_at && $table_at < $cols_at, 'the events ledger sits above the row, not inside it' );
 ok( false !== strpos( $kit, 'heading="Morning operations brief"' ) && false !== strpos( $kit, 'heading="Scheduled read-only runs"' ), 'both settings boxes carry their classic headings' );
 
 // 13) Readouts absent when their state is absent.
@@ -405,7 +435,7 @@ $kit = snt_leaf_paint( 'connections', 'cron', array() );
 $box = cron_leaf_backlog_box( $kit );
 ok( '' !== $box, 'the backlog box paints under its heading' );
 $box_at = strpos( $kit, 'heading="Action Scheduler backlog"' );
-ok( strpos( $kit, '<os-table' ) < $box_at && $box_at < strpos( $kit, 'class="snt-cols"' ), 'the box sits under the events ledger and above the settings row' );
+ok( strpos( $kit, 'heading="Scheduled events"' ) < $box_at && $box_at < strpos( $kit, 'class="snt-cols"' ), 'the box sits under the events ledger and above the settings row' );
 ok( false === strpos( $box, '<os-disclosure' ), 'a reading is painted directly, not behind a fold' );
 ok( (bool) preg_match( '#<dt class="snt-kv__k">pending</dt><dd class="snt-kv__v">12 \(3 overdue\)</dd>#', $box ), 'pending row: 12 with 3 overdue, no tone under the line' );
 ok( false !== strpos( $box, '<dt class="snt-kv__k">complete</dt><dd class="snt-kv__v">1204</dd>' ), 'complete row: raw status label, the raw figure the Info row prints' );
