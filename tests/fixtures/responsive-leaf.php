@@ -11,6 +11,6 @@ $leaf = $argv[1] ?? 'connections-indexnow';
 if ( ! in_array( $leaf, array( 'connections-indexnow', 'site-performance' ), true ) ) { exit( 1 ); }
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/' . $leaf . '.php';
 list( $tab, $sub ) = explode( '-', $leaf, 2 );
-echo '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="' . esc_attr( $tab ) . '" data-snt-layout="dashboard"><div class="snt-dashboard-body"><div class="snt-leaf">';
+echo '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="' . esc_attr( $tab ) . '" data-snt-layout="dashboard"><os-app-frame><div class="snt-leaf">';
 echo snt_leaf_paint( $tab, $sub );
-echo '</div></div></div>';
+echo '</div></os-app-frame></div>';

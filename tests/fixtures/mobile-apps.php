@@ -6,14 +6,15 @@ if ( ( $argv[1] ?? '' ) === 'home' ) {
 	function snt_dashboard_tab_data() { return array( 'attention' => array( array( 'text' => 'Fixture: review a long operational item before the next publication', 'href' => 'https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=health' ) ) ); }
 	class WP_Query {
 		public $posts;
+		public $found_posts = 6;
 		public function __construct( $args ) {
 			$this->posts = array_map( fn( $i ) => (object) array( 'ID' => $i, 'post_type' => 'post', 'post_status' => 'pending', 'post_title' => 'Fixture article with a long title for responsive testing ' . $i, 'post_modified_gmt' => '2026-09-01 12:00:00' ), range( 1, 6 ) );
 		}
 	}
 	require SNT_PATH . 'apps/sn-dashboard/parts/leaves/dashboard.php';
-	echo '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="dashboard" data-snt-layout="dashboard"><div class="snt-dashboard-body"><div class="snt-leaf">';
+	echo '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="dashboard" data-snt-layout="dashboard"><os-app-frame contained><div class="snt-leaf">';
 	echo \SignalNoise\OpenStationHost\Dashboard\Leaves\paint_dashboard( array() );
-	echo '</div></div></div>';
+	echo '</div></os-app-frame></div>';
 } else {
 	require SNT_PATH . 'apps/sn-analytics/parts/painters/chrome-controls.php';
 	echo '<div class="snt-app os-app-list" data-os-app="sn-analytics"><div class="snt-report-scroll">';

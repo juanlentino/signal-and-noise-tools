@@ -18,15 +18,12 @@
 }
 
 /* The leaf bar (17.4.3): the runtime's `.os-app-list__toolbar` shape, so it
-   wears the runtime sheet's padding, border and elevated surface. Both twins
-   ship from the server (a paint cannot read the shell's mode); the phone
-   select shows only under the shell's mobile stamp, the segmented only off
-   it, mirroring `statusControl()` in the runtime's list-ui.ts. One rule per
-   twin, hiding: the select keeps its own :host display when shown. */
-.snt-app[data-os-app="sn-dashboard"][data-snt-layout="dashboard"] > .snt-subbar {
-	flex: 0 0 auto;
-}
-
+   wears the runtime sheet's padding, border and elevated surface. Since #1617
+   it sits in the frame's toolbar slot, an auto row of the kit's grid. Both
+   twins ship from the server (a paint cannot read the shell's mode); the
+   phone select shows only under the shell's mobile stamp, the segmented only
+   off it, mirroring `statusControl()` in the runtime's list-ui.ts. One rule
+   per twin, hiding: the select keeps its own :host display when shown. */
 html:not([data-os-mode="mobile"]) .snt-subbar__phone {
 	display: none;
 }
@@ -52,49 +49,57 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 	flex: 0 0 auto;
 }
 
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body {
+/* The body is the kit frame's content part (#1617, kit-help App frame): the
+   frame is a grid of auto / auto / minmax( 0, 1fr ) / auto rows with the
+   toolbar slot above and the default slot scrolling (`overflow: auto` is the
+   kit's). The inset, the gap between the notice and the leaf, and the stable
+   gutter are ours, on the part; no second element carries them (an os-body
+   inside the frame is `height: 100%`, so a tall leaf spills past its bottom
+   padding, and with `scroll` there are two scrollers). The root above keeps
+   its flex column: the frame needs a definite height from its parent. */
+.snt-app[data-os-app="sn-dashboard"] os-app-frame::part( content ) {
 	display: flex;
-	flex: 1 1 auto;
 	flex-direction: column;
 	gap: 12px;
-	min-height: 0;
 	padding: clamp( 18px, 2.5vw, 30px ) clamp( 18px, 3vw, 36px ) 34px;
-	overflow: auto;
 	scrollbar-gutter: stable;
 }
 
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf {
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf {
 	flex: 0 0 auto;
 	width: 100%;
 	max-width: 820px;
 	min-width: 0;
 }
 
-/* Every selector below mirrors the cap's own shape -- `.snt-dashboard-body >`.
-   Without it the two TYPE-selector hatches, :has( os-table ) and :has( os-row ),
-   score (0,3,1) against the cap's (0,4,0): they match the leaf and are overruled,
-   so they never released a single leaf. Measured live 2026-09-10 at an 1820px
-   window: connections/cron and connections/webhooks both computed to
-   max-width 820px with the hatch matching. The class-based hatches only worked
-   by a source-order tie at equal specificity; this makes all of them win
-   outright. Scoping to the direct child is not a narrowing -- the cap applies
-   to `.snt-dashboard-body > .snt-leaf`, so that is exactly the set needing release. */
-.snt-app[data-os-app="sn-dashboard"][data-snt-tab="dashboard"] .snt-dashboard-body > .snt-leaf,
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( os-table ),
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( .snt-table-wrap ),
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( os-row ),
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( os-grid ),
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( .snt-report-columns ),
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="analytics"],
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="machine-readers"],
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="cloudflare"],
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="indexnow"],
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="models-budget"],
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="insights"],
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="search-console"],
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="reports"],
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="audit-log"],
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="tags"] {
+/* Every selector below mirrors the cap's own shape -- `os-app-frame >`.
+   Without it the TYPE-selector hatches, :has( os-table ), :has( os-row ) and
+   :has( os-grid ), would score below the cap: they match the leaf and are
+   overruled, so they never released a single leaf. Measured live 2026-09-10
+   at an 1820px window, when the cap keyed on the old body class (0,4,0):
+   connections/cron and connections/webhooks both computed to max-width 820px
+   with the hatch matching. The class-based hatches only worked by a
+   source-order tie at equal specificity; carrying the cap's shape makes all
+   of them win outright. Scoping to the direct child is not a narrowing -- the
+   cap applies to `os-app-frame > .snt-leaf` (the leaf is a light-DOM child of
+   the frame; the slot does not move it), so that is exactly the set needing
+   release. */
+.snt-app[data-os-app="sn-dashboard"][data-snt-tab="dashboard"] os-app-frame > .snt-leaf,
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( os-table ),
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( .snt-table-wrap ),
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( os-row ),
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( os-grid ),
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( .snt-report-columns ),
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="analytics"],
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="machine-readers"],
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="cloudflare"],
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="indexnow"],
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="models-budget"],
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="insights"],
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="search-console"],
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="reports"],
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="audit-log"],
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="tags"] {
 	max-width: 100%;
 }
 
@@ -116,12 +121,17 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 	margin-block-end: 12px;
 }
 
-/* S&N Home tab full-viewport layout */
-.snt-app[data-os-app="sn-dashboard"][data-snt-tab="dashboard"] .snt-dashboard-body {
+/* S&N Home tab full-viewport layout: the frame is `contained` there, so the
+   part is a non-scrolling flex column and the leaf fills it; the zero inset
+   is ours. The notice is a default-slot child too and must not stretch. */
+.snt-app[data-os-app="sn-dashboard"][data-snt-tab="dashboard"] os-app-frame::part( content ) {
 	padding: 0;
 	gap: 0;
-	overflow: hidden;
 	scrollbar-gutter: auto;
+}
+
+.snt-app[data-os-app="sn-dashboard"][data-snt-tab="dashboard"] os-app-frame > os-notice {
+	flex: 0 0 auto;
 }
 
 .snt-app[data-os-app="sn-dashboard"][data-snt-tab="dashboard"] .snt-leaf {
@@ -902,7 +912,7 @@ os-button.snt-sys__v { justify-self: start; display: inline-flex; align-items: c
 }
 
 @container snt-dashboard ( max-width: 620px ) {
-	.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body {
+	.snt-app[data-os-app="sn-dashboard"] os-app-frame::part( content ) {
 		padding: 16px 12px 26px;
 	}
 
@@ -912,8 +922,8 @@ os-button.snt-sys__v { justify-self: start; display: inline-flex; align-items: c
  * PWA & Standalone Foundations
  * ══════════════════════════════════════════════════════════════════════════ */
 
-html[data-os-mode="mobile"] .snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body,
-html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body {
+html[data-os-mode="mobile"] .snt-app[data-os-app="sn-dashboard"] os-app-frame::part( content ),
+html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] os-app-frame::part( content ) {
 	padding-bottom: max( 24px, env( safe-area-inset-bottom, 16px ) );
 }
 

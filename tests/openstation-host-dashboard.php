@@ -485,20 +485,20 @@ namespace {
 	$html = paint( $app, array( 'tab' => 'monitoring', 'sub' => 'health', 'params' => array( 'sn_tag_preview' => '1' ) ) );
 	ok( 0 === strpos( $html, '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="monitoring"' ), 'the root is the native window`s: the tab it paints, no wp-admin heading' );
 	ok( false !== strpos( $html, 'data-snt-leaf="health"' ), 'the active leaf is named on the body' );
-	ok( false !== strpos( $html, '<div class="snt-dashboard-body">' ) && strpos( $html, '<div class="snt-dashboard-body">' ) < strpos( $html, 'data-snt-leaf="health"' ),
-		'the active leaf sits in the single scrolling body, matching Station Home geometry' );
+	ok( false !== strpos( $html, '<os-app-frame>' ) && false === strpos( $html, 'snt-dashboard-body' ) && strpos( $html, '<os-app-frame>' ) < strpos( $html, 'data-snt-leaf="health"' ),
+		'the active leaf sits in the kit frame\'s scrolling body, not contained on a leaf tab (#1617)' );
 	// 17.4.3: the leaf bar is the native list toolbar's status control, both
 	// twins bound to sub; the os-tabs strip (the kit's rose underline beside
 	// the chrome's bold white) is gone from this level.
-	ok( false !== strpos( $html, '<header class="os-app-list__toolbar snt-subbar"><div class="os-app-list__toolbar-left"><os-segmented class="os-app-list__status" value="health" os-bind="sub" label="Sections">' )
+	ok( false !== strpos( $html, '<header class="os-app-list__toolbar snt-subbar" slot="toolbar"><div class="os-app-list__toolbar-left"><os-segmented class="os-app-list__status" value="health" os-bind="sub" label="Sections">' )
 		&& false !== strpos( $html, '<os-segment value="health">' )
 		&& false !== strpos( $html, '<os-select class="os-app-list__status snt-subbar__phone" os-key="subbar-phone" value="health" os-bind="sub" aria-label="Sections">' )
 		&& false !== strpos( $html, '<os-option value="health">' ),
 		'a tab with leaves paints the native toolbar: a segmented control for the desk and a select for the phone, both bound to sub' );
 	ok( false === strpos( $html, '<os-tabs' ) && false === strpos( $html, 'os-app-list__tabs' ),
 		'   ...and no os-tabs strip at this level' );
-	ok( false !== strpos( $html, '<header class="os-app-list__toolbar' ) && strpos( $html, '<header class="os-app-list__toolbar' ) < strpos( $html, '<div class="snt-dashboard-body">' ),
-		'   ...above the body, where the native list puts its toolbar' );
+	ok( false !== strpos( $html, '<header class="os-app-list__toolbar' ) && strpos( $html, '<os-app-frame>' ) < strpos( $html, '<header class="os-app-list__toolbar' ) && strpos( $html, '<header class="os-app-list__toolbar' ) < strpos( $html, 'data-snt-leaf="health"' ),
+		'   ...in the frame\'s toolbar slot, above the leaf, where the native list puts its toolbar' );
 	// Each rule is matched from its own start (a rule boundary or the sheet's
 	// start), so a mobile-scoped hide cannot satisfy the off-mobile pin by
 	// suffix; comments are stripped first so a rule inside one never counts.

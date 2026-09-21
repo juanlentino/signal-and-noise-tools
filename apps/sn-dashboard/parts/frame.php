@@ -137,16 +137,21 @@ function tab_view( $tab ) {
 		// post from scrolling to the same section again.
 		$state->set( 'anchor', '' );
 		echo '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="' . \snt_kit_esc( $tab ) . '" data-snt-layout="dashboard">';
+		// #1617: the window frame is the kit's <os-app-frame> (Stable at
+		// 1.1.10): the toolbar slot stays put and the default slot scrolls
+		// (`::part( content )`, styled in sn-dashboard.css). S&N Home owns
+		// its own scrolling (the rail and the main), so it is `contained`.
+		// The runtime upgrades the tag from the paint; no loadComponents call.
+		echo '<os-app-frame' . ( 'dashboard' === $tab ? ' contained' : '' ) . '>';
 		// 17.4.3: the leaf bar is the native list toolbar's status control
 		// (segmented on a desk, a select on a phone), bound to `sub`, not an
 		// os-tabs strip: see snt_kit_tabs().
 		if ( count( $leaves ) > 1 ) {
-			echo \snt_kit_tabs( $sub, $leaves, 'sub', __( 'Sections', 'signal-and-noise-tools' ) );
+			echo \snt_kit_tabs( $sub, $leaves, 'sub', __( 'Sections', 'signal-and-noise-tools' ), array( 'slot' => 'toolbar' ) );
 		}
-		echo '<div class="snt-dashboard-body">';
 		echo notice_html( $state->get( 'notice' ) );
 		echo '<div class="snt-leaf" data-snt-leaf="' . \snt_kit_esc( $sub ) . '">';
 		echo paint_leaf( $tab, $sub, $state, $os );
-		echo '</div></div></div>';
+		echo '</div></os-app-frame></div>';
 	};
 }

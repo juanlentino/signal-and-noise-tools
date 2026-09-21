@@ -121,12 +121,12 @@ namespace {
 	call_user_func( $view, $st, $os );
 	$html = (string) ob_get_clean();
 	ok( 0 === strpos( $html, '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="dashboard" data-snt-layout="dashboard"' )
-		&& false !== strpos( $html, '<div class="snt-dashboard-body"><div class="snt-leaf" data-snt-leaf="">' ),
-		'the frame follows Station Home: a full-height app shell around one bounded body and leaf' );
+		&& false !== strpos( $html, '<os-app-frame contained><div class="snt-leaf" data-snt-leaf="">' ),
+		'the frame is the kit\'s os-app-frame around one leaf, contained on Home because the rail and the main own their scrolling (#1617)' );
 	$css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
-	ok( false !== strpos( $css, 'height: 100%' ) && false !== strpos( $css, '.snt-dashboard-body' )
-		&& false !== strpos( $css, 'overflow: auto' ) && false !== strpos( $css, 'scrollbar-gutter: stable' ),
-		'the body, not the whole document, owns the scroll' );
+	ok( false !== strpos( $css, 'height: 100%' ) && false === strpos( $css, '.snt-dashboard-body' )
+		&& 1 === preg_match( '/os-app-frame::part\( content \)\s*\{[^}]*scrollbar-gutter: stable/', $css ),
+		'the frame\'s content part, not the whole document, owns the scroll; no .snt-dashboard-body selector remains' );
 	ok( false !== strpos( $css, '.snt-leaf os-section' ) && false !== strpos( $css, 'margin-block-end: 0' )
 		&& false !== strpos( $css, '@container snt-dashboard' ),
 		'the Dashboard cancels the settings-section margin collision and reflows from its window container' );
