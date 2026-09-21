@@ -595,6 +595,14 @@ echo "\n── v9.52.2: Quick Actions reads on the dark glass card ──\n";
 // theme cannot retint — so light-on-dark stays correct and these literals stay
 // literals. See assets/desktop-mode-widget-actions.js for why adopting the
 // --wpd-* body palette here would REGRESS contrast under a light theme.
+//
+// #1603: OpenStation 1.1.5 declared the widget card's own on-dark token
+// contract (--os-ui-color-surface/text/text-subtle/border/accent, its
+// assets/css/variables.css), which answers the objection above for those five
+// names; the widgets read them with today's literals as fallbacks, so the
+// translucent-white pin below still holds (it sits inside the var() fallback).
+// The green, amber and red status colours have no widget token and stay
+// literal. tests/widget-card-tokens.php pins the port.
 $aj = file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-actions.js' );
 $aj_code = strip_js_comments( $aj );
 ok( strpos( $aj_code, 'background:#fff' ) === false,

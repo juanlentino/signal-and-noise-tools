@@ -88,7 +88,7 @@
 	function renderLoading( container ) {
 		clearChildren( container );
 		container.appendChild( el( 'p', {
-			style: 'padding:14px 16px;font-size:13px;opacity:.6;',
+			style: 'padding:14px 16px;font-size:13px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
 			text:  'Loading deploy status…',
 		} ) );
 	}
@@ -97,7 +97,7 @@
 	function renderRefreshStatus( container, lastSuccess, message, delay ) {
 		var footer = el( 'p', {
 			text: lastSuccess ? 'Last successful refresh: ' + lastSuccess : 'Status unavailable.',
-			style: 'position:relative;padding:0 32px 0 16px;font-size:11px;opacity:.6;'
+			style: 'position:relative;padding:0 32px 0 16px;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
 		} );
 		if ( message ) {
 			var detail = ( lastSuccess ? 'Showing last-known data. ' : 'No successful refresh yet. ' ) +
@@ -133,7 +133,7 @@
 			var glyph = stateGlyph( stale ? 'unknown' : ( info.state || 'unknown' ) );
 
 			grid.appendChild( el( 'span', {
-				style: 'opacity:.6;',
+				style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
 				text:  pkg === 'theme' ? 'Theme' : 'Plugin',
 			} ) );
 			grid.appendChild( el( 'span', {
@@ -161,7 +161,7 @@
 			if ( ! w || typeof w !== 'object' ) { return; }
 			var wGlyph = stateGlyph( stale ? 'unknown' : ( w.state || 'unknown' ) );
 			grid.appendChild( el( 'span', {
-				style: 'opacity:.6;',
+				style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
 				text:  w.label || w.id || 'worker',
 			} ) );
 			grid.appendChild( el( 'span', {
@@ -204,7 +204,7 @@
 		var deployAge  = status.last_deploy || 'unknown';
 		var deployWhat = status.last_deploy_component || '';
 		var deployEl   = el( 'p', {
-			style: 'margin:10px 0 0;padding-top:8px;border-top:1px solid rgba(255,255,255,0.14);font-size:11px;opacity:.6;',
+			style: 'margin:10px 0 0;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.14));font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
 			text:  deployWhat
 				? 'Last deploy: ' + deployWhat + ' · ' + deployAge
 				: 'Last deploy: ' + deployAge,
@@ -214,7 +214,7 @@
 
 		if ( dashboardUrl ) {
 			wrap.appendChild( el( 'a', {
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;',
+				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;',
 				text:  'Open Dashboard →',
 				href:  dashboardUrl,
 			} ) );
@@ -233,6 +233,7 @@
 		var torn = false;
 		var timer = null;
 		var pending = false;
+		var nextAt = 0;
 		var controller = null;
 		var lastGood = null;
 		var lastSuccess = '';
@@ -281,15 +282,33 @@
 			} ).then( function() {
 				pending = false;
 				controller = null;
-				if ( ! torn ) { timer = window.setTimeout( refresh, delay ); }
+				nextAt = Date.now() + delay;
+				arm();
 			} );
 		}
+
+		// Recipe 2 (OpenStation docs/examples/register-widget.md, #1603): no
+		// poll while the tab is hidden. The chain keeps its backoff: `nextAt`
+		// is when the next call is due, `arm()` schedules it only while visible,
+		// and reveal re-arms for whatever of that wait is left (zero when the
+		// data went stale in the background), so a quick tab flip costs no call.
+		function arm() {
+			window.clearTimeout( timer );
+			if ( torn || pending || document.hidden ) { return; }
+			timer = window.setTimeout( refresh, Math.max( 0, nextAt - Date.now() ) );
+		}
+		function onVisibilityChange() {
+			if ( document.hidden ) { window.clearTimeout( timer ); return; }
+			arm();
+		}
+		document.addEventListener( 'visibilitychange', onVisibilityChange );
 
 		refresh();
 
 		return function teardown() {
 			torn = true;
 			window.clearTimeout( timer );
+			document.removeEventListener( 'visibilitychange', onVisibilityChange );
 			if ( controller ) { controller.abort(); }
 			container.textContent = '';
 		};

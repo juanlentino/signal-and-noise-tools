@@ -286,9 +286,31 @@ void.
 ## CSS
 
 Our plugin's CSS does **not** consume any `--wpd-*` or `--desktop-mode-*`
-custom property (grepped `assets/*.css` — zero hits), confirming the
-discipline noted in project memory (TRAP 8 — the widget card deliberately
-avoids upstream color tokens) still holds.
+custom property (grepped `assets/*.css`, zero hits). The docked widgets
+(`assets/desktop-mode-widget*.js`) read the widget card's own token contract
+since #1603: `--os-ui-color-text-subtle` for muted text, `--os-ui-color-border`
+for in-card hairlines and `--os-ui-color-accent` for links and the views
+sparkline, each with an on-dark literal as the `var()` fallback. OpenStation
+1.1.5 declared the five names (`assets/css/variables.css`, on-dark by design,
+documented in `docs/examples/register-widget.md` under "Theme tokens", Stable
+with the widget API), which retires the first premise of memory TRAP 8 (no
+widget token was declared anywhere). Two of the five are not on-dark under
+Legacy, the one built-in theme: at 1.1.10 `assets/desktop-themes/legacy/theme.json`
+pins `--os-ui-color-accent` to `#3b82f6` and `--os-ui-color-border` to `#e5e7eb`,
+and `includes/desktop-themes/compile.php` emits every theme token on
+`.os-shell[data-os-desktop-theme="legacy"]` after `variables.css`. So with no
+theme worn the links follow the accent picker (the accent chains to
+`--os-ui-accent`, which the picker writes inline on body) and hairlines are a
+0.12 white; with Legacy worn the links sit on `#3b82f6` whatever the pick and
+every hairline is a light grey line on the dark glass, the same as upstream's
+bundled widgets under Legacy. A fallback cannot override a declared value;
+that is an upstream theme defect to file, not ours to paint around. The second premise stands: the green,
+amber and red status colours have no widget token and stay literal, because
+the body palette's `--os-ui-success-fg` and kin are themed against a
+themeable surface while the card is fixed dark glass. The four timer widgets
+(deploy, uptime, RSS, queue) follow the same doc's Recipe 2: the poll stops on
+`visibilitychange` to hidden and resumes on reveal, catching up at once only
+when the data went stale; the cache card gates its reveal refresh the same way.
 
 The one class selector we DO read from upstream — `body.desktop-mode-chromeless`
 in `assets/admin.css` (hides our in-page tab nav inside a chromeless shell

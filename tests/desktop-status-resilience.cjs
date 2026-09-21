@@ -7,7 +7,9 @@ const path = require('node:path');
 class Element {
   constructor(tag) { this.tag = tag; this.children = []; this.attrs = {}; this.text = ''; }
   setAttribute(k, v) { this.attrs[k] = v; }
-  appendChild(n) { this.children.push(n); return n; }
+  appendChild(n) { this.children.push(n); Object.defineProperty(n, "parentNode", {value: this, writable: true, configurable: true}); return n; }
+  querySelector() { return null; }
+  remove() { if (this.parentNode) this.parentNode.removeChild(this); }
   insertBefore(n, before) { const i = this.children.indexOf(before); this.children.splice(i < 0 ? this.children.length : i, 0, n); }
   removeChild(n) { this.children.splice(this.children.indexOf(n), 1); }
   get firstChild() { return this.children[0]; }
@@ -24,19 +26,28 @@ function harness() {
   const window = {
     AbortController,
     snDesktopData: {},
-    sntAbilityRunData: { verbs: { 'signal-noise/get-deploy-status': 'GET', 'signal-noise/uptime-status': 'GET' } },
+    sntAbilityRunData: { verbs: { 'signal-noise/get-deploy-status': 'GET', 'signal-noise/uptime-status': 'GET',
+      'signal-noise/get-rss-stats': 'GET', 'signal-noise/content-queue': 'GET', 'signal-noise/cache-freshness': 'GET' } },
     setTimeout(fn, delay) { const id = ++nextId; timers.set(id, {fn, at: now + delay}); return id; },
     clearTimeout(id) { timers.delete(id); },
     setInterval(fn, delay) { const id = ++nextId; timers.set(id, {fn, at: now + delay, repeat: delay}); return id; },
     clearInterval(id) { timers.delete(id); },
+    addEventListener() {}, removeEventListener() {},
     wp: { apiFetch(opts) { return new Promise((resolve, reject) => calls.push({opts, resolve, reject})); } }
   };
+  // A document with a visibility state the fixture can flip (#1603).
+  const listeners = new Map();
+  const document = { hidden: false, createElement: tag => new Element(tag),
+    addEventListener(t, fn) { listeners.set(t, [...(listeners.get(t) || []), fn]); },
+    removeEventListener(t, fn) { listeners.set(t, (listeners.get(t) || []).filter(f => f !== fn)); },
+    dispatch(t) { (listeners.get(t) || []).forEach(fn => fn()); } };
   class Clock extends Date { constructor(...a) { super(...(a.length ? a : [now])); } static now() { return now; } }
-  const context = vm.createContext({window, document: { createElement: tag => new Element(tag) }, Date: Clock, Promise, Error, Math, AbortController});
-  for (const name of ['snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-uptime.js']) {
+  const context = vm.createContext({window, document, Date: Clock, Promise, Error, Math, Number, Array, Object, AbortController});
+  for (const name of ['snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-uptime.js',
+    'desktop-mode-widget-rss.js', 'desktop-mode-widget-queue.js', 'desktop-mode-widget-cache.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets', name), 'utf8'), context, {filename: name});
   }
-  return {window, calls, timers, async tick(ms) {
+  return {window, document, calls, timers, async tick(ms) {
     const end = now + ms;
     for (;;) {
       const entry = [...timers].filter(([,t]) => t.at <= end).sort((a,b) => a[1].at-b[1].at)[0];
@@ -196,6 +207,52 @@ async function run() {
     assert.equal(x.calls.filter(c => c.opts.path.includes('get-deploy-status')).length, 11);
     assert.equal(x.calls.filter(c => c.opts.path.includes('uptime-status')).length, 6);
     stops.forEach(stop => stop()); assert.equal(x.timers.size, 0);
+  }
+  // Recipe 2 (#1603): a hidden tab polls nothing; reveal after the period
+  // costs exactly one call per widget, a quick flip costs none.
+  {
+    const x = harness(); let answered = 0;
+    const stops = fixtures.map(f => x.window.desktopModeWidgets[f.id](new Element('div')));
+    const answer = async () => { for (; answered < x.calls.length; answered++) {
+      const c = x.calls[answered]; c.resolve(fixtures[c.opts.path.includes('uptime-status') ? 1 : 0].good);
+    } await flush(); };
+    await flush(); await answer(); assert.equal(x.calls.length, 2);
+    x.document.hidden = true; x.document.dispatch('visibilitychange');
+    await x.tick(5 * 60000); assert.equal(x.calls.length, 2, 'a hidden tab polls no ability');
+    x.document.hidden = false; x.document.dispatch('visibilitychange'); await x.tick(0);
+    assert.equal(x.calls.filter(c => c.opts.path.includes('get-deploy-status')).length, 2, 'reveal after the period: one deploy call');
+    assert.equal(x.calls.filter(c => c.opts.path.includes('uptime-status')).length, 2, 'reveal after the period: one uptime call');
+    await answer();
+    x.document.hidden = true; x.document.dispatch('visibilitychange'); await x.tick(1000);
+    x.document.hidden = false; x.document.dispatch('visibilitychange'); await x.tick(0);
+    assert.equal(x.calls.length, 4, 'a quick tab flip costs no call');
+    await x.tick(60000); await answer(); assert.equal(x.calls.length, 5, 'polling resumed on reveal');
+    stops.forEach(stop => stop()); assert.equal(x.timers.size, 0);
+    x.document.dispatch('visibilitychange'); assert.equal(x.timers.size, 0, 'teardown drops the listener');
+  }
+  // Recipe 2 for the interval pollers (RSS, queue) and the cache gate (#1603
+  // repair): a source pin cannot tell a no-op stopPolling from a real one,
+  // so each is driven through the same hidden stretch, reveal and quick flip.
+  const pollers = [
+    {id: 'sn-rss-subscribers', period: 5 * 60000, good: {ok: true, data: {windows: {}}}},
+    {id: 'sn-queue', period: 60000, good: {next: [], published: []}},
+    {id: 'sn-cache', period: 60000, good: {state: 'ok', last: 'ok', post_save: {probes: 1, stale: 0, escalated: 0}}}
+  ];
+  for (const f of pollers) {
+    const x = harness(), root = new Element('div'); let answered = 0;
+    const answer = async () => { for (; answered < x.calls.length; answered++) x.calls[answered].resolve(f.good); await flush(); };
+    const stop = x.window.desktopModeWidgets[f.id](root); await flush(); await answer();
+    assert.equal(x.calls.length, 1, f.id + ': first load is one call');
+    x.document.hidden = true; x.document.dispatch('visibilitychange');
+    await x.tick(5 * f.period); assert.equal(x.calls.length, 1, f.id + ': a hidden tab polls no ability');
+    x.document.hidden = false; x.document.dispatch('visibilitychange'); await x.tick(0);
+    assert.equal(x.calls.length, 2, f.id + ': reveal after the period costs one call'); await answer();
+    x.document.hidden = true; x.document.dispatch('visibilitychange'); await x.tick(1000);
+    x.document.hidden = false; x.document.dispatch('visibilitychange'); await x.tick(0);
+    assert.equal(x.calls.length, 2, f.id + ': a quick tab flip costs no call');
+    await x.tick(f.period); await answer(); assert.equal(x.calls.length, 3, f.id + ': polling resumed on reveal');
+    stop(); await x.tick(10 * f.period); assert.equal(x.calls.length, 3, f.id + ': teardown stops the poll');
+    assert.equal(x.timers.size, 0, f.id + ': teardown clears every timer');
   }
   console.log('PASS: runner and both widgets — stale/429/recovery/backoff, malformed data, cross-widget cadence, abort/cleanup/remount');
 }

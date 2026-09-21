@@ -123,6 +123,20 @@
 	 * surface takes a fixed foreground; that is why these are literals and why
 	 * they should stay literals.
 	 *
+	 * #1603: OpenStation 1.1.5 declared the widget card's own token
+	 * contract, on-dark by design (assets/css/variables.css, --os-ui-color-*):
+	 * surface, text, text-subtle, border, accent. HAIRLINE below reads
+	 * --os-ui-color-border and the links read --os-ui-color-accent, each with
+	 * today's literal as the fallback. With no theme worn the accent chains to
+	 * --os-ui-accent, the name the picker writes on body, so the links follow
+	 * the pick. With Legacy worn they do not: 1.1.10's legacy/theme.json pins
+	 * --os-ui-color-accent to #3b82f6 and --os-ui-color-border to a light
+	 * #e5e7eb, compiled onto .os-shell after variables.css, so under Legacy
+	 * the links sit on that blue and every hairline paints light grey, the
+	 * same shape upstream's bundled widgets take. That is the theme's to fix
+	 * upstream, not a fallback's. The green, amber and red status colours
+	 * have no widget token and stay literal, per the paragraph above.
+	 *
 	 * CAVEAT worth watching: a theme that sets --wpd-fg-on-accent to a DARK
 	 * value turns inherited card text dark-on-dark. That is upstream's coupling
 	 * (unthemeable card + themeable text) and it hits desktop-mode's own
@@ -138,7 +152,7 @@
 	 */
 	var SURFACE      = 'rgba(255,255,255,0.06)';
 	var SURFACE_HOVER = 'rgba(255,255,255,0.13)';
-	var HAIRLINE     = 'rgba(255,255,255,0.14)';
+	var HAIRLINE     = 'var(--os-ui-color-border, rgba(255,255,255,0.14))';
 	var OK_FG        = '#3fb950';
 	var OK_BG        = 'rgba(63,185,80,0.14)';
 	var OK_LINE      = 'rgba(63,185,80,0.32)';
@@ -309,7 +323,7 @@
 		wrap.appendChild( btnReset );
 
 		wrap.appendChild( el( 'p', {
-			style: 'margin:8px 0 0;font-size:10px;opacity:.5;',
+			style: 'margin:8px 0 0;font-size:10px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.5));',
 			text:  'Same actions as S&N → Dashboard → Maintenance',
 		} ) );
 
