@@ -116,6 +116,9 @@ if ( ! function_exists( 'wp_delete_attachment' ) ) {
 if ( ! function_exists( 'delete_transient' ) ) {
 	function delete_transient( $key ) { $GLOBALS['__deleted_transients'][] = $key; return true; }
 }
+// #1621: OpenStation's recorder, stubbed to a ledger. Nothing called it before.
+$GLOBALS['__recorded'] = array();
+function openstation_content_changes_record( $type, $id, $action ) { $GLOBALS['__recorded'][] = array( $type, (int) $id, $action ); return true; }
 
 require_once __DIR__ . '/../inc/health-checks.php';
 require_once __DIR__ . '/../inc/ai-orphan-suggest.php';
@@ -143,6 +146,7 @@ function oa_reset() {
 	$GLOBALS['__delete_calls']       = array();
 	$GLOBALS['__delete_result']      = null;
 	$GLOBALS['__deleted_transients'] = array();
+	$GLOBALS['__recorded']           = array();
 }
 
 echo "AI orphan apply — TOCTOU re-check at delete time (v10.28.1)\n\n";
@@ -156,6 +160,7 @@ oa_true( is_wp_error( $res ) && 'snt_orphan_no_longer' === $res->get_error_code(
 oa_true( is_wp_error( $res ) && 409 === ( $res->get_error_data()['status'] ?? 0 ), 'body-referenced: status 409' );
 oa_true( 0 === count( $GLOBALS['__delete_calls'] ), 'body-referenced: wp_delete_attachment was NEVER called' );
 oa_true( array() === $GLOBALS['__deleted_transients'], 'body-referenced: verdict cache untouched (finding stays reviewable)' );
+oa_true( array() === $GLOBALS['__recorded'], 'body-referenced: nothing announced to the station (#1621)' );
 
 // 2. TOCTOU: became a featured image after the scan → 409, NO delete.
 oa_reset();
@@ -177,6 +182,10 @@ $res = snt_ai_orphan_apply_impl( 200 );
 oa_true( is_array( $res ) && true === ( $res['ok'] ?? false ) && true === ( $res['deleted'] ?? false ), 'still-orphan: ok=true deleted=true' );
 oa_true( array( array( 200, true ) ) === $GLOBALS['__delete_calls'], 'still-orphan: wp_delete_attachment(200, true) called exactly once' );
 oa_true( in_array( 'sn_orphan_verdict_200', $GLOBALS['__deleted_transients'], true ), 'still-orphan: verdict transient cleared' );
+// #1621: wp_delete_attachment() never fires before_delete_post, the hook the
+// station's Recycle Bin records on, so the Media Library window kept the row
+// until a reload. The documented recorder is called once, after the delete.
+oa_true( array( array( 'attachment', 200, 'deleted' ) ) === $GLOBALS['__recorded'], 'still-orphan: openstation_content_changes_record( attachment, 200, deleted ) called exactly once (#1621)' );
 
 // 5. Pre-existing gates unchanged: capability failure → 403, nothing touched.
 oa_reset();
@@ -196,6 +205,7 @@ oa_reset();
 $GLOBALS['__delete_result'] = false;
 $res = snt_ai_orphan_apply_impl( 200 );
 oa_true( is_wp_error( $res ) && 'snt_ai_delete_failed' === $res->get_error_code(), 'delete failure (false): snt_ai_delete_failed unchanged' );
+oa_true( array() === $GLOBALS['__recorded'], 'delete failure: a refused delete announces nothing (#1621)' );
 
 // 8. The live re-check helper itself: mirrors the scan's signals for one id.
 oa_reset();

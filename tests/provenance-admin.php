@@ -443,6 +443,19 @@ ad_true( false !== strpos( $html, 'widefat striped' ), 'renders the commits tabl
 ad_true( false !== strpos( $html, 'sn-prov-live' ), 'renders the aria-live commits tbody' );
 ad_true( false !== strpos( $html, 'data-endpoint' ), 'live tbody carries the status data-endpoint' );
 ad_true( false !== strpos( $html, 'data-nonce' ), 'live tbody carries the wp_rest data-nonce' );
+// #1601: the data-nonce is painted once at render and never rewritten, so a
+// window open past the nonce window polled with a stale one and the table
+// read "Status check failed (HTTP 403)" every 30 s. Inside the station the
+// poll rides wp.os.fetch (Stable: the heartbeat-refreshed nonce, stamped at
+// call time); the hand-set header is the classic tab's fallback only.
+$prov_js = (string) file_get_contents( __DIR__ . '/../assets/provenance-admin.js' );
+ad_true( 1 === preg_match( '/window\.wp\.os\.fetch\(endpoint, \{[^}]*\}, \{ silent: true \}\)/', $prov_js ), 'the poll rides the shell\'s fetch when present, silent: a 30 s tick is not the owner\'s activity' );
+ad_eq( 1, substr_count( $prov_js, 'X-WP-Nonce' ), 'the hand-set X-WP-Nonce header survives on the classic fallback branch only (count 1)' );
+// Count 1 alone passed against a shell branch that sent `headers: hdr` with
+// the stale nonce in a variable and a bare fetch on the fallback, the exact
+// 403 this closes. The one literal must sit on the fallback line itself.
+ad_true( false !== strpos( $prov_js, ": fetch(endpoint, { headers: { 'X-WP-Nonce': live.getAttribute('data-nonce') } })" ), 'the one X-WP-Nonce literal is the classic fallback line, the else of the shell ternary' );
+ad_true( false !== strpos( $prov_js, "typeof window.wp.os.fetch === 'function'" ), 'the shell seam is a typeof guard: the classic tab has no shell' );
 ad_true( false !== strpos( $html, 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=' ), 'publishes the Ed25519 public key from the option' );
 ad_true( false === strpos( $html, 'sn-card-grid' ), 'no foreign card-grid markup remains' );
 

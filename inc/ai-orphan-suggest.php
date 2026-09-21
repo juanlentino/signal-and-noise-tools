@@ -200,6 +200,17 @@ function snt_ai_orphan_apply_impl( $attachment_id ) {
 
 	delete_transient( 'sn_orphan_verdict_' . $attachment_id );
 
+	// #1621: wp_delete_attachment() fires delete_attachment, delete_post and
+	// deleted_post, none of which OpenStation's realtime layer records (its
+	// Recycle Bin listens on before_delete_post, which this path never
+	// fires), so the Media Library window kept the row. The recorder
+	// (openstation_content_changes_record, Stable, hooks-reference.md) is the
+	// documented call; behind function_exists, the plugin runs without the
+	// station.
+	if ( function_exists( 'openstation_content_changes_record' ) ) {
+		openstation_content_changes_record( 'attachment', $attachment_id, 'deleted' );
+	}
+
 	return array(
 		'ok'            => true,
 		'attachment_id' => $attachment_id,

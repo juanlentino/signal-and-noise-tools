@@ -94,7 +94,12 @@ function snt_ability_run_client_register() {
 	wp_localize_script(
 		'snt-ability-run',
 		'sntAbilityRunData',
-		array( 'verbs' => snt_ability_verb_map() )
+		array(
+			'verbs' => snt_ability_verb_map(),
+			// #1601: inside the station the runner sends through wp.os.fetch,
+			// which takes a full URL; rest_url() covers plain permalinks.
+			'root'  => rest_url(),
+		)
 	);
 }
 add_action( 'admin_enqueue_scripts', 'snt_ability_run_client_register', 1 );

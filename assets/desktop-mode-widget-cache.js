@@ -228,7 +228,7 @@
 			}
 			busy = true;
 			Promise.resolve().then( function() {
-				return window.sntAbilityRun( 'cache-freshness' );
+				return window.sntAbilityRun( 'cache-freshness', undefined, { silent: true } );
 			} ).then( function( result ) {
 				if ( stopped ) { return; }
 				if ( ! result || ! result.post_save || ! result.last ) { throw new Error( 'Invalid cache status' ); }

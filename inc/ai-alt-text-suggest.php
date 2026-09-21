@@ -314,6 +314,15 @@ function snt_ai_alt_apply_impl( $attachment_id, $alt_text ) {
 		return new WP_Error( 'snt_ai_write_failed', sprintf( __( 'Database write failed: %s', 'signal-and-noise-tools' ), $wpdb->last_error ), array( 'status' => 500 ) );
 	}
 
+	// #1621: OpenStation's realtime layer has no post-meta publisher, so the
+	// Media Library window never learned of this write. The recorder
+	// (openstation_content_changes_record, Stable, hooks-reference.md) is the
+	// documented call for a plugin's own mutation paths; behind
+	// function_exists because the plugin runs without the station.
+	if ( function_exists( 'openstation_content_changes_record' ) ) {
+		openstation_content_changes_record( 'attachment', $attachment_id, 'updated' );
+	}
+
 	return array(
 		'ok'            => true,
 		'attachment_id' => $attachment_id,

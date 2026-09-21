@@ -249,7 +249,7 @@
 			Promise.resolve().then( function() {
 				if ( torn ) { return; }
 				if ( typeof window.sntAbilityRun !== 'function' ) { throw new Error( 'sntAbilityRun unavailable' ); }
-				return window.sntAbilityRun( 'get-deploy-status', undefined, { signal: controller ? controller.signal : undefined } );
+				return window.sntAbilityRun( 'get-deploy-status', undefined, { signal: controller ? controller.signal : undefined, silent: true } );
 			} ).then( function( res ) {
 				if ( torn ) { return; }
 				var validPackages = res && typeof res === 'object' && ! Array.isArray( res ) && [ 'theme', 'plugin' ].every( function( name ) {

@@ -174,7 +174,7 @@
 				return;
 			}
 			// v7.7.2: readonly ability → the runner GETs it (POST 405'd).
-			window.sntAbilityRun( 'get-rss-stats' )
+			window.sntAbilityRun( 'get-rss-stats', undefined, { silent: true } )
 				.then( function( res ) {
 					if ( torn ) { return; }
 					if ( res && res.data ) {
