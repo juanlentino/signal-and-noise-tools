@@ -465,15 +465,19 @@ $brush = (string) file_get_contents( __DIR__ . '/../assets/analytics/analytics-b
 ok( false !== strpos( $brush, 'armed.has(wrap)' ) && false !== strpos( $brush, 'armed.add(wrap)' ), 'the brush binds its pointer handlers once per wrap' );
 ok( false !== strpos( $brush, 'sel.parentNode !== wrap' ), 'and re-attaches its selection overlay when a repaint dropped it: the overlay is a child the server never paints, so the diff removes it every time' );
 
-echo "\nGroup P3: the four scripts that need NO seam, and why\n";
+echo "\nGroup P3: the three scripts that need NO seam, and why\n";
 // Measured, not assumed: each of these attaches its handler to `document` and
 // re-reads the DOM at event time, so a repaint changes nothing for it. The
 // port map guessed resume-admin's add-row was element-bound; it is not.
+// admin-heartbeat.js was the fourth here until #1607: it IS delegated on
+// document, but in the window it matched nothing (the kit paints no
+// `.sn-cron-last-fired` and no `table[data-webhook-id]`), so "keeps working
+// through every repaint" was a shape pin over a script that did no work. The
+// window no longer carries it (tests/openstation-host.php, Group 7).
 $delegated = array(
 	'snt-confirm.js'           => array( "document.addEventListener( 'click'", 'the [data-snt-confirm] interceptor' ),
 	'resume-admin.js'          => array( "document.addEventListener( 'click'", 'the repeatable-row add/move/remove buttons' ),
 	'health-suggest-actions.js' => array( "document.addEventListener( 'click'", 'the suggest / suggest-all / dismiss buttons' ),
-	'admin-heartbeat.js'       => array( '$( document ).on(', 'the heartbeat send/tick patchers (and the host appends no such handle)' ),
 );
 foreach ( $delegated as $rel => $spec ) {
 	$src = (string) file_get_contents( __DIR__ . '/../assets/' . $rel );

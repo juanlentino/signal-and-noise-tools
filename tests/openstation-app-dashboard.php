@@ -88,7 +88,7 @@ namespace {
 	echo "Group 1: the window\n";
 	ok( 'sn-dashboard' === $app->id && 'S&N Home' === $app->title && 'dashicons-shield-alt' === $app->icon && 'dock' === $app->placement, 'the stable id keeps placement while the native surface is named S&N Home' );
 	ok( array( 'sub', 'anchor', 'flash', 'notice', 'params', 'post' ) === array_keys( $app->state ), 'state has NO tab: the tab is the session (the framework`s), only the leaf, the anchor and the last write are state' );
-	ok( array( 'go', 'post', 'door', 'refresh', 'reopen' ) === array_keys( $app->actions ), 'five actions: go, post, door, refresh, reopen' );
+	ok( array( 'go', 'post', 'door', 'refresh', 'reopen', 'poll' ) === array_keys( $app->actions ), 'six actions: go, post, door, refresh, reopen, poll' );
 	$tabs = array();
 	foreach ( sn_admin_top_tabs() as $t ) { if ( 'dashboard' !== $t['tab'] ) { $tabs[ $t['tab'] ] = $t['label']; } }
 	ok( array_keys( $tabs ) === array_keys( $app->tabs ) && array_values( $tabs ) === array_column( $app->tabs, 'label' ), 'the framework`s tabs are the registry`s seven tabs after Dashboard, in order, with the registry`s labels: ' . implode( ', ', array_keys( $app->tabs ) ) );
@@ -150,6 +150,31 @@ namespace {
 	$st3 = new \OpenStation\App\State( $app->state );
 	$app->actions['reopen']( $st3, $os3, array() );
 	ok( 'health' === $st3->get( 'sub' ) && 'sn-sec-y' === $st3->get( 'anchor' ), 'reopen reads the leaf and the anchor (an element id, as given) from the window params on this tab' );
+
+	echo "\nGroup 3b: the poll tick is a no-op on state (#1607)\n";
+	// os-poll (App Framework, Experimental at OpenStation 1.1.10) dispatches its
+	// action every N ms while the element is painted. A tick on `refresh` would
+	// drop the notice and the flash every 30 s, and the Webhooks leaf keys its
+	// show-once secret off the `wh_added_` flash; so the tick is `poll`, which
+	// only re-reads the badge. Measured here: set every state key a user action
+	// writes, dispatch poll, read them back unchanged; then refresh still clears.
+	$os4 = new \OpenStation\App\Os(); $os4->view = 'connections';
+	$st4 = new \OpenStation\App\State( $app->state, array( 'sub' => 'webhooks', 'anchor' => 'sn-sec-w', 'flash' => 'wh_added_x', 'notice' => array( 'success', 'Saved' ), 'params' => array( 'sn_prov_swept' => 'ok', 'sn_watch' => '1' ), 'post' => array( 'a' => '1' ) ) );
+	$before = $st4->all();
+	// Guarded so a missing action reads as a red pin, not a dead suite; the
+	// guard rides every assertion below so nothing passes vacuously.
+	$polled = isset( $app->actions['poll'] );
+	if ( $polled ) { $app->actions['poll']( $st4, $os4, array() ); }
+	ok( $polled && $before === $st4->all(), 'poll leaves sub, anchor, flash, notice, params and post exactly as the last user action left them: the wh_added_ flash (the show-once secret), the notice, the sn_* params all survive the tick' );
+	ok( $polled && array( 0 ) === $os4->badges && array() === $os4->toasts && 0 === $os4->refresh && array() === $os4->opened, 'a tick re-reads the badge and does nothing else: no toast, no menu refresh, no door' );
+	$app->actions['refresh']( $st4, $os4, array() );
+	ok( null === $st4->get( 'notice' ) && '' === $st4->get( 'flash' ) && array( 'sn_prov_swept' => 'ok', 'sn_watch' => '1' ) === $st4->get( 'params' ), '...while the declared refresh still drops the notice and the flash (and keeps params), which is why the poll cannot ride it' );
+	$src_app = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.os.php' );
+	ok( false !== strpos( $src_app, "'poll'," ) && false !== strpos( $src_app, 'os-poll' ) && false !== strpos( $src_app, 'Experimental' ), 'the poll action names the os-poll seam and its Experimental status in the app file' );
+	$src_kit = (string) file_get_contents( SNT_PATH . 'inc/openstation-kit-triggers.php' );
+	ok( '<span os-action="poll" os-poll="30000" hidden></span>' === snt_kit_poll(), 'snt_kit_poll() paints the hidden poll trigger on the poll action at 30 s' );
+	ok( '<span os-action="poll" os-poll="250" hidden></span>' === snt_kit_poll( 'poll', 10 ), '...and floors the interval at the runtime\'s 250 ms, below which readPolls() drops the element' );
+	ok( false !== strpos( $src_kit, 'Experimental' ) && false !== strpos( $src_kit, 'readPolls()' ), 'the helper names the seam\'s status and the runtime function that reads it' );
 
 	echo "\nGroup 4: PORT COMPLETE -- every leaf has a kit painter\n";
 	foreach ( (array) glob( SNT_PATH . 'apps/sn-dashboard/parts/leaves/*.php' ) as $leaf_file ) { require_once $leaf_file; }

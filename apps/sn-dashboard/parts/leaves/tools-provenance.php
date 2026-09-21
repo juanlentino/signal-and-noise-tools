@@ -32,7 +32,10 @@
  *
  * The Commits table is server-rendered from the SAME status list the poller
  * would have hydrated (`sn_prov_admin_status()`), since an inline script never
- * runs in a window; a ghost "Refresh" button stands in for the poll.
+ * runs in a window; the poll is the runtime's own (`os-poll` on a no-op
+ * `poll` action, snt_kit_poll(), #1607), so a pending row changes state on
+ * its own within 30 s. This leaf's forms are bare submit buttons, so a tick's
+ * repaint has no typed field to reset.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -96,15 +99,6 @@ function provenance_data( array $ctx ) {
 	$sys        = function_exists( 'sn_prov_admin_system_status' ) ? sn_prov_admin_system_status() : array();
 	$status     = function_exists( 'sn_prov_admin_status' ) ? sn_prov_admin_status() : array( 'pending' => array(), 'genesis' => array() );
 	$candidates = function_exists( 'sn_prov_backfill_candidates' ) ? sn_prov_backfill_candidates() : array();
-	$backfill   = get_transient( 'sn_prov_backfill_result_' . get_current_user_id() );
-	// Classic deletes this the instant it renders (inc/provenance-chain-backfill.php:371)
-	// so the one-shot result notice never re-prints. A window repaints in the
-	// same session on every state change (unlike classic's single post-redirect
-	// render), so leaving it unset would make the notice sticky for the
-	// transient's whole lifetime.
-	if ( is_array( $backfill ) ) {
-		delete_transient( 'sn_prov_backfill_result_' . get_current_user_id() );
-	}
 
 	// The classic leaf reads its ok|fail flashes from $_GET; a window never
 	// carries a real query string, so the SAME values ride back as
@@ -112,6 +106,28 @@ function provenance_data( array $ctx ) {
 	// every `sn_*` key from the admin-post redirect target survives).
 	$state  = isset( $ctx['state'] ) ? $ctx['state'] : null;
 	$params = ( is_object( $state ) && method_exists( $state, 'get' ) ) ? (array) $state->get( 'params' ) : array();
+	$stash  = false;
+
+	// The backfill result is a one-shot transient the classic fieldset deletes
+	// the instant it renders (inc/provenance-chain-backfill.php:371), and its
+	// redirect carries NO flag: the transient is the whole signal. A window
+	// repaints the same session on every poll tick, so deleting on every read
+	// made the SECOND paint (anywhere in the 30 s after the post) drop the
+	// "Imported N" notice, and with no candidates left the whole section. So
+	// the first read moves the result INTO `params`, the sweep's shape below,
+	// and every later paint reads it from there; `go` and `post` reset
+	// `params`, so it leaves with the next user action (#1607).
+	if ( isset( $params['sn_prov_backfill_result'] ) && is_array( $params['sn_prov_backfill_result'] ) ) {
+		$backfill = $params['sn_prov_backfill_result'];
+	} else {
+		$key      = 'sn_prov_backfill_result_' . get_current_user_id();
+		$backfill = get_transient( $key );
+		if ( is_array( $backfill ) ) {
+			delete_transient( $key );
+			$params['sn_prov_backfill_result'] = $backfill;
+			$stash                             = true;
+		}
+	}
 
 	$reanchor_flag = isset( $params['sn_prov_reanchor'] ) ? sanitize_text_field( (string) $params['sn_prov_reanchor'] ) : '';
 	$swept_flag    = isset( $params['sn_prov_swept'] ) ? sanitize_text_field( (string) $params['sn_prov_swept'] ) : '';
@@ -120,12 +136,30 @@ function provenance_data( array $ctx ) {
 	// rotation redirect target) but never reads back anywhere in the file —
 	// grep confirms no renderer or notice consumes it. A faithful port
 	// reproduces readers, not dead writers; nothing is painted for it here.
+	//
+	// The result is a one-shot transient the classic notice deletes on read,
+	// while the `sn_prov_swept` flag rides `params` until the next `go` or
+	// `post`. Deleting on every read made the SECOND paint (a poll tick, the
+	// title-bar Refresh, any post on this leaf) read the flag with an empty
+	// result and paint "Sweep failed" for a sweep that succeeded. So the
+	// first read moves the result INTO `params`, beside the flag, and every
+	// later paint reads it from there: the read is idempotent and the two
+	// live and die together (#1607).
 	$sweep_result = null;
 	if ( '' !== $swept_flag ) {
-		$key          = 'sn_prov_sweep_result_' . get_current_user_id();
-		$sweep_result = get_transient( $key );
-		delete_transient( $key );
-		$sweep_result = is_array( $sweep_result ) ? $sweep_result : array();
+		if ( isset( $params['sn_prov_sweep_result'] ) && is_array( $params['sn_prov_sweep_result'] ) ) {
+			$sweep_result = $params['sn_prov_sweep_result'];
+		} else {
+			$key          = 'sn_prov_sweep_result_' . get_current_user_id();
+			$sweep_result = get_transient( $key );
+			delete_transient( $key );
+			$sweep_result = is_array( $sweep_result ) ? $sweep_result : array();
+			$params['sn_prov_sweep_result'] = $sweep_result;
+			$stash                          = true;
+		}
+	}
+	if ( $stash && is_object( $state ) && method_exists( $state, 'set' ) ) {
+		$state->set( 'params', $params );
 	}
 
 	return array(
@@ -415,9 +449,10 @@ function provenance_sweep_notice_html( $flag, $result ) {
 }
 
 /**
- * Commits fieldset: the sweep flash, the on-demand trigger (+ a ghost Refresh
- * standing in for the JS poller), and the same status list the poller would
- * have hydrated — server-rendered, since no script runs inside a window.
+ * Commits fieldset: the sweep flash, the on-demand trigger, the poll trigger
+ * (the runtime's `os-poll`, in place of the classic JS poller) and the same
+ * status list the poller would have hydrated, server-rendered, since no
+ * script runs inside a window.
  *
  * @param array $data provenance_data() view-model.
  * @return string
@@ -464,9 +499,8 @@ function provenance_commits_html( array $data ) {
 		$inner .= provenance_sweep_notice_html( (string) $data['swept_flag'], $data['sweep_result'] );
 	}
 	$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Ask the Worker to check pending proofs against Bitcoin now, rather than waiting for the hourly sweep.', 'signal-and-noise-tools' ) ) . '</p>'
-		. provenance_post_action( 'sn_prov_runsweep', __( 'Check for confirmations', 'signal-and-noise-tools' ),
-			'<span slot="footer-trailing">' . \snt_kit_button( __( 'Refresh', 'signal-and-noise-tools' ), 'refresh', array( 'variant' => 'ghost' ) ) . '</span>'
-		)
+		. provenance_post_action( 'sn_prov_runsweep', __( 'Check for confirmations', 'signal-and-noise-tools' ) )
+		. \snt_kit_poll()
 		. $table;
 	return \snt_kit_section( __( 'Commits', 'signal-and-noise-tools' ), $inner );
 }

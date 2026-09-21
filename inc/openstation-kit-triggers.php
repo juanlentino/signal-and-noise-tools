@@ -61,6 +61,71 @@ function snt_kit_action_button( $label, $sn_action, array $opts = array() ) {
 }
 
 /**
+ * A hidden poll trigger: the runtime dispatches `$action` every `$ms` ms for
+ * as long as this element is painted, reconciles the timers on every paint,
+ * and skips a tick while the window is minimized, the tab hidden or a
+ * dispatch in flight. Paint it conditionally and the condition is the
+ * auto-refresh switch.
+ *
+ * SEAM: `os-poll`, App Framework view vocabulary, Experimental at OpenStation
+ * 1.1.10 (`docs/app-framework.md`, "The view vocabulary";
+ * `src/app-runtime/bindings.ts` readPolls(), which DROPS an element under
+ * 250 ms and keys a timer by action + interval + args;
+ * `src/app-runtime/session.ts` reconcilePolls()). An unknown
+ * attribute on a span is inert, so a shell without the seam paints nothing
+ * and polls nothing.
+ *
+ * NEVER the declared `refresh` action: that handler drops the notice and the
+ * flash on every dispatch, and the Webhooks leaf keys its show-once secret
+ * off the flash. The app declares `poll`, which touches no state (#1607).
+ *
+ * @param string $action Declared action to dispatch on every tick.
+ * @param int    $ms     Interval in milliseconds; floored here at 250, below which the runtime drops the element.
+ * @return string
+ */
+function snt_kit_poll( $action = 'poll', $ms = 30000 ) {
+	return snt_kit_tag( 'span', array( 'os-action' => (string) $action, 'os-poll' => (string) max( 250, (int) $ms ), 'hidden' => true ) );
+}
+
+/**
+ * The watch bar of a leaf whose forms cannot ride a poll: the morph resets
+ * every unfocused field to the server value on a tick, and a kit checkbox's
+ * `checked` is an attribute the morph syncs focused or not
+ * (`src/app-runtime/morph.ts` syncAttributes(), 1.1.10). So the leaf polls
+ * only while its forms are folded, and the fold is a `sn_*` param the way
+ * every mode on the classic page is a query param: `sn_watch=1` folds the
+ * forms and paints the poll; a `go` without it unfolds them and stops.
+ *
+ * @param string $sub      The leaf, so the `go` lands back on it.
+ * @param bool   $watching Whether `sn_watch` is set.
+ * @param string $what     What refreshes, as a noun phrase ("the delivery log").
+ * @return string
+ */
+function snt_kit_watch_bar( $sub, $watching, $what ) {
+	$button = $watching
+		? snt_kit_button( __( 'Stop watching', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => (string) $sub ) ) )
+		: snt_kit_button( __( 'Watch live', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => (string) $sub, 'sn_watch' => '1' ) ) );
+	$text   = $watching
+		/* translators: %s: what refreshes, e.g. "the delivery log" */
+		? sprintf( __( '%s refreshes every 30 seconds. The forms are folded while it does; stop watching to edit.', 'signal-and-noise-tools' ), (string) $what )
+		/* translators: %s: what refreshes, e.g. "the delivery log" */
+		: sprintf( __( 'Watch %s refresh every 30 seconds; the forms fold while it does.', 'signal-and-noise-tools' ), (string) $what );
+	return '<div class="snt-watch">' . ( $watching ? snt_kit_poll() : '' ) . '<span class="snt-hint">' . snt_kit_esc( ucfirst( $text ) ) . '</span>' . $button . '</div>';
+}
+
+/**
+ * Whether a leaf's `state('params')` asks to watch (`snt_kit_watch_bar()`).
+ *
+ * @param array<string,mixed> $ctx Leaf context (tab, sub, state, os).
+ * @return bool
+ */
+function snt_kit_watching( array $ctx ) {
+	$state  = $ctx['state'] ?? null;
+	$params = ( is_object( $state ) && method_exists( $state, 'get' ) ) ? (array) $state->get( 'params' ) : array();
+	return ! empty( $params['sn_watch'] );
+}
+
+/**
  * A door to another admin screen: opens the URL in a shell window.
  *
  * @param string              $label Text.
