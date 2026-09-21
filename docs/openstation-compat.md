@@ -421,47 +421,52 @@ An ad blocker (`ERR_BLOCKED_BY_CLIENT` was a red herring — disabling it change
 nothing). Note also that `snDesktopData` being present does **not** prove the
 script ran: `wp_localize_script` prints it inline before the `<script src>`.
 
-**Adopting #683 will change this probe's own passing shape — read that as
-healthy, not as a regression.** The fix does not restore the current mechanism;
-it replaces it. Per upstream's description, a palette contributor is *dequeued
-from the boot document* and *hoisted to the shell's deferred manifest*, so it
-executes during the replay, after the `core/commands` store exists. This plugin
-has exactly one convicted contributor — and it is **not** the one most of this
-file is about. Keep the two palette surfaces apart:
+**Since 17.4.5 (#1626) the classic contributor is gated off OpenStation
+documents by request predicate, not hoisted.** `inc/command-palette.php`
+returns first thing from its `admin_enqueue_scripts` callback when
+`openstation_is_shell_request()` (Stable) or
+`openstation_is_chromeless_request()` (`includes/core/routing.php`, listed in
+`docs/architecture.md`, not marked Stable) is true, both behind
+`function_exists`. So on the shell and inside a window the probe above prints
+no `command-palette` entry in `LOADED:` and an empty `SN commands in store`
+list, and that is the fix, not the break: the shell's copy of the maintenance
+commands is the `sn-cmd-*` registration (`inc/desktop-mode-commands.php`,
+`assets/desktop-mode.js`, `wp.os.registerCommand`). On a classic wp-admin
+screen outside the station the same probe still prints the script and the
+`signal-noise/*` names.
 
-| Surface | Registers via | Touched by #683? |
+Why the predicate and not #683's hoist, which this section once predicted
+would be enough: the hoist is only half the seam. OpenStation `199a0851`
+(#683, first tagged v1.1.4) dequeues every non-core `wp-commands` contributor
+from the shell's boot document and replays it on first Cmd+K, and the shell's
+own harvester (`src/commands/shell-harvester.ts`) then reads the replayed
+`core/commands` store and republishes every entry into the OpenStation
+registry as `global-<name>`. With the `sn-cmd-*` registration already there,
+Cmd+K listed `SN: Purge all caches`, `SN: Clear template overrides` and
+`SN: Force-check updates` twice (measured 2026-09-20 on 1.1.10). The harvested
+copy also fed back through the wp-admin `.notice` strip into the shell body,
+carried no `description` or `aiCallable`, and turned every classic navigation
+command (`navigateTo()` is `window.location.assign`) into a top-frame load
+that rebooted the station. In a block-editor window the iframe bridge made a
+third, eager copy. The hoist, the harvest and their filters
+(`openstation_command_palette_contributors_hoisted`,
+`openstation_command_palette_family`,
+`openstation_command_palette_contributor_owns_screen`) are all Experimental;
+the request predicate is the documented gate. The replayed-document guard in
+`assets/command-palette.js` (`executeAbility()`) stays as a harmless guard for
+a site where another plugin's hoist still replays the script; it is no longer
+the mechanism the shell relies on. Pinned in
+`tests/command-palette-localize.php` (Test 4).
+
+Keep the two palette surfaces apart:
+
+| Surface | Registers via | On an OpenStation document |
 |---|---|---|
-| `inc/desktop-mode-commands.php` — 21 fixed `sn-cmd-*` on `init:6` | `snt_os_register_command()` → OpenStation's own registry | **No.** #683 trims script assets; this never declares `wp-commands` |
-| `inc/command-palette.php` → `assets/command-palette.js` | JS `dispatch('core/commands').registerCommand()` | **Yes.** Its dep array names `wp-commands` in `inc/command-palette.php` (`wp_register_script( 'snt-command-palette', … )`), and the walk spares only Core packages |
+| `inc/desktop-mode-commands.php`, the fixed `sn-cmd-*` on `init:6` | `snt_os_register_command()` and `wp.os.registerCommand` | The one registration |
+| `inc/command-palette.php` and `assets/command-palette.js` | JS `dispatch('core/commands').registerCommand()` | Never enqueued; classic wp-admin only |
 
-Concretely, after the upgrade:
-
-- Windows will no longer load `snt-command-palette` at all. The `LOADED:` line
-  dropping that script *in a window* is the fix working, not the break returning.
-  Judge health by the store contents and the round trip, not by the resource list.
-- Block-editor screens are exempt upstream, so the chain still loads there.
-- **The escape-hatch filter is not needed here, and that is now settled rather
-  than assumed.** `openstation_command_palette_contributor_owns_screen`
-  (upstream `includes/render/chromeless-trim.php`, applied at the tail of
-  `openstation_command_palette_owns_screen()` as
-  `apply_filters( 'openstation_command_palette_contributor_owns_screen', $owns, $handle, $owner, $page )`)
-  exists for a contributor that must stay in a
-  window to register *screen-specific* commands. Ours registers two dynamic
-  families — `signal-noise/goto-<tab>` from `sn_admin_top_tabs()`, and
-  `signal-noise/edit-note-<id>` for the 5 most-recent Notes — and **both are pure
-  navigation**: each callback is `navigateTo( url, args.close )`. A navigation
-  target is globally meaningful by definition, so registering it once on the
-  shell is correct, not a leak. Hoisting also collapses the recent-Notes
-  `apiFetch` from once-per-window to once, which is strictly better.
-- Default routing already sends us down that path: `owns_screen()` keeps a
-  contributor in the window only when the URI is under
-  `/wp-content/plugins/<owner>/` or `$_GET['page']` *starts with* the plugin's
-  directory slug. Our slug is `signal-and-noise-tools`; our pages are
-  `page=sn-*`. No prefix match → not owned → hoisted → the fixed path.
-
-So the release that carries #683 is itself a seam event: it is the fourth
-consecutive upgrade to change this seam. Re-run the probe against it, and expect
-to rewrite the two bullets above once it is measured rather than predicted.
+The release that carried #683 was itself a seam event, the fourth consecutive
+upgrade to change this seam; the paragraphs above are what the probe measured.
 
 Finally, diff only the files we actually consume — it is a far smaller read
 than the release notes, and it catches silent shape changes the notes omit:

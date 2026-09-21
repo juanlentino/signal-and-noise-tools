@@ -14,17 +14,29 @@
  * on were removed in v7.0.0. One ability set, three callers (see assets/command-palette.js for the current roster — counts here went stale twice, so the property, not the number, is documented): admin UI,
  * desktop-mode palette, WP-native palette — no duplicated business logic.
  *
- * Coexistence with the desktop-mode plugin's own palette:
- *   - desktop-mode's palette runs only when desktop-mode is the active
- *     experience (i.e. in the desktop-mode UI shell).
- *   - WP 7.0's palette runs in vanilla wp-admin everywhere.
- *   - Both can register the same actions without conflict — each addresses
- *     a different surface. We deliberately mirror the most-used few of the
- *     desktop-mode command set here (see the registration loop in
- *     inc/desktop-mode-commands.php for the current roster); full
- *     parity isn't the goal.
+ * Coexistence with the OpenStation shell palette (#1626): one registration
+ * per document.
+ *   - On an OpenStation document (the shell, or a chromeless window) this
+ *     contributor is NOT enqueued. The shell's copy of the maintenance
+ *     commands is the sn-cmd-* registration in inc/desktop-mode-commands.php
+ *     and assets/desktop-mode.js, through wp.os.registerCommand.
+ *   - In vanilla wp-admin outside the station, this contributor loads and
+ *     registers into core/commands, and its feedback stays the wp-admin
+ *     notice strip.
+ *   - Why a request predicate and not the hoist: since OpenStation 1.1.4 the
+ *     shell hoists every wp-commands contributor into its deferred manifest
+ *     and its harvester republishes each core/commands entry into the
+ *     OpenStation registry, so both registrations landed in the same
+ *     document and Cmd+K listed each label twice (measured 2026-09-20 on
+ *     1.1.10). The hoist and harvest are Experimental seams; the predicate
+ *     is the documented gate ("Gate shell-only enqueues and output on this,
+ *     never on a screen id").
  *
  * Gated on:
+ *   - not an OpenStation document: openstation_is_shell_request() (Stable)
+ *     and openstation_is_chromeless_request() (includes/core/routing.php,
+ *     listed in docs/architecture.md, not marked Stable), both behind
+ *     function_exists
  *   - is_admin() via the admin_enqueue_scripts hook context
  *   - current_user_can( 'manage_options' ) — palette commands are
  *     destructive maintenance ops, admin-only
@@ -40,6 +52,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 add_action( 'admin_enqueue_scripts', function() {
+	// #1626: never on an OpenStation document. The shell carries the sn-cmd-*
+	// registration; a chromeless window's iframe bridge would republish this
+	// contributor's commands as a third, eager copy. Both predicates are
+	// guarded because the plugin runs on classic installs too.
+	if ( function_exists( 'openstation_is_shell_request' ) && openstation_is_shell_request() ) {
+		return;
+	}
+	if ( function_exists( 'openstation_is_chromeless_request' ) && openstation_is_chromeless_request() ) {
+		return;
+	}
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
