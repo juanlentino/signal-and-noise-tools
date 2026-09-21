@@ -60,6 +60,23 @@ function snt_kit_form( $sn_action, $inner, array $opts = array() ) {
 }
 
 /**
+ * A label, a read-only value and a hint: the field a value without a name
+ * takes (a constant-locked setting, a reveal-once secret, the current login
+ * URL). `<os-field-row label>` around the painted value, the hint as the
+ * sibling paragraph the music leaf pairs with its locked fields, so the hint
+ * may carry inline code (#1600).
+ *
+ * @param string $label      Label text.
+ * @param string $value_html Painted value (an os-code, a disabled os-text-field, a link).
+ * @param string $hint_html  Painted hint, '' for none.
+ * @return string
+ */
+function snt_kit_static( $label, $value_html, $hint_html = '' ) {
+	return snt_kit_tag( 'os-field-row', array( 'label' => (string) $label ), (string) $value_html )
+		. ( '' !== (string) $hint_html ? '<p class="snt-hint">' . $hint_html . '</p>' : '' );
+}
+
+/**
  * One labelled field: `<os-field-row>` around the kit control for `$type`
  * (text|email|url|password|number|textarea|select|switch|checkbox|hidden).
  *
@@ -96,7 +113,13 @@ function snt_kit_field( $type, $name, $label, $value = '', array $opts = array()
 		case 'switch':
 			return snt_kit_tag( 'os-switch', $common + array( 'value' => '1', 'checked' => (bool) $value, 'label' => (string) $label, 'description' => $opts['description'] ?? $opts['hint'] ?? null ) );
 		case 'checkbox':
-			return snt_kit_tag( 'os-checkbox-label', $common + array( 'value' => (string) ( $opts['value'] ?? '1' ), 'checked' => (bool) $value, 'label' => (string) $label ) );
+			// os-checkbox-label has no description prop; a hint rides the
+			// field row around it, a label-less row being valid (#1600).
+			$control = snt_kit_tag( 'os-checkbox-label', $common + array( 'value' => (string) ( $opts['value'] ?? '1' ), 'checked' => (bool) $value, 'label' => (string) $label ) );
+			if ( '' === (string) ( $opts['hint'] ?? '' ) ) {
+				return $control;
+			}
+			return snt_kit_tag( 'os-field-row', array( 'hint' => (string) $opts['hint'] ), $control );
 		default:
 			$control = snt_kit_tag( 'os-text-field', $common + array( 'type' => in_array( $type, array( 'email', 'url', 'password', 'search' ), true ) ? $type : 'text', 'value' => (string) $value, 'placeholder' => $opts['placeholder'] ?? null, 'maxlength' => $opts['maxlength'] ?? null, 'autocomplete' => $opts['autocomplete'] ?? null, 'reveal' => 'password' === $type ) );
 	}

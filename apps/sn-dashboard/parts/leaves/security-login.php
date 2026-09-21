@@ -81,17 +81,17 @@ function paint_security_login( array $ctx ) {
 	$out .= login_status_html( $s );
 
 	$slug_row = $s['locked']
-		? '<div class="snt-field-static">'
-			. '<span class="snt-field-static__k">' . \snt_kit_esc( __( 'Slug', 'signal-and-noise-tools' ) ) . '</span>'
-			. \snt_kit_tag( 'os-text-field', array( 'type' => 'text', 'value' => $s['slug'], 'disabled' => true ) )
-			. '<span class="snt-field-static__hint">' . \snt_kit_esc( __( 'Locked. The SN_LOGIN_SLUG constant in wp-config.php is overriding this field. Remove the constant to edit here.', 'signal-and-noise-tools' ) ) . '</span>'
-			. '</div>'
+		? \snt_kit_static(
+			__( 'Slug', 'signal-and-noise-tools' ),
+			\snt_kit_tag( 'os-text-field', array( 'type' => 'text', 'value' => $s['slug'], 'disabled' => true ) ),
+			\snt_kit_esc( __( 'Locked. The SN_LOGIN_SLUG constant in wp-config.php is overriding this field. Remove the constant to edit here.', 'signal-and-noise-tools' ) )
+		)
 		: \snt_kit_field( 'text', 'login_slug', __( 'Slug', 'signal-and-noise-tools' ), $s['slug'], array( 'placeholder' => 'sn-login', 'hint' => __( 'Letters, numbers, dashes only. Avoid common guesses (admin, login, panel, etc.).', 'signal-and-noise-tools' ) ) );
-	$url_row = '<div class="snt-field-static">'
-		. '<span class="snt-field-static__k">' . \snt_kit_esc( __( 'Current login URL', 'signal-and-noise-tools' ) ) . '</span>'
-		. \snt_kit_link( $s['login_url'], $s['login_url'] )
-		. '<span class="snt-field-static__hint">' . \snt_kit_esc( __( 'Bookmark this URL. The default /wp-login.php 404s for unauthenticated visitors.', 'signal-and-noise-tools' ) ) . '</span>'
-		. '</div>';
+	$url_row = \snt_kit_static(
+		__( 'Current login URL', 'signal-and-noise-tools' ),
+		\snt_kit_link( $s['login_url'], $s['login_url'] ),
+		\snt_kit_esc( __( 'Bookmark this URL. The default /wp-login.php 404s for unauthenticated visitors.', 'signal-and-noise-tools' ) )
+	);
 	$inner = $slug_row . $url_row . ( $s['locked'] ? '<p class="snt-hint">' . \snt_kit_esc( __( 'Slug locked by SN_LOGIN_SLUG constant.', 'signal-and-noise-tools' ) ) . '</p>' : '' );
 	// os-form has no `disabled` prop (kit-help: submit-label/reset-label/error/busy/columns/min-column/show-reset/align),
 	// so in the locked state the Save button stays live and the handler is the guard — as it already is on the

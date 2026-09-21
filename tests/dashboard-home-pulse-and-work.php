@@ -72,6 +72,7 @@ class WP_Query {
 }
 
 require_once __DIR__ . '/../inc/openstation-kit.php';
+require_once __DIR__ . '/../inc/openstation-kit-display.php';
 require_once __DIR__ . '/../apps/sn-dashboard/parts/leaves/dashboard.php';
 
 $pass = 0;
@@ -120,6 +121,18 @@ for ( $i = 1; $i <= 9; $i++ ) {
 $work = \SignalNoise\OpenStationHost\Dashboard\Leaves\home_continue_working_html( 'dashboard' );
 ok( false !== strpos( $work, 'View all (9)' ), '#1208: "View all" reads found_posts (9 real items), not the 6-row display window' );
 ok( false === strpos( $work, 'View all (6)' ), '...never the capped window size' );
+
+// ── 3. #1593: with no recent post, Continue working paints the kit's empty
+// state, the component Station Home paints for the same section; the
+// all-clear row stays with Needs attention.
+echo "\nGroup: Continue working, empty state is os-empty-state\n";
+$GLOBALS['__posts'] = array();
+$empty = \SignalNoise\OpenStationHost\Dashboard\Leaves\home_continue_working_html( 'dashboard' );
+ok( 1 === preg_match( '/<os-empty-state[^>]*heading="Your desk is clear"/', $empty ) && 1 === preg_match( '/<os-empty-state[^>]*icon="welcome-write-blog"/', $empty ), '#1593: the empty desk is <os-empty-state heading="Your desk is clear" icon="welcome-write-blog">, as Station Home paints it' );
+ok( false !== strpos( $empty, 'Start something new and it will be waiting here when you return.' ), '...carrying the same description' );
+ok( false === strpos( $empty, 'snt-home__all-clear' ), '...and the .snt-home__work block carries no all-clear row' );
+$css = (string) file_get_contents( __DIR__ . '/../apps/sn-dashboard/sn-dashboard.css' );
+ok( 1 === preg_match( '/\.snt-home__work os-empty-state\s*\{[^}]*min-block-size/', preg_replace( '#/\*.*?\*/#s', '', $css ) ), 'the sheet carries the Station Home twin for the empty state (.snt-home__work os-empty-state, min-block-size)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

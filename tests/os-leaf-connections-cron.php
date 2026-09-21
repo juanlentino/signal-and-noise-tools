@@ -154,6 +154,9 @@ $GLOBALS['__cron_rows'] = $rich_rows;
 $kit = snt_leaf_paint( 'connections', 'cron', array() );
 ok( '' !== $kit, 'painter registered under connections/cron produced output' );
 ok( 1 === substr_count( $kit, 'os-action="refresh"' ) && false !== strpos( $kit, '>Refresh</os-button>' ), 'live cron snapshot has one local read-only Refresh even when mobile hides the titlebar' );
+ok( 1 === preg_match( '/<os-cluster><os-button [^>]*os-action="refresh"[^>]*>Refresh<\/os-button><\/os-cluster>/', $kit ) && false === strpos( $kit, 'snt-toolbar' ), '#1600: the Refresh row is an os-cluster, not a .snt-toolbar div whose only rule lives in another window\'s sheet' );
+ok( 1 === preg_match( '/<os-field-row hint="A deterministic prose reading[^"]*"><os-checkbox-label name="snt_morning_brief_enabled"/', $kit ) && 1 === preg_match( '/<os-field-row hint="Read door only[^"]*"><os-checkbox-label name="snt_scheduled_reads_enabled"/', $kit ), '#1600: each toggle\'s helper is the hint of the field row around the checkbox, the layout every other field already has' );
+ok( '<os-field-row hint="x"><os-checkbox-label name="t" value="1" label="T"></os-checkbox-label></os-field-row>' === \snt_kit_field( 'checkbox', 't', 'T', false, array( 'hint' => 'x' ) ) && '<os-checkbox-label name="t" value="1" label="T"></os-checkbox-label>' === \snt_kit_field( 'checkbox', 't', 'T' ), '#1600: snt_kit_field( checkbox ) with a hint wraps the control in an os-field-row carrying hint=; without one it stays the bare control' );
 
 // Classic HTML for the same fixture: the WHOLE hook through the real wrapper,
 // not the priority-10 table alone (which has no form, so [] === [] greened

@@ -186,9 +186,21 @@ function snt_leaf_actions( $html ) {
 	return $out;
 }
 
-/** Classic markup the kit port must not carry. @param string $html @return string[] Offending markers found. */
+/**
+ * Classic markup the kit port must not carry, and (since #1600) the raw
+ * wrappers that carried no rule in any window sheet and painted with
+ * wp-admin's common.css metrics inside the dark leaf: the Health check
+ * heading and family subheads, the passing chip row, the cron toolbar and the
+ * resume arrows' footer. Each has a kit shape now (os-card header, os-section,
+ * os-row + os-cluster, os-cluster). `.snt-field-static` is not here: the
+ * Identity & SEO leaf keeps it as a labelled group (a fieldset shape the kit
+ * has none of), so the webhooks and login suites pin its absence themselves.
+ *
+ * @param string $html Markup.
+ * @return string[] Offending markers found.
+ */
 function snt_leaf_classic_markers( $html ) {
-	$markers = array( 'class="widefat', 'class="form-table', 'class="button', 'class="notice', 'class="sn-fieldset', 'class="sn-card', 'class="nav-tab', 'class="sn-sub-tabs', '<table', '<script' );
+	$markers = array( 'class="widefat', 'class="form-table', 'class="button', 'class="notice', 'class="sn-fieldset', 'class="sn-card', 'class="nav-tab', 'class="sn-sub-tabs', '<table', '<script', 'class="snt-check__h', 'class="snt-subhead', 'class="snt-chips"', 'class="snt-toolbar"', 'class="snt-rsm-controls' );
 	$found   = array();
 	foreach ( $markers as $marker ) {
 		if ( false !== stripos( (string) $html, $marker ) ) {

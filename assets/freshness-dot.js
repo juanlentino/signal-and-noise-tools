@@ -102,15 +102,17 @@
 		if (kind) {
 			if (!pill) {
 				// 15.10.1: on the native leaf the badge is the kit's <os-badge>
-				// (tone ok|warn), the element the wall paints for every other
-				// card; the classic .sn-pill is a light-admin chip and read as
-				// a pastel block on dark glass.
+				// (tone success|warning, the names os-badge defines and
+				// snt_kit_tone() emits for the same card server-side, #1616),
+				// the element the wall paints for every other card; the
+				// classic .sn-pill is a light-admin chip and read as a pastel
+				// block on dark glass.
 				pill = document.createElement(native ? 'os-badge' : 'span');
 				if (valueEl) { valueEl.insertAdjacentElement('afterend', pill); }
 				else { card.appendChild(pill); }
 			}
 			if (native) {
-				pill.setAttribute('tone', kind === 'warn' ? 'warn' : 'ok');
+				pill.setAttribute('tone', kind === 'warn' ? 'warning' : 'success');
 			} else {
 				pill.className = 'sn-pill sn-pill--' + kind;
 			}

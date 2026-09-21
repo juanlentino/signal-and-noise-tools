@@ -245,7 +245,7 @@ function paint_connections_cron( array $ctx ) {
 
 	$rows = function_exists( 'snt_cron_get_events_impl' ) ? snt_cron_get_events_impl() : array();
 	// Re-read this live snapshot without exposing the classic mutating actions.
-	$refresh = '<div class="snt-toolbar">' . \snt_kit_button( __( 'Refresh', 'signal-and-noise-tools' ), 'refresh', array( 'variant' => 'ghost', 'class' => 'snt-leaf-refresh' ) ) . '</div>';
+	$refresh = \snt_kit_tag( 'os-cluster', array(), \snt_kit_button( __( 'Refresh', 'signal-and-noise-tools' ), 'refresh', array( 'variant' => 'ghost', 'class' => 'snt-leaf-refresh' ) ) );
 	// do_action paints the two settings callbacks whether or not cron has rows;
 	// the backlog box sits above them on both branches.
 	$settings = cron_backlog_html() . cron_settings_row_html();

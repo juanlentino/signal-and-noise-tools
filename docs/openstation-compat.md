@@ -882,9 +882,15 @@ help` blocks) and in the sandbox before a line was written:
   included, and ships them as `$args['values']` — the classic `sn_action` and
   nonce ride as hidden inputs into the host's replay pipeline unchanged. A
   one-click write is an `<os-button os-action="post" os-arg-action os-arg-nonce>`.
-  Kit fields are not form-associated, so a native `<form>` sees none of them:
-  the kit form is the only form shape a painter uses (the streaming export
-  form is the one exception, kept real with `target="_blank"`).
+  Kit fields are not form-associated, so a native `<form>` sees none of them.
+  The kit form is the shape for single-valued forms. A repeated-name checkbox
+  group (`events[]` on Webhooks, `sn_tag_from[]` on Tags) is the second shape,
+  a native `<form os-action="post">` of real inputs since 13.106.0: `<os-form>`
+  collects by name, later-wins, and reads every checkbox as a boolean, so the
+  runtime's native-form path (a `FormData`, repeated names as arrays) is the
+  only one that carries the group. Its `.snt-submit` and checkboxes paint on
+  the shell's tokens in `assets/os-app.css`; the streaming export form is the
+  other native one, kept real with `target="_blank"`.
 - **`os-bind`** on the leaf bar's `<os-segmented>` / `<os-select>` twins
   (`snt_kit_tabs()`, the native list toolbar's status control since 17.4.3;
   an `<os-tabs>` strip before) and on a segmented

@@ -50,20 +50,6 @@ function webhooks_code( $text ) {
 }
 
 /**
- * A label, a read-only value and a hint: the shape a field without a name
- * takes (the classic's unnamed readonly inputs).
- *
- * @param string $label      Label text.
- * @param string $value_html Painted value.
- * @param string $hint_html  Painted hint.
- * @return string
- */
-function webhooks_static( $label, $value_html, $hint_html ) {
-	return '<div class="snt-field-static"><span class="snt-field-static__k">' . \snt_kit_esc( $label ) . '</span>'
-		. $value_html . '<span class="snt-field-static__hint">' . $hint_html . '</span></div>';
-}
-
-/**
  * A native `<form>` for `webhook_update` / `webhook_add`: the `events[]`
  * group in this form (and, riding along, `enabled`/`rotate_secret`) must be
  * native inputs so a real `FormData` carries them — `<os-form>` collects its
@@ -72,11 +58,8 @@ function webhooks_static( $label, $value_html, $hint_html ) {
  * collapse four `events[]` boxes into one and turn `enabled`/`rotate_secret`
  * into booleans under a name FormData never sees. Same fix as
  * content-tags-parts.php's `tags_form()` for the same mechanic on another leaf.
- * STYLING GAP, LEFT DELIBERATELY, same as there: `.snt-form--native` and
- * `.snt-submit` carry no rule in either stylesheet (`.snt-list*` DOES —
- * assets/os-app.css:49-92 — so that part of the original comment was wrong),
- * and fixing the native-form gap needs a follow-up pass on assets outside
- * this leaf's allowed files.
+ * The `.snt-submit` button and the native checkboxes paint on the shell's
+ * tokens through assets/os-app.css (#1595).
  *
  * @param string               $sn_action Handler action.
  * @param array<string,string> $hidden    Extra hidden fields (e.g. webhook_id).
@@ -154,14 +137,14 @@ function webhooks_events_fields( array $selected, $hint ) {
 function webhooks_secret_html( array $wh, $is_new ) {
 	$label = __( 'Signing secret', 'signal-and-noise-tools' );
 	if ( $is_new ) {
-		return webhooks_static(
+		return \snt_kit_static(
 			$label,
 			\snt_kit_tag( 'os-code', array( 'copy' => true ), \snt_kit_esc( (string) ( $wh['secret'] ?? '' ) ) ),
 			'<b>' . \snt_kit_esc( __( 'Copy this now', 'signal-and-noise-tools' ) ) . '</b>' . \snt_kit_esc( __( ': it will not be shown again. Receivers compute ', 'signal-and-noise-tools' ) )
 			. webhooks_code( 'HMAC_SHA256(secret, raw_body)' ) . \snt_kit_esc( __( ' and compare against the ', 'signal-and-noise-tools' ) ) . webhooks_code( 'X-SN-Signature' ) . \snt_kit_esc( __( ' header.', 'signal-and-noise-tools' ) )
 		);
 	}
-	return webhooks_static(
+	return \snt_kit_static(
 		$label,
 		webhooks_code( \sn_mask_secret( (string) ( $wh['secret'] ?? '' ) ) ),
 		\snt_kit_esc( __( 'Last 4 chars shown. Tick "Rotate" below + save to generate a new secret (invalidates the current one).', 'signal-and-noise-tools' ) )
@@ -258,7 +241,7 @@ function webhooks_log_html( $id ) {
  */
 function webhooks_token_field( $name, $label, $const, $opt, $help, $placeholder ) {
 	if ( defined( $const ) && constant( $const ) ) {
-		return webhooks_static(
+		return \snt_kit_static(
 			$label,
 			webhooks_code( '••••' ),
 			'<b>' . \snt_kit_esc( __( 'Locked.', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( __( 'Set via', 'signal-and-noise-tools' ) ) . ' ' . webhooks_code( $const ) . ' ' . \snt_kit_esc( __( 'in', 'signal-and-noise-tools' ) ) . ' ' . webhooks_code( 'wp-config.php' ) . '.'

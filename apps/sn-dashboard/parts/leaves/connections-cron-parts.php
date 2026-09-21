@@ -50,9 +50,7 @@ function cron_morning_brief_html() {
 		);
 	}
 
-	// os-checkbox-label has no description prop, so the helper is its own hint.
-	$inner  = \snt_kit_field( 'checkbox', 'snt_morning_brief_enabled', __( 'Email a daily morning brief to the admin address', 'signal-and-noise-tools' ), \snt_morning_brief_enabled(), array( 'value' => '1' ) );
-	$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'A deterministic prose reading of the latest health scan, cron history, uptime status, deploy state, and any unacknowledged settings drift. Scheduled for 7:00 a.m. site time.', 'signal-and-noise-tools' ) ) . '</p>';
+	$inner = \snt_kit_field( 'checkbox', 'snt_morning_brief_enabled', __( 'Email a daily morning brief to the admin address', 'signal-and-noise-tools' ), \snt_morning_brief_enabled(), array( 'value' => '1', 'hint' => __( 'A deterministic prose reading of the latest health scan, cron history, uptime status, deploy state, and any unacknowledged settings drift. Scheduled for 7:00 a.m. site time.', 'signal-and-noise-tools' ) ) );
 	if ( $last_sent > 0 ) {
 		/* translators: %s: human time diff */
 		$inner .= '<p class="snt-hint">' . \snt_kit_esc( sprintf( __( 'Last sent %s ago.', 'signal-and-noise-tools' ), human_time_diff( $last_sent, time() ) ) ) . '</p>';
@@ -78,8 +76,7 @@ function cron_scheduled_reads_html() {
 	$history = get_option( SNT_SCHEDULED_READS_HISTORY, array() );
 	$last    = is_array( $history ) && isset( $history[0] ) ? $history[0] : null;
 
-	$inner  = \snt_kit_field( 'checkbox', 'snt_scheduled_reads_enabled', __( 'Run a fixed set of read-door abilities daily and keep a two-week outcome history', 'signal-and-noise-tools' ), \snt_scheduled_reads_enabled(), array( 'value' => '1' ) );
-	$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Read door only: the run goes through the same gate, kill switch, and telemetry as a live caller, and the tool list is fixed in code.', 'signal-and-noise-tools' ) ) . '</p>';
+	$inner = \snt_kit_field( 'checkbox', 'snt_scheduled_reads_enabled', __( 'Run a fixed set of read-door abilities daily and keep a two-week outcome history', 'signal-and-noise-tools' ), \snt_scheduled_reads_enabled(), array( 'value' => '1', 'hint' => __( 'Read door only: the run goes through the same gate, kill switch, and telemetry as a live caller, and the tool list is fixed in code.', 'signal-and-noise-tools' ) ) );
 	if ( $last ) {
 		$errors = 0;
 		foreach ( (array) $last['tools'] as $tool_outcome ) {

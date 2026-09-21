@@ -61,6 +61,7 @@ $kit     = snt_leaf_paint( 'security', 'login' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'locked: field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && array( 'save_login' ) === snt_leaf_actions( $kit ), 'locked: save_login still offered, as on the classic leaf' );
 ok( false !== strpos( $kit, 'disabled' ) && false !== strpos( $kit, 'Slug locked' ), 'locked: the field is disabled and the lock is explained' );
+ok( 1 === preg_match( '/<os-field-row label="Slug"><os-text-field type="text" value="[^"]*" disabled><\/os-text-field><\/os-field-row><p class="snt-hint">Locked\./', $kit ) && false !== strpos( $kit, '<os-field-row label="Current login URL"><os-button class="snt-link" variant="link" os-action="door"' ) && false === strpos( $kit, 'snt-field-static' ), '#1600: the locked slug and the login URL are os-field-rows (the music leaf\'s locked-field shape), no hand-rolled .snt-field-static div' );
 ok( false !== strpos( $kit, 'Option 2' ) && false !== strpos( $kit, 'Restores /wp-login.php' ) && false !== strpos( $kit, 'SN_LOGIN_SLUG' ), 'both emergency-unlock options survive, labelled' );
 
 // ── Bypassed state (SN_LOGIN_BYPASS constant set — one-way, so it must run last).
