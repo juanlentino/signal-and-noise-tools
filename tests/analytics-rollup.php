@@ -740,10 +740,11 @@ ok( strpos( $GLOBALS['wpdb']->queries[0], "'/wp-admin'," ) === false, 'upsert: t
 
 // ── excluded-path predicate ───────────────────────────────────────────────────
 echo "\nGroup: excluded-path predicate\n";
-foreach ( array( '/wp-admin', '/wp-admin/', '/wp-admin/options-general.php', '/wp-login.php', '/wp-login.php?action=logout' ) as $p ) {
+// 17.5.1 (#1651): asset and API paths are not pageviews either; the edge drops the same set.
+foreach ( array( '/wp-admin', '/wp-admin/', '/wp-admin/options-general.php', '/wp-login.php', '/wp-login.php?action=logout', '/wp-content/uploads/sn-css/$h', '/wp-content/uploads/sn-css/sn-styles-abc.css', '/wp-includes/js/x.js', '/wp-json/wp/v2/posts', '/notes/hello.php', '/favicon.ico' ) as $p ) {
 	ok( sn_analytics_is_excluded_path( $p ), "excluded-path: $p is excluded" );
 }
-foreach ( array( '/', '/notes/a', '/wp-admin-guide/', '/resume/', '/about/' ) as $p ) {
+foreach ( array( '/', '/notes/a', '/wp-admin-guide/', '/resume/', '/about/', '/notes/v1.2-release/', '/wp-content-guide/' ) as $p ) {
 	ok( ! sn_analytics_is_excluded_path( $p ), "excluded-path: $p is NOT excluded" );
 }
 
