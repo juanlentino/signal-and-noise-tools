@@ -408,11 +408,11 @@ function snt_insights_render_recommendations_section( $last ) {
 		echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'insights_mark_done' ) ) . '" class="sn-fieldset-actions sn-fieldset-actions--inline">';
 		echo '<input type="hidden" name="rec_id" value="' . esc_attr( $id ) . '">';
 		if ( ! $is_done ) {
-			echo '<button type="submit"' . sn_admin_post_button( 'insights_mark_done' ) . ' class="button button-small">Mark done</button> ';
+			echo '<button type="submit"' . sn_admin_post_button( 'insights_mark_done' ) . ' class="button button-small">Mark done</button> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 		}
-		echo '<button type="submit"' . sn_admin_post_button( 'insights_snooze' ) . ' class="button button-small">Snooze 30d</button> ';
+		echo '<button type="submit"' . sn_admin_post_button( 'insights_snooze' ) . ' class="button button-small">Snooze 30d</button> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 		// v4.1.1 (U-01): data-snt-confirm attribute (not inline onclick).
-		echo '<button type="submit"' . sn_admin_post_button( 'insights_dismiss' ) . ' class="button button-small button-link-delete" data-snt-confirm="' . esc_attr__( "It won't appear again on this scan.", 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Dismiss this question?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Dismiss', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Dismiss</button>';
+		echo '<button type="submit"' . sn_admin_post_button( 'insights_dismiss' ) . ' class="button button-small button-link-delete" data-snt-confirm="' . esc_attr__( "It won't appear again on this scan.", 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Dismiss this question?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Dismiss', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Dismiss</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 		echo '</form>';
 
 		echo '</div>';

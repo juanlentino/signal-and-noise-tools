@@ -37,15 +37,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 function sn_dash_render_toolbar( $check_updates_url = '' ) {
 	echo '<form class="sn-toolbar" method="post" action="' . esc_url( sn_admin_post_url( 'purge_caches' ) ) . '">';
 	echo '<span class="sn-toolbar__k">' . esc_html__( 'Maintenance', 'signal-and-noise-tools' ) . '</span>';
-	echo '<button type="submit"' . sn_admin_post_button( 'purge_caches' ) . ' class="button">'
+	echo '<button type="submit"' . sn_admin_post_button( 'purge_caches' ) . ' class="button">' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 		. esc_html__( 'Purge all caches', 'signal-and-noise-tools' ) . '</button>';
-	echo '<button type="submit"' . sn_admin_post_button( 'clear_overrides' ) . ' class="button">'
+	echo '<button type="submit"' . sn_admin_post_button( 'clear_overrides' ) . ' class="button">' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 		. esc_html__( 'Clear overrides', 'signal-and-noise-tools' ) . '</button>';
 	if ( '' !== $check_updates_url ) {
 		echo '<a class="button" href="' . esc_url( $check_updates_url ) . '">'
 			. esc_html__( 'Check for updates', 'signal-and-noise-tools' ) . '</a>';
 	}
-	echo '<button type="submit"' . sn_admin_post_button( 'full_reset' ) . ' class="button button-link-delete">'
+	echo '<button type="submit"' . sn_admin_post_button( 'full_reset' ) . ' class="button button-link-delete">' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 		. esc_html__( 'Full reset', 'signal-and-noise-tools' ) . '</button>';
 	echo '</form>';
 }

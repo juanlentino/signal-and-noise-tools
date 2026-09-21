@@ -60,8 +60,8 @@ function sn_redirects_render_admin_tab() {
 		echo '</div>';
 
 		echo '<div class="sn-fieldset-actions">';
-		echo '<button type="submit"' . sn_admin_post_button( 'redirect_update' ) . ' class="button button-primary">Save changes</button>';
-		echo ' <button type="submit"' . sn_admin_post_button( 'redirect_delete' ) . ' class="button button-link-delete" data-snt-confirm="' . esc_attr__( 'This redirect will stop working immediately.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Delete this redirect?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Delete', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Delete</button>';
+		echo '<button type="submit"' . sn_admin_post_button( 'redirect_update' ) . ' class="button button-primary">Save changes</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
+		echo ' <button type="submit"' . sn_admin_post_button( 'redirect_delete' ) . ' class="button button-link-delete" data-snt-confirm="' . esc_attr__( 'This redirect will stop working immediately.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Delete this redirect?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Delete', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Delete</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 		echo '</div>';
 		echo '</div>'; // .sn-fieldset
 		echo '</form>';
@@ -214,8 +214,8 @@ function sn_redirects_render_broken_links_tab() {
 			}
 			echo '</div>';
 			echo '<div class="sn-fieldset-actions">';
-			echo '<button type="submit"' . sn_admin_post_button( 'redirect_add' ) . ' class="button button-primary">Create redirect</button>';
-			echo ' <button type="submit"' . sn_admin_post_button( 'redirect_404_delete' ) . ' class="button button-link-delete">Dismiss</button>';
+			echo '<button type="submit"' . sn_admin_post_button( 'redirect_add' ) . ' class="button button-primary">Create redirect</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
+			echo ' <button type="submit"' . sn_admin_post_button( 'redirect_404_delete' ) . ' class="button button-link-delete">Dismiss</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 			echo '</div>';
 			echo '</div></form>';
 		}

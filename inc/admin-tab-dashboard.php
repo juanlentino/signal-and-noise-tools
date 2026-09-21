@@ -777,19 +777,19 @@ function snt_dashboard_render_maintenance_actions() {
 	echo '<div class="sn-card">';
 	echo '<strong>Full Reset</strong>';
 	echo '<p class="sn-helper">Clears all overrides and purges every cache. Use after theme updates.</p>';
-	echo '<button type="submit"' . sn_admin_post_button( 'full_reset' ) . ' class="button button-link-delete">Run Full Reset</button>';
+	echo '<button type="submit"' . sn_admin_post_button( 'full_reset' ) . ' class="button button-link-delete">Run Full Reset</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	echo '</div>';
 
 	echo '<div class="sn-card">';
 	echo '<strong>Clear Overrides</strong>';
 	echo '<p class="sn-helper">Removes template, template part, and navigation DB entries.</p>';
-	echo '<button type="submit"' . sn_admin_post_button( 'clear_overrides' ) . ' class="button">Clear Overrides</button>';
+	echo '<button type="submit"' . sn_admin_post_button( 'clear_overrides' ) . ' class="button">Clear Overrides</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	echo '</div>';
 
 	echo '<div class="sn-card">';
 	echo '<strong>Purge Caches</strong>';
 	echo '<p class="sn-helper">WP object cache, transients, Breeze page/minification, Varnish.</p>';
-	echo '<button type="submit"' . sn_admin_post_button( 'purge_caches' ) . ' class="button button-primary">Purge All Caches</button>';
+	echo '<button type="submit"' . sn_admin_post_button( 'purge_caches' ) . ' class="button button-primary">Purge All Caches</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	echo '</div>';
 
 	// v2.5.3: visible UI shortcut for the "tagged a new release, where's

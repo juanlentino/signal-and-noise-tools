@@ -209,8 +209,8 @@ function sn_admin_keyring_render() {
 	echo '</select></div>';
 	echo '<div class="sn-field"><label class="sn-field-label" for="key_value">Value</label><input type="text" id="key_value" name="key_value" class="sn-mono" autocomplete="off" placeholder="Paste the value">';
 	echo '<p class="sn-field-helper">Paste to set. Type <code>clear</code> to remove. On a worker row, type <code>site</code> to derive it from the site secret. Rows locked in wp-config.php are not listed.</p></div>';
-	echo '<button type="submit"' . sn_admin_post_button( 'keyring_save' ) . ' class="button button-primary">Save</button> ';
-	echo '<button type="submit"' . sn_admin_post_button( 'keyring_verify' ) . ' class="button">Verify all</button>';
+	echo '<button type="submit"' . sn_admin_post_button( 'keyring_save' ) . ' class="button button-primary">Save</button> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
+	echo '<button type="submit"' . sn_admin_post_button( 'keyring_verify' ) . ' class="button">Verify all</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	$at = sn_keyring_verified_at();
 	if ( $at > 0 ) {
 		echo '<p class="sn-field-helper">' . esc_html( sprintf( 'Last verified %s.', wp_date( 'Y-m-d H:i T', $at ) ) ) . '</p>';

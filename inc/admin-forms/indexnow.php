@@ -43,8 +43,8 @@ function sn_admin_render_indexnow_section() {
 	// ── ACTIONS (regenerate + backfill) ──
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'indexnow_ping_now' ) ) . '" class="sn-card sn-card--narrow"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="indexnow">';
 	echo '<strong>Maintenance</strong><p class="sn-helper">&ldquo;Submit recent content now&rdquo; backfills your existing published posts. &ldquo;Regenerate key&rdquo; rotates the key (search engines re-verify on the next submission).</p>';
-	echo '<button type="submit"' . sn_admin_post_button( 'indexnow_ping_now' ) . ' class="button">Submit recent content now</button> ';
-	echo '<button type="submit"' . sn_admin_post_button( 'indexnow_regenerate' ) . ' class="button">Regenerate key</button></form>';
+	echo '<button type="submit"' . sn_admin_post_button( 'indexnow_ping_now' ) . ' class="button">Submit recent content now</button> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
+	echo '<button type="submit"' . sn_admin_post_button( 'indexnow_regenerate' ) . ' class="button">Regenerate key</button></form>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 
 	echo '</div>'; // .sn-2up
 

@@ -114,9 +114,9 @@ function snt_gsc_render_settings_section() {
 	echo '<p><label for="sn_gsc_credential"><strong>' . esc_html__( 'Service-account JSON', 'signal-and-noise-tools' ) . '</strong></label><br>';
 	echo '<textarea id="sn_gsc_credential" name="sn_gsc_credential" rows="8" class="large-text code" spellcheck="false" autocomplete="off" placeholder="' . esc_attr( $stored ? __( 'Paste a fresh key file to replace; type clear to remove; leave empty to keep the current one', 'signal-and-noise-tools' ) : __( '{ "type": "service_account", … }', 'signal-and-noise-tools' ) ) . '"></textarea></p>';
 
-	echo '<p><button type="submit"' . sn_admin_post_button( 'gsc_credential_save' ) . ' class="button button-primary">' . esc_html__( 'Save credential', 'signal-and-noise-tools' ) . '</button>';
+	echo '<p><button type="submit"' . sn_admin_post_button( 'gsc_credential_save' ) . ' class="button button-primary">' . esc_html__( 'Save credential', 'signal-and-noise-tools' ) . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	if ( null !== $identity ) {
-		echo ' <button type="submit"' . sn_admin_post_button( 'gsc_test' ) . ' class="button">' . esc_html__( 'Test connection', 'signal-and-noise-tools' ) . '</button>';
+		echo ' <button type="submit"' . sn_admin_post_button( 'gsc_test' ) . ' class="button">' . esc_html__( 'Test connection', 'signal-and-noise-tools' ) . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	}
 	echo '</p>';
 	echo '</form>';
@@ -173,7 +173,7 @@ function snt_gsc_render_property_form() {
 			);
 		}
 		echo '</select></p>';
-		echo '<p><button type="submit"' . sn_admin_post_button( 'gsc_property_save' ) . ' class="button button-primary">' . esc_html__( 'Use this property', 'signal-and-noise-tools' ) . '</button></p>';
+		echo '<p><button type="submit"' . sn_admin_post_button( 'gsc_property_save' ) . ' class="button button-primary">' . esc_html__( 'Use this property', 'signal-and-noise-tools' ) . '</button></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	}
 
 	if ( '' !== $current ) {
@@ -224,7 +224,7 @@ function snt_gsc_render_property_form() {
 			echo esc_html__( 'No scheduled sync: it schedules itself once a credential is stored and a property chosen.', 'signal-and-noise-tools' );
 		}
 		echo '</p>';
-		echo '<p><button type="submit"' . sn_admin_post_button( 'gsc_sync' ) . ' class="button">' . esc_html__( 'Sync now', 'signal-and-noise-tools' ) . '</button></p>';
+		echo '<p><button type="submit"' . sn_admin_post_button( 'gsc_sync' ) . ' class="button">' . esc_html__( 'Sync now', 'signal-and-noise-tools' ) . '</button></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 		echo '<p class="description">' . esc_html__( 'Data appears in Analytics → Search, and as impressions/position columns beside Top pages.', 'signal-and-noise-tools' ) . '</p>';
 	}
 	echo '</form>';
