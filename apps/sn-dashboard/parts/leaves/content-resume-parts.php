@@ -61,10 +61,14 @@ function resume_pair( $a, $b ) {
 function resume_card( $key, $inner, $compact = false ) {
 	$movable = false === strpos( (string) $key, '__' );
 	if ( $movable ) {
-		$inner .= '<div slot="footer" class="snt-rsm-controls">'
-			. \snt_kit_tag( 'os-button', array( 'variant' => 'ghost', 'type' => 'button', 'class' => 'sn-rsm-up' ), '<span aria-hidden="true">&uarr;</span><span class="snt-sr-only">' . \snt_kit_esc( __( 'Move up', 'signal-and-noise-tools' ) ) . '</span>' )
+		// The two arrows in the card's footer slot as an <os-cluster>, the
+		// kit's row of controls (#1600).
+		$inner .= \snt_kit_tag(
+			'os-cluster',
+			array( 'slot' => 'footer', 'gap' => '4' ),
+			\snt_kit_tag( 'os-button', array( 'variant' => 'ghost', 'type' => 'button', 'class' => 'sn-rsm-up' ), '<span aria-hidden="true">&uarr;</span><span class="snt-sr-only">' . \snt_kit_esc( __( 'Move up', 'signal-and-noise-tools' ) ) . '</span>' )
 			. \snt_kit_tag( 'os-button', array( 'variant' => 'ghost', 'type' => 'button', 'class' => 'sn-rsm-down' ), '<span aria-hidden="true">&darr;</span><span class="snt-sr-only">' . \snt_kit_esc( __( 'Move down', 'signal-and-noise-tools' ) ) . '</span>' )
-			. '</div>';
+		);
 	}
 	return \snt_kit_tag( 'os-card', array( 'os-key' => (string) $key, 'compact' => (bool) $compact, 'data-rsm-row' => $movable ), $inner );
 }

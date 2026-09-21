@@ -15,16 +15,8 @@
  * today (`snt_os_host_rewrite_form()`). The single-valued forms — the picker,
  * AI suggest, the confirm — are kit forms.
  *
- * STYLING GAP, LEFT DELIBERATELY. `.snt-form--native`, its `.snt-submit`
- * button and the checkbox/radio rows above have NO rule in either
- * assets/os-app.css or apps/sn-dashboard/sn-dashboard.css (verified:
- * `grep -rn 'snt-form--native\|snt-submit'` returns zero hits in both, and
- * neither sheet carries an element-level input/button/form rule), so the
- * three primary buttons and every checkbox/radio in this leaf render as
- * unstyled browser defaults. Both stylesheets are OUTSIDE this port's
- * allowed file list (only content-tags.php, content-tags-parts.php and the
- * leaf's own test may be touched here) — fixing it needs a follow-up pass
- * on apps/sn-dashboard/sn-dashboard.css, not a change to this file.
+ * The `.snt-submit` button and the native checkboxes paint on the shell's
+ * tokens through assets/os-app.css (#1595).
  *
  * @package SignalNoiseTools
  * @since 13.106.0

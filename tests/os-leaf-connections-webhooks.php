@@ -66,6 +66,7 @@ ok( array( 'webhook_add', 'webhook_delete', 'webhook_update' ) === snt_leaf_acti
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( 2 === substr_count( $kit, '<os-form class="snt-form" os-action="post"' ), 'two os-forms dispatch post: two webhooks x delete (update and add are native forms; 15.2.0: no monitoring form)' );
 ok( 3 === substr_count( $kit, '<form class="snt-form snt-form--native" method="post" os-action="post">' ), 'three native forms dispatch post: two webhook_update editors plus webhook_add' );
+ok( false !== strpos( $kit, '<os-field-row label="Signing secret"><os-code copy>' ) && false === strpos( $kit, 'snt-field-static' ), '#1600: the reveal-once secret is an os-field-row around the copyable os-code, the hint its sibling paragraph; no hand-rolled .snt-field-static div' );
 ok( false !== strpos( $kit, 'heading="Alpha flow"' ) && false !== strpos( $kit, 'heading="Beta flow"' ), 'each webhook is a section headed by its name' );
 ok( false !== strpos( $kit, '<os-code>wh_alpha</os-code>: created ' . gmdate( 'Y-m-d', 1756684800 ) ), 'the id and creation date are shown' );
 ok( false !== strpos( $kit, '<os-text-field name="url" type="url" value="https://hooks.example.test/alpha"' ), 'the endpoint URL is a kit url field carrying the current URL' );

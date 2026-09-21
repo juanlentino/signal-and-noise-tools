@@ -141,6 +141,28 @@ a.snt-link:hover { text-decoration: underline; }
 .snt-dot--err { background: var( --os-ui-danger, #ff5a5a ); }
 .snt-dot--unknown { background: var( --os-ui-fg-faint, #66636b ); }
 
+/* The Suggest / Apply feedback the shared script mints inside a kit leaf
+ * (health-suggest-actions.js): the verdict headline and the after-Apply cell
+ * states. Their only colour rules were the classic sheet's light-admin hex,
+ * 1.9:1 to 2.3:1 on the station's dark surface (#1616). The status line
+ * itself is an inline style snt-status.js writes on the same tokens. */
+.snt-app .snt-verdict-headline--ok,
+.snt-app .snt-cell-applied { color: var( --os-ui-success-fg, #93f0c6 ); }
+.snt-app .snt-verdict-headline--warn { color: var( --os-ui-warning-fg, #f8f2b6 ); }
+.snt-app .snt-verdict-headline--err,
+.snt-app .snt-cell-error,
+.snt-app .snt-suggest-inline-err { color: var( --os-ui-danger, #ff5a5a ); }
+
+/* A check card in Monitoring > Health: the kit card's header row carries the
+ * title, its badge and the Suggest-all button (#1600). wp-admin's common.css
+ * gives a light-DOM h3 1.3em and a 1em margin, which a flex row cannot hold. */
+.snt-app os-card > header > h3 {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.3;
+}
+
 /* ── Facts list ──────────────────────────────────────────────────────── */
 .snt-kv {
 	display: grid;
@@ -243,6 +265,58 @@ a.snt-link:hover { text-decoration: underline; }
 	outline: none;
 	border-color: var( --os-ui-accent, #ec9bff );
 	box-shadow: 0 0 0 2px var( --os-ui-focus-ring, rgba( 236, 155, 255, 0.35 ) );
+}
+
+/* A native <form os-action> (Webhooks, Tags: repeated-name checkbox groups a
+ * kit form cannot carry) ends in a real <button> and ticks real checkboxes;
+ * neither is form-associated in the kit, so the look is borrowed (#1595).
+ * The submit is os-button's primary chain verbatim (os-button.styles.ts).
+ * The boxes keep wp-admin's forms.css as their painter: on the shell page it
+ * reaches every light-DOM input, sets appearance: none and draws the box, the
+ * tick and the dot itself, so accent-color never fires here. Only the paint
+ * moves: the field pair variables.css names for a plain <input> in a window
+ * body, and the accent the kit's holoCheck ticks in. One selector for both
+ * controls so the Tags row's radio and checkbox share metrics. */
+.snt-app .snt-submit {
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: var( --os-ui-button-padding, 6px 12px );
+	border-radius: var( --os-ui-button-border-radius, 6px );
+	font: inherit;
+	font-weight: 500;
+	cursor: pointer;
+	background-color: var( --os-ui-button-bg, var( --wp-admin-theme-color, #2271b1 ) );
+	color: var( --os-ui-button-fg, var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) ) );
+	border: var( --os-ui-button-border, 1px solid transparent );
+}
+
+.snt-app .snt-submit:hover {
+	filter: brightness( 1.06 );
+}
+
+.snt-app .snt-submit:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 2px var( --os-ui-focus-ring, rgba( 236, 155, 255, 0.35 ) );
+}
+
+.snt-app input[type="checkbox"],
+.snt-app input[type="radio"] {
+	width: 16px;
+	min-width: 16px;
+	height: 16px;
+	margin: 0;
+	vertical-align: middle;
+	background: var( --os-ui-field-bg, #33303a );
+	border-color: var( --os-ui-field-border, #4d4a52 );
+}
+
+.snt-app input[type="checkbox"]:checked,
+.snt-app input[type="radio"]:checked {
+	background: var( --os-ui-accent, #f252fc );
+	border-color: var( --os-ui-accent, #f252fc );
 }
 
 /* ── Mobile PWA responsiveness & Safe Areas ──────────────────────────── */

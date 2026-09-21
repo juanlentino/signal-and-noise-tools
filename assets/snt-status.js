@@ -9,11 +9,16 @@
  *   - assets/ai-og-card-title.js
  *   - assets/health-suggest-actions.js
  *
- * Kind → color map (matches the existing palette across all 4 prior copies):
- *   ok    → #0a5a1a (green; success state)
- *   warn  → #6e4d00 (amber; advisory state)
- *   err   → #8b1a1a (red; error state)
- *   info  → #646970 (muted gray; default)
+ * Kind → color map. Two maps, picked by surface (#1616): inside a kit app
+ * (`.snt-app`, the S&N Home window on the station's dark surface) the
+ * shell's `--os-ui-*` tokens, the only colours the windows use; anywhere
+ * else (the classic Health tab, the chromeless iframe, which paints white
+ * and loads no admin.css override, and the block editor sidebars) the
+ * light-admin hex the palette was chosen on:
+ *   ok    → --os-ui-success-fg | #0a5a1a (green; success state)
+ *   warn  → --os-ui-warning-fg | #6e4d00 (amber; advisory state)
+ *   err   → --os-ui-danger     | #8b1a1a (red; error state)
+ *   info  → --os-ui-fg-muted   | #646970 (muted gray; default)
  *
  * Loaded via wp_register_script + wp_enqueue_script alongside any of the
  * 4 caller scripts; those scripts list 'snt-status' in their deps array
@@ -38,15 +43,26 @@
 	 * @param {string}  text  Plain-text status to display.
 	 * @param {'ok'|'warn'|'err'|'info'} kind  Semantic state.
 	 */
+	var KIT_INK = {
+		ok: 'var(--os-ui-success-fg)',
+		warn: 'var(--os-ui-warning-fg)',
+		err: 'var(--os-ui-danger)',
+		info: 'var(--os-ui-fg-muted)'
+	};
+	var CLASSIC_INK = {
+		ok: '#0a5a1a',
+		warn: '#6e4d00',
+		err: '#8b1a1a',
+		info: '#646970'
+	};
+
 	function sntSetStatus( node, text, kind ) {
 		if ( ! node ) { return; }
 		node.textContent = text;
-		switch ( kind ) {
-			case 'ok':   node.style.color = '#0a5a1a'; break;
-			case 'warn': node.style.color = '#6e4d00'; break;
-			case 'err':  node.style.color = '#8b1a1a'; break;
-			default:     node.style.color = '#646970';
-		}
+		// The same surface test health-suggest-actions.js uses to pick
+		// os-button and os-modal: a node inside a kit app takes the tokens.
+		var ink = node.closest && node.closest( '.snt-app' ) ? KIT_INK : CLASSIC_INK;
+		node.style.color = ink[ kind ] || ink.info;
 	}
 
 	window.sntSetStatus = sntSetStatus;

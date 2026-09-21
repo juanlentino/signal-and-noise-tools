@@ -152,6 +152,7 @@ ok( false !== strpos( $kit, 'rows keep the order shown' ) && false !== strpos( $
 $classic_live = preg_replace( '#<template\b.*?</template>#s', '', $classic );
 $n_up         = substr_count( $classic_live, 'sn-rsm-up' );
 ok( $n_up > 20 && $n_up === substr_count( $kit, 'class="sn-rsm-up"' ) && $n_up === substr_count( $kit, 'class="sn-rsm-down"' ), 'every live classic row\'s Move up / Move down is a kit button carrying the classic class name (' . $n_up . ' rows)' );
+ok( $n_up === substr_count( $kit, '<os-cluster slot="footer" gap="4"><os-button variant="ghost" type="button" class="sn-rsm-up">' ) && false === strpos( $kit, 'snt-rsm-controls' ), '#1600: the two arrows sit in an os-cluster in the card\'s footer slot, not a raw div with no rule' );
 ok( $n_up === substr_count( $kit, 'data-rsm-row' ) && $n_up === substr_count( $classic_live, 'data-rsm-row' ), 'every kit row with arrows carries the classic data-rsm-row mark the script walks to (' . $n_up . ')' );
 ok( preg_match_all( '/<os-button [^>]*class="sn-rsm-(?:up|down)"[^>]*>/', $kit, $arrows ) === 2 * $n_up && ! preg_grep( '/os-action|\sname=|os-arg-/', $arrows[0] ) && count( preg_grep( '/\btype="button"/', $arrows[0] ) ) === 2 * $n_up, 'the arrows are os-buttons with no action, no name and no os-arg, type=button' );
 // The name: the kit does not forward a host aria-label to the inner button

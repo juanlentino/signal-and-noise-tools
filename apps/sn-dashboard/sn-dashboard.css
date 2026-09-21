@@ -733,6 +733,14 @@ os-button.snt-home__action:hover {
 	font-size: 13px;
 }
 
+/* Continue working with no recent post: the kit's empty state, the twin
+ * Station Home pairs with the same component (station-home.css). Needs
+ * attention keeps the all-clear row above, as Station Home does (#1593). */
+.snt-home__work os-empty-state {
+	min-block-size: 176px;
+	border-block-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
  * Subordinate Operations & Systems Wall
  * ══════════════════════════════════════════════════════════════════════════ */

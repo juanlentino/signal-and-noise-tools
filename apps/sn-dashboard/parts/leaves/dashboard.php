@@ -645,13 +645,14 @@ function home_continue_working_html( $tab ) {
 	$out .= '</div><div class="snt-home__work">';
 
 	if ( empty( $items ) ) {
-		$out .= '<div class="snt-home__all-clear">'
-			. '<span class="dashicons dashicons-welcome-write-blog" aria-hidden="true"></span>'
-			. '<span>'
-			. '<strong>' . esc_html__( 'Your desk is clear', 'signal-and-noise-tools' ) . '</strong>'
-			. '<span>' . esc_html__( 'Start something new and it will be waiting here when you return.', 'signal-and-noise-tools' ) . '</span>'
-			. '</span>'
-			. '</div>';
+		// The kit's empty state, as Station Home paints this section
+		// (apps/station-home/parts/view.php); Needs attention keeps its
+		// all-clear row, as Station Home does (#1593).
+		$out .= \snt_kit_empty(
+			__( 'Your desk is clear', 'signal-and-noise-tools' ),
+			__( 'Start something new and it will be waiting here when you return.', 'signal-and-noise-tools' ),
+			'welcome-write-blog'
+		);
 	} else {
 		foreach ( $visible_work as $item ) {
 			$status_tone = 'publish' === $item['status'] ? 'success' : ( in_array( $item['status'], array( 'future', 'pending' ), true ) ? 'warning' : 'neutral' );

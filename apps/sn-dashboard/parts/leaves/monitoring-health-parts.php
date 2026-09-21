@@ -63,6 +63,12 @@ function health_scan_form_html( $has_scan ) {
  * path), optional fix hint, the rows (an advisory's rows sit behind a
  * disclosure, matching the classic `<details>`).
  *
+ * `<os-card>` with the title, badge and button in its header row (kit-help
+ * "Card": the header slot is a flex row with 12px gap), the same
+ * `<header><h3>` the Links and Cloudflare cards paint (#1600). The host keeps
+ * `class="snt-check"`: health-suggest-actions.js walks
+ * `closest('.sn-fieldset,.snt-check')` for Suggest all.
+ *
  * @param string $key          Check key.
  * @param array  $check        Check envelope.
  * @param bool   $is_advisory  Advisory tier.
@@ -79,7 +85,7 @@ function health_finding_card_html( $key, array $check, $is_advisory, $ai_availab
 		/* translators: %d: finding count */
 		: \snt_kit_badge( 'warn', sprintf( _n( '%d finding', '%d findings', $count, 'signal-and-noise-tools' ), $count ) );
 
-	$out = '<div class="snt-check"><h3 class="snt-check__h">' . \snt_kit_esc( $label ) . ' ' . $badge . ( $show_ai ? ' ' . health_suggest_all_html( $count ) : '' ) . '</h3>';
+	$out = '<header><h3>' . \snt_kit_esc( $label ) . '</h3>' . $badge . ( $show_ai ? health_suggest_all_html( $count ) : '' ) . '</header>';
 	if ( ! empty( $check['fix_hint'] ) ) {
 		$out .= '<p class="snt-hint">' . \snt_kit_esc( (string) $check['fix_hint'] ) . '</p>';
 	}
@@ -92,13 +98,15 @@ function health_finding_card_html( $key, array $check, $is_advisory, $ai_availab
 			$rows
 		)
 		: $rows;
-	$out .= '</div>';
-	return $out;
+	return \snt_kit_tag( 'os-card', array( 'class' => 'snt-check' ), $out );
 }
 
 /**
- * The Findings section: faults grouped by family, advisories folded under
- * their own subhead — same shape as `sn_health_render_findings_section()`.
+ * The findings: faults grouped by family, advisories after them, the groups
+ * `sn_health_render_findings_section()` paints. One `<os-section>` per family
+ * and one for the advisories, its hint as the section's description: the
+ * dashboard sheet boxes every section body, so a family section inside a
+ * Findings section would be a box in a box (#1600).
  *
  * @param array<string,array> $faults       Non-advisory checks with findings.
  * @param array<string,array> $advisories   Advisory-tier checks with findings.
@@ -109,7 +117,7 @@ function health_findings_html( array $faults, array $advisories, $ai_available )
 	if ( empty( $faults ) && empty( $advisories ) ) {
 		return '';
 	}
-	$inner   = '';
+	$out     = '';
 	$grouped = function_exists( 'sn_health_group_checks_by_family' )
 		? sn_health_group_checks_by_family( $faults )
 		: array( 'other' => array( 'label' => __( 'Other checks', 'signal-and-noise-tools' ), 'checks' => $faults ) );
@@ -117,19 +125,24 @@ function health_findings_html( array $faults, array $advisories, $ai_available )
 		if ( empty( $family['checks'] ) ) {
 			continue;
 		}
-		$inner .= '<h3 class="snt-subhead">' . \snt_kit_esc( (string) $family['label'] ) . '</h3>';
+		$cards = '';
 		foreach ( $family['checks'] as $key => $check ) {
-			$inner .= health_finding_card_html( $key, $check, false, $ai_available );
+			$cards .= health_finding_card_html( $key, $check, false, $ai_available );
 		}
+		$out .= \snt_kit_section( (string) $family['label'], $cards );
 	}
 	if ( ! empty( $advisories ) ) {
-		$inner .= '<h3 class="snt-subhead">' . \snt_kit_esc( __( 'Advisories', 'signal-and-noise-tools' ) ) . '</h3>';
-		$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Surfaced, never alarming: these do not count toward the findings total above, and a clean site can carry them indefinitely.', 'signal-and-noise-tools' ) ) . '</p>';
+		$cards = '';
 		foreach ( $advisories as $key => $check ) {
-			$inner .= health_finding_card_html( $key, $check, true, $ai_available );
+			$cards .= health_finding_card_html( $key, $check, true, $ai_available );
 		}
+		$out .= \snt_kit_section(
+			__( 'Advisories', 'signal-and-noise-tools' ),
+			$cards,
+			__( 'Surfaced, never alarming: these do not count toward the findings total above, and a clean site can carry them indefinitely.', 'signal-and-noise-tools' )
+		);
 	}
-	return \snt_kit_section( __( 'Findings', 'signal-and-noise-tools' ), $inner );
+	return $out;
 }
 
 /**
@@ -149,17 +162,19 @@ function health_reports_html( array $reports ) {
 	$inner = '<p class="snt-prose">' . \snt_kit_esc( __( 'Checks that measure and publish rather than flag. Nothing here is a defect list — read the coverage line before reading the numbers.', 'signal-and-noise-tools' ) ) . '</p>';
 	foreach ( $reports as $key => $check ) {
 		$report = isset( $check['report'] ) && is_array( $check['report'] ) ? $check['report'] : array();
-		$inner .= '<div class="snt-check"><h3 class="snt-check__h">' . \snt_kit_esc( (string) ( $check['label'] ?? $key ) ) . ' ' . \snt_kit_badge( 'neutral', __( 'report', 'signal-and-noise-tools' ) ) . '</h3>';
-		$inner .= ! empty( $report['coverage'] )
+		$card   = '<header><h3>' . \snt_kit_esc( (string) ( $check['label'] ?? $key ) ) . '</h3>' . \snt_kit_badge( 'neutral', __( 'report', 'signal-and-noise-tools' ) ) . '</header>';
+		$card  .= ! empty( $report['coverage'] )
 			? '<p class="snt-prose"><b>' . \snt_kit_esc( __( 'What this covers:', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( (string) $report['coverage'] ) . '</p>'
 			: '<p class="snt-hint">' . \snt_kit_esc( __( 'This report has no detail view yet — its payload is available through the health-scan ability.', 'signal-and-noise-tools' ) ) . '</p>';
-		$inner .= '</div>';
+		$inner .= \snt_kit_tag( 'os-card', array( 'class' => 'snt-check' ), $card );
 	}
 	return \snt_kit_section( __( 'Reports', 'signal-and-noise-tools' ), $inner );
 }
 
 /**
- * The collapsed passing disclosure: the summary line + names by family.
+ * The collapsed passing disclosure: the summary line + names by family. One
+ * `<os-row>` per family, the family in the leaf's own column-header style
+ * and its chips in an `<os-cluster>`, the shape the finding rows use (#1600).
  *
  * @param array<string,array> $passing      From sn_health_passing_checks().
  * @param int                 $check_total  From sn_health_check_total().
@@ -178,11 +193,11 @@ function health_passing_html( array $passing, $check_total, $report_count ) {
 	$inner   = '';
 	$grouped = function_exists( 'sn_health_group_checks_by_family' ) ? sn_health_group_checks_by_family( $passing ) : array();
 	foreach ( $grouped as $family ) {
-		$inner .= '<h4 class="snt-subhead">' . \snt_kit_esc( (string) $family['label'] ) . '</h4><p class="snt-chips">';
+		$chips = '';
 		foreach ( $family['checks'] as $check ) {
-			$inner .= \snt_kit_chip( (string) ( $check['label'] ?? '' ) );
+			$chips .= \snt_kit_chip( (string) ( $check['label'] ?? '' ) );
 		}
-		$inner .= '</p>';
+		$inner .= '<os-row gap="12"><span col="3" class="snt-col__h">' . \snt_kit_esc( (string) $family['label'] ) . '</span><os-cluster col="9" gap="6">' . $chips . '</os-cluster></os-row>';
 	}
 	return \snt_kit_tag( 'os-disclosure', array( 'heading' => $summary, 'hint' => __( 'pass', 'signal-and-noise-tools' ) ), $inner );
 }
