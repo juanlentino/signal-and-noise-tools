@@ -84,6 +84,17 @@ if ( ! function_exists( 'sn_admin_top_tabs' ) ) {
 	}
 }
 
+// #1626: OpenStation request predicates, swappable per test. Both default to
+// false (a classic wp-admin screen).
+$GLOBALS['__os_shell'] = false;
+$GLOBALS['__os_chromeless'] = false;
+if ( ! function_exists( 'openstation_is_shell_request' ) ) {
+	function openstation_is_shell_request() { return $GLOBALS['__os_shell']; }
+}
+if ( ! function_exists( 'openstation_is_chromeless_request' ) ) {
+	function openstation_is_chromeless_request() { return $GLOBALS['__os_chromeless']; }
+}
+
 if ( ! defined( 'SNT_PATH' ) )    { define( 'SNT_PATH', dirname( __DIR__ ) . '/' ); }
 if ( ! defined( 'SNT_VERSION' ) ) { define( 'SNT_VERSION', '4.11.0' ); }
 if ( ! defined( 'SN_NOTES_CATEGORY_SLUG' ) ) { define( 'SN_NOTES_CATEGORY_SLUG', 'notes' ); }
@@ -151,6 +162,19 @@ $GLOBALS['__term_by_slug'] = (object) array( 'term_id' => 42, 'slug' => 'notes' 
 $data2 = cpl_run_enqueue();
 cpl_eq( 42, $data2['notesCategoryId'] ?? null, 'notesCategoryId = term_id (42)' );
 cpl_true( is_int( $data2['notesCategoryId'] ?? null ), 'seeded notesCategoryId is an int' );
+
+// ─── Test 4 (#1626): one registration per document ───────────────────────
+// On an OpenStation document the classic contributor is never enqueued, so
+// nothing is localized: the shell's copy is the sn-cmd-* registration and a
+// chromeless window's iframe bridge has nothing of ours to republish.
+echo "\nTest 4: the contributor is gated off OpenStation documents\n";
+$GLOBALS['__os_shell'] = true;
+cpl_eq( null, cpl_run_enqueue(), 'shell request: nothing localized (not enqueued)' );
+$GLOBALS['__os_shell'] = false;
+$GLOBALS['__os_chromeless'] = true;
+cpl_eq( null, cpl_run_enqueue(), 'chromeless window request: nothing localized (not enqueued)' );
+$GLOBALS['__os_chromeless'] = false;
+cpl_true( is_array( cpl_run_enqueue() ), 'negative control: classic wp-admin still localizes the payload' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
