@@ -26,6 +26,8 @@ function update_option( $name, $value ) {
 }
 function get_bloginfo( $what ) { return ''; }
 
+// 17.4.4 (#1612): settings.php hooks register_setting() on init at file scope.
+if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
 require __DIR__ . '/../inc/settings.php';
 require_once __DIR__ . '/../inc/admin-post-actions.php';
 

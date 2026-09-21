@@ -46,6 +46,8 @@ function wp_unslash( $value ) {
 	return is_string( $value ) ? stripslashes( $value ) : $value;
 }
 
+// 17.4.4 (#1612): settings.php hooks register_setting() on init at file scope.
+if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
 require __DIR__ . '/../inc/settings.php';
 
 $pass = 0;

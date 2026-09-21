@@ -52,6 +52,8 @@ if ( ! function_exists( 'selected' ) ) {
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
+// 17.4.4 (#1612): settings.php hooks register_setting() on init at file scope.
+if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
 require __DIR__ . '/../inc/settings.php';
 
 // ── P1: theme subtree defaults ───────────────────────────────────────
