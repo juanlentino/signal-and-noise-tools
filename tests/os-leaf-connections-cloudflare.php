@@ -80,12 +80,12 @@ ok( array() === cf_fields( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_a
 ok( false !== strpos( $kit, '>••••1234</dd>' ) && false === strpos( $kit, 'cf-token-abcdef1234' ) && false === strpos( $classic, 'cf-token-abcdef1234' ), 'the token source shows the obscured value, never raw, on either leaf' );
 ok( false !== strpos( $kit, '>zone0123456789abcdef</dd>' ), 'the zone id is shown as a fact' );
 ok( false === strpos( $kit, 'Configured: auto-purge active' ) && false !== strpos( $kit, '>Auto-purge</dt>' ) && false !== strpos( $kit, '>Active</os-badge>' ) && false !== strpos( $kit, 'on post save, theme update and the REST endpoint' ), '15.1.0: the configured state is a facts row with the Active badge, not a notice' );
-ok( false !== strpos( $kit, '>Last purge</dt>' ) && false !== strpos( $kit, '1 hour ago (full zone)' ), 'the last full-zone purge is read out' );
+ok( false !== strpos( $kit, '>Last purge</dt>' ) && false !== strpos( $kit, '<os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time> (full zone)' ), '#1596: the last full-zone purge is an os-relative-time with the server reading as its fallback' );
 ok( false === cf_purge_disabled( $kit ), 'the purge button is live once configured' );
 
 cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef', 'sn_cf_last_purge' => array( 'time' => time() - 60, 'kind' => 'urls', 'count' => 7 ) ) );
 $kit = snt_leaf_paint( 'connections', 'cloudflare' );
-ok( false !== strpos( $kit, '1 hour ago (7 URL(s))' ), 'a per-URL purge is read out with its count' );
+ok( false !== strpos( $kit, '>1 hour ago</os-relative-time> (7 URL(s))' ), 'a per-URL purge is read out with its count' );
 
 // ── The probes fold: counts in the hint, open when the newest is stale, every row in the table.
 $log = array(
@@ -130,10 +130,10 @@ ok( false === strpos( $classic, 'Post-purge probes' ) && false === strpos( $kit,
 $GLOBALS['__cw_configured'] = true;
 cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef', 'sn_cloudways_last_purge' => array( 'time' => time() - 120, 'ok' => true ) ) );
 $kit = snt_leaf_paint( 'connections', 'cloudflare' );
-ok( false !== strpos( $kit, '>Cloudways purge</dt>' ) && false !== strpos( $kit, '>OK</os-badge>' ) && false !== strpos( $kit, 'Varnish leg of the same chain. Last attempt: 1 hour ago.' ), 'a successful Cloudways purge reads OK with its age, as a facts row' );
+ok( false !== strpos( $kit, '>Cloudways purge</dt>' ) && false !== strpos( $kit, '>OK</os-badge>' ) && false !== strpos( $kit, 'Varnish leg of the same chain. Last attempt: <os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>.' ), 'a successful Cloudways purge reads OK with its age, as a facts row' );
 cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef', 'sn_cloudways_last_purge' => array( 'time' => time() - 120, 'ok' => false, 'http' => 422, 'error' => 'field validation failed' ) ) );
 $kit = snt_leaf_paint( 'connections', 'cloudflare' );
-ok( false !== strpos( $kit, '>Error</os-badge>' ) && false !== strpos( $kit, 'Last attempt: 1 hour ago. HTTP 422: field validation failed' ) && substr_count( $kit, 'tone="warning"' ) >= 1, 'a failed Cloudways purge reads Error with the HTTP status and message in a warning notice' );
+ok( false !== strpos( $kit, '>Error</os-badge>' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>. HTTP 422: field validation failed' ) && substr_count( $kit, 'tone="warning"' ) >= 1, 'a failed Cloudways purge reads Error with the HTTP status and message in a warning notice' );
 cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef' ) );
 $kit = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( false !== strpos( $kit, 'Cloudways purge' ) && false !== strpos( $kit, '>Active</os-badge>' ) && false === strpos( $kit, 'Last attempt' ), 'a configured Cloudways module that never purged reads Active' );

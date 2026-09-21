@@ -166,15 +166,11 @@ function cron_row_data( array $row ) {
 	}
 	$hook = (string) ( $row['hook'] ?? '' ) . ( ! empty( $tags ) ? ' [' . implode( ', ', $tags ) . ']' : '' );
 
-	$next_ts    = (int) ( $row['next_run_ts'] ?? 0 );
-	$next_label = function_exists( 'snt_cron_next_run_label' )
-		? snt_cron_next_run_label( time(), $next_ts )
-		/* translators: %s is a human-readable relative time, e.g., "5 mins" */
-		: sprintf( __( 'in %s', 'signal-and-noise-tools' ), human_time_diff( time(), $next_ts ) );
-	// #1222: same fix as the classic renderer (inc/cron-dashboard-admin.php) --
-	// human_time_diff() is an absolute difference, so a next_run_ts already in
-	// the past otherwise always read "in <time>" instead of "<time> overdue".
-	$next = wp_date( 'Y-m-d H:i:s', $next_ts ) . ' (' . $next_label . ')';
+	// #1596: the relative half ages live and is signed ("in 5 mins" / "5 mins
+	// ago"), so the #1222 overdue reversal lives in the component; the classic
+	// renderer keeps snt_cron_next_run_label().
+	$next_ts = (int) ( $row['next_run_ts'] ?? 0 );
+	$next    = \snt_kit_esc( wp_date( 'Y-m-d H:i:s', $next_ts ) ) . ' (' . \snt_kit_relative_time( $next_ts ) . ')';
 
 	if ( ! empty( $row['schedule'] ) ) {
 		$recurrence = (string) $row['schedule'];
@@ -186,8 +182,7 @@ function cron_row_data( array $row ) {
 	}
 
 	$last_ts = (int) ( $row['last_fired_ts'] ?? 0 );
-	/* translators: %s is a human-readable relative time, e.g., "5 mins" */
-	$last = $last_ts ? wp_date( 'Y-m-d H:i:s', $last_ts ) . ' (' . sprintf( __( '%s ago', 'signal-and-noise-tools' ), human_time_diff( $last_ts, time() ) ) . ')' : '—';
+	$last    = $last_ts ? \snt_kit_esc( wp_date( 'Y-m-d H:i:s', $last_ts ) ) . ' (' . \snt_kit_relative_time( $last_ts ) . ')' : '—';
 
 	$args = ! empty( $row['args'] ) ? cron_args_summary( $row['args'] ) : '—';
 
@@ -232,9 +227,9 @@ function cron_table_html( array $rows ) {
 		$cells = cron_row_data( (array) $row );
 		$out  .= '<li class="snt-list__row" os-key="' . \snt_kit_esc( (string) ( $row['hook'] ?? '' ) . '|' . (string) ( $row['args_signature'] ?? '' ) ) . '">'
 			. '<span class="snt-list__label" title="' . \snt_kit_esc( $cells['hook'] ) . '">' . \snt_kit_esc( $cells['hook'] ) . '</span>'
-			. '<span class="snt-list__value">' . \snt_kit_esc( $cells['next_run'] ) . '</span>'
+			. '<span class="snt-list__value">' . $cells['next_run'] . '</span>'
 			. '<span class="snt-list__value">' . \snt_kit_esc( $cells['recurrence'] ) . '</span>'
-			. '<span class="snt-list__value">' . \snt_kit_esc( $cells['last_fired'] ) . '</span>'
+			. '<span class="snt-list__value">' . $cells['last_fired'] . '</span>'
 			. '<span class="snt-list__value" title="' . \snt_kit_esc( $cells['args'] ) . '">' . \snt_kit_esc( $cells['args'] ) . '</span>'
 			. '<span class="snt-list__value">' . $cells['run'] . '</span>'
 			. '<span class="snt-list__value">' . $cells['unschedule'] . '</span>'

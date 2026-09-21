@@ -39,7 +39,7 @@ function tags_fit_html() {
 		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'Jev reads every published and scheduled note against the tags it carries, the tag descriptions as the state: a tag whose subject the note does not touch is listed for removal. About seventy requests; under a cent.', 'signal-and-noise-tools' ) ) . '</p>' . $run );
 	}
 	if ( array() === $rows ) {
-		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: %s: how long ago */ __( 'Last read %s ago: every tag on every note touches its subject.', 'signal-and-noise-tools' ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>' . $run );
+		return \snt_kit_section( $heading, '<p class="snt-prose">' . sprintf( /* translators: %s: relative time element */ \snt_kit_esc( __( 'Last read %s: every tag on every note touches its subject.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( (int) $data['synced_at'] ) ) . '</p>' . $run );
 	}
 	$inner = '';
 	foreach ( $rows as $pid => $row ) {
@@ -51,7 +51,7 @@ function tags_fit_html() {
 	}
 	return \snt_kit_section(
 		$heading,
-		'<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: 1: notes flagged, 2: how long ago */ __( '%1$d notes, read %2$s ago. A misfit is a tag whose subject Jev could not find in the note, scored under 0.5 of 2 with confidence 0.7 or better; nothing else is listed, and Jev proposes no tags. Jev read each tag\'s description: a wrong reading of a right tag is the description to fix. Tags are not prose; a published note can take the change.', 'signal-and-noise-tools' ), count( $rows ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>'
+		'<p class="snt-prose">' . sprintf( /* translators: 1: notes flagged, 2: relative time element */ \snt_kit_esc( __( '%1$d notes, read %2$s. A misfit is a tag whose subject Jev could not find in the note, scored under 0.5 of 2 with confidence 0.7 or better; nothing else is listed, and Jev proposes no tags. Jev read each tag\'s description: a wrong reading of a right tag is the description to fix. Tags are not prose; a published note can take the change.', 'signal-and-noise-tools' ) ), count( $rows ), \snt_kit_relative_time( (int) $data['synced_at'] ) ) . '</p>'
 		. tags_form( 'post', tags_post_hidden( 'tag_fit_apply' ), $inner, __( 'Apply selected', 'signal-and-noise-tools' ) )
 		. $run
 	);

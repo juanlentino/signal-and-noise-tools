@@ -122,6 +122,23 @@ $work = \SignalNoise\OpenStationHost\Dashboard\Leaves\home_continue_working_html
 ok( false !== strpos( $work, 'View all (9)' ), '#1208: "View all" reads found_posts (9 real items), not the 6-row display window' );
 ok( false === strpos( $work, 'View all (6)' ), '...never the capped window size' );
 
+// ── #1596: every relative time in the window is an os-relative-time. The
+// helper pin: an ISO 8601 UTC datetime attribute, the server's own signed
+// human_time_diff() reading as the light-DOM fallback, both escaped.
+echo "\nGroup: #1596 snt_kit_relative_time()\n";
+$ts = 1700000000; // 2023-11-14T22:13:20Z
+ok( '<os-relative-time datetime="2023-11-14T22:13:20Z">1 hour ago</os-relative-time>' === snt_kit_relative_time( $ts ), 'a past moment: ISO 8601 UTC attribute, "%s ago" fallback from human_time_diff()' );
+ok( '<os-relative-time datetime="' . gmdate( 'Y-m-d\TH:i:s\Z', time() + 7200 ) . '">in 1 hour</os-relative-time>' === snt_kit_relative_time( time() + 7200 ), 'a future moment: the fallback is signed, "in %s", no overdue branch outside the helper' );
+ok( '<os-relative-time datetime="2023-11-14T22:13:20Z">&lt;b&gt;x&lt;/b&gt; &amp; y</os-relative-time>' === snt_kit_relative_time( $ts, '<b>x</b> & y' ), 'a caller fallback is painted verbatim, escaped' );
+ok( false !== strpos( snt_kit_relative_time( '1700000000"><script>' ), 'datetime="2023-11-14T22:13:20Z"' ), 'the timestamp is cast to int before it becomes the attribute' );
+
+// The Continue working row paints its modified moment through the helper,
+// anchored on post_modified_gmt, where 17.4.3 painted a frozen "1 hour ago".
+$GLOBALS['__posts'] = array( (object) array( 'ID' => 1, 'post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'One', 'post_modified_gmt' => '2023-11-14 22:13:20' ) );
+$work = \SignalNoise\OpenStationHost\Dashboard\Leaves\home_continue_working_html( 'dashboard' );
+ok( false !== strpos( $work, '<span class="snt-home__row-time"><os-relative-time datetime="2023-11-14T22:13:20Z">1 hour ago</os-relative-time></span>' ), '#1596: .snt-home__row-time holds an os-relative-time anchored on post_modified_gmt' );
+ok( 1 === preg_match( '#<span class="snt-home__timestamp">Updated <os-relative-time datetime="\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ">just now</os-relative-time></span>#', $html2 ), '#1596: the Site pulse "Updated" stamp is an os-relative-time on the paint moment, not a clock reading' );
+
 // ── 3. #1593: with no recent post, Continue working paints the kit's empty
 // state, the component Station Home paints for the same section; the
 // all-clear row stays with Needs attention.

@@ -61,7 +61,7 @@ ok( false !== strpos( $kit, 'backfills your existing published posts' ) && false
 ok( false !== strpos( $kit, 'Pushes changed URLs to <strong>IndexNow</strong>' ) && false !== strpos( $kit, 'not Google' ), 'the intro prose survives, IndexNow in bold' );
 ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, '<b>Active</b>' ) && false !== strpos( $kit, '<os-badge tone="success">On</os-badge>' ) && false !== strpos( $kit, 'Changed URLs are submitted automatically.' ), 'the active state paints a success notice with the On pill and the classic body' );
 ok( false !== strpos( $kit, 'href="https://example.test/' . $key . '.txt"' ) && false !== strpos( $kit, '<os-code>https://example.test/' . $key . '.txt</os-code>' ) && false !== strpos( $kit, 'Key file' ), 'the key-file URL is shown as an external link in inline code under Key file' );
-ok( false !== strpos( $kit, 'Last submission' ) && false !== strpos( $kit, '1 hour ago — HTTP 200, 12 URL(s)' ), 'the last submission reads ago, HTTP code and URL count, as the classic row' );
+ok( false !== strpos( $kit, 'Last submission' ) && false !== strpos( $kit, '<os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time> — HTTP 200, 12 URL(s)' ), '#1596: the last submission is an os-relative-time, then HTTP code and URL count' );
 ok( false !== strpos( $kit, 'col="4" aria-label="IndexNow status"' ) && false !== strpos( $kit, '<os-section heading="Status">' ), 'the rail keeps its landmark name and the Status heading' );
 ok( false !== strpos( $kit, '<os-row gap="16"' ), 'the classic two-column shell survives as an os-row' );
 ok( false !== strpos( $kit, '<os-stack col="8" gap="12">' ), 'the main column carries col=8 inside the os-row' );
@@ -87,7 +87,7 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_indexnow_section' );
 $kit     = snt_leaf_paint( 'connections', 'indexnow' );
 ok( false !== strpos( $kit, 'tone="danger"' ) && false !== strpos( $kit, '<b>Last submission failed</b>' ) && false !== strpos( $kit, '<os-badge tone="danger">Error</os-badge>' ), 'the failed state paints a danger notice with the Error pill' );
 ok( false !== strpos( $kit, '<os-code>HTTP 429 slow down</os-code>' ), 'the recorded error is shown as inline code' );
-ok( false !== strpos( $kit, '1 hour ago — HTTP 429, 3 URL(s)' ), 'the failed submission still paints its Last submission row, as the classic table does' );
+ok( false !== strpos( $kit, '>1 hour ago</os-relative-time> — HTTP 429, 3 URL(s)' ), 'the failed submission still paints its Last submission row, as the classic table does' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'failed state: field names still match the classic forms' );
 
 // ── Escaping: a hostile error and a hostile key never reach the markup raw.
@@ -111,7 +111,7 @@ ok( false === strpos( $kit, 'Last submission' ), 'disabled with no result: no La
 snt_indexnow_fixture( false, $key, array( 'time' => time() - 3600, 'code' => 500, 'count' => 1, 'error' => 'boom' ) );
 $kit = snt_leaf_paint( 'connections', 'indexnow' );
 ok( false !== strpos( $kit, '<b>Disabled</b>' ) && false === strpos( $kit, 'Last submission failed' ), 'disabled takes precedence over a recorded error' );
-ok( false !== strpos( $kit, 'href="https://example.test/' . $key . '.txt"' ) && false !== strpos( $kit, '1 hour ago — HTTP 500, 1 URL(s)' ), 'disabled with a key and a result: the key link and Last submission row still paint, as the classic table does' );
+ok( false !== strpos( $kit, 'href="https://example.test/' . $key . '.txt"' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time> — HTTP 500, 1 URL(s)' ), 'disabled with a key and a result: the key link and Last submission row still paint, as the classic table does' );
 
 // ── Capability gate: without manage_options the leaf paints an empty state
 // and never a write action, matching the classic leaf's early return.

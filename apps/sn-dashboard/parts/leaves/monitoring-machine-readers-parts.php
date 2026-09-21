@@ -526,7 +526,7 @@ function machine_readers_edge_readout_html( $info ) {
 		$lines .= '<p><b>' . \snt_kit_esc( __( 'Deployed:', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( (string) $info['deployed_at'] ) . '</p>';
 	}
 	if ( isset( $info['fetched_at'] ) ) {
-		$lines .= '<p><b>' . \snt_kit_esc( __( 'Read:', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( sprintf( __( '%s ago', 'signal-and-noise-tools' ), human_time_diff( (int) $info['fetched_at'], time() ) ) ) . '</p>';
+		$lines .= '<p><b>' . \snt_kit_esc( __( 'Read:', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_relative_time( (int) $info['fetched_at'] ) . '</p>';
 	}
 	$lines .= '<p><em>' . \snt_kit_esc( __( 'Source:', 'signal-and-noise-tools' ) ) . '</em> ' . \snt_kit_code( defined( 'SN_MR_VERSION_ENDPOINT' ) ? SN_MR_VERSION_ENDPOINT : '', false ) . '</p>';
 	return \snt_kit_notice( 'info', $lines );

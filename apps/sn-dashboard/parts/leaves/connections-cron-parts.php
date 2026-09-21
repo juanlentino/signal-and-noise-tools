@@ -52,8 +52,8 @@ function cron_morning_brief_html() {
 
 	$inner = \snt_kit_field( 'checkbox', 'snt_morning_brief_enabled', __( 'Email a daily morning brief to the admin address', 'signal-and-noise-tools' ), \snt_morning_brief_enabled(), array( 'value' => '1', 'hint' => __( 'A deterministic prose reading of the latest health scan, cron history, uptime status, deploy state, and any unacknowledged settings drift. Scheduled for 7:00 a.m. site time.', 'signal-and-noise-tools' ) ) );
 	if ( $last_sent > 0 ) {
-		/* translators: %s: human time diff */
-		$inner .= '<p class="snt-hint">' . \snt_kit_esc( sprintf( __( 'Last sent %s ago.', 'signal-and-noise-tools' ), human_time_diff( $last_sent, time() ) ) ) . '</p>';
+		/* translators: %s: relative time element */
+		$inner .= '<p class="snt-hint">' . sprintf( \snt_kit_esc( __( 'Last sent %s.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( (int) $last_sent ) ) . '</p>';
 	}
 	if ( is_array( $last_error ) && ! empty( $last_error['message'] ) ) {
 		$inner .= \snt_kit_notice( 'err', '<b>' . \snt_kit_esc( __( 'Last send failed:', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( (string) $last_error['message'] ) );
@@ -82,13 +82,13 @@ function cron_scheduled_reads_html() {
 		foreach ( (array) $last['tools'] as $tool_outcome ) {
 			$errors += empty( $tool_outcome['error'] ) ? 0 : 1;
 		}
-		$inner .= '<p class="snt-hint">' . \snt_kit_esc( sprintf(
-			/* translators: 1: human time diff, 2: failed reads, 3: total reads */
-			__( 'Last run %1$s ago: %2$d of %3$d reads failed.', 'signal-and-noise-tools' ),
-			human_time_diff( (int) $last['ran_at'], time() ),
+		$inner .= '<p class="snt-hint">' . sprintf(
+			/* translators: 1: relative time element, 2: failed reads, 3: total reads */
+			\snt_kit_esc( __( 'Last run %1$s: %2$d of %3$d reads failed.', 'signal-and-noise-tools' ) ),
+			\snt_kit_relative_time( (int) $last['ran_at'] ),
 			$errors,
 			count( (array) $last['tools'] )
-		) ) . '</p>';
+		) . '</p>';
 	}
 
 	$out  = \snt_kit_form( 'scheduled_reads_save', $inner, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );

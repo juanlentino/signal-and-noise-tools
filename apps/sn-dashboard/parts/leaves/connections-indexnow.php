@@ -120,10 +120,11 @@ function indexnow_rail_html( array $d ) {
 	if ( ! empty( $d['result']['time'] ) ) {
 		$rows[] = array(
 			'label' => __( 'Last submission', 'signal-and-noise-tools' ),
+			'html'  => true,
 			'value' => sprintf(
-				/* translators: 1: how long ago, 2: HTTP status code, 3: number of URLs submitted */
-				__( '%1$s ago — HTTP %2$d, %3$d URL(s)', 'signal-and-noise-tools' ),
-				human_time_diff( (int) $d['result']['time'], time() ),
+				/* translators: 1: relative time element, 2: HTTP status code, 3: number of URLs submitted */
+				\snt_kit_esc( __( '%1$s — HTTP %2$d, %3$d URL(s)', 'signal-and-noise-tools' ) ),
+				\snt_kit_relative_time( (int) $d['result']['time'] ),
 				(int) ( $d['result']['code'] ?? 0 ),
 				(int) ( $d['result']['count'] ?? 0 )
 			),

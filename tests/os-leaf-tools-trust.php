@@ -45,7 +45,7 @@ ok( false !== strpos( $kit, '<os-stat' ) && false !== strpos( $kit, '<os-table' 
 $GLOBALS['__scan'] = array( 'scanned_at' => time() - 3600 );
 $classic = snt_leaf_classic_html( 'snt_trust_render_section' );
 $kit     = snt_leaf_paint( 'tools', 'trust' );
-ok( false !== strpos( $classic, 'this leaf never scans on its own' ) && false !== strpos( $kit, 'this leaf never scans on its own' ), 'scan-with-no-checks state: classic and kit both show the "ran N ago" line' );
+ok( false !== strpos( $classic, 'this leaf never scans on its own' ) && false !== strpos( $kit, 'ran <os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>: this leaf never scans on its own' ), '#1596: scan-with-no-checks state: classic shows the "ran N ago" line, the kit an os-relative-time' );
 ok( substr_count( $kit, 'not run' ) >= 4, 'scan-with-no-checks state: still four "not run" readings' );
 
 // ── State 3: all four checks present and clear.

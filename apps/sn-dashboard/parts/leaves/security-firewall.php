@@ -46,13 +46,14 @@ function firewall_pinning_html() {
 		),
 		array(
 			'label' => __( 'Last unpinned request', 'signal-and-noise-tools' ),
+			'html'  => true,
 			'value' => null === $last
-				? __( 'none recorded', 'signal-and-noise-tools' )
+				? \snt_kit_esc( __( 'none recorded', 'signal-and-noise-tools' ) )
 				: sprintf(
-					/* translators: 1: host name, 2: human time diff */
-					__( '%1$s, %2$s ago', 'signal-and-noise-tools' ),
-					(string) ( $last['host'] ?? 'unknown' ),
-					human_time_diff( (int) $last['at'], time() )
+					/* translators: 1: host name, 2: relative time element */
+					\snt_kit_esc( __( '%1$s, %2$s', 'signal-and-noise-tools' ) ),
+					\snt_kit_esc( (string) ( $last['host'] ?? 'unknown' ) ),
+					\snt_kit_relative_time( (int) $last['at'] )
 				),
 			'tone'  => null === $last ? null : 'warn',
 		),

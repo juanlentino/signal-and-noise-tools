@@ -118,11 +118,10 @@ function paint_tools_trust( array $ctx ) {
 			$health_lnk
 		) . '</p>';
 	} else {
-		$age   = ! empty( $scan['scanned_at'] ) ? human_time_diff( (int) $scan['scanned_at'], time() ) : '';
 		$intro = '<p class="snt-prose">' . sprintf(
-			/* translators: 1: how long ago the scan ran; 2: link to the Health leaf, already escaped HTML. */
-			esc_html__( 'Read from the health scan that ran %1$s ago: this leaf never scans on its own. Re-run from %2$s.', 'signal-and-noise-tools' ),
-			esc_html( $age ),
+			/* translators: 1: relative time element; 2: link to the Health leaf, already escaped HTML. */
+			esc_html__( 'Read from the health scan that ran %1$s: this leaf never scans on its own. Re-run from %2$s.', 'signal-and-noise-tools' ),
+			\snt_kit_relative_time( (int) ( $scan['scanned_at'] ?? 0 ) ),
 			$health_lnk
 		) . '</p>';
 	}

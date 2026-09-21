@@ -367,16 +367,16 @@ function insights_status_html( $last ) {
 	$ttl             = defined( 'SN_INSIGHTS_CACHE_TTL' ) ? SN_INSIGHTS_CACHE_TTL : 7 * DAY_IN_SECONDS;
 	$elapsed         = function_exists( 'snt_health_format_elapsed' ) ? snt_health_format_elapsed( (int) ( $last['elapsed_ms'] ?? 0 ) ) : '';
 	$body            = sprintf(
-		/* translators: 1: how long ago, 2: active count, 3: dismissed count, 4: done count, 5: elapsed, 6: cached-until date */
-		__( 'Last scan %1$s ago. %2$s active · %3$s dismissed · %4$s done · scan ran in %5$s · cached until %6$s.', 'signal-and-noise-tools' ),
-		human_time_diff( (int) $last['scanned_at'], time() ),
-		number_format_i18n( $active_count ),
-		number_format_i18n( $dismissed_count ),
-		number_format_i18n( $done_count ),
-		$elapsed,
-		wp_date( 'Y-m-d H:i', (int) $last['scanned_at'] + $ttl )
+		/* translators: 1: relative time element, 2: active count, 3: dismissed count, 4: done count, 5: elapsed, 6: cached-until date */
+		\snt_kit_esc( __( 'Last scan %1$s. %2$s active · %3$s dismissed · %4$s done · scan ran in %5$s · cached until %6$s.', 'signal-and-noise-tools' ) ),
+		\snt_kit_relative_time( (int) $last['scanned_at'] ),
+		\snt_kit_esc( number_format_i18n( $active_count ) ),
+		\snt_kit_esc( number_format_i18n( $dismissed_count ) ),
+		\snt_kit_esc( number_format_i18n( $done_count ) ),
+		\snt_kit_esc( $elapsed ),
+		\snt_kit_esc( wp_date( 'Y-m-d H:i', (int) $last['scanned_at'] + $ttl ) )
 	);
-	return \snt_kit_notice( $kind, \snt_kit_badge( $kind, $active_count > 0 ? __( 'Recommendations ready', 'signal-and-noise-tools' ) : __( 'All caught up', 'signal-and-noise-tools' ) ) . '<br>' . \snt_kit_esc( $body ) );
+	return \snt_kit_notice( $kind, \snt_kit_badge( $kind, $active_count > 0 ? __( 'Recommendations ready', 'signal-and-noise-tools' ) : __( 'All caught up', 'signal-and-noise-tools' ) ) . '<br>' . $body );
 }
 
 /**

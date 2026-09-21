@@ -117,7 +117,7 @@ $rich_rows = array(
 	array(
 		'hook'           => 'sn_cache_sweep',
 		'args_signature' => 'sig-a',
-		'next_run_ts'    => time() + 1000000, // #1222: must be FUTURE-relative or snt_cron_next_run_label() reads it as overdue.
+		'next_run_ts'    => time() + 1000000,
 		'schedule'       => 'hourly',
 		'interval_s'     => 3600,
 		'args'           => array(),
@@ -128,7 +128,7 @@ $rich_rows = array(
 	array(
 		'hook'           => 'some_orphan_hook',
 		'args_signature' => 'sig-b',
-		'next_run_ts'    => time() + 1000500, // #1222: must be FUTURE-relative or snt_cron_next_run_label() reads it as overdue.
+		'next_run_ts'    => time() + 1000500,
 		'schedule'       => false,
 		'interval_s'     => null,
 		'args'           => array( 'foo' => 'bar' ),
@@ -139,7 +139,7 @@ $rich_rows = array(
 	array(
 		'hook'           => 'other_plugin_cron',
 		'args_signature' => 'sig-c',
-		'next_run_ts'    => time() + 1001000, // #1222: must be FUTURE-relative or snt_cron_next_run_label() reads it as overdue.
+		'next_run_ts'    => time() + 1001000,
 		'schedule'       => 'daily',
 		'interval_s'     => 86400,
 		'args'           => array(),
@@ -264,8 +264,19 @@ ok( 1 === preg_match( '/\.snt-ledger\s*\{([^}]*)\}/', $sheet, $m ) && false !== 
 // 8d) next_run / last_fired cell values, not just non-empty output — a
 // negative-control mutation that deleted both columns from the painter
 // passed this suite before these two assertions existed.
-ok( 3 === substr_count( $kit, '(in ' ), 'every row prints a next-run relative time' );
-ok( false !== strpos( $kit, ' ago)' ) && false !== strpos( $kit, '—' ), 'last fired prints a relative time for fired rows and the em dash for the never-fired row' );
+ok( 3 === substr_count( $kit, '>in 1 hour</os-relative-time>)' ) && 3 === preg_match_all( '#\d\d:\d\d:\d\d \(<os-relative-time datetime="\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ">in 1 hour#', $kit ), '#1596: every row prints a next-run os-relative-time, the signed server reading as its fallback' );
+ok( false !== strpos( $kit, '>1 hour ago</os-relative-time>)' ) && false !== strpos( $kit, '—' ), 'last fired prints an os-relative-time for fired rows and the em dash for the never-fired row' );
+
+// 8e) #1596: a next_run_ts already behind now paints the same os-relative-time
+// with a "%s ago" fallback; the #1222 "overdue" reversal lives in the
+// component's signed output, not in the leaf. Against 17.4.3 the leaf paints
+// "1 hour overdue" and no os-relative-time.
+$saved_rows            = $GLOBALS['__cron_rows'];
+$GLOBALS['__cron_rows'] = array( array( 'hook' => 'sn_stalled', 'args_signature' => 'sig-s', 'next_run_ts' => time() - 7200, 'schedule' => 'hourly', 'interval_s' => 3600, 'args' => array(), 'last_fired_ts' => 0, 'has_handler' => true, 'is_sn_owned' => true ) );
+$kit                    = snt_leaf_paint( 'connections', 'cron' );
+ok( false !== strpos( $kit, '(<os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>)' ) && false === strpos( $kit, 'overdue' ) && false === strpos( $kit, 'in 1 hour' ), '#1596: a past next run is an os-relative-time with a "1 hour ago" fallback; neither "1 hour overdue" nor "in 1 hour" in the leaf' );
+$GLOBALS['__cron_rows'] = $saved_rows;
+$kit                    = snt_leaf_paint( 'connections', 'cron' );
 
 // 9) The helper sentence with the right count.
 ok( false !== strpos( $kit, '3 scheduled events' ), 'helper sentence carries the plural count' );
@@ -275,7 +286,7 @@ $GLOBALS['__cron_rows'] = array(
 	array(
 		'hook'           => '<script>alert(1)</script>',
 		'args_signature' => 'sig-x',
-		'next_run_ts'    => time() + 1000000, // #1222: must be FUTURE-relative or snt_cron_next_run_label() reads it as overdue.
+		'next_run_ts'    => time() + 1000000,
 		'schedule'       => false,
 		'interval_s'     => null,
 		'args'           => array(),
@@ -358,12 +369,12 @@ $GLOBALS['__drift'] = array( 'has_drift' => true, 'count' => 2 );
 $kit     = snt_leaf_paint( 'connections', 'cron', array() );
 $classic = snt_leaf_classic_html( 'sn_admin_render_cron_section' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 5 === count( snt_leaf_names( $kit ) ), 'drift ON: five names on both sides: ' . json_encode( snt_leaf_names( $kit ) ) );
-ok( false !== strpos( $kit, 'Last sent 1 hour ago.' ), 'last-sent hint' );
+ok( false !== strpos( $kit, 'Last sent <os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>.' ), 'last-sent hint is an os-relative-time' );
 ok( false !== strpos( $kit, 'Last send failed' ) && false !== strpos( $kit, 'smtp &lt;b&gt;down&lt;/b&gt;' ) && false === strpos( $kit, '<b>down</b>' ), 'last-error notice, message escaped' );
 ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, '2 settings differ' ), 'drift is a warn notice naming the count' );
 ok( strpos( $kit, 'settings differ' ) < strpos( $kit, 'name="snt_morning_brief_enabled"' ), 'the drift notice sits on top of the brief box' );
 ok( false !== strpos( $kit, 'Acknowledge current settings' ) && false !== strpos( $kit, 'name="snt_config_drift_acknowledge"' ), 'drift ON paints the Acknowledge form with its differentiator' );
-ok( false !== strpos( $kit, 'Last run 1 hour ago: 1 of 2 reads failed.' ), 'last-run hint tallies the errors' );
+ok( false !== strpos( $kit, 'Last run <os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>: 1 of 2 reads failed.' ), 'last-run hint tallies the errors' );
 ok( false !== strpos( $kit, 'Send test brief' ) && false !== strpos( $kit, 'name="snt_morning_brief_test"' ), 'Send test brief form carries its differentiator' );
 ok( false !== strpos( $kit, 'Run now</' ) || false !== strpos( $kit, 'submit-label="Run now"' ), 'Run now form paints' );
 ok( false !== strpos( $kit, 'name="snt_scheduled_reads_now"' ), 'Run now form carries its differentiator' );

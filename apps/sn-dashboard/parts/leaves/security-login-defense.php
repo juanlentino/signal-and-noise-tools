@@ -110,12 +110,10 @@ function login_defense_digest_html( array $d ) {
 
 	$hints = '';
 	if ( $d['last_sent'] > 0 ) {
-		$hints .= '<p class="snt-hint">' . \snt_kit_esc(
-			sprintf(
-				/* translators: %s: human time diff */
-				__( 'Last sent %s ago.', 'signal-and-noise-tools' ),
-				human_time_diff( $d['last_sent'], time() )
-			)
+		$hints .= '<p class="snt-hint">' . sprintf(
+			/* translators: %s: relative time element */
+			\snt_kit_esc( __( 'Last sent %s.', 'signal-and-noise-tools' ) ),
+			\snt_kit_relative_time( (int) $d['last_sent'] )
 		) . '</p>';
 	}
 	if ( is_array( $d['last_error'] ) && ! empty( $d['last_error']['message'] ) ) {

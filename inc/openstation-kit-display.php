@@ -120,6 +120,29 @@ function snt_kit_chip( $text, $kind = '' ) {
 }
 
 /**
+ * `<os-relative-time datetime>`: a moment that ages live (OpenStation
+ * `src/ui/components/os-relative-time`, Stable). The attribute is the moment
+ * in ISO 8601 UTC; the light-DOM child is the server's own signed
+ * human_time_diff() reading ("5 mins ago" / "in 5 mins"), the paint before
+ * the component upgrades and the paint the fixture suites read. Pass a
+ * fallback when the sentence around the moment wants other words.
+ *
+ * @param int    $timestamp_gmt Unix timestamp (UTC).
+ * @param string $fallback_text Light-DOM text; '' derives it from human_time_diff().
+ * @return string
+ */
+function snt_kit_relative_time( $timestamp_gmt, $fallback_text = '' ) {
+	$ts = (int) $timestamp_gmt;
+	if ( '' === (string) $fallback_text ) {
+		$now  = time();
+		$diff = human_time_diff( min( $ts, $now ), max( $ts, $now ) );
+		/* translators: %s: human time diff. */
+		$fallback_text = $ts > $now ? sprintf( __( 'in %s', 'signal-and-noise-tools' ), $diff ) : sprintf( __( '%s ago', 'signal-and-noise-tools' ), $diff );
+	}
+	return snt_kit_tag( 'os-relative-time', array( 'datetime' => gmdate( 'Y-m-d\TH:i:s\Z', $ts ) ), snt_kit_esc( $fallback_text ) );
+}
+
+/**
  * `<os-code>`; block by default, wrapped so long lines fold.
  *
  * @param string $text  Code text (escaped here).
