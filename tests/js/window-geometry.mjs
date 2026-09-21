@@ -63,6 +63,7 @@ try {
    await page.addScriptTag({ content: bundle });
    if (analytics) await page.addScriptTag({ content: read(path.join(root,'apps/sn-analytics/native-tables.js')) });
    await page.waitForTimeout(120);
+   if(!analytics) await page.evaluate(() => customElements.whenDefined('os-app-frame'));
    const facts = await page.evaluate(({analytics,app}) => {
     const q = s => document.querySelector(s);
     const rect = e => { const r=e.getBoundingClientRect(); return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}; };
@@ -78,9 +79,11 @@ try {
     };
     window.fixtureVisible=visible;
     const body=q('.os-window__body'),host=q('.snt-app'),outer=q('.snt-report-scroll');
-    const scroll=analytics ? (getComputedStyle(outer).overflowY==='auto'?outer:q('.snt-view')) : q(app==='home'?'.snt-home__main':'.snt-dashboard-body');
+    // #1617: the leaf's scroller is the kit frame's content part, in its shadow root.
+    const scroll=analytics ? (getComputedStyle(outer).overflowY==='auto'?outer:q('.snt-view')) : (app==='home'?q('.snt-home__main'):q('os-app-frame').shadowRoot.querySelector('[part=content]'));
     scroll.dataset.geometryScroll='true';
-    const report=analytics?q('.snt-view'):scroll;
+    // The leaf frame's last light-DOM child is the leaf; the part's own last child is its slot, which has no box.
+    const report=analytics?q('.snt-view'):(app==='home'?scroll:q('os-app-frame'));
     const f={body:rect(body),host:rect(host),scroll:visible(scroll),initialReport:visible(report),bodyWidth:body.clientWidth,bodyExtent:body.scrollWidth,scrollWidth:scroll.clientWidth,scrollExtent:scroll.scrollWidth,overflow:outer?getComputedStyle(outer).overflowY:null};
     if(analytics && scroll===outer) scroll.scrollTop=report.getBoundingClientRect().top-scroll.getBoundingClientRect().top;
     f.reachableReport=visible(report);

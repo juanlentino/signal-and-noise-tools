@@ -269,7 +269,7 @@ function snt_kit_empty( $heading, $description = '', $icon = '' ) {
  * @param string               $label  Accessible label.
  * @return string
  */
-function snt_kit_tabs( $active, array $items, $bind = 'sub', $label = '' ) {
+function snt_kit_tabs( $active, array $items, $bind = 'sub', $label = '', array $attrs = array() ) {
 	$segments = '';
 	$options  = '';
 	foreach ( $items as $value => $text ) {
@@ -292,7 +292,7 @@ function snt_kit_tabs( $active, array $items, $bind = 'sub', $label = '' ) {
 	);
 	return snt_kit_tag(
 		'header',
-		array( 'class' => 'os-app-list__toolbar snt-subbar' ),
+		array_merge( array( 'class' => 'os-app-list__toolbar snt-subbar' ), $attrs ),
 		snt_kit_tag( 'div', array( 'class' => 'os-app-list__toolbar-left' ), $desk . $phone )
 	);
 }

@@ -9,7 +9,9 @@
  * only wins if it OUTRANKS the cap. Two of them did not.
  *
  * Measured live 2026-09-10 in a 1820px window: connections/webhooks matched
- * BOTH `.snt-dashboard-body > .snt-leaf` (max-width 820px, specificity 0,4,0)
+ * BOTH `.snt-dashboard-body > .snt-leaf` (max-width 820px, specificity 0,4,0;
+ * since #1617 the cap is `os-app-frame > .snt-leaf`, 0,3,1, and the hatches
+ * carry that shape)
  * and `.snt-leaf:has( os-row )` (max-width 100%, specificity 0,3,1). The hatch
  * matched the element and lost. Computed max-width was 820px; the leaf painted
  * a 820px column inside an 1820px window with the right half empty -- the
@@ -114,7 +116,8 @@ ok( null !== $cap, 'the 820px cap rule is present and found by its declaration' 
 ok( count( $escapes ) >= 10, 'the escape list is found and non-trivial (' . count( $escapes ) . ' selectors)' );
 
 $cap_spec = spec( $cap );
-ok( array( 0, 4, 0 ) === $cap_spec, 'the cap scores ' . spec_str( $cap_spec ) . ' as expected' );
+ok( array( 0, 3, 1 ) === $cap_spec, 'the cap scores ' . spec_str( $cap_spec ) . ' as expected' );
+ok( false !== strpos( $cap, 'os-app-frame > .snt-leaf' ), 'the cap is the frame\'s light-DOM child: os-app-frame > .snt-leaf (#1617)' );
 
 // ── THE GUARD. Every escape must strictly outrank the cap. A tie is not enough:
 // a tie is decided by source order, so a reorder would silently re-cap a leaf. ──
@@ -139,7 +142,7 @@ foreach ( array( 'os-table', 'os-row', 'os-grid' ) as $type_hatch ) {
 	ok( 1 === count( $found ), "the :has( $type_hatch ) hatch is still declared" );
 	if ( $found ) {
 		ok( spec( $found[0] ) > $cap_spec, "...and outranks the cap " . spec_str( spec( $found[0] ) ) );
-		ok( false !== strpos( $found[0], '.snt-dashboard-body >' ), "...by carrying the cap's own .snt-dashboard-body > shape" );
+		ok( false !== strpos( $found[0], 'os-app-frame >' ), "...by carrying the cap's own os-app-frame > shape" );
 	}
 }
 
