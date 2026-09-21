@@ -127,6 +127,8 @@ if ( ! function_exists( 'get_option' ) ) {
 	function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
 }
 if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { return false; } }
+// 17.4.4: every classic notice is wp_admin_notice() (#1618); core's markup, after the escaping stubs above.
+require_once __DIR__ . '/wp-admin-notice-stub.php';
 
 // ── The kit, and the Dashboard frame (painters(), leaves_for()).
 foreach ( array( 'openstation-kit', 'openstation-kit-display', 'openstation-kit-data', 'openstation-kit-forms', 'openstation-kit-triggers' ) as $snt_kit_file ) {

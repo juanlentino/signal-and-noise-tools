@@ -400,13 +400,12 @@ function sn_worker_version_render_card() {
 	} elseif ( is_array( $last_good ) && ! empty( $last_good['ok'] ) ) {
 		sn_worker_version_render_data( $last_good, true );
 	} else {
-		echo '<div class="notice notice-warning notice-alt inline"><p>';
-		echo '<strong>Worker version unknown.</strong> Couldn\'t reach the <code>/_sn/version</code> endpoint';
+		$body = '<strong>Worker version unknown.</strong> Couldn\'t reach the <code>/_sn/version</code> endpoint';
 		if ( ! empty( $result['url'] ) ) {
-			echo ' at <code class="sn-mono">' . esc_html( (string) $result['url'] ) . '</code>';
+			$body .= ' at <code class="sn-mono">' . esc_html( (string) $result['url'] ) . '</code>';
 		}
-		echo '. The Worker may not be deployed yet (it needs worker <strong>v1.4.0+</strong>), or this host can\'t reach it &mdash; point the <em>Collector endpoint</em> (Content &rarr; RSS) at the Worker\'s <code>*.workers.dev</code> URL if the origin doesn\'t hairpin to the edge.';
-		echo '</p></div>';
+		$body .= '. The Worker may not be deployed yet (it needs worker <strong>v1.4.0+</strong>), or this host can\'t reach it: point the <em>Collector endpoint</em> (Content &rarr; RSS) at the Worker\'s <code>*.workers.dev</code> URL if the origin doesn\'t hairpin to the edge.';
+		wp_admin_notice( $body, array( 'type' => 'warning', 'additional_classes' => array( 'notice-alt', 'inline' ) ) );
 	}
 
 	// Explicit re-check — Worker deploys happen outside wp-admin, so the 10-min

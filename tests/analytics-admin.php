@@ -213,6 +213,7 @@ require_once __DIR__ . '/../inc/analytics-view-engagement.php';
 require_once __DIR__ . '/../inc/analytics-view-quality.php';
 require_once __DIR__ . '/../inc/analytics-view-events.php';
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
+require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require_once __DIR__ . '/../inc/analytics-admin.php';
 
 $pass = 0; $fail = 0;

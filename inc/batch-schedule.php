@@ -390,15 +390,11 @@ function snt_batch_schedule_notice() {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only rendering of counts this plugin put in the redirect it issued.
 	$req = $_REQUEST;
 	if ( isset( $req['snt_batch_nodate'] ) ) {
-		echo '<div class="notice notice-warning"><p>'
-			. esc_html__( 'No date was entered, so nothing was rescheduled.', 'signal-and-noise-tools' )
-			. '</p></div>';
+		wp_admin_notice( esc_html__( 'No date was entered, so nothing was rescheduled.', 'signal-and-noise-tools' ), array( 'type' => 'warning' ) );
 		return;
 	}
 	if ( isset( $req['snt_batch_baddate'] ) ) {
-		echo '<div class="notice notice-error"><p>'
-			. esc_html__( 'That date could not be read, so nothing was rescheduled.', 'signal-and-noise-tools' )
-			. '</p></div>';
+		wp_admin_notice( esc_html__( 'That date could not be read, so nothing was rescheduled.', 'signal-and-noise-tools' ), array( 'type' => 'error' ) );
 		return;
 	}
 	if ( ! isset( $req['snt_batch_moved'] ) ) {
@@ -410,10 +406,9 @@ function snt_batch_schedule_notice() {
 	$skipped   = isset( $req['snt_batch_skipped'] ) ? (int) $req['snt_batch_skipped'] : 0;
 
 	$msg = snt_batch_schedule_message( $moved, $refused, $unpublish, $skipped );
-	printf(
-		'<div class="notice notice-%s"><p>%s</p></div>',
-		esc_attr( ( $refused + $unpublish + $skipped ) > 0 ? 'warning' : 'success' ),
-		esc_html( $msg )
+	wp_admin_notice(
+		esc_html( $msg ),
+		array( 'type' => ( $refused + $unpublish + $skipped ) > 0 ? 'warning' : 'success' )
 	);
 }
 if ( function_exists( 'add_action' ) ) {

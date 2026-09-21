@@ -158,6 +158,7 @@ if ( ! function_exists( 'get_posts' ) ) { function get_posts( $a ) { return arra
 if ( ! function_exists( 'snt_mr_fetch' ) ) { function snt_mr_fetch( $d ) { return array( 'ok' => false, 'error' => 'no sensor in this suite' ); } }
 if ( ! function_exists( 'snt_ai_tool_invocations_render' ) ) { function snt_ai_tool_invocations_render() { echo '<p>copilot-usage-stub</p>'; } }
 require __DIR__ . '/../inc/agent-tools.php';
+require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require __DIR__ . '/../inc/agent-tools-admin.php';
 ob_start();
 sn_admin_render_mcp_connect_section();

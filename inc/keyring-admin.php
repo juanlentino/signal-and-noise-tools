@@ -187,7 +187,7 @@ function sn_admin_keyring_render() {
 		return;
 	}
 	foreach ( sn_keyring_refusals() as $r ) {
-		echo '<div class="notice notice-warning inline"><p><strong>' . esc_html( $r['label'] ) . '</strong> ' . esc_html( $r['detail'] ) . '</p></div>';
+		wp_admin_notice( '<strong>' . esc_html( $r['label'] ) . '</strong> ' . esc_html( $r['detail'] ), array( 'type' => 'warning', 'additional_classes' => array( 'inline' ) ) );
 	}
 	sn_admin_shell_open();
 	$groups = sn_keyring_groups();

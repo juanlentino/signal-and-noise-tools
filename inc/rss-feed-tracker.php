@@ -466,18 +466,18 @@ add_action( 'admin_init', 'sn_rss_tracker_handle_form' );
 
 function sn_rss_tracker_render_flash( $flash ) {
 	if ( 'saved' === $flash ) {
-		echo '<div class="notice notice-success is-dismissible"><p>Settings saved.</p></div>';
+		wp_admin_notice( 'Settings saved.', array( 'type' => 'success', 'dismissible' => true ) );
 	} elseif ( 'unchanged' === $flash ) {
-		echo '<div class="notice notice-info is-dismissible"><p>Settings unchanged: submitted values matched what was already stored.</p></div>';
+		wp_admin_notice( 'Settings unchanged: submitted values matched what was already stored.', array( 'type' => 'info', 'dismissible' => true ) );
 	} elseif ( 'save-error' === $flash ) {
-		echo '<div class="notice notice-error is-dismissible"><p>Settings could not be saved. Check the PHP error log for the database error.</p></div>';
+		wp_admin_notice( 'Settings could not be saved. Check the PHP error log for the database error.', array( 'type' => 'error', 'dismissible' => true ) );
 	} elseif ( 'reset' === $flash ) {
-		echo '<div class="notice notice-success is-dismissible"><p>Settings reset to defaults.</p></div>';
+		wp_admin_notice( 'Settings reset to defaults.', array( 'type' => 'success', 'dismissible' => true ) );
 	} elseif ( 'purge-error' === $flash ) {
-		echo '<div class="notice notice-error is-dismissible"><p>Purge failed: no rows were deleted. Check the PHP error log for the database error.</p></div>';
+		wp_admin_notice( 'Purge failed: no rows were deleted. Check the PHP error log for the database error.', array( 'type' => 'error', 'dismissible' => true ) );
 	} elseif ( 0 === strpos( $flash, 'purged-' ) ) {
 		$n = (int) substr( $flash, 7 );
-		echo '<div class="notice notice-success is-dismissible"><p>Purged ' . esc_html( number_format_i18n( $n ) ) . ' log entries.</p></div>';
+		wp_admin_notice( 'Purged ' . esc_html( number_format_i18n( $n ) ) . ' log entries.', array( 'type' => 'success', 'dismissible' => true ) );
 	}
 }
 

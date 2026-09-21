@@ -120,7 +120,8 @@ function sn_plugin_basename_mismatch_notice() {
 		return;
 	}
 
-	echo '<div class="notice notice-error"><p><strong>'
+	wp_admin_notice(
+		'<p><strong>'
 		. esc_html__( 'Signal & Noise Tools: self-updates are disabled.', 'signal-and-noise-tools' )
 		. '</strong></p><p>'
 		. sprintf(
@@ -131,7 +132,9 @@ function sn_plugin_basename_mismatch_notice() {
 		)
 		. '</p><p>'
 		. esc_html__( 'Fix: reinstall the plugin so its directory is named signal-and-noise-tools. A plain Upload Plugin of a GitHub tag archive keeps the version suffix, which is what causes this.', 'signal-and-noise-tools' )
-		. '</p></div>';
+		. '</p>',
+		array( 'type' => 'error', 'paragraph_wrap' => false )
+	);
 }
 add_action( 'admin_notices', 'sn_plugin_basename_mismatch_notice' );
 

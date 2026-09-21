@@ -32,10 +32,16 @@ function sn_prepop_render_notice( $post ) {
 	if ( empty( $labels ) ) {
 		return;
 	}
-	echo '<div class="sn-prepop-notice notice notice-info" data-post="' . (int) $post->ID . '">';
-	echo '<p>' . esc_html( 'Auto-generated when you published: ' . implode( ', ', $labels ) . '.' );
-	echo ' <button type="button" class="button-link sn-prepop-dismiss">' . esc_html( 'Dismiss' ) . '</button></p>';
-	echo '</div>';
+	// assets/prepop-notice.js reads .sn-prepop-notice and data-post; the button is in wp_kses_post's post context.
+	wp_admin_notice(
+		esc_html( 'Auto-generated when you published: ' . implode( ', ', $labels ) . '.' )
+		. ' <button type="button" class="button-link sn-prepop-dismiss">' . esc_html( 'Dismiss' ) . '</button>',
+		array(
+			'type'               => 'info',
+			'additional_classes' => array( 'sn-prepop-notice' ),
+			'attributes'         => array( 'data-post' => (string) (int) $post->ID ),
+		)
+	);
 }
 
 /* ════════════════════════════════════════════════════════════════════════

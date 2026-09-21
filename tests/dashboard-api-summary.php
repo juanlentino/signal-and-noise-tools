@@ -47,6 +47,7 @@ if ( ! function_exists( 'snt_rate_limit_all_statuses' ) ) {
 }
 
 // v11.28.0: split out of admin-tab-dashboard.php.
+require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require __DIR__ . '/../inc/dash-api-summary.php';
 require __DIR__ . '/../inc/admin-tab-dashboard.php';
 

@@ -172,6 +172,7 @@ function sn_ssrf_resolve_host( $host ) {
 	return '93.184.216.34'; // any hostname → public
 }
 require_once __DIR__ . '/../inc/ssrf-guard.php';
+require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require_once __DIR__ . '/../inc/worker-version.php'; // endpoint derivation dep
 require_once __DIR__ . '/../inc/analytics-salt-window.php';
 

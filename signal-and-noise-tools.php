@@ -59,7 +59,7 @@ $snt_stylesheet = get_option( 'stylesheet', '' );
 if ( 'signal-and-noise' === $snt_stylesheet
 	&& file_exists( WP_CONTENT_DIR . '/themes/' . $snt_stylesheet . '/inc/admin-page.php' ) ) {
 	add_action( 'admin_notices', function() {
-		echo '<div class="notice notice-error"><p><strong>Signal &amp; Noise Tools:</strong> The Signal &amp; Noise theme is still at v8.1.x (the legacy <code>inc/</code> modules that were supposed to migrate to this plugin are still on disk inside the theme). <strong>Please update the theme to v8.2.0+ before this plugin can load</strong> — otherwise PHP would fatal on duplicate function declarations.</p></div>';
+		wp_admin_notice( '<strong>Signal &amp; Noise Tools:</strong> The Signal &amp; Noise theme is still at v8.1.x (the legacy <code>inc/</code> modules that were supposed to migrate to this plugin are still on disk inside the theme). <strong>Please update the theme to v8.2.0+ before this plugin can load</strong>; otherwise PHP would fatal on duplicate function declarations.', array( 'type' => 'error' ) );
 	} );
 	return; // Skip the entire require chain; the theme owns the modules right now.
 }
@@ -438,7 +438,7 @@ foreach ( $sn_phase3_retired as $sn_phase3_legacy_file ) {
 	if ( file_exists( $sn_phase3_legacy_file ) ) {
 		add_action( 'admin_notices', function() use ( $sn_phase3_legacy_file ) {
 			$rel = str_replace( ABSPATH, '', $sn_phase3_legacy_file );
-			echo '<div class="notice notice-error"><p><strong>Signal &amp; Noise Tools v1.3.0:</strong> theme still ships <code>' . esc_html( $rel ) . '</code>. Update theme to v8.4.0+ first to avoid function-redeclare fatals. Plugin require chain skipped.</p></div>';
+			wp_admin_notice( '<strong>Signal &amp; Noise Tools v1.3.0:</strong> theme still ships <code>' . esc_html( $rel ) . '</code>. Update theme to v8.4.0+ first to avoid function-redeclare fatals. Plugin require chain skipped.', array( 'type' => 'error' ) );
 		} );
 		return; // Skip the require_once chain entirely.
 	}

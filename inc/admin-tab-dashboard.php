@@ -702,15 +702,15 @@ function snt_dashboard_render_attention_strip( $runs, $override_count ) {
 		return;
 	}
 
-	echo '<div class="notice notice-warning inline sn-attention-strip">';
-	echo '<p class="sn-attention-strip__lead"><strong>' . esc_html__( 'Needs attention:', 'signal-and-noise-tools' ) . '</strong> ';
 	$links = array();
 	foreach ( $items as $item ) {
 		$links[] = '<a href="' . esc_url( $item['href'] ) . '">' . esc_html( $item['text'] ) . '</a>';
 	}
-	// $links entries are individually escaped above; the separator is static.
-	echo wp_kses_post( implode( ' &middot; ', $links ) );
-	echo '</p></div>';
+	// The lead paragraph carries its own class, so the wrap is ours; wp_admin_notice() runs wp_kses_post on the whole.
+	wp_admin_notice(
+		'<p class="sn-attention-strip__lead"><strong>' . esc_html__( 'Needs attention:', 'signal-and-noise-tools' ) . '</strong> ' . implode( ' &middot; ', $links ) . '</p>',
+		array( 'type' => 'warning', 'additional_classes' => array( 'inline', 'sn-attention-strip' ), 'paragraph_wrap' => false )
+	);
 }
 
 /* ════════════════════════════════════════════════════════════════════════

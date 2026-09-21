@@ -108,6 +108,7 @@ if ( ! function_exists( 'snt_ai_og_card_title_write' ) ) {
 require_once __DIR__ . '/../inc/word-count.php';
 
 require_once __DIR__ . '/../inc/ai-prepopulate.php';
+require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require_once __DIR__ . '/../inc/ai-prepopulate-notice.php';
 
 $pass = 0; $fail = 0;

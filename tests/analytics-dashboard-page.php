@@ -73,6 +73,7 @@ function sn_admin_flash_to_notice( $code ) {
 $GLOBALS['__dp_dash_calls'] = 0;
 function snt_analytics_render_dashboard() { $GLOBALS['__dp_dash_calls']++; echo '<!--DASHBOARD-BODY-->'; }
 
+require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require_once __DIR__ . '/../inc/analytics-dashboard-page.php';
 
 $pass = 0; $fail = 0;
