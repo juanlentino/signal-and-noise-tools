@@ -11,8 +11,9 @@
  * label is computed server-side in the site timezone; this file paints
  * strings and never does date arithmetic.
  *
- * Refresh: every 60s, plus on window focus, so a note scheduled in the editor
- * shows up when the desktop comes back into view.
+ * Refresh: every 60s while the tab is visible, and at once on reveal when
+ * the last run is older than that (Recipe 2, #1603), so a note scheduled in
+ * the editor shows up when the desktop comes back into view.
  *
  * Defensive by construction: every read off the payload is guarded (a
  * missing array is an empty list, a missing title is "(untitled)", a missing
@@ -67,7 +68,7 @@
 	function renderLoading( container ) {
 		clearChildren( container );
 		container.appendChild( el( 'p', {
-			style: 'padding:14px 16px;font-size:13px;opacity:.6;',
+			style: 'padding:14px 16px;font-size:13px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
 			text:  'Loading the queue…',
 		} ) );
 	}
@@ -83,14 +84,14 @@
 	// A row: title (a link when the payload gave one) + a muted label.
 	function row( item, muted ) {
 		var line = el( 'div', {
-			style: 'display:flex;justify-content:space-between;gap:12px;align-items:baseline;font-size:12px;line-height:1.4;' + ( muted ? 'opacity:.75;' : '' ),
+			style: 'display:flex;justify-content:space-between;gap:12px;align-items:baseline;font-size:12px;line-height:1.4;' + ( muted ? 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.75));' : '' ),
 		} );
 		var title = item && item.edit_url
 			? el( 'a', { href: item.edit_url, text: titleOf( item ), style: 'color:inherit;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;' } )
 			: el( 'span', { text: titleOf( item ), style: 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;' } );
 		line.appendChild( title );
 		line.appendChild( el( 'span', {
-			style: 'flex:none;font-variant-numeric:tabular-nums;opacity:.6;font-size:11px;',
+			style: 'flex:none;font-variant-numeric:tabular-nums;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));font-size:11px;',
 			text:  item && typeof item.when === 'string' ? item.when : '',
 		} ) );
 		return line;
@@ -100,7 +101,7 @@
 	// 15.8.0 shipped these uppercase and letter-spaced, the one card that did.
 	function heading( text ) {
 		return el( 'p', {
-			style: 'margin:12px 0 2px;font-size:11px;opacity:.55;',
+			style: 'margin:12px 0 2px;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));',
 			text:  text,
 		} );
 	}
@@ -117,13 +118,13 @@
 		// Headline: the next note, or the honest empty state.
 		if ( next.length ) {
 			var first = next[0];
-			wrap.appendChild( el( 'p', { style: 'margin:0;font-size:11px;opacity:.5;', text: 'Next up' } ) );
+			wrap.appendChild( el( 'p', { style: 'margin:0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.5));', text: 'Next up' } ) );
 			var head = first && first.edit_url
 				? el( 'a', { href: first.edit_url, text: titleOf( first ), style: 'display:block;margin:2px 0 0;font-size:14px;font-weight:600;line-height:1.3;color:inherit;text-decoration:none;' } )
 				: el( 'p', { text: titleOf( first ), style: 'margin:2px 0 0;font-size:14px;font-weight:600;line-height:1.3;' } );
 			wrap.appendChild( head );
 			wrap.appendChild( el( 'p', {
-				style: 'margin:2px 0 0;font-size:12px;font-variant-numeric:tabular-nums;opacity:.75;',
+				style: 'margin:2px 0 0;font-size:12px;font-variant-numeric:tabular-nums;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.75));',
 				text:  first && typeof first.when === 'string' ? first.when : '',
 			} ) );
 		} else {
@@ -133,7 +134,7 @@
 		// The reading: depth and horizon.
 		var runsTo = data.runs_to && typeof data.runs_to.label === 'string' ? data.runs_to.label : '';
 		wrap.appendChild( el( 'p', {
-			style: 'margin:8px 0 0;font-size:11px;opacity:.6;font-variant-numeric:tabular-nums;',
+			style: 'margin:8px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));font-variant-numeric:tabular-nums;',
 			text:  total
 				? total + ' scheduled' + ( runsTo ? ' · runs to ' + runsTo : '' )
 				: 'The queue is empty',
@@ -156,7 +157,7 @@
 			wrap.appendChild( el( 'a', {
 				href:  scheduledUrl,
 				text:  'Open Scheduled →',
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:10px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;',
+				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:10px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;',
 			} ) );
 		}
 
@@ -203,13 +204,34 @@
 		}
 
 		refresh();
-		var intervalId = window.setInterval( refresh, REFRESH_MS );
-		window.addEventListener( 'focus', refresh );
+		// Recipe 2 (OpenStation docs/examples/register-widget.md, #1603): stop
+		// the interval while the tab is hidden, restart on reveal, and catch
+		// up at once only when the data went stale, so a quick tab flip costs
+		// no call.
+		var intervalId = null;
+		var lastRunMs = Date.now();
+		function poll() {
+			lastRunMs = Date.now();
+			refresh();
+		}
+		function startPolling() {
+			if ( intervalId === null ) { intervalId = window.setInterval( poll, REFRESH_MS ); }
+		}
+		function stopPolling() {
+			if ( intervalId !== null ) { window.clearInterval( intervalId ); intervalId = null; }
+		}
+		function onVisibilityChange() {
+			if ( document.hidden ) { stopPolling(); return; }
+			if ( Date.now() - lastRunMs >= REFRESH_MS ) { poll(); }
+			startPolling();
+		}
+		document.addEventListener( 'visibilitychange', onVisibilityChange );
+		if ( ! document.hidden ) { startPolling(); }
 
 		return function teardown() {
 			torn = true;
-			window.clearInterval( intervalId );
-			window.removeEventListener( 'focus', refresh );
+			stopPolling();
+			document.removeEventListener( 'visibilitychange', onVisibilityChange );
 			container.textContent = '';
 		};
 	}

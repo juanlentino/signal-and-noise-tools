@@ -91,7 +91,7 @@
 			var total     = overview ? Number( overview.total ) || 0 : 0;
 
 			if ( ! overview ) {
-				wrap.appendChild( el( 'p', { style: 'margin:0;opacity:.7;', text: note || 'Anchor status unavailable.' } ) );
+				wrap.appendChild( el( 'p', { style: 'margin:0;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: note || 'Anchor status unavailable.' } ) );
 			} else if ( ! pending.length && ! recording.length ) {
 				// The honest idle state — this is what the widget shows most days.
 				wrap.appendChild( el( 'p', {
@@ -99,7 +99,7 @@
 					text:  '✓ ' + confirmed + ' of ' + total + ' notes anchored',
 				} ) );
 				wrap.appendChild( el( 'p', {
-					style: 'margin:4px 0 0;font-size:11px;opacity:.6;',
+					style: 'margin:4px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
 					text:  'No anchors pending.',
 				} ) );
 			} else {
@@ -117,7 +117,7 @@
 					line.appendChild( el( 'span', {
 						text:  ( row.title || ( '#' + row.post_id ) ) + ' v' + row.version,
 						title: row.title || '',
-						style: 'opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.75));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
 					} ) );
 					line.appendChild( el( 'span', {
 						text:  'recording',
@@ -131,7 +131,7 @@
 					line.appendChild( el( 'span', {
 						text:  ( row.title || ( '#' + row.post_id ) ) + ' v' + row.version,
 						title: row.title || '',
-						style: 'opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.75));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
 					} ) );
 					var stat = null === row.confirmations || undefined === row.confirmations
 						? ( row.bitcoin_txid ? shortTx( row.bitcoin_txid ) : 'awaiting tx' )
@@ -146,7 +146,7 @@
 			}
 
 			if ( note && overview ) {
-				wrap.appendChild( el( 'p', { style: 'margin:8px 0 0;font-size:11px;opacity:.7;', text: note } ) );
+				wrap.appendChild( el( 'p', { style: 'margin:8px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: note } ) );
 			}
 
 			var actions = el( 'div', { style: 'margin-top:10px;display:flex;gap:12px;align-items:center;' } );
@@ -183,7 +183,7 @@
 			actions.appendChild( sweepBtn );
 			if ( dashboardUrl ) {
 				actions.appendChild( el( 'a', {
-					style: 'display:inline-flex;align-items:center;min-height:24px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;',
+					style: 'display:inline-flex;align-items:center;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;',
 					text:  'Open Provenance →',
 					href:  dashboardUrl,
 				} ) );

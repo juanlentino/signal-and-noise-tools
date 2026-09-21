@@ -85,13 +85,13 @@
 			} ) );
 			wrap.appendChild( el( 'div', {
 				text: 'Run a Content-Health scan to see results here.',
-				style: 'font-size:11px;opacity:.6;'
+				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
 			} ) );
 			if ( healthUrl ) {
 				wrap.appendChild( el( 'a', {
 					href: healthUrl,
 					text: 'Run a scan →',
-					style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;opacity:.75;'
+					style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
 				} ) );
 			}
 			container.appendChild( wrap );
@@ -118,13 +118,13 @@
 		// the card is a glance, not the Health tab.
 		var flagged = summary.flagged || [];
 		if ( flagged.length ) {
-			var list = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.12);' } );
+			var list = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
 			flagged.forEach( function( f ) {
 				var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
 				row.appendChild( el( 'span', {
 					text:  String( f.label ),
 					title: String( f.label ),
-					style: 'opacity:.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+					style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
 				} ) );
 				row.appendChild( el( 'span', {
 					text:  String( f.count ),
@@ -135,7 +135,7 @@
 			if ( summary.flagged_more > 0 ) {
 				list.appendChild( el( 'div', {
 					text:  '+' + summary.flagged_more + ' more',
-					style: 'font-size:10px;opacity:.45;margin-top:2px;'
+					style: 'font-size:10px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.45));margin-top:2px;'
 				} ) );
 			}
 			wrap.appendChild( list );
@@ -148,21 +148,21 @@
 			wrap.appendChild( el( 'div', {
 				text:  summary.advisory_total + ' advisories (not faults)',
 				title: 'Advisory checks — external links and link opportunities — always carry findings. They are informational, not problems.',
-				style: 'font-size:10px;opacity:.45;margin-top:6px;'
+				style: 'font-size:10px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.45));margin-top:6px;'
 			} ) );
 		}
 
 		var age = ago( summary.scanned_at );
 		wrap.appendChild( el( 'div', {
 			text: age ? 'Last scanned ' + age : 'Last scan time unknown',
-			style: 'font-size:11px;opacity:.6;margin-top:4px;'
+			style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-top:4px;'
 		} ) );
 
 		if ( healthUrl ) {
 			wrap.appendChild( el( 'a', {
 				href: healthUrl,
 				text: 'Open Health →',
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;opacity:.75;'
+				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
 			} ) );
 		}
 

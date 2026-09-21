@@ -18,8 +18,9 @@
  * v9.52.4: re-themed for the dark glass card. This was styled for a white
  * admin page (#1d2327 text, #646970 labels, #2271b1 links) — legible-but-dim
  * on `.desktop-mode-widgets__card`, which is fixed dark glass with color:#fff
- * and is NOT theme-switchable. Text now inherits the card's white and muting
- * is done with opacity, so the card owns the palette. (Not using
+ * and is NOT theme-switchable. Text inherits the card's white and muting
+ * reads --os-ui-color-text-subtle, the card token contract OpenStation 1.1.5
+ * declared (#1603), with an on-dark literal as the fallback. (Not using
  * --wpd-color-*: first-party CSS consumes those tokens but desktop-mode v0.9.5
  * defines them nowhere, so var() always hits its fallback.)
  *
@@ -87,7 +88,7 @@
 	function renderLoading( container ) {
 		clearChildren( container );
 		container.appendChild( el( 'p', {
-			style: 'padding:14px 16px;font-size:13px;opacity:.6;',
+			style: 'padding:14px 16px;font-size:13px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
 			text:  'Loading RSS activity…',
 		} ) );
 	}
@@ -112,7 +113,7 @@
 		// card's name. Painting it here printed "RSS Subscribers" twice.
 
 		wrap.appendChild( el( 'p', {
-			style: 'margin:0 0 10px;font-size:11px;opacity:.5;',
+			style: 'margin:0 0 10px;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.5));',
 			text:  stats.last_request_relative
 				? 'Last request: ' + stats.last_request_relative
 				: 'No requests yet',
@@ -130,7 +131,7 @@
 		].forEach( function( w ) {
 			var bucket = windows[ w.key ] || { total: 0, uniques: 0 };
 			grid.appendChild( el( 'span', {
-				style: 'opacity:.6;',
+				style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
 				text:  w.label,
 			} ) );
 			grid.appendChild( el( 'span', {
@@ -138,7 +139,7 @@
 				text:  Number( bucket.total || 0 ).toLocaleString() + ' req',
 			} ) );
 			grid.appendChild( el( 'span', {
-				style: 'font-variant-numeric:tabular-nums;opacity:.75;',
+				style: 'font-variant-numeric:tabular-nums;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.75));',
 				text:  Number( bucket.uniques || 0 ).toLocaleString() + ' uniq',
 			} ) );
 		} );
@@ -147,7 +148,7 @@
 
 		if ( rssPageUrl ) {
 			wrap.appendChild( el( 'a', {
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:10px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;',
+				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:10px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;',
 				text:  'Open RSS tab →',
 				href:  rssPageUrl,
 			} ) );
@@ -189,11 +190,34 @@
 
 		refresh();
 
-		var intervalId = window.setInterval( refresh, REFRESH_MS );
+		// Recipe 2 (OpenStation docs/examples/register-widget.md, #1603): stop
+		// the interval while the tab is hidden, restart on reveal, and catch
+		// up at once only when the data went stale, so a quick tab flip costs
+		// no call.
+		var intervalId = null;
+		var lastRunMs = Date.now();
+		function poll() {
+			lastRunMs = Date.now();
+			refresh();
+		}
+		function startPolling() {
+			if ( intervalId === null ) { intervalId = window.setInterval( poll, REFRESH_MS ); }
+		}
+		function stopPolling() {
+			if ( intervalId !== null ) { window.clearInterval( intervalId ); intervalId = null; }
+		}
+		function onVisibilityChange() {
+			if ( document.hidden ) { stopPolling(); return; }
+			if ( Date.now() - lastRunMs >= REFRESH_MS ) { poll(); }
+			startPolling();
+		}
+		document.addEventListener( 'visibilitychange', onVisibilityChange );
+		if ( ! document.hidden ) { startPolling(); }
 
 		return function teardown() {
 			torn = true;
-			window.clearInterval( intervalId );
+			stopPolling();
+			document.removeEventListener( 'visibilitychange', onVisibilityChange );
 			container.textContent = '';
 		};
 	}

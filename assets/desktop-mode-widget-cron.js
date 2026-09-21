@@ -44,7 +44,7 @@
 
 	var OK_FG    = '#3fb950';
 	var WARN_FG  = '#d29922';
-	var HAIRLINE = 'rgba(255,255,255,0.12)';
+	var HAIRLINE = 'var(--os-ui-color-border, rgba(255,255,255,0.12))';
 
 	function el( tag, opts ) {
 		var node = document.createElement( tag );
@@ -81,7 +81,7 @@
 			} ) );
 			wrap.appendChild( el( 'div', {
 				text:  'The cron module is not available on this install.',
-				style: 'font-size:11px;opacity:.6;'
+				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
 			} ) );
 			container.appendChild( wrap );
 			return function teardown() {
@@ -117,7 +117,7 @@
 			var r = el( 'div', {
 				style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;'
 			} );
-			r.appendChild( el( 'span', { text: label, style: 'opacity:.7;' } ) );
+			r.appendChild( el( 'span', { text: label, style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));' } ) );
 			r.appendChild( el( 'span', {
 				text:  String( value ),
 				style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;' +
@@ -154,7 +154,7 @@
 		if ( orphans > 0 ) {
 			wrap.appendChild( el( 'div', {
 				text:  orphans === 1 ? 'An event is registered with no handler.' : 'Events are registered with no handler.',
-				style: 'font-size:10px;opacity:.55;margin-top:6px;'
+				style: 'font-size:10px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));margin-top:6px;'
 			} ) );
 		}
 
@@ -162,7 +162,7 @@
 			wrap.appendChild( el( 'a', {
 				href:  cronUrl,
 				text:  'Cron events →',
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;opacity:.75;'
+				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
 			} ) );
 		}
 

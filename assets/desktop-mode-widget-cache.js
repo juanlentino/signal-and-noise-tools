@@ -40,7 +40,7 @@
 	var OK_FG    = '#3fb950';
 	var WARN_FG  = '#d29922';
 	var ERR_FG   = '#f85149';
-	var HAIRLINE = 'rgba(255,255,255,0.12)';
+	var HAIRLINE = 'var(--os-ui-color-border, rgba(255,255,255,0.12))';
 
 	function el( tag, opts ) {
 		var node = document.createElement( tag );
@@ -78,7 +78,7 @@
 			} ) );
 			wrap.appendChild( el( 'div', {
 				text:  'Verification records a verdict after the next post purge.',
-				style: 'font-size:11px;opacity:.6;'
+				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
 			} ) );
 			container.appendChild( wrap );
 			return function teardown() {
@@ -122,7 +122,7 @@
 		if ( when ) {
 			wrap.appendChild( el( 'div', {
 				text:  when,
-				style: 'font-size:11px;opacity:.55;margin-top:2px;'
+				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));margin-top:2px;'
 			} ) );
 		}
 		// 15.8.2: WHAT the verdict covers. "Edge fresh" reads as site-wide; the
@@ -134,7 +134,7 @@
 			wrap.appendChild( el( 'div', {
 				text:  'Verdict covers the post\'s own URL',
 				title: 'The post-save probe fetches the permalink. Archive pages, the sitemap and the feed are purged but not probed.',
-				style: 'font-size:10px;opacity:.45;margin-top:4px;'
+				style: 'font-size:10px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.45));margin-top:4px;'
 			} ) );
 		}
 
@@ -146,7 +146,7 @@
 			var r = el( 'div', {
 				style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;'
 			} );
-			r.appendChild( el( 'span', { text: label, style: 'opacity:.7;' } ) );
+			r.appendChild( el( 'span', { text: label, style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));' } ) );
 			r.appendChild( el( 'span', {
 				text:  String( value ),
 				style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;' +
@@ -189,8 +189,8 @@
 		}
 		if ( showed ) {
 			var history = el( 'details', { style: 'font-size:11px;margin-top:10px;' } );
-			history.appendChild( el( 'summary', { text: 'Past post-save checks', style: 'cursor:pointer;opacity:.7;' } ) );
-			history.appendChild( el( 'p', { text: 'Historical results, not the current cache state. Purging does not reset this history.', style: 'opacity:.7;line-height:1.4;' } ) );
+			history.appendChild( el( 'summary', { text: 'Past post-save checks', style: 'cursor:pointer;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));' } ) );
+			history.appendChild( el( 'p', { text: 'Historical results, not the current cache state. Purging does not reset this history.', style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));line-height:1.4;' } ) );
 			history.appendChild( list );
 			wrap.appendChild( history );
 		}
@@ -200,7 +200,7 @@
 			wrap.appendChild( el( 'a', {
 				href:  cloudflareUrl,
 				text:  'Open Cloudflare →',
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:10px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;'
+				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:10px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
 			} ) );
 		}
 
@@ -217,6 +217,7 @@
 		var summary = data.cacheFreshness;
 		var unpaint = paint( container, summary );
 		var errorNote = null;
+		var lastRunMs = 0;
 
 		function refresh() {
 			window.clearTimeout( timer );
@@ -227,6 +228,7 @@
 				return;
 			}
 			busy = true;
+			lastRunMs = Date.now();
 			Promise.resolve().then( function() {
 				return window.sntAbilityRun( 'cache-freshness', undefined, { silent: true } );
 			} ).then( function( result ) {
@@ -262,13 +264,20 @@
 			} );
 		}
 		document.addEventListener( 'snt-cache-purged', refresh );
-		document.addEventListener( 'visibilitychange', refresh );
+		// Recipe 2 (#1603): a reveal refreshes only when the last run is older
+		// than the poll, so a quick tab flip costs no call; the hidden branch
+		// above already parks the timer while nobody is looking.
+		function onVisibilityChange() {
+			if ( document.hidden || Date.now() - lastRunMs < 60000 ) { return; }
+			refresh();
+		}
+		document.addEventListener( 'visibilitychange', onVisibilityChange );
 		refresh();
 		return function teardown() {
 			stopped = true;
 			window.clearTimeout( timer );
 			document.removeEventListener( 'snt-cache-purged', refresh );
-			document.removeEventListener( 'visibilitychange', refresh );
+			document.removeEventListener( 'visibilitychange', onVisibilityChange );
 			unpaint();
 			if ( errorNote ) { errorNote.remove(); }
 		};

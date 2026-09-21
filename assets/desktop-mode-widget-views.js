@@ -105,7 +105,7 @@
 	function deltaLine( pct ) {
 		if ( pct === null || typeof pct === 'undefined' ) {
 			// No prior window to compare — say nothing rather than imply flat.
-			return el( 'div', { text: 'vs. prior 14 days: —', style: 'font-size:11px;opacity:.6;' } );
+			return el( 'div', { text: 'vs. prior 14 days: —', style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
 		}
 		var up   = pct >= 0;
 		var node = el( 'div', {
@@ -118,7 +118,7 @@
 	/** A label/value row for the secondary stats. */
 	function statRow( label, value, valueStyle ) {
 		var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
-		row.appendChild( el( 'span', { text: label, style: 'opacity:.55;' } ) );
+		row.appendChild( el( 'span', { text: label, style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));' } ) );
 		row.appendChild( el( 'span', {
 			text:  value,
 			style: 'font-variant-numeric:tabular-nums;font-weight:600;' + ( valueStyle || '' )
@@ -131,7 +131,7 @@
 		var ctrl    = ( typeof AbortController !== 'undefined' ) ? new AbortController() : null;
 
 		var wrap = el( 'div', { style: 'padding:10px 12px;' } );
-		var body = el( 'div', { text: 'Loading…', style: 'font-size:12px;opacity:.6;' } );
+		var body = el( 'div', { text: 'Loading…', style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
 		wrap.appendChild( body );
 		container.appendChild( wrap );
 
@@ -141,7 +141,7 @@
 			if ( ! payload.days || ! payload.days.length ) {
 				body.appendChild( el( 'div', {
 					text: 'No views in the last 14 days',
-					style: 'font-size:12px;opacity:.6;'
+					style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
 				} ) );
 				return;
 			}
@@ -152,7 +152,7 @@
 			} ) );
 			body.appendChild( el( 'div', {
 				text: 'views · last 14 days',
-				style: 'font-size:11px;opacity:.6;margin-bottom:6px;'
+				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:6px;'
 			} ) );
 
 			// Additive: an older cached payload without `today` paints nothing.
@@ -161,17 +161,19 @@
 				body.appendChild( statRow( 'Today so far', String( payload.today ) ) );
 			}
 
-			// The spark line rides --os-window-link-color (signal under the S&N
-			// theme) where the links below ride -accent (blood) — a deliberate
-			// two-tone; both fall back to the plugin's own blue without a theme.
-			var chart = el( 'div', { style: 'color:var(--os-window-link-color, #4a9eff);margin:4px 0 6px;' } );
+			// The spark line and the links below ride the card token contract's
+			// --os-ui-color-accent (OpenStation 1.1.5, #1603): with no theme worn
+			// it chains to --os-ui-accent and follows the picker; Legacy pins it
+			// to its own #3b82f6 (see the palette note in widget-actions.js). The
+			// fallback is the plugin's own blue.
+			var chart = el( 'div', { style: 'color:var(--os-ui-color-accent, #4a9eff);margin:4px 0 6px;' } );
 			chart.appendChild( sparkline( payload.days ) );
 			body.appendChild( chart );
 
 			body.appendChild( deltaLine( payload.delta_pct ) );
 
 			// ── v9.53.0 secondary stats ──
-			var stats = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.12);' } );
+			var stats = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
 
 			if ( typeof payload.visits === 'number' ) {
 				stats.appendChild( statRow( 'Visits', String( payload.visits ) ) );
@@ -201,7 +203,7 @@
 				var mv = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
 				mv.appendChild( el( 'span', {
 					text:  payload.top_mover.path,
-					style: 'opacity:.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+					style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
 				} ) );
 				mv.appendChild( el( 'span', {
 					text:  ( mvUp ? '▲ +' : '▼ ' ) + Math.abs( payload.top_mover.delta ), // 15.8.2: the arrow carries the sign; "▼ -16" doubled it
@@ -231,7 +233,7 @@
 				top.appendChild( el( 'span', {
 					text:  payload.top_path.path,
 					title: payload.top_path.path,
-					style: 'opacity:.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+					style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
 				} ) );
 				top.appendChild( el( 'span', {
 					text:  String( payload.top_path.views ),
@@ -245,10 +247,10 @@
 			}
 
 			if ( payload.top_paths && payload.top_paths.length ) {
-				var pages = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.12);' } );
+				var pages = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
 				pages.appendChild( el( 'div', {
 					text:  'Top pages',
-					style: 'font-size:11px;opacity:.55;margin-bottom:2px;'
+					style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));margin-bottom:2px;'
 				} ) );
 				payload.top_paths.forEach( function( pg ) {
 					if ( ! pg || ! pg.path ) { return; }
@@ -256,7 +258,7 @@
 					prow.appendChild( el( 'span', {
 						text:  pg.path,
 						title: pg.path,
-						style: 'opacity:.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
 					} ) );
 					prow.appendChild( el( 'span', {
 						text:  String( pg.views ),
@@ -280,7 +282,7 @@
 			// An EMPTY array is a real answer ("no attributed sources yet"), not a
 			// failure, so it simply renders nothing rather than claiming anything.
 			if ( payload.top_sources && payload.top_sources.length ) {
-				var srcs = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.12);' } );
+				var srcs = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
 				// Sentence case at 11px/.55. NOT uppercase: the suite forbids
 				// text-transform:uppercase in every widget file, because the label
 				// registered in PHP is the single source of truth for a card's name
@@ -288,14 +290,14 @@
 				// a card title, but matching the house voice beats arguing the point.
 				srcs.appendChild( el( 'div', {
 					text:  'Top sources',
-					style: 'font-size:11px;opacity:.55;margin-bottom:2px;'
+					style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));margin-bottom:2px;'
 				} ) );
 				payload.top_sources.forEach( function( src ) {
 					var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
 					row.appendChild( el( 'span', {
 						text:  src.value,
 						title: src.value,
-						style: 'opacity:.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
 					} ) );
 					row.appendChild( el( 'span', {
 						text:  String( src.visits ),
@@ -311,7 +313,7 @@
 			body.textContent = '';
 			body.appendChild( el( 'div', {
 				text: 'Views unavailable',
-				style: 'font-size:12px;opacity:.6;'
+				style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
 			} ) );
 		}
 
@@ -334,7 +336,7 @@
 			var link = el( 'a', {
 				href: analyticsUrl,
 				text: 'Open Analytics →',
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;opacity:.75;'
+				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
 			} );
 			wrap.appendChild( link );
 		}

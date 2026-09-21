@@ -70,7 +70,7 @@
 		row.appendChild( el( 'span', {
 			text:  label,
 			title: label,
-			style: 'opacity:.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+			style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
 		} ) );
 		row.appendChild( el( 'span', {
 			text:  value,
@@ -81,10 +81,10 @@
 
 	/** A section: the shared separator + an 11px/.55 sentence-case heading. */
 	function section( heading ) {
-		var wrap = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.12);' } );
+		var wrap = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
 		wrap.appendChild( el( 'div', {
 			text:  heading,
-			style: 'font-size:11px;opacity:.55;margin-bottom:2px;'
+			style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));margin-bottom:2px;'
 		} ) );
 		return wrap;
 	}
@@ -94,7 +94,7 @@
 		var ctrl    = ( typeof AbortController !== 'undefined' ) ? new AbortController() : null;
 
 		var wrap = el( 'div', { style: 'padding:10px 12px;' } );
-		var body = el( 'div', { text: 'Loading…', style: 'font-size:12px;opacity:.6;' } );
+		var body = el( 'div', { text: 'Loading…', style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
 		wrap.appendChild( body );
 		container.appendChild( wrap );
 
@@ -115,11 +115,11 @@
 				};
 				body.appendChild( el( 'div', {
 					text:  hint.title,
-					style: 'font-size:12px;opacity:.6;'
+					style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
 				} ) );
 				body.appendChild( el( 'div', {
 					text:  hint.detail + ( payload.error ? ' (' + payload.error + ')' : '' ),
-					style: 'font-size:11px;opacity:.45;margin-top:2px;'
+					style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.45));margin-top:2px;'
 				} ) );
 				return;
 			}
@@ -130,14 +130,14 @@
 			} ) );
 			body.appendChild( el( 'div', {
 				text:  'machine reads · last ' + String( payload.days ) + ' days',
-				style: 'font-size:11px;opacity:.6;margin-bottom:6px;'
+				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:6px;'
 			} ) );
 
 			// An empty window is a real answer, not a failure.
 			if ( ! payload.families || ! payload.families.length ) {
 				body.appendChild( el( 'div', {
 					text:  'No machine reads in this window yet',
-					style: 'font-size:11px;opacity:.55;'
+					style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));'
 				} ) );
 			} else {
 				var fam = section( 'Top families' );
@@ -203,7 +203,7 @@
 			if ( payload.crawler_list && 'in sync' !== payload.crawler_list ) {
 				body.appendChild( el( 'div', {
 					text:  'Crawler list ' + String( payload.crawler_list ),
-					style: 'font-size:11px;opacity:.55;color:#d29922;margin-top:8px;'
+					style: 'font-size:11px;color:#d29922;margin-top:8px;'
 				} ) );
 			}
 		}
@@ -212,7 +212,7 @@
 			body.textContent = '';
 			body.appendChild( el( 'div', {
 				text:  'Machine readers unavailable',
-				style: 'font-size:12px;opacity:.6;'
+				style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
 			} ) );
 		}
 
@@ -235,7 +235,7 @@
 			wrap.appendChild( el( 'a', {
 				href:  mrUrl,
 				text:  'Open Machine Readers →',
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;opacity:.75;'
+				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
 			} ) );
 		}
 
