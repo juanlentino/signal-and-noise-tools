@@ -92,7 +92,20 @@ ok( false !== strpos( $kit, 'name="webhook_id" value="wh_alpha"' ) && false !== 
 ok( false !== strpos( $kit, 'heading="Recent deliveries (2)"' ) && false !== strpos( $kit, '<os-table' ), 'the delivery log is a disclosure around a kit table' );
 $log_region = substr( $kit, strpos( $kit, 'heading="Recent deliveries (2)"' ) );
 $log_region = substr( $log_region, 0, strpos( $log_region, '</os-disclosure>' ) );
-ok( false !== strpos( $log_region, '<os-button' ) && false !== strpos( $log_region, 'os-action="refresh"' ) && false !== strpos( $log_region, '>Refresh</os-button>' ), 'the delivery log disclosure carries a refresh trigger — the Heartbeat live-refresh has no equivalent selector once this is an os-table' );
+// #1607: the live refresh is the runtime's os-poll (Experimental, OpenStation
+// 1.1.10), gated on `sn_watch` because the editors and the add form carry text
+// fields the morph resets on every tick unless focused. Editing (the default
+// paint): no poll, no ghost Refresh, a Watch live go carrying sn_watch=1.
+ok( false === strpos( $log_region, '<os-button' ) && false === strpos( $kit, 'os-action="refresh"' ) && false === strpos( $kit, '>Refresh</os-button>' ), 'the delivery log disclosure carries no ghost Refresh, and nothing on the leaf dispatches refresh' );
+ok( false === strpos( $kit, 'os-poll' ), 'the editing paint polls nothing: a tick would reset an unfocused typed field to the server value' );
+ok( false !== strpos( $kit, '<div class="snt-watch"><span class="snt-hint">Watch the delivery log refresh every 30 seconds; the forms fold while it does.</span><os-button variant="ghost" os-action="go" os-arg-sub="webhooks" os-arg-sn_watch="1">Watch live</os-button></div>' ), 'the watch bar offers a Watch live go that lands back on this leaf with sn_watch=1' );
+$watch = snt_leaf_paint( 'connections', 'webhooks', array( 'flash' => 'wh_added_wh_beta', 'params' => array( 'sn_watch' => '1' ) ) );
+ok( '' !== $watch && 1 === substr_count( $watch, '<span os-action="poll" os-poll="30000" hidden></span>' ) && false === strpos( $watch, 'os-action="refresh"' ), 'watching: one hidden os-poll trigger on the no-op poll action, every 30 s, never on refresh' );
+ok( false === strpos( $watch, '<form' ) && false === strpos( $watch, '<os-form' ) && array() === snt_leaf_actions( $watch ) && false === strpos( $watch, 'name="name"' ), 'watching: every form is folded away (no editor, no delete, no add), so no typed field exists for a tick to reset' );
+ok( false === strpos( $watch, '<os-disclosure' ) && false !== strpos( $watch, '<os-section heading="Recent deliveries (2)">' ) && false !== strpos( $watch, '&quot;status&quot;:&quot;fail&quot;' ), 'watching: the delivery log is an open section around the same table, because os-disclosure keeps its open state as an attribute the morph strips on every repaint' );
+ok( false !== strpos( $watch, 'heading="Alpha flow"' ) && false !== strpos( $watch, 'heading="Beta flow"' ) && false !== strpos( $watch, '<os-code>wh_alpha</os-code>: created ' ), 'watching: each webhook is still its own section with its id line' );
+ok( false === strpos( $watch, 'BETASECRET0000000000abcd' ) && false !== strpos( $watch, 'heading="Uptime monitoring"' ) && false !== strpos( $watch, 'heading="Payload reference"' ), 'watching: the secret rides the editor, so it is not on this paint; the read-only sections stay' );
+ok( false !== strpos( $watch, '<os-button variant="ghost" os-action="go" os-arg-sub="webhooks">Stop watching</os-button>' ) && false !== strpos( $watch, 'The delivery log refreshes every 30 seconds. The forms are folded while it does; stop watching to edit.' ), 'watching: a Stop watching go without sn_watch unfolds the forms and stops the poll' );
 $newest = strpos( $kit, '&quot;fired_at&quot;:&quot;' . gmdate( 'Y-m-d H:i:s', 1756800300 ) . '&quot;,&quot;attempt&quot;:&quot;2&quot;,&quot;http&quot;:&quot;200&quot;,&quot;status&quot;:&quot;ok&quot;,&quot;response&quot;:&quot;{\&quot;ok\&quot;:true}&quot;' );
 $oldest = strpos( $kit, '&quot;http&quot;:&quot;500&quot;,&quot;status&quot;:&quot;fail&quot;,&quot;response&quot;:&quot;upstream timeout&quot;' );
 ok( false !== $newest && false !== $oldest && $newest < $oldest, 'log rows carry fired-at, attempt, HTTP, ok/fail and the response, newest first' );

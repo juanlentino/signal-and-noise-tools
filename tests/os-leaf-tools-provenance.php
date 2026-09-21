@@ -18,6 +18,15 @@
  * Run: php tests/os-leaf-tools-provenance.php
  */
 require_once __DIR__ . '/lib/site-timezone-stub.php'; // 14.7.4: the site's zone, not UTC
+
+// A transient store, declared BEFORE the harness (whose get_transient() is a
+// hard `false`): the sweep-result flag hygiene pin below needs a transient
+// that is readable exactly once, the way the real per-user transient is.
+$GLOBALS['__transients'] = array();
+function get_transient( $k ) { return array_key_exists( $k, $GLOBALS['__transients'] ) ? $GLOBALS['__transients'][ $k ] : false; }
+function set_transient( $k, $v, $e = 0 ) { $GLOBALS['__transients'][ $k ] = $v; return true; }
+function delete_transient( $k ) { unset( $GLOBALS['__transients'][ $k ] ); return true; }
+
 require_once __DIR__ . '/lib/os-leaf-harness.php';
 
 // ── Constants the classic readers rely on.
@@ -35,16 +44,6 @@ if ( ! defined( 'SN_PROV_DID_TEST' ) ) {
 if ( ! function_exists( 'get_post' ) ) {
 	function get_post( $id ) {
 		return (object) array( 'ID' => (int) $id );
-	}
-}
-if ( ! function_exists( 'set_transient' ) ) {
-	function set_transient( $k, $v, $e = 0 ) {
-		return true;
-	}
-}
-if ( ! function_exists( 'delete_transient' ) ) {
-	function delete_transient( $k ) {
-		return true;
 	}
 }
 if ( ! function_exists( 'rest_url' ) ) {
@@ -242,14 +241,36 @@ ok( false !== strpos( $kit, 'Re-anchor dispatched' ) && false !== strpos( $kit, 
 $kit = prov_paint( array( 'sn_prov_reanchor' => 'fail' ) );
 ok( false !== strpos( $kit, 'Re-anchor failed' ) && false !== strpos( $kit, 'The Worker rejected the dispatch' ), 'a sn_prov_reanchor=fail param gives the config-aware failure copy (Worker IS configured here)' );
 
-// get_transient() is hard-fixed to `false` by the shared harness, so the
-// per-user sweep-result transient can never be populated here — the flag
-// says 'ok' but the read-back result carries no 'ok' key, which both the
-// classic leaf and this leaf correctly render as a failed sweep (config-aware:
-// the Worker IS configured in this fixture, so it blames the Worker, not
-// missing constants).
+// No sweep-result transient is set here, so the flag says 'ok' but the
+// read-back result carries no 'ok' key, which both the classic leaf and this
+// leaf correctly render as a failed sweep (config-aware: the Worker IS
+// configured in this fixture, so it blames the Worker, not missing constants).
 $kit = prov_paint( array( 'sn_prov_swept' => 'ok' ) );
-ok( false !== strpos( $kit, 'Sweep failed' ) && false !== strpos( $kit, 'Could not reach the Worker, or it rejected the request.' ), 'a sn_prov_swept=ok param with no readable transient (harness caps get_transient at false) renders the config-aware sweep-failed copy' );
+ok( false !== strpos( $kit, 'Sweep failed' ) && false !== strpos( $kit, 'Could not reach the Worker, or it rejected the request.' ), 'a sn_prov_swept=ok param with no readable transient renders the config-aware sweep-failed copy' );
+
+// ── #1607: the read is idempotent. The classic notice deletes the per-user
+// transient on read while the flag rides `params` until the next go or post;
+// a window repaints the same session on every poll tick, so the SECOND paint
+// used to read the flag with an empty result and paint "Sweep failed" for a
+// sweep that succeeded. The first read now moves the result into `params`
+// beside the flag. Painted twice through ONE state object, as the runtime
+// round-trips it.
+$GLOBALS['__transients'][ 'sn_prov_sweep_result_' . get_current_user_id() ] = array( 'ok' => true, 'upgraded' => 2, 'still_pending' => 1 );
+$prov_state = new class( array( 'params' => array( 'sn_prov_swept' => 'ok' ) ) ) {
+	private $v;
+	public function __construct( array $v ) { $this->v = $v; }
+	public function get( $k ) { return $this->v[ $k ] ?? null; }
+	public function set( $k, $x ) { $this->v[ $k ] = $x; return $this; }
+};
+$prov_painter = \SignalNoise\OpenStationHost\Dashboard\painters()['tools/provenance'];
+$prov_ctx     = array( 'tab' => 'tools', 'sub' => 'provenance', 'state' => $prov_state, 'os' => null );
+$first        = (string) call_user_func( $prov_painter, $prov_ctx );
+$second       = (string) call_user_func( $prov_painter, $prov_ctx );
+ok( false !== strpos( $first, 'Sweep complete' ) && false !== strpos( $first, '2 proofs newly confirmed on Bitcoin; 1 still pending.' ), 'the first paint after a sweep reads the transient and says Sweep complete with its counts' );
+ok( array() === $GLOBALS['__transients'], '...and spends the one-shot transient, as the classic notice does' );
+ok( false !== strpos( $second, 'Sweep complete' ) && false === strpos( $second, 'Sweep failed' ), 'the SECOND paint of the same session (a poll tick, the title-bar Refresh) still says Sweep complete: the result rode params beside the flag instead of being re-read from a spent transient' );
+ok( array( 'sn_prov_swept' => 'ok', 'sn_prov_sweep_result' => array( 'ok' => true, 'upgraded' => 2, 'still_pending' => 1 ) ) === $prov_state->get( 'params' ), 'the stash is a sn_* key in params, so it leaves with the flag on the next go or post' );
+ok( false !== strpos( $first, '<span os-action="poll" os-poll="30000" hidden></span>' ) && false === strpos( $first, 'os-action="refresh"' ) && false === strpos( $first, '>Refresh</os-button>' ), 'the Commits fieldset carries one hidden os-poll trigger on the no-op poll action every 30 s, and no ghost Refresh: this leaf\'s forms are bare submit buttons, so it polls freely' );
 
 // ────────────────────────────────────────────────────────────────────────
 // 6. Empty state: no candidates and no backfill result — the section is
@@ -259,6 +280,28 @@ $GLOBALS['__prov_ids'] = array();
 $kit     = prov_paint();
 $classic = snt_leaf_classic_html( 'sn_admin_render_provenance_section' );
 ok( false === strpos( $kit, 'Ledger backfill' ) && false === strpos( $classic, 'Ledger backfill' ), 'no candidates: the backfill section is painted on neither side' );
+
+// ── #1607, the OTHER one-shot transient: the backfill result rides no flag
+// at all (its redirect carries none), so the transient is the whole signal.
+// Spent on the first read, a poll tick anywhere in the next 30 s dropped the
+// "Imported N" notice and, with no candidates left, the whole section. Painted
+// twice through ONE state object after a clean import, as the runtime
+// round-trips it: both paints carry the notice and the section.
+$GLOBALS['__transients'][ 'sn_prov_backfill_result_' . get_current_user_id() ] = array( 'imported' => 3, 'repaired' => 1, 'skipped' => array(), 'remaining' => 0, 'stopped' => '' );
+$prov_state = new class( array( 'params' => array() ) ) {
+	private $v;
+	public function __construct( array $v ) { $this->v = $v; }
+	public function get( $k ) { return $this->v[ $k ] ?? null; }
+	public function set( $k, $x ) { $this->v[ $k ] = $x; return $this; }
+};
+$prov_ctx = array( 'tab' => 'tools', 'sub' => 'provenance', 'state' => $prov_state, 'os' => null );
+$first    = (string) call_user_func( $prov_painter, $prov_ctx );
+$second   = (string) call_user_func( $prov_painter, $prov_ctx );
+ok( false !== strpos( $first, 'Ledger backfill' ) && false !== strpos( $first, 'Imported 3 confirmed anchors from the ledger, and repaired 1 missing signatures.' ) && false !== strpos( $first, 'Nothing is left unverifiable.' ), 'the first paint after a backfill reads the transient and paints the Imported notice inside the Ledger backfill section' );
+ok( array() === $GLOBALS['__transients'], '...and spends the one-shot transient, as the classic fieldset does' );
+ok( false !== strpos( $second, 'Ledger backfill' ) && false !== strpos( $second, 'Imported 3 confirmed anchors from the ledger, and repaired 1 missing signatures.' ), 'the SECOND paint of the same session (a poll tick within 30 s) still paints the notice and the section: the result rode params instead of being re-read from a spent transient' );
+ok( array( 'sn_prov_backfill_result' => array( 'imported' => 3, 'repaired' => 1, 'skipped' => array(), 'remaining' => 0, 'stopped' => '' ) ) === $prov_state->get( 'params' ), 'the stash is a sn_* key in params, so it leaves on the next go or post' );
+ok( false === strpos( prov_paint(), 'Ledger backfill' ), 'a fresh state with no transient and no candidates paints no section: the stash never leaked past its state object' );
 
 // ────────────────────────────────────────────────────────────────────────
 // 7. Unreached Worker + unconfigured constants: the reanchor failure copy

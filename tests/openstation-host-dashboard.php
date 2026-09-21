@@ -274,8 +274,8 @@ namespace {
 	ok( array( 'sub', 'anchor', 'flash', 'notice', 'params', 'post' ) === array_keys( $app->state )
 		&& '' === $app->state['sub'] && null === $app->state['notice'] && array() === $app->state['params'] && array() === $app->state['post'],
 		'state has NO tab: the tab is the session (the framework`s); only the leaf, the anchor and the last write are state' );
-	ok( array( 'go', 'post', 'door', 'refresh', 'reopen' ) === array_keys( $app->actions ),
-		'five actions: go, post, door, refresh and the reopen lifecycle' );
+	ok( array( 'go', 'post', 'door', 'refresh', 'reopen', 'poll' ) === array_keys( $app->actions ),
+		'six actions: go, post, door, refresh, the reopen lifecycle and the os-poll tick (#1607)' );
 	ok( isset( $app->buttons['refresh'] ) && 'refresh' === $app->buttons['refresh']['action'], 'a Refresh button in the title bar' );
 
 	echo "\nGroup 2: the framework tabs are the registry, not a list kept here\n";

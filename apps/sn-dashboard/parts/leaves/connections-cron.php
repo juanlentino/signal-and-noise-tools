@@ -9,11 +9,11 @@
  * call against the `run-cron-event` / `get-cron-history` /
  * `unschedule-cron-event` REST abilities, never `sn_handle_admin_post()`. This
  * window's action set is fixed to `go` / `post` / `door` / `refresh` /
- * `reopen` (apps/sn-dashboard/sn-dashboard.os.php) and a leaf painter cannot
- * add a new one, so those three controls cannot dispatch here; they paint as
- * the SAME per-row facts the classic buttons' enabled/disabled/title state
- * already encodes (which action is available, and why not), as read-only
- * text instead of a control.
+ * `reopen` / `poll` (apps/sn-dashboard/sn-dashboard.os.php) and a leaf
+ * painter cannot add a new one, so those three controls cannot dispatch
+ * here; they paint as the SAME per-row facts the classic buttons'
+ * enabled/disabled/title state already encodes (which action is available,
+ * and why not), as read-only text instead of a control.
  *
  * The other two callbacks, `snt_morning_brief_render_settings()` (priority 20)
  * and `snt_scheduled_reads_render_settings()` (priority 30), each carry one
@@ -234,21 +234,29 @@ function cron_glance_html( array $rows ) {
 /**
  * The leaf.
  *
+ * The classic Heartbeat client's last-fired refresh is the runtime's own
+ * `os-poll` here (snt_kit_watch_bar(), #1607), gated on `sn_watch`: the two
+ * settings forms under the ledger carry kit checkboxes whose `checked` the
+ * morph re-syncs on every tick, focused or not, so the leaf polls only while
+ * those forms are folded away.
+ *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
  */
 function paint_connections_cron( array $ctx ) {
-	unset( $ctx );
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return \snt_kit_empty( __( 'You do not have permission to view this page.', 'signal-and-noise-tools' ) );
 	}
 
-	$rows = function_exists( 'snt_cron_get_events_impl' ) ? snt_cron_get_events_impl() : array();
-	// Re-read this live snapshot without exposing the classic mutating actions.
-	$refresh = \snt_kit_tag( 'os-cluster', array(), \snt_kit_button( __( 'Refresh', 'signal-and-noise-tools' ), 'refresh', array( 'variant' => 'ghost', 'class' => 'snt-leaf-refresh' ) ) );
+	$rows     = function_exists( 'snt_cron_get_events_impl' ) ? snt_cron_get_events_impl() : array();
+	$watching = \snt_kit_watching( $ctx );
+	// The live snapshot: the runtime's poll while watching, in place of the
+	// classic Heartbeat client (whose selectors the kit never paints).
+	$refresh = \snt_kit_watch_bar( 'cron', $watching, __( 'the ledger', 'signal-and-noise-tools' ) );
 	// do_action paints the two settings callbacks whether or not cron has rows;
-	// the backlog box sits above them on both branches.
-	$settings = cron_backlog_html() . cron_settings_row_html();
+	// the backlog box sits above them on both branches. While watching, the
+	// settings forms are folded (see above).
+	$settings = cron_backlog_html() . ( $watching ? '' : cron_settings_row_html() );
 
 	if ( empty( $rows ) ) {
 		// Classic runs this sentence through wp_kses_post() so the four hook

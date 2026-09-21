@@ -900,6 +900,23 @@ help` blocks) and in the sandbox before a line was written:
 - **The runtime sheet's tone contract** (`data-tone` → `--os-app-tone`) and
   the shell's `--os-ui-*` tokens are the only colours the windows use;
   `assets/os-app.css` lays the shared pieces out on them.
+- **`os-poll="30000"`** on an element carrying an `os-action` (#1607;
+  Experimental at 1.1.10, `src/app-runtime/bindings.ts` `readPolls()`,
+  `src/app-runtime/session.ts` `reconcilePolls()`): the runtime dispatches
+  that action every N ms for as long as the element is painted, reconciles
+  the timers on every paint, and skips a tick while the window is minimized,
+  the tab hidden or a dispatch in flight. `snt_kit_poll()` paints it on the
+  Dashboard app's `poll` action, a declared no-op that touches no state (the
+  built-in `refresh` drops the notice and the flash the Webhooks leaf keys its
+  show-once secret off). Two ceilings the port respects: the morph keeps only
+  the focused control's value and syncs a kit checkbox's `checked` attribute
+  focused or not (`src/app-runtime/morph.ts`), and `os-disclosure` keeps its
+  open state as an attribute the morph strips on repaint. So Provenance
+  (bare submit buttons) polls freely, and Webhooks and Cron poll only while
+  their forms are folded behind `sn_watch=1` (`snt_kit_watch_bar()`), the
+  watched delivery log painted as an open section. The three classic pollers
+  (`sn-cron-dashboard`, `sn-provenance-admin`, `sn-admin-heartbeat`) left the
+  Dashboard window's script list; they stay on the classic pages.
 
 Design record: [docs/proposals/2026-09-06-native-windows.md](proposals/2026-09-06-native-windows.md).
 The port-complete guards live in `tests/openstation-app-dashboard.php` and

@@ -767,8 +767,11 @@ $args    = apply_filters( 'openstation_app_window_args', array( 'styles' => arra
 // from it, which is exactly how a leaf's script goes missing in silence.
 ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers', 'snt-os-app', 'snt-sn-dashboard-app' ) === $handles['styles'],
 	'the seven stylesheets the leaves are laid out with: admin.css, the analytics token layer, the analytics sheet, the uptime panel, the provenance stepper, the audit log, and Machine Readers -- which painted with every .sn-mr-* rule missing until it got a registrar' );
-ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'sn-cron-dashboard', 'sn-provenance-admin', 'sn-admin-heartbeat', 'snt-os-host', 'snt-os-kit' ) === $handles['scripts'],
-	'the eleven scripts: sub-tabs and dirty-tracking, the confirm modal, the trend brush, the repeatable rows, the freshness dot, Suggest+Apply, the uptime panel, cron, provenance, the Heartbeat client Cron and Webhooks live-refresh through, and the host' );
+ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit' ) === $handles['scripts'],
+	'the nine scripts: sub-tabs and dirty-tracking, the confirm modal, the trend brush, the repeatable rows, the freshness dot, Suggest+Apply, the uptime panel, and the host -- NOT the three classic pollers (cron, provenance, the Heartbeat client), whose selectors the kit never paints; the window\'s live refresh is os-poll (#1607)' );
+foreach ( array( 'sn-cron-dashboard', 'sn-provenance-admin', 'sn-admin-heartbeat' ) as $poller ) {
+	ok( ! in_array( $poller, $args['scripts'], true ), "the window does not carry the classic poller $poller: it re-armed on every paint, matched nothing, and the Heartbeat client rode every tick for an empty want list" );
+}
 foreach ( $handles['styles'] as $handle ) {
 	ok( in_array( $handle, $args['styles'], true ) && wp_style_is( $handle, 'registered' ), "the window carries the style $handle, registered" );
 }
@@ -783,6 +786,9 @@ ok( array( 'wp-api-fetch', 'wp-i18n', 'snt-status', 'snt-ability-run' ) === ( $G
 ok( in_array( 'snt-health-suggest-actions', $GLOBALS['__i18n'], true ), '   ...with its script translations set, as its own enqueue sets them' );
 ok( array( 'sn-admin' ) === ( $GLOBALS['__scripts']['snt-os-host'][1] ?? array() ), 'the host script loads after admin.js, whose init() seam it calls' );
 // #1611: the cron strings ride as script translations, the documented way.
+// #1607 took the classic cron poller out of the window's asset list, so the
+// registrar is exercised directly here: the classic page still calls it.
+if ( function_exists( 'snt_cron_dashboard_register_script' ) ) { snt_cron_dashboard_register_script(); }
 // The 25-string sntCronI18n localize object sat beside a
 // wp_set_script_translations() the script never read; now wp-i18n is a
 // declared dep, the translations are set, and no localize object exists.
@@ -790,12 +796,10 @@ ok( array( 'wp-api-fetch', 'wp-data', 'wp-i18n', 'snt-ability-run' ) === ( $GLOB
 	'the cron script rides from its own registrar with wp-i18n declared: wp.i18n.__() is what Run now, history and Unschedule read' );
 ok( in_array( 'sn-cron-dashboard', $GLOBALS['__i18n'], true ) && ! isset( $GLOBALS['__localized']['sn-cron-dashboard'] ),
 	'   ...with its script translations set and NO localize object: the strings live in the script, not in an inline JSON bag on every admin page' );
-ok( isset( $GLOBALS['__styles']['sn-provenance-admin'], $GLOBALS['__scripts']['sn-provenance-admin'] ), 'the provenance stepper sheet and script ride too: Integrity -> Provenance polls its own route through them' );
+ok( isset( $GLOBALS['__styles']['sn-provenance-admin'] ), 'the provenance stepper sheet rides too: Integrity -> Provenance is laid out by it' );
 ok( isset( $GLOBALS['__styles']['snt-audit-log'] ), 'and the audit-log sheet: Security -> Audit log is laid out by it' );
 ok( array( 'sn-admin' ) === ( $GLOBALS['__styles']['sn-machine-readers'][1] ?? array() ),
 	'the Machine Readers sheet rides with its own dependency on admin.css, from its own registrar -- a copied wp_register_style() here would drift the first time the sheet moved' );
-ok( array( 'jquery', 'heartbeat' ) === ( $GLOBALS['__scripts']['sn-admin-heartbeat'][1] ?? array() ),
-	'and the Heartbeat client keeps `jquery` and `heartbeat`: without the core handle WordPress silently DROPS it, and Cron\'s "Last fired" cells would sit frozen with nothing saying so' );
 
 $again = apply_filters( 'openstation_app_window_args', $args, 'sn-dashboard', null );
 ok( $again === $args, 'a second pass appends nothing -- every handle rides exactly once' );

@@ -153,8 +153,17 @@ $rich_rows = array(
 $GLOBALS['__cron_rows'] = $rich_rows;
 $kit = snt_leaf_paint( 'connections', 'cron', array() );
 ok( '' !== $kit, 'painter registered under connections/cron produced output' );
-ok( 1 === substr_count( $kit, 'os-action="refresh"' ) && false !== strpos( $kit, '>Refresh</os-button>' ), 'live cron snapshot has one local read-only Refresh even when mobile hides the titlebar' );
-ok( 1 === preg_match( '/<os-cluster><os-button [^>]*os-action="refresh"[^>]*>Refresh<\/os-button><\/os-cluster>/', $kit ) && false === strpos( $kit, 'snt-toolbar' ), '#1600: the Refresh row is an os-cluster, not a .snt-toolbar div whose only rule lives in another window\'s sheet' );
+// #1607: the classic Heartbeat client's last-fired refresh is the runtime's
+// os-poll (Experimental, OpenStation 1.1.10), gated on `sn_watch`: the two
+// settings forms under the ledger carry kit checkboxes whose `checked` the
+// morph re-syncs on every tick, focused or not, so the leaf polls only while
+// they are folded away.
+ok( false === strpos( $kit, 'os-action="refresh"' ) && false === strpos( $kit, 'os-poll' ), 'the default paint has no ghost Refresh and no poll: a tick would revert an unsaved settings checkbox' );
+ok( false !== strpos( $kit, '<div class="snt-watch"><span class="snt-hint">Watch the ledger refresh every 30 seconds; the forms fold while it does.</span><os-button variant="ghost" os-action="go" os-arg-sub="cron" os-arg-sn_watch="1">Watch live</os-button></div>' ), 'the watch bar offers a Watch live go that lands back on this leaf with sn_watch=1' );
+$kit_watch = snt_leaf_paint( 'connections', 'cron', array( 'params' => array( 'sn_watch' => '1' ) ) );
+ok( 1 === substr_count( $kit_watch, '<span os-action="poll" os-poll="30000" hidden></span>' ) && false === strpos( $kit_watch, 'os-action="refresh"' ), 'watching: one hidden os-poll trigger on the no-op poll action, every 30 s, never on refresh' );
+ok( array() === snt_leaf_actions( $kit_watch ) && false === strpos( $kit_watch, '<os-form' ) && false === strpos( $kit_watch, 'snt_morning_brief_enabled' ), 'watching: both settings forms are folded away, so no checkbox exists for a tick to revert' );
+ok( false !== strpos( $kit_watch, '<os-table' ) && false !== strpos( $kit_watch, 'heading="Cron at a glance"' ) && false !== strpos( $kit_watch, '<os-button variant="ghost" os-action="go" os-arg-sub="cron">Stop watching</os-button>' ), 'watching: the ledger and the glance row still paint, and a Stop watching go without sn_watch unfolds the forms' );
 ok( 1 === preg_match( '/<os-field-row hint="A deterministic prose reading[^"]*"><os-checkbox-label name="snt_morning_brief_enabled"/', $kit ) && 1 === preg_match( '/<os-field-row hint="Read door only[^"]*"><os-checkbox-label name="snt_scheduled_reads_enabled"/', $kit ), '#1600: each toggle\'s helper is the hint of the field row around the checkbox, the layout every other field already has' );
 ok( '<os-field-row hint="x"><os-checkbox-label name="t" value="1" label="T"></os-checkbox-label></os-field-row>' === \snt_kit_field( 'checkbox', 't', 'T', false, array( 'hint' => 'x' ) ) && '<os-checkbox-label name="t" value="1" label="T"></os-checkbox-label>' === \snt_kit_field( 'checkbox', 't', 'T' ), '#1600: snt_kit_field( checkbox ) with a hint wraps the control in an os-field-row carrying hint=; without one it stays the bare control' );
 
@@ -261,7 +270,7 @@ ok( false !== strpos( $kit_empty, 'No scheduled events.' ), 'kit empty state: he
 // do_action paints all three callbacks whether or not cron has rows, so the
 // settings row must be on the empty branch too.
 ok( snt_leaf_actions( $classic_empty ) === snt_leaf_actions( $kit_empty ) && 2 === count( snt_leaf_actions( $kit_empty ) ), 'empty cron: the settings row still paints both sn_action values' );
-ok( 1 === substr_count( $kit_empty, 'os-action="refresh"' ), 'empty cron snapshot can be refreshed after events are restored' );
+ok( false === strpos( $kit_empty, 'os-action="refresh"' ) && false !== strpos( $kit_empty, 'os-arg-sn_watch="1">Watch live</os-button>' ), 'empty cron snapshot carries the watch bar too, so the ledger can be watched once events are restored' );
 ok( false !== strpos( $classic_empty, 'No scheduled events.' ), 'classic empty state: heading (sanity check on the fixture)' );
 ok( false !== strpos( $kit_empty, 'wp_version_check' ), 'kit empty state: names the core hooks WP schedules at install' );
 ok( array() === snt_leaf_classic_markers( $kit_empty ), 'empty state carries no classic markup either' );

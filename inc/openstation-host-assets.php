@@ -39,10 +39,19 @@ if ( ! defined( 'ABSPATH' ) ) {
  * PER WINDOW, because the two hosts are two pages. `sn-analytics` carries what
  * `toplevel_page_sn-analytics` carries and nothing else: admin.css, the
  * analytics token layer and sheet, the trend brush, the confirm modal, the
- * repeatable rows, the uptime panel. The five leaf-owned handles the Dashboard
- * needs (cron, provenance, the audit sheet, Machine Readers, the Heartbeat
- * client) belong to leaves that page does not have, and a window that carried
- * them would be enqueueing scripts for markup it never paints.
+ * repeatable rows, the uptime panel. The three leaf-owned SHEETS the Dashboard
+ * needs (the provenance stepper, the audit log, Machine Readers) belong to
+ * leaves that page does not have, and a window that carried them would be
+ * enqueueing styles for markup it never paints.
+ *
+ * NOT the three classic pollers (`sn-cron-dashboard`, `sn-provenance-admin`,
+ * `sn-admin-heartbeat`): each binds to markup the kit never paints
+ * (`.sn-cron-run-now`, `.sn-prov-live`, `table[data-webhook-id]`), so in the
+ * window they re-armed on every paint, matched nothing, and the Heartbeat
+ * client rode every tick for an empty want list. The live refresh those
+ * scripts gave the classic pages is the runtime's own `os-poll` in the window
+ * (snt_kit_poll(), #1607); the scripts stay for the classic pages behind
+ * `sn_admin_page_hooks()`.
  *
  * Registration, not enqueue: the shell enqueues a window's `scripts` and
  * `styles` when the window first opens, so a desktop page nobody opens this
@@ -60,7 +69,7 @@ function snt_os_host_asset_handles( $id = 'sn-dashboard' ) {
 	}
 	return array(
 		'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers', 'snt-os-app', 'snt-sn-dashboard-app' ),
-		'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'sn-cron-dashboard', 'sn-provenance-admin', 'sn-admin-heartbeat', 'snt-os-host', 'snt-os-kit' ),
+		'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit' ),
 	);
 }
 
@@ -166,14 +175,14 @@ function snt_os_host_register_assets() {
 	if ( ! wp_style_is( 'snt-sn-analytics-app', 'registered' ) ) {
 		wp_register_style( 'snt-sn-analytics-app', SNT_URL . 'apps/sn-analytics/sn-analytics.css', array( 'snt-os-app' ), SNT_VERSION );
 	}
-	// Five leaves register their own assets from their own enqueue callbacks
-	// (Connections -> Cron, Integrity -> Provenance, Security -> Audit log,
-	// Measurement -> Machine Readers, and the Heartbeat client Cron + Webhooks
-	// live-refresh through), gated on the classic hook suffixes the desktop page
-	// never carries. Each exposes its registrar; calling it keeps one source of
-	// strings, paths and DEPENDENCIES -- sn-admin-heartbeat without its `jquery`
-	// and `heartbeat` deps is a handle WordPress silently drops.
-	foreach ( array( 'snt_cron_dashboard_register_script', 'sn_prov_admin_register_assets', 'snt_audit_log_register_style', 'snt_mr_admin_register_style', 'snt_admin_heartbeat_register_script' ) as $registrar ) {
+	// Three leaves register their own sheets from their own enqueue callbacks
+	// (Integrity -> Provenance, Security -> Audit log, Measurement -> Machine
+	// Readers), gated on the classic hook suffixes the desktop page never
+	// carries. Each exposes its registrar; calling it keeps one source of
+	// paths and DEPENDENCIES. The provenance registrar also registers the
+	// classic poller script the window no longer carries (#1607); a registered
+	// handle nobody enqueues costs nothing.
+	foreach ( array( 'sn_prov_admin_register_assets', 'snt_audit_log_register_style', 'snt_mr_admin_register_style' ) as $registrar ) {
 		if ( function_exists( $registrar ) ) {
 			$registrar();
 		}

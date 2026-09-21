@@ -182,20 +182,22 @@ function webhooks_delete_form( $id ) {
 }
 
 /**
- * The delivery log, newest first, folded away as the classic `<details>`.
+ * The delivery log, newest first: folded away as the classic `<details>`
+ * while editing, open as a section while watching.
  *
  * The classic table carries `data-webhook-id` and assets/admin-heartbeat.js
- * re-renders it on every Heartbeat tick (T5, v4.9.0) — a live refresh that
- * has no equivalent selector to match once this is `<os-table>`, even though
- * the shell still enqueues `sn-admin-heartbeat` for this window
- * (inc/openstation-host-assets.php:63). The substitute other kit leaves use
- * for the same loss (content-block-migrations.php, tools-provenance.php): a
- * ghost `refresh` button, which repaints the leaf from the server.
+ * re-renders it on every Heartbeat tick (T5, v4.9.0). Here the live refresh
+ * is the runtime's `os-poll` (snt_kit_watch_bar() in the leaf, #1607), and it
+ * rides only while watching: `os-disclosure` keeps its open state as an
+ * attribute the morph strips on every repaint, so a watched log is painted
+ * as a plain section, open by construction, instead of a disclosure that
+ * would fold itself on every tick.
  *
- * @param string $id Webhook id.
+ * @param string $id       Webhook id.
+ * @param bool   $watching Whether the leaf polls (`sn_watch`).
  * @return string
  */
-function webhooks_log_html( $id ) {
+function webhooks_log_html( $id, $watching = false ) {
 	$log = \sn_webhook_log_read( $id );
 	if ( empty( $log ) ) {
 		return '';
@@ -217,13 +219,12 @@ function webhooks_log_html( $id ) {
 		array( 'key' => 'status', 'label' => __( 'Status', 'signal-and-noise-tools' ) ),
 		array( 'key' => 'response', 'label' => __( 'Response', 'signal-and-noise-tools' ) ),
 	);
-	return \snt_kit_tag(
-		'os-disclosure',
-		/* translators: %d delivery-log entries */
-		array( 'heading' => sprintf( __( 'Recent deliveries (%d)', 'signal-and-noise-tools' ), count( $log ) ) ),
-		\snt_kit_table( $columns, $rows )
-			. \snt_kit_button( __( 'Refresh', 'signal-and-noise-tools' ), 'refresh', array( 'variant' => 'ghost' ) )
-	);
+	/* translators: %d delivery-log entries */
+	$heading = sprintf( __( 'Recent deliveries (%d)', 'signal-and-noise-tools' ), count( $log ) );
+	$table   = \snt_kit_table( $columns, $rows );
+	return $watching
+		? \snt_kit_section( $heading, $table )
+		: \snt_kit_tag( 'os-disclosure', array( 'heading' => $heading ), $table );
 }
 
 /**

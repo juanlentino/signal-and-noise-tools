@@ -133,6 +133,17 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 }
 
 
+/* The watch bar (#1607): the hint and the Watch live / Stop watching button
+   of a leaf that polls only while its forms are folded (snt_kit_watch_bar()). */
+.snt-watch {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 16px;
+	flex-wrap: wrap;
+	margin-block-end: 12px;
+}
+
 /* S&N Home tab full-viewport layout */
 .snt-app[data-os-app="sn-dashboard"][data-snt-tab="dashboard"] .snt-dashboard-body {
 	padding: 0;

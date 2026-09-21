@@ -8,7 +8,7 @@
  * notice says the same thing. Nothing is redesigned, dropped or simplified,
  * and the classic page stays exactly where it is — a removal is not a port.
  *
- * FOUR ACTIONS, and each is one seam a document has and a window does not:
+ * SIX ACTIONS, and each is one seam a document has and a window does not:
  *
  *   go     A tab, a sub-tab, an anchor, and the `sn_*` params that ARE state
  *          on the classic page. Everything the URL used to carry.
@@ -18,6 +18,12 @@
  *   door   Any other admin screen (`update-core.php`, `post.php`,
  *          `admin-post.php?action=…`) as its own shell window.
  *   refresh The title-bar button: drop the notice, re-read the badge.
+ *   reopen  The window opened again with params: land on the leaf they name.
+ *   poll    A timer's tick (`os-poll`, #1607): re-read the badge, touch no
+ *          state. Any dispatch repaints the view from fresh data, and that
+ *          repaint IS the live refresh; `refresh` cannot be the tick because
+ *          it drops the notice and the flash the Webhooks leaf keys its
+ *          show-once secret off.
  * Framework tabs (`App::tab()`) declare the window chrome tabs (Dashboard,
  * Site, Content, Connections, Measurement, AI, Security, Integrity). Each tab
  * is its own server session painted by the frame, while `sub` and parameters
@@ -323,6 +329,22 @@ $sn_dashboard = App::define( APP_ID )
 				return;
 			}
 			read_params( $state, $os );
+			$os->badge( badge_count() );
+		}
+	)
+	// SEAM: the tick of `os-poll` (App Framework, Experimental at OpenStation
+	// 1.1.10) painted by snt_kit_poll(). A no-op on purpose: `notice`, `flash`,
+	// `params` and `post` stay exactly as the last user action left them, so a
+	// notice is read until dismissed and a new webhook secret stays on screen
+	// across ticks. The repaint the runtime does after every dispatch is the
+	// whole effect (#1607).
+	->action(
+		'poll',
+		static function ( State $state, Os $os, array $args ) {
+			unset( $state, $args );
+			if ( ! may_manage() ) {
+				return;
+			}
 			$os->badge( badge_count() );
 		}
 	);

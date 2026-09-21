@@ -11,6 +11,12 @@
  * Same readers, same forms, same field names, same handlers; the kit's parts
  * instead of wp-admin's.
  *
+ * The classic Heartbeat client's delivery-log refresh is the runtime's own
+ * `os-poll` here (snt_kit_watch_bar(), #1607), gated on `sn_watch`: the
+ * editors and the add form carry text fields the morph resets to the server
+ * value on every tick unless focused, so the leaf polls only while those
+ * forms are folded away, and the logs open as sections while it does.
+ *
  * @package SignalNoiseTools
  * @since 13.106.0
  */
@@ -24,14 +30,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/connections-webhooks-parts.php';
 
 /**
- * One webhook's editor: the id line, the update form, the delete form, the log.
+ * One webhook's editor: the id line, the update form, the delete form, the
+ * log. While watching, the id line and the open log only.
  *
- * @param array<string,mixed> $wh     Webhook entry.
- * @param bool                $is_new Whether its secret is shown once.
+ * @param array<string,mixed> $wh       Webhook entry.
+ * @param bool                $is_new   Whether its secret is shown once.
+ * @param bool                $watching Whether the leaf polls (`sn_watch`).
  * @return string
  */
-function webhooks_entry_html( array $wh, $is_new ) {
-	$id       = (string) ( $wh['id'] ?? '' );
+function webhooks_entry_html( array $wh, $is_new, $watching = false ) {
+	$id = (string) ( $wh['id'] ?? '' );
+	if ( $watching ) {
+		return \snt_kit_section(
+			(string) ( $wh['name'] ?? '' ),
+			'<p class="snt-hint">' . webhooks_code( $id ) . \snt_kit_esc( ': ' . __( 'created', 'signal-and-noise-tools' ) . ' ' . wp_date( 'Y-m-d', (int) ( $wh['created_at'] ?? 0 ) ) ) . '</p>'
+				. webhooks_log_html( $id, true )
+		);
+	}
 	$selected = isset( $wh['events'] ) ? (array) $wh['events'] : array( 'post.published' );
 	$fields   = \snt_kit_field( 'text', 'name', __( 'Name', 'signal-and-noise-tools' ), (string) ( $wh['name'] ?? '' ) )
 		. \snt_kit_field( 'url', 'url', __( 'Endpoint URL', 'signal-and-noise-tools' ), (string) ( $wh['url'] ?? '' ), array( 'hint' => __( 'Receiving endpoint. Must respond with 2xx within 10 seconds. 5xx triggers retry (3 attempts, 5min backoff); 4xx is a hard rejection.', 'signal-and-noise-tools' ) ) )
@@ -118,14 +133,15 @@ function paint_connections_webhooks( array $ctx ) {
 	}
 	$webhooks = \sn_webhooks_all();
 	$new_id   = webhooks_new_id( $ctx );
+	$watching = \snt_kit_watching( $ctx );
 	$enabled  = 0;
-	$main     = '';
+	$main     = \snt_kit_watch_bar( 'webhooks', $watching, __( 'the delivery log', 'signal-and-noise-tools' ) );
 	foreach ( $webhooks as $wh ) {
 		$wh       = (array) $wh;
 		$enabled += empty( $wh['enabled'] ) ? 0 : 1;
-		$main    .= webhooks_entry_html( $wh, $new_id === (string) ( $wh['id'] ?? '' ) );
+		$main    .= webhooks_entry_html( $wh, $new_id === (string) ( $wh['id'] ?? '' ), $watching );
 	}
-	$main .= webhooks_add_html() . webhooks_monitoring_html();
+	$main .= ( $watching ? '' : webhooks_add_html() ) . webhooks_monitoring_html();
 
 	$rail = webhooks_status_html( count( $webhooks ), $enabled );
 	if ( function_exists( 'sn_uptime_status_configured' ) && \sn_uptime_status_configured() && function_exists( 'sn_uptime_status_mount_html' ) ) {
