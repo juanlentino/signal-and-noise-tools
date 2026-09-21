@@ -4,16 +4,20 @@
  *
  * The classic tab is the whole `sn_admin_cron_tab` hook, three callbacks. The
  * events table (inc/cron-dashboard-admin.php, `snt_cron_render_admin_tab()`,
- * priority 10) has no form and no `sn_action`: every mutating control there
- * (Run now, Unschedule, the per-row history fetch) is a plain client-side JS
- * call against the `run-cron-event` / `get-cron-history` /
- * `unschedule-cron-event` REST abilities, never `sn_handle_admin_post()`. This
- * window's action set is fixed to `go` / `post` / `door` / `refresh` /
- * `reopen` / `poll` (apps/sn-dashboard/sn-dashboard.os.php) and a leaf
- * painter cannot add a new one, so those three controls cannot dispatch
- * here; they paint as the SAME per-row facts the classic buttons'
- * enabled/disabled/title state already encodes (which action is available,
- * and why not), as read-only text instead of a control.
+ * priority 10) has no form and no `sn_action`: Run now, Unschedule and the
+ * per-row history fetch are client-side JS calls against the
+ * `run-cron-event` / `get-cron-history` / `unschedule-cron-event` abilities.
+ * Run now and Unschedule paint here as per-row kit buttons on the app's own
+ * `cron_run` / `cron_unschedule` actions (sn-dashboard.os.php, #1604), which
+ * run the SAME registered abilities behind the shell's confirm dialog
+ * (danger-styled on Unschedule). The action set is the app's declaration,
+ * not a framework limit. A row that cannot take an action paints the button
+ * disabled with the reason in its title, the classic button's state.
+ *
+ * The ledger is a `<ul class="snt-list snt-list--ledger">`, not an
+ * `<os-table>` (a cell is scalar data with no slot for a control, upstream
+ * #862), a grid of seven tracks with each row a subgrid (assets/os-app.css).
+ * The classic `#sn-cron-filter` is cron_filter_html(); the Args clamp stays.
  *
  * The other two callbacks, `snt_morning_brief_render_settings()` (priority 20)
  * and `snt_scheduled_reads_render_settings()` (priority 30), each carry one
@@ -56,34 +60,60 @@ if ( ! defined( 'SNT_CRON_ARGS_CELL_MAX' ) ) {
 }
 
 /**
- * The Run-now state for one row: classic's three mutually exclusive button
- * states (disabled/no-handler, disabled/sn-internal, enabled), as a status
- * string instead of a click target.
+ * The Run now control for one row: the classic button's three mutually
+ * exclusive states (disabled/no-handler, disabled/sn-internal, enabled), as
+ * a kit button on the app's `cron_run` action.
  *
  * @param array $row A snt_cron_get_events_impl() row.
  * @return string
  */
-function cron_run_state( array $row ) {
+function cron_run_button( array $row ) {
+	$hook    = (string) ( $row['hook'] ?? '' );
+	$why_not = '';
 	if ( empty( $row['has_handler'] ) ) {
-		return __( 'No handler — schedule will fire to nothing', 'signal-and-noise-tools' );
+		$why_not = __( 'No handler: the schedule fires to nothing', 'signal-and-noise-tools' );
+	} elseif ( str_starts_with( $hook, 'sn_' ) ) {
+		$why_not = __( 'Not runnable here: dispatched on its own schedule', 'signal-and-noise-tools' );
 	}
-	if ( str_starts_with( (string) ( $row['hook'] ?? '' ), 'sn_' ) ) {
-		return __( 'Not runnable here — dispatched on its own schedule', 'signal-and-noise-tools' );
-	}
-	return __( 'Available', 'signal-and-noise-tools' );
+	return \snt_kit_button(
+		__( 'Run now', 'signal-and-noise-tools' ),
+		'cron_run',
+		array(
+			'args'          => array( 'hook' => $hook, 'args' => (string) wp_json_encode( is_array( $row['args'] ?? null ) ? $row['args'] : array() ) ),
+			/* translators: %s: the cron hook name. */
+			'confirm'       => sprintf( __( 'Run %s now? Its callbacks execute immediately.', 'signal-and-noise-tools' ), $hook ),
+			'confirm_title' => __( 'Run now', 'signal-and-noise-tools' ),
+			'confirm_label' => __( 'Run now', 'signal-and-noise-tools' ),
+			'disabled'      => '' !== $why_not,
+			'title'         => '' !== $why_not ? $why_not : null,
+		)
+	);
 }
 
 /**
- * The Unschedule state for one row: classic's two mutually exclusive states.
+ * The Unschedule control for one row: the classic button's two states, as a
+ * danger-confirmed kit button on the app's `cron_unschedule` action.
  *
  * @param array $row A snt_cron_get_events_impl() row.
  * @return string
  */
-function cron_unschedule_state( array $row ) {
-	if ( ! empty( $row['is_sn_owned'] ) ) {
-		return __( 'Locked — disable the owning module instead', 'signal-and-noise-tools' );
-	}
-	return __( 'Available', 'signal-and-noise-tools' );
+function cron_unschedule_button( array $row ) {
+	$hook   = (string) ( $row['hook'] ?? '' );
+	$locked = ! empty( $row['is_sn_owned'] );
+	return \snt_kit_button(
+		__( 'Unschedule', 'signal-and-noise-tools' ),
+		'cron_unschedule',
+		array(
+			'args'          => array( 'hook' => $hook, 'args' => (string) wp_json_encode( is_array( $row['args'] ?? null ) ? $row['args'] : array() ) ),
+			/* translators: %s: the cron hook name. */
+			'confirm'       => sprintf( __( 'Unschedule %s? Every pending run with these args is removed.', 'signal-and-noise-tools' ), $hook ),
+			'confirm_title' => __( 'Unschedule', 'signal-and-noise-tools' ),
+			'confirm_label' => __( 'Unschedule', 'signal-and-noise-tools' ),
+			'danger'        => true,
+			'disabled'      => $locked,
+			'title'         => $locked ? __( 'Locked: disable the owning module instead', 'signal-and-noise-tools' ) : null,
+		)
+	);
 }
 
 /**
@@ -96,10 +126,9 @@ function cron_unschedule_state( array $row ) {
  * to its minimum -- which is why the timestamps wrapped onto four lines while the
  * table scrolled sideways and the right half read as empty. It was the Args column.
  *
- * The clamp has to live here. os-table renders its cells inside a shadow root
- * exposing only `part=scroll`, so no stylesheet outside it can reach a td to set
- * overflow-wrap. The elided length is reported so a truncated value never looks
- * complete.
+ * The list row's ellipsis bounds the cell on screen; the clamp keeps the
+ * painted markup itself one line, and the elided length is reported so a
+ * truncated value never looks complete.
  *
  * @param mixed $args The event's args array.
  * @return string One line, at most SNT_CRON_ARGS_CELL_MAX chars plus a count.
@@ -121,11 +150,11 @@ function cron_args_summary( $args ) {
 }
 
 /**
- * One classic row, as an `<os-table>` row: every column the classic table
- * prints, folded into plain strings (a data-driven table takes scalar cells).
+ * One classic row, cell by cell: every column the classic table prints, the
+ * five readings as text and the two controls as painted buttons.
  *
  * @param array $row A snt_cron_get_events_impl() row.
- * @return array<string,string>
+ * @return array<string,string> hook..args plain text; run, unschedule markup.
  */
 function cron_row_data( array $row ) {
 	$tags = array();
@@ -168,37 +197,101 @@ function cron_row_data( array $row ) {
 		'recurrence' => $recurrence,
 		'last_fired' => $last,
 		'args'       => $args,
-		'run'        => cron_run_state( $row ),
-		'unschedule' => cron_unschedule_state( $row ),
+		'run'        => cron_run_button( $row ),
+		'unschedule' => cron_unschedule_button( $row ),
 	);
 }
 
 /**
- * The events table.
+ * The events ledger: one header row and one row per event, on the list
+ * vocabulary (`snt-list__label` for the flexible Hook cell, `snt-list__value`
+ * for the rest), the two controls in the last two cells.
  *
  * @param array<int,array<string,mixed>> $rows From snt_cron_get_events_impl().
  * @return string
  */
 function cron_table_html( array $rows ) {
-	$columns = array(
-		array( 'key' => 'hook', 'label' => __( 'Hook', 'signal-and-noise-tools' ), 'filter' => 'text' ),
-		array( 'key' => 'next_run', 'label' => __( 'Next run', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'recurrence', 'label' => __( 'Recurrence', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'last_fired', 'label' => __( 'Last fired', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'args', 'label' => __( 'Args', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'run', 'label' => __( 'Run now', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'unschedule', 'label' => __( 'Unschedule', 'signal-and-noise-tools' ) ),
+	$labels = array(
+		__( 'Hook', 'signal-and-noise-tools' ),
+		__( 'Next run', 'signal-and-noise-tools' ),
+		__( 'Recurrence', 'signal-and-noise-tools' ),
+		__( 'Last fired', 'signal-and-noise-tools' ),
+		__( 'Args', 'signal-and-noise-tools' ),
+		__( 'Run now', 'signal-and-noise-tools' ),
+		__( 'Unschedule', 'signal-and-noise-tools' ),
 	);
-	$table_rows = array_map(
-		static function ( $row ) {
-			return cron_row_data( (array) $row );
-		},
-		$rows
-	);
+	$head = '';
+	foreach ( $labels as $i => $label ) {
+		$head .= '<span class="' . ( 0 === $i ? 'snt-list__label' : 'snt-list__value' ) . '">' . \snt_kit_esc( $label ) . '</span>';
+	}
+	$out = '<li class="snt-list__row">' . $head . '</li>';
+	if ( array() === $rows ) {
+		$out .= '<li class="snt-list__empty">' . \snt_kit_esc( __( 'No hook matches the filter.', 'signal-and-noise-tools' ) ) . '</li>';
+	}
+	foreach ( $rows as $row ) {
+		$cells = cron_row_data( (array) $row );
+		$out  .= '<li class="snt-list__row" os-key="' . \snt_kit_esc( (string) ( $row['hook'] ?? '' ) . '|' . (string) ( $row['args_signature'] ?? '' ) ) . '">'
+			. '<span class="snt-list__label" title="' . \snt_kit_esc( $cells['hook'] ) . '">' . \snt_kit_esc( $cells['hook'] ) . '</span>'
+			. '<span class="snt-list__value">' . \snt_kit_esc( $cells['next_run'] ) . '</span>'
+			. '<span class="snt-list__value">' . \snt_kit_esc( $cells['recurrence'] ) . '</span>'
+			. '<span class="snt-list__value">' . \snt_kit_esc( $cells['last_fired'] ) . '</span>'
+			. '<span class="snt-list__value" title="' . \snt_kit_esc( $cells['args'] ) . '">' . \snt_kit_esc( $cells['args'] ) . '</span>'
+			. '<span class="snt-list__value">' . $cells['run'] . '</span>'
+			. '<span class="snt-list__value">' . $cells['unschedule'] . '</span>'
+			. '</li>';
+	}
 	return \snt_kit_section(
 		__( 'Scheduled events', 'signal-and-noise-tools' ),
-		\snt_kit_table( $columns, $table_rows, array( 'empty' => __( 'No scheduled events.', 'signal-and-noise-tools' ) ) ),
+		'<div class="snt-ledger"><ul class="snt-list snt-list--ledger">' . $out . '</ul></div>',
 		__( 'Scheduled cron events with next run time, recurrence, last-fired timestamp, arguments, and per-event actions.', 'signal-and-noise-tools' )
+	);
+}
+
+/**
+ * The classic `#sn-cron-filter` input (inc/cron-dashboard-admin.php): a
+ * search field bound to the app's `filter` state key, so a keystroke is the
+ * framework's built-in `set` (App Framework, Experimental at OpenStation
+ * 1.1.10: `os-bind` writes the declared key, then repaints) and the painter
+ * filters below. `clearable` is the search box's own clear button.
+ *
+ * @param string $filter The current filter text.
+ * @return string
+ */
+function cron_filter_html( $filter ) {
+	return '<div class="snt-ledger__filter">' . \snt_kit_tag(
+		'os-text-field',
+		array(
+			'type'        => 'search',
+			'label'       => __( 'Filter cron events by hook name', 'signal-and-noise-tools' ),
+			'hide-label'  => true,
+			'placeholder' => __( 'Filter by hook name', 'signal-and-noise-tools' ),
+			'value'       => (string) $filter,
+			'clearable'   => true,
+			'os-bind'     => 'filter',
+		)
+	) . '</div>';
+}
+
+/**
+ * The rows whose hook contains the filter, case-insensitively: the classic
+ * keystroke handler's `hook.indexOf( needle ) === -1 ? hide : show`.
+ *
+ * @param array<int,array<string,mixed>> $rows   From snt_cron_get_events_impl().
+ * @param string                         $filter The filter text; '' keeps every row.
+ * @return array<int,array<string,mixed>>
+ */
+function cron_filter_rows( array $rows, $filter ) {
+	$needle = strtolower( trim( (string) $filter ) );
+	if ( '' === $needle ) {
+		return $rows;
+	}
+	return array_values(
+		array_filter(
+			$rows,
+			static function ( $row ) use ( $needle ) {
+				return false !== strpos( strtolower( (string) ( $row['hook'] ?? '' ) ), $needle );
+			}
+		)
 	);
 }
 
@@ -281,7 +374,8 @@ function paint_connections_cron( array $ctx ) {
 		\snt_kit_esc( _n( '%s scheduled event. Signal & Noise–owned events pinned at top.', '%s scheduled events. Signal & Noise–owned events pinned at top.', $count, 'signal-and-noise-tools' ) ),
 		\snt_kit_esc( number_format_i18n( $count ) )
 	) . '</p>';
-	$out  .= cron_table_html( $rows );
+	$filter = isset( $ctx['state'] ) && is_object( $ctx['state'] ) ? (string) $ctx['state']->get( 'filter' ) : '';
+	$out   .= cron_filter_html( $filter ) . cron_table_html( cron_filter_rows( $rows, $filter ) );
 	return $out . $settings;
 }
 

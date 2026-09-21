@@ -51,6 +51,10 @@ namespace OpenStation\App {
 	}
 }
 namespace {
+	// The capability gate, switchable: the harness's own stub answers true
+	// forever, and a pin that cannot set it false cannot watch a guard refuse.
+	$GLOBALS['__can'] = true;
+	if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $cap ) { return (bool) $GLOBALS['__can']; } }
 	require_once __DIR__ . '/lib/os-leaf-harness.php';
 	// The host seam the app requires, stubbed to the pieces the definition touches.
 	if ( ! function_exists( 'snt_os_host_resolve_sub' ) ) { function snt_os_host_resolve_sub( $tab, $sub ) { return (string) $sub; } }
@@ -87,8 +91,8 @@ namespace {
 
 	echo "Group 1: the window\n";
 	ok( 'sn-dashboard' === $app->id && 'S&N Home' === $app->title && 'dashicons-shield-alt' === $app->icon && 'dock' === $app->placement, 'the stable id keeps placement while the native surface is named S&N Home' );
-	ok( array( 'sub', 'anchor', 'flash', 'notice', 'params', 'post' ) === array_keys( $app->state ), 'state has NO tab: the tab is the session (the framework`s), only the leaf, the anchor and the last write are state' );
-	ok( array( 'go', 'post', 'door', 'refresh', 'reopen', 'poll' ) === array_keys( $app->actions ), 'six actions: go, post, door, refresh, reopen, poll' );
+	ok( array( 'sub', 'anchor', 'flash', 'notice', 'params', 'post', 'filter' ) === array_keys( $app->state ) && '' === $app->state['filter'], 'state has NO tab: the tab is the session (the framework`s), only the leaf, the anchor, the last write and a leaf`s text filter (#1604, written by os-bind through the built-in set) are state' );
+	ok( array( 'go', 'post', 'door', 'refresh', 'reopen', 'poll', 'cron_run', 'cron_unschedule' ) === array_keys( $app->actions ), 'eight actions: go, post, door, refresh, reopen, poll, cron_run, cron_unschedule (#1604)' );
 	$tabs = array();
 	foreach ( sn_admin_top_tabs() as $t ) { if ( 'dashboard' !== $t['tab'] ) { $tabs[ $t['tab'] ] = $t['label']; } }
 	ok( array_keys( $tabs ) === array_keys( $app->tabs ) && array_values( $tabs ) === array_column( $app->tabs, 'label' ), 'the framework`s tabs are the registry`s seven tabs after Dashboard, in order, with the registry`s labels: ' . implode( ', ', array_keys( $app->tabs ) ) );
@@ -136,9 +140,10 @@ namespace {
 
 	echo "\nGroup 3: the actions on a tab session\n";
 	$os = new \OpenStation\App\Os(); $os->view = 'site';
-	$st = new \OpenStation\App\State( $app->state );
+	$st = new \OpenStation\App\State( $app->state, array( 'filter' => 'sweep' ) );
 	$app->actions['go']( $st, $os, array( 'sub' => 'redirects', 'anchor' => 'sn-sec-x', 'sn_page' => '2' ) );
 	ok( 'redirects' === $st->get( 'sub' ) && 'sn-sec-x' === $st->get( 'anchor' ) && array( 'sn_page' => '2' ) === $st->get( 'params' ) && null === $st->get( 'notice' ), 'go sets the leaf, the anchor and the sn_* params on this tab`s session and drops the notice' );
+	ok( '' === $st->get( 'filter' ), 'go clears the leaf filter: a filter typed on one leaf never hides rows on the next (#1604)' );
 	$app->actions['post']( $st, $os, array( 'action' => 'purge_caches', 'nonce' => 'n1' ) );
 	$replay = end( $GLOBALS['__replays'] );
 	ok( array( 'sn_action' => 'purge_caches', '_wpnonce' => 'n1' ) === $replay['values'] && 'site' === $replay['get']['tab'] && 'redirects' === $replay['get']['sub'], 'a one-click write replays through the shared pipeline with THIS tab and leaf as the page query' );
@@ -176,6 +181,69 @@ namespace {
 	ok( '<span os-action="poll" os-poll="30000" hidden></span>' === snt_kit_poll(), 'snt_kit_poll() paints the hidden poll trigger on the poll action at 30 s' );
 	ok( '<span os-action="poll" os-poll="250" hidden></span>' === snt_kit_poll( 'poll', 10 ), '...and floors the interval at the runtime\'s 250 ms, below which readPolls() drops the element' );
 	ok( false !== strpos( $src_kit, 'Experimental' ) && false !== strpos( $src_kit, 'readPolls()' ), 'the helper names the seam\'s status and the runtime function that reads it' );
+
+	echo "\nGroup 3c: the Cron leaf's controls run the registered abilities (#1604)\n";
+	// The real inc/abilities-cron.php registers through wp_register_ability();
+	// the harness's add_action() records the init callback, fired here. The
+	// abilities' execute callbacks are the real ones, so the SN-owned refusal
+	// the toast carries is the ability's own sentence, which proves the handler
+	// routes through wp_get_ability() and never do_action()s the hook itself.
+	if ( ! class_exists( 'WP_Error' ) ) {
+		class WP_Error { public $code; public $message; public $data;
+			public function __construct( $c = '', $m = '', $d = array() ) { $this->code = $c; $this->message = $m; $this->data = $d; }
+			public function get_error_code() { return $this->code; }
+			public function get_error_message() { return $this->message; }
+		}
+	}
+	if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $v ) { return $v instanceof WP_Error; } }
+	$GLOBALS['__ab'] = array();
+	if ( ! function_exists( 'wp_register_ability' ) ) { function wp_register_ability( $slug, $args ) { $GLOBALS['__ab'][ $slug ] = $args; return true; } }
+	if ( ! function_exists( 'snt_cron_is_sn_owned' ) ) { function snt_cron_is_sn_owned( $h ) { return 0 === strpos( (string) $h, 'sn_' ); } }
+	$GLOBALS['__ran'] = array(); $GLOBALS['__cleared'] = array();
+	if ( ! function_exists( 'snt_cron_run_event_impl' ) ) { function snt_cron_run_event_impl( $hook, $args ) { $GLOBALS['__ran'][] = array( $hook, $args ); return array( 'success' => true, 'elapsed_ms' => 1.0 ); } }
+	if ( ! function_exists( 'snt_cron_unschedule_event_impl' ) ) { function snt_cron_unschedule_event_impl( $hook, $args ) { $GLOBALS['__cleared'][] = array( $hook, $args ); return array( 'success' => true, 'hook' => $hook, 'args' => $args, 'cleared' => 2 ); } }
+	require_once SNT_PATH . 'inc/abilities-permission-helpers.php';
+	require_once SNT_PATH . 'inc/abilities-cron.php';
+	foreach ( (array) ( $GLOBALS['__actions']['wp_abilities_api_init'] ?? array() ) as $cb ) { $cb(); }
+	$GLOBALS['__perm_asked'] = 0;
+	class SNT_Test_Ability {
+		private $a;
+		public function __construct( array $a ) { $this->a = $a; }
+		public function check_permissions( $in ) { $GLOBALS['__perm_asked']++; return call_user_func( $this->a['permission_callback'], $in ); }
+		public function execute( $in ) { return call_user_func( $this->a['execute_callback'], $in ); }
+	}
+	$GLOBALS['__got'] = array();
+	if ( ! function_exists( 'wp_get_ability' ) ) { function wp_get_ability( $slug ) { $GLOBALS['__got'][] = $slug; return isset( $GLOBALS['__ab'][ $slug ] ) ? new SNT_Test_Ability( $GLOBALS['__ab'][ $slug ] ) : null; } }
+	ok( isset( $GLOBALS['__ab']['signal-noise/run-cron-event'], $GLOBALS['__ab']['signal-noise/unschedule-cron-event'] ), 'VACUITY: both cron abilities registered through the real file' );
+	// Guarded as Group 3b is: a missing action reads as red pins, not a dead suite.
+	$has_cron = isset( $app->actions['cron_run'], $app->actions['cron_unschedule'] );
+	$os5 = new \OpenStation\App\Os(); $os5->view = 'connections';
+	$st5 = new \OpenStation\App\State( $app->state, array( 'sub' => 'cron', 'params' => array( 'sn_watch' => '1' ), 'flash' => 'keep', 'notice' => array( 'success', 'Saved' ) ) );
+	$before5 = $st5->all();
+	if ( $has_cron ) { $app->actions['cron_run']( $st5, $os5, array( 'hook' => 'sn_cache_sweep', 'args' => '[]' ) ); }
+	ok( $has_cron && array( 'signal-noise/run-cron-event' ) === $GLOBALS['__got'] && array() === $GLOBALS['__ran'], 'cron_run resolves the registered run-cron-event ability, and an SN-owned hook never reaches the impl' );
+	ok( $has_cron && 1 === count( $os5->toasts ) && false !== strpos( (string) end( $os5->toasts ), 'SN-owned hooks are not dispatchable via this ability' ), 'the toast is the ability`s own SN-owned refusal, in its words: ' . json_encode( $os5->toasts ) );
+	if ( $has_cron ) { $app->actions['cron_run']( $st5, $os5, array( 'hook' => 'other_plugin_cron', 'args' => '{"foo":"bar"}' ) ); }
+	ok( $has_cron && array( array( 'other_plugin_cron', array( 'foo' => 'bar' ) ) ) === $GLOBALS['__ran'] && 'Dispatched other_plugin_cron.' === end( $os5->toasts ), 'a foreign hook runs through the impl with its os-arg-args JSON decoded back to the scheduled signature, and the toast says so' );
+	if ( $has_cron ) { $app->actions['cron_unschedule']( $st5, $os5, array( 'hook' => 'some_orphan_hook', 'args' => '{"foo":"bar"}' ) ); }
+	ok( $has_cron && array( array( 'some_orphan_hook', array( 'foo' => 'bar' ) ) ) === $GLOBALS['__cleared'] && 'Unscheduled 2 events on some_orphan_hook.' === end( $os5->toasts ), 'cron_unschedule clears through the impl with the row`s args and toasts the count' );
+	ok( $has_cron && array( 'signal-noise/run-cron-event', 'signal-noise/run-cron-event', 'signal-noise/unschedule-cron-event' ) === $GLOBALS['__got'], 'each press resolves its own registered ability, never do_action() on the hook' );
+	ok( $has_cron && $before5 === $st5->all(), 'neither control touches state: sub, params (sn_watch), flash and notice survive, so a poll tick between presses changes nothing' );
+	if ( $has_cron ) { $app->actions['cron_run']( $st5, $os5, array( 'hook' => '' ) ); }
+	ok( $has_cron && 'Missing or empty hook name.' === end( $os5->toasts ) && 1 === count( $GLOBALS['__ran'] ), 'an empty hook is refused by the ability`s own validation, in its words, and nothing runs' );
+	// The two gates, each watched failing. check_permissions() is asked once
+	// per resolved ability (four dispatches above, four asks); a dispatch by an
+	// account without manage_options is refused by may_manage() before any
+	// ability is resolved, so the resolved list and the impl log stay as they
+	// were. Deleting either guard in the app file turns one of these red.
+	ok( $has_cron && 4 === $GLOBALS['__perm_asked'] && 4 === count( $GLOBALS['__got'] ), 'every resolved ability was asked check_permissions() once, not trusted from the menu (' . $GLOBALS['__perm_asked'] . ' asks for ' . count( $GLOBALS['__got'] ) . ' resolutions)' );
+	$GLOBALS['__can'] = false;
+	$got_before = $GLOBALS['__got']; $ran_before = $GLOBALS['__ran']; $cleared_before = $GLOBALS['__cleared'];
+	if ( $has_cron ) { $app->actions['cron_run']( $st5, $os5, array( 'hook' => 'other_plugin_cron', 'args' => '[]' ) ); }
+	if ( $has_cron ) { $app->actions['cron_unschedule']( $st5, $os5, array( 'hook' => 'some_orphan_hook', 'args' => '[]' ) ); }
+	$GLOBALS['__can'] = true;
+	ok( $has_cron && 'Nothing was saved: this account cannot manage options.' === end( $os5->toasts ) && 'Nothing was saved: this account cannot manage options.' === $os5->toasts[ count( $os5->toasts ) - 2 ], 'an account without manage_options is refused on both controls with the capability sentence' );
+	ok( $has_cron && $got_before === $GLOBALS['__got'] && $ran_before === $GLOBALS['__ran'] && $cleared_before === $GLOBALS['__cleared'] && 4 === $GLOBALS['__perm_asked'], '...before any ability is resolved: may_manage() closes first, so nothing was looked up, asked or run' );
 
 	echo "\nGroup 4: PORT COMPLETE -- every leaf has a kit painter\n";
 	foreach ( (array) glob( SNT_PATH . 'apps/sn-dashboard/parts/leaves/*.php' ) as $leaf_file ) { require_once $leaf_file; }

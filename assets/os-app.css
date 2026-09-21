@@ -130,6 +130,58 @@ a.snt-link:hover { text-decoration: underline; }
 	color: var( --os-ui-fg-muted, #b3afb5 );
 }
 
+/* #1604: a ledger is a list whose rows share COLUMNS. A plain
+   .snt-list__row is a content-sized flex row, so a seven-cell header and a
+   seven-cell data row never line up: "Recurrence" and "hourly (1 hour)" are
+   different widths and the fifth cell of each row lands at a different x.
+   The ledger list is the grid that owns the tracks; every row is a subgrid
+   of it, so each cell sits in the column its header names. The hook column
+   flexes, the four readings share the rest, the two controls take their own
+   width. Under 52em the wrapper scrolls sideways, the classic
+   .snt-scroll-table's answer. */
+.snt-ledger {
+	overflow-x: auto;
+}
+
+.snt-ledger__filter {
+	max-width: 24em;
+	margin: 0 0 8px;
+}
+
+.snt-list--ledger {
+	display: grid;
+	grid-template-columns: minmax( 8em, 2fr ) repeat( 4, minmax( 4em, 1fr ) ) max-content max-content;
+	min-width: 52em;
+}
+
+.snt-list--ledger .snt-list__row {
+	display: grid;
+	grid-template-columns: subgrid;
+	grid-column: 1 / -1;
+}
+
+.snt-list--ledger .snt-list__row:first-child {
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+.snt-list--ledger .snt-list__row:first-child .snt-list__value {
+	font-family: var( --os-ui-font, system-ui, sans-serif );
+}
+
+.snt-list--ledger .snt-list__label,
+.snt-list--ledger .snt-list__value {
+	min-width: 0;
+	max-width: none;
+	text-align: left;
+}
+
+.snt-list--ledger .snt-list__empty {
+	grid-column: 1 / -1;
+}
+
 .snt-dot {
 	flex: 0 0 auto;
 	width: 7px;
