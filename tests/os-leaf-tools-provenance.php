@@ -10,9 +10,11 @@
  * leaf whose real readers (sn_prov_get_chain(), sn_prov_worker_url(), …) live
  * three files deep and are out of scope to drag in whole.
  *
- * The five forms here post to admin-post.php with a literal `action` field
- * (not the shared `sn_action` table), so this suite pins field names via its
- * own `prov_names()`/`prov_actions()` rather than the harness's
+ * The five writes here post to admin-post.php with a literal `action` field
+ * (not the shared `sn_action` table): classic as a hidden input, the kit as
+ * a one-click `<os-button os-arg-action os-arg-nonce
+ * os-arg-pipeline="admin-post">` (#1614). So this suite pins actions via its
+ * own `prov_actions()` on both sides rather than the harness's
  * `snt_leaf_actions()` (which only recognises `sn_action` / `os-arg-action`).
  *
  * Run: php tests/os-leaf-tools-provenance.php
@@ -103,14 +105,6 @@ require SNT_PATH . 'apps/sn-dashboard/parts/leaves/tools-provenance.php';
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
-/** Every literal name="…" attribute in a markup blob, sorted+unique. */
-function prov_names( $html ) {
-	preg_match_all( '/\sname=(["\'])([^"\']+)\1/', (string) $html, $m );
-	$names = array_values( array_unique( $m[2] ) );
-	sort( $names );
-	return $names;
-}
-
 /** Every admin-post `action` value: classic name="action", kit os-arg-action. */
 function prov_actions( $html ) {
 	preg_match_all( '/name=(["\'])action\1[^>]*value=(["\'])([^"\']+)\2|value=(["\'])([^"\']+)\4[^>]*name=(["\'])action\6|os-arg-action=(["\'])([^"\']+)\7/', (string) $html, $m );
@@ -134,10 +128,17 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_provenance_section' );
 $kit     = prov_paint();
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok(
-	prov_names( $classic ) === prov_names( $kit ),
-	'hidden field names match the classic forms: ' . implode( ',', prov_names( $kit ) ) . ' (classic: ' . implode( ',', prov_names( $classic ) ) . ')'
-);
+// #1614: a one-click write is a button, not an os-form with its header and
+// fields hidden by CSS; each carries its handler's OWN nonce, never the
+// shared one, and declares the admin-post pipeline on the button itself.
+ok( false === strpos( $kit, '<os-form' ), 'no os-form on the leaf: every write is a one-click button' );
+ok( 3 === substr_count( $kit, '<os-button' ) && 3 === substr_count( $kit, 'os-action="post"' ), 'baseline: three post buttons, one per write' );
+foreach ( array( 'sn_prov_reanchor', 'sn_prov_runsweep', 'sn_prov_stage_key' ) as $a ) {
+	ok( 1 === preg_match( '/<os-button[^>]*os-action="post"[^>]*os-arg-action="' . $a . '"[^>]*os-arg-nonce="nonce-' . $a . '"[^>]*os-arg-pipeline="admin-post"/', $kit ), $a . ' is a post button carrying its own nonce and the admin-post pipeline' );
+}
+ok( false === strpos( $kit, 'nonce-sn_theme_options_nonce' ) && false === strpos( $kit, 'name="_wpnonce"' ), 'the shared nonce is nowhere on the leaf, and no hidden input carries any nonce' );
+$css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
+ok( false === strpos( $css, 'snt-provenance-action' ), 'the CSS that hid the os-form chrome is gone' );
 ok(
 	array( 'sn_prov_reanchor', 'sn_prov_runsweep', 'sn_prov_stage_key' ) === prov_actions( $kit )
 	&& prov_actions( $classic ) === prov_actions( $kit ),
@@ -189,10 +190,8 @@ $GLOBALS['__prov_chains'][103] = array();
 $classic = snt_leaf_classic_html( 'sn_admin_render_provenance_section' );
 $kit     = prov_paint();
 
-ok(
-	prov_names( $classic ) === prov_names( $kit ),
-	'rich fixture: hidden field names still match: ' . implode( ',', prov_names( $kit ) ) . ' (classic: ' . implode( ',', prov_names( $classic ) ) . ')'
-);
+ok( false === strpos( $kit, '<os-form' ) && 3 === substr_count( $kit, 'os-arg-pipeline="admin-post"' ), 'rich fixture: still no os-form, three admin-post buttons' );
+ok( false !== strpos( $kit, 'os-arg-action="sn_prov_rotate_key" os-arg-nonce="nonce-sn_prov_rotate_key"' ), 'rich fixture: the rotate button carries the rotate handler`s own nonce' );
 ok(
 	array( 'sn_prov_chain_backfill', 'sn_prov_rotate_key', 'sn_prov_runsweep' ) === prov_actions( $kit ),
 	'rich fixture: backfill + rotate-key actions appear alongside runsweep: ' . implode( ',', prov_actions( $kit ) )

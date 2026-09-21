@@ -179,7 +179,8 @@ function current_tab( Os $os ) {
 /**
  * What a write submitted: an `<os-form>`'s collected values, or a one-click
  * button's `action` + `nonce` arguments as the two fields the classic form
- * would have carried.
+ * would have carried (`action` when the button declares the admin-post
+ * pipeline, `sn_action` otherwise).
  *
  * @param array<string,mixed> $args Dispatch arguments.
  * @return array<string,mixed>
@@ -189,7 +190,11 @@ function posted_values( array $args ) {
 		return $args['values'];
 	}
 	if ( isset( $args['action'] ) && is_scalar( $args['action'] ) ) {
-		$values = array( 'sn_action' => (string) $args['action'] );
+		// The admin-post pipeline routes on a field literally named `action`
+		// (inc/openstation-host-pipelines.php, snt_os_host_pipeline_for()),
+		// the shared table on `sn_action` (#1614).
+		$field  = ( isset( $args['pipeline'] ) && 'admin-post' === $args['pipeline'] ) ? 'action' : 'sn_action';
+		$values = array( $field => (string) $args['action'] );
 		if ( isset( $args['nonce'] ) && is_scalar( $args['nonce'] ) ) {
 			$values['_wpnonce'] = (string) $args['nonce'];
 		}

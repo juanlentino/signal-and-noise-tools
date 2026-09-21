@@ -132,6 +132,7 @@ namespace {
 		'S&N Home has an orientation hook and its mobile PWA form and safe-area foundation' );
 	ok( array( 'sn_action' => 'full_reset', '_wpnonce' => 'n1' ) === \SignalNoise\OpenStationHost\Dashboard\posted_values( array( 'action' => 'full_reset', 'nonce' => 'n1' ) ), 'a one-click button`s action + nonce become the two fields the classic form carried' );
 	ok( array( 'sn_action' => 'x', 'login_slug' => 'y' ) === \SignalNoise\OpenStationHost\Dashboard\posted_values( array( 'values' => array( 'sn_action' => 'x', 'login_slug' => 'y' ) ) ), 'an os-form`s values pass through' );
+	ok( array( 'action' => 'sn_prov_runsweep', '_wpnonce' => 'n' ) === \SignalNoise\OpenStationHost\Dashboard\posted_values( array( 'action' => 'sn_prov_runsweep', 'nonce' => 'n', 'pipeline' => 'admin-post' ) ), '#1614: a button that declares the admin-post pipeline names its field `action`, the name the host`s admin-post routing reads' );
 
 	echo "\nGroup 3: the actions on a tab session\n";
 	$os = new \OpenStation\App\Os(); $os->view = 'site';
