@@ -155,31 +155,37 @@ $admin = is_file( $admin_path ) ? (string) file_get_contents( $admin_path ) : ''
 ok( strlen( $host ) > 1000, 'VACUITY: os-host.js has content (' . strlen( $host ) . ' bytes) — every pin below is a substring search and an empty file would fail them all loudly, not pass quietly' );
 ok( strlen( $admin ) > 1000, 'VACUITY: admin.js has content (' . strlen( $admin ) . ' bytes)' );
 
-echo "\nGroup 1: os-host.js hosts BOTH windows, now and later\n";
+echo "\nGroup 1: os-host.js is TOLD about a paint by the runtime; it discovers nothing (#1609)\n";
+// The runtime re-dispatches every effect type it does not perform itself as
+// an `os-app-effect` CustomEvent on the app root, after the morph and
+// finishRender() (openstation src/app-runtime/session.ts performEffect(),
+// default branch; docs/app-framework.md "Effects"; Experimental, v1.1.6+).
+// Each view queues `snt-paint`, so the host listens once on the document
+// and never infers a paint from mutations. Comments are stripped first: a
+// prose mention of the old design must not read as the code still having it.
+$host_code = snt_js_code( $host );
+$kit_path  = __DIR__ . '/../assets/os-kit.js';
+$kit       = is_file( $kit_path ) ? (string) file_get_contents( $kit_path ) : '';
+ok( strlen( $kit ) > 1000, 'VACUITY: os-kit.js has content (' . strlen( $kit ) . ' bytes)' );
 ok( false !== strpos( $host, '.snt-app[data-os-app="sn-dashboard"]' ), 'it selects the sn-dashboard app root by the framework\'s own template attributes' );
-ok( false !== strpos( $host, '.snt-app[data-os-app="sn-analytics"]' ), 'it selects the sn-analytics app root too — one host script, two windows' );
+ok( false !== strpos( $host, '.snt-app[data-os-app="sn-analytics"]' ), 'it selects the sn-analytics app root too, one host script, two windows' );
 $start = snt_region( $host, 'function start(' );
-ok( '' !== $start && false !== strpos( $start, 'scan( document.body )' ), 'VACUITY+PIN: start() is extracted and scans the body that is already there' );
-ok( snt_has_all( $start, array( 'MutationObserver', 'document.body', 'addedNodes', 'childList' ) ), 'start() observes document.body for ADDED nodes, so a window opened later is hosted (a window almost always opens after this file loads)' );
-// 15.9.0: the runtime inserts a bare <div> and sets class="snt-app" and
-// data-os-app AFTERWARDS by attribute morph (measured live 2026-09-17: 13
-// analytics roots, zero paints, the Caches tile stuck on "Checking…"). An
-// addedNodes-only watch never sees a root; the observer must also take the
-// two attributes and re-scan their target.
-ok( snt_has_all( $start, array( "'attributes' === records[ i ].type", 'scan( records[ i ].target )', "attributeFilter: [ 'class', 'data-os-app' ]" ) ), 'start() also re-scans a node that EARNS its root identity by attribute (class / data-os-app set after insertion)' );
-ok( false !== strpos( $host, 'document.readyState' ) && false !== strpos( $host, 'DOMContentLoaded' ), 'it waits for a body when the document is still loading' );
-$scan = snt_region( $host, 'function scan(' );
-ok( '' !== $scan && snt_has_all( $scan, array( 'node.matches( ROOT_SELECTOR )', 'node.querySelectorAll( ROOT_SELECTOR )' ) ), 'scan() hosts a root that IS the added node and roots INSIDE it — the shell may add either' );
-$host_fn = snt_region( $host, 'function host(' );
-ok( '' !== $host_fn && snt_has_all( $host_fn, array( 'hosted.has( root )', 'hosted.add( root )' ) ), 'a root is given exactly one observer, however many times it is scanned' );
-ok( snt_has_all( $host_fn, array( 'MutationObserver', 'subtree: true', 'schedule( root )' ) ), 'each root gets a SUBTREE observer, and the paint already on screen is passed over immediately' );
+ok( '' !== $start && false !== strpos( $start, "document.addEventListener( 'os-app-effect', onEffect )" ), 'VACUITY+PIN: start() is extracted and listens for the runtime\'s os-app-effect on the document, once for every window open now or later' );
+ok( false === strpos( $host_code, 'MutationObserver' ), 'os-host.js constructs NO MutationObserver: the root is named by the event, never discovered, so the 15.9.0 class of miss (a root that earns its class by attribute morph) cannot recur' );
+ok( false === strpos( snt_js_code( $kit ), 'MutationObserver' ), 'os-kit.js constructs NO MutationObserver either: its anchor watch (an addedNodes-only scroll with behavior smooth) is gone, so one save scrolls once' );
+ok( false === strpos( $kit, 'scrollToAnchor' ) && false === strpos( $kit, "behavior: 'smooth'" ), 'os-kit.js no longer scrolls: the anchor is the host script\'s, off the effect' );
+ok( false === strpos( $host_code, 'function host(' ) && false === strpos( $host_code, 'function scan(' ), 'host() and scan() are gone with the observers they fed' );
+$effect_fn = snt_region( $host, 'function onEffect(' );
+ok( '' !== $effect_fn && false !== strpos( $effect_fn, "'snt-paint' !== effect.type" ), 'VACUITY+PIN: onEffect() is extracted and answers only the snt-paint effect type; any other os-app-effect is another app\'s' );
+ok( snt_has_all( $effect_fn, array( 'target.matches( ROOT_SELECTOR )', 'target.querySelector( ROOT_SELECTOR )', "schedule( root, String( effect.anchor || '' ) )" ) ), 'it finds the .snt-app frame at or under the event target (the runtime fires on its own container) and SCHEDULES the pass with the effect\'s anchor: a listener that reads the anchor and never calls schedule() leaves every leaf script dead in both windows' );
 
-echo "\nGroup 2: one pass per paint — a frame, or a timer for a document nobody is painting\n";
+echo "\nGroup 2: one pass per effect, on a frame or a timer for a document nobody is painting\n";
 $schedule = snt_region( $host, 'function schedule(' );
-ok( '' !== $schedule && false !== strpos( $schedule, 'if ( pending.has( root ) ) {' ), 'VACUITY+PIN: schedule() is extracted and RETURNS EARLY when a pass is already scheduled — the closure\'s own re-check further down is the loser\'s disarm, not the coalescing latch, so this names the early return itself' );
+ok( '' !== $schedule && false !== strpos( $schedule, 'if ( pending.has( root ) ) {' ), 'VACUITY+PIN: schedule() is extracted and RETURNS EARLY when a pass is already scheduled, so two effects landing in one frame buy one pass' );
 ok( false !== strpos( $schedule, 'requestAnimationFrame' ), 'a frame runs the pass' );
-ok( false !== strpos( $schedule, 'setTimeout' ), 'AND a timer does — a hidden document is never painted and never fires a frame, so a frame-only debounce would leave the window dead until it was looked at' );
+ok( false !== strpos( $schedule, 'setTimeout' ), 'AND a timer does, since a hidden document is never painted and never fires a frame; a frame-only deferral would leave the window dead until it was looked at' );
 ok( false !== strpos( $schedule, 'pending.delete( root )' ), 'whichever fires first clears the latch, so the loser is a no-op instead of a second pass' );
+ok( snt_has_all( $schedule, array( 'anchors.set( root, anchor )', 'anchors.get( root )', 'anchors.delete( root )' ) ), 'the anchor rides a WeakMap from the effect to its pass, and the latest effect wins' );
 
 echo "\nGroup 3: the three things a pass does, in the order that works\n";
 $pass_fn = snt_region( $host, 'function pass(' );
@@ -204,13 +210,15 @@ $i_mark = strpos( $scripts_fn, "old.setAttribute( 'data-snt-ran', '1' )" );
 $i_swap = strpos( $scripts_fn, 'replaceChild( fresh, old )' );
 ok( false !== $i_mark && false !== $i_swap && $i_mark < $i_swap, 'the mark is written BEFORE the swap' );
 
-echo "\nGroup 5: the post-save anchor, scrolled once\n";
+echo "\nGroup 5: the post-save anchor, from the effect, not an attribute\n";
 $anchor_fn = snt_region( $host, 'function scrollToAnchor(' );
 ok( '' !== $anchor_fn, 'VACUITY: scrollToAnchor() is extracted' );
-ok( false !== strpos( $anchor_fn, "hasAttribute( 'data-snt-anchor' )" ) && false !== strpos( $anchor_fn, 'querySelector( \'[data-snt-anchor]\' )' ), 'the attribute is read from the app root OR from the view\'s own outermost element' );
-ok( false !== strpos( $anchor_fn, 'target.scrollIntoView(' ), 'it scrolls to the element with that id — the CALL, not just the capability check beside it' );
-ok( false !== strpos( $anchor_fn, "removeAttribute( 'data-snt-anchor' )" ), 'and removes the attribute, so it scrolls ONCE and not on every later paint' );
+ok( false !== strpos( $host, 'function scrollToAnchor( root, anchor )' ), 'the id arrives as an argument, read off the snt-paint effect' );
+ok( false === strpos( $host_code, 'data-snt-anchor' ), 'os-host.js never reads or writes data-snt-anchor: the views stopped painting it, so there is no attribute for the next morph to restore and scroll on again' );
+ok( false !== strpos( $anchor_fn, 'target.scrollIntoView(' ), 'it scrolls to the element with that id, the CALL, not just the capability check beside it' );
 ok( false !== strpos( $host, 'function byId(' ) && false === strpos( $host, 'document.getElementById' ), 'the id is resolved INSIDE the root: getElementById would search the desktop, which holds every other open window' );
+$pass_fn = snt_region( $host, 'function pass(' );
+ok( false !== strpos( $pass_fn, 'scrollToAnchor( root, anchor )' ), 'pass() hands the effect\'s anchor to the scroll' );
 
 echo "\nGroup 6: what the host script must never do\n";
 ok( false === strpos( $host, 'location.reload' ), 'no location.reload — a window repaints through the framework\'s dispatch, and a reload would take the whole desktop down with it' );

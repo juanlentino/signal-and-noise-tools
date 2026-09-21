@@ -103,6 +103,25 @@ function notice_html( $notice ) {
 }
 
 /**
+ * Tell the host script this paint landed, and where to scroll.
+ *
+ * `$os->effects->add()` queues a custom effect the runtime re-dispatches on
+ * the app root as an `os-app-effect` CustomEvent after the morph (OpenStation
+ * App Framework, Experimental, v1.1.6+; docs/app-framework.md "Effects").
+ * assets/os-host.js listens for `snt-paint` there; the method_exists guard
+ * names that seam.
+ *
+ * @param Os     $os     Host handle.
+ * @param string $anchor Element id to land on, or ''.
+ * @return void
+ */
+function paint_effect( Os $os, $anchor ) {
+	if ( isset( $os->effects ) && method_exists( $os->effects, 'add' ) ) {
+		$os->effects->add( 'snt-paint', array( 'anchor' => $anchor ) );
+	}
+}
+
+/**
  * A tab's view callable.
  *
  * @param string $tab Top-tab slug.
@@ -112,8 +131,12 @@ function tab_view( $tab ) {
 	return static function ( State $state, Os $os ) use ( $tab ) {
 		$sub    = active_sub( $tab, $state );
 		$leaves = leaves_for( $tab );
-		$anchor = (string) $state->get( 'anchor' );
-		echo '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="' . \snt_kit_esc( $tab ) . '" data-snt-layout="dashboard"' . ( '' !== $anchor ? ' data-snt-anchor="' . \snt_kit_esc( $anchor ) . '"' : '' ) . '>';
+		paint_effect( $os, (string) $state->get( 'anchor' ) );
+		// The anchor rides this one paint and no later one: the runtime echoes
+		// state after render, so clearing it here keeps a Refresh or an inline
+		// post from scrolling to the same section again.
+		$state->set( 'anchor', '' );
+		echo '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="' . \snt_kit_esc( $tab ) . '" data-snt-layout="dashboard">';
 		// 17.4.3: the leaf bar is the native list toolbar's status control
 		// (segmented on a desk, a select on a phone), bound to `sub`, not an
 		// os-tabs strip: see snt_kit_tabs().

@@ -1,16 +1,15 @@
 /**
  * Signal & Noise Tools — companion of the native windows (v13.106.0).
  *
- * Two things a server view cannot do for itself:
- *
- * 1. A link to a leaf on ANOTHER tab. The window's tabs are the framework's
- *    (each a separate session), and a server action cannot switch them, so a
- *    painter marks such a link `.snt-go[data-snt-tab]`; this script activates
- *    the tab through the shell (`Window.activateTab()`) and dispatches `go`
- *    with the leaf on that tab's session (`wp.os.apps.dispatch(id, 'go',
- *    args, view)`), so the strip, the session and the paint agree.
- * 2. Scrolling to the anchor a write asked for (`data-snt-anchor` on the
- *    painted root), once the morph has landed.
+ * One thing a server view cannot do for itself: a link to a leaf on ANOTHER
+ * tab. The window's tabs are the framework's (each a separate session), and a
+ * server action cannot switch them, so a painter marks such a link
+ * `.snt-go[data-snt-tab]`; this script activates the tab through the shell
+ * (`Window.activateTab()`) and dispatches `go` with the leaf on that tab's
+ * session (`wp.os.apps.dispatch(id, 'go', args, view)`), so the strip, the
+ * session and the paint agree. The button's `data-snt-anchor` is a dispatch
+ * argument; the scroll it asks for is assets/os-host.js's, off the runtime's
+ * `snt-paint` effect (#1609).
  *
  * Bound by event delegation on the document, so it survives every morph and
  * never marks the markup (the runtime strips attributes the server did not
@@ -125,17 +124,6 @@
 		link.click();
 	} );
 
-	function scrollToAnchor( root ) {
-		var id = root.getAttribute( 'data-snt-anchor' );
-		if ( ! id ) {
-			return;
-		}
-		var el = root.querySelector( '#' + ( window.CSS && CSS.escape ? CSS.escape( id ) : id.replace( /[^a-zA-Z0-9_-]/g, '' ) ) );
-		if ( el && typeof el.scrollIntoView === 'function' ) {
-			el.scrollIntoView( { block: 'start', behavior: 'smooth' } );
-		}
-	}
-
 	/*
 	 * S&N Analytics: a tab switch carries the window (range, custom dates)
 	 * and the class into the new view's session and resets the rest -- the
@@ -173,21 +161,4 @@
 		}
 		apps.dispatch( 'sn-analytics', 'go', args, next );
 	} );
-
-	var observer = new MutationObserver( function ( records ) {
-		for ( var i = 0; i < records.length; i++ ) {
-			var added = records[ i ].addedNodes;
-			for ( var j = 0; j < added.length; j++ ) {
-				var node = added[ j ];
-				if ( node.nodeType !== 1 ) {
-					continue;
-				}
-				var root = node.matches && node.matches( '.snt-app[data-snt-anchor]' ) ? node : ( node.querySelector ? node.querySelector( '.snt-app[data-snt-anchor]' ) : null );
-				if ( root ) {
-					scrollToAnchor( root );
-				}
-			}
-		}
-	} );
-	observer.observe( document.documentElement, { childList: true, subtree: true } );
 } )();
