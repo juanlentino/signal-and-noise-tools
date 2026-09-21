@@ -123,10 +123,7 @@ function search_console_credential_form_html( array $s ) {
  * @return string
  */
 function search_console_pair( $left, $right ) {
-	if ( '' === $left || '' === $right ) {
-		return $left . $right;
-	}
-	return \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $left . $right );
+	return \snt_kit_grid( array( $left, $right ) );
 }
 
 /**

@@ -102,13 +102,17 @@ function cloudflare_edge_html( array $d ) {
 	$z = is_array( $record['zone'] ) ? $record['zone'] : array();
 	if ( ! empty( $z['available'] ) ) {
 		$tt     = (array) $z['totals'];
-		$inner .= '<div class="snt-stats">'
-			. \snt_kit_stat( number_format_i18n( (int) $tt['requests'] ), __( 'Requests, 7 days', 'signal-and-noise-tools' ) )
-			. \snt_kit_stat( null === ( $tt['cache_share'] ?? null ) ? '—' : number_format_i18n( (float) $tt['cache_share'], 1 ) . '%', __( 'Served from cache', 'signal-and-noise-tools' ) )
-			. \snt_kit_stat( size_format( (int) $tt['bytes'] ), __( 'Bytes', 'signal-and-noise-tools' ) )
-			. \snt_kit_stat( number_format_i18n( (int) $tt['threats'] ), __( 'Threats', 'signal-and-noise-tools' ) )
-			. \snt_kit_stat( number_format_i18n( (int) $tt['status_5xx'] ), __( '5xx at the edge', 'signal-and-noise-tools' ), '', (int) $tt['status_5xx'] > 0 ? 'warn' : '' )
-			. '</div>';
+		$inner .= \snt_kit_grid(
+			array(
+				\snt_kit_stat( number_format_i18n( (int) $tt['requests'] ), __( 'Requests, 7 days', 'signal-and-noise-tools' ) ),
+				\snt_kit_stat( null === ( $tt['cache_share'] ?? null ) ? '—' : number_format_i18n( (float) $tt['cache_share'], 1 ) . '%', __( 'Served from cache', 'signal-and-noise-tools' ) ),
+				\snt_kit_stat( size_format( (int) $tt['bytes'] ), __( 'Bytes', 'signal-and-noise-tools' ) ),
+				\snt_kit_stat( number_format_i18n( (int) $tt['threats'] ), __( 'Threats', 'signal-and-noise-tools' ) ),
+				\snt_kit_stat( number_format_i18n( (int) $tt['status_5xx'] ), __( '5xx at the edge', 'signal-and-noise-tools' ), '', (int) $tt['status_5xx'] > 0 ? 'warn' : '' ),
+			),
+			160,
+			10
+		);
 		// 14.9.1: which 5xx. 520/522/524 are Cloudflare failing to reach or
 		// wait for the origin; 503 is the origin's own answer (Varnish).
 		$codes = (array) ( $tt['status_5xx_codes'] ?? array() );
@@ -145,12 +149,12 @@ function cloudflare_firewall_html( array $d ) {
 	// 15.3.1: two columns. Left, what happened (events by action, the rules);
 	// right, to what (paths, countries). Notes and Refresh under the left.
 	// #1573: the two are of a height (700 against 604 live), so they share
-	// one .snt-cols row; the posture stands alone at full width under it,
+	// one os-grid row; the posture stands alone at full width under it,
 	// never stacked under Acted on beside a hole. A log with no rows paints
 	// no Acted on and leaves the Firewall box alone (the tags_pair idiom).
 	$fw    = \snt_kit_section( __( 'Firewall, 24 hours', 'signal-and-noise-tools' ), $parts['actions'] . $parts['rules'] . $parts['notes'] . $parts['footer'], __( 'What Cloudflare stopped before WordPress ran.', 'signal-and-noise-tools' ) );
 	$acted = '' !== $parts['targets'] ? \snt_kit_section( __( 'Acted on', 'signal-and-noise-tools' ), $parts['targets'], __( 'The paths and countries behind the events, from the event log.', 'signal-and-noise-tools' ) ) : '';
-	return ( '' === $acted ? $fw : \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $fw . $acted ) ) . cloudflare_posture_html();
+	return \snt_kit_grid( array( $fw, $acted ) ) . cloudflare_posture_html();
 }
 
 /**

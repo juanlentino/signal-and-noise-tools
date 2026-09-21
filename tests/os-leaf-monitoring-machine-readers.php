@@ -201,8 +201,8 @@ $kit   = snt_leaf_paint( 'monitoring', 'machine-readers' );
 $drift = mr_leaf_box( $kit, 'Crawler-family drift' );
 $anoms = mr_leaf_box( $kit, 'Reader behaviour' );
 ok( '' !== $drift && '' !== $anoms, 'the drift and reader-behaviour boxes paint under their headings' );
-$row_at = strpos( $kit, '<div class="snt-cols">' );
-ok( false !== $row_at && strpos( $kit, 'heading="Sensor status"' ) < $row_at && $row_at < strpos( $kit, 'heading="Crawler-family drift"' ) && strpos( $kit, 'heading="Crawler-family drift"' ) < strpos( $kit, 'heading="Reader behaviour"' ) && strpos( $kit, 'heading="Reader behaviour"' ) < strpos( $kit, '<div class="snt-2up">' ), 'the two share one .snt-cols row between the sensor hero and the columns, drift first' );
+$row_at = strpos( $kit, snt_leaf_row() );
+ok( false !== $row_at && strpos( $kit, 'heading="Sensor status"' ) < $row_at && $row_at < strpos( $kit, 'heading="Crawler-family drift"' ) && strpos( $kit, 'heading="Crawler-family drift"' ) < strpos( $kit, 'heading="Reader behaviour"' ) && strpos( $kit, 'heading="Reader behaviour"' ) < strpos( $kit, snt_leaf_row( 2, 290, 24 ) ), 'the two share one paired row between the sensor hero and the columns, drift first' );
 ok( false !== strpos( $drift, '<os-notice tone="warning"' ) && false !== strpos( $drift, 'The family-drift check has never run' ), 'drift never run: the summary is a warning notice' );
 ok( false !== strpos( $anoms, '<os-notice tone="warning"' ) && false !== strpos( $anoms, 'did not answer (fetch_failed)' ), 'sensor unread: the reason is a warning notice, not a calm box' );
 // (b) Mirror parity failed: critical is a danger notice, not a warning.

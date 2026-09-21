@@ -16,9 +16,9 @@ expression, both of which survive a release and are what you would grep for
 anyway. `tests/openstation-compat.php` fails the build if a `file.php:NNN`
 citation reappears here.
 
-<!-- openstation-verified: v1.1.6 2026-09-04 -->
+<!-- openstation-verified: v1.1.10 2026-09-21 -->
 
-**Last verified against `v1.1.6`** (2026-09-04). The machine-readable stamp
+**Last verified against `v1.1.10`** (2026-09-21). The machine-readable stamp
 directly above is what `tests/openstation-compat.php` reads; the sentence you are
 reading must agree with it, and the test fails if they drift. Before the stamp
 existed this claim was prose only, and it sat at `v1.1.2` through three
@@ -30,6 +30,20 @@ for the instrument.
 `trunk`. Asking it whether a seam exists answers a question about unreleased
 code and will happily confirm a name that is not in the release the site runs.
 Fetch each file at `?ref=vX.Y.Z`.
+
+### What v1.1.10 changed for us: the layout floor, and here is the evidence
+
+Re-verified 2026-09-21 for #1622, which needs `<os-grid min-item-width>` (landed
+upstream in #833, absent from the `v1.1.9` tag of `src/ui/components/os-grid/os-grid.ts`).
+The name sweep below, run against a local checkout at the `v1.1.10` tag with
+the regenerated list, found every seam this plugin consumes present in
+`includes/`; the only zero rows were this plugin's own identifiers that the
+regex catches as substrings (`snt_openstation_pwa_icons`,
+`snt_openstation_pwa_manifest_icons`, `snt_openstation_apple_touch_icon_url`,
+`sn_login_request_is_openstation_shell`), and `openstation_posts_window_query_args`
+and `openstation_plugins_window_icon_url`, which live in `apps/` rather than
+`includes/` and are present there. The runtime probe (the console snippet
+under the sweep) is the owner's live step after the update.
 
 ### What v1.1.6 changed for us: nothing, and here is the evidence
 

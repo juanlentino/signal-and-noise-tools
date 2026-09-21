@@ -189,10 +189,10 @@ ok(
 );
 $readouts = array(
 	'Signal &amp; Noise', 'Notes on music &amp; provenance', 'Juan Example', 'Mixing Engineer', 'Booking Q4 mixes', "Mixing\nMastering\nProvenance", 'es_AR', '@juan', 'https://cdn.example/og.png', 'value="1600"', 'value="900"', 'Prov D',
-	'<os-section heading="Identity" description="Site-wide name, description, and locale.">',
-	'<os-section heading="Social" description="Twitter / X handle and profile URLs (emitted as schema sameAs).">',
-	'<os-section heading="Open Graph" description="Fallback OG image and card dimensions for social shares.">',
-	'<os-section heading="SEO Copy" description="Per-route title + description for the home, /notes, and /provenance pages.">',
+	'<os-section heading="Identity" description="Site-wide name, description, and locale." stack>',
+	'<os-section heading="Social" description="Twitter / X handle and profile URLs (emitted as schema sameAs)." stack>',
+	'<os-section heading="Open Graph" description="Fallback OG image and card dimensions for social shares." stack>',
+	'<os-section heading="SEO Copy" description="Per-route title + description for the home, /notes, and /provenance pages." stack>',
 	'Emitted as <os-code>jobTitle</os-code> on the Person schema. Single short phrase.',
 	'A short status line surfaced in the <os-code>/contact</os-code> and <os-code>/services</os-code> page heroes. Leave empty to hide it.',
 	'One topic per line. Emitted as the <os-code>knowsAbout</os-code> array on the Person schema',

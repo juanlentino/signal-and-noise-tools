@@ -26,15 +26,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string
  */
 function vocabulary_years_html( array $years ) {
-	$out = '';
+	$out = array();
 	foreach ( $years as $y ) {
 		if ( ! is_array( $y ) ) {
 			continue;
 		}
 		$docs = (int) ( $y['docs'] ?? 0 );
-		$out .= \snt_kit_stat( (string) $docs, (string) (int) ( $y['year'] ?? 0 ), __( 'notes', 'signal-and-noise-tools' ) );
+		$out[] = \snt_kit_stat( (string) $docs, (string) (int) ( $y['year'] ?? 0 ), __( 'notes', 'signal-and-noise-tools' ) );
 	}
-	return '<div class="snt-stats">' . $out . '</div>';
+	return \snt_kit_grid( $out, 160, 10 );
 }
 
 /**
@@ -70,7 +70,7 @@ function vocabulary_list_html( $title, array $rows, $kind ) {
 			array( 'hover' => false )
 		);
 	}
-	return '<section class="snt-col"><h4 class="snt-col__h">' . \snt_kit_esc( $title ) . '</h4>' . $inner . '</section>';
+	return \snt_kit_tag( 'os-card', array(), '<h4 class="snt-col__h">' . \snt_kit_esc( $title ) . '</h4>' . $inner );
 }
 
 /**
@@ -106,10 +106,14 @@ function vocabulary_pair_html( array $pair ) {
 		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'The vocabulary held still across this pair.', 'signal-and-noise-tools' ) ) . '</p>' );
 	}
 	$cols = '';
-	foreach ( $lists as $key => $spec ) {
-		$cols .= vocabulary_list_html( $spec[0], (array) ( $pair[ $key ] ?? array() ), $spec[1] );
+	foreach ( array_chunk( $lists, 2, true ) as $row ) {
+		$boxes = array();
+		foreach ( $row as $key => $spec ) {
+			$boxes[] = vocabulary_list_html( $spec[0], (array) ( $pair[ $key ] ?? array() ), $spec[1] );
+		}
+		$cols .= \snt_kit_grid( $boxes );
 	}
-	return \snt_kit_section( $heading, '<div class="snt-cols">' . $cols . '</div>' );
+	return \snt_kit_section( $heading, $cols );
 }
 
 /**

@@ -325,16 +325,16 @@ function scheduled_content_swaps_html( array $pairs ) {
  * @return string
  */
 function scheduled_content_glance_html( array $cards ) {
-	$out = '';
+	$out = array();
 	foreach ( $cards as $card ) {
 		if ( ! is_array( $card ) ) {
 			continue;
 		}
-		$out .= \snt_kit_stat( (string) ( $card['value'] ?? '' ), (string) ( $card['label'] ?? '' ), (string) ( $card['meta_html'] ?? '' ) );
+		$out[] = \snt_kit_stat( (string) ( $card['value'] ?? '' ), (string) ( $card['label'] ?? '' ), (string) ( $card['meta_html'] ?? '' ) );
 	}
 	return \snt_kit_tag(
 		'section',
 		array( 'aria-label' => __( 'Scheduled content at a glance', 'signal-and-noise-tools' ) ),
-		'<div class="snt-stats">' . $out . '</div>'
+		\snt_kit_grid( $out, 160, 10 )
 	);
 }

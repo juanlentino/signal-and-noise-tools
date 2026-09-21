@@ -124,7 +124,7 @@ $GLOBALS['__options'][ SN_NOW_PAGE_OPTION ] = array(
 	'updated' => '2026-09-04',
 );
 $kit = snt_leaf_paint( 'content', 'now' );
-$rows  = substr_count( $kit, '<div class="snt-cols">' );
+$rows  = substr_count( $kit, snt_leaf_row() );
 $cards = substr_count( $kit, '<os-card' );
 ok( $rows > 0, 'the cards are painted in two-up rows -- ' . $rows . ' row(s) for ' . $cards . ' card(s)' );
 ok( $rows === (int) ceil( $cards / 2 ), '...one row per PAIR, so an odd count leaves a half row rather than dropping a card' );

@@ -346,12 +346,12 @@ ok( mb_strlen( $kit_rows['args'] ) < 120, 'the row builder uses the clamp, not r
 // ── The settings row: one paired row under the ledger, readouts, round trip. ──
 $GLOBALS['__cron_rows'] = $rich_rows;
 
-// 12) Layout: exactly one .snt-cols with two .snt-col children, the ledger
+// 12) Layout: exactly one paired row with two os-card cells, the ledger
 // outside it at full width (17.2.1: boxes share a row).
 $kit = snt_leaf_paint( 'connections', 'cron', array() );
-ok( 1 === substr_count( $kit, 'class="snt-cols"' ), 'exactly one snt-cols row' );
-ok( 2 === substr_count( $kit, 'class="snt-col"' ), 'the row holds exactly two snt-col boxes' );
-$cols_at  = strpos( $kit, 'class="snt-cols"' );
+ok( 1 === substr_count( $kit, snt_leaf_row() ), 'exactly one paired row' );
+ok( 2 === substr_count( $kit, '<os-card>' ), 'the row holds exactly two os-card boxes' );
+$cols_at  = strpos( $kit, snt_leaf_row() );
 $table_at = strpos( $kit, 'heading="Scheduled events"' );
 ok( false !== $table_at && $table_at < $cols_at, 'the events ledger sits above the row, not inside it' );
 ok( false !== strpos( $kit, 'heading="Morning operations brief"' ) && false !== strpos( $kit, 'heading="Scheduled read-only runs"' ), 'both settings boxes carry their classic headings' );
@@ -446,7 +446,7 @@ $kit = snt_leaf_paint( 'connections', 'cron', array() );
 $box = cron_leaf_backlog_box( $kit );
 ok( '' !== $box, 'the backlog box paints under its heading' );
 $box_at = strpos( $kit, 'heading="Action Scheduler backlog"' );
-ok( strpos( $kit, 'heading="Scheduled events"' ) < $box_at && $box_at < strpos( $kit, 'class="snt-cols"' ), 'the box sits under the events ledger and above the settings row' );
+ok( strpos( $kit, 'heading="Scheduled events"' ) < $box_at && $box_at < strpos( $kit, snt_leaf_row() ), 'the box sits under the events ledger and above the settings row' );
 ok( false === strpos( $box, '<os-disclosure' ), 'a reading is painted directly, not behind a fold' );
 ok( (bool) preg_match( '#<dt class="snt-kv__k">pending</dt><dd class="snt-kv__v">12 \(3 overdue\)</dd>#', $box ), 'pending row: 12 with 3 overdue, no tone under the line' );
 ok( false !== strpos( $box, '<dt class="snt-kv__k">complete</dt><dd class="snt-kv__v">1204</dd>' ), 'complete row: raw status label, the raw figure the Info row prints' );

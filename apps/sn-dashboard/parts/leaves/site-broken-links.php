@@ -119,7 +119,7 @@ function paint_site_broken_links( array $ctx ) {
 	}
 	$data = redirects_data();
 
-	// Full width, no wrapping grid. `.snt-cols` would re-create the two-column
+	// Full width, no wrapping grid. a pair grid would re-create the two-column
 	// shell this split exists to leave behind.
 	return broken_links_intro_html()
 		. \snt_kit_tag( 'os-stack', array( 'gap' => '12' ), broken_links_sections_html( $data ) );

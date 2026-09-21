@@ -53,7 +53,7 @@ $defaults = array();
 foreach ( $knobs as $name => $b ) { $defaults[] = $number_tag( $name, $b[2] ); }
 ok( has_all( $kit, $defaults, $missing ), 'defaults: every number knob carries the theme default and its classic bounds' . ( $missing ? ' — missing ' . implode( ' | ', $missing ) : '' ) );
 ok( false !== strpos( $kit, '<os-select name="theme_note_reply_alias" value="research">' ) && false !== strpos( $kit, '<os-checkbox-label name="theme_palette_enabled" value="1" checked label="Enable the ⌘K command palette and its footer trigger">' ), 'defaults: the alias is research and the palette checkbox is checked' );
-ok( false !== strpos( $kit, '<os-section heading="Front-End" description="Render knobs the companion theme reads via filters. Defaults match the theme’s own hardcoded values, so changes apply only once you save here. Each takes effect on the next front-end request.">' ), 'the Front-End heading and intro are the section heading and description' );
+ok( false !== strpos( $kit, '<os-section heading="Front-End" description="Render knobs the companion theme reads via filters. Defaults match the theme’s own hardcoded values, so changes apply only once you save here. Each takes effect on the next front-end request." stack>' ), 'the Front-End heading and intro are the section heading and description' );
 ok( has_all( $kit, array( 'Related notes shown', 'Note reply goes to', 'Command-palette recent notes', 'Reader command palette', 'JSON feed items', '“Updated” badge after (days)', 'Reading speed (words/min)', 'Notes per page' ), $missing ), 'all eight classic labels are painted' . ( $missing ? ' — missing ' . implode( ' | ', $missing ) : '' ) );
 ok( has_all( $kit, array(
 	'hint="How many related notes appear under a single note (1–12)."',

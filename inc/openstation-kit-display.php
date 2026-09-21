@@ -54,10 +54,66 @@ function snt_kit_section( $heading, $inner, $description = '', array $attrs = ar
 			array(
 				'heading'     => (string) $heading,
 				'description' => '' !== (string) $description ? (string) $description : null,
+				'stack'       => true,
 			),
 			$attrs
 		),
 		$inner
+	);
+}
+
+/**
+ * `<os-stack gap>` around painted HTML: the column (kit-help Stack, "use it
+ * instead of hand-rolling display:flex; flex-direction:column"). 18 is the
+ * leaf's own rhythm.
+ *
+ * @param string $inner Inner HTML.
+ * @param int    $gap   Gap in px.
+ * @param array  $attrs Extra attributes.
+ * @return string
+ */
+function snt_kit_stack( $inner, $gap = 18, array $attrs = array() ) {
+	return snt_kit_tag( 'os-stack', array_merge( array( 'gap' => (string) (int) $gap ), $attrs ), $inner );
+}
+
+/**
+ * `<os-grid min-item-width gap>` around sibling boxes: as many equal columns
+ * as the grid's own width fits, one column below the minimum, no container
+ * query (kit-help Grid, 1.1.10). The item count rides along as
+ * `--snt-grid-items` because the kit fits tracks to the width alone and keeps
+ * the empty ones (`updateTracks()`: `repeat(columns, minmax(0, 1fr))`), the
+ * auto-fill shape tests/os-grid-auto-fit.php pins against; os-app.css caps the
+ * tracks at the count, so a pair stays a pair on a released leaf and a tile
+ * row fills it. A side that painted nothing is dropped, and a lone box is
+ * returned bare, alone at full width (the tags_pair idiom), never beside a
+ * hole and never a one-track grid.
+ *
+ * The defaults are the pair: 290 reads the 640px container query it replaces
+ * (a 640px window leaves the leaf 602px inside the body inset, and 2 * 290 +
+ * 18 = 598 fits; 636px does not).
+ *
+ * @param string[] $items          Painted boxes, in order; '' is dropped.
+ * @param int      $min_item_width Minimum item width in px.
+ * @param int      $gap            Gap in px.
+ * @param array    $attrs          Extra attributes.
+ * @return string The grid, the lone box bare, or '' when nothing painted.
+ */
+function snt_kit_grid( array $items, $min_item_width = 290, $gap = 18, array $attrs = array() ) {
+	$items = array_values( array_filter( array_map( 'strval', $items ), 'strlen' ) );
+	if ( count( $items ) < 2 ) {
+		return implode( '', $items );
+	}
+	return snt_kit_tag(
+		'os-grid',
+		array_merge(
+			array(
+				'min-item-width' => (string) (int) $min_item_width,
+				'gap'            => (string) (int) $gap,
+				'style'          => '--snt-grid-items:' . count( $items ),
+			),
+			$attrs
+		),
+		implode( '', $items )
 	);
 }
 

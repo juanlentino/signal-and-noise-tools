@@ -716,7 +716,7 @@ function home_operations_html( array $data, $tab ) {
  * @return string
  */
 function systems_html( array $checks, array $components, $tab ) {
-	$cells = '';
+	$cells = array();
 	foreach ( array_merge( array_values( $checks ), array_values( $components ) ) as $card ) {
 		if ( ! is_array( $card ) ) {
 			continue;
@@ -742,7 +742,7 @@ function systems_html( array $checks, array $components, $tab ) {
 			? \snt_kit_go( $value, $go + array( 'current' => $tab ), array( 'class' => 'snt-sys__v' . ( '' !== $id ? ' sn-glance-card__value' : '' ) ) )
 			: '<span class="snt-sys__v"' . $vattr . '>' . \snt_kit_esc( $value ) . '</span>';
 		$pill  = (string) ( $card['pill']['text'] ?? '' );
-		$cells .= '<div class="snt-sys' . ( '' !== $state ? ' snt-sys--' . \snt_kit_esc( $state ) : '' ) . '"' . ( '' !== $id ? ' id="' . \snt_kit_esc( $id ) . '"' : '' ) . ( '' !== $state ? ' data-tone="' . \snt_kit_tone( $state ) . '"' : '' ) . '>'
+		$cells[] = '<div class="snt-sys' . ( '' !== $state ? ' snt-sys--' . \snt_kit_esc( $state ) : '' ) . '"' . ( '' !== $id ? ' id="' . \snt_kit_esc( $id ) . '"' : '' ) . ( '' !== $state ? ' data-tone="' . \snt_kit_tone( $state ) . '"' : '' ) . '>'
 			. '<span class="snt-sys__k">' . \snt_kit_esc( (string) ( $card['label'] ?? '' ) ) . '</span>'
 			. $body
 			. ( '' !== $pill && 'ok' !== $kind ? \snt_kit_badge( $kind, $pill ) : '' )
@@ -758,7 +758,7 @@ function systems_html( array $checks, array $components, $tab ) {
 		/* translators: %d fleet components on the wall */
 		$parts[] = sprintf( _n( '%d component', '%d components', count( $components ), 'signal-and-noise-tools' ), count( $components ) );
 	}
-	return \snt_kit_section( __( 'Systems', 'signal-and-noise-tools' ), '<div class="snt-systems">' . $cells . '</div>', implode( ' · ', $parts ) );
+	return \snt_kit_section( __( 'Systems', 'signal-and-noise-tools' ), \snt_kit_grid( $cells, 190, 12 ), implode( ' · ', $parts ) );
 }
 
 /**

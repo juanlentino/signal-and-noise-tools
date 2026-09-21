@@ -296,42 +296,42 @@ namespace {
 	ok( false !== strpos( $btn_esc, '&lt;b&gt;Click&lt;/b&gt;' ), 'snt_kit_button without raw escapes HTML by default' );
 
 	echo "\nGroup 6: Two-column settings leaves\n";
-	ok( false !== strpos( $css, '.snt-2up' ) && false !== strpos( $css, 'repeat( 2, minmax( 0, 1fr ) )' ), 'sn-dashboard.css defines .snt-2up two-column grid' );
-	ok( false !== strpos( $css, '.snt-leaf:has( .snt-2up )' ), 'sn-dashboard.css uncaps .snt-leaf max-width for .snt-2up' );
+	// #1622: the two-up is the kit grid with an os-stack per column; the hatch keys on os-grid.
+	ok( false === strpos( $css, '.snt-2up' ) && false !== strpos( (string) file_get_contents( SNT_PATH . 'assets/os-app.css' ), 'os-grid[min-item-width]' ), 'sn-dashboard.css carries no .snt-2up grid; os-app.css caps the kit grid' );
+	ok( false !== strpos( $css, '.snt-leaf:has( os-grid )' ), 'sn-dashboard.css uncaps .snt-leaf max-width for os-grid' );
 
 	$analytics_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-analytics.php' );
-	ok( false !== strpos( $analytics_src, '<div class="snt-2up">' ), 'monitoring/analytics source defines .snt-2up two columns' );
-	ok( false !== strpos( $analytics_src, '<div class="snt-2up-col">' ), 'monitoring/analytics source defines .snt-2up-col columns' );
+	ok( false !== strpos( $analytics_src, 'snt_kit_grid( array( \\snt_kit_stack( $left ), \\snt_kit_stack( $right ) ), 290, 24 )' ), 'monitoring/analytics source paints two os-stack columns on the kit grid' );
 	ok( false !== strpos( $analytics_src, 'analytics_pipeline_html()' ), 'monitoring/analytics positions pipeline status above columns' );
 
 
 
 	$shared_css = (string) file_get_contents( SNT_PATH . 'assets/os-app.css' );
-	ok( false !== strpos( $shared_css, '.snt-stats {' ) && false !== strpos( $shared_css, 'repeat( auto-fit, minmax( 160px, 1fr ) )' ), 'assets/os-app.css defines .snt-stats responsive grid' );
+	ok( false === strpos( $shared_css, '.snt-stats' ) && false !== strpos( $shared_css, '--os-ui-stat-padding' ), 'assets/os-app.css carries no .snt-stats grid; the stat tile is styled through its tokens' );
 
 	$mr_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers.php' );
-	ok( false !== strpos( $mr_src, '<div class="snt-2up">' ) && false !== strpos( $mr_src, '<div class="snt-2up-col">' ), 'monitoring/machine-readers paints .snt-2up with .snt-2up-col' );
-	ok( false === strpos( $mr_src, '<div class="snt-col">' ), 'monitoring/machine-readers removes redundant .snt-col card wrappers' );
+	ok( false !== strpos( $mr_src, 'snt_kit_grid( array( \\snt_kit_stack( machine_readers_evidence_html( $d ) ), \\snt_kit_stack( machine_readers_reference_html( $d ) ) ), 290, 24 )' ), 'monitoring/machine-readers paints two os-stack columns on the kit grid' );
+	ok( false === strpos( $mr_src, "'os-card'" ), 'monitoring/machine-readers keeps no redundant card wrappers' );
 
 	$mr_parts_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers-parts.php' );
 	ok( false !== strpos( $mr_parts_src, '<os-cluster gap="8">' ), 'machine-readers-parts wraps sensor pills in os-cluster' );
 
 	$models_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/ai-models-budget.php' );
 	// 17.4.1 (#1573): rows of comparable height, the tags_pair idiom, no 2up.
-	ok( false === strpos( $models_src, 'snt-2up' ) && false !== strpos( $models_src, '<div class="snt-cols"><section class="snt-col">' ), 'ai/models-budget renders .snt-cols rows, not the .snt-2up' );
+	ok( false === strpos( $models_src, 'snt_kit_stack' ) && false !== strpos( $models_src, "snt_kit_grid( array( \\snt_kit_tag( 'os-card', array(), \$left ), \\snt_kit_tag( 'os-card', array(), \$right ) ) )" ), 'ai/models-budget renders paired rows of os-card cells, not two-up columns' );
 
 	$insights_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-insights.php' );
-	ok( false !== strpos( $insights_src, "'snt-cols'" ) && false === strpos( $insights_src, '<div class="snt-2up">' ), 'monitoring/insights paints .snt-cols rows, not the .snt-2up column pair (#1573)' );
+	ok( false !== strpos( $insights_src, 'snt_kit_grid( array( $left, $right ) )' ) && false === strpos( $insights_src, 'snt_kit_stack' ), 'monitoring/insights paints paired rows, not a two-up column pair (#1573)' );
 
 	$gsc_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-search-console.php' );
-	ok( false !== strpos( $gsc_src, "'class' => 'snt-cols'" ) && false === strpos( $gsc_src, 'snt-2up' ), 'monitoring/search-console pairs its readouts on one .snt-cols row (17.4.1, #1573), no .snt-2up' );
+	ok( false !== strpos( $gsc_src, 'snt_kit_grid( array( $left, $right ) )' ) && false === strpos( $gsc_src, 'snt_kit_stack' ), 'monitoring/search-console pairs its readouts on one row (17.4.1, #1573), no two-up columns' );
 
 	ok( false !== strpos( $css, '.snt-leaf os-row' ) && false !== strpos( $css, 'flex-direction: column' ), 'sn-dashboard.css collapses os-row under responsive containers' );
 
 	if ( isset( $painters['connections/cloudflare'] ) ) {
 		$cf_html = call_user_func( $painters['connections/cloudflare'], array( 'tab' => 'connections', 'sub' => 'cloudflare' ) );
-		// 17.4.1 (#1573): boxes on .snt-cols rows of comparable height, not two stacked columns.
-		ok( false !== strpos( $cf_html, '<div class="snt-cols">' ) && false === strpos( $cf_html, 'snt-2up' ), 'connections/cloudflare renders its boxes on a .snt-cols row, no .snt-2up columns' );
+		// 17.4.1 (#1573): boxes on paired rows of comparable height, not two stacked columns.
+		ok( false !== strpos( $cf_html, snt_leaf_row() ) && false === strpos( $cf_html, '<os-stack' ), 'connections/cloudflare renders its boxes on a paired row, no two-up columns' );
 	}
 
 	// #1217: two of the pulse tile links on S&N Home pointed at doors that do

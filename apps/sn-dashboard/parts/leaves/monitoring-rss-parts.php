@@ -56,7 +56,7 @@ function rss_flash_html( $flash ) {
  * @return string
  */
 function rss_activity_html( array $stats ) {
-	$out = '<div class="snt-stats">';
+	$tiles = array();
 	foreach ( array(
 		1  => __( '24 hours', 'signal-and-noise-tools' ),
 		7  => __( '7 days', 'signal-and-noise-tools' ),
@@ -67,9 +67,9 @@ function rss_activity_html( array $stats ) {
 			'uniques' => 0,
 		);
 		/* translators: %s: unique visitors in the window */
-		$out .= \snt_kit_stat( number_format_i18n( (int) $w['total'] ), $label, sprintf( __( '%s unique', 'signal-and-noise-tools' ), number_format_i18n( (int) $w['uniques'] ) ) );
+		$tiles[] = \snt_kit_stat( number_format_i18n( (int) $w['total'] ), $label, sprintf( __( '%s unique', 'signal-and-noise-tools' ), number_format_i18n( (int) $w['uniques'] ) ) );
 	}
-	$out .= '</div>';
+	$out  = \snt_kit_grid( $tiles, 160, 10 );
 	$out .= ! empty( $stats['most_recent'] )
 		? '<p class="snt-prose">' . \snt_kit_esc( __( 'Most recent feed request:', 'signal-and-noise-tools' ) ) . ' <os-code>' . \snt_kit_esc( rss_local_stamp( (string) $stats['most_recent'] ) ) . '</os-code></p>'
 		: '<p class="snt-hint">' . \snt_kit_esc( __( 'No feed requests logged yet.', 'signal-and-noise-tools' ) ) . '</p>';

@@ -104,12 +104,12 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'malformed theme grou
 // card 1. A stack is right for a sequence and wrong for a set. Measured live
 // 2026-09-10 on Content -> Now Page: four cards stacked to 1,386px at 728px
 // wide; paired, the leaf is 831px and each card is 826px -- shorter AND wider,
-// because .snt-cols also trips the width-cap escape and releases the leaf.
+// because the row grid also trips the width-cap escape and releases the leaf.
 $kit = snt_leaf_paint( 'content', 'uses' );
-$rows  = substr_count( $kit, '<div class="snt-cols">' );
+$rows  = substr_count( $kit, snt_leaf_row() );
 $cards = substr_count( $kit, '<os-card' );
 ok( $rows > 0, 'the cards are painted in two-up rows -- ' . $rows . ' row(s) for ' . $cards . ' card(s)' );
-ok( $rows === (int) ceil( $cards / 2 ), '...one row per PAIR, so an odd count leaves a half row rather than dropping a card' );
+ok( $rows === (int) floor( $cards / 2 ), '...one row per PAIR; an odd count leaves the spare bare at full width, never dropped and never a one-track grid (#1622)' );
 ok( $cards >= 2, 'sanity: there are cards to pair -- ' . $cards );
 
 // Every card still reaches the markup: pairing must not drop the spare.

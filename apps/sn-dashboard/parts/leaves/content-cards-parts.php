@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Measured live 2026-09-10 on Content -> Now Page: four cards stacked to
  * 1,386px at 728px wide; paired, the leaf is 831px and each card measures
- * 826px. Shorter AND wider, because `.snt-cols` also trips the width-cap
+ * 826px. Shorter AND wider, because the row's os-grid also trips the width-cap
  * escape hatch and releases the leaf from 820px.
  *
  * @param string[] $cards Rendered card markup, in order.
@@ -32,9 +32,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function snt_pair_cards( array $cards ) {
 	$out = '';
-	for ( $i = 0, $n = count( $cards ); $i < $n; $i += 2 ) {
-		$row  = $cards[ $i ] . ( isset( $cards[ $i + 1 ] ) ? $cards[ $i + 1 ] : '' );
-		$out .= \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $row );
+	foreach ( array_chunk( $cards, 2 ) as $row ) {
+		$out .= \snt_kit_grid( $row );
 	}
 	return $out;
 }

@@ -50,7 +50,7 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match th
 ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'actions match the classic leaf: [' . implode( ',', snt_leaf_actions( $kit ) ) . '] (classic: [' . implode( ',', snt_leaf_actions( $classic ) ) . '])' );
 ok( array() === snt_leaf_names( $kit ) && array() === snt_leaf_actions( $kit ) && false === strpos( $kit, '<os-form' ) && false === strpos( $kit, 'os-action="post"' ) && false === strpos( $kit, '<os-text-field' ), 'display-only survives the port: no form, no field, no action — the credential input the classic refuses is refused here' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( 3 === substr_count( $kit, '<span class="snt-sys__k">' ) && 1 === substr_count( $kit, '<div class="snt-systems">' ), 'three cells on one systems wall, as three classic glance cards' );
+ok( 3 === substr_count( $kit, '<span class="snt-sys__k">' ) && 1 === substr_count( $kit, snt_leaf_row( 3, 190, 12 ) ), 'three cells on one systems wall, as three classic glance cards' );
 ok( false !== strpos( $kit, '<span class="snt-sys__k">Connection</span><span class="snt-sys__v">Not configured</span><os-badge tone="warning">Inactive</os-badge>' ), 'unconfigured: the Connection cell reads Not configured with an Inactive warning badge' );
 $named = true;
 foreach ( sn_admin_cloudways_constants() as $name ) { $named = $named && false !== strpos( $kit, '<os-code>' . $name . '</os-code>' ); }

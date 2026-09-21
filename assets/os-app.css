@@ -29,40 +29,29 @@
 	min-width: 0;
 }
 
-/* ── Detail columns + lists ──────────────────────────────────────────── */
-.snt-cols {
-	display: grid;
-	grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
-	gap: 18px;
+/* ── Rows, tiles + lists ─────────────────────────────────────────────── */
+/* Every row is the kit's <os-grid min-item-width> (snt_kit_grid()): as many
+   equal columns as the grid's own width fits, one below the minimum, no
+   container query. The kit fits the tracks to the width alone and keeps the
+   empty ones (os-grid.ts updateTracks(): repeat(columns, minmax(0, 1fr))),
+   which is the auto-fill shape tests/os-grid-auto-fit.php measured on
+   2026-09-10: four tiles in eight 202px tracks, the right half of the row
+   empty. The helper writes the item count and this caps the tracks there, so
+   a pair stays a pair on a released 1,700px leaf and a tile row fills it.
+   A rule in the page beats the shadow :host rule by cascade context, not
+   specificity; --_os-grid-tracks is the kit's own reading, set inline. */
+.snt-app os-grid[min-item-width] {
+	grid-template-columns: repeat( min( var( --_os-grid-tracks, 1 ), var( --snt-grid-items, 12 ) ), minmax( 0, 1fr ) );
 }
 
-.snt-card,
-.snt-col {
-	min-width: 0;
-	padding: 16px 18px;
-	border-radius: 10px;
-	background: var( --os-ui-surface-elevated, #24212a );
-	border: 1px solid var( --os-ui-border, #33303a );
-	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.12 );
-}
-
-.snt-stats {
-	display: grid;
-	grid-template-columns: repeat( auto-fit, minmax( 160px, 1fr ) );
-	gap: 10px;
-}
-
-.snt-stats + .snt-stats {
-	margin-block-start: 10px;
-}
-
-.snt-stats os-stat {
-	display: flex;
-	flex-direction: column;
-	padding: 12px 16px;
-	border: 1px solid var( --os-ui-border, #33303a );
-	border-radius: 10px;
-	background: var( --os-ui-surface-elevated, #24212a );
+/* The stat tile through its own tokens (kit-help Stat), the shape
+   apps/sn-analytics/sn-analytics.css .snt-native-stat already uses; that
+   sheet loads after this one and keeps its flat tile. */
+.snt-app os-stat {
+	--os-ui-stat-padding: 12px 16px;
+	--os-ui-stat-border: var( --os-ui-border, #33303a );
+	--os-ui-stat-radius: 10px;
+	--os-ui-stat-bg: var( --os-ui-surface-elevated, #24212a );
 	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.15 );
 }
 
@@ -384,13 +373,6 @@ a.snt-link:hover { text-decoration: underline; }
 	.snt-app textarea,
 	.snt-app select {
 		font-size: 16px;
-	}
-}
-
-@container ( max-width: 640px ) {
-	.snt-cols {
-		grid-template-columns: 1fr;
-		gap: 12px;
 	}
 }
 

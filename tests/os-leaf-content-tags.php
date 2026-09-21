@@ -57,7 +57,7 @@ function kit_tags( array $state = array() ) { return snt_leaf_paint( 'content', 
 function names_line( $classic, $kit ) { return implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')'; }
 // #1573: the rows of the kit table inside the section with this heading (os-prop-data is JSON in an attribute).
 function ledger_rows( $kit, $heading ) {
-	if ( ! preg_match( '/<os-section heading="' . preg_quote( $heading, '/' ) . '">.*?os-prop-data="([^"]*)"/s', $kit, $m ) ) { return null; }
+	if ( ! preg_match( '/<os-section heading="' . preg_quote( $heading, '/' ) . '" stack>.*?os-prop-data="([^"]*)"/s', $kit, $m ) ) { return null; }
 	return json_decode( html_entity_decode( $m[1], ENT_QUOTES, 'UTF-8' ), true );
 }
 
@@ -203,17 +203,17 @@ $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' =>
 $GLOBALS['__options']['sn_tag_merge_history'] = array( array( 'op' => 'prune', 'from' => array( 'stale-tag' ), 'user' => 1, 'ts' => 90 ) );
 $kit = kit_tags();
 // #1573: ROW[Duplicate tags | Merge any two tags]; ROW[Jev: tag fit | Groups on /notes/tags]; then the by-tag ledger, the unused box and the recent ledger, each on a row of its own (a ten-row ledger beside a 96px box is a hole).
-$fit_row = strpos( $kit, '<div class="snt-cols"><os-section heading="Jev: tag fit"' );
-$by_tag  = strpos( $kit, '</div><os-section heading="Jev: by tag"' );
+$fit_row = strpos( $kit, snt_leaf_row() . '<os-section heading="Jev: tag fit"' );
+$by_tag  = strpos( $kit, '</os-grid><os-section heading="Jev: by tag"' );
 $last    = strpos( $kit, '</os-section><os-section heading="Unused tags"' );
-ok( 2 === substr_count( $kit, '<div class="snt-cols">' ) && false !== strpos( $kit, '<div class="snt-cols"><os-section heading="Duplicate tags"' ) && false !== $fit_row && false !== $by_tag && false !== $last && $fit_row < strpos( $kit, 'heading="Groups on /notes/tags"' ) && strpos( $kit, 'heading="Groups on /notes/tags"' ) < $by_tag && $by_tag < $last && false !== strpos( $kit, '</os-section><os-section heading="Recent tag operations"' ) && $last < strpos( $kit, 'heading="Recent tag operations"' ), '#1573: two paired rows (duplicates + picker, fit + groups); the by-tag ledger, the unused box and the recent ledger each stand alone at full width, in that order' );
+ok( 2 === substr_count( $kit, snt_leaf_row() ) && false !== strpos( $kit, snt_leaf_row() . '<os-section heading="Duplicate tags"' ) && false !== $fit_row && false !== $by_tag && false !== $last && $fit_row < strpos( $kit, 'heading="Groups on /notes/tags"' ) && strpos( $kit, 'heading="Groups on /notes/tags"' ) < $by_tag && $by_tag < $last && false !== strpos( $kit, '</os-section><os-section heading="Recent tag operations"' ) && $last < strpos( $kit, 'heading="Recent tag operations"' ), '#1573: two paired rows (duplicates + picker, fit + groups); the by-tag ledger, the unused box and the recent ledger each stand alone at full width, in that order' );
 $GLOBALS['__options']['sn_tag_merge_history'] = array();
 $kit = kit_tags();
-ok( 2 === substr_count( $kit, '<div class="snt-cols">' ) && false !== strpos( $kit, '</os-section><os-section heading="Unused tags"' ) && false === strpos( $kit, 'Recent tag operations' ) && str_ends_with( trim( $kit ), '</os-section>' ), '#1573: no history: no recent box, the unused box closes the leaf, the two pairs stand' );
+ok( 2 === substr_count( $kit, snt_leaf_row() ) && false !== strpos( $kit, '</os-section><os-section heading="Unused tags"' ) && false === strpos( $kit, 'Recent tag operations' ) && str_ends_with( trim( $kit ), '</os-section>' ), '#1573: no history: no recent box, the unused box closes the leaf, the two pairs stand' );
 $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = null; unset( $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] );
 $GLOBALS['__jev'] = false;
 $kit = kit_tags();
-ok( 2 === substr_count( $kit, '<div class="snt-cols">' ) && false !== strpos( $kit, '<div class="snt-cols"><os-section heading="Jev: tag fit"' ) && false === strpos( $kit, 'Jev: by tag' ), '#1573: no Jev pass: no by-tag box, the fit box still pairs with the groups box' );
+ok( 2 === substr_count( $kit, snt_leaf_row() ) && false !== strpos( $kit, snt_leaf_row() . '<os-section heading="Jev: tag fit"' ) && false === strpos( $kit, 'Jev: by tag' ), '#1573: no Jev pass: no by-tag box, the fit box still pairs with the groups box' );
 $GLOBALS['__jev'] = true;
 
 // ── 16.9.3: no ceiling section on either surface (the rule is the description, the gate nudges).

@@ -198,15 +198,31 @@ function snt_leaf_actions( $html ) {
  * wp-admin's common.css metrics inside the dark leaf: the Health check
  * heading and family subheads, the passing chip row, the cron toolbar and the
  * resume arrows' footer. Each has a kit shape now (os-card header, os-section,
- * os-row + os-cluster, os-cluster). `.snt-field-static` is not here: the
+ * os-row + os-cluster, os-cluster). Since #1622 the hand-rolled rows and tiles
+ * are here too (`.snt-cols`, `.snt-2up`, `.snt-stats`, `.snt-systems`,
+ * `.snt-col`): the kit's os-grid, os-stack and os-card are the shape, through
+ * snt_kit_grid() and snt_kit_stack(). `.snt-field-static` is not here: the
  * Identity & SEO leaf keeps it as a labelled group (a fieldset shape the kit
  * has none of), so the webhooks and login suites pin its absence themselves.
  *
  * @param string $html Markup.
  * @return string[] Offending markers found.
  */
+/**
+ * The opening tag of a paired row, as snt_kit_grid() paints it (#1622): the
+ * suites count rows by it and read what a row holds up to `</os-grid>`.
+ *
+ * @param int $items Items on the row (2 for a pair).
+ * @param int $min   Minimum item width (290 for a pair, 160 for tiles, 190 for systems).
+ * @param int $gap   Gap (18 for a pair, 10 for tiles, 12 for systems).
+ * @return string
+ */
+function snt_leaf_row( $items = 2, $min = 290, $gap = 18 ) {
+	return '<os-grid min-item-width="' . (int) $min . '" gap="' . (int) $gap . '" style="--snt-grid-items:' . (int) $items . '">';
+}
+
 function snt_leaf_classic_markers( $html ) {
-	$markers = array( 'class="widefat', 'class="form-table', 'class="button', 'class="notice', 'class="sn-fieldset', 'class="sn-card', 'class="nav-tab', 'class="sn-sub-tabs', '<table', '<script', 'class="snt-check__h', 'class="snt-subhead', 'class="snt-chips"', 'class="snt-toolbar"', 'class="snt-rsm-controls' );
+	$markers = array( 'class="widefat', 'class="form-table', 'class="button', 'class="notice', 'class="sn-fieldset', 'class="sn-card', 'class="nav-tab', 'class="sn-sub-tabs', '<table', '<script', 'class="snt-check__h', 'class="snt-subhead', 'class="snt-chips"', 'class="snt-toolbar"', 'class="snt-rsm-controls', 'snt-cols', 'snt-2up', 'snt-stats', 'snt-systems', 'class="snt-col"' );
 	$found   = array();
 	foreach ( $markers as $marker ) {
 		if ( false !== stripos( (string) $html, $marker ) ) {

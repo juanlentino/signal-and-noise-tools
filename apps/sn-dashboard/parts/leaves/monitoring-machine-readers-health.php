@@ -11,7 +11,7 @@
  * is not good (danger for critical, warning otherwise), else as the hint
  * line. One derivation, exactly the reads the abilities and the Site Health
  * rows make; nothing is computed here. The two boxes are of a height, so
- * they share one `.snt-cols` row under the sensor hero; a side whose module
+ * they share one os-grid row under the sensor hero; a side whose module
  * is absent leaves the other at full width (absent is not zero).
  *
  * @package SignalNoiseTools
@@ -68,8 +68,5 @@ function machine_readers_anomalies_html() {
 function machine_readers_health_row_html() {
 	$drift = machine_readers_drift_html();
 	$anoms = machine_readers_anomalies_html();
-	if ( '' === $drift || '' === $anoms ) {
-		return $drift . $anoms;
-	}
-	return \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $drift . $anoms );
+	return \snt_kit_grid( array( $drift, $anoms ) );
 }

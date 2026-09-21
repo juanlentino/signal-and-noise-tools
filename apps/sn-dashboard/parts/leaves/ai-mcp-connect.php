@@ -45,22 +45,22 @@ function mcp_connect_cards() {
  * @return string
  */
 function mcp_connect_glance_html( array $cards ) {
-	$cells = '';
+	$cells = array();
 	foreach ( $cards as $card ) {
 		if ( ! is_array( $card ) ) {
 			continue;
 		}
-		$kind  = isset( $card['pill']['kind'] ) ? (string) $card['pill']['kind'] : '';
-		$pill  = (string) ( $card['pill']['text'] ?? '' );
-		$meta  = (string) ( $card['meta_html'] ?? '' );
-		$cells .= '<div class="snt-sys">'
+		$kind    = isset( $card['pill']['kind'] ) ? (string) $card['pill']['kind'] : '';
+		$pill    = (string) ( $card['pill']['text'] ?? '' );
+		$meta    = (string) ( $card['meta_html'] ?? '' );
+		$cells[] = '<div class="snt-sys">'
 			. '<span class="snt-sys__k">' . \snt_kit_esc( (string) ( $card['label'] ?? '' ) ) . '</span>'
 			. '<span class="snt-sys__v">' . \snt_kit_esc( (string) ( $card['value'] ?? '' ) ) . '</span>'
 			. ( '' !== $pill ? \snt_kit_badge( $kind, $pill ) : '' )
 			. ( '' !== $meta ? '<span class="snt-sys__meta">' . $meta . '</span>' : '' )
 			. '</div>';
 	}
-	return \snt_kit_section( __( 'Status at a glance', 'signal-and-noise-tools' ), '<div class="snt-systems">' . $cells . '</div>' );
+	return \snt_kit_section( __( 'Status at a glance', 'signal-and-noise-tools' ), \snt_kit_grid( $cells, 190, 12 ) );
 }
 
 /**
@@ -111,11 +111,11 @@ function paint_ai_mcp_connect( array $ctx ) {
 
 	// The footer pairs the caveat with the deep links: two short blocks that each
 	// took a full-width band of their own for no reason.
-	$out .= \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), \snt_kit_notice(
+	$out .= \snt_kit_grid( array( \snt_kit_notice(
 		'info',
 		'<b>' . \snt_kit_esc( __( 'Not the same as Connector Approvals', 'signal-and-noise-tools' ) ) . '</b><br>'
 		. \snt_kit_esc( __( 'Tools → Connector Approvals (if the AI plugin is active) gates OUTBOUND use of this site’s configured AI-provider connectors by server-side plugin and theme code: it decides which of your plugins may spend against your Anthropic, OpenAI, or Google key. It has nothing to do with an external MCP client connecting IN. That inbound grant is the Application Password below.', 'signal-and-noise-tools' ) )
-	) . mcp_connect_deep_links_html() );
+	), mcp_connect_deep_links_html() ) );
 
 	return $out;
 }

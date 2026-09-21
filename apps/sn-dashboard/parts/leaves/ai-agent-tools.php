@@ -54,10 +54,14 @@ function agent_tools_bridge_html( array $m ) {
 		$docs[] = array( 'label' => $d['label'], 'value' => $d['value'], 'dot' => $d['ok'] ? 'ok' : 'err', 'tone' => $d['ok'] ? '' : 'warn' );
 	}
 	$right = \snt_kit_list( $docs );
-	return '<div class="snt-2up">'
-		. '<div class="snt-2up-col">' . \snt_kit_section( sprintf( /* translators: %s: days. */ __( 'On the page, %s days', 'signal-and-noise-tools' ), number_format_i18n( $m['days'] ) ), $left, __( 'The WebMCP bridge every HTML page carries; the reader\'s own agent calls these.', 'signal-and-noise-tools' ) ) . '</div>'
-		. '<div class="snt-2up-col">' . \snt_kit_section( __( 'What the tools read', 'signal-and-noise-tools' ), $right, __( 'Public documents, built here; a tool answers "absent" site-wide when one is missing.', 'signal-and-noise-tools' ) ) . '</div>'
-		. '</div>';
+	return \snt_kit_grid(
+		array(
+			\snt_kit_section( sprintf( /* translators: %s: days. */ __( 'On the page, %s days', 'signal-and-noise-tools' ), number_format_i18n( $m['days'] ) ), $left, __( 'The WebMCP bridge every HTML page carries; the reader\'s own agent calls these.', 'signal-and-noise-tools' ) ),
+			\snt_kit_section( __( 'What the tools read', 'signal-and-noise-tools' ), $right, __( 'Public documents, built here; a tool answers "absent" site-wide when one is missing.', 'signal-and-noise-tools' ) ),
+		),
+		290,
+		24
+	);
 }
 
 /**
@@ -71,8 +75,8 @@ function agent_tools_mcp_html() {
 	// paired as before (the 2026-09-10 measurement), because what each door
 	// exposes is reference a reader opens once.
 	$usage = function_exists( __NAMESPACE__ . '\\mcp_connect_usage_html' ) ? mcp_connect_usage_html( true ) : '';
-	$doors = ( function_exists( __NAMESPACE__ . '\\mcp_connect_door_native_html' ) ? \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), mcp_connect_door_native_html() . mcp_connect_door_native_write_html() ) : '' )
-		. ( function_exists( __NAMESPACE__ . '\\mcp_connect_door_adapter_html' ) ? \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), mcp_connect_door_adapter_html() . mcp_connect_resources_prompts_html() ) : '' );
+	$doors = ( function_exists( __NAMESPACE__ . '\\mcp_connect_door_native_html' ) ? \snt_kit_grid( array( mcp_connect_door_native_html(), mcp_connect_door_native_write_html() ) ) : '' )
+		. ( function_exists( __NAMESPACE__ . '\\mcp_connect_door_adapter_html' ) ? \snt_kit_grid( array( mcp_connect_door_adapter_html(), mcp_connect_resources_prompts_html() ) ) : '' );
 	$fold  = '' !== $doors ? \snt_kit_tag( 'os-disclosure', array( 'heading' => __( 'The doors, and what each exposes', 'signal-and-noise-tools' ) ), $doors ) : '';
 	return \snt_kit_section( __( 'Through MCP', 'signal-and-noise-tools' ), $usage . $fold, __( 'The native read and write doors and the adapter, each behind an Application Password; the call log records every call through them. Set up under MCP Clients.', 'signal-and-noise-tools' ) );
 }

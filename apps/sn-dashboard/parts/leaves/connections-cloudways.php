@@ -68,14 +68,14 @@ function paint_connections_cloudways( array $ctx ) {
 	if ( ! function_exists( 'sn_admin_cloudways_state' ) || ! function_exists( 'sn_admin_cloudways_cards' ) ) {
 		return \snt_kit_empty( __( 'The Cloudways status is not available.', 'signal-and-noise-tools' ) );
 	}
-	$cells = '';
+	$cells = array();
 	foreach ( \sn_admin_cloudways_cards( \sn_admin_cloudways_state() ) as $card ) {
 		if ( is_array( $card ) ) {
-			$cells .= cloudways_card_html( $card );
+			$cells[] = cloudways_card_html( $card );
 		}
 	}
 	// The classic grid emits nothing for empty input; so does this.
-	$out  = '' !== $cells ? '<div class="snt-systems">' . $cells . '</div>' : '';
+	$out  = \snt_kit_grid( $cells, 190, 12 );
 	$out .= '<p class="snt-hint">'
 		. 'Cloudways holds the origin cache (Breeze / Varnish). This leaf reports it; it never edits it. '
 		. 'Credentials live in <os-code>wp-config.php</os-code> only — an account-wide API key is deliberately kept out of the database.'

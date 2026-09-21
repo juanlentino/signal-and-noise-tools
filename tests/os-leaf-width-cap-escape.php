@@ -85,7 +85,7 @@ function spec_str( $s ) { return '(' . implode( ',', $s ) . ')'; }
 ok( spec( '.a .b > .c' ) === array( 0, 3, 0 ), 'spec: three classes' );
 ok( spec( '.a[data-x="1"] .b' ) === array( 0, 3, 0 ), 'spec: an attribute counts as a class' );
 ok( spec( '.a .b:has( os-table )' ) === array( 0, 2, 1 ), 'spec: :has() of a TYPE adds a type, not a class' );
-ok( spec( '.a .b:has( .snt-cols )' ) === array( 0, 3, 0 ), 'spec: :has() of a CLASS adds a class' );
+ok( spec( '.a .b:has( .snt-table-wrap )' ) === array( 0, 3, 0 ), 'spec: :has() of a CLASS adds a class' );
 ok( spec( '.a .b[data-snt-leaf="tags"]' ) === array( 0, 3, 0 ), 'spec: an attribute hatch is class-weight' );
 ok( spec( '.a:where( .b )' ) === array( 0, 1, 0 ), 'spec: :where() contributes nothing' );
 
@@ -129,8 +129,10 @@ ok(
 		. ( $weak ? " -- these do not:\n    " . implode( "\n    ", $weak ) : '' )
 );
 
-// ── The two that were actually broken, pinned by name so a revert is loud. ──
-foreach ( array( 'os-table', 'os-row' ) as $type_hatch ) {
+// ── The two that were actually broken, pinned by name so a revert is loud,
+// and the os-grid hatch (#1622) that took the .snt-cols and .snt-2up class
+// hatches' place at type weight. ──
+foreach ( array( 'os-table', 'os-row', 'os-grid' ) as $type_hatch ) {
 	$found = array_values( array_filter( $escapes, function ( $s ) use ( $type_hatch ) {
 		return false !== strpos( $s, ':has( ' . $type_hatch . ' )' ) || false !== strpos( $s, ':has(' . $type_hatch . ')' );
 	} ) );
@@ -142,31 +144,36 @@ foreach ( array( 'os-table', 'os-row' ) as $type_hatch ) {
 }
 
 
-// ── The stack-rhythm margin must not reach a GRID CELL. ──
+// ── The stack-rhythm margin must not reach a CELL of a kit layout. ──
 // `.snt-leaf os-section + os-section { margin-block-start: 24px }` is vertical
-// rhythm, and it is still true of the SECOND CELL of a `.snt-cols` row -- which
+// rhythm, and it is still true of the SECOND CELL of an os-grid row -- which
 // took the margin on top of the grid gap and sat 24px below its neighbour.
 // Measured live 2026-09-10 on AI -> MCP Clients: 797 / 821 instead of 797 / 797.
+// Since #1622 the same reset covers an os-stack column and an os-card, whose
+// own gap is the rhythm. One selector per parent type: the rule scanner below
+// splits on commas, so an :is() list would be read as three fragments.
 //
 // A tie is not enough here for the same reason it was not enough for the width
 // cap: equal specificity is decided by source order.
-$stack = null; $reset = null;
+$stack = null; $resets = array();
 foreach ( $rules as $r ) {
 	foreach ( explode( ',', $r[1] ) as $sel ) {
 		$sel = trim( $sel );
 		if ( false === strpos( $sel, 'os-section + os-section' ) ) { continue; }
 		if ( preg_match( '/margin-block-start:\s*24px/', $r[2] ) ) { $stack = $sel; }
-		if ( preg_match( '/margin-block-start:\s*0/', $r[2] ) )    { $reset = $sel; }
+		if ( preg_match( '/margin-block-start:\s*0/', $r[2] ) )    { $resets[] = $sel; }
 	}
 }
 ok( null !== $stack, 'the os-section stack-rhythm rule is present' );
-ok( null !== $reset, 'a grid-cell reset for it exists' );
-if ( $stack && $reset ) {
-	ok( false !== strpos( $reset, '.snt-cols' ), 'the reset is scoped to .snt-cols, not global' );
-	ok(
-		spec( $reset ) > spec( $stack ),
-		'the reset STRICTLY outranks the stack rule ' . spec_str( spec( $reset ) ) . ' > ' . spec_str( spec( $stack ) )
-	);
+ok( 3 === count( $resets ), 'a cell reset exists for each of os-grid, os-stack and os-card (' . count( $resets ) . ')' );
+foreach ( $resets as $reset ) {
+	ok( 1 === preg_match( '/\b(os-grid|os-stack|os-card) > os-section \+ os-section$/', $reset ), 'the reset is scoped to a kit layout parent, not global -- ' . $reset );
+	if ( $stack ) {
+		ok(
+			spec( $reset ) > spec( $stack ),
+			'the reset STRICTLY outranks the stack rule ' . spec_str( spec( $reset ) ) . ' > ' . spec_str( spec( $stack ) )
+		);
+	}
 }
 
 
@@ -174,7 +181,7 @@ if ( $stack && $reset ) {
 // OpenStation caps `os-form` at 760px and that is the right measure for
 // labelled inputs: the empty space beside site/identity-and-seo or
 // security/login is the price of legibility, not a defect. Only a form that has
-// actually paired sibling cards earns the width, via `:has( .snt-cols )`.
+// actually paired sibling cards earns the width, via `:has( os-grid )`.
 // Unscoped, this rule would stretch every field in the app to 1,700px.
 $form_rules = array();
 foreach ( $rules as $r ) {
@@ -188,8 +195,8 @@ foreach ( $rules as $r ) {
 ok( array() !== $form_rules, 'a max-width rule on os-form exists to check' );
 foreach ( $form_rules as $sel ) {
 	ok(
-		false !== strpos( $sel, ':has( .snt-cols )' ) || false !== strpos( $sel, ':has(.snt-cols)' ),
-		'os-form max-width rule is scoped to :has( .snt-cols ), never bare -- ' . $sel
+		false !== strpos( $sel, ':has( os-grid )' ) || false !== strpos( $sel, ':has(os-grid)' ),
+		'os-form max-width rule is scoped to :has( os-grid ), never bare -- ' . $sel
 	);
 }
 

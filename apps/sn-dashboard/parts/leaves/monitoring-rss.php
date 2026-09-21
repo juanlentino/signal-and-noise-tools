@@ -119,7 +119,7 @@ function paint_monitoring_rss( array $ctx ) {
 }
 
 /**
- * Two boxes on one `.snt-cols` row; a side that paints nothing leaves the
+ * Two boxes on one os-grid row; a side that paints nothing leaves the
  * other at full width (the tags_pair() shape).
  *
  * @param string $left  Painted box or ''.
@@ -127,10 +127,7 @@ function paint_monitoring_rss( array $ctx ) {
  * @return string
  */
 function rss_pair( $left, $right ) {
-	if ( '' === $left || '' === $right ) {
-		return $left . $right;
-	}
-	return \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $left . $right );
+	return \snt_kit_grid( array( $left, $right ) );
 }
 
 add_filter(

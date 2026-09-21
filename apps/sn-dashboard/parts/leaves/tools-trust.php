@@ -33,19 +33,19 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string
  */
 function trust_stats_html( array $cards ) {
-	$out = '';
+	$out = array();
 	foreach ( $cards as $card ) {
 		if ( ! is_array( $card ) ) {
 			continue;
 		}
-		$out .= \snt_kit_stat(
+		$out[] = \snt_kit_stat(
 			(string) ( $card['value'] ?? '' ),
 			(string) ( $card['label'] ?? '' ),
 			(string) ( $card['pill']['text'] ?? '' ),
 			(string) ( $card['pill']['kind'] ?? '' )
 		);
 	}
-	return '<div class="snt-stats">' . $out . '</div>';
+	return \snt_kit_grid( $out, 160, 10 );
 }
 
 /**
@@ -158,7 +158,8 @@ function paint_tools_trust( array $ctx ) {
 	);
 
 	// Siblings: what the checks watch, and what the public sees of them.
-	$pair  = \snt_kit_section( __( 'What these four watch', 'signal-and-noise-tools' ), $intro . $table . $detail );
+	$pair   = array();
+	$pair[] = \snt_kit_section( __( 'What these four watch', 'signal-and-noise-tools' ), $intro . $table . $detail );
 
 	// Public-facing counterparts: the surfaces a READER uses to check the same
 	// guarantees without trusting this admin at all.
@@ -169,8 +170,8 @@ function paint_tools_trust( array $ctx ) {
 	$public .= '<li>' . \snt_kit_link( __( 'TDM policy', 'signal-and-noise-tools' ), home_url( '/tdm-policy/' ) ) . '. ' . esc_html__( 'the human-readable terms behind the reservation headers.', 'signal-and-noise-tools' ) . '</li>';
 	$public .= '<li>' . \snt_kit_link( __( 'RSL licence', 'signal-and-noise-tools' ), home_url( '/license.xml' ) ) . '. ' . esc_html__( 'machine-readable licensing terms.', 'signal-and-noise-tools' ) . '</li>';
 	$public .= '</ul>';
-	$pair   .= \snt_kit_section( __( 'The public side', 'signal-and-noise-tools' ), $public );
-	$out    .= \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $pair );
+	$pair[] = \snt_kit_section( __( 'The public side', 'signal-and-noise-tools' ), $public );
+	$out   .= \snt_kit_grid( $pair );
 
 	return $out;
 }

@@ -70,7 +70,7 @@ ok( false !== strpos( $kit, '<os-code>docs/CACHING.md</os-code>' ) && false !== 
 ok( false !== strpos( $kit, 'heading="Token"' ) && false !== strpos( $kit, 'The monitor has not run yet' ) && false !== strpos( $kit, 'cf_monitor_refresh' ), '15.3.0: before the monitor ran, the Token section says so and offers Refresh' );
 // 17.4.1 (#1573): boxes on rows of comparable height. Credentials beside
 // Cache; Token under them, alone at full width when there is no probes ledger.
-ok( 1 === substr_count( $kit, '<div class="snt-cols">' ) && false === strpos( $kit, 'snt-2up' ) && 1 === preg_match( '/<div class="snt-cols"><os-section heading="Credentials".*?<\/os-section><os-section heading="Cache".*?<\/os-section><\/div><os-section heading="Token"/s', $kit ), '17.4.1: one paired row, Credentials beside Cache, then Token alone at full width; no snt-2up columns' );
+ok( 1 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, 'snt-2up' ) && 1 === preg_match( '/' . preg_quote( snt_leaf_row(), '/' ) . '<os-section heading="Credentials".*?<\/os-section><os-section heading="Cache".*?<\/os-section><\/os-grid><os-section heading="Token"/s', $kit ), '17.4.1: one paired row, Credentials beside Cache, then Token alone at full width; no snt-2up columns' );
 
 // ── Configured, with a full-zone purge an hour ago.
 cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef', 'sn_cf_last_purge' => array( 'time' => time() - 3600, 'kind' => 'all' ) ) );
@@ -99,8 +99,8 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
 $kit     = snt_leaf_paint( 'connections', 'cloudflare' );
 $rows    = cf_table_prop( $kit, 'data' );
 $columns = cf_table_prop( $kit, 'columns' );
-ok( false !== strpos( $classic, 'Post-purge probes' ) && false === strpos( $kit, '<os-disclosure' ) && 1 === preg_match( '/<os-section heading="Post-purge probes" description="Each row is one check[^"]*">/', $kit ) && false !== strpos( $kit, '>4 retained, 2 stale</dd>' ), '17.4.1: the probes are a ledger box with the intro as its description, no fold; the tally is a Cache facts row' );
-ok( 2 === substr_count( $kit, '<div class="snt-cols">' ) && 1 === preg_match( '/<div class="snt-cols"><os-section heading="Token".*?<\/os-section><os-section heading="Post-purge probes"/s', $kit ), '17.4.1: with a ledger, Token and Post-purge probes share the second row' );
+ok( false !== strpos( $classic, 'Post-purge probes' ) && false === strpos( $kit, '<os-disclosure' ) && 1 === preg_match( '/<os-section heading="Post-purge probes" description="Each row is one check[^"]*" stack>/', $kit ) && false !== strpos( $kit, '>4 retained, 2 stale</dd>' ), '17.4.1: the probes are a ledger box with the intro as its description, no fold; the tally is a Cache facts row' );
+ok( 2 === substr_count( $kit, snt_leaf_row() ) && 1 === preg_match( '/' . preg_quote( snt_leaf_row(), '/' ) . '<os-section heading="Token".*?<\/os-section><os-section heading="Post-purge probes"/s', $kit ), '17.4.1: with a ledger, Token and Post-purge probes share the second row' );
 ok( false !== strpos( $kit, '120 seconds after its purge' ), 'the probe delay is read out in the intro' );
 ok( false !== strpos( $kit, '<os-table' ) && is_array( $rows ) && 4 === count( $rows ), 'the probes table carries all four rows' );
 ok( is_array( $rows ) && array( 'when' => '1 hour ago', 'result' => 'stale → zone purge', 'page' => '/notes/foo/' ) === $rows[0], 'an escalated stale probe reads stale → zone purge with its path' );

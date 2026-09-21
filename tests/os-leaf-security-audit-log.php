@@ -193,8 +193,8 @@ ok( array() === $shared_state->get( 'post' ), 'the leaf clears the consumed post
 // Measured live 2026-09-10; see the painter for the per-leaf numbers.
 $kitP = snt_leaf_paint( 'security', 'audit-log' );
 ok(
-	2 === substr_count( $kitP, '<div class="snt-cols">' ),
-	'the sibling sections are painted in 2 paired row(s) -- ' . substr_count( $kitP, '<div class="snt-cols">' )
+	2 === substr_count( $kitP, snt_leaf_row() ),
+	'the sibling sections are painted in 2 paired row(s) -- ' . substr_count( $kitP, snt_leaf_row() )
 );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

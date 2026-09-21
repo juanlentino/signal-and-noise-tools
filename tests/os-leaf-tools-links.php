@@ -115,7 +115,7 @@ ok( array() === snt_leaf_classic_markers( $hostile ), 'hostile fixture: no wp-ad
 // The pass rule -- siblings take a grid -- assumes single-column siblings.
 $kitP = snt_leaf_paint( 'tools', 'links' );
 ok(
-	false === strpos( $kitP, 'snt-systems' ) && false === strpos( $kitP, '<div class="snt-cols">' ),
+	false === strpos( $kitP, 'snt-systems' ) && false === strpos( $kitP, snt_leaf_row() ),
 	'the link groups are NOT wrapped in a row: they already use the width themselves'
 );
 ok( substr_count( $kitP, '<os-section' ) >= 3, '...and all three groups still paint -- ' . substr_count( $kitP, '<os-section' ) );

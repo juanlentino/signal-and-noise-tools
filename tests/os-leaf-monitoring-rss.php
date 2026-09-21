@@ -168,10 +168,11 @@ ok( false !== strpos( $kit, 'Purged' ) && false !== strpos( $kit, '12' ), 'the p
 // Measured live 2026-09-20 at 1581px; see the painter for the per-box numbers.
 $kitP = snt_leaf_paint( 'monitoring', 'rss' );
 ok(
-	2 === substr_count( $kitP, '<div class="snt-cols">' ),
-	'the four boxes are painted in 2 paired rows -- ' . substr_count( $kitP, '<div class="snt-cols">' )
+	2 === substr_count( $kitP, snt_leaf_row() ),
+	'the four boxes are painted in 2 paired rows -- ' . substr_count( $kitP, snt_leaf_row() )
 );
-preg_match_all( '/<div class="snt-cols">(.*?)<\/div>\s*(?=<div class="snt-cols">|$)/s', $kitP, $rowsP );
+// A row is read up to the next row (the Activity box holds a tile grid of its own).
+preg_match_all( '/' . preg_quote( snt_leaf_row(), '/' ) . '(.*?)(?=' . preg_quote( snt_leaf_row(), '/' ) . '|$)/s', $kitP, $rowsP );
 $rowP = static function ( $i ) use ( $rowsP ) {
 	preg_match_all( '/<os-section heading="([^"]+)"/', (string) ( $rowsP[1][ $i ] ?? '' ), $h );
 	return $h[1];

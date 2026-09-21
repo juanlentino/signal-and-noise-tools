@@ -77,13 +77,13 @@ ok( false !== strpos( $kit, '<os-badge tone="success">Configured</os-badge> — 
 ok( false !== strpos( $kit, 'description="Runs the full Muso → Spotify → store pass immediately. Keeps the last-good discography if a source fails."' ), 'the Sync now helper survives as the section description' );
 // 17.4.1 (#1573): the composition. The form (906px live) no longer shares a
 // row with the 349px rail; the two short boxes share one, the form stands alone.
-$row = strpos( $kit, '<aside class="snt-cols" aria-label="Sync status">' );
-ok( false !== $row && 0 === substr_count( $kit, 'class="snt-col"' ) && 1 === substr_count( $kit, 'snt-cols' ), 'the Status row: Status and Sync now share one .snt-cols row carrying the landmark name; no column cards, no other row' );
-$order = array( strpos( $kit, '<p class="snt-prose">' ), strpos( $kit, '<os-notice' ), $row, strpos( $kit, 'heading="Status"' ), strpos( $kit, 'heading="Sync now"' ), strpos( $kit, '</aside>' ), strpos( $kit, 'heading="Spotify (optional)"' ) );
+$row = strpos( $kit, '<os-grid min-item-width="290" gap="18" style="--snt-grid-items:2" role="complementary" aria-label="Sync status">' );
+ok( false !== $row && 0 === substr_count( $kit, '<os-card' ) && 1 === substr_count( $kit, '<os-grid' ), 'the Status row: Status and Sync now share one os-grid row carrying the landmark name; no column cards, no other row' );
+$order = array( strpos( $kit, '<p class="snt-prose">' ), strpos( $kit, '<os-notice' ), $row, strpos( $kit, 'heading="Status"' ), strpos( $kit, 'heading="Sync now"' ), strpos( $kit, '</os-grid>' ), strpos( $kit, 'heading="Spotify (optional)"' ) );
 $sorted = $order;
 sort( $sorted );
 ok( ! in_array( false, $order, true ) && $order === $sorted, 'the order: intro, the sync notice, the Status row (Status then Sync now), then the form alone under it: ' . implode( ' < ', $order ) );
-ok( strpos( $kit, 'value="sn_music_sync"' ) < strpos( $kit, '</aside>' ) && strpos( $kit, 'value="sn_music_save"' ) > strpos( $kit, '</aside>' ), 'the sync form is inside the row, the save form after it' );
+ok( strpos( $kit, 'value="sn_music_sync"' ) < strpos( $kit, '</os-grid>' ) && strpos( $kit, 'value="sn_music_save"' ) > strpos( $kit, '</os-grid>' ), 'the sync form is inside the row, the save form after it' );
 
 // ── Stale state: releases cached but the last sync failed.
 music_fixture( array( 'store' => array( 'last_error' => 'Muso: HTTP 502' ) ) );

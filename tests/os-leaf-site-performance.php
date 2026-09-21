@@ -46,7 +46,7 @@ ok( false !== strpos( $kit, 'heading="Speculative loading"' ) && false !== strpo
 ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, '<b>Speculative loading</b>' ) && false !== strpos( $kit, '<os-badge tone="success">On</os-badge>' ) && false !== strpos( $kit, '<br>Enabled</os-notice>' ), 'the on state paints a success notice: Speculative loading / Enabled / pill On' );
 ok( false !== strpos( $kit, 'aria-label="Speculative loading status"' ), 'the rail keeps its landmark name' );
 ok( false !== strpos( $kit, 'heading="Profile"' ) && false !== strpos( $kit, 'Mode <os-code>prerender</os-code>, eagerness <os-code>moderate</os-code>' ) && false !== strpos( $kit, '<strong>Excluded automatically:</strong> the custom login URL and <os-code>/contact/*</os-code>.' ) && false !== strpos( $kit, '<strong>Support:</strong> only modern Chromium browsers act on speculation rules; others safely ignore them.' ), 'the Profile reference survives: mode, eagerness, exclusions, support' );
-ok( 2 === substr_count( $kit, 'class="snt-col"' ) && false !== strpos( $kit, '<div class="snt-cols">' ), 'the two-column shell becomes the app column grid: form column, then the rail' );
+ok( 2 === substr_count( $kit, '<os-card' ) && false !== strpos( $kit, snt_leaf_row() . '<os-card><os-section' ) && false !== strpos( $kit, '<os-card role="complementary" aria-label="Speculative loading status">' ), 'the two-column shell becomes the app column grid: form column, then the rail, each an os-card, the rail keeping its landmark' );
 
 // ── Disabled state: unchecked, warning box, plain Off pill; parity holds.
 $GLOBALS['__settings'] = array( 'perf.speculative_loading' => false );
@@ -95,8 +95,8 @@ $fixture = array(
 $GLOBALS['__options']['snt_httpdiag_log'] = $fixture;
 $classic = snt_leaf_classic_html( 'sn_admin_render_performance_section' );
 $kit     = snt_leaf_paint( 'site', 'performance' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'perf_save' ) === snt_leaf_actions( $kit ) && array() === snt_leaf_classic_markers( $kit ) && 2 === substr_count( $kit, 'class="snt-col"' ), 'with a log: names, the one action, no classic markers and the two-column row are unchanged' );
-ok( strrpos( $kit, '</div>' ) < strpos( $kit, 'heading="Slow admin requests"' ), 'the ledger section sits after the .snt-cols row, at full width' );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'perf_save' ) === snt_leaf_actions( $kit ) && array() === snt_leaf_classic_markers( $kit ) && 2 === substr_count( $kit, '<os-card' ), 'with a log: names, the one action, no classic markers and the two-column row are unchanged' );
+ok( strrpos( $kit, '</os-grid>' ) < strpos( $kit, 'heading="Slow admin requests"' ), 'the ledger section sits after the paired row, at full width' );
 preg_match( '/<os-table[^>]* os-prop-columns="([^"]*)"[^>]* os-prop-data="([^"]*)"/', $kit, $m );
 $cols = json_decode( html_entity_decode( $m[1] ?? '', ENT_QUOTES, 'UTF-8' ), true );
 $rows = json_decode( html_entity_decode( $m[2] ?? '', ENT_QUOTES, 'UTF-8' ), true );
