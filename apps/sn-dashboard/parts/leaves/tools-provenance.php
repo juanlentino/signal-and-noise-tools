@@ -14,27 +14,18 @@
  * `sn_prov_admin_status()`, `sn_prov_backfill_candidates()`,
  * `sn_prov_next_key_commitment()`), the kit's parts instead of wp-admin's.
  *
- * TWO DELIBERATE DEPARTURES FROM THE SHARED KIT VOCABULARY, both because
- * these five forms are wired through `admin-post.php` and NOT the shared
- * `sn_action` table:
- *   - `provenance_post_action()` below hand-builds the `<os-form>` instead of
- *     calling `snt_kit_form()`, because that helper's hidden field is always
- *     named `sn_action` — but the host's admin-post pipeline
- *     (`inc/openstation-host-pipelines.php`, `snt_os_host_pipeline_for()`)
- *     routes on a field literally named `action`, exactly as the classic
- *     `<form>`s here do (`<input type="hidden" name="action" value="…">`).
- *   - `snt_kit_action_button()` is never used for these five, because
- *     `posted_values()` (apps/sn-dashboard/sn-dashboard.os.php) maps a
- *     button's `os-arg-action` into `values['sn_action']`, never
- *     `values['action']` — it cannot drive this pipeline. Using an `<os-form>`
- *     with no visible fields (as classic does — every one of these is a bare
- *     `<form>` around one submit button) reaches the same place faithfully.
+ * The five writes are one-click `snt_kit_action_button()`s that declare the
+ * admin-post pipeline (`os-arg-pipeline="admin-post"`): `posted_values()`
+ * (apps/sn-dashboard/sn-dashboard.os.php) names the field `action` for that
+ * pipeline, the literal name the host's admin-post routing reads
+ * (inc/openstation-host-pipelines.php, snt_os_host_pipeline_for()), and each
+ * button carries its handler's OWN nonce, never the shared one (#1614).
  *
  * The Commits table is server-rendered from the SAME status list the poller
  * would have hydrated (`sn_prov_admin_status()`), since an inline script never
  * runs in a window; the poll is the runtime's own (`os-poll` on a no-op
  * `poll` action, snt_kit_poll(), #1607), so a pending row changes state on
- * its own within 30 s. This leaf's forms are bare submit buttons, so a tick's
+ * its own within 30 s. This leaf's writes are bare buttons, so a tick's
  * repaint has no typed field to reset.
  *
  * @package SignalNoiseTools
@@ -48,44 +39,34 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * A bare `<os-form>` around one submit button: the admin-post pipeline, a
- * hidden `action` field (the literal name the host's admin-post routing
- * reads) and the shared hidden nonce. Mirrors the classic leaf's own
- * `<form action="admin-post.php">` around a lone `<button>`.
+ * One admin-post write as a one-click button: `<os-button os-action="post"
+ * os-arg-action os-arg-nonce os-arg-pipeline="admin-post">`, the compat doc's
+ * shape for a one-click write (docs/openstation-compat.md). Mirrors the
+ * classic leaf's `<form action="admin-post.php">` around a lone `<button>`.
  *
- * @param string              $action WP admin-post action name.
- * @param string              $label  Submit button label.
- * @param string              $inner  Extra painted content before the hidden fields ('' for none).
- * @param array<string,mixed> $opts   confirm, danger, busy.
- * @return string
- *
- * DEPARTURE: the nonce is `wp_create_nonce( $action )` — the form's OWN
- * action — not `\snt_kit_nonce()`. `snt_kit_nonce()` signs the SHARED
- * `sn_theme_options_nonce` action, but every one of these five handlers
- * calls `check_admin_referer( $action )` against its OWN action name
+ * The nonce is `wp_create_nonce( $action )`, the handler's OWN action, not
+ * `snt_kit_nonce()`: every one of these five handlers calls
+ * `check_admin_referer( $action )` against its own name
  * (inc/provenance-admin.php, inc/provenance-rotation.php,
- * inc/provenance-chain-backfill.php) — exactly as the classic
- * `wp_nonce_field( $action )` per form does. Mirrors monitoring-rss.php's
- * `rss_form()`, which departs from `snt_kit_nonce()` for the same reason.
+ * inc/provenance-chain-backfill.php), exactly as the classic
+ * `wp_nonce_field( $action )` per form does. None of the five confirms:
+ * classic confirms none, and the rotation handler's docblock refuses a
+ * dialog on purpose (the commitment step IS the second act).
+ *
+ * @param string $action WP admin-post action name.
+ * @param string $label  Button label.
+ * @return string
  */
-function provenance_post_action( $action, $label, $inner = '', array $opts = array() ) {
-	$hidden = \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => 'action', 'value' => (string) $action ) )
-		. \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => '_wpnonce', 'value' => function_exists( 'wp_create_nonce' ) ? (string) wp_create_nonce( (string) $action ) : '' ) );
-	return \snt_kit_tag(
-		'os-form',
+function provenance_post_action( $action, $label ) {
+	return \snt_kit_action_button(
+		(string) $label,
+		(string) $action,
 		array(
-			'class'             => 'snt-form snt-provenance-action',
-			'align'             => 'start',
-			'os-action'         => 'post',
-			'os-arg-pipeline'   => 'admin-post',
-			'submit-label'      => (string) $label,
-			'show-reset'        => 'false',
-			'columns'           => '1',
-			'os-confirm'        => isset( $opts['confirm'] ) ? (string) $opts['confirm'] : null,
-			'os-confirm-danger' => ! empty( $opts['danger'] ),
-			'busy'              => ! empty( $opts['busy'] ),
-		),
-		(string) $inner . $hidden
+			'args' => array(
+				'pipeline' => 'admin-post',
+				'nonce'    => function_exists( 'wp_create_nonce' ) ? (string) wp_create_nonce( (string) $action ) : '',
+			),
+		)
 	);
 }
 
@@ -401,8 +382,8 @@ function provenance_genesis_html( array $sys, $reanchor_flag ) {
 	$anchored = ( 'pending' === $status || 'confirmed' === $status );
 	if ( $anchored ) {
 		// Classic still marks up the form and only disables its submit. A
-		// window has no disabled submit on <os-form>, so the form is withheld
-		// — same click blocked, and the suite pins the omission.
+		// window paints no disabled write button, so the button is withheld:
+		// same click blocked, and the suite pins the omission.
 		$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Already anchored: nothing to re-anchor.', 'signal-and-noise-tools' ) ) . '</p>';
 	} else {
 		$inner .= provenance_post_action( 'sn_prov_reanchor', __( 'Re-anchor genesis', 'signal-and-noise-tools' ) );

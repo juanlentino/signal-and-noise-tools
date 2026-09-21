@@ -1002,17 +1002,6 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 .snt-app[data-os-app="sn-dashboard"] .snt-provenance .snt-2up-col > os-section {
 	margin-block: 0;
 }
-.snt-provenance-action {
-	margin-block: 0;
-}
-.snt-provenance-action::part( header ),
-.snt-provenance-action::part( fields ) {
-	display: none;
-}
-.snt-provenance-action::part( footer ) {
-	border-top: 0;
-	padding-top: 0;
-}
 .snt-provenance .snt-kv__v,
 .snt-provenance-key code {
 	overflow-wrap: anywhere;
