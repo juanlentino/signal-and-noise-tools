@@ -77,7 +77,14 @@ namespace OpenStation\App {
 		public function reset( $k ) { $this->values[ $k ] = $this->defaults[ $k ] ?? null; return $this; }
 		public function all() { return $this->values; }
 	}
+	/** The runtime's effects queue (openstation includes/framework/app/class-effects.php): add() merges the type in first, all() lists in order. */
+	class Effects {
+		public $items = array();
+		public function add( $type, array $data = array() ) { $this->items[] = array_merge( array( 'type' => (string) $type ), $data ); return $this; }
+		public function all() { return $this->items; }
+	}
 	class Os {
+		public $effects;
 		public $toasts  = array();
 		public $badges  = array();
 		public $opened  = array();
@@ -91,6 +98,7 @@ namespace OpenStation\App {
 		public function open_url( $u, $t = '', $i = '' ) { $this->opened[] = array( $u, $t, $i ); return $this; }
 		public function menu( array $items ) { $this->menus[] = $items; return $this; }
 		public function refresh_menu() { $this->refresh++; return $this; }
+		public function __construct() { $this->effects = new Effects(); }
 	}
 }
 
@@ -720,6 +728,15 @@ namespace {
 	ok( false !== strpos( $html, '<os-notice tone="danger">It <a href="x">broke</a>.</os-notice>' ),
 		'a notice paints as the kit`s notice in the severity`s tone, with its deliberate inline <a> intact' );
 	ok( false !== strpos( $html, '<os-notice' ) && strpos( $html, '<os-notice' ) < strpos( $html, 'os-empty-state' ), '   ...above the body, where the classic page prints it under its heading' );
+	// #1609: every paint queues the runtime's snt-paint effect; assets/os-host.js
+	// runs its pass off the os-app-effect the runtime re-dispatches, and a
+	// view that forgot would leave every leaf script dead in that window.
+	$os = new \OpenStation\App\Os();
+	paint( $app, st( $app ), $os );
+	ok( array( array( 'type' => 'snt-paint', 'anchor' => '' ) ) === $os->effects->all(), 'the main view queues ONE snt-paint effect (analytics keeps no anchor, so it rides empty)' );
+	$os = new \OpenStation\App\Os();
+	paint( $app, st( $app, array( 'view' => 'posts' ) ), $os, 'posts' );
+	ok( array( array( 'type' => 'snt-paint', 'anchor' => '' ) ) === $os->effects->all(), '   ...and so does a tab view: each framework tab is its own session and paints on its own' );
 
 	echo "\nGroup 11: the window carries the analytics page`s own assets\n";
 	$handles = snt_os_host_asset_handles( 'sn-analytics' );

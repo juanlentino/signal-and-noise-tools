@@ -35,21 +35,28 @@
  *
  * And one thing a window does differently: the classic page scrolls to a
  * `#sn-sec-*` fragment after a save. A window has no URL to carry a fragment,
- * so the server paints `data-snt-anchor` and this file scrolls to it once.
+ * so the view queues the id on the paint effect and this file scrolls to it.
  *
  * WHAT IT DOES NOT DO. It never reloads, never fetches, and knows no endpoint:
  * every request in these windows is the framework's own dispatch. It is plain
  * ES2019 with no dependency beyond the seam admin.js publishes, and no build
  * step — the rest of the plugin's JS is written the same way.
  *
- * IDEMPOTENCE IS THE WHOLE DESIGN. The pass runs on a MutationObserver over the
- * app root, so anything it writes — a replaced script node, a removed
- * `data-snt-anchor`, whatever a leaf script paints on `snt:paint` — schedules
- * one more pass. Every one of those writes is marked, so that pass finds
- * nothing and the observer settles: one extra no-op pass per paint, never a
- * loop. A marker that must survive the morph is a PROPERTY or a WeakSet, never
- * an attribute (`zt` above); a marker that must be CLEARED by the morph — "the
- * content I painted is still the content on screen" — is exactly an attribute.
+ * HOW A PAINT IS KNOWN (#1609). The runtime announces one: each view
+ * callable queues `$os->effects->add( 'snt-paint', array( 'anchor' => … ) )`,
+ * and the runtime, having morphed the body and finished the render, re-
+ * dispatches every effect type it does not perform itself as an
+ * `os-app-effect` CustomEvent on the app root (bubbles, composed, `detail =
+ * { appId, windowId, view, effect }`): openstation src/app-runtime/session.ts
+ * `performEffect()` default branch, docs/app-framework.md "Effects" and
+ * docs/javascript-reference.md. Status: Experimental (App Framework), present
+ * since v1.1.6, the plugin's verified floor. Every paint these windows get
+ * (mount, the prewarmed mount, a dispatch) runs through the same `apply()`
+ * and performs the effects; the one `apply()` fed `effects: []` is
+ * `paintEagerly()`, a client-view (`.os.ts`) path neither host uses. So there
+ * is no observer here: the root is named by the event, never discovered, and
+ * a write the pass makes schedules nothing. A marker that must survive the
+ * morph is still a PROPERTY or a WeakSet, never an attribute (`zt` above).
  *
  * @package SignalNoiseTools
  */
@@ -57,16 +64,16 @@
 	'use strict';
 
 	/**
-	 * The PHP frame owns the app identity inside each native window. The host
-	 * observes that frame rather than the framework window wrapper.
+	 * The PHP frame owns the app identity inside each native window. The event
+	 * fires on the framework's container; the pass runs over this frame.
 	 */
 	var ROOT_SELECTOR = '.snt-app[data-os-app="sn-dashboard"], .snt-app[data-os-app="sn-analytics"]';
 
-	/** Roots already given an observer. */
-	var hosted = new WeakSet();
-
 	/** Roots with a pass already scheduled for the next paint. */
 	var pending = new WeakSet();
+
+	/** The anchor the latest effect for a root asked for, until its pass runs. */
+	var anchors = new WeakMap();
 
 	/**
 	 * Find an element by id INSIDE a root, without a selector.
@@ -96,8 +103,8 @@
 	 * one parsed out of a `<template>` is inert where it lands; only a node
 	 * created by `document.createElement` and inserted runs. `src`, `type` and
 	 * the inline text carry over — nothing else, because nothing else is
-	 * behaviour. The marker moves to the fresh node BEFORE the swap so the
-	 * mutation this causes cannot find the same block again.
+	 * behaviour. Both nodes are marked ran so a later pass over a node the
+	 * morph kept cannot run the same block again.
 	 *
 	 * @param {Element} root App root.
 	 */
@@ -126,31 +133,21 @@
 	}
 
 	/**
-	 * Scroll to the anchor the server asked for, once.
+	 * Scroll to the anchor the server asked for.
 	 *
 	 * `sn_admin_post_redirect_target()` names a `#sn-sec-*` section after a
-	 * save; the host paints it as `data-snt-anchor`. The attribute is looked
-	 * for on the app root AND on any descendant, because the view's own
-	 * outermost element is what carries it when the host paints the attribute
-	 * into its markup rather than onto the framework's container.
+	 * save; the view queues it as the `anchor` of the `snt-paint` effect, and
+	 * the id and the body that holds the section land in the SAME paint, so a
+	 * miss means the id is wrong and there is nothing to scroll to.
 	 *
-	 * Removed whether or not the element was found: the attribute and the body
-	 * that holds the section land in the SAME paint, so a miss means the id is
-	 * wrong, and a kept attribute would scroll on some unrelated later paint.
-	 *
-	 * @param {Element} root App root.
+	 * @param {Element} root   App root.
+	 * @param {string}  anchor Element id, or '' for none.
 	 */
-	function scrollToAnchor( root ) {
-		var holder = root.hasAttribute( 'data-snt-anchor' ) ? root : root.querySelector( '[data-snt-anchor]' );
-		if ( ! holder ) {
+	function scrollToAnchor( root, anchor ) {
+		if ( ! anchor ) {
 			return;
 		}
-		var id = holder.getAttribute( 'data-snt-anchor' );
-		holder.removeAttribute( 'data-snt-anchor' );
-		if ( ! id ) {
-			return;
-		}
-		var target = byId( root, id );
+		var target = byId( root, anchor );
 		if ( target && typeof target.scrollIntoView === 'function' ) {
 			target.scrollIntoView( { block: 'start' } );
 		}
@@ -197,29 +194,33 @@
 		}
 	}
 
-	function pass( root ) {
+	function pass( root, anchor ) {
 		runScripts( root );
 		renudgeTables( root );
 		if ( window.snAdmin && typeof window.snAdmin.init === 'function' ) {
 			window.snAdmin.init( root );
 		}
-		scrollToAnchor( root );
+		scrollToAnchor( root, anchor );
 		mioSync( root );
 		document.dispatchEvent( new CustomEvent( 'snt:paint', { detail: { root: root } } ) );
 	}
 
 	/**
-	 * Coalesce a paint's mutations into one pass.
+	 * Defer one pass to the frame after the paint.
 	 *
 	 * A frame and a short timer race, first one wins: a window in a hidden
 	 * document (a background tab, a minimised desktop) is never painted and so
 	 * never gets a frame, and a leaf that only ever armed itself on a frame
 	 * would sit dead until the tab was looked at. The `pending` latch is what
-	 * makes the loser a no-op.
+	 * makes the loser a no-op, and it is one-shot: the effect that set it is
+	 * the paint the pass answers. The deferral itself stays because 16.3.1's
+	 * renudgeTables() reads a component that may still be upgrading.
 	 *
-	 * @param {Element} root App root.
+	 * @param {Element} root   App root.
+	 * @param {string}  anchor Element id to land on, or ''.
 	 */
-	function schedule( root ) {
+	function schedule( root, anchor ) {
+		anchors.set( root, anchor );
 		if ( pending.has( root ) ) {
 			return;
 		}
@@ -229,7 +230,9 @@
 				return;
 			}
 			pending.delete( root );
-			pass( root );
+			var id = anchors.get( root ) || '';
+			anchors.delete( root );
+			pass( root, id );
 		};
 		if ( typeof window.requestAnimationFrame === 'function' ) {
 			window.requestAnimationFrame( run );
@@ -238,42 +241,30 @@
 	}
 
 	/**
-	 * Give a root its observer and run the paint it already has.
+	 * The runtime's own word that a paint landed.
 	 *
-	 * @param {Element} root App root.
-	 */
-	function host( root ) {
-		if ( hosted.has( root ) ) {
-			return;
-		}
-		hosted.add( root );
-		if ( typeof window.MutationObserver === 'function' ) {
-			new window.MutationObserver( function () {
-				schedule( root );
-			} ).observe( root, { childList: true, subtree: true } );
-		}
-		schedule( root );
-	}
-
-	/**
-	 * Host every app root at or under a node.
+	 * `os-app-effect` (openstation src/app-runtime/session.ts, Experimental,
+	 * v1.1.6+) fires on the app's container for every effect the runtime does
+	 * not perform itself, after the morph and finishRender(). The two views
+	 * queue `snt-paint`; anything else is another app's business.
 	 *
-	 * @param {Node} node Node to inspect.
+	 * @param {CustomEvent} event The effect event.
 	 */
-	function scan( node ) {
-		if ( ! node || 1 !== node.nodeType ) {
+	function onEffect( event ) {
+		var detail = event.detail || {};
+		var effect = detail.effect || {};
+		if ( 'snt-paint' !== effect.type ) {
 			return;
 		}
-		if ( typeof node.matches === 'function' && node.matches( ROOT_SELECTOR ) ) {
-			host( node );
-		}
-		if ( typeof node.querySelectorAll !== 'function' ) {
+		var target = event.target;
+		if ( ! target || 1 !== target.nodeType ) {
 			return;
 		}
-		var found = node.querySelectorAll( ROOT_SELECTOR );
-		for ( var i = 0; i < found.length; i++ ) {
-			host( found[ i ] );
+		var root = target.matches( ROOT_SELECTOR ) ? target : target.querySelector( ROOT_SELECTOR );
+		if ( ! root ) {
+			return;
 		}
+		schedule( root, String( effect.anchor || '' ) );
 	}
 
 
@@ -480,49 +471,13 @@
 	}
 
 	/**
-	 * Watch the document for windows that open later. A window is created when
-	 * the reader opens it, which is almost always after this file has loaded,
-	 * so the roots present at load are the exception rather than the rule.
+	 * One listener on the document for every window, open now or later: the
+	 * event bubbles from whichever app root the runtime painted.
 	 */
 	function start() {
 		armSubmitter();
-		if ( ! document.body ) {
-			return;
-		}
-		scan( document.body );
-		if ( typeof window.MutationObserver !== 'function' ) {
-			return;
-		}
-		// 15.9.0: a root can EARN its identity after it is inserted. Measured in
-		// the owner's shell on 2026-09-17: the runtime inserts a bare <div>,
-		// then sets class="snt-app …" and data-os-app by attribute morph, so
-		// an addedNodes-only watch never saw a root (13 analytics roots, zero
-		// paints; the Caches tile sat on "Checking…" under a meta line that
-		// said "verified fresh"). An attribute record on those two names
-		// re-scans its target; host() is idempotent, so a root already hosted
-		// is a no-op.
-		new window.MutationObserver( function ( records ) {
-			for ( var i = 0; i < records.length; i++ ) {
-				if ( 'attributes' === records[ i ].type ) {
-					scan( records[ i ].target );
-					continue;
-				}
-				var added = records[ i ].addedNodes;
-				for ( var j = 0; j < added.length; j++ ) {
-					scan( added[ j ] );
-				}
-			}
-		} ).observe( document.body, {
-			childList: true,
-			subtree: true,
-			attributes: true,
-			attributeFilter: [ 'class', 'data-os-app' ],
-		} );
+		document.addEventListener( 'os-app-effect', onEffect );
 	}
 
-	if ( 'loading' === document.readyState ) {
-		document.addEventListener( 'DOMContentLoaded', start );
-	} else {
-		start();
-	}
+	start();
 } )();

@@ -131,6 +131,24 @@ function notice_html( $notice ) {
 }
 
 /**
+ * Tell the host script this paint landed.
+ *
+ * `$os->effects->add()` queues a custom effect the runtime re-dispatches on
+ * the app root as an `os-app-effect` CustomEvent after the morph (OpenStation
+ * App Framework, Experimental, v1.1.6+; docs/app-framework.md "Effects").
+ * assets/os-host.js listens for `snt-paint` there; the method_exists guard
+ * names that seam. Analytics keeps no anchor in state, so none rides.
+ *
+ * @param Os $os Host handle.
+ * @return void
+ */
+function paint_effect( Os $os ) {
+	if ( isset( $os->effects ) && method_exists( $os->effects, 'add' ) ) {
+		$os->effects->add( 'snt-paint', array( 'anchor' => '' ) );
+	}
+}
+
+/**
  * A view tab's callable.
  *
  * @param string $view View slug.
@@ -141,6 +159,7 @@ function tab_view( $view ) {
 		$state->set( 'view', $view );
 		$ctx      = context( $view, $state, $os );
 		$painters = painters();
+		paint_effect( $os );
 		echo '<div class="snt-app os-app-list" data-os-app="sn-analytics" data-snt-view="' . \snt_kit_esc( $view ) . '" data-snt-query="' . \snt_kit_esc( $ctx['query'] ) . '">';
 		echo notice_html( $state->get( 'notice' ) );
 		if ( ! isset( $painters[ 'view/' . $view ] ) ) {

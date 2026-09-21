@@ -72,7 +72,14 @@ namespace OpenStation\App {
 		public function reset( $k ) { $this->values[ $k ] = $this->defaults[ $k ] ?? null; return $this; }
 		public function all() { return $this->values; }
 	}
+	/** The runtime's effects queue (openstation includes/framework/app/class-effects.php): add() merges the type in first, all() lists in order. */
+	class Effects {
+		public $items = array();
+		public function add( $type, array $data = array() ) { $this->items[] = array_merge( array( 'type' => (string) $type ), $data ); return $this; }
+		public function all() { return $this->items; }
+	}
 	class Os {
+		public $effects;
 		public $toasts  = array();
 		public $badges  = array();
 		public $opened  = array();
@@ -86,6 +93,7 @@ namespace OpenStation\App {
 		public function open_url( $u, $t = '', $i = '' ) { $this->opened[] = array( $u, $t, $i ); return $this; }
 		public function menu( array $items ) { $this->menus[] = $items; return $this; }
 		public function refresh_menu() { $this->refresh++; return $this; }
+		public function __construct() { $this->effects = new Effects(); }
 	}
 }
 
@@ -513,10 +521,26 @@ namespace {
 	$app->actions['go']( $st, $os, array( 'anchor' => 'sn-dash-diagnostics' ) );
 	ok( 'sn-dash-diagnostics' === $st->get( 'anchor' ),
 		'   ...a link`s own os-arg-anchor is already an id and is kept verbatim -- the attention strip`s #sn-dash-diagnostics is not a section wrapper and never was' );
-	$html = paint( $app, array( 'tab' => 'site', 'sub' => 'front-end', 'anchor' => 'sn-sec-identity' ) );
-	ok( false !== strpos( $html, 'data-snt-anchor="sn-sec-identity"' ),
-		'the view paints the id UNCHANGED -- assets/os-kit.js looks the value up as an id, and a view that prefixed would double it' );
-	ok( false === strpos( paint( $app, array( 'tab' => 'site' ) ), 'data-snt-anchor=' ), 'no anchor, no attribute' );
+	// #1609: the id rides the runtime's own effect channel. `$os->effects->add()`
+	// queues it; the runtime re-dispatches it on the app root as an
+	// `os-app-effect` CustomEvent after the morph, and assets/os-host.js
+	// scrolls from that. No attribute is painted, and the view clears the
+	// anchor from state once queued (the runtime echoes state after render),
+	// so a Refresh or an inline post paints with an empty one: one save
+	// scrolls once.
+	$os   = new \OpenStation\App\Os();
+	$st   = new \OpenStation\App\State( $app->state, array( 'tab' => 'site', 'sub' => 'front-end', 'anchor' => 'sn-sec-identity' ) );
+	$html = paint( $app, array( 'tab' => 'site', 'sub' => 'front-end' ), $os, $st );
+	ok( array( array( 'type' => 'snt-paint', 'anchor' => 'sn-sec-identity' ) ) === $os->effects->all(),
+		'the view queues ONE snt-paint effect carrying the id UNCHANGED -- assets/os-host.js looks the value up as an id, and a view that prefixed would double it' );
+	ok( false === strpos( $html, 'data-snt-anchor=' ), 'and paints NO data-snt-anchor: the effect is the carrier' );
+	ok( '' === (string) $st->get( 'anchor' ), 'and clears the anchor from state once it is queued: the id rides one paint' );
+	$os = new \OpenStation\App\Os();
+	paint( $app, array( 'tab' => 'site', 'sub' => 'front-end' ), $os, $st );
+	ok( array( array( 'type' => 'snt-paint', 'anchor' => '' ) ) === $os->effects->all(), '   ...so the next paint of the same session (a Refresh, an inline post) queues an EMPTY anchor and scrolls nowhere' );
+	$os = new \OpenStation\App\Os();
+	paint( $app, array( 'tab' => 'site' ), $os );
+	ok( array( array( 'type' => 'snt-paint', 'anchor' => '' ) ) === $os->effects->all(), 'no anchor, the effect still fires with an empty one: every paint is announced, or the leaf scripts never re-arm' );
 
 	echo "\nGroup 8: the leaf never keeps the request\n";
 	$_GET     = array( 'sentinel' => 'yes' );
