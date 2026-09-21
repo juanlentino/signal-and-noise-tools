@@ -78,7 +78,7 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: 
 ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the scan form is an os-form dispatching post on the admin-post pipeline' );
 ok( false !== strpos( $kit, 'submit-label="Scan for opportunities"' ) && false !== strpos( $classic, 'Scan for opportunities' ), 'before the first scan the button reads "Scan for opportunities"' );
 ok( false === strpos( $kit, '<os-badge' ) && false === strpos( $kit, '<os-disclosure' ) && false === strpos( $kit, '<os-empty-state' ), 'before the first scan there is no count, no queue and no empty note — as on the classic leaf' );
-ok( false !== strpos( $kit, '<os-section heading="Pattern adoption">' ) && false !== strpos( $kit, '<p class="snt-prose">Scans existing /notes posts' ), 'the heading and the intro prose are printed' );
+ok( false !== strpos( $kit, '<os-section heading="Pattern adoption" stack>' ) && false !== strpos( $kit, '<p class="snt-prose">Scans existing /notes posts' ), 'the heading and the intro prose are printed' );
 
 // ── Scanned, nothing found: the count reads zero and the empty note is printed.
 $GLOBALS['__pa_scan'] = snt_pa_scan( array() );

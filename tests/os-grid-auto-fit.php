@@ -21,7 +21,7 @@
  * that read them would fail forever and a scan tuned to pass anyway would stop
  * seeing a real declaration.
  *
- * Run: php tests/os-grid-auto-fit.css.php
+ * Run: php tests/os-grid-auto-fit.php
  */
 
 $pass = 0; $fail = 0;
@@ -50,16 +50,16 @@ foreach ( $sheets as $path ) {
 	);
 }
 
-ok( $total_repeats >= 3, 'the scan actually found auto-* grids to check (' . $total_repeats . ') -- a stylesheet that stopped matching would otherwise pass silently' );
-
-// The specific rule this was found in, pinned by name so a rewrite is loud.
-$dash = preg_replace( '#/\*.*?\*/#s', '', (string) file_get_contents( $sheets[0] ) );
-if ( preg_match( '/\.snt-systems\s*\{([^}]*)\}/', $dash, $m ) ) {
-	ok( false !== strpos( $m[1], 'auto-fit' ), '.snt-systems uses auto-fit' );
-	ok( false === strpos( $m[1], 'auto-fill' ), '...and not auto-fill' );
-} else {
-	ok( false, '.snt-systems rule still exists' );
-}
+// #1622: the tile rows moved onto the kit's <os-grid min-item-width>, whose
+// updateTracks() fits the tracks to the width alone and KEEPS the empty ones,
+// the auto-fill shape above. The same defect is held off by the track cap in
+// os-app.css: snt_kit_grid() writes the item count and the tracks stop there.
+// Pinned by declaration, so a rewrite of either half is loud.
+$shared = preg_replace( '#/\*.*?\*/#s', '', (string) file_get_contents( $sheets[1] ) );
+ok( 1 === preg_match( '/os-grid\[min-item-width\]\s*\{[^}]*grid-template-columns:\s*repeat\(\s*min\(\s*var\(\s*--_os-grid-tracks[^)]*\)\s*,\s*var\(\s*--snt-grid-items[^)]*\)\s*\)/', $shared ), 'os-app.css caps an os-grid[min-item-width] at min( the kit\'s tracks, --snt-grid-items ), so a four-tile row never holds eight tracks' );
+$kit = (string) file_get_contents( dirname( __DIR__ ) . '/inc/openstation-kit-display.php' );
+ok( false !== strpos( $kit, "'style'          => '--snt-grid-items:' . count( \$items )" ), 'snt_kit_grid() writes the item count the cap reads' );
+ok( $total_repeats >= 1, 'the scan still finds an auto-* grid to check (' . $total_repeats . ', the Home pulse) -- a stylesheet that stopped matching would otherwise pass silently' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

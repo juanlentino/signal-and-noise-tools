@@ -73,19 +73,19 @@ function num( $n ) {
  * @return string
  */
 function stats( array $cards ) {
-	$out = '';
+	$out = array();
 	foreach ( $cards as $card ) {
 		if ( ! is_array( $card ) ) {
 			continue;
 		}
-		$out .= \snt_kit_stat(
+		$out[] = \snt_kit_stat(
 			(string) ( $card['n'] ?? '' ),
 			(string) ( $card['l'] ?? '' ),
 			(string) ( $card['sub'] ?? '' ),
 			(string) ( $card['kind'] ?? '' )
 		);
 	}
-	return '' === $out ? '' : '<div class="snt-stats">' . $out . '</div>';
+	return \snt_kit_grid( $out, 160, 10 );
 }
 
 require_once __DIR__ . '/paint-kit-tables.php';

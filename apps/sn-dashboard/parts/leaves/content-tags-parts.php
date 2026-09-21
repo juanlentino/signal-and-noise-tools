@@ -108,12 +108,12 @@ function tags_glance_html( $clusters, $unused, $total ) {
 	if ( ! function_exists( 'snt_tags_glance_cards' ) ) {
 		return '';
 	}
-	$out = '';
+	$out = array();
 	foreach ( \snt_tags_glance_cards( $clusters, $unused, $total ) as $card ) {
 		$pill = isset( $card['pill'] ) && is_array( $card['pill'] ) ? $card['pill'] : array();
-		$out .= \snt_kit_stat( (string) ( $card['value'] ?? '' ), (string) ( $card['label'] ?? '' ), (string) ( $pill['text'] ?? '' ), (string) ( $pill['kind'] ?? '' ) );
+		$out[] = \snt_kit_stat( (string) ( $card['value'] ?? '' ), (string) ( $card['label'] ?? '' ), (string) ( $pill['text'] ?? '' ), (string) ( $pill['kind'] ?? '' ) );
 	}
-	return '<section class="snt-stats" aria-label="' . \snt_kit_esc( __( 'Tags at a glance', 'signal-and-noise-tools' ) ) . '">' . $out . '</section>';
+	return \snt_kit_tag( 'section', array( 'aria-label' => __( 'Tags at a glance', 'signal-and-noise-tools' ) ), \snt_kit_grid( $out, 160, 10 ) );
 }
 
 /**
@@ -239,10 +239,7 @@ function tags_confirm_html( $pv, array $from, $into, $tab ) {
  * @return string
  */
 function tags_pair( $left, $right ) {
-	if ( '' === $left || '' === $right ) {
-		return $left . $right;
-	}
-	return \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $left . $right );
+	return \snt_kit_grid( array( $left, $right ) );
 }
 
 /**

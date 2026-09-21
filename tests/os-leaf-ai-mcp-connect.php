@@ -237,7 +237,7 @@ ok( false !== strpos( $kit, 'Killed in wp-config' ) && false !== strpos( $kit, '
 // Measured live 2026-09-10: 2,852px -> 2,136px once paired, cards at 865px.
 $kit = ai_leaf_both();
 
-ok( 3 === substr_count( $kit, '<div class="snt-cols">' ), 'three paired rows are painted across the two leaves (two door pairs on Agent tools, the footer pair on MCP Clients) -- ' . substr_count( $kit, '<div class="snt-cols">' ) );
+ok( 3 === substr_count( $kit, snt_leaf_row() ), 'three paired rows are painted across the two leaves (two door pairs on Agent tools, the footer pair on MCP Clients) -- ' . substr_count( $kit, snt_leaf_row() ) );
 
 // Each pair, by the two headings it must hold, in order.
 $pairs = array(
@@ -247,7 +247,7 @@ $pairs = array(
 foreach ( $pairs as $i => $pair ) {
 	// 15.6.0: MCP Clients paints first (its footer pair is row 0); the two door
 	// pairs follow on Agent tools.
-	if ( preg_match_all( '/<div class="snt-cols">(.*?)<\/div>/s', $kit, $m ) && isset( $m[1][ $i + 1 ] ) ) {
+	if ( preg_match_all( '/' . preg_quote( snt_leaf_row(), '/' ) . '(.*?)<\/os-grid>/s', $kit, $m ) && isset( $m[1][ $i + 1 ] ) ) {
 		$row = $m[1][ $i + 1 ];
 		ok(
 			false !== strpos( $row, $pair[0] ) && false !== strpos( $row, $pair[1] ),
@@ -261,7 +261,7 @@ foreach ( $pairs as $i => $pair ) {
 // The task path keeps the width: it carries a JSON config block and a CLI
 // command, and wrapping either is worse than the space costs.
 ok(
-	false === strpos( preg_replace( '/<div class="snt-cols">.*?<\/div>/s', '', $kit ), 'snt-cols' )
+	false === strpos( preg_replace( '/' . preg_quote( snt_leaf_row(), '/' ) . '.*?<\/os-grid>/s', '', $kit ), snt_leaf_row() )
 	&& false !== strpos( $kit, 'Connect a client' ),
 	'Connect a client is NOT paired -- the code block keeps the full width'
 );

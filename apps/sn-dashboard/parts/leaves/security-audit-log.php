@@ -33,7 +33,7 @@ function audit_log_glance_html( array $summary ) {
 	if ( ! function_exists( 'snt_audit_log_glance_cards' ) ) {
 		return '';
 	}
-	$out = '';
+	$out = array();
 	foreach ( snt_audit_log_glance_cards( $summary ) as $card ) {
 		if ( ! is_array( $card ) ) {
 			continue;
@@ -45,9 +45,9 @@ function audit_log_glance_html( array $summary ) {
 		if ( '' !== $pill_text ) {
 			$caption = '' !== $caption ? $caption . ' · ' . $pill_text : $pill_text;
 		}
-		$out .= \snt_kit_stat( (string) ( $card['value'] ?? '' ), (string) ( $card['label'] ?? '' ), $caption, $kind );
+		$out[] = \snt_kit_stat( (string) ( $card['value'] ?? '' ), (string) ( $card['label'] ?? '' ), $caption, $kind );
 	}
-	return '<div class="snt-stats">' . $out . '</div>';
+	return \snt_kit_grid( $out, 160, 10 );
 }
 
 /**
@@ -283,16 +283,8 @@ function paint_security_audit_log( array $ctx ) {
 	$out .= audit_log_counter_table_html( $counters );
 	// The counter table above keeps the full width. What follows is two pairs of
 	// siblings: a pair of readouts, then a pair of controls.
-	$out .= \snt_kit_tag(
-		'div',
-		array( 'class' => 'snt-cols' ),
-		audit_log_logins_html( $logins ) . audit_log_lla_html( (array) $summary['lla'] )
-	);
-	$out .= \snt_kit_tag(
-		'div',
-		array( 'class' => 'snt-cols' ),
-		audit_log_retention_form_html() . audit_log_maintenance_html()
-	);
+	$out .= \snt_kit_grid( array( audit_log_logins_html( $logins ), audit_log_lla_html( (array) $summary['lla'] ) ) );
+	$out .= \snt_kit_grid( array( audit_log_retention_form_html(), audit_log_maintenance_html() ) );
 	return $out;
 }
 

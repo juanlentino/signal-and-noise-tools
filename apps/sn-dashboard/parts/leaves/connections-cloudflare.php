@@ -111,10 +111,7 @@ function cloudflare_credentials_html( array $d ) {
  * @return string
  */
 function cloudflare_pair( $left, $right ) {
-	if ( '' === $left || '' === $right ) {
-		return $left . $right;
-	}
-	return \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $left . $right );
+	return \snt_kit_grid( array( $left, $right ) );
 }
 
 /**

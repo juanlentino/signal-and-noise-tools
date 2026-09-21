@@ -60,7 +60,7 @@ function zenodo_main_html( array $d ) {
 			(int) \SN_ZENODO_PASS_MAX
 		)
 	);
-	return '<div class="snt-cols"><section class="snt-col">' . $env . '</section><section class="snt-col">' . $deposit . '</section></div>';
+	return \snt_kit_grid( array( \snt_kit_tag( 'os-card', array(), $env ), \snt_kit_tag( 'os-card', array(), $deposit ) ) );
 }
 
 /**

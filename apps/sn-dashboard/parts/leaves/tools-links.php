@@ -110,7 +110,7 @@ function paint_tools_links( array $ctx ) {
 		}
 	}
 	// NOT paired, and the reason is mechanical rather than semantic. These three
-	// groups ARE siblings, and v13.109.12 wrapped them in `.snt-systems` on that
+	// groups ARE siblings, and v13.109.12 wrapped them in the systems grid on that
 	// reading. But each group already lays out its own cards HORIZONTALLY, so a
 	// horizontal wrapper divides an already-divided width: measured live
 	// 2026-09-10 the groups fell to 265px each (and, with the leaf released,

@@ -82,9 +82,8 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 .snt-app[data-os-app="sn-dashboard"][data-snt-tab="dashboard"] .snt-dashboard-body > .snt-leaf,
 .snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( os-table ),
 .snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( .snt-table-wrap ),
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( .snt-2up ),
 .snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( os-row ),
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( .snt-cols ),
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( os-grid ),
 .snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( .snt-report-columns ),
 .snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="analytics"],
 .snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="machine-readers"],
@@ -99,37 +98,10 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 	max-width: 100%;
 }
 
-/* Two-column layout for composite settings leaves */
-.snt-2up {
-	display: grid;
-	grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
-	gap: 24px;
-	align-items: start;
-	width: 100%;
-}
-
-.snt-provenance-columns {
+/* The provenance column pair is the one asymmetric row: the ledger wide, the
+   status rail narrow. The kit's own single-column stamp drops it to one. */
+.snt-app os-grid.snt-provenance-columns:not( [data-single-column] ) {
 	grid-template-columns: minmax( 0, 1.7fr ) minmax( 0, 1fr );
-}
-
-.snt-2up > * {
-	min-width: 0;
-}
-
-.snt-2up-col {
-	display: flex;
-	flex-direction: column;
-	gap: 18px;
-	min-width: 0;
-}
-
-.snt-2up-col > os-section,
-.snt-2up-col > os-disclosure {
-	width: 100%;
-}
-
-.snt-2up-col > * + * {
-	margin-block-start: 18px;
 }
 
 
@@ -169,16 +141,20 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 }
 
 
-/* ...but NOT when the sections are grid cells. The rule above is vertical-stack
-   rhythm: `os-section + os-section` is still true of the SECOND CELL of a
-   `.snt-cols` row, so it took a 24px top margin the grid `gap` already provides
-   and sat 24px below its neighbour. Measured live 2026-09-10 on AI -> MCP
-   Clients: paired door cards at top 797 / 821 instead of 797 / 797.
+/* ...but NOT when the sections are cells of a kit layout. The rule above is
+   vertical-stack rhythm: `os-section + os-section` is still true of the SECOND
+   CELL of an os-grid row, so it took a 24px top margin the grid `gap` already
+   provides and sat 24px below its neighbour. Measured live 2026-09-10 on AI ->
+   MCP Clients: paired door cards at top 797 / 821 instead of 797 / 797. The
+   same holds inside an os-stack column and an os-card: their gap is the rhythm
+   (#1622 closed the 36px the old column margin added on top).
 
    Specificity matters here and is the whole reason this is a separate rule:
-   the stack rule scores (0,3,2), so this one adds `.snt-cols` to reach (0,4,2)
-   and win outright rather than on source order. */
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-cols > os-section + os-section {
+   the stack rule scores (0,3,2), so this one adds the parent type to reach
+   (0,3,3) and win outright rather than on source order. */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf os-grid > os-section + os-section,
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf os-stack > os-section + os-section,
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf os-card > os-section + os-section {
 	margin-block-start: 0;
 }
 
@@ -186,20 +162,22 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
    OpenStation caps `os-form` at 760px, which is the right measure for labelled
    inputs -- the empty space beside site/identity-and-seo or security/login is
    the price of legibility, not a defect, and this must not touch them.
-   `:has( .snt-cols )` is the whole condition: only a form that has actually
+   `:has( os-grid )` is the whole condition: only a form that has actually
    paired sibling cards opts in.
 
    Measured live 2026-09-10 on Content -> Now Page: without this, pairing inside
    the 760px form merely split the cap and cards fell to 355px -- shorter but
    less readable, a bad trade. With it: leaf 1,386px -> 831px and cards
    728px -> 826px, so every field is WIDER than before rather than narrower. */
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf os-form:has( .snt-cols ) {
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf os-form:has( os-grid ) {
 	max-width: 100%;
 }
+/* The body's flex column is the kit's `stack` attribute (snt_kit_section()
+   passes it); only the gap and the box are ours. */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf os-section {
+	--os-ui-section-gap: 16px;
+}
 .snt-app[data-os-app="sn-dashboard"] .snt-leaf os-section::part( body ) {
-	display: flex;
-	flex-direction: column;
-	gap: 16px;
 	padding: 20px 22px;
 	background: var( --os-ui-surface-subtle, rgba( 255, 251, 255, 0.03 ) );
 	border: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
@@ -762,23 +740,11 @@ os-button.snt-home__action:hover {
 	opacity: 0.94;
 }
 
-/* auto-FIT, never auto-fill. `auto-fill` keeps the empty tracks it creates, so a
-   row with fewer items than tracks leaves the remainder blank instead of letting
-   the items grow. Measured live 2026-09-10 on AI -> MCP Clients: a 1,702px row
-   held EIGHT 202px tracks for FOUR tiles, so the four sat at 202px each and the
-   right half of the section was empty -- the same dead-half-window defect the
-   width cap produced, one level further in. `auto-fit` collapses the empty
-   tracks and the same four tiles measure 417px, spanning the full row.
-
-   Shared by three leaves: AI -> MCP Clients, Connections -> Cloudways, and the
-   Dashboard's own Systems row. Every other repeat() in this app and in
-   os-app.css already uses auto-fit; this was the lone outlier. */
-.snt-systems {
-	display: grid;
-	grid-template-columns: repeat( auto-fit, minmax( 190px, 1fr ) );
-	gap: 12px;
-}
-
+/* The systems tile. Its row is snt_kit_grid( $cells, 190, 12 ), the kit grid
+   with the track cap in os-app.css: a 1,702px row once held EIGHT 202px tracks
+   for FOUR tiles (auto-fill, measured 2026-09-10 on AI -> MCP Clients); the
+   cap keeps the four at 417px, spanning the row. Shared by AI -> MCP Clients,
+   Connections -> Cloudways and the Dashboard's own Systems row. */
 .snt-sys {
 	display: flex;
 	flex-direction: column;
@@ -824,19 +790,11 @@ os-button.snt-sys__v { justify-self: start; display: inline-flex; align-items: c
 	color: var( --os-ui-fg-muted, #b3afb5 );
 }
 
-.snt-dashboard-home .snt-cols {
-	grid-template-columns: repeat( 4, minmax( 0, 1fr ) );
-}
-
 /* ══════════════════════════════════════════════════════════════════════════
  * Responsive & Mobile Container Queries
  * ══════════════════════════════════════════════════════════════════════════ */
 
 @container snt-dashboard ( max-width: 900px ) {
-	.snt-dashboard-home .snt-cols {
-		grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
-	}
-
 	.snt-home__detail {
 		grid-template-columns: minmax( 0, 1fr );
 		gap: 16px 0;
@@ -863,11 +821,6 @@ os-button.snt-sys__v { justify-self: start; display: inline-flex; align-items: c
 	.snt-home__timestamp { font-size: 12px; }
 	.snt-home__section-heading { flex-wrap: wrap; gap: 8px; }
 	.snt-home__section--subordinate { --os-ui-button-padding: 12px; }
-
-	.snt-2up {
-		grid-template-columns: minmax( 0, 1fr );
-		gap: 16px;
-	}
 
 	.snt-leaf os-row {
 		display: flex !important;
@@ -953,14 +906,6 @@ os-button.snt-sys__v { justify-self: start; display: inline-flex; align-items: c
 		padding: 16px 12px 26px;
 	}
 
-	.snt-dashboard-home .snt-cols {
-		grid-template-columns: minmax( 0, 1fr );
-	}
-
-	.snt-stats,
-	.snt-systems {
-		grid-template-columns: minmax( 0, 1fr );
-	}
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -998,9 +943,6 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 }
 .snt-provenance os-stat::part( value ) {
 	overflow-wrap: anywhere;
-}
-.snt-app[data-os-app="sn-dashboard"] .snt-provenance .snt-2up-col > os-section {
-	margin-block: 0;
 }
 .snt-provenance .snt-kv__v,
 .snt-provenance-key code {

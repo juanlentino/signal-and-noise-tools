@@ -68,10 +68,7 @@ function paint_monitoring_analytics( array $ctx ) {
 	$right .= analytics_worker_setup_html();
 
 	return analytics_pipeline_html()
-		. '<div class="snt-2up">'
-		. '<div class="snt-2up-col">' . $left . '</div>'
-		. '<div class="snt-2up-col">' . $right . '</div>'
-		. '</div>';
+		. \snt_kit_grid( array( \snt_kit_stack( $left ), \snt_kit_stack( $right ) ), 290, 24 );
 }
 
 add_filter(

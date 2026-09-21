@@ -181,7 +181,7 @@ function provenance_commits_empty_copy() {
  */
 function provenance_glance_html( array $sys ) {
 	$cards = function_exists( 'sn_prov_admin_glance_cards' ) ? sn_prov_admin_glance_cards( $sys ) : array();
-	$out   = '';
+	$out   = array();
 	foreach ( $cards as $card ) {
 		if ( ! is_array( $card ) ) {
 			continue;
@@ -194,14 +194,14 @@ function provenance_glance_html( array $sys ) {
 			list( $value, $contact ) = explode( ' · ', $value, 2 );
 			$caption = trim( $caption . ' · ' . $contact, ' ·' );
 		}
-		$out .= \snt_kit_stat(
+		$out[] = \snt_kit_stat(
 			$value,
 			(string) ( $card['label'] ?? '' ),
 			$caption,
 			$kind
 		);
 	}
-	return '<div class="snt-stats">' . $out . '</div>';
+	return \snt_kit_grid( $out, 160, 10 );
 }
 
 /**
@@ -549,14 +549,20 @@ function paint_tools_provenance( array $ctx ) {
 	$sys  = $data['sys'];
 
 	$out  = '<div class="snt-provenance"><section aria-label="Provenance at a glance">' . provenance_glance_html( $sys ) . '</section>';
-	$out .= '<div class="snt-2up snt-provenance-columns"><div class="snt-2up-col">';
-	$out .= provenance_commits_html( $data );
-	$out .= provenance_backfill_html( $data );
-	$out .= '</div><aside class="snt-2up-col" aria-label="' . esc_attr( __( 'Provenance status', 'signal-and-noise-tools' ) ) . '">';
-	$out .= provenance_system_html( $sys );
-	$out .= provenance_rotation_html( $data['commitment'] );
-	$out .= provenance_genesis_html( $sys, $data['reanchor_flag'] );
-	return $out . '</aside></div></div>';
+	$out .= \snt_kit_grid(
+		array(
+			\snt_kit_stack( provenance_commits_html( $data ) . provenance_backfill_html( $data ) ),
+			\snt_kit_stack(
+				provenance_system_html( $sys ) . provenance_rotation_html( $data['commitment'] ) . provenance_genesis_html( $sys, $data['reanchor_flag'] ),
+				18,
+				array( 'role' => 'complementary', 'aria-label' => __( 'Provenance status', 'signal-and-noise-tools' ) )
+			),
+		),
+		290,
+		24,
+		array( 'class' => 'snt-provenance-columns' )
+	);
+	return $out . '</div>';
 }
 
 add_filter(

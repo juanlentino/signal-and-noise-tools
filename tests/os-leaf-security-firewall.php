@@ -65,8 +65,8 @@ ok( false !== strpos( $classic, '3,015 events, 24 hours' ) && false !== strpos( 
 ok( 1 === substr_count( $kit, 'os-arg-action="sn_cf_monitor_refresh"' ) && false !== strpos( $kit, 'Refresh reads the token, the edge and the firewall again' ) && false !== strpos( $classic, 'value="sn_cf_monitor_refresh"' ), 'one Refresh on each leaf, saying what it refreshes' );
 ok( false === strpos( $kit, 'heading="Edge, 7 days"' ) && false === strpos( $kit, 'heading="Token"' ) && false === strpos( $kit, 'heading="Cache"' ), 'only the firewall: no Edge, Token or Cache here' );
 // 15.3.1: two columns: what happened (events, rules) left; to what (paths, countries) right.
-// #1573: the two are of a height, so they are one .snt-cols row (the 17.2.1 shape), not a .snt-2up column pair.
-ok( false !== strpos( $kit, '<div class="snt-cols">' ) && false !== strpos( $kit, 'heading="Acted on"' ) && strpos( $kit, 'heading="Firewall, 24 hours"' ) < strpos( $kit, 'heading="Acted on"' ) && false !== strpos( $kit, '>Top rules</h4>' ) && strpos( $kit, '>Top rules</h4>' ) < strpos( $kit, 'heading="Acted on"' ) && strpos( $kit, 'Top paths acted on' ) > strpos( $kit, 'heading="Acted on"' ) && strpos( $kit, 'os-arg-action="sn_cf_monitor_refresh"' ) < strpos( $kit, 'heading="Acted on"' ), 'two columns: events and the top rules (with a heading) left with Refresh; the paths and countries right under Acted on' );
+// #1573: the two are of a height, so they are one paired row (the 17.2.1 shape), not a two-up column pair.
+ok( false !== strpos( $kit, snt_leaf_row() ) && false !== strpos( $kit, 'heading="Acted on"' ) && strpos( $kit, 'heading="Firewall, 24 hours"' ) < strpos( $kit, 'heading="Acted on"' ) && false !== strpos( $kit, '>Top rules</h4>' ) && strpos( $kit, '>Top rules</h4>' ) < strpos( $kit, 'heading="Acted on"' ) && strpos( $kit, 'Top paths acted on' ) > strpos( $kit, 'heading="Acted on"' ) && strpos( $kit, 'os-arg-action="sn_cf_monitor_refresh"' ) < strpos( $kit, 'heading="Acted on"' ), 'two columns: events and the top rules (with a heading) left with Refresh; the paths and countries right under Acted on' );
 
 // 15.4.0: the posture, under Acted on. Before it is read: one hint. Read:
 // the judged settings as a dotted list in words, the readings as one quiet
@@ -74,17 +74,17 @@ ok( false !== strpos( $kit, '<div class="snt-cols">' ) && false !== strpos( $kit
 // left now carries its NAME (the id kept as a title).
 ok( false !== strpos( $kit, 'heading="Edge posture"' ) && strpos( $kit, 'heading="Edge posture"' ) > strpos( $kit, 'heading="Acted on"' ) && false !== strpos( $kit, 'Not read yet; it reads with Refresh now.' ), 'posture never read: the section sits under Acted on and says so' );
 // #1573: the posture stands alone at full width UNDER the row, never stacked
-// under Acted on in a column beside the Firewall box: the row's one `.snt-cols`
-// closes before the posture opens, and no `.snt-2up` column pair remains.
-$row_at = strpos( $kit, '<div class="snt-cols">' );
-ok( false !== $row_at && strpos( $kit, '</div>', $row_at ) < strpos( $kit, 'heading="Edge posture"' ) && 1 === substr_count( $kit, 'snt-cols' ) && false === strpos( $kit, 'snt-2up' ), 'the row holds Firewall and Acted on and closes before the posture; the posture is full width below it' );
+// under Acted on in a column beside the Firewall box: the row's one grid
+// closes before the posture opens, and no two-up column pair remains.
+$row_at = strpos( $kit, snt_leaf_row() );
+ok( false !== $row_at && strpos( $kit, '</os-grid>', $row_at ) < strpos( $kit, 'heading="Edge posture"' ) && 1 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, '<os-stack' ), 'the row holds Firewall and Acted on and closes before the posture; the posture is full width below it' );
 // #1573: a log with no rows paints no Acted on, and the Firewall box then
 // stands alone at full width (the tags_pair idiom), the posture still below.
 $with_log = $GLOBALS['__options'];
 fw_opts( array_diff_key( $with_log, array( SN_CF_FW_EVENTS_OPT => 1 ) ) );
 $alone = snt_leaf_paint( 'security', 'firewall' );
 fw_opts( $with_log );
-ok( false === strpos( $alone, 'snt-cols' ) && false === strpos( $alone, 'snt-2up' ) && false === strpos( $alone, 'heading="Acted on"' ) && false !== strpos( $alone, 'heading="Firewall, 24 hours"' ) && strpos( $alone, 'heading="Firewall, 24 hours"' ) < strpos( $alone, 'heading="Edge posture"' ), 'no event log: no row, the Firewall box alone with the posture under it' );
+ok( false === strpos( $alone, snt_leaf_row() ) && false === strpos( $alone, '<os-stack' ) && false === strpos( $alone, 'heading="Acted on"' ) && false !== strpos( $alone, 'heading="Firewall, 24 hours"' ) && strpos( $alone, 'heading="Firewall, 24 hours"' ) < strpos( $alone, 'heading="Edge posture"' ), 'no event log: no row, the Firewall box alone with the posture under it' );
 $posture = array( 'fetched_at' => time(), 'configured' => true,
 	'settings' => array( 'available' => true, 'needs_permission' => false, 'error' => '', 'values' => array( 'ssl' => 'strict', 'min_tls_version' => '1.2', 'always_use_https' => 'on', 'development_mode' => 'on', 'security_level' => 'medium', 'browser_check' => 'on' ) ),
 	'dnssec'   => array( 'available' => false, 'needs_permission' => true, 'error' => 'The token lacks Zone › DNS › Read. Authentication error', 'status' => '' ),
@@ -117,7 +117,7 @@ function fw_pinning_box( $html ) {
 ok( sn_ssrf_pinning_available(), 'this host has the cURL transport, so the good branch is readable' );
 // (a) Read state, nothing unpinned: under the posture, outside the row, the hint line and two facts rows.
 $box = fw_pinning_box( $kit );
-ok( '' !== $box && strpos( $kit, 'heading="Edge posture"' ) < strpos( $kit, 'heading="Outbound pinning"' ) && 1 === substr_count( $kit, 'snt-cols' ) && false === strpos( $kit, 'snt-2up' ), 'the pinning box paints under the posture at full width; the one row is still Firewall and Acted on' );
+ok( '' !== $box && strpos( $kit, 'heading="Edge posture"' ) < strpos( $kit, 'heading="Outbound pinning"' ) && 1 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, '<os-stack' ), 'the pinning box paints under the posture at full width; the one row is still Firewall and Acted on' );
 ok( false === strpos( $box, '<os-notice' ) && false !== strpos( $box, '<p class="snt-hint">Outbound requests are pinned to the addresses the SSRF guard validated' ), 'pinned, nothing unpinned: the summary is the hint line, no notice' );
 ok( false !== strpos( $box, '<dt class="snt-kv__k">cURL transport</dt><dd class="snt-kv__v">present, the pin fires on every outbound request</dd>' ) && false !== strpos( $box, '<dt class="snt-kv__k">Last unpinned request</dt><dd class="snt-kv__v">none recorded</dd>' ), 'two facts rows: the transport present, no unpinned request recorded, neither toned' );
 // (b) A request went out unpinned: the recommended verdict is a warning naming the host, the row toned and dated.

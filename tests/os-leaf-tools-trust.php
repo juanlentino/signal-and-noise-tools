@@ -133,13 +133,13 @@ $GLOBALS['__can'] = true;
 // Measured live 2026-09-10; see the painter for the per-leaf numbers.
 $kitP = snt_leaf_paint( 'tools', 'trust' );
 ok(
-	1 === substr_count( $kitP, '<div class="snt-cols">' ),
-	'the sibling sections are painted in 1 paired row(s) -- ' . substr_count( $kitP, '<div class="snt-cols">' )
+	1 === substr_count( $kitP, snt_leaf_row() ),
+	'the sibling sections are painted in 1 paired row(s) -- ' . substr_count( $kitP, snt_leaf_row() )
 );
 // Ordering, not a regex extract: `(.*?)</div>` stops at the first NESTED
 // close, so it cannot delimit a row that contains divs. Position is enough --
 // the row opens, then both siblings follow, with no third section between.
-$posRow = strpos( $kitP, '<div class="snt-cols">' );
+$posRow = strpos( $kitP, snt_leaf_row() );
 $posA   = strpos( $kitP, 'What these four watch' );
 $posB   = strpos( $kitP, 'The public side' );
 ok(

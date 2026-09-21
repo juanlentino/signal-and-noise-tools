@@ -120,16 +120,12 @@ function performance_profile_html() {
 function paint_site_performance( array $ctx ) {
 	unset( $ctx );
 	$s = performance_state();
-	return '<div class="snt-cols">'
-		. '<section class="snt-col">'
-		. \snt_kit_section( __( 'Speculative loading', 'signal-and-noise-tools' ), performance_form_html( $s ) )
-		. '</section>'
-		. '<aside class="snt-col" aria-label="' . \snt_kit_esc( __( 'Speculative loading status', 'signal-and-noise-tools' ) ) . '">'
-		. performance_status_html( $s )
-		. performance_profile_html()
-		. '</aside>'
-		. '</div>'
-		. performance_slow_calls_html();
+	return \snt_kit_grid(
+		array(
+			\snt_kit_tag( 'os-card', array(), \snt_kit_section( __( 'Speculative loading', 'signal-and-noise-tools' ), performance_form_html( $s ) ) ),
+			\snt_kit_tag( 'os-card', array( 'role' => 'complementary', 'aria-label' => __( 'Speculative loading status', 'signal-and-noise-tools' ) ), performance_status_html( $s ) . performance_profile_html() ),
+		)
+	) . performance_slow_calls_html();
 }
 
 add_filter(

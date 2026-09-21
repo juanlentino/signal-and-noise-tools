@@ -132,12 +132,8 @@ function tools_reports_scan_html( array $ctx ) {
 
 	// Each report is an independent measurement; nothing about the second
 	// depends on the first. Siblings, so a grid.
-	for ( $i = 0, $n = count( $cards ); $i < $n; $i += 2 ) {
-		$out .= \snt_kit_tag(
-			'div',
-			array( 'class' => 'snt-cols' ),
-			$cards[ $i ] . ( isset( $cards[ $i + 1 ] ) ? $cards[ $i + 1 ] : '' )
-		);
+	foreach ( array_chunk( $cards, 2 ) as $row ) {
+		$out .= \snt_kit_grid( $row );
 	}
 
 	return $out;

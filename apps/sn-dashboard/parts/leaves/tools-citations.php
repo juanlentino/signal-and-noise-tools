@@ -41,7 +41,7 @@ require_once __DIR__ . '/tools-citations-parts.php';
  */
 function citations_glance( array $counts ) {
 	$cards = function_exists( 'sn_cit_glance_cards' ) ? sn_cit_glance_cards( $counts ) : array();
-	$out   = '';
+	$out   = array();
 	foreach ( $cards as $card ) {
 		if ( ! is_array( $card ) ) {
 			continue;
@@ -53,9 +53,9 @@ function citations_glance( array $counts ) {
 		if ( '' !== $note ) {
 			$caption = '' !== $caption ? $caption . ' · ' . $note : $note;
 		}
-		$out .= \snt_kit_stat( (string) ( $card['value'] ?? '' ), $tier, $caption, $kind );
+		$out[] = \snt_kit_stat( (string) ( $card['value'] ?? '' ), $tier, $caption, $kind );
 	}
-	return '<div class="snt-stats">' . $out . '</div>';
+	return \snt_kit_grid( $out, 160, 10 );
 }
 
 /**

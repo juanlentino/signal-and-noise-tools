@@ -115,37 +115,37 @@ function machine_readers_summary_stats_html( array $rows, $days, $feed_total, $t
 	foreach ( \snt_mr_ai_training_families() as $fam ) {
 		$ai += (int) ( $totals[ $fam ] ?? 0 );
 	}
-	$out  = '<div class="snt-stats">';
-	$out .= \snt_kit_stat( number_format_i18n( $total ), sprintf( __( 'machine reads, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ) );
-	$out .= \snt_kit_stat( $top, __( 'top family', 'signal-and-noise-tools' ) );
-	$out .= \snt_kit_stat( number_format_i18n( $ai ), __( 'AI-training reads', 'signal-and-noise-tools' ) );
+	$out   = array();
+	$out[] = \snt_kit_stat( number_format_i18n( $total ), sprintf( __( 'machine reads, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ) );
+	$out[] = \snt_kit_stat( $top, __( 'top family', 'signal-and-noise-tools' ) );
+	$out[] = \snt_kit_stat( number_format_i18n( $ai ), __( 'AI-training reads', 'signal-and-noise-tools' ) );
 	if ( null !== $feed_total ) {
-		$out .= \snt_kit_stat( number_format_i18n( (int) $feed_total ), sprintf( __( 'feed fetches, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ) );
+		$out[] = \snt_kit_stat( number_format_i18n( (int) $feed_total ), sprintf( __( 'feed fetches, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ) );
 	}
 	// 15.5.0: the WebMCP bridge's tool calls, the reader's agent acting on the
 	// page. Never summed with reads; a fifth figure beside them. Zero until the
 	// bridge with the beacon ships, and zero is the honest reading then.
 	if ( null !== $tool_calls ) {
-		$out .= \snt_kit_stat( number_format_i18n( (int) $tool_calls ), sprintf( __( 'agent tool calls, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ) );
+		$out[] = \snt_kit_stat( number_format_i18n( (int) $tool_calls ), sprintf( __( 'agent tool calls, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ) );
 	}
-	return $out . '</div>';
+	return \snt_kit_grid( $out, 160, 10 );
 }
 
 /** @param array $rows @param int $days @return string */
 function machine_readers_identity_stats_html( array $rows, $days ) {
 	$t   = \snt_mr_identity_totals( $rows );
-	$out = '<div class="snt-stats">';
+	$out = array();
 	if ( 0 === $t['measured'] ) {
-		$out .= \snt_kit_stat( '—', __( 'proved identity', 'signal-and-noise-tools' ), __( 'not yet measured — no read in this window carried a signature state', 'signal-and-noise-tools' ) );
+		$out[] = \snt_kit_stat( '—', __( 'proved identity', 'signal-and-noise-tools' ), __( 'not yet measured — no read in this window carried a signature state', 'signal-and-noise-tools' ) );
 	} else {
 		$note = '';
 		if ( $t['invalid'] > 0 || $t['unknown_key'] > 0 ) {
 			$note = sprintf( __( '%1$s invalid, %2$s unknown key', 'signal-and-noise-tools' ), number_format_i18n( $t['invalid'] ), number_format_i18n( $t['unknown_key'] ) );
 		}
-		$out .= \snt_kit_stat( number_format_i18n( $t['valid'] ) . ' / ' . number_format_i18n( $t['measured'] ), __( 'proved identity', 'signal-and-noise-tools' ), $note );
+		$out[] = \snt_kit_stat( number_format_i18n( $t['valid'] ) . ' / ' . number_format_i18n( $t['measured'] ), __( 'proved identity', 'signal-and-noise-tools' ), $note );
 	}
-	$out .= \snt_kit_stat( number_format_i18n( $t['markdown'] ), sprintf( __( 'asked for markdown, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ) );
-	return $out . '</div>';
+	$out[] = \snt_kit_stat( number_format_i18n( $t['markdown'] ), sprintf( __( 'asked for markdown, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ) );
+	return \snt_kit_grid( $out, 160, 10 );
 }
 
 /** @param array $cards snt_mr_family_delta_cards() output. @return string */

@@ -158,5 +158,5 @@ function cron_settings_row_html() {
 	if ( '' === $brief || '' === $reads ) {
 		return $brief . $reads;
 	}
-	return '<div class="snt-cols"><section class="snt-col">' . $brief . '</section><section class="snt-col">' . $reads . '</section></div>';
+	return \snt_kit_grid( array( \snt_kit_tag( 'os-card', array(), $brief ), \snt_kit_tag( 'os-card', array(), $reads ) ) );
 }

@@ -103,8 +103,8 @@ function paint_content_tags( array $ctx ) {
 			$dups .= tags_cluster_html( (array) $c );
 		}
 	}
-	// 17.2.1: boxes share a row. Two columns (assets/os-app.css .snt-cols, one
-	// column under 640px). #1573: two boxes share a row only when their heights
+	// 17.2.1: boxes share a row. Two columns (snt_kit_grid(), one column
+	// under 640px). #1573: two boxes share a row only when their heights
 	// are comparable (live at 1581px: duplicates 96 / picker 145, fit 238 /
 	// groups 260); the by-tag ledger stood 1,329px beside a 238px box and the
 	// recent ledger (ten rows, 277px as a list) would stand beside a 96px

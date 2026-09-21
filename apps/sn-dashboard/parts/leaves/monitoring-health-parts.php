@@ -26,7 +26,7 @@ require_once __DIR__ . '/monitoring-health-rows.php';
  * @return string
  */
 function health_hero_html( array $glance ) {
-	$out = '';
+	$out = array();
 	foreach ( $glance as $card ) {
 		if ( ! is_array( $card ) ) {
 			continue;
@@ -38,9 +38,9 @@ function health_hero_html( array $glance ) {
 		// not double-encode it.
 		$meta    = html_entity_decode( (string) ( $card['meta_html'] ?? '' ), ENT_QUOTES, 'UTF-8' );
 		$caption = '' !== $pill_text ? trim( $meta . ( '' !== $meta ? ' · ' : '' ) . $pill_text ) : $meta;
-		$out    .= \snt_kit_stat( (string) ( $card['value'] ?? '' ), (string) ( $card['label'] ?? '' ), $caption, $kind );
+		$out[]    = \snt_kit_stat( (string) ( $card['value'] ?? '' ), (string) ( $card['label'] ?? '' ), $caption, $kind );
 	}
-	return '<div class="snt-stats">' . $out . '</div>';
+	return \snt_kit_grid( $out, 160, 10 );
 }
 
 /**

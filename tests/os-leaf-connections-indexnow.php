@@ -62,7 +62,7 @@ ok( false !== strpos( $kit, 'Pushes changed URLs to <strong>IndexNow</strong>' )
 ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, '<b>Active</b>' ) && false !== strpos( $kit, '<os-badge tone="success">On</os-badge>' ) && false !== strpos( $kit, 'Changed URLs are submitted automatically.' ), 'the active state paints a success notice with the On pill and the classic body' );
 ok( false !== strpos( $kit, 'href="https://example.test/' . $key . '.txt"' ) && false !== strpos( $kit, '<os-code>https://example.test/' . $key . '.txt</os-code>' ) && false !== strpos( $kit, 'Key file' ), 'the key-file URL is shown as an external link in inline code under Key file' );
 ok( false !== strpos( $kit, 'Last submission' ) && false !== strpos( $kit, '<os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time> — HTTP 200, 12 URL(s)' ), '#1596: the last submission is an os-relative-time, then HTTP code and URL count' );
-ok( false !== strpos( $kit, 'col="4" aria-label="IndexNow status"' ) && false !== strpos( $kit, '<os-section heading="Status">' ), 'the rail keeps its landmark name and the Status heading' );
+ok( false !== strpos( $kit, 'col="4" aria-label="IndexNow status"' ) && false !== strpos( $kit, '<os-section heading="Status" stack>' ), 'the rail keeps its landmark name and the Status heading' );
 ok( false !== strpos( $kit, '<os-row gap="16"' ), 'the classic two-column shell survives as an os-row' );
 ok( false !== strpos( $kit, '<os-stack col="8" gap="12">' ), 'the main column carries col=8 inside the os-row' );
 

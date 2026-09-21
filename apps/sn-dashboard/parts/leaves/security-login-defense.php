@@ -167,7 +167,7 @@ function paint_security_login_defense( array $ctx ) {
 	// 17.2.1: boxes share a row. A side that paints nothing (module absent)
 	// leaves the status box at full width.
 	$breach = login_defense_breach_html();
-	$out    = '' === $breach ? $status_box : \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $status_box . $breach );
+	$out    = \snt_kit_grid( array( $status_box, $breach ) );
 
 	// v7.2.1: the digest settings card mounts AFTER the status card (mirrors
 	// the classic leaf's own ordering — see inc/login-defense.php).

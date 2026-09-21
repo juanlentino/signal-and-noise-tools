@@ -286,8 +286,8 @@ function paint_ai_models_budget( array $ctx ) {
 
 /**
  * Two sides on one row (the cron_settings_row_html shape, connections-cron-parts.php;
- * the tags_pair idiom for an empty side). Each side is one .snt-col cell because
- * a side may stack two boxes, and bare os-sections in .snt-cols would each take
+ * the tags_pair idiom for an empty side). Each side is one os-card cell because
+ * a side may stack two boxes, and bare os-sections in the grid would each take
  * a cell. A side that painted nothing leaves the other alone at full width,
  * not beside a hole.
  *
@@ -299,7 +299,7 @@ function models_budget_pair( $left, $right ) {
 	if ( '' === $left || '' === $right ) {
 		return $left . $right;
 	}
-	return '<div class="snt-cols"><section class="snt-col">' . $left . '</section><section class="snt-col">' . $right . '</section></div>';
+	return \snt_kit_grid( array( \snt_kit_tag( 'os-card', array(), $left ), \snt_kit_tag( 'os-card', array(), $right ) ) );
 }
 
 add_filter(

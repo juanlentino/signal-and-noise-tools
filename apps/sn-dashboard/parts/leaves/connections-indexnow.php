@@ -89,7 +89,7 @@ function indexnow_main_html( array $d ) {
 		),
 		__( '“Submit recent content now” backfills your existing published posts. “Regenerate key” rotates the key (search engines re-verify on the next submission).', 'signal-and-noise-tools' )
 	);
-	return '<div class="snt-cols"><section class="snt-col">' . $enable . '</section><section class="snt-col">' . $maintenance . '</section></div>';
+	return \snt_kit_grid( array( \snt_kit_tag( 'os-card', array(), $enable ), \snt_kit_tag( 'os-card', array(), $maintenance ) ) );
 }
 
 /**

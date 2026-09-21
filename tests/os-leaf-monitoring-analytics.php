@@ -118,8 +118,8 @@ $GLOBALS['__settings']['analytics.funnels'] = array( array( 'name' => 'Home flow
 $classic = snt_leaf_classic_html( '\snt_analytics_render_settings_section' );
 $kit     = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( '' !== $kit, 'the kit leaf paints' );
-ok( false !== strpos( $kit, '<div class="snt-2up">' ), 'the kit leaf arranges content into .snt-2up two columns' );
-ok( false !== strpos( $kit, '<div class="snt-2up-col">' ), 'the kit leaf has .snt-2up-col columns' );
+ok( false !== strpos( $kit, snt_leaf_row( 2, 290, 24 ) ), 'the kit leaf arranges content into a two-up kit grid (#1622)' );
+ok( 2 === substr_count( $kit, '<os-stack gap="18">' ), 'the kit leaf has two os-stack columns' );
 
 // 17.4.4 (#1602): __configured is false here, so sn_analytics_pipeline_complete()
 // reads false (the read-credentials pill is not ok, the same seam
@@ -285,7 +285,7 @@ ok( false === strpos( $kit, 'heading="Edge, 7 days"' ) && false === strpos( $cla
 $GLOBALS['__options'][ SN_CF_MONITOR_OPT ] = array( 'fetched_at' => time(), 'configured' => true, 'token' => array( 'verified' => true, 'status' => 'active', 'expires_on' => '', 'error' => '', 'kind' => 'user' ), 'zone' => array( 'available' => true, 'needs_permission' => false, 'error' => '', 'days' => array(), 'totals' => array( 'requests' => 166684, 'cached' => 13500, 'bytes' => 2000000000, 'cached_bytes' => 1, 'threats' => 12804, 'status_4xx' => 0, 'status_5xx' => 4473, 'cache_share' => 8.1, 'status_5xx_codes' => array( 503 => 4314, 520 => 132 ) ) ), 'firewall' => array( 'available' => false, 'needs_permission' => true, 'error' => 'x', 'events' => 0, 'by_action' => array(), 'top_rules' => array() ) );
 $classic = snt_leaf_classic_html( '\snt_analytics_render_settings_section' );
 $kit     = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( false !== strpos( $kit, 'heading="Edge, 7 days"' ) && strpos( $kit, 'heading="Edge, 7 days"' ) > strpos( $kit, '<div class="snt-2up">' ) && strpos( $kit, 'heading="Edge, 7 days"' ) < strpos( $kit, 'heading="Credentials"' ) && false !== strpos( $kit, '166,684' ) && false !== strpos( $kit, '8.1%' ) && false !== strpos( $kit, '503 · answered by the origin' ) && false !== strpos( $kit, '4,314' ), '15.3.1: Edge, 7 days heads the left column, above the Credentials fold: the five figures and the 5xx split' );
+ok( false !== strpos( $kit, 'heading="Edge, 7 days"' ) && strpos( $kit, 'heading="Edge, 7 days"' ) > strpos( $kit, snt_leaf_row( 2, 290, 24 ) ) && strpos( $kit, 'heading="Edge, 7 days"' ) < strpos( $kit, 'heading="Credentials"' ) && false !== strpos( $kit, '166,684' ) && false !== strpos( $kit, '8.1%' ) && false !== strpos( $kit, '503 · answered by the origin' ) && false !== strpos( $kit, '4,314' ), '15.3.1: Edge, 7 days heads the left column, above the Credentials fold: the five figures and the 5xx split' );
 ok( false !== strpos( $classic, 'Edge, 7 days' ) && false !== strpos( $classic, '166,684' ) && false !== strpos( $classic, '<th scope="row">503</th><td>4,314</td>' ) && strpos( $classic, 'Edge, 7 days' ) > strpos( $classic, '<div class="sn-2up">' ) && strpos( $classic, 'Edge, 7 days' ) < strpos( $classic, 'Credentials' ), 'the classic hub paints the same card at the head of its left column' );
 ok( in_array( 'cf_monitor_refresh', snt_leaf_actions( $kit ), true ) && in_array( 'cf_monitor_refresh', snt_leaf_actions( $classic ), true ) && false === strpos( $kit, 'heading="Firewall, 24 hours"' ), 'the Edge section carries the monitor\'s Refresh on both leaves; no Firewall here' );
 unset( $GLOBALS['__options'][ SN_CF_MONITOR_OPT ] );

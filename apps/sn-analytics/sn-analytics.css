@@ -3,12 +3,6 @@
  * S&N Dashboard is assets/os-app.css. Tokens from the shell, same as Posts.
  */
 
-.snt-stats {
-	display: grid;
-	grid-template-columns: repeat( auto-fit, minmax( 160px, 1fr ) );
-	gap: 10px;
-}
-
 .snt-grid {
 	display: grid;
 	grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
@@ -20,7 +14,7 @@
  * In OpenStation's idiom, the canvas is the main surface. Section headings sit
  * on the canvas creating clear typographic hierarchy, while content bodies
  * (tables, empty states, callouts) are contained within elevated card surfaces.
- * Sections containing self-carded children (like .snt-stats) stay flat.
+ * Sections containing self-carded children (like a stat row) stay flat.
  */
 .snt-app[data-os-app="sn-analytics"] .snt-view os-section {
 	margin-block-end: 0;
@@ -47,7 +41,7 @@
 }
 
 /* Sections containing self-carded children (stats or custom insight cards) stay flat */
-.snt-app[data-os-app="sn-analytics"] .snt-view os-section:has( .snt-stats )::part( body ),
+.snt-app[data-os-app="sn-analytics"] .snt-view os-section:has( os-stat )::part( body ),
 .snt-app[data-os-app="sn-analytics"] .snt-view os-section:has( .snt-native-stats )::part( body ),
 .snt-app[data-os-app="sn-analytics"] .snt-view os-section:has( .snt-insights-card )::part( body ) {
 	background: transparent;
@@ -433,8 +427,7 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-analytics"] textarea
 /* Report grids measure their own canvas; toolbar controls measure the app. */
 @container ( max-width: 640px ) {
 	.snt-report-columns,
-	.snt-grid,
-	.snt-stats {
+	.snt-grid {
 		grid-template-columns: minmax( 0, 1fr );
 	}
 }
@@ -624,6 +617,7 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-analytics"] .snt-vie
 	--os-ui-stat-bg: transparent;
 	--os-ui-stat-value-color: var(--os-ui-fg);
 	--os-ui-stat-padding: 12px;
+	box-shadow: none;
 }
 
 .snt-native-stat-note { padding: 0 12px 10px; font-size: 11px; }

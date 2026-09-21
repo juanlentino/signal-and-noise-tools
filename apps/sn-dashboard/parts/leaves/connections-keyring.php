@@ -85,10 +85,7 @@ function paint_connections_keyring( array $ctx ) {
 		__( 'After changing a worker row here, set the same value on the worker.', 'signal-and-noise-tools' )
 	);
 
-	return '<div class="snt-2up">'
-		. '<div class="snt-2up-col">' . $left . '</div>'
-		. '<div class="snt-2up-col">' . $right . '</div>'
-		. '</div>';
+	return \snt_kit_grid( array( \snt_kit_stack( $left ), \snt_kit_stack( $right ) ), 290, 24 );
 }
 
 add_filter(

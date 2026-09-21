@@ -135,11 +135,7 @@ function paint_connections_music( array $ctx ) {
 	$s = music_state();
 	return music_intro_html()
 		. music_status_html( $s )
-		. \snt_kit_tag(
-			'aside',
-			array( 'class' => 'snt-cols', 'aria-label' => __( 'Sync status', 'signal-and-noise-tools' ) ),
-			music_rail_status_html( $s ) . music_sync_html()
-		)
+		. \snt_kit_grid( array( music_rail_status_html( $s ), music_sync_html() ), 290, 18, array( 'role' => 'complementary', 'aria-label' => __( 'Sync status', 'signal-and-noise-tools' ) ) )
 		. music_form_html( $s );
 }
 

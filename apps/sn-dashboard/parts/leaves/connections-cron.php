@@ -299,7 +299,7 @@ function cron_filter_rows( array $rows, $filter ) {
  */
 function cron_glance_html( array $rows ) {
 	$cards = function_exists( 'snt_cron_glance_cards' ) ? \snt_cron_glance_cards( $rows ) : array();
-	$out   = '';
+	$out   = array();
 	foreach ( (array) $cards as $card ) {
 		if ( ! is_array( $card ) ) {
 			continue;
@@ -314,9 +314,9 @@ function cron_glance_html( array $rows ) {
 		if ( '' === $caption && isset( $card['pill']['text'] ) ) {
 			$caption = (string) $card['pill']['text'];
 		}
-		$out .= \snt_kit_stat( (string) ( $card['value'] ?? '' ), (string) ( $card['label'] ?? '' ), $caption, $kind );
+		$out[] = \snt_kit_stat( (string) ( $card['value'] ?? '' ), (string) ( $card['label'] ?? '' ), $caption, $kind );
 	}
-	return \snt_kit_section( __( 'Cron at a glance', 'signal-and-noise-tools' ), '<div class="snt-stats">' . $out . '</div>' );
+	return \snt_kit_section( __( 'Cron at a glance', 'signal-and-noise-tools' ), \snt_kit_grid( $out, 160, 10 ) );
 }
 
 /**
