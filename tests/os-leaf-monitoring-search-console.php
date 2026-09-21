@@ -172,7 +172,7 @@ ok( false !== strpos( $kit, 'FAILED' ) && false !== strpos( $kit, 'quota exceede
 // ── State: scheduled run ok.
 $GLOBALS['__gsc_status'] = array( 'ok' => true, 'ran_at' => time() - 60 );
 $kit = snt_leaf_paint( 'monitoring', 'search-console' );
-ok( false !== strpos( $kit, 'ago: ok.' ), 'scheduled run ok: the ok state is painted' );
+ok( false !== strpos( $kit, 'Last scheduled run <os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>: ok.' ) && false !== strpos( $kit, 'Scheduled: daily, next <os-relative-time datetime="' ), '#1596: scheduled run ok: the last run and the next run are os-relative-time, the ok state is painted' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

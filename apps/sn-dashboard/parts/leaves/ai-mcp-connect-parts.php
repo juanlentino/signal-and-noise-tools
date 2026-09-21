@@ -48,7 +48,7 @@ function mcp_connect_rw_binding_html() {
 	} elseif ( null !== $bound_password ) {
 		$last_used = ! empty( $bound_password['last_used'] ) ? (int) $bound_password['last_used'] : 0;
 		$when      = ( $last_used > 0 && function_exists( 'human_time_diff' ) )
-			? sprintf( /* translators: %s: relative time. */ __( 'Last used %s ago.', 'signal-and-noise-tools' ), \snt_kit_esc( human_time_diff( $last_used, time() ) ) )
+			? sprintf( /* translators: %s: relative time element. */ \snt_kit_esc( __( 'Last used %s.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( $last_used ) )
 			: \snt_kit_esc( __( 'Never used yet.', 'signal-and-noise-tools' ) );
 		$status = \snt_kit_notice(
 			'ok',

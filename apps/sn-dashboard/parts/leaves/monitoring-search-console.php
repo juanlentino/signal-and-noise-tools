@@ -174,14 +174,12 @@ function search_console_sync_html( array $s ) {
 	$out  = \snt_kit_tag( 'h3', array( 'class' => 'snt-col__h' ), \snt_kit_esc( __( 'Sync', 'signal-and-noise-tools' ) ) );
 	$out .= null === $s['data']
 		? '<p class="snt-prose">' . \snt_kit_badge( 'neutral', __( 'Never synced.', 'signal-and-noise-tools' ) ) . '</p>'
-		: '<p class="snt-prose">' . \snt_kit_esc(
-			sprintf(
-				/* translators: 1: start date, 2: end date, 3: human-readable age. */
-				__( 'Window %1$s to %2$s, synced %3$s ago.', 'signal-and-noise-tools' ),
-				(string) $s['data']['window']['start'],
-				(string) $s['data']['window']['end'],
-				\human_time_diff( (int) $s['data']['synced_at'], time() )
-			)
+		: '<p class="snt-prose">' . sprintf(
+			/* translators: 1: start date, 2: end date, 3: relative time element. */
+			\snt_kit_esc( __( 'Window %1$s to %2$s, synced %3$s.', 'signal-and-noise-tools' ) ),
+			\snt_kit_esc( (string) $s['data']['window']['start'] ),
+			\snt_kit_esc( (string) $s['data']['window']['end'] ),
+			\snt_kit_relative_time( (int) $s['data']['synced_at'] )
 		) . ' ' . \snt_kit_esc(
 			sprintf(
 				/* translators: 1: page count, 2: query count. */
@@ -193,21 +191,19 @@ function search_console_sync_html( array $s ) {
 
 	$out .= '<p class="snt-hint">';
 	if ( $s['next'] ) {
-		/* translators: %s: human-readable time until the next scheduled run. */
-		$out .= sprintf( \snt_kit_esc( __( 'Scheduled: daily, next in %s.', 'signal-and-noise-tools' ) ), \snt_kit_esc( \human_time_diff( time(), (int) $s['next'] ) ) );
+		/* translators: %s: relative time element for the next scheduled run. */
+		$out .= sprintf( \snt_kit_esc( __( 'Scheduled: daily, next %s.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( (int) $s['next'] ) );
 		if ( null === $s['status'] ) {
 			$out .= ' ' . \snt_kit_esc( __( 'The scheduled sync has not fired yet.', 'signal-and-noise-tools' ) );
 		} elseif ( ! empty( $s['status']['ok'] ) ) {
-			/* translators: %s: human-readable age of the last scheduled run. */
-			$out .= ' ' . \snt_kit_esc( sprintf( __( 'Last scheduled run %s ago: ok.', 'signal-and-noise-tools' ), \human_time_diff( (int) $s['status']['ran_at'], time() ) ) );
+			/* translators: %s: relative time element for the last scheduled run. */
+			$out .= ' ' . sprintf( \snt_kit_esc( __( 'Last scheduled run %s: ok.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( (int) $s['status']['ran_at'] ) );
 		} else {
-			$out .= ' ' . \snt_kit_esc(
-				sprintf(
-					/* translators: 1: age, 2: error message. */
-					__( 'Last scheduled run %1$s ago FAILED: %2$s', 'signal-and-noise-tools' ),
-					\human_time_diff( (int) $s['status']['ran_at'], time() ),
-					isset( $s['status']['message'] ) ? (string) $s['status']['message'] : (string) ( $s['status']['code'] ?? 'unknown' )
-				)
+			$out .= ' ' . sprintf(
+				/* translators: 1: relative time element, 2: error message. */
+				\snt_kit_esc( __( 'Last scheduled run %1$s FAILED: %2$s', 'signal-and-noise-tools' ) ),
+				\snt_kit_relative_time( (int) $s['status']['ran_at'] ),
+				\snt_kit_esc( isset( $s['status']['message'] ) ? (string) $s['status']['message'] : (string) ( $s['status']['code'] ?? 'unknown' ) )
 			);
 		}
 	} else {

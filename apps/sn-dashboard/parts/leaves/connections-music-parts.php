@@ -148,7 +148,7 @@ function music_rail_status_html( array $s ) {
 			'label' => __( 'Last sync', 'signal-and-noise-tools' ),
 			'html'  => true,
 			'value' => $s['synced'] > 0
-				? \snt_kit_esc( human_time_diff( $s['synced'], time() ) ) . ' ' . \snt_kit_esc( __( 'ago', 'signal-and-noise-tools' ) )
+				? \snt_kit_relative_time( (int) $s['synced'] )
 				: '<em>' . \snt_kit_esc( __( 'never', 'signal-and-noise-tools' ) ) . '</em>',
 		),
 		array( 'label' => __( 'Releases cached', 'signal-and-noise-tools' ), 'value' => (string) (int) $s['count'] ),

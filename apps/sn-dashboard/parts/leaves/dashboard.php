@@ -364,12 +364,11 @@ function home_pulse_html( array $data, $tab ) {
 		$health_val = __( 'Warning', 'signal-and-noise-tools' );
 	}
 
-	$timestamp = function_exists( 'current_time' ) ? current_time( 'g:i a' ) : gmdate( 'g:i a' );
 
 	$out = '<section class="snt-home__section" aria-labelledby="snt-home-pulse-heading">'
 		. '<div class="snt-home__section-heading">'
 		. '<h2 id="snt-home-pulse-heading">' . esc_html__( 'Site pulse', 'signal-and-noise-tools' ) . '</h2>'
-		. '<span class="snt-home__timestamp">' . sprintf( esc_html__( 'Updated %s', 'signal-and-noise-tools' ), esc_html( $timestamp ) ) . '</span>'
+		. '<span class="snt-home__timestamp">' . sprintf( esc_html__( 'Updated %s', 'signal-and-noise-tools' ), \snt_kit_relative_time( time(), __( 'just now', 'signal-and-noise-tools' ) ) ) . '</span>'
 		. '</div>';
 
 	// Group 1: Audience.
@@ -611,7 +610,7 @@ function home_continue_working_html( $tab ) {
 				$title      = function_exists( 'get_the_title' ) ? get_the_title( $p ) : $p->post_title;
 
 				$modified_time = strtotime( (string) $p->post_modified_gmt . ' UTC' );
-				$time_str      = false !== $modified_time && function_exists( 'human_time_diff' ) ? human_time_diff( $modified_time ) . ' ' . __( 'ago', 'signal-and-noise-tools' ) : '';
+				$time_str      = false !== $modified_time ? \snt_kit_relative_time( $modified_time ) : '';
 
 				$items[] = array(
 					'id'         => $p->ID,
@@ -664,7 +663,7 @@ function home_continue_working_html( $tab ) {
 				. '<span class="snt-home__row-meta">' . esc_html( $item['type'] ) . '</span>'
 				. '</span>'
 				. '<os-badge tone="' . esc_attr( $status_tone ) . '">' . esc_html( $item['status_lbl'] ) . '</os-badge>'
-				. ( '' !== $item['time_ago'] ? '<span class="snt-home__row-time">' . esc_html( $item['time_ago'] ) . '</span>' : '' )
+				. ( '' !== $item['time_ago'] ? '<span class="snt-home__row-time">' . $item['time_ago'] . '</span>' : '' )
 				. '<span class="dashicons dashicons-arrow-right-alt2" aria-hidden="true"></span>'
 				. '</a>';
 		}

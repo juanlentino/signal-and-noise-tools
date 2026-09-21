@@ -248,7 +248,7 @@ $GLOBALS['__http_code'] = 200;
 snt_leaf_paint( 'monitoring', 'analytics' ); // prime SN_WORKER_VERSION_LASTGOOD
 $GLOBALS['__http_code'] = 500;
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, 'last value reached 1 hour ago' ), 'worker stale: the fallback names how stale the last-good reading is' );
+ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, 'last value reached <os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>.' ), 'worker stale: the fallback names how stale the last-good reading is' );
 $GLOBALS['__http_code'] = 200;
 
 // ── Salt window OLD-WORKER: the version-floor line, kept distinct from the

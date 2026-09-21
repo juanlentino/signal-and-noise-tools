@@ -299,11 +299,11 @@ function analytics_worker_data_html( array $result, $stale ) {
 	if ( $stale ) {
 		$out .= $fetched_at > 0
 			/* translators: %s: human-readable time interval. */
-			? '<p class="snt-hint">' . sprintf( \snt_kit_esc( __( 'Live check failed just now: showing the last value reached %s ago.', 'signal-and-noise-tools' ) ), \human_time_diff( $fetched_at, time() ) ) . '</p>'
+			? '<p class="snt-hint">' . sprintf( \snt_kit_esc( __( 'Live check failed just now: showing the last value reached %s.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( $fetched_at ) ) . '</p>'
 			: '<p class="snt-hint">' . \snt_kit_esc( __( 'Live check failed just now: showing the last value reached.', 'signal-and-noise-tools' ) ) . '</p>';
 	} elseif ( $fetched_at > 0 ) {
 		/* translators: %s: human-readable time interval. */
-		$out .= '<p class="snt-hint">' . sprintf( \snt_kit_esc( __( 'Checked %s ago.', 'signal-and-noise-tools' ) ), \human_time_diff( $fetched_at, time() ) ) . '</p>';
+		$out .= '<p class="snt-hint">' . sprintf( \snt_kit_esc( __( 'Checked %s.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( $fetched_at ) ) . '</p>';
 	}
 	if ( ! empty( $result['url'] ) ) {
 		/* translators: %s: the /_sn/version URL the card just probed. */
@@ -379,7 +379,7 @@ function analytics_salt_window_html( array $result ) {
 	$fetched_at = isset( $result['fetched_at'] ) ? (int) $result['fetched_at'] : 0;
 	if ( $fetched_at > 0 ) {
 		/* translators: %s: human-readable time interval. */
-		$out .= '<p class="snt-hint">' . sprintf( \snt_kit_esc( __( 'Checked %s ago.', 'signal-and-noise-tools' ) ), \human_time_diff( $fetched_at, time() ) ) . '</p>';
+		$out .= '<p class="snt-hint">' . sprintf( \snt_kit_esc( __( 'Checked %s.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( $fetched_at ) ) . '</p>';
 	}
 	return $out;
 }

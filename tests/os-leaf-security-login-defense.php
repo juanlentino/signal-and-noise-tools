@@ -108,6 +108,7 @@ set_digest_options( true, time() - 3600, false );
 $classic = snt_leaf_classic_html( 'sn_login_defense_render' );
 $kit     = snt_leaf_paint( 'security', 'login-defense' );
 ok( '' !== $kit, 'the kit leaf paints' );
+ok( false !== strpos( $kit, 'Last sent <os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>.' ), '#1596: the last-sent hint is an os-relative-time with the server reading as its fallback' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( array( 'security_digest_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is security_digest_save, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
@@ -141,7 +142,7 @@ set_digest_options( false, 0, false );
 $kit = snt_leaf_paint( 'security', 'login-defense' );
 preg_match( '/<[^>]*name="sn_digest_enabled"[^>]*>/', $kit, $toggle_tag ); // the tag, not the leaf: the breach box says "0 of 0 checked".
 ok( isset( $toggle_tag[0] ) && false === strpos( $toggle_tag[0], 'checked' ), 'the toggle is unchecked when the digest is disabled' );
-ok( false === strpos( $kit, 'ago.' ), 'no last-sent line when it has never been sent' );
+ok( false === strpos( $kit, 'Last sent' ) && false === strpos( $kit, '<os-relative-time' ), 'no last-sent line when it has never been sent' );
 
 // ── Round-trip pin (refuter finding, major): the painted OFF state must
 // survive os-form's field reader + the host's snt_os_host_expand() as an

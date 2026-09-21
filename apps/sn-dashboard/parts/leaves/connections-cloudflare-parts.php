@@ -115,18 +115,18 @@ function cloudflare_status_html( array $d ) {
 		);
 	}
 	$last = (array) $d['last_purge'];
-	$when = __( 'never', 'signal-and-noise-tools' );
+	$when = \snt_kit_esc( __( 'never', 'signal-and-noise-tools' ) );
 	if ( ! empty( $last['time'] ) ) {
 		$kind = ( 'all' === (string) ( $last['kind'] ?? '' ) )
 			? __( 'full zone', 'signal-and-noise-tools' )
 			/* translators: %d: URLs purged */
 			: sprintf( __( '%d URL(s)', 'signal-and-noise-tools' ), (int) ( $last['count'] ?? 0 ) );
-		/* translators: 1: how long ago, 2: what was purged */
-		$when = sprintf( __( '%1$s ago (%2$s)', 'signal-and-noise-tools' ), human_time_diff( (int) $last['time'], time() ), $kind );
+		/* translators: 1: relative time element, 2: what was purged */
+		$when = sprintf( \snt_kit_esc( __( '%1$s (%2$s)', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( (int) $last['time'] ), \snt_kit_esc( $kind ) );
 	}
 	$rows = array(
 		array( 'label' => __( 'Auto-purge', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_badge( 'ok', __( 'Active', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_esc( __( 'on post save, theme update and the REST endpoint', 'signal-and-noise-tools' ) ) ),
-		array( 'label' => __( 'Last purge', 'signal-and-noise-tools' ), 'value' => $when ),
+		array( 'label' => __( 'Last purge', 'signal-and-noise-tools' ), 'html' => true, 'value' => $when ),
 	);
 	$cw = cloudflare_cloudways_row( $d['cloudways'] );
 	if ( null !== $cw ) {
@@ -172,17 +172,17 @@ function cloudflare_cloudways_row( $cw ) {
 	}
 	$attempted = ! empty( $cw['time'] );
 	$warn      = $attempted && empty( $cw['ok'] );
-	$line      = __( 'Varnish leg of the same chain.', 'signal-and-noise-tools' );
+	$line      = \snt_kit_esc( __( 'Varnish leg of the same chain.', 'signal-and-noise-tools' ) );
 	if ( $attempted ) {
-		/* translators: %s: how long ago */
-		$line .= ' ' . sprintf( __( 'Last attempt: %s ago.', 'signal-and-noise-tools' ), human_time_diff( (int) $cw['time'], time() ) );
+		/* translators: %s: relative time element */
+		$line .= ' ' . sprintf( \snt_kit_esc( __( 'Last attempt: %s.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( (int) $cw['time'] ) );
 		if ( $warn ) {
-			$line .= ' HTTP ' . (string) ( $cw['http'] ?? 0 );
+			$line .= ' HTTP ' . (int) ( $cw['http'] ?? 0 );
 			if ( '' !== trim( (string) ( $cw['error'] ?? '' ) ) ) {
-				$line .= ': ' . (string) $cw['error'];
+				$line .= ': ' . \snt_kit_esc( (string) $cw['error'] );
 			}
 		}
 	}
 	$pill = $warn ? __( 'Error', 'signal-and-noise-tools' ) : ( $attempted ? __( 'OK', 'signal-and-noise-tools' ) : __( 'Active', 'signal-and-noise-tools' ) );
-	return array( 'label' => __( 'Cloudways purge', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_badge( $warn ? 'warn' : 'ok', $pill ) . ' ' . \snt_kit_esc( $line ), 'tone' => $warn ? 'warn' : '' );
+	return array( 'label' => __( 'Cloudways purge', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_badge( $warn ? 'warn' : 'ok', $pill ) . ' ' . $line, 'tone' => $warn ? 'warn' : '' );
 }
