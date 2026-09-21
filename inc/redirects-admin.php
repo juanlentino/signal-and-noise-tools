@@ -40,8 +40,7 @@ function sn_redirects_render_admin_tab() {
 	$sn_rules_total = count( $redirects );
 	foreach ( array_slice( array_reverse( $redirects, true ), 0, SN_REDIRECT_LIST_CAP, true ) as $source => $r ) {
 		$status = (int) ( $r['status'] ?? 301 );
-		echo '<form method="post">';
-		wp_nonce_field( 'sn_theme_options_nonce' );
+		echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'redirect_update' ) ) . '">';
 		echo '<input type="hidden" name="source" value="' . esc_attr( $source ) . '">';
 		echo '<div class="sn-fieldset">';
 		echo '<h2 class="sn-fieldset-h sn-mono">' . esc_html( $source ) . '</h2>';
@@ -61,16 +60,16 @@ function sn_redirects_render_admin_tab() {
 		echo '</div>';
 
 		echo '<div class="sn-fieldset-actions">';
-		echo '<button type="submit" name="sn_action" value="redirect_update" class="button button-primary">Save changes</button>';
-		echo ' <button type="submit" name="sn_action" value="redirect_delete" class="button button-link-delete" data-snt-confirm="' . esc_attr__( 'This redirect will stop working immediately.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Delete this redirect?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Delete', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Delete</button>';
+		echo '<button type="submit"' . sn_admin_post_button( 'redirect_update' ) . ' class="button button-primary">Save changes</button>';
+		echo ' <button type="submit"' . sn_admin_post_button( 'redirect_delete' ) . ' class="button button-link-delete" data-snt-confirm="' . esc_attr__( 'This redirect will stop working immediately.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Delete this redirect?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Delete', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Delete</button>';
 		echo '</div>';
 		echo '</div>'; // .sn-fieldset
 		echo '</form>';
 	}
 
 	// ── MAIN: add new ──
-	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+	wp_nonce_field( 'sn_redirect_add' );
 	echo '<div class="sn-fieldset sn-fieldset--new">';
 	echo '<h2 class="sn-fieldset-h">Add a redirect</h2>';
 	echo '<div class="sn-field sn-field-w-md">';
@@ -101,7 +100,7 @@ function sn_redirects_render_admin_tab() {
 	}
 
 	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" name="sn_action" value="redirect_add" class="button button-primary">Add redirect</button>';
+	echo '<button type="submit" name="action" value="sn_redirect_add" class="button button-primary">Add redirect</button>';
 	echo '</div>';
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';
@@ -184,9 +183,9 @@ function sn_redirects_render_broken_links_tab() {
 			echo '<li class="sn-an-empty">' . esc_html( sprintf( /* translators: %d: how many further probed paths are not listed. */ __( '…and %d more', 'signal-and-noise-tools' ), count( $sn_404_junk ) - 25 ) ) . '</li>';
 		}
 		echo '</ul>';
-		echo '<form method="post">';
-		wp_nonce_field( 'sn_theme_options_nonce' );
-		echo '<button type="submit" name="sn_action" value="redirect_404_clear_probes" class="button" data-snt-confirm="' . esc_attr__( 'Dismiss every automated probe from the log? Genuinely broken paths are kept.', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Dismiss probes', 'signal-and-noise-tools' ) . '">' . esc_html__( 'Dismiss all probes', 'signal-and-noise-tools' ) . '</button>';
+		echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+		wp_nonce_field( 'sn_redirect_404_clear_probes' );
+		echo '<button type="submit" name="action" value="sn_redirect_404_clear_probes" class="button" data-snt-confirm="' . esc_attr__( 'Dismiss every automated probe from the log? Genuinely broken paths are kept.', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Dismiss probes', 'signal-and-noise-tools' ) . '">' . esc_html__( 'Dismiss all probes', 'signal-and-noise-tools' ) . '</button>';
 		echo '</form>';
 		echo '</details>';
 	}
@@ -199,8 +198,7 @@ function sn_redirects_render_broken_links_tab() {
 		$sn_404_shown = array_slice( $log, 0, SN_404_LIST_CAP, true );
 		foreach ( $sn_404_shown as $path => $e ) {
 			$sn_404_suggested = function_exists( 'sn_404_suggest_target' ) ? sn_404_suggest_target( (string) $path, $sn_404_candidates ) : '';
-			echo '<form method="post"><div class="sn-fieldset">';
-			wp_nonce_field( 'sn_theme_options_nonce' );
+			echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'redirect_add' ) ) . '"><div class="sn-fieldset">';
 			echo '<input type="hidden" name="source" value="' . esc_attr( $path ) . '">';
 			echo '<h2 class="sn-fieldset-h sn-mono">' . esc_html( $path ) . '</h2>';
 			echo '<p class="sn-fieldset-intro">' . esc_html( (int) ( $e['count'] ?? 0 ) ) . ' hit' . ( 1 === (int) ( $e['count'] ?? 0 ) ? '' : 's' ) . ' · last ' . esc_html( wp_date( 'Y-m-d', (int) ( $e['last_seen'] ?? 0 ) ) );
@@ -216,8 +214,8 @@ function sn_redirects_render_broken_links_tab() {
 			}
 			echo '</div>';
 			echo '<div class="sn-fieldset-actions">';
-			echo '<button type="submit" name="sn_action" value="redirect_add" class="button button-primary">Create redirect</button>';
-			echo ' <button type="submit" name="sn_action" value="redirect_404_delete" class="button button-link-delete">Dismiss</button>';
+			echo '<button type="submit"' . sn_admin_post_button( 'redirect_add' ) . ' class="button button-primary">Create redirect</button>';
+			echo ' <button type="submit"' . sn_admin_post_button( 'redirect_404_delete' ) . ' class="button button-link-delete">Dismiss</button>';
 			echo '</div>';
 			echo '</div></form>';
 		}
@@ -236,9 +234,9 @@ function sn_redirects_render_broken_links_tab() {
 			);
 		}
 
-		echo '<form method="post">';
-		wp_nonce_field( 'sn_theme_options_nonce' );
-		echo '<button type="submit" name="sn_action" value="redirect_404_clear" class="button" data-snt-confirm="' . esc_attr__( 'Clear the entire 404 log?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Clear', 'signal-and-noise-tools' ) . '">Clear 404 log</button>';
+		echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+		wp_nonce_field( 'sn_redirect_404_clear' );
+		echo '<button type="submit" name="action" value="sn_redirect_404_clear" class="button" data-snt-confirm="' . esc_attr__( 'Clear the entire 404 log?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Clear', 'signal-and-noise-tools' ) . '">Clear 404 log</button>';
 		echo '</form>';
 	}
 

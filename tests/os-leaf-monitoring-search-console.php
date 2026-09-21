@@ -109,7 +109,7 @@ ok( false !== strpos( $kit, 'Run Test connection above' ), 'configured: the Prop
 $row = strpos( $kit, '<div class="snt-cols">' );
 ok( 1 === substr_count( $kit, '<div class="snt-cols">' ) && false === strpos( $kit, 'snt-2up' ) && $row < strpos( $kit, 'heading="Search Console credential"' ) && strpos( $kit, 'heading="Search Console credential"' ) < strpos( $kit, 'heading="Property"' ) && strpos( $kit, 'heading="Property"' ) < strrpos( $kit, '</div>' ) && strrpos( $kit, '</div>' ) < strpos( $kit, 'heading="Set the credential"' ), '17.4.1: one .snt-cols row pairs the credential readout with Property; the form box stands alone after the row (#1573)' );
 $form = strpos( $kit, 'heading="Set the credential"' );
-ok( strpos( $kit, 'os-arg-action="gsc_test"' ) < strpos( $kit, 'heading="Property"' ) && false !== $form && strpos( $kit, '<os-textarea name="sn_gsc_credential"' ) > $form, '17.4.1: Test connection sits in the readout box, before Property; the textarea sits in the form box' );
+ok( strpos( $kit, 'os-arg-action="sn_gsc_test"' ) < strpos( $kit, 'heading="Property"' ) && false !== $form && strpos( $kit, '<os-textarea name="sn_gsc_credential"' ) > $form, '17.4.1: Test connection sits in the readout box, before Property; the textarea sits in the form box' );
 
 // ── Signing NOT ready.
 $GLOBALS['__gsc_identity']['signing_ready'] = false;

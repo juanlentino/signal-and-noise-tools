@@ -277,9 +277,9 @@ function snt_mr_render_settings_form() {
  * @param string $default_url  Built-in endpoint (placeholder).
  */
 function snt_mr_render_settings_fields( $url_locked, $token_locked, $stored_url, $has_token, $default_url ) {
-	echo '<form method="post" class="sn-mr-settings"><input type="hidden" name="tab" value="monitoring"><input type="hidden" name="sub" value="machine-readers">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="machine_readers_save">';
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-mr-settings"><input type="hidden" name="tab" value="monitoring"><input type="hidden" name="sub" value="machine-readers">';
+	wp_nonce_field( 'sn_machine_readers_save' );
+	echo '<input type="hidden" name="action" value="sn_machine_readers_save">';
 
 	echo '<div class="sn-field"><label class="sn-field-label" for="sn_mr_worker_url">Worker URL</label>';
 	echo '<input type="url" class="regular-text" id="sn_mr_worker_url" name="sn_mr_worker_url" value="' . esc_attr( $stored_url ) . '" placeholder="' . esc_attr( $default_url ) . '"' . ( $url_locked ? ' disabled' : '' ) . '>';

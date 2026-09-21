@@ -186,8 +186,8 @@ function sn_admin_render_resume_section() {
 	}
 	$saved = '' !== (string) ( $doc['updated'] ?? '' );
 
-	echo '<form method="post" class="sn-rsm-form">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-rsm-form">';
+	wp_nonce_field( 'sn_resume_save' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Resume page</h2>';
 	if ( $saved ) {
@@ -342,7 +342,7 @@ function sn_admin_render_resume_section() {
 	echo '</details>';
 
 	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" name="sn_action" value="resume_save" class="button button-primary">Save resume</button>';
+	echo '<button type="submit" name="action" value="sn_resume_save" class="button button-primary">Save resume</button>';
 	echo '</div>';
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';

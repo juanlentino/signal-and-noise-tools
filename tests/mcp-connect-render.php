@@ -158,6 +158,7 @@ if ( ! function_exists( 'get_posts' ) ) { function get_posts( $a ) { return arra
 if ( ! function_exists( 'snt_mr_fetch' ) ) { function snt_mr_fetch( $d ) { return array( 'ok' => false, 'error' => 'no sensor in this suite' ); } }
 if ( ! function_exists( 'snt_ai_tool_invocations_render' ) ) { function snt_ai_tool_invocations_render() { echo '<p>copilot-usage-stub</p>'; } }
 require __DIR__ . '/../inc/agent-tools.php';
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require __DIR__ . '/../inc/agent-tools-admin.php';
 ob_start();
@@ -353,9 +354,9 @@ ok( stripos( $html, 'The write door is INACTIVE' ) !== false, 'unbound state: th
 ok( stripos( $html, 'every call to /mcp-rw is denied' ) !== false, 'unbound state: explains that every call is denied until bound' );
 
 // ── The form mechanics: nonce, sn_action, method=post ──
-ok( false !== strpos( $html, 'test-nonce-for-sn_theme_options_nonce' ), 'binding form carries a wp_nonce_field(\'sn_theme_options_nonce\') nonce' );
-ok( false !== strpos( $html, '<input type="hidden" name="sn_action" value="bind_mcp_rw_credential">' ), 'binding form carries the sn_action hidden field' );
-ok( false !== strpos( $html, '<form method="post">' ), 'binding form is a real <form method="post">' );
+ok( false !== strpos( $html, 'test-nonce-for-sn_bind_mcp_rw_credential' ), 'binding form carries a wp_nonce_field(\'sn_bind_mcp_rw_credential\') nonce, its own (#1614)' );
+ok( false !== strpos( $html, '<input type="hidden" name="action" value="sn_bind_mcp_rw_credential">' ), 'binding form carries the action hidden field' );
+ok( false !== strpos( $html, '<form method="post" action="https://example.test/wp-admin/admin-post.php">' ), 'binding form is a real <form method="post"> posting to admin-post.php' );
 
 // ── The <select> of the current user's own Application Passwords ──
 ok( false !== strpos( $html, '<select id="sn_mcp_rw_uuid" name="sn_mcp_rw_uuid">' ), 'binding form renders the Application Password <select>' );
@@ -421,9 +422,9 @@ $GLOBALS['__app_passwords'] = array(
 // write surface slips in unnoticed, so the count rises only alongside the
 // sn_action pins below that name each surface's action. ──
 ok( 2 === substr_count( $html, '<form' ), 'MIRROR RULE: exactly TWO <form>s on the whole leaf (R9 binding + remote toggle)' );
-ok( 2 === substr_count( $html, 'name="sn_action"' ), 'MIRROR RULE: both forms declare an sn_action, so neither is an unnamed write surface' );
-ok( 1 === substr_count( $html, 'value="bind_mcp_rw_credential"' ), 'MIRROR RULE: exactly one form carries the credential-bind action' );
-ok( 1 === substr_count( $html, 'value="remote_toggle"' ), 'MIRROR RULE: exactly one form carries the remote_toggle action' );
+ok( 2 === substr_count( $html, 'name="action"' ), 'MIRROR RULE: both forms declare an action, so neither is an unnamed write surface' );
+ok( 1 === substr_count( $html, 'value="sn_bind_mcp_rw_credential"' ), 'MIRROR RULE: exactly one form carries the credential-bind action' );
+ok( 1 === substr_count( $html, 'value="sn_remote_toggle"' ), 'MIRROR RULE: exactly one form carries the remote_toggle action' );
 ok( 1 === substr_count( $html, '<select' ), 'MIRROR RULE: exactly ONE <select> on the whole leaf' );
 ok( 2 === substr_count( $html, '<button' ), 'MIRROR RULE: exactly TWO <button>s on the whole leaf (one submit per form)' );
 ok( false === strpos( $html, '<textarea' ), 'MIRROR RULE: still no <textarea> anywhere in the leaf' );
@@ -559,9 +560,9 @@ $remote_absent = sn_test_render_status_cards( $base_state );
 ok( stripos( $remote_absent, 'Switched off' ) !== false, 'REMOTE: an absent remote_state falls back to switched off (fail closed)' );
 
 // ── The toggle form's mechanics, on the real full-page render ──
-ok( false !== strpos( $html, '<input type="hidden" name="sn_action" value="remote_toggle" />' ), 'REMOTE: the toggle form carries the remote_toggle sn_action' );
+ok( false !== strpos( $html, '<input type="hidden" name="action" value="sn_remote_toggle" />' ), 'REMOTE: the toggle form carries the remote_toggle sn_action' );
 ok( false !== strpos( $html, 'name="sn_remote_enabled"' ), 'REMOTE: the toggle form carries the sn_remote_enabled checkbox' );
-ok( 2 === substr_count( $html, 'test-nonce-for-sn_theme_options_nonce' ), 'REMOTE: the toggle form carries the SAME house nonce action as the binding form' );
+ok( 1 === substr_count( $html, 'test-nonce-for-sn_remote_toggle' ) && 1 === substr_count( $html, 'test-nonce-for-sn_bind_mcp_rw_credential' ), 'REMOTE: the toggle form carries its OWN nonce action, as the binding form carries its own (#1614)' );
 ok( sn_i18n_seen( 'Remote analytics door enabled' ), 'REMOTE: the toggle label is translatable' );
 // esc_html_e() ECHOES; esc_html__() returns. Using the returning one here would
 // print nothing at all — pin the label's actual presence, not just its i18n.

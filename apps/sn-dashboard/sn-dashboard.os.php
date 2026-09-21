@@ -127,7 +127,7 @@ function refusal_text( $reason, $detail = '' ) {
 			return sprintf(
 				/* translators: %s: the nonce action the submitted token was verified against. */
 				__( 'Nothing was saved: the security token did not verify against %s.', 'signal-and-noise-tools' ),
-				'' !== $detail ? $detail : \SNT_OS_HOST_NONCE
+				$detail
 			);
 		case 'page':
 			return __( 'Nothing was saved: this window does not own that page.', 'signal-and-noise-tools' );
@@ -259,7 +259,7 @@ function posted_values( array $args ) {
 	if ( isset( $args['action'] ) && is_scalar( $args['action'] ) ) {
 		// The admin-post pipeline routes on a field literally named `action`
 		// (inc/openstation-host-pipelines.php, snt_os_host_pipeline_for()),
-		// the shared table on `sn_action` (#1614).
+		// an inline form on `sn_action` (#1614).
 		$field  = ( isset( $args['pipeline'] ) && 'admin-post' === $args['pipeline'] ) ? 'action' : 'sn_action';
 		$values = array( $field => (string) $args['action'] );
 		if ( isset( $args['nonce'] ) && is_scalar( $args['nonce'] ) ) {

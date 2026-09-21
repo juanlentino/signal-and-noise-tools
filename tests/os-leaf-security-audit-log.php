@@ -118,7 +118,7 @@ ok( false !== strpos( $kit, 'Active lockouts' ) && false !== strpos( $kit, 'os-a
 ok( false !== strpos( $kit, '<os-number-field name="audit_retention_days" value="90"' ), 'the retention field carries the current value' );
 
 // ── Maintenance: prune form (inline pipeline) + both export doors, nonce intact.
-$prune_is_inline_form = false !== strpos( $kit, 'os-arg-pipeline="inline"' ) && false === strpos( $kit, 'os-arg-action="audit_prune_now"' );
+$prune_is_inline_form = false !== strpos( $kit, 'os-arg-pipeline="inline"' ) && false === strpos( $kit, 'os-arg-action="sn_audit_prune_now"' );
 ok( $prune_is_inline_form, 'the prune form is inline-pipelined (its sn_action is a hidden field, not a button arg)' );
 ok( false !== strpos( $kit, 'Export JSON' ) && false !== strpos( $kit, 'action=sn_audit_export&amp;format=json' ) && false !== strpos( $kit, 'sn_audit_export_nonce=nonce-sn_audit_export' ), 'the JSON export door carries the nonced admin-post URL' );
 ok( false !== strpos( $kit, 'Export CSV' ) && false !== strpos( $kit, 'action=sn_audit_export&amp;format=csv' ), 'the CSV export door is offered too' );

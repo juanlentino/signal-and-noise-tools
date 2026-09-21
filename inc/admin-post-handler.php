@@ -2,12 +2,15 @@
 /**
  * Signal & Noise — admin form-submission dispatcher.
  *
- * Handles all SN admin POST submissions on admin_init (before any output, so
- * wp_safe_redirect/header work cleanly — Post/Redirect/Get). Validates the
- * shared nonce + capability + page allowlist, dispatches to the matching
- * sn_handle_<action>() in inc/admin-post-actions/ via sn_admin_post_handlers(),
- * then redirects to the canonical top-tab + sub-tab + anchor carrying the
- * resulting ?sn_flash=… code. Extracted from inc/admin-page.php in v4.5.4.
+ * Every SN admin write posts to admin-post.php and lands on its own hook,
+ * `admin_post_sn_<action>`, one per entry of sn_admin_post_handlers(). The
+ * hook runs check_admin_referer( 'sn_<action>' ) (a nonce minted for one
+ * form authorises that form and no other, #1614), the capability check and
+ * the page allowlist, dispatches to sn_handle_<action>() in
+ * inc/admin-post-actions/, then redirects (Post/Redirect/Get) to the
+ * canonical top-tab + sub-tab + anchor carrying the resulting ?sn_flash=…
+ * code. Extracted from inc/admin-page.php in v4.5.4; ported from a single
+ * admin_init dispatcher behind one shared nonce in 17.6.0.
  *
  * Save status survives the redirect via ?sn_flash, which sn_theme_options_page()
  * resolves to an admin notice through inc/admin-flash-messages.php.
@@ -108,7 +111,50 @@ function sn_admin_post_handlers() {
 	);
 }
 
-add_action( 'admin_init', 'sn_handle_admin_post' );
+foreach ( array_keys( sn_admin_post_handlers() ) as $sn_admin_post_action ) {
+	add_action(
+		'admin_post_sn_' . $sn_admin_post_action,
+		static function () use ( $sn_admin_post_action ) {
+			sn_handle_admin_post( $sn_admin_post_action );
+		}
+	);
+}
+unset( $sn_admin_post_action );
+
+/**
+ * Where an SN admin form posts: admin-post.php carrying the page, tab and sub
+ * the form was painted on, so the PRG redirect lands where the classic page
+ * did. With $action, the URL also carries that action's nonce (wp_nonce_url),
+ * which is how a form with several submit buttons gives each button its own
+ * nonce through formaction= (see sn_admin_post_button()).
+ *
+ * @param string $action Optional handler action (a key of sn_admin_post_handlers()).
+ * @return string
+ */
+function sn_admin_post_url( $action = '' ) {
+	$args = array();
+	foreach ( array( 'page', 'tab', 'sub' ) as $key ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read to rebuild the page's own query on the form's action URL; nothing is written.
+		if ( isset( $_GET[ $key ] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Same read.
+			$args[ $key ] = sanitize_text_field( wp_unslash( $_GET[ $key ] ) );
+		}
+	}
+	$url = add_query_arg( $args, admin_url( 'admin-post.php' ) );
+	return '' === (string) $action ? $url : wp_nonce_url( $url, 'sn_' . $action );
+}
+
+/**
+ * The attributes of a submit button that names its own action inside a form
+ * shared with other buttons: name/value for the hook, formaction= for the
+ * nonce minted for THAT action. Returned escaped, ready to print.
+ *
+ * @param string $action Handler action (a key of sn_admin_post_handlers()).
+ * @return string
+ */
+function sn_admin_post_button( $action ) {
+	return ' name="action" value="sn_' . esc_attr( $action ) . '" formaction="' . esc_url( sn_admin_post_url( $action ) ) . '"';
+}
 
 /**
  * Pages on which an SN admin POST is accepted: the canonical + legacy slugs
@@ -152,33 +198,35 @@ function sn_admin_post_dashboard_redirect_url( $current_page, $flash ) {
 	);
 }
 
-function sn_handle_admin_post() {
-	if ( ! isset( $_POST['sn_action'] ) ) {
-		return;
-	}
+/**
+ * The admin_post_sn_<action> hook body: nonce, capability, page allowlist,
+ * handler, redirect.
+ *
+ * @param string $action A key of sn_admin_post_handlers().
+ * @return void
+ */
+function sn_handle_admin_post( $action ) {
+	$action = (string) $action;
+	check_admin_referer( 'sn_' . $action );
+
 	if ( ! current_user_can( 'manage_options' ) ) {
-		return;
+		wp_die( esc_html__( 'You do not have permission to do that.', 'signal-and-noise-tools' ), 403 );
 	}
 
-	// Only process for our admin pages — guards against the handler firing for
-	// an unrelated $_POST that happens to carry sn_action.
+	// Only process for our admin pages: the redirect below lands on this slug.
 	$current_page = isset( $_REQUEST['page'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['page'] ) ) : '';
-	$our_slugs    = sn_admin_post_allowed_pages();
-	if ( ! in_array( $current_page, $our_slugs, true ) ) {
-		return;
+	if ( ! in_array( $current_page, sn_admin_post_allowed_pages(), true ) ) {
+		wp_die( esc_html__( 'This form did not name a Signal & Noise page.', 'signal-and-noise-tools' ), 400 );
 	}
 
-	check_admin_referer( 'sn_theme_options_nonce' );
-
-	$action   = sanitize_text_field( wp_unslash( $_POST['sn_action'] ) );
 	$handlers = sn_admin_post_handlers();
 	if ( ! isset( $handlers[ $action ] ) ) {
-		return; // unknown action — same as the old trailing `else { return; }`
+		return;
 	}
 	// Handlers receive the RAW $_POST and unslash per-field exactly as their
 	// original arms did (see inc/admin-post-actions.php docblock).
 	//
-	// nosemgrep: php.lang.security.injection.tainted-callable.tainted-callable -- $action only SELECTS from the fixed sn_admin_post_handlers() registry behind the isset() above; the callable is never attacker-supplied, and the dispatcher has already enforced the nonce (and capability, per-handler where required).
+	// nosemgrep: php.lang.security.injection.tainted-callable.tainted-callable -- $action is the hook's own suffix, selected from the fixed sn_admin_post_handlers() registry at registration; the callable is never attacker-supplied, and the nonce and capability were enforced above.
 	$flash = (string) call_user_func( $handlers[ $action ], $_POST );
 
 	// v9.2.0: Dashboard-submenu pages (sn-analytics) redirect back to index.php
@@ -186,7 +234,7 @@ function sn_handle_admin_post() {
 	// apply to them (the page is registered under index.php, not admin.php).
 	$dashboard_url = sn_admin_post_dashboard_redirect_url( $current_page, $flash );
 	if ( null !== $dashboard_url ) {
-		header( 'Location: ' . $dashboard_url, true, 302 );
+		wp_safe_redirect( $dashboard_url );
 		exit;
 	}
 
@@ -217,11 +265,8 @@ function sn_handle_admin_post() {
 		}
 	}
 
-	$redirect_url = add_query_arg( $redirect_args, admin_url( 'admin.php' ) ) . $anchor;
-
-	// Raw header() because wp_safe_redirect() strips URL fragments. Destination
-	// is admin_url() (same-host, trusted) with a sanitized top-tab name from a
-	// fixed allowlist — safe. 302 (transient post-save redirect), not 301.
-	header( 'Location: ' . $redirect_url, true, 302 );
+	// wp_sanitize_redirect() keeps '#', so the fragment survives (WP 7.1
+	// pluggable.php). 302 (transient post-save redirect), not 301.
+	wp_safe_redirect( add_query_arg( $redirect_args, admin_url( 'admin.php' ) ) . $anchor );
 	exit;
 }

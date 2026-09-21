@@ -110,11 +110,10 @@ function paint_chrome_controls( array $ctx ) {
 		. \snt_kit_tag( 'os-field-row', array( 'label' => __( 'To', 'signal-and-noise-tools' ) ), \snt_kit_tag( 'input', array( 'type' => 'date', 'name' => 'sn_to', 'value' => 'custom' === $range ? $to : '', 'max' => $today ) ) )
 	) : '';
 
-	$admin = function_exists( 'admin_url' ) ? admin_url( 'admin.php' ) : '';
-	$nonce = function_exists( 'wp_create_nonce' ) ? wp_create_nonce( 'sn_theme_options_nonce' ) : '';
-	$export_hidden = \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => '_wpnonce', 'value' => $nonce ) )
+	$admin = function_exists( 'admin_url' ) ? admin_url( 'admin-post.php' ) : '';
+	$export_hidden = \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => '_wpnonce', 'value' => \snt_kit_nonce( 'analytics_export' ) ) )
 		. \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => 'page', 'value' => 'sn-theme-options' ) )
-		. \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => 'sn_action', 'value' => 'analytics_export' ) )
+		. \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => 'action', 'value' => 'sn_analytics_export' ) )
 		. \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => 'sn_range', 'value' => $range ) )
 		. \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => 'sn_class', 'value' => $class ) );
 	if ( 'custom' === $range ) {

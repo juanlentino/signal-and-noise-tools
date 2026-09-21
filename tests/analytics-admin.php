@@ -213,6 +213,7 @@ require_once __DIR__ . '/../inc/analytics-view-engagement.php';
 require_once __DIR__ . '/../inc/analytics-view-quality.php';
 require_once __DIR__ . '/../inc/analytics-view-events.php';
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require_once __DIR__ . '/../inc/analytics-admin.php';
 
@@ -641,7 +642,7 @@ $html = capture( 'snt_analytics_render_settings_section' );
 ok( strpos( $html, 'name="sn_cf_account_id"' ) === false, '15.2.0: no account_id input; the keyring holds it' );
 ok( strpos( $html, 'name="sn_cf_analytics_token"' ) === false, '15.2.0: no token input; the keyring holds it' );
 ok( strpos( $html, 'value="analytics_save"' ) === false && strpos( $html, 'Connections › Credentials' ) !== false, '15.2.0: no analytics_save submit; the fold points to Connections › Credentials' );
-ok( strpos( $html, 'value="analytics_test"' ) !== false, 'settings: analytics_test submit present' );
+ok( strpos( $html, 'value="sn_analytics_test"' ) !== false, 'settings: analytics_test submit present' );
 ok( strpos( $html, 'wrangler' ) !== false && strpos( $html, 'SN_PX_TOKEN' ) !== false, 'settings: Worker-setup console present' );
 ok( stripos( $html, 'View dashboard' ) !== false, 'settings: links back to the read-only dashboard' );
 ok( strpos( $html, '<details class="sn-an-form-fold" open>' ) !== false, 'settings: unconfigured pipeline -> the credentials fold carries open (v9.45.0 wiring pin)' );

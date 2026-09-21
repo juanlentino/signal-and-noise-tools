@@ -111,7 +111,9 @@ namespace {
 	// ── WordPress, flat ───────────────────────────────────────────────
 	$GLOBALS['__filters'] = array();
 	function add_filter( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['__filters'][ $hook ][] = $cb; return true; }
-	function add_action( $hook, $cb, $prio = 10, $args = 1 ) { return true; }
+	// Registered, not sunk: the dispatcher hooks admin_post_sn_<action> for
+	// every table action at load, and the replay fires that hook (#1614).
+	function add_action( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['__actions'][ $hook ][] = $cb; return true; }
 	function apply_filters( $hook, $value, ...$rest ) { foreach ( $GLOBALS['__filters'][ $hook ] ?? array() as $cb ) { $value = call_user_func( $cb, $value, ...$rest ); } return $value; }
 	function __( $s, $d = null ) { return $s; }
 	function esc_html__( $s, $d = null ) { return $s; }
@@ -142,16 +144,33 @@ namespace {
 	// One nonce per ACTION: the estate mints four, and a global "valid" would
 	// hide the very confusion the pipelines exist to end.
 	function wp_verify_nonce( $nonce, $action = -1 ) {
-		$minted = array( 'good-nonce' => 'sn_theme_options_nonce', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_tracker_action' );
+		$minted = array( 'good-nonce' => 'sn_save_identity', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_tracker_action' );
 		return ( isset( $minted[ $nonce ] ) && $minted[ $nonce ] === $action ) ? 1 : false;
 	}
 	// The interceptor needs real hook plumbing, a real wp_redirect (which filters
 	// its location before sending) and a real wp_die (which picks its handler
 	// through a filter). A registration sink here would let the whole seam pass
 	// without running.
-	$GLOBALS['__actions'] = array();
+	$GLOBALS['__actions'] = $GLOBALS['__actions'] ?? array();
 	function remove_filter( $hook, $cb, $prio = 10 ) { foreach ( $GLOBALS['__filters'][ $hook ] ?? array() as $i => $one ) { if ( $one === $cb ) { unset( $GLOBALS['__filters'][ $hook ][ $i ] ); } } return true; }
 	function has_action( $hook, $cb = false ) { return ! empty( $GLOBALS['__actions'][ $hook ] ); }
+	function add_query_arg( ...$args ) {
+		$params = is_array( $args[0] ) ? $args[0] : array( $args[0] => $args[1] );
+		$url    = is_array( $args[0] ) ? (string) ( $args[1] ?? '' ) : (string) ( $args[2] ?? '' );
+		$parts  = explode( '#', $url, 2 );
+		$base   = $parts[0];
+		$query  = array();
+		if ( false !== strpos( $base, '?' ) ) { list( $base, $qs ) = explode( '?', $base, 2 ); parse_str( $qs, $query ); }
+		foreach ( $params as $k => $v ) { if ( null === $v || false === $v ) { unset( $query[ $k ] ); } else { $query[ $k ] = $v; } }
+		return $base . ( array() !== $query ? '?' . http_build_query( $query ) : '' ) . ( isset( $parts[1] ) ? '#' . $parts[1] : '' );
+	}
+	function check_admin_referer( $action = -1, $query_arg = '_wpnonce' ) {
+		// phpcs:ignore WordPress.Security.NonceVerification -- This IS the nonce check, in core's own shape.
+		if ( ! wp_verify_nonce( isset( $_REQUEST[ $query_arg ] ) ? $_REQUEST[ $query_arg ] : '', $action ) ) {
+			wp_die( '<h1>Something went wrong.</h1><p>The link you followed has expired.</p>', 'Something went wrong.', array( 'response' => 403 ) );
+		}
+		return 1;
+	}
 	function do_action( $hook, ...$args ) { foreach ( $GLOBALS['__actions'][ $hook ] ?? array() as $cb ) { call_user_func_array( $cb, $args ); } }
 	function wp_redirect( $location, $status = 302, $x_redirect_by = 'WordPress' ) { $location = apply_filters( 'wp_redirect', $location, $status ); return (bool) $location; }
 	function wp_safe_redirect( $location, $status = 302, $x_redirect_by = 'WordPress' ) { return wp_redirect( $location, $status ); }
@@ -213,7 +232,7 @@ namespace {
 		// A leaf-to-leaf link written with a TOP-TAB slug, which is what
 		// sn_admin_tag_page_url() returns and what made Cancel open a second window.
 		echo '<a id="lnk-legacy-slug" href="' . esc_url( admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' ) ) . '">Back to Tags</a></nav>';
-		echo '<div class="sn-section" id="sn-sec-' . esc_attr( (string) $active_sub ) . '"><form method="post"><input type="hidden" name="sn_action" value="save_identity"></form></div>';
+		echo '<div class="sn-section" id="sn-sec-' . esc_attr( (string) $active_sub ) . '"><form method="post"><input type="hidden" name="action" value="sn_save_identity"></form></div>';
 	}
 	function sn_handle_save_identity( $post ) {
 		$GLOBALS['__handler_calls'][] = $post;
@@ -363,7 +382,7 @@ namespace {
 	$os->view = 'site';
 	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'identity-and-seo', 'params' => array( 'sn_tag_preview' => '1' ) ) );
 	$GLOBALS['__handler_calls'] = array();
-	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'good-nonce', 'sn_action' => 'save_identity', 'site_name' => 'Signal' ) ) );
+	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'good-nonce', 'action' => 'sn_save_identity', 'site_name' => 'Signal' ) ) );
 	ok( 1 === count( $GLOBALS['__handler_calls'] ) && 'Signal' === $GLOBALS['__handler_calls'][0]['site_name'], 'the handler ran with the posted values' );
 	ok( array( 'success', 'Identity settings saved.' ) === $st->get( 'notice' ) && 'identity_saved' === $st->get( 'flash' ),
 		'the flash becomes the classic notice, and the CODE is kept (the Webhooks leaf reads an id out of it)' );
@@ -373,8 +392,8 @@ namespace {
 	ok( array( 2 ) === $os->badges && 1 === $os->refresh, 'a save re-reads the badge and asks the shell for a fresh payload' );
 
 	$os = new \OpenStation\App\Os();
-	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'stale', 'sn_action' => 'save_identity' ) ) );
-	ok( array( 'Nothing was saved: the security token did not verify against sn_theme_options_nonce.' ) === $os->toasts && null === $st->get( 'notice' ),
+	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'stale', 'action' => 'sn_save_identity' ) ) );
+	ok( array( 'Nothing was saved: the security token did not verify against sn_save_identity.' ) === $os->toasts && null === $st->get( 'notice' ),
 		'a stale nonce says WHAT WAS MEASURED -- a token that did not verify against the action it was checked against. "The form expired. Reopen the tab and try again." was a cause nobody measured, and it was said to eight forms whose nonce was never this one, where reopening could never help' );
 
 	$os = new \OpenStation\App\Os();
@@ -418,7 +437,7 @@ namespace {
 	$os = new \OpenStation\App\Os();
 	$os->view = 'security';
 	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'audit-log' ) );
-	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'good-nonce', 'sn_action' => 'audit_prune_now' ) ) );
+	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'prune-nonce', 'sn_action' => 'audit_prune_now' ) ) );
 	ok( array() === $os->toasts && 'audit_prune_now' === $st->get( 'post' )['sn_action'],
 		'"Prune now" is kept, not refused: it is not in the handler table because its own leaf handles it, and the window used to toast "Nothing was saved." and prune nothing' );
 	paint( $app, array( 'tab' => 'security', 'sub' => 'audit-log' ), $os, $st );
@@ -429,14 +448,14 @@ namespace {
 	$GLOBALS['__caps']['manage_options'] = false;
 	$os = new \OpenStation\App\Os();
 	$GLOBALS['__handler_calls'] = array();
-	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'good-nonce', 'sn_action' => 'save_identity' ) ) );
+	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'good-nonce', 'action' => 'sn_save_identity' ) ) );
 	ok( array() === $GLOBALS['__handler_calls'] && 1 === count( $os->toasts ), 'without manage_options nothing runs and the reason is said' );
 	$GLOBALS['__caps']['manage_options'] = true;
 
 	$os = new \OpenStation\App\Os();
 	$os->view = 'connections';
 	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'webhooks' ) );
-	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'good-nonce', 'sn_action' => 'webhook_add' ) ) );
+	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'hook-nonce', 'action' => 'sn_webhook_add' ) ) );
 	ok( 'wh_added_abc123' === $st->get( 'flash' ), 'a webhook add keeps its flash code in state' );
 	ok( 'abc123' === ( $st->get( 'params' )['new_id'] ?? substr( (string) $st->get( 'flash' ), strlen( 'wh_added_' ) ) ),
 		'   ...and the minted id is still on the state the leaf reads -- the classic page pulled it out of the flash as ?new_id=' );

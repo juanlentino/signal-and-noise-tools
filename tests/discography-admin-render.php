@@ -65,6 +65,7 @@ if ( ! function_exists( 'sanitize_title' ) ) {
 
 // 17.4.4 (#1612): settings.php hooks register_setting() on init at file scope.
 if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require __DIR__ . '/../inc/settings.php';   // sn_mask_secret() — music.php's credential mask delegates here (v4.14.2).
 require __DIR__ . '/../inc/discography-store.php';
 require __DIR__ . '/../inc/muso-api.php';
@@ -97,9 +98,9 @@ sn_admin_render_music_section();
 $html = ob_get_clean();
 
 // ── Form actions MUST equal the dispatch-map keys ────────────────────
-ok( strpos( $html, 'name="sn_action" value="music_save"' ) !== false, 'emits the music_save action (matches dispatch map)' );
-ok( strpos( $html, 'name="sn_action" value="music_sync"' ) !== false, 'emits the music_sync action (Sync now)' );
-ok( strpos( $html, 'name="sn_action" value="music_synd"' ) === false, 'no mistyped action value' );
+ok( strpos( $html, 'name="action" value="sn_music_save"' ) !== false, 'emits the music_save action (matches dispatch map)' );
+ok( strpos( $html, 'name="action" value="sn_music_sync"' ) !== false, 'emits the music_sync action (Sync now)' );
+ok( strpos( $html, 'name="action" value="sn_music_synd"' ) === false, 'no mistyped action value' );
 
 // ── Sub-tab round-trip hidden fields (flash lands back on Music) ─────
 ok( substr_count( $html, 'name="sub" value="music"' ) >= 2, 'both forms carry sub=music for the PRG redirect' );

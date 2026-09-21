@@ -30,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The one `sn_action` whose form must never become a dispatch.
+ * The one handler action whose form must never become a dispatch.
  *
  * `sn_handle_analytics_export()` sets `Content-Disposition`, echoes a raw
  * CSV/JSON body and `exit`s — it returns no flash code and renders no HTML, so

@@ -65,8 +65,7 @@ function snt_gsc_render_settings_section() {
 	$identity = function_exists( 'snt_gsc_credential_identity' ) ? snt_gsc_credential_identity() : null;
 	$stored   = function_exists( 'snt_gsc_credential_raw' ) ? '' !== snt_gsc_credential_raw() : false;
 
-	echo '<form method="post" class="sn-gsc-settings">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'gsc_credential_save' ) ) . '" class="sn-gsc-settings">';
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Search Console credential', 'signal-and-noise-tools' ) . '</h3>';
 	echo '<p class="description">' . esc_html__( 'A Google Cloud service-account key, granted read access to the Search Console property. Nothing here queries Google yet — this stores the credential the search reports will use.', 'signal-and-noise-tools' ) . '</p>';
 
@@ -115,9 +114,9 @@ function snt_gsc_render_settings_section() {
 	echo '<p><label for="sn_gsc_credential"><strong>' . esc_html__( 'Service-account JSON', 'signal-and-noise-tools' ) . '</strong></label><br>';
 	echo '<textarea id="sn_gsc_credential" name="sn_gsc_credential" rows="8" class="large-text code" spellcheck="false" autocomplete="off" placeholder="' . esc_attr( $stored ? __( 'Paste a fresh key file to replace; type clear to remove; leave empty to keep the current one', 'signal-and-noise-tools' ) : __( '{ "type": "service_account", … }', 'signal-and-noise-tools' ) ) . '"></textarea></p>';
 
-	echo '<p><button type="submit" name="sn_action" value="gsc_credential_save" class="button button-primary">' . esc_html__( 'Save credential', 'signal-and-noise-tools' ) . '</button>';
+	echo '<p><button type="submit"' . sn_admin_post_button( 'gsc_credential_save' ) . ' class="button button-primary">' . esc_html__( 'Save credential', 'signal-and-noise-tools' ) . '</button>';
 	if ( null !== $identity ) {
-		echo ' <button type="submit" name="sn_action" value="gsc_test" class="button">' . esc_html__( 'Test connection', 'signal-and-noise-tools' ) . '</button>';
+		echo ' <button type="submit"' . sn_admin_post_button( 'gsc_test' ) . ' class="button">' . esc_html__( 'Test connection', 'signal-and-noise-tools' ) . '</button>';
 	}
 	echo '</p>';
 	echo '</form>';
@@ -140,8 +139,7 @@ function snt_gsc_render_property_form() {
 	$current  = (string) sn_setting( 'search_console.property', '' );
 	$data     = function_exists( 'snt_gsc_data' ) ? snt_gsc_data() : null;
 
-	echo '<form method="post" class="sn-gsc-settings">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'gsc_property_save' ) ) . '" class="sn-gsc-settings">';
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Property', 'signal-and-noise-tools' ) . '</h3>';
 
 	if ( is_array( $last ) && empty( $last['ok'] ) ) {
@@ -175,7 +173,7 @@ function snt_gsc_render_property_form() {
 			);
 		}
 		echo '</select></p>';
-		echo '<p><button type="submit" name="sn_action" value="gsc_property_save" class="button button-primary">' . esc_html__( 'Use this property', 'signal-and-noise-tools' ) . '</button></p>';
+		echo '<p><button type="submit"' . sn_admin_post_button( 'gsc_property_save' ) . ' class="button button-primary">' . esc_html__( 'Use this property', 'signal-and-noise-tools' ) . '</button></p>';
 	}
 
 	if ( '' !== $current ) {
@@ -226,7 +224,7 @@ function snt_gsc_render_property_form() {
 			echo esc_html__( 'No scheduled sync: it schedules itself once a credential is stored and a property chosen.', 'signal-and-noise-tools' );
 		}
 		echo '</p>';
-		echo '<p><button type="submit" name="sn_action" value="gsc_sync" class="button">' . esc_html__( 'Sync now', 'signal-and-noise-tools' ) . '</button></p>';
+		echo '<p><button type="submit"' . sn_admin_post_button( 'gsc_sync' ) . ' class="button">' . esc_html__( 'Sync now', 'signal-and-noise-tools' ) . '</button></p>';
 		echo '<p class="description">' . esc_html__( 'Data appears in Analytics → Search, and as impressions/position columns beside Top pages.', 'signal-and-noise-tools' ) . '</p>';
 	}
 	echo '</form>';

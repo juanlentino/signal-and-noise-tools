@@ -21,9 +21,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * this; assets/admin.js then wires them to show one section at a time.
  */
 function sn_admin_render_identity_and_seo_form() {
-	echo '<form method="post" class="sn-identity-form">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="save_identity">';
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-identity-form">';
+	wp_nonce_field( 'sn_save_identity' );
+	echo '<input type="hidden" name="action" value="sn_save_identity">';
 
 	sn_admin_render_section( 'identity', function() {
 		echo '<h2 class="sn-fieldset-h">Identity</h2>';

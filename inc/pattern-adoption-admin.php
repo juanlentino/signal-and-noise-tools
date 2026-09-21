@@ -86,10 +86,10 @@ function snt_pattern_adoption_render_opportunities_section() {
 
 	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Scans existing /notes posts for blockquote and ordered-list blocks that could be upgraded to the v9.2.0 pull-quote and steps-enumerated patterns. Pure structural detection: no AI calls. Editorial: every upgrade is reviewed before apply.', 'signal-and-noise-tools' ) . '</p>';
 
-	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+	wp_nonce_field( 'sn_pattern_adoption_scan' );
 	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" name="sn_action" value="pattern_adoption_scan" class="button button-primary">' . esc_html( $last_scan ? __( 'Re-scan opportunities', 'signal-and-noise-tools' ) : __( 'Scan for opportunities', 'signal-and-noise-tools' ) ) . '</button>';
+	echo '<button type="submit" name="action" value="sn_pattern_adoption_scan" class="button button-primary">' . esc_html( $last_scan ? __( 'Re-scan opportunities', 'signal-and-noise-tools' ) : __( 'Scan for opportunities', 'signal-and-noise-tools' ) ) . '</button>';
 	echo '</div>';
 	echo '</form>';
 

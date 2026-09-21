@@ -54,6 +54,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 
 // 17.4.4 (#1612): settings.php hooks register_setting() on init at file scope.
 if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require __DIR__ . '/../inc/settings.php';
 
 // ── P1: theme subtree defaults ───────────────────────────────────────
@@ -126,7 +127,7 @@ require __DIR__ . '/../inc/admin-forms/front-end.php';
 ob_start();
 sn_admin_render_front_end_form();
 $form = ob_get_clean();
-ok( strpos( $form, 'name="sn_action" value="save_theme"' ) !== false, 'form: posts the save_theme action' );
+ok( strpos( $form, 'name="action" value="sn_save_theme"' ) !== false, 'form: posts the save_theme action' );
 $field_names = array(
 	'theme_related_count', 'theme_palette_recent_count', 'theme_palette_enabled',
 	'theme_json_feed_items', 'theme_updated_threshold_days', 'theme_reading_wpm',

@@ -4,8 +4,8 @@
  *
  * Render-only. The 4 form actions (insights_run, insights_dismiss,
  * insights_snooze, insights_mark_done) route through sn_handle_admin_post
- * in inc/admin-page.php — same shared sn_theme_options_nonce pattern as
- * every other SN tab (v3.5.1 lesson encoded).
+ * in inc/admin-post-handler.php through admin-post.php, one nonce per action
+ * (sn_<action>), as every other SN tab.
  *
  * Uses the bespoke .sn-fieldset / .sn-field / .sn-pill design system
  * (matches cloudflare-purge.php, plausible-admin.php, webhooks-admin.php).
@@ -34,8 +34,8 @@ function snt_insights_render_admin_tab() {
 	echo '<p class="sn-prose">Cross-system synthesis: reads your Plausible analytics, publish history, webhook delivery patterns, and cron freshness, then surfaces unexplored open questions worth developing for your Notes (or nothing, when none clears the bar). One AI call per scan; results cached 7 days.</p>';
 
 	// ── RUN ANALYSIS form ──
-	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+	wp_nonce_field( 'sn_insights_run' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Run Analysis</h2>';
 	echo '<p class="sn-fieldset-intro">Single AI call per scan. Returns zero or more unexplored open questions worth developing; "no angle worth a note right now" is a valid result. Re-runs within 7 days return the cached result unless you check "Force fresh scan".</p>';
@@ -43,7 +43,7 @@ function snt_insights_render_admin_tab() {
 		echo '<p class="sn-field-helper sn-text--err"><strong>AI client not available.</strong> Two setup steps are required: <a href="' . esc_url( admin_url( 'options-general.php?page=ai-wp-admin' ) ) . '">Settings → AI</a> (global enable + per-feature toggles), and <a href="' . esc_url( admin_url( 'options-general.php?page=connectors' ) ) . '">Settings → Connectors</a> (provider + API key). Both must be configured before this can run.</p>';
 	}
 	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" name="sn_action" value="insights_run" class="button button-primary"' . ( $ai_ready ? '' : ' disabled' ) . '>' . esc_html( $last ? 'Re-run analysis' : 'Run Analysis' ) . '</button>';
+	echo '<button type="submit" name="action" value="sn_insights_run" class="button button-primary"' . ( $ai_ready ? '' : ' disabled' ) . '>' . esc_html( $last ? 'Re-run analysis' : 'Run Analysis' ) . '</button>';
 	if ( $last ) {
 		echo ' <label class="sn-ml-auto"><input type="checkbox" name="force" value="1"> Force fresh scan (ignore cache)</label>';
 	}
@@ -405,15 +405,14 @@ function snt_insights_render_recommendations_section( $last ) {
 
 		// Triage actions only (mark done / snooze / dismiss). There is no
 		// "create draft" path: this advisor names questions, it does not seed posts.
-		echo '<form method="post" class="sn-fieldset-actions sn-fieldset-actions--inline">';
-		wp_nonce_field( 'sn_theme_options_nonce' );
+		echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'insights_mark_done' ) ) . '" class="sn-fieldset-actions sn-fieldset-actions--inline">';
 		echo '<input type="hidden" name="rec_id" value="' . esc_attr( $id ) . '">';
 		if ( ! $is_done ) {
-			echo '<button type="submit" name="sn_action" value="insights_mark_done" class="button button-small">Mark done</button> ';
+			echo '<button type="submit"' . sn_admin_post_button( 'insights_mark_done' ) . ' class="button button-small">Mark done</button> ';
 		}
-		echo '<button type="submit" name="sn_action" value="insights_snooze" class="button button-small">Snooze 30d</button> ';
+		echo '<button type="submit"' . sn_admin_post_button( 'insights_snooze' ) . ' class="button button-small">Snooze 30d</button> ';
 		// v4.1.1 (U-01): data-snt-confirm attribute (not inline onclick).
-		echo '<button type="submit" name="sn_action" value="insights_dismiss" class="button button-small button-link-delete" data-snt-confirm="' . esc_attr__( "It won't appear again on this scan.", 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Dismiss this question?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Dismiss', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Dismiss</button>';
+		echo '<button type="submit"' . sn_admin_post_button( 'insights_dismiss' ) . ' class="button button-small button-link-delete" data-snt-confirm="' . esc_attr__( "It won't appear again on this scan.", 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Dismiss this question?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Dismiss', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Dismiss</button>';
 		echo '</form>';
 
 		echo '</div>';
@@ -437,8 +436,8 @@ function snt_insights_render_settings_section() {
 	// sn_admin_maybe_redirect_legacy() 302s it, which is why only SAVING broke.
 	// Do not re-add an action: the current url is already canonical, and a
 	// hardcoded one goes stale the next time the admin IA moves.
-	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+	wp_nonce_field( 'sn_save_insights_settings' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Settings</h2>';
 	echo '<p class="sn-fieldset-intro">A weekly automated scan can be enabled here. Defaults off. When enabled, fires weekly. You can still click Run Analysis any time.</p>';
@@ -446,7 +445,7 @@ function snt_insights_render_settings_section() {
 	echo '<label><input type="checkbox" name="insights_weekly_cron" value="1"' . checked( $enabled, true, false ) . '> Run a weekly scan automatically</label>';
 	echo '</div>';
 	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" name="sn_action" value="save_insights_settings" class="button button-primary">Save settings</button>';
+	echo '<button type="submit" name="action" value="sn_save_insights_settings" class="button button-primary">Save settings</button>';
 	echo '</div>';
 	echo '</div>';
 	echo '</form>';

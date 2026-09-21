@@ -250,7 +250,7 @@ $sn_analytics = App::define( APP_ID )
 				return;
 			}
 			$values = isset( $args['values'] ) && is_array( $args['values'] ) ? $args['values'] : array();
-			$action = \snt_os_host_last( \snt_os_host_expand( $values )['sn_action'] ?? '' );
+			$action = (string) preg_replace( '/^sn_/', '', \snt_os_host_last( \snt_os_host_expand( $values )['action'] ?? '' ) );
 			if ( in_array( $action, \snt_os_analytics_keep_actions(), true ) ) {
 				$os->toast(
 					sprintf(

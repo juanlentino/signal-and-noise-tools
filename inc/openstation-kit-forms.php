@@ -2,10 +2,11 @@
 /**
  * Signal & Noise Tools — forms, fields and triggers painted from the kit.
  *
- * A leaf's classic `<form method="post">` becomes `<os-form os-action="post">`:
- * the kit collects every `[name]` descendant (kit fields included) and the
- * runtime ships them as `$args['values']`, which the host's replay pipeline
- * already understands — `sn_action`, the nonce, the handler table, the flash.
+ * A leaf's classic `<form method="post" action="admin-post.php">` becomes
+ * `<os-form os-action="post">`: the kit collects every `[name]` descendant
+ * (kit fields included) and the runtime ships them as `$args['values']`,
+ * which the host's admin-post pipeline already understands: `action`, the
+ * nonce minted for that action, the `admin_post_sn_<action>` hook, the flash.
  * A single maintenance button becomes an `<os-button os-action="post">` that
  * carries the same two values as arguments.
  *
@@ -18,19 +19,36 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The classic page's nonce, the one the replay verifies.
+ * The nonce the classic form for `$sn_action` carries, `sn_<action>`: one per
+ * action, so a token minted for one write verifies for no other (#1614).
  *
+ * @param string $sn_action The handler's action name (a key of sn_admin_post_handlers()).
  * @return string
  */
-function snt_kit_nonce() {
-	$action = defined( 'SNT_OS_HOST_NONCE' ) ? SNT_OS_HOST_NONCE : 'sn_theme_options_nonce';
-	return function_exists( 'wp_create_nonce' ) ? (string) wp_create_nonce( $action ) : '';
+function snt_kit_nonce( $sn_action ) {
+	return function_exists( 'wp_create_nonce' ) ? (string) wp_create_nonce( snt_kit_hook_action( $sn_action ) ) : '';
 }
 
 /**
- * `<os-form os-action="post">` around painted fields, carrying `sn_action` and
- * the nonce as hidden inputs. Options: submit (label), columns (auto|1|2|3),
- * confirm (question), danger, pipeline (`shared`|`admin-post`|`rss`|`inline`), class.
+ * The `admin_post_*` suffix for a handler action: `sn_<key>` for a key of
+ * sn_admin_post_handlers(), unchanged for a hook passed with its prefix
+ * (`sn_prov_runsweep`). The nonce action is the same string.
+ *
+ * @param string $sn_action Table key or prefixed hook action.
+ * @return string
+ */
+function snt_kit_hook_action( $sn_action ) {
+	$sn_action = (string) $sn_action;
+	return 0 === strpos( $sn_action, 'sn_' ) ? $sn_action : 'sn_' . $sn_action;
+}
+
+/**
+ * `<os-form os-action="post">` around painted fields, carrying the action and
+ * its nonce as hidden inputs: `action=sn_<action>` for the admin-post
+ * pipeline, or `sn_action=<action>` for a form the leaf handles itself
+ * (`pipeline` => `inline`). An `action` field routes to admin-post with no
+ * declaration (snt_os_host_pipeline_for()). Options: submit (label), columns
+ * (auto|1|2|3), confirm (question), danger, pipeline (`rss`|`inline`), class.
  *
  * @param string              $sn_action The handler's action name.
  * @param string              $inner     Painted fields.
@@ -38,8 +56,9 @@ function snt_kit_nonce() {
  * @return string
  */
 function snt_kit_form( $sn_action, $inner, array $opts = array() ) {
-	$hidden = snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => 'sn_action', 'value' => (string) $sn_action ) )
-		. snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => '_wpnonce', 'value' => snt_kit_nonce() ) );
+	$inline = isset( $opts['pipeline'] ) && 'inline' === (string) $opts['pipeline'];
+	$hidden = snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => $inline ? 'sn_action' : 'action', 'value' => $inline ? (string) $sn_action : snt_kit_hook_action( $sn_action ) ) )
+		. snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => '_wpnonce', 'value' => snt_kit_nonce( $sn_action ) ) );
 	foreach ( (array) ( $opts['hidden'] ?? array() ) as $name => $value ) {
 		$hidden .= snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => (string) $name, 'value' => (string) $value ) );
 	}

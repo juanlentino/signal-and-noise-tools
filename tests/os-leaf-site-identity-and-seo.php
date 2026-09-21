@@ -115,7 +115,7 @@ function bound_attrs( $html, $kit ) {
 			if ( ! preg_match( '/<(os-text-field|os-number-field|os-textarea|os-select)\b([^>]*)>/', $row[2], $cm ) ) { continue; }
 			if ( ! preg_match( '/\sname="([^"]+)"/', $cm[2], $nm ) ) { continue; }
 			$name = html_entity_decode( $nm[1], ENT_QUOTES );
-			if ( 0 === strpos( $name, 'social_same_as' ) || in_array( $name, array( 'sn_action', '_wpnonce' ), true ) ) { continue; }
+			if ( 0 === strpos( $name, 'social_same_as' ) || in_array( $name, array( 'action', 'sn_action', '_wpnonce' ), true ) ) { continue; }
 			preg_match( '/\slabel="([^"]*)"/', $row[1], $lm );
 			$type = 'os-number-field' === $cm[1] ? 'number' : ( 'os-textarea' === $cm[1] ? 'textarea' : ( preg_match( '/\stype="([^"]*)"/', $cm[2], $tm ) ? $tm[1] : 'text' ) );
 			$out[ $name ] = bound_row( $lm[1] ?? '', $type, $cm[2] );
@@ -124,7 +124,7 @@ function bound_attrs( $html, $kit ) {
 		preg_match_all( '/<(input|textarea)\b([^>]*)\bname="([^"]+)"([^>]*)>(?:([^<]*)<\/textarea>)?/', $html, $ctrls, PREG_SET_ORDER );
 		foreach ( $ctrls as $c ) {
 			$name = html_entity_decode( $c[3], ENT_QUOTES );
-			if ( 0 === strpos( $name, 'social_same_as' ) || in_array( $name, array( 'sn_action', '_wpnonce' ), true ) ) { continue; }
+			if ( 0 === strpos( $name, 'social_same_as' ) || in_array( $name, array( 'action', 'sn_action', '_wpnonce' ), true ) ) { continue; }
 			$attrs = $c[2] . ' name="' . $c[3] . '"' . $c[4];
 			preg_match( '/<label\b[^>]*\sfor="sn_' . preg_quote( $name, '/' ) . '"[^>]*>([^<]*)<\/label>/', $html, $lm );
 			$type = 'textarea' === $c[1] ? 'textarea' : ( preg_match( '/\stype="([^"]*)"/', $attrs, $tm ) ? $tm[1] : 'text' );
@@ -152,8 +152,8 @@ ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === names_folded( snt_leaf_names( $kit ) ), 'field names match the classic form (sameAs rows indexed, folded): kit ' . implode( ',', snt_leaf_names( $kit ) ) . ' | classic ' . implode( ',', snt_leaf_names( $classic ) ) );
 ok( array( 'save_identity' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is save_identity, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ) && false === strpos( $kit, '<noscript' ) && false === strpos( $kit, 'sn-add-row-btn' ), 'no wp-admin markup, no noscript, no dead add-row button survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( 1 === substr_count( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false !== strpos( $kit, 'submit-label="Save Identity Settings"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'ONE os-form dispatching post, labelled as the classic save bar, on the shared pipeline (the classic form posts to its own URL)' );
-ok( false !== strpos( $kit, 'name="sn_action" value="save_identity"' ) && false !== strpos( $kit, 'name="_wpnonce" value="nonce-sn_theme_options_nonce"' ), 'sn_action and the shared nonce ride as hidden fields' );
+ok( 1 === substr_count( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false !== strpos( $kit, 'submit-label="Save Identity Settings"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'ONE os-form dispatching post, labelled as the classic save bar, on the admin-post pipeline (no pipeline declared: an action field is admin-post)' );
+ok( false !== strpos( $kit, 'name="action" value="sn_save_identity"' ) && false !== strpos( $kit, 'name="_wpnonce" value="nonce-sn_save_identity"' ), 'the action and the nonce minted for it ride as hidden fields (#1614)' );
 
 // ── The section strip: the classic anchors as tabs + panels, first open.
 preg_match_all( '/href="#sn-sec-([a-z-]+)"[^>]*>([^<]+)</', $classic_strip, $cs, PREG_SET_ORDER );
@@ -208,7 +208,7 @@ ok( array() === $missing, 'every classic readout (values, headings, intros, help
 // ── The round trip: the kit's payload, through the host's expansion and the plugin's own writer.
 $wire = field_values( $kit, true );
 $post = snt_os_host_expand( $wire );
-ok( array( 'https://a.example/juan', 'https://b.example/juan', '' ) === ( $post['social_same_as'] ?? null ) && 'save_identity' === ( $post['sn_action'] ?? '' ), 'indexed sameAs names expand to the social_same_as array the handler reads' );
+ok( array( 'https://a.example/juan', 'https://b.example/juan', '' ) === ( $post['social_same_as'] ?? null ) && 'sn_save_identity' === ( $post['action'] ?? '' ), 'indexed sameAs names expand to the social_same_as array the handler reads' );
 $control = snt_os_host_expand( field_values( $classic, true ) );
 ok( array( '' ) === ( $control['social_same_as'] ?? null ), 'CONTROL: the classic literal social_same_as[] names, collected the way os-form collects (last wins), keep ONE row -- the loss the indexed spelling exists to prevent' );
 $post['identity_site_name'] = 'Renamed';

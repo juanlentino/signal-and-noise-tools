@@ -267,7 +267,7 @@ function snt_morning_brief_render_settings() {
 	$drift = function_exists( 'snt_config_drift_status' ) ? snt_config_drift_status() : array( 'has_drift' => false );
 	$last_sent = (int) get_option( SNT_MORNING_BRIEF_LAST_SENT, 0 );
 	$last_error = get_option( SNT_MORNING_BRIEF_LAST_ERROR );
-	echo '<form method="post" class="sn-fieldset"><input type="hidden" name="sn_action" value="morning_brief_save" />'; wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset"><input type="hidden" name="action" value="sn_morning_brief_save" />'; wp_nonce_field( 'sn_morning_brief_save' );
 	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'Morning operations brief', 'signal-and-noise-tools' ) . '</h2>';
 	echo '<label><input type="checkbox" name="snt_morning_brief_enabled" value="1" '; checked( snt_morning_brief_enabled() ); echo ' /> ' . esc_html__( 'Email a daily morning brief to the admin address', 'signal-and-noise-tools' ) . '</label>';
 	echo '<p class="sn-field-helper">' . esc_html__( 'A deterministic prose reading of the latest health scan, cron history, uptime status, deploy state, and any unacknowledged settings drift. Scheduled for 7:00 a.m. site time.', 'signal-and-noise-tools' ) . '</p>';

@@ -47,8 +47,11 @@ function snt_kit_button( $label, $action, array $opts = array() ) {
 }
 
 /**
- * A one-click write: the classic `<button name="sn_action" value="…">` inside
- * a nonce'd form, as a button that posts the same two values.
+ * A one-click write: the classic `<button name="action" value="sn_…">` with
+ * its own nonce, as a button that posts the same two values through the
+ * admin-post pipeline. `$sn_action` is the handler's table key (`full_reset`)
+ * or a hook outside the table with its prefix (`sn_prov_runsweep`); the nonce
+ * is minted for the hook's action either way.
  *
  * @param string              $label     Text.
  * @param string              $sn_action Handler action.
@@ -56,7 +59,14 @@ function snt_kit_button( $label, $action, array $opts = array() ) {
  * @return string
  */
 function snt_kit_action_button( $label, $sn_action, array $opts = array() ) {
-	$opts['args'] = array_merge( array( 'action' => (string) $sn_action, 'nonce' => snt_kit_nonce() ), (array) ( $opts['args'] ?? array() ) );
+	$opts['args'] = array_merge(
+		array(
+			'action'   => snt_kit_hook_action( $sn_action ),
+			'nonce'    => snt_kit_nonce( $sn_action ),
+			'pipeline' => 'admin-post',
+		),
+		(array) ( $opts['args'] ?? array() )
+	);
 	return snt_kit_button( $label, 'post', $opts );
 }
 

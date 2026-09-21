@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * just shows a notice) while the AI client is unavailable — `busy` is the
  * closest documented `<os-form>` prop that blocks submission, so this builds
  * the form by hand instead of inventing an attribute. Hidden fields mirror
- * `snt_kit_form()` exactly (sn_action + nonce).
+ * `snt_kit_form()` exactly (action + its nonce).
  *
  * @param string $submit_label Submit label.
  * @param bool   $busy         Whether the form is gated.
@@ -33,8 +33,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string
  */
 function insights_run_form_tag( $submit_label, $busy, $inner ) {
-	$hidden = \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => 'sn_action', 'value' => 'insights_run' ) )
-		. \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => '_wpnonce', 'value' => \snt_kit_nonce() ) );
+	$hidden = \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => 'action', 'value' => 'sn_insights_run' ) )
+		. \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => '_wpnonce', 'value' => \snt_kit_nonce( 'insights_run' ) ) );
 	return \snt_kit_tag(
 		'os-form',
 		array(

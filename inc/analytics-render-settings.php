@@ -79,8 +79,8 @@ function snt_analytics_render_credentials() {
 	// 15.2.0: no fields here. The token, the override and the account id are
 	// rows on the keyring (Connections › Credentials); this fold reads them,
 	// says which token is in force, and keeps the connection test.
-	echo '<form method="post" class="sn-an-settings">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings">';
+	wp_nonce_field( 'sn_analytics_test' );
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Credentials', 'signal-and-noise-tools' ) . '</h3>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Set under Connections › Credentials, with every other key. Analytics Engine reads use the Cloudflare API token (Account › Account Analytics › Read on it) unless an analytics token override is set there.', 'signal-and-noise-tools' ) . '</p>';
 	if ( '' !== $override ) {
@@ -91,7 +91,7 @@ function snt_analytics_render_credentials() {
 		echo '<p class="sn-an-empty">' . esc_html__( 'Reading with the Cloudflare API token.', 'signal-and-noise-tools' ) . '</p>';
 	}
 	echo '<p class="sn-an-empty">' . esc_html__( 'Account ID:', 'signal-and-noise-tools' ) . ' <code>' . esc_html( $acct_locked ? 'locked by SN_CF_ACCOUNT_ID' : ( '' !== $acct_opt ? $acct_opt : 'not set' ) ) . '</code></p>';
-	echo '<p><button type="submit" name="sn_action" value="analytics_test" class="button"' . ( $configured ? '' : ' disabled' ) . '>' . esc_html__( 'Test connection', 'signal-and-noise-tools' ) . '</button></p>';
+	echo '<p><button type="submit" name="action" value="sn_analytics_test" class="button"' . ( $configured ? '' : ' disabled' ) . '>' . esc_html__( 'Test connection', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
 }
 
@@ -126,8 +126,8 @@ function snt_analytics_render_collector() {
 	$collector = (string) ( $rss['collector_url'] ?? '' );
 	$default   = function_exists( 'home_url' ) ? home_url( '/_sn/px' ) : '';
 
-	echo '<form method="post" class="sn-an-settings sn-an-collector">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings sn-an-collector">';
+	wp_nonce_field( 'sn_analytics_collector_save' );
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Collector endpoint', 'signal-and-noise-tools' ) . '</h3>';
 	/* translators: 1: the worker route, wrapped in <code>; 2: the shared-token constant name, wrapped in <code>. */
 	echo '<p class="sn-an-settings-help">' . sprintf( esc_html__( 'Where every first-party beacon on this site posts: the Cloudflare Worker\'s %1$s route. Authenticated with the shared %2$s constant from wp-config.php.', 'signal-and-noise-tools' ), '<code>/_sn/px</code>', '<code>SN_BEACON_TOKEN</code>' ) . '</p>';
@@ -141,7 +141,7 @@ function snt_analytics_render_collector() {
 	}
 	echo '</p>';
 
-	echo '<p><button type="submit" name="sn_action" value="analytics_collector_save" class="button button-primary">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button></p>';
+	echo '<p><button type="submit" name="action" value="sn_analytics_collector_save" class="button button-primary">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
 }
 
@@ -200,8 +200,8 @@ function snt_analytics_render_exclusion() {
 	$roles    = function_exists( 'sn_beacon_excludable_roles' ) ? sn_beacon_excludable_roles() : array();
 	$excluded = (array) sn_setting( 'analytics.exclude_roles', array() );
 
-	echo '<form method="post" class="sn-an-settings sn-an-exclude">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings sn-an-exclude">';
+	wp_nonce_field( 'sn_analytics_exclude_save' );
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Exclude my own visits', 'signal-and-noise-tools' ) . '</h3>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Stop counting logged-in users in the selected roles. The front-end beacon is never printed for them, so nothing reaches the collector. Cookieless and forward-only: visits already recorded are unaffected.', 'signal-and-noise-tools' ) . '</p>';
 
@@ -225,7 +225,7 @@ function snt_analytics_render_exclusion() {
 
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Your own visits are also dropped at the edge: the collector ignores any beacon that carries a logged-in WordPress cookie, so you are excluded even when the page was served from cache. The role list above adds per-role control on uncached requests: to extend that role filter to cached pages too, add a Cloudflare rule that bypasses cache when the request carries a wordpress_logged_in_ cookie.', 'signal-and-noise-tools' ) . '</p>';
 
-	echo '<p><button type="submit" name="sn_action" value="analytics_exclude_save" class="button button-primary">' . esc_html__( 'Save exclusion', 'signal-and-noise-tools' ) . '</button></p>';
+	echo '<p><button type="submit" name="action" value="sn_analytics_exclude_save" class="button button-primary">' . esc_html__( 'Save exclusion', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
 }
 
@@ -452,8 +452,8 @@ function snt_analytics_render_engine_tuning() {
 	// to 'standard' in sn_analytics_signal_opts(), so the form mirrors that.
 	$preset = isset( $presets[ $preset ] ) ? $preset : 'standard';
 
-	echo '<form method="post" class="sn-an-settings sn-an-tuning">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings sn-an-tuning">';
+	wp_nonce_field( 'sn_analytics_tuning_save' );
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Engine tuning', 'signal-and-noise-tools' ) . '</h3>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'How the anomaly detectors read your history. Trend and forecast signals aren’t tunable here. Developers can override more via the sn_analytics_signal_config filter: see the reference in the right column.', 'signal-and-noise-tools' ) . '</p>';
 
@@ -471,7 +471,7 @@ function snt_analytics_render_engine_tuning() {
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'This preset governs both anomaly families: the predictive signals engine and the per-page skim/dwell detector.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</fieldset>';
 
-	echo '<p><button type="submit" name="sn_action" value="analytics_tuning_save" class="button button-primary">' . esc_html__( 'Save tuning', 'signal-and-noise-tools' ) . '</button></p>';
+	echo '<p><button type="submit" name="action" value="sn_analytics_tuning_save" class="button button-primary">' . esc_html__( 'Save tuning', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
 }
 
@@ -512,8 +512,8 @@ function snt_analytics_render_funnels() {
 	$funnels = (array) sn_setting( 'analytics.funnels', array() );
 	$text    = sn_analytics_funnels_to_text( $funnels );
 
-	echo '<form method="post" class="sn-an-settings sn-an-funnels">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings sn-an-funnels">';
+	wp_nonce_field( 'sn_analytics_funnels_save' );
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Session funnels', 'signal-and-noise-tools' ) . '</h3>';
 	// Both clamps render from their constants (SN_ANALYTICS_FUNNELS_MAX_STEPS /
 	// SN_ANALYTICS_FUNNELS_MAX, inc/analytics-sessions.php) so the copy can't
@@ -529,7 +529,7 @@ function snt_analytics_render_funnels() {
 	echo '<textarea id="sn_funnels" name="sn_funnels" rows="6" class="large-text code" placeholder="' . esc_attr__( 'Home flow: /entry > /step > /goal', 'signal-and-noise-tools' ) . '">' . esc_textarea( $text ) . '</textarea></p>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Saving any funnel here replaces the built-in defaults for the Sessions view: including their custom-event goals. Those defaults remain available via the sn_analytics_session_funnels filter, which always runs last and wins over whatever is saved here.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Only exact-match path steps can be expressed here. Funnels this box can’t express (prefix matching, custom-event goals) are not shown above and are managed in code via the filter, which always wins last.', 'signal-and-noise-tools' ) . '</p>';
-	echo '<p><button type="submit" name="sn_action" value="analytics_funnels_save" class="button button-primary">' . esc_html__( 'Save funnels', 'signal-and-noise-tools' ) . '</button></p>';
+	echo '<p><button type="submit" name="action" value="sn_analytics_funnels_save" class="button button-primary">' . esc_html__( 'Save funnels', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
 }
 

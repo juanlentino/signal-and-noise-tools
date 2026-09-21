@@ -62,7 +62,7 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match th
 ok( in_array( 'now[groups][__G__][label]', snt_leaf_names( $kit ), true ) && in_array( 'now[groups][1][items]', snt_leaf_names( $kit ), true ), 'the names cover both stored cards and the template card' );
 ok( array( 'now_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is now_save, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the form is an os-form dispatching post through the shared sn_action table (no pipeline override)' );
+ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the form is an os-form dispatching post through the admin-post pipeline (no pipeline declared: an action field is admin-post)' );
 ok( false !== strpos( $kit, 'submit-label="Save now page"' ), 'the submit button reads "Save now page"' );
 ok( false !== strpos( $kit, '<os-section heading="Now page"' ), 'the "Now page" heading is the section heading' );
 ok( false !== strpos( $kit, 'editor for the live' ) && false !== strpos( $kit, 'os-action="door" os-arg-url="https://example.test/now"' ) && false === strpos( $kit, 'target="_blank"' ), 'the configured intro links the live /now page as a window (14.7.5: same origin is a door, never target=_blank)' );
@@ -83,7 +83,7 @@ ok( false === strpos( $kit, 'sn-rsm-' ) && false === strpos( $kit, '<template' )
 // them), expanded as the window expands a form, serialize back to the stored
 // document; the blank new card is pruned.
 $posted = snt_os_host_expand( now_posted_from( $kit ) );
-ok( 'now_save' === ( $posted['sn_action'] ?? '' ) && isset( $posted['_wpnonce'] ), 'the painted form posts sn_action=now_save and the nonce' );
+ok( 'sn_now_save' === ( $posted['action'] ?? '' ) && 'nonce-sn_now_save' === ( $posted['_wpnonce'] ?? '' ), 'the painted form posts action=sn_now_save and the nonce minted for it' );
 ok( isset( $posted['now']['groups']['0']['label'], $posted['now']['groups']['__G__']['items'] ) && 3 === count( $posted['now']['groups'] ), 'the kit names expand to the now[groups] shape the handler reads, string key included' );
 ok( $raw === sn_now_rows_to_text( now_groups_from( $posted ) ), 'saving the painted cards unchanged reproduces the stored document (the blank new card is pruned)' );
 

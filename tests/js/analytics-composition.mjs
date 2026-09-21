@@ -138,7 +138,7 @@ for (const [width,height,appWidth,appHeight,mobile] of cases) {
    checks.refreshRetainsState=JSON.stringify(before)===JSON.stringify(await page.evaluate(()=>window.fixtureState));
    checks.refreshDispatched=await page.evaluate(()=>window.fixtureEvents.filter(b=>b.action==='refresh').length===3);
    for(const format of ['CSV','JSON'])await page.locator('.snt-export').getByRole('button',{name:format,exact:true}).click();
-   checks.exports=await page.evaluate(()=>window.fixtureExports.length===2&&window.fixtureExports.every((v,i)=>v.format===(i?'json':'csv')&&v.sn_range==='custom'&&v.sn_class==='suspect'&&v.sn_from==='2026-09-01'&&v.sn_to==='2026-09-07'&&v._wpnonce==='nonce-sn_theme_options_nonce'&&v.sn_action==='analytics_export'));
+   checks.exports=await page.evaluate(()=>window.fixtureExports.length===2&&window.fixtureExports.every((v,i)=>v.format===(i?'json':'csv')&&v.sn_range==='custom'&&v.sn_class==='suspect'&&v.sn_from==='2026-09-01'&&v.sn_to==='2026-09-07'&&v._wpnonce==='nonce-sn_analytics_export'&&v.action==='sn_analytics_export'));
    const uptime=page.locator('.sn-an-uptime > summary');await uptime.focus();await uptime.press('Enter');
    await page.waitForFunction(()=>document.querySelector('.sn-uw-table'));
    checks.uptimeDetail=await page.getByText('99.98%',{exact:true}).isVisible()&&await page.getByText('No recent incidents.',{exact:true}).isVisible();

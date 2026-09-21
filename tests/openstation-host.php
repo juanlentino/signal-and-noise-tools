@@ -111,6 +111,9 @@ function esc_html__( $s, $d = null ) { return $s; }
 function esc_attr__( $s, $d = null ) { return $s; }
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function wp_create_nonce( $action = -1 ) { return 'nonce-' . $action; }
+// Core's shape: add_query_arg() then esc_html(), so & becomes &amp; on the way out.
+function wp_nonce_url( $url, $action = -1, $name = '_wpnonce' ) { return htmlspecialchars( add_query_arg( $name, wp_create_nonce( $action ), (string) $url ), ENT_QUOTES ); }
 function esc_url( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function wp_kses_post( $s ) { return (string) $s; }
 function _doing_it_wrong( $f, $m, $v ) {}
@@ -131,7 +134,10 @@ function current_user_can( $cap, ...$a ) { return (bool) ( $GLOBALS['__caps'][ $
 // exactly the confusion this suite exists to catch.
 function wp_verify_nonce( $nonce, $action = -1 ) {
 	$minted = array(
-		'good-nonce'   => 'sn_theme_options_nonce',
+		'good-nonce'   => 'sn_save_identity',
+		'music-nonce'  => 'sn_music_save',
+		'reset-nonce'  => 'sn_full_reset',
+		'prune-nonce'  => 'sn_audit_prune_now',
 		'rss-nonce'    => 'sn_rss_tracker_action',
 		'sweep-nonce'  => 'sn_prov_runsweep',
 	);
@@ -478,10 +484,10 @@ if ( '' === $api ) {
 	// leaves it real. The fixture is the export form's own shape, plus a
 	// neighbouring save form and a STRAY input between them.
 	$keep_fixture = '<div>'
-		. '<form id="f-save" method="post"><input type="hidden" name="sn_action" value="save_identity"></form>'
-		. '<input type="hidden" name="sn_action" value="analytics_export">'
-		. '<form id="f-export" class="sn-an-export" method="post" action="https://example.test/wp-admin/admin.php">'
-		. '<input type="hidden" name="page" value="sn-theme-options"><input type="hidden" name="sn_action" value="analytics_export">'
+		. '<form id="f-save" method="post" action="https://example.test/wp-admin/admin-post.php"><input type="hidden" name="action" value="sn_save_identity"></form>'
+		. '<input type="hidden" name="action" value="sn_analytics_export">'
+		. '<form id="f-export" class="sn-an-export" method="post" action="https://example.test/wp-admin/admin-post.php">'
+		. '<input type="hidden" name="page" value="sn-theme-options"><input type="hidden" name="action" value="sn_analytics_export">'
 		. '<button type="submit" name="format" value="csv">CSV</button></form>'
 		. '</div>';
 	$kept       = snt_os_host_keep_forms( $keep_fixture, array( 'analytics_export' ), 'https://example.test/wp-admin/admin.php?page=sn-analytics' );
@@ -540,8 +546,8 @@ ok( isset( $expanded['dotted_key'] ), '   ...and a dot in a name is mangled to a
 ok( 'b' === snt_os_host_last( array( 'a', 'b' ) ) && 'x' === snt_os_host_last( 'x' ) && '' === snt_os_host_last( null ),
 	'snt_os_host_last() collapses an array-valued field to its LAST element -- the belt for a bag that arrived as an array by any other route, where is_scalar() used to refuse it outright' );
 
-echo "\nGroup 3b: the shared pipeline -- every gate the classic dispatcher applies, minus the exit\n";
-$values = array( '_wpnonce' => 'good-nonce', 'sn_action' => 'save_identity', 'site_name' => "Juan's \"site\"" );
+echo "\nGroup 3b: a table action on the admin-post pipeline -- every gate sn_handle_admin_post() applies, minus the exit\n";
+$values = array( '_wpnonce' => 'good-nonce', 'action' => 'sn_save_identity', 'site_name' => "Juan's \"site\"" );
 
 $GLOBALS['__caps']['manage_options'] = false;
 $GLOBALS['__handler_calls']          = array();
@@ -550,16 +556,24 @@ ok( false === $refused['ok'] && 'capability' === $refused['reason'] && array() =
 	'without manage_options nothing runs, and the refusal SAYS which gate closed' );
 $GLOBALS['__caps']['manage_options'] = true;
 
-$refused = snt_os_host_replay( array( '_wpnonce' => 'stale', 'sn_action' => 'save_identity' ), 'sn-theme-options', array( 'tab' => 'site' ) );
-ok( false === $refused['ok'] && 'nonce' === $refused['reason'] && 'sn_theme_options_nonce' === $refused['detail'] && array() === $GLOBALS['__handler_calls'],
+$refused = snt_os_host_replay( array( '_wpnonce' => 'stale', 'action' => 'sn_save_identity' ), 'sn-theme-options', array( 'tab' => 'site' ) );
+ok( false === $refused['ok'] && 'nonce' === $refused['reason'] && 'sn_save_identity' === $refused['detail'] && array() === $GLOBALS['__handler_calls'],
 	'a stale nonce refuses, the handler is not called, and the refusal NAMES the action the token was checked against -- never "the form expired", which was never measured' );
 
+// #1614: a nonce minted for one write authorises no other. `good-nonce` is
+// minted for sn_save_identity; replayed against full_reset it must refuse at
+// the nonce, and the fixture handler (which throws) must never run.
+$refused = snt_os_host_replay( array( '_wpnonce' => 'good-nonce', 'action' => 'sn_full_reset' ), 'sn-theme-options', array( 'tab' => 'dashboard' ) );
+ok( false === $refused['ok'] && 'nonce' === $refused['reason'] && 'sn_full_reset' === $refused['detail'] && array() === $GLOBALS['__handler_calls'],
+	'a nonce minted for sn_save_identity does NOT verify for sn_full_reset: one nonce per action, and the handler is not called (#1614)' );
+
 $refused = snt_os_host_replay( $values, 'some-other-plugin-page', array( 'tab' => 'site' ) );
-ok( false === $refused['ok'] && 'page' === $refused['reason'], 'a page outside sn_admin_post_allowed_pages() refuses -- the same allowlist, called not copied' );
+ok( false === $refused['ok'] && 'died' === $refused['reason'] && false !== strpos( $refused['detail'], 'did not name a Signal' ) && array() === $GLOBALS['__handler_calls'],
+	'a page outside sn_admin_post_allowed_pages() refuses -- sn_handle_admin_post() wp_die()s on the same allowlist, and the die is the readout' );
 
 $refused = snt_os_host_replay( array( '_wpnonce' => 'stale', 'sn_action' => 'no_such_action' ), 'sn-theme-options', array( 'tab' => 'site' ) );
-ok( false === $refused['ok'] && 'nonce' === $refused['reason'] && array() === $GLOBALS['__handler_calls'],
-	'an action the table does not know, with a bad nonce, refuses at the NONCE -- the order the classic dispatcher checks in' );
+ok( false === $refused['ok'] && 'nonce' === $refused['reason'] && 'sn_no_such_action' === $refused['detail'] && array() === $GLOBALS['__handler_calls'],
+	'a bare sn_action with a bad nonce refuses at the NONCE, naming sn_<action> -- an inline form is only ever admitted on its own nonce' );
 $refused = snt_os_host_replay( array( '_wpnonce' => 'good-nonce' ), 'sn-theme-options', array( 'tab' => 'site' ) );
 ok( false === $refused['ok'] && 'unknown' === $refused['reason'] && '' === $refused['detail'],
 	'a submission carrying no action at all belongs to no pipeline, and the refusal says exactly that' );
@@ -569,18 +583,18 @@ $_POST    = array( 'sentinel' => 'post' );
 $_REQUEST = array( 'sentinel' => 'request' );
 $snapshot = array( $_GET, $_POST, $_REQUEST );
 $result   = snt_os_host_replay( $values, 'sn-theme-options', array( 'tab' => 'site', 'sub' => 'identity-and-seo' ) );
-ok( true === $result['ok'] && 'identity_saved' === $result['flash'] && 'shared' === $result['pipeline'], 'a known action runs on the shared pipeline and its flash code comes back' );
+ok( true === $result['ok'] && 'identity_saved' === $result['flash'] && 'admin-post' === $result['pipeline'], 'a table action runs on the admin-post pipeline through do_action( admin_post_sn_save_identity ) and its flash code comes back out of the intercepted redirect' );
 $call = $GLOBALS['__handler_calls'][0];
 ok( "Juan\\'s \\\"site\\\"" === $call[1]['site_name'],
 	'the handler is called with SLASHED values -- every handler wp_unslash()es what it reads, so an unslashed replay would silently eat the quotes in a saved title' );
 ok( 'sn-theme-options' === $call[2]['page'], 'a handler reading $_REQUEST[\'page\'] sees the window\'s page slug' );
 ok( array( 'tab' => 'site', 'sub' => 'identity-and-seo', 'anchor' => null ) === $result['target'],
 	'the target is sn_admin_post_redirect_target()\'s, called -- a current tab passes through with its sub' );
-ok( array() === $result['params'], '   ...and a shared save carries no params forward: the classic redirect keeps only page/tab/sub/sn_flash' );
+ok( array() === $result['params'], '   ...and a table save carries no params forward: the classic redirect keeps only page/tab/sub/sn_flash' );
 ok( $snapshot === array( $_GET, $_POST, $_REQUEST ), 'the superglobals are restored after the handler ran' );
 
 $bracketed = snt_os_host_replay(
-	array( '_wpnonce' => 'good-nonce', 'sn_action' => 'save_identity', 'social_same_as[]' => array( 'https://a', 'https://b' ) ),
+	array( '_wpnonce' => 'good-nonce', 'action' => 'sn_save_identity', 'social_same_as[]' => array( 'https://a', 'https://b' ) ),
 	'sn-theme-options',
 	array( 'tab' => 'site' )
 );
@@ -588,7 +602,7 @@ ok( true === $bracketed['ok'] && array( 'https://a', 'https://b' ) === end( $GLO
 	'the WIRE shape reaches the handler as PHP would have built it: the expansion runs ONCE, at the entry of the replay, for every pipeline' );
 
 $moved = snt_os_host_replay(
-	array( '_wpnonce' => 'good-nonce', 'sn_action' => 'music_save', 'tab' => 'content', 'sub' => 'music' ),
+	array( '_wpnonce' => 'music-nonce', 'action' => 'sn_music_save', 'tab' => 'content', 'sub' => 'music' ),
 	'sn-theme-options',
 	array( 'tab' => 'site', 'sub' => 'front-end' )
 );
@@ -596,7 +610,7 @@ ok( 'connections' === $moved['target']['tab'] && 'music' === $moved['target']['s
 	'a form\'s own hidden tab/sub beats the window\'s AND is re-homed by sn_admin_subtab_moves() -- Music still posts the stale content/music pair, and without both the save would land on the wrong tab' );
 
 $unknown_tab = snt_os_host_replay(
-	array( '_wpnonce' => 'good-nonce', 'sn_action' => 'save_identity', 'tab' => 'no-such-tab' ),
+	array( '_wpnonce' => 'good-nonce', 'action' => 'sn_save_identity', 'tab' => 'no-such-tab' ),
 	'sn-theme-options',
 	array( 'tab' => 'site' )
 );
@@ -608,7 +622,7 @@ $_REQUEST = array( 'sentinel' => 'request' );
 $snapshot = array( $_GET, $_POST, $_REQUEST );
 $threw    = false;
 try {
-	snt_os_host_replay( array( '_wpnonce' => 'good-nonce', 'sn_action' => 'full_reset' ), 'sn-theme-options', array( 'tab' => 'dashboard' ) );
+	snt_os_host_replay( array( '_wpnonce' => 'reset-nonce', 'action' => 'sn_full_reset' ), 'sn-theme-options', array( 'tab' => 'dashboard' ) );
 } catch ( RuntimeException $e ) {
 	$threw = true;
 }
@@ -702,19 +716,51 @@ ok( true === $stale_rss['ok'] && '' === $stale_rss['flash'] && null === $stale_r
 
 echo "\nGroup 3e: the inline pipeline -- the one form its own leaf handles, out of \$_POST\n";
 $inline = snt_os_host_replay(
-	array( '_wpnonce' => 'good-nonce', 'sn_action' => 'audit_prune_now', 'note' => "it's fine" ),
+	array( '_wpnonce' => 'prune-nonce', 'sn_action' => 'audit_prune_now', 'note' => "it's fine" ),
 	'sn-theme-options',
 	array( 'tab' => 'security', 'sub' => 'audit-log' )
 );
 ok( true === $inline['ok'] && 'inline' === $inline['pipeline'] && array() === $GLOBALS['__redirects'],
-	'"Prune now" is neither refused nor dispatched: audit_prune_now is not in sn_admin_post_handlers() and its shared nonce verifies, which is what an inline form IS' );
-ok( 'audit_prune_now' === $inline['post']['sn_action'] && 'good-nonce' === $inline['post']['_wpnonce'],
+	'"Prune now" is neither refused nor dispatched: audit_prune_now is not in sn_admin_post_handlers() and its own nonce (sn_audit_prune_now) verifies, which is what an inline form IS' );
+ok( 'audit_prune_now' === $inline['post']['sn_action'] && 'prune-nonce' === $inline['post']['_wpnonce'],
 	'   ...the values are handed back for the next paint, nonce included -- snt_audit_log_render_tab() calls check_admin_referer(), which reads $_REQUEST[\'_wpnonce\']' );
 ok( "it\\'s fine" === $inline['post']['note'],
 	'   ...slashed, like a real POST: a leaf reading $_POST wp_unslash()es it, and an unslashed bag would eat the quote' );
 $audit_src = (string) file_get_contents( __DIR__ . '/../inc/audit-log-admin.php' );
-ok( false !== strpos( $audit_src, "'audit_prune_now' === \$_POST['sn_action']" ) && false !== strpos( $audit_src, "check_admin_referer( 'sn_theme_options_nonce' )" ),
-	'   ...and the leaf still IS the handler: it reads $_POST[\'sn_action\'] itself and checks the shared nonce, which is the whole reason this pipeline exists' );
+ok( false !== strpos( $audit_src, "'audit_prune_now' === \$_POST['sn_action']" ) && false !== strpos( $audit_src, "check_admin_referer( 'sn_audit_prune_now' )" ),
+	'   ...and the leaf still IS the handler: it reads $_POST[\'sn_action\'] itself and checks its own nonce, which is the whole reason this pipeline exists' );
+
+echo "\nGroup 3f: the dispatcher itself -- one hook and one nonce per table action (#1614)\n";
+$table_keys = array_keys( sn_admin_post_handlers() );
+$hooked     = array_filter( $table_keys, static function ( $key ) { return has_action( 'admin_post_sn_' . $key ); } );
+ok( count( $table_keys ) === count( $hooked ) && count( $table_keys ) > 60, 'every entry of sn_admin_post_handlers() has its admin_post_sn_<action> hook (' . count( $hooked ) . ' of ' . count( $table_keys ) . '), the table staying the single source of truth' );
+$src_dispatch = (string) file_get_contents( __DIR__ . '/../inc/admin-post-handler.php' );
+ok( false === strpos( $src_dispatch, "'admin_init'" ) && false !== strpos( $src_dispatch, "check_admin_referer( 'sn_' . \$action )" ), '   ...and nothing dispatches from admin_init any more: the one shared gate is check_admin_referer( sn_<action> ) on each hook' );
+$_GET = array( 'page' => 'sn-theme-options', 'tab' => 'security', 'sub' => 'login', 'other' => 'dropped' );
+ok( 'https://example.test/wp-admin/admin-post.php?page=sn-theme-options&tab=security&sub=login' === sn_admin_post_url(), 'sn_admin_post_url() posts to admin-post.php carrying the page, tab and sub the form was painted on, and nothing else' );
+ok( 'https://example.test/wp-admin/admin-post.php?page=sn-theme-options&tab=security&sub=login&_wpnonce=nonce-sn_full_reset' === html_entity_decode( sn_admin_post_url( 'full_reset' ) ), '   ...and with an action, the nonce minted for THAT action rides the URL (wp_nonce_url)' );
+ok( ' name="action" value="sn_full_reset" formaction="https://example.test/wp-admin/admin-post.php?page=sn-theme-options&tab=security&sub=login&_wpnonce=nonce-sn_full_reset"' === html_entity_decode( html_entity_decode( sn_admin_post_button( 'full_reset' ) ) ), 'sn_admin_post_button() names the hook and carries that action\'s nonce on formaction=, so a form with several buttons has one nonce per button' );
+$_GET = array();
+// (decoded twice: core's esc_url() folds wp_nonce_url()'s &amp; into &#038;; this suite's esc_url() stub escapes again.)
+$fragment = snt_os_host_borrowed( array( '_wpnonce' => 'good-nonce', 'action' => 'sn_save_identity' ), array( 'tab' => 'identity' ), 'sn-theme-options', static function () { do_action( 'admin_post_sn_save_identity' ); } );
+ok( 'redirect' === $fragment['outcome'] && 'https://example.test/wp-admin/admin.php?page=sn-theme-options&sn_flash=identity_saved&tab=site&sub=identity-and-seo#sn-sec-identity' === $fragment['location'], 'the Location a legacy tab redirects to carries page, flash, home and the #sn-sec- fragment, through wp_safe_redirect(): wp_sanitize_redirect() keeps the fragment, so the raw header() the old comment justified is gone' );
+$src_legacy   = (string) file_get_contents( __DIR__ . '/../inc/admin-legacy-redirect.php' );
+ok( false === strpos( $src_dispatch, 'header(' ) && false === strpos( $src_legacy, 'header( \'Location' ) && false === strpos( $src_dispatch . $src_legacy, 'strips' ), '   ...source: no raw header() and no "strips the fragment" premise in either file' );
+require_once __DIR__ . '/lib/inc-population.php';
+$apps_walk = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( __DIR__ . '/../apps', FilesystemIterator::SKIP_DOTS ) );
+$app_files = array();
+foreach ( $apps_walk as $app_file ) {
+	if ( $app_file->isFile() && 'php' === $app_file->getExtension() ) {
+		$app_files[] = (string) $app_file->getPathname();
+	}
+}
+$named = array();
+foreach ( array_merge( snt_test_inc_files(), $app_files ) as $php_file ) {
+	if ( false !== strpos( (string) file_get_contents( $php_file ), 'sn_theme_options_nonce' ) ) {
+		$named[] = basename( $php_file );
+	}
+}
+ok( array() === $named, 'no file under inc/ or apps/ names sn_theme_options_nonce any more: ' . implode( ',', $named ) );
 
 echo "\nGroup 4: the notice and its toast\n";
 ok( array( 'success', 'Identity settings saved.' ) === snt_os_host_notice( 'identity_saved' ), 'a flash code resolves through sn_admin_flash_to_notice(), called' );
@@ -841,7 +887,7 @@ $n = count( $GLOBALS['__resets'] );
 snt_os_host_after_write( array( 'ok' => false, 'reason' => 'nonce' ) );
 ok( $n === count( $GLOBALS['__resets'] ), 'a refused write resets nothing: no write happened' );
 $src_pipe = (string) file_get_contents( __DIR__ . '/../inc/openstation-host-pipelines.php' );
-ok( 3 === substr_count( $src_pipe, 'snt_os_host_after_write( snt_os_host_replay_' ), 'the shared, admin-post and rss pipelines all return through the reset; the inline pipeline writes during the paint, so its leaf reads after its own write' );
+ok( 2 === substr_count( $src_pipe, 'snt_os_host_after_write( snt_os_host_replay_' ), 'the admin-post and rss pipelines both return through the reset; the inline pipeline writes during the paint, so its leaf reads after its own write' );
 
 echo "\nGroup C: native windows inherit the shell palette\n";
 $admin_css = (string) file_get_contents( __DIR__ . '/../assets/admin.css' );

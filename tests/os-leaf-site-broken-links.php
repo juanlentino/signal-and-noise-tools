@@ -74,12 +74,12 @@ ok( false !== strpos( $kit, '<p class="snt-hint">7 hits · last ' . $d0 . ' · f
 ok( false !== strpos( $kit, '<os-field-row label="Redirect to" hint="Suggested from your published slugs (closest match) — review before creating."><os-text-field name="target" type="text" value="/notes/design-tokens"' ) && false !== strpos( $kit, 'value="/contact"' ), 'the create form is prefilled with the slug suggestion and says so' );
 $create  = form_block( $kit, 'Create redirect' );
 $dismiss = form_block( $kit, 'Dismiss' );
-ok( '' !== $create && false !== strpos( $create, '<input type="hidden" name="source" value="/notes/desing-tokens">' ) && false !== strpos( $create, 'name="sn_action" value="redirect_add"' ) && '' !== $dismiss && false !== strpos( $dismiss, '<input type="hidden" name="source" value="/notes/desing-tokens"><input type="hidden" name="sn_action" value="redirect_404_delete">' ) && false === strpos( $dismiss, 'os-confirm' ), 'a broken path offers Create redirect (redirect_add) and an unconfirmed Dismiss (redirect_404_delete), both carrying the path' );
+ok( '' !== $create && false !== strpos( $create, '<input type="hidden" name="source" value="/notes/desing-tokens">' ) && false !== strpos( $create, 'name="action" value="sn_redirect_add"' ) && '' !== $dismiss && false !== strpos( $dismiss, '<input type="hidden" name="source" value="/notes/desing-tokens"><input type="hidden" name="action" value="sn_redirect_404_delete">' ) && false === strpos( $dismiss, 'os-confirm' ), 'a broken path offers Create redirect (redirect_add) and an unconfirmed Dismiss (redirect_404_delete), both carrying the path' );
 ok( false !== strpos( $kit, '<b>30 automated probes</b><br>465 hits on paths that match nothing published here' ) && false !== strpos( $kit, 'tone="neutral"' ), 'the probe bucket counts the probes and their hits without an attention tone' );
 ok( false !== strpos( $kit, '<os-disclosure heading="Show the probed paths">' ) && false !== strpos( $kit, '<li><os-code>/probe-0030</os-code> <span class="snt-hint">30×</span></li>' ) && false !== strpos( $kit, '<os-code>/probe-0006</os-code>' ) && false === strpos( $kit, '<os-code>/probe-0005</os-code>' ) && false !== strpos( $kit, '<li class="snt-hint">…and 5 more</li>' ), 'the fold lists the 25 busiest probes and counts the rest' );
-preg_match( '/<os-button[^>]*os-arg-action="redirect_404_clear_probes"[^>]*>/', $kit, $m );
+preg_match( '/<os-button[^>]*os-arg-action="sn_redirect_404_clear_probes"[^>]*>/', $kit, $m );
 ok( isset( $m[0] ) && false !== strpos( $m[0], 'os-confirm="Dismiss every automated probe from the log? Genuinely broken paths are kept."' ) && false !== strpos( $m[0], 'os-confirm-label="Dismiss probes"' ) && false === strpos( $m[0], 'os-confirm-danger' ), 'Dismiss all probes confirms with its label and is not marked danger' );
-preg_match( '/<os-button[^>]*os-arg-action="redirect_404_clear"[^>]*>/', $kit, $m );
+preg_match( '/<os-button[^>]*os-arg-action="sn_redirect_404_clear"[^>]*>/', $kit, $m );
 ok( isset( $m[0] ) && false !== strpos( $m[0], 'os-confirm="Clear the entire 404 log?"' ) && false !== strpos( $m[0], 'os-confirm-label="Clear"' ), 'Clear 404 log confirms with its label' );
 
 // ── Escaping: a hostile broken path and probe path never reach the markup raw.
@@ -115,11 +115,11 @@ fixture( array(), array( '/probe-a' => entry( 4, $t0 ), '/probe-b' => entry( 1, 
 $kit     = snt_leaf_paint( 'site', 'broken-links' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_broken_links_section' );
 ok( false !== strpos( $kit, '<b>No broken links</b>' ) && false !== strpos( $kit, '<b>3 automated probes</b>' ), 'probes only: clean status beside the bucket' );
-ok( false !== strpos( $kit, 'redirect_404_clear_probes' ) && false === strpos( $kit, 'os-arg-action="redirect_404_clear"' ), 'dismiss-probes is offered, clear-log is not' );
+ok( false !== strpos( $kit, 'redirect_404_clear_probes' ) && false === strpos( $kit, 'os-arg-action="sn_redirect_404_clear"' ), 'dismiss-probes is offered, clear-log is not' );
 ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '...and the classic leaf agrees on the action set' );
 
 // The split, from this side.
-ok( false === strpos( $kit, 'os-arg-action="redirect_update"' ) && false === strpos( $kit, 'os-arg-action="redirect_delete"' ), 'the broken-links leaf paints NO redirect edit/delete action' );
+ok( false === strpos( $kit, 'os-arg-action="sn_redirect_update"' ) && false === strpos( $kit, 'os-arg-action="sn_redirect_delete"' ), 'the broken-links leaf paints NO redirect edit/delete action' );
 ok( false === strpos( $kit, '<aside' ), 'and no rail: Pattern B is full width' );
 
 

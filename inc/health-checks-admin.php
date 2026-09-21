@@ -3,8 +3,8 @@
  * Signal & Noise Tools — Health Checks admin tab.
  *
  * Render-only. The `health_scan` action routes through
- * sn_handle_admin_post in inc/admin-page.php (matches cf_save /
- * pl_save). Shared sn_theme_options_nonce contract.
+ * sn_handle_admin_post in inc/admin-post-handler.php (matches cf_save /
+ * pl_save). Per-action nonce (sn_health_scan) through admin-post.php.
  *
  * Uses the bespoke .sn-fieldset / .sn-field / .sn-card-grid design
  * system (matches cloudflare-purge.php, plausible-admin.php).
@@ -184,13 +184,13 @@ function sn_health_render_admin_tab() {
 	// goes with it and the card falls back to its own capped .sn-fieldset width.
 	// (.sn-health-actions rules removed from assets/admin.css in the same
 	// change — this was their only call site.) ──
-	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+	wp_nonce_field( 'sn_health_scan' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Run scan</h2>';
 	echo '<p class="sn-fieldset-intro">Sweeps posts, media, and links for content issues; AI-assisted fixes appear inline when a provider is configured. Results persist until the next scan.</p>';
 	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" name="sn_action" value="health_scan" class="button button-primary">' . esc_html( $last_scan ? 'Re-run scan' : 'Run scan' ) . '</button>';
+	echo '<button type="submit" name="action" value="sn_health_scan" class="button button-primary">' . esc_html( $last_scan ? 'Re-run scan' : 'Run scan' ) . '</button>';
 	echo '</div>';
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';

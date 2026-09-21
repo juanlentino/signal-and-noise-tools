@@ -68,7 +68,7 @@ ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['monitoring/health'
 $classic = snt_leaf_classic_html( 'sn_health_render_admin_tab' );
 $kit     = snt_leaf_paint( 'monitoring', 'health' );
 ok( '' !== $kit, 'the kit leaf paints with no scan' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( '_wpnonce', 'sn_action' ) === snt_leaf_names( $kit ), 'no scan: both forms carry only the nonce + sn_action (the run-scan form has no real fields)' );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array() === snt_leaf_names( $kit ), 'no scan: both forms carry only the action + its nonce (the run-scan form has no real fields)' );
 ok( array( 'health_scan' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'no scan: the one action is health_scan, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no scan: no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, 'no scan' ) && false !== strpos( $kit, 'Run scan' ), 'no scan: the hero reads "no scan" and the button reads "Run scan"' );
@@ -136,7 +136,7 @@ $GLOBALS['__health_scan'] = array(
 $classic = snt_leaf_classic_html( 'sn_health_render_admin_tab' );
 $kit     = snt_leaf_paint( 'monitoring', 'health' );
 
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( '_wpnonce', 'sn_action' ) === snt_leaf_names( $kit ), 'rich scan: still just the nonce + sn_action on either leaf' );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array() === snt_leaf_names( $kit ), 'rich scan: still just the action + its nonce on either leaf' );
 ok( array( 'health_scan' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'rich scan: still the one health_scan action' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'rich scan: no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, 'Re-run scan' ), 'rich scan: the button relabels to "Re-run scan"' );

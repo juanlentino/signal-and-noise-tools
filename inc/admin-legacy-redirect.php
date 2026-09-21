@@ -186,7 +186,7 @@ function sn_admin_canonical_destination( $requested_tab, $requested_sub = '' ) {
  * bookmark would. A moved leaf / legacy slug is rewritten; a current top tab passes
  * through with its sub preserved; an unknown tab falls back to dashboard (matching
  * pre-refactor behaviour). Extracted so the wiring is unit-testable
- * (sn_handle_admin_post itself ends in header()+exit and can't be driven by a fixture).
+ * (sn_handle_admin_post itself ends in wp_safe_redirect()+exit and can't be driven by a fixture).
  *
  * @since 6.18.0
  * @param string $requested_tab
@@ -214,9 +214,9 @@ function sn_admin_post_redirect_target( $requested_tab, $requested_sub = '' ) {
  * ?page=sn-<slug> URL whose tab is no longer top-level, 301-redirect
  * to the canonical destination + URL fragment.
  *
- * Called early in sn_theme_options_page() before any output. Uses raw
- * header() + exit because wp_safe_redirect() strips URL fragments — the
- * fragment is the part that scrolls the page to the right sub-section.
+ * Called early in sn_theme_options_page() before any output. wp_safe_redirect()
+ * keeps the fragment (wp_sanitize_redirect() allows '#'), and the fragment is
+ * the part that scrolls the page to the right sub-section.
  *
  * Same-host admin URLs are trusted; the redirect destination is always
  * constructed from a fixed allow-listed top-tab whitelist, never from
@@ -254,9 +254,8 @@ function sn_admin_maybe_redirect_legacy() {
 		$url .= '#sn-sec-' . rawurlencode( $dest['anchor'] );
 	}
 
-	// Raw header() because wp_safe_redirect() strips the fragment. Same-host admin
-	// URL built from a fixed allow-listed destination, no user input → safe.
-	header( 'Location: ' . $url, true, 301 );
+	// wp_sanitize_redirect() keeps '#', so the fragment survives.
+	wp_safe_redirect( $url, 301 );
 	exit;
 }
 

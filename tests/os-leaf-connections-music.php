@@ -58,7 +58,7 @@ ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic forms: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( array( 'music_save', 'music_sync' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the two actions are music_save and music_sync, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( 2 === substr_count( $kit, '<os-form' ) && 2 === substr_count( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'both forms are os-forms dispatching post through the shared handler table (the classic forms post to the current admin URL)' );
+ok( 2 === substr_count( $kit, '<os-form' ) && 2 === substr_count( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'both forms are os-forms dispatching post through the admin-post pipeline (no pipeline declared: an action field is admin-post)' );
 ok( false !== strpos( $kit, 'submit-label="Save settings"' ) && false !== strpos( $kit, 'submit-label="Sync now"' ), 'the submits are labelled Save settings and Sync now, as the classic buttons are' );
 ok( 2 === substr_count( $kit, 'name="tab" value="content"' ) && 2 === substr_count( $kit, 'name="sub" value="music"' ) && 2 === substr_count( $classic, 'name="sub" value="music"' ), 'both forms carry the classic hidden tab=content / sub=music pair (the classic carries it twice too)' );
 $target = sn_admin_post_redirect_target( 'content', 'music' );
@@ -83,7 +83,7 @@ $order = array( strpos( $kit, '<p class="snt-prose">' ), strpos( $kit, '<os-noti
 $sorted = $order;
 sort( $sorted );
 ok( ! in_array( false, $order, true ) && $order === $sorted, 'the order: intro, the sync notice, the Status row (Status then Sync now), then the form alone under it: ' . implode( ' < ', $order ) );
-ok( strpos( $kit, 'value="music_sync"' ) < strpos( $kit, '</aside>' ) && strpos( $kit, 'value="music_save"' ) > strpos( $kit, '</aside>' ), 'the sync form is inside the row, the save form after it' );
+ok( strpos( $kit, 'value="sn_music_sync"' ) < strpos( $kit, '</aside>' ) && strpos( $kit, 'value="sn_music_save"' ) > strpos( $kit, '</aside>' ), 'the sync form is inside the row, the save form after it' );
 
 // ── Stale state: releases cached but the last sync failed.
 music_fixture( array( 'store' => array( 'last_error' => 'Muso: HTTP 502' ) ) );

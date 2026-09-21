@@ -33,6 +33,7 @@ if ( ! function_exists( 'sn_indexnow_key_url' ) ) { function sn_indexnow_key_url
 
 $GLOBALS['__opts'] = array( 'sn_indexnow_result' => array( 'time' => time() - 60, 'code' => 200, 'count' => 4 ) );
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/../inc/admin-shell.php';
 require_once __DIR__ . '/../inc/admin-forms/indexnow.php';
 

@@ -10,27 +10,26 @@
  * them apart is what stops a refusal text from being written by whoever last
  * touched the rewrite.
  *
- * FOUR PIPELINES, because the estate has four and not one. The port's first
- * cut knew only the shared one and refused the other three with "the form
- * expired" — a cause that was never measured, on forms whose nonce was never
- * `sn_theme_options_nonce` (measured 2026-09-06: five Provenance forms, three
+ * THREE PIPELINES, because the estate has three and not one. The port's first
+ * cut knew only a shared one and refused the others with "the form expired",
+ * a cause that was never measured (2026-09-06: five Provenance forms, three
  * RSS forms, one inline audit-log form; all dead in the window, none of them
- * expired):
+ * expired). Since #1614 the shared pipeline is gone: every table action posts
+ * to admin-post.php with its own nonce, the shape the Provenance forms always
+ * had.
  *
- *   shared      `sn_action` + `sn_theme_options_nonce`, dispatched through
- *               `sn_admin_post_handlers()`. 45 of the 57 forms.
- *   admin-post  A `<form action="admin-post.php">` with its own `action` field
- *               and its OWN nonce (`sn_prov_reanchor`, `sn_prov_runsweep`,
- *               `sn_prov_stage_key`, `sn_prov_rotate_key`,
- *               `sn_prov_chain_backfill`). The handler is on `admin_post_<a>`.
+ *   admin-post  A `<form action="admin-post.php">` with an `action` field and
+ *               a nonce minted for THAT action (`sn_save_identity`,
+ *               `sn_full_reset`, `sn_prov_runsweep`). The handler is on
+ *               `admin_post_<action>`; for the table's 66 that is
+ *               sn_handle_admin_post() (inc/admin-post-handler.php).
  *   rss         `sn_rss_action` + `SN_RSS_TRACKER_NONCE`, dispatched by
  *               `sn_rss_tracker_handle_form()` on `admin_init`.
  *   inline      A form the LEAF handles itself, inside its own render function,
- *               out of `$_POST` (`audit_prune_now`). Nothing runs here: the
- *               values are handed to the next paint, which is exactly what the
- *               classic page does when the dispatcher finds no handler — it
- *               returns without redirecting and the page renders with `$_POST`
- *               still standing.
+ *               out of `$_POST` (`sn_action=audit_prune_now`, nonce
+ *               `sn_audit_prune_now`). Nothing runs here: the values are
+ *               handed to the next paint, which is exactly what the classic
+ *               page does: the leaf reads `$_POST` while it renders.
  *
  * THE INTERCEPTOR. `admin-post` and `rss` handlers end in
  * `wp_safe_redirect() + exit`, and refuse by `wp_die()`. A window can do
@@ -158,12 +157,11 @@ function snt_os_host_result( array $overrides = array() ) {
 /**
  * Which pipeline a submission belongs to, decided on what it CARRIES.
  *
- * Order matters and each step is a measurement: the form's own `action`
- * attribute (which the rewrite read before dropping it, and passed back as
- * `os-arg-pipeline`) beats everything, because that attribute is where the
- * classic browser would have posted; then the RSS leaf's own field; then the
- * shared handler table; and last, a `sn_action` the table does not know but
- * whose SHARED nonce verifies — which is an inline form, not an error.
+ * Order matters and each step is a measurement: an `action` field is an
+ * admin-post form (the field admin-post.php itself routes on) unless the form
+ * declared another pipeline through `os-arg-pipeline`; then the RSS leaf's own
+ * field; and last, a `sn_action` whose own nonce (`sn_<action>`) verifies,
+ * which is an inline form, not an error.
  *
  * @param array<string,mixed> $values   Expanded values.
  * @param string              $declared `os-arg-pipeline` from the form, if any.
@@ -179,7 +177,7 @@ function snt_os_host_pipeline_for( array $values, $declared ) {
 	};
 
 	$wp_action = snt_os_host_last( isset( $values['action'] ) ? $values['action'] : null );
-	if ( 'admin-post' === (string) $declared && '' !== $wp_action ) {
+	if ( '' !== $wp_action && in_array( (string) $declared, array( '', 'admin-post' ), true ) ) {
 		return $found( 'admin-post', snt_os_host_slug( $wp_action ) );
 	}
 
@@ -187,17 +185,12 @@ function snt_os_host_pipeline_for( array $values, $declared ) {
 		return $found( 'rss', snt_os_host_slug( snt_os_host_last( $values['sn_rss_action'] ) ) );
 	}
 
-	$action   = snt_os_host_slug( snt_os_host_last( isset( $values['sn_action'] ) ? $values['sn_action'] : null ) );
-	$handlers = function_exists( 'sn_admin_post_handlers' ) ? sn_admin_post_handlers() : array();
-	if ( '' !== $action && isset( $handlers[ $action ] ) && is_callable( $handlers[ $action ] ) ) {
-		return $found( 'shared', $action );
-	}
+	$action = snt_os_host_slug( snt_os_host_last( isset( $values['sn_action'] ) ? $values['sn_action'] : null ) );
 	if ( '' !== $action ) {
-		// Not in the table. The classic dispatcher checks the shared nonce
-		// BEFORE it looks the action up, so a bad nonce is a nonce refusal
-		// here too — and a good one means the leaf handles this itself.
+		// The leaf handles this itself, under check_admin_referer( 'sn_<action>' )
+		// in its own render function; the same gate, measured here.
 		$nonce = snt_os_host_last( isset( $values['_wpnonce'] ) ? $values['_wpnonce'] : null );
-		if ( function_exists( 'wp_verify_nonce' ) && wp_verify_nonce( $nonce, SNT_OS_HOST_NONCE ) ) {
+		if ( function_exists( 'wp_verify_nonce' ) && wp_verify_nonce( $nonce, 'sn_' . $action ) ) {
 			return $found( 'inline', $action );
 		}
 		return $found( '', $action, 'nonce' );
@@ -246,8 +239,6 @@ function snt_os_host_replay( array $values, $page_slug, array $get = array(), $p
 	$chosen    = snt_os_host_pipeline_for( $values, (string) $pipeline );
 
 	switch ( $chosen['pipeline'] ) {
-		case 'shared':
-			return snt_os_host_after_write( snt_os_host_replay_shared( $values, $chosen['action'], $get, $page_slug ) );
 		case 'admin-post':
 			return snt_os_host_after_write( snt_os_host_replay_admin_post( $values, $chosen['action'], $get, $page_slug ) );
 		case 'rss':
@@ -259,7 +250,7 @@ function snt_os_host_replay( array $values, $page_slug, array $get = array(), $p
 	return snt_os_host_result(
 		array(
 			'reason' => '' !== $chosen['reason'] ? $chosen['reason'] : 'unknown',
-			'detail' => 'nonce' === $chosen['reason'] ? SNT_OS_HOST_NONCE : $chosen['action'],
+			'detail' => 'nonce' === $chosen['reason'] ? 'sn_' . $chosen['action'] : $chosen['action'],
 		)
 	);
 }
@@ -296,85 +287,16 @@ function snt_os_host_after_write( array $result ) {
 }
 
 /**
- * The shared pipeline: `sn_action` + the shared nonce + the handler table.
- *
- * The values are `wp_slash()`ed into `$_POST` because every handler
- * `wp_unslash()`es what it reads — an unslashed replay silently eats a quote
- * in a saved title.
- *
- * @param array<string,mixed> $values    Expanded values.
- * @param string              $action    The `sn_action` slug.
- * @param array<string,mixed> $get       The window's query.
- * @param string              $page_slug The window's page slug.
- * @return array<string,mixed>
- */
-function snt_os_host_replay_shared( array $values, $action, array $get, $page_slug ) {
-	$nonce = snt_os_host_last( isset( $values['_wpnonce'] ) ? $values['_wpnonce'] : null );
-	if ( ! function_exists( 'wp_verify_nonce' ) || ! wp_verify_nonce( $nonce, SNT_OS_HOST_NONCE ) ) {
-		return snt_os_host_result(
-			array(
-				'reason'   => 'nonce',
-				'detail'   => SNT_OS_HOST_NONCE,
-				'pipeline' => 'shared',
-			)
-		);
-	}
-	if ( function_exists( 'sn_admin_post_allowed_pages' ) && ! in_array( $page_slug, sn_admin_post_allowed_pages(), true ) ) {
-		return snt_os_host_result(
-			array(
-				'reason'   => 'page',
-				'detail'   => $page_slug,
-				'pipeline' => 'shared',
-			)
-		);
-	}
-	$handlers = function_exists( 'sn_admin_post_handlers' ) ? sn_admin_post_handlers() : array();
-
-	$flash  = '';
-	$target = null;
-	// Lent, NOT intercepted: a shared handler returns a flash code and never
-	// redirects, so wrapping it would only give a `wp_die()` somewhere inside
-	// one a quiet place to disappear into.
-	snt_os_host_lend(
-		$values,
-		$get,
-		$page_slug,
-		static function () use ( $handlers, $action, &$flash, &$target ) {
-			// phpcs:ignore WordPress.Security.NonceVerification -- The lent superglobals; the shared nonce was verified above.
-			$flash = (string) call_user_func( $handlers[ $action ], $_POST );
-
-			// The classic dispatcher only resolves a target when the request
-			// carried a tab; without one it redirects to the bare page.
-			// Mirrored, not re-decided.
-			// phpcs:ignore WordPress.Security.NonceVerification -- Same lent request.
-			if ( isset( $_REQUEST['tab'] ) && function_exists( 'sn_admin_post_redirect_target' ) ) {
-				// phpcs:disable WordPress.Security.NonceVerification -- Same lent request.
-				$requested_tab = sanitize_text_field( wp_unslash( $_REQUEST['tab'] ) );
-				$requested_sub = isset( $_REQUEST['sub'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['sub'] ) ) : '';
-				// phpcs:enable WordPress.Security.NonceVerification
-				$target = sn_admin_post_redirect_target( $requested_tab, $requested_sub );
-			}
-		}
-	);
-
-	return snt_os_host_result(
-		array(
-			'ok'       => true,
-			'flash'    => $flash,
-			'target'   => $target,
-			'pipeline' => 'shared',
-		)
-	);
-}
-
-/**
  * The `admin-post.php` pipeline: the form's own action hook and its own nonce.
  *
- * Nothing here re-implements a handler's nonce check — each one calls
- * `check_admin_referer()` against ITS action, and that call dying is a fact
- * this window reports rather than pre-empts. What is checked first is that
- * something is actually listening: `do_action()` on an unhooked name is a
- * silent no-op, and "nothing happened" must never paint as a save.
+ * Each handler calls `check_admin_referer()` against ITS action, and that
+ * call dying is a fact this window reports rather than pre-empts. The one
+ * gate measured first, for the table's actions, is the nonce itself:
+ * sn_handle_admin_post() would die with core's "link expired" page, and the
+ * reader is owed which action the token failed to verify against (#1614).
+ * What is also checked first is that something is actually listening:
+ * `do_action()` on an unhooked name is a silent no-op, and "nothing happened"
+ * must never paint as a save.
  *
  * @param array<string,mixed> $values    Expanded values.
  * @param string              $action    The `action` field.
@@ -392,6 +314,19 @@ function snt_os_host_replay_admin_post( array $values, $action, array $get, $pag
 				'pipeline' => 'admin-post',
 			)
 		);
+	}
+	$handlers = function_exists( 'sn_admin_post_handlers' ) ? sn_admin_post_handlers() : array();
+	if ( 0 === strpos( $action, 'sn_' ) && isset( $handlers[ substr( $action, 3 ) ] ) ) {
+		$nonce = snt_os_host_last( isset( $values['_wpnonce'] ) ? $values['_wpnonce'] : null );
+		if ( ! function_exists( 'wp_verify_nonce' ) || ! wp_verify_nonce( $nonce, $action ) ) {
+			return snt_os_host_result(
+				array(
+					'reason'   => 'nonce',
+					'detail'   => $action,
+					'pipeline' => 'admin-post',
+				)
+			);
+		}
 	}
 	$outcome = snt_os_host_borrowed(
 		$values,
@@ -462,7 +397,7 @@ function snt_os_host_replay_inline( array $values, $action, $page_slug ) {
 			'ok'       => true,
 			'detail'   => $action,
 			'pipeline' => 'inline',
-			// Slashed for the same reason the shared pipeline slashes: a leaf
+			// Slashed for the same reason snt_os_host_lend() slashes: a leaf
 			// reading $_POST wp_unslash()es it, and a real POST arrives slashed.
 			'post'     => function_exists( 'wp_slash' ) ? wp_slash( $values ) : $values,
 		)

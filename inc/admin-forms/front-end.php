@@ -33,9 +33,9 @@ function sn_admin_render_front_end_form() {
 	$nperp   = (int) sn_setting( 'theme.notes_per_page', 20 );
 	$ralias  = (string) sn_setting( 'theme.note_reply_alias', 'research' );
 
-	echo '<form method="post" class="sn-front-end-form">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="save_theme">';
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-front-end-form">';
+	wp_nonce_field( 'sn_save_theme' );
+	echo '<input type="hidden" name="action" value="sn_save_theme">';
 
 	// Phase 4b: this leaf is 'wide' (bare .sn-section, no wrapper card), so the
 	// form owns its own .sn-fieldset. The field-grid CSS (.sn-front-end-form

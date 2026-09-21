@@ -13,9 +13,9 @@
  *
  * It is read-mostly: the only writes are two per-fragment ops, "Run now" (force
  * the boundary fire) and "Re-purge" (re-dispatch the row's Cloudflare purge).
- * Both POST through the shared sn_handle_admin_post() dispatcher on the
- * page=sn-connections route, so the cap check (manage_options) + the shared
- * nonce (sn_theme_options_nonce) are enforced by the dispatcher BEFORE either
+ * Both POST through admin-post.php to sn_handle_admin_post() on the
+ * page=sn-connections route, so the cap check (manage_options) + the
+ * per-action nonce (sn_<action>) are enforced by the dispatcher BEFORE either
  * handler body below runs. The handlers therefore only do the row work.
  *
  * Native scheduled posts get NO ops buttons: they are core-managed (core
@@ -254,9 +254,9 @@ function sn_admin_render_schedule_swaps( array $pairs ) {
 		// One op: run the whole swap now.
 		echo '<td data-colname="Actions">';
 		if ( $hide_id > 0 && $show_id > 0 ) {
-			echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-connections' ) ) . '" class="sn-schedule-op">';
-			wp_nonce_field( 'sn_theme_options_nonce' );
-			echo '<input type="hidden" name="sn_action" value="schedule_swap_run_now">';
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php?page=sn-connections' ) ) . '" class="sn-schedule-op">';
+			wp_nonce_field( 'sn_schedule_swap_run_now' );
+			echo '<input type="hidden" name="action" value="sn_schedule_swap_run_now">';
 			echo '<input type="hidden" name="hide_id" value="' . esc_attr( (string) $hide_id ) . '">';
 			echo '<input type="hidden" name="show_id" value="' . esc_attr( (string) $show_id ) . '">';
 			echo '<button type="submit" class="button button-small">' . esc_html__( 'Run swap now', 'signal-and-noise-tools' ) . '</button>';
@@ -393,9 +393,9 @@ function sn_admin_render_schedule_future_post_row( array $post ) {
  */
 function sn_admin_render_schedule_op_button( $row_id, $action, $label ) {
 	$row_id = (int) $row_id;
-	echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-connections' ) ) . '" class="sn-schedule-op">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="' . esc_attr( $action ) . '">';
+	echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php?page=sn-connections' ) ) . '" class="sn-schedule-op">';
+	wp_nonce_field( 'sn_' . $action );
+	echo '<input type="hidden" name="action" value="sn_' . esc_attr( $action ) . '">';
 	echo '<input type="hidden" name="row_id" value="' . esc_attr( (string) $row_id ) . '">';
 	echo '<button type="submit" class="button button-small">' . esc_html( $label ) . '</button>';
 	echo '</form>';

@@ -74,8 +74,8 @@ function sn_admin_render_now_section() {
 	$page     = function_exists( 'sn_now_page_get' ) ? sn_now_page_get() : null;
 	$sections = $page && function_exists( 'sn_now_parse_sections' ) ? sn_now_parse_sections( $page['raw'] ) : array();
 
-	echo '<form method="post" class="sn-rsm-form">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-rsm-form">';
+	wp_nonce_field( 'sn_now_save' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Now page</h2>';
 
@@ -99,7 +99,7 @@ function sn_admin_render_now_section() {
 	echo '<button type="button" class="button sn-rsm-add" data-rsm-add="now-groups">+ Add section</button>';
 
 	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" name="sn_action" value="now_save" class="button button-primary">Save now page</button>';
+	echo '<button type="submit" name="action" value="sn_now_save" class="button button-primary">Save now page</button>';
 	echo '</div>';
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';

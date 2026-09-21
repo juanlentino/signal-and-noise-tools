@@ -26,7 +26,7 @@
  *      which a window cannot do, so none of them can be called normally.
  *      Everything BEFORE that exit is reproduced exactly — capability, nonce,
  *      page, the handler table, the flash code, the redirect target — and the
- *      four pipelines that do it live in inc/openstation-host-pipelines.php,
+ *      three pipelines that do it live in inc/openstation-host-pipelines.php,
  *      required below. The two pure resolvers
  *      (`sn_admin_post_redirect_target()`, `sn_admin_flash_to_notice()`) are
  *      CALLED, never copied.
@@ -47,16 +47,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-/** The nonce action every SN admin form carries. Same literal as the classic dispatcher. */
-if ( ! defined( 'SNT_OS_HOST_NONCE' ) ) {
-	define( 'SNT_OS_HOST_NONCE', 'sn_theme_options_nonce' );
-}
-
 // 14.7.5: the URL helpers (admin, same-origin, download) live beside the kit,
 // which needs them to decide door-or-tab without loading this whole host.
 require_once __DIR__ . '/openstation-host-urls.php';
 
-// The WRITE half: the four pipelines a submitted form can belong to, the
+// The WRITE half: the three pipelines a submitted form can belong to, the
 // FormData expansion they all start with, and the redirect/die interceptor two
 // of them need. Required HERE rather than from the plugin's manifest so every
 // entry point that has the paint also has the write — the app file, the suites
@@ -257,7 +252,7 @@ function snt_os_host_own_pages() {
  * Mark the forms a host must NOT turn into a dispatch, with where they post.
  *
  * THE ONE SHAPE A WINDOW CANNOT REPLAY IS A DOWNLOAD. Analytics' export form
- * posts `sn_action=analytics_export`, and `sn_handle_analytics_export()` sends
+ * posts `action=sn_analytics_export`, and `sn_handle_analytics_export()` sends
  * `Content-Disposition`, echoes a raw CSV/JSON body and `exit`s — it never
  * returns a flash code and never renders. Replayed inside a dispatch it would
  * write a spreadsheet into the middle of a JSON response and kill the request.
@@ -265,7 +260,7 @@ function snt_os_host_own_pages() {
  * then leaves each a REAL form with an explicit action and `target="_blank"`.
  * A download must be a navigation; a new tab is the least a window can do.
  *
- * TWO PASSES, because the `sn_action` that identifies a form is a hidden input
+ * TWO PASSES, because the `action` that identifies a form is a hidden input
  * INSIDE it — the marker cannot be decided at the moment the opening tag is
  * read. The first pass counts forms and records which ordinals carry one of
  * the named actions; the second sets the attribute on those ordinals. Closing
@@ -273,7 +268,7 @@ function snt_os_host_own_pages() {
  * neither.
  *
  * @param string   $html    Captured leaf HTML.
- * @param string[] $actions `sn_action` values whose forms stay real forms.
+ * @param string[] $actions Handler actions (table keys) whose forms stay real forms.
  * @param string   $url     Where such a form posts (an absolute admin URL).
  * @return string
  */
@@ -302,11 +297,11 @@ function snt_os_host_keep_forms( $html, array $actions, $url ) {
 		if ( ! $inside || 'INPUT' !== $tag || $scan->is_tag_closer() ) {
 			continue;
 		}
-		if ( 'sn_action' !== (string) $scan->get_attribute( 'name' ) ) {
+		if ( 'action' !== (string) $scan->get_attribute( 'name' ) ) {
 			continue;
 		}
 		$value = $scan->get_attribute( 'value' );
-		if ( is_string( $value ) && in_array( $value, $actions, true ) ) {
+		if ( is_string( $value ) && in_array( (string) preg_replace( '/^sn_/', '', $value ), $actions, true ) ) {
 			$keep[ $index ] = true;
 		}
 	}

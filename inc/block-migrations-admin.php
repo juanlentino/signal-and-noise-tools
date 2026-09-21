@@ -59,10 +59,10 @@ function snt_block_migrations_render_section() {
 
 	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Scans published and scheduled posts for structural issues like heading-hierarchy skips (an h3 or h4 subhead with no preceding h2, WCAG 1.3.1). Pure structural detection: no AI. Each candidate is reviewed and applied per-row.', 'signal-and-noise-tools' ) . '</p>';
 
-	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+	wp_nonce_field( 'sn_block_migrations_scan' );
 	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" name="sn_action" value="block_migrations_scan" class="button button-primary">' . esc_html( $last_scan ? __( 'Re-scan', 'signal-and-noise-tools' ) : __( 'Scan for migrations', 'signal-and-noise-tools' ) ) . '</button>';
+	echo '<button type="submit" name="action" value="sn_block_migrations_scan" class="button button-primary">' . esc_html( $last_scan ? __( 'Re-scan', 'signal-and-noise-tools' ) : __( 'Scan for migrations', 'signal-and-noise-tools' ) ) . '</button>';
 	echo '</div>';
 	echo '</form>';
 

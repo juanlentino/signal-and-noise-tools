@@ -68,8 +68,8 @@ function webhooks_code( $text ) {
  * @return string
  */
 function webhooks_native_form( $sn_action, array $hidden, $inner, $submit ) {
-	$fields = \snt_kit_field( 'hidden', 'sn_action', '', $sn_action )
-		. \snt_kit_field( 'hidden', '_wpnonce', '', \snt_kit_nonce() );
+	$fields = \snt_kit_field( 'hidden', 'action', '', \snt_kit_hook_action( $sn_action ) )
+		. \snt_kit_field( 'hidden', '_wpnonce', '', \snt_kit_nonce( $sn_action ) );
 	foreach ( $hidden as $name => $value ) {
 		$fields .= \snt_kit_field( 'hidden', (string) $name, '', (string) $value );
 	}
@@ -161,8 +161,8 @@ function webhooks_secret_html( array $wh, $is_new ) {
  * @return string
  */
 function webhooks_delete_form( $id ) {
-	$hidden = \snt_kit_field( 'hidden', 'sn_action', '', 'webhook_delete' )
-		. \snt_kit_field( 'hidden', '_wpnonce', '', \snt_kit_nonce() )
+	$hidden = \snt_kit_field( 'hidden', 'action', '', 'sn_webhook_delete' )
+		. \snt_kit_field( 'hidden', '_wpnonce', '', \snt_kit_nonce( 'webhook_delete' ) )
 		. \snt_kit_field( 'hidden', 'webhook_id', '', $id );
 	return \snt_kit_tag(
 		'os-form',

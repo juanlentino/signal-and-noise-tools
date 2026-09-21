@@ -94,9 +94,9 @@ function sn_admin_render_zenodo_section() {
 	echo '<p class="sn-prose">Every signed document (the notes, the pillar essays) gets a DOI on <strong>Zenodo</strong> once its anchor is confirmed, with the Markdown, the signed record and the Bitcoin proof filed beside it. The papers stay with SSRN. Sandbox DOIs are test DOIs and never reach a public surface.</p>';
 
 	echo '<div class="sn-2up">';
-	echo '<form method="post" class="sn-fieldset"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="zenodo">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="zenodo_env_save">';
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="zenodo">';
+	wp_nonce_field( 'sn_zenodo_env_save' );
+	echo '<input type="hidden" name="action" value="sn_zenodo_env_save">';
 	echo '<h2 class="sn-fieldset-h">Environment</h2>';
 	echo '<div class="sn-field"><label for="sn_zenodo_env">Environment</label><select id="sn_zenodo_env" name="zenodo_env"><option value="sandbox"' . selected( $d['env'], 'sandbox', false ) . '>Sandbox (sandbox.zenodo.org): test DOIs, never public</option><option value="production"' . selected( $d['env'], 'production', false ) . '>Production (zenodo.org)</option></select></div>';
 	echo '<p class="sn-helper">Each environment reads its own token from Connections &rsaquo; Credentials.</p>';
@@ -104,10 +104,10 @@ function sn_admin_render_zenodo_section() {
 	echo '<p class="sn-helper">The DOI Zenodo minted for the ledger repository\'s monthly snapshot (the concept DOI, which resolves to the latest snapshot). Every deposit names it as the record it is part of. Empty until the first snapshot release.</p>';
 	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">Save environment</button></div></form>';
 
-	echo '<form method="post" class="sn-card sn-card--narrow"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="zenodo">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-card sn-card--narrow"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="zenodo">';
+	wp_nonce_field( 'sn_zenodo_deposit_batch' );
 	echo '<strong>Deposit</strong><p class="sn-helper">Runs one pass now: up to ' . (int) SN_ZENODO_PASS_MAX . ' confirmed documents without a DOI. The hourly pass does the same on its own.</p>';
-	echo '<button type="submit" name="sn_action" value="zenodo_deposit_batch" class="button"' . ( $d['enabled'] ? '' : ' disabled' ) . '>Deposit the next batch</button></form>';
+	echo '<button type="submit" name="action" value="sn_zenodo_deposit_batch" class="button"' . ( $d['enabled'] ? '' : ' disabled' ) . '>Deposit the next batch</button></form>';
 	echo '</div>';
 
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Ledger</h2>';

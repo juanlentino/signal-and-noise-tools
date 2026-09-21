@@ -27,7 +27,8 @@
  *                          remaining, noise at 99%. (RSS activity was cut in
  *                          v11.28.0; the RSS tab owns the full view.)
  *   5. MAINTENANCE       — 3-card action grid. Forms POST to
- *                          sn_handle_admin_post() via sn_theme_options_nonce.
+ *                          sn_handle_admin_post() through admin-post.php, one
+ *                          nonce per button (sn_admin_post_button()).
  *   6. DIAGNOSTICS       — collapsible override-detail list (only renders
  *                          when there ARE overrides)
  *
@@ -766,8 +767,7 @@ function snt_dashboard_render_maintenance_actions() {
 
 	// Maintenance 3-card action grid (unchanged actions).
 	echo '<div class="sn-dash-cols__side">';
-	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'full_reset' ) ) . '">';
 	echo '<div class="sn-card-grid sn-card-grid--dash">';
 
 	// v4.1.6 (U-13): button hierarchy matches action gravity.
@@ -777,19 +777,19 @@ function snt_dashboard_render_maintenance_actions() {
 	echo '<div class="sn-card">';
 	echo '<strong>Full Reset</strong>';
 	echo '<p class="sn-helper">Clears all overrides and purges every cache. Use after theme updates.</p>';
-	echo '<button type="submit" name="sn_action" value="full_reset" class="button button-link-delete">Run Full Reset</button>';
+	echo '<button type="submit"' . sn_admin_post_button( 'full_reset' ) . ' class="button button-link-delete">Run Full Reset</button>';
 	echo '</div>';
 
 	echo '<div class="sn-card">';
 	echo '<strong>Clear Overrides</strong>';
 	echo '<p class="sn-helper">Removes template, template part, and navigation DB entries.</p>';
-	echo '<button type="submit" name="sn_action" value="clear_overrides" class="button">Clear Overrides</button>';
+	echo '<button type="submit"' . sn_admin_post_button( 'clear_overrides' ) . ' class="button">Clear Overrides</button>';
 	echo '</div>';
 
 	echo '<div class="sn-card">';
 	echo '<strong>Purge Caches</strong>';
 	echo '<p class="sn-helper">WP object cache, transients, Breeze page/minification, Varnish.</p>';
-	echo '<button type="submit" name="sn_action" value="purge_caches" class="button button-primary">Purge All Caches</button>';
+	echo '<button type="submit"' . sn_admin_post_button( 'purge_caches' ) . ' class="button button-primary">Purge All Caches</button>';
 	echo '</div>';
 
 	// v2.5.3: visible UI shortcut for the "tagged a new release, where's

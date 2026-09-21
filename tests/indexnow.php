@@ -71,6 +71,7 @@ function human_time_diff( $a, $b = 0 ) { return '1 min'; }
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require __DIR__ . '/../inc/indexnow.php';
 
 // ── Key management ──────────────────────────────────────────────────
@@ -223,7 +224,7 @@ ob_start();
 sn_admin_render_indexnow_section();
 $html = ob_get_clean();
 ok( strpos( $html, 'name="indexnow_enabled"' ) !== false, 'render: emits the enable toggle' );
-ok( strpos( $html, 'value="indexnow_save"' ) !== false, 'render: emits the save action' );
+ok( strpos( $html, 'value="sn_indexnow_save"' ) !== false, 'render: emits the save action' );
 ok( strpos( $html, sn_indexnow_get_key() . '.txt' ) !== false, 'render: shows the key-file URL' );
 
 echo "Result: $pass passed, $fail failed.\n";

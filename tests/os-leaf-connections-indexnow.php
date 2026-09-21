@@ -48,13 +48,14 @@ ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic forms: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( array( 'indexnow_ping_now', 'indexnow_regenerate', 'indexnow_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the three actions are indexnow_ping_now, indexnow_regenerate, indexnow_save, as on the classic leaf: ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the enable form is an os-form dispatching post through the shared table (no pipeline declared, as the classic posts to the current URL)' );
+preg_match( '/<os-form\b[^>]*>/', $kit, $form_tag );
+ok( isset( $form_tag[0] ) && false !== strpos( $form_tag[0], 'os-action="post"' ) && false === strpos( $form_tag[0], 'os-arg-pipeline' ), 'the enable form is an os-form dispatching post through the admin-post pipeline (no pipeline declared: an action field is admin-post)' );
 ok( false !== strpos( $kit, '<os-checkbox-label name="indexnow_enabled" value="1" checked label="Notify search engines when content changes">' ), 'the toggle is a kit checkbox carrying the enabled state' );
 ok( false !== strpos( $kit, 'name="tab" value="connections"' ) && false !== strpos( $kit, 'name="sub" value="indexnow"' ), 'the classic hidden tab/sub fields survive on the enable form' );
 ok( false !== strpos( $kit, 'submit-label="Save IndexNow settings"' ), 'the save button keeps its classic label' );
-ok( false !== strpos( $kit, 'os-arg-action="indexnow_ping_now"' ) && false !== strpos( $kit, '>Submit recent content now</os-button>' ), 'Submit recent content now is a one-click write of indexnow_ping_now' );
-ok( false !== strpos( $kit, 'os-arg-action="indexnow_regenerate"' ) && false !== strpos( $kit, '>Regenerate key</os-button>' ), 'Regenerate key is a one-click write of indexnow_regenerate' );
-ok( 2 === substr_count( $kit, 'os-arg-nonce="nonce-sn_theme_options_nonce"' ), 'both one-click writes carry the classic page nonce' );
+ok( false !== strpos( $kit, 'os-arg-action="sn_indexnow_ping_now"' ) && false !== strpos( $kit, '>Submit recent content now</os-button>' ), 'Submit recent content now is a one-click write of indexnow_ping_now' );
+ok( false !== strpos( $kit, 'os-arg-action="sn_indexnow_regenerate"' ) && false !== strpos( $kit, '>Regenerate key</os-button>' ), 'Regenerate key is a one-click write of indexnow_regenerate' );
+ok( 1 === substr_count( $kit, 'os-arg-nonce="nonce-sn_indexnow_ping_now"' ) && 1 === substr_count( $kit, 'os-arg-nonce="nonce-sn_indexnow_regenerate"' ), 'each one-click write carries the nonce minted for ITS action (#1614)' );
 ok( false === strpos( $kit, 'os-confirm' ), 'no confirm is asked: the classic maintenance buttons ask none' );
 ok( false !== strpos( $kit, 'backfills your existing published posts' ) && false !== strpos( $kit, 'rotates the key' ), 'the maintenance helper text survives as the section description' );
 ok( false !== strpos( $kit, 'Pushes changed URLs to <strong>IndexNow</strong>' ) && false !== strpos( $kit, 'not Google' ), 'the intro prose survives, IndexNow in bold' );
@@ -69,7 +70,7 @@ ok( false !== strpos( $kit, '<os-stack col="8" gap="12">' ), 'the main column ca
 // field names (the whole-blob names oracle can't see which form a hidden
 // field lives on, so this pins it directly).
 preg_match( '/<os-form\b.*?<\/os-form>/s', $kit, $m );
-ok( isset( $m[0] ) && array( '_wpnonce', 'indexnow_enabled', 'sn_action', 'sub', 'tab' ) === snt_leaf_names( $m[0] ), 'the enable form alone carries all five classic field names: ' . implode( ',', snt_leaf_names( $m[0] ?? '' ) ) );
+ok( isset( $m[0] ) && array( 'indexnow_enabled', 'sub', 'tab' ) === snt_leaf_names( $m[0] ), 'the enable form alone carries all three classic field names (the action and its nonce are the transport\'s): ' . implode( ',', snt_leaf_names( $m[0] ?? '' ) ) );
 
 // ── The availability guard (an addition over the classic, defensive against
 // a leaf loaded before its readers exist) is present in the source.

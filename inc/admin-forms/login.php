@@ -63,9 +63,9 @@ function sn_admin_render_login_section() {
 		echo '</div>';
 	}
 
-	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="save_login">';
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+	wp_nonce_field( 'sn_save_login' );
+	echo '<input type="hidden" name="action" value="sn_save_login">';
 
 	echo '<h2 class="sn-fieldset-h">Custom login slug</h2>';
 	echo '<p class="sn-fieldset-intro">The path segment used in place of <code>wp-login.php</code>.</p>';

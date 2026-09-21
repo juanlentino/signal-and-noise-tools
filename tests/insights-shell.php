@@ -73,6 +73,7 @@ if ( ! function_exists( 'snt_narration_last' ) ) { function snt_narration_last()
 if ( ! function_exists( 'snt_narration_enabled' ) ) { function snt_narration_enabled() { return false; } }
 if ( ! function_exists( 'snt_insights_weekly_cron_enabled' ) ) { function snt_insights_weekly_cron_enabled() { return false; } }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/../inc/admin-shell.php';
 require_once __DIR__ . '/../inc/ai-bootstrap.php';
 require_once __DIR__ . '/../inc/health-summary.php'; // snt_health_format_elapsed (v8.0.4: the rail humanizes elapsed)

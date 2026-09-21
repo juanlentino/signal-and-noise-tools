@@ -75,7 +75,7 @@ ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( array( 'pattern_adoption_scan' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is pattern_adoption_scan, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the scan form is an os-form dispatching post on the shared pipeline' );
+ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the scan form is an os-form dispatching post on the admin-post pipeline' );
 ok( false !== strpos( $kit, 'submit-label="Scan for opportunities"' ) && false !== strpos( $classic, 'Scan for opportunities' ), 'before the first scan the button reads "Scan for opportunities"' );
 ok( false === strpos( $kit, '<os-badge' ) && false === strpos( $kit, '<os-disclosure' ) && false === strpos( $kit, '<os-empty-state' ), 'before the first scan there is no count, no queue and no empty note — as on the classic leaf' );
 ok( false !== strpos( $kit, '<os-section heading="Pattern adoption">' ) && false !== strpos( $kit, '<p class="snt-prose">Scans existing /notes posts' ), 'the heading and the intro prose are printed' );

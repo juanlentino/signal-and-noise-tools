@@ -180,10 +180,10 @@ function sn_admin_render_mcp_door_native_write() {
  * Passwords — revoked, or another user's — re-bind is the only path out).
  *
  * Submits to sn_handle_bind_mcp_rw_credential() (inc/admin-post-actions/mcp.php)
- * via the plugin's standard sn_theme_options_nonce + sn_action POST contract
- * (see inc/admin-forms/login.php for the same minimal shape — no hidden
- * tab/sub fields needed, since a same-URL POST already carries them via the
- * query string).
+ * via the plugin's standard admin-post.php contract, action=sn_<action> plus
+ * that action's nonce (see inc/admin-forms/login.php for the same minimal
+ * shape: no hidden tab/sub fields needed, since sn_admin_post_url() carries
+ * them on the query string).
  */
 function sn_admin_render_mcp_rw_binding() {
 	$bound_uuid = function_exists( 'sn_mcp_rw_bound_uuid' ) ? sn_mcp_rw_bound_uuid() : '';
@@ -235,9 +235,9 @@ function sn_admin_render_mcp_rw_binding() {
 		return;
 	}
 
-	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="bind_mcp_rw_credential">';
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+	wp_nonce_field( 'sn_bind_mcp_rw_credential' );
+	echo '<input type="hidden" name="action" value="sn_bind_mcp_rw_credential">';
 
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label" for="sn_mcp_rw_uuid">' . esc_html__( 'Application Password', 'signal-and-noise-tools' ) . '</label>';

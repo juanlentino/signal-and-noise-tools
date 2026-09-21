@@ -89,8 +89,8 @@ function sn_admin_render_music_section() {
 	}
 
 	// ── CREDENTIALS FORM ──
-	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+	wp_nonce_field( 'sn_music_save' );
 	echo '<input type="hidden" name="tab" value="content">';
 	echo '<input type="hidden" name="sub" value="music">';
 
@@ -132,7 +132,7 @@ function sn_admin_render_music_section() {
 	echo '</div>';
 
 	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" name="sn_action" value="music_save" class="button button-primary">Save settings</button>';
+	echo '<button type="submit" name="action" value="sn_music_save" class="button button-primary">Save settings</button>';
 	echo '</div>';
 	echo '</div>'; // .sn-fieldset (Featured)
 	echo '</form>';
@@ -157,13 +157,13 @@ function sn_admin_render_music_section() {
 	echo '</div>';
 
 	// ── SYNC NOW ──
-	echo '<form method="post" class="sn-card sn-card--narrow">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-card sn-card--narrow">';
+	wp_nonce_field( 'sn_music_sync' );
 	echo '<input type="hidden" name="tab" value="content">';
 	echo '<input type="hidden" name="sub" value="music">';
 	echo '<strong>Sync now</strong>';
 	echo '<p class="sn-helper">Runs the full Muso &rarr; Spotify &rarr; store pass immediately. Keeps the last-good discography if a source fails.</p>';
-	echo '<button type="submit" name="sn_action" value="music_sync" class="button">Sync now</button>';
+	echo '<button type="submit" name="action" value="sn_music_sync" class="button">Sync now</button>';
 	echo '</form>';
 
 	sn_admin_shell_close();

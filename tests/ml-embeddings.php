@@ -211,7 +211,7 @@ ok( false !== strpos( $cmp, 'snt_ml_related_for_post' ), 'and compares against t
 ok( false !== strpos( $cmp, 'snt_corpus_content_hash' ), 'and keys the cache on the CANONICAL hash, so two definitions of "changed" cannot drift' );
 ok( false !== strpos( $handler, 'function sn_handle_ml_embed_compare' ), 'a handler runs it' );
 ok( false !== strpos( $router, "'ml_embed_compare'" ), 'the router reaches the handler' );
-ok( false !== strpos( $form, 'value="ml_embed_compare"' ), 'and a button reaches the router' );
+ok( false !== strpos( $form, "sn_admin_post_button( 'ml_embed_compare' )" ), 'and a button reaches the router, with its own nonce on formaction (#1614)' );
 ok( false !== strpos( $form, 'No divergence at all' ), 'the readout can report a NULL result as a real answer, not as a failure' );
 ok( false !== strpos( $form, '<details class="sn-disclosure"' ), 'the pair list is FOLDED — an unbounded table pushed the Save button off the panel' );
 ok( strpos( $form, '<details class="sn-disclosure"' ) > strpos( $form, "'Variant', 'signal-and-noise-tools'" ), 'and folds BELOW the variant summary, which is the part that carries the decision' );

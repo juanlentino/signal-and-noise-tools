@@ -41,6 +41,7 @@ $GLOBALS['__opts'] = array();
 if ( ! function_exists( 'get_option' ) ) { function get_option( $n, $d = false ) { return $GLOBALS['__opts'][ $n ] ?? $d; } }
 if ( ! function_exists( 'update_option' ) ) { function update_option( $n, $v, $a = null ) { $GLOBALS['__opts'][ $n ] = $v; return true; } }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/../inc/ai-bootstrap.php';
 require_once __DIR__ . '/../inc/insights-admin.php';
 
@@ -145,7 +146,7 @@ $tab = ob_get_clean();
 if ( false === strpos( $tab, 'sn_view=intelligence' ) ) { $pass++; echo "  PASS: Insights no longer deep-links to the retired Intelligence tab (R2)\n"; } else { $fail++; echo "  FAIL: stale Intelligence deep-link still present\n"; }
 if ( false === strpos( $tab, 'value="narration_run"' ) ) { $pass++; echo "  PASS: Insights no longer renders the digest Generate button\n"; } else { $fail++; echo "  FAIL: digest Generate button still present\n"; }
 if ( false === strpos( $tab, 'name="insights_narration"' ) ) { $pass++; echo "  PASS: Insights no longer renders the digest automation toggle\n"; } else { $fail++; echo "  FAIL: digest toggle still present\n"; }
-hc_contains( $tab, 'value="insights_run"', 'Insights still renders the advisor scan' );
+hc_contains( $tab, 'value="sn_insights_run"', 'Insights still renders the advisor scan' );
 hc_contains( $tab, 'name="insights_weekly_cron"', 'Insights still renders the advisor weekly-cron toggle' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

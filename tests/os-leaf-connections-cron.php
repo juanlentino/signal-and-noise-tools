@@ -348,7 +348,7 @@ ok( false !== strpos( $kit, 'heading="Morning operations brief"' ) && false !== 
 // 13) Readouts absent when their state is absent.
 ok( false === strpos( $kit, 'Last sent' ) && false === strpos( $kit, 'Last send failed' ) && false === strpos( $kit, 'settings differ' ) && false === strpos( $kit, 'Last run' ), 'no last-sent, last-error, drift or last-run readout without state' );
 ok( false === strpos( $kit, 'Acknowledge current settings' ) && false === strpos( $kit, 'name="snt_config_drift_acknowledge"' ), 'no Acknowledge form without drift' );
-ok( 6 === count( snt_leaf_names( $kit ) ), 'six field names without drift: ' . json_encode( snt_leaf_names( $kit ) ) );
+ok( 4 === count( snt_leaf_names( $kit ) ), 'four field names without drift: ' . json_encode( snt_leaf_names( $kit ) ) );
 
 // 14) Readouts present with state, and drift ON adds the seventh name on BOTH sides.
 $GLOBALS['__options'][ SNT_MORNING_BRIEF_LAST_SENT ]  = time() - 3600;
@@ -357,7 +357,7 @@ $GLOBALS['__options'][ SNT_SCHEDULED_READS_HISTORY ]  = array( array( 'ran_at' =
 $GLOBALS['__drift'] = array( 'has_drift' => true, 'count' => 2 );
 $kit     = snt_leaf_paint( 'connections', 'cron', array() );
 $classic = snt_leaf_classic_html( 'sn_admin_render_cron_section' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 7 === count( snt_leaf_names( $kit ) ), 'drift ON: seven names on both sides: ' . json_encode( snt_leaf_names( $kit ) ) );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 5 === count( snt_leaf_names( $kit ) ), 'drift ON: five names on both sides: ' . json_encode( snt_leaf_names( $kit ) ) );
 ok( false !== strpos( $kit, 'Last sent 1 hour ago.' ), 'last-sent hint' );
 ok( false !== strpos( $kit, 'Last send failed' ) && false !== strpos( $kit, 'smtp &lt;b&gt;down&lt;/b&gt;' ) && false === strpos( $kit, '<b>down</b>' ), 'last-error notice, message escaped' );
 ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, '2 settings differ' ), 'drift is a warn notice naming the count' );
@@ -445,7 +445,7 @@ ok( 3 === count( $db->queries ), 'one snapshot per paint: 3 queries, not 6: ' . 
 
 // (b) The box adds no field and no action: parity with the classic hook holds.
 $classic = snt_leaf_classic_html( 'sn_admin_render_cron_section' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 6 === count( snt_leaf_names( $kit ) ), 'the box adds no field name: ' . json_encode( snt_leaf_names( $kit ) ) );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 4 === count( snt_leaf_names( $kit ) ), 'the box adds no field name: ' . json_encode( snt_leaf_names( $kit ) ) );
 ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the box adds no sn_action' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'the box carries no classic markers: ' . json_encode( snt_leaf_classic_markers( $kit ) ) );
 
