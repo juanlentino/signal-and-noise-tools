@@ -106,19 +106,19 @@ function resume_sections( array $doc ) {
 	$blank_employer = array( 'roles' => array( array() ) );
 
 	return resume_section( __( 'Hero', 'signal-and-noise-tools' ), __( 'The opening band: summary, credential chips, contact line, and the PDF download.', 'signal-and-noise-tools' ), -1, resume_hero( (array) ( $doc['hero'] ?? array() ) ) )
-		. resume_section( __( 'Stats', 'signal-and-noise-tools' ), __( 'The numbers strip under the hero.', 'signal-and-noise-tools' ), count( $stats ), resume_list( $stats, $ns . '\resume_stat_row', 'resume[stats]', '__S__', __( '+ Add stat', 'signal-and-noise-tools' ) ) )
-		. resume_section( __( 'Experience', 'signal-and-noise-tools' ), __( 'One card per employer; each holds one or more roles with their bullets. Bullets may use <strong>, <em>, and links.', 'signal-and-noise-tools' ), count( $exp ), resume_list( $exp, $employer, 'resume[experience]', '__E__', __( '+ Add employer', 'signal-and-noise-tools' ), $blank_employer ) )
+		. resume_section( __( 'Stats', 'signal-and-noise-tools' ), __( 'The numbers strip under the hero.', 'signal-and-noise-tools' ), count( $stats ), resume_list( $stats, $ns . '\resume_stat_row', 'resume[stats]', '__S__', __( '+ Add stat', 'signal-and-noise-tools' ), __( 'stat', 'signal-and-noise-tools' ) ) )
+		. resume_section( __( 'Experience', 'signal-and-noise-tools' ), __( 'One card per employer; each holds one or more roles with their bullets. Bullets may use <strong>, <em>, and links.', 'signal-and-noise-tools' ), count( $exp ), resume_list( $exp, $employer, 'resume[experience]', '__E__', __( '+ Add employer', 'signal-and-noise-tools' ), __( 'employer', 'signal-and-noise-tools' ), $blank_employer ) )
 		. resume_section(
 			__( 'Earlier career (collapsed fold)', 'signal-and-noise-tools' ),
 			__( 'Rendered inside a collapsed "details" fold at the end of Experience.', 'signal-and-noise-tools' ),
 			count( $entries ),
 			resume_text( 'resume[earlier][label]', __( 'Fold label', 'signal-and-noise-tools' ), $earlier['label'] ?? '', 'Earlier career · 1997 - 2015' )
-			. resume_list( $entries, $early, 'resume[earlier][entries]', '__X__', __( '+ Add earlier employer', 'signal-and-noise-tools' ), $blank_employer )
+			. resume_list( $entries, $early, 'resume[earlier][entries]', '__X__', __( '+ Add earlier employer', 'signal-and-noise-tools' ), __( 'employer', 'signal-and-noise-tools' ), $blank_employer )
 		)
-		. resume_section( __( 'Education', 'signal-and-noise-tools' ), '', count( $edu ), resume_list( $edu, $ns . '\resume_titled_lines_row', 'resume[education]', '__D__', __( '+ Add education', 'signal-and-noise-tools' ) ) )
-		. resume_section( __( 'Affiliations & Certifications', 'signal-and-noise-tools' ), '', count( $aff ), resume_list( $aff, $ns . '\resume_titled_lines_row', 'resume[affiliations]', '__A__', __( '+ Add affiliation', 'signal-and-noise-tools' ) ) )
-		. resume_section( __( 'Publications', 'signal-and-noise-tools' ), __( 'A new paper is one row: venue line, title, and link.', 'signal-and-noise-tools' ), count( $pubs ), resume_list( $pubs, $ns . '\resume_publication_row', 'resume[publications]', '__P__', __( '+ Add publication', 'signal-and-noise-tools' ) ) )
-		. resume_section( __( 'Skills', 'signal-and-noise-tools' ), __( 'One table row per category; items is the comma-separated cell.', 'signal-and-noise-tools' ), count( $skills ), resume_list( $skills, $ns . '\resume_skills_row', 'resume[skills]', '__K__', __( '+ Add skills row', 'signal-and-noise-tools' ) ) );
+		. resume_section( __( 'Education', 'signal-and-noise-tools' ), '', count( $edu ), resume_list( $edu, $ns . '\resume_titled_lines_row', 'resume[education]', '__D__', __( '+ Add education', 'signal-and-noise-tools' ), __( 'education entry', 'signal-and-noise-tools' ) ) )
+		. resume_section( __( 'Affiliations & Certifications', 'signal-and-noise-tools' ), '', count( $aff ), resume_list( $aff, $ns . '\resume_titled_lines_row', 'resume[affiliations]', '__A__', __( '+ Add affiliation', 'signal-and-noise-tools' ), __( 'affiliation', 'signal-and-noise-tools' ) ) )
+		. resume_section( __( 'Publications', 'signal-and-noise-tools' ), __( 'A new paper is one row: venue line, title, and link.', 'signal-and-noise-tools' ), count( $pubs ), resume_list( $pubs, $ns . '\resume_publication_row', 'resume[publications]', '__P__', __( '+ Add publication', 'signal-and-noise-tools' ), __( 'publication', 'signal-and-noise-tools' ) ) )
+		. resume_section( __( 'Skills', 'signal-and-noise-tools' ), __( 'One table row per category; items is the comma-separated cell.', 'signal-and-noise-tools' ), count( $skills ), resume_list( $skills, $ns . '\resume_skills_row', 'resume[skills]', '__K__', __( '+ Add skills row', 'signal-and-noise-tools' ), __( 'skills row', 'signal-and-noise-tools' ) ) );
 }
 
 /**
