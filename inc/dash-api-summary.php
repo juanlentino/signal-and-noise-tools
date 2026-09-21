@@ -77,13 +77,14 @@ function snt_dashboard_render_api_summary() {
 
 	// If any host is critical, surface a notice ABOVE everything (rare event).
 	if ( ! empty( $crit ) ) {
-		echo '<div class="notice notice-warning inline sn-notice-spacing"><p>';
-		printf(
-			/* translators: %s: comma-separated host labels */
-			esc_html__( 'Rate limit critical: %s. The site may temporarily lose access to these services.', 'signal-and-noise-tools' ),
-			esc_html( implode( ', ', $crit ) )
+		wp_admin_notice(
+			sprintf(
+				/* translators: %s: comma-separated host labels */
+				esc_html__( 'Rate limit critical: %s. The site may temporarily lose access to these services.', 'signal-and-noise-tools' ),
+				esc_html( implode( ', ', $crit ) )
+			),
+			array( 'type' => 'warning', 'additional_classes' => array( 'inline', 'sn-notice-spacing' ) )
 		);
-		echo '</p></div>';
 	}
 
 	// v14.0.3: core's nonce-free force check — a PWA page held for days cannot carry a nonce.

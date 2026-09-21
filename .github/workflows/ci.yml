@@ -158,8 +158,10 @@ jobs:
       # load. Fetch the seven files from the core mirror at the version the
       # sandbox runs and point the suites at them; tests/openstation-host.php
       # FAILS under CI when the API is absent, so a broken fetch is loud rather
-      # than a green skip.
-      - name: Fetch WordPress's HTML API for the host rewrite pins
+      # than a green skip. kses.php rides beside them: the classic-notice pins
+      # (tests/classic-notices-native.php) run core's own wp_kses_post() over
+      # every notice, and FAIL under CI without it for the same reason.
+      - name: Fetch WordPress's HTML API and kses for the host and notice pins
         run: |
           set -e
           base="https://raw.githubusercontent.com/WordPress/wordpress-develop/7.1/src/wp-includes"
@@ -169,6 +171,7 @@ jobs:
             curl -sSfL "$base/html-api/$f" -o "$dest/html-api/$f"
           done
           curl -sSfL "$base/class-wp-token-map.php" -o "$dest/class-wp-token-map.php"
+          curl -sSfL "$base/kses.php" -o "$dest/kses.php"
           echo "SNT_WP_HTML_API=$dest/html-api" >> "$GITHUB_ENV"
       # Standalone fixture tests — each stubs its own WP functions, so no WP
       # install or DB is needed. contracts-smoke.php is EXCLUDED: it requires a
@@ -268,8 +271,10 @@ jobs:
       # load. Fetch the seven files from the core mirror at the version the
       # sandbox runs and point the suites at them; tests/openstation-host.php
       # FAILS under CI when the API is absent, so a broken fetch is loud rather
-      # than a green skip.
-      - name: Fetch WordPress's HTML API for the host rewrite pins
+      # than a green skip. kses.php rides beside them: the classic-notice pins
+      # (tests/classic-notices-native.php) run core's own wp_kses_post() over
+      # every notice, and FAIL under CI without it for the same reason.
+      - name: Fetch WordPress's HTML API and kses for the host and notice pins
         continue-on-error: ${{ matrix.experimental }}
         run: |
           set -e
@@ -280,6 +285,7 @@ jobs:
             curl -sSfL "$base/html-api/$f" -o "$dest/html-api/$f"
           done
           curl -sSfL "$base/class-wp-token-map.php" -o "$dest/class-wp-token-map.php"
+          curl -sSfL "$base/kses.php" -o "$dest/kses.php"
           echo "SNT_WP_HTML_API=$dest/html-api" >> "$GITHUB_ENV"
       - name: Run standalone test sweep
         continue-on-error: ${{ matrix.experimental }}

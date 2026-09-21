@@ -45,6 +45,7 @@ function get_current_user_id() { return $GLOBALS['__current_user']; }
 function get_edit_profile_url() { return 'https://example.test/wp-admin/profile.php'; }
 
 require_once __DIR__ . '/../inc/breached-credentials.php';
+require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require_once __DIR__ . '/../inc/breached-credentials-login.php';
 
 echo "breached credentials — Mode B (login-time, advisory, memoized) — v13.59.0\n\n";

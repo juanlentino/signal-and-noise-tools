@@ -78,9 +78,9 @@ function sn_cf_edge_card_render() {
 			echo '</tbody></table>';
 		}
 	} elseif ( ! empty( $z['needs_permission'] ) ) {
-		echo '<div class="notice notice-warning inline"><p>' . esc_html( 'Zone analytics: ' . ( function_exists( 'sn_cf_monitor_permission_hint' ) ? sn_cf_monitor_permission_hint() : '' ) ) . '</p></div>';
+		wp_admin_notice( esc_html( 'Zone analytics: ' . ( function_exists( 'sn_cf_monitor_permission_hint' ) ? sn_cf_monitor_permission_hint() : '' ) ), array( 'type' => 'warning', 'additional_classes' => array( 'inline' ) ) );
 	} else {
-		echo '<div class="notice notice-error inline"><p>' . esc_html( 'Zone analytics could not be read: ' . (string) ( $z['error'] ?? '' ) ) . '</p></div>';
+		wp_admin_notice( esc_html( 'Zone analytics could not be read: ' . (string) ( $z['error'] ?? '' ) ), array( 'type' => 'error', 'additional_classes' => array( 'inline' ) ) );
 	}
 	sn_cf_readings_refresh_form( $record );
 	echo '</div>';
@@ -132,9 +132,9 @@ function sn_admin_firewall_render() {
 		}
 		echo '</div>';
 	} elseif ( ! empty( $f['needs_permission'] ) ) {
-		echo '<div class="notice notice-warning inline"><p>' . esc_html( 'Firewall events: ' . ( function_exists( 'sn_cf_monitor_permission_hint' ) ? sn_cf_monitor_permission_hint( 'firewall' ) : '' ) . ( '' !== (string) ( $f['error'] ?? '' ) ? ' The API said: "' . (string) $f['error'] . '"' : '' ) . ( '' !== (string) ( $f['error_raw'] ?? '' ) ? ' The raw dataset said: "' . (string) $f['error_raw'] . '"' : '' ) ) . '</p></div>';
+		wp_admin_notice( esc_html( 'Firewall events: ' . ( function_exists( 'sn_cf_monitor_permission_hint' ) ? sn_cf_monitor_permission_hint( 'firewall' ) : '' ) . ( '' !== (string) ( $f['error'] ?? '' ) ? ' The API said: "' . (string) $f['error'] . '"' : '' ) . ( '' !== (string) ( $f['error_raw'] ?? '' ) ? ' The raw dataset said: "' . (string) $f['error_raw'] . '"' : '' ) ), array( 'type' => 'warning', 'additional_classes' => array( 'inline' ) ) );
 	} else {
-		echo '<div class="notice notice-error inline"><p>' . esc_html( 'Firewall events could not be read: ' . (string) ( $f['error'] ?? '' ) ) . '</p></div>';
+		wp_admin_notice( esc_html( 'Firewall events could not be read: ' . (string) ( $f['error'] ?? '' ) ), array( 'type' => 'error', 'additional_classes' => array( 'inline' ) ) );
 	}
 	sn_cf_posture_card_render();
 	sn_cf_readings_refresh_form( $record );
@@ -158,7 +158,7 @@ function sn_cf_posture_card_render() {
 		return;
 	}
 	foreach ( $m['refused'] as $why ) {
-		echo '<div class="notice notice-warning inline"><p>' . esc_html( $why ) . '</p></div>';
+		wp_admin_notice( esc_html( $why ), array( 'type' => 'warning', 'additional_classes' => array( 'inline' ) ) );
 	}
 	if ( array() !== $m['checks'] ) {
 		echo '<table class="widefat striped"><thead><tr><th>Setting</th><th>Value</th><th>Verdict</th></tr></thead><tbody>';

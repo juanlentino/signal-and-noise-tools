@@ -670,12 +670,12 @@ function snt_analytics_render_error() {
 		return;
 	}
 	$code = isset( $err['code'] ) && (int) $err['code'] > 0 ? ( 'HTTP ' . (int) $err['code'] ) : 'Network error';
-	echo '<div class="notice notice-error notice-alt inline"><p><strong>Analytics read failed.</strong> ' . esc_html( $code );
+	$body = '<strong>Analytics read failed.</strong> ' . esc_html( $code );
 	if ( ! empty( $err['url'] ) ) {
-		echo ' from <code>' . esc_html( (string) $err['url'] ) . '</code>';
+		$body .= ' from <code>' . esc_html( (string) $err['url'] ) . '</code>';
 	}
 	if ( ! empty( $err['message'] ) ) {
-		echo '<br>' . esc_html( (string) $err['message'] );
+		$body .= '<br>' . esc_html( (string) $err['message'] );
 	}
-	echo '</p></div>';
+	wp_admin_notice( $body, array( 'type' => 'error', 'additional_classes' => array( 'notice-alt', 'inline' ) ) );
 }

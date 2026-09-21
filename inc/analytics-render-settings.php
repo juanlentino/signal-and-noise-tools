@@ -84,9 +84,9 @@ function snt_analytics_render_credentials() {
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Credentials', 'signal-and-noise-tools' ) . '</h3>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Set under Connections › Credentials, with every other key. Analytics Engine reads use the Cloudflare API token (Account › Account Analytics › Read on it) unless an analytics token override is set there.', 'signal-and-noise-tools' ) . '</p>';
 	if ( '' !== $override ) {
-		echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'An analytics token override is in force; the Cloudflare API token is not used for these reads. Clear the override on the keyring to use one token.', 'signal-and-noise-tools' ) . '</p></div>';
+		wp_admin_notice( esc_html__( 'An analytics token override is in force; the Cloudflare API token is not used for these reads. Clear the override on the keyring to use one token.', 'signal-and-noise-tools' ), array( 'type' => 'warning', 'additional_classes' => array( 'inline' ) ) );
 	} elseif ( ! $central ) {
-		echo '<div class="notice notice-error inline"><p>' . esc_html__( 'No token anywhere: set the Cloudflare API token under Connections › Credentials.', 'signal-and-noise-tools' ) . '</p></div>';
+		wp_admin_notice( esc_html__( 'No token anywhere: set the Cloudflare API token under Connections › Credentials.', 'signal-and-noise-tools' ), array( 'type' => 'error', 'additional_classes' => array( 'inline' ) ) );
 	} else {
 		echo '<p class="sn-an-empty">' . esc_html__( 'Reading with the Cloudflare API token.', 'signal-and-noise-tools' ) . '</p>';
 	}

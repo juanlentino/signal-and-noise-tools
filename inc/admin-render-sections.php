@@ -147,6 +147,6 @@ function sn_admin_render_rss_section() {
 	if ( has_action( 'sn_admin_rss_tab' ) ) {
 		do_action( 'sn_admin_rss_tab' );
 	} else {
-		echo '<div class="notice notice-warning inline sn-rss-not-installed"><p><strong>RSS feed-request tracker not loaded.</strong></p></div>';
+		wp_admin_notice( '<strong>RSS feed-request tracker not loaded.</strong>', array( 'type' => 'warning', 'additional_classes' => array( 'inline', 'sn-rss-not-installed' ) ) );
 	}
 }

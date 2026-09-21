@@ -198,7 +198,7 @@ function sn_hibp_login_admin_notice() {
 	if ( '' === $html ) {
 		return;
 	}
-	echo '<div class="notice notice-warning"><p>' . $html . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built escaped in sn_hibp_login_notice_html().
+	wp_admin_notice( $html, array( 'type' => 'warning' ) ); // Built escaped in sn_hibp_login_notice_html(); wp_admin_notice() runs wp_kses_post on the whole.
 }
 
 add_filter( 'authenticate', 'sn_hibp_on_authenticate', 30, 3 );

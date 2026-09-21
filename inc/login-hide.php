@@ -78,7 +78,7 @@ $wps_basename = 'wps-hide-login/wps-hide-login.php';
 $wps_file     = WP_PLUGIN_DIR . '/' . $wps_basename;
 if ( is_plugin_active( $wps_basename ) && file_exists( $wps_file ) ) {
 	add_action( 'admin_notices', function() {
-		echo '<div class="notice notice-info"><p><strong>Signal &amp; Noise Tools:</strong> the built-in custom login URL module is dormant because <code>wps-hide-login</code> is still active. Deactivate that plugin to switch over.</p></div>';
+		wp_admin_notice( '<strong>Signal &amp; Noise Tools:</strong> the built-in custom login URL module is dormant because <code>wps-hide-login</code> is still active. Deactivate that plugin to switch over.', array( 'type' => 'info' ) );
 	} );
 	return;
 }
@@ -91,7 +91,7 @@ $rwl_basename = 'rename-wp-login/rename-wp-login.php';
 $rwl_file     = WP_PLUGIN_DIR . '/' . $rwl_basename;
 if ( is_plugin_active( $rwl_basename ) && file_exists( $rwl_file ) ) {
 	add_action( 'admin_notices', function() {
-		echo '<div class="notice notice-info"><p><strong>Signal &amp; Noise Tools:</strong> the built-in custom login URL module is dormant because <code>rename-wp-login</code> is still active. Deactivate that plugin to switch over.</p></div>';
+		wp_admin_notice( '<strong>Signal &amp; Noise Tools:</strong> the built-in custom login URL module is dormant because <code>rename-wp-login</code> is still active. Deactivate that plugin to switch over.', array( 'type' => 'info' ) );
 	} );
 	return;
 }

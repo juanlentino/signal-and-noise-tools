@@ -38,14 +38,15 @@ function snt_audit_log_render_tab() {
 		check_admin_referer( 'sn_theme_options_nonce' );
 		if ( current_user_can( 'manage_options' ) ) {
 			$stats = snt_audit_prune_impl();
-			echo '<div class="notice notice-success is-dismissible"><p><strong>Prune complete.</strong> ' .
-				esc_html( sprintf(
+			wp_admin_notice(
+				'<strong>Prune complete.</strong> ' . esc_html( sprintf(
 					'%d counter bucket(s) dropped, %d login row(s) dropped, LLA delta +%d.',
 					$stats['counter_buckets_dropped'],
 					$stats['login_rows_dropped'],
 					$stats['lla_delta']
-				) ) .
-				'</p></div>';
+				) ),
+				array( 'type' => 'success', 'dismissible' => true )
+			);
 		}
 	}
 

@@ -197,9 +197,11 @@ function snt_mr_render_sensor_card( $info ) {
 		. ( '' !== $deployed ? ' <span class="description">(' . esc_html__( 'deployed', 'signal-and-noise-tools' ) . ' ' . esc_html( $deployed ) . ')</span>' : '' )
 		. '</p>';
 	if ( version_compare( $version, $min, '<' ) ) {
-		$out .= '<div class="notice notice-warning notice-alt inline"><p><strong>' . esc_html__( 'Sensor outdated:', 'signal-and-noise-tools' ) . '</strong> '
-			. esc_html( sprintf( /* translators: 1: deployed version, 2: required minimum. */ __( 'the deployed worker is v%1$s; these panels need v%2$s or newer. Deploy the sensor release.', 'signal-and-noise-tools' ), $version, $min ) )
-			. '</p></div>';
+		$out .= wp_get_admin_notice(
+			'<strong>' . esc_html__( 'Sensor outdated:', 'signal-and-noise-tools' ) . '</strong> '
+			. esc_html( sprintf( /* translators: 1: deployed version, 2: required minimum. */ __( 'the deployed worker is v%1$s; these panels need v%2$s or newer. Deploy the sensor release.', 'signal-and-noise-tools' ), $version, $min ) ),
+			array( 'type' => 'warning', 'additional_classes' => array( 'notice-alt', 'inline' ) )
+		);
 	}
 	return $out;
 }
@@ -418,8 +420,7 @@ function snt_mr_render_feed_table( $stats ) {
  */
 function snt_mr_render_edge_readout( $info ) {
 	$info = is_array( $info ) ? $info : array();
-	$out  = '<div class="notice notice-info notice-alt inline">';
-	$out .= '<p><strong>' . esc_html__( 'Worker', 'signal-and-noise-tools' ) . '</strong> <code>sn-rights-signals</code>';
+	$out  = '<p><strong>' . esc_html__( 'Worker', 'signal-and-noise-tools' ) . '</strong> <code>sn-rights-signals</code>';
 	if ( '' !== (string) ( $info['version'] ?? '' ) ) {
 		$out .= ' <code>v' . esc_html( (string) $info['version'] ) . '</code>';
 	}
@@ -433,8 +434,7 @@ function snt_mr_render_edge_readout( $info ) {
 			. esc_html( sprintf( __( '%s ago', 'signal-and-noise-tools' ), human_time_diff( (int) $info['fetched_at'], time() ) ) ) . '</p>';
 	}
 	$out .= '<p><em>' . esc_html__( 'Source:', 'signal-and-noise-tools' ) . '</em> <code>' . esc_html( defined( 'SN_MR_VERSION_ENDPOINT' ) ? SN_MR_VERSION_ENDPOINT : '' ) . '</code></p>';
-	$out .= '</div>';
-	return $out;
+	return wp_get_admin_notice( $out, array( 'type' => 'info', 'additional_classes' => array( 'notice-alt', 'inline' ), 'paragraph_wrap' => false ) );
 }
 
 /**

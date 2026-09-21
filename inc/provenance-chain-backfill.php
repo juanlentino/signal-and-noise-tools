@@ -373,8 +373,8 @@ function sn_prov_backfill_render_fieldset() {
 		foreach ( (array) ( $result['skipped'] ?? array() ) as $reason => $n ) {
 			$skips[] = esc_html( $reason . ' ×' . (int) $n );
 		}
-		echo '<div class="notice notice-' . ( empty( $result['skipped'] ) ? 'success' : 'warning' ) . ' notice-alt inline"><p>'
-			. esc_html( sprintf(
+		wp_admin_notice(
+			esc_html( sprintf(
 				/* translators: 1: number of imported commits, 2: number of repaired commits. */
 				__( 'Imported %1$s confirmed anchors from the ledger, and repaired %2$s missing signatures.', 'signal-and-noise-tools' ),
 				number_format_i18n( (int) ( $result['imported'] ?? 0 ) ),
@@ -392,8 +392,9 @@ function sn_prov_backfill_render_fieldset() {
 						? __( ' (this run hit its time budget)', 'signal-and-noise-tools' )
 						: ( 'cap' === ( $result['stopped'] ?? '' ) ? __( ' (this run hit its per-run ceiling)', 'signal-and-noise-tools' ) : '' )
 				) )
-				: ' ' . esc_html__( 'Nothing is left unverifiable.', 'signal-and-noise-tools' ) )
-			. '</p></div>';
+				: ' ' . esc_html__( 'Nothing is left unverifiable.', 'signal-and-noise-tools' ) ),
+			array( 'type' => empty( $result['skipped'] ) ? 'success' : 'warning', 'additional_classes' => array( 'notice-alt', 'inline' ) )
+		);
 	}
 	if ( $candidates ) {
 		echo '<p class="sn-fieldset-intro">' . esc_html( sprintf(

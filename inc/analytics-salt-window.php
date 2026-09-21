@@ -293,44 +293,44 @@ function sn_salt_window_render_card() {
 	$w  = $result['window'];
 	$tz = '' !== $w['rotate_tz'] ? $w['rotate_tz'] : 'UTC';
 
-	echo '<div class="notice notice-info notice-alt inline">';
+	$body = '';
 
 	// Today's salt day + when it rotates. The not-minted parenthetical renders
 	// only on an explicit false — a null (absent upstream) presence stays quiet.
 	$today_day = '' !== $w['today_day'] ? $w['today_day'] : '—';
 	if ( false === $w['today_present'] ) {
 		/* translators: 1: today's salt day (YYYY-MM-DD), 2: the worker's rotation timezone */
-		echo '<p>' . esc_html( sprintf( __( 'Today’s salt: %1$s (not minted yet (it appears with the first visit of the day)) rotates at midnight (%2$s).', 'signal-and-noise-tools' ), $today_day, $tz ) ) . '</p>';
+		$body .= '<p>' . esc_html( sprintf( __( 'Today’s salt: %1$s (not minted yet (it appears with the first visit of the day)) rotates at midnight (%2$s).', 'signal-and-noise-tools' ), $today_day, $tz ) ) . '</p>';
 	} else {
 		/* translators: 1: today's salt day (YYYY-MM-DD), 2: the worker's rotation timezone */
-		echo '<p>' . esc_html( sprintf( __( 'Today’s salt: %1$s: rotates at midnight (%2$s).', 'signal-and-noise-tools' ), $today_day, $tz ) ) . '</p>';
+		$body .= '<p>' . esc_html( sprintf( __( 'Today’s salt: %1$s: rotates at midnight (%2$s).', 'signal-and-noise-tools' ), $today_day, $tz ) ) . '</p>';
 	}
 
 	// Yesterday's salt: expiring, already gone, or expiry unrecorded. A null
 	// presence (absent upstream) skips the line — nothing is invented.
 	if ( false === $w['prev_present'] ) {
 		/* translators: %s: yesterday's salt day (YYYY-MM-DD) */
-		echo '<p>' . esc_html( sprintf( __( 'Yesterday’s salt (%s) has already expired: forward secrecy holding.', 'signal-and-noise-tools' ), '' !== $w['prev_day'] ? $w['prev_day'] : '—' ) ) . '</p>';
+		$body .= '<p>' . esc_html( sprintf( __( 'Yesterday’s salt (%s) has already expired: forward secrecy holding.', 'signal-and-noise-tools' ), '' !== $w['prev_day'] ? $w['prev_day'] : '—' ) ) . '</p>';
 	} elseif ( true === $w['prev_present'] ) {
 		if ( null !== $w['prev_expires_at'] ) {
 			/* translators: 1: yesterday's salt day (YYYY-MM-DD), 2: site-local expiry time with a relative phrase */
-			echo '<p>' . esc_html( sprintf( __( 'Yesterday’s salt (%1$s) expires %2$s.', 'signal-and-noise-tools' ), $w['prev_day'], sn_salt_window_format_expiry( $w['prev_expires_at'] ) ) ) . '</p>';
+			$body .= '<p>' . esc_html( sprintf( __( 'Yesterday’s salt (%1$s) expires %2$s.', 'signal-and-noise-tools' ), $w['prev_day'], sn_salt_window_format_expiry( $w['prev_expires_at'] ) ) ) . '</p>';
 		} else {
 			/* translators: %s: yesterday's salt day (YYYY-MM-DD) */
-			echo '<p>' . esc_html( sprintf( __( 'Yesterday’s salt (%s) has no expiry recorded.', 'signal-and-noise-tools' ), $w['prev_day'] ) ) . '</p>';
+			$body .= '<p>' . esc_html( sprintf( __( 'Yesterday’s salt (%s) has no expiry recorded.', 'signal-and-noise-tools' ), $w['prev_day'] ) ) . '</p>';
 		}
 	}
 
 	if ( null !== $w['key_count'] ) {
 		/* translators: %s: number of salt keys currently at the edge */
-		echo '<p>' . esc_html( sprintf( _n( '%s salt key at the edge.', '%s salt keys at the edge.', $w['key_count'], 'signal-and-noise-tools' ), number_format_i18n( $w['key_count'] ) ) ) . '</p>';
+		$body .= '<p>' . esc_html( sprintf( _n( '%s salt key at the edge.', '%s salt keys at the edge.', $w['key_count'], 'signal-and-noise-tools' ), number_format_i18n( $w['key_count'] ) ) ) . '</p>';
 	}
 
 	$fetched_at = isset( $result['fetched_at'] ) ? (int) $result['fetched_at'] : 0;
 	if ( $fetched_at > 0 ) {
 		/* translators: %s: human-readable time interval, e.g. "2 minutes" */
-		echo '<p class="sn-an-empty">' . esc_html( sprintf( __( 'Checked %s ago.', 'signal-and-noise-tools' ), human_time_diff( $fetched_at, time() ) ) ) . '</p>';
+		$body .= '<p class="sn-an-empty">' . esc_html( sprintf( __( 'Checked %s ago.', 'signal-and-noise-tools' ), human_time_diff( $fetched_at, time() ) ) ) . '</p>';
 	}
 
-	echo '</div>';
+	wp_admin_notice( $body, array( 'type' => 'info', 'additional_classes' => array( 'notice-alt', 'inline' ), 'paragraph_wrap' => false ) );
 }

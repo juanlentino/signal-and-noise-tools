@@ -21,7 +21,7 @@ function sn_admin_render_agent_tools_section() {
 	echo '<div class="sn-fieldset sn-fieldset--wide"><h2 class="sn-fieldset-h">' . esc_html( sprintf( 'On the page, %s days', number_format_i18n( $m['days'] ) ) ) . '</h2>';
 	echo '<p class="sn-field-helper">The WebMCP bridge every HTML page carries; the reader\'s own agent calls these.</p>';
 	if ( ! $m['ok'] ) {
-		echo '<div class="notice notice-warning inline"><p>' . esc_html( 'The sensor could not be read (' . $m['error'] . '); the counts below are from no data.' ) . '</p></div>';
+		wp_admin_notice( esc_html( 'The sensor could not be read (' . $m['error'] . '); the counts below are from no data.' ), array( 'type' => 'warning', 'additional_classes' => array( 'inline' ) ) );
 	}
 	echo '<table class="widefat striped"><thead><tr><th>Tool</th><th>Answers</th><th>Calls</th><th>ok</th><th>absent</th><th>error</th></tr></thead><tbody>';
 	foreach ( $m['rows'] as $r ) {

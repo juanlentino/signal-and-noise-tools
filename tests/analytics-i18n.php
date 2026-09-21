@@ -145,6 +145,7 @@ function wp_nonce_field( $a = -1, $b = '_wpnonce', $c = true, $d = true ) { echo
 $GLOBALS['__settings_opts'] = array( SN_CF_ACCOUNT_ID_OPT => '', SN_CF_ANALYTICS_TOKEN_OPT => '' );
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__settings_opts'] ) ? $GLOBALS['__settings_opts'][ $k ] : $d; }
 function sn_mask_secret( $s ) { return '' === (string) $s ? '' : '••••'; }
+require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require_once __DIR__ . '/../inc/analytics-render-settings.php';
 
 echo "\nTest: settings surface: credentials fold (15.2.0: read-only; the fields live on the keyring) routes its copy through i18n\n";

@@ -118,11 +118,10 @@ function sn_theme_options_page() {
 		echo '<p class="sn-page-subtitle">' . esc_html( $subtitle ) . '</p>';
 	}
 
-	// Notices. Severity is escaped as an attribute; bodies are run
-	// through wp_kses_post because some entries deliberately ship
-	// inline markup (<a>, <code>) — esc_html would mangle those.
+	// Notices. Bodies deliberately ship inline markup (<a>, <code>), so they
+	// are not esc_html'd; wp_admin_notice() runs wp_kses_post on the whole.
 	foreach ( $notices as $n ) {
-		echo '<div class="notice notice-' . esc_attr( $n[0] ) . ' is-dismissible"><p>' . wp_kses_post( $n[1] ) . '</p></div>';
+		wp_admin_notice( $n[1], array( 'type' => $n[0], 'dismissible' => true ) );
 	}
 
 	// ── TABS ──

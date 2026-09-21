@@ -77,6 +77,7 @@ function wp_remote_retrieve_body( $r ) { return is_array( $r ) ? (string) ( $r['
 function trailingslashit( $s ) { return rtrim( (string) $s, '/\\' ) . '/'; }
 function untrailingslashit( $s ) { return rtrim( (string) $s, '/\\' ); }
 
+require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require __DIR__ . '/../inc/wp-update-integration.php';
 
 $pass = 0; $fail = 0;

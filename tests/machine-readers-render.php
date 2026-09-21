@@ -19,6 +19,7 @@ function number_format_i18n( $n ) { return number_format( (float) $n ); }
 function __( $s, $d = null ) { return $s; }
 function esc_html__( $s, $d = null ) { return esc_html( $s ); }
 
+require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require __DIR__ . '/../inc/machine-readers-render.php';
 
 $rows = array(
