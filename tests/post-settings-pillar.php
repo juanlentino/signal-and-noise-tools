@@ -1,10 +1,11 @@
 <?php
 /**
  * Tests: pillar essay meta (_sn_pillar / _sn_pillar_designation) is Pages-only.
- * Registration (page yes, post no; show_in_rest pinned false), the per-resource
+ * Registration (page yes, post no; show_in_rest pinned TRUE since #1608, the
+ * panel is the React sidebar the flag waited for), the per-resource
  * auth_callback (edit_post on the object id, real register_meta signature),
- * the meta box render gate, output escaping, and the save path including the
- * post-type guard. (plugin v9.79.0)
+ * the panel's Pages-only gate on the pair, and the REST write path (the
+ * classic save handler is gone). (plugin v9.79.0)
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
@@ -24,7 +25,7 @@ $GLOBALS['__cap_calls']  = array();
 $GLOBALS['__cap_result'] = true;
 
 function register_post_meta( $type, $key, $args ) { $GLOBALS['__registered'][ $type ][ $key ] = $args; }
-function add_action( $h, $c, $p = 10, $a = 1 ) {}
+function add_action( $h, $c, $p = 10, $a = 1 ) { $GLOBALS['__hooks'][ $h ][] = $c; }
 function add_meta_box() {}
 function current_user_can( $cap, $id = null ) {
 	$GLOBALS['__cap_calls'][] = array( $cap, $id );
@@ -78,8 +79,8 @@ ok( 'boolean' === ( $flag['type'] ?? '' ), '_sn_pillar is a boolean' );
 ok( 'string' === ( $desig['type'] ?? '' ), '_sn_pillar_designation is a string' );
 ok( 'rest_sanitize_boolean' === ( $flag['sanitize_callback'] ?? '' ), '_sn_pillar sanitizes as boolean' );
 ok( 'sanitize_text_field' === ( $desig['sanitize_callback'] ?? '' ), '_sn_pillar_designation sanitizes as single-line text (free text, never format-validated)' );
-ok( false === ( $flag['show_in_rest'] ?? null ), '_sn_pillar show_in_rest pinned false (POST bridge saves it; flip only for a real REST sidebar)' );
-ok( false === ( $desig['show_in_rest'] ?? null ), '_sn_pillar_designation show_in_rest pinned false' );
+ok( true === ( $flag['show_in_rest'] ?? null ), '_sn_pillar show_in_rest is true: the document panel (#1608) reads and writes it through the post entity' );
+ok( true === ( $desig['show_in_rest'] ?? null ), '_sn_pillar_designation show_in_rest is true for the same panel' );
 
 echo "\nGroup: auth_callback (per-resource edit_post, real register_meta signature)\n";
 foreach ( array( '_sn_pillar' => $flag, '_sn_pillar_designation' => $desig ) as $key => $args ) {
@@ -100,60 +101,26 @@ foreach ( array( '_sn_pillar' => $flag, '_sn_pillar_designation' => $desig ) as 
 }
 $GLOBALS['__cap_result'] = true;
 
-echo "\nGroup: meta box render\n";
-$page            = new stdClass();
-$page->ID        = 11;
-$page->post_type = 'page';
-$GLOBALS['__meta'][11] = array(
-	'_sn_pillar'             => '1',
-	'_sn_pillar_designation' => '1.01" onmouseover="x',
-);
-ob_start();
-sn_post_settings_render( $page );
-$html = ob_get_clean();
-ok( false !== strpos( $html, 'Feature as a pillar essay' ), 'page render includes the pillar checkbox label' );
-ok( false === strpos( $html, 'sn-fieldset' ), 'no .sn-fieldset/heading markup: flat .sn-field sections like every sibling (admin.css never loads on edit screens)' );
-ok( false !== strpos( $html, 'name="sn_pillar"' ), 'page render includes the feature checkbox' );
-ok( false !== strpos( $html, 'name="sn_pillar_designation"' ), 'page render includes the designation input' );
-ok( false !== strpos( $html, 'checked' ), 'stored flag renders the checkbox checked' );
-ok( false === strpos( $html, '1.01" onmouseover=' ), 'designation value cannot break out of the attribute (raw quote absent)' );
-ok( false !== strpos( $html, esc_attr( '1.01" onmouseover="x' ) ), 'designation value renders in escaped form' );
+echo "\nGroup: the panel paints the pair on Pages only (#1608)\n";
+// The classic meta box is gone; the pair now rides assets/post-settings-panel.js,
+// where each field row carries `page: true` and the render filters on it.
+$js = (string) file_get_contents( __DIR__ . '/../assets/post-settings-panel.js' );
+ok( ! function_exists( 'sn_post_settings_render' ), 'sn_post_settings_render is gone: no classic meta box paints the pair' );
+ok( false !== strpos( $js, "key: '_sn_pillar', kind: 'flag', page: true" ), 'the panel declares _sn_pillar as a Pages-only flag' );
+ok( false !== strpos( $js, "key: '_sn_pillar_designation', kind: 'text', page: true" ), 'the panel declares _sn_pillar_designation as Pages-only text' );
+ok( false !== strpos( $js, "return ! f.page || isPage;" ), 'the panel drops page-only rows unless the edited type is a page' );
+ok( false !== strpos( $js, "Feature as a pillar essay" ) && false !== strpos( $js, "Pillar designation" ), 'the labels the meta box carried survive verbatim' );
 
-$note            = new stdClass();
-$note->ID        = 12;
-$note->post_type = 'post';
-ob_start();
-sn_post_settings_render( $note );
-$html2 = ob_get_clean();
-ok( false === strpos( $html2, 'sn_pillar' ), 'post render has no pillar fields' );
-ok( false !== strpos( $html2, 'sn_seo_title' ), 'post render still shows the shared fields' );
-
-echo "\nGroup: save path\n";
-$GLOBALS['__post_types'] = array( 21 => 'page', 22 => 'post' );
-
-function save_with( $post_id, $fields ) {
-	$_POST = array_merge( array( 'sn_post_settings_nonce' => 'n' ), $fields );
-	sn_post_settings_save( $post_id );
-}
-
-save_with( 21, array( 'sn_pillar' => '1', 'sn_pillar_designation' => '  1.01  ' ) );
-ok( '1' === ( $GLOBALS['__meta'][21]['_sn_pillar'] ?? null ), "checkbox on stores '1'" );
-ok( '1.01' === ( $GLOBALS['__meta'][21]['_sn_pillar_designation'] ?? null ), 'designation is trimmed' );
-
-save_with( 21, array( 'sn_pillar_designation' => '<b>2.00</b>' ) );
-ok( ! isset( $GLOBALS['__meta'][21]['_sn_pillar'] ), 'checkbox absent deletes the flag' );
-ok( '2.00' === ( $GLOBALS['__meta'][21]['_sn_pillar_designation'] ?? null ), 'designation is sanitized (tags stripped)' );
-
-save_with( 21, array( 'sn_pillar_designation' => 'as-substrate 2.00' ) );
-ok( 'as-substrate 2.00' === ( $GLOBALS['__meta'][21]['_sn_pillar_designation'] ?? null ), 'designation stays free text (owner numbering, no format validation)' );
-
-save_with( 21, array( 'sn_pillar' => '1', 'sn_pillar_designation' => '   ' ) );
-ok( ! isset( $GLOBALS['__meta'][21]['_sn_pillar_designation'] ), 'empty designation deletes the key' );
-ok( '1' === ( $GLOBALS['__meta'][21]['_sn_pillar'] ?? null ), 'flag persists independently of the designation' );
-
-save_with( 22, array( 'sn_pillar' => '1', 'sn_pillar_designation' => '1.00' ) );
-ok( ! isset( $GLOBALS['__meta'][22]['_sn_pillar'] ), "a crafted POST against a 'post' never sets the flag" );
-ok( ! isset( $GLOBALS['__meta'][22]['_sn_pillar_designation'] ), "a crafted POST against a 'post' never sets the designation" );
+echo "\nGroup: the write path is REST, the classic handler is gone (#1608)\n";
+ok( ! function_exists( 'sn_post_settings_save' ) && ! isset( $GLOBALS['__hooks']['save_post'] ), 'no save_post handler remains: nothing printed the form it read' );
+$desig = $GLOBALS['__registered']['page']['_sn_pillar_designation'] ?? array();
+ok( 'sanitize_text_field' === ( $desig['sanitize_callback'] ?? '' ), 'the designation sanitizes through sanitize_text_field on the REST path' );
+ok( '1.01' === call_user_func( $desig['sanitize_callback'], '  1.01  ' ), 'designation is trimmed' );
+ok( '2.00' === call_user_func( $desig['sanitize_callback'], '<b>2.00</b>' ), 'designation is sanitized (tags stripped)' );
+ok( 'as-substrate 2.00' === call_user_func( $desig['sanitize_callback'], 'as-substrate 2.00' ), 'designation stays free text (owner numbering, no format validation)' );
+ok( 'rest_sanitize_boolean' === ( $GLOBALS['__registered']['page']['_sn_pillar']['sanitize_callback'] ?? '' ), 'the flag sanitizes as a REST boolean' );
+ok( ! isset( $GLOBALS['__registered']['post']['_sn_pillar'] ) && ! isset( $GLOBALS['__registered']['post']['_sn_pillar_designation'] ), "a crafted REST write against a 'post' never sets the pair: unregistered meta is refused by the controller" );
+ok( false !== strpos( $js, "if ( '' === next[ k ] || false === next[ k ] ) {" ) && 2 === substr_count( $js, 'setMeta( normalize( next ) );' ), 'an unticked flag or an emptied designation goes back as null, so the key is deleted instead of stored as an empty row' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
