@@ -30,6 +30,7 @@ function sn_setting( $path, $default = null ) {
 	return array_key_exists( $path, $GLOBALS['__settings'] ) ? $GLOBALS['__settings'][ $path ] : $default;
 }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require __DIR__ . '/../inc/analytics-sessions.php';
 require __DIR__ . '/../inc/analytics-render-settings.php';
 
@@ -45,7 +46,7 @@ snt_analytics_render_funnels();
 $h = ob_get_clean();
 ok( strpos( $h, '<form method="post"' ) !== false, 'wraps in a POST form' );
 ok( strpos( $h, 'name="_wpnonce"' ) !== false, 'nonce present' );
-ok( strpos( $h, 'value="analytics_funnels_save"' ) !== false, 'submit posts analytics_funnels_save' );
+ok( strpos( $h, 'value="sn_analytics_funnels_save"' ) !== false, 'submit posts analytics_funnels_save' );
 ok( 1 === preg_match( '/<textarea[^>]*name="sn_funnels"[^>]*rows="6"/', $h ), 'textarea present with 6 rows' );
 ok( strpos( $h, 'placeholder="' ) !== false, 'placeholder present (shows the format example)' );
 

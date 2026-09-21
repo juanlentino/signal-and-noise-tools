@@ -36,6 +36,7 @@ if ( ! function_exists( 'sn_muso_profile_id' ) ) { function sn_muso_profile_id()
 if ( ! function_exists( 'sn_mask_secret' ) ) { function sn_mask_secret( $v ) { return '' === (string) $v ? '' : '****'; } }
 if ( ! function_exists( 'sn_music_featured_get' ) ) { function sn_music_featured_get() { return array(); } }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/../inc/admin-shell.php';
 require_once __DIR__ . '/../inc/admin-forms/music.php';
 

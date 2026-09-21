@@ -92,7 +92,7 @@ $_GET['sn_tag_preview'] = '1'; $_GET['sn_tag_from'] = array( '10', '11' ); $_GET
 $GLOBALS['__preview'] = array( 'from' => array( array( 'id' => 10, 'name' => 'AI-Generated Music', 'slug' => 'ai-generated-music', 'count' => 5 ), array( 'id' => 11, 'name' => 'AI Generated Music', 'slug' => 'ai-generated-music-2', 'count' => 2 ) ), 'into' => array( 'id' => 12, 'name' => 'Music', 'slug' => 'music' ), 'posts_affected' => 3 );
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
 ok( strpos( $h, '3' ) !== false && stripos( $h, 'Confirm merge' ) !== false, 'preview: array sn_tag_from[] parses -> confirm panel shows count + Confirm merge (regression: was "Nothing to merge")' );
-ok( strpos( $h, 'value="tag_merge"' ) !== false && strpos( $h, 'sn_action' ) !== false, 'preview: confirm posts the tag_merge action through the dispatcher' );
+ok( strpos( $h, 'name="action" value="sn_tag_merge"' ) !== false && strpos( $h, 'admin-post.php' ) !== false, 'preview: confirm posts the tag_merge action through admin-post.php' );
 ok( strpos( $h, '_wpnonce' ) !== false, 'preview: confirm form carries a nonce' );
 ok( strpos( $h, 'page=sn-content' ) !== false && strpos( $h, 'tab=content' ) !== false, 'preview: confirm form posts back to the sn-content page (dispatcher contract)' );
 ok( strpos( $h, 'name="sn_tag_from" value="10,11"' ) !== false, 'preview: confirm hidden field round-trips the ids as a comma string for the POST handler' );
@@ -125,24 +125,24 @@ ok( strpos( $h, 'Install Connector for TypeSafe Jev' ) !== false && strpos( $h, 
 
 $GLOBALS['__ai'] = true; $GLOBALS['__jev'] = true; $GLOBALS['__fit'] = false;
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
-ok( strpos( $h, 'Read tags now' ) !== false && strpos( $h, 'value="tag_fit_run"' ) !== false && strpos( $h, 'under a cent' ) !== false, 'Jev: a key and no pass: the explainer and Read tags now' );
+ok( strpos( $h, 'Read tags now' ) !== false && strpos( $h, 'value="sn_tag_fit_run"' ) !== false && strpos( $h, 'under a cent' ) !== false, 'Jev: a key and no pass: the explainer and Read tags now' );
 
 $GLOBALS['__fit'] = array( 'synced_at' => 1, 'tags' => 3, 'notes' => array( 7 => array( 'title' => 'Untagged Note', 'attached' => array( array( 'id' => 9, 'name' => 'Empty', 'score' => 0.3, 'confidence' => 0.7 ) ), 'missing' => array( array( 'id' => 2, 'name' => 'Jazz', 'noul' => 0.8 ) ) ) ), 'usage' => array(), 'last_error' => '' );
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
-ok( strpos( $h, 'Untagged Note' ) !== false && strpos( $h, 'name="assign[' ) === false && strpos( $h, 'name="remove[7][]" value="9"' ) !== false && strpos( $h, 'value="tag_fit_apply"' ) !== false && stripos( $h, 'Apply selected' ) !== false && strpos( $h, 'checked' ) === false && strpos( $h, 'Jev proposes no tags' ) !== false, 'Jev: the review form renders the note and a remove box, unchecked, under tag_fit_apply; a stored missing list paints no add box (16.9.2)' );
+ok( strpos( $h, 'Untagged Note' ) !== false && strpos( $h, 'name="assign[' ) === false && strpos( $h, 'name="remove[7][]" value="9"' ) !== false && strpos( $h, 'value="sn_tag_fit_apply"' ) !== false && stripos( $h, 'Apply selected' ) !== false && strpos( $h, 'checked' ) === false && strpos( $h, 'Jev proposes no tags' ) !== false, 'Jev: the review form renders the note and a remove box, unchecked, under tag_fit_apply; a stored missing list paints no add box (16.9.2)' );
 $GLOBALS['__fit'] = false;
 
 // --- Unused section ------------------------------------------------------------
 $GLOBALS['__unused'] = array( array( 'term_id' => 9, 'name' => 'Empty', 'slug' => 'empty', 'count' => 0 ) );
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
-ok( strpos( $h, 'Unused tags' ) !== false && strpos( $h, 'name="sn_tag_unused[]"' ) !== false && strpos( $h, 'value="tag_prune_unused"' ) !== false, 'Unused: lists count-0 tags + Delete control' );
+ok( strpos( $h, 'Unused tags' ) !== false && strpos( $h, 'name="sn_tag_unused[]"' ) !== false && strpos( $h, 'value="sn_tag_prune_unused"' ) !== false, 'Unused: lists count-0 tags + Delete control' );
 $GLOBALS['__unused'] = array();
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
 ok( strpos( $h, 'No unused tags' ) !== false, 'Unused: empty state' );
 
 // --- 17.2.0: Groups on /notes/tags without the theme: says so, no form ------------
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
-ok( strpos( $h, 'Groups on /notes/tags' ) !== false && strpos( $h, 'not available' ) !== false && strpos( $h, 'value="tag_group_apply"' ) === false, 'Groups: without the theme functions the section says so and offers no form' );
+ok( strpos( $h, 'Groups on /notes/tags' ) !== false && strpos( $h, 'not available' ) !== false && strpos( $h, 'value="sn_tag_group_apply"' ) === false, 'Groups: without the theme functions the section says so and offers no form' );
 
 // --- 16.9.3: no ceiling section (the rule is the description; the gate nudges) ---
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();

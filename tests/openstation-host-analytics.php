@@ -150,7 +150,7 @@ namespace {
 	function wp_slash( $v ) { return is_array( $v ) ? array_map( 'wp_slash', $v ) : ( is_string( $v ) ? addslashes( $v ) : $v ); }
 	function wp_unslash( $v ) { return is_array( $v ) ? array_map( 'wp_unslash', $v ) : ( is_string( $v ) ? stripslashes( $v ) : $v ); }
 	function wp_nonce_field( $action = -1, $name = '_wpnonce', $referer = true, $display = true ) { $out = '<input type="hidden" name="' . esc_attr( $name ) . '" value="test-nonce">'; if ( $display ) { echo $out; } return $out; }
-	function wp_verify_nonce( $nonce, $action = -1 ) { return 'test-nonce' === $nonce && 'sn_theme_options_nonce' === $action ? 1 : false; }
+	function wp_verify_nonce( $nonce, $action = -1 ) { return 'test-nonce' === $nonce && 'sn_analytics_export' === $action ? 1 : false; }
 	$GLOBALS['__caps'] = array( 'manage_options' => true );
 	function current_user_can( $cap, ...$a ) { return (bool) ( $GLOBALS['__caps'][ $cap ] ?? false ); }
 	function is_admin() { return true; }
@@ -604,7 +604,7 @@ namespace {
 	ok( isset( $handlers['analytics_export'] ) && 'sn_handle_analytics_export' === $handlers['analytics_export'],
 		'   ...and that action is REAL: it is in sn_admin_post_handlers(), so a rename there turns this red rather than quiet' );
 	$controls_src = (string) file_get_contents( __DIR__ . '/../inc/analytics-render-controls.php' );
-	ok( false !== strpos( $controls_src, "name=\"sn_action\" value=\"analytics_export\"" ),
+	ok( false !== strpos( $controls_src, "name=\"action\" value=\"sn_analytics_export\"" ),
 		'   ...and it is the action the toolbar`s export form actually emits' );
 
 	if ( '' === $GLOBALS['__html_api'] ) {
@@ -619,7 +619,7 @@ namespace {
 		snt_analytics_render_controls( 7, 'human', '', '', 'off', array() );
 		$toolbar = (string) ob_get_clean();
 		unset( $_SERVER['REQUEST_URI'] );
-		$toolbar = snt_os_host_keep_forms( $toolbar, snt_os_analytics_keep_actions(), snt_analytics_page_url() );
+		$toolbar = snt_os_host_keep_forms( $toolbar, snt_os_analytics_keep_actions(), admin_url( 'admin-post.php' ) );
 		$toolbar = snt_os_host_rewrite( $toolbar, array( SNT_ANALYTICS_PAGE_SLUG ) );
 
 		$forms = array();
@@ -642,14 +642,14 @@ namespace {
 		}
 		ok( array() !== $export && array() !== $get, 'VACUITY: the real toolbar produced both forms (' . count( $forms ) . ' in all)' );
 		ok( null === $export['os-action'] && 'post' === $export['method']
-			&& snt_analytics_page_url() === $export['action'] && '_blank' === $export['target'],
-			'the export form is NOT a dispatch: it keeps its method, gains the classic page URL as its action and opens in a new tab -- sn_handle_analytics_export() sends headers, echoes a file and exits, which no window can survive. THE RECORDED DEVIATION: a download must be a navigation' );
+			&& admin_url( 'admin-post.php' ) === $export['action'] && '_blank' === $export['target'],
+			'the export form is NOT a dispatch: it keeps its method, posts to admin-post.php and opens in a new tab -- sn_handle_analytics_export() sends headers, echoes a file and exits, which no window can survive. THE RECORDED DEVIATION: a download must be a navigation' );
 		ok( 'go' === $get['os-action'] && 'get' === $get['method'],
 			'the custom-date form dispatches `go` -- its sn_from/sn_to arrive as args and go through the same resolver a range pill does' );
 		ok( false !== strpos( $toolbar, 'os-arg-sn_compare="yoy"' ) && false !== strpos( $toolbar, 'os-arg-sn_class="bot"' )
 			&& false !== strpos( $toolbar, 'os-arg-sn_range="30"' ),
 			'the compare, class and rolling pills are all `go`s carrying their own param -- the toolbar is the page`s, rewritten, not rebuilt' );
-		ok( $toolbar === snt_os_host_rewrite( snt_os_host_keep_forms( $toolbar, snt_os_analytics_keep_actions(), snt_analytics_page_url() ), array( SNT_ANALYTICS_PAGE_SLUG ) ),
+		ok( $toolbar === snt_os_host_rewrite( snt_os_host_keep_forms( $toolbar, snt_os_analytics_keep_actions(), admin_url( 'admin-post.php' ) ), array( SNT_ANALYTICS_PAGE_SLUG ) ),
 			'   ...and a second pass over the whole toolbar changes nothing' );
 	}
 
@@ -664,18 +664,18 @@ namespace {
 	$i_rw     = strpos( snt_php_code( $builder ), 'snt_os_host_rewrite(' );
 	ok( '' !== $builder && false !== $i_keep && false !== $i_rw && $i_keep < $i_rw,
 		'ORDER: the view marks the kept forms BEFORE the rewrite -- the rewrite is what reads the marker, so a pass in the other order leaves the export a dispatch' );
-	ok( false !== strpos( snt_php_code( $builder ), 'snt_os_analytics_keep_actions()' ) && false !== strpos( snt_php_code( $builder ), 'snt_analytics_page_url()' ),
-		'   ...with the keep list and the destination read from their own accessors, never spelled here' );
+	ok( false !== strpos( snt_php_code( $builder ), 'snt_os_analytics_keep_actions()' ) && false !== strpos( snt_php_code( $builder ), "admin_url( 'admin-post.php' )" ),
+		'   ...with the keep list read from its own accessor and the destination admin-post.php, where every SN write posts since #1614' );
 	ok( false !== strpos( snt_php_code( $builder ), 'array( page_slug() )' ),
 		'   ...and the own-page list is exactly this page`s slug: the settings page is another window`s surface' );
 
 	echo "\nGroup 9: what the actions refuse\n";
 	$os = new \OpenStation\App\Os();
-	$app->actions['post']( st( $app ), $os, array( 'values' => array( '_wpnonce' => 'test-nonce', 'sn_action' => 'analytics_export', 'format' => 'csv' ) ) );
+	$app->actions['post']( st( $app ), $os, array( 'values' => array( '_wpnonce' => 'test-nonce', 'action' => 'sn_analytics_export', 'format' => 'csv' ) ) );
 	ok( 1 === count( $os->toasts ) && false !== strpos( $os->toasts[0], 'analytics_export' ) && false !== strpos( $os->toasts[0], 'new tab' ),
 		'an export that somehow arrived as a dispatch is refused BY NAME -- running it would echo a CSV into the middle of a JSON response and exit' );
 	$os = new \OpenStation\App\Os();
-	$app->actions['post']( st( $app ), $os, array( 'values' => array( '_wpnonce' => 'test-nonce', 'sn_action' => 'save_identity' ) ) );
+	$app->actions['post']( st( $app ), $os, array( 'values' => array( '_wpnonce' => 'test-nonce', 'action' => 'sn_save_identity' ) ) );
 	ok( 1 === count( $os->toasts ) && false !== strpos( $os->toasts[0], 'save_identity' ),
 		'   ...and any other action is refused too, named: this window paints a read-only report and has no write' );
 	$os = new \OpenStation\App\Os();

@@ -200,9 +200,9 @@ function sn_admin_tag_render_confirm( $pv, $from, $into ) {
 		$pv['into']['name'],
 		(int) $pv['posts_affected']
 	) ) . '</p>';
-	echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' ) ) . '">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="tag_merge">';
+	echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php?page=sn-content&tab=content&sub=tags' ) ) . '">';
+	wp_nonce_field( 'sn_tag_merge' );
+	echo '<input type="hidden" name="action" value="sn_tag_merge">';
 	echo '<input type="hidden" name="sn_tag_from" value="' . esc_attr( implode( ',', array_map( 'intval', (array) $from ) ) ) . '">';
 	echo '<input type="hidden" name="sn_tag_into" value="' . esc_attr( (int) $into ) . '">';
 	echo '<button type="submit" class="button button-primary">' . esc_html__( 'Confirm merge', 'signal-and-noise-tools' ) . '</button> ';
@@ -240,7 +240,7 @@ function sn_admin_tag_render_fit_section() {
 		echo '<p>' . esc_html__( 'Install Connector for TypeSafe Jev and add the key under Settings › Connectors.', 'signal-and-noise-tools' ) . '</p></div>';
 		return;
 	}
-	$action = admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' );
+	$action = admin_url( 'admin-post.php?page=sn-content&tab=content&sub=tags' );
 	$data   = function_exists( 'sn_jev_tags_data' ) ? sn_jev_tags_data() : null;
 	$rows   = null === $data ? array() : sn_jev_tags_rows( $data );
 	if ( null === $data ) {
@@ -250,8 +250,8 @@ function sn_admin_tag_render_fit_section() {
 	} else {
 		echo '<p>' . esc_html( sprintf( /* translators: 1: notes flagged, 2: how long ago */ __( '%1$d notes, read %2$s ago. A misfit is a tag whose subject Jev could not find in the note, scored under 0.5 of 2 with confidence 0.7 or better; nothing else is listed, and Jev proposes no tags. Jev read each tag\'s description: a wrong reading of a right tag is the description to fix. Tags are not prose; a published note can take the change.', 'signal-and-noise-tools' ), count( $rows ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>';
 		echo '<form method="post" action="' . esc_url( $action ) . '">';
-		wp_nonce_field( 'sn_theme_options_nonce' );
-		echo '<input type="hidden" name="sn_action" value="tag_fit_apply">';
+		wp_nonce_field( 'sn_tag_fit_apply' );
+		echo '<input type="hidden" name="action" value="sn_tag_fit_apply">';
 		foreach ( $rows as $pid => $row ) {
 			echo '<p><strong><a href="' . esc_url( get_edit_post_link( (int) $pid ) ?: '' ) . '">' . esc_html( $row['title'] ) . '</a></strong><br>';
 			foreach ( $row['remove'] as $t ) {
@@ -263,8 +263,8 @@ function sn_admin_tag_render_fit_section() {
 		echo '</form>';
 	}
 	echo '<form method="post" action="' . esc_url( $action ) . '">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="tag_fit_run">';
+	wp_nonce_field( 'sn_tag_fit_run' );
+	echo '<input type="hidden" name="action" value="sn_tag_fit_run">';
 	echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Read tags now', 'signal-and-noise-tools' ) . '</button>';
 	echo '</form></div>';
 }
@@ -326,9 +326,9 @@ function sn_admin_tag_render_groups_section() {
 		echo '<li><strong>' . esc_html__( 'Not yet filed', 'signal-and-noise-tools' ) . '</strong>: ' . esc_html( implode( ', ', $ledger['unfiled'] ) ) . '</li>';
 	}
 	echo '</ul>';
-	echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' ) ) . '">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="tag_group_apply">';
+	echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php?page=sn-content&tab=content&sub=tags' ) ) . '">';
+	wp_nonce_field( 'sn_tag_group_apply' );
+	echo '<input type="hidden" name="action" value="sn_tag_group_apply">';
 	echo '<label>' . esc_html__( 'Tag', 'signal-and-noise-tools' ) . ' <select name="file_tag">';
 	foreach ( $ledger['tags'] as $t ) {
 		echo '<option value="' . esc_attr( (string) $t['id'] ) . '">' . esc_html( $t['name'] ) . '</option>';
@@ -394,9 +394,9 @@ function sn_admin_tag_render_unused_section() {
 		echo '<p>' . esc_html__( 'No unused tags.', 'signal-and-noise-tools' ) . '</p></div>';
 		return;
 	}
-	echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' ) ) . '" onsubmit="return confirm(\'Delete the selected unused tags?\');">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="tag_prune_unused"><p>';
+	echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php?page=sn-content&tab=content&sub=tags' ) ) . '" onsubmit="return confirm(\'Delete the selected unused tags?\');">';
+	wp_nonce_field( 'sn_tag_prune_unused' );
+	echo '<input type="hidden" name="action" value="sn_tag_prune_unused"><p>';
 	foreach ( $unused as $t ) {
 		echo '<label class="snt-label-block"><input type="checkbox" name="sn_tag_unused[]" value="' . esc_attr( (int) $t['term_id'] ) . '" checked> <strong>' . esc_html( (string) $t['name'] ) . '</strong> <code>' . esc_html( (string) $t['slug'] ) . '</code></label>';
 	}

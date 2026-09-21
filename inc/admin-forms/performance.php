@@ -29,9 +29,9 @@ function sn_admin_render_performance_section() {
 	sn_admin_shell_open();
 
 	echo '<div class="sn-fieldset">';
-	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="perf_save">';
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+	wp_nonce_field( 'sn_perf_save' );
+	echo '<input type="hidden" name="action" value="sn_perf_save">';
 
 	echo '<h2 class="sn-fieldset-h">Speculative loading</h2>';
 	echo '<p class="sn-fieldset-intro">WordPress 7.0 ships native <a href="https://developer.chrome.com/docs/web-platform/prerender-pages" target="_blank" rel="noopener noreferrer">Speculation Rules</a> (default: <code>auto</code>/<code>auto</code>). Enabling this opts the site into a more aggressive profile: links the visitor is likely to click are rendered in the background, so navigation feels instant. The profile and exclusions are summarized alongside.</p>';

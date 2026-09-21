@@ -48,9 +48,8 @@ function sn_admin_render_ai_settings_form() {
 	$budget    = (float) sn_setting( 'theme.ai_monthly_budget', 0 );
 	$spent     = function_exists( 'snt_ai_spend_this_month' ) ? (float) snt_ai_spend_this_month() : 0.0;
 
-	echo '<form method="post" class="sn-ai-settings-form">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="ai_settings_save">';
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'ai_settings_save' ) ) . '" class="sn-ai-settings-form">';
+	echo '<input type="hidden" name="action" value="sn_ai_settings_save">';
 
 	// v10.47.0: the leaf became 'wide', so the dispatcher emits a bare
 	// .sn-section and this form owns its card — the same contract the Front-End
@@ -256,7 +255,7 @@ function sn_admin_render_ai_settings_form() {
 		} else {
 			echo '<p class="sn-field-helper">' . esc_html__( 'Not run yet. This embeds every published note once (cached by content hash) and compares both rankings.', 'signal-and-noise-tools' ) . '</p>';
 		}
-		echo '<p><button type="submit" name="sn_action" value="ml_embed_compare" class="button">' . esc_html__( 'Run comparison', 'signal-and-noise-tools' ) . '</button></p>';
+		echo '<p><button type="submit"' . sn_admin_post_button( 'ml_embed_compare' ) . ' class="button">' . esc_html__( 'Run comparison', 'signal-and-noise-tools' ) . '</button></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 		echo '</div>';
 	}
 

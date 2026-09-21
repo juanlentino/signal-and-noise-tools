@@ -32,6 +32,7 @@ function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d
 function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; return true; }
 function delete_option( $k ) { unset( $GLOBALS['__options'][ $k ] ); return true; }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/../inc/resume-page.php';
 require_once __DIR__ . '/../inc/admin-forms/resume-page.php';
 
@@ -41,7 +42,7 @@ sn_admin_render_resume_section();
 $html = ob_get_clean();
 
 ok( false !== strpos( $html, 'name="_wpnonce"' ), 'nonce field rendered' );
-ok( false !== strpos( $html, 'value="resume_save"' ), 'submit posts sn_action=resume_save' );
+ok( false !== strpos( $html, 'value="sn_resume_save"' ), 'submit posts sn_action=resume_save' );
 ok( false !== strpos( $html, 'prefilled from the current published content' ), 'unsaved state explains the first-save takeover' );
 
 // Input names mirror the document shape the handler passes straight through.

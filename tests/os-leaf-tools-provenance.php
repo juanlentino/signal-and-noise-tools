@@ -136,7 +136,7 @@ ok( 3 === substr_count( $kit, '<os-button' ) && 3 === substr_count( $kit, 'os-ac
 foreach ( array( 'sn_prov_reanchor', 'sn_prov_runsweep', 'sn_prov_stage_key' ) as $a ) {
 	ok( 1 === preg_match( '/<os-button[^>]*os-action="post"[^>]*os-arg-action="' . $a . '"[^>]*os-arg-nonce="nonce-' . $a . '"[^>]*os-arg-pipeline="admin-post"/', $kit ), $a . ' is a post button carrying its own nonce and the admin-post pipeline' );
 }
-ok( false === strpos( $kit, 'nonce-sn_theme_options_nonce' ) && false === strpos( $kit, 'name="_wpnonce"' ), 'the shared nonce is nowhere on the leaf, and no hidden input carries any nonce' );
+ok( false === strpos( $kit, 'name="_wpnonce"' ), 'no hidden input carries any nonce: each button carries its own as an argument' );
 $css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
 ok( false === strpos( $css, 'snt-provenance-action' ), 'the CSS that hid the os-form chrome is gone' );
 ok(

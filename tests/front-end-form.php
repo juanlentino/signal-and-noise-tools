@@ -27,6 +27,7 @@ if ( ! function_exists( 'sn_setting' ) ) { function sn_setting( $k, $d = '' ) { 
 if ( ! function_exists( 'sn_theme_ai_models' ) ) { function sn_theme_ai_models() { return array( 'claude-sonnet-5' => 'Claude Sonnet 5' ); } }
 if ( ! function_exists( 'sn_theme_ai_vision_models' ) ) { function sn_theme_ai_vision_models() { return array( 'gemini-2.5-flash-lite' => 'Gemini 2.5 Flash-Lite' ); } }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/../inc/admin-forms/front-end.php';
 
 ob_start();
@@ -36,7 +37,7 @@ $h = ob_get_clean();
 echo "Group: render — full-width 2-up field form\n";
 fe_assert( false !== strpos( $h, 'class="sn-front-end-form"' ), 'form carries the .sn-front-end-form class (the field-grid hook)' );
 fe_assert( 1 === substr_count( $h, 'class="sn-fieldset"' ), 'form body wrapped in exactly one real .sn-fieldset card (owns chrome at full width)' );
-fe_assert( false !== strpos( $h, 'name="sn_action" value="save_theme"' ), 'carries the save_theme action' );
+fe_assert( false !== strpos( $h, 'name="action" value="sn_save_theme"' ), 'carries the save_theme action' );
 fe_assert( false !== strpos( $h, 'name="theme_related_count"' ) && false !== strpos( $h, 'name="theme_notes_per_page"' ), 'first + last fields render (form body intact)' );
 // v10.46.0: the three AI settings left this form for the AI tab. Asserting their
 // ABSENCE matters as much as the old presence checks did — a stray input left

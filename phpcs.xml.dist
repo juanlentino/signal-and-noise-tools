@@ -89,6 +89,20 @@
 		<exclude-pattern>*/inc/health-checks-admin.php</exclude-pattern>
 		<exclude-pattern>*/inc/cloudflare-purge.php</exclude-pattern>
 	</rule>
+	<!--
+		sn_admin_post_button() (inc/admin-post-handler.php) returns a submit
+		button's name/value/formaction attributes, every piece esc_attr()'d or
+		esc_url()'d inside it, so a form with several buttons can print one nonce
+		per button (#1614). Declared as an escaping function rather than
+		excluding the 12 render files that print it.
+	-->
+	<rule ref="WordPress.Security.EscapeOutput">
+		<properties>
+			<property name="customEscapingFunctions" type="array">
+				<element value="sn_admin_post_button"/>
+			</property>
+		</properties>
+	</rule>
 
 	<!--
 		ValidatedSanitizedInput.InputNotSanitized: scoped-EXCLUDED only in the

@@ -70,7 +70,6 @@ namespace {
 			return array( 'ok' => true, 'flash' => 'purged', 'target' => array( 'tab' => $get['tab'], 'sub' => $get['sub'], 'anchor' => '' ), 'reason' => '', 'detail' => '', 'pipeline' => 'shared', 'params' => array(), 'post' => array() );
 		}
 	}
-	if ( ! defined( 'SNT_OS_HOST_NONCE' ) ) { define( 'SNT_OS_HOST_NONCE', 'sn_theme_options_nonce' ); }
 	// inc/openstation-host.php is not loaded (it drags the capture); the app file requires it, so satisfy the require with the loaded frame.
 	$GLOBALS['__snt_host_stub'] = true;
 	set_include_path( get_include_path() );

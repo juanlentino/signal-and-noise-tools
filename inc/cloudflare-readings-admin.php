@@ -33,14 +33,14 @@ function sn_cf_readings_record() {
  */
 function sn_cf_readings_refresh_form( $record ) {
 	$configured = function_exists( 'sn_cf_is_configured' ) && sn_cf_is_configured();
-	echo '<form method="post" class="sn-card sn-card--narrow">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-card sn-card--narrow">';
+	wp_nonce_field( 'sn_cf_monitor_refresh' );
 	if ( is_array( $record ) && ! empty( $record['configured'] ) ) {
 		echo '<p class="sn-field-helper">' . esc_html( sprintf( 'Read %s. Refresh reads the token, the edge and the firewall again.', wp_date( 'Y-m-d H:i T', (int) $record['fetched_at'] ) ) ) . '</p>';
 	} else {
 		echo '<p class="sn-field-helper">The monitor has not run yet. It runs daily; press Refresh to run it now.</p>';
 	}
-	echo '<button type="submit" name="sn_action" value="cf_monitor_refresh" class="button"' . ( $configured ? '' : ' disabled' ) . '>Refresh now</button>';
+	echo '<button type="submit" name="action" value="sn_cf_monitor_refresh" class="button"' . ( $configured ? '' : ' disabled' ) . '>Refresh now</button>';
 	echo '</form>';
 }
 

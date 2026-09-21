@@ -40,6 +40,7 @@ if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return '
 if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { return false; } }
 if ( ! function_exists( 'sn_setting' ) ) { function sn_setting( $k, $d = null ) { return $d; } }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/../inc/admin-shell.php';
 require_once __DIR__ . '/../inc/admin-glance.php';
 require_once __DIR__ . '/../inc/cron-dashboard-admin.php';

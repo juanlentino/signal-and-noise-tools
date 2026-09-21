@@ -46,9 +46,6 @@ if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
 if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
 	define( 'MINUTE_IN_SECONDS', 60 );
 }
-if ( ! defined( 'SNT_OS_HOST_NONCE' ) ) {
-	define( 'SNT_OS_HOST_NONCE', 'sn_theme_options_nonce' );
-}
 
 // ── Hooks: a real filter chain, so painters that register through a filter
 // are reachable, and actions are recorded.
@@ -129,6 +126,7 @@ if ( ! function_exists( 'get_option' ) ) {
 if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { return false; } }
 // 17.4.4: every classic notice is wp_admin_notice() (#1618); core's markup, after the escaping stubs above.
 require_once __DIR__ . '/wp-admin-notice-stub.php';
+require_once __DIR__ . '/admin-post-url-stub.php';
 
 // ── The kit, and the Dashboard frame (painters(), leaves_for()).
 foreach ( array( 'openstation-kit', 'openstation-kit-display', 'openstation-kit-data', 'openstation-kit-forms', 'openstation-kit-triggers' ) as $snt_kit_file ) {
@@ -170,18 +168,26 @@ function snt_leaf_classic_html( callable $render ) {
 	return (string) ob_get_clean() . ( is_string( $returned ) ? $returned : '' );
 }
 
-/** @param string $html Markup. @return string[] Sorted unique `name` attributes. */
+/**
+ * @param string $html Markup.
+ * @return string[] Sorted unique `name` attributes, minus the transport the
+ *                  pipeline owns (`action`/`sn_action`, `_wpnonce`): since #1614
+ *                  a classic form with several submit buttons carries its nonces
+ *                  on the buttons' formaction= URLs, so the nonce FIELD is not a
+ *                  leaf fact on either side.
+ */
 function snt_leaf_names( $html ) {
 	preg_match_all( '/\sname=(["\'])([^"\']+)\1/', (string) $html, $m );
-	$names = array_values( array_unique( array_map( 'html_entity_decode', $m[2] ) ) );
+	$names = array_values( array_diff( array_unique( array_map( 'html_entity_decode', $m[2] ) ), array( 'action', 'sn_action', '_wpnonce', '_wp_http_referer' ) ) );
 	sort( $names );
 	return $names;
 }
 
-/** @param string $html Markup. @return string[] Sorted unique sn_action values (hidden fields, submit buttons, os-arg-action). */
+/** @param string $html Markup. @return string[] Sorted unique action values (hidden `action`/`sn_action` fields, submit buttons, os-arg-action). */
 function snt_leaf_actions( $html ) {
-	preg_match_all( '/name=(["\'])sn_action\1[^>]*value=(["\'])([^"\']+)\2|value=(["\'])([^"\']+)\4[^>]*name=(["\'])sn_action\6|os-arg-action=(["\'])([^"\']+)\7/', (string) $html, $m );
-	$out = array_values( array_unique( array_filter( array_merge( $m[3], $m[5], $m[8] ) ) ) );
+	preg_match_all( '/name=(["\'])(?:sn_)?action\1[^>]*value=(["\'])([^"\']+)\2|value=(["\'])([^"\']+)\4[^>]*name=(["\'])(?:sn_)?action\6|os-arg-action=(["\'])([^"\']+)\7/', (string) $html, $m );
+	// Table keys: the admin-post `sn_` prefix is the transport's, not the leaf's (#1614).
+	$out = array_values( array_unique( array_filter( preg_replace( '/^sn_/', '', array_merge( $m[3], $m[5], $m[8] ) ) ) ) );
 	sort( $out );
 	return $out;
 }

@@ -39,7 +39,7 @@ ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( array( 'uses_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is uses_save, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the form is an os-form dispatching post through the shared action table (no pipeline declared, as the classic posts to the current URL)' );
+ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the form is an os-form dispatching post through the admin-post pipeline (no pipeline declared: an action field is admin-post)' );
 ok( false !== strpos( $kit, 'submit-label="Save uses page"' ), 'the submit is "Save uses page"' );
 ok( false !== strpos( $kit, 'heading="Uses page"' ), 'the "Uses page" heading survives as the section heading' );
 ok( false !== strpos( $kit, 'os-arg-url="https://example.test/about/uses"' ) && false !== strpos( $kit, '>/about/uses</os-button>' ), 'the /about/uses link is painted as a door (14.7.5: same origin is a window)' );
@@ -54,7 +54,7 @@ ok( false !== strpos( $kit, 'label="Group label"' ) && false !== strpos( $kit, '
 ok( false !== strpos( $kit, 'label="Items — one per line, name | note"' ) && false !== strpos( $kit, 'rows="5"' ) && false !== strpos( $kit, "placeholder=\"SSL UF8 | Advanced DAW controller\nAnother thing\"" ), 'the items textarea keeps its label, rows and placeholder' );
 ok( false !== strpos( $kit, 'hint="The note after | is optional. A note with no name is refused at save rather than filed under a blank entry."' ), 'the per-card helper survives as the field hint' );
 ok( false !== strpos( $kit, 'Each card is one gear group' ) && false !== strpos( $kit, 'never silently blanked' ), 'the form-level helper survives as a hint' );
-ok( false !== strpos( $kit, 'name="sn_action" value="uses_save"' ) && false !== strpos( $kit, 'name="_wpnonce"' ), 'the action and the nonce ride as hidden fields' );
+ok( false !== strpos( $kit, 'name="action" value="sn_uses_save"' ) && false !== strpos( $kit, 'name="_wpnonce"' ), 'the action and the nonce ride as hidden fields' );
 ok( false === strpos( $kit, '__I__' ) && false === strpos( $kit, 'data-rsm' ), 'no JS-template plumbing leaks into the kit markup' );
 
 // ── Escaping: a hostile stored document never reaches the markup raw.

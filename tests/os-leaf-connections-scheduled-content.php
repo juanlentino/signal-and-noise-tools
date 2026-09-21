@@ -98,7 +98,7 @@ ok( false !== strpos( $kit, 'Run swap now' ) && false !== strpos( $kit, 'name="h
 ok( false !== strpos( $kit, 'in 1 hour' ), 'a pending boundary reads as a relative "in …" time (fixture-fed human_time_diff)' );
 ok( false !== strpos( $kit, '&mdash;' ), 'a row with no pending boundary (both past) falls back to the dash placeholder' );
 
-ok( false !== strpos( $kit, 'name="row_id" value="201"' ) && false !== strpos( $kit, 'value="schedule_run_now"' ) && false !== strpos( $kit, 'value="schedule_repurge"' ), 'the fragment row carries its own row_id into both ops' );
+ok( false !== strpos( $kit, 'name="row_id" value="201"' ) && false !== strpos( $kit, 'value="sn_schedule_run_now"' ) && false !== strpos( $kit, 'value="sn_schedule_repurge"' ), 'the fragment row carries its own row_id into both ops' );
 
 // ── Escaping: a hostile action string never reaches the markup raw.
 $GLOBALS['__sched_fragments'][0]['action'] = '"><script>x</script>';

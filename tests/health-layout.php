@@ -104,6 +104,7 @@ if ( ! function_exists( 'snt_pattern_adoption_render_opportunities_section' ) ) 
 	function snt_pattern_adoption_render_opportunities_section() { echo '<div class="sn-fieldset">SNT-OPPS-MARKER</div>'; }
 }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/../inc/health-summary.php'; // finding-total + flagged-checks accessors the glance hero shares
 require_once __DIR__ . '/../inc/admin-glance.php';
 // v10.83.0: the IA render modules the tab now delegates to.
@@ -160,7 +161,7 @@ $html = ob_get_clean();
 
 he_assert( false === strpos( $html, 'sn-shell' ), 'no two-column shell/rail — full-width layout' );
 he_assert( false !== strpos( $html, '<div class="sn-glance">' ), 'leads with the first-glance hero' );
-he_assert( false !== strpos( $html, 'value="health_scan"' ), 'run-scan control present' );
+he_assert( false !== strpos( $html, 'value="sn_health_scan"' ), 'run-scan control present' );
 he_assert( false !== strpos( $html, 'name="_wpnonce"' ), 'run-scan form is nonce-protected' );
 he_assert( false !== strpos( $html, '<h2 class="sn-section-h">Findings</h2>' ), 'Findings section heading present' );
 he_assert( false !== strpos( $html, 'Missing alt text' ), 'finding card for the failing check' );
@@ -228,7 +229,7 @@ he_assert( false !== strpos( $reports_html, 'background-color:#b3421a' ), 'a swa
 he_assert( false !== strpos( $reports_html, '>ink</span>' ), 'the legend names token SLUGS, not just hexes' );
 
 $glance_at   = strpos( $html, '<div class="sn-glance">' );
-$scan_at     = strpos( $html, 'value="health_scan"' );
+$scan_at     = strpos( $html, 'value="sn_health_scan"' );
 $findings_at = strpos( $html, '<h2 class="sn-section-h">Findings</h2>' );
 $reports_at  = strpos( $html, '<h2 class="sn-section-h">Reports</h2>' );
 $passing_at  = strpos( $html, 'sn-health-passing' );

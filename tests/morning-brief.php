@@ -61,6 +61,7 @@ function snt_deploy_runs_age_label( $runs ) { return '2 hours ago'; }
 $GLOBALS['__drift'] = array( 'has_drift' => false, 'count' => 0, 'changed' => array(), 'added' => array(), 'removed' => array() );
 function snt_config_drift_status() { return $GLOBALS['__drift']; }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require __DIR__ . '/../inc/morning-brief.php';
 
 $pass = 0; $fail = 0;

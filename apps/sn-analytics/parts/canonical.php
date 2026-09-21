@@ -41,7 +41,7 @@ function canonical_piece( $key, array $ctx ) {
 		return null;
 	}
 	$html = native_capture( $ctx['get'], $paint );
-	$html = \snt_os_host_keep_forms( $html, \snt_os_analytics_keep_actions(), function_exists( 'snt_analytics_page_url' ) ? \snt_analytics_page_url() : '' );
+	$html = \snt_os_host_keep_forms( $html, \snt_os_analytics_keep_actions(), function_exists( 'admin_url' ) ? admin_url( 'admin-post.php' ) : '' );
 	$html = \snt_os_host_rewrite( $html, array( page_slug() ) );
 	// Report doorways cross native tab sessions; filters stay on this tab.
 	if ( class_exists( 'WP_HTML_Tag_Processor' ) ) {

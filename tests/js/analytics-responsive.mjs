@@ -117,7 +117,7 @@ for (const [width,height,appWidth,appHeight,mobile] of cases) {
    checks.refreshRetainsState=JSON.stringify(before)===JSON.stringify(await page.evaluate(()=>window.fixtureState));
    checks.refreshDispatched=await page.evaluate(()=>window.fixtureEvents.filter(b=>b.action==='refresh').length===3);
    for(const format of ['CSV','JSON'])await page.locator('.snt-export').getByRole('button',{name:format,exact:true}).click();
-   checks.exports=await page.evaluate(()=>window.fixtureExports.length===2&&window.fixtureExports.every((v,i)=>v.format===(i?'json':'csv')&&v.sn_range==='custom'&&v.sn_class==='suspect'&&v.sn_from==='2026-09-01'&&v.sn_to==='2026-09-07'&&v._wpnonce==='nonce-sn_theme_options_nonce'&&v.sn_action==='analytics_export'));
+   checks.exports=await page.evaluate(()=>window.fixtureExports.length===2&&window.fixtureExports.every((v,i)=>v.format===(i?'json':'csv')&&v.sn_range==='custom'&&v.sn_class==='suspect'&&v.sn_from==='2026-09-01'&&v.sn_to==='2026-09-07'&&v._wpnonce==='nonce-sn_analytics_export'&&v.action==='sn_analytics_export'));
    const summary=page.locator('.sn-an-headline > summary');await summary.focus();await summary.press('Enter');
    checks.insightKeyboard=await page.locator('.sn-an-headline').getAttribute('open')!==null&&await page.getByText('Review acquisition sources before changing publishing cadence.',{exact:false}).isVisible();
    await page.screenshot({path:path.join(out,id+'-expanded.png')});

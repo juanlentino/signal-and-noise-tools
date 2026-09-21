@@ -313,9 +313,9 @@ add_action( SN_SECURITY_DIGEST_CRON_HOOK, 'snt_security_digest_weekly_cron_cb' )
 function snt_security_digest_render_settings() {
 	$last_sent = (int) get_option( SN_SECURITY_DIGEST_LAST_SENT, 0 );
 	$last_err  = get_option( SN_SECURITY_DIGEST_LAST_ERROR );
-	echo '<form method="post" class="sn-fieldset">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="security_digest_save" />';
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset">';
+	wp_nonce_field( 'sn_security_digest_save' );
+	echo '<input type="hidden" name="action" value="sn_security_digest_save" />';
 	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'Weekly security digest', 'signal-and-noise-tools' ) . '</h2>';
 	echo '<label><input type="checkbox" name="sn_digest_enabled" value="1" ';
 	checked( snt_security_digest_enabled() );

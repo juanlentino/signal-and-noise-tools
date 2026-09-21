@@ -4,8 +4,8 @@
  *
  * Render-only. Form actions (webhook_add / webhook_update /
  * webhook_delete) route through inc/admin-page.php's
- * sn_handle_admin_post dispatcher — same shared-nonce pattern
- * (sn_theme_options_nonce) and PRG flow as every other SN tab.
+ * sn_handle_admin_post dispatcher through admin-post.php, one nonce per
+ * action (sn_<action>), and the same PRG flow as every other SN tab.
  *
  * Uses the bespoke .sn-fieldset / .sn-field / .sn-card-grid design
  * system (matches cloudflare-purge.php, plausible-admin.php).
@@ -48,8 +48,7 @@ function sn_webhooks_render_admin_tab() {
 	foreach ( $webhooks as $wh ) {
 		$is_new = ( $new_id === $wh['id'] );
 
-		echo '<form method="post">';
-		wp_nonce_field( 'sn_theme_options_nonce' );
+		echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'webhook_update' ) ) . '">';
 		echo '<input type="hidden" name="webhook_id" value="' . esc_attr( $wh['id'] ) . '">';
 
 		// v13.20.3: --wide. Each webhook card carries a FIVE-column delivery log
@@ -102,9 +101,9 @@ function sn_webhooks_render_admin_tab() {
 		echo '</div>';
 
 		echo '<div class="sn-fieldset-actions">';
-		echo '<button type="submit" name="sn_action" value="webhook_update" class="button button-primary">Save changes</button>';
+		echo '<button type="submit"' . sn_admin_post_button( 'webhook_update' ) . ' class="button button-primary">Save changes</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 		// v4.1.1 (U-01): replaced onclick="return confirm(...)" with data-snt-confirm attribute.
-		echo ' <button type="submit" name="sn_action" value="webhook_delete" class="button button-link-delete" data-snt-confirm="' . esc_attr__( 'Pending retries will be dropped. This cannot be undone.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Delete this webhook?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Delete', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Delete</button>';
+		echo ' <button type="submit"' . sn_admin_post_button( 'webhook_delete' ) . ' class="button button-link-delete" data-snt-confirm="' . esc_attr__( 'Pending retries will be dropped. This cannot be undone.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Delete this webhook?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Delete', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Delete</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 		echo '</div>';
 
 		echo '</div>'; // .sn-fieldset
@@ -141,8 +140,8 @@ function sn_webhooks_render_admin_tab() {
 	}
 
 	// ── ADD NEW ──
-	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+	wp_nonce_field( 'sn_webhook_add' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Add a webhook</h2>';
 	echo '<p class="sn-fieldset-intro">A signing secret is generated automatically and shown once after save.</p>';
@@ -173,7 +172,7 @@ function sn_webhooks_render_admin_tab() {
 	echo '</div>';
 
 	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" name="sn_action" value="webhook_add" class="button button-primary">Add webhook</button>';
+	echo '<button type="submit" name="action" value="sn_webhook_add" class="button button-primary">Add webhook</button>';
 	echo '</div>';
 
 	echo '</div>'; // .sn-fieldset

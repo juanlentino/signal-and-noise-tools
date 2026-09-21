@@ -45,7 +45,7 @@ function cf_table_prop( $html, $prop ) {
 /** 15.2.0: field names minus the framing names every classic form carries; the leaf holds no credential field any more. */
 function cf_fields( $html ) { return array_values( array_diff( snt_leaf_names( $html ), array( '_wpnonce', 'sn_action' ) ) ); }
 function cf_purge_disabled( $html ) {
-	if ( ! preg_match( '/<os-button[^>]*os-arg-action="cf_purge_now"[^>]*>Purge all caches</', $html, $m ) ) { return null; }
+	if ( ! preg_match( '/<os-button[^>]*os-arg-action="sn_cf_purge_now"[^>]*>Purge all caches</', $html, $m ) ) { return null; }
 	return 1 === preg_match( '/\sdisabled(\s|>)/', $m[0] );
 }
 
@@ -179,7 +179,7 @@ $with_log = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( false === strpos( $with_log, 'Top paths acted on' ) && false === strpos( $with_log, 'heading="Firewall, 24 hours"' ) && false === strpos( $with_log, 'heading="Edge, 7 days"' ), '15.3.0: with a stored reading, this leaf still paints no Edge and no Firewall (they moved)' );
 ok( false !== strpos( $with_log, 'heading="Token"' ) && false !== strpos( $with_log, 'active · user' ) && false !== strpos( $with_log, '>Verified</dt>' ) && strpos( $with_log, 'heading="Token"' ) > strpos( $with_log, 'heading="Cache"' ), '15.1.0: the token\'s health is its own section, with when it was verified; 17.4.1 seats it on the row under Credentials and Cache' );
 ok( false !== strpos( $with_log, 'heading="Cache"' ) && false === strpos( $with_log, 'heading="Monitor"' ), 'the Cache box stands; no Monitor section' );
-ok( 1 === substr_count( $with_log, 'os-arg-action="cf_monitor_refresh"' ) && strpos( $with_log, 'os-arg-action="cf_monitor_refresh"' ) > strpos( $with_log, 'heading="Token"' ) && false !== strpos( $with_log, 'Refresh reads the token, the edge and the firewall again' ), '15.3.0: one Refresh footer, under Token, saying what it refreshes' );
+ok( 1 === substr_count( $with_log, 'os-arg-action="sn_cf_monitor_refresh"' ) && strpos( $with_log, 'os-arg-action="sn_cf_monitor_refresh"' ) > strpos( $with_log, 'heading="Token"' ) && false !== strpos( $with_log, 'Refresh reads the token, the edge and the firewall again' ), '15.3.0: one Refresh footer, under Token, saying what it refreshes' );
 ok( array( 'cf_monitor_refresh', 'cf_purge_now' ) === snt_leaf_actions( $with_log ), 'still the two actions' );
 $GLOBALS['__options'] = $opts_before;
 ok( false !== strpos( $kit, '>locked by SN_CLOUDFLARE_ZONE_ID</dd>' ) && false === strpos( $kit, 'zoneconst0123456789' ), 'both locked: the zone reads as locked and its constant value is not painted' );

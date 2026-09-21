@@ -284,10 +284,10 @@ function sn_admin_mcp_status_state() {
 }
 
 /**
- * Echo the remote-door toggle. The house admin form pattern: a POST back to the
- * same screen carrying the shared sn_theme_options_nonce and an sn_action, read
- * by the existing options handler — no settings-API registration, no bespoke
- * admin_post_ hook.
+ * Echo the remote-door toggle. The house admin form pattern: a POST to
+ * admin-post.php carrying action=sn_remote_toggle and that action's nonce, read
+ * by the existing options handler: no settings-API registration, no bespoke
+ * hook of its own.
  *
  * The checkbox is disabled when SN_MCP_REMOTE_DISABLED is set: a door killed in
  * wp-config must not look reopenable from the web.
@@ -298,9 +298,9 @@ function sn_admin_render_mcp_remote_toggle() {
 	$constant_killed = defined( 'SN_MCP_REMOTE_DISABLED' ) && SN_MCP_REMOTE_DISABLED;
 	$door_open       = function_exists( 'sn_mcp_remote_kill_switch_engaged' ) && ! sn_mcp_remote_kill_switch_engaged();
 	?>
-	<form method="post">
-		<?php wp_nonce_field( 'sn_theme_options_nonce' ); ?>
-		<input type="hidden" name="sn_action" value="remote_toggle" />
+	<form method="post" action="<?php echo esc_url( sn_admin_post_url() ); ?>">
+		<?php wp_nonce_field( 'sn_remote_toggle' ); ?>
+		<input type="hidden" name="action" value="sn_remote_toggle" />
 		<label>
 			<input type="checkbox" name="sn_remote_enabled" value="1"
 				<?php checked( $door_open ); ?>

@@ -42,6 +42,7 @@ function snt_mr_crawler_list_status() { return array( 'last_check_ok' => '1', 'l
 function sn_rss_tracker_window_stats_multi( $windows ) { return $GLOBALS['__mr_feed']; }
 
 require __DIR__ . '/../inc/machine-readers-taxonomy.php';
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require __DIR__ . '/../inc/machine-readers-render.php';
 require __DIR__ . '/../inc/machine-readers-render-taxonomy.php'; // v10.79.0: the tab renders purpose/vendor tables.

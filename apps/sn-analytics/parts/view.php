@@ -63,8 +63,8 @@ function capture( array $get, ?callable $paint = null ) {
  *
  * `snt_os_host_keep_forms()` runs BEFORE the rewrite because the rewrite is
  * what reads the marker: the export form must come out of the pass still a
- * form, with an action and a new tab, and everything else must come out a
- * dispatch.
+ * form, posting to admin-post.php in a new tab, and everything else must come
+ * out a dispatch.
  *
  * The own-page list is exactly this page's slug. `sn-theme-options` is
  * deliberately NOT in it — the unconfigured gate's "Configure analytics →" and
@@ -84,7 +84,7 @@ function dashboard_html( State $state ) {
 	$html = \snt_os_host_keep_forms(
 		$html,
 		\snt_os_analytics_keep_actions(),
-		function_exists( 'snt_analytics_page_url' ) ? (string) \snt_analytics_page_url() : ''
+		function_exists( 'admin_url' ) ? (string) admin_url( 'admin-post.php' ) : ''
 	);
 	return \snt_os_host_rewrite( $html, array( page_slug() ) );
 }

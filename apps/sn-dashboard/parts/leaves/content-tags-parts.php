@@ -74,7 +74,7 @@ function tags_form( $method, array $hidden, $inner, $submit, array $opts = array
  * @return array<string,string>
  */
 function tags_post_hidden( $sn_action ) {
-	return array( 'sn_action' => (string) $sn_action, '_wpnonce' => \snt_kit_nonce() );
+	return array( 'action' => \snt_kit_hook_action( $sn_action ), '_wpnonce' => \snt_kit_nonce( $sn_action ) );
 }
 
 /**

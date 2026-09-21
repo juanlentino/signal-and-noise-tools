@@ -5,7 +5,7 @@
  * The classic leaf (`sn_rss_tracker_render_admin_tab()`, inc/rss-feed-tracker.php:608,
  * hooked to `sn_admin_rss_tab` and wrapped by `sn_admin_render_rss_section()`,
  * inc/admin-render-sections.php:131) is the ONE leaf on this tab that bypasses
- * the shared `sn_action` + `sn_theme_options_nonce` pipeline entirely: its form
+ * the estate's admin-post.php `action` + `sn_<action>` nonce pipeline entirely: its form
  * field is `sn_rss_action`, its nonce action is `SN_RSS_TRACKER_NONCE`
  * (`sn_rss_tracker_action`), and its flash query arg is `sn_rss_ok` — read
  * directly at inc/rss-feed-tracker.php:615, bypassing the shared `?sn_flash=`

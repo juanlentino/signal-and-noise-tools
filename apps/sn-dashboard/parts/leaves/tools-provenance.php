@@ -44,30 +44,21 @@ if ( ! defined( 'ABSPATH' ) ) {
  * shape for a one-click write (docs/openstation-compat.md). Mirrors the
  * classic leaf's `<form action="admin-post.php">` around a lone `<button>`.
  *
- * The nonce is `wp_create_nonce( $action )`, the handler's OWN action, not
- * `snt_kit_nonce()`: every one of these five handlers calls
- * `check_admin_referer( $action )` against its own name
- * (inc/provenance-admin.php, inc/provenance-rotation.php,
+ * The nonce is `wp_create_nonce( $action )`, the handler's OWN action: every
+ * one of these five handlers calls `check_admin_referer( $action )` against
+ * its own name (inc/provenance-admin.php, inc/provenance-rotation.php,
  * inc/provenance-chain-backfill.php), exactly as the classic
- * `wp_nonce_field( $action )` per form does. None of the five confirms:
- * classic confirms none, and the rotation handler's docblock refuses a
- * dialog on purpose (the commitment step IS the second act).
+ * `wp_nonce_field( $action )` per form does, and since #1614 exactly as every
+ * table action does. None of the five confirms: classic confirms none, and
+ * the rotation handler's docblock refuses a dialog on purpose (the commitment
+ * step IS the second act).
  *
  * @param string $action WP admin-post action name.
  * @param string $label  Button label.
  * @return string
  */
 function provenance_post_action( $action, $label ) {
-	return \snt_kit_action_button(
-		(string) $label,
-		(string) $action,
-		array(
-			'args' => array(
-				'pipeline' => 'admin-post',
-				'nonce'    => function_exists( 'wp_create_nonce' ) ? (string) wp_create_nonce( (string) $action ) : '',
-			),
-		)
-	);
+	return \snt_kit_action_button( (string) $label, (string) $action );
 }
 
 /**

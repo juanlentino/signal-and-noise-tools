@@ -45,10 +45,10 @@ ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['site/front-end'] )
 $classic = snt_leaf_classic_html( 'sn_admin_render_front_end_form' );
 $kit     = snt_leaf_paint( 'site', 'front-end' );
 ok( '' !== $kit, 'the kit leaf paints' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 10 === count( snt_leaf_names( $kit ) ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 8 === count( snt_leaf_names( $kit ) ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( array( 'save_theme' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is save_theme, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( false !== strpos( $kit, '<os-form class="snt-form" os-action="post" submit-label="Save front-end settings" show-reset="false" columns="auto">' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the form is an os-form dispatching post on the shared sn_action table, auto columns for the wide leaf, the classic submit label' );
+ok( false !== strpos( $kit, '<os-form class="snt-form" os-action="post" submit-label="Save front-end settings" show-reset="false" columns="auto">' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the form is an os-form dispatching post on the admin-post pipeline, auto columns for the wide leaf, the classic submit label' );
 $defaults = array();
 foreach ( $knobs as $name => $b ) { $defaults[] = $number_tag( $name, $b[2] ); }
 ok( has_all( $kit, $defaults, $missing ), 'defaults: every number knob carries the theme default and its classic bounds' . ( $missing ? ' — missing ' . implode( ' | ', $missing ) : '' ) );

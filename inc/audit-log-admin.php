@@ -35,7 +35,7 @@ if ( ! defined( 'SN_AUDIT_LOGIN_DISPLAY_MAX' ) ) {
 function snt_audit_log_render_tab() {
 	// Handle "Prune now" POST first so the redirect happens before output.
 	if ( isset( $_POST['sn_action'] ) && 'audit_prune_now' === $_POST['sn_action'] ) {
-		check_admin_referer( 'sn_theme_options_nonce' );
+		check_admin_referer( 'sn_audit_prune_now' );
 		if ( current_user_can( 'manage_options' ) ) {
 			$stats = snt_audit_prune_impl();
 			wp_admin_notice(
@@ -297,7 +297,7 @@ function snt_audit_log_render_prune_form() {
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Maintenance</h2>';
 	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	wp_nonce_field( 'sn_audit_prune_now' );
 	echo '<input type="hidden" name="sn_action" value="audit_prune_now">';
 	$retention_days = (int) sn_setting( 'audit.retention_days', 90 );
 	echo '<p class="sn-prose">Manually run the daily prune now. Drops counter buckets and login_success rows older than ' . esc_html( $retention_days ) . ' days, plus polls LLA for new lockouts.</p>';
@@ -334,9 +334,9 @@ function snt_audit_log_render_prune_form() {
 function snt_audit_log_render_retention_form() {
 	$retention = (int) sn_setting( 'audit.retention_days', 90 );
 
-	echo '<form method="post" class="sn-fieldset">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="audit_save_retention">';
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset">';
+	wp_nonce_field( 'sn_audit_save_retention' );
+	echo '<input type="hidden" name="action" value="sn_audit_save_retention">';
 	echo '<h2 class="sn-fieldset-h">Retention</h2>';
 	echo '<label class="sn-field-label" for="sn_audit_retention">Retention (days)</label>';
 	echo '<input type="number" id="sn_audit_retention" name="audit_retention_days" class="small-text" min="7" max="365" value="' . esc_attr( (string) $retention ) . '">';

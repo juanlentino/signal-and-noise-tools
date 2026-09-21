@@ -238,10 +238,10 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $c
 	// Export — POST form with button-secondary pills.
 	echo '<div class="sn-control-group" role="group" aria-label="' . esc_attr__( 'Export', 'signal-and-noise-tools' ) . '">';
 	echo '<span class="sn-control-label">' . esc_html__( 'Export', 'signal-and-noise-tools' ) . '</span>';
-	echo '<form class="sn-an-export" method="post" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form class="sn-an-export" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+	wp_nonce_field( 'sn_analytics_export' );
 	echo '<input type="hidden" name="page" value="sn-theme-options">';
-	echo '<input type="hidden" name="sn_action" value="analytics_export">';
+	echo '<input type="hidden" name="action" value="sn_analytics_export">';
 	echo '<input type="hidden" name="sn_range" value="' . esc_attr( (string) $range ) . '">';
 	echo '<input type="hidden" name="sn_class" value="' . esc_attr( (string) $class ) . '">';
 	if ( 'custom' === (string) $range ) {

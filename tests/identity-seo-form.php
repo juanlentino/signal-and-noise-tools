@@ -32,6 +32,7 @@ if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlsp
 if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a = -1 ) { echo '<input type="hidden" name="_wpnonce">'; } }
 if ( ! function_exists( 'sn_setting' ) ) { function sn_setting( $k, $d = '' ) { return $d; } }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/../inc/admin-tabs.php';          // sn_admin_render_section (the section-card wrapper)
 require_once __DIR__ . '/../inc/admin-forms/identity-and-seo.php';
 
@@ -41,8 +42,8 @@ ob_start();
 sn_admin_render_identity_and_seo_form();
 $html = ob_get_clean();
 
-id_assert( false !== strpos( $html, '<form method="post" class="sn-identity-form">' ), 'emits the sn-identity-form' );
-id_assert( false !== strpos( $html, 'name="sn_action" value="save_identity"' ), 'carries the single save_identity action' );
+id_assert( false !== strpos( $html, '<form method="post" action="https://example.test/wp-admin/admin-post.php" class="sn-identity-form">' ), 'emits the sn-identity-form' );
+id_assert( false !== strpos( $html, 'name="action" value="sn_save_identity"' ), 'carries the single save_identity action' );
 foreach ( array( 'sn-sec-identity', 'sn-sec-social', 'sn-sec-open-graph', 'sn-sec-seo-copy' ) as $anchor ) {
 	id_assert( false !== strpos( $html, 'id="' . $anchor . '"' ), "section anchor #$anchor present" );
 }

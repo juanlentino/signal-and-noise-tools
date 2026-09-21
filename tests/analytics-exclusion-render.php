@@ -37,6 +37,7 @@ function sn_beacon_owner_current_user_excluded() {
 	return (bool) $GLOBALS['__viewer_excluded'];
 }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require __DIR__ . '/../inc/analytics-admin-render.php';
 
 $pass = 0;
@@ -57,7 +58,7 @@ ok( preg_match( '/value="administrator"\s+checked/', $h ) === 1, 'configured rol
 ok( preg_match( '/value="editor"\s+checked/', $h ) === 0, 'unconfigured role (editor) is NOT checked' );
 ok( strpos( $h, 'currently excluded from analytics' ) !== false, 'status line reflects excluded viewer' );
 ok( strpos( $h, 'wordpress_logged_in_' ) !== false, 'CDN logged-in-bypass note present' );
-ok( strpos( $h, 'value="analytics_exclude_save"' ) !== false, 'save button posts the exclude action' );
+ok( strpos( $h, 'value="sn_analytics_exclude_save"' ) !== false, 'save button posts the exclude action' );
 ok( strpos( $h, 'name="_wpnonce"' ) !== false, 'nonce field present' );
 
 // Viewer-not-excluded path flips the status line.

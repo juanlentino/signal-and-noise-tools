@@ -72,6 +72,7 @@ if ( ! defined( 'SN_AUDIT_LOGIN_SUCCESS_CAP' ) ) {
 	define( 'SN_AUDIT_LOGIN_SUCCESS_CAP', (int) ( $sn_cap_m[1] ?? 0 ) );
 }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/../inc/admin-shell.php';    // real shell primitive
 require_once __DIR__ . '/../inc/audit-log-admin.php'; // SUT
 

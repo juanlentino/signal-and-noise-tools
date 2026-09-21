@@ -162,7 +162,7 @@ function normalize_exclude_names( array $names ) {
 
 $classic_names = snt_leaf_names( $classic );
 $kit_names     = snt_leaf_names( $kit );
-$expected_names = array( '_wpnonce', 'sn_action', 'sn_an_collector_url', 'sn_anomaly_sensitivity', 'sn_exclude_roles[0]', 'sn_exclude_roles[1]', 'sn_funnels', 'sn_signal_baseline_days' ); // 15.2.0: the two credential fields moved to the keyring
+$expected_names = array( 'sn_an_collector_url', 'sn_anomaly_sensitivity', 'sn_exclude_roles[0]', 'sn_exclude_roles[1]', 'sn_funnels', 'sn_signal_baseline_days' ); // 15.2.0: the two credential fields moved to the keyring
 sort( $expected_names );
 ok( $expected_names === $kit_names, 'kit field names are exactly the classic writable set (role list now indexed per role): ' . implode( ',', $kit_names ) . ' (classic: ' . implode( ',', $classic_names ) . ')' );
 ok( normalize_exclude_names( $classic_names ) === normalize_exclude_names( $kit_names ), 'the kit form fields match the classic forms name-for-name once the role list’s per-role indexed names are folded back to the classic’s one shared name' );

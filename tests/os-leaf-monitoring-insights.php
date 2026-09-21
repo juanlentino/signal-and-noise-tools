@@ -92,7 +92,7 @@ ok( 2 === substr_count( $kit, '<div class="snt-cols">' ) && false === strpos( $k
 $GLOBALS['__ai_ready'] = false;
 $kit = snt_leaf_paint( 'monitoring', 'insights' );
 ok( false !== strpos( $kit, 'AI client not available' ) && false !== strpos( $kit, 'ai-wp-admin' ) && false !== strpos( $kit, 'page=connectors' ), 'AI-unavailable state: the setup-steps notice with both doors is shown' );
-ok( 1 === preg_match( '/<os-form[^>]*busy[^>]*sn_action" value="insights_run"/s', $kit ) || 1 === preg_match( '/name="sn_action" value="insights_run".*?<\/os-form>/s', $kit ), 'AI-unavailable state: the Run Analysis form is present and gated (busy)' );
+ok( 1 === preg_match( '/<os-form[^>]*busy[^>]*sn_action" value="sn_insights_run"/s', $kit ) || 1 === preg_match( '/name="action" value="sn_insights_run".*?<\/os-form>/s', $kit ), 'AI-unavailable state: the Run Analysis form is present and gated (busy)' );
 $GLOBALS['__ai_ready'] = true;
 
 // ── State 3: a scan ran, force checkbox appears, no recommendations. ──

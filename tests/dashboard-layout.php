@@ -39,6 +39,7 @@ function get_posts( $a = array() ) { return array(); }
 function snt_rate_limit_all_statuses() { return array(); }
 function sn_rss_tracker_window_stats_multi( $w ) { return array( 'windows' => array(), 'most_recent' => '' ); }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require __DIR__ . '/../inc/admin-tabs-data.php';   // (only the removed wayfinder used this; harmless to load)
 require __DIR__ . '/../inc/admin-glance.php';      // Phase 1: the glance-grid helper the hero uses
 if ( ! function_exists( 'get_current_user_id' ) ) { function get_current_user_id() { return 1; } }

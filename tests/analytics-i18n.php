@@ -145,6 +145,7 @@ function wp_nonce_field( $a = -1, $b = '_wpnonce', $c = true, $d = true ) { echo
 $GLOBALS['__settings_opts'] = array( SN_CF_ACCOUNT_ID_OPT => '', SN_CF_ANALYTICS_TOKEN_OPT => '' );
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__settings_opts'] ) ? $GLOBALS['__settings_opts'][ $k ] : $d; }
 function sn_mask_secret( $s ) { return '' === (string) $s ? '' : '••••'; }
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require_once __DIR__ . '/../inc/analytics-render-settings.php';
 
@@ -165,7 +166,7 @@ define( 'SN_CF_ANALYTICS_TOKEN', 'shh-secret' );
 $html2 = capture( 'snt_analytics_render_credentials' );
 ok( sn_i18n_seen( 'An analytics token override is in force; the Cloudflare API token is not used for these reads. Clear the override on the keyring to use one token.' ), 'the override notice translatable' );
 ok( false !== strpos( $html2, '<code>locked by SN_CF_ACCOUNT_ID</code>' ) && false === strpos( $html2, 'shh-secret' ) && false === strpos( $html2, 'abc123' ), 'locked: the account names its constant; neither constant value is painted' );
-ok( 1 === substr_count( $html2, '<button' ) && false !== strpos( $html2, 'value="analytics_test"' ), 'both constants locked → only the Test button (15.2.0: nothing to save here any more)' );
+ok( 1 === substr_count( $html2, '<button' ) && false !== strpos( $html2, 'value="sn_analytics_test"' ), 'both constants locked → only the Test button (15.2.0: nothing to save here any more)' );
 
 echo "\nTest: settings surface: worker-setup reference routes the summary + setup-doc <li>s through i18n\n";
 $html3 = capture( 'snt_analytics_render_worker_setup' );

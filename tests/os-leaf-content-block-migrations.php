@@ -69,7 +69,7 @@ foreach ( array( 'no scan yet' => null, 'empty envelope' => array(), 'clean scan
 	ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), "$label: field names match the classic form: " . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 	ok( array( 'block_migrations_scan' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), "$label: the one action is block_migrations_scan, as on the classic leaf" );
 	ok( array() === snt_leaf_classic_markers( $kit ), "$label: no wp-admin markup survives: " . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-	ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false !== strpos( $kit, 'name="sn_action" value="block_migrations_scan"' ), "$label: the scan form is an os-form dispatching post with the hidden sn_action" );
+	ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false !== strpos( $kit, 'name="action" value="sn_block_migrations_scan"' ), "$label: the scan form is an os-form dispatching post with the hidden sn_action" );
 	ok( false !== strpos( $kit, 'Scans published and scheduled posts for structural issues' ) && false !== strpos( $kit, 'heading="Block migrations"' ), "$label: the section heading and the intro survive" );
 }
 

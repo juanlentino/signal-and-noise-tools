@@ -76,8 +76,8 @@ function sn_admin_render_uses_section() {
 		$groups = (array) sn_uses_groups();
 	}
 
-	echo '<form method="post" class="sn-rsm-form">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-rsm-form">';
+	wp_nonce_field( 'sn_uses_save' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Uses page</h2>';
 
@@ -101,7 +101,7 @@ function sn_admin_render_uses_section() {
 	echo '<button type="button" class="button sn-rsm-add" data-rsm-add="uses-groups">+ Add group</button>';
 
 	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" name="sn_action" value="uses_save" class="button button-primary">Save uses page</button>';
+	echo '<button type="submit" name="action" value="sn_uses_save" class="button button-primary">Save uses page</button>';
 	echo '</div>';
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';

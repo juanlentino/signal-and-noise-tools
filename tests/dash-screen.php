@@ -24,6 +24,7 @@ if ( ! function_exists( 'esc_url' ) ) { function esc_url( $s ) { return (string)
 if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n ) { return number_format( (float) $n ); } }
 if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a, $n = '_wpnonce', $r = true ) { echo '<input type="hidden">'; } }
 if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return '/wp-admin/' . $p; } }
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require __DIR__ . '/../inc/admin-glance.php';
 require __DIR__ . '/../inc/dash-verdict.php';
 require __DIR__ . '/../inc/dash-signals.php';

@@ -33,19 +33,18 @@ function sn_admin_render_indexnow_section() {
 	// ── ENABLE FORM (carded — IndexNow is a wide leaf, so the section wrapper
 	// provides no card; the form must own its chrome, or the .sn-savebar's
 	// negative card-bleed margin overflows the bare .sn-section). v6.43.1. ──
-	echo '<form method="post" class="sn-fieldset"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="indexnow">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<input type="hidden" name="sn_action" value="indexnow_save">';
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="indexnow">';
+	wp_nonce_field( 'sn_indexnow_save' );
+	echo '<input type="hidden" name="action" value="sn_indexnow_save">';
 	echo '<h2 class="sn-fieldset-h">IndexNow</h2>';
 	echo '<div class="sn-field"><label><input type="checkbox" name="indexnow_enabled" value="1"' . checked( $enabled, true, false ) . '> Notify search engines when content changes</label></div>';
 	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">Save IndexNow settings</button></div></form>';
 
 	// ── ACTIONS (regenerate + backfill) ──
-	echo '<form method="post" class="sn-card sn-card--narrow"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="indexnow">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'indexnow_ping_now' ) ) . '" class="sn-card sn-card--narrow"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="indexnow">';
 	echo '<strong>Maintenance</strong><p class="sn-helper">&ldquo;Submit recent content now&rdquo; backfills your existing published posts. &ldquo;Regenerate key&rdquo; rotates the key (search engines re-verify on the next submission).</p>';
-	echo '<button type="submit" name="sn_action" value="indexnow_ping_now" class="button">Submit recent content now</button> ';
-	echo '<button type="submit" name="sn_action" value="indexnow_regenerate" class="button">Regenerate key</button></form>';
+	echo '<button type="submit"' . sn_admin_post_button( 'indexnow_ping_now' ) . ' class="button">Submit recent content now</button> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
+	echo '<button type="submit"' . sn_admin_post_button( 'indexnow_regenerate' ) . ' class="button">Regenerate key</button></form>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 
 	echo '</div>'; // .sn-2up
 

@@ -43,6 +43,7 @@ function sn_uses_groups() {
 	);
 }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/../inc/now-page.php';
 require_once __DIR__ . '/../inc/uses-page.php';
 // The Now/Uses cards reuse the sn_rsm_* input/controls helpers; in production
@@ -60,7 +61,7 @@ sn_admin_render_now_section();
 $html = ob_get_clean();
 
 ok( false !== strpos( $html, 'name="_wpnonce"' ), 'nonce field rendered' );
-ok( false !== strpos( $html, 'value="now_save"' ), 'submit posts sn_action=now_save (action name unchanged)' );
+ok( false !== strpos( $html, 'value="sn_now_save"' ), 'submit posts sn_action=now_save (action name unchanged)' );
 ok( false === strpos( $html, 'name="now_content"' ), 'the plain-text box is gone' );
 ok( false !== strpos( $html, 'data-rsm-list="now-groups"' ), 'groups list container' );
 ok( false !== strpos( $html, 'data-rsm-add="now-groups"' ), 'add-section button' );
@@ -119,7 +120,7 @@ ob_start();
 sn_admin_render_uses_section();
 $html = ob_get_clean();
 
-ok( false !== strpos( $html, 'value="uses_save"' ), 'submit posts sn_action=uses_save (action name unchanged)' );
+ok( false !== strpos( $html, 'value="sn_uses_save"' ), 'submit posts sn_action=uses_save (action name unchanged)' );
 ok( false === strpos( $html, 'name="uses_content"' ), 'the plain-text box is gone' );
 ok( false !== strpos( $html, 'name="uses[groups][0][label]"' ), 'theme groups prefill the form before first save' );
 ok( false !== strpos( $html, 'value="Interface"' ), 'theme group label prefilled' );

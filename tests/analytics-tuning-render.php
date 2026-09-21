@@ -22,6 +22,7 @@ function sn_setting( $path, $default = null ) {
 	return array_key_exists( $path, $GLOBALS['__settings'] ) ? $GLOBALS['__settings'][ $path ] : $default;
 }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require __DIR__ . '/../inc/analytics-render-settings.php';
 
 $pass = 0; $fail = 0;
@@ -36,7 +37,7 @@ ok( strpos( $h, 'value="30"' ) !== false, 'baseline shows the 30-day default' );
 ok( strpos( $h, 'min="14"' ) !== false && strpos( $h, 'max="90"' ) !== false, 'client hints match the server clamp' );
 ok( substr_count( $h, 'name="sn_anomaly_sensitivity"' ) === 3, 'three sensitivity radios' );
 ok( preg_match( '/value="standard"\s+checked/', $h ) === 1, 'standard preset checked by default' );
-ok( strpos( $h, 'value="analytics_tuning_save"' ) !== false, 'submit posts analytics_tuning_save' );
+ok( strpos( $h, 'value="sn_analytics_tuning_save"' ) !== false, 'submit posts analytics_tuning_save' );
 ok( strpos( $h, 'name="_wpnonce"' ) !== false, 'nonce present' );
 ok( strpos( $h, 'class="sn-an-radio"' ) !== false, 'radio labels use the stylesheet class (no inline styles)' );
 ok( strpos( $h, 'style=' ) === false, 'no inline style attributes' );

@@ -76,6 +76,7 @@ if ( ! function_exists( 'sn_analytics_query' ) ) { function sn_analytics_query( 
 $GLOBALS['__lg_status'] = null; // null ⇒ worker unreachable
 if ( ! function_exists( 'sn_login_defense_status' ) ) { function sn_login_defense_status() { return $GLOBALS['__lg_status']; } }
 
+require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require __DIR__ . '/../inc/security-digest.php';
 
 $pass = 0; $fail = 0;
@@ -224,7 +225,7 @@ echo "\nTest: settings render structure\n";
 ob_start();
 snt_security_digest_render_settings();
 $out = ob_get_clean();
-ok( false !== strpos( $out, '<form method="post" class="sn-fieldset">' ), 'render: form IS the fieldset card' );
+ok( false !== strpos( $out, '<form method="post" action="https://example.test/wp-admin/admin-post.php" class="sn-fieldset">' ), 'render: form IS the fieldset card' );
 ok( false !== strpos( $out, 'class="sn-fieldset-h"' ), 'render: fieldset heading class' );
 ok( false !== strpos( $out, 'class="sn-field-helper"' ), 'render: helper copy uses field-helper' );
 $actions = strpos( $out, 'class="sn-fieldset-actions"' );
