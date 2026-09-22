@@ -20,8 +20,8 @@ Until the first generation, the Download link keeps using the **PDF URL** field 
 
 ## The phone
 
-The owner does not want the phone downloadable by the public (2026-09-22), and wants that under his
-control in the resume editor:
+The owner does not want the phone downloadable by the public (2026-09-22), and wants that under the
+owner's control in the resume editor:
 
 - **The web page never shows it.** The sync engine does not read `pdf`.
 - **The public PDF** (Generate PDF, the Download link) includes it only when **Include the phone in
