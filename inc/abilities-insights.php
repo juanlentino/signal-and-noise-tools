@@ -75,9 +75,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
-				// force=true re-runs a generative cross-system scan and rewrites the
-				// cache, so a retry returns different prose → not idempotent.
+				'readonly'        => false,
+				'destructive'     => false,
 				'idempotent'      => false,
 				'open_world_hint' => false,
 			),
@@ -106,8 +107,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
 				'readonly'        => true,
+				'destructive'     => false,
 				'idempotent'      => true,
 				'open_world_hint' => false,
 			),

@@ -157,10 +157,11 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
 				'readonly'    => false,
-				'destructive' => true, // conservative reading: mode:"publish" overwrites live content.
-				'idempotent'  => true, // earned by the idempotency_key gate.
+				'destructive' => true,
+				'idempotent'  => true,
 			),
 		),
 	) );

@@ -161,9 +161,11 @@ function sn_abilities_login_defense_register() {
 		'output_schema'       => array( 'type' => 'object' ),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => true, 'type' => 'tool' ),
 			'annotations'  => array(
-				'readonly'   => true,
-				'idempotent' => true,
+				'readonly'    => true,
+				'destructive' => false,
+				'idempotent'  => true,
 			),
 		),
 	) );

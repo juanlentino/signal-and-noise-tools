@@ -802,6 +802,7 @@ function snt_abilities_provenance_integrity_register() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => true, 'type' => 'tool' ),
 			'annotations'  => array(
 				'readonly'        => true,
 				'destructive'     => false,

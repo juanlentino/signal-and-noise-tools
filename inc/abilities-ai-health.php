@@ -68,8 +68,11 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
-				'idempotent' => true,
+				'readonly'    => false,
+				'destructive' => false,
+				'idempotent'  => true,
 			),
 		),
 	) );
@@ -110,10 +113,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
+				'readonly'    => false,
 				'destructive' => true,
-				// Fingerprint-gated mutation: a replay no longer matches the stored
-				// fingerprint and returns 409, so a retry is not a no-op.
 				'idempotent'  => false,
 			),
 		),
@@ -148,8 +151,11 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
-				'idempotent' => true,
+				'readonly'    => false,
+				'destructive' => false,
+				'idempotent'  => true,
 			),
 		),
 	) );
@@ -184,10 +190,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
+				'readonly'    => false,
 				'destructive' => true,
-				// Fingerprint-gated mutation: a replay no longer matches the stored
-				// fingerprint and returns 409, so a retry is not a no-op.
 				'idempotent'  => false,
 			),
 		),
@@ -229,8 +235,11 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
-				'idempotent' => true,
+				'readonly'    => false,
+				'destructive' => false,
+				'idempotent'  => true,
 			),
 		),
 	) );
@@ -267,8 +276,11 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
-				'idempotent' => true,
+				'readonly'    => false,
+				'destructive' => false,
+				'idempotent'  => true,
 			),
 		),
 	) );
@@ -302,10 +314,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
+				'readonly'    => false,
 				'destructive' => true,
-				// Fingerprint-gated mutation: a replay no longer matches the stored
-				// fingerprint and returns 409, so a retry is not a no-op.
 				'idempotent'  => false,
 			),
 		),
@@ -344,8 +356,11 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
-				'idempotent' => true,
+				'readonly'    => false,
+				'destructive' => false,
+				'idempotent'  => true,
 			),
 		),
 	) );
@@ -379,10 +394,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
+				'readonly'    => false,
 				'destructive' => true,
-				// Fingerprint-gated mutation: a replay no longer matches the stored
-				// fingerprint and returns 409, so a retry is not a no-op.
 				'idempotent'  => false,
 			),
 		),
@@ -421,8 +436,11 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
-				'idempotent' => true,
+				'readonly'    => false,
+				'destructive' => false,
+				'idempotent'  => true,
 			),
 		),
 	) );

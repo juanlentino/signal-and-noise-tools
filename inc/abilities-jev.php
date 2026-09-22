@@ -77,7 +77,7 @@ add_action( 'wp_abilities_api_init', function () {
 			'synced_at' => array( 'type' => 'integer' ), 'model' => array( 'type' => 'string' ), 'judged' => array( 'type' => 'integer' ), 'unsure' => array( 'type' => 'integer' ),
 			'findings' => array( 'type' => 'array' ), 'notes' => array( 'type' => 'array', 'description' => 'Every judged note with its scores (0..2) and confidences.' ), 'usage' => array( 'type' => array( 'object', 'null' ) ), 'last_error' => array( 'type' => 'string' ), 'note' => array( 'type' => 'string' ),
 		) ),
-		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
 	) );
 } );
 
@@ -114,7 +114,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_jev_pass_now',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ), 'usage' => array( 'type' => array( 'object', 'null' ) ) ) ),
-		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => false, 'type' => 'tool' ), 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
 	) );
 } );
 
@@ -152,7 +152,7 @@ add_action( 'wp_abilities_api_init', function () {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
 	}
-	$rw = array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) );
+	$rw = array( 'show_in_rest' => true, 'mcp' => array( 'public' => false, 'type' => 'tool' ), 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) );
 	wp_register_ability( 'signal-noise/jev-collision-check', array(
 		'label'               => 'Jev: does this draft re-argue a published note?',
 		'description'         => 'Judges one note (draft, pending or scheduled; a published one is allowed but pointless) against every published note now, one request, one Noul per note, and stores the reading on the post for the pre-publish panel. Skips the request when the draft has not changed since the last reading unless force is true. Rows are the top five by probability; collisions counts those at or above 0.5.',
@@ -181,7 +181,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_jev_lanes',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'mapped' => array( 'type' => 'boolean' ), 'at' => array( 'type' => 'integer' ), 'judged' => array( 'type' => 'integer' ), 'pairs' => array( 'type' => 'array' ), 'note' => array( 'type' => 'string' ) ) ),
-		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
 	) );
 } );
 
@@ -211,7 +211,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_jev_fit_now',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'queries' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
-		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => false, 'type' => 'tool' ), 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
 	) );
 	wp_register_ability( 'signal-noise/jev-query-fit', array(
 		'label'               => 'Jev: the queries each note is seen for and does not answer',
@@ -221,7 +221,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_jev_query_fit',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'boolean' ), 'at' => array( 'type' => 'integer' ), 'judged_notes' => array( 'type' => 'object' ), 'gaps' => array( 'type' => 'array' ), 'stray' => array( 'type' => 'array' ), 'note' => array( 'type' => 'string' ) ) ),
-		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
 	) );
 } );
 
@@ -247,7 +247,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_jev_meter',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'ready' => array( 'type' => 'boolean' ), 'cycle' => array( 'type' => 'object' ), 'credit' => array( 'type' => 'number' ), 'spent' => array( 'type' => 'number' ), 'remaining' => array( 'type' => 'number' ), 'requests' => array( 'type' => 'integer' ), 'cached' => array( 'type' => 'integer' ), 'by_feature' => array( 'type' => 'object' ), 'note' => array( 'type' => 'string' ) ) ),
-		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
 	) );
 } );
 
@@ -286,7 +286,7 @@ add_action( 'wp_abilities_api_init', function () {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
 	}
-	$rw = array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) );
+	$rw = array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) );
 	wp_register_ability( 'signal-noise/jev-tells-check', array(
 		'label'               => 'Jev: the anti-tell pass on one note, now',
 		'description'         => 'Counts the regex tells (em dash, "quietly", "not just X but Y", hedge clusters, three same-length sentences) and asks Jev, one request, three Nouls per paragraph (tricolon for rhythm, anaphora, the symmetric pair) and one for the closer. Stores the reading on the post for the pre-publish panel. Skips the request when the paragraphs have not changed unless force is true.',
@@ -315,7 +315,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_jev_tells',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'boolean' ), 'flagged' => array( 'type' => 'integer' ), 'notes' => array( 'type' => 'object' ), 'note' => array( 'type' => 'string' ) ) ),
-		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
 	) );
 } );
 
@@ -351,7 +351,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_jev_tags_now',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'misfits' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
-		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => false, 'type' => 'tool' ), 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
 	) );
 	wp_register_ability( 'signal-noise/jev-tags', array(
 		'label'               => 'Jev: the stored tag-fit pass',
@@ -361,6 +361,6 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_jev_tags',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'boolean' ), 'flagged' => array( 'type' => 'integer' ), 'notes' => array( 'type' => 'object' ), 'by_tag' => array( 'type' => 'array' ), 'note' => array( 'type' => 'string' ) ) ),
-		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
 	) );
 } );

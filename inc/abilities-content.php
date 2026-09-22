@@ -54,8 +54,11 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations' => array(
-				'idempotent' => true,
+				'readonly'    => false,
+				'destructive' => false,
+				'idempotent'  => true,
 			),
 		),
 	) );
@@ -114,9 +117,11 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => true, 'type' => 'tool' ),
 			'annotations'  => array(
-				'readonly'   => true,
-				'idempotent' => true,
+				'readonly'    => true,
+				'destructive' => false,
+				'idempotent'  => true,
 			),
 		),
 	) );
@@ -155,9 +160,11 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
-				'idempotent'  => false,
+				'readonly'    => false,
 				'destructive' => true,
+				'idempotent'  => false,
 			),
 		),
 	) );
@@ -183,7 +190,8 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
-			'annotations'  => array( 'destructive' => true, 'idempotent' => false ),
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => false, 'destructive' => true, 'idempotent' => false ),
 		),
 	) );
 
@@ -216,7 +224,8 @@ add_action( 'wp_abilities_api_init', function() {
 			'show_in_rest' => true,
 			// Generative → not idempotent (two runs draft different prose),
 			// but returns-only, so readonly stays true (the excerpt precedent).
-			'annotations'  => array( 'readonly' => true, 'idempotent' => false ),
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => false ),
 		),
 	) );
 
@@ -247,7 +256,8 @@ add_action( 'wp_abilities_api_init', function() {
 			'show_in_rest' => true,
 			// Writes taxonomy data, but only-if-empty makes replays safe:
 			// the second identical call is skipped_nonempty.
-			'annotations'  => array( 'destructive' => true, 'idempotent' => true ),
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => false, 'destructive' => true, 'idempotent' => true ),
 		),
 	) );
 } );

@@ -73,8 +73,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => true, 'type' => 'tool' ),
 			'annotations'  => array(
 				'readonly'        => true,
+				'destructive'     => false,
 				'idempotent'      => true,
 				'open_world_hint' => false,
 			),
@@ -126,8 +128,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => true, 'type' => 'tool' ),
 			'annotations'  => array(
 				'readonly'        => true,
+				'destructive'     => false,
 				'idempotent'      => true,
 				'open_world_hint' => false,
 			),
@@ -169,7 +173,9 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
+				'readonly'        => false,
 				'destructive'     => true,
 				'idempotent'      => true,
 				'open_world_hint' => false,
@@ -214,8 +220,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
 				'readonly'        => true,
+				'destructive'     => false,
 				'idempotent'      => true,
 				'open_world_hint' => false,
 			),
@@ -265,10 +273,9 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
-				// Not readonly: it writes a cron row. Not destructive: it removes
-				// nothing and dispatches nothing. Idempotent because an identical
-				// pending event is reported, never duplicated.
+				'readonly'        => false,
 				'destructive'     => false,
 				'idempotent'      => true,
 				'open_world_hint' => false,
@@ -311,7 +318,9 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
+				'readonly'    => false,
 				'destructive' => true,
 				'idempotent'  => false,
 			),

@@ -86,12 +86,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => true, 'type' => 'tool' ),
 			'annotations'  => array(
-				// readonly: a pure option read. It deliberately does NOT probe —
-				// an ability that measured the edge would write new verdicts into
-				// the log it exists to report, and every read would change the
-				// thing being read.
 				'readonly'        => true,
+				'destructive'     => false,
 				'idempotent'      => true,
 				'open_world_hint' => false,
 			),

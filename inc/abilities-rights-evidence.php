@@ -25,7 +25,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_rights_evidence',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'ready' => array( 'type' => 'boolean' ), 'ledger_base' => array( 'type' => 'string' ), 'months' => array( 'type' => 'object' ), 'note' => array( 'type' => 'string' ) ) ),
-		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
 	) );
 	wp_register_ability( 'signal-noise/rights-evidence-now', array(
 		'label'               => 'Rights evidence: compose and post the last month now',
@@ -35,7 +35,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_rights_evidence_now',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'month' => array( 'type' => 'string' ), 'composed' => array( 'type' => 'integer' ), 'posted' => array( 'type' => 'integer' ), 'anchored' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
-		'meta'                => array( 'show_in_rest' => true, 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => true ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => false, 'type' => 'tool' ), 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => true ) ),
 	) );
 } );
 

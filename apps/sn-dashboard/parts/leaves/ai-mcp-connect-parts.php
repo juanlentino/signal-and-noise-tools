@@ -103,7 +103,7 @@ function mcp_connect_owner_steps_html() {
 	$steps = \snt_kit_steps(
 		array(
 			sprintf( /* translators: %s: a door to the Application Passwords section. */ \snt_kit_esc( __( 'Create an %s under your own WordPress user. MCP clients authenticate as you, over Basic auth, never with your normal password.', 'signal-and-noise-tools' ) ), \snt_kit_door( __( 'Application Password', 'signal-and-noise-tools' ), $profile_url ) ),
-			\snt_kit_esc( __( 'Copy the endpoint URL for whichever door you’re using. Door 1 above for the read-only tool allowlist, Door 2 for abilities that opt in to the adapter (none of ours do).', 'signal-and-noise-tools' ) ),
+			\snt_kit_esc( __( 'Copy the endpoint URL for whichever door you’re using. Door 1 above for the read-only tool allowlist, Door 2 for abilities that opt in to the adapter (that is Door 1’s read allowlist).', 'signal-and-noise-tools' ) ),
 			\snt_kit_esc( __( 'Paste the client config below, swapping in your WordPress username and the Application Password you just created.', 'signal-and-noise-tools' ) ),
 		)
 	);
@@ -241,8 +241,8 @@ function mcp_connect_door_adapter_html() {
 	$url    = function_exists( 'rest_url' ) ? (string) rest_url( 'mcp/mcp-adapter-default-server' ) : '';
 
 	$body = $active
-		? '<p class="snt-prose">' . \snt_kit_esc( __( 'The WordPress MCP Adapter plugin is active on this site. Since adapter 0.6.0 its default server carries only abilities that opt in through meta.mcp.public (falling back to meta.public); none of the abilities registered by this plugin or the theme opt in, so this door exposes none of them. Each exposed ability is still gated by its own capability check. The adapter is its own plugin: the wp.org “AI” plugin does not bundle it.', 'signal-and-noise-tools' ) ) . '</p>'
-		: '<p class="snt-prose">' . \snt_kit_esc( __( 'No MCP Adapter is installed on this site (Door 1 above is the only live MCP endpoint here. The adapter is a separate WordPress plugin (github.com/WordPress/mcp-adapter) pre-1.0, not on wordpress.org), and the wp.org “AI” plugin does not bundle it: that plugin lists MCP as coming soon. If the adapter is ever installed, its default server would answer at the address below, and since adapter 0.6.0 it would carry only abilities that opt in through meta.mcp.public; none of ours do.', 'signal-and-noise-tools' ) ) . '</p>';
+		? '<p class="snt-prose">' . \snt_kit_esc( __( 'The WordPress MCP Adapter plugin is active on this site. Since adapter 0.6.0 its default server carries only abilities that opt in through meta.mcp.public (falling back to meta.public); the abilities on Door 1’s read allowlist opt in and every other registration states meta.mcp.public false, so this door carries the same read set Door 1 does. Each exposed ability is still gated by its own capability check. The adapter is its own plugin: the wp.org “AI” plugin does not bundle it.', 'signal-and-noise-tools' ) ) . '</p>'
+		: '<p class="snt-prose">' . \snt_kit_esc( __( 'No MCP Adapter is installed on this site (Door 1 above is the only live MCP endpoint here. The adapter is a separate WordPress plugin (github.com/WordPress/mcp-adapter) pre-1.0, not on wordpress.org), and the wp.org “AI” plugin does not bundle it: that plugin lists MCP as coming soon. If the adapter is ever installed, its default server would answer at the address below, and since adapter 0.6.0 it would carry only abilities that opt in through meta.mcp.public; the abilities on Door 1’s read allowlist opt in and every other registration states false, so it would carry the same read set Door 1 does.', 'signal-and-noise-tools' ) ) . '</p>';
 	$body .= '<p>' . \snt_kit_code( $url, false ) . '</p>';
 
 	return \snt_kit_section( __( 'Door 2: the Abilities-registry adapter', 'signal-and-noise-tools' ), $body );

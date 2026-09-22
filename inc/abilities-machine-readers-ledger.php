@@ -58,7 +58,8 @@ add_action( 'wp_abilities_api_init', function () {
 			'show_in_rest' => true,
 			// readonly is read LITERALLY by tests/mcp-capabilities.php's source
 			// scan, so it is spelled out per registration rather than shared.
-			'annotations'  => array( 'readonly' => true, 'idempotent' => true, 'open_world_hint' => false ),
+			'mcp'          => array( 'public' => true, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ),
 		),
 	) );
 
@@ -96,7 +97,8 @@ add_action( 'wp_abilities_api_init', function () {
 			'show_in_rest' => true,
 			// readonly is read LITERALLY by tests/mcp-capabilities.php's source
 			// scan, so it is spelled out per registration rather than shared.
-			'annotations'  => array( 'readonly' => true, 'idempotent' => true, 'open_world_hint' => false ),
+			'mcp'          => array( 'public' => true, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ),
 		),
 	) );
 } );
