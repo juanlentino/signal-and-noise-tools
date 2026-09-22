@@ -67,6 +67,7 @@ function sn_admin_post_handlers() {
 		'now_save'                   => 'sn_handle_now_save',
 		'uses_save'                  => 'sn_handle_uses_save',
 		'resume_save'                => 'sn_handle_resume_save',
+		'resume_pdf_generate'        => 'sn_handle_resume_pdf_generate',
 		'pattern_adoption_scan'      => 'sn_handle_pattern_adoption_scan',
 		'block_migrations_scan'      => 'sn_handle_block_migrations_scan',
 		'perf_save'                  => 'sn_handle_perf_save',

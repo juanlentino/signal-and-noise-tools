@@ -112,7 +112,7 @@ jobs:
           # on long PRs. The mitigation for all three is the batch cadence this
           # project already follows: fewer, larger pushes.
           run-every-commit: 'true'
-          exclude-directories: 'vendor,node_modules,tests'
+          exclude-directories: 'vendor,lib/pdf/vendor,node_modules,tests'
           # Project-specific findings this codebase has actually shipped,
           # appended to the audit prompt. Currently the sn_settings subtree
           # clobber (bitten 4x): sn_settings_save() whole-option replaces, so a

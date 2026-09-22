@@ -17,6 +17,10 @@
  *   earlier{label,entries[]{org,roles[]{title,bullets[]}}}
  *   education[]{title,lines[]} · affiliations[]{title,lines[]}
  *   publications[]{meta,title,url} · skills[]{category,items}
+ *   pdf{headline,tagline,phone,email,location,competencies[],toolkit[]}
+ *
+ * `pdf` feeds ONLY the generated PDF (inc/resume-pdf/). The sync engine never
+ * reads it, so a PDF-only field (the phone, above all) cannot reach /resume.
  *
  * Bullets are the ONE field that carries HTML (<strong>/<em>/<a> via wp_kses
  * at normalize time); every other string is plain text, escaped at the render
@@ -247,6 +251,17 @@ function sn_resume_doc_normalize( $doc ) {
 		);
 	}
 
+	$pdf_in = is_array( $doc['pdf'] ?? null ) ? $doc['pdf'] : array();
+	$pdf    = array(
+		'headline'     => sn_resume_text( $pdf_in['headline'] ?? '' ),
+		'tagline'      => sn_resume_text( $pdf_in['tagline'] ?? '' ),
+		'phone'        => sn_resume_text( $pdf_in['phone'] ?? '' ),
+		'email'        => function_exists( 'sanitize_email' ) ? (string) sanitize_email( (string) ( $pdf_in['email'] ?? '' ) ) : sn_resume_text( $pdf_in['email'] ?? '' ),
+		'location'     => sn_resume_text( $pdf_in['location'] ?? '' ),
+		'competencies' => array_values( array_filter( array_map( 'sn_resume_text', sn_resume_string_list( $pdf_in['competencies'] ?? array() ) ), 'strlen' ) ),
+		'toolkit'      => array_values( array_filter( array_map( 'sn_resume_text', sn_resume_string_list( $pdf_in['toolkit'] ?? array() ) ), 'strlen' ) ),
+	);
+
 	$skills = array();
 	foreach ( (array) ( $doc['skills'] ?? array() ) as $row ) {
 		if ( ! is_array( $row ) ) {
@@ -272,6 +287,7 @@ function sn_resume_doc_normalize( $doc ) {
 		'affiliations' => sn_resume_normalize_titled_lines( $doc['affiliations'] ?? array() ),
 		'publications' => $publications,
 		'skills'       => $skills,
+		'pdf'          => $pdf,
 	);
 }
 

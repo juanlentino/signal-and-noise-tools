@@ -40,6 +40,8 @@ function sn_admin_flash_messages() {
 		'now_resynced'              => array( 'success', 'No content changes: the live /now page was re-rendered with the current engine anyway.' ),
 		'uses_resynced'             => array( 'success', 'No content changes: the live /about/uses page was re-rendered with the current engine anyway.' ),
 		'resume_saved'              => array( 'success', 'Resume saved: the live /resume page has been regenerated.' ),
+		'resume_pdf_generated'      => array( 'success', 'Resume PDF generated: the /resume Download link now points at it, and caches were purged.' ),
+		'resume_pdf_failed'         => array( 'error', 'The resume PDF could not be generated. Check that uploads is writable and lib/pdf is present.' ),
 		'resume_unchanged'          => array( 'info', 'No changes to save.' ),
 		'resume_resynced'           => array( 'success', 'No content changes: the live /resume page was re-rendered with the current engine anyway.' ),
 		'resume_refused'            => array( 'error', 'Nothing saved: the resume needs at least one experience entry (with an organization) or one publication (with a title). The live page is unchanged.' ),

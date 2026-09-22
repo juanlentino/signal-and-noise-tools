@@ -1,9 +1,11 @@
 .DS_Store
 *.log
-vendor/
+# Root only: lib/pdf/vendor is COMMITTED runtime code (Dompdf for the resume
+# PDF, docs/RESUME-PDF.md), because the self-updater ships the tag archive.
+/vendor/
 # composer.lock gitignored: distributed plugin, deps are dev-only linters
 # (PHPCS/WPCS) that never ship — repo-wide pinning adds churn for no benefit.
-composer.lock
+/composer.lock
 node_modules/
 .idea/
 .vscode/

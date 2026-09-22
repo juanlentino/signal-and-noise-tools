@@ -52,7 +52,7 @@ jobs:
               echo "::error file=$f::PHP parse error"
               fail=1
             fi
-          done < <(find . -name '*.php' -not -path './vendor/*' -not -path './node_modules/*')
+          done < <(find . -name '*.php' -not -path './vendor/*' -not -path './lib/pdf/vendor/*' -not -path './node_modules/*')
           exit $fail
 
       # Rides the lint job rather than taking its own. NOT for billing: this
@@ -264,7 +264,7 @@ jobs:
               echo "::error file=$f::PHP parse error on PHP ${{ matrix.php }}"
               fail=1
             fi
-          done < <(find . -name '*.php' -not -path './vendor/*' -not -path './node_modules/*')
+          done < <(find . -name '*.php' -not -path './vendor/*' -not -path './lib/pdf/vendor/*' -not -path './node_modules/*')
           exit $fail
       # The host's rewrite pins run WordPress's own HTML API
       # (WP_HTML_Tag_Processor), which a standalone sweep has no WordPress to
