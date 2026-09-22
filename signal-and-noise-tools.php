@@ -236,6 +236,8 @@ require_once SNT_PATH . 'inc/uses-page.php';                 // v7.6.0: /uses co
 require_once SNT_PATH . 'inc/admin-forms/now-page.php';      // v7.5.0: Content → Now Page editor form
 require_once SNT_PATH . 'inc/admin-forms/uses-page.php';     // v7.6.0: Content → Uses Page editor form (prefills from the theme's live list)
 require_once SNT_PATH . 'inc/resume-page.php';               // v10.33.0: /resume structured editor data layer (document option + normalize/refuse)
+require_once SNT_PATH . 'inc/resume-pdf/template.php';       // Resume PDF (docs/RESUME-PDF.md): the ONE template the generator renders
+require_once SNT_PATH . 'inc/resume-pdf/generate.php';       // Resume PDF: Dompdf (lib/pdf) -> uploads/resume, hash option, Download link
 require_once SNT_PATH . 'inc/admin-forms/resume-page.php';   // v10.33.0: Content → Resume Page structured editor form (repeatable rows, not a text box)
 require_once SNT_PATH . 'inc/rest-api.php';
 require_once SNT_PATH . 'inc/analytics-rest.php'; // v6.1.0: read-only /analytics REST routes

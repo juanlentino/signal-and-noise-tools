@@ -35,11 +35,14 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_resume_section' );
 $kit     = snt_leaf_paint( 'content', 'resume' );
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic form (' . count( snt_leaf_names( $kit ) ) . ' names): ' . implode( ',', array_diff( snt_leaf_names( $classic ), snt_leaf_names( $kit ) ) ) . ' missing; ' . implode( ',', array_diff( snt_leaf_names( $kit ), snt_leaf_names( $classic ) ) ) . ' extra' );
-ok( array( 'resume_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is resume_save, as on the classic leaf' );
+// Resume PDF (docs/RESUME-PDF.md): a second, SEPARATE form generates the PDF
+// from the saved document; it posts no resume fields. The editor itself still
+// has exactly one action.
+ok( array( 'resume_pdf_generate', 'resume_pdf_private', 'resume_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the actions are resume_save plus the separate resume_pdf_generate and resume_pdf_private, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( ! preg_match( '/\sstyle="/', $kit ), 'no inline style= survives' );
 ok( (bool) preg_match( '/\sstyle="/', $kit . '<p style="x">' ), 'the inline-style guard above discriminates (fails on a planted style=)' );
-ok( 1 === substr_count( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false !== strpos( $kit, 'submit-label="Save resume"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'one os-form dispatching post through the admin-post pipeline, submit "Save resume"' );
+ok( 3 === substr_count( $kit, '<os-form' ) && false !== strpos( $kit, 'submit-label="Generate PDF"' ) && false !== strpos( $kit, 'submit-label="Download private copy (with phone)"' ) && false !== strpos( $kit, 'os-action="post"' ) && false !== strpos( $kit, 'submit-label="Save resume"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'three os-forms (Save resume, Generate PDF, private copy) dispatching post through the admin-post pipeline, submit "Save resume"' );
 ok( false !== strpos( $kit, 'name="resume[experience][1][roles][1][title]"' ) && false !== strpos( $kit, 'name="resume[earlier][entries][1][roles][1][title]"' ), 'nested role names survive two levels down in both Experience and Earlier career' );
 ok( false !== strpos( $kit, 'name="resume[experience][__E__][roles][__R__][title]"' ) && false !== strpos( $kit, 'name="resume[experience][0][roles][__R__][bullets]"' ), 'the template token keys the classic bakes (__E__, __R__) are the blank rows\' names' );
 
@@ -158,10 +161,10 @@ ok( count( $reps[0] ) === substr_count( $kit, '</template></os-repeater>' ), 'th
 foreach ( array( 'sn-rsm-up', 'sn-rsm-down', 'snt-sr-only', 'data-rsm-row', 'Blank a row and save', 'rows keep the order shown', 'snt-rsm-list', 'Move up', 'Move down', '<os-disclosure heading="+ Add' ) as $gone ) {
 	ok( false === strpos( $kit, $gone ), 'the hand-rolled chrome is gone: ' . $gone );
 }
-ok( array( 'resume_save' ) === snt_leaf_actions( $kit ), 'the repeater posts nothing: add, remove and move are DOM operations, the one action is still resume_save' );
+ok( array( 'resume_pdf_generate', 'resume_pdf_private', 'resume_save' ) === snt_leaf_actions( $kit ), 'the repeater posts nothing: add, remove and move are DOM operations, the one action is still resume_save' );
 // Negative control: the action pin at the top can fail. A planted per-row
 // server action would be a second action.
-ok( array( 'resume_move', 'resume_save' ) === snt_leaf_actions( $kit . '<os-button os-action="post" os-arg-action="sn_resume_move">Up</os-button>' ), 'the action pin discriminates: a planted resume_move os-button reads as a second action' );
+ok( array( 'resume_move', 'resume_pdf_generate', 'resume_pdf_private', 'resume_save' ) === snt_leaf_actions( $kit . '<os-button os-action="post" os-arg-action="sn_resume_move">Up</os-button>' ), 'the action pin discriminates: a planted resume_move os-button reads as a second action' );
 // The script side: the three repeater events, and what each does to the DOM.
 $js = (string) file_get_contents( SNT_PATH . 'assets/resume-admin.js' );
 ok( false !== strpos( $js, "document.addEventListener( 'click'" ) && false !== strpos( $js, "'data-rsm-add'" ) && false !== strpos( $js, "'sn-rsm-up'" ), 'resume-admin.js keeps the classic page\'s click listener (data-rsm-add, sn-rsm-up)' );

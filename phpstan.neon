@@ -48,6 +48,9 @@ parameters:
 	paths:
 		- signal-and-noise-tools.php
 		- inc
+	# Dompdf (lib/pdf, the resume PDF) is scanned for class discovery only, never analysed.
+	scanDirectories:
+		- lib/pdf/vendor/dompdf/dompdf/src
 	bootstrapFiles:
 		# WordPress core function/class signatures (^7.0 — matches production).
 		- vendor/php-stubs/wordpress-stubs/wordpress-stubs.php

@@ -16,3 +16,6 @@ phpcs.xml.dist    export-ignore
 .gitattributes    export-ignore
 .gitignore        export-ignore
 .gitleaks.toml    export-ignore
+# lib/pdf ships its vendor/ (runtime Dompdf) but not the Composer files that built it.
+lib/pdf/composer.json export-ignore
+lib/pdf/composer.lock export-ignore

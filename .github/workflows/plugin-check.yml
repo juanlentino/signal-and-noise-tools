@@ -115,6 +115,7 @@ jobs:
           # export-ignored via .gitattributes — never present in the shipped zip.
           exclude-directories: |
             vendor
+            lib/pdf/vendor
             node_modules
             tests
             tools

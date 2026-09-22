@@ -4,8 +4,9 @@
  *
  * The classic leaf (inc/admin-forms/resume-page.php,
  * `sn_admin_render_resume_section()`) is the STRUCTURED editor for /resume:
- * one form (`sn_action=resume_save`), eight collapsed sections (Hero, Stats,
- * Experience, Earlier career, Education, Affiliations, Publications, Skills)
+ * one form (`sn_action=resume_save`), nine collapsed sections (Hero, Stats,
+ * Experience, Earlier career, Education, Affiliations, Publications, Skills,
+ * PDF only), plus the Resume PDF form (`sn_action=resume_pdf_generate`)
  * of real fields and repeatable rows, one Save button, and a hard failure
  * state when sn_resume_doc_get() has neither a stored document nor a
  * readable seed. Same reader, same names, same handler; the kit's parts
@@ -85,7 +86,49 @@ function resume_hero( array $hero ) {
 }
 
 /**
- * The eight sections, in the classic order.
+ * PDF only: fields the generated PDF uses and /resume never shows (the sync
+ * engine does not read `pdf`). Same names, labels and placeholders as the
+ * classic form.
+ *
+ * @param array $pdf The pdf block.
+ * @return string
+ */
+function resume_pdf( array $pdf ) {
+	return resume_text( 'resume[pdf][headline]', __( 'Headline', 'signal-and-noise-tools' ), $pdf['headline'] ?? '', 'Music Business Development & Strategic Partnerships Leader' )
+		. resume_text( 'resume[pdf][tagline]', __( 'Tagline', 'signal-and-noise-tools' ), $pdf['tagline'] ?? '', 'Artist & Label Relations | Latin American & U.S. Markets' )
+		. resume_pair(
+			resume_text( 'resume[pdf][location]', __( 'Location', 'signal-and-noise-tools' ), $pdf['location'] ?? '', 'Orlando, FL' ),
+			resume_text( 'resume[pdf][phone]', __( 'Phone', 'signal-and-noise-tools' ), $pdf['phone'] ?? '', '(000) 000-0000' )
+		)
+		. \snt_kit_field( 'switch', 'resume[pdf][phone_public]', __( 'Include the phone in the public PDF', 'signal-and-noise-tools' ), ! empty( $pdf['phone_public'] ), array( 'hint' => __( 'Off: the public PDF (the /resume Download link) leaves the phone out, and only the private copy carries it. The web page never shows it either way.', 'signal-and-noise-tools' ) ) )
+		. resume_text( 'resume[pdf][email]', __( 'Email', 'signal-and-noise-tools' ), $pdf['email'] ?? '', 'name@example.com' )
+		. resume_lines( 'resume[pdf][competencies]', $pdf['competencies'] ?? array(), __( 'Core competencies: one per line', 'signal-and-noise-tools' ), 'Strategic Partnerships & Deal Negotiation', 6 )
+		. resume_lines( 'resume[pdf][toolkit]', $pdf['toolkit'] ?? array(), __( 'Technical toolkit: one per line', 'signal-and-noise-tools' ), 'Pro Tools', 4 );
+}
+
+/**
+ * The Resume PDF form: its own action and nonce, never the resume document.
+ *
+ * @return string
+ */
+function resume_pdf_generate() {
+	$meta = get_option( defined( 'SN_RESUME_PDF_OPTION' ) ? SN_RESUME_PDF_OPTION : 'sn_resume_pdf' );
+	if ( is_array( $meta ) && ! empty( $meta['url'] ) ) {
+		$status = '<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: 1: timestamp, 2: pages */ __( 'Generated %1$s: %2$d pages.', 'signal-and-noise-tools' ), (string) $meta['generated'], (int) $meta['pages'] ) )
+			. ' ' . \snt_kit_link( __( 'Open the PDF', 'signal-and-noise-tools' ), \sn_resume_pdf_link( '' ) ) . '</p>';
+	} else {
+		$status = '<p class="snt-prose">' . \snt_kit_esc( __( 'Not generated yet: the /resume Download link still uses the PDF URL. Generating builds the PDF from the saved resume and switches the link to it.', 'signal-and-noise-tools' ) ) . '</p>';
+	}
+	$private = '<p class="snt-prose">' . \snt_kit_esc( __( 'A private copy always includes the phone: built on demand for you, never saved on the server, so it has no public URL.', 'signal-and-noise-tools' ) ) . '</p>';
+	return \snt_kit_section(
+		__( 'Resume PDF', 'signal-and-noise-tools' ),
+		\snt_kit_form( 'resume_pdf_generate', $status, array( 'submit' => __( 'Generate PDF', 'signal-and-noise-tools' ) ) )
+		. \snt_kit_form( 'resume_pdf_private', $private, array( 'submit' => __( 'Download private copy (with phone)', 'signal-and-noise-tools' ) ) )
+	);
+}
+
+/**
+ * The nine sections, in the classic order.
  *
  * @param array $doc The document.
  * @return string
@@ -118,7 +161,8 @@ function resume_sections( array $doc ) {
 		. resume_section( __( 'Education', 'signal-and-noise-tools' ), '', count( $edu ), resume_list( $edu, $ns . '\resume_titled_lines_row', 'resume[education]', '__D__', __( '+ Add education', 'signal-and-noise-tools' ), __( 'education entry', 'signal-and-noise-tools' ) ) )
 		. resume_section( __( 'Affiliations & Certifications', 'signal-and-noise-tools' ), '', count( $aff ), resume_list( $aff, $ns . '\resume_titled_lines_row', 'resume[affiliations]', '__A__', __( '+ Add affiliation', 'signal-and-noise-tools' ), __( 'affiliation', 'signal-and-noise-tools' ) ) )
 		. resume_section( __( 'Publications', 'signal-and-noise-tools' ), __( 'A new paper is one row: venue line, title, and link.', 'signal-and-noise-tools' ), count( $pubs ), resume_list( $pubs, $ns . '\resume_publication_row', 'resume[publications]', '__P__', __( '+ Add publication', 'signal-and-noise-tools' ), __( 'publication', 'signal-and-noise-tools' ) ) )
-		. resume_section( __( 'Skills', 'signal-and-noise-tools' ), __( 'One table row per category; items is the comma-separated cell.', 'signal-and-noise-tools' ), count( $skills ), resume_list( $skills, $ns . '\resume_skills_row', 'resume[skills]', '__K__', __( '+ Add skills row', 'signal-and-noise-tools' ), __( 'skills row', 'signal-and-noise-tools' ) ) );
+		. resume_section( __( 'Skills', 'signal-and-noise-tools' ), __( 'One table row per category; items is the comma-separated cell.', 'signal-and-noise-tools' ), count( $skills ), resume_list( $skills, $ns . '\resume_skills_row', 'resume[skills]', '__K__', __( '+ Add skills row', 'signal-and-noise-tools' ), __( 'skills row', 'signal-and-noise-tools' ) ) )
+		. resume_section( __( 'PDF only', 'signal-and-noise-tools' ), __( 'Used by the generated PDF, never shown on /resume. Save, then Generate PDF below.', 'signal-and-noise-tools' ), -1, resume_pdf( (array) ( $doc['pdf'] ?? array() ) ) );
 }
 
 /**
@@ -140,7 +184,7 @@ function paint_content_resume( array $ctx ) {
 	return \snt_kit_section(
 		__( 'Resume page', 'signal-and-noise-tools' ),
 		resume_intro( $doc ) . \snt_kit_form( 'resume_save', resume_sections( $doc ), array( 'submit' => __( 'Save resume', 'signal-and-noise-tools' ) ) )
-	);
+	) . resume_pdf_generate();
 }
 
 add_filter(

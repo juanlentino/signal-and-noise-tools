@@ -140,9 +140,12 @@ function sn_resume_hero_blocks( $hero ) {
 		$right .= sn_resume_para( 'sn-resume-rail', implode( ' · ', $rail ) );
 	}
 
-	if ( '' !== $hero['pdf_url'] ) {
+	// The generated PDF (inc/resume-pdf/generate.php) wins once it exists, with
+	// ?v=<hash> for cache busting; until then the hand-set URL from the form.
+	$pdf_href = function_exists( 'sn_resume_pdf_link' ) ? sn_resume_pdf_link( $hero['pdf_url'] ) : $hero['pdf_url'];
+	if ( '' !== $pdf_href ) {
 		$label  = '' !== $hero['pdf_label'] ? $hero['pdf_label'] : 'Resume (PDF)';
-		$url    = esc_url( $hero['pdf_url'] );
+		$url    = esc_url( $pdf_href );
 		$right .= '<!-- wp:file {"href":"' . $url . '","className":"sn-resume-download"} -->' . "\n"
 			. '<div class="wp-block-file sn-resume-download"><a id="wp-block-file--media-sn-resume-pdf" href="' . $url . '">' . esc_html( $label ) . '</a>'
 			. '<a href="' . $url . '" class="wp-block-file__button wp-element-button" download aria-describedby="wp-block-file--media-sn-resume-pdf">Download PDF</a></div>' . "\n"

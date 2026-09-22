@@ -121,5 +121,6 @@
 		{ "category": "Music Tech & Research", "items": "Music Provenance and Attribution, Rights and Royalty Infrastructure, AI-Assisted Workflows, Digital Distribution, CRM Tools" },
 		{ "category": "Production", "items": "Pro Tools, Logic Pro X, Ableton Live, Mixing, Mastering, Sound Design, Dolby Atmos" },
 		{ "category": "Languages", "items": "English (Fluent), Spanish (Native)" }
-	]
+	],
+	"pdf": { "headline": "", "tagline": "", "phone": "", "phone_public": false, "email": "", "location": "", "competencies": [], "toolkit": [] }
 }

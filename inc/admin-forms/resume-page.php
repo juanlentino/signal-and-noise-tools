@@ -341,9 +341,56 @@ function sn_admin_render_resume_section() {
 	echo '<button type="button" class="button sn-rsm-add" data-rsm-add="skills">+ Add skills row</button>';
 	echo '</details>';
 
+	// ── PDF only ── Fields the generated PDF uses and /resume never shows (the
+	// sync engine does not read `pdf`), so the phone stays off the web page.
+	$pdf = (array) ( $doc['pdf'] ?? array() );
+	sn_rsm_section_open( 'PDF only', 'Used by the generated PDF, never shown on /resume. Save, then Generate PDF below.' );
+	sn_rsm_input( 'resume[pdf][headline]', (string) ( $pdf['headline'] ?? '' ), 'Headline', 'Music Business Development & Strategic Partnerships Leader' );
+	sn_rsm_input( 'resume[pdf][tagline]', (string) ( $pdf['tagline'] ?? '' ), 'Tagline', 'Artist & Label Relations | Latin American & U.S. Markets' );
+	sn_rsm_input( 'resume[pdf][location]', (string) ( $pdf['location'] ?? '' ), 'Location', 'Orlando, FL' );
+	sn_rsm_input( 'resume[pdf][phone]', (string) ( $pdf['phone'] ?? '' ), 'Phone', '(000) 000-0000' );
+	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">' . esc_html( 'Include the phone in the public PDF' ) . '</span><input type="checkbox" name="resume[pdf][phone_public]" value="1"' . ( ! empty( $pdf['phone_public'] ) ? ' checked="checked"' : '' ) . '></label>';
+	echo '<p class="description">Off: the public PDF (the /resume Download link) leaves the phone out, and only the private copy below carries it. The web page never shows it either way.</p>';
+	sn_rsm_input( 'resume[pdf][email]', (string) ( $pdf['email'] ?? '' ), 'Email', 'name@example.com' );
+	sn_rsm_lines( 'resume[pdf][competencies]', (array) ( $pdf['competencies'] ?? array() ), 'Core competencies: one per line', 'Strategic Partnerships & Deal Negotiation', 6 );
+	sn_rsm_lines( 'resume[pdf][toolkit]', (array) ( $pdf['toolkit'] ?? array() ), 'Technical toolkit: one per line', 'Pro Tools', 4 );
+	echo '</details>';
+
 	echo '<div class="sn-fieldset-actions">';
 	echo '<button type="submit" name="action" value="sn_resume_save" class="button button-primary">Save resume</button>';
 	echo '</div>';
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';
+
+	sn_admin_render_resume_pdf_generate();
+}
+
+/**
+ * The Generate PDF control: its own form and nonce (sn_resume_pdf_generate),
+ * so it can never post the resume document, plus the last generation's facts.
+ */
+function sn_admin_render_resume_pdf_generate() {
+	$meta = get_option( defined( 'SN_RESUME_PDF_OPTION' ) ? SN_RESUME_PDF_OPTION : 'sn_resume_pdf' );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+	wp_nonce_field( 'sn_resume_pdf_generate' );
+	echo '<div class="sn-fieldset">';
+	echo '<h2 class="sn-fieldset-h">Resume PDF</h2>';
+	if ( is_array( $meta ) && ! empty( $meta['url'] ) ) {
+		echo '<p class="sn-fieldset-intro">Generated <code>' . esc_html( (string) $meta['generated'] ) . '</code>: '
+			. esc_html( (string) (int) $meta['pages'] ) . ' pages, ' . esc_html( size_format( (int) $meta['bytes'] ) ) . ', SHA-256 <code>' . esc_html( substr( (string) $meta['sha256'], 0, 12 ) ) . '</code>. '
+			. '<a href="' . esc_url( sn_resume_pdf_link( '' ) ) . '" target="_blank" rel="noopener">Open the PDF</a>. The /resume Download link points here.</p>';
+	} else {
+		echo '<p class="sn-fieldset-intro">Not generated yet: the /resume Download link still uses the PDF URL set above. Generating builds the PDF from the saved resume and switches the link to it.</p>';
+	}
+	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_resume_pdf_generate" class="button">Generate PDF</button></div>';
+	echo '</div></form>';
+
+	// The private copy: same PDF WITH the phone, streamed to this admin and
+	// never stored, so no public URL can ever serve the phone.
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+	wp_nonce_field( 'sn_resume_pdf_private' );
+	echo '<div class="sn-fieldset">';
+	echo '<p class="sn-fieldset-intro">A private copy always includes the phone: built on demand for you, never saved on the server, so it has no public URL.</p>';
+	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_resume_pdf_private" class="button">Download private copy (with phone)</button></div>';
+	echo '</div></form>';
 }

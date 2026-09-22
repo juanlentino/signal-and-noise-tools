@@ -1,0 +1,25 @@
+{
+	"name": "juanlentino/sn-tools-pdf",
+	"description": "Runtime-only: Dompdf for the resume PDF generator (docs/RESUME-PDF.md). Its vendor/ is COMMITTED because the self-updater ships the tag archive.",
+	"type": "project",
+	"license": "GPL-2.0-or-later",
+	"require": {
+		"php": ">=8.3",
+		"dompdf/dompdf": "^3.1"
+	},
+	"config": {
+		"optimize-autoloader": true,
+		"platform": {
+			"php": "8.3.0"
+		},
+		"sort-packages": true
+	},
+	"scripts": {
+		"post-install-cmd": [
+			"rm -f vendor/dompdf/dompdf/lib/fonts/DejaVuSerif* vendor/dompdf/dompdf/lib/fonts/DejaVuSansMono*"
+		],
+		"post-update-cmd": [
+			"rm -f vendor/dompdf/dompdf/lib/fonts/DejaVuSerif* vendor/dompdf/dompdf/lib/fonts/DejaVuSansMono*"
+		]
+	}
+}
