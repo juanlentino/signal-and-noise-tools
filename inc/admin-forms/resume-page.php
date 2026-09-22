@@ -348,7 +348,9 @@ function sn_admin_render_resume_section() {
 	sn_rsm_input( 'resume[pdf][headline]', (string) ( $pdf['headline'] ?? '' ), 'Headline', 'Music Business Development & Strategic Partnerships Leader' );
 	sn_rsm_input( 'resume[pdf][tagline]', (string) ( $pdf['tagline'] ?? '' ), 'Tagline', 'Artist & Label Relations | Latin American & U.S. Markets' );
 	sn_rsm_input( 'resume[pdf][location]', (string) ( $pdf['location'] ?? '' ), 'Location', 'Orlando, FL' );
-	sn_rsm_input( 'resume[pdf][phone]', (string) ( $pdf['phone'] ?? '' ), 'Phone (public in the PDF)', '(000) 000-0000' );
+	sn_rsm_input( 'resume[pdf][phone]', (string) ( $pdf['phone'] ?? '' ), 'Phone', '(000) 000-0000' );
+	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">' . esc_html( 'Include the phone in the public PDF' ) . '</span><input type="checkbox" name="resume[pdf][phone_public]" value="1"' . ( ! empty( $pdf['phone_public'] ) ? ' checked="checked"' : '' ) . '></label>';
+	echo '<p class="description">Off: the public PDF (the /resume Download link) leaves the phone out, and only the private copy below carries it. The web page never shows it either way.</p>';
 	sn_rsm_input( 'resume[pdf][email]', (string) ( $pdf['email'] ?? '' ), 'Email', 'name@example.com' );
 	sn_rsm_lines( 'resume[pdf][competencies]', (array) ( $pdf['competencies'] ?? array() ), 'Core competencies: one per line', 'Strategic Partnerships & Deal Negotiation', 6 );
 	sn_rsm_lines( 'resume[pdf][toolkit]', (array) ( $pdf['toolkit'] ?? array() ), 'Technical toolkit: one per line', 'Pro Tools', 4 );
@@ -381,5 +383,14 @@ function sn_admin_render_resume_pdf_generate() {
 		echo '<p class="sn-fieldset-intro">Not generated yet: the /resume Download link still uses the PDF URL set above. Generating builds the PDF from the saved resume and switches the link to it.</p>';
 	}
 	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_resume_pdf_generate" class="button">Generate PDF</button></div>';
+	echo '</div></form>';
+
+	// The private copy: same PDF WITH the phone, streamed to this admin and
+	// never stored, so no public URL can ever serve the phone.
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
+	wp_nonce_field( 'sn_resume_pdf_private' );
+	echo '<div class="sn-fieldset">';
+	echo '<p class="sn-fieldset-intro">A private copy always includes the phone: built on demand for you, never saved on the server, so it has no public URL.</p>';
+	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_resume_pdf_private" class="button">Download private copy (with phone)</button></div>';
 	echo '</div></form>';
 }

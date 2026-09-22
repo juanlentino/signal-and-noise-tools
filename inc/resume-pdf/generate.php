@@ -47,10 +47,11 @@ function sn_resume_pdf_location() {
  *
  * @param array  $doc       Canonical resume document.
  * @param string $name      Header name.
- * @param string $cache_dir Writable directory for Dompdf's font metrics cache.
+ * @param string $cache_dir     Writable directory for Dompdf's font metrics cache.
+ * @param bool   $include_phone True only for the private copy (never written to disk).
  * @return array{bytes:string,pages:int}|WP_Error
  */
-function sn_resume_pdf_render( $doc, $name, $cache_dir ) {
+function sn_resume_pdf_render( $doc, $name, $cache_dir, $include_phone = false ) {
 	$lib = dirname( __DIR__, 2 ) . '/lib/pdf';
 	if ( ! is_readable( $lib . '/vendor/autoload.php' ) ) {
 		return new WP_Error( 'sn_resume_pdf_no_renderer', 'The PDF renderer (lib/pdf/vendor) is missing from this install.' );
@@ -70,7 +71,7 @@ function sn_resume_pdf_render( $doc, $name, $cache_dir ) {
 	$options->set( 'chroot', array( $lib, $cache_dir ) );
 
 	$dompdf = new \Dompdf\Dompdf( $options );
-	$dompdf->loadHtml( sn_resume_pdf_html( $doc, $name, $lib . '/fonts' ), 'UTF-8' );
+	$dompdf->loadHtml( sn_resume_pdf_html( $doc, $name, $lib . '/fonts', (bool) $include_phone ), 'UTF-8' );
 	$dompdf->setPaper( 'letter', 'portrait' );
 	$dompdf->addInfo( 'Title', $name . ' — Resume' );
 	$dompdf->addInfo( 'Author', $name );
@@ -101,7 +102,9 @@ function sn_resume_pdf_generate() {
 	}
 
 	$name   = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
-	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache' );
+	// PUBLIC: the phone only when the owner switched it on (Content → Resume,
+	// PDF only). Default off; the private copy is the way to send it.
+	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', ! empty( $doc['pdf']['phone_public'] ) );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
@@ -149,4 +152,32 @@ function sn_resume_pdf_link( $fallback ) {
 		return $meta['url'] . '?v=' . substr( (string) $meta['sha256'], 0, 8 );
 	}
 	return (string) $fallback;
+}
+
+/**
+ * The PRIVATE copy: the same PDF with the phone, streamed to the requesting
+ * admin and never written to disk, so it has no URL anyone else can fetch.
+ * The dispatcher has checked the nonce and manage_options. Exits on success;
+ * returns a WP_Error for the caller's flash on failure.
+ *
+ * @return WP_Error|void
+ */
+function sn_resume_pdf_private_stream() {
+	$doc = function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null;
+	$loc = sn_resume_pdf_location();
+	if ( ! is_array( $doc ) || null === $loc ) {
+		return new WP_Error( 'sn_resume_pdf_private', 'No resume document or uploads directory.' );
+	}
+	$name   = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
+	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', true );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+	nocache_headers();
+	header( 'Content-Type: application/pdf' );
+	header( 'Content-Disposition: attachment; filename="JuanLentino_Resume_private.pdf"' );
+	header( 'Content-Length: ' . strlen( $result['bytes'] ) );
+	header( 'X-Robots-Tag: noindex, nofollow' );
+	echo $result['bytes']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- binary PDF body, not HTML.
+	exit;
 }

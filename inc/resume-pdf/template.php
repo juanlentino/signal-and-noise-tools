@@ -97,10 +97,13 @@ li strong,.lines strong{color:' . $n . ';}
  *
  * @param array  $doc      Canonical document (sn_resume_doc_normalize()).
  * @param string $name     The person's name, for the header.
- * @param string $font_dir Absolute path to the Lato files.
+ * @param string $font_dir      Absolute path to the Lato files.
+ * @param bool   $include_phone The private copy always; the public file only
+ *                              when pdf.phone_public is on (owner, 2026-09-22:
+ *                              off by default, controlled from the resume editor).
  * @return string
  */
-function sn_resume_pdf_html( $doc, $name, $font_dir ) {
+function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false ) {
 	$hero = (array) ( $doc['hero'] ?? array() );
 	$pdf  = (array) ( $doc['pdf'] ?? array() );
 	$e    = static fn( $s ) => htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' );
@@ -114,7 +117,7 @@ function sn_resume_pdf_html( $doc, $name, $font_dir ) {
 		$out .= '<p class="tagline">' . $e( $pdf['tagline'] ) . '</p>';
 	}
 	$contact = array();
-	foreach ( array( 'location', 'phone' ) as $k ) {
+	foreach ( $include_phone ? array( 'location', 'phone' ) : array( 'location' ) as $k ) {
 		if ( '' !== (string) ( $pdf[ $k ] ?? '' ) ) {
 			$contact[] = $e( $pdf[ $k ] );
 		}

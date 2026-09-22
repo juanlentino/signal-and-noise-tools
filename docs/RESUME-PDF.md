@@ -8,7 +8,8 @@ Phase 2.
 
 1. S&N → Content → Resume. Edit and **Save resume** as usual.
 2. The **PDF only** section holds what the PDF shows and the page never does: headline, tagline,
-   location, phone, email, core competencies (one per line), technical toolkit (one per line).
+   location, phone, email, core competencies (one per line), technical toolkit (one per line), and
+   the switch **Include the phone in the public PDF** (off by default).
 3. **Generate PDF** (the Resume PDF box below the form). It renders the SAVED document, writes
    `uploads/resume/JuanLentino_Resume.pdf`, stores the timestamp, size, page count and SHA-256 in
    the `sn_resume_pdf` option, re-renders /resume so the Download link reads
@@ -16,6 +17,20 @@ Phase 2.
    **Purge All Caches** does.
 
 Until the first generation, the Download link keeps using the **PDF URL** field in Hero.
+
+## The phone
+
+The owner does not want the phone downloadable by the public (2026-09-22), and wants that under his
+control in the resume editor:
+
+- **The web page never shows it.** The sync engine does not read `pdf`.
+- **The public PDF** (Generate PDF, the Download link) includes it only when **Include the phone in
+  the public PDF** is on. Off by default; an unchecked box posts nothing, so absent means off.
+- **Download private copy (with phone)** builds the same PDF with the phone and streams it to the
+  requesting admin as an attachment (`no-store`, `noindex`). It is never written to disk, so it has
+  no URL anyone else can fetch. Own nonce (`sn_resume_pdf_private`), `manage_options`.
+- Turning the switch off takes effect at the next **Generate PDF**; the file already published
+  keeps whatever it was built with until then.
 
 Generation is manual on purpose. Auto-regenerating on every save was offered as optional in the
 brief and not wired: a save is frequent and cheap, a render is neither, and the owner chooses when
@@ -26,7 +41,7 @@ the public file changes.
 | PDF section | Source in `sn_resume_doc` |
 |---|---|
 | Name | the site title (`get_bloginfo( 'name' )`, filter `sn_resume_pdf_name`) |
-| Headline, tagline, contact line | `pdf.headline`, `pdf.tagline`, `pdf.location`, `pdf.phone`, `pdf.email`, `hero.linkedin` |
+| Headline, tagline, contact line | `pdf.headline`, `pdf.tagline`, `pdf.location`, `pdf.email`, `hero.linkedin`; `pdf.phone` only per `pdf.phone_public` (public) or always (private copy) |
 | Professional summary | `hero.summary` |
 | Stats band | `stats[]` |
 | Core competencies | `pdf.competencies[]` (three columns) |
@@ -60,7 +75,7 @@ To update Dompdf: `cd lib/pdf && composer update`, then run `php tests/resume-pd
 
 ## Tests
 
-- `tests/resume-pdf.php` (18): renders the fixture through the real renderer; `%PDF-`, two pages or
+- `tests/resume-pdf.php` (26): the phone is absent from the public PDF's bytes while the switch is off and present in the private copy's (both read back with pdftotext), Generate follows the switch, the private copy streams and never touches disk; and it renders the fixture through the real renderer; `%PDF-`, two pages or
   fewer, Letter, Lato embedded, no images, Title and Author set, key strings (read back with
   `pdftotext` when installed), remote loading off, stable path, `?v=` hash, atomic write, purge,
   the dispatcher's nonce and `manage_options`.

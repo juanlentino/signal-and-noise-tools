@@ -98,8 +98,9 @@ function resume_pdf( array $pdf ) {
 		. resume_text( 'resume[pdf][tagline]', __( 'Tagline', 'signal-and-noise-tools' ), $pdf['tagline'] ?? '', 'Artist & Label Relations | Latin American & U.S. Markets' )
 		. resume_pair(
 			resume_text( 'resume[pdf][location]', __( 'Location', 'signal-and-noise-tools' ), $pdf['location'] ?? '', 'Orlando, FL' ),
-			resume_text( 'resume[pdf][phone]', __( 'Phone (public in the PDF)', 'signal-and-noise-tools' ), $pdf['phone'] ?? '', '(000) 000-0000' )
+			resume_text( 'resume[pdf][phone]', __( 'Phone', 'signal-and-noise-tools' ), $pdf['phone'] ?? '', '(000) 000-0000' )
 		)
+		. \snt_kit_field( 'switch', 'resume[pdf][phone_public]', __( 'Include the phone in the public PDF', 'signal-and-noise-tools' ), ! empty( $pdf['phone_public'] ), array( 'hint' => __( 'Off: the public PDF (the /resume Download link) leaves the phone out, and only the private copy carries it. The web page never shows it either way.', 'signal-and-noise-tools' ) ) )
 		. resume_text( 'resume[pdf][email]', __( 'Email', 'signal-and-noise-tools' ), $pdf['email'] ?? '', 'name@example.com' )
 		. resume_lines( 'resume[pdf][competencies]', $pdf['competencies'] ?? array(), __( 'Core competencies: one per line', 'signal-and-noise-tools' ), 'Strategic Partnerships & Deal Negotiation', 6 )
 		. resume_lines( 'resume[pdf][toolkit]', $pdf['toolkit'] ?? array(), __( 'Technical toolkit: one per line', 'signal-and-noise-tools' ), 'Pro Tools', 4 );
@@ -118,7 +119,12 @@ function resume_pdf_generate() {
 	} else {
 		$status = '<p class="snt-prose">' . \snt_kit_esc( __( 'Not generated yet: the /resume Download link still uses the PDF URL. Generating builds the PDF from the saved resume and switches the link to it.', 'signal-and-noise-tools' ) ) . '</p>';
 	}
-	return \snt_kit_section( __( 'Resume PDF', 'signal-and-noise-tools' ), \snt_kit_form( 'resume_pdf_generate', $status, array( 'submit' => __( 'Generate PDF', 'signal-and-noise-tools' ) ) ) );
+	$private = '<p class="snt-prose">' . \snt_kit_esc( __( 'A private copy always includes the phone: built on demand for you, never saved on the server, so it has no public URL.', 'signal-and-noise-tools' ) ) . '</p>';
+	return \snt_kit_section(
+		__( 'Resume PDF', 'signal-and-noise-tools' ),
+		\snt_kit_form( 'resume_pdf_generate', $status, array( 'submit' => __( 'Generate PDF', 'signal-and-noise-tools' ) ) )
+		. \snt_kit_form( 'resume_pdf_private', $private, array( 'submit' => __( 'Download private copy (with phone)', 'signal-and-noise-tools' ) ) )
+	);
 }
 
 /**

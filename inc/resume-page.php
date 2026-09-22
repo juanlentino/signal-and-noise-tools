@@ -17,7 +17,7 @@
  *   earlier{label,entries[]{org,roles[]{title,bullets[]}}}
  *   education[]{title,lines[]} · affiliations[]{title,lines[]}
  *   publications[]{meta,title,url} · skills[]{category,items}
- *   pdf{headline,tagline,phone,email,location,competencies[],toolkit[]}
+ *   pdf{headline,tagline,phone,phone_public,email,location,competencies[],toolkit[]}
  *
  * `pdf` feeds ONLY the generated PDF (inc/resume-pdf/). The sync engine never
  * reads it, so a PDF-only field (the phone, above all) cannot reach /resume.
@@ -256,6 +256,8 @@ function sn_resume_doc_normalize( $doc ) {
 		'headline'     => sn_resume_text( $pdf_in['headline'] ?? '' ),
 		'tagline'      => sn_resume_text( $pdf_in['tagline'] ?? '' ),
 		'phone'        => sn_resume_text( $pdf_in['phone'] ?? '' ),
+		// Off unless the owner turns it on: an unchecked box posts nothing.
+		'phone_public' => ! empty( $pdf_in['phone_public'] ),
 		'email'        => function_exists( 'sanitize_email' ) ? (string) sanitize_email( (string) ( $pdf_in['email'] ?? '' ) ) : sn_resume_text( $pdf_in['email'] ?? '' ),
 		'location'     => sn_resume_text( $pdf_in['location'] ?? '' ),
 		'competencies' => array_values( array_filter( array_map( 'sn_resume_text', sn_resume_string_list( $pdf_in['competencies'] ?? array() ) ), 'strlen' ) ),
