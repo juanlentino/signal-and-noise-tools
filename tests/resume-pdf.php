@@ -95,8 +95,24 @@ if ( '' !== $pdftotext ) {
 	ok( false !== strpos( (string) shell_exec( escapeshellarg( $pdftotext ) . ' ' . escapeshellarg( $cache . '/priv.pdf' ) . ' - 2>/dev/null' ), '(555) 010-4242' ), 'the private PDF bytes carry it (control: the check above can see a phone)' );
 }
 $gen_src = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/generate.php' );
-ok( false !== strpos( $gen_src, 'sn_resume_pdf_render( $doc, $name, $loc[\'dir\'] . \'/.font-cache\', ! empty( $doc[\'pdf\'][\'phone_public\'] ) );' ), 'Generate PDF includes the phone ONLY per the switch' );
-ok( 1 === preg_match( '/function sn_resume_pdf_private_stream\(\).*?sn_resume_pdf_render\([^;]*,\s*true\s*\);.*?header\( .Content-Disposition: attachment/s', $gen_src ) && false === strpos( substr( $gen_src, (int) strpos( $gen_src, 'function sn_resume_pdf_private_stream' ) ), 'file_put_contents' ), 'the private copy streams as an attachment and is never written to disk' );
+ok( false !== strpos( $gen_src, 'sn_resume_pdf_render( $doc, $name, $loc[\'dir\'] . \'/.font-cache\', ! empty( $doc[\'pdf\'][\'phone_public\'] ), home_url( \'/\' ) );' ), 'Generate PDF includes the phone ONLY per the switch' );
+ok( 1 === preg_match( '/function sn_resume_pdf_private_stream\(\).*?sn_resume_pdf_render\([^;]*,\s*true,\s*home_url\( \'\/\' \)\s*\);.*?header\( .Content-Disposition: attachment/s', $gen_src ) && false === strpos( substr( $gen_src, (int) strpos( $gen_src, 'function sn_resume_pdf_private_stream' ) ), 'file_put_contents' ), 'the private copy streams as an attachment and is never written to disk' );
+
+echo "\nThe contact line (owner, 2026-09-22: location and links were missing)\n";
+$bare                    = $fixture;
+$bare['pdf']['location'] = '';
+$bare_doc                = sn_resume_doc_normalize( $bare );
+$web_loc                 = (string) $bare_doc['hero']['contact_line'];
+$bare_html               = sn_resume_pdf_html( $bare_doc, 'Juan Lentino', '/fonts', false, 'https://www.juanlentino.com/' );
+ok( '' !== $web_loc && false !== strpos( $bare_html, htmlspecialchars( $web_loc, ENT_QUOTES, 'UTF-8' ) ), 'with the PDF location blank, the web contact line prints (' . $web_loc . ')' );
+ok( false !== strpos( $bare_html, '<a href="https://www.juanlentino.com/">juanlentino.com</a>' ), 'the site address prints as its bare host, linked' );
+ok( false === strpos( sn_resume_pdf_html( $bare_doc, 'Juan Lentino', '/fonts', false, '' ), 'juanlentino.com</a>' ), 'no home URL, no site entry (the fallback invents nothing)' );
+if ( '' !== $pdftotext ) {
+	$b = sn_resume_pdf_render( $bare_doc, 'Juan Lentino', $cache, false, 'https://www.juanlentino.com/' );
+	file_put_contents( $cache . '/bare.pdf', is_array( $b ) ? $b['bytes'] : '' );
+	$bt = (string) shell_exec( escapeshellarg( $pdftotext ) . ' ' . escapeshellarg( $cache . '/bare.pdf' ) . ' - 2>/dev/null' );
+	ok( false !== strpos( $bt, $web_loc ) && false !== strpos( $bt, 'juanlentino.com' ) && false !== strpos( $bt, 'linkedin.com/in/' ), 'the PDF bytes carry the location, LinkedIn and the site (read back with pdftotext)' );
+}
 
 echo "\nWiring\n";
 $gen = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/generate.php' );
