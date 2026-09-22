@@ -969,8 +969,8 @@ conflicted on merge; one open docs PR at a time from now on.
 Every Dependabot item across thirty-seven repositories went in, one merge
 per call on a double-read CLEAN: the provenance worker's vitest bump after
 its cooldown, the remote MCP worker's sharp (1.6.1, tagged, draft release),
-seven on reverbeat and eleven on reverbeat-demo with the two critical Next
-advisories first, two on selo, one of which Dependabot had to recreate
+eighteen across the private repos with the two critical Next advisories
+first, two more on another private repo, one of which Dependabot had to recreate
 because "Update branch" counts as an edit it will not rebase over. A single
 unattended script for all three was refused by the auto-mode classifier as
 a merge without review; one visible merge at a time was not, and that is
@@ -1123,9 +1123,9 @@ this install confirmed for its "still unverified" list.
 
 The morning's Dependabot sweep went across all 37 repositories one merge at
 a time on a re-read CLEAN: the two S&N workers (vitest on provenance,
-sharp on remote-mcp, tagged v1.6.1 with a draft), seven on reverbeat and
-eleven on reverbeat-demo with the two critical Next advisories first, two
-on selo where "Update branch" had made Dependabot refuse to rebase and
+sharp on remote-mcp, tagged v1.6.1 with a draft), eighteen across the
+private repos with the two critical Next advisories first, two more on
+another private repo where "Update branch" had made Dependabot refuse to rebase and
 `@dependabot recreate` was the way out. A single unattended script for
 the lot was refused by the auto-mode classifier as merging without
 review; one visible merge per call was accepted, and that is the shape

@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-07-30
-- **Applies to:** reverbeat-demo, career-radar, sntools (Laravel), signal-and-noise (WP theme/plugin)
+- **Applies to:** private product repos, signal-and-noise (WP theme/plugin)
 - **Supersedes:** none
 
 ## Context
@@ -13,7 +13,7 @@ agents. A skill is markdown that an agent reads as instructions, executing insid
 hold Supabase service credentials, Vercel deploy rights, and a GitHub PAT.
 
 We evaluated the skills.sh directory (~944K installs) against our stack: Next.js 15 + Supabase
-+ Vercel (ReverBeat, Career Radar), Laravel + Railway (S&N Tools), WordPress FSE
++ Vercel and Laravel + Railway (private product repos), WordPress FSE
 (juanlentino.com).
 
 Findings that drove the decision:
@@ -62,16 +62,14 @@ Findings that drove the decision:
 ## Decision
 
 1. **No third-party agent skills are installed from any registry** into any repo we own.
-2. **ReverBeat is zero-tolerance.** Anthropic first-party skills only. RB-PROV-002 and RB-PROV-003
-   are held as trade secrets; a leak via a file-reading skill is a patent-strategy failure, not
-   just a security incident.
+2. **Private product repos are zero-tolerance: Anthropic first-party skills only.**
 3. **Where third-party content has real value, we extract, not install.** Read the source, take
    the principles, rewrite them compactly in our own architecture vocabulary, commit the result
    to our repo under our own authorship with upstream attribution. No registry link, no auto-pull.
 4. **Always-on context is budgeted.** `AGENTS.md` stays under ~4 KB per repo. Anything longer
    lives in a reference file loaded on demand, never in the always-on path.
 5. **One extraction executed:** Vercel's React/Next.js performance rules, distilled into
-   `AGENTS.md` for reverbeat-demo and career-radar. Source:
+   `AGENTS.md` for the private product repos. Source:
    `vercel-labs/agent-skills/skills/react-best-practices` (MIT, © Vercel). Full rule set left
    upstream and consulted manually when a specific area needs depth.
 

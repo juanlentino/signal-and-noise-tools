@@ -248,7 +248,7 @@ anchors, which I did: none is a full sentence, none sits in a heading.
 - **1721 `drift_lexicon`: "today"** — same.
 - **1876 /uses em-dash** — excluded by you. Untouched.
 
-Nothing was touched in the ReverBeat or S&N Tools repos.
+Nothing was touched in the private repos.
 
 ---
 
