@@ -101,9 +101,11 @@ li strong,.lines strong{color:' . $n . ';}
  * @param bool   $include_phone The private copy always; the public file only
  *                              when pdf.phone_public is on (owner, 2026-09-22:
  *                              off by default, controlled from the resume editor).
+ * @param string $site_url      The site's home URL; printed as its bare host (the
+ *                              design's "juanlentino.com"), linked.
  * @return string
  */
-function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false ) {
+function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false, $site_url = '' ) {
 	$hero = (array) ( $doc['hero'] ?? array() );
 	$pdf  = (array) ( $doc['pdf'] ?? array() );
 	$e    = static fn( $s ) => htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' );
@@ -116,17 +118,27 @@ function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false ) {
 	if ( '' !== (string) ( $pdf['tagline'] ?? '' ) ) {
 		$out .= '<p class="tagline">' . $e( $pdf['tagline'] ) . '</p>';
 	}
-	$contact = array();
-	foreach ( $include_phone ? array( 'location', 'phone' ) : array( 'location' ) as $k ) {
-		if ( '' !== (string) ( $pdf[ $k ] ?? '' ) ) {
-			$contact[] = $e( $pdf[ $k ] );
-		}
+	// The contact line reuses what the resume already knows: the PDF-only
+	// location wins, else the web page's own contact line ("Orlando, FL"), so
+	// nothing has to be typed twice and nothing silently vanishes (owner,
+	// 2026-09-22: the location and links were missing from the first PDF).
+	$contact  = array();
+	$location = '' !== (string) ( $pdf['location'] ?? '' ) ? (string) $pdf['location'] : (string) ( $hero['contact_line'] ?? '' );
+	if ( '' !== $location ) {
+		$contact[] = $e( $location );
+	}
+	if ( $include_phone && '' !== (string) ( $pdf['phone'] ?? '' ) ) {
+		$contact[] = $e( $pdf['phone'] );
 	}
 	if ( '' !== (string) ( $pdf['email'] ?? '' ) ) {
 		$contact[] = '<a href="mailto:' . $e( $pdf['email'] ) . '">' . $e( $pdf['email'] ) . '</a>';
 	}
 	if ( '' !== (string) ( $hero['linkedin'] ?? '' ) ) {
 		$contact[] = '<a href="' . $e( $hero['linkedin'] ) . '">' . $e( preg_replace( '~^https?://(www\.)?~i', '', (string) $hero['linkedin'] ) ) . '</a>';
+	}
+	$host = (string) preg_replace( '~^www\.~i', '', (string) parse_url( (string) $site_url, PHP_URL_HOST ) );
+	if ( '' !== $host ) {
+		$contact[] = '<a href="' . $e( $site_url ) . '">' . $e( $host ) . '</a>';
 	}
 	if ( $contact ) {
 		$out .= '<p class="contact">' . implode( ' &#8226; ', $contact ) . '</p>';

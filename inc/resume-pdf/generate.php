@@ -49,9 +49,10 @@ function sn_resume_pdf_location() {
  * @param string $name      Header name.
  * @param string $cache_dir     Writable directory for Dompdf's font metrics cache.
  * @param bool   $include_phone True only for the private copy (never written to disk).
+ * @param string $site_url      Home URL for the contact line ('' leaves it out).
  * @return array{bytes:string,pages:int}|WP_Error
  */
-function sn_resume_pdf_render( $doc, $name, $cache_dir, $include_phone = false ) {
+function sn_resume_pdf_render( $doc, $name, $cache_dir, $include_phone = false, $site_url = '' ) {
 	$lib = dirname( __DIR__, 2 ) . '/lib/pdf';
 	if ( ! is_readable( $lib . '/vendor/autoload.php' ) ) {
 		return new WP_Error( 'sn_resume_pdf_no_renderer', 'The PDF renderer (lib/pdf/vendor) is missing from this install.' );
@@ -71,7 +72,7 @@ function sn_resume_pdf_render( $doc, $name, $cache_dir, $include_phone = false )
 	$options->set( 'chroot', array( $lib, $cache_dir ) );
 
 	$dompdf = new \Dompdf\Dompdf( $options );
-	$dompdf->loadHtml( sn_resume_pdf_html( $doc, $name, $lib . '/fonts', (bool) $include_phone ), 'UTF-8' );
+	$dompdf->loadHtml( sn_resume_pdf_html( $doc, $name, $lib . '/fonts', (bool) $include_phone, (string) $site_url ), 'UTF-8' );
 	$dompdf->setPaper( 'letter', 'portrait' );
 	$dompdf->addInfo( 'Title', $name . ' — Resume' );
 	$dompdf->addInfo( 'Author', $name );
@@ -104,7 +105,7 @@ function sn_resume_pdf_generate() {
 	$name   = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
 	// PUBLIC: the phone only when the owner switched it on (Content → Resume,
 	// PDF only). Default off; the private copy is the way to send it.
-	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', ! empty( $doc['pdf']['phone_public'] ) );
+	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', ! empty( $doc['pdf']['phone_public'] ), home_url( '/' ) );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
@@ -169,7 +170,7 @@ function sn_resume_pdf_private_stream() {
 		return new WP_Error( 'sn_resume_pdf_private', 'No resume document or uploads directory.' );
 	}
 	$name   = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
-	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', true );
+	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', true, home_url( '/' ) );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
