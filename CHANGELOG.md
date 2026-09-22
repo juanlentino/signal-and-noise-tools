@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Documentation
+- **ADR-0001 takes a first-party WordPress amendment.** `WordPress/agent-skills` is published by the organisation that ships core, the block editor and OpenStation, GPL, with an eval harness in the repository, so the registry failure mode the ADR was written against (a silent post-install update from an unaccountable publisher) does not apply. Six are installed globally as reference material after a read of four of them against this plugin and the theme (documentation only, no network calls, no credential handling, nothing addressed to an agent); three are skipped as inapplicable, and everything outside the WordPress and Anthropic organisations stays under the original rule. Two revisit triggers added, one of them the withdrawal condition.
+
 ### Changed
 - **Private product repos are no longer named in the docs or one code comment.** `docs/adr/adr-0001-third-party-agent-skills.md` (scope line, stack sentence, extraction note; one sentence removed, the rule kept as "private product repos are zero-tolerance: Anthropic first-party skills only"), `docs/ops/session-2026-09-15-the-key-that-was-not-a-key.md` and `docs/ops/notes-structural-sweep-2026-08-15.md` (repo names in the Dependabot sweep counts and the "nothing touched" line), and the docblock of `inc/tools-sw-tombstone.php` (the repo the `/tools/` tombstone does not touch) all say "private repos" now. History not rewritten; docs and a comment only, no behaviour change, no version bump.
 

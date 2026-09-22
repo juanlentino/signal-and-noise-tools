@@ -68,7 +68,21 @@ Findings that drove the decision:
    to our repo under our own authorship with upstream attribution. No registry link, no auto-pull.
 4. **Always-on context is budgeted.** `AGENTS.md` stays under ~4 KB per repo. Anything longer
    lives in a reference file loaded on demand, never in the always-on path.
-5. **One extraction executed:** Vercel's React/Next.js performance rules, distilled into
+5. **Amendment, 2026-09-22: first-party WordPress skills are in scope.**
+   `WordPress/agent-skills` is published by the same organisation that ships core, the block
+   editor and OpenStation, GPL-licensed, with an eval harness and scenarios in the repository.
+   The decision above was written against community registries whose failure mode is a silent
+   post-install update from an unaccountable publisher; that premise does not hold for a
+   WordPress-org repository we already track the source of. Six are installed globally
+   (`wp-abilities-api`, `wp-block-themes`, `wp-interactivity-api`, `wp-patterns`, `wp-phpstan`,
+   `wp-playground`), as reference material, on the same footing as Anthropic's first-party set.
+   Read before installing (four skills against this plugin and the theme): documentation only,
+   no network calls, no credential handling, nothing addressed to an agent as an instruction to
+   act. Skipped as inapplicable: `wp-plugin-directory-guidelines` (submission-only; our Plugin
+   Check gate already drops that category), `wp-abilities-audit` (assumes a controller-backed
+   plugin), and the introductory development skills. Everything outside the WordPress and
+   Anthropic organisations stays under the rule above, extract-not-install included.
+6. **One extraction executed:** Vercel's React/Next.js performance rules, distilled into
    `AGENTS.md` for the private product repos. Source:
    `vercel-labs/agent-skills/skills/react-best-practices` (MIT, © Vercel). Full rule set left
    upstream and consulted manually when a specific area needs depth.
@@ -100,5 +114,8 @@ Findings that drove the decision:
   change under us without an explicit bump.
 - The Agent Skills spec (agentskills.io) adds a provenance or signing mechanism.
 - Anthropic ships first-party skills covering Supabase or Playwright, at which point they are in
-  scope by default.
+  scope by default (this is the shape the 2026-09-22 amendment applies to WordPress-org skills).
+- A WordPress-org skill is found carrying anything beyond documentation (a network call, a
+  credential path, an instruction addressed to an agent), at which point the amendment is
+  withdrawn and the six are removed.
 - Vercel publishes follow-up evals that reverse the AGENTS.md finding.
