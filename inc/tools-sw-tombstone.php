@@ -18,7 +18,7 @@
  *
  * `/tools/` is a WordPress-served path on this site (its 404 is the theme's own
  * template), so this plugin can answer it from a virtual route. Nothing in the
- * `sntools-web` repo is touched, and nothing needs to be redeployed there.
+ * private tools repo is touched, and nothing needs to be redeployed there.
  *
  * SCOPE IS `/tools/`, NOT ROOT — established by reading the live registration
  * rather than inferring it:

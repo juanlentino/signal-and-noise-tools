@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Private product repos are no longer named in the docs or one code comment.** `docs/adr/adr-0001-third-party-agent-skills.md` (scope line, stack sentence, extraction note; the held-trade-secret sentence removed, the rule kept as "private product repos are zero-tolerance: Anthropic first-party skills only"), `docs/ops/session-2026-09-15-the-key-that-was-not-a-key.md` and `docs/ops/notes-structural-sweep-2026-08-15.md` (repo names in the Dependabot sweep counts and the "nothing touched" line), and the docblock of `inc/tools-sw-tombstone.php` (the repo the `/tools/` tombstone does not touch) all say "private repos" now. History not rewritten; docs and a comment only, no behaviour change, no version bump.
+
 ## [17.6.0] - 2026-09-21 — the window is built from the kit
 
 ### Added
