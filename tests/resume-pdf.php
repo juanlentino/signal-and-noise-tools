@@ -25,6 +25,9 @@ function is_wp_error( $x ) { return $x instanceof WP_Error; }
 function wp_mkdir_p( $d ) { return is_dir( $d ) || mkdir( $d, 0777, true ); }
 if ( ! function_exists( 'wp_kses' ) ) { function wp_kses( $s, $allowed ) { return strip_tags( (string) $s, '<strong><em><a>' ); } }
 function sanitize_email( $e ) { return (string) filter_var( (string) $e, FILTER_SANITIZE_EMAIL ); }
+// The site timezone the owner lives in (Orlando), as WordPress would apply it.
+function wp_date( $format, $ts ) { return ( new DateTimeImmutable( '@' . $ts ) )->setTimezone( new DateTimeZone( 'America/New_York' ) )->format( $format ); }
+function get_option( $k, $d = false ) { return array( 'date_format' => 'F j, Y', 'time_format' => 'g:i a' )[ $k ] ?? $d; }
 
 require_once __DIR__ . '/../inc/admin-post-actions/content.php';
 require_once __DIR__ . '/../inc/resume-page.php';
@@ -119,6 +122,12 @@ $web['pdf']['website']   = 'https://example.org/work';
 $web_doc                 = sn_resume_doc_normalize( $web );
 $web_html                = sn_resume_pdf_html( $web_doc, 'Juan Lentino', '/fonts', false, 'https://www.juanlentino.com/' );
 ok( false !== strpos( $web_html, '<a href="https://example.org/work">example.org</a>' ) && false === strpos( $web_html, 'juanlentino.com</a>' ), 'the Website field wins over the home URL' );
+
+echo "\nThe generated time (owner, 2026-09-22: the UTC stamp was not their time)\n";
+ok( 'September 22, 2026 at 7:21 pm' === sn_resume_pdf_when( array( 'generated' => '2026-09-22T23:21:54+00:00' ) ), 'the stored UTC time shows in the site timezone and formats (' . sn_resume_pdf_when( array( 'generated' => '2026-09-22T23:21:54+00:00' ) ) . ')' );
+ok( '' === sn_resume_pdf_when( false ) && '' === sn_resume_pdf_when( array( 'generated' => 'nonsense' ) ), 'no stamp, no time (never a 1970 date)' );
+$both = (string) file_get_contents( __DIR__ . '/../inc/admin-forms/resume-page.php' ) . (string) file_get_contents( __DIR__ . '/../apps/sn-dashboard/parts/leaves/content-resume.php' );
+ok( 2 === substr_count( $both, 'sn_resume_pdf_when( $meta )' ) && false === strpos( $both, '(string) $meta[\'generated\']' ), 'both editors show the formatted time, neither the raw stamp' );
 
 echo "\nWiring\n";
 $gen = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/generate.php' );

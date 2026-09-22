@@ -118,7 +118,7 @@ function resume_pdf( array $pdf ) {
 function resume_pdf_generate() {
 	$meta = get_option( defined( 'SN_RESUME_PDF_OPTION' ) ? SN_RESUME_PDF_OPTION : 'sn_resume_pdf' );
 	if ( is_array( $meta ) && ! empty( $meta['url'] ) ) {
-		$status = '<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: 1: timestamp, 2: pages */ __( 'Generated %1$s: %2$d pages.', 'signal-and-noise-tools' ), (string) $meta['generated'], (int) $meta['pages'] ) )
+		$status = '<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: 1: timestamp, 2: pages */ __( 'Generated %1$s: %2$d pages.', 'signal-and-noise-tools' ), \sn_resume_pdf_when( $meta ), (int) $meta['pages'] ) )
 			. ' ' . \snt_kit_link( __( 'Open the PDF', 'signal-and-noise-tools' ), \sn_resume_pdf_link( '' ) ) . '</p>';
 	} else {
 		$status = '<p class="snt-prose">' . \snt_kit_esc( __( 'Not generated yet: the /resume Download link still uses the PDF URL. Generating builds the PDF from the saved resume and switches the link to it.', 'signal-and-noise-tools' ) ) . '</p>';
