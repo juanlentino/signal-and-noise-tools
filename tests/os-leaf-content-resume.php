@@ -34,6 +34,15 @@ $GLOBALS['__resume_doc'] = $seed;
 $classic = snt_leaf_classic_html( 'sn_admin_render_resume_section' );
 $kit     = snt_leaf_paint( 'content', 'resume' );
 ok( '' !== $kit, 'the kit leaf paints' );
+// The phone switch (owner, 2026-09-22: "the toggle for the phone isn't
+// working"). os-form reads only checkboxes as booleans; any other tag submits
+// its static value, so an os-switch posts '1' in BOTH positions and would
+// publish the phone on every save. The leaf must use a real checkbox.
+$kit_now = $kit; // the first full paint, before later groups swap the stored document.
+$kit_dec = html_entity_decode( $kit_now, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+ok( 1 === preg_match( '/<os-checkbox-label[^>]*name="resume\\[pdf\\]\\[phone_public\\]"[^>]*value="1"|<os-checkbox-label[^>]*value="1"[^>]*name="resume\\[pdf\\]\\[phone_public\\]"/', $kit_dec ), 'the phone switch is an os-checkbox-label posting 1 only when checked' );
+ok( '' !== $kit_now && false === strpos( $kit_now, '<os-switch' ), 'the resume leaf carries no os-switch at all (os-form cannot read one as a boolean)' );
+ok( false !== strpos( $kit_dec, 'name="resume[pdf][website]"' ), 'the Website field is on the leaf' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic form (' . count( snt_leaf_names( $kit ) ) . ' names): ' . implode( ',', array_diff( snt_leaf_names( $classic ), snt_leaf_names( $kit ) ) ) . ' missing; ' . implode( ',', array_diff( snt_leaf_names( $kit ), snt_leaf_names( $classic ) ) ) . ' extra' );
 // Resume PDF (docs/RESUME-PDF.md): a second, SEPARATE form generates the PDF
 // from the saved document; it posts no resume fields. The editor itself still
@@ -266,6 +275,7 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_resume_section' );
 $kit     = snt_leaf_paint( 'content', 'resume' );
 ok( false !== strpos( $kit, '<os-empty-state' ) && false !== strpos( $kit, 'The resume editor is unavailable: no stored document and no readable seed.' ), 'unavailable: the classic message paints as an empty state' );
 ok( false === strpos( $kit, '<os-form' ) && array() === snt_leaf_actions( $kit ) && array() === snt_leaf_actions( $classic ) && array() === snt_leaf_names( $kit ), 'unavailable: no form, no action, no field — as the classic early return' );
+
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

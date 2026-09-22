@@ -136,6 +136,10 @@ function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false, $si
 	if ( '' !== (string) ( $hero['linkedin'] ?? '' ) ) {
 		$contact[] = '<a href="' . $e( $hero['linkedin'] ) . '">' . $e( preg_replace( '~^https?://(www\.)?~i', '', (string) $hero['linkedin'] ) ) . '</a>';
 	}
+	// The Website field wins; blank falls back to the site's own home URL.
+	if ( '' !== (string) ( $pdf['website'] ?? '' ) ) {
+		$site_url = (string) $pdf['website'];
+	}
 	$host = (string) preg_replace( '~^www\.~i', '', (string) parse_url( (string) $site_url, PHP_URL_HOST ) );
 	if ( '' !== $host ) {
 		$contact[] = '<a href="' . $e( $site_url ) . '">' . $e( $host ) . '</a>';

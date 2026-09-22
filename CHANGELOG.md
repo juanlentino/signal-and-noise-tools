@@ -12,6 +12,12 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The phone toggle works in the dashboard editor, and cannot publish the phone by itself.** The Resume leaf drew "Include the phone in the public PDF" as an `os-switch`, but os-form reads only checkboxes as booleans; any other tag submits its static value, so the switch posted `1` in both positions and every save turned the phone ON for the next Generate PDF (owner, 2026-09-22: "the toggle for the phone isn't working"). The published PDF was checked and carries no phone. It is now a real checkbox, the pattern the other leaves already use (`security-login-defense.php` documents the trap). `tests/os-leaf-content-resume.php` pins the checkbox and that the leaf carries no `os-switch` at all; putting the switch back fails both.
+
+### New
+- **A Website field in the resume's PDF-only section**, both editors. The PDF prints it (bare host, linked); blank falls back to the site's own home URL, as 17.7.1 does. `tests/resume-pdf.php` (31) pins the override.
+
 ## [17.7.1] - 2026-09-22 — the resume PDF contact line
 
 ### Fixed

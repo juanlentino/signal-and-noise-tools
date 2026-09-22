@@ -114,6 +114,12 @@ if ( '' !== $pdftotext ) {
 	ok( false !== strpos( $bt, $web_loc ) && false !== strpos( $bt, 'juanlentino.com' ) && false !== strpos( $bt, 'linkedin.com/in/' ), 'the PDF bytes carry the location, LinkedIn and the site (read back with pdftotext)' );
 }
 
+$web                     = $bare;
+$web['pdf']['website']   = 'https://example.org/work';
+$web_doc                 = sn_resume_doc_normalize( $web );
+$web_html                = sn_resume_pdf_html( $web_doc, 'Juan Lentino', '/fonts', false, 'https://www.juanlentino.com/' );
+ok( false !== strpos( $web_html, '<a href="https://example.org/work">example.org</a>' ) && false === strpos( $web_html, 'juanlentino.com</a>' ), 'the Website field wins over the home URL' );
+
 echo "\nWiring\n";
 $gen = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/generate.php' );
 ok( 1 === preg_match( "/set\(\s*'isRemoteEnabled',\s*false\s*\)/", $gen ), 'isRemoteEnabled is pinned off (no SSRF surface in the renderer)' );
