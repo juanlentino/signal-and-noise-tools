@@ -174,10 +174,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
-				// readonly => the agent run-path resolves this to GET. Dropping
-				// it forces POST and 405s the semantically-correct call.
 				'readonly'        => true,
+				'destructive'     => false,
 				'idempotent'      => true,
 				'open_world_hint' => false,
 			),

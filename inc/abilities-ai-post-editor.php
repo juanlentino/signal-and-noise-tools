@@ -71,8 +71,11 @@ add_action( 'wp_abilities_api_init', function() {
 			'show_in_rest' => true,
 			// Generative + mutates _sn_meta_description: each call yields a
 			// different value, so a retry is NOT a no-op (see draft-release-notes).
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
-				'idempotent' => false,
+				'readonly'    => false,
+				'destructive' => false,
+				'idempotent'  => false,
 			),
 		),
 	) );
@@ -114,8 +117,11 @@ add_action( 'wp_abilities_api_init', function() {
 			'show_in_rest' => true,
 			// Generative + mutates _sn_og_card_title AND regenerates the PNG: a
 			// retry produces a different title and rewrites the card. Not idempotent.
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
-				'idempotent' => false,
+				'readonly'    => false,
+				'destructive' => false,
+				'idempotent'  => false,
 			),
 		),
 	) );
@@ -158,9 +164,11 @@ add_action( 'wp_abilities_api_init', function() {
 			// Returns text only (caller writes post_excerpt) → readonly; but it is
 			// generative, so a retry returns different prose → not idempotent.
 			// Mirrors the draft-release-notes precedent exactly.
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
-				'readonly'   => true,
-				'idempotent' => false,
+				'readonly'    => true,
+				'destructive' => false,
+				'idempotent'  => false,
 			),
 		),
 	) );

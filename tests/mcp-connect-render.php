@@ -210,16 +210,30 @@ ok( stripos( $html, 'If the wp.org “AI” plugin is active on this site, its M
 // claim "none of ours opt in" is DERIVED from the registrations, not remembered.
 ok( stripos( $html, 'meta.mcp.public' ) !== false, 'adapter block states the 0.6.0 opt-in exposure rule' );
 ok( stripos( $html, 'entire Abilities registry' ) === false, 'REGRESSION: the pre-0.6.0 "entire registry" claim is gone' );
-$sn_optin_files = snt_test_inc_files( 'abilities*.php' );
+// 17.6.1 (#1662): every registration now STATES meta.mcp.public, true for the
+// Door 1 read allowlist and false everywhere else. The door copy no longer
+// claims "none of ours opt in"; it claims the adapter would carry the same
+// read set Door 1 does, and that claim is DERIVED here, not remembered. The
+// shape of the assertion is unchanged: the copy is checked against the
+// registrations, never against memory.
+$sn_optin_files = array_values( array_filter(
+	snt_test_inc_files( 'abilities*.php' ),
+	// abilities-categories / -permission-helpers / -lifecycle-guard / -rate-gate /
+	// -registration match the glob and register nothing; they carry no meta at all.
+	static function ( $sn_f ) { return 1 === preg_match( "/wp_register_ability\\(\\s*[\\$']/", (string) file_get_contents( $sn_f ) ); }
+) );
 ok( count( $sn_optin_files ) >= 10, 'vacuity: ability registration files found (' . count( $sn_optin_files ) . ')' );
-$sn_optin_meta = 0; $sn_optin_hits = array();
+$sn_optin_meta = 0; $sn_optin_true = 0; $sn_optin_silent = array();
 foreach ( $sn_optin_files as $sn_f ) {
 	$sn_src = (string) file_get_contents( $sn_f );
 	$sn_optin_meta += preg_match_all( "/'meta'\s*=>/", $sn_src );
-	if ( preg_match( "/'(public|mcp)'\s*=>/", $sn_src ) ) { $sn_optin_hits[] = basename( $sn_f ); }
+	$sn_optin_true += preg_match_all( "/'mcp'\s*=>\s*array\(\s*'public'\s*=>\s*true/", $sn_src );
+	if ( ! preg_match( "/'mcp'\s*=>\s*array\(\s*'public'\s*=>/", $sn_src ) ) { $sn_optin_silent[] = basename( $sn_f ); }
 }
 ok( $sn_optin_meta >= 40, 'vacuity: registrations carry meta blocks (' . $sn_optin_meta . ')' );
-ok( array() === $sn_optin_hits, 'no plugin ability opts in to the adapter (meta.public / meta.mcp) — the door copy depends on this: ' . implode( ',', $sn_optin_hits ) );
+ok( array() === $sn_optin_silent, 'every ability file STATES meta.mcp.public, silent on: ' . implode( ',', $sn_optin_silent ) );
+ok( $sn_optin_true > 0, 'the read allowlist opts in to the adapter (' . $sn_optin_true . ' registrations), which is what the door copy now says' );
+ok( stripos( $html, 'none of ours do' ) === false && stripos( $html, 'opt in, so this door exposes none of them' ) === false, 'REGRESSION: the stale "none of ours opt in" copy is gone' );
 
 // ── Claude desktop app section (v9.49.0) ──
 // The owner connects from the Claude APP, not the CLI. The officially
@@ -256,7 +270,7 @@ ok( sn_i18n_seen( 'Door 1: the native MCP server' ), 'Door 1 heading translatabl
 ok( sn_i18n_seen( 'Door 2: the Abilities-registry adapter' ), 'Door 2 heading translatable' );
 ok( sn_i18n_seen( 'Connect a client' ), 'owner-steps heading translatable' );
 ok( sn_i18n_seen( 'Create an %s under your own WordPress user. MCP clients authenticate as you, over Basic auth, never with your normal password.' ), 'step 1 is a translatable sprintf msgid' );
-ok( sn_i18n_seen( 'Copy the endpoint URL for whichever door you’re using. Door 1 above for the read-only tool allowlist, Door 2 for abilities that opt in to the adapter (none of ours do).' ), 'step 2 translatable' );
+ok( sn_i18n_seen( 'Copy the endpoint URL for whichever door you’re using. Door 1 above for the read-only tool allowlist, Door 2 for abilities that opt in to the adapter (that is Door 1’s read allowlist).' ), 'step 2 translatable' );
 ok( sn_i18n_seen( 'Paste the client config below, swapping in your WordPress username and the Application Password you just created.' ), 'step 3 translatable' );
 ok( sn_i18n_seen( 'More' ), 'deep-links heading translatable' );
 

@@ -113,9 +113,11 @@ add_action( 'wp_abilities_api_init', function () {
 			// wp_get_ability( $slug )->execute( $args ) and never needs it.
 			// Deleting the surface beats guarding it.
 			'show_in_rest' => false,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
-				'readonly'   => true,
-				'idempotent' => true,
+				'readonly'    => true,
+				'destructive' => false,
+				'idempotent'  => true,
 			),
 		),
 	) );

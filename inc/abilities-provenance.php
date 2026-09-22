@@ -145,6 +145,7 @@ function snt_abilities_provenance_register() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => true, 'type' => 'tool' ),
 			'annotations'  => array(
 				'readonly'    => true,
 				'destructive' => false,
@@ -176,6 +177,7 @@ function snt_abilities_provenance_register() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
 				'readonly'    => false,
 				'destructive' => false,

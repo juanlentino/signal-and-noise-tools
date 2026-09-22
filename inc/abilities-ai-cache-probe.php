@@ -64,10 +64,10 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => true, 'type' => 'tool' ),
 			'annotations'  => array(
-				// readonly => the run controller requires GET. This is a pure read of
-				// an already-recorded option; it triggers no HTTP call of its own.
 				'readonly'        => true,
+				'destructive'     => false,
 				'idempotent'      => true,
 				'open_world_hint' => false,
 			),

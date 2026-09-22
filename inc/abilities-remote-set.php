@@ -153,7 +153,8 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 		'meta'                => array(
 			'show_in_rest' => false, // the surface, not a setting — see file header.
-			'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
 		),
 	) );
 
@@ -188,7 +189,8 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 		'meta'                => array(
 			'show_in_rest' => false, // the surface, not a setting — see file header.
-			'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
 		),
 	) );
 
@@ -228,7 +230,8 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 		'meta'                => array(
 			'show_in_rest' => false, // the surface, not a setting — see file header.
-			'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
 		),
 	) );
 
@@ -301,7 +304,8 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 		'meta'                => array(
 			'show_in_rest' => false, // the surface, not a setting — see file header.
-			'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
 		),
 	) );
 
@@ -363,7 +367,8 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 		'meta'                => array(
 			'show_in_rest' => false, // the surface, not a setting — see file header.
-			'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
 		),
 	) );
 
@@ -425,7 +430,8 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 		'meta'                => array(
 			'show_in_rest' => false, // the surface, not a setting — see file header.
-			'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
 		),
 	) );
 
@@ -506,7 +512,8 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 		'meta'                => array(
 			'show_in_rest' => false, // the surface, not a setting — see file header.
-			'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
 		),
 	) );
 } );
@@ -589,7 +596,8 @@ add_action( 'wp_abilities_api_init', function () {
 			'output_schema'       => $table[ $t['admin'] ]['output'],
 			'meta'                => array(
 				'show_in_rest' => false, // the surface, not a setting — see file header (#1215).
-				'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+				'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+				'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
 			),
 		) );
 	}
@@ -654,7 +662,8 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 		'meta'                => array(
 			'show_in_rest' => false, // the surface, not a setting — see file header.
-			'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
 		),
 	) );
 
@@ -769,7 +778,8 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 		'meta'                => array(
 			'show_in_rest' => false, // the surface, not a setting — see file header.
-			'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
 		),
 	) );
 
@@ -817,7 +827,8 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 		'meta'                => array(
 			'show_in_rest' => false, // the surface, not a setting — see file header.
-			'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
 		),
 	) );
 } );

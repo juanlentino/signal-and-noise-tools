@@ -203,6 +203,7 @@ function snt_abilities_content_queue_register() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
 				'readonly'        => true,
 				'destructive'     => false,

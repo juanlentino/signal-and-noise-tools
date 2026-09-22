@@ -84,6 +84,7 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => true, 'type' => 'tool' ),
 			'annotations'  => array(
 				'readonly'        => true,
 				'destructive'     => false,

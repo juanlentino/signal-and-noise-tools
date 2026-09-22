@@ -194,11 +194,12 @@ function snt_abilities_collector_status_register() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
 				'readonly'        => true,
 				'destructive'     => false,
 				'idempotent'      => true,
-				'open_world_hint' => true, // it reaches the edge worker.
+				'open_world_hint' => true,
 			),
 		),
 	) );

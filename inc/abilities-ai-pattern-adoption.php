@@ -78,7 +78,8 @@ add_action( 'wp_abilities_api_init', function() {
 			// generator that writes nothing (verb parity with its
 			// block-migrations-suggest mirror, which declared readonly in
 			// v6.39.2). readonly => the run controller requires GET.
-			'annotations'  => array( 'readonly' => true, 'idempotent' => true ),
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
 		),
 	) );
 
@@ -116,7 +117,8 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
-			'annotations'  => array( 'idempotent' => false, 'destructive' => true ),
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => false, 'destructive' => true, 'idempotent' => false ),
 		),
 	) );
 } );

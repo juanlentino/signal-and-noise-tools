@@ -31,8 +31,11 @@ ok( true === $a['meta']['show_in_rest'] && true === $a['meta']['annotations']['r
 ok( 'object' === $a['input_schema']['type'] && array( 'post_id' ) === $a['input_schema']['required'] && 'integer' === $a['input_schema']['properties']['post_id']['type'] && 1 === $a['input_schema']['properties']['post_id']['minimum'], 'input: an object requiring post_id (integer >= 1)' );
 ok( array( 7, 30, 90 ) === $a['input_schema']['properties']['days']['enum'] && 30 === $a['input_schema']['properties']['days']['default'] && false === $a['input_schema']['additionalProperties'], 'days: 7 | 30 | 90, default 30, nothing else accepted' );
 ok( 'object' === $a['output_schema']['type'] && isset( $a['output_schema']['properties']['blocks'], $a['output_schema']['properties']['fetched_at'], $a['output_schema']['properties']['is_public'] ), 'output: the envelope names blocks, is_public and fetched_at' );
-ok( ! isset( $a['meta']['public'] ) && ! isset( $a['meta']['mcp'] ), 'no MCP Adapter opt-in keys' );
-ok( ! preg_match( "/'(public|mcp)'\\s*=>/", (string) file_get_contents( __DIR__ . '/../inc/abilities-note-dossier.php' ) ), 'the file never spells the adapter opt-in keys: tests/mcp-connect-render.php greps the SOURCE for them, which is why the envelope key is is_public' );
+// 17.6.1 (#1662): the adapter opt-in is now STATED on every registration
+// rather than omitted. note-dossier is on neither door, so it states false.
+ok( ! isset( $a['meta']['public'] ), 'no legacy meta.public opt-in key' );
+ok( isset( $a['meta']['mcp']['public'] ) && false === $a['meta']['mcp']['public'], 'meta.mcp.public is stated, and false: note-dossier is on neither door' );
+ok( isset( $a['meta']['mcp']['type'] ) && 'tool' === $a['meta']['mcp']['type'], 'meta.mcp.type is tool' );
 
 echo "\nexecute: the door with the builders absent\n";
 $r = snt_ability_note_dossier( array( 'post_id' => '7', 'days' => '30' ) );
