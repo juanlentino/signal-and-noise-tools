@@ -100,8 +100,12 @@ function resume_pdf( array $pdf ) {
 			resume_text( 'resume[pdf][location]', __( 'Location', 'signal-and-noise-tools' ), $pdf['location'] ?? '', 'Orlando, FL' ),
 			resume_text( 'resume[pdf][phone]', __( 'Phone', 'signal-and-noise-tools' ), $pdf['phone'] ?? '', '(000) 000-0000' )
 		)
-		. \snt_kit_field( 'switch', 'resume[pdf][phone_public]', __( 'Include the phone in the public PDF', 'signal-and-noise-tools' ), ! empty( $pdf['phone_public'] ), array( 'hint' => __( 'Off: the public PDF (the /resume Download link) leaves the phone out, and only the private copy carries it. The web page never shows it either way.', 'signal-and-noise-tools' ) ) )
+		// A CHECKBOX, never os-switch: os-form reads only checkboxes as booleans;
+		// a switch always submits its static value '1', which would publish the
+		// phone on every save (see security-login-defense.php).
+		. \snt_kit_field( 'checkbox', 'resume[pdf][phone_public]', __( 'Include the phone in the public PDF', 'signal-and-noise-tools' ), ! empty( $pdf['phone_public'] ), array( 'value' => '1', 'hint' => __( 'Off: the public PDF (the /resume Download link) leaves the phone out, and only the private copy carries it. The web page never shows it either way.', 'signal-and-noise-tools' ) ) )
 		. resume_text( 'resume[pdf][email]', __( 'Email', 'signal-and-noise-tools' ), $pdf['email'] ?? '', 'name@example.com' )
+		. resume_text( 'resume[pdf][website]', __( 'Website', 'signal-and-noise-tools' ), $pdf['website'] ?? '', 'https://juanlentino.com (blank: this site)' )
 		. resume_lines( 'resume[pdf][competencies]', $pdf['competencies'] ?? array(), __( 'Core competencies: one per line', 'signal-and-noise-tools' ), 'Strategic Partnerships & Deal Negotiation', 6 )
 		. resume_lines( 'resume[pdf][toolkit]', $pdf['toolkit'] ?? array(), __( 'Technical toolkit: one per line', 'signal-and-noise-tools' ), 'Pro Tools', 4 );
 }
@@ -114,7 +118,7 @@ function resume_pdf( array $pdf ) {
 function resume_pdf_generate() {
 	$meta = get_option( defined( 'SN_RESUME_PDF_OPTION' ) ? SN_RESUME_PDF_OPTION : 'sn_resume_pdf' );
 	if ( is_array( $meta ) && ! empty( $meta['url'] ) ) {
-		$status = '<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: 1: timestamp, 2: pages */ __( 'Generated %1$s: %2$d pages.', 'signal-and-noise-tools' ), (string) $meta['generated'], (int) $meta['pages'] ) )
+		$status = '<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: 1: timestamp, 2: pages */ __( 'Generated %1$s: %2$d pages.', 'signal-and-noise-tools' ), \sn_resume_pdf_when( $meta ), (int) $meta['pages'] ) )
 			. ' ' . \snt_kit_link( __( 'Open the PDF', 'signal-and-noise-tools' ), \sn_resume_pdf_link( '' ) ) . '</p>';
 	} else {
 		$status = '<p class="snt-prose">' . \snt_kit_esc( __( 'Not generated yet: the /resume Download link still uses the PDF URL. Generating builds the PDF from the saved resume and switches the link to it.', 'signal-and-noise-tools' ) ) . '</p>';

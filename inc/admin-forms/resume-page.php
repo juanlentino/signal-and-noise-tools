@@ -352,6 +352,7 @@ function sn_admin_render_resume_section() {
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">' . esc_html( 'Include the phone in the public PDF' ) . '</span><input type="checkbox" name="resume[pdf][phone_public]" value="1"' . ( ! empty( $pdf['phone_public'] ) ? ' checked="checked"' : '' ) . '></label>';
 	echo '<p class="description">Off: the public PDF (the /resume Download link) leaves the phone out, and only the private copy below carries it. The web page never shows it either way.</p>';
 	sn_rsm_input( 'resume[pdf][email]', (string) ( $pdf['email'] ?? '' ), 'Email', 'name@example.com' );
+	sn_rsm_input( 'resume[pdf][website]', (string) ( $pdf['website'] ?? '' ), 'Website', 'https://juanlentino.com (blank: this site)' );
 	sn_rsm_lines( 'resume[pdf][competencies]', (array) ( $pdf['competencies'] ?? array() ), 'Core competencies: one per line', 'Strategic Partnerships & Deal Negotiation', 6 );
 	sn_rsm_lines( 'resume[pdf][toolkit]', (array) ( $pdf['toolkit'] ?? array() ), 'Technical toolkit: one per line', 'Pro Tools', 4 );
 	echo '</details>';
@@ -376,7 +377,7 @@ function sn_admin_render_resume_pdf_generate() {
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Resume PDF</h2>';
 	if ( is_array( $meta ) && ! empty( $meta['url'] ) ) {
-		echo '<p class="sn-fieldset-intro">Generated <code>' . esc_html( (string) $meta['generated'] ) . '</code>: '
+		echo '<p class="sn-fieldset-intro">Generated ' . esc_html( sn_resume_pdf_when( $meta ) ) . ': '
 			. esc_html( (string) (int) $meta['pages'] ) . ' pages, ' . esc_html( size_format( (int) $meta['bytes'] ) ) . ', SHA-256 <code>' . esc_html( substr( (string) $meta['sha256'], 0, 12 ) ) . '</code>. '
 			. '<a href="' . esc_url( sn_resume_pdf_link( '' ) ) . '" target="_blank" rel="noopener">Open the PDF</a>. The /resume Download link points here.</p>';
 	} else {

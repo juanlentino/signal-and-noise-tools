@@ -182,3 +182,20 @@ function sn_resume_pdf_private_stream() {
 	echo $result['bytes']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- binary PDF body, not HTML.
 	exit;
 }
+
+/**
+ * When the public PDF was generated, for people: the stored value is UTC
+ * (gmdate 'c', unambiguous in the option), shown in the SITE timezone with the
+ * site's own date and time formats (owner, 2026-09-22: the raw UTC stamp read
+ * as a time that wasn't theirs). '' when unknown.
+ *
+ * @param array|false $meta The sn_resume_pdf option.
+ * @return string
+ */
+function sn_resume_pdf_when( $meta ) {
+	$ts = is_array( $meta ) ? strtotime( (string) ( $meta['generated'] ?? '' ) ) : false;
+	if ( false === $ts ) {
+		return '';
+	}
+	return (string) wp_date( get_option( 'date_format', 'F j, Y' ) . ' \\a\\t ' . get_option( 'time_format', 'g:i a' ), $ts );
+}
