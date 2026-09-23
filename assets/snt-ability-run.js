@@ -36,11 +36,13 @@
 ( function () {
 	'use strict';
 
-	var cfg   = window.sntAbilityRunData || {};
-	var VERBS = cfg.verbs || {};
+	// Read at CALL time, not load time: the data prints once per page from its
+	// own handle ('snt-ability-run-data', never a dependency), and OpenStation
+	// lazy-loads scripts that depend on this one long after the head printed.
+	function cfg() { return window.sntAbilityRunData || {}; }
 	// rest_url() from the server, so the shell branch builds a full URL that
 	// routes on plain permalinks too (the same value as openStationConfig.restUrl).
-	var ROOT  = ( cfg.root || '/wp-json/' ).replace( /\/$/, '' );
+	function root() { return ( cfg().root || '/wp-json/' ).replace( /\/$/, '' ); }
 
 	/**
 	 * Bracket-encode an input object for GET/DELETE query transport.
@@ -75,7 +77,8 @@
 			if ( data ) { opts.data = data; }
 			return window.wp.apiFetch( opts );
 		}
-		var url  = ROOT + path + ( query ? ( -1 === ROOT.indexOf( '?' ) ? '?' : '&' ) + query : '' );
+		var base = root();
+		var url  = base + path + ( query ? ( -1 === base.indexOf( '?' ) ? '?' : '&' ) + query : '' );
 		var init = { method: verb, credentials: 'same-origin' };
 		if ( signal ) { init.signal = signal; }
 		if ( data ) {
@@ -110,7 +113,7 @@
 		// Unknown slug (e.g. an ability removed server-side) falls back to
 		// POST — the controller's own default expectation for un-annotated
 		// abilities; a 404/405 there is loud, not silent.
-		var verb = VERBS[ name ] || 'POST';
+		var verb = ( cfg().verbs || {} )[ name ] || 'POST';
 		var path  = '/wp-abilities/v1/abilities/' + name + '/run';
 		var query = '';
 		var data  = null;

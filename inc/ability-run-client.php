@@ -91,16 +91,25 @@ function snt_ability_run_client_register() {
 		SNT_VERSION,
 		true
 	);
-	wp_localize_script(
-		'snt-ability-run',
-		'sntAbilityRunData',
-		array(
-			'verbs' => snt_ability_verb_map(),
-			// #1601: inside the station the runner sends through wp.os.fetch,
-			// which takes a full URL; rest_url() covers plain permalinks.
-			'root'  => rest_url(),
-		)
+	// The data prints ONCE per page from its own src-less handle, in the head,
+	// and is never a dependency. It used to be localized onto 'snt-ability-run'
+	// itself, and OpenStation serializes every dependency's l10n into each
+	// command and widget that depends on it: 38 S&N entries carried the same
+	// 5.5 KB, and the station page printed it 35 more times, about 400 KB of
+	// the 489 KB openStationConfig blob (measured 2026-09-22).
+	wp_register_script( 'snt-ability-run-data', false, array(), SNT_VERSION, false );
+	wp_add_inline_script(
+		'snt-ability-run-data',
+		'window.sntAbilityRunData = ' . wp_json_encode(
+			array(
+				'verbs' => snt_ability_verb_map(),
+				// #1601: inside the station the runner sends through wp.os.fetch,
+				// which takes a full URL; rest_url() covers plain permalinks.
+				'root'  => rest_url(),
+			)
+		) . ';'
 	);
+	wp_enqueue_script( 'snt-ability-run-data' );
 }
 add_action( 'admin_enqueue_scripts', 'snt_ability_run_client_register', 1 );
 add_action( 'enqueue_block_editor_assets', 'snt_ability_run_client_register', 1 );

@@ -199,13 +199,17 @@ t( false !== strpos( $runner_src, 'window.wp.os.fetch(' ) && false !== strpos( $
 t( false !== strpos( $runner_src, "'function' === typeof window.wp.os.fetch" ), 'E.2 the shell seam is a typeof guard (the same script loads on classic pages)' );
 t( 1 === preg_match( '/silent: !! \( options && options\.silent \)/', $runner_src ), 'E.3 options.silent is forwarded, so a timer never lights a window the owner did not touch' );
 t( false !== strpos( $runner_src, 'if ( ! res.ok ) { throw body; }' ) && false !== strpos( $runner_src, 'res.json()' ), 'E.4 the shell branch keeps wp.apiFetch\'s contract: parsed JSON resolves, the parsed WP_Error body rejects' );
-t( false !== strpos( $runner_src, "cfg.root || '/wp-json/'" ) && 1 === preg_match( "/-1 === ROOT\.indexOf\( '\?' \) \? '\?' : '&'/", $runner_src ), 'E.5 the URL is built on the localized rest_url() root and joins a query with & when the root already carries ? (plain permalinks)' );
+t( false !== strpos( $runner_src, "cfg().root || '/wp-json/'" ) && 1 === preg_match( "/-1 === base\.indexOf\( '\?' \) \? '\?' : '&'/", $runner_src ) && false === strpos( $runner_src, 'var cfg   = window.sntAbilityRunData' ), 'E.5 the URL is built on the rest_url() root read at CALL time (not captured at load) and joins a query with & when the root already carries ? (plain permalinks)' );
 
 // The localizer hands the runner rest_url() beside the verb map.
 if ( ! defined( 'SNT_PATH' ) ) { define( 'SNT_PATH', __DIR__ . '/../' ); }
 if ( ! defined( 'SNT_VERSION' ) ) { define( 'SNT_VERSION', '0.0.0' ); }
 if ( ! function_exists( 'wp_script_is' ) ) { function wp_script_is( $h, $l = 'enqueued' ) { return false; } }
-if ( ! function_exists( 'wp_register_script' ) ) { function wp_register_script() { return true; } }
+if ( ! function_exists( 'wp_register_script' ) ) { function wp_register_script( $h = '', $src = '', $deps = array(), $ver = false, $footer = false ) { $GLOBALS['__test_registered'][ $h ] = array( 'src' => $src, 'deps' => $deps, 'footer' => $footer ); return true; } }
+if ( ! function_exists( 'wp_add_inline_script' ) ) { function wp_add_inline_script( $h, $js, $pos = 'after' ) { $GLOBALS['__test_inline'][ $h ][] = $js; return true; } }
+if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( $h ) { $GLOBALS['__test_enqueued'][] = $h; } }
+if ( ! function_exists( 'wp_json_encode' ) ) { function wp_json_encode( $d ) { return json_encode( $d ); } }
+$GLOBALS['__test_registered'] = array(); $GLOBALS['__test_inline'] = array(); $GLOBALS['__test_enqueued'] = array();
 if ( ! function_exists( 'plugins_url' ) ) { function plugins_url( $p = '', $f = '' ) { return 'https://example.test/wp-content/plugins/x/' . $p; } }
 if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . $p; } }
 if ( ! function_exists( 'wp_localize_script' ) ) { function wp_localize_script( $h, $n, $d ) { $GLOBALS['__test_localized'][ $h ][ $n ] = $d; return true; } }
@@ -213,7 +217,17 @@ $GLOBALS['__test_localized'] = array();
 if ( function_exists( 'snt_ability_run_client_register' ) ) {
 	snt_ability_run_client_register();
 }
-$l10n = $GLOBALS['__test_localized']['snt-ability-run']['sntAbilityRunData'] ?? array();
+// The data prints ONCE from its own src-less head handle, never as l10n on
+// 'snt-ability-run': OpenStation serializes each dependency's l10n into every
+// command and widget, so localizing it there copied 5.5 KB into 38 S&N entries
+// and printed it 35 more times (about 400 KB of the station page, 2026-09-22).
+t( empty( $GLOBALS['__test_localized']['snt-ability-run'] ), 'E.5a nothing is localized onto snt-ability-run (its l10n would be copied into every dependent command and widget)' );
+$reg = $GLOBALS['__test_registered']['snt-ability-run-data'] ?? null;
+t( is_array( $reg ) && false === $reg['src'] && array() === $reg['deps'] && false === $reg['footer'], 'E.5b the data rides its own src-less handle, printed in the head' );
+t( in_array( 'snt-ability-run-data', $GLOBALS['__test_enqueued'], true ), 'E.5c the data handle is enqueued, so the page prints it once' );
+t( ! in_array( 'snt-ability-run-data', (array) ( $GLOBALS['__test_registered']['snt-ability-run']['deps'] ?? array() ), true ), 'E.5d the runner does not depend on the data handle (a dependency would be serialized again)' );
+$inline = implode( '', (array) ( $GLOBALS['__test_inline']['snt-ability-run-data'] ?? array() ) );
+$l10n   = preg_match( '/^window\.sntAbilityRunData = (\{.*\});$/s', $inline, $jm ) ? (array) json_decode( $jm[1], true ) : array();
 t_eq( 'https://example.test/wp-json/', $l10n['root'] ?? null, 'E.6 sntAbilityRunData carries rest_url() as root (openStationConfig.restUrl is the same value; the runner stays shell-agnostic)' );
 t( is_array( $l10n['verbs'] ?? null ), 'E.7 the verb map still rides the same object' );
 
