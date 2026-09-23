@@ -57,26 +57,26 @@ function sn_resume_pdf_css( $font_dir ) {
 	}
 	return $face . '
 @page{size:letter;margin:0.45in 0.55in;}
-body{font-family:"Lato",sans-serif;font-size:9pt;line-height:1.25;color:#222;}
-h1{font-size:22pt;color:' . $n . ';text-align:center;margin:0;letter-spacing:0.5pt;}
-.headline{font-size:10pt;font-weight:bold;color:' . $g . ';text-align:center;margin:2pt 0 0;}
-.tagline{font-size:9.5pt;color:' . $n . ';text-align:center;margin:2pt 0 0;}
-.contact{font-size:9pt;text-align:center;margin:2pt 0 6pt;}
+body{font-family:"Lato",sans-serif;font-size:8.5pt;line-height:1.1;color:#222;}
+h1{font-size:20pt;color:' . $n . ';text-align:center;margin:0;letter-spacing:0.5pt;}
+.headline{font-size:9.5pt;font-weight:bold;color:' . $g . ';text-align:center;margin:2pt 0 0;}
+.tagline{font-size:9pt;color:' . $n . ';text-align:center;margin:2pt 0 0;}
+.contact{font-size:8.5pt;text-align:center;margin:2pt 0 6pt;}
 .contact a{color:' . $n . ';}
-h2{font-size:10.5pt;color:' . $n . ';border-bottom:1.5pt solid ' . $g . ';padding-bottom:1.5pt;margin:7pt 0 3pt;page-break-after:avoid;}
+h2{font-size:10pt;color:' . $n . ';border-bottom:1.5pt solid ' . $g . ';padding-bottom:1.5pt;margin:7pt 0 3pt;page-break-after:avoid;}
 p{margin:0 0 3pt;text-align:justify;}
 table{width:100%;border-collapse:collapse;}
 .stats td{background:' . $n . ';color:#fff;text-align:center;padding:4pt 2pt;border:1.5pt solid #fff;}
-.stats .n{font-size:13pt;font-weight:bold;color:' . $g . ';display:block;}
+.stats .n{font-size:12pt;font-weight:bold;color:' . $g . ';display:block;}
 .stats .l{font-size:7.5pt;}
 .comp td{width:33%;font-size:8.5pt;padding:1pt 0;vertical-align:top;}
 .comp .dot{color:' . $g . ';font-family:"DejaVu Sans",sans-serif;} /* Lato has no U+25C6 */
 .toolkit{text-align:left;}
 .row td{padding:0;vertical-align:bottom;}
-.org{font-weight:bold;color:' . $n . ';text-transform:uppercase;font-size:9.5pt;}
-.loc{font-style:italic;text-align:right;font-size:9pt;}
-.role{font-weight:bold;color:' . $g . ';font-size:9.5pt;}
-.dates{font-weight:bold;color:' . $n . ';text-align:right;font-size:9pt;}
+.org{font-weight:bold;color:' . $n . ';text-transform:uppercase;font-size:9pt;}
+.loc{font-style:italic;text-align:right;font-size:8.5pt;}
+.role{font-weight:bold;color:' . $g . ';font-size:9pt;}
+.dates{font-weight:bold;color:' . $n . ';text-align:right;font-size:8.5pt;}
 .entry{margin:4pt 0 0;}
 .row{page-break-after:avoid;}
 ul{margin:1pt 0 2pt;padding-left:12pt;list-style-type:none;}
@@ -85,7 +85,8 @@ li:before{content:"\25AA";color:' . $g . ';position:absolute;left:-10pt;top:0;}
 li strong,.lines strong{color:' . $n . ';}
 .pub{margin:0 0 2pt;}
 .pub a{color:' . $n . ';}
-.pub .meta{font-style:italic;}
+.pub td{padding:0;vertical-align:top;}
+.pub .meta{font-style:italic;text-align:right;white-space:nowrap;padding-left:8pt;}
 .lines{margin:0 0 1.5pt;}
 .lines .t{font-weight:bold;color:' . $n . ';}
 .sep{color:#666;}
@@ -202,12 +203,12 @@ function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false, $si
 
 	$pubs = (array) ( $doc['publications'] ?? array() );
 	if ( $pubs ) {
-		$out .= '<h2>RESEARCH &amp; PUBLICATIONS</h2><ul>';
+		$out .= '<h2>RESEARCH &amp; PUBLICATIONS</h2>';
 		foreach ( $pubs as $p ) {
 			$t     = '' !== (string) ( $p['url'] ?? '' ) ? '<a href="' . $e( $p['url'] ) . '">' . $e( $p['title'] ?? '' ) . '</a>' : $e( $p['title'] ?? '' );
-			$out  .= '<li class="pub">' . $t . ( '' !== (string) ( $p['meta'] ?? '' ) ? ' &#8212; <span class="meta">' . $e( $p['meta'] ) . '</span>' : '' ) . '</li>';
+			// Venue and date on the title's row, right-aligned like a role's dates.
+			$out  .= '<table class="pub"><tr><td>' . $t . '</td><td class="meta">' . $e( $p['meta'] ?? '' ) . '</td></tr></table>';
 		}
-		$out .= '</ul>';
 	}
 
 	foreach ( array( 'education' => 'EDUCATION', 'affiliations' => 'AFFILIATIONS &amp; CERTIFICATIONS' ) as $key => $head ) {

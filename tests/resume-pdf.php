@@ -123,6 +123,10 @@ $web_doc                 = sn_resume_doc_normalize( $web );
 $web_html                = sn_resume_pdf_html( $web_doc, 'Juan Lentino', '/fonts', false, 'https://www.juanlentino.com/' );
 ok( false !== strpos( $web_html, '<a href="https://example.org/work">example.org</a>' ) && false === strpos( $web_html, 'juanlentino.com</a>' ), 'the Website field wins over the home URL' );
 
+echo "\nPublications: venue and date on the title's row\n";
+ok( 1 === preg_match( '#<table class="pub"><tr><td><a href="[^"]+">Provenance Over Detection[^<]*</a></td><td class="meta">SSRN Working Paper[^<]*</td></tr></table>#u', $html ), 'each publication is one row: linked title left, venue and date right' );
+ok( false === strpos( $html, '&#8212; <span class="meta">' ), 'no dash separator between title and venue' );
+
 echo "\nThe PDF-only professional summary\n";
 $sum                     = $bare;
 $sum['hero']['summary']  = 'Web summary marker.';
