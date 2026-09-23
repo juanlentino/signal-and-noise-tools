@@ -186,6 +186,8 @@ function sn_mcp_allowlist() {
 		'signal-noise/cache-freshness',
 		// 14.9.0 — the Cloudflare monitor's stored record; the sn-status `cloudflare` source. Read door 34 → 35.
 		'signal-noise/cloudflare-status',
+		// 17.10.0 — the 5xx rollup on its own; the sn-status `edge_errors` source. Read door 48 → 49.
+		'signal-noise/edge-errors-summary',
 		// 17.9.2 (#1002): two LIVE GraphQL reads (sampling + requestSource) that
 		// settle what the stored edge figures cannot. Read-only, on demand.
 		'signal-noise/edge-sampling-probe',
