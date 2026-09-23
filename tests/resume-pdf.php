@@ -123,6 +123,16 @@ $web_doc                 = sn_resume_doc_normalize( $web );
 $web_html                = sn_resume_pdf_html( $web_doc, 'Juan Lentino', '/fonts', false, 'https://www.juanlentino.com/' );
 ok( false !== strpos( $web_html, '<a href="https://example.org/work">example.org</a>' ) && false === strpos( $web_html, 'juanlentino.com</a>' ), 'the Website field wins over the home URL' );
 
+echo "\nThe PDF-only professional summary\n";
+$sum                     = $bare;
+$sum['hero']['summary']  = 'Web summary marker.';
+$sum['pdf']['summary']   = 'PDF summary marker.';
+$sum_html                = sn_resume_pdf_html( sn_resume_doc_normalize( $sum ), 'Juan Lentino', '/fonts' );
+ok( false !== strpos( $sum_html, 'PDF summary marker.' ) && false === strpos( $sum_html, 'Web summary marker.' ), 'the PDF-only summary replaces the web summary in the PDF' );
+$sum['pdf']['summary']   = '';
+$sum_html                = sn_resume_pdf_html( sn_resume_doc_normalize( $sum ), 'Juan Lentino', '/fonts' );
+ok( false !== strpos( $sum_html, 'Web summary marker.' ), 'blank falls back to the web summary' );
+
 echo "\nThe generated time (owner, 2026-09-22: the UTC stamp was not their time)\n";
 ok( 'September 22, 2026 at 7:21 pm' === sn_resume_pdf_when( array( 'generated' => '2026-09-22T23:21:54+00:00' ) ), 'the stored UTC time shows in the site timezone and formats (' . sn_resume_pdf_when( array( 'generated' => '2026-09-22T23:21:54+00:00' ) ) . ')' );
 ok( '' === sn_resume_pdf_when( false ) && '' === sn_resume_pdf_when( array( 'generated' => 'nonsense' ) ), 'no stamp, no time (never a 1970 date)' );

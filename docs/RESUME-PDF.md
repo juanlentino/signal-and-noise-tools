@@ -8,7 +8,7 @@ Phase 2.
 
 1. S&N → Content → Resume. Edit and **Save resume** as usual.
 2. The **PDF only** section holds what the PDF shows and the page never does: headline, tagline,
-   location, phone, email, website (blank: this site), core competencies (one per line), technical
+   professional summary (blank: the Hero summary), location, phone, email, website (blank: this site), core competencies (one per line), technical
    toolkit (one per line), and the checkbox **Include the phone in the public PDF** (off by default).
    It is a checkbox, never an `os-switch`: os-form reads only checkboxes as booleans, so a switch
    would post `1` in both positions and publish the phone on every save.
@@ -44,7 +44,7 @@ the public file changes.
 |---|---|
 | Name | the site title (`get_bloginfo( 'name' )`, filter `sn_resume_pdf_name`) |
 | Headline, tagline, contact line | `pdf.headline`, `pdf.tagline`; location = `pdf.location` else `hero.contact_line`; `pdf.phone` only per `pdf.phone_public` (public) or always (private copy); `pdf.email`; `hero.linkedin`; site = `pdf.website` else the home URL |
-| Professional summary | `hero.summary` |
+| Professional summary | `pdf.summary`, else `hero.summary` |
 | Stats band | `stats[]` |
 | Core competencies | `pdf.competencies[]` (three columns) |
 | Professional experience | `experience[]` then `earlier.entries[]`; a role line "Title · dates" is split into title and dates, an earlier entry's "ORG · City" into org and location |
