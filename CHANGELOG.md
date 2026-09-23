@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Tighter line spacing in the resume PDF.** Body line-height 1.25 to 1.1 (owner, 2026-09-23: "the space between lines can be less"). Dompdf sets Lato's lines taller than a browser would at the same value, so 1.25 read loose. Measured on a live-shaped fixture: page 2 ends 88pt (about 1.2 in) higher; still two pages. 1.05 was tried and rejected, bullets start to crowd.
+
 ## [17.7.4] - 2026-09-23 — The PDF's own summary
 
 ### Changed

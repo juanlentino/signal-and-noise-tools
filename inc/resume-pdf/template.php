@@ -57,7 +57,7 @@ function sn_resume_pdf_css( $font_dir ) {
 	}
 	return $face . '
 @page{size:letter;margin:0.45in 0.55in;}
-body{font-family:"Lato",sans-serif;font-size:9pt;line-height:1.25;color:#222;}
+body{font-family:"Lato",sans-serif;font-size:9pt;line-height:1.1;color:#222;}
 h1{font-size:22pt;color:' . $n . ';text-align:center;margin:0;letter-spacing:0.5pt;}
 .headline{font-size:10pt;font-weight:bold;color:' . $g . ';text-align:center;margin:2pt 0 0;}
 .tagline{font-size:9.5pt;color:' . $n . ';text-align:center;margin:2pt 0 0;}
