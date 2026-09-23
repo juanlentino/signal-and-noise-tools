@@ -70,6 +70,7 @@ require_once SNT_PATH . 'inc/word-count.php'; // v10.24.0: pure Unicode word cou
 // release). Zero deps of its own; every desktop-mode-* / mcp-telemetry-agents
 // consumer below calls into it, so it loads FIRST among them.
 require_once SNT_PATH . 'inc/openstation-compat.php';
+require_once SNT_PATH . 'inc/openstation-login-redirect.php';
 require_once SNT_PATH . 'inc/openstation-station-home-card.php';
 require_once SNT_PATH . 'inc/openstation-preferences.php';
 require_once SNT_PATH . 'inc/openstation-mio.php';          // 14.8.0: MIO in this plugin's windows -- callouts, help, read tools, the brand look (prefs in the line above).
