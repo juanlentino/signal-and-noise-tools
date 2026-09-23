@@ -74,9 +74,15 @@ jobs:
             die "$TAG already exists. A shipped tag is never moved."
           fi
 
-          # The commit that SET the header: the newest commit on main whose diff
-          # adds this exact Version line.
-          SHA="$(git log main --format=%H -G "^ \* Version: +${VERSION//./\\.}\$" -n1 -- signal-and-noise-tools.php)"
+          # The commit that SET the header. -G matches a diff that adds OR
+          # removes the line, so the next bump would match too; keep the newest
+          # candidate whose own tree carries the version, i.e. the one that
+          # added it.
+          PATTERN="^ \* Version: +${VERSION//./\\.}\$"
+          SHA=""
+          for c in $(git log main --format=%H -G "$PATTERN" -- signal-and-noise-tools.php); do
+            if git show "$c:signal-and-noise-tools.php" | grep -qE "$PATTERN"; then SHA="$c"; break; fi
+          done
           [ -n "$SHA" ] || die "no commit on main set Version: $VERSION"
           echo "cut commit: $(git log -1 --format='%h %s' "$SHA")"
 
