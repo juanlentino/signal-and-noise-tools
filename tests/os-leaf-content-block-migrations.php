@@ -99,7 +99,10 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_block_migrations_section' );
 $kit     = snt_leaf_paint( 'content', 'block-migrations' );
 ok( false !== strpos( $kit, '<os-badge tone="warning">2 candidates</os-badge>' ), 'candidates: the count pill says 2 candidates in the warn tone' );
 ok( false !== strpos( $kit, '<os-disclosure heading="Review 2 candidates">' ) && false === strpos( $kit, '<os-disclosure heading="Review 2 candidates" open' ), 'candidates: the queue is a disclosure headed Review 2 candidates, closed by default like the classic details' );
-ok( false !== strpos( $kit, '<span col="5" class="snt-col__h" role="columnheader">Post</span>' ) && false !== strpos( $kit, '<span col="2" class="snt-col__h" role="columnheader">Issue</span>' ) && false !== strpos( $kit, '<span col="5" class="snt-col__h" role="columnheader">Action</span>' ), 'candidates: the three column labels are painted on the classic column proportions (40/20/40), rounded to the 12-column grid (5/2/5), with role=columnheader restoring what dropping <th scope=col> lost' );
+// 17.9.0 (#1624): an os-table. Its header is the component's own, so the
+// hand-rolled role=columnheader row is gone (the issue's inverted pin).
+$bm_tables = snt_leaf_tables( $kit );
+ok( 1 === count( $bm_tables ) && array( 'Post', 'Issue', 'Action' ) === array_column( $bm_tables[0]['columns'], 'label' ) && 0 === substr_count( $kit, 'role="columnheader"' ) && false !== strpos( $kit, 'data-snt-stack-on-phone' ), 'candidates: one os-table of Post, Issue, Action; no hand-rolled header row; stacks on a phone' );
 ok( false !== strpos( $kit, '<os-code>Deep note</os-code>' ) && false !== strpos( $kit, '<os-code>Second note</os-code>' ), 'candidates: each post title is kit code' );
 // 14.7.5: a permalink is same-origin, so it is a DOOR (a window), not a target=_blank anchor (that relaunched the installed PWA).
 ok( false !== strpos( $kit, '<p class="snt-hint"><os-button class="snt-link" variant="link" os-action="door" os-arg-url="https://example.test/notes/deep-note/">https://example.test/notes/deep-note/</os-button></p>' ), 'candidates: the permalink is a door opening the note as a window, demoted in a hint paragraph (matching classic <small>)' );
@@ -108,7 +111,13 @@ ok( false !== strpos( $kit, '<os-badge tone="warning">h3 → h2</os-badge>' ) &&
 ok( false !== strpos( $kit, '<os-button variant="secondary" data-snt-suggest="1" data-check="block_migrations_heading_skip" data-post-id="12" data-fingerprint="' . $fp_a . '" data-migration-type="heading-hierarchy-skip">Suggest</os-button>' ) && false === strpos( $kit, ' disabled' ) && false === strpos( $kit, ' title=' ), 'candidates: Suggest carries the exact data contract the shared suggest script reads, enabled (the os-cluster is the cell the script paints into)' );
 ok( false !== strpos( $kit, '<os-button variant="ghost" data-snt-block-migrations-dismiss="1" data-post-id="34" data-fingerprint="' . $fp_b . '" data-migration-type="heading-hierarchy-skip">Dismiss</os-button>' ), 'candidates: Dismiss carries the exact data contract the shared dismiss handler reads' );
 ok( substr_count( $classic, 'data-snt-suggest="1"' ) === substr_count( $kit, 'data-snt-suggest="1"' ) && substr_count( $classic, 'data-snt-block-migrations-dismiss="1"' ) === substr_count( $kit, 'data-snt-block-migrations-dismiss="1"' ) && 2 === substr_count( $kit, 'data-snt-suggest="1"' ), 'candidates: one Suggest and one Dismiss per row, the same count as the classic table' );
-ok( 2 === substr_count( $kit, 'os-key="heading-hierarchy-skip:' ), 'candidates: every row carries an os-key so a morph moves rows instead of rebuilding them' );
+// Identity, not position: every slot cell carries an os-key derived from the
+// candidate's type:fingerprint, so a morph follows a row a dismissal moved.
+$bm_keys = array();
+if ( preg_match_all( '/<div slot="(r[0-9a-f]{12})-action" class="snt-cell" os-key="\\1-action">/', $kit, $bm_m ) ) {
+	$bm_keys = $bm_m[1];
+}
+ok( 2 === count( $bm_keys ) && 2 === count( array_unique( $bm_keys ) ), 'candidates: every row\'s cells carry an os-key from its identity, so a morph moves rows instead of rebuilding them' );
 ok( false === strpos( $kit, 'os-action="refresh"' ) && false === strpos( $kit, '>Refresh<' ), 'candidates: no in-queue Refresh (the title bar has one; Dismiss removes its own os-row now)' );
 ok( false === strpos( $kit, 'Suggest opens its editor inside the classic table cell' ), 'candidates: no hint sends the operator to the classic page: Suggest runs here' );
 

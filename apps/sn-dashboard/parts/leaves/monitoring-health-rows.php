@@ -6,12 +6,14 @@
  * line cap. Every function here is prefixed `health_` (unique across leaves,
  * per the port brief).
  *
- * The rows are NOT an `<os-table>`: that component takes its cells as JSON
- * and paints them in its shadow root, so the per-finding Suggest button could
- * neither be painted into it nor be reached by the shared
- * assets/health-suggest-actions.js. The shape is the Block Migrations queue's
- * (content-block-migrations.php): light-DOM `<os-row>`s, the action pair in
- * an `<os-cluster>`, `role="row"` / `role="columnheader"` on the header.
+ * 17.9.0 (#1624): an `<os-table>`. It could not be one while the component
+ * took cells as JSON only: the per-finding Suggest button could neither be
+ * painted into it nor be reached by the shared assets/health-suggest-actions.js.
+ * OpenStation 1.1.11's slot cells (upstream #874) fixed that: the subject,
+ * the Edit link and the Suggest button ride as light-DOM children through
+ * snt_kit_table()'s `html` cells, where the script's document delegation still
+ * finds them. The table sorts by subject and, marked stack_on_phone, is a card
+ * per finding on a phone, with no hidden header and no `!important` collapse.
  *
  * @package SignalNoiseTools
  * @since 17.2.2
@@ -58,35 +60,35 @@ function health_finding_rows_html( $key, array $check, $is_advisory, $show_ai ) 
 	$visible  = array_slice( $findings, 0, 50 );
 	$hidden   = count( $findings ) - count( $visible );
 
-	// The classic 55% / auto / 90px split (40% / auto / 90px / 280px with AI), rounded to the 12-column grid.
-	$cols   = $show_ai ? array( '4', '3', '1', '4' ) : array( '5', '5', '2' );
-	$labels = array( __( 'Subject', 'signal-and-noise-tools' ), __( 'Note', 'signal-and-noise-tools' ), __( 'Edit', 'signal-and-noise-tools' ) );
+	$columns = array(
+		array( 'key' => 'subject', 'label' => __( 'Subject', 'signal-and-noise-tools' ), 'sortable' => true, 'stack' => 'title' ),
+		array( 'key' => 'note', 'label' => __( 'Note', 'signal-and-noise-tools' ) ),
+		array( 'key' => 'edit', 'label' => __( 'Edit', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
+	);
 	if ( $show_ai ) {
-		$labels[] = __( 'AI fix', 'signal-and-noise-tools' );
+		$columns[] = array( 'key' => 'ai', 'label' => __( 'AI fix', 'signal-and-noise-tools' ), 'stack' => 'actions' );
 	}
-	$head = '';
-	foreach ( $labels as $i => $label ) {
-		$head .= \snt_kit_tag( 'span', array( 'col' => $cols[ $i ], 'class' => 'snt-col__h', 'role' => 'columnheader' ), \snt_kit_esc( $label ) );
-	}
-	$rows = \snt_kit_tag( 'os-row', array( 'gap' => '12', 'role' => 'row' ), $head );
+	$rows = array();
 	foreach ( $visible as $f ) {
-		$edit  = (string) ( $f['edit_url'] ?? '' );
+		$edit    = (string) ( $f['edit_url'] ?? '' );
 		// esc_url() (classic) blanks a disallowed scheme; snt_kit_link() does not.
-		$edit  = preg_match( '#^https?://#i', $edit ) ? $edit : '';
-		$cells = \snt_kit_tag( 'div', array( 'col' => $cols[0] ), \snt_kit_code( (string) ( $f['subject_label'] ?? '' ), false ) )
-			. \snt_kit_tag( 'div', array( 'col' => $cols[1] ), \snt_kit_esc( (string) ( $f['note'] ?? '' ) ) )
-			. \snt_kit_tag( 'div', array( 'col' => $cols[2] ), '' !== $edit ? \snt_kit_link( __( 'Edit', 'signal-and-noise-tools' ), $edit ) : '' );
+		$edit    = preg_match( '#^https?://#i', $edit ) ? $edit : '';
+		$subject = (string) ( $f['subject_label'] ?? '' );
+		$row     = array(
+			'subject' => array( 'html' => \snt_kit_code( $subject, false ), 'text' => $subject ),
+			'note'    => (string) ( $f['note'] ?? '' ),
+			'edit'    => array( 'html' => '' !== $edit ? \snt_kit_link( __( 'Edit', 'signal-and-noise-tools' ), $edit ) : '', 'text' => '' ),
+		);
 		if ( $show_ai ) {
-			$attrs  = sn_health_suggest_cell_attrs( $key, $f );
-			$cells .= \snt_kit_tag(
-				'os-cluster',
-				array( 'col' => $cols[3], 'gap' => '6' ),
-				$attrs ? \snt_kit_tag( 'os-button', array( 'variant' => 'secondary' ) + $attrs, \snt_kit_esc( __( 'Suggest', 'signal-and-noise-tools' ) ) ) : ''
+			$attrs     = sn_health_suggest_cell_attrs( $key, $f );
+			$row['ai'] = array(
+				'html' => $attrs ? \snt_kit_tag( 'os-button', array( 'variant' => 'secondary' ) + $attrs, \snt_kit_esc( __( 'Suggest', 'signal-and-noise-tools' ) ) ) : '',
+				'text' => '',
 			);
 		}
-		$rows .= \snt_kit_tag( 'os-row', array( 'gap' => '12' ), $cells );
+		$rows[] = $row;
 	}
-	$out = \snt_kit_tag( 'os-stack', array( 'gap' => '8' ), $rows );
+	$out = \snt_kit_table( $columns, $rows, array( 'stack_on_phone' => true, 'striped' => false ) );
 	if ( $hidden > 0 ) {
 		$out .= '<p class="snt-hint">' . \snt_kit_esc(
 			sprintf(

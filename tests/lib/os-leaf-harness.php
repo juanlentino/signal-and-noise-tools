@@ -209,6 +209,56 @@ function snt_leaf_actions( $html ) {
  * @return string[] Offending markers found.
  */
 /**
+ * 17.9.0 (#1624): every `<os-table>` in painted HTML, decoded: its attribute
+ * string, `columns` and `data` (the os-prop-* JSON), and `slots`, slot name =>
+ * the light-DOM markup snt_kit_table() put there for an `html` cell. Leaf
+ * tests assert the table's MEANING through this (a row's subject, its Edit
+ * door, its Suggest contract) rather than re-typing the component's markup.
+ *
+ * @param string $html Painted leaf.
+ * @return array<int,array{attrs:string,columns:array,data:array,slots:array<string,string>}>
+ */
+function snt_leaf_tables( $html ) {
+	$out = array();
+	$pos = 0;
+	while ( false !== ( $start = strpos( $html, '<os-table', $pos ) ) ) {
+		$open_end = strpos( $html, '>', $start );
+		$close    = strpos( $html, '</os-table>', $open_end );
+		if ( false === $open_end || false === $close ) {
+			break;
+		}
+		$attrs = substr( $html, $start, $open_end - $start );
+		$inner = substr( $html, $open_end + 1, $close - $open_end - 1 );
+		$prop  = static function ( $name ) use ( $attrs ) {
+			return preg_match( '/os-prop-' . $name . '="([^"]*)"/', $attrs, $m )
+				? (array) json_decode( html_entity_decode( $m[1], ENT_QUOTES, 'UTF-8' ), true )
+				: array();
+		};
+		$slots = array();
+		$at    = 0;
+		while ( preg_match( '/<div slot="([^"]+)" class="snt-cell"[^>]*>/', $inner, $m, PREG_OFFSET_CAPTURE, $at ) ) {
+			$body  = $m[0][1] + strlen( $m[0][0] );
+			$depth = 1;
+			$scan  = $body;
+			while ( $depth > 0 && preg_match( '#<div\b|</div>#', $inner, $t, PREG_OFFSET_CAPTURE, $scan ) ) {
+				$depth += '</div>' === $t[0][0] ? -1 : 1;
+				$scan   = $t[0][1] + strlen( $t[0][0] );
+			}
+			$slots[ $m[1][0] ] = substr( $inner, $body, $scan - strlen( '</div>' ) - $body );
+			$at                = $scan;
+		}
+		$out[] = array( 'attrs' => $attrs, 'columns' => $prop( 'columns' ), 'data' => $prop( 'data' ), 'slots' => $slots );
+		$pos   = $close + strlen( '</os-table>' );
+	}
+	return $out;
+}
+
+/** The markup a slot cell holds: `$cell` is a data value `{ slot, text }`. */
+function snt_leaf_cell_html( array $table, $cell ) {
+	return is_array( $cell ) && isset( $cell['slot'] ) ? (string) ( $table['slots'][ $cell['slot'] ] ?? '' ) : '';
+}
+
+/**
  * The opening tag of a paired row, as snt_kit_grid() paints it (#1622): the
  * suites count rows by it and read what a row holds up to `</os-grid>`.
  *

@@ -99,8 +99,14 @@ ok( false !== strpos( $kit, 'name="page" value="sn-content"' ) && false !== strp
 ok( false !== strpos( $kit, '<input type="radio" name="sn_tag_into" value="10" checked aria-label="Canonical">' ), 'cluster: the suggested term is the checked canonical radio' );
 ok( false !== strpos( $kit, '<input type="checkbox" name="sn_tag_from[]" value="10" aria-label="Merge?">' ) && false !== strpos( $kit, '<input type="checkbox" name="sn_tag_from[]" value="11" checked aria-label="Merge?">' ), 'cluster: the non-suggested term is checked to fold in, the suggested one is not' );
 ok( false !== strpos( $kit, '<strong>AI-Generated Music</strong> <os-code>ai-generated-music</os-code>' ) && false !== strpos( $kit, '<strong>AI Generated Music</strong> <os-code>ai-generated-music-2</os-code>' ), 'cluster: both members with their slugs as kit code' );
-ok( false !== strpos( $kit, '<span class="snt-list__value">5</span>' ) && false !== strpos( $kit, '<span class="snt-list__value">2</span>' ), 'cluster: the post counts' );
-ok( false !== strpos( $kit, 'heading="Possible duplicates"' ) && false !== strpos( $kit, '>Preview merge</button>' ) && false !== strpos( $kit, '<li class="snt-list__row"><span class="snt-list__value">Canonical</span><span class="snt-list__value">Merge?</span><span class="snt-list__label">Tag</span><span class="snt-list__value">Posts</span></li>' ) && false !== strpos( $kit, 'Pick the canonical tag (radio) and which dupes to fold in (checkbox).' ), 'cluster: heading, the four column headers over their controls (styled cells, not invented ones), Preview merge and the hint' );
+// 17.9.0 (#1624): the picker is an os-table; read its columns and data.
+$tg_table = snt_leaf_tables( $kit )[0] ?? array( 'columns' => array(), 'data' => array(), 'slots' => array() );
+ok( array( 5, 2 ) === array_column( $tg_table['data'], 'posts' ), 'cluster: the post counts, as numbers the column sorts on' );
+ok( false !== strpos( $kit, 'heading="Possible duplicates"' ) && false !== strpos( $kit, '>Preview merge</button>' ) && array( 'Canonical', 'Merge?', 'Tag', 'Posts' ) === array_column( $tg_table['columns'], 'label' ) && false !== strpos( $kit, 'Pick the canonical tag (radio) and which dupes to fold in (checkbox).' ), 'cluster: heading, the four column headers (the table\'s own, over their controls), Preview merge and the hint' );
+// #1624: a real header over real cells, and the inputs are still form fields.
+ok( false !== strpos( $kit, '<os-table' ) && false !== strpos( $kit, 'data-snt-stack-on-phone' ) && false === strpos( $kit, '<li class="snt-list__row"><span class="snt-list__value">Canonical' ), '#1624: the picker is an os-table that stacks on a phone; the header <li> is gone' );
+$tg_radio = snt_leaf_cell_html( $tg_table, $tg_table['data'][0]['canonical'] ?? null );
+ok( 1 === preg_match( '#<form[^>]*>.*<os-table.*<input type="radio" name="sn_tag_into"#s', $kit ) && false !== strpos( $tg_radio, 'name="sn_tag_into"' ), '#1624: the radio is a slot cell inside the form, so the form still submits it' );
 ok( strpos( $kit, '>Preview merge</button>' ) < strpos( $kit, 'Pick the canonical tag (radio)' ), 'cluster: the hint follows the submit button, as the classic markup prints it' );
 
 // Picker: an os-form dispatching go with the two selects.

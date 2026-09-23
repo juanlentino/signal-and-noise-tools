@@ -173,8 +173,12 @@ ok( false !== strpos( $kit, 'A Blog Post (blog.example)' ) || ( false !== strpos
 ok( false !== strpos( $kit, 'Two kinds of provenance' ) && false !== strpos( $kit, '/notes/prov' ), 'rich fixture: a cited post carries its title and path' );
 ok( false !== strpos( $kit, 'gone.example' ), 'rich fixture: a source with no title falls back to its host' );
 ok( false !== strpos( $kit, '/notes/other' ), 'rich fixture: an uncited target falls back to its bare path' );
-ok( false !== strpos( $kit, '>404<' ), 'rich fixture: the 404 status is printed in the HTTP field' );
-ok( false !== strpos( $kit, '>—<' ), 'rich fixture: the zero-status row prints the em dash, not "0"' );
+// 17.9.0 (#1624): an os-table again; HTTP is a plain cell in its data.
+$cit_table = snt_leaf_tables( $kit )[0] ?? array( 'columns' => array(), 'data' => array() );
+$cit_http  = array_column( $cit_table['data'], 'http' );
+ok( in_array( '404', $cit_http, true ), 'rich fixture: the 404 status is printed in the HTTP field' );
+ok( in_array( '—', $cit_http, true ) && ! in_array( '0', $cit_http, true ), 'rich fixture: the zero-status row prints the em dash, not "0"' );
+ok( array( 'Tier', 'Source', 'Cites', 'First seen', 'Last checked', 'HTTP' ) === array_column( $cit_table['columns'], 'label' ) && false === strpos( $kit, '<os-card compact' ) && false !== strpos( $kit, 'data-snt-stack-on-phone' ), '#1624: the classic table\'s six columns as one os-table, not a card per claim; stacks on a phone' );
 ok( false !== strpos( $kit, 'The newest 100 claims are listed' ), 'rich fixture: exactly 100 rows triggers the cap notice' );
 
 // ── Links: every href the classic table offers survives in the kit output

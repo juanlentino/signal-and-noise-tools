@@ -12,17 +12,14 @@
  * Same reader, same form, same handler, same data contract on the buttons —
  * the kit's parts instead of wp-admin's.
  *
- * The queue is NOT an `<os-table>`: that component takes its cells as JSON
- * and paints them in its shadow root, so a per-row button could neither be
- * painted into it nor be reached by the shared script's document-level
- * delegation. The rows are light-DOM `<os-row>`s on the classic 40/20/40
- * proportions, rounded to the 12-column grid as 5/2/5 (help: os-row,
- * os-stack, os-cluster, os-button, os-disclosure).
- *
- * The header row is painted as `<span class="snt-col__h">`, not classic's
- * `<th scope="col">` — dropping the table drops column-header semantics for
- * assistive tech; `role="row"` / `role="columnheader"` restore the ARIA
- * relationship without inventing a kit prop.
+ * 17.9.0 (#1624): the queue is an `<os-table>`. It could not be one while the
+ * component took cells as JSON only, because a per-row button could neither
+ * be painted into it nor be reached by the shared script's document-level
+ * delegation. OpenStation 1.1.11's slot cells fixed that: the post, the issue
+ * pill and the button pair ride as light-DOM children, keyed by the
+ * candidate's type:fingerprint so a morph follows a row a dismissal moved.
+ * The table's own header carries the column semantics that classic's
+ * `<th scope="col">` did, so the hand-rolled `role="columnheader"` row is gone.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -63,11 +60,13 @@ function block_migrations_count_badge( array $last_scan ) {
 }
 
 /**
- * One candidate as a row: the post (title, permalink), the issue, the two
- * buttons with the data contract the shared suggest script reads.
+ * One candidate as a table row: the post (title, permalink), the issue, and
+ * the two buttons with the data contract the shared suggest script reads.
+ * 17.9.0 (#1624): the three are slot cells of an `<os-table>` (OpenStation
+ * 1.1.11), so the buttons stay light-DOM children the script reaches.
  *
  * @param array<string,mixed> $c A candidate from the envelope.
- * @return string
+ * @return array<string,mixed>
  */
 function block_migrations_row( array $c ) {
 	$post_id   = (string) (int) ( $c['post_id'] ?? 0 );
@@ -78,9 +77,10 @@ function block_migrations_row( array $c ) {
 	// scheme; snt_kit_link() only htmlspecialchars-escapes the href, so the
 	// scheme is filtered here before it reaches the helper.
 	$permalink = preg_match( '#^https?://#i', $permalink ) ? $permalink : '';
-	$post      = \snt_kit_code( (string) ( $c['post_title'] ?? '' ), false )
+	$title     = (string) ( $c['post_title'] ?? '' );
+	$post      = \snt_kit_code( $title, false )
 		. ( '' !== $permalink ? '<p class="snt-hint">' . \snt_kit_link( $permalink, $permalink ) . '</p>' : '' );
-	$issue     = \snt_kit_badge( 'warn', 'h' . (int) ( $c['current_level'] ?? 0 ) . ' → h' . (int) ( $c['target_level'] ?? 0 ) );
+	$level     = 'h' . (int) ( $c['current_level'] ?? 0 ) . ' → h' . (int) ( $c['target_level'] ?? 0 );
 	$data      = array( 'data-post-id' => $post_id, 'data-fingerprint' => $fp, 'data-migration-type' => $type );
 	$actions   = \snt_kit_tag(
 		'os-button',
@@ -95,32 +95,34 @@ function block_migrations_row( array $c ) {
 		array( 'variant' => 'ghost', 'data-snt-block-migrations-dismiss' => '1' ) + $data,
 		\snt_kit_esc( __( 'Dismiss', 'signal-and-noise-tools' ) )
 	);
-	return \snt_kit_tag(
-		'os-row',
-		array( 'gap' => '12', 'os-key' => $type . ':' . $fp ),
-		\snt_kit_tag( 'div', array( 'col' => '5' ), $post )
-		. \snt_kit_tag( 'div', array( 'col' => '2' ), $issue )
-		. \snt_kit_tag( 'os-cluster', array( 'col' => '5', 'gap' => '6' ), $actions )
+	return array(
+		'_key'   => $type . ':' . $fp,
+		'post'   => array( 'html' => $post, 'text' => $title ),
+		'issue'  => array( 'html' => \snt_kit_badge( 'warn', $level ), 'text' => $level ),
+		'action' => array( 'html' => \snt_kit_tag( 'os-cluster', array( 'gap' => '6' ), $actions ), 'text' => '' ),
 	);
 }
 
 /**
- * The review queue: the classic table's three headed columns, one row per candidate.
+ * The review queue: the classic table's three headed columns, one row per
+ * candidate, as an `<os-table>` that sorts by post and is a card per
+ * candidate on a phone (#1624).
  *
  * @param array<int,array<string,mixed>> $candidates From the envelope.
  * @return string
  */
 function block_migrations_queue_html( array $candidates ) {
-	$head = '';
-	foreach ( array( array( '5', __( 'Post', 'signal-and-noise-tools' ) ), array( '2', __( 'Issue', 'signal-and-noise-tools' ) ), array( '5', __( 'Action', 'signal-and-noise-tools' ) ) ) as $column ) {
-		$head .= \snt_kit_tag( 'span', array( 'col' => $column[0], 'class' => 'snt-col__h', 'role' => 'columnheader' ), \snt_kit_esc( $column[1] ) );
-	}
-	$rows = \snt_kit_tag( 'os-row', array( 'gap' => '12', 'role' => 'row' ), $head );
+	$rows = array();
 	foreach ( $candidates as $c ) {
 		if ( is_array( $c ) ) {
-			$rows .= block_migrations_row( $c );
+			$rows[] = block_migrations_row( $c );
 		}
 	}
+	$columns = array(
+		array( 'key' => 'post', 'label' => __( 'Post', 'signal-and-noise-tools' ), 'sortable' => true, 'stack' => 'title' ),
+		array( 'key' => 'issue', 'label' => __( 'Issue', 'signal-and-noise-tools' ), 'sortable' => true ),
+		array( 'key' => 'action', 'label' => __( 'Action', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
+	);
 	return \snt_kit_tag(
 		'os-disclosure',
 		array(
@@ -130,7 +132,7 @@ function block_migrations_queue_html( array $candidates ) {
 				count( $candidates )
 			),
 		),
-		\snt_kit_tag( 'os-stack', array( 'gap' => '8' ), $rows )
+		\snt_kit_table( $columns, $rows, array( 'stack_on_phone' => true, 'striped' => false ) )
 	);
 }
 

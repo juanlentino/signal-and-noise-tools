@@ -15,19 +15,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * One claims row, as a compact `<os-card>` of labelled values — mirrors
+ * One claims row, as the row of an `<os-table>` (17.9.0, #1624) — mirrors
  * `sn_cit_render_row()` line for line (that function echoes two `<a>` tags
  * directly, so it cannot be reused as a reader; the underlying values are
- * the same). Unlike a `snt_kit_table()` cell, an `<os-card>` kv row takes
- * HTML (`'html' => true`), so the source and cited-page anchors — dropped
- * in the first port because `os-table` only accepts plain string cells via
- * os-prop-data JSON — survive here, and the tier keeps its pill tone and
- * tooltip via `snt_kit_badge()` instead of losing them to plain text.
+ * the same). The source and cited-page anchors and the tier's pill (tone and
+ * tooltip) are slot cells (OpenStation 1.1.11), so they survive as markup;
+ * the two times are slot cells too, showing the relative label and sorting
+ * on the GMT timestamp, so the columns sort by date rather than by the words.
  *
  * @param object $r A row of the citations table.
- * @return string
+ * @return array<string,mixed>
  */
-function citations_row_card( $r ) {
+function citations_row( $r ) {
 	$tiers = defined( 'SN_CIT_TIERS' ) ? SN_CIT_TIERS : array();
 	$tier  = in_array( (string) $r->tier, $tiers, true ) ? (string) $r->tier : 'unverified';
 	$kind  = function_exists( 'sn_cit_tier_pill_kind' ) ? sn_cit_tier_pill_kind( $tier ) : '';
@@ -56,38 +55,25 @@ function citations_row_card( $r ) {
 		$cites_html .= '<p class="snt-hint">' . \snt_kit_esc( $path ) . '</p>';
 	}
 
-	return \snt_kit_tag(
-		'os-card',
-		array( 'compact' => true ),
-		\snt_kit_kv(
-			array(
-				array( 'label' => __( 'Tier', 'signal-and-noise-tools' ), 'value' => $tier_html, 'html' => true ),
-				array( 'label' => __( 'Source', 'signal-and-noise-tools' ), 'value' => $source_html, 'html' => true ),
-				array( 'label' => __( 'Cites', 'signal-and-noise-tools' ), 'value' => $cites_html, 'html' => true ),
-				array(
-					'label' => __( 'First seen', 'signal-and-noise-tools' ),
-					'value' => function_exists( 'sn_cit_ago_label' ) ? sn_cit_ago_label( $r->first_seen_gmt ) : '',
-				),
-				array(
-					'label' => __( 'Last checked', 'signal-and-noise-tools' ),
-					'value' => function_exists( 'sn_cit_last_checked_label' ) ? sn_cit_last_checked_label( $r->last_checked_gmt ) : '',
-				),
-				array(
-					'label' => __( 'HTTP', 'signal-and-noise-tools' ),
-					// 0 means no response was received at all — distinct from a 200 or a 404.
-					'value' => (int) $r->last_status ? (string) (int) $r->last_status : '—',
-				),
-			)
-		)
+	$first   = function_exists( 'sn_cit_ago_label' ) ? sn_cit_ago_label( $r->first_seen_gmt ) : '';
+	$checked = function_exists( 'sn_cit_last_checked_label' ) ? sn_cit_last_checked_label( $r->last_checked_gmt ) : '';
+	return array(
+		'_key'    => 'cit-' . (string) ( $r->id ?? ( $r->source_url . '|' . $r->target_url ) ),
+		'tier'    => array( 'html' => $tier_html, 'text' => $tier ),
+		'source'  => array( 'html' => $source_html, 'text' => $name ),
+		'cites'   => array( 'html' => $cites_html, 'text' => '' !== $cited ? $cited : $path ),
+		'first'   => array( 'html' => \snt_kit_esc( $first ), 'text' => (string) $r->first_seen_gmt ),
+		'checked' => array( 'html' => \snt_kit_esc( $checked ), 'text' => (string) $r->last_checked_gmt ),
+		// 0 means no response was received at all — distinct from a 200 or a 404.
+		'http'    => (int) $r->last_status ? (string) (int) $r->last_status : '—',
 	);
 }
 
 /**
- * The claims list, or the same-worded empty state, plus the same 100-row cap
- * notice. One `<os-card>` per row (see `citations_row_card()`), stacked —
- * the kit has no table-cell HTML slot, so the classic `<table>` becomes the
- * same card-list idiom the kit already ships (content-pattern-adoption.php),
- * which keeps every per-row link and the tier's pill tone.
+ * The claims table, or the same-worded empty state, plus the same 100-row
+ * cap notice. 17.9.0 (#1624): the classic `<table>` again, as an
+ * `<os-table>`; it was one `<os-card>` per claim while the kit had no
+ * table-cell HTML slot. A card per claim on a phone.
  *
  * @param array<int,object> $rows Up to 100 rows, newest first.
  * @return string
@@ -96,11 +82,19 @@ function citations_table( array $rows ) {
 	if ( empty( $rows ) ) {
 		return '<p class="snt-prose">' . \snt_kit_esc( __( 'Nothing to list yet.', 'signal-and-noise-tools' ) ) . '</p>';
 	}
-	$cards = '';
+	$data = array();
 	foreach ( $rows as $r ) {
-		$cards .= citations_row_card( $r );
+		$data[] = citations_row( $r );
 	}
-	$out = \snt_kit_tag( 'os-stack', array( 'gap' => '8' ), $cards );
+	$columns = array(
+		array( 'key' => 'tier', 'label' => __( 'Tier', 'signal-and-noise-tools' ), 'sortable' => true, 'filter' => 'select' ),
+		array( 'key' => 'source', 'label' => __( 'Source', 'signal-and-noise-tools' ), 'sortable' => true, 'stack' => 'title' ),
+		array( 'key' => 'cites', 'label' => __( 'Cites', 'signal-and-noise-tools' ), 'sortable' => true ),
+		array( 'key' => 'first', 'label' => __( 'First seen', 'signal-and-noise-tools' ), 'sortable' => true ),
+		array( 'key' => 'checked', 'label' => __( 'Last checked', 'signal-and-noise-tools' ), 'sortable' => true ),
+		array( 'key' => 'http', 'label' => __( 'HTTP', 'signal-and-noise-tools' ), 'sortable' => true, 'align' => 'end' ),
+	);
+	$out = \snt_kit_table( $columns, $data, array( 'stack_on_phone' => true ) );
 	if ( 100 === count( $rows ) ) {
 		$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'The newest 100 claims are listed.', 'signal-and-noise-tools' ) ) . '</p>';
 	}

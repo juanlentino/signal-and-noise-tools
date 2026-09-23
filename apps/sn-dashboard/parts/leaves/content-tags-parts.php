@@ -124,31 +124,30 @@ function tags_glance_html( $clusters, $unused, $total ) {
  * @return string
  */
 function tags_cluster_html( array $c ) {
-	$rows = '';
+	// 17.9.0 (#1624): an os-table, not a <ul> with a header <li>. The radio,
+	// the checkbox and the name+slug are slot cells (OpenStation 1.1.11), so
+	// the inputs stay light-DOM descendants of the form: slot assignment moves
+	// nothing, and FormData still reads every one, the radios still one group.
+	$rows = array();
 	foreach ( (array) ( $c['terms'] ?? array() ) as $t ) {
 		$id     = (int) ( $t['term_id'] ?? 0 );
 		$is_sug = $id === (int) ( $c['suggested'] ?? 0 );
-		$rows  .= '<li class="snt-list__row">'
-			. \snt_kit_tag( 'input', array( 'type' => 'radio', 'name' => 'sn_tag_into', 'value' => (string) $id, 'checked' => $is_sug, 'aria-label' => __( 'Canonical', 'signal-and-noise-tools' ) ) )
-			. \snt_kit_tag( 'input', array( 'type' => 'checkbox', 'name' => 'sn_tag_from[]', 'value' => (string) $id, 'checked' => ! $is_sug, 'aria-label' => __( 'Merge?', 'signal-and-noise-tools' ) ) )
-			. '<span class="snt-list__label"><strong>' . \snt_kit_esc( (string) ( $t['name'] ?? '' ) ) . '</strong> ' . \snt_kit_code( (string) ( $t['slug'] ?? '' ), false ) . '</span>'
-			. '<span class="snt-list__value">' . \snt_kit_esc( number_format_i18n( (int) ( $t['count'] ?? 0 ) ) ) . '</span>'
-			. '</li>';
+		$name   = (string) ( $t['name'] ?? '' );
+		$rows[] = array(
+			'_key'      => 'term-' . $id,
+			'canonical' => array( 'html' => \snt_kit_tag( 'input', array( 'type' => 'radio', 'name' => 'sn_tag_into', 'value' => (string) $id, 'checked' => $is_sug, 'aria-label' => __( 'Canonical', 'signal-and-noise-tools' ) ) ), 'text' => '' ),
+			'merge'     => array( 'html' => \snt_kit_tag( 'input', array( 'type' => 'checkbox', 'name' => 'sn_tag_from[]', 'value' => (string) $id, 'checked' => ! $is_sug, 'aria-label' => __( 'Merge?', 'signal-and-noise-tools' ) ) ), 'text' => '' ),
+			'tag'       => array( 'html' => '<strong>' . \snt_kit_esc( $name ) . '</strong> ' . \snt_kit_code( (string) ( $t['slug'] ?? '' ), false ), 'text' => $name ),
+			'posts'     => (int) ( $t['count'] ?? 0 ),
+		);
 	}
-	// A real header row, in the same column order as the data rows (radio,
-	// checkbox, name+slug, count), so the words sit over the controls they
-	// name instead of in a run-on sentence above the list. Reuses the two
-	// classes the data rows already carry (snt-list__value is a fixed,
-	// content-width flex cell — assets/os-app.css:82 — snt-list__label is the
-	// flexible one) instead of inventing `snt-list__col` /
-	// `snt-list__row--head`, which have no rule in any stylesheet.
-	$head  = '<li class="snt-list__row">'
-		. '<span class="snt-list__value">' . \snt_kit_esc( __( 'Canonical', 'signal-and-noise-tools' ) ) . '</span>'
-		. '<span class="snt-list__value">' . \snt_kit_esc( __( 'Merge?', 'signal-and-noise-tools' ) ) . '</span>'
-		. '<span class="snt-list__label">' . \snt_kit_esc( __( 'Tag', 'signal-and-noise-tools' ) ) . '</span>'
-		. '<span class="snt-list__value">' . \snt_kit_esc( __( 'Posts', 'signal-and-noise-tools' ) ) . '</span>'
-		. '</li>';
-	$inner = '<ul class="snt-list">' . $head . $rows . '</ul>';
+	$columns = array(
+		array( 'key' => 'canonical', 'label' => __( 'Canonical', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
+		array( 'key' => 'merge', 'label' => __( 'Merge?', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
+		array( 'key' => 'tag', 'label' => __( 'Tag', 'signal-and-noise-tools' ), 'sortable' => true, 'stack' => 'title' ),
+		array( 'key' => 'posts', 'label' => __( 'Posts', 'signal-and-noise-tools' ), 'sortable' => true, 'align' => 'end' ),
+	);
+	$inner = \snt_kit_table( $columns, $rows, array( 'stack_on_phone' => true, 'striped' => false ) );
 	// The hint follows the submit button, as the classic markup prints it
 	// (`<button>…</button> <span class="description">…</span>` in the same
 	// <p>, tag-consolidation-admin.php) — not before it.
