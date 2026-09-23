@@ -59,7 +59,7 @@ add_action( 'wp_abilities_api_init', function () {
 				'zone'       => array( 'type' => array( 'object', 'null' ), 'description' => 'available, needs_permission, error, days[], totals{requests,cached,bytes,cached_bytes,threats,status_4xx,status_5xx,cache_share}.' ),
 				'firewall'   => array( 'type' => array( 'object', 'null' ), 'description' => 'available, needs_permission, error, events, by_action{}, top_rules[], dataset (groups|raw), truncated, groups_refused.' ),
 				'posture'    => array( 'type' => array( 'object', 'null' ), 'description' => 'fetched_at; settings{available,needs_permission,error,values{id:value}}; dnssec{available,needs_permission,error,status}; rules{available,needs_permission,error,rules[{id,description,action,enabled,expression}]}.' ),
-				'errors_5xx' => array( 'type' => array( 'object', 'null' ), 'description' => 'Since 17.8.1, from the daily edge rollup (not the monitor): the last 7 days of 5xx, from, to, total, paths[{value,requests}] (which URLs failed) and sources[{value,label,requests}] (who answered: `edge=503 origin=503` is the origin failing, `origin=-` is Cloudflare or a Worker answering by itself).' ),
+				'errors_5xx' => array( 'type' => array( 'object', 'null' ), 'description' => 'Since 17.8.1, from the daily edge rollup (not the monitor): the last 7 days of 5xx, from, to, honest_from (17.9.1: sampled rows before this day were counted twice over; blank until the one-shot repair has run), total, paths[{value,requests}] (which URLs failed) and sources[{value,label,requests}] (who answered: `edge=503 origin=503` is the origin failing, `origin=-` is Cloudflare or a Worker answering by itself).' ),
 			),
 		),
 		'meta'                => array(

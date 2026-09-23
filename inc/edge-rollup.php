@@ -12,7 +12,7 @@
  * A daily WP-Cron poll re-pulls the trailing ~13 months of 1dGroups (exact,
  * idempotent overwrite — the first run back-fills) and a trailing adaptive snapshot
  * (24h by default, clamped to the node's discovered retention) of the two adaptive
- * datasets (sampling-corrected, attributed to "today"). Dormant until the GraphQL
+ * datasets (Cloudflare's own sampled estimates, taken as reported since 17.9.1). Dormant until the GraphQL
  * client is configured; a failed query is skipped, never fatal.
  *
  * @package SignalNoiseTools
@@ -29,6 +29,8 @@ const SN_EDGE_DB_VERSION       = '1';
 const SN_EDGE_DB_VERSION_OPT   = 'sn_edge_db_version';
 const SN_EDGE_BACKFILL_DAYS    = 395; // ~13 months — inside httpRequests1dGroups retention.
 const SN_EDGE_ROLLUP_HOOK      = 'sn_edge_rollup_cron';
+const SN_EDGE_RESAMPLE_HOOK    = 'sn_edge_resample_repair'; // 17.9.1: one-shot.
+const SN_EDGE_HONEST_FROM_OPT  = 'sn_edge_honest_from';      // First day the sampled dims count honestly.
 
 /** dbDelta CREATE for the exact daily totals (one row per day). */
 function sn_edge_daily_schema_sql() {
@@ -85,6 +87,35 @@ function sn_edge_maybe_install() {
 	}
 }
 add_action( 'init', 'sn_edge_maybe_install' );
+
+/**
+ * 17.9.1: the one-shot repair of the sampled dims (threat, colo, atk_*, err_*),
+ * which were counted twice over (see sn_edge_corrected()). Every day the
+ * adaptive dataset still retains is re-rolled with the fixed arithmetic; the
+ * upsert replaces a row's values, so the re-roll overwrites the inflated ones.
+ * Days older than the retention cannot be recomputed (the per-row sample
+ * intervals are gone), so they stay as stored and SN_EDGE_HONEST_FROM_OPT
+ * records where the honest counts begin, rather than deleting history.
+ * Scheduled once, from init, on the first request after the upgrade.
+ */
+function sn_edge_resample_repair() {
+	if ( false !== get_option( SN_EDGE_HONEST_FROM_OPT, false ) || ! function_exists( 'sn_edge_config' ) || ! sn_edge_config() ) {
+		return;
+	}
+	$days  = function_exists( 'sn_edge_adaptive_retention' ) ? (int) floor( (int) sn_edge_adaptive_retention() / DAY_IN_SECONDS ) : 0;
+	$days  = max( 1, min( 31, $days ) );
+	$today = strtotime( gmdate( 'Y-m-d' ) . ' 00:00:00 UTC' );
+	for ( $d = 0; $d < $days; $d++ ) {
+		sn_edge_run_rollup( gmdate( 'Y-m-d', $today - $d * DAY_IN_SECONDS ), true );
+	}
+	update_option( SN_EDGE_HONEST_FROM_OPT, gmdate( 'Y-m-d', $today - $days * DAY_IN_SECONDS ), false );
+}
+add_action( SN_EDGE_RESAMPLE_HOOK, 'sn_edge_resample_repair' );
+add_action( 'init', static function () {
+	if ( false === get_option( SN_EDGE_HONEST_FROM_OPT, false ) && function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( SN_EDGE_RESAMPLE_HOOK ) ) {
+		wp_schedule_single_event( time() + 60, SN_EDGE_RESAMPLE_HOOK );
+	}
+} );
 
 /** Daily cron: re-pull + upsert. WP passes no args → today defaults to now (UTC). */
 add_action( SN_EDGE_ROLLUP_HOOK, 'sn_edge_run_rollup' );
@@ -231,7 +262,7 @@ function sn_edge_errors_dims( array $rows ) {
  *
  * @param string|null $today YYYY-MM-DD reference day (defaults to now, UTC).
  */
-function sn_edge_run_rollup( $today = null ) {
+function sn_edge_run_rollup( $today = null, $adaptive_only = false ) {
 	if ( ! function_exists( 'sn_edge_config' ) || ! sn_edge_config() ) {
 		return;
 	}
@@ -256,8 +287,10 @@ function sn_edge_run_rollup( $today = null ) {
 	$daily_rows = array();
 	$dim_rows   = array();
 
-	// 1. Exact daily (httpRequests1dGroups).
-	$zone = sn_edge_query( sn_edge_daily_query(), array( 'from' => $from_day, 'to' => $today ) );
+	// 1. Exact daily (httpRequests1dGroups). Skipped by the 17.9.1 repair,
+	// which re-rolls only the sampled snapshots and must not re-pull thirteen
+	// months of exact history once per day it repairs.
+	$zone = $adaptive_only ? null : sn_edge_query( sn_edge_daily_query(), array( 'from' => $from_day, 'to' => $today ) );
 	if ( is_array( $zone ) && is_array( $zone['httpRequests1dGroups'] ?? null ) ) {
 		foreach ( $zone['httpRequests1dGroups'] as $g ) {
 			$day = (string) ( $g['dimensions']['date'] ?? '' );
@@ -311,8 +344,8 @@ function sn_edge_run_rollup( $today = null ) {
 			if ( '' === $colo ) {
 				continue;
 			}
-			$si  = max( 1.0, (float) ( $g['avg']['sampleInterval'] ?? 1 ) );
-			$dim_rows[] = array( 'day' => $snap, 'dim' => 'colo', 'value' => $colo, 'requests' => sn_edge_corrected( $g ), 'bytes' => (int) round( (int) ( $g['sum']['edgeResponseBytes'] ?? 0 ) * $si ) );
+			// A grouped sum is already Cloudflare's estimate (see sn_edge_corrected()).
+			$dim_rows[] = array( 'day' => $snap, 'dim' => 'colo', 'value' => $colo, 'requests' => sn_edge_corrected( $g ), 'bytes' => (int) ( $g['sum']['edgeResponseBytes'] ?? 0 ) );
 		}
 	}
 
@@ -381,8 +414,33 @@ function sn_edge_run_rollup( $today = null ) {
 		sn_edge_daily_upsert( $daily_rows );
 	}
 	if ( ! empty( $dim_rows ) ) {
+		if ( $adaptive_only ) {
+			sn_edge_clear_snapshot_dims( $snap, array_unique( array_column( $dim_rows, 'dim' ) ) );
+		}
 		sn_edge_dims_upsert( $dim_rows );
 	}
+}
+
+/**
+ * 17.9.1 repair only: drop a day's rows for the dims a re-fetch just returned,
+ * so a value that fell out of the new top-N does not keep its inflated count.
+ * Only dims present in the re-fetch are cleared: a sub-query that failed
+ * leaves its dim as it was rather than empty.
+ *
+ * @param string   $day  YYYY-MM-DD.
+ * @param string[] $dims Dims the re-fetch returned rows for.
+ * @return void
+ */
+function sn_edge_clear_snapshot_dims( $day, array $dims ) {
+	global $wpdb;
+	$dims = array_values( array_filter( array_map( 'strval', $dims ), static function ( $d ) { return '' !== $d && 'country' !== $d; } ) );
+	if ( ! $wpdb || array() === $dims ) {
+		return;
+	}
+	$table = $wpdb->prefix . SN_EDGE_DIMS_TABLE;
+	$in    = implode( ', ', array_fill( 0, count( $dims ), '%s' ) );
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery -- table name from the prefix + a constant; values prepared.
+	$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE day = %s AND dim IN ({$in})", array_merge( array( (string) $day ), $dims ) ) );
 }
 
 /**
@@ -485,9 +543,11 @@ function sn_edge_errors_range( $from, $to ) {
 		$sources[]    = $row;
 	}
 	return array(
-		'from'    => $from,
-		'to'      => $to,
-		'total'   => (int) array_sum( array_column( $sources, 'requests' ) ),
+		'from'        => $from,
+		'to'          => $to,
+		// 17.9.1: sampled rows before this day were counted twice over.
+		'honest_from' => function_exists( 'get_option' ) ? (string) get_option( SN_EDGE_HONEST_FROM_OPT, '' ) : '',
+		'total'       => (int) array_sum( array_column( $sources, 'requests' ) ),
 		'paths'   => $paths,
 		'sources' => $sources,
 	);

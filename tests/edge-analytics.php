@@ -133,8 +133,11 @@ foreach ( array( 'firewall' => $fw, 'colo' => $colo, 'attack' => $atk, 'errors' 
 	ok( strpos( $doc, '$to:Time!' ) !== false && substr_count( $doc, 'datetime_lt:$to' ) === substr_count( $doc, 'datetime_geq:$from' ), "$name: every datetime_geq:\$from is paired with datetime_lt:\$to (#1203)" );
 }
 
-echo "\nGroup: sampling correction (adaptive count × sampleInterval)\n";
-ok( sn_edge_corrected( array( 'count' => 12, 'avg' => array( 'sampleInterval' => 10 ) ) ) === 120, 'corrected: 12 × 10 = 120' );
+echo "\nGroup: a grouped adaptive count is Cloudflare's estimate already (17.9.1)\n";
+// Cloudflare scales a grouped count to the estimate before returning it
+// (analytics/graphql-api/sampling/); multiplying by sampleInterval again
+// counted the week's 5xx about seven times the zone's exact total.
+ok( sn_edge_corrected( array( 'count' => 12, 'avg' => array( 'sampleInterval' => 10 ) ) ) === 12, 'corrected: a grouped count of 12 at sampleInterval 10 is 12, not 120' );
 ok( sn_edge_corrected( array( 'count' => 5 ) ) === 5, 'corrected: missing sampleInterval defaults to ×1' );
 ok( sn_edge_corrected( array( 'count' => 7, 'avg' => array( 'sampleInterval' => 0 ) ) ) === 7, 'corrected: sampleInterval < 1 floored to ×1 (no zeroing)' );
 
