@@ -15,7 +15,7 @@
  * cannot loop.
  *
  * Delete this when OpenStation gives server-painted tables a declarative way
- * to ask for it (tracked upstream).
+ * to ask for it: WordPress/openstation#900.
  */
 ( function () {
 	'use strict';
