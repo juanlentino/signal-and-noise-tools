@@ -90,6 +90,16 @@ function snt_edge_render_view( $from, $to ) {
 	}
 	echo '<div class="sn-an-grid">';
 	snt_edge_render_dim( __( 'Status codes', 'signal-and-noise-tools' ), $status_rows, 'No status data yet.', false );
+	// 17.8.1 (#1002): the 5xx rows read back; stored since 13.96.3, never shown.
+	if ( function_exists( 'sn_edge_errors_range' ) ) {
+		$errors = sn_edge_errors_range( $from, $to );
+		$who    = array();
+		foreach ( $errors['sources'] as $row ) {
+			$who[] = array( 'value' => $row['label'], 'requests' => $row['requests'], 'bytes' => 0 );
+		}
+		snt_edge_render_dim( __( '5xx: who answered', 'signal-and-noise-tools' ), $who, 'No 5xx in this range.', false );
+		snt_edge_render_dim( __( '5xx: which paths', 'signal-and-noise-tools' ), $errors['paths'], 'No 5xx in this range.', false );
+	}
 	snt_edge_render_dim( __( 'Edge locations', 'signal-and-noise-tools' ), sn_edge_top_dim( 'colo', $from, $to, 10 ), 'No edge-location data in this range yet.' );
 	snt_edge_render_dim( __( 'Countries (all traffic)', 'signal-and-noise-tools' ), sn_edge_top_dim( 'country', $from, $to, 10 ), 'No country data yet.' );
 	snt_edge_render_dim( __( 'Threats', 'signal-and-noise-tools' ), sn_edge_top_dim( 'threat', $from, $to, 10 ), 'No threats recorded in this range.' );

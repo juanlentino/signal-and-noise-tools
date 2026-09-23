@@ -452,6 +452,73 @@ function sn_edge_top_dim( $dim, $from, $to, $limit = 10 ) {
 }
 
 /**
+ * 17.8.1 (#1002): the 5xx rows read back. sn_edge_errors_dims() has stored
+ * which paths failed and who answered since 13.96.3, and nothing read them:
+ * sn_edge_top_dim() was only ever asked for country, colo and threat. This
+ * is the one reader the Edge panels and `cloudflare-status` share.
+ *
+ * @param int         $days  Window, in days, ending today (UTC).
+ * @param string|null $today YYYY-MM-DD reference day; defaults to now, UTC.
+ * @return array{from:string,to:string,total:int,paths:array,sources:array}
+ */
+function sn_edge_errors_reading( $days = 7, $today = null ) {
+	$to   = null === $today ? gmdate( 'Y-m-d' ) : (string) $today;
+	$from = gmdate( 'Y-m-d', strtotime( $to . ' UTC' ) - max( 0, (int) $days - 1 ) * DAY_IN_SECONDS );
+	return sn_edge_errors_range( $from, $to );
+}
+
+/**
+ * The same reading over an explicit inclusive [$from,$to] (YYYY-MM-DD), for a
+ * panel that already has its own range.
+ *
+ * @param string $from First day.
+ * @param string $to   Last day.
+ * @return array{from:string,to:string,total:int,paths:array,sources:array}
+ */
+function sn_edge_errors_range( $from, $to ) {
+	$from    = (string) $from;
+	$to      = (string) $to;
+	$paths   = sn_edge_top_dim( 'err_path', $from, $to, 10 );
+	$sources = array();
+	foreach ( sn_edge_top_dim( 'err_source', $from, $to, 10 ) as $row ) {
+		$row['label'] = sn_edge_error_source_label( $row['value'] );
+		$sources[]    = $row;
+	}
+	return array(
+		'from'    => $from,
+		'to'      => $to,
+		'total'   => (int) array_sum( array_column( $sources, 'requests' ) ),
+		'paths'   => $paths,
+		'sources' => $sources,
+	);
+}
+
+/**
+ * `edge=503 origin=503 cache=miss` in words. The distinction is the one
+ * #1002 could not get from outside: an origin status means the origin (or
+ * the cache in front of it) failed; `origin=-` means nothing upstream
+ * answered, so Cloudflare or a Worker produced the error by itself.
+ *
+ * @param string $value A stored err_source value.
+ * @return string
+ */
+function sn_edge_error_source_label( $value ) {
+	if ( ! preg_match( '/^edge=(\d+) origin=(\d+|-)/', (string) $value, $m ) ) {
+		return (string) $value;
+	}
+	if ( '-' === $m[2] ) {
+		/* translators: %s: HTTP status Cloudflare returned. */
+		return sprintf( __( '%s from Cloudflare itself (the origin never answered)', 'signal-and-noise-tools' ), $m[1] );
+	}
+	if ( $m[1] === $m[2] ) {
+		/* translators: %s: HTTP status the origin returned. */
+		return sprintf( __( '%s from the origin', 'signal-and-noise-tools' ), $m[2] );
+	}
+	/* translators: 1: status Cloudflare returned, 2: status the origin returned. */
+	return sprintf( __( '%1$s at the edge, origin said %2$s', 'signal-and-noise-tools' ), $m[1], $m[2] );
+}
+
+/**
  * The headline reconciliation: edge HTML pageviews (every client) vs the beacon's
  * human pageviews (JS-executing humans) → the machine / no-JS traffic the beacon
  * never saw. Clamped at 0 (a sampled beacon window can momentarily over-count).
