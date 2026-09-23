@@ -205,16 +205,14 @@ a.snt-link:hover { text-decoration: underline; }
 }
 
 /* ── Facts list ──────────────────────────────────────────────────────── */
+/* 17.9.0: the layout is the kit's <os-facts> (OpenStation 1.1.11). Only the
+ * house rhythm is set here, through the component's own tokens and parts:
+ * a 16px column gap and a 12px label beside 13px values, as before. */
 .snt-kv {
-	display: grid;
-	grid-template-columns: max-content minmax( 0, 1fr );
-	gap: 6px 16px;
-	margin: 0;
+	--os-ui-facts-font-size: 13px;
+	--os-ui-facts-column-gap: 16px;
 }
-
-.snt-kv__row { display: contents; }
-.snt-kv__k { color: var( --os-ui-fg-muted, #b3afb5 ); font-size: 12px; }
-.snt-kv__v { margin: 0; min-width: 0; font-size: 13px; overflow-wrap: anywhere; }
+.snt-kv os-fact::part( label ) { font-size: 12px; }
 /* Inline facts (not code blocks) must wrap through the component's supported
  * token. Keep the URL text/link intact for selection, copying and navigation. */
 .snt-kv__v os-code:not( [block] ) { --os-ui-code-white-space: normal; }

@@ -182,7 +182,7 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: 
 // ── Specific readouts for the rich fixture.
 ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, 'Beacon token set' ), 'the beacon pill reads ok when the token resolves' );
 ok( false !== strpos( $kit, 'Zone ID set' ), 'the zone pill reads ok' );
-ok( false === strpos( $kit, 'name="sn_cf_account_id"' ) && false !== strpos( $kit, '>Account ID</dt>' ) && false !== strpos( $kit, 'Connections › Credentials' ) && false !== strpos( $kit, '>Reads with</dt>' ), '15.2.0: no account-ID field; the fold reads the source and points to the keyring' );
+ok( false === strpos( $kit, 'name="sn_cf_account_id"' ) && false !== strpos( $kit, 'label="Account ID"' ) && false !== strpos( $kit, 'Connections › Credentials' ) && false !== strpos( $kit, 'label="Reads with"' ), '15.2.0: no account-ID field; the fold reads the source and points to the keyring' );
 ok( false !== strpos( $kit, 'zone-abc123' ), 'the Zone ID mirror shows the live zone' );
 ok( false !== strpos( $kit, 'sn-analytics' ) && false !== strpos( $kit, 'v1.14.2' ), 'the edge-worker card shows the live worker + version' );
 ok( false !== strpos( $kit, '2 salt keys at the edge' ), 'the salt-window card shows the live key count' );

@@ -448,9 +448,9 @@ ok( '' !== $box, 'the backlog box paints under its heading' );
 $box_at = strpos( $kit, 'heading="Action Scheduler backlog"' );
 ok( strpos( $kit, 'heading="Scheduled events"' ) < $box_at && $box_at < strpos( $kit, snt_leaf_row() ), 'the box sits under the events ledger and above the settings row' );
 ok( false === strpos( $box, '<os-disclosure' ), 'a reading is painted directly, not behind a fold' );
-ok( (bool) preg_match( '#<dt class="snt-kv__k">pending</dt><dd class="snt-kv__v">12 \(3 overdue\)</dd>#', $box ), 'pending row: 12 with 3 overdue, no tone under the line' );
-ok( false !== strpos( $box, '<dt class="snt-kv__k">complete</dt><dd class="snt-kv__v">1204</dd>' ), 'complete row: raw status label, the raw figure the Info row prints' );
-ok( false !== strpos( $box, '<dt class="snt-kv__k">total</dt><dd class="snt-kv__v">1224</dd>' ), 'total row sums every status' );
+ok( (bool) preg_match( '#<os-fact label="pending"><span class="snt-kv__v">12 \(3 overdue\)</span></os-fact>#', $box ), 'pending row: 12 with 3 overdue, no tone under the line' );
+ok( false !== strpos( $box, '<os-fact label="complete"><span class="snt-kv__v">1204</span></os-fact>' ), 'complete row: raw status label, the raw figure the Info row prints' );
+ok( false !== strpos( $box, '<os-fact label="total"><span class="snt-kv__v">1224</span></os-fact>' ), 'total row sums every status' );
 ok( false === strpos( $box, 'tone="warning"' ), 'a quiet table paints no warning notice' );
 ok( 3 === count( $db->queries ), 'one snapshot per paint: 3 queries, not 6: ' . count( $db->queries ) );
 
@@ -465,8 +465,8 @@ $db->overdue = SN_ASB_OVERDUE_WARN;
 $db->queries = array();
 $box = cron_leaf_backlog_box( snt_leaf_paint( 'connections', 'cron', array() ) );
 ok( 1 === substr_count( $box, '<os-notice tone="warning"' ) && false !== strpos( $box, '50 pending actions are overdue' ), 'overdue at the line: exactly one warning notice naming the count' );
-ok( strpos( $box, '<os-notice' ) < strpos( $box, '<dl class="snt-kv"' ), 'the notice sits on top of the box, above the facts' );
-ok( (bool) preg_match( '#<dt class="snt-kv__k">pending</dt><dd class="snt-kv__v" data-tone="warning">#', $box ), 'the pending row carries the warning tone' );
+ok( strpos( $box, '<os-notice' ) < strpos( $box, '<os-facts class="snt-kv"' ), 'the notice sits on top of the box, above the facts' );
+ok( (bool) preg_match( '#<os-fact label="pending"><span class="snt-kv__v" data-tone="warning">#', $box ), 'the pending row carries the warning tone' );
 
 // (d) One under the line: no notice, no tone (boundary).
 $db->overdue = SN_ASB_OVERDUE_WARN - 1;
@@ -478,7 +478,7 @@ $db->status_rows = array( array( 'status' => 'complete', 'n' => (string) SN_ASB_
 $db->overdue     = 0;
 $box = cron_leaf_backlog_box( snt_leaf_paint( 'connections', 'cron', array() ) );
 ok( 1 === substr_count( $box, '<os-notice tone="warning"' ) && false !== strpos( $box, 'every page load' ), 'total at the bloat line: one warning notice naming the per-page cost' );
-ok( (bool) preg_match( '#<dt class="snt-kv__k">total</dt><dd class="snt-kv__v" data-tone="warning">100000</dd>#', $box ), 'the total row carries the warning tone, the same raw figure the notice above it names' );
+ok( (bool) preg_match( '#<os-fact label="total"><span class="snt-kv__v" data-tone="warning">100000</span></os-fact>#', $box ), 'the total row carries the warning tone, the same raw figure the notice above it names' );
 $db->status_rows = array( array( 'status' => 'pending', 'n' => '80' ), array( 'status' => 'complete', 'n' => (string) SN_ASB_ROWS_WARN ) );
 $db->overdue     = SN_ASB_OVERDUE_WARN + 10;
 $box = cron_leaf_backlog_box( snt_leaf_paint( 'connections', 'cron', array() ) );
@@ -498,7 +498,7 @@ ok( (bool) preg_match( '#<os-button[^>]*os-action="door"[^>]*os-arg-url="[^"]*to
 $db->table_exists = false;
 $db->queries      = array();
 $box = cron_leaf_backlog_box( snt_leaf_paint( 'connections', 'cron', array() ) );
-ok( false !== strpos( $box, 'Action Scheduler not installed' ) && false === strpos( $box, '<dl class="snt-kv"' ) && false === strpos( $box, '<os-notice' ), 'absent table: the box says not installed, paints no facts and no notice' );
+ok( false !== strpos( $box, 'Action Scheduler not installed' ) && false === strpos( $box, '<os-facts class="snt-kv"' ) && false === strpos( $box, '<os-notice' ), 'absent table: the box says not installed, paints no facts and no notice' );
 ok( 1 === count( $db->queries ), 'absent table: only the existence probe ran' );
 
 // (h) No wpdb at all: the Info-row degrade, no fatal.

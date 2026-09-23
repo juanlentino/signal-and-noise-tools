@@ -120,7 +120,17 @@ function snt_kit_list( array $rows, array $opts = array() ) {
 }
 
 /**
- * A facts list (`<dl>`): rows of `label`, `value` (HTML allowed when `html` is true), optional `tone`.
+ * A facts list: rows of `label`, `value` (HTML allowed when `html` is true), optional `tone`.
+ *
+ * 17.9.0: painted by the kit's own `<os-facts>` / `<os-fact>` (OpenStation
+ * 1.1.11, upstream #889) instead of a hand-rolled `<dl class="snt-kv">`.
+ * The list is still a real `<dl>` (in the component's shadow root, with each
+ * row `display: contents` so its `<dt>`/`<dd>` belong to it), so screen
+ * readers read the same thing. The label is the row's `label` attribute; the
+ * value stays in the light DOM inside `.snt-kv__v`, which is the hook the
+ * tone colour, the inline-code wrap and the provenance leaf's rules read.
+ * `<os-facts>` has no tone of its own (no upstream painter used one), so the
+ * tone rides the value span exactly as it rode the `<dd>`.
  *
  * @param array<int,array<string,mixed>> $rows Rows.
  * @return string
@@ -132,10 +142,11 @@ function snt_kit_kv( array $rows ) {
 			continue;
 		}
 		$value = ! empty( $row['html'] ) ? (string) ( $row['value'] ?? '' ) : snt_kit_esc( (string) ( $row['value'] ?? '' ) );
-		$out  .= snt_kit_tag( 'div', array( 'class' => 'snt-kv__row' ),
-			snt_kit_tag( 'dt', array( 'class' => 'snt-kv__k' ), snt_kit_esc( (string) ( $row['label'] ?? '' ) ) )
-			. snt_kit_tag( 'dd', array( 'class' => 'snt-kv__v', 'data-tone' => isset( $row['tone'] ) ? snt_kit_tone( (string) $row['tone'] ) : null ), $value )
+		$out  .= snt_kit_tag(
+			'os-fact',
+			array( 'label' => (string) ( $row['label'] ?? '' ) ),
+			snt_kit_tag( 'span', array( 'class' => 'snt-kv__v', 'data-tone' => isset( $row['tone'] ) ? snt_kit_tone( (string) $row['tone'] ) : null ), $value )
 		);
 	}
-	return snt_kit_tag( 'dl', array( 'class' => 'snt-kv' ), $out );
+	return snt_kit_tag( 'os-facts', array( 'class' => 'snt-kv' ), $out );
 }

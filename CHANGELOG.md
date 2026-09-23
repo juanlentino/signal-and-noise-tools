@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Facts lists are the kit's `<os-facts>` (OpenStation 1.1.11 is now the floor).** `snt_kit_kv()`, the helper behind every label/value readout in the native window, painted its own `<dl class="snt-kv">` because the kit had nothing of that shape. Upstream #889 shipped `<os-facts>` / `<os-fact>` in OpenStation 1.1.11, so the helper paints those. Each row is `<os-fact label>` with its value in a `.snt-kv__v` span, which keeps the tone colour, the inline-code wrap and the provenance rules on the same hook, and the list is still a real `<dl>` for screen readers. Only the house rhythm (16px column gap, 12px labels) stays in `assets/os-app.css`. **1.1.11 is a floor, not an option**: on an older station every facts row would lose its label silently. `docs/openstation-compat.md` is re-verified at the v1.1.11 tag (42 names, clean). The 53 assertions across ten leaf suites that pinned the old markup now pin the new shape, and all 53 fail against the old helper.
+- **The S&N Home refresh button is named by its `aria-label` alone.** `os-button` forwards a host `aria-label` to its inner button since OpenStation 1.1.11 (#857), so the hidden slotted copy of the name and the `.snt-sr-only` rule it needed are gone.
+
 ## [17.8.1] - 2026-09-23 — the 5xx rows read back
 
 ### Fixed

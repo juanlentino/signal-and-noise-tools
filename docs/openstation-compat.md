@@ -16,9 +16,9 @@ expression, both of which survive a release and are what you would grep for
 anyway. `tests/openstation-compat.php` fails the build if a `file.php:NNN`
 citation reappears here.
 
-<!-- openstation-verified: v1.1.10 2026-09-21 -->
+<!-- openstation-verified: v1.1.11 2026-09-23 -->
 
-**Last verified against `v1.1.10`** (2026-09-21). The machine-readable stamp
+**Last verified against `v1.1.11`** (2026-09-23). The machine-readable stamp
 directly above is what `tests/openstation-compat.php` reads; the sentence you are
 reading must agree with it, and the test fails if they drift. Before the stamp
 existed this claim was prose only, and it sat at `v1.1.2` through three
@@ -30,6 +30,23 @@ for the instrument.
 `trunk`. Asking it whether a seam exists answers a question about unreleased
 code and will happily confirm a name that is not in the release the site runs.
 Fetch each file at `?ref=vX.Y.Z`.
+
+### What v1.1.11 changed for us: the facts floor, and here is the evidence
+
+Re-verified 2026-09-23 for the 17.9.0 arc. v1.1.11 ships three upstream PRs this
+plugin now consumes: `<os-facts>` / `<os-fact>` (#889, the label/value list),
+`os-button` forwarding a host `aria-label` to its inner button (#857), and
+`<os-table>` slot cells, a cell value of `{ slot }` rendered as a named slot the
+light DOM fills (#874, the #1624 port). Each is defined at the `v1.1.11` tag of
+`src/ui/components/`, and none is in `v1.1.10`.
+
+**That makes 1.1.11 a floor, not an option.** `snt_kit_kv()` now paints
+`<os-facts>`, and on an older station `<os-fact>` is an unknown element: its
+`label` is an attribute, so every facts row would lose its label and show only
+the value, with nothing erroring. The name sweep below, run against a local
+checkout at the `v1.1.11` tag with the regenerated list (42 names), found every
+seam present; the only zero rows were the same four identifiers of this
+plugin's own that the regex catches as substrings, listed under v1.1.10.
 
 ### What v1.1.10 changed for us: the layout floor, and here is the evidence
 

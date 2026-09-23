@@ -317,10 +317,10 @@ $GLOBALS['__scan'] = $rich_scan;
 $kit = snt_leaf_paint( 'tools', 'reports' );
 $box = reports_leaf_facts_box( $kit );
 ok( '' !== $box && strrpos( $kit, 'class="snt-cols"' ) < strpos( $kit, 'heading="Plugin environment"' ), 'the environment box paints under the last report row' );
-ok( false !== strpos( $box, '<dt class="snt-kv__k">WordPress JS packages served by</dt><dd class="snt-kv__v">plugin:gutenberg' ) && false !== strpos( $box, '1 handles (wp-components)' ), 'the JS-package row names the plugin that serves the wp-* handles, as the Info panel does' );
-ok( false !== strpos( $box, '<dt class="snt-kv__k">Database template/navigation overrides</dt><dd class="snt-kv__v">3</dd>' ), 'the override-count row carries the count' );
-ok( (bool) preg_match( '#<dt class="snt-kv__k">Total plugin-directory size</dt><dd class="snt-kv__v">[0-9.,]+ (B|KB|MB|GB)#', $box ), 'the footprint total is a formatted size' );
-ok( false !== strpos( $box, '<dt class="snt-kv__k">Last janitor sweep</dt><dd class="snt-kv__v">freed 121 KB on v9.9.9</dd>' ), 'the sweep row is the Info panel\'s sentence from the same option' );
+ok( false !== strpos( $box, '<os-fact label="WordPress JS packages served by"><span class="snt-kv__v">plugin:gutenberg' ) && false !== strpos( $box, '1 handles (wp-components)' ), 'the JS-package row names the plugin that serves the wp-* handles, as the Info panel does' );
+ok( false !== strpos( $box, '<os-fact label="Database template/navigation overrides"><span class="snt-kv__v">3</span></os-fact>' ), 'the override-count row carries the count' );
+ok( (bool) preg_match( '#<os-fact label="Total plugin-directory size"><span class="snt-kv__v">[0-9.,]+ (B|KB|MB|GB)#', $box ), 'the footprint total is a formatted size' );
+ok( false !== strpos( $box, '<os-fact label="Last janitor sweep"><span class="snt-kv__v">freed 121 KB on v9.9.9</span></os-fact>' ), 'the sweep row is the Info panel\'s sentence from the same option' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup with the box painted' );
 // (b) The footprint rows over a fixture: one legacy leftover counted and warn toned, the total summed.
 $fixture = sys_get_temp_dir() . '/snt-reports-facts-' . getmypid();
