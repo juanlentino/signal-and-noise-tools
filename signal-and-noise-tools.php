@@ -454,6 +454,7 @@ require_once __DIR__ . '/inc/generated-page-contract.php';  // v10.44.0: structu
 require_once __DIR__ . '/inc/page-sync-engine.php';   // v9.81.0: LIVE Now/Uses per-save dossier sync engine (split out of content-migrations)
 require_once __DIR__ . '/inc/resume-sync-engine.php'; // v10.33.0: LIVE /resume per-save sync engine (structured doc → wp:html body, drift-proof)
 require_once __DIR__ . '/inc/content-migrations.php'; // spent one-shot seeds behind the master sentinel (sn_run_content_migrations)
+require_once __DIR__ . '/inc/home-page-seed.php'; // seeds the front-page Page once (theme 14.3 renders its content)
 require_once __DIR__ . '/inc/split-hero-migration.php'; // v10.36.0: split-hero one-shot (own hook — master sentinel is spent on live)
 require_once __DIR__ . '/inc/tag-consolidation.php';
 require_once __DIR__ . '/inc/tag-consolidation-redirects.php'; // front end too (301 handler)
