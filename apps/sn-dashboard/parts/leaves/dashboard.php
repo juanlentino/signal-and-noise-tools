@@ -846,9 +846,9 @@ function paint_dashboard( array $ctx ) {
 		. '<p class="snt-home-heading__state">' . \snt_kit_esc( $orient['text'] ) . '</p>'
 		. '</div>'
 		. '<os-button class="snt-home__refresh" variant="ghost" os-action="refresh" aria-label="' . esc_attr__( 'Refresh S&N Home', 'signal-and-noise-tools' ) . '" title="' . esc_attr__( 'Refresh', 'signal-and-noise-tools' ) . '">'
+		// The host aria-label names the inner button: os-button forwards it
+		// since OpenStation 1.1.11 (#857), so no hidden slotted text.
 		. '<span class="dashicons dashicons-update" aria-hidden="true"></span>'
-		// Slotted text names the inner button; host aria-label is not forwarded.
-		. '<span class="snt-sr-only">' . \snt_kit_esc( __( 'Refresh S&N Home', 'signal-and-noise-tools' ) ) . '</span>'
 		. '</os-button>'
 		. '</header>';
 

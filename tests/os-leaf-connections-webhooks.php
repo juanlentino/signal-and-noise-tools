@@ -110,7 +110,7 @@ $newest = strpos( $kit, '&quot;fired_at&quot;:&quot;' . gmdate( 'Y-m-d H:i:s', 1
 $oldest = strpos( $kit, '&quot;http&quot;:&quot;500&quot;,&quot;status&quot;:&quot;fail&quot;,&quot;response&quot;:&quot;upstream timeout&quot;' );
 ok( false !== $newest && false !== $oldest && $newest < $oldest, 'log rows carry fired-at, attempt, HTTP, ok/fail and the response, newest first' );
 ok( false !== strpos( $kit, '<b>2 webhooks configured</b> <os-badge tone="success">Active</os-badge><br>1 enabled, 1 disabled.' ), 'the status box counts configured and enabled webhooks with an Active pill' );
-ok( false === strpos( $kit, 'name="sn_betterstack_token"' ) && false === strpos( $kit, 'name="sn_spend_gh_token"' ) && false === strpos( $kit, 'ABCD7890' ) && false === strpos( $kit, '••••7890' ) && false !== strpos( $kit, '>Better Stack API token</dt>' ) && false !== strpos( $kit, '>saved</dd>' ) && false !== strpos( $kit, 'Connections › Credentials' ), '15.2.0: no token field and no value; the sources read saved and the section points to the keyring' );
+ok( false === strpos( $kit, 'name="sn_betterstack_token"' ) && false === strpos( $kit, 'name="sn_spend_gh_token"' ) && false === strpos( $kit, 'ABCD7890' ) && false === strpos( $kit, '••••7890' ) && false !== strpos( $kit, 'label="Better Stack API token"' ) && false !== strpos( $kit, '>saved</span></os-fact>' ) && false !== strpos( $kit, 'Connections › Credentials' ), '15.2.0: no token field and no value; the sources read saved and the section points to the keyring' );
 ok( false !== strpos( $kit, 'heading="Better Stack status"' ) && false !== strpos( $kit, 'data-sn-uptime-status' ), 'with a token, the Better Stack mount is painted for the shell script to fill' );
 ok( false !== strpos( $kit, 'SignalNoiseTools/' . SNT_VERSION . ' webhook' ) && false !== strpos( $kit, '&quot;site&quot;: &quot;https://example.test/&quot;' ) && false !== strpos( $kit, 'POST &lt;your URL&gt; HTTP/1.1' ), 'the payload reference names the version, the site and the request line' );
 ok( false !== strpos( $kit, '<os-row gap="16"><os-stack col="8" gap="12">' ) && false !== strpos( $kit, '<aside col="4" aria-label="Status &amp; reference">' ), 'the two-column shell is an os-row: the work, then the status and reference rail' );
@@ -194,7 +194,7 @@ ok( false !== strpos( $kit, '<b>1 webhook configured</b> <os-badge tone="warning
 // ── No Better Stack token: no panel, an empty token field.
 fixture( array( 'sn_betterstack_api_token' => '' ) );
 $kit = snt_leaf_paint( 'connections', 'webhooks' );
-ok( false === strpos( $kit, 'data-sn-uptime-status' ) && false !== strpos( $kit, '>not set</dd>' ), 'unconfigured: no Better Stack panel, the token source reads not set' );
+ok( false === strpos( $kit, 'data-sn-uptime-status' ) && false !== strpos( $kit, '>not set</span></os-fact>' ), 'unconfigured: no Better Stack panel, the token source reads not set' );
 
 // ── Constant-locked token: no name on the field, the lock is explained, the panel is up.
 define( 'SN_BETTERSTACK_API_TOKEN', 'wp-config-token' );
@@ -202,7 +202,7 @@ fixture();
 $classic = snt_leaf_classic_html( 'sn_admin_render_webhooks_section' );
 $kit     = snt_leaf_paint( 'connections', 'webhooks' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && ! in_array( 'sn_betterstack_token', snt_leaf_names( $kit ), true ), 'locked: neither form carries sn_betterstack_token: ' . implode( ',', snt_leaf_names( $kit ) ) );
-ok( false !== strpos( $kit, '>locked in wp-config.php</dd>' ) && false !== strpos( $kit, 'data-sn-uptime-status' ), 'locked: the source says wp-config and the Better Stack panel is painted' );
+ok( false !== strpos( $kit, '>locked in wp-config.php</span></os-fact>' ) && false !== strpos( $kit, 'data-sn-uptime-status' ), 'locked: the source says wp-config and the Better Stack panel is painted' );
 webhooks_test_prose_oracle( $classic, $kit, 'constant-locked fixture' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

@@ -119,13 +119,13 @@ ok( sn_ssrf_pinning_available(), 'this host has the cURL transport, so the good 
 $box = fw_pinning_box( $kit );
 ok( '' !== $box && strpos( $kit, 'heading="Edge posture"' ) < strpos( $kit, 'heading="Outbound pinning"' ) && 1 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, '<os-stack' ), 'the pinning box paints under the posture at full width; the one row is still Firewall and Acted on' );
 ok( false === strpos( $box, '<os-notice' ) && false !== strpos( $box, '<p class="snt-hint">Outbound requests are pinned to the addresses the SSRF guard validated' ), 'pinned, nothing unpinned: the summary is the hint line, no notice' );
-ok( false !== strpos( $box, '<dt class="snt-kv__k">cURL transport</dt><dd class="snt-kv__v">present, the pin fires on every outbound request</dd>' ) && false !== strpos( $box, '<dt class="snt-kv__k">Last unpinned request</dt><dd class="snt-kv__v">none recorded</dd>' ), 'two facts rows: the transport present, no unpinned request recorded, neither toned' );
+ok( false !== strpos( $box, '<os-fact label="cURL transport"><span class="snt-kv__v">present, the pin fires on every outbound request</span></os-fact>' ) && false !== strpos( $box, '<os-fact label="Last unpinned request"><span class="snt-kv__v">none recorded</span></os-fact>' ), 'two facts rows: the transport present, no unpinned request recorded, neither toned' );
 // (b) A request went out unpinned: the recommended verdict is a warning naming the host, the row toned and dated.
 fw_opts( $GLOBALS['__options'] + array( 'sn_ssrf_unpinned_last' => array( 'host' => 'api.example.net', 'at' => time() - 3600 ) ) );
 $kit = snt_leaf_paint( 'security', 'firewall' );
 $box = fw_pinning_box( $kit );
 ok( false !== strpos( $box, '<os-notice tone="warning"' ) && false !== strpos( $box, 'at least one outbound request went unpinned (last: api.example.net)' ), 'an unpinned request: the summary is a warning notice naming the host' );
-ok( false !== strpos( $box, '<dd class="snt-kv__v" data-tone="warning">api.example.net, <os-relative-time datetime="' ) && false !== strpos( $box, '>1 hour ago</os-relative-time></dd>' ), 'the last-unpinned row carries the host and its age, warn toned' );
+ok( false !== strpos( $box, '<span class="snt-kv__v" data-tone="warning">api.example.net, <os-relative-time datetime="' ) && false !== strpos( $box, '>1 hour ago</os-relative-time></span></os-fact>' ), 'the last-unpinned row carries the host and its age, warn toned' );
 ok( array() === snt_leaf_classic_markers( $kit ) && array( 'cf_monitor_refresh' ) === snt_leaf_actions( $kit ), 'still one action and no wp-admin markup with the pinning box painted' );
 // (c) Before the monitor ever ran, the box is there too: the posture does not wait for Cloudflare.
 fw_opts( array() );

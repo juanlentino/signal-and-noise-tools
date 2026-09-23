@@ -182,7 +182,7 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names still ma
 
 /** The `<dd>` of the facts row labelled $label: [inner, attrs] or null. */
 function kv_row( $html, $label ) {
-	if ( ! preg_match( '#<dt class="snt-kv__k">' . preg_quote( $label, '#' ) . '</dt><dd class="snt-kv__v"([^>]*)>([^<]*)</dd>#', $html, $m ) ) {
+	if ( ! preg_match( '#<os-fact label="' . preg_quote( $label, '#' ) . '"><span class="snt-kv__v"([^>]*)>([^<]*)</span></os-fact>#', $html, $m ) ) {
 		return null;
 	}
 	return array( $m[2], $m[1] );

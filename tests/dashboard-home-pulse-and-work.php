@@ -151,5 +151,11 @@ ok( false === strpos( $empty, 'snt-home__all-clear' ), '...and the .snt-home__wo
 $css = (string) file_get_contents( __DIR__ . '/../apps/sn-dashboard/sn-dashboard.css' );
 ok( 1 === preg_match( '/\.snt-home__work os-empty-state\s*\{[^}]*min-block-size/', preg_replace( '#/\*.*?\*/#s', '', $css ) ), 'the sheet carries the Station Home twin for the empty state (.snt-home__work os-empty-state, min-block-size)' );
 
+// 17.9.0: os-button forwards a host aria-label to its inner button since
+// OpenStation 1.1.11 (#857), so the refresh button's hidden slotted name went.
+$home_src = (string) file_get_contents( dirname( __DIR__ ) . '/apps/sn-dashboard/parts/leaves/dashboard.php' );
+ok( 1 === preg_match( '/<os-button class="snt-home__refresh"[^>]*aria-label="/', $home_src ), 'the refresh button is named by its host aria-label' );
+ok( false === strpos( $home_src, 'snt-sr-only' ) && false === strpos( preg_replace( '#/\*.*?\*/#s', '', $css ), '.snt-sr-only' ), 'no hidden slotted text and no sr-only rule: the forwarded label is the one name' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
