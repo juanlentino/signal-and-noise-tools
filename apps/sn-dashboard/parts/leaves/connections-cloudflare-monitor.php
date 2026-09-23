@@ -23,6 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once __DIR__ . '/connections-cloudflare-errors.php'; // 17.8.1
+
 /**
  * The stored record, or null when the monitor never ran.
  *
@@ -124,6 +126,8 @@ function cloudflare_edge_html( array $d ) {
 			}
 			$inner .= \snt_kit_list( $code_rows );
 		}
+		// 17.8.1 (#1002): which paths, and who answered.
+		$inner .= cloudflare_edge_errors_html();
 	} elseif ( ! empty( $z['needs_permission'] ) ) {
 		$inner .= \snt_kit_notice( 'warning', \snt_kit_esc( __( 'Zone analytics: ', 'signal-and-noise-tools' ) . sn_cf_monitor_permission_hint() ) );
 	} else {
