@@ -186,7 +186,7 @@ function sn_mcp_allowlist() {
 		'signal-noise/cache-freshness',
 		// 14.9.0 — the Cloudflare monitor's stored record; the sn-status `cloudflare` source. Read door 34 → 35.
 		'signal-noise/cloudflare-status',
-		// 17.9.2 (#1002) — two LIVE GraphQL reads (sampling + requestSource) that
+		// 17.9.2 (#1002): two LIVE GraphQL reads (sampling + requestSource) that
 		// settle what the stored edge figures cannot. Read-only, on demand.
 		'signal-noise/edge-sampling-probe',
 		// 15.2.0 — the keyring's sources and verdicts; the sn-status `keyring` source. Read door 35 → 36.

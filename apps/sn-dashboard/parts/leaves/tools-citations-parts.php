@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * One claims row, as the row of an `<os-table>` (17.9.0, #1624) — mirrors
+ * One claims row, as the row of an `<os-table>` (17.9.0, #1624). Mirrors
  * `sn_cit_render_row()` line for line (that function echoes two `<a>` tags
  * directly, so it cannot be reused as a reader; the underlying values are
  * the same). The source and cited-page anchors and the tier's pill (tone and

@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise Tools — `signal-noise/edge-sampling-probe`: two live GraphQL
+ * Signal & Noise Tools, `signal-noise/edge-sampling-probe`: two live GraphQL
  * reads that answer a question the stored edge figures cannot (17.9.2, #1002).
  *
  * The week's sampled 5xx rows (errors_5xx, ~38,600, all `edge=504 origin=-`)
@@ -53,6 +53,40 @@ function snt_edge_sampling_summary( array $groups ) {
 }
 
 /**
+ * Read C's verdict: does a sampled group `count` already carry Cloudflare's
+ * estimate, or must it be multiplied by sampleInterval? PURE. The adaptive
+ * visitor total is computed both ways and each set against the exact total;
+ * the closer one wins, and a verdict is only given when that one is within
+ * 10% and the other is not, since a near-tie at low sampling settles nothing.
+ *
+ * @param string $day    YYYY-MM-DD read.
+ * @param array  $groups Adaptive groups (count, avg.sampleInterval).
+ * @param int    $exact  httpRequests1dGroups requests for the day.
+ * @return array{day:string,exact:int,as_count:int,as_count_times_interval:int,verdict:string}
+ */
+function snt_edge_count_meaning( $day, array $groups, $exact ) {
+	$s   = snt_edge_sampling_summary( $groups );
+	$off = static function ( $v ) use ( $exact ) {
+		return $exact > 0 ? abs( $v - $exact ) / $exact : INF;
+	};
+	$a       = $off( $s['count'] );
+	$b       = $off( $s['count_times_interval'] );
+	$verdict = 'unsettled';
+	if ( $a <= 0.10 && $b > 0.10 ) {
+		$verdict = 'count_is_the_estimate';
+	} elseif ( $b <= 0.10 && $a > 0.10 ) {
+		$verdict = 'multiply_by_interval';
+	}
+	return array(
+		'day'                     => (string) $day,
+		'exact'                   => (int) $exact,
+		'as_count'                => $s['count'],
+		'as_count_times_interval' => $s['count_times_interval'],
+		'verdict'                 => $verdict,
+	);
+}
+
+/**
  * @param mixed $input Unused.
  * @return array<string,mixed>
  */
@@ -76,6 +110,18 @@ function snt_ability_edge_sampling_probe( $input = null ) {
 	$err_b = '';
 	$a     = sn_edge_query( $doc_a, $vars, $err_a );
 	$b     = sn_edge_query( $doc_b, $vars, $err_b );
+
+	// 17.9.3, read C: which reading of a sampled `count` is right, settled by
+	// a total both datasets carry. Yesterday (UTC), visitor requests only,
+	// from the adaptive groups, beside the exact httpRequests1dGroups total
+	// for the same day. Whichever of `count` and `count x sampleInterval`
+	// lands on the exact figure is how Cloudflare means `count`.
+	$day   = gmdate( 'Y-m-d', time() - DAY_IN_SECONDS );
+	$doc_c = 'query($zone:string!,$from:Time!,$to:Time!,$day:Date!){viewer{zones(filter:{zoneTag:$zone}){'
+		. 'c:httpRequestsAdaptiveGroups(limit:10000,filter:{datetime_geq:$from,datetime_lt:$to,requestSource:"eyeball"}){count avg{sampleInterval}}'
+		. 'x:httpRequests1dGroups(limit:1,filter:{date_geq:$day,date_leq:$day}){sum{requests}}}}}';
+	$err_c = '';
+	$c     = sn_edge_query( $doc_c, array( 'from' => $day . 'T00:00:00Z', 'to' => gmdate( 'Y-m-d', strtotime( $day . ' UTC' ) + DAY_IN_SECONDS ) . 'T00:00:00Z', 'day' => $day ), $err_c );
 
 	$rows_a = is_array( $a ) ? (array) ( $a['a'] ?? array() ) : array();
 	$rows_b = is_array( $b ) ? (array) ( $b['b'] ?? array() ) : array();
@@ -104,6 +150,8 @@ function snt_ability_edge_sampling_probe( $input = null ) {
 		}, $rows_a ), 0, 15 ),
 		'by_request_source' => is_array( $b ) ? $by_source : null,
 		'source_error'      => $err_b,
+		'count_meaning'     => is_array( $c ) ? snt_edge_count_meaning( $day, (array) ( $c['c'] ?? array() ), (int) ( $c['x'][0]['sum']['requests'] ?? 0 ) ) : null,
+		'count_error'       => $err_c,
 	);
 }
 
@@ -128,6 +176,8 @@ add_action( 'wp_abilities_api_init', function () {
 				'top_groups'        => array( 'type' => 'array' ),
 				'by_request_source' => array( 'type' => array( 'object', 'null' ) ),
 				'source_error'      => array( 'type' => 'string' ),
+				'count_meaning'     => array( 'type' => array( 'object', 'null' ), 'description' => '17.9.3: yesterday\'s visitor requests from the sampled groups, as `count` and as `count x sampleInterval`, beside the exact daily total; verdict count_is_the_estimate, multiply_by_interval, or unsettled (neither or both within 10%).' ),
+				'count_error'       => array( 'type' => 'string' ),
 			),
 		),
 		'meta'                => array(

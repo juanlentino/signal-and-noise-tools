@@ -56,5 +56,20 @@ ok( null === $r['by_request_source'] && false !== strpos( $r['source_error'], 'r
 $GLOBALS['__cfg'] = null;
 ok( array( 'state' => 'unconfigured' ) === snt_ability_edge_sampling_probe(), 'unconfigured: says so, spends no call' );
 
+echo "\nGroup 3: read C, what a sampled count means (17.9.3)\n";
+$g = array( array( 'count' => 1000, 'avg' => array( 'sampleInterval' => 1.5 ) ) ); // 1000 as count, 1500 multiplied
+ok( 'count_is_the_estimate' === snt_edge_count_meaning( 'd', $g, 1020 )['verdict'], 'exact 1020: count (1000) is within 10%, the multiplied 1500 is not' );
+ok( 'multiply_by_interval' === snt_edge_count_meaning( 'd', $g, 1480 )['verdict'], 'exact 1480: only the multiplied reading lands' );
+ok( 'unsettled' === snt_edge_count_meaning( 'd', array( array( 'count' => 1000, 'avg' => array( 'sampleInterval' => 1.02 ) ) ), 1010 )['verdict'], 'a near-tie at low sampling settles nothing' );
+ok( 'unsettled' === snt_edge_count_meaning( 'd', $g, 0 )['verdict'], 'no exact figure: unsettled, never a guess' );
+$GLOBALS['__cfg']  = array( 'token' => 't', 'zone' => 'z' );
+$GLOBALS['__resp'] = array(
+	'a:httpRequestsAdaptiveGroups' => array( 'a' => array() ),
+	'b:httpRequestsAdaptiveGroups' => array( 'b' => array() ),
+	'c:httpRequestsAdaptiveGroups' => array( 'c' => $g, 'x' => array( array( 'sum' => array( 'requests' => 1020 ) ) ) ),
+);
+$r = snt_ability_edge_sampling_probe();
+ok( 'count_is_the_estimate' === $r['count_meaning']['verdict'] && 1020 === $r['count_meaning']['exact'], 'the probe carries read C with its verdict' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
