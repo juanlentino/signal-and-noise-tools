@@ -43,7 +43,10 @@ function sn_edge_firewall_query() { return 'firewallEventsAdaptiveGroups'; }
 function sn_edge_colo_query() { return 'httpRequestsAdaptiveGroups'; }
 function sn_edge_attack_query() { return 'ATTACK_QUERY'; } // unique sentinel (NOT 'httpRequestsAdaptiveGroups' which collides with colo).
 function sn_edge_errors_query() { return 'ERRORS_QUERY'; }  // #1002: 5xx pressure, its own document so an unknown field cannot fail the attack query.
-function sn_edge_corrected( $row ) { $si = max( 1.0, (float) ( $row['avg']['sampleInterval'] ?? 1 ) ); return (int) round( (int) ( $row['count'] ?? 0 ) * $si ); }
+// 17.9.1: the real behaviour (a grouped count is Cloudflare's estimate already;
+// tests/edge-analytics.php pins the real function). The stub that stood here
+// multiplied by sampleInterval, so this suite asserted the double count.
+function sn_edge_corrected( $row ) { return max( 0, (int) ( $row['count'] ?? 0 ) ); }
 // Discovered adaptive retention (settings-node notOlderThan), seconds or null — drives the window clamp.
 function sn_edge_adaptive_retention() { return $GLOBALS['__edge_retention'] ?? null; }
 
@@ -185,7 +188,7 @@ $GLOBALS['__edge_data']['firewallEventsAdaptiveGroups'] = array( 'firewallEvents
 	array( 'count' => 5, 'avg' => array( 'sampleInterval' => 10 ), 'dimensions' => array( 'action' => 'block', 'source' => 'waf', 'ruleId' => 'r1', 'clientCountryName' => 'CN' ) ),
 ) );
 $GLOBALS['__edge_data']['httpRequestsAdaptiveGroups'] = array( 'httpRequestsAdaptiveGroups' => array(
-	// sampleInterval 2 so BOTH the count (15→30) and the bytes (50000→100000) prove sampling correction.
+	// sampleInterval 2, so a count of 15 / bytes 50000 that come back doubled prove the old double count (17.9.1).
 	array( 'count' => 15, 'avg' => array( 'sampleInterval' => 2 ), 'sum' => array( 'edgeResponseBytes' => 50000 ), 'dimensions' => array( 'coloCode' => 'IAD' ) ),
 ) );
 // #1002: 5xx pressure, seeded beside the attack fixture so the SAME rollup
@@ -207,7 +210,7 @@ $GLOBALS['__edge_data']['ERRORS_QUERY'] = array(
 
 $GLOBALS['__edge_data']['ATTACK_QUERY'] = array(
 	'doors' => array(
-		// two US /wp-login.php rows so the MARGINAL must SUM across rows (15→30 + 10→20 = 50).
+		// two US /wp-login.php rows so the MARGINAL must SUM across rows (15 + 10 = 25; 17.9.1: counts as reported).
 		array( 'count' => 15, 'avg' => array( 'sampleInterval' => 2 ), 'dimensions' => array( 'clientRequestPath' => '/wp-login.php', 'clientCountryName' => 'US', 'clientASNDescription' => 'DIGITALOCEAN-ASN', 'clientAsn' => 14061, 'edgeResponseStatus' => 404, 'clientRequestHTTPMethodName' => 'POST' ) ),
 		array( 'count' => 10, 'avg' => array( 'sampleInterval' => 2 ), 'dimensions' => array( 'clientRequestPath' => '/wp-login.php', 'clientCountryName' => 'US', 'clientASNDescription' => '', 'clientAsn' => 9009, 'edgeResponseStatus' => 404, 'clientRequestHTTPMethodName' => 'GET' ) ),
 	),
@@ -229,23 +232,23 @@ ok( strpos( $all_sql, "'2026-06-18', 'country', 'US', 600, 3000000" ) !== false,
 // run time]: a day's threat/colo/atk_*/err_* rows covered ~38h and a week's
 // sn_edge_top_dim() counted most events twice. The window is now the COMPLETE
 // previous day [yesterday 00:00, today 00:00), attributed to yesterday.
-ok( strpos( $all_sql, "'2026-06-18', 'threat', 'block', 50" ) !== false, 'run: firewall sampling-corrected (5×10=50), attributed to the day the window covers (yesterday)' );
-ok( strpos( $all_sql, "'2026-06-18', 'colo', 'IAD', 30, 100000" ) !== false, 'run: colo dims sampling-corrected — BOTH requests (15×2=30) AND bytes (50000×2=100000)' );
+ok( strpos( $all_sql, "'2026-06-18', 'threat', 'block', 5" ) !== false, 'run: firewall counted as Cloudflare reports it (5, not 5×10), attributed to the day the window covers (yesterday)' );
+ok( strpos( $all_sql, "'2026-06-18', 'colo', 'IAD', 15, 50000" ) !== false, '17.9.1: colo dims as Cloudflare reports them, requests (15) AND bytes (50000), never multiplied by sampleInterval again' );
 ok( strpos( $all_sql, "'2026-06-19', 'threat'" ) === false && strpos( $all_sql, "'2026-06-19', 'colo'" ) === false, 'run: nothing from the snapshot is stored under today (#1203)' );
 // Adaptive window: no retention discovered (null) → the complete previous day.
 ok( edge_from( 'httpRequestsAdaptiveGroups' ) === '2026-06-18T00:00:00Z', 'run: adaptive window starts at yesterday 00:00 (today−86400)' );
 ok( edge_from( 'httpRequestsAdaptiveGroups', 'to' ) === '2026-06-19T00:00:00Z', 'run: and is BOUNDED at today 00:00 — no overlap with the next run (#1203)' );
 ok( edge_from( 'firewallEventsAdaptiveGroups' ) === '2026-06-18T00:00:00Z' && edge_from( 'firewallEventsAdaptiveGroups', 'to' ) === '2026-06-19T00:00:00Z', 'run: both adaptive datasets share the one bounded window' );
-ok( strpos( $all_sql, "'2026-06-18', 'atk_door', '/wp-login.php', 50" ) !== false, 'run: atk_door marginal SUMS both rows (30+20=50), sampling-corrected' );
-ok( strpos( $all_sql, "'2026-06-18', 'atk_country', 'US', 50" ) !== false, 'run: atk_country marginal sums across rows (50)' );
-ok( strpos( $all_sql, "'2026-06-18', 'atk_asn', 'DIGITALOCEAN-ASN', 30" ) !== false, 'run: atk_asn uses clientASNDescription' );
-ok( strpos( $all_sql, "'2026-06-18', 'atk_asn', 'AS9009', 20" ) !== false, 'run: atk_asn falls back to AS{clientAsn} when description empty' );
-ok( strpos( $all_sql, "'2026-06-18', 'atk_method', 'POST', 30" ) !== false, 'run: atk_method POST (credential attempts)' );
-ok( strpos( $all_sql, "'2026-06-18', 'atk_status', '404', 50" ) !== false, 'run: atk_status marginal' );
-ok( strpos( $all_sql, "'2026-06-18', 'atk_path', '/.env', 21" ) !== false, 'run: atk_path probe sampling-corrected (7×3=21)' );
+ok( strpos( $all_sql, "'2026-06-18', 'atk_door', '/wp-login.php', 25" ) !== false, 'run: atk_door marginal SUMS both rows (15+10=25), each as reported' );
+ok( strpos( $all_sql, "'2026-06-18', 'atk_country', 'US', 25" ) !== false, 'run: atk_country marginal sums across rows (25)' );
+ok( strpos( $all_sql, "'2026-06-18', 'atk_asn', 'DIGITALOCEAN-ASN', 15" ) !== false, 'run: atk_asn uses clientASNDescription' );
+ok( strpos( $all_sql, "'2026-06-18', 'atk_asn', 'AS9009', 10" ) !== false, 'run: atk_asn falls back to AS{clientAsn} when description empty' );
+ok( strpos( $all_sql, "'2026-06-18', 'atk_method', 'POST', 15" ) !== false, 'run: atk_method POST (credential attempts)' );
+ok( strpos( $all_sql, "'2026-06-18', 'atk_status', '404', 25" ) !== false, 'run: atk_status marginal' );
+ok( strpos( $all_sql, "'2026-06-18', 'atk_path', '/.env', 7" ) !== false, 'run: atk_path probe counted as reported (7, not 7×3)' );
 $before = count( $GLOBALS['wpdb']->queries );
 sn_edge_run_rollup( '2026-06-19' );
-ok( strpos( implode( "\n", array_slice( $GLOBALS['wpdb']->queries, $before ) ), "'atk_door', '/wp-login.php', 50" ) !== false, 'run: same-day re-run re-emits 50 (ON DUPLICATE overwrite, not 100)' );
+ok( strpos( implode( "\n", array_slice( $GLOBALS['wpdb']->queries, $before ) ), "'atk_door', '/wp-login.php', 25" ) !== false, 'run: same-day re-run re-emits 25 (ON DUPLICATE overwrite, not 50)' );
 // Dormant.
 eo_reset(); $GLOBALS['__edge_config'] = null;
 sn_edge_run_rollup( '2026-06-19' );
@@ -316,6 +319,35 @@ ok( $m2['machine'] === 0 && $m2['machine_pct'] === 0, 'machine_split: clamped at
 
 
 
+
+echo "\nGroup: 17.9.1 repair of the double-counted sampled dims\n";
+// Re-rolls every day the adaptive dataset still retains, once, with only the
+// sampled queries; records where the honest counts begin; never re-pulls the
+// thirteen months of exact history per day.
+$GLOBALS['__eo']             = array();
+$GLOBALS['__edge_retention'] = 3 * DAY_IN_SECONDS;
+// Its own fixture: earlier groups leave __edge_data in whatever state they needed.
+$GLOBALS['__edge_data']      = array( 'ERRORS_QUERY' => array( 'errors' => array(
+	array( 'count' => 2, 'avg' => array( 'sampleInterval' => 4 ), 'dimensions' => array( 'clientRequestPath' => '/x', 'edgeResponseStatus' => 504, 'originResponseStatus' => 0, 'cacheStatus' => 'miss' ) ),
+) ) );
+$GLOBALS['__edge_calls']     = array();
+$GLOBALS['wpdb']->queries    = array();
+sn_edge_resample_repair();
+$rp_queries = array_column( $GLOBALS['__edge_calls'], 'query' );
+ok( 3 === count( array_keys( $rp_queries, 'ERRORS_QUERY', true ) ), 'repair: three retained days, three re-rolls of the sampled snapshot' );
+ok( ! in_array( 'httpRequests1dGroups', $rp_queries, true ), 'repair: the exact 13-month history is never re-pulled' );
+ok( gmdate( 'Y-m-d', strtotime( gmdate( 'Y-m-d' ) . ' UTC' ) - 3 * DAY_IN_SECONDS ) === get_option( SN_EDGE_HONEST_FROM_OPT ), 'repair: the first honest day is recorded (today minus the retention)' );
+$rp_sql = implode( "\n", $GLOBALS['wpdb']->queries );
+ok( 1 === preg_match( '/DELETE FROM \S*sn_edge_dims WHERE day = \S+ AND dim IN \(/', $rp_sql ), 'repair: a re-rolled day\'s rows are cleared before the fresh ones land' );
+ok( false === strpos( $rp_sql, "'country'" ) || false === preg_match( "/DELETE[^\n]*'country'/", $rp_sql ) , 'repair: country (exact, from the daily map) is never cleared' );
+$GLOBALS['__edge_calls'] = array();
+sn_edge_resample_repair();
+ok( array() === $GLOBALS['__edge_calls'], 'repair: runs once; a second call does nothing' );
+// A sub-query that failed leaves its dim alone.
+$GLOBALS['wpdb']->queries = array();
+sn_edge_clear_snapshot_dims( '2026-06-18', array( 'err_path', 'country', '' ) );
+$clr = implode( "\n", $GLOBALS['wpdb']->queries );
+ok( false !== strpos( $clr, "'err_path'" ) && false === strpos( $clr, "'country'" ) && false === strpos( $clr, "'threat'" ), 'clear: only the dims the re-fetch returned, never country' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

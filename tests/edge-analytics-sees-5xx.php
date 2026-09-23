@@ -76,12 +76,9 @@ echo "\nGroup 5: the mapping itself, driven directly\n";
 // The sampling corrector the real rollup provides. Without it the extracted
 // function takes its function_exists fallback and reports RAW counts — which
 // looks like a correction bug and is a missing stub.
-if ( ! function_exists( 'sn_edge_corrected' ) ) {
-	function sn_edge_corrected( $row ) {
-		$si = max( 1.0, (float) ( $row['avg']['sampleInterval'] ?? 1 ) );
-		return (int) round( (int) ( $row['count'] ?? 0 ) * $si );
-	}
-}
+// 17.9.1: the REAL corrector, extracted like the function under test. The
+// stub that stood here multiplied by sampleInterval, so this suite asserted
+// the double count it was meant to catch and could not see the fix.
 
 // Extract ONE function by balanced braces rather than require the file, which
 // needs a WordPress boot. Same idiom as tests/editor-api-smoke-population.php.
@@ -104,6 +101,27 @@ for ( $i = 0, $n = count( $toks ); $i < $n; $i++ ) {
 }
 ok( '' !== $fn, 'sn_edge_errors_dims() was extracted — if this is empty every assertion below is vacuous' );
 eval( $fn ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- test harness.
+// The real sampling corrector too, by the same balanced-brace extraction.
+$ana_toks = token_get_all( $ana );
+$corr     = '';
+for ( $i = 0, $n = count( $ana_toks ); $i < $n; $i++ ) {
+	if ( ! is_array( $ana_toks[ $i ] ) || T_FUNCTION !== $ana_toks[ $i ][0] ) { continue; }
+	$j = $i + 1;
+	while ( $j < $n && is_array( $ana_toks[ $j ] ) && T_WHITESPACE === $ana_toks[ $j ][0] ) { $j++; }
+	if ( ! is_array( $ana_toks[ $j ] ) || 'sn_edge_corrected' !== $ana_toks[ $j ][1] ) { continue; }
+	$depth = 0; $started = false;
+	for ( $k = $i; $k < $n; $k++ ) {
+		$piece = is_array( $ana_toks[ $k ] ) ? $ana_toks[ $k ][1] : $ana_toks[ $k ];
+		$corr .= $piece;
+		if ( '{' === $piece ) { $depth++; $started = true; }
+		elseif ( '}' === $piece ) { $depth--; if ( $started && 0 === $depth ) { break; } }
+	}
+	break;
+}
+ok( '' !== $corr, 'the real sn_edge_corrected() was extracted; if empty the sampling pin below is vacuous' );
+if ( ! function_exists( 'sn_edge_corrected' ) ) {
+	eval( $corr ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- test harness.
+}
 $rows = array(
 	array( 'count' => 3, 'avg' => array( 'sampleInterval' => 1 ), 'dimensions' => array(
 		'clientRequestPath' => '/a.js', 'edgeResponseStatus' => 503, 'originResponseStatus' => 503, 'cacheStatus' => 'dynamic' ) ),
@@ -124,11 +142,11 @@ ok( ! isset( $dims['err_source']['edge=503 origin=0 cache=miss'] ),
 ok( ! isset( $dims['err_path'][''] ), 'a row with no path is skipped rather than counted under an empty key' );
 ok( 2 === count( $dims ), 'exactly two dimensions are produced' );
 
-// Sampling correction, the same one every other row gets.
+// A grouped row's count is already Cloudflare's estimate (17.9.1).
 $sampled = array( array( 'count' => 4, 'avg' => array( 'sampleInterval' => 10 ), 'dimensions' => array(
 	'clientRequestPath' => '/s.js', 'edgeResponseStatus' => 502, 'originResponseStatus' => 502 ) ) );
-ok( 40 === ( sn_edge_errors_dims( $sampled )['err_path']['/s.js'] ?? 0 ),
-	'a sampled row is corrected (4 x sampleInterval 10 = 40), not reported raw' );
+ok( 4 === ( sn_edge_errors_dims( $sampled )['err_path']['/s.js'] ?? 0 ),
+	'a grouped row counts as Cloudflare reports it (4), never multiplied by its sampleInterval again (40)' );
 
 ok( array() === sn_edge_errors_dims( array() ), 'no errors yields no dimensions — a quiet day writes nothing' );
 

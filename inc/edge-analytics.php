@@ -245,20 +245,24 @@ function sn_edge_settings_query() {
 }
 
 /**
- * Sampling correction for an adaptive row: the representative true value is
- * count × sampleInterval. A missing or <1 sampleInterval is floored to 1 (never
- * zeroes a real count). Pre-aggregated (1dGroups) rows skip this entirely.
+ * The count of an adaptive GROUP row: Cloudflare's own estimate, used as is.
  *
- * @param array $row An adaptive group row with count + avg.sampleInterval.
+ * 17.9.1: this used to return count × avg.sampleInterval, which counted every
+ * sampled row twice over. Cloudflare scales a grouped `count` (and every `sum`)
+ * to the estimate before returning it: "suppose that during an attack the
+ * sampling rate is 10% and 5,000 events are sampled. Cloudflare will estimate
+ * 50,000 total events (5,000 × 10) and report this value"
+ * (developers.cloudflare.com/analytics/graphql-api/sampling/). Measured: the
+ * week's 5xx rows read about seven times the zone's exact httpRequests1dGroups
+ * total. A RAW (ungrouped) adaptive row is different, it stands for
+ * `sampleInterval` events, and inc/cloudflare-firewall-events.php weighs those
+ * by it, correctly. The name is kept for its callers.
+ *
+ * @param array $row An adaptive group row with count.
  * @return int
  */
 function sn_edge_corrected( $row ) {
-	$count = (int) ( $row['count'] ?? 0 );
-	$si    = (float) ( $row['avg']['sampleInterval'] ?? 1 );
-	if ( $si < 1 ) {
-		$si = 1;
-	}
-	return (int) round( $count * $si );
+	return max( 0, (int) ( $row['count'] ?? 0 ) );
 }
 
 /**

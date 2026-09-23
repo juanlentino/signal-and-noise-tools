@@ -42,6 +42,7 @@ function sn_cron_hooks() {
 		SN_CIT_CRON_HOOK,
 		SN_DISCOGRAPHY_CRON_HOOK,
 		SN_EDGE_ROLLUP_HOOK,
+		SN_EDGE_RESAMPLE_HOOK, // 17.9.1: one-shot, but a deactivation before it ran must not orphan it.
 		SN_FAMILY_DRIFT_HOOK,
 		SN_HEALTH_CRON_HOOK,
 		SN_INBOUND_PASS_HOOK,
