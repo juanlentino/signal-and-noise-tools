@@ -67,6 +67,10 @@ function wp_remote_get( $url, $args = array() ) {
 function wp_remote_retrieve_response_code( $resp ) { return is_wp_error( $resp ) ? 0 : (int) ( $resp['code'] ?? 0 ); }
 function wp_remote_retrieve_body( $resp ) { return is_wp_error( $resp ) ? '' : (string) ( $resp['body'] ?? '' ); }
 
+$GLOBALS['__scheduled'] = array();
+function wp_next_scheduled( $hook ) { return $GLOBALS['__scheduled'][ $hook ]['ts'] ?? false; }
+function wp_schedule_event( $ts, $rec, $hook ) { $GLOBALS['__scheduled'][ $hook ] = array( 'ts' => $ts, 'rec' => $rec ); return true; }
+
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
@@ -351,6 +355,42 @@ us_eq( true, $out['configured'], 'execute (unreachable): still configured' );
 us_eq( array(), $out['rows'], 'execute (unreachable): empty rows' );
 us_ok( '' !== $out['error'], 'execute (unreachable): error message set' );
 
+// ─── Test 8b: 18.1.0 — cached 30d availability on the light tier ─────
+echo "\nTest 8b: light tier reads the warmed 30d map, never fetches it\n";
+us_clear_all_transients();
+$GLOBALS['__http_requests'] = array();
+$GLOBALS['__http_queue']    = array();
+us_queue_statuses();
+us_queue_sla_trio();
+sn_uptime_status_warm_availability();
+us_eq( 5, count( $GLOBALS['__http_requests'] ), 'warmer: 2 status calls + 3 availability calls' );
+us_eq( 7200, $GLOBALS['__transient_ttls']['sn_uptime_availability'] ?? 0, 'warmer caches the 30d map for 2h (outlives the hourly cadence)' );
+
+$GLOBALS['__http_requests'] = array();
+$out = call_user_func( $exec, null );
+us_eq( 0, count( $GLOBALS['__http_requests'] ), 'light execute on a warm map makes ZERO HTTP calls' );
+us_eq( array( 99.98, 0 ), array( $out['rows'][0]['availability'], $out['rows'][0]['incidents_30d'] ), 'light execute: 30d availability + incidents from the warm map' );
+us_eq( 100.0, $out['rows'][2]['availability'], 'light execute: heartbeat availability from the warm map' );
+us_eq( array( null, null ), array( $out['rows'][0]['availability_90d'], $out['rows'][0]['response_ms'] ), 'light execute: 90d + response stay null (detail tier only)' );
+
+$GLOBALS['__http_queue'] = array( array( 'code' => 200, 'body' => us_sla_body( 99.5, 1 ) ) );
+$GLOBALS['__http_queue'][] = array( 'code' => 200, 'body' => us_sla_body( 98.0, 2 ) );
+$GLOBALS['__http_queue'][] = array( 'code' => 200, 'body' => us_sla_body( 100, 0 ) );
+$GLOBALS['__http_requests'] = array();
+sn_uptime_status_warm_availability();
+us_eq( 3, count( $GLOBALS['__http_requests'] ), 'warmer refreshes a still-warm map (status snapshot served from cache)' );
+us_eq( 99.5, call_user_func( $exec, null )['rows'][0]['availability'], 'refreshed value reaches the light tier' );
+
+delete_transient( 'sn_uptime_availability' );
+$GLOBALS['__http_requests'] = array();
+$out = call_user_func( $exec, null );
+us_eq( 0, count( $GLOBALS['__http_requests'] ), 'light execute on a COLD map still fetches nothing' );
+us_eq( null, $out['rows'][0]['availability'], 'light execute: cold map reads null' );
+
+$GLOBALS['__scheduled'] = array();
+foreach ( $GLOBALS['__actions']['init'] ?? array() as $cb ) { $cb(); }
+us_eq( 'hourly', $GLOBALS['__scheduled']['sn_uptime_availability_hourly']['rec'] ?? '', 'configured: the warmer is scheduled hourly' );
+
 // ─── Test 9: HTML helpers — mount + token field (option path) ────────
 echo "\nTest 9: HTML helpers\n";
 $mount = sn_uptime_status_mount_html();
@@ -366,6 +406,12 @@ delete_option( 'sn_betterstack_api_token' );
 us_clear_all_transients();
 $out = call_user_func( $exec, null );
 us_eq( false, $out['configured'], 'execute: configured false without token' );
+$GLOBALS['__http_requests'] = array();
+$GLOBALS['__scheduled']     = array();
+sn_uptime_status_warm_availability();
+foreach ( $GLOBALS['__actions']['init'] ?? array() as $cb ) { $cb(); }
+us_eq( 0, count( $GLOBALS['__http_requests'] ), 'unconfigured: the warmer makes no calls' );
+us_eq( array(), $GLOBALS['__scheduled'], 'unconfigured: the warmer is not scheduled' );
 us_eq( array(), $out['rows'], 'execute: no rows without token' );
 us_eq( '', $out['error'], 'execute: unconfigured is not an error state' );
 

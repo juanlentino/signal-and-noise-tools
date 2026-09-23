@@ -239,7 +239,9 @@ add_action( 'wp_abilities_api_init', function () {
 		'label'               => 'Get Better Stack uptime status (remote)',
 		'description'         => 'Remote-scoped twin of signal-noise/uptime-status. '
 			. 'Returns the Better Stack monitor + heartbeat states (name, status, '
-			. 'level) from the origin\'s cache. Served from the origin\'s cache; '
+			. 'level) from the origin\'s cache, plus 30-day availability and incident '
+			. 'counts from the hourly-warmed cache (null when that cache is cold). '
+			. 'Served from the origin\'s cache; '
 			. 'there is no force_refresh remotely — no arguments are accepted. '
 			. 'configured=false means no API token is saved yet (not an error). '
 			. 'Read-only. Reachable only by a principal holding the '
