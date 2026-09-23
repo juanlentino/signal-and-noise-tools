@@ -521,6 +521,7 @@ require_once __DIR__ . '/inc/ipv6-criterion-store.php';  // v13.91.0: the criter
 require_once __DIR__ . '/inc/watches.php';  // v13.90.0: the things that come due later. Silent until ripe; state-tested where a state exists, dated only where nothing can be measured.
 require_once __DIR__ . '/inc/health-check-gsc-history.php';  // v13.89.0: the GSC sync firing while its history stops growing — the half cron_health cannot see.
 require_once __DIR__ . '/inc/abilities-cache-freshness.php';  // v13.92.0: the cache verdict finally has a machine reader — six releases were verified by asking a human to read a widget.
+require_once __DIR__ . '/inc/abilities-edge-errors.php'; // 17.10.0: the 5xx rollup on its own, so a phone can read it without the perimeter.
 require_once __DIR__ . '/inc/abilities-cloudflare-status.php'; // 14.9.0: the Cloudflare monitor on the read door (token, zone, firewall).
 require_once __DIR__ . '/inc/abilities-edge-sampling-probe.php'; // 17.9.2: live sampling + requestSource probe for #1002.
 require_once __DIR__ . '/inc/abilities-keyring-status.php';    // 15.2.0: every credential's source and verdict on the read door; never a value.

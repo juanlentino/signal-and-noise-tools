@@ -77,6 +77,7 @@ $FULL_SET = array(
 	'signal-noise/remote-search-performance', // v13.61.0
 	'signal-noise/remote-search-drift',       // v13.61.0
 	'signal-noise/remote-search-crossexam',   // v13.67.0
+	'signal-noise/remote-edge-errors-summary', // 17.10.0
 );
 $GLOBALS['__remote_slugs'] = $FULL_SET;
 
@@ -115,6 +116,7 @@ if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = null ) 
 require __DIR__ . '/../inc/search-console-store.php';
 require __DIR__ . '/../inc/search-console-derive.php';
 require __DIR__ . '/../inc/abilities-search-console.php';
+require __DIR__ . '/../inc/abilities-edge-errors.php'; // 17.10.0
 // The read/write allowlists, for the negative-space group.
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
 
@@ -145,6 +147,7 @@ $REMOTE_CRON = 'signal-noise/remote-cron-health-summary';
 $REMOTE_SP = 'signal-noise/remote-search-performance'; $ADMIN_SP = 'signal-noise/search-performance';
 $REMOTE_SD = 'signal-noise/remote-search-drift';       $ADMIN_SD = 'signal-noise/search-drift';
 $REMOTE_SX = 'signal-noise/remote-search-crossexam';   $ADMIN_SX = 'signal-noise/search-crossexam'; // v13.67.0
+$REMOTE_EE = 'signal-noise/remote-edge-errors-summary';   $ADMIN_EE = 'signal-noise/edge-errors-summary'; // 17.10.0
 $ADMIN_PROV  = 'signal-noise/provenance-integrity-status';
 $ADMIN_MR    = 'signal-noise/get-machine-readers-summary';
 $ADMIN_CRON  = 'signal-noise/cron-health-summary';
@@ -162,6 +165,7 @@ $MAP = array(
 	$REMOTE_PROV      => 'snt_ability_perm_remote_provenance_integrity',
 	$REMOTE_MR        => 'snt_ability_perm_remote_machine_readers',
 	$REMOTE_CRON      => 'snt_ability_perm_remote_cron_health',
+	$REMOTE_EE        => 'snt_ability_perm_remote_edge_errors',
 );
 
 $GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
@@ -196,6 +200,7 @@ $pairs_output = array(
 	array( $REMOTE_SP, $ADMIN_SP ),
 	array( $REMOTE_SD, $ADMIN_SD ),
 	array( $REMOTE_SX, $ADMIN_SX ),
+	array( $REMOTE_EE, $ADMIN_EE ),
 );
 foreach ( $pairs_output as $pair ) {
 	list( $remote, $admin ) = $pair;
@@ -215,6 +220,7 @@ $empty_pairs = array(
 	array( $REMOTE_NARRATION, $ADMIN_NARRATION ),
 	array( $REMOTE_HEALTH, $ADMIN_HEALTH ),
 	array( $REMOTE_RSS, $ADMIN_RSS ),
+	array( $REMOTE_EE, $ADMIN_EE ),
 );
 foreach ( $empty_pairs as $pair ) {
 	list( $remote, $admin ) = $pair;
@@ -289,6 +295,7 @@ $execute_pairs = array(
 	array( $REMOTE_PROV, $ADMIN_PROV ),
 	array( $REMOTE_MR, $ADMIN_MR ),
 	array( $REMOTE_CRON, $ADMIN_CRON ),
+	array( $REMOTE_EE, $ADMIN_EE ),
 );
 foreach ( $execute_pairs as $pair ) {
 	list( $remote, $admin ) = $pair;

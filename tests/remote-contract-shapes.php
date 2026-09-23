@@ -66,6 +66,7 @@ if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = null ) 
 require_once __DIR__ . '/../inc/search-console-store.php';
 require_once __DIR__ . '/../inc/search-console-derive.php';
 require_once __DIR__ . '/../inc/abilities-search-console.php'; // v13.61.0: the two Search Console twins read their schema from this table.
+require_once __DIR__ . '/../inc/abilities-edge-errors.php'; // 17.10.0: the 5xx twin reads its schema from here.
 require_once __DIR__ . '/../inc/abilities-remote-set.php';
 foreach ( $GLOBALS['__actions']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(); }
 

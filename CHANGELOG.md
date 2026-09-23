@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **The 5xx rollup reaches the phone.** New `signal-noise/edge-errors-summary` (read door 48 → 49, sn-status section `edge_errors`) carries the last seven days of 5xx on its own: total, failing paths, who answered, and the query's last outcome. It reuses the same reader as `cloudflare-status`'s `errors_5xx`, so the two can't disagree. It's split off so it can get a remote twin, `remote-edge-errors-summary`, while `cloudflare-status` stays local because it describes the perimeter. Remote contract '5' → '6' (15 twins). The worker's `sn_remote_edge_errors` row ships with sn-remote-mcp-worker's matching contract bump, and until that deploy lands the deploy probe reads `contract_match: false`, as designed.
+
 ## [17.9.3] - 2026-09-23 — Early Hints lookups are not errors
 
 ### Fixed

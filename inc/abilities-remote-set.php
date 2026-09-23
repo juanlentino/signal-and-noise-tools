@@ -832,3 +832,43 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 	) );
 } );
+
+/**
+ * Permission callback for `signal-noise/remote-edge-errors-summary` (17.10.0).
+ * Its own slug as a LITERAL, like every callback above.
+ *
+ * @return bool
+ */
+function snt_ability_perm_remote_edge_errors() {
+	return sn_remote_analytics_allows( 'signal-noise/remote-edge-errors-summary' );
+}
+
+add_action( 'wp_abilities_api_init', function () {
+	if ( ! function_exists( 'wp_register_ability' ) || ! function_exists( 'snt_edge_errors_output_schema' ) ) {
+		return;
+	}
+	/* ── 17.10.0 — owner ruling 2026-09-23: the 5xx rollup joins the door.
+	 * The output_schema is READ FROM THE SAME FUNCTION the admin registration
+	 * reads (inc/abilities-edge-errors.php), so byte-identity is by
+	 * construction; tests/abilities-remote-set.php still pins the pair.
+	 * ───────────────────────────────────────────────────────────────── */
+	wp_register_ability( 'signal-noise/remote-edge-errors-summary', array(
+		'label'               => 'Edge 5xx summary (remote)',
+		'description'         => 'Remote-scoped twin of signal-noise/edge-errors-summary. The last '
+			. 'seven days of 5xx from the daily edge rollup: total, failing paths and who '
+			. 'answered, Early Hints cache lookups excluded. Counts only; the perimeter '
+			. '(token, firewall, WAF) stays local on cloudflare-status. Read-only. '
+			. 'Reachable only by a principal holding the sn_read_remote_analytics '
+			. 'capability, and only while the remote door is explicitly enabled.',
+		'category'            => 'diagnostics',
+		'permission_callback' => 'snt_ability_perm_remote_edge_errors',
+		'execute_callback'    => 'snt_ability_edge_errors_summary',
+		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'output_schema'       => snt_edge_errors_output_schema(),
+		'meta'                => array(
+			'show_in_rest' => false, // the surface, not a setting — see file header.
+			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
+		),
+	) );
+} );
