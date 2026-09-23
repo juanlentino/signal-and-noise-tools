@@ -1,0 +1,101 @@
+name: Release
+
+# Steps 2 and 3 of a release, on demand: the annotated tag and the draft
+# release. Step 1 (the cut PR, squash-merged) stays a human-reviewed PR; see
+# docs/VERSIONING.md.
+#
+# WHY THIS EXISTS. The tag is the shipment: the WordPress self-updater reads
+# TAGS (inc/wp-update-integration.php), so a merged cut that was never tagged
+# is code that cannot reach the site (version-tag-parity.yml watches for that
+# state daily). Until 2026-09-23 steps 2 and 3 needed a laptop with push access
+# and `gh`. A cloud session can dispatch a workflow but cannot push a tag, so
+# the release ritual stalled at exactly the step that ships.
+#
+# WHAT IT REFUSES, before writing anything:
+#   - an input that is not X.Y.Z;
+#   - main's `Version:` header not equal to the input (the cut has not merged);
+#   - a tag that already exists (a re-run never moves a shipped tag);
+#   - no commit on main that set the header to this version.
+#
+# WHAT IT TAGS: the commit on main that set the header to the version, i.e.
+# the cut's SQUASH commit, not whatever main's head happens to be when this is
+# dispatched. That is the rule in VERSIONING.md ("tag the SQUASH commit"),
+# derived here instead of typed.
+#
+# The release stays a DRAFT, the estate's rule. Drafts are visible only to
+# push-access tokens, which is why version-tag-parity.yml does not check them.
+#
+# Tags pushed with GITHUB_TOKEN trigger no other workflow, and nothing here
+# needs one to: deploy.yml is a deliberate, separate dispatch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to tag, X.Y.Z (must equal main''s Version: header)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Tag and draft release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Verify, locate the cut, tag, draft
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          die() { echo "::error::$1"; exit 1; }
+
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "version must be X.Y.Z, got '$VERSION'"
+          TAG="v$VERSION"
+
+          # Same regex as ci.yml and tools/cut-release.sh.
+          HEADER="$(grep -m1 -E '^\s*\*\s*Version:' signal-and-noise-tools.php | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)"
+          [ "$HEADER" = "$VERSION" ] || die "main's Version: header is '$HEADER', not '$VERSION'. Merge the cut PR first."
+
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            die "$TAG already exists. A shipped tag is never moved."
+          fi
+
+          # The commit that SET the header: the newest commit on main whose diff
+          # adds this exact Version line.
+          SHA="$(git log main --format=%H -G "^ \* Version: +${VERSION//./\\.}\$" -n1 -- signal-and-noise-tools.php)"
+          [ -n "$SHA" ] || die "no commit on main set Version: $VERSION"
+          echo "cut commit: $(git log -1 --format='%h %s' "$SHA")"
+
+          # Headline and notes from the CHANGELOG section of this version.
+          HEADING="$(grep -m1 -E "^## \[${VERSION//./\\.}\]" CHANGELOG.md || true)"
+          [ -n "$HEADING" ] || die "CHANGELOG.md has no ## [$VERSION] heading"
+          HEADLINE="$(printf '%s' "$HEADING" | sed -E 's/^## \[[^]]+\] - [0-9-]+ (—|-) //')"
+          awk -v h="$HEADING" '$0==h{on=1;next} on&&/^## \[/{exit} on' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          [ -s "$RUNNER_TEMP/notes.md" ] || die "the ## [$VERSION] section is empty"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" "$SHA" -m "$TAG — $HEADLINE"
+          git push origin "refs/tags/$TAG"
+
+          gh release create "$TAG" --draft --verify-tag \
+            --title "$TAG — $HEADLINE" --notes-file "$RUNNER_TEMP/notes.md"
+
+          {
+            echo "### $TAG — $HEADLINE"
+            echo "Tagged \`${SHA:0:7}\`; release drafted. Install from wp-admin → Dashboard → Updates."
+          } >> "$GITHUB_STEP_SUMMARY"
