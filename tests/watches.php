@@ -149,7 +149,11 @@ ok( false === $w72['ripe'] && false !== strpos( $w72['note'], 'before 7.2' ), 'o
 $w72 = snt_watch_ripe_wp_72( array(), 0, '7.2' );
 ok( true === $w72['ripe'] && false !== strpos( $w72['note'], '65551' ), 'on 7.2 it ripens and names the ticket to verify' );
 ok( true === snt_watch_ripe_wp_72( array(), 0, '7.2.1' )['ripe'] && false === snt_watch_ripe_wp_72( array(), 0, '' )['ripe'], '7.2.1 ripens; an unreadable version never does' );
-ok( false === snt_watch_ripe_mcp_adapter( array(), 0, false )['ripe'] && true === snt_watch_ripe_mcp_adapter( array(), 0, true )['ripe'], 'the adapter watch ripens on the adapter class being loaded, never on a date' );
+$ad = static function ( $v ) { return snt_watch_ripe_mcp_adapter( array(), 0, $v ); };
+ok( false === $ad( '' )['ripe'] && false !== strpos( $ad( '' )['note'], 'no adapter' ), 'no adapter on the site: quiet' );
+ok( false === $ad( '0.6.1' )['ripe'] && false !== strpos( $ad( '0.6.1' )['note'], '0.7.0' ), '17.8.1: a loaded 0.6.1 library is not the port signal, and the note names the version it waits on' );
+ok( true === $ad( '0.7.0' )['ripe'] && true === $ad( '1.0.0' )['ripe'], '0.7.0, the first plugin release, ripens it; so does anything later (a core copy included)' );
+ok( false === $ad( '0.7.0-beta1' )['ripe'], 'a 0.7.0 pre-release does not count' );
 $ids = array_column( snt_watches(), 'id' );
 ok( in_array( 'connector_key_wipe_65551', $ids, true ) && in_array( 'mcp_adapter_read_door', $ids, true ), 'both watches are registered' );
 $gs = static function ( $init, $general ) { return snt_watch_ripe_general_save_guard( array(), 0, array( 'abilities_init' => $init, 'general' => $general ) ); };
