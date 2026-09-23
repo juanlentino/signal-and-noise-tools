@@ -834,7 +834,7 @@ add_action( 'wp_abilities_api_init', function () {
 } );
 
 /**
- * Permission callback for `signal-noise/remote-edge-errors-summary` (17.10.0).
+ * Permission callback for `signal-noise/remote-edge-errors-summary` (18.0.0).
  * Its own slug as a LITERAL, like every callback above.
  *
  * @return bool
@@ -847,7 +847,7 @@ add_action( 'wp_abilities_api_init', function () {
 	if ( ! function_exists( 'wp_register_ability' ) || ! function_exists( 'snt_edge_errors_output_schema' ) ) {
 		return;
 	}
-	/* ── 17.10.0 — owner ruling 2026-09-23: the 5xx rollup joins the door.
+	/* ── 18.0.0 — owner ruling 2026-09-23: the 5xx rollup joins the door.
 	 * The output_schema is READ FROM THE SAME FUNCTION the admin registration
 	 * reads (inc/abilities-edge-errors.php), so byte-identity is by
 	 * construction; tests/abilities-remote-set.php still pins the pair.
