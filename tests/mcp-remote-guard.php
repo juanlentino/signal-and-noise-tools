@@ -67,7 +67,7 @@ ok( array(
 	'signal-noise/remote-search-performance',
 	'signal-noise/remote-search-drift',
 	'signal-noise/remote-search-crossexam', // v13.67.0 — owner ruling.
-	'signal-noise/remote-edge-errors-summary', // 17.10.0 — owner ruling 2026-09-23.
+	'signal-noise/remote-edge-errors-summary', // 18.0.0 — owner ruling 2026-09-23.
 ) === sn_mcp_remote_slugs(), 'the remote list holds exactly the fifteen slugs: eight from Increments 1+2, three ratified 2026-09-01, three Search Console twins, the 5xx rollup' );
 
 echo "Group: all three gates must pass, and each alone is insufficient\n";

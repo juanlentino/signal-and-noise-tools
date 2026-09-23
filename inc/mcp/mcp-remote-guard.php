@@ -79,7 +79,7 @@ function sn_mcp_remote_slugs() {
 		'signal-noise/remote-search-drift',
 		// v13.67.0 — owner ruling 2026-09-01.
 		'signal-noise/remote-search-crossexam',
-		// 17.10.0 — owner ruling 2026-09-23: the 5xx rollup, so "did the Early
+		// 18.0.0 — owner ruling 2026-09-23: the 5xx rollup, so "did the Early
 		// Hints fix hold?" has a phone answer.
 		'signal-noise/remote-edge-errors-summary',
 	);
@@ -168,7 +168,7 @@ function sn_mcp_remote_verdicts() {
 		// current content?" is worth answering from a phone, and the payload
 		// names no unpublished content). Revisit when the shape settles.
 		'cloudflare'           => $out( false, 'Carries the API token\'s status and expiry and the zone\'s traffic and firewall figures: operational detail about the perimeter, which is the one thing the remote door must not describe. Local only.' ),
-		'edge_errors'          => $out( true, 'Ratified by the owner 2026-09-23 (17.10.0): the 5xx rollup ALONE, split off cloudflare-status so the perimeter stays local. Our own failures by path and responder, counts only. Residual, same as analytics_top_content: paths are REQUESTED paths, so a 5xx on a probed unpublished slug would name that string. Byte-identical twin.', 'signal-noise/remote-edge-errors-summary' ),
+		'edge_errors'          => $out( true, 'Ratified by the owner 2026-09-23 (18.0.0): the 5xx rollup ALONE, split off cloudflare-status so the perimeter stays local. Our own failures by path and responder, counts only. Residual, same as analytics_top_content: paths are REQUESTED paths, so a 5xx on a probed unpublished slug would name that string. Byte-identical twin.', 'signal-noise/remote-edge-errors-summary' ),
 		'keyring'              => $out( false, 'Names every credential the plugin holds and which are unset or refused: a map of the perimeter\'s keys. Operational detail nobody needs from a phone, and a list an attacker would want.' ),
 		// 16.6.0 — the Jev meter: cents per feature per cycle. Harmless, but a new payload whose shape has not settled; a twin freezes it. Local only for now.
 		'jev_spend'            => $out( false, 'The site\'s own priced ledger of Jev use this credit cycle. Cents, not secrets, but a payload shipped this release and a twin freezes its shape byte-identically. Local only until the shape ledger reports it settled.' ),

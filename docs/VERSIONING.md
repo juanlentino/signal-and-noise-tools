@@ -70,6 +70,18 @@ git push -u origin release/vX.Y.Z && gh pr create …
 # green → squash-merge → tag the SQUASH commit → push the tag → gh release create --verify-tag
 ```
 
+The last three steps are one dispatch since 2026-09-23:
+
+```bash
+gh workflow run release.yml -f version=X.Y.Z
+```
+
+`.github/workflows/release.yml` refuses unless main's `Version:` header equals
+the input and the tag does not exist yet. It finds the commit that set the
+header (the squash commit, never main's head), tags it, and drafts the release
+from that version's CHANGELOG section. It exists so a session that can dispatch
+a workflow but cannot push a tag can still finish a release.
+
 The cut is a PR because direct pushes to `main` are refused (ruleset, admin
 bypass is PR-only since 2026-09-11). `cut-release.sh` refuses a dirty tree,
 an empty Unreleased, and a previous release whose section grew after its tag

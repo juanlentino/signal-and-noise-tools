@@ -15,7 +15,7 @@
  * stored 5xx, and "did they go away?" is a question asked from a phone.
  *
  * @package SignalNoiseTools
- * @since 17.10.0
+ * @since 18.0.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

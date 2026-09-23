@@ -77,7 +77,7 @@ $FULL_SET = array(
 	'signal-noise/remote-search-performance', // v13.61.0
 	'signal-noise/remote-search-drift',       // v13.61.0
 	'signal-noise/remote-search-crossexam',   // v13.67.0
-	'signal-noise/remote-edge-errors-summary', // 17.10.0
+	'signal-noise/remote-edge-errors-summary', // 18.0.0
 );
 $GLOBALS['__remote_slugs'] = $FULL_SET;
 
@@ -116,7 +116,7 @@ if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = null ) 
 require __DIR__ . '/../inc/search-console-store.php';
 require __DIR__ . '/../inc/search-console-derive.php';
 require __DIR__ . '/../inc/abilities-search-console.php';
-require __DIR__ . '/../inc/abilities-edge-errors.php'; // 17.10.0
+require __DIR__ . '/../inc/abilities-edge-errors.php'; // 18.0.0
 // The read/write allowlists, for the negative-space group.
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
 
@@ -147,7 +147,7 @@ $REMOTE_CRON = 'signal-noise/remote-cron-health-summary';
 $REMOTE_SP = 'signal-noise/remote-search-performance'; $ADMIN_SP = 'signal-noise/search-performance';
 $REMOTE_SD = 'signal-noise/remote-search-drift';       $ADMIN_SD = 'signal-noise/search-drift';
 $REMOTE_SX = 'signal-noise/remote-search-crossexam';   $ADMIN_SX = 'signal-noise/search-crossexam'; // v13.67.0
-$REMOTE_EE = 'signal-noise/remote-edge-errors-summary';   $ADMIN_EE = 'signal-noise/edge-errors-summary'; // 17.10.0
+$REMOTE_EE = 'signal-noise/remote-edge-errors-summary';   $ADMIN_EE = 'signal-noise/edge-errors-summary'; // 18.0.0
 $ADMIN_PROV  = 'signal-noise/provenance-integrity-status';
 $ADMIN_MR    = 'signal-noise/get-machine-readers-summary';
 $ADMIN_CRON  = 'signal-noise/cron-health-summary';
