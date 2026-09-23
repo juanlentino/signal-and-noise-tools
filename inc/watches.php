@@ -29,6 +29,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// 17.8.1: the adapter's first release as an installable plugin.
+if ( ! defined( 'SNT_MCP_ADAPTER_MIN' ) ) {
+	define( 'SNT_MCP_ADAPTER_MIN', '0.7.0' );
+}
+
 /**
  * Every registered watch.
  *
@@ -86,7 +91,7 @@ function snt_watches() {
 		array(
 			'id'        => 'mcp_adapter_read_door',
 			'label'     => 'retire the MCP read door into the core adapter',
-			'why'       => 'The plugin hand-rolls its MCP transport (inc/mcp/). WordPress/mcp-adapter is heading for the plugin directory with the 2026-07-28 revision beside 2025-11-25, and the AI plugin will expose MCP with minimal setup. The abilities, the allowlists as policy, the rw audit and the telemetry are ours and stay; the JSON-RPC routing and version negotiation become duplicate. Ripe when the adapter class is loaded on this site, which is when to register the abilities with it and retire /mcp (read) first, /mcp-rw only once its per-door hardening matches mcp-rw-guard.',
+			'why'       => 'The plugin hand-rolls its MCP transport (inc/mcp/). WordPress/mcp-adapter ships as an installable plugin from 0.7.0 (0.6.1 was a Composer library), and may later move into core. The abilities, the allowlists as policy, the rw audit and the telemetry are ours and stay; the JSON-RPC routing and version negotiation become duplicate. Ripe when the adapter is active on this site at 0.7.0 or later, read from McpAdapter::VERSION so a plugin, a bundle and core all count the same. Then: register the abilities with it, verify its door serves the same calls, retire /mcp (read) first, /mcp-rw only once its per-door hardening matches mcp-rw-guard. The watch firing is not the verification.',
 			'read'      => 'Connections › MCP connect (adapter_active)',
 			'date_only' => false,
 			'due'       => '',
@@ -308,20 +313,32 @@ function snt_watch_ripe_general_save_guard( $watch, $now, $state = null ) {
 }
 
 /**
- * Ripe once WordPress/mcp-adapter's class is loaded on this site.
+ * Ripe once WordPress/mcp-adapter is active here at SNT_MCP_ADAPTER_MIN or later.
+ *
+ * 17.8.1: keyed on the version, not on the class alone. The 0.6.x library
+ * could be bundled but was never the thing to port onto; 0.7.0 is the first
+ * release as a plugin. A loaded 0.6.x says so in the note and stays quiet.
  *
  * @since 16.6.1
- * @param array $watch The watch row.
- * @param int   $now   Unix time (unused).
- * @param bool|null $loaded Injected for tests; null asks class_exists().
+ * @param array       $watch   The watch row.
+ * @param int         $now     Unix time (unused).
+ * @param string|null $version Injected for tests; null reads McpAdapter::VERSION ('' when absent).
  * @return array{ripe:bool,note:string}
  */
-function snt_watch_ripe_mcp_adapter( $watch, $now, $loaded = null ) {
+function snt_watch_ripe_mcp_adapter( $watch, $now, $version = null ) {
 	unset( $watch, $now );
-	if ( null === $loaded ) {
-		$loaded = class_exists( 'WP\\MCP\\Core\\McpAdapter' );
+	if ( null === $version ) {
+		// The class constant, not the plugin header: it answers the same
+		// whether the adapter came as a plugin, a Composer bundle, or core.
+		$version = class_exists( 'WP\\MCP\\Core\\McpAdapter' ) && defined( 'WP\\MCP\\Core\\McpAdapter::VERSION' )
+			? (string) constant( 'WP\\MCP\\Core\\McpAdapter::VERSION' )
+			: '';
 	}
-	return $loaded
-		? array( 'ripe' => true, 'note' => 'the adapter is loaded: register the abilities with it and retire the read door' )
-		: array( 'ripe' => false, 'note' => 'no adapter on this site' );
+	if ( '' === (string) $version ) {
+		return array( 'ripe' => false, 'note' => 'no adapter on this site' );
+	}
+	if ( version_compare( (string) $version, SNT_MCP_ADAPTER_MIN, '<' ) ) {
+		return array( 'ripe' => false, 'note' => sprintf( 'adapter %s is loaded; the port waits on %s, the first plugin release', $version, SNT_MCP_ADAPTER_MIN ) );
+	}
+	return array( 'ripe' => true, 'note' => sprintf( 'adapter %s is active: register the abilities with it, verify its door, then retire the read door', $version ) );
 }

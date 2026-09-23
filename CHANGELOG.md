@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The MCP adapter watch waits for the adapter's first plugin release.** `mcp_adapter_read_door` used to ripen on the adapter class being loaded at all, but 0.6.x is a Composer library and was never the thing to port the read door onto. WordPress/mcp-adapter ships as an installable plugin from 0.7.0, so the watch now ripens on `McpAdapter::VERSION` 0.7.0 or later (`SNT_MCP_ADAPTER_MIN`). It reads the class constant rather than a plugin header, so if the adapter later moves into core it still counts. A loaded 0.6.x stays quiet and its note names the version it is waiting for, and pre-releases don't count. The plan when it ripens is unchanged, except that the read door retires only after the adapter's door is verified serving the same calls.
+
 ## [17.8.0] - 2026-09-23 — Home, editable
 
 ### New

@@ -20,7 +20,7 @@ Plan: at Beta 1, storage goes through `wp_get_secret` / `wp_set_secret` behind `
 
 Ours to keep whatever the transport: the abilities, the read and write allowlists as policy, the rw audit, the telemetry. Duplicate once the adapter is installed: JSON-RPC routing, version negotiation, resources and prompts plumbing.
 
-Plan: a watch, not a rewrite. `mcp_adapter_read_door` ripens when the adapter class is loaded on the site; then register the abilities with it and retire `/mcp` (read) first, `/mcp-rw` only once the adapter's per-door hardening matches `mcp-rw-guard`. The connect leaf already reports `adapter_active`.
+Plan: a watch, not a rewrite. `mcp_adapter_read_door` ripens when the adapter is active on the site at 0.7.0 or later (17.8.1: 0.7.0 is its first release as an installable plugin; read from `McpAdapter::VERSION`, so a plugin, a bundle and a future core copy count the same); then register the abilities with it and retire `/mcp` (read) first, `/mcp-rw` only once the adapter's per-door hardening matches `mcp-rw-guard`. The connect leaf already reports `adapter_active`.
 
 ### Trac #65551, live today
 
