@@ -229,9 +229,14 @@ function sn_edge_attack_query() {
  */
 function sn_edge_errors_query() {
 	return 'query($zone:string!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
-		. 'errors:httpRequestsAdaptiveGroups(limit:50,filter:{datetime_geq:$from,datetime_lt:$to,edgeResponseStatus_geq:500},orderBy:[count_DESC]){'
+		// 17.9.3: requestSource earlyHintsCache is Cloudflare's own lookup for a
+		// cached 103 Early Hints; a miss is logged as a 504 that never reaches
+		// the origin and no visitor sees. It was ~98% of every stored 5xx
+		// (edge-sampling-probe, 2026-09-23: 7,593 of 7,743 in 24h). Excluded,
+		// and the source kept as a dimension so what remains says who asked.
+		. 'errors:httpRequestsAdaptiveGroups(limit:50,filter:{datetime_geq:$from,datetime_lt:$to,edgeResponseStatus_geq:500,requestSource_neq:"earlyHintsCache"},orderBy:[count_DESC]){'
 		. 'count avg{sampleInterval}'
-		. 'dimensions{clientRequestPath edgeResponseStatus originResponseStatus cacheStatus}}'
+		. 'dimensions{clientRequestPath edgeResponseStatus originResponseStatus cacheStatus requestSource}}'
 		. '}}}';
 }
 

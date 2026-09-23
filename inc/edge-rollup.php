@@ -32,6 +32,7 @@ const SN_EDGE_ROLLUP_HOOK      = 'sn_edge_rollup_cron';
 const SN_EDGE_RESAMPLE_HOOK    = 'sn_edge_resample_repair'; // 17.9.1: one-shot.
 const SN_EDGE_HONEST_FROM_OPT  = 'sn_edge_honest_from';      // First day the sampled dims count honestly.
 const SN_EDGE_RESAMPLE_LOCK    = 'sn_edge_resample_running'; // 17.9.2: one repair in flight.
+const SN_EDGE_ERRORS_QUERY_OPT = 'sn_edge_errors_query_last'; // 17.9.3: the errors query's last outcome.
 
 /** dbDelta CREATE for the exact daily totals (one row per day). */
 function sn_edge_daily_schema_sql() {
@@ -257,9 +258,10 @@ function sn_edge_errors_dims( array $rows ) {
 			? (string) (int) $d['originResponseStatus']
 			: '-';
 		$cache = (string) ( $d['cacheStatus'] ?? '' );
+		$from  = (string) ( $d['requestSource'] ?? '' );
 
 		$out['err_path'][ $path ] = ( $out['err_path'][ $path ] ?? 0 ) + $req;
-		$src = 'edge=' . $edge . ' origin=' . $orig . ( '' !== $cache ? ' cache=' . $cache : '' );
+		$src = ( '' !== $from ? 'src=' . $from . ' ' : '' ) . 'edge=' . $edge . ' origin=' . $orig . ( '' !== $cache ? ' cache=' . $cache : '' );
 		$out['err_source'][ $src ] = ( $out['err_source'][ $src ] ?? 0 ) + $req;
 	}
 
@@ -418,7 +420,11 @@ function sn_edge_run_rollup( $today = null, $adaptive_only = false ) {
 	//              Cloudflare or a Worker answering by itself.
 	// That second one is the datum eight external reproduction attempts could
 	// not produce, which is the whole reason this section exists.
-	$errz = sn_edge_query( sn_edge_errors_query(), array( 'from' => $since, 'to' => $until ) );
+	// 17.9.3: a refused errors query used to leave the day silently empty;
+	// its reason is kept, so the readers can say "not read" instead of "none".
+	$err_q = '';
+	$errz  = sn_edge_query( sn_edge_errors_query(), array( 'from' => $since, 'to' => $until ), $err_q );
+	update_option( SN_EDGE_ERRORS_QUERY_OPT, array( 'at' => time(), 'day' => $snap, 'error' => (string) $err_q ), false );
 	if ( is_array( $errz ) ) {
 		foreach ( sn_edge_errors_dims( (array) ( $errz['errors'] ?? array() ) ) as $dim => $vals ) {
 			foreach ( $vals as $val => $req ) {
@@ -564,6 +570,9 @@ function sn_edge_errors_range( $from, $to ) {
 		'to'          => $to,
 		// 17.9.1: sampled rows before this day were counted twice over.
 		'honest_from' => function_exists( 'get_option' ) ? (string) get_option( SN_EDGE_HONEST_FROM_OPT, '' ) : '',
+		// 17.9.3: the errors query's last outcome; a non-empty error means the
+		// window below was NOT read, which is not the same as no errors.
+		'query'       => function_exists( 'get_option' ) ? get_option( SN_EDGE_ERRORS_QUERY_OPT, null ) : null,
 		'total'       => (int) array_sum( array_column( $sources, 'requests' ) ),
 		'paths'   => $paths,
 		'sources' => $sources,
@@ -580,19 +589,24 @@ function sn_edge_errors_range( $from, $to ) {
  * @return string
  */
 function sn_edge_error_source_label( $value ) {
+	$who = '';
+	if ( preg_match( '/^src=(\S+) /', (string) $value, $s ) ) {
+		$who   = ', ' . ( 'eyeball' === $s[1] ? __( 'asked by a visitor', 'signal-and-noise-tools' ) : ( 0 === strpos( $s[1], 'edgeWorker' ) ? __( 'asked by a Worker', 'signal-and-noise-tools' ) : sprintf( /* translators: %s: Cloudflare request source. */ __( 'asked by %s', 'signal-and-noise-tools' ), $s[1] ) ) );
+		$value = substr( (string) $value, strlen( $s[0] ) );
+	}
 	if ( ! preg_match( '/^edge=(\d+) origin=(\d+|-)/', (string) $value, $m ) ) {
-		return (string) $value;
+		return (string) $value . $who;
 	}
 	if ( '-' === $m[2] ) {
 		/* translators: %s: HTTP status Cloudflare returned. */
-		return sprintf( __( '%s from Cloudflare itself (the origin never answered)', 'signal-and-noise-tools' ), $m[1] );
+		return sprintf( __( '%s from Cloudflare itself (the origin never answered)', 'signal-and-noise-tools' ), $m[1] ) . $who;
 	}
 	if ( $m[1] === $m[2] ) {
 		/* translators: %s: HTTP status the origin returned. */
-		return sprintf( __( '%s from the origin', 'signal-and-noise-tools' ), $m[2] );
+		return sprintf( __( '%s from the origin', 'signal-and-noise-tools' ), $m[2] ) . $who;
 	}
 	/* translators: 1: status Cloudflare returned, 2: status the origin returned. */
-	return sprintf( __( '%1$s at the edge, origin said %2$s', 'signal-and-noise-tools' ), $m[1], $m[2] );
+	return sprintf( __( '%1$s at the edge, origin said %2$s', 'signal-and-noise-tools' ), $m[1], $m[2] ) . $who;
 }
 
 /**

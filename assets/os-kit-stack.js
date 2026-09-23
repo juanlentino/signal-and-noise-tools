@@ -1,5 +1,5 @@
 /**
- * Signal & Noise Tools — a leaf table is a card list on a phone (17.9.0, #1624).
+ * Signal & Noise Tools: a leaf table is a card list on a phone (17.9.0, #1624).
  *
  * `<os-table stacked>` lays each row out as a card, which is what a phone
  * wants. The shell decides "phone" by its mode stamp, `html[data-os-mode=

@@ -54,7 +54,7 @@ echo "\nGroup 3: blast radius\n";
 // risk of a schema change that has nothing to do with them.
 ok( false === strpos( $ana_code, 'doors:httpRequestsAdaptiveGroups' ) || false === strpos( substr( $ana_code, strpos( $ana_code, 'function sn_edge_attack_query' ), 900 ), 'originResponseStatus' ),
 	'the ATTACK query does not ask for the new fields — one unknown field would fail that whole document' );
-ok( false !== strpos( $roll_code, '$errz = sn_edge_query( sn_edge_errors_query()' ),
+ok( 1 === preg_match( '/\$errz\s*=\s*sn_edge_query\(\s*sn_edge_errors_query\(\)/', $roll_code ),
 	'the 5xx query is executed separately, so its failure leaves the rest of the rollup intact' );
 
 echo "\nGroup 4: the 4xx probe is unchanged\n";
