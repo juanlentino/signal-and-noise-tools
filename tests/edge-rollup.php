@@ -16,6 +16,14 @@ if ( ! function_exists( 'add_action' ) ) { function add_action( $h, $c = null, $
 $GLOBALS['__eo'] = array();
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__eo'] ) ? $GLOBALS['__eo'][ $k ] : $d; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['__eo'][ $k ] = $v; return true; }
+$GLOBALS['__tr'] = array();
+function get_transient( $k ) { return array_key_exists( $k, $GLOBALS['__tr'] ) ? $GLOBALS['__tr'][ $k ] : false; }
+function set_transient( $k, $v, $e = 0 ) { $GLOBALS['__tr'][ $k ] = $v; return true; }
+function delete_transient( $k ) { unset( $GLOBALS['__tr'][ $k ] ); return true; }
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
+$GLOBALS['__sched'] = array();
+function wp_next_scheduled( $h ) { return $GLOBALS['__sched'][ $h ] ?? false; }
+function wp_schedule_single_event( $ts, $h ) { $GLOBALS['__sched'][ $h ] = $ts; return true; }
 $GLOBALS['__dbdelta'] = array();
 function dbDelta( $sql ) { $GLOBALS['__dbdelta'][] = $sql; return array(); }
 
@@ -348,6 +356,22 @@ $GLOBALS['wpdb']->queries = array();
 sn_edge_clear_snapshot_dims( '2026-06-18', array( 'err_path', 'country', '' ) );
 $clr = implode( "\n", $GLOBALS['wpdb']->queries );
 ok( false !== strpos( $clr, "'err_path'" ) && false === strpos( $clr, "'country'" ) && false === strpos( $clr, "'threat'" ), 'clear: only the dims the re-fetch returned, never country' );
+
+echo "\nGroup: 17.9.2 one repair in flight\n";
+// WP-Cron removes a single event from the queue before running it, and the
+// repair outlasts a minute, so "not done, nothing queued" was true MID-RUN
+// and a second repair was queued every minute (measured 2026-09-23).
+$GLOBALS['__eo'] = array(); $GLOBALS['__tr'] = array(); $GLOBALS['__sched'] = array();
+ok( true === sn_edge_resample_maybe_schedule(), 'lock: not done, not running, not queued: the repair is queued' );
+ok( false === sn_edge_resample_maybe_schedule(), 'lock: already queued: not queued again' );
+$GLOBALS['__sched'] = array();                             // cron has taken the event off the queue...
+set_transient( SN_EDGE_RESAMPLE_LOCK, time(), 1800 );      // ...and the repair is running.
+ok( false === sn_edge_resample_maybe_schedule(), 'lock: while a repair runs, no second one is queued' );
+$GLOBALS['__edge_retention'] = DAY_IN_SECONDS;
+$GLOBALS['__tr'] = array();
+sn_edge_resample_repair();
+ok( false === get_transient( SN_EDGE_RESAMPLE_LOCK ) && false !== get_option( SN_EDGE_HONEST_FROM_OPT ), 'lock: a finished repair releases the lock and marks itself done' );
+ok( false === sn_edge_resample_maybe_schedule(), 'lock: done: never queued again' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

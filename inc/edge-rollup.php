@@ -31,6 +31,7 @@ const SN_EDGE_BACKFILL_DAYS    = 395; // ~13 months — inside httpRequests1dGro
 const SN_EDGE_ROLLUP_HOOK      = 'sn_edge_rollup_cron';
 const SN_EDGE_RESAMPLE_HOOK    = 'sn_edge_resample_repair'; // 17.9.1: one-shot.
 const SN_EDGE_HONEST_FROM_OPT  = 'sn_edge_honest_from';      // First day the sampled dims count honestly.
+const SN_EDGE_RESAMPLE_LOCK    = 'sn_edge_resample_running'; // 17.9.2: one repair in flight.
 
 /** dbDelta CREATE for the exact daily totals (one row per day). */
 function sn_edge_daily_schema_sql() {
@@ -102,6 +103,12 @@ function sn_edge_resample_repair() {
 	if ( false !== get_option( SN_EDGE_HONEST_FROM_OPT, false ) || ! function_exists( 'sn_edge_config' ) || ! sn_edge_config() ) {
 		return;
 	}
+	// 17.9.2: WP-Cron removes a single event from the queue BEFORE running it,
+	// and a re-roll of a month takes longer than a minute, so the init hook
+	// below saw "not done, nothing queued" mid-run and queued a second repair,
+	// every minute until the first finished (measured 2026-09-23). The lock
+	// is what the init hook reads; it expires, so a run that dies is retried.
+	set_transient( SN_EDGE_RESAMPLE_LOCK, time(), 30 * MINUTE_IN_SECONDS );
 	$days  = function_exists( 'sn_edge_adaptive_retention' ) ? (int) floor( (int) sn_edge_adaptive_retention() / DAY_IN_SECONDS ) : 0;
 	$days  = max( 1, min( 31, $days ) );
 	$today = strtotime( gmdate( 'Y-m-d' ) . ' 00:00:00 UTC' );
@@ -109,13 +116,23 @@ function sn_edge_resample_repair() {
 		sn_edge_run_rollup( gmdate( 'Y-m-d', $today - $d * DAY_IN_SECONDS ), true );
 	}
 	update_option( SN_EDGE_HONEST_FROM_OPT, gmdate( 'Y-m-d', $today - $days * DAY_IN_SECONDS ), false );
+	delete_transient( SN_EDGE_RESAMPLE_LOCK );
 }
 add_action( SN_EDGE_RESAMPLE_HOOK, 'sn_edge_resample_repair' );
-add_action( 'init', static function () {
-	if ( false === get_option( SN_EDGE_HONEST_FROM_OPT, false ) && function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( SN_EDGE_RESAMPLE_HOOK ) ) {
-		wp_schedule_single_event( time() + 60, SN_EDGE_RESAMPLE_HOOK );
+/**
+ * Queue the repair once: not when it is done, not while one is running
+ * (SN_EDGE_RESAMPLE_LOCK), not when one is already queued.
+ *
+ * @return bool Whether an event was queued.
+ */
+function sn_edge_resample_maybe_schedule() {
+	if ( false !== get_option( SN_EDGE_HONEST_FROM_OPT, false ) || false !== get_transient( SN_EDGE_RESAMPLE_LOCK ) || ! function_exists( 'wp_next_scheduled' ) || wp_next_scheduled( SN_EDGE_RESAMPLE_HOOK ) ) {
+		return false;
 	}
-} );
+	wp_schedule_single_event( time() + 60, SN_EDGE_RESAMPLE_HOOK );
+	return true;
+}
+add_action( 'init', 'sn_edge_resample_maybe_schedule' );
 
 /** Daily cron: re-pull + upsert. WP passes no args → today defaults to now (UTC). */
 add_action( SN_EDGE_ROLLUP_HOOK, 'sn_edge_run_rollup' );

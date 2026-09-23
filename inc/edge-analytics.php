@@ -81,11 +81,14 @@ function sn_edge_config() {
  *
  * @param string $query     GraphQL document using a $zone variable.
  * @param array  $variables Query variables (zone added automatically).
+ * @param string $error     Out: why a null came back ('' on success). 17.9.2, for diagnostics.
  * @return array|null
  */
-function sn_edge_query( $query, $variables = array() ) {
-	$cfg = sn_edge_config();
+function sn_edge_query( $query, $variables = array(), &$error = null ) {
+	$error = '';
+	$cfg   = sn_edge_config();
 	if ( ! $cfg ) {
+		$error = 'not configured';
 		return null;
 	}
 	$variables          = is_array( $variables ) ? $variables : array();
@@ -106,13 +109,18 @@ function sn_edge_query( $query, $variables = array() ) {
 	) );
 
 	if ( is_wp_error( $res ) ) {
+		$error = is_object( $res ) && method_exists( $res, 'get_error_message' ) ? (string) $res->get_error_message() : 'transport error';
 		return null;
 	}
 	if ( 200 !== (int) wp_remote_retrieve_response_code( $res ) ) {
+		$error = 'HTTP ' . (int) wp_remote_retrieve_response_code( $res );
 		return null;
 	}
 	$json = json_decode( wp_remote_retrieve_body( $res ), true );
 	if ( ! is_array( $json ) || ! empty( $json['errors'] ) ) {
+		// 17.9.2: the message is kept for a caller that asks (a diagnostic);
+		// the null return every other caller reads is unchanged.
+		$error = is_array( $json ) ? (string) ( $json['errors'][0]['message'] ?? 'GraphQL error' ) : 'unreadable response';
 		return null; // GraphQL returns HTTP 200 even on failure — errors[] is the real signal.
 	}
 	$zones = $json['data']['viewer']['zones'] ?? null;

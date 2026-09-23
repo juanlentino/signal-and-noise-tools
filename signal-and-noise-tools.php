@@ -522,6 +522,7 @@ require_once __DIR__ . '/inc/watches.php';  // v13.90.0: the things that come du
 require_once __DIR__ . '/inc/health-check-gsc-history.php';  // v13.89.0: the GSC sync firing while its history stops growing — the half cron_health cannot see.
 require_once __DIR__ . '/inc/abilities-cache-freshness.php';  // v13.92.0: the cache verdict finally has a machine reader — six releases were verified by asking a human to read a widget.
 require_once __DIR__ . '/inc/abilities-cloudflare-status.php'; // 14.9.0: the Cloudflare monitor on the read door (token, zone, firewall).
+require_once __DIR__ . '/inc/abilities-edge-sampling-probe.php'; // 17.9.2: live sampling + requestSource probe for #1002.
 require_once __DIR__ . '/inc/abilities-keyring-status.php';    // 15.2.0: every credential's source and verdict on the read door; never a value.
 require_once __DIR__ . '/inc/abilities-watches.php';  // v13.90.0: the watch registry's agent reader — the brief mails it to a human, this answers "what is outstanding?".
 require_once __DIR__ . '/inc/abilities-shape-stability.php';  // v13.88.0: the shape ledger's FIRST reader. It had a writer since v13.85.0 and sn_shape_stability() was called only from tests.
