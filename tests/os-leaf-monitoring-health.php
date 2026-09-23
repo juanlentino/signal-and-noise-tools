@@ -154,8 +154,34 @@ ok( false === strpos( $kit, '<script>' ) && false === strpos( $kit, '<b>title</b
 
 // ── The rows: the Block Migrations shape (os-row + os-cluster), Edit as a
 // link, never the raw URL as text; no AI column without a provider.
-ok( 3 === substr_count( $kit, '<span col="5" class="snt-col__h" role="columnheader">Subject</span>' ) && 3 === substr_count( $kit, '<span col="2" class="snt-col__h" role="columnheader">Edit</span>' ) && false === strpos( $kit, 'AI fix' ), 'no provider: three column headers per card (Subject, Note, Edit), no AI fix column' );
-ok( false !== strpos( $kit, '<os-row gap="12"><div col="5"><os-code>Post 0</os-code></div><div col="5">missing width</div><div col="2"><os-button class="snt-link" variant="link" os-action="door" os-arg-url="https://example.test/wp-admin/post.php?post=0&amp;action=edit">Edit</os-button></div></os-row>' ), 'no provider: a finding is an os-row of subject, note and an Edit door (the URL is a link, not text)' );
+// 17.9.0 (#1624): the rows are an os-table now; read its columns and cells.
+$hx_tables = snt_leaf_tables( $kit );
+$hx_labels = array_map( static function ( $t ) { return array_column( $t['columns'], 'label' ); }, $hx_tables );
+ok( 3 === count( $hx_tables ) && array( array( 'Subject', 'Note', 'Edit' ) ) === array_values( array_unique( $hx_labels, SORT_REGULAR ) ) && false === strpos( $kit, 'AI fix' ), 'no provider: three check tables, each Subject, Note, Edit, no AI fix column' );
+/** The row of $table whose subject reads $subject, or null. */
+function hx_row( array $table, $subject ) {
+	foreach ( $table['data'] as $row ) {
+		if ( is_array( $row['subject'] ?? null ) && $subject === ( $row['subject']['text'] ?? null ) ) {
+			return $row;
+		}
+	}
+	return null;
+}
+/** The first row in any table whose subject reads $subject: [table, row] or [null, null]. */
+function hx_find( array $tables, $subject ) {
+	foreach ( $tables as $t ) {
+		$r = hx_row( $t, $subject );
+		if ( null !== $r ) {
+			return array( $t, $r );
+		}
+	}
+	return array( null, null );
+}
+// #1624 acceptance: a real table, no hand-rolled header, a card on a phone.
+ok( false !== strpos( $kit, '<os-table' ) && 0 === substr_count( $kit, 'role="columnheader"' ) && 0 === substr_count( $kit, 'role="row"' ), '#1624: the findings are an os-table, with no hand-rolled header row (the passing-checks chip row is not a table, see #1600)' );
+ok( 3 === substr_count( $kit, 'data-snt-stack-on-phone' ), '#1624: every findings table is marked to stack on a phone' );
+list( $hx_t, $hx_r ) = hx_find( $hx_tables, 'Post 0' );
+ok( null !== $hx_r && '<os-code>Post 0</os-code>' === snt_leaf_cell_html( $hx_t, $hx_r['subject'] ) && 'missing width' === $hx_r['note'] && '<os-button class="snt-link" variant="link" os-action="door" os-arg-url="https://example.test/wp-admin/post.php?post=0&amp;action=edit">Edit</os-button>' === snt_leaf_cell_html( $hx_t, $hx_r['edit'] ), 'no provider: a finding is a row of subject, note and an Edit door (the URL is a link, not text)' );
 ok( false === strpos( $kit, 'data-snt-suggest' ) && false !== strpos( $classic, 'Missing alt' ) && false === strpos( $classic, 'data-snt-suggest' ), 'no provider: no Suggest button on either leaf' );
 
 // ── With a provider: the AI fix column paints on the supported check only,
@@ -165,9 +191,19 @@ $classic = snt_leaf_classic_html( 'sn_health_render_admin_tab' );
 $kit     = snt_leaf_paint( 'monitoring', 'health' );
 $GLOBALS['__ai'] = false;
 ok( array() === snt_leaf_classic_markers( $kit ), 'provider: no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( 1 === substr_count( $kit, '<span col="4" class="snt-col__h" role="columnheader">AI fix</span>' ) && 2 === substr_count( $kit, '<span col="5" class="snt-col__h" role="columnheader">Subject</span>' ) && 1 === substr_count( $classic, '>AI fix<' ), 'provider: the AI fix column paints on the one supported check (missing_alt), as on the classic leaf' );
-ok( false !== strpos( $kit, '<os-cluster col="4" gap="6"><os-button variant="secondary" data-snt-suggest="1" data-check="missing_alt" data-attachment-id="77">Suggest</os-button></os-cluster></os-row>' ), 'provider: the attachment finding paints Suggest in an os-cluster inside its os-row, with the classic data contract' );
-ok( 1 === preg_match( '/<div col="4"><os-code>logo\.svg<\/os-code><\/div>.*?<os-cluster col="4" gap="6"><\/os-cluster><\/os-row>/s', $kit ) && 1 === substr_count( $kit, 'data-snt-suggest="1"' ), 'provider: the inline_svg finding paints an empty cluster, the classic no-button path' );
+$hx_tables = snt_leaf_tables( $kit );
+$hx_ai     = array_filter( $hx_tables, static function ( $t ) { return in_array( 'AI fix', array_column( $t['columns'], 'label' ), true ); } );
+ok( 3 === count( $hx_tables ) && 1 === count( $hx_ai ) && 1 === substr_count( $classic, '>AI fix<' ), 'provider: the AI fix column paints on the one supported check (missing_alt), as on the classic leaf' );
+$hx_ai_t = reset( $hx_ai );
+$hx_77   = null;
+foreach ( $hx_ai_t['data'] as $hx_row ) {
+	if ( false !== strpos( snt_leaf_cell_html( $hx_ai_t, $hx_row['ai'] ?? null ), 'data-attachment-id="77"' ) ) {
+		$hx_77 = $hx_row;
+	}
+}
+ok( null !== $hx_77 && '<os-button variant="secondary" data-snt-suggest="1" data-check="missing_alt" data-attachment-id="77">Suggest</os-button>' === snt_leaf_cell_html( $hx_ai_t, $hx_77['ai'] ), 'provider: the attachment finding paints Suggest in its AI fix cell, with the classic data contract' );
+$hx_svg = hx_row( $hx_ai_t, 'logo.svg' );
+ok( null !== $hx_svg && '' === snt_leaf_cell_html( $hx_ai_t, $hx_svg['ai'] ) && 1 === substr_count( $kit, 'data-snt-suggest="1"' ), 'provider: the inline_svg finding paints an empty AI fix cell, the classic no-button path' );
 ok( snt_health_suggest_attrs( $classic ) === snt_health_suggest_attrs( $kit ) && 0 < count( snt_health_suggest_attrs( $kit ) ), 'provider: the Suggest / Suggest-all data attributes match the classic leaf exactly: ' . implode( ' ', snt_health_suggest_attrs( $kit ) ) );
 ok( 1 === preg_match( '/<os-card class="snt-check"><header><h3>Missing alt<\/h3><os-badge[^>]*>2 findings<\/os-badge><os-button variant="secondary" data-snt-suggest-all="1" data-snt-suggest-all-max="50">Suggest all 2<\/os-button><\/header>/', $kit ), 'provider: the check is an os-card whose header row carries the title, the badge and Suggest all 2 with the batch cap the shared script reads (#1600)' );
 ok( 1 === preg_match( '/<os-section heading="Accessibility" stack>/', $kit ) && 1 === preg_match( '/<os-section heading="Other checks" stack>/', $kit ) && false === strpos( $kit, 'heading="Findings"' ), '#1600: each family is its own os-section (Accessibility for missing_alt, Other checks for the test keys); no Findings wrapper, so no section nests in a section' );

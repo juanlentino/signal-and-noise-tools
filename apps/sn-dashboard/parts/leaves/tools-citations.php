@@ -16,7 +16,7 @@
  * `SELECT * FROM {$table} ORDER BY first_seen_gmt DESC LIMIT 100` the classic
  * renderer issues. `sn_cit_render_row()` echoes directly (tier pill markup +
  * two anchors per row), so its per-row logic is mirrored line for line in
- * `citations_row_card()` (tools-citations-parts.php) rather than reused, per
+ * `citations_row()` (tools-citations-parts.php) rather than reused, per
  * the port brief.
  *
  * @package SignalNoiseTools

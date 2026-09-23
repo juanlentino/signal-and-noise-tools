@@ -203,12 +203,19 @@ foreach ( $form_rules as $sel ) {
 	);
 }
 
-// The phone rule: under 640px an os-row stacks its cells, and a column-header
-// row (Block Migrations, Health) becomes four labels with nothing beside them.
-$css_src = (string) file_get_contents( $css_path );
-$phone   = strpos( $css_src, '@container snt-dashboard ( max-width: 640px )' );
-$hide    = strpos( $css_src, '.snt-leaf os-row[role="row"] {' );
-ok( false !== $phone && false !== $hide && $hide > $phone && 1 === preg_match( '/\.snt-leaf os-row\[role="row"\] \{\s*display: none !important;/', $css_src ), 'phone: a column-header row (os-row[role="row"]) is hidden inside the 640px container block, where the cells stack and the labels would sit beside nothing' );
+// 17.9.0 (#1624): Block Migrations and Health are os-tables, whose own header
+// stands down on a phone (stacked), so no leaf paints a hand-rolled
+// column-header row any more and the rule that hid one under 640px is gone.
+// Derived from the painters, not from a list: a new header row fails here.
+$css_src    = (string) file_get_contents( $css_path );
+$row_paints = array();
+foreach ( (array) glob( dirname( __DIR__ ) . '/apps/sn-dashboard/parts/leaves/*.php' ) as $leaf_file ) {
+	$leaf_src = (string) file_get_contents( $leaf_file );
+	if ( false !== strpos( $leaf_src, "'role' => 'row'" ) || false !== strpos( $leaf_src, 'role="row"' ) && false !== strpos( $leaf_src, '<os-row' ) ) {
+		$row_paints[] = basename( $leaf_file );
+	}
+}
+ok( false === strpos( $css_src, 'os-row[role="row"]' ) && array() === $row_paints, 'phone: no leaf paints a hand-rolled column-header row, so the 640px rule that hid one is gone: ' . implode( ',', $row_paints ) );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

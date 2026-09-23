@@ -828,11 +828,6 @@ os-button.snt-sys__v { justify-self: start; display: inline-flex; align-items: c
 		width: 100% !important;
 		max-width: 100% !important;
 	}
-
-	/* A stacked column-header row is four labels with nothing beside them. */
-	.snt-leaf os-row[role="row"] {
-		display: none !important;
-	}
 }
 
 @container snt-dashboard ( max-width: 820px ) {

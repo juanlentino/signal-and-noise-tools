@@ -37,10 +37,33 @@
 	var __ = ( window.wp.i18n && window.wp.i18n.__ ) || function( s ) { return s; };
 	var SUGGEST_THROTTLE_MS = 500;
 	// Classic paints a table cell in a table row; the kit leaves paint the action
-	// pair in an <os-cluster> inside an <os-row> (Block Migrations, Health) or an
-	// <os-card> (Pattern Adoption). One walk serves both shapes.
-	var CELL_SEL = 'td,th,os-cluster';
-	var ROW_SEL  = 'tr,os-row,os-card';
+	// pair in an <os-cluster> inside an <os-row> or an <os-card> (Pattern
+	// Adoption). 17.9.0 (#1624): Health and Block Migrations are <os-table>s,
+	// whose rows live in the component's shadow root; the controls ride as a
+	// light-DOM slot cell, `.snt-cell`, which is both the cell and the nearest
+	// thing to a row this script can reach. One walk serves every shape.
+	var CELL_SEL = 'td,th,os-cluster,.snt-cell';
+	var ROW_SEL  = 'tr,os-row,os-card,.snt-cell';
+
+	/**
+	 * After a dismiss: a light-DOM row goes; a table's slot cell cannot take
+	 * its row with it (the row is the table's), so it says so and dims, and
+	 * the leaf's next repaint drops the row.
+	 */
+	function dismissRow( btn ) {
+		var row = btn.closest( ROW_SEL );
+		if ( ! row ) { return; }
+		if ( ! row.classList.contains( 'snt-cell' ) ) {
+			row.remove();
+			return;
+		}
+		while ( row.firstChild ) { row.removeChild( row.firstChild ); }
+		var done = document.createElement( 'span' );
+		done.className = 'snt-cell-applied';
+		done.textContent = __( 'Dismissed', 'signal-noise-tools' );
+		row.appendChild( done );
+		row.style.opacity = '0.5';
+	}
 
 
 	var ABILITY_BY_CHECK = {
@@ -1274,8 +1297,7 @@
 		callAbility( 'dismiss-candidate', {
 			surface: 'pattern-adoption', post_id: postId, block_fingerprint: fingerprint, candidate_type: patternType,
 		} ).then( function() {
-			var row = btn.closest( ROW_SEL );
-			if ( row ) { row.remove(); }
+			dismissRow( btn );
 		} ).catch( function( err ) {
 			btn.disabled = false;
 			btn.textContent = __( 'Dismiss', 'signal-noise-tools' );
@@ -1308,8 +1330,7 @@
 		callAbility( 'dismiss-candidate', {
 			surface: 'block-migrations', post_id: postId, block_fingerprint: fingerprint, candidate_type: migrationType,
 		} ).then( function() {
-			var row = btn.closest( ROW_SEL );
-			if ( row ) { row.remove(); }
+			dismissRow( btn );
 		} ).catch( function( err ) {
 			btn.disabled = false;
 			btn.textContent = __( 'Dismiss', 'signal-noise-tools' );

@@ -813,8 +813,8 @@ $args    = apply_filters( 'openstation_app_window_args', array( 'styles' => arra
 // from it, which is exactly how a leaf's script goes missing in silence.
 ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers', 'snt-os-app', 'snt-sn-dashboard-app' ) === $handles['styles'],
 	'the seven stylesheets the leaves are laid out with: admin.css, the analytics token layer, the analytics sheet, the uptime panel, the provenance stepper, the audit log, and Machine Readers -- which painted with every .sn-mr-* rule missing until it got a registrar' );
-ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit' ) === $handles['scripts'],
-	'the nine scripts: sub-tabs and dirty-tracking, the confirm modal, the trend brush, the repeatable rows, the freshness dot, Suggest+Apply, the uptime panel, and the host -- NOT the three classic pollers (cron, provenance, the Heartbeat client), whose selectors the kit never paints; the window\'s live refresh is os-poll (#1607)' );
+ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit', 'snt-os-kit-stack' ) === $handles['scripts'],
+	'the ten scripts: sub-tabs and dirty-tracking, the confirm modal, the trend brush, the repeatable rows, the freshness dot, Suggest+Apply, the uptime panel, the host, and (17.9.0, #1624) the phone stacking of leaf tables -- NOT the three classic pollers (cron, provenance, the Heartbeat client), whose selectors the kit never paints; the window\'s live refresh is os-poll (#1607)' );
 foreach ( array( 'sn-cron-dashboard', 'sn-provenance-admin', 'sn-admin-heartbeat' ) as $poller ) {
 	ok( ! in_array( $poller, $args['scripts'], true ), "the window does not carry the classic poller $poller: it re-armed on every paint, matched nothing, and the Heartbeat client rode every tick for an empty want list" );
 }

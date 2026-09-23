@@ -20,9 +20,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  * `<os-table>` fed from markup. A column is `key` plus optional `label`,
  * `align` (start|center|end), `filter` (text|select), `sortable`, `stack`.
  *
+ * 17.9.0 (#1624): a cell value may be `[ 'html' => ..., 'text' => ... ]` for a
+ * control, a link, a badge or code the cell must hold as markup. It becomes a
+ * slot cell (OpenStation 1.1.11, upstream #874): the data carries
+ * `{ slot, text }` and the markup rides as a light-DOM child with that slot,
+ * where the runtime's action delegation and the classic scripts still reach
+ * it. The slot name is minted per row and column, so it is unique across the
+ * table as the component requires; `text` is what the column sorts and
+ * filters on. A row's optional `_key` names its slots by identity instead of
+ * position (see below). `stack_on_phone` marks the table for
+ * assets/os-kit-stack.js.
+ *
  * @param array<int,array<string,mixed>> $columns Column descriptors.
  * @param array<int,array<string,mixed>> $rows    Row objects keyed by column key.
- * @param array<string,mixed>            $opts    empty, striped, hover, compact, bordered, sticky_header, selectable, class, id.
+ * @param array<string,mixed>            $opts    empty, striped, hover, compact, bordered, sticky_header, selectable, class, id, stack_on_phone.
  * @return string
  */
 function snt_kit_table( array $columns, array $rows, array $opts = array() ) {
@@ -36,13 +47,41 @@ function snt_kit_table( array $columns, array $rows, array $opts = array() ) {
 		}
 		$cols[] = array_intersect_key( $column, array_flip( array( 'key', 'label', 'align', 'filter', 'sortable', 'stack', 'width' ) ) );
 	}
+	$data    = array();
+	$slotted = '';
+	$seen    = array();
+	foreach ( array_values( $rows ) as $i => $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		// A stable `_key` names the row's slots by identity, not position, and
+		// becomes the slot cell's os-key: a morph then follows a row that moved
+		// (a dismissal shifts every row after it) instead of renaming its cells.
+		$rkey = isset( $row['_key'] ) ? 'r' . substr( md5( (string) $row['_key'] ), 0, 12 ) : 'c' . $i;
+		unset( $row['_key'] );
+		// Two rows sharing a key would mint one slot name twice, and the
+		// second row would render blank (the first <slot> takes every match).
+		if ( isset( $seen[ $rkey ] ) ) {
+			$rkey .= '-' . $i;
+		}
+		$seen[ $rkey ] = true;
+		foreach ( $row as $key => $cell ) {
+			if ( ! is_array( $cell ) || ! array_key_exists( 'html', $cell ) ) {
+				continue;
+			}
+			$slot        = $rkey . '-' . preg_replace( '/[^a-z0-9_-]/i', '', (string) $key );
+			$row[ $key ] = array( 'slot' => $slot, 'text' => (string) ( $cell['text'] ?? '' ) );
+			$slotted    .= snt_kit_tag( 'div', array( 'slot' => $slot, 'class' => 'snt-cell', 'os-key' => $slot ), (string) $cell['html'] );
+		}
+		$data[] = $row;
+	}
 	return snt_kit_tag(
 		'os-table',
 		array(
 			'id'              => $opts['id'] ?? null,
 			'class'           => $opts['class'] ?? null,
 			'os-prop-columns' => $cols,
-			'os-prop-data'    => array_values( $rows ),
+			'os-prop-data'    => $data,
 			'striped'         => (bool) ( $opts['striped'] ?? true ),
 			'hover'           => (bool) ( $opts['hover'] ?? true ),
 			'compact'         => (bool) ( $opts['compact'] ?? true ),
@@ -50,7 +89,9 @@ function snt_kit_table( array $columns, array $rows, array $opts = array() ) {
 			'sticky-header'   => (bool) ( $opts['sticky_header'] ?? false ),
 			'selectable'      => $opts['selectable'] ?? null,
 			'empty'           => (string) ( $opts['empty'] ?? __( 'Nothing to show.', 'signal-and-noise-tools' ) ),
-		)
+			'data-snt-stack-on-phone' => empty( $opts['stack_on_phone'] ) ? null : true,
+		),
+		$slotted
 	);
 }
 
