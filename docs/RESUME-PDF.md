@@ -8,7 +8,7 @@ Phase 2.
 
 1. S&N → Content → Resume. Edit and **Save resume** as usual.
 2. The **PDF only** section holds what the PDF shows and the page never does: headline, tagline,
-   location, phone, email, website (blank: this site), core competencies (one per line), technical
+   professional summary (blank: the Hero summary), location, phone, email, website (blank: this site), core competencies (one per line), technical
    toolkit (one per line), and the checkbox **Include the phone in the public PDF** (off by default).
    It is a checkbox, never an `os-switch`: os-form reads only checkboxes as booleans, so a switch
    would post `1` in both positions and publish the phone on every save.

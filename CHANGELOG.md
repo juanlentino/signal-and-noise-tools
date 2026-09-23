@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### New
+- **A Professional summary field in the resume's PDF-only section**, both editors. The PDF prints it under PROFESSIONAL SUMMARY; blank falls back to the Summary from Hero, as before. /resume never reads it (the sync engine ignores `pdf`). `tests/resume-pdf.php` (36) pins the override and the fallback (dropping the override fails it), `tests/resume-pdf-page-invariance.php` (18) that the page stays byte-identical with it filled, and `tests/os-leaf-content-resume.php` (86) that the dashboard leaf carries it and saves it round trip.
+
 ## [17.7.3] - 2026-09-23 — OpenStation, lighter and first
 
 ### Fixed
