@@ -347,6 +347,8 @@ function sn_admin_render_resume_section() {
 	sn_rsm_section_open( 'PDF only', 'Used by the generated PDF, never shown on /resume. Save, then Generate PDF below.' );
 	sn_rsm_input( 'resume[pdf][headline]', (string) ( $pdf['headline'] ?? '' ), 'Headline', 'Music Business Development & Strategic Partnerships Leader' );
 	sn_rsm_input( 'resume[pdf][tagline]', (string) ( $pdf['tagline'] ?? '' ), 'Tagline', 'Artist & Label Relations | Latin American & U.S. Markets' );
+	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Professional summary</span><textarea rows="4" class="large-text" name="resume[pdf][summary]">' . esc_textarea( (string) ( $pdf['summary'] ?? '' ) ) . '</textarea></label>';
+	echo '<p class="description">Blank: the PDF uses the Summary from Hero.</p>';
 	sn_rsm_input( 'resume[pdf][location]', (string) ( $pdf['location'] ?? '' ), 'Location', 'Orlando, FL' );
 	sn_rsm_input( 'resume[pdf][phone]', (string) ( $pdf['phone'] ?? '' ), 'Phone', '(000) 000-0000' );
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">' . esc_html( 'Include the phone in the public PDF' ) . '</span><input type="checkbox" name="resume[pdf][phone_public]" value="1"' . ( ! empty( $pdf['phone_public'] ) ? ' checked="checked"' : '' ) . '></label>';

@@ -148,8 +148,10 @@ function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false, $si
 		$out .= '<p class="contact">' . implode( ' &#8226; ', $contact ) . '</p>';
 	}
 
-	if ( '' !== (string) ( $hero['summary'] ?? '' ) ) {
-		$out .= '<h2>PROFESSIONAL SUMMARY</h2><p>' . $e( $hero['summary'] ) . '</p>';
+	// PDF-only summary first; blank falls back to the page's hero summary.
+	$summary = '' !== (string) ( $pdf['summary'] ?? '' ) ? (string) $pdf['summary'] : (string) ( $hero['summary'] ?? '' );
+	if ( '' !== $summary ) {
+		$out .= '<h2>PROFESSIONAL SUMMARY</h2><p>' . $e( $summary ) . '</p>';
 	}
 
 	$stats = (array) ( $doc['stats'] ?? array() );

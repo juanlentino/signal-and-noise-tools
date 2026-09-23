@@ -96,6 +96,7 @@ function resume_hero( array $hero ) {
 function resume_pdf( array $pdf ) {
 	return resume_text( 'resume[pdf][headline]', __( 'Headline', 'signal-and-noise-tools' ), $pdf['headline'] ?? '', 'Music Business Development & Strategic Partnerships Leader' )
 		. resume_text( 'resume[pdf][tagline]', __( 'Tagline', 'signal-and-noise-tools' ), $pdf['tagline'] ?? '', 'Artist & Label Relations | Latin American & U.S. Markets' )
+		. \snt_kit_field( 'textarea', 'resume[pdf][summary]', __( 'Professional summary', 'signal-and-noise-tools' ), (string) ( $pdf['summary'] ?? '' ), array( 'rows' => 4, 'hint' => __( 'Blank: the PDF uses the Summary from Hero.', 'signal-and-noise-tools' ) ) )
 		. resume_pair(
 			resume_text( 'resume[pdf][location]', __( 'Location', 'signal-and-noise-tools' ), $pdf['location'] ?? '', 'Orlando, FL' ),
 			resume_text( 'resume[pdf][phone]', __( 'Phone', 'signal-and-noise-tools' ), $pdf['phone'] ?? '', '(000) 000-0000' )

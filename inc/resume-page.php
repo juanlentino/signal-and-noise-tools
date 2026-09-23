@@ -17,7 +17,7 @@
  *   earlier{label,entries[]{org,roles[]{title,bullets[]}}}
  *   education[]{title,lines[]} · affiliations[]{title,lines[]}
  *   publications[]{meta,title,url} · skills[]{category,items}
- *   pdf{headline,tagline,phone,phone_public,email,location,website,competencies[],toolkit[]}
+ *   pdf{headline,tagline,summary,phone,phone_public,email,location,website,competencies[],toolkit[]}
  *
  * `pdf` feeds ONLY the generated PDF (inc/resume-pdf/). The sync engine never
  * reads it, so a PDF-only field (the phone, above all) cannot reach /resume.
@@ -255,6 +255,7 @@ function sn_resume_doc_normalize( $doc ) {
 	$pdf    = array(
 		'headline'     => sn_resume_text( $pdf_in['headline'] ?? '' ),
 		'tagline'      => sn_resume_text( $pdf_in['tagline'] ?? '' ),
+		'summary'      => sn_resume_text( $pdf_in['summary'] ?? '' ), // blank: hero.summary.
 		'phone'        => sn_resume_text( $pdf_in['phone'] ?? '' ),
 		// Off unless the owner turns it on: an unchecked box posts nothing.
 		'phone_public' => ! empty( $pdf_in['phone_public'] ),

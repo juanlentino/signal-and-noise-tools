@@ -44,7 +44,7 @@ the public file changes.
 |---|---|
 | Name | the site title (`get_bloginfo( 'name' )`, filter `sn_resume_pdf_name`) |
 | Headline, tagline, contact line | `pdf.headline`, `pdf.tagline`; location = `pdf.location` else `hero.contact_line`; `pdf.phone` only per `pdf.phone_public` (public) or always (private copy); `pdf.email`; `hero.linkedin`; site = `pdf.website` else the home URL |
-| Professional summary | `hero.summary` |
+| Professional summary | `pdf.summary`, else `hero.summary` |
 | Stats band | `stats[]` |
 | Core competencies | `pdf.competencies[]` (three columns) |
 | Professional experience | `experience[]` then `earlier.entries[]`; a role line "Title · dates" is split into title and dates, an earlier entry's "ORG · City" into org and location |

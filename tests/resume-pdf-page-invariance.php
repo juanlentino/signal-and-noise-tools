@@ -47,6 +47,7 @@ $filled        = $seed;
 $filled['pdf'] = array(
 	'headline'     => 'Unique Headline Marker',
 	'tagline'      => 'Unique Tagline Marker',
+	'summary'      => 'Unique Summary Marker',
 	'phone'        => '(555) 010-4242',
 	'email'        => 'marker@example.com',
 	'location'     => 'Unique Location Marker',
@@ -57,7 +58,7 @@ $filled_doc = sn_resume_doc_normalize( $filled );
 ok( '(555) 010-4242' === $filled_doc['pdf']['phone'] && 2 === count( $filled_doc['pdf']['competencies'] ), 'the PDF fields normalize and keep their values' );
 $with = sn_resume_body_html( $filled_doc );
 ok( $with === $before, 'filling every PDF-only field leaves the /resume body byte-identical' );
-foreach ( array( '(555) 010-4242', 'marker@example.com', 'Unique Headline Marker', 'Unique Tagline Marker', 'Unique Location Marker', 'Unique Competency Marker', 'Unique Toolkit Marker' ) as $v ) {
+foreach ( array( '(555) 010-4242', 'marker@example.com', 'Unique Headline Marker', 'Unique Tagline Marker', 'Unique Summary Marker', 'Unique Location Marker', 'Unique Competency Marker', 'Unique Toolkit Marker' ) as $v ) {
 	ok( false === strpos( $with, $v ), "no PDF-only value on the page: $v" );
 }
 
