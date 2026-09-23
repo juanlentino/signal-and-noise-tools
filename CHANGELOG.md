@@ -12,14 +12,11 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [17.8.1] - 2026-09-23 — the 5xx rows read back
+
 ### Fixed
 - **The Edge panels show which 5xx failed and who answered (#1002).** The daily edge rollup has recorded each 5xx's path and its responder (`edge=503 origin=503` means the origin failed, `origin=-` means Cloudflare answered by itself) since 13.96.3, but no surface read them, so a steady ten 503s a day stayed unexplained. `sn_edge_errors_reading()` / `sn_edge_errors_range()` read them back. The native Edge section (Measurement › Analytics) lists who answered and which paths failed under the zone's 5xx figures, the classic Edge panel adds two cards over its own range, and `cloudflare-status` gains `errors_5xx` (seven days), so the reading is available through the door without opening the admin. Responders are shown in plain words, and a quiet week paints nothing extra.
 
 ### Changed
 - **The MCP adapter watch waits for the adapter's first plugin release.** `mcp_adapter_read_door` used to ripen on the adapter class being loaded at all, but 0.6.x is a Composer library and was never the thing to port the read door onto. WordPress/mcp-adapter ships as an installable plugin from 0.7.0, so the watch now ripens on `McpAdapter::VERSION` 0.7.0 or later (`SNT_MCP_ADAPTER_MIN`). It reads the class constant rather than a plugin header, so if the adapter later moves into core it still counts. A loaded 0.6.x stays quiet and its note names the version it is waiting for, and pre-releases don't count. The plan when it ripens is unchanged, except that the read door retires only after the adapter's door is verified serving the same calls.
-
-## [17.8.0] - 2026-09-23 — Home, editable
-
-### New
-- **The Home page is a CMS page you can edit.** The front-page Page (Settings → Reading) sat at 0 words while the theme drew the hero from `templates/front-page.html`; a Site Editor edit to the hero line became a template override, and the theme deletes those on every activation and every Purge All Caches, so the owner's line kept disappearing (2026-09-23). `inc/home-page-seed.php` seeds that Page once from `inc/seed-content/home-body.html`: the same hero, with its raw-HTML wrapper turned into a Group block so the editor can hold it. Create-once, never overwrites a Page with content, retries while there is no static front page or seed, on its own `admin_init` hook (the content-migrations master flag is already set on the live site, so a registry entry would never run). Install this BEFORE theme 14.3.0, which starts rendering the Page. `tests/home-page-seed.php` (8) pins the seed and each branch; dropping the never-overwrite guard fails it.
 
