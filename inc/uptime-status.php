@@ -59,6 +59,10 @@ define( 'SN_UPTIME_STATUS_AVAIL_90D_TRANSIENT', 'sn_uptime_availability_90d' );
 define( 'SN_UPTIME_STATUS_RESPONSE_TRANSIENT', 'sn_uptime_response_times' );
 define( 'SN_UPTIME_STATUS_INCIDENTS_TRANSIENT', 'sn_uptime_incidents' );
 define( 'SN_UPTIME_STATUS_TTL', 90 );
+// 18.1.0 — the hourly 30d-availability warmer. Its TTL outlives the cadence so
+// the light tier's cache-only read never finds the map cold between runs.
+define( 'SN_UPTIME_STATUS_AVAIL_WARM_HOOK', 'sn_uptime_availability_hourly' );
+define( 'SN_UPTIME_STATUS_AVAIL_WARM_TTL', 7200 );
 // Version-less base (v8.4.0): monitors/SLA/response-times live on v2,
 // incidents on v3 — callers pass the versioned path.
 define( 'SN_UPTIME_STATUS_API_BASE', 'https://uptime.betterstack.com/api/' );
@@ -396,6 +400,34 @@ function sn_uptime_status_detail( $force = false ) {
 }
 
 /**
+ * Hourly warmer for the 30d availability map (18.1.0). The light tier reads
+ * that map cache-only, so without a warmer it was null unless the Analytics
+ * page had been opened within the hour, which made the phone's uptime read
+ * useless for "did it stay up?". Refreshes on a schedule the owner controls:
+ * one call per monitor/heartbeat per hour, never on a caller's request.
+ *
+ * @return void
+ */
+function sn_uptime_status_warm_availability() {
+	if ( ! sn_uptime_status_configured() ) {
+		return;
+	}
+	$snap = sn_uptime_status_fetch();
+	if ( is_wp_error( $snap ) ) {
+		return;
+	}
+	// The map returns its cache when warm; drop it so each run refreshes.
+	delete_transient( SN_UPTIME_STATUS_AVAIL_TRANSIENT );
+	sn_uptime_status_availability_map( $snap['rows'], 30, SN_UPTIME_STATUS_AVAIL_TRANSIENT, SN_UPTIME_STATUS_AVAIL_WARM_TTL );
+}
+add_action( SN_UPTIME_STATUS_AVAIL_WARM_HOOK, 'sn_uptime_status_warm_availability' );
+add_action( 'init', function () {
+	if ( sn_uptime_status_configured() && ! wp_next_scheduled( SN_UPTIME_STATUS_AVAIL_WARM_HOOK ) ) {
+		wp_schedule_event( time() + 300, 'hourly', SN_UPTIME_STATUS_AVAIL_WARM_HOOK );
+	}
+}, 20 );
+
+/**
  * Ability execute callback. Two payload tiers (v8.4.0): light (statuses,
  * stat keys null — the widget/rail path) and detail=true (full monitor:
  * stats populated + the incidents log — the Analytics page path). Three
@@ -431,10 +463,17 @@ function snt_ability_uptime_status( $input = null ) {
 
 	$rows = $payload['rows'];
 	if ( ! $detail ) {
-		// Stable row shape across tiers: stat keys present, just null.
+		// Stable row shape across tiers: stat keys present, null unless cached.
+		// 18.1.0: 30d availability + incidents come from the warmer's map when
+		// it is warm. A PEEK, never a fetch — the light tier still makes only
+		// the two status calls, and the remote twin (which shares this
+		// callback) still spends no upstream quota of its own.
+		$a30 = get_transient( SN_UPTIME_STATUS_AVAIL_TRANSIENT );
 		foreach ( $rows as $i => $row ) {
-			$rows[ $i ]['availability']     = null;
-			$rows[ $i ]['incidents_30d']    = null;
+			$key                            = $row['kind'] . ':' . $row['id'];
+			$e30                            = is_array( $a30 ) && isset( $a30[ $key ] ) && is_array( $a30[ $key ] ) ? $a30[ $key ] : null;
+			$rows[ $i ]['availability']     = $e30 ? $e30['availability'] : null;
+			$rows[ $i ]['incidents_30d']    = $e30 ? $e30['incidents'] : null;
 			$rows[ $i ]['availability_90d'] = null;
 			$rows[ $i ]['response_ms']      = null;
 		}
@@ -455,7 +494,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/uptime-status', array(
 		'label'               => 'Get Better Stack uptime status',
-		'description'         => 'Returns the Better Stack monitor + heartbeat states (name, status, level) from a 90s server-side cache. Pass detail=true for the full monitor payload: 30d + 90d availability, incident counts, average response times (24h), and the recent-incidents log (independently cached tiers: 1h/6h/15min/5min). Pass force_refresh=true to bypass the status cache. Read-only; safe to call anytime. configured=false means no API token is saved yet (not an error); null stats mean that summary tier was unavailable (statuses are still authoritative).',
+		'description'         => 'Returns the Better Stack monitor + heartbeat states (name, status, level) from a 90s server-side cache, plus 30d availability and incident counts when the hourly warmer has the cache warm (never fetched on this path). Pass detail=true for the full monitor payload: 30d + 90d availability, incident counts, average response times (24h), and the recent-incidents log (independently cached tiers: 1h/6h/15min/5min). Pass force_refresh=true to bypass the status cache. Read-only; safe to call anytime. configured=false means no API token is saved yet (not an error); null stats mean that summary tier was unavailable (statuses are still authoritative).',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_uptime_status',
