@@ -51,6 +51,7 @@ function snt_edge_errors_output_schema() {
 			array(
 				'day'   => array( 'type' => 'string' ),
 				'total' => array( 'type' => 'integer' ),
+				'read'  => array( 'type' => 'string', 'enum' => array( 'read', 'failed', 'pending', 'untracked' ), 'description' => '18.3.0: read = the errors query answered for this day; failed = it was refused, so a 0 means NOT read; pending = no rollup has covered it yet (today, or yesterday before the daily run), so a 0 means not yet; untracked = stored before this bookkeeping.' ),
 			),
 			$asked
 		),

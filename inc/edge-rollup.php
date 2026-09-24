@@ -33,6 +33,7 @@ const SN_EDGE_RESAMPLE_HOOK    = 'sn_edge_resample_repair'; // 17.9.1: one-shot.
 const SN_EDGE_HONEST_FROM_OPT  = 'sn_edge_honest_from';      // First day the sampled dims count honestly.
 const SN_EDGE_RESAMPLE_LOCK    = 'sn_edge_resample_running'; // 17.9.2: one repair in flight.
 const SN_EDGE_ERRORS_QUERY_OPT = 'sn_edge_errors_query_last'; // 17.9.3: the errors query's last outcome.
+const SN_EDGE_ERRORS_READ_OPT  = 'sn_edge_errors_read_days';  // 18.3.0: day => '' (read) or the refusal, per rollup run.
 
 /** dbDelta CREATE for the exact daily totals (one row per day). */
 function sn_edge_daily_schema_sql() {
@@ -425,6 +426,7 @@ function sn_edge_run_rollup( $today = null, $adaptive_only = false ) {
 	$err_q = '';
 	$errz  = sn_edge_query( sn_edge_errors_query(), array( 'from' => $since, 'to' => $until ), $err_q );
 	update_option( SN_EDGE_ERRORS_QUERY_OPT, array( 'at' => time(), 'day' => $snap, 'error' => (string) $err_q ), false );
+	sn_edge_errors_mark_read( $snap, (string) $err_q );
 	if ( is_array( $errz ) ) {
 		foreach ( sn_edge_errors_dims( (array) ( $errz['errors'] ?? array() ) ) as $dim => $vals ) {
 			foreach ( $vals as $val => $req ) {
@@ -569,6 +571,12 @@ function sn_edge_errors_range( $from, $to ) {
 	// of averaged into the week, and the week's total is the full sum rather
 	// than the top ten sources' share of it.
 	$days     = function_exists( 'sn_edge_errors_days' ) ? sn_edge_errors_days( $from, $to ) : array();
+	// 18.3.0: each day says whether it was read, so a 0 is never ambiguous.
+	$days     = sn_edge_errors_days_annotate(
+		$days,
+		function_exists( 'get_option' ) ? (array) get_option( SN_EDGE_ERRORS_READ_OPT, array() ) : array(),
+		gmdate( 'Y-m-d' )
+	);
 	$asked_by = sn_edge_errors_asked_by_totals( $days );
 	return array(
 		'from'        => $from,
@@ -654,6 +662,52 @@ function sn_edge_errors_asked_by_totals( array $days ) {
 		}
 	}
 	return $out;
+}
+
+/**
+ * Record that the errors query ran for $day (18.3.0): '' when it was read,
+ * the refusal otherwise. SN_EDGE_ERRORS_QUERY_OPT keeps only the LAST run,
+ * which cannot say whether an older day in the window was ever read; this
+ * map can. Capped at the newest 30 days.
+ *
+ * @param string $day   YYYY-MM-DD the snapshot covers.
+ * @param string $error '' on success, the query's refusal otherwise.
+ * @return void
+ */
+function sn_edge_errors_mark_read( $day, $error ) {
+	$map                    = (array) get_option( SN_EDGE_ERRORS_READ_OPT, array() );
+	$map[ (string) $day ] = (string) $error;
+	ksort( $map );
+	update_option( SN_EDGE_ERRORS_READ_OPT, array_slice( $map, -30, null, true ), false );
+}
+
+/**
+ * Stamp each day row with whether it was read (18.3.0). PURE.
+ *
+ *   read       the errors query ran for that day and answered
+ *   failed     it ran and was refused: the day was NOT read, a 0 means nothing
+ *   pending    no run has covered it yet (today, or yesterday before the daily
+ *              rollup): a 0 means "not yet", never "clean"
+ *   untracked  older than this bookkeeping (stored before 18.3.0)
+ *
+ * @param array  $days  Output of sn_edge_errors_days_shape().
+ * @param array  $read  SN_EDGE_ERRORS_READ_OPT: day => '' or error.
+ * @param string $today YYYY-MM-DD (UTC).
+ * @return array The same rows, each with `read`.
+ */
+function sn_edge_errors_days_annotate( array $days, array $read, $today ) {
+	$yesterday = gmdate( 'Y-m-d', strtotime( (string) $today . ' UTC' ) - DAY_IN_SECONDS );
+	foreach ( $days as $i => $d ) {
+		$day = (string) ( $d['day'] ?? '' );
+		if ( array_key_exists( $day, $read ) ) {
+			$days[ $i ]['read'] = '' === (string) $read[ $day ] ? 'read' : 'failed';
+		} elseif ( $day >= $yesterday ) {
+			$days[ $i ]['read'] = 'pending';
+		} else {
+			$days[ $i ]['read'] = 'untracked';
+		}
+	}
+	return $days;
 }
 
 /**
