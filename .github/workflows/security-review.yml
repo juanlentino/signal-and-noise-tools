@@ -2,11 +2,52 @@ name: Security Review
 on:
   pull_request:
 jobs:
+  # Docs-only PRs skip the Claude scan, and ONLY the Claude scan. It is ~10 min
+  # of wall clock and an API call per push, and Markdown under docs/ (export-
+  # ignored, never ships) or at the repo root gives it nothing to audit. Every
+  # other check still runs on a docs PR: the test suite reads the docs it pins,
+  # so a doc that drifts from the code still turns the PR red.
+  #
+  # Skipped, not removed: `security` is a REQUIRED check, and a job skipped by
+  # its `if` reports as passing, where a workflow that never starts leaves the
+  # required check pending forever.
+  #
+  # Fails toward scanning. Any doubt (API error, empty list, one file outside
+  # the docs pattern, this job failing outright) means docs_only=false and the
+  # scan runs.
+  scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      pull-requests: read
+    outputs:
+      docs_only: ${{ steps.files.outputs.docs_only }}
+    steps:
+      - id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -uo pipefail
+          verdict=false
+          if files=$(gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename') && [ -n "$files" ]; then
+            if ! printf '%s\n' "$files" | grep -qvE '^(docs/.*|[^/]+\.md)$'; then
+              verdict=true
+            fi
+          fi
+          printf '%s\n' "$files" | sed 's/^/  /'
+          echo "docs_only=$verdict"
+          echo "docs_only=$verdict" >> "$GITHUB_OUTPUT"
+
   security:
+    needs: scope
     # Fork-guard: same-repo PRs only (public-repo fork PRs get no secrets anyway).
     # Dependabot PRs run without access to Actions secrets (ANTHROPIC_API_KEY
     # is empty), so this review can't run there — skip the bot's own PRs.
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+    # Docs-only PRs skip too (see `scope`). !cancelled() keeps this job alive
+    # when `scope` itself fails, so a broken classifier scans rather than skips.
+    if: ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]' && !(needs.scope.result == 'success' && needs.scope.outputs.docs_only == 'true') }}
     runs-on: ubuntu-latest
     # 10, not 30. Measured durations of successful runs: 50s, 56s, 65s, 76s,
     # 265s — so 30 minutes was ~7x the slowest success, and the guidance is to
