@@ -20,7 +20,11 @@ $GLOBALS['__posts'] = array();
 function get_post( $id ) { return $GLOBALS['__posts'][ (int) $id ] ?? null; }
 function get_the_title( $p ) { return (string) $p->post_title; }
 function get_permalink( $p ) { return 'https://x.test/notes/' . $p->post_name . '/'; }
-function snt_corpus_fetch_posts( $status = 'any', $post_type = 'post' ) { return array_values( $GLOBALS['__posts'] ); }
+$GLOBALS['__fetched_types'] = array();
+function snt_corpus_fetch_posts( $status = 'any', $post_type = 'post' ) {
+	$GLOBALS['__fetched_types'][] = $post_type;
+	return array_values( array_filter( $GLOBALS['__posts'], static function ( $p ) use ( $post_type ) { return ( $p->post_type ?? 'post' ) === $post_type; } ) );
+}
 function snt_corpus_content_hash( $c ) { return md5( $c ); }
 function wp_strip_all_tags( $s ) { return strip_tags( $s ); }
 
@@ -57,6 +61,24 @@ ok( false !== strpos( $c['evidence']['replacement'], 'sn-correction' ) && false 
 ok( null === $r['candidates'][2]['apply_hint'] && 'form' === $r['candidates'][2]['evidence']['fix'], 'a FORM fix (the SVG) carries apply_hint null: the author rewrites it' );
 $scoped = snt_sn_scan_adapter_editorial_conventions( array( 12 ) );
 ok( 1 === $scoped['posts_examined'] && 3 === count( $scoped['candidates'] ), 'scope narrows to the named post' );
+
+echo "\nGroup 2b: pages are scanned, for svg-figure only\n";
+// A paper page: its first block is a whole-<em> paragraph (a lead on a note,
+// not on a page) and its figure paints a checkmark in fixed hex, the shape
+// three live paper pages carried while the scan read posts only.
+$GLOBALS['__posts'][21] = (object) array( 'ID' => 21, 'post_type' => 'page', 'post_name' => 'over-detection', 'post_title' => 'P', 'post_status' => 'publish', 'post_content' => "<!-- wp:paragraph -->\n<p><em>A page opening in italics.</em></p>\n<!-- /wp:paragraph -->\n\n<!-- wp:html -->\n<svg role=\"img\" aria-labelledby=\"t d\"><title id=\"t\">x</title><desc id=\"d\">y</desc><path stroke=\"#ffffff\" d=\"M0 0\"/></svg>\n<!-- /wp:html -->" );
+$GLOBALS['__fetched_types'] = array();
+$r = snt_sn_scan_adapter_editorial_conventions( null );
+ok( array( 'post', 'page' ) === $GLOBALS['__fetched_types'], 'the full walk fetches posts AND pages (' . implode( ',', $GLOBALS['__fetched_types'] ) . ')' );
+ok( 4 === $r['posts_examined'], 'four documents examined: three posts and the page' );
+$page = array_values( array_filter( $r['candidates'], static function ( $c ) { return '21' === $c['target_identity']; } ) );
+ok( 1 === count( $page ) && 'svg-figure' === $page[0]['evidence']['convention_id'] && array( '#ffffff' ) === $page[0]['evidence']['detail']['hex'], 'the page yields ONE finding: the fixed-hex figure (#ffffff)' );
+ok( '0/2' === $page[0]['targets'][0]['block_path'], '   ...at its block_path, applyable like any other' );
+ok( array() === array_filter( $page, static function ( $c ) { return 'lead' === $c['evidence']['convention_id']; } ), 'the page\'s italic opening is NOT a lead finding: note forms stay off pages' );
+$scoped = snt_sn_scan_adapter_editorial_conventions( array( 21 ) );
+ok( 1 === count( $scoped['candidates'] ) && 'svg-figure' === $scoped['candidates'][0]['evidence']['convention_id'], 'a scoped call naming the page gets the same page rules' );
+ok( 4 === count( array_filter( $r['candidates'], static function ( $c ) { return '21' !== $c['target_identity']; } ) ), 'the three posts still yield their four candidates, lead included' );
+unset( $GLOBALS['__posts'][21] );
 
 echo "\nGroup 3: the same detector behind sn-validate's body check\n";
 function snt_sn_validate_finding( $surface, $check, $severity, $message, $observed, $expected, array $evidence, $ci ) { return compact( 'surface', 'check', 'severity', 'message', 'observed', 'expected', 'evidence', 'ci' ); }
