@@ -53,7 +53,7 @@ function e5r_extract( $src, $name ) {
 }
 
 $roll = (string) file_get_contents( $root . '/inc/edge-rollup.php' );
-foreach ( array( 'sn_edge_errors_reading', 'sn_edge_errors_range', 'sn_edge_error_source_label', 'sn_edge_error_asker', 'sn_edge_errors_days_shape', 'sn_edge_errors_asked_by_totals' ) as $name ) {
+foreach ( array( 'sn_edge_errors_reading', 'sn_edge_errors_range', 'sn_edge_error_source_label', 'sn_edge_error_asker', 'sn_edge_errors_days_shape', 'sn_edge_errors_asked_by_totals', 'sn_edge_errors_days_annotate' ) as $name ) {
 	$fn = e5r_extract( $roll, $name );
 	ok( '' !== $fn, "$name() was extracted; if empty, every assertion below is vacuous" );
 	eval( $fn ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- test-only extraction.
@@ -133,6 +133,22 @@ $r = sn_edge_errors_range( '2026-09-17', '2026-09-23' );
 ok( 7 === count( $r['days'] ), 'the reading carries one row per day of the window' );
 ok( 42 === $r['total'], 'total is the full sum of the days, not the top ten responders\' share' );
 ok( 2 === $r['asked_by']['visitor'] && 40 === $r['asked_by']['unrecorded'], 'and says who asked over the window' );
+
+echo "\nGroup 6: every day says whether it was read (18.3.0)\n";
+$days6 = sn_edge_errors_days_shape( array(), '2026-09-20', '2026-09-24' );
+$ann   = sn_edge_errors_days_annotate( $days6, array( '2026-09-21' => '', '2026-09-22' => 'field refused' ), '2026-09-24' );
+$by    = array_column( $ann, 'read', 'day' );
+ok( 'untracked' === $by['2026-09-20'], 'a day older than the bookkeeping is untracked, not "clean"' );
+ok( 'read' === $by['2026-09-21'], 'a day the query answered for is read' );
+ok( 'failed' === $by['2026-09-22'], 'a refused day is failed: its 0 means NOT read' );
+ok( 'pending' === $by['2026-09-23'], 'yesterday before the daily rollup is pending: its 0 means not yet' );
+ok( 'pending' === $by['2026-09-24'], 'today is pending' );
+ok( 'read' === sn_edge_errors_days_annotate( $days6, array( '2026-09-23' => '' ), '2026-09-24' )[3]['read'], 'once the rollup covers yesterday, it reads as read' );
+ok( 0 === $ann[1]['total'] && 'read' === $ann[1]['read'], 'annotation never touches the counts' );
+$r6 = sn_edge_errors_range( '2026-09-17', '2026-09-23' );
+ok( isset( $r6['days'][0]['read'] ), 'the reading stamps every day row' );
+$roll6 = (string) file_get_contents( $root . '/inc/edge-rollup.php' );
+ok( 1 === substr_count( $roll6, 'sn_edge_errors_mark_read( $snap, (string) $err_q );' ), 'the rollup marks the day it read, on every run, success or refusal' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A 0 in the 5xx days is never ambiguous again.** Each `days[]` row of `edge-errors-summary` (and its remote twin) now carries `read`: `read` (the errors query answered for that day), `failed` (it was refused, so a 0 means not read), `pending` (no rollup has covered it yet: today, or yesterday before the daily run) or `untracked` (stored before this bookkeeping). On 2026-09-24 the phone read 09-23 as 0 with `query: null`, which turned out to mean the daily rollup had not run since 17.9.3, not a clean day; `query` only ever held the LAST run, so it could not say which days in the window were read. The rollup now records every run's outcome per day (`sn_edge_errors_read_days`, newest 30). Remote contract '7' → '8' (hash RED-then-pinned); sn-remote-mcp-worker bumps in step.
+
 ## [18.2.0] - 2026-09-24 — 5xx by day, and who asked
 
 ### Added

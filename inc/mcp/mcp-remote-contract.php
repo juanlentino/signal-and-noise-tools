@@ -47,7 +47,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 // 18.0.0: '5' -> '6' — remote-edge-errors-summary joined the map (15 twins).
 // 18.2.0: '6' -> '7' — edge-errors-summary gained days[] + asked_by; the
 // uptime row's availability description stopped saying "null on the light tier".
-const SN_REMOTE_CONTRACT_VERSION = '7';
+// 18.3.0: '7' -> '8' — each days[] row of the 5xx twin gained `read`
+// (read / failed / pending / untracked), so a 0 is never ambiguous.
+const SN_REMOTE_CONTRACT_VERSION = '8';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the 8 remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -70,6 +72,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'6' => '97a07c3ac9b980101e09c253b401fda4cbfa5882fae2931d6ab17b7c2a83939b',
 	// RED-then-pin, 2026-09-24 (v18.2.0): days[] + asked_by on the 5xx twin.
 	'7' => '628acbb113849c41d127f70abc30585907f46715e9d256d4ecec3544ecce89b8',
+	// RED-then-pin, 2026-09-24 (v18.3.0): days[].read on the 5xx twin.
+	'8' => 'bced0a5ade3a205e83b3e386783de0213118b19463d4a497bb8a5034d7b36843',
 );
 
 /**
