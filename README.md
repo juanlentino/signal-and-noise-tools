@@ -12,7 +12,7 @@ Built on WordPress 7.0's Abilities API and AI Client (what every model does here
 - **SEO** — meta, canonicals, OG cards, sitemaps + IndexNow, a redirect manager with a 404 log
 - **Security** — WordPress hardening, a custom login slug, a read-only panel over the edge login guard
 - **Analytics** — first-party, cookieless, edge-collected; SQL rollups, a dashboard, AI narration
-- **Content health** — a 31-check scan from Measurement → Health or the `run-health-scan` ability (the tag-fit reading rides the advisory tier, not the fault count)
+- **Content health** — a 33-check scan from Measurement → Health or the `run-health-scan` ability (the tag-fit reading rides the advisory tier, not the fault count)
 - **Provenance** — every Note Ed25519-signed and Bitcoin-anchored; readers verify without trusting the site
 - **Citation graph** — a Webmention receiver that treats every claim as unverified until cron checks it
 - **Edge cache** — automatic Cloudflare purge on save / theme update
@@ -20,7 +20,7 @@ Built on WordPress 7.0's Abilities API and AI Client (what every model does here
 - **Admin UI** — eight tabs, the analytics dashboard, command palette, cron, audit log, deploy/health
 - **OpenStation** — three native windows, 10 widgets, 22 palette commands, the Copilot seams
 - **AI, models and Jev** — three kinds of model, one job each: a text model suggests, an embedding model relates, and Jev judges; nothing a model says is written to a note without a human's click
-- **Agent surface** — 109 abilities; an MCP server with a read door (41 tools) and a write door (12); the site as something agents read, with the rights terms they read it under
+- **Agent surface** — 113 abilities plus 15 remote twins; an MCP server with a read door (49 tools) and a write door (16), and a remote door for Claude on a phone; the site as something agents read, with the rights terms they read it under
 - **Self-updater** — GitHub-poll updater wired into WordPress's native update system
 
 Each of these is expanded under [In depth](#in-depth).
@@ -60,7 +60,7 @@ The queue closes the loop. A tenth Attention reader, **Search**, reads the same 
 
 ### Content health
 
-a 31-check scan (missing alt text, orphaned media, broken internal + rotted external links, stale posts, time-phrase and color drift, unlinked mentions, link opportunities, edge security-header drift, edge-Worker reachability, analytics integrity, the provenance integrity sweep, the rights-signals drift probe, the public ledger's own CI, ML cousins, publishing cadence, the rights-signal anchoring gap, search titles, Zenodo DOIs, Jev's reading of every note's search title and description, and Jev's reading of every note against its tags), run from Measurement → Health or the `run-health-scan` ability (`inc/health-check-*.php` — 27 modules; a check is only live once it carries all four of its registrations)
+a 33-check scan (missing alt text, orphaned media, broken internal + rotted external links, stale posts, time-phrase and color drift, unlinked mentions, link opportunities, edge security-header drift, edge-Worker reachability, analytics integrity, the provenance integrity sweep, the rights-signals drift probe, the public ledger's own CI, ML cousins, publishing cadence, the rights-signal anchoring gap, search titles, Zenodo DOIs, Jev's reading of every note's search title and description, and Jev's reading of every note against its tags), run from Measurement → Health or the `run-health-scan` ability (`inc/health-check-*.php` — 27 modules; a check is only live once it carries all four of its registrations)
 
 ### Provenance
 
@@ -118,11 +118,13 @@ Three kinds of model run in the ecosystem, and each has exactly one job: a text 
 
 ### Agent surface
 
-109 plugin-registered Abilities (alongside the theme's 16) reachable via `wp ability run` and the Abilities REST route, plus a native MCP JSON-RPC server with two curated doors: a read-only door at `signal-noise/v1/mcp` (41 slugs) and a read-write door at `signal-noise/v1/mcp-rw` (12 slugs) gated by a kill switch, a bound application password, a per-minute rate limit, and its own audit log. The write door is deliberately small: `sn-apply` is one tool covering every mutation, behind four gates (fingerprint, validation, capability, idempotency) with `dry_run` defaulting to true. **Both door sizes are pinned by `tests/mcp-capabilities.php`** — that suite, not this paragraph, is where the number is true.
+113 plugin-registered Abilities, plus 15 remote twins (alongside the theme's 16; all of them tabled in [docs/ai-abilities-catalog.md](docs/ai-abilities-catalog.md)) reachable via `wp ability run` and the Abilities REST route, plus a native MCP JSON-RPC server with two curated doors: a read-only door at `signal-noise/v1/mcp` (49 slugs) and a read-write door at `signal-noise/v1/mcp-rw` (16 slugs) gated by a kill switch, a bound application password, a per-minute rate limit, and its own audit log. The write door is deliberately small: `sn-apply` is one tool covering every mutation, behind four gates (fingerprint, validation, capability, idempotency) with `dry_run` defaulting to true. **Both door sizes are pinned by `tests/mcp-capabilities.php`** — that suite, not this paragraph, is where the number is true.
 
 Both doors are **dual-era**: the legacy `initialize` handshake (`2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05`) and the modern per-request-metadata revision (`2026-07-28`) on the same endpoint, selected by how the request opens — modern `_meta` or a modern `MCP-Protocol-Version` header goes to `inc/mcp/mcp-modern.php`; an `initialize` goes to the legacy router in `inc/mcp/mcp-server.php`, byte-for-byte as before. The modern layer implements `server/discover`, validates the mirrored `Mcp-Method` / `Mcp-Name` headers against the body (`-32020`), answers an unknown version with `-32022` and the supported list, pairs `-32601` with HTTP 404, and decorates every result with `resultType` and `serverInfo`, list and read results with `ttlMs` / `cacheScope: "private"`. It is the same layer, check for check, as `src/modern.mjs` in the remote Worker; `tests/mcp-modern.php` mirrors the Worker's suite. A GET or DELETE on either door answers 405.
 
-The write door, by name: `sn-apply`, `ai-link-apply`, `ai-pair-suggest`, `describe-tags`, `apply-tag-description`, `prune-unused-tags`, `unschedule-cron-event`, `purge-all-caches`, and the four Jev passes (`jev-pass-now`, `jev-collision-check`, `jev-lane-map`, `jev-fit-now`). `describe-tags` is returns-only and sits here because it bills an AI call; the Jev passes are idempotent and sit here because each one spends a request per note.
+The write door, by name: `sn-apply`, `ai-link-apply`, `ai-pair-suggest`, `describe-tags`, `apply-tag-description`, `prune-unused-tags`, `unschedule-cron-event`, `purge-all-caches`, the seven Jev passes (`jev-pass-now`, `jev-collision-check`, `jev-lane-map`, `jev-fit-now`, `jev-tells-check`, `jev-tells-pass`, `jev-tags-now`) and `rights-evidence-now`. `describe-tags` is returns-only and sits here because it bills an AI call; the Jev passes are idempotent and sit here because each one spends a request per note.
+
+**The remote door** is a third, separate surface: the [sn-remote-mcp](https://github.com/juanlentino/sn-remote-mcp-worker) Worker behind Cloudflare Access, reaching the origin only through the bearer-checked `signal-noise/v1/bridge` route and only for 15 `signal-noise/remote-*` twins (`inc/abilities-remote-set.php`). Each twin shares its admin ability's execute callback and output schema byte for byte, and the door is off until the wp-admin toggle is on. The payload contract is versioned (`SN_REMOTE_CONTRACT_VERSION`, currently 9) with a distinct hash of every twin's output schema pinned per version in `tests/remote-contract-shapes.php`; the Worker declares the same number and the deploy probe reports `contract_match`, observed and never refused.
 
 **The Abilities REST route is a write surface too.** Core registers `POST /wp-json/wp-abilities/v1/abilities/<slug>/run` for every `show_in_rest` ability — the write-door slugs and the pre-consolidation apply abilities included. Since v13.110.0 an application-password request there meets the same four controls as the write door (`sn_mcp_rw_guard_run_route`, `inc/mcp/mcp-rw-guard.php`); cookie-authenticated wp-admin buttons use the same route and pass untouched. A Cloudflare WAF rule also refuses `Authorization`-bearing requests to `/wp-abilities/` at the edge, and the `Cloudflare security headers` health check probes for it.
 
@@ -155,7 +157,7 @@ GitHub-poll updater wired into WordPress's native update system
 
 ## Install
 
-Distributed via GitHub releases. Install/update through **wp-admin → Dashboard → Updates → Update plugin**, powered by the plugin's self-updater (`inc/wp-update-integration.php`).
+Distributed via GitHub tags (each with a draft release). Install/update through **wp-admin → Dashboard → Updates → Update plugin**, powered by the plugin's self-updater (`inc/wp-update-integration.php`).
 
 ## License
 
@@ -172,5 +174,8 @@ under Unreleased. Cutting a release is a separate, deliberate act:
 `tools/cut-release.sh release|fix "headline"` (add `--dry-run` to see what it
 would touch). Numbers follow the WordPress shape — `X.Y.0` a release, `X.Y.Z` a
 fix, `X` rolling when `Y` would reach 10 — see [docs/VERSIONING.md](docs/VERSIONING.md).
+After the cut merges, `gh workflow run release.yml` tags the commit that set the
+version and drafts the release; the self-updater reads tags, so an update
+appears in wp-admin only once that tag exists.
 
 <sub>Built for [juanlentino.com](https://juanlentino.com).</sub>
