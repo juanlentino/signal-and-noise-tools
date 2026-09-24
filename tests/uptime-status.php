@@ -362,30 +362,35 @@ $GLOBALS['__http_requests'] = array();
 $GLOBALS['__http_queue']    = array();
 us_queue_statuses();
 us_queue_sla_trio();
+us_queue_sla_trio();
 sn_uptime_status_warm_availability();
-us_eq( 5, count( $GLOBALS['__http_requests'] ), 'warmer: 2 status calls + 3 availability calls' );
+us_eq( 8, count( $GLOBALS['__http_requests'] ), 'first warm: 2 status calls + 3 (30d) + 3 (90d) availability calls' );
 us_eq( 7200, $GLOBALS['__transient_ttls']['sn_uptime_availability'] ?? 0, 'warmer caches the 30d map for 2h (outlives the hourly cadence)' );
+us_eq( 28800, $GLOBALS['__transient_ttls']['sn_uptime_availability_90d'] ?? 0, 'warmer caches the 90d map for 8h (outlives its 6h cadence)' );
+us_eq( 21600, $GLOBALS['__transient_ttls']['sn_uptime_availability_90d_warmed'] ?? 0, 'the 90d refresh flag lasts 6h' );
 
 $GLOBALS['__http_requests'] = array();
 $out = call_user_func( $exec, null );
 us_eq( 0, count( $GLOBALS['__http_requests'] ), 'light execute on a warm map makes ZERO HTTP calls' );
 us_eq( array( 99.98, 0 ), array( $out['rows'][0]['availability'], $out['rows'][0]['incidents_30d'] ), 'light execute: 30d availability + incidents from the warm map' );
 us_eq( 100.0, $out['rows'][2]['availability'], 'light execute: heartbeat availability from the warm map' );
-us_eq( array( null, null ), array( $out['rows'][0]['availability_90d'], $out['rows'][0]['response_ms'] ), 'light execute: 90d + response stay null (detail tier only)' );
+us_eq( 99.98, $out['rows'][0]['availability_90d'], 'light execute: 90d availability from the warm 90d map (18.2.0)' );
+us_eq( null, $out['rows'][0]['response_ms'], 'light execute: response times stay null (detail tier only)' );
 
 $GLOBALS['__http_queue'] = array( array( 'code' => 200, 'body' => us_sla_body( 99.5, 1 ) ) );
 $GLOBALS['__http_queue'][] = array( 'code' => 200, 'body' => us_sla_body( 98.0, 2 ) );
 $GLOBALS['__http_queue'][] = array( 'code' => 200, 'body' => us_sla_body( 100, 0 ) );
 $GLOBALS['__http_requests'] = array();
 sn_uptime_status_warm_availability();
-us_eq( 3, count( $GLOBALS['__http_requests'] ), 'warmer refreshes a still-warm map (status snapshot served from cache)' );
+us_eq( 3, count( $GLOBALS['__http_requests'] ), 'warmer refreshes the 30d map hourly; the 90d map waits out its 6h flag' );
 us_eq( 99.5, call_user_func( $exec, null )['rows'][0]['availability'], 'refreshed value reaches the light tier' );
 
 delete_transient( 'sn_uptime_availability' );
+delete_transient( 'sn_uptime_availability_90d' );
 $GLOBALS['__http_requests'] = array();
 $out = call_user_func( $exec, null );
-us_eq( 0, count( $GLOBALS['__http_requests'] ), 'light execute on a COLD map still fetches nothing' );
-us_eq( null, $out['rows'][0]['availability'], 'light execute: cold map reads null' );
+us_eq( 0, count( $GLOBALS['__http_requests'] ), 'light execute on COLD maps still fetches nothing' );
+us_eq( array( null, null ), array( $out['rows'][0]['availability'], $out['rows'][0]['availability_90d'] ), 'light execute: cold maps read null' );
 
 $GLOBALS['__scheduled'] = array();
 foreach ( $GLOBALS['__actions']['init'] ?? array() as $cb ) { $cb(); }

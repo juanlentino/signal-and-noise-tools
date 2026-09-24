@@ -39,6 +39,22 @@ function snt_edge_errors_output_schema() {
 	);
 	$source                        = $row;
 	$source['properties']['label'] = array( 'type' => 'string' );
+	$asked                         = array(
+		'visitor'    => array( 'type' => 'integer', 'description' => 'Asked by a visitor (requestSource eyeball).' ),
+		'worker'     => array( 'type' => 'integer', 'description' => 'Asked by a Worker subrequest (edgeWorker*).' ),
+		'other'      => array( 'type' => 'integer', 'description' => 'Any other Cloudflare request source.' ),
+		'unrecorded' => array( 'type' => 'integer', 'description' => 'Stored before the query carried requestSource (17.9.3): in a window spanning that change, the pre-filter leftover.' ),
+	);
+	$day                           = array(
+		'type'       => 'object',
+		'properties' => array_merge(
+			array(
+				'day'   => array( 'type' => 'string' ),
+				'total' => array( 'type' => 'integer' ),
+			),
+			$asked
+		),
+	);
 	return array(
 		'type'       => 'object',
 		'properties' => array(
@@ -50,6 +66,8 @@ function snt_edge_errors_output_schema() {
 			'total'       => array( 'type' => 'integer', 'description' => '5xx over the window, Early Hints cache lookups excluded (17.9.3).' ),
 			'paths'       => array( 'type' => 'array', 'items' => $row, 'description' => 'Which URLs failed, most first (top 10).' ),
 			'sources'     => array( 'type' => 'array', 'items' => $source, 'description' => 'Who answered, most first (top 10). `origin=-` is Cloudflare or a Worker answering by itself; a matching origin status is the origin failing.' ),
+			'days'        => array( 'type' => 'array', 'items' => $day, 'description' => '18.2.0: one row per day of the window, oldest first, zero-filled: total and who asked. Read the day a filter changed here instead of inferring it from the week.' ),
+			'asked_by'    => array( 'type' => 'object', 'properties' => $asked, 'description' => '18.2.0: the window\'s 5xx by who asked, summed from days.' ),
 		),
 	);
 }
@@ -61,7 +79,7 @@ function snt_edge_errors_output_schema() {
 function snt_ability_edge_errors_summary( $input = null ) {
 	unset( $input );
 	if ( ! function_exists( 'sn_edge_errors_reading' ) ) {
-		return array( 'state' => 'unavailable', 'from' => null, 'to' => null, 'honest_from' => null, 'query' => null, 'total' => 0, 'paths' => array(), 'sources' => array() );
+		return array( 'state' => 'unavailable', 'from' => null, 'to' => null, 'honest_from' => null, 'query' => null, 'total' => 0, 'paths' => array(), 'sources' => array(), 'days' => array(), 'asked_by' => array( 'visitor' => 0, 'worker' => 0, 'other' => 0, 'unrecorded' => 0 ) );
 	}
 	$r = sn_edge_errors_reading( 7 );
 	return array(
@@ -73,6 +91,8 @@ function snt_ability_edge_errors_summary( $input = null ) {
 		'total'       => (int) $r['total'],
 		'paths'       => array_values( (array) $r['paths'] ),
 		'sources'     => array_values( (array) $r['sources'] ),
+		'days'        => array_values( (array) ( $r['days'] ?? array() ) ),
+		'asked_by'    => (array) ( $r['asked_by'] ?? array( 'visitor' => 0, 'worker' => 0, 'other' => 0, 'unrecorded' => 0 ) ),
 	);
 }
 
@@ -82,7 +102,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/edge-errors-summary', array(
 		'label'               => 'Edge 5xx summary',
-		'description'         => 'The last seven days of 5xx from the daily edge rollup: total, which paths failed and who answered (edge vs origin status, request source). Cloudflare\'s own Early Hints cache lookups are excluded (17.9.3); they were ~98% of every stored 5xx and no visitor ever saw one. Read `query.error` before trusting a zero: a failed read is not a clean week. Same reader as cloudflare-status errors_5xx. Read-only; never fetches.',
+		'description'         => 'The last seven days of 5xx from the daily edge rollup: total, which paths failed, who answered (edge vs origin status, request source), and since 18.2.0 one row per day with who asked (visitor, worker, other, unrecorded; unrecorded rows predate 17.9.3 and are the pre-filter leftover). Cloudflare\'s own Early Hints cache lookups are excluded (17.9.3); they were ~98% of every stored 5xx and no visitor ever saw one. Read `query.error` before trusting a zero: a failed read is not a clean week. Same reader as cloudflare-status errors_5xx. Read-only; never fetches.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_edge_errors_summary',
