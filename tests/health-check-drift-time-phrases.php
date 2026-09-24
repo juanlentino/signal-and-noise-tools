@@ -18,8 +18,14 @@ define( 'ABSPATH', '/' );
 if ( ! defined( 'ARRAY_A' ) ) { define( 'ARRAY_A', 'ARRAY_A' ); }
 if ( ! defined( 'SN_HEALTH_DRIFT_MAX_CANDIDATES_PER_POST' ) ) { define( 'SN_HEALTH_DRIFT_MAX_CANDIDATES_PER_POST', 20 ); }
 if ( ! defined( 'SNT_AI_DRIFT_SYSTEM' ) ) { define( 'SNT_AI_DRIFT_SYSTEM', 'system prompt' ); }
+// The real value, read from the file that defines it, so the breaker cases
+// below test the shipped threshold rather than a copy of it.
+if ( ! defined( 'SN_HEALTH_DRIFT_BREAKER_AFTER' ) ) {
+	preg_match( "/define\\(\\s*'SN_HEALTH_DRIFT_BREAKER_AFTER',\\s*(\\d+)/", (string) file_get_contents( __DIR__ . '/../inc/health-checks.php' ), $sn_m );
+	define( 'SN_HEALTH_DRIFT_BREAKER_AFTER', (int) ( $sn_m[1] ?? 0 ) );
+}
 
-class WP_Error { public $m; public function __construct( $c = '', $m = '' ) { $this->m = $m; } }
+class WP_Error { public $m; public function __construct( $c = '', $m = '' ) { $this->m = $m; } public function get_error_message() { return $this->m; } }
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
 function wp_json_encode( $v ) { return json_encode( $v ); }
 function get_permalink( $id ) { return "https://example.test/?p=$id"; }
@@ -86,6 +92,31 @@ ok( 1 === $r['count'], '   ...and because count > 0 the tally will show the find
 echo "\nGroup: every call succeeds -> a real pass\n";
 $r = run( json_encode( array() ) );
 ok( 0 === $r['count'] && null === $r['skipped'], 'no stale verdicts and no failures: skipped is null' );
+
+echo "\nGroup: the breaker stops a scan the provider refuses\n";
+ok( 2 === SN_HEALTH_DRIFT_BREAKER_AFTER, 'the threshold is read from inc/health-checks.php (2)' );
+$GLOBALS['__rows'] = array(
+	post( 1, '<p>As of 2024 this is currently the newest release.</p>' ),
+	post( 2, '<p>We recently shipped it; this year it is stable.</p>' ),
+	post( 3, '<p>Today the latest build is now available.</p>' ),
+	post( 4, '<p>Last year we recently moved; this month it is stable.</p>' ),
+	post( 5, '<p>Currently the latest release, as of 2025.</p>' ),
+);
+$r = run( new WP_Error( 'http', 'Your credit balance is too low to access the API.' ) );
+ok( 2 === $GLOBALS['__ai_calls'], 'five candidate posts, a refusing provider: 2 calls, not 5 (got ' . $GLOBALS['__ai_calls'] . ')' );
+ok( 0 === $r['count'] && is_string( $r['skipped'] ), 'still a SKIP, never a pass' );
+ok( false !== strpos( (string) $r['skipped'], 'credit balance is too low' ), 'the skip carries the provider\'s own words' );
+ok( false !== strpos( (string) $r['skipped'], '2 of 2' ), 'and the ratio of what was actually asked' );
+
+$r = run( 'this is not json' );
+ok( 5 === $GLOBALS['__ai_calls'], 'prose instead of JSON never trips it: the model is answering, just badly (5 calls)' );
+
+$r = run( function ( $n ) {
+	if ( 1 === $n ) { return json_encode( array() ); }
+	return new WP_Error( 'http', 'timeout' );
+} );
+ok( 5 === $GLOBALS['__ai_calls'], 'one success first means the provider works: later failures do not stop the scan (5 calls)' );
+ok( is_string( $r['skipped'] ) && false !== strpos( $r['skipped'], '4 of 5' ), 'and they are counted as a partial failure (4 of 5)' );
 
 echo "\nGroup: the pre-existing skips still hold\n";
 $GLOBALS['__rows'] = false;

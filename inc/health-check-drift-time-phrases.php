@@ -145,6 +145,16 @@ function sn_health_check_drift_time_phrases() {
 
 	$ai_calls  = 0;
 	$ai_failed = 0;
+	// The breaker. When the provider refuses the first calls of a scan
+	// and none has answered, the rest will be refused too (an unfunded account,
+	// a revoked key): stop after SN_HEALTH_DRIFT_BREAKER_AFTER instead of paying
+	// a doomed call per post, and keep the provider's own words for the skip
+	// reason. A reply that is not JSON never trips it: that is a model answering
+	// badly, not a provider refusing.
+	$ai_ok       = 0;
+	$ai_err_run  = 0;
+	$ai_err_msg  = '';
+	$ai_tripped  = false;
 	$findings = array();
 	foreach ( $rows as $r ) {
 		$candidates = sn_health_extract_time_phrase_candidates( (string) $r['post_content'] );
@@ -194,8 +204,17 @@ function sn_health_check_drift_time_phrases() {
 			$raw = snt_ai_generate_with_constraints( $prompt, SNT_AI_DRIFT_SYSTEM, 600, 'drift_detect' );
 			if ( is_wp_error( $raw ) || ! is_string( $raw ) ) {
 				++$ai_failed;
+				++$ai_err_run;
+				if ( '' === $ai_err_msg && is_wp_error( $raw ) ) {
+					$ai_err_msg = substr( trim( wp_strip_all_tags( (string) $raw->get_error_message() ) ), 0, 160 );
+				}
+				if ( 0 === $ai_ok && $ai_err_run >= SN_HEALTH_DRIFT_BREAKER_AFTER ) {
+					$ai_tripped = true;
+					break;
+				}
 				continue;  // Soft fail — skip this post, but COUNT it (#1042).
 			}
+			$ai_err_run = 0;
 
 			// Strip optional markdown fences (opener and/or closer, independently).
 			$text = trim( preg_replace( '/^```(?:json)?\s*|\s*```$/i', '', trim( $raw ) ) );
@@ -205,6 +224,7 @@ function sn_health_check_drift_time_phrases() {
 				continue;  // Malformed — skip this post, but COUNT it.
 			}
 
+			++$ai_ok;
 			if ( function_exists( 'sn_drift_verdict_put' ) ) {
 				sn_drift_verdict_put( (int) $r['ID'], $post_modified, $prompt_version, $verdicts );
 			}
@@ -246,7 +266,14 @@ function sn_health_check_drift_time_phrases() {
 	// Every call failed is a provider outage, not 'no drift'. A partial failure
 	// keeps whatever verdicts came back and says how many did not.
 	$skipped = null;
-	if ( $ai_calls > 0 && $ai_failed === $ai_calls ) {
+	if ( $ai_tripped ) {
+		$skipped = sprintf(
+			'The AI provider refused the first %d of %d calls%s, so no post was judged. The check stopped there instead of asking once per post, and retries on the next scan.',
+			$ai_failed,
+			$ai_calls,
+			'' !== $ai_err_msg ? ' (' . $ai_err_msg . ')' : ''
+		);
+	} elseif ( $ai_calls > 0 && $ai_failed === $ai_calls ) {
 		$skipped = sprintf( 'Every AI call failed (%d of %d), so no post was judged. The check retries on the next scan.', $ai_failed, $ai_calls );
 	} elseif ( $ai_failed > 0 ) {
 		$skipped = sprintf( '%d of %d AI calls failed; those posts were not judged this scan.', $ai_failed, $ai_calls );

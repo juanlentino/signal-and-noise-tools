@@ -66,6 +66,9 @@ define( 'SN_HEALTH_CF_HEADERS_TTL', 6 * HOUR_IN_SECONDS );
 // v4.1.1 (B-10): cap candidates per post in drift-detection. AI max_tokens=600
 // budgets for ~25 verdicts; truncation mid-JSON would drop the post silently.
 define( 'SN_HEALTH_DRIFT_MAX_CANDIDATES_PER_POST', 25 );
+// Drift detection stops after this many provider refusals in a row when no
+// call of the scan has succeeded: the rest would be refused too.
+define( 'SN_HEALTH_DRIFT_BREAKER_AFTER', 2 );
 define( 'SN_HEALTH_LINK_TIMEOUT',  5 );
 // v7.4.0: cap pairs per source in the unlinked-mentions check. One prolific
 // source could otherwise flood the findings table; the remainder surfaces on
