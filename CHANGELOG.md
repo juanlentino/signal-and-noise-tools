@@ -12,15 +12,11 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [18.4.0] - 2026-09-24 — the health scan names what it skipped
+
 ### Added
 - **The health scan names what it skipped, and why.** `get-health-scan` (and its remote twin) now carries `skipped[]`: one `{check, label, reason}` per check counted in `checks_skipped`, from the same `sn_health_skipped_checks()` the Health tab renders. On 2026-09-24 the phone read `checks_skipped: 1` and answering "which one?" took a read of the plugin source. `count( skipped ) === checks_skipped`; a clean scan reports `[]`. Remote contract '8' → '9' (hash RED-then-pinned); sn-remote-mcp-worker bumps in step.
 
 ### Changed
 - **The plugin package is ~2.6 MB lighter.** The résumé PDF sets Lato everywhere and uses DejaVu Sans only for the regular-weight ◆ bullet (Lato has no U+25C6), so dompdf's bundled DejaVu Bold, Oblique and BoldOblique faces and their metrics no longer ship (`export-ignore` in `.gitattributes`; the repo keeps them). Regular DejaVu Sans and all four Lato faces still ship; `tests/export-ignore.php` pins both sides.
-
-## [18.3.0] - 2026-09-24 — every 5xx day says whether it was read
-
-### Fixed
-- **An update no longer blanks the phone's uptime figures for up to an hour.** After updating to 18.2.0 on 2026-09-24, every `availability` read null on the phone until the next hourly warmer run. Once per `SNT_VERSION` on `admin_init` (the shape of `inc/uptime-heartbeat-removal.php`), the plugin now queues one immediate run of `sn_uptime_availability_hourly` and drops the 90d refresh flag, so the 30- and 90-day windows refill within a minute of the first admin page load. Queued rather than inlined: the warm is ~8 Better Stack calls and does not belong on a page load.
-- **A 0 in the 5xx days is never ambiguous again.** Each `days[]` row of `edge-errors-summary` (and its remote twin) now carries `read`: `read` (the errors query answered for that day), `failed` (it was refused, so a 0 means not read), `pending` (no rollup has covered it yet: today, or yesterday before the daily run) or `untracked` (stored before this bookkeeping). On 2026-09-24 the phone read 09-23 as 0 with `query: null`, which turned out to mean the daily rollup had not run since 17.9.3, not a clean day; `query` only ever held the LAST run, so it could not say which days in the window were read. The rollup now records every run's outcome per day (`sn_edge_errors_read_days`, newest 30). Remote contract '7' → '8' (hash RED-then-pinned); sn-remote-mcp-worker bumps in step.
 
