@@ -70,6 +70,8 @@ function wp_remote_retrieve_body( $resp ) { return is_wp_error( $resp ) ? '' : (
 $GLOBALS['__scheduled'] = array();
 function wp_next_scheduled( $hook ) { return $GLOBALS['__scheduled'][ $hook ]['ts'] ?? false; }
 function wp_schedule_event( $ts, $rec, $hook ) { $GLOBALS['__scheduled'][ $hook ] = array( 'ts' => $ts, 'rec' => $rec ); return true; }
+$GLOBALS['__single'] = array();
+function wp_schedule_single_event( $ts, $hook ) { $GLOBALS['__single'][] = $hook; return true; }
 
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
@@ -395,6 +397,23 @@ us_eq( array( null, null ), array( $out['rows'][0]['availability'], $out['rows']
 $GLOBALS['__scheduled'] = array();
 foreach ( $GLOBALS['__actions']['init'] ?? array() as $cb ) { $cb(); }
 us_eq( 'hourly', $GLOBALS['__scheduled']['sn_uptime_availability_hourly']['rec'] ?? '', 'configured: the warmer is scheduled hourly' );
+
+// ─── Test 8c: 18.3.0 — refill once, right after an update ─────────────
+echo "\nTest 8c: warm on version change\n";
+$GLOBALS['__single'] = array();
+delete_option( 'sn_uptime_warmed_for_version' );
+us_ok( false === sn_uptime_status_warm_on_version_change(), 'no SNT_VERSION: nothing queued' );
+define( 'SNT_VERSION', '18.3.0' );
+set_transient( 'sn_uptime_availability_90d_warmed', 1, 21600 );
+$GLOBALS['__http_requests'] = array();
+us_ok( true === sn_uptime_status_warm_on_version_change(), 'a new version: a refill is queued' );
+us_eq( array( 'sn_uptime_availability_hourly' ), $GLOBALS['__single'], 'queued as ONE single run of the warmer hook' );
+us_eq( false, get_transient( 'sn_uptime_availability_90d_warmed' ), 'the 90d flag is dropped so the 90d window refills too' );
+us_eq( '18.3.0', get_option( 'sn_uptime_warmed_for_version' ), 'the version is remembered' );
+us_eq( 0, count( $GLOBALS['__http_requests'] ), 'nothing is fetched inline on admin_init' );
+us_ok( false === sn_uptime_status_warm_on_version_change(), 'the same version again: nothing queued' );
+us_eq( 1, count( $GLOBALS['__single'] ), 'still exactly one queued run' );
+us_ok( in_array( 'sn_uptime_status_warm_on_version_change', $GLOBALS['__actions']['admin_init'] ?? array(), true ), 'hooked on admin_init' );
 
 // ─── Test 9: HTML helpers — mount + token field (option path) ────────
 echo "\nTest 9: HTML helpers\n";

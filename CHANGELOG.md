@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **An update no longer blanks the phone's uptime figures for up to an hour.** After updating to 18.2.0 on 2026-09-24, every `availability` read null on the phone until the next hourly warmer run. Once per `SNT_VERSION` on `admin_init` (the shape of `inc/uptime-heartbeat-removal.php`), the plugin now queues one immediate run of `sn_uptime_availability_hourly` and drops the 90d refresh flag, so the 30- and 90-day windows refill within a minute of the first admin page load. Queued rather than inlined: the warm is ~8 Better Stack calls and does not belong on a page load.
+
 ## [18.2.0] - 2026-09-24 — 5xx by day, and who asked
 
 ### Added
