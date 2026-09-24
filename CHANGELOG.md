@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The plugin package is ~2.6 MB lighter.** The résumé PDF sets Lato everywhere and uses DejaVu Sans only for the regular-weight ◆ bullet (Lato has no U+25C6), so dompdf's bundled DejaVu Bold, Oblique and BoldOblique faces and their metrics no longer ship (`export-ignore` in `.gitattributes`; the repo keeps them). Regular DejaVu Sans and all four Lato faces still ship; `tests/export-ignore.php` pins both sides.
+
 ## [18.3.0] - 2026-09-24 — every 5xx day says whether it was read
 
 ### Fixed
