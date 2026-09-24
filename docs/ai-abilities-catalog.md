@@ -1,137 +1,166 @@
 # Signal & Noise AI Abilities Catalog
 
-This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilities (66 plugin + 15 theme) consumed by `wp ability run`, the REST endpoint `/wp-json/wp-abilities/v1/abilities/<slug>/run`, and MCP-enabled clients.
+The reference for the 144 Signal & Noise WordPress Abilities: 113 plugin abilities, 15 remote twins of them, and 16 theme abilities. They are consumed by `wp ability run`, the REST endpoint `/wp-json/wp-abilities/v1/abilities/<slug>/run`, the plugin's two MCP doors, and (for the twins) the remote MCP Worker.
 
-**Machine-readable source (v9.50.0+):** The live registry is now surfaced as an MCP resource at `sn://abilities-catalog` (on both read and read-write doors). This document provides human-readable context and use-case guidance; for schema details and programmatic access, query the resource directly.
+**Machine-readable source:** the live registry is an MCP resource, `sn://abilities-catalog`, on both doors. Query it for schemas; this document is the human map.
 
-**Verified** against theme v11.4.5 + plugin v10.44.0. Last regenerated **2026-08-04** (counts recomputed from source: 66 plugin registrations, 37 read-door slugs, 36 read-write slugs; added the 15 consolidated/corpus abilities listed below; removed `draft-release-notes`, which was deleted in plugin v10.0.0 but stayed documented as live). Rendered slugs are stable; capability requirements (permissions) are read from the active registrations at query time.
+**Regenerated from source 2026-09-24** against plugin 18.4.0 and theme 14.3.0: every `wp_register_ability()` call in both repos, and the door allowlists as `sn_mcp_allowlist()` and `sn_mcp_rw_allowlist()` return them. The door sizes are pinned by `tests/mcp-capabilities.php`; the twins' contract by `tests/remote-contract-shapes.php`. Where this file and those disagree, the tests are right.
 
 ## Quick reference
 
-| Slug | Capability | Category | Allowlisted | Recommendation |
-|---|---|---|---|---|
-| **THEME ABILITIES** | | | | |
-| `signal-and-noise/get-design-tokens` | `read` | diagnostics | ✓ | READ-DOOR |
-| `signal-and-noise/get-theme-version` | `read` | diagnostics | ✓ | READ-DOOR |
-| `signal-and-noise/get-design-system-summary` | `read` | diagnostics | ✓ | READ-DOOR |
-| `signal-and-noise/list-block-patterns` | `read` | content | ✓ | READ-DOOR |
-| `signal-and-noise/get-active-template-structure` | `read` | diagnostics | ✓ | READ-DOOR |
-| `signal-and-noise/get-latest-theme-tag` | `read` | diagnostics | ✓ | READ-DOOR |
-| `signal-and-noise/get-page-notes-pillars` | `read` | content | — | READ-DOOR |
-| `signal-and-noise/get-reading-time-for-slug` | `read` | content | — | READ-DOOR |
-| `signal-and-noise/get-seo-route-meta` | `read` | diagnostics | — | READ-DOOR |
-| `signal-and-noise/get-llms-txt` | `read` | diagnostics | — | READ-DOOR |
-| `signal-and-noise/ai-generate-page-note-summary` | `edit_posts` | ai-generation | — | RW-DOOR |
-| `signal-and-noise/ai-suggest-block-pattern` | `edit_posts` | ai-generation | — | RW-DOOR |
-| `signal-and-noise/ai-validate-brand-alignment` | `edit_posts` | ai-generation | — | RW-DOOR |
-| `signal-and-noise/ai-generate-pattern-content` | `edit_posts` | ai-generation | — | RW-DOOR |
-| `signal-and-noise/ai-rewrite-in-brand-voice` | `edit_posts` | ai-generation | — | RW-DOOR |
-| **PLUGIN ABILITIES** | | | | |
-| `signal-noise/get-analytics-summary` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/get-analytics-events` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/get-rss-stats` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/list-cron-events` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/get-cron-history` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/get-health-scan` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/anchor-status` | `manage_options` | diagnostics | — | READ-DOOR (v9.82.0) |
-| `signal-noise/provenance-integrity-status` | `manage_options` | diagnostics | — | READ-DOOR (v9.82.0) |
-| `signal-noise/zenodo-status` | `manage_options` | diagnostics | — | READ-DOOR (15.11.0; the DOI ledger: environment, token, states, the rows not minted) |
-| `signal-noise/bing-search-performance` | `manage_options` | diagnostics | — | READ-DOOR (16.2.0; the Bing twin of search-performance: totals and top queries from the daily sync, `source: bing`) |
-| `signal-noise/jev-notes` | `manage_options` | diagnostics | — | READ-DOOR (16.3.0; the stored daily Jev pass: findings above the confidence floor, the unsure count, usage; 16.3.2 every note's readings) |
-| `signal-noise/jev-pass-now` | `manage_options` | maintenance | WRITE | RW-DOOR (16.3.3; runs the Jev pass now, idempotent, one request per note) |
-| `signal-noise/jev-collision-check` | `manage_options` | maintenance | WRITE | RW-DOOR (16.4.0; judges one draft against every published note, stores the reading on the post) |
-| `signal-noise/jev-lane-map` | `manage_options` | maintenance | WRITE | RW-DOOR (16.4.0; every published note against the others; the pairs at or above 0.5) |
-| `signal-noise/jev-lanes` | `manage_options` | diagnostics | — | READ-DOOR (16.4.0; the stored lane map) |
-| `signal-noise/jev-fit-now` | `manage_options` | maintenance | WRITE | RW-DOOR (16.5.0; one GSC page × query read, one Jev request per note with queries; stores the pass) |
-| `signal-noise/jev-query-fit` | `manage_options` | diagnostics | — | READ-DOOR (16.5.0; gaps and stray traffic from the stored fit pass; 16.5.1 adds `judged_notes` with every row) |
-| `signal-noise/jev-meter` | `manage_options` | diagnostics | — | READ-DOOR (16.6.0; this credit cycle's Jev spend per feature; also `sn-status{jev_spend}`) |
-| `signal-noise/jev-tells-check` | `manage_options` | maintenance | WRITE | RW-DOOR (16.7.0; the anti-tell pass on one note, stored on the post for the pre-publish panel) |
-| `signal-noise/jev-tells-pass` | `manage_options` | maintenance | WRITE | RW-DOOR (16.7.0; every published note, one request each; a reading, never a remedy) |
-| `signal-noise/jev-tells` | `manage_options` | diagnostics | — | READ-DOOR (16.7.0; the stored anti-tell pass, flagged notes only) |
-| `signal-noise/jev-tags-now` | `manage_options` | maintenance | WRITE | RW-DOOR (16.8.0; one request per note that carries tags, a Score per attached tag; 16.9.2 asks whether the note touches what the tag names and proposes nothing; stores the pass) |
-| `signal-noise/jev-tags` | `manage_options` | diagnostics | — | READ-DOOR (16.8.0; the stored tag-fit pass; check 31 reads the same. 16.9.2: misfits only, a tag whose subject the note does not touch, under 0.5 at confidence 0.7; every attached score beside them; no proposed tags; 17.1.0 `by_tag`, the pass pivoted per tag with the notes that only touch it) |
-| `signal-noise/get-machine-readers-crosstab` | `manage_options` | analytics | — | READ-DOOR (17.0.0; family x purpose x agent cells over the edge sensor's aggregate rows, with days seen and hits per surface; `taxonomy_absent` and `truncated` flags) |
-| `signal-noise/get-rights-reads` | `manage_options` | analytics | — | READ-DOOR (17.0.0; every fetch of the rights surfaces from the full-fidelity stream, no user-agent string; cadence per family and path with a poller flag; the ai_rights count taken from both datasets) |
-| `signal-noise/rights-evidence` | `manage_options` | diagnostics | — | READ-DOOR (17.0.0; the stored ledger of monthly rights-evidence records per AI-training family: uuid, hash, status, ledger path; never the bytes) |
-| `signal-noise/rights-evidence-now` | `manage_options` | maintenance | WRITE | RW-DOOR (17.0.0; composes and posts the last complete month's records to the provenance worker; idempotent; publishes to the append-only ledger) |
-| `signal-noise/get-404-log` | `manage_options` | diagnostics | — | NOT YET DOORED |
-| `signal-noise/get-collector-status` | `manage_options` | diagnostics | — | NOT YET DOORED |
-| `signal-noise/get-insights` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/get-narration` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/ai-cache-probe-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/purge-verification-log` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/shape-stability` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/watches` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/cache-freshness` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/get-deploy-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/uptime-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
-| `signal-noise/block-migrations-scan` | `manage_options` | diagnostics | — | READ-DOOR |
-| `signal-noise/pattern-adoption-scan` | `manage_options` | diagnostics | — | READ-DOOR |
-| `signal-noise/list-template-overrides` | `manage_options` | diagnostics | — | READ-DOOR |
-| `signal-noise/get-audit-log` | `manage_options` | diagnostics | — | READ-DOOR ⚠ PII |
-| `signal-noise/export-audit-log` | `manage_options` | diagnostics | — | READ-DOOR ⚠ PII |
-| `signal-noise/ai-alt-suggest` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/ai-alt-apply` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/ai-drift-suggest` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/ai-drift-apply` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/ai-alt-inline-suggest` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/ai-orphan-suggest` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/ai-orphan-apply` | `delete_post` | ai-generation | — | ⛔ EXCLUDED (no-undo) |
-| `signal-noise/ai-link-suggest` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/ai-link-apply` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/ai-pair-suggest` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/ai-generate-excerpt` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/ai-generate-meta-description` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/ai-generate-og-card-title` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/pattern-adoption-suggest` | `edit_post` | diagnostics | — | RW-DOOR |
-| `signal-noise/pattern-adoption-apply` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/block-migrations-suggest` | `edit_post` | diagnostics | — | RW-DOOR |
-| `signal-noise/block-migrations-apply` | `edit_post` | ai-generation | — | RW-DOOR |
-| `signal-noise/suggest-tags` | `edit_post` | content | — | RETIRED 16.9.2 (its only source, the tag-fit pass's proposed tags, went with them; 16.9.0 had it read the pass, 16.9.2 unregistered it) |
-| `signal-noise/regenerate-og-card` | `edit_post` | content | — | RW-DOOR |
-| `signal-noise/content-queue` | `edit_posts` | content | — | ABSORBED by `sn-posts` (15.8.0; the SN Queue widget's read: next four scheduled with site-timezone labels, scheduled total + runs-to date, last three published) |
-| `signal-noise/dismiss-candidate` | `edit_post` | maintenance | — | RW-DOOR |
-| `signal-noise/prepop-dismiss` | `edit_post` | maintenance | — | RW-DOOR |
-| `signal-noise/run-audit-prune` | `manage_options` | maintenance | — | RW-DOOR |
-| `signal-noise/run-insights-scan` | `manage_options` | diagnostics | — | RW-DOOR |
-| `signal-noise/run-narration` | `manage_options` | diagnostics | — | RW-DOOR |
-| `signal-noise/merge-tags` | `manage_options` | maintenance | — | ⛔ EXCLUDED (blast radius) |
-| `signal-noise/prune-unused-tags` | `manage_options` | maintenance | — | RW-DOOR |
-| `signal-noise/unschedule-cron-event` | `manage_options` | maintenance | — | RW-DOOR |
-| `signal-noise/clear-template-overrides` | `manage_options` | maintenance | — | ⛔ EXCLUDED (Site Editor regression risk) |
-| `signal-noise/purge-all-caches` | `manage_options` | maintenance | — | RW-DOOR |
-| `signal-noise/run-cron-event` | `manage_options` | maintenance | — | ⛔ EXCLUDED (unbounded dispatch) |
-| `signal-noise/run-health-scan` | `manage_options` | maintenance | — | ⛔ EXCLUDED (too slow for a synchronous call) |
-| `signal-noise/anchor-sweep` | `manage_options` | maintenance | — | RW-DOOR (v9.82.0) |
+**Door:** READ is `signal-noise/v1/mcp`, RW is `signal-noise/v1/mcp-rw`, REMOTE is the sn-remote-mcp Worker's bridge, and — means no MCP door (still reachable by `wp ability run` and the Abilities REST route under its own permission callback).
 
-**Totals (recomputed from source 2026-08-08):** 82 abilities (15 theme + 67 plugin); **38** on the read door; **36** on the read-write door (owner-approved safe subset, incl. the 2 PII-gated audit-log reads). Doors overlap by design — a slug may appear on both — so the door counts do not sum to the ability count. Off both doors: 2 hard-excluded (run-cron-event, run-health-scan) + 3 owner-held (ai-orphan-apply, merge-tags, clear-template-overrides) + the still-uncurated v9.81.0 pair (get-404-log, get-collector-status).
+| Slug | Label | Category | Door |
+|---|---|---|---|
+| **PLUGIN** | | | |
+| `signal-noise/ai-alt-apply` | Apply alt text to an attachment | ai-generation | — |
+| `signal-noise/ai-alt-inline-suggest` | Suggest alt text for an inline &lt;img&gt; in a post body | ai-generation | — |
+| `signal-noise/ai-alt-suggest` | Suggest alt text for an attachment | ai-generation | — |
+| `signal-noise/ai-cache-probe-status` | AI Prompt-Cache Probe Status | diagnostics | READ |
+| `signal-noise/ai-drift-apply` | Apply replacement for a drifted time-phrase | ai-generation | — |
+| `signal-noise/ai-drift-suggest` | Suggest replacement for a drifted time-phrase | ai-generation | — |
+| `signal-noise/ai-generate-excerpt` | Generate post excerpt with AI | ai-generation | — |
+| `signal-noise/ai-generate-meta-description` | Generate SEO meta description with AI | ai-generation | — |
+| `signal-noise/ai-generate-og-card-title` | Generate OG card title with AI | ai-generation | — |
+| `signal-noise/ai-link-apply` | Wrap an unlinked mention in an internal link | ai-generation | RW |
+| `signal-noise/ai-link-suggest` | Suggest whether an unlinked mention should become a link | ai-generation | — |
+| `signal-noise/ai-orphan-apply` | Delete an orphan attachment | ai-generation | — |
+| `signal-noise/ai-orphan-suggest` | Suggest orphan-media verdict for an attachment | ai-generation | — |
+| `signal-noise/ai-pair-suggest` | Suggest whether two related notes should link | ai-generation | RW |
+| `signal-noise/anchor-status` | Provenance anchor overview | diagnostics | READ |
+| `signal-noise/anchor-sweep` | Run the anchor upgrade sweep | maintenance | — |
+| `signal-noise/apply-tag-description` | Write one tag description | content | RW |
+| `signal-noise/bing-search-performance` | Bing Webmaster: the stored window | diagnostics | READ |
+| `signal-noise/block-migrations-apply` | Apply a block migration to a post | tools | — |
+| `signal-noise/block-migrations-scan` | Scan all posts for block-migration candidates | tools | — |
+| `signal-noise/block-migrations-suggest` | Generate a block-migration suggestion preview | tools | — |
+| `signal-noise/cache-freshness` | Edge Cache Freshness | diagnostics | READ |
+| `signal-noise/cadence-flags` | Scan operational rhythms for cadence deviations | tools | READ |
+| `signal-noise/clear-template-overrides` | Clear database template overrides | maintenance | — |
+| `signal-noise/cloudflare-status` | Cloudflare Status | diagnostics | READ |
+| `signal-noise/content-queue` | Content queue | content | — |
+| `signal-noise/corpus-integrity-scan` | Scan the corpus for content-integrity defects | tools | — |
+| `signal-noise/cron-health-summary` | Cron health, summarized | diagnostics | — |
+| `signal-noise/describe-tags` | Draft tag descriptions (AI) | content | RW |
+| `signal-noise/dismiss-candidate` | Dismiss a scan candidate | tools | — |
+| `signal-noise/draft-echoes` | Find the existing notes a draft echoes | tools | READ |
+| `signal-noise/duplicate-body-scan` | Scan the corpus for posts with identical bodies | tools | — |
+| `signal-noise/edge-errors-summary` | Edge 5xx summary | diagnostics | READ |
+| `signal-noise/edge-sampling-probe` | Edge Sampling Probe | diagnostics | READ |
+| `signal-noise/export-audit-log` | Export login-audit log | diagnostics | — |
+| `signal-noise/family-drift` | Crawler-family enum drift (stored report) | diagnostics | READ |
+| `signal-noise/get-404-log` | Recent front-end 404 log | diagnostics | — |
+| `signal-noise/get-analytics-events` | Get custom events | analytics | READ |
+| `signal-noise/get-analytics-summary` | Get analytics summary | analytics | READ |
+| `signal-noise/get-analytics-top-content` | Get top content | analytics | — |
+| `signal-noise/get-audit-log` | Get login-audit log (summary, counters, or logins) | diagnostics | — |
+| `signal-noise/get-collector-status` | Analytics collector health | diagnostics | — |
+| `signal-noise/get-cron-history` | Get Cron Firing History | diagnostics | READ |
+| `signal-noise/get-deploy-status` | Get theme + plugin deploy status | diagnostics | READ |
+| `signal-noise/get-health-scan` | Get Content-Health Scan Summary | diagnostics | READ |
+| `signal-noise/get-insights` | Get Last Insights Scan | diagnostics | — |
+| `signal-noise/get-machine-readers-crosstab` | Get Machine Readers Crosstab | analytics | READ |
+| `signal-noise/get-machine-readers-summary` | Get Machine Readers Summary | analytics | — |
+| `signal-noise/get-narration` | Get Weekly Analytics Digest | diagnostics | — |
+| `signal-noise/get-post-content` | Fetch full bodies for a bounded set of posts | tools | — |
+| `signal-noise/get-rights-reads` | Get Rights Reads | analytics | READ |
+| `signal-noise/get-rss-stats` | Get RSS feed activity statistics | diagnostics | READ |
+| `signal-noise/inbound-pass` | Inbound-link pass for new notes (stored report) | diagnostics | READ |
+| `signal-noise/jev-collision-check` | Jev: does this draft re-argue a published note? | maintenance | RW |
+| `signal-noise/jev-fit-now` | Jev: judge the queries Google sends to each note, now | maintenance | RW |
+| `signal-noise/jev-lane-map` | Jev: map the lanes the published notes share | maintenance | RW |
+| `signal-noise/jev-lanes` | Jev: the stored lane map | diagnostics | READ |
+| `signal-noise/jev-meter` | Jev: this cycle's spend, by feature | diagnostics | READ |
+| `signal-noise/jev-notes` | Jev over the notes: the stored pass | diagnostics | READ |
+| `signal-noise/jev-pass-now` | Run the Jev pass now | maintenance | RW |
+| `signal-noise/jev-query-fit` | Jev: the queries each note is seen for and does not answer | diagnostics | READ |
+| `signal-noise/jev-tags` | Jev: the stored tag-fit pass | diagnostics | READ |
+| `signal-noise/jev-tags-now` | Jev: read every note against its tags, now | maintenance | RW |
+| `signal-noise/jev-tells` | Jev: the stored anti-tell pass | diagnostics | READ |
+| `signal-noise/jev-tells-check` | Jev: the anti-tell pass on one note, now | maintenance | RW |
+| `signal-noise/jev-tells-pass` | Jev: the anti-tell pass over every published note | maintenance | RW |
+| `signal-noise/keyring-status` | Keyring Status | diagnostics | READ |
+| `signal-noise/keyword-candidates` | Rank a post's own terms as keyword candidates (TF-IDF) | tools | READ |
+| `signal-noise/link-candidates` | Suggest related notes the post does not link to yet | tools | — |
+| `signal-noise/list-cron-events` | List Cron Events | diagnostics | READ |
+| `signal-noise/list-posts` | List corpus metadata for every post | tools | — |
+| `signal-noise/list-template-overrides` | List database template overrides | diagnostics | — |
+| `signal-noise/login-defense-ipv6-criterion` | Login defense: IPv6 criterion | analytics | READ |
+| `signal-noise/merge-tags` | Merge duplicate post tags | content | — |
+| `signal-noise/near-duplicate-scan` | Scan the corpus for near-duplicate (cousin) post pairs | tools | — |
+| `signal-noise/note-dossier` | Note dossier | content | — |
+| `signal-noise/pattern-adoption-apply` | Apply a v9.2.0 pattern upgrade to a post | ai-generation | — |
+| `signal-noise/pattern-adoption-scan` | Scan posts for v9.2.0 pattern-adoption opportunities | tools | — |
+| `signal-noise/pattern-adoption-suggest` | Suggest a v9.2.0 pattern upgrade for a structural block | ai-generation | — |
+| `signal-noise/posts-signals` | Per-note signals (the Posts tab as data) | diagnostics | READ |
+| `signal-noise/prepop-dismiss` | Dismiss the AI-prepopulation notice for a post | tools | — |
+| `signal-noise/provenance-integrity-status` | Provenance integrity sweep status | diagnostics | READ |
+| `signal-noise/prune-unused-tags` | Delete unused (zero-post) tags | content | RW |
+| `signal-noise/purge-all-caches` | Purge all caches | maintenance | RW |
+| `signal-noise/purge-verification-log` | Purge Verification Log | diagnostics | READ |
+| `signal-noise/reader-anomalies` | Machine-reader volume and shape deviations | diagnostics | READ |
+| `signal-noise/regenerate-og-card` | Regenerate Open Graph card image | content | — |
+| `signal-noise/rights-evidence` | Rights evidence: the monthly records | diagnostics | READ |
+| `signal-noise/rights-evidence-now` | Rights evidence: compose and post the last month now | maintenance | RW |
+| `signal-noise/run-audit-prune` | Run audit log prune now | maintenance | — |
+| `signal-noise/run-cron-event` | Run a scheduled cron event now | maintenance | — |
+| `signal-noise/run-health-scan` | Run a health scan now | maintenance | — |
+| `signal-noise/run-insights-scan` | Run Insights Synthesis Scan | diagnostics | — |
+| `signal-noise/run-narration` | Generate Weekly Analytics Digest | diagnostics | — |
+| `signal-noise/schedule-cron-event` | Schedule a cron event to run soon | maintenance | — |
+| `signal-noise/search-coverage` | Search Console: index coverage per post (stored) | diagnostics | READ |
+| `signal-noise/search-crossexam` | Search Console x crawler ledger: do the instruments agree? | diagnostics | READ |
+| `signal-noise/search-drift` | Search Console: position drift | diagnostics | READ |
+| `signal-noise/search-performance` | Search Console: the stored window | diagnostics | READ |
+| `signal-noise/shape-stability` | Payload Shape Stability | diagnostics | READ |
+| `signal-noise/sn-apply` | Apply a change to a post (consolidated write tool) | tools | RW |
+| `signal-noise/sn-metrics` | Batch-read readership metrics (consolidated) | analytics | READ |
+| `signal-noise/sn-posts` | List or fetch corpus posts (consolidated) | tools | READ |
+| `signal-noise/sn-scan` | Scan the corpus for actionable candidates (consolidated) | tools | READ |
+| `signal-noise/sn-site-facts` | Batch-read site facts (consolidated) | diagnostics | READ |
+| `signal-noise/sn-status` | Batch-read operational status (consolidated) | diagnostics | READ |
+| `signal-noise/sn-validate` | Validate proposed content before writing (consolidated, deterministic) | tools | READ |
+| `signal-noise/topic-clusters` | Read the corpus topic partition | tools | READ |
+| `signal-noise/unschedule-cron-event` | Unschedule cron event | maintenance | RW |
+| `signal-noise/update-post-surfaces` | Write reviewed excerpt / meta description / OG card title to a post | tools | — |
+| `signal-noise/uptime-status` | Get Better Stack uptime status | diagnostics | READ |
+| `signal-noise/watches` | Watches Due | diagnostics | READ |
+| `signal-noise/zenodo-status` | Zenodo DOI status | diagnostics | READ |
+| **REMOTE TWINS** (plugin, reached only through the sn-remote-mcp Worker) | | | |
+| `signal-noise/remote-cron-health-summary` | Cron health, summarized (remote) | diagnostics | REMOTE |
+| `signal-noise/remote-edge-errors-summary` | Edge 5xx summary (remote) | diagnostics | REMOTE |
+| `signal-noise/remote-get-analytics-events` | Get custom events (remote) | analytics | REMOTE |
+| `signal-noise/remote-get-analytics-summary` | Get analytics summary (remote) | analytics | REMOTE |
+| `signal-noise/remote-get-deploy-status` | Get theme + plugin deploy status (remote) | diagnostics | REMOTE |
+| `signal-noise/remote-get-health-scan` | Get content-health scan summary (remote) | diagnostics | REMOTE |
+| `signal-noise/remote-get-insights` | Get content insights (remote) | diagnostics | REMOTE |
+| `signal-noise/remote-get-narration` | Get analytics narration (remote) | diagnostics | REMOTE |
+| `signal-noise/remote-get-rss-stats` | Get RSS feed activity statistics (remote) | diagnostics | REMOTE |
+| `signal-noise/remote-machine-readers-summary` | Get machine readers summary (remote) | analytics | REMOTE |
+| `signal-noise/remote-provenance-integrity-status` | Get provenance integrity status (remote) | diagnostics | REMOTE |
+| `signal-noise/remote-search-crossexam` | Search Console x crawler ledger: do the instruments agree? (remote) | diagnostics | REMOTE |
+| `signal-noise/remote-search-drift` | Search Console: position drift (remote) | diagnostics | REMOTE |
+| `signal-noise/remote-search-performance` | Search Console: the stored window (remote) | diagnostics | REMOTE |
+| `signal-noise/remote-uptime-status` | Get Better Stack uptime status (remote) | diagnostics | REMOTE |
+| **THEME** (read by agents through `sn-site-facts`, never doored directly) | | | |
+| `signal-and-noise/ai-generate-page-note-summary` | Generate /notes-voice summary | ai-generation | — |
+| `signal-and-noise/ai-generate-pattern-content` | Generate pattern content | ai-generation | — |
+| `signal-and-noise/ai-rewrite-in-brand-voice` | Rewrite in brand voice | ai-generation | — |
+| `signal-and-noise/ai-suggest-block-pattern` | Suggest block pattern for draft | ai-generation | — |
+| `signal-and-noise/ai-validate-brand-alignment` | Validate brand alignment | ai-generation | — |
+| `signal-and-noise/get-active-template-structure` | Inspect active template structure | diagnostics | — |
+| `signal-and-noise/get-design-system-summary` | Get design-system summary (AI-prompt formatted) | diagnostics | — |
+| `signal-and-noise/get-design-tokens` | Get design tokens | diagnostics | — |
+| `signal-and-noise/get-editorial-conventions` | Editorial conventions (the house forms, as data) | content | — |
+| `signal-and-noise/get-latest-theme-tag` | Get latest Signal & Noise theme release tag from GitHub | diagnostics | — |
+| `signal-and-noise/get-llms-txt` | Get the llms.txt AI-crawler manifest | diagnostics | — |
+| `signal-and-noise/get-page-notes-pillars` | List /notes pillar essays | content | — |
+| `signal-and-noise/get-reading-time-for-slug` | Get reading time for slug | content | — |
+| `signal-and-noise/get-seo-route-meta` | Get SEO meta for template-driven routes | diagnostics | — |
+| `signal-and-noise/get-theme-version` | Get theme + WP version | diagnostics | — |
+| `signal-and-noise/list-block-patterns` | List block patterns | content | — |
 
-### Consolidated + corpus tools (tabled 2026-08-04)
-
-These 15 were registered across v9.x–v10.x but never entered this catalog, so the document under-reported the plugin surface by 15 abilities. The `sn-*` family are the consolidated tools that absorb several older single-purpose abilities each (see their own docblocks for what each one supersedes).
-
-| Ability | Label | Source |
-| --- | --- | --- |
-| `signal-noise/cadence-flags` | Scan operational rhythms for cadence deviations | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
-| `signal-noise/duplicate-body-scan` | Scan the corpus for posts with identical bodies | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
-| `signal-noise/get-machine-readers-summary` | Get Machine Readers Summary | [`abilities-machine-readers.php`](../inc/abilities-machine-readers.php) |
-| `signal-noise/get-machine-readers-crosstab` | Get Machine Readers Crosstab | [`abilities-machine-readers-ledger.php`](../inc/abilities-machine-readers-ledger.php) |
-| `signal-noise/get-rights-reads` | Get Rights Reads | [`abilities-machine-readers-ledger.php`](../inc/abilities-machine-readers-ledger.php) |
-| `signal-noise/rights-evidence` | Rights evidence: the monthly records | [`abilities-rights-evidence.php`](../inc/abilities-rights-evidence.php) |
-| `signal-noise/rights-evidence-now` | Rights evidence: compose and post the last month now | [`abilities-rights-evidence.php`](../inc/abilities-rights-evidence.php) |
-| `signal-noise/get-post-content` | Fetch full bodies for a bounded set of posts | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
-| `signal-noise/keyword-candidates` | Rank a post's own terms as keyword candidates (TF-IDF) | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
-| `signal-noise/link-candidates` | Suggest related notes the post does not link to yet | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
-| `signal-noise/list-posts` | List corpus metadata for every post | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
-| `signal-noise/near-duplicate-scan` | Scan the corpus for near-duplicate (cousin) post pairs | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
-| `signal-noise/sn-apply` | Apply a change to a post (consolidated write tool) | [`abilities-sn-apply.php`](../inc/abilities-sn-apply.php) |
-| `signal-noise/sn-posts` | List or fetch corpus posts (consolidated) | [`abilities-sn-posts.php`](../inc/abilities-sn-posts.php) |
-| `signal-noise/sn-scan` | Scan the corpus for actionable candidates (consolidated) | [`abilities-sn-scan.php`](../inc/abilities-sn-scan.php) |
-| `signal-noise/sn-site-facts` | Batch-read site facts (consolidated) | [`abilities-sn-site-facts.php`](../inc/abilities-sn-site-facts.php) |
-| `signal-noise/sn-validate` | Validate proposed content before writing (consolidated, deterministic) | [`abilities-sn-validate.php`](../inc/abilities-sn-validate.php) |
-| `signal-noise/topic-clusters` | Read the corpus topic partition | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
-| `signal-noise/update-post-surfaces` | Write reviewed excerpt / meta description / OG card title to a post | [`abilities-update-post-surfaces.php`](../inc/abilities-update-post-surfaces.php) |
-
+**Totals:** 113 plugin abilities + 15 remote twins + 16 theme = 144. **49** on the read door, **16** on the write door, 0 on both, **48** plugin abilities on neither. Theme abilities are on no door by design: `sn-site-facts` dispatches to them, so the read door carries zero theme slugs. Each remote twin shares its admin ability's execute callback and output schema byte for byte; remote contract version 9.
 
 ## How to use this catalog
 
@@ -143,9 +172,11 @@ wp ability run <slug> --input='{"post_id": 42}'
 
 **REST API** — POST to `/wp-json/wp-abilities/v1/abilities/<slug>/run` with `wordpress_logged_in_*` session cookie and `X-WP-Nonce` header for write operations. The MCP doors expose subsets of these abilities via their respective allowlists.
 
-**MCP client (v9.50.0+)** — Query `sn://abilities-catalog` resource on either door (read or read-write) for the live registry snapshot. The read door offers 37 tools (read-only); the read-write door offers 36 tools (includes state-modifying actions). Same credentials; different risk profile.
+**MCP client** — Query the `sn://abilities-catalog` resource on either door for the live registry snapshot. The read door offers 49 tools (read-only); the write door offers 16 (state-modifying, behind a kill switch, a bound application password, a rate limit and its own audit log).
 
 ## Detailed reference (selected abilities)
+
+> Written across v9–v13 and kept for its use-case notes. Door statuses and counts below are historical; the Quick reference above is current.
 
 ### Currently allowlisted (both READ and WRITE doors, v9.49.1+)
 
@@ -452,15 +483,15 @@ These 4 abilities are NOT exposed on any MCP door:
 
 ---
 
-## Per-door visibility (v9.50.0+)
+## Per-door visibility
 
-**READ door** (`/wp-json/signal-noise/v1/mcp`) — 37 tools: the v9.50.0 twenty-three plus the two v9.82.0 operational-status reads (anchor-status, provenance-integrity-status). Same `manage_options` permission floor. All tools advertise `readOnlyHint: true`.
+**READ door** (`/wp-json/signal-noise/v1/mcp`) — 49 tools, all advertising `readOnlyHint: true`, `manage_options` floor.
 
-**READ-WRITE door** (`/wp-json/signal-noise/v1/mcp-rw`) — 35 tools: all 25 from the read door EXCLUDED; only the RW-approved subset, plus anchor-sweep from v9.82.0. Same `manage_options` permission floor; edit_post abilities require scoped post edit capability. No annotations in v1.
+**WRITE door** (`/wp-json/signal-noise/v1/mcp-rw`) — 16 tools: `ai-link-apply`, `ai-pair-suggest`, `prune-unused-tags`, `describe-tags`, `apply-tag-description`, `unschedule-cron-event`, `purge-all-caches`, `sn-apply`, `jev-pass-now`, `jev-collision-check`, `jev-lane-map`, `jev-fit-now`, `jev-tells-check`, `jev-tells-pass`, `jev-tags-now`, `rights-evidence-now`. `sn-apply` is the one tool for every content mutation, behind fingerprint, validation, capability and idempotency gates, with `dry_run` defaulting to true.
 
-Both doors share the same JSON-RPC plumbing, wrap rule (handles array-rooted output), and envelope contract. The door context is resolved per-request and flows through dispatch — never global state.
+**REMOTE** — 15 twins through the sn-remote-mcp Worker's bearer-checked bridge, off until the wp-admin toggle is on.
 
----
+Both plugin doors share the same JSON-RPC plumbing, wrap rule and envelope contract. The door context is resolved per request and flows through dispatch, never global state.
 
 ## Cross-references
 
