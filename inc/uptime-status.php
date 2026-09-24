@@ -68,6 +68,8 @@ define( 'SN_UPTIME_STATUS_AVAIL_WARM_TTL', 7200 );
 define( 'SN_UPTIME_STATUS_AVAIL_90D_WARM_TTL', 28800 );
 define( 'SN_UPTIME_STATUS_AVAIL_90D_WARMED', 'sn_uptime_availability_90d_warmed' );
 define( 'SN_UPTIME_STATUS_AVAIL_90D_EVERY', 21600 );
+// 18.3.0 — the version whose caches the warmer last refilled right after an update.
+define( 'SN_UPTIME_STATUS_WARMED_VERSION_OPT', 'sn_uptime_warmed_for_version' );
 // Version-less base (v8.4.0): monitors/SLA/response-times live on v2,
 // incidents on v3 — callers pass the versioned path.
 define( 'SN_UPTIME_STATUS_API_BASE', 'https://uptime.betterstack.com/api/' );
@@ -433,6 +435,27 @@ function sn_uptime_status_warm_availability() {
 	}
 }
 add_action( SN_UPTIME_STATUS_AVAIL_WARM_HOOK, 'sn_uptime_status_warm_availability' );
+/**
+ * Refill right after an update (18.3.0). Updating to 18.2.0 on 2026-09-24
+ * left every availability figure null on the phone until the next hourly
+ * run, up to an hour. Once per SNT_VERSION on admin_init (the shape of
+ * inc/uptime-heartbeat-removal.php), queue one warmer run now and drop the
+ * 90d flag so both windows refill. Queued, not inlined: the warm is ~8
+ * Better Stack calls and does not belong on an admin page load.
+ *
+ * @return bool True when a refill was queued.
+ */
+function sn_uptime_status_warm_on_version_change() {
+	$version = defined( 'SNT_VERSION' ) ? (string) SNT_VERSION : '';
+	if ( '' === $version || ! sn_uptime_status_configured() || $version === get_option( SN_UPTIME_STATUS_WARMED_VERSION_OPT, '' ) ) {
+		return false;
+	}
+	update_option( SN_UPTIME_STATUS_WARMED_VERSION_OPT, $version, false );
+	delete_transient( SN_UPTIME_STATUS_AVAIL_90D_WARMED );
+	wp_schedule_single_event( time(), SN_UPTIME_STATUS_AVAIL_WARM_HOOK );
+	return true;
+}
+add_action( 'admin_init', 'sn_uptime_status_warm_on_version_change' );
 add_action( 'init', function () {
 	if ( sn_uptime_status_configured() && ! wp_next_scheduled( SN_UPTIME_STATUS_AVAIL_WARM_HOOK ) ) {
 		wp_schedule_event( time() + 300, 'hourly', SN_UPTIME_STATUS_AVAIL_WARM_HOOK );
