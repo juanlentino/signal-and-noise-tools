@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The drift check stops asking a provider that refuses.** When the first two AI calls of a scan both fail with a provider error and none has succeeded, `drift_time_phrases` stops there instead of asking once per candidate post (12 doomed calls per scan on 2026-09-24, with the AI account unfunded), and its skip reason carries the provider's own message, so `skipped[]` names the cause, not just "failed". A reply that is not JSON never trips it (the model is answering, just badly), and one success earlier in the scan keeps every later post asked. Still a skip, never a pass. Threshold: `SN_HEALTH_DRIFT_BREAKER_AFTER` (2).
+
 ## [18.4.0] - 2026-09-24 — the health scan names what it skipped
 
 ### Added
