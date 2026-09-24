@@ -3,7 +3,8 @@
  * Signal & Noise Tools — sn-scan scan_type "editorial_conventions". (v14.7.0)
  *
  * The same drift the sn-validate check flags on PROPOSED markup, over the
- * EXISTING corpus (scheduled posts included, like anchor_violations): each
+ * EXISTING corpus (scheduled posts included, like anchor_violations; pages
+ * too, for svg-figure only, see SNT_EDITORIAL_CONVENTION_PAGE_CHECKS): each
  * finding is a candidate with block_path and a position-bound fingerprint,
  * so a class fix applies through sn-apply's block_replace + block_path and,
  * because it changes no prose, coalesces on the ledger. Detect and report;
@@ -24,6 +25,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SNT_SN_SCAN_CONF_EDITORIAL_CONVENTIONS = 0.9;
 
 /**
+ * The checks that also run on PAGES. The others are note forms (a lead is the
+ * first block of a note, a correction its last), and a page's opening <em> or
+ * trailing notice is not drift from them. An inline SVG is a figure wherever
+ * it sits, so svg-figure holds on a page exactly as on a note. Until this
+ * existed the scan read posts only, and its zero stood for posts while three
+ * paper pages carried fixed-hex figures.
+ */
+const SNT_EDITORIAL_CONVENTION_PAGE_CHECKS = array( 'svg-figure' );
+
+/**
  * Adapter: one candidate per finding, in document order per post.
  *
  * @param int[]|null $allowed_ids
@@ -42,9 +53,12 @@ function snt_sn_scan_adapter_editorial_conventions( $allowed_ids ) {
 		return new WP_Error( 'snt_helper_unavailable', __( 'Corpus inspect helper not loaded.', 'signal-and-noise-tools' ), array( 'status' => 503 ) );
 	}
 
+	$ids_of     = static function ( $posts ) {
+		return array_map( static function ( $p ) { return (int) $p->ID; }, (array) $posts );
+	};
 	$source_ids = null !== $allowed_ids
 		? $allowed_ids
-		: array_map( static function ( $p ) { return (int) $p->ID; }, snt_corpus_fetch_posts( 'any', 'post' ) );
+		: array_merge( $ids_of( snt_corpus_fetch_posts( 'any', 'post' ) ), $ids_of( snt_corpus_fetch_posts( 'any', 'page' ) ) );
 
 	$candidates = array();
 	$examined   = 0;
@@ -59,6 +73,13 @@ function snt_sn_scan_adapter_editorial_conventions( $allowed_ids ) {
 		$found   = snt_editorial_conventions_detect( $tree );
 		if ( ! is_array( $found ) ) {
 			continue;
+		}
+		// By type, not by how the id arrived: a scoped call naming a page gets
+		// the same page rules as the full walk.
+		if ( 'page' === (string) ( $post->post_type ?? 'post' ) ) {
+			$found = array_values( array_filter( $found, static function ( $f ) {
+				return in_array( (string) $f['id'], SNT_EDITORIAL_CONVENTION_PAGE_CHECKS, true );
+			} ) );
 		}
 		$content_hash = function_exists( 'snt_corpus_content_hash' ) ? (string) snt_corpus_content_hash( $content ) : md5( $content );
 		foreach ( $found as $f ) {
