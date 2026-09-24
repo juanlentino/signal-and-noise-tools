@@ -93,6 +93,7 @@ ok( 2 === count( $s['flagged'] ), 'two flagged checks (advisory tier excluded)' 
 ok( 'broken_links' === $s['flagged'][0]['check'] && 7 === $s['flagged'][0]['count'], 'flagged ranked by count desc (broken_links=7 first)' );
 ok( 'Broken internal links' === $s['flagged'][0]['label'] && 'fix Broken internal links' === $s['flagged'][0]['fix_hint'], 'flagged carries label + fix_hint' );
 ok( 1700 === $s['scanned_at'] && 42 === $s['elapsed_ms'], 'metadata passed through' );
+ok( array() === ( $s['skipped'] ?? null ), 'a scan with nothing skipped reports skipped: [] (measured, none), never a missing key' );
 
 // ── v11.16.2 regression: the parity bug the fixture above cannot catch ──────
 // Every check above is a `health`-surface check, so a scoped numerator and a
@@ -170,6 +171,18 @@ ok(
 );
 ok( isset( $reg['output_schema']['properties']['checks_skipped'] ), 'checks_skipped is declared in the ability schema, not smuggled in' );
 
+// ── 18.4.0: THE COUNT CARRIES ITS NAMES ────────────────────────────────
+// checks_skipped said "1" and nothing else, so a remote caller had to read the
+// plugin source to learn WHICH check did not run and WHY. The Health tab has
+// always shown both; the ability now carries the same list, from the same
+// accessor, so the two readouts cannot name different checks.
+ok( is_array( $sk['skipped'] ?? null ) && count( $sk['skipped'] ) === $sk['checks_skipped'], 'count( skipped ) === checks_skipped: every skipped check is named' );
+ok( 'color_drift' === ( $sk['skipped'][0]['check'] ?? '' ), 'the skipped entry names the check key' );
+ok( 'Color drift' === ( $sk['skipped'][0]['label'] ?? '' ), 'and its label' );
+ok( 'theme palette unavailable' === ( $sk['skipped'][0]['reason'] ?? '' ), 'and the reason it could not run, verbatim from the producer' );
+ok( array_keys( sn_health_skipped_checks( $GLOBALS['__scan'] ) ) === array_column( $sk['skipped'], 'check' ), 'the SAME accessor the Health tab renders from, so the two lists agree' );
+ok( isset( $reg['output_schema']['properties']['skipped'] ), 'skipped is declared in the ability schema' );
+
 
 // ── THE PAYLOAD IS VALIDATED AGAINST ITS OWN DECLARATION ───────────────
 // Every assertion above checks that a KEY IS DECLARED in output_schema. None
@@ -234,6 +247,10 @@ ok( array() === $schema_errs, 'THE REAL PAYLOAD SATISFIES ITS OWN output_schema'
 $broken = $reg['output_schema'];
 $broken['properties']['checks_skipped'] = array( 'type' => 'string' );
 ok( array() !== sn_t_validate( $live_payload, $broken ), 'NEGATIVE CONTROL: a declaration that contradicts the payload is DETECTED (checks_skipped as string)' );
+ok( 1 === count( $live_payload['skipped'] ), 'the validated payload actually CARRIES a skipped entry, so the schema check above covers its items' );
+$broken = $reg['output_schema'];
+$broken['properties']['skipped']['items']['properties']['reason'] = array( 'type' => 'integer' );
+ok( array() !== sn_t_validate( $live_payload, $broken ), 'NEGATIVE CONTROL: a skipped item declared with the wrong type is DETECTED' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail === 0 ? 0 : 1 );

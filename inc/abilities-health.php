@@ -29,7 +29,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/get-health-scan', array(
 		'label'               => 'Get Content-Health Scan Summary',
-		'description'         => 'Returns a compact summary of the last cached Content-Health scan: the total finding count, the flagged checks ranked by count (each with its label, count, and fix hint), and the passed/total check tally. Returns null when no scan has run yet. Read-only — never triggers a scan (a scan walks all posts and probes links).',
+		'description'         => 'Returns a compact summary of the last cached Content-Health scan: the total finding count, the flagged checks ranked by count (each with its label, count, and fix hint), the passed/total check tally, and every skipped check with the reason it could not run. Returns null when no scan has run yet. Read-only — never triggers a scan (a scan walks all posts and probes links).',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_health_scan',
@@ -71,6 +71,18 @@ add_action( 'wp_abilities_api_init', function() {
 							'label'    => array( 'type' => 'string' ),
 							'count'    => array( 'type' => 'integer' ),
 							'fix_hint' => array( 'type' => 'string' ),
+						),
+					),
+				),
+				'skipped'       => array(
+					'type'        => 'array',
+					'description' => 'The checks counted in checks_skipped, each with the reason it could not run (a missing token, a sandbox environment, failed AI calls). One entry per skipped check, so count( skipped ) === checks_skipped.',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'check'  => array( 'type' => 'string' ),
+							'label'  => array( 'type' => 'string' ),
+							'reason' => array( 'type' => 'string' ),
 						),
 					),
 				),
@@ -122,6 +134,18 @@ function snt_ability_get_health_scan( $input ) {
 		);
 	}
 	$partition = sn_health_check_partition( $scan );
+	// 18.4.0: the NAMES behind checks_skipped. A remote caller saw "1 skipped"
+	// and had to read the plugin source to learn which check and why; the
+	// Health tab has always shown both. Same accessor as the tab, so the two
+	// can never disagree about which checks did not run.
+	$skipped = array();
+	foreach ( sn_health_skipped_checks( $scan ) as $key => $check ) {
+		$skipped[] = array(
+			'check'  => (string) $key,
+			'label'  => (string) ( $check['label'] ?? $key ),
+			'reason' => (string) ( $check['skipped'] ?? '' ),
+		);
+	}
 
 	return array(
 		'scanned_at'     => isset( $scan['scanned_at'] ) ? (int) $scan['scanned_at'] : null,
@@ -147,5 +171,6 @@ function snt_ability_get_health_scan( $input ) {
 		'checks_passed'  => $partition['passed'],
 		'checks_skipped' => $partition['skipped'],
 		'flagged'        => $flagged,
+		'skipped'        => $skipped,
 	);
 }
