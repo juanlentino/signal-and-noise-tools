@@ -57,6 +57,14 @@ column.
 A `tools/`, `docs/`, `.github/`-only merge never gets its own cut; it rides
 the next release.
 
+**Release or fix: ask what the change repairs, not how big it is.** When the
+work repairs something the current release shipped, the cut is a `fix`
+(`X.Y.Z+1`), even if it touches a schema or bumps the remote contract. New
+capability is a `release`. 18.3.0 got this wrong on 2026-09-24: it repaired
+two things 18.2.0 had shipped hours earlier (the phone's uptime figures
+blanking after an update, and 5xx zeros that could not say whether they were
+read) and was cut as a release. It should have been 18.2.1.
+
 ## What a cut is
 
 A pull request does not bump `Version` and does not tag — it adds a bullet
