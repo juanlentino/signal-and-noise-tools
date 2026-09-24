@@ -53,7 +53,7 @@ function e5r_extract( $src, $name ) {
 }
 
 $roll = (string) file_get_contents( $root . '/inc/edge-rollup.php' );
-foreach ( array( 'sn_edge_errors_reading', 'sn_edge_errors_range', 'sn_edge_error_source_label' ) as $name ) {
+foreach ( array( 'sn_edge_errors_reading', 'sn_edge_errors_range', 'sn_edge_error_source_label', 'sn_edge_error_asker', 'sn_edge_errors_days_shape', 'sn_edge_errors_asked_by_totals' ) as $name ) {
 	$fn = e5r_extract( $roll, $name );
 	ok( '' !== $fn, "$name() was extracted; if empty, every assertion below is vacuous" );
 	eval( $fn ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- test-only extraction.
@@ -98,6 +98,41 @@ ok( '503 from the origin, asked by a Worker' === sn_edge_error_source_label( 'sr
 ok( '504 from Cloudflare itself (the origin never answered)' === sn_edge_error_source_label( 'edge=504 origin=- cache=miss' ), 'a row stored before 17.9.3 (no src) reads as it did' );
 $roll_src = (string) file_get_contents( $root . '/inc/edge-rollup.php' );
 ok( false !== strpos( $roll_src, 'update_option( SN_EDGE_ERRORS_QUERY_OPT' ) && false !== strpos( $roll_src, "'query'       => function_exists( 'get_option' ) ? get_option( SN_EDGE_ERRORS_QUERY_OPT" ), 'the query\'s outcome is kept and read back, so a refused query is "not read", never "no errors"' );
+
+echo "\nGroup 5: one row per day, and who asked (18.2.0)\n";
+ok( 'visitor' === sn_edge_error_asker( 'src=eyeball edge=520 origin=- cache=none' ), 'eyeball is a visitor' );
+ok( 'worker' === sn_edge_error_asker( 'src=edgeWorkerFetch edge=503 origin=503' ), 'edgeWorker* is a Worker' );
+ok( 'other' === sn_edge_error_asker( 'src=somethingNew edge=500 origin=500' ), 'any other source is other, never guessed into a bucket' );
+ok( 'unrecorded' === sn_edge_error_asker( 'edge=504 origin=- cache=miss' ), 'no src (stored before 17.9.3) is unrecorded: the pre-filter leftover' );
+$shape = sn_edge_errors_days_shape( array(
+	array( 'day' => '2026-09-22', 'value' => 'edge=504 origin=- cache=miss', 'requests' => 5000 ),
+	array( 'day' => '2026-09-24', 'value' => 'src=eyeball edge=520 origin=- cache=none', 'requests' => 3 ),
+	array( 'day' => '2026-09-24', 'value' => 'src=edgeWorkerFetch edge=503 origin=503', 'requests' => 2 ),
+	array( 'day' => '2026-09-30', 'value' => 'src=eyeball edge=500 origin=500', 'requests' => 99 ),
+), '2026-09-22', '2026-09-24' );
+ok( 3 === count( $shape ), 'every day in the range is present' );
+ok( array( '2026-09-22', '2026-09-23', '2026-09-24' ) === array_column( $shape, 'day' ), 'oldest first' );
+ok( 0 === $shape[1]['total'], 'a day with nothing stored reads 0 instead of vanishing' );
+ok( 5000 === $shape[0]['unrecorded'] && 5000 === $shape[0]['total'], 'the pre-filter day is all unrecorded' );
+ok( 5 === $shape[2]['total'] && 3 === $shape[2]['visitor'] && 2 === $shape[2]['worker'], 'the post-filter day splits by who asked' );
+ok( 5005 === array_sum( array_column( $shape, 'total' ) ), 'a row outside the range is dropped, not folded into an edge day' );
+ok( array() === sn_edge_errors_days_shape( array(), '2026-09-24', '2026-09-22' ), 'an inverted range is empty, never a runaway loop' );
+ok( array( 'visitor' => 3, 'worker' => 2, 'other' => 0, 'unrecorded' => 5000 ) === sn_edge_errors_asked_by_totals( $shape ), 'the window totals sum the days' );
+
+$r = sn_edge_errors_range( '2026-09-17', '2026-09-23' );
+ok( array() === $r['days'] && 10 === $r['total'], 'without the day reader, total falls back to the responders (unchanged)' );
+if ( ! function_exists( 'sn_edge_errors_days' ) ) { // Conditional, so it is NOT hoisted above Group 2's no-reader assertions.
+	function sn_edge_errors_days( $from, $to ) {
+		return sn_edge_errors_days_shape( array(
+			array( 'day' => $from, 'value' => 'edge=504 origin=- cache=miss', 'requests' => 40 ),
+			array( 'day' => $to, 'value' => 'src=eyeball edge=520 origin=- cache=none', 'requests' => 2 ),
+		), $from, $to );
+	}
+}
+$r = sn_edge_errors_range( '2026-09-17', '2026-09-23' );
+ok( 7 === count( $r['days'] ), 'the reading carries one row per day of the window' );
+ok( 42 === $r['total'], 'total is the full sum of the days, not the top ten responders\' share' );
+ok( 2 === $r['asked_by']['visitor'] && 40 === $r['asked_by']['unrecorded'], 'and says who asked over the window' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

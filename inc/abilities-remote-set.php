@@ -239,8 +239,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'label'               => 'Get Better Stack uptime status (remote)',
 		'description'         => 'Remote-scoped twin of signal-noise/uptime-status. '
 			. 'Returns the Better Stack monitor + heartbeat states (name, status, '
-			. 'level) from the origin\'s cache, plus 30-day availability and incident '
-			. 'counts from the hourly-warmed cache (null when that cache is cold). '
+			. 'level) from the origin\'s cache, plus 30-day availability, incident counts '
+			. 'and (18.2.0) 90-day availability from the warmed caches (null when cold). '
 			. 'Served from the origin\'s cache; '
 			. 'there is no force_refresh remotely — no arguments are accepted. '
 			. 'configured=false means no API token is saved yet (not an error). '
@@ -279,7 +279,7 @@ add_action( 'wp_abilities_api_init', function () {
 							'status'        => array( 'type' => 'string' ),
 							'level'         => array( 'type' => 'string', 'enum' => array( 'ok', 'warn', 'alert' ) ),
 							'checked_at'    => array( 'type' => array( 'string', 'null' ) ),
-							'availability'  => array( 'type' => array( 'number', 'null' ), 'description' => '30-day availability percentage; null on the light tier or when the summary endpoint was unavailable.' ),
+							'availability'  => array( 'type' => array( 'number', 'null' ), 'description' => '30-day availability percentage; on the light tier read from the hourly-warmed cache (null when cold); null whenever the summary endpoint was unavailable.' ),
 							'incidents_30d' => array( 'type' => array( 'integer', 'null' ) ),
 							'availability_90d' => array( 'type' => array( 'number', 'null' ) ),
 							'response_ms'   => array( 'type' => array( 'integer', 'null' ), 'description' => 'Average response time over the last 24h in ms (monitors only, detail tier).' ),
@@ -858,7 +858,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'label'               => 'Edge 5xx summary (remote)',
 		'description'         => 'Remote-scoped twin of signal-noise/edge-errors-summary. The last '
 			. 'seven days of 5xx from the daily edge rollup: total, failing paths and who '
-			. 'answered, Early Hints cache lookups excluded. Counts only; the perimeter '
+			. 'answered, Early Hints cache lookups excluded, plus (18.2.0) one row per day '
+			. 'with who asked. Counts only; the perimeter '
 			. '(token, firewall, WAF) stays local on cloudflare-status. Read-only. '
 			. 'Reachable only by a principal holding the sn_read_remote_analytics '
 			. 'capability, and only while the remote door is explicitly enabled.',

@@ -63,6 +63,11 @@ define( 'SN_UPTIME_STATUS_TTL', 90 );
 // the light tier's cache-only read never finds the map cold between runs.
 define( 'SN_UPTIME_STATUS_AVAIL_WARM_HOOK', 'sn_uptime_availability_hourly' );
 define( 'SN_UPTIME_STATUS_AVAIL_WARM_TTL', 7200 );
+// 18.2.0 — the 90d map, warmed every 6h (flag transient) and kept for 8h so
+// the light tier's peek never finds it cold between refreshes.
+define( 'SN_UPTIME_STATUS_AVAIL_90D_WARM_TTL', 28800 );
+define( 'SN_UPTIME_STATUS_AVAIL_90D_WARMED', 'sn_uptime_availability_90d_warmed' );
+define( 'SN_UPTIME_STATUS_AVAIL_90D_EVERY', 21600 );
 // Version-less base (v8.4.0): monitors/SLA/response-times live on v2,
 // incidents on v3 — callers pass the versioned path.
 define( 'SN_UPTIME_STATUS_API_BASE', 'https://uptime.betterstack.com/api/' );
@@ -419,6 +424,13 @@ function sn_uptime_status_warm_availability() {
 	// The map returns its cache when warm; drop it so each run refreshes.
 	delete_transient( SN_UPTIME_STATUS_AVAIL_TRANSIENT );
 	sn_uptime_status_availability_map( $snap['rows'], 30, SN_UPTIME_STATUS_AVAIL_TRANSIENT, SN_UPTIME_STATUS_AVAIL_WARM_TTL );
+
+	// 18.2.0: the 90d window moves slowly, so it refreshes every 6h, not hourly.
+	if ( false === get_transient( SN_UPTIME_STATUS_AVAIL_90D_WARMED ) ) {
+		delete_transient( SN_UPTIME_STATUS_AVAIL_90D_TRANSIENT );
+		sn_uptime_status_availability_map( $snap['rows'], 90, SN_UPTIME_STATUS_AVAIL_90D_TRANSIENT, SN_UPTIME_STATUS_AVAIL_90D_WARM_TTL );
+		set_transient( SN_UPTIME_STATUS_AVAIL_90D_WARMED, 1, SN_UPTIME_STATUS_AVAIL_90D_EVERY );
+	}
 }
 add_action( SN_UPTIME_STATUS_AVAIL_WARM_HOOK, 'sn_uptime_status_warm_availability' );
 add_action( 'init', function () {
@@ -469,12 +481,14 @@ function snt_ability_uptime_status( $input = null ) {
 		// the two status calls, and the remote twin (which shares this
 		// callback) still spends no upstream quota of its own.
 		$a30 = get_transient( SN_UPTIME_STATUS_AVAIL_TRANSIENT );
+		$a90 = get_transient( SN_UPTIME_STATUS_AVAIL_90D_TRANSIENT ); // 18.2.0.
 		foreach ( $rows as $i => $row ) {
 			$key                            = $row['kind'] . ':' . $row['id'];
 			$e30                            = is_array( $a30 ) && isset( $a30[ $key ] ) && is_array( $a30[ $key ] ) ? $a30[ $key ] : null;
+			$e90                            = is_array( $a90 ) && isset( $a90[ $key ] ) && is_array( $a90[ $key ] ) ? $a90[ $key ] : null;
 			$rows[ $i ]['availability']     = $e30 ? $e30['availability'] : null;
 			$rows[ $i ]['incidents_30d']    = $e30 ? $e30['incidents'] : null;
-			$rows[ $i ]['availability_90d'] = null;
+			$rows[ $i ]['availability_90d'] = $e90 ? $e90['availability'] : null;
 			$rows[ $i ]['response_ms']      = null;
 		}
 	}
@@ -494,7 +508,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/uptime-status', array(
 		'label'               => 'Get Better Stack uptime status',
-		'description'         => 'Returns the Better Stack monitor + heartbeat states (name, status, level) from a 90s server-side cache, plus 30d availability and incident counts when the hourly warmer has the cache warm (never fetched on this path). Pass detail=true for the full monitor payload: 30d + 90d availability, incident counts, average response times (24h), and the recent-incidents log (independently cached tiers: 1h/6h/15min/5min). Pass force_refresh=true to bypass the status cache. Read-only; safe to call anytime. configured=false means no API token is saved yet (not an error); null stats mean that summary tier was unavailable (statuses are still authoritative).',
+		'description'         => 'Returns the Better Stack monitor + heartbeat states (name, status, level) from a 90s server-side cache, plus 30d/90d availability and 30d incident counts when the warmer has the caches warm (never fetched on this path). Pass detail=true for the full monitor payload: 30d + 90d availability, incident counts, average response times (24h), and the recent-incidents log (independently cached tiers: 1h/6h/15min/5min). Pass force_refresh=true to bypass the status cache. Read-only; safe to call anytime. configured=false means no API token is saved yet (not an error); null stats mean that summary tier was unavailable (statuses are still authoritative).',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_uptime_status',
@@ -532,7 +546,7 @@ add_action( 'wp_abilities_api_init', function () {
 							'status'        => array( 'type' => 'string' ),
 							'level'         => array( 'type' => 'string', 'enum' => array( 'ok', 'warn', 'alert' ) ),
 							'checked_at'    => array( 'type' => array( 'string', 'null' ) ),
-							'availability'  => array( 'type' => array( 'number', 'null' ), 'description' => '30-day availability percentage; null on the light tier or when the summary endpoint was unavailable.' ),
+							'availability'  => array( 'type' => array( 'number', 'null' ), 'description' => '30-day availability percentage; on the light tier read from the hourly-warmed cache (null when cold); null whenever the summary endpoint was unavailable.' ),
 							'incidents_30d' => array( 'type' => array( 'integer', 'null' ) ),
 							'availability_90d' => array( 'type' => array( 'number', 'null' ) ),
 							'response_ms'   => array( 'type' => array( 'integer', 'null' ), 'description' => 'Average response time over the last 24h in ms (monitors only, detail tier).' ),
