@@ -19,3 +19,9 @@ phpcs.xml.dist    export-ignore
 # lib/pdf ships its vendor/ (runtime Dompdf) but not the Composer files that built it.
 lib/pdf/composer.json export-ignore
 lib/pdf/composer.lock export-ignore
+# 18.4.0: the résumé PDF sets Lato everywhere and uses DejaVu Sans only for the
+# regular-weight ◆ bullet (inc/resume-pdf/template.php, .comp .dot: Lato has no
+# U+25C6). The Bold / Oblique / BoldOblique DejaVu faces (~2.6 MB) never render.
+lib/pdf/vendor/dompdf/dompdf/lib/fonts/DejaVuSans-Bold.*        export-ignore
+lib/pdf/vendor/dompdf/dompdf/lib/fonts/DejaVuSans-Oblique.*     export-ignore
+lib/pdf/vendor/dompdf/dompdf/lib/fonts/DejaVuSans-BoldOblique.* export-ignore

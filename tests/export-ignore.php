@@ -47,6 +47,11 @@ ok( ! isset( $list['CHANGELOG.md'] ), 'CHANGELOG.md absent (the repo is the rele
 ok( ! isset( $list['composer.json'] ) && ! isset( $list['composer.lock'] ), 'composer files absent (no runtime autoload)' );
 ok( ! isset( $list['phpstan.neon'] ) && ! isset( $list['phpstan-baseline.neon'] ) && ! isset( $list['phpstan-bootstrap.php'] ), 'phpstan configs absent' );
 ok( ! isset( $list['phpcs.xml.dist'] ) && ! isset( $list['.gitattributes'] ), 'phpcs config + .gitattributes absent' );
+$dv = 'lib/pdf/vendor/dompdf/dompdf/lib/fonts/';
+ok( isset( $list[ $dv . 'DejaVuSans.ttf' ] ) && isset( $list[ $dv . 'DejaVuSans.ufm' ] ), 'regular DejaVu Sans ships: the resume PDF draws its U+25C6 bullet with it' );
+ok( ! isset( $list[ $dv . 'DejaVuSans-Bold.ttf' ] ) && ! isset( $list[ $dv . 'DejaVuSans-Oblique.ttf' ] ) && ! isset( $list[ $dv . 'DejaVuSans-BoldOblique.ttf' ] ), 'the unused DejaVu Bold/Oblique/BoldOblique faces do not ship (~2.6 MB)' );
+ok( ! isset( $list[ $dv . 'DejaVuSans-Bold.ufm' ] ) && ! isset( $list[ $dv . 'DejaVuSans-BoldOblique.ufm' ] ), 'nor their metrics files' );
+ok( isset( $list['lib/pdf/fonts/Lato-Regular.ttf'] ) && isset( $list['lib/pdf/fonts/Lato-BoldItalic.ttf'] ), 'the Lato faces the resume actually uses still ship' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
