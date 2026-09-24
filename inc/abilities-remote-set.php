@@ -316,8 +316,9 @@ add_action( 'wp_abilities_api_init', function () {
 		'description'         => 'Remote-scoped twin of signal-noise/get-health-scan. '
 			. 'Returns a compact summary of the last cached Content-Health scan: '
 			. 'the total finding count, the flagged checks ranked by count (each '
-			. 'with its label, count, and fix hint), and the passed/total check '
-			. 'tally. Returns null when no scan has run yet. Read-only — never '
+			. 'with its label, count, and fix hint), the passed/total check '
+			. 'tally, and every skipped check with the reason it could not run. '
+			. 'Returns null when no scan has run yet. Read-only — never '
 			. 'triggers a scan. Reachable only by a principal holding the '
 			. 'sn_read_remote_analytics capability, and only while the remote door '
 			. 'is explicitly enabled.',
@@ -362,6 +363,18 @@ add_action( 'wp_abilities_api_init', function () {
 							'label'    => array( 'type' => 'string' ),
 							'count'    => array( 'type' => 'integer' ),
 							'fix_hint' => array( 'type' => 'string' ),
+						),
+					),
+				),
+				'skipped'       => array(
+					'type'        => 'array',
+					'description' => 'The checks counted in checks_skipped, each with the reason it could not run (a missing token, a sandbox environment, failed AI calls). One entry per skipped check, so count( skipped ) === checks_skipped.',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'check'  => array( 'type' => 'string' ),
+							'label'  => array( 'type' => 'string' ),
+							'reason' => array( 'type' => 'string' ),
 						),
 					),
 				),

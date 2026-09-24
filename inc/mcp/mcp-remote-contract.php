@@ -49,7 +49,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 // uptime row's availability description stopped saying "null on the light tier".
 // 18.3.0: '7' -> '8' — each days[] row of the 5xx twin gained `read`
 // (read / failed / pending / untracked), so a 0 is never ambiguous.
-const SN_REMOTE_CONTRACT_VERSION = '8';
+// 18.4.0: '8' -> '9' — the health-scan twin gained skipped[] (check, label,
+// reason), so checks_skipped names what did not run and why.
+const SN_REMOTE_CONTRACT_VERSION = '9';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the 8 remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -74,6 +76,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'7' => '628acbb113849c41d127f70abc30585907f46715e9d256d4ecec3544ecce89b8',
 	// RED-then-pin, 2026-09-24 (v18.3.0): days[].read on the 5xx twin.
 	'8' => 'bced0a5ade3a205e83b3e386783de0213118b19463d4a497bb8a5034d7b36843',
+	// RED-then-pin, 2026-09-24 (v18.4.0): skipped[] on the health-scan twin.
+	'9' => 'ed9407989fdf8489c7bc3575e869187d310cb16206b8b8005b7d633a50911e85',
 );
 
 /**
