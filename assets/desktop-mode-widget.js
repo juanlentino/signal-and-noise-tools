@@ -234,6 +234,8 @@
 		var timer = null;
 		var pending = false;
 		var nextAt = 0;
+		var lastAt = 0;
+		var lastDelay = REFRESH_MS;
 		var controller = null;
 		var lastGood = null;
 		var lastSuccess = '';
@@ -282,7 +284,8 @@
 			} ).then( function() {
 				pending = false;
 				controller = null;
-				nextAt = Date.now() + delay;
+				lastAt = Date.now();
+				lastDelay = delay;
 				arm();
 			} );
 		}
@@ -292,9 +295,16 @@
 		// is when the next call is due, `arm()` schedules it only while visible,
 		// and reveal re-arms for whatever of that wait is left (zero when the
 		// data went stale in the background), so a quick tab flip costs no call.
+		// Focus-aware (assets/snt-poll-cadence.js): the full rate while the
+		// window is focused, IDLE_MS while it is only visible. A failure's
+		// backoff (or the server's retry_after) still wins when it is longer.
+		function cadence( ms ) {
+			return window.sntPollCadence ? window.sntPollCadence.wait( ms ) : ms;
+		}
 		function arm() {
 			window.clearTimeout( timer );
 			if ( torn || pending || document.hidden ) { return; }
+			nextAt = lastAt + Math.max( lastDelay, cadence( REFRESH_MS ) );
 			timer = window.setTimeout( refresh, Math.max( 0, nextAt - Date.now() ) );
 		}
 		function onVisibilityChange() {
@@ -302,6 +312,9 @@
 			arm();
 		}
 		document.addEventListener( 'visibilitychange', onVisibilityChange );
+		// Focus in or out re-arms the same way: back in focus, a wait that ran
+		// past the full rate fires at once; out of focus, it stretches.
+		var unwatchFocus = window.sntPollCadence ? window.sntPollCadence.onFocusChange( onVisibilityChange ) : function() {};
 
 		refresh();
 
@@ -309,6 +322,7 @@
 			torn = true;
 			window.clearTimeout( timer );
 			document.removeEventListener( 'visibilitychange', onVisibilityChange );
+			unwatchFocus();
 			if ( controller ) { controller.abort(); }
 			container.textContent = '';
 		};

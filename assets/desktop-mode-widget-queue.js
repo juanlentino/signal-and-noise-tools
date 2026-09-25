@@ -214,8 +214,17 @@
 			lastRunMs = Date.now();
 			refresh();
 		}
+		// Focus-aware (assets/snt-poll-cadence.js): the interval is a tick,
+		// and a tick calls the ability only once the wait for the window's
+		// state has passed: the full rate focused, IDLE_MS when only visible.
+		// The second of slack absorbs timer drift so a 5-minute wait is not
+		// read as 4:59 and pushed a whole tick later.
+		function tick() {
+			var wait = window.sntPollCadence ? window.sntPollCadence.wait( REFRESH_MS ) : REFRESH_MS;
+			if ( Date.now() - lastRunMs >= wait - 1000 ) { poll(); }
+		}
 		function startPolling() {
-			if ( intervalId === null ) { intervalId = window.setInterval( poll, REFRESH_MS ); }
+			if ( intervalId === null ) { intervalId = window.setInterval( tick, REFRESH_MS ); }
 		}
 		function stopPolling() {
 			if ( intervalId !== null ) { window.clearInterval( intervalId ); intervalId = null; }
@@ -226,12 +235,15 @@
 			startPolling();
 		}
 		document.addEventListener( 'visibilitychange', onVisibilityChange );
+		// Back in focus, stale data catches up at once, as on reveal.
+		var unwatchFocus = window.sntPollCadence ? window.sntPollCadence.onFocusChange( onVisibilityChange ) : function() {};
 		if ( ! document.hidden ) { startPolling(); }
 
 		return function teardown() {
 			torn = true;
 			stopPolling();
 			document.removeEventListener( 'visibilitychange', onVisibilityChange );
+			unwatchFocus();
 			container.textContent = '';
 		};
 	}

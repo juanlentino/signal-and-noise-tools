@@ -107,6 +107,25 @@ ok( false === strpos( $cache, "document.addEventListener( 'visibilitychange', re
 ok( false !== strpos( $cache, 'if ( document.hidden || Date.now() - lastRunMs < 60000 ) { return; }' ), 'the cache card refreshes on reveal only when the last run is older than the poll' );
 ok( false !== strpos( $cache, 'lastRunMs = Date.now();' ), 'the cache card stamps the last run when it calls the ability' );
 
+// 5b. Focus-aware cadence (assets/snt-poll-cadence.js): full rate focused,
+// IDLE_MS when only visible, instant catch-up on return. Measured under a
+// fake DOM and virtual clock on 2026-09-25: 30 min visible-but-unfocused went
+// 31 -> 7 calls on each 60 s poller, 10 min focused stayed 11.
+$cadence_src = file_get_contents( dirname( __DIR__ ) . '/assets/snt-poll-cadence.js' );
+$cadence     = strip_js( (string) $cadence_src );
+ok( false !== strpos( $cadence, 'var IDLE_MS = 5 * 60 * 1000;' ), 'the cadence idles at 5 minutes' );
+ok( false !== strpos( $cadence, 'window.top' ) && false !== strpos( $cadence, 'doc.hasFocus()' ), 'focus is read from the TOP document: an iframe window taking focus is still the owner working in the desktop' );
+ok( false !== strpos( $cadence, "return 'visible' === state() ? Math.max( focusedMs, IDLE_MS ) : focusedMs;" ), 'only visible-but-unfocused slows down; focused keeps the widget\'s own rate' );
+foreach ( array( 'desktop-mode-widget.js', 'desktop-mode-widget-uptime.js', 'desktop-mode-widget-queue.js', 'desktop-mode-widget-cache.js' ) as $name ) {
+	$js = $code[ $name ];
+	ok( false !== strpos( $js, 'window.sntPollCadence ? window.sntPollCadence.onFocusChange( onVisibilityChange ) : function() {}' ) && false !== strpos( $js, 'unwatchFocus();' ), "$name re-arms on focus change and drops the watcher at teardown" );
+	ok( false !== strpos( $js, 'window.sntPollCadence ? window.sntPollCadence.wait(' ), "$name asks the cadence for its wait, and keeps its fixed rate when the helper is absent" );
+}
+ok( false !== strpos( $code['desktop-mode-widget.js'], 'nextAt = lastAt + Math.max( lastDelay, cadence( REFRESH_MS ) );' ), 'the deploy card: a failure backoff still wins when longer than the cadence' );
+ok( false !== strpos( $code['desktop-mode-widget-cache.js'], "summary.last === 'pending' ? 15000 : idleWait()" ), 'the cache card keeps its 15 s poll while a purge is pending, whatever the focus' );
+$assets_php = (string) file_get_contents( dirname( __DIR__ ) . '/inc/desktop-mode-assets.php' );
+ok( 4 === substr_count( $assets_php, "'snt-poll-cadence' )" ), 'the four pollers (deploy, queue, cache, uptime) declare the cadence as a dependency' );
+
 // 6. Negative control: the status colours have no widget token and stay literal.
 ok( false !== strpos( $code['desktop-mode-widget.js'], "'#3fb950'" ) && false !== strpos( $code['desktop-mode-widget.js'], "'#d29922'" ) && false !== strpos( $code['desktop-mode-widget.js'], "'#ff9d94'" ), 'the deploy card keeps its green, amber and red status glyphs literal' );
 ok( false !== strpos( $code['desktop-mode-widget-actions.js'], "'#3fb950'" ), 'Quick Actions keeps its success colour literal' );

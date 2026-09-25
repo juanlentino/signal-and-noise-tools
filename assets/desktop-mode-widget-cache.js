@@ -218,6 +218,13 @@
 		var unpaint = paint( container, summary );
 		var errorNote = null;
 		var lastRunMs = 0;
+		// Focus-aware idle wait (assets/snt-poll-cadence.js): 60 s focused,
+		// IDLE_MS when only visible. A pending purge keeps its 15 s poll and
+		// snt-cache-purged its instant refresh either way: the owner is
+		// waiting on those.
+		function idleWait() {
+			return window.sntPollCadence ? window.sntPollCadence.wait( 60000 ) : 60000;
+		}
 
 		function refresh() {
 			window.clearTimeout( timer );
@@ -259,7 +266,7 @@
 			} ).finally( function() {
 				busy = false;
 				if ( stopped ) { return; }
-				timer = window.setTimeout( refresh, again ? 0 : ( summary && summary.last === 'pending' ? 15000 : 60000 ) );
+				timer = window.setTimeout( refresh, again ? 0 : ( summary && summary.last === 'pending' ? 15000 : idleWait() ) );
 				again = false;
 			} );
 		}
@@ -272,12 +279,15 @@
 			refresh();
 		}
 		document.addEventListener( 'visibilitychange', onVisibilityChange );
+		// Back in focus, a result older than the poll refreshes at once.
+		var unwatchFocus = window.sntPollCadence ? window.sntPollCadence.onFocusChange( onVisibilityChange ) : function() {};
 		refresh();
 		return function teardown() {
 			stopped = true;
 			window.clearTimeout( timer );
 			document.removeEventListener( 'snt-cache-purged', refresh );
 			document.removeEventListener( 'visibilitychange', onVisibilityChange );
+			unwatchFocus();
 			unpaint();
 			if ( errorNote ) { errorNote.remove(); }
 		};
