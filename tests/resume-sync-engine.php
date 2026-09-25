@@ -92,7 +92,7 @@ foreach ( array( 'group', 'paragraph', 'heading', 'columns', 'column', 'list', '
 }
 ok( $types_ok, 'every block type opens and closes the same number of times' );
 ok( false !== strpos( $body, 'RESUME' ), 'hero headline present' );
-ok( false !== strpos( $body, '20+ years building studios' ), 'hero summary present' );
+ok( false !== strpos( $body, '15+ years building studios' ), 'hero summary present' );
 ok( 4 === substr_count( $body, 'class="sn-resume-stat-n"' ), 'all four stat numbers rendered' );
 // v10.35.0 hero rearrange: uniform width stays (owner direction, v10.33.3),
 // but the uniform value widens 960px → 1320px so the split hero and bands
@@ -109,7 +109,7 @@ ok( false !== strpos( $body, 'are-vertically-aligned-top sn-resume-hero-split' )
 ok( false === strpos( $body, 'are-vertically-aligned-bottom' ), 'no bottom alignment remains in the hero' );
 // v10.37.3 owner direction: the summary reads under the title in the LEFT
 // column; the right column starts with the credential ledger.
-ok( strpos( $body, '20+ years building studios' ) < strpos( $body, 'flex-basis:45%' ), 'summary sits in the left column, before the right column opens' );
+ok( strpos( $body, '15+ years building studios' ) < strpos( $body, 'flex-basis:45%' ), 'summary sits in the left column, before the right column opens' );
 // v10.37.4: the eyebrow sits ABOVE the columns (band kicker), so both
 // columns start on the same line — title cap left, ledger top rule right.
 ok( strpos( $body, 'sn-catalog-eyebrow' ) < strpos( $body, 'sn-resume-hero-split' ), 'eyebrow precedes the hero columns' );
