@@ -53,7 +53,7 @@ function e5r_extract( $src, $name ) {
 }
 
 $roll = (string) file_get_contents( $root . '/inc/edge-rollup.php' );
-foreach ( array( 'sn_edge_errors_reading', 'sn_edge_errors_range', 'sn_edge_error_source_label', 'sn_edge_error_asker', 'sn_edge_errors_days_shape', 'sn_edge_errors_asked_by_totals', 'sn_edge_errors_days_annotate' ) as $name ) {
+foreach ( array( 'sn_edge_errors_reading', 'sn_edge_errors_range', 'sn_edge_error_source_label', 'sn_edge_error_asker_label', 'sn_edge_error_asker', 'sn_edge_errors_days_shape', 'sn_edge_errors_asked_by_totals', 'sn_edge_errors_days_annotate' ) as $name ) {
 	$fn = e5r_extract( $roll, $name );
 	ok( '' !== $fn, "$name() was extracted; if empty, every assertion below is vacuous" );
 	eval( $fn ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- test-only extraction.
@@ -94,7 +94,11 @@ $q_body  = substr( $ana_src, $q_start, strpos( $ana_src, "\n}\n", $q_start ) - $
 ok( false !== strpos( $q_body, 'requestSource_neq:"earlyHintsCache"' ), 'the 5xx query excludes Cloudflare\'s own Early Hints lookups (98% of stored 5xx on 2026-09-23)' );
 ok( false !== strpos( $q_body, 'requestSource}' ), 'and asks for the request source, so what remains says who asked' );
 ok( '520 from Cloudflare itself (the origin never answered), asked by a visitor' === sn_edge_error_source_label( 'src=eyeball edge=520 origin=- cache=none' ), 'a visitor\'s 5xx says so' );
-ok( '503 from the origin, asked by a Worker' === sn_edge_error_source_label( 'src=edgeWorkerFetch edge=503 origin=503' ), 'a Worker\'s subrequest says so' );
+ok( '503 from the origin, through a Worker (usually a visitor\'s request it forwarded)' === sn_edge_error_source_label( 'src=edgeWorkerFetch edge=503 origin=503' ), 'a Worker-forwarded 5xx names the path, not "a Worker" (rights-signals forwards every page, 18.7.0)' );
+ok( false !== strpos( $q_body, 'requestSource_neq:"edgeWorkerCacheAPI"' ) && false !== strpos( $q_body, 'AND:[{requestSource_neq:"earlyHintsCache"},{requestSource_neq:"edgeWorkerCacheAPI"}]' ), 'the 5xx query also excludes a Worker\'s Cache API lookups (31 of 93 "worker" 5xx on 2026-09-23), with AND over the proven neq' );
+ok( 1 === substr_count( $q_body, 'requestSource_neq:"earlyHintsCache"' ), 'the Early Hints exclusion appears once, inside the AND (a duplicate filter key would be a GraphQL refusal)' );
+ok( '504 from Cloudflare itself (the origin never answered), a Worker\'s cache lookup, no request made' === sn_edge_error_source_label( 'src=edgeWorkerCacheAPI edge=504 origin=- cache=miss' ), 'a Cache API row stored before 18.7.0 says what it was' );
+ok( 'asked by other' === sn_edge_error_asker_label( 'other' ), 'any other source is named as Cloudflare gave it' );
 ok( '504 from Cloudflare itself (the origin never answered)' === sn_edge_error_source_label( 'edge=504 origin=- cache=miss' ), 'a row stored before 17.9.3 (no src) reads as it did' );
 $roll_src = (string) file_get_contents( $root . '/inc/edge-rollup.php' );
 ok( false !== strpos( $roll_src, 'update_option( SN_EDGE_ERRORS_QUERY_OPT' ) && false !== strpos( $roll_src, "'query'       => function_exists( 'get_option' ) ? get_option( SN_EDGE_ERRORS_QUERY_OPT" ), 'the query\'s outcome is kept and read back, so a refused query is "not read", never "no errors"' );

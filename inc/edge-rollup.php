@@ -732,6 +732,34 @@ function sn_edge_errors_days( $from, $to ) {
 }
 
 /**
+ * Who asked, in words (18.7.0). `edgeWorkerFetch` is not "a Worker" in the
+ * sense a reader takes it: sn-rights-signals sits on `juanlentino.com/*` and
+ * passes every page through with fetch(request), so most of those rows are a
+ * visitor's request the Worker forwarded (47 of 93 "worker" 5xx on
+ * 2026-09-23). A Worker's own calls to the origin read the same, so the
+ * label names the path, not a guess at the person. `edgeWorkerCacheAPI` is a
+ * cache lookup that made no request; the query drops it from 18.7.0, and the
+ * label only reads rows stored before that.
+ *
+ * @param string $source Cloudflare requestSource.
+ * @return string
+ */
+function sn_edge_error_asker_label( $source ) {
+	$source = (string) $source;
+	if ( 'eyeball' === $source ) {
+		return __( 'asked by a visitor', 'signal-and-noise-tools' );
+	}
+	if ( 'edgeWorkerCacheAPI' === $source ) {
+		return __( 'a Worker\'s cache lookup, no request made', 'signal-and-noise-tools' );
+	}
+	if ( 0 === strpos( $source, 'edgeWorker' ) ) {
+		return __( 'through a Worker (usually a visitor\'s request it forwarded)', 'signal-and-noise-tools' );
+	}
+	/* translators: %s: Cloudflare request source. */
+	return sprintf( __( 'asked by %s', 'signal-and-noise-tools' ), $source );
+}
+
+/**
  * `edge=503 origin=503 cache=miss` in words. The distinction is the one
  * #1002 could not get from outside: an origin status means the origin (or
  * the cache in front of it) failed; `origin=-` means nothing upstream
@@ -743,7 +771,7 @@ function sn_edge_errors_days( $from, $to ) {
 function sn_edge_error_source_label( $value ) {
 	$who = '';
 	if ( preg_match( '/^src=(\S+) /', (string) $value, $s ) ) {
-		$who   = ', ' . ( 'eyeball' === $s[1] ? __( 'asked by a visitor', 'signal-and-noise-tools' ) : ( 0 === strpos( $s[1], 'edgeWorker' ) ? __( 'asked by a Worker', 'signal-and-noise-tools' ) : sprintf( /* translators: %s: Cloudflare request source. */ __( 'asked by %s', 'signal-and-noise-tools' ), $s[1] ) ) );
+		$who   = ', ' . sn_edge_error_asker_label( $s[1] );
 		$value = substr( (string) $value, strlen( $s[0] ) );
 	}
 	if ( ! preg_match( '/^edge=(\d+) origin=(\d+|-)/', (string) $value, $m ) ) {

@@ -234,7 +234,12 @@ function sn_edge_errors_query() {
 		// the origin and no visitor sees. It was ~98% of every stored 5xx
 		// (edge-sampling-probe, 2026-09-23: 7,593 of 7,743 in 24h). Excluded,
 		// and the source kept as a dimension so what remains says who asked.
-		. 'errors:httpRequestsAdaptiveGroups(limit:50,filter:{datetime_geq:$from,datetime_lt:$to,edgeResponseStatus_geq:500,requestSource_neq:"earlyHintsCache"},orderBy:[count_DESC]){'
+		// 18.7.0: requestSource edgeWorkerCacheAPI is the same kind of row: a
+		// Worker's caches.default.match() on a zone URL, logged as a 504 on a
+		// miss though no request left the edge. On 2026-09-23 it was 31 of the
+		// 93 "worker" 5xx, all the rights-signals worker's crawler-verdict
+		// lookup. Both are excluded with AND over the neq already proven here.
+		. 'errors:httpRequestsAdaptiveGroups(limit:50,filter:{datetime_geq:$from,datetime_lt:$to,edgeResponseStatus_geq:500,AND:[{requestSource_neq:"earlyHintsCache"},{requestSource_neq:"edgeWorkerCacheAPI"}]},orderBy:[count_DESC]){'
 		. 'count avg{sampleInterval}'
 		. 'dimensions{clientRequestPath edgeResponseStatus originResponseStatus cacheStatus requestSource}}'
 		. '}}}';
