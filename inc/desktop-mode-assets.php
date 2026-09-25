@@ -107,6 +107,16 @@ add_action( 'init', function() {
 		true
 	);
 
+	// Focus-aware poll cadence the pollers share (full rate focused, 5 min
+	// visible-but-unfocused). No dependencies; each widget runs without it.
+	wp_register_script(
+		'snt-poll-cadence',
+		plugins_url( 'assets/snt-poll-cadence.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array(),
+		SNT_VERSION,
+		true
+	);
+
 	wp_register_script(
 		'sn-desktop-mode',
 		plugins_url( 'assets/desktop-mode.js', SNT_PATH . 'signal-and-noise-tools.php' ),
@@ -118,7 +128,7 @@ add_action( 'init', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget',
 		plugins_url( 'assets/desktop-mode-widget.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run' ),
+		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run', 'snt-poll-cadence' ),
 		SNT_VERSION,
 		true
 	);
@@ -145,7 +155,7 @@ add_action( 'init', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget-queue',
 		plugins_url( 'assets/desktop-mode-widget-queue.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'snt-ability-run' ),
+		array( 'sn-desktop-mode-os-compat', 'snt-ability-run', 'snt-poll-cadence' ),
 		SNT_VERSION,
 		true
 	);
@@ -178,7 +188,7 @@ add_action( 'init', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget-cache',
 		plugins_url( 'assets/desktop-mode-widget-cache.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'snt-ability-run', 'sn-desktop-mode' ),
+		array( 'sn-desktop-mode-os-compat', 'snt-ability-run', 'sn-desktop-mode', 'snt-poll-cadence' ),
 		SNT_VERSION,
 		true
 	);
@@ -204,7 +214,9 @@ add_action( 'init', function() {
 		wp_register_script(
 			'sn-desktop-mode-widget-' . $sn_widget,
 			plugins_url( 'assets/desktop-mode-widget-' . $sn_widget . '.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-			array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode' ),
+			'uptime' === $sn_widget
+				? array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode', 'snt-poll-cadence' )
+				: array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode' ),
 			SNT_VERSION,
 			true
 		);
