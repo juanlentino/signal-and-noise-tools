@@ -144,11 +144,12 @@ function sn_resume_hero_blocks( $hero ) {
 	// ?v=<hash> for cache busting; until then the hand-set URL from the form.
 	$pdf_href = function_exists( 'sn_resume_pdf_link' ) ? sn_resume_pdf_link( $hero['pdf_url'] ) : $hero['pdf_url'];
 	if ( '' !== $pdf_href ) {
-		$label  = '' !== $hero['pdf_label'] ? $hero['pdf_label'] : 'Resume (PDF)';
+		// Button only (owner, 2026-09-25): the filename link beside it repeated
+		// the page's own RESUME title. core/file saves no filename anchor and
+		// no aria-describedby when fileName is empty, so this is its valid shape.
 		$url    = esc_url( $pdf_href );
 		$right .= '<!-- wp:file {"href":"' . $url . '","className":"sn-resume-download"} -->' . "\n"
-			. '<div class="wp-block-file sn-resume-download"><a id="wp-block-file--media-sn-resume-pdf" href="' . $url . '">' . esc_html( $label ) . '</a>'
-			. '<a href="' . $url . '" class="wp-block-file__button wp-element-button" download aria-describedby="wp-block-file--media-sn-resume-pdf">Download PDF</a></div>' . "\n"
+			. '<div class="wp-block-file sn-resume-download"><a href="' . $url . '" class="wp-block-file__button wp-element-button" download>Download PDF</a></div>' . "\n"
 			. '<!-- /wp:file -->' . "\n\n";
 	}
 

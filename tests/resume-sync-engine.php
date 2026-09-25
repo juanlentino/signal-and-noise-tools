@@ -129,6 +129,12 @@ ok( 6 === substr_count( $body, '<tr><td>' ), 'six skills table rows' );
 ok( false !== strpos( $body, 'P&amp;L Oversight' ), 'skills ampersands escaped exactly once' );
 ok( false === strpos( $body, 'P&amp;amp;' ), 'no double-escaping anywhere' );
 ok( false !== strpos( $body, 'JuanLentino_Resume.pdf' ) && false !== strpos( $body, 'Download PDF' ), 'PDF download block rendered' );
+// Button only: a saved label from before the field was removed must not render.
+$labeled = $doc;
+$labeled['hero']['pdf_label'] = 'OLD LABEL';
+$file_html = preg_match( '~<div class="wp-block-file sn-resume-download">(.*?)</div>~s', sn_resume_body_html( $labeled ), $fm ) ? $fm[1] : '';
+ok( 1 === substr_count( $file_html, '<a ' ) && false !== strpos( $file_html, 'wp-block-file__button' ), 'download block is the button alone' );
+ok( false === strpos( $file_html, 'OLD LABEL' ) && false === strpos( $file_html, 'aria-describedby' ), 'no filename link or dangling describedby' );
 ok( false !== strpos( $body, 'MBA, Applied Artificial Intelligence in Business' ), 'education entries rendered' );
 ok( false !== strpos( $body, 'Voting Member, The Recording Academy' ), 'affiliations rendered' );
 

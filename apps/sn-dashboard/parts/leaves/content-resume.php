@@ -79,10 +79,7 @@ function resume_hero( array $hero ) {
 			resume_text( 'resume[hero][contact_line]', __( 'Contact line', 'signal-and-noise-tools' ), $hero['contact_line'] ?? '', 'City, State' ),
 			resume_text( 'resume[hero][linkedin]', __( 'LinkedIn URL', 'signal-and-noise-tools' ), $hero['linkedin'] ?? '', 'https://www.linkedin.com/in/…' )
 		)
-		. resume_pair(
-			resume_text( 'resume[hero][pdf_url]', __( 'PDF URL', 'signal-and-noise-tools' ), $hero['pdf_url'] ?? '', 'https://…/Resume.pdf' ),
-			resume_text( 'resume[hero][pdf_label]', __( 'PDF link label', 'signal-and-noise-tools' ), $hero['pdf_label'] ?? '', 'Name · Resume (PDF)' )
-		);
+		. resume_text( 'resume[hero][pdf_url]', __( 'PDF URL', 'signal-and-noise-tools' ), $hero['pdf_url'] ?? '', 'https://…/Resume.pdf' );
 }
 
 /**

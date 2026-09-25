@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The resume hero's download row is the Download PDF button alone.** The filename link beside it read RESUME (the saved PDF link label), repeating the page's own title right above. The page builder now writes core/file's own no-filename shape: one button, no dangling `aria-describedby`. The PDF link label field is gone from both resume forms, the document schema and the seed; a label saved before is ignored. The live page picks this up on the next resume save or PDF generation, since the page is rebuilt from the form.
+
 ## [18.6.1] - 2026-09-25 — the edge 5xx rollup stops counting Worker cache lookups and names forwarded visitors
 
 ### Fixed

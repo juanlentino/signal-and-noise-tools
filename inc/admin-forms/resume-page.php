@@ -207,7 +207,6 @@ function sn_admin_render_resume_section() {
 	sn_rsm_input( 'resume[hero][linkedin]', $doc['hero']['linkedin'], 'LinkedIn URL', 'https://www.linkedin.com/in/…' );
 	echo '</div><div class="sn-rsm-pair">';
 	sn_rsm_input( 'resume[hero][pdf_url]', $doc['hero']['pdf_url'], 'PDF URL', 'https://…/Resume.pdf' );
-	sn_rsm_input( 'resume[hero][pdf_label]', $doc['hero']['pdf_label'], 'PDF link label', 'Name · Resume (PDF)' );
 	echo '</div></details>';
 
 	// ── Stats ──
