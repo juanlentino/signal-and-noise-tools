@@ -76,7 +76,7 @@ $GLOBALS['__options']['sn_resume_pdf'] = array(
 $after    = sn_resume_body_html( $doc );
 $old_url  = esc_url( $doc['hero']['pdf_url'] );
 $new_url  = esc_url( 'https://example.test/wp-content/uploads/resume/JuanLentino_Resume.pdf?v=ab12cd34' );
-ok( substr_count( $before, $old_url ) >= 3, 'the old URL sits in the link block (' . substr_count( $before, $old_url ) . ' occurrences)' );
+ok( substr_count( $before, $old_url ) >= 2, 'the old URL sits in the link block (' . substr_count( $before, $old_url ) . ' occurrences)' );
 ok( false === strpos( $after, $old_url ), 'the hand-set URL is gone once a PDF exists' );
 ok( substr_count( $after, $new_url ) === substr_count( $before, $old_url ), 'the generated URL, with ?v=<first 8 of the hash>, takes every one of its places' );
 ok( str_replace( $old_url, $new_url, $before ) === $after, 'and NOTHING else in the body changed' );

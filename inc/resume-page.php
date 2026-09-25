@@ -12,7 +12,7 @@
  * machine-readable text and the generated markup can never drift.
  *
  * Document shape (canonical, enforced by sn_resume_doc_normalize()):
- *   hero{summary,chips[],contact_line,linkedin,pdf_url,pdf_label}
+ *   hero{summary,chips[],contact_line,linkedin,pdf_url}
  *   stats[]{n,label} · experience[]{org,dates,location,roles[]{title,bullets[]}}
  *   earlier{label,entries[]{org,roles[]{title,bullets[]}}}
  *   education[]{title,lines[]} · affiliations[]{title,lines[]}
@@ -183,7 +183,6 @@ function sn_resume_doc_normalize( $doc ) {
 		'contact_line' => sn_resume_text( $hero_in['contact_line'] ?? '' ),
 		'linkedin'     => sn_resume_url( $hero_in['linkedin'] ?? '' ),
 		'pdf_url'      => sn_resume_url( $hero_in['pdf_url'] ?? '' ),
-		'pdf_label'    => sn_resume_text( $hero_in['pdf_label'] ?? '' ),
 	);
 
 	$stats = array();
