@@ -55,7 +55,7 @@ function snt_fs_scan() {
 	$flagged = array();
 	foreach ( $ids as $id ) {
 		$form   = (int) get_post_meta( $id, ALLTFO_META_FORM, true );
-		$reason = snt_fs_reason( snt_fs_signals( (array) get_post_meta( $id, ALLTFO_META_VALUES, true ), $schemas[ $form ] ?? array() ) );
+		$reason = snt_fs_reason( snt_fs_signals( snt_fs_entry_values( get_post_meta( $id, ALLTFO_META_VALUES, true ) ), $schemas[ $form ] ?? array() ) );
 		if ( '' !== $reason ) {
 			$flagged[] = array( 'id' => (int) $id, 'form' => $form, 'title' => get_the_title( $id ), 'date' => get_post_time( 'c', true, $id ), 'reason' => $reason );
 		}

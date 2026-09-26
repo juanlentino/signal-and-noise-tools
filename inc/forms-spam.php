@@ -108,6 +108,22 @@ function snt_fs_signals( array $values, array $schema ) {
 }
 
 /**
+ * An entry's stored values as an array. Forms keeps them as a JSON string
+ * (`wp_json_encode`, includes/resume.php) and reads them back with
+ * json_decode everywhere; an array is accepted too. PURE.
+ *
+ * @param mixed $raw The meta value.
+ * @return array
+ */
+function snt_fs_entry_values( $raw ) {
+	if ( is_array( $raw ) ) {
+		return $raw;
+	}
+	$decoded = is_string( $raw ) ? json_decode( $raw, true ) : null;
+	return is_array( $decoded ) ? $decoded : array();
+}
+
+/**
  * Is it spam, and why? PURE.
  *
  * @param array $signals snt_fs_signals() shape.
