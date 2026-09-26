@@ -66,6 +66,7 @@ function snt_edge_errors_output_schema() {
 			'query'       => array( 'type' => array( 'object', 'null' ), 'description' => 'The errors query\'s last outcome: at (unix), day, error. A non-empty error means the window was NOT read, which is not the same as no errors.' ),
 			'total'       => array( 'type' => 'integer', 'description' => '5xx over the window, Early Hints cache lookups excluded (17.9.3).' ),
 			'paths'       => array( 'type' => 'array', 'items' => $row, 'description' => 'Which URLs failed, most first (top 10).' ),
+			'paths_by_status' => array( 'type' => 'array', 'items' => $row, 'description' => 'Which URL got which status, most first (top 10): value is "<edge status> <cache status> <path>", e.g. "520 dynamic /wp-json/wp/v2/posts" (#1006). Recorded only from the release that added it (#1006) on, so earlier days have none: empty is "not recorded yet", not "no errors".' ),
 			'sources'     => array( 'type' => 'array', 'items' => $source, 'description' => 'Who answered, most first (top 10). `origin=-` is Cloudflare or a Worker answering by itself; a matching origin status is the origin failing.' ),
 			'days'        => array( 'type' => 'array', 'items' => $day, 'description' => '18.2.0: one row per day of the window, oldest first, zero-filled: total and who asked. Read the day a filter changed here instead of inferring it from the week.' ),
 			'asked_by'    => array( 'type' => 'object', 'properties' => $asked, 'description' => '18.2.0: the window\'s 5xx by who asked, summed from days.' ),
@@ -80,7 +81,7 @@ function snt_edge_errors_output_schema() {
 function snt_ability_edge_errors_summary( $input = null ) {
 	unset( $input );
 	if ( ! function_exists( 'sn_edge_errors_reading' ) ) {
-		return array( 'state' => 'unavailable', 'from' => null, 'to' => null, 'honest_from' => null, 'query' => null, 'total' => 0, 'paths' => array(), 'sources' => array(), 'days' => array(), 'asked_by' => array( 'visitor' => 0, 'worker' => 0, 'other' => 0, 'unrecorded' => 0 ) );
+		return array( 'state' => 'unavailable', 'from' => null, 'to' => null, 'honest_from' => null, 'query' => null, 'total' => 0, 'paths' => array(), 'paths_by_status' => array(), 'sources' => array(), 'days' => array(), 'asked_by' => array( 'visitor' => 0, 'worker' => 0, 'other' => 0, 'unrecorded' => 0 ) );
 	}
 	$r = sn_edge_errors_reading( 7 );
 	return array(
@@ -91,6 +92,7 @@ function snt_ability_edge_errors_summary( $input = null ) {
 		'query'       => is_array( $r['query'] ) ? $r['query'] : null,
 		'total'       => (int) $r['total'],
 		'paths'       => array_values( (array) $r['paths'] ),
+		'paths_by_status' => array_values( (array) ( $r['paths_by_status'] ?? array() ) ),
 		'sources'     => array_values( (array) $r['sources'] ),
 		'days'        => array_values( (array) ( $r['days'] ?? array() ) ),
 		'asked_by'    => (array) ( $r['asked_by'] ?? array( 'visitor' => 0, 'worker' => 0, 'other' => 0, 'unrecorded' => 0 ) ),
