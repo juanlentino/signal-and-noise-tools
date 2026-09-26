@@ -89,20 +89,6 @@ function snt_fs_signals( array $values, array $schema ) {
 	if ( 1 === preg_match( '/\b(seo backlinks?|backlinks?\b.{0,40}\b(traffic|seo)|price as low as|\d{2}% (discount|off|sale)|companies available in our database|download (your|the) data|replica (rolex|watch)|cash on delivery|casino|viagra|payday loan)/is', $all ) ) {
 		$strong[] = 'pitch';
 	}
-	// The sender's name copied into two or more unrelated answers (Timeline,
-	// Company): a script filling every field, not a person.
-	$name_plain = trim( $name_text );
-	if ( '' !== $name_plain ) {
-		$echo = 0;
-		foreach ( $flat as $id => $v ) {
-			if ( ! in_array( strtok( $id, '.' ), $names, true ) && 0 === strcasecmp( $v, $name_plain ) ) {
-				++$echo;
-			}
-		}
-		if ( $echo >= 2 ) {
-			$weak[] = 'name_echo';
-		}
-	}
 	if ( 1 === preg_match( '/[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]/u', $name_text ) ) {
 		$weak[] = 'emoji_in_name';
 	}

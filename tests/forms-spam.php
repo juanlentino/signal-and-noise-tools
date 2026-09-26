@@ -42,7 +42,7 @@ ok( '' !== $r2( array( 'f1' => 'Buddy Sambell', 'f2' => 'info@freeb2bdata.org', 
 ok( '' !== $r2( array( 'f1' => 'Darby Vang', 'f2' => 'info@freeb2bdata.org', 'f6' => str_replace( 'Buddy Sambell', 'Darby Vang', $pitch ), 'f7' => 'Darby Vang', 'f8' => 'Darby Vang' ) ), 'Darby Vang: the same template is caught' );
 ok( '' !== $r2( array( 'f1' => 'Debra Rodd', 'f2' => 'rodd.debra@gmail.com', 'f6' => "Hello there from BonusBacklinks,\nBest quality seo backlinks to super grow your website backlinks!\nTake 85% Discount\nPrice as low as $1", 'f7' => 'Debra Rodd', 'f8' => 'Debra Rodd' ) ), 'Debra Rodd: the backlinks pitch is caught' );
 ok( '' !== $r2( array( 'f1' => 'DAvid LIN', 'f2' => 'support@decentgears.com', 'f3' => 'David Lin', 'f4' => 'N/A', 'f5' => 'Replica Rolex watches, cash on delivery', 'f6' => 'I would like to inquire about your services.' ) ), 'DAvid LIN: the replica watches pitch is caught' );
-ok( 'snt:name_echo' !== $r2( array( 'f1' => 'Ana Ruiz', 'f7' => 'Ana Ruiz', 'f8' => 'Ana Ruiz' ) ) && '' === $r2( array( 'f1' => 'Ana Ruiz', 'f7' => 'Ana Ruiz', 'f8' => 'Ana Ruiz' ) ), 'a name echoed into two fields ALONE is one weak signal: passes' );
+ok( '' === $r2( array( 'f1' => 'Ana Ruiz', 'f2' => 'ana@studio.com', 'f7' => 'Ana Ruiz', 'f8' => 'Ana Ruiz', 'f6' => 'Could we talk about provenance for my label?' ) ), 'a freelancer whose Company is her own name, filling a required field with it, passes' );
 ok( '' === $r2( array( 'f1' => 'Kim Park', 'f2' => 'kim@uni.edu', 'f8' => 'Seoul National University', 'f6' => 'Your note on detection mentions SEO for music catalogs; could we talk about metadata and discoverability?' ) ), 'a real inquiry that mentions SEO passes (the pitch needs its selling words)' );
 
 // Real inquiries: must pass.
