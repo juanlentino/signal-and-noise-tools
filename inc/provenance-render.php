@@ -313,7 +313,9 @@ function sn_prov_render_chip( $post_id ) {
 	if ( ! $vm['is_genesis_only'] ) {
 		$verify_href .= '&v=' . (int) $vm['version'];
 	}
-	$verify_link = ' <a class="sn-prov-chip-verify" href="' . esc_url( $verify_href ) . '">Verify</a>';
+	// data-sn-goal: a click fires the named `verify` goal (sn-beacon.js), so the
+	// north star can count readers who checked a note's signature.
+	$verify_link = ' <a class="sn-prov-chip-verify" data-sn-goal="verify" href="' . esc_url( $verify_href ) . '">Verify</a>';
 
 	// Mark here: both remaining paths emit markup, and a caller that got '' back
 	// must not consume the one chip this subject gets. Skipped when the seam is

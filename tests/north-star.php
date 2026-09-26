@@ -55,7 +55,21 @@ ok( 1 === $t['readers'], 'readers counts visitor-days with a core read by scroll
 ok( 1 === $t['deep'], 'deep: a read two notes across two visits of one day' );
 ok( 1 === $t['career'], 'career: b reached /contact' );
 ok( 1 === $t['intent'], 'intent: only download/outbound count, once per visitor-day' );
-ok( array( 'readers' => 0, 'deep' => 0, 'career' => 0, 'intent' => 0 ) === snt_nsm_tally( array(), $cfg ), 'no visits: all zero' );
+ok( array( 'readers' => 0, 'deep' => 0, 'career' => 0, 'intent' => 0, 'resume_downloads' => 0, 'subscribes' => 0, 'shares' => 0, 'verifies' => 0 ) === snt_nsm_tally( array(), $cfg ), 'no visits: all zero' );
+
+// Named goals: each counted once per visitor-day, by where and what fired.
+$g = snt_nsm_tally( array(
+	array( $ev( 'r', 'ce', '/resume/', array( 'ce' => 'download' ) ), $ev( 'r', 'ce', '/resume/', array( 'ce' => 'download' ) ) ),
+	array( $ev( 's', 'ce', '/notes/x/', array( 'ce' => 'download' ) ) ),
+	array( $ev( 'f', 'ce', '/notes/', array( 'ce' => 'subscribe' ) ) ),
+	array( $ev( 'v', 'ce', '/notes/x/', array( 'ce' => 'verify' ) ) ),
+	array( $ev( 'h', 'ce', '/notes/x/', array( 'ce' => 'share_copy' ) ), $ev( 'k', 'ce', '/notes/y/', array( 'ce' => 'share_native' ) ) ),
+), $cfg );
+ok( 1 === $g['resume_downloads'], 'a download on /resume is a resume download, twice in a day counts once; a PDF elsewhere is not' );
+ok( 1 === $g['subscribes'], 'a subscribe click counts' );
+ok( 1 === $g['verifies'], 'a signature check from the provenance chip counts' );
+ok( 2 === $g['shares'], 'Copy link and the share sheet both count as shares' );
+ok( 2 === $g['intent'], 'downloads still count as deliberate actions (both PDFs), subscribes and shares do not inflate it' );
 
 // Weeks: rolling 7-day buckets by a visit's first event.
 $now = 10 * 86400;

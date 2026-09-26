@@ -13,6 +13,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Added
+- **The north star counts what readers do, not only what they read.** Four named goals join its intent layer, each once per visitor-day: resume PDF downloads (a `download` fired on /resume, no markup change to the resume page's block), feed subscribe clicks (`subscribe`, already tracked), notes shared (`share_copy` / `share_native`, fired by the theme's share row, juanlentino/signal-and-noise#446) and signatures checked (`verify`, the provenance chip on each note now carries `data-sn-goal="verify"`). Tests pin each goal and that subscribes and shares do not inflate the deliberate-action count; widening the /resume match fails its pin.
 - **Feed click-throughs show up as visits.** Each item link in the RSS and Atom feeds now carries `utm_source=rss&utm_medium=feed`, so a reader who clicks through from a feed reader lands as a campaign visit the edge worker already records (Measurement › Campaigns lists it as "rss / feed"). Only the link is tagged: the GUID is untouched, so feed readers keep their read state; the comments feed is left alone; a link is never tagged twice. The north star gains an input, "Clicked through from a feed" (7 days), counting every `utm_medium=feed` visit, so the theme's JSON Feed (tagged `utm_source=jsonfeed`, juanlentino/signal-and-noise#446) adds to it. It starts at zero: readers see the tagged links as their apps refresh. Reading inside a feed reader stays invisible; that is the reader's app.
 
 ### Documentation

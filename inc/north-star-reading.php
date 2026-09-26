@@ -78,6 +78,10 @@ function snt_nsm_inputs( array $week, $now, $readers_4w ) {
 			'deep_readers'   => array( 'value' => (int) $week['deep'], 'window' => '7d' ),
 			'actions'        => array( 'value' => (int) $week['intent'], 'window' => '7d' ),
 			'career_visits'  => array( 'value' => (int) $week['career'], 'window' => '7d' ),
+			'resume_downloads' => array( 'value' => (int) $week['resume_downloads'], 'window' => '7d' ),
+			'subscribes'     => array( 'value' => (int) $week['subscribes'], 'window' => '7d' ),
+			'shares'         => array( 'value' => (int) $week['shares'], 'window' => '7d' ),
+			'verifies'       => array( 'value' => (int) $week['verifies'], 'window' => '7d' ),
 		),
 		// Layer 3, return: what the writing brings back. Not a sale: readers per
 		// note is the return on writing time, DOI downloads the scholarly
