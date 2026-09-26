@@ -264,6 +264,11 @@ function sn_edge_errors_dims( array $rows ) {
 		$out['err_path'][ $path ] = ( $out['err_path'][ $path ] ?? 0 ) + $req;
 		$src = ( '' !== $from ? 'src=' . $from . ' ' : '' ) . 'edge=' . $edge . ' origin=' . $orig . ( '' !== $cache ? ' cache=' . $cache : '' );
 		$out['err_source'][ $src ] = ( $out['err_source'][ $src ] ?? 0 ) + $req;
+		// #1006: which path got which status. "<edge> <cache> <path>" in one value,
+		// capped at the column's 160 by cutting the PATH end, never the prefix.
+		$prefix = $edge . ' ' . ( '' !== $cache ? $cache : '-' ) . ' ';
+		$ps     = $prefix . substr( $path, 0, max( 0, 160 - strlen( $prefix ) ) );
+		$out['err_path_status'][ $ps ] = ( $out['err_path_status'][ $ps ] ?? 0 ) + $req;
 	}
 
 	return $out;
@@ -556,7 +561,7 @@ function sn_edge_errors_reading( $days = 7, $today = null ) {
  *
  * @param string $from First day.
  * @param string $to   Last day.
- * @return array{from:string,to:string,total:int,paths:array,sources:array,days:array,asked_by:array}
+ * @return array{from:string,to:string,total:int,paths:array,paths_by_status:array,sources:array,days:array,asked_by:array}
  */
 function sn_edge_errors_range( $from, $to ) {
 	$from    = (string) $from;
@@ -588,6 +593,8 @@ function sn_edge_errors_range( $from, $to ) {
 		'query'       => function_exists( 'get_option' ) ? get_option( SN_EDGE_ERRORS_QUERY_OPT, null ) : null,
 		'total'       => $days ? (int) array_sum( array_column( $days, 'total' ) ) : (int) array_sum( array_column( $sources, 'requests' ) ),
 		'paths'       => $paths,
+		// #1006: path and status together, "520 dynamic /wp-json/...".
+		'paths_by_status' => sn_edge_top_dim( 'err_path_status', $from, $to, 10 ),
 		'sources'     => $sources,
 		'days'        => $days,
 		'asked_by'    => $asked_by,

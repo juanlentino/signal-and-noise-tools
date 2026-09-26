@@ -28,6 +28,7 @@ function sn_edge_top_dim( $dim, $from, $to, $limit = 10 ) {
 	$fx = array(
 		'err_path'   => array( array( 'value' => '/wp-cron.php', 'requests' => 7, 'bytes' => 0 ), array( 'value' => '/feed/', 'requests' => 3, 'bytes' => 0 ) ),
 		'err_source' => array( array( 'value' => 'edge=503 origin=503 cache=miss', 'requests' => 8, 'bytes' => 0 ), array( 'value' => 'edge=520 origin=- cache=miss', 'requests' => 2, 'bytes' => 0 ) ),
+		'err_path_status' => array( array( 'value' => '520 dynamic /wp-json/wp/v2/posts', 'requests' => 5, 'bytes' => 0 ) ),
 	);
 	return $fx[ $dim ] ?? array();
 }
@@ -53,7 +54,7 @@ function e5r_extract( $src, $name ) {
 }
 
 $roll = (string) file_get_contents( $root . '/inc/edge-rollup.php' );
-foreach ( array( 'sn_edge_errors_reading', 'sn_edge_errors_range', 'sn_edge_error_source_label', 'sn_edge_error_asker_label', 'sn_edge_error_asker', 'sn_edge_errors_days_shape', 'sn_edge_errors_asked_by_totals', 'sn_edge_errors_days_annotate' ) as $name ) {
+foreach ( array( 'sn_edge_errors_dims', 'sn_edge_errors_reading', 'sn_edge_errors_range', 'sn_edge_error_source_label', 'sn_edge_error_asker_label', 'sn_edge_error_asker', 'sn_edge_errors_days_shape', 'sn_edge_errors_asked_by_totals', 'sn_edge_errors_days_annotate' ) as $name ) {
 	$fn = e5r_extract( $roll, $name );
 	ok( '' !== $fn, "$name() was extracted; if empty, every assertion below is vacuous" );
 	eval( $fn ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- test-only extraction.
@@ -74,8 +75,19 @@ ok( '/wp-cron.php' === $r['paths'][0]['value'] && 7 === $r['paths'][0]['requests
 ok( '503 from the origin' === $r['sources'][0]['label'], 'each responder carries its plain-words label' );
 $dims = array_column( $GLOBALS['e5r_calls'], 0 );
 ok( in_array( 'err_path', $dims, true ) && in_array( 'err_source', $dims, true ), 'both stored dims are read, which is the whole fix' );
+ok( '520 dynamic /wp-json/wp/v2/posts' === ( $r['paths_by_status'][0]['value'] ?? '' ) && in_array( 'err_path_status', $dims, true ), '#1006: the reading returns paths_by_status from its own dim' );
 $r = sn_edge_errors_range( '2026-09-01', '2026-09-23' );
 ok( '2026-09-01' === $r['from'], 'a panel can pass its own range straight through' );
+
+echo "\nGroup 2b: which path got which status (#1006)\n";
+$row  = function ( $path, $edge, $cache, $n = 3 ) { return array( 'count' => $n, 'dimensions' => array( 'clientRequestPath' => $path, 'edgeResponseStatus' => $edge, 'cacheStatus' => $cache ) ); };
+$dims = sn_edge_errors_dims( array( $row( '/x', 520, 'dynamic' ), $row( '/x', 520, 'dynamic', 2 ), $row( '/x', 524, 'bypass' ) ) );
+ok( 5 === ( $dims['err_path_status']['520 dynamic /x'] ?? null ), 'err_path_status is "<edge> <cache> <path>", summed like the other dims' );
+ok( 3 === ( $dims['err_path_status']['524 bypass /x'] ?? null ), 'the same path under another status is its own row' );
+$long = '/' . str_repeat( 'a', 300 );
+$ps   = array_keys( sn_edge_errors_dims( array( $row( $long, 520, 'dynamic' ) ) )['err_path_status'] ?? array() )[0] ?? '';
+ok( 160 === strlen( $ps ) && 0 === strpos( $ps, '520 dynamic /' ), 'an over-long path is cut at the column\'s 160 from the PATH end, the status prefix kept' );
+ok( isset( $dims['err_path'] ) && isset( $dims['err_source'] ), 'the two existing dims are unchanged' );
 
 echo "\nGroup 3: every surface reads it\n";
 $native  = (string) file_get_contents( $root . '/apps/sn-dashboard/parts/leaves/connections-cloudflare-errors.php' );

@@ -51,7 +51,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 // (read / failed / pending / untracked), so a 0 is never ambiguous.
 // 18.4.0: '8' -> '9' — the health-scan twin gained skipped[] (check, label,
 // reason), so checks_skipped names what did not run and why.
-const SN_REMOTE_CONTRACT_VERSION = '9';
+// Unreleased: '9' -> '10' — the 5xx twin gained paths_by_status (#1006),
+// "<edge> <cache> <path>" per failing request, so a 520 names its URL.
+const SN_REMOTE_CONTRACT_VERSION = '10';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the 8 remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -78,6 +80,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'8' => 'bced0a5ade3a205e83b3e386783de0213118b19463d4a497bb8a5034d7b36843',
 	// RED-then-pin, 2026-09-24 (v18.4.0): skipped[] on the health-scan twin.
 	'9' => 'ed9407989fdf8489c7bc3575e869187d310cb16206b8b8005b7d633a50911e85',
+	// RED-then-pin, 2026-09-26 (#1006): paths_by_status on the 5xx twin.
+	'10' => 'ad45bba357b8da9e01a9f10a8590b58df01480694b704fa991bc30f11f503138',
 );
 
 /**
