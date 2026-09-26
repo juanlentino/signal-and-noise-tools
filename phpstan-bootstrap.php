@@ -92,3 +92,28 @@ defined( 'REST_REQUEST' ) || define( 'REST_REQUEST', false );
 defined( 'SNT_PATH' ) || define( 'SNT_PATH', '/' );
 defined( 'SNT_URL' ) || define( 'SNT_URL', 'https://example.test/' );
 defined( 'SNT_VERSION' ) || define( 'SNT_VERSION', '0.0.0' );
+
+// AllTerrain Forms (a separate plugin) — the symbols inc/forms-spam*.php and
+// inc/north-star-return.php use, each behind a runtime defined()/function_exists()
+// guard. Values match Forms 1.2.0 (allterrain-forms.php, includes/post-types.php);
+// signatures match includes/schema.php and includes/entries.php. A typo'd name is
+// still absent here and still fails.
+defined( 'ALLTFO_FORM_TYPE' ) || define( 'ALLTFO_FORM_TYPE', 'alltfo_form' );
+defined( 'ALLTFO_ENTRY_TYPE' ) || define( 'ALLTFO_ENTRY_TYPE', 'alltfo_entry' );
+defined( 'ALLTFO_META_VALUES' ) || define( 'ALLTFO_META_VALUES', '_alltfo_values' );
+defined( 'ALLTFO_META_FORM' ) || define( 'ALLTFO_META_FORM', '_alltfo_form' );
+defined( 'ALLTFO_STATUS_UNREAD' ) || define( 'ALLTFO_STATUS_UNREAD', 'alltfo-unread' );
+defined( 'ALLTFO_STATUS_READ' ) || define( 'ALLTFO_STATUS_READ', 'alltfo-read' );
+defined( 'ALLTFO_STATUS_SPAM' ) || define( 'ALLTFO_STATUS_SPAM', 'alltfo-spam' );
+if ( ! function_exists( 'alltfo_get_form_schema' ) ) {
+	/** @param WP_Post|int $form @return array<string,mixed> */
+	function alltfo_get_form_schema( $form ) { return array(); }
+}
+if ( ! function_exists( 'alltfo_save_form_schema' ) ) {
+	/** @param int $form_id @param array<string,mixed> $schema @return void */
+	function alltfo_save_form_schema( $form_id, $schema ) {}
+}
+if ( ! function_exists( 'alltfo_set_entry_status' ) ) {
+	/** @param int $entry_id @param string $status @return true|WP_Error */
+	function alltfo_set_entry_status( $entry_id, $status ) { return true; }
+}
