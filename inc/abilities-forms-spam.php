@@ -21,7 +21,7 @@ add_action(
 			'signal-noise/forms-spam-scan',
 			array(
 				'label'               => __( 'Forms spam scan', 'signal-and-noise-tools' ),
-				'description'         => __( 'AllTerrain Forms entries in the inbox (read or unread, up to 500) that the content rules would mark spam, each with its reason (snt:<signals>), and every form\'s own spam settings (honeypot, time trap, hourly rate limit, blocklist). spam_folder reports, without writing, how many entries already in Spam the rules would have caught on their own (caught_rows with reasons) and which they miss. Read-only; available=false when Forms is not active.', 'signal-and-noise-tools' ),
+				'description'         => __( 'AllTerrain Forms entries in the inbox (read or unread, up to 500) that the content rules would mark spam, each with its reason (snt:<signals>), and every form\'s own spam settings (honeypot, time trap, hourly rate limit, blocklist), plus rule_case: rule values that differ from a choice only in case and so never match. spam_folder reports, without writing, how many entries already in Spam the rules would have caught on their own (caught_rows with reasons) and which they miss. Read-only; available=false when Forms is not active.', 'signal-and-noise-tools' ),
 				'category'            => 'diagnostics',
 				'permission_callback' => 'snt_ability_perm_manage_options',
 				'execute_callback'    => 'snt_fs_scan',
@@ -38,7 +38,7 @@ add_action(
 			'signal-noise/forms-spam-apply',
 			array(
 				'label'               => __( 'Forms spam apply', 'signal-and-noise-tools' ),
-				'description'         => __( 'Mark the given Forms entries spam, through Forms\' own status setter so "Not spam" undoes it; ids the rules do not flag right now are refused. enable_defaults switches on the honeypot, a 3 s time trap and an hourly rate limit on any form that has them off. Nothing is deleted.', 'signal-and-noise-tools' ),
+				'description'         => __( 'Mark the given Forms entries spam, through Forms\' own status setter so "Not spam" undoes it; ids the rules do not flag right now are refused. enable_defaults switches on the honeypot, a 3 s time trap and an hourly rate limit on any form that has them off. fix_rule_case rewrites notification, confirmation and field-logic rule values that differ from a dropdown choice only in case (Forms compares them exactly, so "research" never matches the stored "Research"), then re-reads the form to verify. Nothing is deleted.', 'signal-and-noise-tools' ),
 				'category'            => 'content',
 				'permission_callback' => 'snt_ability_perm_manage_options',
 				'execute_callback'    => 'snt_fs_apply',
@@ -47,6 +47,7 @@ add_action(
 					'properties'           => array(
 						'entry_ids'       => array( 'type' => 'array', 'items' => array( 'type' => 'integer' ), 'maxItems' => 500 ),
 						'enable_defaults' => array( 'type' => 'boolean', 'default' => false ),
+						'fix_rule_case'   => array( 'type' => 'boolean', 'default' => false ),
 					),
 					'additionalProperties' => false,
 				),
