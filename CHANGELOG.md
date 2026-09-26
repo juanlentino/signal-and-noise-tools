@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Documentation
+- The 2026-09-25 to 26 session doc: the north star (18.7.0), the spam arc and the silent notifications (18.8.0 to 18.8.3), #1006 with contract 10 (18.8.4, worker 1.11.0), and the upstream OpenStation work (#888, #913/#914, #915).
+
 ## [18.8.4] - 2026-09-26 — the edge 5xx rollup names which pages return which status
 
 ### Added
