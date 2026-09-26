@@ -60,7 +60,32 @@ function snt_fs_scan() {
 			$flagged[] = array( 'id' => (int) $id, 'form' => $form, 'title' => get_the_title( $id ), 'date' => get_post_time( 'c', true, $id ), 'reason' => $reason );
 		}
 	}
-	return array( 'available' => true, 'forms' => $forms, 'flagged' => $flagged, 'scanned' => count( $ids ) );
+	return array( 'available' => true, 'forms' => $forms, 'flagged' => $flagged, 'scanned' => count( $ids ), 'spam_folder' => snt_fs_spam_folder_check( $schemas ) );
+}
+
+/**
+ * Report-only: of the entries already in Spam, which would the content
+ * rules have caught on their own? The measure of the rules against real
+ * spam; nothing here writes.
+ *
+ * @param array $schemas form id => schema.
+ * @return array{total:int,caught:int,missed:array,caught_rows:array}
+ */
+function snt_fs_spam_folder_check( array $schemas ) {
+	$ids    = get_posts( array( 'post_type' => ALLTFO_ENTRY_TYPE, 'post_status' => array( ALLTFO_STATUS_SPAM ), 'posts_per_page' => 500, 'fields' => 'ids', 'no_found_rows' => true ) );
+	$caught = array();
+	$missed = array();
+	foreach ( $ids as $id ) {
+		$form   = (int) get_post_meta( $id, ALLTFO_META_FORM, true );
+		$reason = snt_fs_reason( snt_fs_signals( snt_fs_entry_values( get_post_meta( $id, ALLTFO_META_VALUES, true ) ), $schemas[ $form ] ?? array() ) );
+		$row    = array( 'id' => (int) $id, 'title' => get_the_title( $id ), 'date' => get_post_time( 'c', true, $id ) );
+		if ( '' === $reason ) {
+			$missed[] = $row;
+		} else {
+			$caught[] = $row + array( 'reason' => $reason );
+		}
+	}
+	return array( 'total' => count( $ids ), 'caught' => count( $caught ), 'missed' => $missed, 'caught_rows' => $caught );
 }
 
 /**

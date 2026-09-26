@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The forms spam scan measures the rules against the Spam folder.** `forms-spam-scan` gains `spam_folder`: of the entries already marked spam, how many the content rules would have caught on their own, with each reason, and which they miss. Report-only. The inbox scan alone could not tell a clean inbox from rules that catch nothing.
+
 ## [18.8.1] - 2026-09-26 — the spam scan reads the entries it scans
 
 ### Fixed

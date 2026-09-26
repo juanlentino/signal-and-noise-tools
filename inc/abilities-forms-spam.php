@@ -21,7 +21,7 @@ add_action(
 			'signal-noise/forms-spam-scan',
 			array(
 				'label'               => __( 'Forms spam scan', 'signal-and-noise-tools' ),
-				'description'         => __( 'AllTerrain Forms entries in the inbox (read or unread, up to 500) that the content rules would mark spam, each with its reason (snt:<signals>), and every form\'s own spam settings (honeypot, time trap, hourly rate limit, blocklist). Read-only; available=false when Forms is not active.', 'signal-and-noise-tools' ),
+				'description'         => __( 'AllTerrain Forms entries in the inbox (read or unread, up to 500) that the content rules would mark spam, each with its reason (snt:<signals>), and every form\'s own spam settings (honeypot, time trap, hourly rate limit, blocklist). spam_folder reports, without writing, how many entries already in Spam the rules would have caught on their own (caught_rows with reasons) and which they miss. Read-only; available=false when Forms is not active.', 'signal-and-noise-tools' ),
 				'category'            => 'diagnostics',
 				'permission_callback' => 'snt_ability_perm_manage_options',
 				'execute_callback'    => 'snt_fs_scan',
