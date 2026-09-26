@@ -40,6 +40,14 @@ ok( '' === $reason( array( 'f1' => 'Sam McDonald', 'f2' => 's@gmail.com', 'f4' =
 ok( '' === $reason( array( 'f1' => 'Ana 🙂', 'f2' => 'ana@gmail.com', 'f6' => 'Loved the note on ISRC and ISWC.' ) ), 'one weak signal alone (an emoji in the name) passes' );
 ok( '' === $reason( array( 'f1' => 'Lee', 'f2' => 'lee@x.io', 'f3' => 'MIT', 'f4' => 'AES', 'f5' => 'JAES 2026' ) ), 'short real answers (MIT, AES) are not random tokens' );
 
+// Stored entries: Forms keeps values as a JSON string. The sweep must decode
+// it; reading the string as an array hands the rules nothing (18.8.0 scanned
+// 338 entries and flagged none).
+$stored = json_encode( array( 'f1' => 'RobertBiB RonaldBiBGM', 'f2' => 'a@b.co' ) );
+ok( '' !== snt_fs_reason( snt_fs_signals( snt_fs_entry_values( $stored ), $schema ) ), 'a JSON-string entry, as Forms stores it, is decoded and caught' );
+ok( array( 'f1' => 'x' ) === snt_fs_entry_values( array( 'f1' => 'x' ) ), 'an array passes through' );
+ok( array() === snt_fs_entry_values( 'not json' ) && array() === snt_fs_entry_values( null ), 'garbage or missing meta reads as no values, never a crash' );
+
 // The filter: never overrides Forms' own verdict, and adds ours.
 $f = $GLOBALS['snt_fs_filters']['alltfo_spam_verdict'];
 $own = array( 'spam' => true, 'reason' => 'honeypot' );
