@@ -85,6 +85,10 @@ function snt_fs_signals( array $values, array $schema ) {
 	if ( 1 === preg_match( '/\b[A-Z][a-z]+[A-Z][a-zA-Z]*[A-Z]{2}\b|[A-Z]{5,}\d{3,}[A-Z]{3,}/', $name_text ) ) {
 		$strong[] = 'bot_name';
 	}
+	// The pitch: what cold sales spam sells, never what a research inquiry asks.
+	if ( 1 === preg_match( '/\b(seo backlinks?|backlinks?\b.{0,40}\b(traffic|seo)|price as low as|\d{2}% (discount|off|sale)|companies available in our database|download (your|the) data|replica (rolex|watch)|cash on delivery|casino|viagra|payday loan)/is', $all ) ) {
+		$strong[] = 'pitch';
+	}
 	if ( 1 === preg_match( '/[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]/u', $name_text ) ) {
 		$weak[] = 'emoji_in_name';
 	}
