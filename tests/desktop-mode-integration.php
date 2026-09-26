@@ -464,7 +464,7 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 //
 // Changing a card's content SHOULD fail this test. Re-measure, don't re-guess.
 $expected_height = array(
-	'sn-site-views'       => 510, // budgeted: 450 + 3 glance rows (today/engaged/top_mover) ~+60
+	'sn-site-views'       => 620, // budgeted: 450 + 3 glance rows (today/engaged/top_mover) ~+60, + north star block (5 rows + hairline) ~+110
 	'sn-queue'            => 380, // measured 365 live (15.8.1): two-line headline + depth line + two headings + six rows
 	'sn-health'           => 160, // measured 148 all-passing
 	'sn-uptime'           => 220, // measured 210

@@ -59,6 +59,7 @@ function paint_monitoring_analytics( array $ctx ) {
 	$left .= analytics_collector_html();
 	$left .= analytics_exclusion_html();
 	$left .= analytics_tuning_html();
+	$left .= function_exists( '\\snt_nsm_settings_html' ) ? \snt_nsm_settings_html() : '';
 	$left .= analytics_funnels_html();
 
 	$right  = analytics_worker_html();

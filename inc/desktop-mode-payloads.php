@@ -403,6 +403,22 @@ function snt_desktop_site_views_payload() {
 		}
 	}
 
+	// The north star, compact: the number and the rows the card shows. Its own
+	// reading is cached an hour; the key is omitted when analytics is unset.
+	if ( function_exists( 'snt_nsm_reading' ) ) {
+		$ns = snt_nsm_reading();
+		if ( ! empty( $ns['configured'] ) ) {
+			$payload['north_star'] = array(
+				'value'     => (int) $ns['value'],
+				'previous'  => (int) $ns['previous'],
+				'deep'      => $ns['layers']['intent']['deep_readers']['value'] ?? null,
+				'actions'   => $ns['layers']['intent']['actions']['value'] ?? null,
+				'doi'       => $ns['layers']['return']['doi_downloads'] ?? null,
+				'inquiries' => $ns['layers']['return']['inquiries']['value'] ?? null,
+			);
+		}
+	}
+
 	set_transient( $cache_key, $payload, 15 * MINUTE_IN_SECONDS );
 	return new WP_REST_Response( $payload, 200 );
 }

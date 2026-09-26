@@ -534,6 +534,7 @@ require_once __DIR__ . '/inc/abilities-corpus.php';    // v10.6.0: 3 abilities (
 require_once __DIR__ . '/inc/abilities-sn-posts.php';      // v10.26.0: MCP consolidation — sn_posts, absorbs list-posts + get-post-content (both stay live)
 require_once __DIR__ . '/inc/abilities-sn-site-facts.php'; // v10.26.0: MCP consolidation — sn_site_facts, absorbs 10 of 11 site-facts reads (get-design-system-summary retired, not absorbed)
 require_once __DIR__ . '/inc/abilities-sn-status.php';  // v13.1.0: read-door coherence — sectioned batch over the ten narrow status reads (new-alongside-old; needs sn-site-facts' dispatcher above)
+require_once __DIR__ . '/inc/north-star.php'; // the north star: weekly engaged readers + its supporting metrics, one read ability
 require_once __DIR__ . '/inc/abilities-sn-metrics.php'; // v13.1.0: read-door coherence — sectioned batch over the three readership reads (same pattern, same dispatcher)
 require_once __DIR__ . '/inc/sn-scan-adapters.php';    // v10.29.0: MCP consolidation session 4 — six per-scan_type adapters behind sn_scan (needs corpus-inspect.php, ml-cousins.php, ml-candidates.php, health-checks.php — all required below; constants/functions resolve at call time, not require time)
 require_once __DIR__ . '/inc/sn-scan-anchor-violations.php'; // v10.58.0: scan_type "anchor_violations" — two binary link rules (anchor==sentence, link-in-heading); detector + adapter, own file per the emdash-scanner precedent
