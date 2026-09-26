@@ -853,6 +853,7 @@ function paint_dashboard( array $ctx ) {
 		. '</header>';
 
 	$main_content = $intro_html
+		. north_star_html( $tab )
 		. home_pulse_html( $data, $tab )
 		. home_attention_html( $data, $tab )
 		. home_continue_working_html( $tab )

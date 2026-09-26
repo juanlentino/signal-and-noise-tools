@@ -209,6 +209,13 @@ function sn_settings_defaults() {
 			// may be granted, so it is CHOSEN from what the credential can see.
 			'property'       => '',
 		),
+		// 18.x: the north star (inc/north-star.php). Which page groups count as
+		// the site's core reading, and what counts as reading one: scroll OR dwell.
+		'north_star' => array(
+			'sections' => array( 'notes', 'provenance', 'resume', 'about' ),
+			'scroll'   => 50,
+			'dwell_s'  => 30,
+		),
 		'analytics' => array(
 			'exclude_roles' => array(),
 			// v9.36.0 settings hub: predictive-engine tuning knobs. Scalar

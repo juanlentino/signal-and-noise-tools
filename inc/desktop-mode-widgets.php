@@ -249,6 +249,15 @@ add_action( 'init', function() {
 			'default_height' => 220,
 		) ) );
 
+		// The north star: weekly engaged readers and the three intent rows.
+		snt_os_register_widget( 'sn-north-star', array_merge( $sn_drag, array(
+			'label'          => 'SN North Star',
+			'description'    => 'Engaged readers in the last 7 days, the change, and the intent signals under it.',
+			'icon'           => 'dashicons-star-filled',
+			'script'         => 'sn-desktop-mode-widget-north-star',
+			'default_height' => 190,
+		) ) );
+
 		// v9.78.0: SN Anchors — the one glanceable that had no mirror.
 		// Pending Notes with their live in-flight Bitcoin tx (N/6, captured
 		// by the worker's pending callbacks) + a Sweep action; idles at an

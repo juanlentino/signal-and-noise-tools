@@ -93,6 +93,7 @@ function sn_admin_post_handlers() {
 		'analytics_exclude_save'     => 'sn_handle_analytics_exclude_save',
 		'analytics_test'             => 'sn_handle_analytics_test',
 		'analytics_tuning_save'      => 'sn_handle_analytics_tuning_save',
+		'north_star_save'            => 'sn_handle_north_star_save',
 		'analytics_funnels_save'     => 'sn_handle_analytics_funnels_save',
 		'analytics_export'           => 'sn_handle_analytics_export',
 		// Scheduled-content ops (Task 8). Handler bodies live in

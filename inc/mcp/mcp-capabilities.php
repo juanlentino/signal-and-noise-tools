@@ -188,6 +188,7 @@ function sn_mcp_allowlist() {
 		'signal-noise/cloudflare-status',
 		// 18.0.0 — the 5xx rollup on its own; the sn-status `edge_errors` source. Read door 48 → 49.
 		'signal-noise/edge-errors-summary',
+		'signal-noise/north-star',
 		// 17.9.2 (#1002): two LIVE GraphQL reads (sampling + requestSource) that
 		// settle what the stored edge figures cannot. Read-only, on demand.
 		'signal-noise/edge-sampling-probe',

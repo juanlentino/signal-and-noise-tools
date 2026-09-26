@@ -124,6 +124,8 @@ function sn_admin_flash_messages() {
 		'analytics_exclude_saved'   => array( 'success', 'Visit-exclusion settings saved.' ),
 		'analytics_exclude_unchanged' => array( 'info', 'No changes to save.' ),
 		'analytics_tuning_saved'     => array( 'success', 'Engine tuning saved. Signals recompute on the next dashboard load.' ),
+		'north_star_saved'           => array( 'success', 'North star saved. The reading recomputes on the next load.' ),
+		'north_star_unchanged'       => array( 'info', 'North star unchanged.' ),
 		'analytics_tuning_unchanged' => array( 'info', 'Engine tuning unchanged.' ),
 		// S2 §3 (v9.42.0 arc): owner-defined session funnels.
 		'analytics_funnels_saved'    => array( 'success', 'Session funnels saved. The Sessions view reflects them on the next load.' ),
