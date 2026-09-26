@@ -82,6 +82,7 @@ function snt_nsm_inputs( array $week, $now, $readers_4w ) {
 			'subscribes'     => array( 'value' => (int) $week['subscribes'], 'window' => '7d' ),
 			'shares'         => array( 'value' => (int) $week['shares'], 'window' => '7d' ),
 			'verifies'       => array( 'value' => (int) $week['verifies'], 'window' => '7d' ),
+			'research_links' => array( 'value' => snt_nsm_research_links( gmdate( 'Y-m-d', $now - 6 * DAY_IN_SECONDS ), gmdate( 'Y-m-d', $now ), $now ), 'window' => '7d' ),
 		),
 		// Layer 3, return: what the writing brings back. Not a sale: readers per
 		// note is the return on writing time, DOI downloads the scholarly

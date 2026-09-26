@@ -9,6 +9,7 @@ $GLOBALS['snt_test_settings'] = array();
 function __( $s ) { return $s; }
 function sn_setting( $k, $d = null ) { return $GLOBALS['snt_test_settings'][ $k ] ?? $d; }
 function add_action() {}
+if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $h, $v ) { return $v; } }
 require __DIR__ . '/../inc/north-star.php';
 
 $pass = 0; $fail = 0;
@@ -94,6 +95,18 @@ $utm = array(
 );
 ok( 5 === snt_nsm_sum_feed_visits( $utm ), 'feed click-throughs sum RSS and JSON Feed (3 + 2), never the newsletter' );
 ok( 0 === snt_nsm_sum_feed_visits( array() ), 'no campaign rows: zero' );
+
+// Research links followed: outbound clicks to where the research lives.
+ok( snt_nsm_is_research_host( 'papers.ssrn.com' ) && snt_nsm_is_research_host( 'doi.org' ) && snt_nsm_is_research_host( 'ZENODO.ORG' ), 'SSRN (a subdomain), doi.org and Zenodo (any case) count' );
+ok( ! snt_nsm_is_research_host( 'notssrn.com' ) && ! snt_nsm_is_research_host( 'github.com' ) && ! snt_nsm_is_research_host( '' ), 'a lookalike, an unrelated host and an empty one do not' );
+$now = 10 * 86400;
+$rw  = snt_nsm_research_weeks( array(
+	array( 'vid' => 'a', 'ts' => $now - 60, 'host' => 'doi.org' ),
+	array( 'vid' => 'a', 'ts' => $now - 30, 'host' => 'zenodo.org' ),
+	array( 'vid' => 'b', 'ts' => $now - 60, 'host' => 'github.com' ),
+	array( 'vid' => 'c', 'ts' => $now - 8 * 86400, 'host' => 'orcid.org' ),
+), $now );
+ok( 1 === $rw[0] && 1 === $rw[1], 'distinct visitor-days per week: a twice is once, b (github) never, c lands in last week' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
