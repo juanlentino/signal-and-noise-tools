@@ -12,6 +12,12 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### New
+- **`tests/resume-integrity.php` pins the resume copy against the schema.** The rendered /resume page carries no space before punctuation, every Person `award` appears in the visible copy (the schema never claims what the page does not show), and the years figure is 15+ in the stat and the summary. It runs the real renderer over the seed; the live document is a database option. Fails on the previous seed (20+ years, no Valedictorian line), passes now.
+
+### Changed
+- **The resume seed matches the live resume.** Stat and summary read 15+ years, Full Sail carries "Valedictorian · Advanced Achiever Award", and "Provenance as Substrate" reads "SSRN Working Paper · May 2026 · In submission, Journal of the Audio Engineering Society". The live document was updated through the form on 2026-09-25; the seed only fills a fresh install. `docs/RESUME-PDF.md` now says where resume content lives: one document, the single source for the page and the generated PDF.
+
 ## [18.6.2] - 2026-09-25 — the resume download row is the button alone
 
 ### Changed

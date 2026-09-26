@@ -38,6 +38,15 @@ Generation is manual on purpose. Auto-regenerating on every save was offered as 
 brief and not wired: a save is frequent and cheap, a render is neither, and the owner chooses when
 the public file changes.
 
+## Where resume content lives
+
+One document, `sn_resume_doc` (an option), edited in the resume form: S&N > Content > Resume Page
+in OpenStation, or the classic tab. It is the single source for BOTH the /resume page (rebuilt from
+it on every form save and every PDF generation) and this PDF. Edit the form, never the page: a
+resync overwrites page edits. Keep the stat at 15+, and add any schema award to the copy too
+(`tests/resume-integrity.php`). The seed (`inc/seed-content/resume-data.json`) only fills a fresh
+install; it is kept in step with the live document so the tests read current copy.
+
 ## Data sources
 
 | PDF section | Source in `sn_resume_doc` |
@@ -83,6 +92,8 @@ To update Dompdf: `cd lib/pdf && composer update`, then run `php tests/resume-pd
   the dispatcher's nonce and `manage_options`.
 - `tests/resume-pdf-page-invariance.php` (17): /resume is byte-identical with the PDF fields filled
   and before generation; after generation only the Download URL differs.
+- `tests/resume-integrity.php`: the rendered page has no space before punctuation, every Person
+  `award` appears in the visible copy, and the years figure is 15+ everywhere.
 - `tests/os-leaf-content-resume.php`: the dashboard leaf and the classic form post the same fields,
   including `pdf[…]`, and both carry the separate Generate PDF form.
 

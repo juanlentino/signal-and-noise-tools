@@ -227,7 +227,7 @@ ok( is_array( $control ) && 'resume_saved' === $control[0] && $cdoc === $want, '
 
 // ── The seed prefills the kit fields.
 ok( false !== strpos( $kit, 'name="resume[experience][0][org]" type="text" value="INDEPENDENT PRACTICE"' ), 'seed org prefilled' );
-ok( false !== strpos( $kit, 'name="resume[stats][0][n]" type="text" value="20+"' ) && false !== strpos( $kit, 'value="Years in the industry"' ), 'seed stat prefilled' );
+ok( false !== strpos( $kit, 'name="resume[stats][0][n]" type="text" value="15+"' ) && false !== strpos( $kit, 'value="Years in the industry"' ), 'seed stat prefilled' );
 ok( preg_match( '/name="resume\[experience\]\[0\]\[roles\]\[0\]\[bullets\]" value="[^"]*roughly 110 releases/', $kit ), 'seed bullets prefilled as one textarea, one per line' );
 ok( false !== strpos( $kit, 'name="resume[hero][chips]" value="' . snt_kit_esc( implode( "\n", $seed['hero']['chips'] ) ) . '"' ), 'seed chips prefilled one per line' );
 ok( false !== strpos( $kit, 'name="resume[publications][0][url]" type="text" value="https://ssrn.com/abstract=6402298"' ), 'seed publication URL prefilled' );
