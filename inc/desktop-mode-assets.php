@@ -143,14 +143,6 @@ add_action( 'init', function() {
 	);
 
 	wp_register_script(
-		'sn-desktop-mode-widget-north-star',
-		plugins_url( 'assets/desktop-mode-widget-north-star.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run' ),
-		SNT_VERSION,
-		true
-	);
-
-	wp_register_script(
 		'sn-desktop-mode-widget-rss',
 		plugins_url( 'assets/desktop-mode-widget-rss.js', SNT_PATH . 'signal-and-noise-tools.php' ),
 		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run' ),

@@ -71,6 +71,7 @@ function snt_nsm_inputs( array $week, $now, $readers_4w ) {
 	$gsc = function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null;
 	$notes = snt_nsm_published_since( $now - 7 * DAY_IN_SECONDS );
 	$month = snt_nsm_published_since( $now - 7 * SNT_NSM_WEEKS * DAY_IN_SECONDS );
+	$inq   = snt_nsm_inquiries_since( $now - 7 * DAY_IN_SECONDS );
 	return array(
 		// Layer 2, intent: deliberate acts past a read.
 		'intent' => array(
@@ -79,12 +80,12 @@ function snt_nsm_inputs( array $week, $now, $readers_4w ) {
 			'career_visits'  => array( 'value' => (int) $week['career'], 'window' => '7d' ),
 		),
 		// Layer 3, return: what the writing brings back. Not a sale: readers per
-		// note is the return on writing time; the scholarly and opportunity
-		// sources are named, and null until they are wired.
+		// note is the return on writing time, DOI downloads the scholarly
+		// uptake, inquiries the opportunities (inc/north-star-return.php).
 		'return' => array(
 			'readers_per_note' => array( 'value' => $month > 0 ? round( $readers_4w / $month, 1 ) : null, 'window' => '28d' ),
-			'doi_downloads'    => array( 'value' => null, 'window' => '', 'pending' => 'Zenodo record stats are not fetched yet.' ),
-			'inquiries'        => array( 'value' => null, 'window' => '', 'pending' => 'Contact submissions are not counted yet.' ),
+			'doi_downloads'    => snt_nsm_zenodo_reading( (array) get_option( SNT_NSM_ZENODO_OPT, array() ), gmdate( 'Y-m-d', $now ) ),
+			'inquiries'        => null === $inq ? array( 'value' => null, 'window' => '', 'pending' => __( 'The forms plugin is not active.', 'signal-and-noise-tools' ) ) : array( 'value' => $inq, 'window' => '7d' ),
 		),
 		// What feeds the star.
 		'inputs' => array(

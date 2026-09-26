@@ -62,5 +62,15 @@ $now = 10 * 86400;
 $w   = snt_nsm_weeks( array( array( array( 'ts' => $now - 1 ) ), array( array( 'ts' => $now - 8 * 86400 ) ), array( array( 'ts' => $now - 40 * 86400 ) ), array( array( 'ts' => $now + 5 ) ) ), $now );
 ok( 1 === count( $w[0] ) && 1 === count( $w[1] ) && 0 === count( $w[2] ) + count( $w[3] ), 'weeks: last 7 days is week 0; older than four weeks and future events drop' );
 
+// Zenodo: lifetime totals become a weekly figure only once a week of history exists.
+$z = snt_nsm_zenodo_reading( array(), '2026-09-26' );
+ok( null === $z['value'] && '' !== $z['pending'], 'no snapshots: null with a reason, never zero' );
+$z = snt_nsm_zenodo_reading( array( '2026-09-25' => array( 'downloads' => 40 ), '2026-09-26' => array( 'downloads' => 42 ) ), '2026-09-26' );
+ok( 42 === $z['value'] && 'all time' === $z['window'], 'under a week of history: the lifetime total, labelled all time' );
+$z = snt_nsm_zenodo_reading( array( '2026-09-26' => array( 'downloads' => 50 ), '2026-09-19' => array( 'downloads' => 42 ) ), '2026-09-26' );
+ok( 8 === $z['value'] && '7d' === $z['window'], 'a week back exists: the difference, over 7d (order-independent)' );
+$z = snt_nsm_zenodo_reading( array( '2026-09-19' => array( 'downloads' => 42 ), '2026-09-26' => array( 'downloads' => 30 ) ), '2026-09-26' );
+ok( 0 === $z['value'], 'a total that shrank (a record withdrawn) floors at zero, never negative' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

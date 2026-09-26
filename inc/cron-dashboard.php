@@ -63,6 +63,7 @@ function snt_cron_sn_owned_hooks() {
 		array( 'SN_EDGE_ROLLUP_HOOK',           'sn_edge_rollup_cron' ),
 		array( 'SN_INSIGHTS_CRON_HOOK',         'sn_insights_weekly_scan' ),
 		array( 'SN_MR_SNAPSHOT_HOOK',           'snt_mr_snapshot_refresh' ),
+		array( 'SNT_NSM_ZENODO_HOOK',           'snt_nsm_zenodo_daily' ),
 		// v11.32.0 made this recurring (5-minute fleet warm). Unscheduling it
 		// would return the worker cells to "warming…" with no visible cause.
 		array( 'SNT_DEPLOY_WORKERS_WARM_HOOK', 'snt_deploy_workers_warm' ),

@@ -172,6 +172,20 @@
 
 			body.appendChild( deltaLine( payload.delta_pct ) );
 
+			// The north star: views say how many came, this says how many read.
+			// Additive: absent key (analytics unset, older cached payload) paints nothing.
+			var ns = payload.north_star;
+			if ( ns && typeof ns.value === 'number' ) {
+				var nsBox = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
+				var nsDelta = ns.value - ( ns.previous || 0 );
+				nsBox.appendChild( statRow( 'Engaged readers · 7d', String( ns.value ) + ( nsDelta ? ( nsDelta > 0 ? ' ▲ +' : ' ▼ ' ) + Math.abs( nsDelta ) : '' ), nsDelta ? 'color:' + ( nsDelta > 0 ? '#3fb950' : '#c9503f' ) + ';' : '' ) );
+				if ( typeof ns.deep === 'number' ) { nsBox.appendChild( statRow( 'Read 2+ pages', String( ns.deep ) ) ); }
+				if ( typeof ns.actions === 'number' ) { nsBox.appendChild( statRow( 'Downloads, outbound', String( ns.actions ) ) ); }
+				if ( ns.doi && typeof ns.doi.value === 'number' ) { nsBox.appendChild( statRow( 'DOI downloads · ' + ns.doi.window, String( ns.doi.value ) ) ); }
+				if ( typeof ns.inquiries === 'number' ) { nsBox.appendChild( statRow( 'Inquiries · 7d', String( ns.inquiries ) ) ); }
+				body.appendChild( nsBox );
+			}
+
 			// ── v9.53.0 secondary stats ──
 			var stats = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
 

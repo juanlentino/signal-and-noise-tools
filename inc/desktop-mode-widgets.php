@@ -135,10 +135,11 @@ add_action( 'init', function() {
 			'description'    => 'First-party traffic: 14-day sparkline, bot share, top pages.',
 			'icon'           => 'dashicons-chart-area',
 			'script'         => 'sn-desktop-mode-widget-views',
+			// North star rows: +5 × ~20px + a hairline = +110 (BUDGETED, measure live).
 			// BUDGETED 510, not browser-measured — 450 + 3 glance rows
 			// (today + engaged + top_mover) × ~20px = +60. "Today so far"
 			// rides the 15-min payload transient so the number lags ≤15 min.
-			'default_height' => 510,
+			'default_height' => 620,
 		) ) );
 
 		// 15.8.0: SN Queue — "is the queue fed, and what goes out next". The
@@ -247,15 +248,6 @@ add_action( 'init', function() {
 			// Measured 207: the last-request line, the 24h/7d/30d grid, the
 			// link. Fixed three rows — this card's height never moves.
 			'default_height' => 220,
-		) ) );
-
-		// The north star: weekly engaged readers and the three intent rows.
-		snt_os_register_widget( 'sn-north-star', array_merge( $sn_drag, array(
-			'label'          => 'SN North Star',
-			'description'    => 'Engaged readers in the last 7 days, the change, and the intent signals under it.',
-			'icon'           => 'dashicons-star-filled',
-			'script'         => 'sn-desktop-mode-widget-north-star',
-			'default_height' => 190,
 		) ) );
 
 		// v9.78.0: SN Anchors — the one glanceable that had no mirror.

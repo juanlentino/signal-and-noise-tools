@@ -159,3 +159,4 @@ function snt_nsm_weeks( array $visits, $now ) {
 
 require_once __DIR__ . '/north-star-reading.php';
 require_once __DIR__ . '/north-star-settings.php';
+require_once __DIR__ . '/north-star-return.php';
