@@ -15,6 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /** Disposable or throwaway mail domains seen in the contact form's spam. */
+require_once __DIR__ . '/forms-spam-logic.php';
+
 const SNT_FS_THROWAWAY_DOMAINS = array( 'emlpro.com', 'emltmp.com', 'mailinator.com', 'yopmail.com', 'guerrillamail.com', 'sharklasers.com', 'tempmail.com', '10minutemail.com', 'dispostable.com', 'trashmail.com' );
 
 /**
@@ -84,6 +86,10 @@ function snt_fs_signals( array $values, array $schema ) {
 	// "RobertBiB RonaldBiBGM", "NATREGTEGH475080NEHTYHYHTR": names no person has.
 	if ( 1 === preg_match( '/\b[A-Z][a-z]+[A-Z][a-zA-Z]*[A-Z]{2}\b|[A-Z]{5,}\d{3,}[A-Z]{3,}/', $name_text ) ) {
 		$strong[] = 'bot_name';
+	}
+	// Answers in two or more branches the form's logic hid (inc/forms-spam-logic.php).
+	if ( snt_fs_hidden_branches( $values, $schema ) >= 2 ) {
+		$strong[] = 'hidden_answers';
 	}
 	// The pitch: what cold sales spam sells, never what a research inquiry asks.
 	if ( 1 === preg_match( '/\b(seo backlinks?|backlinks?\b.{0,40}\b(traffic|seo)|price as low as|\d{2}% (discount|off|sale)|companies available in our database|download (your|the) data|replica (rolex|watch)|cash on delivery|casino|viagra|payday loan)/is', $all ) ) {
