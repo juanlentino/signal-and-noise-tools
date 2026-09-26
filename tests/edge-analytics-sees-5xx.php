@@ -140,7 +140,7 @@ ok( isset( $dims['err_source']['edge=503 origin=- cache=miss'] ),
 ok( ! isset( $dims['err_source']['edge=503 origin=0 cache=miss'] ),
 	'and it is NOT rendered as origin=0, which would sit in a column of status codes looking like one' );
 ok( ! isset( $dims['err_path'][''] ), 'a row with no path is skipped rather than counted under an empty key' );
-ok( 2 === count( $dims ), 'exactly two dimensions are produced' );
+ok( 3 === count( $dims ) && isset( $dims['err_path'], $dims['err_source'], $dims['err_path_status'] ), 'exactly three dimensions are produced: path, responder, and path-by-status (#1006)' );
 
 // A grouped row's count is already Cloudflare's estimate (17.9.1).
 $sampled = array( array( 'count' => 4, 'avg' => array( 'sampleInterval' => 10 ), 'dimensions' => array(
