@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### New
+- **Contact-form spam is caught on our side of AllTerrain Forms.** A filter on its `alltfo_spam_verdict` runs after the form's own honeypot, time trap and rate limit, on this server, with no outside service. Strong signals mark spam alone: a link or a crypto/"NEW MESSAGE" lure in the name, a name no person has ("RobertBiB RonaldBiBGM", "NATREGTEGH475080..."). Weak ones need two: an emoji in the name, three or more short letter-and-digit answers, a throwaway mail domain. The entry's reason reads `snt:<signals>`. `signal-noise/forms-spam-scan` (read door 50 to 51) lists inbox entries the rules would catch and each form's defences; `signal-noise/forms-spam-apply` (rw door 16 to 17) marks only entries the rules flag at call time, through Forms' own status setter so Not spam undoes it, and can switch the free defences on where they are off. Nothing is deleted. It also keeps the north star's inquiries count honest. `tests/forms-spam.php` runs the rules on the real spam and on plausible real inquiries that must pass, with a negative control on the two-weak threshold.
+
 ## [18.7.0] - 2026-09-26 — a north star, and what the writing brings back
 
 ### New

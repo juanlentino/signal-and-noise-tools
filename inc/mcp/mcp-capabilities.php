@@ -189,6 +189,7 @@ function sn_mcp_allowlist() {
 		// 18.0.0 — the 5xx rollup on its own; the sn-status `edge_errors` source. Read door 48 → 49.
 		'signal-noise/edge-errors-summary',
 		'signal-noise/north-star',
+		'signal-noise/forms-spam-scan',
 		// 17.9.2 (#1002): two LIVE GraphQL reads (sampling + requestSource) that
 		// settle what the stored edge figures cannot. Read-only, on demand.
 		'signal-noise/edge-sampling-probe',
@@ -360,6 +361,8 @@ function sn_mcp_rw_allowlist() {
 		'signal-noise/ai-link-apply',
 		'signal-noise/ai-pair-suggest',
 		'signal-noise/prune-unused-tags',
+		// Marks only entries the rules flag at call time; Forms' Not spam undoes it.
+		'signal-noise/forms-spam-apply',
 		// v13.25.0 — the tag-vocabulary pair beside prune-unused-tags: AI-billed
 		// returns-only drafting + an only-if-empty write (never clobbers an
 		// owner edit; replays answer skipped_nonempty). Owner-directed the day
