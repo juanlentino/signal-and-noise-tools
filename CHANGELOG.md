@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [18.9.0] - 2026-09-26 — readers, what they do, and where they came from
+
 ### Added
 - **The north star counts what readers do, not only what they read.** Four named goals join its intent layer, each once per visitor-day: resume PDF downloads (a `download` fired on /resume, no markup change to the resume page's block), feed subscribe clicks (`subscribe`, already tracked), notes shared (`share_copy` / `share_native`, fired by the theme's share row, juanlentino/signal-and-noise#446) and signatures checked (`verify`, the provenance chip on each note now carries `data-sn-goal="verify"`). Tests pin each goal and that subscribes and shares do not inflate the deliberate-action count; widening the /resume match fails its pin.
 - **Research links followed.** The north star's intent layer gains the research track's real conversions: visitor-days that clicked from the site out to SSRN, doi.org, Zenodo, ORCID or the AES journal (a subdomain matches its parent; `snt_nsm_research_hosts` filters the list). The tracker already stored each outbound click's destination as a property row; a small query of its own reads it, leaving the session query other features share untouched. Tests pin the host match (a lookalike such as notssrn.com does not count; loosening the subdomain rule fails that pin) and the per-week distinct count.
@@ -19,9 +21,4 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Documentation
 - The 2026-09-25 to 26 session doc: the north star (18.7.0), the spam arc and the silent notifications (18.8.0 to 18.8.3), #1006 with contract 10 (18.8.4, worker 1.11.0), and the upstream OpenStation work (#888, #913/#914, #915).
-
-## [18.8.4] - 2026-09-26 — the edge 5xx rollup names which pages return which status
-
-### Added
-- **The edge 5xx rollup names which pages return which status (#1006).** It stored failing paths and responders as two separate dims, so there was no way to say which URL got a 520; on 2026-09-23..25 the 520s ran 75 to 110 a day, all on uncached PHP. A third dim, `err_path_status`, records `"<edge> <cache> <path>"` (for example `520 dynamic /wp-json/wp/v2/posts`) from the errors query the rollup already runs, capped at the column's 160 by cutting the path end, never the status. `edge-errors-summary` returns it as `paths_by_status` (top 10), and its remote twin with it, so the remote contract moves 9 to 10. It starts empty: days before this release have none, which means not recorded, not no errors.
 
