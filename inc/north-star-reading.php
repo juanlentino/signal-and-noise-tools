@@ -90,10 +90,35 @@ function snt_nsm_inputs( array $week, $now, $readers_4w ) {
 		// What feeds the star.
 		'inputs' => array(
 			'notes_published' => array( 'value' => $notes, 'window' => '7d' ),
+			// Visits that clicked through from a feed reader (inc/feed-utm.php).
+			'feed_clicks'     => array( 'value' => snt_nsm_feed_clicks( $now ), 'window' => '7d' ),
 			'rss_readers'     => array( 'value' => isset( $rss['windows'][7]['uniques'] ) ? (int) $rss['windows'][7]['uniques'] : null, 'window' => '7d' ),
 			'search_clicks'   => array( 'value' => is_array( $gsc ) ? (int) $gsc['clicks'] : null, 'window' => is_array( $gsc ) ? (int) ( $gsc['days'] ?? 0 ) . 'd' : '' ),
 		),
 	);
+}
+
+/**
+ * Visitor-days that arrived from a feed reader over the last 7 days: the
+ * utm_source=rss rows of the campaign rollup. Null when the read failed or
+ * the rollup is absent (never zero for "not measured").
+ *
+ * @param int $now Epoch seconds.
+ * @return int|null
+ */
+function snt_nsm_feed_clicks( $now ) {
+	if ( ! function_exists( 'sn_analytics_top_utm_sources' ) ) {
+		return null;
+	}
+	$rows = sn_analytics_top_utm_sources( gmdate( 'Y-m-d', $now - 6 * DAY_IN_SECONDS ), gmdate( 'Y-m-d', $now ), 'human', 500 );
+	if ( null === $rows ) {
+		return null;
+	}
+	$n = 0;
+	foreach ( $rows as $r ) {
+		$n += 'rss' === ( $r['source'] ?? '' ) ? (int) ( $r['visits'] ?? 0 ) : 0;
+	}
+	return $n;
 }
 
 /**

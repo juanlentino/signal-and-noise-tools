@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Feed click-throughs show up as visits.** Each item link in the RSS and Atom feeds now carries `utm_source=rss&utm_medium=feed`, so a reader who clicks through from a feed reader lands as a campaign visit the edge worker already records (Measurement › Campaigns lists it as "rss / feed"). Only the link is tagged: the GUID is untouched, so feed readers keep their read state; the comments feed is left alone; a link is never tagged twice. The north star gains an input, "Clicked through from a feed" (7 days). It starts at zero: readers see the tagged links as their apps refresh. Reading inside a feed reader stays invisible; that is the reader's app. The theme's JSON Feed is not tagged yet (it builds item URLs itself).
+
 ### Documentation
 - The 2026-09-25 to 26 session doc: the north star (18.7.0), the spam arc and the silent notifications (18.8.0 to 18.8.3), #1006 with contract 10 (18.8.4, worker 1.11.0), and the upstream OpenStation work (#888, #913/#914, #915).
 

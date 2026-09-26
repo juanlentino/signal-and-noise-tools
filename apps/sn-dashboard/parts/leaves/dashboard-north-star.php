@@ -27,6 +27,7 @@ function north_star_labels() {
 		'doi_downloads'    => __( 'DOI downloads', 'signal-and-noise-tools' ),
 		'inquiries'        => __( 'Inquiries', 'signal-and-noise-tools' ),
 		'notes_published'  => __( 'Notes published', 'signal-and-noise-tools' ),
+		'feed_clicks'      => __( 'Clicked through from a feed', 'signal-and-noise-tools' ),
 		'rss_readers'      => __( 'RSS readers', 'signal-and-noise-tools' ),
 		'search_clicks'    => __( 'Search clicks', 'signal-and-noise-tools' ),
 	);
