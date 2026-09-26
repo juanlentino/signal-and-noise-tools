@@ -85,23 +85,40 @@ function snt_nsm_is_core( $path, array $prefixes ) {
 /**
  * Tally visits into distinct visitor-days: readers, deep readers (two or more
  * core pages read), visitors who reached /resume or /contact, and visitors
- * who took a deliberate action (a tracked `download` or `outbound` event).
+ * who took a deliberate action (a tracked `download` or `outbound` event),
+ * plus four named goals: a resume PDF download (a `download` on /resume), a
+ * feed subscribe click (`subscribe`) and a share (`share_copy` or
+ * `share_native`, fired by the theme's share row), and a signature check
+ * (`verify`, the note's provenance chip).
  *
  * @param array $visits Visits from sn_sessionize(): lists of event rows.
  * @param array $cfg    snt_nsm_config() shape.
- * @return array{readers:int,deep:int,career:int,intent:int}
+ * @return array{readers:int,deep:int,career:int,intent:int,resume_downloads:int,subscribes:int,shares:int,verifies:int}
  */
 function snt_nsm_tally( array $visits, array $cfg ) {
 	$pages = array(); // vid => path => [scroll, dwell]
 	$seen  = array(); // vid => pv paths
 	$acted = array(); // vid => true when a deliberate action fired
+	$goals = array( 'resume_downloads' => array(), 'subscribes' => array(), 'shares' => array(), 'verifies' => array() ); // goal => vid => true
 	foreach ( $visits as $visit ) {
 		foreach ( $visit as $e ) {
 			$vid = (string) ( $e['vid'] ?? '' );
 			$p   = (string) ( $e['path'] ?? '' );
 			$ev  = (string) ( $e['ev'] ?? '' );
-			if ( 'ce' === $ev && '' !== $vid && in_array( (string) ( $e['ce'] ?? '' ), array( 'download', 'outbound' ), true ) ) {
-				$acted[ $vid ] = true;
+			$ce = 'ce' === $ev ? (string) ( $e['ce'] ?? '' ) : '';
+			if ( '' !== $ce && '' !== $vid ) {
+				if ( in_array( $ce, array( 'download', 'outbound' ), true ) ) {
+					$acted[ $vid ] = true;
+				}
+				if ( 'download' === $ce && 1 === preg_match( '#^/resume(/|$)#', $p ) ) {
+					$goals['resume_downloads'][ $vid ] = true;
+				} elseif ( 'subscribe' === $ce ) {
+					$goals['subscribes'][ $vid ] = true;
+				} elseif ( in_array( $ce, array( 'share_copy', 'share_native' ), true ) ) {
+					$goals['shares'][ $vid ] = true;
+				} elseif ( 'verify' === $ce ) {
+					$goals['verifies'][ $vid ] = true;
+				}
 			}
 			if ( '' === $vid || '' === $p ) {
 				continue;
@@ -117,7 +134,16 @@ function snt_nsm_tally( array $visits, array $cfg ) {
 			$pages[ $vid ][ $p ] = $cur;
 		}
 	}
-	$out = array( 'readers' => 0, 'deep' => 0, 'career' => 0, 'intent' => count( $acted ) );
+	$out = array(
+		'readers'          => 0,
+		'deep'             => 0,
+		'career'           => 0,
+		'intent'           => count( $acted ),
+		'resume_downloads' => count( $goals['resume_downloads'] ),
+		'subscribes'       => count( $goals['subscribes'] ),
+		'shares'           => count( $goals['shares'] ),
+		'verifies'         => count( $goals['verifies'] ),
+	);
 	foreach ( $pages as $vid => $paths ) {
 		$read = 0;
 		foreach ( $paths as $p => $m ) {
@@ -160,3 +186,4 @@ function snt_nsm_weeks( array $visits, $now ) {
 require_once __DIR__ . '/north-star-reading.php';
 require_once __DIR__ . '/north-star-settings.php';
 require_once __DIR__ . '/north-star-return.php';
+require_once __DIR__ . '/north-star-research.php';

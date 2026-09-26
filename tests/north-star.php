@@ -9,6 +9,7 @@ $GLOBALS['snt_test_settings'] = array();
 function __( $s ) { return $s; }
 function sn_setting( $k, $d = null ) { return $GLOBALS['snt_test_settings'][ $k ] ?? $d; }
 function add_action() {}
+if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $h, $v ) { return $v; } }
 require __DIR__ . '/../inc/north-star.php';
 
 $pass = 0; $fail = 0;
@@ -55,7 +56,21 @@ ok( 1 === $t['readers'], 'readers counts visitor-days with a core read by scroll
 ok( 1 === $t['deep'], 'deep: a read two notes across two visits of one day' );
 ok( 1 === $t['career'], 'career: b reached /contact' );
 ok( 1 === $t['intent'], 'intent: only download/outbound count, once per visitor-day' );
-ok( array( 'readers' => 0, 'deep' => 0, 'career' => 0, 'intent' => 0 ) === snt_nsm_tally( array(), $cfg ), 'no visits: all zero' );
+ok( array( 'readers' => 0, 'deep' => 0, 'career' => 0, 'intent' => 0, 'resume_downloads' => 0, 'subscribes' => 0, 'shares' => 0, 'verifies' => 0 ) === snt_nsm_tally( array(), $cfg ), 'no visits: all zero' );
+
+// Named goals: each counted once per visitor-day, by where and what fired.
+$g = snt_nsm_tally( array(
+	array( $ev( 'r', 'ce', '/resume/', array( 'ce' => 'download' ) ), $ev( 'r', 'ce', '/resume/', array( 'ce' => 'download' ) ) ),
+	array( $ev( 's', 'ce', '/notes/x/', array( 'ce' => 'download' ) ) ),
+	array( $ev( 'f', 'ce', '/notes/', array( 'ce' => 'subscribe' ) ) ),
+	array( $ev( 'v', 'ce', '/notes/x/', array( 'ce' => 'verify' ) ) ),
+	array( $ev( 'h', 'ce', '/notes/x/', array( 'ce' => 'share_copy' ) ), $ev( 'k', 'ce', '/notes/y/', array( 'ce' => 'share_native' ) ) ),
+), $cfg );
+ok( 1 === $g['resume_downloads'], 'a download on /resume is a resume download, twice in a day counts once; a PDF elsewhere is not' );
+ok( 1 === $g['subscribes'], 'a subscribe click counts' );
+ok( 1 === $g['verifies'], 'a signature check from the provenance chip counts' );
+ok( 2 === $g['shares'], 'Copy link and the share sheet both count as shares' );
+ok( 2 === $g['intent'], 'downloads still count as deliberate actions (both PDFs), subscribes and shares do not inflate it' );
 
 // Weeks: rolling 7-day buckets by a visit's first event.
 $now = 10 * 86400;
@@ -71,6 +86,27 @@ $z = snt_nsm_zenodo_reading( array( '2026-09-26' => array( 'downloads' => 50 ), 
 ok( 8 === $z['value'] && '7d' === $z['window'], 'a week back exists: the difference, over 7d (order-independent)' );
 $z = snt_nsm_zenodo_reading( array( '2026-09-19' => array( 'downloads' => 42 ), '2026-09-26' => array( 'downloads' => 30 ) ), '2026-09-26' );
 ok( 0 === $z['value'], 'a total that shrank (a record withdrawn) floors at zero, never negative' );
+
+// Feed click-throughs: every utm_medium=feed source counts, nothing else.
+$utm = array(
+	array( 'source' => 'rss', 'medium' => 'feed', 'visits' => 3 ),
+	array( 'source' => 'jsonfeed', 'medium' => 'feed', 'visits' => 2 ),
+	array( 'source' => 'newsletter', 'medium' => 'email', 'visits' => 9 ),
+);
+ok( 5 === snt_nsm_sum_feed_visits( $utm ), 'feed click-throughs sum RSS and JSON Feed (3 + 2), never the newsletter' );
+ok( 0 === snt_nsm_sum_feed_visits( array() ), 'no campaign rows: zero' );
+
+// Research links followed: outbound clicks to where the research lives.
+ok( snt_nsm_is_research_host( 'papers.ssrn.com' ) && snt_nsm_is_research_host( 'doi.org' ) && snt_nsm_is_research_host( 'ZENODO.ORG' ), 'SSRN (a subdomain), doi.org and Zenodo (any case) count' );
+ok( ! snt_nsm_is_research_host( 'notssrn.com' ) && ! snt_nsm_is_research_host( 'github.com' ) && ! snt_nsm_is_research_host( '' ), 'a lookalike, an unrelated host and an empty one do not' );
+$now = 10 * 86400;
+$rw  = snt_nsm_research_weeks( array(
+	array( 'vid' => 'a', 'ts' => $now - 60, 'host' => 'doi.org' ),
+	array( 'vid' => 'a', 'ts' => $now - 30, 'host' => 'zenodo.org' ),
+	array( 'vid' => 'b', 'ts' => $now - 60, 'host' => 'github.com' ),
+	array( 'vid' => 'c', 'ts' => $now - 8 * 86400, 'host' => 'orcid.org' ),
+), $now );
+ok( 1 === $rw[0] && 1 === $rw[1], 'distinct visitor-days per week: a twice is once, b (github) never, c lands in last week' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
