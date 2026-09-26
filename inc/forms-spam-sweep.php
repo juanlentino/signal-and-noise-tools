@@ -49,6 +49,7 @@ function snt_fs_scan() {
 			'timeTrap'  => (int) ( $spam['timeTrap'] ?? 0 ),
 			'rateLimit' => (int) ( $spam['rateLimit'] ?? 0 ),
 			'blocklist' => '' !== trim( (string) ( $spam['blocklist'] ?? '' ) ),
+			'rule_case' => snt_fs_fix_rule_case( $schema )['changes'],
 		);
 	}
 	$ids     = get_posts( array( 'post_type' => ALLTFO_ENTRY_TYPE, 'post_status' => array( ALLTFO_STATUS_UNREAD, ALLTFO_STATUS_READ ), 'posts_per_page' => 500, 'fields' => 'ids', 'no_found_rows' => true ) );
@@ -128,7 +129,19 @@ function snt_fs_apply( $input ) {
 			}
 		}
 	}
-	return array( 'ok' => true, 'marked' => $marked, 'refused' => $refused, 'forms_updated' => $forms );
+	$rule_fixes = array();
+	if ( ! empty( $input['fix_rule_case'] ) && function_exists( 'alltfo_save_form_schema' ) ) {
+		foreach ( $scan['forms'] as $f ) {
+			$res = snt_fs_fix_rule_case( (array) alltfo_get_form_schema( get_post( $f['id'] ) ) );
+			if ( $res['changes'] ) {
+				alltfo_save_form_schema( $f['id'], $res['schema'] );
+				$after        = snt_fs_fix_rule_case( (array) alltfo_get_form_schema( get_post( $f['id'] ) ) );
+				$rule_fixes[] = array( 'id' => $f['id'], 'changes' => $res['changes'], 'verified' => array() === $after['changes'] );
+			}
+		}
+	}
+	return array( 'ok' => true, 'marked' => $marked, 'refused' => $refused, 'forms_updated' => $forms, 'rule_case_fixed' => $rule_fixes );
 }
 
+require_once __DIR__ . '/forms-rule-case.php';
 require_once __DIR__ . '/abilities-forms-spam.php';
