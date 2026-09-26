@@ -100,7 +100,7 @@ function snt_nsm_inputs( array $week, $now, $readers_4w ) {
 
 /**
  * Visitor-days that arrived from a feed reader over the last 7 days: the
- * utm_source=rss rows of the campaign rollup. Null when the read failed or
+ * utm_medium=feed rows of the campaign rollup (RSS, Atom and JSON Feed). Null when the read failed or
  * the rollup is absent (never zero for "not measured").
  *
  * @param int $now Epoch seconds.
@@ -114,9 +114,20 @@ function snt_nsm_feed_clicks( $now ) {
 	if ( null === $rows ) {
 		return null;
 	}
+	return snt_nsm_sum_feed_visits( $rows );
+}
+
+/**
+ * Sum the visits of every campaign row a feed sent (utm_medium=feed: RSS and
+ * Atom tag utm_source=rss, the theme's JSON Feed utm_source=jsonfeed). PURE.
+ *
+ * @param array $rows sn_analytics_top_utm_sources() rows.
+ * @return int
+ */
+function snt_nsm_sum_feed_visits( array $rows ) {
 	$n = 0;
 	foreach ( $rows as $r ) {
-		$n += 'rss' === ( $r['source'] ?? '' ) ? (int) ( $r['visits'] ?? 0 ) : 0;
+		$n += 'feed' === ( $r['medium'] ?? '' ) ? (int) ( $r['visits'] ?? 0 ) : 0;
 	}
 	return $n;
 }

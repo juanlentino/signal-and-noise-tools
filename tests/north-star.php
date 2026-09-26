@@ -72,5 +72,14 @@ ok( 8 === $z['value'] && '7d' === $z['window'], 'a week back exists: the differe
 $z = snt_nsm_zenodo_reading( array( '2026-09-19' => array( 'downloads' => 42 ), '2026-09-26' => array( 'downloads' => 30 ) ), '2026-09-26' );
 ok( 0 === $z['value'], 'a total that shrank (a record withdrawn) floors at zero, never negative' );
 
+// Feed click-throughs: every utm_medium=feed source counts, nothing else.
+$utm = array(
+	array( 'source' => 'rss', 'medium' => 'feed', 'visits' => 3 ),
+	array( 'source' => 'jsonfeed', 'medium' => 'feed', 'visits' => 2 ),
+	array( 'source' => 'newsletter', 'medium' => 'email', 'visits' => 9 ),
+);
+ok( 5 === snt_nsm_sum_feed_visits( $utm ), 'feed click-throughs sum RSS and JSON Feed (3 + 2), never the newsletter' );
+ok( 0 === snt_nsm_sum_feed_visits( array() ), 'no campaign rows: zero' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
