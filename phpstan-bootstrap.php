@@ -95,7 +95,7 @@ defined( 'SNT_VERSION' ) || define( 'SNT_VERSION', '0.0.0' );
 
 // AllTerrain Forms (a separate plugin) — the symbols inc/forms-spam*.php and
 // inc/north-star-return.php use, each behind a runtime defined()/function_exists()
-// guard. Values match Forms 1.2.0 (allterrain-forms.php, includes/post-types.php);
+// guard. Values match Forms 1.2.2, the installed release (allterrain-forms.php, includes/post-types.php);
 // signatures match includes/schema.php and includes/entries.php. A typo'd name is
 // still absent here and still fails.
 defined( 'ALLTFO_FORM_TYPE' ) || define( 'ALLTFO_FORM_TYPE', 'alltfo_form' );
