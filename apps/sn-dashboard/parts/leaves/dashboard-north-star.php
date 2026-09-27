@@ -33,6 +33,7 @@ function north_star_labels() {
 		'inquiries'        => __( 'Inquiries', 'signal-and-noise-tools' ),
 		'notes_published'  => __( 'Notes published', 'signal-and-noise-tools' ),
 		'feed_clicks'      => __( 'Clicked through from a feed', 'signal-and-noise-tools' ),
+		'feed_opens'       => __( 'Opened in a feed reader (at least)', 'signal-and-noise-tools' ),
 		'rss_readers'      => __( 'RSS readers', 'signal-and-noise-tools' ),
 		'search_clicks'    => __( 'Search clicks', 'signal-and-noise-tools' ),
 	);
@@ -123,7 +124,7 @@ function north_star_html( $tab ) {
 	$cols = array(
 		'<section><h3 class="snt-home__detail-h">' . \snt_kit_esc( __( 'Intent', 'signal-and-noise-tools' ) ) . '</h3>' . north_star_layer_html( $intent ) . '</section>',
 		'<section><h3 class="snt-home__detail-h">' . \snt_kit_esc( __( 'Return', 'signal-and-noise-tools' ) ) . '</h3>' . north_star_layer_html( (array) ( $layers['return'] ?? array() ) ) . '</section>',
-		'<section><h3 class="snt-home__detail-h">' . \snt_kit_esc( __( 'Inputs', 'signal-and-noise-tools' ) ) . '</h3>' . north_star_layer_html( (array) ( $layers['inputs'] ?? array() ) ) . '</section>',
+		'<section><h3 class="snt-home__detail-h">' . \snt_kit_esc( __( 'Inputs', 'signal-and-noise-tools' ) ) . '</h3>' . north_star_layer_html( (array) ( $layers['inputs'] ?? array() ) ) . '<p class="snt-hint">' . \snt_kit_esc( __( 'Feed opens: notes opened in a feed reader, counted by an image in the feed. A floor, since many readers block images, and never part of the star.', 'signal-and-noise-tools' ) ) . '</p></section>',
 	);
 	$note = __( 'Counted per visitor per day: cookieless, so a reader on two days counts twice.', 'signal-and-noise-tools' )
 		. ( ! empty( $r['capped'] ) ? ' ' . __( 'The event cap was hit; the count is a floor.', 'signal-and-noise-tools' ) : '' );

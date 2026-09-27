@@ -69,7 +69,11 @@ function rss_activity_html( array $stats ) {
 		/* translators: %s: unique visitors in the window */
 		$tiles[] = \snt_kit_stat( number_format_i18n( (int) $w['total'] ), $label, sprintf( __( '%s unique', 'signal-and-noise-tools' ), number_format_i18n( (int) $w['uniques'] ) ) );
 	}
+	if ( function_exists( 'snt_feed_opens_stats' ) ) {
+		$tiles[] = \snt_kit_stat( number_format_i18n( (int) snt_feed_opens_stats( 7 )['total'] ), __( 'Feed opens, 7 days', 'signal-and-noise-tools' ), __( 'at least', 'signal-and-noise-tools' ) );
+	}
 	$out  = \snt_kit_grid( $tiles, 160, 10 );
+	$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Feed opens: notes opened in a feed reader, counted once per reader app per note per day by an image in the notes feed. A floor: many readers block images. Separate from the north star, which counts on-site reads only.', 'signal-and-noise-tools' ) ) . '</p>';
 	$out .= ! empty( $stats['most_recent'] )
 		? '<p class="snt-prose">' . \snt_kit_esc( __( 'Most recent feed request:', 'signal-and-noise-tools' ) ) . ' <os-code>' . \snt_kit_esc( rss_local_stamp( (string) $stats['most_recent'] ) ) . '</os-code></p>'
 		: '<p class="snt-hint">' . \snt_kit_esc( __( 'No feed requests logged yet.', 'signal-and-noise-tools' ) ) . '</p>';
