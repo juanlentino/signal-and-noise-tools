@@ -16,6 +16,8 @@ function ok( $c, $m ) { global $pass, $fail; $c ? ++$pass : ++$fail; echo ( $c ?
 
 $GLOBALS['o'] = array(); $GLOBALS['t'] = array(); $GLOBALS['sched'] = array(); $GLOBALS['sql'] = array(); $GLOBALS['truncate'] = '';
 function add_action() {} function __( $s ) { return $s; } function esc_html__( $s ) { return $s; }
+function esc_html( $s ) { return $s; } function esc_attr( $s ) { return $s; } function esc_url( $s ) { return $s; } function current_user_can() { return true; }
+function sn_admin_post_url( $a ) { return '/wp-admin/admin-post.php'; } function wp_nonce_field( $n ) { echo '<nonce ' . $n . '>'; }
 function get_option( $k, $d = false ) { return $GLOBALS['o'][ $k ] ?? $d; }
 function update_option( $k, $v ) { $GLOBALS['o'][ $k ] = $v; return true; }
 function get_transient( $k ) { return $GLOBALS['t'][ $k ] ?? false; }
@@ -28,6 +30,7 @@ function is_wp_error() { return false; }
 function wp_remote_retrieve_response_code( $r ) { return 200; } function wp_remote_retrieve_body( $r ) { return $r['body']; }
 function wp_remote_post( $url, $args ) {
 	$sql = $args['body'];
+	if ( ! empty( $GLOBALS['explode'] ) && false !== strpos( $sql, $GLOBALS['explode'] ) ) { throw new Error( 'simulated death inside the unit' ); }
 	if ( false !== strpos( $sql, sn_analytics_overcap_sql() ) ) {
 		return array( 'body' => json_encode( array( 'data' => array( array( 'vid' => 'abcdef0123' ) ), 'rows' => 1 ) ) );
 	}
@@ -47,7 +50,7 @@ function sn_analytics_fetch_session_events( $from, $to, $class ) {
 }
 function sn_session_metrics() { return array( 'visits' => 1, 'bounce_rate' => 0, 'pages_per_visit' => 1, 'median_duration' => 1 ); }
 
-foreach ( array( 'api', 'human-rule', 'rollup', 'dims', 'utm', 'buckets', 'pageroles', 'events-rollup', 'session-rollup', 'recompute' ) as $f ) {
+foreach ( array( 'api', 'human-rule', 'rollup', 'dims', 'utm', 'buckets', 'pageroles', 'events-rollup', 'session-rollup', 'recompute', 'recompute-status' ) as $f ) {
 	require_once dirname( __DIR__ ) . "/inc/analytics-{$f}.php";
 }
 
@@ -56,7 +59,7 @@ $src = (string) file_get_contents( dirname( __DIR__ ) . '/inc/admin-post-handler
 $fn  = strstr( $src, 'function sn_handle_admin_post(' );
 ok( false !== strpos( $src, "'analytics_recompute'        => 'sn_handle_analytics_recompute'" ), 'dispatcher maps analytics_recompute to its handler' );
 ok( strpos( $fn, "check_admin_referer( 'sn_' . \$action )" ) < strpos( $fn, 'call_user_func' ) && strpos( $fn, "current_user_can( 'manage_options' )" ) < strpos( $fn, 'call_user_func' ), 'dispatcher checks the nonce and manage_options before the handler runs' );
-$rsrc = (string) file_get_contents( dirname( __DIR__ ) . '/inc/analytics-recompute.php' );
+$rsrc = (string) file_get_contents( dirname( __DIR__ ) . '/inc/analytics-recompute-status.php' );
 ok( false !== strpos( $rsrc, "wp_nonce_field( 'sn_analytics_recompute' )" ), 'the button mints the sn_analytics_recompute nonce' );
 ok( false !== strpos( (string) file_get_contents( dirname( __DIR__ ) . '/inc/analytics-render-overview.php' ), 'snt_analytics_render_recompute();' ), 'the shared human-rule renderer prints the button (every surface that shows the note)' );
 
@@ -67,11 +70,24 @@ ok( array( 'days' => 6, 'until' => 0 ) === sn_analytics_recompute_batch( 84, 90 
 // ── A full run. ──
 ok( 'analytics_recompute_started' === sn_analytics_recompute_start(), 'start schedules a run' );
 ok( 'analytics_recompute_busy' === sn_analytics_recompute_start(), 'a second click while running is refused' );
-$ticks = 0;
-while ( 'running' === sn_analytics_recompute_status()['state'] && $ticks < 20 ) { sn_analytics_recompute_tick(); ++$ticks; }
+// One tick = one unit, and it schedules the next.
+$GLOBALS['sched'] = array(); $n0 = count( $GLOBALS['sql'] );
+sn_analytics_recompute_tick();
 $st = sn_analytics_recompute_status();
-ok( 13 === $ticks && 'done' === $st['state'] && 90 === $st['done'], "13 batches cover 90 days (ticks={$ticks}, done={$st['done']})" );
-ok( array( 'state', 'done', 'total', 'through', 'error', 'started', 'last_tick' ) === array_keys( $st ), 'progress option shape' );
+$first = array_slice( $GLOBALS['sql'], $n0 );
+ok( 'pageviews' === $st['unit'] && 1 === $st['step'] && 0 === $st['done'] && 'running' === $st['state'], 'the first tick ran the pageviews unit only and moved the cursor to step 1' );
+ok( array() === array_filter( $first, function ( $s ) { return false !== strpos( $s, 'blob20 AS packed' ) || false !== strpos( $s, 'blob16 AS name' ) || false !== strpos( $s, "AND day = '" ); } ), 'no other family or session day was read in that tick (' . count( $first ) . ' reads)' );
+ok( array( SNT_ANALYTICS_RECOMPUTE_HOOK ) === $GLOBALS['sched'], 'the tick scheduled exactly one next tick' );
+ok( '' === sn_analytics_recompute_in_unit() && false === sn_analytics_strict()['on'], 'the tick reached its end marker and put strict mode back' );
+// The cursor walks every unit of every batch, in order.
+$seen = array( $st['unit'] ); $ticks = 1;
+while ( 'running' === sn_analytics_recompute_status()['state'] && $ticks < 400 ) { sn_analytics_recompute_tick(); $seen[] = sn_analytics_recompute_status()['unit']; ++$ticks; }
+$want = array();
+for ( $d = 0; $d < 90; ) { $b = sn_analytics_recompute_batch( $d, 90 ); $want = array_merge( $want, sn_analytics_recompute_units( $b ) ); $d += $b['days'] - $b['until']; }
+$st = sn_analytics_recompute_status();
+ok( 168 === count( $want ) && $want === $seen, 'the cursor ran all ' . count( $want ) . ' units of the 13 batches, once each, in order (ticks=' . $ticks . ')' );
+ok( 'done' === $st['state'] && 90 === $st['done'] && 0 === $st['step'], "13 batches cover 90 days (done={$st['done']})" );
+ok( array( 'state', 'done', 'total', 'through', 'error', 'started', 'last_tick', 'step', 'unit' ) === array_keys( $st ), 'progress option shape' );
 ok( 'Recomputed through ' . gmdate( 'Y-m-d' ) . ', 90 of 90 days.' === sn_analytics_recompute_line( $st ), 'status line: ' . sn_analytics_recompute_line( $st ) );
 $sqls = $GLOBALS['sql'];
 $no_rule = array_filter( $sqls, function ( $s ) { return false === strpos( $s, "index1 NOT IN ('abcdef0123')" ) && false === strpos( $s, "OR index1 IN ('abcdef0123')" ); } );
@@ -92,14 +108,56 @@ ok( '' === sn_analytics_window_upper() && false === strpos( sn_analytics_rollup_
 $GLOBALS['o'] = array(); $GLOBALS['sql'] = array(); $GLOBALS['truncate'] = 'blob20 AS packed';
 sn_analytics_recompute_start();
 $GLOBALS['wpdb']->tables = array();
-sn_analytics_recompute_tick();
+for ( $i = 0; $i < 10 && 'running' === sn_analytics_recompute_status()['state']; $i++ ) { sn_analytics_recompute_tick(); }
 $st = sn_analytics_recompute_status();
-ok( 'partial' === $st['state'] && 0 === $st['done'] && false !== strpos( $st['error'], 'truncated' ), 'truncation marks the run partial: ' . $st['error'] );
+ok( 'partial' === $st['state'] && 0 === $st['done'] && 'utm' === $st['unit'] && 2 === $st['step'] && false !== strpos( $st['error'], 'truncated' ), 'truncation marks the run partial at the utm unit without advancing: ' . $st['error'] );
 $after = array_slice( $GLOBALS['sql'], array_search( true, array_map( function ( $s ) { return false !== strpos( $s, 'blob20 AS packed' ); }, $GLOBALS['sql'] ), true ) + 1 );
 ok( array() === $after, 'no AE read (so no write) happens after the truncated one' );
 ok( array() === preg_grep( '/utm/', $GLOBALS['wpdb']->tables ), 'the truncated UTM result was not written (tables written: ' . implode( ',', array_unique( $GLOBALS['wpdb']->tables ) ) . ')' );
 $GLOBALS['truncate'] = '';
-ok( false === strpos( sn_analytics_recompute_line( $st ), 'Recomputed through' ) && false !== strpos( sn_analytics_recompute_line( $st ), 'Run it again' ), 'status line names the failure' );
+ok( false === strpos( sn_analytics_recompute_line( $st ), 'Recomputed through' ) && false !== strpos( sn_analytics_recompute_line( $st ), 'Resume' ), 'status line names the failure' );
+ok( 'analytics_recompute_resumed' === sn_handle_analytics_recompute( array( 'mode' => 'resume' ) ) && 2 === sn_analytics_recompute_status()['step'], 'Resume after a partial keeps the cursor (step 2)' );
+sn_analytics_recompute_tick();
+ok( 'utm' === sn_analytics_recompute_status()['unit'] && 3 === sn_analytics_recompute_status()['step'], 'the resumed run retried the utm unit and moved on' );
+
+// ── A fatal caught at shutdown is written down as partial, naming the unit. ──
+sn_analytics_recompute_in_unit( 'dims' ); sn_analytics_strict( 'on' ); sn_analytics_rollup_window( array( 'days' => 90, 'until' => 83 ) );
+sn_analytics_recompute_on_shutdown( array( 'type' => E_ERROR, 'message' => 'Allowed memory size exhausted', 'file' => '/x/inc/analytics-dims.php', 'line' => 42 ) );
+$st = sn_analytics_recompute_status();
+ok( 'partial' === $st['state'] && false !== strpos( $st['error'], 'died in dims' ) && false !== strpos( $st['error'], 'Allowed memory size exhausted (analytics-dims.php:42)' ), 'a fatal at shutdown writes partial with the unit and message: ' . $st['error'] );
+ok( false === sn_analytics_strict()['on'] && 0 === sn_analytics_rollup_window()['until'], 'the shutdown path puts strict mode and the window back' );
+$before = sn_analytics_recompute_status();
+sn_analytics_recompute_on_shutdown( array( 'type' => E_ERROR, 'message' => 'x' ) );
+ok( $before === sn_analytics_recompute_status(), 'a shutdown after the end marker writes nothing' );
+
+// ── A tick that dies before its end marker (simulated timeout mid-unit). ──
+sn_analytics_recompute_start();
+$GLOBALS['explode'] = 'blob20 AS packed';
+for ( $i = 0; $i < 5; $i++ ) { try { sn_analytics_recompute_tick(); } catch ( Error $e ) { break; } }
+$GLOBALS['explode'] = '';
+ok( 'running' === sn_analytics_recompute_status()['state'] && 'utm' === sn_analytics_recompute_status()['unit'], 'the option names the unit the request was inside when it died' );
+sn_analytics_recompute_on_shutdown( array( 'type' => E_WARNING, 'message' => 'not fatal' ) );
+$st = sn_analytics_recompute_status();
+ok( 'partial' === $st['state'] && false !== strpos( $st['error'], 'died in utm' ) && false !== strpos( $st['error'], 'timeout or kill' ), 'an unfinished tick is recorded as partial: ' . $st['error'] );
+
+// ── Stall: running with an old last_tick re-enables the button; Resume continues. ──
+update_option( SNT_ANALYTICS_RECOMPUTE_OPT, array( 'state' => 'running', 'done' => 14, 'total' => 90, 'through' => '', 'error' => '', 'started' => 1, 'last_tick' => time() - 1000, 'step' => 3, 'unit' => 'buckets' ) );
+$st = sn_analytics_recompute_status();
+ok( sn_analytics_recompute_stalled( $st ) && 0 === strpos( sn_analytics_recompute_line( $st ), 'Recompute stalled at buckets since ' ), 'status line: ' . sn_analytics_recompute_line( $st ) );
+ob_start(); snt_analytics_render_recompute(); $html = ob_get_clean();
+ok( false === strpos( $html, 'disabled' ) && false !== strpos( $html, 'Resume recompute' ) && false !== strpos( $html, 'name="mode" value="resume"' ), 'a stalled run renders an enabled Resume button' );
+ok( 'analytics_recompute_resumed' === sn_handle_analytics_recompute( array( 'mode' => 'resume' ) ), 'Resume is accepted on a stalled run' );
+$st = sn_analytics_recompute_status();
+ok( 14 === $st['done'] && 3 === $st['step'] && 'running' === $st['state'] && ! sn_analytics_recompute_stalled( $st ), 'Resume keeps the cursor (14 days, step 3)' );
+sn_analytics_recompute_tick();
+ok( 'buckets' === sn_analytics_recompute_status()['unit'] && 4 === sn_analytics_recompute_status()['step'], 'the resumed tick ran the unit it stalled at' );
+ob_start(); snt_analytics_render_recompute(); $html = ob_get_clean();
+ok( false !== strpos( $html, 'disabled' ) && false === strpos( $html, 'Resume' ), 'a live run disables the button again' );
+ok( 'analytics_recompute_busy' === sn_analytics_recompute_start( true ), 'a live run refuses a second start' );
+
+// ── The sn-status{recompute} source. ──
+$a = snt_ability_analytics_recompute_status();
+ok( array( 'state', 'stalled', 'done', 'total', 'step', 'unit', 'through', 'error', 'started', 'last_tick', 'line' ) === array_keys( $a ) && 'buckets' === $a['unit'] && false === $a['stalled'] && is_int( $a['last_tick'] ), 'the recompute status payload shape' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

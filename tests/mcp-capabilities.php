@@ -387,6 +387,7 @@ $verdict_absorbed_by_section = array(
 	'signal-noise/corpus-integrity-scan'       => 'sn-status{corpus_integrity}',
 	'signal-noise/cron-health-summary'         => 'sn-status{cron_health}',
 	'signal-noise/get-collector-status'        => 'sn-status{collector}',
+	'signal-noise/analytics-recompute-status'  => 'sn-status{recompute}', // 19.4.3
 	// 15.8.0: the SN Queue widget's read. An agent gets the same rows from
 	// sn-posts (status future/publish with post_date); the widget's labels
 	// are a painting concern, not a capability.

@@ -161,6 +161,7 @@ function sn_admin_flash_messages() {
 		'zenodo_batch_empty'        => array( 'info', 'Nothing to deposit: every confirmed document carries a DOI, or none is confirmed yet.' ),
 		'analytics_test_unconfigured' => array( 'error', 'Analytics not configured: set the account ID and read token first.' ),
 		'analytics_recompute_started' => array( 'success', 'Recomputing 90 days of analytics history in the background. The status line under the human rule shows progress.' ),
+		'analytics_recompute_resumed' => array( 'success', 'Resuming the analytics history recompute from where it stopped.' ),
 		'analytics_recompute_busy'    => array( 'info', 'A history recompute is already running.' ),
 		'schedule_fired'              => array( 'success', 'Scheduled-content boundary fired. The row was advanced and its URLs purged.' ),
 		'schedule_repurged'           => array( 'success', 'Scheduled-content URLs re-purged from Cloudflare.' ),

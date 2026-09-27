@@ -3,11 +3,16 @@
  * Recompute analytics history: re-roll every stored rollup and the session
  * daily rollup (engaged included) for the trailing 90 days through the SAME
  * run functions the nightly uses, so old days read under the current human
- * rule. Owner-run, background (chained WP-Cron single events), one 7-day
- * batch per tick, oldest first. Strict mode (sn_analytics_strict) stops a
- * batch at the first failed or truncated AE result before it writes; the run
- * is then "partial" and says why. Every write is an idempotent per-day UPSERT,
- * so re-running is safe.
+ * rule. Owner-run, background (chained WP-Cron single events), oldest first.
+ *
+ * 19.4.3: one tick is ONE unit (one rollup family for one 7-day batch, or one
+ * session day), so no cron request is heavy. The cursor (done + step) lives in
+ * the option, the unit is named in it before it runs, and a shutdown handler
+ * records a fatal or an unfinished tick as partial. A run whose last_tick is
+ * older than the stale window reads "stalled" and can be resumed from the
+ * cursor. Strict mode (sn_analytics_strict) still stops a unit at the first
+ * failed or truncated AE result before it writes; the cursor does not move.
+ * Every unit's write replaces its own days (19.4.2), so re-running is safe.
  *
  * @package SignalNoiseTools
  */
@@ -21,23 +26,31 @@ const SNT_ANALYTICS_RECOMPUTE_HOOK  = 'sn_analytics_recompute_tick';
 const SNT_ANALYTICS_RECOMPUTE_SPAN  = 90; // AE keeps ~92 days.
 const SNT_ANALYTICS_RECOMPUTE_BATCH = 7;  // the nightly's proven window size.
 const SNT_ANALYTICS_RECOMPUTE_STALE = 900; // a running state older than this is dead.
+const SNT_ANALYTICS_RECOMPUTE_FAMILIES = array(
+	'pageviews' => 'sn_analytics_pageviews_run_rollup',
+	'dims'      => 'sn_analytics_dims_run_rollup',
+	'utm'       => 'sn_analytics_utm_run_rollup',
+	'buckets'   => 'sn_analytics_buckets_run_rollup',
+	'pageroles' => 'sn_analytics_pageroles_run_rollup',
+	'events'    => 'sn_analytics_events_run_rollup',
+);
 
 /**
- * The progress option, always in full shape.
+ * The progress option, always in full shape. `step` is the unit index inside
+ * the current batch; `unit` names the unit last started.
  *
- * @return array{state:string,done:int,total:int,through:string,error:string,started:int,last_tick:int}
+ * @return array
  */
 function sn_analytics_recompute_status() {
 	$o = get_option( SNT_ANALYTICS_RECOMPUTE_OPT );
 	return array_merge(
-		array( 'state' => 'idle', 'done' => 0, 'total' => SNT_ANALYTICS_RECOMPUTE_SPAN, 'through' => '', 'error' => '', 'started' => 0, 'last_tick' => 0 ),
+		array( 'state' => 'idle', 'done' => 0, 'total' => SNT_ANALYTICS_RECOMPUTE_SPAN, 'through' => '', 'error' => '', 'started' => 0, 'last_tick' => 0, 'step' => 0, 'unit' => '' ),
 		is_array( $o ) ? $o : array()
 	);
 }
 
 /**
- * The batch for a given progress: days-ago window [lower, until). Oldest first;
- * the last batch has until 0 (no upper bound, reaches today). PURE.
+ * Batch window for a given progress: days-ago [lower, until). PURE.
  *
  * @param int $done  Days already recomputed.
  * @param int $total Span in days.
@@ -49,26 +62,100 @@ function sn_analytics_recompute_batch( $done, $total ) {
 }
 
 /**
- * Start a run (the admin-post handler). Refuses while one is live.
+ * The units of one batch, in order: the six rollup families, then one session
+ * day each (days-ago; UTC days, today never complete). PURE.
  *
+ * @param array{days:int,until:int} $b Batch window.
+ * @return string[]
+ */
+function sn_analytics_recompute_units( array $b ) {
+	$units = array_keys( SNT_ANALYTICS_RECOMPUTE_FAMILIES );
+	for ( $ago = (int) $b['days']; $ago > (int) $b['until'] && $ago >= 1; $ago-- ) {
+		$units[] = 'session:' . $ago;
+	}
+	return $units;
+}
+
+/** Stalled: running, but no tick has moved it within the stale window. */
+function sn_analytics_recompute_stalled( array $st ) {
+	return 'running' === $st['state'] && time() - (int) $st['last_tick'] >= SNT_ANALYTICS_RECOMPUTE_STALE;
+}
+
+/**
+ * Start a fresh run, or resume a partial/stalled one from its cursor.
+ *
+ * @param bool $resume Continue from the cursor instead of day 0.
  * @return string Flash code.
  */
-function sn_analytics_recompute_start() {
+function sn_analytics_recompute_start( $resume = false ) {
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		return 'analytics_test_unconfigured';
 	}
 	$st = sn_analytics_recompute_status();
-	if ( 'running' === $st['state'] && time() - (int) $st['last_tick'] < SNT_ANALYTICS_RECOMPUTE_STALE ) {
+	if ( 'running' === $st['state'] && ! sn_analytics_recompute_stalled( $st ) ) {
 		return 'analytics_recompute_busy';
 	}
-	update_option( SNT_ANALYTICS_RECOMPUTE_OPT, array( 'state' => 'running', 'done' => 0, 'total' => SNT_ANALYTICS_RECOMPUTE_SPAN, 'through' => '', 'error' => '', 'started' => time(), 'last_tick' => time() ), false );
+	$can_resume = $resume && ( 'partial' === $st['state'] || 'running' === $st['state'] );
+	$next       = $can_resume
+		? array_merge( $st, array( 'state' => 'running', 'error' => '', 'last_tick' => time() ) )
+		: array( 'state' => 'running', 'done' => 0, 'total' => SNT_ANALYTICS_RECOMPUTE_SPAN, 'through' => '', 'error' => '', 'started' => time(), 'last_tick' => time(), 'step' => 0, 'unit' => '' );
+	update_option( SNT_ANALYTICS_RECOMPUTE_OPT, $next, false );
 	wp_clear_scheduled_hook( SNT_ANALYTICS_RECOMPUTE_HOOK );
 	wp_schedule_single_event( time(), SNT_ANALYTICS_RECOMPUTE_HOOK );
-	return 'analytics_recompute_started';
+	return $can_resume ? 'analytics_recompute_resumed' : 'analytics_recompute_started';
+}
+
+/** Put strict mode and the window override back to the nightly's defaults. */
+function sn_analytics_recompute_reset_mode() {
+	sn_analytics_rollup_window( false );
+	sn_analytics_strict( 'off' );
+}
+
+/** Record the run as partial with a reason. */
+function sn_analytics_recompute_mark_partial( $why ) {
+	update_option( SNT_ANALYTICS_RECOMPUTE_OPT, array_merge( sn_analytics_recompute_status(), array( 'state' => 'partial', 'error' => (string) $why, 'last_tick' => time() ) ), false );
 }
 
 /**
- * One batch: re-roll its days through the nightly run functions, in strict mode.
+ * The unit the current request is inside ('' when none). The tick sets it
+ * before a unit and clears it at its end marker; the shutdown handler reads it.
+ *
+ * @param string|null $set New value, or null to read.
+ * @return string
+ */
+function sn_analytics_recompute_in_unit( $set = null ) {
+	static $unit = '';
+	if ( null !== $set ) {
+		$unit = (string) $set;
+	}
+	return $unit;
+}
+
+/**
+ * Shutdown handler: a tick that dies inside a unit (fatal, timeout) is written
+ * down as partial, naming the unit and the error, instead of staying "running".
+ *
+ * @param array|null $err error_get_last() shape; tests pass one in.
+ * @return void
+ */
+function sn_analytics_recompute_on_shutdown( $err = null ) {
+	$unit = sn_analytics_recompute_in_unit();
+	if ( '' === $unit ) {
+		return; // the tick reached its end marker.
+	}
+	sn_analytics_recompute_in_unit( '' );
+	$err   = func_num_args() ? $err : error_get_last();
+	$fatal = is_array( $err ) && in_array( (int) ( $err['type'] ?? 0 ), array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR ), true );
+	$why   = $fatal
+		? 'died in ' . $unit . ': ' . trim( (string) $err['message'] ) . ' (' . basename( (string) ( $err['file'] ?? '' ) ) . ':' . (int) ( $err['line'] ?? 0 ) . ')'
+		: 'died in ' . $unit . ': the request ended before the unit finished (timeout or kill)';
+	sn_analytics_recompute_reset_mode();
+	sn_analytics_recompute_mark_partial( $why );
+	error_log( '[sn-analytics] history recompute ' . $why );
+}
+
+/**
+ * One unit: re-roll one family for the current batch, or one session day.
  *
  * @return void
  */
@@ -77,45 +164,55 @@ function sn_analytics_recompute_tick() {
 	if ( 'running' !== $st['state'] ) {
 		return;
 	}
-	$fail = static function ( $why ) use ( $st ) {
-		update_option( SNT_ANALYTICS_RECOMPUTE_OPT, array_merge( $st, array( 'state' => 'partial', 'error' => (string) $why, 'last_tick' => time() ) ), false );
-	};
-	// The cap list must be read and complete, or the batch would write
-	// uncapped numbers over the old ones. Read it fresh for every batch.
-	delete_transient( SNT_ANALYTICS_VDAY_CACHE_KEY );
-	$list = sn_analytics_overcap_vdays();
-	if ( empty( $list['ok'] ) ) {
-		$fail( 'the over-cap visitor-day list could not be read' );
-		return;
-	}
-	if ( ! empty( $list['truncated'] ) ) {
-		$fail( 'more than ' . SNT_ANALYTICS_VDAY_LIST_MAX . ' over-cap visitor-days; the list is incomplete' );
-		return;
-	}
+	$b     = sn_analytics_recompute_batch( $st['done'], $st['total'] );
+	$units = sn_analytics_recompute_units( $b );
+	$step  = min( max( 0, (int) $st['step'] ), count( $units ) - 1 );
+	$unit  = $units[ $step ];
 
-	$b = sn_analytics_recompute_batch( $st['done'], $st['total'] );
-	sn_analytics_strict( 'on' );
-	sn_analytics_rollup_window( $b );
-	sn_analytics_run_rollup();
-	// Session days are UTC days; today is never complete, so stop at yesterday.
-	for ( $ago = $b['days']; $ago > $b['until'] && $ago >= 1 && '' === sn_analytics_strict()['tripped']; $ago-- ) {
-		sn_session_rollup_run( gmdate( 'Y-m-d', time() - $ago * DAY_IN_SECONDS ) );
+	// Name the unit BEFORE it runs, so a death names where it died.
+	$st = array_merge( $st, array( 'unit' => $unit, 'step' => $step, 'last_tick' => time() ) );
+	update_option( SNT_ANALYTICS_RECOMPUTE_OPT, $st, false );
+	if ( function_exists( 'set_time_limit' ) ) {
+		@set_time_limit( 300 ); // phpcs:ignore -- generous per unit; the shutdown handler is the real net.
 	}
-	$tripped = sn_analytics_strict()['tripped'];
-	sn_analytics_rollup_window( false );
-	sn_analytics_strict( 'off' );
+	sn_analytics_recompute_in_unit( $unit );
+	register_shutdown_function( 'sn_analytics_recompute_on_shutdown' );
+
+	// The cap list must be read and complete, or the unit would write uncapped
+	// numbers over the old ones. Fresh once per batch; cached between its units.
+	if ( 0 === $step ) {
+		delete_transient( SNT_ANALYTICS_VDAY_CACHE_KEY );
+	}
+	$list    = sn_analytics_overcap_vdays();
+	$tripped = empty( $list['ok'] ) ? 'the over-cap visitor-day list could not be read'
+		: ( ! empty( $list['truncated'] ) ? 'more than ' . SNT_ANALYTICS_VDAY_LIST_MAX . ' over-cap visitor-days; the list is incomplete' : '' );
+	if ( '' === $tripped ) {
+		sn_analytics_strict( 'on' );
+		sn_analytics_rollup_window( $b );
+		if ( 0 === strpos( $unit, 'session:' ) ) {
+			sn_session_rollup_run( gmdate( 'Y-m-d', time() - (int) substr( $unit, 8 ) * DAY_IN_SECONDS ) );
+		} elseif ( function_exists( SNT_ANALYTICS_RECOMPUTE_FAMILIES[ $unit ] ) ) {
+			call_user_func( SNT_ANALYTICS_RECOMPUTE_FAMILIES[ $unit ] );
+		}
+		$tripped = sn_analytics_strict()['tripped'];
+		sn_analytics_recompute_reset_mode();
+	}
+	sn_analytics_recompute_in_unit( '' ); // end marker.
 
 	if ( '' !== $tripped ) {
-		$fail( $tripped . '; days from ' . gmdate( 'Y-m-d', time() - $b['days'] * DAY_IN_SECONDS ) . ' were not rewritten' );
+		sn_analytics_recompute_mark_partial( $unit . ': ' . $tripped . '; days from ' . gmdate( 'Y-m-d', time() - $b['days'] * DAY_IN_SECONDS ) . ' were not rewritten' );
 		return;
 	}
-	$done = min( (int) $st['total'], (int) $st['done'] + ( $b['days'] - $b['until'] ) );
-	$next = array_merge( $st, array(
-		'done'      => $done,
-		'through'   => gmdate( 'Y-m-d', time() - ( $b['until'] > 0 ? $b['until'] + 1 : 0 ) * DAY_IN_SECONDS ),
-		'state'     => $done >= (int) $st['total'] ? 'done' : 'running',
-		'last_tick' => time(),
-	) );
+	$next = array_merge( $st, array( 'step' => $step + 1, 'last_tick' => time() ) );
+	if ( $step + 1 >= count( $units ) ) {
+		$done = min( (int) $st['total'], (int) $st['done'] + ( $b['days'] - $b['until'] ) );
+		$next = array_merge( $next, array(
+			'done'    => $done,
+			'step'    => 0,
+			'through' => gmdate( 'Y-m-d', time() - ( $b['until'] > 0 ? $b['until'] + 1 : 0 ) * DAY_IN_SECONDS ),
+			'state'   => $done >= (int) $st['total'] ? 'done' : 'running',
+		) );
+	}
 	update_option( SNT_ANALYTICS_RECOMPUTE_OPT, $next, false );
 	if ( 'running' === $next['state'] ) {
 		wp_schedule_single_event( time() + 5, SNT_ANALYTICS_RECOMPUTE_HOOK );
@@ -126,46 +223,9 @@ add_action( SNT_ANALYTICS_RECOMPUTE_HOOK, 'sn_analytics_recompute_tick' );
 /**
  * Admin-post handler (nonce + manage_options are enforced by the dispatcher).
  *
- * @param array $post Raw $_POST (unused).
+ * @param array $post Raw $_POST; mode=resume continues from the cursor.
  * @return string Flash code.
  */
 function sn_handle_analytics_recompute( $post ) {
-	unset( $post );
-	return sn_analytics_recompute_start();
-}
-
-/**
- * The status line beside the button. PURE over the status array.
- *
- * @param array $st sn_analytics_recompute_status() shape.
- * @return string
- */
-function sn_analytics_recompute_line( array $st ) {
-	$n = sprintf( '%d of %d days', (int) $st['done'], (int) $st['total'] );
-	switch ( $st['state'] ) {
-		case 'running':
-			return 'Recomputing history: ' . $n . ' done.';
-		case 'partial':
-			return 'Recompute stopped at ' . $n . ': ' . $st['error'] . '. Run it again to retry.';
-		case 'done':
-			return 'Recomputed through ' . $st['through'] . ', ' . $n . '.';
-	}
-	return 'History before the current rule was set has not been recomputed.';
-}
-
-/**
- * One button + status line, printed under the human-rule note.
- *
- * @return void
- */
-function snt_analytics_render_recompute() {
-	if ( ! current_user_can( 'manage_options' ) ) {
-		return;
-	}
-	$st = sn_analytics_recompute_status();
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'analytics_recompute' ) ) . '">';
-	wp_nonce_field( 'sn_analytics_recompute' );
-	echo '<p class="sn-an-visitor-note">' . esc_html( sn_analytics_recompute_line( $st ) ) . ' ';
-	echo '<button type="submit" name="action" value="sn_analytics_recompute" class="button button-small"' . ( 'running' === $st['state'] ? ' disabled' : '' ) . '>' . esc_html__( 'Recompute analytics history', 'signal-and-noise-tools' ) . '</button></p>';
-	echo '</form>';
+	return sn_analytics_recompute_start( 'resume' === ( is_array( $post ) ? (string) ( $post['mode'] ?? '' ) : '' ) );
 }

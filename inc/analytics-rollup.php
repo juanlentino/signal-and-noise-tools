@@ -738,40 +738,8 @@ function sn_analytics_run_rollup() {
 		return;
 	}
 
-	// Roll by the SITE-LOCAL day when a named zone is available (v9.26.4). If the
-	// zoned query fails (an AE that predates the timezone functions → HTTP 422 →
-	// null), fall back to the UTC rollup WITHIN THE SAME RUN so the durable table
-	// never goes stale on account of the zone syntax alone — it degrades to the
-	// pre-v9.26.4 behaviour, no worse. A successful-but-empty zoned result is []
-	// (is_array), so the fallback only fires on a real failure.
-	$tz      = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
-	$used_tz = $tz;
-	$rows    = sn_analytics_query( sn_analytics_rollup_sql( sn_analytics_rollup_window()['days'], $tz ) );
-	if ( '' !== $tz && ! is_array( $rows ) ) {
-		$used_tz = '';
-		$rows    = sn_analytics_query( sn_analytics_rollup_sql( sn_analytics_rollup_window()['days'], '' ) );
-	}
-	if ( ! is_array( $rows ) ) {
-		return; // transport / non-200 / parse failure — already captured by the read-client.
-	}
-	// Judged NOW: the gated query below resets the truncation verdict. An
-	// empty window is breakage-shaped here, never a reason to clear history.
-	$complete = ! empty( $rows ) && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() );
-
-	if ( ! empty( $rows ) ) {
-		// Second query (P0.1 Fallback A): pageview-gated distinct visitor-days,
-		// merged per (day, path, class) in PHP. It runs with the SAME zone the
-		// main query actually succeeded with — if the zoned main query fell back
-		// to UTC, a zoned gated query would bucket different "day" keys and the
-		// merge would silently miss. A gated failure — transport OR a row-cap-
-		// truncated result (the wrapper refuses those) — leaves pageview_visits
-		// absent (SQL NULL — "never measured"), never a fabricated 0; the main
-		// rows still write, so a flaky second query degrades, not corrupts.
-		$gated = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( sn_analytics_rollup_window()['days'], $used_tz ) );
-		$write = static function () use ( $rows, $gated ) {
-			sn_analytics_rollup_upsert( sn_analytics_rollup_merge_gated( $rows, $gated ) );
-		};
-		function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( $complete, SN_ANALYTICS_DAILY_TABLE, $used_tz, $write ) : $write();
+	if ( ! sn_analytics_pageviews_run_rollup() ) {
+		return; // the main read failed: no breakdowns, no fresh stamp (as before the split).
 	}
 
 	// P3: roll the referrer/country/device breakdowns in the same pass (their
@@ -810,6 +778,54 @@ function sn_analytics_run_rollup() {
 		set_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY, time(), SN_ANALYTICS_ROLLUP_RETENTION );
 	}
 }
+/**
+ * The page-view family alone (main + pageview-gated query, one day-replacing
+ * write). Split out so the history recompute can run it as its own unit.
+ *
+ * @return bool False when the main read failed (nothing written).
+ */
+function sn_analytics_pageviews_run_rollup() {
+	if ( ! function_exists( 'sn_analytics_query' ) || ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
+		return false;
+	}
+	// Roll by the SITE-LOCAL day when a named zone is available (v9.26.4). If the
+	// zoned query fails (an AE that predates the timezone functions → HTTP 422 →
+	// null), fall back to the UTC rollup WITHIN THE SAME RUN so the durable table
+	// never goes stale on account of the zone syntax alone — it degrades to the
+	// pre-v9.26.4 behaviour, no worse. A successful-but-empty zoned result is []
+	// (is_array), so the fallback only fires on a real failure.
+	$tz      = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
+	$used_tz = $tz;
+	$rows    = sn_analytics_query( sn_analytics_rollup_sql( sn_analytics_rollup_window()['days'], $tz ) );
+	if ( '' !== $tz && ! is_array( $rows ) ) {
+		$used_tz = '';
+		$rows    = sn_analytics_query( sn_analytics_rollup_sql( sn_analytics_rollup_window()['days'], '' ) );
+	}
+	if ( ! is_array( $rows ) ) {
+		return false; // transport / non-200 / parse failure — already captured by the read-client.
+	}
+	// Judged NOW: the gated query below resets the truncation verdict. An
+	// empty window is breakage-shaped here, never a reason to clear history.
+	$complete = ! empty( $rows ) && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() );
+
+	if ( ! empty( $rows ) ) {
+		// Second query (P0.1 Fallback A): pageview-gated distinct visitor-days,
+		// merged per (day, path, class) in PHP. It runs with the SAME zone the
+		// main query actually succeeded with — if the zoned main query fell back
+		// to UTC, a zoned gated query would bucket different "day" keys and the
+		// merge would silently miss. A gated failure — transport OR a row-cap-
+		// truncated result (the wrapper refuses those) — leaves pageview_visits
+		// absent (SQL NULL — "never measured"), never a fabricated 0; the main
+		// rows still write, so a flaky second query degrades, not corrupts.
+		$gated = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( sn_analytics_rollup_window()['days'], $used_tz ) );
+		$write = static function () use ( $rows, $gated ) {
+			sn_analytics_rollup_upsert( sn_analytics_rollup_merge_gated( $rows, $gated ) );
+		};
+		function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( $complete, SN_ANALYTICS_DAILY_TABLE, $used_tz, $write ) : $write();
+	}
+	return true;
+}
+
 add_action( SN_ANALYTICS_ROLLUP_HOOK, 'sn_analytics_run_rollup' );
 add_action( SN_ANALYTICS_ROLLUP_DAILY_HOOK, 'sn_analytics_run_rollup' );
 

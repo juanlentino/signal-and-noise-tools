@@ -151,6 +151,7 @@ require_once SNT_PATH . 'inc/analytics-sessions.php';       // within-day sessio
 require_once SNT_PATH . 'inc/analytics-view-sessions.php';  // Visits view
 require_once SNT_PATH . 'inc/analytics-session-rollup.php'; // durable session-quality rollup + cron
 require_once SNT_PATH . 'inc/analytics-recompute.php'; // owner-run 90-day history recompute under the current human rule
+require_once SNT_PATH . 'inc/analytics-recompute-status.php'; // its status line, buttons, and the sn-status{recompute} source
 require_once SNT_PATH . 'inc/analytics-movers.php'; // v8.5.0: landing "Movers" tile (views delta vs prior window)
 require_once SNT_PATH . 'inc/analytics-header-region.php'; // v8.5.0: the shared header frame (Overview + rail + uptime detail)
 require_once SNT_PATH . 'inc/analytics-view-content.php';  // v8.5.0: the regrouped Content view (default landing)
