@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Correction to 19.3.2: `lib/.htaccess` is inert on this host.** Cloudways hands PHP to Nginx and PHP-FPM, which ignore `.htaccess` (as `tests/.htaccess` already noted), so `lib/pdf/vendor/*.php` still answered 200 after the release. The block is enforced at the edge instead: the Cloudflare custom rule "readme+licence" now also blocks `*.php` under `/wp-content/plugins/signal-and-noise-tools/lib/` (verified 403). The `.htaccess` stays for Apache hosts.
+
 ## [19.3.2] - 2026-09-27 — PHP under lib/ is denied over HTTP
 
 ### Security
