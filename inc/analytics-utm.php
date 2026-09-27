@@ -27,6 +27,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
+
 const SN_ANALYTICS_UTM_TABLE          = 'sn_analytics_utm';
 const SN_ANALYTICS_UTM_DB_VERSION     = '1';
 const SN_ANALYTICS_UTM_DB_VERSION_OPT = 'sn_analytics_utm_db_version';
@@ -121,7 +123,7 @@ function sn_analytics_utm_rollup_sql( $days ) {
 		'sum(_sample_interval) AS views,',
 		'count(DISTINCT index1) AS visits',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'pv' AND blob20 != '' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
+		"WHERE blob1 = 'pv' AND blob20 != '' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_overcap_where(),
 		'GROUP BY day, packed, class',
 		'ORDER BY day DESC, views DESC',
 	) );

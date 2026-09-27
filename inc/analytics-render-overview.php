@@ -189,6 +189,45 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
 }
 
 /**
+ * The counted-human rule, one line per definition, under the KPI row: what
+ * "human" means (and how many visitor-days the page-view cap removed, or that
+ * it could not be applied), and the engaged count, the number to trust.
+ *
+ * @param array $rule sn_analytics_human_rule_reading() shape.
+ */
+function snt_analytics_render_human_rule_note( array $rule ) {
+	$cap   = defined( 'SNT_ANALYTICS_VDAY_PV_CAP' ) ? (int) SNT_ANALYTICS_VDAY_PV_CAP : 50;
+	$human = empty( $rule['ok'] )
+		/* translators: %d: page-view cap per visitor-day. */
+		? sprintf( __( 'Human: not a bot or suspect network, and at most %d page views in a visitor-day. The cap list could not be read, so the cap is NOT applied right now.', 'signal-and-noise-tools' ), $cap )
+		/* translators: 1: page-view cap per visitor-day, 2: visitor-days removed. */
+		: sprintf( __( 'Human: not a bot or suspect network, and at most %1$d page views in a visitor-day (%2$s visitor-days over the cap read as automated, last 92 days).', 'signal-and-noise-tools' ), $cap, number_format_i18n( (int) $rule['excluded'] ) . ( empty( $rule['truncated'] ) ? '' : '+' ) );
+	echo '<p class="sn-an-visitor-note">' . esc_html( $human ) . '</p>';
+	if ( 'human' !== ( $rule['class'] ?? 'human' ) ) {
+		return;
+	}
+	$cfg  = function_exists( 'snt_nsm_config' ) ? snt_nsm_config() : array( 'scroll' => 50, 'dwell_ms' => 30000 );
+	$rule_txt = sprintf(
+		/* translators: 1: scroll percent, 2: seconds. */
+		__( 'met the read floor (%1$d%% scroll or %2$d s on a page)', 'signal-and-noise-tools' ),
+		(int) $cfg['scroll'],
+		(int) ( $cfg['dwell_ms'] / 1000 )
+	);
+	if ( null === ( $rule['engaged'] ?? null ) ) {
+		/* translators: %s: the read-floor definition. */
+		$line = sprintf( __( 'Engaged visitor-days: not measured yet for this range (visitor-days that %s; the nightly rollup fills it).', 'signal-and-noise-tools' ), $rule_txt );
+	} else {
+		/* translators: 1: engaged visitor-days, 2: read-floor definition. */
+		$line = sprintf( __( 'Engaged visitor-days: %1$s %2$s. The number to trust.', 'signal-and-noise-tools' ), number_format_i18n( (int) $rule['engaged'] ), $rule_txt );
+		if ( (int) $rule['measured'] < (int) $rule['days'] ) {
+			/* translators: 1: days measured, 2: days rolled up. */
+			$line .= ' ' . sprintf( __( '(%1$d of %2$d days measured)', 'signal-and-noise-tools' ), (int) $rule['measured'], (int) $rule['days'] );
+		}
+	}
+	echo '<p class="sn-an-visitor-note">' . esc_html( $line ) . '</p>';
+}
+
+/**
  * One-line comparison summary under the trend (maturity I5): names the compare
  * window and its views total, with a signed delta vs the current window. No-op
  * when compare is off or the comparison totals are empty.

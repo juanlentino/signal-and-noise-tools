@@ -24,6 +24,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
+
 const SN_ANALYTICS_REALTIME_KEY        = 'sn_analytics_realtime';
 const SN_ANALYTICS_REALTIME_TTL        = 30;                     // freshness target (seconds)
 const SN_ANALYTICS_REALTIME_RETENTION  = 5 * MINUTE_IN_SECONDS;  // stale value survives an API blip
@@ -54,7 +56,7 @@ function sn_analytics_realtime_sql() {
 	return implode( ' ', array(
 		'SELECT blob7 AS class, count(DISTINCT index1) AS visitors',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE timestamp >= now() - INTERVAL '{$mins}' MINUTE",
+		"WHERE timestamp >= now() - INTERVAL '{$mins}' MINUTE" . sn_analytics_overcap_where(),
 		'GROUP BY class',
 	) );
 }
@@ -118,7 +120,7 @@ function sn_analytics_views_today_sql( $elapsed, $tz = '' ) {
 	return implode( ' ', array(
 		'SELECT sum(_sample_interval) AS views',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'pv' AND blob7 = 'human' AND timestamp >= {$lower}",
+		"WHERE blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ) . " AND timestamp >= {$lower}",
 	) );
 }
 

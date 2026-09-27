@@ -32,6 +32,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
+
 require_once __DIR__ . '/analytics-derive.php'; // sn_analytics_rollup_day_exprs()
 
 // Per-day write caps (bound table growth; AE pre-sorts by events desc).
@@ -57,7 +59,7 @@ function sn_analytics_events_rollup_sql( $days, $tz = '' ) {
 		'sum(_sample_interval) AS events,',
 		'count(DISTINCT index1) AS visitors',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'ce' AND blob7 = 'human' AND timestamp >= {$lower}",
+		"WHERE blob1 = 'ce' AND " . sn_analytics_class_where( 'human' ) . " AND timestamp >= {$lower}",
 		'GROUP BY day, name',
 		'ORDER BY day DESC, events DESC',
 	) );
@@ -82,7 +84,7 @@ function sn_analytics_event_props_rollup_sql( $days, $tz = '' ) {
 		'sum(_sample_interval) AS events,',
 		'count(DISTINCT index1) AS visitors',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'cp' AND blob7 = 'human' AND timestamp >= {$lower}",
+		"WHERE blob1 = 'cp' AND " . sn_analytics_class_where( 'human' ) . " AND timestamp >= {$lower}",
 		'GROUP BY day, property, value',
 		'ORDER BY day DESC, events DESC',
 	) );

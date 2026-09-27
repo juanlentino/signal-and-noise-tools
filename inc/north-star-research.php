@@ -15,6 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
+
 /** Hosts that count as research destinations; a subdomain matches its parent. */
 const SNT_NSM_RESEARCH_HOSTS = array( 'ssrn.com', 'doi.org', 'zenodo.org', 'orcid.org', 'aes.org' );
 
@@ -73,7 +75,7 @@ function snt_nsm_research_links( $from, $to, $now ) {
 	$rows    = sn_analytics_query(
 		"SELECT index1 AS vid, toUnixTimestamp(timestamp) AS ts, blob18 AS host FROM {$dataset}"
 		. " WHERE timestamp >= toDateTime('{$from} 00:00:00') AND timestamp <= toDateTime('{$to} 23:59:59')"
-		. " AND blob7 = 'human' AND blob1 = 'cp' AND blob16 = 'outbound' AND blob17 = 'host' LIMIT 10000"
+		. " AND " . sn_analytics_class_where( 'human' ) . " AND blob1 = 'cp' AND blob16 = 'outbound' AND blob17 = 'host' LIMIT 10000"
 	);
 	return is_array( $rows ) ? snt_nsm_research_weeks( $rows, $now )[0] : null;
 }

@@ -29,6 +29,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
+
 /**
  * The percentile metrics: source event + double column + label + display format.
  * Single source of truth for the SQL builder, the accessor, and the engagement
@@ -70,7 +72,7 @@ function sn_analytics_percentiles_sql( $event, $col, $from, $to, $class ) {
 		"quantileExactWeighted(0.75)({$col}, _sample_interval) AS p75,",
 		"quantileExactWeighted(0.9)({$col}, _sample_interval) AS p90",
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = '{$event}' AND blob7 = '{$class}'",
+		"WHERE blob1 = '{$event}' AND " . sn_analytics_class_where( $class ),
 		"AND timestamp >= toDateTime('{$from} 00:00:00')",
 		"AND timestamp <= toDateTime('{$to} 23:59:59')",
 	) );

@@ -95,6 +95,9 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 		$annotations();
 	}
 	snt_analytics_render_cards( $now, $totals, $deltas, $engaged, $basis_label );
+	if ( function_exists( 'sn_analytics_human_rule_reading' ) ) {
+		snt_analytics_render_human_rule_note( sn_analytics_human_rule_reading( $from, $to, $class ) );
+	}
 	snt_analytics_render_trend( $series, $granularity, $cseries );
 	if ( function_exists( 'snt_analytics_render_compare_note' ) ) {
 		snt_analytics_render_compare_note( $compare, $totals, $ctotals, $cwin[0], $cwin[1] );

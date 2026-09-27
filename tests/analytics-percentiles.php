@@ -16,7 +16,10 @@ define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) );
 
 // Transient seam.
 $GLOBALS['__pc_trans'] = array();
-function get_transient( $k ) { return array_key_exists( $k, $GLOBALS['__pc_trans'] ) ? $GLOBALS['__pc_trans'][ $k ] : false; }
+function get_transient( $k ) {
+	if ( 'sn_analytics_overcap_vdays' === $k ) { return array( 'hashes' => array(), 'ok' => true, 'truncated' => false ); } // the human rule's list, primed so call counts stay this module's own
+	return array_key_exists( $k, $GLOBALS['__pc_trans'] ) ? $GLOBALS['__pc_trans'][ $k ] : false;
+}
 function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__pc_trans'][ $k ] = $v; $GLOBALS['__pc_last_ttl'] = $ttl; return true; }
 function delete_transient( $k ) { unset( $GLOBALS['__pc_trans'][ $k ] ); return true; }
 

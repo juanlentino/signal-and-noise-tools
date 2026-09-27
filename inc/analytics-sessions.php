@@ -20,6 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
+
 const SN_ANALYTICS_SESSION_GAP_SEC     = 1800;  // >30 min idle starts a new visit.
 const SN_ANALYTICS_SESSION_ENGAGED_PCT = 50;    // engaged read: scroll depth % floor.
 const SN_ANALYTICS_SESSION_ENGAGED_MS  = 15000; // engaged read: dwell ms floor.
@@ -829,7 +831,7 @@ function sn_analytics_session_sql( $from, $to, $class, $cap ) {
 			// compared to a String literal (>= 422s), so wrap the validated bounds
 			// in toDateTime(). $from/$to are regex-checked Y-m-d above.
 			"WHERE timestamp >= toDateTime('{$from} 00:00:00') AND timestamp <= toDateTime('{$to} 23:59:59')",
-			"AND blob7 = '{$class}'",
+			'AND ' . sn_analytics_class_where( $class ),
 			"AND blob1 IN ('pv','sc','tm','ce')",
 			// No ORDER BY: AE resolves ORDER BY against SELECT aliases (not raw
 			// columns), so `index1`/`timestamp` both 422. sn_sessionize sorts each

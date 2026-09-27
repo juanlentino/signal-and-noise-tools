@@ -140,6 +140,7 @@ require_once SNT_PATH . 'inc/analytics-widget.php';
 // First-party edge analytics (P2 data layer). analytics-api.php is the AE SQL
 // read-client; analytics-rollup.php (its first consumer) must load after it.
 require_once SNT_PATH . 'inc/analytics-api.php';
+require_once SNT_PATH . 'inc/analytics-human-rule.php'; // the ONE counted-human rule (network class + page-view cap per visitor-day)
 require_once SNT_PATH . 'inc/analytics-rollup.php';
 require_once SNT_PATH . 'inc/public-stats.php'; // v10.65.0: [sn_public_stats] — the public stats page, rollups read-only (roadmap Analytics planned row)
 require_once SNT_PATH . 'inc/analytics-derive.php'; // Phase A pure derive layer (spec §4) — zero WP calls; consumed by the read layer

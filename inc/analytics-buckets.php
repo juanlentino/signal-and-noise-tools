@@ -36,6 +36,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
+
 const SN_ANALYTICS_BUCKETS_TABLE          = 'sn_analytics_buckets';
 const SN_ANALYTICS_BUCKETS_DB_VERSION     = '1';
 const SN_ANALYTICS_BUCKETS_DB_VERSION_OPT = 'sn_analytics_buckets_db_version';
@@ -209,7 +211,7 @@ function sn_analytics_buckets_hour_sql( $days ) {
 		'blob7 AS class,',
 		'sum(_sample_interval) AS views',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'pv' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
+		"WHERE blob1 = 'pv' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_overcap_where(),
 		'GROUP BY day, bucket, class',
 	) );
 }
@@ -248,7 +250,7 @@ function sn_analytics_buckets_dist_sql( $event, $col, $buckets, $days ) {
 		'blob7 AS class,',
 		implode( ', ', $selects ),
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = '{$event}' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
+		"WHERE blob1 = '{$event}' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_overcap_where(),
 		'GROUP BY day, class',
 	) );
 }
