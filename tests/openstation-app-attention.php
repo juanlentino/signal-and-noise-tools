@@ -988,7 +988,7 @@ foreach ( snt_os_app_sections() as $s ) {
 ok( is_array( $section ) && 'attention' === $section['id'] && 'Attention' === $section['label'] && 'dashicons-flag' === $section['icon'], 'the section registers as attention / Attention / dashicons-flag' );
 ok( 'entry' === $section['kind'] && 5 === (int) $section['position'] && 'manage_options' === $section['capability'], 'kind entry, position 5 (first at the root, which is what the phone opens on), manage_options' );
 ok( ! isset( $section['restPath'] ) && ! isset( $section['edit_url'] ) && ! isset( $section['hasDossier'] ), 'READ-ONLY BY ABSENCE: no restPath, no edit_url, no hasDossier -- the client\'s three opt-ins, all declined, so no drag, no editor, no dossier fetch' );
-ok( array_keys( \SignalNoise\OpenStationApp\attention_kinds() ) === array_column( $section['statuses'], 'value' ), 'the pills ARE the kinds, from the one list a row\'s statusLabel also reads' );
+ok( array_merge( array_keys( \SignalNoise\OpenStationApp\attention_kinds() ), array( 'pages' ) ) === array_column( $section['statuses'], 'value' ), 'the pills ARE the kinds, from the one list a row\'s statusLabel also reads, then Pages (19.2.0)' );
 ok( array( 'fact', 'stamp' ) === array_column( $section['columns'], 'key' ) && array( 'What', 'Measured' ) === array_column( $section['columns'], 'label' ), 'the list columns are fact and stamp' );
 ok( array_column( $section['columns'], 'key' ) === array_keys( t_item( t_items(), 'a-integrity-11' )['columns'] ), '   ...and the descriptor\'s list and the item\'s are the SAME list, in the same order' );
 ok( 'Nothing needs you' === $section['empty_heading'], 'the empty heading is declared on the descriptor: the client\'s generic "Nothing here yet." would read as a section that never filled' );
@@ -1053,6 +1053,21 @@ foreach ( array( 'no longer serves the published key id with the published key b
 	if ( 1 !== substr_count( $src_findings, $phrase ) || 1 !== substr_count( $src_reader, $phrase ) ) { $parity = false; }
 }
 ok( $parity, 'the three fleet sentences are the findings\' own, word for word, each phrase unique to its finding -- the queue says what sn_prov_integrity_findings() says' );
+
+// 19.2.0: a stale edge verdict retires once a LATER full zone purge replaced
+// what it saw, but never on its own escalation (seconds after the reading).
+ok( \SignalNoise\OpenStationApp\attention_edge_superseded( 1000, 1000 + 3600 ), 'a zone purge an hour after a stale reading retires it' );
+ok( ! \SignalNoise\OpenStationApp\attention_edge_superseded( 1000, 1003 ), "the probe's own escalation, seconds later, does not" );
+ok( ! \SignalNoise\OpenStationApp\attention_edge_superseded( 1000, 0 ) && ! \SignalNoise\OpenStationApp\attention_edge_superseded( 5000, 1000 ), 'no zone purge, or one BEFORE the reading, keeps the row' );
+
+// 19.2.0: a row about a Page files under the Pages pill; its badge keeps the signal.
+if ( ! function_exists( 'get_post_type' ) ) {
+	function get_post_type( $id ) { return 9001 === (int) $id ? 'page' : 'post'; }
+}
+$page_item = \SignalNoise\OpenStationApp\attention_item( \SignalNoise\OpenStationApp\attention_row( array( 'kind' => 'anchors', 'key' => 'p', 'title' => 'On Provenance', 'post_id' => 9001 ) ), array() );
+$note_item = \SignalNoise\OpenStationApp\attention_item( \SignalNoise\OpenStationApp\attention_row( array( 'kind' => 'anchors', 'key' => 'n', 'title' => 'A note', 'post_id' => 9002 ) ), array() );
+ok( 'pages' === $page_item['status'] && 'Anchors' === $page_item['badge']['text'], 'a page row files under Pages and its badge still says Anchors' );
+ok( 'anchors' === $note_item['status'], 'a note row stays under its signal' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -89,6 +89,11 @@
 			var recording = ( overview && overview.recording ) || []; // v14.6.2: minted, not yet at the Worker.
 			var confirmed = overview ? Number( overview.confirmed ) || 0 : 0;
 			var total     = overview ? Number( overview.total ) || 0 : 0;
+			// 19.2.0: signed Pages, counted apart from Notes.
+			var pages     = ( overview && overview.pages ) || { confirmed: 0, total: 0 };
+			var pagesLine = Number( pages.total ) > 0
+				? ( Number( pages.confirmed ) || 0 ) + ' of ' + Number( pages.total ) + ' pages anchored'
+				: '';
 
 			if ( ! overview ) {
 				wrap.appendChild( el( 'p', { style: 'margin:0;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: note || 'Anchor status unavailable.' } ) );
@@ -98,6 +103,12 @@
 					style: 'margin:0;font-weight:600;color:#3fb950;',
 					text:  '✓ ' + confirmed + ' of ' + total + ' notes anchored',
 				} ) );
+				if ( pagesLine ) {
+					wrap.appendChild( el( 'p', {
+						style: 'margin:2px 0 0;font-weight:600;color:#3fb950;',
+						text:  '✓ ' + pagesLine,
+					} ) );
+				}
 				wrap.appendChild( el( 'p', {
 					style: 'margin:4px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
 					text:  'No anchors pending.',
@@ -108,14 +119,20 @@
 				if ( pending.length )   { parts.push( pending.length + ' pending' ); }
 				wrap.appendChild( el( 'p', {
 					style: 'margin:0 0 6px;font-weight:600;color:#d29922;',
-					text:  parts.join( ' · ' ) + ' · ' + confirmed + ' of ' + total + ' anchored',
+					text:  parts.join( ' · ' ) + ' · ' + confirmed + ' of ' + total + ' notes anchored',
 				} ) );
+				if ( pagesLine ) {
+					wrap.appendChild( el( 'p', {
+						style: 'margin:-4px 0 6px;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));',
+						text:  pagesLine,
+					} ) );
+				}
 				// A freshly minted version: the commit exists, the Worker has not
 				// answered yet. Nothing to poll; the settle window does the work.
 				recording.forEach( function( row ) {
 					var line = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
 					line.appendChild( el( 'span', {
-						text:  ( row.title || ( '#' + row.post_id ) ) + ' v' + row.version,
+						text:  ( 'page' === row.type ? 'Page: ' : '' ) + ( row.title || ( '#' + row.post_id ) ) + ' v' + row.version,
 						title: row.title || '',
 						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.75));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
 					} ) );
@@ -129,7 +146,7 @@
 				pending.forEach( function( row ) {
 					var line = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
 					line.appendChild( el( 'span', {
-						text:  ( row.title || ( '#' + row.post_id ) ) + ' v' + row.version,
+						text:  ( 'page' === row.type ? 'Page: ' : '' ) + ( row.title || ( '#' + row.post_id ) ) + ' v' + row.version,
 						title: row.title || '',
 						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.75));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
 					} ) );

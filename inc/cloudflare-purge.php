@@ -48,6 +48,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_CF_TOKEN_OPT       = 'sn_cf_api_token';
 const SN_CF_ZONE_OPT        = 'sn_cf_zone_id';
 const SN_CF_LAST_PURGE_OPT  = 'sn_cf_last_purge';
+// 19.2.0: the last FULL zone purge, kept apart because every per-post purge
+// overwrites SN_CF_LAST_PURGE_OPT. Attention reads it to retire a stale edge
+// verdict that a later zone purge superseded.
+const SN_CF_LAST_ZONE_PURGE_OPT = 'sn_cf_last_zone_purge';
 const SN_CF_API_BASE        = 'https://api.cloudflare.com/client/v4';
 
 /**
@@ -145,6 +149,7 @@ function sn_cf_purge_everything() {
 		'time' => time(),
 		'kind' => 'all',
 	), false );
+	update_option( SN_CF_LAST_ZONE_PURGE_OPT, time(), false );
 
 	return true;
 }
@@ -236,6 +241,7 @@ function sn_cf_purge_everything_verified() {
 		'verified'   => true,
 		'cf_success' => $out['cf_success'],
 	), false );
+	update_option( SN_CF_LAST_ZONE_PURGE_OPT, time(), false );
 
 	return $out;
 }

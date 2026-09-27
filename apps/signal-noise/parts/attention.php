@@ -565,6 +565,18 @@ function attention_rows() {
 }
 
 /**
+ * Is this row about a Page (not a Note)? 19.2.0: such rows file under the
+ * Pages pill.
+ *
+ * @param array<string,mixed> $row A composed row.
+ * @return bool
+ */
+function attention_is_page_row( array $row ) {
+	$post_id = (int) ( $row['post_id'] ?? 0 );
+	return $post_id > 0 && function_exists( 'get_post_type' ) && 'page' === get_post_type( $post_id );
+}
+
+/**
  * One queue row as the client sees it.
  *
  * @param array<string,mixed>                         $row     A composed row.
@@ -631,9 +643,11 @@ function attention_item( array $row, $offered = null ) {
 		'thumbnail'   => '',
 		'icon'        => attention_kind_icon( $kind ),
 		// The status IS the kind: the pills filter the queue by which signal
-		// produced a row, which is the only axis a mixed queue has.
-		'status'      => $kind,
-		'statusLabel' => $label,
+		// produced a row. 19.2.0: a row about a PAGE (the /provenance/ hub,
+		// an essay) files under Pages instead, the owner's second axis; the
+		// badge below still names the signal, so nothing is lost on the tile.
+		'status'      => attention_is_page_row( $row ) ? 'pages' : $kind,
+		'statusLabel' => attention_is_page_row( $row ) ? __( 'Pages', 'signal-and-noise-tools' ) : $label,
 		'date'        => $stamp,
 		'dateLabel'   => $asof,
 		'badge'       => array(
@@ -808,6 +822,8 @@ add_filter(
 		foreach ( attention_kinds() as $kind => $label ) {
 			$statuses[] = array( 'value' => $kind, 'label' => $label );
 		}
+		// 19.2.0: rows about a Page, whatever signal raised them.
+		$statuses[] = array( 'value' => 'pages', 'label' => __( 'Pages', 'signal-and-noise-tools' ) );
 		$sections[] = array(
 			'id'             => 'attention',
 			'label'          => __( 'Attention', 'signal-and-noise-tools' ),
