@@ -363,7 +363,9 @@ function sn_analytics_rollup_window_exprs( $days, $tz = '' ) {
 	// (toStartOfInterval with the zone), UTC otherwise. A bare `now() - INTERVAL`
 	// instant would aggregate the boundary day as a partial slice, and the UPSERT
 	// would clobber its previously-complete row — silently corrupting the durable
-	// forever-table. Flooring keeps every re-roll genuinely idempotent.
+	// forever-table. Flooring keeps every re-roll genuinely idempotent, and it is
+	// what lets a re-roll DELETE its days first: sn_analytics_rollup_window_days()
+	// names exactly the whole days this floor reads.
 	$lower   = '' !== $tz
 		? "toStartOfInterval(now(), INTERVAL '1' DAY, '{$tz}') - INTERVAL '{$days}' DAY"
 		: "toStartOfDay(now() - INTERVAL '{$days}' DAY)";
@@ -706,6 +708,9 @@ function sn_analytics_rollup_upsert( $rows ) {
 
 		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL -- $sql is a static INSERT ... VALUES template with a generated %s/%d placeholder group per row; $table is $wpdb->prefix + a plugin constant and every value is bound via prepare().
 		$result = $wpdb->query( $wpdb->prepare( $sql, $values ) );
+		if ( false === $result && function_exists( 'sn_analytics_rollup_chunk_failed' ) ) {
+			sn_analytics_rollup_chunk_failed( true ); // any failed chunk rolls back a day replace.
+		}
 		if ( false !== $result ) {
 			$written += count( $chunk );
 		}
@@ -749,6 +754,9 @@ function sn_analytics_run_rollup() {
 	if ( ! is_array( $rows ) ) {
 		return; // transport / non-200 / parse failure — already captured by the read-client.
 	}
+	// Judged NOW: the gated query below resets the truncation verdict. An
+	// empty window is breakage-shaped here, never a reason to clear history.
+	$complete = ! empty( $rows ) && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() );
 
 	if ( ! empty( $rows ) ) {
 		// Second query (P0.1 Fallback A): pageview-gated distinct visitor-days,
@@ -760,7 +768,10 @@ function sn_analytics_run_rollup() {
 		// absent (SQL NULL — "never measured"), never a fabricated 0; the main
 		// rows still write, so a flaky second query degrades, not corrupts.
 		$gated = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( sn_analytics_rollup_window()['days'], $used_tz ) );
-		sn_analytics_rollup_upsert( sn_analytics_rollup_merge_gated( $rows, $gated ) );
+		$write = static function () use ( $rows, $gated ) {
+			sn_analytics_rollup_upsert( sn_analytics_rollup_merge_gated( $rows, $gated ) );
+		};
+		function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( $complete, SN_ANALYTICS_DAILY_TABLE, $used_tz, $write ) : $write();
 	}
 
 	// P3: roll the referrer/country/device breakdowns in the same pass (their

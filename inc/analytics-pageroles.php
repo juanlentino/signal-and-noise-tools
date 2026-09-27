@@ -151,6 +151,9 @@ function sn_analytics_pageroles_upsert( $rows ) {
 
 		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $sql is a static INSERT ... VALUES template with a generated %s/%d placeholder group per row; $table is $wpdb->prefix + a plugin constant and every value is bound via prepare().
 		$result = $wpdb->query( $wpdb->prepare( $sql, $values ) );
+		if ( false === $result && function_exists( 'sn_analytics_rollup_chunk_failed' ) ) {
+			sn_analytics_rollup_chunk_failed( true ); // any failed chunk rolls back a day replace.
+		}
 		if ( false !== $result ) {
 			$written += count( $chunk );
 		}
@@ -291,8 +294,9 @@ function sn_analytics_pageroles_rollup_sql( $days, $tz = '' ) {
  * Roll the entry pages: query AE for the trailing window, tag each row
  * role='entry', and UPSERT. Called from sn_analytics_run_rollup() (the existing
  * cron callback — no new cron). No-ops when AE isn't configured; a query failure
- * (null) is skipped, not fatal. No-clobber: only writes days AE returns rows for,
- * so historical-import days stay untouched.
+ * (null) is skipped, not fatal. A complete, non-empty read REPLACES the entry
+ * rows of the days the window covers (sn_analytics_rollup_replace); the import
+ * history predates the ~92-day AE window, so it is never in reach.
  *
  * Rolls by the SITE-LOCAL day like the pageview rollup (#1201), with the same
  * fall-back to UTC within the run when the zoned query fails.
@@ -308,11 +312,13 @@ function sn_analytics_pageroles_run_rollup() {
 	$tz   = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
 	$rows = sn_analytics_query( sn_analytics_pageroles_rollup_sql( sn_analytics_rollup_window()['days'], $tz ) );
 	if ( '' !== $tz && ! is_array( $rows ) ) {
+		$tz   = '';
 		$rows = sn_analytics_query( sn_analytics_pageroles_rollup_sql( sn_analytics_rollup_window()['days'], '' ) );
 	}
 	if ( ! is_array( $rows ) ) {
 		return;
 	}
+	$complete = ! empty( $rows ) && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() );
 
 	$tagged = array();
 	foreach ( $rows as $row ) {
@@ -322,7 +328,11 @@ function sn_analytics_pageroles_run_rollup() {
 		}
 	}
 
-	if ( ! empty( $tagged ) ) {
-		sn_analytics_pageroles_upsert( $tagged );
-	}
+	$write = static function () use ( $tagged ) {
+		if ( ! empty( $tagged ) ) {
+			sn_analytics_pageroles_upsert( $tagged );
+		}
+	};
+	// Entry rows only: exit rows are the session rollup's, keyed by UTC day.
+	function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( $complete, SN_ANALYTICS_PAGEROLES_TABLE, $tz, $write, array( 'role' => 'entry' ) ) : $write();
 }

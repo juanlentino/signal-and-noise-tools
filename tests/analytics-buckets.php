@@ -73,7 +73,8 @@ class AB_Stub_wpdb {
 			}
 		}, $query );
 	}
-	public function query( $sql ) { $this->queries[] = $sql; return empty( $GLOBALS['__ab_query_fail'] ) ? 1 : false; }
+	public $ops = array(); // the day-replace (sn_analytics_rollup_replace)
+	public function query( $sql ) { if ( preg_match( '/^(START TRANSACTION|COMMIT|ROLLBACK|DELETE FROM \w+ WHERE day IN)/', $sql ) ) { $this->ops[] = $sql; return 1; } $this->queries[] = $sql; return empty( $GLOBALS['__ab_query_fail'] ) ? 1 : false; }
 	public function get_results( $sql, $output = ARRAY_A ) {
 		$this->queries[] = $sql;
 		if ( ! preg_match( '/FROM\s+(\S+)/', $sql, $tm ) ) { return array(); }

@@ -312,6 +312,9 @@ function sn_analytics_buckets_upsert( $rows ) {
 
 		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $sql is a static INSERT ... VALUES template with a generated %s/%d placeholder group per row; $table is $wpdb->prefix + a plugin constant and every value is bound via prepare().
 		$result = $wpdb->query( $wpdb->prepare( $sql, $values ) );
+		if ( false === $result && function_exists( 'sn_analytics_rollup_chunk_failed' ) ) {
+			sn_analytics_rollup_chunk_failed( true ); // any failed chunk rolls back a day replace.
+		}
 		if ( false !== $result ) {
 			$written += count( $chunk );
 		}
@@ -338,7 +341,9 @@ function sn_analytics_buckets_run_rollup() {
 
 	// 1. Hour-of-day — already in (day, bucket, class, views) shape.
 	$hour = sn_analytics_query( sn_analytics_buckets_hour_sql( sn_analytics_rollup_window()['days'] ) );
+	$done = array(); // metric => complete read.
 	if ( is_array( $hour ) ) {
+		$done['hour'] = ! empty( $hour ) && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() );
 		foreach ( $hour as $hr ) {
 			if ( ! is_array( $hr ) ) {
 				continue;
@@ -359,6 +364,7 @@ function sn_analytics_buckets_run_rollup() {
 		if ( ! is_array( $wide ) ) {
 			continue;
 		}
+		$done[ $metric ] = ! empty( $wide ) && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() );
 		foreach ( $wide as $wr ) {
 			if ( ! is_array( $wr ) ) {
 				continue;
@@ -375,9 +381,13 @@ function sn_analytics_buckets_run_rollup() {
 		}
 	}
 
-	if ( ! empty( $rows ) ) {
-		sn_analytics_buckets_upsert( $rows );
-	}
+	// One batched write; the delete covers only the metrics whose own read was complete.
+	$write = static function () use ( $rows ) {
+		if ( ! empty( $rows ) ) {
+			sn_analytics_buckets_upsert( $rows );
+		}
+	};
+	function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( true, SN_ANALYTICS_BUCKETS_TABLE, '', $write, array( 'metric' => array_keys( array_filter( $done ) ) ) ) : $write();
 }
 
 /**

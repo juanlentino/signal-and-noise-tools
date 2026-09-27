@@ -171,7 +171,8 @@ function sn_analytics_query( $sql ) {
 class AR_Stub_wpdb {
 	public $prefix     = 'wp_';
 	public $last_error = '';
-	public $queries    = array();      // recorded raw SQL
+	public $queries    = array();      // recorded raw SQL (writes + reads)
+	public $ops        = array();      // the day-replace: transaction + DELETE (sn_analytics_rollup_replace)
 	public $rows       = array();       // table => list of row arrays (for SELECT)
 
 	public function get_charset_collate() {
@@ -200,6 +201,10 @@ class AR_Stub_wpdb {
 	}
 
 	public function query( $sql ) {
+		if ( preg_match( '/^(START TRANSACTION|COMMIT|ROLLBACK|DELETE FROM wp_sn_analytics_daily WHERE day IN)/', $sql ) ) {
+			$this->ops[] = $sql;
+			return 1;
+		}
 		$this->queries[] = $sql;
 		// Real wpdb flush()es last_error at the START of every query, then sets
 		// it on failure and returns false — the REAL failure shape a transport
