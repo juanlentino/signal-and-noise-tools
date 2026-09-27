@@ -56,5 +56,8 @@ ok( sn_tag_redirect_target( '/tag/music-provenance/' ) === 'https://x.test/prove
 $GLOBALS['__live_slugs'] = array( 'provenance' );
 ok( sn_tag_redirect_target( '/tag/provenance/' ) === '', 'a re-created provenance tag serves its own archive' );
 
+$GLOBALS['__live_slugs'] = array( 'cryptographic-signatures', 'music-metadata' );
+ok( sn_tag_redirect_target( '/tag/cryptography/' ) === 'https://x.test/tag/cryptographic-signatures/' && sn_tag_redirect_target( '/tag/music-identification/' ) === 'https://x.test/tag/music-metadata/', "the theme's two retirements live in the one map" );
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **One retired-tag map.** The theme kept its own list (`provenance`, `cryptography`, `music-identification`) beside the plugin's 61, and ran first, so a change in one was silently overridden by the other. All three were already in `inc/tag-retired-map.php` with the same targets; a test now pins them there, and the theme drops its copy in its next release.
+
 ## [19.1.1] - 2026-09-27 — provenance tags land on the hub
 
 ### Fixed
