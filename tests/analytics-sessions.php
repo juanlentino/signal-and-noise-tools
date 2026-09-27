@@ -202,5 +202,9 @@ ok( 2 === count( $pvv ), 'drops pageview-less (server/RSS/orphan-beacon) groups'
 ok( 2 === $pvv[0]['pageviews'] && 1 === $pvv[1]['pageviews'], 'keeps only pv-bearing visits, re-indexed' );
 ok( array() === sn_pageview_visits( array() ), 'empty input → empty' );
 
+// Reading time is a per-flush DELTA (sn-beacon.js v10.44.4): slices add up.
+$sd = sn_visit_summary( array( ev( 'D', 0, 'pv', '/n' ), ev( 'D', 1, 'sc', '/n', '', 60, 0 ), ev( 'D', 2, 'tm', '/n', '', 0, 9000 ), ev( 'D', 3, 'tm', '/n', '', 0, 8000 ) ), 50, 15000 );
+ok( true === $sd['engaged'], 'two 9 s + 8 s slices are a 17 s dwell: engaged past the 15 s floor (the larger slice alone was 9 s)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

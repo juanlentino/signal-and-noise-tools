@@ -525,7 +525,8 @@ function sn_visit_summary( array $events, $engaged_scroll = SN_ANALYTICS_SESSION
 		} elseif ( 'sc' === $type ) {
 			$max_scroll[ $p ] = max( $max_scroll[ $p ] ?? 0, (float) ( $e['scroll'] ?? 0 ) );
 		} elseif ( 'tm' === $type ) {
-			$max_dwell[ $p ] = max( $max_dwell[ $p ] ?? 0, (float) ( $e['dwell'] ?? 0 ) );
+			// tm is a per-flush DELTA (sn-beacon.js v10.44.4): sum the slices.
+			$max_dwell[ $p ] = ( $max_dwell[ $p ] ?? 0 ) + (float) ( $e['dwell'] ?? 0 );
 		} elseif ( 'ce' === $type ) {
 			$name = (string) ( $e['ce'] ?? '' );
 			if ( '' !== $name ) {

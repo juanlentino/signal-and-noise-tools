@@ -72,6 +72,10 @@ ok( 1 === $g['verifies'], 'a signature check from the provenance chip counts' );
 ok( 2 === $g['shares'], 'Copy link and the share sheet both count as shares' );
 ok( 2 === $g['intent'], 'downloads still count as deliberate actions (both PDFs), subscribes and shares do not inflate it' );
 
+// Reading time arrives in slices (one per tab switch): they add up.
+$sl = snt_nsm_tally( array( array( $ev( 's', 'pv', '/notes/x/' ), $ev( 's', 'tm', '/notes/x/', array( 'dwell' => 20000 ) ), $ev( 's', 'tm', '/notes/x/', array( 'dwell' => 15000 ) ) ) ), $cfg );
+ok( 1 === $sl['readers'], '20 s + 15 s of slices on one note is a 35 s read, past the 30 s floor (the largest slice alone was 20 s)' );
+
 // Weeks: rolling 7-day buckets by a visit's first event.
 $now = 10 * 86400;
 $w   = snt_nsm_weeks( array( array( array( 'ts' => $now - 1 ) ), array( array( 'ts' => $now - 8 * 86400 ) ), array( array( 'ts' => $now - 40 * 86400 ) ), array( array( 'ts' => $now + 5 ) ) ), $now );
