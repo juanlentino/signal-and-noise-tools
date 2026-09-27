@@ -208,5 +208,26 @@ sn_analytics_recompute_tick();
 $st = sn_analytics_recompute_status();
 ok( 'partial' === $st['state'] && 'owner stop' === $st['error'] && array() === $GLOBALS['sched'], 'a state change mid-tick stops the loop, is kept, and schedules nothing' );
 
+// ── Partial writers re-read the option: units 1 and 2 of a tick stay done. ──
+$snap_case = function ( $how ) {
+	$GLOBALS['unit_secs'] = 5; $GLOBALS['clock'] = 0.0;
+	sn_analytics_recompute_clock( function () { if ( '' !== sn_analytics_recompute_in_unit() ) { $GLOBALS['clock'] += $GLOBALS['unit_secs']; } return $GLOBALS['clock']; } );
+	update_option( SNT_ANALYTICS_RECOMPUTE_OPT, array( 'state' => 'running', 'done' => 7, 'total' => 90, 'through' => '', 'error' => '', 'started' => 1, 'last_tick' => time(), 'step' => 0, 'unit' => '' ) );
+	// Tick starts at step 0 (pageviews); units 1-2 succeed; unit 3 (utm) fails.
+	if ( 'trip' === $how ) {
+		$GLOBALS['truncate'] = 'blob20 AS packed'; sn_analytics_recompute_tick(); $GLOBALS['truncate'] = '';
+	} else {
+		$GLOBALS['explode'] = 'blob20 AS packed';
+		try { sn_analytics_recompute_tick(); } catch ( Error $e ) {}
+		$GLOBALS['explode'] = '';
+		sn_analytics_recompute_on_shutdown( null );
+	}
+	return sn_analytics_recompute_status();
+};
+foreach ( array( 'trip' => 'a strict trip', 'death' => 'a death at shutdown' ) as $how => $label ) {
+	$st = $snap_case( $how );
+	ok( 'partial' === $st['state'] && 7 === $st['done'] && 2 === $st['step'] && 'utm' === $st['unit'], "{$label} on unit 3 keeps units 1-2 done (done={$st['done']} step={$st['step']} unit={$st['unit']}), not the tick's start cursor" );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
