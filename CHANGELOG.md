@@ -12,14 +12,11 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [19.1.0] - 2026-09-27 — the north star shows its calibration; retired tags redirect
+
 ### Added
 - **The north star shows its calibration.** `signal-noise/north-star` now carries `calibration`: four weeks of visitor-days that opened a core page, split by device (phone, desktop, unknown), with how many pass the live rule and how many would pass at 25/50/75% scroll or 15/30/60s dwell. Read-only; the definition stays the setting. The session query now reads the device.
 
 ### Fixed
 - **Retired tag archives redirect.** The 83-to-23 tag pass (2026-08-15) ran through wp-cli, so it never filled the tag redirect map and Search Console kept 404s for the old `/tag/<slug>/` archives. `inc/tag-retired-map.php` carries the 61 retired slugs from `tag-merge-map.md`; each 301s to its surviving tag, or to `/notes/` when the tag was deleted or its survivor no longer exists. The resolver now matches the canonical `/tag/` form as well as `/notes/tag/`; a live term still wins.
-
-## [19.0.4] - 2026-09-27 — reading time adds up its slices
-
-### Fixed
-- **Reading time adds up its slices.** Since the beacon's v10.44.4 (2026-07-18) each tab switch sends the time since the last send, a delta, so a read split by tab switches arrives as slices; the north star and the within-day visit summary (the Visits view's engaged reads) compared the LARGEST slice with their floors instead of the sum. A 50-second read across two switches counted as 25. Both now sum per page, so every week since July 18 is recounted, and the north star's trend with it. Tests pin a split read crossing each floor; keeping the old max fails them.
 
