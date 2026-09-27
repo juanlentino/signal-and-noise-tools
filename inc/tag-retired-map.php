@@ -7,7 +7,8 @@
  * no survivor, so it goes to the notes index; a value starting with '/' is a
  * page path (the provenance tags go to the /provenance/ hub, since the
  * `provenance` tag itself no longer exists). Generated from the map; the
- * recorded option wins on a clash.
+ * recorded option wins on a clash. The ONE retired-tag map: the theme's
+ * sn_notes_retired_tags() was folded in here (19.1.2).
  *
  * @package signal-and-noise-tools
  */
