@@ -45,7 +45,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-status', array(
 		'label'               => 'Batch-read operational status (consolidated)',
-		'description'         => 'One coherent answer to "what is the site\'s operational state?" — a sectioned batch over the ten narrow status reads: uptime (Better Stack readout), deploy (worker/plugin/theme deploy state), health_scan (last cached content-health summary; null when no scan has run), anchor (provenance OTS anchoring state), provenance_integrity (ledger integrity readout), ipv6_criterion (the pre-committed login-defense gauge: share_pct, measured_days, window_complete, and a named decision), ai_cache_probe (whether Anthropic prompt caching would pay, from recorded calls), cadence (publish + cron rhythm deviations), cron_scheduled (currently scheduled cron events), and cron_history (recorded firings of ONE hook — `hook` is REQUIRED input when this section is requested, because the source ability has no all-hooks default; 400 if missing, ignored by every other section). Pass the subset you need in `sections`; each entry in the returned map carries its source ability\'s exact payload shape — this tool never reshapes, so answers match the narrow tools byte-for-byte. If a source is unregistered or refuses, that ONE section degrades to {error:"unavailable"} while the rest still return. The call only fails as a whole on invalid input (empty/unknown sections, or the missing cron_history hook).',
+		'description'         => 'One coherent answer to "what is the site\'s operational state?" — a sectioned batch over the ten narrow status reads: uptime (Better Stack readout), deploy (worker/plugin/theme deploy state), health_scan (last cached content-health summary; null when no scan has run), anchor (provenance OTS anchoring state), provenance_integrity (ledger integrity readout), ipv6_criterion (the pre-committed login-defense gauge: share_pct, measured_days, window_complete, and a named decision), ai_cache_probe (whether Anthropic prompt caching would pay, from recorded calls), cadence (publish + cron rhythm deviations), cron_scheduled (currently scheduled cron events), and cron_history (recorded firings of ONE hook — `hook` is REQUIRED input when this section is requested, because the source ability has no all-hooks default; 400 if missing, ignored by every other section). The map also carries later sections, among them recompute (the analytics history recompute: state, stalled, cursor, the unit a partial run died in). Pass the subset you need in `sections`; each entry in the returned map carries its source ability\'s exact payload shape — this tool never reshapes, so answers match the narrow tools byte-for-byte. If a source is unregistered or refuses, that ONE section degrades to {error:"unavailable"} while the rest still return. The call only fails as a whole on invalid input (empty/unknown sections, or the missing cron_history hook).',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_sn_status',
@@ -144,6 +144,8 @@ function snt_sn_status_map() {
 		'keyring'              => 'signal-noise/keyring-status',
 		// 16.6.0 — Jev's spend this credit cycle, from the site's own ledger.
 		'jev_spend'            => 'signal-noise/jev-meter',
+		// 19.4.3 — the analytics history recompute: state, cursor, the unit it died in.
+		'recompute'            => 'signal-noise/analytics-recompute-status',
 	);
 }
 
