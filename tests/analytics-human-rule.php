@@ -39,12 +39,20 @@ $pass = 0; $fail = 0;
 function ok( $cond, $msg ) { global $pass, $fail; if ( $cond ) { ++$pass; echo "PASS: $msg\n"; } else { ++$fail; echo "FAIL: $msg\n"; } }
 
 echo "\nGroup: condition helper (pure)\n";
-ok( "blob7 = 'human'" === sn_analytics_counted_condition( 'human', array() ), 'empty list: exactly the class filter' );
-ok( "blob7 = 'human' AND index1 NOT IN ('c70545e0be2a6240','abcdef01')" === sn_analytics_counted_condition( 'human', array( 'c70545e0be2a6240', 'ABCDEF01' ) ), 'hashes: the NOT IN clause (lower-cased)' );
-ok( "blob7 = 'human'" === sn_analytics_counted_condition( 'human', array( "x' OR 1=1 --", 'zzzzzzzz', 'abc' ) ), 'non-hex / short hashes are refused' );
+$net = sn_analytics_network_human_sql();
+$H   = "(blob7 != 'bot' AND ({$net}))";
+ok( $H === sn_analytics_counted_condition( 'human', array() ), 'human: not a stored bot AND the read-time network rule' );
+ok( "(blob7 != 'bot' AND NOT ({$net}))" === sn_analytics_counted_condition( 'suspect', array() ), 'suspect: not a stored bot AND NOT the read-time network rule' );
+ok( "blob7 = 'bot'" === sn_analytics_counted_condition( 'bot', array() ), 'bot: the stored class (final, UA list only)' );
+ok( false === strpos( sn_analytics_counted_condition( 'human', array() ), "blob7 = 'human'" ), 'human never trusts the stored human class' );
+ok( 0 === strpos( $net, "(blob8 = 'Safari' AND (blob12 ILIKE '%akamai%' OR blob12 ILIKE '%fastly%')) OR NOT (blob12 ILIKE '%amazon%'" ), 'network rule: relay Safari first, then NOT (DC or hosting)' );
+ok( "blob12 ILIKE '%for idc & cloud%')" === substr( $net, -33 ), 'network rule: the hosting list closes the NOT clause' );
+ok( "{$H} AND index1 NOT IN ('c70545e0be2a6240','abcdef01')" === sn_analytics_counted_condition( 'human', array( 'c70545e0be2a6240', 'ABCDEF01' ) ), 'hashes: the NOT IN clause (lower-cased)' );
+ok( $H === sn_analytics_counted_condition( 'human', array( "x' OR 1=1 --", 'zzzzzzzz', 'abc' ) ), 'non-hex / short hashes are refused' );
 ok( false === strpos( sn_analytics_counted_condition( 'human', array( "c70545e0be2a6240'", 'c70545e0be2a6241' ) ), "c70545e0be2a6240'" ), 'a quote-bearing hash never reaches SQL' );
 ok( "(blob7 = 'bot' OR index1 IN ('c70545e0be2a6240'))" === sn_analytics_counted_condition( 'bot', array( 'c70545e0be2a6240' ) ), 'bot: over-cap visitor-days read as automated' );
-ok( "blob7 = 'human'" === sn_analytics_counted_condition( "human' --", array() ), 'unknown class reads as human' );
+ok( $H === sn_analytics_counted_condition( "human' --", array() ), 'unknown class reads as human' );
+ok( "if(blob7 = 'bot', 'bot', if({$net}, 'human', 'suspect'))" === sn_analytics_class_select(), 'class select: bot from storage, human/suspect from the network rule' );
 ok( '' === sn_analytics_overcap_and( array() ), 'group-by builders: no clause when empty' );
 
 echo "\nGroup: over-cap list read\n";
@@ -102,8 +110,44 @@ foreach ( $built as $name => $sql ) {
 }
 $GLOBALS['__q'] = array();
 snt_nsm_research_links( '2026-09-01', '2026-09-27', time() );
-ok( isset( $GLOBALS['__q'][0] ) && false !== strpos( $GLOBALS['__q'][0], "blob7 = 'human' AND {$not}" ), 'north-star-research:snt_nsm_research_links excludes over-cap visitor-days' );
+ok( isset( $GLOBALS['__q'][0] ) && false !== strpos( $GLOBALS['__q'][0], "{$H} AND {$not}" ), 'north-star-research:snt_nsm_research_links excludes over-cap visitor-days' );
 ok( isset( $GLOBALS['__q'][0] ) && array() === $ae_clause_fns( $GLOBALS['__q'][0] ), 'north-star-research:snt_nsm_research_links: no function in GROUP BY / HAVING / ORDER BY' );
+
+echo "\nGroup: group-by builders select the read-time class and group by the alias\n";
+foreach ( array( 'buckets:sn_analytics_buckets_hour_sql', 'buckets:sn_analytics_buckets_dist_sql', 'dims:sn_analytics_dims_rollup_sql', 'rollup:sn_analytics_rollup_sql', 'rollup:sn_analytics_rollup_gated_sql', 'utm:sn_analytics_utm_rollup_sql', 'realtime:sn_analytics_realtime_sql' ) as $name ) {
+	$sql = $built[ $name ];
+	ok( false !== strpos( $sql, sn_analytics_class_select() . ' AS class' ), "$name selects the read-time class AS class" );
+	ok( false === strpos( $sql, 'blob7 AS class' ), "$name no longer selects the stored class" );
+	ok( 1 === preg_match( '/GROUP BY [a-z_, ]*\bclass\b/', $sql ), "$name groups by the class alias" );
+}
+
+echo "\nGroup: statement budget (AE refuses over 10,000 characters)\n";
+ok( 400 === SNT_ANALYTICS_VDAY_LIST_MAX, 'the over-cap list is capped at 400' );
+$full = array();
+for ( $i = 0; $i < SNT_ANALYTICS_VDAY_LIST_MAX; $i++ ) {
+	$full[] = substr( hash( 'sha256', (string) $i ), 0, 16 );
+}
+$GLOBALS['__t'] = array( SNT_ANALYTICS_VDAY_CACHE_KEY => array( 'hashes' => $full, 'ok' => true, 'truncated' => true ) );
+$longest = 0;
+foreach ( array(
+	sn_analytics_session_sql( '2026-09-01', '2026-09-27', 'suspect', 100 ),
+	sn_analytics_drilldown_sql( 'country', array( 'US' ), '2026-09-01', '2026-09-27', 'suspect' ),
+	sn_analytics_percentiles_sql( 'sc', 'double1', '2026-09-01', '2026-09-27', 'suspect' ),
+	sn_analytics_events_rollup_sql( 7 ),
+	sn_analytics_rollup_sql( 7 ),
+	sn_analytics_buckets_dist_sql( 'sc', 'double1', array( array( 'lo' => 0, 'hi' => 25 ), array( 'lo' => 25, 'hi' => 50 ), array( 'lo' => 50, 'hi' => 75 ), array( 'lo' => 75, 'hi' => null ) ), 7 ),
+) as $sql ) {
+	$longest = max( $longest, strlen( $sql ) );
+}
+echo "  longest builder with 400 16-hex hashes: {$longest} chars\n";
+ok( $longest <= SNT_ANALYTICS_SQL_MAX_CHARS && ! sn_analytics_sql_too_long( str_repeat( 'x', $longest ) ), 'a full 400-hash list keeps every builder under the cap' );
+$full[] = 'ffffffffffffffff';
+for ( $i = 0; $i < 200; $i++ ) {
+	$full[] = substr( hash( 'sha256', 'more' . $i ), 0, 16 );
+}
+$GLOBALS['__t'] = array( SNT_ANALYTICS_VDAY_CACHE_KEY => array( 'hashes' => $full, 'ok' => true, 'truncated' => true ) );
+ok( sn_analytics_sql_too_long( sn_analytics_session_sql( '2026-09-01', '2026-09-27', 'suspect', 100 ) ), 'negative control: a longer list trips the guard (fails closed at sn_analytics_query)' );
+$GLOBALS['__t'] = array();
 
 echo "\nGroup: engaged uses the north star's read rule\n";
 $ev = static function ( $vid, $ev, $path, $scroll = 0, $dwell = 0 ) {

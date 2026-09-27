@@ -349,7 +349,7 @@ ok( strpos( $sql, "avgIf(double1, blob1 = 'sc')" ) !== false, 'rollup-sql: scrol
 ok( strpos( $sql, "avgIf(double2, blob1 = 'tm')" ) !== false, 'rollup-sql: time_avg = avgIf(double2, tm)' );
 ok( strpos( $sql, "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d')" ) !== false, 'rollup-sql: day-bucket via toStartOfDay+formatDateTime' );
 ok( strpos( $sql, 'blob2 AS path' ) !== false, 'rollup-sql: path = blob2' );
-ok( strpos( $sql, 'blob7 AS class' ) !== false, 'rollup-sql: selects blob7 AS class' );
+ok( strpos( $sql, sn_analytics_class_select() . ' AS class' ) !== false, 'rollup-sql: selects the read-time class AS class' );
 ok( preg_match( "/INTERVAL '7' DAY/", $sql ) === 1, 'rollup-sql: window uses the $days arg' );
 ok( strpos( $sql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false,
 	'rollup-sql: window lower bound is floored to a day boundary (oldest bucket is a complete day)' );
@@ -396,7 +396,7 @@ ok( strpos( $sql, "sumIf(_sample_interval, blob1 = 'tm') AS time_events" ) !== f
 // Pin the FULL live-verified SELECT: kept avgIf pair, then the four weighted
 // columns, in this exact order — the query AE parsed on 2026-07-17.
 $expected_main = "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, "
-	. 'blob2 AS path, blob7 AS class, '
+	. 'blob2 AS path, ' . sn_analytics_class_select() . ' AS class, '
 	. "sumIf(_sample_interval, blob1 = 'pv') AS views, "
 	. 'count(DISTINCT index1) AS visits, '
 	. "avgIf(double1, blob1 = 'sc') AS scroll_avg, "
@@ -422,7 +422,7 @@ ok( strpos( $sql, 'count(DISTINCT if(' ) === false, 'rollup-sql: no count(DISTIN
 echo "\nGroup: gated pageview_visits SQL builder (Task 3)\n";
 $gated_sql = sn_analytics_rollup_gated_sql( 7 );
 $expected_gated = "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, "
-	. 'blob2 AS path, blob7 AS class, '
+	. 'blob2 AS path, ' . sn_analytics_class_select() . ' AS class, '
 	. 'count(DISTINCT index1) AS pageview_visits '
 	. 'FROM sn_pageviews '
 	. "WHERE timestamp >= toStartOfDay(now() - INTERVAL '7' DAY) "

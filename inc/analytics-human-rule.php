@@ -2,7 +2,9 @@
 /**
  * THE one "counted human" rule every human reader routes through.
  *
- * Human = the network did not class the hit bot/suspect (blob7 = 'human') AND
+ * Human = the row is not a stored bot and the worker's network lists read it
+ * human, decided at READ time from stored fields (inc/analytics-network-terms.php),
+ * so a list change applies to all retained history; AND
  * the visitor-day did not exceed SNT_ANALYTICS_VDAY_PV_CAP page views. index1
  * is a daily-rotating visitor hash, so a hash IS a visitor-day: one list of
  * over-cap hashes, read over the widest window any reader uses, excludes the
@@ -16,13 +18,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-network-terms.php';
+
 // Measured 2026-09 on sn_pageviews (28 days): ONE human-classed visitor-day
 // (Chrome macOS, 2026-09-22) made 258 of the 497 human page views; the next
 // highest were 20, 12, 12, 9, 7. No reader does 50 pages in a day.
 const SNT_ANALYTICS_VDAY_PV_CAP = 50;
 // Widest reader window: AE keeps ~90 days; the north star reads 12 weeks.
 const SNT_ANALYTICS_VDAY_WINDOW_DAYS = 92;
-const SNT_ANALYTICS_VDAY_LIST_MAX    = 500;
+// 400 keeps the longest statement (read-time class + NOT IN list) under AE's
+// 10,000-character cap; sn_analytics_sql_too_long() fails closed past it.
+const SNT_ANALYTICS_VDAY_LIST_MAX    = 400;
 // 19.4.1: versioned key, so the upgrade drops a failed read cached by 19.4.0.
 const SNT_ANALYTICS_VDAY_CACHE_KEY   = 'sn_analytics_overcap_vdays_v2';
 
@@ -109,9 +115,10 @@ function sn_analytics_overcap_and( array $hashes ) {
 }
 
 /**
- * The SQL condition for one traffic class under the rule. PURE.
- * human/suspect: the class filter minus over-cap visitor-days.
- * bot: the class filter plus over-cap visitor-days.
+ * The SQL condition for one traffic class under the rule, decided at read time
+ * (a stored 'bot' is final: it comes only from the worker's UA list). PURE.
+ * human/suspect: the read-time class minus over-cap visitor-days.
+ * bot: the stored bot class plus over-cap visitor-days.
  *
  * @param string $class  Traffic class (anything unknown reads as human).
  * @param array  $hashes Over-cap hashes.
@@ -120,10 +127,11 @@ function sn_analytics_overcap_and( array $hashes ) {
 function sn_analytics_counted_condition( $class, array $hashes ) {
 	$class  = in_array( $class, array( 'human', 'suspect', 'bot' ), true ) ? $class : 'human';
 	$hashes = sn_analytics_valid_vday_hashes( $hashes );
-	if ( 'bot' === $class && array() !== $hashes ) {
-		return "(blob7 = 'bot' OR index1 IN ('" . implode( "','", $hashes ) . "'))";
+	if ( 'bot' === $class ) {
+		return array() === $hashes ? "blob7 = 'bot'" : "(blob7 = 'bot' OR index1 IN ('" . implode( "','", $hashes ) . "'))";
 	}
-	return "blob7 = '{$class}'" . sn_analytics_overcap_and( $hashes );
+	$net = sn_analytics_network_human_sql();
+	return "(blob7 != 'bot' AND " . ( 'human' === $class ? "({$net})" : "NOT ({$net})" ) . ')' . sn_analytics_overcap_and( $hashes );
 }
 
 /**

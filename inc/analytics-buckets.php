@@ -208,7 +208,7 @@ function sn_analytics_buckets_hour_sql( $days ) {
 	return implode( ' ', array(
 		"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
 		"formatDateTime(timestamp, '%H') AS bucket,",
-		'blob7 AS class,',
+		sn_analytics_class_select() . ' AS class,',
 		'sum(_sample_interval) AS views',
 		'FROM ' . SN_ANALYTICS_DATASET,
 		"WHERE blob1 = 'pv' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_overcap_where() . sn_analytics_window_upper(),
@@ -247,7 +247,7 @@ function sn_analytics_buckets_dist_sql( $event, $col, $buckets, $days ) {
 
 	return implode( ' ', array(
 		"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
-		'blob7 AS class,',
+		sn_analytics_class_select() . ' AS class,',
 		implode( ', ', $selects ),
 		'FROM ' . SN_ANALYTICS_DATASET,
 		"WHERE blob1 = '{$event}' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_overcap_where() . sn_analytics_window_upper(),

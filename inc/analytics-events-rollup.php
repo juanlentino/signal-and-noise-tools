@@ -11,7 +11,7 @@
  *   blob1='ce' → wp_sn_analytics_events       via sn_analytics_events_upsert()
  *   blob1='cp' → wp_sn_analytics_event_props  via sn_analytics_event_props_upsert()
  *
- * Both queries are human-only (blob7='human', matching the class-agnostic Events
+ * Both queries are human-only (the counted-human rule, matching the class-agnostic Events
  * tab; bots rarely fire event()) and wired into the EXISTING rollup cron
  * (sn_analytics_run_rollup) — no new cron. A complete, non-empty read replaces
  * the window's days; the pre-worker import history is older than the window.

@@ -131,7 +131,7 @@ ab_reset();
 $hsql = sn_analytics_buckets_hour_sql( 7 );
 ok( strpos( $hsql, "formatDateTime(timestamp, '%H') AS bucket" ) !== false, 'hour-sql: hour-of-day via formatDateTime %H (proven primitive)' );
 ok( strpos( $hsql, 'toHour' ) === false && strpos( $hsql, 'toDayOfWeek' ) === false, 'hour-sql: avoids the unvalidated toHour/toDayOfWeek functions' );
-ok( strpos( $hsql, 'blob7 AS class' ) !== false, 'hour-sql: selects class' );
+ok( strpos( $hsql, sn_analytics_class_select() . ' AS class' ) !== false, 'hour-sql: selects class' );
 ok( strpos( $hsql, 'sum(_sample_interval) AS views' ) !== false, 'hour-sql: sample-corrected views' );
 ok( strpos( $hsql, "WHERE blob1 = 'pv'" ) !== false, 'hour-sql: pv-filtered window' );
 ok( strpos( $hsql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false, 'hour-sql: floored trailing window' );

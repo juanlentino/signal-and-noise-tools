@@ -74,7 +74,7 @@ $sql = sn_analytics_drilldown_sql( 'country', 'US', '2026-06-01', '2026-06-30', 
 ok( strpos( $sql, 'SELECT blob2 AS path,' ) !== false, 'sql: selects path (blob2) as the child' );
 ok( strpos( $sql, 'sum(_sample_interval) AS views' ) !== false, 'sql: sample-corrected views' );
 ok( strpos( $sql, 'count(DISTINCT index1) AS visits' ) !== false, 'sql: visits via count(DISTINCT bare column)' );
-ok( strpos( $sql, "WHERE blob1 = 'pv' AND blob4 IN ('US') AND blob7 = 'human'" ) !== false, 'sql: pv + parent col IN (value) + class filters' );
+ok( strpos( $sql, "WHERE blob1 = 'pv' AND blob4 IN ('US') AND " . sn_analytics_counted_condition( 'human', array() ) ) !== false, 'sql: pv + parent col IN (value) + class filters' );
 ok( strpos( $sql, "timestamp >= toDateTime('2026-06-01 00:00:00')" ) !== false, 'sql: lower date bound' );
 ok( strpos( $sql, "timestamp <= toDateTime('2026-06-30 23:59:59')" ) !== false, 'sql: upper date bound' );
 ok( strpos( $sql, 'GROUP BY path' ) !== false && strpos( $sql, 'ORDER BY views DESC' ) !== false, 'sql: group + order' );

@@ -1,0 +1,646 @@
+[
+{
+"org": "16 COLLYER QUAY",
+"br": "Safari"
+},
+{
+"org": "6 COLLYER QUAY",
+"br": "Safari"
+},
+{
+"org": "AT&T Enterprises, LLC",
+"br": ""
+},
+{
+"org": "AT&T Enterprises, LLC",
+"br": "Chrome"
+},
+{
+"org": "AT&T Enterprises, LLC",
+"br": "Safari"
+},
+{
+"org": "ATLAS-NETWORKS-CORPORATION",
+"br": "Chrome"
+},
+{
+"org": "Ace Data Centers, Inc.",
+"br": "Chrome"
+},
+{
+"org": "Ahrefs Crawler A",
+"br": ""
+},
+{
+"org": "Ahrefs Crawler B",
+"br": ""
+},
+{
+"org": "Akamai International B.V.",
+"br": "Safari"
+},
+{
+"org": "Alibaba Cloud LLC",
+"br": "Chrome"
+},
+{
+"org": "Amazon Data Services Ireland Limited",
+"br": "Chrome"
+},
+{
+"org": "Amazon Data Services Ireland Ltd",
+"br": "Chrome"
+},
+{
+"org": "Amazon Data Services Northern Virginia",
+"br": "Chrome"
+},
+{
+"org": "Amazon Data Services Northern Virginia",
+"br": "Safari"
+},
+{
+"org": "Amazon Technologies Inc.",
+"br": "Chrome"
+},
+{
+"org": "Amazon Technologies Inc.",
+"br": "Safari"
+},
+{
+"org": "Amazon.com, Inc.",
+"br": "Chrome"
+},
+{
+"org": "Amazon.com, Inc.",
+"br": "Firefox"
+},
+{
+"org": "Amazon.com, Inc.",
+"br": "Safari"
+},
+{
+"org": "Atlantic Broadband",
+"br": "Safari"
+},
+{
+"org": "Automattic, Inc",
+"br": "Chrome"
+},
+{
+"org": "B.V., Dataprovider",
+"br": ""
+},
+{
+"org": "BYTEPLUS",
+"br": "Chrome"
+},
+{
+"org": "Bharti Airtel Limited",
+"br": "Chrome"
+},
+{
+"org": "Blazing SEO, LLC",
+"br": "Chrome"
+},
+{
+"org": "Bright Data Limited",
+"br": "Chrome"
+},
+{
+"org": "Brightspeed",
+"br": "Chrome"
+},
+{
+"org": "Broadband Service",
+"br": "Chrome"
+},
+{
+"org": "CATO NETWORKS LTD",
+"br": "Chrome"
+},
+{
+"org": "CG Communications Ltd",
+"br": "Chrome"
+},
+{
+"org": "Cablevision S.A.",
+"br": "Chrome"
+},
+{
+"org": "Charter Communications Inc",
+"br": "Chrome"
+},
+{
+"org": "Charter Communications Inc",
+"br": "Safari"
+},
+{
+"org": "Charter Communications LLC",
+"br": "Chrome"
+},
+{
+"org": "Charter Communications, Inc",
+"br": ""
+},
+{
+"org": "Charter Communications, Inc",
+"br": "Chrome"
+},
+{
+"org": "Charter Communications, Inc",
+"br": "Firefox"
+},
+{
+"org": "Charter Communications, Inc",
+"br": "Safari"
+},
+{
+"org": "China Mobile Communications Corporation",
+"br": "Chrome"
+},
+{
+"org": "China Unicom",
+"br": "Chrome"
+},
+{
+"org": "China Unicom",
+"br": "Edge"
+},
+{
+"org": "Chinatelecom IPv6 address for IDC & Cloud service",
+"br": "Chrome"
+},
+{
+"org": "Chiron Software LLC",
+"br": "Chrome"
+},
+{
+"org": "Cisco OpenDNS LLC",
+"br": "Chrome"
+},
+{
+"org": "Cloudflare London, LLC",
+"br": "Chrome"
+},
+{
+"org": "Cloudflare London, LLC",
+"br": "Safari"
+},
+{
+"org": "Cloudflare, Inc.",
+"br": "Chrome"
+},
+{
+"org": "Cogent Communications, LLC",
+"br": "Chrome"
+},
+{
+"org": "Comcast Cable Communications, Inc.",
+"br": "Chrome"
+},
+{
+"org": "Comcast Cable Communications, LLC",
+"br": ""
+},
+{
+"org": "Comcast Cable Communications, LLC",
+"br": "Chrome"
+},
+{
+"org": "Comcast Cable Communications, LLC",
+"br": "Safari"
+},
+{
+"org": "Comcast Comcast Cable Communications, Inc.",
+"br": "Chrome"
+},
+{
+"org": "Comcast IP Services, L.L.C.",
+"br": "Chrome"
+},
+{
+"org": "Cox Communications Inc",
+"br": "Chrome"
+},
+{
+"org": "Cox Communications Inc.",
+"br": "Chrome"
+},
+{
+"org": "Cox Communications Inc.",
+"br": "Safari"
+},
+{
+"org": "Customer of IPXO",
+"br": "Chrome"
+},
+{
+"org": "DIGI Spain Telecom IPv6",
+"br": "Chrome"
+},
+{
+"org": "Datacamp Limited",
+"br": "Chrome"
+},
+{
+"org": "Demandbase, Inc.",
+"br": "Chrome"
+},
+{
+"org": "EGIHosting",
+"br": "Chrome"
+},
+{
+"org": "Ellijay Telephone Company",
+"br": "Safari"
+},
+{
+"org": "Empire Access",
+"br": "Chrome"
+},
+{
+"org": "Fastly, Inc.",
+"br": "Safari"
+},
+{
+"org": "Full Sail, Inc.",
+"br": "Chrome"
+},
+{
+"org": "Full Sail, Inc.",
+"br": "Safari"
+},
+{
+"org": "GIGA FIBRA SAS",
+"br": "Chrome"
+},
+{
+"org": "GLOBAL CONNECTIVITY SOLUTIONS LLP",
+"br": "Chrome"
+},
+{
+"org": "GTT Communications France SAS",
+"br": "Chrome"
+},
+{
+"org": "Global Telecommunication Service Provider",
+"br": "Chrome"
+},
+{
+"org": "Google Fiber Inc.",
+"br": "Chrome"
+},
+{
+"org": "Google LLC",
+"br": "Chrome"
+},
+{
+"org": "Google LLC",
+"br": "Edge"
+},
+{
+"org": "Google LLC",
+"br": "Firefox"
+},
+{
+"org": "Google LLC",
+"br": "Safari"
+},
+{
+"org": "Great Basin Internet Services",
+"br": "Chrome"
+},
+{
+"org": "HOS-2221987",
+"br": "Firefox"
+},
+{
+"org": "HOS-3166580",
+"br": "Opera"
+},
+{
+"org": "Hetzner Online GmbH",
+"br": ""
+},
+{
+"org": "Hetzner Online GmbH",
+"br": "Chrome"
+},
+{
+"org": "HostRoyale Technologies Pvt Ltd",
+"br": "Chrome"
+},
+{
+"org": "Hotwire Fision",
+"br": "Chrome"
+},
+{
+"org": "INTAC Services GmbH",
+"br": "Chrome"
+},
+{
+"org": "Internet Utilities Europe and Asia Limited",
+"br": "Chrome"
+},
+{
+"org": "Japan Nation-wide Network of Softbank Corp.",
+"br": "Chrome"
+},
+{
+"org": "Jazztel triple play services",
+"br": "Chrome"
+},
+{
+"org": "KAOPU CLOUD HK LIMITED",
+"br": "Chrome"
+},
+{
+"org": "KE-SFC-GPRS-EDGE-3G-LTE-Mobile WiFi-SERVICE-IP",
+"br": "Chrome"
+},
+{
+"org": "Kaopu Cloud HK Limited",
+"br": "Chrome"
+},
+{
+"org": "LG POWERCOMM",
+"br": "Chrome"
+},
+{
+"org": "Leaseweb USA, Inc.",
+"br": "Chrome"
+},
+{
+"org": "Linode",
+"br": "Chrome"
+},
+{
+"org": "LogicWeb Inc.",
+"br": "Chrome"
+},
+{
+"org": "MULTICANAL LA SE\u00d1AL DIGITAL, C.A.",
+"br": "Chrome"
+},
+{
+"org": "MarocTelecomASDL",
+"br": "Chrome"
+},
+{
+"org": "MasMovil Ibercom Net",
+"br": "Chrome"
+},
+{
+"org": "Megahost Kazakhstan TOO",
+"br": "Chrome"
+},
+{
+"org": "Meta Platforms Ireland Limited",
+"br": ""
+},
+{
+"org": "Meta Platforms Ireland Limited",
+"br": "Chrome"
+},
+{
+"org": "Meta Platforms Ireland Limited",
+"br": "Edge"
+},
+{
+"org": "Meta Platforms Ireland Limited",
+"br": "Safari"
+},
+{
+"org": "Metro Ethernet Network",
+"br": "Chrome"
+},
+{
+"org": "Microsoft Corp",
+"br": "Chrome"
+},
+{
+"org": "Microsoft Corporation",
+"br": "Chrome"
+},
+{
+"org": "Microsoft Limited",
+"br": "Chrome"
+},
+{
+"org": "Mullvad VPN",
+"br": "Chrome"
+},
+{
+"org": "NET INFINITO INTERNET FIBRA OPTICA",
+"br": "Chrome"
+},
+{
+"org": "NSEC - Sistemas Informaticos, S.A.",
+"br": "Chrome"
+},
+{
+"org": "NSS S.A.",
+"br": "Chrome"
+},
+{
+"org": "OCULUS NETWORKS INC",
+"br": "Chrome"
+},
+{
+"org": "OpenVPN",
+"br": "Chrome"
+},
+{
+"org": "Orange Polska Spolka Akcyjna",
+"br": "Chrome"
+},
+{
+"org": "Orange S.A.",
+"br": "Chrome"
+},
+{
+"org": "P.O. Box 354",
+"br": "Edge"
+},
+{
+"org": "PT Comunicacoes S.A.",
+"br": "Chrome"
+},
+{
+"org": "PT TELKOM INDONESIA",
+"br": "Chrome"
+},
+{
+"org": "PUNTONET S.A.",
+"br": "Chrome"
+},
+{
+"org": "Palo Alto Networks, Inc",
+"br": "Chrome"
+},
+{
+"org": "Palo Alto Networks, Inc",
+"br": "Safari"
+},
+{
+"org": "PebbleHost",
+"br": "Chrome"
+},
+{
+"org": "Private Customer",
+"br": "Chrome"
+},
+{
+"org": "RCN",
+"br": "Chrome"
+},
+{
+"org": "Reliance Jio Infocomm Limited",
+"br": "Chrome"
+},
+{
+"org": "SIA BITE Latvija",
+"br": "Chrome"
+},
+{
+"org": "Servers.com, Inc.",
+"br": "Chrome"
+},
+{
+"org": "Solid Systems LLC",
+"br": "Chrome"
+},
+{
+"org": "SpaceX Services, Inc.",
+"br": "Chrome"
+},
+{
+"org": "SpaceX Services, Inc.",
+"br": "Edge"
+},
+{
+"org": "Start Communications",
+"br": "Chrome"
+},
+{
+"org": "Subnet Digital LLC",
+"br": "Chrome"
+},
+{
+"org": "T-Mobile USA, Inc.",
+"br": "Chrome"
+},
+{
+"org": "T-Mobile USA, Inc.",
+"br": "Safari"
+},
+{
+"org": "TE Data",
+"br": "Chrome"
+},
+{
+"org": "TT ADSL-TTnet_ dynamic_ulus",
+"br": "Safari"
+},
+{
+"org": "TT ADSL-TTnet_dynamic_aci",
+"br": "Safari"
+},
+{
+"org": "TURKSAT Cable Internet",
+"br": "Chrome"
+},
+{
+"org": "Telecom Argentina S.A.",
+"br": ""
+},
+{
+"org": "Telecom Argentina S.A.",
+"br": "Chrome"
+},
+{
+"org": "Telecom Argentina S.A.",
+"br": "Safari"
+},
+{
+"org": "Tellcom YAPA Ankara Dinamik - 1",
+"br": "Chrome"
+},
+{
+"org": "Telmex Colombia S.A.",
+"br": "Safari"
+},
+{
+"org": "Twitter Inc.",
+"br": "Chrome"
+},
+{
+"org": "UAB code200",
+"br": "Chrome"
+},
+{
+"org": "UNINET",
+"br": "Safari"
+},
+{
+"org": "Use",
+"br": "Chrome"
+},
+{
+"org": "VELONET SAS",
+"br": "Chrome"
+},
+{
+"org": "Verizon Business",
+"br": "Chrome"
+},
+{
+"org": "Verizon Business",
+"br": "Edge"
+},
+{
+"org": "Verizon Business",
+"br": "Safari"
+},
+{
+"org": "Videotron IPv6",
+"br": ""
+},
+{
+"org": "WEBHORIZON",
+"br": "Chrome"
+},
+{
+"org": "Web2Objects LLC",
+"br": "Chrome"
+},
+{
+"org": "XTRA TELECOM S.A.",
+"br": ""
+},
+{
+"org": "XTRA TELECOM S.A.",
+"br": "Chrome"
+},
+{
+"org": "Xfera Moviles SA / Yoigo",
+"br": "Chrome"
+},
+{
+"org": "Yandex enterprise network",
+"br": "Chrome"
+},
+{
+"org": "YouTube, LLC",
+"br": "Chrome"
+},
+{
+"org": "code200, UAB",
+"br": "Chrome"
+},
+{
+"org": "trafficforce, UAB",
+"br": "Chrome"
+}
+]
