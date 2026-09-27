@@ -199,9 +199,9 @@ function snt_analytics_render_human_rule_note( array $rule ) {
 	$cap   = defined( 'SNT_ANALYTICS_VDAY_PV_CAP' ) ? (int) SNT_ANALYTICS_VDAY_PV_CAP : 50;
 	$human = empty( $rule['ok'] )
 		/* translators: %d: page-view cap per visitor-day. */
-		? sprintf( __( 'Human: not a bot or suspect network, and at most %d page views in a visitor-day. The cap list could not be read, so the cap is NOT applied right now.', 'signal-and-noise-tools' ), $cap )
+		? sprintf( __( 'Human: not a bot or suspect network (decided when read, so a classifier change applies to all retained history), and at most %d page views in a visitor-day. The cap list could not be read, so the cap is NOT applied right now.', 'signal-and-noise-tools' ), $cap )
 		/* translators: 1: page-view cap per visitor-day, 2: visitor-days removed. */
-		: sprintf( __( 'Human: not a bot or suspect network, and at most %1$d page views in a visitor-day (%2$s visitor-days over the cap read as automated, last 92 days).', 'signal-and-noise-tools' ), $cap, number_format_i18n( (int) $rule['excluded'] ) . ( empty( $rule['truncated'] ) ? '' : '+' ) );
+		: sprintf( __( 'Human: not a bot or suspect network (decided when read, so a classifier change applies to all retained history), and at most %1$d page views in a visitor-day (%2$s visitor-days over the cap read as automated, last 92 days).', 'signal-and-noise-tools' ), $cap, number_format_i18n( (int) $rule['excluded'] ) . ( empty( $rule['truncated'] ) ? '' : '+' ) );
 	echo '<p class="sn-an-visitor-note">' . esc_html( $human ) . '</p>';
 	if ( function_exists( 'snt_analytics_render_recompute' ) ) {
 		snt_analytics_render_recompute();

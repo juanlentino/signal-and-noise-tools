@@ -99,7 +99,7 @@ list( , $lower2_utc ) = sn_analytics_rollup_window_exprs( 2, '' );
 list( , $upper1_utc ) = sn_analytics_rollup_window_exprs( 1, '' );
 
 $expected_main = "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, "
-	. 'blob2 AS path, blob7 AS class, '
+	. 'blob2 AS path, ' . sn_analytics_class_select() . ' AS class, '
 	. "sumIf(_sample_interval, blob1 = 'pv') AS views, "
 	. 'count(DISTINCT index1) AS visits, '
 	. "avgIf(double1, blob1 = 'sc') AS scroll_avg, "
@@ -135,7 +135,7 @@ reroll_assert( is_string( $main_day_ny ) && false !== strpos( $main_day_ny, "for
 echo "\nGroup: gated per-day window transform\n";
 
 $expected_gated = "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, "
-	. 'blob2 AS path, blob7 AS class, '
+	. 'blob2 AS path, ' . sn_analytics_class_select() . ' AS class, '
 	. 'count(DISTINCT index1) AS pageview_visits '
 	. 'FROM sn_pageviews '
 	. "WHERE timestamp >= toStartOfDay(now() - INTERVAL '2' DAY) "

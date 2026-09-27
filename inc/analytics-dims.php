@@ -123,7 +123,7 @@ function sn_analytics_dims_rollup_sql( $dim, $days ) {
 	return implode( ' ', array(
 		"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
 		"{$col} AS value,",
-		'blob7 AS class,',
+		sn_analytics_class_select() . ' AS class,',
 		'sum(_sample_interval) AS views,',
 		'count(DISTINCT index1) AS visits',
 		'FROM ' . SN_ANALYTICS_DATASET,

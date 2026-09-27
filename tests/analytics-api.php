@@ -501,6 +501,21 @@ ok( sn_analytics_site_tz_name() === '', 'tz-name: a non-identifier / injectable 
 $GLOBALS['__ae_tz_string'] = '';
 ok( sn_analytics_site_tz_name() === '', 'tz-name: empty setting → empty' );
 
+// ── Length guard: a statement over AE's cap is never sent ─────────────────────
+echo "\nTest: over-cap statement fails closed\n";
+ae_reset();
+$GLOBALS['__ae_mock_code'] = 200;
+$GLOBALS['__ae_mock_body'] = $AE_GOOD_BODY;
+$ok_sql = 'SELECT 1 ' . str_repeat( ' ', SNT_ANALYTICS_SQL_MAX_CHARS - 9 );
+ok( is_array( sn_analytics_query( $ok_sql ) ), 'length: exactly the cap is sent' );
+ae_reset();
+$long   = $ok_sql . ' ';
+$result = sn_analytics_query( $long );
+ok( null === $result, 'length: one character over the cap returns null (no partial result)' );
+ok( array() === $GLOBALS['__ae_post_calls'], 'length: the over-cap statement is never posted' );
+$err = sn_analytics_last_error();
+ok( is_array( $err ) && false !== strpos( (string) ( $err['message'] ?? '' ), 'over the 10000 cap' ), 'length: the refusal is recorded with its reason' );
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

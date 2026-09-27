@@ -178,7 +178,7 @@ echo "\nGroup: sn_analytics_pageroles_rollup_sql (entry)\n";
 $rsql = sn_analytics_pageroles_rollup_sql( 7 );
 ok( strpos( $rsql, "FROM sn_pageviews" ) !== false, 'rollup_sql: FROM sn_pageviews (SN_ANALYTICS_DATASET)' );
 ok( strpos( $rsql, "blob1 = 'pv'" ) !== false, "rollup_sql: filters blob1 = 'pv'" );
-ok( strpos( $rsql, "blob7 = 'human'" ) !== false, "rollup_sql: filters blob7 = 'human'" );
+ok( strpos( $rsql, sn_analytics_counted_condition( 'human', array() ) ) !== false, 'rollup_sql: filters the counted-human rule' );
 ok( strpos( $rsql, 'blob2 AS path' ) !== false, 'rollup_sql: selects blob2 AS path' );
 ok( strpos( $rsql, 'sum(_sample_interval) AS views' ) !== false, 'rollup_sql: sum(_sample_interval) AS views' );
 ok( strpos( $rsql, 'count(DISTINCT index1) AS visits' ) !== false, 'rollup_sql: count(DISTINCT index1) AS visits' );

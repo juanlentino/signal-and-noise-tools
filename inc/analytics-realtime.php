@@ -45,7 +45,7 @@ const SN_ANALYTICS_VIEWS_TODAY_LASTGOOD = 'sn_analytics_views_today_lastgood';
 /**
  * Build the AE SQL for the current-visitors count per traffic class: distinct
  * visitor-day hashes with any event in the trailing window, grouped by the
- * blob7 class column (human / suspect / bot). The window is an internal integer
+ * read-time class (human / suspect / bot, sn_analytics_class_select). The window is an internal integer
  * constant (cast + floored as defence in depth); no user input is interpolated.
  *
  * @return string AE SQL.
@@ -54,7 +54,7 @@ function sn_analytics_realtime_sql() {
 	$mins = max( 1, (int) SN_ANALYTICS_REALTIME_WINDOW_MIN );
 
 	return implode( ' ', array(
-		'SELECT blob7 AS class, count(DISTINCT index1) AS visitors',
+		'SELECT ' . sn_analytics_class_select() . ' AS class, count(DISTINCT index1) AS visitors',
 		'FROM ' . SN_ANALYTICS_DATASET,
 		"WHERE timestamp >= now() - INTERVAL '{$mins}' MINUTE" . sn_analytics_overcap_where(),
 		'GROUP BY class',
@@ -96,7 +96,7 @@ function sn_analytics_local_day( $now = null ) {
 
 /**
  * AE SQL for "views so far today" in the site's timezone: sampled pageviews
- * (blob1='pv') from human visitors (blob7='human') since local midnight.
+ * (blob1='pv') from human visitors (the counted-human rule) since local midnight.
  *
  * When a named IANA zone is supplied (v9.26.4), the lower bound is AE's EXACT
  * local-day start — `toStartOfInterval(now(), INTERVAL '1' DAY, '<tz>')` (the

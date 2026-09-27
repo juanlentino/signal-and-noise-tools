@@ -58,7 +58,7 @@ ok( strpos( $sql, 'quantileExactWeighted(0.75)(double1, _sample_interval) AS p75
 ok( strpos( $sql, 'quantileExactWeighted(0.9)(double1, _sample_interval) AS p90' ) !== false, 'sql: p90' );
 ok( strpos( $sql, 'FROM sn_pageviews' ) !== false, 'sql: targets the dataset' );
 ok( strpos( $sql, "WHERE blob1 = 'sc'" ) !== false, 'sql: event-filtered' );
-ok( strpos( $sql, "blob7 = 'human'" ) !== false, 'sql: class-filtered' );
+ok( strpos( $sql, sn_analytics_counted_condition( 'human', array() ) ) !== false, 'sql: class-filtered' );
 ok( strpos( $sql, "timestamp >= toDateTime('2026-06-01 00:00:00')" ) !== false, 'sql: explicit lower date bound' );
 ok( strpos( $sql, "timestamp <= toDateTime('2026-06-30 23:59:59')" ) !== false, 'sql: explicit inclusive upper date bound' );
 ok( strpos( $sql, 'count(' ) === false, 'sql: no count() (dialect-clean)' );
@@ -72,7 +72,7 @@ ok( strpos( sn_analytics_percentiles_sql( "sc'; DROP", 'double1', '2026-06-01', 
 ok( strpos( sn_analytics_percentiles_sql( 'sc', "double1); DROP", '2026-06-01', '2026-06-30', 'human' ), 'DROP' ) === false, 'sql: col sanitised' );
 ok( strpos( sn_analytics_percentiles_sql( 'sc', 'double1', "2026-06-01'; DROP", '2026-06-30', 'human' ), 'DROP' ) === false, 'sql: from re-validated YMD (no injection)' );
 ok( strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-06-01', '2026-06-30', "human'; DROP" ), 'DROP' ) === false, 'sql: class allowlisted' );
-ok( strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-06-01', '2026-06-30', 'martian' ), "blob7 = 'human'" ) !== false, 'sql: unknown class → human' );
+ok( strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-06-01', '2026-06-30', 'martian' ), sn_analytics_counted_condition( 'human', array() ) ) !== false, 'sql: unknown class → human' );
 
 echo "\nGroup: read accessor — success shape + caching\n";
 pc_reset();
@@ -104,7 +104,7 @@ ok( null === sn_analytics_percentiles( 'scroll', 'bad-date', '2026-06-30', 'huma
 ok( count( $GLOBALS['__pc_query_calls'] ) === 0, 'accessor: guarded inputs never hit AE' );
 pc_reset();
 sn_analytics_percentiles( 'scroll', '2026-06-01', '2026-06-30', 'martian' );
-ok( strpos( $GLOBALS['__pc_query_calls'][0], "blob7 = 'human'" ) !== false, 'accessor: unknown class coerced to human in the query' );
+ok( strpos( $GLOBALS['__pc_query_calls'][0], sn_analytics_counted_condition( 'human', array() ) ) !== false, 'accessor: unknown class coerced to human in the query' );
 
 echo "\nGroup: cache key separates metric / window / class (no bleed)\n";
 pc_reset();

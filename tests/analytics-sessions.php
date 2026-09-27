@@ -188,7 +188,7 @@ ok( 1 === count( sn_goal_attribution( $attr_summaries, 'contact-', true, 1 ) ), 
 echo "\nGroup: sn_analytics_session_sql\n";
 $sql = sn_analytics_session_sql( '2026-06-01', '2026-06-30', 'human', 50000 );
 ok( false !== strpos( $sql, 'FROM sn_pageviews' ), 'targets the sn_pageviews dataset' );
-ok( false !== strpos( $sql, "blob7 = 'human'" ), 'filters the requested traffic class' );
+ok( false !== strpos( $sql, sn_analytics_counted_condition( 'human', array() ) ), 'filters the requested traffic class' );
 ok( false !== strpos( $sql, "toDateTime('2026-06-01 00:00:00')" ) && false !== strpos( $sql, "toDateTime('2026-06-30 23:59:59')" ), 'bounds the window by DateTime-typed literals (AE 422s on DateTime vs String)' );
 ok( false === strpos( $sql, 'ORDER BY' ), 'no ORDER BY — AE 422s ordering on index1/timestamp; sn_sessionize sorts per visitor in PHP' );
 ok( false !== strpos( $sql, 'LIMIT 50000' ), 'applies the row cap' );

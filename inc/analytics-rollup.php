@@ -319,7 +319,7 @@ function sn_analytics_rollup_sql( $days, $tz = '' ) {
 	return implode( ' ', array(
 		"SELECT {$day_col} AS day,",
 		'blob2 AS path,',
-		'blob7 AS class,',
+		sn_analytics_class_select() . ' AS class,',
 		"sumIf(_sample_interval, blob1 = 'pv') AS views,",
 		'count(DISTINCT index1) AS visits,',
 		"avgIf(double1, blob1 = 'sc') AS scroll_avg,",
@@ -397,7 +397,7 @@ function sn_analytics_rollup_gated_sql( $days, $tz = '' ) {
 	return implode( ' ', array(
 		"SELECT {$day_col} AS day,",
 		'blob2 AS path,',
-		'blob7 AS class,',
+		sn_analytics_class_select() . ' AS class,',
 		'count(DISTINCT index1) AS pageview_visits',
 		'FROM ' . SN_ANALYTICS_DATASET,
 		"WHERE timestamp >= {$lower}" . sn_analytics_window_upper( $tz ) . sn_analytics_overcap_where(),

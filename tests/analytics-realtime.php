@@ -128,7 +128,7 @@ $sql = sn_analytics_realtime_sql();
 ok( strpos( $sql, 'count(DISTINCT index1) AS visitors' ) !== false, 'sql: counts distinct visitor hashes' );
 ok( strpos( $sql, 'FROM sn_pageviews' ) !== false, 'sql: FROM the dataset' );
 ok( preg_match( "/INTERVAL '5' MINUTE/", $sql ) === 1, 'sql: 5-minute "now" window' );
-ok( strpos( $sql, 'blob7 AS class' ) !== false, 'sql: selects the class' );
+ok( strpos( $sql, sn_analytics_class_select() . ' AS class' ) !== false, 'sql: selects the class' );
 ok( strpos( $sql, 'GROUP BY class' ) !== false, 'sql: groups visitors by class' );
 
 // ── Accessor ──────────────────────────────────────────────────────────────────
@@ -267,7 +267,7 @@ $sqlt = sn_analytics_views_today_sql( 43200 );
 ok( strpos( $sqlt, 'sum(_sample_interval) AS views' ) !== false, 'today sql: sums sampled pageviews' );
 ok( strpos( $sqlt, 'FROM sn_pageviews' ) !== false, 'today sql: from the dataset' );
 ok( strpos( $sqlt, "blob1 = 'pv'" ) !== false, 'today sql: pageviews only' );
-ok( strpos( $sqlt, "blob7 = 'human'" ) !== false, 'today sql: human class only' );
+ok( strpos( $sqlt, sn_analytics_counted_condition( 'human', array() ) ) !== false, 'today sql: human class only' );
 ok( strpos( $sqlt, "now() - INTERVAL '43200' SECOND" ) !== false, 'today sql: window = seconds since local midnight' );
 ok( strpos( $sqlt, "INTERVAL '-" ) === false, 'today sql: never a negative interval' );
 
@@ -278,7 +278,7 @@ $sqltz = sn_analytics_views_today_sql( 43200, 'America/New_York' );
 ok( strpos( $sqltz, "timestamp >= toStartOfInterval(now(), INTERVAL '1' DAY, 'America/New_York')" ) !== false,
 	'today sql: zoned lower bound is local midnight via toStartOfInterval' );
 ok( strpos( $sqltz, 'SECOND' ) === false, 'today sql: zoned query drops the elapsed-seconds window' );
-ok( strpos( $sqltz, "blob1 = 'pv' AND blob7 = 'human'" ) !== false, 'today sql: zoned query keeps the pv/human filter' );
+ok( strpos( $sqltz, "blob1 = 'pv' AND " . sn_analytics_counted_condition( 'human', array() ) ) !== false, 'today sql: zoned query keeps the pv/human filter' );
 $sqlno = sn_analytics_views_today_sql( 43200, "x'; DROP" );
 ok( strpos( $sqlno, 'DROP' ) === false && strpos( $sqlno, "now() - INTERVAL '43200' SECOND" ) !== false,
 	'today sql: an injectable zone is rejected → elapsed-seconds window' );

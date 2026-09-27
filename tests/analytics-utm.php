@@ -121,7 +121,7 @@ $sql = sn_analytics_utm_rollup_sql( 7 );
 ok( strpos( $sql, 'blob20 AS packed' ) !== false, 'utm-sql: selects the packed blob20' );
 ok( strpos( $sql, "WHERE blob1 = 'pv'" ) !== false, 'utm-sql: pageviews only' );
 ok( strpos( $sql, "blob20 != ''" ) !== false, 'utm-sql: excludes the ~99% of pageviews with no campaign tag' );
-ok( strpos( $sql, 'blob7 AS class' ) !== false, 'utm-sql: selects class' );
+ok( strpos( $sql, sn_analytics_class_select() . ' AS class' ) !== false, 'utm-sql: selects class' );
 ok( strpos( $sql, 'sum(_sample_interval) AS views' ) !== false, 'utm-sql: views = sample-corrected sum' );
 ok( strpos( $sql, 'count(DISTINCT index1) AS visits' ) !== false, 'utm-sql: visits = distinct visitor-day hashes' );
 ok( strpos( $sql, 'count(*)' ) === false && strpos( $sql, 'count(DISTINCT if' ) === false, 'utm-sql: avoids AE-invalid count(*) / count(DISTINCT <expr>)' );

@@ -24,9 +24,10 @@
  *   blob4  = country       ISO-3166 alpha-2
  *   blob5  = device        'mobile' | 'desktop' | '' (iPad → mobile; no 'tablet' emitted)
  *   blob6  = host          e.g. 'juanlentino.com'
- *   blob7  = traffic_class ('human' | 'suspect' | 'bot') — server-side
- *            classification from the edge worker (UA + data-center ASN + CF
- *            bot score). Default consumer view filters blob7 = 'human'.
+ *   blob7  = traffic_class ('human' | 'suspect' | 'bot') written at ingest by
+ *            the edge worker. Readers take only 'bot' from it (final: UA list);
+ *            human vs suspect is decided at READ time from blob8 + blob12
+ *            (inc/analytics-network-terms.php, sn_analytics_counted_condition).
  *   blob16 = custom-event name     (worker v1.2.0; only on blob1='ce' rows; '' otherwise)
  *   blob17 = custom-event property (only on blob1='cp' rows; '' otherwise)
  *   blob18 = custom-event value    (only on blob1='cp' rows; '' otherwise)
@@ -60,6 +61,8 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+require_once __DIR__ . '/analytics-network-terms.php'; // the statement-length cap
 
 /**
  * The Analytics Engine dataset the edge worker writes to (wrangler.toml binding
@@ -281,6 +284,15 @@ function sn_analytics_query( $sql ) {
 	}
 
 	$url = 'https://api.cloudflare.com/client/v4/accounts/' . $cfg['account_id'] . '/analytics_engine/sql';
+
+	// AE refuses a statement over its character cap; fail closed with a named
+	// reason instead of sending it (the caller shows the number as unavailable).
+	if ( sn_analytics_sql_too_long( $sql ) ) {
+		$why = 'statement is ' . strlen( (string) $sql ) . ' characters, over the ' . SNT_ANALYTICS_SQL_MAX_CHARS . ' cap; not sent';
+		error_log( '[sn-analytics] ' . $why );
+		sn_analytics_record_error( $url, 0, $why );
+		return null;
+	}
 
 	$response = wp_remote_post( $url, array(
 		'headers'     => array( 'Authorization' => 'Bearer ' . $cfg['token'] ),
