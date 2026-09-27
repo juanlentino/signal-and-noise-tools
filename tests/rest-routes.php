@@ -73,7 +73,8 @@ echo "\nGroup: the route count is pinned, so a new route is a deliberate edit he
 // 23 since 17.3.0: POST /openstation/reschedule, the classic batch
 // reschedule's native twin; edit_others_posts via
 // snt_batch_schedule_rest_permission, one shared write with the bulk action.
-$expected_count = 23;
+// 24 since the feed-open pixel (GET /feed-open, public, below).
+$expected_count = 24;
 ok( $expected_count === count( $calls ), "exactly $expected_count REST route registrations (found " . count( $calls ) . ')' . ( $expected_count !== count( $calls ) ? "\n        " . implode( "\n        ", array_map( static fn( $k, $c ) => "$k  {$c['ns']}{$c['route']}  [{$c['perm']}]", array_keys( $calls ), $calls ) ) : '' ) );
 
 echo "\nGroup: exactly these routes are public, each for a stated reason\n";
@@ -82,6 +83,7 @@ echo "\nGroup: exactly these routes are public, each for a stated reason\n";
 $public_expected = array(
 	'SN_CIT_REST_ROUTE'                    => 'W3C webmention receiver (inc/citations-endpoint.php): a public inbox is the protocol; the handler can only ever create an unverified row',
 	'/credential/(?P<uid>[A-Za-z0-9-]+)'   => 'verifiable credential (inc/provenance-credential.php): exists to be verified by anyone',
+	'/feed-open'                           => 'feed-open pixel (inc/feed-opens.php): fetched by feed readers with no session; records only (day, note id, UA hash) for a published note, bots dropped',
 	'/bridge'                              => 'Worker->origin bridge (inc/mcp/mcp-bridge-route.php): bearer-checked in the handler, in one ordered place; not even registered unless armed',
 );
 $public_found = array();
@@ -92,13 +94,13 @@ $unexpected = array_diff_key( $public_found, $public_expected );
 $vanished   = array_diff_key( $public_expected, $public_found );
 ok( array() === $unexpected, 'no route is public that this suite does not name' . ( $unexpected ? ' — NEW PUBLIC ROUTE: ' . implode( ', ', array_map( static fn( $k, $w ) => "$k at $w", array_keys( $unexpected ), $unexpected ) ) : '' ) );
 ok( array() === $vanished, 'every named public route still exists (a removed one needs its line removed here too)' . ( $vanished ? ' — GONE: ' . implode( ', ', array_keys( $vanished ) ) : '' ) );
-ok( 3 === count( $public_found ), 'three public routes, no more' );
+ok( 4 === count( $public_found ), 'four public routes, no more' );
 
 echo "\nGroup: everything else is gated on a capability, a token, or a signature\n";
 $gated = array_filter( $calls, static fn( $c ) => '__return_true' !== $c['perm'] );
 $named = array_unique( array_column( $gated, 'perm' ) );
 sort( $named );
-ok( count( $gated ) === count( $calls ) - 3, count( $gated ) . ' gated routes; permission callbacks in use: ' . implode( ', ', $named ) );
+ok( count( $gated ) === count( $calls ) - 4, count( $gated ) . ' gated routes; permission callbacks in use: ' . implode( ', ', $named ) );
 
 echo "\nGroup: negative control — the parser can tell a closure from a name from nothing\n";
 $probe = "register_rest_route( 'x/v1', '/a', array( 'permission_callback' => function () { return true; } ) );\n"

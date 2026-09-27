@@ -103,6 +103,9 @@ function snt_nsm_inputs( array $week, $now, $readers_4w ) {
 			'notes_published' => array( 'value' => $notes, 'window' => '7d' ),
 			// Visits that clicked through from a feed reader (inc/feed-utm.php).
 			'feed_clicks'     => array( 'value' => snt_nsm_feed_clicks( $now ), 'window' => '7d' ),
+			// Feed reach, NOT the star: opens counted by the pixel in each notes feed
+			// item (inc/feed-opens.php). A floor; many readers block images.
+			'feed_opens'      => array( 'value' => function_exists( 'snt_feed_opens_stats' ) ? (int) snt_feed_opens_stats( 7 )['total'] : null, 'window' => '7d' ),
 			'rss_readers'     => array( 'value' => isset( $rss['windows'][7]['uniques'] ) ? (int) $rss['windows'][7]['uniques'] : null, 'window' => '7d' ),
 			'search_clicks'   => array( 'value' => is_array( $gsc ) ? (int) $gsc['clicks'] : null, 'window' => is_array( $gsc ) ? (int) ( $gsc['days'] ?? 0 ) . 'd' : '' ),
 		),
