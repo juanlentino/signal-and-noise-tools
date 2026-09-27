@@ -128,7 +128,10 @@ function snt_nsm_tally( array $visits, array $cfg ) {
 			if ( 'sc' === $ev ) {
 				$cur[0] = max( $cur[0], (float) ( $e['scroll'] ?? 0 ) );
 			} elseif ( 'tm' === $ev ) {
-				$cur[1] = max( $cur[1], (float) ( $e['dwell'] ?? 0 ) );
+				// tm carries a per-flush DELTA (sn-beacon.js v10.44.4): a read split
+				// by tab switches arrives as slices, so the time on the page is
+				// their sum, never the largest slice.
+				$cur[1] += (float) ( $e['dwell'] ?? 0 );
 			} elseif ( 'pv' === $ev ) {
 				$seen[ $vid ][ $p ] = true;
 			}
