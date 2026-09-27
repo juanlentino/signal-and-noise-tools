@@ -53,6 +53,8 @@ function snt_nsm_reading( $fresh = false ) {
 			'dwell_s'  => (int) ( $cfg['dwell_ms'] / 1000 ),
 			'unit'     => 'visitor-day',
 		),
+		// Four weeks by device and at other floors (north-star-sweep.php).
+		'calibration' => array( 'window' => '28d', 'devices' => snt_nsm_sweep( array_merge( ...snt_nsm_weeks( (array) $raw['visits'], $now ) ), $cfg ) ),
 		'layers'     => snt_nsm_inputs( $weeks[0], $now, (int) array_sum( $series ) ),
 		'as_of'      => gmdate( 'c', $now ),
 	);

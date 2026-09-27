@@ -823,7 +823,7 @@ function sn_analytics_session_sql( $from, $to, $class, $cap ) {
 		array(
 			'SELECT index1 AS vid, toUnixTimestamp(timestamp) AS ts,',
 			'blob1 AS ev, blob2 AS path, blob3 AS ref, blob16 AS ce,',
-			'double1 AS scroll, double2 AS dwell',
+			'double1 AS scroll, double2 AS dwell, blob5 AS device',
 			'FROM ' . $dataset,
 			// AE's SQL types are strict: the DateTime `timestamp` column cannot be
 			// compared to a String literal (>= 422s), so wrap the validated bounds

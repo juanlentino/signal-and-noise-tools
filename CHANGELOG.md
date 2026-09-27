@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **The north star shows its calibration.** `signal-noise/north-star` now carries `calibration`: four weeks of visitor-days that opened a core page, split by device (phone, desktop, unknown), with how many pass the live rule and how many would pass at 25/50/75% scroll or 15/30/60s dwell. Read-only; the definition stays the setting. The session query now reads the device.
+
 ## [19.0.4] - 2026-09-27 — reading time adds up its slices
 
 ### Fixed

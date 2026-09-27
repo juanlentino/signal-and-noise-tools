@@ -112,5 +112,19 @@ $rw  = snt_nsm_research_weeks( array(
 ), $now );
 ok( 1 === $rw[0] && 1 === $rw[1], 'distinct visitor-days per week: a twice is once, b (github) never, c lands in last week' );
 
+// Calibration: by device, at other floors. m reads 40% and 20s in two tm
+// slices; d reads only 10% and 70s; u has no device; x only saw a listing.
+$cfg = array( 'prefixes' => array( '/notes/' ), 'scroll' => 50, 'dwell_ms' => 30000 );
+$ev  = static fn( $vid, $dev, $ev, $path, $sc = 0, $dw = 0 ) => array( 'vid' => $vid, 'device' => $dev, 'ev' => $ev, 'path' => $path, 'scroll' => $sc, 'dwell' => $dw, 'ts' => 1 );
+$sw  = snt_nsm_sweep( array(
+	array( $ev( 'm', 'mobile', 'pv', '/notes/a/' ), $ev( 'm', 'mobile', 'sc', '/notes/a/', 40 ), $ev( 'm', 'mobile', 'tm', '/notes/a/', 0, 12000 ), $ev( 'm', 'mobile', 'tm', '/notes/a/', 0, 8000 ) ),
+	array( $ev( 'd', 'desktop', 'pv', '/notes/b/' ), $ev( 'd', 'desktop', 'sc', '/notes/b/', 10 ), $ev( 'd', 'desktop', 'tm', '/notes/b/', 0, 70000 ) ),
+	array( $ev( 'u', '', 'pv', '/notes/c/' ) ),
+	array( $ev( 'x', 'mobile', 'pv', '/notes/' ) ),
+), $cfg );
+ok( 1 === $sw['mobile']['viewed'] && 0 === $sw['mobile']['live'] && 1 === $sw['mobile']['scroll'][25] && 0 === $sw['mobile']['scroll'][50] && 1 === $sw['mobile']['dwell'][15] && 0 === $sw['mobile']['dwell'][30], 'phone: 40% and 20s (summed slices) miss the live bar, pass 25% and 15s; a listing is never viewed' );
+ok( 1 === $sw['desktop']['live'] && 1 === $sw['desktop']['dwell'][60] && 0 === $sw['desktop']['scroll'][25], 'desktop: 70s passes on dwell alone' );
+ok( 1 === $sw['unknown']['viewed'] && 0 === $sw['unknown']['live'], 'no device lands in unknown' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
