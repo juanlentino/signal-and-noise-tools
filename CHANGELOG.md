@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+
+- The 90-day analytics history recompute no longer takes about 14 hours. The site's cron now fires only every 5 minutes, and each firing ran a single unit of the 168. A firing now runs units back to back for up to about 40 seconds (it only starts a unit that fits, judged by how long the previous one took), then schedules one next firing. A run already in progress continues from where it stopped. Progress, the death record, strict-mode stops and the stall check work as before.
+
 ## [19.6.0] - 2026-09-27 — the class is decided when read
 
 

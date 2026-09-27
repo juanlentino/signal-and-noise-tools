@@ -24,7 +24,7 @@ function get_transient( $k ) { return $GLOBALS['t'][ $k ] ?? false; }
 function set_transient( $k, $v ) { $GLOBALS['t'][ $k ] = $v; return true; }
 function delete_transient( $k ) { unset( $GLOBALS['t'][ $k ] ); return true; }
 function wp_schedule_single_event( $ts, $h ) { $GLOBALS['sched'][] = $h; return true; }
-function wp_clear_scheduled_hook() {} function wp_next_scheduled() { return false; }
+function wp_clear_scheduled_hook() {} function wp_next_scheduled( $h ) { return in_array( $h, $GLOBALS['sched'], true ) ? 1 : false; }
 function home_url() { return 'https://example.test/'; } function wp_parse_url( $u, $c ) { return parse_url( $u, $c ); }
 function is_wp_error() { return false; }
 function wp_remote_retrieve_response_code( $r ) { return 200; } function wp_remote_retrieve_body( $r ) { return $r['body']; }
@@ -53,6 +53,10 @@ function sn_session_metrics() { return array( 'visits' => 1, 'bounce_rate' => 0,
 foreach ( array( 'api', 'human-rule', 'rollup', 'dims', 'utm', 'buckets', 'pageroles', 'events-rollup', 'session-rollup', 'recompute', 'recompute-status' ) as $f ) {
 	require_once dirname( __DIR__ ) . "/inc/analytics-{$f}.php";
 }
+// Fake clock: time moves only while a unit runs, unit_secs per unit. 41 s keeps
+// the legacy sections at one unit per tick (41 + 41 > the 40 s budget).
+$GLOBALS['unit_secs'] = 41; $GLOBALS['clock'] = 0.0;
+sn_analytics_recompute_clock( function () { if ( '' !== sn_analytics_recompute_in_unit() ) { $GLOBALS['clock'] += $GLOBALS['unit_secs']; } return $GLOBALS['clock']; } );
 
 // ── The action refuses without nonce / capability (the shared dispatcher). ──
 $src = (string) file_get_contents( dirname( __DIR__ ) . '/inc/admin-post-handler.php' );
@@ -158,6 +162,51 @@ ok( 'analytics_recompute_busy' === sn_analytics_recompute_start( true ), 'a live
 // ── The sn-status{recompute} source. ──
 $a = snt_ability_analytics_recompute_status();
 ok( array( 'state', 'stalled', 'done', 'total', 'step', 'unit', 'through', 'error', 'started', 'last_tick', 'line' ) === array_keys( $a ) && 'buckets' === $a['unit'] && false === $a['stalled'] && is_int( $a['last_tick'] ), 'the recompute status payload shape' );
+
+// ── The tick budget: units loop until ~40 s would be spent, then ONE reschedule. ──
+$GLOBALS['unit_secs'] = 5;
+$GLOBALS['o'] = array(); sn_analytics_recompute_start();
+$GLOBALS['sched'] = array();
+sn_analytics_recompute_tick();
+$st = sn_analytics_recompute_status();
+ok( 8 === $st['step'] && 0 === $st['done'] && 'session:89' === $st['unit'], "5 s units: one tick ran 8 units (step={$st['step']}, unit={$st['unit']})" );
+ok( array( SNT_ANALYTICS_RECOMPUTE_HOOK ) === $GLOBALS['sched'], 'the tick rescheduled exactly once (' . count( $GLOBALS['sched'] ) . ')' );
+sn_analytics_recompute_tick();
+ok( array( SNT_ANALYTICS_RECOMPUTE_HOOK ) === $GLOBALS['sched'], 'a tick with a tick already pending adds no second one' );
+// Resume an in-progress cursor mid-batch (the live run's shape).
+update_option( SNT_ANALYTICS_RECOMPUTE_OPT, array( 'state' => 'running', 'done' => 37, 'total' => 90, 'through' => '', 'error' => '', 'started' => 1, 'last_tick' => time(), 'step' => 3, 'unit' => 'utm' ) );
+$GLOBALS['sched'] = array(); $n0 = count( $GLOBALS['sql'] );
+sn_analytics_recompute_tick();
+$st = sn_analytics_recompute_status();
+$ran = array_slice( $GLOBALS['sql'], $n0 );
+ok( 37 === $st['done'] && 11 === $st['step'] && 'session:49' === $st['unit'], "done=37 step=3 resumes at buckets and runs 8 units (done={$st['done']} step={$st['step']} unit={$st['unit']})" );
+ok( array() === array_filter( $ran, function ( $s ) { return false !== strpos( $s, 'sumIf(_sample_interval, blob1 = \'pv\') AS views' ) || false !== strpos( $s, 'blob20 AS packed' ); } ), 'the resumed tick did not re-run the units before its cursor' );
+// Crossing a batch boundary inside a tick advances done and keeps going.
+update_option( SNT_ANALYTICS_RECOMPUTE_OPT, array_merge( sn_analytics_recompute_status(), array( 'done' => 0, 'step' => 10 ) ) );
+sn_analytics_recompute_tick();
+$st = sn_analytics_recompute_status();
+ok( 7 === $st['done'] && 5 === $st['step'], "a tick crosses a batch boundary (done={$st['done']} step={$st['step']})" );
+// Strict mode trips on the 3rd unit of a tick: stop there, cursor at it, no reschedule.
+update_option( SNT_ANALYTICS_RECOMPUTE_OPT, array_merge( sn_analytics_recompute_status(), array( 'done' => 0, 'step' => 0 ) ) );
+$GLOBALS['truncate'] = 'blob20 AS packed'; $GLOBALS['sched'] = array();
+sn_analytics_recompute_tick();
+$GLOBALS['truncate'] = '';
+$st = sn_analytics_recompute_status();
+ok( 'partial' === $st['state'] && 'utm' === $st['unit'] && 2 === $st['step'] && 0 === $st['done'] && array() === $GLOBALS['sched'], "a strict trip mid-tick stops the loop at its unit (unit={$st['unit']} step={$st['step']}, scheduled=" . count( $GLOBALS['sched'] ) . ')' );
+// A death on the 3rd unit of a tick names that unit.
+sn_analytics_recompute_start( true );
+$GLOBALS['explode'] = 'blob20 AS packed';
+try { sn_analytics_recompute_tick(); } catch ( Error $e ) {}
+$GLOBALS['explode'] = '';
+sn_analytics_recompute_on_shutdown( null );
+$st = sn_analytics_recompute_status();
+ok( 'partial' === $st['state'] && false !== strpos( $st['error'], 'died in utm' ) && 2 === $st['step'], 'a death on the 3rd unit of a tick is recorded against it: ' . $st['error'] );
+// State leaves running mid-tick: the loop stops and does not overwrite it.
+sn_analytics_recompute_start( true ); $GLOBALS['sched'] = array();
+sn_analytics_recompute_clock( function () { if ( '' !== sn_analytics_recompute_in_unit() ) { $GLOBALS['clock'] += 5; update_option( SNT_ANALYTICS_RECOMPUTE_OPT, array_merge( sn_analytics_recompute_status(), array( 'state' => 'partial', 'error' => 'owner stop' ) ) ); } return $GLOBALS['clock']; } );
+sn_analytics_recompute_tick();
+$st = sn_analytics_recompute_status();
+ok( 'partial' === $st['state'] && 'owner stop' === $st['error'] && array() === $GLOBALS['sched'], 'a state change mid-tick stops the loop, is kept, and schedules nothing' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -5,8 +5,9 @@
  * run functions the nightly uses, so old days read under the current human
  * rule. Owner-run, background (chained WP-Cron single events), oldest first.
  *
- * 19.4.3: one tick is ONE unit (one rollup family for one 7-day batch, or one
- * session day), so no cron request is heavy. The cursor (done + step) lives in
+ * 19.4.3: work is split into units (one rollup family for one 7-day batch, or
+ * one session day). A tick runs units until a ~40 s budget is
+ * spent, then schedules one next tick (the site's cron fires every 5 minutes). The cursor (done + step) lives in
  * the option, the unit is named in it before it runs, and a shutdown handler
  * records a fatal or an unfinished tick as partial. A run whose last_tick is
  * older than the stale window reads "stalled" and can be resumed from the
@@ -26,6 +27,7 @@ const SNT_ANALYTICS_RECOMPUTE_HOOK  = 'sn_analytics_recompute_tick';
 const SNT_ANALYTICS_RECOMPUTE_SPAN  = 90; // AE keeps ~92 days.
 const SNT_ANALYTICS_RECOMPUTE_BATCH = 7;  // the nightly's proven window size.
 const SNT_ANALYTICS_RECOMPUTE_STALE = 900; // a running state older than this is dead.
+const SNT_ANALYTICS_RECOMPUTE_TICK_BUDGET = 40; // seconds of units per tick (system cron runs every 5 min).
 const SNT_ANALYTICS_RECOMPUTE_FAMILIES = array(
 	'pageviews' => 'sn_analytics_pageviews_run_rollup',
 	'dims'      => 'sn_analytics_dims_run_rollup',
@@ -155,28 +157,32 @@ function sn_analytics_recompute_on_shutdown( $err = null ) {
 }
 
 /**
- * One unit: re-roll one family for the current batch, or one session day.
+ * Seconds clock for the tick budget. Tests swap in a fake one.
  *
- * @return void
+ * @param callable|null $set Replacement clock, or null to read the time.
+ * @return float
  */
-function sn_analytics_recompute_tick() {
-	$st = sn_analytics_recompute_status();
-	if ( 'running' !== $st['state'] ) {
-		return;
+function sn_analytics_recompute_clock( $set = null ) {
+	static $clock = 'microtime';
+	if ( null !== $set ) {
+		$clock = $set;
 	}
-	$b     = sn_analytics_recompute_batch( $st['done'], $st['total'] );
-	$units = sn_analytics_recompute_units( $b );
-	$step  = min( max( 0, (int) $st['step'] ), count( $units ) - 1 );
-	$unit  = $units[ $step ];
+	return 'microtime' === $clock ? microtime( true ) : (float) call_user_func( $clock );
+}
 
-	// Name the unit BEFORE it runs, so a death names where it died.
-	$st = array_merge( $st, array( 'unit' => $unit, 'step' => $step, 'last_tick' => time() ) );
-	update_option( SNT_ANALYTICS_RECOMPUTE_OPT, $st, false );
-	if ( function_exists( 'set_time_limit' ) ) {
-		@set_time_limit( 300 ); // phpcs:ignore -- generous per unit; the shutdown handler is the real net.
-	}
+/**
+ * Run the unit at the cursor. Names it in the option before it runs, and
+ * returns the strict-mode trip reason ('' when the unit completed).
+ *
+ * @param array $st Status.
+ * @param array $b  Batch window.
+ * @param string $unit Unit name.
+ * @param int    $step Unit index.
+ * @return string
+ */
+function sn_analytics_recompute_run_unit( array $st, array $b, $unit, $step ) {
+	update_option( SNT_ANALYTICS_RECOMPUTE_OPT, array_merge( $st, array( 'unit' => $unit, 'step' => $step, 'last_tick' => time() ) ), false );
 	sn_analytics_recompute_in_unit( $unit );
-	register_shutdown_function( 'sn_analytics_recompute_on_shutdown' );
 
 	// The cap list must be read and complete, or the unit would write uncapped
 	// numbers over the old ones. Fresh once per batch; cached between its units.
@@ -197,24 +203,62 @@ function sn_analytics_recompute_tick() {
 		$tripped = sn_analytics_strict()['tripped'];
 		sn_analytics_recompute_reset_mode();
 	}
-	sn_analytics_recompute_in_unit( '' ); // end marker.
+	return $tripped;
+}
 
-	if ( '' !== $tripped ) {
-		sn_analytics_recompute_mark_partial( $unit . ': ' . $tripped . '; days from ' . gmdate( 'Y-m-d', time() - $b['days'] * DAY_IN_SECONDS ) . ' were not rewritten' );
-		return;
+/**
+ * One tick: run units from the cursor until the time budget would be spent
+ * (a unit starts only if elapsed + the previous unit's duration fits), then
+ * schedule ONE next tick. Under a 5-minute system cron this is what keeps a
+ * 168-unit run from taking 168 cron intervals.
+ *
+ * @return void
+ */
+function sn_analytics_recompute_tick() {
+	if ( function_exists( 'set_time_limit' ) ) {
+		@set_time_limit( 300 ); // phpcs:ignore -- generous per tick; the shutdown handler is the real net.
 	}
-	$next = array_merge( $st, array( 'step' => $step + 1, 'last_tick' => time() ) );
-	if ( $step + 1 >= count( $units ) ) {
-		$done = min( (int) $st['total'], (int) $st['done'] + ( $b['days'] - $b['until'] ) );
-		$next = array_merge( $next, array(
-			'done'    => $done,
-			'step'    => 0,
-			'through' => gmdate( 'Y-m-d', time() - ( $b['until'] > 0 ? $b['until'] + 1 : 0 ) * DAY_IN_SECONDS ),
-			'state'   => $done >= (int) $st['total'] ? 'done' : 'running',
-		) );
+	register_shutdown_function( 'sn_analytics_recompute_on_shutdown' );
+	$t0   = sn_analytics_recompute_clock();
+	$last = 0.0;
+	$ran  = 0;
+	$st   = sn_analytics_recompute_status();
+	while ( 'running' === $st['state'] ) {
+		$start = sn_analytics_recompute_clock();
+		if ( $ran > 0 && ( $start - $t0 ) + $last > SNT_ANALYTICS_RECOMPUTE_TICK_BUDGET ) {
+			break;
+		}
+		$b       = sn_analytics_recompute_batch( $st['done'], $st['total'] );
+		$units   = sn_analytics_recompute_units( $b );
+		$step    = min( max( 0, (int) $st['step'] ), count( $units ) - 1 );
+		$unit    = $units[ $step ];
+		$tripped = sn_analytics_recompute_run_unit( $st, $b, $unit, $step );
+		$last    = sn_analytics_recompute_clock() - $start; // read before the end marker.
+		sn_analytics_recompute_in_unit( '' ); // end marker.
+		++$ran;
+
+		if ( '' !== $tripped ) {
+			sn_analytics_recompute_mark_partial( $unit . ': ' . $tripped . '; days from ' . gmdate( 'Y-m-d', time() - $b['days'] * DAY_IN_SECONDS ) . ' were not rewritten' );
+			return;
+		}
+		$next = array_merge( $st, array( 'unit' => $unit, 'step' => $step + 1, 'last_tick' => time() ) );
+		if ( $step + 1 >= count( $units ) ) {
+			$done = min( (int) $st['total'], (int) $st['done'] + ( $b['days'] - $b['until'] ) );
+			$next = array_merge( $next, array(
+				'done'    => $done,
+				'step'    => 0,
+				'through' => gmdate( 'Y-m-d', time() - ( $b['until'] > 0 ? $b['until'] + 1 : 0 ) * DAY_IN_SECONDS ),
+				'state'   => $done >= (int) $st['total'] ? 'done' : 'running',
+			) );
+		}
+		// Merge onto a fresh read so an owner action mid-tick (state change) wins.
+		$cur = sn_analytics_recompute_status();
+		$st  = 'running' === $cur['state'] ? $next : $cur;
+		if ( 'running' === $cur['state'] ) {
+			update_option( SNT_ANALYTICS_RECOMPUTE_OPT, $next, false );
+		}
 	}
-	update_option( SNT_ANALYTICS_RECOMPUTE_OPT, $next, false );
-	if ( 'running' === $next['state'] ) {
+	if ( 'running' === $st['state'] && ! wp_next_scheduled( SNT_ANALYTICS_RECOMPUTE_HOOK ) ) {
 		wp_schedule_single_event( time() + 5, SNT_ANALYTICS_RECOMPUTE_HOOK );
 	}
 }
