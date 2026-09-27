@@ -123,7 +123,25 @@ namespace {
 	$GLOBALS['__filters'] = array();
 	function add_filter( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['__filters'][ $hook ][] = $cb; return true; }
 	function add_action( $hook, $cb, $prio = 10, $args = 1 ) { return true; }
-	function do_action( $hook, ...$args ) {}
+	// The recompute replay: the admin_post hook for the one write this window
+	// carries is "registered", and firing it runs the REAL dispatcher
+	// sn_handle_admin_post() (nonce, capability, page allowlist, redirect).
+	$GLOBALS['__did'] = array();
+	function has_action( $hook, $cb = false ) { return 'admin_post_sn_analytics_recompute' === $hook; }
+	function do_action( $hook, ...$args ) {
+		$GLOBALS['__did'][] = $hook;
+		if ( 'admin_post_sn_analytics_recompute' === $hook ) {
+			sn_handle_admin_post( 'analytics_recompute' );
+		}
+	}
+	function remove_filter( $hook, $cb, $prio = 10 ) { foreach ( $GLOBALS['__filters'][ $hook ] ?? array() as $i => $f ) { if ( $f === $cb ) { unset( $GLOBALS['__filters'][ $hook ][ $i ] ); } } return true; }
+	$GLOBALS['__referer_checked'] = array();
+	function check_admin_referer( $action = -1, $name = '_wpnonce' ) { $GLOBALS['__referer_checked'][] = $action; if ( ! wp_verify_nonce( $_REQUEST[ $name ] ?? '', $action ) ) { wp_die( 'The link you followed has expired.' ); } return 1; }
+	function wp_die( $message = '', $title = '', $args = array() ) { $h = apply_filters( 'wp_die_handler', '_default_wp_die_handler' ); call_user_func( $h, $message, $title, $args ); exit( 1 ); }
+	function wp_safe_redirect( $location, $status = 302 ) { apply_filters( 'wp_redirect', $location, $status ); return true; }
+	$GLOBALS['__recomputes'] = 0;
+	function sn_handle_analytics_recompute( $post ) { $GLOBALS['__recomputes']++; return $GLOBALS['__recompute_flash'] ?? 'analytics_recompute_started'; }
+	function sn_admin_flash_to_notice( $flash ) { $m = array( 'analytics_recompute_started' => array( 'success', 'Recomputing 90 days of analytics history in the background.' ), 'analytics_recompute_busy' => array( 'info', 'A history recompute is already running.' ) ); return $m[ $flash ] ?? null; }
 	function apply_filters( $hook, $value, ...$rest ) { foreach ( $GLOBALS['__filters'][ $hook ] ?? array() as $cb ) { $value = call_user_func( $cb, $value, ...$rest ); } return $value; }
 	function __( $s, $d = null ) { return $s; }
 	function _x( $s, $c, $d = null ) { return $s; }
@@ -150,7 +168,7 @@ namespace {
 	function wp_slash( $v ) { return is_array( $v ) ? array_map( 'wp_slash', $v ) : ( is_string( $v ) ? addslashes( $v ) : $v ); }
 	function wp_unslash( $v ) { return is_array( $v ) ? array_map( 'wp_unslash', $v ) : ( is_string( $v ) ? stripslashes( $v ) : $v ); }
 	function wp_nonce_field( $action = -1, $name = '_wpnonce', $referer = true, $display = true ) { $out = '<input type="hidden" name="' . esc_attr( $name ) . '" value="test-nonce">'; if ( $display ) { echo $out; } return $out; }
-	function wp_verify_nonce( $nonce, $action = -1 ) { return 'test-nonce' === $nonce && 'sn_analytics_export' === $action ? 1 : false; }
+	function wp_verify_nonce( $nonce, $action = -1 ) { return 'test-nonce' === $nonce && in_array( $action, array( 'sn_analytics_export', 'sn_analytics_recompute' ), true ) ? 1 : false; }
 	$GLOBALS['__caps'] = array( 'manage_options' => true );
 	function current_user_can( $cap, ...$a ) { return (bool) ( $GLOBALS['__caps'][ $cap ] ?? false ); }
 	function is_admin() { return true; }
@@ -678,6 +696,24 @@ namespace {
 	$app->actions['post']( st( $app ), $os, array( 'values' => array( '_wpnonce' => 'test-nonce', 'action' => 'sn_save_identity' ) ) );
 	ok( 1 === count( $os->toasts ) && false !== strpos( $os->toasts[0], 'save_identity' ),
 		'   ...and any other action is refused too, named: this window paints a read-only report and has no write' );
+	$os    = new \OpenStation\App\Os();
+	$state = st( $app );
+	$app->actions['post']( $state, $os, array( 'values' => array( '_wpnonce' => 'test-nonce', 'action' => 'sn_analytics_recompute' ) ) );
+	ok( 1 === $GLOBALS['__recomputes'] && in_array( 'sn_analytics_recompute', $GLOBALS['__referer_checked'], true ) && in_array( 'admin_post_sn_analytics_recompute', $GLOBALS['__did'], true ),
+		'the recompute button is ROUTED: replayed through admin_post_sn_analytics_recompute into sn_handle_admin_post(), which checks the nonce and runs the handler once' );
+	ok( 1 === count( $os->toasts ) && false !== strpos( $os->toasts[0], 'Recomputing' ) && 'success' === ( $state->get( 'notice' )[0] ?? '' ),
+		'   ...and the outcome is toasted and set as the notice, so the window repaints its status line' );
+	$os    = new \OpenStation\App\Os();
+	$state = st( $app );
+	$GLOBALS['__recompute_flash'] = 'analytics_recompute_busy';
+	$app->actions['post']( $state, $os, array( 'values' => array( '_wpnonce' => 'test-nonce', 'action' => 'sn_analytics_recompute' ) ) );
+	unset( $GLOBALS['__recompute_flash'] );
+	ok( 2 === $GLOBALS['__recomputes'] && 1 === count( $os->toasts ) && false !== strpos( $os->toasts[0], 'already running' ),
+		'   ...a run already live is reported as refused, not as started' );
+	$os = new \OpenStation\App\Os();
+	$app->actions['post']( st( $app ), $os, array( 'values' => array( '_wpnonce' => 'stale', 'action' => 'sn_analytics_recompute' ) ) );
+	ok( 2 === $GLOBALS['__recomputes'] && 1 === count( $os->toasts ) && false !== strpos( $os->toasts[0], 'security token' ),
+		'   ...a stale nonce starts nothing: the replay refuses before the handler runs' );
 	$os = new \OpenStation\App\Os();
 	$app->actions['door']( st( $app ), $os, array( 'url' => 'https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=analytics' ) );
 	ok( array( array( 'https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=analytics', '', '' ) ) === $os->opened,

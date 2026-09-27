@@ -28,7 +28,7 @@ function is_wp_error() { return false; }
 function wp_remote_retrieve_response_code( $r ) { return 200; } function wp_remote_retrieve_body( $r ) { return $r['body']; }
 function wp_remote_post( $url, $args ) {
 	$sql = $args['body'];
-	if ( false !== strpos( $sql, 'HAVING sum(_sample_interval) >' ) ) {
+	if ( false !== strpos( $sql, sn_analytics_overcap_sql() ) ) {
 		return array( 'body' => json_encode( array( 'data' => array( array( 'vid' => 'abcdef0123' ) ), 'rows' => 1 ) ) );
 	}
 	$GLOBALS['sql'][] = $sql;

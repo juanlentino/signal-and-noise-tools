@@ -55,7 +55,7 @@ function update_option( $key, $value, $autoload = null ) {
 // Transients.
 $GLOBALS['__ar_transients'] = array();
 function get_transient( $key ) {
-	if ( 'sn_analytics_overcap_vdays' === $key ) { return array( 'hashes' => array(), 'ok' => true, 'truncated' => false ); } // the human rule's list, primed so call counts stay this module's own
+	if ( SNT_ANALYTICS_VDAY_CACHE_KEY === $key ) { return array( 'hashes' => array(), 'ok' => true, 'truncated' => false ); } // the human rule's list, primed so call counts stay this module's own
 	return array_key_exists( $key, $GLOBALS['__ar_transients'] ) ? $GLOBALS['__ar_transients'][ $key ] : false;
 }
 function set_transient( $key, $value, $exp = 0 ) {

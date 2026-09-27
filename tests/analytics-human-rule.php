@@ -48,7 +48,24 @@ ok( "blob7 = 'human'" === sn_analytics_counted_condition( "human' --", array() )
 ok( '' === sn_analytics_overcap_and( array() ), 'group-by builders: no clause when empty' );
 
 echo "\nGroup: over-cap list read\n";
-ok( false !== strpos( sn_analytics_overcap_sql(), 'GROUP BY index1, toDate(timestamp) HAVING sum(_sample_interval) > 50' ), 'the verified HAVING shape at the cap' );
+// AE refuses a function in GROUP BY ("you may only provide column names");
+// HAVING and ORDER BY resolve against SELECT aliases. Every clause of the three
+// must be bare identifiers, never a call.
+$ae_clause_fns = static function ( $sql ) {
+	$bad = array();
+	if ( preg_match_all( '/\b(GROUP BY|HAVING|ORDER BY)\s+(.*?)(?=\bGROUP BY\b|\bHAVING\b|\bORDER BY\b|\bLIMIT\b|$)/s', (string) $sql, $m, PREG_SET_ORDER ) ) {
+		foreach ( $m as $c ) {
+			if ( false !== strpos( $c[2], '(' ) ) {
+				$bad[] = $c[1] . ' ' . trim( $c[2] );
+			}
+		}
+	}
+	return $bad;
+};
+$oc = sn_analytics_overcap_sql();
+ok( false !== strpos( $oc, 'toDate(timestamp) AS d' ) && false !== strpos( $oc, 'GROUP BY vid, d HAVING views > 50' ), 'the live-verified shape: day selected as an alias, grouped and filtered by alias' );
+ok( 1 === preg_match( '/GROUP BY ([^()]*?) HAVING/', $oc ), 'over-cap GROUP BY holds no function call' );
+ok( array() === $ae_clause_fns( $oc ), 'over-cap GROUP BY / HAVING / ORDER BY are bare identifiers' );
 $GLOBALS['__q_ret'] = null;
 $r = sn_analytics_overcap_vdays();
 ok( false === $r['ok'] && array() === $r['hashes'], 'failed read: empty list flagged ok=false' );
@@ -81,10 +98,12 @@ $built = array(
 );
 foreach ( $built as $name => $sql ) {
 	ok( false !== strpos( $sql, $not ), "$name excludes over-cap visitor-days" );
+	ok( array() === $ae_clause_fns( $sql ), "$name: no function in GROUP BY / HAVING / ORDER BY" );
 }
 $GLOBALS['__q'] = array();
 snt_nsm_research_links( '2026-09-01', '2026-09-27', time() );
 ok( isset( $GLOBALS['__q'][0] ) && false !== strpos( $GLOBALS['__q'][0], "blob7 = 'human' AND {$not}" ), 'north-star-research:snt_nsm_research_links excludes over-cap visitor-days' );
+ok( isset( $GLOBALS['__q'][0] ) && array() === $ae_clause_fns( $GLOBALS['__q'][0] ), 'north-star-research:snt_nsm_research_links: no function in GROUP BY / HAVING / ORDER BY' );
 
 echo "\nGroup: engaged uses the north star's read rule\n";
 $ev = static function ( $vid, $ev, $path, $scroll = 0, $dwell = 0 ) {

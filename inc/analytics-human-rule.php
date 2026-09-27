@@ -23,11 +23,14 @@ const SNT_ANALYTICS_VDAY_PV_CAP = 50;
 // Widest reader window: AE keeps ~90 days; the north star reads 12 weeks.
 const SNT_ANALYTICS_VDAY_WINDOW_DAYS = 92;
 const SNT_ANALYTICS_VDAY_LIST_MAX    = 500;
-const SNT_ANALYTICS_VDAY_CACHE_KEY   = 'sn_analytics_overcap_vdays';
+// 19.4.1: versioned key, so the upgrade drops a failed read cached by 19.4.0.
+const SNT_ANALYTICS_VDAY_CACHE_KEY   = 'sn_analytics_overcap_vdays_v2';
 
 /**
- * AE SQL: visitor-days over the page-view cap in the trailing window. Uses the
- * GROUP BY index1, toDate(timestamp) HAVING shape verified live on 2026-09-27.
+ * AE SQL: visitor-days over the page-view cap in the trailing window. Analytics
+ * Engine takes only column names or aliases in GROUP BY, so the day is
+ * selected as an alias and grouped and filtered by alias (verified live
+ * 2026-09-27; `GROUP BY index1, toDate(timestamp)` is refused).
  *
  * @return string
  */
@@ -36,11 +39,11 @@ function sn_analytics_overcap_sql() {
 	$cap  = (int) SNT_ANALYTICS_VDAY_PV_CAP;
 	$max  = (int) SNT_ANALYTICS_VDAY_LIST_MAX;
 	return implode( ' ', array(
-		'SELECT index1 AS vid, sum(_sample_interval) AS views',
+		'SELECT index1 AS vid, toDate(timestamp) AS d, sum(_sample_interval) AS views',
 		'FROM ' . ( defined( 'SN_ANALYTICS_DATASET' ) ? SN_ANALYTICS_DATASET : 'sn_pageviews' ),
 		"WHERE blob1 = 'pv' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
-		'GROUP BY index1, toDate(timestamp)',
-		"HAVING sum(_sample_interval) > {$cap}",
+		'GROUP BY vid, d',
+		"HAVING views > {$cap}",
 		"LIMIT {$max}",
 	) );
 }
