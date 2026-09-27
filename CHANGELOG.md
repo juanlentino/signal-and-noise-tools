@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The north star's weeks have their bars back.** Under each week's date and number sits a slim bar scaled to the busiest week (this week in the accent colour, a zero week a baseline tick), plain CSS with a short rise that respects reduced motion. The hero's left side no longer reads empty beside the three signals.
+
 ## [19.0.1] - 2026-09-27 — Home's numbers stop shouting
 
 ### Changed
