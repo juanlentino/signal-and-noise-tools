@@ -126,5 +126,17 @@ ok( 1 === $sw['mobile']['viewed'] && 0 === $sw['mobile']['live'] && 1 === $sw['m
 ok( 1 === $sw['desktop']['live'] && 1 === $sw['desktop']['dwell'][60] && 0 === $sw['desktop']['scroll'][25], 'desktop: 70s passes on dwell alone' );
 ok( 1 === $sw['unknown']['viewed'] && 0 === $sw['unknown']['live'], 'no device lands in unknown' );
 
+// 19.3.1: ONE reading rule. The calibration's live count and the tally's
+// readers come from the same visits and must agree, device by device summed.
+$mixed = array(
+	array( $ev( 'a', 'mobile', 'pv', '/notes/a/' ), $ev( 'a', 'mobile', 'sc', '/notes/a/', 60 ) ),
+	array( $ev( 'b', 'desktop', 'pv', '/notes/b/' ), $ev( 'b', 'desktop', 'tm', '/notes/b/', 0, 20000 ), $ev( 'b', 'desktop', 'tm', '/notes/b/', 0, 15000 ) ),
+	array( $ev( 'c', 'desktop', 'pv', '/notes/c/' ), $ev( 'c', 'desktop', 'sc', '/notes/c/', 10 ) ),
+	array( $ev( 'd', '', 'sc', '/notes/d/', 90 ) ),
+);
+$sw2  = snt_nsm_sweep( $mixed, $cfg );
+$live = $sw2['mobile']['live'] + $sw2['desktop']['live'] + $sw2['unknown']['live'];
+ok( snt_nsm_tally( $mixed, $cfg )['readers'] === $live && 2 === $live, 'the tally and the calibration count the same readers (2: a scroll read, a two-slice dwell read; d scrolled with no pageview)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

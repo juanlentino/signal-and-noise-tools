@@ -50,5 +50,11 @@ ok( false !== strpos( $h, 'sn-dash-briefing' ), 'the band renders its wrapper' )
 ok( false === strpos( $h, '<script>' ), 'the band escapes its content' );
 ok( in_array( sn_dash_briefing_sentence( $calm ), $GLOBALS['sn_esc_html_calls'], true ), 'the renderer actually passes the sentence through esc_html()' );
 
+// 19.3.1: "all" only when it is all.
+$short = sn_dash_briefing_sentence( array( 'needy' => 0, 'views' => 0, 'views_delta' => 0, 'anchored' => 40, 'anchored_total' => 41, 'citations' => 1, 'warming' => 0 ) );
+ok( false === strpos( $short, 'all 40' ) && false !== strpos( $short, '40 of 41 notes anchored' ), '40 of 41 never reads as "all 40": ' . $short );
+$full = sn_dash_briefing_sentence( array( 'needy' => 0, 'views' => 0, 'views_delta' => 0, 'anchored' => 41, 'anchored_total' => 41, 'citations' => 1, 'warming' => 0 ) );
+ok( false !== strpos( $full, 'all 41 notes anchored' ), 'a full set still reads "all 41": ' . $full );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

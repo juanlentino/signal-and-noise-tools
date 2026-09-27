@@ -57,7 +57,7 @@ function snt_scheduled_reads_run() {
 	foreach ( snt_scheduled_reads_tools() as $name => $args ) {
 		$res    = sn_mcp_call_tool( $name, $args, $door );
 		$result = is_array( $res ) ? ( $res['result'] ?? null ) : null;
-		$tools[ $name ] = array( 'error' => ! is_array( $result ) || ! empty( $result['isError'] ) );
+		$tools[ $name ] = array( 'error' => snt_scheduled_reads_failed( $result ) );
 	}
 	$run     = array( 'ran_at' => time(), 'door' => $door, 'tools' => $tools );
 	$history = get_option( SNT_SCHEDULED_READS_HISTORY, array() );
@@ -65,6 +65,29 @@ function snt_scheduled_reads_run() {
 	array_unshift( $history, $run );
 	update_option( SNT_SCHEDULED_READS_HISTORY, array_slice( $history, 0, SNT_SCHEDULED_READS_HISTORY_CAP ), false );
 	return $run;
+}
+
+/**
+ * Did a read fail? The call itself (isError), or, for the consolidated
+ * sn-status / sn-metrics, ONE of its sections: those degrade a failed source
+ * to {error:"unavailable"} inside a successful call (19.3.1; the singles they
+ * replaced failed the whole call, so 19.3.0 had stopped seeing it). PURE.
+ *
+ * @param mixed $result The tool result envelope.
+ * @return bool
+ */
+function snt_scheduled_reads_failed( $result ) {
+	if ( ! is_array( $result ) || ! empty( $result['isError'] ) ) {
+		return true;
+	}
+	$sc       = json_decode( (string) json_encode( $result['structuredContent'] ?? array() ), true );
+	$sections = is_array( $sc ) && is_array( $sc['sections'] ?? null ) ? $sc['sections'] : array();
+	foreach ( $sections as $section ) {
+		if ( is_array( $section ) && array_key_exists( 'error', $section ) ) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /**

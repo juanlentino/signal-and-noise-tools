@@ -28,6 +28,10 @@ function sn_mcp_read_kill_switch_engaged() { return $GLOBALS['__kill_engaged']; 
 // abilities' permission callbacks would see.
 function sn_mcp_call_tool( $name, $args, $door ) {
 	$GLOBALS['__calls'][] = compact( 'name', 'args', 'door' ) + array( 'as_user' => $GLOBALS['__current_user'] );
+	if ( 'signal-noise__sn-status' === $name && ! empty( $GLOBALS['__fail_section'] ) ) {
+		// 19.3.1: the consolidated read succeeds as a call while one section fails.
+		return array( 'result' => array( 'content' => array(), 'structuredContent' => (object) array( 'ok' => true, 'sections' => (object) array( 'deploy' => array( 'ok' => true ), 'uptime' => array( 'error' => 'unavailable' ) ) ) ) );
+	}
 	if ( 'signal-noise__sn-status' === $name && ! empty( $GLOBALS['__fail_anchor'] ) ) {
 		return array( 'result' => array( 'content' => array(), 'isError' => true ) );
 	}
@@ -61,6 +65,13 @@ ok( array( 'read' ) === $doors, 'every call is pinned to the read door' );
 ok( false === $run['tools']['signal-noise__sn-status']['error'], 'a successful read records error=false' );
 $history = get_option( SNT_SCHEDULED_READS_HISTORY );
 ok( is_array( $history ) && 1 === count( $history ) && $history[0]['ran_at'] === $run['ran_at'], 'the run lands in history' );
+
+echo "\nTest: a failed SECTION inside a successful consolidated call is a failed read (19.3.1)\n";
+$GLOBALS['__calls'] = array(); $GLOBALS['__fail_section'] = true;
+$run = snt_scheduled_reads_run();
+ok( true === $run['tools']['signal-noise__sn-status']['error'], 'uptime unavailable inside an ok sn-status call records error=true' );
+ok( false === $run['tools']['signal-noise__sn-metrics']['error'], 'a clean sn-metrics call still records error=false' );
+$GLOBALS['__fail_section'] = false;
 
 echo "\nTest: an isError result records as a failed read, run still completes\n";
 $GLOBALS['__fail_anchor'] = true;
