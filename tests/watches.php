@@ -92,9 +92,10 @@ ok( null === has_id( snt_watches_ripe( $AFTER ), 'notes_drift_reread' ),
 // --- date-only watches ripen on their date and STAY ripe ------------------
 $GLOBALS['__drift'] = array();
 // (search_coverage_reread retired 2026-09-14, answered; wave4_telemetry, due
-// 2026-09-25, now carries the date-only contract pins.)
-ok( null === has_id( snt_watches_ripe( $BEFORE ), 'wave4_telemetry' ), 'a date-only watch is quiet before its date' );
-$w = has_id( snt_watches_ripe( $AFTER ), 'wave4_telemetry' );
+// 2026-10-25 since its first read on 2026-09-27, carries the date-only pins.)
+$WAVE4_AFTER = strtotime( '2026-10-26 12:00:00 UTC' );
+ok( null === has_id( snt_watches_ripe( $AFTER ), 'wave4_telemetry' ), 'a date-only watch is quiet before its date (moved to 2026-10-25 after the first read)' );
+$w = has_id( snt_watches_ripe( $WAVE4_AFTER ), 'wave4_telemetry' );
 ok( null !== $w && ! empty( $w['date_only'] ), 'and ripens after it, FLAGGED as date-only so a reader knows nothing was measured' );
 ok( null === has_id( snt_watches_ripe( $AFTER ), 'search_coverage_reread' ), 'search_coverage_reread is retired: its question was answered, a clock is not a finding' );
 

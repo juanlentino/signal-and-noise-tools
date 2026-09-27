@@ -90,11 +90,11 @@ $r = sn_mcp_handle_request( array( 'jsonrpc' => '2.0', 'id' => 8, 'method' => 't
 ok( ( $r['result']['structuredContent']['result'][0]['hook'] ?? '' ) === 'sn_daily', 'array-rooted tool called end-to-end wraps structuredContent as {result:[...]}' );
 
 // --- end-to-end passthrough pin: an object-rooted tool stays unwrapped ---
-$GLOBALS['__abilities']['signal-noise/get-rss-stats'] = new SN_Test_Ability( 'signal-noise/get-rss-stats', array(
+$GLOBALS['__abilities']['signal-noise/shape-stability'] = new SN_Test_Ability( 'signal-noise/shape-stability', array(
 	'output_schema' => array( 'type' => 'object' ),
 	'result'        => array( 'ok' => true ),
 ) );
-$r = sn_mcp_handle_request( array( 'jsonrpc' => '2.0', 'id' => 9, 'method' => 'tools/call', 'params' => array( 'name' => 'signal-noise__get-rss-stats', 'arguments' => array() ) ) );
+$r = sn_mcp_handle_request( array( 'jsonrpc' => '2.0', 'id' => 9, 'method' => 'tools/call', 'params' => array( 'name' => 'signal-noise__shape-stability', 'arguments' => array() ) ) );
 ok( ( $r['result']['structuredContent']['ok'] ?? null ) === true && ! array_key_exists( 'result', $r['result']['structuredContent'] ), 'object-rooted tool called end-to-end stays a byte-identical passthrough' );
 
 // ============================================================

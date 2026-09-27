@@ -28,7 +28,7 @@ function sn_mcp_read_kill_switch_engaged() { return $GLOBALS['__kill_engaged']; 
 // abilities' permission callbacks would see.
 function sn_mcp_call_tool( $name, $args, $door ) {
 	$GLOBALS['__calls'][] = compact( 'name', 'args', 'door' ) + array( 'as_user' => $GLOBALS['__current_user'] );
-	if ( 'signal-noise__anchor-status' === $name && ! empty( $GLOBALS['__fail_anchor'] ) ) {
+	if ( 'signal-noise__sn-status' === $name && ! empty( $GLOBALS['__fail_anchor'] ) ) {
 		return array( 'result' => array( 'content' => array(), 'isError' => true ) );
 	}
 	return array( 'result' => array( 'content' => array( array( 'type' => 'text', 'text' => '{}' ) ) ) );
@@ -41,13 +41,10 @@ function ok( $condition, $message ) { global $pass, $fail; if ( $condition ) { $
 
 echo "\nTest: the run list is fixed, read-only, byte-pinned\n";
 $expected = array(
-	'signal-noise__get-health-scan'       => array(),
-	'signal-noise__uptime-status'         => array(),
-	'signal-noise__get-deploy-status'     => array(),
-	'signal-noise__anchor-status'         => array(),
-	'signal-noise__get-analytics-summary' => array(),
+	'signal-noise__sn-status'  => array( 'sections' => array( 'health_scan', 'uptime', 'deploy', 'anchor' ) ),
+	'signal-noise__sn-metrics' => array( 'sections' => array( 'analytics_summary' ) ),
 );
-ok( $expected === snt_scheduled_reads_tools(), 'the tool list is exactly the five read-door names — any change is a reviewed event' );
+ok( $expected === snt_scheduled_reads_tools(), 'the tool list is exactly the two consolidated reads (19.3.0: the same five sections, off the absorbed singles) — any change is a reviewed event' );
 $write_shaped = 0;
 foreach ( array_keys( snt_scheduled_reads_tools() ) as $name ) {
 	// Verb list covers the LIVE write slugs too: anchor-sweep, merge-tags,
@@ -58,18 +55,18 @@ ok( 0 === $write_shaped, 'no write-shaped tool name in the run list' );
 
 echo "\nTest: a run goes through the read door and records outcomes\n";
 $run = snt_scheduled_reads_run();
-ok( 5 === count( $GLOBALS['__calls'] ), 'one call per listed tool' );
+ok( 2 === count( $GLOBALS['__calls'] ), 'one call per listed tool' );
 $doors = array_unique( array_column( $GLOBALS['__calls'], 'door' ) );
 ok( array( 'read' ) === $doors, 'every call is pinned to the read door' );
-ok( false === $run['tools']['signal-noise__get-health-scan']['error'], 'a successful read records error=false' );
+ok( false === $run['tools']['signal-noise__sn-status']['error'], 'a successful read records error=false' );
 $history = get_option( SNT_SCHEDULED_READS_HISTORY );
 ok( is_array( $history ) && 1 === count( $history ) && $history[0]['ran_at'] === $run['ran_at'], 'the run lands in history' );
 
 echo "\nTest: an isError result records as a failed read, run still completes\n";
 $GLOBALS['__fail_anchor'] = true;
 $run = snt_scheduled_reads_run();
-ok( true === $run['tools']['signal-noise__anchor-status']['error'], 'isError result records error=true' );
-ok( false === $run['tools']['signal-noise__get-analytics-summary']['error'], 'tools after the failing one still run' );
+ok( true === $run['tools']['signal-noise__sn-status']['error'], 'isError result records error=true' );
+ok( false === $run['tools']['signal-noise__sn-metrics']['error'], 'tools after the failing one still run' );
 $GLOBALS['__fail_anchor'] = false;
 
 echo "\nTest: history caps at " . SNT_SCHEDULED_READS_HISTORY_CAP . "\n";
@@ -91,7 +88,7 @@ echo "\nTest: the cron callback assumes and releases the owner identity\n";
 $GLOBALS['__calls'] = array();
 $GLOBALS['__current_user'] = 0;
 snt_scheduled_reads_daily_cron_cb();
-ok( 5 === count( $GLOBALS['__calls'] ), 'cron fires the full list' );
+ok( 2 === count( $GLOBALS['__calls'] ), 'cron fires the full list' );
 $as_users = array_unique( array_column( $GLOBALS['__calls'], 'as_user' ) );
 ok( array( 7 ) === $as_users, 'every cron call executes as the first administrator, never anonymous' );
 ok( 0 === get_current_user_id(), 'the previous (no-user) identity is restored after the run' );

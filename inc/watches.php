@@ -113,7 +113,9 @@ function snt_watches() {
 			'why'       => 'Retire the absorbed single-purpose tools only on a collapsed read — usage evidence, never a date. The date is only when the window is wide enough to look.',
 			'read'      => 'sn-site-facts{tool_telemetry}',
 			'date_only' => true,
-			'due'       => '2026-09-25',
+			// 2026-09-27 read: four retired (19.3.0), eight still in use;
+			// re-read once a month has run with the scheduled reads moved.
+			'due'       => '2026-10-25',
 			'ripe'      => '',
 		),
 	);

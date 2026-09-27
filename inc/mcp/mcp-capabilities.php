@@ -92,15 +92,23 @@ function sn_mcp_allowlist() {
 		// the weekly-digest prompt was rewritten in the same release so the
 		// door no longer hands out a recipe for two not_founds):
 		//   get-insights, get-narration
+		// ── v19.3.0 — WAVE 4 RETIRED FROM THE DOOR ─────────────────────────
+		// Same contract as waves 1 and 2: door-only removal, nothing deleted.
+		// The 2026-09-27 read (sn-site-facts{tool_telemetry}, 30 days) found
+		// agents still on most singles, so only the four with 0-2 read-door
+		// calls go now; the other eight wait for the re-read (watch
+		// wave4_telemetry, due 2026-10-25) after the scheduled reads move.
+		//   ai-cache-probe-status -> sn-status{ai_cache_probe}   (0 calls)
+		//   cadence-flags         -> sn-status{cadence}          (1)
+		//   get-rss-stats         -> sn-metrics{rss_stats}       (1)
+		//   get-analytics-events  -> sn-metrics{analytics_events} (2)
 		// Plugin (signal-noise/) — operational reads.
 		'signal-noise/get-health-scan',
 		'signal-noise/uptime-status',
 		'signal-noise/get-deploy-status',
 		'signal-noise/get-analytics-summary',
-		'signal-noise/get-rss-stats',
 		'signal-noise/get-cron-history',
 		'signal-noise/list-cron-events',
-		'signal-noise/get-analytics-events',
 		// v12.11.0 — the IPv6 criterion gauge, previously wp-admin only. The
 		// criterion was pre-committed so the NUMBER triggers the call; a
 		// number nobody can query triggers nothing. LOCAL door only —
@@ -150,7 +158,6 @@ function sn_mcp_allowlist() {
 		// walk. A single-target query given a scope it cannot honour would
 		// misreport what it does.
 		'signal-noise/draft-echoes', // v10.17.0: one draft scored against the corpus.
-		'signal-noise/cadence-flags',  // v10.22.0: publish + cron rhythm deviations (ML pipeline #5).
 		// Theme (signal-and-noise/) — identity + design system.
 		// v10.26.0 — MCP consolidation, phase 2: the first two CONSOLIDATED
 		// tools, registered NEW alongside every ability they absorb (nothing
@@ -179,7 +186,6 @@ function sn_mcp_allowlist() {
 		// ("would caching pay, and on which model?") is one an agent proposing an
 		// AI change should be able to settle for itself instead of asking a human
 		// to open wp-admin. Read door 37 → 38.
-		'signal-noise/ai-cache-probe-status',
 		'signal-noise/purge-verification-log',
 		'signal-noise/shape-stability',
 		'signal-noise/watches',

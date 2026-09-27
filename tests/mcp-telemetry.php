@@ -370,10 +370,10 @@ ok( false === strpos( wp_json_encode( $wpdb->insert_calls[0]['data'] ), 'bogus' 
 
 // --- execute() WP_Error, status-500 → server_error (real shape: inc/abilities-content.php) ---
 sn_test_reset_telemetry();
-$GLOBALS['__abilities']['signal-noise/get-rss-stats'] = new SN_Test_Ability( 'signal-noise/get-rss-stats', array(
+$GLOBALS['__abilities']['signal-noise/shape-stability'] = new SN_Test_Ability( 'signal-noise/shape-stability', array(
 	'result' => new WP_Error( 'snt_helper_unavailable', 'feed unavailable', array( 'status' => 500 ) ),
 ) );
-sn_mcp_call_tool( 'signal-noise__get-rss-stats', array() );
+sn_mcp_call_tool( 'signal-noise__shape-stability', array() );
 ok( 'server_error' === $wpdb->insert_calls[0]['data']['outcome'], 'wiring: execute() WP_Error with a status-500 code → server_error' );
 
 // --- execute() WP_Error, status-429 write-throttle → refused/write_throttle ---
@@ -549,7 +549,7 @@ ok( 'link_reshape' === $row_ct['change_type'], 'build_row: carries the resolved 
 ok( 'conflict' === $row_ct['outcome'], 'build_row: accepts the new conflict outcome' );
 $row_null = sn_mcp_telemetry_build_row( '2026-08-15 01:00:00.000', 'read', 'human', 'signal-noise__sn-posts', 'scope', str_repeat( 'b', 64 ), 'ok', null, 3, 5, null );
 ok( null === $row_null['change_type'], 'build_row: change_type is NULL for a tool that has no change.type' );
-$row_error = sn_mcp_telemetry_build_row( '2026-08-15 01:00:00.000', 'read', 'human', 'signal-noise__get-rss-stats', '', str_repeat( 'c', 64 ), 'server_error', null, 8, null, null, 'snt_helper_unavailable' );
+$row_error = sn_mcp_telemetry_build_row( '2026-08-15 01:00:00.000', 'read', 'human', 'signal-noise__shape-stability', '', str_repeat( 'c', 64 ), 'server_error', null, 8, null, null, 'snt_helper_unavailable' );
 ok( 'snt_helper_unavailable' === $row_error['error_code'], 'build_row: carries the classifier-captured error_code on an error outcome' );
 $row_success_code = sn_mcp_telemetry_build_row( '2026-08-15 01:00:00.000', 'read', 'human', 'signal-noise__sn-posts', '', str_repeat( 'd', 64 ), 'ok', null, 3, null, null, 'snt_must_not_survive' );
 ok( null === $row_success_code['error_code'], 'build_row: success forces error_code NULL even if an internal caller supplies one' );
