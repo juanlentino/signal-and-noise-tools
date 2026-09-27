@@ -4,7 +4,9 @@
  * That pass ran through wp-cli, not sn_tag_merge(), so it never filled the
  * sn_tag_redirects option and Search Console kept 404s for the old
  * archives. Old slug => surviving slug; '' means the tag was deleted with
- * no survivor, so it goes to the notes index. Generated from the map; the
+ * no survivor, so it goes to the notes index; a value starting with '/' is a
+ * page path (the provenance tags go to the /provenance/ hub, since the
+ * `provenance` tag itself no longer exists). Generated from the map; the
  * recorded option wins on a clash.
  *
  * @package signal-and-noise-tools
@@ -15,6 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_TAG_RETIRED_MAP = array(
+	'provenance' => '/provenance/',
 	'ai-labeling' => 'ai-disclosure',
 	'ai-tools' => 'music-production',
 	'ai-generated-music' => 'ai-music',
@@ -35,7 +38,7 @@ const SN_TAG_RETIRED_MAP = array(
 	'court-of-appeal' => '',
 	'cross-cultural-work' => 'freelance-business',
 	'cryptographic-identifiers' => 'music-metadata',
-	'cryptographic-provenance' => 'provenance',
+	'cryptographic-provenance' => '/provenance/',
 	'cryptographic-signing' => 'cryptographic-signatures',
 	'cryptography' => 'cryptographic-signatures',
 	'currency-controls' => 'freelance-business',
@@ -43,7 +46,7 @@ const SN_TAG_RETIRED_MAP = array(
 	'digital-authorship' => 'authorship',
 	'digital-signatures' => 'cryptographic-signatures',
 	'evidence' => '',
-	'falsifiability' => 'provenance',
+	'falsifiability' => '/provenance/',
 	'freelance' => 'freelance-business',
 	'generative-ai' => 'ai-music',
 	'generative-music' => 'ai-music',
@@ -56,7 +59,7 @@ const SN_TAG_RETIRED_MAP = array(
 	'music-authentication' => 'content-authenticity',
 	'music-authenticity' => 'content-authenticity',
 	'music-identification' => 'music-metadata',
-	'music-provenance' => 'provenance',
+	'music-provenance' => '/provenance/',
 	'plain-language' => 'writing',
 	'pricing-strategy' => 'freelance-business',
 	'recording-studio' => 'freelance-business',

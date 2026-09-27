@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Provenance tags land on the hub.** The `provenance` tag no longer exists, so 19.1.0 sent `/tag/music-provenance/`, `/tag/cryptographic-provenance/` and `/tag/falsifiability/` to `/notes/`. They and `/tag/provenance/` now 301 to `/provenance/`. A retired-map value starting with `/` is a page path. A saved rule in the Redirects screen still runs first.
+
 ## [19.1.0] - 2026-09-27 — the north star shows its calibration; retired tags redirect
 
 ### Added

@@ -86,6 +86,9 @@ function sn_tag_redirect_target( $uri ) {
 	}
 	// A retired tag: its survivor while that term lives, else the notes index.
 	$to = SN_TAG_RETIRED_MAP[ $slug ];
+	if ( 0 === strpos( $to, '/' ) ) {
+		return home_url( $to );
+	}
 	return '' !== $to && term_exists( $to, 'post_tag' ) ? home_url( $base . $to . '/' ) : home_url( '/notes/' );
 }
 

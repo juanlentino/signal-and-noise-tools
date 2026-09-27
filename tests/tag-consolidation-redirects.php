@@ -43,13 +43,18 @@ ok( sn_tag_redirect_target( '/notes/tag/old-a/?x=1' ) === 'https://x.test/notes/
 // Retired tags (the 83-to-23 pass): the canonical /tag/ form, survivor or index.
 $GLOBALS['__live_slugs'] = array( 'music-production', 'provenance' );
 ok( sn_tag_redirect_target( '/tag/ai-tools/' ) === 'https://x.test/tag/music-production/', 'retired: /tag/ai-tools/ goes to its survivor' );
-ok( sn_tag_redirect_target( '/notes/tag/music-provenance/' ) === 'https://x.test/notes/tag/provenance/', 'retired: the /notes/tag/ form keeps its form' );
+ok( sn_tag_redirect_target( '/notes/tag/audio-engineering/' ) === 'https://x.test/notes/tag/music-production/', 'retired: the /notes/tag/ form keeps its form' );
 ok( sn_tag_redirect_target( '/tag/evidence/' ) === 'https://x.test/notes/', 'retired: a deleted tag goes to the notes index' );
 $GLOBALS['__live_slugs'] = array( 'provenance' );
 ok( sn_tag_redirect_target( '/tag/ai-tools/' ) === 'https://x.test/notes/', 'retired: a survivor that no longer lives sends to the index, never a 404' );
 $GLOBALS['__live_slugs'] = array( 'ai-tools', 'music-production' );
 ok( sn_tag_redirect_target( '/tag/ai-tools/' ) === '', 'retired: a re-created live tag wins' );
-ok( sn_tag_redirect_target( '/tag/provenance/' ) === '' && sn_tag_redirect_target( '/tagged/ai-tools/' ) === '', 'a survivor and a lookalike path are left alone' );
+ok( sn_tag_redirect_target( '/tag/music-production/' ) === '' && sn_tag_redirect_target( '/tagged/ai-tools/' ) === '', 'a survivor and a lookalike path are left alone' );
+
+$GLOBALS['__live_slugs'] = array();
+ok( sn_tag_redirect_target( '/tag/music-provenance/' ) === 'https://x.test/provenance/' && sn_tag_redirect_target( '/tag/provenance/' ) === 'https://x.test/provenance/', 'provenance tags go to the /provenance/ hub' );
+$GLOBALS['__live_slugs'] = array( 'provenance' );
+ok( sn_tag_redirect_target( '/tag/provenance/' ) === '', 'a re-created provenance tag serves its own archive' );
 
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );
