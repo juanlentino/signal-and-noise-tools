@@ -214,6 +214,11 @@ function sn_session_rollup_run( $day = '' ) {
 		// KEY in the upsert). function_exists-guarded like every cross-module wire.
 		if ( 'human' === $class && function_exists( 'sn_analytics_pageroles_upsert' ) ) {
 			$exit_rows = sn_session_exit_page_rows( $visits, $day );
+			// A complete (uncapped) read REPLACES the day's exit rows, so a path
+			// no visit exits from any more leaves no stale row behind.
+			if ( empty( $data['capped'] ) && defined( 'SN_ANALYTICS_PAGEROLES_TABLE' ) ) {
+				$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}" . SN_ANALYTICS_PAGEROLES_TABLE . " WHERE day = %s AND role = 'exit'", $day ) );
+			}
 			if ( ! empty( $exit_rows ) ) {
 				$written = sn_analytics_pageroles_upsert( $exit_rows );
 				// The schedule only ever computes YESTERDAY — no self-heal

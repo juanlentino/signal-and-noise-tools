@@ -214,3 +214,78 @@ function sn_analytics_window_upper( $tz = '' ) {
 		? "toStartOfInterval(now(), INTERVAL '1' DAY, '{$tz}') - INTERVAL '{$until}' DAY"
 		: "toStartOfDay(now() - INTERVAL '{$until}' DAY)" );
 }
+
+/**
+ * The day keys the current rollup window reads COMPLETELY, keyed the way the
+ * writer keys them: site-local days for the zone the read actually ran with,
+ * UTC days for ''. The SQL floors the lower bound to a whole day and the upper
+ * bound (recompute only) to a day start, so every day from `days` ago through
+ * `until + 1` ago (through today when unbounded) is read in full: there is no
+ * partial boundary day to protect. PHP's clock can disagree with AE's around
+ * midnight, so the oldest day is named from a clock 5 minutes AHEAD and the
+ * newest from one 5 minutes BEHIND: a skew can only drop a boundary day from
+ * the list, never add a day the read did not cover.
+ *
+ * @param string $tz The zone the read ran with ('' = UTC).
+ * @return string[] Y-m-d days, oldest first; [] for an invalid zone.
+ */
+function sn_analytics_rollup_window_days( $tz = '' ) {
+	$w = sn_analytics_rollup_window();
+	try {
+		$zone = new DateTimeZone( '' !== (string) $tz ? (string) $tz : 'UTC' );
+	} catch ( Exception $e ) {
+		return array();
+	}
+	$day   = static function ( $ts, $ago ) use ( $zone ) {
+		return ( new DateTimeImmutable( '@' . $ts ) )->setTimezone( $zone )->modify( '-' . (int) $ago . ' days' )->format( 'Y-m-d' );
+	};
+	$first = $day( time() + 300, $w['days'] );
+	$last  = $day( time() - 300, $w['until'] > 0 ? $w['until'] + 1 : 0 );
+	$out   = array();
+	for ( $d = $first; $d <= $last; $d = gmdate( 'Y-m-d', strtotime( $d . ' 12:00:00 UTC' ) + 86400 ) ) {
+		$out[] = $d;
+	}
+	return $out;
+}
+
+/**
+ * Make a re-roll REPLACE the days it read instead of only upserting over them.
+ * An upsert never removes a stored key the fresh result no longer has, so a
+ * visitor the human rule newly excludes left their paths behind (measured
+ * 2026-09-27: 139 stored 7-day human views against ~62 in AE). A failed or
+ * row-cap-truncated read ($complete false) only upserts, as before: deleting on
+ * it would blank history. The caller judges completeness right after its own
+ * query, because the truncation verdict describes the last query only. Deletes
+ * the window's days (narrowed by $scope, e.g. one dim or role) and runs $write
+ * in one transaction, rolled back when the write leaves a database error.
+ * ponytail: the error check sees the last chunk's query only; a per-chunk
+ * verdict from the upserts if a mid-batch failure is ever measured.
+ *
+ * @param bool     $complete The read was not null and not truncated.
+ * @param string   $table    Table name without prefix.
+ * @param string   $tz       The zone the read ran with ('' = UTC days).
+ * @param callable $write    Writes the fresh rows.
+ * @param array    $scope    Optional column => value (or list of values) the delete is limited to.
+ */
+function sn_analytics_rollup_replace( $complete, $table, $tz, callable $write, array $scope = array() ) {
+	global $wpdb;
+	$days = $complete ? sn_analytics_rollup_window_days( $tz ) : array();
+	if ( empty( $days ) || in_array( array(), $scope, true ) || ! is_object( $wpdb ) ) {
+		$write();
+		return;
+	}
+	$sql  = "DELETE FROM {$wpdb->prefix}{$table} WHERE day IN (" . implode( ',', array_fill( 0, count( $days ), '%s' ) ) . ')';
+	$args = $days;
+	foreach ( $scope as $col => $vals ) {
+		$vals = array_map( 'strval', (array) $vals );
+		$sql .= ' AND ' . preg_replace( '/[^a-z_]/', '', (string) $col ) . ' IN (' . implode( ',', array_fill( 0, count( $vals ), '%s' ) ) . ')';
+		$args = array_merge( $args, $vals );
+	}
+	$wpdb->query( 'START TRANSACTION' );
+	// phpcs:ignore WordPress.DB.PreparedSQL -- table is prefix + a plugin constant, the column is charset-stripped, every value is bound.
+	$gone = $wpdb->query( $wpdb->prepare( $sql, $args ) );
+	if ( false !== $gone ) {
+		$write();
+	}
+	$wpdb->query( false !== $gone && '' === (string) $wpdb->last_error ? 'COMMIT' : 'ROLLBACK' );
+}

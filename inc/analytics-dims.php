@@ -216,11 +216,16 @@ function sn_analytics_dims_run_rollup() {
 		return;
 	}
 
-	$all = array();
+	// One batched write; the delete covers only the dims whose own read was complete.
+	$all      = array();
+	$complete = array();
 	foreach ( array_keys( SN_ANALYTICS_DIM_COLUMNS ) as $dim ) {
 		$rows = sn_analytics_query( sn_analytics_dims_rollup_sql( $dim, sn_analytics_rollup_window()['days'] ) );
 		if ( ! is_array( $rows ) ) {
 			continue;
+		}
+		if ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() ) {
+			$complete[] = $dim;
 		}
 		foreach ( $rows as $row ) {
 			if ( is_array( $row ) ) {
@@ -230,9 +235,12 @@ function sn_analytics_dims_run_rollup() {
 		}
 	}
 
-	if ( ! empty( $all ) ) {
-		sn_analytics_dims_upsert( $all );
-	}
+	$write = static function () use ( $all ) {
+		if ( ! empty( $all ) ) {
+			sn_analytics_dims_upsert( $all );
+		}
+	};
+	function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( true, SN_ANALYTICS_DIMS_TABLE, '', $write, array( 'dim' => $complete ) ) : $write();
 }
 
 /**

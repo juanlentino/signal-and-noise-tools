@@ -148,27 +148,37 @@ function sn_analytics_events_run_rollup() {
 
 	// Events (blob1='ce'): AE aliases day/name/events/visitors already match the
 	// upsert's {day,name,visitors,events} shape — cap, then upsert.
+	$used = $tz;
 	$ce_rows = sn_analytics_query( sn_analytics_events_rollup_sql( sn_analytics_rollup_window()['days'], $tz ) );
 	if ( '' !== $tz && ! is_array( $ce_rows ) ) {
+		$used = '';
 		$ce_rows = sn_analytics_query( sn_analytics_events_rollup_sql( sn_analytics_rollup_window()['days'], '' ) );
 	}
-	if ( is_array( $ce_rows ) && ! empty( $ce_rows ) ) {
+	if ( is_array( $ce_rows ) && function_exists( 'sn_analytics_events_upsert' ) ) {
 		$capped = sn_analytics_events_rollup_cap_per_day( $ce_rows, SN_ANALYTICS_EVENTS_ROLLUP_NAME_CAP );
-		if ( ! empty( $capped ) && function_exists( 'sn_analytics_events_upsert' ) ) {
-			sn_analytics_events_upsert( $capped );
-		}
+		$write  = static function () use ( $capped ) {
+			if ( ! empty( $capped ) ) {
+				sn_analytics_events_upsert( $capped );
+			}
+		};
+		function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated(), 'sn_analytics_events', $used, $write ) : $write();
 	}
 
 	// Event props (blob1='cp'): AE aliases day/property/value/events/visitors
 	// match the upsert's {day,property,value,visitors,events} shape — cap, upsert.
+	$used = $tz;
 	$cp_rows = sn_analytics_query( sn_analytics_event_props_rollup_sql( sn_analytics_rollup_window()['days'], $tz ) );
 	if ( '' !== $tz && ! is_array( $cp_rows ) ) {
+		$used = '';
 		$cp_rows = sn_analytics_query( sn_analytics_event_props_rollup_sql( sn_analytics_rollup_window()['days'], '' ) );
 	}
-	if ( is_array( $cp_rows ) && ! empty( $cp_rows ) ) {
+	if ( is_array( $cp_rows ) && function_exists( 'sn_analytics_event_props_upsert' ) ) {
 		$capped = sn_analytics_events_rollup_cap_per_day( $cp_rows, SN_ANALYTICS_EVENTS_ROLLUP_PROP_CAP );
-		if ( ! empty( $capped ) && function_exists( 'sn_analytics_event_props_upsert' ) ) {
-			sn_analytics_event_props_upsert( $capped );
-		}
+		$write  = static function () use ( $capped ) {
+			if ( ! empty( $capped ) ) {
+				sn_analytics_event_props_upsert( $capped );
+			}
+		};
+		function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated(), 'sn_analytics_event_props', $used, $write ) : $write();
 	}
 }

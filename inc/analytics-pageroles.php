@@ -308,11 +308,13 @@ function sn_analytics_pageroles_run_rollup() {
 	$tz   = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
 	$rows = sn_analytics_query( sn_analytics_pageroles_rollup_sql( sn_analytics_rollup_window()['days'], $tz ) );
 	if ( '' !== $tz && ! is_array( $rows ) ) {
+		$tz   = '';
 		$rows = sn_analytics_query( sn_analytics_pageroles_rollup_sql( sn_analytics_rollup_window()['days'], '' ) );
 	}
 	if ( ! is_array( $rows ) ) {
 		return;
 	}
+	$complete = ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated();
 
 	$tagged = array();
 	foreach ( $rows as $row ) {
@@ -322,7 +324,11 @@ function sn_analytics_pageroles_run_rollup() {
 		}
 	}
 
-	if ( ! empty( $tagged ) ) {
-		sn_analytics_pageroles_upsert( $tagged );
-	}
+	$write = static function () use ( $tagged ) {
+		if ( ! empty( $tagged ) ) {
+			sn_analytics_pageroles_upsert( $tagged );
+		}
+	};
+	// Entry rows only: exit rows are the session rollup's, keyed by UTC day.
+	function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( $complete, SN_ANALYTICS_PAGEROLES_TABLE, $tz, $write, array( 'role' => 'entry' ) ) : $write();
 }

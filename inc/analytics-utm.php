@@ -229,10 +229,15 @@ function sn_analytics_utm_run_rollup() {
 	}
 
 	$rows = sn_analytics_query( sn_analytics_utm_rollup_sql( sn_analytics_rollup_window()['days'] ) );
-	if ( ! is_array( $rows ) || empty( $rows ) ) {
+	if ( ! is_array( $rows ) ) {
 		return;
 	}
-	sn_analytics_utm_upsert( $rows );
+	$write = static function () use ( $rows ) {
+		if ( ! empty( $rows ) ) {
+			sn_analytics_utm_upsert( $rows );
+		}
+	};
+	function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated(), SN_ANALYTICS_UTM_TABLE, '', $write ) : $write();
 }
 
 /**
