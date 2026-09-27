@@ -20,6 +20,7 @@ adds a bullet below. A release is a separate, deliberate act:
 - Feed subscribers now count one aggregator once across its versions. A name like "BazQux/2.4" inside a browser-style user agent kept its version, so two releases of the same reader on one day were added together instead of taking the higher count. (#1961)
 - The OpenStation analytics window test now checks that the Resume recompute button's resume choice reaches the handler, so a replay that dropped it (and restarted from day one) would fail. (#1961)
 - The owner exclusion notes no longer say cached pages leak the owner's visits. The sn_owner cookie checked in the browser covers cached pages. (#1961)
+- The page-view cap now catches a visitor-day that crosses midnight UTC. The visitor hash rotates at New York midnight, but the over-cap list grouped views by hash and UTC date, so one visitor-day could be split in two and slip under the cap. Measured live: a 65-view visitor-day read as 18 plus 47 and was not excluded. The list now groups by the hash alone, and its cache key moves to v3 so the old list is dropped on upgrade.
 
 ## [19.6.0] - 2026-09-27 — the class is decided when read
 

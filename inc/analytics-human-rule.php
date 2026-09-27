@@ -29,14 +29,15 @@ const SNT_ANALYTICS_VDAY_WINDOW_DAYS = 92;
 // 400 keeps the longest statement (read-time class + NOT IN list) under AE's
 // 10,000-character cap; sn_analytics_sql_too_long() fails closed past it.
 const SNT_ANALYTICS_VDAY_LIST_MAX    = 400;
-// 19.4.1: versioned key, so the upgrade drops a failed read cached by 19.4.0.
-const SNT_ANALYTICS_VDAY_CACHE_KEY   = 'sn_analytics_overcap_vdays_v2';
+// Versioned key: 19.4.1 dropped a failed read cached by 19.4.0; v3 drops a list read with the UTC-split grouping.
+const SNT_ANALYTICS_VDAY_CACHE_KEY   = 'sn_analytics_overcap_vdays_v3';
 
 /**
- * AE SQL: visitor-days over the page-view cap in the trailing window. Analytics
- * Engine takes only column names or aliases in GROUP BY, so the day is
- * selected as an alias and grouped and filtered by alias (verified live
- * 2026-09-27; `GROUP BY index1, toDate(timestamp)` is refused).
+ * AE SQL: visitor-days over the page-view cap in the trailing window. The hash
+ * alone is the visitor-day: the worker rotates it at America/New_York
+ * midnight, so grouping by the UTC date as well split one visitor-day in two
+ * and let it slip under the cap (measured 2026-09-27: 65 views read as 18 + 47).
+ * AE takes only column names or aliases in GROUP BY and HAVING.
  *
  * @return string
  */
@@ -45,10 +46,10 @@ function sn_analytics_overcap_sql() {
 	$cap  = (int) SNT_ANALYTICS_VDAY_PV_CAP;
 	$max  = (int) SNT_ANALYTICS_VDAY_LIST_MAX;
 	return implode( ' ', array(
-		'SELECT index1 AS vid, toDate(timestamp) AS d, sum(_sample_interval) AS views',
+		'SELECT index1 AS vid, sum(_sample_interval) AS views',
 		'FROM ' . ( defined( 'SN_ANALYTICS_DATASET' ) ? SN_ANALYTICS_DATASET : 'sn_pageviews' ),
 		"WHERE blob1 = 'pv' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
-		'GROUP BY vid, d',
+		'GROUP BY vid',
 		"HAVING views > {$cap}",
 		"LIMIT {$max}",
 	) );
