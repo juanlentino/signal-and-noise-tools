@@ -19,6 +19,7 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 }
 
 define( 'ABSPATH', '/' );
+ob_start(); // Keep headers unsent so the cookie writer runs under CLI.
 
 // --- WP + plugin stubs -------------------------------------------------------
 $GLOBALS['__filters']       = array();
@@ -29,6 +30,13 @@ $GLOBALS['__settings']      = array( 'analytics' => array( 'exclude_roles' => ar
 function add_filter( $hook, $cb ) {
 	$GLOBALS['__filters'][ $hook ][] = $cb;
 	return true;
+}
+function add_action( $hook, $cb ) {
+	$GLOBALS['__actions'][ $hook ][] = $cb;
+	return true;
+}
+function wp_verify_nonce( $nonce, $action ) {
+	return 'sn_owner_device' === $action && 'goodnonce' === $nonce ? 1 : false;
 }
 function is_user_logged_in() {
 	return (bool) $GLOBALS['__logged_in'];
@@ -141,6 +149,40 @@ ok( isset( $roles['administrator'] ) && 'Administrator' === $roles['administrato
 ok( array( 'administrator', 'editor' ) === sn_beacon_sanitize_exclude_roles( array( 'administrator', 'editor', 'nonsense_role' ) ), 'sanitize drops unknown roles, preserves order' );
 ok( array( 'administrator' ) === sn_beacon_sanitize_exclude_roles( array( 'administrator', 'administrator' ) ), 'sanitize de-dupes' );
 ok( array() === sn_beacon_sanitize_exclude_roles( 'not-an-array' ), 'sanitize handles non-array input' );
+
+
+// 6) Owner-device cookie (sn_owner): set at login for excluded users only.
+$GLOBALS['__settings']['analytics']['exclude_roles'] = array( 'administrator' );
+$_COOKIE = array();
+ok( null === sn_owner_cookie_on_login( 'x', (object) array( 'roles' => array( 'subscriber' ) ) ), 'cookie: NOT set at login for a non-excluded user' );
+ok( ! isset( $_COOKIE['sn_owner'] ), 'cookie: non-excluded login leaves no flag' );
+$opts = sn_owner_cookie_on_login( 'x', (object) array( 'roles' => array( 'administrator' ) ) );
+ok( is_array( $opts ) && '1' === $_COOKIE['sn_owner'], 'cookie: set to 1 at login for an excluded user' );
+ok( is_array( $opts ) && true === $opts['secure'] && 'Lax' === $opts['samesite'] && false === $opts['httponly'] && '/' === $opts['path'], 'cookie: Secure, SameSite=Lax, path=/, NOT HttpOnly' );
+$ttl = is_array( $opts ) ? $opts['expires'] - time() : 0;
+ok( $ttl > 399 * 86400 && $ttl <= 400 * 86400, 'cookie: lives ~400 days' );
+ok( in_array( 'sn_owner_cookie_on_login', $GLOBALS['__actions']['wp_login'] ?? array(), true ), 'cookie: hooked on wp_login' );
+
+// 7) init backfill + nonce'd forget/mark link.
+$GLOBALS['__logged_in']     = true;
+$GLOBALS['__current_roles'] = array( 'administrator' );
+$_COOKIE = array();
+$_GET    = array();
+ok( 'backfill' === sn_owner_cookie_on_init() && '1' === $_COOKIE['sn_owner'], 'init: existing excluded session without the flag gets it' );
+$_GET = array( 'sn_owner_device' => 'forget' );
+ok( null === sn_owner_cookie_on_init() && '1' === $_COOKIE['sn_owner'], 'forget: refused without a nonce' );
+$_GET = array( 'sn_owner_device' => 'forget', '_wpnonce' => 'badnonce' );
+ok( null === sn_owner_cookie_on_init() && '1' === $_COOKIE['sn_owner'], 'forget: refused with a bad nonce' );
+$_GET = array( 'sn_owner_device' => 'forget', '_wpnonce' => 'goodnonce' );
+ok( 'forget' === sn_owner_cookie_on_init() && '0' === $_COOKIE['sn_owner'] && ! sn_owner_device_flagged(), 'forget: valid nonce sets sn_owner=0' );
+$_GET = array();
+ok( null === sn_owner_cookie_on_init() && '0' === $_COOKIE['sn_owner'], 'init: a forgotten device is NOT re-marked' );
+$GLOBALS['__current_roles'] = array( 'subscriber' );
+$_COOKIE = array();
+ok( null === sn_owner_cookie_on_init() && ! isset( $_COOKIE['sn_owner'] ), 'init: non-excluded user never gets the flag' );
+$_GET = array( 'sn_owner_device' => 'mark', '_wpnonce' => 'goodnonce' );
+ok( null === sn_owner_cookie_on_init() && ! isset( $_COOKIE['sn_owner'] ), 'mark: refused for a non-excluded user even with a nonce' );
+$_GET = array();
 
 // NOTE: the admin-post save handler (sn_handle_analytics_exclude_save) lives in
 // inc/admin-post-actions/analytics.php with the other analytics handlers; its behaviour

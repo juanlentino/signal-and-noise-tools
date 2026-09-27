@@ -219,6 +219,11 @@ function snt_analytics_render_exclusion() {
 
 	if ( function_exists( 'sn_beacon_owner_current_user_excluded' ) && sn_beacon_owner_current_user_excluded() ) {
 		echo '<p class="sn-an-status"><strong>' . esc_html__( 'You are currently excluded from analytics.', 'signal-and-noise-tools' ) . '</strong></p>';
+		$flagged = sn_owner_device_flagged();
+		$link    = wp_nonce_url( add_query_arg( 'sn_owner_device', $flagged ? 'forget' : 'mark' ), 'sn_owner_device' );
+		$line    = $flagged ? esc_html__( 'This device is excluded even when logged out.', 'signal-and-noise-tools' ) : esc_html__( 'This device is counted when logged out.', 'signal-and-noise-tools' );
+		$label   = $flagged ? esc_html__( 'Count this device again', 'signal-and-noise-tools' ) : esc_html__( 'Exclude this device', 'signal-and-noise-tools' );
+		echo '<p class="sn-an-status">' . $line . ' <a href="' . esc_url( $link ) . '">' . $label . '</a></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- both pre-escaped above.
 	} else {
 		echo '<p class="sn-an-status">' . esc_html__( 'You are currently counted in analytics.', 'signal-and-noise-tools' ) . '</p>';
 	}
