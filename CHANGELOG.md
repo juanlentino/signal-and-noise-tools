@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **S&N Home leads with what it is for.** The north star is the hero: engaged readers at display size, its four weeks as an `os-histogram`, and beside it the three signals that matter now (resume PDF downloads, research links followed, notes shared), ruled in the pulse tiles' own language. The other twelve signals fold behind "All signals". Home stops repeating itself: the Publishing and Trust & Operations tile groups, the recent-deploys list and the second maintenance bar are gone (the Systems wall, the Deploy Status and Quick Actions widgets and the Integrity tab carry them); the Systems wall folds behind one line ("All 11 systems current", or how many need a look), whole, so freshness-dot.js still fills its Caches card; "All clear" paints nothing, since the greeting already says the site is healthy; queries that brought no clicks are hidden; Continue working shows three rows (View all still counts every item). About half the height.
+
 ## [18.9.0] - 2026-09-26 — readers, what they do, and where they came from
 
 ### Added

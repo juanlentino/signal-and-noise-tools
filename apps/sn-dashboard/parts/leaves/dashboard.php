@@ -385,23 +385,6 @@ function home_pulse_html( array $data, $tab ) {
 		. detail_html( (array) ( $data['panels'] ?? array() ), 'audience', __( 'Audience detail, 7 days', 'signal-and-noise-tools' ) )
 		. '</div>';
 
-	// Group 2: Publishing.
-	$out .= '<div class="snt-home__pulse-group">'
-		. '<div class="snt-home__pulse-group-label">' . esc_html__( 'Publishing', 'signal-and-noise-tools' ) . '</div>'
-		. '<div class="snt-home__pulse">'
-		. pulse_item_html( __( 'Published posts', 'signal-and-noise-tools' ), 'dashicons-admin-post', $published, '', admin_url( 'edit.php' ) )
-		. pulse_item_html( __( 'Scheduled posts', 'signal-and-noise-tools' ), 'dashicons-calendar-alt', $scheduled, '', admin_url( 'edit.php?post_status=future' ) )
-		. '</div></div>';
-
-	// Group 3: Trust & Operations.
-	$out .= '<div class="snt-home__pulse-group">'
-		. '<div class="snt-home__pulse-group-label">' . esc_html__( 'Trust & Operations', 'signal-and-noise-tools' ) . '</div>'
-		. '<div class="snt-home__pulse">'
-		. pulse_item_html( __( 'Plugin version', 'signal-and-noise-tools' ), 'dashicons-admin-plugins', $deploy_val, '', admin_url( 'admin.php?page=sn-theme-options&tab=dashboard' ), $tab )
-		. pulse_item_html( __( 'Provenance anchors', 'signal-and-noise-tools' ), 'dashicons-tag', $anchored_str, '', admin_url( 'admin.php?page=sn-theme-options&tab=tools&sub=provenance' ), $tab )
-		. pulse_item_html( __( 'Site health', 'signal-and-noise-tools' ), 'dashicons-heart', $health_val, '', admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ), $tab )
-		. '</div></div>';
-
 	$out .= '</section>';
 	return $out;
 }
@@ -496,6 +479,11 @@ function home_attention_html( array $data, $tab ) {
 		}
 	);
 
+	// Nothing needs you: no section at all. The greeting's state line already
+	// says the site is healthy; an "All clear" block restated it.
+	if ( array() === $rows ) {
+		return '';
+	}
 	$total_count  = count( $rows );
 	$visible_rows = array_slice( $rows, 0, 5 );
 
@@ -588,7 +576,7 @@ function home_continue_working_html( $tab ) {
 			array(
 				'post_type'              => array( 'post', 'page' ),
 				'post_status'            => array( 'draft', 'pending', 'future', 'private', 'publish' ),
-				'posts_per_page'         => 6,
+				'posts_per_page'         => 3,
 				'orderby'                => 'modified',
 				'order'                  => 'DESC',
 				'ignore_sticky_posts'    => true,
@@ -683,12 +671,17 @@ function home_continue_working_html( $tab ) {
 function home_operations_html( array $data, $tab ) {
 	$out = '<section class="snt-home__section snt-home__section--subordinate" aria-labelledby="snt-home-ops-heading">'
 		. '<div class="snt-home__section-heading">'
-		. '<h2 id="snt-home-ops-heading">' . esc_html__( 'Operations & Maintenance', 'signal-and-noise-tools' ) . '</h2>'
+		. '<h2 id="snt-home-ops-heading">' . esc_html__( 'Operations', 'signal-and-noise-tools' ) . '</h2>'
 		. '</div>';
 
-	$out .= systems_html( (array) ( $data['checks'] ?? array() ), (array) ( $data['components'] ?? array() ), $tab );
-	$out .= detail_html( (array) ( $data['panels'] ?? array() ), 'ops' );
-	$out .= toolbar_html( (string) ( $data['check_updates_url'] ?? '' ) );
+	// The wall stays whole (freshness-dot.js fills its Caches card after load)
+	// but folds behind one line; deploys and the maintenance bar are the
+	// Deploy Status and Quick Actions widgets' job, not Home's.
+	$out .= \snt_kit_tag(
+		'os-disclosure',
+		array( 'heading' => systems_summary( (array) ( $data['checks'] ?? array() ), (array) ( $data['components'] ?? array() ) ), 'class' => 'snt-home__systems' ),
+		systems_html( (array) ( $data['checks'] ?? array() ), (array) ( $data['components'] ?? array() ), $tab )
+	);
 
 	if ( ! empty( $data['overrides'] ) ) {
 		$names = array_map( '\snt_kit_esc', (array) $data['overrides'] );
@@ -705,6 +698,22 @@ function home_operations_html( array $data, $tab ) {
 
 	$out .= '</section>';
 	return $out;
+}
+
+/**
+ * The one line the folded Systems wall shows: how many cards want
+ * attention, by the same test the wall paints its warning state with.
+ *
+ * @param array<int,array<string,mixed>> $checks     Checks.
+ * @param array<int,array<string,mixed>> $components Fleet cards.
+ * @return string
+ */
+function systems_summary( array $checks, array $components ) {
+	$cards = array_filter( array_merge( array_values( $checks ), array_values( $components ) ), 'is_array' );
+	$bad   = array_filter( $cards, static fn( $c ) => 'ok' !== (string) ( $c['pill']['kind'] ?? 'ok' ) && \sn_admin_card_wants_attention( $c ) );
+	return array() === $bad
+		? sprintf( /* translators: %d systems */ _n( '%d system, all current', 'All %d systems current', count( $cards ), 'signal-and-noise-tools' ), count( $cards ) )
+		: sprintf( /* translators: 1: systems wanting attention, 2: all systems */ __( '%1$d of %2$d systems need a look', 'signal-and-noise-tools' ), count( $bad ), count( $cards ) );
 }
 
 /**
@@ -781,6 +790,11 @@ function detail_html( array $panels, $group = 'ops', $heading = null ) {
 			continue;
 		}
 		$rows  = array_key_exists( 'rows', $panel ) ? $panel['rows'] : null;
+		if ( 'audience' === $group && is_array( $rows ) ) {
+			// A query that brought no clicks is noise on Home; an all-zero
+			// panel falls to its own empty message, never an empty column.
+			$rows = array_values( array_filter( $rows, static fn( $r ) => '0' !== (string) ( $r['value'] ?? '' ) ) );
+		}
 		$inner = null === $rows
 			? '<p class="snt-list__empty">' . \snt_kit_esc( (string) ( $panel['unmeasured'] ?? '' ) ) . '</p>'
 			: \snt_kit_list( (array) $rows, array( 'empty' => (string) ( $panel['empty'] ?? '' ) ) );
