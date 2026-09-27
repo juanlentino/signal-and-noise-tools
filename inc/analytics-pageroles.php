@@ -34,6 +34,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
+
 // sn_analytics_canonical_path_sql() — pure, zero WP calls, safe to require both
 // under the plugin loader and in the standalone CLI harness.
 require_once __DIR__ . '/analytics-derive.php';
@@ -277,7 +279,7 @@ function sn_analytics_pageroles_rollup_sql( $days, $tz = '' ) {
 		'sum(_sample_interval) AS views,',
 		'count(DISTINCT index1) AS visits',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'pv' AND blob7 = 'human'",
+		"WHERE blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ),
 		"AND ( blob3 = '' OR blob3 NOT IN ('{$host}','www.{$host}') )",
 		"AND timestamp >= {$lower}",
 		'GROUP BY day, path',

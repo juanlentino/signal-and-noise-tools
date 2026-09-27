@@ -21,6 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
+
 /**
  * Parse a '<dim>:<value>' drill token. Splits on the FIRST colon (values may
  * contain colons). Returns array($dim, $value) for a known dim + non-empty value,
@@ -84,7 +86,7 @@ function sn_analytics_drilldown_sql( $dim, $values, $from, $to, $class ) {
 		'sum(_sample_interval) AS views,',
 		'count(DISTINCT index1) AS visits',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'pv' AND {$col} IN ({$in}) AND blob7 = '{$class}'",
+		"WHERE blob1 = 'pv' AND {$col} IN ({$in}) AND " . sn_analytics_class_where( $class ),
 		"AND timestamp >= toDateTime('{$from} 00:00:00')",
 		"AND timestamp <= toDateTime('{$to} 23:59:59')",
 		'GROUP BY path',

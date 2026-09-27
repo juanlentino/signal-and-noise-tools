@@ -197,6 +197,27 @@ function snt_nsm_page_metrics( array $visits ) {
 }
 
 /**
+ * Engaged visitor-days: those with ANY viewed page that met the read floor
+ * (snt_nsm_is_read, the north star's own rule; no section restriction). PURE.
+ *
+ * @param array $visits Visits from sn_sessionize().
+ * @param array $cfg    snt_nsm_config() shape.
+ * @return int
+ */
+function snt_nsm_engaged( array $visits, array $cfg ) {
+	$n = 0;
+	foreach ( snt_nsm_page_metrics( $visits ) as $row ) {
+		foreach ( $row['pages'] as $m ) {
+			if ( snt_nsm_is_read( $m, $cfg ) ) {
+				++$n;
+				break;
+			}
+		}
+	}
+	return $n;
+}
+
+/**
  * Is one page's [scroll, dwell] a read under the live rule? PURE.
  *
  * @param array $m   [max scroll, summed dwell ms].

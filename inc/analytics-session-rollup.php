@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_SESSION_ROLLUP_TABLE          = 'sn_session_daily';
-const SN_SESSION_ROLLUP_DB_VERSION     = '1';
+const SN_SESSION_ROLLUP_DB_VERSION     = '2'; // 2: engaged (visitor-days that met the north star's read floor; NULL = not measured)
 const SN_SESSION_ROLLUP_DB_VERSION_OPT = 'sn_session_daily_db_version';
 const SN_SESSION_ROLLUP_HOOK           = 'sn_session_rollup_daily';
 
@@ -37,6 +37,7 @@ function sn_session_rollup_schema_sql() {
 		bounce_pct FLOAT NOT NULL DEFAULT 0,
 		ppv FLOAT NOT NULL DEFAULT 0,
 		median_dur INT UNSIGNED NOT NULL DEFAULT 0,
+		engaged INT UNSIGNED NULL DEFAULT NULL,
 		PRIMARY KEY  (id),
 		UNIQUE KEY day_class (day, class)
 	) {$charset};";
@@ -87,6 +88,7 @@ function sn_session_rollup_normalize( $rows ) {
 			'bounce_pct' => round( (float) ( $r['bounce_pct'] ?? 0 ), 2 ),
 			'ppv'        => round( (float) ( $r['ppv'] ?? 0 ), 2 ),
 			'median_dur' => max( 0, (int) round( (float) ( $r['median_dur'] ?? 0 ) ) ),
+			'engaged'    => isset( $r['engaged'] ) ? max( 0, (int) $r['engaged'] ) : null,
 		);
 	}
 	return $clean;
@@ -190,6 +192,8 @@ function sn_session_rollup_run() {
 			'bounce_pct' => $m['bounce_rate'] * 100,
 			'ppv'        => $m['pages_per_visit'],
 			'median_dur' => $m['median_duration'],
+			// Human only: engaged visitor-days under the north star's own read rule.
+			'engaged'    => ( 'human' === $class && function_exists( 'snt_nsm_engaged' ) ) ? snt_nsm_engaged( (array) ( $data['visits'] ?? array() ), snt_nsm_config() ) : null,
 		);
 		// v9.66.0 exit bridge: derive per-path exit counts from the SAME pv-gated
 		// visit set and upsert them into pageroles (role='exit'). Zero rows →
@@ -270,7 +274,7 @@ function sn_session_rollup_read( $from, $to, $class ) {
 	$table = $wpdb->prefix . SN_SESSION_ROLLUP_TABLE;
 	// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- static SELECT template; $table is $wpdb->prefix + a plugin constant and every value binds via prepare(); reads the plugin-owned rollup table (no core API exists for it).
 	$rows = $wpdb->get_results( $wpdb->prepare(
-		"SELECT day, visits, bounce_pct, ppv, median_dur FROM {$table} WHERE day >= %s AND day <= %s AND class = %s ORDER BY day ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- see above.
+		"SELECT day, visits, bounce_pct, ppv, median_dur, engaged FROM {$table} WHERE day >= %s AND day <= %s AND class = %s ORDER BY day ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- see above.
 		$from,
 		$to,
 		$class
@@ -302,6 +306,7 @@ function sn_session_rollup_read( $from, $to, $class ) {
 			'bounce_pct' => (float) $r['bounce_pct'],
 			'ppv'        => (float) $r['ppv'],
 			'median_dur' => max( 0, (int) $r['median_dur'] ),
+			'engaged'    => ( isset( $r['engaged'] ) && '' !== (string) $r['engaged'] ) ? (int) $r['engaged'] : null,
 		);
 	}
 	return $out;
@@ -326,7 +331,8 @@ function sn_session_rollup_upsert( $clean ) {
 			// so a comma-decimal server locale (de_DE, pt_BR, …) would emit "1,75"
 			// and corrupt the SQL. number_format( …, '.', '' ) forces a dot decimal
 			// regardless of locale; MySQL coerces the quoted string into the FLOAT column.
-			$placeholders[] = '(%s, %s, %d, %s, %s, %d)';
+			// engaged is NULL (not measured) for non-human classes and pre-v2 rows.
+			$placeholders[] = '(%s, %s, %d, %s, %s, %d, ' . ( null === ( $c['engaged'] ?? null ) ? 'NULL' : '%d' ) . ')';
 			array_push(
 				$values,
 				$c['day'],
@@ -336,10 +342,13 @@ function sn_session_rollup_upsert( $clean ) {
 				number_format( (float) $c['ppv'], 2, '.', '' ),
 				$c['median_dur']
 			);
+			if ( null !== ( $c['engaged'] ?? null ) ) {
+				$values[] = (int) $c['engaged'];
+			}
 		}
-		$sql = "INSERT INTO {$table} (day, class, visits, bounce_pct, ppv, median_dur) VALUES "
+		$sql = "INSERT INTO {$table} (day, class, visits, bounce_pct, ppv, median_dur, engaged) VALUES "
 			. implode( ', ', $placeholders )
-			. ' ON DUPLICATE KEY UPDATE visits=VALUES(visits), bounce_pct=VALUES(bounce_pct), ppv=VALUES(ppv), median_dur=VALUES(median_dur)';
+			. ' ON DUPLICATE KEY UPDATE visits=VALUES(visits), bounce_pct=VALUES(bounce_pct), ppv=VALUES(ppv), median_dur=VALUES(median_dur), engaged=VALUES(engaged)';
 
 		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL -- $sql is a static INSERT ... VALUES template with a generated %s/%d placeholder group per row; $table is $wpdb->prefix + a plugin constant and every value is bound via prepare().
 		$result = $wpdb->query( $wpdb->prepare( $sql, $values ) );

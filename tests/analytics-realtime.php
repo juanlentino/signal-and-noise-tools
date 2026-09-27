@@ -32,6 +32,7 @@ if ( ! function_exists( 'add_action' ) ) {
 
 $GLOBALS['__rt_transients'] = array();
 function get_transient( $key ) {
+	if ( 'sn_analytics_overcap_vdays' === $key ) { return array( 'hashes' => array(), 'ok' => true, 'truncated' => false ); } // the human rule's list, primed so call counts stay this module's own
 	return array_key_exists( $key, $GLOBALS['__rt_transients'] ) ? $GLOBALS['__rt_transients'][ $key ] : false;
 }
 function set_transient( $key, $value, $exp = 0 ) {

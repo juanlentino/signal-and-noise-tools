@@ -83,6 +83,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
+
 const SN_ANALYTICS_DAILY_TABLE          = 'sn_analytics_daily';
 // v3: one-time purge of admin/login rows that leaked in before the ingestion
 // guard (sn_analytics_is_excluded_path) existed. Data-only — no schema change.
@@ -327,7 +329,7 @@ function sn_analytics_rollup_sql( $days, $tz = '' ) {
 		"sumIf(double2 * _sample_interval, blob1 = 'tm') AS time_sum,",
 		"sumIf(_sample_interval, blob1 = 'tm') AS time_events",
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE timestamp >= {$lower}",
+		"WHERE timestamp >= {$lower}" . sn_analytics_overcap_where(),
 		'GROUP BY day, path, class',
 		'ORDER BY day DESC, views DESC',
 	) );
@@ -396,7 +398,7 @@ function sn_analytics_rollup_gated_sql( $days, $tz = '' ) {
 		'blob7 AS class,',
 		'count(DISTINCT index1) AS pageview_visits',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE timestamp >= {$lower}",
+		"WHERE timestamp >= {$lower}" . sn_analytics_overcap_where(),
 		"AND blob1 = 'pv'",
 		'GROUP BY day, path, class',
 		'ORDER BY day DESC, pageview_visits DESC',
