@@ -92,12 +92,15 @@ function north_star_html( $tab ) {
 	$delta  = (int) $r['value'] - (int) $r['previous'];
 	$change = sprintf( /* translators: 1: signed change, 2: three-week average */ __( '%1$s vs last week · 3-week avg %2$s', 'signal-and-noise-tools' ), ( $delta > 0 ? '+' : '' ) . $delta, number_format_i18n( (float) $r['prior_avg'], 1 ) );
 	$series = array_map( 'intval', (array) ( $r['series'] ?? array() ) );
-	$now    = time();
-	$trend  = \snt_kit_histogram(
-		array( array( 'key' => 'readers', 'label' => __( 'Engaged readers', 'signal-and-noise-tools' ), 'tone' => 'accent' ) ),
-		array_map( static fn( $n ) => array( $n ), $series ),
-		array( 'start' => $now - 28 * DAY_IN_SECONDS, 'end' => $now, 'height' => 64, 'class' => 'snt-ns-hero__trend', 'empty' => __( 'No weeks yet.', 'signal-and-noise-tools' ) )
-	);
+	// Four labelled weeks, oldest first. At single-digit counts a chart was
+	// mostly empty axis; the numbers with their week say more.
+	$now   = time();
+	$weeks = '';
+	foreach ( $series as $i => $n ) {
+		$start  = $now - ( count( $series ) - $i ) * 7 * DAY_IN_SECONDS;
+		$weeks .= '<li><span>' . \snt_kit_esc( wp_date( 'M j', $start ) ) . '</span><strong>' . \snt_kit_esc( number_format_i18n( $n ) ) . '</strong></li>';
+	}
+	$trend = '<ol class="snt-ns-hero__weeks" aria-label="' . \snt_kit_esc( __( 'Engaged readers per week, oldest first', 'signal-and-noise-tools' ) ) . '">' . $weeks . '</ol>';
 	$layers = (array) ( $r['layers'] ?? array() );
 	$intent = (array) ( $layers['intent'] ?? array() );
 
@@ -107,9 +110,6 @@ function north_star_html( $tab ) {
 		. '<strong class="snt-ns-hero__value">' . \snt_kit_esc( number_format_i18n( (int) $r['value'] ) ) . '</strong>'
 		. '<span class="snt-home__metric-delta"' . ( $delta < 0 ? ' data-tone="warning"' : '' ) . '>' . \snt_kit_esc( $change ) . '</span>'
 		. $trend
-		// os-histogram draws nothing for a zero week; the weekly counts under it
-		// keep a quiet week visible instead of reading as a missing bar.
-		. '<span class="snt-home__metric-delta snt-ns-hero__weeks">' . \snt_kit_esc( sprintf( /* translators: %s weekly counts, oldest first */ __( 'Weekly: %s', 'signal-and-noise-tools' ), implode( ' · ', array_map( 'number_format_i18n', $series ) ) ) ) . '</span>'
 		. '</div>'
 		. '<div class="snt-ns-hero__keys">'
 		. north_star_key_html( __( 'Resume PDF downloads', 'signal-and-noise-tools' ), $intent['resume_downloads'] ?? null )

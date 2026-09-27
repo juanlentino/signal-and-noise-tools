@@ -295,6 +295,27 @@ function pulse_item_html( $label, $icon, $value, $delta, $href, $tab = 'dashboar
  * @param string              $tab  Current tab.
  * @return string
  */
+/** Below this many in the previous week, a percentage change is noise. */
+const SNT_HOME_DELTA_MIN_BASE = 50;
+
+/**
+ * A tile's change line: a signed percentage, or the plain previous count
+ * when the previous week is too small for a percentage to mean anything
+ * (37 views to 317 read as +757%).
+ *
+ * @param array $d {current, previous, pct}.
+ * @return string
+ */
+function home_delta_text( array $d ) {
+	if ( ! isset( $d['pct'] ) || null === $d['pct'] ) {
+		return '';
+	}
+	if ( isset( $d['previous'] ) && (int) $d['previous'] < SNT_HOME_DELTA_MIN_BASE ) {
+		return sprintf( /* translators: %s previous week's count */ __( 'prev %s', 'signal-and-noise-tools' ), number_format_i18n( (int) $d['previous'] ) );
+	}
+	return ( $d['pct'] >= 0 ? '+' : '' ) . $d['pct'] . '%';
+}
+
 function home_pulse_html( array $data, $tab ) {
 	$measurement = function_exists( 'snt_dashboard_measurement_data' ) ? snt_dashboard_measurement_data() : array();
 
@@ -306,16 +327,12 @@ function home_pulse_html( array $data, $tab ) {
 	$views_curr = isset( $deltas['views']['current'] )
 		? number_format_i18n( (int) $deltas['views']['current'] )
 		: ( isset( $measurement['views_7d'] ) ? number_format_i18n( (int) $measurement['views_7d'] ) : '—' );
-	$views_pct  = isset( $deltas['views']['pct'] ) && null !== $deltas['views']['pct']
-		? ( ( $deltas['views']['pct'] >= 0 ? '+' : '' ) . $deltas['views']['pct'] . '%' )
-		: '';
+	$views_pct  = home_delta_text( $deltas['views'] ?? array() );
 
 	$visits_curr = isset( $deltas['visits']['current'] )
 		? number_format_i18n( (int) $deltas['visits']['current'] )
 		: '—';
-	$visits_pct  = isset( $deltas['visits']['pct'] ) && null !== $deltas['visits']['pct']
-		? ( ( $deltas['visits']['pct'] >= 0 ? '+' : '' ) . $deltas['visits']['pct'] . '%' )
-		: '';
+	$visits_pct  = home_delta_text( $deltas['visits'] ?? array() );
 
 	$engaged_val = '—';
 	$engaged_pct = '';
@@ -332,7 +349,10 @@ function home_pulse_html( array $data, $tab ) {
 			$prior_rate = $prior_views / $prior_visits;
 			$rate_delta = sn_analytics_delta( $rate, $prior_rate );
 			if ( null !== $rate_delta['pct'] ) {
-				$engaged_pct = ( $rate_delta['pct'] >= 0 ? '+' : '' ) . $rate_delta['pct'] . '%';
+				// The ratio moves with BOTH inputs: a tiny week of either is noise.
+				$engaged_pct = min( $prior_views, $prior_visits ) < SNT_HOME_DELTA_MIN_BASE
+					? sprintf( /* translators: %s previous week's ratio */ __( 'prev %s', 'signal-and-noise-tools' ), number_format_i18n( $prior_rate, 1 ) )
+					: ( $rate_delta['pct'] >= 0 ? '+' : '' ) . $rate_delta['pct'] . '%';
 			}
 		}
 	}

@@ -157,5 +157,12 @@ $home_src = (string) file_get_contents( dirname( __DIR__ ) . '/apps/sn-dashboard
 ok( 1 === preg_match( '/<os-button class="snt-home__refresh"[^>]*aria-label="/', $home_src ), 'the refresh button is named by its host aria-label' );
 ok( false === strpos( $home_src, 'snt-sr-only' ) && false === strpos( preg_replace( '#/\*.*?\*/#s', '', $css ), '.snt-sr-only' ), 'no hidden slotted text and no sr-only rule: the forwarded label is the one name' );
 
+// A percentage over a tiny previous week is noise: show the previous count.
+$dt = '\\SignalNoise\\OpenStationHost\\Dashboard\\Leaves\\home_delta_text';
+ok( 'prev 37' === $dt( array( 'current' => 317, 'previous' => 37, 'pct' => 757 ) ), 'under 50 last week: "prev 37", never +757%' );
+ok( '+20%' === $dt( array( 'current' => 60, 'previous' => 50, 'pct' => 20 ) ), 'at 50 and over: the signed percentage' );
+ok( '-10%' === $dt( array( 'current' => 90, 'previous' => 100, 'pct' => -10 ) ), 'a drop keeps its sign' );
+ok( '' === $dt( array( 'current' => 5 ) ), 'no percentage computed: nothing' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

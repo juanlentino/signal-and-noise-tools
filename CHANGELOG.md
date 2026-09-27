@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Home's numbers stop shouting.** A tile whose previous week had under 50 shows the plain previous count ("prev 37") instead of a percentage (37 to 317 views read as +757%); Pages per visit checks both views and visits, since the ratio moves with either. The north star's four weeks are labelled numbers ("Aug 30 5 · Sep 6 9 · Sep 13 0 · Sep 20 4", this week in the accent colour) instead of a chart that was mostly empty axis at single-digit counts.
+
 ## [19.0.0] - 2026-09-27 — Home leads with the north star
 
 ### Changed
