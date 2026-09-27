@@ -122,15 +122,15 @@ $bad = sn_mcp_call_tool( 'signal-noise__purge-all-caches', array() );
 ok( isset( $bad['error'] ) && -32602 === $bad['error']['code'], 'un-allowlisted slug is rejected with -32602 (never executes)' );
 
 // --- tools/call: permission denied → isError result ---
-// v13.0.0: vehicle moved get-insights → get-analytics-events (wave 2 retired
+// 19.3.0: vehicle moved get-analytics-events → provenance-integrity-status (wave 4 retired it). v13.0.0: get-insights → get-analytics-events (wave 2 retired
 // the former from the door; the property is slug-independent).
-$GLOBALS['__abilities']['signal-noise/get-analytics-events'] = new SN_Test_Ability( 'signal-noise/get-analytics-events', array( 'perm' => false, 'result' => array( 'x' => 1 ) ) );
-$denied = sn_mcp_call_tool( 'signal-noise__get-analytics-events', array() );
+$GLOBALS['__abilities']['signal-noise/provenance-integrity-status'] = new SN_Test_Ability( 'signal-noise/provenance-integrity-status', array( 'perm' => false, 'result' => array( 'x' => 1 ) ) );
+$denied = sn_mcp_call_tool( 'signal-noise__provenance-integrity-status', array() );
 ok( isset( $denied['result'] ) && true === $denied['result']['isError'], 'permission denial returns isError:true' );
 
 // --- tools/call: execute() WP_Error → isError result (not a crash) ---
-$GLOBALS['__abilities']['signal-noise/get-rss-stats'] = new SN_Test_Ability( 'signal-noise/get-rss-stats', array( 'result' => new WP_Error( 'boom', 'feed unavailable' ) ) );
-$err = sn_mcp_call_tool( 'signal-noise__get-rss-stats', array() );
+$GLOBALS['__abilities']['signal-noise/shape-stability'] = new SN_Test_Ability( 'signal-noise/shape-stability', array( 'result' => new WP_Error( 'boom', 'feed unavailable' ) ) );
+$err = sn_mcp_call_tool( 'signal-noise__shape-stability', array() );
 ok( isset( $err['result'] ) && true === $err['result']['isError'] && strpos( $err['result']['content'][0]['text'], 'feed unavailable' ) !== false, 'execute() WP_Error becomes an isError result with the message' );
 
 // --- schema conformance: the abilities' ['object','null'] union + empty properties
@@ -189,14 +189,14 @@ ok( strpos( $lc['result']['content'][0]['text'], '"result"' ) !== false, 'array-
 //     encode the INNER value as {} (object), not [] — {"result":[]} would
 //     violate the advertised properties.result ["object","null"] union the
 //     same way the top-level belt already prevents for passthrough tools. ---
-// v13.0.0: vehicle moved get-insights → ai-cache-probe-status (doored; same
+// v13.0.0: vehicle moved get-insights → purge-verification-log (doored; same
 // object|null envelope class).
-$GLOBALS['__abilities']['signal-noise/ai-cache-probe-status'] = new SN_Test_Ability( 'signal-noise/ai-cache-probe-status', array(
+$GLOBALS['__abilities']['signal-noise/purge-verification-log'] = new SN_Test_Ability( 'signal-noise/purge-verification-log', array(
 	'label' => 'AI cache probe', 'description' => 'Probe verdict, or null pre-data.',
 	'output_schema' => array( 'type' => array( 'object', 'null' ) ),
 	'result' => array(),
 ) );
-$ic = sn_mcp_call_tool( 'signal-noise__ai-cache-probe-status', array() );
+$ic = sn_mcp_call_tool( 'signal-noise__purge-verification-log', array() );
 ok( is_object( $ic['result']['structuredContent']['result'] ?? null ), 'wrapped empty-array result: inner value casts to an object so it encodes {} not []' );
 
 // --- P2/P3: object|null-rooted ability returning null wraps too — null stays legal
@@ -291,23 +291,23 @@ $GLOBALS['__abilities']['signal-noise/ai-orphan-apply'] = new SN_Test_Ability( '
 $held_on_rw = sn_mcp_call_tool( 'signal-noise__ai-orphan-apply', array(), SN_MCP_DOOR_RW );
 ok( isset( $held_on_rw['error'] ) && -32602 === $held_on_rw['error']['code'], 'the held ai-orphan-apply is unknown on the rw door (owner-held, not yet opted in)' );
 
-// --- D1: get-analytics-events (array-rooted) is now read-door-allowlisted;
+// --- D1: provenance-integrity-status (array-rooted) is now read-door-allowlisted;
 //     pin the wrap rule end-to-end through the new addition ---
-$GLOBALS['__abilities']['signal-noise/get-analytics-events'] = new SN_Test_Ability( 'signal-noise/get-analytics-events', array(
+$GLOBALS['__abilities']['signal-noise/provenance-integrity-status'] = new SN_Test_Ability( 'signal-noise/provenance-integrity-status', array(
 	'label' => 'Get analytics events', 'description' => 'Top custom events for a window.',
 	'output_schema' => array( 'type' => 'array', 'items' => array( 'type' => 'object' ) ),
 	'result' => array( array( 'event' => 'talk_qr_scan', 'count' => 12 ) ),
 ) );
-$events_tool = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/get-analytics-events'], SN_MCP_DOOR_READ );
-ok( ( $events_tool['outputSchema']['type'] ?? '' ) === 'object', 'D1: get-analytics-events advertised outputSchema wraps array root to object' );
-ok( ( $events_tool['outputSchema']['properties']['result']['type'] ?? '' ) === 'array', 'D1: get-analytics-events wrapped schema keeps the original array type inside properties.result' );
+$events_tool = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/provenance-integrity-status'], SN_MCP_DOOR_READ );
+ok( ( $events_tool['outputSchema']['type'] ?? '' ) === 'object', 'D1: provenance-integrity-status advertised outputSchema wraps array root to object' );
+ok( ( $events_tool['outputSchema']['properties']['result']['type'] ?? '' ) === 'array', 'D1: provenance-integrity-status wrapped schema keeps the original array type inside properties.result' );
 
 $events_list = sn_mcp_list_tools( SN_MCP_DOOR_READ );
 $events_names = array_column( $events_list['tools'], 'name' );
-ok( in_array( 'signal-noise__get-analytics-events', $events_names, true ), 'D1: get-analytics-events is projected on tools/list(read) now that it is allowlisted' );
+ok( in_array( 'signal-noise__provenance-integrity-status', $events_names, true ), 'D1: provenance-integrity-status is projected on tools/list(read) now that it is allowlisted' );
 
-$events_call = sn_mcp_call_tool( 'signal-noise__get-analytics-events', array(), SN_MCP_DOOR_READ );
-ok( ( $events_call['result']['structuredContent']['result'][0]['event'] ?? '' ) === 'talk_qr_scan', 'D1: get-analytics-events call end-to-end wraps structuredContent as {result:[...]}' );
+$events_call = sn_mcp_call_tool( 'signal-noise__provenance-integrity-status', array(), SN_MCP_DOOR_READ );
+ok( ( $events_call['result']['structuredContent']['result'][0]['event'] ?? '' ) === 'talk_qr_scan', 'D1: provenance-integrity-status call end-to-end wraps structuredContent as {result:[...]}' );
 ok( ( $events_call['result']['annotations']['readOnlyHint'] ?? null ) === null, 'sanity: annotations live on the projected TOOL, not on the call RESULT' );
 
 // ============================================================
@@ -321,8 +321,8 @@ $GLOBALS['__opts'] = array(); // Fresh audit-log option state for this section.
 //     AND unknown-tool calls on the read door must never create the rw audit
 //     option AT ALL (not "empty rows" — the option itself stays untouched). ---
 sn_mcp_call_tool( 'signal-noise__get-health-scan', array(), SN_MCP_DOOR_READ );          // success
-sn_mcp_call_tool( 'signal-noise__get-analytics-events', array(), SN_MCP_DOOR_READ );     // permission denied (perm=false fixture above)
-sn_mcp_call_tool( 'signal-noise__get-rss-stats', array(), SN_MCP_DOOR_READ );            // execute() WP_Error
+sn_mcp_call_tool( 'signal-noise__provenance-integrity-status', array(), SN_MCP_DOOR_READ );     // permission denied (perm=false fixture above)
+sn_mcp_call_tool( 'signal-noise__shape-stability', array(), SN_MCP_DOOR_READ );            // execute() WP_Error
 sn_mcp_call_tool( 'signal-noise__run-cron-event', array(), SN_MCP_DOOR_READ );           // unknown tool (protocol error)
 ok( false === get_option( SN_MCP_RW_AUDIT_OPTION, false ), 'READ-DOOR-FROZEN: success/denied/error/unknown calls on the read door never create the rw audit-log option' );
 

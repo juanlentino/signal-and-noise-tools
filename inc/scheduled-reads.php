@@ -27,11 +27,11 @@ function snt_scheduled_reads_enabled() {
 /** The run list — read-door tools only, pinned byte-for-byte by test. */
 function snt_scheduled_reads_tools() {
 	return array(
-		'signal-noise__get-health-scan'       => array(),
-		'signal-noise__uptime-status'         => array(),
-		'signal-noise__get-deploy-status'     => array(),
-		'signal-noise__anchor-status'         => array(),
-		'signal-noise__get-analytics-summary' => array(),
+		// 19.3.0: the consolidated reads, not the absorbed singles. This run
+		// was one of the callers keeping the singles' telemetry up (wave-4
+		// read, 2026-09-27), and its calls are not usage by anyone.
+		'signal-noise__sn-status'  => array( 'sections' => array( 'health_scan', 'uptime', 'deploy', 'anchor' ) ),
+		'signal-noise__sn-metrics' => array( 'sections' => array( 'analytics_summary' ) ),
 	);
 }
 
