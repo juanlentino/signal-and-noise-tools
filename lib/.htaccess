@@ -1,0 +1,5 @@
+# Deny web access to PHP under lib/ (the vendored Dompdf tree has no ABSPATH
+# guards). The site loads these files from PHP, never over HTTP. 19.3.2.
+<FilesMatch "\.php$">
+    Require all denied
+</FilesMatch>
