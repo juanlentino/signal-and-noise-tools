@@ -149,20 +149,24 @@ function sn_session_exit_page_rows( array $summaries, $day ) {
 }
 
 /**
- * Compute yesterday's per-class visit-quality and upsert it.
+ * Compute one UTC day's per-class visit-quality (yesterday unless the history
+ * recompute names a day) and upsert it.
  *
  * v9.66.0: the human-class pass ALSO bridges exit pages into the durable
  * pageroles table (see sn_session_exit_page_rows) — human-only because
  * pageroles has no class column (entry/exit are human-only by design,
  * consistent with the entry feed and the Plausible history). Path truncation
  * (190) and 100-row chunking are the upsert's job (sn_analytics_pageroles_upsert).
+ *
+ * @param string $day Optional Y-m-d (the cron passes nothing, or '').
  */
-function sn_session_rollup_run() {
+function sn_session_rollup_run( $day = '' ) {
 	global $wpdb;
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		return;
 	}
-	$day     = gmdate( 'Y-m-d', time() - DAY_IN_SECONDS );
+	$day     = ( is_string( $day ) && 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) ) ? $day : gmdate( 'Y-m-d', time() - DAY_IN_SECONDS );
+	$strict  = function_exists( 'sn_analytics_strict' ) && sn_analytics_strict()['on'];
 	$allowed = defined( 'SN_ANALYTICS_CLASSES' ) ? SN_ANALYTICS_CLASSES : array( 'human', 'suspect', 'bot' );
 	$records = array();
 	foreach ( $allowed as $class ) {
@@ -175,6 +179,14 @@ function sn_session_rollup_run() {
 		// view warns on this same flag — the nightly writer must not stay
 		// silent where the live view speaks. Still write below: the data is
 		// the best available; the log marks it, never blocks it.
+		// The history recompute refuses a capped set instead (exactness is its
+		// whole point): trip strict mode and write nothing for this day.
+		if ( $strict && ! empty( $data['capped'] ) ) {
+			sn_analytics_strict( 'session events for ' . $day . ' hit the row cap' );
+		}
+		if ( $strict && '' !== sn_analytics_strict()['tripped'] ) {
+			return;
+		}
 		if ( ! empty( $data['capped'] ) ) {
 			error_log( '[sn-analytics] session rollup for ' . $day . ' ran on a row-capped event set — durable rows may undercount' );
 		}
@@ -221,6 +233,9 @@ function sn_session_rollup_run() {
 				}
 			}
 		}
+	}
+	if ( $strict && '' !== sn_analytics_strict()['tripped'] ) {
+		return;
 	}
 	$clean = sn_session_rollup_normalize( $records );
 	if ( ! empty( $clean ) ) {

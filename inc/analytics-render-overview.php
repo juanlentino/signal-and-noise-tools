@@ -203,6 +203,9 @@ function snt_analytics_render_human_rule_note( array $rule ) {
 		/* translators: 1: page-view cap per visitor-day, 2: visitor-days removed. */
 		: sprintf( __( 'Human: not a bot or suspect network, and at most %1$d page views in a visitor-day (%2$s visitor-days over the cap read as automated, last 92 days).', 'signal-and-noise-tools' ), $cap, number_format_i18n( (int) $rule['excluded'] ) . ( empty( $rule['truncated'] ) ? '' : '+' ) );
 	echo '<p class="sn-an-visitor-note">' . esc_html( $human ) . '</p>';
+	if ( function_exists( 'snt_analytics_render_recompute' ) ) {
+		snt_analytics_render_recompute();
+	}
 	if ( 'human' !== ( $rule['class'] ?? 'human' ) ) {
 		return;
 	}

@@ -329,7 +329,7 @@ function sn_analytics_rollup_sql( $days, $tz = '' ) {
 		"sumIf(double2 * _sample_interval, blob1 = 'tm') AS time_sum,",
 		"sumIf(_sample_interval, blob1 = 'tm') AS time_events",
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE timestamp >= {$lower}" . sn_analytics_overcap_where(),
+		"WHERE timestamp >= {$lower}" . sn_analytics_window_upper( $tz ) . sn_analytics_overcap_where(),
 		'GROUP BY day, path, class',
 		'ORDER BY day DESC, views DESC',
 	) );
@@ -398,7 +398,7 @@ function sn_analytics_rollup_gated_sql( $days, $tz = '' ) {
 		'blob7 AS class,',
 		'count(DISTINCT index1) AS pageview_visits',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE timestamp >= {$lower}" . sn_analytics_overcap_where(),
+		"WHERE timestamp >= {$lower}" . sn_analytics_window_upper( $tz ) . sn_analytics_overcap_where(),
 		"AND blob1 = 'pv'",
 		'GROUP BY day, path, class',
 		'ORDER BY day DESC, pageview_visits DESC',
@@ -741,10 +741,10 @@ function sn_analytics_run_rollup() {
 	// (is_array), so the fallback only fires on a real failure.
 	$tz      = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
 	$used_tz = $tz;
-	$rows    = sn_analytics_query( sn_analytics_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, $tz ) );
+	$rows    = sn_analytics_query( sn_analytics_rollup_sql( sn_analytics_rollup_window()['days'], $tz ) );
 	if ( '' !== $tz && ! is_array( $rows ) ) {
 		$used_tz = '';
-		$rows    = sn_analytics_query( sn_analytics_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, '' ) );
+		$rows    = sn_analytics_query( sn_analytics_rollup_sql( sn_analytics_rollup_window()['days'], '' ) );
 	}
 	if ( ! is_array( $rows ) ) {
 		return; // transport / non-200 / parse failure — already captured by the read-client.
@@ -759,7 +759,7 @@ function sn_analytics_run_rollup() {
 		// truncated result (the wrapper refuses those) — leaves pageview_visits
 		// absent (SQL NULL — "never measured"), never a fabricated 0; the main
 		// rows still write, so a flaky second query degrades, not corrupts.
-		$gated = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, $used_tz ) );
+		$gated = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( sn_analytics_rollup_window()['days'], $used_tz ) );
 		sn_analytics_rollup_upsert( sn_analytics_rollup_merge_gated( $rows, $gated ) );
 	}
 
@@ -793,7 +793,11 @@ function sn_analytics_run_rollup() {
 		sn_analytics_events_run_rollup();
 	}
 
-	set_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY, time(), SN_ANALYTICS_ROLLUP_RETENTION );
+	// A bounded history batch (the recompute) is not the nightly window: it
+	// must not tell the warmer the trailing week is fresh.
+	if ( 0 === (int) sn_analytics_rollup_window()['until'] ) {
+		set_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY, time(), SN_ANALYTICS_ROLLUP_RETENTION );
+	}
 }
 add_action( SN_ANALYTICS_ROLLUP_HOOK, 'sn_analytics_run_rollup' );
 add_action( SN_ANALYTICS_ROLLUP_DAILY_HOOK, 'sn_analytics_run_rollup' );

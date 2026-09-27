@@ -281,7 +281,7 @@ function sn_analytics_pageroles_rollup_sql( $days, $tz = '' ) {
 		'FROM ' . SN_ANALYTICS_DATASET,
 		"WHERE blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ),
 		"AND ( blob3 = '' OR blob3 NOT IN ('{$host}','www.{$host}') )",
-		"AND timestamp >= {$lower}",
+		"AND timestamp >= {$lower}" . sn_analytics_window_upper( $tz ),
 		'GROUP BY day, path',
 		'ORDER BY day DESC, views DESC',
 	) );
@@ -306,9 +306,9 @@ function sn_analytics_pageroles_run_rollup() {
 	}
 
 	$tz   = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
-	$rows = sn_analytics_query( sn_analytics_pageroles_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, $tz ) );
+	$rows = sn_analytics_query( sn_analytics_pageroles_rollup_sql( sn_analytics_rollup_window()['days'], $tz ) );
 	if ( '' !== $tz && ! is_array( $rows ) ) {
-		$rows = sn_analytics_query( sn_analytics_pageroles_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, '' ) );
+		$rows = sn_analytics_query( sn_analytics_pageroles_rollup_sql( sn_analytics_rollup_window()['days'], '' ) );
 	}
 	if ( ! is_array( $rows ) ) {
 		return;
