@@ -96,9 +96,13 @@ function north_star_html( $tab ) {
 	// mostly empty axis; the numbers with their week say more.
 	$now   = time();
 	$weeks = '';
+	$peak  = max( 1, max( $series ?: array( 0 ) ) );
 	foreach ( $series as $i => $n ) {
 		$start  = $now - ( count( $series ) - $i ) * 7 * DAY_IN_SECONDS;
-		$weeks .= '<li><span>' . \snt_kit_esc( wp_date( 'M j', $start ) ) . '</span><strong>' . \snt_kit_esc( number_format_i18n( $n ) ) . '</strong></li>';
+		// A bar under each number, scaled to the busiest week; a zero week keeps
+		// a baseline tick (CSS min-height) so it reads as quiet, not missing.
+		$weeks .= '<li><span>' . \snt_kit_esc( wp_date( 'M j', $start ) ) . '</span><strong>' . \snt_kit_esc( number_format_i18n( $n ) ) . '</strong>'
+			. '<i class="snt-ns-hero__bar" style="--snt-bar:' . round( $n / $peak, 3 ) . '" aria-hidden="true"></i></li>';
 	}
 	$trend = '<ol class="snt-ns-hero__weeks" aria-label="' . \snt_kit_esc( __( 'Engaged readers per week, oldest first', 'signal-and-noise-tools' ) ) . '">' . $weeks . '</ol>';
 	$layers = (array) ( $r['layers'] ?? array() );
