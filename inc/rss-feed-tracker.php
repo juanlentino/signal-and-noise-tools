@@ -228,6 +228,9 @@ function sn_rss_tracker_capture() {
 	$ua_hash     = sn_rss_tracker_hash_ua( $ua );
 
 	sn_rss_tracker_log_request( $feed_url, $ua_hash );
+	if ( function_exists( 'snt_feed_subs_capture' ) ) {
+		snt_feed_subs_capture( $ua, $ua_hash, $request_uri ); // parsed fields only (inc/feed-subscribers.php)
+	}
 	// Local log stores the full URL; the collector event takes the path.
 	sn_rss_tracker_send_event( $settings, $request_uri );
 }

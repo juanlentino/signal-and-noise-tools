@@ -111,6 +111,33 @@ add_action( 'wp_abilities_api_init', function() {
 								),
 							),
 						),
+						'subscribers'           => array(
+							'type'        => array( 'object', 'null' ),
+							'description' => 'Subscribers as reported by the readers (inc/feed-subscribers.php). A CEILING: per day, each aggregator fetcher\'s max self-reported count per feed, plus 1 per direct reader (distinct UA with no count); estimate_7d is the busiest day in the last 7. Never add it to feed_opens or feed clicks. Null when the module is not loaded.',
+							'properties'  => array(
+								'basis'          => array( 'type' => 'string', 'enum' => array( 'ceiling' ) ),
+								'window'         => array( 'type' => 'string', 'enum' => array( 'max_day_7d' ) ),
+								'note'           => array( 'type' => 'string' ),
+								'estimate_7d'    => array( 'type' => 'integer', 'minimum' => 0 ),
+								'peak_day'       => array( 'type' => array( 'string', 'null' ) ),
+								'aggregators'    => array(
+									'type'  => 'array',
+									'items' => array(
+										'type'       => 'object',
+										'properties' => array(
+											'fetcher'     => array( 'type' => 'string' ),
+											'subscribers' => array( 'type' => 'integer', 'minimum' => 0 ),
+										),
+									),
+								),
+								'direct_readers' => array( 'type' => 'integer', 'minimum' => 0 ),
+								'flagged'        => array(
+									'type'        => 'array',
+									'description' => 'Fetchers whose claim exceeded 1,000,000 and was capped: likely spoofed.',
+									'items'       => array( 'type' => 'string' ),
+								),
+							),
+						),
 						'feed_opens'            => array(
 							'type'        => array( 'object', 'null' ),
 							'description' => 'Feed opens from the pixel in each full-text feed item (inc/feed-opens.php). A FLOOR, read as "at least": readers that block images never load it. Null when the module is not loaded.',

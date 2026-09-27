@@ -192,6 +192,7 @@ function snt_cmd_impl_rss_stats() {
 			'last_request'          => $stats['most_recent'] ?? null,
 			'last_request_relative' => $last_rel,
 			'windows'               => $stats['windows'] ?? array(),
+			'subscribers'           => function_exists( 'snt_feed_subs_stats' ) ? snt_feed_subs_stats() : null,
 			'feed_opens'            => function_exists( 'snt_feed_opens_summary' ) ? snt_feed_opens_summary( (array) get_option( SNT_FEED_OPENS_OPT, array() ), time() ) : null,
 		),
 	);

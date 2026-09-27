@@ -55,7 +55,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 // "<edge> <cache> <path>" per failing request, so a 520 names its URL.
 // Unreleased: '10' -> '11' — the rss-stats twin gained feed_opens (7d / 30d
 // totals + top notes, labelled a floor). Additive.
-const SN_REMOTE_CONTRACT_VERSION = '11';
+// Unreleased: '11' -> '12' — the rss-stats twin gained subscribers (the
+// counts aggregators report in their fetcher UA, labelled a ceiling). Additive.
+const SN_REMOTE_CONTRACT_VERSION = '12';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -86,6 +88,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'10' => 'ad45bba357b8da9e01a9f10a8590b58df01480694b704fa991bc30f11f503138',
 	// RED-then-pin, 2026-09-27: feed_opens on the rss-stats twin.
 	'11' => '60c50a1daa0050be6b0f5b4a72330222282a3dd77720f6d90acfef884cf13968',
+	// RED-then-pin, 2026-09-27: subscribers on the rss-stats twin.
+	'12' => '0dd9868fa197f8c4272bb1923145376538d43bfa59bbec81ee0e76b30c9fedc3',
 );
 
 /**
