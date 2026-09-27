@@ -801,5 +801,12 @@ ok( 'bogus_code' === sn_prov_integrity_failure_sentence( 'bogus_code' ), 'an unk
 ok( false !== strpos( sn_prov_integrity_failure_sentence( 'key_mismatch' ), 'key mismatch' ) && false !== strpos( sn_prov_integrity_failure_sentence( 'key_mismatch' ), 'different key bytes' ), 'the keys probe\'s key_mismatch verdict has a sentence: the bytes disagree, not the id' );
 ok( false !== strpos( sn_prov_integrity_failure_sentence( 'keys_not_configured' ), 'not checked' ), 'a probe that was skipped for want of a key is a gap sentence, never a mismatch' );
 
+// 19.3.3: canonical JSON emits U+2028/U+2029 raw, byte-identical to the
+// worker's JSON.stringify; PHP escaped them, so such a note never anchored.
+$lt = sn_prov_canonical_json( array( 'b' => "x\u{2029}y", 'a' => "x\u{2028}y" ) );
+ok( '{"a":"x' . "\u{2028}" . 'y","b":"x' . "\u{2029}" . 'y"}' === $lt, 'line and paragraph separators are emitted raw, like JSON.stringify' );
+$js = trim( (string) shell_exec( 'command -v node >/dev/null && node -e ' . escapeshellarg( 'process.stdout.write(JSON.stringify({a:"x\u2028y",b:"x\u2029y"}))' ) ) );
+ok( '' === $js || $js === $lt, 'and match node\'s JSON.stringify byte for byte' . ( '' === $js ? ' (node absent, skipped)' : '' ) );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

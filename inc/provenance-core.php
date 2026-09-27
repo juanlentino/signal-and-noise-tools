@@ -197,7 +197,13 @@ function sn_prov_normalize_v2( $post_content ) {
  */
 function sn_prov_canonical_json( array $data ) {
 	sn_prov_ksort_recursive( $data );
-	return wp_json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+	// JSON_UNESCAPED_LINE_TERMINATORS (19.3.3): without it PHP still escapes
+	// U+2028/U+2029 even under UNESCAPED_UNICODE, while the provenance
+	// worker's canonicalize (JSON.stringify) emits them raw, so a note carrying
+	// one (pasted from Word or Docs) hashed differently on each side and was
+	// refused on every reconcile. No ledger record can hold one, so no stored
+	// hash moves.
+	return wp_json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_LINE_TERMINATORS );
 }
 
 /**
