@@ -228,7 +228,7 @@ function snt_analytics_is_ymd( $s ) {
 }
 
 /**
- * Concrete [$from,$to] (inclusive, YYYY-MM-DD, UTC) for a named preset. $now
+ * Concrete [$from,$to] (inclusive, YYYY-MM-DD, site-local day) for a named preset. $now
  * injectable for deterministic tests.
  *
  * @param string   $preset 'this-week' | 'this-month' | 'this-quarter' | 'ytd' | 'last-month' | 'last-quarter' | 'prev-year'.
@@ -236,7 +236,11 @@ function snt_analytics_is_ymd( $s ) {
  * @return array{0:string,1:string}
  */
 function snt_analytics_preset_dates( $preset, $now = null ) {
-	$now   = ( null === $now ) ? time() : (int) $now;
+	$now = ( null === $now ) ? time() : (int) $now;
+	// Re-anchor on the SITE-LOCAL calendar day (as UTC midnight) so the UTC date
+	// math below reads the local day, matching the daily rollup (#1961).
+	list( , $local ) = snt_analytics_range_dates( 1, $now );
+	$now   = (int) strtotime( $local . ' 00:00:00 UTC' );
 	$today = gmdate( 'Y-m-d', $now );
 	$y     = (int) gmdate( 'Y', $now );
 	$mo    = (int) gmdate( 'n', $now );

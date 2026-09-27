@@ -86,5 +86,17 @@ ok( $lt === '2026-09-26' && $lf === '2026-09-20', "23:30 ET: window is 09-20..09
 ok( $nt === '2026-09-26' && $nf === '2026-09-20', "12:00 ET: window is 09-20..09-26 (got $nf..$nt)" );
 ok( array( $lf, $lt ) === array( $nf, $nt ), 'late evening and noon give the same 7 local days' );
 
+// Presets key on the local day too: 23:30 ET (next UTC day) must match noon ET.
+// Sun 09-27 (week edge), Wed 09-30 (month + quarter edge), Thu 12-31 (year edge).
+foreach ( array( '2026-09-27', '2026-09-30', '2026-12-31' ) as $d ) {
+	$late = strtotime( $d . ' 23:30:00 America/New_York' );
+	$noon = strtotime( $d . ' 12:00:00 America/New_York' );
+	foreach ( array( 'this-week', 'this-month', 'this-quarter', 'ytd', 'prev-year', 'last-month', 'last-quarter' ) as $pr ) {
+		$a = snt_analytics_preset_dates( $pr, $late );
+		$b = snt_analytics_preset_dates( $pr, $noon );
+		ok( $a === $b && $b[1] <= $d, "$pr on $d: 23:30 ET = 12:00 ET (" . implode( '..', $a ) . ' vs ' . implode( '..', $b ) . ')' );
+	}
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
