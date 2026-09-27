@@ -67,8 +67,9 @@ function sn_tag_redirects_record( array $old_slugs, $canonical_slug ) {
  */
 function sn_tag_redirect_target( $uri ) {
 	$path = strtok( (string) $uri, '?' );
-	// Both archive forms: /tag/<slug>/ (canonical) and /notes/tag/<slug>/.
-	if ( ! preg_match( '#^(/notes)?/tag/([^/]+)/?$#', (string) $path, $mm ) ) {
+	// Both archive forms: /tag/<slug>/ (canonical) and /notes/tag/<slug>/,
+	// and their /page/N/ pages, which land on the target's first page.
+	if ( ! preg_match( '#^(/notes)?/tag/([^/]+)(?:/page/\d+)?/?$#', (string) $path, $mm ) ) {
 		return '';
 	}
 	$base = $mm[1] . '/tag/';
