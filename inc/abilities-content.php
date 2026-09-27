@@ -65,7 +65,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/get-rss-stats', array(
 		'label'               => 'Get RSS feed activity statistics',
-		'description'         => 'Returns the most recent RSS feed request timestamp + 24h / 7d / 30d totals + unique visitor counts. Backed by the sn_rss_tracker module. Use to verify RSS feed traffic before changing feed structure or auditing crawler activity.',
+		'description'         => 'Returns the most recent RSS feed request timestamp + 24h / 7d / 30d totals + unique visitor counts, plus feed opens (7d / 30d totals and top notes, a floor: "at least"). Backed by the sn_rss_tracker module. Use to verify RSS feed traffic before changing feed structure or auditing crawler activity.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_rss_stats',
@@ -107,6 +107,27 @@ add_action( 'wp_abilities_api_init', function() {
 										'type'        => 'integer',
 										'description' => 'Distinct ua_hash count in this window (proxy for unique subscriber clients).',
 										'minimum'     => 0,
+									),
+								),
+							),
+						),
+						'feed_opens'            => array(
+							'type'        => array( 'object', 'null' ),
+							'description' => 'Feed opens from the pixel in each full-text feed item (inc/feed-opens.php). A FLOOR, read as "at least": readers that block images never load it. Null when the module is not loaded.',
+							'properties'  => array(
+								'basis'     => array( 'type' => 'string', 'enum' => array( 'floor' ) ),
+								'note'      => array( 'type' => 'string' ),
+								'total_7d'  => array( 'type' => 'integer', 'minimum' => 0 ),
+								'total_30d' => array( 'type' => 'integer', 'minimum' => 0 ),
+								'top_30d'   => array(
+									'type'  => 'array',
+									'items' => array(
+										'type'       => 'object',
+										'properties' => array(
+											'post_id' => array( 'type' => 'integer' ),
+											'title'   => array( 'type' => 'string' ),
+											'opens'   => array( 'type' => 'integer', 'minimum' => 0 ),
+										),
 									),
 								),
 							),

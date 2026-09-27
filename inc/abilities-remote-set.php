@@ -391,7 +391,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'label'               => 'Get RSS feed activity statistics (remote)',
 		'description'         => 'Remote-scoped twin of signal-noise/get-rss-stats. '
 			. 'Returns the most recent RSS feed request timestamp + 24h / 7d / 30d '
-			. 'totals + unique visitor counts. Read-only. Reachable only by a '
+			. 'totals + unique visitor counts + feed opens (a floor). Read-only. Reachable only by a '
 			. 'principal holding the sn_read_remote_analytics capability, and only '
 			. 'while the remote door is explicitly enabled.',
 		'category'            => 'diagnostics',
@@ -435,6 +435,27 @@ add_action( 'wp_abilities_api_init', function () {
 										'type'        => 'integer',
 										'description' => 'Distinct ua_hash count in this window (proxy for unique subscriber clients).',
 										'minimum'     => 0,
+									),
+								),
+							),
+						),
+						'feed_opens'            => array(
+							'type'        => array( 'object', 'null' ),
+							'description' => 'Feed opens from the pixel in each full-text feed item (inc/feed-opens.php). A FLOOR, read as "at least": readers that block images never load it. Null when the module is not loaded.',
+							'properties'  => array(
+								'basis'     => array( 'type' => 'string', 'enum' => array( 'floor' ) ),
+								'note'      => array( 'type' => 'string' ),
+								'total_7d'  => array( 'type' => 'integer', 'minimum' => 0 ),
+								'total_30d' => array( 'type' => 'integer', 'minimum' => 0 ),
+								'top_30d'   => array(
+									'type'  => 'array',
+									'items' => array(
+										'type'       => 'object',
+										'properties' => array(
+											'post_id' => array( 'type' => 'integer' ),
+											'title'   => array( 'type' => 'string' ),
+											'opens'   => array( 'type' => 'integer', 'minimum' => 0 ),
+										),
 									),
 								),
 							),
