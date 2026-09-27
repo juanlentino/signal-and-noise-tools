@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/tag-retired-map.php';
+
 if ( ! defined( 'SN_TAG_REDIRECTS_OPT' ) ) {
 	define( 'SN_TAG_REDIRECTS_OPT', 'sn_tag_redirects' );
 }
@@ -65,18 +67,26 @@ function sn_tag_redirects_record( array $old_slugs, $canonical_slug ) {
  */
 function sn_tag_redirect_target( $uri ) {
 	$path = strtok( (string) $uri, '?' );
-	if ( ! preg_match( '#^/notes/tag/([^/]+)/?$#', (string) $path, $mm ) ) {
+	// Both archive forms: /tag/<slug>/ (canonical) and /notes/tag/<slug>/.
+	if ( ! preg_match( '#^(/notes)?/tag/([^/]+)/?$#', (string) $path, $mm ) ) {
 		return '';
 	}
-	$slug = $mm[1];
+	$base = $mm[1] . '/tag/';
+	$slug = $mm[2];
 	$map  = get_option( SN_TAG_REDIRECTS_OPT, array() );
-	if ( ! is_array( $map ) || ! isset( $map[ $slug ] ) ) {
+	$map  = is_array( $map ) ? $map : array();
+	if ( ! isset( $map[ $slug ] ) && ! isset( SN_TAG_RETIRED_MAP[ $slug ] ) ) {
 		return '';
 	}
 	if ( term_exists( $slug, 'post_tag' ) ) {
 		return ''; // a live term with that slug wins
 	}
-	return home_url( '/notes/tag/' . $map[ $slug ] . '/' );
+	if ( isset( $map[ $slug ] ) ) {
+		return home_url( $base . $map[ $slug ] . '/' );
+	}
+	// A retired tag: its survivor while that term lives, else the notes index.
+	$to = SN_TAG_RETIRED_MAP[ $slug ];
+	return '' !== $to && term_exists( $to, 'post_tag' ) ? home_url( $base . $to . '/' ) : home_url( '/notes/' );
 }
 
 /**
