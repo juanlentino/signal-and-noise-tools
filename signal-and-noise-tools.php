@@ -539,6 +539,7 @@ require_once __DIR__ . '/inc/abilities-sn-site-facts.php'; // v10.26.0: MCP cons
 require_once __DIR__ . '/inc/abilities-sn-status.php';  // v13.1.0: read-door coherence — sectioned batch over the ten narrow status reads (new-alongside-old; needs sn-site-facts' dispatcher above)
 require_once __DIR__ . '/inc/forms-spam.php'; // content spam rules on AllTerrain Forms' verdict filter, plus the sweep abilities
 require_once __DIR__ . '/inc/feed-utm.php'; // RSS/Atom item links carry utm_source=rss so feed click-throughs show as visits
+require_once __DIR__ . '/inc/feed-subscribers.php'; // feed reach: subscriber counts aggregators report in their fetcher UA, a ceiling
 require_once __DIR__ . '/inc/feed-opens.php'; // feed reach: a no-cookie 1x1 in each notes feed item counts opens in a feed reader, a floor
 require_once __DIR__ . '/inc/feed-full-text.php'; // the notes feed carries the full note in content:encoded, made safe for readers
 require_once __DIR__ . '/inc/north-star.php'; // the north star: weekly engaged readers + its supporting metrics, one read ability

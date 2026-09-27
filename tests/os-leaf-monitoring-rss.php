@@ -54,6 +54,7 @@ $GLOBALS['__rss_recent'] = array();
 
 require SNT_PATH . 'inc/admin-render-sections.php';
 require SNT_PATH . 'inc/rss-feed-tracker.php';
+require SNT_PATH . 'inc/feed-subscribers.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-rss.php';
 
 $pass = 0; $fail = 0;
@@ -106,6 +107,9 @@ ok( false !== strpos( $kit, 'os-arg-pipeline="rss"' ), 'the forms declare the rs
 ok( false !== strpos( $kit, '<os-stat value="3"' ) && false !== strpos( $kit, '2 unique' ), '24-hour count and uniques are shown' );
 ok( false !== strpos( $kit, '<os-stat value="41"' ) && false !== strpos( $kit, '9 unique' ), '7-day count and uniques are shown' );
 ok( false !== strpos( $kit, '<os-stat value="210"' ) && false !== strpos( $kit, '33 unique' ), '30-day count and uniques are shown' );
+foreach ( array( 'Subscribers (reported by readers, a ceiling)', 'Opens (at least; many readers block images)', 'Clicks (visits from feed links)' ) as $label ) {
+	ok( false !== strpos( $kit, $label ), "feed reach tile is labelled: $label" );
+}
 // 14.7.4: the tracker stores 2026-09-05 12:00:00 UTC; the owner reads Eastern.
 ok( false !== strpos( $kit, '2026-09-05 08:00:00 EDT' ), 'the most-recent feed request timestamp is shown in the SITE timezone with its zone (12:00 UTC → 08:00 EDT)' );
 ok( false === strpos( $kit, '12:00:00' ) && false === strpos( $kit, 'Time (UTC)' ), 'and nowhere as UTC: the column is Time, the value carries its zone' );
