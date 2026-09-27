@@ -3,8 +3,9 @@
  * The north star: weekly engaged readers.
  *
  * One number for what the site is for: people reading its core pages. A
- * reader is a human visitor-day (the visitor hash rotates at UTC midnight, so
- * the same person on two days counts twice, by design) with at least one core
+ * reader is a human visitor-day (the analytics worker rotates the visitor hash
+ * at midnight in its SN_ROTATE_TZ zone, America/New_York, not UTC, so the same
+ * person on two such days counts twice, by design) with at least one core
  * page read past the scroll OR the dwell floor. Which page groups are core and
  * both floors are settings (`north_star.*`). The supporting metrics ride along
  * so the number never stands alone.

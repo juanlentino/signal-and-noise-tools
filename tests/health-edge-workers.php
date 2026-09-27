@@ -482,5 +482,29 @@ ok( is_array( $healthy ) && 'healthy' === $healthy['status'], 'a healthy 200 bod
 ok( isset( $GLOBALS['__ew']['transient']['sn_health_edge_prov_status'] ),
 	'#1189: a healthy provenance body IS still cached 6h — this fix must not disable the common case' );
 
+// ── Enforcement truth: killswitch, degraded flags, stale6, lost DO binding ──
+$lg_ok = array( 'denylistCount' => 4586, 'compiledAt' => $fresh, 'denylist6Count' => 82, 'compiled6At' => $fresh,
+	'enforcement' => 'on', 'degradedList' => false, 'degradedList6' => false, 'degradedMeta' => false, 'stale6' => false,
+	'config' => array( 'rate_limit_global' => true, 'rate_limit_escalates' => true ) );
+ok( 0 === count( sn_health_edge_worker_findings( true, 'u', $lg_ok, $NOW, $STALE ) ), 'a fully healthy enforcement readout raises nothing' );
+$one = static function ( $patch ) use ( $lg_ok, $NOW, $STALE ) {
+	return sn_health_edge_worker_findings( true, 'u', array_replace_recursive( $lg_ok, $patch ), $NOW, $STALE );
+};
+$f = $one( array( 'enforcement' => 'off' ) );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'enforcement is OFF' ), 'killswitch off is flagged' );
+ok( 0 === count( $one( array( 'enforcement' => 'unknown' ) ) ), 'enforcement unknown is not a finding' );
+foreach ( array( 'degradedList' => 'IPv4 denylist is DEGRADED', 'degradedList6' => 'IPv6 denylist is DEGRADED', 'degradedMeta' => 'metadata is DEGRADED' ) as $k => $needle ) {
+	$f = $one( array( $k => true ) );
+	ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], $needle ), "$k is flagged" );
+}
+$f = $one( array( 'compiled6At' => null, 'stale6' => true ) );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], "worker's own reckoning" ), 'stale6 from the worker is flagged when the age math cannot see it' );
+$f = $one( array( 'config' => array( 'rate_limit_global' => false ) ) );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'NOT GLOBAL' ), 'lost Durable Object binding (rate_limit_global false) is flagged' );
+$f = $one( array( 'config' => array( 'rate_limit_escalates' => false ) ) );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'NOT ESCALATE' ), 'rate_limit_escalates false is flagged' );
+ok( 0 === count( sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $fresh, 'config' => array() ), $NOW, $STALE ) ),
+	'an older worker that omits the enforcement fields raises nothing' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

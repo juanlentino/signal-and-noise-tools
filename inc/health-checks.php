@@ -166,6 +166,8 @@ function sn_health_run_scan() {
 			// 12th check (v9.65.0): the reader of sn_analytics_integrity_alert —
 			// the never-invert guard's alarm finally lands somewhere.
 			'analytics_integrity' => sn_health_check_analytics_integrity(),
+			// A dead collector reads as a quiet day: flag 24 h without a human pageview.
+			'analytics_ingest'    => sn_health_check_analytics_ingest(),
 			// 13th check (v9.80.0): the server-side provenance integrity sweep —
 			// bounded, rotating triangle check (payload hash / live .json twin /
 			// public ledger + key file) over the anchored-Note fleet.
@@ -286,6 +288,7 @@ require_once __DIR__ . '/health-motion-scan.php';
 // declared-vs-served preset guard.
 require_once __DIR__ . '/health-check-machine-reader-liveness.php';
 require_once __DIR__ . '/health-check-theme-presets.php';
+require_once __DIR__ . '/health-check-analytics-ingest.php';
 
 /**
  * Common per-check result envelope used by 2-4.

@@ -8,14 +8,14 @@
  * `initialize` (`_meta["sn/contractVersion"]`) and on `/status`
  * (`contract_version`). This file is the origin's half — the worker is a
  * pass-through and cannot see payload shapes, so the shapes are pinned where
- * they are authored: the 8 remote twin abilities' `output_schema`s, which the
+ * they are authored: every remote twin ability's `output_schema` (15 twins at contract version 10), which the
  * parity suite already holds byte-identical to their admin registrations.
  *
  * THE COUPLING (design doc: sn-remote-mcp-worker
  * docs/plans/2026-08-27-versioned-contract-design.md, open question 2):
  *
  * - CI direction: SN_REMOTE_CONTRACT_VERSION_HASHES pins (version → sha256
- *   over the canonical JSON of the 8 output_schemas). A change to any remote
+ *   over the canonical JSON of the twins' output_schemas). A change to any remote
  *   ability's PAYLOAD shape fails tests/remote-contract-shapes.php unless the
  *   version moves with it, and a version bump without a shape change fails
  *   the same pin. Keys and TYPES only, never values — pinning values trains
@@ -56,7 +56,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_REMOTE_CONTRACT_VERSION = '10';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
-// the 8 remote twins' output_schemas. Every version maps to a DISTINCT hash:
+// the remote twins' output_schemas. Every version maps to a DISTINCT hash:
 // a version bump without a shape change is a lie the test refuses.
 const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'1' => '90f2ce6597120d1dc2dd46f28b38916fac08783a3da5937fb032417ba3a32c20',

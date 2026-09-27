@@ -12,6 +12,14 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Analytics ingest check in Site Health.** If no human pageview has been recorded for 24 hours, the new check flags it and says whether other traffic kept arriving (the collector runs but records no people) or nothing did (the collector stopped writing). A dead collector no longer reads as a quiet day. A failed or unconfigured query reports "could not check", never zero.
+
+### Fixed
+- **The edge-workers check now reads the login guard's enforcement fields.** It flags the killswitch left off (`enforcement: "off"`), any `degradedList`, `degradedList6` or `degradedMeta` flag, the worker's own `stale6` verdict when the age math cannot see it, and a lost Durable Object binding (`config.rate_limit_global` or `rate_limit_escalates` false). Each is one plain sentence, and a worker that omits a field raises nothing.
+- **The north star docblock names the right rotation clock.** The visitor hash rotates at midnight America/New_York (the worker's `SN_ROTATE_TZ`), not UTC. The counts were already right: the north star buckets rolling 7-day weeks from now, and each hash is one visitor-day whatever the query window's zone, so only the comment changed.
+- **The remote contract comment counts its twins.** It said 8 remote twin abilities; there are 15.
+
 ## [19.3.3] - 2026-09-27 — U+2028 notes can anchor
 
 ### Fixed
