@@ -211,7 +211,7 @@ function sn_analytics_buckets_hour_sql( $days ) {
 		'blob7 AS class,',
 		'sum(_sample_interval) AS views',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'pv' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_overcap_where(),
+		"WHERE blob1 = 'pv' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_overcap_where() . sn_analytics_window_upper(),
 		'GROUP BY day, bucket, class',
 	) );
 }
@@ -250,7 +250,7 @@ function sn_analytics_buckets_dist_sql( $event, $col, $buckets, $days ) {
 		'blob7 AS class,',
 		implode( ', ', $selects ),
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = '{$event}' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_overcap_where(),
+		"WHERE blob1 = '{$event}' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_overcap_where() . sn_analytics_window_upper(),
 		'GROUP BY day, class',
 	) );
 }
@@ -337,7 +337,7 @@ function sn_analytics_buckets_run_rollup() {
 	$rows = array();
 
 	// 1. Hour-of-day — already in (day, bucket, class, views) shape.
-	$hour = sn_analytics_query( sn_analytics_buckets_hour_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS ) );
+	$hour = sn_analytics_query( sn_analytics_buckets_hour_sql( sn_analytics_rollup_window()['days'] ) );
 	if ( is_array( $hour ) ) {
 		foreach ( $hour as $hr ) {
 			if ( ! is_array( $hr ) ) {
@@ -355,7 +355,7 @@ function sn_analytics_buckets_run_rollup() {
 
 	// 2. Distributions — melt each wide (day,class,b0..bN) row into per-band rows.
 	foreach ( sn_analytics_buckets_metrics() as $metric => $m ) {
-		$wide = sn_analytics_query( sn_analytics_buckets_dist_sql( $m['event'], $m['col'], $m['buckets'], SN_ANALYTICS_ROLLUP_WINDOW_DAYS ) );
+		$wide = sn_analytics_query( sn_analytics_buckets_dist_sql( $m['event'], $m['col'], $m['buckets'], sn_analytics_rollup_window()['days'] ) );
 		if ( ! is_array( $wide ) ) {
 			continue;
 		}

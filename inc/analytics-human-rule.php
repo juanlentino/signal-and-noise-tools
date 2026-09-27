@@ -173,3 +173,41 @@ function sn_analytics_human_rule_reading( $from, $to, $class ) {
 	}
 	return $out;
 }
+
+/**
+ * The rollup window every *_run_rollup() reads: trailing `days` (lower bound)
+ * and, for the history recompute only, `until` days ago (exclusive upper
+ * bound). Default is the nightly's trailing window with no upper bound, so
+ * the nightly SQL is unchanged. Pass an array to set, false to reset.
+ *
+ * @param array|false|null $set Window to set, false to reset, null to read.
+ * @return array{days:int,until:int}
+ */
+function sn_analytics_rollup_window( $set = null ) {
+	static $w = null;
+	if ( is_array( $set ) ) {
+		$w = array( 'days' => max( 1, (int) $set['days'] ), 'until' => max( 0, (int) $set['until'] ) );
+	} elseif ( false === $set ) {
+		$w = null;
+	}
+	return $w ?? array( 'days' => defined( 'SN_ANALYTICS_ROLLUP_WINDOW_DAYS' ) ? (int) SN_ANALYTICS_ROLLUP_WINDOW_DAYS : 7, 'until' => 0 );
+}
+
+/**
+ * ' AND timestamp < <start of the day `until` days ago>' or '' when unbounded.
+ * The expression is the same family as the rollup's own lower bound
+ * (sn_analytics_rollup_window_exprs), zoned when $tz is given. PURE per window.
+ *
+ * @param string $tz Optional IANA zone (UTC builders pass none).
+ * @return string
+ */
+function sn_analytics_window_upper( $tz = '' ) {
+	$until = (int) sn_analytics_rollup_window()['until'];
+	if ( $until <= 0 ) {
+		return '';
+	}
+	$tz = ( '' !== $tz && preg_match( '#^[A-Za-z0-9_/+-]+$#', (string) $tz ) ) ? (string) $tz : '';
+	return ' AND timestamp < ' . ( '' !== $tz
+		? "toStartOfInterval(now(), INTERVAL '1' DAY, '{$tz}') - INTERVAL '{$until}' DAY"
+		: "toStartOfDay(now() - INTERVAL '{$until}' DAY)" );
+}

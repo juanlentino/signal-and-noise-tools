@@ -59,7 +59,7 @@ function sn_analytics_events_rollup_sql( $days, $tz = '' ) {
 		'sum(_sample_interval) AS events,',
 		'count(DISTINCT index1) AS visitors',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'ce' AND " . sn_analytics_class_where( 'human' ) . " AND timestamp >= {$lower}",
+		"WHERE blob1 = 'ce' AND " . sn_analytics_class_where( 'human' ) . " AND timestamp >= {$lower}" . sn_analytics_window_upper( $tz ),
 		'GROUP BY day, name',
 		'ORDER BY day DESC, events DESC',
 	) );
@@ -84,7 +84,7 @@ function sn_analytics_event_props_rollup_sql( $days, $tz = '' ) {
 		'sum(_sample_interval) AS events,',
 		'count(DISTINCT index1) AS visitors',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'cp' AND " . sn_analytics_class_where( 'human' ) . " AND timestamp >= {$lower}",
+		"WHERE blob1 = 'cp' AND " . sn_analytics_class_where( 'human' ) . " AND timestamp >= {$lower}" . sn_analytics_window_upper( $tz ),
 		'GROUP BY day, property, value',
 		'ORDER BY day DESC, events DESC',
 	) );
@@ -148,9 +148,9 @@ function sn_analytics_events_run_rollup() {
 
 	// Events (blob1='ce'): AE aliases day/name/events/visitors already match the
 	// upsert's {day,name,visitors,events} shape — cap, then upsert.
-	$ce_rows = sn_analytics_query( sn_analytics_events_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, $tz ) );
+	$ce_rows = sn_analytics_query( sn_analytics_events_rollup_sql( sn_analytics_rollup_window()['days'], $tz ) );
 	if ( '' !== $tz && ! is_array( $ce_rows ) ) {
-		$ce_rows = sn_analytics_query( sn_analytics_events_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, '' ) );
+		$ce_rows = sn_analytics_query( sn_analytics_events_rollup_sql( sn_analytics_rollup_window()['days'], '' ) );
 	}
 	if ( is_array( $ce_rows ) && ! empty( $ce_rows ) ) {
 		$capped = sn_analytics_events_rollup_cap_per_day( $ce_rows, SN_ANALYTICS_EVENTS_ROLLUP_NAME_CAP );
@@ -161,9 +161,9 @@ function sn_analytics_events_run_rollup() {
 
 	// Event props (blob1='cp'): AE aliases day/property/value/events/visitors
 	// match the upsert's {day,property,value,visitors,events} shape — cap, upsert.
-	$cp_rows = sn_analytics_query( sn_analytics_event_props_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, $tz ) );
+	$cp_rows = sn_analytics_query( sn_analytics_event_props_rollup_sql( sn_analytics_rollup_window()['days'], $tz ) );
 	if ( '' !== $tz && ! is_array( $cp_rows ) ) {
-		$cp_rows = sn_analytics_query( sn_analytics_event_props_rollup_sql( SN_ANALYTICS_ROLLUP_WINDOW_DAYS, '' ) );
+		$cp_rows = sn_analytics_query( sn_analytics_event_props_rollup_sql( sn_analytics_rollup_window()['days'], '' ) );
 	}
 	if ( is_array( $cp_rows ) && ! empty( $cp_rows ) ) {
 		$capped = sn_analytics_events_rollup_cap_per_day( $cp_rows, SN_ANALYTICS_EVENTS_ROLLUP_PROP_CAP );

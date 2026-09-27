@@ -177,6 +177,7 @@ function sn_analytics_site_tz_name() {
  * @param string     $message Body excerpt or WP_Error message.
  */
 function sn_analytics_record_error( $url, $code, $message ) {
+	sn_analytics_strict( 'Analytics Engine read failed (HTTP ' . (int) $code . ')' );
 	set_transient( SN_ANALYTICS_ERR_KEY, array(
 		'url'     => (string) $url,
 		'code'    => (int) $code,
@@ -230,6 +231,26 @@ function sn_analytics_last_result_truncated( $set = null ) {
 }
 
 /**
+ * Strict mode for the owner-run history recompute (inc/analytics-recompute.php).
+ * Off for the nightly. While on, the FIRST failed or row-cap-truncated result
+ * trips it, and every later sn_analytics_query() returns null without calling
+ * AE, so no rollup writes a truncated set or falls back to a differently keyed
+ * query; the recompute reads the reason and records the batch as partial.
+ *
+ * @param string|null $op 'on' | 'off' | a trip reason; null reads.
+ * @return array{on:bool,tripped:string}
+ */
+function sn_analytics_strict( $op = null ) {
+	static $st = array( 'on' => false, 'tripped' => '' );
+	if ( 'on' === $op || 'off' === $op ) {
+		$st = array( 'on' => 'on' === $op, 'tripped' => '' );
+	} elseif ( null !== $op && $st['on'] && '' === $st['tripped'] ) {
+		$st['tripped'] = (string) $op;
+	}
+	return $st;
+}
+
+/**
  * Run a SQL query against the Cloudflare Analytics Engine SQL API.
  *
  * The AE SQL API accepts the query as the raw POST body (not a JSON envelope).
@@ -249,6 +270,10 @@ function sn_analytics_query( $sql ) {
 	// The truncation flag always describes THIS call: reset before anything
 	// can fail, so a stale verdict from a previous response never leaks.
 	sn_analytics_last_result_truncated( false );
+
+	if ( '' !== sn_analytics_strict()['tripped'] ) {
+		return null;
+	}
 
 	$cfg = sn_analytics_config();
 	if ( ! $cfg ) {
@@ -310,6 +335,10 @@ function sn_analytics_query( $sql ) {
 			(int) $decoded['rows'] >= SN_ANALYTICS_AE_ROW_CAP
 			&& (int) $decoded['rows_before_limit_at_least'] > (int) $decoded['rows']
 		);
+	}
+	if ( sn_analytics_last_result_truncated() && sn_analytics_strict()['on'] ) {
+		sn_analytics_strict( 'an Analytics Engine result was truncated at the row cap' );
+		return null;
 	}
 
 	return $decoded['data'];

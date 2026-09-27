@@ -160,6 +160,8 @@ function sn_admin_flash_messages() {
 		'zenodo_batch_failed'       => array( 'error', 'The deposit did not publish. The ledger names the step and Zenodo&rsquo;s answer; a draft, if one was created, resumes on the next pass.' ),
 		'zenodo_batch_empty'        => array( 'info', 'Nothing to deposit: every confirmed document carries a DOI, or none is confirmed yet.' ),
 		'analytics_test_unconfigured' => array( 'error', 'Analytics not configured: set the account ID and read token first.' ),
+		'analytics_recompute_started' => array( 'success', 'Recomputing 90 days of analytics history in the background. The status line under the human rule shows progress.' ),
+		'analytics_recompute_busy'    => array( 'info', 'A history recompute is already running.' ),
 		'schedule_fired'              => array( 'success', 'Scheduled-content boundary fired. The row was advanced and its URLs purged.' ),
 		'schedule_repurged'           => array( 'success', 'Scheduled-content URLs re-purged from Cloudflare.' ),
 		'schedule_swap_fired'         => array( 'success', 'Version swap fired &mdash; the old version hid, the new one revealed, one edge purge dispatched.' ),

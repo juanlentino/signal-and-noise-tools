@@ -92,6 +92,7 @@ function sn_admin_post_handlers() {
 		'zenodo_deposit_one'         => 'sn_handle_zenodo_deposit_one',
 		'analytics_exclude_save'     => 'sn_handle_analytics_exclude_save',
 		'analytics_test'             => 'sn_handle_analytics_test',
+		'analytics_recompute'        => 'sn_handle_analytics_recompute', // re-roll 90 days under the current human rule
 		'analytics_tuning_save'      => 'sn_handle_analytics_tuning_save',
 		'north_star_save'            => 'sn_handle_north_star_save',
 		'analytics_funnels_save'     => 'sn_handle_analytics_funnels_save',
