@@ -30,7 +30,7 @@ $m = get_option( 'sn_tag_redirects' );
 ok( $m['old-a'] === 'final' && $m['canon'] === 'final', 'record: collapses chains (old-a -> final, not -> canon)' );
 
 // handler — drive the pure target resolver (no exit), like the humans-txt pattern.
-ok( sn_tag_redirect_target( '/notes/tag/old-a/' ) === 'https://x.test/notes/tag/final/',
+ok( sn_tag_redirect_target( '/notes/tag/old-a/' ) === 'https://x.test/tag/final/',
 	'handler: 301 target for a mapped dead slug is the canonical archive' );
 $GLOBALS['__live_slugs'] = array( 'old-a' ); // slug got re-created as a live term
 ok( sn_tag_redirect_target( '/notes/tag/old-a/' ) === '', 'handler: ignores a slug that resolves to a live term' );
@@ -38,12 +38,12 @@ $GLOBALS['__live_slugs'] = array();
 ok( sn_tag_redirect_target( '/notes/tag/unknown/' ) === '', 'handler: ignores an unmapped slug' );
 ok( sn_tag_redirect_target( '/notes/' ) === '', 'handler: ignores non tag-archive URLs' );
 ok( sn_tag_redirect_target( '/about/' ) === '', 'handler: ignores unrelated URLs' );
-ok( sn_tag_redirect_target( '/notes/tag/old-a/?x=1' ) === 'https://x.test/notes/tag/final/', 'handler: matches with a query string' );
+ok( sn_tag_redirect_target( '/notes/tag/old-a/?x=1' ) === 'https://x.test/tag/final/', 'handler: matches with a query string' );
 
 // Retired tags (the 83-to-23 pass): the canonical /tag/ form, survivor or index.
 $GLOBALS['__live_slugs'] = array( 'music-production', 'provenance' );
 ok( sn_tag_redirect_target( '/tag/ai-tools/' ) === 'https://x.test/tag/music-production/', 'retired: /tag/ai-tools/ goes to its survivor' );
-ok( sn_tag_redirect_target( '/notes/tag/audio-engineering/' ) === 'https://x.test/notes/tag/music-production/', 'retired: the /notes/tag/ form keeps its form' );
+ok( sn_tag_redirect_target( '/notes/tag/audio-engineering/' ) === 'https://x.test/tag/music-production/', 'retired: the /notes/tag/ form lands on the canonical /tag/ archive (19.3.1: /notes/tag/ 404s for live tags)' );
 ok( sn_tag_redirect_target( '/tag/evidence/' ) === 'https://x.test/notes/', 'retired: a deleted tag goes to the notes index' );
 $GLOBALS['__live_slugs'] = array( 'provenance' );
 ok( sn_tag_redirect_target( '/tag/ai-tools/' ) === 'https://x.test/notes/', 'retired: a survivor that no longer lives sends to the index, never a 404' );
@@ -62,6 +62,20 @@ ok( sn_tag_redirect_target( '/tag/cryptography/' ) === 'https://x.test/tag/crypt
 $GLOBALS['__live_slugs'] = array( 'music-production' );
 ok( sn_tag_redirect_target( '/tag/provenance/page/2/' ) === 'https://x.test/provenance/' && sn_tag_redirect_target( '/tag/ai-tools/page/3' ) === 'https://x.test/tag/music-production/', 'a retired tag\'s /page/N/ lands on the target\'s first page' );
 ok( sn_tag_redirect_target( '/tag/ai-tools/page/x/' ) === '' && sn_tag_redirect_target( '/tag/music-production/page/2/' ) === '', 'a non-numeric page and a live tag\'s pages are left alone' );
+
+// 19.3.1: invariants over the WHOLE retired map (they lived in the theme's
+// tests until its map was folded in here, 14.4.1).
+$chained = array(); $bad = array(); $keys = array_keys( SN_TAG_RETIRED_MAP );
+foreach ( SN_TAG_RETIRED_MAP as $from => $to ) {
+	if ( '' !== $to && '/' !== $to[0] && isset( SN_TAG_RETIRED_MAP[ $to ] ) ) { $chained[] = "$from -> $to"; }
+	if ( '' !== $to && ( false !== strpos( $to, '://' ) || ( '/' === $to[0] && '/' !== substr( $to, -1 ) ) || ( '/' !== $to[0] && 1 !== preg_match( '/^[a-z0-9-]+$/', $to ) ) ) ) { $bad[] = "$from -> $to"; }
+	if ( 1 !== preg_match( '/^[a-z0-9-]+$/', $from ) ) { $bad[] = "key $from"; }
+}
+ok( array() === $chained, 'no retired tag points at another retired tag' . ( $chained ? ': ' . implode( ', ', $chained ) : '' ) );
+ok( array() === $bad, 'every target is a slug, a rooted path ending in /, or empty; never an absolute URL' . ( $bad ? ': ' . implode( ', ', $bad ) : '' ) );
+ok( count( SN_TAG_RETIRED_MAP ) >= 60, 'the map is populated (' . count( SN_TAG_RETIRED_MAP ) . ' entries), so the checks are not vacuous' );
+$GLOBALS['__live_slugs'] = array();
+ok( sn_tag_redirect_target( '/tag/provenance-/' ) === '' && sn_tag_redirect_target( '/tag/PROVENANCE/' ) === '', 'no prefix match, and the map is case-exact' );
 
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

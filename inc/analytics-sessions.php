@@ -507,7 +507,7 @@ function sn_visit_summary( array $events, $engaged_scroll = SN_ANALYTICS_SESSION
 	$path       = array();
 	$goals      = array();
 	$max_scroll = array(); // path => max scroll %
-	$max_dwell  = array(); // path => max dwell ms
+	$dwell_sum  = array(); // path => max dwell ms
 	$first_ts   = null;
 	$last_ts    = null;
 	$seq        = array(); // compact ordered events for funnel matching
@@ -526,7 +526,7 @@ function sn_visit_summary( array $events, $engaged_scroll = SN_ANALYTICS_SESSION
 			$max_scroll[ $p ] = max( $max_scroll[ $p ] ?? 0, (float) ( $e['scroll'] ?? 0 ) );
 		} elseif ( 'tm' === $type ) {
 			// tm is a per-flush DELTA (sn-beacon.js v10.44.4): sum the slices.
-			$max_dwell[ $p ] = ( $max_dwell[ $p ] ?? 0 ) + (float) ( $e['dwell'] ?? 0 );
+			$dwell_sum[ $p ] = ( $dwell_sum[ $p ] ?? 0 ) + (float) ( $e['dwell'] ?? 0 );
 		} elseif ( 'ce' === $type ) {
 			$name = (string) ( $e['ce'] ?? '' );
 			if ( '' !== $name ) {
@@ -537,7 +537,7 @@ function sn_visit_summary( array $events, $engaged_scroll = SN_ANALYTICS_SESSION
 
 	$engaged = false;
 	foreach ( $path as $p ) {
-		if ( ( $max_scroll[ $p ] ?? 0 ) >= $engaged_scroll && ( $max_dwell[ $p ] ?? 0 ) >= $engaged_ms ) {
+		if ( ( $max_scroll[ $p ] ?? 0 ) >= $engaged_scroll && ( $dwell_sum[ $p ] ?? 0 ) >= $engaged_ms ) {
 			$engaged = true;
 			break;
 		}

@@ -63,11 +63,21 @@ function sn_dash_briefing_sentence( array $f ) {
 	}
 
 	if ( array_key_exists( 'anchored', $f ) && (int) $f['anchored'] > 0 ) {
-		$parts[] = sprintf(
-			/* translators: %s count of anchored notes */
-			__( 'all %s notes anchored', 'signal-and-noise-tools' ),
-			number_format_i18n( (int) $f['anchored'] )
-		);
+		// 19.3.1: "all" only when it is all. With a total present and short of
+		// it, say how many of how many; the old line said "all 40" at 40 of 41.
+		$total = array_key_exists( 'anchored_total', $f ) ? (int) $f['anchored_total'] : (int) $f['anchored'];
+		$parts[] = (int) $f['anchored'] >= $total
+			? sprintf(
+				/* translators: %s count of anchored notes */
+				__( 'all %s notes anchored', 'signal-and-noise-tools' ),
+				number_format_i18n( (int) $f['anchored'] )
+			)
+			: sprintf(
+				/* translators: 1: anchored notes, 2: notes with a provenance record */
+				__( '%1$s of %2$s notes anchored', 'signal-and-noise-tools' ),
+				number_format_i18n( (int) $f['anchored'] ),
+				number_format_i18n( $total )
+			);
 	}
 
 	if ( array_key_exists( 'citations', $f ) && 0 === (int) $f['citations'] ) {

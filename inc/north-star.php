@@ -97,47 +97,31 @@ function snt_nsm_is_core( $path, array $prefixes ) {
  * @return array{readers:int,deep:int,career:int,intent:int,resume_downloads:int,subscribes:int,shares:int,verifies:int}
  */
 function snt_nsm_tally( array $visits, array $cfg ) {
-	$pages = array(); // vid => path => [scroll, dwell]
-	$seen  = array(); // vid => pv paths
 	$acted = array(); // vid => true when a deliberate action fired
 	$goals = array( 'resume_downloads' => array(), 'subscribes' => array(), 'shares' => array(), 'verifies' => array() ); // goal => vid => true
 	foreach ( $visits as $visit ) {
 		foreach ( $visit as $e ) {
 			$vid = (string) ( $e['vid'] ?? '' );
 			$p   = (string) ( $e['path'] ?? '' );
-			$ev  = (string) ( $e['ev'] ?? '' );
-			$ce = 'ce' === $ev ? (string) ( $e['ce'] ?? '' ) : '';
-			if ( '' !== $ce && '' !== $vid ) {
-				if ( in_array( $ce, array( 'download', 'outbound' ), true ) ) {
-					$acted[ $vid ] = true;
-				}
-				if ( 'download' === $ce && 1 === preg_match( '#^/resume(/|$)#', $p ) ) {
-					$goals['resume_downloads'][ $vid ] = true;
-				} elseif ( 'subscribe' === $ce ) {
-					$goals['subscribes'][ $vid ] = true;
-				} elseif ( in_array( $ce, array( 'share_copy', 'share_native' ), true ) ) {
-					$goals['shares'][ $vid ] = true;
-				} elseif ( 'verify' === $ce ) {
-					$goals['verifies'][ $vid ] = true;
-				}
-			}
-			if ( '' === $vid || '' === $p ) {
+			$ce  = 'ce' === (string) ( $e['ev'] ?? '' ) ? (string) ( $e['ce'] ?? '' ) : '';
+			if ( '' === $ce || '' === $vid ) {
 				continue;
 			}
-			$cur = $pages[ $vid ][ $p ] ?? array( 0.0, 0.0 );
-			if ( 'sc' === $ev ) {
-				$cur[0] = max( $cur[0], (float) ( $e['scroll'] ?? 0 ) );
-			} elseif ( 'tm' === $ev ) {
-				// tm carries a per-flush DELTA (sn-beacon.js v10.44.4): a read split
-				// by tab switches arrives as slices, so the time on the page is
-				// their sum, never the largest slice.
-				$cur[1] += (float) ( $e['dwell'] ?? 0 );
-			} elseif ( 'pv' === $ev ) {
-				$seen[ $vid ][ $p ] = true;
+			if ( in_array( $ce, array( 'download', 'outbound' ), true ) ) {
+				$acted[ $vid ] = true;
 			}
-			$pages[ $vid ][ $p ] = $cur;
+			if ( 'download' === $ce && 1 === preg_match( '#^/resume(/|$)#', $p ) ) {
+				$goals['resume_downloads'][ $vid ] = true;
+			} elseif ( 'subscribe' === $ce ) {
+				$goals['subscribes'][ $vid ] = true;
+			} elseif ( in_array( $ce, array( 'share_copy', 'share_native' ), true ) ) {
+				$goals['shares'][ $vid ] = true;
+			} elseif ( 'verify' === $ce ) {
+				$goals['verifies'][ $vid ] = true;
+			}
 		}
 	}
+	$metrics = snt_nsm_page_metrics( $visits );
 	$out = array(
 		'readers'          => 0,
 		'deep'             => 0,
@@ -148,17 +132,16 @@ function snt_nsm_tally( array $visits, array $cfg ) {
 		'shares'           => count( $goals['shares'] ),
 		'verifies'         => count( $goals['verifies'] ),
 	);
-	foreach ( $pages as $vid => $paths ) {
+	foreach ( $metrics as $row ) {
 		$read = 0;
-		foreach ( $paths as $p => $m ) {
-			if ( isset( $seen[ $vid ][ $p ] ) && snt_nsm_is_core( $p, $cfg['prefixes'] )
-				&& ( $m[0] >= $cfg['scroll'] || $m[1] >= $cfg['dwell_ms'] ) ) {
+		foreach ( $row['pages'] as $p => $m ) {
+			if ( snt_nsm_is_core( $p, $cfg['prefixes'] ) && snt_nsm_is_read( $m, $cfg ) ) {
 				++$read;
 			}
 		}
 		$out['readers'] += $read > 0 ? 1 : 0;
 		$out['deep']    += $read > 1 ? 1 : 0;
-		foreach ( array_keys( $seen[ $vid ] ?? array() ) as $p ) {
+		foreach ( array_keys( $row['pages'] ) as $p ) {
 			if ( 1 === preg_match( '#^/(resume|contact)(/|$)#', $p ) ) {
 				++$out['career'];
 				break;
@@ -166,6 +149,61 @@ function snt_nsm_tally( array $visits, array $cfg ) {
 		}
 	}
 	return $out;
+}
+
+/**
+ * THE per-page reading every north-star count shares (19.3.1: the tally and
+ * the calibration each kept a copy): per visitor-day, the device and each
+ * VIEWED page's [max scroll, summed dwell]. tm is a per-flush DELTA
+ * (sn-beacon.js v10.44.4), so a read split by tab switches is the sum of its
+ * slices. A page with scroll or time but no pageview is not a page read. PURE.
+ *
+ * @param array $visits Visits from sn_sessionize().
+ * @return array<string,array{device:string,pages:array<string,array{0:float,1:float}>}>
+ */
+function snt_nsm_page_metrics( array $visits ) {
+	$out  = array();
+	$seen = array();
+	foreach ( $visits as $visit ) {
+		foreach ( $visit as $e ) {
+			$vid = (string) ( $e['vid'] ?? '' );
+			$p   = (string) ( $e['path'] ?? '' );
+			if ( '' === $vid || '' === $p ) {
+				continue;
+			}
+			$d = (string) ( $e['device'] ?? '' );
+			if ( ! isset( $out[ $vid ] ) ) {
+				$out[ $vid ] = array( 'device' => $d, 'pages' => array() );
+			} elseif ( '' === $out[ $vid ]['device'] && '' !== $d ) {
+				$out[ $vid ]['device'] = $d;
+			}
+			$cur = $out[ $vid ]['pages'][ $p ] ?? array( 0.0, 0.0 );
+			$ev  = (string) ( $e['ev'] ?? '' );
+			if ( 'sc' === $ev ) {
+				$cur[0] = max( $cur[0], (float) ( $e['scroll'] ?? 0 ) );
+			} elseif ( 'tm' === $ev ) {
+				$cur[1] += (float) ( $e['dwell'] ?? 0 );
+			} elseif ( 'pv' === $ev ) {
+				$seen[ $vid ][ $p ] = true;
+			}
+			$out[ $vid ]['pages'][ $p ] = $cur;
+		}
+	}
+	foreach ( $out as $vid => $row ) {
+		$out[ $vid ]['pages'] = array_intersect_key( $row['pages'], $seen[ $vid ] ?? array() );
+	}
+	return $out;
+}
+
+/**
+ * Is one page's [scroll, dwell] a read under the live rule? PURE.
+ *
+ * @param array $m   [max scroll, summed dwell ms].
+ * @param array $cfg snt_nsm_config() shape.
+ * @return bool
+ */
+function snt_nsm_is_read( array $m, array $cfg ) {
+	return $m[0] >= $cfg['scroll'] || $m[1] >= $cfg['dwell_ms'];
 }
 
 /**

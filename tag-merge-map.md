@@ -1,6 +1,6 @@
 # Tag merge map — juanlentino.com notes corpus
 
-Prepared 2026-08-15. **Planning document. Nothing here has been written to the live site.**
+Prepared 2026-08-15. **Executed on the live site the same day** (83 terms to 23; 61 emptied terms pruned). Kept as the record of what went where: `inc/tag-retired-map.php` is generated from §2 and 301s every retired slug.
 
 **To execute it: `./tag-merge-apply.sh` (dry run) then `--apply`.** That script is generated from
 this file's own per-post table, so the two cannot drift; regenerate it rather than hand-editing.

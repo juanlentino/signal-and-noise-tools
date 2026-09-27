@@ -72,7 +72,10 @@ function sn_tag_redirect_target( $uri ) {
 	if ( ! preg_match( '#^(/notes)?/tag/([^/]+)(?:/page/\d+)?/?$#', (string) $path, $mm ) ) {
 		return '';
 	}
-	$base = $mm[1] . '/tag/';
+	// 19.3.1: always the canonical /tag/ form. Live tags do not serve at
+	// /notes/tag/<slug>/ (it 404s), so keeping the request's form sent a
+	// retired /notes/tag/ link to a dead page.
+	$base = '/tag/';
 	$slug = $mm[2];
 	$map  = get_option( SN_TAG_REDIRECTS_OPT, array() );
 	$map  = is_array( $map ) ? $map : array();
