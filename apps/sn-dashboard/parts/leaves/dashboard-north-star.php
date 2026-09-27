@@ -92,19 +92,18 @@ function north_star_html( $tab ) {
 	$delta  = (int) $r['value'] - (int) $r['previous'];
 	$change = sprintf( /* translators: 1: signed change, 2: three-week average */ __( '%1$s vs last week · 3-week avg %2$s', 'signal-and-noise-tools' ), ( $delta > 0 ? '+' : '' ) . $delta, number_format_i18n( (float) $r['prior_avg'], 1 ) );
 	$series = array_map( 'intval', (array) ( $r['series'] ?? array() ) );
-	// Four labelled weeks, oldest first. At single-digit counts a chart was
-	// mostly empty axis; the numbers with their week say more.
+	// The trend: up to twelve weeks, oldest first, each a count over a bar
+	// scaled to the busiest week, one chart; dates at the two ends.
 	$now   = time();
-	$weeks = '';
-	$peak  = max( 1, max( $series ?: array( 0 ) ) );
-	foreach ( $series as $i => $n ) {
-		$start  = $now - ( count( $series ) - $i ) * 7 * DAY_IN_SECONDS;
-		// A bar under each number, scaled to the busiest week; a zero week keeps
-		// a baseline tick (CSS min-height) so it reads as quiet, not missing.
-		$weeks .= '<li><span>' . \snt_kit_esc( wp_date( 'M j', $start ) ) . '</span><strong>' . \snt_kit_esc( number_format_i18n( $n ) ) . '</strong>'
-			. '<i class="snt-ns-hero__bar" style="--snt-bar:' . round( $n / $peak, 3 ) . '" aria-hidden="true"></i></li>';
+	$bars  = array_map( 'intval', (array) ( $r['trend'] ?? $series ) );
+	$peak  = max( 1, max( $bars ?: array( 0 ) ) );
+	$cells = '';
+	foreach ( $bars as $n ) {
+		$cells .= '<li><strong>' . \snt_kit_esc( number_format_i18n( $n ) ) . '</strong><i class="snt-ns-hero__bar" style="--snt-bar:' . round( $n / $peak, 3 ) . '" aria-hidden="true"></i></li>';
 	}
-	$trend = '<ol class="snt-ns-hero__weeks" aria-label="' . \snt_kit_esc( __( 'Engaged readers per week, oldest first', 'signal-and-noise-tools' ) ) . '">' . $weeks . '</ol>';
+	$first = $now - count( $bars ) * 7 * DAY_IN_SECONDS;
+	$trend = '<ol class="snt-ns-hero__weeks" style="--snt-weeks:' . max( 1, count( $bars ) ) . '" aria-label="' . \snt_kit_esc( sprintf( /* translators: %d weeks */ __( 'Engaged readers per week, last %d weeks, oldest first', 'signal-and-noise-tools' ), count( $bars ) ) ) . '">' . $cells . '</ol>'
+		. '<div class="snt-ns-hero__axis"><span>' . \snt_kit_esc( wp_date( 'M j', $first ) ) . '</span><span>' . \snt_kit_esc( __( 'this week', 'signal-and-noise-tools' ) ) . '</span></div>';
 	$layers = (array) ( $r['layers'] ?? array() );
 	$intent = (array) ( $layers['intent'] ?? array() );
 

@@ -21,6 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SNT_NSM_CACHE_KEY = 'snt_nsm_reading';
 const SNT_NSM_WEEKS     = 4;
+const SNT_NSM_TREND     = 12; // weeks on Home's trend; the figures above keep four
 
 /**
  * Page groups the owner can count as core reading: group => path prefixes.
@@ -172,11 +173,12 @@ function snt_nsm_tally( array $visits, array $cfg ) {
  * @param int   $now    Epoch seconds.
  * @return array<int,array> week index => visits
  */
-function snt_nsm_weeks( array $visits, $now ) {
-	$weeks = array_fill( 0, SNT_NSM_WEEKS, array() );
+function snt_nsm_weeks( array $visits, $now, $count = SNT_NSM_WEEKS ) {
+	$count = max( 1, (int) $count );
+	$weeks = array_fill( 0, $count, array() );
 	foreach ( $visits as $v ) {
 		$i = (int) floor( ( $now - (int) ( $v[0]['ts'] ?? 0 ) ) / ( 7 * 86400 ) );
-		if ( $i >= 0 && $i < SNT_NSM_WEEKS ) {
+		if ( $i >= 0 && $i < $count ) {
 			$weeks[ $i ][] = $v;
 		}
 	}

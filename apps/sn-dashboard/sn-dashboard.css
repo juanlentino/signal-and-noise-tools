@@ -597,54 +597,50 @@ os-button.snt-home__action:hover {
 
 .snt-ns-hero__weeks {
 	display: grid;
-	grid-template-columns: repeat( 4, minmax( 0, 1fr ) );
+	grid-template-columns: repeat( var( --snt-weeks, 12 ), minmax( 0, 1fr ) );
+	column-gap: 4px;
 	margin: 18px 0 0;
 	padding: 12px 0 0;
 	list-style: none;
 	border-block-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
 }
 
-.snt-ns-hero__weeks li { min-width: 0; }
-
-.snt-ns-hero__weeks span {
-	display: block;
-	font: 500 11px/1.3 var( --os-ui-font-mono, 'Geist Mono', monospace );
-	color: var( --os-ui-fg-muted, #b3afb5 );
-}
-
-.snt-ns-hero__weeks strong {
-	display: block;
-	margin-block-start: 4px;
-	font: 680 20px/1 var( --os-ui-font-mono, 'Geist Mono', monospace );
-	color: var( --os-ui-fg, #fffbff );
-}
-
-.snt-ns-hero__weeks li:last-child strong { color: var( --os-ui-accent, #f252fc ); }
-
 .snt-ns-hero__weeks li {
 	display: flex;
 	flex-direction: column;
+	align-items: stretch;
+	min-width: 0;
+	min-height: 112px;
+	text-align: center;
+}
+
+.snt-ns-hero__weeks strong {
+	margin-block-end: 6px;
+	font: 600 11px/1 var( --os-ui-font-mono, 'Geist Mono', monospace );
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	margin-block-start: auto;
 }
 
 .snt-ns-hero__bar {
 	display: block;
-	width: min( 28px, 60% );
-	height: calc( var( --snt-bar, 0 ) * 72px );
+	width: 100%;
+	height: calc( var( --snt-bar, 0 ) * 88px );
 	min-height: 2px;
-	margin-block-start: auto;
-	padding-block-start: 0;
 	border-radius: 2px 2px 0 0;
 	background: color-mix( in srgb, var( --os-ui-fg, #fffbff ) 22%, transparent );
 	transform-origin: bottom;
 	animation: snt-bar-rise 0.5s cubic-bezier( 0.16, 1, 0.3, 1 ) both;
 }
 
-.snt-ns-hero__weeks strong { margin-block-end: 10px; }
+.snt-ns-hero__weeks li:last-child strong { color: var( --os-ui-accent, #f252fc ); }
+.snt-ns-hero__weeks li:last-child .snt-ns-hero__bar { background: var( --os-ui-accent, #f252fc ); }
 
-.snt-ns-hero__weeks li { min-height: 124px; }
-
-.snt-ns-hero__weeks li:last-child .snt-ns-hero__bar {
-	background: var( --os-ui-accent, #f252fc );
+.snt-ns-hero__axis {
+	display: flex;
+	justify-content: space-between;
+	margin-block-start: 6px;
+	font: 500 11px/1.3 var( --os-ui-font-mono, 'Geist Mono', monospace );
+	color: var( --os-ui-fg-muted, #b3afb5 );
 }
 
 @keyframes snt-bar-rise {

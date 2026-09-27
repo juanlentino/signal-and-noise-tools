@@ -24,16 +24,19 @@ function snt_nsm_reading( $fresh = false ) {
 	}
 	$cfg  = snt_nsm_config();
 	$now  = time();
-	$from = gmdate( 'Y-m-d', $now - ( 7 * SNT_NSM_WEEKS - 1 ) * DAY_IN_SECONDS );
+	// One read for the whole trend; the four-week figures take its newest four.
+	$from = gmdate( 'Y-m-d', $now - ( 7 * SNT_NSM_TREND - 1 ) * DAY_IN_SECONDS );
 	$raw  = function_exists( 'sn_analytics_fetch_session_events' )
 		? sn_analytics_fetch_session_events( $from, gmdate( 'Y-m-d', $now ), 'human' )
 		: array( 'visits' => array(), 'capped' => false, 'configured' => false );
 
 	$weeks = array();
-	foreach ( snt_nsm_weeks( (array) $raw['visits'], $now ) as $visits ) {
+	foreach ( snt_nsm_weeks( (array) $raw['visits'], $now, SNT_NSM_TREND ) as $visits ) {
 		$weeks[] = snt_nsm_tally( $visits, $cfg );
 	}
-	$series = array_column( $weeks, 'readers' );
+	$trend  = array_column( $weeks, 'readers' );
+	$weeks  = array_slice( $weeks, 0, SNT_NSM_WEEKS );
+	$series = array_slice( $trend, 0, SNT_NSM_WEEKS );
 	$prior  = array_slice( $series, 1 );
 
 	$out = array(
@@ -42,7 +45,8 @@ function snt_nsm_reading( $fresh = false ) {
 		'value'      => (int) $series[0],
 		'previous'   => (int) $series[1],
 		'prior_avg'  => $prior ? round( array_sum( $prior ) / count( $prior ), 1 ) : 0.0,
-		'series'     => array_reverse( $series ), // oldest week first, for a sparkline
+		'series'     => array_reverse( $series ), // oldest week first, four weeks
+		'trend'      => array_reverse( $trend ), // oldest week first, SNT_NSM_TREND weeks, for Home's bars
 		'definition' => array(
 			'sections' => $cfg['sections'],
 			'scroll'   => $cfg['scroll'],
