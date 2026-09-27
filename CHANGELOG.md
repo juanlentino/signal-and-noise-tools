@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Release cuts skip the security scan; nothing else does.** A cut PR only moves CHANGELOG text and bumps the header's `Version:` line, and the code it ships was scanned on its own PR, yet each cut waited ~10 minutes for a second scan. `.github/scripts/scan-scope.sh` now decides: skip only when every file is docs/Markdown or the plugin header whose ONLY changed line is `Version:`. A code file or a header edit riding a cut is scanned; any doubt scans. The script runs from the base commit, never the PR head, so a PR cannot rewrite it to waive its own scan. Pinned by `tests/ci-scan-scope.php`.
+
 ## [19.1.2] - 2026-09-27 — retired tags' later pages redirect
 
 ### Fixed
