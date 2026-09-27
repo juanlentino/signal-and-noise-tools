@@ -107,6 +107,9 @@ function north_star_html( $tab ) {
 		. '<strong class="snt-ns-hero__value">' . \snt_kit_esc( number_format_i18n( (int) $r['value'] ) ) . '</strong>'
 		. '<span class="snt-home__metric-delta"' . ( $delta < 0 ? ' data-tone="warning"' : '' ) . '>' . \snt_kit_esc( $change ) . '</span>'
 		. $trend
+		// os-histogram draws nothing for a zero week; the weekly counts under it
+		// keep a quiet week visible instead of reading as a missing bar.
+		. '<span class="snt-home__metric-delta snt-ns-hero__weeks">' . \snt_kit_esc( sprintf( /* translators: %s weekly counts, oldest first */ __( 'Weekly: %s', 'signal-and-noise-tools' ), implode( ' · ', array_map( 'number_format_i18n', $series ) ) ) ) . '</span>'
 		. '</div>'
 		. '<div class="snt-ns-hero__keys">'
 		. north_star_key_html( __( 'Resume PDF downloads', 'signal-and-noise-tools' ), $intent['resume_downloads'] ?? null )

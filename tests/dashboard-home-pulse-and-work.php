@@ -90,8 +90,8 @@ $GLOBALS['__deltas'] = array(
 	'visits' => array( 'current' => 100, 'previous' => 50, 'pct' => 100, 'dir' => 'up' ),
 );
 $html = \SignalNoise\OpenStationHost\Dashboard\Leaves\home_pulse_html( array(), 'dashboard' );
-ok( false !== strpos( $html, '2.0 v/s' ), 'the ratio itself renders (2.0 v/s)' );
-ok( false === strpos( $html, 'Engagement' . '</span></div><strong>2.0 v/s</strong><span class="snt-home__metric-delta">+100%' ),
+ok( false !== strpos( $html, '<strong>2.0</strong>' ) && false !== strpos( $html, 'Pages per visit' ), 'the ratio itself renders (2.0), under its plain label, Pages per visit' );
+ok( false === strpos( $html, 'Pages per visit' . '</span></div><strong>2.0</strong><span class="snt-home__metric-delta">+100%' ),
 	'#1208: an UNCHANGED ratio (200/100 vs 100/50, both = 2.0) must not borrow the views delta (+100%)' );
 
 // A real ratio change: views double, visits flat -> ratio moves 1.0 -> 2.0,
@@ -102,8 +102,8 @@ $GLOBALS['__deltas'] = array(
 	'visits' => array( 'current' => 100, 'previous' => 100, 'pct' => 0, 'dir' => 'flat' ),
 );
 $html2 = \SignalNoise\OpenStationHost\Dashboard\Leaves\home_pulse_html( array(), 'dashboard' );
-ok( false !== strpos( $html2, '2.0 v/s' ), 'ratio renders (200/100 = 2.0 v/s)' );
-ok( false !== strpos( $html2, '<strong>2.0 v/s</strong><span class="snt-home__metric-delta">+100%' ),
+ok( false !== strpos( $html2, '<strong>2.0</strong>' ), 'ratio renders (200/100 = 2.0 pages per visit)' );
+ok( false !== strpos( $html2, '<strong>2.0</strong><span class="snt-home__metric-delta">+100%' ),
 	'a genuine ratio move (1.0 -> 2.0) DOES show its own +100% delta' );
 
 // ── 2. "View all (%d)" must read found_posts, not the display window ──────

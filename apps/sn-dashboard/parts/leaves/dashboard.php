@@ -321,7 +321,7 @@ function home_pulse_html( array $data, $tab ) {
 	$engaged_pct = '';
 	if ( isset( $deltas['views']['current'] ) && $deltas['views']['current'] > 0 && isset( $deltas['visits']['current'] ) && $deltas['visits']['current'] > 0 ) {
 		$rate        = round( ( (int) $deltas['views']['current'] / max( 1, (int) $deltas['visits']['current'] ) ), 1 );
-		$engaged_val = number_format_i18n( $rate, 1 ) . ' v/s';
+		$engaged_val = number_format_i18n( $rate, 1 );
 
 		// The tile is a RATIO (views per visit); its delta must be the ratio's
 		// own move, not the views delta — views and visits can move together
@@ -377,7 +377,7 @@ function home_pulse_html( array $data, $tab ) {
 		. '<div class="snt-home__pulse">'
 		. pulse_item_html( __( 'Views', 'signal-and-noise-tools' ), 'dashicons-visibility', $views_curr, $views_pct, admin_url( 'admin.php?page=sn-analytics&sn_range=7d' ) )
 		. pulse_item_html( __( 'Visits', 'signal-and-noise-tools' ), 'dashicons-groups', $visits_curr, $visits_pct, admin_url( 'admin.php?page=sn-analytics&sn_view=visits&sn_range=7d' ) )
-		. pulse_item_html( __( 'Engagement', 'signal-and-noise-tools' ), 'dashicons-performance', $engaged_val, $engaged_pct, admin_url( 'admin.php?page=sn-analytics&sn_range=7d' ) )
+		. pulse_item_html( __( 'Pages per visit', 'signal-and-noise-tools' ), 'dashicons-performance', $engaged_val, $engaged_pct, admin_url( 'admin.php?page=sn-analytics&sn_range=7d' ) )
 		. pulse_item_html( __( 'Search clicks', 'signal-and-noise-tools' ), 'dashicons-search', $search_clicks, $search_detail, admin_url( 'admin.php?page=sn-analytics&sn_view=search' ) )
 		. '</div>'
 		// 15.3.2: the audience lists (top pages, sources, queries) belong here,
