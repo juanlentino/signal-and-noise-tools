@@ -249,6 +249,21 @@ function sn_analytics_rollup_window_days( $tz = '' ) {
 }
 
 /**
+ * Whether any upsert chunk failed since the last reset (a day replace resets it
+ * before its write and rolls back when it is set).
+ *
+ * @param bool|null $set true marks a failure, false resets, null reads.
+ * @return bool
+ */
+function sn_analytics_rollup_chunk_failed( $set = null ) {
+	static $failed = false;
+	if ( null !== $set ) {
+		$failed = (bool) $set;
+	}
+	return $failed;
+}
+
+/**
  * Make a re-roll REPLACE the days it read instead of only upserting over them.
  * An upsert never removes a stored key the fresh result no longer has, so a
  * visitor the human rule newly excludes left their paths behind (measured
@@ -258,8 +273,8 @@ function sn_analytics_rollup_window_days( $tz = '' ) {
  * query, because the truncation verdict describes the last query only. Deletes
  * the window's days (narrowed by $scope, e.g. one dim or role) and runs $write
  * in one transaction, rolled back when the write leaves a database error.
- * ponytail: the error check sees the last chunk's query only; a per-chunk
- * verdict from the upserts if a mid-batch failure is ever measured.
+ * Every upsert chunk reports its own failure (sn_analytics_rollup_chunk_failed),
+ * so a failed FIRST chunk rolls back as surely as a failed last one.
  *
  * @param bool     $complete The read was not null, not empty, not truncated.
  * @param string   $table    Table name without prefix.
@@ -284,13 +299,14 @@ function sn_analytics_rollup_replace( $complete, $table, $tz, callable $write, a
 	$wpdb->query( 'START TRANSACTION' );
 	// phpcs:ignore WordPress.DB.PreparedSQL -- table is prefix + a plugin constant, the column is charset-stripped, every value is bound.
 	$gone = $wpdb->query( $wpdb->prepare( $sql, $args ) );
+	sn_analytics_rollup_chunk_failed( false );
 	if ( false !== $gone ) {
 		$write();
 	}
-	if ( false !== $gone && '' === (string) $wpdb->last_error ) {
+	if ( false !== $gone && ! sn_analytics_rollup_chunk_failed() && '' === (string) $wpdb->last_error ) {
 		$wpdb->query( 'COMMIT' );
 		return;
 	}
 	$wpdb->query( 'ROLLBACK' );
-	error_log( '[sn-analytics] re-roll of ' . $table . ' rolled back, the stored days are unchanged: ' . (string) $wpdb->last_error );
+	error_log( '[sn-analytics] re-roll of ' . $table . ' rolled back after a failed write chunk, the stored days are unchanged. ' . (string) $wpdb->last_error );
 }

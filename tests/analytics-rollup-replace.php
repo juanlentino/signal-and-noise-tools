@@ -46,8 +46,13 @@ function wp_remote_post( $url, $args ) {
 class Wpdb { public $prefix = 'wp_'; public $last_error = ''; public $rows = array(); public $log = array();
 	function prepare( $q, ...$a ) { if ( 1 === count( $a ) && is_array( $a[0] ) ) { $a = $a[0]; } $i = 0;
 		return preg_replace_callback( '/%[sdf]/', function ( $m ) use ( &$i, $a ) { $v = $a[ $i++ ] ?? ''; return '%d' === $m[0] ? (string) (int) $v : "'" . addslashes( (string) $v ) . "'"; }, $q ); }
+	public $snap = null; public $fail_insert = 0; public $inserts = 0;
 	function query( $q ) {
 		$this->log[] = $q;
+		$this->last_error = ''; // real wpdb flushes it at the start of every query
+		if ( 'START TRANSACTION' === $q ) { $this->snap = $this->rows; return 1; }
+		if ( 'ROLLBACK' === $q ) { $this->rows = $this->snap; return 1; }
+		if ( 0 === strpos( $q, 'INSERT' ) && ++$this->inserts === $this->fail_insert ) { $this->last_error = 'Lock wait timeout exceeded'; return false; }
 		if ( preg_match( '/^INSERT INTO (\w+) \(([^)]*)\) VALUES (.*?)( ON DUPLICATE|$)/s', $q, $m ) ) {
 			$cols = array_map( 'trim', explode( ',', $m[2] ) );
 			preg_match_all( '/\(([^()]*)\)/', $m[3], $tuples );
@@ -118,6 +123,18 @@ $del = key( preg_grep( '/^DELETE FROM wp_sn_analytics_daily/', $db->log ) );
 $ins = key( preg_grep( '/^INSERT INTO wp_sn_analytics_daily/', $db->log ) );
 $com = key( array_filter( $db->log, function ( $q, $i ) use ( $del ) { return $i > $del && 'COMMIT' === $q; }, ARRAY_FILTER_USE_BOTH ) );
 ok( null !== $del && 'START TRANSACTION' === $db->log[ $del - 1 ] && $del < $ins && $ins < $com, 'the delete and the write share one committed transaction' );
+
+// ── A failed FIRST chunk of a 3-chunk write rolls the whole day back. ──
+$seed();
+$many = array();
+for ( $i = 0; $i < 250; $i++ ) { $many[] = $pv( $D, "/p{$i}/" ); }
+$GLOBALS['ae'] = array( $main => array( $many, false ) );
+$before = $GLOBALS['wpdb']->rows;
+$GLOBALS["wpdb"]->inserts = 0; $GLOBALS["wpdb"]->fail_insert = 1;
+sn_analytics_run_rollup();
+$GLOBALS['wpdb']->fail_insert = 0;
+$ins = preg_grep( '/^INSERT INTO wp_sn_analytics_daily/', $GLOBALS['wpdb']->log );
+ok( 3 === count( $ins ) && in_array( 'ROLLBACK', $GLOBALS['wpdb']->log, true ) && $before['wp_sn_analytics_daily'] === $GLOBALS['wpdb']->rows['wp_sn_analytics_daily'], 'chunk 1 of 3 failed, chunk 3 succeeded: rolled back, stored rows unchanged (' . count( $ins ) . ' chunks)' );
 
 // ── A failed read deletes nothing. ──
 $seed();
