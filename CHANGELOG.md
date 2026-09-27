@@ -12,6 +12,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **Machine readers carry Cloudflare's verified-bot category.** Rights signals 1.27.0 records the `x-sn-verified-bot` header (set by a zone Transform Rule, so a client cannot forge it) and its aggregate read returns `verified_bot`; the row normaliser now passes that label through. Empty means not verified, or a row from before 1.27.0.
 ### Added
 - **Analytics ingest check in Site Health.** If no human pageview has been recorded for 24 hours, the new check flags it and says whether other traffic kept arriving (the collector runs but records no people) or nothing did (the collector stopped writing). A dead collector no longer reads as a quiet day. A failed or unconfigured query reports "could not check", never zero.
 

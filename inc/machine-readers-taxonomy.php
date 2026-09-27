@@ -163,6 +163,11 @@ function snt_mr_normalize_taxonomy_fields( $row ) {
 		// 'invalid' and 'unknown-key' are the populations that would matter
 		// first if verification ever became a gate, and a boolean erases both.
 		'signed_agent'           => snt_mr_normalize_signed_agent( $row['signed_agent'] ?? null ),
+		// 19.4.0: Cloudflare's verified-bot category, Worker v1.27.0's blob12
+		// (a zone Transform Rule sets it, so the client cannot). An open label
+		// ("Search Engine Crawler"); '' is not verified OR not measured (rows
+		// before v1.27.0), so it is never read as a claim either way.
+		'verified_bot'           => substr( preg_replace( '/[^A-Za-z0-9 &()\/\-]/', '', trim( (string) ( $row['verified_bot'] ?? '' ) ) ), 0, 64 ),
 	);
 }
 
