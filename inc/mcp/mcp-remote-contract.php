@@ -53,7 +53,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 // reason), so checks_skipped names what did not run and why.
 // Unreleased: '9' -> '10' — the 5xx twin gained paths_by_status (#1006),
 // "<edge> <cache> <path>" per failing request, so a 520 names its URL.
-const SN_REMOTE_CONTRACT_VERSION = '10';
+// Unreleased: '10' -> '11' — the rss-stats twin gained feed_opens (7d / 30d
+// totals + top notes, labelled a floor). Additive.
+const SN_REMOTE_CONTRACT_VERSION = '11';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -82,6 +84,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'9' => 'ed9407989fdf8489c7bc3575e869187d310cb16206b8b8005b7d633a50911e85',
 	// RED-then-pin, 2026-09-26 (#1006): paths_by_status on the 5xx twin.
 	'10' => 'ad45bba357b8da9e01a9f10a8590b58df01480694b704fa991bc30f11f503138',
+	// RED-then-pin, 2026-09-27: feed_opens on the rss-stats twin.
+	'11' => '60c50a1daa0050be6b0f5b4a72330222282a3dd77720f6d90acfef884cf13968',
 );
 
 /**

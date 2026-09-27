@@ -44,6 +44,16 @@ for ( $i = 0; $i < SNT_FEED_OPENS_PER_DAY + 20; $i++ ) {
 }
 ok( SNT_FEED_OPENS_PER_DAY === snt_feed_opens_window( $cap, 1, $now )['total'], 'a UA-spraying flood is bounded per note per day' );
 
+// Report summary: 7d/30d totals and a top list, labelled a floor.
+$sum = array();
+$sum = snt_feed_opens_record( $sum, 7, 'r1', $now );
+$sum = snt_feed_opens_record( $sum, 7, 'r2', $now );
+$sum = snt_feed_opens_record( $sum, 8, 'r1', $now - 20 * DAY_IN_SECONDS );
+$r   = snt_feed_opens_summary( $sum, $now );
+ok( 2 === $r['total_7d'] && 3 === $r['total_30d'], 'the summary carries 7-day and 30-day totals' );
+ok( array( 7, 8 ) === array_column( $r['top_30d'], 'post_id' ) && 2 === $r['top_30d'][0]['opens'], 'the top list is per note, most opened first' );
+ok( 'floor' === $r['basis'] && false !== stripos( $r['note'], 'at least' ), 'the summary is labelled a floor, "at least"' );
+
 // North star pin: the star is on-site reads only; feed opens are an input beside it.
 $t  = time();
 $ev = function ( $vid, $e, $path, $x = array() ) use ( $t ) { return array_merge( array( 'vid' => $vid, 'ev' => $e, 'path' => $path, 'ts' => $t - 3600 ), $x ); };

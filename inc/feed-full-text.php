@@ -4,7 +4,8 @@
  * and core picks excerpt or full text from the site option
  * `rss_use_excerpt` (Settings › Reading, "For each post in a feed, include").
  * Nothing in the theme or plugin forced excerpts: the option was on. This
- * module turns it off for the notes feed only (`option_rss_use_excerpt`),
+ * module turns it off for the notes feed and the main posts feed /feed/
+ * (same posts) only (`option_rss_use_excerpt`), never comment feeds or admin,
  * leaving the site-wide setting alone, so each item gains content:encoded
  * while <description> stays the excerpt.
  *
@@ -23,14 +24,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Whether a request path is the notes feed (RSS or Atom). PURE.
+ * Whether a request path is a full-text posts feed: /notes/feed or the main
+ * /feed (same posts), RSS or Atom. PURE.
  *
  * @param string $uri REQUEST_URI.
  * @return bool
  */
 function snt_feed_is_notes_path( $uri ) {
 	$path = (string) strtok( (string) $uri, '?' );
-	return 1 === preg_match( '#^/notes/feed(/|$)#', $path );
+	return 1 === preg_match( '#^/(notes/)?feed(/|$)#', $path );
 }
 
 /**

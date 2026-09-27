@@ -1,7 +1,7 @@
 <?php
 /**
  * The notes feed carries the full note: excerpt mode is off for /notes/feed/
- * only, the content is made safe for a feed reader, and each item ends with a
+ * and the main /feed/ only, the content is made safe for a feed reader, and each item ends with a
  * "Read on the site" link and a pixel whose URL carries only the note id. The
  * fixture is a real note's rendered entry content, plus hostile additions.
  */
@@ -37,12 +37,22 @@ echo "Feed full text\n\n";
 
 // Scope: the notes feed only.
 ok( snt_feed_is_notes_path( '/notes/feed/' ) && snt_feed_is_notes_path( '/notes/feed/atom/' ) && snt_feed_is_notes_path( '/notes/feed?x=1' ), 'the notes feed paths match' );
-ok( ! snt_feed_is_notes_path( '/feed/' ) && ! snt_feed_is_notes_path( '/notes/feedback/' ) && ! snt_feed_is_notes_path( '/notes/x/feed/' ), 'the site feed, a lookalike and a per-note comment feed do not' );
+ok( snt_feed_is_notes_path( '/feed/' ) && snt_feed_is_notes_path( '/feed/atom/' ) && snt_feed_is_notes_path( '/feed' ), 'the main posts feed matches too' );
+ok( ! snt_feed_is_notes_path( '/comments/feed/' ) && ! snt_feed_is_notes_path( '/notes/feedback/' ) && ! snt_feed_is_notes_path( '/feedback/' ) && ! snt_feed_is_notes_path( '/notes/x/feed/' ), 'the comments feed, lookalikes and a per-note comment feed do not' );
 $opt = $GLOBALS['ft_filters']['option_rss_use_excerpt'][0];
 $_SERVER['REQUEST_URI'] = '/notes/feed/';
 ok( 0 === $opt( '1' ), 'excerpt-only is off in the notes feed, so content:encoded is emitted' );
 $_SERVER['REQUEST_URI'] = '/feed/';
+ok( 0 === $opt( '1' ), 'excerpt-only is off in the main posts feed too' );
+$_SERVER['REQUEST_URI'] = '/comments/feed/';
 ok( '1' === $opt( '1' ), 'the site-wide option is left alone everywhere else' );
+$_SERVER['REQUEST_URI'] = '/feed/';
+$GLOBALS['ft_req']['comment'] = true;
+ok( '1' === $opt( '1' ) && 'x' === $GLOBALS['ft_filters']['the_content_feed'][0]( 'x' ), 'a comment feed at /feed/ keeps the excerpt and untouched content' );
+$GLOBALS['ft_req']['comment'] = false;
+$GLOBALS['ft_req']['admin'] = true;
+ok( '1' === $opt( '1' ), 'admin is left alone' );
+$GLOBALS['ft_req']['admin'] = false;
 $_SERVER['REQUEST_URI'] = '/notes/feed/';
 $GLOBALS['ft_req']['comment'] = true;
 ok( '1' === $opt( '1' ), 'a comment feed is left alone' );
@@ -79,9 +89,11 @@ $sx = simplexml_load_string( $xml );
 ok( false !== $sx && 0 === count( libxml_get_errors() ), 'a rendered item is well-formed XML' );
 ok( false !== $sx && 'An excerpt.' === (string) $sx->channel->item->description && $out === (string) $sx->channel->item->children( 'http://purl.org/rss/1.0/modules/content/' )->encoded, 'description stays the excerpt; content:encoded round-trips the full body' );
 
-// Outside the notes feed the content is untouched.
+// The main posts feed gets the same full text; outside both feeds the content is untouched.
 $_SERVER['REQUEST_URI'] = '/feed/';
-ok( $in === $f( $in ), 'the site feed content is untouched' );
+ok( $out === $f( $in ), 'the main posts feed carries the same full text as the notes feed' );
+$_SERVER['REQUEST_URI'] = '/comments/feed/';
+ok( $in === $f( $in ), 'the comments feed content is untouched' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

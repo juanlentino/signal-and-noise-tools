@@ -89,6 +89,34 @@ function snt_feed_opens_stats( $days = 7 ) {
 }
 
 /**
+ * Feed opens for a report: 7-day and 30-day totals and the top notes over 30
+ * days. A floor, not a count: readers that block images never load the pixel.
+ *
+ * @param array $store Store.
+ * @param int   $now   Epoch seconds.
+ * @param int   $top   How many notes to list.
+ * @return array
+ */
+function snt_feed_opens_summary( array $store, $now, $top = 10 ) {
+	$w30  = snt_feed_opens_window( $store, 30, $now );
+	$list = array();
+	foreach ( array_slice( $w30['notes'], 0, $top, true ) as $pid => $n ) {
+		$list[] = array(
+			'post_id' => (int) $pid,
+			'title'   => function_exists( 'get_the_title' ) ? (string) get_the_title( $pid ) : '',
+			'opens'   => (int) $n,
+		);
+	}
+	return array(
+		'basis'     => 'floor',
+		'note'      => 'At least this many: readers that block images never load the pixel, so real opens are higher.',
+		'total_7d'  => snt_feed_opens_window( $store, 7, $now )['total'],
+		'total_30d' => $w30['total'],
+		'top_30d'   => $list,
+	);
+}
+
+/**
  * REST handler: record a human open of a published note, then answer the GIF.
  *
  * @param WP_REST_Request $req Request.
