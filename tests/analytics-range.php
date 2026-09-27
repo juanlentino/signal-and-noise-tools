@@ -77,5 +77,14 @@ list( $f2, $t2 ) = snt_analytics_range_dates( 'all', $now );
 ok( $f2 === '2026-05-08', "all: from = MIN(day)" );
 ok( $t2 === '2026-06-12', 'all: to = today' );
 
+echo "\nGroup: range_dates keys on the site-local day (#1961)\n";
+function wp_timezone() { return new DateTimeZone( 'America/New_York' ); }
+// 23:30 ET on Sep 26 is 03:30 UTC on Sep 27; noon ET is 16:00 UTC the same day.
+list( $lf, $lt ) = snt_analytics_range_dates( 7, strtotime( '2026-09-27 03:30:00 UTC' ) );
+list( $nf, $nt ) = snt_analytics_range_dates( 7, strtotime( '2026-09-26 16:00:00 UTC' ) );
+ok( $lt === '2026-09-26' && $lf === '2026-09-20', "23:30 ET: window is 09-20..09-26 (got $lf..$lt)" );
+ok( $nt === '2026-09-26' && $nf === '2026-09-20', "12:00 ET: window is 09-20..09-26 (got $nf..$nt)" );
+ok( array( $lf, $lt ) === array( $nf, $nt ), 'late evening and noon give the same 7 local days' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -195,9 +195,11 @@ function snt_analytics_render_view_tabs( $active, $range, $class, $from = '', $t
 
 /**
  * Inclusive [$from,$to] YYYY-MM-DD window ending on the anchor day.
- * UTC (gmdate) to align with AE's toStartOfDay() buckets. $now is injectable
- * for deterministic tests. When $range is 'all', $from is the earliest day in
- * the rollup table (via sn_analytics_min_day()).
+ * Keyed on the SITE-LOCAL day (wp_timezone), the same day the daily rollup
+ * table is bucketed by. A UTC "today" ran one day ahead from 20:00 to 24:00
+ * America/New_York and the window dropped its oldest local day. $now is
+ * injectable for deterministic tests. When $range is 'all', $from is the
+ * earliest day in the rollup table (via sn_analytics_min_day()).
  *
  * @param int|string $range Days as int (7|14|30|90|365) or 'all'.
  * @param int|null   $now   Unix timestamp anchor (defaults to now).
@@ -205,13 +207,15 @@ function snt_analytics_render_view_tabs( $active, $range, $class, $from = '', $t
  */
 function snt_analytics_range_dates( $range, $now = null ) {
 	$now = ( null === $now ) ? time() : (int) $now;
-	$to  = gmdate( 'Y-m-d', $now );
+	$tz  = function_exists( 'wp_timezone' ) ? wp_timezone() : new DateTimeZone( 'UTC' );
+	$day = ( new DateTimeImmutable( '@' . $now ) )->setTimezone( $tz );
+	$to  = $day->format( 'Y-m-d' );
 	if ( 'all' === $range ) {
 		$from = function_exists( 'sn_analytics_min_day' ) ? sn_analytics_min_day() : $to;
 		return array( $from, $to );
 	}
 	$days = max( 1, (int) $range );
-	$from = gmdate( 'Y-m-d', $now - ( $days - 1 ) * DAY_IN_SECONDS );
+	$from = $day->modify( '-' . ( $days - 1 ) . ' days' )->format( 'Y-m-d' );
 	return array( $from, $to );
 }
 

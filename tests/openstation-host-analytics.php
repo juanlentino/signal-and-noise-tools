@@ -140,7 +140,7 @@ namespace {
 	function wp_die( $message = '', $title = '', $args = array() ) { $h = apply_filters( 'wp_die_handler', '_default_wp_die_handler' ); call_user_func( $h, $message, $title, $args ); exit( 1 ); }
 	function wp_safe_redirect( $location, $status = 302 ) { apply_filters( 'wp_redirect', $location, $status ); return true; }
 	$GLOBALS['__recomputes'] = 0;
-	function sn_handle_analytics_recompute( $post ) { $GLOBALS['__recomputes']++; return $GLOBALS['__recompute_flash'] ?? 'analytics_recompute_started'; }
+	function sn_handle_analytics_recompute( $post ) { $GLOBALS['__recomputes']++; $GLOBALS['__recompute_post'] = $post; return $GLOBALS['__recompute_flash'] ?? 'analytics_recompute_started'; }
 	function sn_admin_flash_to_notice( $flash ) { $m = array( 'analytics_recompute_started' => array( 'success', 'Recomputing 90 days of analytics history in the background.' ), 'analytics_recompute_busy' => array( 'info', 'A history recompute is already running.' ) ); return $m[ $flash ] ?? null; }
 	function apply_filters( $hook, $value, ...$rest ) { foreach ( $GLOBALS['__filters'][ $hook ] ?? array() as $cb ) { $value = call_user_func( $cb, $value, ...$rest ); } return $value; }
 	function __( $s, $d = null ) { return $s; }
@@ -703,6 +703,10 @@ namespace {
 		'the recompute button is ROUTED: replayed through admin_post_sn_analytics_recompute into sn_handle_admin_post(), which checks the nonce and runs the handler once' );
 	ok( 1 === count( $os->toasts ) && false !== strpos( $os->toasts[0], 'Recomputing' ) && 'success' === ( $state->get( 'notice' )[0] ?? '' ),
 		'   ...and the outcome is toasted and set as the notice, so the window repaints its status line' );
+	$app->actions['post']( st( $app ), new \OpenStation\App\Os(), array( 'values' => array( '_wpnonce' => 'test-nonce', 'action' => 'sn_analytics_recompute', 'mode' => 'resume' ) ) );
+	ok( 2 === $GLOBALS['__recomputes'] && 'resume' === ( $GLOBALS['__recompute_post']['mode'] ?? null ),
+		'   ...and the Resume button\'s mode=resume survives the replay into the handler\'s $post, so it continues from the cursor instead of restarting' );
+	$GLOBALS['__recomputes'] = 1;
 	$os    = new \OpenStation\App\Os();
 	$state = st( $app );
 	$GLOBALS['__recompute_flash'] = 'analytics_recompute_busy';

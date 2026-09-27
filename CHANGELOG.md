@@ -16,6 +16,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 - The 90-day analytics history recompute no longer takes about 14 hours. The site's cron now fires only every 5 minutes, and each firing ran a single unit of the 168. A firing now runs units back to back for up to about 40 seconds (it only starts a unit that fits, judged by how long the previous one took), then schedules one next firing. A run already in progress continues from where it stopped. Progress, the death record, strict-mode stops and the stall check work as before.
 - Feed opens and feed subscribers can no longer be flooded into a huge stored option. Anyone can call the open pixel with a made-up user agent, and each distinct one was kept up to 500 times per note per day, so spraying every note could grow the option to tens of megabytes that every pixel request then reads and rewrites. Opens now keep at most 1,000 per day across all notes, and subscriber keys at most 200 per bucket per day, so 90 days stay a few megabytes.
+- Analytics date ranges now end on the site's own day, the same day the daily table is stored by. They used the UTC day, which runs ahead from 8 pm to midnight New York time, so an evening "last 7 days" silently lost its oldest day. A test pins the same seven days at 11:30 pm and at noon. (#1961)
+- Feed subscribers now count one aggregator once across its versions. A name like "BazQux/2.4" inside a browser-style user agent kept its version, so two releases of the same reader on one day were added together instead of taking the higher count. (#1961)
+- The OpenStation analytics window test now checks that the Resume recompute button's resume choice reaches the handler, so a replay that dropped it (and restarted from day one) would fail. (#1961)
+- The owner exclusion notes no longer say cached pages leak the owner's visits. The sn_owner cookie checked in the browser covers cached pages. (#1961)
 
 ## [19.6.0] - 2026-09-27 — the class is decided when read
 
