@@ -439,5 +439,11 @@ $b_zero = snt_mr_identity_breakdown( array(
 ok( is_array( $b_zero ) && 0 === $b_zero['valid'], 'measured-with-none-verified reports valid 0, not null' );
 ok( array() === ( $b_zero['by_agent'] ?? null ), 'and an empty leaderboard, which is a measured zero' );
 
+// 19.4.0: verified_bot, Worker v1.27.0's blob12. Passes the label through,
+// absent reads as '', and markup cannot ride it onto the page.
+ok( 'Search Engine Crawler' === ( snt_mr_normalize_taxonomy_fields( array( 'verified_bot' => ' Search Engine Crawler ' ) )['verified_bot'] ?? null ), 'verified_bot label passes through trimmed' );
+ok( '' === ( snt_mr_normalize_taxonomy_fields( array() )['verified_bot'] ?? null ), 'an absent verified_bot column reads as empty' );
+ok( false === strpos( snt_mr_normalize_taxonomy_fields( array( 'verified_bot' => '<script>x</script>' ) )['verified_bot'] ?? '<', '<' ), 'verified_bot cannot carry markup' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
