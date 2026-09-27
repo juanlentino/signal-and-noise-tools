@@ -33,6 +33,20 @@ function sn_setting( $path, $default = null ) {
 function sn_beacon_excludable_roles() {
 	return array( 'administrator' => 'Administrator', 'editor' => 'Editor', 'subscriber' => 'Subscriber' );
 }
+$GLOBALS['__device_flagged'] = true;
+function sn_owner_device_flagged() {
+	return (bool) $GLOBALS['__device_flagged'];
+}
+if ( ! function_exists( 'add_query_arg' ) ) {
+	function add_query_arg( $k, $v ) {
+		return '?' . $k . '=' . $v;
+	}
+}
+if ( ! function_exists( 'wp_nonce_url' ) ) {
+	function wp_nonce_url( $url, $action ) {
+		return $url . '&_wpnonce=' . $action . '-nonce';
+	}
+}
 function sn_beacon_owner_current_user_excluded() {
 	return (bool) $GLOBALS['__viewer_excluded'];
 }
@@ -57,6 +71,8 @@ ok( strpos( $h, 'name="sn_exclude_roles[]" value="subscriber"' ) !== false, 'sub
 ok( preg_match( '/value="administrator"\s+checked/', $h ) === 1, 'configured role (administrator) is pre-checked' );
 ok( preg_match( '/value="editor"\s+checked/', $h ) === 0, 'unconfigured role (editor) is NOT checked' );
 ok( strpos( $h, 'currently excluded from analytics' ) !== false, 'status line reflects excluded viewer' );
+ok( strpos( $h, 'excluded even when logged out' ) !== false && strpos( $h, 'Count this device again' ) !== false, 'device line: flagged device offers "Count this device again"' );
+ok( strpos( $h, 'sn_owner_device=forget' ) !== false && strpos( $h, '_wpnonce=sn_owner_device' ) !== false, 'device line: forget link carries a nonce' );
 ok( strpos( $h, 'wordpress_logged_in_' ) !== false, 'CDN logged-in-bypass note present' );
 ok( strpos( $h, 'value="sn_analytics_exclude_save"' ) !== false, 'save button posts the exclude action' );
 ok( strpos( $h, 'name="_wpnonce"' ) !== false, 'nonce field present' );

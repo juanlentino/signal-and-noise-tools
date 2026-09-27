@@ -2,7 +2,9 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-This file holds two things only: **`## [Unreleased]`**, the working log that
+This file holds two things only: **`## [Unreleased]`*- The site owner's own devices now stay out of analytics even when logged out. Logging in as an excluded role marks that browser with a `sn_owner=1` cookie for 400 days, and logging out does not clear it. Existing sessions get it on their next page load. The Exclude my own visits card shows whether this device is excluded and offers a Count this device again link (nonce protected). The theme's beacon reads the cookie.
+
+*, the working log that
 accumulates across pull requests, and the **current release**. Everything older
 lives in [docs/changelog/](docs/changelog/).
 
