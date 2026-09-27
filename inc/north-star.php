@@ -192,3 +192,4 @@ require_once __DIR__ . '/north-star-reading.php';
 require_once __DIR__ . '/north-star-settings.php';
 require_once __DIR__ . '/north-star-return.php';
 require_once __DIR__ . '/north-star-research.php';
+require_once __DIR__ . '/north-star-sweep.php';
