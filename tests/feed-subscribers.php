@@ -84,6 +84,12 @@ for ( $i = 0; $i < SNT_FEED_SUBS_PER_DAY + 20; $i++ ) {
 	$cap = $rec( $cap, "Spray$i/1.0", $now );
 }
 ok( SNT_FEED_SUBS_PER_DAY === snt_feed_subs_day( $cap[ gmdate( 'Y-m-d', $now ) ] ), 'a UA-spraying flood is bounded per day' );
+$big = array();
+for ( $i = 0; $i < 1200; $i++ ) {
+	$big = $rec( $big, "F$i" . str_repeat( 'F', 34 ) . '/1.0 (' . ( $i + 1 ) . ' subscribers)', $now, '/' . str_repeat( 'p', 90 ) );
+	$big = $rec( $big, "Direct$i/1.0", $now );
+}
+ok( strlen( serialize( $big ) ) * SNT_FEED_SUBS_DAYS < 4 * 1024 * 1024, 'ninety flooded days of long spoofed keys stay a few MB, not tens' );
 
 // Three labelled numbers, never summed.
 $GLOBALS['fo_opts'][ SNT_FEED_SUBS_OPT ] = $y;

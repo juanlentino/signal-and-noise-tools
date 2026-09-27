@@ -15,6 +15,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Fixed
 
 - The 90-day analytics history recompute no longer takes about 14 hours. The site's cron now fires only every 5 minutes, and each firing ran a single unit of the 168. A firing now runs units back to back for up to about 40 seconds (it only starts a unit that fits, judged by how long the previous one took), then schedules one next firing. A run already in progress continues from where it stopped. Progress, the death record, strict-mode stops and the stall check work as before.
+- Feed opens and feed subscribers can no longer be flooded into a huge stored option. Anyone can call the open pixel with a made-up user agent, and each distinct one was kept up to 500 times per note per day, so spraying every note could grow the option to tens of megabytes that every pixel request then reads and rewrites. Opens now keep at most 1,000 per day across all notes, and subscriber keys at most 200 per bucket per day, so 90 days stay a few megabytes.
 
 ## [19.6.0] - 2026-09-27 — the class is decided when read
 
