@@ -595,10 +595,31 @@ os-button.snt-home__action:hover {
 	color: var( --os-ui-warning, #f0b429 );
 }
 
-.snt-ns-hero__trend {
-	display: block;
-	margin-block-start: 16px;
+.snt-ns-hero__weeks {
+	display: grid;
+	grid-template-columns: repeat( 4, minmax( 0, 1fr ) );
+	margin: 18px 0 0;
+	padding: 12px 0 0;
+	list-style: none;
+	border-block-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
 }
+
+.snt-ns-hero__weeks li { min-width: 0; }
+
+.snt-ns-hero__weeks span {
+	display: block;
+	font: 500 11px/1.3 var( --os-ui-font-mono, 'Geist Mono', monospace );
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+.snt-ns-hero__weeks strong {
+	display: block;
+	margin-block-start: 4px;
+	font: 680 20px/1 var( --os-ui-font-mono, 'Geist Mono', monospace );
+	color: var( --os-ui-fg, #fffbff );
+}
+
+.snt-ns-hero__weeks li:last-child strong { color: var( --os-ui-accent, #f252fc ); }
 
 .snt-ns-hero__keys {
 	display: grid;
