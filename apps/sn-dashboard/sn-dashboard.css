@@ -566,6 +566,75 @@ os-button.snt-home__action:hover {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+ * North star hero: the number Home is for, at display size, its four weeks
+ * under it, and three key signals ruled beside it in the pulse tiles' own
+ * language. The rest of the signals fold behind "All signals".
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+.snt-ns-hero {
+	display: grid;
+	grid-template-columns: minmax( 0, 1.6fr ) minmax( 0, 1fr );
+	border: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.snt-ns-hero__main {
+	min-width: 0;
+	padding: 24px 26px 18px;
+	border-inline-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.snt-ns-hero__value {
+	display: block;
+	margin-block: 10px 6px;
+	font: 700 clamp( 64px, 9vw, 112px )/0.9 var( --os-ui-font-mono, 'Geist Mono', monospace );
+	letter-spacing: -0.06em;
+	color: var( --os-ui-fg, #fffbff );
+}
+
+.snt-ns-hero__main .snt-home__metric-delta[data-tone="warning"] {
+	color: var( --os-ui-warning, #f0b429 );
+}
+
+.snt-ns-hero__trend {
+	display: block;
+	margin-block-start: 16px;
+}
+
+.snt-ns-hero__keys {
+	display: grid;
+	grid-template-rows: repeat( 3, 1fr );
+}
+
+.snt-ns-hero__key {
+	border-inline-end: 0;
+	padding: 16px 22px;
+}
+
+.snt-ns-hero__key + .snt-ns-hero__key {
+	border-block-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+}
+
+.snt-ns-hero__key strong {
+	margin-block-start: 6px;
+	font-size: clamp( 22px, 2.2vw, 28px );
+}
+
+.snt-ns-all,
+.snt-home__systems {
+	display: block;
+	margin-block-start: 12px;
+}
+
+@container snt-dashboard ( max-width: 640px ) {
+	.snt-ns-hero { grid-template-columns: minmax( 0, 1fr ); }
+	.snt-ns-hero__main { border-inline-end: 0; border-block-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) ); padding: 18px 16px 14px; }
+	.snt-ns-hero__keys { grid-template-rows: none; grid-template-columns: repeat( 3, minmax( 0, 1fr ) ); }
+	.snt-ns-hero__key { padding: 12px 10px; }
+	.snt-ns-hero__key + .snt-ns-hero__key { border-block-start: 0; border-inline-start: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) ); }
+	.snt-ns-hero__key .snt-home__metric-label { font-size: 11px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
  * Needs Attention & Continue Working
  * ══════════════════════════════════════════════════════════════════════════ */
 

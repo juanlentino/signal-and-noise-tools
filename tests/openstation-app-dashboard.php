@@ -341,7 +341,9 @@ namespace {
 	$dashboard_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/dashboard.php' );
 	ok( false !== strpos( $dashboard_src, 'sn_view=visits&sn_range=7d' ), 'the Visits pulse tile links the live sn_view=visits slug, not the removed sn_view=sessions' );
 	ok( false === strpos( $dashboard_src, 'sn_view=sessions' ), '...and sn_view=sessions does not linger anywhere in the leaf' );
-	ok( false !== strpos( $dashboard_src, 'tab=tools&sub=provenance' ), 'the Provenance anchors pulse tile links tab=tools, where the provenance sub-tab actually lives' );
+	// Home arrangement: the Trust & Operations tiles (plugin version, anchors,
+	// health) left Home; the Systems wall and the Anchors widget carry them.
+	ok( false === strpos( $dashboard_src, "'Provenance anchors'" ) && false === strpos( $dashboard_src, "'Trust & Operations'" ), 'Home no longer repeats the Trust & Operations tiles the Systems wall and the widgets already show' );
 	ok( false === strpos( $dashboard_src, 'tab=connections&sub=provenance' ), '...and tab=connections&sub=provenance does not linger anywhere in the leaf' );
 
 	echo "\nResult: $pass passed, $fail failed.\n";

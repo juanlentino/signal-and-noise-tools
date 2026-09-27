@@ -58,7 +58,25 @@ function north_star_layer_html( array $rows ) {
 }
 
 /**
- * The band.
+ * One key signal beside the hero number: the same ruled metric the audience
+ * tiles use, so Home reads as one system.
+ *
+ * @param string     $label Label.
+ * @param array|null $row   A layer row {value, window}.
+ * @return string
+ */
+function north_star_key_html( $label, $row ) {
+	$v = is_array( $row ) ? ( $row['value'] ?? null ) : null;
+	return '<div class="snt-home__metric snt-ns-hero__key">'
+		. '<div class="snt-home__metric-label">' . \snt_kit_esc( $label ) . '</div>'
+		. '<strong>' . \snt_kit_esc( null === $v ? '·' : number_format_i18n( $v ) ) . '</strong>'
+		. '<span class="snt-home__metric-delta">' . \snt_kit_esc( null === $v ? __( 'not measured', 'signal-and-noise-tools' ) : __( 'last 7 days', 'signal-and-noise-tools' ) ) . '</span>'
+		. '</div>';
+}
+
+/**
+ * The hero: the number Home is for, its four weeks, and the three signals
+ * that matter most right now. Every other signal waits behind "All signals".
  *
  * @param string $tab Current tab.
  * @return string
@@ -71,25 +89,49 @@ function north_star_html( $tab ) {
 	if ( empty( $r['configured'] ) ) {
 		return \snt_kit_section( __( 'North star', 'signal-and-noise-tools' ), \snt_kit_empty( __( 'Needs the analytics credentials.', 'signal-and-noise-tools' ) ) );
 	}
-	$delta = (int) $r['value'] - (int) $r['previous'];
-	$sign  = $delta > 0 ? '+' : '';
-	$cap   = sprintf( /* translators: 1: signed change, 2: four-week average */ __( '%1$s vs last week · 3-week avg %2$s', 'signal-and-noise-tools' ), $sign . $delta, number_format_i18n( (float) $r['prior_avg'], 1 ) );
-	$stat  = \snt_kit_stat( number_format_i18n( (int) $r['value'] ), __( 'Engaged readers, last 7 days', 'signal-and-noise-tools' ), $cap, $delta < 0 ? 'warning' : '' );
-
+	$delta  = (int) $r['value'] - (int) $r['previous'];
+	$change = sprintf( /* translators: 1: signed change, 2: three-week average */ __( '%1$s vs last week · 3-week avg %2$s', 'signal-and-noise-tools' ), ( $delta > 0 ? '+' : '' ) . $delta, number_format_i18n( (float) $r['prior_avg'], 1 ) );
+	$series = array_map( 'intval', (array) ( $r['series'] ?? array() ) );
+	$now    = time();
+	$trend  = \snt_kit_histogram(
+		array( array( 'key' => 'readers', 'label' => __( 'Engaged readers', 'signal-and-noise-tools' ), 'tone' => 'accent' ) ),
+		array_map( static fn( $n ) => array( $n ), $series ),
+		array( 'start' => $now - 28 * DAY_IN_SECONDS, 'end' => $now, 'height' => 64, 'class' => 'snt-ns-hero__trend', 'empty' => __( 'No weeks yet.', 'signal-and-noise-tools' ) )
+	);
 	$layers = (array) ( $r['layers'] ?? array() );
-	$cols   = array(
-		'<section><h3 class="snt-home__detail-h">' . \snt_kit_esc( __( 'Intent', 'signal-and-noise-tools' ) ) . '</h3>' . north_star_layer_html( (array) ( $layers['intent'] ?? array() ) ) . '</section>',
+	$intent = (array) ( $layers['intent'] ?? array() );
+
+	$hero = '<div class="snt-ns-hero">'
+		. '<div class="snt-ns-hero__main">'
+		. '<div class="snt-home__metric-label">' . \snt_kit_esc( __( 'Engaged readers, last 7 days', 'signal-and-noise-tools' ) ) . '</div>'
+		. '<strong class="snt-ns-hero__value">' . \snt_kit_esc( number_format_i18n( (int) $r['value'] ) ) . '</strong>'
+		. '<span class="snt-home__metric-delta"' . ( $delta < 0 ? ' data-tone="warning"' : '' ) . '>' . \snt_kit_esc( $change ) . '</span>'
+		. $trend
+		// os-histogram draws nothing for a zero week; the weekly counts under it
+		// keep a quiet week visible instead of reading as a missing bar.
+		. '<span class="snt-home__metric-delta snt-ns-hero__weeks">' . \snt_kit_esc( sprintf( /* translators: %s weekly counts, oldest first */ __( 'Weekly: %s', 'signal-and-noise-tools' ), implode( ' · ', array_map( 'number_format_i18n', $series ) ) ) ) . '</span>'
+		. '</div>'
+		. '<div class="snt-ns-hero__keys">'
+		. north_star_key_html( __( 'Resume PDF downloads', 'signal-and-noise-tools' ), $intent['resume_downloads'] ?? null )
+		. north_star_key_html( __( 'Research links followed', 'signal-and-noise-tools' ), $intent['research_links'] ?? null )
+		. north_star_key_html( __( 'Notes shared', 'signal-and-noise-tools' ), $intent['shares'] ?? null )
+		. '</div></div>';
+
+	$cols = array(
+		'<section><h3 class="snt-home__detail-h">' . \snt_kit_esc( __( 'Intent', 'signal-and-noise-tools' ) ) . '</h3>' . north_star_layer_html( $intent ) . '</section>',
 		'<section><h3 class="snt-home__detail-h">' . \snt_kit_esc( __( 'Return', 'signal-and-noise-tools' ) ) . '</h3>' . north_star_layer_html( (array) ( $layers['return'] ?? array() ) ) . '</section>',
 		'<section><h3 class="snt-home__detail-h">' . \snt_kit_esc( __( 'Inputs', 'signal-and-noise-tools' ) ) . '</h3>' . north_star_layer_html( (array) ( $layers['inputs'] ?? array() ) ) . '</section>',
 	);
 	$note = __( 'Counted per visitor per day: cookieless, so a reader on two days counts twice.', 'signal-and-noise-tools' )
 		. ( ! empty( $r['capped'] ) ? ' ' . __( 'The event cap was hit; the count is a floor.', 'signal-and-noise-tools' ) : '' );
 	$edit = \snt_kit_go( __( 'Change what counts', 'signal-and-noise-tools' ), array( 'tab' => 'monitoring', 'sub' => 'analytics', 'current' => $tab ) );
-
-	return \snt_kit_section(
-		__( 'North star', 'signal-and-noise-tools' ),
-		$stat . \snt_kit_grid( $cols, 220, 18 ) . '<p class="snt-hint">' . \snt_kit_esc( $note ) . ' ' . $edit . '</p>',
-		'',
-		array( 'class' => 'snt-north-star' )
+	$all  = \snt_kit_tag(
+		'os-disclosure',
+		array( 'heading' => __( 'All signals', 'signal-and-noise-tools' ), 'hint' => __( 'intent, return, inputs', 'signal-and-noise-tools' ), 'class' => 'snt-ns-all' ),
+		\snt_kit_grid( $cols, 220, 18 ) . '<p class="snt-hint">' . \snt_kit_esc( $note ) . ' ' . $edit . '</p>'
 	);
+
+	return '<section class="snt-home__section snt-north-star" aria-labelledby="snt-home-ns-heading">'
+		. '<div class="snt-home__section-heading"><h2 id="snt-home-ns-heading">' . \snt_kit_esc( __( 'North star', 'signal-and-noise-tools' ) ) . '</h2></div>'
+		. $hero . $all . '</section>';
 }
