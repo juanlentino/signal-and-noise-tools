@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [19.3.1] - 2026-09-27 — the audit pass
+
 ### Fixed
 - **A retired `/notes/tag/` link no longer lands on a 404.** 19.1.0 kept the request's form, so `/notes/tag/ai-tools/` went to `/notes/tag/music-production/`, which live tags never serve. Every retired tag now redirects to the canonical `/tag/<slug>/` (or the hub, or `/notes/`).
 - **The nightly scheduled reads see a failed section.** Since 19.3.0 the run calls `sn-status` / `sn-metrics`, which degrade one failed source to `{error:"unavailable"}` inside a successful call; the run only checked the call, so a broken reader recorded a clean night. A failed section now records the read as failed.
@@ -21,10 +23,4 @@ adds a bullet below. A release is a separate, deliberate act:
 - **One reading rule.** The north star's tally and its calibration each kept a copy of "a page read is max scroll or summed dwell, on a viewed page". Both now call `snt_nsm_page_metrics()` and `snt_nsm_is_read()`, and a test pins the two counts equal on the same visits.
 - **The retired-tag map is guarded as a whole.** Tests now check every entry: no retired tag points at another retired tag, no target is an absolute URL, keys are slugs, no prefix or case matching. These lived in the theme's tests until its map was folded in (theme 14.4.1).
 - Docs: `tag-merge-map.md` no longer says it was never applied (it ran 2026-08-15); wave 4 gets its verdict sheet, `docs/mcp-consolidation/retirement-verdicts-2026-09-27.md`.
-
-## [19.3.0] - 2026-09-27 — wave 4 retires four read tools
-
-### Changed
-- **Wave 4, first four: duplicate MCP read tools retired.** The 2026-09-27 telemetry read (30 days) found agents still calling most absorbed single-purpose reads, so only the four with 0 to 2 read-door calls leave the door: `ai-cache-probe-status` (use `sn-status{ai_cache_probe}`), `cadence-flags` (`sn-status{cadence}`), `get-rss-stats` (`sn-metrics{rss_stats}`), `get-analytics-events` (`sn-metrics{analytics_events}`). Door-only, as in waves 1 and 2: every ability stays registered and keeps serving the dashboard widgets. Read door 51 to 47.
-- **Scheduled reads use the consolidated tools.** The nightly run called five absorbed singles by name, which kept their telemetry up with calls that were nobody's usage. It now makes two calls, `sn-status{health_scan, uptime, deploy, anchor}` and `sn-metrics{analytics_summary}`. The `wave4_telemetry` watch moves to 2026-10-25, so the remaining eight are judged on a month without it.
 
