@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- The cron health reading now says plainly what its old `cron_disabled_constant` field meant. Two new fields sit beside it: `disable_wp_cron` (is the constant set, nothing more) and `cron_stalled_no_runner` (the alarm: the constant is set, nothing has fired recently, and no system cron is declared). The old field keeps its value for existing readers but is deprecated; it read false on a site with the constant set and a system cron running, which looked like "the constant is not set". The summary line now names all three conditions. The new fields are in the payload only, not yet in the declared schema, so the remote contract (version 11) is unchanged; declaring them is a contract bump for a later worker deploy.
+
 ## [19.5.1] - 2026-09-27 — the main feed carries the whole note too
 
 

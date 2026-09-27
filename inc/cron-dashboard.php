@@ -1018,9 +1018,12 @@ function snt_cron_health_summary_impl( $now = null ) {
 	}
 
 	// Same elevation ladder as the Site Health check, minus the HTML.
-	$cron_disabled = defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON
-		&& ! $model['fired_recently']
-		&& ! apply_filters( 'sn_cron_system_cron_configured', false );
+	$flags         = snt_cron_constant_flags(
+		defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON,
+		(bool) $model['fired_recently'],
+		(bool) apply_filters( 'sn_cron_system_cron_configured', false )
+	);
+	$cron_disabled = $flags['cron_stalled_no_runner'];
 	if ( $cron_disabled && array() !== $overdue ) {
 		$status = 'critical';
 	} elseif ( array() !== $model['issues'] || $cron_disabled ) {
@@ -1041,7 +1044,7 @@ function snt_cron_health_summary_impl( $now = null ) {
 			$parts[] = sprintf( '%d expected but not scheduled', count( $missing ) );
 		}
 		if ( $cron_disabled ) {
-			$parts[] = 'DISABLE_WP_CRON is set with no system cron declared';
+			$parts[] = 'DISABLE_WP_CRON is set, nothing fired recently, and no system cron is declared';
 		}
 		$summary = sprintf( '%d of %d recurring jobs on schedule; %s.', max( 0, $on_schedule ), $recurring, implode( ', ', $parts ) );
 	}
@@ -1060,8 +1063,30 @@ function snt_cron_health_summary_impl( $now = null ) {
 		// set and everything is working - two opposite situations. The name has
 		// already misled one reader (v13.97.3, mine); `wp_cron_offload` below
 		// is the field that actually answers "what happened to the constant".
+		// DEPRECATED name, kept for callers: same value as cron_stalled_no_runner.
+		// Read cron_stalled_no_runner (the alarm) and disable_wp_cron (the
+		// constant). The two new keys are payload-only: the output_schema is
+		// the remote contract (shape hash + byte parity with the twin), so
+		// declaring them is a contract bump that waits for a worker deploy.
 		'cron_disabled_constant' => (bool) $cron_disabled,
+		'cron_stalled_no_runner' => $flags['cron_stalled_no_runner'],
+		'disable_wp_cron'        => $flags['disable_wp_cron'],
 		'summary'                => $summary,
+	);
+}
+
+/**
+ * The two readings the old `cron_disabled_constant` field conflated.
+ *
+ * disable_wp_cron: is the constant set. cron_stalled_no_runner: the alarm,
+ * constant set AND nothing fired recently AND no system cron declared.
+ *
+ * @return array{disable_wp_cron: bool, cron_stalled_no_runner: bool}
+ */
+function snt_cron_constant_flags( $constant_set, $fired_recently, $system_cron ) {
+	return array(
+		'disable_wp_cron'        => (bool) $constant_set,
+		'cron_stalled_no_runner' => (bool) $constant_set && ! $fired_recently && ! $system_cron,
 	);
 }
 

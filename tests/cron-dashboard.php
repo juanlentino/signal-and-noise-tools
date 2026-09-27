@@ -734,5 +734,23 @@ foreach ( $sn_gated_modules as $const => $pred ) {
 }
 assert_eq( array(), $sn_uncovered, 'PARITY: every self-unscheduling opt-in module has its gate declared, with the RIGHT predicate' );
 
+// The alarm and the constant, split. Four combinations, plus the system-cron escape.
+echo "\ncron_stalled_no_runner vs disable_wp_cron\n";
+foreach ( array(
+	array( true, false, false, true, true ),   // constant on, nothing fired: alarm
+	array( true, true, false, true, false ),   // constant on, fired: constant true, no alarm (the misread case)
+	array( false, false, false, false, false ),
+	array( false, true, false, false, false ),
+	array( true, false, true, true, false ),   // constant on, stale, system cron declared: no alarm
+) as $c ) {
+	$f = snt_cron_constant_flags( $c[0], $c[1], $c[2] );
+	assert_eq( $c[3], $f['disable_wp_cron'], sprintf( 'disable_wp_cron: const=%d fired=%d sys=%d', $c[0], $c[1], $c[2] ) );
+	assert_eq( $c[4], $f['cron_stalled_no_runner'], sprintf( 'cron_stalled_no_runner: const=%d fired=%d sys=%d', $c[0], $c[1], $c[2] ) );
+}
+$sum = snt_cron_health_summary_impl( time() );
+assert_true( array_key_exists( 'disable_wp_cron', $sum ) && array_key_exists( 'cron_stalled_no_runner', $sum ), 'the payload carries both new fields' );
+assert_eq( $sum['cron_stalled_no_runner'], $sum['cron_disabled_constant'], 'the deprecated field keeps the alarm value' );
+assert_eq( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON, $sum['disable_wp_cron'], 'disable_wp_cron is the constant, nothing else' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
