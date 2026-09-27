@@ -244,7 +244,6 @@ $sn_analytics = App::define( APP_ID )
 	->action(
 		'post',
 		static function ( State $state, Os $os, array $args ) {
-			unset( $state );
 			if ( ! may_manage() ) {
 				$os->toast( __( 'Nothing was saved: this account cannot manage options.', 'signal-and-noise-tools' ) );
 				return;
@@ -259,6 +258,30 @@ $sn_analytics = App::define( APP_ID )
 						$action
 					)
 				);
+				return;
+			}
+			if ( 'analytics_recompute' === $action ) {
+				// The one write this window carries: replayed through the shared
+				// admin-post pipeline, so sn_handle_admin_post() runs its own
+				// nonce and manage_options checks, exactly as on the classic page.
+				$result = \snt_os_host_replay( $values, page_slug(), array(), 'admin-post' );
+				if ( empty( $result['ok'] ) ) {
+					$os->toast(
+						'nonce' === (string) $result['reason']
+							? __( 'Nothing was started: the security token did not verify. Reload the window and try again.', 'signal-and-noise-tools' )
+							: sprintf(
+								/* translators: %s: why the recompute was refused. */
+								__( 'Nothing was started: %s', 'signal-and-noise-tools' ),
+								'' !== (string) $result['detail'] ? (string) $result['detail'] : (string) $result['reason']
+							)
+					);
+					return;
+				}
+				$notice = \snt_os_host_notice( (string) $result['flash'] );
+				$state->set( 'notice', $notice );
+				if ( null !== $notice ) {
+					$os->toast( \snt_os_host_toast_text( $notice ) );
+				}
 				return;
 			}
 			$os->toast(

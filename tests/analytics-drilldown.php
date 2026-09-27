@@ -26,7 +26,7 @@ function apply_filters( $tag, $value ) { return $value; }
 // Transient seam (records TTL for assertions).
 $GLOBALS['__dd_trans'] = array();
 function get_transient( $k ) {
-	if ( 'sn_analytics_overcap_vdays' === $k ) { return array( 'hashes' => array(), 'ok' => true, 'truncated' => false ); } // the human rule's list, primed so call counts stay this module's own
+	if ( SNT_ANALYTICS_VDAY_CACHE_KEY === $k ) { return array( 'hashes' => array(), 'ok' => true, 'truncated' => false ); } // the human rule's list, primed so call counts stay this module's own
 	return array_key_exists( $k, $GLOBALS['__dd_trans'] ) ? $GLOBALS['__dd_trans'][ $k ] : false;
 }
 function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__dd_trans'][ $k ] = $v; $GLOBALS['__dd_last_ttl'] = $ttl; return true; }
