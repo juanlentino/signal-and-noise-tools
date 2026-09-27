@@ -291,8 +291,9 @@ function sn_analytics_pageroles_rollup_sql( $days, $tz = '' ) {
  * Roll the entry pages: query AE for the trailing window, tag each row
  * role='entry', and UPSERT. Called from sn_analytics_run_rollup() (the existing
  * cron callback — no new cron). No-ops when AE isn't configured; a query failure
- * (null) is skipped, not fatal. No-clobber: only writes days AE returns rows for,
- * so historical-import days stay untouched.
+ * (null) is skipped, not fatal. A complete, non-empty read REPLACES the entry
+ * rows of the days the window covers (sn_analytics_rollup_replace); the import
+ * history predates the ~92-day AE window, so it is never in reach.
  *
  * Rolls by the SITE-LOCAL day like the pageview rollup (#1201), with the same
  * fall-back to UTC within the run when the zoned query fails.
@@ -314,7 +315,7 @@ function sn_analytics_pageroles_run_rollup() {
 	if ( ! is_array( $rows ) ) {
 		return;
 	}
-	$complete = ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated();
+	$complete = ! empty( $rows ) && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() );
 
 	$tagged = array();
 	foreach ( $rows as $row ) {

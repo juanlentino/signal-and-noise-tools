@@ -13,8 +13,8 @@
  *
  * Both queries are human-only (blob7='human', matching the class-agnostic Events
  * tab; bots rarely fire event()) and wired into the EXISTING rollup cron
- * (sn_analytics_run_rollup) — no new cron. No-clobber holds: only days AE
- * returns rows for are written, so the pre-worker import history is untouched.
+ * (sn_analytics_run_rollup) — no new cron. A complete, non-empty read replaces
+ * the window's days; the pre-worker import history is older than the window.
  *
  * Per-day cardinality caps bound table growth from a noisy custom-event space:
  * top 100 names/day, top 200 (property,value)/day. AE already ORDER BYs events
@@ -131,8 +131,8 @@ function sn_analytics_events_rollup_cap_per_day( $rows, $cap ) {
  * inc/analytics-events.php upserts. Called from sn_analytics_run_rollup()
  * behind a function_exists guard — NO new cron.
  *
- * No-ops when AE isn't configured; a query failure (null) or empty result skips
- * that table's upsert (no-clobber — pre-worker import history is untouched).
+ * No-ops when AE isn't configured; a query failure (null), empty or truncated
+ * result only upserts (nothing deleted); a complete one replaces the window's days.
  */
 function sn_analytics_events_run_rollup() {
 	if ( ! function_exists( 'sn_analytics_config' ) || ! function_exists( 'sn_analytics_query' ) ) {
@@ -161,7 +161,7 @@ function sn_analytics_events_run_rollup() {
 				sn_analytics_events_upsert( $capped );
 			}
 		};
-		function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated(), 'sn_analytics_events', $used, $write ) : $write();
+		function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( ! empty( $ce_rows ) && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() ), 'sn_analytics_events', $used, $write ) : $write();
 	}
 
 	// Event props (blob1='cp'): AE aliases day/property/value/events/visitors
@@ -179,6 +179,6 @@ function sn_analytics_events_run_rollup() {
 				sn_analytics_event_props_upsert( $capped );
 			}
 		};
-		function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated(), 'sn_analytics_event_props', $used, $write ) : $write();
+		function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( ! empty( $cp_rows ) && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() ), 'sn_analytics_event_props', $used, $write ) : $write();
 	}
 }

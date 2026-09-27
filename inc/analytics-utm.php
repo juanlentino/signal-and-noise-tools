@@ -237,7 +237,7 @@ function sn_analytics_utm_run_rollup() {
 			sn_analytics_utm_upsert( $rows );
 		}
 	};
-	function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated(), SN_ANALYTICS_UTM_TABLE, '', $write ) : $write();
+	function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( ! empty( $rows ) && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() ), SN_ANALYTICS_UTM_TABLE, '', $write ) : $write();
 }
 
 /**

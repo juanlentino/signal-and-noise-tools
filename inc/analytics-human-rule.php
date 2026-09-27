@@ -252,16 +252,16 @@ function sn_analytics_rollup_window_days( $tz = '' ) {
  * Make a re-roll REPLACE the days it read instead of only upserting over them.
  * An upsert never removes a stored key the fresh result no longer has, so a
  * visitor the human rule newly excludes left their paths behind (measured
- * 2026-09-27: 139 stored 7-day human views against ~62 in AE). A failed or
- * row-cap-truncated read ($complete false) only upserts, as before: deleting on
- * it would blank history. The caller judges completeness right after its own
+ * 2026-09-27: 139 stored 7-day human views against ~62 in AE). A failed, empty
+ * or row-cap-truncated read ($complete false) only upserts, as before: deleting
+ * on it would blank history. The caller judges completeness right after its own
  * query, because the truncation verdict describes the last query only. Deletes
  * the window's days (narrowed by $scope, e.g. one dim or role) and runs $write
  * in one transaction, rolled back when the write leaves a database error.
  * ponytail: the error check sees the last chunk's query only; a per-chunk
  * verdict from the upserts if a mid-batch failure is ever measured.
  *
- * @param bool     $complete The read was not null and not truncated.
+ * @param bool     $complete The read was not null, not empty, not truncated.
  * @param string   $table    Table name without prefix.
  * @param string   $tz       The zone the read ran with ('' = UTC days).
  * @param callable $write    Writes the fresh rows.
@@ -287,5 +287,10 @@ function sn_analytics_rollup_replace( $complete, $table, $tz, callable $write, a
 	if ( false !== $gone ) {
 		$write();
 	}
-	$wpdb->query( false !== $gone && '' === (string) $wpdb->last_error ? 'COMMIT' : 'ROLLBACK' );
+	if ( false !== $gone && '' === (string) $wpdb->last_error ) {
+		$wpdb->query( 'COMMIT' );
+		return;
+	}
+	$wpdb->query( 'ROLLBACK' );
+	error_log( '[sn-analytics] re-roll of ' . $table . ' rolled back, the stored days are unchanged: ' . (string) $wpdb->last_error );
 }

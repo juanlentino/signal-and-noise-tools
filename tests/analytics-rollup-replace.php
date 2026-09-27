@@ -79,7 +79,7 @@ class Wpdb { public $prefix = 'wp_'; public $last_error = ''; public $rows = arr
 	function get_var() { return 0; } function get_results() { return array(); } function esc_like( $s ) { return $s; } function get_charset_collate() { return ''; } }
 $GLOBALS['wpdb'] = new Wpdb();
 
-function sn_analytics_fetch_session_events( $from, $to, $class ) { return array( 'summaries' => array(), 'visits' => array(), 'capped' => $GLOBALS['capped'], 'configured' => true ); }
+function sn_analytics_fetch_session_events( $from, $to, $class ) { return array( 'summaries' => array( array( 'exit' => '/fresh-exit/' ) ), 'visits' => array(), 'capped' => $GLOBALS['capped'], 'configured' => true ); }
 function sn_session_metrics() { return array( 'visits' => 0, 'bounce_rate' => 0, 'pages_per_visit' => 0, 'median_duration' => 0 ); }
 foreach ( array( 'session-rollup', 'api', 'human-rule', 'rollup', 'dims', 'utm', 'buckets', 'pageroles', 'events', 'events-rollup' ) as $f ) {
 	require_once dirname( __DIR__ ) . "/inc/analytics-{$f}.php";
@@ -131,16 +131,23 @@ $GLOBALS['ae'] = array( $main => array( array( $pv( $D, '/kept/' ) ), true ) );
 sn_analytics_run_rollup();
 ok( $GLOBALS['wpdb']->has( 'sn_analytics_daily', $D, 'path', '/about/uses/' ) && array() === preg_grep( '/^DELETE FROM wp_sn_analytics_daily/', $GLOBALS['wpdb']->log ), 'truncated read: no DELETE, the stale row is not blanked by a partial set' );
 
+// ── An empty result is breakage-shaped, never a reason to clear a window. ──
+$seed();
+$GLOBALS['ae'] = array();
+sn_analytics_run_rollup();
+ok( $GLOBALS['wpdb']->has( 'sn_analytics_daily', $D, 'path', '/about/uses/' ) && array() === preg_grep( '/^DELETE/', $GLOBALS['wpdb']->log ), 'empty read: no DELETE in any rollup, every stored row stays' );
+
 // ── Each sibling writer replaces only its own scope. ──
 $db = $GLOBALS['wpdb']; $db->rows = array(); $db->log = array();
 sn_analytics_dims_upsert( array( array( 'day' => $D, 'dim' => 'referrer', 'value' => 'gone.example', 'class' => 'human', 'views' => 1, 'visits' => 1 ), array( 'day' => $D, 'dim' => 'country', 'value' => 'US', 'class' => 'human', 'views' => 1, 'visits' => 1 ) ) );
 sn_analytics_pageroles_upsert( array( array( 'day' => $D, 'role' => 'entry', 'path' => '/gone/', 'views' => 1, 'visits' => 1 ), array( 'day' => $D, 'role' => 'exit', 'path' => '/exit/', 'views' => 1, 'visits' => 1 ) ) );
 sn_analytics_events_upsert( array( array( 'day' => $D, 'name' => 'gone', 'visitors' => 1, 'events' => 1 ) ) );
-$GLOBALS['ae'] = array( 'blob3 AS value' => null, 'AS value,' => array( array(), false ) );
+$fresh = function ( $d ) { return array( array( 'day' => $d, 'value' => 'fresh', 'class' => 'human', 'views' => 1, 'visits' => 1, 'path' => '/fresh/', 'name' => 'fresh', 'events' => 1, 'visitors' => 1 ) ); };
+$GLOBALS['ae'] = array( 'blob3 AS value' => null, 'AS value,' => array( $fresh( $D ), false ) );
 sn_analytics_dims_run_rollup();
 ok( $db->has( 'sn_analytics_dims', $D, 'value', 'gone.example' ), 'dims: the referrer read FAILED, so its stored row stays' );
 ok( ! $db->has( 'sn_analytics_dims', $D, 'value', 'US' ), 'dims: the country read was complete, so its stale value is cleared' );
-$GLOBALS['ae'] = array( 'blob3 NOT IN' => array( array(), false ), 'blob16 AS name' => array( array(), false ) );
+$GLOBALS['ae'] = array( 'blob3 NOT IN' => array( $fresh( $D ), false ), 'blob16 AS name' => array( $fresh( $D ), false ) );
 sn_analytics_pageroles_run_rollup();
 sn_analytics_events_run_rollup();
 ok( ! $db->has( 'sn_analytics_page_roles', $D, 'path', '/gone/' ) && $db->has( 'sn_analytics_page_roles', $D, 'path', '/exit/' ), 'page roles: the entry re-roll clears stale entry rows and leaves the session rollup\'s exit rows' );

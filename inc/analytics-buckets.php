@@ -340,7 +340,7 @@ function sn_analytics_buckets_run_rollup() {
 	$hour = sn_analytics_query( sn_analytics_buckets_hour_sql( sn_analytics_rollup_window()['days'] ) );
 	$done = array(); // metric => complete read.
 	if ( is_array( $hour ) ) {
-		$done['hour'] = ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated();
+		$done['hour'] = ! empty( $hour ) && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() );
 		foreach ( $hour as $hr ) {
 			if ( ! is_array( $hr ) ) {
 				continue;
@@ -361,7 +361,7 @@ function sn_analytics_buckets_run_rollup() {
 		if ( ! is_array( $wide ) ) {
 			continue;
 		}
-		$done[ $metric ] = ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated();
+		$done[ $metric ] = ! empty( $wide ) && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() );
 		foreach ( $wide as $wr ) {
 			if ( ! is_array( $wr ) ) {
 				continue;

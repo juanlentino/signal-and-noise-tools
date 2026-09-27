@@ -209,14 +209,18 @@ function sn_session_rollup_run( $day = '' ) {
 		);
 		// v9.66.0 exit bridge: derive per-path exit counts from the SAME pv-gated
 		// visit set and upsert them into pageroles (role='exit'). Zero rows →
-		// nothing written (absent day, never zero-rows); the nightly re-run of a
-		// complete UTC day recomputes and overwrites idempotently (ON DUPLICATE
-		// KEY in the upsert). function_exists-guarded like every cross-module wire.
+		// nothing written (absent day, never zero-rows); an uncapped re-run of a
+		// UTC day replaces that day's exit rows (delete + upsert, one transaction),
+		// so an exit path that vanished leaves no stale row. function_exists-guarded.
 		if ( 'human' === $class && function_exists( 'sn_analytics_pageroles_upsert' ) ) {
 			$exit_rows = sn_session_exit_page_rows( $visits, $day );
 			// A complete (uncapped) read REPLACES the day's exit rows, so a path
 			// no visit exits from any more leaves no stale row behind.
-			if ( empty( $data['capped'] ) && defined( 'SN_ANALYTICS_PAGEROLES_TABLE' ) ) {
+			// Delete and write share one transaction: this day has no self-heal.
+			$replace = empty( $data['capped'] ) && ! empty( $exit_rows ) && defined( 'SN_ANALYTICS_PAGEROLES_TABLE' );
+			if ( $replace ) {
+				$wpdb->query( 'START TRANSACTION' );
+				// phpcs:ignore WordPress.DB.PreparedSQL -- table is prefix + a plugin constant; the day is bound.
 				$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}" . SN_ANALYTICS_PAGEROLES_TABLE . " WHERE day = %s AND role = 'exit'", $day ) );
 			}
 			if ( ! empty( $exit_rows ) ) {
@@ -227,7 +231,8 @@ function sn_session_rollup_run( $day = '' ) {
 				// upsert's row count AND $wpdb->last_error (a per-chunk count
 				// can mask a last-chunk error). No in-process retry — the
 				// error_log IS the signal (never-silent rule).
-				if ( false === $written || (int) $written < count( $exit_rows ) || '' !== (string) $wpdb->last_error ) {
+				$failed = false === $written || (int) $written < count( $exit_rows ) || '' !== (string) $wpdb->last_error;
+				if ( $failed ) {
 					error_log( sprintf(
 						'[sn-analytics] exit-page bridge wrote %d of %d rows for %s: %s',
 						(int) $written,
@@ -235,6 +240,13 @@ function sn_session_rollup_run( $day = '' ) {
 						$day,
 						(string) $wpdb->last_error
 					) );
+				}
+				if ( $replace ) {
+					if ( $failed ) {
+						$wpdb->query( 'ROLLBACK' ); // a failed write keeps the stored exits.
+					} else {
+						$wpdb->query( 'COMMIT' );
+					}
 				}
 			}
 		}

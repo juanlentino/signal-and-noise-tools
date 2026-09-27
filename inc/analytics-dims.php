@@ -224,7 +224,7 @@ function sn_analytics_dims_run_rollup() {
 		if ( ! is_array( $rows ) ) {
 			continue;
 		}
-		if ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() ) {
+		if ( ! empty( $rows ) && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() ) ) {
 			$complete[] = $dim;
 		}
 		foreach ( $rows as $row ) {

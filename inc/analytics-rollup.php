@@ -363,7 +363,9 @@ function sn_analytics_rollup_window_exprs( $days, $tz = '' ) {
 	// (toStartOfInterval with the zone), UTC otherwise. A bare `now() - INTERVAL`
 	// instant would aggregate the boundary day as a partial slice, and the UPSERT
 	// would clobber its previously-complete row — silently corrupting the durable
-	// forever-table. Flooring keeps every re-roll genuinely idempotent.
+	// forever-table. Flooring keeps every re-roll genuinely idempotent, and it is
+	// what lets a re-roll DELETE its days first: sn_analytics_rollup_window_days()
+	// names exactly the whole days this floor reads.
 	$lower   = '' !== $tz
 		? "toStartOfInterval(now(), INTERVAL '1' DAY, '{$tz}') - INTERVAL '{$days}' DAY"
 		: "toStartOfDay(now() - INTERVAL '{$days}' DAY)";
@@ -749,10 +751,11 @@ function sn_analytics_run_rollup() {
 	if ( ! is_array( $rows ) ) {
 		return; // transport / non-200 / parse failure — already captured by the read-client.
 	}
-	// Judged NOW: the gated query below resets the truncation verdict.
-	$complete = ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated();
+	// Judged NOW: the gated query below resets the truncation verdict. An
+	// empty window is breakage-shaped here, never a reason to clear history.
+	$complete = ! empty( $rows ) && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() );
 
-	if ( ! empty( $rows ) || $complete ) {
+	if ( ! empty( $rows ) ) {
 		// Second query (P0.1 Fallback A): pageview-gated distinct visitor-days,
 		// merged per (day, path, class) in PHP. It runs with the SAME zone the
 		// main query actually succeeded with — if the zoned main query fell back
@@ -761,7 +764,7 @@ function sn_analytics_run_rollup() {
 		// truncated result (the wrapper refuses those) — leaves pageview_visits
 		// absent (SQL NULL — "never measured"), never a fabricated 0; the main
 		// rows still write, so a flaky second query degrades, not corrupts.
-		$gated = empty( $rows ) ? array() : sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( sn_analytics_rollup_window()['days'], $used_tz ) );
+		$gated = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( sn_analytics_rollup_window()['days'], $used_tz ) );
 		$write = static function () use ( $rows, $gated ) {
 			sn_analytics_rollup_upsert( sn_analytics_rollup_merge_gated( $rows, $gated ) );
 		};
