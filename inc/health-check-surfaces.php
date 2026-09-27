@@ -57,6 +57,7 @@ function sn_health_check_surface_map() {
 		// reaches zero in the Cloudflare dashboard, and no other surface owns it.
 		'cf_edge_posture'       => 'health',
 		'analytics_integrity'   => 'health',
+		'analytics_ingest'      => 'health',
 		'roadmap_drift'         => 'health',
 		// 23rd check (v13.96.6): the plugin registry disagreeing with
 		// active_plugins. A DEFECT (the registry is wrong, not merely

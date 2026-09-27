@@ -3,7 +3,7 @@
  * Tests: the remote MCP payload-shape contract (versioned-contract phase 2).
  *
  * Phase 1 (worker repo v0.5.0) pinned the door's ENVELOPE. This suite pins
- * the other half at its source: the 8 remote twins' output_schemas ARE the
+ * the other half at its source: the remote twins' output_schemas ARE the
  * payload contract (parity-pinned byte-identical to the admin registrations
  * by tests/abilities-remote-set.php), so a renamed or re-typed field in any
  * of them must fail CI unless SN_REMOTE_CONTRACT_VERSION moves with it —

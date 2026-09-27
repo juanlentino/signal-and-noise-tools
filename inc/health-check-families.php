@@ -98,6 +98,7 @@ function sn_health_check_family_map() {
 
 		// Analytics: the measurement layer's own integrity.
 		'analytics_integrity'  => 'analytics',
+		'analytics_ingest'     => 'analytics',
 
 		// Edge & security: what Cloudflare and the Workers are doing.
 		'cf_security_headers'  => 'edge',

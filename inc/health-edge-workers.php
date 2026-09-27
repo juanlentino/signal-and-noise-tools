@@ -370,7 +370,38 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 					$days6
 				) . $lg6_reason
 			);
+		} elseif ( true === ( $lg['stale6'] ?? null ) ) {
+			// The worker's own stale6 verdict, for the case the age math above
+			// cannot see (a count with no parsable compiled6At).
+			$findings[] = $mk(
+				'sn-login-guard',
+				'',
+				'Login-guard IPv6 denylist is STALE by the worker\'s own reckoning: it has not refreshed successfully in the last 48 hours.' . $lg6_reason
+			);
 		}
+	}
+
+	// Enforcement truth (worker v1.12+). Each is gated on the field being
+	// REPORTED with the bad value; an older worker that omits it is unknown,
+	// never a finding.
+	if ( 'off' === ( $lg['enforcement'] ?? null ) ) {
+		$findings[] = $mk( 'sn-login-guard', '', 'Login-guard enforcement is OFF: the killswitch is set, so every client reaches the login form unchecked.' );
+	}
+	foreach ( array(
+		'degradedList'  => 'Login-guard IPv4 denylist is DEGRADED: the guard could not load its compiled list and is enforcing less than it should.',
+		'degradedList6' => 'Login-guard IPv6 denylist is DEGRADED: the guard could not load its compiled IPv6 list and is enforcing less than it should.',
+		'degradedMeta'  => 'Login-guard denylist metadata is DEGRADED: the guard could not read its list bookkeeping, so the counts above may not be what it enforces.',
+	) as $flag => $note ) {
+		if ( true === ( $lg[ $flag ] ?? null ) ) {
+			$findings[] = $mk( 'sn-login-guard', '', $note );
+		}
+	}
+	$lg_config = is_array( $lg['config'] ?? null ) ? $lg['config'] : array();
+	if ( false === ( $lg_config['rate_limit_global'] ?? null ) ) {
+		$findings[] = $mk( 'sn-login-guard', '', 'Login-guard throttle is NOT GLOBAL: the Durable Object binding is missing, so login attempts are only counted per data center.' );
+	}
+	if ( false === ( $lg_config['rate_limit_escalates'] ?? null ) ) {
+		$findings[] = $mk( 'sn-login-guard', '', 'Login-guard throttle does NOT ESCALATE: repeat offenders are never locked out, because the escalation counter is not bound.' );
 	}
 
 	return $findings;
