@@ -59,5 +59,9 @@ ok( sn_tag_redirect_target( '/tag/provenance/' ) === '', 'a re-created provenanc
 $GLOBALS['__live_slugs'] = array( 'cryptographic-signatures', 'music-metadata' );
 ok( sn_tag_redirect_target( '/tag/cryptography/' ) === 'https://x.test/tag/cryptographic-signatures/' && sn_tag_redirect_target( '/tag/music-identification/' ) === 'https://x.test/tag/music-metadata/', "the theme's two retirements live in the one map" );
 
+$GLOBALS['__live_slugs'] = array( 'music-production' );
+ok( sn_tag_redirect_target( '/tag/provenance/page/2/' ) === 'https://x.test/provenance/' && sn_tag_redirect_target( '/tag/ai-tools/page/3' ) === 'https://x.test/tag/music-production/', 'a retired tag\'s /page/N/ lands on the target\'s first page' );
+ok( sn_tag_redirect_target( '/tag/ai-tools/page/x/' ) === '' && sn_tag_redirect_target( '/tag/music-production/page/2/' ) === '', 'a non-numeric page and a live tag\'s pages are left alone' );
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );
