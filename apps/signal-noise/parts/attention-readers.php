@@ -45,6 +45,9 @@ const ATTENTION_CITATIONS_DUE_CAP = 50;
 /** How stale a citation check may be before it is due, in days. */
 const ATTENTION_CITATIONS_STALE_DAYS = 7;
 
+/** Seconds after a stale reading within which a zone purge is its own escalation, not a later fix. */
+const ATTENTION_EDGE_ESCALATION_S = 60;
+
 
 /**
  * The last integrity sweep's failing notes.
@@ -247,6 +250,13 @@ function attention_edge() {
 		$seen   = array();
 		$rows   = array();
 		$newest = '';
+		// 19.2.0: a full zone purge LATER than a stale reading replaced
+		// everything that reading saw, so the verdict is history. The margin
+		// keeps the probe's own escalation (seconds after the reading) from
+		// retiring it: only a purge the reading did not trigger counts.
+		// ponytail: this retires on a purge, not on a re-probe; a live re-check
+		// per row is the upgrade if a zone purge ever stops clearing the edge.
+		$zone_purge = defined( 'SN_CF_LAST_ZONE_PURGE_OPT' ) ? (int) get_option( SN_CF_LAST_ZONE_PURGE_OPT, 0 ) : 0;
 		foreach ( $log as $entry ) {
 			if ( ! is_array( $entry ) || (int) ( $entry['algo'] ?? 1 ) < SN_CF_PROBE_ALGO ) {
 				continue;
@@ -263,6 +273,9 @@ function attention_edge() {
 				continue;
 			}
 			$time     = (int) ( $entry['time'] ?? 0 );
+			if ( attention_edge_superseded( $time, $zone_purge ) ) {
+				continue;
+			}
 			$stamp    = attention_stamp( $time );
 			$headline = function_exists( 'snt_cf_freshness_headline' )
 				? (string) \snt_cf_freshness_headline( 'stale' )
@@ -294,6 +307,18 @@ function attention_edge() {
 	} catch ( \Throwable $e ) {
 		return attention_unreadable();
 	}
+}
+
+/**
+ * Did a full zone purge come after this stale reading, by more than the
+ * probe's own escalation? PURE.
+ *
+ * @param int $reading_time When the stale verdict was recorded.
+ * @param int $zone_purge   When the last full zone purge ran (0: never).
+ * @return bool
+ */
+function attention_edge_superseded( $reading_time, $zone_purge ) {
+	return (int) $zone_purge > 0 && (int) $zone_purge - (int) $reading_time > ATTENTION_EDGE_ESCALATION_S;
 }
 
 /**

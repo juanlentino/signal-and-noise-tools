@@ -34,12 +34,14 @@ require __DIR__ . '/../inc/abilities-provenance.php';
 
 // ─── Group A: overview degrades to the empty shape without its seams ─────
 $empty = snt_prov_anchor_overview();
-ok( array( 'pending' => array(), 'recording' => array(), 'confirmed' => 0, 'total' => 0 ) === $empty,
+ok( array( 'pending' => array(), 'recording' => array(), 'confirmed' => 0, 'total' => 0, 'pages' => array( 'confirmed' => 0, 'total' => 0 ) ) === $empty,
 	'overview returns the honest empty shape when WP seams are absent' );
 
 // ─── Group B: aggregation over a stubbed corpus ──────────────────────────
 define( 'SN_PROV_UID_META', '_sn_prov_uid' );
-function get_posts( $args ) { return array( 11, 22, 33, 44, 55 ); }
+function get_posts( $args ) { return array( 11, 22, 33, 44, 55, 66, 77 ); }
+// 66 and 77 (19.2.0) are signed PAGES: the hub mid-recording, an essay confirmed.
+function get_post_type( $id ) { return in_array( (int) $id, array( 66, 77 ), true ) ? 'page' : 'post'; }
 function get_the_title( $id ) { return 'Note ' . $id; }
 function sn_prov_get_chain( $id ) {
 	$chains = array(
@@ -61,6 +63,8 @@ function sn_prov_get_chain( $id ) {
 			array( 'version' => 1, 'status' => 'confirmed', 'bitcoin_block' => 964812 ),
 			array( 'version' => 2, 'status' => 'unanchored' ),
 		),
+		66 => array( array( 'version' => 4, 'status' => 'confirmed' ), array( 'version' => 5, 'status' => 'unanchored' ) ),
+		77 => array( array( 'version' => 1, 'status' => 'confirmed' ) ),
 	);
 	return $chains[ $id ] ?? array();
 }
@@ -80,8 +84,11 @@ ok( null !== $p11 && 3 === $p11['confirmations'], 'pending row carries the live 
 ok( null !== $p11 && 0 === strpos( $p11['bitcoin_txid'], 'ab12cd34' ), 'pending row carries the in-flight txid' );
 ok( null !== $p11 && 'Note 11' === $p11['title'], 'pending row carries the post title' );
 ok( null !== $p33 && null === $p33['confirmations'], 'missing confirmation count stays null — never a fabricated 0' );
-ok( array( array( 'post_id' => 55, 'title' => 'Note 55', 'version' => 2 ) ) === $ov['recording'], 'a minted-not-yet-dispatched version is a RECORDING row (post 55 v2), not "anchored" and not "pending"' );
-ok( 1 === $ov['confirmed'] && 4 === $ov['total'] && 1 + count( $ov['pending'] ) + count( $ov['recording'] ) === $ov['total'], 'confirmed + pending + recording = total: no note falls between the lists' );
+ok( array( 'post_id' => 55, 'type' => 'post', 'title' => 'Note 55', 'version' => 2 ) === $ov['recording'][0], 'a minted-not-yet-dispatched version is a RECORDING row (post 55 v2), not "anchored" and not "pending"' );
+$notes_in_flight = count( array_filter( array_merge( $ov['pending'], $ov['recording'] ), static fn( $r ) => 'post' === $r['type'] ) );
+ok( 1 === $ov['confirmed'] && 4 === $ov['total'] && 1 + $notes_in_flight === $ov['total'], 'confirmed + pending + recording = total: no note falls between the lists' );
+ok( array( 'confirmed' => 1, 'total' => 2 ) === $ov['pages'], 'signed pages count apart from notes (1 of 2), and never into the notes total' );
+ok( array( 'post_id' => 66, 'type' => 'page', 'title' => 'Note 66', 'version' => 5 ) === $ov['recording'][1], "a page's in-flight version lists under recording, tagged type=page" );
 
 // ─── Group C: registration on the canonical hook ─────────────────────────
 $GLOBALS['__abilities'] = array();

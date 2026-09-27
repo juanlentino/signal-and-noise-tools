@@ -51,13 +51,18 @@ function snt_prov_anchor_overview() {
 		'recording' => array(),
 		'confirmed' => 0,
 		'total'     => 0,
+		// 19.2.0: signed Pages (the /provenance/ hub, the essays) are their own
+		// count. `confirmed`/`total` stay Notes-only, so "N of N notes
+		// anchored" keeps its meaning; a page's in-flight version still lists
+		// under pending/recording, tagged type=page, because it is real work.
+		'pages'     => array( 'confirmed' => 0, 'total' => 0 ),
 	);
 	if ( ! function_exists( 'get_posts' ) || ! function_exists( 'sn_prov_get_chain' ) || ! defined( 'SN_PROV_UID_META' ) ) {
 		return $out;
 	}
 
 	$ids = get_posts( array(
-		'post_type'      => 'post',
+		'post_type'      => array( 'post', 'page' ),
 		'post_status'    => 'any',
 		'posts_per_page' => -1,
 		'fields'         => 'ids',
@@ -73,16 +78,26 @@ function snt_prov_anchor_overview() {
 		if ( ! is_array( $chain ) || array() === $chain ) {
 			continue;
 		}
-		$out['total']++;
+		$type = function_exists( 'get_post_type' ) && 'page' === get_post_type( (int) $post_id ) ? 'page' : 'post';
+		if ( 'page' === $type ) {
+			$out['pages']['total']++;
+		} else {
+			$out['total']++;
+		}
 		$latest = end( $chain );
 		$status = (string) ( $latest['status'] ?? 'unanchored' );
 		if ( 'confirmed' === $status ) {
-			$out['confirmed']++;
+			if ( 'page' === $type ) {
+				$out['pages']['confirmed']++;
+			} else {
+				$out['confirmed']++;
+			}
 			continue;
 		}
 		if ( 'unanchored' === $status && (int) ( $latest['version'] ?? 0 ) >= 1 ) {
 			$out['recording'][] = array(
 				'post_id' => (int) $post_id,
+				'type'    => $type,
 				'title'   => function_exists( 'get_the_title' ) ? (string) get_the_title( (int) $post_id ) : '',
 				'version' => (int) ( $latest['version'] ?? 0 ),
 			);
@@ -91,6 +106,7 @@ function snt_prov_anchor_overview() {
 		if ( 'pending' === $status ) {
 			$out['pending'][] = array(
 				'post_id'       => (int) $post_id,
+				'type'          => $type,
 				'title'         => function_exists( 'get_the_title' ) ? (string) get_the_title( (int) $post_id ) : '',
 				'version'       => (int) ( $latest['version'] ?? 0 ),
 				'bitcoin_txid'  => (string) ( $latest['bitcoin_txid'] ?? '' ),
@@ -141,6 +157,7 @@ function snt_abilities_provenance_register() {
 				'recording' => array( 'type' => 'array', 'description' => 'v14.6.2: commits persisted and not yet accepted by the Worker (the theme\'s "Recording" badge): {post_id, title, version}. Neither confirmed nor pending; a note here is NOT anchored yet.' ),
 				'confirmed' => array( 'type' => 'integer' ),
 				'total'     => array( 'type' => 'integer' ),
+				'pages'     => array( 'type' => 'object', 'description' => '19.2.0: signed Pages, counted apart from Notes: {confirmed, total}. confirmed/total above are Notes only.' ),
 			),
 		),
 		'meta'                => array(
