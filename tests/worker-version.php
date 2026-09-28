@@ -594,5 +594,14 @@ sn_worker_version_render_card();
 $html = ob_get_clean();
 wv_true( false !== strpos( $html, 'v1.4.1' ), 'no trigger → warm cache still served (SWR unchanged)' );
 
+// 19.6.3: the parser keeps the cron block. The keyring srv_token probe reads
+// data.cron; a parser that dropped it made that probe say "Unknown" on every
+// real response while its fake-fed test passed. Real body, captured live.
+$live = (string) file_get_contents( __DIR__ . '/fixtures/worker-version-live.json' );
+$r    = sn_worker_version_parse_response( 200, $live );
+wv_true( isset( $r['data']['cron']['at'] ) && '' !== $r['data']['cron']['at'], 'live body: cron.at survives parsing' );
+wv_true( isset( $r['data']['cron']['refresh_http'] ) && is_int( $r['data']['cron']['refresh_http'] ) && $r['data']['cron']['refresh_http'] > 0, 'live body: cron.refresh_http survives as an int' );
+wv_true( isset( $r['data']['cron']['refresh_status'] ) && '' !== $r['data']['cron']['refresh_status'], 'live body: cron.refresh_status survives' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

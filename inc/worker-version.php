@@ -130,6 +130,14 @@ function sn_worker_version_parse_response( $code, $body ) {
 			$config[ sanitize_key( (string) $key ) ] = (bool) $value;
 		}
 	}
+	$cron = array();
+	if ( isset( $json['cron'] ) && is_array( $json['cron'] ) ) {
+		$cron = array(
+			'at'             => $clean( $json['cron']['at'] ?? '' ),
+			'refresh_status' => $clean( $json['cron']['refresh_status'] ?? '' ),
+			'refresh_http'   => (int) ( $json['cron']['refresh_http'] ?? 0 ),
+		);
+	}
 	return array(
 		'ok'    => true,
 		'data'  => array(
@@ -139,6 +147,9 @@ function sn_worker_version_parse_response( $code, $body ) {
 			'cf_version_tag' => $clean( $json['cf_version_tag'] ?? '' ),
 			'deployed_at'    => $clean( $json['deployed_at'] ?? '' ),
 			'config'         => $config,
+			// 19.6.3: the last scheduled refresh, which the keyring's srv_token
+			// probe reads. Dropping it made that probe always say "Unknown".
+			'cron'           => $cron,
 		),
 		'error' => '',
 	);
