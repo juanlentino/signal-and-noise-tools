@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SNT_FEED_SUBS_OPT     = 'snt_feed_subscribers';
 const SNT_FEED_SUBS_DAYS    = 90;
-const SNT_FEED_SUBS_PER_DAY = 500;     // keys kept per bucket per day; bounds a UA-spraying flood.
+const SNT_FEED_SUBS_PER_DAY = 200;     // keys kept per bucket per day; bounds a UA-spraying flood (90 days stay ~3 MB).
 const SNT_FEED_SUBS_CAP     = 1000000; // a claim above this is spoofed or broken: capped and flagged.
 
 /**

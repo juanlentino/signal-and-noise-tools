@@ -43,6 +43,12 @@ for ( $i = 0; $i < SNT_FEED_OPENS_PER_DAY + 20; $i++ ) {
 	$cap = snt_feed_opens_record( $cap, 10, 'ua' . $i, $now );
 }
 ok( SNT_FEED_OPENS_PER_DAY === snt_feed_opens_window( $cap, 1, $now )['total'], 'a UA-spraying flood is bounded per note per day' );
+$all = array();
+for ( $i = 0; $i < 40000; $i++ ) {
+	$all = snt_feed_opens_record( $all, 1 + ( $i % 80 ), 'ua' . $i, $now );
+}
+ok( snt_feed_opens_window( $all, 1, $now )['total'] <= 1000, 'a flood sprayed across every note is bounded per day in total, not only per note' );
+ok( strlen( serialize( $all ) ) * SNT_FEED_OPENS_DAYS < 4 * 1024 * 1024, 'ninety flooded days stay a few MB, not tens' );
 
 // Report summary: 7d/30d totals and a top list, labelled a floor.
 $sum = array();

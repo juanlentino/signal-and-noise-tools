@@ -22,6 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SNT_FEED_OPENS_OPT     = 'snt_feed_opens';
 const SNT_FEED_OPENS_DAYS    = 90;
 const SNT_FEED_OPENS_PER_DAY = 500; // distinct UAs kept per note per day; bounds a UA-spraying flood.
+const SNT_FEED_OPENS_DAY_CAP = 1000; // distinct opens kept per day across ALL notes: a flood sprayed over every note stays ~30 KB a day.
 const SNT_FEED_OPENS_GIF     = 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 /**
@@ -47,7 +48,8 @@ function snt_feed_opens_record( array $store, $post_id, $ua_hash, $now ) {
 	$day = gmdate( 'Y-m-d', $now );
 	$pid = (string) (int) $post_id;
 	$set = $store[ $day ][ $pid ] ?? array();
-	if ( count( $set ) < SNT_FEED_OPENS_PER_DAY ) { // keyed by hash: a repeat open overwrites, never adds
+	$today = array_sum( array_map( 'count', (array) ( $store[ $day ] ?? array() ) ) );
+	if ( count( $set ) < SNT_FEED_OPENS_PER_DAY && $today < SNT_FEED_OPENS_DAY_CAP ) { // keyed by hash: a repeat open overwrites, never adds
 		$set[ $ua_hash ] = 1;
 	}
 	$store[ $day ][ $pid ] = $set;
