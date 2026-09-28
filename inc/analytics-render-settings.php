@@ -343,18 +343,18 @@ function snt_analytics_pipeline_pills() {
 	// the two default to the same constant but can diverge under filters.
 	$srv = function_exists( 'sn_analytics_refresh_secret' )
 		? sn_analytics_refresh_secret()
-		: ( defined( 'SN_SRV_TOKEN' ) ? (string) SN_SRV_TOKEN : '' );
+		: ( function_exists( 'sn_credential' ) ? sn_credential( 'srv_token' ) : '' );
 	$rss_srv = function_exists( 'sn_rss_tracker_server_token' )
 		? sn_rss_tracker_server_token()
 		: $srv;
 	if ( '' !== $srv ) {
 		$pills[] = array( 'ok', __( 'Server token set', 'signal-and-noise-tools' ), '' );
 	} else {
-		$note = __( 'The */15 cron refresh is disabled (it fails closed): set SN_SRV_TOKEN in wp-config.php.', 'signal-and-noise-tools' );
+		$note = __( 'The */15 cron refresh is disabled (it fails closed). The analytics server token is not set: set it in Connections › Credentials (Analytics server token).', 'signal-and-noise-tools' );
 		if ( '' === $rss_srv ) {
 			$note .= ' ' . __( 'RSS srv hits also lose their trusted class.', 'signal-and-noise-tools' );
 		}
-		$pills[] = array( 'warn', __( 'SN_SRV_TOKEN missing', 'signal-and-noise-tools' ), $note );
+		$pills[] = array( 'warn', __( 'Server token missing', 'signal-and-noise-tools' ), $note );
 	}
 
 	// 5. Zone ID — gates the dashboard's Edge view. Resolved via sn_cf_get_zone()

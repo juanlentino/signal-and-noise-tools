@@ -22,6 +22,7 @@ function wp_remote_retrieve_response_code( $r ) { return (int) ( $r['response'][
 function wp_remote_retrieve_body( $r ) { return (string) ( $r['body'] ?? '' ); }
 function sn_cf_monitor_verify( $z, $token = null ) { $GLOBALS['__cf_token'] = $token; return null === $token ? $GLOBALS['__cf'] : ( $GLOBALS['__cf_override'] ?? $GLOBALS['__cf'] ); }
 function sn_uptime_status_api_get( $r ) { return $GLOBALS['__bs']; }
+function sn_worker_version_get( $force = false ) { $GLOBALS['__wv_force'] = $force; return $GLOBALS['__wv']; }
 function sn_spotify_token() { return $GLOBALS['__spotify'] ?? ''; }
 
 require dirname( __DIR__ ) . '/inc/keyring.php';
@@ -84,6 +85,33 @@ $GLOBALS['__http']['https://api.github.com/user'] = array( 'response' => array( 
 ok( 'ok' === sn_keyring_probe( 'github_token', $rows['github_token'] )['status'] && false !== strpos( sn_keyring_probe( 'github_token', $rows['github_token'] )['detail'], 'juanlentino' ), 'GitHub ok names the login' );
 $GLOBALS['__http']['https://api.github.com/user'] = array( 'response' => array( 'code' => 401 ), 'body' => '' );
 ok( 'refused' === sn_keyring_probe( 'github_token', $rows['github_token'] )['status'], 'GitHub 401 is refused' );
+
+// ── The analytics server token: read off the worker's public /_sn/version.
+$srv = $rows['srv_token'];
+$v = sn_keyring_probe( 'srv_token', $srv );
+ok( 'unset' === $v['status'] && false !== strpos( $v['detail'], 'plugin side' ), 'srv unset: "not set here (plugin side)"' );
+$GLOBALS['__opt']['sn_srv_token'] = 'srv-1';
+$wv = function ( $http, $status, $ago = 60, $ok = true ) { return array( 'ok' => $ok, 'data' => array( 'cron' => array( 'at' => gmdate( 'Y-m-d\TH:i:s.000\Z', time() - $ago ), 'refresh_status' => $status, 'refresh_http' => $http ) ) ); };
+$GLOBALS['__wv'] = $wv( 403, 'error' );
+$v = sn_keyring_probe( 'srv_token', $srv );
+ok( 'refused' === $v['status'] && false !== strpos( $v['detail'], 'worker holds a different value' ) && false !== strpos( $v['detail'], 'signal-and-noise-analytics-worker && npx wrangler secret put SN_SRV_TOKEN' ) && true === $GLOBALS['__wv_force'], 'srv 403 → refused, names the worker side and its command, fresh read' );
+ok( false === strpos( $v['detail'], 'srv-1' ), 'the secret never appears in the verdict' );
+$GLOBALS['__wv'] = $wv( 503, 'error' );
+$v = sn_keyring_probe( 'srv_token', $srv );
+ok( 'refused' === $v['status'] && false !== strpos( $v['detail'], 'plugin side' ), 'srv 503 → plugin side' );
+$GLOBALS['__wv'] = $wv( 200, 'ok' );
+ok( 'ok' === sn_keyring_probe( 'srv_token', $srv )['status'], 'srv 2xx → ok' );
+$GLOBALS['__wv'] = $wv( 200, 'ok', 3600 );
+$v = sn_keyring_probe( 'srv_token', $srv );
+ok( 'error' === $v['status'] && false !== strpos( $v['detail'], 'Unknown' ), 'srv reading older than 30 minutes → unknown, never ok' );
+$GLOBALS['__wv'] = $wv( 403, 'error', 3600 );
+ok( 'error' === sn_keyring_probe( 'srv_token', $srv )['status'], 'a stale 403 is unknown, not refused' );
+$GLOBALS['__wv'] = array( 'ok' => false, 'data' => array(), 'error' => 'network' );
+ok( 'error' === sn_keyring_probe( 'srv_token', $srv )['status'], 'worker unreachable → unknown' );
+$GLOBALS['__wv'] = array( 'ok' => true, 'data' => array() );
+ok( 'error' === sn_keyring_probe( 'srv_token', $srv )['status'], 'no cron block → unknown' );
+$GLOBALS['__wv'] = $wv( 403, 'error' );
+unset( $GLOBALS['__opt']['sn_srv_token'] );
 
 // ── No probe is never a pass.
 $GLOBALS['__opt']['sn_cf_zone_id'] = 'z';

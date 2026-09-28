@@ -73,7 +73,7 @@ $GLOBALS['__srv']     = '';
 $GLOBALS['__rss_srv'] = '';
 $h = render();
 ok( strpos( $h, 'sn-an-pill--warn' ) !== false, 'missing server token renders a warn pill' );
-ok( strpos( $h, 'SN_SRV_TOKEN' ) !== false, 'warn names the constant' );
+ok( strpos( $h, 'Connections › Credentials (Analytics server token)' ) !== false && strpos( $h, 'wp-config' ) === false && strpos( $h, 'SN_SRV_TOKEN' ) === false, 'warn points at the keyring row, not wp-config' );
 ok( strpos( $h, 'cron refresh' ) !== false, 'warn names the disabled */15 cron consequence' );
 ok( strpos( $h, 'RSS srv' ) !== false, 'both seams empty: the warn also names the RSS srv-trust loss' );
 $GLOBALS['__rss_srv'] = 'x'; // sn_server_token filter supplies a token the refresh seam lacks

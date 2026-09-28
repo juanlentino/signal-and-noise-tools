@@ -26,9 +26,9 @@ require_once __DIR__ . '/analytics-network-terms.php';
 const SNT_ANALYTICS_VDAY_PV_CAP = 50;
 // Widest reader window: AE keeps ~90 days; the north star reads 12 weeks.
 const SNT_ANALYTICS_VDAY_WINDOW_DAYS = 92;
-// 400 keeps the longest statement (read-time class + NOT IN list) under AE's
+// 300 (was 400; 400 measured 9,572 chars, too thin) keeps the longest statement (read-time class + NOT IN list) under AE's
 // 10,000-character cap; sn_analytics_sql_too_long() fails closed past it.
-const SNT_ANALYTICS_VDAY_LIST_MAX    = 400;
+const SNT_ANALYTICS_VDAY_LIST_MAX    = 300;
 // Versioned key: 19.4.1 dropped a failed read cached by 19.4.0; v3 drops a list read with the UTC-split grouping.
 const SNT_ANALYTICS_VDAY_CACHE_KEY   = 'sn_analytics_overcap_vdays_v3';
 
