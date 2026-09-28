@@ -54,6 +54,7 @@ function sn_handle_keyring_save( $post ) {
 			}
 		}
 	}
+	$GLOBALS['sn_keyring_write_source'] = 'keyring_save';
 	$site_rows  = sn_keyring_site_rows();
 	$can_derive = 'site' === ( $row['derive'] ?? '' );
 	if ( 'site' === $value && $can_derive ) {
@@ -65,6 +66,7 @@ function sn_handle_keyring_save( $post ) {
 		sn_keyring_write( $row, 'clear' === $value ? '' : $value );
 	}
 	update_option( SN_KEYRING_SITE_ROWS, $site_rows, false );
+	unset( $GLOBALS['sn_keyring_write_source'] );
 	sn_keyring_flush( $row );
 	if ( function_exists( 'sn_setting_reset_cache' ) ) {
 		sn_setting_reset_cache();

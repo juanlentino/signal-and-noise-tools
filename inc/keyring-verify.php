@@ -40,8 +40,15 @@ function sn_keyring_verdict( $status, $detail = '' ) {
  */
 function sn_keyring_probe( $id, array $row ) {
 	if ( '' === sn_credential( $id ) ) {
+		// 19.6.2: a probed row whose other half lives on a worker is a FAILURE
+		// when unset here: the worker still sends its value and this side
+		// refuses it. It must never let Verify all read green.
 		if ( 'srv' === (string) ( $row['probe'] ?? '' ) ) {
-			return sn_keyring_verdict( 'unset', __( 'Not set here (plugin side): the analytics refresh route answers 503 until this row has the worker\'s value.', 'signal-and-noise-tools' ) );
+			return sn_keyring_verdict( 'refused', __( 'Not set here (plugin side): the analytics refresh route answers 503 until this row has the worker\'s value.', 'signal-and-noise-tools' ) );
+		}
+		if ( isset( $row['probe'], $row['other_half']['secret'] ) ) {
+			/* translators: %s: worker secret name. */
+			return sn_keyring_verdict( 'refused', sprintf( __( 'Not set here (plugin side): the worker holds %s and this side has no value to match it. Set the same value here.', 'signal-and-noise-tools' ), (string) $row['other_half']['secret'] ) );
 		}
 		return sn_keyring_verdict( 'unset', __( 'Nothing to verify: no value is set.', 'signal-and-noise-tools' ) );
 	}

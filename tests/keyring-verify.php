@@ -27,6 +27,7 @@ function sn_spotify_token() { return $GLOBALS['__spotify'] ?? ''; }
 
 require dirname( __DIR__ ) . '/inc/keyring.php';
 require dirname( __DIR__ ) . '/inc/keyring-verify.php';
+require dirname( __DIR__ ) . '/inc/admin-post-actions/keyring.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -35,7 +36,9 @@ echo "keyring-verify -- each verdict names the side (15.2.0)\n";
 
 // ── Unset rows are never probed.
 $v = sn_keyring_probe( 'mr_read_token', $rows['mr_read_token'] );
-ok( 'unset' === $v['status'] && array() === $GLOBALS['__calls'], 'an unset row is "unset" and no request is made' );
+ok( 'refused' === $v['status'] && false !== strpos( $v['detail'], 'plugin side' ) && array() === $GLOBALS['__calls'], 'an unset worker row is refused on the plugin side, and no request is made' );
+$v = sn_keyring_probe( 'github_token', $rows['github_token'] );
+ok( 'unset' === $v['status'] && array() === $GLOBALS['__calls'], 'an unset issued row is "unset" and no request is made' );
 
 // ── The sensor: 200 / 401 / 502 / 503 / other, each its own sentence.
 $GLOBALS['__settings']['machine_readers.read_token'] = 'mr-1';
@@ -89,7 +92,7 @@ ok( 'refused' === sn_keyring_probe( 'github_token', $rows['github_token'] )['sta
 // ── The analytics server token: read off the worker's public /_sn/version.
 $srv = $rows['srv_token'];
 $v = sn_keyring_probe( 'srv_token', $srv );
-ok( 'unset' === $v['status'] && false !== strpos( $v['detail'], 'plugin side' ), 'srv unset: "not set here (plugin side)"' );
+ok( 'refused' === $v['status'] && false !== strpos( $v['detail'], 'plugin side' ), 'srv unset: REFUSED, "not set here (plugin side)" (19.6.2: unset never reads green)' );
 $GLOBALS['__opt']['sn_srv_token'] = 'srv-1';
 $wv = function ( $http, $status, $ago = 60, $ok = true ) { return array( 'ok' => $ok, 'data' => array( 'cron' => array( 'at' => gmdate( 'Y-m-d\TH:i:s.000\Z', time() - $ago ), 'refresh_status' => $status, 'refresh_http' => $http ) ) ); };
 $GLOBALS['__wv'] = $wv( 403, 'error' );
@@ -121,6 +124,17 @@ ok( 'none' === sn_keyring_probe( 'cf_zone', $rows['cf_zone'] )['status'], 'a row
 $GLOBALS['__http'][ SN_MR_DEFAULT_ENDPOINT ] = array( 'response' => array( 'code' => 401 ), 'body' => '' );
 $all = sn_keyring_verify_all();
 ok( count( $rows ) === count( $all ) && 'refused' === $all['mr_read_token']['status'] && 'unset' === $all['bridge_token']['status'] && $all === sn_keyring_verdicts() && false === $GLOBALS['__autoload'][ SN_KEYRING_VERDICTS_OPT ] && $all['mr_read_token']['at'] >= time() - 5, 'Verify all: one verdict per row, stored once, read back unchanged, stamped' );
+
+// ── 19.6.2: the banner. An unset probed worker row with every other probe
+//    green was "Every credential with a probe was accepted" (2026-09-28).
+$GLOBALS['__opt'] = array( 'sn_cf_api_token' => 'cf-1' );
+$GLOBALS['__cf'] = array( 'verified' => true, 'status' => 'active', 'kind' => 'account' );
+$GLOBALS['__bs'] = array( 'data' => array() ); $GLOBALS['__spotify'] = 'tok';
+$GLOBALS['__http'][ SN_MR_DEFAULT_ENDPOINT ] = array( 'response' => array( 'code' => 200 ), 'body' => '' );
+$code = sn_handle_keyring_verify( array() );
+$all  = sn_keyring_verdicts();
+ok( 'refused' === $all['srv_token']['status'] && 'keyring_verified_with_refusals' === $code, 'Verify all with srv_token unset is a refusal banner, not all-green' );
+ok( 'unset' === $all['zenodo_sandbox_token']['status'], 'an unset row with no worker half stays unset (not a failure)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
