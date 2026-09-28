@@ -102,15 +102,41 @@
 		return svg;
 	}
 
-	function deltaLine( pct ) {
+	// One delta idiom for every row: the arrow carries the direction, so the
+	// number prints unsigned ("▲ 3", never "▲ +3"). Colour only when the
+	// change is meaningful; otherwise the muted text colour, so a 4-to-3 wobble
+	// does not paint an alarm.
+	var UP = '#3fb950', DOWN = '#c9503f', MUTED = 'var(--os-ui-color-text-subtle, rgba(255,255,255,.6))';
+	var MIN_ABS = 5, MIN_REL = 20, MIN_PTS = 5;
+
+	function deltaText( d, suffix ) {
+		return ( d >= 0 ? '▲ ' : '▼ ' ) + Math.abs( d ) + ( suffix || '' );
+	}
+
+	/** absChange in units; relPct in percent (null when no base). isPts: a points change. */
+	function deltaColor( d, absChange, relPct, isPts ) {
+		var a = Math.abs( absChange );
+		var meaningful = isPts ? a >= MIN_PTS : ( a >= MIN_ABS && relPct !== null && Math.abs( relPct ) >= MIN_REL );
+		return meaningful ? ( d > 0 ? UP : DOWN ) : MUTED;
+	}
+
+	/** Relative change of d against its base (prior value); null with no base. */
+	function relOf( d, prior ) {
+		return prior > 0 ? ( d / prior ) * 100 : null;
+	}
+
+	window.snSiteViewsDelta = { text: deltaText, color: deltaColor, rel: relOf };
+
+	function deltaLine( pct, total ) {
 		if ( pct === null || typeof pct === 'undefined' ) {
 			// No prior window to compare — say nothing rather than imply flat.
 			return el( 'div', { text: 'vs. prior 14 days: —', style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
 		}
-		var up   = pct >= 0;
+		// Prior total recovered from the percentage, for the absolute floor.
+		var prior = typeof total === 'number' && pct > -100 ? total / ( 1 + pct / 100 ) : 0;
 		var node = el( 'div', {
-			text: ( up ? '▲ ' : '▼ ' ) + Math.abs( pct ) + '% vs. prior 14 days',
-			style: 'font-size:11px;font-weight:600;color:' + ( up ? '#3fb950' : '#c9503f' ) + ';'
+			text: deltaText( pct, '%' ) + ' vs. prior 14 days',
+			style: 'font-size:11px;font-weight:600;color:' + deltaColor( pct, total - prior, pct, false ) + ';'
 		} );
 		return node;
 	}
@@ -170,7 +196,7 @@
 			chart.appendChild( sparkline( payload.days ) );
 			body.appendChild( chart );
 
-			body.appendChild( deltaLine( payload.delta_pct ) );
+			body.appendChild( deltaLine( payload.delta_pct, payload.total ) );
 
 			// The north star: views say how many came, this says how many read.
 			// Additive: absent key (analytics unset, older cached payload) paints nothing.
@@ -178,7 +204,7 @@
 			if ( ns && typeof ns.value === 'number' ) {
 				var nsBox = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
 				var nsDelta = ns.value - ( ns.previous || 0 );
-				nsBox.appendChild( statRow( 'Engaged readers · 7d', String( ns.value ) + ( nsDelta ? ( nsDelta > 0 ? ' ▲ +' : ' ▼ ' ) + Math.abs( nsDelta ) : '' ), nsDelta ? 'color:' + ( nsDelta > 0 ? '#3fb950' : '#c9503f' ) + ';' : '' ) );
+				nsBox.appendChild( statRow( 'Engaged readers · 7d', String( ns.value ) + ( nsDelta ? ' ' + deltaText( nsDelta ) : '' ), nsDelta ? 'color:' + deltaColor( nsDelta, nsDelta, relOf( nsDelta, ns.previous || 0 ), false ) + ';' : '' ) );
 				if ( typeof ns.deep === 'number' ) { nsBox.appendChild( statRow( 'Read 2+ pages', String( ns.deep ) ) ); }
 				if ( typeof ns.actions === 'number' ) { nsBox.appendChild( statRow( 'Downloads, outbound', String( ns.actions ) ) ); }
 				if ( ns.doi && typeof ns.doi.value === 'number' ) { nsBox.appendChild( statRow( 'DOI downloads · ' + ns.doi.window, String( ns.doi.value ) ) ); }
@@ -201,9 +227,9 @@
 				var engStyle = '';
 				if ( typeof payload.engaged.pts === 'number'
 					&& ( payload.engaged.dir === 'up' || payload.engaged.dir === 'down' ) ) {
-					var engUp = payload.engaged.dir === 'up';
-					engText += ( engUp ? ' ▲ ' : ' ▼ ' ) + Math.abs( payload.engaged.pts ) + ' pts';
-					engStyle = 'color:' + ( engUp ? '#3fb950' : '#c9503f' ) + ';';
+					var engD = ( payload.engaged.dir === 'up' ? 1 : -1 ) * Math.abs( payload.engaged.pts );
+					engText += ' ' + deltaText( engD, ' pts' );
+					engStyle = 'color:' + deltaColor( engD, engD, null, true ) + ';';
 				}
 				stats.appendChild( statRow( 'Engaged', engText, engStyle ) );
 			}
@@ -213,15 +239,16 @@
 			// row. Same path-row idiom as Top pages.
 			if ( payload.top_mover && payload.top_mover.path
 				&& typeof payload.top_mover.delta === 'number' && payload.top_mover.delta !== 0 ) {
-				var mvUp = payload.top_mover.delta > 0;
+				var mvD = payload.top_mover.delta;
+				var mvPrior = typeof payload.top_mover.views === 'number' ? payload.top_mover.views - mvD : 0;
 				var mv = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
 				mv.appendChild( el( 'span', {
 					text:  payload.top_mover.path,
 					style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
 				} ) );
 				mv.appendChild( el( 'span', {
-					text:  ( mvUp ? '▲ +' : '▼ ' ) + Math.abs( payload.top_mover.delta ), // 15.8.2: the arrow carries the sign; "▼ -16" doubled it
-					style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;color:' + ( mvUp ? '#3fb950' : '#c9503f' ) + ';'
+					text:  deltaText( mvD ),
+					style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;color:' + deltaColor( mvD, mvD, relOf( mvD, mvPrior ), false ) + ';'
 				} ) );
 				stats.appendChild( mv );
 			}
