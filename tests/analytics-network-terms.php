@@ -148,7 +148,7 @@ foreach ( array( 'Google Fiber Inc.', 'Google Fiber LLC' ) as $o ) {
 }
 $fiber_ok = static function ( $sql ) use ( $fiber ) {
 	foreach ( $fiber as $p ) {
-		if ( 'human' !== worker_class( $p['br'], $p['org'] ) || ! eval_pred( $sql, 'human', $p['br'], $p['org'] ) ) {
+		if ( 'human' !== worker_class( $p['br'], $p['org'], 'macOS' ) || ! eval_pred( $sql, 'human', $p['br'], $p['org'], 'macOS' ) ) {
 			return false;
 		}
 	}
