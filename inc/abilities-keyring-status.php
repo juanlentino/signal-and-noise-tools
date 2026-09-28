@@ -38,7 +38,7 @@ function snt_ability_keyring_status( $input = null ) {
 			'detail'  => is_array( $v ) ? (string) ( $v['detail'] ?? '' ) : null,
 		);
 	}
-	return array( 'state' => $at > 0 ? 'verified' : 'never_verified', 'rows' => $rows, 'verified_at' => $at > 0 ? $at : null );
+	return array( 'state' => $at > 0 ? 'verified' : 'never_verified', 'rows' => $rows, 'verified_at' => $at > 0 ? $at : null, 'changes' => function_exists( 'sn_keyring_changes' ) ? sn_keyring_changes() : array() );
 }
 
 add_action( 'wp_abilities_api_init', function () {
@@ -47,7 +47,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/keyring-status', array(
 		'label'               => 'Keyring Status',
-		'description'         => 'Every credential the plugin holds (Connections › Credentials), one row each: its id and group, where its value comes from (`source`: constant | site | option | empty), whether it is set, whether it derives from the site secret, and the last "Verify all" verdict with its sentence (ok | refused | error | unset | none). NEVER a value. `state: never_verified` means Verify all has not run. A `refused` sensor row names which side differs; a `none` verdict means the row has no probe and the tab that uses it is the witness. Read-only; never probes.',
+		'description'         => 'Every credential the plugin holds (Connections › Credentials), one row each: its id and group, where its value comes from (`source`: constant | site | option | empty), whether it is set, whether it derives from the site secret, and the last "Verify all" verdict with its sentence (ok | refused | error | unset | none). `changes` lists the last 50 writes to any keyring option (row, set or clear, last 4, which code path). NEVER a value. `state: never_verified` means Verify all has not run. A `refused` sensor row names which side differs; a `none` verdict means the row has no probe and the tab that uses it is the witness. Read-only; never probes.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_keyring_status',
@@ -58,6 +58,7 @@ add_action( 'wp_abilities_api_init', function () {
 				'state'       => array( 'type' => 'string', 'enum' => array( 'unavailable', 'never_verified', 'verified' ) ),
 				'verified_at' => array( 'type' => array( 'integer', 'null' ) ),
 				'rows'        => array( 'type' => 'array', 'items' => array( 'type' => 'object', 'description' => 'id, group, source, set, derives, verdict, detail; never a value.' ) ),
+				'changes'     => array( 'type' => 'array', 'items' => array( 'type' => 'object', 'description' => 'The last 50 keyring option writes, oldest first: at, row, verb (set|clear), last4, source (keyring_save|cron|rest|cli|admin|other), user; never a value.' ) ),
 			),
 		),
 		'meta'                => array(

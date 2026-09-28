@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- Verify all no longer reads green over an unset worker row: a probed row whose other half lives on a worker (Analytics server token, Machine Readers read token, Cloudflare API token) is now refused, "Not set here (plugin side)", so the banner says a credential was refused and the row names the side. Seen 2026-09-28: the Analytics server token read "unset" under "Every credential with a probe was accepted."
+- The keyring keeps a change log: every write or delete of a keyring option, by any code path (the form, cron, REST, CLI, anything else), records the row, set or clear, the value's last 4 characters and the source, capped at 50 lines. Read through `keyring-status` (`changes`); never a value.
+
 ## [19.6.1] - 2026-09-28 — the cap catches the midnight split
 
 
