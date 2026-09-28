@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- A correction to 19.6.0's notes: the read-time rule matches the worker's classifier on every stored row except server-side feed events (the RSS tracker's server-authenticated hits from the WordPress host). Those read as suspect on purpose: they are feed fetches the RSS stats already count, not people on the site.
+
 ### Fixed
 
 - The SN Site Views desktop card now shows the same engaged-readers number as the north star. The card cached its whole payload for 15 minutes, north star included, so it could keep a reading older than the one the north-star ability returned (4 on the card, 3 in the ability after the one-human rule landed). The north star is now added to every response from its own hourly reading, outside the card's cache.
