@@ -123,5 +123,25 @@ $no_relay = preg_replace( "/^\(blob8 = 'Safari' AND \([^)]*\)\) OR /", '', sn_an
 ok( $no_relay !== sn_analytics_network_human_sql(), 'negative control setup: relay clause removed' );
 ok( array() !== pred_mismatches( "(blob7 != 'bot' AND ({$no_relay}))", $pairs ), 'negative control: without the relay clause relay Safari flips (red)' );
 
+echo "\nGroup: Google Fiber is a home ISP and must stay human\n";
+$fiber = array();
+foreach ( array( 'Google Fiber Inc.', 'Google Fiber LLC' ) as $o ) {
+	foreach ( array( 'Safari', 'Chrome' ) as $b ) {
+		$fiber[] = array( 'org' => $o, 'br' => $b );
+	}
+}
+$fiber_ok = static function ( $sql ) use ( $fiber ) {
+	foreach ( $fiber as $p ) {
+		if ( 'human' !== worker_class( $p['br'], $p['org'] ) || ! eval_pred( $sql, 'human', $p['br'], $p['org'] ) ) {
+			return false;
+		}
+	}
+	return true;
+};
+ok( $fiber_ok( $human ), 'Google Fiber Inc./LLC on Safari and Chrome: human by the mirrored regex AND the generated term predicate' );
+ok( array() === mismatches( SNT_ANALYTICS_DC_ASN_SOURCE, $terms['dc'], array( 'Google Fiber Inc.', 'Google Fiber LLC' ) ), 'dc: terms and regex agree on the Google Fiber orgs' );
+$loose = str_replace( "'%google llc%'", "'%google%'", $human );
+ok( $loose !== $human && ! $fiber_ok( $loose ), "negative control: a loose 'google' term makes Google Fiber suspect (red)" );
+
 echo "\nResult: {$pass} passed, {$fail} failed.\n";
 exit( $fail ? 1 : 0 );
