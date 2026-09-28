@@ -640,7 +640,7 @@ foreach ( array(
 ok( false === strpos( strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-uptime.js' ) ), "'Open Uptime →'" ),
 	'the uptime card names where its link goes (the Dashboard leaf), not a leaf that does not exist' );
 $sn_views_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' ) );
-ok( false !== strpos( $sn_views_code, "'▼ ' ) + Math.abs( payload.top_mover.delta )" ), 'the top-mover delta never prints a minus after the down arrow' );
+ok( false !== strpos( $sn_views_code, "text:  deltaText( mvD )," ), 'the top-mover delta rides the one arrow-only formatter (render pins: tests/desktop-mode-widget-views-delta.php)' );
 $sn_cache_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-cache.js' ) );
 ok( false !== strpos( $sn_cache_code, "'permalink' === summary.probe_scope" ), 'the cache card says what its verdict covers' );
 ok( false === strpos( $sn_cache_code, "detail( 'Verdicts recorded'" ), 'and still paints no standing tally (v13.87.3 ruling)' );
