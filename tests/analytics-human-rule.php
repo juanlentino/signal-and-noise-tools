@@ -71,7 +71,12 @@ $ae_clause_fns = static function ( $sql ) {
 	return $bad;
 };
 $oc = sn_analytics_overcap_sql();
-ok( false !== strpos( $oc, 'toDate(timestamp) AS d' ) && false !== strpos( $oc, 'GROUP BY vid, d HAVING views > 50' ), 'the live-verified shape: day selected as an alias, grouped and filtered by alias' );
+// 19.6.1 pressure test: the worker rotates index1 at America/New_York midnight,
+// so a visitor-day spans two UTC dates. Grouping by (vid, UTC date) split
+// be3954b3adac9b3e's 65 views into 18 + 47 and it escaped the cap. The hash
+// alone IS the visitor-day.
+ok( false !== strpos( $oc, 'GROUP BY vid HAVING views > 50' ), 'groups by the visitor-day hash alone' );
+ok( false === strpos( $oc, 'toDate(' ), 'never splits a visitor-day on the UTC date' );
 ok( 1 === preg_match( '/GROUP BY ([^()]*?) HAVING/', $oc ), 'over-cap GROUP BY holds no function call' );
 ok( array() === $ae_clause_fns( $oc ), 'over-cap GROUP BY / HAVING / ORDER BY are bare identifiers' );
 $GLOBALS['__q_ret'] = null;
