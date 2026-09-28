@@ -40,6 +40,8 @@ function snt_feed_subs_parse( $ua ) {
 	$n = (int) str_replace( ',', '', $m[1] );
 	// "Mozilla/5.0 (compatible; inoreader.com; 3 subscribers)": the product is inside the parens.
 	$name = preg_match( '/^Mozilla\/[\d.]+\s*\(compatible;\s*([^;)]+)/i', $ua, $c ) ? $c[1] : preg_split( '/\/|\(|;|\s-\s|\s+feed-?id/i', $ua )[0];
+	// Drop the version ("BazQux/2.4", "Reader 3.1.0") so one fetcher keys once across its releases.
+	$name = preg_replace( '/\/\S*$|[\s_-]*v?\d+(?:\.\d+)+$/i', '', trim( $name ) );
 	$name = substr( trim( preg_replace( '/[^A-Za-z0-9 ._-]/', '', $name ) ), 0, 40 );
 	$fid  = preg_match( '/feed-?id[:=]\s*([A-Za-z0-9_-]{1,40})/i', $ua, $f ) ? $f[1] : '';
 	return array(

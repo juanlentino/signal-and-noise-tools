@@ -56,6 +56,16 @@ $s = $rec( $s, sprintf( $fly, 14 ), $now + 600 );
 $s = $rec( $s, sprintf( $fly, 13 ), $now + 1200 );
 ok( 14 === snt_feed_subs_day( $s[ gmdate( 'Y-m-d', $now ) ] ), 'Feedly reporting 12, 14, 13 the same day counts 14, not 39' );
 
+// One fetcher keys once across versions (#1961): max, not a sum per version.
+$s2 = $rec( array(), sprintf( $fly, 12 ), $now );
+$s2 = $rec( $s2, 'Feedly/2.1 (+http://www.feedly.com/fetcher.html; 15 subscribers; like FeedFetcher-Google)', $now + 60 );
+ok( 15 === snt_feed_subs_day( $s2[ gmdate( 'Y-m-d', $now ) ] ), 'Feedly/1.0 and Feedly/2.1 the same day count once (max 15)' );
+$bq = 'Mozilla/5.0 (compatible; BazQux/%s; +https://bazqux.com/fetcher; %d subscribers)';
+$s2 = $rec( array(), sprintf( $bq, '2.4', 9 ), $now );
+$s2 = $rec( $s2, sprintf( $bq, '2.5', 11 ), $now + 60 );
+ok( 11 === snt_feed_subs_day( $s2[ gmdate( 'Y-m-d', $now ) ] ), 'BazQux/2.4 and BazQux/2.5 the same day count once (max 11)' );
+ok( 'BazQux' === snt_feed_subs_parse( sprintf( $bq, '2.4', 9 ) )['fetcher'], 'the compatible-branch name drops its version (BazQux, not BazQux2.4)' );
+
 // Direct readers once each, same day.
 $s = $rec( $s, 'NetNewsWire (RSS Reader)', $now );
 $s = $rec( $s, 'NetNewsWire (RSS Reader)', $now + 60 );

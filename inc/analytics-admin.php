@@ -195,9 +195,11 @@ function snt_analytics_render_view_tabs( $active, $range, $class, $from = '', $t
 
 /**
  * Inclusive [$from,$to] YYYY-MM-DD window ending on the anchor day.
- * UTC (gmdate) to align with AE's toStartOfDay() buckets. $now is injectable
- * for deterministic tests. When $range is 'all', $from is the earliest day in
- * the rollup table (via sn_analytics_min_day()).
+ * Keyed on the SITE-LOCAL day (wp_timezone), the same day the daily rollup
+ * table is bucketed by. A UTC "today" ran one day ahead from 20:00 to 24:00
+ * America/New_York and the window dropped its oldest local day. $now is
+ * injectable for deterministic tests. When $range is 'all', $from is the
+ * earliest day in the rollup table (via sn_analytics_min_day()).
  *
  * @param int|string $range Days as int (7|14|30|90|365) or 'all'.
  * @param int|null   $now   Unix timestamp anchor (defaults to now).
@@ -205,13 +207,15 @@ function snt_analytics_render_view_tabs( $active, $range, $class, $from = '', $t
  */
 function snt_analytics_range_dates( $range, $now = null ) {
 	$now = ( null === $now ) ? time() : (int) $now;
-	$to  = gmdate( 'Y-m-d', $now );
+	$tz  = function_exists( 'wp_timezone' ) ? wp_timezone() : new DateTimeZone( 'UTC' );
+	$day = ( new DateTimeImmutable( '@' . $now ) )->setTimezone( $tz );
+	$to  = $day->format( 'Y-m-d' );
 	if ( 'all' === $range ) {
 		$from = function_exists( 'sn_analytics_min_day' ) ? sn_analytics_min_day() : $to;
 		return array( $from, $to );
 	}
 	$days = max( 1, (int) $range );
-	$from = gmdate( 'Y-m-d', $now - ( $days - 1 ) * DAY_IN_SECONDS );
+	$from = $day->modify( '-' . ( $days - 1 ) . ' days' )->format( 'Y-m-d' );
 	return array( $from, $to );
 }
 
@@ -224,7 +228,7 @@ function snt_analytics_is_ymd( $s ) {
 }
 
 /**
- * Concrete [$from,$to] (inclusive, YYYY-MM-DD, UTC) for a named preset. $now
+ * Concrete [$from,$to] (inclusive, YYYY-MM-DD, site-local day) for a named preset. $now
  * injectable for deterministic tests.
  *
  * @param string   $preset 'this-week' | 'this-month' | 'this-quarter' | 'ytd' | 'last-month' | 'last-quarter' | 'prev-year'.
@@ -232,7 +236,11 @@ function snt_analytics_is_ymd( $s ) {
  * @return array{0:string,1:string}
  */
 function snt_analytics_preset_dates( $preset, $now = null ) {
-	$now   = ( null === $now ) ? time() : (int) $now;
+	$now = ( null === $now ) ? time() : (int) $now;
+	// Re-anchor on the SITE-LOCAL calendar day (as UTC midnight) so the UTC date
+	// math below reads the local day, matching the daily rollup (#1961).
+	list( , $local ) = snt_analytics_range_dates( 1, $now );
+	$now   = (int) strtotime( $local . ' 00:00:00 UTC' );
 	$today = gmdate( 'Y-m-d', $now );
 	$y     = (int) gmdate( 'Y', $now );
 	$mo    = (int) gmdate( 'n', $now );

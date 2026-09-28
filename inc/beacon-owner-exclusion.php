@@ -9,12 +9,11 @@
  * collector. Excluded users also get a first-party sn_owner=1 cookie (see the
  * owner-device section below) so logged-out cached views stay excluded. Forward-only (visits already recorded are unaffected).
  *
- * CACHING CAVEAT — this only fires on requests WordPress renders per-user. On a
- * full-page / CDN-cached site the gate is bypassed on cache hits, so the owner's
- * pageviews still leak in UNLESS logged-in requests bypass the edge cache (e.g. a
- * Cloudflare "Bypass cache when the request carries a wordpress_logged_in_
- * cookie" rule). The settings card states this requirement; see the research
- * handoff for the live cache-header evidence on juanlentino.com.
+ * CACHED PAGES: this server-side filter only fires on requests WordPress
+ * renders. A page served from the full-page or CDN cache never reaches it; the
+ * browser-side gate covers that case: sn-beacon.js sends nothing when the device
+ * carries the sn_owner=1 cookie (see the owner-device section below), so an
+ * excluded user's cached views stay excluded without any cache-bypass rule.
  *
  * @package SignalNoiseTools
  * @since 6.23.0
@@ -45,6 +44,8 @@ function sn_beacon_owner_excluded( $user_roles, $exclude_roles ) {
  * Runs at wp_enqueue_scripts time (the theme calls it inside sn_beacon_enqueue,
  * priority 30) when the current user is resolved. Leaves an already-disabled
  * beacon disabled — it only ever suppresses, never re-enables.
+ * Cache hits never reach this filter; the browser-side sn_owner cookie gate
+ * in sn-beacon.js covers cached pages.
  *
  * @param bool $enabled Whether the beacon is currently enabled.
  * @return bool
