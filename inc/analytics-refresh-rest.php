@@ -52,7 +52,7 @@ function sn_analytics_refresh_permission( $request ) {
 	if ( '' === $secret ) {
 		return new WP_Error(
 			'sn_refresh_unconfigured',
-			'Analytics refresh trigger is not configured (SN_SRV_TOKEN unset).',
+			'The analytics server token is not set: set it in Connections › Credentials (Analytics server token).',
 			array( 'status' => 503 )
 		);
 	}

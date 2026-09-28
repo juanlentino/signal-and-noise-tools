@@ -40,6 +40,9 @@ function sn_keyring_verdict( $status, $detail = '' ) {
  */
 function sn_keyring_probe( $id, array $row ) {
 	if ( '' === sn_credential( $id ) ) {
+		if ( 'srv' === (string) ( $row['probe'] ?? '' ) ) {
+			return sn_keyring_verdict( 'unset', __( 'Not set here (plugin side): the analytics refresh route answers 503 until this row has the worker\'s value.', 'signal-and-noise-tools' ) );
+		}
 		return sn_keyring_verdict( 'unset', __( 'Nothing to verify: no value is set.', 'signal-and-noise-tools' ) );
 	}
 	switch ( (string) ( $row['probe'] ?? '' ) ) {
@@ -61,6 +64,8 @@ function sn_keyring_probe( $id, array $row ) {
 			return sn_keyring_probe_zenodo( $id );
 		case 'bing':
 			return sn_keyring_probe_bing();
+		case 'srv':
+			return sn_keyring_probe_srv( $row );
 	}
 	return sn_keyring_verdict( 'none', __( 'No probe for this credential; the tab that uses it is the witness.', 'signal-and-noise-tools' ) );
 }
@@ -114,6 +119,39 @@ function sn_keyring_probe_sensor( array $row ) {
 	}
 	/* translators: %d: HTTP status. */
 	return sn_keyring_verdict( 'error', sprintf( __( 'The sensor answered HTTP %d.', 'signal-and-noise-tools' ), $code ) );
+}
+
+/**
+ * The analytics server token, read off the worker's PUBLIC /_sn/version: its
+ * last 15-minute refresh poke carries this secret, so that poke's HTTP status is the
+ * verdict. Sends nothing secret; a stale or missing reading is unknown, never ok.
+ *
+ * @param array<string,mixed> $row Registry row.
+ * @return array{status:string,detail:string,at:int}
+ */
+function sn_keyring_probe_srv( array $row ) {
+	if ( ! function_exists( 'sn_worker_version_get' ) ) {
+		return sn_keyring_verdict( 'error', __( 'The worker-version reader is not loaded.', 'signal-and-noise-tools' ) );
+	}
+	$r    = sn_worker_version_get( true );
+	$cron = is_array( $r['data']['cron'] ?? null ) ? $r['data']['cron'] : array();
+	$at   = strtotime( (string) ( $cron['at'] ?? '' ) );
+	if ( empty( $r['ok'] ) || false === $at || time() - $at > 1800 ) {
+		return sn_keyring_verdict( 'error', __( 'Unknown: the worker\'s last refresh reading is missing or older than 30 minutes.', 'signal-and-noise-tools' ) );
+	}
+	$http = (int) ( $cron['refresh_http'] ?? 0 );
+	if ( 403 === $http ) {
+		/* translators: %s: the worker command. */
+		return sn_keyring_verdict( 'refused', sprintf( __( 'The worker holds a different value: its refresh poke got 403. Set the same value on the worker: %s', 'signal-and-noise-tools' ), sn_keyring_other_half_command( $row ) ) );
+	}
+	if ( 503 === $http ) {
+		return sn_keyring_verdict( 'refused', __( 'Not set here (plugin side): the refresh route answered 503, so the plugin resolves no value.', 'signal-and-noise-tools' ) );
+	}
+	if ( $http >= 200 && $http < 300 ) {
+		return sn_keyring_verdict( 'ok', __( 'The worker\'s last refresh poke was accepted: both sides hold the same value.', 'signal-and-noise-tools' ) );
+	}
+	/* translators: 1: refresh status, 2: HTTP status. */
+	return sn_keyring_verdict( 'error', sprintf( __( 'Unknown: the worker\'s last refresh reads %1$s (HTTP %2$d).', 'signal-and-noise-tools' ), (string) ( $cron['refresh_status'] ?? '' ), $http ) );
 }
 
 /** @return array{status:string,detail:string,at:int} */

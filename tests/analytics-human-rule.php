@@ -127,7 +127,7 @@ foreach ( array( 'buckets:sn_analytics_buckets_hour_sql', 'buckets:sn_analytics_
 }
 
 echo "\nGroup: statement budget (AE refuses over 10,000 characters)\n";
-ok( 400 === SNT_ANALYTICS_VDAY_LIST_MAX, 'the over-cap list is capped at 400' );
+ok( 300 === SNT_ANALYTICS_VDAY_LIST_MAX, 'the over-cap list is capped at 300 (headroom under the 10,000-char statement cap)' );
 $full = array();
 for ( $i = 0; $i < SNT_ANALYTICS_VDAY_LIST_MAX; $i++ ) {
 	$full[] = substr( hash( 'sha256', (string) $i ), 0, 16 );
@@ -144,8 +144,8 @@ foreach ( array(
 ) as $sql ) {
 	$longest = max( $longest, strlen( $sql ) );
 }
-echo "  longest builder with 400 16-hex hashes: {$longest} chars\n";
-ok( $longest <= SNT_ANALYTICS_SQL_MAX_CHARS && ! sn_analytics_sql_too_long( str_repeat( 'x', $longest ) ), 'a full 400-hash list keeps every builder under the cap' );
+echo "  longest builder with a full list of 16-hex hashes: {$longest} chars\n";
+ok( $longest <= SNT_ANALYTICS_SQL_MAX_CHARS - 1000 && ! sn_analytics_sql_too_long( str_repeat( 'x', $longest ) ), 'a full 300-hash list keeps every builder under the cap with 1,000 chars of headroom' );
 $full[] = 'ffffffffffffffff';
 for ( $i = 0; $i < 200; $i++ ) {
 	$full[] = substr( hash( 'sha256', 'more' . $i ), 0, 16 );
