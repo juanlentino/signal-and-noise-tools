@@ -6,7 +6,8 @@
  *
  * (a) The regex sources are pinned by sha256. DC_ASN's pin is the SAME value
  *     the worker's test/classifier-fingerprint.spec.js pins; RELAY_ASN and
- *     HOSTING_ASN were computed from the worker's origin/main 2c5a268 source.
+ *     HOSTING_ASN were computed from the worker's 1.21.7 source (fix/relay-safari-apple-os
+ *     87447fb). The 1.21.7 OS check lives in classify(), not in a list.
  *     A worker list change means updating the mirror and these pins together.
  * (b) Every term list agrees with its regex on every ASN org seen in 90 days
  *     (tests/fixtures/analytics-asn-orgs.json), and the GENERATED SQL predicate,
@@ -27,8 +28,8 @@ ok( count( $orgs ) > 100, 'fixture: ' . count( $orgs ) . ' real ASN orgs from 90
 
 echo "\nGroup: pinned regex sources\n";
 ok( 'a74dd752caa9899f5147b760ddab089136daad48a18c81130ca0d65c65f18e50' === hash( 'sha256', SNT_ANALYTICS_DC_ASN_SOURCE ), 'DC_ASN source matches the worker fingerprint pin' );
-ok( 'c8855b5860ac58eeb55183890039d9b9bfd890273c80d8ac1ecdac0b9cd60b19' === hash( 'sha256', SNT_ANALYTICS_RELAY_ASN_SOURCE ), 'RELAY_ASN source pinned (worker 1.21.6)' );
-ok( '88fe98da45d41e923d57682ea39388bb4552518522a5c936a3919faa89be1fb4' === hash( 'sha256', SNT_ANALYTICS_HOSTING_ASN_SOURCE ), 'HOSTING_ASN source pinned (worker 1.21.6)' );
+ok( 'c8855b5860ac58eeb55183890039d9b9bfd890273c80d8ac1ecdac0b9cd60b19' === hash( 'sha256', SNT_ANALYTICS_RELAY_ASN_SOURCE ), 'RELAY_ASN source pinned (unchanged since worker 1.21.5)' );
+ok( 'ceb3aed5fb1f3f0fbfca2d17c005891c00f4ecfd4196ff6b274deec8d9817b7c' === hash( 'sha256', SNT_ANALYTICS_HOSTING_ASN_SOURCE ), 'HOSTING_ASN source pinned (worker 1.21.7)' );
 
 echo "\nGroup: terms are safe inside ILIKE '%...%'\n";
 $terms = sn_analytics_network_terms();
@@ -67,27 +68,28 @@ ok( array( 'EGIHosting' ) === mismatches( SNT_ANALYTICS_HOSTING_ASN_SOURCE, $dro
 
 /**
  * Evaluate a generated WHERE predicate against one row, in PHP. Understands
- * exactly the forms the builders emit: blob12 ILIKE '%t%', blob8 = 'x',
+ * exactly the forms the builders emit: blob12 ILIKE '%t%', blob8 = 'x', blob9 = 'x',
  * blob7 = / != 'x', AND, OR, NOT and parentheses. eval() is safe here: CLI-only
  * test, the input is our own generated SQL and every term goes through var_export.
  */
-function eval_pred( $sql, $c, $br, $org ) {
+function eval_pred( $sql, $c, $br, $org, $os = '' ) {
 	$php = preg_replace_callback( "/blob12 ILIKE '%([^']*)%'/", static function ( $m ) {
 		return '(false !== stripos($o, ' . var_export( $m[1], true ) . '))';
 	}, $sql );
 	$php = preg_replace( "/blob8 = '([A-Za-z]+)'/", '($b === \'$1\')', $php );
+	$php = preg_replace( "/blob9 = '([A-Za-z]+)'/", '($s === \'$1\')', $php );
 	$php = preg_replace( "/blob7 != '([a-z]+)'/", '($c !== \'$1\')', $php );
 	$php = preg_replace( "/blob7 = '([a-z]+)'/", '($c === \'$1\')', $php );
 	$php = str_replace( array( ' AND ', ' OR ', 'NOT ' ), array( ' && ', ' || ', '! ' ), $php );
-	$f   = eval( 'return static function ($c, $b, $o) { return (bool) (' . $php . '); };' );
-	return $f( $c, $br, $org );
+	$f   = eval( 'return static function ($c, $b, $o, $s) { return (bool) (' . $php . '); };' );
+	return $f( $c, $br, $org, $os );
 }
 
 /**
  * The worker's classify() network half (regex), for a stored non-bot row.
  */
-function worker_class( $br, $org ) {
-	if ( '' !== $org && preg_match( '/' . SNT_ANALYTICS_RELAY_ASN_SOURCE . '/i', $org ) && 'Safari' === $br ) {
+function worker_class( $br, $org, $os ) {
+	if ( '' !== $org && preg_match( '/' . SNT_ANALYTICS_RELAY_ASN_SOURCE . '/i', $org ) && 'Safari' === $br && in_array( $os, array( 'iOS', 'macOS' ), true ) ) {
 		return 'human';
 	}
 	if ( '' !== $org && ( preg_match( '/' . SNT_ANALYTICS_DC_ASN_SOURCE . '/i', $org ) || preg_match( '/' . SNT_ANALYTICS_HOSTING_ASN_SOURCE . '/i', $org ) ) ) {
@@ -97,15 +99,19 @@ function worker_class( $br, $org ) {
 }
 
 /**
- * (org, browser) pairs where the generated human predicate disagrees with the worker.
+ * (org, browser, OS) triples where the generated human predicate disagrees with
+ * the worker. Every pair is crossed with every OS value the worker's osFrom()
+ * can store, so the check stays exhaustive without an OS column in the fixture.
  */
 function pred_mismatches( $human_sql, array $pairs ) {
 	$bad = array();
 	foreach ( $pairs as $p ) {
-		$want = worker_class( $p['br'], $p['org'] );
-		$got  = eval_pred( $human_sql, 'human', $p['br'], $p['org'] ) ? 'human' : 'suspect';
-		if ( $want !== $got ) {
-			$bad[] = $p['org'] . '/' . $p['br'];
+		foreach ( array( 'iOS', 'macOS', 'Windows', 'Android', 'Chrome OS', 'Linux', '' ) as $os ) {
+			$want = worker_class( $p['br'], $p['org'], $os );
+			$got  = eval_pred( $human_sql, 'human', $p['br'], $p['org'], $os ) ? 'human' : 'suspect';
+			if ( $want !== $got ) {
+				$bad[] = $p['org'] . '/' . $p['br'] . '/' . $os;
+			}
 		}
 	}
 	return $bad;
@@ -115,11 +121,21 @@ echo "\nGroup: the generated predicate classifies like the worker\n";
 $pairs[] = array( 'org' => '', 'br' => 'Chrome' );
 $human   = "(blob7 != 'bot' AND (" . sn_analytics_network_human_sql() . '))';
 $bad     = pred_mismatches( $human, $pairs );
-ok( array() === $bad, 'every (org, browser) pair: generated SQL == worker classify()' . ( $bad ? ' (' . implode( '; ', $bad ) . ')' : '' ) );
+ok( array() === $bad, 'every (org, browser, OS) triple: generated SQL == worker classify()' . ( $bad ? ' (' . implode( '; ', $bad ) . ')' : '' ) );
 $relay_safari = array_filter( $pairs, static function ( $p ) { return 'Safari' === $p['br'] && preg_match( '/akamai|fastly/i', $p['org'] ); } );
 ok( count( $relay_safari ) >= 2, 'fixture holds relay Safari pairs (' . count( $relay_safari ) . ')' );
 ok( false === eval_pred( $human, 'bot', 'Chrome', '' ), 'a stored bot is never human' );
-$no_relay = preg_replace( "/^\(blob8 = 'Safari' AND \([^)]*\)\) OR /", '', sn_analytics_network_human_sql() );
+ok( false === eval_pred( $human, 'human', 'Safari', 'Fastly, Inc.', 'Linux' ), 'Safari on Linux via Fastly reads suspect (1.21.7 OS check)' );
+ok( true === eval_pred( $human, 'human', 'Safari', 'Fastly, Inc.', 'iOS' ), 'Safari on iOS via Fastly reads human' );
+ok( true === eval_pred( $human, 'human', 'Safari', 'Cloudflare London, LLC', 'iOS' ), 'Cloudflare London Safari iOS reads human' );
+ok( true === eval_pred( $human, 'human', 'Chrome', 'Charter Communications, Inc', 'Windows' ), 'Charter Chrome reads human' );
+foreach ( array( 'Blazing SEO, LLC', 'Web2Objects LLC' ) as $o ) {
+	ok( false === eval_pred( $human, 'human', 'Chrome', $o, 'Windows' ), "$o Chrome reads suspect (1.21.7)" );
+}
+$no_os = str_replace( " AND (blob9 = 'iOS' OR blob9 = 'macOS')", '', sn_analytics_network_human_sql() );
+ok( $no_os !== sn_analytics_network_human_sql(), 'negative control setup: OS clause removed' );
+ok( array() !== pred_mismatches( "(blob7 != 'bot' AND ({$no_os}))", $pairs ), 'negative control: without the OS clause Linux relay Safari flips (red)' );
+$no_relay = preg_replace( "/^\(blob8 = 'Safari' AND \([^)]*\) AND \([^)]*\)\) OR /", '', sn_analytics_network_human_sql() );
 ok( $no_relay !== sn_analytics_network_human_sql(), 'negative control setup: relay clause removed' );
 ok( array() !== pred_mismatches( "(blob7 != 'bot' AND ({$no_relay}))", $pairs ), 'negative control: without the relay clause relay Safari flips (red)' );
 
@@ -132,7 +148,7 @@ foreach ( array( 'Google Fiber Inc.', 'Google Fiber LLC' ) as $o ) {
 }
 $fiber_ok = static function ( $sql ) use ( $fiber ) {
 	foreach ( $fiber as $p ) {
-		if ( 'human' !== worker_class( $p['br'], $p['org'] ) || ! eval_pred( $sql, 'human', $p['br'], $p['org'] ) ) {
+		if ( 'human' !== worker_class( $p['br'], $p['org'], 'macOS' ) || ! eval_pred( $sql, 'human', $p['br'], $p['org'], 'macOS' ) ) {
 			return false;
 		}
 	}

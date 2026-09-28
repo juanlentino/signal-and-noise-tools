@@ -45,8 +45,8 @@ ok( $H === sn_analytics_counted_condition( 'human', array() ), 'human: not a sto
 ok( "(blob7 != 'bot' AND NOT ({$net}))" === sn_analytics_counted_condition( 'suspect', array() ), 'suspect: not a stored bot AND NOT the read-time network rule' );
 ok( "blob7 = 'bot'" === sn_analytics_counted_condition( 'bot', array() ), 'bot: the stored class (final, UA list only)' );
 ok( false === strpos( sn_analytics_counted_condition( 'human', array() ), "blob7 = 'human'" ), 'human never trusts the stored human class' );
-ok( 0 === strpos( $net, "(blob8 = 'Safari' AND (blob12 ILIKE '%akamai%' OR blob12 ILIKE '%fastly%')) OR NOT (blob12 ILIKE '%amazon%'" ), 'network rule: relay Safari first, then NOT (DC or hosting)' );
-ok( "blob12 ILIKE '%for idc & cloud%')" === substr( $net, -33 ), 'network rule: the hosting list closes the NOT clause' );
+ok( 0 === strpos( $net, "(blob8 = 'Safari' AND (blob9 = 'iOS' OR blob9 = 'macOS') AND (blob12 ILIKE '%akamai%' OR blob12 ILIKE '%fastly%')) OR NOT (blob12 ILIKE '%amazon%'" ), 'network rule: relay Safari on iOS/macOS first, then NOT (DC or hosting)' );
+ok( "blob12 ILIKE '%web2objects%')" === substr( $net, -29 ), 'network rule: the hosting list closes the NOT clause' );
 ok( "{$H} AND index1 NOT IN ('c70545e0be2a6240','abcdef01')" === sn_analytics_counted_condition( 'human', array( 'c70545e0be2a6240', 'ABCDEF01' ) ), 'hashes: the NOT IN clause (lower-cased)' );
 ok( $H === sn_analytics_counted_condition( 'human', array( "x' OR 1=1 --", 'zzzzzzzz', 'abc' ) ), 'non-hex / short hashes are refused' );
 ok( false === strpos( sn_analytics_counted_condition( 'human', array( "c70545e0be2a6240'", 'c70545e0be2a6241' ) ), "c70545e0be2a6240'" ), 'a quote-bearing hash never reaches SQL' );

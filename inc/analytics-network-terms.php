@@ -2,11 +2,11 @@
 /**
  * The analytics worker's network lists, mirrored so the plugin can decide the
  * traffic class at READ time from stored fields (blob7 class, blob8 browser,
- * blob12 ASN org) instead of trusting the class written at ingest. A classifier
+ * blob9 OS, blob12 ASN org) instead of trusting the class written at ingest. A classifier
  * change then applies to all retained history (~92 days), not only new hits.
  *
- * SOURCE OF TRUTH: signal-and-noise-analytics-worker src/index.js (origin/main
- * 2c5a268, worker 1.21.6): DC_ASN, RELAY_ASN, HOSTING_ASN. Changing a worker
+ * SOURCE OF TRUTH: signal-and-noise-analytics-worker src/index.js (branch
+ * fix/relay-safari-apple-os 87447fb, worker 1.21.7): DC_ASN, RELAY_ASN, HOSTING_ASN. Changing a worker
  * list means updating this mirror (the regex source AND its term list) and the
  * sha256 pins in tests/analytics-network-terms.php in the same arc.
  *
@@ -30,7 +30,7 @@ const SNT_ANALYTICS_SQL_MAX_CHARS = 10000;
 
 const SNT_ANALYTICS_DC_ASN_SOURCE      = 'amazon|\baws\b|google (llc|cloud)|microsoft|azure|hetzner|\bovh\b|digitalocean|linode|vultr|scaleway|leaseweb|contabo|\boracle\b|alibaba|tencent|gcore|choopa|\bm247\b|datacamp|akamai|fastly|colocrossing|quadranet|hostwinds';
 const SNT_ANALYTICS_RELAY_ASN_SOURCE   = 'akamai|fastly';
-const SNT_ANALYTICS_HOSTING_ASN_SOURCE = 'palo alto networks|chiron software|hostroyale|logicweb|trafficforce|\bcode200\b|egihosting|intac services|pebblehost|kaopu cloud|for idc & cloud';
+const SNT_ANALYTICS_HOSTING_ASN_SOURCE = 'palo alto networks|chiron software|hostroyale|logicweb|trafficforce|\bcode200\b|egihosting|intac services|pebblehost|kaopu cloud|for idc & cloud|blazing seo|web2objects';
 
 /**
  * Lower-case substring terms per list. Allowed characters: a-z 0-9 space &
@@ -42,7 +42,7 @@ function sn_analytics_network_terms() {
 	return array(
 		'dc'      => array( 'amazon', 'aws', 'google llc', 'google cloud', 'microsoft', 'azure', 'hetzner', 'ovh', 'digitalocean', 'linode', 'vultr', 'scaleway', 'leaseweb', 'contabo', 'oracle', 'alibaba', 'tencent', 'gcore', 'choopa', 'm247', 'datacamp', 'akamai', 'fastly', 'colocrossing', 'quadranet', 'hostwinds' ),
 		'relay'   => array( 'akamai', 'fastly' ),
-		'hosting' => array( 'palo alto networks', 'chiron software', 'hostroyale', 'logicweb', 'trafficforce', 'code200', 'egihosting', 'intac services', 'pebblehost', 'kaopu cloud', 'for idc & cloud' ),
+		'hosting' => array( 'palo alto networks', 'chiron software', 'hostroyale', 'logicweb', 'trafficforce', 'code200', 'egihosting', 'intac services', 'pebblehost', 'kaopu cloud', 'for idc & cloud', 'blazing seo', 'web2objects' ),
 	);
 }
 
@@ -62,14 +62,15 @@ function sn_analytics_org_ilike_any( array $terms ) {
 
 /**
  * The network half of the worker's classify(), for a non-bot row: true when
- * the row reads human. Relay Safari is human; a DC or hosting org is suspect;
+ * the row reads human. Relay Safari on iOS or macOS (blob9, as the worker's
+ * osFrom() stores it) is human, since Private Relay exists only there; a DC or hosting org is suspect;
  * anything else (including an empty org) is human. PURE.
  *
  * @return string
  */
 function sn_analytics_network_human_sql() {
 	$t = sn_analytics_network_terms();
-	return "(blob8 = 'Safari' AND " . sn_analytics_org_ilike_any( $t['relay'] ) . ') OR NOT '
+	return "(blob8 = 'Safari' AND (blob9 = 'iOS' OR blob9 = 'macOS') AND " . sn_analytics_org_ilike_any( $t['relay'] ) . ') OR NOT '
 		. sn_analytics_org_ilike_any( array_merge( $t['dc'], $t['hosting'] ) );
 }
 
