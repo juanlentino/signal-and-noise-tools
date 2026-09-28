@@ -3,7 +3,7 @@
  * Signal & Noise Tools — the keyring's change log (19.6.2).
  *
  * Every write to a keyring row's option, by ANY code path, leaves one line:
- * when, which row, set or clear, the value's last four characters, and the
+ * when, which row, set / clear / switch_site / switch_saved, the value's last four characters, and the
  * context that wrote it. Hooked on the option actions, not the save handler,
  * so a writer nobody expected is caught too. Never the value itself.
  * Read through `signal-noise/keyring-status` (`changes`).
@@ -41,40 +41,75 @@ function sn_keyring_change_source() {
 }
 
 /**
- * Record one change to a keyring option. Ignores every other option.
+ * The row options, built once per request: option name => array( id, kind ).
+ * Every option write in WordPress passes through here, so the per-write cost
+ * is one isset() and the registry is never rebuilt per write.
  *
- * @param string $option Option name.
- * @param mixed  $value  New value ('' or null on delete).
- * @return void
+ * @return array<string,array{0:string,1:string}>
  */
-function sn_keyring_record_change( $option, $value ) {
+function sn_keyring_change_map() {
 	static $map = null;
 	if ( null === $map ) {
 		$map = array();
 		foreach ( sn_keyring() as $id => $row ) {
 			if ( isset( $row['option'] ) ) {
-				$map[ (string) $row['option'] ] = array( $id, (string) $row['kind'] );
+				$map[ (string) $row['option'] ] = array( (string) $id, (string) $row['kind'] );
 			}
 		}
-		$map[ SN_KEYRING_SITE_ROWS ] = array( 'site_rows', 'list' );
 	}
-	if ( ! isset( $map[ $option ] ) ) {
-		return;
-	}
-	list( $id, $kind ) = $map[ $option ];
-	$v    = is_array( $value ) ? implode( ',', array_map( 'strval', $value ) ) : (string) $value;
-	$tail = 'list' === $kind ? $v : ( strlen( $v ) >= 8 ? substr( $v, -4 ) : '' );
-	$log  = get_option( SN_KEYRING_CHANGES_OPT, array() );
-	$log  = is_array( $log ) ? $log : array();
+	return $map;
+}
+
+/**
+ * Append one line to the log.
+ *
+ * @param string $row  Row id.
+ * @param string $verb set | clear | switch_site | switch_saved.
+ * @param string $tail Last 4, or ''.
+ * @return void
+ */
+function sn_keyring_log_append( $row, $verb, $tail = '' ) {
+	$log   = get_option( SN_KEYRING_CHANGES_OPT, array() );
+	$log   = is_array( $log ) ? $log : array();
 	$log[] = array(
 		'at'     => time(),
-		'row'    => $id,
-		'verb'   => '' === $v ? 'clear' : 'set',
-		'last4'  => $tail,
+		'row'    => (string) $row,
+		'verb'   => (string) $verb,
+		'last4'  => (string) $tail,
 		'source' => sn_keyring_change_source(),
 		'user'   => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0,
 	);
+	// The log's own option is not a row option, so this write returns at the
+	// isset() below and never logs itself.
 	update_option( SN_KEYRING_CHANGES_OPT, array_slice( $log, -SN_KEYRING_CHANGES_CAP ), false );
+}
+
+/**
+ * Record one option write if it is a keyring option. Ignores every other option.
+ *
+ * @param string $option Option name.
+ * @param mixed  $old    Previous value (array() when added or unknown).
+ * @param mixed  $value  New value ('' on delete).
+ * @return void
+ */
+function sn_keyring_record_change( $option, $old, $value ) {
+	if ( SN_KEYRING_SITE_ROWS === $option ) {
+		$before = is_array( $old ) ? array_map( 'strval', $old ) : array();
+		$after  = is_array( $value ) ? array_map( 'strval', $value ) : array();
+		foreach ( array_diff( $after, $before ) as $id ) {
+			sn_keyring_log_append( $id, 'switch_site' );
+		}
+		foreach ( array_diff( $before, $after ) as $id ) {
+			sn_keyring_log_append( $id, 'switch_saved' );
+		}
+		return;
+	}
+	$map = sn_keyring_change_map();
+	if ( ! isset( $map[ $option ] ) || $old === $value ) {
+		return;
+	}
+	$v = (string) $value;
+	sn_keyring_log_append( $map[ $option ][0], '' === $v ? 'clear' : 'set', strlen( $v ) >= 8 ? substr( $v, -4 ) : '' );
 }
 
 /** @return array<int,array<string,mixed>> The log, oldest first. */
@@ -84,7 +119,7 @@ function sn_keyring_changes() {
 }
 
 if ( function_exists( 'add_action' ) ) {
-	add_action( 'added_option', static function ( $option, $value ) { sn_keyring_record_change( (string) $option, $value ); }, 10, 2 );
-	add_action( 'updated_option', static function ( $option, $old, $value ) { if ( $old !== $value ) { sn_keyring_record_change( (string) $option, $value ); } }, 10, 3 );
-	add_action( 'deleted_option', static function ( $option ) { sn_keyring_record_change( (string) $option, '' ); }, 10, 1 );
+	add_action( 'added_option', static function ( $option, $value ) { sn_keyring_record_change( (string) $option, array(), $value ); }, 10, 2 );
+	add_action( 'updated_option', static function ( $option, $old, $value ) { sn_keyring_record_change( (string) $option, $old, $value ); }, 10, 3 );
+	add_action( 'deleted_option', static function ( $option ) { sn_keyring_record_change( (string) $option, null, '' ); }, 10, 1 );
 }
