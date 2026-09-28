@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+
+- The Analytics server token check in Connections › Credentials now reads the worker's refresh result. The worker-version reader dropped the refresh block from the worker's report, so the check said "Unknown" on every real reading while the refresh itself was fine. A test now parses a live copy of the worker's report.
+
 ## [19.6.2] - 2026-09-28 — an unset token is a refusal
 
 

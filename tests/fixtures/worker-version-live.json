@@ -1,0 +1,44 @@
+{
+  "worker": "sn-analytics",
+  "version": "1.21.7",
+  "source_commit": "37011746ccd95a2c1c767ea91992c44fea7dddea",
+  "cf_version_id": "9a193b3d-d568-4fb1-8f60-8ba98765fa90",
+  "cf_version_tag": null,
+  "deployed_at": "2026-09-28T02:03:58.343255Z",
+  "config": {
+    "ae_bound": true,
+    "px_token_set": true,
+    "salt_seed_set": true,
+    "srv_token_set": true,
+    "rate_limiter_bound": true,
+    "site_host_set": true,
+    "salt_kv_bound": true,
+    "rotate_tz_set": true
+  },
+  "salt": {
+    "rotate_tz": "America/New_York",
+    "today_day": "2026-09-27",
+    "today_present": true,
+    "today_expires_at": 1790661635,
+    "prev_day": "2026-09-26",
+    "prev_present": true,
+    "prev_expires_at": 1790575302,
+    "next_present": true,
+    "key_count": 3
+  },
+  "cron": {
+    "at": "2026-09-28T03:15:20.308Z",
+    "refresh_status": "ok",
+    "refresh_http": 200,
+    "skip_reason": null,
+    "salt_status": "ok",
+    "salt_created": 0,
+    "salt_swept": 0
+  },
+  "rejects": {
+    "scope": "isolate",
+    "since": null,
+    "total": 0,
+    "by_reason": {}
+  }
+}

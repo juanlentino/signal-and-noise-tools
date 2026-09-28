@@ -594,5 +594,39 @@ sn_worker_version_render_card();
 $html = ob_get_clean();
 wv_true( false !== strpos( $html, 'v1.4.1' ), 'no trigger → warm cache still served (SWR unchanged)' );
 
+// 19.6.3: the parser keeps the cron block. The keyring srv_token probe reads
+// data.cron; a parser that dropped it made that probe say "Unknown" on every
+// real response while its fake-fed test passed. Real body, captured live.
+$live = (string) file_get_contents( __DIR__ . '/fixtures/worker-version-live.json' );
+$r    = sn_worker_version_parse_response( 200, $live );
+wv_true( isset( $r['data']['cron']['at'] ) && '' !== $r['data']['cron']['at'], 'live body: cron.at survives parsing' );
+wv_true( isset( $r['data']['cron']['refresh_http'] ) && is_int( $r['data']['cron']['refresh_http'] ) && $r['data']['cron']['refresh_http'] > 0, 'live body: cron.refresh_http survives as an int' );
+wv_true( isset( $r['data']['cron']['refresh_status'] ) && '' !== $r['data']['cron']['refresh_status'], 'live body: cron.refresh_status survives' );
+
+// 19.6.3 JOIN: the real reader's output fed to the real srv probe. 19.6.2's
+// probe test passed against a hand-built array carrying `cron` while the real
+// parser dropped it, so the live check read "Unknown" on every response.
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
+if ( ! function_exists( 'add_filter' ) ) { function add_filter() { return true; } }
+if ( ! function_exists( 'add_action' ) ) { function add_action() { return true; } }
+if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $h, $v ) { return $v; } }
+require_once __DIR__ . '/../inc/keyring.php';
+require_once __DIR__ . '/../inc/keyring-verify.php';
+$wv_join = static function ( $http, $ago ) {
+	wv_reset();
+	$body = json_decode( (string) file_get_contents( __DIR__ . '/fixtures/worker-version-live.json' ), true );
+	$body['cron']['at']           = gmdate( 'Y-m-d\TH:i:s', time() - $ago ) . '.308Z'; // the worker's millisecond format
+	$body['cron']['refresh_http'] = $http;
+	$GLOBALS['__test_http']       = array( 'response' => array( 'code' => 200 ), 'body' => json_encode( $body ) );
+	return sn_keyring_probe_srv( sn_keyring()['srv_token'] );
+};
+$v = $wv_join( 200, 60 );
+wv_eq( 'ok', $v['status'], 'join: live body, fresh 200 refresh → srv probe ok' );
+$v = $wv_join( 403, 60 );
+wv_eq( 'refused', $v['status'], 'join: live body, fresh 403 → refused' );
+wv_true( false !== strpos( $v['detail'], 'wrangler secret put' ), 'join: the 403 verdict names the worker command' );
+$v = $wv_join( 200, 31 * 60 );
+wv_eq( 'error', $v['status'], 'join: a refresh older than 30 min reads unknown (stays green without the parser fix too)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
