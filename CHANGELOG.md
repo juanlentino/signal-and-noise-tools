@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- docs/SECURITY.md records that the CVE-2026-87902 `pagename` traversal rule is live in Cloudflare (merged into the readme+licence block rule, url_decode form) and what was verified.
+
 ## [19.7.1] - 2026-09-29 — emoji stays for readers
 
 ### Fixed
