@@ -4,7 +4,9 @@
  *
  * Pins inc/core-fingerprint.php and the `core` / `runtime` keys it feeds into
  * signal-noise/get-deploy-status:
- *   1. every emoji hook core registers is removed (front, admin, embed, feed, mail);
+ *   1. emoji is stock on the public site (front, embed, feed, mail) and off in
+ *      wp-admin (admin hooks + TinyMCE wpemoji); every emoji script URL core
+ *      builds carries the token, not the version;
  *   2. a core asset's ver=$wp_version becomes an opaque salted token, and a
  *      plugin/theme ver or a non-matching ver is left alone;
  *   3. the_generator is empty for every type core prints;
@@ -52,6 +54,7 @@ function current_user_can( $c ) { return true; }
 class WP_Error { public function __construct( $c = '', $m = '', $d = array() ) {} }
 
 require_once __DIR__ . '/../inc/core-fingerprint.php';
+require __DIR__ . '/lib/core-fingerprint-emoji-stubs.php';
 require_once __DIR__ . '/../inc/deploy-core-status.php';
 require_once __DIR__ . '/../inc/abilities-system.php';
 require_once __DIR__ . '/../inc/abilities-remote-set.php';
@@ -70,30 +73,69 @@ function cf_hooked( $hook, $cb ) {
 
 echo "core fingerprint\n\n";
 
-// 1. Emoji. The removals run on init AND admin_init: admin-filters.php loads
-// after init in wp-admin, so an init-only removal leaves the admin hooks on.
-cf_ok( cf_hooked( 'init', 'snt_core_fp_unhook' ), 'the unhook runs on init' );
-cf_ok( cf_hooked( 'admin_init', 'snt_core_fp_unhook' ), 'the unhook runs on admin_init (admin-filters.php loads after init)' );
+// 1. Emoji: public site stock, wp-admin off.
+cf_ok( cf_hooked( 'init', 'snt_core_fp_unhook' ), 'the generator unhook runs on init' );
+cf_ok( cf_hooked( 'admin_init', 'snt_core_fp_admin_emoji_off' ), 'the admin emoji removal runs on admin_init (admin-filters.php loads after init)' );
+cf_ok( ! cf_hooked( 'init', 'snt_core_fp_admin_emoji_off' ), 'the admin emoji removal does not run on init (would reach the front end)' );
 if ( function_exists( 'snt_core_fp_unhook' ) ) { snt_core_fp_unhook(); }
-foreach ( array(
-	'wp_head|print_emoji_detection_script|7',
-	'embed_head|print_emoji_detection_script|10',
-	'admin_print_scripts|print_emoji_detection_script|10',
-	'wp_enqueue_scripts|wp_enqueue_emoji_styles|10',
-	'admin_enqueue_scripts|wp_enqueue_emoji_styles|10',
-	'enqueue_embed_scripts|wp_enqueue_emoji_styles|10',
-	'wp_print_styles|print_emoji_styles|10',
-	'admin_print_styles|print_emoji_styles|10',
-	'the_content_feed|wp_staticize_emoji|10',
-	'comment_text_rss|wp_staticize_emoji|10',
-	'wp_mail|wp_staticize_emoji_for_email|10',
-	'wp_head|wp_generator|10',
-) as $want ) {
-	cf_ok( in_array( $want, $GLOBALS['__cf_removed'], true ), "removed $want" );
+$front_removed = $GLOBALS['__cf_removed'];
+cf_ok( in_array( 'wp_head|wp_generator|10', $front_removed, true ), 'removed wp_head|wp_generator|10' );
+foreach ( $front_removed as $gone ) {
+	cf_ok( false === stripos( $gone, 'emoji' ), "front end removes no emoji hook ($gone)" );
 }
-cf_ok( false === apply_filters( 'emoji_svg_url', 'https://s.w.org/images/core/emoji/17.0.2/svg/' ), 'emoji_svg_url is false' );
+if ( function_exists( 'snt_core_fp_admin_emoji_off' ) ) { snt_core_fp_admin_emoji_off(); }
+$admin_removed = array_diff( $GLOBALS['__cf_removed'], $front_removed );
+foreach ( array(
+	'admin_print_scripts|print_emoji_detection_script|10',
+	'admin_enqueue_scripts|wp_enqueue_emoji_styles|10',
+	'admin_print_styles|print_emoji_styles|10',
+) as $want ) {
+	cf_ok( in_array( $want, $admin_removed, true ), "admin removes $want" );
+}
+cf_ok( 3 === count( $admin_removed ), 'admin removes exactly those three (feed, mail, front, embed stay stock)' );
+foreach ( array( 'wp_head|print_emoji_detection_script|7', 'embed_head|print_emoji_detection_script|10', 'wp_enqueue_scripts|wp_enqueue_emoji_styles|10', 'the_content_feed|wp_staticize_emoji|10', 'comment_text_rss|wp_staticize_emoji|10', 'wp_mail|wp_staticize_emoji_for_email|10' ) as $keep ) {
+	cf_ok( ! in_array( $keep, $GLOBALS['__cf_removed'], true ), "kept $keep" );
+}
+foreach ( array( 'emoji_svg_url', 'emoji_url' ) as $h ) {
+	cf_ok( empty( $GLOBALS['__cf_hooks'][ $h ] ), "nothing hooks $h (stock s.w.org URL)" );
+}
 $mce = apply_filters( 'tiny_mce_plugins', array( 'wordpress', 'wpemoji', 'wplink' ) );
 cf_ok( ! in_array( 'wpemoji', $mce, true ) && in_array( 'wplink', $mce, true ), 'tiny_mce_plugins drops wpemoji and nothing else' );
+
+// 1b. The emoji script URLs, exactly as core 7.1 builds them in
+// _print_emoji_detection_script() (wp-includes/formatting.php):
+//   :6062  $version = 'ver=' . get_bloginfo( 'version' );
+//   :6067  apply_filters( 'script_loader_src', includes_url( "js/wp-emoji.js?$version" ), 'wpemoji' )           (SCRIPT_DEBUG)
+//   :6069  apply_filters( 'script_loader_src', includes_url( "js/twemoji.js?$version" ), 'twemoji' )            (SCRIPT_DEBUG)
+//   :6074  apply_filters( 'script_loader_src', includes_url( "js/wp-emoji-release.min.js?$version" ), 'concatemoji' )
+foreach ( array( 'wpemoji' => 'wp-emoji.js', 'twemoji' => 'twemoji.js', 'concatemoji' => 'wp-emoji-release.min.js' ) as $handle => $file ) {
+	$u = apply_filters( 'script_loader_src', "https://juanlentino.com/wp-includes/js/$file?ver=7.1.2", $handle );
+	cf_ok( false === strpos( $u, '7.1.2' ) && 1 === preg_match( '/\?ver=[0-9a-f]{10}$/', $u ), "emoji $handle URL carries the token" );
+}
+
+// 1c. Run core's REAL _print_emoji_detection_script(), lifted from the 7.1
+// formatting.php into a namespace so its WP calls land on the stubs below.
+// SCRIPT_DEBUG becomes a variable so both branches run in one process.
+$fmt = getenv( 'SNT_WP_HTML_API' ) ? dirname( (string) getenv( 'SNT_WP_HTML_API' ) ) . '/formatting.php' : '';
+if ( '' !== $fmt && is_readable( $fmt ) ) {
+	$code = (string) file_get_contents( $fmt );
+	preg_match( '/^function _print_emoji_detection_script\(\) \{.*?^\}/ms', $code, $m );
+	cf_ok( ! empty( $m[0] ), 'core _print_emoji_detection_script() found in formatting.php' );
+	eval( 'namespace cfcore; ' . str_replace( 'SCRIPT_DEBUG', '$GLOBALS[\'__cf_sd\']', $m[0] ?? '' ) );
+	foreach ( array( false => 'concatemoji', true => 'wpemoji + twemoji' ) as $sd => $label ) {
+		$GLOBALS['__cf_sd'] = (bool) $sd;
+		ob_start();
+		\cfcore\_print_emoji_detection_script();
+		$out = (string) ob_get_clean();
+		preg_match_all( '#/wp-includes/js/[^"?]+\?ver=([^"&]+)#', $out, $vers );
+		cf_ok( count( $vers[1] ) === ( $sd ? 2 : 1 ) && ! array_diff( array_map( 'strlen', $vers[1] ), array( 10 ) ), "real core print ($label): every emoji URL carries the token" );
+		cf_ok( false === strpos( $out, '7.1.2' ), "real core print ($label): 7.1.2 appears nowhere, emoji CDN paths included" );
+	}
+} elseif ( getenv( 'CI' ) ) {
+	cf_ok( false, 'core formatting.php missing beside SNT_WP_HTML_API under CI (fetch it in the workflow)' );
+} else {
+	echo "  SKIP - real core emoji print: no formatting.php beside SNT_WP_HTML_API\n";
+}
 
 // 2. ver on core assets.
 $js = 'https://juanlentino.com/wp-includes/js/wp-emoji-release.min.js?ver=7.1.2';

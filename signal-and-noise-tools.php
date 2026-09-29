@@ -84,7 +84,7 @@ require_once SNT_PATH . 'inc/beacon-owner-exclusion.php'; // v6.23.0: Plausible-
 require_once SNT_PATH . 'inc/seo.php';
 require_once SNT_PATH . 'inc/robots-txt.php'; // v6.53.0: robots.txt AI-crawler policy (filterable allow/deny) + idempotent Sitemap pointer
 require_once SNT_PATH . 'inc/security-headers.php';
-require_once SNT_PATH . 'inc/core-fingerprint.php';   // CVE-2026-87902 follow-up: no emoji, no core version in ver, no generator.
+require_once SNT_PATH . 'inc/core-fingerprint.php';   // CVE-2026-87902 follow-up: no core version in ver, no admin emoji, no generator.
 require_once SNT_PATH . 'inc/deploy-core-status.php'; // core + runtime rows for get-deploy-status.
 require_once SNT_PATH . 'inc/general-save-guard.php'; // 16.7.3: admin_email out of the General save (WordPress/ai#1048).
 require_once SNT_PATH . 'inc/rest-hardening.php'; // v9.83.0: anonymous REST surface — route removal (users/comments/batch), rendered-field stripping on posts/pages, TDM headers on every dispatch

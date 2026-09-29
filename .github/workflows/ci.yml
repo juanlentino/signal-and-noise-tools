@@ -172,6 +172,7 @@ jobs:
           done
           curl -sSfL "$base/class-wp-token-map.php" -o "$dest/class-wp-token-map.php"
           curl -sSfL "$base/kses.php" -o "$dest/kses.php"
+          curl -sSfL "$base/formatting.php" -o "$dest/formatting.php"
           echo "SNT_WP_HTML_API=$dest/html-api" >> "$GITHUB_ENV"
       # Standalone fixture tests — each stubs its own WP functions, so no WP
       # install or DB is needed. contracts-smoke.php is EXCLUDED: it requires a
@@ -286,6 +287,7 @@ jobs:
           done
           curl -sSfL "$base/class-wp-token-map.php" -o "$dest/class-wp-token-map.php"
           curl -sSfL "$base/kses.php" -o "$dest/kses.php"
+          curl -sSfL "$base/formatting.php" -o "$dest/formatting.php"
           echo "SNT_WP_HTML_API=$dest/html-api" >> "$GITHUB_ENV"
       - name: Run standalone test sweep
         continue-on-error: ${{ matrix.experimental }}

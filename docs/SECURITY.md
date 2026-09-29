@@ -16,11 +16,6 @@ the core version off the page. `/feed/` printed no version and no generator.
 
 Hidden:
 
-- Emoji, entirely: the detection script (front, admin, embed), the emoji
-  styles (enqueued and back-compat hooks), the TinyMCE `wpemoji` plugin, the
-  s.w.org SVG URL (`emoji_svg_url` is false; 7.1 no longer adds an emoji
-  dns-prefetch, so there is no resource-hint filter to add), and the feed and
-  mail staticize filters.
 - The core version in `ver` on assets core registers itself (src under
   `/wp-includes/` or `/wp-admin/`, ver equal to `$wp_version`). It is replaced
   by a 10-character salted token, not stripped: core assets are served with
@@ -37,12 +32,23 @@ Hidden:
 
 Kept on purpose:
 
+- Emoji on the public site, as stock WordPress ships it: the front-end and
+  embed detection script and styles, the feed and mail staticize filters, and
+  the stock s.w.org SVG URL (removed in 19.7.0, restored in 19.7.1). It is off
+  in wp-admin only, on `admin_init`: the admin detection script, the admin
+  emoji styles and the TinyMCE `wpemoji` plugin, matching core's own block
+  editor. Its script URLs are built in `_print_emoji_detection_script()`
+  (`wp-includes/formatting.php`, 7.1: `concatemoji`, plus `wpemoji` and
+  `twemoji` under `SCRIPT_DEBUG`) as `js/...?ver=$wp_version` and passed
+  through `script_loader_src`, so each carries the token above. The s.w.org
+  `emoji_url` and `svgUrl` paths hold the emoji set's version (17.0.2), not
+  core's. The test runs core's own function and asserts `7.1.2` is absent.
+
 - Plugin and theme `ver` cache-busters. Our release numbers are public on
   GitHub, and they are what makes a release reach browsers.
 - Core assets whose `ver` is not the core version (jQuery 3.7.1 and the like).
 
-Later, not now: tightening the CSP's `*.w.org` allowance now that emoji no
-longer loads from s.w.org.
+The CSP's `*.w.org` allowance stays: emoji images load from s.w.org again.
 
 ## readme.html and license.txt
 
