@@ -57,7 +57,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 // totals + top notes, labelled a floor). Additive.
 // Unreleased: '11' -> '12' — the rss-stats twin gained subscribers (the
 // counts aggregators report in their fetcher UA, labelled a ceiling). Additive.
-const SN_REMOTE_CONTRACT_VERSION = '12';
+// Unreleased: '12' -> '13' (2026-09-29) — the deploy-status twin gained core
+// (current, latest, state, auto_updates, reason) after CVE-2026-87902. Additive.
+// The admin ability also gained runtime; the twin does NOT carry it.
+const SN_REMOTE_CONTRACT_VERSION = '13';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -90,6 +93,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'11' => '60c50a1daa0050be6b0f5b4a72330222282a3dd77720f6d90acfef884cf13968',
 	// RED-then-pin, 2026-09-27: subscribers on the rss-stats twin.
 	'12' => '0dd9868fa197f8c4272bb1923145376538d43bfa59bbec81ee0e76b30c9fedc3',
+	// RED-then-pin, 2026-09-29: core on the deploy-status twin (runtime stays local).
+	'13' => '0d213fc053614fced9d147d077118c245e913d7402ba5121375b08f52d8f9264',
 );
 
 /**

@@ -233,6 +233,12 @@ function snt_dwx_boxes() {
 							'compare' => array( 'template' => __( '%s available', 'signal-and-noise-tools' ), 'path' => 'plugin.latest', 'when_differs' => 'plugin.current' ),
 						),
 						array(
+							'path'    => 'core.current',
+							'label'   => __( 'Core', 'signal-and-noise-tools' ),
+							/* translators: %s: the latest offered WordPress version */
+							'compare' => array( 'template' => __( '%s available', 'signal-and-noise-tools' ), 'path' => 'core.latest', 'when_differs' => 'core.current' ),
+						),
+						array(
 							'path'    => 'last_deploy',
 							'label'   => __( 'Last deploy', 'signal-and-noise-tools' ),
 							'compare' => array( 'template' => '%s', 'path' => 'last_deploy_component' ),

@@ -77,6 +77,9 @@
 			// v11.11.2: worker rows say 'behind' where theme/plugin say
 			// 'available' — same amber arrow, different producer vocabulary.
 			case 'behind':    return { label: '↑', color: '#d29922' };
+			// Core only: a same-branch point release is waiting (WordPress
+			// does not flag security releases; 'autoupdate' is the signal).
+			case 'security':  return { label: '!', color: '#ff9d94' };
 			default:          return { label: '?',      color: '#ff9d94' };
 		}
 	}
@@ -128,13 +131,16 @@
 			style: 'display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;font-size:13px;line-height:1.4;align-items:baseline;',
 		} );
 
-		[ 'theme', 'plugin' ].forEach( function( pkg ) {
+		// Core joins theme/plugin when the payload carries it (contract 13);
+		// an older payload renders the old rows.
+		[ 'theme', 'plugin', 'core' ].forEach( function( pkg ) {
+			if ( pkg === 'core' && ! status.core ) { return; }
 			var info = status[ pkg ] || {};
 			var glyph = stateGlyph( stale ? 'unknown' : ( info.state || 'unknown' ) );
 
 			grid.appendChild( el( 'span', {
 				style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
-				text:  pkg === 'theme' ? 'Theme' : 'Plugin',
+				text:  { theme: 'Theme', plugin: 'Plugin', core: 'Core' }[ pkg ],
 			} ) );
 			grid.appendChild( el( 'span', {
 				style: 'font-variant-numeric:tabular-nums;font-weight:500;',
