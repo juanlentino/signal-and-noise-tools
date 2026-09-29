@@ -10,6 +10,15 @@ What the check found anyway: the home page and `/wp-login.php` both printed
 `wp-emoji-release.min.js?ver=7.1.2`, so anyone matching sites to a CVE could read
 the core version off the page. `/feed/` printed no version and no generator.
 
+Applied 2026-09-29: the `pagename` traversal rule (the `url_decode()` form below)
+is live, merged into the existing "readme+licence" block rule with an `or`, so
+no custom-rule slot was spent. Cloudflare's free-plan editor accepted
+`url_decode()`. Verified live: `?pagename=..%2f..%2fetc`, `%2e%2e/%2e%2e/x`,
+`..%5c..%5cx` and the double-encoded `%252e%252e%252fx` all return 403;
+`?pagename=about` and `/`, `/notes/`, `/provenance/`, `/feed/` return 200; the
+rule's earlier blocks (`/readme.html`, `/license.txt`, `xmlrpc.php`, the
+plugin's `lib/*.php`) still return 403.
+
 ## Core fingerprint
 
 `inc/core-fingerprint.php`, pinned by `tests/core-fingerprint.php`.
