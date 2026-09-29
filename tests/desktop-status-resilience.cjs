@@ -114,13 +114,13 @@ async function run() {
     const x = harness(), root = new Element('div');
     const stop = x.window.desktopModeWidgets['sn-deploy-status'](root); await flush();
     x.calls[0].resolve({theme: {current: '1', state: 'ok'}, plugin: {current: '2', state: 'ok'},
-      core: {current: '7.1.2', latest: '7.1.3', state: 'security', reason: 'Point release 7.1.3 is offered for this branch.'}}); await flush();
+      core: {current: '7.1.2', latest: '7.1.3', state: 'behind', offer: 'point', reason: 'A point release is waiting.'}}); await flush();
     const all = nodes(root), label = all.find(n => n.text === 'Core');
     assert.ok(label, 'a Core label renders');
     const grid = label.parentNode, i = grid.children.indexOf(label);
-    assert.equal(grid.children[i + 1].text, '7.1.2', 'the Core row shows core.current');
-    assert.equal(grid.children[i + 2].text, '!', 'security state paints its own glyph');
-    assert.match(grid.children[i + 2].title, /Point release 7\.1\.3/, 'the reason rides the glyph');
+    assert.equal(grid.children[i + 1].text, '7.1.2 · behind (point)', 'the Core row shows current and behind (point)');
+    assert.equal(grid.children[i + 2].text, '↑', 'behind paints the amber arrow');
+    assert.match(grid.children[i + 2].title, /point release is waiting/, 'the reason rides the glyph');
     stop();
     const y = harness(), r2 = new Element('div');
     const stop2 = y.window.desktopModeWidgets['sn-deploy-status'](r2); await flush();

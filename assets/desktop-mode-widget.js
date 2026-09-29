@@ -77,9 +77,6 @@
 			// v11.11.2: worker rows say 'behind' where theme/plugin say
 			// 'available' — same amber arrow, different producer vocabulary.
 			case 'behind':    return { label: '↑', color: '#d29922' };
-			// Core only: a same-branch point release is waiting (WordPress
-			// does not flag security releases; 'autoupdate' is the signal).
-			case 'security':  return { label: '!', color: '#ff9d94' };
 			default:          return { label: '?',      color: '#ff9d94' };
 		}
 	}
@@ -144,7 +141,8 @@
 			} ) );
 			grid.appendChild( el( 'span', {
 				style: 'font-variant-numeric:tabular-nums;font-weight:500;',
-				text:  info.current || '—',
+				// Core names what is waiting: "behind (point)" / "behind (major)".
+				text:  ( info.current || '—' ) + ( pkg === 'core' && info.state === 'behind' && info.offer ? ' · behind (' + info.offer + ')' : '' ),
 			} ) );
 			var glyphEl = el( 'span', {
 				style: 'color:' + glyph.color + ';font-weight:600;',

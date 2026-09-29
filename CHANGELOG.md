@@ -20,11 +20,12 @@ adds a bullet below. A release is a separate, deliberate act:
   `the_generator` is empty for every type. Plugin and theme `ver` stay.
   `inc/core-fingerprint.php`, pinned by `tests/core-fingerprint.php`.
 - **Deploy status reports core.** `get-deploy-status` gains `core` {current,
-  latest, state ok/behind/security/unknown, auto_updates, reason}, read from the
+  latest, state ok/behind/unknown, offer point/major/empty, auto_updates,
+  reason}, read from the
   cached `update_core` transient only, and a local-only `runtime` {php,
   register_argc_argv}. The remote twin carries `core` but never `runtime`;
   remote contract 13 (additive). The desktop widget and the Operations leaf
-  paint a Core row. Pinned by `tests/core-fingerprint.php`,
+  paint a Core row ("behind (point)" / "behind (major)"). Pinned by `tests/core-fingerprint.php`,
   `tests/abilities-remote-set.php`, `tests/remote-contract-shapes.php`,
   `tests/dash-widgets.php`, `tests/desktop-status-resilience.cjs`.
 - **docs/SECURITY.md**: the core fingerprint, the readme/licence edge block,

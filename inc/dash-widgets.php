@@ -235,8 +235,9 @@ function snt_dwx_boxes() {
 						array(
 							'path'    => 'core.current',
 							'label'   => __( 'Core', 'signal-and-noise-tools' ),
-							/* translators: %s: the latest offered WordPress version */
-							'compare' => array( 'template' => __( '%s available', 'signal-and-noise-tools' ), 'path' => 'core.latest', 'when_differs' => 'core.current' ),
+							// offer is '' when ok/unknown, which the painter renders silent.
+							/* translators: %s: point or major, the kind of core release waiting */
+							'compare' => array( 'template' => __( 'behind (%s)', 'signal-and-noise-tools' ), 'path' => 'core.offer' ),
 						),
 						array(
 							'path'    => 'last_deploy',

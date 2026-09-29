@@ -102,17 +102,21 @@ Plan notes:
 
 ## The `core` and `runtime` readings
 
-`get-deploy-status` carries `core` {current, latest, state, auto_updates,
-reason} and `runtime` {php, register_argc_argv}
+`get-deploy-status` carries `core` {current, latest, state, offer,
+auto_updates, reason} and `runtime` {php, register_argc_argv}
 (`inc/deploy-core-status.php`).
 
 - `latest` is the highest version among the offers in the CACHED
   `update_core` site transient whose response is `upgrade` or `autoupdate`.
   Nothing here calls `wp_version_check` or the network. No transient: `unknown`.
-- `security`: WordPress offers carry no security flag. The only signal is
-  response `autoupdate`, which marks a same-branch point release, the only way
-  core ships a security fix. So `security` means a point release for this
-  branch is waiting, security or maintenance alike.
+- `state` is ok, behind or unknown. `offer` says what is waiting: `point`
+  when an offer with response `autoupdate` (a same-branch point release) is
+  newer than installed, `major` when only an `upgrade` offer is, empty when
+  ok or unknown. Point wins when both exist. WordPress offers carry no
+  security flag, so point cannot tell a security release from a maintenance
+  one; the reason says "A point release is waiting (WordPress ships security
+  fixes as point releases but does not flag them)." The widget and the
+  Operations leaf show "behind (point)" or "behind (major)".
 - `auto_updates` describes WordPress's own updater (DISALLOW_FILE_MODS,
   AUTOMATIC_UPDATER_DISABLED, WP_AUTO_UPDATE_CORE and the core filters).
   A host that updates core outside it (Cloudways can) is not visible here.

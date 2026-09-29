@@ -577,11 +577,12 @@ add_action( 'wp_abilities_api_init', function () {
 				// Additive (contract 13, 2026-09-29): WordPress core beside theme and plugin.
 				'core' => array(
 					'type'        => 'object',
-					'description' => 'WordPress core. current is $wp_version; latest is the highest version the CACHED update_core transient offers (never a live check); state ok|behind|security|unknown, where security means a same-branch point release (response autoupdate) is waiting, since WordPress offers carry no security flag; auto_updates is WordPress\'s own updater (minor|all|off); reason says why when not ok.',
+					'description' => 'WordPress core. current is $wp_version; latest is the highest version the CACHED update_core transient offers (never a live check); state ok|behind|unknown; offer says what kind of release is waiting: point (a same-branch point release, response autoupdate; WordPress ships security fixes as point releases but does not flag them), major (only an upgrade offer), or empty when ok or unknown; point wins when both exist; auto_updates is WordPress\'s own updater (minor|all|off); reason says why when not ok.',
 					'properties'  => array(
 						'current'      => array( 'type' => 'string' ),
 						'latest'       => array( 'type' => 'string' ),
-						'state'        => array( 'type' => 'string', 'enum' => array( 'ok', 'behind', 'security', 'unknown' ) ),
+						'state'        => array( 'type' => 'string', 'enum' => array( 'ok', 'behind', 'unknown' ) ),
+						'offer'        => array( 'type' => 'string', 'enum' => array( 'point', 'major', '' ) ),
 						'auto_updates' => array( 'type' => 'string', 'enum' => array( 'minor', 'all', 'off' ) ),
 						'reason'       => array( 'type' => 'string' ),
 					),

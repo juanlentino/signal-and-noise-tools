@@ -370,7 +370,7 @@ foreach ( snt_dwx_boxes() as $box ) {
 	}
 }
 ok( is_array( $core_field ) && 'signal-noise/get-deploy-status' === $core_field['ability'], 'Operations leaf has a Core row from get-deploy-status' );
-ok( is_array( $core_field ) && 'core.latest' === ( $core_field['compare']['path'] ?? '' ) && 'core.current' === ( $core_field['compare']['when_differs'] ?? '' ), 'the Core row names core.latest only when it differs' );
+ok( is_array( $core_field ) && 'core.offer' === ( $core_field['compare']['path'] ?? '' ) && 'behind (%s)' === ( $core_field['compare']['template'] ?? '' ), 'the Core row says behind (point|major), silent when offer is empty' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

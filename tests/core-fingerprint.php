@@ -137,15 +137,17 @@ function cf_core( $transient ) {
 	return is_array( $out ) ? ( $out['core'] ?? array() ) : array();
 }
 $c = cf_core( false );
-cf_ok( array( 'current', 'latest', 'state', 'auto_updates', 'reason' ) === array_keys( $c ), 'core carries exactly the five keys' );
-cf_ok( 'unknown' === ( $c['state'] ?? '' ) && '' !== ( $c['reason'] ?? '' ), 'missing transient: unknown, with a reason' );
+cf_ok( array( 'current', 'latest', 'state', 'offer', 'auto_updates', 'reason' ) === array_keys( $c ), 'core carries exactly the six keys' );
+cf_ok( 'unknown' === ( $c['state'] ?? '' ) && '' === ( $c['offer'] ?? 'x' ) && '' !== ( $c['reason'] ?? '' ), 'missing transient: unknown, offer empty, with a reason' );
 cf_ok( '7.1.2' === ( $c['current'] ?? '' ), 'current is $wp_version' );
 $c = cf_core( (object) array( 'updates' => array( cf_offer( 'latest', '7.1.2' ) ) ) );
-cf_ok( 'ok' === ( $c['state'] ?? '' ) && '7.1.2' === ( $c['latest'] ?? '' ), 'up to date: ok, latest = current' );
+cf_ok( 'ok' === ( $c['state'] ?? '' ) && '' === ( $c['offer'] ?? 'x' ) && '7.1.2' === ( $c['latest'] ?? '' ), 'none newer: ok, offer empty, latest = current' );
 $c = cf_core( (object) array( 'updates' => array( cf_offer( 'upgrade', '7.2' ), cf_offer( 'latest', '7.1.2' ) ) ) );
-cf_ok( 'behind' === ( $c['state'] ?? '' ) && '7.2' === ( $c['latest'] ?? '' ), 'a newer upgrade offer: behind, latest 7.2' );
+cf_ok( 'behind' === ( $c['state'] ?? '' ) && 'major' === ( $c['offer'] ?? '' ) && '7.2' === ( $c['latest'] ?? '' ), 'only an upgrade offer: behind/major, latest 7.2' );
+$c = cf_core( (object) array( 'updates' => array( cf_offer( 'autoupdate', '7.1.3' ) ) ) );
+cf_ok( 'behind' === ( $c['state'] ?? '' ) && 'point' === ( $c['offer'] ?? '' ) && SNT_CORE_POINT_REASON === ( $c['reason'] ?? '' ), 'only a point offer: behind/point, with the owner\'s reason text' );
 $c = cf_core( (object) array( 'updates' => array( cf_offer( 'upgrade', '7.2' ), cf_offer( 'autoupdate', '7.1.3' ) ) ) );
-cf_ok( 'security' === ( $c['state'] ?? '' ) && '7.2' === ( $c['latest'] ?? '' ), 'a same-branch autoupdate offer: security, latest is the highest offer' );
+cf_ok( 'behind' === ( $c['state'] ?? '' ) && 'point' === ( $c['offer'] ?? '' ) && '7.2' === ( $c['latest'] ?? '' ), 'both offers: behind/point wins, latest is the highest offer' );
 $c = cf_core( (object) array( 'updates' => array( cf_offer( 'autoupdate', '7.1.2' ) ) ) );
 cf_ok( 'ok' === ( $c['state'] ?? '' ), 'an offer equal to current is not an update' );
 cf_ok( 0 === $GLOBALS['__cf_net'], 'no live update check was made' );

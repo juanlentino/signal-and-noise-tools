@@ -93,8 +93,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'11' => '60c50a1daa0050be6b0f5b4a72330222282a3dd77720f6d90acfef884cf13968',
 	// RED-then-pin, 2026-09-27: subscribers on the rss-stats twin.
 	'12' => '0dd9868fa197f8c4272bb1923145376538d43bfa59bbec81ee0e76b30c9fedc3',
-	// RED-then-pin, 2026-09-29: core on the deploy-status twin (runtime stays local).
-	'13' => '0d213fc053614fced9d147d077118c245e913d7402ba5121375b08f52d8f9264',
+	// RED-then-pin, 2026-09-29: core (state ok|behind|unknown + offer point|major) on the deploy-status twin (runtime stays local).
+	'13' => 'ece40b3b4b4ef3e4d192300cf6e32f1ad0d69cf56808438120c5fe993a032524',
 );
 
 /**

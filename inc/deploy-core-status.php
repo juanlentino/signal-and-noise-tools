@@ -53,18 +53,21 @@ function snt_core_auto_updates() {
 	return snt_core_auto_updates_mode( $file_mods, $disabled, $major, $minor );
 }
 
+/** Reason text for a waiting point release. */
+const SNT_CORE_POINT_REASON = 'A point release is waiting (WordPress ships security fixes as point releases but does not flag them).';
+
 /**
  * The `core` row. Reads the CACHED update_core site transient only; never calls
  * wp_version_check or anything that reaches the network.
  *
- * The security signal: WordPress offers carry no security flag. The one thing
- * it does say is response 'autoupdate', which marks a same-branch point release
- * (the only way core ships a security fix). So 'security' means "a point
- * release for this branch is waiting", maintenance or security alike.
+ * offer: WordPress offers carry no security flag. Response 'autoupdate' marks a
+ * same-branch point release (the only way core ships a security fix), so
+ * offer 'point' means one is waiting, security or maintenance alike; 'major'
+ * means only an 'upgrade' offer; '' when ok or unknown. Point wins.
  */
 function snt_core_status() {
 	$current = isset( $GLOBALS['wp_version'] ) ? (string) $GLOBALS['wp_version'] : '';
-	$row     = array( 'current' => $current, 'latest' => $current, 'state' => 'unknown', 'auto_updates' => snt_core_auto_updates(), 'reason' => '' );
+	$row     = array( 'current' => $current, 'latest' => $current, 'state' => 'unknown', 'offer' => '', 'auto_updates' => snt_core_auto_updates(), 'reason' => '' );
 	$cached  = get_site_transient( 'update_core' );
 	if ( '' === $current || ! is_object( $cached ) || ! isset( $cached->updates ) || ! is_array( $cached->updates ) ) {
 		$row['reason'] = 'No cached core update check (the update_core transient is missing). Read only; nothing is fetched here.';
@@ -90,10 +93,9 @@ function snt_core_status() {
 		return $row;
 	}
 	$row['latest'] = $newest;
-	$row['state']  = '' !== $point ? 'security' : 'behind';
-	$row['reason'] = '' !== $point
-		? "Point release $point is offered for this branch. WordPress ships security fixes as point releases and does not flag them."
-		: "WordPress $newest is available.";
+	$row['state']  = 'behind';
+	$row['offer']  = '' !== $point ? 'point' : 'major';
+	$row['reason'] = '' !== $point ? SNT_CORE_POINT_REASON : "WordPress $newest is available.";
 	return $row;
 }
 
