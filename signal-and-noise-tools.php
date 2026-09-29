@@ -164,6 +164,9 @@ require_once SNT_PATH . 'inc/analytics-view-technology.php'; // v8.5.0 extractio
 require_once SNT_PATH . 'inc/analytics-view-geography.php';  // v8.5.0 extraction
 require_once SNT_PATH . 'inc/analytics-view-engagement.php'; // v8.5.0 extraction
 require_once SNT_PATH . 'inc/analytics-view-quality.php';    // v8.5.0 extraction
+require_once SNT_PATH . 'inc/analytics-bot-signals.php';    // beacon bot signals, observe-only: nightly reading per cohort (never subtracts)
+require_once SNT_PATH . 'inc/analytics-render-signals.php'; // its Quality-tab panel
+require_once SNT_PATH . 'inc/abilities-bot-signals.php';    // its reader, sn-status{bot_signals}; local only
 require_once SNT_PATH . 'inc/analytics-view-events.php';     // v8.5.0 extraction
 require_once SNT_PATH . 'inc/analytics-view-overview.php';   // v9.68.0: the wired Overview landing (default tab — the v9.67.0 mock, graduated)
 require_once SNT_PATH . 'inc/analytics-sources.php'; // v6.25.0: referrer host → canonical source fold (brand grouping + self-referral/www)

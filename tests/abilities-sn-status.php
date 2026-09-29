@@ -61,7 +61,7 @@ echo "sn_status (consolidated) — plugin v13.1.0\n\n";
 
 // ─── Section map: ten sections, all plugin-namespace sources ───
 $map = snt_sn_status_map();
-ok( 28 === count( $map ), 'the section map has exactly 28 entries (19.4.3 ADDED recompute, the analytics history run: state, cursor, the unit it died in; 18.0.0 ADDED edge_errors, the 5xx rollup alone; 16.6.0 ADDED jev_spend, the Jev meter; 15.2.0 ADDED keyring, every credential\'s source and verdict; v14.9.0 ADDED cloudflare, the monitor: token, zone, firewall; v14.6.1 ADDED posts_signals, the Posts tab as data; v13.92.0 ADDED cache; v13.90.0 ADDED watches, the agent reader beside the morning brief; v13.88.0 ADDED shape_stability, the first reader the shape ledger has had; v13.68.0 ADDED inbound_pass; v13.63.0 ADDED search_coverage; v13.62.0 ADDED family_drift — weave Phase 5; v13.57.0 ADDED search_performance/search_drift/search_crossexam — weave Phase 1; v13.52.0 ADDED cron_health, the model over cron_scheduled/cron_history)' );
+ok( 29 === count( $map ), 'the section map has exactly 29 entries (19.8 ADDED bot_signals, the observe-only beacon readout; 19.4.3 ADDED recompute, the analytics history run: state, cursor, the unit it died in; 18.0.0 ADDED edge_errors, the 5xx rollup alone; 16.6.0 ADDED jev_spend, the Jev meter; 15.2.0 ADDED keyring, every credential\'s source and verdict; v14.9.0 ADDED cloudflare, the monitor: token, zone, firewall; v14.6.1 ADDED posts_signals, the Posts tab as data; v13.92.0 ADDED cache; v13.90.0 ADDED watches, the agent reader beside the morning brief; v13.88.0 ADDED shape_stability, the first reader the shape ledger has had; v13.68.0 ADDED inbound_pass; v13.63.0 ADDED search_coverage; v13.62.0 ADDED family_drift — weave Phase 5; v13.57.0 ADDED search_performance/search_drift/search_crossexam — weave Phase 1; v13.52.0 ADDED cron_health, the model over cron_scheduled/cron_history)' );
 $expected_map = array(
 	'uptime'               => 'signal-noise/uptime-status',
 	'deploy'               => 'signal-noise/get-deploy-status',
@@ -95,6 +95,7 @@ $expected_map = array(
 	'keyring'              => 'signal-noise/keyring-status', // 15.2.0
 	'jev_spend'            => 'signal-noise/jev-meter', // 16.6.0
 	'recompute'            => 'signal-noise/analytics-recompute-status', // 19.4.3
+	'bot_signals'          => 'signal-noise/bot-signals',
 );
 ok( $expected_map === $map, 'the map matches its sources exactly, in a pinned order' );
 ok( array() === array_filter( $map, static fn( $s ) => strpos( $s, 'signal-noise/' ) !== 0 ), 'every source is a PLUGIN slug — no section crosses into the theme' );

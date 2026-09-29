@@ -1,0 +1,14 @@
+{
+  "_note": "rows[0..3] captured live 2026-09-29 from sn_bot_signals_sql() with the presence filter lifted (pre-1.22.0 rows: every bit reads 0, UInt64 views arrive as strings). rows[4..] are the same shape with signal bits as AE returns them (bitAnd yields the bit value, not 1).",
+  "rows": [
+    {"vid": "dbeb35fe3b21c03c", "webdriver": 0, "no_input": 0, "ua_mismatch": 0, "headless": 0, "tz_mismatch": 0, "views": "1", "intent": 0, "stored_bot": 0, "relay": 0, "hosting": 1, "human": 0},
+    {"vid": "6c3d1698b403fd06", "webdriver": 0, "no_input": 0, "ua_mismatch": 0, "headless": 0, "tz_mismatch": 0, "views": "0", "intent": 0, "stored_bot": 1, "relay": 0, "hosting": 0, "human": 0},
+    {"vid": "0dc60b29a7b019eb", "webdriver": 0, "no_input": 0, "ua_mismatch": 0, "headless": 0, "tz_mismatch": 0, "views": "2", "intent": 0, "stored_bot": 0, "relay": 0, "hosting": 0, "human": 1},
+    {"vid": "b77d0feec5cd0466", "webdriver": 0, "no_input": 0, "ua_mismatch": 0, "headless": 0, "tz_mismatch": 0, "views": "2", "intent": 0, "stored_bot": 0, "relay": 0, "hosting": 0, "human": 1},
+    {"vid": "aaaaaaaaaaaaaaaa", "webdriver": 0, "no_input": 0, "ua_mismatch": 0, "headless": 0, "tz_mismatch": 0, "views": "3", "intent": 1, "stored_bot": 0, "relay": 1, "hosting": 0, "human": 1},
+    {"vid": "bbbbbbbbbbbbbbbb", "webdriver": 1, "no_input": 2, "ua_mismatch": 0, "headless": 8, "tz_mismatch": 0, "views": "4", "intent": 0, "stored_bot": 0, "relay": 0, "hosting": 1, "human": 0},
+    {"vid": "cccccccccccccccc", "webdriver": 0, "no_input": 2, "ua_mismatch": 4, "headless": 0, "tz_mismatch": 16, "views": "120", "intent": 0, "stored_bot": 0, "relay": 0, "hosting": 0, "human": 1},
+    {"vid": "dddddddddddddddd", "webdriver": 0, "no_input": 2, "ua_mismatch": 0, "headless": 0, "tz_mismatch": 16, "views": "2", "intent": 0, "stored_bot": 0, "relay": 0, "hosting": 0, "human": 1}
+  ],
+  "days": [{"day": "2026-09-28 00:00:00", "n": "40"}, {"day": "2026-09-29 00:00:00", "n": "0"}]
+}
