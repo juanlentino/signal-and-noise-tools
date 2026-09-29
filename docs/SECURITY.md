@@ -32,8 +32,12 @@ Hidden:
 
 Kept on purpose:
 
-- Emoji, exactly as stock WordPress ships it (removed in 19.7.0, restored in
-  19.7.1). Its script URLs are built in `_print_emoji_detection_script()`
+- Emoji on the public site, as stock WordPress ships it: the front-end and
+  embed detection script and styles, the feed and mail staticize filters, and
+  the stock s.w.org SVG URL (removed in 19.7.0, restored in 19.7.1). It is off
+  in wp-admin only, on `admin_init`: the admin detection script, the admin
+  emoji styles and the TinyMCE `wpemoji` plugin, matching core's own block
+  editor. Its script URLs are built in `_print_emoji_detection_script()`
   (`wp-includes/formatting.php`, 7.1: `concatemoji`, plus `wpemoji` and
   `twemoji` under `SCRIPT_DEBUG`) as `js/...?ver=$wp_version` and passed
   through `script_loader_src`, so each carries the token above. The s.w.org

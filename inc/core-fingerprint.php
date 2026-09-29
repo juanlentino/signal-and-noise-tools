@@ -16,7 +16,9 @@
  *     export). The theme already strips it (inc/frontend-filters.php); this is
  *     the plugin's copy, so a theme swap cannot bring it back.
  *
- * Emoji stays exactly as stock WordPress ships it (19.7.1 restored it). Its
+ * Emoji is stock on the public site (front end, embeds, feeds, email) and off
+ * in wp-admin only: the admin detection script, admin styles and the TinyMCE
+ * wpemoji plugin, as core's own block editor already does. Its
  * three script URLs (concatemoji, and wpemoji + twemoji under SCRIPT_DEBUG) are
  * built in _print_emoji_detection_script() (wp-includes/formatting.php, 7.1)
  * as includes_url( "js/...?ver=$wp_version" ) and passed through
@@ -40,6 +42,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 add_action( 'init', 'snt_core_fp_unhook' );
+// admin-filters.php adds the admin emoji hooks AFTER init, so admin_init.
+add_action( 'admin_init', 'snt_core_fp_admin_emoji_off' );
+add_filter( 'tiny_mce_plugins', 'snt_core_fp_tinymce_plugins' );
 add_filter( 'the_generator', '__return_empty_string' );
 add_filter( 'script_loader_src', 'snt_core_fp_ver' );
 add_filter( 'style_loader_src', 'snt_core_fp_ver' );
@@ -60,6 +65,18 @@ function snt_core_fp_default_version( $deps ) {
 /** Remove the wp_head generator. */
 function snt_core_fp_unhook() {
 	remove_action( 'wp_head', 'wp_generator' );
+}
+
+/** Emoji off in wp-admin only; the public site keeps core's hooks. */
+function snt_core_fp_admin_emoji_off() {
+	remove_action( 'admin_print_scripts', 'print_emoji_detection_script' );
+	remove_action( 'admin_enqueue_scripts', 'wp_enqueue_emoji_styles' );
+	remove_action( 'admin_print_styles', 'print_emoji_styles' );
+}
+
+/** @param array $plugins TinyMCE plugin slugs. */
+function snt_core_fp_tinymce_plugins( $plugins ) {
+	return is_array( $plugins ) ? array_values( array_diff( $plugins, array( 'wpemoji' ) ) ) : $plugins;
 }
 
 /** Opaque, per-site token for a core version: changes with core, reveals nothing. */

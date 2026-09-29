@@ -4,8 +4,9 @@
  *
  * Pins inc/core-fingerprint.php and the `core` / `runtime` keys it feeds into
  * signal-noise/get-deploy-status:
- *   1. emoji is stock again (no emoji hook removed, no emoji filter added), and
- *      every emoji script URL core builds carries the token, not the version;
+ *   1. emoji is stock on the public site (front, embed, feed, mail) and off in
+ *      wp-admin (admin hooks + TinyMCE wpemoji); every emoji script URL core
+ *      builds carries the token, not the version;
  *   2. a core asset's ver=$wp_version becomes an opaque salted token, and a
  *      plugin/theme ver or a non-matching ver is left alone;
  *   3. the_generator is empty for every type core prints;
@@ -72,16 +73,34 @@ function cf_hooked( $hook, $cb ) {
 
 echo "core fingerprint\n\n";
 
-// 1. Emoji is stock WordPress (19.7.1 restored it); only its version is hidden.
+// 1. Emoji: public site stock, wp-admin off.
 cf_ok( cf_hooked( 'init', 'snt_core_fp_unhook' ), 'the generator unhook runs on init' );
+cf_ok( cf_hooked( 'admin_init', 'snt_core_fp_admin_emoji_off' ), 'the admin emoji removal runs on admin_init (admin-filters.php loads after init)' );
+cf_ok( ! cf_hooked( 'init', 'snt_core_fp_admin_emoji_off' ), 'the admin emoji removal does not run on init (would reach the front end)' );
 if ( function_exists( 'snt_core_fp_unhook' ) ) { snt_core_fp_unhook(); }
-cf_ok( in_array( 'wp_head|wp_generator|10', $GLOBALS['__cf_removed'], true ), 'removed wp_head|wp_generator|10' );
-foreach ( $GLOBALS['__cf_removed'] as $gone ) {
-	cf_ok( false === stripos( $gone, 'emoji' ), "no emoji hook removed ($gone)" );
+$front_removed = $GLOBALS['__cf_removed'];
+cf_ok( in_array( 'wp_head|wp_generator|10', $front_removed, true ), 'removed wp_head|wp_generator|10' );
+foreach ( $front_removed as $gone ) {
+	cf_ok( false === stripos( $gone, 'emoji' ), "front end removes no emoji hook ($gone)" );
 }
-foreach ( array( 'emoji_svg_url', 'emoji_url', 'tiny_mce_plugins' ) as $h ) {
-	cf_ok( empty( $GLOBALS['__cf_hooks'][ $h ] ), "nothing hooks $h" );
+if ( function_exists( 'snt_core_fp_admin_emoji_off' ) ) { snt_core_fp_admin_emoji_off(); }
+$admin_removed = array_diff( $GLOBALS['__cf_removed'], $front_removed );
+foreach ( array(
+	'admin_print_scripts|print_emoji_detection_script|10',
+	'admin_enqueue_scripts|wp_enqueue_emoji_styles|10',
+	'admin_print_styles|print_emoji_styles|10',
+) as $want ) {
+	cf_ok( in_array( $want, $admin_removed, true ), "admin removes $want" );
 }
+cf_ok( 3 === count( $admin_removed ), 'admin removes exactly those three (feed, mail, front, embed stay stock)' );
+foreach ( array( 'wp_head|print_emoji_detection_script|7', 'embed_head|print_emoji_detection_script|10', 'wp_enqueue_scripts|wp_enqueue_emoji_styles|10', 'the_content_feed|wp_staticize_emoji|10', 'comment_text_rss|wp_staticize_emoji|10', 'wp_mail|wp_staticize_emoji_for_email|10' ) as $keep ) {
+	cf_ok( ! in_array( $keep, $GLOBALS['__cf_removed'], true ), "kept $keep" );
+}
+foreach ( array( 'emoji_svg_url', 'emoji_url' ) as $h ) {
+	cf_ok( empty( $GLOBALS['__cf_hooks'][ $h ] ), "nothing hooks $h (stock s.w.org URL)" );
+}
+$mce = apply_filters( 'tiny_mce_plugins', array( 'wordpress', 'wpemoji', 'wplink' ) );
+cf_ok( ! in_array( 'wpemoji', $mce, true ) && in_array( 'wplink', $mce, true ), 'tiny_mce_plugins drops wpemoji and nothing else' );
 
 // 1b. The emoji script URLs, exactly as core 7.1 builds them in
 // _print_emoji_detection_script() (wp-includes/formatting.php):
