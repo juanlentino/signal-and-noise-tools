@@ -117,6 +117,13 @@ $tok2 = apply_filters( 'script_loader_src', 'https://juanlentino.com/wp-includes
 cf_ok( $tok2 !== $tok && 1 === preg_match( '/\?ver=[0-9a-f]{10}$/', $tok2 ), 'the token changes when core changes (browsers refetch)' );
 $GLOBALS['wp_version'] = '7.1.2';
 
+// 2b. Concat URLs read default_version, not the src filters.
+foreach ( array( 'wp_default_scripts' => 'WP_Scripts', 'wp_default_styles' => 'WP_Styles' ) as $hook => $cls ) {
+	$deps = (object) array( 'default_version' => '7.1.2' );
+	foreach ( $GLOBALS['__cf_hooks'][ $hook ] ?? array() as $row ) { call_user_func( $row[0], $deps ); }
+	cf_ok( 1 === preg_match( '/^[0-9a-f]{10}$/', (string) $deps->default_version ), "$cls default_version reads the token after $hook" );
+}
+
 // 3. the_generator, for every type core prints.
 foreach ( array( 'html', 'xhtml', 'rss2', 'atom', 'rdf', 'comment', 'export' ) as $type ) {
 	cf_ok( '' === apply_filters( 'the_generator', '<meta name="generator" content="WordPress 7.1.2" />', $type ), "the_generator is empty for $type" );

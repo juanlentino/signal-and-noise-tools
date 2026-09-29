@@ -28,7 +28,11 @@ Hidden:
   a stripped ver would leave browsers on the old file after a core update. The
   token changes whenever core does and reveals nothing.
 - `the_generator` for every type (html, xhtml, rss2, atom, rdf, comment,
-  export), and `wp_generator` off `wp_head`. The theme already does this
+  export), and `wp_generator` off `wp_head`.
+- The concat loaders (`load-scripts.php`, `load-styles.php`) that
+  `wp-login.php` and wp-admin use: their `ver` comes from `default_version` on
+  the WP_Scripts / WP_Styles registries, set to the same token on
+  `wp_default_scripts` / `wp_default_styles`. The theme already does this
   (`inc/frontend-filters.php`); the plugin copy survives a theme change.
 
 Kept on purpose:
@@ -66,6 +70,19 @@ or lower(http.request.uri.query) contains "%252e"
 ```
 
 Action: Block. This is the one to apply.
+
+Fallback, if the Free-plan editor rejects `url_decode()`: match the raw
+encodings directly.
+
+```
+(lower(http.request.uri.query) contains "pagename=" and (
+  lower(http.request.uri.query) contains "%2e%2e" or
+  lower(http.request.uri.query) contains "..%2f" or
+  lower(http.request.uri.query) contains "..%5c" or
+  lower(http.request.uri.query) contains "%252e" or
+  lower(http.request.uri.query) contains "../"
+))
+```
 
 Plan notes:
 

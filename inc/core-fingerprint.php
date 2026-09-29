@@ -45,6 +45,19 @@ add_filter( 'emoji_svg_url', '__return_false' );
 add_filter( 'tiny_mce_plugins', 'snt_core_fp_tinymce_plugins' );
 add_filter( 'script_loader_src', 'snt_core_fp_ver' );
 add_filter( 'style_loader_src', 'snt_core_fp_ver' );
+// The concat URLs (/wp-admin/load-scripts.php, load-styles.php, used by
+// wp-login.php and wp-admin) take ver from default_version and never pass
+// through the src filters. Late priority: after core sets it.
+add_action( 'wp_default_scripts', 'snt_core_fp_default_version', 999 );
+add_action( 'wp_default_styles', 'snt_core_fp_default_version', 999 );
+
+/** @param WP_Scripts|WP_Styles $deps Core's dependency registry. */
+function snt_core_fp_default_version( $deps ) {
+	$version = isset( $GLOBALS['wp_version'] ) ? (string) $GLOBALS['wp_version'] : '';
+	if ( '' !== $version && is_object( $deps ) ) {
+		$deps->default_version = snt_core_fp_token( $version );
+	}
+}
 
 /** Remove every emoji hook core registers, plus the wp_head generator. */
 function snt_core_fp_unhook() {
