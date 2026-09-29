@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [19.7.0] - 2026-09-29 — the core version stops leaking
+
+
 - **Security: stop printing the core version.** After CVE-2026-87902
   (GHSA-7hp8-65ch-5whp; the site runs 7.1.2, patched, not exposed) the home page
   and `/wp-login.php` still announced `ver=7.1.2` through the emoji script.
@@ -31,11 +34,7 @@ adds a bullet below. A release is a separate, deliberate act:
 - **docs/SECURITY.md**: the core fingerprint, the readme/licence edge block,
   a draft Cloudflare rule for encoded traversal in `pagename`, and the
   2026-09-29 incident note.
+
 ### Added
 - **Is this crawler real: `agent_networks` on the machine-readers crosstab.** Rights signals 1.28.0 records the network each machine read came from (`network`, Cloudflare's `asOrganization`). The row normaliser passes it through with only letters, digits and plain punctuation, capped at 128 characters, because whoever owns an IP block chooses that name. The `get-machine-readers-crosstab` ability now also returns, per claimed agent, its hits, the hits Cloudflare verified, the hits from before the network was recorded, and its top five networks. ClaudeBot hits from a hosting provider that are not verified read as an impostor. Local ability only: the crosstab has no remote twin, so the remote contract version does not change.
-
-## [19.6.3] - 2026-09-28 — the check reads the refresh
-
-### Fixed
-- The Analytics server token check in Connections › Credentials now reads the worker's refresh result. The worker-version reader dropped the refresh block from the worker's report, so the check said "Unknown" on every real reading while the refresh itself was fine. A test now parses a live copy of the worker's report.
 
