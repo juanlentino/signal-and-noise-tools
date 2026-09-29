@@ -28,7 +28,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'label'               => 'Get Machine Readers Crosstab',
 		'description'         => 'Crawler reads at the edge over a window (days: 1-90, default 30) as family x purpose x agent cells, hits descending: `cells[]` of {family, purpose, agent, hits, days, surfaces}, where `days` is how many distinct days the cell was seen on and `surfaces` its hits per surface class. '
 			. 'Answers "which purpose did each family read for" directly, which the summary\'s per-family and per-purpose totals cannot: a family whose reads split between `train` and `search` shows as two cells. Purpose `unknown` is an UNMAPPED reader, not a reader with no purpose; `taxonomy_absent: true` means the edge sent no taxonomy at all and every purpose is unknown for that reason. '
-			. '`truncated: true` means the aggregate read hit the edge\'s row cap and the cells under-count the newest days; `total` sums the cells. User agents are self-reported: observation, never proof of identity. `ok: false` carries the sensor `error` and no cells. Read-only.',
+			. '`truncated: true` means the aggregate read hit the edge\'s row cap and the cells under-count the newest days; `total` sums the cells. User agents are self-reported: observation, never proof of identity. `ok: false` carries the sensor `error` and no cells. '
+			. '`agent_networks[]` answers "is this crawler real": per claimed agent {agent, hits, verified_hits (Cloudflare verified the client), not_measured (hits from before the edge recorded the network), networks[] of the top 5 {network, hits}}. Unverified hits from a network the vendor does not own are an impostor. Read-only.',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_machine_readers_crosstab',
@@ -49,6 +50,7 @@ add_action( 'wp_abilities_api_init', function () {
 				'total'           => array( 'type' => 'integer' ),
 				'families'        => array( 'type' => 'integer' ),
 				'cells'           => array( 'type' => 'array', 'items' => array( 'type' => 'object' ) ),
+				'agent_networks'  => array( 'type' => 'array', 'items' => array( 'type' => 'object' ) ),
 				'taxonomy_absent' => array( 'type' => 'boolean' ),
 				'truncated'       => array( 'type' => 'boolean' ),
 				'error'           => array( 'type' => array( 'string', 'null' ) ),
@@ -131,6 +133,7 @@ function snt_ability_get_machine_readers_crosstab( $input ) {
 		array( 'ok' => true, 'days' => $days ),
 		snt_mr_crosstab( $rows ),
 		array(
+			'agent_networks'  => snt_mr_agent_networks( $rows ),
 			'taxonomy_absent' => snt_mr_taxonomy_absent( $rows ),
 			'truncated'       => ! empty( $read['truncated'] ),
 			'error'           => null,

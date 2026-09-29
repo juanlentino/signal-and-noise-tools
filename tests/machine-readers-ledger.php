@@ -69,6 +69,26 @@ ok( 55 === $x['total'] && 2 === $x['families'], 'total and family count' );
 ok( array( 'cells' => array(), 'total' => 0, 'families' => 0 ) === snt_mr_crosstab( array() ), 'no rows is an empty crosstab, not an error' );
 ok( 'unknown' === snt_mr_crosstab( array( array( 'family' => 'x', 'hits' => 1 ) ) )['cells'][0]['purpose'], 'a row with no purpose lands on unknown' );
 
+echo "Group A2: is this crawler real (agent_networks)\n";
+$n = static fn( $agent, $network, $vbot, $hits ) => array( 'agent' => $agent, 'network' => $network, 'verified_bot' => $vbot, 'hits' => $hits );
+$an = snt_mr_agent_networks( array(
+	$n( 'anthropic-claudebot', 'Amazon.com, Inc.', 'AI Crawler', 50 ),
+	$n( 'anthropic-claudebot', 'Hetzner Online GmbH', '', 30 ),
+	$n( 'anthropic-claudebot', '', '', 5 ),
+	$n( 'openai-gptbot', 'Microsoft Corporation', 'AI Crawler', 7 ),
+	$n( '', 'Comcast', '', 99 ),
+	'not a row',
+) );
+ok( 2 === count( $an ) && 'anthropic-claudebot' === $an[0]['agent'], 'one entry per claimed agent, hits descending; an unmapped row claims nothing' );
+ok( 85 === $an[0]['hits'] && 50 === $an[0]['verified_hits'] && 5 === $an[0]['not_measured'], 'verified and not-measured hits split out of the agent total' );
+ok( array( array( 'network' => 'Amazon.com, Inc.', 'hits' => 50 ), array( 'network' => 'Hetzner Online GmbH', 'hits' => 30 ) ) === $an[0]['networks'], 'networks descend by hits and exclude the not-measured bucket' );
+$many = array();
+for ( $i = 0; $i < 8; $i++ ) {
+	$many[] = $n( 'x-bot', "net$i", '', $i + 1 );
+}
+ok( SN_MR_AGENT_NETWORKS_TOP === count( snt_mr_agent_networks( $many )[0]['networks'] ), 'networks are capped at the top N' );
+ok( array() === snt_mr_agent_networks( array() ), 'no rows is no agents' );
+
 echo "Group B: the rights cadence fold\n";
 $read = function ( $family, $path, $at, $hits = 1, $vendor = 'v', $purpose = 'train' ) {
 	return array( 'observed_at' => $at, 'family' => $family, 'path' => $path, 'hits' => $hits, 'vendor' => $vendor, 'purpose' => $purpose );
@@ -130,7 +150,7 @@ $GLOBALS['__mr'] = array(
 );
 $GLOBALS['__mr_calls'] = array();
 $out = snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) );
-ok( true === $out['ok'] && 7 === $out['days'] && 3 === count( $out['cells'] ) && true === $out['truncated'] && false === $out['taxonomy_absent'], 'crosstab: folds the aggregate rows and carries the truncation flag' );
+ok( true === $out['ok'] && 7 === $out['days'] && 3 === count( $out['cells'] ) && true === $out['truncated'] && false === $out['taxonomy_absent'] && is_array( $out['agent_networks'] ?? null ), 'crosstab: folds the aggregate rows and carries the truncation flag' );
 ok( array( array( 7, 'aggregate' ) ) === $GLOBALS['__mr_calls'], 'crosstab reads the aggregate view once' );
 $GLOBALS['__mr_calls'] = array();
 $out = snt_ability_get_rights_reads( null );

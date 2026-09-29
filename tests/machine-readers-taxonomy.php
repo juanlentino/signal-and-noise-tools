@@ -444,6 +444,15 @@ ok( array() === ( $b_zero['by_agent'] ?? null ), 'and an empty leaderboard, whic
 ok( 'Search Engine Crawler' === ( snt_mr_normalize_taxonomy_fields( array( 'verified_bot' => ' Search Engine Crawler ' ) )['verified_bot'] ?? null ), 'verified_bot label passes through trimmed' );
 ok( '' === ( snt_mr_normalize_taxonomy_fields( array() )['verified_bot'] ?? null ), 'an absent verified_bot column reads as empty' );
 ok( false === strpos( snt_mr_normalize_taxonomy_fields( array( 'verified_bot' => '<script>x</script>' ) )['verified_bot'] ?? '<', '<' ), 'verified_bot cannot carry markup' );
+// Worker v1.28.0's blob13, the network owner. Untrusted (whoever owns the IP block names it).
+$nf = static fn( $v ) => snt_mr_normalize_taxonomy_fields( array( 'network' => $v ) )['network'] ?? null;
+ok( 'Amazon.com, Inc.' === $nf( '  Amazon.com, Inc. ' ), 'network passes through trimmed with plain punctuation' );
+ok( '' === ( snt_mr_normalize_taxonomy_fields( array() )['network'] ?? null ), 'an absent network column reads as empty (not measured)' );
+foreach ( array( '<script>alert(1)</script>', '"><img src=x onerror=y>', "a'b`c", "x\x00\ny" ) as $evil ) {
+	ok( 0 === preg_match( '/[<>"\'`\x00-\x1F]/', (string) $nf( $evil ) ), 'network strips markup, quotes and control characters: ' . addslashes( $evil ) );
+}
+ok( 128 === mb_strlen( $nf( str_repeat( 'é', 300 ) ) ), 'network caps at 128 characters without splitting a multibyte one' );
+ok( '' === $nf( "\xC3\x28" ), 'invalid UTF-8 reads as empty, not as an error' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
