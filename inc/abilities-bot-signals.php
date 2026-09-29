@@ -2,7 +2,8 @@
 /**
  * The beacon bot-signals readout's nightly store (inc/analytics-bot-signals.php
  * computes it) and its reader, signal-noise/bot-signals, read through
- * sn-status{bot_signals}. Local only: no remote twin.
+ * sn-status{bot_signals}. Remote twin signal-noise/remote-bot-signals
+ * (inc/abilities-remote-set.php) reads the same schema function below.
  *
  * @package SignalNoiseTools
  */
@@ -53,6 +54,33 @@ function snt_ability_bot_signals() {
 	return is_array( $r ) ? array( 'measured' => true ) + $r : array( 'measured' => false );
 }
 
+/**
+ * The payload's keys and types, shared by the admin registration and its
+ * remote twin so the pair is byte-identical by construction. It hashes into
+ * SN_REMOTE_CONTRACT_VERSION: change it and the contract moves.
+ *
+ * @return array
+ */
+function snt_bot_signals_output_schema() {
+	$int = array( 'type' => 'integer' );
+	return array(
+		'type'       => 'object',
+		'properties' => array(
+			'measured'     => array( 'type' => 'boolean' ),
+			'window_days'  => $int,
+			'visitor_days' => $int,
+			'truncated'    => array( 'type' => 'boolean' ),
+			'days_present' => $int,
+			'human'        => array( 'type' => 'object', 'properties' => array( 'visitor_days' => $int, 'likely_automated' => $int ) ),
+			'cohorts'      => array( 'type' => 'object' ),
+			'weights'      => array( 'type' => 'object' ),
+			'threshold'    => $int,
+			'subtracted'   => array( 'type' => 'boolean' ),
+			'measured_at'  => $int,
+		),
+	);
+}
+
 add_action( 'wp_abilities_api_init', function () {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
@@ -64,7 +92,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_bot_signals',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
-		'output_schema'       => array( 'type' => 'object' ),
+		'output_schema'       => snt_bot_signals_output_schema(),
 		'meta'                => array(
 			'show_in_rest' => true,
 			'mcp'          => array( 'public' => false, 'type' => 'tool' ), // absorbed: read via sn-status{bot_signals}.

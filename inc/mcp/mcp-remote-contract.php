@@ -60,7 +60,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Unreleased: '12' -> '13' (2026-09-29) — the deploy-status twin gained core
 // (current, latest, state, auto_updates, reason) after CVE-2026-87902. Additive.
 // The admin ability also gained runtime; the twin does NOT carry it.
-const SN_REMOTE_CONTRACT_VERSION = '13';
+// Unreleased: '13' -> '14' (2026-09-29, owner ruling) — two twins joined (17):
+// remote-bot-signals (byte-identical, observe-only cohort rates) and
+// remote-machine-readers-networks (the crosstab's agent_networks alone).
+// Deploy runtime and the recompute status stay local.
+const SN_REMOTE_CONTRACT_VERSION = '14';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -95,6 +99,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'12' => '0dd9868fa197f8c4272bb1923145376538d43bfa59bbec81ee0e76b30c9fedc3',
 	// RED-then-pin, 2026-09-29: core (state ok|behind|unknown + offer point|major) on the deploy-status twin (runtime stays local).
 	'13' => 'ece40b3b4b4ef3e4d192300cf6e32f1ad0d69cf56808438120c5fe993a032524',
+	// RED-then-pin, 2026-09-29: 17-twin map, bot-signals + agent_networks joined.
+	'14' => '8af49ec631820d9127a97e6271de37eaf80d28129bdf4b38db98f9bbdeb8b046',
 );
 
 /**

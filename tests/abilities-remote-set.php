@@ -78,6 +78,8 @@ $FULL_SET = array(
 	'signal-noise/remote-search-drift',       // v13.61.0
 	'signal-noise/remote-search-crossexam',   // v13.67.0
 	'signal-noise/remote-edge-errors-summary', // 18.0.0
+	'signal-noise/remote-bot-signals',              // contract 14
+	'signal-noise/remote-machine-readers-networks', // contract 14
 );
 $GLOBALS['__remote_slugs'] = $FULL_SET;
 
@@ -117,6 +119,16 @@ require __DIR__ . '/../inc/search-console-store.php';
 require __DIR__ . '/../inc/search-console-derive.php';
 require __DIR__ . '/../inc/abilities-search-console.php';
 require __DIR__ . '/../inc/abilities-edge-errors.php'; // 18.0.0
+// Contract 14: the bot-signals admin + the crosstab the networks twin slices.
+// The sensor read is stubbed so the wrapper runs over a fixed crosstab.
+if ( ! function_exists( 'snt_mr_fetch' ) ) {
+	function snt_mr_fetch( $days = 30, $view = 'aggregate' ) { return $GLOBALS['__mr_read'] ?? array( 'ok' => false, 'error' => 'stub' ); }
+}
+require __DIR__ . '/../inc/analytics-bot-signals.php';
+require __DIR__ . '/../inc/abilities-bot-signals.php';
+require_once __DIR__ . '/../inc/machine-readers-taxonomy.php';
+require __DIR__ . '/../inc/machine-readers-ledger.php';
+require __DIR__ . '/../inc/abilities-machine-readers-ledger.php';
 // The read/write allowlists, for the negative-space group.
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
 
@@ -148,6 +160,8 @@ $REMOTE_SP = 'signal-noise/remote-search-performance'; $ADMIN_SP = 'signal-noise
 $REMOTE_SD = 'signal-noise/remote-search-drift';       $ADMIN_SD = 'signal-noise/search-drift';
 $REMOTE_SX = 'signal-noise/remote-search-crossexam';   $ADMIN_SX = 'signal-noise/search-crossexam'; // v13.67.0
 $REMOTE_EE = 'signal-noise/remote-edge-errors-summary';   $ADMIN_EE = 'signal-noise/edge-errors-summary'; // 18.0.0
+$REMOTE_BS = 'signal-noise/remote-bot-signals';              $ADMIN_BS = 'signal-noise/bot-signals';                    // contract 14
+$REMOTE_AN = 'signal-noise/remote-machine-readers-networks'; $ADMIN_AN = 'signal-noise/get-machine-readers-crosstab'; // contract 14
 $ADMIN_PROV  = 'signal-noise/provenance-integrity-status';
 $ADMIN_MR    = 'signal-noise/get-machine-readers-summary';
 $ADMIN_CRON  = 'signal-noise/cron-health-summary';
@@ -166,6 +180,8 @@ $MAP = array(
 	$REMOTE_MR        => 'snt_ability_perm_remote_machine_readers',
 	$REMOTE_CRON      => 'snt_ability_perm_remote_cron_health',
 	$REMOTE_EE        => 'snt_ability_perm_remote_edge_errors',
+	$REMOTE_BS        => 'snt_ability_perm_remote_bot_signals',
+	$REMOTE_AN        => 'snt_ability_perm_remote_agent_networks',
 );
 
 $GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
@@ -200,6 +216,7 @@ $pairs_output = array(
 	array( $REMOTE_SD, $ADMIN_SD ),
 	array( $REMOTE_SX, $ADMIN_SX ),
 	array( $REMOTE_EE, $ADMIN_EE ),
+	array( $REMOTE_BS, $ADMIN_BS ),
 );
 foreach ( $pairs_output as $pair ) {
 	list( $remote, $admin ) = $pair;
@@ -217,6 +234,28 @@ ok( isset( $GLOBALS['__abilities'][ $ADMIN_DEPLOY ]['output_schema']['properties
 ok( $GLOBALS['__abilities'][ $REMOTE_DEPLOY ]['output_schema'] === $sn_admin_deploy_out, "$REMOTE_DEPLOY output_schema === $ADMIN_DEPLOY's minus runtime" );
 ok( 'snt_ability_remote_get_deploy_status' === $GLOBALS['__abilities'][ $REMOTE_DEPLOY ]['execute_callback'], "$REMOTE_DEPLOY runs the runtime-stripping wrapper" );
 
+// Contract 14: the networks twin is the crosstab schema MINUS the crosstab
+// itself (cells, total, families, taxonomy_absent), and runs a wrapper that
+// keeps only agent_networks and its envelope. Pinned as a strip.
+$sn_admin_an_out = $GLOBALS['__abilities'][ $ADMIN_AN ]['output_schema'];
+foreach ( array( 'cells', 'total', 'families', 'taxonomy_absent' ) as $k ) {
+	ok( isset( $sn_admin_an_out['properties'][ $k ] ), "THE STRIP PIN: get-machine-readers-crosstab declares $k" );
+	unset( $sn_admin_an_out['properties'][ $k ] );
+}
+ok( $GLOBALS['__abilities'][ $REMOTE_AN ]['output_schema'] === $sn_admin_an_out, "$REMOTE_AN output_schema === $ADMIN_AN's minus the crosstab" );
+ok( $GLOBALS['__abilities'][ $REMOTE_AN ]['input_schema'] === $GLOBALS['__abilities'][ $ADMIN_AN ]['input_schema'], "$REMOTE_AN input_schema === $ADMIN_AN's (days is a window, not a lever)" );
+ok( 'snt_ability_remote_agent_networks' === $GLOBALS['__abilities'][ $REMOTE_AN ]['execute_callback'], "$REMOTE_AN runs the slicing wrapper" );
+$GLOBALS['__mr_read'] = array( 'ok' => true, 'truncated' => false, 'rows' => array(
+	array( 'family' => 'openai', 'purpose' => 'train', 'agent' => 'GPTBot', 'surface' => 'note', 'day' => '2026-09-28', 'hits' => 4, 'network' => 'Microsoft', 'verified_bot' => '1' ),
+	array( 'family' => 'openai', 'purpose' => 'train', 'agent' => 'GPTBot', 'surface' => 'note', 'day' => '2026-09-28', 'hits' => 2, 'network' => 'Hetzner', 'verified_bot' => '' ),
+) );
+$sn_an = snt_ability_remote_agent_networks( array( 'days' => 7 ) );
+ok( array( 'ok', 'days', 'agent_networks', 'truncated', 'error' ) === array_keys( $sn_an ), 'the networks wrapper returns exactly ok, days, agent_networks, truncated, error' );
+ok( 7 === $sn_an['days'] && 'GPTBot' === ( $sn_an['agent_networks'][0]['agent'] ?? '' ) && 6 === $sn_an['agent_networks'][0]['hits'] && 4 === $sn_an['agent_networks'][0]['verified_hits'], 'the networks wrapper carries the admin fold unchanged (6 hits, 4 verified)' );
+$GLOBALS['__mr_read'] = array( 'ok' => false, 'error' => 'timeout' );
+$sn_an = snt_ability_remote_agent_networks( null );
+ok( false === $sn_an['ok'] && 'timeout' === $sn_an['error'] && ! isset( $sn_an['agent_networks'] ), 'a sensor that did not answer is ok:false with the error and no rows, never a zero' );
+
 echo "Group: PARITY, input — the twin schemas match the admin's, EXCEPT the two deliberate strips\n";
 ok(
 	$GLOBALS['__abilities'][ $REMOTE_EVENTS ]['input_schema'] === $GLOBALS['__abilities'][ $ADMIN_EVENTS ]['input_schema'],
@@ -228,6 +267,7 @@ $empty_pairs = array(
 	array( $REMOTE_HEALTH, $ADMIN_HEALTH ),
 	array( $REMOTE_RSS, $ADMIN_RSS ),
 	array( $REMOTE_EE, $ADMIN_EE ),
+	array( $REMOTE_BS, $ADMIN_BS ),
 );
 foreach ( $empty_pairs as $pair ) {
 	list( $remote, $admin ) = $pair;
@@ -302,6 +342,7 @@ $execute_pairs = array(
 	array( $REMOTE_MR, $ADMIN_MR ),
 	array( $REMOTE_CRON, $ADMIN_CRON ),
 	array( $REMOTE_EE, $ADMIN_EE ),
+	array( $REMOTE_BS, $ADMIN_BS ),
 );
 foreach ( $execute_pairs as $pair ) {
 	list( $remote, $admin ) = $pair;
