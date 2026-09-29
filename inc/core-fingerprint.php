@@ -8,9 +8,6 @@
  * carried ?ver=7.1.2. An attacker matching sites to a CVE reads exactly that.
  *
  * What this file hides:
- *   - emoji, entirely: the detection script, its styles, the TinyMCE plugin,
- *     the s.w.org SVG URL, and the feed/mail staticize filters. The site has
- *     no use for it and it was the one asset still printing the core version.
  *   - the core version in `ver` on assets core itself registers (src under
  *     /wp-includes/ or /wp-admin/, ver === $wp_version). It is REPLACED by a
  *     salted token, not stripped, so the URL still changes on a core update and
@@ -18,6 +15,14 @@
  *   - the_generator, for every type (html, xhtml, rss2, atom, rdf, comment,
  *     export). The theme already strips it (inc/frontend-filters.php); this is
  *     the plugin's copy, so a theme swap cannot bring it back.
+ *
+ * Emoji stays exactly as stock WordPress ships it (19.7.1 restored it). Its
+ * three script URLs (concatemoji, and wpemoji + twemoji under SCRIPT_DEBUG) are
+ * built in _print_emoji_detection_script() (wp-includes/formatting.php, 7.1)
+ * as includes_url( "js/...?ver=$wp_version" ) and passed through
+ * `script_loader_src`, so the token filter below covers them; it keys on the
+ * path and the version, never the handle. The s.w.org emoji_url / svgUrl carry
+ * the emoji set's own version (17.0.2), not core's.
  *
  * What it keeps on purpose: plugin and theme `ver` cache-busters (our own
  * release numbers are public on GitHub anyway), and core assets whose ver is
@@ -34,15 +39,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// admin-filters.php (admin_print_scripts, admin_enqueue_scripts, ...) loads
-// AFTER init in wp-admin, so an init-only removal leaves the admin hooks on.
 add_action( 'init', 'snt_core_fp_unhook' );
-add_action( 'admin_init', 'snt_core_fp_unhook' );
 add_filter( 'the_generator', '__return_empty_string' );
-// emoji_svg_url false covers the old s.w.org dns-prefetch too; wp_resource_hints
-// no longer adds one for emoji in 7.1, so there is no hint filter to add.
-add_filter( 'emoji_svg_url', '__return_false' );
-add_filter( 'tiny_mce_plugins', 'snt_core_fp_tinymce_plugins' );
 add_filter( 'script_loader_src', 'snt_core_fp_ver' );
 add_filter( 'style_loader_src', 'snt_core_fp_ver' );
 // The concat URLs (/wp-admin/load-scripts.php, load-styles.php, used by
@@ -59,26 +57,9 @@ function snt_core_fp_default_version( $deps ) {
 	}
 }
 
-/** Remove every emoji hook core registers, plus the wp_head generator. */
+/** Remove the wp_head generator. */
 function snt_core_fp_unhook() {
-	remove_action( 'wp_head', 'print_emoji_detection_script', 7 );
-	remove_action( 'embed_head', 'print_emoji_detection_script' );
-	remove_action( 'admin_print_scripts', 'print_emoji_detection_script' );
-	remove_action( 'wp_enqueue_scripts', 'wp_enqueue_emoji_styles' );
-	remove_action( 'admin_enqueue_scripts', 'wp_enqueue_emoji_styles' );
-	remove_action( 'enqueue_embed_scripts', 'wp_enqueue_emoji_styles' );
-	// Back-compat hooks that wp_enqueue_emoji_styles would have unhooked itself.
-	remove_action( 'wp_print_styles', 'print_emoji_styles' );
-	remove_action( 'admin_print_styles', 'print_emoji_styles' );
-	remove_filter( 'the_content_feed', 'wp_staticize_emoji' );
-	remove_filter( 'comment_text_rss', 'wp_staticize_emoji' );
-	remove_filter( 'wp_mail', 'wp_staticize_emoji_for_email' );
 	remove_action( 'wp_head', 'wp_generator' );
-}
-
-/** @param array $plugins TinyMCE plugin slugs. */
-function snt_core_fp_tinymce_plugins( $plugins ) {
-	return is_array( $plugins ) ? array_values( array_diff( $plugins, array( 'wpemoji' ) ) ) : $plugins;
 }
 
 /** Opaque, per-site token for a core version: changes with core, reveals nothing. */
