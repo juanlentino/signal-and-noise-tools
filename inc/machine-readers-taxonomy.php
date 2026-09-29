@@ -168,6 +168,10 @@ function snt_mr_normalize_taxonomy_fields( $row ) {
 		// ("Search Engine Crawler"); '' is not verified OR not measured (rows
 		// before v1.27.0), so it is never read as a claim either way.
 		'verified_bot'           => substr( preg_replace( '/[^A-Za-z0-9 &()\/\-]/', '', trim( (string) ( $row['verified_bot'] ?? '' ) ) ), 0, 64 ),
+		// Worker v1.28.0's blob13: the network owner (cf.asOrganization). Set by
+		// whoever owns the IP block, so untrusted: letters, digits and plain
+		// punctuation only, capped. '' is not measured (rows before v1.28.0).
+		'network'                => mb_substr( trim( (string) preg_replace( '/[^\p{L}\p{N} .,&()\/\-_]/u', '', (string) ( $row['network'] ?? '' ) ) ), 0, 128 ),
 	);
 }
 

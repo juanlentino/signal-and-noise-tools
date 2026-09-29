@@ -31,6 +31,8 @@ adds a bullet below. A release is a separate, deliberate act:
 - **docs/SECURITY.md**: the core fingerprint, the readme/licence edge block,
   a draft Cloudflare rule for encoded traversal in `pagename`, and the
   2026-09-29 incident note.
+### Added
+- **Is this crawler real: `agent_networks` on the machine-readers crosstab.** Rights signals 1.28.0 records the network each machine read came from (`network`, Cloudflare's `asOrganization`). The row normaliser passes it through with only letters, digits and plain punctuation, capped at 128 characters, because whoever owns an IP block chooses that name. The `get-machine-readers-crosstab` ability now also returns, per claimed agent, its hits, the hits Cloudflare verified, the hits from before the network was recorded, and its top five networks. ClaudeBot hits from a hosting provider that are not verified read as an impostor. Local ability only: the crosstab has no remote twin, so the remote contract version does not change.
 
 ## [19.6.3] - 2026-09-28 — the check reads the refresh
 

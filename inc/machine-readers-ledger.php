@@ -27,6 +27,9 @@ const SN_MR_POLLER_MIN_READS = 3;
  */
 const SN_MR_POLLER_MAX_CV = 0.5;
 
+/** Networks listed per agent in snt_mr_agent_networks(). */
+const SN_MR_AGENT_NETWORKS_TOP = 5;
+
 /**
  * Family x purpose x agent cells over the aggregate rows, hits descending.
  *
@@ -72,6 +75,52 @@ function snt_mr_crosstab( $rows ) {
 	unset( $cell );
 	usort( $cells, static fn( $a, $b ) => $b['hits'] <=> $a['hits'] ?: strcmp( $a['family'] . $a['purpose'] . $a['agent'], $b['family'] . $b['purpose'] . $b['agent'] ) );
 	return array( 'cells' => array_values( $cells ), 'total' => $total, 'families' => count( array_unique( array_column( $cells, 'family' ) ) ) );
+}
+
+/**
+ * Per agent: hits Cloudflare verified, and the networks the hits came from.
+ *
+ * Answers "is this crawler real": a claimed agent whose hits are unverified
+ * AND arrive from a network its vendor does not own is an impostor. Rows with
+ * no agent are skipped (an unmapped reader claims nothing). `networks` is the
+ * top SN_MR_AGENT_NETWORKS_TOP by hits; '' is a row written before the edge
+ * recorded the network (rights signals 1.28.0), so it is `not_measured`.
+ *
+ * @param array $rows snt_mr_fetch() aggregate rows.
+ * @return array<int,array> {agent, hits, verified_hits, networks[{network, hits}]}, hits descending.
+ */
+function snt_mr_agent_networks( $rows ) {
+	$agents = array();
+	foreach ( (array) $rows as $row ) {
+		$agent = is_array( $row ) ? (string) ( $row['agent'] ?? '' ) : '';
+		if ( '' === $agent ) {
+			continue;
+		}
+		$hits = max( 0, (int) ( $row['hits'] ?? 0 ) );
+		$net  = (string) ( $row['network'] ?? '' );
+		$a    = $agents[ $agent ] ?? array( 'agent' => $agent, 'hits' => 0, 'verified_hits' => 0, 'not_measured' => 0, 'networks' => array() );
+		$a['hits'] += $hits;
+		if ( '' !== (string) ( $row['verified_bot'] ?? '' ) ) {
+			$a['verified_hits'] += $hits;
+		}
+		if ( '' === $net ) {
+			$a['not_measured'] += $hits;
+		} else {
+			$a['networks'][ $net ] = ( $a['networks'][ $net ] ?? 0 ) + $hits;
+		}
+		$agents[ $agent ] = $a;
+	}
+	$out = array();
+	foreach ( $agents as $a ) {
+		arsort( $a['networks'] );
+		$nets = array();
+		foreach ( array_slice( $a['networks'], 0, SN_MR_AGENT_NETWORKS_TOP, true ) as $net => $h ) {
+			$nets[] = array( 'network' => (string) $net, 'hits' => $h );
+		}
+		$out[] = array_merge( $a, array( 'networks' => $nets ) );
+	}
+	usort( $out, static fn( $x, $y ) => $y['hits'] <=> $x['hits'] ?: strcmp( $x['agent'], $y['agent'] ) );
+	return $out;
 }
 
 /**
