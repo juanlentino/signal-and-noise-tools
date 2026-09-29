@@ -193,7 +193,6 @@ $pairs_output = array(
 	array( $REMOTE_UPTIME, $ADMIN_UPTIME ),
 	array( $REMOTE_HEALTH, $ADMIN_HEALTH ),
 	array( $REMOTE_RSS, $ADMIN_RSS ),
-	array( $REMOTE_DEPLOY, $ADMIN_DEPLOY ),
 	array( $REMOTE_PROV, $ADMIN_PROV ),
 	array( $REMOTE_MR, $ADMIN_MR ),
 	array( $REMOTE_CRON, $ADMIN_CRON ),
@@ -209,6 +208,14 @@ foreach ( $pairs_output as $pair ) {
 		"$remote output_schema === $admin's"
 	);
 }
+
+// Contract 13: the deploy twin is the admin schema MINUS runtime, and runs a
+// wrapper that unsets runtime. Pinned as a strip, not skipped.
+$sn_admin_deploy_out = $GLOBALS['__abilities'][ $ADMIN_DEPLOY ]['output_schema'];
+unset( $sn_admin_deploy_out['properties']['runtime'] );
+ok( isset( $GLOBALS['__abilities'][ $ADMIN_DEPLOY ]['output_schema']['properties']['runtime'] ), 'THE STRIP PIN: get-deploy-status declares runtime' );
+ok( $GLOBALS['__abilities'][ $REMOTE_DEPLOY ]['output_schema'] === $sn_admin_deploy_out, "$REMOTE_DEPLOY output_schema === $ADMIN_DEPLOY's minus runtime" );
+ok( 'snt_ability_remote_get_deploy_status' === $GLOBALS['__abilities'][ $REMOTE_DEPLOY ]['execute_callback'], "$REMOTE_DEPLOY runs the runtime-stripping wrapper" );
 
 echo "Group: PARITY, input — the twin schemas match the admin's, EXCEPT the two deliberate strips\n";
 ok(
@@ -291,7 +298,6 @@ $execute_pairs = array(
 	array( $REMOTE_UPTIME, $ADMIN_UPTIME ),
 	array( $REMOTE_HEALTH, $ADMIN_HEALTH ),
 	array( $REMOTE_RSS, $ADMIN_RSS ),
-	array( $REMOTE_DEPLOY, $ADMIN_DEPLOY ),
 	array( $REMOTE_PROV, $ADMIN_PROV ),
 	array( $REMOTE_MR, $ADMIN_MR ),
 	array( $REMOTE_CRON, $ADMIN_CRON ),

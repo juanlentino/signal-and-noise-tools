@@ -114,6 +114,24 @@ function snt_ability_perm_remote_rss_stats() {
 }
 
 /**
+ * Execute callback for `signal-noise/remote-get-deploy-status`: the admin
+ * payload without `runtime`. PHP version and register_argc_argv are exploit
+ * selection data (argc/argv on is half of the pearcmd include-to-RCE chain, the
+ * exact class CVE-2026-87902 belongs to); the remote door relays through a
+ * Cloudflare worker to devices, so it gets the version rows and not the runtime.
+ *
+ * @param mixed $input Ignored; the twin accepts no arguments.
+ * @return array|WP_Error
+ */
+function snt_ability_remote_get_deploy_status( $input = null ) {
+	$out = snt_ability_get_deploy_status( null );
+	if ( is_array( $out ) ) {
+		unset( $out['runtime'] );
+	}
+	return $out;
+}
+
+/**
  * Permission callback for `signal-noise/remote-get-deploy-status`.
  *
  * @return bool
@@ -510,7 +528,7 @@ add_action( 'wp_abilities_api_init', function () {
 			. 'is explicitly enabled.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_remote_deploy_status',
-		'execute_callback'    => 'snt_ability_get_deploy_status',
+		'execute_callback'    => 'snt_ability_remote_get_deploy_status',
 		'input_schema'        => array(
 			// The admin ability accepts force_refresh (a deliberate cache bypass
 			// that hits an upstream API fresh). The twin DOES NOT CARRY THE KEY:
@@ -523,7 +541,8 @@ add_action( 'wp_abilities_api_init', function () {
 			'additionalProperties' => false,
 		),
 		// output_schema: copied BYTE-IDENTICAL from the admin registration in
-		// inc/abilities-system.php — the parity pin in tests enforces ===.
+		// inc/abilities-system.php, MINUS `runtime` (contract 13): the parity
+		// pin in tests enforces === against the admin schema with runtime removed.
 		'output_schema'       => array(
 			'type'       => 'object',
 			'properties' => array(
@@ -554,6 +573,19 @@ add_action( 'wp_abilities_api_init', function () {
 				'last_gha_run' => array(
 					'type'        => 'string',
 					'description' => 'Relative time of the most recent deploy GHA workflow run across both repos — the pre-v9.63.3 last_deploy reading, kept as a clearly-labeled secondary field. deploy.yml is the workflow_dispatch-only emergency fallback, so this moves only on manual dispatches. Empty string if unknown. Added v9.63.3.',
+				),
+				// Additive (contract 13, 2026-09-29): WordPress core beside theme and plugin.
+				'core' => array(
+					'type'        => 'object',
+					'description' => 'WordPress core. current is $wp_version; latest is the highest version the CACHED update_core transient offers (never a live check); state ok|behind|unknown; offer says what kind of release is waiting: point (a same-branch point release, response autoupdate; WordPress ships security fixes as point releases but does not flag them), major (only an upgrade offer), or empty when ok or unknown; point wins when both exist; auto_updates is WordPress\'s own updater (minor|all|off); reason says why when not ok.',
+					'properties'  => array(
+						'current'      => array( 'type' => 'string' ),
+						'latest'       => array( 'type' => 'string' ),
+						'state'        => array( 'type' => 'string', 'enum' => array( 'ok', 'behind', 'unknown' ) ),
+						'offer'        => array( 'type' => 'string', 'enum' => array( 'point', 'major', '' ) ),
+						'auto_updates' => array( 'type' => 'string', 'enum' => array( 'minor', 'all', 'off' ) ),
+						'reason'       => array( 'type' => 'string' ),
+					),
 				),
 				// Additive: theme/plugin keys stay byte-stable for morning-brief + desktop widget.
 				'workers' => array(

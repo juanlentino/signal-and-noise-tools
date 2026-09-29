@@ -1,0 +1,108 @@
+<?php
+/**
+ * Signal & Noise — the `core` and `runtime` rows of get-deploy-status.
+ *
+ * core: the WordPress version, the newest version the CACHED update_core
+ * transient offers, a state, WordPress's own auto-update mode, and a reason.
+ * runtime: PHP_VERSION and register_argc_argv, local door only.
+ *
+ * auto_updates describes WordPress's updater only. A host that updates core
+ * outside it (Cloudways can) is invisible here.
+ *
+ * @package SignalNoiseTools
+ * @since 19.4.0
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * WordPress's own updater, reduced to one word. Pure so it can be pinned: the
+ * inputs are constants that cannot vary inside one PHP process.
+ * A major-only configuration still applies releases, so it reads 'all'.
+ */
+function snt_core_auto_updates_mode( $file_mods_allowed, $updater_disabled, $allow_major, $allow_minor ) {
+	if ( ! $file_mods_allowed || $updater_disabled ) {
+		return 'off';
+	}
+	if ( $allow_major ) {
+		return 'all';
+	}
+	return $allow_minor ? 'minor' : 'off';
+}
+
+/** Resolve the inputs the way WP_Automatic_Updater does, filters included. */
+function snt_core_auto_updates() {
+	$file_mods = ! ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS );
+	if ( function_exists( 'wp_is_file_mod_allowed' ) ) {
+		$file_mods = wp_is_file_mod_allowed( 'automatic_updater' );
+	}
+	$disabled = (bool) apply_filters( 'automatic_updater_disabled', defined( 'AUTOMATIC_UPDATER_DISABLED' ) && AUTOMATIC_UPDATER_DISABLED );
+	$major    = false;
+	$minor    = true;
+	if ( defined( 'WP_AUTO_UPDATE_CORE' ) ) {
+		$mode  = WP_AUTO_UPDATE_CORE;
+		$minor = false !== $mode;
+		$major = true === $mode || in_array( $mode, array( 'beta', 'rc', 'development', 'branch-development' ), true );
+	} else {
+		$major = 'enabled' === get_site_option( 'auto_update_core_major' );
+	}
+	$major = (bool) apply_filters( 'allow_major_auto_core_updates', $major );
+	$minor = (bool) apply_filters( 'allow_minor_auto_core_updates', $minor );
+	return snt_core_auto_updates_mode( $file_mods, $disabled, $major, $minor );
+}
+
+/** Reason text for a waiting point release. */
+const SNT_CORE_POINT_REASON = 'A point release is waiting (WordPress ships security fixes as point releases but does not flag them).';
+
+/**
+ * The `core` row. Reads the CACHED update_core site transient only; never calls
+ * wp_version_check or anything that reaches the network.
+ *
+ * offer: WordPress offers carry no security flag. Response 'autoupdate' marks a
+ * same-branch point release (the only way core ships a security fix), so
+ * offer 'point' means one is waiting, security or maintenance alike; 'major'
+ * means only an 'upgrade' offer; '' when ok or unknown. Point wins.
+ */
+function snt_core_status() {
+	$current = isset( $GLOBALS['wp_version'] ) ? (string) $GLOBALS['wp_version'] : '';
+	$row     = array( 'current' => $current, 'latest' => $current, 'state' => 'unknown', 'offer' => '', 'auto_updates' => snt_core_auto_updates(), 'reason' => '' );
+	$cached  = get_site_transient( 'update_core' );
+	if ( '' === $current || ! is_object( $cached ) || ! isset( $cached->updates ) || ! is_array( $cached->updates ) ) {
+		$row['reason'] = 'No cached core update check (the update_core transient is missing). Read only; nothing is fetched here.';
+		return $row;
+	}
+	$newest = '';
+	$point  = '';
+	foreach ( $cached->updates as $offer ) {
+		$response = is_object( $offer ) && isset( $offer->response ) ? (string) $offer->response : '';
+		$version  = is_object( $offer ) && isset( $offer->version ) ? (string) $offer->version : '';
+		if ( ! in_array( $response, array( 'upgrade', 'autoupdate' ), true ) || '' === $version || ! version_compare( $version, $current, '>' ) ) {
+			continue;
+		}
+		if ( 'autoupdate' === $response && ( '' === $point || version_compare( $version, $point, '>' ) ) ) {
+			$point = $version;
+		}
+		if ( '' === $newest || version_compare( $version, $newest, '>' ) ) {
+			$newest = $version;
+		}
+	}
+	if ( '' === $newest ) {
+		$row['state'] = 'ok';
+		return $row;
+	}
+	$row['latest'] = $newest;
+	$row['state']  = 'behind';
+	$row['offer']  = '' !== $point ? 'point' : 'major';
+	$row['reason'] = '' !== $point ? SNT_CORE_POINT_REASON : "WordPress $newest is available.";
+	return $row;
+}
+
+/** The `runtime` row. Local only: the remote twin drops it (see abilities-remote-set.php). */
+function snt_runtime_status() {
+	return array(
+		'php'                => PHP_VERSION,
+		'register_argc_argv' => (bool) filter_var( ini_get( 'register_argc_argv' ), FILTER_VALIDATE_BOOLEAN ),
+	);
+}

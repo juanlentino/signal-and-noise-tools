@@ -128,17 +128,21 @@
 			style: 'display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;font-size:13px;line-height:1.4;align-items:baseline;',
 		} );
 
-		[ 'theme', 'plugin' ].forEach( function( pkg ) {
+		// Core joins theme/plugin when the payload carries it (contract 13);
+		// an older payload renders the old rows.
+		[ 'theme', 'plugin', 'core' ].forEach( function( pkg ) {
+			if ( pkg === 'core' && ! status.core ) { return; }
 			var info = status[ pkg ] || {};
 			var glyph = stateGlyph( stale ? 'unknown' : ( info.state || 'unknown' ) );
 
 			grid.appendChild( el( 'span', {
 				style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
-				text:  pkg === 'theme' ? 'Theme' : 'Plugin',
+				text:  { theme: 'Theme', plugin: 'Plugin', core: 'Core' }[ pkg ],
 			} ) );
 			grid.appendChild( el( 'span', {
 				style: 'font-variant-numeric:tabular-nums;font-weight:500;',
-				text:  info.current || '—',
+				// Core names what is waiting: "behind (point)" / "behind (major)".
+				text:  ( info.current || '—' ) + ( pkg === 'core' && info.state === 'behind' && info.offer ? ' · behind (' + info.offer + ')' : '' ),
 			} ) );
 			var glyphEl = el( 'span', {
 				style: 'color:' + glyph.color + ';font-weight:600;',

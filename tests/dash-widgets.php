@@ -360,5 +360,17 @@ foreach ( $GLOBALS['__actions']['admin_enqueue_scripts'] ?? array() as $cb ) { $
 ok( ! isset( $GLOBALS['__styles']['sn-dash-widgets'] ), 'and neither loads anywhere else' );
 ok( ! isset( $GLOBALS['__scripts']['sn-dash-widgets'] ), 'nor the script' );
 
+// Contract 13: the Operations leaf paints a Core row off get-deploy-status,
+// the native twin of the desktop widget's Core row.
+$core_field = null;
+foreach ( snt_dwx_boxes() as $box ) {
+	if ( 'sn_dash_ops' !== $box['id'] ) { continue; }
+	foreach ( $box['sections'] as $sec ) {
+		foreach ( $sec['fields'] ?? array() as $f ) { if ( 'core.current' === $f['path'] ) { $core_field = $f + array( 'ability' => $sec['ability'] ?? '' ); } }
+	}
+}
+ok( is_array( $core_field ) && 'signal-noise/get-deploy-status' === $core_field['ability'], 'Operations leaf has a Core row from get-deploy-status' );
+ok( is_array( $core_field ) && 'core.offer' === ( $core_field['compare']['path'] ?? '' ) && 'behind (%s)' === ( $core_field['compare']['template'] ?? '' ), 'the Core row says behind (point|major), silent when offer is empty' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
