@@ -111,7 +111,7 @@ function snt_watches() {
 		array(
 			'id'        => 'bot_signals_validation',
 			'label'     => 'beacon bot signals: validate, then decide',
-			'why'       => 'The five beacon signals are observe-only. Ripe when 14 days carry signal rows and every cohort (relay readers, intent visitors, stored bots, over-cap visitor-days, hosting suspects) has enough visitor-days to read a rate. Then: drop any signal that fires on relay readers or intent visitors, or does not fire on the other three, and bring the survivors and a threshold to the owner before anything subtracts.',
+			'why'       => 'The five beacon signals are observe-only. Ripe when 14 days carry signal rows and the two known-human cohorts (relay readers, intent visitors) each have 20 visitor-days; stored bots, over-cap visitor-days and hosting suspects are reported at whatever count they reach (over-cap ran 2 in 92 days). Then: drop any signal that fires on relay readers or intent visitors, or does not fire on the other three, and bring the survivors and a threshold to the owner before anything subtracts.',
 			'read'      => 'sn-status{bot_signals}',
 			'date_only' => false,
 			'due'       => '',
@@ -132,8 +132,8 @@ function snt_watches() {
 }
 
 /**
- * Ripe when the stored bot-signals reading covers 14 days and every cohort has
- * SNT_BOT_SIGNAL_MIN_N visitor-days. Reads the nightly record, never AE.
+ * Ripe when the stored bot-signals reading covers 14 days and the relay and
+ * intent cohorts each have SNT_BOT_SIGNAL_MIN_N visitor-days. Reads the nightly record, never AE.
  *
  * @param array    $watch  The watch row.
  * @param int      $now    Unix time (unused).
@@ -148,16 +148,24 @@ function snt_watch_ripe_bot_signals( $watch, $now, $stored = false ) {
 	}
 	$min  = defined( 'SNT_BOT_SIGNAL_MIN_N' ) ? SNT_BOT_SIGNAL_MIN_N : 20;
 	$days = (int) ( $r['days_present'] ?? 0 );
+	// Only the two known-human cohorts gate: over-cap ran 2 visitor-days in 92,
+	// so a floor on every cohort would never ripen. The rest are reported as-is.
+	$c    = (array) ( $r['cohorts'] ?? array() );
 	$thin = array();
-	foreach ( (array) ( $r['cohorts'] ?? array() ) as $c => $v ) {
-		if ( (int) ( $v['n'] ?? 0 ) < $min ) {
-			$thin[] = $c . ' ' . (int) ( $v['n'] ?? 0 );
+	foreach ( array( 'relay', 'intent' ) as $k ) {
+		if ( (int) ( $c[ $k ]['n'] ?? 0 ) < $min ) {
+			$thin[] = $k . ' ' . (int) ( $c[ $k ]['n'] ?? 0 );
 		}
 	}
-	if ( $days < 14 || array() !== $thin || empty( $r['cohorts'] ) ) {
-		return array( 'ripe' => false, 'note' => $days . ' of 14 days' . ( $thin ? '; under ' . $min . ': ' . implode( ', ', $thin ) : '' ) );
+	$rest = array();
+	foreach ( array_diff( array_keys( $c ), array( 'relay', 'intent' ) ) as $k ) {
+		$rest[] = $k . ' ' . (int) ( $c[ $k ]['n'] ?? 0 );
 	}
-	return array( 'ripe' => true, 'note' => $days . ' days, every cohort at ' . $min . '+ visitor-days' );
+	$others = $rest ? '; others: ' . implode( ', ', $rest ) : '';
+	if ( $days < 14 || array() !== $thin ) {
+		return array( 'ripe' => false, 'note' => $days . ' of 14 days' . ( $thin ? '; under ' . $min . ': ' . implode( ', ', $thin ) : '' ) . $others );
+	}
+	return array( 'ripe' => true, 'note' => $days . ' days, relay and intent at ' . $min . '+ visitor-days' . $others );
 }
 
 /**

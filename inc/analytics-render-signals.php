@@ -62,7 +62,7 @@ function snt_analytics_render_bot_signals( $r ) {
 	echo '</tbody></table>';
 	echo '<p class="description">' . esc_html( sprintf(
 		/* translators: 1: days carrying signals, 2: measured-at date */
-		__( '%1$s days carry signals. A signal worth keeping reads near 0%% on relay readers and intent visitors and fires on the last three rows. Measured %2$s.', 'signal-and-noise-tools' ),
+		__( '%1$s days carry signals. A signal worth keeping reads near 0%% on relay readers and intent visitors and fires on the last three rows. Expected false positive: a phone reader who finishes a short page without scrolling or touching sends a time event with no input, so no input fires; the relay readers\' no-input rate is that human baseline, not a bot rate. Measured %2$s.', 'signal-and-noise-tools' ),
 		number_format_i18n( (int) ( $r['days_present'] ?? 0 ) ),
 		gmdate( 'Y-m-d H:i', (int) ( $r['measured_at'] ?? 0 ) ) . ' UTC'
 	) ) . '</p>';

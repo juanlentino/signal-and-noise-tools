@@ -68,8 +68,12 @@ $w = snt_watch_ripe_bot_signals( array(), 0, null );
 ok( false === $w['ripe'] && 'not measured yet' === $w['note'], 'nothing stored is not ripe' );
 ok( false === snt_watch_ripe_bot_signals( array(), 0, $r )['ripe'], '1 day and thin cohorts are not ripe' );
 $full = $r; $full['days_present'] = 14;
-foreach ( $full['cohorts'] as $c => $v ) { $full['cohorts'][ $c ]['n'] = 20; }
-ok( true === snt_watch_ripe_bot_signals( array(), 0, $full )['ripe'], '14 days and 20 per cohort ripens' );
+$full['cohorts']['relay']['n'] = 20; $full['cohorts']['intent']['n'] = 20; $full['cohorts']['over_cap']['n'] = 2;
+$w = snt_watch_ripe_bot_signals( array(), 0, $full );
+ok( true === $w['ripe'], '14 days with relay and intent at 20 ripens, over-cap at 2 does not hold it' );
+ok( false !== strpos( $w['note'], 'over_cap 2' ), 'the other cohorts are reported at their count' );
+$d13 = $full; $d13['days_present'] = 13;
+ok( false === snt_watch_ripe_bot_signals( array(), 0, $d13 )['ripe'], '13 days is not ripe' );
 $full['cohorts']['relay']['n'] = 19;
 $t = snt_watch_ripe_bot_signals( array(), 0, $full );
 ok( false === $t['ripe'] && false !== strpos( $t['note'], 'relay 19' ), 'one thin cohort holds it and is named' );
@@ -82,6 +86,7 @@ ok( '' === $o && 'Bot signals (observe-only)' === ( $GLOBALS['sn_an_empty_panels
 ob_start(); snt_analytics_render_bot_signals( sn_bot_signals_stored() ); $o = ob_get_clean();
 ok( false !== strpos( $o, 'Not subtracted' ) && 5 === substr_count( $o, '<tr><td class="column-primary">' ), 'five cohort rows, the observe-only line' );
 ok( false !== strpos( $o, '50.0%' ), 'a rate paints as a percent' );
+ok( false !== strpos( $o, 'human baseline, not a bot rate' ), 'the caption names the short-page phone false positive' );
 
 echo "\nResult: {$pass} passed, {$fail} failed.\n";
 exit( $fail > 0 ? 1 : 0 );
