@@ -28,7 +28,9 @@
  * bad save can never blank the live page.
  *
  * Admin surface: Content → Resume Page (inc/admin-forms/resume-page.php);
- * POST action `resume_save` (inc/admin-post-actions/content.php).
+ * the form saves a DRAFT (`resume_draft_save`, inc/resume-draft.php) and
+ * Publish is what calls sn_resume_doc_save(). `resume_save`
+ * (inc/admin-post-actions/content.php) stays for back-compat; no form posts it.
  *
  * @package SignalNoiseTools
  * @since 10.33.0

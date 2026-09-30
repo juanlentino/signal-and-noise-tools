@@ -99,7 +99,12 @@ if ( '' !== $pdftotext ) {
 }
 $gen_src = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/generate.php' );
 ok( false !== strpos( $gen_src, 'sn_resume_pdf_render( $doc, $name, $loc[\'dir\'] . \'/.font-cache\', ! empty( $doc[\'pdf\'][\'phone_public\'] ), home_url( \'/\' ) );' ), 'Generate PDF includes the phone ONLY per the switch' );
-ok( 1 === preg_match( '/function sn_resume_pdf_private_stream\(\).*?sn_resume_pdf_render\([^;]*,\s*true,\s*home_url\( \'\/\' \)\s*\);.*?header\( .Content-Disposition: attachment/s', $gen_src ) && false === strpos( substr( $gen_src, (int) strpos( $gen_src, 'function sn_resume_pdf_private_stream' ) ), 'file_put_contents' ), 'the private copy streams as an attachment and is never written to disk' );
+// Drafts: ONE streamer (sn_resume_pdf_stream) serves the private copy and the
+// draft preview; each caller only picks the document, the phone and the name.
+$stream_src = substr( $gen_src, (int) strpos( $gen_src, 'function sn_resume_pdf_stream(' ) );
+ok( false !== strpos( $gen_src, 'function sn_resume_pdf_stream(' ) && 1 === preg_match( '/^function sn_resume_pdf_stream\( \$doc, \$with_phone, \$filename \) \{.*?sn_resume_pdf_render\( \$doc, \$name, [^;]*, \(bool\) \$with_phone, home_url\( \'\/\' \) \);.*?header\( .Content-Disposition: attachment; filename="\' \. \$filename/s', $stream_src ) && false === strpos( $stream_src, 'file_put_contents' ), 'the shared streamer renders with the phone rule it is given, sends an attachment, and nothing after it writes to disk' );
+ok( 1 === preg_match( '/function sn_resume_pdf_private_stream\(\) \{\s*return sn_resume_pdf_stream\( [^;]*sn_resume_doc_get\(\)[^;]*, true, \'JuanLentino_Resume_private\.pdf\' \);/', $gen_src ), 'the private copy streams the LIVE document WITH the phone' );
+ok( 1 === preg_match( '/function sn_resume_pdf_draft_stream\(\) \{\s*\$doc = [^;]*sn_resume_draft_get\(\)[^;]*;\s*return sn_resume_pdf_stream\( \$doc, ! empty\( \$doc\[\'pdf\'\]\[\'phone_public\'\] \), \'JuanLentino_Resume_draft\.pdf\' \);/', $gen_src ), 'the draft preview streams the DRAFT under the public phone rule, as JuanLentino_Resume_draft.pdf' );
 
 echo "\nThe contact line (owner, 2026-09-22: location and links were missing)\n";
 $bare                    = $fixture;

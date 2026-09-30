@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **Résumé drafts: saving the form no longer changes the live /resume page.** Content → Resume Page (both the native window and the classic screen) now saves a draft (`sn_resume_draft`, autoload off) and paints it back, with a status line saying whether the draft differs from live. New controls appear only when they can act: Preview page (the draft as an autosave of the /resume Page, opened in WordPress's own preview), Preview PDF (the draft's PDF under the public phone rule, streamed, never stored), Publish (today's save, then the PDF is rebuilt if one was ever generated, else /resume is purged; a draft equal to live publishes nothing), Discard, and Revert (swaps live with the version the last Publish replaced, each keeping its own date, so Revert twice returns). The old direct-publish `resume_save` action stays registered for back-compat, but no form posts it. `tests/resume-draft.php` (35) pins the data layer and the handlers' flash codes.
+
 - CI: the "Parity cron still firing" check reads each workflow's scheduled-run list three times and keeps the newest stamp. On 2026-09-30 GitHub twice served a stale list (newest run 8 and 25 days old while both crons had fired that morning) and redded #1806; one stale answer can no longer do that, and a cron that has really stopped still fails.
 ## [19.8.1] - 2026-09-30 — September waits
 

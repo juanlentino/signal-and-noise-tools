@@ -156,31 +156,53 @@ function sn_resume_pdf_link( $fallback ) {
 }
 
 /**
- * The PRIVATE copy: the same PDF with the phone, streamed to the requesting
- * admin and never written to disk, so it has no URL anyone else can fetch.
- * The dispatcher has checked the nonce and manage_options. Exits on success;
- * returns a WP_Error for the caller's flash on failure.
+ * Stream a rendered PDF to the requesting admin as an attachment, never
+ * written to disk, so it has no URL anyone else can fetch. The dispatcher has
+ * checked the nonce and manage_options. Exits on success; returns a WP_Error
+ * for the caller's flash on failure.
  *
+ * @param array|null $doc        Document to render.
+ * @param bool       $with_phone Whether the phone is printed.
+ * @param string     $filename   Attachment name (a fixed string, never input).
  * @return WP_Error|void
  */
-function sn_resume_pdf_private_stream() {
-	$doc = function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null;
+function sn_resume_pdf_stream( $doc, $with_phone, $filename ) {
 	$loc = sn_resume_pdf_location();
 	if ( ! is_array( $doc ) || null === $loc ) {
-		return new WP_Error( 'sn_resume_pdf_private', 'No resume document or uploads directory.' );
+		return new WP_Error( 'sn_resume_pdf_stream', 'No resume document or uploads directory.' );
 	}
 	$name   = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
-	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', true, home_url( '/' ) );
+	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', (bool) $with_phone, home_url( '/' ) );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
 	nocache_headers();
 	header( 'Content-Type: application/pdf' );
-	header( 'Content-Disposition: attachment; filename="JuanLentino_Resume_private.pdf"' );
+	header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
 	header( 'Content-Length: ' . strlen( $result['bytes'] ) );
 	header( 'X-Robots-Tag: noindex, nofollow' );
 	echo $result['bytes']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- binary PDF body, not HTML.
 	exit;
+}
+
+/**
+ * The PRIVATE copy: the live document WITH the phone, streamed, never stored.
+ *
+ * @return WP_Error|void
+ */
+function sn_resume_pdf_private_stream() {
+	return sn_resume_pdf_stream( function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null, true, 'JuanLentino_Resume_private.pdf' );
+}
+
+/**
+ * The DRAFT preview: the draft under the PUBLIC phone rule, so it is the file
+ * Publish would generate. Streamed, never stored.
+ *
+ * @return WP_Error|void
+ */
+function sn_resume_pdf_draft_stream() {
+	$doc = function_exists( 'sn_resume_draft_get' ) ? sn_resume_draft_get() : null;
+	return sn_resume_pdf_stream( $doc, ! empty( $doc['pdf']['phone_public'] ), 'JuanLentino_Resume_draft.pdf' );
 }
 
 /**

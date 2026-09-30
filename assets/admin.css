@@ -2455,6 +2455,12 @@ a.sn-glance-card:focus {
 .sn-rsm-lines {
 	margin: var(--sn-space-2) 0 0;
 }
+/* The resume Draft controls: each button is its own form (its own nonce), so
+   the forms sit inline to read as one row of buttons beside the previews. */
+.sn-rsm-draft-form {
+	display: inline-block;
+	margin: 0 var(--sn-space-2) var(--sn-space-2) 0;
+}
 
 /* R6b — Measurement → Search Console (the service-account credential leaf).
    The identity card prints values that are long and unbreakable by nature: a

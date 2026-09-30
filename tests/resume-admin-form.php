@@ -42,7 +42,7 @@ sn_admin_render_resume_section();
 $html = ob_get_clean();
 
 ok( false !== strpos( $html, 'name="_wpnonce"' ), 'nonce field rendered' );
-ok( false !== strpos( $html, 'value="sn_resume_save"' ), 'submit posts sn_action=resume_save' );
+ok( false !== strpos( $html, 'value="sn_resume_draft_save"' ) && false === strpos( $html, 'value="sn_resume_save"' ), 'submit posts sn_action=resume_draft_save (a draft), never the old direct-publish resume_save' );
 ok( false !== strpos( $html, 'prefilled from the current published content' ), 'unsaved state explains the first-save takeover' );
 
 // Input names mirror the document shape the handler passes straight through.
@@ -103,7 +103,7 @@ sn_resume_doc_save( sn_resume_seed_doc() );
 ob_start();
 sn_admin_render_resume_section();
 $html2 = ob_get_clean();
-ok( false !== strpos( $html2, 'Last saved: <code>2026-08-03</code>' ), 'saved state shows the save stamp' );
+ok( false !== strpos( $html2, 'Last published: <code>2026-08-03</code>' ), 'saved state shows the live document stamp' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

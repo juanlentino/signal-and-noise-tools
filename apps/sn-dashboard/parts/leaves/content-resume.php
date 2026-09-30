@@ -4,7 +4,7 @@
  *
  * The classic leaf (inc/admin-forms/resume-page.php,
  * `sn_admin_render_resume_section()`) is the STRUCTURED editor for /resume:
- * one form (`sn_action=resume_save`), nine collapsed sections (Hero, Stats,
+ * one form (`sn_action=resume_draft_save`: Save stores a draft, see content-resume-draft.php), nine collapsed sections (Hero, Stats,
  * Experience, Earlier career, Education, Affiliations, Publications, Skills,
  * PDF only), plus the Resume PDF form (`sn_action=resume_pdf_generate`)
  * of real fields and repeatable rows, one Save button, and a hard failure
@@ -23,6 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/content-resume-parts.php';
+require_once __DIR__ . '/content-resume-draft.php';
 
 /**
  * One collapsed section — sn_rsm_section_open(): heading, row-count badge
@@ -57,12 +58,12 @@ function resume_intro( array $doc ) {
 	$link = \snt_kit_link( '/resume', home_url( '/resume' ) );
 	if ( '' !== (string) ( $doc['updated'] ?? '' ) ) {
 		return '<p class="snt-prose">'
-			. sprintf( /* translators: %s: the /resume link */ \snt_kit_esc( __( 'This form is the editor for the live %s page. Saving regenerates it.', 'signal-and-noise-tools' ) ), $link )
-			. ' ' . \snt_kit_esc( __( 'Last saved:', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( (string) $doc['updated'], false ) . '.'
+			. sprintf( /* translators: %s: the /resume link */ \snt_kit_esc( __( 'This form is the editor for the live %s page. Saving stores a draft; nothing goes live until you publish it.', 'signal-and-noise-tools' ) ), $link )
+			. ' ' . \snt_kit_esc( __( 'Last published:', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( (string) $doc['updated'], false ) . '.'
 			. '</p>';
 	}
 	return '<p class="snt-prose">'
-		. sprintf( /* translators: %s: the /resume link */ \snt_kit_esc( __( 'This form is the editor for the live %s page, prefilled from the current published content. The first save takes over the page body: from then on this form is the canonical editor.', 'signal-and-noise-tools' ) ), $link )
+		. sprintf( /* translators: %s: the /resume link */ \snt_kit_esc( __( 'This form is the editor for the live %s page, prefilled from the current published content. Saving stores a draft; the first publish takes over the page body, and from then on this form is the canonical editor.', 'signal-and-noise-tools' ) ), $link )
 		. '</p>';
 }
 
@@ -119,7 +120,7 @@ function resume_pdf_generate() {
 		$status = '<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: 1: timestamp, 2: pages */ __( 'Generated %1$s: %2$d pages.', 'signal-and-noise-tools' ), \sn_resume_pdf_when( $meta ), (int) $meta['pages'] ) )
 			. ' ' . \snt_kit_link( __( 'Open the PDF', 'signal-and-noise-tools' ), \sn_resume_pdf_link( '' ) ) . '</p>';
 	} else {
-		$status = '<p class="snt-prose">' . \snt_kit_esc( __( 'Not generated yet: the /resume Download link still uses the PDF URL. Generating builds the PDF from the saved resume and switches the link to it.', 'signal-and-noise-tools' ) ) . '</p>';
+		$status = '<p class="snt-prose">' . \snt_kit_esc( __( 'Not generated yet: the /resume Download link still uses the PDF URL. Generating builds the PDF from the published resume and switches the link to it.', 'signal-and-noise-tools' ) ) . '</p>';
 	}
 	$private = '<p class="snt-prose">' . \snt_kit_esc( __( 'A private copy always includes the phone: built on demand for you, never saved on the server, so it has no public URL.', 'signal-and-noise-tools' ) ) . '</p>';
 	return \snt_kit_section(
@@ -164,7 +165,7 @@ function resume_sections( array $doc ) {
 		. resume_section( __( 'Affiliations & Certifications', 'signal-and-noise-tools' ), '', count( $aff ), resume_list( $aff, $ns . '\resume_titled_lines_row', 'resume[affiliations]', '__A__', __( '+ Add affiliation', 'signal-and-noise-tools' ), __( 'affiliation', 'signal-and-noise-tools' ) ) )
 		. resume_section( __( 'Publications', 'signal-and-noise-tools' ), __( 'A new paper is one row: venue line, title, and link.', 'signal-and-noise-tools' ), count( $pubs ), resume_list( $pubs, $ns . '\resume_publication_row', 'resume[publications]', '__P__', __( '+ Add publication', 'signal-and-noise-tools' ), __( 'publication', 'signal-and-noise-tools' ) ) )
 		. resume_section( __( 'Skills', 'signal-and-noise-tools' ), __( 'One table row per category; items is the comma-separated cell.', 'signal-and-noise-tools' ), count( $skills ), resume_list( $skills, $ns . '\resume_skills_row', 'resume[skills]', '__K__', __( '+ Add skills row', 'signal-and-noise-tools' ), __( 'skills row', 'signal-and-noise-tools' ) ) )
-		. resume_section( __( 'PDF only', 'signal-and-noise-tools' ), __( 'Used by the generated PDF, never shown on /resume. Save, then Generate PDF below.', 'signal-and-noise-tools' ), -1, resume_pdf( (array) ( $doc['pdf'] ?? array() ) ) );
+		. resume_section( __( 'PDF only', 'signal-and-noise-tools' ), __( 'Used by the generated PDF, never shown on /resume. Preview PDF shows the draft; Publish rebuilds the public PDF once one exists.', 'signal-and-noise-tools' ), -1, resume_pdf( (array) ( $doc['pdf'] ?? array() ) ) );
 }
 
 /**
@@ -175,18 +176,21 @@ function resume_sections( array $doc ) {
  */
 function paint_content_resume( array $ctx ) {
 	unset( $ctx );
-	$doc = function_exists( 'sn_resume_doc_get' ) ? \sn_resume_doc_get() : null;
-	if ( ! is_array( $doc ) ) {
+	$live = function_exists( 'sn_resume_doc_get' ) ? \sn_resume_doc_get() : null;
+	if ( ! is_array( $live ) ) {
 		return \snt_kit_empty(
 			__( 'Resume page', 'signal-and-noise-tools' ),
 			__( 'The resume editor is unavailable: no stored document and no readable seed.', 'signal-and-noise-tools' ),
 			'media-document'
 		);
 	}
+	// The form paints the draft when there is one: that is what Save stores.
+	$draft = function_exists( 'sn_resume_draft_get' ) ? \sn_resume_draft_get() : null;
+	$doc   = is_array( $draft ) ? $draft : $live;
 	return \snt_kit_section(
 		__( 'Resume page', 'signal-and-noise-tools' ),
-		resume_intro( $doc ) . \snt_kit_form( 'resume_save', resume_sections( $doc ), array( 'submit' => __( 'Save resume', 'signal-and-noise-tools' ) ) )
-	) . resume_pdf_generate();
+		resume_intro( $live ) . resume_draft_status() . \snt_kit_form( 'resume_draft_save', resume_sections( $doc ), array( 'submit' => __( 'Save draft', 'signal-and-noise-tools' ) ) )
+	) . resume_draft_controls() . resume_pdf_generate();
 }
 
 add_filter(
