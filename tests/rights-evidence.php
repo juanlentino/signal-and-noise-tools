@@ -13,6 +13,7 @@ $GLOBALS['__k'] = array( 'opt' => array(), 'actions' => array(), 'abilities' => 
 function __( $s, $d = null ) { return $s; }
 function add_action( $t, $c, $p = 10, $a = 1 ) { $GLOBALS['__k']['actions'][ $t ][] = $c; return true; }
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__k']['opt'] ) ? $GLOBALS['__k']['opt'][ $k ] : $d; }
+function add_option( $k, $v, $d = '', $a = null ) { if ( ! array_key_exists( $k, $GLOBALS['__k']['opt'] ) ) { $GLOBALS['__k']['opt'][ $k ] = $v; } return true; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['__k']['opt'][ $k ] = $v; return true; }
 $GLOBALS['__k']['transients'] = array();
 function get_transient( $k ) { return $GLOBALS['__k']['transients'][ $k ] ?? false; }
@@ -184,6 +185,24 @@ $o = snt_ability_rights_evidence();
 ok( $o['ok'] && $o['ready'] && 'https://raw.example/ledger/main/' === $o['ledger_base'] && isset( ( (array) $o['months'] )['2026-08']['openai']['uuid'] ) && ! isset( ( (array) $o['months'] )['2026-08']['openai']['canonical'] ), 'G2 the read hands out the ledger with the base URL and never the bytes' );
 foreach ( $GLOBALS['__k']['actions']['init'] as $cb ) { $cb(); }
 ok( 'daily' === ( $GLOBALS['__k']['scheduled'][ SN_RIGHTS_EVIDENCE_HOOK ] ?? '' ), 'G3 daily when ready' );
+
+// H: the month hold (19.8.1). $now is 2026-09-19, so the month under test is 2026-08.
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-08' ) ); $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['fetch'] = array();
+$r = sn_rights_evidence_run( $now );
+ok( ! $r['ok'] && 'held: 2026-08' === $r['error'] && 0 === $r['composed'] && array() === $GLOBALS['__k']['posts'] && array() === $GLOBALS['__k']['fetch'] && array() === sn_rights_evidence_data(), 'H1 a held month reads nothing, composes nothing, posts nothing, and says so' );
+ok( ! isset( $GLOBALS['__k']['transients']['sn_rights_evidence_lock'] ), 'H2 a held pass takes no lock' );
+$r = snt_ability_rights_evidence_now();
+ok( str_starts_with( $r['error'], 'held: ' ) && array() === $GLOBALS['__k']['posts'], 'H3 rights-evidence-now is held too (it runs the same function; its own clock is today, whatever month that is, so hold it as well)' );
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-09' ) ); $GLOBALS['__k']['posts'] = array();
+$r = sn_rights_evidence_run( $now );
+ok( $r['ok'] && '2026-08' === $r['month'] && 2 === $r['posted'], 'H4 an unheld month takes the normal path' );
+$GLOBALS['__k']['opt'] = array();
+ok( array( '2026-09' ) === sn_rights_evidence_held() && array( '2026-09' ) === $GLOBALS['__k']['opt']['sn_rights_evidence_hold'], 'H5 absent option: seeded with 2026-09 and stored' );
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array() );
+ok( array() === sn_rights_evidence_held() && array() === $GLOBALS['__k']['opt']['sn_rights_evidence_hold'], 'H6 an emptied list stays empty (the seed never overwrites)' );
+$GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['posts'] = array();
+$r = sn_rights_evidence_run( strtotime( '2026-10-01T21:43:00Z' ) );
+ok( 'held: 2026-09' === $r['error'] && '2026-09' === $r['month'] && array() === $GLOBALS['__k']['posts'], 'H7 the 2026-10-01 run on a fresh install is held by the seed alone' );
 
 $GLOBALS['__k']['opt'] = array();
 ok( '{}' === json_encode( snt_ability_rights_evidence()['months'] ), 'G4 no records yet: months encodes as {} at the door, never []' );

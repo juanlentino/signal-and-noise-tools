@@ -89,6 +89,23 @@ function sn_rights_evidence_post( $uuid, $canonical ) {
 }
 
 /**
+ * The months on hold (YYYY-MM). Seeded once with 2026-09 (the reservation
+ * block attests versions not in force for the month, and September's rights
+ * stream is truncated by our own probes); add_option never overwrites, so an
+ * owner who empties the list keeps it empty.
+ *
+ * @return string[]
+ */
+function sn_rights_evidence_held() {
+	$held = get_option( 'sn_rights_evidence_hold', null );
+	if ( null === $held ) {
+		$held = array( '2026-09' );
+		add_option( 'sn_rights_evidence_hold', $held, '', false );
+	}
+	return array_values( array_filter( (array) $held, 'is_string' ) );
+}
+
+/**
  * The daily pass: compose what the last complete month still lacks, post
  * what is composed and not yet on the ledger. Idempotent by (month, family).
  *
@@ -102,6 +119,15 @@ function sn_rights_evidence_run( $now = null ) {
 		$out['error'] = 'not-ready';
 		return $out;
 	}
+	$month        = sn_rights_evidence_month( $now );
+	$out['month'] = $month['month'];
+	// A held month composes and posts nothing: the ledger is append-only, so a
+	// month waits here until the owner lifts it. Before the lock, so a held
+	// pass never blocks another. rights-evidence-now runs this same function.
+	if ( in_array( $month['month'], sn_rights_evidence_held(), true ) ) {
+		$out['error'] = 'held: ' . $month['month'];
+		return $out;
+	}
 	// One pass at a time: cron and rights-evidence-now overlapping would compose
 	// the same month twice with different composed_at, and the loser's bytes
 	// would draw a 409 from the ledger.
@@ -110,8 +136,6 @@ function sn_rights_evidence_run( $now = null ) {
 		return $out;
 	}
 	set_transient( 'sn_rights_evidence_lock', 1, 5 * MINUTE_IN_SECONDS );
-	$month        = sn_rights_evidence_month( $now );
-	$out['month'] = $month['month'];
 	$data         = sn_rights_evidence_data();
 	$days         = min( 90, (int) ceil( ( $now - strtotime( $month['start'] . 'T00:00:00Z' ) ) / DAY_IN_SECONDS ) + 1 );
 	$aggregate    = snt_mr_fetch( $days );
