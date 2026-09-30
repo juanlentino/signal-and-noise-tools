@@ -89,6 +89,62 @@ function sn_rights_evidence_post( $uuid, $canonical ) {
 }
 
 /**
+ * The months on hold (YYYY-MM). Seeded once with 2026-09 (the reservation
+ * block attests versions not in force for the month, and September's rights
+ * stream is truncated by our own probes); add_option never overwrites, so an
+ * owner who empties the list keeps it empty.
+ *
+ * @param bool $seed Store the seed when absent (the pass does; a read does not).
+ * @return string[]
+ */
+function sn_rights_evidence_held( $seed = true ) {
+	$held = get_option( 'sn_rights_evidence_hold', null );
+	if ( null === $held ) {
+		$held = array( '2026-09' );
+		if ( $seed ) {
+			add_option( 'sn_rights_evidence_hold', $held, '', false );
+		}
+	}
+	return array_values( array_filter( (array) $held, 'is_string' ) );
+}
+
+/**
+ * Months skipped while held, oldest first. Kept until composed and posted.
+ *
+ * @return string[]
+ */
+function sn_rights_evidence_backlog() {
+	return array_values( array_filter( (array) get_option( 'sn_rights_evidence_backlog', array() ), 'is_string' ) );
+}
+
+/** @param string[] $months */
+function sn_rights_evidence_backlog_set( array $months ) {
+	$months = array_values( array_unique( $months ) );
+	sort( $months );
+	update_option( 'sn_rights_evidence_backlog', $months, false );
+}
+
+/**
+ * The oldest backlog month that is no longer held and still inside the
+ * sensor's 90-day window, as a month array; null when none. A month past the
+ * window stays listed (the read shows it) but cannot be composed complete.
+ *
+ * @param int      $now  Unix time.
+ * @param string[] $held The hold list.
+ * @return array|null
+ */
+function sn_rights_evidence_backlog_target( $now, array $held ) {
+	foreach ( sn_rights_evidence_backlog() as $ym ) {
+		$start = strtotime( $ym . '-01T00:00:00Z' );
+		if ( in_array( $ym, $held, true ) || false === $start || $now - $start > 89 * DAY_IN_SECONDS ) {
+			continue;
+		}
+		return array( 'month' => $ym, 'start' => gmdate( 'Y-m-01', $start ), 'end' => gmdate( 'Y-m-t', $start ) );
+	}
+	return null;
+}
+
+/**
  * The daily pass: compose what the last complete month still lacks, post
  * what is composed and not yet on the ledger. Idempotent by (month, family).
  *
@@ -102,6 +158,27 @@ function sn_rights_evidence_run( $now = null ) {
 		$out['error'] = 'not-ready';
 		return $out;
 	}
+	// A held month composes and posts nothing: the ledger is append-only, so a
+	// month waits until the owner lifts it. It is queued in the backlog so the
+	// calendar moving on never drops it; a lifted backlog month goes first, one
+	// month per pass. Before the lock, so a held pass never blocks another.
+	// rights-evidence-now runs this same function.
+	// ponytail: a backlog month takes the whole pass; if it fails for weeks the
+	// current month is never evaluated and can be dropped at a month boundary.
+	// Upgrade: also enqueue a held current month, or cap backlog retries per pass.
+	$held         = sn_rights_evidence_held();
+	$month        = sn_rights_evidence_backlog_target( $now, $held );
+	$from_backlog = null !== $month;
+	if ( ! $from_backlog ) {
+		$month = sn_rights_evidence_month( $now );
+		if ( in_array( $month['month'], $held, true ) ) {
+			sn_rights_evidence_backlog_set( array_merge( sn_rights_evidence_backlog(), array( $month['month'] ) ) );
+			$out['month'] = $month['month'];
+			$out['error'] = 'held: ' . $month['month'];
+			return $out;
+		}
+	}
+	$out['month'] = $month['month'];
 	// One pass at a time: cron and rights-evidence-now overlapping would compose
 	// the same month twice with different composed_at, and the loser's bytes
 	// would draw a 409 from the ledger.
@@ -110,8 +187,6 @@ function sn_rights_evidence_run( $now = null ) {
 		return $out;
 	}
 	set_transient( 'sn_rights_evidence_lock', 1, 5 * MINUTE_IN_SECONDS );
-	$month        = sn_rights_evidence_month( $now );
-	$out['month'] = $month['month'];
 	$data         = sn_rights_evidence_data();
 	$days         = min( 90, (int) ceil( ( $now - strtotime( $month['start'] . 'T00:00:00Z' ) ) / DAY_IN_SECONDS ) + 1 );
 	$aggregate    = snt_mr_fetch( $days );
@@ -188,6 +263,9 @@ function sn_rights_evidence_run( $now = null ) {
 	}
 	delete_transient( 'sn_rights_evidence_lock' );
 	$out['ok'] = '' === $out['error'] && 0 === $out['failed'];
+	if ( $from_backlog && $out['ok'] ) {
+		sn_rights_evidence_backlog_set( array_diff( sn_rights_evidence_backlog(), array( $month['month'] ) ) );
+	}
 	return $out;
 }
 
