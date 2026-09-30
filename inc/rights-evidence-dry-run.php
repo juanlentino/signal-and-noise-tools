@@ -134,8 +134,8 @@ function sn_rights_evidence_erratum( $ym, $now = null ) {
 	$erratum  = array();
 	foreach ( $composed['payloads'] as $family => $payload ) {
 		$v1 = $stored[ $family ] ?? null;
-		if ( ! is_array( $v1 ) || '' === (string) ( $v1['ledger_path'] ?? '' ) ) {
-			continue; // No v1 on the ledger for this family: nothing to correct.
+		if ( ! is_array( $v1 ) || '' === (string) ( $v1['ledger_path'] ?? '' ) || 'conflict' === (string) ( $v1['status'] ?? '' ) ) {
+			continue; // No v1 of ours on the ledger (a 409 kept the ledger's own bytes): nothing to correct.
 		}
 		$erratum[ $family ] = sn_prov_canonical_json(
 			array(

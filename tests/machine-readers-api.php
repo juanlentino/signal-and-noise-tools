@@ -250,12 +250,18 @@ $GLOBALS['__transients'] = array();
 
 echo "\nGroup: Unreleased filtered rights view (worker 1.29.0 family + exclude_purpose)\n";
 $GLOBALS['__requests'] = array();
-$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'data' => array(), 'taxonomy_version' => '1.3.1<x>' ) ) );
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'data' => array(), 'taxonomy_version' => '1.3.1<x>', 'filter' => array( 'family' => 'openai', 'exclude_purpose' => array( 'ops', 'dev' ) ) ) ) );
 snt_mr_memo( null );
 $r = snt_mr_fetch( 30, 'rights', array( 'family' => 'openai', 'exclude_purpose' => array( 'ops', 'dev', 'ops' ) ) );
 ok( $r['ok'] && 1 === count( $GLOBALS['__requests'] ) && str_ends_with( $GLOBALS['__requests'][0]['url'], 'days=30&view=rights&family=openai&exclude_purpose=dev,ops' ), 'F2a the filter reaches the URL allowlisted, purposes sorted and unique: ' . ( $GLOBALS['__requests'][0]['url'] ?? '' ) );
 ok( 'sn_mr_rows_30_rights_fopenai_xdev-ops' === snt_mr_cache_key( 30, 'rights', snt_mr_rights_filter( array( 'family' => 'openai', 'exclude_purpose' => array( 'ops', 'dev' ) ) ) ) && 'sn_mr_rows_30_rights' === snt_mr_cache_key( 30, 'rights' ), 'F2b a filtered read has its own cache key; the unfiltered key is unchanged' );
 ok( '1.3.1' === $r['taxonomy_version'], 'F6a the envelope taxonomy rides the result, shape-stripped' );
+foreach ( array( array( 'data' => array() ), array( 'data' => array(), 'filter' => array( 'family' => 'anthropic', 'exclude_purpose' => array( 'dev', 'ops' ) ) ), array( 'data' => array(), 'filter' => array( 'family' => 'openai', 'exclude_purpose' => array( 'ops' ) ) ) ) as $i => $body ) {
+	$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( $body ) );
+	snt_mr_memo( null ); $GLOBALS['__transients'] = array();
+	$fx = snt_mr_fetch( 30, 'rights', array( 'family' => 'openai', 'exclude_purpose' => array( 'ops', 'dev' ) ) );
+	ok( false === $fx['ok'] && 'filter_not_applied' === $fx['error'], 'F2e a filtered read that does not come back filtered (no echo / other family / other purposes, case ' . $i . ') is refused, never taken for one family\'s reads' );
+}
 $GLOBALS['__requests'] = array();
 $bad = array( snt_mr_fetch( 30, 'rights', array( 'family' => 'openai&view=aggregate' ) ), snt_mr_fetch( 30, 'rights', array( 'family' => 'search' ) ), snt_mr_fetch( 30, 'rights', array( 'exclude_purpose' => array( 'ops', 'x,y' ) ) ) );
 ok( array( 'bad_filter', 'bad_filter', 'bad_filter' ) === array_column( $bad, 'error' ) && array() === $GLOBALS['__requests'], 'F2c an injected family, a non-training family and an unknown purpose are refused before any request, never widened to an unfiltered read' );

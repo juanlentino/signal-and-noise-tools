@@ -80,6 +80,9 @@ function sn_rights_evidence_block_time( $height ) {
 	return $iso;
 }
 
+/** A ceiling on one signal's version walk (tdm-policy is at v9 in 2026-09). */
+const SN_RIGHTS_EVIDENCE_MAX_VERSIONS = 200;
+
 /**
  * Every version of every rights signal the index names, with its anchor.
  *
@@ -98,12 +101,18 @@ function sn_rights_evidence_signal_history( array $index ) {
 		if ( 1 !== preg_match( '/^[a-z0-9-]{1,64}$/', $slug ) || $current < 1 ) {
 			continue;
 		}
+		if ( $current > SN_RIGHTS_EVIDENCE_MAX_VERSIONS ) {
+			return null; // An index claiming more versions than a signal can carry is not walked.
+		}
 		for ( $n = 1; $n <= $current; $n++ ) {
 			$v = $cache['versions'][ $slug ][ $n ] ?? null;
 			if ( ! is_array( $v ) ) {
 				$doc = sn_rights_evidence_ledger_json( 'rights-signals/' . $slug . '/v' . $n . '.json' );
 				if ( null === $doc ) {
 					return null;
+				}
+				if ( 1 !== preg_match( '/^[0-9a-f]{64}$/', (string) ( $doc['content_hash'] ?? '' ) ) ) {
+					return null; // A version with no sha256 cannot be attested in force.
 				}
 				$block = 'confirmed' === (string) ( $doc['ots']['status'] ?? '' ) && is_numeric( $doc['ots']['bitcoin_block'] ?? null ) ? (int) $doc['ots']['bitcoin_block'] : null;
 				$at    = null === $block ? '' : sn_rights_evidence_block_time( $block );

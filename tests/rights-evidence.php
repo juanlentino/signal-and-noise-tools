@@ -91,15 +91,15 @@ function recanon( $json ) {
 $GLOBALS['__k']['blocks'] = array( 100 => '2026-07-01T00:00:00Z', 150 => '2026-07-20T00:00:00Z', 200 => '2026-08-15T12:00:00Z', 300 => '2026-09-17T00:00:00Z' );
 $sig = static fn( $h, $b ) => array( 'content_hash' => $h, 'signature' => 's', 'ots' => null === $b ? array( 'status' => 'pending' ) : array( 'status' => 'confirmed', 'bitcoin_block' => $b ) );
 $GLOBALS['__k']['ledger'] = array(
-	'rights-signals/tdm-policy/v1.json'  => $sig( 't1', 100 ),
-	'rights-signals/tdm-policy/v2.json'  => $sig( 't2', 200 ),
-	'rights-signals/tdm-policy/v3.json'  => $sig( 't3', 300 ),
-	'rights-signals/license-xml/v1.json' => $sig( 'l1', 150 ),
-	'rights-signals/license-xml/v2.json' => $sig( 'l2', null ),
+	'rights-signals/tdm-policy/v1.json'  => $sig( '628b49d96dcde97a430dd4f597705899e09a968f793491e4b704cae33a40dc02', 100 ),
+	'rights-signals/tdm-policy/v2.json'  => $sig( 'c44474038d459e40e4714afefa7bf8dae9f9834b22f5e8ec1dd434ecb62b512e', 200 ),
+	'rights-signals/tdm-policy/v3.json'  => $sig( 'cece8a9cecfb6c7e7ee4f3346d5e2544138bfb6e33bec6042a17333a4d3180b0', 300 ),
+	'rights-signals/license-xml/v1.json' => $sig( '2804bad6fe94a55f18b2b37e300919a5fd517b95aa81e95db574c0ba069a3740', 150 ),
+	'rights-signals/license-xml/v2.json' => $sig( '8a1cee436cbac1489a1883c9d886fcfc46f302c55ed4106ae31729e4f4eb9041', null ),
 );
 $index = array( 'rights_signals' => array(
-	array( 'slug' => 'tdm-policy', 'version' => 3, 'content_hash' => 't3', 'ots_status' => 'confirmed', 'bitcoin_block' => 300 ),
-	array( 'slug' => 'license-xml', 'version' => 2, 'content_hash' => 'l2', 'ots_status' => 'pending' ),
+	array( 'slug' => 'tdm-policy', 'version' => 3, 'content_hash' => 'cece8a9cecfb6c7e7ee4f3346d5e2544138bfb6e33bec6042a17333a4d3180b0', 'ots_status' => 'confirmed', 'bitcoin_block' => 300 ),
+	array( 'slug' => 'license-xml', 'version' => 2, 'content_hash' => '8a1cee436cbac1489a1883c9d886fcfc46f302c55ed4106ae31729e4f4eb9041', 'ots_status' => 'pending' ),
 	'junk',
 	array( 'slug' => '../etc', 'version' => 1 ),
 ) );
@@ -126,12 +126,18 @@ $GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json'] = $keep;
 $GLOBALS['__k']['opt'] = array(); unset( $GLOBALS['__k']['blocks'][200] );
 ok( null === sn_rights_evidence_signal_history( $index ) && ! isset( $GLOBALS['__k']['opt']['sn_rights_evidence_chain']['versions']['tdm-policy'][2] ), 'B4 a confirmed block whose time the explorer cannot give is null, and nothing is cached for it' );
 $GLOBALS['__k']['blocks'][200] = '2026-08-15T12:00:00Z'; $GLOBALS['__k']['opt'] = array();
+$keep = $GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json']; $GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json']['content_hash'] = 'not-a-hash';
+ok( null === sn_rights_evidence_signal_history( $index ), 'B4b a version file with no sha256 content_hash is null: a version cannot be attested in force without its hash' );
+$GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json'] = $keep; $GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['http'] = array();
+$huge = $index; $huge['rights_signals'][0]['version'] = SN_RIGHTS_EVIDENCE_MAX_VERSIONS + 1;
+ok( null === sn_rights_evidence_signal_history( $huge ) && array() === $GLOBALS['__k']['http'], 'B4c an index claiming more versions than the ceiling is refused before any read' );
+$GLOBALS['__k']['opt'] = array();
 $res = sn_rights_evidence_reservation( $hist, $m );
 $expect_aug = array(
-	'license-xml' => array( array( 'block' => 150, 'content_hash' => 'l1', 'valid_from' => '2026-07-20T00:00:00Z', 'valid_to' => null, 'version' => 1 ) ),
+	'license-xml' => array( array( 'block' => 150, 'content_hash' => '2804bad6fe94a55f18b2b37e300919a5fd517b95aa81e95db574c0ba069a3740', 'valid_from' => '2026-07-20T00:00:00Z', 'valid_to' => null, 'version' => 1 ) ),
 	'tdm-policy'  => array(
-		array( 'block' => 100, 'content_hash' => 't1', 'valid_from' => '2026-07-01T00:00:00Z', 'valid_to' => '2026-08-15T12:00:00Z', 'version' => 1 ),
-		array( 'block' => 200, 'content_hash' => 't2', 'valid_from' => '2026-08-15T12:00:00Z', 'valid_to' => '2026-09-17T00:00:00Z', 'version' => 2 ),
+		array( 'block' => 100, 'content_hash' => '628b49d96dcde97a430dd4f597705899e09a968f793491e4b704cae33a40dc02', 'valid_from' => '2026-07-01T00:00:00Z', 'valid_to' => '2026-08-15T12:00:00Z', 'version' => 1 ),
+		array( 'block' => 200, 'content_hash' => 'c44474038d459e40e4714afefa7bf8dae9f9834b22f5e8ec1dd434ecb62b512e', 'valid_from' => '2026-08-15T12:00:00Z', 'valid_to' => '2026-09-17T00:00:00Z', 'version' => 2 ),
 	),
 );
 ok( array( 'start' => '2026-08-01T00:00:00Z', 'end' => '2026-08-31T23:59:59Z' ) === $res['window'] && $expect_aug === (array) $res['signals'], 'B5 August lists every version in force at any point of the month (tdm-policy v1 and v2), each with valid_from/valid_to; v3, anchored in September, is NOT claimed for August' );
@@ -179,7 +185,7 @@ ok( $res === $p['reservation'] && ! isset( $p['reservation']['as_of'] ) && array
 $c = sn_prov_canonical_json( $p );
 ok( false === strpos( $c, 'UA' ) && false === strpos( $c, 'user_agent' ) && false === strpos( $c, 'accept' ), 'C5 no user-agent string or Accept header reaches the record' );
 ok( '{"composed_at"' === substr( $c, 0, 14 ) && str_contains( $c, '"by_day":{"2026-08-03":{"reads":41,"train":41},"2026-08-20":{"reads":9,"train":0}}' ), 'C6 canonical bytes: keys sorted, maps as objects' );
-ok( recanon( $c ) === $c && str_contains( $c, '{"block":100,"content_hash":"t1","valid_from":"2026-07-01T00:00:00Z","valid_to":"2026-08-15T12:00:00Z","version":1}' ), 'C6b the bytes survive the worker\'s re-canonicalization: every key sorted INSIDE objects too (sn_prov_canonical_json does not sort there)' );
+ok( recanon( $c ) === $c && str_contains( $c, '{"block":100,"content_hash":"628b49d96dcde97a430dd4f597705899e09a968f793491e4b704cae33a40dc02","valid_from":"2026-07-01T00:00:00Z","valid_to":"2026-08-15T12:00:00Z","version":1}' ), 'C6b the bytes survive the worker\'s re-canonicalization: every key sorted INSIDE objects too (sn_prov_canonical_json does not sort there)' );
 $empty = sn_rights_evidence_compose( 'google-ai', $m, $aggregate, $rights, $res, $sensor, 'https://x.test', $now );
 ok( 0 === $empty['crawling']['reads'] && '{}' === json_encode( $empty['crawling']['by_day'] ) && '{}' === json_encode( $empty['crawling']['by_surface'] ) && '{}' === json_encode( $empty['rights_reads']['by_path'] ) && '{}' === json_encode( $empty['retrieval_reads']['by_purpose'] ) && '{}' === json_encode( $empty['unlabelled_reads']['by_path'] ) && '' === $empty['rights_reads']['first'], 'C7 a family with nothing composes empty OBJECTS, never lists' );
 $trunc_agg = array( 'ok' => true, 'truncated' => true, 'rows' => array( $agg( 'openai', '2026-08-03', 'html', 'train', 1 ), $agg( 'openai', '2026-08-30', 'html', 'train', 1 ) ) );
@@ -377,6 +383,8 @@ $GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' =>
 $er = sn_rights_evidence_erratum( '2026-08', $oct5 );
 $ep = json_decode( $er['erratum']['openai'] ?? '{}', true );
 ok( $er['ok'] && array( 'openai' ) === array_keys( $er['erratum'] ) && array( 'content_hash' => 'h7', 'ledger_path' => 'rights-evidence/u7/v1.json', 'version' => 1 ) === $ep['corrects'] && SN_RIGHTS_EVIDENCE_ERRATUM_REASON === $ep['reason'] && isset( $ep['reservation']['window'], $ep['reservation']['signals'] ) && '2026-08' === $ep['month'] && ! isset( $ep['supersedes'] ) && ! isset( $ep['schema'] ), 'M1 erratum data per family with a v1 on the ledger: the record corrected, the reason, the reservation in force; not a record (no schema, no supersedes)' );
+$GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => $re( 'conflict', 7 ) ) ) );
+ok( array() === sn_rights_evidence_erratum( '2026-08', $oct5 )['erratum'], 'M1b a 409 conflict kept the ledger\'s own bytes: no erratum is drafted against it' );
 ok( array() === $GLOBALS['__k']['posts'] && false === strpos( SN_RIGHTS_EVIDENCE_ERRATUM_REASON, "\u{2014}" ), 'M2 the erratum posts nothing' );
 
 if ( getenv( 'SN_RE_PRINT' ) ) {

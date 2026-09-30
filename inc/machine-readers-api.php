@@ -335,6 +335,19 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate', array $filter = array() 
 	if ( ! is_array( $decoded ) || ! isset( $decoded['data'] ) || ! is_array( $decoded['data'] ) ) {
 		return snt_mr_memo( $cache_key, array( 'ok' => false, 'rows' => array(), 'error' => 'bad_schema' ) );
 	}
+	// A filtered read must come back filtered: a worker older than 1.29.0 (or
+	// one that dropped the parameters) answers the unfiltered stream, which a
+	// caller would otherwise take for one family's reads. The echo must match.
+	if ( array() !== $filter ) {
+		$echo     = is_array( $decoded['filter'] ?? null ) ? $decoded['filter'] : array();
+		$want_ex  = (array) ( $filter['exclude_purpose'] ?? array() );
+		$got_ex   = array_map( 'strval', (array) ( $echo['exclude_purpose'] ?? array() ) );
+		sort( $want_ex );
+		sort( $got_ex );
+		if ( (string) ( $filter['family'] ?? '' ) !== (string) ( $echo['family'] ?? '' ) || $want_ex !== $got_ex ) {
+			return snt_mr_memo( $cache_key, array( 'ok' => false, 'rows' => array(), 'error' => 'filter_not_applied' ) );
+		}
+	}
 
 	// 15.5.0: the WebMCP bridge's tool calls ride the same dataset as family
 	// `webmcp` (one row per tool; `surface` is the tool). A call is not a page
