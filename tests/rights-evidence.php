@@ -310,6 +310,10 @@ $GLOBALS['__k']['post_reply'] = array( 'code' => 502, 'body' => json_encode( arr
 sn_rights_evidence_run( $oct5 );
 ok( array( '2026-08' ) === sn_rights_evidence_backlog(), 'I6 a backlog month whose post failed stays queued for the next pass' );
 $GLOBALS['__k']['post_reply'] = $pending_reply;
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array(), 'sn_rights_evidence_backlog' => array( '2026-08' ) ); $GLOBALS['__k']['rows_rights'] = array( 'ok' => false, 'rows' => array(), 'error' => 'http_503' );
+$r = sn_rights_evidence_run( $oct5 );
+ok( '2026-08' === $r['month'] && ! $r['ok'] && array() === sn_rights_evidence_unposted( '2026-08' ) && array( '2026-08' ) === sn_rights_evidence_backlog(), 'I7 a backlog month that could not be composed (nothing stored, so nothing unposted) stays queued: only a clean pass dequeues' );
+$GLOBALS['__k']['rows_rights'] = $rights;
 
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-11' ) );
 ok( array( '2026-11' ) === snt_ability_rights_evidence()['hold'], 'H8 the read echoes the stored hold' );
