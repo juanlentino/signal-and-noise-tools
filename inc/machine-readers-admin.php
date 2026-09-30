@@ -234,6 +234,10 @@ function snt_mr_render_tab() {
 		'edge_readout_html'  => snt_mr_render_edge_readout( $info ),
 		'settings_form_html' => $settings_html,
 	) );
+	// Unreleased: rights evidence (held months, their payloads, the lift).
+	if ( function_exists( 'sn_admin_render_rights_evidence' ) ) {
+		sn_admin_render_rights_evidence();
+	}
 }
 
 

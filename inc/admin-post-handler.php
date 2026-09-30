@@ -118,6 +118,9 @@ function sn_admin_post_handlers() {
 		'gsc_test'                   => 'sn_handle_gsc_test',
 		'gsc_property_save'          => 'sn_handle_gsc_property_save',
 		'gsc_sync'                   => 'sn_handle_gsc_sync',
+		// Unreleased: rights evidence, Monitoring > Machine Readers (inc/admin-post-actions/rights-evidence.php).
+		'rights_evidence_view'       => 'sn_handle_rights_evidence_view', // GET door: a held month's dry run as JSON
+		'rights_evidence_lift'       => 'sn_handle_rights_evidence_lift', // one month off the hold; never runs the pass
 	);
 }
 

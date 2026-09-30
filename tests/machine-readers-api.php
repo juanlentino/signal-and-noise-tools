@@ -68,6 +68,8 @@ require __DIR__ . '/../inc/machine-readers-api.php';
 // ("agent-discovery is valid but is NOT a rights surface") spans both — so the
 // test that asserts it has to load both. Pure functions, no extra deps.
 require __DIR__ . '/../inc/machine-readers-rights-reads.php';
+// Unreleased: the filtered rights view allowlists the AI-training families.
+require __DIR__ . '/../inc/machine-readers-render.php';
 
 echo "Group: enums (mirror of the worker's src/machine-readers.mjs)\n";
 $fams = snt_mr_valid_families();
@@ -240,8 +242,33 @@ $GLOBALS['__transients'] = array(
 );
 snt_mr_cache_flush();
 ok( array( 'sn_mr_unrelated' => 'keep' ) === $GLOBALS['__transients'], 'snt_mr_cache_flush() deletes every rows key across windows and views and touches nothing else (#1206)' );
+$GLOBALS['__transients'] = array( 'sn_mr_rows_45_rights_fanthropic_xdev-ops' => array( 'ok' => true, 'rows' => array( 'stale' ) ) );
+snt_mr_cache_flush();
+ok( array() === $GLOBALS['__transients'], 'Unreleased: the flush also deletes the filtered rights key rights evidence reads, per family' );
 $GLOBALS['__cache_on']   = false;
 $GLOBALS['__transients'] = array();
+
+echo "\nGroup: Unreleased filtered rights view (worker 1.29.0 family + exclude_purpose)\n";
+$GLOBALS['__requests'] = array();
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'data' => array(), 'taxonomy_version' => '1.3.1<x>', 'filter' => array( 'family' => 'openai', 'exclude_purpose' => array( 'ops', 'dev' ) ) ) ) );
+snt_mr_memo( null );
+$r = snt_mr_fetch( 30, 'rights', array( 'family' => 'openai', 'exclude_purpose' => array( 'ops', 'dev', 'ops' ) ) );
+ok( $r['ok'] && 1 === count( $GLOBALS['__requests'] ) && str_ends_with( $GLOBALS['__requests'][0]['url'], 'days=30&view=rights&family=openai&exclude_purpose=dev,ops' ), 'F2a the filter reaches the URL allowlisted, purposes sorted and unique: ' . ( $GLOBALS['__requests'][0]['url'] ?? '' ) );
+ok( 'sn_mr_rows_30_rights_fopenai_xdev-ops' === snt_mr_cache_key( 30, 'rights', snt_mr_rights_filter( array( 'family' => 'openai', 'exclude_purpose' => array( 'ops', 'dev' ) ) ) ) && 'sn_mr_rows_30_rights' === snt_mr_cache_key( 30, 'rights' ), 'F2b a filtered read has its own cache key; the unfiltered key is unchanged' );
+ok( '1.3.1' === $r['taxonomy_version'], 'F6a the envelope taxonomy rides the result, shape-stripped' );
+foreach ( array( array( 'data' => array() ), array( 'data' => array(), 'filter' => array( 'family' => 'anthropic', 'exclude_purpose' => array( 'dev', 'ops' ) ) ), array( 'data' => array(), 'filter' => array( 'family' => 'openai', 'exclude_purpose' => array( 'ops' ) ) ) ) as $i => $body ) {
+	$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( $body ) );
+	snt_mr_memo( null ); $GLOBALS['__transients'] = array();
+	$fx = snt_mr_fetch( 30, 'rights', array( 'family' => 'openai', 'exclude_purpose' => array( 'ops', 'dev' ) ) );
+	ok( false === $fx['ok'] && 'filter_not_applied' === $fx['error'], 'F2e a filtered read that does not come back filtered (no echo / other family / other purposes, case ' . $i . ') is refused, never taken for one family\'s reads' );
+}
+$GLOBALS['__requests'] = array();
+$bad = array( snt_mr_fetch( 30, 'rights', array( 'family' => 'openai&view=aggregate' ) ), snt_mr_fetch( 30, 'rights', array( 'family' => 'search' ) ), snt_mr_fetch( 30, 'rights', array( 'exclude_purpose' => array( 'ops', 'x,y' ) ) ) );
+ok( array( 'bad_filter', 'bad_filter', 'bad_filter' ) === array_column( $bad, 'error' ) && array() === $GLOBALS['__requests'], 'F2c an injected family, a non-training family and an unknown purpose are refused before any request, never widened to an unfiltered read' );
+$GLOBALS['__requests'] = array();
+snt_mr_memo( null );
+snt_mr_fetch( 30, 'aggregate', array( 'family' => 'openai' ) );
+ok( 1 === count( $GLOBALS['__requests'] ) && false === strpos( $GLOBALS['__requests'][0]['url'], 'family' ), 'F2d a filter on a view other than rights never reaches the URL' );
 
 echo "\nGroup: v9.86.0 — crawler-list status flattens last_check into scalars\n";
 $GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'worker' => 'sn-rights-signals', 'last_check' => array( 'ok' => true, 'drift' => false, 'checked_at' => '2026-07-27T07:23:00.000Z' ) ) ) );

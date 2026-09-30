@@ -250,6 +250,7 @@ require_once SNT_PATH . 'inc/resume-draft.php';              // Unreleased: /res
 require_once SNT_PATH . 'inc/resume-pdf/template.php';       // Resume PDF (docs/RESUME-PDF.md): the ONE template the generator renders
 require_once SNT_PATH . 'inc/resume-pdf/generate.php';       // Resume PDF: Dompdf (lib/pdf) -> uploads/resume, hash option, Download link
 require_once SNT_PATH . 'inc/admin-forms/resume-page.php';   // v10.33.0: Content → Resume Page structured editor form (repeatable rows, not a text box)
+require_once SNT_PATH . 'inc/admin-forms/rights-evidence.php'; // Unreleased: rights evidence on Machine Readers (view payloads, lift hold)
 require_once SNT_PATH . 'inc/admin-forms/resume-draft.php';  // Unreleased: the draft controls (previews, publish, discard, revert)
 require_once SNT_PATH . 'inc/rest-api.php';
 require_once SNT_PATH . 'inc/analytics-rest.php'; // v6.1.0: read-only /analytics REST routes
@@ -361,7 +362,10 @@ require_once SNT_PATH . 'inc/machine-readers-summary.php'; // v10.2.0: the one s
 require_once SNT_PATH . 'inc/machine-readers-ledger.php'; // 17.0.0: the crosstab and rights-cadence folds.
 require_once SNT_PATH . 'inc/abilities-machine-readers-ledger.php'; // 17.0.0: get-machine-readers-crosstab + get-rights-reads.
 require_once SNT_PATH . 'inc/rights-evidence-compose.php'; // 17.0.0: one record per crawler family per month, the pure half.
+require_once SNT_PATH . 'inc/rights-evidence-ledger.php';  // Unreleased: rights-signal history and record refresh, read-only.
+require_once SNT_PATH . 'inc/rights-evidence-dry-run.php'; // Unreleased: compose from live reads, post nothing (shared with the pass).
 require_once SNT_PATH . 'inc/rights-evidence.php';         // 17.0.0: the daily pass that composes and posts it.
+require_once SNT_PATH . 'inc/rights-evidence-cli.php';     // Unreleased: wp sn rights-evidence dry-run (WP-CLI only).
 require_once SNT_PATH . 'inc/abilities-rights-evidence.php'; // 17.0.0: rights-evidence (read) + rights-evidence-now (rw).
 require_once SNT_PATH . 'inc/machine-readers-render.php';
 require_once SNT_PATH . 'inc/machine-readers-render-taxonomy.php'; // v10.79.0: purpose/vendor tables + the unknown-agent review.

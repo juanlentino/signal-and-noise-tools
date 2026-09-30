@@ -9,7 +9,8 @@
  * record is canonical JSON the provenance worker signs and anchors under
  * `rights-evidence/<uuid>/v1` (worker 1.21.0), so the triple outlives the
  * sensor's retention. Nothing here fetches or writes; inc/rights-evidence.php
- * does both and calls these.
+ * does both and calls these. Schema 2 (Unreleased): the reservation lists the
+ * versions in force during the month, reads are split by purpose.
  *
  * @package SignalNoiseTools
  * @since 17.0.0
@@ -60,29 +61,131 @@ function sn_rights_evidence_month( $now ) {
 	);
 }
 
+/** The record's schema. v1 records (17.0.0 to 19.9.0) carry no field and are implicitly 1. */
+const SN_RIGHTS_EVIDENCE_SCHEMA = 2;
+
+/** Purposes that are neither training nor retrieval: our own probes and dev traffic. */
+const SN_RIGHTS_EVIDENCE_OWN_PURPOSES = array( 'ops', 'dev' );
+
 /**
- * The reservation block from the public ledger's index: every rights-signal
- * file's current version, hash and anchor.
- *
- * @param array $index The decoded index.json.
- * @return array<int,array{slug:string,version:int,content_hash:string,ots_status:string,bitcoin_block:?int}>|null null when the index carries no signals.
+ * Purposes that are no purpose: the sensor wrote '' and the normalizer folds
+ * it (and anything off the enum) into 'unknown'. Such a row is counted under
+ * `unlabelled`, never under a purpose it did not record: it could be a
+ * training crawler under a user agent the taxonomy missed.
  */
-function sn_rights_evidence_reservation( $index ) {
-	$rows = array();
-	foreach ( (array) ( $index['rights_signals'] ?? array() ) as $r ) {
-		if ( ! is_array( $r ) || '' === (string) ( $r['slug'] ?? '' ) ) {
+const SN_RIGHTS_EVIDENCE_UNLABELLED = array( '', 'unknown' );
+
+/**
+ * The key a purpose is counted under: itself, or `unlabelled`.
+ *
+ * @param string $purpose Row purpose.
+ * @return string
+ */
+function sn_rights_evidence_purpose_key( $purpose ) {
+	return in_array( (string) $purpose, SN_RIGHTS_EVIDENCE_UNLABELLED, true ) ? 'unlabelled' : (string) $purpose;
+}
+
+/**
+ * The reservation in force during a month. PURE.
+ *
+ * A version is in force from its anchor (the time of the Bitcoin block the
+ * ledger names) until the next anchored version's anchor. Anchor time is the
+ * earliest moment the ledger can prove the bytes existed, so a version is
+ * never claimed before it; a version not yet in a block is not claimed at all
+ * and leaves the one before it open-ended. Every version in force at any
+ * point of [start, end] is listed.
+ *
+ * @param array $history From sn_rights_evidence_signal_history().
+ * @param array $month   From sn_rights_evidence_month().
+ * @return array{window:array{start:string,end:string},signals:object}|null null when no signal was in force.
+ */
+function sn_rights_evidence_reservation( array $history, array $month ) {
+	$start   = $month['start'] . 'T00:00:00Z';
+	$end     = $month['end'] . 'T23:59:59Z';
+	$signals = array();
+	foreach ( $history as $slug => $versions ) {
+		$anchored = array_values( array_filter( (array) $versions, static fn( $v ) => '' !== (string) ( $v['anchored_at'] ?? '' ) ) );
+		usort( $anchored, static fn( $a, $b ) => (int) $a['version'] <=> (int) $b['version'] );
+		foreach ( $anchored as $i => $v ) {
+			$from = (string) $v['anchored_at'];
+			$to   = isset( $anchored[ $i + 1 ] ) ? (string) $anchored[ $i + 1 ]['anchored_at'] : null;
+			if ( $from > $end || ( null !== $to && $to <= $start ) ) {
+				continue;
+			}
+			// Keys in sorted order: inside an object, sn_prov_canonical_json
+			// does not sort for us, and the worker compares sorted bytes.
+			$signals[ (string) $slug ][] = array(
+				'block'        => (int) $v['block'],
+				'content_hash' => (string) ( $v['content_hash'] ?? '' ),
+				'valid_from'   => $from,
+				'valid_to'     => $to,
+				'version'      => (int) $v['version'],
+			);
+		}
+	}
+	if ( ! $signals ) {
+		return null;
+	}
+	ksort( $signals );
+	return array( 'window' => array( 'start' => $start, 'end' => $end ), 'signals' => (object) $signals );
+}
+
+/**
+ * Rights-file reads of one family in one month, split by what they were for.
+ * PURE. `train` is the training claim (rights_reads); a row with no recorded
+ * purpose is unlabelled_reads and claimed by neither other block; every other
+ * purpose but our own ops/dev traffic is retrieval (search, user, ...).
+ *
+ * @param string $family Sensor family slug.
+ * @param array  $month  From sn_rights_evidence_month().
+ * @param array  $rights snt_mr_fetch( $days, 'rights', filter ) result.
+ * @return array{rights_reads:array,retrieval_reads:array,unlabelled_reads:array}
+ */
+function sn_rights_evidence_reads( $family, array $month, array $rights ) {
+	/** @var array{reads:int,by_purpose:array<string,int>,by_path:array<string,array<string,int>>,first:string,last:string} $none */
+	$none     = array( 'reads' => 0, 'by_purpose' => array(), 'by_path' => array(), 'first' => '', 'last' => '' );
+	$blocks   = array( 'rights_reads' => $none, 'retrieval_reads' => $none, 'unlabelled_reads' => $none );
+	$min_seen = '';
+	foreach ( (array) ( $rights['rows'] ?? array() ) as $row ) {
+		$at = (string) ( $row['observed_at'] ?? '' );
+		if ( '' === $min_seen || $at < $min_seen ) {
+			$min_seen = $at;
+		}
+		$purpose = (string) ( $row['purpose'] ?? '' );
+		if ( (string) ( $row['family'] ?? '' ) !== $family || substr( $at, 0, 10 ) < $month['start'] || substr( $at, 0, 10 ) > $month['end'] || in_array( $purpose, SN_RIGHTS_EVIDENCE_OWN_PURPOSES, true ) ) {
 			continue;
 		}
-		$rows[] = array(
-			'slug'          => (string) $r['slug'],
-			'version'       => (int) ( $r['version'] ?? 0 ),
-			'content_hash'  => (string) ( $r['content_hash'] ?? '' ),
-			'ots_status'    => (string) ( $r['ots_status'] ?? '' ),
-			'bitcoin_block' => isset( $r['bitcoin_block'] ) ? (int) $r['bitcoin_block'] : null,
+		$purpose = sn_rights_evidence_purpose_key( $purpose );
+		$b       = &$blocks[ 'train' === $purpose ? 'rights_reads' : ( 'unlabelled' === $purpose ? 'unlabelled_reads' : 'retrieval_reads' ) ];
+		$hits = max( 1, (int) ( $row['hits'] ?? 1 ) );
+		$path = (string) ( $row['path'] ?? '' );
+		$b['reads']                         = ( $b['reads'] ?? 0 ) + $hits;
+		$b['by_purpose'][ $purpose ]        = ( $b['by_purpose'][ $purpose ] ?? 0 ) + $hits;
+		$b['by_path'][ $purpose ][ $path ]  = ( $b['by_path'][ $purpose ][ $path ] ?? 0 ) + $hits;
+		$b['first'] = '' === (string) ( $b['first'] ?? '' ) || $at < $b['first'] ? $at : $b['first'];
+		$b['last']  = $at > (string) ( $b['last'] ?? '' ) ? $at : $b['last'];
+		unset( $b );
+	}
+	$complete = empty( $rights['truncated'] ) || ( '' !== $min_seen && substr( $min_seen, 0, 10 ) <= $month['start'] );
+	foreach ( $blocks as $k => $b ) {
+		$by_path = array();
+		foreach ( (array) ( $b['by_path'] ?? array() ) as $purpose => $paths ) {
+			ksort( $paths );
+			$by_path[ $purpose ] = (object) $paths;
+		}
+		ksort( $by_path );
+		$by_purpose = (array) ( $b['by_purpose'] ?? array() );
+		ksort( $by_purpose );
+		$blocks[ $k ] = array(
+			'reads'      => (int) ( $b['reads'] ?? 0 ),
+			'by_purpose' => (object) $by_purpose,
+			'by_path'    => (object) $by_path,
+			'first'      => (string) ( $b['first'] ?? '' ),
+			'last'       => (string) ( $b['last'] ?? '' ),
+			'complete'   => $complete,
 		);
 	}
-	usort( $rows, static fn( $a, $b ) => strcmp( $a['slug'], $b['slug'] ) );
-	return $rows ? $rows : null;
+	return $blocks;
 }
 
 /**
@@ -95,19 +198,22 @@ function sn_rights_evidence_reservation( $index ) {
  * @param string $family      Sensor family slug.
  * @param array  $month       From sn_rights_evidence_month().
  * @param array  $aggregate   snt_mr_fetch( $days ) result (rows + truncated).
- * @param array  $rights      snt_mr_fetch( $days, 'rights' ) result.
+ * @param array  $rights      The family's filtered rights stream.
  * @param array  $reservation From sn_rights_evidence_reservation().
- * @param array  $sensor      {version, taxonomy} or empty.
+ * @param array  $sensor      {version, taxonomy}.
  * @param string $site        Home URL.
  * @param int    $now         Unix time (composed_at).
- * @return array The record payload, keys unsorted (sn_prov_canonical_json sorts).
+ * @return array|null The record payload (keys unsorted; sn_prov_canonical_json sorts); null when the sensor names no taxonomy.
  */
 function sn_rights_evidence_compose( $family, array $month, array $aggregate, array $rights, array $reservation, array $sensor, $site, $now ) {
-	$days = array();
+	if ( '' === (string) ( $sensor['taxonomy'] ?? '' ) ) {
+		return null; // A record that cannot say which classification it counted under is not shipped blank.
+	}
+	$days       = array();
 	$by_surface = array();
-	$reads = 0;
-	$train = 0;
-	$max_day = '';
+	$reads      = 0;
+	$train      = 0;
+	$max_day    = '';
 	foreach ( (array) ( $aggregate['rows'] ?? array() ) as $row ) {
 		$day = (string) ( $row['day'] ?? '' );
 		if ( $day > $max_day ) {
@@ -116,55 +222,33 @@ function sn_rights_evidence_compose( $family, array $month, array $aggregate, ar
 		if ( (string) ( $row['family'] ?? '' ) !== $family || $day < $month['start'] || $day > $month['end'] ) {
 			continue;
 		}
-		$hits   = max( 0, (int) ( $row['hits'] ?? 0 ) );
-		$reads += $hits;
+		$hits    = max( 0, (int) ( $row['hits'] ?? 0 ) );
+		$purpose = sn_rights_evidence_purpose_key( (string) ( $row['purpose'] ?? '' ) );
+		$is_train = 'train' === $purpose ? $hits : 0;
+		$reads  += $hits;
+		$train  += $is_train;
 		$days[ $day ]['reads'] = ( $days[ $day ]['reads'] ?? 0 ) + $hits;
-		$days[ $day ]['train'] = ( $days[ $day ]['train'] ?? 0 ) + ( 'train' === (string) ( $row['purpose'] ?? '' ) ? $hits : 0 );
-		$train += 'train' === (string) ( $row['purpose'] ?? '' ) ? $hits : 0;
+		$days[ $day ]['train'] = ( $days[ $day ]['train'] ?? 0 ) + $is_train;
 		$surface = (string) ( $row['surface'] ?? '' );
 		if ( '' !== $surface ) {
-			$by_surface[ $surface ] = ( $by_surface[ $surface ] ?? 0 ) + $hits;
+			$by_surface[ $purpose ][ $surface ] = ( $by_surface[ $purpose ][ $surface ] ?? 0 ) + $hits;
 		}
 	}
 	ksort( $days );
 	ksort( $by_surface );
-
-	$fetches  = 0;
-	$by_path  = array();
-	$first    = '';
-	$last     = '';
-	$min_seen = '';
-	foreach ( (array) ( $rights['rows'] ?? array() ) as $row ) {
-		$at = (string) ( $row['observed_at'] ?? '' );
-		if ( '' === $min_seen || $at < $min_seen ) {
-			$min_seen = $at;
-		}
-		if ( (string) ( $row['family'] ?? '' ) !== $family || substr( $at, 0, 10 ) < $month['start'] || substr( $at, 0, 10 ) > $month['end'] ) {
-			continue;
-		}
-		$hits     = max( 1, (int) ( $row['hits'] ?? 1 ) );
-		$fetches += $hits;
-		$path     = (string) ( $row['path'] ?? '' );
-		$by_path[ $path ] = ( $by_path[ $path ] ?? 0 ) + $hits;
-		$first = '' === $first || $at < $first ? $at : $first;
-		$last  = $at > $last ? $at : $last;
+	foreach ( $by_surface as $p => $s ) {
+		ksort( $s );
+		$by_surface[ $p ] = (object) $s;
 	}
-	ksort( $by_path );
 
 	return array(
+		'schema'      => SN_RIGHTS_EVIDENCE_SCHEMA,
 		'kind'        => SN_RIGHTS_EVIDENCE_KIND,
 		'family'      => $family,
 		'month'       => $month['month'],
 		'site'        => rtrim( (string) $site, '/' ),
 		'composed_at' => gmdate( 'c', $now ),
-		'reservation' => array( 'as_of' => gmdate( 'c', $now ), 'signals' => $reservation ),
-		'rights_reads' => array(
-			'reads'    => $fetches,
-			'by_path'  => (object) $by_path,
-			'first'    => $first,
-			'last'     => $last,
-			'complete' => empty( $rights['truncated'] ) || ( '' !== $min_seen && substr( $min_seen, 0, 10 ) <= $month['start'] ),
-		),
+		'reservation' => $reservation,
 		'crawling'    => array(
 			'reads'      => $reads,
 			'train'      => $train,
@@ -174,9 +258,9 @@ function sn_rights_evidence_compose( $family, array $month, array $aggregate, ar
 		),
 		'sensor'      => array(
 			'version'  => (string) ( $sensor['version'] ?? '' ),
-			'taxonomy' => (string) ( $sensor['taxonomy'] ?? '' ),
+			'taxonomy' => (string) $sensor['taxonomy'],
 		),
-	);
+	) + sn_rights_evidence_reads( $family, $month, $rights );
 }
 
 /**

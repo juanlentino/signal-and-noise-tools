@@ -284,6 +284,84 @@ an empty string, and `hits` to a non negative integer
 response therefore cannot put an arbitrary string on an admin page even before
 escaping gets a turn, and the render lane escapes every cell anyway.
 
+## Rights evidence, schema 2 (Worker v1.29.0)
+
+Once a month the plugin composes one signed, anchored record per AI-training
+family (`inc/rights-evidence*.php`, posted by the provenance worker under
+`rights-evidence/<uuid>/v1`). Schema 2 changes what the record claims.
+
+### The filtered rights view
+
+`?view=rights&days=N` takes two optional filters since Worker v1.29.0:
+`family=<one family>` and `exclude_purpose=<comma list>`. Both apply in SQL
+before the 500-row `LIMIT`, so a filtered read is not truncated by other
+families' rows. The response echoes `filter:{family,exclude_purpose}`; an
+invalid value is a 400 `{error:"bad_filter",field,reason}`.
+
+On the WordPress side `snt_mr_fetch( $days, 'rights', $filter )` passes the
+filter through `snt_mr_rights_filter()`: the family must be one of
+`snt_mr_ai_training_families()`, each purpose one of `snt_mr_valid_purposes()`.
+A refused filter returns `bad_filter` with no request; it never falls back to
+an unfiltered read. The filter is part of the cache key
+(`sn_mr_rows_<days>_rights_f<family>_x<purposes>`), and
+`snt_mr_cache_flush()` deletes the rights-evidence shape (each training family,
+`exclude_purpose=dev,ops`) for every window. Rights evidence reads the stream
+once per family per pass with `exclude_purpose=dev,ops` (`SNT_MR_RIGHTS_EXCLUDE`):
+our own probes and scripted clients are not evidence of anything.
+
+The worker excludes on the RAW purpose. A row written with an empty purpose
+survives the filter and is normalized to `unknown` here.
+
+### The purpose split
+
+- `rights_reads`: fetches of the rights files with purpose `train` only, the
+  training claim. `{reads, by_purpose, by_path, first, last, complete}`, with
+  `by_path` keyed by purpose, then path.
+- `retrieval_reads` (owner ruling D2): the same shape for every other recorded
+  purpose except `ops` and `dev`: `search`, `user`, and so on. A search or user
+  agent reading `/license.xml` is a retrieval read, not a training crawler
+  going looking for the reservation.
+- `unlabelled_reads`: the same shape for rows with no recorded purpose (`''` or
+  `unknown`), claimed by neither block above: an unlabelled row could be a
+  training crawler under a user agent the taxonomy missed.
+- `crawling.by_surface` is keyed by purpose (the unlabelled under
+  `unlabelled`), then surface. `crawling.train` is
+  unchanged.
+
+### What "in force" means
+
+The reservation block is `{window:{start,end}, signals:{<slug>:[...]}}`. Each
+entry is `{block, content_hash, valid_from, valid_to, version}`:
+
+- `block` is the Bitcoin block height the public ledger names for that version
+  (`rights-signals/<slug>/vN.json`, `ots.bitcoin_block`), walked for
+  N = 1 to the current version in `index.json`.
+- `valid_from` is that block's time, read from the Esplora API at
+  `blockstream.info` (the explorer the provenance worker already uses). The
+  anchor is the earliest moment the ledger can prove the bytes existed, so a
+  version is never claimed before it. Block header times can differ from wall
+  time by up to about two hours.
+- `valid_to` is the next anchored version's `valid_from`, or `null`.
+- A version not yet in a block is not listed, and leaves the version before it
+  open-ended.
+
+Every version in force at any point of `[window.start, window.end]` is listed.
+Confirmed versions and block times never change, so they are cached for good in
+`sn_rights_evidence_chain`; a missing version file or a block time the explorer
+cannot give refuses the record rather than shipping a reservation with a hole.
+
+### Schema and the rest
+
+- `schema: 2` rides the payload. v1 records carry no field and are implicitly 1.
+- `sensor.taxonomy` comes from the aggregate envelope's `taxonomy_version`
+  (else the first row that names one); the version endpoint does not report it.
+  An empty taxonomy refuses the record.
+- `wp sn rights-evidence dry-run <YYYY-MM>` prints the payloads a month would
+  carry today; `--erratum` prints, per posted v1 record, the reservation
+  that was in force, for the ledger's erratum document (a correction on the
+  ledger is a retraction, never a v2). Neither posts; Monitoring > Machine Readers has a View
+  door per held month and a Lift button (both twins).
+
 ## Privacy posture
 
 The sensor is deliberately the least data it can be and still answer the two
