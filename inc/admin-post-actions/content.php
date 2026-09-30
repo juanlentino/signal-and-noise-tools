@@ -8,7 +8,7 @@
  * a ?sn_flash=… code, and sn_admin_post_handlers() in inc/admin-post-handler.php
  * still reaches it BY NAME, which is why the move is invisible to dispatch.
  *
- * Actions served: now_save, uses_save, resume_save, resume_pdf_generate, resume_pdf_private
+ * Actions served: now_save, uses_save, resume_pdf_generate, resume_pdf_private (the resume editor saves drafts: admin-post-actions/resume-draft.php)
  *
  * @package SignalNoiseTools
  * @since 12.21.2
@@ -253,7 +253,7 @@ function sn_handle_now_save( $post ) {
 		return 'now_saved';
 	}
 	// v10.33.3: unchanged DOCUMENT, but the page-sync ENGINE may have changed
-	// since the last save — still re-render (the resume_resynced pattern from
+	// since the last save: still re-render (the resynced pattern the old resume save used from
 	// v10.33.2, where this exact gap stranded an engine fix). Idempotent and
 	// owner-triggered.
 	if ( function_exists( 'sn_now_sync_page' ) ) {
@@ -342,43 +342,6 @@ function sn_handle_uses_save( $post ) {
 		return 'uses_resynced';
 	}
 	return 'uses_unchanged';
-}
-
-/**
- * v10.33.0: save the /resume structured document (Content → Resume Page).
- * The posted resume[…] arrays mirror the canonical document shape exactly, so
- * after wp_unslash (update_option does NOT unslash — the apostrophe-backslash
- * trap) the array goes straight to the data layer: sn_resume_doc_normalize()
- * owns trimming, blank-row pruning, bullet kses, and URL discipline, and a
- * document with neither experience nor publications is refused rather than
- * saved — so a bad POST can never blank the live page. Unlike Now/Uses there
- * is no "clear" path: the form always posts the full document. A real save
- * regenerates the Page (inside sn_resume_doc_save) and purges the route.
- */
-function sn_handle_resume_save( $post ) {
-	if ( ! function_exists( 'sn_resume_doc_save' ) || ! function_exists( 'sn_resume_doc_normalize' ) ) {
-		return 'resume_failed';
-	}
-	$resume = isset( $post['resume'] ) && is_array( $post['resume'] ) ? (array) wp_unslash( $post['resume'] ) : array();
-	if ( null === sn_resume_doc_normalize( $resume ) ) {
-		return 'resume_refused';
-	}
-	if ( sn_resume_doc_save( $resume ) ) {
-		sn_content_route_purge( '/resume' );
-		return 'resume_saved';
-	}
-	// v10.33.2: an unchanged DOCUMENT must still regenerate the PAGE. The
-	// renderer changes between releases while the content doesn't (the
-	// v10.33.1 real-block layout fix could never reach the live page: the
-	// unchanged-content path skipped the sync entirely, so the owner's
-	// re-save kept serving the old wp:html body). A Save click is an owner
-	// action and the regeneration is idempotent — always re-render.
-	if ( function_exists( 'sn_resume_sync_page' ) ) {
-		sn_resume_sync_page();
-		sn_content_route_purge( '/resume' );
-		return 'resume_resynced';
-	}
-	return 'resume_unchanged';
 }
 
 /**

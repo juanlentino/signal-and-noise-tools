@@ -4,9 +4,11 @@
  *
  * The STRUCTURED editor for the /resume page: real fields and repeatable rows
  * (employers → roles → bullets, publications, stats, chips, skills), not a
- * plain-text box. Prefills from sn_resume_doc_get() (the shipped seed before
- * the first save); sn_action=resume_save rebuilds the document from the posted
- * arrays and regenerates the live Page via the sync engine.
+ * plain-text box. Prefills from the draft when there is one, else from
+ * sn_resume_doc_get() (the shipped seed before the first save);
+ * sn_action=resume_draft_save rebuilds the document from the posted arrays
+ * and stores it as a DRAFT. Nothing goes live until Publish
+ * (inc/admin-forms/resume-draft.php, inc/resume-draft.php).
  *
  * Every renderer here ECHOES (not returns) with esc_* on each dynamic value at
  * the echo site — the WP-core renderer style, and what keeps BOTH WPCS and
@@ -179,21 +181,27 @@ function sn_rsm_section_open( $title, $hint = '', $count = -1 ) {
  * @since 10.33.0
  */
 function sn_admin_render_resume_section() {
-	$doc = function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null;
-	if ( ! is_array( $doc ) ) {
+	$live = function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null;
+	if ( ! is_array( $live ) ) {
 		echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Resume page</h2><p class="sn-fieldset-intro">The resume editor is unavailable: no stored document and no readable seed.</p></div>';
 		return;
 	}
-	$saved = '' !== (string) ( $doc['updated'] ?? '' );
+	// The form paints the draft when there is one: that is what Save stores.
+	$draft = function_exists( 'sn_resume_draft_get' ) ? sn_resume_draft_get() : null;
+	$doc   = is_array( $draft ) ? $draft : $live;
+	$saved = '' !== (string) ( $live['updated'] ?? '' );
 
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-rsm-form">';
-	wp_nonce_field( 'sn_resume_save' );
+	wp_nonce_field( 'sn_resume_draft_save' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Resume page</h2>';
 	if ( $saved ) {
-		echo '<p class="sn-fieldset-intro">This form is the editor for the live <a href="' . esc_url( home_url( '/resume' ) ) . '" target="_blank" rel="noopener">/resume</a> page. Saving regenerates it. Last saved: <code>' . esc_html( (string) $doc['updated'] ) . '</code>.</p>';
+		echo '<p class="sn-fieldset-intro">This form is the editor for the live <a href="' . esc_url( home_url( '/resume' ) ) . '" target="_blank" rel="noopener">/resume</a> page. Saving stores a draft; nothing goes live until you publish it. Last published: <code>' . esc_html( (string) $live['updated'] ) . '</code>.</p>';
 	} else {
-		echo '<p class="sn-fieldset-intro">This form is the editor for the live <a href="' . esc_url( home_url( '/resume' ) ) . '" target="_blank" rel="noopener">/resume</a> page, prefilled from the current published content. The first save takes over the page body: from then on this form is the canonical editor.</p>';
+		echo '<p class="sn-fieldset-intro">This form is the editor for the live <a href="' . esc_url( home_url( '/resume' ) ) . '" target="_blank" rel="noopener">/resume</a> page, prefilled from the current published content. Saving stores a draft; the first publish takes over the page body, and from then on this form is the canonical editor.</p>';
+	}
+	if ( function_exists( 'sn_resume_draft_status' ) ) {
+		echo '<p class="sn-fieldset-intro">' . esc_html( sn_resume_draft_status() ) . '</p>';
 	}
 
 	// ── Hero ──
@@ -343,7 +351,7 @@ function sn_admin_render_resume_section() {
 	// ── PDF only ── Fields the generated PDF uses and /resume never shows (the
 	// sync engine does not read `pdf`), so the phone stays off the web page.
 	$pdf = (array) ( $doc['pdf'] ?? array() );
-	sn_rsm_section_open( 'PDF only', 'Used by the generated PDF, never shown on /resume. Save, then Generate PDF below.' );
+	sn_rsm_section_open( 'PDF only', 'Used by the generated PDF, never shown on /resume. Preview PDF shows the draft; Publish rebuilds the public PDF once one exists.' );
 	sn_rsm_input( 'resume[pdf][headline]', (string) ( $pdf['headline'] ?? '' ), 'Headline', 'Music Business Development & Strategic Partnerships Leader' );
 	sn_rsm_input( 'resume[pdf][tagline]', (string) ( $pdf['tagline'] ?? '' ), 'Tagline', 'Artist & Label Relations | Latin American & U.S. Markets' );
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Professional summary</span><textarea rows="4" class="large-text" name="resume[pdf][summary]">' . esc_textarea( (string) ( $pdf['summary'] ?? '' ) ) . '</textarea></label>';
@@ -359,11 +367,14 @@ function sn_admin_render_resume_section() {
 	echo '</details>';
 
 	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" name="action" value="sn_resume_save" class="button button-primary">Save resume</button>';
+	echo '<button type="submit" name="action" value="sn_resume_draft_save" class="button button-primary">Save draft</button>';
 	echo '</div>';
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';
 
+	if ( function_exists( 'sn_admin_render_resume_draft_controls' ) ) {
+		sn_admin_render_resume_draft_controls();
+	}
 	sn_admin_render_resume_pdf_generate();
 }
 
@@ -382,17 +393,18 @@ function sn_admin_render_resume_pdf_generate() {
 			. esc_html( (string) (int) $meta['pages'] ) . ' pages, ' . esc_html( size_format( (int) $meta['bytes'] ) ) . ', SHA-256 <code>' . esc_html( substr( (string) $meta['sha256'], 0, 12 ) ) . '</code>. '
 			. '<a href="' . esc_url( sn_resume_pdf_link( '' ) ) . '" target="_blank" rel="noopener">Open the PDF</a>. The /resume Download link points here.</p>';
 	} else {
-		echo '<p class="sn-fieldset-intro">Not generated yet: the /resume Download link still uses the PDF URL set above. Generating builds the PDF from the saved resume and switches the link to it.</p>';
+		echo '<p class="sn-fieldset-intro">Not generated yet: the /resume Download link still uses the PDF URL set above. Generating builds the PDF from the published resume and switches the link to it.</p>';
 	}
 	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_resume_pdf_generate" class="button">Generate PDF</button></div>';
 	echo '</div></form>';
 
 	// The private copy: same PDF WITH the phone, streamed to this admin and
 	// never stored, so no public URL can ever serve the phone.
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
-	wp_nonce_field( 'sn_resume_pdf_private' );
+	// A GET link with its nonce, like the draft previews (inc/admin-forms/resume-draft.php).
 	echo '<div class="sn-fieldset">';
 	echo '<p class="sn-fieldset-intro">A private copy always includes the phone: built on demand for you, never saved on the server, so it has no public URL.</p>';
-	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_resume_pdf_private" class="button">Download private copy (with phone)</button></div>';
-	echo '</div></form>';
+	if ( function_exists( 'sn_resume_action_url' ) ) {
+		echo '<div class="sn-fieldset-actions"><a class="button" target="_blank" rel="noopener" href="' . esc_url( sn_resume_action_url( 'resume_pdf_private' ) ) . '">Download private copy (with phone)</a></div>';
+	}
+	echo '</div>';
 }
