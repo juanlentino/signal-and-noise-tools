@@ -127,6 +127,25 @@ async function run() {
     y.calls[0].resolve({theme: {current: '1', state: 'ok'}, plugin: {current: '2', state: 'ok'}}); await flush();
     assert.ok(!nodes(r2).some(n => n.text === 'Core'), 'an older payload without core paints no Core row');
     stop2();
+    // 19.8.0: an unchecked core (update check missing from the cache) reads muted, not '?'.
+    const z = harness(), r3 = new Element('div');
+    const stop3 = z.window.desktopModeWidgets['sn-deploy-status'](r3); await flush();
+    z.calls[0].resolve({theme: {current: '1', state: 'ok'}, plugin: {current: '2', state: 'ok'},
+      core: {current: '7.1.2', latest: '7.1.2', state: 'unknown', offer: '', reason: 'WordPress\'s core update check is not in the cache right now.'}}); await flush();
+    const l3 = nodes(r3).find(n => n.text === 'Core'), g3 = l3.parentNode, j = g3.children.indexOf(l3);
+    assert.equal(g3.children[j + 1].text, '7.1.2 · update check not cached', 'unchecked core says so');
+    assert.equal(g3.children[j + 2].text, '–', 'unchecked core paints a muted dash, not ?');
+    assert.match(g3.children[j + 2].title, /not in the cache/, 'the reason rides the glyph');
+    stop3();
+    // No version means the status module itself failed: keep the red '?', no sentence.
+    const w = harness(), r4 = new Element('div');
+    const stop4 = w.window.desktopModeWidgets['sn-deploy-status'](r4); await flush();
+    w.calls[0].resolve({theme: {current: '1', state: 'ok'}, plugin: {current: '2', state: 'ok'},
+      core: {current: '', latest: '', state: 'unknown', offer: '', reason: 'core status module not loaded'}}); await flush();
+    const l4 = nodes(r4).find(n => n.text === 'Core'), g4 = l4.parentNode, k = g4.children.indexOf(l4);
+    assert.equal(g4.children[k + 1].text, '—', 'a versionless unknown says nothing about the cache');
+    assert.equal(g4.children[k + 2].text, '?', 'a versionless unknown keeps the red ?');
+    stop4();
   }
   // Good -> pending -> good changes values and recency only after success.
   for (const f of fixtures) {
