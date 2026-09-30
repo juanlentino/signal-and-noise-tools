@@ -146,6 +146,8 @@ function snt_sn_status_map() {
 		'jev_spend'            => 'signal-noise/jev-meter',
 		// 19.4.3 — the analytics history recompute: state, cursor, the unit it died in.
 		'recompute'            => 'signal-noise/analytics-recompute-status',
+		// Beacon bot signals, observe-only: the nightly per-cohort reading.
+		'bot_signals'          => 'signal-noise/bot-signals',
 	);
 }
 

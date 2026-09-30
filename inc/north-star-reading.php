@@ -55,7 +55,8 @@ function snt_nsm_reading( $fresh = false ) {
 		),
 		// Four weeks by device and at other floors (north-star-sweep.php).
 		'calibration' => array( 'window' => '28d', 'devices' => snt_nsm_sweep( array_merge( ...snt_nsm_weeks( (array) $raw['visits'], $now ) ), $cfg ) ),
-		'layers'     => snt_nsm_inputs( $weeks[0], $now, (int) array_sum( $series ) ),
+		'layers'     => snt_nsm_inputs( $weeks[0], $now, (int) array_sum( $series ) )
+			+ array( 'quality' => snt_nsm_quality( function_exists( 'sn_bot_signals_stored' ) ? sn_bot_signals_stored() : null ) ),
 		'as_of'      => gmdate( 'c', $now ),
 	);
 	set_transient( SNT_NSM_CACHE_KEY, $out, HOUR_IN_SECONDS );
@@ -111,6 +112,30 @@ function snt_nsm_inputs( array $week, $now, $readers_4w ) {
 			// Distinct fetcher UAs, not people: one Feedly fetcher stands for many subscribers.
 			'rss_readers'     => array( 'value' => isset( $rss['windows'][7]['uniques'] ) ? (int) $rss['windows'][7]['uniques'] : null, 'window' => '7d' ),
 			'search_clicks'   => array( 'value' => is_array( $gsc ) ? (int) $gsc['clicks'] : null, 'window' => is_array( $gsc ) ? (int) ( $gsc['days'] ?? 0 ) . 'd' : '' ),
+		),
+	);
+}
+
+/**
+ * Layer 4, quality: OBSERVE-ONLY, and never an input to `value`. The share of
+ * human visitor-days the beacon bot signals score as likely automated, read
+ * from the nightly store (inc/abilities-bot-signals.php). Its population is
+ * every human visitor-day that carried signals, on any page, over the store's
+ * window: NOT the star's core-page readers, and not this week. Null when
+ * nothing is stored (never zero for "not measured"). PURE.
+ *
+ * @param array|null $stored sn_bot_signals_stored().
+ * @return array<string,array>
+ */
+function snt_nsm_quality( $stored ) {
+	$h = is_array( $stored ) ? (array) ( $stored['human'] ?? array() ) : array();
+	$n = (int) ( $h['visitor_days'] ?? 0 );
+	return array(
+		'likely_automated_share' => array(
+			'value'        => $n > 0 ? round( 100 * (int) ( $h['likely_automated'] ?? 0 ) / $n, 1 ) : null,
+			'window'       => $n > 0 ? (int) ( $stored['window_days'] ?? 0 ) . 'd' : '',
+			'basis'        => 'percent of human visitor-days carrying beacon signals, all pages',
+			'observe_only' => true,
 		),
 	);
 }
@@ -189,7 +214,7 @@ add_action(
 			'signal-noise/north-star',
 			array(
 				'label'               => __( 'North star', 'signal-and-noise-tools' ),
-				'description'         => __( 'Weekly engaged readers: human visitor-days with at least one core page read past the scroll or dwell floor, over four rolling weeks, with the supporting metrics (deep readers, intent actions, resume/contact visits, RSS readers, search clicks, notes published). Cached for an hour.', 'signal-and-noise-tools' ),
+				'description'         => __( 'Weekly engaged readers: human visitor-days with at least one core page read past the scroll or dwell floor, over four rolling weeks, with the supporting metrics (deep readers, intent actions, resume/contact visits, RSS readers, search clicks, notes published). layers.quality.likely_automated_share is OBSERVE-ONLY: the percent of human visitor-days (all pages, the bot-signals window) the beacon signals score as likely automated; it is never subtracted from value. Cached for an hour.', 'signal-and-noise-tools' ),
 				'category'            => 'diagnostics',
 				'permission_callback' => 'snt_ability_perm_manage_options',
 				'execute_callback'    => 'snt_ability_north_star',

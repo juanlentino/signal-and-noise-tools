@@ -1,6 +1,6 @@
 # Signal & Noise AI Abilities Catalog
 
-The reference for the 144 Signal & Noise WordPress Abilities: 113 plugin abilities, 15 remote twins of them, and 16 theme abilities. They are consumed by `wp ability run`, the REST endpoint `/wp-json/wp-abilities/v1/abilities/<slug>/run`, the plugin's two MCP doors, and (for the twins) the remote MCP Worker.
+The reference for the 146 Signal & Noise WordPress Abilities: 113 plugin abilities, 17 remote twins of them, and 16 theme abilities. They are consumed by `wp ability run`, the REST endpoint `/wp-json/wp-abilities/v1/abilities/<slug>/run`, the plugin's two MCP doors, and (for the twins) the remote MCP Worker.
 
 **Machine-readable source:** the live registry is an MCP resource, `sn://abilities-catalog`, on both doors. Query it for schemas; this document is the human map.
 
@@ -127,6 +127,7 @@ The reference for the 144 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/watches` | Watches Due | diagnostics | READ |
 | `signal-noise/zenodo-status` | Zenodo DOI status | diagnostics | READ |
 | **REMOTE TWINS** (plugin, reached only through the sn-remote-mcp Worker) | | | |
+| `signal-noise/remote-bot-signals` | Beacon bot signals (remote) | analytics | REMOTE |
 | `signal-noise/remote-cron-health-summary` | Cron health, summarized (remote) | diagnostics | REMOTE |
 | `signal-noise/remote-edge-errors-summary` | Edge 5xx summary (remote) | diagnostics | REMOTE |
 | `signal-noise/remote-get-analytics-events` | Get custom events (remote) | analytics | REMOTE |
@@ -136,6 +137,7 @@ The reference for the 144 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/remote-get-insights` | Get content insights (remote) | diagnostics | REMOTE |
 | `signal-noise/remote-get-narration` | Get analytics narration (remote) | diagnostics | REMOTE |
 | `signal-noise/remote-get-rss-stats` | Get RSS feed activity statistics (remote) | diagnostics | REMOTE |
+| `signal-noise/remote-machine-readers-networks` | Machine readers: is this crawler real (remote) | analytics | REMOTE |
 | `signal-noise/remote-machine-readers-summary` | Get machine readers summary (remote) | analytics | REMOTE |
 | `signal-noise/remote-provenance-integrity-status` | Get provenance integrity status (remote) | diagnostics | REMOTE |
 | `signal-noise/remote-search-crossexam` | Search Console x crawler ledger: do the instruments agree? (remote) | diagnostics | REMOTE |
@@ -160,7 +162,7 @@ The reference for the 144 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-and-noise/get-theme-version` | Get theme + WP version | diagnostics | — |
 | `signal-and-noise/list-block-patterns` | List block patterns | content | — |
 
-**Totals:** 113 plugin abilities + 15 remote twins + 16 theme = 144. **49** on the read door, **16** on the write door, 0 on both, **48** plugin abilities on neither. Theme abilities are on no door by design: `sn-site-facts` dispatches to them, so the read door carries zero theme slugs. Each remote twin shares its admin ability's execute callback and output schema byte for byte; remote contract version 9.
+**Totals:** 113 plugin abilities + 17 remote twins + 16 theme = 146. **49** on the read door, **16** on the write door, 0 on both, **48** plugin abilities on neither. Theme abilities are on no door by design: `sn-site-facts` dispatches to them, so the read door carries zero theme slugs. Each remote twin shares its admin ability's output schema byte for byte, except three named strips (deploy status without `runtime`, and the machine-readers networks slice, which carries the crosstab's `agent_networks` alone; both run a wrapper); remote contract version 14.
 
 ## How to use this catalog
 

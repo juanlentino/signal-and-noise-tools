@@ -107,6 +107,16 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_general_save_guard',
 		),
+		// Beacon bot signals: two weeks observe-only before any signal may subtract.
+		array(
+			'id'        => 'bot_signals_validation',
+			'label'     => 'beacon bot signals: validate, then decide',
+			'why'       => 'The five beacon signals are observe-only. Ripe when 14 days carry signal rows and the two known-human cohorts (relay readers, intent visitors) each have 20 visitor-days; stored bots, over-cap visitor-days and hosting suspects are reported at whatever count they reach (over-cap ran 2 in 92 days). Then: drop any signal that fires on relay readers or intent visitors, or does not fire on the other three, and bring the survivors and a threshold to the owner before anything subtracts.',
+			'read'      => 'sn-status{bot_signals}',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_bot_signals',
+		),
 		array(
 			'id'        => 'wave4_telemetry',
 			'label'     => 'wave-4 tool retirement read',
@@ -119,6 +129,43 @@ function snt_watches() {
 			'ripe'      => '',
 		),
 	);
+}
+
+/**
+ * Ripe when the stored bot-signals reading covers 14 days and the relay and
+ * intent cohorts each have SNT_BOT_SIGNAL_MIN_N visitor-days. Reads the nightly record, never AE.
+ *
+ * @param array    $watch  The watch row.
+ * @param int      $now    Unix time (unused).
+ * @param array|null|false $stored Test seam; false reads the option.
+ * @return array{ripe:bool,note:string}
+ */
+function snt_watch_ripe_bot_signals( $watch, $now, $stored = false ) {
+	unset( $watch, $now );
+	$r = false === $stored ? ( function_exists( 'sn_bot_signals_stored' ) ? sn_bot_signals_stored() : null ) : $stored;
+	if ( ! is_array( $r ) ) {
+		return array( 'ripe' => false, 'note' => 'not measured yet' );
+	}
+	$min  = defined( 'SNT_BOT_SIGNAL_MIN_N' ) ? SNT_BOT_SIGNAL_MIN_N : 20;
+	$days = (int) ( $r['days_present'] ?? 0 );
+	// Only the two known-human cohorts gate: over-cap ran 2 visitor-days in 92,
+	// so a floor on every cohort would never ripen. The rest are reported as-is.
+	$c    = (array) ( $r['cohorts'] ?? array() );
+	$thin = array();
+	foreach ( array( 'relay', 'intent' ) as $k ) {
+		if ( (int) ( $c[ $k ]['n'] ?? 0 ) < $min ) {
+			$thin[] = $k . ' ' . (int) ( $c[ $k ]['n'] ?? 0 );
+		}
+	}
+	$rest = array();
+	foreach ( array_diff( array_keys( $c ), array( 'relay', 'intent' ) ) as $k ) {
+		$rest[] = $k . ' ' . (int) ( $c[ $k ]['n'] ?? 0 );
+	}
+	$others = $rest ? '; others: ' . implode( ', ', $rest ) : '';
+	if ( $days < 14 || array() !== $thin ) {
+		return array( 'ripe' => false, 'note' => $days . ' of 14 days' . ( $thin ? '; under ' . $min . ': ' . implode( ', ', $thin ) : '' ) . $others );
+	}
+	return array( 'ripe' => true, 'note' => $days . ' days, relay and intent at ' . $min . '+ visitor-days' . $others );
 }
 
 /**

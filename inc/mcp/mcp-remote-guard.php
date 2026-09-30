@@ -82,6 +82,10 @@ function sn_mcp_remote_slugs() {
 		// 18.0.0 — owner ruling 2026-09-23: the 5xx rollup, so "did the Early
 		// Hints fix hold?" has a phone answer.
 		'signal-noise/remote-edge-errors-summary',
+		// Contract 14 — owner ruling 2026-09-29: the observe-only bot-signals
+		// readout and the machine readers' agent_networks. Aggregate counts.
+		'signal-noise/remote-bot-signals',
+		'signal-noise/remote-machine-readers-networks',
 	);
 }
 
@@ -173,6 +177,7 @@ function sn_mcp_remote_verdicts() {
 		// 16.6.0 — the Jev meter: cents per feature per cycle. Harmless, but a new payload whose shape has not settled; a twin freezes it. Local only for now.
 		'jev_spend'            => $out( false, 'The site\'s own priced ledger of Jev use this credit cycle. Cents, not secrets, but a payload shipped this release and a twin freezes its shape byte-identically. Local only until the shape ledger reports it settled.' ),
 		'recompute'            => $out( false, 'The owner-run analytics history recompute: an admin operation in progress, read while running it at a desk. A new payload; local only until the shape ledger reports it settled.' ),
+		'bot_signals'          => $out( true, 'Ratified by the owner 2026-09-29 (contract 14): cohort sizes and signal fire rates, aggregate counts only, no hash, no network, no path. Observe-only; nothing is subtracted. Byte-identical twin.', 'signal-noise/remote-bot-signals' ),
 		'cache'                => $out( false, 'A good remote candidate on the merits, but the payload shipped today and a twin freezes its shape byte-identically. Gated on the shape ledger reporting settled, which is the discipline this plugin built for exactly this decision. Local only for now.' ),
 		'search_crossexam'     => $out( true, 'Ratified by the owner 2026-09-01 (v13.67.0): a window-grain agreement verdict — impressions vs search-family fetch counts — with no paths in the payload; the ledger side is counts, not rows. Byte-identical twin.', 'signal-noise/remote-search-crossexam' ),
 		'cron_health'          => $out( true, 'The model the partition asked for (v13.52.0): status + derived summary + overdue evidence, sharing the Site Health overdue rule. Byte-identical twin of a section designed for the phone.', 'signal-noise/remote-cron-health-summary' ),

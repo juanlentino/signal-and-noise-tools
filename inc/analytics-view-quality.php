@@ -26,6 +26,9 @@ require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this
 function snt_analytics_render_view_quality( $from, $to, $class, $granularity ) {
 	snt_analytics_render_bot_trend( sn_analytics_class_series( $from, $to, $granularity ) );
 	snt_analytics_render_bot_breakdown( sn_analytics_bot_breakdown( $from, $to ) );
+	if ( function_exists( 'snt_analytics_render_bot_signals' ) ) {
+		snt_analytics_render_bot_signals( sn_bot_signals_stored() );
+	}
 	snt_analytics_render_distribution(
 		__( 'Bot confidence', 'signal-and-noise-tools' ),
 		sn_analytics_distribution( 'botscore', $from, $to, $class ),
