@@ -250,6 +250,7 @@ require_once SNT_PATH . 'inc/resume-draft.php';              // Unreleased: /res
 require_once SNT_PATH . 'inc/resume-pdf/template.php';       // Resume PDF (docs/RESUME-PDF.md): the ONE template the generator renders
 require_once SNT_PATH . 'inc/resume-pdf/generate.php';       // Resume PDF: Dompdf (lib/pdf) -> uploads/resume, hash option, Download link
 require_once SNT_PATH . 'inc/admin-forms/resume-page.php';   // v10.33.0: Content → Resume Page structured editor form (repeatable rows, not a text box)
+require_once SNT_PATH . 'inc/admin-forms/rights-evidence.php'; // 19.10.0: rights evidence on Machine Readers (view payloads, lift hold)
 require_once SNT_PATH . 'inc/admin-forms/resume-draft.php';  // Unreleased: the draft controls (previews, publish, discard, revert)
 require_once SNT_PATH . 'inc/rest-api.php';
 require_once SNT_PATH . 'inc/analytics-rest.php'; // v6.1.0: read-only /analytics REST routes

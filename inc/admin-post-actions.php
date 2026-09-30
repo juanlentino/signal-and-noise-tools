@@ -53,3 +53,4 @@ require_once __DIR__ . '/admin-post-actions/zenodo.php'; // 15.11.0
 require_once __DIR__ . '/admin-post-actions/analytics.php';
 require_once __DIR__ . '/admin-post-actions/gsc.php';
 require_once __DIR__ . '/admin-post-actions/mcp.php';
+require_once __DIR__ . '/admin-post-actions/rights-evidence.php'; // 19.10.0: view a held month's payloads, lift the hold
