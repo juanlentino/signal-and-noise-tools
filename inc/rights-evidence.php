@@ -163,6 +163,9 @@ function sn_rights_evidence_run( $now = null ) {
 	// calendar moving on never drops it; a lifted backlog month goes first, one
 	// month per pass. Before the lock, so a held pass never blocks another.
 	// rights-evidence-now runs this same function.
+	// ponytail: a backlog month takes the whole pass; if it fails for weeks the
+	// current month is never evaluated and can be dropped at a month boundary.
+	// Upgrade: also enqueue a held current month, or cap backlog retries per pass.
 	$held         = sn_rights_evidence_held();
 	$month        = sn_rights_evidence_backlog_target( $now, $held );
 	$from_backlog = null !== $month;

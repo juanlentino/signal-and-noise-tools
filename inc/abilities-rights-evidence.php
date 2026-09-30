@@ -29,7 +29,7 @@ add_action( 'wp_abilities_api_init', function () {
 	) );
 	wp_register_ability( 'signal-noise/rights-evidence-now', array(
 		'label'               => 'Rights evidence: compose and post the last month now',
-		'description'         => 'Runs the daily pass now: for the last complete month, composes a record per AI-training family the sensor saw and not yet on the ledger, and posts it to the provenance worker. Idempotent: a family already on the ledger is skipped, a composed record that failed to post is re-sent byte-identical. Publishes to a public, append-only ledger: a posted record cannot be edited, only retracted. Two sensor reads and one ledger read; no model call.',
+		'description'         => 'Runs the daily pass now: for the oldest lifted month in the backlog, else the last complete month (a held month composes nothing and is queued), composes a record per AI-training family the sensor saw and not yet on the ledger, and posts it to the provenance worker. Idempotent: a family already on the ledger is skipped, a composed record that failed to post is re-sent byte-identical. Publishes to a public, append-only ledger: a posted record cannot be edited, only retracted. Two sensor reads and one ledger read; no model call.',
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_rights_evidence_now',
@@ -54,7 +54,7 @@ function snt_ability_rights_evidence( $input = array() ) {
 		'months'      => (object) $months, // no records yet is {} at the door, never []
 		'hold'        => sn_rights_evidence_held( false ), // months the pass refuses to compose or post
 		'backlog'     => sn_rights_evidence_backlog(), // months skipped while held, composed once lifted
-		'note'        => 'One record per AI-training family per month. status: composed (bytes stored, not yet posted), unanchored (the post failed; re-sent daily), pending (on the ledger, awaiting the Bitcoin block), confirmed, conflict (the ledger already held other bytes at that path; its record stands, nothing is retried). The record and its .ots proof live at ledger_base + ledger_path.',
+		'note'        => 'One record per AI-training family per month. status: composed (bytes stored, not yet posted), unanchored (the post failed; re-sent daily), pending (on the ledger, awaiting the Bitcoin block), confirmed, conflict (the ledger already held other bytes at that path; its record stands, nothing is retried). The record and its .ots proof live at ledger_base + ledger_path. hold: months the pass refuses to compose or post; backlog: months skipped while held, composed first once lifted (within the sensor\'s 90-day window).',
 	);
 }
 
