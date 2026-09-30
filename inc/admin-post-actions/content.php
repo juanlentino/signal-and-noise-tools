@@ -253,7 +253,7 @@ function sn_handle_now_save( $post ) {
 		return 'now_saved';
 	}
 	// v10.33.3: unchanged DOCUMENT, but the page-sync ENGINE may have changed
-	// since the last save — still re-render (the resynced pattern the old resume save used from
+	// since the last save: still re-render (the resynced pattern the old resume save used from
 	// v10.33.2, where this exact gap stranded an engine fix). Idempotent and
 	// owner-triggered.
 	if ( function_exists( 'sn_now_sync_page' ) ) {
