@@ -12,6 +12,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- CI: the "Parity cron still firing" check reads each workflow's scheduled-run list three times and keeps the newest stamp. On 2026-09-30 GitHub twice served a stale list (newest run 8 and 25 days old while both crons had fired that morning) and redded #1806; one stale answer can no longer do that, and a cron that has really stopped still fails.
 ## [19.8.1] - 2026-09-30 — September waits
 
 

@@ -470,7 +470,11 @@ jobs:
             | while IFS=: read -r wf grace; do
                 [ -n "$wf" ] || continue
                 created=$(api "repos/${REPO}/actions/workflows/${wf}" '.created_at') || created=""
-                runs=$(api "repos/${REPO}/actions/workflows/${wf}/runs?event=schedule&per_page=10" '[.workflow_runs[].created_at]') || runs="[]"
+                # The runs list is read THREE times and merged: GitHub has served a
+                # stale list (newest run 8 and 25 days old while both had fired that
+                # morning, 2026-09-30). The newest stamp across reads decides, so one
+                # stale answer cannot red the check; a truly stopped cron still does.
+                runs=$(for i in 1 2 3; do api "repos/${REPO}/actions/workflows/${wf}/runs?event=schedule&per_page=10" '[.workflow_runs[].created_at]' || printf '[]'; printf '\n'; done | jq -cs 'add | unique') || runs="[]"
                 # An empty created_at reaches the script as null, which it reports
                 # as 'indeterminate' rather than passing — a blind instrument goes red.
                 if [ -z "$created" ]; then created_json=null; else created_json="\"${created}\""; fi
