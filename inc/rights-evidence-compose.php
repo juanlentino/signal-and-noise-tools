@@ -142,7 +142,9 @@ function sn_rights_evidence_reservation( array $history, array $month ) {
  * @return array{rights_reads:array,retrieval_reads:array,unlabelled_reads:array}
  */
 function sn_rights_evidence_reads( $family, array $month, array $rights ) {
-	$blocks   = array( 'rights_reads' => array(), 'retrieval_reads' => array(), 'unlabelled_reads' => array() );
+	/** @var array{reads:int,by_purpose:array<string,int>,by_path:array<string,array<string,int>>,first:string,last:string} $none */
+	$none     = array( 'reads' => 0, 'by_purpose' => array(), 'by_path' => array(), 'first' => '', 'last' => '' );
+	$blocks   = array( 'rights_reads' => $none, 'retrieval_reads' => $none, 'unlabelled_reads' => $none );
 	$min_seen = '';
 	foreach ( (array) ( $rights['rows'] ?? array() ) as $row ) {
 		$at = (string) ( $row['observed_at'] ?? '' );

@@ -60,6 +60,7 @@ function sn_handle_rights_evidence_view( $post ) { // phpcs:ignore Generic.CodeA
 	foreach ( $dry['payloads'] as $family => $canonical ) {
 		$out['payloads'][ $family ] = json_decode( $canonical );
 	}
+	// nosemgrep: php.lang.security.injection.echoed-request.echoed-request -- the month is sanitize_text_field'd and accepted only when it is on the stored hold list (sn_rights_evidence_request_month); the body is a JSON file download (Content-Disposition: attachment), not HTML.
 	echo wp_json_encode( $out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a JSON download, not HTML.
 	exit;
 }
