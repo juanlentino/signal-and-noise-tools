@@ -191,8 +191,10 @@ $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-08' ) 
 $r = sn_rights_evidence_run( $now );
 ok( ! $r['ok'] && 'held: 2026-08' === $r['error'] && 0 === $r['composed'] && array() === $GLOBALS['__k']['posts'] && array() === $GLOBALS['__k']['fetch'] && array() === sn_rights_evidence_data(), 'H1 a held month reads nothing, composes nothing, posts nothing, and says so' );
 ok( ! isset( $GLOBALS['__k']['transients']['sn_rights_evidence_lock'] ), 'H2 a held pass takes no lock' );
+$live = sn_rights_evidence_month( time() )['month']; // the ability runs on the real clock
+$GLOBALS['__k']['opt']['sn_rights_evidence_hold'] = array( '2026-08', $live );
 $r = snt_ability_rights_evidence_now();
-ok( str_starts_with( $r['error'], 'held: ' ) && array() === $GLOBALS['__k']['posts'], 'H3 rights-evidence-now is held too (it runs the same function; its own clock is today, whatever month that is, so hold it as well)' );
+ok( 'held: ' . $live === $r['error'] && array() === $GLOBALS['__k']['posts'], 'H3 rights-evidence-now is held too (it runs the same function; its own clock is today, whatever month that is, so hold it as well)' );
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-09' ) ); $GLOBALS['__k']['posts'] = array();
 $r = sn_rights_evidence_run( $now );
 ok( $r['ok'] && '2026-08' === $r['month'] && 2 === $r['posted'], 'H4 an unheld month takes the normal path' );
@@ -204,6 +206,10 @@ $GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['posts'] = array();
 $r = sn_rights_evidence_run( strtotime( '2026-10-01T21:43:00Z' ) );
 ok( 'held: 2026-09' === $r['error'] && '2026-09' === $r['month'] && array() === $GLOBALS['__k']['posts'], 'H7 the 2026-10-01 run on a fresh install is held by the seed alone' );
 
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-11' ) );
+ok( array( '2026-11' ) === snt_ability_rights_evidence()['hold'], 'H8 the read echoes the stored hold' );
+$GLOBALS['__k']['opt'] = array();
+ok( array( '2026-09' ) === snt_ability_rights_evidence()['hold'] && ! array_key_exists( 'sn_rights_evidence_hold', $GLOBALS['__k']['opt'] ), 'H9 absent option: the read reports the effective 2026-09 hold without storing it' );
 $GLOBALS['__k']['opt'] = array();
 ok( '{}' === json_encode( snt_ability_rights_evidence()['months'] ), 'G4 no records yet: months encodes as {} at the door, never []' );
 

@@ -94,13 +94,16 @@ function sn_rights_evidence_post( $uuid, $canonical ) {
  * stream is truncated by our own probes); add_option never overwrites, so an
  * owner who empties the list keeps it empty.
  *
+ * @param bool $seed Store the seed when absent (the pass does; a read does not).
  * @return string[]
  */
-function sn_rights_evidence_held() {
+function sn_rights_evidence_held( $seed = true ) {
 	$held = get_option( 'sn_rights_evidence_hold', null );
 	if ( null === $held ) {
 		$held = array( '2026-09' );
-		add_option( 'sn_rights_evidence_hold', $held, '', false );
+		if ( $seed ) {
+			add_option( 'sn_rights_evidence_hold', $held, '', false );
+		}
 	}
 	return array_values( array_filter( (array) $held, 'is_string' ) );
 }
