@@ -157,6 +157,7 @@ $rights = array( 'ok' => true, 'truncated' => false, 'rows' => array(
 	$rd( 'openai', '2026-08-03T09:00:00Z', '/.well-known/tdmrep.json', 2 ),
 	$rd( 'openai', '2026-08-21T10:00:00Z', '/license.xml', 3, 'search' ),
 	$rd( 'openai', '2026-08-22T10:00:00Z', '/tdm-policy', 1, 'unknown' ),
+	$rd( 'openai', '2026-08-24T10:00:00Z', '/license.xml', 2, '' ),
 	$rd( 'openai', '2026-08-23T10:00:00Z', '/license.xml', 5, 'ops' ),
 	$rd( 'openai', '2026-09-01T00:00:00Z', '/license.xml' ),
 	$rd( 'anthropic', '2026-08-10T00:00:00Z', '/tdm-policy' ),
@@ -169,14 +170,18 @@ ok( 50 === $p['crawling']['reads'] && 41 === $p['crawling']['train'] && array( '
 $rr = $p['rights_reads'];
 ok( 3 === $rr['reads'] && '{"train":3}' === json_encode( $rr['by_purpose'] ) && '{"train":{"/.well-known/tdmrep.json":2,"/license.xml":1}}' === json_encode( $rr['by_path'], JSON_UNESCAPED_SLASHES ) && '2026-08-03T09:00:00Z' === $rr['first'] && '2026-08-20T10:00:00Z' === $rr['last'] && true === $rr['complete'], 'C3 rights_reads is the training claim only: purpose train, by_purpose and by_path keyed by purpose' );
 $rt = $p['retrieval_reads'];
-ok( 4 === $rt['reads'] && '{"search":3,"unknown":1}' === json_encode( $rt['by_purpose'] ) && '{"search":{"/license.xml":3},"unknown":{"/tdm-policy":1}}' === json_encode( $rt['by_path'], JSON_UNESCAPED_SLASHES ) && '2026-08-21T10:00:00Z' === $rt['first'] && '2026-08-22T10:00:00Z' === $rt['last'], 'C3b retrieval_reads carries search and the unlabelled, same shape; ops rows (our own probes) are in neither' );
+ok( 3 === $rt['reads'] && '{"search":3}' === json_encode( $rt['by_purpose'] ) && '{"search":{"/license.xml":3}}' === json_encode( $rt['by_path'], JSON_UNESCAPED_SLASHES ) && '2026-08-21T10:00:00Z' === $rt['first'] && '2026-08-21T10:00:00Z' === $rt['last'], 'C3b retrieval_reads carries search (a recorded non-training purpose), same shape; ops rows (our own probes) are in no block' );
+$ul = $p['unlabelled_reads'];
+ok( 3 === $ul['reads'] && '{"unlabelled":3}' === json_encode( $ul['by_purpose'] ) && '{"unlabelled":{"/license.xml":2,"/tdm-policy":1}}' === json_encode( $ul['by_path'], JSON_UNESCAPED_SLASHES ) && '2026-08-22T10:00:00Z' === $ul['first'] && '2026-08-24T10:00:00Z' === $ul['last'] && true === $ul['complete'] && 3 === $rr['reads'] && 3 === $rt['reads'], 'C3c rows with no recorded purpose (\'\' and the normalizer\'s unknown) land in unlabelled_reads and in neither rights_reads nor retrieval_reads' );
+$ua = sn_rights_evidence_compose( 'openai', $m, array( 'ok' => true, 'rows' => array( $agg( 'openai', '2026-08-05', 'html', '', 4 ), $agg( 'openai', '2026-08-05', 'feed', 'unknown', 1 ), $agg( 'openai', '2026-08-05', 'html', 'train', 2 ) ) ), $rights, $res, $sensor, 'https://x.test', $now );
+ok( '{"train":{"html":2},"unlabelled":{"feed":1,"html":4}}' === json_encode( $ua['crawling']['by_surface'] ) && 2 === $ua['crawling']['train'], 'C3d crawling.by_surface keeps purpose keys; an empty or unknown purpose is the explicit unlabelled key, never counted as training' );
 ok( $res === $p['reservation'] && ! isset( $p['reservation']['as_of'] ) && array( 'version' => '1.25.4', 'taxonomy' => '1.4' ) === $p['sensor'], 'C4 the reservation rides verbatim (window + signals, no as_of); the sensor names itself' );
 $c = sn_prov_canonical_json( $p );
 ok( false === strpos( $c, 'UA' ) && false === strpos( $c, 'user_agent' ) && false === strpos( $c, 'accept' ), 'C5 no user-agent string or Accept header reaches the record' );
 ok( '{"composed_at"' === substr( $c, 0, 14 ) && str_contains( $c, '"by_day":{"2026-08-03":{"reads":41,"train":41},"2026-08-20":{"reads":9,"train":0}}' ), 'C6 canonical bytes: keys sorted, maps as objects' );
 ok( recanon( $c ) === $c && str_contains( $c, '{"block":100,"content_hash":"t1","valid_from":"2026-07-01T00:00:00Z","valid_to":"2026-08-15T12:00:00Z","version":1}' ), 'C6b the bytes survive the worker\'s re-canonicalization: every key sorted INSIDE objects too (sn_prov_canonical_json does not sort there)' );
 $empty = sn_rights_evidence_compose( 'google-ai', $m, $aggregate, $rights, $res, $sensor, 'https://x.test', $now );
-ok( 0 === $empty['crawling']['reads'] && '{}' === json_encode( $empty['crawling']['by_day'] ) && '{}' === json_encode( $empty['crawling']['by_surface'] ) && '{}' === json_encode( $empty['rights_reads']['by_path'] ) && '{}' === json_encode( $empty['retrieval_reads']['by_purpose'] ) && '' === $empty['rights_reads']['first'], 'C7 a family with nothing composes empty OBJECTS, never lists' );
+ok( 0 === $empty['crawling']['reads'] && '{}' === json_encode( $empty['crawling']['by_day'] ) && '{}' === json_encode( $empty['crawling']['by_surface'] ) && '{}' === json_encode( $empty['rights_reads']['by_path'] ) && '{}' === json_encode( $empty['retrieval_reads']['by_purpose'] ) && '{}' === json_encode( $empty['unlabelled_reads']['by_path'] ) && '' === $empty['rights_reads']['first'], 'C7 a family with nothing composes empty OBJECTS, never lists' );
 $trunc_agg = array( 'ok' => true, 'truncated' => true, 'rows' => array( $agg( 'openai', '2026-08-03', 'html', 'train', 1 ), $agg( 'openai', '2026-08-30', 'html', 'train', 1 ) ) );
 $trunc_rts = array( 'ok' => true, 'truncated' => true, 'rows' => array( $rd( 'openai', '2026-08-05T00:00:00Z', '/license.xml' ) ) );
 $t = sn_rights_evidence_compose( 'openai', $m, $trunc_agg, $trunc_rts, $res, $sensor, 'https://x.test', $now );

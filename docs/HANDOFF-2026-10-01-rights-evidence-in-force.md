@@ -85,9 +85,12 @@ to `openai`, 90 days of rights rows is 22 rows and reaches 2026-08-11.
   once per family per pass with `exclude_purpose=dev,ops`; compose also drops
   `ops`/`dev` rows itself.
 - **F4, the purpose split.** `rights_reads` is purpose `train`;
-  `retrieval_reads` (owner ruling D2) carries the rest but `ops`/`dev`;
-  both with `by_purpose` and `by_path` keyed by purpose. `crawling.by_surface`
-  keyed by purpose.
+  `retrieval_reads` (owner ruling D2) carries every recorded non-training
+  purpose but `ops`/`dev`; `unlabelled_reads` carries rows with no recorded
+  purpose (`''` or `unknown`), claimed by neither other block, since an
+  unlabelled row could be a training crawler under a user agent the taxonomy
+  missed. All three with `by_purpose` and `by_path` keyed by purpose.
+  `crawling.by_surface` keyed by purpose, the unlabelled under `unlabelled`.
 - **F5, the refresh.** `sn_rights_evidence_refresh()` runs first in every
   pass, held, not ready, or not: each stored record with a ledger path that is
   not `confirmed` or `conflict` is re-read from its ledger file and takes the
@@ -119,6 +122,10 @@ to `openai`, 90 days of rights rows is 22 rows and reaches 2026-08-11.
   the worker is set up and the sensor answers, a "Lift <Month> hold" button
   behind a confirm (removes the month from `sn_rights_evidence_hold`, runs
   nothing). The Lift handler re-checks the gate.
+  Bitcoin block timestamps can sit an hour or two off wall-clock; the block
+  height rides beside each `valid_from`, so a verifier can recompute the time
+  without trusting blockstream.info. It matters only for a version anchored
+  within hours of a month boundary.
 
 **First-run cost.** The first walk of the live ledger reads every version of
 every signal (tdm-policy alone is at v8), three HTTP calls per confirmed

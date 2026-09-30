@@ -68,6 +68,24 @@ const SN_RIGHTS_EVIDENCE_SCHEMA = 2;
 const SN_RIGHTS_EVIDENCE_OWN_PURPOSES = array( 'ops', 'dev' );
 
 /**
+ * Purposes that are no purpose: the sensor wrote '' and the normalizer folds
+ * it (and anything off the enum) into 'unknown'. Such a row is counted under
+ * `unlabelled`, never under a purpose it did not record: it could be a
+ * training crawler under a user agent the taxonomy missed.
+ */
+const SN_RIGHTS_EVIDENCE_UNLABELLED = array( '', 'unknown' );
+
+/**
+ * The key a purpose is counted under: itself, or `unlabelled`.
+ *
+ * @param string $purpose Row purpose.
+ * @return string
+ */
+function sn_rights_evidence_purpose_key( $purpose ) {
+	return in_array( (string) $purpose, SN_RIGHTS_EVIDENCE_UNLABELLED, true ) ? 'unlabelled' : (string) $purpose;
+}
+
+/**
  * The reservation in force during a month. PURE.
  *
  * A version is in force from its anchor (the time of the Bitcoin block the
@@ -114,16 +132,17 @@ function sn_rights_evidence_reservation( array $history, array $month ) {
 
 /**
  * Rights-file reads of one family in one month, split by what they were for.
- * PURE. `train` is the training claim (rights_reads); every other purpose but
- * our own ops/dev traffic is retrieval (search, user, and the unlabelled).
+ * PURE. `train` is the training claim (rights_reads); a row with no recorded
+ * purpose is unlabelled_reads and claimed by neither other block; every other
+ * purpose but our own ops/dev traffic is retrieval (search, user, ...).
  *
  * @param string $family Sensor family slug.
  * @param array  $month  From sn_rights_evidence_month().
  * @param array  $rights snt_mr_fetch( $days, 'rights', filter ) result.
- * @return array{rights_reads:array,retrieval_reads:array}
+ * @return array{rights_reads:array,retrieval_reads:array,unlabelled_reads:array}
  */
 function sn_rights_evidence_reads( $family, array $month, array $rights ) {
-	$blocks   = array( 'rights_reads' => array(), 'retrieval_reads' => array() );
+	$blocks   = array( 'rights_reads' => array(), 'retrieval_reads' => array(), 'unlabelled_reads' => array() );
 	$min_seen = '';
 	foreach ( (array) ( $rights['rows'] ?? array() ) as $row ) {
 		$at = (string) ( $row['observed_at'] ?? '' );
@@ -134,7 +153,8 @@ function sn_rights_evidence_reads( $family, array $month, array $rights ) {
 		if ( (string) ( $row['family'] ?? '' ) !== $family || substr( $at, 0, 10 ) < $month['start'] || substr( $at, 0, 10 ) > $month['end'] || in_array( $purpose, SN_RIGHTS_EVIDENCE_OWN_PURPOSES, true ) ) {
 			continue;
 		}
-		$b    = &$blocks[ 'train' === $purpose ? 'rights_reads' : 'retrieval_reads' ];
+		$purpose = sn_rights_evidence_purpose_key( $purpose );
+		$b       = &$blocks[ 'train' === $purpose ? 'rights_reads' : ( 'unlabelled' === $purpose ? 'unlabelled_reads' : 'retrieval_reads' ) ];
 		$hits = max( 1, (int) ( $row['hits'] ?? 1 ) );
 		$path = (string) ( $row['path'] ?? '' );
 		$b['reads']                         = ( $b['reads'] ?? 0 ) + $hits;
@@ -201,7 +221,7 @@ function sn_rights_evidence_compose( $family, array $month, array $aggregate, ar
 			continue;
 		}
 		$hits    = max( 0, (int) ( $row['hits'] ?? 0 ) );
-		$purpose = (string) ( $row['purpose'] ?? '' );
+		$purpose = sn_rights_evidence_purpose_key( (string) ( $row['purpose'] ?? '' ) );
 		$is_train = 'train' === $purpose ? $hits : 0;
 		$reads  += $hits;
 		$train  += $is_train;

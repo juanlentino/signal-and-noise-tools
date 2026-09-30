@@ -317,11 +317,15 @@ survives the filter and is normalized to `unknown` here.
 - `rights_reads`: fetches of the rights files with purpose `train` only, the
   training claim. `{reads, by_purpose, by_path, first, last, complete}`, with
   `by_path` keyed by purpose, then path.
-- `retrieval_reads` (owner ruling D2): the same shape for every other purpose
-  except `ops` and `dev`: `search`, `user`, and the unlabelled `unknown`. A
-  search or user agent reading `/license.xml` is a retrieval read, not a
-  training crawler going looking for the reservation.
-- `crawling.by_surface` is keyed by purpose, then surface. `crawling.train` is
+- `retrieval_reads` (owner ruling D2): the same shape for every other recorded
+  purpose except `ops` and `dev`: `search`, `user`, and so on. A search or user
+  agent reading `/license.xml` is a retrieval read, not a training crawler
+  going looking for the reservation.
+- `unlabelled_reads`: the same shape for rows with no recorded purpose (`''` or
+  `unknown`), claimed by neither block above: an unlabelled row could be a
+  training crawler under a user agent the taxonomy missed.
+- `crawling.by_surface` is keyed by purpose (the unlabelled under
+  `unlabelled`), then surface. `crawling.train` is
   unchanged.
 
 ### What "in force" means
