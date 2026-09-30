@@ -372,17 +372,17 @@ $src = file_get_contents( __DIR__ . '/../inc/rights-evidence-dry-run.php' );
 ok( ! preg_match( '/wp_remote_post|wp_safe_remote_post|sn_rights_evidence_post|sn_rights_evidence_send|sn_rights_evidence_run|SN_RIGHTS_EVIDENCE_OPTION/', $src ), 'L3 structurally: the dry-run file names no POST, no send, no pass and no record option' );
 ok( ! sn_rights_evidence_dry_run( '2026-13' )['ok'] && 'month must be YYYY-MM' === sn_rights_evidence_dry_run( '2026-9' )['error'], 'L4 a malformed month is refused' );
 
-// M: D1, the v2 drafts supersede the posted v1 records, and are never posted.
+// M: D1 (retraction + erratum): the erratum data per v1 record, never posted.
 $GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => $re( 'confirmed', 7 ) ) ) ); $GLOBALS['__k']['posts'] = array();
-$v2 = sn_rights_evidence_v2_drafts( '2026-08', $oct5 );
-$dp = json_decode( $v2['drafts']['openai'] ?? '{}', true );
-ok( $v2['ok'] && array( 'openai' ) === array_keys( $v2['drafts'] ) && array( 'content_hash' => 'h7', 'ledger_path' => 'rights-evidence/u7/v1.json', 'version' => 1 ) === $dp['supersedes'] && SN_RIGHTS_EVIDENCE_V2_REASON === $dp['reason'] && 2 === $dp['schema'] && recanon( $v2['drafts']['openai'] ) === $v2['drafts']['openai'], 'M1 a draft per family with a v1 on the ledger: supersedes {version, ledger_path, content_hash}, a reason, schema 2; anthropic has no v1 and gets none' );
-ok( array() === $GLOBALS['__k']['posts'] && false === strpos( SN_RIGHTS_EVIDENCE_V2_REASON, "\u{2014}" ), 'M2 drafting posts nothing' );
+$er = sn_rights_evidence_erratum( '2026-08', $oct5 );
+$ep = json_decode( $er['erratum']['openai'] ?? '{}', true );
+ok( $er['ok'] && array( 'openai' ) === array_keys( $er['erratum'] ) && array( 'content_hash' => 'h7', 'ledger_path' => 'rights-evidence/u7/v1.json', 'version' => 1 ) === $ep['corrects'] && SN_RIGHTS_EVIDENCE_ERRATUM_REASON === $ep['reason'] && isset( $ep['reservation']['window'], $ep['reservation']['signals'] ) && '2026-08' === $ep['month'] && ! isset( $ep['supersedes'] ) && ! isset( $ep['schema'] ), 'M1 erratum data per family with a v1 on the ledger: the record corrected, the reason, the reservation in force; not a record (no schema, no supersedes)' );
+ok( array() === $GLOBALS['__k']['posts'] && false === strpos( SN_RIGHTS_EVIDENCE_ERRATUM_REASON, "\u{2014}" ), 'M2 the erratum posts nothing' );
 
 if ( getenv( 'SN_RE_PRINT' ) ) {
 	$GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => $re( 'confirmed', 7 ), 'anthropic' => $re( 'confirmed', 8 ) ) ) );
 	foreach ( sn_rights_evidence_dry_run( '2026-09', $oct5 )['payloads'] as $f => $c ) { echo "# dry-run 2026-09 $f\n" . json_encode( json_decode( $c ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) . "\n"; }
-	foreach ( sn_rights_evidence_v2_drafts( '2026-08', $oct5 )['drafts'] as $f => $c ) { echo "# v2 draft 2026-08 $f\n" . json_encode( json_decode( $c ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) . "\n"; }
+	foreach ( sn_rights_evidence_erratum( '2026-08', $oct5 )['erratum'] as $f => $c ) { echo "# erratum 2026-08 $f\n" . json_encode( json_decode( $c ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) . "\n"; }
 }
 
 echo "Result: $pass passed, $fail failed.\n";

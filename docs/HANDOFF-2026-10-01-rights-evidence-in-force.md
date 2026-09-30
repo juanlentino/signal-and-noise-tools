@@ -112,10 +112,14 @@ to `openai`, 90 days of rights rows is 22 rows and reaches 2026-08-11.
   the first WP-CLI command in the repo) print canonical payloads per family.
   The dry-run file names no POST, send, pass or record option (a source pin);
   the only thing it can write is the block-time cache.
-- **D1.** `sn_rights_evidence_v2_drafts( '2026-08' )` and
-  `wp sn rights-evidence dry-run 2026-08 --v2-draft` compose schema-2 candidates
-  with `supersedes:{version:1, ledger_path, content_hash}` and a one-line
-  `reason`. Printed only.
+- **D1, owner ruling 2026-09-30: retraction plus erratum, never a v2.** The
+  ledger's own rule (`rights-evidence-checks.mjs`: "a month's record is minted
+  once; a correction is a retraction, never a v2") rules a superseding v2 out.
+  `sn_rights_evidence_erratum( '2026-08' )` and
+  `wp sn rights-evidence dry-run 2026-08 --erratum` print, per posted v1, the
+  record corrected (`corrects:{ledger_path, content_hash, version}`), the
+  reason and the reservation that was in force: the data for the erratum
+  document in the ledger repo. Printed only; never a record.
 - **Lift, both surfaces.** Monitoring > Machine Readers, native and classic:
   the status line (held, backlog, next pass), per held month a "View <Month>
   payloads" door (admin-post GET with its nonce, a JSON download) and, only when
@@ -138,16 +142,15 @@ bug; after it, a pass reads only pending versions.
 
 ## Open decisions
 
-1. **Posting the August v2s.** The provenance worker (local clone at 1.21.1;
-   the deployed version may be newer) validates only that `version` is a
-   positive integer and checks the exact path `rights-evidence/<uuid>/v2.json`,
-   so it would accept a v2 for an existing uuid as a fresh record; it knows
-   nothing of `supersedes`. `sn_rights_evidence_post()` still sends
-   `version: 1` hard-coded, so posting a v2 needs a small change there (and a
-   decision on whether the worker should verify `supersedes`). Nothing here
-   posts one.
-2. **August coverage.** Any August record, v1 or v2, covers rights reads from
-   2026-08-11 only. Say so in the v2's `reason`, or leave it to the handoff.
+1. **The ledger must learn schema 2 before the hold lifts.** Its checker
+   (`rights-evidence-checks.mjs`) requires `reservation.as_of` and a flat
+   `reservation.signals` list; schema-2 records would land and fail its own
+   verification. A ledger PR teaches it schema 2 and keeps checking v1 as v1.
+2. **August: retraction plus erratum.** One retraction per August v1 record
+   (a signed record in `retractions/`; the v1 bytes stay) and an erratum
+   document in the ledger giving the versions in force, from `--erratum`.
+   Posting the retractions is its own owner-approved act. August rights
+   coverage starts 2026-08-11 (the dataset's first row); the erratum says so.
 3. **Lifting September.** The hold stands. The View door shows exactly what
    would be posted before the Lift.
 4. **GPTBot.** Watch the network column; decide nothing until identity is

@@ -357,8 +357,9 @@ cannot give refuses the record rather than shipping a reservation with a hole.
   (else the first row that names one); the version endpoint does not report it.
   An empty taxonomy refuses the record.
 - `wp sn rights-evidence dry-run <YYYY-MM>` prints the payloads a month would
-  carry today; `--v2-draft` prints schema-2 candidates that supersede the
-  month's v1 records. Neither posts; Monitoring > Machine Readers has a View
+  carry today; `--erratum` prints, per posted v1 record, the reservation
+  that was in force, for the ledger's erratum document (a correction on the
+  ledger is a retraction, never a v2). Neither posts; Monitoring > Machine Readers has a View
   door per held month and a Lift button (both twins).
 
 ## Privacy posture

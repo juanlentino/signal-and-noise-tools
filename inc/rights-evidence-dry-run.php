@@ -113,34 +113,43 @@ function sn_rights_evidence_compose_ym( $ym, $now = null ) {
 	return sn_rights_evidence_compose_month( $month, null === $now ? time() : (int) $now );
 }
 
-/** The one line a v2 carries on why it supersedes its v1. */
-const SN_RIGHTS_EVIDENCE_V2_REASON = 'v1 cited rights-signal versions anchored after the month as in force and did not separate training reads of the rights files from retrieval reads; v2 lists the versions in force during the month by anchor time and splits reads by purpose.';
+/** Why a month's v1 record is corrected by erratum (owner ruling D1, 2026-09-30). */
+const SN_RIGHTS_EVIDENCE_ERRATUM_REASON = 'v1 cited rights-signal versions anchored after the month as in force; the versions in force during the month, by anchor time, are listed here.';
 
 /**
- * D1: schema-2 v2 candidates for a month's posted v1 records, each naming the
- * record it supersedes. A DRAFT: printed for the owner, never posted (the
- * pass posts version 1 only, and the worker files v2 as a new path).
+ * D1: the erratum data for a month's posted v1 records. The ledger's rule is
+ * that a month's record is minted once and a correction is a retraction,
+ * never a v2 (signal-and-noise-provenance rights-evidence-checks.mjs), so the
+ * owner chose retraction plus an erratum. Per family with a v1 on the ledger:
+ * the record corrected, the reason, and the reservation that was in force.
+ * For the erratum document only: never a ledger record, never posted.
  *
  * @param string   $ym  YYYY-MM.
  * @param int|null $now Unix time; null for time().
- * @return array{ok:bool,error:string,drafts:array<string,string>}
+ * @return array{ok:bool,error:string,erratum:array<string,string>}
  */
-function sn_rights_evidence_v2_drafts( $ym, $now = null ) {
+function sn_rights_evidence_erratum( $ym, $now = null ) {
 	$composed = sn_rights_evidence_compose_ym( $ym, $now );
 	$stored   = (array) ( sn_rights_evidence_data()[ $ym ] ?? array() );
-	$drafts   = array();
+	$erratum  = array();
 	foreach ( $composed['payloads'] as $family => $payload ) {
 		$v1 = $stored[ $family ] ?? null;
 		if ( ! is_array( $v1 ) || '' === (string) ( $v1['ledger_path'] ?? '' ) ) {
-			continue; // No v1 on the ledger for this family: nothing to supersede.
+			continue; // No v1 on the ledger for this family: nothing to correct.
 		}
-		$payload['supersedes'] = array(
-			'version'      => 1,
-			'ledger_path'  => (string) $v1['ledger_path'],
-			'content_hash' => (string) ( $v1['content_hash'] ?? '' ),
+		$erratum[ $family ] = sn_prov_canonical_json(
+			array(
+				'corrects'    => array(
+					'ledger_path'  => (string) $v1['ledger_path'],
+					'content_hash' => (string) ( $v1['content_hash'] ?? '' ),
+					'version'      => 1,
+				),
+				'family'      => (string) $family,
+				'month'       => (string) $ym,
+				'reason'      => SN_RIGHTS_EVIDENCE_ERRATUM_REASON,
+				'reservation' => $payload['reservation'] ?? array(),
+			)
 		);
-		$payload['reason']     = SN_RIGHTS_EVIDENCE_V2_REASON;
-		$drafts[ $family ]     = sn_prov_canonical_json( $payload );
 	}
-	return array( 'ok' => '' === $composed['error'], 'error' => $composed['error'], 'drafts' => $drafts );
+	return array( 'ok' => '' === $composed['error'], 'error' => $composed['error'], 'erratum' => $erratum );
 }
