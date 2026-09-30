@@ -12,12 +12,11 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [19.9.0] - 2026-09-30 — résumé drafts, nothing goes live on save
+
+
 - **Résumé drafts: saving the form no longer changes the live /resume page.** Content → Resume Page (both the native window and the classic screen) now saves a draft (`sn_resume_draft`, autoload off) and paints it back, with a status line saying whether the draft differs from live. New controls appear only when they can act: Preview page (the draft as an autosave of the /resume Page, opened in WordPress's own preview), Preview PDF (the draft's PDF under the public phone rule, streamed, never stored), Publish (today's save, then the PDF is rebuilt if one was ever generated, else /resume is purged; a draft equal to live publishes nothing), Discard, and Revert (swaps live with the version the last Publish replaced, each keeping its own date, so Revert twice returns). A stored draft that can no longer be read says so ("Draft could not be read; discard it.") and keeps its Discard button. Saving never publishes: the old save-and-publish route (`resume_save`, its handler and its four flash codes) is gone. This also fixes the existing "Download private copy (with phone)" control in the native window: it was a form, and a window replays a form's handler inside a dispatch, so the streamed PDF never reached the reader; it is now a door (and a new-tab link on the classic screen), like the previews. `tests/resume-draft.php` (41) pins the data layer, the Preview page autosave (slashed, as the Page sync hands `wp_update_post`) and redirect, and the handlers' flash codes.
 
 - CI: the "Parity cron still firing" check reads each workflow's scheduled-run list three times and keeps the newest stamp. On 2026-09-30 GitHub twice served a stale list (newest run 8 and 25 days old while both crons had fired that morning) and redded #1806; one stale answer can no longer do that, and a cron that has really stopped still fails.
-## [19.8.1] - 2026-09-30 — September waits
-
-
-- **Rights evidence holds a month until the owner lifts it; September 2026 is held.** `sn_rights_evidence_run()` now refuses a month listed in the option `sn_rights_evidence_hold` (error `held: YYYY-MM`) before it reads the sensor, takes the lock, composes or posts anything; `rights-evidence-now` runs the same function and is held too. The option is seeded once with `2026-09` and never overwritten, so the 2026-10-01 pass cannot post September's records while their reservation block (it names policy versions from after the month) and truncated rights stream are fixed. A month skipped while held is queued in `sn_rights_evidence_backlog`, so the calendar moving on never drops it: once lifted it goes before the current month, one month per pass, and leaves the queue only when every record posted; a queued month older than the sensor's 90-day window stays listed but is not composed. The `rights-evidence` read now reports `hold` and `backlog`, so both can be checked without running the pass. Pinned by `tests/rights-evidence.php` H1 to H9 and I1 to I6.
 
 
