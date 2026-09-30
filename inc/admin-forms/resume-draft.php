@@ -29,7 +29,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param string $action Handler action (a key of sn_admin_post_handlers()).
  * @return string
  */
-function sn_resume_draft_action_url( $action ) {
+function sn_resume_action_url( $action ) {
 	$args = array(
 		'action'   => 'sn_' . $action,
 		'page'     => 'sn-content',
@@ -48,7 +48,7 @@ function sn_resume_draft_action_url( $action ) {
  * @param string $confirm Confirm dialog text.
  */
 function sn_rsm_draft_button( $action, $label, $confirm ) {
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-rsm-draft-form">';
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
 	wp_nonce_field( 'sn_' . $action );
 	echo '<button type="submit" name="action" value="sn_' . esc_attr( $action ) . '" class="button" data-snt-confirm="' . esc_attr( $confirm ) . '">' . esc_html( $label ) . '</button>';
 	echo '</form>';
@@ -59,8 +59,9 @@ function sn_rsm_draft_button( $action, $label, $confirm ) {
  */
 function sn_admin_render_resume_draft_controls() {
 	$has_draft = function_exists( 'sn_resume_draft_get' ) && null !== sn_resume_draft_get();
+	$stored    = function_exists( 'sn_resume_draft_exists' ) && sn_resume_draft_exists(); // readable or not: Discard clears either.
 	$has_prev  = function_exists( 'sn_resume_prev_get' ) && null !== sn_resume_prev_get();
-	if ( ! $has_draft && ! $has_prev ) {
+	if ( ! $stored && ! $has_prev ) {
 		return;
 	}
 	echo '<div class="sn-fieldset">';
@@ -70,9 +71,11 @@ function sn_admin_render_resume_draft_controls() {
 	}
 	echo '<div class="sn-fieldset-actions">';
 	if ( $has_draft ) {
-		echo '<a class="button" target="_blank" rel="noopener" href="' . esc_url( sn_resume_draft_action_url( 'resume_preview_page' ) ) . '">Preview page</a> ';
-		echo '<a class="button" target="_blank" rel="noopener" href="' . esc_url( sn_resume_draft_action_url( 'resume_preview_pdf' ) ) . '">Preview PDF</a> ';
+		echo '<a class="button" target="_blank" rel="noopener" href="' . esc_url( sn_resume_action_url( 'resume_preview_page' ) ) . '">Preview page</a> ';
+		echo '<a class="button" target="_blank" rel="noopener" href="' . esc_url( sn_resume_action_url( 'resume_preview_pdf' ) ) . '">Preview PDF</a> ';
 		sn_rsm_draft_button( 'resume_publish', 'Publish', 'Publish the draft to the live /resume page?' );
+	}
+	if ( $stored ) {
 		sn_rsm_draft_button( 'resume_discard', 'Discard draft', 'Discard the draft? The live page is unchanged.' );
 	}
 	if ( $has_prev ) {

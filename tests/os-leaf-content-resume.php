@@ -22,6 +22,9 @@ $GLOBALS['__resume_draft'] = null;
 $GLOBALS['__resume_prev']  = null;
 function sn_resume_draft_get() { return $GLOBALS['__resume_draft']; }
 function sn_resume_prev_get() { return $GLOBALS['__resume_prev']; }
+// A stored draft normalize refuses reads null above but still EXISTS.
+$GLOBALS['__resume_draft_unreadable'] = false;
+function sn_resume_draft_exists() { return null !== $GLOBALS['__resume_draft'] || $GLOBALS['__resume_draft_unreadable']; }
 function sn_resume_draft_status() { return null === $GLOBALS['__resume_draft'] ? 'No draft; showing the live résumé.' : 'Draft saved 2026-09-30; differs from live.'; }
 
 require SNT_PATH . 'inc/admin-forms/resume-page.php';
@@ -57,13 +60,19 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match th
 // from the saved document; it posts no resume fields. The editor itself still
 // has exactly one action, and since drafts that action saves a DRAFT: with no
 // draft and no previous version, no publish/discard/revert control paints.
-ok( array( 'resume_draft_save', 'resume_pdf_generate', 'resume_pdf_private' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the actions are resume_draft_save plus the separate resume_pdf_generate and resume_pdf_private, as on the classic leaf' );
+ok( array( 'resume_draft_save', 'resume_pdf_generate' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the actions are resume_draft_save plus the separate resume_pdf_generate, as on the classic leaf (the private copy is a door or link, not a form)' );
 ok( false === strpos( $kit . $classic, 'resume_save"' ) && false === strpos( $kit . $classic, 'nonce-sn_resume_save' ), 'neither surface posts the old direct-publish resume_save any more' );
 ok( false !== strpos( $kit, 'No draft; showing the live résumé.' ) && false !== strpos( $classic, 'No draft; showing the live résumé.' ), 'no draft: both surfaces say the form shows the live resume' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( ! preg_match( '/\sstyle="/', $kit ), 'no inline style= survives' );
 ok( (bool) preg_match( '/\sstyle="/', $kit . '<p style="x">' ), 'the inline-style guard above discriminates (fails on a planted style=)' );
-ok( 3 === substr_count( $kit, '<os-form' ) && false !== strpos( $kit, 'submit-label="Generate PDF"' ) && false !== strpos( $kit, 'submit-label="Download private copy (with phone)"' ) && false !== strpos( $kit, 'os-action="post"' ) && false !== strpos( $kit, 'submit-label="Save draft"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'three os-forms (Save draft, Generate PDF, private copy) dispatching post through the admin-post pipeline, submit "Save draft"' );
+ok( 2 === substr_count( $kit, '<os-form' ) && false !== strpos( $kit, 'submit-label="Generate PDF"' ) && false !== strpos( $kit, 'os-action="post"' ) && false !== strpos( $kit, 'submit-label="Save draft"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'two os-forms (Save draft, Generate PDF) dispatching post through the admin-post pipeline, submit "Save draft"' );
+// The private copy streams a PDF and exits; a window replays a form's handler
+// inside a dispatch (snt_os_host_intercept catches only redirects and dies),
+// so the bytes never reached the reader. It is a door now, and on the classic
+// screen the same URL in a new tab.
+$pv_url = 'admin-post.php?action=sn_resume_pdf_private&page=sn-content&tab=content&sub=resume&_wpnonce=nonce-sn_resume_pdf_private';
+ok( false === strpos( $kit, 'submit-label="Download private copy (with phone)"' ) && 1 === preg_match( '/<os-button[^>]*os-action="door"[^>]*' . preg_quote( htmlspecialchars( $pv_url, ENT_QUOTES ), '/' ) . '[^>]*>Download private copy \(with phone\)/', $kit ) && false !== strpos( html_entity_decode( $classic ), 'href="https://example.test/wp-admin/' . $pv_url . '">Download private copy (with phone)</a>' ), 'the private copy is a door (kit) and a new-tab link (classic) with its nonce, never a form' );
 ok( false !== strpos( $kit, 'name="resume[experience][1][roles][1][title]"' ) && false !== strpos( $kit, 'name="resume[earlier][entries][1][roles][1][title]"' ), 'nested role names survive two levels down in both Experience and Earlier career' );
 ok( false !== strpos( $kit, 'name="resume[experience][__E__][roles][__R__][title]"' ) && false !== strpos( $kit, 'name="resume[experience][0][roles][__R__][bullets]"' ), 'the template token keys the classic bakes (__E__, __R__) are the blank rows\' names' );
 
@@ -182,10 +191,10 @@ ok( count( $reps[0] ) === substr_count( $kit, '</template></os-repeater>' ), 'th
 foreach ( array( 'sn-rsm-up', 'sn-rsm-down', 'snt-sr-only', 'data-rsm-row', 'Blank a row and save', 'rows keep the order shown', 'snt-rsm-list', 'Move up', 'Move down', '<os-disclosure heading="+ Add' ) as $gone ) {
 	ok( false === strpos( $kit, $gone ), 'the hand-rolled chrome is gone: ' . $gone );
 }
-ok( array( 'resume_draft_save', 'resume_pdf_generate', 'resume_pdf_private' ) === snt_leaf_actions( $kit ), 'the repeater posts nothing: add, remove and move are DOM operations, the one action is still resume_draft_save' );
+ok( array( 'resume_draft_save', 'resume_pdf_generate' ) === snt_leaf_actions( $kit ), 'the repeater posts nothing: add, remove and move are DOM operations, the one action is still resume_draft_save' );
 // Negative control: the action pin at the top can fail. A planted per-row
 // server action would be a second action.
-ok( array( 'resume_draft_save', 'resume_move', 'resume_pdf_generate', 'resume_pdf_private' ) === snt_leaf_actions( $kit . '<os-button os-action="post" os-arg-action="sn_resume_move">Up</os-button>' ), 'the action pin discriminates: a planted resume_move os-button reads as a second action' );
+ok( array( 'resume_draft_save', 'resume_move', 'resume_pdf_generate' ) === snt_leaf_actions( $kit . '<os-button os-action="post" os-arg-action="sn_resume_move">Up</os-button>' ), 'the action pin discriminates: a planted resume_move os-button reads as a second action' );
 // The script side: the three repeater events, and what each does to the DOM.
 $js = (string) file_get_contents( SNT_PATH . 'assets/resume-admin.js' );
 ok( false !== strpos( $js, "document.addEventListener( 'click'" ) && false !== strpos( $js, "'data-rsm-add'" ) && false !== strpos( $js, "'sn-rsm-up'" ), 'resume-admin.js keeps the classic page\'s click listener (data-rsm-add, sn-rsm-up)' );
@@ -270,20 +279,27 @@ $GLOBALS['__resume_draft'] = $draft_doc;
 $GLOBALS['__resume_prev']  = $live_doc;
 $classic = snt_leaf_classic_html( 'sn_admin_render_resume_section' );
 $kit     = snt_leaf_paint( 'content', 'resume' );
-$want_actions = array( 'resume_discard', 'resume_draft_save', 'resume_pdf_generate', 'resume_pdf_private', 'resume_publish', 'resume_revert' );
+$want_actions = array( 'resume_discard', 'resume_draft_save', 'resume_pdf_generate', 'resume_publish', 'resume_revert' );
 ok( $want_actions === snt_leaf_actions( $kit ) && $want_actions === snt_leaf_actions( $classic ), 'draft + previous: publish, discard and revert join the editor and PDF actions on both surfaces (kit: ' . implode( ',', snt_leaf_actions( $kit ) ) . ')' );
 ok( false !== strpos( $kit, 'value="DRAFT PRACTICE"' ) && false !== strpos( $classic, 'value="DRAFT PRACTICE"' ) && false === strpos( $kit, 'value="INDEPENDENT PRACTICE"' ), 'with a draft, both forms paint the draft, not the live document' );
 ok( false !== strpos( $kit, 'Draft saved 2026-09-30; differs from live.' ) && false !== strpos( $classic, 'Draft saved 2026-09-30; differs from live.' ), 'the status line reports the draft on both surfaces' );
 $kit_dec = html_entity_decode( $kit, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-foreach ( array( 'resume_preview_page', 'resume_preview_pdf' ) as $pv ) {
+foreach ( array( 'resume_preview_page', 'resume_preview_pdf', 'resume_pdf_private' ) as $pv ) {
 	$url = 'admin-post.php?action=sn_' . $pv . '&page=sn-content&tab=content&sub=resume&_wpnonce=nonce-sn_' . $pv;
 	ok( false !== strpos( $kit_dec, 'os-action="door"' ) && false !== strpos( $kit_dec, $url ) && false !== strpos( html_entity_decode( $classic ), 'target="_blank" rel="noopener" href="https://example.test/wp-admin/' . $url ), $pv . ': a door (kit) and a new-tab link (classic) to admin-post.php with its own nonce and the Content page named' );
 }
-ok( 6 === substr_count( $kit, '<os-form' ) && false !== strpos( $kit, 'submit-label="Publish"' ) && false !== strpos( $kit, 'os-confirm=' ), 'kit: Publish, Discard, Revert are one-button os-forms behind a confirm (6 os-forms with the three above)' );
+ok( 5 === substr_count( $kit, '<os-form' ) && false !== strpos( $kit, 'submit-label="Publish"' ) && false !== strpos( $kit, 'os-confirm=' ), 'kit: Publish, Discard, Revert are one-button os-forms behind a confirm (5 os-forms with Save draft and Generate PDF)' );
 $GLOBALS['__resume_draft'] = null;
 $kit = snt_leaf_paint( 'content', 'resume' );
-ok( array( 'resume_draft_save', 'resume_pdf_generate', 'resume_pdf_private', 'resume_revert' ) === snt_leaf_actions( $kit ) && false === strpos( $kit, 'resume_preview_page' ), 'previous version but no draft: only Revert joins; no preview, publish or discard' );
+ok( array( 'resume_draft_save', 'resume_pdf_generate', 'resume_revert' ) === snt_leaf_actions( $kit ) && false === strpos( $kit, 'resume_preview_page' ), 'previous version but no draft: only Revert joins; no preview, publish or discard' );
 $GLOBALS['__resume_prev'] = null;
+// An UNREADABLE stored draft: Discard paints on both surfaces so it can be
+// cleared; Publish and the previews stay hidden.
+$GLOBALS['__resume_draft_unreadable'] = true;
+$classic = snt_leaf_classic_html( 'sn_admin_render_resume_section' );
+$kit     = snt_leaf_paint( 'content', 'resume' );
+ok( array( 'resume_discard', 'resume_draft_save', 'resume_pdf_generate' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && false === strpos( $kit . $classic, 'resume_preview_page' ), 'unreadable draft: only Discard joins, on both surfaces; no publish, no preview' );
+$GLOBALS['__resume_draft_unreadable'] = false;
 
 // ── Escaping: a hostile summary never reaches the markup raw.
 $hostile = $seed;

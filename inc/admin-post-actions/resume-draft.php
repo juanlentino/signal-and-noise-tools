@@ -64,7 +64,7 @@ function sn_handle_resume_preview_page( $post ) { // phpcs:ignore Generic.CodeAn
 				'post_type'    => 'page',
 				'post_title'   => $page->post_title,
 				'post_excerpt' => $page->post_excerpt,
-				'content'      => $body,
+				'post_content' => $body,
 			)
 		)
 	);

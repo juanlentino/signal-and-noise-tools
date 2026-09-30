@@ -400,10 +400,11 @@ function sn_admin_render_resume_pdf_generate() {
 
 	// The private copy: same PDF WITH the phone, streamed to this admin and
 	// never stored, so no public URL can ever serve the phone.
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
-	wp_nonce_field( 'sn_resume_pdf_private' );
+	// A GET link with its nonce, like the draft previews (inc/admin-forms/resume-draft.php).
 	echo '<div class="sn-fieldset">';
 	echo '<p class="sn-fieldset-intro">A private copy always includes the phone: built on demand for you, never saved on the server, so it has no public URL.</p>';
-	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_resume_pdf_private" class="button">Download private copy (with phone)</button></div>';
-	echo '</div></form>';
+	if ( function_exists( 'sn_resume_action_url' ) ) {
+		echo '<div class="sn-fieldset-actions"><a class="button" target="_blank" rel="noopener" href="' . esc_url( sn_resume_action_url( 'resume_pdf_private' ) ) . '">Download private copy (with phone)</a></div>';
+	}
+	echo '</div>';
 }

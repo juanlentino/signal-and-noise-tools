@@ -49,6 +49,16 @@ function sn_resume_draft_get() {
 	return sn_resume_stored_doc( SN_RESUME_DRAFT_OPTION );
 }
 
+/**
+ * Whether ANY draft is stored, readable or not. Gates Discard, so a draft that
+ * normalize refuses (a rule tightened after it was saved) can still be cleared.
+ *
+ * @return bool
+ */
+function sn_resume_draft_exists() {
+	return is_array( get_option( SN_RESUME_DRAFT_OPTION ) );
+}
+
 /** The document the last Publish replaced, or null. @return array|null */
 function sn_resume_prev_get() {
 	return sn_resume_stored_doc( SN_RESUME_PREV_OPTION );
@@ -106,7 +116,7 @@ function sn_resume_draft_differs() {
 function sn_resume_draft_status() {
 	$draft = sn_resume_draft_get();
 	if ( null === $draft ) {
-		return 'No draft; showing the live résumé.';
+		return sn_resume_draft_exists() ? 'Draft could not be read; discard it.' : 'No draft; showing the live résumé.';
 	}
 	$when = '' !== $draft['updated'] ? ' ' . $draft['updated'] : '';
 	return sn_resume_doc_same( $draft, sn_resume_doc_get() )

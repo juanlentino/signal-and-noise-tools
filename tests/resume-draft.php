@@ -40,7 +40,19 @@ function sn_resume_sync_page() { bump( 'sync' ); }
 function sn_content_route_purge( $path ) { bump( 'purge:' . $path ); return true; }
 $GLOBALS['__pdf_fails'] = false;
 function sn_resume_pdf_generate() { bump( 'pdf' ); return $GLOBALS['__pdf_fails'] ? new WP_Error( 'x', 'y' ) : array( 'sha256' => 'abc' ); }
-function get_page_by_path( $slug ) { return (object) array( 'ID' => 1184 ); }
+function get_page_by_path( $slug ) { return (object) array( 'ID' => 1184, 'post_title' => 'Resume', 'post_excerpt' => 'Ex' ); }
+// Preview page seams: core's autosave (records its argument), the preview
+// link as core builds it for a viewable type (adds preview=true), and a
+// redirect that throws so the handler's exit is never reached.
+$GLOBALS['__autosave_arg'] = null;
+$GLOBALS['__autosave_fails'] = false;
+function sn_resume_body_html( $doc ) { return "<!-- wp:paragraph --><p>body</p><!-- /wp:paragraph -->\n"; }
+function wp_slash( $v ) { return $v; }
+function wp_create_nonce( $a ) { return 'nonce(' . $a . ')'; }
+function wp_create_post_autosave( $data ) { $GLOBALS['__autosave_arg'] = $data; return $GLOBALS['__autosave_fails'] ? new WP_Error( 'edit_others_pages', 'no' ) : 77; }
+function get_preview_post_link( $post, $args ) { return 'https://example.test/resume/?' . http_build_query( $args + array( 'preview' => 'true' ) ); }
+class Redirected extends Exception {}
+function wp_safe_redirect( $to ) { throw new Redirected( $to ); }
 function wp_get_post_autosave( $id ) { return (object) array( 'ID' => 9000 + $id ); }
 function wp_delete_post_revision( $id ) { bump( 'autosave_delete:' . $id ); }
 
@@ -145,6 +157,25 @@ $all = array( 'resume_publish_failed', 'resume_draft_saved', 'resume_draft_refus
 ok( array() === array_diff( $all, array_keys( $flashes ) ), 'every draft flash code has a message: ' . implode( ',', array_diff( $all, array_keys( $flashes ) ) ) );
 $words = implode( ' ', array_map( static function ( $c ) use ( $flashes ) { return $flashes[ $c ][1] ?? ''; }, $all ) );
 ok( false === strpos( $words, "\u{2014}" ), 'no em dash in the draft messages' );
+
+echo "\nTest: Preview page\n";
+fresh( array( SN_RESUME_DOC_OPTION => $live_a ) );
+sn_resume_draft_save( $alt );
+$to = '';
+try { sn_handle_resume_preview_page( array() ); } catch ( Redirected $r ) { $to = $r->getMessage(); }
+$arg = (array) $GLOBALS['__autosave_arg'];
+ok( 1184 === ( $arg['post_ID'] ?? 0 ) && 'page' === ( $arg['post_type'] ?? '' ) && sn_resume_body_html( null ) === ( $arg['post_content'] ?? '' ) && 'Resume' === ( $arg['post_title'] ?? '' ) && 'Ex' === ( $arg['post_excerpt'] ?? '' ), 'the autosave carries post_ID, post_type page, post_content (the draft body), and the live title and excerpt' );
+parse_str( (string) parse_url( $to, PHP_URL_QUERY ), $q );
+ok( array( 'preview_id' => '1184', 'preview_nonce' => 'nonce(post_preview_1184)', 'preview' => 'true' ) === $q, 'the redirect is the Page preview with preview=true, preview_id=1184 and the post_preview_1184 nonce: ' . $to );
+ok( $live_a === $GLOBALS['__options'][ SN_RESUME_DOC_OPTION ] && 0 === calls( 'sync' ), 'Preview page publishes nothing' );
+$GLOBALS['__autosave_fails'] = true;
+$to = '';
+try { $code = sn_handle_resume_preview_page( array() ); } catch ( Redirected $r ) { $to = $r->getMessage(); $code = ''; }
+ok( 'resume_preview_failed' === $code && '' === $to, 'a WP_Error from the autosave flashes resume_preview_failed and never redirects' );
+
+echo "\nTest: an unreadable draft can still be discarded\n";
+fresh( array( SN_RESUME_DOC_OPTION => $live_a, SN_RESUME_DRAFT_OPTION => array( 'hero' => array( 'summary' => 'refused now' ) ) ) );
+ok( null === sn_resume_draft_get() && sn_resume_draft_exists() && 'Draft could not be read; discard it.' === sn_resume_draft_status(), 'a stored draft normalize refuses: get is null, exists is true, the status says to discard it' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

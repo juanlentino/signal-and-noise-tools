@@ -126,7 +126,9 @@ function resume_pdf_generate() {
 	return \snt_kit_section(
 		__( 'Resume PDF', 'signal-and-noise-tools' ),
 		\snt_kit_form( 'resume_pdf_generate', $status, array( 'submit' => __( 'Generate PDF', 'signal-and-noise-tools' ) ) )
-		. \snt_kit_form( 'resume_pdf_private', $private, array( 'submit' => __( 'Download private copy (with phone)', 'signal-and-noise-tools' ) ) )
+		// A DOOR, not a form: a window replays a form's handler and a streamed
+		// PDF never reaches the reader (content-resume-draft.php).
+		. $private . ( function_exists( 'sn_resume_action_url' ) ? '<p class="snt-prose">' . \snt_kit_door( __( 'Download private copy (with phone)', 'signal-and-noise-tools' ), \sn_resume_action_url( 'resume_pdf_private' ) ) . '</p>' : '' )
 	);
 }
 
