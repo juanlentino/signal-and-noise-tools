@@ -108,7 +108,7 @@ function sn_handle_resume_publish( $post ) { // phpcs:ignore Generic.CodeAnalysi
 	$codes = array(
 		'none'                 => 'resume_no_draft',
 		'identical'            => 'resume_nothing_to_publish',
-		'failed'               => 'resume_failed',
+		'failed'               => 'resume_publish_failed',
 		'published'            => 'resume_published',
 		'published_pdf_failed' => 'resume_published_pdf_failed',
 	);

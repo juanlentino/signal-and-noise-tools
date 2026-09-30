@@ -51,6 +51,7 @@ function sn_admin_flash_messages() {
 		'resume_no_draft'           => array( 'info', 'There is no draft to act on.' ),
 		'resume_preview_failed'     => array( 'error', 'The page preview could not be built: the /resume page or its generated body is unavailable.' ),
 		'resume_nothing_to_publish' => array( 'info', 'Nothing to publish: the draft matches the live resume. The draft was cleared.' ),
+		'resume_publish_failed'     => array( 'error', 'Nothing published: the save wrote nothing. The draft stands.' ),
 		'resume_published'          => array( 'success', 'Draft published: the live /resume page (and its PDF, when one exists) now show it.' ),
 		'resume_published_pdf_failed' => array( 'error', 'Draft published: the live /resume page shows it, but the PDF could not be rebuilt. Generate PDF to retry.' ),
 		'resume_draft_discarded'    => array( 'info', 'Draft discarded. The live /resume page is unchanged.' ),

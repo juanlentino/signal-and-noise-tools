@@ -141,7 +141,7 @@ $seen = array(
 	sn_handle_resume_discard( array() ),
 );
 ok( array( 'resume_draft_refused', 'resume_no_draft', 'resume_no_prev', 'resume_no_draft', 'resume_no_draft', 'resume_draft_saved', 'resume_published', 'resume_reverted', 'resume_draft_discarded' ) === $seen, 'each handler maps its outcome to its own flash code: ' . implode( ',', $seen ) );
-$all = array( 'resume_draft_saved', 'resume_draft_refused', 'resume_no_draft', 'resume_preview_failed', 'resume_nothing_to_publish', 'resume_published', 'resume_published_pdf_failed', 'resume_draft_discarded', 'resume_no_prev', 'resume_reverted', 'resume_reverted_pdf_failed' );
+$all = array( 'resume_publish_failed', 'resume_draft_saved', 'resume_draft_refused', 'resume_no_draft', 'resume_preview_failed', 'resume_nothing_to_publish', 'resume_published', 'resume_published_pdf_failed', 'resume_draft_discarded', 'resume_no_prev', 'resume_reverted', 'resume_reverted_pdf_failed' );
 ok( array() === array_diff( $all, array_keys( $flashes ) ), 'every draft flash code has a message: ' . implode( ',', array_diff( $all, array_keys( $flashes ) ) ) );
 $words = implode( ' ', array_map( static function ( $c ) use ( $flashes ) { return $flashes[ $c ][1] ?? ''; }, $all ) );
 ok( false === strpos( $words, "\u{2014}" ), 'no em dash in the draft messages' );
