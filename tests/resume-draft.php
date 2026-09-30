@@ -46,8 +46,8 @@ function get_page_by_path( $slug ) { return (object) array( 'ID' => 1184, 'post_
 // redirect that throws so the handler's exit is never reached.
 $GLOBALS['__autosave_arg'] = null;
 $GLOBALS['__autosave_fails'] = false;
-function sn_resume_body_html( $doc ) { return "<!-- wp:paragraph --><p>body</p><!-- /wp:paragraph -->\n"; }
-function wp_slash( $v ) { return $v; }
+function sn_resume_body_html( $doc ) { return "<!-- wp:paragraph --><p>C:\\Music\\Sessions</p><!-- /wp:paragraph -->\n"; } // a backslash, as resume text can carry
+function wp_slash( $v ) { return is_array( $v ) ? array_map( 'wp_slash', $v ) : ( is_string( $v ) ? addslashes( $v ) : $v ); } // core's shape
 function wp_create_nonce( $a ) { return 'nonce(' . $a . ')'; }
 function wp_create_post_autosave( $data ) { $GLOBALS['__autosave_arg'] = $data; return $GLOBALS['__autosave_fails'] ? new WP_Error( 'edit_others_pages', 'no' ) : 77; }
 function get_preview_post_link( $post, $args ) { return 'https://example.test/resume/?' . http_build_query( $args + array( 'preview' => 'true' ) ); }
@@ -164,7 +164,8 @@ sn_resume_draft_save( $alt );
 $to = '';
 try { sn_handle_resume_preview_page( array() ); } catch ( Redirected $r ) { $to = $r->getMessage(); }
 $arg = (array) $GLOBALS['__autosave_arg'];
-ok( 1184 === ( $arg['post_ID'] ?? 0 ) && 'page' === ( $arg['post_type'] ?? '' ) && sn_resume_body_html( null ) === ( $arg['post_content'] ?? '' ) && 'Resume' === ( $arg['post_title'] ?? '' ) && 'Ex' === ( $arg['post_excerpt'] ?? '' ), 'the autosave carries post_ID, post_type page, post_content (the draft body), and the live title and excerpt' );
+ok( 1184 === ( $arg['post_ID'] ?? 0 ) && 'page' === ( $arg['post_type'] ?? '' ) && addslashes( sn_resume_body_html( null ) ) === ( $arg['post_content'] ?? '' ) && 'Resume' === ( $arg['post_title'] ?? '' ) && 'Ex' === ( $arg['post_excerpt'] ?? '' ), 'the autosave carries post_ID, post_type page, post_content (the draft body), and the live title and excerpt' );
+ok( false !== strpos( sn_resume_body_html( null ), 'C:\\Music' ) && false !== strpos( (string) ( $arg['post_content'] ?? '' ), 'C:\\\\Music' ), 'the body reaches wp_create_post_autosave SLASHED (one backslash in, two at the call), as sn_resume_upsert_page hands wp_update_post: the autosave unslashes once, so a backslash in the resume survives the preview' );
 parse_str( (string) parse_url( $to, PHP_URL_QUERY ), $q );
 ok( array( 'preview_id' => '1184', 'preview_nonce' => 'nonce(post_preview_1184)', 'preview' => 'true' ) === $q, 'the redirect is the Page preview with preview=true, preview_id=1184 and the post_preview_1184 nonce: ' . $to );
 ok( $live_a === $GLOBALS['__options'][ SN_RESUME_DOC_OPTION ] && 0 === calls( 'sync' ), 'Preview page publishes nothing' );

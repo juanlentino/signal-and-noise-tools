@@ -20,9 +20,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * resume_draft_save: the editor form. Same parsing as the old resume_save
- * (the posted resume[…] arrays are the document shape); only the destination
- * changed, the draft slot instead of the live option.
+ * resume_draft_save: the editor form. The posted resume[…] arrays are the
+ * document shape, unslashed before normalize (update_option does not unslash);
+ * the result goes to the draft slot, never the live option.
  *
  * @param array $post Raw $_POST.
  * @return string Flash code.
