@@ -160,12 +160,58 @@ const SNT_MR_VIEWS = array( 'aggregate', 'unknown', 'rights', 'totals' );
  * The display-transient key for one (window, view) pair — the ONE builder,
  * so a flush and the fetch can never disagree on the spelling again (#1206).
  *
- * @param int    $days Window (already clamped by the caller).
- * @param string $view One of SNT_MR_VIEWS.
+ * @param int    $days   Window (already clamped by the caller).
+ * @param string $view   One of SNT_MR_VIEWS.
+ * @param array  $filter 19.10.0: a snt_mr_rights_filter() result, or empty.
  * @return string
  */
-function snt_mr_cache_key( $days, $view ) {
-	return 'sn_mr_rows_' . (int) $days . '_' . $view;
+function snt_mr_cache_key( $days, $view, array $filter = array() ) {
+	$key = 'sn_mr_rows_' . (int) $days . '_' . $view;
+	// 19.10.0: a filtered rights read is another result; its key names the
+	// filter. Callers pass the output of snt_mr_rights_filter() only.
+	if ( '' !== (string) ( $filter['family'] ?? '' ) ) {
+		$key .= '_f' . $filter['family'];
+	}
+	if ( ! empty( $filter['exclude_purpose'] ) ) {
+		$key .= '_x' . implode( '-', (array) $filter['exclude_purpose'] );
+	}
+	return $key;
+}
+
+/** The purposes rights evidence leaves out of the rights stream: our own probes and dev traffic. */
+const SNT_MR_RIGHTS_EXCLUDE = array( 'dev', 'ops' );
+
+/**
+ * Validate a rights-view filter (worker 1.29.0 `family`, `exclude_purpose`)
+ * through the allowlists. Nothing outside them reaches a URL or a cache key.
+ *
+ * @param array $filter {family?:string, exclude_purpose?:string[]}.
+ * @return array|null The clean filter (purposes sorted, unique); null when any value is refused.
+ */
+function snt_mr_rights_filter( array $filter ) {
+	$out    = array();
+	$family = (string) ( $filter['family'] ?? '' );
+	if ( '' !== $family ) {
+		// The AI-training families only: the one population a filtered read is
+		// for, and the list the cache flush walks for the rights-evidence
+		// shape (any other shape lives out its 15 minutes). Absent list,
+		// refused (fail closed).
+		if ( ! function_exists( 'snt_mr_ai_training_families' ) || ! in_array( $family, snt_mr_ai_training_families(), true ) ) {
+			return null;
+		}
+		$out['family'] = $family;
+	}
+	$purposes = array_values( array_unique( array_map( 'strval', (array) ( $filter['exclude_purpose'] ?? array() ) ) ) );
+	foreach ( $purposes as $p ) {
+		if ( ! in_array( $p, snt_mr_valid_purposes(), true ) ) {
+			return null;
+		}
+	}
+	sort( $purposes );
+	if ( $purposes ) {
+		$out['exclude_purpose'] = $purposes;
+	}
+	return $out;
 }
 
 /**
@@ -182,6 +228,10 @@ function snt_mr_cache_flush() {
 	for ( $days = 1; $days <= 90; $days++ ) {
 		foreach ( SNT_MR_VIEWS as $view ) {
 			delete_transient( snt_mr_cache_key( $days, $view ) );
+		}
+		// 19.10.0: the one filtered shape rights evidence reads, per family.
+		foreach ( function_exists( 'snt_mr_ai_training_families' ) ? snt_mr_ai_training_families() : array() as $family ) {
+			delete_transient( snt_mr_cache_key( $days, 'rights', array( 'family' => $family, 'exclude_purpose' => SNT_MR_RIGHTS_EXCLUDE ) ) );
 		}
 	}
 }
@@ -213,16 +263,23 @@ function snt_mr_memo( $key, $value = null ) {
 	return $memo[ $key ] ?? null;
 }
 
-function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
+function snt_mr_fetch( $days = 30, $view = 'aggregate', array $filter = array() ) {
 	$days = max( 1, min( 90, (int) $days ) );
 	$view = in_array( $view, SNT_MR_VIEWS, true ) ? $view : 'aggregate';
+	// 19.10.0: filters exist on the rights view only (worker 1.29.0) and pass
+	// the allowlists or refuse the read; a refused filter never falls back to
+	// an unfiltered read, which would be a different population.
+	$filter = 'rights' === $view ? snt_mr_rights_filter( $filter ) : array();
+	if ( null === $filter ) {
+		return array( 'ok' => false, 'rows' => array(), 'error' => 'bad_filter' );
+	}
 
 	$cfg = snt_mr_config();
 	if ( null === $cfg ) {
 		return array( 'ok' => false, 'rows' => array(), 'error' => 'not_configured' );
 	}
 
-	$cache_key = snt_mr_cache_key( $days, $view );
+	$cache_key = snt_mr_cache_key( $days, $view, $filter );
 	$memo      = snt_mr_memo( $cache_key );
 	if ( is_array( $memo ) ) {
 		return $memo;
@@ -236,6 +293,13 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 	// Only ever appended from the allowlist above; never interpolated raw.
 	if ( 'aggregate' !== $view ) {
 		$url .= '&view=' . $view;
+	}
+	// Allowlisted above ([a-z-] names only), so appended as is: never raw input.
+	if ( isset( $filter['family'] ) ) {
+		$url .= '&family=' . $filter['family'];
+	}
+	if ( isset( $filter['exclude_purpose'] ) ) {
+		$url .= '&exclude_purpose=' . implode( ',', $filter['exclude_purpose'] );
 	}
 
 	// Same outbound gate as every other probe (webhooks / uptime / worker-version):
@@ -300,6 +364,9 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 		// headline, which is the whole reason the worker now reports it.
 		'truncated' => ! empty( $decoded['truncated'] ),
 		'row_count' => isset( $decoded['rows'] ) ? max( 0, (int) $decoded['rows'] ) : count( (array) $decoded['data'] ),
+		// 19.10.0: the envelope's taxonomy (the definition the worker writes
+		// today), same shape rule as the row field; '' when absent.
+		'taxonomy_version' => substr( preg_replace( '/[^0-9.]/', '', is_string( $decoded['taxonomy_version'] ?? null ) ? $decoded['taxonomy_version'] : '' ), 0, 12 ),
 		'error'     => null,
 	);
 	set_transient( $cache_key, $result, 15 * MINUTE_IN_SECONDS );

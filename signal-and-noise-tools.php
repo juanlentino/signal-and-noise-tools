@@ -361,7 +361,10 @@ require_once SNT_PATH . 'inc/machine-readers-summary.php'; // v10.2.0: the one s
 require_once SNT_PATH . 'inc/machine-readers-ledger.php'; // 17.0.0: the crosstab and rights-cadence folds.
 require_once SNT_PATH . 'inc/abilities-machine-readers-ledger.php'; // 17.0.0: get-machine-readers-crosstab + get-rights-reads.
 require_once SNT_PATH . 'inc/rights-evidence-compose.php'; // 17.0.0: one record per crawler family per month, the pure half.
+require_once SNT_PATH . 'inc/rights-evidence-ledger.php';  // 19.10.0: rights-signal history and record refresh, read-only.
+require_once SNT_PATH . 'inc/rights-evidence-dry-run.php'; // 19.10.0: compose from live reads, post nothing (shared with the pass).
 require_once SNT_PATH . 'inc/rights-evidence.php';         // 17.0.0: the daily pass that composes and posts it.
+require_once SNT_PATH . 'inc/rights-evidence-cli.php';     // 19.10.0: wp sn rights-evidence dry-run (WP-CLI only).
 require_once SNT_PATH . 'inc/abilities-rights-evidence.php'; // 17.0.0: rights-evidence (read) + rights-evidence-now (rw).
 require_once SNT_PATH . 'inc/machine-readers-render.php';
 require_once SNT_PATH . 'inc/machine-readers-render-taxonomy.php'; // v10.79.0: purpose/vendor tables + the unknown-agent review.

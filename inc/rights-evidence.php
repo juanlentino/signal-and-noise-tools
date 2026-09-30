@@ -125,9 +125,12 @@ function sn_rights_evidence_backlog_set( array $months ) {
 }
 
 /**
- * The oldest backlog month that is no longer held and still inside the
- * sensor's 90-day window, as a month array; null when none. A month past the
- * window stays listed (the read shows it) but cannot be composed complete.
+ * The oldest backlog month that is no longer held and can still be acted on,
+ * as a month array with `in_window`; null when none. Inside the sensor's
+ * 90-day window a month can be composed; past it, only its stored unposted
+ * bytes can be re-sent, so it qualifies only while it has some. A month past
+ * the window with nothing stored stays listed (the read shows it) and is
+ * skipped.
  *
  * @param int      $now  Unix time.
  * @param string[] $held The hold list.
@@ -136,17 +139,70 @@ function sn_rights_evidence_backlog_set( array $months ) {
 function sn_rights_evidence_backlog_target( $now, array $held ) {
 	foreach ( sn_rights_evidence_backlog() as $ym ) {
 		$start = strtotime( $ym . '-01T00:00:00Z' );
-		if ( in_array( $ym, $held, true ) || false === $start || $now - $start > 89 * DAY_IN_SECONDS ) {
+		if ( in_array( $ym, $held, true ) || false === $start ) {
 			continue;
 		}
-		return array( 'month' => $ym, 'start' => gmdate( 'Y-m-01', $start ), 'end' => gmdate( 'Y-m-t', $start ) );
+		$in_window = $now - $start <= 89 * DAY_IN_SECONDS;
+		if ( $in_window || sn_rights_evidence_unposted( $ym ) ) {
+			return array( 'month' => $ym, 'start' => gmdate( 'Y-m-01', $start ), 'end' => gmdate( 'Y-m-t', $start ), 'in_window' => $in_window );
+		}
 	}
 	return null;
 }
 
 /**
- * The daily pass: compose what the last complete month still lacks, post
- * what is composed and not yet on the ledger. Idempotent by (month, family).
+ * Families of a month whose composed bytes are stored and not on the ledger.
+ *
+ * @param string $ym YYYY-MM.
+ * @return string[]
+ */
+function sn_rights_evidence_unposted( $ym ) {
+	$out = array();
+	foreach ( (array) ( sn_rights_evidence_data()[ $ym ] ?? array() ) as $family => $e ) {
+		if ( is_array( $e ) && '' !== (string) ( $e['canonical'] ?? '' ) && '' === (string) ( $e['ledger_path'] ?? '' ) ) {
+			$out[] = (string) $family;
+		}
+	}
+	return $out;
+}
+
+/**
+ * POST one stored entry and fold the worker's answer into it.
+ *
+ * @param array $entry {uuid, canonical, ...}.
+ * @param int   $now   Unix time.
+ * @return array{0:array,1:string} The entry, and 'posted' or 'failed'.
+ */
+function sn_rights_evidence_send( array $entry, $now ) {
+	$r    = sn_rights_evidence_post( $entry['uuid'], $entry['canonical'] );
+	$kind = 'failed';
+	if ( $r['code'] >= 200 && $r['code'] < 300 ) {
+		$entry['status']      = (string) ( $r['body']['ots_status'] ?? 'pending' ); // The ledger's word, on a fresh record and on a re-send alike.
+		$entry['ledger_path'] = (string) ( $r['body']['ledger_path'] ?? '' );
+		$entry['error']       = '';
+		unset( $entry['canonical'] ); // The ledger holds the bytes now.
+		$kind = 'posted';
+	} elseif ( 409 === $r['code'] ) {
+		// The path exists with other bytes: the ledger's record is the record.
+		// Terminal, never retried; the path is deterministic from the id.
+		$entry['status']      = 'conflict';
+		$entry['ledger_path'] = SN_RIGHTS_EVIDENCE_KIND . '/' . $entry['uuid'] . '/v1.json';
+		$entry['error']       = '409 ' . (string) ( $r['body']['error'] ?? '' );
+		unset( $entry['canonical'] );
+	} else {
+		$entry['status'] = 'unanchored';
+		$entry['error']  = $r['code'] . ' ' . (string) ( $r['body']['error'] ?? '' );
+	}
+	$entry['at'] = $now;
+	return array( $entry, $kind );
+}
+
+/**
+ * The daily pass: compose what a month still lacks, post what is composed
+ * and not yet on the ledger. Idempotent by (month, family).
+ *
+ * Order: refresh stored records from the ledger (F5), queue a held month,
+ * readiness, the backlog target, the lock, re-send stored bytes, compose.
  *
  * @param int|null $now Unix time; null for time().
  * @return array{ok:bool,month:string,composed:int,posted:int,anchored:int,failed:int,error:string}
@@ -154,25 +210,27 @@ function sn_rights_evidence_backlog_target( $now, array $held ) {
 function sn_rights_evidence_run( $now = null ) {
 	$now = null === $now ? time() : (int) $now;
 	$out = array( 'ok' => false, 'month' => '', 'composed' => 0, 'posted' => 0, 'anchored' => 0, 'failed' => 0, 'error' => '' );
+	// Read-only against the public ledger, so it runs held or not, ready or not.
+	sn_rights_evidence_refresh();
+	// A held month composes and posts nothing: the ledger is append-only, so a
+	// month waits until the owner lifts it. It is queued in the backlog FIRST,
+	// before readiness, so an outage on the day the month closes cannot drop
+	// it; a lifted backlog month goes first, one month per pass. All before the
+	// lock, so a held pass never blocks another. rights-evidence-now runs this.
+	$held    = sn_rights_evidence_held();
+	$current = sn_rights_evidence_month( $now );
+	if ( in_array( $current['month'], $held, true ) ) {
+		sn_rights_evidence_backlog_set( array_merge( sn_rights_evidence_backlog(), array( $current['month'] ) ) );
+	}
 	if ( ! sn_rights_evidence_is_ready() ) {
 		$out['error'] = 'not-ready';
 		return $out;
 	}
-	// A held month composes and posts nothing: the ledger is append-only, so a
-	// month waits until the owner lifts it. It is queued in the backlog so the
-	// calendar moving on never drops it; a lifted backlog month goes first, one
-	// month per pass. Before the lock, so a held pass never blocks another.
-	// rights-evidence-now runs this same function.
-	// ponytail: a backlog month takes the whole pass; if it fails for weeks the
-	// current month is never evaluated and can be dropped at a month boundary.
-	// Upgrade: also enqueue a held current month, or cap backlog retries per pass.
-	$held         = sn_rights_evidence_held();
 	$month        = sn_rights_evidence_backlog_target( $now, $held );
 	$from_backlog = null !== $month;
 	if ( ! $from_backlog ) {
-		$month = sn_rights_evidence_month( $now );
+		$month = $current + array( 'in_window' => true );
 		if ( in_array( $month['month'], $held, true ) ) {
-			sn_rights_evidence_backlog_set( array_merge( sn_rights_evidence_backlog(), array( $month['month'] ) ) );
 			$out['month'] = $month['month'];
 			$out['error'] = 'held: ' . $month['month'];
 			return $out;
@@ -187,42 +245,31 @@ function sn_rights_evidence_run( $now = null ) {
 		return $out;
 	}
 	set_transient( 'sn_rights_evidence_lock', 1, 5 * MINUTE_IN_SECONDS );
-	$data         = sn_rights_evidence_data();
-	$days         = min( 90, (int) ceil( ( $now - strtotime( $month['start'] . 'T00:00:00Z' ) ) / DAY_IN_SECONDS ) + 1 );
-	$aggregate    = snt_mr_fetch( $days );
-	if ( empty( $aggregate['ok'] ) ) {
-		$out['error'] = 'sensor: ' . (string) ( $aggregate['error'] ?? 'unknown' );
-		delete_transient( 'sn_rights_evidence_lock' );
-		return $out;
-	}
-	$site = home_url( '/' );
-	$res  = null; // The reservation and the rights stream: read once per pass, only when something needs composing.
-	$rights = null;
-	foreach ( sn_rights_evidence_families( $aggregate, $month ) as $family ) {
-		$entry = $data[ $month['month'] ][ $family ] ?? null;
-		if ( is_array( $entry ) && '' !== (string) ( $entry['ledger_path'] ?? '' ) ) {
+	$data   = sn_rights_evidence_data();
+	$stored = (array) ( $data[ $month['month'] ] ?? array() );
+	// Stored bytes first, for every family of the month whatever the sensor
+	// says today: they are the record, and they need no sensor read.
+	foreach ( $stored as $family => $entry ) {
+		if ( ! is_array( $entry ) ) {
+			continue;
+		}
+		if ( '' !== (string) ( $entry['ledger_path'] ?? '' ) ) {
 			$out['anchored']++;
 			continue; // On the ledger; the bytes are immutable now.
 		}
-		if ( ! is_array( $entry ) || '' === (string) ( $entry['canonical'] ?? '' ) ) {
-			if ( null === $res ) {
-				$index = sn_rights_evidence_ledger_index();
-				$res   = null === $index ? null : sn_rights_evidence_reservation( $index );
-			}
-			if ( null === $res ) {
-				$out['error'] = 'ledger index unreadable; a record without the reservation is half an evidence';
-				break;
-			}
-			if ( null === $rights ) {
-				$rights = snt_mr_fetch( $days, 'rights' );
-			}
-			if ( empty( $rights['ok'] ) ) {
-				$out['error'] = 'sensor rights stream: ' . (string) ( $rights['error'] ?? 'unknown' );
-				break;
-			}
-			$sensor = function_exists( 'snt_mr_sensor_info' ) ? (array) snt_mr_sensor_info() : array();
-			$sensor['taxonomy'] = (string) ( $aggregate['rows'][0]['taxonomy_version'] ?? '' );
-			$payload   = sn_rights_evidence_compose( $family, $month, $aggregate, $rights, $res, $sensor, $site, $now );
+		if ( '' === (string) ( $entry['canonical'] ?? '' ) ) {
+			continue;
+		}
+		$sent = sn_rights_evidence_send( $entry, $now );
+		$out[ $sent[1] ]++;
+		$data[ $month['month'] ][ $family ] = $sent[0];
+		update_option( SN_RIGHTS_EVIDENCE_OPTION, $data, false );
+	}
+	if ( ! empty( $month['in_window'] ) ) {
+		$composed     = sn_rights_evidence_compose_month( $month, $now, array_keys( $stored ) );
+		$out['error'] = (string) $composed['error'];
+		$site         = home_url( '/' );
+		foreach ( $composed['payloads'] as $family => $payload ) {
 			$canonical = sn_prov_canonical_json( $payload );
 			$entry     = array(
 				'uuid'         => sn_rights_evidence_uuid( $family, $month['month'], $site ),
@@ -236,34 +283,17 @@ function sn_rights_evidence_run( $now = null ) {
 			$out['composed']++;
 			$data[ $month['month'] ][ $family ] = $entry;
 			update_option( SN_RIGHTS_EVIDENCE_OPTION, $data, false ); // Stored BEFORE the POST.
+			$sent = sn_rights_evidence_send( $entry, $now );
+			$out[ $sent[1] ]++;
+			$data[ $month['month'] ][ $family ] = $sent[0];
+			update_option( SN_RIGHTS_EVIDENCE_OPTION, $data, false );
 		}
-		$r = sn_rights_evidence_post( $entry['uuid'], $entry['canonical'] );
-		if ( $r['code'] >= 200 && $r['code'] < 300 ) {
-			$entry['status']      = (string) ( $r['body']['ots_status'] ?? 'pending' ); // The ledger's word, on a fresh record and on a re-send alike.
-			$entry['ledger_path'] = (string) ( $r['body']['ledger_path'] ?? '' );
-			$entry['error']       = '';
-			unset( $entry['canonical'] ); // The ledger holds the bytes now.
-			$out['posted']++;
-		} elseif ( 409 === $r['code'] ) {
-			// The path exists with other bytes: the ledger's record is the record.
-			// Terminal, never retried; the path is deterministic from the id.
-			$entry['status']      = 'conflict';
-			$entry['ledger_path'] = SN_RIGHTS_EVIDENCE_KIND . '/' . $entry['uuid'] . '/v1.json';
-			$entry['error']       = '409 ' . (string) ( $r['body']['error'] ?? '' );
-			unset( $entry['canonical'] );
-			$out['failed']++;
-		} else {
-			$entry['status'] = 'unanchored';
-			$entry['error']  = $r['code'] . ' ' . (string) ( $r['body']['error'] ?? '' );
-			$out['failed']++;
-		}
-		$entry['at'] = $now;
-		$data[ $month['month'] ][ $family ] = $entry;
-		update_option( SN_RIGHTS_EVIDENCE_OPTION, $data, false );
 	}
 	delete_transient( 'sn_rights_evidence_lock' );
 	$out['ok'] = '' === $out['error'] && 0 === $out['failed'];
-	if ( $from_backlog && $out['ok'] ) {
+	// A backlog month leaves only when the pass was clean AND nothing of it is
+	// left unposted, whichever family it belongs to.
+	if ( $from_backlog && $out['ok'] && ! sn_rights_evidence_unposted( $month['month'] ) ) {
 		sn_rights_evidence_backlog_set( array_diff( sn_rights_evidence_backlog(), array( $month['month'] ) ) );
 	}
 	return $out;
