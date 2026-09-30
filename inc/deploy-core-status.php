@@ -70,7 +70,11 @@ function snt_core_status() {
 	$row     = array( 'current' => $current, 'latest' => $current, 'state' => 'unknown', 'offer' => '', 'auto_updates' => snt_core_auto_updates(), 'reason' => '' );
 	$cached  = get_site_transient( 'update_core' );
 	if ( '' === $current || ! is_object( $cached ) || ! isset( $cached->updates ) || ! is_array( $cached->updates ) ) {
-		$row['reason'] = 'No cached core update check (the update_core transient is missing). Read only; nothing is fetched here.';
+		// Observed 2026-09-29: wp_version_check ran and succeeded at 22:50 UTC (it
+		// always writes update_core) and the transient was gone hours later. What
+		// empties it is not yet proven (object-cache flushes are the candidate), so
+		// the reason states only the observation.
+		$row['reason'] = 'WordPress\'s core update check is not in the cache right now, so there is nothing to compare against. It reappears when WordPress next checks. Read only; nothing is fetched here.';
 		return $row;
 	}
 	$newest = '';

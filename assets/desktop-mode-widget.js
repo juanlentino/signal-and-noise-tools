@@ -134,6 +134,11 @@
 			if ( pkg === 'core' && ! status.core ) { return; }
 			var info = status[ pkg ] || {};
 			var glyph = stateGlyph( stale ? 'unknown' : ( info.state || 'unknown' ) );
+			// 19.8.0: core 'unknown' with a version means only that WordPress's
+			// cached update check is missing. Say so in muted text; a stale payload
+			// or a missing version keeps the red '?'.
+			var unchecked = pkg === 'core' && ! stale && !! info.current && ( info.state || 'unknown' ) === 'unknown';
+			if ( unchecked ) { glyph = { label: '–', color: 'var(--os-ui-color-text-subtle, rgba(255,255,255,.6))' }; }
 
 			grid.appendChild( el( 'span', {
 				style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
@@ -142,7 +147,7 @@
 			grid.appendChild( el( 'span', {
 				style: 'font-variant-numeric:tabular-nums;font-weight:500;',
 				// Core names what is waiting: "behind (point)" / "behind (major)".
-				text:  ( info.current || '—' ) + ( pkg === 'core' && info.state === 'behind' && info.offer ? ' · behind (' + info.offer + ')' : '' ),
+				text:  ( info.current || '—' ) + ( pkg === 'core' && info.state === 'behind' && info.offer ? ' · behind (' + info.offer + ')' : '' ) + ( unchecked ? ' · update check not cached' : '' ),
 			} ) );
 			var glyphEl = el( 'span', {
 				style: 'color:' + glyph.color + ';font-weight:600;',
