@@ -120,6 +120,15 @@ to `openai`, 90 days of rights rows is 22 rows and reaches 2026-08-11.
   behind a confirm (removes the month from `sn_rights_evidence_hold`, runs
   nothing). The Lift handler re-checks the gate.
 
+**First-run cost.** The first walk of the live ledger reads every version of
+every signal (tdm-policy alone is at v8), three HTTP calls per confirmed
+version (the version file, block-height, block), in one request. That can take
+tens of seconds, and a heavy cron request has died near 60 s before without a
+trace. Each confirmed version is cached the moment it is read, so a pass that
+dies midway resumes the next day where it stopped, and a click on a View door
+warms the same cache. A refusal or timeout on the first pass is that, not a
+bug; after it, a pass reads only pending versions.
+
 ## Open decisions
 
 1. **Posting the August v2s.** The provenance worker (local clone at 1.21.1;

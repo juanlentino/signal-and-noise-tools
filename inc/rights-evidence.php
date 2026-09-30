@@ -266,7 +266,9 @@ function sn_rights_evidence_run( $now = null ) {
 		update_option( SN_RIGHTS_EVIDENCE_OPTION, $data, false );
 	}
 	if ( ! empty( $month['in_window'] ) ) {
-		$composed     = sn_rights_evidence_compose_month( $month, $now, array_keys( $stored ) );
+		// Skip what holds bytes or a ledger path; an entry with neither is recomposed.
+		$skip         = array_keys( array_filter( $stored, static fn( $e ) => is_array( $e ) && ( '' !== (string) ( $e['canonical'] ?? '' ) || '' !== (string) ( $e['ledger_path'] ?? '' ) ) ) );
+		$composed     = sn_rights_evidence_compose_month( $month, $now, $skip );
 		$out['error'] = (string) $composed['error'];
 		$site         = home_url( '/' );
 		foreach ( $composed['payloads'] as $family => $payload ) {

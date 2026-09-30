@@ -68,7 +68,7 @@ require __DIR__ . '/../inc/machine-readers-api.php';
 // ("agent-discovery is valid but is NOT a rights surface") spans both — so the
 // test that asserts it has to load both. Pure functions, no extra deps.
 require __DIR__ . '/../inc/machine-readers-rights-reads.php';
-// 19.10.0: the filtered rights view allowlists the AI-training families.
+// Unreleased: the filtered rights view allowlists the AI-training families.
 require __DIR__ . '/../inc/machine-readers-render.php';
 
 echo "Group: enums (mirror of the worker's src/machine-readers.mjs)\n";
@@ -244,11 +244,11 @@ snt_mr_cache_flush();
 ok( array( 'sn_mr_unrelated' => 'keep' ) === $GLOBALS['__transients'], 'snt_mr_cache_flush() deletes every rows key across windows and views and touches nothing else (#1206)' );
 $GLOBALS['__transients'] = array( 'sn_mr_rows_45_rights_fanthropic_xdev-ops' => array( 'ok' => true, 'rows' => array( 'stale' ) ) );
 snt_mr_cache_flush();
-ok( array() === $GLOBALS['__transients'], '19.10.0: the flush also deletes the filtered rights key rights evidence reads, per family' );
+ok( array() === $GLOBALS['__transients'], 'Unreleased: the flush also deletes the filtered rights key rights evidence reads, per family' );
 $GLOBALS['__cache_on']   = false;
 $GLOBALS['__transients'] = array();
 
-echo "\nGroup: 19.10.0 filtered rights view (worker 1.29.0 family + exclude_purpose)\n";
+echo "\nGroup: Unreleased filtered rights view (worker 1.29.0 family + exclude_purpose)\n";
 $GLOBALS['__requests'] = array();
 $GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'data' => array(), 'taxonomy_version' => '1.3.1<x>' ) ) );
 snt_mr_memo( null );

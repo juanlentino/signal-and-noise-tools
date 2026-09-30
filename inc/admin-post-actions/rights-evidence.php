@@ -10,7 +10,7 @@
  * no other value reaches either action.
  *
  * @package SignalNoiseTools
- * @since 19.10.0
+ * @since Unreleased
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

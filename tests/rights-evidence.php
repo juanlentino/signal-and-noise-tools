@@ -1,7 +1,7 @@
 <?php
 /**
  * Tests: inc/rights-evidence-compose.php + -ledger.php + -dry-run.php +
- * rights-evidence.php + the two abilities (17.0.0; schema 2 in 19.10.0).
+ * rights-evidence.php + the two abilities (17.0.0; schema 2 in Unreleased).
  * Run: php tests/rights-evidence.php
  * SN_RE_PRINT=1 also prints the September dry-run payloads and the August v2
  * drafts composed from the fixtures below.

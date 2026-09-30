@@ -284,7 +284,7 @@ an empty string, and `hits` to a non negative integer
 response therefore cannot put an arbitrary string on an admin page even before
 escaping gets a turn, and the render lane escapes every cell anyway.
 
-## Rights evidence, schema 2 (plugin 19.10.0, Worker v1.29.0)
+## Rights evidence, schema 2 (Worker v1.29.0)
 
 Once a month the plugin composes one signed, anchored record per AI-training
 family (`inc/rights-evidence*.php`, posted by the provenance worker under

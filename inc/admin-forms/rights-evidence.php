@@ -10,7 +10,7 @@
  * dry run can compose. Lifting never runs the pass.
  *
  * @package SignalNoiseTools
- * @since 19.10.0
+ * @since Unreleased
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

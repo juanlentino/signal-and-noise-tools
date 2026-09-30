@@ -9,7 +9,7 @@
  * record is canonical JSON the provenance worker signs and anchors under
  * `rights-evidence/<uuid>/v1` (worker 1.21.0), so the triple outlives the
  * sensor's retention. Nothing here fetches or writes; inc/rights-evidence.php
- * does both and calls these. Schema 2 (19.10.0): the reservation lists the
+ * does both and calls these. Schema 2 (Unreleased): the reservation lists the
  * versions in force during the month, reads are split by purpose.
  *
  * @package SignalNoiseTools

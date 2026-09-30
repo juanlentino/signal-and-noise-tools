@@ -162,12 +162,12 @@ const SNT_MR_VIEWS = array( 'aggregate', 'unknown', 'rights', 'totals' );
  *
  * @param int    $days   Window (already clamped by the caller).
  * @param string $view   One of SNT_MR_VIEWS.
- * @param array  $filter 19.10.0: a snt_mr_rights_filter() result, or empty.
+ * @param array  $filter Unreleased: a snt_mr_rights_filter() result, or empty.
  * @return string
  */
 function snt_mr_cache_key( $days, $view, array $filter = array() ) {
 	$key = 'sn_mr_rows_' . (int) $days . '_' . $view;
-	// 19.10.0: a filtered rights read is another result; its key names the
+	// Unreleased: a filtered rights read is another result; its key names the
 	// filter. Callers pass the output of snt_mr_rights_filter() only.
 	if ( '' !== (string) ( $filter['family'] ?? '' ) ) {
 		$key .= '_f' . $filter['family'];
@@ -229,7 +229,7 @@ function snt_mr_cache_flush() {
 		foreach ( SNT_MR_VIEWS as $view ) {
 			delete_transient( snt_mr_cache_key( $days, $view ) );
 		}
-		// 19.10.0: the one filtered shape rights evidence reads, per family.
+		// Unreleased: the one filtered shape rights evidence reads, per family.
 		foreach ( function_exists( 'snt_mr_ai_training_families' ) ? snt_mr_ai_training_families() : array() as $family ) {
 			delete_transient( snt_mr_cache_key( $days, 'rights', array( 'family' => $family, 'exclude_purpose' => SNT_MR_RIGHTS_EXCLUDE ) ) );
 		}
@@ -266,7 +266,7 @@ function snt_mr_memo( $key, $value = null ) {
 function snt_mr_fetch( $days = 30, $view = 'aggregate', array $filter = array() ) {
 	$days = max( 1, min( 90, (int) $days ) );
 	$view = in_array( $view, SNT_MR_VIEWS, true ) ? $view : 'aggregate';
-	// 19.10.0: filters exist on the rights view only (worker 1.29.0) and pass
+	// Unreleased: filters exist on the rights view only (worker 1.29.0) and pass
 	// the allowlists or refuse the read; a refused filter never falls back to
 	// an unfiltered read, which would be a different population.
 	$filter = 'rights' === $view ? snt_mr_rights_filter( $filter ) : array();
@@ -364,7 +364,7 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate', array $filter = array() 
 		// headline, which is the whole reason the worker now reports it.
 		'truncated' => ! empty( $decoded['truncated'] ),
 		'row_count' => isset( $decoded['rows'] ) ? max( 0, (int) $decoded['rows'] ) : count( (array) $decoded['data'] ),
-		// 19.10.0: the envelope's taxonomy (the definition the worker writes
+		// Unreleased: the envelope's taxonomy (the definition the worker writes
 		// today), same shape rule as the row field; '' when absent.
 		'taxonomy_version' => substr( preg_replace( '/[^0-9.]/', '', is_string( $decoded['taxonomy_version'] ?? null ) ? $decoded['taxonomy_version'] : '' ), 0, 12 ),
 		'error'     => null,

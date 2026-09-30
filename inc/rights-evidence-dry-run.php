@@ -11,7 +11,7 @@
  * inc/rights-evidence.php is the only caller that stores and posts.
  *
  * @package SignalNoiseTools
- * @since 19.10.0
+ * @since Unreleased
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

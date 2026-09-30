@@ -16,7 +16,7 @@
  * are re-read from the ledger file the worker wrote, never from our memory.
  *
  * @package SignalNoiseTools
- * @since 19.10.0
+ * @since Unreleased
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

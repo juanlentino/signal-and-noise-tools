@@ -101,7 +101,7 @@ function machine_readers_reference_html( array $d ) {
 		machine_readers_edge_readout_html( $d['info'] ),
 		__( 'The deployed rights-signals Worker, from its version endpoint. Cached for up to 15 minutes, so a fresh deploy can take that long to appear here — purge caches to read it now.', 'signal-and-noise-tools' )
 	);
-	// 19.10.0: rights evidence paints whether or not the sensor read succeeded.
+	// Unreleased: rights evidence paints whether or not the sensor read succeeded.
 	$out .= machine_readers_rights_evidence_html();
 	$out .= machine_readers_settings_html( $d );
 	return $out;

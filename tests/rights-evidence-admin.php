@@ -1,6 +1,6 @@
 <?php
 /**
- * Rights evidence on Monitoring > Machine Readers, both twins (19.10.0):
+ * Rights evidence on Monitoring > Machine Readers, both twins (Unreleased):
  * inc/admin-forms/rights-evidence.php (classic),
  * apps/sn-dashboard/parts/leaves/monitoring-machine-readers-evidence.php
  * (native) and inc/admin-post-actions/rights-evidence.php (the two actions).
