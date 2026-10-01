@@ -89,21 +89,26 @@ const SN_RIGHTS_EVIDENCE_MAX_VERSIONS = 200;
  * @param array $index The decoded index.json.
  * @return array<string,array<int,array{version:int,content_hash:string,block:?int,anchored_at:string}>>|null
  *         Slug => versions ascending. anchored_at '' for a version not yet in a
- *         block. null when a version file or a confirmed block's time cannot be
- *         read: a record with a hole in its reservation is refused, not shipped.
+ *         block. null when a row of the index is malformed, or a version file or
+ *         a confirmed block's time cannot be read: a record with a hole in its
+ *         reservation is refused, not shipped.
  */
 function sn_rights_evidence_signal_history( array $index ) {
-	$cache = (array) get_option( 'sn_rights_evidence_chain', array() );
-	$out   = array();
+	// Every row is checked before any read: one malformed row (no slug, an
+	// unsafe slug, no positive version) refuses the history, never a walk
+	// that silently drops that signal from the reservation.
+	$signals = array();
 	foreach ( (array) ( $index['rights_signals'] ?? array() ) as $r ) {
 		$slug    = is_array( $r ) ? (string) ( $r['slug'] ?? '' ) : '';
-		$current = is_array( $r ) ? (int) ( $r['version'] ?? 0 ) : 0;
-		if ( 1 !== preg_match( '/^[a-z0-9-]{1,64}$/', $slug ) || $current < 1 ) {
-			continue;
+		$current = is_array( $r ) && is_numeric( $r['version'] ?? null ) ? (int) $r['version'] : 0;
+		if ( 1 !== preg_match( '/^[a-z0-9-]{1,64}$/', $slug ) || $current < 1 || $current > SN_RIGHTS_EVIDENCE_MAX_VERSIONS ) {
+			return null; // Above the ceiling too: an index claiming more versions than a signal can carry is not walked.
 		}
-		if ( $current > SN_RIGHTS_EVIDENCE_MAX_VERSIONS ) {
-			return null; // An index claiming more versions than a signal can carry is not walked.
-		}
+		$signals[ $slug ] = $current;
+	}
+	$cache = (array) get_option( 'sn_rights_evidence_chain', array() );
+	$out   = array();
+	foreach ( $signals as $slug => $current ) {
 		for ( $n = 1; $n <= $current; $n++ ) {
 			$v = $cache['versions'][ $slug ][ $n ] ?? null;
 			if ( ! is_array( $v ) ) {

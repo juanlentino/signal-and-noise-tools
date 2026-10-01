@@ -103,8 +103,6 @@ $GLOBALS['__k']['ledger'] = array(
 $index = array( 'rights_signals' => array(
 	array( 'slug' => 'tdm-policy', 'version' => 3, 'content_hash' => 'cece8a9cecfb6c7e7ee4f3346d5e2544138bfb6e33bec6042a17333a4d3180b0', 'ots_status' => 'confirmed', 'bitcoin_block' => 300 ),
 	array( 'slug' => 'license-xml', 'version' => 2, 'content_hash' => '8a1cee436cbac1489a1883c9d886fcfc46f302c55ed4106ae31729e4f4eb9041', 'ots_status' => 'pending' ),
-	'junk',
-	array( 'slug' => '../etc', 'version' => 1 ),
 ) );
 
 // A: the id and the month.
@@ -118,7 +116,7 @@ $sep = array( 'month' => '2026-09', 'start' => '2026-09-01', 'end' => '2026-09-3
 
 // B: the reservation in force (F1): history from the ledger, pure selection by anchor time.
 $hist = sn_rights_evidence_signal_history( $index );
-ok( array( 'license-xml', 'tdm-policy' ) === array_keys( $hist ) && 3 === count( $hist['tdm-policy'] ) && '' === $hist['license-xml'][1]['anchored_at'] && null === $hist['license-xml'][1]['block'] && '2026-08-15T12:00:00Z' === $hist['tdm-policy'][1]['anchored_at'] && 200 === $hist['tdm-policy'][1]['block'], 'B1 history walks v1..current per slug from the ledger, block time from the explorer; a pending version has no anchor; junk and a path-unsafe slug are dropped' );
+ok( array( 'license-xml', 'tdm-policy' ) === array_keys( $hist ) && 3 === count( $hist['tdm-policy'] ) && '' === $hist['license-xml'][1]['anchored_at'] && null === $hist['license-xml'][1]['block'] && '2026-08-15T12:00:00Z' === $hist['tdm-policy'][1]['anchored_at'] && 200 === $hist['tdm-policy'][1]['block'], 'B1 history walks v1..current per slug from the ledger, block time from the explorer; a pending version has no anchor' );
 $GLOBALS['__k']['http'] = array();
 $hist2 = sn_rights_evidence_signal_history( $index );
 ok( $hist2 === $hist && array( 'https://raw.example/ledger/main/rights-signals/license-xml/v2.json' ) === $GLOBALS['__k']['http'], 'B2 confirmed versions and block times are cached for good: the second walk reads only the pending version' );
@@ -134,6 +132,10 @@ ok( null === sn_rights_evidence_signal_history( $index ), 'B4b a version file wi
 $GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json'] = $keep; $GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['http'] = array();
 $huge = $index; $huge['rights_signals'][0]['version'] = SN_RIGHTS_EVIDENCE_MAX_VERSIONS + 1;
 ok( null === sn_rights_evidence_signal_history( $huge ) && array() === $GLOBALS['__k']['http'], 'B4c an index claiming more versions than the ceiling is refused before any read' );
+foreach ( array( 'junk', array( 'slug' => '../etc', 'version' => 1 ), array( 'slug' => 'ai-txt' ), array( 'slug' => 'ai-txt', 'version' => 0 ) ) as $i => $row ) {
+	$bad = $index; $bad['rights_signals'][] = $row; $GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['http'] = array();
+	ok( null === sn_rights_evidence_signal_history( $bad ) && array() === $GLOBALS['__k']['http'], 'B4d a malformed rights-signal row (junk, path-unsafe slug, no version, version 0; case ' . $i . ') refuses the whole history before any read: a reservation missing a signal is half an evidence' );
+}
 $GLOBALS['__k']['opt'] = array();
 $res = sn_rights_evidence_reservation( $hist, $m );
 $expect_aug = array(
