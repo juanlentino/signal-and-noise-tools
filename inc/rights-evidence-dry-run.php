@@ -143,8 +143,12 @@ const SN_RIGHTS_EVIDENCE_ERRATUM_REASON = 'v1 cited rights-signal versions ancho
  * D1: the erratum data for a month's posted v1 records. The ledger's rule is
  * that a month's record is minted once and a correction is a retraction,
  * never a v2 (signal-and-noise-provenance rights-evidence-checks.mjs), so the
- * owner chose retraction plus an erratum. Per family with a v1 on the ledger:
- * the record corrected, the reason, and the reservation that was in force.
+ * owner chose retraction plus an erratum. Driven by the stored records, not by
+ * today's aggregate: every v1 of ours with a ledger path (retracted ones too,
+ * the erratum ships with the retraction) gets the record corrected, the reason
+ * and the reservation that was in force, composed once from the ledger. A 409
+ * conflict kept the ledger's own bytes, not ours: nothing to correct. No
+ * sensor read, so a month past the 90-day window still gets its erratum.
  * For the erratum document only: never a ledger record, never posted.
  *
  * @param string   $ym  YYYY-MM.
@@ -152,14 +156,27 @@ const SN_RIGHTS_EVIDENCE_ERRATUM_REASON = 'v1 cited rights-signal versions ancho
  * @return array{ok:bool,error:string,erratum:array<string,string>}
  */
 function sn_rights_evidence_erratum( $ym, $now = null ) {
-	$composed = sn_rights_evidence_compose_ym( $ym, $now );
-	$stored   = (array) ( sn_rights_evidence_data()[ $ym ] ?? array() );
-	$erratum  = array();
-	foreach ( $composed['payloads'] as $family => $payload ) {
-		$v1 = $stored[ $family ] ?? null;
-		if ( ! is_array( $v1 ) || '' === (string) ( $v1['ledger_path'] ?? '' ) || 'conflict' === (string) ( $v1['status'] ?? '' ) ) {
-			continue; // No v1 of ours on the ledger (a 409 kept the ledger's own bytes): nothing to correct.
-		}
+	list( $month, $why ) = sn_rights_evidence_ym_month( $ym, null === $now ? time() : (int) $now );
+	if ( null === $month ) {
+		return array( 'ok' => false, 'error' => $why, 'erratum' => array() );
+	}
+	unset( $month['ts'] );
+	$v1s = array_filter(
+		(array) ( sn_rights_evidence_data()[ $ym ] ?? array() ),
+		static fn( $e ) => is_array( $e ) && '' !== (string) ( $e['ledger_path'] ?? '' ) && 'conflict' !== (string) ( $e['status'] ?? '' )
+	);
+	if ( ! $v1s ) {
+		return array( 'ok' => true, 'error' => '', 'erratum' => array() );
+	}
+	$index   = sn_rights_evidence_ledger_index();
+	$history = null === $index ? null : sn_rights_evidence_signal_history( $index );
+	$res     = null === $history ? null : sn_rights_evidence_reservation( $history, $month );
+	if ( null === $res ) {
+		return array( 'ok' => false, 'error' => 'ledger index or rights-signal history unreadable, or no signal in force for the month', 'erratum' => array() );
+	}
+	ksort( $v1s );
+	$erratum = array();
+	foreach ( $v1s as $family => $v1 ) {
 		$erratum[ $family ] = sn_prov_canonical_json(
 			array(
 				'corrects'    => array(
@@ -170,9 +187,9 @@ function sn_rights_evidence_erratum( $ym, $now = null ) {
 				'family'      => (string) $family,
 				'month'       => (string) $ym,
 				'reason'      => SN_RIGHTS_EVIDENCE_ERRATUM_REASON,
-				'reservation' => $payload['reservation'] ?? array(),
+				'reservation' => $res,
 			)
 		);
 	}
-	return array( 'ok' => '' === $composed['error'], 'error' => $composed['error'], 'erratum' => $erratum );
+	return array( 'ok' => true, 'error' => '', 'erratum' => $erratum );
 }

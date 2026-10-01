@@ -433,6 +433,13 @@ $ep = json_decode( $er['erratum']['openai'] ?? '{}', true );
 ok( $er['ok'] && array( 'openai' ) === array_keys( $er['erratum'] ) && array( 'content_hash' => 'h7', 'ledger_path' => 'rights-evidence/u7/v1.json', 'version' => 1 ) === $ep['corrects'] && SN_RIGHTS_EVIDENCE_ERRATUM_REASON === $ep['reason'] && isset( $ep['reservation']['window'], $ep['reservation']['signals'] ) && '2026-08' === $ep['month'] && ! isset( $ep['supersedes'] ) && ! isset( $ep['schema'] ), 'M1 erratum data per family with a v1 on the ledger: the record corrected, the reason, the reservation in force; not a record (no schema, no supersedes)' );
 $GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => $re( 'conflict', 7 ) ) ) );
 ok( array() === sn_rights_evidence_erratum( '2026-08', $oct5 )['erratum'], 'M1b a 409 conflict kept the ledger\'s own bytes: no erratum is drafted against it' );
+// M3: the erratum is driven by the posted records, not by today's aggregate (review follow-up 8).
+$GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-07' => array( 'openai' => $re( 'confirmed', 7 ), 'cohere' => $re( 'pending', 8 ), 'mistral' => array( 'status' => 'retracted', 'retraction_path' => 'r' ) + $re( 'confirmed', 9 ), 'anthropic' => $re( 'conflict', 10 ), 'google-ai' => array( 'canonical' => '{}', 'ledger_path' => '' ) + $re( 'unanchored', 11 ) ) ) );
+$GLOBALS['__k']['fetch'] = array(); $GLOBALS['__k']['http'] = array();
+$er3 = sn_rights_evidence_erratum( '2026-07', $oct5 );
+$e3  = array_map( static fn( $c ) => json_decode( $c, true ), $er3['erratum'] );
+ok( $er3['ok'] && array( 'cohere', 'mistral', 'openai' ) === array_keys( $e3 ) && 'rights-evidence/u8/v1.json' === $e3['cohere']['corrects']['ledger_path'] && $e3['cohere']['reservation'] === $e3['openai']['reservation'] && isset( $e3['openai']['reservation']['signals'] ), 'M3 every stored v1 with a ledger path gets an erratum (a family the aggregate no longer lists, a retracted one), one reservation for all; a conflict and an unposted entry get none' );
+ok( array() === $GLOBALS['__k']['fetch'] && 1 === count( array_filter( $GLOBALS['__k']['http'], static fn( $u ) => str_ends_with( $u, '/index.json' ) ) ), 'M4 the erratum reads no sensor (a month past the 90-day window still gets one) and the ledger index once' );
 ok( array() === $GLOBALS['__k']['posts'] && false === strpos( SN_RIGHTS_EVIDENCE_ERRATUM_REASON, "\u{2014}" ), 'M2 the erratum posts nothing' );
 
 // N: the retraction, one signed POST /retract per eligible record (Unreleased).
