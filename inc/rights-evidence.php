@@ -143,7 +143,8 @@ function sn_rights_evidence_backlog_set( array $months ) {
 }
 
 /**
- * The oldest backlog month that is no longer held and can still be acted on,
+ * The oldest backlog month that is no longer held (or is held with a refused
+ * family to recompose) and can still be acted on,
  * as a month array with `in_window`; null when none. Inside the sensor's
  * 90-day window a month can be composed; past it, only its stored unposted
  * bytes can be re-sent, so it qualifies only while it has some. A month past
@@ -159,15 +160,35 @@ function sn_rights_evidence_backlog_target( $now, array $held ) {
 		$start = strtotime( $ym . '-01T00:00:00Z' );
 		// A month in its review window is not failing: it waits, uncounted,
 		// and the pass goes to the current month meanwhile.
-		if ( in_array( $ym, $held, true ) || false === $start || sn_rights_evidence_in_review( $ym, $now ) ) {
+		if ( false === $start || sn_rights_evidence_in_review( $ym, $now ) ) {
 			continue;
 		}
 		$in_window = sn_rights_evidence_in_window( $start, $now );
+		// A held month is worked only to recompose a refused family (inside
+		// the sensor window); the pass never posts it.
+		if ( in_array( $ym, $held, true ) && ! ( $in_window && sn_rights_evidence_awaiting_recompose( $ym ) ) ) {
+			continue;
+		}
 		if ( $in_window || sn_rights_evidence_unposted( $ym ) ) {
 			return array( 'month' => $ym, 'start' => gmdate( 'Y-m-01', $start ), 'end' => gmdate( 'Y-m-t', $start ), 'in_window' => $in_window );
 		}
 	}
 	return null;
+}
+
+/**
+ * Whether a month has a refused family waiting to be recomposed.
+ *
+ * @param string $ym YYYY-MM.
+ * @return bool
+ */
+function sn_rights_evidence_awaiting_recompose( $ym ) {
+	foreach ( (array) ( sn_rights_evidence_data()[ $ym ] ?? array() ) as $e ) {
+		if ( is_array( $e ) && 'refused' === (string) ( $e['status'] ?? '' ) && '' === (string) ( $e['canonical'] ?? '' ) ) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
@@ -184,6 +205,32 @@ function sn_rights_evidence_unposted( $ym ) {
 		}
 	}
 	return $out;
+}
+
+/** The worker's error string on a refusal (signal-and-noise-provenance, 422). */
+const SN_RIGHTS_EVIDENCE_REFUSED = 'rights-evidence refused';
+
+/**
+ * PURE. Is a 422 body the worker's refusal: ok false, error exactly
+ * SN_RIGHTS_EVIDENCE_REFUSED, divergences a non-empty list of [string, string]?
+ *
+ * @param mixed $body The decoded body.
+ * @return bool
+ */
+function sn_rights_evidence_is_refusal( $body ) {
+	if ( ! is_array( $body ) || false !== ( $body['ok'] ?? null ) || SN_RIGHTS_EVIDENCE_REFUSED !== ( $body['error'] ?? null ) ) {
+		return false;
+	}
+	$d = $body['divergences'] ?? null;
+	if ( ! is_array( $d ) || ! $d || ! array_is_list( $d ) ) {
+		return false;
+	}
+	foreach ( $d as $pair ) {
+		if ( ! is_array( $pair ) || ! array_is_list( $pair ) || 2 !== count( $pair ) || ! is_string( $pair[0] ) || ! is_string( $pair[1] ) ) {
+			return false;
+		}
+	}
+	return true;
 }
 
 /**
@@ -209,12 +256,13 @@ function sn_rights_evidence_send( array $entry, $now ) {
 		$entry['ledger_path'] = SN_RIGHTS_EVIDENCE_KIND . '/' . $entry['uuid'] . '/v1.json';
 		$entry['error']       = '409 ' . (string) ( $r['body']['error'] ?? '' );
 		unset( $entry['canonical'] );
-	} elseif ( 422 === $r['code'] ) {
+	} elseif ( 422 === $r['code'] && sn_rights_evidence_is_refusal( $r['body'] ) ) {
 		// The worker found the record invalid. These bytes are never sent
 		// again: dropped, so the next pass recomposes; the caller holds the month.
+		// Any other 422 falls through to unanchored and is retried.
 		$entry['status']      = 'refused';
-		$entry['error']       = '422 ' . (string) ( $r['body']['error'] ?? '' );
-		$entry['divergences'] = array_values( (array) ( $r['body']['divergences'] ?? array() ) );
+		$entry['error']       = '422 ' . SN_RIGHTS_EVIDENCE_REFUSED;
+		$entry['divergences'] = $r['body']['divergences'];
 		unset( $entry['canonical'] );
 		$kind = 'refused';
 	} else {
@@ -295,6 +343,10 @@ function sn_rights_evidence_run( $now = null ) {
 		unset( $fails[ $yielded ] );
 		update_option( 'sn_rights_evidence_backlog_fails', $fails, false );
 	}
+	// The hold, once per pass: as read at the start, plus any hold placed
+	// before the lock was taken. A Lift while this pass runs cannot let it
+	// post a month it treated as held; a refusal below stops later sends.
+	$held_pass = in_array( $ym, $held, true ) || in_array( $ym, sn_rights_evidence_held( false ), true );
 	$refused = array(); // Refused this pass: left as refused (the read shows it), recomposed by the next pass.
 	// Stored bytes first, for every family of the month whatever the sensor
 	// says today: they are the record, and they need no sensor read. Sent only
@@ -308,7 +360,7 @@ function sn_rights_evidence_run( $now = null ) {
 			$out['anchored']++;
 			continue; // On the ledger; the bytes are immutable now.
 		}
-		if ( '' === (string) ( $entry['canonical'] ?? '' ) || in_array( $ym, sn_rights_evidence_held( false ), true ) ) {
+		if ( '' === (string) ( $entry['canonical'] ?? '' ) || $held_pass || $refused ) {
 			continue;
 		}
 		if ( (int) ( $entry['review_until'] ?? 0 ) > $now ) {
@@ -325,7 +377,8 @@ function sn_rights_evidence_run( $now = null ) {
 		sn_rights_evidence_compose_for_review( $month, $now, $out, $refused );
 	}
 	delete_transient( 'sn_rights_evidence_lock' );
-	if ( '' === $out['error'] && in_array( $ym, sn_rights_evidence_held( false ), true ) ) {
+	$compose_error = $out['error'];
+	if ( '' === $out['error'] && ( $held_pass || in_array( $ym, sn_rights_evidence_held( false ), true ) ) ) {
 		$out['error'] = 'held: ' . $ym; // Composed, maybe; posted, never.
 	}
 	$out['ok'] = '' === $out['error'] && 0 === $out['failed'] && 0 === $out['refused'];
@@ -334,7 +387,12 @@ function sn_rights_evidence_run( $now = null ) {
 	// review window is neither failing nor done: it stays queued, uncounted.
 	if ( $from_backlog ) {
 		$fails = (array) get_option( 'sn_rights_evidence_backlog_fails', array() );
-		if ( $out['ok'] && ! sn_rights_evidence_unposted( $ym ) ) {
+		if ( $held_pass ) {
+			// Worked only to recompose: held is not failing; a compose error is.
+			if ( '' !== $compose_error ) {
+				$fails[ $ym ] = (int) ( $fails[ $ym ] ?? 0 ) + 1;
+			}
+		} elseif ( $out['ok'] && ! sn_rights_evidence_unposted( $ym ) ) {
 			sn_rights_evidence_backlog_set( array_diff( sn_rights_evidence_backlog(), array( $ym ) ) );
 			unset( $fails[ $ym ] );
 		} elseif ( ! ( $out['ok'] && sn_rights_evidence_in_review( $ym, $now ) ) ) {

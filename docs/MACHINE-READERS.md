@@ -444,8 +444,18 @@ which it can be stopped.
   message], ...]}`. The entry becomes `refused` with its `divergences`, its
   bytes are dropped (refused bytes are never re-sent) and the month is held
   with the divergences as the reason; the next pass recomposes the family into
-  a fresh window. A transport failure is not a refusal: it stays `unanchored`
-  and is retried daily.
+  a fresh window, even while the month is held (a held backlog month is worked
+  only for that, inside the sensor window, and never posts). Only that exact
+  shape is a refusal (`ok` false, `error` exactly `rights-evidence refused`,
+  `divergences` a non-empty list of `[string, string]`); any other 422, like a
+  transport failure, stays `unanchored` with its bytes and is retried daily.
+- **One hold per pass.** A pass reads the hold at its start (and once more as
+  it takes its lock) and keeps that answer: a Lift landing while it runs takes
+  effect at the next pass, never this one. A refusal during the pass stops the
+  month's later sends at once.
+- A month's window, as the status line, the watch and `in_review` report it,
+  is the earliest `review_until` among its unposted records: each record posts
+  on its own window. A hold reason is cut at 300 bytes on a character boundary.
 - **No month is stranded.** At the start of every pass (after the ledger
   refresh, before the target is chosen) any stored month other than the
   current last complete month that still has unposted work (bytes composed or

@@ -48,7 +48,7 @@ function sn_rights_evidence_hold_reasons() {
  * queue it in the backlog so a lift is worked even after the calendar moves on.
  *
  * @param string $ym     YYYY-MM.
- * @param string $reason Why ('' for an owner's hold).
+ * @param string $reason Why ('' for an owner's hold); cut at SN_RIGHTS_EVIDENCE_REASON_MAX bytes.
  */
 function sn_rights_evidence_hold_month( $ym, $reason = '' ) {
 	$held = sn_rights_evidence_held();
@@ -56,7 +56,9 @@ function sn_rights_evidence_hold_month( $ym, $reason = '' ) {
 		$held[] = $ym;
 		update_option( 'sn_rights_evidence_hold', array_values( $held ), false );
 	}
-	$reason = substr( trim( (string) $reason ), 0, SN_RIGHTS_EVIDENCE_REASON_MAX );
+	$reason = trim( (string) $reason );
+	// Cut at a byte limit without splitting a UTF-8 character.
+	$reason = function_exists( 'mb_strcut' ) ? mb_strcut( $reason, 0, SN_RIGHTS_EVIDENCE_REASON_MAX, 'UTF-8' ) : substr( $reason, 0, SN_RIGHTS_EVIDENCE_REASON_MAX );
 	if ( '' !== $reason ) {
 		$all        = sn_rights_evidence_hold_reasons();
 		$all[ $ym ] = array_values( array_unique( array_merge( (array) ( $all[ $ym ] ?? array() ), array( $reason ) ) ) );
@@ -89,8 +91,9 @@ function sn_rights_evidence_in_review( $ym, $now ) {
 }
 
 /**
- * Months with composed, unposted bytes that are not held: month => the latest
- * review_until among its unposted entries (0 when none carries one).
+ * Months with composed, unposted bytes that are not held: month => the
+ * earliest review_until among its unposted entries, when the first of them may
+ * post (0 when one carries none: it is due).
  *
  * @return array<string,int> Oldest month first.
  */
@@ -103,7 +106,9 @@ function sn_rights_evidence_pending() {
 		}
 		foreach ( (array) $families as $e ) {
 			if ( is_array( $e ) && '' !== (string) ( $e['canonical'] ?? '' ) && '' === (string) ( $e['ledger_path'] ?? '' ) ) {
-				$out[ (string) $ym ] = max( (int) ( $out[ (string) $ym ] ?? 0 ), (int) ( $e['review_until'] ?? 0 ) );
+				// The earliest: each entry posts on its own window.
+				$until               = (int) ( $e['review_until'] ?? 0 );
+				$out[ (string) $ym ] = isset( $out[ (string) $ym ] ) ? min( $out[ (string) $ym ], $until ) : $until;
 			}
 		}
 	}
