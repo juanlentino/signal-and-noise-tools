@@ -530,6 +530,23 @@ ok( array( '2026-08' => gmdate( 'c', $now + $W ) ) === (array) snt_ability_right
 $an = $GLOBALS['__k']['abilities']['signal-noise/rights-evidence-now'];
 ok( str_contains( $an['description'], 'only what is composed, past its review window and not held' ) && isset( $an['output_schema']['properties']['in_review'], $an['output_schema']['properties']['refused'] ), 'R6 rights-evidence-now says it posts only past the window, and reports in_review and refused' );
 
+// R7: a month composed late is not left to Post now alone: the next month's first pass queues it, and it posts once its window passes.
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array() ); $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['transients'] = array();
+$sep30 = strtotime( '2026-09-30T12:00:00Z' );
+$r = sn_rights_evidence_run( $sep30 );
+ok( '2026-08' === $r['month'] && 2 === $r['composed'] && strtotime( '2026-10-03T12:00:00Z' ) === sn_rights_evidence_data()['2026-08']['openai']['review_until'] && array() === sn_rights_evidence_backlog(), 'R7 August composed on 2026-09-30, its window ending after the turnover; not yet queued (it is the current month)' );
+$r = sn_rights_evidence_run( strtotime( '2026-10-01T06:00:00Z' ) );
+ok( '2026-09' === $r['month'] && array( '2026-08' ) === sn_rights_evidence_backlog() && array() === $GLOBALS['__k']['posts'], 'R7b the first pass of October queues August (stranded, unposted) and, August being in its window, works September' );
+$r = sn_rights_evidence_run( strtotime( '2026-10-03T12:00:00Z' ) );
+ok( '2026-08' === $r['month'] && 2 === $r['posted'] && array( '2026-08' ) !== sn_rights_evidence_backlog() && ! in_array( '2026-08', sn_rights_evidence_backlog(), true ), 'R7c once its window passes August posts from the backlog and leaves it, with no Post now' );
+$GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array(
+	'2026-06' => array( 'openai' => array( 'status' => 'refused', 'ledger_path' => '' ) ),
+	'2026-07' => array( 'openai' => array( 'status' => 'pending', 'ledger_path' => 'p.json' ) ),
+	'2026-08' => array( 'openai' => array( 'status' => 'composed', 'canonical' => '{}', 'ledger_path' => '' ) ),
+	'2026-09' => array( 'openai' => array( 'status' => 'unanchored', 'canonical' => '{}', 'ledger_path' => '' ) ),
+) );
+ok( array( '2026-06', '2026-09' ) === sn_rights_evidence_stranded( '2026-08' ), 'R7d stranded: a refused entry awaiting recompose and unposted bytes count; a posted month and the current month do not' );
+
 // L: the dry run composes from live reads and reaches no POST (behaviour AND source).
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-09' ) ); $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['transients'] = array(); $GLOBALS['__k']['fetch'] = array();
 $dry = sn_rights_evidence_dry_run( '2026-09', $oct5 );

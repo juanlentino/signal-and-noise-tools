@@ -196,3 +196,27 @@ function sn_rights_evidence_refusal_reason( $family, $divergences ) {
 	}
 	return sprintf( 'the worker refused %s: %s', $family, $parts ? implode( '; ', $parts ) : 'no divergences given' );
 }
+
+/**
+ * Months other than $current with an entry neither on the ledger nor final:
+ * bytes stored and unposted (composed, unanchored), or refused and awaiting
+ * recompose.
+ *
+ * @param string $current The last complete month, YYYY-MM.
+ * @return string[]
+ */
+function sn_rights_evidence_stranded( $current ) {
+	$out = array();
+	foreach ( sn_rights_evidence_data() as $ym => $families ) {
+		if ( (string) $ym === (string) $current ) {
+			continue;
+		}
+		foreach ( (array) $families as $e ) {
+			if ( is_array( $e ) && ( '' !== (string) ( $e['canonical'] ?? '' ) || 'refused' === (string) ( $e['status'] ?? '' ) ) ) { // Posting drops the bytes, and a refused entry has no path.
+				$out[] = (string) $ym;
+				break;
+			}
+		}
+	}
+	return $out;
+}

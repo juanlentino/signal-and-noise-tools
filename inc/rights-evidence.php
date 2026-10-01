@@ -230,7 +230,8 @@ function sn_rights_evidence_send( array $entry, $now ) {
  * post what is composed, past its review window and not held. Idempotent by
  * (month, family).
  *
- * Order: refresh stored records from the ledger (F5), queue a held month,
+ * Order: refresh stored records from the ledger (F5), queue a held month and
+ * any other month with unposted work,
  * readiness, the backlog target (yielding to the current month after a run of
  * failing passes; a month in its review window is skipped), the lock, send
  * stored bytes that are due, compose. A held month still composes (so View
@@ -251,6 +252,13 @@ function sn_rights_evidence_run( $now = null ) {
 	$current = sn_rights_evidence_month( $now );
 	if ( in_array( $current['month'], $held, true ) ) {
 		sn_rights_evidence_backlog_set( array_merge( sn_rights_evidence_backlog(), array( $current['month'] ) ) );
+	}
+	// Any other month still holding unposted work (composed late, lifted after
+	// the calendar turned, refused and awaiting recompose) is queued too, so
+	// no month is left to Post now alone.
+	$stranded = sn_rights_evidence_stranded( $current['month'] );
+	if ( array_diff( $stranded, sn_rights_evidence_backlog() ) ) {
+		sn_rights_evidence_backlog_set( array_merge( sn_rights_evidence_backlog(), $stranded ) );
 	}
 	if ( ! sn_rights_evidence_is_ready() ) {
 		$out['error'] = 'not-ready';

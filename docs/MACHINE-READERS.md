@@ -446,6 +446,13 @@ which it can be stopped.
   with the divergences as the reason; the next pass recomposes the family into
   a fresh window. A transport failure is not a refusal: it stays `unanchored`
   and is retried daily.
+- **No month is stranded.** At the start of every pass (after the ledger
+  refresh, before the target is chosen) any stored month other than the
+  current last complete month that still has unposted work (bytes composed or
+  unanchored, or a refused entry awaiting recompose) is added to the backlog.
+  A month composed late, whose window ends after the calendar turns, or lifted
+  after the turnover, is worked by a later pass and posts once its window
+  passes; Post now is never the only way out.
 - **The backlog is not fooled by the window.** A backlog month whose unposted
   records are all in their window is not a backlog target (the pass works the
   current month meanwhile) and not a failure: it stays queued with its failure
@@ -455,10 +462,6 @@ which it can be stopped.
   hours left) or while a rule holds one (the note carries the reason). An
   owner's own hold has no reason and stays quiet. The morning brief lists ripe
   watches; there is no email.
-- Known ceiling: a current month composed within 72 hours of the calendar
-  turning (only possible when composing was delayed most of a month without a
-  hold) is not in the backlog, so once the next month becomes current its
-  waiting bytes are reached only by Post now.
 
 ### Retracting a record
 
