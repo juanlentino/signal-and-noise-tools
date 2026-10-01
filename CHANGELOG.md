@@ -12,6 +12,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- Test: the nightly-window pin in `tests/analytics-rollup-replace.php` expects the window's own five-minute edge skew, so it no longer fails within five minutes of New York midnight (it redded #1812 and main at 23:55 and 00:01 ET on 2026-10-01).
 ## [20.0.0] - 2026-09-30 — the reservation in force
 
 
