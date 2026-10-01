@@ -526,7 +526,7 @@ $GLOBALS['__k']['post_reply'] = $pending_reply;
 $o = snt_ability_rights_evidence();
 ok( array( '2026-08' => array( 'the worker refused anthropic: crawling: by_day does not sum' ) ) === (array) $o['hold_reasons'] && 'refused' === ( (array) $o['months'] )['2026-08']['anthropic']['status'] && isset( ( (array) $o['months'] )['2026-08']['anthropic']['divergences'] ) && $now + $W === ( (array) $o['months'] )['2026-08']['openai']['review_until'] && '{}' === json_encode( $o['in_review'] ), 'R5 the read carries hold_reasons, refused entries with their divergences, review_until per record, and in_review ({} when nothing waits)' );
 $GLOBALS['__k']['opt']['sn_rights_evidence_hold'] = array();
-ok( array( '2026-08' => gmdate( 'c', $now + $W ) ) === (array) snt_ability_rights_evidence()['in_review'], 'R5b in_review names each composed, unheld month and when it may post' );
+ok( array( '2026-08' => gmdate( 'c', $now + $W ) ) === (array) snt_ability_rights_evidence()['in_review'] && '{}' === json_encode( snt_ability_rights_evidence()['hold_reasons'] ), 'R5b in_review names each composed, unheld month and when it may post; a reason for a month no longer held is not reported (as on the twins and in the watch)' );
 $an = $GLOBALS['__k']['abilities']['signal-noise/rights-evidence-now'];
 ok( str_contains( $an['description'], 'only what is composed, past its review window and not held' ) && isset( $an['output_schema']['properties']['in_review'], $an['output_schema']['properties']['refused'] ), 'R6 rights-evidence-now says it posts only past the window, and reports in_review and refused' );
 
