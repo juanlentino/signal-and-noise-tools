@@ -122,6 +122,8 @@ function sn_admin_post_handlers() {
 		'rights_evidence_view'       => 'sn_handle_rights_evidence_view', // GET door: a held month's dry run as JSON
 		'rights_evidence_lift'       => 'sn_handle_rights_evidence_lift', // one month off the hold; never runs the pass
 		'rights_evidence_retract'    => 'sn_handle_rights_evidence_retract', // one signed retraction per click (inc/admin-post-actions/rights-evidence-retract.php)
+		'rights_evidence_hold'       => 'sn_handle_rights_evidence_hold', // a composed month in its review window onto the hold; never runs the pass
+		'rights_evidence_post_now'   => 'sn_handle_rights_evidence_post_now', // the owner's bypass of the review window (inc/admin-post-actions/rights-evidence-post-now.php)
 	);
 }
 

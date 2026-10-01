@@ -117,6 +117,16 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_bot_signals',
 		),
+		// Unreleased: monthly rights evidence posts itself once its review window passes.
+		array(
+			'id'        => 'rights_evidence_review',
+			'label'     => 'rights evidence: a month waits to post, or a rule held one',
+			'why'       => 'A composed month posts on its own to the public, append-only ledger once its 72-hour review window passes, unless held: this is the time to View its payloads and Hold it, or Post now. A month a rule held (a compose or ledger-walk error, a train count that moved more than 3x, a worker refusal) never posts until the owner reads the reason and lifts it.',
+			'read'      => 'Monitoring › Machine Readers › Rights evidence; signal-noise/rights-evidence{in_review,hold_reasons}',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_rights_evidence',
+		),
 		array(
 			'id'        => 'wave4_telemetry',
 			'label'     => 'wave-4 tool retirement read',
@@ -390,4 +400,38 @@ function snt_watch_ripe_mcp_adapter( $watch, $now, $version = null ) {
 		return array( 'ripe' => false, 'note' => sprintf( 'adapter %s is loaded; the port waits on %s, the first plugin release', $version, SNT_MCP_ADAPTER_MIN ) );
 	}
 	return array( 'ripe' => true, 'note' => sprintf( 'adapter %s is active: register the abilities with it, verify its door, then retire the read door', $version ) );
+}
+
+/**
+ * Ripe while a rights-evidence month is composed, unposted and not held (the
+ * note carries what is left of its review window), or held by a rule (the
+ * note carries the reason). An owner's own hold, with no reason, is quiet.
+ *
+ * @param array      $watch The watch row.
+ * @param int        $now   Unix time.
+ * @param array|null $state Injected for tests: {pending: month => review_until, reasons: month => string[]}; null reads the module.
+ * @return array{ripe:bool,note:string}
+ */
+function snt_watch_ripe_rights_evidence( $watch, $now, $state = null ) {
+	unset( $watch );
+	if ( null === $state ) {
+		if ( ! function_exists( 'sn_rights_evidence_pending' ) ) {
+			return array( 'ripe' => false, 'note' => 'rights evidence module not loaded' );
+		}
+		$state = array(
+			'pending' => sn_rights_evidence_pending(),
+			'reasons' => array_intersect_key( sn_rights_evidence_hold_reasons(), array_flip( sn_rights_evidence_held( false ) ) ),
+		);
+	}
+	$parts = array();
+	foreach ( (array) ( $state['pending'] ?? array() ) as $ym => $until ) {
+		$left    = (int) $until - (int) $now;
+		$parts[] = $ym . ( $left > 0 ? sprintf( ' posts in %d h unless held', (int) ceil( $left / 3600 ) ) : ' is past its window and posts at the next pass' );
+	}
+	foreach ( (array) ( $state['reasons'] ?? array() ) as $ym => $reasons ) {
+		$parts[] = $ym . ' held: ' . implode( '; ', (array) $reasons );
+	}
+	return $parts
+		? array( 'ripe' => true, 'note' => implode( ' | ', $parts ) )
+		: array( 'ripe' => false, 'note' => 'no month waiting, none held by a rule' );
 }
