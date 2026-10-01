@@ -30,6 +30,13 @@ function sn_rights_evidence_signed_post( $url, array $fields ) { $GLOBALS['__re'
 if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $t = 0 ) { $GLOBALS['__transients'][ $k ] = $v; return true; } }
 if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $k ) { unset( $GLOBALS['__transients'][ $k ] ); return true; } }
 
+// The review window's seams: the backlog writer and one send (the real ones are pinned in tests/rights-evidence.php).
+function sn_rights_evidence_backlog_set( array $m ) { $m = array_values( array_unique( $m ) ); sort( $m ); $GLOBALS['__options']['sn_rights_evidence_backlog'] = $m; }
+$GLOBALS['__re']['sent'] = array();
+function sn_rights_evidence_send( array $entry, $now ) { $GLOBALS['__re']['sent'][] = $entry['uuid']; unset( $entry['canonical'] ); return array( array( 'status' => 'pending', 'ledger_path' => 'rights-evidence/' . $entry['uuid'] . '/v1.json' ) + $entry, 'posted' ); }
+require SNT_PATH . 'inc/rights-evidence-review.php';
+require SNT_PATH . 'inc/rights-evidence-post-now.php';
+require SNT_PATH . 'inc/admin-post-actions/rights-evidence-post-now.php';
 require SNT_PATH . 'inc/rights-evidence-retractions.php';
 require SNT_PATH . 'inc/rights-evidence-retract.php';
 require SNT_PATH . 'inc/admin-post-actions/rights-evidence-retract.php';
@@ -51,7 +58,7 @@ ok( str_contains( (string) file_get_contents( SNT_PATH . 'inc/admin-post-actions
 $GLOBALS['__options'] = array( 'sn_rights_evidence_hold' => array( '2026-09' ), 'sn_rights_evidence_backlog' => array( '2026-08' ) );
 $c = $classic(); $n = $native();
 foreach ( array( 'classic' => $c, 'native' => $n ) as $twin => $h ) {
-	ok( str_contains( $h, 'Held: 2026-09. Backlog: 2026-08. Next pass: 2026-10-01 21:43 UTC.' ), "B1 $twin: the status line names held months, backlog and the next pass" );
+	ok( str_contains( $h, 'Held: 2026-09. In review: none. Backlog: 2026-08. Next pass: 2026-10-01 21:43 UTC.' ), "B1 $twin: the status line names held months, backlog and the next pass" );
 	ok( str_contains( $h, 'View September 2026 payloads' ) && str_contains( $h, 'action=sn_rights_evidence_view' ) && str_contains( $h, 'month=2026-09' ) && str_contains( $h, '_wpnonce=nonce-sn_rights_evidence_view' ) && str_contains( $h, 'page=sn-monitoring' ), "B2 $twin: a View door per held month, admin-post GET with its own nonce" );
 	ok( str_contains( $h, 'Lift September 2026 hold' ) && str_contains( $h, 'sn_rights_evidence_lift' ) && str_contains( $h, 'append-only ledger' ), "B3 $twin: a Lift button behind a confirm that says what it publishes" );
 }
@@ -65,7 +72,8 @@ $GLOBALS['__re']['ready'] = true;
 
 // C: Lift removes one month from the hold and nothing else.
 $GLOBALS['__options'] = array( 'sn_rights_evidence_hold' => array( '2026-09', '2026-10' ) );
-ok( 'rights_evidence_lifted' === sn_handle_rights_evidence_lift( array( 'month' => '2026-09' ) ) && array( '2026-10' ) === $GLOBALS['__options']['sn_rights_evidence_hold'] && 0 === $GLOBALS['__re']['dry'], 'C1 Lift takes the month off the hold, keeps the rest, and runs nothing' );
+$GLOBALS['__options']['sn_rights_evidence_hold_reasons'] = array( '2026-09' => array( 'sensor: network' ), '2026-10' => array( 'x' ) );
+ok( 'rights_evidence_lifted' === sn_handle_rights_evidence_lift( array( 'month' => '2026-09' ) ) && array( '2026-10' ) === $GLOBALS['__options']['sn_rights_evidence_hold'] && 0 === $GLOBALS['__re']['dry'] && array( '2026-10' => array( 'x' ) ) === $GLOBALS['__options']['sn_rights_evidence_hold_reasons'], 'C1 Lift takes the month off the hold and clears the reasons a rule gave it, keeps the rest, and runs nothing' );
 ok( 'rights_evidence_not_held' === sn_handle_rights_evidence_lift( array( 'month' => '2026-08' ) ) && 'rights_evidence_not_held' === sn_handle_rights_evidence_lift( array( 'month' => '2026-10\'"' ) ) && array( '2026-10' ) === $GLOBALS['__options']['sn_rights_evidence_hold'], 'C2 a month not on hold (or not a month) changes nothing' );
 $GLOBALS['__re']['sensor'] = null;
 ok( 'rights_evidence_lift_refused' === sn_handle_rights_evidence_lift( array( 'month' => '2026-10' ) ) && array( '2026-10' ) === $GLOBALS['__options']['sn_rights_evidence_hold'], 'C3 the handler re-checks the gate: sensor unreachable, the hold stands' );
@@ -80,7 +88,7 @@ $GLOBALS['__options'] = array( 'sn_rights_evidence_hold' => array( '2026-09' ) )
 $_GET = array( 'month' => '2026-07' );
 ok( 'rights_evidence_not_held' === sn_handle_rights_evidence_view( array() ) && 0 === $GLOBALS['__re']['dry'], 'D1 View for a month not on hold is refused without a dry run' );
 $view_src = (string) file_get_contents( SNT_PATH . 'inc/admin-post-actions/rights-evidence.php' );
-ok( ! preg_match( '/wp_remote_post|sn_rights_evidence_post|sn_rights_evidence_run|sn_rights_evidence_send|sn_rights_evidence_retract/', $view_src ), 'D2 structurally: neither View nor Lift can post, retract or run the pass (Retract lives in its own file)' );
+ok( ! preg_match( '/wp_remote_post|sn_rights_evidence_post|sn_rights_evidence_run|sn_rights_evidence_send|sn_rights_evidence_retract/', $view_src ), 'D2 structurally: neither View, Lift nor Hold can post, retract or run the pass (Retract and Post now live in their own files)' );
 
 // E: Retract, one signed retraction per click, both twins.
 $conf = array( 'uuid' => 'u7', 'content_hash' => 'h7', 'status' => 'confirmed', 'ledger_path' => 'rights-evidence/u7/v1.json', 'at' => 1, 'error' => '' );
@@ -122,6 +130,39 @@ foreach ( array( 'rights_evidence_retracted', 'rights_evidence_retract_busy', 'r
 	ok( str_contains( $flash, "'$code'" ), "E13 static flash message for $code" );
 }
 ok( str_contains( $flash, "'rights_evidence_retract_refused' === \$flash" ) && str_contains( $flash, "'rights_evidence_retract_failed' === \$flash" ) && str_contains( $flash, "get_transient( 'sn_rights_evidence_retract_error' )" ), 'E14 the 409 and failure flashes print the worker\'s error' );
+
+// F: the review window on both twins (Unreleased): View, Hold and Post now for a waiting month, the rule's reason for a held one.
+$waiting = array( 'uuid' => 'w1', 'content_hash' => 'h', 'canonical' => '{"family":"openai","month":"2026-09"}', 'status' => 'composed', 'ledger_path' => '', 'at' => 1, 'review_until' => time() + 41 * 3600 + 60, 'error' => '' );
+$board   = static function () use ( $waiting ) {
+	$GLOBALS['__options'] = array( 'sn_rights_evidence_hold' => array( '2026-08' ), 'sn_rights_evidence_hold_reasons' => array( '2026-08' => array( 'the worker refused openai: reservation: v3 not in force' ) ), SN_RIGHTS_EVIDENCE_OPTION => array( '2026-09' => array( 'openai' => $waiting ) ) );
+	$GLOBALS['__re']['sent'] = array();
+};
+$board();
+$c = $classic(); $n = $native();
+foreach ( array( 'classic' => $c, 'native' => $n ) as $twin => $h ) {
+	ok( str_contains( $h, 'Held: 2026-08. In review: 2026-09. Backlog: none.' ), "F1 $twin: the status line names the month in review" );
+	ok( str_contains( $h, 'September 2026</strong>: Composed, not posted: posts after ' ) && str_contains( $h, '(42 h left), unless held.' ), "F2 $twin: a waiting month says when it posts and that a hold stops it" );
+	ok( str_contains( $h, 'View September 2026 payloads' ) && str_contains( $h, 'Hold September 2026' ) && str_contains( $h, 'sn_rights_evidence_hold' ) && str_contains( $h, 'Nothing of it posts until you lift the hold' ) && str_contains( $h, 'Post September 2026 now' ) && str_contains( $h, 'nonce-sn_rights_evidence_post_now' ) && str_contains( $h, 'cannot be edited, only retracted' ), "F3 $twin: View, Hold and Post now for the waiting month, each POST with its own nonce behind a confirm that says what it does" );
+	ok( str_contains( $h, 'August 2026</strong>: Held by a rule: the worker refused openai: reservation: v3 not in force.' ) && str_contains( $h, 'Lift August 2026 hold' ) && ! str_contains( $h, 'Hold August' ) && ! str_contains( $h, 'Post August' ), "F4 $twin: a month a rule held shows the reason and Lift, never Hold or Post now" );
+}
+ok( snt_leaf_names( $c ) === snt_leaf_names( $n ) && array( 'month', 'sub', 'tab' ) === array_values( array_unique( array_diff( snt_leaf_names( $n ), array( 'action', '_wpnonce' ) ) ) ), 'F5 the native forms post the same names as the classic: ' . implode( ',', snt_leaf_names( $n ) ) );
+$GLOBALS['__re']['worker'] = '';
+ok( ! str_contains( $classic(), 'Post September' ) && ! str_contains( $native(), 'Post September' ) && str_contains( $classic(), 'Hold September 2026' ) && str_contains( $native(), 'Hold September 2026' ), 'F6 worker not set up: no Post now on either twin; Hold stays' );
+ok( 'rights_evidence_post_now_unconfigured' === sn_handle_rights_evidence_post_now( array( 'month' => '2026-09' ) ) && array() === $GLOBALS['__re']['sent'], 'F6b the Post now handler re-checks the worker: nothing sent' );
+$GLOBALS['__re']['worker'] = 'https://prov.example';
+ok( array( 'openai' => $waiting['canonical'] ) === sn_rights_evidence_stored_payloads( '2026-09' ) && '2026-09' === sn_rights_evidence_request_pending( array( 'month' => '2026-09' ) ) && '' === sn_rights_evidence_request_pending( array( 'month' => '2026-08' ) ), 'F7 View takes a waiting month too and streams its stored bytes (what will post); a held month is not pending' );
+$_GET = array( 'month' => '2026-07' );
+ok( 'rights_evidence_not_held' === sn_handle_rights_evidence_view( array() ) && 0 === $GLOBALS['__re']['dry'], 'F7b View for a month neither held nor waiting is refused without a dry run' );
+ok( 'rights_evidence_not_pending' === sn_handle_rights_evidence_hold( array( 'month' => '2026-08' ) ) && 'rights_evidence_not_pending' === sn_handle_rights_evidence_hold( array( 'month' => '2026-07' ) ) && array( '2026-08' ) === $GLOBALS['__options']['sn_rights_evidence_hold'], 'F8 Hold refuses a month that is held already or has nothing waiting' );
+ok( 'rights_evidence_held' === sn_handle_rights_evidence_hold( array( 'month' => '2026-09' ) ) && array( '2026-08', '2026-09' ) === $GLOBALS['__options']['sn_rights_evidence_hold'] && array( '2026-09' ) === $GLOBALS['__options']['sn_rights_evidence_backlog'] && ! isset( $GLOBALS['__options']['sn_rights_evidence_hold_reasons']['2026-09'] ) && array() === $GLOBALS['__re']['sent'], 'F8b Hold puts the waiting month on the hold and in the backlog, stores no reason (the owner\'s hold), posts nothing' );
+ok( 'rights_evidence_not_pending' === sn_handle_rights_evidence_post_now( array( 'month' => '2026-09' ) ) && array() === $GLOBALS['__re']['sent'], 'F9 Post now refuses a held month' );
+$board();
+ok( 'rights_evidence_posted_now' === sn_handle_rights_evidence_post_now( array( 'month' => '2026-09' ) ) && array( 'w1' ) === $GLOBALS['__re']['sent'] && 'rights-evidence/w1/v1.json' === $GLOBALS['__options'][ SN_RIGHTS_EVIDENCE_OPTION ]['2026-09']['openai']['ledger_path'], 'F9b Post now sends the waiting month inside its window and stores the answer' );
+ok( 'rights_evidence_not_pending' === sn_handle_rights_evidence_post_now( array( 'month' => '2026-09' ) ) && 1 === count( $GLOBALS['__re']['sent'] ) && 'rights_evidence_not_pending' === sn_handle_rights_evidence_post_now( array( 'month' => '2026-09\'"' ) ), 'F9c a second click, or a month that is not one, sends nothing' );
+ok( str_contains( $handler_src, "'rights_evidence_hold'       => 'sn_handle_rights_evidence_hold'" ) && str_contains( $handler_src, "'rights_evidence_post_now'   => 'sn_handle_rights_evidence_post_now'" ) && str_contains( (string) file_get_contents( SNT_PATH . 'inc/admin-post-actions.php' ), 'admin-post-actions/rights-evidence-post-now.php' ), 'F10 Hold and Post now are registered with the dispatcher (nonce + manage_options) and loaded' );
+foreach ( array( 'rights_evidence_held', 'rights_evidence_not_pending', 'rights_evidence_posted_now', 'rights_evidence_post_now_partial', 'rights_evidence_post_now_unconfigured' ) as $code ) {
+	ok( str_contains( $flash, "'$code'" ), "F11 static flash message for $code" );
+}
 
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail ? 1 : 0 );

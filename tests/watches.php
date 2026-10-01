@@ -161,5 +161,18 @@ $gs = static function ( $init, $general ) { return snt_watch_ripe_general_save_g
 ok( false === $gs( true, array( 'blogname', 'admin_email' ) )['ripe'] && true === $gs( true, array( 'blogname', 'preferred_languages' ) )['ripe'] && false === $gs( false, array() )['ripe'], '16.8.0: the General-save guard watch ripens when admin_email leaves the group after the registry initialised; never when the registry did not initialise' );
 ok( in_array( 'general_save_guard_ai_1048', $ids, true ), 'the guard watch is registered' );
 
+echo "\nGroup: rights evidence review window (Unreleased)\n";
+$t0 = strtotime( '2026-10-01T06:00:00Z' );
+$re = static fn( $pending, $reasons = array() ) => snt_watch_ripe_rights_evidence( array(), $t0, array( 'pending' => $pending, 'reasons' => $reasons ) );
+ok( false === $re( array() )['ripe'], 'nothing composed, nothing held by a rule: quiet' );
+$v = $re( array( '2026-09' => $t0 + 41 * 3600 ) );
+ok( true === $v['ripe'] && '2026-09 posts in 41 h unless held' === $v['note'], 'a composed, unposted, unheld month ripens it, carrying the remaining window: ' . $v['note'] );
+$v = $re( array( '2026-09' => $t0 - 1 ) );
+ok( true === $v['ripe'] && str_contains( $v['note'], 'past its window' ), 'past the window and still unposted: ripe, says the next pass posts it' );
+$v = $re( array(), array( '2026-08' => array( 'openai crawling.train moved from 60 in 2026-07 to 241, more than 3x' ) ) );
+ok( true === $v['ripe'] && '2026-08 held: openai crawling.train moved from 60 in 2026-07 to 241, more than 3x' === $v['note'], 'a month a rule held ripens it with the reason (an owner hold has no reason and stays quiet)' );
+ok( false === snt_watch_ripe_rights_evidence( array(), $t0 )['ripe'] && str_contains( snt_watch_ripe_rights_evidence( array(), $t0 )['note'], 'not loaded' ), 'no module: never ripe, says why' );
+ok( in_array( 'rights_evidence_review', array_column( snt_watches(), 'id' ), true ), 'the rights evidence watch is registered' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

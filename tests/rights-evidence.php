@@ -20,7 +20,7 @@ function add_option( $k, $v, $d = '', $a = null ) { if ( ! array_key_exists( $k,
 function update_option( $k, $v, $a = null ) { $GLOBALS['__k']['opt'][ $k ] = $v; return true; }
 $GLOBALS['__k']['transients'] = array();
 function get_transient( $k ) { return $GLOBALS['__k']['transients'][ $k ] ?? false; }
-function set_transient( $k, $v, $t = 0 ) { $GLOBALS['__k']['transients'][ $k ] = $v; return true; }
+function set_transient( $k, $v, $t = 0 ) { $GLOBALS['__k']['transients'][ $k ] = $v; if ( 'sn_rights_evidence_lock' === $k && isset( $GLOBALS['__k']['on_lock'] ) ) { ( $GLOBALS['__k']['on_lock'] )(); } return true; } // on_lock: a concurrent writer landing once the pass holds its lock
 function delete_transient( $k ) { unset( $GLOBALS['__k']['transients'][ $k ] ); return true; }
 if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
 function wp_next_scheduled( $h ) { return $GLOBALS['__k']['scheduled'][ $h ] ?? false; }
@@ -75,7 +75,9 @@ require __DIR__ . '/../inc/provenance-core.php';
 require __DIR__ . '/../inc/rights-evidence-compose.php';
 require __DIR__ . '/../inc/rights-evidence-ledger.php';
 require __DIR__ . '/../inc/rights-evidence-dry-run.php';
+require __DIR__ . '/../inc/rights-evidence-review.php';
 require __DIR__ . '/../inc/rights-evidence.php';
+require __DIR__ . '/../inc/rights-evidence-post-now.php';
 require __DIR__ . '/../inc/rights-evidence-retractions.php';
 require __DIR__ . '/../inc/rights-evidence-retract.php';
 require __DIR__ . '/../inc/abilities-rights-evidence.php';
@@ -234,41 +236,50 @@ if ( getenv( 'SN_RE_SEPT_JSON' ) ) {
 	file_put_contents( getenv( 'SN_RE_SEPT_JSON' ), json_encode( array( 'uid' => sn_rights_evidence_uuid( 'openai', '2026-09', 'https://x.test/' ), 'record' => array( 'payload' => json_decode( sn_prov_canonical_json( $ps ) ) ), 'august' => array( 'uid' => sn_rights_evidence_uuid( 'openai', '2026-08', 'https://x.test/' ), 'payload' => json_decode( sn_prov_canonical_json( $p ) ) ) ), JSON_UNESCAPED_SLASHES ) );
 }
 
-// D: the run.
+// D: the run. The first pass composes and stores for review; a pass at or after review_until posts (Unreleased).
+$W = SN_RIGHTS_EVIDENCE_REVIEW;
 $GLOBALS['__k']['rows_aggregate'] = $aggregate; $GLOBALS['__k']['rows_rights'] = $rights; $GLOBALS['__k']['index'] = $index;
 $pending_reply = static function ( $url, $args ) { $b = json_decode( $args['body'], true ); return array( 'code' => 202, 'body' => json_encode( array( 'ok' => true, 'ots_status' => 'pending', 'ledger_path' => 'rights-evidence/' . $b['note_uid'] . '/v1.json' ) ) ); };
 $GLOBALS['__k']['post_reply'] = $pending_reply;
 $GLOBALS['__k']['fetch'] = array(); $GLOBALS['__k']['filters'] = array();
 $r = sn_rights_evidence_run( $now );
-ok( $r['ok'] && '2026-08' === $r['month'] && 2 === $r['composed'] && 2 === $r['posted'] && 0 === $r['anchored'], 'D1 the first pass composes and posts one record per family seen: ' . json_encode( $r ) );
-ok( 2 === count( $GLOBALS['__k']['posts'] ) && 'https://prov.example/' === $GLOBALS['__k']['posts'][0]['url'], 'D2 two POSTs to the worker' );
-$body = json_decode( $GLOBALS['__k']['posts'][0]['args']['body'], true );
-ok( 'rights-evidence' === $body['kind'] && 1 === $body['version'] && hash( 'sha256', $body['canonical'] ) === $body['content_hash'] && sn_rights_evidence_uuid( 'anthropic', '2026-08', 'https://x.test/' ) === $body['note_uid'] && recanon( $body['canonical'] ) === $body['canonical'] && 2 === json_decode( $body['canonical'], true )['schema'], 'D3 the body: kind, version 1, the hash of the canonical bytes (schema 2, worker-canonical), the deterministic id (anthropic first, sorted)' );
-ok( 'sha256=' . hash_hmac( 'sha256', $GLOBALS['__k']['posts'][0]['args']['body'], 's3' ) === $GLOBALS['__k']['posts'][0]['args']['headers']['X-SN-Signature'] && 0 === $GLOBALS['__k']['posts'][0]['args']['redirection'], 'D4 HMAC over the exact body with the site secret; no redirects' );
+ok( $r['ok'] && '2026-08' === $r['month'] && 2 === $r['composed'] && 0 === $r['posted'] && 2 === $r['in_review'] && 0 === $r['anchored'] && array() === $GLOBALS['__k']['posts'], 'D1 the first pass composes one record per family seen, stores it and posts nothing: ' . json_encode( $r ) );
 $d = sn_rights_evidence_data();
-ok( 'pending' === $d['2026-08']['openai']['status'] && str_starts_with( $d['2026-08']['openai']['ledger_path'], 'rights-evidence/' ) && ! isset( $d['2026-08']['openai']['canonical'] ), 'D5 stored: status from the worker, the ledger path, the bytes dropped once the ledger has them' );
+ok( 'composed' === $d['2026-08']['openai']['status'] && $now + 3 * DAY_IN_SECONDS === $d['2026-08']['openai']['review_until'] && array( 'reads' => 50, 'train' => 41 ) === $d['2026-08']['openai']['summary'] && '' !== $d['2026-08']['openai']['canonical'], 'D1b stored composed with review_until = compose time + 72 h and the summary (reads, train) the jump rule compares' );
 ok( array( array( 51, 'aggregate', '' ), array( 51, 'rights', 'anthropic' ), array( 51, 'rights', 'openai' ) ) === $GLOBALS['__k']['fetch'] && array( 'dev', 'ops' ) === $GLOBALS['__k']['filters'][1]['exclude_purpose'], 'D6 the window reaches back past the first of the month (51 days); the aggregate read ONCE, the rights stream once PER FAMILY, filtered to that family with ops,dev excluded' );
 ok( str_ends_with( $GLOBALS['__k']['index_url'], '/index.json' ), 'D7 the reservation starts from the ledger index' );
+$r = sn_rights_evidence_run( $now + $W - 1 );
+ok( $r['ok'] && 0 === $r['composed'] && 0 === $r['posted'] && 2 === $r['in_review'] && array() === $GLOBALS['__k']['posts'], 'D1c one second before review_until a pass posts nothing and composes nothing again' );
+$r = sn_rights_evidence_run( $now + $W );
+ok( $r['ok'] && 2 === $r['posted'] && 0 === $r['composed'] && 0 === $r['in_review'], 'D1d at review_until the pass posts the stored bytes: ' . json_encode( $r ) );
+ok( 2 === count( $GLOBALS['__k']['posts'] ) && 'https://prov.example/' === $GLOBALS['__k']['posts'][0]['url'], 'D2 two POSTs to the worker' );
+$body = json_decode( $GLOBALS['__k']['posts'][0]['args']['body'], true );
+ok( 'rights-evidence' === $body['kind'] && 1 === $body['version'] && hash( 'sha256', $body['canonical'] ) === $body['content_hash'] && sn_rights_evidence_uuid( 'anthropic', '2026-08', 'https://x.test/' ) === $body['note_uid'] && recanon( $body['canonical'] ) === $body['canonical'] && 2 === json_decode( $body['canonical'], true )['schema'] && $d['2026-08']['anthropic']['canonical'] === $body['canonical'], 'D3 the body: kind, version 1, the hash of the canonical bytes (schema 2, worker-canonical), the deterministic id (anthropic first, sorted); the bytes stored at compose, verbatim' );
+ok( 'sha256=' . hash_hmac( 'sha256', $GLOBALS['__k']['posts'][0]['args']['body'], 's3' ) === $GLOBALS['__k']['posts'][0]['args']['headers']['X-SN-Signature'] && 0 === $GLOBALS['__k']['posts'][0]['args']['redirection'], 'D4 HMAC over the exact body with the site secret; no redirects' );
+$d = sn_rights_evidence_data();
+ok( 'pending' === $d['2026-08']['openai']['status'] && str_starts_with( $d['2026-08']['openai']['ledger_path'], 'rights-evidence/' ) && ! isset( $d['2026-08']['openai']['canonical'] ) && array( 'reads' => 50, 'train' => 41 ) === $d['2026-08']['openai']['summary'], 'D5 stored: status from the worker, the ledger path, the bytes dropped once the ledger has them, the summary kept' );
 $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['fetch'] = array();
-$r = sn_rights_evidence_run( $now + DAY_IN_SECONDS );
-ok( $r['ok'] && 0 === $r['composed'] && 0 === $r['posted'] && 2 === $r['anchored'] && array() === $GLOBALS['__k']['posts'] && array( array( 51 + 1, 'aggregate', '' ) ) === $GLOBALS['__k']['fetch'], 'D8 the next day: both on the ledger, nothing composed or posted, no rights read' );
+$r = sn_rights_evidence_run( $now + $W + DAY_IN_SECONDS );
+ok( $r['ok'] && 0 === $r['composed'] && 0 === $r['posted'] && 2 === $r['anchored'] && array() === $GLOBALS['__k']['posts'] && array( array( 51 + 4, 'aggregate', '' ) ) === $GLOBALS['__k']['fetch'], 'D8 the next day: both on the ledger, nothing composed or posted, no rights read' );
 
 // E: a failed post keeps the bytes and re-sends them byte-identical.
 $GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['posts'] = array();
 $GLOBALS['__k']['post_reply'] = array( 'code' => 502, 'body' => json_encode( array( 'ok' => false, 'error' => 'calendar unreachable' ) ) );
-$r = sn_rights_evidence_run( $now );
+sn_rights_evidence_run( $now );
+$r = sn_rights_evidence_run( $now + $W );
 $d = sn_rights_evidence_data();
-ok( ! $r['ok'] && 2 === $r['composed'] && 0 === $r['posted'] && 2 === $r['failed'] && 'unanchored' === $d['2026-08']['openai']['status'] && '502 calendar unreachable' === $d['2026-08']['openai']['error'] && '' !== $d['2026-08']['openai']['canonical'], 'E1 a 502 leaves the record composed and unanchored, the bytes kept, the error named' );
+ok( ! $r['ok'] && 0 === $r['composed'] && 0 === $r['posted'] && 2 === $r['failed'] && 'unanchored' === $d['2026-08']['openai']['status'] && '502 calendar unreachable' === $d['2026-08']['openai']['error'] && '' !== $d['2026-08']['openai']['canonical'] && ! in_array( '2026-08', sn_rights_evidence_held( false ), true ), 'E1 a 502 leaves the record unanchored, the bytes kept, the error named, and holds nothing (a transport failure is retried)' );
 $kept = $d['2026-08']['openai']['canonical'];
 $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['index'] = null; $GLOBALS['__k']['http'] = array(); // the index unreachable now: the retry must not need it
 $GLOBALS['__k']['post_reply'] = static function ( $url, $args ) { return array( 'code' => 200, 'body' => json_encode( array( 'ok' => true, 'existing' => true, 'ots_status' => 'confirmed', 'ledger_path' => 'p.json' ) ) ); };
-$r = sn_rights_evidence_run( $now + 2 * DAY_IN_SECONDS );
+$r = sn_rights_evidence_run( $now + $W + 2 * DAY_IN_SECONDS );
 ok( $r['ok'] && 0 === $r['composed'] && 2 === $r['posted'] && $kept === json_decode( $GLOBALS['__k']['posts'][1]['args']['body'], true )['canonical'] && 'confirmed' === sn_rights_evidence_data()['2026-08']['openai']['status'] && array() === $GLOBALS['__k']['http'], 'E2 the retry re-sends the stored bytes verbatim (no recompose, no ledger read) and takes the worker\'s status' );
 
 // F: refusals.
 $GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['index'] = null; $GLOBALS['__k']['post_reply'] = array( 'code' => 202, 'body' => '{}' );
 $r = sn_rights_evidence_run( $now );
 ok( ! $r['ok'] && str_contains( $r['error'], 'ledger index' ) && 0 === $r['composed'] && array() === $GLOBALS['__k']['posts'], 'F1 no reservation, no record: nothing composed, nothing posted' );
+ok( in_array( '2026-08', sn_rights_evidence_held( false ), true ) && array( $r['error'] ) === sn_rights_evidence_hold_reasons()['2026-08'] && array( '2026-08' ) === sn_rights_evidence_backlog(), 'F7 auto-hold (a): a ledger-walk error holds the month with the error as its reason, and queues it' );
 $GLOBALS['__k']['index'] = $index; $GLOBALS['__k']['rows_rights'] = array( 'ok' => false, 'rows' => array(), 'error' => 'http_503' );
 $r = sn_rights_evidence_run( $now );
 ok( ! $r['ok'] && 'sensor rights stream: http_503' === $r['error'] && array() === $GLOBALS['__k']['posts'] && array() === sn_rights_evidence_data(), 'F2 a failed rights read stops the pass before any record' );
@@ -287,11 +298,12 @@ $GLOBALS['__k']['rows_aggregate'] = $aggregate;
 // E3: a 409 is terminal: the ledger's record stands, the path is derived from the id, nothing is retried.
 $GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['index'] = $index;
 $GLOBALS['__k']['post_reply'] = array( 'code' => 409, 'body' => json_encode( array( 'error' => 'record path already exists with different immutable bytes' ) ) );
-$r = sn_rights_evidence_run( $now );
+sn_rights_evidence_run( $now );
+$r = sn_rights_evidence_run( $now + $W );
 $e = sn_rights_evidence_data()['2026-08']['openai'];
 ok( ! $r['ok'] && 2 === $r['failed'] && 'conflict' === $e['status'] && 'rights-evidence/' . $e['uuid'] . '/v1.json' === $e['ledger_path'] && ! isset( $e['canonical'] ), 'E3 a 409 is conflict with the deterministic ledger path and no bytes kept' );
 $GLOBALS['__k']['posts'] = array();
-$r = sn_rights_evidence_run( $now + DAY_IN_SECONDS );
+$r = sn_rights_evidence_run( $now + $W + DAY_IN_SECONDS );
 ok( $r['ok'] && 2 === $r['anchored'] && array() === $GLOBALS['__k']['posts'], 'E4 the next day a conflict counts as on the ledger and is not re-sent' );
 // E5: the lock.
 $GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['posts'] = array();
@@ -320,15 +332,17 @@ ok( 'daily' === ( $GLOBALS['__k']['scheduled'][ SN_RIGHTS_EVIDENCE_HOOK ] ?? '' 
 // H: the month hold (19.8.1). $now is 2026-09-19, so the month under test is 2026-08.
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-08' ) ); $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['fetch'] = array();
 $r = sn_rights_evidence_run( $now );
-ok( ! $r['ok'] && 'held: 2026-08' === $r['error'] && 0 === $r['composed'] && array() === $GLOBALS['__k']['posts'] && array() === $GLOBALS['__k']['fetch'] && array() === sn_rights_evidence_data(), 'H1 a held month reads nothing from the sensor, composes nothing, posts nothing, and says so' );
-ok( ! isset( $GLOBALS['__k']['transients']['sn_rights_evidence_lock'] ), 'H2 a held pass takes no lock' );
+ok( ! $r['ok'] && 'held: 2026-08' === $r['error'] && 2 === $r['composed'] && array() === $GLOBALS['__k']['posts'] && 'composed' === sn_rights_evidence_data()['2026-08']['openai']['status'], 'H1 (changed for the review window) a held month still composes and stores its bytes, so View shows what would post; it posts nothing and says so' );
+ok( ! isset( $GLOBALS['__k']['transients']['sn_rights_evidence_lock'] ), 'H2 (changed: a held pass now composes, under the lock) the lock is released after a held pass' );
+$r = sn_rights_evidence_run( $now + $W + DAY_IN_SECONDS );
+ok( 'held: 2026-08' === $r['error'] && 0 === $r['posted'] && array() === $GLOBALS['__k']['posts'] && '' !== sn_rights_evidence_data()['2026-08']['openai']['canonical'], 'H1b held never posts: past review_until the stored bytes stay home' );
 $live = sn_rights_evidence_month( time() )['month']; // the ability runs on the real clock
 $GLOBALS['__k']['opt']['sn_rights_evidence_hold'] = array( '2026-08', $live );
 $r = snt_ability_rights_evidence_now();
 ok( 'held: ' . $live === $r['error'] && array() === $GLOBALS['__k']['posts'], 'H3 rights-evidence-now is held too (it runs the same function)' );
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-09' ) ); $GLOBALS['__k']['posts'] = array();
 $r = sn_rights_evidence_run( $now );
-ok( $r['ok'] && '2026-08' === $r['month'] && 2 === $r['posted'], 'H4 an unheld month takes the normal path' );
+ok( $r['ok'] && '2026-08' === $r['month'] && 2 === $r['composed'] && 0 === $r['posted'] && 2 === $r['in_review'], 'H4 (changed: the normal path composes first) an unheld month takes the normal path, into its review window' );
 $GLOBALS['__k']['opt'] = array();
 ok( array( '2026-09' ) === sn_rights_evidence_held() && array( '2026-09' ) === $GLOBALS['__k']['opt']['sn_rights_evidence_hold'], 'H5 absent option: seeded with 2026-09 and stored' );
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array() );
@@ -352,10 +366,13 @@ ok( '2026-09' === $r['month'], 'I4 then the pass returns to the last complete mo
 $GLOBALS['__k']['opt']['sn_rights_evidence_backlog'] = array( '2026-06' ); $GLOBALS['__k']['posts'] = array();
 $r = sn_rights_evidence_run( $oct5 );
 ok( '2026-09' === $r['month'] && array( '2026-06' ) === sn_rights_evidence_backlog() && array( '2026-06' ) === snt_ability_rights_evidence()['backlog'], 'I5 a backlog month past the 90-day sensor window with nothing stored is skipped, stays listed and the read shows it' );
-$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array(), 'sn_rights_evidence_backlog' => array( '2026-08' ) ); $GLOBALS['__k']['posts'] = array();
+// A stored entry past its window, as a pass before this release left it (no review_until: due).
+$due = static fn( $fam ) => array( 'uuid' => sn_rights_evidence_uuid( $fam, '2026-08', 'https://x.test/' ), 'content_hash' => 'h', 'canonical' => '{"' . $fam . '":1}', 'status' => 'unanchored', 'ledger_path' => '', 'at' => 1, 'error' => '502' );
+$aug_due = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'anthropic' => $due( 'anthropic' ), 'openai' => $due( 'openai' ) ) ) );
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array(), 'sn_rights_evidence_backlog' => array( '2026-08' ) ) + $aug_due; $GLOBALS['__k']['posts'] = array();
 $GLOBALS['__k']['post_reply'] = array( 'code' => 502, 'body' => json_encode( array( 'error' => 'x' ) ) );
 sn_rights_evidence_run( $oct5 );
-ok( array( '2026-08' ) === sn_rights_evidence_backlog(), 'I6 a backlog month whose post failed stays queued for the next pass' );
+ok( array( '2026-08' ) === sn_rights_evidence_backlog() && 2 === count( $GLOBALS['__k']['posts'] ), 'I6 a backlog month whose post failed stays queued for the next pass' );
 $GLOBALS['__k']['post_reply'] = $pending_reply;
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array(), 'sn_rights_evidence_backlog' => array( '2026-08' ) ); $GLOBALS['__k']['rows_rights'] = array( 'ok' => false, 'rows' => array(), 'error' => 'http_503' );
 $r = sn_rights_evidence_run( $oct5 );
@@ -423,13 +440,18 @@ $r = sn_rights_evidence_run( $oct5 );
 ok( ! $r['ok'] && in_array( 'uc', array_map( static fn( $p ) => json_decode( $p['args']['body'], true )['note_uid'], $GLOBALS['__k']['posts'] ), true ) && array( '2026-08' ) === sn_rights_evidence_backlog(), 'K3 a stored record of a family the sensor no longer lists (cohere) is retried anyway, and while it stays unposted the month stays queued' );
 $GLOBALS['__k']['post_reply'] = $pending_reply; $GLOBALS['__k']['posts'] = array();
 $r = sn_rights_evidence_run( $oct5 + DAY_IN_SECONDS );
-ok( $r['ok'] && 1 === $r['posted'] && 2 === $r['anchored'] && array() === sn_rights_evidence_backlog() && array() === sn_rights_evidence_unposted( '2026-08' ), 'K4 once nothing of the month is unposted, it leaves the backlog' );
+ok( $r['ok'] && 1 === $r['posted'] && 2 === $r['in_review'] && array( '2026-08' ) === sn_rights_evidence_backlog() && 1 === (int) ( get_option( 'sn_rights_evidence_backlog_fails' )['2026-08'] ?? 0 ), 'K4a (changed: K3 composed openai and anthropic into their window) cohere posts; a clean pass with families in review neither dequeues the month nor adds to its failure count (1, from K3)' );
+ok( null === sn_rights_evidence_backlog_target( $oct5 + DAY_IN_SECONDS, array() ), 'K4b item 5: a backlog month whose unposted entries are all in their window is not a target; the pass goes to the current month meanwhile' );
+$r = sn_rights_evidence_run( $oct5 + 2 * DAY_IN_SECONDS );
+ok( '2026-09' === $r['month'] && array( '2026-08' ) === sn_rights_evidence_backlog() && 1 === (int) ( get_option( 'sn_rights_evidence_backlog_fails' )['2026-08'] ?? 0 ), 'K4c item 5: during the window the month stays queued and its failure count does not move' );
+$r = sn_rights_evidence_run( $oct5 + $W );
+ok( $r['ok'] && '2026-08' === $r['month'] && 2 === $r['posted'] && array() === sn_rights_evidence_backlog() && array() === sn_rights_evidence_unposted( '2026-08' ), 'K4 once its window passes the month posts, nothing is unposted, and it leaves the backlog' );
 
 // K5-K7: a failing backlog month cannot starve the current one (review follow-up 6).
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-09' ), 'sn_rights_evidence_backlog' => array( '2026-08' ) ); $GLOBALS['__k']['posts'] = array();
 $r = sn_rights_evidence_run( $oct5 );
-ok( '2026-08' === $r['month'] && $r['ok'] && array( '2026-09' ) === sn_rights_evidence_backlog(), 'K5 a held current month is queued even on a pass that works (and dequeues) a backlog month: queued before the target is chosen' );
-$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array(), 'sn_rights_evidence_backlog' => array( '2026-08' ) );
+ok( '2026-08' === $r['month'] && $r['ok'] && array( '2026-08', '2026-09' ) === sn_rights_evidence_backlog(), 'K5 (changed: the worked backlog month now enters its window and stays queued) a held current month is queued even on a pass that works a backlog month: queued before the target is chosen' );
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array(), 'sn_rights_evidence_backlog' => array( '2026-08' ) ) + $aug_due;
 $GLOBALS['__k']['post_reply'] = array( 'code' => 502, 'body' => json_encode( array( 'error' => 'x' ) ) );
 $months = array();
 for ( $i = 0; $i < 9; $i++ ) { $months[] = sn_rights_evidence_run( $oct5 + $i * DAY_IN_SECONDS )['month']; }
@@ -445,6 +467,121 @@ ok( '2026-09' === $r['month'] && array() === get_option( 'sn_rights_evidence_bac
 $GLOBALS['__k']['post_reply'] = $pending_reply; $GLOBALS['__k']['posts'] = array();
 $r = sn_rights_evidence_run( $oct5 + 9 * DAY_IN_SECONDS );
 ok( $r['ok'] && '2026-08' === $r['month'] && array() === sn_rights_evidence_backlog() && array() === (array) get_option( 'sn_rights_evidence_backlog_fails', array() ), 'K8 a clean pass dequeues the month and clears its failure count' );
+
+// R: the review window, the automatic holds, the worker's refusal and Post now (Unreleased).
+ok( sn_rights_evidence_train_jump( 50, 151 ) && sn_rights_evidence_train_jump( 151, 50 ) && ! sn_rights_evidence_train_jump( 50, 150 ) && ! sn_rights_evidence_train_jump( 150, 50 ) && ! sn_rights_evidence_train_jump( 49, 200 ) && ! sn_rights_evidence_train_jump( 200, 49 ) && sn_rights_evidence_train_jump( 300, 99 ), 'R1 the jump rule: more than 3x either way with both at 50 or more; exactly 3x is not a jump, a count under 50 never is' );
+$posted_prev = static fn( $train, $extra = array() ) => array_merge( array( 'uuid' => 'p', 'content_hash' => 'h', 'status' => 'confirmed', 'block' => 1, 'ledger_path' => 'rights-evidence/p/v1.json', 'at' => 1, 'error' => '', 'summary' => array( 'reads' => $train, 'train' => $train ) ), $extra );
+$big = $aggregate; $big['rows'][] = $agg( 'openai', '2026-08-04', 'html', 'train', 200 ); // openai train 241
+$GLOBALS['__k']['rows_aggregate'] = $big; $GLOBALS['__k']['post_reply'] = $pending_reply; $GLOBALS['__k']['transients'] = array(); $GLOBALS['__k']['posts'] = array();
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array(), SN_RIGHTS_EVIDENCE_OPTION => array( '2026-07' => array( 'openai' => $posted_prev( 60 ), 'anthropic' => $posted_prev( 60 ) ) ) );
+$r = sn_rights_evidence_run( $now );
+$why = sn_rights_evidence_hold_reasons()['2026-08'] ?? array();
+ok( 2 === $r['composed'] && 'held: 2026-08' === $r['error'] && in_array( '2026-08', sn_rights_evidence_held( false ), true ) && array( 'openai crawling.train moved from 60 in 2026-07 to 241, more than 3x' ) === $why && array( '2026-08' ) === sn_rights_evidence_backlog(), 'R2 auto-hold (b): openai\'s train 241 against July\'s posted 60 holds the month with the reason; anthropic (3, under the floor) adds none: ' . json_encode( $why ) );
+$r = sn_rights_evidence_run( $now + $W );
+ok( 0 === $r['posted'] && array() === $GLOBALS['__k']['posts'], 'R2b the jump-held month does not post when its window ends' );
+foreach ( array( 'no summary' => array( 'summary' => null ), 'a conflict' => array( 'status' => 'conflict' ), 'never posted' => array( 'ledger_path' => '' ) ) as $case => $extra ) {
+	$prev = array_filter( $posted_prev( 60, $extra ), static fn( $v ) => null !== $v );
+	$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array(), SN_RIGHTS_EVIDENCE_OPTION => array( '2026-07' => array( 'openai' => $prev ) ) );
+	sn_rights_evidence_run( $now );
+	ok( array() === sn_rights_evidence_held( false ) && array() === sn_rights_evidence_hold_reasons(), "R2c the jump rule needs last month's POSTED summary: none against $case" );
+}
+$GLOBALS['__k']['rows_aggregate'] = $aggregate;
+
+// R3: the worker refuses with 422: refused, bytes dropped, month held with the divergences, never re-sent.
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array() ); $GLOBALS['__k']['posts'] = array();
+sn_rights_evidence_run( $now );
+$GLOBALS['__k']['post_reply'] = array( 'code' => 422, 'body' => json_encode( array( 'ok' => false, 'error' => 'rights-evidence refused', 'divergences' => array( array( 'reservation', 'tdm-policy v3 not in force in 2026-08' ), array( 'identity', 'triple does not sum' ) ) ) ) );
+$r = sn_rights_evidence_run( $now + $W );
+$e = sn_rights_evidence_data()['2026-08']['anthropic'];
+ok( ! $r['ok'] && 1 === $r['refused'] && 0 === $r['posted'] && 1 === count( $GLOBALS['__k']['posts'] ) && 'refused' === $e['status'] && ! isset( $e['canonical'] ) && '422 rights-evidence refused' === $e['error'] && array( array( 'reservation', 'tdm-policy v3 not in force in 2026-08' ), array( 'identity', 'triple does not sum' ) ) === $e['divergences'], 'R3 a 422 is refused: the bytes dropped, the divergences kept, and the month held before the next family is sent (one POST)' );
+ok( array( 'the worker refused anthropic: reservation: tdm-policy v3 not in force in 2026-08; identity: triple does not sum' ) === sn_rights_evidence_hold_reasons()['2026-08'] && 'composed' === sn_rights_evidence_data()['2026-08']['openai']['status'], 'R3b the hold reason names the family and every divergence; the family not yet sent keeps its bytes, held' );
+$GLOBALS['__k']['posts'] = array();
+$r = sn_rights_evidence_run( $now + $W + DAY_IN_SECONDS );
+$e = sn_rights_evidence_data()['2026-08']['anthropic'];
+ok( array() === $GLOBALS['__k']['posts'] && 1 === $r['composed'] && 'composed' === $e['status'] && '' !== $e['canonical'] && $now + $W + DAY_IN_SECONDS + $W === $e['review_until'], 'R3c the next pass sends nothing (held) and recomposes the refused family into a fresh window: refused bytes are never re-sent' );
+$GLOBALS['__k']['opt']['sn_rights_evidence_hold'] = array(); $GLOBALS['__k']['post_reply'] = array( 'code' => 0, 'body' => '' );
+$r = sn_rights_evidence_run( $now + 3 * $W );
+ok( 2 === $r['failed'] && 'unanchored' === sn_rights_evidence_data()['2026-08']['openai']['status'] && array() === sn_rights_evidence_held( false ), 'R3d a transport failure is not a refusal: unanchored, bytes kept, nothing held' );
+
+// R4: Post now, a composed and unheld month, whatever its window.
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array() ); $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['post_reply'] = $pending_reply;
+sn_rights_evidence_run( $now );
+ok( array( '2026-08' => $now + $W ) === sn_rights_evidence_pending() && sn_rights_evidence_in_review( '2026-08', $now ) && ! sn_rights_evidence_in_review( '2026-08', $now + $W ), 'R4 pending lists the composed, unposted, unheld month with its review_until; in review until then' );
+$GLOBALS['__k']['transients']['sn_rights_evidence_lock'] = 1;
+ok( 'busy' === sn_rights_evidence_post_now( '2026-08', $now + 60 )['result'] && array() === $GLOBALS['__k']['posts'], 'R4b Post now while a pass runs: busy, nothing posted' );
+$GLOBALS['__k']['transients'] = array();
+$GLOBALS['__k']['opt']['sn_rights_evidence_hold'] = array( '2026-08' );
+ok( 'ineligible' === sn_rights_evidence_post_now( '2026-08', $now + 60 )['result'] && 'ineligible' === sn_rights_evidence_post_now( '2026-07', $now + 60 )['result'] && array() === $GLOBALS['__k']['posts'] && array() === sn_rights_evidence_pending(), 'R4c Post now refuses a held month and a month with nothing composed' );
+$GLOBALS['__k']['opt']['sn_rights_evidence_hold'] = array();
+$p = sn_rights_evidence_post_now( '2026-08', $now + 60 );
+ok( 'posted' === $p['result'] && 2 === $p['posted'] && 2 === count( $GLOBALS['__k']['posts'] ) && 'pending' === sn_rights_evidence_data()['2026-08']['openai']['status'] && array() === sn_rights_evidence_pending() && array() === $GLOBALS['__k']['transients'], 'R4d Post now sends both families inside the window, releases the lock, and the month leaves pending' );
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array() ); $GLOBALS['__k']['posts'] = array();
+sn_rights_evidence_run( $now );
+$GLOBALS['__k']['post_reply'] = array( 'code' => 422, 'body' => json_encode( array( 'ok' => false, 'error' => 'rights-evidence refused', 'divergences' => array( array( 'crawling', 'by_day does not sum' ) ) ) ) );
+$p = sn_rights_evidence_post_now( '2026-08', $now + 60 );
+ok( 'partial' === $p['result'] && 1 === $p['refused'] && 1 === count( $GLOBALS['__k']['posts'] ) && in_array( '2026-08', sn_rights_evidence_held( false ), true ), 'R4e a refusal during Post now holds the month and stops there' );
+$GLOBALS['__k']['post_reply'] = $pending_reply;
+
+// R5: the read reports the window, the reasons and the refusal.
+$o = snt_ability_rights_evidence();
+ok( array( '2026-08' => array( 'the worker refused anthropic: crawling: by_day does not sum' ) ) === (array) $o['hold_reasons'] && 'refused' === ( (array) $o['months'] )['2026-08']['anthropic']['status'] && isset( ( (array) $o['months'] )['2026-08']['anthropic']['divergences'] ) && $now + $W === ( (array) $o['months'] )['2026-08']['openai']['review_until'] && '{}' === json_encode( $o['in_review'] ), 'R5 the read carries hold_reasons, refused entries with their divergences, review_until per record, and in_review ({} when nothing waits)' );
+$GLOBALS['__k']['opt']['sn_rights_evidence_hold'] = array();
+ok( array( '2026-08' => gmdate( 'c', $now + $W ) ) === (array) snt_ability_rights_evidence()['in_review'] && '{}' === json_encode( snt_ability_rights_evidence()['hold_reasons'] ), 'R5b in_review names each composed, unheld month and when it may post; a reason for a month no longer held is not reported (as on the twins and in the watch)' );
+$an = $GLOBALS['__k']['abilities']['signal-noise/rights-evidence-now'];
+ok( str_contains( $an['description'], 'only what is composed, past its review window and not held' ) && isset( $an['output_schema']['properties']['in_review'], $an['output_schema']['properties']['refused'] ), 'R6 rights-evidence-now says it posts only past the window, and reports in_review and refused' );
+
+// R7: a month composed late is not left to Post now alone: the next month's first pass queues it, and it posts once its window passes.
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array() ); $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['transients'] = array();
+$sep30 = strtotime( '2026-09-30T12:00:00Z' );
+$r = sn_rights_evidence_run( $sep30 );
+ok( '2026-08' === $r['month'] && 2 === $r['composed'] && strtotime( '2026-10-03T12:00:00Z' ) === sn_rights_evidence_data()['2026-08']['openai']['review_until'] && array() === sn_rights_evidence_backlog(), 'R7 August composed on 2026-09-30, its window ending after the turnover; not yet queued (it is the current month)' );
+$r = sn_rights_evidence_run( strtotime( '2026-10-01T06:00:00Z' ) );
+ok( '2026-09' === $r['month'] && array( '2026-08' ) === sn_rights_evidence_backlog() && array() === $GLOBALS['__k']['posts'], 'R7b the first pass of October queues August (stranded, unposted) and, August being in its window, works September' );
+$r = sn_rights_evidence_run( strtotime( '2026-10-03T12:00:00Z' ) );
+ok( '2026-08' === $r['month'] && 2 === $r['posted'] && array( '2026-08' ) !== sn_rights_evidence_backlog() && ! in_array( '2026-08', sn_rights_evidence_backlog(), true ), 'R7c once its window passes August posts from the backlog and leaves it, with no Post now' );
+$GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array(
+	'2026-06' => array( 'openai' => array( 'status' => 'refused', 'ledger_path' => '' ) ),
+	'2026-07' => array( 'openai' => array( 'status' => 'pending', 'ledger_path' => 'p.json' ) ),
+	'2026-08' => array( 'openai' => array( 'status' => 'composed', 'canonical' => '{}', 'ledger_path' => '' ) ),
+	'2026-09' => array( 'openai' => array( 'status' => 'unanchored', 'canonical' => '{}', 'ledger_path' => '' ) ),
+) );
+ok( array( '2026-06', '2026-09' ) === sn_rights_evidence_stranded( '2026-08' ), 'R7d stranded: a refused entry awaiting recompose and unposted bytes count; a posted month and the current month do not' );
+
+// R8: codex review of #1817.
+$shape = array( 'ok' => false, 'error' => 'rights-evidence refused', 'divergences' => array( array( 'reservation', 'x' ) ) );
+ok( sn_rights_evidence_is_refusal( $shape ) && ! sn_rights_evidence_is_refusal( array( 'error' => 'unprocessable' ) ) && ! sn_rights_evidence_is_refusal( array( 'ok' => true ) + $shape ) && ! sn_rights_evidence_is_refusal( array( 'error' => 'rights-evidence refused ' ) + $shape ) && ! sn_rights_evidence_is_refusal( array( 'divergences' => array() ) + $shape ) && ! sn_rights_evidence_is_refusal( array( 'divergences' => array( array( 'a' ) ) ) + $shape ) && ! sn_rights_evidence_is_refusal( array( 'divergences' => array( array( 'a', 3 ) ) ) + $shape ) && ! sn_rights_evidence_is_refusal( array( 'divergences' => array( 'a' => array( 'b', 'c' ) ) ) + $shape ) && ! sn_rights_evidence_is_refusal( array( 'divergences' => 'x' ) + $shape ), 'R8a a refusal is exactly the worker\'s shape: ok false, error "rights-evidence refused", a non-empty list of [string, string]' );
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array() ) + $aug_due; $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['transients'] = array();
+$GLOBALS['__k']['post_reply'] = array( 'code' => 422, 'body' => json_encode( array( 'error' => 'unprocessable entity' ) ) );
+$r = sn_rights_evidence_run( $now );
+$e = sn_rights_evidence_data()['2026-08']['openai'];
+ok( 2 === $r['failed'] && 0 === $r['refused'] && 'unanchored' === $e['status'] && '{"openai":1}' === $e['canonical'] && array() === sn_rights_evidence_held( false ) && array() === sn_rights_evidence_hold_reasons(), 'R8b any other 422 is a transport-class failure: unanchored, bytes kept, nothing held' );
+$GLOBALS['__k']['post_reply'] = $pending_reply; $GLOBALS['__k']['posts'] = array();
+$r = sn_rights_evidence_run( $now + DAY_IN_SECONDS );
+ok( 2 === $r['posted'] && '{"openai":1}' === json_decode( $GLOBALS['__k']['posts'][1]['args']['body'], true )['canonical'], 'R8c and it is retried byte-identical' );
+// A held backlog month with a refused family is still recomposed, and still never posts.
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-08' ), 'sn_rights_evidence_backlog' => array( '2026-08' ), SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => $due( 'openai' ), 'anthropic' => array( 'uuid' => 'ua', 'status' => 'refused', 'ledger_path' => '', 'at' => 1, 'error' => '422 rights-evidence refused', 'divergences' => array( array( 'a', 'b' ) ) ) ) ) );
+$GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['fetch'] = array();
+$r = sn_rights_evidence_run( $oct5 );
+$d = sn_rights_evidence_data()['2026-08'];
+ok( '2026-08' === $r['month'] && 1 === $r['composed'] && 'composed' === $d['anthropic']['status'] && '' !== $d['anthropic']['canonical'] && array() === $GLOBALS['__k']['posts'] && 'held: 2026-08' === $r['error'] && array() === (array) get_option( 'sn_rights_evidence_backlog_fails', array() ), 'R8d a held backlog month whose family was refused is worked to recompose it; nothing posts and the held pass is not counted a failure' );
+$r = sn_rights_evidence_run( $oct5 + DAY_IN_SECONDS );
+ok( '2026-09' === $r['month'] && array() === $GLOBALS['__k']['posts'] && in_array( '2026-08', sn_rights_evidence_backlog(), true ), 'R8e once recomposed the held month is no longer a target; it stays queued for its lift' );
+// The hold is read once per pass: a Lift landing while the pass holds its lock cannot make it post.
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-08' ) ) + $aug_due; $GLOBALS['__k']['posts'] = array();
+$GLOBALS['__k']['on_lock'] = static function () { $GLOBALS['__k']['opt']['sn_rights_evidence_hold'] = array(); };
+$r = sn_rights_evidence_run( $now );
+unset( $GLOBALS['__k']['on_lock'] );
+ok( array() === $GLOBALS['__k']['posts'] && 'held: 2026-08' === $r['error'] && '{"openai":1}' === sn_rights_evidence_data()['2026-08']['openai']['canonical'], 'R8f a Lift during a running pass does not let that pass post a month it treated as held' );
+$r = sn_rights_evidence_run( $now + DAY_IN_SECONDS );
+ok( 2 === $r['posted'], 'R8g the next pass, starting unheld, posts' );
+// A reason is cut at 300 bytes without splitting a character.
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array() );
+sn_rights_evidence_hold_month( '2026-08', str_repeat( 'a', 299 ) . 'é and more' );
+$cut = sn_rights_evidence_hold_reasons()['2026-08'][0];
+ok( str_repeat( 'a', 299 ) === $cut && mb_check_encoding( $cut, 'UTF-8' ) && strlen( $cut ) <= SN_RIGHTS_EVIDENCE_REASON_MAX, 'R8h a reason cut at 300 bytes drops a character that would straddle the boundary: valid UTF-8, never more than 300 bytes' );
+// Families in different windows: the month reports the earliest.
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array(), SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => array( 'review_until' => 500 ) + $due( 'openai' ), 'anthropic' => array( 'review_until' => 900 ) + $due( 'anthropic' ) ) ) );
+ok( array( '2026-08' => 500 ) === sn_rights_evidence_pending(), 'R8i a month whose families have different windows reports the earliest review_until, when the first may post' );
 
 // L: the dry run composes from live reads and reaches no POST (behaviour AND source).
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-09' ) ); $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['transients'] = array(); $GLOBALS['__k']['fetch'] = array();

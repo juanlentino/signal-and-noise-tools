@@ -364,7 +364,9 @@ require_once SNT_PATH . 'inc/abilities-machine-readers-ledger.php'; // 17.0.0: g
 require_once SNT_PATH . 'inc/rights-evidence-compose.php'; // 17.0.0: one record per crawler family per month, the pure half.
 require_once SNT_PATH . 'inc/rights-evidence-ledger.php';  // Unreleased: rights-signal history and record refresh, read-only.
 require_once SNT_PATH . 'inc/rights-evidence-dry-run.php'; // Unreleased: compose from live reads, post nothing (shared with the pass).
+require_once SNT_PATH . 'inc/rights-evidence-review.php';  // Unreleased: the review window and the holds (no fetch, no post).
 require_once SNT_PATH . 'inc/rights-evidence.php';         // 17.0.0: the daily pass that composes and posts it.
+require_once SNT_PATH . 'inc/rights-evidence-post-now.php'; // Unreleased: send stored bytes (the pass and Post now); a 422 holds.
 require_once SNT_PATH . 'inc/rights-evidence-retractions.php'; // Unreleased: the approved retraction text (pure data).
 require_once SNT_PATH . 'inc/rights-evidence-retract.php';   // Unreleased: one signed retraction per click, POST /retract.
 require_once SNT_PATH . 'inc/rights-evidence-cli.php';     // Unreleased: wp sn rights-evidence dry-run (WP-CLI only).

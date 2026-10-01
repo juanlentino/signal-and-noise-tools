@@ -2,12 +2,15 @@
 /**
  * Signal & Noise: rights evidence actions (Monitoring > Machine Readers).
  *
- * rights_evidence_view streams a held month's dry-run payloads as a JSON
- * download (a GET door, its nonce in the URL; nothing stored or posted).
- * rights_evidence_lift removes one month from the hold and nothing else: the
- * next daily pass composes it. Nonce and capability are the dispatcher's
- * (inc/admin-post-handler.php); the month is read against the hold list, so
- * no other value reaches either action.
+ * rights_evidence_view streams a held or waiting month's payloads as a JSON
+ * download: the stored bytes that would post, else a dry run (a GET door,
+ * its nonce in the URL; nothing stored or posted). rights_evidence_lift
+ * removes one month from the hold, and the reasons a rule gave, and nothing
+ * else. rights_evidence_hold puts a composed, waiting month on the hold.
+ * Post now is in its own file (rights-evidence-post-now.php): nothing here
+ * can post. Nonce and capability are the dispatcher's
+ * (inc/admin-post-handler.php); the month is read against the hold list or
+ * the waiting months, so no other value reaches an action.
  *
  * @package SignalNoiseTools
  * @since Unreleased
@@ -26,6 +29,35 @@ if ( ! defined( 'ABSPATH' ) ) {
 function sn_rights_evidence_request_month( array $src ) {
 	$ym = sanitize_text_field( wp_unslash( (string) ( $src['month'] ?? '' ) ) );
 	return function_exists( 'sn_rights_evidence_held' ) && in_array( $ym, sn_rights_evidence_held( false ), true ) ? $ym : '';
+}
+
+/**
+ * The month a request names, when it is composed, unposted and not held; ''
+ * otherwise.
+ *
+ * @param array $src $_GET or $_POST.
+ * @return string YYYY-MM or ''.
+ */
+function sn_rights_evidence_request_pending( array $src ) {
+	$ym = sanitize_text_field( wp_unslash( (string) ( $src['month'] ?? '' ) ) );
+	return function_exists( 'sn_rights_evidence_pending' ) && array_key_exists( $ym, sn_rights_evidence_pending() ) ? $ym : '';
+}
+
+/**
+ * A month's stored, unposted bytes: family => canonical.
+ *
+ * @param string $ym YYYY-MM.
+ * @return array<string,string>
+ */
+function sn_rights_evidence_stored_payloads( $ym ) {
+	$out = array();
+	foreach ( (array) ( sn_rights_evidence_data()[ $ym ] ?? array() ) as $family => $e ) {
+		if ( is_array( $e ) && '' !== (string) ( $e['canonical'] ?? '' ) && '' === (string) ( $e['ledger_path'] ?? '' ) ) {
+			$out[ (string) $family ] = (string) $e['canonical'];
+		}
+	}
+	ksort( $out );
+	return $out;
 }
 
 /**
@@ -49,14 +81,18 @@ function sn_rights_evidence_can_compose() {
 function sn_handle_rights_evidence_view( $post ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- dispatcher signature.
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the dispatcher ran check_admin_referer for this action.
 	$ym = sn_rights_evidence_request_month( $_GET );
+	$ym = '' === $ym ? sn_rights_evidence_request_pending( $_GET ) : $ym; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- as above.
 	if ( '' === $ym ) {
 		return 'rights_evidence_not_held';
 	}
-	$dry = sn_rights_evidence_dry_run( $ym );
+	// The stored bytes are what posts; a dry run only when nothing is stored.
+	$stored = sn_rights_evidence_stored_payloads( $ym );
+	$dry    = $stored ? array( 'ok' => true, 'error' => '', 'payloads' => $stored ) : sn_rights_evidence_dry_run( $ym );
+	$source = $stored ? 'stored' : 'dry-run';
 	nocache_headers();
 	header( 'Content-Type: application/json; charset=utf-8' );
-	header( 'Content-Disposition: attachment; filename="rights-evidence-' . $ym . '-dry-run.json"' );
-	$out = array( 'month' => $ym, 'ok' => $dry['ok'], 'error' => $dry['error'], 'posted' => false, 'payloads' => array() );
+	header( 'Content-Disposition: attachment; filename="rights-evidence-' . $ym . '-' . $source . '.json"' );
+	$out = array( 'month' => $ym, 'ok' => $dry['ok'], 'error' => $dry['error'], 'posted' => false, 'source' => $source, 'payloads' => array() );
 	foreach ( $dry['payloads'] as $family => $canonical ) {
 		$out['payloads'][ $family ] = json_decode( $canonical );
 	}
@@ -80,5 +116,24 @@ function sn_handle_rights_evidence_lift( $post ) {
 		return 'rights_evidence_lift_refused';
 	}
 	update_option( 'sn_rights_evidence_hold', array_values( array_diff( sn_rights_evidence_held( false ), array( $ym ) ) ), false );
+	$reasons = sn_rights_evidence_hold_reasons();
+	unset( $reasons[ $ym ] );
+	update_option( 'sn_rights_evidence_hold_reasons', $reasons, false );
 	return 'rights_evidence_lifted';
+}
+
+/**
+ * rights_evidence_hold: put a composed, waiting month on the hold (the owner's
+ * opt-out; no reason stored). Never runs the pass.
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash code.
+ */
+function sn_handle_rights_evidence_hold( $post ) {
+	$ym = sn_rights_evidence_request_pending( (array) $post );
+	if ( '' === $ym ) {
+		return 'rights_evidence_not_pending';
+	}
+	sn_rights_evidence_hold_month( $ym );
+	return 'rights_evidence_held';
 }

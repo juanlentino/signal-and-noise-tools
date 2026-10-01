@@ -101,7 +101,7 @@ The reference for the 146 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/reader-anomalies` | Machine-reader volume and shape deviations | diagnostics | READ |
 | `signal-noise/regenerate-og-card` | Regenerate Open Graph card image | content | — |
 | `signal-noise/rights-evidence` | Rights evidence: the monthly records | diagnostics | READ |
-| `signal-noise/rights-evidence-now` | Rights evidence: compose and post the last month now | maintenance | RW |
+| `signal-noise/rights-evidence-now` | Rights evidence: run the daily pass now | maintenance | RW |
 | `signal-noise/run-audit-prune` | Run audit log prune now | maintenance | — |
 | `signal-noise/run-cron-event` | Run a scheduled cron event now | maintenance | — |
 | `signal-noise/run-health-scan` | Run a health scan now | maintenance | — |

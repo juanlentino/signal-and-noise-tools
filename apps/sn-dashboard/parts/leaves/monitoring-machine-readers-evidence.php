@@ -3,10 +3,11 @@
  * S&N Dashboard: rights evidence on Monitoring > Machine Readers, from the kit.
  *
  * The classic twin is inc/admin-forms/rights-evidence.php. The status line,
- * then per held month a door to its dry-run payloads (admin-post GET with its
- * nonce, a JSON download; a door because a form's handler cannot hand a
- * download to the reader) and a one-button Lift form behind a confirm, only
- * when a dry run can compose. Lifting never runs the pass.
+ * then per month held or composed and waiting out its review window: a door
+ * to its payloads (admin-post GET with its nonce, a JSON download; a door
+ * because a form's handler cannot hand a download to the reader), and
+ * one-button forms behind a confirm: Lift for a held month (only when a dry
+ * run can compose), Hold and Post now for a waiting one. None runs the pass.
  *
  * @package SignalNoiseTools
  * @since Unreleased
@@ -24,33 +25,60 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string
  */
 function machine_readers_rights_evidence_html() {
-	if ( ! function_exists( 'sn_rights_evidence_held' ) || ! function_exists( 'sn_rights_evidence_status_line' ) ) {
+	if ( ! function_exists( 'sn_rights_evidence_held' ) || ! function_exists( 'sn_rights_evidence_status_line' ) || ! function_exists( 'sn_rights_evidence_pending' ) ) {
 		return '';
 	}
-	$can = function_exists( 'sn_rights_evidence_can_compose' ) && \sn_rights_evidence_can_compose();
-	$out = '<p class="snt-prose">' . \snt_kit_esc( \sn_rights_evidence_status_line() ) . '</p>';
-	foreach ( \sn_rights_evidence_held( false ) as $ym ) {
+	$can  = function_exists( 'sn_rights_evidence_can_compose' ) && \sn_rights_evidence_can_compose();
+	$post = function_exists( 'sn_rights_evidence_can_retract' ) && \sn_rights_evidence_can_retract();
+	$out  = '<p class="snt-prose">' . \snt_kit_esc( \sn_rights_evidence_status_line() ) . '</p>';
+	foreach ( \sn_rights_evidence_control_months() as $ym => $state ) {
 		$label = gmdate( 'F Y', (int) strtotime( $ym . '-01T00:00:00Z' ) );
+		$note  = \sn_rights_evidence_month_note( $ym, $state );
+		if ( '' !== $note ) {
+			$out .= '<p class="snt-prose"><strong>' . \snt_kit_esc( $label ) . '</strong>: ' . \snt_kit_esc( $note ) . '</p>';
+		}
 		/* translators: %s: a month, e.g. September 2026 */
 		$out .= '<p class="snt-prose">' . \snt_kit_door( sprintf( __( 'View %s payloads', 'signal-and-noise-tools' ), $label ), \sn_rights_evidence_view_url( $ym ) ) . '</p>';
-		if ( $can ) {
-			$out .= \snt_kit_form(
-				'rights_evidence_lift',
-				'',
-				array(
-					/* translators: %s: a month */
-					'submit'  => sprintf( __( 'Lift %s hold', 'signal-and-noise-tools' ), $label ),
-					/* translators: %s: a month */
-					'confirm' => sprintf( __( 'Lift the hold on %s? The next daily pass composes and posts it to the public, append-only ledger.', 'signal-and-noise-tools' ), $label ),
-					'hidden'  => array( 'tab' => 'monitoring', 'sub' => 'machine-readers', 'month' => $ym ),
-				)
-			);
+		if ( 'held' === $state && $can ) {
+			/* translators: %s: a month */
+			$out .= machine_readers_rights_evidence_button( 'rights_evidence_lift', $ym, sprintf( __( 'Lift %s hold', 'signal-and-noise-tools' ), $label ), \sn_rights_evidence_confirm( 'lift', $label ) );
+		}
+		if ( 'review' === $state ) {
+			/* translators: %s: a month */
+			$out .= machine_readers_rights_evidence_button( 'rights_evidence_hold', $ym, sprintf( __( 'Hold %s', 'signal-and-noise-tools' ), $label ), \sn_rights_evidence_confirm( 'hold', $label ) );
+			if ( $post ) {
+				/* translators: %s: a month */
+				$out .= machine_readers_rights_evidence_button( 'rights_evidence_post_now', $ym, sprintf( __( 'Post %s now', 'signal-and-noise-tools' ), $label ), \sn_rights_evidence_confirm( 'post', $label ), true );
+			}
 		}
 	}
 	if ( ! $can && \sn_rights_evidence_held( false ) ) {
 		$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Lift appears once the provenance worker is set up and the sensor answers: a month that cannot be composed stays held.', 'signal-and-noise-tools' ) ) . '</p>';
 	}
 	return \snt_kit_section( __( 'Rights evidence', 'signal-and-noise-tools' ), $out . machine_readers_rights_evidence_retract_html() );
+}
+
+/**
+ * One month button: a one-button form posting the month, behind a confirm.
+ *
+ * @param string $action  Handler action.
+ * @param string $ym      YYYY-MM.
+ * @param string $text    Button text.
+ * @param string $confirm The confirm question.
+ * @param bool   $danger  Painted as a danger confirm.
+ * @return string
+ */
+function machine_readers_rights_evidence_button( $action, $ym, $text, $confirm, $danger = false ) {
+	return \snt_kit_form(
+		$action,
+		'',
+		array(
+			'submit'  => $text,
+			'confirm' => $confirm,
+			'danger'  => $danger,
+			'hidden'  => array( 'tab' => 'monitoring', 'sub' => 'machine-readers', 'month' => $ym ),
+		)
+	);
 }
 
 /**
