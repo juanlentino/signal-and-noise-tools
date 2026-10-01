@@ -123,6 +123,9 @@ function sn_rights_evidence_held( $seed = true ) {
 	return array_values( array_filter( (array) $held, 'is_string' ) );
 }
 
+/** After this many failing passes in a row on one backlog month, the next pass works the current month. */
+const SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP = 7;
+
 /**
  * Months skipped while held, oldest first. Kept until composed and posted.
  *
@@ -217,7 +220,8 @@ function sn_rights_evidence_send( array $entry, $now ) {
  * and not yet on the ledger. Idempotent by (month, family).
  *
  * Order: refresh stored records from the ledger (F5), queue a held month,
- * readiness, the backlog target, the lock, re-send stored bytes, compose.
+ * readiness, the backlog target (yielding to the current month after a run of
+ * failing passes), the lock, re-send stored bytes, compose.
  *
  * @param int|null $now Unix time; null for time().
  * @return array{ok:bool,month:string,composed:int,posted:int,anchored:int,failed:int,error:string}
@@ -241,7 +245,17 @@ function sn_rights_evidence_run( $now = null ) {
 		$out['error'] = 'not-ready';
 		return $out;
 	}
-	$month        = sn_rights_evidence_backlog_target( $now, $held );
+	$month = sn_rights_evidence_backlog_target( $now, $held );
+	// A backlog month that keeps failing must not starve the current one:
+	// after SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP failing passes in a row, one
+	// pass goes to the current month (when not held), the backlog month stays
+	// queued, and its count restarts so it takes the passes after that.
+	$fails = (array) get_option( 'sn_rights_evidence_backlog_fails', array() );
+	if ( null !== $month && (int) ( $fails[ $month['month'] ] ?? 0 ) >= SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP && ! in_array( $current['month'], $held, true ) ) {
+		unset( $fails[ $month['month'] ] );
+		update_option( 'sn_rights_evidence_backlog_fails', $fails, false );
+		$month = null;
+	}
 	$from_backlog = null !== $month;
 	if ( ! $from_backlog ) {
 		$month = $current + array( 'in_window' => true );
@@ -310,8 +324,15 @@ function sn_rights_evidence_run( $now = null ) {
 	$out['ok'] = '' === $out['error'] && 0 === $out['failed'];
 	// A backlog month leaves only when the pass was clean AND nothing of it is
 	// left unposted, whichever family it belongs to.
-	if ( $from_backlog && $out['ok'] && ! sn_rights_evidence_unposted( $month['month'] ) ) {
-		sn_rights_evidence_backlog_set( array_diff( sn_rights_evidence_backlog(), array( $month['month'] ) ) );
+	if ( $from_backlog ) {
+		$fails = (array) get_option( 'sn_rights_evidence_backlog_fails', array() );
+		if ( $out['ok'] && ! sn_rights_evidence_unposted( $month['month'] ) ) {
+			sn_rights_evidence_backlog_set( array_diff( sn_rights_evidence_backlog(), array( $month['month'] ) ) );
+			unset( $fails[ $month['month'] ] );
+		} else {
+			$fails[ $month['month'] ] = (int) ( $fails[ $month['month'] ] ?? 0 ) + 1;
+		}
+		update_option( 'sn_rights_evidence_backlog_fails', $fails, false );
 	}
 	return $out;
 }

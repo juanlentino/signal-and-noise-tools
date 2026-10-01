@@ -398,6 +398,20 @@ $GLOBALS['__k']['post_reply'] = $pending_reply; $GLOBALS['__k']['posts'] = array
 $r = sn_rights_evidence_run( $oct5 + DAY_IN_SECONDS );
 ok( $r['ok'] && 1 === $r['posted'] && 2 === $r['anchored'] && array() === sn_rights_evidence_backlog() && array() === sn_rights_evidence_unposted( '2026-08' ), 'K4 once nothing of the month is unposted, it leaves the backlog' );
 
+// K5-K7: a failing backlog month cannot starve the current one (review follow-up 6).
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-09' ), 'sn_rights_evidence_backlog' => array( '2026-08' ) ); $GLOBALS['__k']['posts'] = array();
+$r = sn_rights_evidence_run( $oct5 );
+ok( '2026-08' === $r['month'] && $r['ok'] && array( '2026-09' ) === sn_rights_evidence_backlog(), 'K5 a held current month is queued even on a pass that works (and dequeues) a backlog month: queued before the target is chosen' );
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array(), 'sn_rights_evidence_backlog' => array( '2026-08' ) );
+$GLOBALS['__k']['post_reply'] = array( 'code' => 502, 'body' => json_encode( array( 'error' => 'x' ) ) );
+$months = array();
+for ( $i = 0; $i < 9; $i++ ) { $months[] = sn_rights_evidence_run( $oct5 + $i * DAY_IN_SECONDS )['month']; }
+ok( array_fill( 0, SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP, '2026-08' ) === array_slice( $months, 0, SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP ) && '2026-09' === $months[ SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP ], 'K6 after ' . SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP . ' failing passes on one backlog month, the next pass works the current month: ' . implode( ',', $months ) );
+ok( '2026-08' === $months[ SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP + 1 ] && array( '2026-08' ) === sn_rights_evidence_backlog(), 'K7 the backlog month stays queued and takes the pass after that one' );
+$GLOBALS['__k']['post_reply'] = $pending_reply; $GLOBALS['__k']['posts'] = array();
+$r = sn_rights_evidence_run( $oct5 + 9 * DAY_IN_SECONDS );
+ok( $r['ok'] && '2026-08' === $r['month'] && array() === sn_rights_evidence_backlog() && array() === (array) get_option( 'sn_rights_evidence_backlog_fails', array() ), 'K8 a clean pass dequeues the month and clears its failure count' );
+
 // L: the dry run composes from live reads and reaches no POST (behaviour AND source).
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-09' ) ); $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['transients'] = array(); $GLOBALS['__k']['fetch'] = array();
 $dry = sn_rights_evidence_dry_run( '2026-09', $oct5 );
