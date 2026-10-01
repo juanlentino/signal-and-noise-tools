@@ -155,39 +155,46 @@ function sn_rights_evidence_is_final( $e ) {
  * F5: re-read every posted record that is not yet final from the ledger file
  * the worker wrote, and take its status and block. Read-only against the
  * ledger; runs before the hold, so a held pass still refreshes.
- * ponytail: capped at SN_RIGHTS_EVIDENCE_REFRESH_CAP reads per pass, oldest
- * month first; the rest wait a day. Lift the cap if records ever pile up.
+ * At most SN_RIGHTS_EVIDENCE_REFRESH_CAP reads per pass, in month/family
+ * order starting after the last key the previous pass read (a cursor option)
+ * and wrapping, so every non-final record is re-read in turn.
  *
  * @return int Records whose stored status or block changed.
  */
 function sn_rights_evidence_refresh() {
-	$data    = sn_rights_evidence_data();
-	$reads   = 0;
-	$updates = array();
-	ksort( $data );
+	$data  = sn_rights_evidence_data();
+	$queue = array();
 	foreach ( $data as $month => $families ) {
 		foreach ( (array) $families as $family => $e ) {
-			$path = is_array( $e ) ? (string) ( $e['ledger_path'] ?? '' ) : '';
 			// Final: never re-read. A retracted record's v1 file still says
 			// confirmed; re-reading it would flip the retraction back.
-			if ( '' === $path || sn_rights_evidence_is_final( $e ) ) {
-				continue;
+			if ( is_array( $e ) && '' !== (string) ( $e['ledger_path'] ?? '' ) && ! sn_rights_evidence_is_final( $e ) ) {
+				$queue[ $month . '/' . $family ] = array( (string) $month, (string) $family, $e );
 			}
-			if ( $reads++ >= SN_RIGHTS_EVIDENCE_REFRESH_CAP ) {
-				break 2;
-			}
-			$doc    = sn_rights_evidence_ledger_json( $path );
-			$status = (string) ( $doc['ots']['status'] ?? '' );
-			if ( null === $doc || '' === $status ) {
-				continue;
-			}
-			$block = is_numeric( $doc['ots']['bitcoin_block'] ?? null ) ? (int) $doc['ots']['bitcoin_block'] : null;
-			if ( 'confirmed' === $status && null === $block ) {
-				continue; // Confirmed with no block is not taken: it would read as final with nothing to show.
-			}
-			if ( $status !== (string) ( $e['status'] ?? '' ) || $block !== ( $e['block'] ?? null ) ) {
-				$updates[ $month ][ $family ] = array( $status, $block );
-			}
+		}
+	}
+	ksort( $queue );
+	// Strictly after the cursor, then wrap: a cursor whose record went final
+	// or left still places the next pass.
+	$cursor = (string) get_option( 'sn_rights_evidence_refresh_cursor', '' );
+	$after  = array_filter( $queue, static fn( $k ) => strcmp( (string) $k, $cursor ) > 0, ARRAY_FILTER_USE_KEY );
+	$batch  = array_slice( $after + $queue, 0, SN_RIGHTS_EVIDENCE_REFRESH_CAP, true );
+	if ( $batch ) {
+		update_option( 'sn_rights_evidence_refresh_cursor', (string) array_key_last( $batch ), false );
+	}
+	$updates = array();
+	foreach ( $batch as list( $month, $family, $e ) ) {
+		$doc    = sn_rights_evidence_ledger_json( (string) $e['ledger_path'] );
+		$status = (string) ( $doc['ots']['status'] ?? '' );
+		if ( null === $doc || '' === $status ) {
+			continue;
+		}
+		$block = is_numeric( $doc['ots']['bitcoin_block'] ?? null ) ? (int) $doc['ots']['bitcoin_block'] : null;
+		if ( 'confirmed' === $status && null === $block ) {
+			continue; // Confirmed with no block is not taken: it would read as final with nothing to show.
+		}
+		if ( $status !== (string) ( $e['status'] ?? '' ) || $block !== ( $e['block'] ?? null ) ) {
+			$updates[ $month ][ $family ] = array( $status, $block );
 		}
 	}
 	if ( ! $updates ) {

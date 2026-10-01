@@ -354,6 +354,16 @@ $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-08' ),
 sn_rights_evidence_run( $now );
 ok( SN_RIGHTS_EVIDENCE_REFRESH_CAP === count( array_filter( $GLOBALS['__k']['http'], static fn( $u ) => str_contains( $u, 'rights-evidence/' ) ) ), 'J3 the refresh reads at most ' . SN_RIGHTS_EVIDENCE_REFRESH_CAP . ' records per pass (15 pending here)' );
 
+// J6: the capped refresh rotates, so every non-final record is re-read in turn (review follow-up 3).
+$GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-07' => $many ) );
+$seen = array();
+foreach ( array( 1, 2 ) as $pass_no ) {
+	$GLOBALS['__k']['http'] = array();
+	sn_rights_evidence_refresh();
+	$seen = array_merge( $seen, array_filter( $GLOBALS['__k']['http'], static fn( $u ) => str_contains( $u, 'rights-evidence/' ) ) );
+}
+ok( 15 === count( array_unique( $seen ) ) && SN_RIGHTS_EVIDENCE_REFRESH_CAP * 2 === count( $seen ), 'J6 two capped passes over 15 pending records read all 15: the cap rotates from where the last pass stopped, never the same oldest twelve' );
+
 // J4/J5: a confirmation without a numeric block is not final (review follow-up 1).
 $GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-07' => array( 'openai' => $re( 'pending', 41 ), 'anthropic' => $re( 'confirmed', 42 ) ) ) );
 $GLOBALS['__k']['ledger']['rights-evidence/u41/v1.json'] = array( 'payload' => array(), 'ots' => array( 'status' => 'confirmed' ) );
