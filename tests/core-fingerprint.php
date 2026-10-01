@@ -45,6 +45,10 @@ function get_site_transient( $k ) { return 'update_core' === $k ? $GLOBALS['__cf
 function get_site_option( $k, $d = false ) { return $d; }
 function get_option( $k, $d = false ) { return $d; }
 function wp_version_check() { $GLOBALS['__cf_net']++; }
+$GLOBALS['__cf_sched'] = array();
+if ( ! function_exists( 'wp_next_scheduled' ) ) { function wp_next_scheduled( $h ) { return $GLOBALS['__cf_sched'][ $h ] ?? false; } }
+if ( ! function_exists( 'wp_schedule_single_event' ) ) { function wp_schedule_single_event( $t, $h ) { $GLOBALS['__cf_sched'][ $h ] = $t; return true; } }
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
 function wp_remote_get() { $GLOBALS['__cf_net']++; return array(); }
 function wp_register_ability( $slug, $cfg ) { $GLOBALS['__ab'][ $slug ] = $cfg; return true; }
 function snt_deploy_status_for( $pkg ) { return array( 'current' => '1.0.0', 'latest' => '1.0.0', 'state' => 'ok' ); }
@@ -214,6 +218,20 @@ $remote = $GLOBALS['__ab']['signal-noise/remote-get-deploy-status'] ?? array();
 $rout   = isset( $remote['execute_callback'] ) ? call_user_func( $remote['execute_callback'], null ) : array();
 cf_ok( isset( $rout['core'] ) && ! array_key_exists( 'runtime', $rout ), 'remote twin returns core and never runtime' );
 cf_ok( isset( $remote['output_schema']['properties']['core'] ) && ! isset( $remote['output_schema']['properties']['runtime'] ), 'remote schema declares core, not runtime' );
+
+// Refill after the theme's purge (2026-10-01): the flush empties update_core; a one-off cron re-runs the check.
+$hooked = array_column( $GLOBALS['__cf_hooks']['sn_after_full_cache_flush'] ?? array(), 0 );
+cf_ok( in_array( 'snt_core_refill_after_flush', $hooked, true ) && in_array( 'snt_core_version_refill', array_column( $GLOBALS['__cf_hooks']['snt_core_version_refill'] ?? array(), 0 ), true ), 'refill: hooked to the purge, and the one-off event runs the refill' );
+$GLOBALS['__cf_sched'] = array(); $net0 = $GLOBALS['__cf_net'];
+snt_core_refill_after_flush( array( 'object_cache' => false ) );
+cf_ok( array() === $GLOBALS['__cf_sched'], 'refill: a purge that did not flush the object cache schedules nothing' );
+snt_core_refill_after_flush( array( 'object_cache' => true ) );
+$t = $GLOBALS['__cf_sched']['snt_core_version_refill'] ?? 0;
+$GLOBALS['__cf_sched']['snt_core_version_refill'] = 12345; // an event already queued
+snt_core_refill_after_flush( array( 'object_cache' => true ) );
+cf_ok( $t > time() && 12345 === $GLOBALS['__cf_sched']['snt_core_version_refill'] && $net0 === $GLOBALS['__cf_net'], 'refill: an object-cache flush schedules one check a minute out, once, without fetching in the purge request' );
+snt_core_version_refill();
+cf_ok( $net0 + 1 === $GLOBALS['__cf_net'], 'refill: the event runs WordPress\'s version check' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail ? 1 : 0 );

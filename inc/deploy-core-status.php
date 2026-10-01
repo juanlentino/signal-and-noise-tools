@@ -110,3 +110,42 @@ function snt_runtime_status() {
 		'register_argc_argv' => (bool) filter_var( ini_get( 'register_argc_argv' ), FILTER_VALIDATE_BOOLEAN ),
 	);
 }
+
+/**
+ * Refill WordPress's core update check after the theme's full cache purge.
+ *
+ * On this site update_core lives in the persistent object cache, and the
+ * theme's sn_purge_all_caches() (run after every update) calls
+ * wp_cache_flush(), which empties it right after WordPress refilled it on the
+ * install. The Core row then read "update check not cached" until the next
+ * twice-daily check. A one-off cron event a minute later re-runs the check, so
+ * the purge request itself never waits on wordpress.org. snt_core_status()
+ * stays read-only; only this hook fetches.
+ *
+ * @param array $args The purge's parsed args (sn_after_full_cache_flush).
+ * @return void
+ */
+function snt_core_refill_after_flush( $args = array() ) {
+	if ( empty( $args['object_cache'] ) ) {
+		return; // The object cache was not flushed; update_core is intact.
+	}
+	if ( ! wp_next_scheduled( 'snt_core_version_refill' ) ) {
+		wp_schedule_single_event( time() + MINUTE_IN_SECONDS, 'snt_core_version_refill' );
+	}
+}
+add_action( 'sn_after_full_cache_flush', 'snt_core_refill_after_flush', 30, 1 );
+
+/**
+ * The one-off refill: WordPress's own version check.
+ *
+ * @return void
+ */
+function snt_core_version_refill() {
+	if ( ! function_exists( 'wp_version_check' ) && defined( 'ABSPATH' ) && defined( 'WPINC' ) ) {
+		require_once ABSPATH . WPINC . '/update.php';
+	}
+	if ( function_exists( 'wp_version_check' ) ) {
+		wp_version_check();
+	}
+}
+add_action( 'snt_core_version_refill', 'snt_core_version_refill' );
