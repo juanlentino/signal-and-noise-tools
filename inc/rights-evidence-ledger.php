@@ -10,7 +10,8 @@
  * ledger states it; the block's time comes from the same public explorer the
  * provenance worker already reads (blockstream.info, Esplora). A confirmed
  * version and a block time never change, so both are cached for good in one
- * option; a pending version is read again next pass.
+ * option (versions keyed by the ledger's base URL, so switching owner/repo
+ * never reuses another ledger's); a pending version is read again next pass.
  *
  * Also the refresh of stored records (F5): a posted record's status and block
  * are re-read from the ledger file the worker wrote, never from our memory.
@@ -89,23 +90,31 @@ const SN_RIGHTS_EVIDENCE_MAX_VERSIONS = 200;
  * @param array $index The decoded index.json.
  * @return array<string,array<int,array{version:int,content_hash:string,block:?int,anchored_at:string}>>|null
  *         Slug => versions ascending. anchored_at '' for a version not yet in a
- *         block. null when a version file or a confirmed block's time cannot be
- *         read: a record with a hole in its reservation is refused, not shipped.
+ *         block. null when a row of the index is malformed, or a version file or
+ *         a confirmed block's time cannot be read: a record with a hole in its
+ *         reservation is refused, not shipped.
  */
 function sn_rights_evidence_signal_history( array $index ) {
-	$cache = (array) get_option( 'sn_rights_evidence_chain', array() );
-	$out   = array();
+	// Every row is checked before any read: one malformed row (no slug, an
+	// unsafe slug, no positive version, a slug already listed) refuses the history, never a walk
+	// that silently drops that signal from the reservation.
+	$signals = array();
 	foreach ( (array) ( $index['rights_signals'] ?? array() ) as $r ) {
 		$slug    = is_array( $r ) ? (string) ( $r['slug'] ?? '' ) : '';
-		$current = is_array( $r ) ? (int) ( $r['version'] ?? 0 ) : 0;
-		if ( 1 !== preg_match( '/^[a-z0-9-]{1,64}$/', $slug ) || $current < 1 ) {
-			continue;
+		$current = is_array( $r ) && is_numeric( $r['version'] ?? null ) ? (int) $r['version'] : 0;
+		if ( 1 !== preg_match( '/^[a-z0-9-]{1,64}$/', $slug ) || $current < 1 || $current > SN_RIGHTS_EVIDENCE_MAX_VERSIONS || isset( $signals[ $slug ] ) ) {
+			return null; // Above the ceiling, or a slug listed twice (which row is current?): not walked.
 		}
-		if ( $current > SN_RIGHTS_EVIDENCE_MAX_VERSIONS ) {
-			return null; // An index claiming more versions than a signal can carry is not walked.
-		}
+		$signals[ $slug ] = $current;
+	}
+	// Versions are cached per ledger (owner/repo, by its base URL): another
+	// ledger's v1 is another document. Block times are Bitcoin's, shared.
+	$ledger = function_exists( 'sn_prov_integrity_ledger_base' ) ? sn_prov_integrity_ledger_base() : '';
+	$cache  = (array) get_option( 'sn_rights_evidence_chain', array() );
+	$out    = array();
+	foreach ( $signals as $slug => $current ) {
 		for ( $n = 1; $n <= $current; $n++ ) {
-			$v = $cache['versions'][ $slug ][ $n ] ?? null;
+			$v = $cache['versions'][ $ledger ][ $slug ][ $n ] ?? null;
 			if ( ! is_array( $v ) ) {
 				$doc = sn_rights_evidence_ledger_json( 'rights-signals/' . $slug . '/v' . $n . '.json' );
 				if ( null === $doc ) {
@@ -121,8 +130,8 @@ function sn_rights_evidence_signal_history( array $index ) {
 				}
 				$v = array( 'version' => $n, 'content_hash' => (string) ( $doc['content_hash'] ?? '' ), 'block' => $block, 'anchored_at' => $at );
 				if ( null !== $block ) {
-					$cache                               = (array) get_option( 'sn_rights_evidence_chain', array() );
-					$cache['versions'][ $slug ][ $n ]    = $v; // Confirmed: immutable, never read again.
+					$cache                                       = (array) get_option( 'sn_rights_evidence_chain', array() );
+					$cache['versions'][ $ledger ][ $slug ][ $n ] = $v; // Confirmed: immutable, never read again.
 					update_option( 'sn_rights_evidence_chain', $cache, false );
 				}
 			}
@@ -134,40 +143,62 @@ function sn_rights_evidence_signal_history( array $index ) {
 }
 
 /**
+ * A stored record the refresh never re-reads: conflict and retracted, and a
+ * confirmation only once it carries its block. A confirmed status with no
+ * numeric block (a worker reply carries none) is read again until it does.
+ *
+ * @param mixed $e A stored entry.
+ * @return bool
+ */
+function sn_rights_evidence_is_final( $e ) {
+	$status = is_array( $e ) ? (string) ( $e['status'] ?? '' ) : '';
+	return in_array( $status, array( 'conflict', 'retracted' ), true ) || ( 'confirmed' === $status && is_int( $e['block'] ?? null ) );
+}
+
+/**
  * F5: re-read every posted record that is not yet final from the ledger file
  * the worker wrote, and take its status and block. Read-only against the
  * ledger; runs before the hold, so a held pass still refreshes.
- * ponytail: capped at SN_RIGHTS_EVIDENCE_REFRESH_CAP reads per pass, oldest
- * month first; the rest wait a day. Lift the cap if records ever pile up.
+ * At most SN_RIGHTS_EVIDENCE_REFRESH_CAP reads per pass, in month/family
+ * order starting after the last key the previous pass read (a cursor option)
+ * and wrapping, so every non-final record is re-read in turn.
  *
  * @return int Records whose stored status or block changed.
  */
 function sn_rights_evidence_refresh() {
-	$final   = array( 'confirmed', 'conflict', 'retracted' );
-	$data    = sn_rights_evidence_data();
-	$reads   = 0;
-	$updates = array();
-	ksort( $data );
+	$data  = sn_rights_evidence_data();
+	$queue = array();
 	foreach ( $data as $month => $families ) {
 		foreach ( (array) $families as $family => $e ) {
-			$path = is_array( $e ) ? (string) ( $e['ledger_path'] ?? '' ) : '';
 			// Final: never re-read. A retracted record's v1 file still says
 			// confirmed; re-reading it would flip the retraction back.
-			if ( '' === $path || in_array( (string) ( $e['status'] ?? '' ), $final, true ) ) {
-				continue;
+			if ( is_array( $e ) && '' !== (string) ( $e['ledger_path'] ?? '' ) && ! sn_rights_evidence_is_final( $e ) ) {
+				$queue[ $month . '/' . $family ] = array( (string) $month, (string) $family, $e );
 			}
-			if ( $reads++ >= SN_RIGHTS_EVIDENCE_REFRESH_CAP ) {
-				break 2;
-			}
-			$doc    = sn_rights_evidence_ledger_json( $path );
-			$status = (string) ( $doc['ots']['status'] ?? '' );
-			if ( null === $doc || '' === $status ) {
-				continue;
-			}
-			$block = is_numeric( $doc['ots']['bitcoin_block'] ?? null ) ? (int) $doc['ots']['bitcoin_block'] : null;
-			if ( $status !== (string) ( $e['status'] ?? '' ) || $block !== ( $e['block'] ?? null ) ) {
-				$updates[ $month ][ $family ] = array( $status, $block );
-			}
+		}
+	}
+	ksort( $queue );
+	// Strictly after the cursor, then wrap: a cursor whose record went final
+	// or left still places the next pass.
+	$cursor = (string) get_option( 'sn_rights_evidence_refresh_cursor', '' );
+	$after  = array_filter( $queue, static fn( $k ) => strcmp( (string) $k, $cursor ) > 0, ARRAY_FILTER_USE_KEY );
+	$batch  = array_slice( $after + $queue, 0, SN_RIGHTS_EVIDENCE_REFRESH_CAP, true );
+	if ( $batch ) {
+		update_option( 'sn_rights_evidence_refresh_cursor', (string) array_key_last( $batch ), false );
+	}
+	$updates = array();
+	foreach ( $batch as list( $month, $family, $e ) ) {
+		$doc    = sn_rights_evidence_ledger_json( (string) $e['ledger_path'] );
+		$status = (string) ( $doc['ots']['status'] ?? '' );
+		if ( null === $doc || '' === $status ) {
+			continue;
+		}
+		$block = is_numeric( $doc['ots']['bitcoin_block'] ?? null ) ? (int) $doc['ots']['bitcoin_block'] : null;
+		if ( 'confirmed' === $status && null === $block ) {
+			continue; // Confirmed with no block is not taken: it would read as final with nothing to show.
+		}
+		if ( $status !== (string) ( $e['status'] ?? '' ) || $block !== ( $e['block'] ?? null ) ) {
+			$updates[ $month ][ $family ] = array( $status, $block );
 		}
 	}
 	if ( ! $updates ) {
@@ -181,7 +212,7 @@ function sn_rights_evidence_refresh() {
 	foreach ( $updates as $month => $families ) {
 		foreach ( $families as $family => $u ) {
 			$e = $fresh[ $month ][ $family ] ?? null;
-			if ( ! is_array( $e ) || in_array( (string) ( $e['status'] ?? '' ), $final, true ) ) {
+			if ( ! is_array( $e ) || sn_rights_evidence_is_final( $e ) ) {
 				continue;
 			}
 			$fresh[ $month ][ $family ]['status'] = $u[0];

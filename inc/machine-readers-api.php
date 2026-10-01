@@ -175,6 +175,11 @@ function snt_mr_cache_key( $days, $view, array $filter = array() ) {
 	if ( ! empty( $filter['exclude_purpose'] ) ) {
 		$key .= '_x' . implode( '-', (array) $filter['exclude_purpose'] );
 	}
+	// A filtered key carries the cache generation: snt_mr_cache_flush() bumps
+	// it, so every filtered read refetches without a delete per possible key.
+	if ( $filter ) {
+		$key .= '_g' . (int) get_option( 'snt_mr_cache_gen', 0 );
+	}
 	return $key;
 }
 
@@ -193,9 +198,7 @@ function snt_mr_rights_filter( array $filter ) {
 	$family = (string) ( $filter['family'] ?? '' );
 	if ( '' !== $family ) {
 		// The AI-training families only: the one population a filtered read is
-		// for, and the list the cache flush walks for the rights-evidence
-		// shape (any other shape lives out its 15 minutes). Absent list,
-		// refused (fail closed).
+		// for. Absent list, refused (fail closed).
 		if ( ! function_exists( 'snt_mr_ai_training_families' ) || ! in_array( $family, snt_mr_ai_training_families(), true ) ) {
 			return null;
 		}
@@ -229,11 +232,10 @@ function snt_mr_cache_flush() {
 		foreach ( SNT_MR_VIEWS as $view ) {
 			delete_transient( snt_mr_cache_key( $days, $view ) );
 		}
-		// Unreleased: the one filtered shape rights evidence reads, per family.
-		foreach ( function_exists( 'snt_mr_ai_training_families' ) ? snt_mr_ai_training_families() : array() as $family ) {
-			delete_transient( snt_mr_cache_key( $days, 'rights', array( 'family' => $family, 'exclude_purpose' => SNT_MR_RIGHTS_EXCLUDE ) ) );
-		}
 	}
+	// Filtered keys are not walked: a new generation orphans them all (they
+	// expire on their own 15 minutes) and every filtered read refetches.
+	update_option( 'snt_mr_cache_gen', (int) get_option( 'snt_mr_cache_gen', 0 ) + 1 );
 }
 
 /**

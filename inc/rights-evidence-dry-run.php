@@ -98,19 +98,42 @@ function sn_rights_evidence_dry_run( $ym, $now = null ) {
 }
 
 /**
- * compose_month for a YYYY-MM, every family.
+ * A YYYY-MM as a month array, refused unless it is a complete month.
+ *
+ * @param string $ym  YYYY-MM.
+ * @param int    $now Unix time.
+ * @return array{0:?array,1:string} The month (with its start as Unix time) and '', or null and why.
+ */
+function sn_rights_evidence_ym_month( $ym, $now ) {
+	$start = 1 === preg_match( '/^\d{4}-(0[1-9]|1[0-2])$/', (string) $ym ) ? strtotime( $ym . '-01T00:00:00Z' ) : false;
+	if ( false === $start ) {
+		return array( null, 'month must be YYYY-MM' );
+	}
+	if ( strcmp( (string) $ym, gmdate( 'Y-m', $now ) ) >= 0 ) {
+		return array( null, 'month must be complete: the current month and future months cannot be composed' );
+	}
+	return array( array( 'month' => (string) $ym, 'start' => gmdate( 'Y-m-01', $start ), 'end' => gmdate( 'Y-m-t', $start ), 'ts' => $start ), '' );
+}
+
+/**
+ * compose_month for a YYYY-MM, every family. Only a complete month whose
+ * start is still inside the sensor's 90-day window can be composed.
  *
  * @param string   $ym  YYYY-MM.
  * @param int|null $now Unix time; null for time().
  * @return array{error:string,payloads:array<string,array>}
  */
 function sn_rights_evidence_compose_ym( $ym, $now = null ) {
-	$start = 1 === preg_match( '/^\d{4}-(0[1-9]|1[0-2])$/', (string) $ym ) ? strtotime( $ym . '-01T00:00:00Z' ) : false;
-	if ( false === $start ) {
-		return array( 'error' => 'month must be YYYY-MM', 'payloads' => array() );
+	$now             = null === $now ? time() : (int) $now;
+	list( $m, $why ) = sn_rights_evidence_ym_month( $ym, $now );
+	if ( null === $m ) {
+		return array( 'error' => $why, 'payloads' => array() );
 	}
-	$month = array( 'month' => (string) $ym, 'start' => gmdate( 'Y-m-01', $start ), 'end' => gmdate( 'Y-m-t', $start ) );
-	return sn_rights_evidence_compose_month( $month, null === $now ? time() : (int) $now );
+	if ( ! sn_rights_evidence_in_window( $m['ts'], $now ) ) {
+		return array( 'error' => 'month is past the sensor\'s 90-day window', 'payloads' => array() );
+	}
+	unset( $m['ts'] );
+	return sn_rights_evidence_compose_month( $m, $now );
 }
 
 /** Why a month's v1 record is corrected by erratum (owner ruling D1, 2026-09-30). */
@@ -120,8 +143,12 @@ const SN_RIGHTS_EVIDENCE_ERRATUM_REASON = 'v1 cited rights-signal versions ancho
  * D1: the erratum data for a month's posted v1 records. The ledger's rule is
  * that a month's record is minted once and a correction is a retraction,
  * never a v2 (signal-and-noise-provenance rights-evidence-checks.mjs), so the
- * owner chose retraction plus an erratum. Per family with a v1 on the ledger:
- * the record corrected, the reason, and the reservation that was in force.
+ * owner chose retraction plus an erratum. Driven by the stored records, not by
+ * today's aggregate: every v1 of ours with a ledger path (retracted ones too,
+ * the erratum ships with the retraction) gets the record corrected, the reason
+ * and the reservation that was in force, composed once from the ledger. A 409
+ * conflict kept the ledger's own bytes, not ours: nothing to correct. No
+ * sensor read, so a month past the 90-day window still gets its erratum.
  * For the erratum document only: never a ledger record, never posted.
  *
  * @param string   $ym  YYYY-MM.
@@ -129,14 +156,27 @@ const SN_RIGHTS_EVIDENCE_ERRATUM_REASON = 'v1 cited rights-signal versions ancho
  * @return array{ok:bool,error:string,erratum:array<string,string>}
  */
 function sn_rights_evidence_erratum( $ym, $now = null ) {
-	$composed = sn_rights_evidence_compose_ym( $ym, $now );
-	$stored   = (array) ( sn_rights_evidence_data()[ $ym ] ?? array() );
-	$erratum  = array();
-	foreach ( $composed['payloads'] as $family => $payload ) {
-		$v1 = $stored[ $family ] ?? null;
-		if ( ! is_array( $v1 ) || '' === (string) ( $v1['ledger_path'] ?? '' ) || 'conflict' === (string) ( $v1['status'] ?? '' ) ) {
-			continue; // No v1 of ours on the ledger (a 409 kept the ledger's own bytes): nothing to correct.
-		}
+	list( $month, $why ) = sn_rights_evidence_ym_month( $ym, null === $now ? time() : (int) $now );
+	if ( null === $month ) {
+		return array( 'ok' => false, 'error' => $why, 'erratum' => array() );
+	}
+	unset( $month['ts'] );
+	$v1s = array_filter(
+		(array) ( sn_rights_evidence_data()[ $ym ] ?? array() ),
+		static fn( $e ) => is_array( $e ) && '' !== (string) ( $e['ledger_path'] ?? '' ) && 'conflict' !== (string) ( $e['status'] ?? '' )
+	);
+	if ( ! $v1s ) {
+		return array( 'ok' => true, 'error' => '', 'erratum' => array() );
+	}
+	$index   = sn_rights_evidence_ledger_index();
+	$history = null === $index ? null : sn_rights_evidence_signal_history( $index );
+	$res     = null === $history ? null : sn_rights_evidence_reservation( $history, $month );
+	if ( null === $res ) {
+		return array( 'ok' => false, 'error' => 'ledger index or rights-signal history unreadable, or no signal in force for the month', 'erratum' => array() );
+	}
+	ksort( $v1s );
+	$erratum = array();
+	foreach ( $v1s as $family => $v1 ) {
 		$erratum[ $family ] = sn_prov_canonical_json(
 			array(
 				'corrects'    => array(
@@ -147,9 +187,9 @@ function sn_rights_evidence_erratum( $ym, $now = null ) {
 				'family'      => (string) $family,
 				'month'       => (string) $ym,
 				'reason'      => SN_RIGHTS_EVIDENCE_ERRATUM_REASON,
-				'reservation' => $payload['reservation'] ?? array(),
+				'reservation' => $res,
 			)
 		);
 	}
-	return array( 'ok' => '' === $composed['error'], 'error' => $composed['error'], 'erratum' => $erratum );
+	return array( 'ok' => true, 'error' => '', 'erratum' => $erratum );
 }

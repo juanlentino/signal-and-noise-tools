@@ -231,7 +231,7 @@ $GLOBALS['__transients'] = array();
 // URL / token kept serving the old credentials' rows for up to 15 minutes.
 // One flush beside the key builder, so a key change can never orphan it again.
 echo "\nGroup: #1206 — the cache flush clears every window/view key the fetch can build\n";
-function delete_transient( $k ) { unset( $GLOBALS['__transients'][ $k ] ); return true; }
+function delete_transient( $k ) { $GLOBALS['__deletes'] = ( $GLOBALS['__deletes'] ?? 0 ) + 1; unset( $GLOBALS['__transients'][ $k ] ); return true; }
 $GLOBALS['__cache_on']   = true;
 $GLOBALS['__transients'] = array(
 	'sn_mr_rows_30_aggregate' => array( 'ok' => true, 'rows' => array( 'stale' ) ),
@@ -242,9 +242,18 @@ $GLOBALS['__transients'] = array(
 );
 snt_mr_cache_flush();
 ok( array( 'sn_mr_unrelated' => 'keep' ) === $GLOBALS['__transients'], 'snt_mr_cache_flush() deletes every rows key across windows and views and touches nothing else (#1206)' );
-$GLOBALS['__transients'] = array( 'sn_mr_rows_45_rights_fanthropic_xdev-ops' => array( 'ok' => true, 'rows' => array( 'stale' ) ) );
+$GLOBALS['__deletes'] = 0;
 snt_mr_cache_flush();
-ok( array() === $GLOBALS['__transients'], 'Unreleased: the flush also deletes the filtered rights key rights evidence reads, per family' );
+ok( 90 * count( SNT_MR_VIEWS ) === $GLOBALS['__deletes'], 'the flush deletes only the unfiltered window x view keys (' . $GLOBALS['__deletes'] . ' deletes), never a walk over every hypothetical filtered key' );
+$GLOBALS['__transients'] = array(); $GLOBALS['__requests'] = array();
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'data' => array(), 'filter' => array( 'family' => 'anthropic', 'exclude_purpose' => array( 'dev', 'ops' ) ) ) ) );
+$ff = array( 'family' => 'anthropic', 'exclude_purpose' => SNT_MR_RIGHTS_EXCLUDE );
+$k0 = snt_mr_cache_key( 45, 'rights', $ff );
+snt_mr_fetch( 45, 'rights', $ff ); snt_mr_memo( null ); snt_mr_fetch( 45, 'rights', $ff );
+ok( 1 === count( $GLOBALS['__requests'] ), 'a filtered read is held in its transient across requests' );
+snt_mr_cache_flush();
+snt_mr_fetch( 45, 'rights', $ff );
+ok( 2 === count( $GLOBALS['__requests'] ) && $k0 !== snt_mr_cache_key( 45, 'rights', $ff ) && 'sn_mr_rows_45_rights' === snt_mr_cache_key( 45, 'rights' ), 'a flush makes every filtered read refetch: the generation in the filtered key moves on, the unfiltered key does not change' );
 $GLOBALS['__cache_on']   = false;
 $GLOBALS['__transients'] = array();
 
@@ -254,7 +263,7 @@ $GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'da
 snt_mr_memo( null );
 $r = snt_mr_fetch( 30, 'rights', array( 'family' => 'openai', 'exclude_purpose' => array( 'ops', 'dev', 'ops' ) ) );
 ok( $r['ok'] && 1 === count( $GLOBALS['__requests'] ) && str_ends_with( $GLOBALS['__requests'][0]['url'], 'days=30&view=rights&family=openai&exclude_purpose=dev,ops' ), 'F2a the filter reaches the URL allowlisted, purposes sorted and unique: ' . ( $GLOBALS['__requests'][0]['url'] ?? '' ) );
-ok( 'sn_mr_rows_30_rights_fopenai_xdev-ops' === snt_mr_cache_key( 30, 'rights', snt_mr_rights_filter( array( 'family' => 'openai', 'exclude_purpose' => array( 'ops', 'dev' ) ) ) ) && 'sn_mr_rows_30_rights' === snt_mr_cache_key( 30, 'rights' ), 'F2b a filtered read has its own cache key; the unfiltered key is unchanged' );
+ok( 'sn_mr_rows_30_rights_fopenai_xdev-ops_g' . (int) get_option( 'snt_mr_cache_gen', 0 ) === snt_mr_cache_key( 30, 'rights', snt_mr_rights_filter( array( 'family' => 'openai', 'exclude_purpose' => array( 'ops', 'dev' ) ) ) ) && 'sn_mr_rows_30_rights' === snt_mr_cache_key( 30, 'rights' ), 'F2b a filtered read has its own cache key; the unfiltered key is unchanged' );
 ok( '1.3.1' === $r['taxonomy_version'], 'F6a the envelope taxonomy rides the result, shape-stripped' );
 foreach ( array( array( 'data' => array() ), array( 'data' => array(), 'filter' => array( 'family' => 'anthropic', 'exclude_purpose' => array( 'dev', 'ops' ) ) ), array( 'data' => array(), 'filter' => array( 'family' => 'openai', 'exclude_purpose' => array( 'ops' ) ) ) ) as $i => $body ) {
 	$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( $body ) );
@@ -298,5 +307,10 @@ $GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'wo
 $st = snt_mr_crawler_list_status();
 ok( '1' === (string) ( $GLOBALS['__options']['sn_mr_crawler_lastgood']['last_check_drift'] ?? '' ), 'a newer verdict (incl. a drift flip) replaces the stored one' );
 
+echo "\nGroup: the identity block reads verified_bot off the normalized aggregate\n";
+// Shaped like a real worker 1.29 aggregate row (Analytics Engine SQL returns numbers as strings).
+$worker_row = array( 'family' => 'openai', 'surface' => 'note', 'day' => '2026-09-28', 'hits' => '4', 'vendor' => 'OpenAI', 'agent' => 'GPTBot', 'purpose' => 'train', 'taxonomy_version' => '1.4', 'training_corpus_source' => '0', 'first_party' => '1', 'markdown_requested' => '0', 'signed_agent' => '', 'verified_bot' => 'AI Crawler', 'network' => 'Microsoft Corporation' );
+$nr = snt_mr_normalize_rows( array( $worker_row, array( 'verified_bot' => '' ) + $worker_row ) );
+ok( 'AI Crawler' === $nr[0]['verified_bot'] && '' === $nr[1]['verified_bot'] && 'Microsoft Corporation' === $nr[0]['network'] && 4 === $nr[0]['hits'] && '2026-09-28' === $nr[0]['day'], 'the normalizer keeps verified_bot (the worker\'s literal name) and network on an aggregate row; \'\' stays \'\'' );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

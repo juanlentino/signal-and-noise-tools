@@ -37,7 +37,7 @@ const SNT_MR_RIGHTS_EXCLUDE = array( 'dev', 'ops' );
 function snt_mr_fetch( $days = 30, $view = 'aggregate', array $filter = array() ) { $GLOBALS['__k']['fetch'][] = array( $days, $view, (string) ( $filter['family'] ?? '' ) ); $GLOBALS['__k']['filters'][] = $filter; return $GLOBALS['__k'][ 'rows_' . $view ] ?? array( 'ok' => false, 'rows' => array(), 'error' => 'not_configured' ); }
 function snt_mr_sensor_info() { return $GLOBALS['__k']['sensor']; }
 function snt_mr_ai_training_families() { return array( 'openai', 'anthropic', 'google-ai', 'mistral' ); }
-function sn_prov_integrity_ledger_base() { return 'https://raw.example/ledger/main/'; }
+function sn_prov_integrity_ledger_base() { return $GLOBALS['__k']['base'] ?? 'https://raw.example/ledger/main/'; }
 // One seam for every read: the ledger index, ledger files by path, and the explorer (height -> hash -> block).
 function sn_prov_integrity_http_fetch( $url ) {
 	$GLOBALS['__k']['http'][] = $url;
@@ -103,8 +103,6 @@ $GLOBALS['__k']['ledger'] = array(
 $index = array( 'rights_signals' => array(
 	array( 'slug' => 'tdm-policy', 'version' => 3, 'content_hash' => 'cece8a9cecfb6c7e7ee4f3346d5e2544138bfb6e33bec6042a17333a4d3180b0', 'ots_status' => 'confirmed', 'bitcoin_block' => 300 ),
 	array( 'slug' => 'license-xml', 'version' => 2, 'content_hash' => '8a1cee436cbac1489a1883c9d886fcfc46f302c55ed4106ae31729e4f4eb9041', 'ots_status' => 'pending' ),
-	'junk',
-	array( 'slug' => '../etc', 'version' => 1 ),
 ) );
 
 // A: the id and the month.
@@ -118,22 +116,32 @@ $sep = array( 'month' => '2026-09', 'start' => '2026-09-01', 'end' => '2026-09-3
 
 // B: the reservation in force (F1): history from the ledger, pure selection by anchor time.
 $hist = sn_rights_evidence_signal_history( $index );
-ok( array( 'license-xml', 'tdm-policy' ) === array_keys( $hist ) && 3 === count( $hist['tdm-policy'] ) && '' === $hist['license-xml'][1]['anchored_at'] && null === $hist['license-xml'][1]['block'] && '2026-08-15T12:00:00Z' === $hist['tdm-policy'][1]['anchored_at'] && 200 === $hist['tdm-policy'][1]['block'], 'B1 history walks v1..current per slug from the ledger, block time from the explorer; a pending version has no anchor; junk and a path-unsafe slug are dropped' );
+ok( array( 'license-xml', 'tdm-policy' ) === array_keys( $hist ) && 3 === count( $hist['tdm-policy'] ) && '' === $hist['license-xml'][1]['anchored_at'] && null === $hist['license-xml'][1]['block'] && '2026-08-15T12:00:00Z' === $hist['tdm-policy'][1]['anchored_at'] && 200 === $hist['tdm-policy'][1]['block'], 'B1 history walks v1..current per slug from the ledger, block time from the explorer; a pending version has no anchor' );
 $GLOBALS['__k']['http'] = array();
 $hist2 = sn_rights_evidence_signal_history( $index );
 ok( $hist2 === $hist && array( 'https://raw.example/ledger/main/rights-signals/license-xml/v2.json' ) === $GLOBALS['__k']['http'], 'B2 confirmed versions and block times are cached for good: the second walk reads only the pending version' );
+$GLOBALS['__k']['base'] = 'https://raw.example/other-ledger/main/'; $GLOBALS['__k']['http'] = array();
+$hist3 = sn_rights_evidence_signal_history( $index );
+ok( $hist3 === $hist && in_array( 'https://raw.example/other-ledger/main/rights-signals/tdm-policy/v1.json', $GLOBALS['__k']['http'], true ) && 5 === count( $GLOBALS['__k']['http'] ), 'B2b the permanent version cache is per ledger: another owner/repo re-reads every version, never reuses the first ledger\'s' );
+unset( $GLOBALS['__k']['base'] );
 $GLOBALS['__k']['opt'] = array();
 $keep = $GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json']; unset( $GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json'] );
 ok( null === sn_rights_evidence_signal_history( $index ), 'B3 a missing version file is null: a reservation with a hole is refused' );
 $GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json'] = $keep;
 $GLOBALS['__k']['opt'] = array(); unset( $GLOBALS['__k']['blocks'][200] );
-ok( null === sn_rights_evidence_signal_history( $index ) && ! isset( $GLOBALS['__k']['opt']['sn_rights_evidence_chain']['versions']['tdm-policy'][2] ), 'B4 a confirmed block whose time the explorer cannot give is null, and nothing is cached for it' );
+ok( null === sn_rights_evidence_signal_history( $index ) && ! isset( $GLOBALS['__k']['opt']['sn_rights_evidence_chain']['versions']['https://raw.example/ledger/main/']['tdm-policy'][2] ), 'B4 a confirmed block whose time the explorer cannot give is null, and nothing is cached for it' );
 $GLOBALS['__k']['blocks'][200] = '2026-08-15T12:00:00Z'; $GLOBALS['__k']['opt'] = array();
 $keep = $GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json']; $GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json']['content_hash'] = 'not-a-hash';
 ok( null === sn_rights_evidence_signal_history( $index ), 'B4b a version file with no sha256 content_hash is null: a version cannot be attested in force without its hash' );
 $GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json'] = $keep; $GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['http'] = array();
 $huge = $index; $huge['rights_signals'][0]['version'] = SN_RIGHTS_EVIDENCE_MAX_VERSIONS + 1;
 ok( null === sn_rights_evidence_signal_history( $huge ) && array() === $GLOBALS['__k']['http'], 'B4c an index claiming more versions than the ceiling is refused before any read' );
+foreach ( array( 'junk', array( 'slug' => '../etc', 'version' => 1 ), array( 'slug' => 'ai-txt' ), array( 'slug' => 'ai-txt', 'version' => 0 ) ) as $i => $row ) {
+	$bad = $index; $bad['rights_signals'][] = $row; $GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['http'] = array();
+	ok( null === sn_rights_evidence_signal_history( $bad ) && array() === $GLOBALS['__k']['http'], 'B4d a malformed rights-signal row (junk, path-unsafe slug, no version, version 0; case ' . $i . ') refuses the whole history before any read: a reservation missing a signal is half an evidence' );
+}
+$dup = $index; $dup['rights_signals'][] = array( 'slug' => 'tdm-policy', 'version' => 1 ); $GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['http'] = array();
+ok( null === sn_rights_evidence_signal_history( $dup ) && array() === $GLOBALS['__k']['http'], 'B4e a slug listed twice in rights_signals refuses the history before any read: a later row never overwrites an earlier one' );
 $GLOBALS['__k']['opt'] = array();
 $res = sn_rights_evidence_reservation( $hist, $m );
 $expect_aug = array(
@@ -200,6 +208,31 @@ ok( true === $t2['crawling']['complete'] && true === $t2['rights_reads']['comple
 ok( array( 'anthropic', 'openai' ) === sn_rights_evidence_families( $aggregate, $m ), 'C10 families: AI-training families seen in the month, sorted' );
 ok( null === sn_rights_evidence_compose( 'openai', $m, $aggregate, $rights, $res, array( 'version' => '1.25.4', 'taxonomy' => '' ), 'https://x.test', $now ) && null === sn_rights_evidence_compose( 'openai', $m, $aggregate, $rights, $res, array(), 'https://x.test', $now ), 'C11 F6: no taxonomy, no record (null, never shipped blank)' );
 ok( '1.4' === sn_rights_evidence_taxonomy( $aggregate ) && '1.3.1' === sn_rights_evidence_taxonomy( array( 'taxonomy_version' => '1.3.1' ) + $aggregate ) && '' === sn_rights_evidence_taxonomy( array( 'rows' => array( array( 'taxonomy_version' => '' ) ) ) ), 'C12 F6: the envelope taxonomy first, else the first row that names one, else empty' );
+
+// C13-C18: the identity block (schema 2, owner rulings 2026-10-01; ledger checker PR #35).
+$vb = static fn( $day, $purpose, $hits, $vbot ) => array( 'family' => 'openai', 'day' => $day, 'surface' => 'html', 'purpose' => $purpose, 'hits' => $hits, 'taxonomy_version' => '1.4', 'agent' => 'gptbot', 'network' => '' === $vbot ? 'Hetzner Online GmbH' : 'Microsoft Corporation', 'verified_bot' => $vbot );
+$sep_agg = array( 'ok' => true, 'truncated' => false, 'rows' => array(
+	$vb( '2026-09-02', 'train', 10, '' ),             // before the start: unverifiable
+	$vb( '2026-09-27', 'train', 5, 'AI Crawler' ),    // the start day itself: unverifiable, even verified
+	$vb( '2026-09-28', 'train', 4, 'AI Crawler' ),    // first whole day: verified
+	$vb( '2026-09-28', 'train', 6, '' ),              // first whole day, no category: unverified
+	$vb( '2026-09-29', 'search', 3, 'Search Engine Crawler' ),
+	$vb( '2026-09-30', 'search', 2, '' ),
+) );
+$ps  = sn_rights_evidence_compose( 'openai', $sep, $sep_agg, $rights, $res_sep, $sensor, 'https://x.test/', $now );
+$idn = $ps['identity'];
+ok( 'claimed user agent' === $idn['basis'] && array( 'source' => 'cloudflare verified bot category', 'since' => '2026-09-27T15:49:59Z' ) === $idn['verification'] && 'claimed user agent; the rights stream records no verification' === $idn['rights_files'] && SN_RIGHTS_EVIDENCE_VERIFIED_SINCE === $idn['verification']['since'], 'C13 the identity block carries the exact strings the ledger checker requires' );
+ok( array( 'verified' => 7, 'unverified' => 8, 'unverifiable' => 15 ) === $idn['crawling']['reads'] && array( 'verified' => 4, 'unverified' => 6, 'unverifiable' => 15 ) === $idn['crawling']['train'] && 30 === $ps['crawling']['reads'] && 25 === $ps['crawling']['train'], 'C14 each triple sums to its crawling count (reads 30, train 25) and no train component exceeds its reads component' );
+ok( 15 === $idn['crawling']['train']['unverifiable'], 'C15 the partial start day (2026-09-27, verification began 15:49:59 UTC) counts as unverifiable, even a row Cloudflare verified' );
+ok( 4 === $idn['crawling']['train']['verified'] && 6 === $idn['crawling']['train']['unverified'], 'C16 after the start a row with a verified-bot category is verified, a row with \'\' is unverified' );
+$ida = $p['identity']['crawling'];
+ok( array( 'verified' => 0, 'unverified' => 0, 'unverifiable' => 50 ) === $ida['reads'] && array( 'verified' => 0, 'unverified' => 0, 'unverifiable' => 41 ) === $ida['train'], 'C17 a window ending before verification began (August) is all unverifiable' );
+$oct = array( 'month' => '2026-10', 'start' => '2026-10-01', 'end' => '2026-10-31' );
+$ido = sn_rights_evidence_compose( 'openai', $oct, array( 'ok' => true, 'rows' => array( $vb( '2026-10-01', 'train', 2, 'AI Crawler' ), $vb( '2026-10-02', 'train', 3, '' ) ) ), $rights, $res_sep, $sensor, 'https://x.test', $now )['identity']['crawling'];
+ok( array( 'verified' => 2, 'unverified' => 3, 'unverifiable' => 0 ) === $ido['reads'] && $ido['reads'] === $ido['train'], 'C18 a window starting after verification began (October) has nothing unverifiable' );
+if ( getenv( 'SN_RE_SEPT_JSON' ) ) {
+	file_put_contents( getenv( 'SN_RE_SEPT_JSON' ), json_encode( array( 'uid' => sn_rights_evidence_uuid( 'openai', '2026-09', 'https://x.test/' ), 'record' => array( 'payload' => json_decode( sn_prov_canonical_json( $ps ) ) ), 'august' => array( 'uid' => sn_rights_evidence_uuid( 'openai', '2026-08', 'https://x.test/' ), 'payload' => json_decode( sn_prov_canonical_json( $p ) ) ) ), JSON_UNESCAPED_SLASHES ) );
+}
 
 // D: the run.
 $GLOBALS['__k']['rows_aggregate'] = $aggregate; $GLOBALS['__k']['rows_rights'] = $rights; $GLOBALS['__k']['index'] = $index;
@@ -338,7 +371,7 @@ ok( '{}' === json_encode( snt_ability_rights_evidence()['months'] ), 'G4 no reco
 
 // J: F5, stored records refreshed from the ledger, held or not.
 $re = static fn( $st, $n ) => array( 'uuid' => 'u' . $n, 'content_hash' => 'h' . $n, 'status' => $st, 'ledger_path' => 'rights-evidence/u' . $n . '/v1.json', 'at' => 1, 'error' => '' );
-$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-08' ), SN_RIGHTS_EVIDENCE_OPTION => array( '2026-07' => array( 'openai' => $re( 'pending', 1 ), 'anthropic' => $re( 'confirmed', 2 ), 'mistral' => $re( 'conflict', 3 ), 'cohere' => $re( 'pending', 4 ) ) ) );
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-08' ), SN_RIGHTS_EVIDENCE_OPTION => array( '2026-07' => array( 'openai' => $re( 'pending', 1 ), 'anthropic' => array( 'block' => 970002 ) + $re( 'confirmed', 2 ), 'mistral' => $re( 'conflict', 3 ), 'cohere' => $re( 'pending', 4 ) ) ) );
 $GLOBALS['__k']['ledger']['rights-evidence/u1/v1.json'] = array( 'payload' => array(), 'ots' => array( 'status' => 'confirmed', 'bitcoin_block' => 970001 ) );
 $GLOBALS['__k']['http'] = array(); $GLOBALS['__k']['secret'] = '';
 $r = sn_rights_evidence_run( $now );
@@ -351,6 +384,27 @@ $many = array(); for ( $i = 10; $i < 25; $i++ ) { $many[ 'f' . $i ] = $re( 'pend
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-08' ), SN_RIGHTS_EVIDENCE_OPTION => array( '2026-07' => $many ) );
 sn_rights_evidence_run( $now );
 ok( SN_RIGHTS_EVIDENCE_REFRESH_CAP === count( array_filter( $GLOBALS['__k']['http'], static fn( $u ) => str_contains( $u, 'rights-evidence/' ) ) ), 'J3 the refresh reads at most ' . SN_RIGHTS_EVIDENCE_REFRESH_CAP . ' records per pass (15 pending here)' );
+
+// J6: the capped refresh rotates, so every non-final record is re-read in turn (review follow-up 3).
+$GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-07' => $many ) );
+$seen = array();
+foreach ( array( 1, 2 ) as $pass_no ) {
+	$GLOBALS['__k']['http'] = array();
+	sn_rights_evidence_refresh();
+	$seen = array_merge( $seen, array_filter( $GLOBALS['__k']['http'], static fn( $u ) => str_contains( $u, 'rights-evidence/' ) ) );
+}
+ok( 15 === count( array_unique( $seen ) ) && SN_RIGHTS_EVIDENCE_REFRESH_CAP * 2 === count( $seen ), 'J6 two capped passes over 15 pending records read all 15: the cap rotates from where the last pass stopped, never the same oldest twelve' );
+
+// J4/J5: a confirmation without a numeric block is not final (review follow-up 1).
+$GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-07' => array( 'openai' => $re( 'pending', 41 ), 'anthropic' => $re( 'confirmed', 42 ) ) ) );
+$GLOBALS['__k']['ledger']['rights-evidence/u41/v1.json'] = array( 'payload' => array(), 'ots' => array( 'status' => 'confirmed' ) );
+$GLOBALS['__k']['ledger']['rights-evidence/u42/v1.json'] = array( 'payload' => array(), 'ots' => array( 'status' => 'confirmed', 'bitcoin_block' => 970042 ) );
+sn_rights_evidence_refresh();
+$GLOBALS['__k']['http'] = array();
+sn_rights_evidence_refresh();
+$d = sn_rights_evidence_data()['2026-07'];
+ok( 'pending' === $d['openai']['status'] && ! isset( $d['openai']['block'] ) && in_array( 'https://raw.example/ledger/main/rights-evidence/u41/v1.json', $GLOBALS['__k']['http'], true ), 'J4 a ledger file saying confirmed with no numeric block is not taken: the record stays non-final and the next pass re-reads it' );
+ok( 'confirmed' === $d['anthropic']['status'] && 970042 === $d['anthropic']['block'], 'J5 a record stored confirmed with no block (a worker reply carries none) is re-read until the ledger gives its block' );
 
 // K: the backlog fixes (owner approved, Codex review).
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-08' ) ); $GLOBALS['__k']['mr'] = false;
@@ -371,15 +425,41 @@ $GLOBALS['__k']['post_reply'] = $pending_reply; $GLOBALS['__k']['posts'] = array
 $r = sn_rights_evidence_run( $oct5 + DAY_IN_SECONDS );
 ok( $r['ok'] && 1 === $r['posted'] && 2 === $r['anchored'] && array() === sn_rights_evidence_backlog() && array() === sn_rights_evidence_unposted( '2026-08' ), 'K4 once nothing of the month is unposted, it leaves the backlog' );
 
+// K5-K7: a failing backlog month cannot starve the current one (review follow-up 6).
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-09' ), 'sn_rights_evidence_backlog' => array( '2026-08' ) ); $GLOBALS['__k']['posts'] = array();
+$r = sn_rights_evidence_run( $oct5 );
+ok( '2026-08' === $r['month'] && $r['ok'] && array( '2026-09' ) === sn_rights_evidence_backlog(), 'K5 a held current month is queued even on a pass that works (and dequeues) a backlog month: queued before the target is chosen' );
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array(), 'sn_rights_evidence_backlog' => array( '2026-08' ) );
+$GLOBALS['__k']['post_reply'] = array( 'code' => 502, 'body' => json_encode( array( 'error' => 'x' ) ) );
+$months = array();
+for ( $i = 0; $i < 9; $i++ ) { $months[] = sn_rights_evidence_run( $oct5 + $i * DAY_IN_SECONDS )['month']; }
+ok( array_fill( 0, SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP, '2026-08' ) === array_slice( $months, 0, SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP ) && '2026-09' === $months[ SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP ], 'K6 after ' . SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP . ' failing passes on one backlog month, the next pass works the current month: ' . implode( ',', $months ) );
+ok( '2026-08' === $months[ SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP + 1 ] && array( '2026-08' ) === sn_rights_evidence_backlog(), 'K7 the backlog month stays queued and takes the pass after that one' );
+$GLOBALS['__k']['opt']['sn_rights_evidence_backlog_fails'] = array( '2026-08' => SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP ); $GLOBALS['__k']['posts'] = array();
+$GLOBALS['__k']['transients']['sn_rights_evidence_lock'] = 1;
+$r = sn_rights_evidence_run( $oct5 + 9 * DAY_IN_SECONDS );
+unset( $GLOBALS['__k']['transients']['sn_rights_evidence_lock'] );
+ok( 'a pass is already running' === $r['error'] && array( '2026-08' => SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP ) === get_option( 'sn_rights_evidence_backlog_fails' ) && array() === $GLOBALS['__k']['posts'] && array( '2026-08' ) === sn_rights_evidence_backlog(), 'K7b a pass that finds the lock held leaves the failure counter at the cap (not consumed), posts nothing and dequeues nothing' );
+$r = sn_rights_evidence_run( $oct5 + 9 * DAY_IN_SECONDS );
+ok( '2026-09' === $r['month'] && array() === get_option( 'sn_rights_evidence_backlog_fails' ), 'K7c the next pass that takes the lock consumes the counter: it works the current month and resets the count' );
+$GLOBALS['__k']['post_reply'] = $pending_reply; $GLOBALS['__k']['posts'] = array();
+$r = sn_rights_evidence_run( $oct5 + 9 * DAY_IN_SECONDS );
+ok( $r['ok'] && '2026-08' === $r['month'] && array() === sn_rights_evidence_backlog() && array() === (array) get_option( 'sn_rights_evidence_backlog_fails', array() ), 'K8 a clean pass dequeues the month and clears its failure count' );
+
 // L: the dry run composes from live reads and reaches no POST (behaviour AND source).
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-09' ) ); $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['transients'] = array(); $GLOBALS['__k']['fetch'] = array();
 $dry = sn_rights_evidence_dry_run( '2026-09', $oct5 );
 $sp  = json_decode( $dry['payloads']['openai'] ?? '{}', true );
 ok( $dry['ok'] && array( 'openai' ) === array_keys( $dry['payloads'] ) && 2 === $sp['schema'] && '2026-09' === $sp['month'] && array( 2, 3 ) === array_column( $sp['reservation']['signals']['tdm-policy'], 'version' ) && recanon( $dry['payloads']['openai'] ) === $dry['payloads']['openai'], 'L1 the dry run composes a held month per family (canonical, schema 2, September\'s versions in force)' );
+ok( 'claimed user agent' === ( $sp['identity']['basis'] ?? '' ) && array( 'verified' => 0, 'unverified' => 0, 'unverifiable' => 7 ) == ( $sp['identity']['crawling']['train'] ?? null ), 'L1b the dry run (what the View download streams) carries the identity block' );
 ok( array() === $GLOBALS['__k']['posts'] && ! array_key_exists( SN_RIGHTS_EVIDENCE_OPTION, $GLOBALS['__k']['opt'] ) && array() === $GLOBALS['__k']['transients'] && array( '2026-09' ) === sn_rights_evidence_held( false ), 'L2 and posts nothing, stores no record, takes no lock, lifts no hold' );
 $src = file_get_contents( __DIR__ . '/../inc/rights-evidence-dry-run.php' );
 ok( ! preg_match( '/wp_remote_post|wp_safe_remote_post|sn_rights_evidence_post|sn_rights_evidence_send|sn_rights_evidence_run|SN_RIGHTS_EVIDENCE_OPTION/', $src ), 'L3 structurally: the dry-run file names no POST, no send, no pass and no record option' );
 ok( ! sn_rights_evidence_dry_run( '2026-13' )['ok'] && 'month must be YYYY-MM' === sn_rights_evidence_dry_run( '2026-9' )['error'], 'L4 a malformed month is refused' );
+
+$GLOBALS['__k']['fetch'] = array();
+$win = array_map( static fn( $ym ) => sn_rights_evidence_dry_run( $ym, $oct5 )['error'], array( '2026-10', '2027-01', '2026-07', '2026-06' ) );
+ok( 'month must be complete: the current month and future months cannot be composed' === $win[0] && $win[0] === $win[1] && 'month is past the sensor\'s 90-day window' === $win[2] && $win[2] === $win[3] && array() === $GLOBALS['__k']['fetch'], 'L5 the current month, a future month, and months starting past the 90-day window are refused with a clear error before any sensor read' );
 
 // M: D1 (retraction + erratum): the erratum data per v1 record, never posted.
 $GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => $re( 'confirmed', 7 ) ) ) ); $GLOBALS['__k']['posts'] = array();
@@ -388,6 +468,13 @@ $ep = json_decode( $er['erratum']['openai'] ?? '{}', true );
 ok( $er['ok'] && array( 'openai' ) === array_keys( $er['erratum'] ) && array( 'content_hash' => 'h7', 'ledger_path' => 'rights-evidence/u7/v1.json', 'version' => 1 ) === $ep['corrects'] && SN_RIGHTS_EVIDENCE_ERRATUM_REASON === $ep['reason'] && isset( $ep['reservation']['window'], $ep['reservation']['signals'] ) && '2026-08' === $ep['month'] && ! isset( $ep['supersedes'] ) && ! isset( $ep['schema'] ), 'M1 erratum data per family with a v1 on the ledger: the record corrected, the reason, the reservation in force; not a record (no schema, no supersedes)' );
 $GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => $re( 'conflict', 7 ) ) ) );
 ok( array() === sn_rights_evidence_erratum( '2026-08', $oct5 )['erratum'], 'M1b a 409 conflict kept the ledger\'s own bytes: no erratum is drafted against it' );
+// M3: the erratum is driven by the posted records, not by today's aggregate (review follow-up 8).
+$GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-07' => array( 'openai' => $re( 'confirmed', 7 ), 'cohere' => $re( 'pending', 8 ), 'mistral' => array( 'status' => 'retracted', 'retraction_path' => 'r' ) + $re( 'confirmed', 9 ), 'anthropic' => $re( 'conflict', 10 ), 'google-ai' => array( 'canonical' => '{}', 'ledger_path' => '' ) + $re( 'unanchored', 11 ) ) ) );
+$GLOBALS['__k']['fetch'] = array(); $GLOBALS['__k']['http'] = array();
+$er3 = sn_rights_evidence_erratum( '2026-07', $oct5 );
+$e3  = array_map( static fn( $c ) => json_decode( $c, true ), $er3['erratum'] );
+ok( $er3['ok'] && array( 'cohere', 'mistral', 'openai' ) === array_keys( $e3 ) && 'rights-evidence/u8/v1.json' === $e3['cohere']['corrects']['ledger_path'] && $e3['cohere']['reservation'] === $e3['openai']['reservation'] && isset( $e3['openai']['reservation']['signals'] ), 'M3 every stored v1 with a ledger path gets an erratum (a family the aggregate no longer lists, a retracted one), one reservation for all; a conflict and an unposted entry get none' );
+ok( array() === $GLOBALS['__k']['fetch'] && 1 === count( array_filter( $GLOBALS['__k']['http'], static fn( $u ) => str_ends_with( $u, '/index.json' ) ) ), 'M4 the erratum reads no sensor (a month past the 90-day window still gets one) and the ledger index once' );
 ok( array() === $GLOBALS['__k']['posts'] && false === strpos( SN_RIGHTS_EVIDENCE_ERRATUM_REASON, "\u{2014}" ), 'M2 the erratum posts nothing' );
 
 // N: the retraction, one signed POST /retract per eligible record (Unreleased).

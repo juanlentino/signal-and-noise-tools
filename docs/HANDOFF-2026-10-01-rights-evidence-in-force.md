@@ -99,6 +99,21 @@ to `openai`, 90 days of rights rows is 22 rows and reaches 2026-08-11.
 - **F6.** The envelope's `taxonomy_version` rides the fetch result; the
   taxonomy is the envelope's, else the first row naming one. Empty refuses.
 - **Schema.** `schema: 2` on every new payload; v1 records are implicitly 1.
+- **Identity (owner rulings 2026-10-01; ledger checker PR #35 requires it for
+  schema 2).** `crawling.reads` and `crawling.train` stay totals by claimed user
+  agent. Every schema-2 record also carries `identity`: `basis` ("claimed user
+  agent"), `verification` (`source` "cloudflare verified bot category",
+  `since` 2026-09-27T15:49:59Z, the first aggregate row with a non-empty
+  `verified_bot`), `crawling.reads` and `crawling.train` each split into
+  `verified` / `unverified` / `unverifiable`, and `rights_files` ("claimed user
+  agent; the rights stream records no verification"). Aggregate rows are per
+  day, so a day wholly at or after `since` counts as verified (a verified-bot
+  category) or unverified (none); earlier days, and the partial day
+  verification began on, count as unverifiable. Each triple sums to its count.
+  `unverified` means only that Cloudflare did not match the request to a
+  verified bot. Composed in `sn_rights_evidence_compose()`, pure; the dry run
+  and the View download carry it. A composed September-shaped payload passes
+  the ledger's `evidenceDivergences()`.
 - **Backlog fixes (Codex review, owner approved).** (1) A held month is
   queued before the readiness check. (2) The 90-day window guards composition
   only: stored unposted bytes are re-sent whatever their age. (3) Every stored
@@ -164,4 +179,7 @@ bug; after it, a pass reads only pending versions.
 3. **Lifting September.** The hold stands. The View door shows exactly what
    would be posted before the Lift.
 4. **GPTBot.** Watch the network column; decide nothing until identity is
-   verified.
+   verified. An observation, not a finding: since verification began, most
+   requests naming a training crawler appear to have come from networks other
+   than the named company's and were not verified. That alone does not say who
+   sent them; the identity block records the split and makes no claim.
