@@ -104,7 +104,12 @@ $main = "sumIf(_sample_interval, blob1 = 'pv') AS views";
 // ── Window days: exactly the days the floored SQL window reads. ──
 sn_analytics_rollup_window( false );
 $w = sn_analytics_rollup_window_days( 'America/New_York' );
-ok( $day( 7 ) === $w[0] && $day( 0 ) === end( $w ) && 8 === count( $w ), 'nightly window: 7 days ago (the floored lower bound) through today, ' . count( $w ) . ' days' );
+// The window reads its first day at now+300 s and its last at now-300 s (the
+// edge skew in sn_analytics_rollup_window_days), so expect the same: within
+// five minutes of New York midnight the plain $day() straddles the boundary.
+$at  = static function ( $offset, $ago ) use ( $ny ) { return ( new DateTimeImmutable( '@' . ( time() + $offset ) ) )->setTimezone( $ny )->modify( "-{$ago} days" )->format( 'Y-m-d' ); };
+$len = (int) round( ( strtotime( $at( -300, 0 ) . ' 12:00 UTC' ) - strtotime( $at( 300, 7 ) . ' 12:00 UTC' ) ) / 86400 ) + 1;
+ok( $at( 300, 7 ) === $w[0] && $at( -300, 0 ) === end( $w ) && $len === count( $w ) && count( $w ) >= 7, 'nightly window: 7 days ago (the floored lower bound) through today, ' . count( $w ) . ' days' );
 sn_analytics_rollup_window( array( 'days' => 90, 'until' => 83 ) );
 $w = sn_analytics_rollup_window_days( '' );
 ok( $day( 90, new DateTimeZone( 'UTC' ) ) === $w[0] && $day( 84, new DateTimeZone( 'UTC' ) ) === end( $w ) && 7 === count( $w ), 'bounded batch: 90..84 days ago in UTC; day 83 (the exclusive upper bound) is not named' );
