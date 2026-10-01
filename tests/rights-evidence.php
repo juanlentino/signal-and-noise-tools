@@ -508,7 +508,10 @@ ok( 2 === $r['failed'] && 'unanchored' === sn_rights_evidence_data()['2026-08'][
 // R4: Post now, a composed and unheld month, whatever its window.
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array() ); $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['post_reply'] = $pending_reply;
 sn_rights_evidence_run( $now );
-ok( array( '2026-08' => $now + $W ) === sn_rights_evidence_pending() && sn_rights_evidence_in_review( '2026-08', $now ) && ! sn_rights_evidence_in_review( '2026-08', $now + $W ), 'R4 pending lists the composed, unposted, unheld month with its review_until; in review until then' );
+ok( array( '2026-08' => $now + $W - $S ) === sn_rights_evidence_pending() && sn_rights_evidence_in_review( '2026-08', $now ) && ! sn_rights_evidence_in_review( '2026-08', $now + $W ), 'R4 (changed) pending lists the composed, unposted, unheld month with when a pass may post it (review_until less the slack hour); in review until then' );
+// Codex P1 on #1821: what pending names and what the pass acts on are ONE moment, so no consumer can say time remains while the pass posts.
+$at = sn_rights_evidence_pending()['2026-08'];
+ok( sn_rights_evidence_in_review( '2026-08', $at - 1 ) && ! sn_rights_evidence_in_review( '2026-08', $at ) && str_contains( sn_rights_evidence_window_words( $at, $at - 1 ), '1 h left' ) && str_starts_with( sn_rights_evidence_window_words( $at, $at ), 'window passed' ), 'R4b the time pending names is the moment the pass may post: in review one second before, out of review at it, and the words agree on both sides' );
 $GLOBALS['__k']['transients']['sn_rights_evidence_lock'] = 1;
 ok( 'busy' === sn_rights_evidence_post_now( '2026-08', $now + 60 )['result'] && array() === $GLOBALS['__k']['posts'], 'R4b Post now while a pass runs: busy, nothing posted' );
 $GLOBALS['__k']['transients'] = array();
@@ -528,7 +531,7 @@ $GLOBALS['__k']['post_reply'] = $pending_reply;
 $o = snt_ability_rights_evidence();
 ok( array( '2026-08' => array( 'the worker refused anthropic: crawling: by_day does not sum' ) ) === (array) $o['hold_reasons'] && 'refused' === ( (array) $o['months'] )['2026-08']['anthropic']['status'] && isset( ( (array) $o['months'] )['2026-08']['anthropic']['divergences'] ) && $now + $W === ( (array) $o['months'] )['2026-08']['openai']['review_until'] && '{}' === json_encode( $o['in_review'] ), 'R5 the read carries hold_reasons, refused entries with their divergences, review_until per record, and in_review ({} when nothing waits)' );
 $GLOBALS['__k']['opt']['sn_rights_evidence_hold'] = array();
-ok( array( '2026-08' => gmdate( 'c', $now + $W ) ) === (array) snt_ability_rights_evidence()['in_review'] && '{}' === json_encode( snt_ability_rights_evidence()['hold_reasons'] ), 'R5b in_review names each composed, unheld month and when it may post; a reason for a month no longer held is not reported (as on the twins and in the watch)' );
+ok( array( '2026-08' => gmdate( 'c', $now + $W - $S ) ) === (array) snt_ability_rights_evidence()['in_review'] && '{}' === json_encode( snt_ability_rights_evidence()['hold_reasons'] ), 'R5b in_review names each composed, unheld month and when it may post; a reason for a month no longer held is not reported (as on the twins and in the watch)' );
 $an = $GLOBALS['__k']['abilities']['signal-noise/rights-evidence-now'];
 ok( str_contains( $an['description'], 'only what is composed, past its review window and not held' ) && isset( $an['output_schema']['properties']['in_review'], $an['output_schema']['properties']['refused'] ), 'R6 rights-evidence-now says it posts only past the window, and reports in_review and refused' );
 
@@ -582,8 +585,8 @@ sn_rights_evidence_hold_month( '2026-08', str_repeat( 'a', 299 ) . 'é and more'
 $cut = sn_rights_evidence_hold_reasons()['2026-08'][0];
 ok( str_repeat( 'a', 299 ) === $cut && mb_check_encoding( $cut, 'UTF-8' ) && strlen( $cut ) <= SN_RIGHTS_EVIDENCE_REASON_MAX, 'R8h a reason cut at 300 bytes drops a character that would straddle the boundary: valid UTF-8, never more than 300 bytes' );
 // Families in different windows: the month reports the earliest.
-$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array(), SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => array( 'review_until' => 500 ) + $due( 'openai' ), 'anthropic' => array( 'review_until' => 900 ) + $due( 'anthropic' ) ) ) );
-ok( array( '2026-08' => 500 ) === sn_rights_evidence_pending(), 'R8i a month whose families have different windows reports the earliest review_until, when the first may post' );
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array(), SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => array( 'review_until' => 500000 ) + $due( 'openai' ), 'anthropic' => array( 'review_until' => 900000 ) + $due( 'anthropic' ) ) ) );
+ok( array( '2026-08' => 500000 - $S ) === sn_rights_evidence_pending(), 'R8i a month whose families have different windows reports the earliest, as the moment a pass may first post it' );
 
 // L: the dry run composes from live reads and reaches no POST (behaviour AND source).
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-09' ) ); $GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['transients'] = array(); $GLOBALS['__k']['fetch'] = array();

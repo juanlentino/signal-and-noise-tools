@@ -116,9 +116,11 @@ function sn_rights_evidence_in_review( $ym, $now ) {
 }
 
 /**
- * Months with composed, unposted bytes that are not held: month => the
- * earliest review_until among its unposted entries, when the first of them may
- * post (0 when one carries none: it is due).
+ * Months with composed, unposted bytes that are not held: month => when a
+ * pass may first post one of them, the earliest review_until among its
+ * unposted entries less SN_RIGHTS_EVIDENCE_REVIEW_SLACK (0 when one carries
+ * none: it is due). Every consumer (the watch, the ability's in_review, the
+ * admin words) reads this, so none names a later time than the pass acts on.
  *
  * @return array<string,int> Oldest month first.
  */
@@ -132,7 +134,10 @@ function sn_rights_evidence_pending() {
 		foreach ( (array) $families as $e ) {
 			if ( is_array( $e ) && '' !== (string) ( $e['canonical'] ?? '' ) && '' === (string) ( $e['ledger_path'] ?? '' ) ) {
 				// The earliest: each entry posts on its own window.
-				$until               = (int) ( $e['review_until'] ?? 0 );
+				// When a pass may post it: the slack hour before review_until,
+				// so the watch, the ability and the admin all name the moment
+				// the pass acts on (0 stays 0: due).
+				$until               = max( 0, (int) ( $e['review_until'] ?? 0 ) - SN_RIGHTS_EVIDENCE_REVIEW_SLACK );
 				$out[ (string) $ym ] = isset( $out[ (string) $ym ] ) ? min( $out[ (string) $ym ], $until ) : $until;
 			}
 		}
@@ -144,15 +149,14 @@ function sn_rights_evidence_pending() {
 /**
  * When a pending month posts, in words.
  *
- * @param int $until review_until.
+ * @param int $until When a pass may post it (sn_rights_evidence_pending()).
  * @param int $now   Unix time.
  * @return string
  */
 function sn_rights_evidence_window_words( $until, $now ) {
-	if ( sn_rights_evidence_window_closed( $until, $now ) ) {
+	if ( $until <= $now ) {
 		return 'window passed, posts at the next pass';
 	}
-	$until -= SN_RIGHTS_EVIDENCE_REVIEW_SLACK; // When a pass may post it.
 	return sprintf( 'posts after %s UTC (%d h left)', gmdate( 'Y-m-d H:i', $until ), (int) ceil( ( $until - $now ) / 3600 ) );
 }
 
