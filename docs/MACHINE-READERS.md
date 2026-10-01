@@ -303,9 +303,10 @@ filter through `snt_mr_rights_filter()`: the family must be one of
 `snt_mr_ai_training_families()`, each purpose one of `snt_mr_valid_purposes()`.
 A refused filter returns `bad_filter` with no request; it never falls back to
 an unfiltered read. The filter is part of the cache key
-(`sn_mr_rows_<days>_rights_f<family>_x<purposes>`), and
-`snt_mr_cache_flush()` deletes the rights-evidence shape (each training family,
-`exclude_purpose=dev,ops`) for every window. Rights evidence reads the stream
+(`sn_mr_rows_<days>_rights_f<family>_x<purposes>_g<generation>`), and
+`snt_mr_cache_flush()` bumps the generation (option `snt_mr_cache_gen`) instead
+of deleting every possible filtered key, so after a flush every filtered read
+refetches; unfiltered keys carry no generation and are deleted as before. Rights evidence reads the stream
 once per family per pass with `exclude_purpose=dev,ops` (`SNT_MR_RIGHTS_EXCLUDE`):
 our own probes and scripted clients are not evidence of anything.
 
@@ -347,8 +348,51 @@ entry is `{block, content_hash, valid_from, valid_to, version}`:
 
 Every version in force at any point of `[window.start, window.end]` is listed.
 Confirmed versions and block times never change, so they are cached for good in
-`sn_rights_evidence_chain`; a missing version file or a block time the explorer
-cannot give refuses the record rather than shipping a reservation with a hole.
+`sn_rights_evidence_chain` (versions per ledger base URL, so another owner/repo
+never reuses them); a malformed `rights_signals` row in the index, a missing
+version file or a block time the explorer cannot give refuses the record rather
+than shipping a reservation with a hole.
+
+### Identity
+
+`crawling.reads` and `crawling.train` count requests by the user agent they
+claimed (owner ruling, 2026-10-01). The `identity` block says how much of each
+count could be checked:
+
+```json
+"identity": {
+  "basis": "claimed user agent",
+  "verification": { "source": "cloudflare verified bot category", "since": "2026-09-27T15:49:59Z" },
+  "crawling": {
+    "reads": { "verified": 0, "unverified": 0, "unverifiable": 0 },
+    "train": { "verified": 0, "unverified": 0, "unverifiable": 0 }
+  },
+  "rights_files": "claimed user agent; the rights stream records no verification"
+}
+```
+
+- `verification.source`: the verified-bot category Cloudflare sets on a request
+  it has matched to a known bot operator (`verified_bot` on an aggregate row,
+  Worker v1.27.0, set by a zone Transform Rule, so a client cannot set it).
+- `verification.since`: when the sensor began recording it, the first
+  aggregate row with a non-empty `verified_bot`
+  (`SN_RIGHTS_EVIDENCE_VERIFIED_SINCE`).
+- `verified`: requests on a day wholly at or after `since` that carried a
+  verified-bot category.
+- `unverified`: requests on such a day that carried none. This means the
+  request was not matched to a verified bot. On its own it says nothing about
+  who sent the request.
+- `unverifiable`: requests on a day before `since`, when nothing was recorded.
+  Aggregate rows are per UTC day, so the partial day verification began on
+  (2026-09-27) is unverifiable as a whole.
+- Each triple sums to its crawling count, and no `train` component exceeds the
+  matching `reads` component. A window ending before `since` has no verified or
+  unverified requests; a window starting at or after it has no unverifiable
+  ones. The ledger's checker (`rights-evidence-checks.mjs`) enforces all of
+  this for schema 2.
+- `rights_files`: the rights-file read blocks (`rights_reads`,
+  `retrieval_reads`, `unlabelled_reads`) are by claimed user agent only. The
+  rights stream records no verification.
 
 ### Schema and the rest
 
@@ -357,9 +401,11 @@ cannot give refuses the record rather than shipping a reservation with a hole.
   (else the first row that names one); the version endpoint does not report it.
   An empty taxonomy refuses the record.
 - `wp sn rights-evidence dry-run <YYYY-MM>` prints the payloads a month would
-  carry today; `--erratum` prints, per posted v1 record, the reservation
-  that was in force, for the ledger's erratum document (a correction on the
-  ledger is a retraction, never a v2). Neither posts; Monitoring > Machine Readers has a View
+  carry today (identity included); only a complete month whose start is within
+  the sensor's 90-day window can be composed. `--erratum` prints, per posted v1
+  record with a ledger path (retracted ones included), the reservation that was
+  in force, for the ledger's erratum document (a correction on the ledger is a
+  retraction, never a v2); it reads no sensor. Neither posts; Monitoring > Machine Readers has a View
   door per held month and a Lift button (both twins).
 
 ### Retracting a record
