@@ -37,7 +37,7 @@ const SNT_MR_RIGHTS_EXCLUDE = array( 'dev', 'ops' );
 function snt_mr_fetch( $days = 30, $view = 'aggregate', array $filter = array() ) { $GLOBALS['__k']['fetch'][] = array( $days, $view, (string) ( $filter['family'] ?? '' ) ); $GLOBALS['__k']['filters'][] = $filter; return $GLOBALS['__k'][ 'rows_' . $view ] ?? array( 'ok' => false, 'rows' => array(), 'error' => 'not_configured' ); }
 function snt_mr_sensor_info() { return $GLOBALS['__k']['sensor']; }
 function snt_mr_ai_training_families() { return array( 'openai', 'anthropic', 'google-ai', 'mistral' ); }
-function sn_prov_integrity_ledger_base() { return 'https://raw.example/ledger/main/'; }
+function sn_prov_integrity_ledger_base() { return $GLOBALS['__k']['base'] ?? 'https://raw.example/ledger/main/'; }
 // One seam for every read: the ledger index, ledger files by path, and the explorer (height -> hash -> block).
 function sn_prov_integrity_http_fetch( $url ) {
 	$GLOBALS['__k']['http'][] = $url;
@@ -120,12 +120,16 @@ ok( array( 'license-xml', 'tdm-policy' ) === array_keys( $hist ) && 3 === count(
 $GLOBALS['__k']['http'] = array();
 $hist2 = sn_rights_evidence_signal_history( $index );
 ok( $hist2 === $hist && array( 'https://raw.example/ledger/main/rights-signals/license-xml/v2.json' ) === $GLOBALS['__k']['http'], 'B2 confirmed versions and block times are cached for good: the second walk reads only the pending version' );
+$GLOBALS['__k']['base'] = 'https://raw.example/other-ledger/main/'; $GLOBALS['__k']['http'] = array();
+$hist3 = sn_rights_evidence_signal_history( $index );
+ok( $hist3 === $hist && in_array( 'https://raw.example/other-ledger/main/rights-signals/tdm-policy/v1.json', $GLOBALS['__k']['http'], true ) && 5 === count( $GLOBALS['__k']['http'] ), 'B2b the permanent version cache is per ledger: another owner/repo re-reads every version, never reuses the first ledger\'s' );
+unset( $GLOBALS['__k']['base'] );
 $GLOBALS['__k']['opt'] = array();
 $keep = $GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json']; unset( $GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json'] );
 ok( null === sn_rights_evidence_signal_history( $index ), 'B3 a missing version file is null: a reservation with a hole is refused' );
 $GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json'] = $keep;
 $GLOBALS['__k']['opt'] = array(); unset( $GLOBALS['__k']['blocks'][200] );
-ok( null === sn_rights_evidence_signal_history( $index ) && ! isset( $GLOBALS['__k']['opt']['sn_rights_evidence_chain']['versions']['tdm-policy'][2] ), 'B4 a confirmed block whose time the explorer cannot give is null, and nothing is cached for it' );
+ok( null === sn_rights_evidence_signal_history( $index ) && ! isset( $GLOBALS['__k']['opt']['sn_rights_evidence_chain']['versions']['https://raw.example/ledger/main/']['tdm-policy'][2] ), 'B4 a confirmed block whose time the explorer cannot give is null, and nothing is cached for it' );
 $GLOBALS['__k']['blocks'][200] = '2026-08-15T12:00:00Z'; $GLOBALS['__k']['opt'] = array();
 $keep = $GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json']; $GLOBALS['__k']['ledger']['rights-signals/tdm-policy/v2.json']['content_hash'] = 'not-a-hash';
 ok( null === sn_rights_evidence_signal_history( $index ), 'B4b a version file with no sha256 content_hash is null: a version cannot be attested in force without its hash' );

@@ -10,7 +10,8 @@
  * ledger states it; the block's time comes from the same public explorer the
  * provenance worker already reads (blockstream.info, Esplora). A confirmed
  * version and a block time never change, so both are cached for good in one
- * option; a pending version is read again next pass.
+ * option (versions keyed by the ledger's base URL, so switching owner/repo
+ * never reuses another ledger's); a pending version is read again next pass.
  *
  * Also the refresh of stored records (F5): a posted record's status and block
  * are re-read from the ledger file the worker wrote, never from our memory.
@@ -106,11 +107,14 @@ function sn_rights_evidence_signal_history( array $index ) {
 		}
 		$signals[ $slug ] = $current;
 	}
-	$cache = (array) get_option( 'sn_rights_evidence_chain', array() );
-	$out   = array();
+	// Versions are cached per ledger (owner/repo, by its base URL): another
+	// ledger's v1 is another document. Block times are Bitcoin's, shared.
+	$ledger = function_exists( 'sn_prov_integrity_ledger_base' ) ? sn_prov_integrity_ledger_base() : '';
+	$cache  = (array) get_option( 'sn_rights_evidence_chain', array() );
+	$out    = array();
 	foreach ( $signals as $slug => $current ) {
 		for ( $n = 1; $n <= $current; $n++ ) {
-			$v = $cache['versions'][ $slug ][ $n ] ?? null;
+			$v = $cache['versions'][ $ledger ][ $slug ][ $n ] ?? null;
 			if ( ! is_array( $v ) ) {
 				$doc = sn_rights_evidence_ledger_json( 'rights-signals/' . $slug . '/v' . $n . '.json' );
 				if ( null === $doc ) {
@@ -126,8 +130,8 @@ function sn_rights_evidence_signal_history( array $index ) {
 				}
 				$v = array( 'version' => $n, 'content_hash' => (string) ( $doc['content_hash'] ?? '' ), 'block' => $block, 'anchored_at' => $at );
 				if ( null !== $block ) {
-					$cache                               = (array) get_option( 'sn_rights_evidence_chain', array() );
-					$cache['versions'][ $slug ][ $n ]    = $v; // Confirmed: immutable, never read again.
+					$cache                                       = (array) get_option( 'sn_rights_evidence_chain', array() );
+					$cache['versions'][ $ledger ][ $slug ][ $n ] = $v; // Confirmed: immutable, never read again.
 					update_option( 'sn_rights_evidence_chain', $cache, false );
 				}
 			}
