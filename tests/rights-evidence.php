@@ -207,6 +207,31 @@ ok( array( 'anthropic', 'openai' ) === sn_rights_evidence_families( $aggregate, 
 ok( null === sn_rights_evidence_compose( 'openai', $m, $aggregate, $rights, $res, array( 'version' => '1.25.4', 'taxonomy' => '' ), 'https://x.test', $now ) && null === sn_rights_evidence_compose( 'openai', $m, $aggregate, $rights, $res, array(), 'https://x.test', $now ), 'C11 F6: no taxonomy, no record (null, never shipped blank)' );
 ok( '1.4' === sn_rights_evidence_taxonomy( $aggregate ) && '1.3.1' === sn_rights_evidence_taxonomy( array( 'taxonomy_version' => '1.3.1' ) + $aggregate ) && '' === sn_rights_evidence_taxonomy( array( 'rows' => array( array( 'taxonomy_version' => '' ) ) ) ), 'C12 F6: the envelope taxonomy first, else the first row that names one, else empty' );
 
+// C13-C18: the identity block (schema 2, owner rulings 2026-10-01; ledger checker PR #35).
+$vb = static fn( $day, $purpose, $hits, $vbot ) => array( 'family' => 'openai', 'day' => $day, 'surface' => 'html', 'purpose' => $purpose, 'hits' => $hits, 'taxonomy_version' => '1.4', 'agent' => 'gptbot', 'network' => '' === $vbot ? 'Hetzner Online GmbH' : 'Microsoft Corporation', 'verified_bot' => $vbot );
+$sep_agg = array( 'ok' => true, 'truncated' => false, 'rows' => array(
+	$vb( '2026-09-02', 'train', 10, '' ),             // before the start: unverifiable
+	$vb( '2026-09-27', 'train', 5, 'AI Crawler' ),    // the start day itself: unverifiable, even verified
+	$vb( '2026-09-28', 'train', 4, 'AI Crawler' ),    // first whole day: verified
+	$vb( '2026-09-28', 'train', 6, '' ),              // first whole day, no category: unverified
+	$vb( '2026-09-29', 'search', 3, 'Search Engine Crawler' ),
+	$vb( '2026-09-30', 'search', 2, '' ),
+) );
+$ps  = sn_rights_evidence_compose( 'openai', $sep, $sep_agg, $rights, $res_sep, $sensor, 'https://x.test/', $now );
+$idn = $ps['identity'];
+ok( 'claimed user agent' === $idn['basis'] && array( 'source' => 'cloudflare verified bot category', 'since' => '2026-09-27T15:49:59Z' ) === $idn['verification'] && 'claimed user agent; the rights stream records no verification' === $idn['rights_files'] && SN_RIGHTS_EVIDENCE_VERIFIED_SINCE === $idn['verification']['since'], 'C13 the identity block carries the exact strings the ledger checker requires' );
+ok( array( 'verified' => 7, 'unverified' => 8, 'unverifiable' => 15 ) === $idn['crawling']['reads'] && array( 'verified' => 4, 'unverified' => 6, 'unverifiable' => 15 ) === $idn['crawling']['train'] && 30 === $ps['crawling']['reads'] && 25 === $ps['crawling']['train'], 'C14 each triple sums to its crawling count (reads 30, train 25) and no train component exceeds its reads component' );
+ok( 15 === $idn['crawling']['train']['unverifiable'], 'C15 the partial start day (2026-09-27, verification began 15:49:59 UTC) counts as unverifiable, even a row Cloudflare verified' );
+ok( 4 === $idn['crawling']['train']['verified'] && 6 === $idn['crawling']['train']['unverified'], 'C16 after the start a row with a verified-bot category is verified, a row with \'\' is unverified' );
+$ida = $p['identity']['crawling'];
+ok( array( 'verified' => 0, 'unverified' => 0, 'unverifiable' => 50 ) === $ida['reads'] && array( 'verified' => 0, 'unverified' => 0, 'unverifiable' => 41 ) === $ida['train'], 'C17 a window ending before verification began (August) is all unverifiable' );
+$oct = array( 'month' => '2026-10', 'start' => '2026-10-01', 'end' => '2026-10-31' );
+$ido = sn_rights_evidence_compose( 'openai', $oct, array( 'ok' => true, 'rows' => array( $vb( '2026-10-01', 'train', 2, 'AI Crawler' ), $vb( '2026-10-02', 'train', 3, '' ) ) ), $rights, $res_sep, $sensor, 'https://x.test', $now )['identity']['crawling'];
+ok( array( 'verified' => 2, 'unverified' => 3, 'unverifiable' => 0 ) === $ido['reads'] && $ido['reads'] === $ido['train'], 'C18 a window starting after verification began (October) has nothing unverifiable' );
+if ( getenv( 'SN_RE_SEPT_JSON' ) ) {
+	file_put_contents( getenv( 'SN_RE_SEPT_JSON' ), json_encode( array( 'uid' => sn_rights_evidence_uuid( 'openai', '2026-09', 'https://x.test/' ), 'record' => array( 'payload' => json_decode( sn_prov_canonical_json( $ps ) ) ), 'august' => array( 'uid' => sn_rights_evidence_uuid( 'openai', '2026-08', 'https://x.test/' ), 'payload' => json_decode( sn_prov_canonical_json( $p ) ) ) ), JSON_UNESCAPED_SLASHES ) );
+}
+
 // D: the run.
 $GLOBALS['__k']['rows_aggregate'] = $aggregate; $GLOBALS['__k']['rows_rights'] = $rights; $GLOBALS['__k']['index'] = $index;
 $pending_reply = static function ( $url, $args ) { $b = json_decode( $args['body'], true ); return array( 'code' => 202, 'body' => json_encode( array( 'ok' => true, 'ots_status' => 'pending', 'ledger_path' => 'rights-evidence/' . $b['note_uid'] . '/v1.json' ) ) ); };
@@ -417,6 +442,7 @@ $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-09' ) 
 $dry = sn_rights_evidence_dry_run( '2026-09', $oct5 );
 $sp  = json_decode( $dry['payloads']['openai'] ?? '{}', true );
 ok( $dry['ok'] && array( 'openai' ) === array_keys( $dry['payloads'] ) && 2 === $sp['schema'] && '2026-09' === $sp['month'] && array( 2, 3 ) === array_column( $sp['reservation']['signals']['tdm-policy'], 'version' ) && recanon( $dry['payloads']['openai'] ) === $dry['payloads']['openai'], 'L1 the dry run composes a held month per family (canonical, schema 2, September\'s versions in force)' );
+ok( 'claimed user agent' === ( $sp['identity']['basis'] ?? '' ) && array( 'verified' => 0, 'unverified' => 0, 'unverifiable' => 7 ) == ( $sp['identity']['crawling']['train'] ?? null ), 'L1b the dry run (what the View download streams) carries the identity block' );
 ok( array() === $GLOBALS['__k']['posts'] && ! array_key_exists( SN_RIGHTS_EVIDENCE_OPTION, $GLOBALS['__k']['opt'] ) && array() === $GLOBALS['__k']['transients'] && array( '2026-09' ) === sn_rights_evidence_held( false ), 'L2 and posts nothing, stores no record, takes no lock, lifts no hold' );
 $src = file_get_contents( __DIR__ . '/../inc/rights-evidence-dry-run.php' );
 ok( ! preg_match( '/wp_remote_post|wp_safe_remote_post|sn_rights_evidence_post|sn_rights_evidence_send|sn_rights_evidence_run|SN_RIGHTS_EVIDENCE_OPTION/', $src ), 'L3 structurally: the dry-run file names no POST, no send, no pass and no record option' );

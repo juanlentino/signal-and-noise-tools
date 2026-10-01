@@ -307,5 +307,10 @@ $GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'wo
 $st = snt_mr_crawler_list_status();
 ok( '1' === (string) ( $GLOBALS['__options']['sn_mr_crawler_lastgood']['last_check_drift'] ?? '' ), 'a newer verdict (incl. a drift flip) replaces the stored one' );
 
+echo "\nGroup: the identity block reads verified_bot off the normalized aggregate\n";
+// Shaped like a real worker 1.29 aggregate row (Analytics Engine SQL returns numbers as strings).
+$worker_row = array( 'family' => 'openai', 'surface' => 'note', 'day' => '2026-09-28', 'hits' => '4', 'vendor' => 'OpenAI', 'agent' => 'GPTBot', 'purpose' => 'train', 'taxonomy_version' => '1.4', 'training_corpus_source' => '0', 'first_party' => '1', 'markdown_requested' => '0', 'signed_agent' => '', 'verified_bot' => 'AI Crawler', 'network' => 'Microsoft Corporation' );
+$nr = snt_mr_normalize_rows( array( $worker_row, array( 'verified_bot' => '' ) + $worker_row ) );
+ok( 'AI Crawler' === $nr[0]['verified_bot'] && '' === $nr[1]['verified_bot'] && 'Microsoft Corporation' === $nr[0]['network'] && 4 === $nr[0]['hits'] && '2026-09-28' === $nr[0]['day'], 'the normalizer keeps verified_bot (the worker\'s literal name) and network on an aggregate row; \'\' stays \'\'' );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

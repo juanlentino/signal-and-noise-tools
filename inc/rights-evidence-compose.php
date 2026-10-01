@@ -10,7 +10,8 @@
  * `rights-evidence/<uuid>/v1` (worker 1.21.0), so the triple outlives the
  * sensor's retention. Nothing here fetches or writes; inc/rights-evidence.php
  * does both and calls these. Schema 2 (Unreleased): the reservation lists the
- * versions in force during the month, reads are split by purpose.
+ * versions in force during the month, reads are split by purpose, and an
+ * identity block says how much of each crawling count was verified.
  *
  * @package SignalNoiseTools
  * @since 17.0.0
@@ -72,6 +73,31 @@ function sn_rights_evidence_month( $now ) {
  */
 function sn_rights_evidence_in_window( $start, $now ) {
 	return $now - $start <= 89 * DAY_IN_SECONDS;
+}
+
+/**
+ * When the sensor began recording Cloudflare's verified-bot category: the
+ * first aggregate row with a non-empty verified_bot (worker 1.27.0's blob12),
+ * a sensor fact read off the data, not a configuration.
+ */
+const SN_RIGHTS_EVIDENCE_VERIFIED_SINCE = '2026-09-27T15:49:59Z';
+
+/**
+ * The identity class of one aggregate row. PURE. Rows are per UTC day, so a
+ * day is classed whole: a day that starts at or after verification began is
+ * verified (a verified-bot category) or unverified (''); a day before it, or
+ * the partial day it began on (2026-09-27), is unverifiable, since its rows
+ * cannot be split at 15:49:59.
+ *
+ * @param string $day          YYYY-MM-DD.
+ * @param string $verified_bot The row's verified_bot ('' when none).
+ * @return string verified, unverified or unverifiable.
+ */
+function sn_rights_evidence_identity_class( $day, $verified_bot ) {
+	if ( $day . 'T00:00:00Z' < SN_RIGHTS_EVIDENCE_VERIFIED_SINCE ) {
+		return 'unverifiable';
+	}
+	return '' !== (string) $verified_bot ? 'verified' : 'unverified';
 }
 
 /** The record's schema. v1 records (17.0.0 to 19.9.0) carry no field and are implicitly 1. */
@@ -227,6 +253,8 @@ function sn_rights_evidence_compose( $family, array $month, array $aggregate, ar
 	$reads      = 0;
 	$train      = 0;
 	$max_day    = '';
+	$triple     = array( 'verified' => 0, 'unverified' => 0, 'unverifiable' => 0 );
+	$identity   = array( 'reads' => $triple, 'train' => $triple );
 	foreach ( (array) ( $aggregate['rows'] ?? array() ) as $row ) {
 		$day = (string) ( $row['day'] ?? '' );
 		if ( $day > $max_day ) {
@@ -240,6 +268,9 @@ function sn_rights_evidence_compose( $family, array $month, array $aggregate, ar
 		$is_train = 'train' === $purpose ? $hits : 0;
 		$reads  += $hits;
 		$train  += $is_train;
+		$class   = sn_rights_evidence_identity_class( $day, (string) ( $row['verified_bot'] ?? '' ) );
+		$identity['reads'][ $class ] += $hits;
+		$identity['train'][ $class ] += $is_train;
 		$days[ $day ]['reads'] = ( $days[ $day ]['reads'] ?? 0 ) + $hits;
 		$days[ $day ]['train'] = ( $days[ $day ]['train'] ?? 0 ) + $is_train;
 		$surface = (string) ( $row['surface'] ?? '' );
@@ -268,6 +299,16 @@ function sn_rights_evidence_compose( $family, array $month, array $aggregate, ar
 			'by_day'     => (object) $days,
 			'by_surface' => (object) $by_surface,
 			'complete'   => empty( $aggregate['truncated'] ) || $max_day >= $month['end'],
+		),
+		// Owner rulings 2026-10-01: crawling counts stay by claimed user
+		// agent; this says how much of each could be checked against
+		// Cloudflare's verified-bot category. The rights stream records no
+		// verification, so the read blocks are by claimed user agent only.
+		'identity'    => array(
+			'basis'        => 'claimed user agent',
+			'verification' => array( 'source' => 'cloudflare verified bot category', 'since' => SN_RIGHTS_EVIDENCE_VERIFIED_SINCE ),
+			'crawling'     => $identity,
+			'rights_files' => 'claimed user agent; the rights stream records no verification',
 		),
 		'sensor'      => array(
 			'version'  => (string) ( $sensor['version'] ?? '' ),
