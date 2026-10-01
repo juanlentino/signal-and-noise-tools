@@ -9,6 +9,7 @@
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; } else { $fail++; echo "FAIL: $m\n"; } }
 
@@ -248,10 +249,11 @@ $d = sn_rights_evidence_data();
 ok( 'composed' === $d['2026-08']['openai']['status'] && $now + 3 * DAY_IN_SECONDS === $d['2026-08']['openai']['review_until'] && array( 'reads' => 50, 'train' => 41 ) === $d['2026-08']['openai']['summary'] && '' !== $d['2026-08']['openai']['canonical'], 'D1b stored composed with review_until = compose time + 72 h and the summary (reads, train) the jump rule compares' );
 ok( array( array( 51, 'aggregate', '' ), array( 51, 'rights', 'anthropic' ), array( 51, 'rights', 'openai' ) ) === $GLOBALS['__k']['fetch'] && array( 'dev', 'ops' ) === $GLOBALS['__k']['filters'][1]['exclude_purpose'], 'D6 the window reaches back past the first of the month (51 days); the aggregate read ONCE, the rights stream once PER FAMILY, filtered to that family with ops,dev excluded' );
 ok( str_ends_with( $GLOBALS['__k']['index_url'], '/index.json' ), 'D7 the reservation starts from the ledger index' );
-$r = sn_rights_evidence_run( $now + $W - 1 );
-ok( $r['ok'] && 0 === $r['composed'] && 0 === $r['posted'] && 2 === $r['in_review'] && array() === $GLOBALS['__k']['posts'], 'D1c one second before review_until a pass posts nothing and composes nothing again' );
-$r = sn_rights_evidence_run( $now + $W );
-ok( $r['ok'] && 2 === $r['posted'] && 0 === $r['composed'] && 0 === $r['in_review'], 'D1d at review_until the pass posts the stored bytes: ' . json_encode( $r ) );
+$S = SN_RIGHTS_EVIDENCE_REVIEW_SLACK;
+$r = sn_rights_evidence_run( $now + $W - $S - 1 );
+ok( $r['ok'] && 0 === $r['composed'] && 0 === $r['posted'] && 2 === $r['in_review'] && array() === $GLOBALS['__k']['posts'], 'D1c one second before the slack hour a pass posts nothing and composes nothing again' );
+$r = sn_rights_evidence_run( $now + $W - 142 );
+ok( $r['ok'] && 2 === $r['posted'] && 0 === $r['composed'] && 0 === $r['in_review'], 'D1d (changed) a daily pass a few minutes before review_until posts the stored bytes, so the window is three days, not four: ' . json_encode( $r ) );
 ok( 2 === count( $GLOBALS['__k']['posts'] ) && 'https://prov.example/' === $GLOBALS['__k']['posts'][0]['url'], 'D2 two POSTs to the worker' );
 $body = json_decode( $GLOBALS['__k']['posts'][0]['args']['body'], true );
 ok( 'rights-evidence' === $body['kind'] && 1 === $body['version'] && hash( 'sha256', $body['canonical'] ) === $body['content_hash'] && sn_rights_evidence_uuid( 'anthropic', '2026-08', 'https://x.test/' ) === $body['note_uid'] && recanon( $body['canonical'] ) === $body['canonical'] && 2 === json_decode( $body['canonical'], true )['schema'] && $d['2026-08']['anthropic']['canonical'] === $body['canonical'], 'D3 the body: kind, version 1, the hash of the canonical bytes (schema 2, worker-canonical), the deterministic id (anthropic first, sorted); the bytes stored at compose, verbatim' );

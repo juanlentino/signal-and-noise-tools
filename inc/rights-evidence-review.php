@@ -4,8 +4,8 @@
  *
  * The first pass of a month composes and stores its records with
  * `review_until` (compose time + SN_RIGHTS_EVIDENCE_REVIEW) and posts
- * nothing; a later pass posts a composed month at or after review_until when
- * the month is not held. The hold list is the opt-out. Two rules hold a month
+ * nothing; a later pass posts a composed month once its window has closed
+ * (see sn_rights_evidence_window_closed()) when the month is not held. The hold list is the opt-out. Two rules hold a month
  * on their own, each with a stored reason: a compose or ledger-walk error,
  * and a per-family crawling.train that moved more than
  * SN_RIGHTS_EVIDENCE_JUMP_FACTOR times either way against the previous
@@ -22,6 +22,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /** How long a composed month waits before a pass may post it. */
 const SN_RIGHTS_EVIDENCE_REVIEW = 3 * DAY_IN_SECONDS;
+
+/**
+ * A pass this close before review_until counts the window closed. The daily
+ * pass runs at a fixed time and the window is measured from when the
+ * composing pass finished, so it closed a few minutes after the third pass
+ * and every month waited a fourth day (September 2026: 21:45:24 against a
+ * 21:43 pass).
+ */
+const SN_RIGHTS_EVIDENCE_REVIEW_SLACK = HOUR_IN_SECONDS;
 
 /** A train count that moved more than this factor either way holds the month. */
 const SN_RIGHTS_EVIDENCE_JUMP_FACTOR = 3;
@@ -68,6 +77,22 @@ function sn_rights_evidence_hold_month( $ym, $reason = '' ) {
 }
 
 /**
+ * Whether a review window has closed for a pass at $now: up to
+ * SN_RIGHTS_EVIDENCE_REVIEW_SLACK before review_until counts. The one
+ * comparison the pass, in_review and the words share.
+ *
+ * ponytail: a pass more than an hour late still slips a day; widen the slack
+ * if server cron ever drifts that far.
+ *
+ * @param int $until review_until (0: stored before the window existed, due).
+ * @param int $now   Unix time.
+ * @return bool
+ */
+function sn_rights_evidence_window_closed( $until, $now ) {
+	return $until - SN_RIGHTS_EVIDENCE_REVIEW_SLACK <= $now;
+}
+
+/**
  * Whether a month waits in its review window: something of it is composed and
  * unposted, and every such entry's review_until is still ahead. An entry with
  * no review_until (stored before the window existed) is due.
@@ -82,7 +107,7 @@ function sn_rights_evidence_in_review( $ym, $now ) {
 		if ( ! is_array( $e ) || '' === (string) ( $e['canonical'] ?? '' ) || '' !== (string) ( $e['ledger_path'] ?? '' ) ) {
 			continue;
 		}
-		if ( (int) ( $e['review_until'] ?? 0 ) <= $now ) {
+		if ( sn_rights_evidence_window_closed( (int) ( $e['review_until'] ?? 0 ), $now ) ) {
 			return false;
 		}
 		$waiting++;
@@ -124,9 +149,10 @@ function sn_rights_evidence_pending() {
  * @return string
  */
 function sn_rights_evidence_window_words( $until, $now ) {
-	if ( $until <= $now ) {
+	if ( sn_rights_evidence_window_closed( $until, $now ) ) {
 		return 'window passed, posts at the next pass';
 	}
+	$until -= SN_RIGHTS_EVIDENCE_REVIEW_SLACK; // When a pass may post it.
 	return sprintf( 'posts after %s UTC (%d h left)', gmdate( 'Y-m-d H:i', $until ), (int) ceil( ( $until - $now ) / 3600 ) );
 }
 
