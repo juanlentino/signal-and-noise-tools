@@ -50,5 +50,37 @@ function machine_readers_rights_evidence_html() {
 	if ( ! $can && \sn_rights_evidence_held( false ) ) {
 		$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Lift appears once the provenance worker is set up and the sensor answers: a month that cannot be composed stays held.', 'signal-and-noise-tools' ) ) . '</p>';
 	}
-	return \snt_kit_section( __( 'Rights evidence', 'signal-and-noise-tools' ), $out );
+	return \snt_kit_section( __( 'Rights evidence', 'signal-and-noise-tools' ), $out . machine_readers_rights_evidence_retract_html() );
+}
+
+/**
+ * Per retractable record: the exact text that will be published, then a
+ * one-button Retract form behind a confirm; '' when none is eligible.
+ *
+ * @return string
+ */
+function machine_readers_rights_evidence_retract_html() {
+	$rows = function_exists( 'sn_rights_evidence_can_retract' ) && function_exists( 'sn_rights_evidence_retract_confirm' ) && \sn_rights_evidence_can_retract() ? \sn_rights_evidence_retractable() : array();
+	if ( ! $rows ) {
+		return '';
+	}
+	$out = '<h3>' . \snt_kit_esc( __( 'Retractions', 'signal-and-noise-tools' ) ) . '</h3><p class="snt-hint">' . \snt_kit_esc( \SN_RIGHTS_EVIDENCE_RETRACT_NOTE ) . '</p>';
+	foreach ( $rows as $r ) {
+		$label = gmdate( 'F Y', (int) strtotime( $r['month'] . '-01T00:00:00Z' ) ) . ', ' . $r['family'];
+		$out  .= '<p class="snt-prose"><strong>' . \snt_kit_esc( $label ) . '</strong>: <code>' . \snt_kit_esc( (string) $r['entry']['ledger_path'] ) . '</code></p>';
+		foreach ( \SN_RIGHTS_EVIDENCE_RETRACT_LABELS as $key => $name ) {
+			$out .= '<p class="snt-prose"><strong>' . \snt_kit_esc( $name ) . ':</strong> ' . \snt_kit_esc( (string) $r['text'][ $key ] ) . '</p>';
+		}
+		$out .= \snt_kit_form(
+			'rights_evidence_retract',
+			'',
+			array(
+				'submit'  => 'Retract ' . $label,
+				'confirm' => \sn_rights_evidence_retract_confirm( $label ),
+				'danger'  => true,
+				'hidden'  => array( 'tab' => 'monitoring', 'sub' => 'machine-readers', 'month' => $r['month'], 'family' => $r['family'] ),
+			)
+		);
+	}
+	return $out;
 }

@@ -362,6 +362,29 @@ cannot give refuses the record rather than shipping a reservation with a hole.
   ledger is a retraction, never a v2). Neither posts; Monitoring > Machine Readers has a View
   door per held month and a Lift button (both twins).
 
+### Retracting a record
+
+A posted record is never edited; it is retracted. Monitoring > Machine Readers
+(both twins) paints, per record that is `confirmed`, has a ledger path and has
+owner-approved text in `inc/rights-evidence-retractions.php`, the exact text
+that will be published and a Retract button behind a confirm. One click posts
+one body to the provenance worker's `POST /retract` (same HMAC, no redirects,
+same outbound gate as the record post):
+`{note_uid, version: 1, retracted_path, what_was_wrong, claimed, root_cause,
+what_changed, retracted_at}`, `retracted_path` being the stored ledger path
+byte for byte. The worker signs, stamps and commits
+`retractions/<uid>/v<version>.{json,ots}`; the record's bytes stay. A 200
+stores status `retracted`, `retraction_path` and `retraction_hash`; a 409
+(absent subject, already retracted, bad shape) or a failed call changes
+nothing and flashes the worker's error. `retracted` is final: the daily
+refresh never re-reads it. Post one, wait for the ledger's checks, then the
+next. The text is code, not input: a new month's retraction is a pull request.
+The button and the handler need the worker URL and secret set. A 409 saying
+already retracted (a lost 200) is reconciled from the ledger, read-only: the
+record is marked retracted only when `retractions/<uid>/v1.json` exists and its
+`payload.retracted_path` is the record's path. The refresh re-reads the option
+before it writes and never touches an entry that turned final meanwhile.
+
 ## Privacy posture
 
 The sensor is deliberately the least data it can be and still answer the two

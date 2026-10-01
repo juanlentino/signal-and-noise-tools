@@ -121,6 +121,7 @@ function sn_admin_post_handlers() {
 		// Unreleased: rights evidence, Monitoring > Machine Readers (inc/admin-post-actions/rights-evidence.php).
 		'rights_evidence_view'       => 'sn_handle_rights_evidence_view', // GET door: a held month's dry run as JSON
 		'rights_evidence_lift'       => 'sn_handle_rights_evidence_lift', // one month off the hold; never runs the pass
+		'rights_evidence_retract'    => 'sn_handle_rights_evidence_retract', // one signed retraction per click (inc/admin-post-actions/rights-evidence-retract.php)
 	);
 }
 

@@ -60,18 +60,33 @@ function sn_rights_evidence_ledger_index() {
  * @return array{code:int,body:array} code 0 on a transport error.
  */
 function sn_rights_evidence_post( $uuid, $canonical ) {
-	$url    = sn_prov_worker_url();
+	return sn_rights_evidence_signed_post(
+		sn_prov_worker_url(),
+		array(
+			'canonical'    => $canonical,
+			'content_hash' => hash( 'sha256', $canonical ),
+			'note_uid'     => $uuid,
+			'version'      => 1,
+			'kind'         => SN_RIGHTS_EVIDENCE_KIND,
+		)
+	);
+}
+
+/**
+ * POST a JSON body to a worker endpoint, HMAC-signed over the exact bytes
+ * (X-SN-Signature), no redirects, behind the outbound gate. Shared by the
+ * record post and the retraction (inc/rights-evidence-retract.php).
+ *
+ * @param string $url    The endpoint, gated as given.
+ * @param array  $fields The body, encoded in key order.
+ * @return array{code:int,body:array} code 0 on a transport error or a refused url.
+ */
+function sn_rights_evidence_signed_post( $url, array $fields ) {
 	$secret = sn_prov_hmac_secret();
 	if ( ! sn_prov_url_allowed( $url ) ) {
 		return array( 'code' => 0, 'body' => array( 'error' => 'worker url refused by the outbound gate' ) );
 	}
-	$body = wp_json_encode( array(
-		'canonical'    => $canonical,
-		'content_hash' => hash( 'sha256', $canonical ),
-		'note_uid'     => $uuid,
-		'version'      => 1,
-		'kind'         => SN_RIGHTS_EVIDENCE_KIND,
-	) );
+	$body     = wp_json_encode( $fields );
 	$response = wp_remote_post( $url, array(
 		'timeout'     => 20,
 		'redirection' => 0,

@@ -41,6 +41,7 @@ function sn_prov_integrity_ledger_base() { return 'https://raw.example/ledger/ma
 // One seam for every read: the ledger index, ledger files by path, and the explorer (height -> hash -> block).
 function sn_prov_integrity_http_fetch( $url ) {
 	$GLOBALS['__k']['http'][] = $url;
+	if ( isset( $GLOBALS['__k']['on_fetch'] ) ) { ( $GLOBALS['__k']['on_fetch'] )( $url ); } // a concurrent writer, landing mid-read
 	$j = static fn( $v ) => array( 'code' => 200, 'body' => json_encode( $v ) );
 	if ( str_ends_with( $url, '/index.json' ) ) {
 		$GLOBALS['__k']['index_url'] = $url;
@@ -75,6 +76,8 @@ require __DIR__ . '/../inc/rights-evidence-compose.php';
 require __DIR__ . '/../inc/rights-evidence-ledger.php';
 require __DIR__ . '/../inc/rights-evidence-dry-run.php';
 require __DIR__ . '/../inc/rights-evidence.php';
+require __DIR__ . '/../inc/rights-evidence-retractions.php';
+require __DIR__ . '/../inc/rights-evidence-retract.php';
 require __DIR__ . '/../inc/abilities-rights-evidence.php';
 foreach ( $GLOBALS['__k']['actions']['wp_abilities_api_init'] as $cb ) { $cb(); }
 
@@ -386,6 +389,120 @@ ok( $er['ok'] && array( 'openai' ) === array_keys( $er['erratum'] ) && array( 'c
 $GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => $re( 'conflict', 7 ) ) ) );
 ok( array() === sn_rights_evidence_erratum( '2026-08', $oct5 )['erratum'], 'M1b a 409 conflict kept the ledger\'s own bytes: no erratum is drafted against it' );
 ok( array() === $GLOBALS['__k']['posts'] && false === strpos( SN_RIGHTS_EVIDENCE_ERRATUM_REASON, "\u{2014}" ), 'M2 the erratum posts nothing' );
+
+// N: the retraction, one signed POST /retract per eligible record (Unreleased).
+$t0   = strtotime( '2026-09-30T12:00:00Z' );
+$conf = array_merge( $re( 'confirmed', 7 ), array( 'uuid' => 'uuid-7', 'block' => 970007 ) ); // ledger_path not derivable from uuid: byte-for-byte is visible.
+$seed = static function ( array $openai ) use ( $re ) {
+	$GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array(
+		'2026-07' => array( 'openai' => $re( 'confirmed', 1 ) ), // no approved text for July
+		'2026-08' => array( 'openai' => $openai, 'mistral' => $re( 'confirmed', 9 ) ), // no approved text for mistral
+	) );
+	$GLOBALS['__k']['posts'] = array(); $GLOBALS['__k']['transients'] = array();
+};
+$ok_reply = array( 'code' => 200, 'body' => json_encode( array( 'ok' => true, 'created' => true, 'path' => 'retractions/uuid-7/v1.json', 'content_hash' => str_repeat( 'a', 64 ), 'retracted' => 'rights-evidence/u7/v1.json' ) ) );
+$txt      = SN_RIGHTS_EVIDENCE_RETRACTIONS['2026-08']['openai'];
+ok( '63322851e7ee5618921a6738bf2f5bb24e626a8de8d03c7cbce3fe70f7954ef3' === hash( 'sha256', json_encode( SN_RIGHTS_EVIDENCE_RETRACTIONS ) ) && array( 'openai', 'anthropic', 'google-ai', 'commoncrawl' ) === array_keys( SN_RIGHTS_EVIDENCE_RETRACTIONS['2026-08'] ) && array( '2026-08' ) === array_keys( SN_RIGHTS_EVIDENCE_RETRACTIONS ) && false === strpos( json_encode( SN_RIGHTS_EVIDENCE_RETRACTIONS, JSON_UNESCAPED_UNICODE ), "\u{2014}" ), 'N0 the approved text is pinned byte for byte (sha256 of the map), four August families, no em dash' );
+ok( 0 === strpos( $txt['what_was_wrong'], 'Two errors. The reservation named the versions current' ) && 'The reservation in force for August 2026 was license-xml v2, robots-txt v5, tdm-policy v8, tdmrep-json v1 and webmcp-bridge v5.' === SN_RIGHTS_EVIDENCE_RETRACTIONS['2026-08']['google-ai']['claimed'] && null === sn_rights_evidence_retraction_text( '2026-08', 'mistral' ), 'N0b exact strings, and no text means null' );
+
+$seed( $conf );
+ok( array( array( '2026-08', 'openai' ) ) === array_map( static fn( $r ) => array( $r['month'], $r['family'] ), sn_rights_evidence_retractable() ), 'N1 only a confirmed record with a ledger path and approved text is retractable' );
+foreach ( array( 'composed', 'unanchored', 'pending', 'conflict', 'retracted', '' ) as $st ) {
+	$seed( array_merge( $conf, array( 'status' => $st ) ) );
+	$r = sn_rights_evidence_retract( '2026-08', 'openai', $t0 );
+	ok( 'ineligible' === $r['result'] && array() === $GLOBALS['__k']['posts'], "N2 status '$st': no post" );
+}
+$seed( array_merge( $conf, array( 'ledger_path' => '' ) ) );
+ok( 'ineligible' === sn_rights_evidence_retract( '2026-08', 'openai', $t0 )['result'] && array() === $GLOBALS['__k']['posts'], 'N2b confirmed with no ledger path: no post' );
+$seed( $conf );
+foreach ( array( array( '2026-07', 'openai' ), array( '2026-08', 'mistral' ), array( '2026-08', 'nobody' ), array( '2026-09', 'openai' ) ) as $mf ) {
+	ok( 'ineligible' === sn_rights_evidence_retract( $mf[0], $mf[1], $t0 )['result'] && array() === $GLOBALS['__k']['posts'], 'N2c no text or no record (' . implode( ' ', $mf ) . '): no post' );
+}
+
+$seed( $conf );
+$GLOBALS['__k']['post_reply'] = $ok_reply;
+$before = sn_rights_evidence_data()['2026-08']['openai'];
+$r      = sn_rights_evidence_retract( '2026-08', 'openai', $t0 );
+$p      = $GLOBALS['__k']['posts'][0] ?? array( 'url' => '', 'args' => array( 'body' => '', 'headers' => array(), 'redirection' => null ) );
+$b      = (array) json_decode( $p['args']['body'], true );
+ok( 1 === count( $GLOBALS['__k']['posts'] ) && 'https://prov.example/retract' === $p['url'], 'N3 one POST, to the worker\'s /retract' );
+ok( array( 'note_uid', 'version', 'retracted_path', 'what_was_wrong', 'claimed', 'root_cause', 'what_changed', 'retracted_at' ) === array_keys( $b ), 'N4 the body carries exactly the worker\'s fields, in its order: ' . implode( ',', array_keys( $b ) ) );
+ok( 'uuid-7' === ( $b['note_uid'] ?? '' ) && 1 === ( $b['version'] ?? 0 ) && 'rights-evidence/u7/v1.json' === ( $b['retracted_path'] ?? '' ) && $txt['claimed'] === ( $b['claimed'] ?? '' ) && $txt['what_was_wrong'] === ( $b['what_was_wrong'] ?? '' ) && $txt['root_cause'] === ( $b['root_cause'] ?? '' ) && $txt['what_changed'] === ( $b['what_changed'] ?? '' ) && '2026-09-30T12:00:00+00:00' === ( $b['retracted_at'] ?? '' ), 'N5 note_uid is the record uuid, retracted_path the stored ledger_path byte for byte, the text the approved text, retracted_at gmdate(c)' );
+ok( 'sha256=' . hash_hmac( 'sha256', $p['args']['body'], 's3' ) === ( $p['args']['headers']['X-SN-Signature'] ?? '' ) && 0 === $p['args']['redirection'], 'N6 HMAC over the exact body with the site secret; no redirects' );
+$after = sn_rights_evidence_data()['2026-08']['openai'];
+ok( 'retracted' === $r['result'] && 'retracted' === $after['status'] && 'retractions/uuid-7/v1.json' === ( $after['retraction_path'] ?? '' ) && str_repeat( 'a', 64 ) === ( $after['retraction_hash'] ?? '' ) && array_diff_key( $before, array( 'status' => 1 ) ) === array_diff_key( $after, array( 'status' => 1, 'retraction_path' => 1, 'retraction_hash' => 1 ) ), 'N7 200: status retracted, retraction path and hash stored, every other field kept' );
+ok( array() === $GLOBALS['__k']['transients'] && array() === sn_rights_evidence_retractable(), 'N8 the lock is released, and a retracted record is no longer retractable' );
+
+$seed( $conf );
+$GLOBALS['__k']['post_reply'] = array( 'code' => 409, 'body' => json_encode( array( 'ok' => false, 'error' => 'already retracted' ) ) );
+$snap = $GLOBALS['__k']['opt'];
+$r    = sn_rights_evidence_retract( '2026-08', 'openai', $t0 );
+ok( 'refused' === $r['result'] && 'already retracted' === $r['error'] && $snap === $GLOBALS['__k']['opt'] && array() === $GLOBALS['__k']['transients'], 'N9 409: refused with the worker\'s error, the stored record untouched' );
+foreach ( array( 'transport' => new WP_Error( 'x', 'timed out' ), '502' => array( 'code' => 502, 'body' => '{"error":"bad gateway"}' ), '200 without ok' => array( 'code' => 200, 'body' => '{"ok":false}' ) ) as $k => $reply ) {
+	$seed( $conf );
+	$GLOBALS['__k']['post_reply'] = $reply;
+	$snap = $GLOBALS['__k']['opt'];
+	$r    = sn_rights_evidence_retract( '2026-08', 'openai', $t0 );
+	ok( 'failed' === $r['result'] && $snap === $GLOBALS['__k']['opt'], "N10 $k: failed, untouched ({$r['error']})" );
+}
+// A lost 200: the 409 says already retracted; the ledger is read (GET only) and adopted only when it names this record.
+$retr_doc = array( 'payload' => array( 'retracted_path' => 'rights-evidence/u7/v1.json', 'note_uid' => 'uuid-7' ), 'content_hash' => str_repeat( 'b', 64 ), 'ots' => array( 'status' => 'pending' ) );
+$seed( $conf );
+$GLOBALS['__k']['post_reply'] = array( 'code' => 409, 'body' => json_encode( array( 'ok' => false, 'error' => 'subject already retracted' ) ) );
+$GLOBALS['__k']['ledger']['retractions/uuid-7/v1.json'] = $retr_doc; $GLOBALS['__k']['http'] = array();
+$r     = sn_rights_evidence_retract( '2026-08', 'openai', $t0 );
+$after = sn_rights_evidence_data()['2026-08']['openai'];
+ok( 'retracted' === $r['result'] && 'retracted' === $after['status'] && 'retractions/uuid-7/v1.json' === ( $after['retraction_path'] ?? '' ) && str_repeat( 'b', 64 ) === ( $after['retraction_hash'] ?? '' ) && array( 'https://raw.example/ledger/main/retractions/uuid-7/v1.json' ) === $GLOBALS['__k']['http'] && 1 === count( $GLOBALS['__k']['posts'] ), 'N10b 409 already retracted + the ledger\'s retraction names this record: adopted with its path and hash, one POST, one ledger GET' );
+$seed( $conf );
+$GLOBALS['__k']['ledger']['retractions/uuid-7/v1.json'] = array_merge( $retr_doc, array( 'payload' => array( 'retracted_path' => 'rights-evidence/other/v1.json' ) ) );
+$snap = $GLOBALS['__k']['opt'];
+ok( 'refused' === sn_rights_evidence_retract( '2026-08', 'openai', $t0 )['result'] && $snap === $GLOBALS['__k']['opt'], 'N10c the ledger\'s retraction names another record: refused, untouched' );
+$seed( $conf );
+unset( $GLOBALS['__k']['ledger']['retractions/uuid-7/v1.json'] );
+$snap = $GLOBALS['__k']['opt'];
+ok( 'refused' === sn_rights_evidence_retract( '2026-08', 'openai', $t0 )['result'] && $snap === $GLOBALS['__k']['opt'], 'N10d already retracted but no retraction file on the ledger: refused, untouched' );
+$seed( $conf );
+$GLOBALS['__k']['ledger']['retractions/uuid-7/v1.json'] = $retr_doc; $GLOBALS['__k']['http'] = array();
+$GLOBALS['__k']['post_reply'] = array( 'code' => 409, 'body' => json_encode( array( 'ok' => false, 'error' => 'subject absent' ) ) );
+$snap = $GLOBALS['__k']['opt'];
+ok( 'refused' === sn_rights_evidence_retract( '2026-08', 'openai', $t0 )['result'] && $snap === $GLOBALS['__k']['opt'] && array() === $GLOBALS['__k']['http'], 'N10e any other 409: untouched, the ledger not even read' );
+unset( $GLOBALS['__k']['ledger']['retractions/uuid-7/v1.json'] );
+
+$seed( $conf );
+$GLOBALS['__k']['transients']['sn_rights_evidence_lock'] = 1;
+ok( 'busy' === sn_rights_evidence_retract( '2026-08', 'openai', $t0 )['result'] && array() === $GLOBALS['__k']['posts'], 'N11 a pass holds the lock: nothing posted' );
+$GLOBALS['__k']['transients'] = array();
+
+// The F5 refresh treats retracted as final: the v1 file still says confirmed.
+$GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => array_merge( $conf, array( 'status' => 'retracted', 'retraction_path' => 'retractions/uuid-7/v1.json', 'retraction_hash' => 'h' ) ) ) ) );
+$GLOBALS['__k']['ledger']['rights-evidence/u7/v1.json'] = array( 'payload' => array(), 'ots' => array( 'status' => 'confirmed', 'bitcoin_block' => 970007 ) );
+$GLOBALS['__k']['http'] = array();
+sn_rights_evidence_refresh();
+ok( 'retracted' === sn_rights_evidence_data()['2026-08']['openai']['status'] && ! array_filter( $GLOBALS['__k']['http'], static fn( $u ) => str_contains( $u, 'rights-evidence/u7/' ) ), 'N12 the refresh never re-reads a retracted record nor flips it back to confirmed' );
+// The refresh never overwrites a concurrent change: a retraction (and a pass's
+// own final verdict) land while the refresh is reading the ledger.
+$GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => $conf, 'anthropic' => $re( 'pending', 2 ), 'cohere' => $re( 'pending', 3 ) ) ) );
+$GLOBALS['__k']['ledger']['rights-evidence/u2/v1.json'] = array( 'payload' => array(), 'ots' => array( 'status' => 'confirmed', 'bitcoin_block' => 970002 ) );
+$GLOBALS['__k']['ledger']['rights-evidence/u3/v1.json'] = array( 'payload' => array(), 'ots' => array( 'status' => 'confirmed', 'bitcoin_block' => 970003 ) );
+$GLOBALS['__k']['on_fetch'] = static function ( $url ) {
+	if ( str_ends_with( $url, 'rights-evidence/u3/v1.json' ) ) {
+		$GLOBALS['__k']['opt'][ SN_RIGHTS_EVIDENCE_OPTION ]['2026-08']['openai'] = array_merge( $GLOBALS['__k']['opt'][ SN_RIGHTS_EVIDENCE_OPTION ]['2026-08']['openai'], array( 'status' => 'retracted', 'retraction_path' => 'retractions/uuid-7/v1.json' ) );
+		$GLOBALS['__k']['opt'][ SN_RIGHTS_EVIDENCE_OPTION ]['2026-08']['anthropic']['status'] = 'conflict';
+	}
+};
+$n    = sn_rights_evidence_refresh();
+unset( $GLOBALS['__k']['on_fetch'] );
+$d    = sn_rights_evidence_data()['2026-08'];
+ok( 'retracted' === $d['openai']['status'] && 'retractions/uuid-7/v1.json' === $d['openai']['retraction_path'], 'N12b a retraction landing between the refresh\'s read and its write survives' );
+ok( 'conflict' === $d['anthropic']['status'] && ! isset( $d['anthropic']['block'] ) && 'confirmed' === $d['cohere']['status'] && 970003 === $d['cohere']['block'] && 1 === $n, 'N12c an entry that turned final meanwhile is not touched; a still-pending one takes the ledger\'s status and block' );
+
+$ab = $GLOBALS['__k']['abilities']['signal-noise/rights-evidence'];
+$GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => array_merge( $conf, array( 'status' => 'retracted', 'retraction_path' => 'retractions/uuid-7/v1.json', 'retraction_hash' => 'h' ) ) ) ) );
+$ar = call_user_func( $ab['execute_callback'] );
+$am = json_decode( json_encode( $ar['months'] ), true );
+ok( 'retracted' === $am['2026-08']['openai']['status'] && 'retractions/uuid-7/v1.json' === $am['2026-08']['openai']['retraction_path'] && str_contains( $ab['description'], 'retracted' ) && str_contains( $ar['note'], 'retracted (' ), 'N13 the read ability reports status retracted and the retraction path' );
+$src = (string) file_get_contents( __DIR__ . '/../inc/rights-evidence-retractions.php' );
+ok( ! preg_match( '/wp_remote|sn_rights_evidence_(signed_)?post|update_option|get_option/', $src ), 'N14 structurally: the text file is pure data' );
 
 if ( getenv( 'SN_RE_PRINT' ) ) {
 	$GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => $re( 'confirmed', 7 ), 'anthropic' => $re( 'confirmed', 8 ) ) ) );

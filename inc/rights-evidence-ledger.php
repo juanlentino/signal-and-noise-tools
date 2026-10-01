@@ -143,14 +143,17 @@ function sn_rights_evidence_signal_history( array $index ) {
  * @return int Records whose stored status or block changed.
  */
 function sn_rights_evidence_refresh() {
+	$final   = array( 'confirmed', 'conflict', 'retracted' );
 	$data    = sn_rights_evidence_data();
 	$reads   = 0;
-	$changed = 0;
+	$updates = array();
 	ksort( $data );
 	foreach ( $data as $month => $families ) {
 		foreach ( (array) $families as $family => $e ) {
 			$path = is_array( $e ) ? (string) ( $e['ledger_path'] ?? '' ) : '';
-			if ( '' === $path || in_array( (string) ( $e['status'] ?? '' ), array( 'confirmed', 'conflict' ), true ) ) {
+			// Final: never re-read. A retracted record's v1 file still says
+			// confirmed; re-reading it would flip the retraction back.
+			if ( '' === $path || in_array( (string) ( $e['status'] ?? '' ), $final, true ) ) {
 				continue;
 			}
 			if ( $reads++ >= SN_RIGHTS_EVIDENCE_REFRESH_CAP ) {
@@ -163,14 +166,31 @@ function sn_rights_evidence_refresh() {
 			}
 			$block = is_numeric( $doc['ots']['bitcoin_block'] ?? null ) ? (int) $doc['ots']['bitcoin_block'] : null;
 			if ( $status !== (string) ( $e['status'] ?? '' ) || $block !== ( $e['block'] ?? null ) ) {
-				$data[ $month ][ $family ]['status'] = $status;
-				$data[ $month ][ $family ]['block']  = $block;
-				$changed++;
+				$updates[ $month ][ $family ] = array( $status, $block );
 			}
 		}
 	}
+	if ( ! $updates ) {
+		return 0;
+	}
+	// The reads above can take seconds; a retraction or a pass may have
+	// written meanwhile. Re-read, and touch only status and block of entries
+	// that are still non-final in the fresh copy: never a concurrent change.
+	$fresh   = sn_rights_evidence_data();
+	$changed = 0;
+	foreach ( $updates as $month => $families ) {
+		foreach ( $families as $family => $u ) {
+			$e = $fresh[ $month ][ $family ] ?? null;
+			if ( ! is_array( $e ) || in_array( (string) ( $e['status'] ?? '' ), $final, true ) ) {
+				continue;
+			}
+			$fresh[ $month ][ $family ]['status'] = $u[0];
+			$fresh[ $month ][ $family ]['block']  = $u[1];
+			$changed++;
+		}
+	}
 	if ( $changed ) {
-		update_option( SN_RIGHTS_EVIDENCE_OPTION, $data, false );
+		update_option( SN_RIGHTS_EVIDENCE_OPTION, $fresh, false );
 	}
 	return $changed;
 }

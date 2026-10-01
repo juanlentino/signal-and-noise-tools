@@ -19,7 +19,20 @@ function snt_mr_sensor_info() { return $GLOBALS['__re']['sensor']; }
 function wp_next_scheduled( $h ) { return SN_RIGHTS_EVIDENCE_HOOK === $h ? $GLOBALS['__re']['next'] : false; }
 if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; return true; } }
 function sn_rights_evidence_dry_run( $ym ) { $GLOBALS['__re']['dry']++; return array( 'ok' => true, 'month' => $ym, 'error' => '', 'payloads' => array() ); }
+// The retraction's seams: the stored records, the signed POST (the real one is pinned in tests/rights-evidence.php).
+const SN_RIGHTS_EVIDENCE_OPTION = 'sn_rights_evidence';
+$GLOBALS['__re']['posts'] = array(); $GLOBALS['__re']['reply'] = array( 'code' => 200, 'body' => array( 'ok' => true, 'path' => 'retractions/u7/v1.json', 'content_hash' => 'c' ) );
+function sn_rights_evidence_data() { return $GLOBALS['__options'][ SN_RIGHTS_EVIDENCE_OPTION ] ?? array(); }
+$GLOBALS['__re']['worker'] = 'https://prov.example'; $GLOBALS['__re']['secret'] = 's3';
+function sn_prov_worker_url() { return $GLOBALS['__re']['worker']; }
+function sn_prov_hmac_secret() { return $GLOBALS['__re']['secret']; }
+function sn_rights_evidence_signed_post( $url, array $fields ) { $GLOBALS['__re']['posts'][] = array( $url, $fields ); return $GLOBALS['__re']['reply']; }
+if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $t = 0 ) { $GLOBALS['__transients'][ $k ] = $v; return true; } }
+if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $k ) { unset( $GLOBALS['__transients'][ $k ] ); return true; } }
 
+require SNT_PATH . 'inc/rights-evidence-retractions.php';
+require SNT_PATH . 'inc/rights-evidence-retract.php';
+require SNT_PATH . 'inc/admin-post-actions/rights-evidence-retract.php';
 require SNT_PATH . 'inc/admin-post-actions/rights-evidence.php';
 require SNT_PATH . 'inc/admin-forms/rights-evidence.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers-evidence.php';
@@ -67,7 +80,48 @@ $GLOBALS['__options'] = array( 'sn_rights_evidence_hold' => array( '2026-09' ) )
 $_GET = array( 'month' => '2026-07' );
 ok( 'rights_evidence_not_held' === sn_handle_rights_evidence_view( array() ) && 0 === $GLOBALS['__re']['dry'], 'D1 View for a month not on hold is refused without a dry run' );
 $view_src = (string) file_get_contents( SNT_PATH . 'inc/admin-post-actions/rights-evidence.php' );
-ok( ! preg_match( '/wp_remote_post|sn_rights_evidence_post|sn_rights_evidence_run|sn_rights_evidence_send/', $view_src ), 'D2 structurally: neither action can post or run the pass' );
+ok( ! preg_match( '/wp_remote_post|sn_rights_evidence_post|sn_rights_evidence_run|sn_rights_evidence_send|sn_rights_evidence_retract/', $view_src ), 'D2 structurally: neither View nor Lift can post, retract or run the pass (Retract lives in its own file)' );
+
+// E: Retract, one signed retraction per click, both twins.
+$conf = array( 'uuid' => 'u7', 'content_hash' => 'h7', 'status' => 'confirmed', 'ledger_path' => 'rights-evidence/u7/v1.json', 'at' => 1, 'error' => '' );
+$recs = static function ( array $aug ) { $GLOBALS['__options'] = array( 'sn_rights_evidence_hold' => array(), SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => $aug ) ); $GLOBALS['__re']['posts'] = array(); };
+$t    = SN_RIGHTS_EVIDENCE_RETRACTIONS['2026-08']['openai'];
+$recs( array( 'openai' => $conf, 'anthropic' => array_merge( $conf, array( 'status' => 'pending' ) ), 'google-ai' => array_merge( $conf, array( 'ledger_path' => '' ) ), 'commoncrawl' => array_merge( $conf, array( 'status' => 'retracted' ) ), 'mistral' => $conf ) );
+$c = $classic(); $n = $native();
+foreach ( array( 'classic' => $c, 'native' => $n ) as $twin => $h ) {
+	ok( str_contains( $h, 'Retract August 2026, openai' ) && str_contains( $h, 'sn_rights_evidence_retract' ) && str_contains( $h, 'nonce-sn_rights_evidence_retract' ) && str_contains( $h, 'append-only ledger' ) && str_contains( $h, 'cannot be undone' ), "E1 $twin: a Retract button for the confirmed record, its own nonce, behind a confirm that says it publishes" );
+	ok( str_contains( $h, 'Claimed:</strong> ' . $t['claimed'] ) && str_contains( $h, 'What was wrong:</strong> ' . $t['what_was_wrong'] ) && str_contains( $h, 'Root cause:</strong> ' . $t['root_cause'] ) && str_contains( $h, 'What changed:</strong> ' . $t['what_changed'] ) && str_contains( $h, 'rights-evidence/u7/v1.json' ), "E2 $twin: the exact text that will be published is shown above the button" );
+	ok( str_contains( $h, "Post one, wait for the ledger's checks, then the next." ), "E3 $twin: the one-at-a-time note is visible" );
+	ok( 1 === substr_count( $h, 'Retract August 2026' ) && ! str_contains( $h, 'Retract August 2026, anthropic' ) && ! str_contains( $h, 'Retract August 2026, google-ai' ) && ! str_contains( $h, 'Retract August 2026, commoncrawl' ) && ! str_contains( $h, 'Retract August 2026, mistral' ), "E4 $twin: hidden for pending, no ledger path, retracted and no approved text" );
+}
+ok( array( 'family', 'month', 'sub', 'tab' ) === snt_leaf_names( $n ) && snt_leaf_names( $c ) === snt_leaf_names( $n ), 'E5 the native form posts the same names as the classic: ' . implode( ',', snt_leaf_names( $n ) ) );
+ok( array() === $GLOBALS['__re']['posts'], 'E6 painting posts nothing' );
+$recs( array( 'openai' => array_merge( $conf, array( 'status' => 'retracted' ) ) ) );
+ok( ! str_contains( $classic(), 'Retract' ) && ! str_contains( $native(), 'Retract' ), 'E7 nothing retractable: no Retractions block on either twin' );
+
+foreach ( array( 'worker' => '', 'secret' => '' ) as $k => $v ) {
+	$recs( array( 'openai' => $conf ) );
+	$keep = $GLOBALS['__re'][ $k ]; $GLOBALS['__re'][ $k ] = $v;
+	ok( ! str_contains( $classic(), 'Retract August' ) && ! str_contains( $native(), 'Retract August' ), "E7b $k unset: no Retract button on either twin" );
+	ok( 'rights_evidence_retract_unconfigured' === sn_handle_rights_evidence_retract( array( 'month' => '2026-08', 'family' => 'openai' ) ) && array() === $GLOBALS['__re']['posts'] && 'confirmed' === $GLOBALS['__options'][ SN_RIGHTS_EVIDENCE_OPTION ]['2026-08']['openai']['status'], "E7c $k unset: the handler refuses with its own flash, nothing posted" );
+	$GLOBALS['__re'][ $k ] = $keep;
+}
+ok( str_contains( $flash, "'rights_evidence_retract_unconfigured'" ), 'E7d the unconfigured refusal has a flash message' );
+
+$recs( array( 'openai' => $conf, 'mistral' => $conf ) );
+foreach ( array( array( '2026-08', 'mistral' ), array( '2026-08', 'nobody' ), array( '2026-07', 'openai' ), array( '2026-08\'"', 'openai' ), array( '', '' ) ) as $mf ) {
+	ok( 'rights_evidence_not_retractable' === sn_handle_rights_evidence_retract( array( 'month' => $mf[0], 'family' => $mf[1] ) ) && array() === $GLOBALS['__re']['posts'], 'E8 the handler refuses an unknown or ineligible month/family without posting: ' . implode( ' ', $mf ) );
+}
+ok( 'rights_evidence_retracted' === sn_handle_rights_evidence_retract( array( 'month' => '2026-08', 'family' => 'openai' ) ) && 1 === count( $GLOBALS['__re']['posts'] ) && 'https://prov.example/retract' === $GLOBALS['__re']['posts'][0][0] && 'retracted' === $GLOBALS['__options'][ SN_RIGHTS_EVIDENCE_OPTION ]['2026-08']['openai']['status'], 'E9 one click, one POST to /retract, the record retracted' );
+$recs( array( 'openai' => $conf ) ); $GLOBALS['__re']['reply'] = array( 'code' => 409, 'body' => array( 'ok' => false, 'error' => 'subject absent' ) );
+ok( 'rights_evidence_retract_refused' === sn_handle_rights_evidence_retract( array( 'month' => '2026-08', 'family' => 'openai' ) ) && 'subject absent' === ( $GLOBALS['__transients']['sn_rights_evidence_retract_error'] ?? '' ) && 'confirmed' === $GLOBALS['__options'][ SN_RIGHTS_EVIDENCE_OPTION ]['2026-08']['openai']['status'], 'E10 409: its own flash code, the worker\'s error kept for it, the status untouched' );
+$GLOBALS['__re']['reply'] = array( 'code' => 0, 'body' => array( 'error' => 'timed out' ) );
+ok( 'rights_evidence_retract_failed' === sn_handle_rights_evidence_retract( array( 'month' => '2026-08', 'family' => 'openai' ) ) && '0 timed out' === ( $GLOBALS['__transients']['sn_rights_evidence_retract_error'] ?? '' ) && 'confirmed' === $GLOBALS['__options'][ SN_RIGHTS_EVIDENCE_OPTION ]['2026-08']['openai']['status'], 'E11 network failure: its own flash code, untouched' );
+ok( str_contains( $handler_src, "'rights_evidence_retract'    => 'sn_handle_rights_evidence_retract'" ) && str_contains( (string) file_get_contents( SNT_PATH . 'inc/admin-post-actions.php' ), 'admin-post-actions/rights-evidence-retract.php' ), 'E12 Retract is registered with the dispatcher (nonce + manage_options) and loaded' );
+foreach ( array( 'rights_evidence_retracted', 'rights_evidence_retract_busy', 'rights_evidence_not_retractable' ) as $code ) {
+	ok( str_contains( $flash, "'$code'" ), "E13 static flash message for $code" );
+}
+ok( str_contains( $flash, "'rights_evidence_retract_refused' === \$flash" ) && str_contains( $flash, "'rights_evidence_retract_failed' === \$flash" ) && str_contains( $flash, "get_transient( 'sn_rights_evidence_retract_error' )" ), 'E14 the 409 and failure flashes print the worker\'s error' );
 
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail ? 1 : 0 );
