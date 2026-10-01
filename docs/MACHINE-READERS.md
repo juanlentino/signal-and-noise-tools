@@ -406,7 +406,59 @@ count could be checked:
   record with a ledger path (retracted ones included), the reservation that was
   in force, for the ledger's erratum document (a correction on the ledger is a
   retraction, never a v2); it reads no sensor. Neither posts; Monitoring > Machine Readers has a View
-  door per held month and a Lift button (both twins).
+  door per held or waiting month, and Lift, Hold and Post now buttons (both twins).
+
+### The review window, holds and refusals
+
+Monthly evidence posts without anyone pressing a button, after a window in
+which it can be stopped.
+
+- **Compose, then wait.** The first daily pass of a month composes the last
+  complete month's records and stores each with status `composed`,
+  `review_until` (compose time + 72 hours, `SN_RIGHTS_EVIDENCE_REVIEW`) and a
+  `summary` of its `{reads, train}`. It posts nothing. A later pass posts a
+  composed record at or after `review_until`, and only while the month is not
+  held. An entry stored before the window existed has no `review_until` and is
+  due, so an `unanchored` retry is unchanged. `rights-evidence-now` runs the
+  same pass: it composes and refreshes, and posts only what is past its window.
+- **Hold is the opt-out.** The hold list (`sn_rights_evidence_hold`) is
+  unchanged in meaning: a held month never posts. It still composes, so View
+  streams the stored bytes that would post (a dry run only when nothing is
+  stored). A held month is queued in the backlog; once lifted, its stored bytes
+  post at the next pass if their window has passed. On Machine Readers a
+  waiting month has View, Hold and Post now; a held month has View and Lift.
+  Post now (owner, behind a confirm) posts a composed, unheld month at once,
+  bypassing the window; it never composes.
+- **Two rules hold a month on their own,** each storing a reason in
+  `sn_rights_evidence_hold_reasons` (shown on both twins, in the watch and in
+  the `rights-evidence` read's `hold_reasons`; Lift clears it):
+  (a) a compose or ledger-walk error (a failed sensor read, an unreadable
+  ledger index or rights-signal history, no taxonomy) holds the month with the
+  error; (b) a family whose `crawling.train` moved more than 3x either way
+  against the previous month's posted value, both at 50 or more, holds it with
+  both numbers. The previous month's bytes are dropped once posted, which is
+  why each entry keeps its `summary`; the rule applies once the previous month
+  has one (the month after this shipped).
+- **The worker can refuse.** A record the worker finds invalid is answered
+  `422 {ok:false, error:"rights-evidence refused", divergences:[[block,
+  message], ...]}`. The entry becomes `refused` with its `divergences`, its
+  bytes are dropped (refused bytes are never re-sent) and the month is held
+  with the divergences as the reason; the next pass recomposes the family into
+  a fresh window. A transport failure is not a refusal: it stays `unanchored`
+  and is retried daily.
+- **The backlog is not fooled by the window.** A backlog month whose unposted
+  records are all in their window is not a backlog target (the pass works the
+  current month meanwhile) and not a failure: it stays queued with its failure
+  count unchanged, posts once the window passes, then leaves the backlog.
+- **The notice is a watch,** `rights_evidence_review` in `inc/watches.php`:
+  ripe while a month is composed, unposted and not held (the note carries the
+  hours left) or while a rule holds one (the note carries the reason). An
+  owner's own hold has no reason and stays quiet. The morning brief lists ripe
+  watches; there is no email.
+- Known ceiling: a current month composed within 72 hours of the calendar
+  turning (only possible when composing was delayed most of a month without a
+  hold) is not in the backlog, so once the next month becomes current its
+  waiting bytes are reached only by Post now.
 
 ### Retracting a record
 
