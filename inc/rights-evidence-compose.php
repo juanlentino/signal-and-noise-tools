@@ -61,6 +61,19 @@ function sn_rights_evidence_month( $now ) {
 	);
 }
 
+/**
+ * Whether a month starting at $start can still be composed at $now: the
+ * sensor keeps 90 days, and a pass reads from the month's first day to now
+ * inclusive, so the start must lie within 89 days.
+ *
+ * @param int $start Unix time of the month's first day, 00:00 UTC.
+ * @param int $now   Unix time.
+ * @return bool
+ */
+function sn_rights_evidence_in_window( $start, $now ) {
+	return $now - $start <= 89 * DAY_IN_SECONDS;
+}
+
 /** The record's schema. v1 records (17.0.0 to 19.9.0) carry no field and are implicitly 1. */
 const SN_RIGHTS_EVIDENCE_SCHEMA = 2;
 

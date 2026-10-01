@@ -160,7 +160,7 @@ function sn_rights_evidence_backlog_target( $now, array $held ) {
 		if ( in_array( $ym, $held, true ) || false === $start ) {
 			continue;
 		}
-		$in_window = $now - $start <= 89 * DAY_IN_SECONDS;
+		$in_window = sn_rights_evidence_in_window( $start, $now );
 		if ( $in_window || sn_rights_evidence_unposted( $ym ) ) {
 			return array( 'month' => $ym, 'start' => gmdate( 'Y-m-01', $start ), 'end' => gmdate( 'Y-m-t', $start ), 'in_window' => $in_window );
 		}

@@ -98,19 +98,42 @@ function sn_rights_evidence_dry_run( $ym, $now = null ) {
 }
 
 /**
- * compose_month for a YYYY-MM, every family.
+ * A YYYY-MM as a month array, refused unless it is a complete month.
+ *
+ * @param string $ym  YYYY-MM.
+ * @param int    $now Unix time.
+ * @return array{0:?array,1:string} The month (with its start as Unix time) and '', or null and why.
+ */
+function sn_rights_evidence_ym_month( $ym, $now ) {
+	$start = 1 === preg_match( '/^\d{4}-(0[1-9]|1[0-2])$/', (string) $ym ) ? strtotime( $ym . '-01T00:00:00Z' ) : false;
+	if ( false === $start ) {
+		return array( null, 'month must be YYYY-MM' );
+	}
+	if ( strcmp( (string) $ym, gmdate( 'Y-m', $now ) ) >= 0 ) {
+		return array( null, 'month must be complete: the current month and future months cannot be composed' );
+	}
+	return array( array( 'month' => (string) $ym, 'start' => gmdate( 'Y-m-01', $start ), 'end' => gmdate( 'Y-m-t', $start ), 'ts' => $start ), '' );
+}
+
+/**
+ * compose_month for a YYYY-MM, every family. Only a complete month whose
+ * start is still inside the sensor's 90-day window can be composed.
  *
  * @param string   $ym  YYYY-MM.
  * @param int|null $now Unix time; null for time().
  * @return array{error:string,payloads:array<string,array>}
  */
 function sn_rights_evidence_compose_ym( $ym, $now = null ) {
-	$start = 1 === preg_match( '/^\d{4}-(0[1-9]|1[0-2])$/', (string) $ym ) ? strtotime( $ym . '-01T00:00:00Z' ) : false;
-	if ( false === $start ) {
-		return array( 'error' => 'month must be YYYY-MM', 'payloads' => array() );
+	$now             = null === $now ? time() : (int) $now;
+	list( $m, $why ) = sn_rights_evidence_ym_month( $ym, $now );
+	if ( null === $m ) {
+		return array( 'error' => $why, 'payloads' => array() );
 	}
-	$month = array( 'month' => (string) $ym, 'start' => gmdate( 'Y-m-01', $start ), 'end' => gmdate( 'Y-m-t', $start ) );
-	return sn_rights_evidence_compose_month( $month, null === $now ? time() : (int) $now );
+	if ( ! sn_rights_evidence_in_window( $m['ts'], $now ) ) {
+		return array( 'error' => 'month is past the sensor\'s 90-day window', 'payloads' => array() );
+	}
+	unset( $m['ts'] );
+	return sn_rights_evidence_compose_month( $m, $now );
 }
 
 /** Why a month's v1 record is corrected by erratum (owner ruling D1, 2026-09-30). */

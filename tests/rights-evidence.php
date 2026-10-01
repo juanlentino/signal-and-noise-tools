@@ -422,6 +422,10 @@ $src = file_get_contents( __DIR__ . '/../inc/rights-evidence-dry-run.php' );
 ok( ! preg_match( '/wp_remote_post|wp_safe_remote_post|sn_rights_evidence_post|sn_rights_evidence_send|sn_rights_evidence_run|SN_RIGHTS_EVIDENCE_OPTION/', $src ), 'L3 structurally: the dry-run file names no POST, no send, no pass and no record option' );
 ok( ! sn_rights_evidence_dry_run( '2026-13' )['ok'] && 'month must be YYYY-MM' === sn_rights_evidence_dry_run( '2026-9' )['error'], 'L4 a malformed month is refused' );
 
+$GLOBALS['__k']['fetch'] = array();
+$win = array_map( static fn( $ym ) => sn_rights_evidence_dry_run( $ym, $oct5 )['error'], array( '2026-10', '2027-01', '2026-07', '2026-06' ) );
+ok( 'month must be complete: the current month and future months cannot be composed' === $win[0] && $win[0] === $win[1] && 'month is past the sensor\'s 90-day window' === $win[2] && $win[2] === $win[3] && array() === $GLOBALS['__k']['fetch'], 'L5 the current month, a future month, and months starting past the 90-day window are refused with a clear error before any sensor read' );
+
 // M: D1 (retraction + erratum): the erratum data per v1 record, never posted.
 $GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-08' => array( 'openai' => $re( 'confirmed', 7 ) ) ) ); $GLOBALS['__k']['posts'] = array();
 $er = sn_rights_evidence_erratum( '2026-08', $oct5 );
