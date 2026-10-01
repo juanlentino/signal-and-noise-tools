@@ -55,6 +55,7 @@ function sn_admin_flash_messages() {
 		'rights_evidence_lift_refused' => array( 'error', 'Hold kept: the sensor or the provenance worker is not reachable, so the month could not be composed.' ),
 		'rights_evidence_not_held'     => array( 'info', 'That month is not on hold.' ),
 		'rights_evidence_retracted'       => array( 'success', 'Retraction posted. The worker signed it and committed it beside the record; it is anchored with the next OpenTimestamps pass. Wait for the ledger\'s checks before the next one.' ),
+		'rights_evidence_retract_unconfigured' => array( 'error', 'Nothing posted: the provenance worker URL or its secret is not set, so a retraction cannot be signed.' ),
 		'rights_evidence_retract_busy'    => array( 'info', 'Nothing posted: a rights evidence pass is running. Try again in a few minutes.' ),
 		'rights_evidence_not_retractable' => array( 'info', 'Nothing posted: that record is not one that can be retracted (not confirmed on the ledger, already retracted, or no approved text).' ),
 		'resume_no_prev'            => array( 'info', 'There is no earlier version to revert to.' ),

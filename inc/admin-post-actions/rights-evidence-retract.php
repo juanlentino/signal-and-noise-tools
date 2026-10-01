@@ -30,6 +30,9 @@ function sn_handle_rights_evidence_retract( $post ) {
 	if ( ! function_exists( 'sn_rights_evidence_retract' ) ) {
 		return 'rights_evidence_not_retractable';
 	}
+	if ( ! sn_rights_evidence_can_retract() ) {
+		return 'rights_evidence_retract_unconfigured';
+	}
 	$r = sn_rights_evidence_retract( $month, $family );
 	if ( in_array( $r['result'], array( 'refused', 'failed' ), true ) ) {
 		set_transient( SN_RIGHTS_EVIDENCE_RETRACT_ERROR, substr( (string) $r['error'], 0, 300 ), 10 * MINUTE_IN_SECONDS );

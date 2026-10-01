@@ -60,7 +60,7 @@ function machine_readers_rights_evidence_html() {
  * @return string
  */
 function machine_readers_rights_evidence_retract_html() {
-	$rows = function_exists( 'sn_rights_evidence_retractable' ) && function_exists( 'sn_rights_evidence_retract_confirm' ) ? \sn_rights_evidence_retractable() : array();
+	$rows = function_exists( 'sn_rights_evidence_can_retract' ) && function_exists( 'sn_rights_evidence_retract_confirm' ) && \sn_rights_evidence_can_retract() ? \sn_rights_evidence_retractable() : array();
 	if ( ! $rows ) {
 		return '';
 	}

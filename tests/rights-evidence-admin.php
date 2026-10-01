@@ -23,7 +23,9 @@ function sn_rights_evidence_dry_run( $ym ) { $GLOBALS['__re']['dry']++; return a
 const SN_RIGHTS_EVIDENCE_OPTION = 'sn_rights_evidence';
 $GLOBALS['__re']['posts'] = array(); $GLOBALS['__re']['reply'] = array( 'code' => 200, 'body' => array( 'ok' => true, 'path' => 'retractions/u7/v1.json', 'content_hash' => 'c' ) );
 function sn_rights_evidence_data() { return $GLOBALS['__options'][ SN_RIGHTS_EVIDENCE_OPTION ] ?? array(); }
-function sn_prov_worker_url() { return 'https://prov.example'; }
+$GLOBALS['__re']['worker'] = 'https://prov.example'; $GLOBALS['__re']['secret'] = 's3';
+function sn_prov_worker_url() { return $GLOBALS['__re']['worker']; }
+function sn_prov_hmac_secret() { return $GLOBALS['__re']['secret']; }
 function sn_rights_evidence_signed_post( $url, array $fields ) { $GLOBALS['__re']['posts'][] = array( $url, $fields ); return $GLOBALS['__re']['reply']; }
 if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $t = 0 ) { $GLOBALS['__transients'][ $k ] = $v; return true; } }
 if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $k ) { unset( $GLOBALS['__transients'][ $k ] ); return true; } }
@@ -96,6 +98,15 @@ ok( array( 'family', 'month', 'sub', 'tab' ) === snt_leaf_names( $n ) && snt_lea
 ok( array() === $GLOBALS['__re']['posts'], 'E6 painting posts nothing' );
 $recs( array( 'openai' => array_merge( $conf, array( 'status' => 'retracted' ) ) ) );
 ok( ! str_contains( $classic(), 'Retract' ) && ! str_contains( $native(), 'Retract' ), 'E7 nothing retractable: no Retractions block on either twin' );
+
+foreach ( array( 'worker' => '', 'secret' => '' ) as $k => $v ) {
+	$recs( array( 'openai' => $conf ) );
+	$keep = $GLOBALS['__re'][ $k ]; $GLOBALS['__re'][ $k ] = $v;
+	ok( ! str_contains( $classic(), 'Retract August' ) && ! str_contains( $native(), 'Retract August' ), "E7b $k unset: no Retract button on either twin" );
+	ok( 'rights_evidence_retract_unconfigured' === sn_handle_rights_evidence_retract( array( 'month' => '2026-08', 'family' => 'openai' ) ) && array() === $GLOBALS['__re']['posts'] && 'confirmed' === $GLOBALS['__options'][ SN_RIGHTS_EVIDENCE_OPTION ]['2026-08']['openai']['status'], "E7c $k unset: the handler refuses with its own flash, nothing posted" );
+	$GLOBALS['__re'][ $k ] = $keep;
+}
+ok( str_contains( $flash, "'rights_evidence_retract_unconfigured'" ), 'E7d the unconfigured refusal has a flash message' );
 
 $recs( array( 'openai' => $conf, 'mistral' => $conf ) );
 foreach ( array( array( '2026-08', 'mistral' ), array( '2026-08', 'nobody' ), array( '2026-07', 'openai' ), array( '2026-08\'"', 'openai' ), array( '', '' ) ) as $mf ) {

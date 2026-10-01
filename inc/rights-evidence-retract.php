@@ -19,6 +19,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * The worker can be asked: its URL and secret are set. The gate the Retract
+ * button paints behind and the handler re-checks (Lift's gate, minus the
+ * sensor, which a retraction does not read).
+ *
+ * @return bool
+ */
+function sn_rights_evidence_can_retract() {
+	return function_exists( 'sn_prov_worker_url' ) && '' !== (string) sn_prov_worker_url()
+		&& function_exists( 'sn_prov_hmac_secret' ) && '' !== (string) sn_prov_hmac_secret();
+}
+
+/**
  * Records that can be retracted now: confirmed, on the ledger, with text.
  *
  * @return array<int,array{month:string,family:string,entry:array,text:array}>
@@ -97,7 +109,36 @@ function sn_rights_evidence_retract( $month, $family, $now = null ) {
 		$out = array( 'result' => 'retracted', 'error' => '' );
 	} elseif ( 409 === $r['code'] ) {
 		$out = array( 'result' => 'refused', 'error' => (string) ( $r['body']['error'] ?? '' ) );
+		// A lost 200: the worker says it is already retracted. Believe the
+		// ledger, not the word: the retraction file must name this record.
+		if ( false !== stripos( $out['error'], 'already retracted' ) && sn_rights_evidence_retract_adopt( (string) $month, (string) $family, $match[0]['entry'] ) ) {
+			$out = array( 'result' => 'retracted', 'error' => '' );
+		}
 	}
 	delete_transient( 'sn_rights_evidence_lock' );
 	return $out;
+}
+
+/**
+ * Adopt a retraction already on the ledger (read-only): when
+ * `retractions/<uid>/v1.json` exists and its payload.retracted_path is this
+ * entry's ledger_path, mark the entry retracted with that path and hash.
+ *
+ * @param string $month  YYYY-MM.
+ * @param string $family Crawler family.
+ * @param array  $entry  The stored record.
+ * @return bool Adopted.
+ */
+function sn_rights_evidence_retract_adopt( $month, $family, array $entry ) {
+	$path = 'retractions/' . (string) $entry['uuid'] . '/v1.json';
+	$doc  = function_exists( 'sn_rights_evidence_ledger_json' ) ? sn_rights_evidence_ledger_json( $path ) : null;
+	if ( ! is_array( $doc ) || (string) $entry['ledger_path'] !== (string) ( $doc['payload']['retracted_path'] ?? '' ) ) {
+		return false;
+	}
+	$data = sn_rights_evidence_data();
+	$data[ $month ][ $family ]['status']          = 'retracted';
+	$data[ $month ][ $family ]['retraction_path'] = $path;
+	$data[ $month ][ $family ]['retraction_hash'] = (string) ( $doc['content_hash'] ?? '' );
+	update_option( SN_RIGHTS_EVIDENCE_OPTION, $data, false );
+	return true;
 }

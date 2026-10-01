@@ -114,7 +114,7 @@ function sn_admin_render_rights_evidence() {
  * one-button Retract form behind a confirm. Nothing when none is eligible.
  */
 function sn_admin_render_rights_evidence_retract() {
-	$rows = function_exists( 'sn_rights_evidence_retractable' ) ? sn_rights_evidence_retractable() : array();
+	$rows = function_exists( 'sn_rights_evidence_can_retract' ) && sn_rights_evidence_can_retract() ? sn_rights_evidence_retractable() : array();
 	if ( ! $rows ) {
 		return;
 	}

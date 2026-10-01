@@ -379,6 +379,11 @@ stores status `retracted`, `retraction_path` and `retraction_hash`; a 409
 nothing and flashes the worker's error. `retracted` is final: the daily
 refresh never re-reads it. Post one, wait for the ledger's checks, then the
 next. The text is code, not input: a new month's retraction is a pull request.
+The button and the handler need the worker URL and secret set. A 409 saying
+already retracted (a lost 200) is reconciled from the ledger, read-only: the
+record is marked retracted only when `retractions/<uid>/v1.json` exists and its
+`payload.retracted_path` is the record's path. The refresh re-reads the option
+before it writes and never touches an entry that turned final meanwhile.
 
 ## Privacy posture
 
