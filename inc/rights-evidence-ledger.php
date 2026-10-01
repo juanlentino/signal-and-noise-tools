@@ -96,14 +96,14 @@ const SN_RIGHTS_EVIDENCE_MAX_VERSIONS = 200;
  */
 function sn_rights_evidence_signal_history( array $index ) {
 	// Every row is checked before any read: one malformed row (no slug, an
-	// unsafe slug, no positive version) refuses the history, never a walk
+	// unsafe slug, no positive version, a slug already listed) refuses the history, never a walk
 	// that silently drops that signal from the reservation.
 	$signals = array();
 	foreach ( (array) ( $index['rights_signals'] ?? array() ) as $r ) {
 		$slug    = is_array( $r ) ? (string) ( $r['slug'] ?? '' ) : '';
 		$current = is_array( $r ) && is_numeric( $r['version'] ?? null ) ? (int) $r['version'] : 0;
-		if ( 1 !== preg_match( '/^[a-z0-9-]{1,64}$/', $slug ) || $current < 1 || $current > SN_RIGHTS_EVIDENCE_MAX_VERSIONS ) {
-			return null; // Above the ceiling too: an index claiming more versions than a signal can carry is not walked.
+		if ( 1 !== preg_match( '/^[a-z0-9-]{1,64}$/', $slug ) || $current < 1 || $current > SN_RIGHTS_EVIDENCE_MAX_VERSIONS || isset( $signals[ $slug ] ) ) {
+			return null; // Above the ceiling, or a slug listed twice (which row is current?): not walked.
 		}
 		$signals[ $slug ] = $current;
 	}

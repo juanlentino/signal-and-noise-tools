@@ -249,12 +249,13 @@ function sn_rights_evidence_run( $now = null ) {
 	// A backlog month that keeps failing must not starve the current one:
 	// after SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP failing passes in a row, one
 	// pass goes to the current month (when not held), the backlog month stays
-	// queued, and its count restarts so it takes the passes after that.
-	$fails = (array) get_option( 'sn_rights_evidence_backlog_fails', array() );
+	// queued, and its count restarts so it takes the passes after that. The
+	// restart is written only once this pass holds the lock below.
+	$yielded = null;
+	$fails   = (array) get_option( 'sn_rights_evidence_backlog_fails', array() );
 	if ( null !== $month && (int) ( $fails[ $month['month'] ] ?? 0 ) >= SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP && ! in_array( $current['month'], $held, true ) ) {
-		unset( $fails[ $month['month'] ] );
-		update_option( 'sn_rights_evidence_backlog_fails', $fails, false );
-		$month = null;
+		$yielded = $month['month'];
+		$month   = null;
 	}
 	$from_backlog = null !== $month;
 	if ( ! $from_backlog ) {
@@ -274,6 +275,11 @@ function sn_rights_evidence_run( $now = null ) {
 		return $out;
 	}
 	set_transient( 'sn_rights_evidence_lock', 1, 5 * MINUTE_IN_SECONDS );
+	if ( null !== $yielded ) {
+		$fails = (array) get_option( 'sn_rights_evidence_backlog_fails', array() ); // Re-read under the lock.
+		unset( $fails[ $yielded ] );
+		update_option( 'sn_rights_evidence_backlog_fails', $fails, false );
+	}
 	$data   = sn_rights_evidence_data();
 	$stored = (array) ( $data[ $month['month'] ] ?? array() );
 	// Stored bytes first, for every family of the month whatever the sensor

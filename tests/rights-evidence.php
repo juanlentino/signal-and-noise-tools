@@ -140,6 +140,8 @@ foreach ( array( 'junk', array( 'slug' => '../etc', 'version' => 1 ), array( 'sl
 	$bad = $index; $bad['rights_signals'][] = $row; $GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['http'] = array();
 	ok( null === sn_rights_evidence_signal_history( $bad ) && array() === $GLOBALS['__k']['http'], 'B4d a malformed rights-signal row (junk, path-unsafe slug, no version, version 0; case ' . $i . ') refuses the whole history before any read: a reservation missing a signal is half an evidence' );
 }
+$dup = $index; $dup['rights_signals'][] = array( 'slug' => 'tdm-policy', 'version' => 1 ); $GLOBALS['__k']['opt'] = array(); $GLOBALS['__k']['http'] = array();
+ok( null === sn_rights_evidence_signal_history( $dup ) && array() === $GLOBALS['__k']['http'], 'B4e a slug listed twice in rights_signals refuses the history before any read: a later row never overwrites an earlier one' );
 $GLOBALS['__k']['opt'] = array();
 $res = sn_rights_evidence_reservation( $hist, $m );
 $expect_aug = array(
@@ -433,6 +435,13 @@ $months = array();
 for ( $i = 0; $i < 9; $i++ ) { $months[] = sn_rights_evidence_run( $oct5 + $i * DAY_IN_SECONDS )['month']; }
 ok( array_fill( 0, SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP, '2026-08' ) === array_slice( $months, 0, SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP ) && '2026-09' === $months[ SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP ], 'K6 after ' . SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP . ' failing passes on one backlog month, the next pass works the current month: ' . implode( ',', $months ) );
 ok( '2026-08' === $months[ SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP + 1 ] && array( '2026-08' ) === sn_rights_evidence_backlog(), 'K7 the backlog month stays queued and takes the pass after that one' );
+$GLOBALS['__k']['opt']['sn_rights_evidence_backlog_fails'] = array( '2026-08' => SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP ); $GLOBALS['__k']['posts'] = array();
+$GLOBALS['__k']['transients']['sn_rights_evidence_lock'] = 1;
+$r = sn_rights_evidence_run( $oct5 + 9 * DAY_IN_SECONDS );
+unset( $GLOBALS['__k']['transients']['sn_rights_evidence_lock'] );
+ok( 'a pass is already running' === $r['error'] && array( '2026-08' => SN_RIGHTS_EVIDENCE_BACKLOG_FAIL_CAP ) === get_option( 'sn_rights_evidence_backlog_fails' ) && array() === $GLOBALS['__k']['posts'] && array( '2026-08' ) === sn_rights_evidence_backlog(), 'K7b a pass that finds the lock held leaves the failure counter at the cap (not consumed), posts nothing and dequeues nothing' );
+$r = sn_rights_evidence_run( $oct5 + 9 * DAY_IN_SECONDS );
+ok( '2026-09' === $r['month'] && array() === get_option( 'sn_rights_evidence_backlog_fails' ), 'K7c the next pass that takes the lock consumes the counter: it works the current month and resets the count' );
 $GLOBALS['__k']['post_reply'] = $pending_reply; $GLOBALS['__k']['posts'] = array();
 $r = sn_rights_evidence_run( $oct5 + 9 * DAY_IN_SECONDS );
 ok( $r['ok'] && '2026-08' === $r['month'] && array() === sn_rights_evidence_backlog() && array() === (array) get_option( 'sn_rights_evidence_backlog_fails', array() ), 'K8 a clean pass dequeues the month and clears its failure count' );
