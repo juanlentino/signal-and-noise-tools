@@ -338,7 +338,7 @@ ok( '{}' === json_encode( snt_ability_rights_evidence()['months'] ), 'G4 no reco
 
 // J: F5, stored records refreshed from the ledger, held or not.
 $re = static fn( $st, $n ) => array( 'uuid' => 'u' . $n, 'content_hash' => 'h' . $n, 'status' => $st, 'ledger_path' => 'rights-evidence/u' . $n . '/v1.json', 'at' => 1, 'error' => '' );
-$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-08' ), SN_RIGHTS_EVIDENCE_OPTION => array( '2026-07' => array( 'openai' => $re( 'pending', 1 ), 'anthropic' => $re( 'confirmed', 2 ), 'mistral' => $re( 'conflict', 3 ), 'cohere' => $re( 'pending', 4 ) ) ) );
+$GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-08' ), SN_RIGHTS_EVIDENCE_OPTION => array( '2026-07' => array( 'openai' => $re( 'pending', 1 ), 'anthropic' => array( 'block' => 970002 ) + $re( 'confirmed', 2 ), 'mistral' => $re( 'conflict', 3 ), 'cohere' => $re( 'pending', 4 ) ) ) );
 $GLOBALS['__k']['ledger']['rights-evidence/u1/v1.json'] = array( 'payload' => array(), 'ots' => array( 'status' => 'confirmed', 'bitcoin_block' => 970001 ) );
 $GLOBALS['__k']['http'] = array(); $GLOBALS['__k']['secret'] = '';
 $r = sn_rights_evidence_run( $now );
@@ -351,6 +351,17 @@ $many = array(); for ( $i = 10; $i < 25; $i++ ) { $many[ 'f' . $i ] = $re( 'pend
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-08' ), SN_RIGHTS_EVIDENCE_OPTION => array( '2026-07' => $many ) );
 sn_rights_evidence_run( $now );
 ok( SN_RIGHTS_EVIDENCE_REFRESH_CAP === count( array_filter( $GLOBALS['__k']['http'], static fn( $u ) => str_contains( $u, 'rights-evidence/' ) ) ), 'J3 the refresh reads at most ' . SN_RIGHTS_EVIDENCE_REFRESH_CAP . ' records per pass (15 pending here)' );
+
+// J4/J5: a confirmation without a numeric block is not final (review follow-up 1).
+$GLOBALS['__k']['opt'] = array( SN_RIGHTS_EVIDENCE_OPTION => array( '2026-07' => array( 'openai' => $re( 'pending', 41 ), 'anthropic' => $re( 'confirmed', 42 ) ) ) );
+$GLOBALS['__k']['ledger']['rights-evidence/u41/v1.json'] = array( 'payload' => array(), 'ots' => array( 'status' => 'confirmed' ) );
+$GLOBALS['__k']['ledger']['rights-evidence/u42/v1.json'] = array( 'payload' => array(), 'ots' => array( 'status' => 'confirmed', 'bitcoin_block' => 970042 ) );
+sn_rights_evidence_refresh();
+$GLOBALS['__k']['http'] = array();
+sn_rights_evidence_refresh();
+$d = sn_rights_evidence_data()['2026-07'];
+ok( 'pending' === $d['openai']['status'] && ! isset( $d['openai']['block'] ) && in_array( 'https://raw.example/ledger/main/rights-evidence/u41/v1.json', $GLOBALS['__k']['http'], true ), 'J4 a ledger file saying confirmed with no numeric block is not taken: the record stays non-final and the next pass re-reads it' );
+ok( 'confirmed' === $d['anthropic']['status'] && 970042 === $d['anthropic']['block'], 'J5 a record stored confirmed with no block (a worker reply carries none) is re-read until the ledger gives its block' );
 
 // K: the backlog fixes (owner approved, Codex review).
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array( '2026-08' ) ); $GLOBALS['__k']['mr'] = false;

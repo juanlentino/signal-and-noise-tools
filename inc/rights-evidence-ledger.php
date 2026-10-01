@@ -134,6 +134,19 @@ function sn_rights_evidence_signal_history( array $index ) {
 }
 
 /**
+ * A stored record the refresh never re-reads: conflict and retracted, and a
+ * confirmation only once it carries its block. A confirmed status with no
+ * numeric block (a worker reply carries none) is read again until it does.
+ *
+ * @param mixed $e A stored entry.
+ * @return bool
+ */
+function sn_rights_evidence_is_final( $e ) {
+	$status = is_array( $e ) ? (string) ( $e['status'] ?? '' ) : '';
+	return in_array( $status, array( 'conflict', 'retracted' ), true ) || ( 'confirmed' === $status && is_int( $e['block'] ?? null ) );
+}
+
+/**
  * F5: re-read every posted record that is not yet final from the ledger file
  * the worker wrote, and take its status and block. Read-only against the
  * ledger; runs before the hold, so a held pass still refreshes.
@@ -143,7 +156,6 @@ function sn_rights_evidence_signal_history( array $index ) {
  * @return int Records whose stored status or block changed.
  */
 function sn_rights_evidence_refresh() {
-	$final   = array( 'confirmed', 'conflict', 'retracted' );
 	$data    = sn_rights_evidence_data();
 	$reads   = 0;
 	$updates = array();
@@ -153,7 +165,7 @@ function sn_rights_evidence_refresh() {
 			$path = is_array( $e ) ? (string) ( $e['ledger_path'] ?? '' ) : '';
 			// Final: never re-read. A retracted record's v1 file still says
 			// confirmed; re-reading it would flip the retraction back.
-			if ( '' === $path || in_array( (string) ( $e['status'] ?? '' ), $final, true ) ) {
+			if ( '' === $path || sn_rights_evidence_is_final( $e ) ) {
 				continue;
 			}
 			if ( $reads++ >= SN_RIGHTS_EVIDENCE_REFRESH_CAP ) {
@@ -165,6 +177,9 @@ function sn_rights_evidence_refresh() {
 				continue;
 			}
 			$block = is_numeric( $doc['ots']['bitcoin_block'] ?? null ) ? (int) $doc['ots']['bitcoin_block'] : null;
+			if ( 'confirmed' === $status && null === $block ) {
+				continue; // Confirmed with no block is not taken: it would read as final with nothing to show.
+			}
 			if ( $status !== (string) ( $e['status'] ?? '' ) || $block !== ( $e['block'] ?? null ) ) {
 				$updates[ $month ][ $family ] = array( $status, $block );
 			}
@@ -181,7 +196,7 @@ function sn_rights_evidence_refresh() {
 	foreach ( $updates as $month => $families ) {
 		foreach ( $families as $family => $u ) {
 			$e = $fresh[ $month ][ $family ] ?? null;
-			if ( ! is_array( $e ) || in_array( (string) ( $e['status'] ?? '' ), $final, true ) ) {
+			if ( ! is_array( $e ) || sn_rights_evidence_is_final( $e ) ) {
 				continue;
 			}
 			$fresh[ $month ][ $family ]['status'] = $u[0];
