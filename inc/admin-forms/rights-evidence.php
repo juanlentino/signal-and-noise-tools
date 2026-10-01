@@ -39,6 +39,27 @@ function sn_rights_evidence_view_url( $ym ) {
 	);
 }
 
+/** The one-at-a-time note both surfaces print above the retractions. */
+const SN_RIGHTS_EVIDENCE_RETRACT_NOTE = 'Post one, wait for the ledger\'s checks, then the next.';
+
+/** The published fields, in the order both surfaces show them. */
+const SN_RIGHTS_EVIDENCE_RETRACT_LABELS = array(
+	'claimed'        => 'Claimed',
+	'what_was_wrong' => 'What was wrong',
+	'root_cause'     => 'Root cause',
+	'what_changed'   => 'What changed',
+);
+
+/**
+ * The confirm question on a Retract button.
+ *
+ * @param string $label e.g. "August 2026, openai".
+ * @return string
+ */
+function sn_rights_evidence_retract_confirm( $label ) {
+	return sprintf( 'Retract the %s record? The worker signs this text and publishes it on the public, append-only ledger beside the record. It cannot be undone.', $label );
+}
+
 /**
  * The status line both surfaces print.
  *
@@ -84,5 +105,31 @@ function sn_admin_render_rights_evidence() {
 	if ( ! $can && sn_rights_evidence_held( false ) ) {
 		echo '<p class="sn-field-helper">Lift appears once the provenance worker is set up and the sensor answers: a month that cannot be composed stays held.</p>';
 	}
+	sn_admin_render_rights_evidence_retract();
 	echo '</div>';
+}
+
+/**
+ * Per retractable record: the exact text that will be published, then a
+ * one-button Retract form behind a confirm. Nothing when none is eligible.
+ */
+function sn_admin_render_rights_evidence_retract() {
+	$rows = function_exists( 'sn_rights_evidence_retractable' ) ? sn_rights_evidence_retractable() : array();
+	if ( ! $rows ) {
+		return;
+	}
+	echo '<h3>Retractions</h3>';
+	echo '<p class="sn-field-helper">' . esc_html( SN_RIGHTS_EVIDENCE_RETRACT_NOTE ) . '</p>';
+	foreach ( $rows as $r ) {
+		$label = gmdate( 'F Y', (int) strtotime( $r['month'] . '-01T00:00:00Z' ) ) . ', ' . $r['family'];
+		echo '<div class="sn-fieldset-actions"><p><strong>' . esc_html( $label ) . '</strong>: <code>' . esc_html( (string) $r['entry']['ledger_path'] ) . '</code></p>';
+		foreach ( SN_RIGHTS_EVIDENCE_RETRACT_LABELS as $key => $name ) {
+			echo '<p><strong>' . esc_html( $name ) . ':</strong> ' . esc_html( (string) $r['text'][ $key ] ) . '</p>';
+		}
+		echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '"><input type="hidden" name="tab" value="monitoring"><input type="hidden" name="sub" value="machine-readers">';
+		echo '<input type="hidden" name="month" value="' . esc_attr( $r['month'] ) . '"><input type="hidden" name="family" value="' . esc_attr( $r['family'] ) . '">';
+		wp_nonce_field( 'sn_rights_evidence_retract' );
+		echo '<button type="submit" name="action" value="sn_rights_evidence_retract" class="button" data-snt-confirm="' . esc_attr( sn_rights_evidence_retract_confirm( $label ) ) . '">' . esc_html( 'Retract ' . $label ) . '</button>';
+		echo '</form></div>';
+	}
 }

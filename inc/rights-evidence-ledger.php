@@ -150,7 +150,9 @@ function sn_rights_evidence_refresh() {
 	foreach ( $data as $month => $families ) {
 		foreach ( (array) $families as $family => $e ) {
 			$path = is_array( $e ) ? (string) ( $e['ledger_path'] ?? '' ) : '';
-			if ( '' === $path || in_array( (string) ( $e['status'] ?? '' ), array( 'confirmed', 'conflict' ), true ) ) {
+			// Final: never re-read. A retracted record's v1 file still says
+			// confirmed; re-reading it would flip the retraction back.
+			if ( '' === $path || in_array( (string) ( $e['status'] ?? '' ), array( 'confirmed', 'conflict', 'retracted' ), true ) ) {
 				continue;
 			}
 			if ( $reads++ >= SN_RIGHTS_EVIDENCE_REFRESH_CAP ) {

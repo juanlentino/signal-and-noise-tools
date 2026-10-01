@@ -365,6 +365,8 @@ require_once SNT_PATH . 'inc/rights-evidence-compose.php'; // 17.0.0: one record
 require_once SNT_PATH . 'inc/rights-evidence-ledger.php';  // Unreleased: rights-signal history and record refresh, read-only.
 require_once SNT_PATH . 'inc/rights-evidence-dry-run.php'; // Unreleased: compose from live reads, post nothing (shared with the pass).
 require_once SNT_PATH . 'inc/rights-evidence.php';         // 17.0.0: the daily pass that composes and posts it.
+require_once SNT_PATH . 'inc/rights-evidence-retractions.php'; // Unreleased: the approved retraction text (pure data).
+require_once SNT_PATH . 'inc/rights-evidence-retract.php';   // Unreleased: one signed retraction per click, POST /retract.
 require_once SNT_PATH . 'inc/rights-evidence-cli.php';     // Unreleased: wp sn rights-evidence dry-run (WP-CLI only).
 require_once SNT_PATH . 'inc/abilities-rights-evidence.php'; // 17.0.0: rights-evidence (read) + rights-evidence-now (rw).
 require_once SNT_PATH . 'inc/machine-readers-render.php';

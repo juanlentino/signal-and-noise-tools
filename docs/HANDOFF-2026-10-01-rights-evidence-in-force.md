@@ -151,6 +151,16 @@ bug; after it, a pass reads only pending versions.
    document in the ledger giving the versions in force, from `--erratum`.
    Posting the retractions is its own owner-approved act. August rights
    coverage starts 2026-08-11 (the dataset's first row); the erratum says so.
+   **Built (Unreleased, `feat/rights-evidence-retract`):** a Retract button
+   per confirmed August record on Monitoring > Machine Readers (both twins),
+   showing the owner-approved text from `inc/rights-evidence-retractions.php`
+   before the confirm; one click, one signed `POST /retract`. Nothing has been
+   posted. Before the first click: the worker must accept rights-evidence
+   subjects on `/retract` (the parallel worker PR), and the ERRATA.md the text
+   cites must be in the ledger repo. Then post one, wait for the ledger's
+   checks, then the next. The erratum draft
+   (`sn_rights_evidence_erratum()`) still covers a retracted v1: it is the
+   record being corrected.
 3. **Lifting September.** The hold stands. The View door shows exactly what
    would be posted before the Lift.
 4. **GPTBot.** Watch the network column; decide nothing until identity is

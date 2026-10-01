@@ -54,6 +54,9 @@ function sn_admin_flash_messages() {
 		'rights_evidence_lifted'       => array( 'success', 'Hold lifted. The next daily pass composes and posts the month; nothing was posted now.' ),
 		'rights_evidence_lift_refused' => array( 'error', 'Hold kept: the sensor or the provenance worker is not reachable, so the month could not be composed.' ),
 		'rights_evidence_not_held'     => array( 'info', 'That month is not on hold.' ),
+		'rights_evidence_retracted'       => array( 'success', 'Retraction posted. The worker signed it and committed it beside the record; it is anchored with the next OpenTimestamps pass. Wait for the ledger\'s checks before the next one.' ),
+		'rights_evidence_retract_busy'    => array( 'info', 'Nothing posted: a rights evidence pass is running. Try again in a few minutes.' ),
+		'rights_evidence_not_retractable' => array( 'info', 'Nothing posted: that record is not one that can be retracted (not confirmed on the ledger, already retracted, or no approved text).' ),
 		'resume_no_prev'            => array( 'info', 'There is no earlier version to revert to.' ),
 		'resume_reverted'           => array( 'success', 'Reverted: the previous version is live again. Revert once more to undo.' ),
 		'resume_reverted_pdf_failed' => array( 'error', 'Reverted: the previous version is live again, but the PDF could not be rebuilt. Generate PDF to retry.' ),
@@ -277,6 +280,12 @@ function sn_admin_flash_to_notice( $flash ) {
 		$slug_now  = sn_setting( 'login.slug', 'sn-login' );
 		$login_url = home_url( '/' . $slug_now );
 		return array( 'success', 'Login slug saved. New URL: <a href="' . esc_url( $login_url ) . '">' . esc_html( $login_url ) . '</a>' );
+	}
+	// Unreleased: the worker's own words on a refused (409) or failed retraction.
+	if ( 'rights_evidence_retract_refused' === $flash || 'rights_evidence_retract_failed' === $flash ) {
+		$err  = (string) get_transient( 'sn_rights_evidence_retract_error' );
+		$head = 'rights_evidence_retract_refused' === $flash ? 'Retraction refused by the worker; the record\'s status is unchanged.' : 'Retraction not posted: the worker could not be reached or answered with an error; the record\'s status is unchanged.';
+		return array( 'error', $head . ( '' !== trim( $err ) ? ' <code>' . esc_html( substr( $err, 0, 300 ) ) . '</code>' : '' ) );
 	}
 	if ( 'analytics_test_ok' === $flash ) {
 		return array( 'success', '&#10003; Analytics API reachable: credentials valid.' );
