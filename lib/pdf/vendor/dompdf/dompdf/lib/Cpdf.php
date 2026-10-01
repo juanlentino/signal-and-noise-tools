@@ -5455,7 +5455,10 @@ EOT;
             // modify unicode text so that extra word spacing is manually implemented (bug #)
             if ($this->fonts[$this->currentFont]['isUnicode'] && $wordSpaceAdjust != 0) {
                 $space_scale = 1000 / $size;
-                $place_text = str_replace("\x00\x20", "\x00\x20)\x00\x20" . (-round($space_scale * $wordSpaceAdjust)) . "\x00\x20(", $place_text);
+                // Signal & Noise patch (2026-10-01): the gap number sits OUTSIDE the
+                // string, so it is plain ASCII; upstream wrapped it in \x00 bytes and
+                // pypdf refused the file. Pinned in tests/resume-pdf.php.
+                $place_text = str_replace("\x00\x20", "\x00\x20) " . (-round($space_scale * $wordSpaceAdjust)) . " (", $place_text);
             }
             $this->addContent(" /F$this->currentFontNum " . sprintf('%.1F Tf ', $size));
             $this->addContent(" [($place_text)] TJ");

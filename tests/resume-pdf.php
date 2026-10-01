@@ -61,6 +61,22 @@ ok( false !== strpos( $bytes, '/FontFile2' ) && false !== strpos( $bytes, 'Lato'
 ok( false === strpos( $bytes, '/Subtype /Image' ), 'no images at all: every word is text an ATS can read' );
 $info = static fn( $key ) => (bool) preg_match( '#/' . $key . '\s*\(#', $bytes ) || (bool) preg_match( '#/' . $key . '\s*<#', $bytes );
 ok( $info( 'Title' ) && $info( 'Author' ), 'Title and Author metadata are set' );
+ok( 1 === preg_match( '#/Title\s*\(([^)]*)\)#', $bytes, $tm ) && false === strpos( $tm[1], "\xE2\x80\x94" ) && false === strpos( $tm[1], "\x20\x14" ), 'the Title carries no em dash' );
+
+// Justified text in a Unicode font: Dompdf's Cpdf::addText wrote each word gap
+// as \x00\x20)\x00\x20-N\x00\x20(, NUL bytes OUTSIDE the strings. pypdf (the
+// Python reader behind many job-site uploads, Icebreaker 2026-10-01) refuses
+// the whole file on them. The vendored Cpdf is patched; a Dompdf bump that
+// brings the line back turns this red.
+$streams = '';
+if ( preg_match_all( '#stream\r?\n(.*?)\r?\nendstream#s', $bytes, $sm ) ) {
+	foreach ( $sm[1] as $raw ) {
+		$inflated = @gzuncompress( $raw );
+		$streams .= false === $inflated ? '' : $inflated;
+	}
+}
+ok( 1 === preg_match( '#\x00\x20\)(\x00\x20| )-?\d+(\x00\x20| )\(#', $streams ), 'the fixture has justified Unicode text (word gaps in a TJ array), so the next pin is not vacuous' );
+ok( 0 === preg_match( '#\x00\x20\)\x00\x20-?\d+\x00\x20\(#', $streams ), 'justified text writes its word gaps without NUL bytes outside the strings (pypdf reads the file)' );
 
 echo "\nThe strings\n";
 $html = sn_resume_pdf_html( $doc, 'Juan Lentino', '/fonts' );

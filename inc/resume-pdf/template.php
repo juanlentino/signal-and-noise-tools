@@ -231,6 +231,6 @@ function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false, $si
 		$out .= '<h2>TECHNICAL TOOLKIT</h2><p class="toolkit">' . implode( ' &#8226; ', array_map( $e, $toolkit ) ) . '</p>';
 	}
 
-	return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>' . $e( $name ) . ' — Resume</title><style>'
+	return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>' . $e( $name ) . ', Resume</title><style>'
 		. sn_resume_pdf_css( $font_dir ) . '</style></head><body>' . $out . '</body></html>';
 }
