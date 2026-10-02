@@ -331,8 +331,10 @@ function sn_resume_body_html( $doc ) {
 /**
  * Create-or-update the /resume Page with the given body. Replaces
  * post_content on the existing Page (the form is the canonical editor);
- * seeds the Excerpt only when still empty; creates the Page bound to the
- * resume slug + template when absent. Returns the Page ID, or 0 on
+ * creates the Page bound to the resume slug + template when absent. It no
+ * longer seeds an Excerpt (Unreleased): the seed said "twenty years ... then
+ * twenty more" beside a resume that says 15+, and the page's description
+ * and share card now read the meta description instead. Returns the Page ID, or 0 on
  * failure / empty body.
  *
  * @param string $body Full post_content (serialized blocks).
@@ -352,18 +354,13 @@ function sn_resume_upsert_page( $body ) {
 	}
 
 	$slug    = defined( 'SN_RESUME_SLUG' ) ? SN_RESUME_SLUG : 'resume';
-	$excerpt = 'Twenty years in the room where the music actually gets made, then twenty more figuring out how to keep the business standing after the session ends. This resume tracks that arc (production, strategy, mentorship) across the U.S. and Latin America.';
 	$page    = get_page_by_path( $slug );
 
 	if ( $page ) {
-		$update = array(
+		wp_update_post( wp_slash( array(
 			'ID'           => $page->ID,
 			'post_content' => $body,
-		);
-		if ( '' === trim( (string) $page->post_excerpt ) ) {
-			$update['post_excerpt'] = $excerpt;
-		}
-		wp_update_post( wp_slash( $update ) );
+		) ) );
 		return (int) $page->ID;
 	}
 
@@ -375,7 +372,6 @@ function sn_resume_upsert_page( $body ) {
 			'post_status'   => 'publish',
 			'post_type'     => 'page',
 			'post_content'  => $body,
-			'post_excerpt'  => $excerpt,
 			'page_template' => 'page-resume',
 		) ),
 		false

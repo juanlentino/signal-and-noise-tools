@@ -217,6 +217,17 @@ function sn_og_image_url_for_post( $post ) {
  * @return string
  */
 function sn_og_card_dek_source( $post ) {
+	// Unreleased: a PAGE's card says what its meta description says
+	// (override, then excerpt, then the route copy), so the two can never
+	// disagree. The resume card printed a stale "Twenty-plus years" excerpt
+	// under a "15+ years" title while the description, an override, said 15+.
+	// Notes keep their excerpt: that is the dek they were written with.
+	if ( 'page' === ( $post->post_type ?? '' ) && function_exists( 'sn_seo_description_for_post' ) ) {
+		$description = trim( (string) sn_seo_description_for_post( $post ) );
+		if ( '' !== $description ) {
+			return $description;
+		}
+	}
 	$excerpt = trim( (string) $post->post_excerpt );
 	if ( '' === $excerpt ) {
 		$content = (string) $post->post_content;
@@ -248,6 +259,22 @@ function sn_og_card_dek_source( $post ) {
 		$excerpt = (string) apply_filters( 'sn_seo_singular_description', '', $post );
 	}
 	return $excerpt;
+}
+
+/**
+ * The card's footer line: reading time for a note, nothing for a page. A
+ * resume or a landing page is not read start to finish, and "6 MIN READ" on
+ * the resume card read as a typo (Unreleased).
+ *
+ * @param object $post
+ * @return string
+ */
+function sn_og_card_footer( $post ) {
+	if ( 'page' === ( $post->post_type ?? '' ) ) {
+		return '';
+	}
+	$minutes = function_exists( 'sn_get_reading_time' ) ? sn_get_reading_time( $post ) : 1;
+	return strtoupper( $minutes . ' MIN READ' );
 }
 
 /**
@@ -370,10 +397,11 @@ function sn_generate_og_card( $post_id ) {
 	}
 
 	// Footer: reading time in red, right-aligned site mark would clutter the
-	// brutalist treatment so we keep it minimal.
-	$minutes = function_exists( 'sn_get_reading_time' ) ? sn_get_reading_time( $post ) : 1;
-	$footer  = strtoupper( $minutes . ' MIN READ' );
-	imagettftext( $im, 18, 0, $pad_x, SN_OG_HEIGHT - 60, $red, $dmmono_path, $footer );
+	// brutalist treatment so we keep it minimal. None on a page.
+	$footer = sn_og_card_footer( $post );
+	if ( '' !== $footer ) {
+		imagettftext( $im, 18, 0, $pad_x, SN_OG_HEIGHT - 60, $red, $dmmono_path, $footer );
+	}
 
 	$path = $dir['path'] . '/post-' . (int) $post_id . '.png';
 	$ok   = imagepng( $im, $path, 6 );

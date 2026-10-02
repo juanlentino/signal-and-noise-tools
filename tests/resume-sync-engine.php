@@ -166,12 +166,13 @@ ok( ! isset( $GLOBALS['__updates'][0]['post_excerpt'] ), 'a set excerpt is never
 
 $GLOBALS['__page'] = (object) array( 'ID' => 1184, 'post_excerpt' => '  ' );
 sn_resume_upsert_page( $body );
-ok( isset( $GLOBALS['__updates'][1]['post_excerpt'] ) && '' !== $GLOBALS['__updates'][1]['post_excerpt'], 'blank excerpt gets seeded' );
+ok( ! isset( $GLOBALS['__updates'][1]['post_excerpt'] ), '(changed) a blank excerpt is left blank: the seed said "twenty more" beside a 15+ resume' );
 
 $GLOBALS['__page'] = null;
 $GLOBALS['__inserts'] = array();
 ok( 777 === sn_resume_upsert_page( $body ), 'absent page → created' );
 ok( 'resume' === ( $GLOBALS['__inserts'][0]['post_name'] ?? '' ) && 'page-resume' === ( $GLOBALS['__inserts'][0]['page_template'] ?? '' ), 'created page bound to the resume slug + template' );
+ok( ! isset( $GLOBALS['__inserts'][0]['post_excerpt'] ), 'a created page gets no seeded excerpt' );
 
 // ── sync ──
 echo "\nTest: sn_resume_sync_page\n";
