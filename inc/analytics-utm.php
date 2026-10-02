@@ -123,7 +123,7 @@ function sn_analytics_utm_rollup_sql( $days ) {
 		'sum(_sample_interval) AS views,',
 		'count(DISTINCT index1) AS visits',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'pv' AND blob20 != '' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_overcap_where() . sn_analytics_window_upper(),
+		"WHERE blob1 = 'pv' AND blob20 != '' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where() . sn_analytics_window_upper(),
 		'GROUP BY day, packed, class',
 		'ORDER BY day DESC, views DESC',
 	) );

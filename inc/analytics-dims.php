@@ -106,12 +106,15 @@ add_action( 'init', 'sn_analytics_dims_maybe_install' );
  * @param int    $days Trailing window in days.
  * @return string AE SQL, or '' if $dim is unknown.
  */
-function sn_analytics_dims_rollup_sql( $dim, $days ) {
+function sn_analytics_dims_rollup_sql( $dim, $days, $tz = '' ) {
 	if ( ! isset( SN_ANALYTICS_DIM_COLUMNS[ $dim ] ) ) {
 		return '';
 	}
-	$col  = SN_ANALYTICS_DIM_COLUMNS[ $dim ];
-	$days = max( 1, (int) $days );
+	$col = SN_ANALYTICS_DIM_COLUMNS[ $dim ];
+	// Unreleased: the site's own day and the same lower bound as the daily
+	// rollup (one helper builds both), and the excluded paths dropped in the
+	// WHERE, so a dims total and a daily total describe the same pageviews.
+	list( $day_col, $lower ) = sn_analytics_rollup_window_exprs( $days, $tz );
 
 	// pv-only window: dimensions describe pageviews, so filtering to `pv` events
 	// in the WHERE lets both aggregates use AE's documented forms — sum() over the
@@ -121,13 +124,13 @@ function sn_analytics_dims_rollup_sql( $dim, $days ) {
 	// have 0 arguments"); both are avoided here. Semantically identical to the
 	// prior sumIf(pv)+count(DISTINCT if(pv)) form.
 	return implode( ' ', array(
-		"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
+		"SELECT {$day_col} AS day,",
 		"{$col} AS value,",
 		sn_analytics_class_select() . ' AS class,',
 		'sum(_sample_interval) AS views,',
 		'count(DISTINCT index1) AS visits',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'pv' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_overcap_where() . sn_analytics_window_upper(),
+		"WHERE blob1 = 'pv' AND timestamp >= {$lower}" . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where() . sn_analytics_window_upper( $tz ),
 		'GROUP BY day, value, class',
 		'ORDER BY day DESC, views DESC',
 	) );
@@ -222,8 +225,17 @@ function sn_analytics_dims_run_rollup() {
 	// One batched write; the delete covers only the dims whose own read was complete.
 	$all      = array();
 	$complete = array();
+	// The site's day, like the daily rollup; a zoned query that fails falls back
+	// to UTC for the whole run, so every dim of one run keys its days one way
+	// and the delete below names the same days the reads covered.
+	$tz   = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
+	$days = sn_analytics_rollup_window()['days'];
 	foreach ( array_keys( SN_ANALYTICS_DIM_COLUMNS ) as $dim ) {
-		$rows = sn_analytics_query( sn_analytics_dims_rollup_sql( $dim, sn_analytics_rollup_window()['days'] ) );
+		$rows = sn_analytics_query( sn_analytics_dims_rollup_sql( $dim, $days, $tz ) );
+		if ( '' !== $tz && ! is_array( $rows ) && array() === $all ) {
+			$tz   = '';
+			$rows = sn_analytics_query( sn_analytics_dims_rollup_sql( $dim, $days, '' ) );
+		}
 		if ( ! is_array( $rows ) ) {
 			continue;
 		}
@@ -243,7 +255,7 @@ function sn_analytics_dims_run_rollup() {
 			sn_analytics_dims_upsert( $all );
 		}
 	};
-	function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( true, SN_ANALYTICS_DIMS_TABLE, '', $write, array( 'dim' => $complete ) ) : $write();
+	function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( true, SN_ANALYTICS_DIMS_TABLE, $tz, $write, array( 'dim' => $complete ) ) : $write();
 }
 
 /**
