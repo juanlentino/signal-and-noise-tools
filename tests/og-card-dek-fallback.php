@@ -49,6 +49,9 @@ function has_post_thumbnail( $post ) { return null !== $GLOBALS['__resolved']; }
 function get_the_post_thumbnail_url( $post, $size = 'large' ) { return $GLOBALS['__resolved']; }
 function wp_upload_dir() { return array( 'error' => 'test: no uploads dir' ); }
 
+$GLOBALS['__seo'] = array(); // sn_seo_description_for_post() by post ID
+function sn_seo_description_for_post( $p ) { return $GLOBALS['__seo'][ $p->ID ] ?? ''; }
+function sn_get_reading_time( $p ) { return 6; }
 require __DIR__ . '/../inc/og-card-generator.php';
 
 echo "Group: card dek precedence\n";
@@ -140,6 +143,18 @@ ok( false !== strpos( $sn_txt( $dek ), 'A section' ), 'CONTROL: a heading furthe
 $post = (object) array( 'ID' => 14, 'post_excerpt' => 'Hand-written.',
 	'post_content' => '<h1>Ignored</h1><p>Also ignored.</p>' );
 ok( 'Hand-written.' === sn_og_card_dek_source( $post ), 'CONTROL: an excerpt still wins — precedence is unchanged' );
+
+echo "\nGroup: a page's card says what its description says (Unreleased)\n";
+$GLOBALS['__seo'] = array( 1184 => 'Founder and music executive, 15+ years.' );
+$page = (object) array( 'ID' => 1184, 'post_type' => 'page', 'post_excerpt' => 'Twenty-plus years of production.', 'post_content' => '' );
+ok( 'Founder and music executive, 15+ years.' === sn_og_card_dek_source( $page ), 'a page uses its meta description over a stale excerpt' );
+$note = (object) array( 'ID' => 1184, 'post_type' => 'post', 'post_excerpt' => 'The note dek.', 'post_content' => '' );
+ok( 'The note dek.' === sn_og_card_dek_source( $note ), 'CONTROL: a note keeps its excerpt even when a description exists' );
+$GLOBALS['__seo'] = array();
+$page->post_excerpt = '';
+$page->post_content = 'Body of the page.';
+ok( 'Body of the page.' === sn_og_card_dek_source( $page ), 'a page with no description still falls back to its content' );
+ok( '' === sn_og_card_footer( $page ) && '6 MIN READ' === sn_og_card_footer( $note ), 'a page card has no reading time; a note keeps it' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
