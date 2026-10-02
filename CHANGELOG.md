@@ -22,6 +22,9 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Changed
 - **analytics_top_content returns the dashboard's columns.** Each page now carries visits, scroll_avg, time_avg (milliseconds), and Search Console impressions and position, with `search_window` naming Search Console's own window (it does not follow `range`; null where Google has no row). It takes `range` (wins over `days`), `class` and `limit` (1 to 100, default 5) from sn-metrics. Its window now follows the site's day instead of UTC, so its numbers can shift slightly near midnight for current callers.
 
+### Fixed
+- **The MCP connect page no longer says the MCP Adapter is missing from wordpress.org.** WordPress listed it on 2026-10-02 with 0.7.0, so "pre-1.0, not on wordpress.org" was half false. Both the classic page and the OpenStation leaf now read "listed there since 0.7.0 and still pre-1.0". `tests/mcp-connect-render.php` pins that the old claim is gone (fails on the previous copy).
+
 ## [20.3.2] - 2026-10-01 — the resume PDF opens everywhere
 
 
