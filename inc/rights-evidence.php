@@ -363,7 +363,7 @@ function sn_rights_evidence_run( $now = null ) {
 		if ( '' === (string) ( $entry['canonical'] ?? '' ) || $held_pass || $refused ) {
 			continue;
 		}
-		if ( (int) ( $entry['review_until'] ?? 0 ) > $now ) {
+		if ( ! sn_rights_evidence_window_closed( (int) ( $entry['review_until'] ?? 0 ), $now ) ) {
 			$out['in_review']++;
 			continue;
 		}

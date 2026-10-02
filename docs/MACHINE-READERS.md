@@ -417,8 +417,9 @@ which it can be stopped.
   complete month's records and stores each with status `composed`,
   `review_until` (compose time + 72 hours, `SN_RIGHTS_EVIDENCE_REVIEW`) and a
   `summary` of its `{reads, train}`. It posts nothing. A later pass posts a
-  composed record at or after `review_until`, and only while the month is not
-  held. An entry stored before the window existed has no `review_until` and is
+  composed record from an hour before `review_until` on
+  (`SN_RIGHTS_EVIDENCE_REVIEW_SLACK`, so the fixed-time daily pass on the third
+  day is not a few minutes early), and only while the month is not held. An entry stored before the window existed has no `review_until` and is
   due, so an `unanchored` retry is unchanged. `rights-evidence-now` runs the
   same pass: it composes and refreshes, and posts only what is past its window.
 - **Hold is the opt-out.** The hold list (`sn_rights_evidence_hold`) is

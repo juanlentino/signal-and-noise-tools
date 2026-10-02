@@ -141,7 +141,7 @@ $board();
 $c = $classic(); $n = $native();
 foreach ( array( 'classic' => $c, 'native' => $n ) as $twin => $h ) {
 	ok( str_contains( $h, 'Held: 2026-08. In review: 2026-09. Backlog: none.' ), "F1 $twin: the status line names the month in review" );
-	ok( str_contains( $h, 'September 2026</strong>: Composed, not posted: posts after ' ) && str_contains( $h, '(42 h left), unless held.' ), "F2 $twin: a waiting month says when it posts and that a hold stops it" );
+	ok( str_contains( $h, 'September 2026</strong>: Composed, not posted: posts after ' ) && str_contains( $h, '(41 h left), unless held.' ), "F2 $twin: (changed) a waiting month says when a pass may post it, the slack hour before review_until, and that a hold stops it" );
 	ok( str_contains( $h, 'View September 2026 payloads' ) && str_contains( $h, 'Hold September 2026' ) && str_contains( $h, 'sn_rights_evidence_hold' ) && str_contains( $h, 'Nothing of it posts until you lift the hold' ) && str_contains( $h, 'Post September 2026 now' ) && str_contains( $h, 'nonce-sn_rights_evidence_post_now' ) && str_contains( $h, 'cannot be edited, only retracted' ), "F3 $twin: View, Hold and Post now for the waiting month, each POST with its own nonce behind a confirm that says what it does" );
 	ok( str_contains( $h, 'August 2026</strong>: Held by a rule: the worker refused openai: reservation: v3 not in force.' ) && str_contains( $h, 'Lift August 2026 hold' ) && ! str_contains( $h, 'Hold August' ) && ! str_contains( $h, 'Post August' ), "F4 $twin: a month a rule held shows the reason and Lift, never Hold or Post now" );
 }
