@@ -191,6 +191,12 @@ function sn_mcp_remote_verdicts() {
 		'machine_readers'      => $out( true, 'Ratified 2026-09-01. Aggregate family/surface/purpose counts only — no post bodies, no UA samples. The closest of the candidates to the analytics scope the door was built for.', 'signal-noise/remote-machine-readers-summary' ),
 		'analytics_top_content'=> $out( false, 'Deferred on UTILITY, not safety (post-Access, the reader is the owner). The dashboard covers it. One residual stays recorded: the rollup stores REQUESTED paths, so a logged-out visitor requesting an unpublished slug lands that path string via a 404; owner previews are already dropped at the worker (login-cookie beacons rejected).' ),
 		'404_log'              => $out( false, 'DROPPED 2026-09-01 — weakest candidate on every axis; deferred on utility under the post-Access model. Revisit only if the owner would actually read it.' ),
+		'analytics_sources'    => $out( false, 'Local only in 20.4.0 (owner, 2026-10-02): new sections ship on the local door first and earn a twin once the vocabulary settles. Floored at 3 visits.' ),
+		'analytics_series'     => $out( false, 'Local only in 20.4.0: whole-site views and visits per day; a twin waits for the section vocabulary to settle.' ),
+		'analytics_geography'  => $out( false, 'Local only in 20.4.0: country counts, floored at 3 visits; a twin waits for the vocabulary to settle.' ),
+		'analytics_devices'    => $out( false, 'Local only in 20.4.0: device counts, floored at 3 visits; a twin waits for the vocabulary to settle.' ),
+		'analytics_journeys'   => $out( false, 'Local only in 20.4.0: entry and exit PATHS carry the same requested-path residual as analytics_top_content, so it follows that verdict.' ),
+		'analytics_query'      => $out( false, 'Local only in 20.4.0: a query surface widens what a remote caller can slice; it earns a twin only after the local door has shown which questions it is used for.' ),
 
 		/* ── sn-site-facts ────────────────────────────────────────────── */
 		'theme_version'        => $out( false, 'Build identity. Reading it remotely aids fingerprinting and answers no question a phone asks.' ),

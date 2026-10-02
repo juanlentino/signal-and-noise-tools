@@ -44,7 +44,7 @@ add_action( 'wp_abilities_api_init', function () {
 	// the union type safe.
 	wp_register_ability( 'signal-noise/get-analytics-top-content', array(
 		'label'               => 'Get top content',
-		'description'         => 'Top pages by first-party pageviews over a window, highest first. `days` is the window (1-90, default 7) and `class` is the traffic class (human|suspect|bot, default human). Paths are site-relative. Read-only.',
+		'description'         => 'Top pages by first-party pageviews over a window, highest first, on the site\'s own day. `range` (7|14|30|90|365|all) wins over `days` (1-90, default 7); `limit` 1-100 (default 5); `class` human|suspect|bot (default human). Each page carries views, visits, scroll_avg, time_avg (milliseconds), and impressions and position from Search Console, whose own window is search_window (it does not follow range); null when Google has no row for the page. Paths are site-relative. Read-only.',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_analytics_top_content',
@@ -54,7 +54,8 @@ add_action( 'wp_abilities_api_init', function () {
 			'type'                 => array( 'object', 'null' ),
 			'properties'           => array(
 				'days'  => array( 'type' => 'integer', 'default' => 7, 'minimum' => 1, 'maximum' => 90 ),
-				'limit' => array( 'type' => 'integer', 'default' => 5, 'minimum' => 1, 'maximum' => 25 ),
+				'range' => array( 'type' => array( 'string', 'integer' ), 'description' => '7|14|30|90|365|all; wins over days.' ),
+				'limit' => array( 'type' => 'integer', 'default' => 5, 'minimum' => 1, 'maximum' => 100 ),
 				'class' => array( 'type' => 'string', 'default' => 'human' ),
 			),
 			'additionalProperties' => false,
@@ -62,16 +63,25 @@ add_action( 'wp_abilities_api_init', function () {
 		'output_schema'       => array(
 			'type'       => 'object',
 			'properties' => array(
-				'days'  => array( 'type' => 'integer' ),
-				'class' => array( 'type' => 'string' ),
+				'days'          => array( 'type' => 'integer' ),
+				'range'         => array( 'type' => array( 'string', 'integer', 'null' ) ),
+				'from'          => array( 'type' => 'string' ),
+				'to'            => array( 'type' => 'string' ),
+				'class'         => array( 'type' => 'string' ),
+				'search_window' => array( 'type' => array( 'object', 'null' ) ),
 				'pages' => array(
 					'type'        => 'array',
 					'description' => 'Highest first. Empty array when the window has no measured pageviews — that IS a measurement, unlike null.',
 					'items'       => array(
 						'type'       => 'object',
 						'properties' => array(
-							'path'  => array( 'type' => 'string' ),
-							'views' => array( 'type' => 'integer' ),
+							'path'        => array( 'type' => 'string' ),
+							'views'       => array( 'type' => 'integer' ),
+							'visits'      => array( 'type' => 'integer' ),
+							'scroll_avg'  => array( 'type' => 'number' ),
+							'time_avg'    => array( 'type' => 'number' ),
+							'impressions' => array( 'type' => array( 'integer', 'null' ) ),
+							'position'    => array( 'type' => array( 'number', 'null' ) ),
 						),
 					),
 				),
@@ -245,29 +255,42 @@ function sn_ability_get_analytics_events( $input ) {
 function snt_ability_get_analytics_top_content( $input ) {
 	$input = is_array( $input ) ? $input : array();
 	$days  = max( 1, min( 90, (int) ( $input['days'] ?? 7 ) ) );
-	$limit = max( 1, min( 25, (int) ( $input['limit'] ?? 5 ) ) );
-	$class = (string) ( $input['class'] ?? 'human' );
-	if ( ! defined( 'SN_ANALYTICS_CLASSES' ) || ! in_array( $class, (array) SN_ANALYTICS_CLASSES, true ) ) {
-		$class = 'human';
+	$limit = max( 1, min( 100, (int) ( $input['limit'] ?? 5 ) ) );
+	$class = snt_analytics_resolve_class( $input['class'] ?? 'human' );
+	$range = null;
+	if ( isset( $input['range'] ) ) {
+		if ( ! snt_analytics_range_is_valid( $input['range'] ) ) {
+			return new WP_Error( 'snt_top_content_range', 'range must be one of 7, 14, 30, 90, 365 or all.', array( 'status' => 422 ) );
+		}
+		list( $range, $from, $to ) = snt_analytics_resolve_window( (string) $input['range'] );
+	} else {
+		// The site's own day, like the dashboard (was UTC until Unreleased).
+		list( $from, $to ) = snt_analytics_range_dates( $days );
 	}
 
-	$now  = time();
-	$from = gmdate( 'Y-m-d', $now - ( $days - 1 ) * DAY_IN_SECONDS );
-	$to   = gmdate( 'Y-m-d', $now );
-
+	$gsc   = function_exists( 'snt_gsc_data' ) ? snt_gsc_data() : null;
 	$pages = array();
-	if ( function_exists( 'sn_analytics_top_paths' ) ) {
-		foreach ( (array) sn_analytics_top_paths( $from, $to, $class, $limit ) as $row ) {
-			$pages[] = array(
-				'path'  => (string) ( $row['path'] ?? '' ),
-				'views' => (int) ( $row['views'] ?? 0 ),
-			);
-		}
+	foreach ( (array) sn_analytics_top_paths( $from, $to, $class, $limit ) as $row ) {
+		$path    = (string) ( $row['path'] ?? '' );
+		$search  = null !== $gsc ? snt_gsc_metrics_for_path( $path ) : null;
+		$pages[] = array(
+			'path'        => $path,
+			'views'       => (int) ( $row['views'] ?? 0 ),
+			'visits'      => (int) ( $row['visits'] ?? 0 ),
+			'scroll_avg'  => round( (float) ( $row['scroll_avg'] ?? 0 ), 2 ),
+			'time_avg'    => round( (float) ( $row['time_avg'] ?? 0 ), 2 ),
+			'impressions' => null === $search ? null : (int) $search['impressions'],
+			'position'    => null === $search ? null : round( (float) $search['position'], 1 ),
+		);
 	}
 
 	return array(
-		'days'  => $days,
-		'class' => $class,
-		'pages' => $pages,
+		'days'          => $days,
+		'range'         => $range,
+		'from'          => $from,
+		'to'            => $to,
+		'class'         => $class,
+		'search_window' => null !== $gsc && isset( $gsc['window'] ) ? $gsc['window'] : null,
+		'pages'         => $pages,
 	);
 }
