@@ -120,7 +120,7 @@ function sn_analytics_views_today_sql( $elapsed, $tz = '' ) {
 	return implode( ' ', array(
 		'SELECT sum(_sample_interval) AS views',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ) . " AND timestamp >= {$lower}",
+		"WHERE blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql() . " AND timestamp >= {$lower}",
 	) );
 }
 

@@ -282,7 +282,7 @@ function sn_analytics_pageroles_rollup_sql( $days, $tz = '' ) {
 		'sum(_sample_interval) AS views,',
 		'count(DISTINCT index1) AS visits',
 		'FROM ' . SN_ANALYTICS_DATASET,
-		"WHERE blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ),
+		"WHERE blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(),
 		"AND ( blob3 = '' OR blob3 NOT IN ('{$host}','www.{$host}') )",
 		"AND timestamp >= {$lower}" . sn_analytics_window_upper( $tz ),
 		'GROUP BY day, path',

@@ -120,36 +120,7 @@ const SN_ANALYTICS_CLASSES             = array( 'human', 'suspect', 'bot' );
 // The row is still written un-clamped; the alarm is the feature.
 const SN_ANALYTICS_INTEGRITY_ALERT_OPT = 'sn_analytics_integrity_alert';
 
-/**
- * Is this an admin/login path that should never be counted as a human pageview?
- *
- * The front-end beacon (theme) only enqueues on wp_enqueue_scripts, so it can't
- * fire in wp-admin or on wp-login.php — any such path in the pipeline is noise
- * (a stray/forged beacon, a cache edge case), never a real visit. This is the
- * ingestion-side half of the invariant the retired Plausible importer enforced;
- * the collector Worker enforces the same rule at the edge. Boundary-aware so a
- * legitimate front-end slug like `/wp-admin-guide/` is NOT swept up.
- *
- * @param string $path Request path (already query/hash-stripped upstream).
- * @return bool
- */
-function sn_analytics_is_excluded_path( $path ) {
-	$path = (string) $path;
-	if ( '/wp-admin' === $path || 0 === strpos( $path, '/wp-admin/' ) || 0 === strpos( $path, '/wp-login.php' ) ) {
-		return true;
-	}
-	// 17.5.1: the beacon's path is client-supplied and a replayed one planted
-	// /wp-content/uploads/sn-css/$h as a pageview. No theme page lives under
-	// these prefixes or ends in a file extension; the edge (analytics worker
-	// 1.21.4, isExcludedPath) drops the same set, this is the rollup's twin.
-	foreach ( array( '/wp-content/', '/wp-includes/', '/wp-json/' ) as $prefix ) {
-		if ( 0 === strpos( $path, $prefix ) ) {
-			return true;
-		}
-	}
-	$last = (string) substr( $path, (int) strrpos( $path, '/' ) + 1 );
-	return 1 === preg_match( '/\.[a-z0-9]{1,8}$/i', $last );
-}
+
 
 /**
  * dbDelta CREATE TABLE for the daily aggregate.
@@ -335,43 +306,6 @@ function sn_analytics_rollup_sql( $days, $tz = '' ) {
 	) );
 }
 
-/**
- * Shared window expressions for the two rollup queries: the day-bucket column
- * and the floored lower bound. Extracted so the gated pageview_visits query
- * (P0.1 Fallback A) buckets and floors IDENTICALLY to the main query — the
- * PHP-side merge joins on (day, path, class), so a drift here would silently
- * mis-key the merge.
- *
- * @param int    $days Trailing window in days (floored to >= 1).
- * @param string $tz   Optional IANA zone (charset-guarded; invalid → UTC path).
- * @return array{0:string,1:string} [ $day_col, $lower ].
- */
-function sn_analytics_rollup_window_exprs( $days, $tz = '' ) {
-	$days = max( 1, (int) $days );
-	// Bucket each row by the SITE-LOCAL calendar day when a named IANA zone is
-	// available (v9.26.4), so the durable "day" matches the site's day — and the live
-	// "views today" measured in the same zone — instead of a UTC day that rolls
-	// mid-evening for western zones (the 8pm-ET reset). AE's formatDateTime() and
-	// toStartOfInterval() take an optional timezone arg (added 2025-11-12). The zone
-	// is charset-guarded before interpolation as defence in depth; the caller already
-	// validates it via sn_analytics_site_tz_name(). Empty/invalid → the UTC path.
-	$tz      = ( '' !== $tz && preg_match( '#^[A-Za-z0-9_/+-]+$#', (string) $tz ) ) ? (string) $tz : '';
-	$day_col = '' !== $tz
-		? "formatDateTime(timestamp, '%Y-%m-%d', '{$tz}')"
-		: "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d')";
-	// Floor the lower bound to a COMPLETE calendar day — LOCAL when zoned
-	// (toStartOfInterval with the zone), UTC otherwise. A bare `now() - INTERVAL`
-	// instant would aggregate the boundary day as a partial slice, and the UPSERT
-	// would clobber its previously-complete row — silently corrupting the durable
-	// forever-table. Flooring keeps every re-roll genuinely idempotent, and it is
-	// what lets a re-roll DELETE its days first: sn_analytics_rollup_window_days()
-	// names exactly the whole days this floor reads.
-	$lower   = '' !== $tz
-		? "toStartOfInterval(now(), INTERVAL '1' DAY, '{$tz}') - INTERVAL '{$days}' DAY"
-		: "toStartOfDay(now() - INTERVAL '{$days}' DAY)";
-
-	return array( $day_col, $lower );
-}
 
 /**
  * Build the SECOND rollup query: pageview-gated distinct visitor-days.

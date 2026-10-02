@@ -118,6 +118,14 @@ snt_nsm_research_links( '2026-09-01', '2026-09-27', time() );
 ok( isset( $GLOBALS['__q'][0] ) && false !== strpos( $GLOBALS['__q'][0], "{$H} AND {$not}" ), 'north-star-research:snt_nsm_research_links excludes over-cap visitor-days' );
 ok( isset( $GLOBALS['__q'][0] ) && array() === $ae_clause_fns( $GLOBALS['__q'][0] ), 'north-star-research:snt_nsm_research_links: no function in GROUP BY / HAVING / ORDER BY' );
 
+echo "\nGroup: builders that never see the path in PHP drop the excluded paths in AE (Unreleased)\n";
+// The daily rollup and its gated twin carry the path and drop it in PHP
+// (sn_analytics_is_excluded_path); every other pageview builder must say it in
+// the WHERE, or its table counts the asset and admin beacons the daily one drops.
+foreach ( array( 'dims:sn_analytics_dims_rollup_sql', 'utm:sn_analytics_utm_rollup_sql', 'buckets:sn_analytics_buckets_hour_sql', 'buckets:sn_analytics_buckets_dist_sql', 'pageroles:sn_analytics_pageroles_rollup_sql', 'realtime:sn_analytics_views_today_sql' ) as $name ) {
+	ok( false !== strpos( $built[ $name ], sn_analytics_excluded_path_sql() ), "$name drops the excluded paths" );
+}
+
 echo "\nGroup: group-by builders select the read-time class and group by the alias\n";
 foreach ( array( 'buckets:sn_analytics_buckets_hour_sql', 'buckets:sn_analytics_buckets_dist_sql', 'dims:sn_analytics_dims_rollup_sql', 'rollup:sn_analytics_rollup_sql', 'rollup:sn_analytics_rollup_gated_sql', 'utm:sn_analytics_utm_rollup_sql', 'realtime:sn_analytics_realtime_sql' ) as $name ) {
 	$sql = $built[ $name ];
