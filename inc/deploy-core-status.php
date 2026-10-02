@@ -70,10 +70,10 @@ function snt_core_status() {
 	$row     = array( 'current' => $current, 'latest' => $current, 'state' => 'unknown', 'offer' => '', 'auto_updates' => snt_core_auto_updates(), 'reason' => '' );
 	$cached  = get_site_transient( 'update_core' );
 	if ( '' === $current || ! is_object( $cached ) || ! isset( $cached->updates ) || ! is_array( $cached->updates ) ) {
-		// Observed 2026-09-29: wp_version_check ran and succeeded at 22:50 UTC (it
-		// always writes update_core) and the transient was gone hours later. What
-		// empties it is not yet proven (object-cache flushes are the candidate), so
-		// the reason states only the observation.
+		// Object-cache flushes empty it: the theme's purge after an update (refilled
+		// by snt_core_refill_after_flush) and the nightly Breeze purge reaching the
+		// Cloudways app purge, documented to clear Redis too (refilled by
+		// snt_core_refill_guard). The reason states only the observation.
 		$row['reason'] = 'WordPress\'s core update check is not in the cache right now, so there is nothing to compare against. It reappears when WordPress next checks. Read only; nothing is fetched here.';
 		return $row;
 	}
@@ -118,7 +118,7 @@ function snt_runtime_status() {
  * theme's sn_purge_all_caches() (run after every update) calls
  * wp_cache_flush(), which empties it right after WordPress refilled it on the
  * install. The Core row then read "update check not cached" until the next
- * twice-daily check. A one-off cron event a minute later re-runs the check, so
+ * twice-daily check. Other emptiers are caught by snt_core_refill_guard(). A one-off cron event a minute later re-runs the check, so
  * the purge request itself never waits on wordpress.org. snt_core_status()
  * stays read-only; only this hook fetches.
  *
@@ -149,3 +149,35 @@ function snt_core_version_refill() {
 	}
 }
 add_action( 'snt_core_version_refill', 'snt_core_version_refill' );
+
+/**
+ * The guard behind the refill: whatever emptied update_core, notice it.
+ *
+ * The purge hook above catches the theme's flush, but not every emptier says
+ * so: Breeze's nightly purge (00:00 UTC) fires breeze_clear_varnish, which
+ * reaches the Cloudways app purge (inc/cloudways-purge.php), and that clears
+ * Redis too, per the Cloudways purge tool's documentation. Core then read "not
+ * cached" from about 00:00 to the 10:50 UTC check (2026-10-02). Every emptier ends in the same state, so the 5-minute
+ * warm pass checks the state: update_core missing and no refill queued means
+ * queue one, at most once an hour (24 wordpress.org calls a day at worst).
+ * The stamp is an option, not a transient, so a Redis flush cannot reset it.
+ * Hooked ahead of the worker probe (priority 5) so a slow probe cannot starve it.
+ *
+ * ponytail: a second flush inside the hour (Breeze fired twice on 2026-10-02,
+ * 00:00:35 and 00:05:15) leaves Core blank until the hour passes; shorten the
+ * throttle if that shows up.
+ *
+ * @return void
+ */
+function snt_core_refill_guard() {
+	if ( false !== get_site_transient( 'update_core' ) || wp_next_scheduled( 'snt_core_version_refill' ) ) {
+		return;
+	}
+	$now = time();
+	if ( $now - (int) get_option( 'snt_core_refill_guard_at', 0 ) < HOUR_IN_SECONDS ) {
+		return;
+	}
+	update_option( 'snt_core_refill_guard_at', $now, false );
+	wp_schedule_single_event( $now, 'snt_core_version_refill' );
+}
+add_action( 'snt_deploy_workers_warm', 'snt_core_refill_guard', 5 );
