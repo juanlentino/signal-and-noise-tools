@@ -344,7 +344,7 @@ function sn_resume_next_blocks() {
 	return sn_resume_para(
 		'sn-page-next',
 		esc_html( 'Beyond the record:' ) . ' ' . $link( '/provenance', 'next_research', 'the research' )
-		. ' <span class="sn-catalog-meta-bullet" aria-hidden="true">&middot;</span> ' . $link( '/music', 'next_music', 'the music' )
+		. ' &middot; ' . $link( '/music', 'next_music', 'the music' )
 	);
 }
 
