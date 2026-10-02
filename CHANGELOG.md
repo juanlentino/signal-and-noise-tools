@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **/resume's closing line sits in the page column.** 20.5.0 appended it after the last band, so it rendered full-bleed with its first letter clipped at the window edge. It is now the last block inside the Skills band, sharing the page's 1320px column and spacing. Press Generate after installing to rewrite the page. Pinned in `tests/resume-sync-engine.php` (the line is inside the last band; red against 20.5.0).
+
 ## [20.5.0] - 2026-10-02 — the resume hands you onward
 
 ### Added

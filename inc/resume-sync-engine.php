@@ -302,7 +302,10 @@ function sn_resume_skills_blocks( $skills ) {
 	$inner = sn_resume_section_head( '04 · Capabilities', 'SKILLS' )
 		. '<!-- wp:table {"hasFixedLayout":false,"className":"sn-resume-skills"} -->' . "\n"
 		. '<figure class="wp-block-table sn-resume-skills"><table><tbody>' . $rows . '</tbody></table></figure>' . "\n"
-		. '<!-- /wp:table -->' . "\n\n";
+		. '<!-- /wp:table -->' . "\n\n"
+		// Inside the last band, so it shares the page's column (20.5.0 appended
+		// it after the band, full-bleed, with its first letter clipped).
+		. sn_resume_next_blocks();
 	return sn_resume_band( '1320px', '40', '80', $inner );
 }
 
@@ -325,7 +328,6 @@ function sn_resume_body_html( $doc ) {
 		. sn_resume_credentials_blocks( $doc['education'], $doc['affiliations'] )
 		. sn_resume_publications_blocks( $doc['publications'] )
 		. sn_resume_skills_blocks( $doc['skills'] )
-		. sn_resume_next_blocks()
 	) . "\n";
 }
 
