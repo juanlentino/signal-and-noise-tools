@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **Core stops going blank every evening.** After 20.3.1 the refill ran after an install (23:25 UTC on 2026-10-01), yet Core read "update check not cached" again by 00:14 UTC. Breeze's nightly purge (00:00 UTC) fires `breeze_clear_varnish`, which reaches the Cloudways app purge, documented to clear Redis as well, and nothing of ours hears that flush; Core then stayed blank until WordPress's 10:50 UTC check (about 20:00 to 06:50 in Orlando). Rather than hook each emptier, the 5-minute warm pass now runs `snt_core_refill_guard()` first: when `update_core` is missing and no refill is queued, it queues the same one-off `wp_version_check()`, at most once an hour (24 wordpress.org calls a day at worst; the stamp is an option, so a Redis flush cannot reset it). Expect the question mark to clear within about ten minutes of any purge. Pinned in `tests/core-fingerprint.php` (present schedules nothing, missing queues once, a second pass inside the hour does not, red with the hour check removed).
+
 ## [20.3.2] - 2026-10-01 — the resume PDF opens everywhere
 
 

@@ -43,12 +43,14 @@ function __return_empty_string() { return ''; }
 function wp_salt( $s = 'auth' ) { return 'test-salt-' . $s; }
 function get_site_transient( $k ) { return 'update_core' === $k ? $GLOBALS['__cf_transient'] : false; }
 function get_site_option( $k, $d = false ) { return $d; }
-function get_option( $k, $d = false ) { return $d; }
+function get_option( $k, $d = false ) { return $GLOBALS['__cf_opt'][ $k ] ?? $d; }
+if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $a = null ) { $GLOBALS['__cf_opt'][ $k ] = $v; return true; } }
 function wp_version_check() { $GLOBALS['__cf_net']++; }
 $GLOBALS['__cf_sched'] = array();
 if ( ! function_exists( 'wp_next_scheduled' ) ) { function wp_next_scheduled( $h ) { return $GLOBALS['__cf_sched'][ $h ] ?? false; } }
 if ( ! function_exists( 'wp_schedule_single_event' ) ) { function wp_schedule_single_event( $t, $h ) { $GLOBALS['__cf_sched'][ $h ] = $t; return true; } }
 if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
 function wp_remote_get() { $GLOBALS['__cf_net']++; return array(); }
 function wp_register_ability( $slug, $cfg ) { $GLOBALS['__ab'][ $slug ] = $cfg; return true; }
 function snt_deploy_status_for( $pkg ) { return array( 'current' => '1.0.0', 'latest' => '1.0.0', 'state' => 'ok' ); }
@@ -232,6 +234,29 @@ snt_core_refill_after_flush( array( 'object_cache' => true ) );
 cf_ok( $t > time() && 12345 === $GLOBALS['__cf_sched']['snt_core_version_refill'] && $net0 === $GLOBALS['__cf_net'], 'refill: an object-cache flush schedules one check a minute out, once, without fetching in the purge request' );
 snt_core_version_refill();
 cf_ok( $net0 + 1 === $GLOBALS['__cf_net'], 'refill: the event runs WordPress\'s version check' );
+
+// Guard (2026-10-02): Breeze's nightly purge reaches Cloudways' app purge, which clears Redis
+// too, with no flush hook of ours on the way. Any emptier routes through one state: update_core
+// missing. The 5-minute warm pass notices it and queues the same refill, at most once an hour.
+cf_ok( in_array( array( 'snt_core_refill_guard', 5 ), $GLOBALS['__cf_hooks']['snt_deploy_workers_warm'] ?? array(), true ), 'guard: rides the 5-minute warm pass at priority 5, ahead of the worker probe' );
+$GLOBALS['__cf_sched'] = array(); $GLOBALS['__cf_opt'] = array(); $net0 = $GLOBALS['__cf_net'];
+$GLOBALS['__cf_transient'] = (object) array( 'updates' => array() );
+snt_core_refill_guard();
+cf_ok( array() === $GLOBALS['__cf_sched'], 'guard: update_core present schedules nothing' );
+$GLOBALS['__cf_transient'] = false;
+snt_core_refill_guard();
+$t = $GLOBALS['__cf_sched']['snt_core_version_refill'] ?? 0;
+cf_ok( $t > 0 && $t <= time() + 1 && $net0 === $GLOBALS['__cf_net'], 'guard: update_core missing queues the refill now, without fetching in the warm pass' );
+unset( $GLOBALS['__cf_sched']['snt_core_version_refill'] );
+snt_core_refill_guard();
+cf_ok( ! isset( $GLOBALS['__cf_sched']['snt_core_version_refill'] ), 'guard: a second pass inside the hour queues nothing (at most one wordpress.org call an hour)' );
+$GLOBALS['__cf_opt']['snt_core_refill_guard_at'] = time() - HOUR_IN_SECONDS - 1;
+snt_core_refill_guard();
+cf_ok( isset( $GLOBALS['__cf_sched']['snt_core_version_refill'] ), 'guard: after the hour, a still-missing update_core queues again' );
+$GLOBALS['__cf_opt']['snt_core_refill_guard_at'] = 0;
+$GLOBALS['__cf_sched']['snt_core_version_refill'] = 999;
+snt_core_refill_guard();
+cf_ok( 999 === $GLOBALS['__cf_sched']['snt_core_version_refill'] && 0 === $GLOBALS['__cf_opt']['snt_core_refill_guard_at'], 'guard: a refill already queued (the purge path) is left alone and not counted' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail ? 1 : 0 );
