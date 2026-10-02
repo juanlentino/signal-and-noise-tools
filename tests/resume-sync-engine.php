@@ -156,8 +156,8 @@ ok( '' === sn_resume_body_html( array() ), 'empty doc → empty string' );
 
 // ── closing line (Unreleased, owner-approved) ──
 echo "\nTest: the page ends with its next step\n";
-preg_match( '#<!-- wp:paragraph \{"className":"sn-page-next"\} -->\n<p class="sn-page-next">(.*?)</p>\n<!-- /wp:paragraph -->\s*$#s', $body, $nx );
-ok( ! empty( $nx ) && 'Beyond the record: the research · the music' === html_entity_decode( trim( preg_replace( '/\s+/', ' ', strip_tags( $nx[1] ) ) ), ENT_QUOTES, 'UTF-8' ), 'the body ENDS with the approved line, verbatim, as a paragraph block' );
+preg_match( '#<!-- wp:paragraph \{"className":"sn-page-next"\} -->\n<p class="sn-page-next">(.*?)</p>\n<!-- /wp:paragraph -->\s*</div>\n<!-- /wp:group -->\s*$#s', $body, $nx );
+ok( ! empty( $nx ) && 'Beyond the record: the research · the music' === html_entity_decode( trim( preg_replace( '/\s+/', ' ', strip_tags( $nx[1] ) ) ), ENT_QUOTES, 'UTF-8' ), '(changed) the approved line, verbatim, is the last block INSIDE the last band, so it shares the page column (20.5.0 put it after the band: full-bleed, first letter clipped)' );
 ok( ! empty( $nx ) && false !== strpos( $nx[1], '<a href="/provenance" data-sn-goal="next_research">' ) && false !== strpos( $nx[1], '<a href="/music" data-sn-goal="next_music">' ), 'the research links /provenance, the music links /music, each a beacon goal' );
 
 // ── upsert ──
