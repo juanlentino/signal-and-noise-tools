@@ -203,6 +203,7 @@ ok( ! class_exists( 'WP\\MCP\\Core\\McpAdapter' ), 'sanity: the adapter class is
 ok( stripos( $html, 'No MCP Adapter is installed' ) !== false, 'adapter block states the adapter is absent on this site' );
 ok( stripos( $html, 'coming soon' ) !== false, 'adapter block names the AI plugin\'s MCP integration as roadmap-only' );
 ok( stripos( $html, 'separate WordPress plugin' ) !== false, 'adapter block names the adapter as its own separate plugin' );
+ok( stripos( $html, 'not on wordpress.org' ) === false, 'adapter block no longer claims the adapter is missing from wordpress.org (listed since 0.7.0, 2026-10-02)' );
 ok( stripos( $html, 'If the wp.org “AI” plugin is active on this site, its MCP Adapter' ) === false, 'REGRESSION: the false "AI plugin ships the adapter" attribution is gone' );
 // v13.56.2: adapter 0.6.0 made the default server OPT-IN (meta.mcp.public, falling
 // back to meta.public). The old copy said it "answers for the entire Abilities
