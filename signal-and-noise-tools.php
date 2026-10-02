@@ -630,6 +630,7 @@ require_once __DIR__ . '/inc/abilities-rate-gate.php';  // v10.34.0: per-user co
 require_once __DIR__ . '/inc/abilities-lifecycle-guard.php'; // v10.38.0: WP 7.1 forward-compat — rw kill switch + telemetry/audit on core's ability lifecycle hooks (inert pre-7.1).
 require_once __DIR__ . '/inc/abilities-registration.php';
 require_once SNT_PATH . 'inc/abilities-analytics.php';  // v6.1.0: read-only analytics Abilities
+require_once SNT_PATH . 'inc/abilities-analytics-sections.php'; // sn-metrics' analytics sections and analytics_query (hidden abilities)
 require_once SNT_PATH . 'inc/abilities-login-defense.php';  // v12.11.0: read-only IPv6-criterion gauge (wp-admin only until now)
 require_once SNT_PATH . 'inc/abilities-remote-analytics.php'; // R3 §3D Increment 1: remote-scoped analytics ability, off the MCP allowlists by design.
 require_once SNT_PATH . 'inc/abilities-remote-set.php'; // R3 §3D Increment 2: the remote set widens 1 -> 8, same isolation pattern applied to seven more twins.

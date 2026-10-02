@@ -395,6 +395,12 @@ $verdict_absorbed_by_section = array(
 	'signal-noise/content-queue'               => 'sn-posts',
 	'signal-noise/get-404-log'                 => 'sn-metrics{404_log}',
 	'signal-noise/get-analytics-top-content'   => 'sn-metrics{analytics_top_content}',
+	'signal-noise/get-analytics-sources'       => 'sn-metrics{analytics_sources}',
+	'signal-noise/get-analytics-series'        => 'sn-metrics{analytics_series}',
+	'signal-noise/get-analytics-geography'     => 'sn-metrics{analytics_geography}',
+	'signal-noise/get-analytics-devices'       => 'sn-metrics{analytics_devices}',
+	'signal-noise/get-analytics-journeys'      => 'sn-metrics{analytics_journeys}',
+	'signal-noise/analytics-query'             => 'sn-metrics{analytics_query}',
 	'signal-noise/get-machine-readers-summary' => 'sn-metrics{machine_readers}',
 	'signal-noise/schedule-cron-event'         => 'sn-apply{schedule_cron_event}',
 	// The CAPABILITY (cause a health scan to run) is reachable: sn_health_scan_daily

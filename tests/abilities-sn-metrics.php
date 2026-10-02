@@ -51,6 +51,7 @@ if ( ! function_exists( 'wp_register_ability' ) ) {
 
 require __DIR__ . '/../inc/abilities-sn-site-facts.php'; // owns snt_sn_site_facts_dispatch()
 require __DIR__ . '/../inc/abilities-sn-metrics.php';
+require __DIR__ . '/../inc/sn-metrics-analytics-vocab.php'; // snt_mq_validate(), pure
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -69,6 +70,13 @@ $expected_map = array(
 	'machine_readers'   => 'signal-noise/get-machine-readers-summary',
 	'analytics_top_content' => 'signal-noise/get-analytics-top-content',
 	'404_log'           => 'signal-noise/get-404-log',
+	// 20.4.0, appended: the dashboard's other readings and a query.
+	'analytics_sources'   => 'signal-noise/get-analytics-sources',
+	'analytics_series'    => 'signal-noise/get-analytics-series',
+	'analytics_geography' => 'signal-noise/get-analytics-geography',
+	'analytics_devices'   => 'signal-noise/get-analytics-devices',
+	'analytics_journeys'  => 'signal-noise/get-analytics-journeys',
+	'analytics_query'     => 'signal-noise/analytics-query',
 );
 ok( $expected_map === $map, 'the map matches its sources exactly, in a pinned order' );
 
@@ -145,8 +153,16 @@ $r = snt_ability_sn_metrics( array(
 ) );
 ok( ! is_wp_error( $r ), 'dispatching the v13.44.0 sections does not error' );
 ok( array( 'days' => 7 ) === $GLOBALS['__abilities'][ $expected_map['machine_readers'] ]->last_call_args(), 'machine_readers receives range AS days (its own schema key)' );
-ok( array( 'days' => 7 ) === $GLOBALS['__abilities'][ $expected_map['analytics_top_content'] ]->last_call_args(), 'analytics_top_content receives range AS days (its own schema key)' );
+ok( array( 'limit' => 5, 'range' => 7, 'class' => 'human' ) === $GLOBALS['__abilities'][ $expected_map['analytics_top_content'] ]->last_call_args(), '(changed 20.4.0) analytics_top_content receives range, class and its own default limit of 5' );
 ok( array() === $GLOBALS['__abilities'][ $expected_map['404_log'] ]->last_call_args(), '404_log receives no args — its schema declares none' );
+
+// 20.4.0: a bad query fails the WHOLE call (422) before dispatch, because the
+// dispatch would fold the refusal into {error:"unavailable"} and read a typo as an outage.
+$GLOBALS['__abilities']['signal-noise/analytics-query'] = new SN_Test_Fact_Ability( true, array( 'rows' => array() ) );
+$bad = snt_ability_sn_metrics( array( 'sections' => array( 'analytics_query' ), 'query' => array( 'dimensions' => array( 'country', 'path' ) ) ) );
+ok( is_wp_error( $bad ) && false === $GLOBALS['__abilities']['signal-noise/analytics-query']->last_call_args(), 'a bad query refuses the call and never reaches the source' );
+$good = snt_ability_sn_metrics( array( 'sections' => array( 'analytics_query' ), 'range' => 7, 'class' => 'bot', 'query' => array( 'dimensions' => array( 'day', 'country' ) ) ) );
+ok( ! is_wp_error( $good ) && array( 'dimensions' => array( 'day', 'country' ), 'range' => 7, 'class' => 'bot' ) === $GLOBALS['__abilities']['signal-noise/analytics-query']->last_call_args(), 'a good query reaches the source with the top-level range and class' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

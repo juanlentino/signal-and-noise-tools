@@ -27,6 +27,7 @@ The reference for the 146 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/ai-orphan-apply` | Delete an orphan attachment | ai-generation | — |
 | `signal-noise/ai-orphan-suggest` | Suggest orphan-media verdict for an attachment | ai-generation | — |
 | `signal-noise/ai-pair-suggest` | Suggest whether two related notes should link | ai-generation | RW |
+| `signal-noise/analytics-query` | Query analytics (via sn-metrics{analytics_query}) | analytics | — |
 | `signal-noise/anchor-status` | Provenance anchor overview | diagnostics | READ |
 | `signal-noise/anchor-sweep` | Run the anchor upgrade sweep | maintenance | — |
 | `signal-noise/apply-tag-description` | Write one tag description | content | RW |
@@ -50,7 +51,12 @@ The reference for the 146 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/export-audit-log` | Export login-audit log | diagnostics | — |
 | `signal-noise/family-drift` | Crawler-family enum drift (stored report) | diagnostics | READ |
 | `signal-noise/get-404-log` | Recent front-end 404 log | diagnostics | — |
+| `signal-noise/get-analytics-devices` | Get devices (via sn-metrics{analytics_devices}) | analytics | — |
 | `signal-noise/get-analytics-events` | Get custom events | analytics | READ |
+| `signal-noise/get-analytics-geography` | Get geography (via sn-metrics{analytics_geography}) | analytics | — |
+| `signal-noise/get-analytics-journeys` | Get entry and exit pages (via sn-metrics{analytics_journeys}) | analytics | — |
+| `signal-noise/get-analytics-series` | Get daily series (via sn-metrics{analytics_series}) | analytics | — |
+| `signal-noise/get-analytics-sources` | Get traffic sources (via sn-metrics{analytics_sources}) | analytics | — |
 | `signal-noise/get-analytics-summary` | Get analytics summary | analytics | READ |
 | `signal-noise/get-analytics-top-content` | Get top content | analytics | — |
 | `signal-noise/get-audit-log` | Get login-audit log (summary, counters, or logins) | diagnostics | — |

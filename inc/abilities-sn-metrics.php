@@ -35,7 +35,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-metrics', array(
 		'label'               => 'Batch-read readership metrics (consolidated)',
-		'description'         => 'One coherent answer to "how is the site being read?" — a sectioned batch over the three readership reads: analytics_summary (range totals with the honest-denominator semantics: prefer view_visit_ratio, engagement times are MILLISECONDS), analytics_events (top custom events for the window), and rss_stats (feed fetches and fetchers; its payload carries its own fixed 7d/30d windows). `range` (default 30) applies to analytics_summary and analytics_events; `class` (default human) applies to analytics_summary only; both are validated by the sources, which own their value sets, and both are ignored by rss_stats. Each entry in the returned map carries its source ability\'s exact payload shape — this tool never reshapes, so answers match the narrow tools byte-for-byte. If a source is unregistered or refuses, that ONE section degrades to {error:"unavailable"} while the rest still return; the call only fails as a whole on invalid input (empty or unknown sections).',
+		'description'         => 'One coherent answer to "how is the site being read?": a sectioned batch over the readership reads. analytics_summary (range totals with the honest-denominator semantics: prefer view_visit_ratio, engagement times are MILLISECONDS), analytics_events (top custom events), rss_stats (feed fetches; its own fixed 7d/30d windows), machine_readers, analytics_top_content (pages with visits, scroll, time, and Search Console impressions and position over search_window), 404_log, analytics_sources (labels with category), analytics_series (views and visits per day), analytics_geography (country), analytics_devices, analytics_journeys (entry and exit pages, human only), and analytics_query (an allowlisted query: one or two dimensions, the second always day; see `query`). Windows follow the site\'s own day. Sources, geography, devices, journeys and query fold rows under 3 visits into withheld, so rows plus withheld add up. `range` (default 30) and `class` (default human) apply as each section\'s description says. Each entry carries its source ability\'s exact payload. If a source refuses, that ONE section degrades to {error:"unavailable"}; the call fails as a whole only on invalid input (empty or unknown sections, or a bad query).',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_sn_metrics',
@@ -59,7 +59,17 @@ add_action( 'wp_abilities_api_init', function() {
 				'class'    => array(
 					'type'        => 'string',
 					'default'     => 'human',
-					'description' => 'Traffic class for analytics_summary only (source-validated: human|suspect|bot). Ignored by the other sections.',
+					'description' => 'Traffic class (human|suspect|bot) for analytics_summary, top_content, sources, series, geography, devices and query. journeys is recorded for human traffic only and says so; the others ignore it.',
+				),
+				'limit'    => array(
+					'type'        => 'integer',
+					'minimum'     => 1,
+					'maximum'     => 500,
+					'description' => 'Rows for analytics_top_content (default 5, max 100), sources, geography, devices and journeys (default 25).',
+				),
+				'query'    => array(
+					'type'        => 'object',
+					'description' => 'analytics_query only: {dimensions, metrics, filters, compare, order_by, order, limit}. range and class come from the top level. Unknown words fail the whole call (422).',
 				),
 			),
 			'additionalProperties' => false,
@@ -104,6 +114,13 @@ function snt_sn_metrics_map() {
 		'analytics_top_content' => 'signal-noise/get-analytics-top-content',
 		// How the site is read, and fails to be read.
 		'404_log'           => 'signal-noise/get-404-log',
+		// 20.4.0: the dashboard's other readings, and a query over them.
+		'analytics_sources'   => 'signal-noise/get-analytics-sources',
+		'analytics_series'    => 'signal-noise/get-analytics-series',
+		'analytics_geography' => 'signal-noise/get-analytics-geography',
+		'analytics_devices'   => 'signal-noise/get-analytics-devices',
+		'analytics_journeys'  => 'signal-noise/get-analytics-journeys',
+		'analytics_query'     => 'signal-noise/analytics-query',
 	);
 }
 
@@ -140,6 +157,18 @@ function snt_ability_sn_metrics( $input ) {
 	// as sn-remote-mcp's ARG_SCHEMA_BY_KEY).
 	$range = isset( $input['range'] ) ? $input['range'] : 30;
 	$class = isset( $input['class'] ) ? (string) $input['class'] : 'human';
+	$limit = isset( $input['limit'] ) ? (int) $input['limit'] : null;
+	$query = array_merge( isset( $input['query'] ) && is_array( $input['query'] ) ? $input['query'] : array(), array( 'range' => $range, 'class' => $class ) );
+
+	// A bad query fails the call: the dispatch below folds every WP_Error into
+	// {error:"unavailable"}, which would read a typo as an outage.
+	if ( in_array( 'analytics_query', $sections, true ) && function_exists( 'snt_mq_validate' ) ) {
+		$valid = snt_mq_validate( $query );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+	}
+	$windowed = array_filter( array( 'range' => $range, 'class' => $class, 'limit' => $limit ), static fn( $v ) => null !== $v );
 
 	// Per-section args, forwarded only where the source schema declares them.
 	// machine_readers and analytics_top_content take `days`, not `range` — the
@@ -150,8 +179,14 @@ function snt_ability_sn_metrics( $input ) {
 		'analytics_events'      => array( 'range' => $range ),
 		'rss_stats'             => array(),
 		'machine_readers'       => array( 'days' => $range ),
-		'analytics_top_content' => array( 'days' => $range ),
+		'analytics_top_content' => array( 'limit' => null === $limit ? 5 : min( 100, $limit ) ) + $windowed, // its own cap is 100
 		'404_log'               => array(),
+		'analytics_sources'     => $windowed,
+		'analytics_series'      => array( 'range' => $range, 'class' => $class ),
+		'analytics_geography'   => $windowed,
+		'analytics_devices'     => $windowed,
+		'analytics_journeys'    => array_diff_key( $windowed, array( 'class' => 1 ) ),
+		'analytics_query'       => $query,
 	);
 
 	$out = array();
