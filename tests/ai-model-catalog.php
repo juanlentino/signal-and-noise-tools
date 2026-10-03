@@ -101,7 +101,9 @@ $doc = array(
 	'gemini-4.0-flash' => $row( 'vertex_ai-language-models', 9e-7, 9e-6 ), 'gpt-9' => $row( 'openai', 1e-6, 2e-6 ), 'claude-embed' => $row( 'anthropic', 1e-7, 1e-7, 'embedding' ),
 	'claude-free' => $row( 'anthropic', 0, 0 ), 'claude-typo' => $row( 'anthropic', 1.0, 1.0 ), 'Bad Id' => $row( 'anthropic', 1e-6, 1e-6 ), 'claude-text' => $row( 'anthropic', 'x', 1e-6 ),
 );
+$doc['gemini/gemini-9-pro'] = $row( 'gemini', 1.25e-6, 1e-5 ) + array( 'input_cost_per_token_above_200k_tokens' => 2.5e-6 );
 $p = sn_ai_prices_parse( $doc );
+ok( ! isset( $p['gemini-9-pro'] ), 'a model priced in tiers by prompt length is left unpriced: a single rate would undercount a long prompt' );
 ok( array( 'claude-opus-6', 'claude-sonnet-5-5', 'claude-haiku-4-5', 'gemini-4.0-flash', 'gemini-3.1-flash-lite' ) === array_keys( $p ) && array( 'in' => 3.0, 'out' => 15.0 ) === $p['claude-opus-6'] && array( 'in' => 0.5, 'out' => 2.0 ) === $p['gemini-4.0-flash'], 'kept: Anthropic and Gemini chat rows, per million tokens, the gemini/ prefix dropped; another provider, an embedding row, a zero, a price over the ceiling, a malformed id and a non-number never get in' );
 $m = sn_ai_prices_merge( array( 'claude-sonnet-5-5' => array( 'in' => 2.0, 'out' => 10.0 ), 'claude-haiku-4-5' => array( 'in' => 1.0, 'out' => 5.0 ) ), array( 'claude-sonnet-5-5' => array( 'in' => 1.5, 'out' => 10.0 ), 'claude-haiku-4-5' => array( 'in' => 0.1, 'out' => 5.0 ), 'claude-opus-6' => array( 'in' => 3.0, 'out' => 15.0 ) ) );
 ok( 1.5 === $m['prices']['claude-sonnet-5-5']['in'] && 1.0 === $m['prices']['claude-haiku-4-5']['in'] && array( 'claude-haiku-4-5' ) === $m['held'] && isset( $m['prices']['claude-opus-6'] ), 'an ordinary change is applied, a new model is added, and a price that moved more than four times is held at the old one and named' );

@@ -43,6 +43,12 @@ function sn_ai_prices_parse( $doc ) {
 		if ( ! is_array( $row ) || 'chat' !== ( $row['mode'] ?? '' ) || ! in_array( $row['litellm_provider'] ?? '', array( 'anthropic', 'gemini' ), true ) ) {
 			continue;
 		}
+		// A model priced in tiers by prompt length (Gemini 2.5 Pro: double above
+		// 200k tokens) has no single honest rate. It stays unpriced, as the
+		// table always left it, and its calls are counted as unpriced.
+		if ( isset( $row['input_cost_per_token_above_200k_tokens'] ) || isset( $row['output_cost_per_token_above_200k_tokens'] ) ) {
+			continue;
+		}
 		$id  = 'gemini' === $row['litellm_provider'] ? (string) preg_replace( '#^gemini/#', '', (string) $key ) : (string) $key;
 		$in  = is_numeric( $row['input_cost_per_token'] ?? null ) ? round( (float) $row['input_cost_per_token'] * 1e6, 4 ) : 0.0;
 		$ot  = is_numeric( $row['output_cost_per_token'] ?? null ) ? round( (float) $row['output_cost_per_token'] * 1e6, 4 ) : 0.0;
