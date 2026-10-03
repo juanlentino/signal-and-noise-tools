@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Hacker News is asked directly.** A referrer undercounts Hacker News (its apps send none) and a submission by someone else is invisible until traffic arrives. Inside the hourly alert run, the Algolia search API finds any story whose URL is on this site and the official API gives its live points, comments and front-page position for its first three days; both are public, need no key, and receive only the site's host name. A story found young mails once (`HACKER NEWS: "..." was posted to Hacker News: 14 points, 3 comments`), reaching the front page mails once more, and a spike on a path Hacker News holds says so in its line. Stories that predate the first run are stored as history, not mailed. `inc/hn-mentions.php`; pinned in `tests/hn-mentions.php`.
+
 ## [20.9.0] - 2026-10-03 — the cache runs itself
 
 ### Removed
