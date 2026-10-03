@@ -153,7 +153,7 @@ ok( false === sn_cf_purge_tag() && array() === $GLOBALS['__http'], 'a theme that
 define( 'SN_EDGE_CACHE_TAG', 'sn-render' );
 ok( true === sn_cf_purge_tag() && 'purge_cache' === $GLOBALS['__http'][0][0] && '{"tags":["sn-render"]}' === $GLOBALS['__http'][0][1]['body'], 'one purge_cache call carrying the one tag' );
 $purge_src = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
-ok( 2 === substr_count( $purge_src, "sn_cf_purge_tag();" ), 'a save and a post leaving publish both purge the tag' );
+ok( 1 === substr_count( $purge_src, "sn_cf_purge_tag();" ) && false !== strpos( $purge_src, 'if ( sn_cf_tagged() ) {' ), 'the save handler purges the tag in one place, ahead of the older-theme path' );
 
 echo "\nGroup: not configured\n";
 $GLOBALS['__opts'] = array(); $GLOBALS['__http'] = array();

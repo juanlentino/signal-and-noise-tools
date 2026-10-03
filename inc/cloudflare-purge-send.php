@@ -168,6 +168,15 @@ function sn_cf_send_last() {
 }
 
 /**
+ * Does the theme tag its cached responses (theme 15.2.0+)?
+ *
+ * @return bool
+ */
+function sn_cf_tagged() {
+	return defined( 'SN_EDGE_CACHE_TAG' ) && '' !== (string) constant( 'SN_EDGE_CACHE_TAG' );
+}
+
+/**
  * Purge everything the theme tagged (theme 15.2.0: every cached page, feed
  * and machine file carries SN_EDGE_CACHE_TAG). One call covers every address
  * a save can touch. False when the theme does not tag yet.
@@ -175,10 +184,11 @@ function sn_cf_send_last() {
  * @return bool
  */
 function sn_cf_purge_tag() {
-	if ( ! defined( 'SN_EDGE_CACHE_TAG' ) || '' === (string) SN_EDGE_CACHE_TAG ) {
+	if ( ! sn_cf_tagged() ) {
 		return false;
 	}
-	return sn_cf_api_send( 'purge_cache', array( 'tags' => array( (string) SN_EDGE_CACHE_TAG ) ) );
+	// constant(): PHPStan reads a defined() guard only in the function that holds it.
+	return sn_cf_api_send( 'purge_cache', array( 'tags' => array( (string) constant( 'SN_EDGE_CACHE_TAG' ) ) ) );
 }
 
 /**

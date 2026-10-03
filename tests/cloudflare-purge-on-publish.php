@@ -211,5 +211,18 @@ ok( ! $opted_out['everything'], 'returning false from the filter skips the zone 
 ok( in_array( 'https://example.test/notes/post-7/', $opted_out['urls'], true ), 'and falls back to the narrow URL list' );
 $GLOBALS['__filters'] = array();
 
+// 20.10.0: with a tagging theme, one tag purge replaces the URL list, the
+// first-publish zone purge and the probe. LAST in the file: the constant
+// cannot be undefined again.
+echo "\nGroup: a tagging theme (15.2.0+)\n";
+define( 'SN_EDGE_CACHE_TAG', 'sn-render' );
+$bodies = static fn() => array_map( static fn( $c ) => json_decode( (string) $c['args']['body'], true ), $GLOBALS['__http'] );
+foreach ( array( 'an edit' => array( 'publish', 'publish' ), 'a first publish' => array( 'publish', null ), 'leaving publish' => array( 'draft', 'publish' ) ) as $what => $s ) {
+	$r = fire( $s[0], $s[1] );
+	$b = $bodies();
+	ok( array( 'tags' => array( 'sn-render' ) ) === $b[0] && ! $r['everything'], "$what: one tag purge, never the whole zone" );
+	ok( array( 'https://example.test/wp-sitemap.xml' ) === array_values( array_filter( $r['urls'], static fn( $u ) => false === strpos( $u, 'wp-sitemap-posts-' ) ) ) && ! in_array( 'https://example.test/notes/post-7/', $r['urls'], true ), "$what: the only URLs sent are core's sitemaps, which carry no tag" );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
