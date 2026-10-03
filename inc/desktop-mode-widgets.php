@@ -142,6 +142,44 @@ add_action( 'init', function() {
 			'default_height' => 620,
 		) ) );
 
+		// The analytics family sits together in the picker: Site Views, then
+		// Audience (who, from where) and Reading (what they do here), then RSS.
+		// Both new tiles read rollups the Analytics views already fill, through
+		// one painter (assets/desktop-mode-widget-groups.js).
+		snt_os_register_widget( 'sn-audience', array_merge( $sn_drag, array(
+			'label'          => 'SN Audience',
+			'description'    => 'Who reads and from where: countries, devices, sources, campaigns, Hacker News, search.',
+			'icon'           => 'dashicons-groups',
+			'script'         => 'sn-desktop-mode-widget-groups',
+			// BUDGETED 560, not browser-measured: a window line, five groups
+			// (heading + up to 5/3/5/3/2 rows at ~22px) and the link; a sixth
+			// group, Campaigns, appears only when a tagged link was followed.
+			'default_height' => 560,
+		) ) );
+
+		snt_os_register_widget( 'sn-reading', array_merge( $sn_drag, array(
+			'label'          => 'SN Reading',
+			'description'    => 'What readers do here: scroll depth, time on page, visits, goal events, Core Web Vitals.',
+			'icon'           => 'dashicons-book-alt',
+			'script'         => 'sn-desktop-mode-widget-groups',
+			// BUDGETED 470, not browser-measured: a window line, four groups
+			// (heading + up to 3/4/4/3 rows at ~22px) and the link.
+			'default_height' => 470,
+		) ) );
+
+		// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that
+		// was previously buried under S&N → RSS tab + a single line on the
+		// SN Dashboard tab. At-a-glance subscriber growth on the desktop.
+		snt_os_register_widget( 'sn-rss-subscribers', array_merge( $sn_drag, array(
+			'label'          => 'SN RSS Subscribers',
+			'description'    => 'Unique feed subscribers over 24h / 7d / 30d.',
+			'icon'           => 'dashicons-rss',
+			'script'         => 'sn-desktop-mode-widget-rss',
+			// Measured 207: the last-request line, the 24h/7d/30d grid, the
+			// link. Fixed three rows — this card's height never moves.
+			'default_height' => 220,
+		) ) );
+
 		// 15.8.0: SN Queue — "is the queue fed, and what goes out next". The
 		// editorial pair with Site Views sits at the top of the column: the
 		// next note as the headline, the depth line (N scheduled · runs to
@@ -221,19 +259,6 @@ add_action( 'init', function() {
 			// 8px padding x2 + 13px/1.2 text + 1px border x2 + 6px margin ~= 40px,
 			// so 250 + 40 = 290. If it clips, measure rather than guess again.
 			'default_height' => 290,
-		) ) );
-
-		// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that
-		// was previously buried under S&N → RSS tab + a single line on the
-		// SN Dashboard tab. At-a-glance subscriber growth on the desktop.
-		snt_os_register_widget( 'sn-rss-subscribers', array_merge( $sn_drag, array(
-			'label'          => 'SN RSS Subscribers',
-			'description'    => 'Unique feed subscribers over 24h / 7d / 30d.',
-			'icon'           => 'dashicons-rss',
-			'script'         => 'sn-desktop-mode-widget-rss',
-			// Measured 207: the last-request line, the 24h/7d/30d grid, the
-			// link. Fixed three rows — this card's height never moves.
-			'default_height' => 220,
 		) ) );
 
 		// v9.78.0: SN Anchors — the one glanceable that had no mirror.

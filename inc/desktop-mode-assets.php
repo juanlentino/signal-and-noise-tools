@@ -142,6 +142,15 @@ add_action( 'init', function() {
 		true
 	);
 
+	// SN Audience and SN Reading share one painter; each fetches its own route.
+	wp_register_script(
+		'sn-desktop-mode-widget-groups',
+		plugins_url( 'assets/desktop-mode-widget-groups.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode' ),
+		SNT_VERSION,
+		true
+	);
+
 	wp_register_script(
 		'sn-desktop-mode-widget-rss',
 		plugins_url( 'assets/desktop-mode-widget-rss.js', SNT_PATH . 'signal-and-noise-tools.php' ),

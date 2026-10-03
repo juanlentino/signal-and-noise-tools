@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Two desktop widgets, so analytics is a family of four: Site Views, Audience, Reading, RSS Subscribers.** Site Views was the tallest tile and covered only the overview. **SN Audience** is who reads and from where: top countries, devices, source categories, campaigns (only when a tagged link was followed), the Hacker News stories that link here with points, comments and front-page rank, and Google and Bing clicks and impressions over their own windows. **SN Reading** is what readers do here: the share reaching half and three quarters of the page, median time on page, visits with the one-page share, pages per visit and the typical visit, the top goal events, and each Core Web Vital as its good and poor shares over the loads measured. Both read the last 14 days of rollups the Analytics views already fill; nothing new is collected. A reading that failed or has nothing says so and is never painted as zero. The four register together at the top of the widget picker; RSS Subscribers itself is unchanged.
+
 ## [21.1.0] - 2026-10-03 — the notes that predate the keys reach the Internet Archive
 
 ### Added

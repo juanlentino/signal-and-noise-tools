@@ -119,6 +119,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * but it keeps the file order matching the data-flow order.
  */
 require_once __DIR__ . '/desktop-mode-payloads.php';
+require_once __DIR__ . '/desktop-mode-analytics-widgets.php'; // SN Audience and SN Reading: the routes and shared parts.
+require_once __DIR__ . '/desktop-mode-audience.php';
+require_once __DIR__ . '/desktop-mode-reading.php';
 require_once __DIR__ . '/desktop-mode-assets.php';
 require_once __DIR__ . '/desktop-mode-commands.php';
 require_once __DIR__ . '/desktop-mode-widgets.php';
