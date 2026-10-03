@@ -109,6 +109,7 @@ function sn_mcp_rw_audit_safe_arg_keys() {
 		'force_refresh',
 		'concise',
 		'include_template_overrides',
+		'flush_object_cache', // 20.9.0: an explicit Redis flush must not read like the page-only default.
 		'include_pii',
 		// v10.40.0 — sn_apply enrichment (see docblock above).
 		'change_type',

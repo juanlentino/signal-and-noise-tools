@@ -77,11 +77,16 @@ function sn_cf_api_send( $endpoint, $body, $attempt = 0 ) {
 		return sn_cf_api_send( 'purge_cache', $body, $attempt );
 	}
 	$delays = SN_CF_RETRY_DELAYS;
-	// A retry WordPress could not store is no retry: fall through and record it.
-	if ( $retry && isset( $delays[ $attempt ] ) && function_exists( 'wp_schedule_single_event' )
-		&& true === wp_schedule_single_event( time() + $delays[ $attempt ], SN_CF_RETRY_HOOK, array( $endpoint, $body, $attempt + 1 ) ) ) {
-		$GLOBALS['sn_cf_send_last'] = 'queued';
-		return false;
+	// A retry WordPress could not store is no retry: fall through and record
+	// it. One already waiting with the same arguments (WordPress refuses a
+	// duplicate within ten minutes) is a retry all the same.
+	if ( $retry && isset( $delays[ $attempt ] ) && function_exists( 'wp_schedule_single_event' ) ) {
+		$args = array( $endpoint, $body, $attempt + 1 );
+		if ( ( function_exists( 'wp_next_scheduled' ) && wp_next_scheduled( SN_CF_RETRY_HOOK, $args ) )
+			|| true === wp_schedule_single_event( time() + $delays[ $attempt ], SN_CF_RETRY_HOOK, $args ) ) {
+			$GLOBALS['sn_cf_send_last'] = 'queued';
+			return false;
+		}
 	}
 	update_option(
 		SN_CF_FAILURE_OPT,

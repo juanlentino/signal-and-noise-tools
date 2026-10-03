@@ -23,7 +23,7 @@ const SNT_ALERTS_NOTICE_OPT = 'snt_alerts_notice';
  * @param string                         $subject The email subject.
  * @param string                         $body    The email body; its alert lines are reused.
  * @param int                            $now     Unix time.
- * @return array{id:int,title:string,body:string,app:string}|null Null when nothing fired.
+ * @return array{id:int,title:string,body:string,app:string,section:string}|null Null when nothing fired.
  */
 function snt_alerts_notice_build( array $alerts, $subject, $body, $now ) {
 	if ( array() === $alerts ) {
@@ -39,7 +39,8 @@ function snt_alerts_notice_build( array $alerts, $subject, $body, $now ) {
 		'body'  => substr( $first, 0, 240 ) . ( $more > 0 ? sprintf( ' (+%d more)', $more ) : '' ),
 		// Where a tap lands: a refused cache refresh is an attention row; a
 		// spike or a break is read in Analytics.
-		'app'   => array( 'cache' ) === array_values( $only ) ? 'signal-noise' : 'sn-analytics',
+		'app'     => array( 'cache' ) === array_values( $only ) ? 'signal-noise' : 'sn-analytics',
+		'section' => array( 'cache' ) === array_values( $only ) ? 'attention' : '',
 	);
 }
 
@@ -47,7 +48,7 @@ function snt_alerts_notice_build( array $alerts, $subject, $body, $now ) {
  * The stored notice while it is under a day old, else null.
  *
  * @param int|null $now Unix time; null reads the clock.
- * @return array{id:int,title:string,body:string,app:string}|null
+ * @return array{id:int,title:string,body:string,app:string,section:string}|null
  */
 function snt_alerts_notice( $now = null ) {
 	$now = null === $now ? time() : (int) $now;
@@ -55,7 +56,7 @@ function snt_alerts_notice( $now = null ) {
 	if ( ! is_array( $n ) || empty( $n['id'] ) || (int) $n['id'] < $now - DAY_IN_SECONDS || '' === (string) ( $n['title'] ?? '' ) ) {
 		return null;
 	}
-	return array( 'id' => (int) $n['id'], 'title' => (string) $n['title'], 'body' => (string) ( $n['body'] ?? '' ), 'app' => (string) ( $n['app'] ?? 'sn-analytics' ) );
+	return array( 'id' => (int) $n['id'], 'title' => (string) $n['title'], 'body' => (string) ( $n['body'] ?? '' ), 'app' => (string) ( $n['app'] ?? 'sn-analytics' ), 'section' => (string) ( $n['section'] ?? '' ) );
 }
 
 if ( function_exists( 'add_action' ) ) {

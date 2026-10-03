@@ -34,7 +34,10 @@
 			tag: 'signal-noise/alert',
 			onClick: function ( note ) {
 				window.focus();
-				if ( typeof os.openWindow === 'function' ) { os.openWindow( n.app || 'sn-analytics' ); }
+				if ( typeof os.openWindow === 'function' ) {
+					// The S&N app opens on its root unless told the section (as assets/os-posts.js does).
+					if ( n.section ) { os.openWindow( n.app, { params: { section: String( n.section ) } } ); } else { os.openWindow( n.app || 'sn-analytics' ); }
+				}
 				if ( note && typeof note.close === 'function' ) { note.close(); }
 			}
 		} );

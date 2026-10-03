@@ -17,7 +17,8 @@ function wp_remote_retrieve_response_code( $r ) { return (int) ( $r['response'][
 function update_option( $k, $v, $a = null ) { $GLOBALS['__opts'][ $k ] = $v; return true; }
 function get_option( $k, $d = false ) { return $GLOBALS['__opts'][ $k ] ?? $d; }
 function delete_option( $k ) { unset( $GLOBALS['__opts'][ $k ] ); return true; }
-$GLOBALS['__sched_ok'] = true;
+$GLOBALS['__sched_ok'] = true; $GLOBALS['__pending'] = false;
+function wp_next_scheduled( $hook, $args = array() ) { return $GLOBALS['__pending'] ? time() + 30 : false; }
 function wp_schedule_single_event( $at, $hook, $args = array() ) { if ( ! $GLOBALS['__sched_ok'] ) { return false; } $GLOBALS['__sched'][] = array( $at - time(), $hook, $args ); return true; }
 // Replies are consumed in order; the last one repeats.
 function wp_remote_post( $url, $args = array() ) {
@@ -86,6 +87,12 @@ reset_all( array( array( 503, false ) ) );
 unset( $GLOBALS['__opts']['sn_cf_purge_failure'] );
 sn_cf_api_send( 'purge_cache', array( 'files' => array( 'https://x/a' ) ) );
 ok( 'failed' === sn_cf_send_last() && 503 === sn_cf_purge_failure()['http'], 'a retry WordPress could not store is recorded as a failure, not lost' );
+$GLOBALS['__pending'] = true;
+reset_all( array( array( 503, false ) ) );
+$was = sn_cf_purge_failure();
+sn_cf_api_send( 'purge_cache', array( 'files' => array( 'https://x/b' ) ) );
+ok( 'queued' === sn_cf_send_last() && array() === $GLOBALS['__sched'] && $was === sn_cf_purge_failure(), 'the same retry already waiting (WordPress refuses the duplicate) is queued, not a new failure' );
+$GLOBALS['__pending'] = false;
 $GLOBALS['__sched_ok'] = true;
 reset_all( array( array( 200, true ) ) );
 sn_cf_api_send( 'purge_cache', array( 'files' => array( 'https://x/other' ) ) );
@@ -95,6 +102,8 @@ ok( null === sn_cf_purge_failure(), 'the same call confirmed clears it' );
 $GLOBALS['__opts']['sn_cf_purge_failure'] = array( 'time' => 1, 'http' => 401, 'scope' => 'x', 'what' => '2 urls', 'attempts' => 1, 'endpoint' => 'purge_cache' );
 sn_cf_purge_everything_verified();
 ok( null === sn_cf_purge_failure(), 'a confirmed manual zone purge clears it: the whole zone supersedes any failure' );
+
+ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/mcp/mcp-rw-audit.php' ), "'flush_object_cache'," ), 'the write audit keeps flush_object_cache, so a Redis flush does not read like the page-only default' );
 
 echo "\nGroup: the theme's cache tag\n";
 reset_all( array( array( 200, true ) ) );

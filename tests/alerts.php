@@ -167,11 +167,11 @@ $GLOBALS['cf_fail'] = null; $GLOBALS['fail_read'] = '';
 
 echo "\nThe alert in the app\n";
 $nb = snt_alerts_notice_build( $a, $m[0], $m[1], 1791050000 );
-ok( 1791050000 === $nb['id'] && 'Alert: cache refresh failed' === $nb['title'] && 0 === strpos( $nb['body'], 'CACHE: Cloudflare did not accept' ) && 'signal-noise' === $nb['app'], 'a cache failure: the subject without the site tag, the alert line, and a tap lands on the attention list' );
+ok( 1791050000 === $nb['id'] && 'Alert: cache refresh failed' === $nb['title'] && 0 === strpos( $nb['body'], 'CACHE: Cloudflare did not accept' ) && 'signal-noise' === $nb['app'] && 'attention' === $nb['section'], 'a cache failure: the subject without the site tag, the alert line, and a tap lands on the attention list' );
 $sp = $eval( array( 'views' => array( '/a/' => 36, '/b/' => 40 ), 'history' => array() ) );
 $sm = snt_alerts_compose( $sp, array(), 'S', 'u' );
 $nb = snt_alerts_notice_build( $sp, $sm[0], $sm[1], 5 );
-ok( 'sn-analytics' === $nb['app'] && 0 === strpos( $nb['body'], 'SPIKE: ' ) && false !== strpos( $nb['body'], ' more)' ) && strlen( $nb['body'] ) < 260, 'spikes open Analytics; the body is the first line, bounded, with a count of the rest' );
+ok( 'sn-analytics' === $nb['app'] && '' === $nb['section'] && 0 === strpos( $nb['body'], 'SPIKE: ' ) && false !== strpos( $nb['body'], ' more)' ) && strlen( $nb['body'] ) < 260, 'spikes open Analytics; the body is the first line, bounded, with a count of the rest' );
 ok( null === snt_alerts_notice_build( array(), 's', 'b', 5 ), 'nothing fired, no notice' );
 $GLOBALS['opt'][ SNT_ALERTS_NOTICE_OPT ] = array( 'id' => $now - 3600, 'title' => 'Alert: 1 spike', 'body' => 'SPIKE: x', 'app' => 'sn-analytics' );
 ok( 'Alert: 1 spike' === snt_alerts_notice( $now )['title'] && null === snt_alerts_notice( $now + 2 * DAY_IN_SECONDS ), 'the app reads it for a day, then it is gone' );
@@ -180,7 +180,7 @@ snt_alerts_run( $now );
 ok( $now === ( $GLOBALS['opt'][ SNT_ALERTS_NOTICE_OPT ]['id'] ?? null ), 'the hourly run stores the notice even when the mail does not leave' );
 $GLOBALS['cf_fail'] = null; $GLOBALS['mail_ok'] = true;
 $njs = (string) file_get_contents( __DIR__ . '/../assets/snt-alert-notify.js' );
-ok( false !== strpos( $njs, "typeof window.wp.os.notify !== 'function'" ) && strpos( $njs, "typeof window.wp.os.notify !== 'function'" ) < strpos( $njs, 'window.setInterval' ) && false !== strpos( $njs, 'n.id <= seen()' ) && false !== strpos( $njs, "tag: 'signal-noise/alert'" ), 'the script runs only where wp.os.notify exists, shows a notice once per device, and collapses on one tag' );
+ok( false !== strpos( $njs, "typeof window.wp.os.notify !== 'function'" ) && strpos( $njs, "typeof window.wp.os.notify !== 'function'" ) < strpos( $njs, 'window.setInterval' ) && false !== strpos( $njs, 'n.id <= seen()' ) && false !== strpos( $njs, "tag: 'signal-noise/alert'" ) && false !== strpos( $njs, 'os.openWindow( n.app, { params: { section: String( n.section ) } } )' ), 'the script runs only where wp.os.notify exists, shows a notice once per device, and collapses on one tag' );
 
 echo "\nRegistration\n";
 $src = static fn( $f ) => (string) file_get_contents( __DIR__ . '/../' . $f );
