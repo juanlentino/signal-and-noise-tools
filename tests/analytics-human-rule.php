@@ -132,7 +132,7 @@ echo "\nGroup: an internal click is not an entry and not (direct) (worker 1.23.0
 // builder may, or two rollups of one stream drift again (20.4.1).
 $ic = sn_analytics_internal_click_sql();
 ok( "(double10 = 1 AND timestamp >= toDateTime('" . SN_ANALYTICS_REFKIND_CUTOVER . "'))" === $ic, 'the predicate: referrer kind 1, on or after the cutover' );
-ok( 1 === preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', SN_ANALYTICS_REFKIND_CUTOVER ) && '2026-10-03 15:10:00' === SN_ANALYTICS_REFKIND_CUTOVER, 'the cutover is the 1.23.0 deploy, a UTC literal toDateTime() takes' );
+ok( 1 === preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', SN_ANALYTICS_REFKIND_CUTOVER ) && '2026-10-03 15:09:00' === SN_ANALYTICS_REFKIND_CUTOVER, 'the cutover is the 1.23.0 deploy (15:09:39Z) rounded down to the minute, a UTC literal toDateTime() takes' );
 ok( ' AND NOT ' . $ic === sn_analytics_not_internal_click_sql(), 'the WHERE form negates the same predicate' );
 ok( "if({$ic}, '" . SN_ANALYTICS_INTERNAL_REFERRER . "', blob3)" === sn_analytics_referrer_value_sql( 'blob3' ), 'the SELECT form relabels the same predicate' );
 ok( false !== strpos( $built['pageroles:sn_analytics_pageroles_rollup_sql'], "AND ( blob3 = '' OR blob3 NOT IN ('example.com','www.example.com') )" . sn_analytics_not_internal_click_sql() ), 'entry pages: the blob3 rule stays (rows before the cutover) and the internal click is dropped after it' );

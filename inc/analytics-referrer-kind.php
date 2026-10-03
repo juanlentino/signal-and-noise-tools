@@ -25,8 +25,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** Worker 1.23.0 went live 2026-10-03 15:10 UTC. A UTC literal for toDateTime(). */
-const SN_ANALYTICS_REFKIND_CUTOVER = '2026-10-03 15:10:00';
+/**
+ * Worker 1.23.0's own /_sn/version reports deployed_at 2026-10-03T15:09:39Z.
+ * Rounded DOWN to the minute: an early cutover is harmless (a row written
+ * before the deploy reads double10 = 0 and never matches), a late one would
+ * misfile that minute. A UTC literal for toDateTime().
+ */
+const SN_ANALYTICS_REFKIND_CUTOVER = '2026-10-03 15:09:00';
 
 /** What the referrer dim stores for an internal click. Never '' (that reads "(direct)"). */
 const SN_ANALYTICS_INTERNAL_REFERRER = '(internal)';

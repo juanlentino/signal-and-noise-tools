@@ -195,7 +195,7 @@ ok( strpos( $rsql, 'ORDER BY day DESC, views DESC' ) !== false, 'rollup_sql: ORD
 // The external/direct-referrer clause (the unproven, live-AE-gated bit).
 ok( strpos( $rsql, "blob3 = ''" ) !== false, "rollup_sql: includes direct referrers (blob3 = '')" );
 ok( strpos( $rsql, "blob3 NOT IN ('juanlentino.com','www.juanlentino.com')" ) !== false, 'rollup_sql: excludes own host (lowercased, escaped)' );
-ok( strpos( $rsql, " AND NOT (double10 = 1 AND timestamp >= toDateTime('2026-10-03 15:10:00'))" ) !== false, 'rollup_sql: an internal click (double10 = 1, on or after the worker 1.23.0 cutover) is not an entry' );
+ok( strpos( $rsql, " AND NOT (double10 = 1 AND timestamp >= toDateTime('2026-10-03 15:09:00'))" ) !== false, 'rollup_sql: an internal click (double10 = 1, on or after the worker 1.23.0 cutover) is not an entry' );
 ok( strpos( $rsql, ' LIMIT ' ) === false, 'rollup_sql: no LIMIT (PHP-side slicing)' );
 
 // ── run rollup tags role=entry and upserts ─────────────────────────────────────
