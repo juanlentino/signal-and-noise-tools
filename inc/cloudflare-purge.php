@@ -114,9 +114,14 @@ function sn_cf_purge_urls( $urls ) {
 	}
 
 	// Cloudflare's cache purge endpoint accepts up to 30 URLs per call.
-	$chunks = array_chunk( $urls, 30 );
+	$chunks  = array_chunk( $urls, 30 );
+	$handled = true;
 	foreach ( $chunks as $chunk ) {
 		sn_cf_api_send( 'purge_cache', array( 'files' => $chunk ) );
+		$handled = $handled && 'failed' !== sn_cf_send_last();
+	}
+	if ( ! $handled ) {
+		return false; // Cloudflare refused and nothing will retry: recorded for the alert.
 	}
 
 	update_option( SN_CF_LAST_PURGE_OPT, array(
@@ -140,7 +145,10 @@ function sn_cf_purge_everything() {
 	}
 
 	// 20.9.0: a code update marks the zone stale; anything else deletes.
-	sn_cf_api_send( sn_cf_edge_endpoint( (string) ( $GLOBALS['snt_purge_current']['trigger'] ?? '' ) ), array( 'purge_everything' => true ) );
+	$confirmed = sn_cf_api_send( sn_cf_edge_endpoint( (string) ( $GLOBALS['snt_purge_current']['trigger'] ?? '' ) ), array( 'purge_everything' => true ) );
+	if ( ! $confirmed && 'queued' !== sn_cf_send_last() ) {
+		return false; // refused, nothing will retry: no purge to stamp, no edge leg to mark.
+	}
 
 	update_option( SN_CF_LAST_PURGE_OPT, array(
 		'time' => time(),
@@ -150,10 +158,12 @@ function sn_cf_purge_everything() {
 	// 20.7.0: the purge ledger. Inside the theme's chain this marks that
 	// row's edge leg; called on its own (the admin-bar button, a first
 	// publish, a scheduled transition, the probe) it is a row itself.
+	// The edge leg is true only when Cloudflare confirmed it in this request;
+	// a queued retry has not refreshed anything yet.
 	if ( isset( $GLOBALS['snt_purge_current'] ) ) {
-		$GLOBALS['snt_purge_edge'] = true;
+		$GLOBALS['snt_purge_edge'] = $confirmed;
 	} elseif ( function_exists( 'snt_purge_ledger_add' ) ) {
-		snt_purge_ledger_add( array( 'trigger' => snt_purge_trigger(), 'redis' => false, 'pages' => false, 'edge' => true, 'cloudways' => 'not run' ) );
+		snt_purge_ledger_add( array( 'trigger' => snt_purge_trigger(), 'redis' => false, 'pages' => false, 'edge' => $confirmed, 'cloudways' => 'not run' ) );
 	}
 
 	return true;
@@ -215,6 +225,9 @@ function sn_cf_purge_everything_verified() {
 		'cf_success' => $r['cf_success'],
 	);
 
+	if ( ! empty( $out['cf_success'] ) ) {
+		sn_cf_purge_failure_clear( array( 'purge_everything' => true ) ); // the whole zone supersedes any recorded failure.
+	}
 	if ( ! empty( $out['cf_success'] ) && isset( $GLOBALS['snt_purge_current'] ) ) {
 		$GLOBALS['snt_purge_edge'] = true; // 20.7.0: the manual purge's ledger row (Codex).
 	}

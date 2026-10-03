@@ -64,11 +64,11 @@ function sn_cf_api_send( $endpoint, $body, $attempt = 0 ) {
 	if ( ! sn_cf_is_configured() ) {
 		return false;
 	}
+	$GLOBALS['sn_cf_send_last'] = 'failed';
 	$r = sn_cf_api_post_blocking( '/zones/' . sn_cf_get_zone() . '/' . $endpoint, $body );
 	if ( ! empty( $r['cf_success'] ) ) {
-		if ( false !== get_option( SN_CF_FAILURE_OPT, false ) ) {
-			delete_option( SN_CF_FAILURE_OPT );
-		}
+		$GLOBALS['sn_cf_send_last'] = 'ok';
+		sn_cf_purge_failure_clear( $body );
 		return true;
 	}
 	$retry = sn_cf_retryable( $r['http'] );
@@ -77,8 +77,10 @@ function sn_cf_api_send( $endpoint, $body, $attempt = 0 ) {
 		return sn_cf_api_send( 'purge_cache', $body, $attempt );
 	}
 	$delays = SN_CF_RETRY_DELAYS;
-	if ( $retry && isset( $delays[ $attempt ] ) && function_exists( 'wp_schedule_single_event' ) ) {
-		wp_schedule_single_event( time() + $delays[ $attempt ], SN_CF_RETRY_HOOK, array( $endpoint, $body, $attempt + 1 ) );
+	// A retry WordPress could not store is no retry: fall through and record it.
+	if ( $retry && isset( $delays[ $attempt ] ) && function_exists( 'wp_schedule_single_event' )
+		&& true === wp_schedule_single_event( time() + $delays[ $attempt ], SN_CF_RETRY_HOOK, array( $endpoint, $body, $attempt + 1 ) ) ) {
+		$GLOBALS['sn_cf_send_last'] = 'queued';
 		return false;
 	}
 	update_option(
@@ -88,6 +90,7 @@ function sn_cf_api_send( $endpoint, $body, $attempt = 0 ) {
 			'http'     => (int) $r['http'],
 			'endpoint' => $endpoint,
 			'attempts' => $attempt + 1,
+			'scope'    => md5( (string) wp_json_encode( $body ) ),
 			'what'     => isset( $body['purge_everything'] ) ? 'everything' : ( isset( $body['tags'] ) ? 'tags' : count( (array) ( $body['files'] ?? array() ) ) . ' urls' ),
 		),
 		false
@@ -96,6 +99,35 @@ function sn_cf_api_send( $endpoint, $body, $attempt = 0 ) {
 }
 if ( function_exists( 'add_action' ) ) {
 	add_action( SN_CF_RETRY_HOOK, 'sn_cf_api_send', 10, 3 );
+}
+
+/**
+ * Clear the failure record when a confirmed call covers what failed: the
+ * whole zone, the theme's tag (every cached page), or the same call again.
+ * A success for some other URL list leaves it: that content is still stale.
+ *
+ * @param array $body The confirmed call's body.
+ * @return void
+ */
+function sn_cf_purge_failure_clear( array $body ) {
+	$f = get_option( SN_CF_FAILURE_OPT, false );
+	if ( ! is_array( $f ) ) {
+		return;
+	}
+	$wide = isset( $body['purge_everything'] ) || isset( $body['tags'] );
+	if ( $wide || md5( (string) wp_json_encode( $body ) ) === (string) ( $f['scope'] ?? '' ) ) {
+		delete_option( SN_CF_FAILURE_OPT );
+	}
+}
+
+/**
+ * How the last send in this request ended: 'ok' (confirmed), 'queued' (a
+ * retry is stored) or 'failed' (recorded).
+ *
+ * @return string
+ */
+function sn_cf_send_last() {
+	return (string) ( $GLOBALS['sn_cf_send_last'] ?? 'failed' );
 }
 
 /**

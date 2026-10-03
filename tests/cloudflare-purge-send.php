@@ -17,7 +17,8 @@ function wp_remote_retrieve_response_code( $r ) { return (int) ( $r['response'][
 function update_option( $k, $v, $a = null ) { $GLOBALS['__opts'][ $k ] = $v; return true; }
 function get_option( $k, $d = false ) { return $GLOBALS['__opts'][ $k ] ?? $d; }
 function delete_option( $k ) { unset( $GLOBALS['__opts'][ $k ] ); return true; }
-function wp_schedule_single_event( $at, $hook, $args = array() ) { $GLOBALS['__sched'][] = array( $at - time(), $hook, $args ); return true; }
+$GLOBALS['__sched_ok'] = true;
+function wp_schedule_single_event( $at, $hook, $args = array() ) { if ( ! $GLOBALS['__sched_ok'] ) { return false; } $GLOBALS['__sched'][] = array( $at - time(), $hook, $args ); return true; }
 // Replies are consumed in order; the last one repeats.
 function wp_remote_post( $url, $args = array() ) {
 	$GLOBALS['__http'][] = array( basename( $url ), $args );
@@ -72,6 +73,28 @@ ok( true === sn_cf_api_send( 'invalidate_cache', array( 'purge_everything' => tr
 reset_all( array( array( 503, false ) ) );
 sn_cf_api_send( 'invalidate_cache', array( 'purge_everything' => true ) );
 ok( array( 'invalidate_cache' ) === array_column( $GLOBALS['__http'], 0 ) && 'invalidate_cache' === $GLOBALS['__sched'][0][2][0], 'a Cloudflare 5xx on invalidate retries the invalidate, it does not purge' );
+
+echo "\nGroup: what a caller is told, and what clears a failure (Codex on #1846)\n";
+reset_all( array( array( 401, false ) ) );
+unset( $GLOBALS['__opts']['sn_cf_purge_failure'], $GLOBALS['__opts']['sn_cf_last_purge'] );
+ok( false === sn_cf_purge_everything() && ! isset( $GLOBALS['__opts']['sn_cf_last_purge'] ), 'a refused zone refresh returns false and stamps no purge' );
+ok( false === sn_cf_purge_urls( array( 'https://x/a' ) ), 'a refused URL purge returns false too' );
+reset_all( array( array( 503, false ) ) );
+ok( true === sn_cf_purge_everything() && 'queued' === sn_cf_send_last(), 'a queued retry still counts as handled' );
+$GLOBALS['__sched_ok'] = false;
+reset_all( array( array( 503, false ) ) );
+unset( $GLOBALS['__opts']['sn_cf_purge_failure'] );
+sn_cf_api_send( 'purge_cache', array( 'files' => array( 'https://x/a' ) ) );
+ok( 'failed' === sn_cf_send_last() && 503 === sn_cf_purge_failure()['http'], 'a retry WordPress could not store is recorded as a failure, not lost' );
+$GLOBALS['__sched_ok'] = true;
+reset_all( array( array( 200, true ) ) );
+sn_cf_api_send( 'purge_cache', array( 'files' => array( 'https://x/other' ) ) );
+ok( null !== sn_cf_purge_failure(), 'a confirmed purge of some other URL list leaves the record: that content is still stale' );
+sn_cf_api_send( 'purge_cache', array( 'files' => array( 'https://x/a' ) ) );
+ok( null === sn_cf_purge_failure(), 'the same call confirmed clears it' );
+$GLOBALS['__opts']['sn_cf_purge_failure'] = array( 'time' => 1, 'http' => 401, 'scope' => 'x', 'what' => '2 urls', 'attempts' => 1, 'endpoint' => 'purge_cache' );
+sn_cf_purge_everything_verified();
+ok( null === sn_cf_purge_failure(), 'a confirmed manual zone purge clears it: the whole zone supersedes any failure' );
 
 echo "\nGroup: the theme's cache tag\n";
 reset_all( array( array( 200, true ) ) );
