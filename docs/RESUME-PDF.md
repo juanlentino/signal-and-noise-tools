@@ -15,8 +15,10 @@ Phase 2.
 3. **Generate PDF** (the Resume PDF box below the form). It renders the SAVED document, writes
    `uploads/resume/JuanLentino_Resume.pdf`, stores the timestamp, size, page count and SHA-256 in
    the `sn_resume_pdf` option, re-renders /resume so the Download link reads
-   `…/resume/JuanLentino_Resume.pdf?v=<first 8 of the hash>`, and purges caches exactly as
-   **Purge All Caches** does.
+   `…/resume/JuanLentino_Resume.pdf?v=<first 8 of the hash>`, and purges only what changed: the
+   page save purges /resume/ (Cloudflare per URL, Breeze through its own save handler), and the
+   file's bare URL plus its new and previous `?v=` URLs go through the per-URL Cloudflare purge.
+   It no longer runs **Purge All Caches**.
 
 Until the first generation, the Download link keeps using the **PDF URL** field in Hero.
 

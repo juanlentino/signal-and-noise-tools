@@ -127,17 +127,50 @@ function sn_resume_pdf_generate() {
 		'generated' => gmdate( 'c' ),
 		'url'       => $loc['url'] . '/' . SN_RESUME_PDF_FILE,
 	);
+	$previous = get_option( SN_RESUME_PDF_OPTION );
 	update_option( SN_RESUME_PDF_OPTION, $meta, false );
 
 	// The Download link carries ?v=<hash>: re-render /resume so it points at
-	// this version, then purge exactly as the "Purge All Caches" button does.
+	// this version. That is an ordinary page save, and the save does the page's
+	// own purging: this plugin's per-URL Cloudflare purge (the /resume/
+	// permalink and its listings) and Breeze's save_post handler, which drops
+	// its stored copy of the page. Nothing here repeats either.
 	if ( function_exists( 'sn_resume_sync_page' ) ) {
 		sn_resume_sync_page();
 	}
-	if ( function_exists( 'snt_ability_purge_all_caches' ) ) {
-		snt_ability_purge_all_caches( array() );
+	// What a page save cannot know about is the file. It used to be cleared by
+	// the purge-everything ability, which also emptied Redis and every other
+	// page to drop one PDF. Now the file's own addresses go through the per-URL
+	// path, which does nothing when Cloudflare is not configured.
+	if ( function_exists( 'sn_cf_purge_urls' ) ) {
+		sn_cf_purge_urls( sn_resume_pdf_purge_urls( $meta, $previous ) );
 	}
 	return $meta;
+}
+
+/**
+ * The file's addresses at the edge after a generation. PURE.
+ *
+ * The bare URL (served for a year by the web server, whatever its bytes); the
+ * new ?v= URL, because the same bytes give the same version and the edge may
+ * already hold it; and the previous ?v= URL, which an old copy of /resume
+ * still links and which would otherwise keep answering with the old file.
+ *
+ * @param array<string,mixed> $meta     The option just written.
+ * @param mixed               $previous The option as it was before, if any.
+ * @return string[]
+ */
+function sn_resume_pdf_purge_urls( array $meta, $previous = null ) {
+	if ( empty( $meta['url'] ) ) {
+		return array();
+	}
+	$urls = array( (string) $meta['url'] );
+	foreach ( array( $meta, $previous ) as $m ) {
+		if ( is_array( $m ) && ! empty( $m['url'] ) && ! empty( $m['sha256'] ) ) {
+			$urls[] = (string) $m['url'] . '?v=' . substr( (string) $m['sha256'], 0, 8 );
+		}
+	}
+	return array_values( array_unique( $urls ) );
 }
 
 /**
