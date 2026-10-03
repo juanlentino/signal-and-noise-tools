@@ -38,7 +38,7 @@ function sn_cf_posture_settings() {
 		'min_tls_version'          => '1.2',
 		'always_use_https'         => 'on',
 		'development_mode'         => 'off',   // On bypasses the cache for 3 hours; nothing in wp-admin says so.
-		'always_online'            => sn_cf_posture_stale_headers_sent() ? 'off' : null, // Judged only beside the stale-* headers it switches off.
+		'always_online'            => null, // A reading, never judged: on by the owner's choice (2026-10-03), the working fallback.
 		'tls_1_3'                  => null,
 		'automatic_https_rewrites' => null,
 		'opportunistic_encryption' => null,
@@ -55,9 +55,10 @@ function sn_cf_posture_settings() {
  * right now? Read from the value it actually builds for public HTML (its
  * Cloudflare-CDN-Cache-Control, inc/cache-headers.php), not from the theme
  * merely being new enough: a filter can switch the header off or strip the
- * stale directives, and then Always Online is a reading like any other.
- * Cloudflare ignores both directives while Always Online is on, and nothing
- * at the edge or in wp-admin says so.
+ * stale directives. Only then does Always Online on mean anything more than
+ * "on": Cloudflare ignores both directives while it is. That is said beside
+ * the reading (sn_cf_posture_model()) and is NEVER a finding: Always Online
+ * stays on by the owner's choice until a worker-side last-good copy exists.
  *
  * @return bool
  */
@@ -249,8 +250,7 @@ function sn_cf_posture_findings( array $record ) {
 			$value = (string) $values[ $id ];
 			$bad   = 'min_tls_version' === $id ? version_compare( $value, $expected, '<' ) : ( $value !== $expected );
 			if ( $bad ) {
-				$why   = 'always_online' === $id ? ' While it is on, Cloudflare ignores the stale-while-revalidate and stale-if-error the pages send, so an origin error reaches readers; turn it off under Caching > Configuration.' : '';
-				$out[] = array( 'key' => $id, 'label' => $id, 'value' => $value, 'why' => sprintf( '%s is "%s"; expected "%s".', $id, $value, $expected ) . $why );
+				$out[] = array( 'key' => $id, 'label' => $id, 'value' => $value, 'why' => sprintf( '%s is "%s"; expected "%s".', $id, $value, $expected ) );
 			}
 		}
 	}
@@ -321,6 +321,9 @@ function sn_cf_posture_model( $record = null ) {
 			if ( null !== $expected ) {
 				$out['checks'][] = array( 'label' => $labels[ $id ], 'value' => $word, 'ok' => empty( $drift[ $id ] ) );
 			} else {
+				if ( 'always_online' === $id && 'on' === $raw && sn_cf_posture_stale_headers_sent() ) {
+					$word = __( 'on, so Cloudflare ignores stale-while-revalidate and stale-if-error; the edge lifetime still applies', 'signal-and-noise-tools' );
+				}
 				$out['also'][] = array( 'label' => $labels[ $id ], 'value' => $word );
 			}
 		}
