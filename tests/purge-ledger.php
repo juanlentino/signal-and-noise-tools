@@ -94,6 +94,22 @@ ok( snt_purge_remove_breeze_update_purge(), 'removed' );
 ok( ! snt_purge_breeze_update_purge_hooked() && 1 === count( $GLOBALS['wp_filter']['upgrader_process_complete']->callbacks[10] ), 'gone, and the other plugin\'s callback stays' );
 ok( ! snt_purge_remove_breeze_update_purge(), 'nothing to remove says false, never a silent success' );
 
+echo "\nBreeze's timed purge is switched off (20.7.1)\n";
+class Breeze_PurgeCacheTime { function schedule_varnish() {} function schedule_events() {} function filter_cron_schedules( $s ) { return $s; } }
+$timer = new Breeze_PurgeCacheTime();
+$GLOBALS['wp_filter']['breeze_purge_cache'] = (object) array( 'callbacks' => array( 10 => array( 'x' => array( 'function' => array( $timer, 'schedule_varnish' ) ) ) ) );
+$GLOBALS['wp_filter']['init'] = (object) array( 'callbacks' => array( 10 => array(
+	'y' => array( 'function' => array( $timer, 'schedule_events' ) ),
+	'z' => array( 'function' => array( $other, 'on_update' ) ),
+) ) );
+$GLOBALS['sched']['breeze_purge_cache'] = 86400;
+function wp_clear_scheduled_hook( $h ) { unset( $GLOBALS['sched'][ $h ] ); return 1; }
+ok( 'scheduled' === snt_purge_ledger_summary()['breeze_nightly'], 'control: scheduled before' );
+ok( snt_purge_disable_breeze_nightly(), 'switched off' );
+ok( array() === $GLOBALS['wp_filter']['breeze_purge_cache']->callbacks[10] && 1 === count( $GLOBALS['wp_filter']['init']->callbacks[10] ), 'the purge and its rescheduler are unhooked; another plugin\'s init callback stays' );
+ok( 'off' === snt_purge_ledger_summary()['breeze_nightly'], 'the event is cleared: the summary reads off' );
+ok( ! snt_purge_disable_breeze_nightly(), 'nothing left to remove says false' );
+
 echo "\nThe rollover skips after an update purge\n";
 $GLOBALS['opt'] = array();
 $now = 1800000000;
