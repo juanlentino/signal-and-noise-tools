@@ -37,7 +37,7 @@ $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "ok   — $m\n"; } else { $fail++; echo "FAIL — $m\n"; } }
 function near( $a, $b ) { return abs( $a - $b ) < 1e-9; }
 
-$RATE_IN  = 3.0;   // claude-sonnet-4-6 input (Sonnet 5 lists at $2/$10 since 20.10.0)  $/MTok
+$RATE_IN  = 3.0;   // claude-sonnet-4-6 input (Sonnet 5 lists at $2/$10 since 21.0.0)  $/MTok
 $RATE_OUT = 15.0;  // claude-sonnet-4-6 output $/MTok
 
 // ── The multipliers are the load-bearing constants ───────────────────────

@@ -211,7 +211,7 @@ ok( ! $opted_out['everything'], 'returning false from the filter skips the zone 
 ok( in_array( 'https://example.test/notes/post-7/', $opted_out['urls'], true ), 'and falls back to the narrow URL list' );
 $GLOBALS['__filters'] = array();
 
-// 20.10.0: with a tagging theme, one tag purge replaces the URL list, the
+// 21.0.0: with a tagging theme, one tag purge replaces the URL list, the
 // first-publish zone purge and the probe. LAST in the file: the constant
 // cannot be undefined again.
 echo "\nGroup: a tagging theme (15.2.0+)\n";

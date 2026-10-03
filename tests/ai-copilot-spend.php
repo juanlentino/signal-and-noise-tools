@@ -71,7 +71,7 @@ $turn = static function ( array $over = array() ) {
 		'answer_type' => 'chat',
 		'iterations'  => 1,
 		'usage'       => array( 'prompt' => 1000, 'completion' => 500, 'total' => 1500 ),
-		'model'       => array( 'id' => 'claude-sonnet-4-6', 'name' => 'Claude Sonnet 4.6' ), // $3/$15; Sonnet 5 lists at $2/$10 since 20.10.0.
+		'model'       => array( 'id' => 'claude-sonnet-4-6', 'name' => 'Claude Sonnet 4.6' ), // $3/$15; Sonnet 5 lists at $2/$10 since 21.0.0.
 	), $over );
 };
 

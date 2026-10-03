@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-require_once __DIR__ . '/ai-model-catalog.php'; // the model defaults and lists (20.10.0).
+require_once __DIR__ . '/ai-model-catalog.php'; // the model defaults and lists (21.0.0).
 
 /**
  * Native <details>/<summary> fold for a writable-column settings card (v9.45.0,

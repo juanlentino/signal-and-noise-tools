@@ -436,7 +436,7 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 	// an edit does, computed from the PRE-CHANGE post -- the permalink the
 	// edge actually holds. $post already carries the new status, and its
 	// permalink would be ?p=ID (trash also renames post_name to *__trashed).
-	// 20.10.0: with a theme that tags its cached responses (15.2.0+), one tag
+	// 21.0.0: with a theme that tags its cached responses (15.2.0+), one tag
 	// purge refreshes every page, feed and machine file; seen clearing the live
 	// edge on 2026-10-03 (a no-change save turned unrelated pages from HIT to
 	// MISS). The sitemaps are core's and carry no tag, so they go by URL. The

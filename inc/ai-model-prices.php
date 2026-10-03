@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise Tools: model prices, read daily (20.10.0).
+ * Signal & Noise Tools: model prices, read daily (21.0.0).
  *
  * Neither vendor's API returns a price, so a list that updates itself needs
  * a machine-readable price source. This reads LiteLLM's public price file (a

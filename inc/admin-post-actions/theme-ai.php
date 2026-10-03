@@ -36,7 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return array<string,string>
  */
 function sn_theme_ai_models() {
-	return sn_ai_models( 'prose' ); // 20.10.0: inc/ai-model-catalog.php.
+	return sn_ai_models( 'prose' ); // 21.0.0: inc/ai-model-catalog.php.
 }
 
 /**
@@ -48,7 +48,7 @@ function sn_theme_ai_models() {
  * @return array<string,string>
  */
 function sn_theme_ai_vision_models() {
-	return sn_ai_models( 'vision' ); // 20.10.0: inc/ai-model-catalog.php.
+	return sn_ai_models( 'vision' ); // 21.0.0: inc/ai-model-catalog.php.
 }
 
 /**

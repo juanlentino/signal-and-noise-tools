@@ -36,7 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-require_once dirname( __DIR__ ) . '/ai-model-catalog.php'; // the model defaults and lists (20.10.0).
+require_once dirname( __DIR__ ) . '/ai-model-catalog.php'; // the model defaults and lists (21.0.0).
 
 /**
  * Render the AI settings form. Used as the sn_admin_render_section() callback
