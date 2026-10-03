@@ -120,7 +120,7 @@ function sn_settings_defaults() {
 			// the row exactly as it shipped. Constrained to
 			// SN_TF_NOTE_REPLY_ALIASES above — never free text.
 			'note_reply_alias'       => 'research',
-			'ai_model'               => 'claude-sonnet-5',
+			'ai_model'               => 'claude-sonnet-5-5', // equals sn_ai_default_model() (pinned in tests/ai-model-catalog.php)
 			'ai_monthly_budget'      => 0,
 			'jev_credit'             => 5,  // 16.6.0: TypeSafe's monthly credit, USD
 			'jev_cycle_day'          => 17, // 16.6.0: the day the credit renews

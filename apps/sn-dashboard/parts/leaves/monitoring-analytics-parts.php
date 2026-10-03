@@ -23,6 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once dirname( __DIR__, 4 ) . '/inc/ai-model-catalog.php'; // the model defaults and lists (20.10.0).
+
 /**
  * The five-pill pipeline strip: reuses the classic's own pure pill list.
  *
@@ -392,7 +394,7 @@ function analytics_salt_window_html( array $result ) {
  * @return string
  */
 function analytics_mirrors_html( $tab ) {
-	$model  = (string) ( function_exists( '\sn_setting' ) ? \sn_setting( 'theme.ai_model', 'claude-sonnet-5' ) : 'claude-sonnet-5' );
+	$model  = (string) ( function_exists( '\sn_setting' ) ? \sn_setting( 'theme.ai_model', \sn_ai_default_model() ) : \sn_ai_default_model() );
 	$models = function_exists( '\sn_theme_ai_models' ) ? \sn_theme_ai_models() : array();
 	$label  = isset( $models[ $model ] ) ? (string) $models[ $model ] : $model;
 	$budget = (float) ( function_exists( '\sn_setting' ) ? \sn_setting( 'theme.ai_monthly_budget', 0 ) : 0 );

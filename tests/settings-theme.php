@@ -66,7 +66,7 @@ ok( $d['theme']['palette_enabled'] === true, 'defaults: palette_enabled true' );
 ok( $d['theme']['json_feed_items'] === 20, 'defaults: json_feed_items 20' );
 ok( $d['theme']['updated_threshold_days'] === 14, 'defaults: updated_threshold_days 14' );
 ok( $d['theme']['reading_wpm'] === 225, 'defaults: reading_wpm 225' );
-ok( $d['theme']['ai_model'] === 'claude-sonnet-5', 'defaults: ai_model claude-sonnet-5' );
+ok( $d['theme']['ai_model'] === 'claude-sonnet-5-5', 'defaults: ai_model claude-sonnet-5-5 (20.10.0)' );
 ok( $d['theme']['notes_per_page'] === 20, 'defaults: notes_per_page 20' );
 ok( $d['theme']['ai_monthly_budget'] === 0, 'defaults: ai_monthly_budget 0 (cap off)' );
 
@@ -98,7 +98,7 @@ ok( (int) sn_setting( 'theme.reading_wpm' ) === 100, 'save: reading_wpm clamps t
 // save_theme POST carrying them must be INERT, not merely harmless. That is the
 // whole point of the split; tests/admin-ai-settings-save.php covers the new
 // handler's own clamping and allow-listing.
-ok( sn_setting( 'theme.ai_model' ) === 'claude-sonnet-5', 'save_theme ignores a posted ai_model (handled by the AI form now)' );
+ok( sn_setting( 'theme.ai_model' ) === 'claude-sonnet-5-5', 'save_theme ignores a posted ai_model (handled by the AI form now)' );
 ok( sn_setting( 'theme.palette_enabled' ) === true, 'save: palette_enabled true when checkbox present' );
 ok( (int) sn_setting( 'theme.notes_per_page' ) === 100, 'save: notes_per_page clamps to max 100' );
 ok( (float) sn_setting( 'theme.ai_monthly_budget' ) === 0.0, 'save_theme leaves ai_monthly_budget alone (still the seeded 0)' );

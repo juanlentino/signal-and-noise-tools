@@ -71,7 +71,7 @@ $turn = static function ( array $over = array() ) {
 		'answer_type' => 'chat',
 		'iterations'  => 1,
 		'usage'       => array( 'prompt' => 1000, 'completion' => 500, 'total' => 1500 ),
-		'model'       => array( 'id' => 'claude-sonnet-5', 'name' => 'Claude Sonnet 5' ),
+		'model'       => array( 'id' => 'claude-sonnet-4-6', 'name' => 'Claude Sonnet 4.6' ), // $3/$15; Sonnet 5 lists at $2/$10 since 20.10.0.
 	), $over );
 };
 
@@ -84,7 +84,7 @@ ok( 0 === snt_ai_copilot_unpriced_this_month(), 'before any turn the unpriced co
 
 // ── 1. One priced turn: 1000 in at $3/M plus 500 out at $15/M.
 do_action( 'openstation_ai_search_completed', $turn() );
-ok( abs( snt_ai_copilot_spend_this_month() - 0.0105 ) < 1e-9, 'one Sonnet 5 turn reads 0.0105 (got ' . snt_ai_copilot_spend_this_month() . ')' );
+ok( abs( snt_ai_copilot_spend_this_month() - 0.0105 ) < 1e-9, 'one Sonnet 4.6 turn reads 0.0105 (got ' . snt_ai_copilot_spend_this_month() . ')' );
 ok( isset( $GLOBALS['__options'][ SN_AI_COPILOT_SPEND_OPT ][ snt_ai_spend_month_key() ] ), 'the figure lives in the Copilot option under this month\'s YYYY-MM key' );
 
 // ── 2. The cap's ledger did not move.

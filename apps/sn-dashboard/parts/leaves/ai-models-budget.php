@@ -23,6 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once dirname( __DIR__, 4 ) . '/inc/ai-model-catalog.php'; // the model defaults and lists (20.10.0).
+
 require_once __DIR__ . '/ai-models-budget-parts.php';
 
 /**
@@ -32,8 +34,8 @@ require_once __DIR__ . '/ai-models-budget-parts.php';
  */
 function models_budget_data() {
 	return array(
-		'model'            => (string) sn_setting( 'theme.ai_model', 'claude-sonnet-5' ),
-		'alt_model'        => (string) sn_setting( 'theme.ai_alt_model', 'gemini-2.5-flash-lite' ),
+		'model'            => (string) sn_setting( 'theme.ai_model', \sn_ai_default_model() ),
+		'alt_model'        => (string) sn_setting( 'theme.ai_alt_model', \sn_ai_default_vision_model() ),
 		'budget'           => (float) sn_setting( 'theme.ai_monthly_budget', 0 ),
 		'spent'            => function_exists( 'snt_ai_spend_this_month' ) ? (float) snt_ai_spend_this_month() : 0.0,
 		'by_feature'       => function_exists( 'snt_ai_spend_this_month_by_feature' ) ? snt_ai_spend_this_month_by_feature() : array(),
@@ -245,6 +247,8 @@ function paint_ai_models_budget( array $ctx ) {
 		'options' => sn_theme_ai_models(),
 		'hint'    => __( 'Used for AI-assisted prose features (drafts, insights, meta descriptions).', 'signal-and-noise-tools' ),
 	) );
+	$other_hint = __( 'Optional. Type a model id the list lacks (as the vendor spells it) and save: it is used and offered here from then on. A model with no stored price is counted as unpriced.', 'signal-and-noise-tools' );
+	$fields    .= \snt_kit_field( 'text', 'theme_ai_model_other', __( 'Another prose model id', 'signal-and-noise-tools' ), '', array( 'hint' => $other_hint ) );
 	$fields .= \snt_kit_field( 'select', 'theme_ai_alt_model', __( 'Vision model (alt text)', 'signal-and-noise-tools' ), $d['alt_model'], array(
 		'options' => sn_theme_ai_vision_models(),
 	) );
@@ -253,6 +257,7 @@ function paint_ai_models_budget( array $ctx ) {
 		\snt_kit_esc( __( 'Used to LOOK at images when suggesting alt text. The %s filter still overrides this for code-level pins.', 'signal-and-noise-tools' ) ),
 		\snt_kit_code( 'snt_ai_alt_text_model', false )
 	) . '</p>';
+	$fields .= \snt_kit_field( 'text', 'theme_ai_alt_model_other', __( 'Another vision model id', 'signal-and-noise-tools' ), '', array( 'hint' => $other_hint ) );
 	$fields .= \snt_kit_field( 'number', 'theme_ai_monthly_budget', __( 'Monthly budget (USD)', 'signal-and-noise-tools' ), number_format( $d['budget'], 2, '.', '' ), array(
 		'min'  => 0,
 		'step' => 0.5,

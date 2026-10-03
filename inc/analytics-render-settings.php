@@ -23,6 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/ai-model-catalog.php'; // the model defaults and lists (20.10.0).
+
 /**
  * Native <details>/<summary> fold for a writable-column settings card (v9.45.0,
  * §2, MED#2): the summary always shows the fieldset's title plus a one-line
@@ -566,7 +568,7 @@ function snt_analytics_render_mirrors() {
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Settings analytics depends on that live on other tabs: shown read-only; follow a link to change one.', 'signal-and-noise-tools' ) . '</p>';
 
 	// AI model + monthly budget (drives the digest tier).
-	$model  = (string) sn_setting( 'theme.ai_model', 'claude-sonnet-5' );
+	$model  = (string) sn_setting( 'theme.ai_model', sn_ai_default_model() );
 	$models = function_exists( 'sn_theme_ai_models' ) ? sn_theme_ai_models() : array();
 	$label  = isset( $models[ $model ] ) ? (string) $models[ $model ] : $model;
 	$budget = (float) sn_setting( 'theme.ai_monthly_budget', 0 );

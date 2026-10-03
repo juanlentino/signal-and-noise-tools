@@ -43,14 +43,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function snt_ai_model_pricing() {
 	$rates = array(
+		// 20.10.0: the 5.x generation, from platform.claude.com/docs pricing
+		// (read 2026-10-03). Opus 5.5 lists BELOW Opus 4.8.
+		'claude-fable-5-1'  => array( 'in' => 10.0, 'out' => 50.0 ),
+		'claude-opus-5-5'   => array( 'in' => 4.0, 'out' => 20.0 ),
+		'claude-opus-5'     => array( 'in' => 5.0, 'out' => 25.0 ),
+		'claude-sonnet-5-5' => array( 'in' => 2.0, 'out' => 10.0 ),
 		'claude-opus-4-8'   => array( 'in' => 5.0, 'out' => 25.0 ),
 		'claude-opus-4-7'   => array( 'in' => 5.0, 'out' => 25.0 ),
 		'claude-opus-4-6'   => array( 'in' => 5.0, 'out' => 25.0 ),
 		'claude-opus-4-5'   => array( 'in' => 5.0, 'out' => 25.0 ),
-		// v6.52.0: Claude Sonnet 5 at standard list ($3/$15 per MTok). The intro
-		// $2/$10 runs through 2026-08-31, but this readout is a durable list-price
-		// estimate that already disclaims discounts, so we hold the standard rate.
-		'claude-sonnet-5'   => array( 'in' => 3.0, 'out' => 15.0 ),
+		// 20.10.0: Sonnet 5 lists at $2/$10. v6.52.0 held $3/$15 expecting the
+		// introductory rate to end 2026-08-31; the pricing page read 2026-10-03
+		// still lists $2/$10 as the base rate, so the estimate was over-counting.
+		'claude-sonnet-5'   => array( 'in' => 2.0, 'out' => 10.0 ),
 		'claude-sonnet-4-6' => array( 'in' => 3.0, 'out' => 15.0 ),
 		'claude-sonnet-4-5' => array( 'in' => 3.0, 'out' => 15.0 ),
 		'claude-haiku-4-5'  => array( 'in' => 1.0, 'out' => 5.0 ),
@@ -63,6 +69,13 @@ function snt_ai_model_pricing() {
 		// verified 2026-06-28). Image input is billed at the text/image input rate.
 		'gemini-2.5-flash-lite' => array( 'in' => 0.10, 'out' => 0.40 ),
 		'gemini-2.5-flash'      => array( 'in' => 0.30, 'out' => 2.50 ),
+		// 20.10.0: the Gemini 3 family, standard paid tier, text/image input, from
+		// ai.google.dev/gemini-api/docs/pricing (read 2026-10-03). 3.8 Flash is
+		// held at its STANDARD rate: Google bills half of it ($0.75/$3.75)
+		// through 2026-12-31, so until then this estimate reads high for it.
+		'gemini-3.1-flash-lite' => array( 'in' => 0.25, 'out' => 1.50 ),
+		'gemini-3.5-flash-lite' => array( 'in' => 0.30, 'out' => 2.50 ),
+		'gemini-3.8-flash'      => array( 'in' => 1.50, 'out' => 7.50 ),
 	);
 	return apply_filters( 'snt_ai_model_pricing', $rates );
 }
