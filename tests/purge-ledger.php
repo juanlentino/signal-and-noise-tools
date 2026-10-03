@@ -153,7 +153,10 @@ ok( 'not configured' === snt_purge_ledger_rows()[0]['cloudways'] && false === sn
 ok( 1 === snt_purge_ledger_summary()['redis_flushes_7d'], 'the unknown one counts as a possible Redis flush' );
 
 echo "\nA Cloudflare zone purge on its own (admin bar, first publish, a schedule) is a row\n";
-function wp_remote_post() { return array( "response" => array( "code" => 200 ) ); }
+function wp_remote_post( $url = '', $args = array() ) { $GLOBALS['cf_urls'][] = (string) $url; return array( 'response' => array( 'code' => 200 ), 'body' => '{"success":true}' ); }
+if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $t ) { return false; } }
+if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) { function wp_remote_retrieve_response_code( $r ) { return (int) ( $r['response']['code'] ?? 0 ); } }
+if ( ! function_exists( 'wp_remote_retrieve_body' ) ) { function wp_remote_retrieve_body( $r ) { return (string) ( $r['body'] ?? '' ); } }
 function wp_json_encode( $v ) { return json_encode( $v ); }
 require __DIR__ . '/../inc/cloudflare-purge.php';
 $GLOBALS['opt'] = array( SN_CF_TOKEN_OPT => 't', SN_CF_ZONE_OPT => 'z' );
@@ -166,6 +169,7 @@ snt_purge_ledger_open( array( 'trigger' => 'update' ) );
 $before = count( snt_purge_ledger_rows() );
 sn_cf_purge_everything();
 ok( $before === count( snt_purge_ledger_rows() ) && ! empty( $GLOBALS['snt_purge_edge'] ), 'inside the chain it marks that row instead of adding one' );
+ok( 'purge_cache' === basename( $GLOBALS['cf_urls'][0] ) && 'invalidate_cache' === basename( (string) end( $GLOBALS['cf_urls'] ) ), 'a direct purge deletes; inside an update the zone is marked stale (invalidate_cache), not deleted' );
 unset( $GLOBALS['snt_purge_current'], $GLOBALS['snt_purge_edge'] );
 
 $cfsrc = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );

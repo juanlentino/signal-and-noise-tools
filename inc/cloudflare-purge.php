@@ -54,6 +54,8 @@ const SN_CF_LAST_PURGE_OPT  = 'sn_cf_last_purge';
 const SN_CF_LAST_ZONE_PURGE_OPT = 'sn_cf_last_zone_purge';
 const SN_CF_API_BASE        = 'https://api.cloudflare.com/client/v4';
 
+require_once __DIR__ . '/cloudflare-purge-send.php'; // blocking send, retry, failure record (20.9.0).
+
 /**
  * Resolve the active token. Constant wins over option when set.
  *
@@ -90,15 +92,15 @@ function sn_cf_is_configured() {
 /**
  * Purge a list of specific URLs from Cloudflare's edge cache.
  *
- * Fire-and-forget (non-blocking); we don't want a slow CF API
- * response to delay an admin save. Caller doesn't get a success
- * signal — but failures are logged via the SN_CF_LAST_PURGE_OPT
- * option (timestamp + status) for the admin UI to display.
+ * Since 20.9.0 each call blocks and its answer is read
+ * (sn_cf_api_send): a transient failure is retried on a schedule and
+ * one nothing can retry is recorded for the alert email. The return
+ * value keeps its old meaning, handled, so callers are unchanged.
  *
  * @param string[] $urls Absolute URLs to purge. Filters out anything
  *                       that isn't a non-empty string.
- * @return bool true if request was dispatched, false if not configured
- *              or no valid URLs remain.
+ * @return bool true if the purge was handled (sent, or queued to retry),
+ *              false if not configured or no valid URLs remain.
  */
 function sn_cf_purge_urls( $urls ) {
 	if ( ! sn_cf_is_configured() ) {
@@ -114,10 +116,7 @@ function sn_cf_purge_urls( $urls ) {
 	// Cloudflare's cache purge endpoint accepts up to 30 URLs per call.
 	$chunks = array_chunk( $urls, 30 );
 	foreach ( $chunks as $chunk ) {
-		sn_cf_api_post(
-			'/zones/' . sn_cf_get_zone() . '/purge_cache',
-			array( 'files' => $chunk )
-		);
+		sn_cf_api_send( 'purge_cache', array( 'files' => $chunk ) );
 	}
 
 	update_option( SN_CF_LAST_PURGE_OPT, array(
@@ -130,20 +129,18 @@ function sn_cf_purge_urls( $urls ) {
 }
 
 /**
- * Purge the entire zone. Used on theme updates where it's hard to
- * enumerate every URL whose markup might have shifted.
+ * Refresh the entire zone. A code update (trigger update or rollover)
+ * marks it stale; every other caller deletes it (sn_cf_edge_endpoint).
  *
- * @return bool true if request was dispatched, false if not configured.
+ * @return bool true if handled (sent, or queued to retry), false if not configured.
  */
 function sn_cf_purge_everything() {
 	if ( ! sn_cf_is_configured() ) {
 		return false;
 	}
 
-	sn_cf_api_post(
-		'/zones/' . sn_cf_get_zone() . '/purge_cache',
-		array( 'purge_everything' => true )
-	);
+	// 20.9.0: a code update marks the zone stale; anything else deletes.
+	sn_cf_api_send( sn_cf_edge_endpoint( (string) ( $GLOBALS['snt_purge_current']['trigger'] ?? '' ) ), array( 'purge_everything' => true ) );
 
 	update_option( SN_CF_LAST_PURGE_OPT, array(
 		'time' => time(),
@@ -163,34 +160,9 @@ function sn_cf_purge_everything() {
 }
 
 /**
- * Internal: fire a non-blocking POST against the Cloudflare API.
- * Caller passes a path (starting with /) and a body array.
- *
- * @param string $path
- * @param array  $body
- */
-function sn_cf_api_post( $path, $body ) {
-	wp_remote_post( SN_CF_API_BASE . $path, array(
-		'headers'  => array(
-			'Authorization' => 'Bearer ' . sn_cf_get_token(),
-			'Content-Type'  => 'application/json',
-		),
-		'body'     => wp_json_encode( $body ),
-		'timeout'  => 5,
-		'blocking' => false,
-		'sslverify' => true,
-		// v8.7.1 (CMA audit INFO-1): a Bearer credential is attached to a fixed API
-		// host, so forbid following any 3xx that would re-send it — matching the
-		// sn_uptime_status_api_get() outbound-hardening convention.
-		'redirection' => 0,
-	) );
-}
-
-/**
  * v8.7.0 (verified-purge Tier-1): fire a BLOCKING POST against the Cloudflare API
- * and read the real response. The fast auto-purge path stays non-blocking
- * (sn_cf_api_post); this variant is used only by the verified manual purge so the
- * per-leg report can carry a genuine accept-confirmation.
+ * and read the real response. Since 20.9.0 every purge goes through it
+ * (inc/cloudflare-purge-send.php adds the retry and the failure record).
  *
  * @param string $path CF API path (starting with /).
  * @param array  $body Request body.

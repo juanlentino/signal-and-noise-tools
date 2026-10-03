@@ -151,6 +151,19 @@ $last = snt_alerts_run( $now );
 ok( array() === $GLOBALS['mail'] && 'off' === $last['state'], 'switched off: nothing is evaluated or sent, and the record says off' );
 ok( ! snt_watch_ripe_alerts( array(), $now, array( 'sent' => array(), 'last' => array() ) )['ripe'], 'never evaluated is not a finding' );
 
+echo "\nA cache refresh nothing could retry\n";
+$cf = array( 'time' => gmmktime( 14, 5, 0, 10, 3, 2026 ), 'http' => 401, 'endpoint' => 'purge_cache', 'attempts' => 1, 'what' => '12 urls' );
+$a  = $eval( array( 'cache' => $cf ) );
+ok( array( 'cache|12 urls|2026-10-03 14:05' ) === $keys( $a ), 'a recorded failure is one alert, keyed on the failure\'s own time' );
+ok( array() === $eval( array( 'cache' => $cf, 'sent' => array( 'cache|12 urls|2026-10-03 14:05' => 1 ) ) ) && array() === $eval( array( 'cache' => null ) ), 'mailed once; no record, no alert' );
+$m = snt_alerts_compose( $a, array(), 'S', 'u' );
+ok( '[S] Alert: cache refresh failed' === $m[0] && false !== strpos( $m[1], 'CACHE: Cloudflare did not accept a cache refresh (12 urls) at 2026-10-03 14:05 UTC: HTTP 401 after 1 try.' ) && false === strpos( $m[1], 'Top sources' ), 'the mail says what failed and how, and is neither a spike nor a break' );
+function sn_cf_purge_failure() { return $GLOBALS['cf_fail'] ?? null; }
+$GLOBALS['set']['operations.alerts_enabled'] = true; $GLOBALS['cf_fail'] = $cf; $GLOBALS['fail_read'] = 'history'; $GLOBALS['mail'] = array(); $GLOBALS['opt'][ SNT_ALERTS_SENT_OPT ] = array();
+$last = snt_alerts_run( $now );
+ok( 'read_failed' === $last['state'] && array( 'cache|12 urls|2026-10-03 14:05' ) === $last['fired'] && 1 === count( $GLOBALS['mail'] ), 'a failed analytics read still mails the cache failure, and only that' );
+$GLOBALS['cf_fail'] = null; $GLOBALS['fail_read'] = '';
+
 echo "\nRegistration\n";
 $src = static fn( $f ) => (string) file_get_contents( __DIR__ . '/../' . $f );
 ok( false !== strpos( $src( 'inc/watches.php' ), "'ripe'      => 'snt_watch_ripe_alerts'" ), 'the watch is registered' );

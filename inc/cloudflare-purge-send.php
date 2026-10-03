@@ -1,0 +1,109 @@
+<?php
+/**
+ * Cloudflare cache calls that read the answer (20.9.0).
+ *
+ * Every automatic purge used to be fire-and-forget: a non-blocking POST whose
+ * response nobody read. A rejected token, a throttle or a timeout looked the
+ * same as success, and the post-save probe was the only thing that could
+ * notice, two minutes later, by finding a stale page. 3 of the last 20 saves
+ * escalated to a zone purge that way.
+ *
+ * Now the call blocks, the answer is read, a transient failure is retried on
+ * a schedule, and a failure nothing can retry is written down for the alert
+ * email. Nothing here needs a person unless that record exists.
+ *
+ * @package SignalNoiseTools
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+const SN_CF_RETRY_HOOK    = 'sn_cf_purge_retry';
+const SN_CF_FAILURE_OPT   = 'sn_cf_purge_failure';
+const SN_CF_RETRY_DELAYS  = array( 60, 300, 900 ); // seconds before tries 2, 3 and 4.
+const SN_CF_SOFT_TRIGGERS = array( 'update', 'rollover' );
+
+/**
+ * Whether a failed call is worth another try. PURE. A transport error (0), a
+ * throttle (429) and a Cloudflare 5xx pass with time; a 4xx does not.
+ *
+ * @param int $http HTTP status, 0 on a transport error.
+ * @return bool
+ */
+function sn_cf_retryable( $http ) {
+	$http = (int) $http;
+	return 0 === $http || 429 === $http || $http >= 500;
+}
+
+/**
+ * Which endpoint a whole-zone refresh uses. PURE. A code update marks pages
+ * stale (`invalidate_cache`, Cloudflare 2026-09-28): they refresh on the next
+ * request and the old copy stays available if the new code fails. Everything
+ * else deletes (`purge_cache`): changed content must not be served again.
+ *
+ * @param string $trigger The purge ledger's trigger.
+ * @return string
+ */
+function sn_cf_edge_endpoint( $trigger ) {
+	return in_array( (string) $trigger, SN_CF_SOFT_TRIGGERS, true ) ? 'invalidate_cache' : 'purge_cache';
+}
+
+/**
+ * Send one cache call and act on the answer.
+ *
+ * @param string $endpoint `purge_cache` or `invalidate_cache`.
+ * @param array  $body     Request body (files, tags or purge_everything).
+ * @param int    $attempt  0 on the first try.
+ * @return bool True when Cloudflare confirmed it.
+ */
+function sn_cf_api_send( $endpoint, $body, $attempt = 0 ) {
+	$endpoint = 'invalidate_cache' === $endpoint ? 'invalidate_cache' : 'purge_cache';
+	$body     = (array) $body;
+	$attempt  = max( 0, (int) $attempt );
+	if ( ! sn_cf_is_configured() ) {
+		return false;
+	}
+	$r = sn_cf_api_post_blocking( '/zones/' . sn_cf_get_zone() . '/' . $endpoint, $body );
+	if ( ! empty( $r['cf_success'] ) ) {
+		if ( false !== get_option( SN_CF_FAILURE_OPT, false ) ) {
+			delete_option( SN_CF_FAILURE_OPT );
+		}
+		return true;
+	}
+	$retry = sn_cf_retryable( $r['http'] );
+	// Invalidate refused outright: do the purge it replaced.
+	if ( 'invalidate_cache' === $endpoint && ! $retry ) {
+		return sn_cf_api_send( 'purge_cache', $body, $attempt );
+	}
+	$delays = SN_CF_RETRY_DELAYS;
+	if ( $retry && isset( $delays[ $attempt ] ) && function_exists( 'wp_schedule_single_event' ) ) {
+		wp_schedule_single_event( time() + $delays[ $attempt ], SN_CF_RETRY_HOOK, array( $endpoint, $body, $attempt + 1 ) );
+		return false;
+	}
+	update_option(
+		SN_CF_FAILURE_OPT,
+		array(
+			'time'     => time(),
+			'http'     => (int) $r['http'],
+			'endpoint' => $endpoint,
+			'attempts' => $attempt + 1,
+			'what'     => isset( $body['purge_everything'] ) ? 'everything' : ( isset( $body['tags'] ) ? 'tags' : count( (array) ( $body['files'] ?? array() ) ) . ' urls' ),
+		),
+		false
+	);
+	return false;
+}
+if ( function_exists( 'add_action' ) ) {
+	add_action( SN_CF_RETRY_HOOK, 'sn_cf_api_send', 10, 3 );
+}
+
+/**
+ * The failure nothing could retry, or null. Cleared by the next confirmed call.
+ *
+ * @return array{time:int,http:int,endpoint:string,attempts:int,what:string}|null
+ */
+function sn_cf_purge_failure() {
+	$f = get_option( SN_CF_FAILURE_OPT, false );
+	return is_array( $f ) && ! empty( $f['time'] ) ? $f : null;
+}
