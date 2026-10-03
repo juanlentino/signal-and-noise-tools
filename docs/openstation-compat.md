@@ -828,7 +828,7 @@ regex fails quietly.
 **The window-args seam carries the admin handles.** The classic page's assets
 are gated on the classic hook suffixes (`sn-admin`, `snt-analytics-tokens`,
 `sn-analytics-admin`, `snt-confirm`, `sn-analytics-brush`, `sn-resume-admin`,
-`sn-freshness-dot`, `snt-health-suggest-actions`, the uptime handles), so
+`snt-health-suggest-actions`, the uptime handles), so
 nothing of ours loads on the desktop page unless the host asks for it. It asks
 through `openstation_app_window_args` — the same filter the Signal & Noise app
 already uses for its symlink-lost stylesheet and client script — appending

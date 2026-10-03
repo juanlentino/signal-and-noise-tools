@@ -15,9 +15,6 @@
  *    token swap would put mint on white there.
  *  - os-app.css paints the verdict / cell family on the tokens (comments
  *    stripped first, so the rule's own comment cannot keep the pin green).
- *  - freshness-dot.js sets the tone names os-badge defines (success /
- *    warning), the names snt_kit_tone() emits for the same card server-side;
- *    `ok` / `warn` matched no tone rule and the badge painted toneless.
  *
  * Run: php tests/os-feedback-ink.php
  */
@@ -56,11 +53,6 @@ foreach ( array( '.snt-app .snt-cell-error' => '--os-ui-danger', '.snt-app .snt-
 	$rule = snt_ink_rule( $stripped, $sel );
 	ok( null !== $rule && false !== strpos( $rule, $token ), $sel . ' paints on ' . $token );
 }
-
-// 3. The Caches badge on the systems wall.
-$fd = (string) file_get_contents( $root . '/assets/freshness-dot.js' );
-ok( false !== strpos( $fd, "{ err: 'danger', info: 'info', ok: 'success' }[kind] || 'warning'" ), 'freshness-dot.js sets the tone names os-badge defines (danger / info / success / warning, as snt_kit_tone emits)' );
-ok( false === strpos( $fd, "'warn' : 'ok'" ), '...and never the plugin\'s pill kinds, which os-badge has no rule for' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

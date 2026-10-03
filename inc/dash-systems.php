@@ -35,25 +35,12 @@ function sn_dash_render_system_cell( array $card ) {
 	$state = ( 'ok' !== $kind && sn_admin_card_wants_attention( $card ) ) ? $kind : '';
 
 	$href = (string) ( $card['href'] ?? '' );
-	// Some cards are ASYNC: snt_freshness_card() renders a neutral "Checking…"
-	// and assets/freshness-dot.js finds it BY ID to fill in the live edge
-	// result. v11.30.0 dropped the id here, so Caches read "Checking…" forever.
-	// A card that carries an id is a card something else is going to write to.
-	$id = (string) ( $card['id'] ?? '' );
-	echo '<div class="sn-sys' . ( '' !== $state ? ' sn-sys--' . esc_attr( $state ) : '' ) . '"'
-		. ( '' !== $id ? ' id="' . esc_attr( $id ) . '"' : '' ) . '>';
+	echo '<div class="sn-sys' . ( '' !== $state ? ' sn-sys--' . esc_attr( $state ) : '' ) . '">';
 	echo '<span class="sn-sys__k">' . esc_html( (string) ( $card['label'] ?? '' ) ) . '</span>';
-	// An async card's value is REPLACED in place by its filler. freshness-dot.js
-	// looks for `.sn-glance-card__value` inside the card it found by id — so
-	// carrying the id without this class left "Checking…" on screen forever
-	// while the JS appended its real verdict underneath. Declared only on cards
-	// that actually have a filler, so the coupling is visible rather than
-	// sprayed across every cell.
-	$vclass = 'sn-sys__v' . ( '' !== $id ? ' sn-glance-card__value' : '' );
 	if ( '' !== $href ) {
-		echo '<a class="' . esc_attr( $vclass ) . '" href="' . esc_url( $href ) . '">' . esc_html( (string) ( $card['value'] ?? '' ) ) . '</a>';
+		echo '<a class="sn-sys__v" href="' . esc_url( $href ) . '">' . esc_html( (string) ( $card['value'] ?? '' ) ) . '</a>';
 	} else {
-		echo '<span class="' . esc_attr( $vclass ) . '">' . esc_html( (string) ( $card['value'] ?? '' ) ) . '</span>';
+		echo '<span class="sn-sys__v">' . esc_html( (string) ( $card['value'] ?? '' ) ) . '</span>';
 	}
 	// The state WORD, not just a tint. A cold probe paints no colour by design
 	// (v11.16.0), so without this the reader has no way to tell "warming" from
@@ -63,13 +50,13 @@ function sn_dash_render_system_cell( array $card ) {
 		echo '<span class="sn-sys__state">' . esc_html( $pill_text ) . '</span>';
 	}
 
-	// meta_html is built and ESCAPED by its source — snt_freshness_report_meta()
-	// composes the "last purge" line that way. Re-escaping here would print the
-	// tags. Dropping it, as v11.30.0 did, threw away a fact already computed.
+	// meta_html is built and ESCAPED by its source. Re-escaping here would
+	// print the tags. Dropping it, as v11.30.0 did, threw away a fact already
+	// computed.
 	$meta = (string) ( $card['meta_html'] ?? '' );
 	if ( '' !== $meta ) {
 		echo '<span class="sn-sys__meta">';
-		echo $meta; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped at build by the card's source; see snt_freshness_report_meta().
+		echo $meta; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped at build by the card's source.
 		echo '</span>';
 	}
 

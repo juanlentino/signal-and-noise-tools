@@ -155,10 +155,6 @@ function wp_localize_script( $handle, $object_name, $l10n ) { $GLOBALS['__locali
 function wp_set_script_translations( $handle, $domain = 'default', $path = '' ) { $GLOBALS['__i18n'][] = $handle; return true; }
 
 // The two leaf-asset builders the seam is required to CALL rather than copy.
-const SNT_FRESHNESS_CARD_ID = 'snt-freshness-card';
-function snt_freshness_routes() { return array( '/', '/notes/' ); }
-// 20.7.0: both surfaces read one builder (inc/freshness-indicator.php).
-function snt_freshness_payload() { return array( 'routes' => array_map( static fn( $p ) => 'https://example.test' . $p, snt_freshness_routes() ), 'cardId' => SNT_FRESHNESS_CARD_ID, 'lastPurge' => 1790990000 ); }
 function snt_register_status_script() { wp_register_script( 'snt-status', SNT_URL . 'assets/snt-status.js', array(), SNT_VERSION, true ); }
 function snt_ability_run_client_register() { if ( wp_script_is( 'snt-ability-run', 'registered' ) ) { return; } wp_register_script( 'snt-ability-run', SNT_URL . 'assets/snt-ability-run.js', array( 'wp-api-fetch' ), SNT_VERSION, true ); }
 
@@ -815,8 +811,8 @@ $args    = apply_filters( 'openstation_app_window_args', array( 'styles' => arra
 // from it, which is exactly how a leaf's script goes missing in silence.
 ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers', 'snt-os-app', 'snt-sn-dashboard-app' ) === $handles['styles'],
 	'the seven stylesheets the leaves are laid out with: admin.css, the analytics token layer, the analytics sheet, the uptime panel, the provenance stepper, the audit log, and Machine Readers -- which painted with every .sn-mr-* rule missing until it got a registrar' );
-ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit', 'snt-os-kit-stack' ) === $handles['scripts'],
-	'the ten scripts: sub-tabs and dirty-tracking, the confirm modal, the trend brush, the repeatable rows, the freshness dot, Suggest+Apply, the uptime panel, the host, and (17.9.0, #1624) the phone stacking of leaf tables -- NOT the three classic pollers (cron, provenance, the Heartbeat client), whose selectors the kit never paints; the window\'s live refresh is os-poll (#1607)' );
+ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'snt-health-suggest-actions', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit', 'snt-os-kit-stack' ) === $handles['scripts'],
+	'the nine scripts: sub-tabs and dirty-tracking, the confirm modal, the trend brush, the repeatable rows, Suggest+Apply, the uptime panel, the host, and (17.9.0, #1624) the phone stacking of leaf tables -- NOT the three classic pollers (cron, provenance, the Heartbeat client), whose selectors the kit never paints; the window\'s live refresh is os-poll (#1607)' );
 foreach ( array( 'sn-cron-dashboard', 'sn-provenance-admin', 'sn-admin-heartbeat' ) as $poller ) {
 	ok( ! in_array( $poller, $args['scripts'], true ), "the window does not carry the classic poller $poller: it re-armed on every paint, matched nothing, and the Heartbeat client rode every tick for an empty want list" );
 }
@@ -826,8 +822,7 @@ foreach ( $handles['styles'] as $handle ) {
 foreach ( $handles['scripts'] as $handle ) {
 	ok( in_array( $handle, $args['scripts'], true ) && wp_script_is( $handle, 'registered' ), "the window carries the script $handle, registered" );
 }
-ok( array( 'sntFreshness', snt_freshness_payload() ) === ( $GLOBALS['__localized']['sn-freshness-dot'] ?? null ),
-	'sn-freshness-dot carries the SAME localized payload its own enqueue attaches, from snt_freshness_payload() (20.7.0: the copy here missed lastPurge, so the native card never said "refreshing")' );
+ok( ! isset( $GLOBALS['__localized']['sn-freshness-dot'] ) && ! wp_script_is( 'sn-freshness-dot', 'registered' ), 'the freshness dot is neither registered nor localized: the Caches card it filled is gone' );
 ok( array( 'wp-api-fetch', 'wp-i18n', 'snt-status', 'snt-ability-run' ) === ( $GLOBALS['__scripts']['snt-health-suggest-actions'][1] ?? array() )
 	&& wp_script_is( 'snt-status', 'registered' ) && wp_script_is( 'snt-ability-run', 'registered' ),
 	'the Suggest script keeps its four deps, and both shared utilities were registered by their OWN registrars -- a missing dep makes WP silently DROP the dependent script' );

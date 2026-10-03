@@ -315,7 +315,6 @@ if ( '' === $node ) {
 		__DIR__ . '/../assets/cron-dashboard.js',
 		__DIR__ . '/../assets/uptime-status.js',
 		__DIR__ . '/../assets/provenance-admin.js',
-		__DIR__ . '/../assets/freshness-dot.js',
 		__DIR__ . '/../assets/analytics/analytics-brush.js',
 	) as $file ) {
 		$out  = array();
@@ -395,12 +394,11 @@ ok( false !== $i_paint && false !== $i_seam_c && $i_seam_c < $i_paint, 'ORDER: A
 ok( false !== $i_paint && false !== $i_anchor_c && $i_anchor_c < $i_paint, 'ORDER: AFTER the anchor scroll — a leaf painting into the section underneath would otherwise undo the landing' );
 ok( false !== strpos( $pass_code, 'detail: { root: root }' ), 'the painted root rides in detail.root, so a subscriber arms THAT window and not the desktop' );
 
-// (b) The five scripts that bind to leaf elements, or fetch for one, at load.
+// (b) The four scripts that bind to leaf elements, or fetch for one, at load.
 $seamed = array(
 	'cron-dashboard.js'            => 'Cron: Run now, Unschedule, the history toggles and the filter',
 	'uptime-status.js'             => 'the Webhooks + Health uptime mounts',
 	'provenance-admin.js'          => 'the Provenance live commits stepper',
-	'freshness-dot.js'             => 'the Caches glance card',
 	'analytics/analytics-brush.js' => 'the Views-per-day brush',
 );
 foreach ( $seamed as $rel => $what ) {
@@ -456,13 +454,6 @@ $i_mark  = strpos( $boot_fn, 'm.setAttribute( PAINTED' );
 $i_run   = strpos( $boot_fn, 'window.sntAbilityRun(' );
 ok( '' !== $boot_fn && false !== $i_mark && false !== $i_run && $i_mark < $i_run, 'ORDER: uptime marks each mount BEFORE the ability call — the mark is itself a mutation, so the no-op pass it schedules must not start a second round trip' );
 ok( false !== strpos( $boot_fn, ':not([' ), 'and only unpainted mounts are collected, so a mount already answered is left alone' );
-
-$fresh = (string) file_get_contents( __DIR__ . '/../assets/freshness-dot.js' );
-$fresh_init = snt_js_code( snt_region( $fresh, 'function init(root)' ) );
-$i_fmark = strpos( $fresh_init, 'card.setAttribute(ARMED' );
-$i_fetch = strpos( $fresh_init, 'Promise.all(' );
-ok( '' !== $fresh_init && false !== $i_fmark && false !== $i_fetch && $i_fmark < $i_fetch, 'ORDER: the freshness card is marked BEFORE its route fetches start' );
-ok( false === strpos( $fresh, 'document.getElementById(cfg.cardId)' ), 'and the card is found INSIDE the root: getElementById would reach a second window\'s card' );
 
 $prov = (string) file_get_contents( __DIR__ . '/../assets/provenance-admin.js' );
 ok( 1 === substr_count( $prov, 'setInterval(' ), 'the provenance stepper starts EXACTLY ONE interval in the file — a per-paint re-arm that started another would poll N times per 30s and never stop' );

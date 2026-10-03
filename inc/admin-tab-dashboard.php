@@ -183,7 +183,7 @@ function snt_dashboard_tab_data() {
 	// wrong; fleet collapses unless a component was never probed. The cards
 	// themselves are unchanged — sn_admin_glance_grid() still renders an
 	// expanded zone, so the reading order inside a zone is the v10.48.0 one.
-	$attention_labels = array( 'Health', 'Cron', 'Caches', 'Provenance' );
+	$attention_labels = array( 'Health', 'Cron', 'Provenance' );
 	$attention_cards  = array();
 	foreach ( $cards as $card ) {
 		if ( in_array( (string) ( $card['label'] ?? '' ), $attention_labels, true ) ) {
@@ -453,11 +453,6 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 		}
 	}
 
-	// ── Cache freshness (client-checked dot; JS fills the result). ──
-	if ( function_exists( 'snt_freshness_card' ) ) {
-		$cards[] = snt_freshness_card();
-	}
-
 	// ── Provenance: confirmed count + pending pill. Only when provenance is
 	// active AND the Worker is configured — an unconfigured install dispatches
 	// nothing, so a "0 confirmed / all anchored" card would imply integrity that
@@ -507,7 +502,7 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 	// sorts last, defensively).
 	// Worker Deploy Status labels sit under Theme/Plugin; "Provenance edge" is
 	// the worker semver card (distinct from the "Provenance" anchor card).
-	$order = array( 'Theme', 'Plugin', 'Analytics', 'Provenance edge', 'Login guard', 'Remote MCP', 'Rights signals', 'Deploys', 'Provenance', 'Health', 'Cron', 'Caches', 'Views 7d', 'AI spend 30d' );
+	$order = array( 'Theme', 'Plugin', 'Analytics', 'Provenance edge', 'Login guard', 'Remote MCP', 'Rights signals', 'Deploys', 'Provenance', 'Health', 'Cron', 'Views 7d', 'AI spend 30d' );
 	$rank  = array_flip( $order );
 	usort( $cards, function ( $a, $b ) use ( $rank ) {
 		$ra = $rank[ is_array( $a ) ? ( $a['label'] ?? '' ) : '' ] ?? 999;
