@@ -62,6 +62,8 @@ function snt_alerts_clean( $text ) {
  *     sent     array<string,int>    Alert key => when it was mailed.
  *     excluded callable|null        The plugin's excluded-path rule.
  *     cache    array|null           A cache call nothing could retry (sn_cf_purge_failure()).
+ *     hn       array                Hacker News stories for this site (sn_hn_refresh()).
+ *     hn_since int                  A story first seen at or after this is news.
  *     real     callable|null        Whether a path is a real page (home, published content, a known archive). Without it no break fires.
  * }
  * @param array<string,float> $t Thresholds, from snt_alerts_thresholds().
@@ -78,12 +80,18 @@ function snt_alerts_evaluate( array $in, array $t ) {
 	};
 	$real     = $in['real'] ?? null;
 	$found    = array();
-	$add      = static function ( $kind, $path, $day, $value, $baseline, $line ) use ( &$found, $sent ) {
+	$add      = static function ( $kind, $path, $day, $value, $baseline, $line, array $extra = array() ) use ( &$found, $sent ) {
 		$key = $kind . '|' . $path . '|' . $day;
 		if ( ! isset( $sent[ $key ] ) ) {
-			$found[] = compact( 'key', 'kind', 'path', 'day', 'value', 'baseline', 'line' );
+			$found[] = compact( 'key', 'kind', 'path', 'day', 'value', 'baseline', 'line' ) + $extra;
 		}
 	};
+	// Hacker News stories for this site (inc/hn-mentions.php), by path, for the
+	// spike line below and the two alerts after it.
+	$hn_by_path = array();
+	foreach ( (array) ( $in['hn'] ?? array() ) as $row ) {
+		$hn_by_path[ '/' . trim( (string) ( $row['path'] ?? '' ), '/' ) ] = $row;
+	}
 
 	$total = 0;
 	foreach ( $views as $path => $n ) {
@@ -95,7 +103,8 @@ function snt_alerts_evaluate( array $in, array $t ) {
 		$mean   = (int) ( $history[ $path ] ?? 0 ) / SNT_ALERT_BASE_DAYS;
 		$line   = max( $t['path_floor'], $t['path_ratio'] * $mean );
 		if ( (int) $n > $line ) {
-			$add( 'spike', $path, $today, (int) $n, round( $mean, 1 ), $line );
+			$story = $hn_by_path[ '/' . trim( $path, '/' ) ] ?? null;
+			$add( 'spike', $path, $today, (int) $n, round( $mean, 1 ), $line, $story ? array( 'hn' => $story ) : array() );
 		}
 	}
 	$mean = array_sum( array_map( 'intval', $history ) ) / SNT_ALERT_BASE_DAYS;
@@ -114,6 +123,23 @@ function snt_alerts_evaluate( array $in, array $t ) {
 			if ( (int) $n >= $t['break_min'] && ! $junk( (string) $path ) && is_callable( $real ) && call_user_func( $real, (string) $path ) ) {
 				$add( 'break', (string) $path, (string) $day, (int) $n, 0, $t['break_min'] );
 			}
+		}
+	}
+	// Hacker News: a story first seen in the last day mails once; reaching the
+	// front page mails once more. Keyed on the story id, never on a day.
+	foreach ( (array) ( $in['hn'] ?? array() ) as $row ) {
+		$id = (int) ( $row['id'] ?? 0 );
+		if ( $id < 1 ) {
+			continue;
+		}
+		// News is a YOUNG story just found. The first run finds every old story
+		// at once; those are history, not news.
+		$seen = (int) ( $row['first_seen'] ?? 0 );
+		if ( $seen >= (int) ( $in['hn_since'] ?? PHP_INT_MAX ) && (int) ( $row['created'] ?? 0 ) >= $seen - 3 * 86400 ) {
+			$add( 'hn_new', (string) ( $row['path'] ?? '' ), 'hn' . $id, (int) ( $row['points'] ?? 0 ), (int) ( $row['comments'] ?? 0 ), 0, array( 'hn' => $row ) );
+		}
+		if ( (int) ( $row['rank'] ?? 0 ) > 0 ) {
+			$add( 'hn_front', (string) ( $row['path'] ?? '' ), 'hn' . $id, (int) $row['rank'], 0, 0, array( 'hn' => $row ) );
 		}
 	}
 	// A cache call nothing could retry (inc/cloudflare-purge-send.php). Keyed
@@ -173,8 +199,16 @@ function snt_alerts_compose( array $alerts, $sources, $site, $where ) {
 	$lines  = array();
 	$spikes = 0;
 	$caches = 0;
+	$hns    = 0;
 	foreach ( $alerts as $a ) {
 		$path = snt_alerts_clean( $a['path'] );
+		if ( 'hn_new' === $a['kind'] || 'hn_front' === $a['kind'] ) {
+			++$hns;
+			$row     = (array) ( $a['hn'] ?? array() );
+			$what    = 'hn_front' === $a['kind'] ? sprintf( 'is on the Hacker News front page at #%d', (int) $a['value'] ) : 'was posted to Hacker News';
+			$lines[] = sprintf( 'HACKER NEWS: "%s" (%s) %s: %s. https://news.ycombinator.com/item?id=%d', snt_alerts_clean( $row['title'] ?? '' ), $path, $what, function_exists( 'sn_hn_line' ) ? sn_hn_line( $row ) : '', (int) ( $row['id'] ?? 0 ) );
+			continue;
+		}
 		if ( 'cache' === $a['kind'] ) {
 			++$caches;
 			$lines[] = sprintf( 'CACHE: Cloudflare did not accept a cache refresh (%s) at %s UTC: HTTP %d after %d %s. Pages may be stale until the next refresh succeeds. Check the Cloudflare token in Connections, Cloudflare.', $path, $a['day'], $a['value'], $a['baseline'], 1 === (int) $a['baseline'] ? 'try' : 'tries' );
@@ -185,7 +219,8 @@ function snt_alerts_compose( array $alerts, $sources, $site, $where ) {
 			continue;
 		}
 		++$spikes;
-		$lines[] = sprintf( 'SPIKE: %s has %d human views today (%s). The prior 7-day mean is %s a day; the alert line is more than %s.', 'spike_site' === $a['kind'] ? 'the whole site' : $path, $a['value'], $a['day'], $a['baseline'], round( $a['line'], 1 ) );
+		$lines[] = sprintf( 'SPIKE: %s has %d human views today (%s). The prior 7-day mean is %s a day; the alert line is more than %s.', 'spike_site' === $a['kind'] ? 'the whole site' : $path, $a['value'], $a['day'], $a['baseline'], round( $a['line'], 1 ) )
+			. ( ! empty( $a['hn'] ) && function_exists( 'sn_hn_line' ) ? ' On Hacker News: ' . sn_hn_line( (array) $a['hn'] ) . '.' : '' );
 	}
 	$body = "Signal & Noise alert\n\n" . implode( "\n", $lines ) . "\n";
 	if ( $spikes > 0 ) {
@@ -198,7 +233,7 @@ function snt_alerts_compose( array $alerts, $sources, $site, $where ) {
 		$body .= "\nVisits with no referrer (apps, RSS readers, privacy browsers) show as direct.\n";
 	}
 	$body .= "\nWhere to look: " . $where . "\nEach alert mails once for its day. Switch alerts off in Connections, Cron.\n";
-	$breaks = count( $alerts ) - $spikes - $caches;
-	$what   = array_filter( array( $spikes ? $spikes . ( 1 === $spikes ? ' spike' : ' spikes' ) : '', $breaks ? $breaks . ( 1 === $breaks ? ' break' : ' breaks' ) : '', $caches ? 'cache refresh failed' : '' ) );
+	$breaks = count( $alerts ) - $spikes - $caches - $hns;
+	$what   = array_filter( array( $spikes ? $spikes . ( 1 === $spikes ? ' spike' : ' spikes' ) : '', $breaks ? $breaks . ( 1 === $breaks ? ' break' : ' breaks' ) : '', $caches ? 'cache refresh failed' : '', $hns ? 'Hacker News' : '' ) );
 	return array( sprintf( '[%s] Alert: %s', $site, implode( ', ', $what ) ), $body );
 }

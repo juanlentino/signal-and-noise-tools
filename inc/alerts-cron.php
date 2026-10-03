@@ -125,11 +125,15 @@ function snt_alerts_run( $now = null ) {
 		// A failed read is not a quiet day: no traffic or error rule is judged,
 		// and the record says which read failed. A cache failure does not
 		// depend on those reads, so it is still judged and mailed.
-		$alerts = snt_alerts_evaluate( ( $in['failed'] ? array( 'cache' => $in['cache'] ) : $in ) + array( 'sent' => $sent ), snt_alerts_thresholds() );
+		// Hacker News is asked here, not in the gather: it is the one read that
+		// leaves the site, and a failed answer keeps the stored rows.
+		$in['hn']       = function_exists( 'sn_hn_refresh' ) ? sn_hn_refresh( $now ) : array();
+		$in['hn_since'] = $now - DAY_IN_SECONDS;
+		$alerts = snt_alerts_evaluate( ( $in['failed'] ? array_intersect_key( $in, array( 'cache' => 1, 'hn' => 1, 'hn_since' => 1 ) ) : $in ) + array( 'sent' => $sent ), snt_alerts_thresholds() );
 		$last   = array( 'at' => $now, 'state' => $in['failed'] ? 'read_failed' : 'evaluated', 'fired' => array_slice( array_column( $alerts, 'key' ), 0, 20 ), 'mailed' => false, 'error' => $in['failed'] ? 'stored read failed: ' . implode( ', ', $in['failed'] ) : '', 'capped' => $in['capped'], 'unread' => $in['unread'] );
 		if ( $alerts ) {
 			$email   = (string) get_option( 'admin_email' ); // the morning brief's recipient.
-			$spike   = (bool) array_filter( $alerts, static fn( $a ) => ! in_array( $a['kind'], array( 'break', 'cache' ), true ) );
+			$spike   = (bool) array_filter( $alerts, static fn( $a ) => ! in_array( $a['kind'], array( 'break', 'cache', 'hn_new', 'hn_front' ), true ) );
 			// null is the reader's failed-read verdict: kept, so the mail says
 			// "could not be read", never "none stored".
 			$sources = $spike && function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $in['today'], $in['today'], 'human', 5 ) : array();

@@ -29,7 +29,7 @@ function snt_alerts_notice_build( array $alerts, $subject, $body, $now ) {
 	if ( array() === $alerts ) {
 		return null;
 	}
-	$lines = array_values( array_filter( explode( "\n", (string) $body ), static fn( $l ) => 1 === preg_match( '/^(SPIKE|BREAK|CACHE): /', $l ) ) );
+	$lines = array_values( array_filter( explode( "\n", (string) $body ), static fn( $l ) => 1 === preg_match( '/^(SPIKE|BREAK|CACHE|HACKER NEWS): /', $l ) ) );
 	$first = (string) ( $lines[0] ?? '' );
 	$more  = count( $lines ) - 1;
 	$only  = array_unique( array_column( $alerts, 'kind' ) );
