@@ -59,25 +59,30 @@ $GLOBALS['opt'] = array();
 function get_option( $k, $d = false ) { return $GLOBALS['opt'][ $k ] ?? $d; }
 function update_option( $k, $v ) { $GLOBALS['opt'][ $k ] = $v; return true; }
 ok( sn_ai_models( 'prose' ) === sn_ai_models_builtin( 'prose' ) && false !== strpos( sn_ai_models_status_line( $now ), 'the built-in ones' ), 'nothing read yet: the built-in list, and the screen says so' );
-$GLOBALS['opt'][ SN_AI_MODELS_OPT ] = array( 'fetched' => time(), 'providers' => array( 'anthropic' => $rows, 'google' => $g ), 'errors' => array() );
+$GLOBALS['opt'][ SN_AI_MODELS_OPT ] = array( 'fetched' => time(), 'at' => array( 'anthropic' => time(), 'google' => time() ), 'providers' => array( 'anthropic' => $rows, 'google' => $g ), 'errors' => array() );
 $GLOBALS['set']['theme.ai_model'] = 'claude-sonnet-5';
 $live = sn_ai_models( 'prose' );
 ok( 'claude-opus-6' === array_key_first( $live ) && isset( $live['claude-sonnet-5-5'], $live['claude-sonnet-5'] ) && ! isset( $live['claude-opus-4-8'] ), 'read: the provider\'s list, plus the default and the stored choice so a saved setting still shows; a model the provider no longer lists is gone' );
 ok( isset( sn_ai_models( 'vision' )['gemini-4.0-flash'], sn_ai_models( 'vision' )['gemini-3.1-flash-lite'] ) && ! isset( sn_ai_models( 'vision' )['claude-opus-6'] ), 'vision reads Google\'s rows, prose reads Anthropic\'s' );
-$GLOBALS['opt'][ SN_AI_MODELS_OPT ]['fetched'] = time() - SN_AI_MODELS_STALE - 10;
-ok( sn_ai_models( 'prose' ) === sn_ai_models_builtin( 'prose' ), 'a read older than a week is not trusted: the built-in list again' );
+$GLOBALS['opt'][ SN_AI_MODELS_OPT ]['at']['anthropic'] = time() - SN_AI_MODELS_STALE - 10;
+ok( sn_ai_models( 'prose' ) === sn_ai_models_builtin( 'prose' ) && isset( sn_ai_models( 'vision' )['gemini-4.0-flash'] ), 'Anthropic\'s read older than a week is not trusted while Google keeps answering: each provider has its own date' );
+$GLOBALS['set']['theme.ai_model'] = 'claude-opus-6';
+ok( isset( sn_ai_models( 'prose' )['claude-opus-6'] ) && count( sn_ai_models( 'prose' ) ) === count( sn_ai_models_builtin( 'prose' ) ) + 1, 'a discovered model that was chosen stays in the list when the read goes stale, so it is neither rerouted nor overwritten on the next save' );
+$GLOBALS['set']['theme.ai_model'] = 'off-list-tampered';
+ok( ! isset( sn_ai_models( 'prose' )['off-list-tampered'] ), 'an id no list ever carried (a hand-edited option) is not offered, so the model filter still rejects it' );
+$GLOBALS['set']['theme.ai_model'] = 'claude-sonnet-5';
 
 echo "\nThe daily read\n";
 ok( 'the WordPress AI Client is not loaded' === sn_ai_models_ask( 'anthropic' ), 'no AI Client: said, not thrown' );
 $GLOBALS['opt'][ SN_AI_MODELS_OPT ] = array( 'fetched' => 5, 'providers' => array( 'anthropic' => $rows ), 'errors' => array() );
 $st = sn_ai_models_refresh( $now );
-ok( $rows === $st['providers']['anthropic'] && 5 === $st['fetched'] && 'the WordPress AI Client is not loaded' === $st['errors']['google'], 'a provider that cannot be read keeps its last good rows, the time of the last good read, and records why' );
+ok( $rows === $st['providers']['anthropic'] && array() === $st['at'] && 5 === $st['fetched'] && 'the WordPress AI Client is not loaded' === $st['errors']['google'], 'a provider that cannot be read keeps its last good rows, the time of the last good read, and records why' );
 ok( false !== strpos( sn_ai_models_status_line( $now ), 'anthropic: the WordPress AI Client is not loaded' ), 'and the screen names the reason' );
 ok( false !== strpos( $src( 'inc/ai-model-discovery.php' ), "add_action( SN_AI_MODELS_HOOK, 'sn_ai_models_refresh', 10, 0 );" ) && false !== strpos( $src( 'inc/cron-lifecycle.php' ), 'SN_AI_MODELS_HOOK,' ) && false !== strpos( $src( 'inc/cron-dashboard.php' ), "'SN_AI_MODELS_HOOK', 'snt_ai_models_refresh'" ), 'the read is a daily cron, cleared on deactivation and listed on the cron dashboard' );
 ok( false === strpos( $src( 'inc/admin-forms/ai-settings.php' ), 'sn_ai_models_ask' ) && false === strpos( $src( 'apps/sn-dashboard/parts/leaves/ai-models-budget.php' ), 'sn_ai_models_refresh' ), 'no settings screen reads a provider while it renders' );
 
 echo "\nThe save\n";
-$GLOBALS['set'] = array(); $GLOBALS['opt'][ SN_AI_MODELS_OPT ] = array( 'fetched' => time(), 'providers' => array( 'anthropic' => $rows, 'google' => $g ), 'errors' => array() );
+$GLOBALS['set'] = array(); $GLOBALS['opt'][ SN_AI_MODELS_OPT ] = array( 'fetched' => time(), 'at' => array( 'anthropic' => time(), 'google' => time() ), 'providers' => array( 'anthropic' => $rows, 'google' => $g ), 'errors' => array() );
 require __DIR__ . '/../inc/admin-post-actions/theme-ai.php';
 sn_handle_ai_settings_save( array( 'theme_ai_model' => 'claude-opus-6', 'theme_ai_alt_model' => 'gemini-4.0-flash' ) );
 ok( 'claude-opus-6' === $GLOBALS['set']['theme.ai_model'] && 'gemini-4.0-flash' === $GLOBALS['set']['theme.ai_alt_model'], 'a model the provider started serving can be chosen with no release' );

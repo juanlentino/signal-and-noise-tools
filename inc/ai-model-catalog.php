@@ -30,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /** Lowercase letters, digits, dot and hyphen; 3 to 64 characters. */
 const SN_AI_MODEL_ID_PATTERN = '/^[a-z0-9][a-z0-9.\-]{2,63}$/';
-const SN_AI_MODELS_OPT       = 'sn_ai_models_discovered'; // { fetched, providers: { id: rows }, errors: { id: text } }.
+const SN_AI_MODELS_OPT       = 'sn_ai_models_discovered'; // { fetched, at: { id: unix }, providers: { id: rows }, errors: { id: text } }.
 const SN_AI_MODELS_HOOK      = 'snt_ai_models_refresh';
 const SN_AI_MODELS_MAX       = 12;                        // rows a picker shows from a provider.
 const SN_AI_MODELS_STALE     = 7 * 86400;                 // older than this, the seed list shows again.
@@ -133,10 +133,11 @@ function sn_ai_models_pick( array $rows, $kind ) {
 function sn_ai_models_discovered( $kind, $now = null ) {
 	$now   = null === $now ? time() : (int) $now;
 	$state = get_option( SN_AI_MODELS_OPT, array() );
-	if ( ! is_array( $state ) || (int) ( $state['fetched'] ?? 0 ) < $now - SN_AI_MODELS_STALE ) {
-		return array();
+	$provider = 'vision' === $kind ? 'google' : 'anthropic';
+	if ( ! is_array( $state ) || (int) ( $state['at'][ $provider ] ?? 0 ) < $now - SN_AI_MODELS_STALE ) {
+		return array(); // this provider's own last good read, not the other one's.
 	}
-	return sn_ai_models_pick( (array) ( $state['providers'][ 'vision' === $kind ? 'google' : 'anthropic' ] ?? array() ), $kind );
+	return sn_ai_models_pick( (array) ( $state['providers'][ $provider ] ?? array() ), $kind );
 }
 
 /**
@@ -151,16 +152,21 @@ function sn_ai_models( $kind ) {
 	$seed = sn_ai_models_builtin( $kind );
 	$list = sn_ai_models_discovered( $kind );
 	if ( array() === $list ) {
-		return $seed;
+		$list = $seed; // and the stored choice is kept below here too: a discovered model that was chosen stays chosen when the read goes stale.
 	}
-	$keep = array(
-		'vision' === $kind ? sn_ai_default_vision_model() : sn_ai_default_model(),
-		(string) sn_setting( 'vision' === $kind ? 'theme.ai_alt_model' : 'theme.ai_model', '' ),
-	);
-	foreach ( $keep as $id ) {
-		if ( sn_ai_model_id_ok( $id ) && ! isset( $list[ $id ] ) ) {
-			$list[ $id ] = $seed[ $id ] ?? $id;
-		}
+	// The default is always offered. The stored choice is kept only when it is
+	// a model this site has actually seen: in the built-in list, or among the
+	// provider's last rows even if that read has since gone stale. An id that
+	// is neither (a hand-edited option) stays off the list and is not used.
+	$state    = get_option( SN_AI_MODELS_OPT, array() );
+	$seen     = array_column( (array) ( is_array( $state ) ? ( $state['providers'][ 'vision' === $kind ? 'google' : 'anthropic' ] ?? array() ) : array() ), 'name', 'id' );
+	$default  = 'vision' === $kind ? sn_ai_default_vision_model() : sn_ai_default_model();
+	$stored   = (string) sn_setting( 'vision' === $kind ? 'theme.ai_alt_model' : 'theme.ai_model', '' );
+	if ( ! isset( $list[ $default ] ) ) {
+		$list[ $default ] = $seed[ $default ] ?? $default;
+	}
+	if ( sn_ai_model_id_ok( $stored ) && ! isset( $list[ $stored ] ) && ( isset( $seed[ $stored ] ) || isset( $seen[ $stored ] ) ) ) {
+		$list[ $stored ] = $seed[ $stored ] ?? $stored;
 	}
 	return $list;
 }

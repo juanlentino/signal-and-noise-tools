@@ -82,11 +82,12 @@ function sn_ai_models_ask( $provider ) {
 function sn_ai_models_refresh( $now = null ) {
 	$now   = null === $now ? time() : (int) $now;
 	$state = get_option( SN_AI_MODELS_OPT, array() );
-	$state = array( 'fetched' => (int) ( $state['fetched'] ?? 0 ), 'providers' => (array) ( $state['providers'] ?? array() ), 'errors' => array() );
+	$state = array( 'fetched' => (int) ( $state['fetched'] ?? 0 ), 'at' => (array) ( $state['at'] ?? array() ), 'providers' => (array) ( $state['providers'] ?? array() ), 'errors' => array() );
 	foreach ( array( 'anthropic', 'google' ) as $provider ) {
 		$rows = sn_ai_models_ask( $provider );
 		if ( is_array( $rows ) && array() !== $rows ) {
 			$state['providers'][ $provider ] = $rows;
+			$state['at'][ $provider ]        = $now; // per provider: one that keeps answering must not keep the other's old rows looking fresh.
 			$state['fetched']                = $now;
 		} else {
 			$state['errors'][ $provider ] = is_string( $rows ) ? $rows : 'the provider listed no models';
