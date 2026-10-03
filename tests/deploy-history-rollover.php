@@ -242,6 +242,13 @@ $refs = array_map( function ( $r ) {
 }, $history );
 dh_true( in_array( 'v4.8.1', $refs, true ), 'history contains the v4.8.1 plugin ref' );
 dh_true( in_array( 'v9.9.0', $refs, true ), 'history contains the v9.9.0 theme ref' );
+// 20.7.0: "installed by the updater" is a TIME question, not presence: a
+// rollback finds its old row. Recorded just now reads as recent; an hour-old
+// row does not; an absent version reads 0.
+dh_true( snt_deploy_history_recorded_at( 'plugin', '4.8.1' ) >= time() - 60, 'recorded_at: a row written just now is recent' );
+dh_eq( 0, snt_deploy_history_recorded_at( 'plugin', '1.0.0' ), 'recorded_at: a version never recorded reads 0' );
+$GLOBALS['__dh_options'][ SNT_DEPLOY_HISTORY_OPTION ][] = array( 'repo' => SNT_DEPLOY_HISTORY_PACKAGES['theme']['repo'], 'ref' => 'v9.0.0', 'created_at' => gmdate( 'Y-m-d\TH:i:s\Z', time() - 3600 ) );
+dh_true( snt_deploy_history_recorded_at( 'theme', '9.0.0' ) < time() - 15 * 60, 'recorded_at: a rollback to an hour-old version is NOT a recent updater install, so its rollover runs' );
 
 // ─── The event handler fires the filter chain in cron context ─────────
 // Simulates cron invoking the scheduled event: snt_deploy_history_purge_rollover_run()

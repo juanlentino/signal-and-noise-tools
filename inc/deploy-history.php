@@ -184,6 +184,31 @@ function snt_deploy_history_has_version( $package_key, $version ) {
 }
 
 /**
+ * When this version was last recorded in deploy history, as a Unix time, or
+ * 0. 20.7.0: the rollover asks "did WordPress's updater install this just
+ * now?", and presence alone cannot answer it (a rollback to an older version
+ * finds its old row).
+ *
+ * @param string $package_key 'plugin' or 'theme'.
+ * @param string $version     Version, with or without a leading 'v'.
+ * @return int
+ */
+function snt_deploy_history_recorded_at( $package_key, $version ) {
+	if ( ! isset( SNT_DEPLOY_HISTORY_PACKAGES[ $package_key ] ) ) {
+		return 0;
+	}
+	$repo   = SNT_DEPLOY_HISTORY_PACKAGES[ $package_key ]['repo'];
+	$target = 'v' . ltrim( (string) $version, 'v' );
+	$latest = 0;
+	foreach ( snt_deploy_history_get() as $row ) {
+		if ( $repo === ( $row['repo'] ?? '' ) && $target === ( $row['ref'] ?? '' ) ) {
+			$latest = max( $latest, (int) strtotime( (string) ( $row['created_at'] ?? '' ) ) );
+		}
+	}
+	return $latest;
+}
+
+/**
  * Merge GHA workflow runs with local wp-admin installs.
  *
  * Order: created_at DESC. Dedupe: if the same (repo, ref) appears in
@@ -379,9 +404,13 @@ function snt_deploy_history_version_check() {
 			// Double-check via history scan in case the upgrader hook
 			// already recorded it during the install request (relevant
 			// for v4.1.5 → v4.1.6 and beyond).
+			// Installed through the updater only if its hook recorded this
+			// version in the last 15 minutes (a rollback finds an old row).
+			if ( snt_deploy_history_recorded_at( 'plugin', $current_plugin ) < time() - 15 * MINUTE_IN_SECONDS ) {
+				$via_updater = false;
+			}
 			if ( ! snt_deploy_history_has_version( 'plugin', $current_plugin ) ) {
 				snt_deploy_history_record( 'plugin', $current_plugin );
-				$via_updater = false;
 			}
 			$sentinel['plugin'] = $current_plugin;
 			$dirty = true;
@@ -391,9 +420,13 @@ function snt_deploy_history_version_check() {
 	if ( '' !== $current_theme ) {
 		$seen_theme = isset( $sentinel['theme'] ) ? (string) $sentinel['theme'] : '';
 		if ( $seen_theme !== $current_theme ) {
+			// Installed through the updater only if its hook recorded this
+			// version in the last 15 minutes (a rollback finds an old row).
+			if ( snt_deploy_history_recorded_at( 'theme', $current_theme ) < time() - 15 * MINUTE_IN_SECONDS ) {
+				$via_updater = false;
+			}
 			if ( ! snt_deploy_history_has_version( 'theme', $current_theme ) ) {
 				snt_deploy_history_record( 'theme', $current_theme );
-				$via_updater = false;
 			}
 			$sentinel['theme'] = $current_theme;
 			$dirty = true;
