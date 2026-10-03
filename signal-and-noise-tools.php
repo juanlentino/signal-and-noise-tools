@@ -248,6 +248,7 @@ require_once SNT_PATH . 'inc/admin-forms/uses-page.php';     // v7.6.0: Content 
 require_once SNT_PATH . 'inc/resume-page.php';               // v10.33.0: /resume structured editor data layer (document option + normalize/refuse)
 require_once SNT_PATH . 'inc/resume-draft.php';              // Unreleased: /resume drafts (save never goes live; publish, revert)
 require_once SNT_PATH . 'inc/resume-pdf/template.php';       // Resume PDF (docs/RESUME-PDF.md): the ONE template the generator renders
+require_once SNT_PATH . 'inc/resume-pdf/engine-status.php';  // 20.6.0: Dompdf installed/patched/latest, and the bump watch
 require_once SNT_PATH . 'inc/resume-pdf/generate.php';       // Resume PDF: Dompdf (lib/pdf) -> uploads/resume, hash option, Download link
 require_once SNT_PATH . 'inc/admin-forms/resume-page.php';   // v10.33.0: Content → Resume Page structured editor form (repeatable rows, not a text box)
 require_once SNT_PATH . 'inc/admin-forms/rights-evidence.php'; // Unreleased: rights evidence on Machine Readers (view payloads, lift hold)

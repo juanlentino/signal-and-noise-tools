@@ -15,6 +15,9 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Removed
 - **/resume no longer ends with "Beyond the record: the research · the music".** The owner removed it (2026-10-02): the header stays on screen while scrolling, so the line repeated links the reader could already see. The theme drops the same lines from /music and /provenance (theme 14.9.0). Press Generate on the résumé after installing so the page drops it too.
 
+### Added
+- **The Resume PDF section names its engine.** One line on both surfaces (Content › Resume and the classic page): the vendored Dompdf version, whether our Cpdf text fix is in (20.3.2; upstream dompdf/dompdf#3771, milestone 3.1.7), and the latest Dompdf release, read by a daily cron (`snt_pdf_engine_check`, with `SNT_GITHUB_TOKEN` when defined) and kept when a read fails; the line and the watch only read the stored answer. A new watch, `dompdf_bump`, ripens when a newer release exists: bump `lib/pdf`, and drop the patch if upstream's fix shipped. Updating stays a plugin release, not a button: the engine ships with the plugin. Pinned in `tests/pdf-engine-status.php`.
+
 ## [20.5.1] - 2026-10-02 — the resume ending sits in the column
 
 

@@ -395,6 +395,9 @@ function sn_admin_render_resume_pdf_generate() {
 	} else {
 		echo '<p class="sn-fieldset-intro">Not generated yet: the /resume Download link still uses the PDF URL set above. Generating builds the PDF from the published resume and switches the link to it.</p>';
 	}
+	if ( function_exists( 'snt_pdf_engine_status_line' ) ) {
+		echo '<p class="description">' . esc_html( snt_pdf_engine_status_line() ) . '</p>';
+	}
 	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_resume_pdf_generate" class="button">Generate PDF</button></div>';
 	echo '</div></form>';
 
