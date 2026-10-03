@@ -64,6 +64,7 @@ function sn_cron_hooks() {
 		SN_UPTIME_STATUS_AVAIL_WARM_HOOK, // 18.1.0: hourly 30d availability warmer.
 		'snt_deploy_workers_warm',
 		SNT_PDF_ENGINE_HOOK, // 20.6.0: daily latest-Dompdf read.
+		SN_AI_MODELS_HOOK,   // 20.10.0: daily AI model-list read.
 		SNT_ALERTS_HOOK, // Unreleased: hourly spike and break alerts.
 		// Single events, some with arguments.
 		SN_ARCHIVE_PUSH_HOOK, // Unreleased: one Internet Archive capture after a first publish.

@@ -74,11 +74,7 @@ function sn_admin_render_ai_settings_form() {
 	echo '</select>';
 	echo '<p class="sn-field-helper">' . esc_html__( 'Used for AI-assisted prose features (drafts, insights, meta descriptions).', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
-	echo '<div class="sn-field sn-field-w-md">';
-	echo '<label class="sn-field-label" for="sn_theme_ai_model_other">' . esc_html__( 'Another model id', 'signal-and-noise-tools' ) . '</label>';
-	echo '<input type="text" id="sn_theme_ai_model_other" name="theme_ai_model_other" value="" pattern="[a-z0-9][a-z0-9.\-]{2,63}" autocomplete="off" spellcheck="false">';
-	echo '<p class="sn-field-helper">' . esc_html__( 'Optional. Type a model id the list above lacks (as the vendor spells it) and save: it is used and offered here from then on. A model with no stored price is counted as unpriced.', 'signal-and-noise-tools' ) . '</p>';
-	echo '</div>';
+	echo '<p class="sn-field-helper">' . esc_html( sn_ai_models_status_line() ) . '</p>';
 
 	echo '<div class="sn-field sn-field-w-md">';
 	echo '<label class="sn-field-label" for="sn_theme_ai_alt_model">' . esc_html__( 'Vision model (alt text)', 'signal-and-noise-tools' ) . '</label>';
@@ -89,11 +85,6 @@ function sn_admin_render_ai_settings_form() {
 	echo '</select>';
 	/* translators: %s: the alt-text model filter name, wrapped in <code>. */
 	echo '<p class="sn-field-helper">' . sprintf( esc_html__( 'Used to LOOK at images when suggesting alt text. The %s filter still overrides this for code-level pins.', 'signal-and-noise-tools' ), '<code>snt_ai_alt_text_model</code>' ) . '</p>';
-	echo '</div>';
-	echo '<div class="sn-field sn-field-w-md">';
-	echo '<label class="sn-field-label" for="sn_theme_ai_alt_model_other">' . esc_html__( 'Another model id', 'signal-and-noise-tools' ) . '</label>';
-	echo '<input type="text" id="sn_theme_ai_alt_model_other" name="theme_ai_alt_model_other" value="" pattern="[a-z0-9][a-z0-9.\-]{2,63}" autocomplete="off" spellcheck="false">';
-	echo '<p class="sn-field-helper">' . esc_html__( 'Optional. Type a model id the list above lacks (as the vendor spells it) and save: it is used and offered here from then on. A model with no stored price is counted as unpriced.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
 
 	// The budget field carries the spend readout that used to be a sentence

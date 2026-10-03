@@ -7,16 +7,19 @@
  * could only change with a release: by 2026-10 they offered Sonnet 5 and
  * Gemini 2.5 while both vendors had shipped newer generations.
  *
- * Two ways a model gets into a picker now:
- *   1. The built-in lists below, updated with the plugin.
- *   2. An id the owner types into the settings form ("Another model id").
- *      It is checked for shape, remembered, and offered from then on. No
- *      release needed. The WordPress AI Client resolves ids live from each
- *      provider, so a typed id works as soon as the provider serves it, and
- *      the request falls back to SN_AI_FALLBACK_MODEL when it does not.
+ * THE LISTS UPDATE THEMSELVES (owner, 2026-10-03). Once a day a cron asks the
+ * WordPress AI Client's provider registry what each configured provider
+ * serves; the Anthropic and Google provider plugins answer from the vendors'
+ * own model-list APIs with the site's connector keys. The pickers read the
+ * stored answer. The built-in lists below are the seed: what shows before the
+ * first read, when no provider is connected, or when the stored answer has
+ * gone stale.
  *
- * A typed id has no price in snt_ai_model_pricing() until a release adds one;
- * the spend readout already counts such calls as unpriced, never as $0.
+ * Three things stay in code on purpose. The DEFAULT model is pinned (a
+ * default that advanced by itself would change behavior and cost nobody
+ * chose). PRICES are a map in inc/ai-bootstrap/pricing.php (a discovered
+ * model with no price is counted as unpriced, never as $0). And the read
+ * happens in cron, never while a settings screen renders.
  *
  * @package SignalNoiseTools
  */
@@ -27,7 +30,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /** Lowercase letters, digits, dot and hyphen; 3 to 64 characters. */
 const SN_AI_MODEL_ID_PATTERN = '/^[a-z0-9][a-z0-9.\-]{2,63}$/';
-const SN_AI_MODELS_EXTRA_MAX = 20;
+const SN_AI_MODELS_OPT       = 'sn_ai_models_discovered'; // { fetched, providers: { id: rows }, errors: { id: text } }.
+const SN_AI_MODELS_HOOK      = 'snt_ai_models_refresh';
+const SN_AI_MODELS_MAX       = 12;                        // rows a picker shows from a provider.
+const SN_AI_MODELS_STALE     = 7 * 86400;                 // older than this, the seed list shows again.
 
 /** The prose default. One literal; SN_AI_DEFAULT_MODEL and settings.php must equal it (pinned). */
 function sn_ai_default_model() {
@@ -81,50 +87,82 @@ function sn_ai_model_id_ok( $id ) {
 }
 
 /**
- * The ids the owner added for a picker, well-formed ones only.
+ * From a provider's rows, the ones a picker should offer. PURE.
  *
- * @param string $kind 'prose' or 'vision'.
- * @return string[]
+ * Prose wants a text model. Vision wants a text model that takes an image.
+ * A dated snapshot ("...-20250929") is dropped when its undated alias is in
+ * the list too, and single-purpose variants (speech, image generation, live
+ * audio, embeddings, previews) are not chat models. The provider plugins
+ * already sort newest and flagship first, so the order is kept and capped.
+ *
+ * @param array<int,array> $rows Rows from sn_ai_models_ask().
+ * @param string           $kind 'prose' or 'vision'.
+ * @return array<string,string> id => label.
  */
-function sn_ai_models_extra( $kind ) {
-	$stored = sn_setting( 'vision' === $kind ? 'theme.ai_vision_models_extra' : 'theme.ai_models_extra', array() );
-	return array_slice( array_values( array_unique( array_filter( (array) $stored, 'sn_ai_model_id_ok' ) ) ), 0, SN_AI_MODELS_EXTRA_MAX );
+function sn_ai_models_pick( array $rows, $kind ) {
+	$ids = array_column( $rows, 'id' );
+	$out = array();
+	foreach ( $rows as $r ) {
+		$id = (string) ( $r['id'] ?? '' );
+		if ( ! sn_ai_model_id_ok( $id ) || empty( $r['text'] ) || ( 'vision' === $kind && empty( $r['vision'] ) ) ) {
+			continue;
+		}
+		if ( 1 === preg_match( '/(tts|image|live|audio|transcribe|embedding|preview|exp|robotics|computer-use|customtools)/', $id ) ) {
+			continue;
+		}
+		if ( 1 === preg_match( '/^(.+)-\d{8}$/', $id, $m ) && in_array( $m[1], $ids, true ) ) {
+			continue;
+		}
+		$name       = trim( (string) ( $r['name'] ?? '' ) );
+		$out[ $id ] = '' !== $name && $name !== $id ? $name . ' (' . $id . ')' : $id;
+		if ( count( $out ) >= SN_AI_MODELS_MAX ) {
+			break;
+		}
+	}
+	return $out;
 }
 
 /**
- * Everything a picker offers: the built-in list, then the owner's ids.
+ * What the providers were last seen serving for a picker, or array() when
+ * that is unknown or stale.
+ *
+ * @param string   $kind 'prose' (Anthropic) or 'vision' (Google).
+ * @param int|null $now  Unix time; null reads the clock.
+ * @return array<string,string>
+ */
+function sn_ai_models_discovered( $kind, $now = null ) {
+	$now   = null === $now ? time() : (int) $now;
+	$state = get_option( SN_AI_MODELS_OPT, array() );
+	if ( ! is_array( $state ) || (int) ( $state['fetched'] ?? 0 ) < $now - SN_AI_MODELS_STALE ) {
+		return array();
+	}
+	return sn_ai_models_pick( (array) ( $state['providers'][ 'vision' === $kind ? 'google' : 'anthropic' ] ?? array() ), $kind );
+}
+
+/**
+ * Everything a picker offers: what the provider serves when that is known,
+ * else the built-in list. The default and the stored choice are always in
+ * it, so a saved setting never shows as nothing selected.
  *
  * @param string $kind 'prose' or 'vision'.
  * @return array<string,string> id => label.
  */
 function sn_ai_models( $kind ) {
-	$list = sn_ai_models_builtin( $kind );
-	foreach ( sn_ai_models_extra( $kind ) as $id ) {
-		if ( ! isset( $list[ $id ] ) ) {
-			/* translators: %s: a model id the owner typed into the settings form */
-			$list[ $id ] = sprintf( __( '%s (added here)', 'signal-and-noise-tools' ), $id );
+	$seed = sn_ai_models_builtin( $kind );
+	$list = sn_ai_models_discovered( $kind );
+	if ( array() === $list ) {
+		return $seed;
+	}
+	$keep = array(
+		'vision' === $kind ? sn_ai_default_vision_model() : sn_ai_default_model(),
+		(string) sn_setting( 'vision' === $kind ? 'theme.ai_alt_model' : 'theme.ai_model', '' ),
+	);
+	foreach ( $keep as $id ) {
+		if ( sn_ai_model_id_ok( $id ) && ! isset( $list[ $id ] ) ) {
+			$list[ $id ] = $seed[ $id ] ?? $id;
 		}
 	}
 	return $list;
 }
 
-/**
- * Remember a typed id for a picker. Refuses a malformed id; a built-in or
- * already-remembered id is accepted and changes nothing.
- *
- * @param string $kind 'prose' or 'vision'.
- * @param string $id   The typed id, already trimmed and lowercased.
- * @return bool Whether the id can now be selected.
- */
-function sn_ai_models_add_extra( $kind, $id ) {
-	if ( ! sn_ai_model_id_ok( $id ) ) {
-		return false;
-	}
-	if ( isset( sn_ai_models( $kind )[ $id ] ) ) {
-		return true;
-	}
-	// Newest first, so the cap drops the oldest typed id, never the one just added.
-	$extra = array_slice( array_merge( array( $id ), sn_ai_models_extra( $kind ) ), 0, SN_AI_MODELS_EXTRA_MAX );
-	sn_setting_update( 'vision' === $kind ? 'theme.ai_vision_models_extra' : 'theme.ai_models_extra', $extra );
-	return true;
-}
+require_once __DIR__ . '/ai-model-discovery.php'; // the daily read of what the providers serve.

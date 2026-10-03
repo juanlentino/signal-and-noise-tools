@@ -112,23 +112,14 @@ function sn_handle_ml_embed_compare( $post ) {
 }
 
 function sn_handle_ai_settings_save( $post ) {
-	// 20.10.0: "Another model id" wins over the select when it is filled and
-	// well-formed; it is remembered, so the picker offers it from now on.
-	$typed = static function ( $key, $kind ) use ( $post ) {
-		$id = isset( $post[ $key ] ) ? strtolower( trim( sanitize_text_field( wp_unslash( $post[ $key ] ) ) ) ) : '';
-		return '' !== $id && sn_ai_models_add_extra( $kind, $id ) ? $id : '';
-	};
-	$typed_model  = $typed( 'theme_ai_model_other', 'prose' );
-	$typed_vision = $typed( 'theme_ai_alt_model_other', 'vision' );
-
 	$allowed = array_keys( sn_theme_ai_models() );
-	$model   = '' !== $typed_model ? $typed_model : ( isset( $post['theme_ai_model'] ) ? sanitize_text_field( wp_unslash( $post['theme_ai_model'] ) ) : '' );
+	$model   = isset( $post['theme_ai_model'] ) ? sanitize_text_field( wp_unslash( $post['theme_ai_model'] ) ) : '';
 	$ok      = sn_setting_update( 'theme.ai_model', in_array( $model, $allowed, true ) ? $model : (string) sn_setting( 'theme.ai_model', $allowed[0] ) );
 
 	// v7.3.0: vision (alt-text) model — same validate-against-allowlist pattern;
 	// an off-list id keeps the current value (then the pinned default).
 	$vision_allowed = array_keys( sn_theme_ai_vision_models() );
-	$vision         = '' !== $typed_vision ? $typed_vision : ( isset( $post['theme_ai_alt_model'] ) ? sanitize_text_field( wp_unslash( $post['theme_ai_alt_model'] ) ) : '' );
+	$vision         = isset( $post['theme_ai_alt_model'] ) ? sanitize_text_field( wp_unslash( $post['theme_ai_alt_model'] ) ) : '';
 	$ok            &= sn_setting_update( 'theme.ai_alt_model', in_array( $vision, $vision_allowed, true ) ? $vision : (string) sn_setting( 'theme.ai_alt_model', $vision_allowed[0] ) );
 
 	// v9.26.0: monthly AI budget in USD. Clamp to >= 0 at cents precision; 0 = off.
