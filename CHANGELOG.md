@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [20.7.0] - 2026-10-03 — purges stop being a ritual
+
 ### Fixed
 - **Purges stop being a ritual (owner, 2026-10-03).** One plugin install fired three full purges within minutes (Breeze's own update hook, the theme's update purge, this plugin's version-change rollover), each emptying all of Redis: Core's update check and every stored reading went blank, Cloudways refused the overlapping purges, and the Caches card then said "purge needed".
   - **A purge log.** `inc/purge-ledger.php` keeps the last 50 purges: when, what asked (manual, update, publish, rollover, styles, cron:<hook>), whether it emptied Redis, and what Cloudways answered. On the Caches card ("Purges this week") and in `sn-status{cache}` as `purges`.
@@ -21,12 +23,4 @@ adds a bullet below. A release is a separate, deliberate act:
   - Codex review, before the cut: the card checks the stylesheet even when both renders agree (a missing current hash is broken too); the rollover re-checks for an update purge when its cron actually runs; ledger writes hold a lock so overlapping purges keep both rows; the weekly count says "at least" once the 50-row ring fills inside the week; "refreshing" counts from the last purge that cleared the edge.
   - Codex's second pass: the ledger never writes or releases without holding its lock; `edge` is recorded only when the Cloudflare leg actually dispatched; a Cloudways timeout counts as a possible Redis flush, not as none; the rollover skips only versions the updater installed (a deploy that bypassed it always rolls over, even at run time); an unconfigured Cloudways still leaves a row. Third pass: a Cloudflare zone purge called on its own (the admin-bar button, a first publish, a schedule, the probe) writes its own row; "installed by the updater" means recorded in the last 15 minutes, so a rollback to an older version still rolls over. Fourth pass: a confirmed manual purge marks its edge; the native dashboard's card gets the last-purge time from the same builder as the classic page (`snt_freshness_payload()`); Breeze's update purge is removed only when the active theme is Signal & Noise 15.0.0+, whose update purge replaces it.
   - **The Caches card stops asking for purges.** A page whose cached render is older but still loads its stylesheet (old stylesheets stay a week) reads "older render · refreshes on its own", or "refreshing after the last purge" within 10 minutes of one, in the info tone. "Purge needed" is left for a page whose stylesheet is gone.
-
-## [20.6.0] - 2026-10-03 — the PDF engine says its version
-
-### Removed
-- **/resume no longer ends with "Beyond the record: the research · the music".** The owner removed it (2026-10-02): the header stays on screen while scrolling, so the line repeated links the reader could already see. The theme drops the same lines from /music and /provenance (theme 14.9.0). Press Generate on the résumé after installing so the page drops it too.
-
-### Added
-- **The Resume PDF section names its engine.** One line on both surfaces (Content › Resume and the classic page): the vendored Dompdf version, whether our Cpdf text fix is in (20.3.2; upstream dompdf/dompdf#3771, milestone 3.1.7), and the latest Dompdf release, read by a daily cron (`snt_pdf_engine_check`, with `SNT_GITHUB_TOKEN` when defined) and kept when a read fails; the line and the watch only read the stored answer. A new watch, `dompdf_bump`, ripens when a newer release exists: bump `lib/pdf`, and drop the patch if upstream's fix shipped. Updating stays a plugin release, not a button: the engine ships with the plugin. Pinned in `tests/pdf-engine-status.php`.
 
