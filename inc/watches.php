@@ -141,7 +141,7 @@ function snt_watches() {
 		array(
 			'id'        => 'alerts_fired',
 			'label'     => 'an alert fired: a page spiked or broke',
-			'why'       => 'The hourly alert run mails the owner once per alert per day when a path or the whole site passes its spike line, or a front-end page shows 3 or more stored 5xx in a day. Ripe for 24 hours after a mail, or while an alert fired and its mail did not leave. The note names what fired and when the run last evaluated.',
+			'why'       => 'The hourly alert run mails the owner once per alert per day when a path or the whole site passes its spike line, or a front-end page shows 3 or more stored 5xx in a day. Ripe for 24 hours after a mail, while an alert fired and its mail did not leave, or while a stored read failed and the run could not evaluate. The note names what fired and when the run last evaluated.',
 			'read'      => 'S&N Analytics (the day\'s pages and sources); signal-noise/edge-errors-summary (5xx)',
 			'date_only' => false,
 			'due'       => '',
@@ -151,7 +151,7 @@ function snt_watches() {
 		array(
 			'id'        => 'archive_push_failed',
 			'label'     => 'Internet Archive push failed',
-			'why'       => 'A note\'s first publish asks Save Page Now for a capture, with one retry. Ripe for a week after the last push failed: read the status and reason, check the two archive.org keys in wp-config, and save the page by hand at web.archive.org/save if the capture matters.',
+			'why'       => 'A note\'s first publish asks Save Page Now for a capture, with one retry. A 200 is recorded as requested, not captured: the crawl runs later and is not polled. Ripe for a week after a push failed and was not since accepted for that same note, whatever was pushed afterwards: read the status and reason, check the two archive.org keys in wp-config, and save the page by hand at web.archive.org/save if the capture matters.',
 			'read'      => 'post meta _sn_archive_push; option sn_archive_push_last',
 			'date_only' => false,
 			'due'       => '',

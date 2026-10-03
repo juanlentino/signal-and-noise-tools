@@ -21,7 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SNT_ALERTS_HOOK     = 'snt_alerts_hourly';
 const SNT_ALERTS_SENT_OPT = 'snt_alerts_sent'; // key => unix time mailed, 14 days.
-const SNT_ALERTS_LAST_OPT = 'snt_alerts_last'; // the last evaluation: at, state, fired, mailed, error.
+const SNT_ALERTS_LAST_OPT = 'snt_alerts_last'; // the last evaluation: at, state, fired, mailed, error, capped.
+const SNT_ALERT_EDGE_GROUPS = 50; // path groups the edge errors query keeps per day (inc/edge-analytics.php).
 
 /** On by default (owner, 2026-10-03); the toggle sits beside the morning brief's. */
 function snt_alerts_enabled() {
@@ -56,23 +57,47 @@ function snt_alerts_is_real_page( $path ) {
 function snt_alerts_gather( $now ) {
 	$today = function_exists( 'sn_analytics_local_day' ) ? sn_analytics_local_day( $now ) : gmdate( 'Y-m-d', $now );
 	$back  = static fn( $days ) => gmdate( 'Y-m-d', strtotime( $today . ' UTC' ) - $days * DAY_IN_SECONDS );
-	$sum   = static function ( $from, $to ) {
+	// The readers answer a failed query with the same empty array as a quiet
+	// day. Read as zero traffic, a failed history read drops every baseline to
+	// nothing and mails a false spike, so each read is checked and named.
+	$failed = array();
+	$check  = static function ( $what ) use ( &$failed ) {
+		$error = isset( $GLOBALS['wpdb'] ) && is_object( $GLOBALS['wpdb'] ) ? (string) $GLOBALS['wpdb']->last_error : '';
+		if ( '' !== $error ) {
+			$failed[] = $what;
+		}
+	};
+	$sum    = static function ( $from, $to, $what ) use ( $check ) {
 		$out = array();
 		foreach ( function_exists( 'sn_analytics_daily_range' ) ? sn_analytics_daily_range( $from, $to, 'human' ) : array() as $r ) {
 			$out[ $r['path'] ] = ( $out[ $r['path'] ] ?? 0 ) + (int) $r['views'];
 		}
+		$check( $what );
 		return $out;
 	};
 	$errors = array();
+	$capped = array();
 	foreach ( array( gmdate( 'Y-m-d', $now ), gmdate( 'Y-m-d', $now - DAY_IN_SECONDS ) ) as $day ) {
-		foreach ( function_exists( 'sn_edge_top_dim' ) ? sn_edge_top_dim( 'err_path', $day, $day, 100 ) : array() as $r ) {
+		// 100 is above the 50 path groups the edge query stores per day, so
+		// nothing is cut HERE before the junk and real-page filters run. A day
+		// that stored all 50 may have lost a quieter real page upstream: named.
+		$rows = function_exists( 'sn_edge_top_dim' ) ? sn_edge_top_dim( 'err_path', $day, $day, 100 ) : array();
+		$check( 'edge 5xx ' . $day );
+		foreach ( $rows as $r ) {
 			$errors[ $day ][ $r['value'] ] = (int) $r['requests'];
 		}
+		if ( count( $rows ) >= SNT_ALERT_EDGE_GROUPS ) {
+			$capped[] = $day;
+		}
 	}
+	$views   = $sum( $today, $today, 'views today' );
+	$history = $sum( $back( SNT_ALERT_BASE_DAYS ), $back( 1 ), 'views history' );
 	return array(
+		'failed'   => $failed,
+		'capped'   => $capped,
 		'today'    => $today,
-		'views'    => $sum( $today, $today ),
-		'history'  => $sum( $back( SNT_ALERT_BASE_DAYS ), $back( 1 ) ),
+		'views'    => $views,
+		'history'  => $history,
 		'errors'   => $errors,
 		'excluded' => function_exists( 'sn_analytics_is_excluded_path' ) ? 'sn_analytics_is_excluded_path' : null,
 		'real'     => 'snt_alerts_is_real_page',
@@ -92,8 +117,10 @@ function snt_alerts_run( $now = null ) {
 	if ( snt_alerts_enabled() ) {
 		$sent   = snt_alerts_prune( (array) get_option( SNT_ALERTS_SENT_OPT, array() ), $now );
 		$in     = snt_alerts_gather( $now );
-		$alerts = snt_alerts_evaluate( $in + array( 'sent' => $sent ), snt_alerts_thresholds() );
-		$last   = array( 'at' => $now, 'state' => 'evaluated', 'fired' => array_slice( array_column( $alerts, 'key' ), 0, 20 ), 'mailed' => false, 'error' => '' );
+		// A failed read is not a quiet day: nothing is judged, nothing mails, and
+		// the record says which read failed.
+		$alerts = $in['failed'] ? array() : snt_alerts_evaluate( $in + array( 'sent' => $sent ), snt_alerts_thresholds() );
+		$last   = array( 'at' => $now, 'state' => $in['failed'] ? 'read_failed' : 'evaluated', 'fired' => array_slice( array_column( $alerts, 'key' ), 0, 20 ), 'mailed' => false, 'error' => $in['failed'] ? 'stored read failed: ' . implode( ', ', $in['failed'] ) : '', 'capped' => $in['capped'] );
 		if ( $alerts ) {
 			$email   = (string) get_option( 'admin_email' ); // the morning brief's recipient.
 			$spike   = (bool) array_filter( $alerts, static fn( $a ) => 'break' !== $a['kind'] );
@@ -124,29 +151,4 @@ function snt_alerts_schedule() {
 if ( function_exists( 'add_action' ) ) {
 	add_action( 'init', 'snt_alerts_schedule' );
 	add_action( SNT_ALERTS_HOOK, 'snt_alerts_run', 10, 0 );
-}
-
-/**
- * Watch: ripe while an alert was mailed in the last 24 hours, or the last
- * evaluation fired and its mail did not leave. The agent-readable twin of
- * the email: what fired, when, and whether it was sent.
- *
- * @param array      $watch The watch row.
- * @param int        $now   Unix time.
- * @param array|null $state Test seam: {sent, last}.
- * @return array{ripe:bool,note:string}
- */
-function snt_watch_ripe_alerts( $watch, $now, $state = null ) {
-	unset( $watch );
-	$state  = is_array( $state ) ? $state : array( 'sent' => get_option( SNT_ALERTS_SENT_OPT, array() ), 'last' => get_option( SNT_ALERTS_LAST_OPT, array() ) );
-	$last   = (array) $state['last'];
-	$recent = array_keys( array_filter( (array) $state['sent'], static fn( $at ) => (int) $at > (int) $now - DAY_IN_SECONDS ) );
-	$when   = empty( $last['at'] ) ? 'never evaluated' : 'last evaluated ' . gmdate( 'Y-m-d H:i', (int) $last['at'] ) . ' UTC (' . (string) ( $last['state'] ?? '' ) . ')';
-	if ( ! empty( $last['error'] ) && ! empty( $last['fired'] ) ) {
-		return array( 'ripe' => true, 'note' => 'fired but NOT mailed (' . $last['error'] . '): ' . implode( ', ', array_map( 'snt_alerts_clean', (array) $last['fired'] ) ) . '; ' . $when );
-	}
-	if ( $recent ) {
-		return array( 'ripe' => true, 'note' => 'mailed in the last 24 hours: ' . implode( ', ', array_map( 'snt_alerts_clean', array_slice( $recent, 0, 5 ) ) ) . '; ' . $when );
-	}
-	return array( 'ripe' => false, 'note' => 'nothing mailed in the last 24 hours; ' . $when );
 }

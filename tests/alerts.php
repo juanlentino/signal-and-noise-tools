@@ -29,13 +29,15 @@ function home_url( $p = '' ) { return 'https://example.test' . $p; }
 function url_to_postid( $u ) { return $GLOBALS['ids'][ substr( $u, 20 ) ] ?? 0; }
 function get_post_status( $id ) { return 13 === $id ? 'draft' : 'publish'; }
 function sn_analytics_local_day( $now ) { return gmdate( 'Y-m-d', $now ); }
-function sn_analytics_daily_range( $from, $to ) { return array_values( array_filter( $GLOBALS['rows'], static fn( $r ) => $r['day'] >= $from && $r['day'] <= $to ) ); }
-function sn_edge_top_dim( $dim, $from, $to ) { return $GLOBALS['err'][ $from ] ?? array(); }
+$GLOBALS['wpdb'] = (object) array( 'last_error' => '' ); $GLOBALS['fail_read'] = '';
+function sn_analytics_daily_range( $from, $to ) { $GLOBALS['wpdb']->last_error = ( 'history' === $GLOBALS['fail_read'] && $from !== $to ) || ( 'today' === $GLOBALS['fail_read'] && $from === $to ) ? 'Table is marked as crashed' : ''; if ( '' !== $GLOBALS['wpdb']->last_error ) { return array(); } return array_values( array_filter( $GLOBALS['rows'], static fn( $r ) => $r['day'] >= $from && $r['day'] <= $to ) ); }
+function sn_edge_top_dim( $dim, $from, $to, $limit = 10 ) { $GLOBALS["wpdb"]->last_error = ""; return array_slice( $GLOBALS['err'][ $from ] ?? array(), 0, $limit ); }
 function sn_analytics_top_sources() { return array( array( 'value' => 'Hacker News', 'views' => 20 ), array( 'value' => '(direct)', 'views' => 9 ) ); }
 function __return_true_t() { return true; }
 require __DIR__ . '/../inc/analytics-human-rule.php'; // the real excluded-path rule.
 require __DIR__ . '/../inc/alerts.php';
 require __DIR__ . '/../inc/alerts-cron.php';
+require __DIR__ . '/../inc/alerts-watch.php';
 
 $T    = snt_alerts_thresholds();
 $junk = 'sn_analytics_is_excluded_path';
@@ -103,7 +105,23 @@ ok( ! snt_watch_ripe_alerts( array(), $now + 2 * 86400 )['ripe'], 'and quiet aga
 $GLOBALS['opt'][ SNT_ALERTS_SENT_OPT ] = array(); $GLOBALS['mail_ok'] = false;
 $last = snt_alerts_run( $now );
 ok( array() === $GLOBALS['opt'][ SNT_ALERTS_SENT_OPT ] && 'wp_mail returned false' === $last['error'] && snt_watch_ripe_alerts( array(), $now )['ripe'], 'a failed send stamps nothing (next hour retries) and the watch says fired but not mailed' );
-$GLOBALS['mail_ok'] = true; $GLOBALS['mail'] = array(); $GLOBALS['set']['operations.alerts_enabled'] = false;
+$GLOBALS['mail_ok'] = true; $GLOBALS['mail'] = array();
+
+echo "\nA failed read is not a quiet day\n";
+$GLOBALS['fail_read'] = 'history';
+$last = snt_alerts_run( $now );
+ok( array() === $GLOBALS['mail'] && 'read_failed' === $last['state'] && 'stored read failed: views history' === $last['error'] && array() === $last['fired'], 'the history read fails: 20 views against a baseline read as zero would spike, and nothing mails; the record names the read' );
+$w = snt_watch_ripe_alerts( array(), $now );
+ok( $w['ripe'] && false !== strpos( $w['note'], 'NOT evaluated, stored read failed: views history' ), 'and the watch says the run did not evaluate' );
+$GLOBALS['fail_read'] = 'today';
+ok( 'stored read failed: views today' === snt_alerts_run( $now )['error'] && array() === $GLOBALS['mail'], 'a failed read of today is named too, not recorded as an evaluated quiet hour' );
+$GLOBALS['fail_read'] = '';
+ok( 'evaluated' === snt_alerts_run( $now )['state'] && 1 === count( $GLOBALS['mail'] ), 'the next good read evaluates and mails what was held' );
+$GLOBALS['err']['2026-10-02'] = array_merge( array_map( static fn( $i ) => array( 'value' => "/probe-$i", 'requests' => 900 ), range( 1, 49 ) ), array( array( 'value' => '/notes/b/', 'requests' => 3 ) ) );
+$last = snt_alerts_run( $now );
+ok( in_array( 'break|/notes/b/|2026-10-02', $last['fired'], true ), 'filter, then truncate: 49 louder probe rows do not push a real page with 3 errors out of the local read' );
+ok( array( '2026-10-02' ) === $last['capped'] && false !== strpos( snt_watch_ripe_alerts( array(), $now )['note'], 'the stored 5xx list was full on 2026-10-02' ), 'a day that stored all 50 path groups is named: upstream may have cut a quieter page' );
+$GLOBALS['mail'] = array(); $GLOBALS['set']['operations.alerts_enabled'] = false;
 $last = snt_alerts_run( $now );
 ok( array() === $GLOBALS['mail'] && 'off' === $last['state'], 'switched off: nothing is evaluated or sent, and the record says off' );
 ok( ! snt_watch_ripe_alerts( array(), $now, array( 'sent' => array(), 'last' => array() ) )['ripe'], 'never evaluated is not a finding' );
