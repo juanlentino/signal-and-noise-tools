@@ -136,6 +136,7 @@ namespace {
 	$GLOBALS['__caps'] = array( 'manage_options' => true );
 	function current_user_can( $cap, ...$a ) { return (bool) ( $GLOBALS['__caps'][ $cap ] ?? false ); }
 	function sn_setting( $path, $default = null ) { return $default; }
+	if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $d; } } // 20.10.0: the AI leaf reads the stored model lists.
 	function get_transient( $key ) { return false; }
 	function number_format_i18n( $number, $decimals = 0 ) { return number_format( (float) $number, (int) $decimals ); }
 	function sn_theme_ai_models() { return array(); }
