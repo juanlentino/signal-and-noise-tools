@@ -120,7 +120,7 @@ function snt_alerts_evaluate( array $in, array $t ) {
 	// on the failure's own time, so one failure mails once and the next mails.
 	$cache = $in['cache'] ?? null;
 	if ( is_array( $cache ) && ! empty( $cache['time'] ) ) {
-		$add( 'cache', (string) ( $cache['what'] ?? '' ), gmdate( 'Y-m-d H:i', (int) $cache['time'] ), (int) ( $cache['http'] ?? 0 ), (int) ( $cache['attempts'] ?? 1 ), 0 );
+		$add( 'cache', (string) ( $cache['what'] ?? '' ), gmdate( 'Y-m-d H:i:s', (int) $cache['time'] ), (int) ( $cache['http'] ?? 0 ), (int) ( $cache['attempts'] ?? 1 ), 0 );
 	}
 	return $found;
 }

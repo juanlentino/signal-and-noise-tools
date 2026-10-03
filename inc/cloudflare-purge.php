@@ -154,7 +154,7 @@ function sn_cf_purge_everything() {
 		'time' => time(),
 		'kind' => 'all',
 	), false );
-	update_option( SN_CF_LAST_ZONE_PURGE_OPT, time(), false );
+	// SN_CF_LAST_ZONE_PURGE_OPT is stamped by sn_cf_api_send() on confirmation.
 	// 20.7.0: the purge ledger. Inside the theme's chain this marks that
 	// row's edge leg; called on its own (the admin-bar button, a first
 	// publish, a scheduled transition, the probe) it is a row itself.

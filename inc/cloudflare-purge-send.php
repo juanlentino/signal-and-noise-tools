@@ -69,6 +69,11 @@ function sn_cf_api_send( $endpoint, $body, $attempt = 0 ) {
 	if ( ! empty( $r['cf_success'] ) ) {
 		$GLOBALS['sn_cf_send_last'] = 'ok';
 		sn_cf_purge_failure_clear( $body );
+		if ( isset( $body['purge_everything'] ) ) {
+			// Stamped on confirmation only (first try or a retry): the attention
+			// list reads it as proof a zone refresh superseded older stale rows.
+			update_option( SN_CF_LAST_ZONE_PURGE_OPT, time(), false );
+		}
 		return true;
 	}
 	$retry = sn_cf_retryable( $r['http'] );
@@ -115,11 +120,16 @@ if ( function_exists( 'add_action' ) ) {
  * @return void
  */
 function sn_cf_purge_failure_clear( array $body ) {
+	$wide = isset( $body['purge_everything'] ) || isset( $body['tags'] );
+	// A whole-site refresh covers every narrower call still waiting to retry;
+	// left scheduled, one could fail later and report content already fresh.
+	if ( $wide && function_exists( 'wp_unschedule_hook' ) ) {
+		wp_unschedule_hook( SN_CF_RETRY_HOOK );
+	}
 	$f = get_option( SN_CF_FAILURE_OPT, false );
 	if ( ! is_array( $f ) ) {
 		return;
 	}
-	$wide = isset( $body['purge_everything'] ) || isset( $body['tags'] );
 	if ( $wide || md5( (string) wp_json_encode( $body ) ) === (string) ( $f['scope'] ?? '' ) ) {
 		delete_option( SN_CF_FAILURE_OPT );
 	}

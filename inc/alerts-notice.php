@@ -33,7 +33,9 @@ function snt_alerts_notice_build( array $alerts, $subject, $body, $now ) {
 	$first = (string) ( $lines[0] ?? '' );
 	$more  = count( $lines ) - 1;
 	$only  = array_unique( array_column( $alerts, 'kind' ) );
+	$keys = md5( implode( "\n", array_column( $alerts, 'key' ) ) );
 	return array(
+		'keys'  => $keys, // the same alerts on a later run (a mail that did not leave) are the same notice.
 		'id'    => (int) $now,
 		'title' => trim( (string) preg_replace( '/^\[[^\]]*\]\s*/', '', (string) $subject ) ),
 		'body'  => substr( $first, 0, 240 ) . ( $more > 0 ? sprintf( ' (+%d more)', $more ) : '' ),
@@ -42,6 +44,24 @@ function snt_alerts_notice_build( array $alerts, $subject, $body, $now ) {
 		'app'     => array( 'cache' ) === array_values( $only ) ? 'signal-noise' : 'sn-analytics',
 		'section' => array( 'cache' ) === array_values( $only ) ? 'attention' : '',
 	);
+}
+
+/**
+ * Store a run's notice, keeping the id of an unchanged alert set so a device
+ * that already showed it does not show it again every hour.
+ *
+ * @param array|null $notice From snt_alerts_notice_build().
+ * @return void
+ */
+function snt_alerts_notice_store( $notice ) {
+	if ( ! is_array( $notice ) ) {
+		return;
+	}
+	$old = get_option( SNT_ALERTS_NOTICE_OPT, array() );
+	if ( is_array( $old ) && ! empty( $old['id'] ) && (string) ( $old['keys'] ?? '' ) === (string) $notice['keys'] ) {
+		$notice['id'] = (int) $old['id'];
+	}
+	update_option( SNT_ALERTS_NOTICE_OPT, $notice, false );
 }
 
 /**
@@ -54,6 +74,10 @@ function snt_alerts_notice( $now = null ) {
 	$now = null === $now ? time() : (int) $now;
 	$n   = get_option( SNT_ALERTS_NOTICE_OPT, array() );
 	if ( ! is_array( $n ) || empty( $n['id'] ) || (int) $n['id'] < $now - DAY_IN_SECONDS || '' === (string) ( $n['title'] ?? '' ) ) {
+		return null;
+	}
+	// A cache notice whose failure has since been cleared says nothing true.
+	if ( 'attention' === (string) ( $n['section'] ?? '' ) && function_exists( 'sn_cf_purge_failure' ) && null === sn_cf_purge_failure() ) {
 		return null;
 	}
 	return array( 'id' => (int) $n['id'], 'title' => (string) $n['title'], 'body' => (string) ( $n['body'] ?? '' ), 'app' => (string) ( $n['app'] ?? 'sn-analytics' ), 'section' => (string) ( $n['section'] ?? '' ) );

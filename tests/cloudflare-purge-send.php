@@ -18,6 +18,7 @@ function update_option( $k, $v, $a = null ) { $GLOBALS['__opts'][ $k ] = $v; ret
 function get_option( $k, $d = false ) { return $GLOBALS['__opts'][ $k ] ?? $d; }
 function delete_option( $k ) { unset( $GLOBALS['__opts'][ $k ] ); return true; }
 $GLOBALS['__sched_ok'] = true; $GLOBALS['__pending'] = false;
+function wp_unschedule_hook( $hook ) { $GLOBALS['__unsched'][] = $hook; return 1; }
 function wp_next_scheduled( $hook, $args = array() ) { return $GLOBALS['__pending'] ? time() + 30 : false; }
 function wp_schedule_single_event( $at, $hook, $args = array() ) { if ( ! $GLOBALS['__sched_ok'] ) { return false; } $GLOBALS['__sched'][] = array( $at - time(), $hook, $args ); return true; }
 // Replies are consumed in order; the last one repeats.
@@ -103,6 +104,19 @@ $GLOBALS['__opts']['sn_cf_purge_failure'] = array( 'time' => 1, 'http' => 401, '
 sn_cf_purge_everything_verified();
 ok( null === sn_cf_purge_failure(), 'a confirmed manual zone purge clears it: the whole zone supersedes any failure' );
 
+$GLOBALS['__unsched'] = array();
+reset_all( array( array( 200, true ) ) );
+sn_cf_api_send( 'purge_cache', array( 'files' => array( 'https://x/z' ) ) );
+ok( array() === $GLOBALS['__unsched'], 'a narrow success leaves other waiting retries alone' );
+unset( $GLOBALS['__opts']['sn_cf_last_zone_purge'] );
+sn_cf_api_send( 'purge_cache', array( 'tags' => array( 'sn-render' ) ) );
+ok( array( 'sn_cf_purge_retry' ) === $GLOBALS['__unsched'] && ! isset( $GLOBALS['__opts']['sn_cf_last_zone_purge'] ), 'a confirmed tag purge cancels every waiting retry (it covers them), and is not a zone-purge stamp' );
+reset_all( array( array( 503, false ) ) );
+sn_cf_purge_everything();
+ok( 'queued' === sn_cf_send_last() && ! isset( $GLOBALS['__opts']['sn_cf_last_zone_purge'] ), 'a queued zone refresh does not stamp the zone-purge time' );
+reset_all( array( array( 200, true ) ) );
+sn_cf_api_send( 'purge_cache', array( 'purge_everything' => true ), 1 );
+ok( isset( $GLOBALS['__opts']['sn_cf_last_zone_purge'] ), 'the retry that Cloudflare confirms does' );
 ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/mcp/mcp-rw-audit.php' ), "'flush_object_cache'," ), 'the write audit keeps flush_object_cache, so a Redis flush does not read like the page-only default' );
 
 echo "\nGroup: the theme's cache tag\n";
