@@ -202,7 +202,8 @@ function sn_analytics_host_label_match( $host, $needle ) {
 }
 
 /**
- * Canonical source label → category (search|ai|social|direct|other). '(direct)'
+ * Canonical source label → category (search|ai|social|direct|other; 'internal'
+ * for the internal-click sentinel, which is no source category). '(direct)'
  * is direct; a known brand carries its rule's category; anything else (a bare
  * unknown host) is 'other'.
  *

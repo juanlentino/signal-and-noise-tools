@@ -30,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * 'other'.
  *
  * @param string $host Referrer host (or '(direct)' / '(unknown)' sentinel).
- * @return string 'search' | 'ai' | 'social' | 'direct' | 'other'
+ * @return string 'search' | 'ai' | 'social' | 'direct' | 'other', or 'internal' for the internal-click sentinel (no category; the fold skips it).
  */
 function sn_analytics_referrer_category( $host ) {
 	if ( ! function_exists( 'sn_analytics_canonical_source' ) ) {
