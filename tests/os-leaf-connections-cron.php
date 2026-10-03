@@ -71,6 +71,8 @@ require_once SNT_PATH . 'inc/admin-render-sections.php';
 require_once SNT_PATH . 'inc/cron-dashboard-admin.php';
 require_once SNT_PATH . 'inc/morning-brief.php';
 require_once SNT_PATH . 'inc/scheduled-reads.php';
+require_once SNT_PATH . 'inc/alerts.php';
+require_once SNT_PATH . 'inc/alerts-cron.php'; // Unreleased: the alerts toggle rides the brief box.
 require_once SNT_PATH . 'inc/admin-post-actions/reports.php';
 require_once SNT_PATH . 'inc/openstation-host-pipelines.php'; // snt_os_host_expand(), the round-trip pin.
 require_once SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-cron.php';
@@ -359,7 +361,7 @@ ok( false !== strpos( $kit, 'heading="Morning operations brief"' ) && false !== 
 // 13) Readouts absent when their state is absent.
 ok( false === strpos( $kit, 'Last sent' ) && false === strpos( $kit, 'Last send failed' ) && false === strpos( $kit, 'settings differ' ) && false === strpos( $kit, 'Last run' ), 'no last-sent, last-error, drift or last-run readout without state' );
 ok( false === strpos( $kit, 'Acknowledge current settings' ) && false === strpos( $kit, 'name="snt_config_drift_acknowledge"' ), 'no Acknowledge form without drift' );
-ok( 4 === count( snt_leaf_names( $kit ) ), 'four field names without drift: ' . json_encode( snt_leaf_names( $kit ) ) );
+ok( 5 === count( snt_leaf_names( $kit ) ), 'five field names without drift (Unreleased: + snt_alerts_enabled): ' . json_encode( snt_leaf_names( $kit ) ) );
 
 // 14) Readouts present with state, and drift ON adds the seventh name on BOTH sides.
 $GLOBALS['__options'][ SNT_MORNING_BRIEF_LAST_SENT ]  = time() - 3600;
@@ -368,7 +370,7 @@ $GLOBALS['__options'][ SNT_SCHEDULED_READS_HISTORY ]  = array( array( 'ran_at' =
 $GLOBALS['__drift'] = array( 'has_drift' => true, 'count' => 2 );
 $kit     = snt_leaf_paint( 'connections', 'cron', array() );
 $classic = snt_leaf_classic_html( 'sn_admin_render_cron_section' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 5 === count( snt_leaf_names( $kit ) ), 'drift ON: five names on both sides: ' . json_encode( snt_leaf_names( $kit ) ) );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 6 === count( snt_leaf_names( $kit ) ), 'drift ON: six names on both sides (Unreleased: + snt_alerts_enabled): ' . json_encode( snt_leaf_names( $kit ) ) );
 ok( false !== strpos( $kit, 'Last sent <os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>.' ), 'last-sent hint is an os-relative-time' );
 ok( false !== strpos( $kit, 'Last send failed' ) && false !== strpos( $kit, 'smtp &lt;b&gt;down&lt;/b&gt;' ) && false === strpos( $kit, '<b>down</b>' ), 'last-error notice, message escaped' );
 ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, '2 settings differ' ), 'drift is a warn notice naming the count' );
@@ -381,7 +383,7 @@ ok( false !== strpos( $kit, 'name="snt_scheduled_reads_now"' ), 'Run now form ca
 ok( array() === snt_leaf_classic_markers( $kit ), 'the settings row carries no classic markers: ' . json_encode( snt_leaf_classic_markers( $kit ) ) );
 
 // 15) Round trip: painted OFF reads false and expands empty; ON reads true and expands non-empty.
-foreach ( array( 'snt_morning_brief_enabled' => 'operations.morning_brief_enabled', 'snt_scheduled_reads_enabled' => 'operations.scheduled_reads_enabled' ) as $field => $setting ) {
+foreach ( array( 'snt_morning_brief_enabled' => 'operations.morning_brief_enabled', 'snt_scheduled_reads_enabled' => 'operations.scheduled_reads_enabled', 'snt_alerts_enabled' => 'operations.alerts_enabled' ) as $field => $setting ) {
 	$GLOBALS['__settings'][ $setting ] = false;
 	$off = os_form_read_field( snt_leaf_paint( 'connections', 'cron', array() ), $field );
 	ok( false === $off && empty( \snt_os_host_expand( array( $field => $off ) )[ $field ] ), "$field painted OFF reads false and expands empty" );
@@ -395,6 +397,10 @@ foreach ( array( 'snt_morning_brief_enabled' => 'operations.morning_brief_enable
 $GLOBALS['__written'] = array();
 ok( 'morning_brief_saved' === sn_handle_morning_brief_save( \snt_os_host_expand( array( 'sn_action' => 'morning_brief_save', 'snt_morning_brief_enabled' => false ) ) ) && false === ( $GLOBALS['__written']['operations.morning_brief_enabled'] ?? null ), 'native unchecked brief toggle saves OFF' );
 ok( 'morning_brief_saved' === sn_handle_morning_brief_save( \snt_os_host_expand( array( 'sn_action' => 'morning_brief_save', 'snt_morning_brief_enabled' => true ) ) ) && true === ( $GLOBALS['__written']['operations.morning_brief_enabled'] ?? null ), 'native checked brief toggle saves ON' );
+// Unreleased: the alerts toggle rides the brief form, on both surfaces.
+ok( 'morning_brief_saved' === sn_handle_morning_brief_save( \snt_os_host_expand( array( 'sn_action' => 'morning_brief_save', 'snt_morning_brief_enabled' => true, 'snt_alerts_enabled' => false ) ) ) && false === ( $GLOBALS['__written']['operations.alerts_enabled'] ?? null ), 'native unchecked alerts toggle saves OFF' );
+ok( 'morning_brief_saved' === sn_handle_morning_brief_save( \snt_os_host_expand( array( 'sn_action' => 'morning_brief_save', 'snt_alerts_enabled' => true ) ) ) && true === ( $GLOBALS['__written']['operations.alerts_enabled'] ?? null ), 'native checked alerts toggle saves ON' );
+ok( false !== strpos( $classic, 'name="snt_alerts_enabled"' ) && false !== strpos( $kit, 'name="snt_alerts_enabled"' ), 'the alerts toggle paints on the classic box AND its native twin' );
 ok( 'scheduled_reads_saved' === sn_handle_scheduled_reads_save( \snt_os_host_expand( array( 'sn_action' => 'scheduled_reads_save', 'snt_scheduled_reads_enabled' => false ) ) ) && false === ( $GLOBALS['__written']['operations.scheduled_reads_enabled'] ?? null ), 'native unchecked reads toggle saves OFF' );
 ok( 'scheduled_reads_saved' === sn_handle_scheduled_reads_save( \snt_os_host_expand( array( 'sn_action' => 'scheduled_reads_save', 'snt_scheduled_reads_enabled' => true ) ) ) && true === ( $GLOBALS['__written']['operations.scheduled_reads_enabled'] ?? null ), 'native checked reads toggle saves ON' );
 
@@ -456,7 +462,7 @@ ok( 3 === count( $db->queries ), 'one snapshot per paint: 3 queries, not 6: ' . 
 
 // (b) The box adds no field and no action: parity with the classic hook holds.
 $classic = snt_leaf_classic_html( 'sn_admin_render_cron_section' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 4 === count( snt_leaf_names( $kit ) ), 'the box adds no field name: ' . json_encode( snt_leaf_names( $kit ) ) );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 5 === count( snt_leaf_names( $kit ) ), 'the box adds no field name (five, with snt_alerts_enabled): ' . json_encode( snt_leaf_names( $kit ) ) );
 ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the box adds no sn_action' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'the box carries no classic markers: ' . json_encode( snt_leaf_classic_markers( $kit ) ) );
 

@@ -271,6 +271,10 @@ function snt_morning_brief_render_settings() {
 	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'Morning operations brief', 'signal-and-noise-tools' ) . '</h2>';
 	echo '<label><input type="checkbox" name="snt_morning_brief_enabled" value="1" '; checked( snt_morning_brief_enabled() ); echo ' /> ' . esc_html__( 'Email a daily morning brief to the admin address', 'signal-and-noise-tools' ) . '</label>';
 	echo '<p class="sn-field-helper">' . esc_html__( 'A deterministic prose reading of the latest health scan, cron history, uptime status, deploy state, and any unacknowledged settings drift. Scheduled for 7:00 a.m. site time.', 'signal-and-noise-tools' ) . '</p>';
+	if ( function_exists( 'snt_alerts_enabled' ) ) {
+		echo '<label><input type="checkbox" name="snt_alerts_enabled" value="1" '; checked( snt_alerts_enabled() ); echo ' /> ' . esc_html__( 'Email an alert when a page spikes or breaks', 'signal-and-noise-tools' ) . '</label>';
+		echo '<p class="sn-field-helper">' . esc_html__( 'Checked hourly against stored data: a page or the whole site far above its 7-day mean, or a page with 3 or more server errors in a day. One email per alert per day, to the admin address.', 'signal-and-noise-tools' ) . '</p>';
+	}
 	if ( $last_sent > 0 ) { echo '<p class="sn-field-helper">' . esc_html( sprintf( 'Last sent %s ago.', human_time_diff( $last_sent, time() ) ) ) . '</p>'; }
 	if ( is_array( $last_error ) && ! empty( $last_error['message'] ) ) { echo '<p class="sn-field-helper">' . esc_html( sprintf( 'Last send failed: %s', $last_error['message'] ) ) . '</p>'; }
 	if ( ! empty( $drift['has_drift'] ) ) { echo '<p class="sn-field-helper">' . esc_html( sprintf( 'Configuration drift: %d settings differ from the acknowledged snapshot.', $drift['count'] ) ) . '</p>'; }
