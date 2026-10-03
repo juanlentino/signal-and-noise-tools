@@ -84,6 +84,25 @@ ok( in_array( 'https://example.test/wp-sitemap-posts-post-2.xml', $two, true ),
 	'past 2000 posts the SECOND sub-sitemap page is purged — assuming one page would silently stop being true' );
 
 $GLOBALS['__published'] = 39;
+echo "\nGroup 3b: the feeds and the llms files (the theme holds them at the edge for five minutes)\n";
+ok( array() === sn_cf_machine_urls() && ! in_array( 'https://example.test/llms.txt', $urls, true ), 'a theme without the feed list caches none of these: nothing is added' );
+// Declared here, conditionally, so the line above runs without it.
+if ( ! function_exists( 'sn_edge_cache_feed_paths' ) ) {
+	function sn_edge_cache_feed_paths() { return $GLOBALS['__feed_paths']; }
+}
+$GLOBALS['__feed_paths'] = array( '/?feed=json', '/feed/', '/feed/rss2/', '/feed/rss/', '/feed/rdf/', '/feed/atom/', '/feed/json/', '/notes/feed/', '/notes/feed/rss2/', '/notes/feed/rss/', '/notes/feed/rdf/', '/notes/feed/atom/', '/notes/feed/json/' );
+$urls = sn_cf_post_purge_urls( 7, $post );
+foreach ( array_merge( $GLOBALS['__feed_paths'], array( '/llms.txt', '/llms-full.txt' ) ) as $machine ) {
+	ok( in_array( 'https://example.test' . $machine, $urls, true ), "a save purges $machine" );
+}
+$GLOBALS['__feed_paths'][] = '/feed/future/';
+ok( in_array( 'https://example.test/feed/future/', sn_cf_post_purge_urls( 7, $post ), true ), 'a feed address the theme adds to its list is purged with no edit here: the list is read, not copied' );
+array_pop( $GLOBALS['__feed_paths'] );
+ok( ! in_array( 'https://example.test/comments/feed/', $urls, true ), 'a comment feed is NOT purged: the theme leaves it on no-cache, so the edge never holds it' );
+ok( ! in_array( 'https://example.test/.well-known/agents.json', $urls, true ) && ! in_array( 'https://example.test/opensearch.xml', $urls, true ),
+	'agents.json and opensearch.xml are NOT purged: a post save changes neither' );
+ok( count( array_unique( $urls ) ) <= 30, 'the whole set still fits one Cloudflare purge call (' . count( array_unique( $urls ) ) . ' of 30 URLs)' );
+
 echo "\nGroup 4: the freshness verdict says what it covered\n";
 $abil = (string) file_get_contents( __DIR__ . '/../inc/abilities-cache-freshness.php' );
 ok( false !== strpos( $abil, "'probe_scope' => 'permalink'" ),

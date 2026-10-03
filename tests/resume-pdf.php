@@ -170,7 +170,20 @@ ok( 1 === preg_match( "/set\(\s*'isRemoteEnabled',\s*false\s*\)/", $gen ), 'isRe
 ok( false !== strpos( $gen, "SN_RESUME_PDF_FILE   = 'JuanLentino_Resume.pdf'" ) && false !== strpos( $gen, "trailingslashit( \$up['basedir'] ) . 'resume'" ), 'the file has a stable name under uploads/resume' );
 ok( false !== strpos( $gen, "'?v=' . substr( (string) \$meta['sha256'], 0, 8 )" ), 'the Download link carries ?v=<first 8 of the SHA-256>' );
 ok( false !== strpos( $gen, 'rename( $tmp, $final )' ), 'the publish is atomic (temp file, then rename)' );
-ok( false !== strpos( $gen, 'snt_ability_purge_all_caches(' ), 'generation purges caches the way Purge All Caches does' );
+ok( false === strpos( $gen, 'snt_ability_purge_all_caches(' ) && false === strpos( $gen, 'sn_cf_purge_everything' ) && false === strpos( $gen, 'sn_purge_all_caches' ), 'generation no longer purges everything (that emptied Redis and every page to drop one PDF)' );
+ok( false !== strpos( $gen, 'sn_cf_purge_urls( sn_resume_pdf_purge_urls( $meta, $issued ) );' ) && false !== strpos( $gen, "if ( function_exists( 'sn_cf_purge_urls' ) ) {" ), 'it purges the file\'s own URLs through the per-URL path, guarded' );
+ok( strpos( $gen, 'sn_resume_sync_page();' ) < strpos( $gen, 'sn_cf_purge_urls( sn_resume_pdf_purge_urls(' ) && strpos( $gen, '$previous = get_option( SN_RESUME_PDF_OPTION );' ) < strpos( $gen, 'update_option( SN_RESUME_PDF_OPTION, $meta, false );' ) && false !== strpos( $gen, 'update_option( SN_RESUME_PDF_ISSUED, $issued, false );' ), 'the page is re-saved first (its save purges /resume/); the previous version is read before it is overwritten; the issued list is stored' );
+$pdf_url = 'https://example.test/wp-content/uploads/resume/JuanLentino_Resume.pdf';
+$a = array( 'url' => $pdf_url, 'sha256' => 'aaaaaaaa1111' ); $b = array( 'url' => $pdf_url, 'sha256' => 'bbbbbbbb2222' ); $c = array( 'url' => $pdf_url, 'sha256' => 'cccccccc3333' );
+$after_b = sn_resume_pdf_issued( false, $a, $b );
+ok( array( 'aaaaaaaa', 'bbbbbbbb' ) === $after_b, 'the first run seeds the list from the previous option' );
+$after_c = sn_resume_pdf_issued( $after_b, $b, $c );
+ok( array( $pdf_url, $pdf_url . '?v=aaaaaaaa', $pdf_url . '?v=bbbbbbbb', $pdf_url . '?v=cccccccc' ) === sn_resume_pdf_purge_urls( $c, $after_c ), 'a THIRD generation still purges the first ?v= URL: an old link may have cached newer bytes under it' );
+ok( array( 'aaaaaaaa' ) === sn_resume_pdf_issued( false, false, $a ) && array( 'aaaaaaaa' ) === sn_resume_pdf_issued( array( 'aaaaaaaa', 'junk', 7 ), $a, $a ), 'a first generation, or the same bytes again: no duplicate, no junk' );
+$many = array(); for ( $n = 0; $n < 40; $n++ ) { $many[] = sprintf( '%08x', $n ); }
+$capped = sn_resume_pdf_issued( $many, $b, $c );
+ok( SN_RESUME_PDF_ISSUED_MAX === count( $capped ) && 'cccccccc' === end( $capped ) && count( sn_resume_pdf_purge_urls( $c, $capped ) ) <= 30, 'capped, newest kept, and the set fits one Cloudflare purge call' );
+ok( array() === sn_resume_pdf_purge_urls( array(), $after_c ) && ! in_array( 'https://example.test/resume/', sn_resume_pdf_purge_urls( $c, $after_c ), true ), 'no URL without a file; /resume/ is NOT in the list (the page save already purged it)' );
 $handler = (string) file_get_contents( __DIR__ . '/../inc/admin-post-handler.php' );
 ok( false !== strpos( $handler, "'resume_pdf_generate'        => 'sn_handle_resume_pdf_generate'," ) && false !== strpos( $handler, "check_admin_referer( 'sn_' . \$action )" ) && false !== strpos( $handler, "current_user_can( 'manage_options' )" ), 'the Generate action goes through the dispatcher: its own nonce plus manage_options' );
 ok( is_readable( __DIR__ . '/../lib/pdf/vendor/autoload.php' ) && is_readable( __DIR__ . '/../lib/pdf/fonts/OFL.txt' ), 'Dompdf and Lato ship in lib/pdf, with Lato\'s license' );

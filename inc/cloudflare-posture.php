@@ -38,6 +38,7 @@ function sn_cf_posture_settings() {
 		'min_tls_version'          => '1.2',
 		'always_use_https'         => 'on',
 		'development_mode'         => 'off',   // On bypasses the cache for 3 hours; nothing in wp-admin says so.
+		'always_online'            => null, // A reading, never judged: on by the owner's choice (2026-10-03), the working fallback.
 		'tls_1_3'                  => null,
 		'automatic_https_rewrites' => null,
 		'opportunistic_encryption' => null,
@@ -47,6 +48,25 @@ function sn_cf_posture_settings() {
 		'email_obfuscation'        => null,
 		'challenge_ttl'            => null,
 	);
+}
+
+/**
+ * Does the theme send stale-while-revalidate or stale-if-error to the edge
+ * right now? Read from the value it actually builds for public HTML (its
+ * Cloudflare-CDN-Cache-Control, inc/cache-headers.php), not from the theme
+ * merely being new enough: a filter can switch the header off or strip the
+ * stale directives. Only then does Always Online on mean anything more than
+ * "on": Cloudflare ignores both directives while it is. That is said beside
+ * the reading (sn_cf_posture_model()) and is NEVER a finding: Always Online
+ * stays on by the owner's choice until a worker-side last-good copy exists.
+ *
+ * @return bool
+ */
+function sn_cf_posture_stale_headers_sent() {
+	if ( ! function_exists( 'sn_edge_cdn_cache_control' ) ) {
+		return false;
+	}
+	return 1 === preg_match( '/stale-(?:while-revalidate|if-error)=[1-9]/', (string) sn_edge_cdn_cache_control( 'html' ) );
 }
 
 /**
@@ -267,6 +287,7 @@ function sn_cf_posture_model( $record = null ) {
 		'min_tls_version'          => __( 'Minimum TLS', 'signal-and-noise-tools' ),
 		'always_use_https'         => __( 'Always use HTTPS', 'signal-and-noise-tools' ),
 		'development_mode'         => __( 'Development mode', 'signal-and-noise-tools' ),
+		'always_online'            => __( 'Always Online', 'signal-and-noise-tools' ),
 		'tls_1_3'                  => __( 'TLS 1.3', 'signal-and-noise-tools' ),
 		'automatic_https_rewrites' => __( 'HTTPS rewrites', 'signal-and-noise-tools' ),
 		'opportunistic_encryption' => __( 'Opportunistic encryption', 'signal-and-noise-tools' ),
@@ -300,6 +321,9 @@ function sn_cf_posture_model( $record = null ) {
 			if ( null !== $expected ) {
 				$out['checks'][] = array( 'label' => $labels[ $id ], 'value' => $word, 'ok' => empty( $drift[ $id ] ) );
 			} else {
+				if ( 'always_online' === $id && 'on' === $raw && sn_cf_posture_stale_headers_sent() ) {
+					$word = __( 'on, so Cloudflare ignores stale-while-revalidate and stale-if-error; the edge lifetime still applies', 'signal-and-noise-tools' );
+				}
 				$out['also'][] = array( 'label' => $labels[ $id ], 'value' => $word );
 			}
 		}

@@ -24,6 +24,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SN_RESUME_PDF_OPTION = 'sn_resume_pdf';
 const SN_RESUME_PDF_FILE   = 'JuanLentino_Resume.pdf';
+const SN_RESUME_PDF_ISSUED = 'sn_resume_pdf_issued'; // every ?v= prefix ever linked, newest last.
+// One Cloudflare purge call takes 30 URLs: the bare URL plus this many versions.
+// ponytail: past 28 generations the oldest ?v= link is no longer purged; chunked purging already exists if that ever matters.
+const SN_RESUME_PDF_ISSUED_MAX = 28;
 
 /**
  * Where the generated file lives.
@@ -127,17 +131,73 @@ function sn_resume_pdf_generate() {
 		'generated' => gmdate( 'c' ),
 		'url'       => $loc['url'] . '/' . SN_RESUME_PDF_FILE,
 	);
+	$previous = get_option( SN_RESUME_PDF_OPTION );
+	$issued   = sn_resume_pdf_issued( get_option( SN_RESUME_PDF_ISSUED ), $previous, $meta );
+	update_option( SN_RESUME_PDF_ISSUED, $issued, false );
 	update_option( SN_RESUME_PDF_OPTION, $meta, false );
 
 	// The Download link carries ?v=<hash>: re-render /resume so it points at
-	// this version, then purge exactly as the "Purge All Caches" button does.
+	// this version. That is an ordinary page save, and the save does the page's
+	// own purging: this plugin's per-URL Cloudflare purge (the /resume/
+	// permalink and its listings) and Breeze's save_post handler, which drops
+	// its stored copy of the page. Nothing here repeats either.
 	if ( function_exists( 'sn_resume_sync_page' ) ) {
 		sn_resume_sync_page();
 	}
-	if ( function_exists( 'snt_ability_purge_all_caches' ) ) {
-		snt_ability_purge_all_caches( array() );
+	// What a page save cannot know about is the file. It used to be cleared by
+	// the purge-everything ability, which also emptied Redis and every other
+	// page to drop one PDF. Now the file's own addresses go through the per-URL
+	// path, which does nothing when Cloudflare is not configured.
+	if ( function_exists( 'sn_cf_purge_urls' ) ) {
+		sn_cf_purge_urls( sn_resume_pdf_purge_urls( $meta, $issued ) );
 	}
 	return $meta;
+}
+
+/**
+ * Every ?v= prefix issued so far, with this generation's added. PURE.
+ *
+ * ALL of them, not the last two: any old ?v= link (a bookmark, a shared link,
+ * a stale copy of /resume) answers with whatever file is on disk when it is
+ * next asked for, and the edge then keeps those bytes under that old address
+ * for the file's year. So every address ever linked is purged on each
+ * generation. The previous option seeds the list on the first run after this
+ * shipped.
+ *
+ * @param mixed               $stored   The stored list, if any.
+ * @param mixed               $previous The PDF option before this generation.
+ * @param array<string,mixed> $meta     The option about to be written.
+ * @return string[] Newest last, capped at SN_RESUME_PDF_ISSUED_MAX.
+ */
+function sn_resume_pdf_issued( $stored, $previous, array $meta ) {
+	$list = is_array( $stored ) ? $stored : array();
+	foreach ( array( $previous, $meta ) as $m ) {
+		if ( is_array( $m ) && ! empty( $m['sha256'] ) ) {
+			$list[] = substr( (string) $m['sha256'], 0, 8 );
+		}
+	}
+	$list = array_values( array_unique( array_filter( $list, static fn( $v ) => is_string( $v ) && 1 === preg_match( '/^[0-9a-f]{8}$/', $v ) ) ) );
+	return array_slice( $list, -SN_RESUME_PDF_ISSUED_MAX );
+}
+
+/**
+ * The file's addresses at the edge after a generation: the bare URL (served
+ * for a year by the web server, whatever its bytes) and every ?v= URL issued.
+ * PURE.
+ *
+ * @param array<string,mixed> $meta   The option just written.
+ * @param string[]            $issued sn_resume_pdf_issued().
+ * @return string[]
+ */
+function sn_resume_pdf_purge_urls( array $meta, array $issued ) {
+	if ( empty( $meta['url'] ) ) {
+		return array();
+	}
+	$urls = array( (string) $meta['url'] );
+	foreach ( $issued as $prefix ) {
+		$urls[] = (string) $meta['url'] . '?v=' . $prefix;
+	}
+	return $urls;
 }
 
 /**

@@ -104,6 +104,16 @@ add_filter(
 	10,
 	2
 );
+// MailPoet registers `mailpoet_page` as a public post type (its subscription
+// and unsubscribe page), so core listed wp-sitemap-posts-mailpoet_page-1.xml
+// in the index: a utility page no search engine should be handed.
+add_filter(
+	'wp_sitemaps_post_types',
+	function ( $post_types ) {
+		unset( $post_types['mailpoet_page'] );
+		return $post_types;
+	}
+);
 /**
  * 15.10.0: a tag archive with this many notes is a topical hub, not a thin
  * page. Every tag carries an owner-written description (the archive paints

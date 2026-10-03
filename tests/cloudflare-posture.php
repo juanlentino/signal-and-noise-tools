@@ -75,6 +75,38 @@ $rec = sn_cf_posture_from( $settings(), $dnssec( 'active' ), $rules( array( $oth
 $r = sn_cf_posture_abilities_rule( $rec );
 ok( is_array( $r ) && 'x1' === $r['id'] && false === $r['enabled'], 'found by expression when the name says nothing; disabled is kept as a fact' );
 
+echo "\nGroup: Always Online is information, never a finding\n";
+$note = 'on, so Cloudflare ignores stale-while-revalidate and stale-if-error; the edge lifetime still applies';
+$rec  = sn_cf_posture_from( $settings( array( 'always_online' => 'on' ) ), $dnssec( 'active' ), $rules( array() ) );
+ok( 'on' === $rec['settings']['values']['always_online'], 'always_online is read from the same settings answer (no new endpoint, no new scope) and stored as the plain value' );
+ok( null === sn_cf_posture_settings()['always_online'], 'it is a reading: no expected value' );
+ok( array() === sn_cf_posture_findings( $rec ), 'without the theme\'s cache headers: no finding' );
+$GLOBALS['__opt']['sn_cf_posture'] = array( 'fetched_at' => time(), 'configured' => true ) + $rec;
+$m = sn_cf_posture_model();
+ok( in_array( array( 'label' => 'Always Online', 'value' => 'on' ), $m['also'], true ) && ! in_array( 'Always Online', array_column( $m['checks'], 'label' ), true ), 'and the painters show plain "on" on the "also" line' );
+// Declared here, conditionally, so PHP does not hoist it above the lines that need it absent.
+if ( ! function_exists( 'sn_edge_cdn_cache_control' ) ) {
+	function sn_edge_cdn_cache_control( $kind ) { return $GLOBALS['__edge_header'] ?? 'max-age=86400, stale-while-revalidate=86400, stale-if-error=604800'; }
+}
+// Owner, 2026-10-03: Always Online is on and stays on (the working fallback).
+ok( array() === sn_cf_posture_findings( $rec ), 'ON while the theme sends stale directives: still NO finding (nothing turns the card or the health scan yellow)' );
+ok( null === sn_cf_posture_settings()['always_online'], 'and still no expected value' );
+$m = sn_cf_posture_model();
+ok( ! in_array( 'Always Online', array_column( $m['checks'], 'label' ), true ) && array() === array_filter( $m['checks'], static fn( $c ) => ! $c['ok'] ), 'it is not a judged row, and no row reads drift' );
+ok( in_array( array( 'label' => 'Always Online', 'value' => $note ), $m['also'], true ), 'the "also" line says what that means, in plain words: ' . $note );
+ok( 'on' === $GLOBALS['__opt']['sn_cf_posture']['settings']['values']['always_online'], 'the stored record keeps the bare value for abilities' );
+$GLOBALS['__opt']['sn_cf_posture'] = array( 'fetched_at' => time(), 'configured' => true ) + sn_cf_posture_from( $settings( array( 'always_online' => 'off' ) ), $dnssec( 'active' ), $rules( array() ) );
+ok( in_array( array( 'label' => 'Always Online', 'value' => 'off' ), sn_cf_posture_model()['also'], true ), 'off reads off, with no sentence' );
+$GLOBALS['__opt']['sn_cf_posture'] = array( 'fetched_at' => time(), 'configured' => true ) + $rec;
+foreach ( array( 'max-age=86400', 'max-age=86400, stale-while-revalidate=0, stale-if-error=0', '' ) as $header ) {
+	$GLOBALS['__edge_header'] = $header;
+	ok( in_array( array( 'label' => 'Always Online', 'value' => 'on' ), sn_cf_posture_model()['also'], true ), 'no positive stale directive in "' . $header . '": plain "on", the sentence would not be true' );
+}
+$GLOBALS['__edge_header'] = 'max-age=86400, stale-if-error=604800';
+ok( in_array( array( 'label' => 'Always Online', 'value' => $note ), sn_cf_posture_model()['also'], true ), 'one stale directive is enough for the sentence' );
+unset( $GLOBALS['__edge_header'] );
+$GLOBALS['__opt'] = array();
+
 echo "\nGroup: a refusal is a verdict\n";
 $rec = sn_cf_posture_from( $refused, $refused, $refused );
 ok( true === $rec['settings']['needs_permission'] && false !== strpos( $rec['settings']['error'], 'Zone › Zone Settings › Read' ), 'settings 403 names Zone Settings Read' );

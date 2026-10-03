@@ -81,6 +81,11 @@ sm_eq( false, apply_filters( 'wp_sitemaps_add_provider', $fake_provider, 'users'
 sm_eq( $fake_provider, apply_filters( 'wp_sitemaps_add_provider', $fake_provider, 'posts' ), "'posts' provider kept (unchanged)" );
 sm_eq( $fake_provider, apply_filters( 'wp_sitemaps_add_provider', $fake_provider, 'taxonomies' ), "'taxonomies' provider kept (unchanged)" );
 
+// wp_sitemaps_post_types: MailPoet's utility page type leaves the index.
+echo "\nwp_sitemaps_post_types: drop mailpoet_page, keep the rest\n";
+$types = apply_filters( 'wp_sitemaps_post_types', array( 'post' => 'POST', 'page' => 'PAGE', 'mailpoet_page' => 'MP' ) );
+sm_eq( array( 'post' => 'POST', 'page' => 'PAGE' ), $types, 'mailpoet_page removed; post and page untouched' );
+
 // ─── wp_sitemaps_taxonomies (15.10.0: tags STAY, category goes) ──────
 echo "\nwp_sitemaps_taxonomies: keep post_tag (the hubs), drop category, keep custom\n";
 $taxes  = array(
