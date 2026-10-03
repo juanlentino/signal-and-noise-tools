@@ -51,16 +51,21 @@ function sn_cf_posture_settings() {
 }
 
 /**
- * Does the theme send stale-while-revalidate / stale-if-error on public HTML
- * (its inc/cache-headers.php)? Cloudflare ignores both directives while Always
- * Online is on, and nothing at the edge or in wp-admin says so: the header
- * leaves the origin intact and the stale copy is simply never served. Without
- * those headers Always Online is a reading like any other.
+ * Does the theme send stale-while-revalidate or stale-if-error to the edge
+ * right now? Read from the value it actually builds for public HTML (its
+ * Cloudflare-CDN-Cache-Control, inc/cache-headers.php), not from the theme
+ * merely being new enough: a filter can switch the header off or strip the
+ * stale directives, and then Always Online is a reading like any other.
+ * Cloudflare ignores both directives while Always Online is on, and nothing
+ * at the edge or in wp-admin says so.
  *
  * @return bool
  */
 function sn_cf_posture_stale_headers_sent() {
-	return function_exists( 'sn_edge_cache_control' ) && '' !== (string) sn_edge_cache_control( 'html' );
+	if ( ! function_exists( 'sn_edge_cdn_cache_control' ) ) {
+		return false;
+	}
+	return 1 === preg_match( '/stale-(?:while-revalidate|if-error)=[1-9]/', (string) sn_edge_cdn_cache_control( 'html' ) );
 }
 
 /**

@@ -375,10 +375,14 @@ function sn_cf_archive_page_urls( $base, $post_type ) {
  * new note.
  *
  * The earlier note above ("/feed/ revalidates on every request") stopped being
- * true when the theme gave these a shared lifetime (s-maxage=300 with
- * stale-while-revalidate): the edge now holds them, so a save has to purge
- * them or a new note waits up to five minutes, and up to an hour of stale
- * serving, to reach the feed. /notes/feed/ was already in the set.
+ * true when the theme gave these five minutes at the edge with stale serving:
+ * the edge now holds them, so a save has to purge them.
+ *
+ * THE THEME'S LIST, NOT A COPY OF IT. The theme caches a closed set of feed
+ * addresses (sn_edge_cache_feed_paths(): every core format plus JSON at both
+ * bases) and leaves every other feed on no-cache; this purges exactly that
+ * set, so a format the theme adds is purged without an edit here. A theme
+ * without the function caches none of this, and there is nothing to purge.
  *
  * NOT ADDED, checked first: /.well-known/agents.json and /opensearch.xml carry
  * nothing a post save changes, so purging them would be motion without effect.
@@ -386,11 +390,11 @@ function sn_cf_archive_page_urls( $base, $post_type ) {
  * @return string[]
  */
 function sn_cf_machine_urls() {
-	if ( ! function_exists( 'home_url' ) ) {
+	if ( ! function_exists( 'home_url' ) || ! function_exists( 'sn_edge_cache_feed_paths' ) ) {
 		return array();
 	}
-	$paths = array( '/feed/', '/feed/atom/', '/notes/feed/atom/', '/feed/json/', '/notes/feed/json/', '/?feed=json', '/llms.txt', '/llms-full.txt' );
-	return array_map( 'home_url', $paths );
+	$paths = array_merge( (array) sn_edge_cache_feed_paths(), array( '/llms.txt', '/llms-full.txt' ) );
+	return array_map( 'home_url', array_values( array_filter( $paths, 'is_string' ) ) );
 }
 
 /** WordPress core lists at most this many URLs per sitemap page. */

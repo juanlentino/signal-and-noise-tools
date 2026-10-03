@@ -83,8 +83,8 @@ $GLOBALS['__opt']['sn_cf_posture'] = array( 'fetched_at' => time(), 'configured'
 $m = sn_cf_posture_model();
 ok( in_array( array( 'label' => 'Always Online', 'value' => 'on' ), $m['also'], true ) && ! in_array( 'Always Online', array_column( $m['checks'], 'label' ), true ), 'and the painters show it on the "also" line' );
 // Declared here, conditionally, so PHP does not hoist it above the lines that need it absent.
-if ( ! function_exists( 'sn_edge_cache_control' ) ) {
-	function sn_edge_cache_control( $kind ) { return $GLOBALS['__edge_header'] ?? 'public, max-age=0, s-maxage=86400, stale-while-revalidate=86400, stale-if-error=604800'; }
+if ( ! function_exists( 'sn_edge_cdn_cache_control' ) ) {
+	function sn_edge_cdn_cache_control( $kind ) { return $GLOBALS['__edge_header'] ?? 'max-age=86400, stale-while-revalidate=86400, stale-if-error=604800'; }
 }
 $f = sn_cf_posture_findings( $rec );
 ok( array( 'always_online' ) === array_column( $f, 'key' ) && false !== strpos( $f[0]['why'], 'stale-if-error' ), 'with the headers sent, Always Online on is a finding that says what it switches off' );
@@ -93,6 +93,12 @@ $row = array_values( array_filter( $m['checks'], static fn( $c ) => 'Always Onli
 ok( 1 === count( $row ) && 'on' === $row[0]['value'] && false === $row[0]['ok'], 'and the painters show it as a judged row reading drift' );
 $off = sn_cf_posture_from( $settings( array( 'always_online' => 'off' ) ), $dnssec( 'active' ), $rules( array() ) );
 ok( array() === sn_cf_posture_findings( $off ), 'Always Online off beside the headers is clean' );
+$GLOBALS['__edge_header'] = 'max-age=86400, stale-if-error=604800';
+ok( array( 'always_online' ) === array_column( sn_cf_posture_findings( $rec ), 'key' ), 'one stale directive is enough to judge it' );
+$GLOBALS['__edge_header'] = 'max-age=86400';
+ok( array() === sn_cf_posture_findings( $rec ), 'an edge header WITHOUT the stale directives: a reading, not a drift' );
+$GLOBALS['__edge_header'] = 'max-age=86400, stale-while-revalidate=0, stale-if-error=0';
+ok( array() === sn_cf_posture_findings( $rec ), 'stale directives filtered to zero: a reading' );
 $GLOBALS['__edge_header'] = '';
 ok( array() === sn_cf_posture_findings( $rec ), 'headers filtered off: a reading again' );
 $GLOBALS['__opt'] = array();
