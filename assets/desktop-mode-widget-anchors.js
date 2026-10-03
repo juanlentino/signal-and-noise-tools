@@ -75,6 +75,9 @@
 		// mid-session left its DOM painted and in-flight ability calls
 		// rendering into a dead card. The torn flag gates every async render.
 		var torn = false;
+		// 21.1.0: the Internet Archive line (archive-status). A second, separate
+		// read: the anchors paint without it, and a failed read paints nothing.
+		var archiveLine = '';
 
 		function render( overview, note ) {
 			if ( torn ) {
@@ -162,6 +165,10 @@
 				} );
 			}
 
+			if ( archiveLine && overview ) {
+				wrap.appendChild( el( 'p', { style: 'margin:8px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: 'Internet Archive: ' + archiveLine } ) );
+			}
+
 			if ( note && overview ) {
 				wrap.appendChild( el( 'p', { style: 'margin:8px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: note } ) );
 			}
@@ -214,8 +221,15 @@
 				render( null, 'The abilities client is unavailable.' );
 				return;
 			}
+			archiveLine = ''; // a refresh whose archive read fails must not keep the last line
 			window.sntAbilityRun( 'anchor-status', {}, { silent: true } ).then( function( overview ) {
 				render( overview, note );
+				window.sntAbilityRun( 'archive-status', {}, { silent: true } ).then( function( archive ) {
+					if ( archive && archive.ok && archive.line ) {
+						archiveLine = String( archive.line );
+						render( overview, note );
+					}
+				} ).catch( function() {} );
 			} ).catch( function( err ) {
 				render( null, ( err && err.message ) || 'Could not load anchor status.' );
 			} );

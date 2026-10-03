@@ -80,6 +80,9 @@ The reference for the 146 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/jev-notes` | Jev over the notes: the stored pass | diagnostics | READ |
 | `signal-noise/jev-pass-now` | Run the Jev pass now | maintenance | RW |
 | `signal-noise/jev-query-fit` | Jev: the queries each note is seen for and does not answer | diagnostics | READ |
+| `signal-noise/archive-status` | Internet Archive: push state | diagnostics | READ |
+| `signal-noise/ai-models-status` | AI model lists and prices: where they came from | diagnostics | READ |
+| `signal-noise/archive-push-existing` | Internet Archive: push the notes that predate the keys | maintenance | RW |
 | `signal-noise/jev-tags` | Jev: the stored tag-fit pass | diagnostics | READ |
 | `signal-noise/jev-tags-now` | Jev: read every note against its tags, now | maintenance | RW |
 | `signal-noise/jev-tells` | Jev: the stored anti-tell pass | diagnostics | READ |

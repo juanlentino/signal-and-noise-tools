@@ -551,7 +551,7 @@ function paint_tools_provenance( array $ctx ) {
 	$out  = '<div class="snt-provenance"><section aria-label="Provenance at a glance">' . provenance_glance_html( $sys ) . '</section>';
 	$out .= \snt_kit_grid(
 		array(
-			\snt_kit_stack( provenance_commits_html( $data ) . provenance_backfill_html( $data ) ),
+			\snt_kit_stack( provenance_commits_html( $data ) . provenance_backfill_html( $data ) . ( function_exists( __NAMESPACE__ . '\\provenance_archive_html' ) ? provenance_archive_html() : '' ) ),
 			\snt_kit_stack(
 				provenance_system_html( $sys ) . provenance_rotation_html( $data['commitment'] ) . provenance_genesis_html( $sys, $data['reanchor_flag'] ),
 				18,

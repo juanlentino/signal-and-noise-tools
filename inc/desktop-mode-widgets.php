@@ -249,7 +249,8 @@ add_action( 'init', function() {
 			'script'         => 'sn-desktop-mode-widget-anchors',
 			// Measured 167 idle ("30 of 30 notes anchored" + Sweep), 194 with
 			// two pending rows. Sized for idle — the state it holds most days.
-			'default_height' => 180,
+			// 21.1.0: + one Internet Archive line (two when it wraps).
+			'default_height' => 215,
 		) ) );
 
 		// v10.1.0: the machine half of the audience. Human readership is

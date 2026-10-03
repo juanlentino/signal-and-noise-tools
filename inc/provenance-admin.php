@@ -289,6 +289,10 @@ function sn_admin_render_provenance_section() {
 	if ( function_exists( 'sn_prov_backfill_render_fieldset' ) ) {
 		sn_prov_backfill_render_fieldset();
 	}
+	// 21.1.0: the Internet Archive push and the run over older notes.
+	if ( function_exists( 'sn_archive_existing_render_fieldset' ) ) {
+		sn_archive_existing_render_fieldset();
+	}
 	sn_admin_shell_rail( __( 'Provenance status', 'signal-and-noise-tools' ) );
 	sn_prov_admin_render_system_fieldset( $sys );
 	if ( function_exists( 'sn_prov_admin_render_rotation_fieldset' ) ) {

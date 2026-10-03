@@ -56,4 +56,5 @@ require_once __DIR__ . '/admin-post-actions/gsc.php';
 require_once __DIR__ . '/admin-post-actions/mcp.php';
 require_once __DIR__ . '/admin-post-actions/rights-evidence.php'; // Unreleased: view a held month's payloads, lift the hold
 require_once __DIR__ . '/admin-post-actions/rights-evidence-retract.php'; // Unreleased: post one signed retraction
+require_once __DIR__ . '/admin-post-actions/archive-push-existing.php'; // 21.1.0: start or resume the Internet Archive run over older notes
 require_once __DIR__ . '/admin-post-actions/rights-evidence-post-now.php'; // Unreleased: post a waiting month before its review window ends

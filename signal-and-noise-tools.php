@@ -431,6 +431,7 @@ require_once SNT_PATH . 'inc/jev-meter.php';        // 16.6.0: the Jev meter, pe
 require_once SNT_PATH . 'inc/jev-tells.php';        // 16.7.0: the anti-tell pass on drafts, and over the corpus on demand.
 require_once SNT_PATH . 'inc/jev-tags.php';         // 16.8.0: tag fit, weekly.
 require_once SNT_PATH . 'inc/abilities-jev.php';    // 16.3.0: jev-notes.
+require_once SNT_PATH . 'inc/abilities-archive.php'; // 21.1.0: the Internet Archive run and state, the AI model-list state.
 require_once SNT_PATH . 'inc/zenodo-records.php';  // 15.11.0: what a document's record is, the bundle, the deposit flow, the triggers.
 require_once SNT_PATH . 'inc/abilities-zenodo.php'; // 15.11.0: zenodo-status on the read door.
 
@@ -626,8 +627,10 @@ require_once __DIR__ . '/inc/sitemap.php';
 require_once __DIR__ . '/inc/sitemap-redirect.php';
 require_once __DIR__ . '/inc/indexnow.php';
 require_once __DIR__ . '/inc/websub.php';            // v6.17.0 (D4): WebSub publisher ping (feed-reader push; counterpart to IndexNow)
-require_once __DIR__ . '/inc/archive-push-status.php'; // Unreleased: the unresolved archive failures and the watch that reads them
-require_once __DIR__ . '/inc/archive-push.php';      // Unreleased: a note's first publish is pushed to the Internet Archive (Save Page Now)
+require_once __DIR__ . '/inc/archive-push-status.php'; // 20.8.0: the unresolved archive failures and the watch that reads them
+require_once __DIR__ . '/inc/archive-push.php';      // 20.8.0: a note's first publish is pushed to the Internet Archive (Save Page Now)
+require_once __DIR__ . '/inc/archive-push-existing.php'; // 21.1.0: the owner-started run over notes that predate the keys.
+require_once __DIR__ . '/inc/archive-push-admin.php'; // 21.1.0: its fieldset on the classic Tools > Provenance page.
 require_once __DIR__ . '/inc/ability-run-client.php';   // v7.7.2: annotation-derived verb map + shared run-path JS client.
 require_once __DIR__ . '/inc/abilities-rate-gate.php';  // v10.34.0: per-user courtesy throttle for expensive abilities (native run-route has no rate limit of its own).
 require_once __DIR__ . '/inc/abilities-lifecycle-guard.php'; // v10.38.0: WP 7.1 forward-compat — rw kill switch + telemetry/audit on core's ability lifecycle hooks (inert pre-7.1).
