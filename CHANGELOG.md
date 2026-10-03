@@ -15,6 +15,9 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Added
 - **Hacker News is asked directly.** A referrer undercounts Hacker News (its apps send none) and a submission by someone else is invisible until traffic arrives. Inside the hourly alert run, the Algolia search API finds any story whose URL is on this site and the official API gives its live points, comments and front-page position for its first three days; both are public, need no key, and receive only the site's host name. A story found young mails once (`HACKER NEWS: "..." was posted to Hacker News: 14 points, 3 comments`), reaching the front page mails once more, and a spike on a path Hacker News holds says so in its line. Stories that predate the first run are stored as history, not mailed. `inc/hn-mentions.php`; pinned in `tests/hn-mentions.php`.
 
+### Changed
+- **A save purges the tag, and only the tag.** 20.9.0 sent the theme's cache tag beside the old URL list until a tag purge had been seen to work. It was, on 2026-10-03: a no-change save turned unrelated pages (`/about/`, `/music/`, other notes, `/llms.txt`) from HIT to MISS with no zone purge in the log. With a tagging theme (15.2.0+), an edit, a first publish and a post leaving publish now send one tag purge plus core's sitemaps (which carry no tag); the per-post URL list, the first-publish zone purge and the post-save probe are no longer used on that path, so static assets stay warm at the edge through a publish. They remain as the path for an older theme. The probe's history and its readers are left in place.
+
 ## [20.9.0] - 2026-10-03 — the cache runs itself
 
 ### Removed
