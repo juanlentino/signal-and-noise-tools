@@ -84,6 +84,7 @@ function snt_cron_sn_owned_hooks() {
 		// v13.91.0: the daily IPv6-criterion store, so the watch reading it costs
 		// an option read rather than an uncached analytics query.
 		array( 'SNT_IPV6_CRITERION_HOOK', 'snt_ipv6_criterion_refresh' ),
+		array( 'SNT_PDF_ENGINE_HOOK', 'snt_pdf_engine_check' ), // 20.6.0: daily latest-Dompdf read the watch consumes.
 		// v13.68.0 — daily inbound-link pass for freshly published notes. Always-on.
 		array( 'SN_INBOUND_PASS_HOOK', 'sn_inbound_pass_daily' ),
 		array( 'SN_INBOUND_PASS_PUBLISH_HOOK', 'sn_inbound_pass_after_publish' ), // v13.69.0 — single event after a publish; on-demand.

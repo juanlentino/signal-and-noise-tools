@@ -1,8 +1,8 @@
 <?php
 /**
  * Resume PDF: the engine's status (Dompdf). Installed version, whether our
- * Cpdf patch is in, and the latest Dompdf release, read from GitHub at most
- * once a day and kept in an option (a failed read keeps the last answer).
+ * Cpdf patch is in, and the latest Dompdf release, read from GitHub by a daily
+ * cron and kept in an option (a failed read keeps the last answer).
  *
  * The patch (Cpdf.php, 20.3.2) stops justified Unicode text writing NUL
  * bytes that pypdf rejects. Upstream confirmed it (dompdf/dompdf#3771,
@@ -58,33 +58,61 @@ function snt_pdf_engine_patched( $src = null ) {
 }
 
 /**
- * The latest Dompdf release ('3.1.7'), refreshed when the stored answer is a
- * day old. '' when it has never been read.
+ * The latest Dompdf release ('3.1.7') as last stored, '' when never read.
+ * Read-only: the daily cron below is the only producer, so the watch and
+ * the admin line cost an option read (the IPv6-criterion store pattern).
  *
  * @return string
  */
 function snt_pdf_engine_latest() {
 	$stored = get_option( SNT_PDF_ENGINE_LATEST_OPTION );
-	$stored = is_array( $stored ) ? $stored : array( 'version' => '', 'at' => 0 );
-	if ( time() - (int) $stored['at'] < DAY_IN_SECONDS ) {
-		return (string) $stored['version'];
+	return is_array( $stored ) ? (string) ( $stored['version'] ?? '' ) : '';
+}
+
+/**
+ * Daily producer: read the latest release from GitHub and store it. A failed
+ * read writes nothing, so the last answer stands. Authenticated with
+ * SNT_GITHUB_TOKEN when defined, redirects off so the bearer never leaves
+ * api.github.com (the sn_gh_latest_plugin_tag() rule).
+ *
+ * @return string The stored version after this run.
+ */
+function snt_pdf_engine_refresh() {
+	$headers = array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'signal-and-noise-tools' );
+	if ( defined( 'SNT_GITHUB_TOKEN' ) && SNT_GITHUB_TOKEN ) {
+		$headers['Authorization'] = 'Bearer ' . SNT_GITHUB_TOKEN;
 	}
 	$resp = wp_remote_get(
 		'https://api.github.com/repos/dompdf/dompdf/releases/latest',
-		array(
-			'timeout' => 5,
-			'headers' => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'signal-and-noise-tools' ),
-		)
+		array( 'timeout' => 10, 'redirection' => 0, 'headers' => $headers )
 	);
-	$tag = '';
-	if ( ! is_wp_error( $resp ) && 200 === (int) wp_remote_retrieve_response_code( $resp ) ) {
-		$body = json_decode( (string) wp_remote_retrieve_body( $resp ), true );
-		$tag  = ltrim( (string) ( $body['tag_name'] ?? '' ), 'v' );
+	if ( is_wp_error( $resp ) || 200 !== (int) wp_remote_retrieve_response_code( $resp ) ) {
+		return snt_pdf_engine_latest();
 	}
-	// A failed read keeps the last answer and retries tomorrow.
-	$stored = array( 'version' => '' !== $tag ? $tag : (string) $stored['version'], 'at' => time() );
-	update_option( SNT_PDF_ENGINE_LATEST_OPTION, $stored, false );
-	return $stored['version'];
+	$body = json_decode( (string) wp_remote_retrieve_body( $resp ), true );
+	$tag  = ltrim( (string) ( $body['tag_name'] ?? '' ), 'v' );
+	if ( '' === $tag ) {
+		return snt_pdf_engine_latest();
+	}
+	update_option( SNT_PDF_ENGINE_LATEST_OPTION, array( 'version' => $tag, 'at' => time() ), false );
+	return $tag;
+}
+
+const SNT_PDF_ENGINE_HOOK = 'snt_pdf_engine_check';
+
+/**
+ * Keep the daily producer scheduled.
+ *
+ * @return void
+ */
+function snt_pdf_engine_schedule() {
+	if ( function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( SNT_PDF_ENGINE_HOOK ) ) {
+		wp_schedule_event( time() + 5 * MINUTE_IN_SECONDS, 'daily', SNT_PDF_ENGINE_HOOK );
+	}
+}
+if ( function_exists( 'add_action' ) ) {
+	add_action( 'init', 'snt_pdf_engine_schedule' );
+	add_action( SNT_PDF_ENGINE_HOOK, 'snt_pdf_engine_refresh' );
 }
 
 /**
