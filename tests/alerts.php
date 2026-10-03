@@ -32,7 +32,8 @@ function sn_analytics_local_day( $now ) { return gmdate( 'Y-m-d', $now ); }
 $GLOBALS['wpdb'] = (object) array( 'last_error' => '' ); $GLOBALS['fail_read'] = '';
 function sn_analytics_daily_range( $from, $to ) { $GLOBALS['wpdb']->last_error = ( 'history' === $GLOBALS['fail_read'] && $from !== $to ) || ( 'today' === $GLOBALS['fail_read'] && $from === $to ) ? 'Table is marked as crashed' : ''; if ( '' !== $GLOBALS['wpdb']->last_error ) { return array(); } return array_values( array_filter( $GLOBALS['rows'], static fn( $r ) => $r['day'] >= $from && $r['day'] <= $to ) ); }
 function sn_edge_top_dim( $dim, $from, $to, $limit = 10 ) { $GLOBALS["wpdb"]->last_error = ""; return array_slice( $GLOBALS['err'][ $from ] ?? array(), 0, $limit ); }
-function sn_analytics_top_sources() { return array( array( 'value' => 'Hacker News', 'views' => 20 ), array( 'value' => '(direct)', 'views' => 9 ) ); }
+define( 'SN_EDGE_ERRORS_READ_OPT', 'sn_edge_errors_read_days' ); $GLOBALS['src_fail'] = false;
+function sn_analytics_top_sources() { if ( $GLOBALS['src_fail'] ) { return null; } return array( array( 'value' => 'Hacker News', 'views' => 20 ), array( 'value' => '(direct)', 'views' => 9 ) ); }
 function __return_true_t() { return true; }
 require __DIR__ . '/../inc/analytics-human-rule.php'; // the real excluded-path rule.
 require __DIR__ . '/../inc/alerts.php';
@@ -121,6 +122,30 @@ $GLOBALS['err']['2026-10-02'] = array_merge( array_map( static fn( $i ) => array
 $last = snt_alerts_run( $now );
 ok( in_array( 'break|/notes/b/|2026-10-02', $last['fired'], true ), 'filter, then truncate: 49 louder probe rows do not push a real page with 3 errors out of the local read' );
 ok( array( '2026-10-02' ) === $last['capped'] && false !== strpos( snt_watch_ripe_alerts( array(), $now )['note'], 'the stored 5xx list was full on 2026-10-02' ), 'a day that stored all 50 path groups is named: upstream may have cut a quieter page' );
+
+echo "\nAn unread 5xx day is not a clean day\n";
+$D1 = '2026-10-02'; $D2 = '2026-10-01';
+ok( array() === snt_alerts_edge_unread( array(), $now ), 'no bookkeeping at all (edge never set up) is quiet' );
+ok( array() === snt_alerts_edge_unread( array( $D2 => '', $D1 => '' ), $now ) && array() === snt_alerts_edge_unread( array( $D2 => '' ), $now ), 'both days read is clean; yesterday not yet run is pending, not overdue' );
+ok( array( $D1 => 'failed: HTTP 403?quota' ) === snt_alerts_edge_unread( array( $D2 => '', $D1 => "HTTP 403\nquota" ), $now ), 'a day the rollup marked failed is unread, with its cleaned reason' );
+ok( array( $D2 => 'never read (the daily edge rollup is overdue)' ) === snt_alerts_edge_unread( array( '2026-09-30' => '' ), $now ), 'a day two days old that was never marked is overdue' );
+$GLOBALS['opt']['sn_edge_errors_read_days'] = array( $D2 => '', $D1 => 'HTTP 403' );
+$GLOBALS['err'] = array();
+$last = snt_alerts_run( $now );
+ok( 'evaluated' === $last['state'] && array( $D1 => 'failed: HTTP 403' ) === $last['unread'], 'the run records the unread day beside an evaluation that found no rows' );
+$w = snt_watch_ripe_alerts( array(), $now + 2 * 86400, array( 'sent' => array(), 'last' => $last ) );
+ok( $w['ripe'] && false !== strpos( $w['note'], '5xx NOT read for 2026-10-02 failed: HTTP 403' ), 'and the watch is ripe for it: no rows did not mean no errors' );
+$GLOBALS['opt']['sn_edge_errors_read_days'] = array( $D2 => '', $D1 => '' );
+$GLOBALS['err'] = array( $D2 => array( array( 'value' => '/notes/b/', 'requests' => 5 ) ) );
+ok( in_array( "break|/notes/b/|$D2", snt_alerts_run( $now )['fired'], true ), 'a day filed late is still read: the window is three UTC days' );
+
+echo "\nA failed sources read is said, not shown as none\n";
+$GLOBALS['opt'][ SNT_ALERTS_SENT_OPT ] = array(); $GLOBALS['mail'] = array(); $GLOBALS['src_fail'] = true; $GLOBALS['err'] = array();
+$last = snt_alerts_run( $now );
+$body = $GLOBALS['mail'][0]['b'] ?? '';
+ok( false !== strpos( $body, 'Top sources could not be read just now' ) && false === strpos( $body, 'No sources are stored' ) && 'read failed' === $last['sources'], 'the mail says the sources could not be read, and the record keeps the failed read' );
+ok( false !== strpos( snt_alerts_compose( $eval( array( 'views' => array( '/a/' => 16 ) ) ), array(), 'S', 'u' )[1], 'No sources are stored for today yet.' ), 'control: a read that answered with nothing still says none stored' );
+$GLOBALS['src_fail'] = false;
 $GLOBALS['mail'] = array(); $GLOBALS['set']['operations.alerts_enabled'] = false;
 $last = snt_alerts_run( $now );
 ok( array() === $GLOBALS['mail'] && 'off' === $last['state'], 'switched off: nothing is evaluated or sent, and the record says off' );

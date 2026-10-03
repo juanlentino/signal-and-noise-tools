@@ -125,12 +125,33 @@ function sn_archive_push_on_transition( $new_status, $old_status, $post ) {
 		return;
 	}
 	$before = ! empty( get_post_meta( $id, SN_ARCHIVE_PUSH_SEEN, true ) ) || ! empty( get_post_meta( $id, SN_ARCHIVE_PUSH_META, true ) );
+	if ( null !== sn_archive_push_keys() && sn_archive_push_wanted( $new_status, $old_status, $post->post_type, $post->post_password ?? '', $before ) && ! wp_next_scheduled( SN_ARCHIVE_PUSH_HOOK, array( $id, 1 ) )
+		&& true !== wp_schedule_single_event( time() + SN_ARCHIVE_PUSH_DELAY, SN_ARCHIVE_PUSH_HOOK, array( $id, 1 ) ) ) {
+		// The event could not be booked. The note is NOT stamped, so its next
+		// publish tries again, and the loss is held as a failure the watch reads.
+		sn_archive_push_store( $id, sn_archive_push_record( 0, '', 'the push could not be scheduled', time(), 0 ), false );
+		return;
+	}
 	if ( ! $before ) {
 		update_post_meta( $id, SN_ARCHIVE_PUSH_SEEN, 1 );
 	}
-	if ( null !== sn_archive_push_keys() && sn_archive_push_wanted( $new_status, $old_status, $post->post_type, $post->post_password ?? '', $before ) && ! wp_next_scheduled( SN_ARCHIVE_PUSH_HOOK, array( $id, 1 ) ) ) {
-		wp_schedule_single_event( time() + SN_ARCHIVE_PUSH_DELAY, SN_ARCHIVE_PUSH_HOOK, array( $id, 1 ) );
+}
+
+/**
+ * Keep one record: on the post (unless it never ran), as the last result,
+ * and in or out of the unresolved failures.
+ *
+ * @param int                 $post_id Post id.
+ * @param array<string,mixed> $record  From sn_archive_push_record().
+ * @param bool                $on_post Whether to write the post meta too.
+ * @return void
+ */
+function sn_archive_push_store( $post_id, array $record, $on_post = true ) {
+	$last = (array) get_option( SN_ARCHIVE_PUSH_LAST_OPT, array() );
+	if ( $on_post ) {
+		update_post_meta( (int) $post_id, SN_ARCHIVE_PUSH_META, $record );
 	}
+	update_option( SN_ARCHIVE_PUSH_LAST_OPT, $record + array( 'post_id' => (int) $post_id, 'failures' => sn_archive_push_failures( (array) ( $last['failures'] ?? array() ), (int) $post_id, $record ) ), false );
 }
 
 /**
@@ -155,9 +176,7 @@ function sn_archive_push_run( $post_id, $attempt = 1 ) {
 	$resp   = wp_remote_post( SN_ARCHIVE_PUSH_ENDPOINT, sn_archive_push_request( (string) get_permalink( $post ), $keys[0], $keys[1] ) );
 	$failed = is_wp_error( $resp );
 	$record = sn_archive_push_record( $failed ? 0 : (int) wp_remote_retrieve_response_code( $resp ), $failed ? '' : (string) wp_remote_retrieve_body( $resp ), $failed ? $resp->get_error_message() : '', time(), (int) $attempt );
-	$last   = (array) get_option( SN_ARCHIVE_PUSH_LAST_OPT, array() );
-	update_post_meta( (int) $post_id, SN_ARCHIVE_PUSH_META, $record );
-	update_option( SN_ARCHIVE_PUSH_LAST_OPT, $record + array( 'post_id' => (int) $post_id, 'failures' => sn_archive_push_failures( (array) ( $last['failures'] ?? array() ), (int) $post_id, $record ) ), false );
+	sn_archive_push_store( (int) $post_id, $record );
 	if ( 'failed' === $record['state'] && 1 === (int) $attempt ) {
 		wp_schedule_single_event( time() + SN_ARCHIVE_PUSH_RETRY, SN_ARCHIVE_PUSH_HOOK, array( (int) $post_id, 2 ) );
 	}

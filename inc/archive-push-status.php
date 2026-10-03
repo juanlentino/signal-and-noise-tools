@@ -42,12 +42,6 @@ function snt_watch_ripe_archive_push( $watch, $now, $state = null ) {
 	unset( $watch );
 	$state = is_array( $state ) ? $state : array( 'configured' => null !== sn_archive_push_keys(), 'last' => get_option( SN_ARCHIVE_PUSH_LAST_OPT, array() ) );
 	$last  = (array) $state['last'];
-	if ( empty( $state['configured'] ) ) {
-		return array( 'ripe' => false, 'note' => 'not configured: add SN_ARCHIVE_ACCESS_KEY and SN_ARCHIVE_SECRET_KEY to wp-config' );
-	}
-	if ( empty( $last['requested_at'] ) ) {
-		return array( 'ripe' => false, 'note' => 'configured; no note pushed yet' );
-	}
 	$open = array();
 	foreach ( (array) ( $last['failures'] ?? array() ) as $id => $f ) {
 		if ( (int) ( $f['requested_at'] ?? 0 ) > (int) $now - 7 * DAY_IN_SECONDS ) {
@@ -56,6 +50,14 @@ function snt_watch_ripe_archive_push( $watch, $now, $state = null ) {
 	}
 	if ( $open ) {
 		return array( 'ripe' => true, 'note' => 'push FAILED and not since accepted: ' . implode( '; ', array_slice( $open, -5 ) ) );
+	}
+	// The quiet states come AFTER the failures: keys removed since a failed
+	// push do not make that note captured.
+	if ( empty( $state['configured'] ) ) {
+		return array( 'ripe' => false, 'note' => 'not configured: add SN_ARCHIVE_ACCESS_KEY and SN_ARCHIVE_SECRET_KEY to wp-config' );
+	}
+	if ( empty( $last['requested_at'] ) ) {
+		return array( 'ripe' => false, 'note' => 'configured; no note pushed yet' );
 	}
 	// "Requested" is all a 200 proves: the archive took the job. Whether the
 	// capture finished is not polled, so this never says captured.

@@ -29,6 +29,14 @@ function snt_watch_ripe_alerts( $watch, $now, $state = null ) {
 	if ( 'read_failed' === ( $last['state'] ?? '' ) ) {
 		return array( 'ripe' => true, 'note' => 'NOT evaluated, ' . (string) $last['error'] . '; ' . $when );
 	}
+	if ( ! empty( $last['unread'] ) ) {
+		// Unread is not clean: a break on that day could not have been seen.
+		$days = array();
+		foreach ( (array) $last['unread'] as $day => $why ) {
+			$days[] = $day . ' ' . $why;
+		}
+		return array( 'ripe' => true, 'note' => '5xx NOT read for ' . implode( '; ', $days ) . ', so a break on that day cannot be seen; ' . $when );
+	}
 	if ( ! empty( $last['capped'] ) ) {
 		$when .= '; the stored 5xx list was full on ' . implode( ', ', (array) $last['capped'] ) . ', so a quieter page may be missing from it';
 	}

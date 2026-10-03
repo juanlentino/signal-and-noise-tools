@@ -77,7 +77,10 @@ function snt_alerts_gather( $now ) {
 	};
 	$errors = array();
 	$capped = array();
-	foreach ( array( gmdate( 'Y-m-d', $now ), gmdate( 'Y-m-d', $now - DAY_IN_SECONDS ) ) as $day ) {
+	// Three UTC days, not two: a day the rollup filed late is still read, and
+	// the key is the error day, so a wider window never mails twice.
+	foreach ( array( 0, 1, 2 ) as $ago ) {
+		$day = gmdate( 'Y-m-d', $now - $ago * DAY_IN_SECONDS );
 		// 100 is above the 50 path groups the edge query stores per day, so
 		// nothing is cut HERE before the junk and real-page filters run. A day
 		// that stored all 50 may have lost a quieter real page upstream: named.
@@ -95,6 +98,7 @@ function snt_alerts_gather( $now ) {
 	return array(
 		'failed'   => $failed,
 		'capped'   => $capped,
+		'unread'   => snt_alerts_edge_unread( defined( 'SN_EDGE_ERRORS_READ_OPT' ) ? (array) get_option( SN_EDGE_ERRORS_READ_OPT, array() ) : array(), $now ),
 		'today'    => $today,
 		'views'    => $views,
 		'history'  => $history,
@@ -120,11 +124,14 @@ function snt_alerts_run( $now = null ) {
 		// A failed read is not a quiet day: nothing is judged, nothing mails, and
 		// the record says which read failed.
 		$alerts = $in['failed'] ? array() : snt_alerts_evaluate( $in + array( 'sent' => $sent ), snt_alerts_thresholds() );
-		$last   = array( 'at' => $now, 'state' => $in['failed'] ? 'read_failed' : 'evaluated', 'fired' => array_slice( array_column( $alerts, 'key' ), 0, 20 ), 'mailed' => false, 'error' => $in['failed'] ? 'stored read failed: ' . implode( ', ', $in['failed'] ) : '', 'capped' => $in['capped'] );
+		$last   = array( 'at' => $now, 'state' => $in['failed'] ? 'read_failed' : 'evaluated', 'fired' => array_slice( array_column( $alerts, 'key' ), 0, 20 ), 'mailed' => false, 'error' => $in['failed'] ? 'stored read failed: ' . implode( ', ', $in['failed'] ) : '', 'capped' => $in['capped'], 'unread' => $in['unread'] );
 		if ( $alerts ) {
 			$email   = (string) get_option( 'admin_email' ); // the morning brief's recipient.
 			$spike   = (bool) array_filter( $alerts, static fn( $a ) => 'break' !== $a['kind'] );
-			$sources = $spike && function_exists( 'sn_analytics_top_sources' ) ? (array) sn_analytics_top_sources( $in['today'], $in['today'], 'human', 5 ) : array();
+			// null is the reader's failed-read verdict: kept, so the mail says
+			// "could not be read", never "none stored".
+			$sources = $spike && function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $in['today'], $in['today'], 'human', 5 ) : array();
+			$last['sources'] = null === $sources ? 'read failed' : 'read';
 			$where   = function_exists( 'snt_analytics_page_url' ) ? snt_analytics_page_url() : admin_url();
 			$mail    = snt_alerts_compose( $alerts, $sources, (string) wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $where );
 			if ( '' === $email || ! is_email( $email ) ) {

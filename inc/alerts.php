@@ -119,6 +119,29 @@ function snt_alerts_evaluate( array $in, array $t ) {
 }
 
 /**
+ * The UTC days whose 5xx were NOT read, so no rows is not "no errors". PURE.
+ * A day the edge rollup marked failed is unread. A day it never marked is
+ * pending, and overdue once two days old; yesterday may simply not have run
+ * yet. An empty map means the bookkeeping never ran (edge not set up): quiet.
+ *
+ * @param array<string,string> $read The edge rollup's map: day => '' (read) or its refusal.
+ * @param int                  $now  Unix time.
+ * @return array<string,string> Day => why it is unread.
+ */
+function snt_alerts_edge_unread( array $read, $now ) {
+	$out = array();
+	foreach ( array( 1, 2 ) as $back ) {
+		$day = gmdate( 'Y-m-d', (int) $now - $back * 86400 );
+		if ( '' !== (string) ( $read[ $day ] ?? '' ) ) {
+			$out[ $day ] = 'failed: ' . snt_alerts_clean( $read[ $day ] );
+		} elseif ( 2 === $back && $read && ! array_key_exists( $day, $read ) ) {
+			$out[ $day ] = 'never read (the daily edge rollup is overdue)';
+		}
+	}
+	return $out;
+}
+
+/**
  * Sent stamps with the old ones dropped, so the option stays bounded.
  *
  * @param array<string,int> $sent Key => unix time.
@@ -134,12 +157,12 @@ function snt_alerts_prune( array $sent, $now ) {
  * The email. Short: what fired, the numbers, the baseline, where to look.
  *
  * @param array<int,array<string,mixed>> $alerts  From snt_alerts_evaluate().
- * @param array<int,array<string,mixed>> $sources Today's top sources (value, views), or empty.
+ * @param array<int,array<string,mixed>>|null $sources Today's top sources (value, views); null when the read FAILED.
  * @param string                         $site    Site name.
  * @param string                         $where   The dashboard URL.
  * @return array{0:string,1:string} Subject, body.
  */
-function snt_alerts_compose( array $alerts, array $sources, $site, $where ) {
+function snt_alerts_compose( array $alerts, $sources, $site, $where ) {
 	$lines  = array();
 	$spikes = 0;
 	foreach ( $alerts as $a ) {
@@ -154,10 +177,11 @@ function snt_alerts_compose( array $alerts, array $sources, $site, $where ) {
 	$body = "Signal & Noise alert\n\n" . implode( "\n", $lines ) . "\n";
 	if ( $spikes > 0 ) {
 		$top = array();
-		foreach ( array_slice( $sources, 0, 5 ) as $s ) {
+		foreach ( array_slice( (array) $sources, 0, 5 ) as $s ) {
 			$top[] = snt_alerts_clean( $s['value'] ?? '' ) . ' ' . (int) ( $s['views'] ?? 0 );
 		}
-		$body .= "\n" . ( $top ? 'Top sources today, site-wide (views): ' . implode( ', ', $top ) . '.' : 'No sources are stored for today yet.' );
+		$none  = null === $sources ? 'Top sources could not be read just now (the stored read failed, which is not the same as none): see the dashboard.' : 'No sources are stored for today yet.';
+		$body .= "\n" . ( $top ? 'Top sources today, site-wide (views): ' . implode( ', ', $top ) . '.' : $none );
 		$body .= "\nVisits with no referrer (apps, RSS readers, privacy browsers) show as direct.\n";
 	}
 	$body .= "\nWhere to look: " . $where . "\nEach alert mails once for its day. Switch alerts off in Connections, Cron.\n";

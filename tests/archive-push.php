@@ -20,7 +20,8 @@ function update_option( $k, $v ) { $GLOBALS['opt'][ $k ] = $v; return true; }
 function get_post_meta( $id, $k ) { return $GLOBALS['meta'][ $id ][ $k ] ?? ''; }
 function update_post_meta( $id, $k, $v ) { $GLOBALS['meta'][ $id ][ $k ] = $v; return true; }
 function wp_next_scheduled( $h, $a = array() ) { foreach ( $GLOBALS['cron'] as $e ) { if ( $e['hook'] === $h && $e['args'] === $a ) { return $e['at']; } } return false; }
-function wp_schedule_single_event( $at, $h, $a = array() ) { $GLOBALS['cron'][] = array( 'at' => $at, 'hook' => $h, 'args' => $a ); return true; }
+$GLOBALS['sched_ok'] = true;
+function wp_schedule_single_event( $at, $h, $a = array() ) { if ( ! $GLOBALS['sched_ok'] ) { return false; } $GLOBALS['cron'][] = array( 'at' => $at, 'hook' => $h, 'args' => $a ); return true; }
 function sn_credential( $id ) { return $GLOBALS['keys'][ $id ] ?? ''; }
 function get_post( $id ) { return $GLOBALS['posts'][ $id ] ?? null; }
 function get_permalink( $p ) { return 'https://example.test/notes/' . $p->post_name . '/'; }
@@ -79,6 +80,17 @@ $GLOBALS['meta'] = array();
 sn_archive_push_on_transition( 'publish', 'draft', $note( array( 'post_type' => 'page' ) ) );
 ok( array() === $GLOBALS['meta'], 'a page is never stamped' );
 sn_archive_push_on_transition( 'publish', 'draft', $note() );
+
+echo "\nA first publish that cannot be scheduled is not lost\n";
+$GLOBALS['meta'] = array(); $GLOBALS['cron'] = array(); $GLOBALS['opt'] = array(); $GLOBALS['sched_ok'] = false;
+sn_archive_push_on_transition( 'publish', 'draft', $note() );
+$held = $GLOBALS['opt'][ SN_ARCHIVE_PUSH_LAST_OPT ]['failures'][7] ?? array();
+ok( array() === $GLOBALS['meta'] && 'the push could not be scheduled' === ( $held['reason'] ?? '' ), 'the note is not stamped as seen, and the loss is held as a failure' );
+ok( snt_watch_ripe_archive_push( array(), time(), array( 'configured' => true, 'last' => $GLOBALS['opt'][ SN_ARCHIVE_PUSH_LAST_OPT ] ) )['ripe'], 'which the watch reads' );
+$GLOBALS['sched_ok'] = true;
+sn_archive_push_on_transition( 'publish', 'draft', $note() );
+ok( 1 === count( $GLOBALS['cron'] ) && isset( $GLOBALS['meta'][7][ SN_ARCHIVE_PUSH_SEEN ] ), 'and its next publish schedules the push' );
+$GLOBALS['opt'] = array();
 
 echo "\nThe run\n";
 $GLOBALS['resp'] = array( 'code' => 200, 'body' => '{"url":"https://example.test/notes/a-note/","job_id":"spn2-0123abcd"}' );
@@ -141,6 +153,8 @@ ok( ! snt_watch_ripe_archive_push( array(), $now, array( 'configured' => true, '
 $bad = array( 'requested_at' => $now - 3600, 'status' => 401, 'state' => 'failed', 'reason' => 'refused', 'attempt' => 2 );
 $st  = array( 'configured' => true, 'last' => $bad + array( 'post_id' => 7, 'failures' => array( 7 => $bad ) ) );
 ok( snt_watch_ripe_archive_push( array(), $now, $st )['ripe'] && ! snt_watch_ripe_archive_push( array(), $now + 8 * 86400, $st )['ripe'], 'a failed push is ripe, and stops being ripe after a week' );
+$w = snt_watch_ripe_archive_push( array(), $now, array( 'configured' => false, 'last' => $st['last'] ) );
+ok( $w['ripe'] && false !== strpos( $w['note'], 'post 7' ), 'keys removed after a failed push: the failure is still reported, not hidden behind "not configured"' );
 $w = snt_watch_ripe_archive_push( array(), $now, array( 'configured' => true, 'last' => array( 'post_id' => 7, 'requested_at' => $now, 'state' => 'requested', 'job_id' => 'spn2-x', 'failures' => array() ) ) );
 ok( ! $w['ripe'] && false !== strpos( $w['note'], 'requested, job spn2-x' ) && false !== strpos( $w['note'], 'not confirmed' ) && false === stripos( $w['note'], 'captured' ) && false === stripos( $w['note'], 'success' ), 'an accepted request is quiet and says requested, not confirmed: never captured' );
 
