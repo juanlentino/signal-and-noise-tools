@@ -90,7 +90,7 @@ function snt_alerts_evaluate( array $in, array $t ) {
 	// spike line below and the two alerts after it.
 	$hn_by_path = array();
 	foreach ( (array) ( $in['hn'] ?? array() ) as $row ) {
-		$hn_by_path[ '/' . trim( (string) ( $row['path'] ?? '' ), '/' ) ] = $row;
+		$hn_by_path[ '/' . trim( (string) ( $row['path'] ?? '' ), '/' ) ] ??= $row; // rows come newest first: the first for a path is the current story.
 	}
 
 	$total = 0;

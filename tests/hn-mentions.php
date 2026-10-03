@@ -53,6 +53,16 @@ $GLOBALS['http']['hn.algolia.com'] = null; $GLOBALS['http']['topstories'] = arra
 $items = sn_hn_refresh( $now + 3600 );
 ok( 2 === count( $items ) && 'search failed' === $GLOBALS['opt'][ SN_HN_OPT ]['error'] && 0 === $items[1]['rank'] && 3 === $items[1]['best_rank'], 'a failed search keeps the stored rows and says so; off the front page, the best position is remembered' );
 
+$GLOBALS['http'] = array( 'hn.algolia.com' => array( 'hits' => array_map( static fn( $i ) => $hit( 100 + $i, "https://juanlentino.com/notes/n$i/", $i ), range( 1, 8 ) ) ), 'topstories' => array( 101 ), 'item/' => array( 'score' => 2, 'descendants' => 0 ) );
+$GLOBALS['opt'] = array( SN_HN_OPT => array( 'items' => array( 4 => array( 'id' => 4, 'created' => $now - 900 * 3600, 'rank' => 9, 'best_rank' => 9, 'points' => 1, 'comments' => 0, 'path' => '/notes/b/' ) ) ) ); $GLOBALS['calls'] = array();
+$items = sn_hn_refresh( $now );
+ok( 5 === SN_HN_LIVE_MAX && 5 === count( array_filter( $GLOBALS['calls'], static fn( $c ) => false !== strpos( $c[0], '/item/' ) ) ), 'eight young stories, five live reads: a slow API cannot hold the alert run' );
+ok( 0 === $items[4]['rank'] && 9 === $items[4]['best_rank'], 'a story that aged out is no longer "on the front page"; its best position is kept' );
+$GLOBALS['http']['topstories'] = null; $GLOBALS['calls'] = array();
+sn_hn_refresh( $now );
+ok( 0 === count( array_filter( $GLOBALS['calls'], static fn( $c ) => false !== strpos( $c[0], '/item/' ) ) ), 'the official API failing on the top list is not asked again five times' );
+ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/hn-mentions.php' ), "preg_replace( '/^www\\./', '', strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) ) )" ), 'the search uses the bare host, so a www site still finds a story posted without it' );
+
 echo "\nThe alerts\n";
 $T    = snt_alerts_thresholds();
 $eval = static fn( $in ) => snt_alerts_evaluate( $in + array( 'today' => '2026-10-03', 'excluded' => null, 'real' => null, 'hn_since' => $now - 86400 ), $T );
@@ -68,6 +78,8 @@ ok( '[S] Alert: Hacker News' === $msg[0] && false !== strpos( $msg[1], 'HACKER N
 $sp = $eval( array( 'views' => array( '/notes/a' => 40 ), 'history' => array(), 'hn' => array( 1 => array( 'first_seen' => $now - 5 * 86400 ) + $new ) ) );
 $sm = snt_alerts_compose( $sp, array(), 'S', 'u' );
 ok( 1 === count( $sp ) && false !== strpos( $sm[1], 'SPIKE: /notes/a has 40 human views today' ) && false !== strpos( $sm[1], ' On Hacker News: 14 points, 3 comments.' ), 'a spike on a path Hacker News holds says so, trailing slash or not' );
+$two = $eval( array( 'views' => array( '/notes/a/' => 40 ), 'history' => array(), 'hn' => array( 9 => array( 'id' => 9, 'points' => 80, 'first_seen' => $now - 5 * 86400 ) + $new, 1 => array( 'first_seen' => $now - 5 * 86400, 'created' => $now - 30 * 86400 ) + $new ) ) );
+ok( 80 === $two[0]['hn']['points'], 'two submissions of one page: the spike names the newest (rows come newest first)' );
 ok( false === strpos( snt_alerts_compose( $eval( array( 'views' => array( '/notes/z/' => 40 ), 'history' => array() ) ), array(), 'S', 'u' )[1], 'On Hacker News' ), 'and a spike elsewhere does not' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

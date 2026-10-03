@@ -20,6 +20,7 @@ const SN_HN_OPT        = 'sn_hn_mentions'; // { items: id => row, checked: unix,
 const SN_HN_KEEP       = 50;               // rows kept, newest first.
 const SN_HN_LIVE_DAYS  = 3;                // a story is re-read while this young.
 const SN_HN_FRONT_PAGE = 30;               // positions that count as the front page.
+const SN_HN_LIVE_MAX   = 5;                // young stories re-read per run: a slow API must not hold the alert run.
 
 /**
  * GET a public JSON document. Null on any failure: a failed read is not "none".
@@ -78,16 +79,24 @@ function sn_hn_merge( array $items, array $hits, $host, $now ) {
 function sn_hn_refresh( $now ) {
 	$state = get_option( SN_HN_OPT, array() );
 	$items = is_array( $state['items'] ?? null ) ? $state['items'] : array();
-	$host  = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+	// The bare host: the search matches text, so "www." would miss a story
+	// posted without it. The merge compares both forms.
+	$host  = (string) preg_replace( '/^www\./', '', strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) ) );
 	$found = sn_hn_get( 'https://hn.algolia.com/api/v1/search_by_date?tags=story&restrictSearchableAttributes=url&hitsPerPage=30&query=' . rawurlencode( $host ) );
 	$error = is_array( $found ) && is_array( $found['hits'] ?? null ) ? '' : 'search failed';
 	if ( '' === $error ) {
 		$items = sn_hn_merge( $items, $found['hits'], $host, $now );
 	}
-	$young = array_filter( $items, static fn( $r ) => (int) $r['created'] > $now - SN_HN_LIVE_DAYS * DAY_IN_SECONDS );
+	// Newest first, so the cap keeps the stories most likely to be moving.
+	$young = array_slice( array_filter( $items, static fn( $r ) => (int) $r['created'] > $now - SN_HN_LIVE_DAYS * DAY_IN_SECONDS ), 0, SN_HN_LIVE_MAX, true );
+	// A story no longer read live is not "on the front page now"; its best
+	// position is kept.
+	foreach ( array_diff_key( $items, $young ) as $id => $row ) {
+		$items[ $id ]['rank'] = 0;
+	}
 	$top   = $young ? sn_hn_get( 'https://hacker-news.firebaseio.com/v0/topstories.json' ) : null;
 	foreach ( array_keys( $young ) as $id ) {
-		$live = sn_hn_get( 'https://hacker-news.firebaseio.com/v0/item/' . (int) $id . '.json' );
+		$live = is_array( $top ) ? sn_hn_get( 'https://hacker-news.firebaseio.com/v0/item/' . (int) $id . '.json' ) : null; // the API just failed once: do not wait on it again.
 		if ( is_array( $live ) ) {
 			$items[ $id ]['points']   = (int) ( $live['score'] ?? $items[ $id ]['points'] );
 			$items[ $id ]['comments'] = (int) ( $live['descendants'] ?? $items[ $id ]['comments'] );
