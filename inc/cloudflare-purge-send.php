@@ -71,8 +71,15 @@ function sn_cf_api_send( $endpoint, $body, $attempt = 0 ) {
 		sn_cf_purge_failure_clear( $body );
 		if ( isset( $body['purge_everything'] ) ) {
 			// Stamped on confirmation only (first try or a retry): the attention
-			// list reads it as proof a zone refresh superseded older stale rows.
+			// list reads the zone time as proof a refresh superseded older stale
+			// rows, and the Cloudflare screen shows the other as "Last purge".
 			update_option( SN_CF_LAST_ZONE_PURGE_OPT, time(), false );
+			update_option( SN_CF_LAST_PURGE_OPT, array( 'time' => time(), 'kind' => 'all' ), false );
+			// A retry has no open ledger row: the request that queued it wrote
+			// edge false. Its success is a row of its own.
+			if ( $attempt > 0 && function_exists( 'snt_purge_ledger_add' ) ) {
+				snt_purge_ledger_add( array( 'trigger' => 'cron:' . SN_CF_RETRY_HOOK, 'redis' => false, 'pages' => false, 'edge' => true, 'cloudways' => 'not run' ) );
+			}
 		}
 		return true;
 	}
@@ -113,16 +120,18 @@ if ( function_exists( 'add_action' ) ) {
 
 /**
  * Clear the failure record when a confirmed call covers what failed: the
- * whole zone, the theme's tag (every cached page), or the same call again.
- * A success for some other URL list leaves it: that content is still stale.
+ * whole zone, or the same call again. A success for some other URL list, or
+ * for the theme's tag, leaves it: that content may still be stale.
  *
  * @param array $body The confirmed call's body.
  * @return void
  */
 function sn_cf_purge_failure_clear( array $body ) {
-	$wide = isset( $body['purge_everything'] ) || isset( $body['tags'] );
-	// A whole-site refresh covers every narrower call still waiting to retry;
-	// left scheduled, one could fail later and report content already fresh.
+	// Only the whole zone covers everything. The theme's tag covers tagged
+	// pages, not a directly purged file (the resume PDF) or an asset.
+	$wide = isset( $body['purge_everything'] );
+	// A zone refresh covers every narrower call still waiting to retry; left
+	// scheduled, one could fail later and report content already fresh.
 	if ( $wide && function_exists( 'wp_unschedule_hook' ) ) {
 		wp_unschedule_hook( SN_CF_RETRY_HOOK );
 	}
