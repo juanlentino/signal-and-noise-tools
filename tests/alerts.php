@@ -39,6 +39,7 @@ require __DIR__ . '/../inc/analytics-human-rule.php'; // the real excluded-path 
 require __DIR__ . '/../inc/alerts.php';
 require __DIR__ . '/../inc/alerts-cron.php';
 require __DIR__ . '/../inc/alerts-watch.php';
+require __DIR__ . '/../inc/alerts-notice.php';
 
 $T    = snt_alerts_thresholds();
 $junk = 'sn_analytics_is_excluded_path';
@@ -163,6 +164,23 @@ $GLOBALS['set']['operations.alerts_enabled'] = true; $GLOBALS['cf_fail'] = $cf; 
 $last = snt_alerts_run( $now );
 ok( 'read_failed' === $last['state'] && array( 'cache|12 urls|2026-10-03 14:05' ) === $last['fired'] && 1 === count( $GLOBALS['mail'] ), 'a failed analytics read still mails the cache failure, and only that' );
 $GLOBALS['cf_fail'] = null; $GLOBALS['fail_read'] = '';
+
+echo "\nThe alert in the app\n";
+$nb = snt_alerts_notice_build( $a, $m[0], $m[1], 1791050000 );
+ok( 1791050000 === $nb['id'] && 'Alert: cache refresh failed' === $nb['title'] && 0 === strpos( $nb['body'], 'CACHE: Cloudflare did not accept' ) && 'signal-noise' === $nb['app'], 'a cache failure: the subject without the site tag, the alert line, and a tap lands on the attention list' );
+$sp = $eval( array( 'views' => array( '/a/' => 36, '/b/' => 40 ), 'history' => array() ) );
+$sm = snt_alerts_compose( $sp, array(), 'S', 'u' );
+$nb = snt_alerts_notice_build( $sp, $sm[0], $sm[1], 5 );
+ok( 'sn-analytics' === $nb['app'] && 0 === strpos( $nb['body'], 'SPIKE: ' ) && false !== strpos( $nb['body'], ' more)' ) && strlen( $nb['body'] ) < 260, 'spikes open Analytics; the body is the first line, bounded, with a count of the rest' );
+ok( null === snt_alerts_notice_build( array(), 's', 'b', 5 ), 'nothing fired, no notice' );
+$GLOBALS['opt'][ SNT_ALERTS_NOTICE_OPT ] = array( 'id' => $now - 3600, 'title' => 'Alert: 1 spike', 'body' => 'SPIKE: x', 'app' => 'sn-analytics' );
+ok( 'Alert: 1 spike' === snt_alerts_notice( $now )['title'] && null === snt_alerts_notice( $now + 2 * DAY_IN_SECONDS ), 'the app reads it for a day, then it is gone' );
+$GLOBALS['cf_fail'] = $cf; $GLOBALS['mail'] = array(); $GLOBALS['mail_ok'] = false; $GLOBALS['opt'][ SNT_ALERTS_SENT_OPT ] = array(); unset( $GLOBALS['opt'][ SNT_ALERTS_NOTICE_OPT ] );
+snt_alerts_run( $now );
+ok( $now === ( $GLOBALS['opt'][ SNT_ALERTS_NOTICE_OPT ]['id'] ?? null ), 'the hourly run stores the notice even when the mail does not leave' );
+$GLOBALS['cf_fail'] = null; $GLOBALS['mail_ok'] = true;
+$njs = (string) file_get_contents( __DIR__ . '/../assets/snt-alert-notify.js' );
+ok( false !== strpos( $njs, "typeof window.wp.os.notify !== 'function'" ) && strpos( $njs, "typeof window.wp.os.notify !== 'function'" ) < strpos( $njs, 'window.setInterval' ) && false !== strpos( $njs, 'n.id <= seen()' ) && false !== strpos( $njs, "tag: 'signal-noise/alert'" ), 'the script runs only where wp.os.notify exists, shows a notice once per device, and collapses on one tag' );
 
 echo "\nRegistration\n";
 $src = static fn( $f ) => (string) file_get_contents( __DIR__ . '/../' . $f );

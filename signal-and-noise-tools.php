@@ -703,6 +703,7 @@ require_once SNT_PATH . 'inc/morning-brief.php';     // R6a: daily Operations br
 require_once SNT_PATH . 'inc/alerts.php';            // Unreleased: what counts as a spike or a break, and the email (pure)
 require_once SNT_PATH . 'inc/alerts-cron.php';       // Unreleased: the hourly evaluation over stored rows; mails once per alert per day
 require_once SNT_PATH . 'inc/alerts-watch.php';      // Unreleased: the alerts_fired watch, the agent-readable twin of the email
+require_once SNT_PATH . 'inc/alerts-notice.php';     // Unreleased: the alert headline for the app (wp.os.notify), and its REST read
 require_once SNT_PATH . 'inc/scheduled-reads.php';   // R6a: daily read-door-only ability runs with a capped outcome history
 require_once SNT_PATH . 'inc/privacy-exporters.php'; // v4.10.0: GDPR exporter/eraser + suggested privacy policy text
 require_once SNT_PATH . 'inc/speculation-rules.php'; // v4.10.0: opt-in Speculation Rules tuning (prerender/moderate)

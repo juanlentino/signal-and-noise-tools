@@ -136,6 +136,10 @@ function snt_alerts_run( $now = null ) {
 			$last['sources'] = null === $sources ? 'read failed' : 'read';
 			$where   = function_exists( 'snt_analytics_page_url' ) ? snt_analytics_page_url() : admin_url();
 			$mail    = snt_alerts_compose( $alerts, $sources, (string) wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $where );
+			// 20.9.0: the same headline for the open app, mailed or not.
+			if ( function_exists( 'snt_alerts_notice_build' ) ) {
+				update_option( SNT_ALERTS_NOTICE_OPT, snt_alerts_notice_build( $alerts, $mail[0], $mail[1], $now ), false );
+			}
 			if ( '' === $email || ! is_email( $email ) ) {
 				$last['error'] = 'admin_email missing or invalid';
 			} elseif ( wp_mail( $email, $mail[0], $mail[1] ) ) {
