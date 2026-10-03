@@ -73,7 +73,11 @@ function sn_cf_api_send( $endpoint, $body, $attempt = 0 ) {
 			// Stamped on confirmation only (first try or a retry): the attention
 			// list reads the zone time as proof a refresh superseded older stale
 			// rows, and the Cloudflare screen shows the other as "Last purge".
-			update_option( SN_CF_LAST_ZONE_PURGE_OPT, time(), false );
+			// The zone time is a PURGE's proof only: an invalidate leaves the old
+			// copy in place until each page is next requested.
+			if ( 'purge_cache' === $endpoint ) {
+				update_option( SN_CF_LAST_ZONE_PURGE_OPT, time(), false );
+			}
 			update_option( SN_CF_LAST_PURGE_OPT, array( 'time' => time(), 'kind' => 'all' ), false );
 			// A retry has no open ledger row: the request that queued it wrote
 			// edge false. Its success is a row of its own.
