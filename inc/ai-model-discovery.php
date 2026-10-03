@@ -56,9 +56,12 @@ function sn_ai_models_ask( $provider ) {
 		if ( ! $registry->hasProvider( $provider ) || ! $registry->isProviderConfigured( $provider ) ) {
 			return 'not connected';
 		}
-		$class = $registry->getProviderClassName( $provider );
-		$rows  = array();
-		foreach ( $class::modelMetadataDirectory()->listModelMetadata() as $m ) {
+		// The registry's own public path to a provider's list (the one its
+		// model matching uses), asked for text-generation models.
+		$requirements = '\\WordPress\\AiClient\\Providers\\Models\\DTO\\ModelRequirements';
+		$capability   = '\\WordPress\\AiClient\\Providers\\Models\\Enums\\CapabilityEnum';
+		$rows         = array();
+		foreach ( $registry->findProviderModelsMetadataForSupport( $provider, new $requirements( array( $capability::textGeneration() ), array() ) ) as $m ) {
 			$rows[] = sn_ai_models_row( (array) $m->toArray() );
 		}
 		return $rows;
