@@ -173,7 +173,7 @@ function sn_cf_send_last() {
  * @return bool
  */
 function sn_cf_tagged() {
-	return defined( 'SN_EDGE_CACHE_TAG' ) && '' !== (string) SN_EDGE_CACHE_TAG;
+	return defined( 'SN_EDGE_CACHE_TAG' ) && '' !== (string) constant( 'SN_EDGE_CACHE_TAG' );
 }
 
 /**
@@ -187,7 +187,8 @@ function sn_cf_purge_tag() {
 	if ( ! sn_cf_tagged() ) {
 		return false;
 	}
-	return sn_cf_api_send( 'purge_cache', array( 'tags' => array( (string) SN_EDGE_CACHE_TAG ) ) );
+	// constant(): PHPStan reads a defined() guard only in the function that holds it.
+	return sn_cf_api_send( 'purge_cache', array( 'tags' => array( (string) constant( 'SN_EDGE_CACHE_TAG' ) ) ) );
 }
 
 /**
