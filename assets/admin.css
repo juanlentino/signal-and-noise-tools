@@ -2877,8 +2877,8 @@ a.sn-ops__label { text-decoration: none; }
 }
 
 /* v11.31.2 — EVERY CELL RESERVES THE TALLEST COMPOSITION.
-   Caches is the only cell that carries all four parts (label, value, pill and
-   a meta line), so its row grew a line taller than the others and the wall sat
+   A cell that carries all four parts (label, value, pill and a meta line)
+   made its row grow a line taller than the others and the wall sat
    unevenly. A floor sized to the four-part cell keeps every row on the same
    rhythm; cells with less to say simply have air, which is what the spacing
    rule wants anyway. */

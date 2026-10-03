@@ -141,25 +141,6 @@ function cloudflare_status_html( array $d ) {
 }
 
 /**
- * The manual purge card. 15.1.0: the button runs the SAME chain as
- * Dashboard › Maintenance (object cache, Breeze, Varnish, then Cloudflare,
- * verified). Until then it purged Cloudflare alone, and the edge refilled
- * from the stale copy Varnish still held.
- *
- * @param array<string,mixed> $d From cloudflare_data().
- * @return string
- */
-function cloudflare_purge_html( array $d ) {
-	return \snt_kit_tag(
-		'os-card',
-		array( 'compact' => true ),
-		'<header><h3>' . \snt_kit_esc( __( 'Purge all caches', 'signal-and-noise-tools' ) ) . '</h3></header>'
-		. '<p>' . \snt_kit_esc( __( 'Object cache, Breeze, Varnish, then Cloudflare, in that order, verified. The same action as Dashboard › Maintenance; it lives here too because this is where the token changes.', 'signal-and-noise-tools' ) ) . '</p>'
-		. '<footer>' . \snt_kit_action_button( __( 'Purge all caches', 'signal-and-noise-tools' ), 'cf_purge_now', array( 'disabled' => empty( $d['is_configured'] ) ) ) . '</footer>'
-	);
-}
-
-/**
  * The Cloudways leg as one facts row, when that module is configured: it
  * rides the same purge chain, so a failed leg is visible next to the rest.
  *

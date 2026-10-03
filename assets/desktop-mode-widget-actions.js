@@ -7,7 +7,7 @@
  * gated. Replaces the 3-click path of S&N → Dashboard tab → Maintenance
  * section with single-click access from the desktop.
  *
- * Actions: Purge All Caches | Clear DB Overrides | Full Reset
+ * Actions: Clear DB Overrides | Full Reset
  *
  * Pattern matches assets/desktop-mode-widget.js (same DOM-built,
  * textContent-only, self-contained inline styles, wp.apiFetch for
@@ -50,7 +50,6 @@
 	var data    = window.snDesktopData || {};
 	// v6.55.0: dispatch each maintenance action via its ability run-path.
 	var CMD_ABILITY = {
-		'purge-caches':    'purge-all-caches',
 		'clear-overrides': 'clear-template-overrides',
 		// v7.7.0: full-reset is deprecated (removal v8.0.0) — same behavior is
 		// purge-all-caches with include_template_overrides (see CMD_INPUT).
@@ -241,9 +240,6 @@
 				toast( widget, ( err && err.message ) ? err.message : 'Action failed.', false );
 			} )
 			.finally( function() {
-				if ( action === 'purge-caches' || action === 'full-reset' ) {
-					document.dispatchEvent( new CustomEvent( 'snt-cache-purged' ) );
-				}
 				button.textContent    = originalText;
 				button.style.opacity  = '1';
 				delete button.dataset.snBusy;
@@ -273,17 +269,6 @@
 			';border-radius:8px;font-size:13px;line-height:1.2;cursor:pointer;text-align:left;' +
 			'transition:background 120ms ease,border-color 120ms ease;';
 		var dangerStyle = btnStyle + 'color:' + DANGER_FG + ';border-color:' + DANGER_LINE + ';';
-
-		var btnPurge = el( 'button', {
-			text:  'Purge all caches',
-			style: btnStyle,
-			title: 'Object cache + Breeze + Varnish + Cloudflare',
-		} );
-		btnPurge.addEventListener( 'click', function() {
-			runAction( wrap, btnPurge, 'purge-caches', 'Purging…', 'Caches purged.' );
-		} );
-		hoverable( btnPurge, SURFACE, SURFACE_HOVER );
-		wrap.appendChild( btnPurge );
 
 		var btnClear = el( 'button', {
 			text:  'Clear DB overrides',

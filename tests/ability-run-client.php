@@ -241,7 +241,6 @@ $silent_calls = array(
 	'desktop-mode-widget-uptime.js'  => "window.sntAbilityRun( 'uptime-status', { detail: true }, { signal: controller ? controller.signal : undefined, silent: true } )",
 	'desktop-mode-widget-rss.js'     => "window.sntAbilityRun( 'get-rss-stats', undefined, { silent: true } )",
 	'desktop-mode-widget-queue.js'   => "window.sntAbilityRun( 'content-queue', undefined, { silent: true } )",
-	'desktop-mode-widget-cache.js'   => "window.sntAbilityRun( 'cache-freshness', undefined, { silent: true } )",
 	'desktop-mode-widget-anchors.js' => "window.sntAbilityRun( 'anchor-status', {}, { silent: true } )",
 );
 foreach ( $silent_calls as $base => $call ) {

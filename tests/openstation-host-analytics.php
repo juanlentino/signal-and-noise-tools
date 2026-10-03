@@ -235,8 +235,6 @@ namespace {
 	function wp_script_is( $handle, $status = 'enqueued' ) { return isset( $GLOBALS['__scripts'][ $handle ] ); }
 	function wp_localize_script( $handle, $object_name, $l10n ) { return true; }
 	function wp_set_script_translations( $handle, $domain = 'default', $path = '' ) { return true; }
-	const SNT_FRESHNESS_CARD_ID = 'snt-freshness-card';
-	function snt_freshness_routes() { return array( '/' ); }
 
 	// ── The REAL analytics page ───────────────────────────────────────
 	// Loaded, not stubbed: the resolvers, the reset list, the tab strip, the

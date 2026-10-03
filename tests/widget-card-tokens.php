@@ -26,9 +26,8 @@
  *     `--os-ui-color-text-subtle`;
  *  4. every `--os-ui-color-*` read carries an on-dark fallback (no
  *     light-theme grey);
- *  5. the four pollers listen on `visibilitychange`, stop while hidden and
- *     catch up on reveal only when stale; the cache card gates its reveal
- *     refresh on the last run's age;
+ *  5. the pollers listen on `visibilitychange`, stop while hidden and
+ *     catch up on reveal only when stale;
  *  6. the status colours stay literal (the negative control: the contract
  *     has no name for them).
  *
@@ -44,7 +43,8 @@ function strip_js( $js ) {
 
 $root  = dirname( __DIR__ );
 $files = glob( $root . '/assets/desktop-mode-widget*.js' );
-ok( count( $files ) >= 11, 'the widget scan found every widget script (' . count( $files ) . ', floor 11)' );
+ok( count( $files ) >= 10, 'the widget scan found every widget script (' . count( $files ) . ', floor 10)' );
+ok( ! in_array( $root . '/assets/desktop-mode-widget-cache.js', $files, true ), 'the cache widget script is gone: the desktop carries no always-on cache readout' );
 
 $code = array();
 foreach ( $files as $path ) {
@@ -74,7 +74,7 @@ foreach ( $files as $path ) {
 }
 
 // Link sites: each file that paints a card link reads the accent token.
-$link_files = array( 'desktop-mode-widget-anchors.js', 'desktop-mode-widget-health.js', 'desktop-mode-widget-cache.js', 'desktop-mode-widget-uptime.js', 'desktop-mode-widget-machine-readers.js', 'desktop-mode-widget-queue.js', 'desktop-mode-widget-cron.js', 'desktop-mode-widget-views.js', 'desktop-mode-widget.js', 'desktop-mode-widget-rss.js' );
+$link_files = array( 'desktop-mode-widget-anchors.js', 'desktop-mode-widget-health.js', 'desktop-mode-widget-uptime.js', 'desktop-mode-widget-machine-readers.js', 'desktop-mode-widget-queue.js', 'desktop-mode-widget-cron.js', 'desktop-mode-widget-views.js', 'desktop-mode-widget.js', 'desktop-mode-widget-rss.js' );
 foreach ( $link_files as $name ) {
 	ok( isset( $code[ $name ] ) && false !== strpos( $code[ $name ], 'color:var(--os-ui-color-accent, #4a9eff)' ), "$name paints its link on --os-ui-color-accent with the plugin blue as fallback" );
 }
@@ -102,10 +102,6 @@ foreach ( array( 'desktop-mode-widget-rss.js', 'desktop-mode-widget-queue.js' ) 
 	ok( false === strpos( $js, 'window.setInterval( refresh, REFRESH_MS )' ), "$name runs no bare interval" );
 }
 ok( false === strpos( $code['desktop-mode-widget-queue.js'], "'focus'" ), 'the queue card no longer refreshes on every window focus (reveal-when-stale covers it)' );
-$cache = $code['desktop-mode-widget-cache.js'];
-ok( false === strpos( $cache, "document.addEventListener( 'visibilitychange', refresh )" ), 'the cache card no longer refreshes unconditionally on every visibilitychange' );
-ok( false !== strpos( $cache, 'if ( document.hidden || Date.now() - lastRunMs < 60000 ) { return; }' ), 'the cache card refreshes on reveal only when the last run is older than the poll' );
-ok( false !== strpos( $cache, 'lastRunMs = Date.now();' ), 'the cache card stamps the last run when it calls the ability' );
 
 // 5b. Focus-aware cadence (assets/snt-poll-cadence.js): full rate focused,
 // IDLE_MS when only visible, instant catch-up on return. Measured under a
@@ -116,15 +112,14 @@ $cadence     = strip_js( (string) $cadence_src );
 ok( false !== strpos( $cadence, 'var IDLE_MS = 5 * 60 * 1000;' ), 'the cadence idles at 5 minutes' );
 ok( false !== strpos( $cadence, 'window.top' ) && false !== strpos( $cadence, 'doc.hasFocus()' ), 'focus is read from the TOP document: an iframe window taking focus is still the owner working in the desktop' );
 ok( false !== strpos( $cadence, "return 'visible' === state() ? Math.max( focusedMs, IDLE_MS ) : focusedMs;" ), 'only visible-but-unfocused slows down; focused keeps the widget\'s own rate' );
-foreach ( array( 'desktop-mode-widget.js', 'desktop-mode-widget-uptime.js', 'desktop-mode-widget-queue.js', 'desktop-mode-widget-cache.js' ) as $name ) {
+foreach ( array( 'desktop-mode-widget.js', 'desktop-mode-widget-uptime.js', 'desktop-mode-widget-queue.js' ) as $name ) {
 	$js = $code[ $name ];
 	ok( false !== strpos( $js, 'window.sntPollCadence ? window.sntPollCadence.onFocusChange( onVisibilityChange ) : function() {}' ) && false !== strpos( $js, 'unwatchFocus();' ), "$name re-arms on focus change and drops the watcher at teardown" );
 	ok( false !== strpos( $js, 'window.sntPollCadence ? window.sntPollCadence.wait(' ), "$name asks the cadence for its wait, and keeps its fixed rate when the helper is absent" );
 }
 ok( false !== strpos( $code['desktop-mode-widget.js'], 'nextAt = lastAt + Math.max( lastDelay, cadence( REFRESH_MS ) );' ), 'the deploy card: a failure backoff still wins when longer than the cadence' );
-ok( false !== strpos( $code['desktop-mode-widget-cache.js'], "summary.last === 'pending' ? 15000 : idleWait()" ), 'the cache card keeps its 15 s poll while a purge is pending, whatever the focus' );
 $assets_php = (string) file_get_contents( dirname( __DIR__ ) . '/inc/desktop-mode-assets.php' );
-ok( 4 === substr_count( $assets_php, "'snt-poll-cadence' )" ), 'the four pollers (deploy, queue, cache, uptime) declare the cadence as a dependency' );
+ok( 3 === substr_count( $assets_php, "'snt-poll-cadence' )" ), 'the three pollers (deploy, queue, uptime) declare the cadence as a dependency' );
 
 // 6. Negative control: the status colours have no widget token and stay literal.
 ok( false !== strpos( $code['desktop-mode-widget.js'], "'#3fb950'" ) && false !== strpos( $code['desktop-mode-widget.js'], "'#d29922'" ) && false !== strpos( $code['desktop-mode-widget.js'], "'#ff9d94'" ), 'the deploy card keeps its green, amber and red status glyphs literal' );

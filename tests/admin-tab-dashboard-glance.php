@@ -138,7 +138,6 @@ require_once __DIR__ . '/../inc/dash-signals.php';      // v11.30.0: signals wit
 require_once __DIR__ . '/../inc/dash-systems.php';      // v11.30.0: the systems grid
 require_once __DIR__ . '/../inc/dash-ops-panels.php';    // v11.30.0: the wall's panels
 require_once __DIR__ . '/../inc/admin-tab-dashboard.php';
-require_once __DIR__ . '/../inc/freshness-indicator.php'; // v8.5.1: freshness card appended to the grid
 
 function dg_contains( $h, $n, $msg ) {
 	global $pass, $fail;
@@ -172,17 +171,13 @@ dg_assert( in_array( 'Cron', $labels, true ), 'includes a Cron card (snt_cron_su
 // it has read 0 since it shipped, so it fails the earning rule on both counts.
 dg_assert( ! in_array( 'Login blocks 7d', $labels, true ), 'LOGIN BLOCKS IS CUT — the Security tab owns it' );
 dg_assert( in_array( 'Views 7d', $labels, true ), 'includes a Views card (analytics configured)' );
-dg_assert( in_array( 'Caches', $labels, true ), 'includes the Caches freshness card (v8.5.1)' );
-$has_freshness_id = false;
-foreach ( $cards as $c ) {
-	if ( is_array( $c ) && ( $c['id'] ?? '' ) === 'snt-freshness-card' ) { $has_freshness_id = true; break; }
-}
-dg_assert( $has_freshness_id, 'the freshness card carries id=snt-freshness-card' );
+$card_ids = array_filter( array_map( static function ( $c ) { return is_array( $c ) ? (string) ( $c['id'] ?? '' ) : ''; }, $cards ) );
+dg_assert( ! in_array( 'Caches', $labels, true ) && array() === $card_ids, 'NO Caches card: the wall carries no always-on cache readout, and no card waits on a script to fill it' );
 dg_assert( in_array( 'Provenance', $labels, true ), 'includes a Provenance card (configured)' );
 
 // Grouped order: release/integrity then runtime/audience. v11.28.0 drops the
 // Login blocks slot; the rest of the deliberate reading order is unchanged.
-$expected_order = array( 'Theme', 'Plugin', 'Deploys', 'Provenance', 'Health', 'Cron', 'Caches', 'Views 7d', 'AI spend 30d' );
+$expected_order = array( 'Theme', 'Plugin', 'Deploys', 'Provenance', 'Health', 'Cron', 'Views 7d', 'AI spend 30d' );
 dg_assert( $labels === $expected_order, 'cards render in the grouped order (release/integrity, then runtime/audience)' );
 
 // Provenance card content: confirmed count + pending pill.

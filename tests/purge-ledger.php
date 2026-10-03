@@ -120,8 +120,6 @@ ok( ! snt_purge_ran_recently( 'update', 900, $now + 1000 ), 'not after 15 minute
 ok( ! snt_purge_ran_recently( 'manual', 900, $now ), 'another trigger does not count' );
 $src = (string) file_get_contents( __DIR__ . '/../inc/deploy-history.php' );
 ok( 2 === substr_count( $src, "snt_purge_ran_recently( 'update', 15 * MINUTE_IN_SECONDS )" ) && false !== strpos( $src, "'object_cache' => false, 'trigger' => 'rollover'" ), 'the rollover checks it when queued AND when it runs (a delayed cron), and never flushes Redis' );
-$js = (string) file_get_contents( __DIR__ . '/../assets/freshness-dot.js' );
-ok( preg_match( "/return cssLoads\\(canonHtml\\)\\.then\\(function \\(ok\\) \\{\\s*if \\(!ok\\) \\{ return 'broken'; \\}\\s*return stale \\? 'stale' : 'fresh';/", $js ), 'the card checks the stylesheet even when the renders agree' );
 
 echo "\nTwo writers do not drop each other's row\n";
 $GLOBALS['opt'] = array( SNT_PURGE_LEDGER_OPTION . '_lock' => time() - 60 );

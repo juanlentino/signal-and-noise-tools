@@ -1,6 +1,10 @@
 <?php
 /**
- * The "Last purge" compare line — v13.71.1.
+ * The freshness phrase, v13.71.1. It was born as the "Last purge" compare
+ * line on the classic dashboard box; that cell is gone (purging is automated,
+ * the cache speaks only when the automation failed) and the phrase lives on in
+ * snt_cf_freshness_phrase(), which the attention queue, the note dossier and
+ * the cache-freshness ability still print. This file pins the words.
  *
  * THREE PHRASINGS SHIPPED BEFORE THIS ONE, all the same mistake:
  *   v13.70.0  "9 still stale"          — a retained-log tally as a live count
@@ -29,9 +33,7 @@ function add_action( ...$a ) { return true; }
 function apply_filters( $t, $v ) { return $v; }
 function human_time_diff( $a, $b = 0 ) { $d = abs( (int) $b - (int) $a ); return $d < 3600 ? intdiv( $d, 60 ) . ' mins' : intdiv( $d, 3600 ) . ' hours'; }
 
-// v13.87.2: load the shared producer too. Classic Admin delegates to it and
-// the OpenStation widget renders the same string out of the summary, so the
-// two surfaces cannot phrase one verdict differently.
+// v13.87.2: one producer, so no two surfaces phrase one verdict differently.
 require_once __DIR__ . '/../inc/cloudflare-purge-verify.php';
 require_once __DIR__ . '/../inc/dash-widgets-render.php';
 
@@ -40,7 +42,7 @@ echo "Last-purge compare line — v13.71.1\n\n";
 $NOW = 1_800_000_000;
 
 // ─── one event, one question ────────────────────────────────────────────────
-ok( 'verified 4 mins ago' === snt_dash_freshness_compare( 'fresh', $NOW - 240, $NOW ), 'fresh: says WHEN it was verified — a true statement about the event the cell is labelled for' );
+ok( 'verified 4 mins ago' === snt_cf_freshness_phrase( 'fresh', $NOW - 240, $NOW ), 'fresh: says WHEN it was verified, a true statement about the event the cell is labelled for' );
 // v13.86.0 — WAS 'still stale after 4 mins'. There is no recheck: the probe
 // records one verdict, escalates once to a zone purge, and stops. So "still"
 // asserted a PRESENT state nothing had measured, on the strength of a probe
@@ -49,29 +51,30 @@ ok( 'verified 4 mins ago' === snt_dash_freshness_compare( 'fresh', $NOW - 240, $
 // edge nobody had looked at since. The desktop widget already said "Edge
 // served a stale render", past tense, which is why the two surfaces disagreed
 // in tone about one row.
-ok( 'last verdict 4 mins ago' === snt_dash_freshness_compare( 'stale', $NOW - 240, $NOW ), 'stale: reports WHEN the verdict was taken, and claims nothing about now' );
-ok( false === strpos( snt_dash_freshness_compare( 'stale', $NOW - 86400, $NOW ), 'still' ), 'a day-old stale verdict does not claim the edge is STILL stale — nothing rechecked it' );
-ok( 'unread 4 mins ago' === snt_dash_freshness_compare( 'unknown', $NOW - 240, $NOW ), 'unknown is NOT fresh: the probe ran and could not read an answer' );
+ok( 'last verdict 4 mins ago' === snt_cf_freshness_phrase( 'stale', $NOW - 240, $NOW ), 'stale: reports WHEN the verdict was taken, and claims nothing about now' );
+ok( false === strpos( snt_cf_freshness_phrase( 'stale', $NOW - 86400, $NOW ), 'still' ), 'a day-old stale verdict does not claim the edge is STILL stale: nothing rechecked it' );
+ok( 'unread 4 mins ago' === snt_cf_freshness_phrase( 'unknown', $NOW - 240, $NOW ), 'unknown is NOT fresh: the probe ran and could not read an answer' );
 
 // ─── THE OWNER RULING: no history in this cell ──────────────────────────────
 foreach ( array( 'fresh', 'stale', 'unknown' ) as $verdict ) {
-	$line = snt_dash_freshness_compare( $verdict, $NOW - 240, $NOW );
+	$line = snt_cf_freshness_phrase( $verdict, $NOW - 240, $NOW );
 	ok( 0 === preg_match( '/\bof\s+\d+\b|probes|earlier|still stale after \d+ probes/', str_replace( 'last verdict 4 mins ago', '', $line ) ),
 		"[$verdict] carries no tally over other probes — \"if it's fresh, it is fresh\"" );
 }
 
 // ─── a missing or impossible timestamp is not an age ────────────────────────
-ok( 'no timing recorded' === snt_dash_freshness_compare( 'fresh', 0, $NOW ), 'no timestamp: says so rather than inventing an age' );
-ok( 'no timing recorded' === snt_dash_freshness_compare( 'fresh', $NOW + 60, $NOW ), 'a FUTURE stamp is a broken clock, never a very fresh purge' );
+ok( 'no timing recorded' === snt_cf_freshness_phrase( 'fresh', 0, $NOW ), 'no timestamp: says so rather than inventing an age' );
+ok( 'no timing recorded' === snt_cf_freshness_phrase( 'fresh', $NOW + 60, $NOW ), 'a FUTURE stamp is a broken clock, never a very fresh purge' );
 
-// ─── REGRESSION: the three retired phrasings ────────────────────────────────
-$src    = (string) file_get_contents( __DIR__ . '/../inc/dash-widgets-render.php' );
-$src_nc = (string) preg_replace( '#/\*.*?\*/#s', '', $src );
-ok( false !== strpos( $src, 'still stale' ) && false !== strpos( $src, 'earlier' ), 'VACUITY: the retired phrasings ARE quoted in the file (in comments), so a comment-stripped scan is doing real work' );
+// ─── THE CELL IS GONE, and so are the three retired phrasings ───────────────
+$src = (string) file_get_contents( __DIR__ . '/../inc/dash-widgets-render.php' );
+ok( false === strpos( $src, 'Last purge' ) && false === strpos( $src, 'snt_cf_freshness_summary' ) && ! function_exists( 'snt_dash_freshness_compare' ),
+	'the classic Operations box carries NO "Last purge" cell: no always-on cache readout, and no helper left behind for one' );
 foreach ( array( '%d still stale', 'earlier probes stale', 'of %2$d probes stale' ) as $retired ) {
-	ok( false === strpos( $src_nc, $retired ), 'REGRESSION: "' . $retired . '" survives only as an explanation, never as a string the widget can print' );
+	ok( false === strpos( $src, $retired ), 'REGRESSION: "' . $retired . '" is not a string the widget can print' );
 }
-ok( 1 === preg_match( '/\$fresh\[.last_time.\]/', $src ), 'the cell reads last_time — the field that was in the summary all along and went unused while the cell reported a tally instead' );
+ok( array() === array_filter( snt_dwx_ops_signals(), static function ( $cell ) { return false !== stripos( (string) ( $cell['label'] ?? '' ), 'purge' ); } ),
+	'and the signals the box paints name no purge' );
 
 // ─── the history has somewhere to live ──────────────────────────────────────
 $cf = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
@@ -92,20 +95,6 @@ ok( snt_cf_freshness_headline( 'pending' ) !== snt_cf_freshness_headline( 'fresh
 	&& snt_cf_freshness_headline( 'pending' ) !== snt_cf_freshness_headline( 'stale' ),
 	'the headline distinguishes pending from BOTH verdicts — it is not a quiet pass' );
 
-// ── THE TWO SURFACES MUST SAY THE SAME THING (v13.87.2) ──────────────────
-// Owner ruling 2026-09-03. They used to phrase one verdict two ways — "still
-// stale after 4 mins" in Classic Admin beside "Edge served a stale render" in
-// OpenStation — because each built its own sentence. Two implementations
-// agreeing is a coincidence; one producer is the guarantee, so this asserts
-// the delegation rather than the wording.
-foreach ( array( 'fresh', 'stale', 'unknown' ) as $state ) {
-	ok(
-		snt_dash_freshness_compare( $state, $NOW - 240, $NOW ) === snt_cf_freshness_phrase( $state, $NOW - 240, $NOW ),
-		"PARITY: both surfaces render one phrase for '$state'"
-	);
-}
-ok( snt_dash_freshness_compare( 'fresh', 0, $NOW ) === snt_cf_freshness_phrase( 'fresh', 0, $NOW ),
-	'PARITY holds for the no-timestamp case too' );
 ok( '' !== snt_cf_freshness_headline( 'fresh' ) && snt_cf_freshness_headline( 'stale' ) !== snt_cf_freshness_headline( 'fresh' ),
 	'the shared headline distinguishes the states it is asked to distinguish' );
 

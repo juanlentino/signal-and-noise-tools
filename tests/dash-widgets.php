@@ -309,12 +309,13 @@ ok( false === strpos( $html['sn_dash_machines'], 'class="sn-dwx__li"' ),
 	'and renders NO skeleton rows server-side — an invented row count is a claim about unread data' );
 
 echo "\nActions on the two boxes whose desktop counterparts have one\n";
-foreach ( array( 'sn_dash_ops' => 'signal-noise/purge-all-caches', 'sn_dash_provenance' => 'signal-noise/anchor-sweep' ) as $id => $ability ) {
+foreach ( array( 'sn_dash_ops' => 'signal-noise/clear-template-overrides', 'sn_dash_provenance' => 'signal-noise/anchor-sweep' ) as $id => $ability ) {
 	ok( false !== strpos( $html[ $id ], 'data-sn-dwx-action="' . $ability . '"' ), "$id wires the $ability button" );
 	ok( false !== strpos( $html[ $id ], 'class="button button-small sn-dwx__btn"' ),
 		"$id uses core's own .button class, so it looks like wp-admin rather than a bespoke control" );
 	ok( false !== strpos( $html[ $id ], 'sn-dwx__result' ), "$id has somewhere to report the outcome" );
 }
+ok( false === strpos( $html['sn_dash_ops'], 'purge-all-caches' ), 'sn_dash_ops carries NO purge button: purging is automated, the command stays in the palette' );
 foreach ( array( 'sn_dash_audience', 'sn_dash_machines' ) as $id ) {
 	ok( false === strpos( $html[ $id ], 'sn-dwx__actions' ), "$id is a readout and carries NO write button" );
 }

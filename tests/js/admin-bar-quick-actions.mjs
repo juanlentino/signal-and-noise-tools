@@ -85,12 +85,12 @@ const ctx = {
 	},
 	fetch: ( url, init ) => {
 		fetches.push( { url, body: String( init && init.body ) } );
-		return Promise.resolve( { ok: true, json: () => Promise.resolve( { success: true, data: { message: 'All caches purged.' } } ) } );
+		return Promise.resolve( { ok: true, json: () => Promise.resolve( { success: true, data: { message: 'Mock action done.' } } ) } );
 	},
 	confirm: () => windowConfirmAnswer,
 	sntAbilityRun: ( ability, input ) => {
 		runs.push( { ability, input } );
-		return Promise.resolve( { ok: true, message: 'All caches purged.' } );
+		return Promise.resolve( { ok: true, message: 'Mock action done.' } );
 	},
 };
 ctx.window = ctx;
@@ -116,20 +116,20 @@ function scenario( name, pass, detail ) {
 }
 
 // 1. A plain click paints exactly one toast with the response's message and
-//    throws nothing. Purge All Caches has no confirm on either surface.
-links[ 'sn-quick-purge-caches' ].click();
+//    throws nothing. Force Update Check has no confirm on either surface.
+links[ 'sn-quick-force-update-check' ].click();
 await settle();
 const landed = 'shell' === surface ? toasts : painted;
 const message = 'shell' === surface ? ( toasts[ 0 ] && toasts[ 0 ].message ) : ( painted[ 0 ] && painted[ 0 ].textContent );
 scenario(
 	'a click paints the toast',
-	1 === landed.length && 'All caches purged.' === message && 0 === unhandled.length,
+	1 === landed.length && 'Mock action done.' === message && 0 === unhandled.length,
 	'toasts=' + landed.length + ' message=' + JSON.stringify( message || null ) + ' unhandled=' + JSON.stringify( unhandled )
 );
 scenario(
 	'the request fired once and the label restored',
-	1 === ( 'shell' === surface ? runs : fetches ).length && links[ 'sn-quick-purge-caches' ].textContent === '⌘ sn-quick-purge-caches' && ! links[ 'sn-quick-purge-caches' ].dataset.snBusy,
-	'requests=' + ( 'shell' === surface ? runs : fetches ).length + ' label=' + JSON.stringify( links[ 'sn-quick-purge-caches' ].textContent )
+	1 === ( 'shell' === surface ? runs : fetches ).length && links[ 'sn-quick-force-update-check' ].textContent === '⌘ sn-quick-force-update-check' && ! links[ 'sn-quick-force-update-check' ].dataset.snBusy,
+	'requests=' + ( 'shell' === surface ? runs : fetches ).length + ' label=' + JSON.stringify( links[ 'sn-quick-force-update-check' ].textContent )
 );
 
 // 2. The destructive item. On the shell the gate is asynchronous and core's

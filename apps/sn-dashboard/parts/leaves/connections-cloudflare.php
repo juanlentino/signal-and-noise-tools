@@ -131,7 +131,7 @@ function paint_connections_cloudflare( array $ctx ) {
 		. \snt_kit_esc( __( "for the dashboard-side Cache Rule that turns on HTML caching to begin with: without that, purging clears nothing useful (origin pages aren't cached at the edge).", 'signal-and-noise-tools' ) );
 	$cache = \snt_kit_section(
 		__( 'Cache', 'signal-and-noise-tools' ),
-		cloudflare_status_html( $d ) . cloudflare_purge_html( $d ) . '<p class="snt-hint">' . $caching . '</p>',
+		cloudflare_status_html( $d ) . '<p class="snt-hint">' . $caching . '</p>',
 		'',
 		array( 'stack' => true )
 	);

@@ -24,10 +24,10 @@
  *   2. assets/admin.js binds on DOMContentLoaded, which fired long before the
  *      window opened and never fires again. It now publishes an idempotent
  *      `window.snAdmin.init( root )`; this file calls it after every paint.
- *   3. The nine leaf-owned scripts the host appends (Cron's buttons, the
- *      uptime panel, the provenance stepper, the freshness dot, the analytics
- *      brush) each armed themselves ONCE, against the window's first paint —
- *      which holds nothing but a spinner. This file therefore dispatches a
+ *   3. The leaf-owned scripts the host appends (Cron's buttons, the
+ *      uptime panel, the provenance stepper, the analytics brush) each
+ *      armed themselves ONCE, against the window's first paint, which
+ *      holds nothing but a spinner. This file therefore dispatches a
  *      `snt:paint` CustomEvent on `document` at the end of every pass, with
  *      the painted root in `detail.root`, and each of those scripts re-arms
  *      from it. It is dispatched on `document`, not on the root, so a script

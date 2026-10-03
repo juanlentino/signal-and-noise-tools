@@ -694,8 +694,7 @@ function home_operations_html( array $data, $tab ) {
 		. '<h2 id="snt-home-ops-heading">' . esc_html__( 'Operations', 'signal-and-noise-tools' ) . '</h2>'
 		. '</div>';
 
-	// The wall stays whole (freshness-dot.js fills its Caches card after load)
-	// but folds behind one line; deploys and the maintenance bar are the
+	// The wall stays whole but folds behind one line; deploys and the maintenance bar are the
 	// Deploy Status and Quick Actions widgets' job, not Home's.
 	$out .= \snt_kit_tag(
 		'os-disclosure',
@@ -754,24 +753,11 @@ function systems_html( array $checks, array $components, $tab ) {
 		$state = ( 'ok' !== $kind && \sn_admin_card_wants_attention( $card ) ) ? $kind : '';
 		$value = (string) ( $card['value'] ?? '' );
 		$go    = go_target( (string) ( $card['href'] ?? '' ) );
-		// 15.3.2: an ASYNC card (Caches: snt_freshness_card()) renders "Checking…"
-		// and assets/freshness-dot.js finds it BY ID and writes the live verdict
-		// into `.sn-glance-card__value`. The classic wall learned this in
-		// v11.30.0/v11.30.1; the port dropped both, so the native Home read
-		// "Checking…" forever under a meta line that already said "verified fresh".
-		// 15.10.1: the filler finds the value by a DATA ATTRIBUTE, not by the
-		// classic `.sn-glance-card__value` class. Borrowing that class brought
-		// the classic stylesheet with it (color: var(--sn-text), the light
-		// admin's near-black) and the value painted as a dark, unreadable
-		// figure on the dark leaf; the classic `.sn-pill--ok` did the same to
-		// the badge. The attribute carries no style.
-		$id     = (string) ( $card['id'] ?? '' );
-		$vattr  = '' !== $id ? ' data-snt-freshness-value="1"' : '';
 		$body  = null !== $go
-			? \snt_kit_go( $value, $go + array( 'current' => $tab ), array( 'class' => 'snt-sys__v' . ( '' !== $id ? ' sn-glance-card__value' : '' ) ) )
-			: '<span class="snt-sys__v"' . $vattr . '>' . \snt_kit_esc( $value ) . '</span>';
+			? \snt_kit_go( $value, $go + array( 'current' => $tab ), array( 'class' => 'snt-sys__v' ) )
+			: '<span class="snt-sys__v">' . \snt_kit_esc( $value ) . '</span>';
 		$pill  = (string) ( $card['pill']['text'] ?? '' );
-		$cells[] = '<div class="snt-sys' . ( '' !== $state ? ' snt-sys--' . \snt_kit_esc( $state ) : '' ) . '"' . ( '' !== $id ? ' id="' . \snt_kit_esc( $id ) . '"' : '' ) . ( '' !== $state ? ' data-tone="' . \snt_kit_tone( $state ) . '"' : '' ) . '>'
+		$cells[] = '<div class="snt-sys' . ( '' !== $state ? ' snt-sys--' . \snt_kit_esc( $state ) : '' ) . '"' . ( '' !== $state ? ' data-tone="' . \snt_kit_tone( $state ) . '"' : '' ) . '>'
 			. '<span class="snt-sys__k">' . \snt_kit_esc( (string) ( $card['label'] ?? '' ) ) . '</span>'
 			. $body
 			. ( '' !== $pill && 'ok' !== $kind ? \snt_kit_badge( $kind, $pill ) : '' )
@@ -839,8 +825,7 @@ function detail_html( array $panels, $group = 'ops', $heading = null ) {
  * @return string
  */
 function toolbar_html( $check_updates_url ) {
-	$buttons = \snt_kit_action_button( __( 'Purge all caches', 'signal-and-noise-tools' ), 'purge_caches' )
-		. \snt_kit_action_button( __( 'Clear overrides', 'signal-and-noise-tools' ), 'clear_overrides' );
+	$buttons = \snt_kit_action_button( __( 'Clear overrides', 'signal-and-noise-tools' ), 'clear_overrides' );
 	if ( '' !== (string) $check_updates_url ) {
 		$buttons .= \snt_kit_door( __( 'Check for updates', 'signal-and-noise-tools' ), (string) $check_updates_url, array( 'variant' => 'secondary' ) );
 	}

@@ -93,23 +93,17 @@ ok( false !== strpos( $h, 'sn-sig--unmeasured' ), 'an unmeasured signal is marke
 ok( false === strpos( $h, 'sn-ops__panel' ),
 	'THE BOXED OPS PANELS ARE GONE — the detail columns group with rules and whitespace instead' );
 
-// ── AN ASYNC CARD MUST SPEAK THE FILLER'S LANGUAGE ──────────────────────────
-// v11.30.2. Carrying the id (v11.30.1) was necessary and not sufficient:
-// assets/freshness-dot.js finds the card by id, then replaces the text inside
-// `.sn-glance-card__value` and reuses `.sn-pill`. The systems cell had neither,
-// so the JS left "Checking…" in place and APPENDED its verdict pill underneath —
-// the card ended up showing a stale placeholder and a fresh answer at once.
-echo "\nGroup: async cells carry the contract their filler reads\n";
-$async = array( 'label' => 'Caches', 'value' => 'Checking…', 'id' => 'snt-freshness-card', 'pill' => array( 'kind' => 'ok' ) );
-ob_start(); sn_dash_render_system_cell( $async ); $cell = ob_get_clean();
-ok( false !== strpos( $cell, 'id="snt-freshness-card"' ), 'the cell keeps its id' );
-ok( false !== strpos( $cell, 'sn-glance-card__value' ),
-	'AND THE VALUE CARRIES THE CLASS THE FILLER REPLACES — without it the placeholder is permanent' );
-
-$plain = array( 'label' => 'Health', 'value' => '0 findings', 'pill' => array( 'kind' => 'ok' ) );
-ob_start(); sn_dash_render_system_cell( $plain ); $plain_cell = ob_get_clean();
-ok( false === strpos( $plain_cell, 'sn-glance-card__value' ),
-	'a card with no id is not async and does not carry the hook — the coupling is declared, not sprayed' );
+// ── NO CELL WAITS ON A SCRIPT ───────────────────────────────────────────────
+// The Caches card was the one async cell: it rendered "Checking…" under an id
+// and assets/freshness-dot.js filled it. The card and its filler are gone, so
+// a cell is its server-rendered value and carries no hook for anything else.
+echo "\nGroup: no cell carries a filler hook\n";
+$hooked = array( 'label' => 'Health', 'value' => '0 findings', 'id' => 'some-id', 'pill' => array( 'kind' => 'ok' ) );
+ob_start(); sn_dash_render_system_cell( $hooked ); $cell = ob_get_clean();
+ok( false === strpos( $cell, ' id="' ) && false === strpos( $cell, 'sn-glance-card__value' ),
+	'a card id is not painted and the value carries no filler class: nothing writes into the wall after load' );
+ok( ! file_exists( __DIR__ . '/../assets/freshness-dot.js' ) && ! file_exists( __DIR__ . '/../inc/freshness-indicator.php' ) && ! function_exists( 'snt_freshness_card' ),
+	'the Caches card, its module and its script are gone' );
 
 // ── SURFACE: FOUR CARDS, NOT TEN, AND NOT ZERO ──────────────────────────────
 // v11.30.3. v11.30.0 removed every drawn box on Few's data-pixel argument and
@@ -204,19 +198,18 @@ ok( false !== strpos( $split, '>Top queries · clicks, 28 days</h2>' ) && strpos
 
 // ── THE CELL RENDERS WHAT THE CARD ACTUALLY CARRIES ─────────────────────────
 // v11.31.0. Glance cards carry `meta_html` — a pre-escaped detail line built by
-// the source (snt_freshness_report_meta() writes the "last purge" summary into
-// it). The systems cell dropped it, so a fact the plugin had already computed
+// the source. The systems cell dropped it, so a fact the plugin had already computed
 // never reached the screen. Rendering data you already hold costs nothing and
 // is the cheapest density there is.
 echo "\nGroup: cells carry their meta line\n";
 ob_start(); sn_dash_render_system_cell( array(
-	'label' => 'Caches', 'value' => '3 / 3 fresh', 'pill' => array( 'kind' => 'ok' ),
-	'meta_html' => '<em>last purge 4m ago</em>',
+	'label' => 'Views 7d', 'value' => '1,204', 'pill' => array( 'kind' => 'ok' ),
+	'meta_html' => '<em>up 12%</em>',
 ) ); $withmeta = ob_get_clean();
 ok( false !== strpos( $withmeta, 'sn-sys__meta' ), 'a card with meta_html renders a meta line' );
-ok( false !== strpos( $withmeta, 'last purge 4m ago' ), 'carrying the source-built detail' );
+ok( false !== strpos( $withmeta, 'up 12%' ), 'carrying the source-built detail' );
 ok( false !== strpos( $withmeta, '<em>' ),
-	'AS HTML, NOT ESCAPED TEXT — the source escapes at build (snt_freshness_report_meta), and re-escaping would print the tags' );
+	'AS HTML, NOT ESCAPED TEXT: the source escapes at build, and re-escaping would print the tags' );
 
 ob_start(); sn_dash_render_system_cell( array( 'label' => 'Health', 'value' => '0 findings', 'pill' => array( 'kind' => 'ok' ) ) ); $nometa = ob_get_clean();
 ok( false === strpos( $nometa, 'sn-sys__meta' ), 'a card without one renders no empty line' );
