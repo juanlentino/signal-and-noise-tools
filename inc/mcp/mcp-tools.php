@@ -166,6 +166,16 @@ function sn_mcp_schema_needs_wrap( $output_schema ) {
 }
 
 /**
+ * Whether an output schema's root can be a JSON list. PURE.
+ *
+ * @param mixed $schema The ability's declared output_schema.
+ * @return bool
+ */
+function sn_mcp_schema_root_is_list( $schema ) {
+	return is_array( $schema ) && in_array( 'array', (array) ( $schema['type'] ?? array() ), true );
+}
+
+/**
  * Project an ability's output_schema into the advertised MCP outputSchema. When
  * the root already guarantees an object (sn_mcp_schema_needs_wrap is false),
  * normalize as before. Otherwise wrap it: {type:object, properties:{result:
@@ -648,7 +658,10 @@ function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
 		// The inner value gets the same empty-array→{} discipline as the top
 		// level: an object|null-union ability returning an EMPTY object would
 		// otherwise wrap as {"result":[]} and fail its own advertised schema.
-		$out = array( 'result' => ( is_array( $out ) && array() === $out ) ? (object) array() : $out );
+		// 21.0.1: unless the schema root is a LIST. get-cron-history returns []
+		// for a hook that never fired; cast to {} it failed its own "array"
+		// schema and the read errored exactly when the answer was "none yet".
+		$out = array( 'result' => ( is_array( $out ) && array() === $out && ! sn_mcp_schema_root_is_list( $ability->get_output_schema() ) ) ? (object) array() : $out );
 	}
 
 	// v13.51.0: the advertised-schema re-check. Runs on the WRAPPED value

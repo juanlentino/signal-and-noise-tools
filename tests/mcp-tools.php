@@ -199,6 +199,19 @@ $GLOBALS['__abilities']['signal-noise/purge-verification-log'] = new SN_Test_Abi
 $ic = sn_mcp_call_tool( 'signal-noise__purge-verification-log', array() );
 ok( is_object( $ic['result']['structuredContent']['result'] ?? null ), 'wrapped empty-array result: inner value casts to an object so it encodes {} not []' );
 
+// 21.0.1: but a LIST-rooted ability returning no rows must stay []. Cast to
+// {} it failed its own advertised schema, so get-cron-history errored for
+// every hook that had not fired yet.
+$GLOBALS['__abilities']['signal-noise/get-cron-history'] = new SN_Test_Ability( 'signal-noise/get-cron-history', array(
+	'label' => 'Cron history', 'description' => 'Firings, newest first.',
+	'output_schema' => array( 'type' => 'array', 'items' => array( 'type' => 'object' ) ),
+	'result' => array(),
+) );
+$eh = sn_mcp_call_tool( 'signal-noise__get-cron-history', array( 'hook' => 'never_fired' ) );
+ok( array() === ( $eh['result']['structuredContent']['result'] ?? null ) && empty( $eh['result']['isError'] ), 'a list-rooted ability with no rows stays an empty list and is not an error' );
+ok( '{"result":[]}' === wp_json_encode( $eh['result']['structuredContent'] ?? null ), 'and encodes {"result":[]}' );
+ok( sn_mcp_schema_root_is_list( array( 'type' => 'array' ) ) && sn_mcp_schema_root_is_list( array( 'type' => array( 'array', 'null' ) ) ) && ! sn_mcp_schema_root_is_list( array( 'type' => array( 'object', 'null' ) ) ) && ! sn_mcp_schema_root_is_list( array() ), 'the list test reads the schema root, unions included' );
+
 // --- P2/P3: object|null-rooted ability returning null wraps too — null stays legal
 //     INSIDE properties.result (the get-narration/get-insights no-scan-yet class) ---
 // v13.0.0: vehicle moved get-narration → anchor-status (doored; the
