@@ -67,7 +67,7 @@ function snt_freshness_card() {
 		foreach ( $week['by_trigger'] as $t => $n ) {
 			$parts[] = $t . ' ' . (int) $n;
 		}
-		$meta .= ( '' !== $meta ? '<br>' : '' ) . esc_html( sprintf( 'Purges this week: %d%s', (int) $week['last_7_days'], $parts ? ' (' . implode( ', ', $parts ) . ')' : '' ) );
+		$meta .= ( '' !== $meta ? '<br>' : '' ) . esc_html( sprintf( 'Purges this week: %s%d%s', ! empty( $week['last_7_days_is_floor'] ) ? 'at least ' : '', (int) $week['last_7_days'], $parts ? ' (' . implode( ', ', $parts ) . ')' : '' ) );
 	}
 	if ( '' !== $meta ) {
 		$card['meta_html'] = $meta;
@@ -156,9 +156,9 @@ function snt_freshness_enqueue( $hook_suffix ) {
 	wp_localize_script( 'sn-freshness-dot', 'sntFreshness', array(
 		'routes' => array_map( static function ( $p ) { return home_url( $p ); }, snt_freshness_routes() ),
 		'cardId' => SNT_FRESHNESS_CARD_ID,
-		// 20.7.0: the newest purge, so a stale reading right after one says
+		// 20.7.0: the newest purge that cleared the edge, so a stale reading right after one says
 		// "refreshing" instead of asking for another purge.
-		'lastPurge' => function_exists( 'snt_purge_ledger_rows' ) ? (int) ( snt_purge_ledger_rows()[0]['time'] ?? 0 ) : 0,
+		'lastPurge' => function_exists( 'snt_purge_ledger_last_edge' ) ? snt_purge_ledger_last_edge() : 0,
 	) );
 	wp_enqueue_script( 'sn-freshness-dot' );
 }

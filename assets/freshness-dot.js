@@ -78,8 +78,12 @@
 				if (canon !== fresh) { stale = true; }
 			}
 			if (compared === 0) { return 'unknown'; }
-			if (!stale) { return 'fresh'; }
-			return cssLoads(canonHtml).then(function (ok) { return ok ? 'stale' : 'broken'; });
+			// The stylesheet is checked either way: a deleted or undeployed
+			// current hash breaks the page even when both renders agree.
+			return cssLoads(canonHtml).then(function (ok) {
+				if (!ok) { return 'broken'; }
+				return stale ? 'stale' : 'fresh';
+			});
 		});
 	}
 

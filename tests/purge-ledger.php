@@ -17,6 +17,8 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 $GLOBALS['opt'] = array(); $GLOBALS['doing'] = array(); $GLOBALS['cron'] = false; $GLOBALS['sched'] = array();
 function get_option( $k, $d = false ) { return $GLOBALS['opt'][ $k ] ?? $d; }
 function update_option( $k, $v ) { $GLOBALS['opt'][ $k ] = $v; return true; }
+function add_option( $k, $v ) { if ( isset( $GLOBALS['opt'][ $k ] ) ) { return false; } $GLOBALS['opt'][ $k ] = $v; return true; }
+function delete_option( $k ) { unset( $GLOBALS['opt'][ $k ] ); return true; }
 function add_action() {}
 function doing_action( $h ) { return in_array( $h, $GLOBALS['doing'], true ); }
 function wp_doing_cron() { return $GLOBALS['cron']; }
@@ -89,7 +91,30 @@ ok( snt_purge_ran_recently( 'update', 900, $now ), 'an update purge 2 minutes ag
 ok( ! snt_purge_ran_recently( 'update', 900, $now + 1000 ), 'not after 15 minutes' );
 ok( ! snt_purge_ran_recently( 'manual', 900, $now ), 'another trigger does not count' );
 $src = (string) file_get_contents( __DIR__ . '/../inc/deploy-history.php' );
-ok( false !== strpos( $src, "snt_purge_ran_recently( 'update', 15 * MINUTE_IN_SECONDS )" ) && false !== strpos( $src, "'object_cache' => false, 'trigger' => 'rollover'" ), 'the rollover checks it, and never flushes Redis when it does run' );
+ok( 2 === substr_count( $src, "snt_purge_ran_recently( 'update', 15 * MINUTE_IN_SECONDS )" ) && false !== strpos( $src, "'object_cache' => false, 'trigger' => 'rollover'" ), 'the rollover checks it when queued AND when it runs (a delayed cron), and never flushes Redis' );
+$js = (string) file_get_contents( __DIR__ . '/../assets/freshness-dot.js' );
+ok( preg_match( "/return cssLoads\\(canonHtml\\)\\.then\\(function \\(ok\\) \\{\\s*if \\(!ok\\) \\{ return 'broken'; \\}\\s*return stale \\? 'stale' : 'fresh';/", $js ), 'the card checks the stylesheet even when the renders agree' );
+
+echo "\nTwo writers do not drop each other's row\n";
+$GLOBALS['opt'] = array( SNT_PURGE_LEDGER_OPTION . '_lock' => time() - 60 );
+snt_purge_ledger_add( array( 'trigger' => 'update' ) );
+ok( 1 === count( snt_purge_ledger_rows() ) && ! isset( $GLOBALS['opt'][ SNT_PURGE_LEDGER_OPTION . '_lock' ] ), 'a crashed writer\'s stale lock is taken over, the row lands, the lock is released' );
+$src = (string) file_get_contents( __DIR__ . '/../inc/purge-ledger.php' );
+ok( false !== strpos( $src, '! add_option( $lock' ), 'the append holds a lock (add_option fails when the name exists)' );
+
+echo "\nThe refreshing window counts from an edge purge\n";
+$GLOBALS['opt'] = array();
+snt_purge_ledger_add( array( 'trigger' => 'update', 'edge' => true ) );
+$GLOBALS['opt'][ SNT_PURGE_LEDGER_OPTION ][0]['time'] = 1000;
+snt_purge_ledger_add( array( 'trigger' => 'cron:x', 'edge' => false ) );
+ok( 1000 === snt_purge_ledger_last_edge(), 'a newer purge that never reached the edge does not count' );
+
+echo "\nA full ring inside the week says its counts are a floor\n";
+$GLOBALS['opt'] = array();
+for ( $i = 0; $i < SNT_PURGE_LEDGER_CAP; $i++ ) { snt_purge_ledger_add( array( 'trigger' => 'manual' ) ); }
+ok( true === snt_purge_ledger_summary()['last_7_days_is_floor'], '50 purges inside the week: at least 50' );
+$GLOBALS['opt'][ SNT_PURGE_LEDGER_OPTION ][ SNT_PURGE_LEDGER_CAP - 1 ]['time'] = time() - 8 * DAY_IN_SECONDS;
+ok( false === snt_purge_ledger_summary()['last_7_days_is_floor'], 'control: the oldest row is older than the week, so the count is exact' );
 
 echo "\nThe summary\n";
 $GLOBALS['opt'] = array();

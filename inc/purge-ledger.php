@@ -31,9 +31,40 @@ const SNT_PURGE_LEDGER_CAP    = 50;
  * @return void
  */
 function snt_purge_ledger_add( array $row ) {
+	// Overlapping purges are what this ledger exists to see, so two writers
+	// must not drop each other's row. add_option() fails when the name exists
+	// (one INSERT on a unique key), which makes it a lock; a lock older than
+	// 10 seconds is a crashed writer and is taken over.
+	$lock = SNT_PURGE_LEDGER_OPTION . '_lock';
+	for ( $i = 0; $i < 20 && ! add_option( $lock, time(), '', false ); $i++ ) {
+		if ( (int) get_option( $lock, 0 ) < time() - 10 ) {
+			delete_option( $lock );
+			continue;
+		}
+		usleep( 100000 );
+	}
+	if ( function_exists( 'wp_cache_delete' ) ) {
+		wp_cache_delete( SNT_PURGE_LEDGER_OPTION, 'options' ); // Read the row the other writer just stored.
+	}
 	$rows = snt_purge_ledger_rows();
 	array_unshift( $rows, array_merge( array( 'time' => time() ), $row ) );
 	update_option( SNT_PURGE_LEDGER_OPTION, array_slice( $rows, 0, SNT_PURGE_LEDGER_CAP ), false );
+	delete_option( $lock );
+}
+
+/**
+ * When the edge was last purged (0 when never): the card's "refreshing"
+ * window counts from a purge that cleared Cloudflare, not any purge.
+ *
+ * @return int
+ */
+function snt_purge_ledger_last_edge() {
+	foreach ( snt_purge_ledger_rows() as $r ) {
+		if ( ! empty( $r['edge'] ) ) {
+			return (int) ( $r['time'] ?? 0 );
+		}
+	}
+	return 0;
 }
 
 /**
@@ -186,8 +217,13 @@ function snt_purge_ledger_summary( $now = null ) {
 		$t           = (string) ( $r['trigger'] ?? '?' );
 		$count[ $t ] = ( $count[ $t ] ?? 0 ) + 1;
 	}
+	// The ring holds SNT_PURGE_LEDGER_CAP rows. When it is full and its oldest
+	// row is inside the week, more purges happened than it kept: the counts
+	// are a floor, and a purge storm is exactly when that happens.
+	$oldest = $rows ? (int) ( end( $rows )['time'] ?? 0 ) : 0;
 	return array(
 		'last_7_days'         => count( $week ),
+		'last_7_days_is_floor' => count( $rows ) >= SNT_PURGE_LEDGER_CAP && $oldest >= $now - 7 * DAY_IN_SECONDS,
 		'by_trigger'          => $count,
 		'redis_flushes_7d'    => count( array_filter( $week, static fn( $r ) => ! empty( $r['redis'] ) ) ),
 		'breeze_update_purge' => snt_purge_breeze_update_purge_hooked() ? 'hooked' : 'removed',

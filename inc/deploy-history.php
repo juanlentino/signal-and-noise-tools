@@ -430,6 +430,11 @@ add_action( 'admin_init', 'snt_deploy_history_version_check' );
  * (matches the dashboard "Purge All Caches" semantics).
  */
 function snt_deploy_history_purge_rollover_run() {
+	// 20.7.0: checked again here, not only when queued: a delayed cron can
+	// run this after the update purge it was meant to stand in for.
+	if ( function_exists( 'snt_purge_ran_recently' ) && snt_purge_ran_recently( 'update', 15 * MINUTE_IN_SECONDS ) ) {
+		return;
+	}
 	if ( has_filter( 'sn_purge_all_caches_result' ) ) {
 		// 20.7.0: page caches only, like the update purge; never all of Redis.
 		(int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false, 'object_cache' => false, 'trigger' => 'rollover' ) );
