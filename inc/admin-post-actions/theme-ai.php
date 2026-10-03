@@ -36,11 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return array<string,string>
  */
 function sn_theme_ai_models() {
-	return array(
-		'claude-sonnet-5'   => 'Claude Sonnet 5 (balanced, default)',
-		'claude-opus-4-8'   => 'Claude Opus 4.8 (most capable)',
-		'claude-haiku-4-5'  => 'Claude Haiku 4.5 (fastest, cheapest)',
-	);
+	return sn_ai_models( 'prose' ); // 20.10.0: inc/ai-model-catalog.php.
 }
 
 /**
@@ -52,11 +48,7 @@ function sn_theme_ai_models() {
  * @return array<string,string>
  */
 function sn_theme_ai_vision_models() {
-	return array(
-		'gemini-2.5-flash-lite' => 'Gemini 2.5 Flash-Lite (default: fast, cheap vision)',
-		'gemini-2.5-flash'      => 'Gemini 2.5 Flash (stronger vision)',
-		'gemini-2.5-pro'        => 'Gemini 2.5 Pro (strongest: slower, pricier)',
-	);
+	return sn_ai_models( 'vision' ); // 20.10.0: inc/ai-model-catalog.php.
 }
 
 /**

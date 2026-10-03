@@ -36,6 +36,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once dirname( __DIR__ ) . '/ai-model-catalog.php'; // the model defaults and lists (20.10.0).
+
 /**
  * Render the AI settings form. Used as the sn_admin_render_section() callback
  * for the AI tab's 'models-budget' sub-tab.
@@ -43,8 +45,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @since 10.46.0
  */
 function sn_admin_render_ai_settings_form() {
-	$model     = (string) sn_setting( 'theme.ai_model', 'claude-sonnet-5' );
-	$alt_model = (string) sn_setting( 'theme.ai_alt_model', 'gemini-2.5-flash-lite' );
+	$model     = (string) sn_setting( 'theme.ai_model', sn_ai_default_model() );
+	$alt_model = (string) sn_setting( 'theme.ai_alt_model', sn_ai_default_vision_model() );
 	$budget    = (float) sn_setting( 'theme.ai_monthly_budget', 0 );
 	$spent     = function_exists( 'snt_ai_spend_this_month' ) ? (float) snt_ai_spend_this_month() : 0.0;
 
@@ -72,6 +74,7 @@ function sn_admin_render_ai_settings_form() {
 	echo '</select>';
 	echo '<p class="sn-field-helper">' . esc_html__( 'Used for AI-assisted prose features (drafts, insights, meta descriptions).', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
+	echo '<p class="sn-field-helper">' . esc_html( sn_ai_models_status_line() . ' ' . sn_ai_prices_status_line() ) . '</p>';
 
 	echo '<div class="sn-field sn-field-w-md">';
 	echo '<label class="sn-field-label" for="sn_theme_ai_alt_model">' . esc_html__( 'Vision model (alt text)', 'signal-and-noise-tools' ) . '</label>';

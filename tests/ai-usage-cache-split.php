@@ -37,8 +37,8 @@ $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "ok   — $m\n"; } else { $fail++; echo "FAIL — $m\n"; } }
 function near( $a, $b ) { return abs( $a - $b ) < 1e-9; }
 
-$RATE_IN  = 3.0;   // claude-sonnet-5 input  $/MTok
-$RATE_OUT = 15.0;  // claude-sonnet-5 output $/MTok
+$RATE_IN  = 3.0;   // claude-sonnet-4-6 input (Sonnet 5 lists at $2/$10 since 20.10.0)  $/MTok
+$RATE_OUT = 15.0;  // claude-sonnet-4-6 output $/MTok
 
 // ── The multipliers are the load-bearing constants ───────────────────────
 ok( near( SN_AI_CACHE_WRITE_MULT, 1.25 ), 'cache WRITE multiplier is 1.25x input' );
@@ -49,10 +49,10 @@ ok( near( SN_AI_CACHE_READ_MULT, 0.1 ), 'cache READ multiplier is 0.1x input' );
 // prompt=9000 and bill all of it at 1.0x.
 $split    = array( 'in' => 1000, 'cache_write' => 0, 'cache_read' => 8000 );
 $expected = ( 1000 * 1.0 + 0 * 1.25 + 8000 * 0.1 ) * $RATE_IN / 1e6 + 500 * $RATE_OUT / 1e6;
-$actual   = snt_ai_estimate_cost( 'claude-sonnet-5', 9000, 500, $split );
+$actual   = snt_ai_estimate_cost( 'claude-sonnet-4-6', 9000, 500, $split );
 ok( near( $actual, $expected ), 'split pricing bills cache reads at 0.1x, not 1.0x' );
 
-$flat = snt_ai_estimate_cost( 'claude-sonnet-5', 9000, 500 );
+$flat = snt_ai_estimate_cost( 'claude-sonnet-4-6', 9000, 500 );
 ok( $actual < $flat, 'the split price is strictly cheaper than the flattened price' );
 // The whole point: the flattened figure over-bills. Assert the RELATIONSHIP
 // (how much cheaper) rather than a literal dollar amount.
@@ -61,10 +61,10 @@ ok( near( $flat / $actual, ( 9000 * 1.0 + 500 * ( $RATE_OUT / $RATE_IN ) ) / ( 1
 // Cache WRITES cost MORE than fresh input — a split that is all-write must be
 // dearer than the flattened figure, or the multiplier is wired backwards.
 $w_split = array( 'in' => 0, 'cache_write' => 9000, 'cache_read' => 0 );
-ok( snt_ai_estimate_cost( 'claude-sonnet-5', 9000, 500, $w_split ) > $flat, 'an all-write split is DEARER than flat (1.25x), so the multipliers are not inverted' );
+ok( snt_ai_estimate_cost( 'claude-sonnet-4-6', 9000, 500, $w_split ) > $flat, 'an all-write split is DEARER than flat (1.25x), so the multipliers are not inverted' );
 
 // ── Backward compatibility: the 3-arg form is untouched ──────────────────
-ok( near( snt_ai_estimate_cost( 'claude-sonnet-5', 1000, 1000 ), ( 1000 * $RATE_IN + 1000 * $RATE_OUT ) / 1e6 ), '3-arg form still prices the old way' );
+ok( near( snt_ai_estimate_cost( 'claude-sonnet-4-6', 1000, 1000 ), ( 1000 * $RATE_IN + 1000 * $RATE_OUT ) / 1e6 ), '3-arg form still prices the old way' );
 ok( near( snt_ai_estimate_cost( 'some-unknown-model', 1000, 500, $split ), 0.0 ), 'unknown model still returns 0.0 even with a split (no fabricated rate)' );
 
 // ── The observation queue ────────────────────────────────────────────────

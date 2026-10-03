@@ -52,9 +52,11 @@ function snt_ai_register_alt_text_model_route() {
 				// v7.3.0: the settings dropdown (theme.ai_alt_model) feeds the
 				// DEFAULT; the snt_ai_alt_text_model filter still wins for
 				// code-level pins. Absent setting = the original pin.
+				// 20.10.0: the default comes from the catalog (inc/ai-model-catalog.php).
+				$alt_pin     = function_exists( 'sn_ai_default_vision_model' ) ? sn_ai_default_vision_model() : 'gemini-3.1-flash-lite';
 				$alt_default = function_exists( 'sn_setting' )
-					? (string) sn_setting( 'theme.ai_alt_model', 'gemini-2.5-flash-lite' )
-					: 'gemini-2.5-flash-lite';
+					? (string) sn_setting( 'theme.ai_alt_model', $alt_pin )
+					: $alt_pin;
 				return (string) apply_filters( 'snt_ai_alt_text_model', $alt_default );
 			}
 			return $model;
