@@ -87,16 +87,19 @@ function sn_hn_refresh( $now ) {
 	if ( '' === $error ) {
 		$items = sn_hn_merge( $items, $found['hits'], $host, $now );
 	}
-	// Newest first, so the cap keeps the stories most likely to be moving.
-	$young = array_slice( array_filter( $items, static fn( $r ) => (int) $r['created'] > $now - SN_HN_LIVE_DAYS * DAY_IN_SECONDS ), 0, SN_HN_LIVE_MAX, true );
-	// A story no longer read live is not "on the front page now"; its best
-	// position is kept.
-	foreach ( array_diff_key( $items, $young ) as $id => $row ) {
+	$young = array_filter( $items, static fn( $r ) => (int) $r['created'] > $now - SN_HN_LIVE_DAYS * DAY_IN_SECONDS );
+	// A rank is a reading of NOW. Every row starts this run at 0 and only a
+	// top list read in this run sets it again, so an aged-out story, or a run
+	// whose top-list read failed, never reports a saved position as current.
+	foreach ( array_keys( $items ) as $id ) {
 		$items[ $id ]['rank'] = 0;
 	}
+	// Newest first, so the cap on the per-story reads keeps the stories most
+	// likely to be moving; the rank below is read for every young story.
+	$detail = array_slice( $young, 0, SN_HN_LIVE_MAX, true );
 	$top   = $young ? sn_hn_get( 'https://hacker-news.firebaseio.com/v0/topstories.json' ) : null;
 	foreach ( array_keys( $young ) as $id ) {
-		$live = is_array( $top ) ? sn_hn_get( 'https://hacker-news.firebaseio.com/v0/item/' . (int) $id . '.json' ) : null; // the API just failed once: do not wait on it again.
+		$live = is_array( $top ) && isset( $detail[ $id ] ) ? sn_hn_get( 'https://hacker-news.firebaseio.com/v0/item/' . (int) $id . '.json' ) : null; // a failed top list: the API is down, do not wait on it again.
 		if ( is_array( $live ) ) {
 			$items[ $id ]['points']   = (int) ( $live['score'] ?? $items[ $id ]['points'] );
 			$items[ $id ]['comments'] = (int) ( $live['descendants'] ?? $items[ $id ]['comments'] );

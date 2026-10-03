@@ -58,8 +58,12 @@ $GLOBALS['opt'] = array( SN_HN_OPT => array( 'items' => array( 4 => array( 'id' 
 $items = sn_hn_refresh( $now );
 ok( 5 === SN_HN_LIVE_MAX && 5 === count( array_filter( $GLOBALS['calls'], static fn( $c ) => false !== strpos( $c[0], '/item/' ) ) ), 'eight young stories, five live reads: a slow API cannot hold the alert run' );
 ok( 0 === $items[4]['rank'] && 9 === $items[4]['best_rank'], 'a story that aged out is no longer "on the front page"; its best position is kept' );
+$GLOBALS['http']['topstories'] = array( 1, 2, 108 ); $GLOBALS['calls'] = array();
+$items = sn_hn_refresh( $now );
+ok( 3 === $items[108]['rank'], 'the cap is on the per-story reads only: the eighth young story is still ranked from the top list' );
 $GLOBALS['http']['topstories'] = null; $GLOBALS['calls'] = array();
-sn_hn_refresh( $now );
+$items = sn_hn_refresh( $now );
+ok( 0 === $items[108]['rank'] && 3 === $items[108]['best_rank'], 'a failed top-list read leaves no current rank: a saved position is never reported as now' );
 ok( 0 === count( array_filter( $GLOBALS['calls'], static fn( $c ) => false !== strpos( $c[0], '/item/' ) ) ), 'the official API failing on the top list is not asked again five times' );
 ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/hn-mentions.php' ), "preg_replace( '/^www\\./', '', strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) ) )" ), 'the search uses the bare host, so a www site still finds a story posted without it' );
 
