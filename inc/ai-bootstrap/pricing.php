@@ -70,9 +70,10 @@ function snt_ai_model_pricing() {
 		'gemini-2.5-flash-lite' => array( 'in' => 0.10, 'out' => 0.40 ),
 		'gemini-2.5-flash'      => array( 'in' => 0.30, 'out' => 2.50 ),
 		// 20.10.0: the Gemini 3 family, standard paid tier, text/image input, from
-		// ai.google.dev/gemini-api/docs/pricing (read 2026-10-03). 3.8 Flash is
-		// held at its STANDARD rate: Google bills half of it ($0.75/$3.75)
-		// through 2026-12-31, so until then this estimate reads high for it.
+		// ai.google.dev/gemini-api/docs/pricing (read 2026-10-03). This table
+		// holds 3.8 Flash at its STANDARD rate; Google bills half of it
+		// ($0.75/$3.75) through 2026-12-31, and the daily price read below
+		// carries that billed rate while it is fresh.
 		'gemini-3.1-flash-lite' => array( 'in' => 0.25, 'out' => 1.50 ),
 		'gemini-3.5-flash-lite' => array( 'in' => 0.30, 'out' => 2.50 ),
 		'gemini-3.8-flash'      => array( 'in' => 1.50, 'out' => 7.50 ),
