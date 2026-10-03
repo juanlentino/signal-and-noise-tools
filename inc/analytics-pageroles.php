@@ -4,7 +4,8 @@
  *
  * One table, two roles:
  *   role='entry' — landing pages: a pageview whose referrer (blob3) is external
- *                  or direct. Fed live by a daily AE rollup (see Task 2) wired
+ *                  or direct, and not an internal click (double10 = 1, worker
+ *                  1.23.0 on; inc/analytics-referrer-kind.php). Fed live by a daily AE rollup (see Task 2) wired
  *                  into the existing rollup cron, AND (historically) back-
  *                  filled from Plausible CSV (importer retired at 9.0.0).
  *   role='exit'  — last page of a visit. Fed live since v9.66.0 by the nightly
@@ -264,6 +265,12 @@ function sn_analytics_top_exit_pages( $from, $to, $limit = 25 ) {
  * unproven AE shape in this module. Stubbed tests cannot catch a 422 — the owner
  * MUST run this query once against live AE after deploy (v5.3.0 lesson).
  *
+ * Unreleased: the worker folds a self-referral to blob3 = '', so that clause
+ * counted every internal click as a landing. sn_analytics_not_internal_click_sql()
+ * drops them from the worker 1.23.0 cutover on (double10 = 1); earlier rows
+ * cannot be told apart and count as before. The same live-AE gate applies to
+ * the new clause: run the built string once after deploy.
+ *
  * @param int    $days Trailing window in days (floored to >= 1).
  * @param string $tz   Optional IANA zone (sn_analytics_site_tz_name()); '' = UTC.
  * @return string AE SQL.
@@ -283,7 +290,7 @@ function sn_analytics_pageroles_rollup_sql( $days, $tz = '' ) {
 		'count(DISTINCT index1) AS visits',
 		'FROM ' . SN_ANALYTICS_DATASET,
 		"WHERE blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(),
-		"AND ( blob3 = '' OR blob3 NOT IN ('{$host}','www.{$host}') )",
+		"AND ( blob3 = '' OR blob3 NOT IN ('{$host}','www.{$host}') )" . sn_analytics_not_internal_click_sql(),
 		"AND timestamp >= {$lower}" . sn_analytics_window_upper( $tz ),
 		'GROUP BY day, path',
 		'ORDER BY day DESC, views DESC',

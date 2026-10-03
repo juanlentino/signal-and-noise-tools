@@ -186,6 +186,9 @@ ok( strpos( $hd, '>degraded ' ) !== false, 'header: the degraded decision has it
 // Worker v1.10.0: 'lockout' — the escalated throttle. Added WITH the release
 // that emits it, rather than discovered missing later the way 'degraded' was.
 ok( strpos( $hd, '>lockout ' ) !== false, 'header: the lockout decision has its own breakdown pill' );
+// Guard 1.14.0: 'account_throttle', the per-account limit. Added with the
+// release that emits it, so it never reads as an unknown decision.
+ok( strpos( $hd, '>account_throttle ' ) !== false, 'header: the account_throttle decision has its own breakdown pill' );
 foreach ( array( 'block', 'pass', 'bypass', 'killswitch' ) as $sn_lg_d ) {
 	ok( strpos( $hd, '>' . $sn_lg_d . ' ' ) !== false, "header: the $sn_lg_d decision pill survives" );
 }

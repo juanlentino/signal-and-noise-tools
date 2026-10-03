@@ -101,9 +101,14 @@ function sn_login_defense_kpis_from_rows( $rows ) {
 	// reported block rate. A decision the producer can emit and this file cannot
 	// name is the failure 'degraded' already taught this surface once.
 	$locked_out = $by['lockout'] ?? 0;
-	$checked    = $blocked + $throttled + $locked_out + ( $by['pass'] ?? 0 );
-	$rate       = $checked > 0 ? (int) round( $blocked / $checked * 100 ) : 0;
-	return array( 'checked' => $checked, 'blocked' => $blocked, 'throttled' => $throttled, 'locked_out' => $locked_out, 'block_rate' => $rate, 'breakdown' => $by );
+	// Worker v1.14.0: 'account_throttle' is the per-account limit (10 POSTs per
+	// 15 minutes per account, across all IPs). Same shape again: checked, passed
+	// the denylist, then refused. Its own key, because "one IP is hammering" and
+	// "one account is being stuffed from many IPs" are different findings.
+	$account_throttled = $by['account_throttle'] ?? 0;
+	$checked           = $blocked + $throttled + $locked_out + $account_throttled + ( $by['pass'] ?? 0 );
+	$rate              = $checked > 0 ? (int) round( $blocked / $checked * 100 ) : 0;
+	return array( 'checked' => $checked, 'blocked' => $blocked, 'throttled' => $throttled, 'locked_out' => $locked_out, 'account_throttled' => $account_throttled, 'block_rate' => $rate, 'breakdown' => $by );
 }
 
 /**

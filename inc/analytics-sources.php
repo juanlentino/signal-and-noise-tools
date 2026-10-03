@@ -32,6 +32,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-referrer-kind.php'; // SN_ANALYTICS_INTERNAL_REFERRER, the value the referrer dim stores for an internal click
+
 /**
  * The site's own host(s) — home_url host + its www variant, lowercased. Mirrors
  * the self-referral exclusion sn_analytics_pageroles_rollup_sql() applies at the
@@ -68,7 +70,7 @@ function sn_analytics_self_hosts() {
  */
 function sn_analytics_normalize_host( $host ) {
 	$h = strtolower( trim( (string) $host ) );
-	if ( '' === $h || '(direct)' === $h || '(unknown)' === $h ) {
+	if ( '' === $h || '(direct)' === $h || '(unknown)' === $h || SN_ANALYTICS_INTERNAL_REFERRER === $h ) {
 		return $h;
 	}
 	$pos = strpos( $h, '://' );
@@ -125,7 +127,9 @@ function sn_analytics_source_rules() {
 		$r( 'Instagram',   'social', array(),                  array( 'instagram.' ) ),
 		$r( 'LinkedIn',    'social', array( 'lnkd.in' ),       array( 'linkedin.' ) ),
 		$r( 'Reddit',      'social', array( 'redd.it' ),       array( 'reddit.' ) ),
-		$r( 'Hacker News', 'social', array(),                  array( 'ycombinator' ) ),
+		// The exact entry is the Materialistic app's Android bundle id: the worker
+		// stores android-app://io.github.hidroh.materialistic/ as its host.
+		$r( 'Hacker News', 'social', array( 'io.github.hidroh.materialistic' ), array( 'ycombinator' ) ),
 		$r( 'Lobsters',    'social', array(),                  array( 'lobste.rs' ) ),
 		$r( 'YouTube',     'social', array( 'youtu.be' ),      array( 'youtube.' ) ),
 		$r( 'Mastodon',    'social', array(),                  array( 'mastodon' ) ),
@@ -144,7 +148,7 @@ function sn_analytics_source_rules() {
 /**
  * Referrer value → canonical source label. Self-referrals + empty/sentinel →
  * '(direct)'; a known brand → its label; an unknown host → its bare (normalized)
- * host. $self_hosts defaults to sn_analytics_self_hosts() (pass explicitly to test
+ * host; the internal-click sentinel '(internal)' stays itself. $self_hosts defaults to sn_analytics_self_hosts() (pass explicitly to test
  * without WP).
  *
  * @param string                    $host       Raw referrer value.
@@ -155,6 +159,11 @@ function sn_analytics_canonical_source( $host, $self_hosts = null ) {
 	$h = sn_analytics_normalize_host( $host );
 	if ( null === $self_hosts ) {
 		$self_hosts = function_exists( 'sn_analytics_self_hosts' ) ? sn_analytics_self_hosts() : array();
+	}
+	// Unreleased: an internal click (worker 1.23.0, double10 = 1) keeps its own
+	// label. It is not a source and it is not "(direct)"; the folds below skip it.
+	if ( SN_ANALYTICS_INTERNAL_REFERRER === $h ) {
+		return SN_ANALYTICS_INTERNAL_REFERRER;
 	}
 	$self = array_map( 'sn_analytics_normalize_host', (array) $self_hosts );
 	if ( '' === $h || '(direct)' === $h || '(unknown)' === $h || in_array( $h, $self, true ) ) {
@@ -204,6 +213,9 @@ function sn_analytics_source_category_of_label( $label ) {
 	if ( '(direct)' === $label ) {
 		return 'direct';
 	}
+	if ( SN_ANALYTICS_INTERNAL_REFERRER === $label ) {
+		return 'internal'; // not one of the five source categories: the category fold skips it.
+	}
 	foreach ( sn_analytics_source_rules() as $rule ) {
 		if ( $rule['label'] === (string) $label ) {
 			return $rule['cat'];
@@ -245,6 +257,9 @@ function sn_analytics_top_sources( $from, $to, $class = 'human', $limit = 10 ) {
 		}
 		$value = (string) ( $row['value'] ?? '' );
 		$label = sn_analytics_canonical_source( $value, $self );
+		if ( SN_ANALYTICS_INTERNAL_REFERRER === $label ) {
+			continue; // an internal click is navigation, not how a visit arrived.
+		}
 		if ( ! isset( $acc[ $label ] ) ) {
 			$acc[ $label ] = array( 'views' => 0, 'visits' => 0, 'hosts' => array() );
 		}

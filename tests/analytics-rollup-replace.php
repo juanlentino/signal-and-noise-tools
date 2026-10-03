@@ -165,7 +165,7 @@ sn_analytics_dims_upsert( array( array( 'day' => $D, 'dim' => 'referrer', 'value
 sn_analytics_pageroles_upsert( array( array( 'day' => $D, 'role' => 'entry', 'path' => '/gone/', 'views' => 1, 'visits' => 1 ), array( 'day' => $D, 'role' => 'exit', 'path' => '/exit/', 'views' => 1, 'visits' => 1 ) ) );
 sn_analytics_events_upsert( array( array( 'day' => $D, 'name' => 'gone', 'visitors' => 1, 'events' => 1 ) ) );
 $fresh = function ( $d ) { return array( array( 'day' => $d, 'value' => 'fresh', 'class' => 'human', 'views' => 1, 'visits' => 1, 'path' => '/fresh/', 'name' => 'fresh', 'events' => 1, 'visitors' => 1 ) ); };
-$GLOBALS['ae'] = array( 'blob3 AS value' => null, 'AS value,' => array( $fresh( $D ), false ) );
+$GLOBALS['ae'] = array( 'blob3) AS value' => null, 'AS value,' => array( $fresh( $D ), false ) );
 sn_analytics_dims_run_rollup();
 ok( $db->has( 'sn_analytics_dims', $D, 'value', 'gone.example' ), 'dims: the referrer read FAILED, so its stored row stays' );
 ok( ! $db->has( 'sn_analytics_dims', $D, 'value', 'US' ), 'dims: the country read was complete, so its stale value is cleared' );

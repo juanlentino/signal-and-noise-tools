@@ -19,6 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/analytics-network-terms.php';
+require_once __DIR__ . '/analytics-referrer-kind.php'; // the ONE internal-click rule (worker 1.23.0)
 
 // Measured 2026-09 on sn_pageviews (28 days): ONE human-classed visitor-day
 // (Chrome macOS, 2026-09-22) made 258 of the 497 human page views; the next

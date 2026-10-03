@@ -174,5 +174,24 @@ unset( $GLOBALS['__src_dim']['referrer|human'] );
 ok( array() === sn_analytics_top_sources( '2026-09-01', '2026-09-07', 'human', 5 ),
 	'recovery: an empty (successful) dims read still folds to [] — a real empty window stays an ANSWER' );
 
+echo "\nGroup: Hacker News on Android, and the (internal) sentinel\n";
+ok( 'Hacker News' === sn_analytics_canonical_source( 'news.ycombinator.com' ), 'the site still folds to Hacker News' );
+// android-app://io.github.hidroh.materialistic/ is stored as its host by the worker's hostOf().
+ok( 'Hacker News' === sn_analytics_canonical_source( 'io.github.hidroh.materialistic' ), 'the Materialistic bundle id folds to Hacker News' );
+ok( 'Hacker News' === sn_analytics_canonical_source( 'android-app://io.github.hidroh.materialistic/' ), 'and so does the raw android-app referrer' );
+ok( 'social' === sn_analytics_source_category_of_label( sn_analytics_canonical_source( 'io.github.hidroh.materialistic' ) ), 'in the social category' );
+ok( 'io.github.hidroh.materialistic.evil.example' === sn_analytics_canonical_source( 'io.github.hidroh.materialistic.evil.example' ), 'the bundle id matches exactly, not as a prefix' );
+ok( '(internal)' === SN_ANALYTICS_INTERNAL_REFERRER && '(internal)' === sn_analytics_canonical_source( '(internal)' ), 'an internal click keeps its own label, never (direct)' );
+ok( 'internal' === sn_analytics_source_category_of_label( '(internal)' ), 'and its own category, never direct' );
+$GLOBALS['__src_dim'] = array( 'referrer|human' => array(
+	array( 'value' => '(internal)', 'views' => 40, 'visits' => 12 ),
+	array( 'value' => '(direct)', 'views' => 9, 'visits' => 8 ),
+	array( 'value' => 'io.github.hidroh.materialistic', 'views' => 3, 'visits' => 3 ),
+	array( 'value' => 'news.ycombinator.com', 'views' => 2, 'visits' => 2 ),
+) );
+$top = sn_analytics_top_sources( '2026-10-04', '2026-10-05', 'human', 10 );
+ok( array( '(direct)', 'Hacker News' ) === array_column( $top, 'value' ), 'top sources: an internal click is not a source; (direct) is the direct landings' );
+ok( 9 === $top[0]['views'] && 5 === $top[1]['views'] && array( 'io.github.hidroh.materialistic', 'news.ycombinator.com' ) === $top[1]['hosts'], 'top sources: (direct) no longer carries the internal clicks; both Hacker News hosts fold into one row' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

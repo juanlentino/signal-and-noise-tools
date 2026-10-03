@@ -126,6 +126,26 @@ foreach ( array( 'dims:sn_analytics_dims_rollup_sql', 'utm:sn_analytics_utm_roll
 	ok( false !== strpos( $built[ $name ], sn_analytics_excluded_path_sql() ), "$name drops the excluded paths" );
 }
 
+echo "\nGroup: an internal click is not an entry and not (direct) (worker 1.23.0, double10)\n";
+// One predicate, built once (inc/analytics-referrer-kind.php). Every builder
+// that derives "entry" or "direct" from blob3 must carry it, and no other
+// builder may, or two rollups of one stream drift again (20.4.1).
+$ic = sn_analytics_internal_click_sql();
+ok( "(double10 = 1 AND timestamp >= toDateTime('" . SN_ANALYTICS_REFKIND_CUTOVER . "'))" === $ic, 'the predicate: referrer kind 1, on or after the cutover' );
+ok( 1 === preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', SN_ANALYTICS_REFKIND_CUTOVER ) && '2026-10-03 15:10:00' === SN_ANALYTICS_REFKIND_CUTOVER, 'the cutover is the 1.23.0 deploy, a UTC literal toDateTime() takes' );
+ok( ' AND NOT ' . $ic === sn_analytics_not_internal_click_sql(), 'the WHERE form negates the same predicate' );
+ok( "if({$ic}, '" . SN_ANALYTICS_INTERNAL_REFERRER . "', blob3)" === sn_analytics_referrer_value_sql( 'blob3' ), 'the SELECT form relabels the same predicate' );
+ok( false !== strpos( $built['pageroles:sn_analytics_pageroles_rollup_sql'], "AND ( blob3 = '' OR blob3 NOT IN ('example.com','www.example.com') )" . sn_analytics_not_internal_click_sql() ), 'entry pages: the blob3 rule stays (rows before the cutover) and the internal click is dropped after it' );
+$ref_sql = sn_analytics_dims_rollup_sql( 'referrer', 7 );
+ok( false !== strpos( $ref_sql, sn_analytics_referrer_value_sql( 'blob3' ) . ' AS value,' ), 'referrer dim: an internal click is stored as (internal), never as the blank that reads (direct)' );
+ok( false === strpos( $ref_sql, sn_analytics_not_internal_click_sql() ), 'referrer dim: relabelled, not dropped, so its total still equals the country and device totals' );
+ok( array() === $ae_clause_fns( $ref_sql ) && 1 === preg_match( '/GROUP BY day, value, class/', $ref_sql ), 'referrer dim: still groups by the alias, no function in GROUP BY' );
+foreach ( $built as $name => $sql ) {
+	if ( 'pageroles:sn_analytics_pageroles_rollup_sql' !== $name ) {
+		ok( false === strpos( $sql, 'double10' ), "$name does not read the referrer kind" );
+	}
+}
+
 echo "\nGroup: group-by builders select the read-time class and group by the alias\n";
 foreach ( array( 'buckets:sn_analytics_buckets_hour_sql', 'buckets:sn_analytics_buckets_dist_sql', 'dims:sn_analytics_dims_rollup_sql', 'rollup:sn_analytics_rollup_sql', 'rollup:sn_analytics_rollup_gated_sql', 'utm:sn_analytics_utm_rollup_sql', 'realtime:sn_analytics_realtime_sql' ) as $name ) {
 	$sql = $built[ $name ];
@@ -148,6 +168,9 @@ foreach ( array(
 	sn_analytics_percentiles_sql( 'sc', 'double1', '2026-09-01', '2026-09-27', 'suspect' ),
 	sn_analytics_events_rollup_sql( 7 ),
 	sn_analytics_rollup_sql( 7 ),
+	// The two builders the internal-click rule lengthened, zoned (their longest form).
+	sn_analytics_dims_rollup_sql( 'referrer', 7, 'America/Sao_Paulo' ),
+	sn_analytics_pageroles_rollup_sql( 7, 'America/Sao_Paulo' ),
 	sn_analytics_buckets_dist_sql( 'sc', 'double1', array( array( 'lo' => 0, 'hi' => 25 ), array( 'lo' => 25, 'hi' => 50 ), array( 'lo' => 50, 'hi' => 75 ), array( 'lo' => 75, 'hi' => null ) ), 7 ),
 ) as $sql ) {
 	$longest = max( $longest, strlen( $sql ) );
