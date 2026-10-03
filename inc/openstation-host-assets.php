@@ -131,19 +131,9 @@ function snt_os_host_register_assets() {
 	if ( ! wp_script_is( 'sn-freshness-dot', 'registered' ) ) {
 		wp_register_script( 'sn-freshness-dot', plugins_url( 'assets/freshness-dot.js', $plugin_file ), array(), SNT_VERSION, true );
 		// The SAME payload snt_freshness_enqueue() attaches, from the SAME
-		// builder: a copied route list would go stale the first time the
-		// front-end routes moved.
-		if ( function_exists( 'snt_freshness_routes' ) && defined( 'SNT_FRESHNESS_CARD_ID' ) ) {
-			wp_localize_script(
-				'sn-freshness-dot',
-				'sntFreshness',
-				array(
-					'routes' => array_map( static function ( $path ) {
-						return home_url( $path );
-					}, snt_freshness_routes() ),
-					'cardId' => SNT_FRESHNESS_CARD_ID,
-				)
-			);
+		// builder (snt_freshness_payload): a copy went stale once already.
+		if ( function_exists( 'snt_freshness_payload' ) ) {
+			wp_localize_script( 'sn-freshness-dot', 'sntFreshness', snt_freshness_payload() );
 		}
 	}
 	if ( ! wp_script_is( 'snt-health-suggest-actions', 'registered' ) ) {

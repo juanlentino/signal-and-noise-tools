@@ -59,7 +59,7 @@ foreach ( array( '.snt-app .snt-cell-error' => '--os-ui-danger', '.snt-app .snt-
 
 // 3. The Caches badge on the systems wall.
 $fd = (string) file_get_contents( $root . '/assets/freshness-dot.js' );
-ok( false !== strpos( $fd, "'warning' : 'success'" ), 'freshness-dot.js sets the tone names os-badge defines (warning / success)' );
+ok( false !== strpos( $fd, "{ err: 'danger', info: 'info', ok: 'success' }[kind] || 'warning'" ), 'freshness-dot.js sets the tone names os-badge defines (danger / info / success / warning, as snt_kit_tone emits)' );
 ok( false === strpos( $fd, "'warn' : 'ok'" ), '...and never the plugin\'s pill kinds, which os-badge has no rule for' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

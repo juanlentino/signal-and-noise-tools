@@ -49,9 +49,21 @@
 			.catch(function () { return null; });
 	}
 
+	// 20.7.0: whether the stylesheet a cached page names still loads. Old hashes
+	// are kept for a week (theme 13.2.5), so an older render still dresses
+	// itself; only a missing stylesheet is a broken page.
+	function cssLoads(html) {
+		var m = (html || '').match(/https?:[^"']*sn-styles-[a-f0-9]{12}\.css/);
+		if (!m) { return Promise.resolve(true); }
+		return fetch(m[0], { method: 'HEAD', credentials: 'omit', cache: 'no-store' })
+			.then(function (r) { return r.ok; })
+			.catch(function () { return true; });
+	}
+
 	// 'fresh' when every comparable marker matches canonical(edge) vs busted (fresh
-	// origin); 'stale' when any differs; 'unknown' when a fetch fails or neither
-	// marker is present to compare.
+	// origin); 'stale' when any differs and the cached page still loads its
+	// stylesheet (an older render, it refreshes on its own); 'broken' when its
+	// stylesheet is gone; 'unknown' when a fetch fails or neither marker is present.
 	function checkRoute(url) {
 		var bust = url + (url.indexOf('?') === -1 ? '?' : '&') + 'x=' + Date.now();
 		return Promise.all([fetchText(url), fetchText(bust)]).then(function (both) {
@@ -66,7 +78,12 @@
 				if (canon !== fresh) { stale = true; }
 			}
 			if (compared === 0) { return 'unknown'; }
-			return stale ? 'stale' : 'fresh';
+			// The stylesheet is checked either way: a deleted or undeployed
+			// current hash breaks the page even when both renders agree.
+			return cssLoads(canonHtml).then(function (ok) {
+				if (!ok) { return 'broken'; }
+				return stale ? 'stale' : 'fresh';
+			});
 		});
 	}
 
@@ -79,17 +96,27 @@
 		var total = results.length;
 		var fresh = results.filter(function (r) { return r === 'fresh'; }).length;
 		var stale = results.filter(function (r) { return r === 'stale'; }).length;
+		var broken = results.filter(function (r) { return r === 'broken'; }).length;
 		var unknown = results.filter(function (r) { return r === 'unknown'; }).length;
 		var kind = null, text = '', value;
+		// A purge in the last 10 minutes: the edge is still refilling.
+		var recent = cfg.lastPurge && (Date.now() / 1000 - cfg.lastPurge) < 600;
 
 		// Primary metric: how many cache-critical routes are verified fresh (N/M),
-		// shown consistently. The pill carries the actionable state.
+		// shown consistently. The pill carries the actionable state. 20.7.0: only
+		// a broken page asks for a purge; an older render that still loads its
+		// stylesheet refreshes on its own, and asking for a purge there is what
+		// turned purging into a ritual (owner, 2026-10-03).
 		if (unknown === total) {
 			value = 'Unknown';
-		} else if (stale > 0) {
-			kind = 'warn';
+		} else if (broken > 0) {
+			kind = 'err';
 			value = fresh + '/' + total + ' fresh';
-			text = stale + ' stale · purge needed';
+			text = broken + ' broken · purge needed';
+		} else if (stale > 0) {
+			kind = 'info';
+			value = fresh + '/' + total + ' fresh';
+			text = stale + (recent ? ' refreshing after the last purge' : ' older render · refreshes on its own');
 		} else {
 			kind = 'ok';
 			value = fresh + '/' + total + ' fresh';
@@ -112,9 +139,9 @@
 				else { card.appendChild(pill); }
 			}
 			if (native) {
-				pill.setAttribute('tone', kind === 'warn' ? 'warning' : 'success');
+				pill.setAttribute('tone', { err: 'danger', info: 'info', ok: 'success' }[kind] || 'warning');
 			} else {
-				pill.className = 'sn-pill sn-pill--' + kind;
+				pill.className = 'sn-pill sn-pill--' + ({ info: 'muted' }[kind] || kind);
 			}
 			pill.textContent = text;
 		}

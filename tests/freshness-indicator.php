@@ -80,7 +80,7 @@ ok( false === strpos( $card['meta_html'], 'Varnish' ), 'a resolved report does N
 // A probed purge that resolved STALE → the actionable warning.
 $GLOBALS['__opts']['sn_last_purge_report']['resolved'] = false;
 $card = snt_freshness_card();
-ok( false !== strpos( $card['meta_html'], 'purge needed' ), 'a resolved-stale report reads as stale, purge needed' );
+ok( false !== strpos( $card['meta_html'], 'stale at its check' ) && false === strpos( $card['meta_html'], 'purge needed' ), '(changed 20.7.0) a resolved-stale report says stale, and no longer tells the reader to purge' );
 
 // An auto-purge whose deferred verify cron has not run yet → verifying, not legs.
 $GLOBALS['__opts']['sn_last_purge_report'] = array(

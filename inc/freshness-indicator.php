@@ -59,6 +59,16 @@ function snt_freshness_card() {
 		'id'    => SNT_FRESHNESS_CARD_ID,
 	);
 	$meta = snt_freshness_report_meta();
+	// 20.7.0: how often the caches were emptied, from the purge ledger. The
+	// count is the thing to keep low; a busy week is the finding.
+	if ( function_exists( 'snt_purge_ledger_summary' ) ) {
+		$week  = snt_purge_ledger_summary();
+		$parts = array();
+		foreach ( $week['by_trigger'] as $t => $n ) {
+			$parts[] = $t . ' ' . (int) $n;
+		}
+		$meta .= ( '' !== $meta ? '<br>' : '' ) . esc_html( sprintf( 'Purges this week: %s%d%s', ! empty( $week['last_7_days_is_floor'] ) ? 'at least ' : '', (int) $week['last_7_days'], $parts ? ' (' . implode( ', ', $parts ) . ')' : '' ) );
+	}
 	if ( '' !== $meta ) {
 		$card['meta_html'] = $meta;
 	}
@@ -93,7 +103,7 @@ function snt_freshness_report_meta() {
 
 	// A probed report carries the authoritative verdict — prefer it over raw legs.
 	if ( array_key_exists( 'resolved', $r ) ) {
-		return esc_html( $line . ' · ' . ( ! empty( $r['resolved'] ) ? '✓ verified fresh' : '✕ stale, purge needed' ) );
+		return esc_html( $line . ' · ' . ( ! empty( $r['resolved'] ) ? '✓ verified fresh' : '✕ stale at its check' ) );
 	}
 
 	// An auto-purge whose deferred verify cron has not run yet.
@@ -143,10 +153,24 @@ function snt_freshness_enqueue( $hook_suffix ) {
 		SNT_VERSION,
 		true
 	);
-	wp_localize_script( 'sn-freshness-dot', 'sntFreshness', array(
-		'routes' => array_map( static function ( $p ) { return home_url( $p ); }, snt_freshness_routes() ),
-		'cardId' => SNT_FRESHNESS_CARD_ID,
-	) );
+	wp_localize_script( 'sn-freshness-dot', 'sntFreshness', snt_freshness_payload() );
 	wp_enqueue_script( 'sn-freshness-dot' );
 }
 add_action( 'admin_enqueue_scripts', 'snt_freshness_enqueue' );
+
+/**
+ * The card script's payload, for both surfaces: the classic page above and
+ * the OpenStation host (inc/openstation-host-assets.php). 20.7.0: one
+ * builder, after the host's copy missed the new lastPurge field (Codex).
+ *
+ * @return array{routes:string[],cardId:string,lastPurge:int}
+ */
+function snt_freshness_payload() {
+	return array(
+		'routes'    => array_map( static function ( $p ) { return home_url( $p ); }, snt_freshness_routes() ),
+		'cardId'    => SNT_FRESHNESS_CARD_ID,
+		// The newest purge that cleared the edge, so a stale reading right
+		// after one says "refreshing" instead of asking for another purge.
+		'lastPurge' => function_exists( 'snt_purge_ledger_last_edge' ) ? snt_purge_ledger_last_edge() : 0,
+	);
+}

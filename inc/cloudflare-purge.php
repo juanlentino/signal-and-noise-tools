@@ -150,6 +150,14 @@ function sn_cf_purge_everything() {
 		'kind' => 'all',
 	), false );
 	update_option( SN_CF_LAST_ZONE_PURGE_OPT, time(), false );
+	// 20.7.0: the purge ledger. Inside the theme's chain this marks that
+	// row's edge leg; called on its own (the admin-bar button, a first
+	// publish, a scheduled transition, the probe) it is a row itself.
+	if ( isset( $GLOBALS['snt_purge_current'] ) ) {
+		$GLOBALS['snt_purge_edge'] = true;
+	} elseif ( function_exists( 'snt_purge_ledger_add' ) ) {
+		snt_purge_ledger_add( array( 'trigger' => snt_purge_trigger(), 'redis' => false, 'pages' => false, 'edge' => true, 'cloudways' => 'not run' ) );
+	}
 
 	return true;
 }
@@ -234,6 +242,10 @@ function sn_cf_purge_everything_verified() {
 		'http'       => $r['http'],
 		'cf_success' => $r['cf_success'],
 	);
+
+	if ( ! empty( $out['cf_success'] ) && isset( $GLOBALS['snt_purge_current'] ) ) {
+		$GLOBALS['snt_purge_edge'] = true; // 20.7.0: the manual purge's ledger row (Codex).
+	}
 
 	update_option( SN_CF_LAST_PURGE_OPT, array(
 		'time'       => time(),

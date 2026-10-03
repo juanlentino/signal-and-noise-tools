@@ -157,6 +157,8 @@ function wp_set_script_translations( $handle, $domain = 'default', $path = '' ) 
 // The two leaf-asset builders the seam is required to CALL rather than copy.
 const SNT_FRESHNESS_CARD_ID = 'snt-freshness-card';
 function snt_freshness_routes() { return array( '/', '/notes/' ); }
+// 20.7.0: both surfaces read one builder (inc/freshness-indicator.php).
+function snt_freshness_payload() { return array( 'routes' => array_map( static fn( $p ) => 'https://example.test' . $p, snt_freshness_routes() ), 'cardId' => SNT_FRESHNESS_CARD_ID, 'lastPurge' => 1790990000 ); }
 function snt_register_status_script() { wp_register_script( 'snt-status', SNT_URL . 'assets/snt-status.js', array(), SNT_VERSION, true ); }
 function snt_ability_run_client_register() { if ( wp_script_is( 'snt-ability-run', 'registered' ) ) { return; } wp_register_script( 'snt-ability-run', SNT_URL . 'assets/snt-ability-run.js', array( 'wp-api-fetch' ), SNT_VERSION, true ); }
 
@@ -824,8 +826,8 @@ foreach ( $handles['styles'] as $handle ) {
 foreach ( $handles['scripts'] as $handle ) {
 	ok( in_array( $handle, $args['scripts'], true ) && wp_script_is( $handle, 'registered' ), "the window carries the script $handle, registered" );
 }
-ok( array( 'sntFreshness', array( 'routes' => array( 'https://example.test/', 'https://example.test/notes/' ), 'cardId' => 'snt-freshness-card' ) ) === ( $GLOBALS['__localized']['sn-freshness-dot'] ?? null ),
-	'sn-freshness-dot carries the SAME localized payload its own enqueue attaches, built by snt_freshness_routes() -- a copied route list would go stale the first time the front end moved' );
+ok( array( 'sntFreshness', snt_freshness_payload() ) === ( $GLOBALS['__localized']['sn-freshness-dot'] ?? null ),
+	'sn-freshness-dot carries the SAME localized payload its own enqueue attaches, from snt_freshness_payload() (20.7.0: the copy here missed lastPurge, so the native card never said "refreshing")' );
 ok( array( 'wp-api-fetch', 'wp-i18n', 'snt-status', 'snt-ability-run' ) === ( $GLOBALS['__scripts']['snt-health-suggest-actions'][1] ?? array() )
 	&& wp_script_is( 'snt-status', 'registered' ) && wp_script_is( 'snt-ability-run', 'registered' ),
 	'the Suggest script keeps its four deps, and both shared utilities were registered by their OWN registrars -- a missing dep makes WP silently DROP the dependent script' );
