@@ -7,6 +7,8 @@
  *
  * Both read the sensor through snt_mr_fetch() (a 15-minute display transient
  * in front of one GET per view) and fold with inc/machine-readers-ledger.php.
+ * The crosstab also carries `unnamed`, the edge's top unmatched user-agent
+ * samples (its `unknown` view), so the bucket with agent '' can be read.
  * Neither writes, neither touches a remote twin: the summary's payload is the
  * one that hashes into SN_REMOTE_CONTRACT_VERSION and it is not changed here.
  * Same honesty contract as the summary: a sensor that did not answer is
@@ -20,6 +22,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/** How many unnamed user-agent samples the crosstab carries (the edge keeps 50). */
+const SN_MR_UNNAMED_TOP = 20;
+
 add_action( 'wp_abilities_api_init', function () {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
@@ -29,7 +34,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'description'         => 'Crawler reads at the edge over a window (days: 1-90, default 30) as family x purpose x agent cells, hits descending: `cells[]` of {family, purpose, agent, hits, days, surfaces}, where `days` is how many distinct days the cell was seen on and `surfaces` its hits per surface class. '
 			. 'Answers "which purpose did each family read for" directly, which the summary\'s per-family and per-purpose totals cannot: a family whose reads split between `train` and `search` shows as two cells. Purpose `unknown` is an UNMAPPED reader, not a reader with no purpose; `taxonomy_absent: true` means the edge sent no taxonomy at all and every purpose is unknown for that reason. '
 			. '`truncated: true` means the aggregate read hit the edge\'s row cap and the cells under-count the newest days; `total` sums the cells. User agents are self-reported: observation, never proof of identity. `ok: false` carries the sensor `error` and no cells. '
-			. '`agent_networks[]` answers "is this crawler real": per claimed agent {agent, hits, verified_hits (Cloudflare verified the client), not_measured (hits from before the edge recorded the network), networks[] of the top 5 {network, hits}}. Unverified hits from a network the vendor does not own are an impostor. Read-only.',
+			. '`agent_networks[]` answers "is this crawler real": per claimed agent {agent, hits, verified_hits (Cloudflare verified the client), not_measured (hits from before the edge recorded the network), networks[] of the top 5 {network, hits}}. Unverified hits from a network the vendor does not own are an impostor. '
+			. '`unnamed` answers "what is inside agent \'\'": the top 20 of {ua_sample, hits} from the edge\'s own list of user agents that matched no taxonomy entry (a sanitised sample the edge keeps only on a miss), hits descending. null means that list could not be read; [] means every read matched. A sample is what the client sent, not an identity. Read-only.',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_machine_readers_crosstab',
@@ -51,6 +57,9 @@ add_action( 'wp_abilities_api_init', function () {
 				'families'        => array( 'type' => 'integer' ),
 				'cells'           => array( 'type' => 'array', 'items' => array( 'type' => 'object' ) ),
 				'agent_networks'  => array( 'type' => 'array', 'items' => array( 'type' => 'object' ) ),
+				// Local only: the remote networks twin is this schema minus the
+				// crosstab fields, and tests/abilities-remote-set.php strips this one too.
+				'unnamed'         => array( 'type' => array( 'array', 'null' ), 'items' => array( 'type' => 'object' ) ),
 				'taxonomy_absent' => array( 'type' => 'boolean' ),
 				'truncated'       => array( 'type' => 'boolean' ),
 				'error'           => array( 'type' => array( 'string', 'null' ) ),
@@ -119,10 +128,11 @@ function snt_mr_ledger_days( $input ) {
 /**
  * Ability execute callback: signal-noise/get-machine-readers-crosstab.
  *
- * @param array|null $input { days?: int }.
+ * @param array|null $input        { days?: int }.
+ * @param bool       $with_unnamed False skips the unknown-view read (the remote twin drops the field).
  * @return array
  */
-function snt_ability_get_machine_readers_crosstab( $input ) {
+function snt_ability_get_machine_readers_crosstab( $input, $with_unnamed = true ) {
 	$days = snt_mr_ledger_days( $input );
 	$read = snt_mr_fetch( $days );
 	if ( empty( $read['ok'] ) ) {
@@ -134,11 +144,45 @@ function snt_ability_get_machine_readers_crosstab( $input ) {
 		snt_mr_crosstab( $rows ),
 		array(
 			'agent_networks'  => snt_mr_agent_networks( $rows ),
+			'unnamed'         => $with_unnamed ? snt_mr_unnamed_agents( $days ) : null,
 			'taxonomy_absent' => snt_mr_taxonomy_absent( $rows ),
 			'truncated'       => ! empty( $read['truncated'] ),
 			'error'           => null,
 		)
 	);
+}
+
+/**
+ * The unnamed bucket, made readable: the edge's top unmatched user-agent
+ * samples (its `unknown` view), cut to SN_MR_UNNAMED_TOP.
+ *
+ * Reads through snt_mr_fetch(), so it rides the same 15-minute transient and
+ * request memo as the admin page's own read of this view: an ability call is
+ * never an uncached worker fetch. Best-effort like the rights pair: a failed
+ * read is null (not measured), never [] (which says every read matched).
+ * Each sample is sanitised again here; one that sanitises to '' is dropped.
+ *
+ * @param int $days Window, already clamped.
+ * @return array<int,array{ua_sample:string,hits:int}>|null
+ */
+function snt_mr_unnamed_agents( $days ) {
+	$read = snt_mr_fetch( $days, 'unknown' );
+	if ( empty( $read['ok'] ) ) {
+		return null;
+	}
+	$out = array();
+	foreach ( (array) ( $read['rows'] ?? array() ) as $row ) {
+		$ua = is_array( $row ) ? snt_mr_normalize_ua_sample( $row['user_agent'] ?? ( $row['ua_sample'] ?? '' ) ) : '';
+		if ( '' !== $ua ) {
+			$out[] = array( 'ua_sample' => $ua, 'hits' => max( 0, (int) ( $row['hits'] ?? 0 ) ) );
+		}
+	}
+	// Rows that all sanitised away are not "every read matched".
+	if ( array() === $out && array() !== (array) ( $read['rows'] ?? array() ) ) {
+		return null;
+	}
+	usort( $out, static fn( $a, $b ) => $b['hits'] <=> $a['hits'] );
+	return array_slice( $out, 0, SN_MR_UNNAMED_TOP );
 }
 
 /**

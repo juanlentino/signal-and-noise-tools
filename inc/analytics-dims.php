@@ -111,6 +111,13 @@ function sn_analytics_dims_rollup_sql( $dim, $days, $tz = '' ) {
 		return '';
 	}
 	$col = SN_ANALYTICS_DIM_COLUMNS[ $dim ];
+	// Unreleased: the worker stores an internal click with a blank referrer,
+	// which read "(direct)". From worker 1.23.0 on it is stored as its own
+	// value (the one shared rule, inc/analytics-referrer-kind.php). Relabelled,
+	// not dropped: every dim still totals the same pageviews.
+	if ( 'referrer' === $dim ) {
+		$col = sn_analytics_referrer_value_sql( $col );
+	}
 	// Unreleased: the site's own day and the same lower bound as the daily
 	// rollup (one helper builds both), and the excluded paths dropped in the
 	// WHERE, so a dims total and a daily total describe the same pageviews.

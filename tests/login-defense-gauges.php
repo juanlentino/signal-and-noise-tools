@@ -362,6 +362,12 @@ $h = render_gauges_html();
 ok( strpos( $h, 'Defense gauges' ) !== false, 'gauges panel renders with its heading' );
 ok( strpos( $h, '0 fail-opens' ) !== false && strpos( $h, '0 degraded' ) !== false,
 	'healthy: zero renders as an explicit "0", never by omission' );
+// Guard 1.14.0: a corrupt meta alone is logged as a pass (both lists were
+// enforced), so 'degraded' is a corrupt LIST and the copy says which.
+ok( strpos( $h, 'degraded lists' ) !== false && strpos( $h, 'a corrupt denylist that left an address family unchecked' ) !== false,
+	'the degraded count is named as list degradation' );
+ok( strpos( $h, 'A corrupt meta alone is a pass since guard 1.14.0' ) !== false && strpos( $h, 'every one is a request the guard let through while impaired' ) === false,
+	'the let-through claim no longer covers meta-only degradation' );
 ok( strpos( $h, '7 of 7 days' ) !== false,
 	'healthy: the zero is qualified by the days the guard actually logged (7 of 7)' );
 ok( strpos( $h, '0%' ) !== false && strpos( $h, 'below' ) !== false,

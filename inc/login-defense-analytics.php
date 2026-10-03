@@ -204,7 +204,9 @@ function sn_login_defense_render_header() {
 	// 'lockout' (v1.10.0) is the escalated throttle: a run of capped windows
 	// earned a cooldown. Added WITH the worker change that emits it, because the
 	// line above is the standing rule this list keeps failing.
-	foreach ( array( 'block', 'throttle', 'lockout', 'pass', 'bypass', 'killswitch', 'degraded', 'failopen' ) as $d ) {
+	// 'account_throttle' (v1.14.0) is the per-account limit, listed with the
+	// worker release that emits it.
+	foreach ( array( 'block', 'throttle', 'lockout', 'account_throttle', 'pass', 'bypass', 'killswitch', 'degraded', 'failopen' ) as $d ) {
 		echo '<span class="sn-pill">' . esc_html( $d ) . ' '
 			. esc_html( number_format_i18n( (int) ( $kpis['breakdown'][ $d ] ?? 0 ) ) ) . '</span> ';
 	}

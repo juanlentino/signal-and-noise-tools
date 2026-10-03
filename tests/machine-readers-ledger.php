@@ -151,7 +151,37 @@ $GLOBALS['__mr'] = array(
 $GLOBALS['__mr_calls'] = array();
 $out = snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) );
 ok( true === $out['ok'] && 7 === $out['days'] && 3 === count( $out['cells'] ) && true === $out['truncated'] && false === $out['taxonomy_absent'] && is_array( $out['agent_networks'] ?? null ), 'crosstab: folds the aggregate rows and carries the truncation flag' );
-ok( array( array( 7, 'aggregate' ) ) === $GLOBALS['__mr_calls'], 'crosstab reads the aggregate view once' );
+ok( array( array( 7, 'aggregate' ), array( 7, 'unknown' ) ) === $GLOBALS['__mr_calls'], 'crosstab reads the aggregate view, then the unknown view, same window, both through the cached fetch' );
+ok( array_key_exists( 'unnamed', $out ) && null === $out['unnamed'], 'unnamed: a failed unknown read is null, never an empty list that reads as "all matched"' );
+$sn_un = array();
+for ( $i = 1; $i <= 30; $i++ ) {
+	$sn_un[] = array( 'ua_sample' => 'Bot' . $i . '/1.0', 'hits' => 100 - $i );
+}
+$sn_un[0] = array( 'user_agent' => "Evil<script>\x00Bot/2.0 (+https://x.example)", 'hits' => '99' );
+$sn_un[1] = array( 'ua_sample' => '<>', 'hits' => 98 );
+$GLOBALS['__mr']['unknown'] = array( 'ok' => true, 'rows' => $sn_un, 'truncated' => false, 'error' => null );
+$out = snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) );
+ok( SN_MR_UNNAMED_TOP === 20 && 20 === count( $out['unnamed'] ), 'unnamed: bounded to the top 20' );
+ok( array( 'ua_sample' => 'Evil script Bot/2.0 +https //x.example', 'hits' => 99 ) === $out['unnamed'][0], 'unnamed: each row is {ua_sample, hits}, the sample re-sanitised here and the hits int-cast' );
+ok( 'Bot3/1.0' === $out['unnamed'][1]['ua_sample'], 'unnamed: a sample that sanitises to nothing is dropped, not listed blank' );
+$GLOBALS['__mr']['unknown'] = array( 'ok' => true, 'rows' => array(), 'truncated' => false, 'error' => null );
+ok( array() === snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) )['unnamed'], 'unnamed: an answered read with no rows is [], every read matched the taxonomy' );
+$GLOBALS['__mr_calls'] = array();
+$GLOBALS['__mr']['unknown'] = array( 'ok' => true, 'rows' => array( array( 'user_agent' => '<>', 'hits' => 3 ) ), 'truncated' => false, 'error' => null );
+ok( '' === snt_mr_normalize_ua_sample( '<>' ) && null === snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) )['unnamed'], 'unnamed: rows that all sanitise away are null (not measured), never the every-read-matched []' );
+$GLOBALS['__mr_calls'] = array();
+$sn_rm = snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ), false );
+ok( null === $sn_rm['unnamed'] && array( array( 7, 'aggregate' ) ) === $GLOBALS['__mr_calls'], 'the remote twin\'s call skips the unknown view: one read, no second worker fetch for a field it drops' );
+$GLOBALS['__mr_calls'] = array();
+$GLOBALS['__mr']       = array( 'unknown' => array( 'ok' => true, 'rows' => $sn_un ) );
+$out                   = snt_ability_get_machine_readers_crosstab( null );
+ok( false === $out['ok'] && ! isset( $out['unnamed'] ) && array( array( 30, 'aggregate' ) ) === $GLOBALS['__mr_calls'], 'unnamed: a down sensor costs one failed read and carries no unnamed list' );
+$sn_x_reg = $GLOBALS['__ab']['signal-noise/get-machine-readers-crosstab'];
+ok( array( 'array', 'null' ) === ( $sn_x_reg['output_schema']['properties']['unnamed']['type'] ?? null ) && false !== strpos( $sn_x_reg['description'], '`unnamed`' ), 'unnamed is declared in the schema and named in the description' );
+$GLOBALS['__mr'] = array(
+	'aggregate' => array( 'ok' => true, 'rows' => $rows, 'truncated' => true, 'error' => null ),
+	'rights'    => array( 'ok' => true, 'rows' => array( $read( 'openai', '/license.xml', '2026-09-01T00:00:00Z' ) + array( 'user_agent' => 'GPTBot/1.0', 'accept' => '*/*' ) ), 'truncated' => false, 'error' => null ),
+);
 $GLOBALS['__mr_calls'] = array();
 $out = snt_ability_get_rights_reads( null );
 ok( true === $out['ok'] && 1 === count( $out['reads'] ) && 1 === count( $out['cadence'] ), 'rights reads: rows and cadence' );

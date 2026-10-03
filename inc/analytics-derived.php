@@ -30,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * 'other'.
  *
  * @param string $host Referrer host (or '(direct)' / '(unknown)' sentinel).
- * @return string 'search' | 'ai' | 'social' | 'direct' | 'other'
+ * @return string 'search' | 'ai' | 'social' | 'direct' | 'other', or 'internal' for the internal-click sentinel (no category; the fold skips it).
  */
 function sn_analytics_referrer_category( $host ) {
 	if ( ! function_exists( 'sn_analytics_canonical_source' ) ) {
@@ -75,7 +75,10 @@ function sn_analytics_referrer_categories( $from, $to, $class = 'human' ) {
 		if ( ! is_array( $r ) ) {
 			continue;
 		}
-		$cat                     = sn_analytics_referrer_category( $r['value'] ?? '' );
+		$cat = sn_analytics_referrer_category( $r['value'] ?? '' );
+		if ( ! isset( $cats[ $cat ] ) ) {
+			continue; // 'internal' (an internal click, worker 1.23.0) is navigation, not one of the five.
+		}
 		$cats[ $cat ]['views']  += (int) ( $r['views'] ?? 0 );
 		$cats[ $cat ]['visits'] += (int) ( $r['visits'] ?? 0 );
 	}

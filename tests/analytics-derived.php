@@ -191,5 +191,14 @@ ok( array_key_exists( 'top_bot_networks', $bb_f ) && null === $bb_f['top_bot_net
 	'bot-breakdown: a failed networks read carries NULL through — never a quiet empty list' );
 unset( $GLOBALS['__de_dim']['network|bot'] );
 
+echo "\nGroup: an internal click is no category (worker 1.23.0)\n";
+$GLOBALS['__de_dim']['referrer|human'] = array(
+	array( 'value' => '(internal)', 'views' => 40, 'visits' => 12 ),
+	array( 'value' => '(direct)', 'views' => 9, 'visits' => 8 ),
+);
+$sn_ic = sn_analytics_referrer_categories( '2026-10-04', '2026-10-05', 'human' );
+ok( array( 'search', 'ai', 'social', 'direct', 'other' ) === array_column( $sn_ic, 'category' ), 'categories: still the five, no sixth bucket' );
+ok( 9 === array_sum( array_column( $sn_ic, 'views' ) ) && 9 === $sn_ic[3]['views'], 'categories: the internal clicks are in no category; direct is the direct landings' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

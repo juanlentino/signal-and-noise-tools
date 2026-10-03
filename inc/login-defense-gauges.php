@@ -9,7 +9,9 @@
  * 1. FAIL-OPEN VISIBILITY. The guard's philosophy is "never lock the owner
  *    out", so its failure mode is silent permissiveness — 'failopen' (handler
  *    error, request passed) and 'degraded' (corrupted denylist enforcing
- *    nothing) are both "the door was open" states. Healthy is ZERO, and zero
+ *    nothing) are both "the door was open" states. Since guard 1.14.0 a
+ *    corrupt meta alone is a 'pass' (blob14 'meta'): the lists were enforced,
+ *    so it is not an open door and the copy does not claim it as one. Healthy is ZERO, and zero
  *    renders explicitly: absence of failure is a claim, not an omission.
  *
  *    Which is exactly why the zero is qualified by its coverage. A claim needs
@@ -411,8 +413,12 @@ function sn_login_defense_render_gauges( $days = 7 ) {
 		} else {
 			echo '<p>' . esc_html(
 				sprintf(
-					/* translators: 1: fail-open count, 2: degraded count, 3: days the guard logged, 4: day window */
-					__( '%1$s fail-opens, %2$s degraded reads over %3$s of %4$s days the guard logged — every one is a request the guard let through while impaired; healthy is exactly zero.', 'signal-and-noise-tools' ),
+					// Guard 1.14.0: a corrupt meta alone is logged as a pass (both
+					// lists were enforced and the request was checked), so
+					// 'degraded' is a corrupt LIST. The let-through claim is made
+					// for that and for a fail-open, and for nothing else.
+					/* translators: 1: fail-open count, 2: degraded-list count, 3: days the guard logged, 4: day window */
+					__( '%1$s fail-opens, %2$s degraded lists over %3$s of %4$s days the guard logged. A fail-open is a request the guard let through unchecked; a degraded list is a corrupt denylist that left an address family unchecked. A corrupt meta alone is a pass since guard 1.14.0 and is not counted here (a degraded row from an older guard may be one). Healthy is exactly zero.', 'signal-and-noise-tools' ),
 					number_format_i18n( $tot['failopen'] ),
 					number_format_i18n( $tot['degraded'] ),
 					number_format_i18n( $tot['days_covered'] ),

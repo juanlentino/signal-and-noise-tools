@@ -238,7 +238,7 @@ ok( 'snt_ability_remote_get_deploy_status' === $GLOBALS['__abilities'][ $REMOTE_
 // itself (cells, total, families, taxonomy_absent), and runs a wrapper that
 // keeps only agent_networks and its envelope. Pinned as a strip.
 $sn_admin_an_out = $GLOBALS['__abilities'][ $ADMIN_AN ]['output_schema'];
-foreach ( array( 'cells', 'total', 'families', 'taxonomy_absent' ) as $k ) {
+foreach ( array( 'cells', 'total', 'families', 'taxonomy_absent', 'unnamed' ) as $k ) {
 	ok( isset( $sn_admin_an_out['properties'][ $k ] ), "THE STRIP PIN: get-machine-readers-crosstab declares $k" );
 	unset( $sn_admin_an_out['properties'][ $k ] );
 }

@@ -186,5 +186,18 @@ ob_start();
 sn_login_defense_render_status( null );
 ok( strpos( ob_get_clean(), 'unavailable' ) !== false, 'status null -> unavailable line' );
 
+// Guard 1.14.0: 'account_throttle' is the per-account limit. A checked request
+// that was then refused, so it joins the denominator like throttle and lockout
+// (left out, the block rate reads higher the more the limit fires).
+$k = sn_login_defense_kpis_from_rows( array(
+	array( 'decision' => 'block', 'hits' => 30 ),
+	array( 'decision' => 'pass', 'hits' => 70 ),
+	array( 'decision' => 'throttle', 'hits' => 5 ),
+	array( 'decision' => 'account_throttle', 'hits' => 20 ),
+) );
+ok( 125 === $k['checked'] && 24 === $k['block_rate'], 'KPIs: account_throttle joins checked (125), rate dilutes to 24%' );
+ok( 20 === $k['account_throttled'] && 5 === $k['throttled'], 'KPIs: account_throttled is its own key; the per-IP throttled count is unchanged' );
+ok( 0 === sn_login_defense_kpis_from_rows( array() )['account_throttled'], 'KPIs: account_throttled defaults to 0' );
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

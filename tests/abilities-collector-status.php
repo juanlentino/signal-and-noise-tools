@@ -162,5 +162,25 @@ $verdict = sn_collector_status_invariants( array( 'rejects' => array( 'total' =>
 $names = array_column( $verdict['invariants'], 'name' );
 ok( ! in_array( 'rejects', $names, true ), 'rejects: never an invariant — informational passthrough only (isolate counts cannot carry health semantics)' );
 
+/* worker v1.23.0: the accepted block, the other half of the ledger. */
+echo "\nGroup: accepted passthrough\n";
+ok( null === sn_collector_status_sanitize_accepted( null ) && null === sn_collector_status_sanitize_accepted( 'x' ), 'accepted: absent block (worker before 1.23.0) is null, key omitted' );
+$a = sn_collector_status_sanitize_accepted( array( 'scope' => 'global', 'since' => '2026-10-03T15:10:00.000Z', 'total' => '412', 'by_reason' => array( 'x' => 1 ), 'extra' => '<b>' ) );
+ok( array( 'scope' => 'isolate', 'since' => '2026-10-03T15:10:00.000Z', 'total' => 412 ) === $a, 'accepted: exactly scope, since, total; scope pinned to isolate, total int-cast, nothing else passes' );
+ok( null === sn_collector_status_sanitize_accepted( array( 'since' => array( 'x' ), 'total' => -5 ) )['since'] && 0 === sn_collector_status_sanitize_accepted( array( 'total' => -5 ) )['total'], 'accepted: a non-string since is null, a negative total is 0' );
+ok( null === sn_collector_status_sanitize_accepted( array() ) && null === sn_collector_status_sanitize_accepted( array( 'total' => 'many' ) ), 'accepted: a block with no numeric total is malformed, null, never a fabricated zero' );
+ok( 32 === strlen( sn_collector_status_sanitize_accepted( array( 'since' => str_repeat( 'x', 200 ), 'total' => 1 ) )['since'] ), 'accepted: since clamped to 32 chars' );
+unset( $GLOBALS['__cs_endpoint'] ); // an earlier group blanked it; these reads must reach the stub
+$GLOBALS['__cs_http'] = array( 'code' => 200, 'body' => json_encode( $GOOD + array( 'rejects' => array( 'since' => null, 'total' => 0, 'by_reason' => array() ), 'accepted' => array( 'scope' => 'isolate', 'since' => '2026-10-03T15:10:00.000Z', 'total' => 77 ) ) ) );
+$out = snt_ability_get_collector_status( null );
+ok( 77 === ( $out['accepted']['total'] ?? null ) && 'isolate' === $out['accepted']['scope'] && 0 === $out['rejects']['total'], 'ability: accepted rides beside rejects' );
+$GLOBALS['__cs_http'] = array( 'code' => 200, 'body' => json_encode( $GOOD ) );
+$out = snt_ability_get_collector_status( null );
+ok( true === $out['healthy'] && ! array_key_exists( 'accepted', $out ) && ! array_key_exists( 'rejects', $out ), 'ability: an older worker carries neither block, never a fabricated zero' );
+$verdict = sn_collector_status_invariants( array( 'accepted' => array( 'total' => 0 ) ), time() );
+ok( ! in_array( 'accepted', array_column( $verdict['invariants'], 'name' ), true ), 'accepted: never an invariant (an isolate count carries no health claim)' );
+$sn_cs_reg = $GLOBALS['__cs_abilities']['signal-noise/get-collector-status'] ?? array();
+ok( false !== strpos( (string) ( $sn_cs_reg['description'] ?? '' ), '`accepted`' ) && isset( $sn_cs_reg['output_schema']['properties']['accepted'], $sn_cs_reg['output_schema']['properties']['rejects'] ), 'registration: the description and the schema both name accepted (and rejects)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

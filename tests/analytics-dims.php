@@ -130,7 +130,8 @@ ok( count( $GLOBALS['__ad_dbdelta_calls'] ) === 0, 'maybe_install: current versi
 echo "\nGroup: rollup SQL builder\n";
 ad_reset();
 $sql = sn_analytics_dims_rollup_sql( 'referrer', 7 );
-ok( strpos( $sql, 'blob3 AS value' ) !== false, 'dims-sql: referrer → blob3 AS value' );
+ok( strpos( $sql, "'(internal)', blob3) AS value" ) !== false && strpos( $sql, 'double10 = 1' ) !== false, 'dims-sql: referrer is blob3, with an internal click (double10 = 1) relabelled (internal)' );
+ok( strpos( sn_analytics_dims_rollup_sql( 'country', 7 ), 'double10' ) === false, 'dims-sql: only the referrer dim reads the referrer kind' );
 ok( sn_analytics_dims_rollup_sql( 'country', 7 ) && strpos( sn_analytics_dims_rollup_sql( 'country', 7 ), 'blob4 AS value' ) !== false, 'dims-sql: country → blob4' );
 ok( strpos( sn_analytics_dims_rollup_sql( 'device', 7 ), 'blob5 AS value' ) !== false, 'dims-sql: device → blob5' );
 // v5.4.0: the 8 new edge dimensions (blob8–15, captured by worker v1.1.0).
