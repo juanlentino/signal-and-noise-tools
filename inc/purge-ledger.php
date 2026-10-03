@@ -208,6 +208,51 @@ function snt_purge_remove_breeze_update_purge() {
 add_action( 'plugins_loaded', 'snt_purge_remove_breeze_update_purge', 20 );
 
 /**
+ * Remove every callback on $hook that is $method of a $class instance.
+ * Breeze builds its objects anonymously, so they are found by class.
+ *
+ * @param string $hook   The hook.
+ * @param string $class  The class.
+ * @param string $method The method.
+ * @return int How many were removed.
+ */
+function snt_purge_unhook_by_class( $hook, $class, $method ) {
+	global $wp_filter;
+	$removed = 0;
+	foreach ( (array) ( $wp_filter[ $hook ]->callbacks ?? array() ) as $priority => $callbacks ) {
+		foreach ( $callbacks as $cb ) {
+			$fn = $cb['function'] ?? null;
+			if ( is_array( $fn ) && is_object( $fn[0] ) && is_a( $fn[0], $class ) && $method === ( $fn[1] ?? '' ) && remove_action( $hook, $fn, $priority ) ) {
+				$removed++;
+			}
+		}
+	}
+	return $removed;
+}
+
+/**
+ * 20.7.1 (owner, 2026-10-03): Breeze's timed purge goes. Its "Purge Cache
+ * After" field will not take 0 (the form saved 1440, and 1 would purge
+ * every minute), so the setting cannot turn it off. Pages purge themselves
+ * on save and once per update, so the timed purge only emptied a cache that
+ * was already right. Unhook the purge and its rescheduler, and clear the
+ * event. Breeze's own settings save can schedule it again; the next request
+ * clears it.
+ *
+ * @return bool Whether anything was removed or cleared.
+ */
+function snt_purge_disable_breeze_nightly() {
+	$n = snt_purge_unhook_by_class( 'breeze_purge_cache', 'Breeze_PurgeCacheTime', 'schedule_varnish' )
+		+ snt_purge_unhook_by_class( 'init', 'Breeze_PurgeCacheTime', 'schedule_events' );
+	if ( function_exists( 'wp_next_scheduled' ) && wp_next_scheduled( 'breeze_purge_cache' ) ) {
+		wp_clear_scheduled_hook( 'breeze_purge_cache' );
+		$n++;
+	}
+	return $n > 0;
+}
+add_action( 'plugins_loaded', 'snt_purge_disable_breeze_nightly', 20 );
+
+/**
  * Whether the active theme's update purge covers every package (theme 15.0.0+).
  *
  * @param string|null $template Test seam: the active template slug.

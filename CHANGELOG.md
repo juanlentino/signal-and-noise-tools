@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Breeze's timed purge is off.** Its "Purge Cache After" field will not take 0: the form saved 1440, and 1 would have purged every minute. So the setting cannot turn it off, and the plugin unhooks Breeze's `breeze_purge_cache` handler and its rescheduler and clears the event, as 20.7.0 did for Breeze's update purge (owner, 2026-10-03). Pages purge on save and once per update; the nightly run only emptied a correct cache. A Breeze settings save can schedule it again, and the next request clears it. The purge ledger's `breeze_nightly` reads `off`. Pinned in `tests/purge-ledger.php`.
+
 ## [20.7.0] - 2026-10-03 — purges stop being a ritual
 
 ### Fixed
