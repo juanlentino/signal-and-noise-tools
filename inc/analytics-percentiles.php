@@ -42,6 +42,12 @@ function sn_analytics_percentiles_metrics() {
 	return array(
 		'scroll' => array( 'event' => 'sc', 'col' => 'double1', 'label' => 'Scroll depth', 'format' => 'pct' ),
 		'time'   => array( 'event' => 'tm', 'col' => 'double2', 'label' => 'Time on page', 'format' => 'time' ),
+		// The field Core Web Vitals, for the 75th percentile Google assesses a
+		// page on (the SN Reading widget). Each is its own event with the value
+		// in double7; CLS is stored x1000.
+		'lcp'    => array( 'event' => 'vl', 'col' => 'double7', 'label' => 'LCP', 'format' => 'ms' ),
+		'inp'    => array( 'event' => 'vi', 'col' => 'double7', 'label' => 'INP', 'format' => 'ms' ),
+		'cls'    => array( 'event' => 'vc', 'col' => 'double7', 'label' => 'CLS', 'format' => 'cls' ),
 	);
 }
 

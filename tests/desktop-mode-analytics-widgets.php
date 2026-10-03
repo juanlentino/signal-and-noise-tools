@@ -53,7 +53,9 @@ $v = snt_desktop_reading_visit_rows( array( array( 'visits' => 30, 'bounce_pct' 
 ok( array( '40', '70%', '1.40', '40s' ) === array_column( $v, 'value' ), 'visits fold weighted by each day\'s visits, not as a plain mean of days' );
 ok( array() === snt_desktop_reading_visit_rows( null ) && array() === snt_desktop_reading_visit_rows( array() ), 'no rolled-up day gives no rows' );
 ok( '42s' === snt_desktop_reading_seconds( 42 ) && '3m 05s' === snt_desktop_reading_seconds( 185 ), 'seconds read as people say them' );
-ok( 'LCP' === snt_desktop_reading_vital_row( 'LCP', $d( array( 8, 1, 1 ) ) )['label'] && '80% good · 10% poor · 10 loads' === snt_desktop_reading_vital_row( 'LCP', $d( array( 8, 1, 1 ) ) )['value'], 'a vital reads as its good and poor shares over its loads' );
+ok( array( 'label' => 'LCP', 'value' => '80% good · 10% poor' ) === snt_desktop_reading_vital_row( 'LCP', $d( array( 8, 1, 1 ) ) ), 'a vital whose percentile could not be read still shows its good and poor shares' );
+$p75 = static fn( $x ) => array( array( 'label' => 'p50', 'value' => 1.0 ), array( 'label' => 'p75', 'value' => $x ) );
+ok( 'LCP · p75 1.8s' === snt_desktop_reading_vital_row( 'LCP', $d( array( 8, 1, 1 ) ), $p75( 1840.0 ) )['label'] && 'INP · p75 120ms' === snt_desktop_reading_vital_row( 'INP', $d( array( 8, 1, 1 ) ), $p75( 120.0 ) )['label'] && 'CLS · p75 0.05' === snt_desktop_reading_vital_row( 'CLS', $d( array( 8, 1, 1 ) ), $p75( 50.0 ) )['label'], 'the 75th percentile reads in each vital\'s own unit: seconds, milliseconds, and CLS back from its x1000 storage' );
 ok( null === snt_desktop_reading_vital_row( 'INP', $d( array( 0, 0, 0 ) ) ), 'a vital nobody measured is absent, not 0% good' );
 
 echo "\nThe painter\n";
