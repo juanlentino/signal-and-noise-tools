@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **A post save purges the feeds and the llms files.** The theme now gives the feeds and the machine files a five-minute shared lifetime with stale serving (they left with `no-cache` or WordPress's nocache headers; the machine files bypassed the cache at about 0.4 s a read, and the feed is fetched about 2,300 times a month), so the edge holds them and a save has to clear them. `sn_cf_post_purge_urls()` adds `/feed/`, `/feed/atom/`, `/notes/feed/atom/`, `/feed/json/`, `/notes/feed/json/`, `/?feed=json`, `/llms.txt` and `/llms-full.txt` beside `/notes/feed/`; `/.well-known/agents.json` and `/opensearch.xml` stay out because a save changes neither. The set is 18 URLs at 39 notes, still one purge call (Cloudflare takes 30 a call; past that the existing chunking applies). Not added: `/tag/<slug>/` archives, which were never in the list and are held for the same day as before. Pinned in `tests/cloudflare-purge-coverage.php`.
+- **The edge posture reads Always Online.** Same settings answer, same token scope. With the theme's `stale-while-revalidate` / `stale-if-error` headers in place it is judged: Always Online on makes Cloudflare ignore both, so real pages returned 503 with no stale copy would stay that way while every header looked right. On is a drift on the posture card and a finding in the edge posture health check; without those headers it is a reading on the "also" line. Pinned in `tests/cloudflare-posture.php`.
+- **MailPoet's page type leaves the sitemap.** Core listed `wp-sitemap-posts-mailpoet_page-1.xml` because MailPoet registers `mailpoet_page` as public; the `wp_sitemaps_post_types` filter drops it. Pinned in `tests/sitemap.php`.
+
 ## [20.7.1] - 2026-10-03 — Breeze's timed purge is off
 
 ### Fixed

@@ -38,6 +38,7 @@ function sn_cf_posture_settings() {
 		'min_tls_version'          => '1.2',
 		'always_use_https'         => 'on',
 		'development_mode'         => 'off',   // On bypasses the cache for 3 hours; nothing in wp-admin says so.
+		'always_online'            => sn_cf_posture_stale_headers_sent() ? 'off' : null, // Judged only beside the stale-* headers it switches off.
 		'tls_1_3'                  => null,
 		'automatic_https_rewrites' => null,
 		'opportunistic_encryption' => null,
@@ -47,6 +48,19 @@ function sn_cf_posture_settings() {
 		'email_obfuscation'        => null,
 		'challenge_ttl'            => null,
 	);
+}
+
+/**
+ * Does the theme send stale-while-revalidate / stale-if-error on public HTML
+ * (its inc/cache-headers.php)? Cloudflare ignores both directives while Always
+ * Online is on, and nothing at the edge or in wp-admin says so: the header
+ * leaves the origin intact and the stale copy is simply never served. Without
+ * those headers Always Online is a reading like any other.
+ *
+ * @return bool
+ */
+function sn_cf_posture_stale_headers_sent() {
+	return function_exists( 'sn_edge_cache_control' ) && '' !== (string) sn_edge_cache_control( 'html' );
 }
 
 /**
@@ -230,7 +244,8 @@ function sn_cf_posture_findings( array $record ) {
 			$value = (string) $values[ $id ];
 			$bad   = 'min_tls_version' === $id ? version_compare( $value, $expected, '<' ) : ( $value !== $expected );
 			if ( $bad ) {
-				$out[] = array( 'key' => $id, 'label' => $id, 'value' => $value, 'why' => sprintf( '%s is "%s"; expected "%s".', $id, $value, $expected ) );
+				$why   = 'always_online' === $id ? ' While it is on, Cloudflare ignores the stale-while-revalidate and stale-if-error the pages send, so an origin error reaches readers; turn it off under Caching > Configuration.' : '';
+				$out[] = array( 'key' => $id, 'label' => $id, 'value' => $value, 'why' => sprintf( '%s is "%s"; expected "%s".', $id, $value, $expected ) . $why );
 			}
 		}
 	}
@@ -267,6 +282,7 @@ function sn_cf_posture_model( $record = null ) {
 		'min_tls_version'          => __( 'Minimum TLS', 'signal-and-noise-tools' ),
 		'always_use_https'         => __( 'Always use HTTPS', 'signal-and-noise-tools' ),
 		'development_mode'         => __( 'Development mode', 'signal-and-noise-tools' ),
+		'always_online'            => __( 'Always Online', 'signal-and-noise-tools' ),
 		'tls_1_3'                  => __( 'TLS 1.3', 'signal-and-noise-tools' ),
 		'automatic_https_rewrites' => __( 'HTTPS rewrites', 'signal-and-noise-tools' ),
 		'opportunistic_encryption' => __( 'Opportunistic encryption', 'signal-and-noise-tools' ),

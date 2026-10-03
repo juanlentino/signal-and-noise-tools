@@ -84,6 +84,14 @@ ok( in_array( 'https://example.test/wp-sitemap-posts-post-2.xml', $two, true ),
 	'past 2000 posts the SECOND sub-sitemap page is purged — assuming one page would silently stop being true' );
 
 $GLOBALS['__published'] = 39;
+echo "\nGroup 3b: the feeds and the llms files (the theme gives them a shared lifetime)\n";
+foreach ( array( '/feed/', '/feed/atom/', '/notes/feed/atom/', '/feed/json/', '/notes/feed/json/', '/?feed=json', '/llms.txt', '/llms-full.txt' ) as $machine ) {
+	ok( in_array( 'https://example.test' . $machine, $urls, true ), "a save purges $machine" );
+}
+ok( ! in_array( 'https://example.test/.well-known/agents.json', $urls, true ) && ! in_array( 'https://example.test/opensearch.xml', $urls, true ),
+	'agents.json and opensearch.xml are NOT purged: a post save changes neither' );
+ok( count( $urls ) <= 30, 'the whole set still fits one Cloudflare purge call (' . count( $urls ) . ' of 30 URLs)' );
+
 echo "\nGroup 4: the freshness verdict says what it covered\n";
 $abil = (string) file_get_contents( __DIR__ . '/../inc/abilities-cache-freshness.php' );
 ok( false !== strpos( $abil, "'probe_scope' => 'permalink'" ),

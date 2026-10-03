@@ -75,6 +75,28 @@ $rec = sn_cf_posture_from( $settings(), $dnssec( 'active' ), $rules( array( $oth
 $r = sn_cf_posture_abilities_rule( $rec );
 ok( is_array( $r ) && 'x1' === $r['id'] && false === $r['enabled'], 'found by expression when the name says nothing; disabled is kept as a fact' );
 
+echo "\nGroup: Always Online, judged only beside the stale-* headers\n";
+$rec = sn_cf_posture_from( $settings( array( 'always_online' => 'on' ) ), $dnssec( 'active' ), $rules( array() ) );
+ok( 'on' === $rec['settings']['values']['always_online'], 'always_online is read from the same settings answer (no new endpoint, no new scope)' );
+ok( array() === sn_cf_posture_findings( $rec ), 'without the theme\'s cache headers it is a reading, not a drift' );
+$GLOBALS['__opt']['sn_cf_posture'] = array( 'fetched_at' => time(), 'configured' => true ) + $rec;
+$m = sn_cf_posture_model();
+ok( in_array( array( 'label' => 'Always Online', 'value' => 'on' ), $m['also'], true ) && ! in_array( 'Always Online', array_column( $m['checks'], 'label' ), true ), 'and the painters show it on the "also" line' );
+// Declared here, conditionally, so PHP does not hoist it above the lines that need it absent.
+if ( ! function_exists( 'sn_edge_cache_control' ) ) {
+	function sn_edge_cache_control( $kind ) { return $GLOBALS['__edge_header'] ?? 'public, max-age=0, s-maxage=86400, stale-while-revalidate=86400, stale-if-error=604800'; }
+}
+$f = sn_cf_posture_findings( $rec );
+ok( array( 'always_online' ) === array_column( $f, 'key' ) && false !== strpos( $f[0]['why'], 'stale-if-error' ), 'with the headers sent, Always Online on is a finding that says what it switches off' );
+$m = sn_cf_posture_model();
+$row = array_values( array_filter( $m['checks'], static fn( $c ) => 'Always Online' === $c['label'] ) );
+ok( 1 === count( $row ) && 'on' === $row[0]['value'] && false === $row[0]['ok'], 'and the painters show it as a judged row reading drift' );
+$off = sn_cf_posture_from( $settings( array( 'always_online' => 'off' ) ), $dnssec( 'active' ), $rules( array() ) );
+ok( array() === sn_cf_posture_findings( $off ), 'Always Online off beside the headers is clean' );
+$GLOBALS['__edge_header'] = '';
+ok( array() === sn_cf_posture_findings( $rec ), 'headers filtered off: a reading again' );
+$GLOBALS['__opt'] = array();
+
 echo "\nGroup: a refusal is a verdict\n";
 $rec = sn_cf_posture_from( $refused, $refused, $refused );
 ok( true === $rec['settings']['needs_permission'] && false !== strpos( $rec['settings']['error'], 'Zone › Zone Settings › Read' ), 'settings 403 names Zone Settings Read' );

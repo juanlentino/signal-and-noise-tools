@@ -325,6 +325,9 @@ function sn_cf_post_purge_urls( $post_id, $post ) {
 	foreach ( sn_cf_sitemap_urls( $post->post_type ) as $sitemap ) {
 		$urls[] = $sitemap;
 	}
+	foreach ( sn_cf_machine_urls() as $machine ) {
+		$urls[] = $machine;
+	}
 
 	/** This filter's contract is unchanged: it still sees the final set. */
 	return (array) apply_filters( 'sn_cf_purge_urls_for_post', $urls, $post_id, $post );
@@ -365,6 +368,29 @@ function sn_cf_archive_page_urls( $base, $post_type ) {
 	}
 
 	return $out;
+}
+
+/**
+ * The feeds and the two llms files: what a reader or an agent polls for a
+ * new note.
+ *
+ * The earlier note above ("/feed/ revalidates on every request") stopped being
+ * true when the theme gave these a shared lifetime (s-maxage=300 with
+ * stale-while-revalidate): the edge now holds them, so a save has to purge
+ * them or a new note waits up to five minutes, and up to an hour of stale
+ * serving, to reach the feed. /notes/feed/ was already in the set.
+ *
+ * NOT ADDED, checked first: /.well-known/agents.json and /opensearch.xml carry
+ * nothing a post save changes, so purging them would be motion without effect.
+ *
+ * @return string[]
+ */
+function sn_cf_machine_urls() {
+	if ( ! function_exists( 'home_url' ) ) {
+		return array();
+	}
+	$paths = array( '/feed/', '/feed/atom/', '/notes/feed/atom/', '/feed/json/', '/notes/feed/json/', '/?feed=json', '/llms.txt', '/llms-full.txt' );
+	return array_map( 'home_url', $paths );
 }
 
 /** WordPress core lists at most this many URLs per sitemap page. */
