@@ -17,6 +17,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Changed
 - **A save purges the tag, and only the tag.** 20.9.0 sent the theme's cache tag beside the old URL list until a tag purge had been seen to work. It was, on 2026-10-03: a no-change save turned unrelated pages (`/about/`, `/music/`, other notes, `/llms.txt`) from HIT to MISS with no zone purge in the log. With a tagging theme (15.2.0+), an edit, a first publish and a post leaving publish now send one tag purge plus core's sitemaps (which carry no tag); the per-post URL list, the first-publish zone purge and the post-save probe are no longer used on that path, so static assets stay warm at the edge through a publish. They remain as the path for an older theme. The probe's history and its readers are left in place.
+- **The README links OpenStation contributions instead of counting them.** The OpenStation paragraph said "six pull requests" and listed each by number; the real count is 15 merged and still growing. It now links the live merged-PR and issue searches, which cannot go stale. Nothing in `tests/` or `docs/` pinned the old count or the PR numbers.
 
 ## [20.9.0] - 2026-10-03 — the cache runs itself
 
