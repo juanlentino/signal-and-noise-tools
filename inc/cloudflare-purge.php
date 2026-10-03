@@ -115,13 +115,17 @@ function sn_cf_purge_urls( $urls ) {
 
 	// Cloudflare's cache purge endpoint accepts up to 30 URLs per call.
 	$chunks  = array_chunk( $urls, 30 );
-	$handled = true;
+	$handled   = true;
+	$confirmed = true;
 	foreach ( $chunks as $chunk ) {
-		sn_cf_api_send( 'purge_cache', array( 'files' => $chunk ) );
-		$handled = $handled && 'failed' !== sn_cf_send_last();
+		$confirmed = sn_cf_api_send( 'purge_cache', array( 'files' => $chunk ) ) && $confirmed;
+		$handled   = $handled && 'failed' !== sn_cf_send_last();
 	}
 	if ( ! $handled ) {
 		return false; // Cloudflare refused and nothing will retry: recorded for the alert.
+	}
+	if ( ! $confirmed ) {
+		return true; // a retry is waiting: handled, but no purge to stamp yet.
 	}
 
 	update_option( SN_CF_LAST_PURGE_OPT, array(

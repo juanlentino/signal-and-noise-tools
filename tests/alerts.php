@@ -187,6 +187,7 @@ $GLOBALS['cf_fail'] = null;
 ok( null === snt_alerts_notice( $now ), 'and gone once the failure record is cleared' );
 $GLOBALS['mail_ok'] = true;
 $njs = (string) file_get_contents( __DIR__ . '/../assets/snt-alert-notify.js' );
+ok( false !== strpos( $njs, '( function boot() {' ) && false !== strpos( $njs, 'window.wp.os.whenReady( boot )' ) && false !== strpos( $njs, "document.addEventListener( 'DOMContentLoaded', boot )" ) && false !== strpos( $njs, 'boot._retried' ), 'the shell bundle is deferred: a failed gate retries once on the shell\'s readiness, it does not give up' );
 ok( false !== strpos( $njs, "typeof window.wp.os.notify !== 'function'" ) && strpos( $njs, "typeof window.wp.os.notify !== 'function'" ) < strpos( $njs, 'window.setInterval' ) && false !== strpos( $njs, 'n.id <= seen()' ) && false !== strpos( $njs, "tag: 'signal-noise/alert'" ) && false !== strpos( $njs, 'os.openWindow( n.app, { params: { section: String( n.section ) } } )' ), 'the script runs only where wp.os.notify exists, shows a notice once per device, and collapses on one tag' );
 
 echo "\nRegistration\n";

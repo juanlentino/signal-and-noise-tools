@@ -142,7 +142,8 @@ function sn_cf_purge_failure_clear( array $body, $endpoint = 'purge_cache' ) {
 	if ( ! is_array( $f ) ) {
 		return;
 	}
-	if ( $wide || md5( (string) wp_json_encode( $body ) ) === (string) ( $f['scope'] ?? '' ) ) {
+	$same = md5( (string) wp_json_encode( $body ) ) === (string) ( $f['scope'] ?? '' ) && ( 'purge_cache' === $endpoint || $endpoint === (string) ( $f['endpoint'] ?? '' ) );
+	if ( $wide || $same ) {
 		delete_option( SN_CF_FAILURE_OPT );
 	}
 }

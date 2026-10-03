@@ -8,14 +8,30 @@
  *
  * @package SignalNoiseTools
  */
-( function () {
+( function boot() {
 	'use strict';
 	var KEY = 'sntAlertNoticeSeen';
 	var EVERY_MS = 15 * 60 * 1000; // the alert run is hourly; four reads an hour.
 	var data = window.snDesktopData || {};
 	// Only in the shell's own document. A classic window is an iframe with no
 	// wp.os of its own; without this guard every open window would poll.
+	//
+	// The shell bundle that installs wp.os is deferred and this file is not,
+	// so on a normal boot notify does not exist yet when this runs (the trap
+	// assets/desktop-mode.js documents). A failed gate retries ONCE, on the
+	// shell's own readiness signal or after the deferred scripts have run.
 	if ( ! window.wp || ! window.wp.os || typeof window.wp.os.notify !== 'function' ) {
+		if ( boot._retried ) {
+			return;
+		}
+		boot._retried = true;
+		if ( window.wp && window.wp.os && typeof window.wp.os.whenReady === 'function' ) {
+			window.wp.os.whenReady( boot );
+		} else if ( 'loading' === document.readyState ) {
+			document.addEventListener( 'DOMContentLoaded', boot );
+		} else {
+			window.setTimeout( boot, 0 );
+		}
 		return;
 	}
 

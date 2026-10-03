@@ -131,6 +131,16 @@ reset_all( array( array( 200, true ) ) );
 sn_cf_api_send( 'invalidate_cache', array( 'purge_everything' => true ) );
 ok( null !== sn_cf_purge_failure() && array() === $GLOBALS['__unsched'], 'a confirmed zone INVALIDATE supersedes nothing: the old copy stays at the edge, so a failed purge of removed content still stands' );
 unset( $GLOBALS['__opts']['sn_cf_purge_failure'] );
+$zone = array( 'purge_everything' => true );
+$GLOBALS['__opts']['sn_cf_purge_failure'] = array( 'time' => 1, 'http' => 401, 'scope' => md5( json_encode( $zone ) ), 'what' => 'everything', 'attempts' => 1, 'endpoint' => 'purge_cache' );
+reset_all( array( array( 200, true ) ) );
+sn_cf_api_send( 'invalidate_cache', $zone );
+ok( null !== sn_cf_purge_failure(), 'a failed zone PURGE is not cleared by a zone invalidate with the same body' );
+sn_cf_api_send( 'purge_cache', $zone );
+ok( null === sn_cf_purge_failure(), 'the purge itself clears it' );
+unset( $GLOBALS['__opts']['sn_cf_last_purge'] );
+reset_all( array( array( 503, false ) ) );
+ok( true === sn_cf_purge_urls( array( 'https://x/q' ) ) && ! isset( $GLOBALS['__opts']['sn_cf_last_purge'] ), 'a URL purge waiting on a retry is handled but stamps no last purge' );
 ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/mcp/mcp-rw-audit.php' ), "'flush_object_cache'," ), 'the write audit keeps flush_object_cache, so a Redis flush does not read like the page-only default' );
 
 echo "\nGroup: the theme's cache tag\n";
