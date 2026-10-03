@@ -54,6 +54,8 @@ function sn_handle_morning_brief_save( $post ) {
 	}
 	// ! empty(), not isset(): a native unchecked box arrives as '' (see the digest twin above).
 	sn_setting_update( 'operations.morning_brief_enabled', ! empty( $post['snt_morning_brief_enabled'] ) );
+	// Unreleased: the alerts toggle rides the same form (same box, both surfaces).
+	sn_setting_update( 'operations.alerts_enabled', ! empty( $post['snt_alerts_enabled'] ) );
 	if ( function_exists( 'snt_morning_brief_maybe_schedule_cron' ) ) {
 		snt_morning_brief_maybe_schedule_cron();
 	}

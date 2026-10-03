@@ -51,6 +51,10 @@ function cron_morning_brief_html() {
 	}
 
 	$inner = \snt_kit_field( 'checkbox', 'snt_morning_brief_enabled', __( 'Email a daily morning brief to the admin address', 'signal-and-noise-tools' ), \snt_morning_brief_enabled(), array( 'value' => '1', 'hint' => __( 'A deterministic prose reading of the latest health scan, cron history, uptime status, deploy state, and any unacknowledged settings drift. Scheduled for 7:00 a.m. site time.', 'signal-and-noise-tools' ) ) );
+	if ( function_exists( 'snt_alerts_enabled' ) ) {
+		// Unreleased: the alerts toggle, the native twin of the classic box's second checkbox.
+		$inner .= \snt_kit_field( 'checkbox', 'snt_alerts_enabled', __( 'Email an alert when a page spikes or breaks', 'signal-and-noise-tools' ), \snt_alerts_enabled(), array( 'value' => '1', 'hint' => __( 'Checked hourly against stored data: a page or the whole site far above its 7-day mean, or a page with 3 or more server errors in a day. One email per alert per day, to the admin address.', 'signal-and-noise-tools' ) ) );
+	}
 	if ( $last_sent > 0 ) {
 		/* translators: %s: relative time element */
 		$inner .= '<p class="snt-hint">' . sprintf( \snt_kit_esc( __( 'Last sent %s.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( (int) $last_sent ) ) . '</p>';

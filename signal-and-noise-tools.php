@@ -627,6 +627,7 @@ require_once __DIR__ . '/inc/sitemap.php';
 require_once __DIR__ . '/inc/sitemap-redirect.php';
 require_once __DIR__ . '/inc/indexnow.php';
 require_once __DIR__ . '/inc/websub.php';            // v6.17.0 (D4): WebSub publisher ping (feed-reader push; counterpart to IndexNow)
+require_once __DIR__ . '/inc/archive-push.php';      // Unreleased: a note's first publish is pushed to the Internet Archive (Save Page Now)
 require_once __DIR__ . '/inc/ability-run-client.php';   // v7.7.2: annotation-derived verb map + shared run-path JS client.
 require_once __DIR__ . '/inc/abilities-rate-gate.php';  // v10.34.0: per-user courtesy throttle for expensive abilities (native run-route has no rate limit of its own).
 require_once __DIR__ . '/inc/abilities-lifecycle-guard.php'; // v10.38.0: WP 7.1 forward-compat — rw kill switch + telemetry/audit on core's ability lifecycle hooks (inert pre-7.1).
@@ -699,6 +700,8 @@ require_once SNT_PATH . 'inc/audit-log-admin.php';
 require_once SNT_PATH . 'inc/audit-log-export.php';  // v4.10.0: CSV/JSON export (download + ability impl)
 require_once SNT_PATH . 'inc/security-digest.php';   // v7.2.0: weekly security-digest email (LLAR A2) — deterministic, opt-in default OFF
 require_once SNT_PATH . 'inc/morning-brief.php';     // R6a: daily Operations brief over health, cron, uptime, deploys + drift
+require_once SNT_PATH . 'inc/alerts.php';            // Unreleased: what counts as a spike or a break, and the email (pure)
+require_once SNT_PATH . 'inc/alerts-cron.php';       // Unreleased: the hourly evaluation over stored rows; mails once per alert per day
 require_once SNT_PATH . 'inc/scheduled-reads.php';   // R6a: daily read-door-only ability runs with a capped outcome history
 require_once SNT_PATH . 'inc/privacy-exporters.php'; // v4.10.0: GDPR exporter/eraser + suggested privacy policy text
 require_once SNT_PATH . 'inc/speculation-rules.php'; // v4.10.0: opt-in Speculation Rules tuning (prerender/moderate)

@@ -174,6 +174,8 @@ function sn_settings_defaults() {
 		'operations' => array(
 			'morning_brief_enabled'   => false,
 			'scheduled_reads_enabled' => false,
+			// Unreleased: spike and break alerts. ON by default (owner, 2026-10-03).
+			'alerts_enabled'          => true,
 		),
 		// v6.23.0: analytics owner/role exclusion (Plausible-style "exclude my
 		// own visits"). exclude_roles lists role slugs whose logged-in users are

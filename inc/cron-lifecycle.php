@@ -64,7 +64,9 @@ function sn_cron_hooks() {
 		SN_UPTIME_STATUS_AVAIL_WARM_HOOK, // 18.1.0: hourly 30d availability warmer.
 		'snt_deploy_workers_warm',
 		SNT_PDF_ENGINE_HOOK, // 20.6.0: daily latest-Dompdf read.
+		SNT_ALERTS_HOOK, // Unreleased: hourly spike and break alerts.
 		// Single events, some with arguments.
+		SN_ARCHIVE_PUSH_HOOK, // Unreleased: one Internet Archive capture after a first publish.
 		SNT_DEPLOY_HISTORY_PURGE_HOOK,
 		SNT_GSC_INSPECT_ONE_HOOK,
 		SNT_ML_REBUILD_ASYNC_HOOK,
