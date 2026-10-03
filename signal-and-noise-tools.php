@@ -630,6 +630,7 @@ require_once __DIR__ . '/inc/websub.php';            // v6.17.0 (D4): WebSub pub
 require_once __DIR__ . '/inc/archive-push-status.php'; // 20.8.0: the unresolved archive failures and the watch that reads them
 require_once __DIR__ . '/inc/archive-push.php';      // 20.8.0: a note's first publish is pushed to the Internet Archive (Save Page Now)
 require_once __DIR__ . '/inc/archive-push-existing.php'; // 21.1.0: the owner-started run over notes that predate the keys.
+require_once __DIR__ . '/inc/archive-push-admin.php'; // 21.1.0: its fieldset on the classic Tools > Provenance page.
 require_once __DIR__ . '/inc/ability-run-client.php';   // v7.7.2: annotation-derived verb map + shared run-path JS client.
 require_once __DIR__ . '/inc/abilities-rate-gate.php';  // v10.34.0: per-user courtesy throttle for expensive abilities (native run-route has no rate limit of its own).
 require_once __DIR__ . '/inc/abilities-lifecycle-guard.php'; // v10.38.0: WP 7.1 forward-compat — rw kill switch + telemetry/audit on core's ability lifecycle hooks (inert pre-7.1).

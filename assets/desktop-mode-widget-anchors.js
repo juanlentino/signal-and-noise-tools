@@ -221,6 +221,7 @@
 				render( null, 'The abilities client is unavailable.' );
 				return;
 			}
+			archiveLine = ''; // a refresh whose archive read fails must not keep the last line
 			window.sntAbilityRun( 'anchor-status', {}, { silent: true } ).then( function( overview ) {
 				render( overview, note );
 				window.sntAbilityRun( 'archive-status', {}, { silent: true } ).then( function( archive ) {
