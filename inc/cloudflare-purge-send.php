@@ -22,7 +22,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_CF_RETRY_HOOK    = 'sn_cf_purge_retry';
 const SN_CF_FAILURE_OPT   = 'sn_cf_purge_failure';
 const SN_CF_RETRY_DELAYS  = array( 60, 300, 900 ); // seconds before tries 2, 3 and 4.
-const SN_CF_SOFT_TRIGGERS = array( 'update', 'rollover' );
+// HELD EMPTY (20.9.0). The plan was array( 'update', 'rollover' ): a code update
+// would invalidate, not purge. Measured before the cut: the origin answered a
+// revalidation 304 from the post's own date (inc/seo.php), so an invalidated
+// page would have kept its old markup. The 304 rule is fixed in this release;
+// invalidate stays off until an install shows the fix holding at the edge.
+const SN_CF_SOFT_TRIGGERS = array();
 
 /**
  * Whether a failed call is worth another try. PURE. A transport error (0), a

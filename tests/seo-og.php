@@ -283,5 +283,16 @@ og_eq( $modified_gmt, sn_seo_singular_last_modified_gmt( $post ), 'an OLDER head
 $GLOBALS['__og']['head_touched'] = $modified_gmt + 1000;
 og_eq( $modified_gmt + 1000, sn_seo_singular_last_modified_gmt( $post ), 'a NEWER head_touched than post_modified wins — this is the #1224 fix' );
 
+// ─── 20.9.0: a 304 also needs the validator to postdate the last render change ───
+$content = 1000; $deploy = 5000;
+og_eq( false, sn_seo_singular_not_modified( 1000, $content, $deploy ), 'the edge revalidates with the post\'s own date after an update: NOT a 304 (the owner\'s stale page)' );
+og_eq( false, sn_seo_singular_not_modified( 4999, $content, $deploy ), 'a validator from before the last render change gets the page' );
+og_eq( true, sn_seo_singular_not_modified( 5000, $content, $deploy ), 'at or after both the content date and the render change: 304' );
+og_eq( true, sn_seo_singular_not_modified( 1000, $content, 0 ), 'no render change on record: the content date alone decides, as before' );
+og_eq( false, sn_seo_singular_not_modified( 999, $content, 0 ), 'older than the content: the page' );
+og_eq( false, sn_seo_singular_not_modified( 0, $content, 0 ), 'an unparseable date is never a 304' );
+$seo_src = (string) file_get_contents( __DIR__ . '/../inc/seo.php' );
+og_eq( true, false !== strpos( $seo_src, 'if ( sn_seo_singular_not_modified( (int) $client_since, $modified_gmt, sn_seo_render_changed_gmt() ) ) {' ) && false === strpos( $seo_src, 'if ( $client_since && $client_since >= $modified_gmt ) {' ), 'the handler decides through that rule, not the content date alone' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

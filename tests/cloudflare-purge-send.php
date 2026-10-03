@@ -40,7 +40,7 @@ require_once __DIR__ . '/../inc/cloudflare-purge.php';
 
 echo "Group: pure rules\n";
 ok( sn_cf_retryable( 0 ) && sn_cf_retryable( 429 ) && sn_cf_retryable( 502 ) && ! sn_cf_retryable( 401 ) && ! sn_cf_retryable( 400 ) && ! sn_cf_retryable( 200 ), 'a transport error, a throttle and a 5xx are retried; a 4xx and an unconfirmed 200 are not' );
-ok( 'invalidate_cache' === sn_cf_edge_endpoint( 'update' ) && 'invalidate_cache' === sn_cf_edge_endpoint( 'rollover' ) && 'purge_cache' === sn_cf_edge_endpoint( 'publish' ) && 'purge_cache' === sn_cf_edge_endpoint( 'manual' ) && 'purge_cache' === sn_cf_edge_endpoint( '' ), 'a code update marks stale; content changes, the manual command and anything unnamed delete' );
+ok( array() === SN_CF_SOFT_TRIGGERS && 'purge_cache' === sn_cf_edge_endpoint( 'update' ) && 'purge_cache' === sn_cf_edge_endpoint( 'rollover' ) && 'purge_cache' === sn_cf_edge_endpoint( 'publish' ) && 'purge_cache' === sn_cf_edge_endpoint( 'manual' ) && 'purge_cache' === sn_cf_edge_endpoint( '' ), 'every trigger purges: invalidate on a code update is built but held off (the origin answered its revalidation 304)' );
 
 echo "\nGroup: the answer is read\n";
 reset_all( array( array( 200, true ) ) );
