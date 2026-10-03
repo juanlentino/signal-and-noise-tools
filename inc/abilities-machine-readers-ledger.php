@@ -128,10 +128,11 @@ function snt_mr_ledger_days( $input ) {
 /**
  * Ability execute callback: signal-noise/get-machine-readers-crosstab.
  *
- * @param array|null $input { days?: int }.
+ * @param array|null $input        { days?: int }.
+ * @param bool       $with_unnamed False skips the unknown-view read (the remote twin drops the field).
  * @return array
  */
-function snt_ability_get_machine_readers_crosstab( $input ) {
+function snt_ability_get_machine_readers_crosstab( $input, $with_unnamed = true ) {
 	$days = snt_mr_ledger_days( $input );
 	$read = snt_mr_fetch( $days );
 	if ( empty( $read['ok'] ) ) {
@@ -143,7 +144,7 @@ function snt_ability_get_machine_readers_crosstab( $input ) {
 		snt_mr_crosstab( $rows ),
 		array(
 			'agent_networks'  => snt_mr_agent_networks( $rows ),
-			'unnamed'         => snt_mr_unnamed_agents( $days ),
+			'unnamed'         => $with_unnamed ? snt_mr_unnamed_agents( $days ) : null,
 			'taxonomy_absent' => snt_mr_taxonomy_absent( $rows ),
 			'truncated'       => ! empty( $read['truncated'] ),
 			'error'           => null,
@@ -175,6 +176,10 @@ function snt_mr_unnamed_agents( $days ) {
 		if ( '' !== $ua ) {
 			$out[] = array( 'ua_sample' => $ua, 'hits' => max( 0, (int) ( $row['hits'] ?? 0 ) ) );
 		}
+	}
+	// Rows that all sanitised away are not "every read matched".
+	if ( array() === $out && array() !== (array) ( $read['rows'] ?? array() ) ) {
+		return null;
 	}
 	usort( $out, static fn( $a, $b ) => $b['hits'] <=> $a['hits'] );
 	return array_slice( $out, 0, SN_MR_UNNAMED_TOP );

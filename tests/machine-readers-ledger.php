@@ -167,6 +167,12 @@ ok( 'Bot3/1.0' === $out['unnamed'][1]['ua_sample'], 'unnamed: a sample that sani
 $GLOBALS['__mr']['unknown'] = array( 'ok' => true, 'rows' => array(), 'truncated' => false, 'error' => null );
 ok( array() === snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) )['unnamed'], 'unnamed: an answered read with no rows is [], every read matched the taxonomy' );
 $GLOBALS['__mr_calls'] = array();
+$GLOBALS['__mr']['unknown'] = array( 'ok' => true, 'rows' => array( array( 'user_agent' => '<>', 'hits' => 3 ) ), 'truncated' => false, 'error' => null );
+ok( '' === snt_mr_normalize_ua_sample( '<>' ) && null === snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) )['unnamed'], 'unnamed: rows that all sanitise away are null (not measured), never the every-read-matched []' );
+$GLOBALS['__mr_calls'] = array();
+$sn_rm = snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ), false );
+ok( null === $sn_rm['unnamed'] && array( array( 7, 'aggregate' ) ) === $GLOBALS['__mr_calls'], 'the remote twin\'s call skips the unknown view: one read, no second worker fetch for a field it drops' );
+$GLOBALS['__mr_calls'] = array();
 $GLOBALS['__mr']       = array( 'unknown' => array( 'ok' => true, 'rows' => $sn_un ) );
 $out                   = snt_ability_get_machine_readers_crosstab( null );
 ok( false === $out['ok'] && ! isset( $out['unnamed'] ) && array( array( 30, 'aggregate' ) ) === $GLOBALS['__mr_calls'], 'unnamed: a down sensor costs one failed read and carries no unnamed list' );

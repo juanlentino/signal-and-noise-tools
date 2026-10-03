@@ -994,7 +994,7 @@ function snt_ability_perm_remote_agent_networks() {
  * @return array
  */
 function snt_ability_remote_agent_networks( $input = null ) {
-	$out = snt_ability_get_machine_readers_crosstab( $input );
+	$out = snt_ability_get_machine_readers_crosstab( $input, false );
 	return is_array( $out ) ? array_intersect_key( $out, array_flip( array( 'ok', 'days', 'agent_networks', 'truncated', 'error' ) ) ) : $out;
 }
 

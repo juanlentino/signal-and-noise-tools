@@ -337,7 +337,7 @@ function sn_collector_status_sanitize_rejects( $raw ) {
  * @return array{scope:string,since:?string,total:int}|null
  */
 function sn_collector_status_sanitize_accepted( $raw ) {
-	if ( ! is_array( $raw ) ) {
+	if ( ! is_array( $raw ) || ! is_numeric( $raw['total'] ?? null ) ) {
 		return null;
 	}
 	return array(

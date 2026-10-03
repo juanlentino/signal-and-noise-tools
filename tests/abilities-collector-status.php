@@ -168,7 +168,8 @@ ok( null === sn_collector_status_sanitize_accepted( null ) && null === sn_collec
 $a = sn_collector_status_sanitize_accepted( array( 'scope' => 'global', 'since' => '2026-10-03T15:10:00.000Z', 'total' => '412', 'by_reason' => array( 'x' => 1 ), 'extra' => '<b>' ) );
 ok( array( 'scope' => 'isolate', 'since' => '2026-10-03T15:10:00.000Z', 'total' => 412 ) === $a, 'accepted: exactly scope, since, total; scope pinned to isolate, total int-cast, nothing else passes' );
 ok( null === sn_collector_status_sanitize_accepted( array( 'since' => array( 'x' ), 'total' => -5 ) )['since'] && 0 === sn_collector_status_sanitize_accepted( array( 'total' => -5 ) )['total'], 'accepted: a non-string since is null, a negative total is 0' );
-ok( 32 === strlen( sn_collector_status_sanitize_accepted( array( 'since' => str_repeat( 'x', 200 ) ) )['since'] ), 'accepted: since clamped to 32 chars' );
+ok( null === sn_collector_status_sanitize_accepted( array() ) && null === sn_collector_status_sanitize_accepted( array( 'total' => 'many' ) ), 'accepted: a block with no numeric total is malformed, null, never a fabricated zero' );
+ok( 32 === strlen( sn_collector_status_sanitize_accepted( array( 'since' => str_repeat( 'x', 200 ), 'total' => 1 ) )['since'] ), 'accepted: since clamped to 32 chars' );
 unset( $GLOBALS['__cs_endpoint'] ); // an earlier group blanked it; these reads must reach the stub
 $GLOBALS['__cs_http'] = array( 'code' => 200, 'body' => json_encode( $GOOD + array( 'rejects' => array( 'since' => null, 'total' => 0, 'by_reason' => array() ), 'accepted' => array( 'scope' => 'isolate', 'since' => '2026-10-03T15:10:00.000Z', 'total' => 77 ) ) ) );
 $out = snt_ability_get_collector_status( null );

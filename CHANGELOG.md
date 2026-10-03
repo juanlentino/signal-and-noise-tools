@@ -9,6 +9,7 @@ lives in [docs/changelog/](docs/changelog/).
 A pull request does not bump `Version` and does not tag — it closes an issue and
 adds a bullet below. A release is a separate, deliberate act:
 `tools/cut-release.sh`.
+- **Three readings stop overstating what they know.** The collector's `accepted` block with no numeric total is treated as malformed (absent), never shown as zero; an unnamed-agents read whose samples all sanitise away is `null` (not measured), not the `[]` that means every read matched; the remote agent-networks twin no longer fetches the unknown view for a field it drops. Codex on #1842.
 
 ## [Unreleased]
 
