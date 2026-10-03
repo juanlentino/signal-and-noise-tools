@@ -1,7 +1,7 @@
 <?php
 /**
  * Signal & Noise Tools: abilities for the Internet Archive push and the AI
- * model lists (21.0.1). Three, all thin:
+ * model lists (21.1.0). Three, all thin:
  *   - signal-noise/archive-push-existing (WRITE, rw door): start or resume
  *     the owner's run over notes that predate the keys.
  *   - signal-noise/archive-status (read): the push state as data.

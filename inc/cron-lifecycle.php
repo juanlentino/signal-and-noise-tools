@@ -68,7 +68,7 @@ function sn_cron_hooks() {
 		SNT_ALERTS_HOOK, // Unreleased: hourly spike and break alerts.
 		// Single events, some with arguments.
 		SN_ARCHIVE_PUSH_HOOK, // one Internet Archive capture after a first publish.
-		SN_ARCHIVE_EXISTING_HOOK, // 21.0.1: one tick of the owner-started run over older notes.
+		SN_ARCHIVE_EXISTING_HOOK, // 21.1.0: one tick of the owner-started run over older notes.
 		SNT_DEPLOY_HISTORY_PURGE_HOOK,
 		SNT_GSC_INSPECT_ONE_HOOK,
 		SNT_ML_REBUILD_ASYNC_HOOK,

@@ -199,7 +199,7 @@ $GLOBALS['__abilities']['signal-noise/purge-verification-log'] = new SN_Test_Abi
 $ic = sn_mcp_call_tool( 'signal-noise__purge-verification-log', array() );
 ok( is_object( $ic['result']['structuredContent']['result'] ?? null ), 'wrapped empty-array result: inner value casts to an object so it encodes {} not []' );
 
-// 21.0.1: but a LIST-rooted ability returning no rows must stay []. Cast to
+// 21.1.0: but a LIST-rooted ability returning no rows must stay []. Cast to
 // {} it failed its own advertised schema, so get-cron-history errored for
 // every hook that had not fired yet.
 $GLOBALS['__abilities']['signal-noise/get-cron-history'] = new SN_Test_Ability( 'signal-noise/get-cron-history', array(

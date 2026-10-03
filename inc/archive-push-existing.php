@@ -1,7 +1,7 @@
 <?php
 /**
  * Signal & Noise Tools: push the notes that predate the Internet Archive keys
- * (21.0.1). inc/archive-push.php pushes a note's FIRST publish only, so a note
+ * (21.1.0). inc/archive-push.php pushes a note's FIRST publish only, so a note
  * published before the keys were added is never asked for. This is the
  * one-time, owner-started run over those notes: one note per tick, minutes
  * apart, through the same sn_archive_push_run() a first publish uses.

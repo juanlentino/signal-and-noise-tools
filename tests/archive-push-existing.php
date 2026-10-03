@@ -1,7 +1,7 @@
 <?php
 /**
  * Standalone test: the owner-started Internet Archive run over notes that
- * predate the keys (inc/archive-push-existing.php, 21.0.1).
+ * predate the keys (inc/archive-push-existing.php, 21.1.0).
  *
  * Run: php tests/archive-push-existing.php
  */

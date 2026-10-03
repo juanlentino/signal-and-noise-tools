@@ -125,8 +125,8 @@ function sn_mcp_allowlist() {
 		'signal-noise/jev-notes', // 16.3.0: the stored Jev pass, same tier
 		'signal-noise/jev-lanes', // 16.4.0: the stored lane map, same tier
 		'signal-noise/jev-query-fit', // 16.5.0: the stored fit pass, same tier
-		'signal-noise/archive-status', // 21.0.1: the Internet Archive push state
-		'signal-noise/ai-models-status', // 21.0.1: where the AI model lists and prices came from
+		'signal-noise/archive-status', // 21.1.0: the Internet Archive push state
+		'signal-noise/ai-models-status', // 21.1.0: where the AI model lists and prices came from
 		'signal-noise/jev-meter', // 16.6.0: the Jev meter, same tier
 		'signal-noise/jev-tells', // 16.7.0: the stored anti-tell pass, same tier
 		'signal-noise/jev-tags', // 16.8.0: the stored tag-fit pass, same tier
@@ -394,7 +394,7 @@ function sn_mcp_rw_allowlist() {
 		'signal-noise/jev-collision-check',
 		'signal-noise/jev-lane-map',
 		'signal-noise/jev-fit-now', // 16.5.0: the fit pass now
-		'signal-noise/archive-push-existing', // 21.0.1: start or resume the Internet Archive run over older notes
+		'signal-noise/archive-push-existing', // 21.1.0: start or resume the Internet Archive run over older notes
 		'signal-noise/jev-tells-check', // 16.7.0: the anti-tell pass on one note
 		'signal-noise/jev-tells-pass', // 16.7.0: the anti-tell pass over the corpus
 		'signal-noise/jev-tags-now', // 16.8.0: the tag-fit pass now

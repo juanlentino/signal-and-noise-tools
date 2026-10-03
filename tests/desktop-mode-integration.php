@@ -473,7 +473,7 @@ $expected_height = array(
 	'sn-cron'             => 170, // v11.29.0 BUDGETED: health measures 148 for the same dot-row + hairline-list shape, +1 line when orphans exist
 	'sn-quick-actions'    => 290, // v11.29.0 BUDGETED: measured-242 three buttons + a fourth ~40px (8px pad x2 + 13px/1.2 + 1px border x2 + 6px margin)
 	'sn-rss-subscribers'  => 220, // measured 207
-	'sn-anchors'          => 180, // measured 167 idle
+	'sn-anchors'          => 215, // measured 167 idle; 21.1.0 + the Internet Archive line
 	'sn-machine-readers'  => 560, // budgeted: measured-508 −3 sensor rows +≤5 purpose rows
 );
 ok( array_keys( $expected_height ) === array_keys( $widgets ),

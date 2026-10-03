@@ -658,7 +658,7 @@ function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
 		// The inner value gets the same empty-array→{} discipline as the top
 		// level: an object|null-union ability returning an EMPTY object would
 		// otherwise wrap as {"result":[]} and fail its own advertised schema.
-		// 21.0.1: unless the schema root is a LIST. get-cron-history returns []
+		// 21.1.0: unless the schema root is a LIST. get-cron-history returns []
 		// for a hook that never fired; cast to {} it failed its own "array"
 		// schema and the read errored exactly when the answer was "none yet".
 		$out = array( 'result' => ( is_array( $out ) && array() === $out && ! sn_mcp_schema_root_is_list( $ability->get_output_schema() ) ) ? (object) array() : $out );

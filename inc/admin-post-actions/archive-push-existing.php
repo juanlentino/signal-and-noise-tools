@@ -6,7 +6,7 @@
  * books the first tick and asks the archive for nothing itself.
  *
  * @package SignalNoiseTools
- * @since 21.0.1
+ * @since 21.1.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
