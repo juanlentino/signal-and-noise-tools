@@ -194,6 +194,15 @@ function dh_true( $c, $msg ) {
 	}
 }
 
+if ( ! function_exists( 'delete_option' ) ) {
+	function delete_option( $k ) { unset( $GLOBALS['__dh_options'][ $k ] ); return true; }
+}
+// 20.7.0: an update purge "just ran" for every check below. The deploy here
+// is found only by the version check (no updater record), so it must still
+// roll over; the flag the check sets is what lets the run ignore the ledger.
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
+function snt_purge_ran_recently( $t, $s ) { return 'update' === $t; }
+
 echo "deploy-history Breeze rollover — REAL snt_deploy_history_version_check() — plugin v4.8.1 / async since render hardening FIX 2\n";
 
 // ─── Arrange a DIRTY state ────────────────────────────────────────────
@@ -238,12 +247,16 @@ dh_true( in_array( 'v9.9.0', $refs, true ), 'history contains the v9.9.0 theme r
 // Simulates cron invoking the scheduled event: snt_deploy_history_purge_rollover_run()
 // is the ONLY place the filter chain actually fires now.
 echo "\ncron context: the scheduled event's handler fires the filter chain\n";
+dh_eq( 1, get_option( 'snt_rollover_bypassed_updater' ), '20.7.0: a version found only by this check (not the updater) marks the rollover as must-run' );
 snt_deploy_history_purge_rollover_run();
-dh_eq( 1, count( $GLOBALS['__dh_purge_calls'] ), 'the handler fires the rollover filter exactly once' );
+dh_eq( 1, count( $GLOBALS['__dh_purge_calls'] ), 'the handler fires the rollover filter exactly once, despite a recent update purge (the deploy bypassed the updater)' );
 $args = $GLOBALS['__dh_purge_calls'][0] ?? null;
 dh_true( is_array( $args ), 'rollover forwarded an $args array' );
 dh_true( is_array( $args ) && array_key_exists( 'template_overrides', $args ), '$args carries the template_overrides key' );
 dh_eq( false, is_array( $args ) ? ( $args['template_overrides'] ?? null ) : null, 'template_overrides === false (preserves Site Editor DB overrides)' );
+dh_eq( false, is_array( $args ) ? ( $args['object_cache'] ?? null ) : null, '20.7.0: the rollover never empties all of Redis' );
+snt_deploy_history_purge_rollover_run();
+dh_eq( 1, count( $GLOBALS['__dh_purge_calls'] ), '20.7.0: with the flag consumed, a run inside an update purge\'s window skips (a delayed cron after the updater did it)' );
 
 // ─── static $checked short-circuit ──────────────────────────────────
 // A second call in the same process is a no-op (static guard). This proves the

@@ -366,6 +366,11 @@ function snt_deploy_history_version_check() {
 	}
 
 	$dirty = false;
+	// 20.7.0: whether every change seen here came through WordPress's updater
+	// (its own hook recorded the version during the install, beside the
+	// theme's update purge). A version found only now is a deploy that
+	// bypassed the updater, and its rollover must run.
+	$via_updater = true;
 
 	if ( '' !== $current_plugin ) {
 		$seen_plugin = isset( $sentinel['plugin'] ) ? (string) $sentinel['plugin'] : '';
@@ -376,6 +381,7 @@ function snt_deploy_history_version_check() {
 			// for v4.1.5 → v4.1.6 and beyond).
 			if ( ! snt_deploy_history_has_version( 'plugin', $current_plugin ) ) {
 				snt_deploy_history_record( 'plugin', $current_plugin );
+				$via_updater = false;
 			}
 			$sentinel['plugin'] = $current_plugin;
 			$dirty = true;
@@ -387,6 +393,7 @@ function snt_deploy_history_version_check() {
 		if ( $seen_theme !== $current_theme ) {
 			if ( ! snt_deploy_history_has_version( 'theme', $current_theme ) ) {
 				snt_deploy_history_record( 'theme', $current_theme );
+				$via_updater = false;
 			}
 			$sentinel['theme'] = $current_theme;
 			$dirty = true;
@@ -411,9 +418,12 @@ function snt_deploy_history_version_check() {
 		// 20.7.0: an update through WordPress already purged (the theme's
 		// update purge, inside the update request), so this second purge only
 		// emptied caches again. It stays for deploys that bypass the updater.
-		$update_purged = function_exists( 'snt_purge_ran_recently' ) && snt_purge_ran_recently( 'update', 15 * MINUTE_IN_SECONDS );
+		$update_purged = $via_updater && function_exists( 'snt_purge_ran_recently' ) && snt_purge_ran_recently( 'update', 15 * MINUTE_IN_SECONDS );
 		if ( ! $update_purged && has_filter( 'sn_purge_all_caches_result' ) && function_exists( 'wp_schedule_single_event' ) ) {
 			$already_scheduled = function_exists( 'wp_next_scheduled' ) && wp_next_scheduled( SNT_DEPLOY_HISTORY_PURGE_HOOK );
+			if ( ! $via_updater ) {
+				update_option( 'snt_rollover_bypassed_updater', 1, false ); // The run must not skip.
+			}
 			if ( ! $already_scheduled ) {
 				wp_schedule_single_event( time(), SNT_DEPLOY_HISTORY_PURGE_HOOK );
 			}
@@ -431,8 +441,11 @@ add_action( 'admin_init', 'snt_deploy_history_version_check' );
  */
 function snt_deploy_history_purge_rollover_run() {
 	// 20.7.0: checked again here, not only when queued: a delayed cron can
-	// run this after the update purge it was meant to stand in for.
-	if ( function_exists( 'snt_purge_ran_recently' ) && snt_purge_ran_recently( 'update', 15 * MINUTE_IN_SECONDS ) ) {
+	// run this after the update purge it was meant to stand in for. A deploy
+	// that bypassed the updater always runs: no update purge saw its files.
+	$bypassed = (bool) get_option( 'snt_rollover_bypassed_updater', false );
+	delete_option( 'snt_rollover_bypassed_updater' );
+	if ( ! $bypassed && function_exists( 'snt_purge_ran_recently' ) && snt_purge_ran_recently( 'update', 15 * MINUTE_IN_SECONDS ) ) {
 		return;
 	}
 	if ( has_filter( 'sn_purge_all_caches_result' ) ) {

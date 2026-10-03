@@ -150,6 +150,7 @@ function sn_cf_purge_everything() {
 		'kind' => 'all',
 	), false );
 	update_option( SN_CF_LAST_ZONE_PURGE_OPT, time(), false );
+	$GLOBALS['snt_purge_edge'] = true; // 20.7.0: the purge ledger's edge field.
 
 	return true;
 }

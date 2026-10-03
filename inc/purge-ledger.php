@@ -36,12 +36,22 @@ function snt_purge_ledger_add( array $row ) {
 	// (one INSERT on a unique key), which makes it a lock; a lock older than
 	// 10 seconds is a crashed writer and is taken over.
 	$lock = SNT_PURGE_LEDGER_OPTION . '_lock';
-	for ( $i = 0; $i < 20 && ! add_option( $lock, time(), '', false ); $i++ ) {
+	$have = false;
+	// Up to ~12 s: a lock older than 10 s is a crashed writer and is taken
+	// over, so a live wait always ends holding the lock.
+	for ( $i = 0; $i < 120; $i++ ) {
+		if ( add_option( $lock, time(), '', false ) ) {
+			$have = true;
+			break;
+		}
 		if ( (int) get_option( $lock, 0 ) < time() - 10 ) {
 			delete_option( $lock );
 			continue;
 		}
 		usleep( 100000 );
+	}
+	if ( ! $have ) {
+		return; // Never write, or release, without holding the lock.
 	}
 	if ( function_exists( 'wp_cache_delete' ) ) {
 		wp_cache_delete( SNT_PURGE_LEDGER_OPTION, 'options' ); // Read the row the other writer just stored.
@@ -110,7 +120,7 @@ function snt_purge_ledger_open( $args = array() ) {
 		'trigger' => snt_purge_trigger( $args ),
 		'redis'   => ! array_key_exists( 'object_cache', $args ) || ! empty( $args['object_cache'] ),
 		'pages'   => ! array_key_exists( 'origin_html', $args ) || ! empty( $args['origin_html'] ),
-		'edge'    => ! array_key_exists( 'cloudflare', $args ) || ! empty( $args['cloudflare'] ),
+		'edge'    => false, // Set by the Cloudflare leg when it actually dispatches (sn_cf_purge_everything).
 		// How the theme can clear transients here: by group in Redis (theme
 		// 14.10.0), or only the database rows, which hold nothing with Object
 		// Cache Pro. The first row after install answers which.
@@ -133,6 +143,8 @@ function snt_purge_ledger_close() {
 		return;
 	}
 	$row['cloudways'] = $GLOBALS['snt_purge_cloudways'] ?? 'not run';
+	$row['edge']      = ! empty( $GLOBALS['snt_purge_edge'] );
+	unset( $GLOBALS['snt_purge_edge'] );
 	unset( $row['started'], $GLOBALS['snt_purge_cloudways'] );
 	snt_purge_ledger_add( $row );
 }
@@ -225,6 +237,7 @@ function snt_purge_ledger_summary( $now = null ) {
 		'last_7_days'         => count( $week ),
 		'last_7_days_is_floor' => count( $rows ) >= SNT_PURGE_LEDGER_CAP && $oldest >= $now - 7 * DAY_IN_SECONDS,
 		'by_trigger'          => $count,
+		// 'unknown' (a Cloudways timeout) counts: undercounting is the worse error.
 		'redis_flushes_7d'    => count( array_filter( $week, static fn( $r ) => ! empty( $r['redis'] ) ) ),
 		'breeze_update_purge' => snt_purge_breeze_update_purge_hooked() ? 'hooked' : 'removed',
 		'breeze_nightly'      => function_exists( 'wp_next_scheduled' ) && wp_next_scheduled( 'breeze_purge_cache' ) ? 'scheduled' : 'off',

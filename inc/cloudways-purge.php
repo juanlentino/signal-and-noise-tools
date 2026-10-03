@@ -314,6 +314,7 @@ function sn_cloudways_purge_app() {
 	}
 
 	if ( ! sn_cloudways_is_configured() ) {
+		snt_cloudways_note( 'not configured' );
 		return false;
 	}
 
@@ -449,7 +450,7 @@ function sn_cloudways_purge_app() {
 	}
 
 	update_option( SNT_CW_LAST_PURGE_OPT, $record, false );
-	snt_cloudways_note( ( $ok ? 'ok' : 'failed' ) . ' http ' . (int) $http . ( $coalesced ? ' coalesced' : '' ) );
+	snt_cloudways_note( ( $ok ? 'ok' : ( is_wp_error( $res ) ? 'inconclusive' : 'failed' ) ) . ' http ' . (int) $http . ( $coalesced ? ' coalesced' : '' ) );
 
 	return $ok;
 }
@@ -469,6 +470,9 @@ function snt_cloudways_note( $note ) {
 		return;
 	}
 	if ( function_exists( 'snt_purge_ledger_add' ) ) {
-		snt_purge_ledger_add( array( 'trigger' => snt_purge_trigger(), 'redis' => 0 === strpos( $note, 'ok' ), 'pages' => true, 'edge' => false, 'cloudways' => $note ) );
+		// A timeout may still have emptied Redis (the dispatch notes say so), so
+		// it counts as unknown, never as no.
+		$redis = 0 === strpos( $note, 'ok' ) ? true : ( 0 === strpos( $note, 'inconclusive' ) ? 'unknown' : false );
+		snt_purge_ledger_add( array( 'trigger' => snt_purge_trigger(), 'redis' => $redis, 'pages' => true, 'edge' => false, 'cloudways' => $note ) );
 	}
 }

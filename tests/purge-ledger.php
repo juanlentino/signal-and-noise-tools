@@ -37,10 +37,14 @@ require __DIR__ . '/../inc/purge-ledger.php';
 echo "A row per purge\n";
 snt_purge_ledger_open( array( 'object_cache' => false, 'trigger' => 'update' ) );
 $GLOBALS['snt_purge_cloudways'] = 'skipped: page-only purge';
+$GLOBALS['snt_purge_edge'] = true; // sn_cf_purge_everything() dispatched.
 snt_purge_ledger_close();
 $r = snt_purge_ledger_rows()[0];
 ok( 'update' === $r['trigger'] && false === $r['redis'] && true === $r['pages'] && true === $r['edge'] && 'skipped: page-only purge' === $r['cloudways'], 'an update row: no Redis flush, pages and edge cleared, Cloudways stood down' );
 ok( ! isset( $GLOBALS['snt_purge_current'] ), 'the open row is closed' );
+snt_purge_ledger_open( array( 'trigger' => 'update' ) );
+snt_purge_ledger_close();
+ok( false === snt_purge_ledger_rows()[0]['edge'], 'a purge whose Cloudflare leg never dispatched records edge false (the arg only asked)' );
 ok( 'db' === $r['transients'], 'without flush_group the row says the transients could only be cleared in the database' );
 for ( $i = 0; $i < 60; $i++ ) { snt_purge_ledger_add( array( 'trigger' => 'manual', 'redis' => true ) ); }
 ok( SNT_PURGE_LEDGER_CAP === count( snt_purge_ledger_rows() ), 'the ring is capped at ' . SNT_PURGE_LEDGER_CAP );
@@ -100,7 +104,7 @@ $GLOBALS['opt'] = array( SNT_PURGE_LEDGER_OPTION . '_lock' => time() - 60 );
 snt_purge_ledger_add( array( 'trigger' => 'update' ) );
 ok( 1 === count( snt_purge_ledger_rows() ) && ! isset( $GLOBALS['opt'][ SNT_PURGE_LEDGER_OPTION . '_lock' ] ), 'a crashed writer\'s stale lock is taken over, the row lands, the lock is released' );
 $src = (string) file_get_contents( __DIR__ . '/../inc/purge-ledger.php' );
-ok( false !== strpos( $src, '! add_option( $lock' ), 'the append holds a lock (add_option fails when the name exists)' );
+ok( false !== strpos( $src, 'if ( add_option( $lock' ) && false !== strpos( $src, "if ( ! \$have ) {\n\t\treturn;" ), 'the append holds a lock, and never writes or releases without it' );
 
 echo "\nThe refreshing window counts from an edge purge\n";
 $GLOBALS['opt'] = array();
@@ -115,6 +119,16 @@ for ( $i = 0; $i < SNT_PURGE_LEDGER_CAP; $i++ ) { snt_purge_ledger_add( array( '
 ok( true === snt_purge_ledger_summary()['last_7_days_is_floor'], '50 purges inside the week: at least 50' );
 $GLOBALS['opt'][ SNT_PURGE_LEDGER_OPTION ][ SNT_PURGE_LEDGER_CAP - 1 ]['time'] = time() - 8 * DAY_IN_SECONDS;
 ok( false === snt_purge_ledger_summary()['last_7_days_is_floor'], 'control: the oldest row is older than the week, so the count is exact' );
+
+echo "\nCloudways on its own (Breeze's buttons) still writes a row\n";
+require __DIR__ . '/../inc/cloudways-purge.php';
+$GLOBALS['opt'] = array();
+unset( $GLOBALS['snt_purge_current'] );
+snt_cloudways_note( 'inconclusive http 0' );
+ok( 'unknown' === snt_purge_ledger_rows()[0]['redis'], 'a timeout may still have emptied Redis: unknown, never no' );
+snt_cloudways_note( 'not configured' );
+ok( 'not configured' === snt_purge_ledger_rows()[0]['cloudways'] && false === snt_purge_ledger_rows()[0]['redis'], 'unconfigured Cloudways still leaves a row' );
+ok( 1 === snt_purge_ledger_summary()['redis_flushes_7d'], 'the unknown one counts as a possible Redis flush' );
 
 echo "\nThe summary\n";
 $GLOBALS['opt'] = array();
