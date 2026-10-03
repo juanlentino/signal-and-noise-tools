@@ -302,10 +302,7 @@ function sn_resume_skills_blocks( $skills ) {
 	$inner = sn_resume_section_head( '04 · Capabilities', 'SKILLS' )
 		. '<!-- wp:table {"hasFixedLayout":false,"className":"sn-resume-skills"} -->' . "\n"
 		. '<figure class="wp-block-table sn-resume-skills"><table><tbody>' . $rows . '</tbody></table></figure>' . "\n"
-		. '<!-- /wp:table -->' . "\n\n"
-		// Inside the last band, so it shares the page's column (20.5.0 appended
-		// it after the band, full-bleed, with its first letter clipped).
-		. sn_resume_next_blocks();
+		. '<!-- /wp:table -->' . "\n\n";
 	return sn_resume_band( '1320px', '40', '80', $inner );
 }
 
@@ -329,25 +326,6 @@ function sn_resume_body_html( $doc ) {
 		. sn_resume_publications_blocks( $doc['publications'] )
 		. sn_resume_skills_blocks( $doc['skills'] )
 	) . "\n";
-}
-
-/**
- * The page's closing line (Unreleased, owner-approved copy 2026-10-02): /resume
- * used to end on the skills list, a dead end for two of the site's three
- * audiences. It hands a hiring reader to the research and the music. Each link
- * is a beacon goal (theme sn-beacon.js data-sn-goal; the event carries the
- * page), so analytics_events counts which one readers take. Styled by the
- * theme's .sn-page-next, which /music ends with too. Not in the PDF.
- *
- * @return string Serialized paragraph block.
- */
-function sn_resume_next_blocks() {
-	$link = static fn( $path, $goal, $label ) => '<a href="' . esc_attr( $path ) . '" data-sn-goal="' . esc_attr( $goal ) . '">' . esc_html( $label ) . '</a>';
-	return sn_resume_para(
-		'sn-page-next',
-		esc_html( 'Beyond the record:' ) . ' ' . $link( '/provenance', 'next_research', 'the research' )
-		. ' &middot; ' . $link( '/music', 'next_music', 'the music' )
-	);
 }
 
 /**
