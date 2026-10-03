@@ -39,6 +39,7 @@ snt_purge_ledger_close();
 $r = snt_purge_ledger_rows()[0];
 ok( 'update' === $r['trigger'] && false === $r['redis'] && true === $r['pages'] && true === $r['edge'] && 'skipped: page-only purge' === $r['cloudways'], 'an update row: no Redis flush, pages and edge cleared, Cloudways stood down' );
 ok( ! isset( $GLOBALS['snt_purge_current'] ), 'the open row is closed' );
+ok( 'db' === $r['transients'], 'without flush_group the row says the transients could only be cleared in the database' );
 for ( $i = 0; $i < 60; $i++ ) { snt_purge_ledger_add( array( 'trigger' => 'manual', 'redis' => true ) ); }
 ok( SNT_PURGE_LEDGER_CAP === count( snt_purge_ledger_rows() ), 'the ring is capped at ' . SNT_PURGE_LEDGER_CAP );
 

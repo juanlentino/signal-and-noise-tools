@@ -114,10 +114,9 @@ function snt_runtime_status() {
 /**
  * Refill WordPress's core update check after the theme's full cache purge.
  *
- * On this site update_core lives in the persistent object cache, and the
- * theme's sn_purge_all_caches() (run after every update) calls
- * wp_cache_flush(), which empties it right after WordPress refilled it on the
- * install. The Core row then read "update check not cached" until the next
+ * On this site update_core lives in the persistent object cache, and a full
+ * sn_purge_all_caches() (the manual purge-everything; every update did until
+ * theme 14.10.0) calls wp_cache_flush(), which empties it. The Core row then read "update check not cached" until the next
  * twice-daily check. Other emptiers are caught by snt_core_refill_guard(). A one-off cron event a minute later re-runs the check, so
  * the purge request itself never waits on wordpress.org. snt_core_status()
  * stays read-only; only this hook fetches.

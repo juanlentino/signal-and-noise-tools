@@ -96,7 +96,7 @@
 		var unknown = results.filter(function (r) { return r === 'unknown'; }).length;
 		var kind = null, text = '', value;
 		// A purge in the last 10 minutes: the edge is still refilling.
-		var recent = cfg.lastPurge && cfg.now && (cfg.now - cfg.lastPurge) < 600;
+		var recent = cfg.lastPurge && (Date.now() / 1000 - cfg.lastPurge) < 600;
 
 		// Primary metric: how many cache-critical routes are verified fresh (N/M),
 		// shown consistently. The pill carries the actionable state. 20.7.0: only

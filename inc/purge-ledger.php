@@ -80,6 +80,10 @@ function snt_purge_ledger_open( $args = array() ) {
 		'redis'   => ! array_key_exists( 'object_cache', $args ) || ! empty( $args['object_cache'] ),
 		'pages'   => ! array_key_exists( 'origin_html', $args ) || ! empty( $args['origin_html'] ),
 		'edge'    => ! array_key_exists( 'cloudflare', $args ) || ! empty( $args['cloudflare'] ),
+		// How the theme can clear transients here: by group in Redis (theme
+		// 14.10.0), or only the database rows, which hold nothing with Object
+		// Cache Pro. The first row after install answers which.
+		'transients' => function_exists( 'wp_cache_supports' ) && wp_cache_supports( 'flush_group' ) ? 'group' : 'db',
 		'started' => time(),
 	);
 }

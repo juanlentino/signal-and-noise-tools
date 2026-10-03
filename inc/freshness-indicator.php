@@ -159,7 +159,6 @@ function snt_freshness_enqueue( $hook_suffix ) {
 		// 20.7.0: the newest purge, so a stale reading right after one says
 		// "refreshing" instead of asking for another purge.
 		'lastPurge' => function_exists( 'snt_purge_ledger_rows' ) ? (int) ( snt_purge_ledger_rows()[0]['time'] ?? 0 ) : 0,
-		'now'       => time(),
 	) );
 	wp_enqueue_script( 'sn-freshness-dot' );
 }
