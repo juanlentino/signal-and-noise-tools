@@ -101,6 +101,12 @@ function snt_purge_trigger( array $args = array() ) {
 	if ( function_exists( 'doing_action' ) && doing_action( 'upgrader_process_complete' ) ) {
 		return 'update';
 	}
+	// A post save or first publish (Codex: these were counted as manual).
+	foreach ( array( 'wp_after_insert_post', 'transition_post_status', 'save_post' ) as $hook ) {
+		if ( function_exists( 'doing_action' ) && doing_action( $hook ) ) {
+			return 'publish';
+		}
+	}
 	if ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) {
 		return 'cron:' . (string) current_action();
 	}

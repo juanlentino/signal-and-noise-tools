@@ -14,7 +14,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Fixed
 - **Purges stop being a ritual (owner, 2026-10-03).** One plugin install fired three full purges within minutes (Breeze's own update hook, the theme's update purge, this plugin's version-change rollover), each emptying all of Redis: Core's update check and every stored reading went blank, Cloudways refused the overlapping purges, and the Caches card then said "purge needed".
-  - **A purge log.** `inc/purge-ledger.php` keeps the last 50 purges: when, what asked (manual, update, rollover, styles, cron:<hook>), whether it emptied Redis, and what Cloudways answered. On the Caches card ("Purges this week") and in `sn-status{cache}` as `purges`.
+  - **A purge log.** `inc/purge-ledger.php` keeps the last 50 purges: when, what asked (manual, update, publish, rollover, styles, cron:<hook>), whether it emptied Redis, and what Cloudways answered. On the Caches card ("Purges this week") and in `sn-status{cache}` as `purges`.
   - **One purge per update.** The version-change rollover skips when an update purge ran in the last 15 minutes; it stays for deploys that bypass the updater, and never flushes Redis.
   - **The Cloudways app purge runs only on a purge-everything.** It clears Varnish and all of Redis; Varnish never served this site's pages (measured: every repeat request read `x-cache: MISS`). An update, a styles save or Breeze's nightly run stands it down, and the row says so.
   - **Breeze's own update purge is removed** (owner's call): it ended in `wp_cache_flush()`. The theme's update purge (14.10.0) replaces it for every plugin and theme update, without the Redis flush. Install theme 15.0.1 first.

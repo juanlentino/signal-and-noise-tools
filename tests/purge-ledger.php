@@ -53,6 +53,8 @@ echo "\nWhat asked\n";
 ok( 'update' === snt_purge_trigger( array( 'trigger' => 'update' ) ), 'the theme names it (14.10.0)' );
 $GLOBALS['doing'] = array( 'upgrader_process_complete' );
 ok( 'update' === snt_purge_trigger(), 'an older theme, inside an update: update' );
+$GLOBALS['doing'] = array( 'wp_after_insert_post' );
+ok( 'publish' === snt_purge_trigger(), 'a first publish or post save: publish, not manual' );
 $GLOBALS['doing'] = array( 'snt_deploy_history_purge_rollover' ); $GLOBALS['cron'] = true;
 ok( 'cron:snt_deploy_history_purge_rollover' === snt_purge_trigger(), 'a cron names its hook' );
 $GLOBALS['doing'] = array(); $GLOBALS['cron'] = false;
