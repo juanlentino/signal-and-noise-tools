@@ -255,7 +255,7 @@ function paint_ai_models_budget( array $ctx ) {
 		\snt_kit_esc( __( 'Used to LOOK at images when suggesting alt text. The %s filter still overrides this for code-level pins.', 'signal-and-noise-tools' ) ),
 		\snt_kit_code( 'snt_ai_alt_text_model', false )
 	) . '</p>';
-	$fields .= '<p class="snt-hint">' . \snt_kit_esc( \sn_ai_models_status_line() ) . '</p>';
+	$fields .= '<p class="snt-hint">' . \snt_kit_esc( \sn_ai_models_status_line() . ' ' . \sn_ai_prices_status_line() ) . '</p>';
 	$fields .= \snt_kit_field( 'number', 'theme_ai_monthly_budget', __( 'Monthly budget (USD)', 'signal-and-noise-tools' ), number_format( $d['budget'], 2, '.', '' ), array(
 		'min'  => 0,
 		'step' => 0.5,

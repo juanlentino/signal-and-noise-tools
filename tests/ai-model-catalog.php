@@ -84,16 +84,48 @@ ok( 'claude-opus-6' === $GLOBALS['set']['theme.ai_model'] && 'gemini-4.0-flash' 
 sn_handle_ai_settings_save( array( 'theme_ai_model' => 'not-on-the-list', 'theme_ai_alt_model' => 'gemini-4.0-flash' ) );
 ok( 'claude-opus-6' === $GLOBALS['set']['theme.ai_model'], 'an id on neither list keeps the current model' );
 
+echo "\nPrices read from the public list\n";
+$GLOBALS['http_body'] = null;
+function wp_remote_get( $u, $a = array() ) { $GLOBALS['http_url'] = $u; return null === $GLOBALS['http_body'] ? array( 'code' => 500, 'body' => '' ) : array( 'code' => 200, 'body' => $GLOBALS['http_body'] ); }
+function wp_remote_retrieve_response_code( $r ) { return $r['code']; }
+function wp_remote_retrieve_body( $r ) { return $r['body']; }
+$row = static fn( $prov, $in, $out, $mode = 'chat' ) => array( 'litellm_provider' => $prov, 'mode' => $mode, 'input_cost_per_token' => $in, 'output_cost_per_token' => $out );
+$doc = array(
+	'claude-opus-6' => $row( 'anthropic', 3e-6, 15e-6 ), 'claude-sonnet-5-5' => $row( 'anthropic', 2e-6, 1e-5 ), 'claude-haiku-4-5' => $row( 'anthropic', 1e-6, 5e-6 ),
+	'gemini/gemini-4.0-flash' => $row( 'gemini', 5e-7, 2e-6 ), 'gemini/gemini-3.1-flash-lite' => $row( 'gemini', 2.5e-7, 1.5e-6 ),
+	'gemini-4.0-flash' => $row( 'vertex_ai-language-models', 9e-7, 9e-6 ), 'gpt-9' => $row( 'openai', 1e-6, 2e-6 ), 'claude-embed' => $row( 'anthropic', 1e-7, 1e-7, 'embedding' ),
+	'claude-free' => $row( 'anthropic', 0, 0 ), 'claude-typo' => $row( 'anthropic', 1.0, 1.0 ), 'Bad Id' => $row( 'anthropic', 1e-6, 1e-6 ), 'claude-text' => $row( 'anthropic', 'x', 1e-6 ),
+);
+$p = sn_ai_prices_parse( $doc );
+ok( array( 'claude-opus-6', 'claude-sonnet-5-5', 'claude-haiku-4-5', 'gemini-4.0-flash', 'gemini-3.1-flash-lite' ) === array_keys( $p ) && array( 'in' => 3.0, 'out' => 15.0 ) === $p['claude-opus-6'] && array( 'in' => 0.5, 'out' => 2.0 ) === $p['gemini-4.0-flash'], 'kept: Anthropic and Gemini chat rows, per million tokens, the gemini/ prefix dropped; another provider, an embedding row, a zero, a price over the ceiling, a malformed id and a non-number never get in' );
+$m = sn_ai_prices_merge( array( 'claude-sonnet-5-5' => array( 'in' => 2.0, 'out' => 10.0 ), 'claude-haiku-4-5' => array( 'in' => 1.0, 'out' => 5.0 ) ), array( 'claude-sonnet-5-5' => array( 'in' => 1.5, 'out' => 10.0 ), 'claude-haiku-4-5' => array( 'in' => 0.1, 'out' => 5.0 ), 'claude-opus-6' => array( 'in' => 3.0, 'out' => 15.0 ) ) );
+ok( 1.5 === $m['prices']['claude-sonnet-5-5']['in'] && 1.0 === $m['prices']['claude-haiku-4-5']['in'] && array( 'claude-haiku-4-5' ) === $m['held'] && isset( $m['prices']['claude-opus-6'] ), 'an ordinary change is applied, a new model is added, and a price that moved more than four times is held at the old one and named' );
+$GLOBALS['opt'] = array(); $GLOBALS['http_body'] = json_encode( $doc );
+$st = sn_ai_prices_refresh( $now, array( 'claude-haiku-4-5' => array( 'in' => 1.0, 'out' => 5.0 ) ) );
+ok( SN_AI_PRICES_URL === $GLOBALS['http_url'] && $now === $st['fetched'] && 5 === count( $st['prices'] ) && '' === $st['error'] && 3.0 === sn_ai_prices_read( $now )['claude-opus-6']['in'], 'the daily read stores what the file prices' );
+$GLOBALS['http_body'] = json_encode( array( 'claude-opus-6' => $row( 'anthropic', 3e-6, 15e-6 ) ) );
+$st2 = sn_ai_prices_refresh( $now + 86400 );
+ok( $now === $st2['fetched'] && 5 === count( $st2['prices'] ) && '' !== $st2['error'], 'a read with too few usable rows is not a price list: the stored prices and their date stay, the reason is recorded' );
+$GLOBALS['http_body'] = null;
+ok( '' !== sn_ai_prices_refresh( $now + 86400 )['error'] && 5 === count( sn_ai_prices_read( $now + 86400 ) ), 'a failed fetch changes nothing' );
+ok( array() === sn_ai_prices_read( $now + SN_AI_PRICES_STALE + 10 ) && false !== strpos( sn_ai_prices_status_line( $now + SN_AI_PRICES_STALE + 10 ), 'the built-in table' ) && false !== strpos( sn_ai_prices_status_line( $now ), "LiteLLM's public price list (5 models)" ), 'a read older than two weeks is not used, and the screen says which prices are in force' );
+
 echo "\nThe forms and the prices\n";
 foreach ( array( 'inc/admin-forms/ai-settings.php', 'apps/sn-dashboard/parts/leaves/ai-models-budget.php' ) as $f ) {
 	ok( false !== strpos( $src( $f ), 'sn_ai_models_status_line()' ) && false === strpos( $src( $f ), '_model_other' ), "$f says where the lists came from, and carries no typed-id field" );
 }
 function apply_filters( $h, $v ) { return $v; }
 require __DIR__ . '/../inc/ai-bootstrap/pricing.php';
+$GLOBALS['opt'] = array();
 $rates = snt_ai_model_pricing();
 $unpriced = array_diff( array_merge( array_keys( sn_ai_models_builtin( 'prose' ) ), array_keys( sn_ai_models_builtin( 'vision' ) ) ), array_keys( $rates ) );
 ok( array( 'gemini-2.5-pro' ) === array_values( $unpriced ), 'every built-in model has a price except Gemini 2.5 Pro, which never had one (tiered by prompt size)' . ( $unpriced ? ': ' . implode( ', ', $unpriced ) : '' ) );
 ok( 2.0 === (float) $rates['claude-sonnet-5']['in'] && 10.0 === (float) $rates['claude-sonnet-5']['out'] && 4.0 === (float) $rates['claude-opus-5-5']['in'], 'Sonnet 5 at its list $2/$10 (was $3/$15); Opus 5.5 at $4/$20' );
+
+$GLOBALS['opt'][ SN_AI_PRICES_OPT ] = array( 'fetched' => time(), 'prices' => array( 'claude-opus-6' => array( 'in' => 3.0, 'out' => 15.0 ), 'gemini-3.8-flash' => array( 'in' => 0.75, 'out' => 3.75 ) ) );
+$rates = snt_ai_model_pricing();
+ok( 3.0 === (float) $rates['claude-opus-6']['in'] && 0.75 === (float) $rates['gemini-3.8-flash']['in'] && 2.0 === (float) $rates['claude-sonnet-5']['in'], 'a read price wins over the table and prices a model the table lacks; a model the read lacks keeps its table price' );
+ok( false !== strpos( $src( 'inc/ai-model-discovery.php' ), "add_action( SN_AI_MODELS_HOOK, 'sn_ai_prices_cron', 11, 0 );" ), 'the price read rides the same daily cron as the model lists' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail ? 1 : 0 );

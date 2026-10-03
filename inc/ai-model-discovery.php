@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/ai-model-prices.php'; // the daily price read.
+
 /**
  * One model's metadata (ModelMetadata::toArray()) as the row the pickers use. PURE.
  * Text: it lists the text_generation capability. Vision: its input_modalities
@@ -124,4 +126,5 @@ function sn_ai_models_schedule() {
 if ( function_exists( 'add_action' ) ) {
 	add_action( 'init', 'sn_ai_models_schedule' );
 	add_action( SN_AI_MODELS_HOOK, 'sn_ai_models_refresh', 10, 0 );
+	add_action( SN_AI_MODELS_HOOK, 'sn_ai_prices_cron', 11, 0 ); // the prices ride the same daily run.
 }

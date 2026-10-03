@@ -74,7 +74,7 @@ function sn_admin_render_ai_settings_form() {
 	echo '</select>';
 	echo '<p class="sn-field-helper">' . esc_html__( 'Used for AI-assisted prose features (drafts, insights, meta descriptions).', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
-	echo '<p class="sn-field-helper">' . esc_html( sn_ai_models_status_line() ) . '</p>';
+	echo '<p class="sn-field-helper">' . esc_html( sn_ai_models_status_line() . ' ' . sn_ai_prices_status_line() ) . '</p>';
 
 	echo '<div class="sn-field sn-field-w-md">';
 	echo '<label class="sn-field-label" for="sn_theme_ai_alt_model">' . esc_html__( 'Vision model (alt text)', 'signal-and-noise-tools' ) . '</label>';

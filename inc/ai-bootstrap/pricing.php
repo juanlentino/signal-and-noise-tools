@@ -77,6 +77,12 @@ function snt_ai_model_pricing() {
 		'gemini-3.5-flash-lite' => array( 'in' => 0.30, 'out' => 2.50 ),
 		'gemini-3.8-flash'      => array( 'in' => 1.50, 'out' => 7.50 ),
 	);
+	// 20.10.0: prices read daily from the public price list win over the table
+	// above while they are fresh (inc/ai-model-prices.php); the table is the
+	// seed and what is left when the read is stale or absent.
+	if ( function_exists( 'sn_ai_prices_read' ) ) {
+		$rates = sn_ai_prices_read() + $rates;
+	}
 	return apply_filters( 'snt_ai_model_pricing', $rates );
 }
 
