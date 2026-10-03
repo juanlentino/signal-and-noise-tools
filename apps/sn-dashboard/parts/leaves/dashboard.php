@@ -839,8 +839,7 @@ function detail_html( array $panels, $group = 'ops', $heading = null ) {
  * @return string
  */
 function toolbar_html( $check_updates_url ) {
-	$buttons = \snt_kit_action_button( __( 'Purge all caches', 'signal-and-noise-tools' ), 'purge_caches' )
-		. \snt_kit_action_button( __( 'Clear overrides', 'signal-and-noise-tools' ), 'clear_overrides' );
+	$buttons = \snt_kit_action_button( __( 'Clear overrides', 'signal-and-noise-tools' ), 'clear_overrides' );
 	if ( '' !== (string) $check_updates_url ) {
 		$buttons .= \snt_kit_door( __( 'Check for updates', 'signal-and-noise-tools' ), (string) $check_updates_url, array( 'variant' => 'secondary' ) );
 	}

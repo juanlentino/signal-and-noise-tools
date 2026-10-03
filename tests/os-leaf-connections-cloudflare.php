@@ -41,30 +41,24 @@ function cf_table_prop( $html, $prop ) {
 	if ( ! preg_match( '/os-prop-' . $prop . '="([^"]*)"/', $html, $m ) ) { return null; }
 	return json_decode( html_entity_decode( $m[1], ENT_QUOTES, 'UTF-8' ), true );
 }
-/** Whether the cf_purge_now button is painted disabled: true, false, or null when there is no such button. */
 /** 15.2.0: field names minus the framing names every classic form carries; the leaf holds no credential field any more. */
 function cf_fields( $html ) { return array_values( array_diff( snt_leaf_names( $html ), array( '_wpnonce', 'sn_action' ) ) ); }
-function cf_purge_disabled( $html ) {
-	if ( ! preg_match( '/<os-button[^>]*os-arg-action="sn_cf_purge_now"[^>]*>Purge all caches</', $html, $m ) ) { return null; }
-	return 1 === preg_match( '/\sdisabled(\s|>)/', $m[0] );
-}
 
 ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['connections/cloudflare'] ), 'the painter is registered under connections/cloudflare' );
 
-// ── Unconfigured: same names, same actions, the warning box, the purge button disabled.
+// ── Unconfigured: same names, same actions, the warning box, no purge button.
 cf_opts( array() );
 $classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
 $kit     = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( array() === cf_fields( $classic ) && array() === cf_fields( $kit ), '15.2.0: no credential field on either leaf; the keyring holds them' );
-ok( array( 'cf_monitor_refresh', 'cf_purge_now' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the two actions are cf_monitor_refresh and cf_purge_now, as on the classic leaf; cf_save is gone (15.2.0)' );
+ok( array( 'cf_monitor_refresh' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is cf_monitor_refresh, as on the classic leaf; cf_save is gone (15.2.0) and so is cf_purge_now' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false === strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'Connections › Credentials' ) && false !== strpos( $kit, 'This leaf only reads them' ), 'no form: the leaf points to Connections › Credentials and says it only reads' );
 ok( false !== strpos( $kit, 'label="API token"' ) && false !== strpos( $kit, 'label="Zone ID"' ) && false !== strpos( $kit, 'label="Account ID"' ) && substr_count( $kit, '>not set</span></os-fact>' ) >= 3, 'the three sources read "not set" as facts rows' );
 ok( false === strpos( $kit, 'Paste a fresh token' ) && false === strpos( $classic, 'sn_cf_token' ), 'no placeholder, no token field, on either leaf' );
 ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, 'Not configured' ) && false !== strpos( $kit, '>Inactive</os-badge>' ), 'the unconfigured state paints a warning notice with the Inactive badge' );
-ok( true === cf_purge_disabled( $kit ), 'the purge button is disabled until configured' );
-ok( false !== strpos( $kit, '<h3>Purge all caches</h3>' ) && false !== strpos( $kit, 'Object cache, Breeze, Varnish, then Cloudflare, in that order, verified' ) && false === strpos( $kit, 'Purge Cloudflare' ), '15.1.0: the purge card runs the full chain and says so; the Cloudflare-only button is gone' );
+ok( false === strpos( $kit, 'Purge all caches' ) && false === strpos( $kit, 'cf_purge_now' ) && false === strpos( $classic, 'Purge all caches' ) && false === strpos( $classic, 'cf_purge_now' ), 'no purge card and no purge button on either leaf: purging is automated, the command stays in the palette' );
 ok( false === strpos( $kit, 'Post-purge probes' ) && false === strpos( $kit, 'Cloudways purge' ), 'no probes box and no Cloudways box when neither has anything to say' );
 ok( false !== strpos( $kit, '<os-code>docs/CACHING.md</os-code>' ) && false !== strpos( $kit, 'heading="Credentials"' ) && false !== strpos( $kit, 'heading="Cache"' ) && false === strpos( $kit, 'heading="Edge, 7 days"' ) && false === strpos( $kit, 'heading="Firewall, 24 hours"' ) && strpos( $kit, 'heading="Credentials"' ) < strpos( $kit, 'heading="Cache"' ) && strpos( $kit, 'heading="Cache"' ) < strpos( $kit, '<os-code>docs/CACHING.md</os-code>' ), '15.3.0: Credentials, then Cache (with the CACHING.md note as its hint); Edge and Firewall live on Measurement and Security now' );
 ok( false !== strpos( $kit, 'heading="Token"' ) && false !== strpos( $kit, 'The monitor has not run yet' ) && false !== strpos( $kit, 'cf_monitor_refresh' ), '15.3.0: before the monitor ran, the Token section says so and offers Refresh' );
@@ -81,7 +75,7 @@ ok( false !== strpos( $kit, '>••••1234</span></os-fact>' ) && false === 
 ok( false !== strpos( $kit, '>zone0123456789abcdef</span></os-fact>' ), 'the zone id is shown as a fact' );
 ok( false === strpos( $kit, 'Configured: auto-purge active' ) && false !== strpos( $kit, 'label="Auto-purge"' ) && false !== strpos( $kit, '>Active</os-badge>' ) && false !== strpos( $kit, 'on post save, theme update and the REST endpoint' ), '15.1.0: the configured state is a facts row with the Active badge, not a notice' );
 ok( false !== strpos( $kit, 'label="Last purge"' ) && false !== strpos( $kit, '<os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time> (full zone)' ), '#1596: the last full-zone purge is an os-relative-time with the server reading as its fallback' );
-ok( false === cf_purge_disabled( $kit ), 'the purge button is live once configured' );
+ok( false === strpos( $kit, 'cf_purge_now' ) && false === strpos( $classic, 'cf_purge_now' ), 'and configuring adds no purge button: the Cache box is history only' );
 
 cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef', 'sn_cf_last_purge' => array( 'time' => time() - 60, 'kind' => 'urls', 'count' => 7 ) ) );
 $kit = snt_leaf_paint( 'connections', 'cloudflare' );
@@ -155,7 +149,7 @@ cf_opts( array( 'sn_cf_zone_id' => 'zone0123456789abcdef' ) );
 $classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
 $kit     = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( array() === cf_fields( $kit ) && array() === cf_fields( $classic ) && false !== strpos( $kit, '>locked by SN_CLOUDFLARE_API_TOKEN</span></os-fact>' ), 'token locked: no field on either leaf; the source names the constant' );
-ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && array( 'cf_monitor_refresh', 'cf_purge_now' ) === snt_leaf_actions( $kit ), 'token locked: the same two actions' );
+ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && array( 'cf_monitor_refresh' ) === snt_leaf_actions( $kit ), 'token locked: the same one action' );
 ok( false === strpos( $kit, 'const-token-9876' ) && false === strpos( $classic, 'const-token-9876' ), 'the constant\'s value is on neither leaf' );
 
 // ── Both locked: no credentials form at all, only the purge action, as on the classic leaf.
@@ -165,7 +159,7 @@ $kit     = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( array() === cf_fields( $classic ) && array() === cf_fields( $kit ) && false !== strpos( $kit, '>locked by SN_CLOUDFLARE_ZONE_ID</span></os-fact>' ), 'both locked: no field, the zone source names its constant' );
 // 14.10.0: the account id is the third credential; with only token and zone
 // locked it is still editable, so Save stays offered on both leaves.
-ok( array( 'cf_monitor_refresh', 'cf_purge_now' ) === snt_leaf_actions( $classic ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'token and zone locked: the two actions, no Save' );
+ok( array( 'cf_monitor_refresh' ) === snt_leaf_actions( $classic ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'token and zone locked: the one action, no Save' );
 ok( false !== strpos( $kit, 'label="Account ID"' ) && false !== strpos( $classic, 'Account ID' ), 'the account id source is on both leaves' );
 ok( false !== strpos( $kit, 'Grants this token needs' ) && false !== strpos( $kit, 'Account Analytics › Read' ) && false !== strpos( $kit, 'Cache Purge › Purge' ), 'the grant list paints on the kit leaf: one place to compare against the token summary' );
 // 14.9.0: the monitor section paints on the kit leaf, honest about never having run.
@@ -180,14 +174,14 @@ ok( false === strpos( $with_log, 'Top paths acted on' ) && false === strpos( $wi
 ok( false !== strpos( $with_log, 'heading="Token"' ) && false !== strpos( $with_log, 'active · user' ) && false !== strpos( $with_log, 'label="Verified"' ) && strpos( $with_log, 'heading="Token"' ) > strpos( $with_log, 'heading="Cache"' ), '15.1.0: the token\'s health is its own section, with when it was verified; 17.4.1 seats it on the row under Credentials and Cache' );
 ok( false !== strpos( $with_log, 'heading="Cache"' ) && false === strpos( $with_log, 'heading="Monitor"' ), 'the Cache box stands; no Monitor section' );
 ok( 1 === substr_count( $with_log, 'os-arg-action="sn_cf_monitor_refresh"' ) && strpos( $with_log, 'os-arg-action="sn_cf_monitor_refresh"' ) > strpos( $with_log, 'heading="Token"' ) && false !== strpos( $with_log, 'Refresh reads the token, the edge and the firewall again' ), '15.3.0: one Refresh footer, under Token, saying what it refreshes' );
-ok( array( 'cf_monitor_refresh', 'cf_purge_now' ) === snt_leaf_actions( $with_log ), 'still the two actions' );
+ok( array( 'cf_monitor_refresh' ) === snt_leaf_actions( $with_log ), 'still the one action' );
 $GLOBALS['__options'] = $opts_before;
 ok( false !== strpos( $kit, '>locked by SN_CLOUDFLARE_ZONE_ID</span></os-fact>' ) && false === strpos( $kit, 'zoneconst0123456789' ), 'both locked: the zone reads as locked and its constant value is not painted' );
 define( 'SN_CF_ACCOUNT_ID', 'acctconst0123456789' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
 $kit     = snt_leaf_paint( 'connections', 'cloudflare' );
-ok( false === strpos( $kit, '<os-form' ) && false !== strpos( $kit, '>locked by SN_CF_ACCOUNT_ID</span></os-fact>' ) && array( 'cf_monitor_refresh', 'cf_purge_now' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'all three locked: no form, the three sources locked, the two actions on both leaves' );
-ok( false !== strpos( $kit, 'label="Auto-purge"' ) && false !== strpos( $kit, '>Active</os-badge>' ) && false === cf_purge_disabled( $kit ), 'both locked: the constants configure the module and the purge button is live' );
+ok( false === strpos( $kit, '<os-form' ) && false !== strpos( $kit, '>locked by SN_CF_ACCOUNT_ID</span></os-fact>' ) && array( 'cf_monitor_refresh' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'all three locked: no form, the three sources locked, the two actions on both leaves' );
+ok( false !== strpos( $kit, 'label="Auto-purge"' ) && false !== strpos( $kit, '>Active</os-badge>' ) && false === strpos( $kit, 'cf_purge_now' ), 'both locked: the constants configure the module, and there is still no purge button' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

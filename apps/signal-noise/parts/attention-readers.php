@@ -303,6 +303,27 @@ function attention_edge() {
 				$newest = $stamp;
 			}
 		}
+		// A purge Cloudflare refused: the automation failed, which is the one
+		// time the cache earns a row without a stale reading behind it.
+		$failure = function_exists( 'sn_cf_purge_failure' ) ? \sn_cf_purge_failure() : null;
+		if ( is_array( $failure ) ) {
+			$stamp  = attention_stamp( (int) ( $failure['time'] ?? 0 ) );
+			$rows[] = attention_row( array(
+				'kind'       => 'edge',
+				'key'        => 'purge-failure',
+				'title'      => __( 'Cache refresh refused', 'signal-and-noise-tools' ),
+				/* translators: %d: the HTTP status Cloudflare answered with. */
+				'subtitle'   => sprintf( __( 'Cloudflare did not accept a cache refresh (HTTP %d)', 'signal-and-noise-tools' ), (int) ( $failure['http'] ?? 0 ) ),
+				'tone'       => 'warning',
+				'stamp'      => $stamp,
+				'source'     => __( 'The last purge request Cloudflare refused', 'signal-and-noise-tools' ),
+				'door'       => $door,
+				'door_label' => __( 'Open Cloudflare in S&N Dashboard', 'signal-and-noise-tools' ),
+			) );
+			if ( $stamp > $newest ) {
+				$newest = $stamp;
+			}
+		}
 		return attention_read( $rows, $newest );
 	} catch ( \Throwable $e ) {
 		return attention_unreadable();

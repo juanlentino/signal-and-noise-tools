@@ -633,6 +633,18 @@ ok( 1 === count( $rows['rows'] ) && 23 === $rows['rows'][0]['post_id'], 'edge: o
 ok( 'Edge served a stale render, last verdict 10 mins ago A zone purge was forced.' === $rows['rows'][0]['subtitle'], '   ...the words come from snt_cf_freshness_headline/phrase, the single producers, and the escalation is said' );
 ok( null === t_item( t_items(), 'a-edge-11' ) && null === t_item( t_items(), 'a-edge-44' ), '   ...a row from the OLD detector (algo 1) and a manual zone purge are both skipped: one measured with a broken instrument, the other is the operator moving the diagnostic' );
 
+// A PURGE CLOUDFLARE REFUSED is the automation failing. sn_cf_purge_failure()
+// ships in a sibling change, so it is stubbed here; null means no failure.
+function sn_cf_purge_failure() { return $GLOBALS['__cf_purge_failure'] ?? null; }
+$GLOBALS['__cf_purge_failure'] = array( 'time' => $now - 300, 'http' => 403, 'endpoint' => 'purge_cache', 'attempts' => 3, 'what' => 'everything' );
+$rows = \SignalNoise\OpenStationApp\attention_edge();
+$refused = $rows['rows'][ count( $rows['rows'] ) - 1 ];
+ok( 2 === count( $rows['rows'] ) && 'purge-failure' === $refused['key'] && 'edge' === $refused['kind'] && 0 === $refused['post_id'], 'edge: a purge Cloudflare refused is ONE more row beside the stale one, about no post' );
+ok( 'Cloudflare did not accept a cache refresh (HTTP 403)' === $refused['subtitle'] && 'warning' === $refused['tone'] && gmdate( 'Y-m-d H:i:s', $now - 300 ) === $refused['stamp'], '   ...it names the HTTP status, warns, and is stamped with the refusal' );
+$GLOBALS['__cf_purge_failure'] = null;
+$rows = \SignalNoise\OpenStationApp\attention_edge();
+ok( 1 === count( $rows['rows'] ) && 'purge-failure' !== $rows['rows'][0]['key'], '   ...and with no failure recorded the row is gone: the cache says nothing while the automation works' );
+
 $rows = \SignalNoise\OpenStationApp\attention_citations();
 ok( 2 === count( $rows['rows'] ), 'citations: never-checked and due are TWO rows -- one figure cannot say both' );
 ok( '3 citations have never been checked' === $rows['rows'][0]['subtitle'] && 'warning' === $rows['rows'][0]['tone'], '   ...never-checked warns: nobody has looked at those rows at all' );

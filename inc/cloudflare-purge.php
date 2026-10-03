@@ -691,14 +691,6 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 		echo '</div>';
 	}
 
-	// ── MANUAL PURGE ACTION CARD ──
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-card sn-card--narrow">';
-	wp_nonce_field( 'sn_cf_purge_now' );
-	echo '<strong>Purge all caches</strong>';
-	echo '<p class="sn-helper">Object cache, Breeze, Varnish, then Cloudflare, in that order, verified. The same action as Dashboard &rsaquo; Maintenance.</p>';
-	echo '<button type="submit" name="action" value="sn_cf_purge_now" class="button"' . ( $is_configured ? '' : ' disabled' ) . '>Purge all caches</button>';
-	echo '</form>';
-
 	// ── 14.9.0: THE MONITOR (token, zone, firewall) ──
 	// The native leaf paints the full reading (connections-cloudflare-monitor.php);
 	// the classic page keeps the one-line summary and the same Refresh action,

@@ -44,7 +44,7 @@ function harness() {
   class Clock extends Date { constructor(...a) { super(...(a.length ? a : [now])); } static now() { return now; } }
   const context = vm.createContext({window, document, Date: Clock, Promise, Error, Math, Number, Array, Object, AbortController});
   for (const name of ['snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-uptime.js',
-    'desktop-mode-widget-rss.js', 'desktop-mode-widget-queue.js', 'desktop-mode-widget-cache.js']) {
+    'desktop-mode-widget-rss.js', 'desktop-mode-widget-queue.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets', name), 'utf8'), context, {filename: name});
   }
   return {window, document, calls, timers, async tick(ms) {
@@ -268,13 +268,12 @@ async function run() {
     stops.forEach(stop => stop()); assert.equal(x.timers.size, 0);
     x.document.dispatch('visibilitychange'); assert.equal(x.timers.size, 0, 'teardown drops the listener');
   }
-  // Recipe 2 for the interval pollers (RSS, queue) and the cache gate (#1603
+  // Recipe 2 for the interval pollers (RSS, queue) (#1603
   // repair): a source pin cannot tell a no-op stopPolling from a real one,
   // so each is driven through the same hidden stretch, reveal and quick flip.
   const pollers = [
     {id: 'sn-rss-subscribers', period: 5 * 60000, good: {ok: true, data: {windows: {}}}},
-    {id: 'sn-queue', period: 60000, good: {next: [], published: []}},
-    {id: 'sn-cache', period: 60000, good: {state: 'ok', last: 'ok', post_save: {probes: 1, stale: 0, escalated: 0}}}
+    {id: 'sn-queue', period: 60000, good: {next: [], published: []}}
   ];
   for (const f of pollers) {
     const x = harness(), root = new Element('div'); let answered = 0;

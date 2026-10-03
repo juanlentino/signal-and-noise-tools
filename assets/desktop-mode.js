@@ -257,8 +257,7 @@
 		run: function() {
 			return callRest( 'purge-caches' )
 				.then( function( res ) { return toast( res.message || 'Purge completed.', res.ok === false ? 'error' : undefined ); } )
-				.catch( function( err ) { return toast( 'Purge failed: ' + ( err.message || 'unknown error' ), 'error' ); } )
-				.finally( function() { document.dispatchEvent( new CustomEvent( 'snt-cache-purged' ) ); } );
+				.catch( function( err ) { return toast( 'Purge failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
 		},
 	} );
 

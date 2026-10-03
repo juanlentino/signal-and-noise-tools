@@ -326,7 +326,7 @@ echo "\n── REGISTRATION TIMING (the v9.52.1 root cause) ──\n";
 // a refresh — so a late registry can also actively remove live widgets.
 fire( 'init' );
 $widgets = $GLOBALS['__dm_widgets'];
-ok( count( $widgets ) === 11, 'all eleven widgets are registered by the end of init (NOT admin_enqueue_scripts), got ' . count( $widgets ) );
+ok( count( $widgets ) === 10, 'all ten widgets are registered by the end of init (NOT admin_enqueue_scripts), got ' . count( $widgets ) );
 ok( count( $GLOBALS['__dm_commands'] ) === 22, 'all 22 Cmd+K commands are registered by the end of init, got ' . count( $GLOBALS['__dm_commands'] ) );
 ok( count( $GLOBALS['__dm_icons'] ) === 2, 'both desktop icons are registered on init (this part was always correct)' );
 foreach ( array( 'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-widget-views', 'sn-desktop-mode-widget-uptime', 'sn-desktop-mode-widget-health' ) as $h ) {
@@ -366,9 +366,10 @@ foreach ( $widgets as $id => $args ) {
 // Registration order IS picker order: traffic, then site condition, then ops.
 // v9.78.0 appends SN Anchors (provenance) at the end of the ops group.
 // 15.8.0 slots SN Queue second: the editorial pair with Site Views.
-ok( array_keys( $widgets ) === array( 'sn-site-views', 'sn-queue', 'sn-health', 'sn-uptime', 'sn-deploy-status', 'sn-cache', 'sn-cron', 'sn-quick-actions', 'sn-rss-subscribers', 'sn-anchors', 'sn-machine-readers' ),
+ok( array_keys( $widgets ) === array( 'sn-site-views', 'sn-queue', 'sn-health', 'sn-uptime', 'sn-deploy-status', 'sn-cron', 'sn-quick-actions', 'sn-rss-subscribers', 'sn-anchors', 'sn-machine-readers' ),
 	'widgets register one-per-domain in display order (Site Views first, no Pulse)' );
 ok( ! isset( $widgets['sn-pulse'] ), 'SN Pulse is retired — it duplicated Site Views + Health' );
+ok( ! isset( $widgets['sn-cache'] ), 'SN Cache is retired: purging is automated, and a cache problem surfaces in the attention queue only when the automation failed' );
 
 echo "\n── v9.52.3: no dead commands (every palette entry must DO something) ──\n";
 // The class of bug this pins: a command registered in PHP with no matching
@@ -469,7 +470,6 @@ $expected_height = array(
 	'sn-health'           => 160, // measured 148 all-passing
 	'sn-uptime'           => 220, // measured 210
 	'sn-deploy-status'    => 310, // v11.11.2 budgeted: measured-192 two-row grid + five worker rows ~22px each
-	'sn-cache'            => 190, // v11.29.0 BUDGETED: health's 148 shape + a relative-time line + a third list row on escalation
 	'sn-cron'             => 170, // v11.29.0 BUDGETED: health measures 148 for the same dot-row + hairline-list shape, +1 line when orphans exist
 	'sn-quick-actions'    => 290, // v11.29.0 BUDGETED: measured-242 three buttons + a fourth ~40px (8px pad x2 + 13px/1.2 + 1px border x2 + 6px margin)
 	'sn-rss-subscribers'  => 220, // measured 207
@@ -512,7 +512,7 @@ $sn_widget_js = array(
 foreach ( glob( __DIR__ . '/../assets/desktop-mode-widget*.js' ) as $sn_widget_path ) {
 	$sn_widget_js += array( basename( $sn_widget_path ) => null );
 }
-ok( count( $sn_widget_js ) >= 11, 'the widget-file scan found every widget script (' . count( $sn_widget_js ) . ', floor 11)' );
+ok( count( $sn_widget_js ) >= 10, 'the widget-file scan found every widget script (' . count( $sn_widget_js ) . ', floor 10)' );
 foreach ( $sn_widget_js as $file => $old_heading ) {
 	$code = strip_js_comments( file_get_contents( __DIR__ . '/../assets/' . $file ) );
 	ok( strpos( $code, 'text-transform:uppercase' ) === false,
@@ -633,7 +633,6 @@ foreach ( array(
 	'desktop-mode-widget-health.js'  => 'data.pages.health',
 	'desktop-mode-widget-anchors.js' => 'data.pages.provenance',
 	'desktop-mode-widget-queue.js'   => 'pages.scheduled',
-	'desktop-mode-widget-cache.js'   => 'pages.cloudflare',
 ) as $sn_w => $sn_key ) {
 	ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../assets/' . $sn_w ), $sn_key ), "$sn_w links to its own leaf ($sn_key)" );
 }
@@ -641,9 +640,6 @@ ok( false === strpos( strip_js_comments( (string) file_get_contents( __DIR__ . '
 	'the uptime card names where its link goes (the Dashboard leaf), not a leaf that does not exist' );
 $sn_views_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' ) );
 ok( false !== strpos( $sn_views_code, "text:  deltaText( mvD )," ), 'the top-mover delta rides the one arrow-only formatter (render pins: tests/desktop-mode-widget-views-delta.php)' );
-$sn_cache_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-cache.js' ) );
-ok( false !== strpos( $sn_cache_code, "'permalink' === summary.probe_scope" ), 'the cache card says what its verdict covers' );
-ok( false === strpos( $sn_cache_code, "detail( 'Verdicts recorded'" ), 'and still paints no standing tally (v13.87.3 ruling)' );
 // Same rule for SN Anchors' Sweep now: the result is a shell toast, the card
 // only refreshes; the in-card note is the fallback.
 $an_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
@@ -661,7 +657,7 @@ $widgets = $GLOBALS['__dm_widgets'];
 ok( isset( $widgets['sn-site-views'] ), 'W1: registers the sn-site-views widget' );
 ok( isset( $widgets['sn-uptime'] ),     'W2: registers the sn-uptime widget' );
 ok( isset( $widgets['sn-health'] ),     'W3: registers the sn-health widget' );
-ok( count( $widgets ) === 11, 'all eleven widgets register (v11.29.0 adds SN Cache + SN Cron; 15.8.0 SN Queue), got ' . count( $widgets ) );
+ok( count( $widgets ) === 10, 'all ten widgets register (v11.29.0 adds SN Cron; 15.8.0 SN Queue; SN Cache retired), got ' . count( $widgets ) );
 
 ok( ( $widgets['sn-site-views']['label'] ?? '' ) === 'SN Site Views', 'W1 carries its label' );
 ok( ( $widgets['sn-uptime']['label'] ?? '' ) === 'SN Uptime',         'W2 carries its label' );
@@ -1831,56 +1827,45 @@ ok( false !== strpos( $mr_js, 'AbortController' ), 'tile aborts its fetch on tea
 // ── v11.29.0: the SN Cron tile. The desktop could report traffic, health,
 // uptime, versions and anchors but never whether the site's scheduled work was
 // still running — the one "is it awake?" question with no surface.
-// ── v11.29.0: the SN Cache tile. Quick Actions could purge the edge; nothing
-// reported whether a purge WORKED. Reads snt_cf_freshness_summary(), the first
-// reader the v11.10.0 verification log has ever had.
-$cache_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-cache.js' ) );
-ok( false !== strpos( $cache_js, "window.openStationWidgets['sn-cache']" ), 'cache tile assigns the PHP-declared mount global' );
-ok( false !== strpos( $cache_js, 'return function teardown' ), 'cache tile returns a teardown' );
-
-// NULL IS NOT ALL-FRESH. The log records nothing for an unreadable probe, so an
-// empty log means verification never ran. A green edge there would be the exact
-// 2026-08-15 failure: green readout over a 27-hour-old render.
-ok( false !== strpos( $cache_js, 'No purge verified yet' ),
-	'A NEVER-VERIFIED EDGE SAYS SO — it does not render as fresh' );
-ok( false !== strpos( $cache_js, "'stale' === last" ),
-	'a stale verdict is read by identity, not by truthiness' );
-// Current freshness is independent of historical post-save escalations.
-ok( false !== strpos( $cache_js, "'unknown' === last || 'pending' === last" ) && false === strpos( $cache_js, "'pending' === last || escalated > 0" ),
-	'current freshness is not made yellow by historical escalations' );
-
-// v13.87.3 — NO STANDING TALLY ON A GLANCE SURFACE.
-//
-// This tile rendered "Verdicts recorded N / Stale N" on every paint. That
-// construct was already ruled out on the sibling surface — the Classic Admin
-// cell answers ONE question about ONE event, and v13.70.1 removed its running
-// count ("If it's fresh, it is fresh. If it isn't, it shouldn't say."). It
-// survived here and produced every misreading of 2026-09-02/03: it climbed when
-// you purged, then fell when you purged, and a falling count read as progress
-// when it was only a bounded buffer flushing history.
-// v13.91.1: `pending` must not paint green. A purge fired and its verification
-// has not run — benign and transient, but NOT a verified-fresh edge.
-ok( false !== strpos( $cache_js, "'pending' === last" ),
-	'the tile handles pending explicitly rather than letting it fall through to the OK colour' );
-
-ok( false === strpos( $cache_js, 'Verdicts recorded' ),
-	'the tile carries NO standing count of verdicts — that number moved with the operator, not the edge' );
-ok( false === strpos( $cache_js, "detail( 'Post-save probes'" ),
-	'nor a relabelled version of it — "3 checks performed" is not something anyone acts on at a glance' );
-ok( false !== strpos( $cache_js, 'stale > 0' ) && false !== strpos( $cache_js, "'Edits served stale'" ),
-	'BAD NEWS ONLY: a stale edit surfaces the moment it exists' );
-ok( false !== strpos( $cache_js, "list.style.display = 'none'" ),
-	'and with nothing to report the section is hidden — an empty hairline rule reads as a tile that failed to load' );
-// The series is not lost, it is elsewhere. If both of these stop being true the
+// ── The SN Cache tile is RETIRED. It answered "did the last purge work?" on
+// every paint; purging is automated now, so the desktop says nothing about the
+// cache until the automation fails (the attention queue's edge rows).
+ok( ! file_exists( __DIR__ . '/../assets/desktop-mode-widget-cache.js' ), 'the cache tile script is gone' );
+$cache_php = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-assets.php' );
+ok( false === strpos( $cache_php, 'sn-desktop-mode-widget-cache' ) && false === strpos( $cache_php, 'cacheFreshness' ),
+	'and neither its script handle nor its localized cacheFreshness key is still shipped' );
+ok( false === strpos( strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode.js' ) . (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-actions.js' ) ), 'snt-cache-purged' ),
+	'nor the snt-cache-purged event only that tile listened for' );
+// The purge BUTTONS left with it, on every surface; the COMMAND stays.
+$purge_free = array(
+	'apps/sn-dashboard/parts/leaves/dashboard.php'                    => "'purge_caches'",
+	'apps/sn-dashboard/parts/leaves/connections-cloudflare-parts.php' => 'cf_purge_now',
+	'inc/dash-console.php'                                            => "sn_admin_post_button( 'purge_caches' )",
+	'inc/admin-tab-dashboard.php'                                     => "sn_admin_post_button( 'purge_caches' )",
+	'inc/cloudflare-purge.php'                                        => 'value="sn_cf_purge_now"',
+	'inc/admin-bar.php'                                               => 'sn-quick-purge-caches',
+	'inc/dash-widgets.php'                                            => 'signal-noise/purge-all-caches',
+	'assets/desktop-mode-widget-actions.js'                           => 'Purge all caches',
+);
+foreach ( $purge_free as $purge_file => $purge_needle ) {
+	ok( false === strpos( (string) file_get_contents( __DIR__ . '/../' . $purge_file ), $purge_needle ), "$purge_file paints no purge button ($purge_needle)" );
+}
+$purge_kept = array(
+	'assets/command-palette.js'      => "'SN: Purge all caches'",
+	'assets/desktop-mode.js'         => "slug: 'sn-cmd-purge-caches'",
+	'inc/desktop-mode-commands.php'  => "'slug' => 'sn-cmd-purge-caches'",
+	'inc/abilities-system.php'       => "wp_register_ability( 'signal-noise/purge-all-caches'",
+	'inc/admin-post-handler.php'     => "'purge_caches'               => 'sn_handle_purge_caches'",
+);
+foreach ( $purge_kept as $purge_file => $purge_needle ) {
+	ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../' . $purge_file ), $purge_needle ), "$purge_file still carries the purge command ($purge_needle)" );
+}
+// The series is not lost, it is elsewhere. If these stop being true the
 // removal above has destroyed evidence rather than relocated it.
-ok( file_exists( __DIR__ . '/../inc/abilities-purge-verification-log.php' ),
-	'the full series is still readable by machine, via signal-noise/purge-verification-log' );
+ok( file_exists( __DIR__ . '/../inc/abilities-purge-verification-log.php' ) && file_exists( __DIR__ . '/../inc/abilities-cache-freshness.php' ),
+	'the full series and the summary are still readable by machine, via signal-noise/purge-verification-log and signal-noise/cache-freshness' );
 ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' ), 'Post-purge probes' ),
 	'and still rendered for a human on the Cloudflare tab' );
-
-$cache_php = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-assets.php' );
-ok( false !== strpos( $cache_php, "function_exists( 'snt_cf_freshness_summary' ) ? snt_cf_freshness_summary() : null" ),
-	'and the PHP sends NULL when the accessor is absent, not an empty struct' );
 
 $cron_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-cron.js' ) );
 ok( false !== strpos( $cron_js, "window.openStationWidgets['sn-cron']" ), 'cron tile assigns the PHP-declared mount global' );

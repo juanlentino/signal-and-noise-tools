@@ -8,11 +8,9 @@
  * page AND from the front-end (when the admin bar is shown).
  *
  * Actions exposed:
- *   - Purge All Caches      (object cache + Breeze + Varnish + Cloudflare)
  *   - Clear DB Overrides    (wp_template / wp_template_part / wp_navigation)
  *                           DESTRUCTIVE: force-delete, no trash. Hidden in the
  *                           Site Editor — see sn_admin_bar_destructive_allowed().
- *   - Purge Cloudflare      (CF zone purge — only shown when configured)
  *   - Check for Updates     (re-poll GitHub for theme update)
  *
  * Each action runs over admin-ajax with a per-action nonce. JS shows a
@@ -71,11 +69,6 @@ function sn_admin_bar_items() {
 			'ability' => 'pattern-adoption-scan',
 			'done'    => 'Pattern scan complete. %d candidate(s).',
 		),
-		'sn-quick-purge-caches' => array(
-			'action'  => 'sn_quick_purge_caches',
-			'label'   => '↻ Purge All Caches',
-			'ability' => 'purge-all-caches',
-		),
 		'sn-quick-clear-overrides' => array(
 			'action'  => 'sn_quick_clear_overrides',
 			'label'   => '⌫ Clear DB Overrides',
@@ -95,16 +88,6 @@ function sn_admin_bar_items() {
 				. "menu stored in the database — everything saved in the Site Editor.\n\n"
 				. "The records are force-deleted, not moved to Trash. This cannot be undone.\n\n"
 				. 'Continue?',
-		),
-		'sn-quick-cf-purge' => array(
-			'action'  => 'sn_quick_cf_purge',
-			'label'   => '☁ Purge Cloudflare',
-			// Only shown when CF is configured.
-			'guard'   => 'sn_cf_is_configured',
-			// No ability purges the zone alone; purge-all-caches purges origin
-			// too and its message names the Cloudflare verdict, which is what
-			// the dashboard button does.
-			'ability' => 'purge-all-caches',
 		),
 		'sn-quick-regen-og-card' => array(
 			'action'  => 'sn_quick_regen_og_card',
@@ -283,9 +266,7 @@ add_action( 'init', function() {
 	$handlers = array(
 		'sn_quick_force_update_check' => 'sn_handle_quick_force_update_check',
 		'sn_quick_scan_patterns'      => 'sn_handle_quick_scan_patterns',
-		'sn_quick_purge_caches'       => 'sn_handle_quick_purge_caches',
 		'sn_quick_clear_overrides'    => 'sn_handle_quick_clear_overrides',
-		'sn_quick_cf_purge'           => 'sn_handle_quick_cf_purge',
 		'sn_quick_regen_og_card'      => 'sn_handle_quick_regen_og_card',
 );
 	foreach ( $handlers as $action => $callback ) {
@@ -368,22 +349,6 @@ function sn_handle_quick_regen_og_card() {
 	wp_send_json_success( array( 'message' => 'OG card regenerated for this post.' ) );
 }
 
-function sn_handle_quick_purge_caches() {
-	check_ajax_referer( 'sn_quick_purge_caches' );
-	if ( ! current_user_can( 'manage_options' ) ) {
-		wp_send_json_error( array( 'message' => 'Forbidden.' ), 403 );
-	}
-	// Dispatched via the sn_purge_all_caches_result filter contract —
-	// theme module template-maintenance.php owns the implementation.
-	// template_overrides => false matches dashboard "Purge All Caches"
-	// semantics — don't nuke Site Editor edits as a side effect.
-	if ( ! has_filter( 'sn_purge_all_caches_result' ) ) {
-		wp_send_json_error( array( 'message' => 'Cache helper unavailable.' ), 500 );
-	}
-	apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false ) );
-	wp_send_json_success( array( 'message' => 'All caches purged.' ) );
-}
-
 function sn_handle_quick_clear_overrides() {
 	check_ajax_referer( 'sn_quick_clear_overrides' );
 	if ( ! current_user_can( 'manage_options' ) ) {
@@ -392,9 +357,8 @@ function sn_handle_quick_clear_overrides() {
 	// Dispatched via the sn_clear_template_overrides_result filter
 	// contract — theme module template-maintenance.php owns the
 	// implementation. #1228: apply_filters() with no listener returns the
-	// default 0, which is indistinguishable from "cleared zero" — the
-	// purge sibling above already errors when its function is absent; do
-	// the same here via has_filter() rather than reporting a false success.
+	// default 0, which is indistinguishable from "cleared zero", so error
+	// here via has_filter() rather than reporting a false success.
 	if ( ! has_filter( 'sn_clear_template_overrides_result' ) ) {
 		wp_send_json_error( array( 'message' => 'Template-override clearing unavailable.' ), 500 );
 	}
@@ -402,19 +366,6 @@ function sn_handle_quick_clear_overrides() {
 	wp_send_json_success( array(
 		'message' => $count . ' DB override(s) cleared.',
 	) );
-}
-
-function sn_handle_quick_cf_purge() {
-	check_ajax_referer( 'sn_quick_cf_purge' );
-	if ( ! current_user_can( 'manage_options' ) ) {
-		wp_send_json_error( array( 'message' => 'Forbidden.' ), 403 );
-	}
-	if ( function_exists( 'sn_cf_purge_everything' ) && sn_cf_purge_everything() ) {
-		wp_send_json_success( array( 'message' => 'Cloudflare zone purge dispatched.' ) );
-	}
-	wp_send_json_error( array(
-		'message' => 'Cloudflare not configured: set token + zone first.',
-	), 400 );
 }
 
 

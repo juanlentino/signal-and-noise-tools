@@ -195,20 +195,6 @@ add_action( 'init', function() {
 
 		// v2.1.0: Quick Actions widget — replaces the 3-click path of
 		// S&N → Dashboard → Maintenance with single-click access from desktop.
-		// v11.29.0: SN Cache. Quick Actions could purge the edge; nothing said
-		// whether a purge WORKED, so you purged blind. Reads the verification
-		// log that has been written since v11.10.0 and read by nothing.
-		snt_os_register_widget( 'sn-cache', array_merge( $sn_drag, array(
-			'label'          => 'SN Cache',
-			'description'    => 'Whether the last purge actually cleared the edge.',
-			'icon'           => 'dashicons-cloud',
-			'script'         => 'sn-desktop-mode-widget-cache',
-			// BUDGETED, not browser-measured: health measures 148 for a dot row +
-			// a 2-row hairline list; this adds a relative-time line and a third
-			// list row when an escalation exists. 190 with slack.
-			'default_height' => 190,
-		) ) );
-
 		// v11.29.0: SN Cron. The desktop could report traffic, health, uptime,
 		// versions and anchors but not whether the site's scheduled work was
 		// still running — the one "is it awake?" question with no surface.
@@ -226,7 +212,7 @@ add_action( 'init', function() {
 
 		snt_os_register_widget( 'sn-quick-actions', array_merge( $sn_drag, array(
 			'label'          => 'SN Quick Actions',
-			'description'    => 'One-click purge, clear overrides, force update-check.',
+			'description'    => 'One-click clear overrides, force update-check, full reset.',
 			'icon'           => 'dashicons-controls-repeat',
 			'script'         => 'sn-desktop-mode-widget-actions',
 			// Was measured 242 for THREE full-width buttons + the footnote.

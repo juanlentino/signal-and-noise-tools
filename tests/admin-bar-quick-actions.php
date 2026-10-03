@@ -579,7 +579,7 @@ ab_true( $off_nonce > 0 && $off_nonce === count( (array) ( $cfg['nodes'] ?? arra
 ab_true( false !== strpos( $printed, "body.set('_ajax_nonce', meta.nonce)" ), '7.12: off the shell the body carries _ajax_nonce' );
 
 // ── #1228: Clear DB Overrides must not report success when the theme
-// filter is absent (the CF-purge sibling already errors in that case) ──
+// filter is absent ──
 echo "\nGroup: #1228 — sn_handle_quick_clear_overrides errors when unhooked\n";
 $GLOBALS['__ab_filters']       = array(); // tag => registered?
 $GLOBALS['__ab_filter_values'] = array(); // tag => value a registered listener would return
@@ -626,7 +626,7 @@ list( $echoed, $rec ) = ab_capture_script();
 $printed = null !== $rec ? $rec : $echoed;
 $cfg     = preg_match( '/const cfg = (\{.*?\});/s', $printed, $m ) ? json_decode( $m[1], true ) : null;
 $nodes   = (array) ( $cfg['nodes'] ?? array() );
-ab_true( count( $nodes ) >= 4, '9.0: the shell config carries the rendered nodes' );
+ab_true( count( $nodes ) >= 3, '9.0: the shell config carries the rendered nodes' );
 
 $with_nonce = array(); $without_ability = array();
 foreach ( $nodes as $node_id => $node ) {
@@ -639,8 +639,8 @@ ab_eq( $confirm, $nodes['sn-quick-clear-overrides']['confirm'] ?? null, '9.3: th
 ab_eq( 'get-deploy-status', $nodes['sn-quick-force-update-check']['ability'] ?? null, '9.4: Force Update Check is get-deploy-status' );
 ab_eq( array( 'force_refresh' => true ), $nodes['sn-quick-force-update-check']['input'] ?? null, '9.4b: ... with force_refresh true (the palette\'s own input)' );
 ab_eq( 'pattern-adoption-scan', $nodes['sn-quick-scan-patterns']['ability'] ?? null, '9.4c: Scan Pattern Adoption is pattern-adoption-scan' );
-ab_eq( 'purge-all-caches', $nodes['sn-quick-purge-caches']['ability'] ?? null, '9.4d: Purge All Caches is purge-all-caches' );
-ab_eq( 'purge-all-caches', $nodes['sn-quick-cf-purge']['ability'] ?? null, '9.5: Purge Cloudflare routes to purge-all-caches (no zone-only ability; its message names the CF verdict)' );
+ab_true( ! isset( $nodes['sn-quick-purge-caches'] ) && ! isset( $nodes['sn-quick-cf-purge'] ), '9.4d: no purge item on the bar: purging is automated, the command stays in the palette' );
+ab_true( ! function_exists( 'sn_handle_quick_purge_caches' ) && ! function_exists( 'sn_handle_quick_cf_purge' ), '9.5: and their admin-ajax handlers went with them' );
 ab_eq( 'clear-template-overrides', $nodes['sn-quick-clear-overrides']['ability'] ?? null, '9.5b: Clear DB Overrides is clear-template-overrides' );
 ab_true( ! isset( $nodes['sn-quick-regen-og-card'] ), '9.5c: Regen OG Card does not render on the shell (no post in context)' );
 

@@ -202,70 +202,11 @@ function snt_dwx_cell( $label, $value, $compare = '', $dir = '', array $hydrate 
 }
 
 /**
- * The "Last purge" compare line.
+ * The cron cell, server-side and free.
  *
- * TWO WRONG ANSWERS SHIPPED HERE FIRST, both the same mistake in different
- * words. v13.70.0 replaced "9 still stale" (a tally over the RETAINED LOG,
- * phrased as a live count) with "9 of 20 probes stale" beside a headline reading
- * "fresh" — one sentence contradicting itself. v13.70.1 added the word "earlier"
- * so the two halves stopped arguing. Owner ruling on that, 2026-09-02: "If it's
- * fresh, it is fresh. If it isn't, it shouldn't say."
- *
- * That is the right call and it is not a wording preference. This cell is
- * labelled "Last purge" — it answers ONE question, about ONE event: did the most
- * recent purge clear the edge, and how long ago. A running tally over up to 20
- * earlier probes answers a different question ("is the edge chronically
- * flaky?"), and pasting it beside a point verdict cannot be phrased into
- * coherence — a reader sees "fresh" and a stale count and distrusts both.
- *
- * The history is not discarded, it is MOVED: the Cloudflare tab renders the
- * individual rows (url, time, escalated), where "why were 9 stale?" is a
- * question a reader can actually pursue. A number nobody can drill into is
- * decoration.
- *
- * @since 13.71.1
- * @param string $last      Newest verdict: 'fresh' | 'stale' | 'unknown'.
- * @param int    $last_time Unix time of that verdict (0 when unknown).
- * @param int    $now       Clock, injected so the fixture does not race one.
- * @return string
- */
-function snt_dash_freshness_compare( $last, $last_time, $now ) {
-	// v13.87.2: delegates. The OpenStation widget renders the same string from
-	// the same producer, so the two surfaces cannot drift in tone about one
-	// verdict the way they did when each built its own sentence.
-	if ( function_exists( 'snt_cf_freshness_phrase' ) ) {
-		return snt_cf_freshness_phrase( $last, $last_time, $now );
-	}
-	// The module is required by the plugin bootstrap; this only guards the CLI
-	// harnesses that load this file bare.
-	$last_time = (int) $last_time;
-	$now       = (int) $now;
-	if ( $last_time <= 0 || $last_time > $now ) {
-		return __( 'no timing recorded', 'signal-and-noise-tools' );
-	}
-	$ago = function_exists( 'human_time_diff' ) ? human_time_diff( $last_time, $now ) : ( $now - $last_time ) . 's';
-	if ( 'stale' === (string) $last ) {
-		/* translators: %s: age */
-		return sprintf( __( 'last verdict %s ago', 'signal-and-noise-tools' ), $ago );
-	}
-	if ( 'fresh' === (string) $last ) {
-		/* translators: %s: age */
-		return sprintf( __( 'verified %s ago', 'signal-and-noise-tools' ), $ago );
-	}
-	/* translators: %s: age */
-	return sprintf( __( 'unread %s ago', 'signal-and-noise-tools' ), $ago );
-}
-
-/**
- * Cron and cache-freshness cells, server-side and free.
- *
- * Both sources are LOCAL reads — _get_cron_array() is an option, and the
- * freshness summary reads the verification trail the purge path has written
- * since v11.10.0 — so these two cells carry real values on first paint instead
- * of arriving as em dashes after a round trip. They are also the two facts the
- * box's own title promises ("whether the edge took it") and 13.31.0 shipped
- * without: Purge caches fired into the dark, which is exactly the blindness the
- * desktop sn-cache widget was built to end.
+ * The source is a LOCAL read (_get_cron_array() is an option), so the cell
+ * carries a real value on first paint instead of arriving as an em dash after
+ * a round trip.
  *
  * @since 13.33.0
  * @return array<int,array<string,mixed>>
@@ -287,21 +228,6 @@ function snt_dwx_ops_signals() {
 				: sprintf( __( '%d ours', 'signal-and-noise-tools' ), (int) ( $cron['sn_count'] ?? 0 ) ),
 			'dir'     => $orph > 0 ? 'down' : '',
 		);
-	}
-
-	if ( function_exists( 'snt_cf_freshness_summary' ) ) {
-		$fresh = snt_cf_freshness_summary();
-		if ( is_array( $fresh ) ) {
-			$last = (string) ( $fresh['last'] ?? 'unknown' );
-			$out[] = array(
-				'label'   => __( 'Last purge', 'signal-and-noise-tools' ),
-				// The WORD, not a count: "did the edge actually clear" is the
-				// question, and a number cannot answer it.
-				'value'   => $last,
-				'compare' => snt_dash_freshness_compare( $last, (int) ( $fresh['last_time'] ?? 0 ), time() ),
-				'dir'     => 'stale' === $last ? 'down' : ( 'fresh' === $last ? 'up' : '' ),
-			);
-		}
 	}
 
 	return $out;

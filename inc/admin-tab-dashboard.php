@@ -765,14 +765,13 @@ function snt_dashboard_render_maintenance_actions() {
 	// for the existing responsive behaviour and the Diagnostics fold below it.
 	echo '<div class="sn-dash-cols">';
 
-	// Maintenance 3-card action grid (unchanged actions).
+	// Maintenance action grid.
 	echo '<div class="sn-dash-cols__side">';
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'full_reset' ) ) . '">';
 	echo '<div class="sn-card-grid sn-card-grid--dash">';
 
 	// v4.1.6 (U-13): button hierarchy matches action gravity.
 	//   - Full Reset is the most destructive (overrides + caches in one go) → button-link-delete (red).
-	//   - Purge All Caches is the most-common routine action → button-primary.
 	//   - Clear Overrides + Check for Updates are reversible/informational → bare button.
 	echo '<div class="sn-card">';
 	echo '<strong>Full Reset</strong>';
@@ -784,12 +783,6 @@ function snt_dashboard_render_maintenance_actions() {
 	echo '<strong>Clear Overrides</strong>';
 	echo '<p class="sn-helper">Removes template, template part, and navigation DB entries.</p>';
 	echo '<button type="submit"' . sn_admin_post_button( 'clear_overrides' ) . ' class="button">Clear Overrides</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
-	echo '</div>';
-
-	echo '<div class="sn-card">';
-	echo '<strong>Purge Caches</strong>';
-	echo '<p class="sn-helper">WP object cache, transients, Breeze page/minification, Varnish.</p>';
-	echo '<button type="submit"' . sn_admin_post_button( 'purge_caches' ) . ' class="button button-primary">Purge All Caches</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	echo '</div>';
 
 	// v2.5.3: visible UI shortcut for the "tagged a new release, where's

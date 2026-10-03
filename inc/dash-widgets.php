@@ -12,7 +12,7 @@
  *
  *   Audience     ← sn-site-views + sn-rss-subscribers     "who is reading?"
  *   Machines     ← sn-machine-readers                     "which machines?"
- *   Operations   ← sn-deploy-status + sn-cache + sn-cron  "what shipped, did it land?"
+ *   Operations   ← sn-deploy-status + sn-cron             "what shipped, is it awake?"
  *   Provenance   ← sn-anchors                             "are the Notes anchored?"
  *
  * Machines stays out of Audience deliberately: human and machine readership are
@@ -207,10 +207,9 @@ function snt_dwx_boxes() {
 			'blurb'    => __( 'What is shipped, and whether the edge took it.', 'signal-and-noise-tools' ),
 			'sections' => array(
 				array(
-					// Zero-cost and INSTANT: both accessors are local reads
-					// (_get_cron_array() is an option; the freshness log is a
-					// stored verification trail), so these two cells carry real
-					// values on first paint instead of arriving as em dashes.
+					// Zero-cost and INSTANT: the accessor is a local read
+					// (_get_cron_array() is an option), so the cell carries a real
+					// value on first paint instead of arriving as an em dash.
 					'label'   => '',
 					'signals' => 'snt_dwx_ops_signals',
 				),
@@ -260,11 +259,6 @@ function snt_dwx_boxes() {
 				),
 			),
 			'actions'  => array(
-				array(
-					'label'   => __( 'Purge caches', 'signal-and-noise-tools' ),
-					'busy'    => __( 'Purging&hellip;', 'signal-and-noise-tools' ),
-					'ability' => 'signal-noise/purge-all-caches',
-				),
 				array(
 					'label'   => __( 'Clear overrides', 'signal-and-noise-tools' ),
 					'busy'    => __( 'Clearing&hellip;', 'signal-and-noise-tools' ),
