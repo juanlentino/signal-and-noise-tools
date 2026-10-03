@@ -99,6 +99,20 @@ if ( function_exists( 'add_action' ) ) {
 }
 
 /**
+ * Purge everything the theme tagged (theme 15.2.0: every cached page, feed
+ * and machine file carries SN_EDGE_CACHE_TAG). One call covers every address
+ * a save can touch. False when the theme does not tag yet.
+ *
+ * @return bool
+ */
+function sn_cf_purge_tag() {
+	if ( ! defined( 'SN_EDGE_CACHE_TAG' ) || '' === (string) SN_EDGE_CACHE_TAG ) {
+		return false;
+	}
+	return sn_cf_api_send( 'purge_cache', array( 'tags' => array( (string) SN_EDGE_CACHE_TAG ) ) );
+}
+
+/**
  * The failure nothing could retry, or null. Cleared by the next confirmed call.
  *
  * @return array{time:int,http:int,endpoint:string,attempts:int,what:string}|null

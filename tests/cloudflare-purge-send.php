@@ -73,6 +73,14 @@ reset_all( array( array( 503, false ) ) );
 sn_cf_api_send( 'invalidate_cache', array( 'purge_everything' => true ) );
 ok( array( 'invalidate_cache' ) === array_column( $GLOBALS['__http'], 0 ) && 'invalidate_cache' === $GLOBALS['__sched'][0][2][0], 'a Cloudflare 5xx on invalidate retries the invalidate, it does not purge' );
 
+echo "\nGroup: the theme's cache tag\n";
+reset_all( array( array( 200, true ) ) );
+ok( false === sn_cf_purge_tag() && array() === $GLOBALS['__http'], 'a theme that does not tag yet: no call' );
+define( 'SN_EDGE_CACHE_TAG', 'sn-render' );
+ok( true === sn_cf_purge_tag() && 'purge_cache' === $GLOBALS['__http'][0][0] && '{"tags":["sn-render"]}' === $GLOBALS['__http'][0][1]['body'], 'one purge_cache call carrying the one tag' );
+$purge_src = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
+ok( 2 === substr_count( $purge_src, "sn_cf_purge_tag();" ), 'a save and a post leaving publish both purge the tag' );
+
 echo "\nGroup: not configured\n";
 $GLOBALS['__opts'] = array(); $GLOBALS['__http'] = array();
 ok( false === sn_cf_api_send( 'purge_cache', array( 'purge_everything' => true ) ) && array() === $GLOBALS['__http'], 'no token, no call, no record' );

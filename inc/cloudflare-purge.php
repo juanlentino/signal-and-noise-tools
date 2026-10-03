@@ -425,6 +425,7 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 	// permalink would be ?p=ID (trash also renames post_name to *__trashed).
 	if ( ! $is_published ) {
 		sn_cf_purge_urls( sn_cf_post_purge_urls( $post_id, $post_before ) );
+		sn_cf_purge_tag();
 		return;
 	}
 
@@ -463,6 +464,10 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 
 	$urls = sn_cf_post_purge_urls( $post_id, $post );
 	sn_cf_purge_urls( $urls );
+	// 20.9.0: and the theme's one cache tag, which covers every page the URL
+	// list cannot name. The list and the probe below stay until a tag purge
+	// has been seen to clear the live edge; then both retire.
+	sn_cf_purge_tag();
 
 	// v11.10.0: the purge above is fire-and-forget and CANNOT report whether it
 	// worked. On 2026-08-15 three of them ran against one Note and the edge kept
