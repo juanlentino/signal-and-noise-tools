@@ -122,6 +122,9 @@ function resume_pdf_generate() {
 	} else {
 		$status = '<p class="snt-prose">' . \snt_kit_esc( __( 'Not generated yet: the /resume Download link still uses the PDF URL. Generating builds the PDF from the published resume and switches the link to it.', 'signal-and-noise-tools' ) ) . '</p>';
 	}
+	if ( function_exists( 'snt_pdf_engine_status_line' ) ) {
+		$status .= '<p class="snt-prose">' . \snt_kit_esc( \snt_pdf_engine_status_line() ) . '</p>';
+	}
 	$private = '<p class="snt-prose">' . \snt_kit_esc( __( 'A private copy always includes the phone: built on demand for you, never saved on the server, so it has no public URL.', 'signal-and-noise-tools' ) ) . '</p>';
 	return \snt_kit_section(
 		__( 'Resume PDF', 'signal-and-noise-tools' ),

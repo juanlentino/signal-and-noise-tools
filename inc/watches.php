@@ -127,6 +127,16 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_rights_evidence',
 		),
+		// 20.6.0: the vendored Dompdf carries our Cpdf patch until upstream ships it.
+		array(
+			'id'        => 'dompdf_bump',
+			'label'     => 'Dompdf release newer than the vendored one',
+			'why'       => 'The PDF engine is vendored with a Cpdf patch (20.3.2) that upstream confirmed for 3.1.7 (dompdf/dompdf#3771). A newer release is the time to bump lib/pdf and drop the patch if the fix shipped; tests/resume-pdf.php pins the bytes either way.',
+			'read'      => 'Content › Resume › Resume PDF (the engine line)',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_dompdf',
+		),
 		array(
 			'id'        => 'wave4_telemetry',
 			'label'     => 'wave-4 tool retirement read',
