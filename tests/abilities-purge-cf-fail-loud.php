@@ -161,6 +161,18 @@ ok( 2 === ( $out['count'] ?? null ), 'S7.1 include_template_overrides: count fro
 ok( true === ( $GLOBALS['__purge_filter_args']['template_overrides'] ?? null ), 'S7.2 template_overrides=true reaches the filter' );
 ok( false !== strpos( (string) ( $out['message'] ?? '' ), '2 template overrides' ), 'S7.3 message keeps the overrides clause' );
 
+ok( true === ( $GLOBALS['__purge_filter_args']['object_cache'] ?? null ), 'S7.4 a full reset still empties Redis' );
+seed_report( array( 'accepted' => true, 'http' => 200, 'cf_success' => true ), true );
+snt_ability_purge_all_caches( null );
+ok( false === ( $GLOBALS['__purge_filter_args']['object_cache'] ?? null ), 'S7.5 the plain command leaves Redis alone (20.9.0): object_cache=false reaches the filter' );
+seed_report( array( 'accepted' => true, 'http' => 200, 'cf_success' => true ), true );
+snt_ability_purge_all_caches( array( 'flush_object_cache' => true ) );
+ok( true === ( $GLOBALS['__purge_filter_args']['object_cache'] ?? null ) && false === ( $GLOBALS['__purge_filter_args']['template_overrides'] ?? null ), 'S7.6 flush_object_cache is the explicit Redis flush, and clears no overrides' );
+$sys_src = (string) file_get_contents( __DIR__ . '/../inc/abilities-system.php' );
+ok( false === strpos( $sys_src, 'Use after deploys' ) && false !== strpos( $sys_src, 'NOT needed after a deploy or a post save' ), 'S7.7 the description no longer tells an agent to purge after deploys' );
+$post_src = (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions/system.php' ) . (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions/cloudflare.php' );
+ok( 2 === substr_count( $post_src, "'template_overrides' => false, 'object_cache' => false, 'verified' => true" ), 'S7.8 a stale purge form post leaves Redis alone too' );
+
 // ─── S8: theme filter missing → WP_Error (unchanged regression pin) ─────
 $GLOBALS['__has_purge_filter'] = false;
 $out = snt_ability_purge_all_caches( null );

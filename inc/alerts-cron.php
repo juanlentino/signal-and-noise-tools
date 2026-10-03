@@ -103,6 +103,7 @@ function snt_alerts_gather( $now ) {
 		'views'    => $views,
 		'history'  => $history,
 		'errors'   => $errors,
+		'cache'    => function_exists( 'sn_cf_purge_failure' ) ? sn_cf_purge_failure() : null,
 		'excluded' => function_exists( 'sn_analytics_is_excluded_path' ) ? 'sn_analytics_is_excluded_path' : null,
 		'real'     => 'snt_alerts_is_real_page',
 	);
@@ -121,19 +122,24 @@ function snt_alerts_run( $now = null ) {
 	if ( snt_alerts_enabled() ) {
 		$sent   = snt_alerts_prune( (array) get_option( SNT_ALERTS_SENT_OPT, array() ), $now );
 		$in     = snt_alerts_gather( $now );
-		// A failed read is not a quiet day: nothing is judged, nothing mails, and
-		// the record says which read failed.
-		$alerts = $in['failed'] ? array() : snt_alerts_evaluate( $in + array( 'sent' => $sent ), snt_alerts_thresholds() );
+		// A failed read is not a quiet day: no traffic or error rule is judged,
+		// and the record says which read failed. A cache failure does not
+		// depend on those reads, so it is still judged and mailed.
+		$alerts = snt_alerts_evaluate( ( $in['failed'] ? array( 'cache' => $in['cache'] ) : $in ) + array( 'sent' => $sent ), snt_alerts_thresholds() );
 		$last   = array( 'at' => $now, 'state' => $in['failed'] ? 'read_failed' : 'evaluated', 'fired' => array_slice( array_column( $alerts, 'key' ), 0, 20 ), 'mailed' => false, 'error' => $in['failed'] ? 'stored read failed: ' . implode( ', ', $in['failed'] ) : '', 'capped' => $in['capped'], 'unread' => $in['unread'] );
 		if ( $alerts ) {
 			$email   = (string) get_option( 'admin_email' ); // the morning brief's recipient.
-			$spike   = (bool) array_filter( $alerts, static fn( $a ) => 'break' !== $a['kind'] );
+			$spike   = (bool) array_filter( $alerts, static fn( $a ) => ! in_array( $a['kind'], array( 'break', 'cache' ), true ) );
 			// null is the reader's failed-read verdict: kept, so the mail says
 			// "could not be read", never "none stored".
 			$sources = $spike && function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $in['today'], $in['today'], 'human', 5 ) : array();
 			$last['sources'] = null === $sources ? 'read failed' : 'read';
 			$where   = function_exists( 'snt_analytics_page_url' ) ? snt_analytics_page_url() : admin_url();
 			$mail    = snt_alerts_compose( $alerts, $sources, (string) wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ), $where );
+			// 20.9.0: the same headline for the open app, mailed or not.
+			if ( function_exists( 'snt_alerts_notice_build' ) ) {
+				snt_alerts_notice_store( snt_alerts_notice_build( $alerts, $mail[0], $mail[1], $now ) );
+			}
 			if ( '' === $email || ! is_email( $email ) ) {
 				$last['error'] = 'admin_email missing or invalid';
 			} elseif ( wp_mail( $email, $mail[0], $mail[1] ) ) {

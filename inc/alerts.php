@@ -61,6 +61,7 @@ function snt_alerts_clean( $text ) {
  *     errors   array<string,array<string,int>> Stored 5xx by UTC day, then path.
  *     sent     array<string,int>    Alert key => when it was mailed.
  *     excluded callable|null        The plugin's excluded-path rule.
+ *     cache    array|null           A cache call nothing could retry (sn_cf_purge_failure()).
  *     real     callable|null        Whether a path is a real page (home, published content, a known archive). Without it no break fires.
  * }
  * @param array<string,float> $t Thresholds, from snt_alerts_thresholds().
@@ -115,6 +116,12 @@ function snt_alerts_evaluate( array $in, array $t ) {
 			}
 		}
 	}
+	// A cache call nothing could retry (inc/cloudflare-purge-send.php). Keyed
+	// on the failure's own time, so one failure mails once and the next mails.
+	$cache = $in['cache'] ?? null;
+	if ( is_array( $cache ) && ! empty( $cache['time'] ) ) {
+		$add( 'cache', (string) ( $cache['what'] ?? '' ), gmdate( 'Y-m-d H:i:s', (int) $cache['time'] ), (int) ( $cache['http'] ?? 0 ), (int) ( $cache['attempts'] ?? 1 ), 0 );
+	}
 	return $found;
 }
 
@@ -165,8 +172,14 @@ function snt_alerts_prune( array $sent, $now ) {
 function snt_alerts_compose( array $alerts, $sources, $site, $where ) {
 	$lines  = array();
 	$spikes = 0;
+	$caches = 0;
 	foreach ( $alerts as $a ) {
 		$path = snt_alerts_clean( $a['path'] );
+		if ( 'cache' === $a['kind'] ) {
+			++$caches;
+			$lines[] = sprintf( 'CACHE: Cloudflare did not accept a cache refresh (%s) at %s UTC: HTTP %d after %d %s. Pages may be stale until the next refresh succeeds. Check the Cloudflare token in Connections, Cloudflare.', $path, $a['day'], $a['value'], $a['baseline'], 1 === (int) $a['baseline'] ? 'try' : 'tries' );
+			continue;
+		}
 		if ( 'break' === $a['kind'] ) {
 			$lines[] = sprintf( 'BREAK: %s answered a server error %d times on %s (UTC), in the stored edge 5xx rollup. The alert line is %d.', $path, $a['value'], $a['day'], $a['line'] );
 			continue;
@@ -185,7 +198,7 @@ function snt_alerts_compose( array $alerts, $sources, $site, $where ) {
 		$body .= "\nVisits with no referrer (apps, RSS readers, privacy browsers) show as direct.\n";
 	}
 	$body .= "\nWhere to look: " . $where . "\nEach alert mails once for its day. Switch alerts off in Connections, Cron.\n";
-	$breaks = count( $alerts ) - $spikes;
-	$what   = array_filter( array( $spikes ? $spikes . ( 1 === $spikes ? ' spike' : ' spikes' ) : '', $breaks ? $breaks . ( 1 === $breaks ? ' break' : ' breaks' ) : '' ) );
+	$breaks = count( $alerts ) - $spikes - $caches;
+	$what   = array_filter( array( $spikes ? $spikes . ( 1 === $spikes ? ' spike' : ' spikes' ) : '', $breaks ? $breaks . ( 1 === $breaks ? ' break' : ' breaks' ) : '', $caches ? 'cache refresh failed' : '' ) );
 	return array( sprintf( '[%s] Alert: %s', $site, implode( ', ', $what ) ), $body );
 }

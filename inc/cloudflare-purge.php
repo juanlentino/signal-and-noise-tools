@@ -54,6 +54,8 @@ const SN_CF_LAST_PURGE_OPT  = 'sn_cf_last_purge';
 const SN_CF_LAST_ZONE_PURGE_OPT = 'sn_cf_last_zone_purge';
 const SN_CF_API_BASE        = 'https://api.cloudflare.com/client/v4';
 
+require_once __DIR__ . '/cloudflare-purge-send.php'; // blocking send, retry, failure record (20.9.0).
+
 /**
  * Resolve the active token. Constant wins over option when set.
  *
@@ -90,15 +92,15 @@ function sn_cf_is_configured() {
 /**
  * Purge a list of specific URLs from Cloudflare's edge cache.
  *
- * Fire-and-forget (non-blocking); we don't want a slow CF API
- * response to delay an admin save. Caller doesn't get a success
- * signal — but failures are logged via the SN_CF_LAST_PURGE_OPT
- * option (timestamp + status) for the admin UI to display.
+ * Since 20.9.0 each call blocks and its answer is read
+ * (sn_cf_api_send): a transient failure is retried on a schedule and
+ * one nothing can retry is recorded for the alert email. The return
+ * value keeps its old meaning, handled, so callers are unchanged.
  *
  * @param string[] $urls Absolute URLs to purge. Filters out anything
  *                       that isn't a non-empty string.
- * @return bool true if request was dispatched, false if not configured
- *              or no valid URLs remain.
+ * @return bool true if the purge was handled (sent, or queued to retry),
+ *              false if not configured or no valid URLs remain.
  */
 function sn_cf_purge_urls( $urls ) {
 	if ( ! sn_cf_is_configured() ) {
@@ -112,12 +114,18 @@ function sn_cf_purge_urls( $urls ) {
 	}
 
 	// Cloudflare's cache purge endpoint accepts up to 30 URLs per call.
-	$chunks = array_chunk( $urls, 30 );
+	$chunks  = array_chunk( $urls, 30 );
+	$handled   = true;
+	$confirmed = true;
 	foreach ( $chunks as $chunk ) {
-		sn_cf_api_post(
-			'/zones/' . sn_cf_get_zone() . '/purge_cache',
-			array( 'files' => $chunk )
-		);
+		$confirmed = sn_cf_api_send( 'purge_cache', array( 'files' => $chunk ) ) && $confirmed;
+		$handled   = $handled && 'failed' !== sn_cf_send_last();
+	}
+	if ( ! $handled ) {
+		return false; // Cloudflare refused and nothing will retry: recorded for the alert.
+	}
+	if ( ! $confirmed ) {
+		return true; // a retry is waiting: handled, but no purge to stamp yet.
 	}
 
 	update_option( SN_CF_LAST_PURGE_OPT, array(
@@ -130,67 +138,41 @@ function sn_cf_purge_urls( $urls ) {
 }
 
 /**
- * Purge the entire zone. Used on theme updates where it's hard to
- * enumerate every URL whose markup might have shifted.
+ * Refresh the entire zone. A code update (trigger update or rollover)
+ * marks it stale; every other caller deletes it (sn_cf_edge_endpoint).
  *
- * @return bool true if request was dispatched, false if not configured.
+ * @return bool true if handled (sent, or queued to retry), false if not configured.
  */
 function sn_cf_purge_everything() {
 	if ( ! sn_cf_is_configured() ) {
 		return false;
 	}
 
-	sn_cf_api_post(
-		'/zones/' . sn_cf_get_zone() . '/purge_cache',
-		array( 'purge_everything' => true )
-	);
+	// 20.9.0: a code update marks the zone stale; anything else deletes.
+	$confirmed = sn_cf_api_send( sn_cf_edge_endpoint( (string) ( $GLOBALS['snt_purge_current']['trigger'] ?? '' ) ), array( 'purge_everything' => true ) );
+	if ( ! $confirmed && 'queued' !== sn_cf_send_last() ) {
+		return false; // refused, nothing will retry: no purge to stamp, no edge leg to mark.
+	}
 
-	update_option( SN_CF_LAST_PURGE_OPT, array(
-		'time' => time(),
-		'kind' => 'all',
-	), false );
-	update_option( SN_CF_LAST_ZONE_PURGE_OPT, time(), false );
+	// Both last-purge options are stamped by sn_cf_api_send() on confirmation.
 	// 20.7.0: the purge ledger. Inside the theme's chain this marks that
 	// row's edge leg; called on its own (the admin-bar button, a first
 	// publish, a scheduled transition, the probe) it is a row itself.
+	// The edge leg is true only when Cloudflare confirmed it in this request;
+	// a queued retry has not refreshed anything yet.
 	if ( isset( $GLOBALS['snt_purge_current'] ) ) {
-		$GLOBALS['snt_purge_edge'] = true;
+		$GLOBALS['snt_purge_edge'] = $confirmed;
 	} elseif ( function_exists( 'snt_purge_ledger_add' ) ) {
-		snt_purge_ledger_add( array( 'trigger' => snt_purge_trigger(), 'redis' => false, 'pages' => false, 'edge' => true, 'cloudways' => 'not run' ) );
+		snt_purge_ledger_add( array( 'trigger' => snt_purge_trigger(), 'redis' => false, 'pages' => false, 'edge' => $confirmed, 'cloudways' => 'not run' ) );
 	}
 
 	return true;
 }
 
 /**
- * Internal: fire a non-blocking POST against the Cloudflare API.
- * Caller passes a path (starting with /) and a body array.
- *
- * @param string $path
- * @param array  $body
- */
-function sn_cf_api_post( $path, $body ) {
-	wp_remote_post( SN_CF_API_BASE . $path, array(
-		'headers'  => array(
-			'Authorization' => 'Bearer ' . sn_cf_get_token(),
-			'Content-Type'  => 'application/json',
-		),
-		'body'     => wp_json_encode( $body ),
-		'timeout'  => 5,
-		'blocking' => false,
-		'sslverify' => true,
-		// v8.7.1 (CMA audit INFO-1): a Bearer credential is attached to a fixed API
-		// host, so forbid following any 3xx that would re-send it — matching the
-		// sn_uptime_status_api_get() outbound-hardening convention.
-		'redirection' => 0,
-	) );
-}
-
-/**
  * v8.7.0 (verified-purge Tier-1): fire a BLOCKING POST against the Cloudflare API
- * and read the real response. The fast auto-purge path stays non-blocking
- * (sn_cf_api_post); this variant is used only by the verified manual purge so the
- * per-leg report can carry a genuine accept-confirmation.
+ * and read the real response. Since 20.9.0 every purge goes through it
+ * (inc/cloudflare-purge-send.php adds the retry and the failure record).
  *
  * @param string $path CF API path (starting with /).
  * @param array  $body Request body.
@@ -243,6 +225,9 @@ function sn_cf_purge_everything_verified() {
 		'cf_success' => $r['cf_success'],
 	);
 
+	if ( ! empty( $out['cf_success'] ) ) {
+		sn_cf_purge_failure_clear( array( 'purge_everything' => true ) ); // the whole zone supersedes any recorded failure.
+	}
 	if ( ! empty( $out['cf_success'] ) && isset( $GLOBALS['snt_purge_current'] ) ) {
 		$GLOBALS['snt_purge_edge'] = true; // 20.7.0: the manual purge's ledger row (Codex).
 	}
@@ -453,6 +438,7 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 	// permalink would be ?p=ID (trash also renames post_name to *__trashed).
 	if ( ! $is_published ) {
 		sn_cf_purge_urls( sn_cf_post_purge_urls( $post_id, $post_before ) );
+		sn_cf_purge_tag();
 		return;
 	}
 
@@ -491,6 +477,10 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 
 	$urls = sn_cf_post_purge_urls( $post_id, $post );
 	sn_cf_purge_urls( $urls );
+	// 20.9.0: and the theme's one cache tag, which covers every page the URL
+	// list cannot name. The list and the probe below stay until a tag purge
+	// has been seen to clear the live edge; then both retire.
+	sn_cf_purge_tag();
 
 	// v11.10.0: the purge above is fire-and-forget and CANNOT report whether it
 	// worked. On 2026-08-15 three of them ran against one Note and the edge kept

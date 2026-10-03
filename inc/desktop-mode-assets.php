@@ -244,6 +244,8 @@ add_action( 'admin_enqueue_scripts', function() {
 		'theme'         => $theme,
 		'plugin'        => $plugin,
 		'cronSummary'   => function_exists( 'snt_cron_summary_for_localize' ) ? snt_cron_summary_for_localize() : array(),
+		// 20.9.0: the last alert the hourly run fired, for wp.os.notify. Owner only.
+		'alertNotice'   => $sn_is_owner && function_exists( 'snt_alerts_notice' ) ? snt_alerts_notice() : null,
 		'insightsSummary' => function_exists( 'snt_insights_summary_for_localize' ) ? snt_insights_summary_for_localize() : null,
 		// v9.52.0: cheap/durable summaries for the Pulse + Health widgets.
 		// Both are a single option read; both return null (never a fabricated
@@ -314,4 +316,10 @@ add_action( 'admin_enqueue_scripts', function() {
 	// Safe on any admin screen: assets/desktop-mode.js no-ops when neither
 	// wp.desktop nor wp.os is present.
 	wp_enqueue_script( 'sn-desktop-mode' );
+
+	// 20.9.0: an alert as a system notification while the app is open. It
+	// returns at once in any document without wp.os.notify (a classic window).
+	if ( $sn_is_owner ) {
+		wp_enqueue_script( 'snt-alert-notify', plugins_url( 'assets/snt-alert-notify.js', SNT_PATH . 'signal-and-noise-tools.php' ), array( 'sn-desktop-mode', 'wp-api-fetch' ), SNT_VERSION, true );
+	}
 } );

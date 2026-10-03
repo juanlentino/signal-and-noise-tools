@@ -826,6 +826,37 @@ function sn_seo_singular_last_modified_gmt( $post ) {
 	return max( $modified_gmt, $head_touched );
 }
 
+/**
+ * When the rendered markup last changed for reasons a post row cannot show: a
+ * theme or plugin update, a Styles save, a manual purge. Each runs the purge
+ * chain, and the theme stamps its report (sn_last_purge_report). 0 if unknown.
+ *
+ * @return int GMT unix timestamp.
+ */
+function sn_seo_render_changed_gmt() {
+	$report = get_option( 'sn_last_purge_report', array() );
+	return is_array( $report ) ? (int) ( $report['time'] ?? 0 ) : 0;
+}
+
+/**
+ * Whether a conditional request may be answered 304. PURE.
+ *
+ * 20.9.0: the content date alone is not enough. The edge revalidates a cached
+ * page with the Last-Modified it stored, which is the post's own date; a code
+ * update does not move that date, so the old test answered 304 and the edge
+ * kept serving the old markup, renewed, for as long as the post went
+ * unedited. A validator older than the last render change gets the page.
+ *
+ * @param int $client_since   The request's If-Modified-Since, as a timestamp.
+ * @param int $modified_gmt   The content's effective modified time.
+ * @param int $render_changed sn_seo_render_changed_gmt().
+ * @return bool
+ */
+function sn_seo_singular_not_modified( $client_since, $modified_gmt, $render_changed ) {
+	$client_since = (int) $client_since;
+	return $client_since > 0 && $client_since >= (int) $modified_gmt && $client_since >= (int) $render_changed;
+}
+
 add_action( 'template_redirect', function() {
 	if ( function_exists( 'the_seo_framework' ) ) {
 		return;
@@ -850,7 +881,7 @@ add_action( 'template_redirect', function() {
 
 	if ( ! empty( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) ) {
 		$client_since = strtotime( wp_unslash( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) );
-		if ( $client_since && $client_since >= $modified_gmt ) {
+		if ( sn_seo_singular_not_modified( (int) $client_since, $modified_gmt, sn_seo_render_changed_gmt() ) ) {
 			// SERVER_PROTOCOL is normally set by the front-end web server,
 			// but allowlist defensively — a manipulated value here would
 			// be the protocol portion of an HTTP response status line, so
