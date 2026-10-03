@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Removed
+- **/resume no longer ends with "Beyond the record: the research · the music".** The owner removed it (2026-10-02): the header stays on screen while scrolling, so the line repeated links the reader could already see. The theme drops the same lines from /music and /provenance (theme 14.9.0). Press Generate on the résumé after installing so the page drops it too.
+
 ## [20.5.1] - 2026-10-02 — the resume ending sits in the column
 
 
