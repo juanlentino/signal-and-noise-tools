@@ -125,6 +125,12 @@ ok( 'queued' === sn_cf_send_last() && ! isset( $GLOBALS['__opts']['sn_cf_last_zo
 reset_all( array( array( 200, true ) ) );
 sn_cf_api_send( 'purge_cache', array( 'purge_everything' => true ), 1 );
 ok( isset( $GLOBALS['__opts']['sn_cf_last_zone_purge'] ) && 'all' === $GLOBALS['__opts']['sn_cf_last_purge']['kind'] && array( 'sn_cf_purge_retry' ) === $GLOBALS['__unsched'] && 'cron:sn_cf_purge_retry' === ( end( $GLOBALS['__ledger'] )['trigger'] ?? '' ) && true === end( $GLOBALS['__ledger'] )['edge'], 'the retry Cloudflare confirms stamps both, cancels narrower retries and writes its own ledger row, edge true' );
+$GLOBALS['__opts']['sn_cf_purge_failure'] = array( 'time' => 1, 'http' => 401, 'scope' => 'gone', 'what' => '3 urls', 'attempts' => 1, 'endpoint' => 'purge_cache' );
+$GLOBALS['__unsched'] = array();
+reset_all( array( array( 200, true ) ) );
+sn_cf_api_send( 'invalidate_cache', array( 'purge_everything' => true ) );
+ok( null !== sn_cf_purge_failure() && array() === $GLOBALS['__unsched'], 'a confirmed zone INVALIDATE supersedes nothing: the old copy stays at the edge, so a failed purge of removed content still stands' );
+unset( $GLOBALS['__opts']['sn_cf_purge_failure'] );
 ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/mcp/mcp-rw-audit.php' ), "'flush_object_cache'," ), 'the write audit keeps flush_object_cache, so a Redis flush does not read like the page-only default' );
 
 echo "\nGroup: the theme's cache tag\n";

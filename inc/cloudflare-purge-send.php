@@ -68,7 +68,7 @@ function sn_cf_api_send( $endpoint, $body, $attempt = 0 ) {
 	$r = sn_cf_api_post_blocking( '/zones/' . sn_cf_get_zone() . '/' . $endpoint, $body );
 	if ( ! empty( $r['cf_success'] ) ) {
 		$GLOBALS['sn_cf_send_last'] = 'ok';
-		sn_cf_purge_failure_clear( $body );
+		sn_cf_purge_failure_clear( $body, $endpoint );
 		if ( isset( $body['purge_everything'] ) ) {
 			// Stamped on confirmation only (first try or a retry): the attention
 			// list reads the zone time as proof a refresh superseded older stale
@@ -123,13 +123,16 @@ if ( function_exists( 'add_action' ) ) {
  * whole zone, or the same call again. A success for some other URL list, or
  * for the theme's tag, leaves it: that content may still be stale.
  *
- * @param array $body The confirmed call's body.
+ * @param array  $body     The confirmed call's body.
+ * @param string $endpoint The endpoint that confirmed it.
  * @return void
  */
-function sn_cf_purge_failure_clear( array $body ) {
+function sn_cf_purge_failure_clear( array $body, $endpoint = 'purge_cache' ) {
 	// Only the whole zone covers everything. The theme's tag covers tagged
 	// pages, not a directly purged file (the resume PDF) or an asset.
-	$wide = isset( $body['purge_everything'] );
+	// And only a PURGE of it: an invalidate keeps the old copy at the edge, so
+	// it does not stand in for a failed purge of content that was removed.
+	$wide = isset( $body['purge_everything'] ) && 'purge_cache' === $endpoint;
 	// A zone refresh covers every narrower call still waiting to retry; left
 	// scheduled, one could fail later and report content already fresh.
 	if ( $wide && function_exists( 'wp_unschedule_hook' ) ) {
