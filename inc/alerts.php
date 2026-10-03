@@ -61,6 +61,7 @@ function snt_alerts_clean( $text ) {
  *     errors   array<string,array<string,int>> Stored 5xx by UTC day, then path.
  *     sent     array<string,int>    Alert key => when it was mailed.
  *     excluded callable|null        The plugin's excluded-path rule.
+ *     real     callable|null        Whether a path is a real page (home, published content, a known archive). Without it no break fires.
  * }
  * @param array<string,float> $t Thresholds, from snt_alerts_thresholds().
  * @return array<int,array<string,mixed>> Each: key, kind, path, day, value, baseline, line.
@@ -74,6 +75,7 @@ function snt_alerts_evaluate( array $in, array $t ) {
 	$junk     = static function ( $path ) use ( $excluded ) {
 		return '/wp-json' === $path || ( is_callable( $excluded ) && call_user_func( $excluded, $path ) );
 	};
+	$real     = $in['real'] ?? null;
 	$found    = array();
 	$add      = static function ( $kind, $path, $day, $value, $baseline, $line ) use ( &$found, $sent ) {
 		$key = $kind . '|' . $path . '|' . $day;
@@ -102,10 +104,13 @@ function snt_alerts_evaluate( array $in, array $t ) {
 	}
 	// A break is keyed on the day the errors HAPPENED, not the day they were
 	// noticed: the edge rollup stores a day after it ends, so the same rows are
-	// read on two calendar days and must mail once.
+	// read on two calendar days and must mail once. Only a REAL page breaks: the
+	// stored 5xx rows are full of scanner probes (/_security/_authenticate,
+	// /model/info, /Dockerfile) that no excluded-path rule can list, so the
+	// test is positive (the path resolves to content), never a deny list.
 	foreach ( (array) ( $in['errors'] ?? array() ) as $day => $paths ) {
 		foreach ( (array) $paths as $path => $n ) {
-			if ( ! $junk( (string) $path ) && (int) $n >= $t['break_min'] ) {
+			if ( (int) $n >= $t['break_min'] && ! $junk( (string) $path ) && is_callable( $real ) && call_user_func( $real, (string) $path ) ) {
 				$add( 'break', (string) $path, (string) $day, (int) $n, 0, $t['break_min'] );
 			}
 		}

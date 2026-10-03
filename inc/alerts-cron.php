@@ -29,6 +29,25 @@ function snt_alerts_enabled() {
 }
 
 /**
+ * Whether a path is a real page: the home page, a known front-end archive
+ * route (filter `snt_alerts_archive_routes`), or a URL core resolves to a
+ * PUBLISHED post or page. A scanner probe resolves to nothing, so it can
+ * never mail a break. Asked only for paths already at the break line.
+ *
+ * @param string $path Request path.
+ * @return bool
+ */
+function snt_alerts_is_real_page( $path ) {
+	$path   = '/' . ltrim( trim( (string) $path, '/' ) . '/', '/' );
+	$routes = (array) apply_filters( 'snt_alerts_archive_routes', array( '/notes/', '/provenance/' ) );
+	if ( '/' === $path || in_array( $path, $routes, true ) ) {
+		return true;
+	}
+	$id = (int) url_to_postid( home_url( $path ) );
+	return $id > 0 && 'publish' === get_post_status( $id );
+}
+
+/**
  * The stored rows the evaluation reads. Local tables and options only.
  *
  * @param int $now Unix time.
@@ -56,6 +75,7 @@ function snt_alerts_gather( $now ) {
 		'history'  => $sum( $back( SNT_ALERT_BASE_DAYS ), $back( 1 ) ),
 		'errors'   => $errors,
 		'excluded' => function_exists( 'sn_analytics_is_excluded_path' ) ? 'sn_analytics_is_excluded_path' : null,
+		'real'     => 'snt_alerts_is_real_page',
 	);
 }
 

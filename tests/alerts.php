@@ -23,17 +23,23 @@ function is_email( $e ) { return false !== strpos( $e, '@' ); }
 function get_bloginfo() { return 'Test Site'; }
 function wp_specialchars_decode( $v ) { return $v; }
 function admin_url() { return 'https://example.test/wp-admin/'; }
+$GLOBALS['ids'] = array( '/notes/a/' => 11, '/notes/b/' => 12, '/notes/draft/' => 13 );
+function apply_filters( $h, $v ) { return $v; }
+function home_url( $p = '' ) { return 'https://example.test' . $p; }
+function url_to_postid( $u ) { return $GLOBALS['ids'][ substr( $u, 20 ) ] ?? 0; }
+function get_post_status( $id ) { return 13 === $id ? 'draft' : 'publish'; }
 function sn_analytics_local_day( $now ) { return gmdate( 'Y-m-d', $now ); }
 function sn_analytics_daily_range( $from, $to ) { return array_values( array_filter( $GLOBALS['rows'], static fn( $r ) => $r['day'] >= $from && $r['day'] <= $to ) ); }
 function sn_edge_top_dim( $dim, $from, $to ) { return $GLOBALS['err'][ $from ] ?? array(); }
 function sn_analytics_top_sources() { return array( array( 'value' => 'Hacker News', 'views' => 20 ), array( 'value' => '(direct)', 'views' => 9 ) ); }
+function __return_true_t() { return true; }
 require __DIR__ . '/../inc/analytics-human-rule.php'; // the real excluded-path rule.
 require __DIR__ . '/../inc/alerts.php';
 require __DIR__ . '/../inc/alerts-cron.php';
 
 $T    = snt_alerts_thresholds();
 $junk = 'sn_analytics_is_excluded_path';
-$eval = static fn( $in ) => snt_alerts_evaluate( $in + array( 'today' => '2026-10-03', 'excluded' => 'sn_analytics_is_excluded_path' ), $GLOBALS['T'] );
+$eval = static fn( $in ) => snt_alerts_evaluate( $in + array( 'today' => '2026-10-03', 'excluded' => 'sn_analytics_is_excluded_path', 'real' => 'snt_alerts_is_real_page' ), $GLOBALS['T'] );
 $keys = static fn( $a ) => array_column( $a, 'key' );
 
 echo "Spikes\n";
@@ -52,7 +58,15 @@ ok( array() === $eval( array( 'views' => array( '/wp-content/x.css' => 99 ), 'hi
 echo "\nBreaks\n";
 $errs = array( '2026-10-02' => array( '/notes/a/' => 3, '/notes/b/' => 2, '/wp-json/wp/v2/posts' => 50, '/wp-json' => 9, '/wp-admin/admin-ajax.php' => 9, '/xmlrpc.php' => 9, '/wp-login.php' => 9, '/.env' => 9 ) );
 ok( array( 'break|/notes/a/|2026-10-02' ) === $keys( $eval( array( 'errors' => $errs ) ) ), '3 errors on a real page fires; 2 does not; admin, wp-json, xmlrpc, login and junk paths never do' );
-ok( 6 === count( snt_alerts_evaluate( array( 'errors' => $errs, 'excluded' => null ), $T ) ), 'control: without the excluded-path rule every one of those rows at 3 or more would fire' );
+ok( 6 === count( snt_alerts_evaluate( array( 'errors' => $errs, 'excluded' => null, 'real' => '__return_true_t' ), $T ) ), 'control: without the excluded-path rule every one of those rows at 3 or more would fire' );
+
+echo "\nA break is a REAL page\n";
+$probes = array( '2026-10-02' => array( '/_security/_authenticate' => 50, '/model/info' => 50, '/Dockerfile' => 50, '/notes/draft/' => 50, '/notes/gone/' => 50 ) );
+ok( array() === $eval( array( 'errors' => $probes ) ), 'scanner probes, a draft and a URL that resolves to nothing send nothing, even at 50 errors' );
+ok( array( 'break|/|2026-10-02', 'break|/notes/a/|2026-10-02', 'break|/notes/|2026-10-02' ) === $keys( $eval( array( 'errors' => array( '2026-10-02' => array( '/' => 3, '/notes/a/' => 3, '/notes/' => 3 ) ) + $probes ) ) ), 'the home page, a published note and a known archive route at 3 errors do' );
+ok( snt_alerts_is_real_page( '/notes/a' ) && snt_alerts_is_real_page( '/provenance' ) && ! snt_alerts_is_real_page( '/notes/a/extra/' ), 'a missing trailing slash still resolves; a longer path under a note does not' );
+ok( array() === snt_alerts_evaluate( array( 'errors' => array( '2026-10-02' => array( '/' => 9 ) ), 'real' => null ), $T ), 'with no resolver nothing breaks: the gate fails quiet, never open' );
+ok( 'snt_alerts_is_real_page' === snt_alerts_gather( 0 )['real'], 'the hourly gather hands the resolver to the evaluation' );
 
 echo "\nOnce per key per day\n";
 $sent = array( 'spike|/a/|2026-10-03' => 100 );
