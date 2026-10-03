@@ -243,6 +243,10 @@ function sn_cf_purge_everything_verified() {
 		'cf_success' => $r['cf_success'],
 	);
 
+	if ( ! empty( $out['cf_success'] ) && isset( $GLOBALS['snt_purge_current'] ) ) {
+		$GLOBALS['snt_purge_edge'] = true; // 20.7.0: the manual purge's ledger row (Codex).
+	}
+
 	update_option( SN_CF_LAST_PURGE_OPT, array(
 		'time'       => time(),
 		'kind'       => 'all',

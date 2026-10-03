@@ -153,13 +153,24 @@ function snt_freshness_enqueue( $hook_suffix ) {
 		SNT_VERSION,
 		true
 	);
-	wp_localize_script( 'sn-freshness-dot', 'sntFreshness', array(
-		'routes' => array_map( static function ( $p ) { return home_url( $p ); }, snt_freshness_routes() ),
-		'cardId' => SNT_FRESHNESS_CARD_ID,
-		// 20.7.0: the newest purge that cleared the edge, so a stale reading right after one says
-		// "refreshing" instead of asking for another purge.
-		'lastPurge' => function_exists( 'snt_purge_ledger_last_edge' ) ? snt_purge_ledger_last_edge() : 0,
-	) );
+	wp_localize_script( 'sn-freshness-dot', 'sntFreshness', snt_freshness_payload() );
 	wp_enqueue_script( 'sn-freshness-dot' );
 }
 add_action( 'admin_enqueue_scripts', 'snt_freshness_enqueue' );
+
+/**
+ * The card script's payload, for both surfaces: the classic page above and
+ * the OpenStation host (inc/openstation-host-assets.php). 20.7.0: one
+ * builder, after the host's copy missed the new lastPurge field (Codex).
+ *
+ * @return array{routes:string[],cardId:string,lastPurge:int}
+ */
+function snt_freshness_payload() {
+	return array(
+		'routes'    => array_map( static function ( $p ) { return home_url( $p ); }, snt_freshness_routes() ),
+		'cardId'    => SNT_FRESHNESS_CARD_ID,
+		// The newest purge that cleared the edge, so a stale reading right
+		// after one says "refreshing" instead of asking for another purge.
+		'lastPurge' => function_exists( 'snt_purge_ledger_last_edge' ) ? snt_purge_ledger_last_edge() : 0,
+	);
+}

@@ -77,11 +77,17 @@ echo "\nBreeze's own update purge is unhooked (5a)\n";
 class Breeze_Bulk_Update { function breeze_after_plugin_bulk_upgrade() {} }
 class Other_Plugin { function on_update() {} }
 $breeze = new Breeze_Bulk_Update(); $other = new Other_Plugin();
+function get_template() { return $GLOBALS['tpl'][0]; }
+function wp_get_theme() { return new class { function get( $k ) { return $GLOBALS['tpl'][1]; } }; }
+$GLOBALS['tpl'] = array( 'signal-and-noise', '14.9.0' );
 $GLOBALS['wp_filter'] = array( 'upgrader_process_complete' => (object) array( 'callbacks' => array( 10 => array(
 	'a' => array( 'function' => array( $other, 'on_update' ) ),
 	'b' => array( 'function' => array( $breeze, 'breeze_after_plugin_bulk_upgrade' ) ),
 ) ) ) );
 ok( snt_purge_breeze_update_purge_hooked(), 'control: found while hooked' );
+ok( ! snt_purge_remove_breeze_update_purge() && snt_purge_breeze_update_purge_hooked(), 'an older theme (no replacement purge) keeps Breeze\'s hook' );
+ok( ! snt_purge_theme_replaces_breeze( 'twentytwentyfive', '9.0' ), 'another theme keeps it too' );
+$GLOBALS['tpl'] = array( 'signal-and-noise', '15.0.1' );
 ok( snt_purge_remove_breeze_update_purge(), 'removed' );
 ok( ! snt_purge_breeze_update_purge_hooked() && 1 === count( $GLOBALS['wp_filter']['upgrader_process_complete']->callbacks[10] ), 'gone, and the other plugin\'s callback stays' );
 ok( ! snt_purge_remove_breeze_update_purge(), 'nothing to remove says false, never a silent success' );
@@ -145,6 +151,10 @@ $before = count( snt_purge_ledger_rows() );
 sn_cf_purge_everything();
 ok( $before === count( snt_purge_ledger_rows() ) && ! empty( $GLOBALS['snt_purge_edge'] ), 'inside the chain it marks that row instead of adding one' );
 unset( $GLOBALS['snt_purge_current'], $GLOBALS['snt_purge_edge'] );
+
+$cfsrc = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
+$vfn = substr( $cfsrc, (int) strpos( $cfsrc, 'function sn_cf_purge_everything_verified()' ), 1500 );
+ok( false !== strpos( $vfn, "if ( ! empty( \$out['cf_success'] ) && isset( \$GLOBALS['snt_purge_current'] ) ) {" ) && false !== strpos( $vfn, "\$GLOBALS['snt_purge_edge'] = true;" ), 'the manual (verified) purge marks its row\'s edge when Cloudflare confirms' );
 
 echo "\nThe summary\n";
 $GLOBALS['opt'] = array();

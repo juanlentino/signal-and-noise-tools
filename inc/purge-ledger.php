@@ -179,6 +179,12 @@ function snt_purge_wants_app_purge() {
  */
 function snt_purge_remove_breeze_update_purge() {
 	global $wp_filter;
+	// Only with the replacement in place: the Signal & Noise theme 15.0.0+
+	// purges the page caches after ANY plugin or theme update. Without it,
+	// Breeze's hook is the only update purge, so it stays (Codex).
+	if ( ! snt_purge_theme_replaces_breeze() ) {
+		return false;
+	}
 	$hook = $wp_filter['upgrader_process_complete'] ?? null;
 	if ( ! $hook || ! isset( $hook->callbacks ) ) {
 		return false;
@@ -194,6 +200,24 @@ function snt_purge_remove_breeze_update_purge() {
 	return false;
 }
 add_action( 'plugins_loaded', 'snt_purge_remove_breeze_update_purge', 20 );
+
+/**
+ * Whether the active theme's update purge covers every package (theme 15.0.0+).
+ *
+ * @param string|null $template Test seam: the active template slug.
+ * @param string|null $version  Test seam: its version.
+ * @return bool
+ */
+function snt_purge_theme_replaces_breeze( $template = null, $version = null ) {
+	if ( null === $template || null === $version ) {
+		if ( ! function_exists( 'wp_get_theme' ) || ! function_exists( 'get_template' ) ) {
+			return false;
+		}
+		$template = get_template();
+		$version  = (string) wp_get_theme( $template )->get( 'Version' );
+	}
+	return 'signal-and-noise' === $template && version_compare( $version, '15.0.0', '>=' );
+}
 
 /**
  * Whether Breeze's update purge is still hooked (the ledger's status line).
