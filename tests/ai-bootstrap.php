@@ -576,7 +576,7 @@ $GLOBALS['__test_ai_builder_supports_text']    = true;
 $GLOBALS['__test_ai_builder_generate_returns'] = 'ok';
 snt_ai_generate_with_constraints( 'p', 's' );
 hc_true( fixture_recorded_call_matches( 'using_model_preference', array( 'claude-sonnet-5-5', 'claude-sonnet-5' ) ),
-	'builder chain recorded using_model_preference(claude-sonnet-5-5, claude-sonnet-5): the default, then the fallback one generation back (20.10.0)' );
+	'builder chain recorded using_model_preference(claude-sonnet-5-5, claude-sonnet-5): the default, then the fallback one generation back (21.0.0)' );
 $pref_idx = fixture_first_call_index( 'using_model_preference' );
 $gen_idx  = fixture_first_call_index( 'generate_text_result' );
 hc_true( $pref_idx >= 0, 'using_model_preference was called' );

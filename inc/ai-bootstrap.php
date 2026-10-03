@@ -75,7 +75,7 @@ define( 'SN_AI_SPEND_FEATURE_OPT', 'sn_ai_spend_month_feature' );
 // The fallback tracks the default (both Sonnet 5): same price as the retired
 // 4.6 pin but strictly better, and now universally resolvable, so it is the
 // current known-good net for any owner-picked id the provider can't resolve.
-define( 'SN_AI_DEFAULT_MODEL',  'claude-sonnet-5-5' ); // 20.10.0: equals sn_ai_default_model() (pinned); the fallback stays one generation back.
+define( 'SN_AI_DEFAULT_MODEL',  'claude-sonnet-5-5' ); // 21.0.0: equals sn_ai_default_model() (pinned); the fallback stays one generation back.
 define( 'SN_AI_FALLBACK_MODEL', 'claude-sonnet-5' );
 
 /**

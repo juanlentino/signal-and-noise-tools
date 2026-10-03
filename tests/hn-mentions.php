@@ -1,6 +1,6 @@
 <?php
 /**
- * Standalone test: Hacker News mentions and their alerts (20.10.0).
+ * Standalone test: Hacker News mentions and their alerts (21.0.0).
  * Run: php tests/hn-mentions.php
  *
  * @package SignalNoiseTools

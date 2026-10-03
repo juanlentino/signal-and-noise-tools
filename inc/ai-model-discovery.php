@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise Tools: the daily read of what the AI providers serve (20.10.0).
+ * Signal & Noise Tools: the daily read of what the AI providers serve (21.0.0).
  *
  * The WordPress AI Client keeps a provider registry; the Anthropic and Google
  * provider plugins answer its model-metadata directory from the vendors' own

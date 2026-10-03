@@ -66,7 +66,7 @@ ok( $d['theme']['palette_enabled'] === true, 'defaults: palette_enabled true' );
 ok( $d['theme']['json_feed_items'] === 20, 'defaults: json_feed_items 20' );
 ok( $d['theme']['updated_threshold_days'] === 14, 'defaults: updated_threshold_days 14' );
 ok( $d['theme']['reading_wpm'] === 225, 'defaults: reading_wpm 225' );
-ok( $d['theme']['ai_model'] === 'claude-sonnet-5-5', 'defaults: ai_model claude-sonnet-5-5 (20.10.0)' );
+ok( $d['theme']['ai_model'] === 'claude-sonnet-5-5', 'defaults: ai_model claude-sonnet-5-5 (21.0.0)' );
 ok( $d['theme']['notes_per_page'] === 20, 'defaults: notes_per_page 20' );
 ok( $d['theme']['ai_monthly_budget'] === 0, 'defaults: ai_monthly_budget 0 (cap off)' );
 

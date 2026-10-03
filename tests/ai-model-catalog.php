@@ -1,6 +1,6 @@
 <?php
 /**
- * Standalone test: the AI model catalog (20.10.0).
+ * Standalone test: the AI model catalog (21.0.0).
  * Run: php tests/ai-model-catalog.php
  *
  * @package SignalNoiseTools

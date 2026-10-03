@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise Tools: the AI model catalog (20.10.0).
+ * Signal & Noise Tools: the AI model catalog (21.0.0).
  *
  * One place for which models the pickers offer and what the defaults are.
  * Before this the default id was a literal in eight files, and the lists

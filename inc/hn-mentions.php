@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise Tools: Hacker News mentions (20.10.0).
+ * Signal & Noise Tools: Hacker News mentions (21.0.0).
  *
  * A referrer undercounts Hacker News (its apps send none), and a submission
  * by someone else is invisible until traffic arrives. This asks Hacker News
