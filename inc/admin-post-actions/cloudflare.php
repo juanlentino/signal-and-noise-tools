@@ -25,7 +25,7 @@ function sn_handle_cf_purge_now( $post ) {
 	}
 	// 15.1.0: the full chain, verified, the same as purge_caches. Cloudflare
 	// alone left Varnish holding the stale copy the edge then refilled from.
-	apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false, 'verified' => true ) );
+	apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false, 'object_cache' => false, 'verified' => true ) );
 	return 'purged';
 }
 

@@ -28,7 +28,7 @@ function sn_handle_purge_caches( $post ) {
 	// v8.7.0: verified=true routes the theme's CF leg through the blocking variant
 	// and writes the per-leg sn_last_purge_report. This is the deliberate, watched
 	// manual purge, so the extra second on the CF confirmation is acceptable.
-	apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false, 'verified' => true ) );
+	apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false, 'object_cache' => false, 'verified' => true ) );
 	return 'purged';
 }
 

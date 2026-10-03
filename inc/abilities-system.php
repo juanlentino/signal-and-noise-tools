@@ -38,7 +38,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/purge-all-caches', array(
 		'label'               => 'Purge all caches',
-		'description'         => 'Clears WordPress object cache, transients, Breeze page cache, Varnish, and Cloudflare edge cache. Use after deploys or when content appears stale. The response reports whether the Cloudflare zone purge was actually confirmed (v10.4.1); ok is false when the CF leg could not run or was rejected.',
+		'description'         => 'Emergency refresh of the page caches: transients, page files and the Cloudflare edge. NOT needed after a deploy or a post save; both refresh the caches on their own (20.9.0), and a failed refresh is mailed by the alert run. Use it only when a page is visibly wrong and stays wrong. Redis (the object cache) is left alone unless flush_object_cache is true. The response reports whether the Cloudflare zone purge was actually confirmed (v10.4.1); ok is false when the CF leg could not run or was rejected.',
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_purge_all_caches',
@@ -52,6 +52,11 @@ add_action( 'wp_abilities_api_init', function() {
 				'include_template_overrides' => array(
 					'type'        => 'boolean',
 					'description' => 'Also clear wp_template/wp_template_part/wp_navigation DB rows. Default false — overrides are typically intentional Site Editor changes.',
+					'default'     => false,
+				),
+				'flush_object_cache' => array(
+					'type'        => 'boolean',
+					'description' => 'Also empty Redis (the whole object cache) and run the Cloudways app purge. Default false since 20.9.0: emptying Redis drops WordPress\'s update checks and every cached reading, and a stale page never needs it. include_template_overrides implies it (a full reset).',
 					'default'     => false,
 				),
 			),
@@ -325,6 +330,8 @@ function snt_ability_purge_all_caches( $input ) {
 	// $input is null when the run-path is called with no ?input= (the schema
 	// permits 'null'); guard before indexing so PHP 8 does not warn on null.
 	$include_overrides = is_array( $input ) && ! empty( $input['include_template_overrides'] );
+	// 20.9.0: Redis is its own, explicit choice. A full reset (overrides) keeps it.
+	$flush_redis       = $include_overrides || ( is_array( $input ) && ! empty( $input['flush_object_cache'] ) );
 
 	if ( ! has_filter( 'sn_purge_all_caches_result' ) ) {
 		return new WP_Error( 'snt_helper_unavailable', 'Cache helper unavailable: theme module not loaded.', array( 'status' => 500 ) );
@@ -339,6 +346,7 @@ function snt_ability_purge_all_caches( $input ) {
 	$dispatched_at = time();
 	$count         = (int) apply_filters( 'sn_purge_all_caches_result', 0, array(
 		'template_overrides' => $include_overrides,
+		'object_cache'       => $flush_redis,
 		'verified'           => true,
 	) );
 
