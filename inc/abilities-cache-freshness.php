@@ -70,6 +70,10 @@ add_action( 'wp_abilities_api_init', function() {
 					'type'        => 'object',
 					'description' => 'probes / stale / escalated over POST-SAVE probes only. Manual purges never write here, so pressing Purge cannot move them.',
 				),
+				'purges'    => array(
+					'type'        => 'object',
+					'description' => '20.7.0: the purge ledger. last_7_days and by_trigger (manual, update, rollover, styles, cron:<hook>), redis_flushes_7d (purges that emptied the whole object cache), whether Breeze\'s own update purge is hooked (should read removed) and whether its nightly purge is scheduled (should read off), and the last 20 rows, each with trigger, redis, pages, edge and the Cloudways answer. A healthy week is a handful of rows and zero redis flushes outside manual.',
+				),
 			),
 		),
 		'meta'                => array(
@@ -117,6 +121,7 @@ function snt_ability_cache_freshness( $input ) {
 			'phrase'    => '',
 			'post_save' => array( 'probes' => 0, 'stale' => 0, 'escalated' => 0 ),
 			'probe_scope' => 'permalink',
+			'purges'    => function_exists( 'snt_purge_ledger_summary' ) ? snt_purge_ledger_summary() : array(),
 		);
 	}
 
@@ -143,5 +148,6 @@ function snt_ability_cache_freshness( $input ) {
 			'stale'     => (int) ( $sum['stale'] ?? 0 ),
 			'escalated' => (int) ( $sum['escalated'] ?? 0 ),
 		),
+		'purges'    => function_exists( 'snt_purge_ledger_summary' ) ? snt_purge_ledger_summary() : array(),
 	);
 }

@@ -408,7 +408,11 @@ function snt_deploy_history_version_check() {
 		// path now does only the cheap option write above; the purge itself
 		// moves to snt_deploy_history_purge_rollover_run(), scheduled as a
 		// single deduped event so it runs in cron context instead.
-		if ( has_filter( 'sn_purge_all_caches_result' ) && function_exists( 'wp_schedule_single_event' ) ) {
+		// 20.7.0: an update through WordPress already purged (the theme's
+		// update purge, inside the update request), so this second purge only
+		// emptied caches again. It stays for deploys that bypass the updater.
+		$update_purged = function_exists( 'snt_purge_ran_recently' ) && snt_purge_ran_recently( 'update', 15 * MINUTE_IN_SECONDS );
+		if ( ! $update_purged && has_filter( 'sn_purge_all_caches_result' ) && function_exists( 'wp_schedule_single_event' ) ) {
 			$already_scheduled = function_exists( 'wp_next_scheduled' ) && wp_next_scheduled( SNT_DEPLOY_HISTORY_PURGE_HOOK );
 			if ( ! $already_scheduled ) {
 				wp_schedule_single_event( time(), SNT_DEPLOY_HISTORY_PURGE_HOOK );
@@ -427,7 +431,8 @@ add_action( 'admin_init', 'snt_deploy_history_version_check' );
  */
 function snt_deploy_history_purge_rollover_run() {
 	if ( has_filter( 'sn_purge_all_caches_result' ) ) {
-		(int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false ) );
+		// 20.7.0: page caches only, like the update purge; never all of Redis.
+		(int) apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false, 'object_cache' => false, 'trigger' => 'rollover' ) );
 	}
 }
 add_action( SNT_DEPLOY_HISTORY_PURGE_HOOK, 'snt_deploy_history_purge_rollover_run' );

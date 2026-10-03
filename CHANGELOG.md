@@ -12,6 +12,14 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Purges stop being a ritual (owner, 2026-10-03).** One plugin install fired three full purges within minutes (Breeze's own update hook, the theme's update purge, this plugin's version-change rollover), each emptying all of Redis: Core's update check and every stored reading went blank, Cloudways refused the overlapping purges, and the Caches card then said "purge needed".
+  - **A purge log.** `inc/purge-ledger.php` keeps the last 50 purges: when, what asked (manual, update, rollover, styles, cron:<hook>), whether it emptied Redis, and what Cloudways answered. On the Caches card ("Purges this week") and in `sn-status{cache}` as `purges`.
+  - **One purge per update.** The version-change rollover skips when an update purge ran in the last 15 minutes; it stays for deploys that bypass the updater, and never flushes Redis.
+  - **The Cloudways app purge runs only on a purge-everything.** It clears Varnish and all of Redis; Varnish never served this site's pages (measured: every repeat request read `x-cache: MISS`). An update, a styles save or Breeze's nightly run stands it down, and the row says so.
+  - **Breeze's own update purge is removed** (owner's call): it ended in `wp_cache_flush()`. The theme's update purge (14.10.0) replaces it for every plugin and theme update, without the Redis flush. Install theme 14.10.0 with this.
+  - **The Caches card stops asking for purges.** A page whose cached render is older but still loads its stylesheet (old stylesheets stay a week) reads "older render · refreshes on its own", or "refreshing after the last purge" within 10 minutes of one, in the info tone. "Purge needed" is left for a page whose stylesheet is gone.
+
 ## [20.6.0] - 2026-10-03 — the PDF engine says its version
 
 ### Removed
