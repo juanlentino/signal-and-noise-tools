@@ -521,7 +521,7 @@ namespace {
 
 
 	$html = paint( $app, array( 'tab' => 'site', 'sub' => 'front-end', 'notice' => array( 'error', 'It <a href="x">broke</a>.' ) ) );
-	ok( false !== strpos( $html, '<os-notice tone="danger">It <a href="x">broke</a>.</os-notice>' ),
+	ok( false !== strpos( $html, '<os-notice tone="danger" role="alert">It <a href="x">broke</a>.</os-notice>' ),
 		'the notice is the kit`s notice, and its deliberate inline <a> survives -- about fifteen flash codes ship one' );
 	ok( strpos( $html, '<os-notice' ) < strpos( $html, 'snt-leaf' ), '   ...above the leaf, where the classic page puts it under the heading' );
 
