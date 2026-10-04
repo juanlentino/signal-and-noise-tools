@@ -27,12 +27,15 @@ const SN_ANALYTICS_DATASET_EVENTS_V2 = 'sn_events_v2';
  * @param string $dataset One of the three dataset names.
  * @param int    $days    Days back, today included (1..14).
  * @param bool   $pid     Also count the rows that carry a pageview ID (double11, v2 only).
+ * `n` is the weighted count; `r` is the rows actually stored. They differ only
+ * when Analytics Engine sampled, and then `n` is an estimate.
+ *
  * @return string AE SQL.
  */
 function sn_analytics_v2_count_sql( $dataset, $days, $pid = false ) {
 	$dataset = in_array( $dataset, array( SN_ANALYTICS_DATASET, SN_ANALYTICS_DATASET_PV_V2, SN_ANALYTICS_DATASET_EVENTS_V2 ), true ) ? $dataset : SN_ANALYTICS_DATASET;
 	$days    = max( 1, min( 14, (int) $days ) );
-	return 'SELECT ' . "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, blob1 AS ev, sum(_sample_interval) AS n"
+	return 'SELECT ' . "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, blob1 AS ev, sum(_sample_interval) AS n, count() AS r"
 		. ( $pid ? ', sum(if(double11 > 0, _sample_interval, 0)) AS with_pid' : '' )
 		. ' FROM ' . $dataset
 		. " WHERE timestamp >= toStartOfDay(now() - INTERVAL '" . ( $days - 1 ) . "' DAY)"
@@ -46,7 +49,8 @@ function sn_analytics_v2_count_sql( $dataset, $days, $pid = false ) {
  * new datasets partway through it, so a shortfall there is expected and is
  * not a finding. From that day on, each side must hold exactly the legacy
  * count: pageview-side events against sn_pageviews_v2, ce and cp against
- * sn_events_v2.
+ * sn_events_v2. A day Analytics Engine sampled reads `sampled` when its
+ * estimates differ: inconclusive, not a mismatch.
  *
  * @param array|null $legacy         Rows {day, ev, n} from the legacy dataset; null when the read failed.
  * @param array|null $pageviews      Rows {day, ev, n, with_pid} from sn_pageviews_v2.
@@ -61,13 +65,18 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day 
 	$days = array();
 	$slot = static function ( $day ) use ( &$days ) {
 		if ( ! isset( $days[ $day ] ) ) {
-			$days[ $day ] = array( 'day' => $day, 'legacy_pageview_side' => 0, 'v2_pageviews' => 0, 'legacy_events' => 0, 'v2_events' => 0, 'with_pid' => 0 );
+			$days[ $day ] = array( 'day' => $day, 'legacy_pageview_side' => 0, 'v2_pageviews' => 0, 'legacy_events' => 0, 'v2_events' => 0, 'with_pid' => 0, 'sampled' => false );
 		}
 	};
+	// A count is exact only while every stored row stands for itself. Once
+	// Analytics Engine samples (each dataset on its own), the weighted sums are
+	// estimates and two identical writes can read unequal.
+	$sampled = static fn( $r ) => isset( $r['r'] ) && (int) round( (float) ( $r['n'] ?? 0 ) ) !== (int) round( (float) $r['r'] );
 	foreach ( $legacy as $r ) {
 		$day = (string) ( $r['day'] ?? '' );
 		$slot( $day );
 		$days[ $day ][ in_array( (string) ( $r['ev'] ?? '' ), array( 'ce', 'cp' ), true ) ? 'legacy_events' : 'legacy_pageview_side' ] += (int) round( (float) ( $r['n'] ?? 0 ) );
+		$days[ $day ]['sampled'] = $days[ $day ]['sampled'] || $sampled( $r );
 	}
 	foreach ( array( 'v2_pageviews' => $pageviews, 'v2_events' => $events ) as $key => $rows ) {
 		foreach ( $rows as $r ) {
@@ -75,13 +84,14 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day 
 			$slot( $day );
 			$days[ $day ][ $key ]      += (int) round( (float) ( $r['n'] ?? 0 ) );
 			$days[ $day ]['with_pid'] += (int) round( (float) ( $r['with_pid'] ?? 0 ) );
+			$days[ $day ]['sampled']   = $days[ $day ]['sampled'] || $sampled( $r );
 		}
 	}
 	ksort( $days );
 	$bad = 0;
 	foreach ( $days as $day => $d ) {
 		$equal = $d['legacy_pageview_side'] === $d['v2_pageviews'] && $d['legacy_events'] === $d['v2_events'];
-		$state = $day < (string) $first_full_day ? 'partial' : ( $equal ? 'match' : 'mismatch' );
+		$state = $day < (string) $first_full_day ? 'partial' : ( $equal ? 'match' : ( $d['sampled'] ? 'sampled' : 'mismatch' ) ); // unequal estimates prove nothing either way.
 		$bad  += 'mismatch' === $state ? 1 : 0;
 		$days[ $day ]['state'] = $state;
 	}
@@ -97,9 +107,22 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day 
  * @return array<string,mixed>
  */
 function sn_analytics_v2_check( $days = 4, $first_full_day = '2026-10-05' ) {
-	$q = static fn( $ds, $pid ) => function_exists( 'sn_analytics_query' ) ? sn_analytics_query( sn_analytics_v2_count_sql( $ds, $days, $pid ) ) : null;
-	return sn_analytics_v2_compare( $q( SN_ANALYTICS_DATASET, false ), $q( SN_ANALYTICS_DATASET_PV_V2, true ), $q( SN_ANALYTICS_DATASET_EVENTS_V2, true ), $first_full_day )
-		+ array( 'first_full_day' => (string) $first_full_day, 'datasets' => array( SN_ANALYTICS_DATASET, SN_ANALYTICS_DATASET_PV_V2, SN_ANALYTICS_DATASET_EVENTS_V2 ) );
+	$sets = array( SN_ANALYTICS_DATASET, SN_ANALYTICS_DATASET_PV_V2, SN_ANALYTICS_DATASET_EVENTS_V2 );
+	$read = array();
+	$fail = array();
+	foreach ( $sets as $i => $ds ) {
+		$rows = function_exists( 'sn_analytics_query' ) ? sn_analytics_query( sn_analytics_v2_count_sql( $ds, $days, $i > 0 ) ) : null;
+		if ( ! is_array( $rows ) ) {
+			// Stop at the first failure and keep its reason: the next successful
+			// request would clear the stored error and leave "not read" unexplained.
+			$err  = function_exists( 'sn_analytics_last_error' ) ? sn_analytics_last_error() : null;
+			$fail = array( 'failed' => $ds, 'error' => is_array( $err ) ? 'HTTP ' . (int) ( $err['code'] ?? 0 ) . ' ' . substr( (string) ( $err['message'] ?? '' ), 0, 200 ) : '' );
+			break;
+		}
+		$read[] = $rows;
+	}
+	return sn_analytics_v2_compare( $read[0] ?? null, $read[1] ?? null, $read[2] ?? null, $first_full_day )
+		+ $fail + array( 'first_full_day' => (string) $first_full_day, 'datasets' => $sets );
 }
 
 function snt_ability_analytics_dual_write( $input = array() ) {
@@ -113,12 +136,12 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/analytics-dual-write', array(
 		'label'               => 'Analytics: do the new datasets hold what the old one holds?',
-		'description'         => 'The analytics worker (1.24.0 and later) writes every beacon to the legacy dataset and to two second-generation datasets. This counts rows per UTC day in all three (three live Analytics Engine requests) and compares them: pageview-side events against sn_pageviews_v2, custom events against sn_events_v2. `state` per day: `partial` before `first_full_day` (the dual write began mid-day; a shortfall there is expected), then `match` or `mismatch`. `with_pid` is how many new rows carry a pageview ID (theme 15.3.0 and later). `read: false` means a request failed and nothing was compared; it is NOT a mismatch. Read this before moving any read to the new datasets. Read-only.',
+		'description'         => 'The analytics worker (1.24.0 and later) writes every beacon to the legacy dataset and to two second-generation datasets. This counts rows per UTC day in all three (three live Analytics Engine requests) and compares them: pageview-side events against sn_pageviews_v2, custom events against sn_events_v2. `state` per day: `partial` before `first_full_day` (the dual write began mid-day; a shortfall there is expected), then `match` or `mismatch`. `with_pid` is how many new rows carry a pageview ID (theme 15.3.0 and later). `read: false` means a request failed and nothing was compared (`failed` names the dataset, `error` the reason); it is NOT a mismatch. `sampled` on a day means Analytics Engine sampled and the unequal counts are estimates: inconclusive. Read this before moving any read to the new datasets. Read-only.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_analytics_dual_write',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array( 'days' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 14, 'default' => 4, 'description' => 'UTC days back, today included.' ) ), 'additionalProperties' => false ),
-		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'read' => array( 'type' => 'boolean' ), 'days' => array( 'type' => 'array' ), 'mismatched' => array( 'type' => 'integer' ), 'first_full_day' => array( 'type' => 'string' ), 'datasets' => array( 'type' => 'array' ) ) ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'read' => array( 'type' => 'boolean' ), 'days' => array( 'type' => 'array' ), 'mismatched' => array( 'type' => 'integer' ), 'first_full_day' => array( 'type' => 'string' ), 'datasets' => array( 'type' => 'array' ), 'failed' => array( 'type' => 'string' ), 'error' => array( 'type' => 'string' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => true ) ),
 	) );
 } );
