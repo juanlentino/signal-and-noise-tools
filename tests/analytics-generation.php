@@ -87,6 +87,10 @@ ok( true === $r1['ok'] && array( SNT_ANALYTICS_VDAY_CACHE_KEY ) === $GLOBALS['de
 $calls_before = $GLOBALS['checks'];
 $again = sn_analytics_v2_verify( $oct08 + 600 );
 ok( $calls_before === $GLOBALS['checks'] && true === $again['ok'], 'a second writer ten minutes later takes the stored verdict: no second comparison' );
+$late = gmmktime( 23, 50, 0, 10, 8, 2026 ); $GLOBALS['opt'][ SN_ANALYTICS_V2_VERIFIED_OPT ]['at'] = $late; $n0 = $GLOBALS['checks'];
+sn_analytics_v2_verify( $late + 900 );
+ok( $n0 + 1 === $GLOBALS['checks'], 'fifteen minutes later but across UTC midnight: a day has just become complete, so the comparison runs again' );
+$GLOBALS['opt'][ SN_ANALYTICS_V2_VERIFIED_OPT ]['at'] = $oct08;
 $GLOBALS['deleted'] = array(); sn_analytics_v2_verify( $oct08 + 86400 );
 ok( array() === $GLOBALS['deleted'], 'verified again the next day: nothing changed, nothing dropped' );
 $GLOBALS['next_check'] = array( 'read' => true, 'days' => array( array( 'day' => '2026-10-07', 'state' => 'mismatch' ) ) );

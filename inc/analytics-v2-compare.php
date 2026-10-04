@@ -52,8 +52,8 @@ function sn_analytics_v2_count_sql( $dataset, $days, $pid = false ) {
  * one `ce` row per custom event since worker 1.25.0), and `ce` plus `cp`
  * against sn_events_v2. A day Analytics Engine sampled reads `sampled` when its
  * estimates differ: inconclusive, not a mismatch. The comparison is event by
- * event (pv, sc, tm, the vitals, ce, cp), and a `match` needs the pageviews
- * counted exactly on both sides.
+ * event (pv, sc, tm, the vitals, ce, cp), and a `match` needs every one of
+ * them counted exactly on both sides.
  *
  * @param array|null $legacy         Rows {day, ev, n} from the legacy dataset; null when the read failed.
  * @param array|null $pageviews      Rows {day, ev, n, with_pid} from sn_pageviews_v2.
@@ -120,12 +120,15 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day 
 		$pv_exact = isset( $l['pv'], $p['pv'] ) && $l['pv']['exact'] && $p['pv']['exact'];
 		// The events dataset is proven only by a custom event counted exactly in
 		// both: a day with no custom events says nothing about it.
-		$ev_exact = isset( $l['ce'], $e['ce'] ) && $l['ce']['exact'] && $e['ce']['exact'] && $l['ce']['n'] === $e['ce']['n'] && $l['ce']['n'] > 0;
+		$ev_exact = isset( $l['ce'], $e['ce'] ) && $l['ce']['exact'] && $e['ce']['exact'] && $l['ce']['n'] === $e['ce']['n'] && $l['ce']['n'] > 0; // a match already means cp, where present, was exact and equal too.
 		if ( $day < (string) $first_full_day ) {
 			$state = 'partial';
 		} elseif ( $differs ) {
 			$state = 'mismatch';
-		} elseif ( $pv_exact && $exact > 0 ) {
+		} elseif ( $pv_exact && $exact > 0 && array() === $sampled ) {
+			// Every event type read from these datasets was counted exactly and
+			// agrees. One sampled type is enough to withhold the match: its
+			// counts are estimates, and the rollups read that type too.
 			$state = 'match';
 		} else {
 			$state = 'sampled';
@@ -188,7 +191,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/analytics-dual-write', array(
 		'label'               => 'Analytics: do the new datasets hold what the old one holds?',
-		'description'         => 'The analytics worker (1.24.0 and later) writes every beacon to the legacy dataset and to two second-generation datasets. This counts rows per UTC day in all three (three live Analytics Engine requests) and compares them: every legacy row except property rows (`cp`) against sn_pageviews_v2, and custom events with their property rows against sn_events_v2 (the base row of a custom event is in both, by design, since worker 1.25.0). `state` per day: `partial` before `first_full_day` (the dual write began mid-day; a shortfall there is expected), then `match` or `mismatch`. `with_pid` is how many new rows carry a pageview ID (theme 15.3.0 and later). `read: false` means a request failed and nothing was compared (`failed` names the dataset, `error` the reason); it is NOT a mismatch. The comparison is event by event; `differs` names the events whose exact counts disagree. `sampled` means Analytics Engine sampled some events that day (`sampled_events`): those are estimates and are skipped, and a day whose pageviews are not exact is `sampled`, never `match`. `verdict` is the stored answer of the daily check ({ok, day, at, why}; empty until it has run): while `ok` is true, every read whose window starts on or after `first_full_day` uses the new datasets, and a mismatch sends them all back to the old one. Read-only.',
+		'description'         => 'The analytics worker (1.24.0 and later) writes every beacon to the legacy dataset and to two second-generation datasets. This counts rows per UTC day in all three (three live Analytics Engine requests) and compares them: every legacy row except property rows (`cp`) against sn_pageviews_v2, and custom events with their property rows against sn_events_v2 (the base row of a custom event is in both, by design, since worker 1.25.0). `state` per day: `partial` before `first_full_day` (the dual write began mid-day; a shortfall there is expected), then `match` or `mismatch`. `with_pid` is how many new rows carry a pageview ID (theme 15.3.0 and later). `read: false` means a request failed and nothing was compared (`failed` names the dataset, `error` the reason); it is NOT a mismatch. The comparison is event by event; `differs` names the events whose exact counts disagree. `sampled` means Analytics Engine sampled some events that day (`sampled_events`): those are estimates, and a day with any sampled event is `sampled`, never `match`. `verdict` is the stored answer of the daily check ({ok, day, at, why}; empty until it has run): while `ok` is true, every read whose window starts on or after `first_full_day` uses the new datasets, and a mismatch sends them all back to the old one. Read-only.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_analytics_dual_write',

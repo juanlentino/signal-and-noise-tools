@@ -157,7 +157,10 @@ function sn_analytics_drilldown( $dim, $value, $from, $to, $class = 'human' ) {
 		$query_values = array( $value );
 	}
 
-	$cache_key = 'sn_drill_' . md5( $dim . '|' . $value . '|' . $from . '|' . $to . '|' . $class );
+	// The dataset is part of the key, as for the percentiles: a verdict that
+	// moves this window must not be answered from the generation just left.
+	$source    = sn_analytics_source( (string) $from );
+	$cache_key = 'sn_drill_' . md5( $dim . '|' . $value . '|' . $from . '|' . $to . '|' . $class . ( SN_ANALYTICS_DATASET === $source ? '' : '|' . $source ) );
 	$cached    = get_transient( $cache_key );
 	if ( false !== $cached ) {
 		return is_array( $cached ) ? $cached : null;

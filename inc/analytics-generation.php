@@ -210,7 +210,9 @@ function sn_analytics_v2_verify( $now = null ) {
 	// session rollup), on separate hooks minutes apart. Whichever runs first
 	// refreshes it; the other, inside half an hour, takes it as stored.
 	$last = function_exists( 'get_option' ) ? get_option( SN_ANALYTICS_V2_VERIFIED_OPT, array() ) : array();
-	if ( is_array( $last ) && isset( $last['at'] ) && $now - (int) $last['at'] < 1800 && $now >= (int) $last['at'] ) {
+	// Only inside the same UTC day: across midnight a new day has become
+	// complete, and a verdict from before it never looked at that day.
+	if ( is_array( $last ) && isset( $last['at'] ) && $now - (int) $last['at'] < 1800 && $now >= (int) $last['at'] && gmdate( 'Y-m-d', $now ) === gmdate( 'Y-m-d', (int) $last['at'] ) ) {
 		return $last;
 	}
 	if ( ! function_exists( 'sn_analytics_v2_check' ) || ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {

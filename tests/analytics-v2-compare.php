@@ -48,7 +48,7 @@ $eq = $P; $eq[1]['r'] = 20; // equal estimates, but the pageviews were sampled.
 ok( 'sampled' === sn_analytics_v2_compare( $L, $eq, $E, '2026-10-05' )['days'][1]['state'], 'pageviews that are an estimate cannot make a match, even when the numbers agree' );
 $sc = $P; $sc[2]['r'] = 30; $sc[2]['n'] = 77; // scroll events sampled and unequal; pageviews exact and equal.
 $m = sn_analytics_v2_compare( $L, $sc, $E, '2026-10-05' );
-ok( 'match' === $m['days'][1]['state'] && array( 'sc' ) === $m['days'][1]['sampled_events'], 'a sampled event is skipped, named, and does not block a day whose pageviews match exactly' );
+ok( 'sampled' === $m['days'][1]['state'] && array( 'sc' ) === $m['days'][1]['sampled_events'] && false === $m['days'][1]['events_proven'], 'one sampled event type withholds the match and is named: the rollups read that type too' );
 $quiet = sn_analytics_v2_compare( array( array( 'day' => '2026-10-05', 'ev' => 'pv', 'n' => 40 ) ), array( array( 'day' => '2026-10-05', 'ev' => 'pv', 'n' => 40 ) ), array(), '2026-10-05' );
 ok( 'match' === $quiet['days'][0]['state'] && false === $quiet['days'][0]['events_proven'], 'a day with no custom events matches on its pageviews and proves nothing about the events dataset' );
 $n = sn_analytics_v2_compare( $L, null, $E, '2026-10-05' );
