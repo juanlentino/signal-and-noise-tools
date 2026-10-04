@@ -77,8 +77,9 @@ function sn_admin_render_workflow_section() {
 	sn_rsm_input( 'workflow[sample][label]', $s['label'], 'Label', 'Sample' );
 	sn_rsm_input( 'workflow[sample][title]', $s['title'], 'Title', '' );
 	sn_wf_textarea( 'workflow[sample][intro]', $s['intro'], 'Intro', 3 );
-	sn_wf_textarea( 'workflow[sample][body]', $s['body'], 'Body (shown exactly as typed, whitespace included)', 14, 'code' );
 	sn_wf_textarea( 'workflow[sample][outcome]', $s['outcome'], 'Outcome (optional)', 3 );
+	echo '<p class="sn-field-helper">Shown before the Body. Write it to stand on its own.</p>';
+	sn_wf_textarea( 'workflow[sample][body]', $s['body'], 'Body (shown exactly as typed, whitespace included)', 14, 'code' );
 
 	echo '<h3>Map</h3>';
 	sn_rsm_input( 'workflow[map_heading]', $doc['map_heading'], 'Heading', 'The rest of the set' );

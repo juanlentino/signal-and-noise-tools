@@ -38,7 +38,7 @@ Content > Workflow edits `/workflow`. Data layer: `inc/workflow-page.php`.
 
 - **Page:** Title (the Page title), Dek (the Page excerpt, which becomes the
   meta description).
-- **Sample:** Label, Title, Intro, Body, Outcome (optional). The Body is
+- **Sample:** Label, Title, Intro, Outcome (optional), Body, in that order on the page and in the form. The result leads and the long Body follows as its evidence; an empty Outcome renders nothing and Body follows Intro. The Body is
   stored verbatim (only NUL bytes are removed) and shown in a focusable
   `<pre><code>` region. On output it is escaped with `esc_html`, and `[` `]`
   are encoded as `&#91;` `&#93;` because WordPress runs shortcodes over

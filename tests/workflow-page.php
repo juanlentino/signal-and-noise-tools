@@ -168,5 +168,13 @@ ok( false !== strpos( $named, 'aria-labelledby="sn-workflow-sample-title"' ) && 
 echo "\nGroup: the write guard knows /workflow\n";
 ok( false === snt_generated_page_guard( 'workflow', '<div>no wrapper</div>' ), 'a body without sn-workflow-page is refused' );
 
+echo "\nGroup: the sample renders Label, Title, Intro, Outcome, Body\n";
+$ord = sn_workflow_sample_html( array( 'label' => 'L', 'title' => 'T', 'intro' => 'I', 'outcome' => 'O', 'body' => 'B' ) );
+$pos = array_map( static fn( $c ) => strpos( $ord, 'sn-workflow-sample__' . $c ), array( 'label', 'title', 'intro', 'outcome', 'body' ) );
+ok( ! in_array( false, $pos, true ) && $pos === array_values( array_unique( $pos ) ) && $pos == array_values( ( static function ( $a ) { sort( $a ); return $a; } )( $pos ) ), 'the five parts render in order: label, title, intro, outcome, body' );
+$no_out = sn_workflow_sample_html( array( 'label' => '', 'title' => '', 'intro' => 'I', 'outcome' => '', 'body' => 'B' ) );
+ok( false === strpos( $no_out, 'sn-workflow-sample__outcome' ), 'an empty outcome renders nothing' );
+ok( preg_match( '#sn-workflow-sample__intro">I</p><pre class="sn-workflow-sample__body"#', $no_out ) === 1, 'with no outcome, the body follows the intro directly' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

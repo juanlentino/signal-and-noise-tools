@@ -49,6 +49,10 @@ function sn_workflow_sample_html( array $s ) {
 	if ( '' !== $s['intro'] ) {
 		$out .= '<p class="sn-workflow-sample__intro">' . sn_workflow_esc( $s['intro'] ) . '</p>';
 	}
+	// Outcome before Body: the result leads, the long artifact follows as evidence.
+	if ( '' !== $s['outcome'] ) {
+		$out .= '<p class="sn-workflow-sample__outcome">' . sn_workflow_esc( $s['outcome'] ) . '</p>';
+	}
 	if ( '' !== $s['body'] ) {
 		// No whitespace between <pre> and <code>: HTML drops a newline right
 		// after <pre>, and the body's own first character must survive.
@@ -61,9 +65,6 @@ function sn_workflow_sample_html( array $s ) {
 		$name  = '' !== $s['title'] ? 'aria-labelledby="sn-workflow-sample-title"' : 'aria-label="' . esc_attr( $label ) . '"';
 		$out  .= '<pre class="sn-workflow-sample__body" tabindex="0" role="region" ' . $name . '><code>'
 			. str_replace( array( '[', ']' ), array( '&#91;', '&#93;' ), $body ) . '</code></pre>';
-	}
-	if ( '' !== $s['outcome'] ) {
-		$out .= '<p class="sn-workflow-sample__outcome">' . sn_workflow_esc( $s['outcome'] ) . '</p>';
 	}
 	return $out . '</section>';
 }
