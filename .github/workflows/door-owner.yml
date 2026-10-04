@@ -4,6 +4,7 @@ name: Door owner
 # repository's own automation change only in a pull request whose branch the
 # owner was the last to push. Anyone else's push to those paths fails this
 # check until the owner takes the pull request over by pushing to its branch.
+# Only docs/ and the top-level Markdown files are open to everyone.
 #
 # pull_request_target on purpose: the job runs THIS file from main, never the
 # pull request's copy, so a pull request cannot edit its way past the check.
@@ -38,12 +39,13 @@ jobs:
       HEAD_REF: ${{ github.event.pull_request.head.ref }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       CHANGED: ${{ github.event.pull_request.changed_files }}
-      # Everything that runs on the server, the data files it reads, the tests and tools that guard it,
-      # and this repository's automation. An exposed ability's behavior lives
-      # wherever its callback reaches, so a narrower list protects only the
-      # registration. tests/mcp-door-manifest.php reads this line. Keep
-      # .github/CODEOWNERS in step.
-      OWNED: '^(inc/|apps/|blocks/|lib/|data/|tests/|tools/|\.github/|[^/]+\.php$)'
+      # The only paths anyone else may change: prose. Everything else is the
+      # owner's, because what an exposed ability does lives wherever its callback
+      # reaches: server code, the scripts that run in the owner's browser, data
+      # files, served skill files, tests, tools, .gitattributes, .github/. A list
+      # of what is owned would always be one path short. tests/mcp-door-manifest.php
+      # reads this line. Keep .github/CODEOWNERS in step.
+      OPEN: '^(docs/|[^/]+\.md$)'
     steps:
       - name: Owned paths change only in the owner's hands
         run: |
@@ -79,10 +81,10 @@ jobs:
           # grep finding nothing must not.
           files=$(gh api "repos/$REPO/pulls/$NUMBER/files" --paginate \
             --jq '.[] | .filename, (.previous_filename // empty)')
-          touched=$(printf '%s\n' "$files" | grep -E "$OWNED" | sort -u || true)
+          touched=$(printf '%s\n' "$files" | grep -vE "$OPEN" | sort -u || true)
           if [ -n "$touched" ]; then
             echo "::error::This pull request (author $AUTHOR, last pushed by ${pusher:-unknown}) touches paths only $OWNER changes:"
             echo "$touched"
             exit 1
           fi
-          echo "No owned path touched."
+          echo "Only open paths touched."

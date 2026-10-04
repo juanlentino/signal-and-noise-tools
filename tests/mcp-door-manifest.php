@@ -41,11 +41,13 @@ ok( array() === array_intersect( $live['read'], $live['write'] ), 'no ability is
 // The lists pass through a filter each. Nothing shipped may hook them.
 $hooks   = array();
 $names_ok = array( 'inc/mcp/mcp-capabilities.php', 'inc/mcp/mcp-read-guard.php', 'inc/mcp/mcp-rw-guard.php', 'inc/mcp/mcp-telemetry-read.php', 'inc/admin-forms/mcp-connect-status.php', 'inc/admin-forms/mcp-connect.php', 'apps/sn-dashboard/parts/leaves/ai-mcp-connect-parts.php' );
-$unowned = array();
-// The one line the required check reads its paths from.
-preg_match( "/^\s*OWNED: '(.+)'\s*$/m", (string) file_get_contents( dirname( __DIR__ ) . '/.github/workflows/door-owner.yml' ), $m );
-$owned = (string) ( $m[1] ?? '' );
-ok( '' !== $owned && 1 === preg_match( '#' . $owned . '#', 'inc/mcp/mcp-capabilities.php' ) && 1 === preg_match( '#' . $owned . '#', 'tests/run.sh' ) && 1 === preg_match( '#' . $owned . '#', 'signal-and-noise-tools.php' ) && 0 === preg_match( '#' . $owned . '#', 'docs/VERSIONING.md' ) && 0 === preg_match( '#' . $owned . '#', 'assets/os-app.css' ), 'the door-owner check carries its path list, and the list is a real filter' );
+// The one line the required check reads: the paths open to anyone. Everything
+// else is the owner's, so the line must match prose and nothing that runs.
+preg_match( "/^\s*OPEN: '(.+)'\s*$/m", (string) file_get_contents( dirname( __DIR__ ) . '/.github/workflows/door-owner.yml' ), $m );
+$open  = (string) ( $m[1] ?? '' );
+$is    = static fn( $path ) => '' !== $open && 1 === preg_match( '#' . $open . '#', $path );
+$shut  = array( 'inc/mcp/mcp-capabilities.php', 'inc/forms-spam-sweep.php', 'assets/desktop-mode.js', 'data/family-drift/pinned.json', 'skills/query-site-analytics/SKILL.md', 'tests/run.sh', 'tools/cut-release.sh', '.gitattributes', '.github/workflows/ci.yml', 'signal-and-noise-tools.php', 'docs.php', 'inc/docs/x.md' );
+ok( $is( 'docs/VERSIONING.md' ) && $is( 'CHANGELOG.md' ) && array() === array_filter( $shut, $is ), 'the door-owner check opens docs/ and the top-level Markdown files, and nothing that runs or is served' );
 $root  = dirname( __DIR__ );
 $it    = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ) );
 foreach ( $it as $f ) {
@@ -62,11 +64,7 @@ foreach ( $it as $f ) {
 	if ( ! in_array( $rel, $names_ok, true ) && preg_match( '/[\'"]sn_mcp_(rw_)?allowlist[\'"]/', $src ) ) {
 		$hooks[] = $rel;
 	}
-	if ( preg_match( '/^[^*\/\n]*\bwp_register_ability\s*\(/m', $src ) && ! preg_match( '#' . $owned . '#', $rel ) ) {
-		$unowned[] = $rel;
-	}
 }
-ok( array() === $unowned, 'every file that registers an ability is on the door-owner path list' . ( $unowned ? ': ' . implode( ', ', $unowned ) : '' ) );
 ok( array() === $hooks, 'no new file names the door-list filters' . ( $hooks ? ': ' . implode( ', ', $hooks ) : '' ) );
 
 echo "\nResult: $pass passed, $fail failed.\n";
