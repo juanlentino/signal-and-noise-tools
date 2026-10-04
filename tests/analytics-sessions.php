@@ -206,5 +206,10 @@ ok( array() === sn_pageview_visits( array() ), 'empty input → empty' );
 $sd = sn_visit_summary( array( ev( 'D', 0, 'pv', '/n' ), ev( 'D', 1, 'sc', '/n', '', 60, 0 ), ev( 'D', 2, 'tm', '/n', '', 0, 9000 ), ev( 'D', 3, 'tm', '/n', '', 0, 8000 ) ), 50, 15000 );
 ok( true === $sd['engaged'], 'two 9 s + 8 s slices are a 17 s dwell: engaged past the 15 s floor (the larger slice alone was 9 s)' );
 
+echo "\nGroup: a pageview's UTM source is never a custom event (second-generation column)\n";
+$utm = sn_visit_summary( array( ev( 'U', 10, 'pv', '/a', 'google' ), ev( 'U', 20, 'ce', '/a', 'subscribe' ) ) );
+ok( array( 'subscribe' ) === array_values( (array) $utm['goals'] ), 'a pv row carrying "google" in the name column yields no goal; the ce row does' );
+ok( array( '', 'subscribe' ) === array_column( (array) ( $utm['events'] ?? array() ), 'ce' ), 'and the funnel sequence carries the name only on the ce row' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

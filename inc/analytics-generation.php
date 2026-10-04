@@ -97,6 +97,8 @@ function sn_analytics_clock( $set = null ) {
  * @return string
  */
 function sn_analytics_col( $col, $dataset ) {
+	// The pageviews dataset has no entry for blob17/blob18: those are a property
+	// row's columns, and property rows are only ever read from the events dataset.
 	$map = array(
 		'sn_pageviews_v2' => array( 'blob19' => 'blob16', 'blob16' => 'blob17' ),
 		'sn_events_v2'    => array( 'blob19' => 'blob16', 'blob16' => 'blob17', 'blob17' => 'blob18', 'blob18' => 'blob19' ),

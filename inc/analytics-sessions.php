@@ -522,7 +522,9 @@ function sn_visit_summary( array $events, $engaged_scroll = SN_ANALYTICS_SESSION
 		$last_ts  = ( null === $last_ts ) ? $ts : max( $last_ts, $ts );
 		$type     = (string) ( $e['ev'] ?? '' );
 		$p        = (string) ( $e['path'] ?? '' );
-		$seq[]    = array( 'ev' => $type, 'path' => $p, 'ce' => (string) ( $e['ce'] ?? '' ) );
+		// The name is read only off a `ce` row. In the second-generation dataset
+		// the same column holds a pageview's UTM source, which is not an event.
+		$seq[]    = array( 'ev' => $type, 'path' => $p, 'ce' => 'ce' === $type ? (string) ( $e['ce'] ?? '' ) : '' );
 
 		if ( 'pv' === $type ) {
 			$path[] = $p;
