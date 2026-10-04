@@ -58,16 +58,32 @@
 	}
 
 	/**
-	 * A glance-sized reason: parenthetical asides (raw provider errors)
-	 * dropped, then at most 140 characters cut at a word, keeping every
+	 * A glance-sized reason: long parentheticals (raw provider errors, over
+	 * 40 characters) dropped, short ones kept (a setup location such as
+	 * "(Connections › Credentials)"), then at most 140 characters cut at a word, keeping every
 	 * sentence that fits; the first sentence is not always the reason. The
 	 * full text stays on the Health tab, one click away.
 	 */
 	function shortReason( text ) {
 		var t = text;
-		while ( /\([^()]*\)/.test( t ) ) {
-			t = t.replace( /\s*\([^()]*\)/g, '' );
+		// Outermost parentheticals, balanced, so a nested "(400)" goes with its long aside.
+		var out = '', depth = 0, start = 0;
+		for ( var i = 0; i < t.length; i++ ) {
+			var c = t.charAt( i );
+			if ( '(' === c ) {
+				if ( 0 === depth ) { start = i; }
+				depth++;
+			} else if ( ')' === c && depth > 0 ) {
+				depth--;
+				if ( 0 === depth ) {
+					var aside = t.slice( start, i + 1 );
+					out += aside.length - 2 > 40 ? '' : aside;
+				}
+			} else if ( 0 === depth ) {
+				out += c;
+			}
 		}
+		t = depth > 0 ? out + t.slice( start ) : out;
 		t = t.replace( /\s+([,.;:])/g, '$1' ).replace( /\s+/g, ' ' ).trim();
 		if ( t.length > 140 ) {
 			t = t.slice( 0, 139 ).replace( /\s+\S*$/, '' ).replace( /[,;:]$/, '' ) + '…';
