@@ -74,6 +74,13 @@ ok( strpos( sn_analytics_percentiles_sql( 'sc', 'double1', "2026-06-01'; DROP", 
 ok( strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-06-01', '2026-06-30', "human'; DROP" ), 'DROP' ) === false, 'sql: class allowlisted' );
 ok( strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-06-01', '2026-06-30', 'martian' ), sn_analytics_counted_condition( 'human', array() ) ) !== false, 'sql: unknown class → human' );
 
+echo "\nGroup: the window is the site's days, sent as UTC instants\n";
+$ny = new DateTimeZone( 'America/New_York' );
+ok( array( '2026-10-06 04:00:00', '2026-10-20 03:59:59' ) === sn_analytics_local_day_bounds_utc( '2026-10-06', '2026-10-19', $ny ), 'New York days Oct 6 to Oct 19 are 04:00 UTC to 03:59:59 UTC the day after' );
+ok( array( '2026-11-01 04:00:00', '2026-11-02 04:59:59' ) === sn_analytics_local_day_bounds_utc( '2026-11-01', '2026-11-01', $ny ), 'the day the clocks go back is 25 hours long, and the bounds say so' );
+ok( array( '2026-06-01 00:00:00', '2026-06-30 23:59:59' ) === sn_analytics_local_day_bounds_utc( '2026-06-01', '2026-06-30', new DateTimeZone( 'UTC' ) ), 'a UTC site keeps the UTC midnights' );
+ok( false !== strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-06-01', '2026-06-30', 'human' ), "timestamp >= toDateTime('2026-06-01 00:00:00') AND timestamp <= toDateTime('2026-06-30 23:59:59')" ), 'the statement keeps its proven shape: a plain UTC literal inside toDateTime(), no timezone argument' );
+
 echo "\nGroup: read accessor — success shape + caching\n";
 pc_reset();
 $r = sn_analytics_percentiles( 'scroll', '2026-06-01', '2026-06-30', 'human' );

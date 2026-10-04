@@ -71,6 +71,11 @@ $clean = sn_session_rollup_normalize( $rows );
 ok( 1 === count( $clean ), 'only the valid row survives' );
 ok( 12 === $clean[0]['visits'], 'visits coerced to int' );
 ok( '2026-06-01' === $clean[0]['day'] && 'human' === $clean[0]['class'], 'day/class preserved' );
+ok( null === $clean[0]['two_pages'] && null === $clean[0]['deep_pages'], 'a row with no depth split keeps it null (not measured), never 0' );
+$deep = sn_session_rollup_normalize( array( array( 'day' => '2026-10-06', 'class' => 'human', 'visits' => 10, 'bounce_pct' => 70, 'ppv' => 1.5, 'median_dur' => 20, 'two_pages' => 2, 'deep_pages' => 0 ) ) );
+ok( 2 === $deep[0]['two_pages'] && 0 === $deep[0]['deep_pages'], 'a measured split is kept, a measured zero included' );
+$schema = sn_session_rollup_schema_sql();
+ok( false !== strpos( $schema, 'two_pages INT UNSIGNED NULL DEFAULT NULL' ) && false !== strpos( $schema, 'deep_pages INT UNSIGNED NULL DEFAULT NULL' ) && '3' === SN_SESSION_ROLLUP_DB_VERSION, 'the table gains two nullable columns under schema version 3' );
 
 // ── Locale-safe float binding (regression) ────────────────────────────────────
 // $wpdb->prepare() routes %f through vsprintf() (LC_NUMERIC-sensitive): under a

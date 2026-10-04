@@ -68,6 +68,9 @@ ok( array( 'label' => 'Engaged', 'value' => '0%' ) === snt_desktop_reading_page_
 ok( 'Sessions' === snt_desktop_reading_visit_rows( array( array( 'visits' => 3, 'bounce_pct' => 0.0, 'ppv' => 1.0, 'median_dur' => 5 ) ) )[0]['label'], 'the unit is sessions, so it cannot be read as SN Site Views visitor-days' );
 $v = snt_desktop_reading_visit_rows( array( array( 'visits' => 30, 'bounce_pct' => 80.0, 'ppv' => 1.2, 'median_dur' => 20 ), array( 'visits' => 10, 'bounce_pct' => 40.0, 'ppv' => 2.0, 'median_dur' => 100 ) ) );
 ok( array( '40', '70%', '1.40', '40s' ) === array_column( $v, 'value' ), 'visits fold weighted by each day\'s visits, not as a plain mean of days' );
+$dv = snt_desktop_reading_visit_rows( array( array( 'visits' => 10, 'bounce_pct' => 70.0, 'ppv' => 1.5, 'median_dur' => 20, 'two_pages' => 2, 'deep_pages' => 1 ), array( 'visits' => 30, 'bounce_pct' => 80.0, 'ppv' => 1.2, 'median_dur' => 20, 'two_pages' => null, 'deep_pages' => null ) ) );
+ok( array( 'Sessions', 'One page only', 'Two pages', 'Three or more', 'Pages per session', 'Typical session' ) === array_column( $dv, 'label' ) && '20%' === $dv[2]['value'] && '10%' === $dv[3]['value'], 'the depth split is a share of the days that measured it (10 sessions), not of all 40' );
+ok( 4 === count( $v ), 'with no day measuring the split, the two rows are absent, not zero' );
 ok( null === snt_desktop_reading_visit_rows( null ) && array() === snt_desktop_reading_visit_rows( array() ), 'a failed visits read stays null (the group says it could not be read); an empty window is an empty list' );
 ok( '42s' === snt_desktop_reading_seconds( 42 ) && '3m 05s' === snt_desktop_reading_seconds( 185 ), 'seconds read as people say them' );
 ok( array( 'label' => 'LCP', 'value' => '80% good · 10% poor' ) === snt_desktop_reading_vital_row( 'LCP', $d( array( 8, 1, 1 ) ) ), 'a vital whose percentile could not be read still shows its good and poor shares' );
@@ -78,6 +81,21 @@ ok( null === snt_desktop_reading_vital_row( 'INP', $d( array( 0, 0, 0 ) ) ), 'a 
 $au2 = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-audience.php' );
 ok( false !== strpos( $au2, "sn_analytics_top_sources( \$win['from'], \$win['to'], 'human', 500 )" ) && false === strpos( $au2, 'sn_analytics_referrer_categories' ), 'Sources are the named ones (Hacker News, LinkedIn), not the five categories' );
 ok( false !== strpos( $au2, "'(none)' !== (string) ( \$r['value'] ?? '' )" ), 'the no-campaign bucket is not a campaign' );
+
+echo "\nA failed table is not an empty one\n";
+$GLOBALS['wpdb'] = (object) array( 'last_error' => '' );
+ok( false === snt_desktop_db_failed(), 'no database error: not failed' );
+$GLOBALS['wpdb']->last_error = "Table 'wp_sn_analytics_buckets' doesn't exist";
+ok( true === snt_desktop_db_failed(), 'a database error on the read just made: failed' );
+function sn_analytics_distribution( $m, $f, $t, $c ) { return array( array( 'label' => 'a', 'views' => 0 ), array( 'label' => 'b', 'views' => 0 ), array( 'label' => 'c', 'views' => 0 ) ); }
+function sn_analytics_top_events( $f, $t, $l ) { return array(); }
+$g = snt_desktop_reading_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) );
+$by = array_column( $g, null, 'title' );
+ok( 'The custom events could not be read.' === $by['Custom events · all traffic']['empty'] && 'The field measurements could not be read.' === $by['Core Web Vitals']['empty'], 'a broken rollup table says it could not be read, not "none" and not 0%' );
+$GLOBALS['wpdb']->last_error = '';
+$g = array_column( snt_desktop_reading_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) ), null, 'title' );
+ok( 'No custom events in this window.' === $g['Custom events · all traffic']['empty'] && 'No field measurements in this window.' === $g['Core Web Vitals']['empty'], 'the same empty answers with no error are a real "none"' );
+unset( $GLOBALS['wpdb'] );
 
 echo "\nSource pins\n";
 $rd = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-reading.php' );

@@ -146,6 +146,17 @@ function sn_archive_existing_tick() {
  * @return string
  */
 function sn_archive_existing_status_line() {
+	$line = sn_archive_existing_run_line();
+	// What the Archive itself says happened to the requests (inc/archive-push-confirm.php).
+	return function_exists( 'sn_archive_confirm_line' ) && null !== sn_archive_push_keys() ? $line . ' ' . sn_archive_confirm_line() : $line;
+}
+
+/**
+ * The run alone: configured, running, halted, or how many were never pushed.
+ *
+ * @return string
+ */
+function sn_archive_existing_run_line() {
 	$run     = (array) get_option( SN_ARCHIVE_EXISTING_OPT, array() );
 	$pending = count( sn_archive_existing_pending() );
 	$state   = (string) ( $run['state'] ?? '' );

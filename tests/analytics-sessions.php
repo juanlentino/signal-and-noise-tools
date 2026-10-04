@@ -84,6 +84,9 @@ ok( abs( $m['pages_per_visit'] - ( 5 / 3 ) ) < 0.001, 'pages_per_visit = 5/3' );
 ok( 40 === $m['median_duration'], 'median duration of {0,120,40} = 40' );
 ok( 2 === $m['engaged_visits'], '2 engaged visits' );
 ok( 0 === sn_session_metrics( array() )['visits'], 'empty input → 0 visits, no divide-by-zero' );
+$depth = sn_session_metrics( array( array( 'pageviews' => 1 ), array( 'pageviews' => 1 ), array( 'pageviews' => 2 ), array( 'pageviews' => 3 ), array( 'pageviews' => 7 ) ) );
+ok( 1 === $depth['two_page_visits'] && 2 === $depth['deep_visits'] && abs( $depth['bounce_rate'] - 0.4 ) < 0.001, 'depth: exactly two pages and three or more are counted apart from the one-page visits' );
+ok( 0 === sn_session_metrics( array() )['two_page_visits'] && 0 === sn_session_metrics( array() )['deep_visits'], 'depth on an empty set is zero, not missing' );
 
 echo "\nGroup: sn_session_paths\n";
 $sp = array(

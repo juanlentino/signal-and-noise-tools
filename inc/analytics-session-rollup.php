@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_SESSION_ROLLUP_TABLE          = 'sn_session_daily';
-const SN_SESSION_ROLLUP_DB_VERSION     = '2'; // 2: engaged (visitor-days that met the north star's read floor; NULL = not measured)
+const SN_SESSION_ROLLUP_DB_VERSION     = '3'; // 3: two_pages, deep_pages (visits of exactly two and of three or more pageviews; NULL = not measured). // 2: engaged (visitor-days that met the north star's read floor; NULL = not measured)
 const SN_SESSION_ROLLUP_DB_VERSION_OPT = 'sn_session_daily_db_version';
 const SN_SESSION_ROLLUP_HOOK           = 'sn_session_rollup_daily';
 
@@ -38,6 +38,8 @@ function sn_session_rollup_schema_sql() {
 		ppv FLOAT NOT NULL DEFAULT 0,
 		median_dur INT UNSIGNED NOT NULL DEFAULT 0,
 		engaged INT UNSIGNED NULL DEFAULT NULL,
+		two_pages INT UNSIGNED NULL DEFAULT NULL,
+		deep_pages INT UNSIGNED NULL DEFAULT NULL,
 		PRIMARY KEY  (id),
 		UNIQUE KEY day_class (day, class)
 	) {$charset};";
@@ -89,6 +91,8 @@ function sn_session_rollup_normalize( $rows ) {
 			'ppv'        => round( (float) ( $r['ppv'] ?? 0 ), 2 ),
 			'median_dur' => max( 0, (int) round( (float) ( $r['median_dur'] ?? 0 ) ) ),
 			'engaged'    => isset( $r['engaged'] ) ? max( 0, (int) $r['engaged'] ) : null,
+			'two_pages'  => isset( $r['two_pages'] ) ? max( 0, (int) $r['two_pages'] ) : null,
+			'deep_pages' => isset( $r['deep_pages'] ) ? max( 0, (int) $r['deep_pages'] ) : null,
 		);
 	}
 	return $clean;
@@ -204,6 +208,8 @@ function sn_session_rollup_run( $day = '' ) {
 			'bounce_pct' => $m['bounce_rate'] * 100,
 			'ppv'        => $m['pages_per_visit'],
 			'median_dur' => $m['median_duration'],
+			'two_pages'  => isset( $m['two_page_visits'] ) ? (int) $m['two_page_visits'] : null,
+			'deep_pages' => isset( $m['deep_visits'] ) ? (int) $m['deep_visits'] : null,
 			// Human only: engaged visitor-days under the north star's own read rule.
 			'engaged'    => ( 'human' === $class && function_exists( 'snt_nsm_engaged' ) ) ? snt_nsm_engaged( (array) ( $data['visits'] ?? array() ), snt_nsm_config() ) : null,
 		);
@@ -306,7 +312,7 @@ function sn_session_rollup_read( $from, $to, $class ) {
 	$table = $wpdb->prefix . SN_SESSION_ROLLUP_TABLE;
 	// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- static SELECT template; $table is $wpdb->prefix + a plugin constant and every value binds via prepare(); reads the plugin-owned rollup table (no core API exists for it).
 	$rows = $wpdb->get_results( $wpdb->prepare(
-		"SELECT day, visits, bounce_pct, ppv, median_dur, engaged FROM {$table} WHERE day >= %s AND day <= %s AND class = %s ORDER BY day ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- see above.
+		"SELECT day, visits, bounce_pct, ppv, median_dur, engaged, two_pages, deep_pages FROM {$table} WHERE day >= %s AND day <= %s AND class = %s ORDER BY day ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- see above.
 		$from,
 		$to,
 		$class
@@ -339,6 +345,8 @@ function sn_session_rollup_read( $from, $to, $class ) {
 			'ppv'        => (float) $r['ppv'],
 			'median_dur' => max( 0, (int) $r['median_dur'] ),
 			'engaged'    => ( isset( $r['engaged'] ) && '' !== (string) $r['engaged'] ) ? (int) $r['engaged'] : null,
+			'two_pages'  => ( isset( $r['two_pages'] ) && '' !== (string) $r['two_pages'] ) ? (int) $r['two_pages'] : null,
+			'deep_pages' => ( isset( $r['deep_pages'] ) && '' !== (string) $r['deep_pages'] ) ? (int) $r['deep_pages'] : null,
 		);
 	}
 	return $out;
@@ -364,7 +372,10 @@ function sn_session_rollup_upsert( $clean ) {
 			// and corrupt the SQL. number_format( …, '.', '' ) forces a dot decimal
 			// regardless of locale; MySQL coerces the quoted string into the FLOAT column.
 			// engaged is NULL (not measured) for non-human classes and pre-v2 rows.
-			$placeholders[] = '(%s, %s, %d, %s, %s, %d, ' . ( null === ( $c['engaged'] ?? null ) ? 'NULL' : '%d' ) . ')';
+			// two_pages / deep_pages are NULL on rows written before version 3.
+			$nullable = array( 'engaged', 'two_pages', 'deep_pages' );
+			$slots    = array_map( static fn( $k ) => null === ( $c[ $k ] ?? null ) ? 'NULL' : '%d', $nullable );
+			$placeholders[] = '(%s, %s, %d, %s, %s, %d, ' . implode( ', ', $slots ) . ')';
 			array_push(
 				$values,
 				$c['day'],
@@ -374,13 +385,15 @@ function sn_session_rollup_upsert( $clean ) {
 				number_format( (float) $c['ppv'], 2, '.', '' ),
 				$c['median_dur']
 			);
-			if ( null !== ( $c['engaged'] ?? null ) ) {
-				$values[] = (int) $c['engaged'];
+			foreach ( $nullable as $k ) {
+				if ( null !== ( $c[ $k ] ?? null ) ) {
+					$values[] = (int) $c[ $k ];
+				}
 			}
 		}
-		$sql = "INSERT INTO {$table} (day, class, visits, bounce_pct, ppv, median_dur, engaged) VALUES "
+		$sql = "INSERT INTO {$table} (day, class, visits, bounce_pct, ppv, median_dur, engaged, two_pages, deep_pages) VALUES "
 			. implode( ', ', $placeholders )
-			. ' ON DUPLICATE KEY UPDATE visits=VALUES(visits), bounce_pct=VALUES(bounce_pct), ppv=VALUES(ppv), median_dur=VALUES(median_dur), engaged=VALUES(engaged)';
+			. ' ON DUPLICATE KEY UPDATE visits=VALUES(visits), bounce_pct=VALUES(bounce_pct), ppv=VALUES(ppv), median_dur=VALUES(median_dur), engaged=VALUES(engaged), two_pages=VALUES(two_pages), deep_pages=VALUES(deep_pages)';
 
 		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL -- $sql is a static INSERT ... VALUES template with a generated %s/%d placeholder group per row; $table is $wpdb->prefix + a plugin constant and every value is bound via prepare().
 		$result = $wpdb->query( $wpdb->prepare( $sql, $values ) );

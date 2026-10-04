@@ -587,7 +587,7 @@ function sn_pageview_visits( array $summaries ) {
  * Aggregate visit-quality metrics from a list of visit summaries.
  *
  * @param array $summaries Visit summaries from sn_visit_summary().
- * @return array{visits:int,bounce_rate:float,pages_per_visit:float,median_duration:int,engaged_visits:int,engaged_rate:float}
+ * @return array{visits:int,bounce_rate:float,pages_per_visit:float,median_duration:int,engaged_visits:int,engaged_rate:float,two_page_visits:int,deep_visits:int}
  */
 function sn_session_metrics( array $summaries ) {
 	$n = count( $summaries );
@@ -599,10 +599,14 @@ function sn_session_metrics( array $summaries ) {
 			'median_duration' => 0,
 			'engaged_visits'  => 0,
 			'engaged_rate'    => 0.0,
+			'two_page_visits' => 0,
+			'deep_visits'     => 0,
 		);
 	}
 
 	$bounces    = 0;
+	$two        = 0; // visits of exactly two pageviews.
+	$deep       = 0; // visits of three or more.
 	$pv_total   = 0;
 	$engaged    = 0;
 	$durations  = array();
@@ -611,6 +615,10 @@ function sn_session_metrics( array $summaries ) {
 		$pv_total += $pv;
 		if ( $pv <= 1 ) {
 			$bounces++;
+		} elseif ( 2 === $pv ) {
+			$two++;
+		} else {
+			$deep++;
 		}
 		if ( ! empty( $s['engaged'] ) ) {
 			$engaged++;
@@ -631,6 +639,8 @@ function sn_session_metrics( array $summaries ) {
 		'median_duration' => $median,
 		'engaged_visits'  => $engaged,
 		'engaged_rate'    => $engaged / $n,
+		'two_page_visits' => $two,
+		'deep_visits'     => $deep,
 	);
 }
 

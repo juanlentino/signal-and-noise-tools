@@ -84,6 +84,7 @@ function snt_cron_sn_owned_hooks() {
 		// v13.91.0: the daily IPv6-criterion store, so the watch reading it costs
 		// an option read rather than an uncached analytics query.
 		array( 'SNT_IPV6_CRITERION_HOOK', 'snt_ipv6_criterion_refresh' ),
+		array( 'SN_ARCHIVE_CONFIRM_HOOK', 'sn_archive_confirm_hourly' ), // hourly: did the Internet Archive capture what it was asked to.
 		array( 'SN_AI_MODELS_HOOK', 'snt_ai_models_refresh' ), // 21.0.0: daily read of what the AI providers serve, for the model pickers.
 		array( 'SNT_PDF_ENGINE_HOOK', 'snt_pdf_engine_check' ), // 20.6.0: daily latest-Dompdf read the watch consumes.
 		array( 'SNT_ALERTS_HOOK', 'snt_alerts_hourly' ), // Unreleased: hourly spike and break alerts; always scheduled, the toggle is read in the callback.
@@ -777,6 +778,7 @@ function snt_cron_opt_in_gates() {
 		array( 'SN_JEV_TAGS_HOOK',              'sn_jev_tags_weekly',        'sn_jev_is_ready' ),
 		array( 'SN_RIGHTS_EVIDENCE_HOOK',       'sn_rights_evidence_daily',  'sn_rights_evidence_is_ready' ),
 		array( 'SN_UPTIME_STATUS_AVAIL_WARM_HOOK', 'sn_uptime_availability_hourly', 'sn_uptime_status_configured' ), // 18.1.0.
+		array( 'SN_ARCHIVE_CONFIRM_HOOK',       'sn_archive_confirm_hourly', 'sn_archive_confirm_enabled' ), // on with the Internet Archive keys.
 		// v13.63.0 — same readiness predicate, weekly.
 		array( 'SNT_GSC_COVERAGE_HOOK',         'sn_gsc_coverage_weekly',    'snt_gsc_sync_is_ready' ),
 	);

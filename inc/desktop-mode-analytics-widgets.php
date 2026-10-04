@@ -29,6 +29,17 @@ function snt_desktop_group( $title, array $rows, $empty ) {
 }
 
 /**
+ * Whether the database reported an error on the read just made. The shared
+ * analytics readers fold a failed query into an empty answer; a tile that
+ * must not paint that as zero asks here, straight after the call.
+ *
+ * @return bool
+ */
+function snt_desktop_db_failed() {
+	return isset( $GLOBALS['wpdb'] ) && is_object( $GLOBALS['wpdb'] ) && '' !== (string) ( $GLOBALS['wpdb']->last_error ?? '' );
+}
+
+/**
  * A share as a whole percent, '' when the whole is zero. PURE.
  *
  * @param int|float $part  Part.
