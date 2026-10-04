@@ -57,45 +57,6 @@
 		return node;
 	}
 
-	/**
-	 * A glance-sized reason. One that fits in 140 characters is shown whole;
-	 * a longer one has long parentheticals (raw provider errors, over
-	 * 40 characters) dropped, short ones kept (a setup location such as
-	 * "(Connections › Credentials)"), then at most 140 characters cut at a word, keeping every
-	 * sentence that fits; the first sentence is not always the reason. The
-	 * full text stays on the Health tab, one click away.
-	 */
-	function shortReason( text ) {
-		var t = text.replace( /\s+/g, ' ' ).trim();
-		// A reason that already fits is shown whole, asides and all.
-		if ( t.length <= 140 ) {
-			return t;
-		}
-		// Outermost parentheticals, balanced, so a nested "(400)" goes with its long aside.
-		var out = '', depth = 0, start = 0;
-		for ( var i = 0; i < t.length; i++ ) {
-			var c = t.charAt( i );
-			if ( '(' === c ) {
-				if ( 0 === depth ) { start = i; }
-				depth++;
-			} else if ( ')' === c && depth > 0 ) {
-				depth--;
-				if ( 0 === depth ) {
-					var aside = t.slice( start, i + 1 );
-					out += aside.length - 2 > 40 ? '' : aside;
-				}
-			} else if ( 0 === depth ) {
-				out += c;
-			}
-		}
-		t = depth > 0 ? out + t.slice( start ) : out;
-		t = t.replace( /\s+([,.;:])/g, '$1' ).replace( /\s+/g, ' ' ).trim();
-		if ( t.length > 140 ) {
-			t = t.slice( 0, 139 ).replace( /\s+\S*$/, '' ).replace( /[,;:]$/, '' ) + '…';
-		}
-		return t + ' Full reason on the Health tab.';
-	}
-
 	// A link's trailing arrow is decoration: hidden from assistive tech.
 	function withArrow( link ) {
 		var arrow = el( 'span', { text: '→' } );
@@ -193,7 +154,7 @@
 			wrap.appendChild( list );
 		}
 
-		// A check that could not run: named, with its reason on the line under it. Not a
+		// A check that could not run: named, its reason left to the Health tab. Not a
 		// finding and not a pass, so the dot above is amber while one exists.
 		var skipped = summary.skipped || [];
 		if ( skipped.length ) {
@@ -206,12 +167,6 @@
 				} ) );
 				srow.appendChild( el( 'span', { text: 'could not run', style: 'font-weight:600;color:#d29922;flex:0 0 auto;' } ) );
 				skipList.appendChild( srow );
-				if ( s.reason ) {
-					skipList.appendChild( el( 'div', {
-						text:  shortReason( String( s.reason ) ),
-						style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));overflow-wrap:anywhere;'
-					} ) );
-				}
 			} );
 			wrap.appendChild( skipList );
 		}

@@ -24,7 +24,7 @@ $kit     = $strip( file_get_contents( $root . '/inc/openstation-kit-display.php'
 
 echo "Group: SN Health\n";
 ok( false !== strpos( $health, "' to look at'" ) && false !== strpos( $health, "' could not run'" ) && false === strpos( $health, "'/' + summary.total + ' checks passed'" ), 'the headline counts findings and checks that could not run apart, not one "x/y passed"' );
-ok( 1 === preg_match( '/text:\s*shortReason\(\s*String\(\s*s\.reason\s*\)\s*\)/', $health ) && false !== strpos( $health, 'Full reason on the Health tab.' ), 'a check that could not run shows a glance-sized reason, the full text one click away' );
+ok( false === strpos( $health, 's.reason' ) && false === strpos( $health, 'shortReason' ), 'a check that could not run is named with "could not run" and no reason line; the reason lives on the Health tab (owner, 2026-10-04)' );
 
 echo "\nGroup: SN Anchors\n";
 ok( false !== strpos( $anchors, "'✓ All anchored: '" ) && false === strpos( $anchors, "'No anchors pending.'" ), 'all anchored is one line, not three' );
