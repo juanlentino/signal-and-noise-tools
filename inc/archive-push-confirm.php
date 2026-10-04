@@ -21,6 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_ARCHIVE_CONFIRM_HOOK   = 'sn_archive_confirm_hourly';
 const SN_ARCHIVE_CAPTURE_META   = '_sn_archive_capture'; // per post: state, timestamp, reason, checked_at.
 const SN_ARCHIVE_CONFIRM_STATUS = 'https://web.archive.org/save/status/';
+const SN_ARCHIVE_CONFIRM_EXISTS = 'https://archive.org/wayback/available?url='; // the newest capture of a URL, no key needed.
+const SN_ARCHIVE_CONFIRM_BUDGET = 30;                     // seconds one pass may spend before it stops drawing notes.
 const SN_ARCHIVE_CONFIRM_BATCH  = 5;                      // notes asked about per hour.
 const SN_ARCHIVE_CONFIRM_GIVEUP = 2 * DAY_IN_SECONDS;     // a job still pending after this is `unconfirmed`.
 
@@ -64,6 +66,33 @@ function sn_archive_confirm_parse( $code, $body, $requested_at, $now ) {
  * @param int $limit How many ids; -1 for all.
  * @return int[]
  */
+/**
+ * Read "is there a capture made after we asked" from the availability answer.
+ * PURE. The job status can stay `pending` long after the capture exists (seen
+ * 2026-10-04: fifty jobs pending for hours, every note captured), so the
+ * capture itself is the second witness. A capture from before the request is
+ * someone else's crawl and proves nothing about ours.
+ *
+ * @param int    $code         HTTP status.
+ * @param string $body         Response body.
+ * @param int    $requested_at Unix time the capture was requested.
+ * @return string|null The 14-digit capture timestamp; '' when the Archive answered and there is none to count; null when the answer could not be read.
+ */
+function sn_archive_confirm_exists_parse( $code, $body, $requested_at ) {
+	$json = 200 === (int) $code ? json_decode( (string) $body, true ) : null;
+	if ( ! is_array( $json ) || ! array_key_exists( 'archived_snapshots', $json ) ) {
+		return null; // refused, failed, or not the answer's shape: not "no capture".
+	}
+	$snap = $json['archived_snapshots']['closest'] ?? null;
+	$ts   = is_array( $snap ) ? (string) ( $snap['timestamp'] ?? '' ) : '';
+	if ( ! is_array( $snap ) || empty( $snap['available'] ) || '200' !== (string) ( $snap['status'] ?? '' ) || 1 !== preg_match( '/^\d{14}$/', $ts ) ) {
+		return '';
+	}
+	$at = gmmktime( (int) substr( $ts, 8, 2 ), (int) substr( $ts, 10, 2 ), (int) substr( $ts, 12, 2 ), (int) substr( $ts, 4, 2 ), (int) substr( $ts, 6, 2 ), (int) substr( $ts, 0, 4 ) );
+	// Five minutes of slack: the two clocks are not one clock.
+	return $at >= (int) $requested_at - 5 * MINUTE_IN_SECONDS ? $ts : '';
+}
+
 function sn_archive_confirm_pending( $limit = -1 ) {
 	return array_map(
 		'intval',
@@ -94,8 +123,15 @@ function sn_archive_confirm_pending( $limit = -1 ) {
  * @return int How many outcomes were recorded.
  */
 function sn_archive_confirm_run() {
-	$done = 0;
+	$done  = 0;
+	$start = microtime( true );
 	foreach ( sn_archive_confirm_pending( SN_ARCHIVE_CONFIRM_BATCH ) as $id ) {
+		// Two reads a note, six seconds each at worst: stop early on a slow
+		// Archive so the cron request ends well inside its limit. The notes
+		// not reached are drawn again next hour.
+		if ( microtime( true ) - $start > SN_ARCHIVE_CONFIRM_BUDGET ) {
+			break;
+		}
 		$push = (array) get_post_meta( $id, SN_ARCHIVE_PUSH_META, true );
 		$job  = (string) ( $push['job_id'] ?? '' );
 		if ( 'requested' !== ( $push['state'] ?? '' ) || '' === $job ) {
@@ -109,6 +145,39 @@ function sn_archive_confirm_run() {
 		$resp = wp_remote_get( SN_ARCHIVE_CONFIRM_STATUS . rawurlencode( $job ), array( 'timeout' => 6, 'redirection' => 0, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'signal-and-noise-tools' ) ) );
 		$bad  = is_wp_error( $resp );
 		$out  = sn_archive_confirm_parse( $bad ? 0 : (int) wp_remote_retrieve_response_code( $resp ), $bad ? '' : (string) wp_remote_retrieve_body( $resp ), (int) ( $push['requested_at'] ?? 0 ), time() );
+		// Did the job status answer at all? A failed or unreadable status read
+		// is one witness missing, however old the request is.
+		$answered = ! $bad && 200 === (int) wp_remote_retrieve_response_code( $resp ) && is_array( json_decode( (string) wp_remote_retrieve_body( $resp ), true ) );
+		// No answer from the job (or none after two days): ask whether the
+		// capture exists. One more keyless request, only for these notes.
+		if ( null === $out || 'unconfirmed' === $out['state'] ) {
+			// Both spellings of the URL: the endpoint answers "no snapshot" for
+			// one form of a URL whose other form it holds. Seen both ways round:
+			// the https:// form found this site's captures on 2026-10-04 while
+			// the scheme-less form read empty; internetarchive/wayback#296
+			// reports the reverse. The second read happens only when the first
+			// answered and found nothing.
+			$link = (string) get_permalink( $id );
+			$ts   = '';
+			foreach ( array( $link, (string) preg_replace( '#^https?://#i', '', $link ) ) as $form ) {
+				$seen = wp_remote_get( SN_ARCHIVE_CONFIRM_EXISTS . rawurlencode( $form ), array( 'timeout' => 6, 'redirection' => 0, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'signal-and-noise-tools' ) ) );
+				$got  = is_wp_error( $seen ) ? null : sn_archive_confirm_exists_parse( (int) wp_remote_retrieve_response_code( $seen ), (string) wp_remote_retrieve_body( $seen ), (int) ( $push['requested_at'] ?? 0 ) );
+				if ( is_string( $got ) && '' !== $got ) {
+					$ts = $got;
+					break;
+				}
+				if ( null === $got ) {
+					$ts = null; // one form unread: absence is not established.
+				}
+			}
+			if ( is_string( $ts ) && '' !== $ts ) {
+				$out = array( 'state' => 'captured', 'timestamp' => $ts, 'reason' => 'found in the Wayback Machine; the job status had not answered', 'checked_at' => time() );
+			} elseif ( null === $ts || ! $answered ) {
+				// Giving up needs both witnesses to have answered. A refused or
+				// failed read here is not "no capture"; ask again next hour.
+				$out = null;
+			}
+		}
 		if ( null !== $out ) {
 			update_post_meta( $id, SN_ARCHIVE_CAPTURE_META, $out );
 			++$done;
