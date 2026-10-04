@@ -82,9 +82,9 @@ const SN_ORPHAN_CLASS_BASELINE = array(
 	'sn-schedule-remainder', 'sn-uses-dek', 'sn-uses-eyebrow', 'sn-uses-headline',
 	'sn-uses-hero', 'sn-uses-item', 'sn-uses-item-name', 'sn-uses-item-note',
 	'sn-uses-meta',
-	// Unreleased (/workflow): styled by the theme's workflow.css, like sn-uses-*.
+	// /workflow: styled by the theme's workflow.css (by structure), like sn-uses-*.
 	'sn-workflow-dek', 'sn-workflow-eyebrow', 'sn-workflow-hero', 'sn-workflow-map', 'sn-workflow-page',
-	'sn-workflow-rules', 'sn-workflow-sample', 'sn-workflow-title',
+	'sn-workflow-proof', 'sn-workflow-rules', 'sn-workflow-sample', 'sn-workflow-title',
 );
 
 $root = dirname( __DIR__ );

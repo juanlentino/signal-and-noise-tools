@@ -52,6 +52,20 @@ function workflow_rule_row( $prefix, array $row ) {
 	);
 }
 
+/** One proof row in its repeater: title, link, line, Show on page. @param string $prefix @param array $row {title,url,line,show} @return string */
+function workflow_proof_row( $prefix, array $row ) {
+	return resume_card(
+		$prefix,
+		resume_pair(
+			resume_text( $prefix . '[title]', __( 'Title', 'signal-and-noise-tools' ), $row['title'] ?? '', 'Maturity index' ),
+			resume_text( $prefix . '[url]', __( 'Link', 'signal-and-noise-tools' ), $row['url'] ?? '', '/maturity/' )
+		)
+		. resume_text( $prefix . '[line]', __( 'Line', 'signal-and-noise-tools' ), $row['line'] ?? '', 'One sentence on what it proves' )
+		. \snt_kit_field( 'checkbox', $prefix . '[show]', __( 'Show on page', 'signal-and-noise-tools' ), true === ( $row['show'] ?? false ) ),
+		true
+	);
+}
+
 /**
  * The page-level cards, paired: Page beside the section headings, the
  * sample's text beside its Body.
@@ -68,7 +82,8 @@ function workflow_top_cards( array $doc ) {
 		),
 		workflow_card(
 			\snt_kit_field( 'text', 'workflow[map_heading]', __( 'Map heading', 'signal-and-noise-tools' ), $doc['map_heading'], array( 'placeholder' => 'The rest of the set' ) )
-			. \snt_kit_field( 'text', 'workflow[rules_heading]', __( 'Rules heading', 'signal-and-noise-tools' ), $doc['rules_heading'], array( 'placeholder' => 'Field rules', 'hint' => __( 'Each heading shows only over rows that are on the page.', 'signal-and-noise-tools' ) ) )
+			. \snt_kit_field( 'text', 'workflow[rules_heading]', __( 'Rules heading', 'signal-and-noise-tools' ), $doc['rules_heading'], array( 'placeholder' => 'Field rules' ) )
+			. \snt_kit_field( 'text', 'workflow[proof_heading]', __( 'Proof heading', 'signal-and-noise-tools' ), $doc['proof_heading'], array( 'placeholder' => 'Check it yourself', 'hint' => __( 'Each heading shows only over rows that are on the page.', 'signal-and-noise-tools' ) ) )
 		),
 		workflow_card(
 			\snt_kit_field( 'text', 'workflow[sample][label]', __( 'Sample label', 'signal-and-noise-tools' ), $s['label'], array( 'placeholder' => 'Sample' ) )
@@ -96,6 +111,7 @@ function paint_content_workflow( array $ctx ) {
 	$ns    = __NAMESPACE__;
 	$map   = resume_list( $doc['map'], $ns . '\\workflow_map_row', 'workflow[map]', '__M__', __( '+ Add map step', 'signal-and-noise-tools' ), __( 'map step', 'signal-and-noise-tools' ) );
 	$rules = resume_list( $doc['rules'], $ns . '\\workflow_rule_row', 'workflow[rules]', '__R__', __( '+ Add rule', 'signal-and-noise-tools' ), __( 'rule', 'signal-and-noise-tools' ) );
+	$proof = resume_list( $doc['proof'], $ns . '\\workflow_proof_row', 'workflow[proof]', '__P__', __( '+ Add proof link', 'signal-and-noise-tools' ), __( 'proof link', 'signal-and-noise-tools' ) );
 
 	$intro = '<p class="snt-prose">' . sprintf(
 		/* translators: %s: link to the /workflow page */
@@ -107,7 +123,8 @@ function paint_content_workflow( array $ctx ) {
 
 	$cards = snt_pair_cards( workflow_top_cards( $doc ) )
 		. resume_section( __( 'Map', 'signal-and-noise-tools' ), '', count( $doc['map'] ), $map )
-		. resume_section( __( 'Rules', 'signal-and-noise-tools' ), '', count( $doc['rules'] ), $rules );
+		. resume_section( __( 'Rules', 'signal-and-noise-tools' ), '', count( $doc['rules'] ), $rules )
+		. resume_section( __( 'Proof', 'signal-and-noise-tools' ), __( 'Links to evidence a reader can check. A row shows only when "Show on page" is ticked and its link is a path on this site (/maturity/) or an https URL.', 'signal-and-noise-tools' ), count( $doc['proof'] ), $proof );
 	$form  = \snt_kit_form( 'workflow_save', '<os-stack gap="12">' . $cards . '</os-stack>', array( 'submit' => __( 'Save workflow page', 'signal-and-noise-tools' ) ) );
 	return \snt_kit_section( __( 'Workflow page', 'signal-and-noise-tools' ), $intro . $form );
 }

@@ -51,6 +51,8 @@ function delete_post_meta( $id, $k ) { unset( $GLOBALS['__meta'][ $k ] ); return
 function do_action() {}
 if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $x ) { return false; } }
 function home_url( $p = '' ) { return 'https://example.test' . $p; }
+if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspecialchars( (string) $u, ENT_QUOTES ); } } // Core keeps [ and ] in a URL; so does this.
 function sn_cf_purge_urls( $urls ) { $GLOBALS['__purged'][] = $urls; return true; }
 
 require __DIR__ . '/../inc/generated-page-contract.php';
@@ -211,6 +213,25 @@ sn_handle_workflow_save( array( 'workflow' => array( 'map' => array( array( 'tit
 $GLOBALS['__page'] = (object) array( 'ID' => 91, 'post_status' => 'draft', 'post_content' => 'owner draft' );
 sn_handle_workflow_save( array( 'workflow' => array( 'title' => 'Back' ) ) );
 ok( 'draft' === $GLOBALS['__page']->post_status, 'a different draft now at the slug is not republished by the withdrawal marker' );
+
+echo "\nGroup: the proof section\n";
+$pd = sn_workflow_public_data( array( 'title' => 'W', 'proof_heading' => 'Check it yourself', 'proof' => array(
+	array( 'title' => 'Maturity index', 'url' => '/maturity/', 'line' => 'Every system documented.', 'show' => '1' ),
+	array( 'title' => 'Hidden', 'url' => '/secret/', 'line' => 'not ticked' ),
+	array( 'title' => 'Repo', 'url' => 'https://github.com/juanlentino/signal-and-noise-tools', 'line' => 'Public.', 'show' => '1' ),
+	array( 'title' => 'Plain http', 'url' => 'http://example.com/', 'show' => '1' ),
+	array( 'title' => 'Script', 'url' => 'javascript:alert(1)', 'show' => '1' ),
+	array( 'title' => 'Proto-relative', 'url' => '//evil.example/', 'show' => '1' ),
+	array( 'title' => '', 'url' => '/notitle/', 'show' => '1' ),
+) ) );
+ok( array( 'Maturity index', 'Repo' ) === array_column( $pd['proof'], 'title' ), 'only ticked rows with a site path or https link and a title go public; hidden, http, javascript:, protocol-relative and untitled rows stay off' );
+ok( 'https://example.test/maturity/' === $pd['proof'][0]['href'], 'a site path becomes this site\'s URL' );
+$ph = sn_workflow_page_html( $pd );
+ok( false !== strpos( $ph, '<h2 class="sn-workflow-proof__heading">Check it yourself</h2>' ) && false !== strpos( $ph, '<span class="sn-workflow-proof__title"><a href="https://example.test/maturity/">Maturity index</a></span> <span class="sn-workflow-proof__line">Every system documented.</span>' ), 'the proof renders as heading, then each link in the row\'s lead span with its line' );
+ok( false === strpos( $ph, 'Hidden' ) && false === strpos( $ph, '/secret/' ) && false === strpos( $ph, 'javascript' ) && false === strpos( $ph, 'evil.example' ), 'nothing from a row that stayed off reaches the page' );
+ok( strpos( $ph, 'sn-workflow-rules' ) === false || strpos( $ph, 'sn-workflow-rules' ) < strpos( $ph, 'sn-workflow-proof' ), 'proof comes after the rules' );
+$br = sn_workflow_page_html( sn_workflow_public_data( array( 'title' => 'W', 'proof' => array( array( 'title' => 'X', 'url' => '/a/[gallery]/', 'show' => '1' ) ) ) ) );
+ok( false === strpos( $br, '[gallery]' ), 'brackets in a link are encoded, so a shortcode cannot run from an href' );
 
 echo "\nGroup: the sample renders Label, Title, Intro, Outcome, Body\n";
 $ord = sn_workflow_sample_html( array( 'label' => 'L', 'title' => 'T', 'intro' => 'I', 'outcome' => 'O', 'body' => 'B' ) );
