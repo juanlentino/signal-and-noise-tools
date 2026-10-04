@@ -109,6 +109,40 @@ function snt_desktop_reading_visit_rows( $days ) {
  * @param int|float $s Seconds.
  * @return string
  */
+/**
+ * "1 event", "3 events": a count with its unit, singular when it is one. PURE.
+ *
+ * @param int    $n    The count.
+ * @param string $one  Singular unit.
+ * @param string $many Plural unit.
+ * @return string
+ */
+function snt_desktop_reading_count( $n, $one, $many ) {
+	return number_format_i18n( (int) $n ) . ' ' . ( 1 === (int) $n ? $one : $many );
+}
+
+/**
+ * The tile's opening figure: the engaged share and its change. PURE. The same
+ * threshold as the row it replaces: under 5 points the change is shown plain.
+ *
+ * @param array|null $engaged { rate, pts? } or null when the rate is unknown.
+ * @return array|null { value, label, change?, tone? }
+ */
+function snt_desktop_reading_hero( $engaged ) {
+	if ( ! is_array( $engaged ) || ! isset( $engaged['rate'] ) ) {
+		return null;
+	}
+	$hero = array( 'value' => (int) $engaged['rate'] . '%', 'label' => 'of views engaged' );
+	$pts  = isset( $engaged['pts'] ) ? (int) $engaged['pts'] : 0;
+	if ( 0 !== $pts ) {
+		$hero['change'] = ( $pts > 0 ? '▲ ' : '▼ ' ) . abs( $pts ) . ' pts vs. prior 14 days';
+		if ( abs( $pts ) >= 5 ) {
+			$hero['tone'] = $pts > 0 ? 'up' : 'down';
+		}
+	}
+	return $hero;
+}
+
 function snt_desktop_reading_seconds( $s ) {
 	$s = (int) round( $s );
 	return $s < 60 ? $s . 's' : intdiv( $s, 60 ) . 'm ' . str_pad( (string) ( $s % 60 ), 2, '0', STR_PAD_LEFT ) . 's';
@@ -177,7 +211,7 @@ function snt_desktop_reading_groups( array $win ) {
 		$top              = array();
 	}
 	foreach ( $top as $e ) {
-		$events[] = array( 'label' => (string) $e['name'], 'value' => number_format_i18n( (int) $e['events'] ) . ' · ' . number_format_i18n( (int) $e['visitors'] ) . ' visitor-days' ); // the rollup counts distinct visitors per day and the visitor hash rotates daily, so the sum over a window is visitor-days, not people.
+		$events[] = array( 'label' => (string) $e['name'], 'value' => snt_desktop_reading_count( (int) $e['events'], 'event', 'events' ) . ' · ' . snt_desktop_reading_count( (int) $e['visitors'], 'visitor-day', 'visitor-days' ) ); // the rollup counts distinct visitors per day and the visitor hash rotates daily, so the sum over a window is visitor-days, not people.
 	}
 	// The percentile is one Analytics Engine request per vital (cached 15
 	// minutes, a failure 5). After the first one that cannot be read the rest
@@ -194,8 +228,12 @@ function snt_desktop_reading_groups( array $win ) {
 		$vitals[] = snt_desktop_reading_vital_row( $name, $d, $pct );
 	}
 	$visits = snt_desktop_reading_visit_rows( function_exists( 'sn_session_rollup_read' ) ? sn_session_rollup_read( $win['from'], $win['to'], 'human' ) : null );
-	return array(
-		snt_desktop_group( 'On the page', snt_desktop_reading_page_rows( $totals, $dist( 'scroll' ), $engaged ), 'No page views in this window, or the daily totals could not be read.' ), // a failed read and an empty window share one shape (views 0); the sentence claims neither.
+	// The engaged share opens the tile and the visitor-days open SN Audience,
+	// so neither is repeated as a row here.
+	$page = array_values( array_filter( snt_desktop_reading_page_rows( $totals, $dist( 'scroll' ), $engaged ), static fn( $r ) => ! in_array( $r['label'], array( 'Engaged', 'Visitor-days' ), true ) ) );
+	$hero = is_array( $totals ) && (int) ( $totals['views'] ?? 0 ) > 0 ? snt_desktop_reading_hero( $engaged ) : null;
+	return ( $hero ? array( 'hero' => $hero ) : array() ) + array(
+		snt_desktop_group( 'On the page', $page, 'No page views in this window, or the daily totals could not be read.' ), // a failed read and an empty window share one shape (views 0); the sentence claims neither.
 		snt_desktop_group( 'Sessions', (array) $visits, null === $visits ? 'The sessions could not be read.' : 'No sessions rolled up in this window.' ), // sessions, not Site Views' visitor-days: the heading keeps the two apart.
 		snt_desktop_group( 'Custom events · all traffic', $events, // the events rollup has no traffic class; unlike the rows above, this is not people only.
 			isset( $failed['events'] ) ? 'The custom events could not be read.' : 'No custom events in this window.' ),

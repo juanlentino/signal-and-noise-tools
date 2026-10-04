@@ -105,6 +105,16 @@ ok( false !== strpos( $rd, "'The sessions could not be read.'" ), 'a failed sess
 ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-audience.php' ), "'Hacker News · latest stories'" ), 'the Hacker News group says it is not bound to the window' );
 
 echo "\nThe painter\n";
+echo "\nThe opening figure\n";
+ok( array( 'value' => '40%', 'label' => 'of views engaged', 'change' => '▼ 7 pts vs. prior 14 days', 'tone' => 'down' ) === snt_desktop_reading_hero( array( 'rate' => 40, 'pts' => -7 ) ), 'the engaged share with its change, toned from 5 points' );
+ok( array( 'value' => '40%', 'label' => 'of views engaged', 'change' => '▲ 4 pts vs. prior 14 days' ) === snt_desktop_reading_hero( array( 'rate' => 40, 'pts' => 4 ) ), 'under 5 points the change is shown, not colored' );
+ok( array( 'value' => '0%', 'label' => 'of views engaged' ) === snt_desktop_reading_hero( array( 'rate' => 0 ) ) && null === snt_desktop_reading_hero( null ), 'a measured 0% is a figure; an unknown rate is no hero' );
+ok( '1 event' === snt_desktop_reading_count( 1, 'event', 'events' ) && '1,204 visitor-days' === snt_desktop_reading_count( 1204, 'visitor-day', 'visitor-days' ), 'a count carries its unit, singular when it is one' );
+$built = static fn( $win ) => array( 'hero' => array( 'value' => '9', 'label' => 'x' ), snt_desktop_group( 'G', array(), 'e' ) );
+$GLOBALS['tr'] = array();
+$resp = snt_desktop_widget_response( 'herotest', $built )->data;
+ok( array( 'value' => '9', 'label' => 'x' ) === $resp['hero'] && 1 === count( $resp['groups'] ) && 'G' === $resp['groups'][0]['title'] && abs( time() - $resp['generated_at'] ) < 5, 'the response lifts the hero out of the groups and stamps when it was read' );
+
 $node = trim( (string) shell_exec( 'command -v node' ) );
 if ( '' === $node ) { echo "SKIP: node not found\n"; } else {
 	$run = static fn( $id, $arg ) => json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/groups-render.js' ) . ' ' . escapeshellarg( $id ) . ' ' . escapeshellarg( $arg ) ), true );
@@ -113,6 +123,8 @@ if ( '' === $node ) { echo "SKIP: node not found\n"; } else {
 	ok( array( '/signal-noise/v1/desktop/audience' ) === $out['paths'] && 'function' === $out['teardown'] && true === $out['same'], 'Audience fetches its own route and returns a teardown' );
 	$tone = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-groups.js' );
 	ok( false !== strpos( $tone, "up: '#3fb950', down: '#c9503f'" ) && false !== strpos( $tone, 'TONE[ r.tone ]' ), 'the painter colors a toned row with the two Site Views colors, and nothing else' );
+	$hero = $run( 'sn-reading', json_encode( array( 'window' => array( 'days' => 14 ), 'generated_at' => time() - 240, 'hero' => array( 'value' => '40%', 'label' => 'of views engaged', 'change' => '▼ 7 pts vs. prior 14 days', 'tone' => 'down' ), 'groups' => array() ) ) );
+	ok( array( '40%', 'of views engaged · last 14 days', '▼ 7 pts vs. prior 14 days', '', 'Read 4 min ago', 'Open Analytics →' ) === $hero['lines'], 'a hero opens the tile with its figure, its unit and window, and its change; the foot says how old the reading is' );
 	$bad = $run( 'sn-reading', 'FAIL' );
 	ok( array( '/signal-noise/v1/desktop/reading' ) === $bad['paths'] && 'Could not load this reading.' === $bad['lines'][0], 'a failed fetch says so; Reading fetches its own route' );
 }

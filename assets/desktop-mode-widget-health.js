@@ -103,7 +103,7 @@
 		var row = el( 'div', { style: 'display:flex;align-items:center;gap:8px;' } );
 		row.appendChild( el( 'span', {
 			style: 'width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:' +
-				( summary.all_passed ? '#3fb950' : '#d29922' ) + ';'
+				( summary.all_passed && ! ( summary.skipped || [] ).length ? '#3fb950' : '#d29922' ) + ';'
 		} ) );
 		row.appendChild( el( 'span', {
 			text: summary.passed + '/' + summary.total + ' checks passed',
@@ -139,6 +139,24 @@
 				} ) );
 			}
 			wrap.appendChild( list );
+		}
+
+		// A check that could not run: named, with its reason on hover. Not a
+		// finding and not a pass, so the dot above is amber while one exists.
+		var skipped = summary.skipped || [];
+		if ( skipped.length ) {
+			var skipList = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
+			skipped.forEach( function( s ) {
+				var srow = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+				srow.appendChild( el( 'span', {
+					text:  String( s.label ),
+					title: String( s.reason || s.label ),
+					style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+				} ) );
+				srow.appendChild( el( 'span', { text: 'could not run', title: String( s.reason || '' ), style: 'font-weight:600;color:#d29922;flex:0 0 auto;' } ) );
+				skipList.appendChild( srow );
+			} );
+			wrap.appendChild( skipList );
 		}
 
 		// Advisories are reported apart from faults, never folded in:

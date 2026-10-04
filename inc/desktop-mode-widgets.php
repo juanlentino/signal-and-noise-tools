@@ -156,7 +156,7 @@ add_action( 'init', function() {
 			// BUDGETED 560, not browser-measured: a window line, five groups
 			// (heading + up to 5/3/5/3/2 rows at ~22px) and the link; a sixth
 			// group, Campaigns, appears only when a tagged link was followed.
-			'default_height' => 560,
+			'default_height' => 620,
 		) ) );
 
 		snt_os_register_widget( 'sn-reading', array_merge( $sn_drag, array(
@@ -166,7 +166,7 @@ add_action( 'init', function() {
 			'script'         => 'sn-desktop-mode-widget-groups',
 			// BUDGETED 470, not browser-measured: a window line, four groups
 			// (heading + up to 5/6/4/3 rows at ~22px) and the link.
-			'default_height' => 555,
+			'default_height' => 575,
 		) ) );
 
 		// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that
@@ -206,7 +206,7 @@ add_action( 'init', function() {
 			'script'         => 'sn-desktop-mode-widget-health',
 			// Measured 148 all-passing (the state it idles in), 279 with four
 			// flagged checks + remainder + advisories. Sized for the former.
-			'default_height' => 160,
+			'default_height' => 200,
 		) ) );
 
 		// v9.53.0: new. Was one row inside Pulse; uptime deserves its own card
@@ -252,7 +252,7 @@ add_action( 'init', function() {
 
 		snt_os_register_widget( 'sn-quick-actions', array_merge( $sn_drag, array(
 			'label'          => 'SN Quick Actions',
-			'description'    => 'One-click clear overrides, force update-check, full reset.',
+			'description'    => 'One-click clear overrides and force update-check.',
 			'icon'           => 'dashicons-controls-repeat',
 			'script'         => 'sn-desktop-mode-widget-actions',
 			// Was measured 242 for THREE full-width buttons + the footnote.
@@ -260,7 +260,7 @@ add_action( 'init', function() {
 			// always promised. 290 is DERIVED, not browser-measured: a button is
 			// 8px padding x2 + 13px/1.2 text + 1px border x2 + 6px margin ~= 40px,
 			// so 250 + 40 = 290. If it clips, measure rather than guess again.
-			'default_height' => 290,
+			'default_height' => 215,
 		) ) );
 
 		// v9.78.0: SN Anchors — the one glanceable that had no mirror.
@@ -278,7 +278,7 @@ add_action( 'init', function() {
 			// two pending rows. Sized for idle — the state it holds most days.
 			// 21.1.0: + one Internet Archive line (two when it wraps); the capture
 			// counts joined it later and it now wraps to three. BUDGETED.
-			'default_height' => 240,
+			'default_height' => 250,
 		) ) );
 
 		// v10.1.0: the machine half of the audience. Human readership is
@@ -294,7 +294,7 @@ add_action( 'init', function() {
 			// are gone (version lives on Deploy Status); Purposes adds a
 			// heading + ≤4 rows (≤5). 508 − 3×22 + ≤5×22 = 552, rounded up
 			// with slack. `ai_surfaces` is still variable-length.
-			'default_height' => 560,
+			'default_height' => 535,
 		) ) );
 	}
 }, 6 );

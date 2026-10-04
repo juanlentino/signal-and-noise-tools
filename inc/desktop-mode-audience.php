@@ -97,6 +97,11 @@ function snt_desktop_audience_groups( array $win ) {
 	$out[] = snt_desktop_group( 'Hacker News · latest stories' . ( '' !== (string) ( $hn['error'] ?? '' ) ? ' · last check failed' : '' ), snt_desktop_audience_hn_rows( (array) ( $hn['items'] ?? array() ), 3 ), 'No story links here yet.' );
 	$gsc        = function_exists( 'snt_gsc_sync_last_status' ) ? snt_gsc_sync_last_status() : null;
 	$gsc_failed = is_array( $gsc ) && empty( $gsc['ok'] );
+	$totals     = function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( $win['from'], $win['to'], 'human' ) : null;
+	if ( is_array( $totals ) && (int) ( $totals['visits'] ?? 0 ) > 0 ) {
+		// The visitor hash rotates daily, so a window's sum is visitor-days, not people.
+		$out['hero'] = array( 'value' => number_format_i18n( (int) $totals['visits'] ), 'label' => 1 === (int) $totals['visits'] ? 'visitor-day' : 'visitor-days' );
+	}
 	$out[]      = snt_desktop_group( 'Search', snt_desktop_audience_search_rows( function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null, function_exists( 'sn_bing_data' ) ? sn_bing_data() : null, $gsc_failed ), 'No search reading stored yet.' );
 	return $out;
 }

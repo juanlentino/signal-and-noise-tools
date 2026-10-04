@@ -466,18 +466,18 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 //
 // Changing a card's content SHOULD fail this test. Re-measure, don't re-guess.
 $expected_height = array(
-	'sn-site-views'       => 500, // 21.2.1 BUDGETED: 620 less Visits, Engaged and the Top sources block; was budgeted: 450 + 3 glance rows (today/engaged/top_mover) ~+60, + north star block (5 rows + hairline) ~+110
-	'sn-audience'         => 560, // BUDGETED: window line + five groups (5/3/5/3/2 rows) + link
-	'sn-reading'          => 555, // BUDGETED: window line + four groups (5/6/4/3 rows) + link
+	'sn-site-views'       => 500, // 21.2.1 BUDGETED: 620 less Visits, Engaged and the Top sources block
+	'sn-audience'         => 620, // BUDGETED: 560 + the opening figure in place of the window line + the age line
+	'sn-reading'          => 575, // BUDGETED: 555 + the opening figure and age line, less the two rows it replaced
 	'sn-rss-subscribers'  => 220, // measured 207
 	'sn-queue'            => 380, // measured 365 live (15.8.1): two-line headline + depth line + two headings + six rows
-	'sn-health'           => 160, // measured 148 all-passing
+	'sn-health'           => 200, // BUDGETED: measured 148 all-passing + one named check that could not run
 	'sn-uptime'           => 220, // measured 210
 	'sn-deploy-status'    => 310, // v11.11.2 budgeted: measured-192 two-row grid + five worker rows ~22px each
 	'sn-cron'             => 170, // v11.29.0 BUDGETED: health measures 148 for the same dot-row + hairline-list shape, +1 line when orphans exist
-	'sn-quick-actions'    => 290, // v11.29.0 BUDGETED: measured-242 three buttons + a fourth ~40px (8px pad x2 + 13px/1.2 + 1px border x2 + 6px margin)
-	'sn-anchors'          => 240, // measured 167 idle; + the Internet Archive line with its capture counts (three lines) BUDGETED
-	'sn-machine-readers'  => 560, // budgeted: measured-508 −3 sensor rows +≤5 purpose rows
+	'sn-quick-actions'    => 215, // BUDGETED: measured 242 with three buttons, less Full reset (~40px)
+	'sn-anchors'          => 250, // BUDGETED: measured 167 idle + a hairline and two Internet Archive rows
+	'sn-machine-readers'  => 535, // BUDGETED: 560 + the identity block (heading, up to 3 rows), less six surface rows
 );
 ok( array_keys( $expected_height ) === array_keys( $widgets ),
 	'the measured-height table covers exactly the registered widgets, in registration order' );
@@ -1887,12 +1887,25 @@ ok( false !== strpos( $cron_js, "hasOwnProperty.call( summary, 'total' )" ),
 // The dot tracks ORPHANS and the cron-health VERDICT, never the event count:
 // a count is not a verdict. 15.8.2 added the verdict after sn_gsc_inspect_one
 // sat "expected but not scheduled" for months behind a green dot.
-ok( false !== strpos( $cron_js, 'orphans > 0 || healthNotOk ? WARN_FG : OK_FG' ),
+ok( false !== strpos( $cron_js, 'orphans > 0 || healthNotOk || lateS > LATE_S ? WARN_FG : OK_FG' ),
 	'the cron dot tracks orphans and the cron-health verdict rather than the raw event count' );
 ok( false !== strpos( $cron_js, '! health.ok && health.summary' ),
 	'the cron-health summary line paints only when the verdict is not ok' );
-ok( false !== strpos( $cron_js, "detail( 'Next'" ) && false !== strpos( $cron_js, "inS <= 0 ? 'due'" ),
-	'the next SN job paints with its due time, and a past time reads "due", never a negative' );
+ok( false !== strpos( $cron_js, "detail( 'Next'" ) && false !== strpos( $cron_js, "inS <= 0 ? 'running now'" ) && false !== strpos( $cron_js, "lateS > LATE_S ? Math.round( lateS / 60 ) + ' min late'" ) && false !== strpos( $cron_js, 'var LATE_S = 600;' ),
+	'the next SN job paints with its due time; a past time reads "running now", and only past ten minutes is it late and amber' );
+$act_js = (string) file_get_contents( SNT_PATH . 'assets/desktop-mode-widget-actions.js' );
+ok( false === strpos( $act_js, "'full-reset', 'Resetting" ) && false === strpos( $act_js, "text:  'Full reset'," ), 'Quick Actions has no Full reset button: a purge of every cache is not one click from the desktop' );
+$mr_js = (string) file_get_contents( SNT_PATH . 'assets/desktop-mode-widget-machine-readers.js' );
+ok( false !== strpos( $mr_js, 'payload.edge_verified' ) && false !== strpos( $mr_js, "section( 'Identity' )" ) && strpos( $mr_js, "section( 'Identity' )" ) < strpos( $mr_js, "section( 'Top families' )" ) && false !== strpos( $mr_js, 'payload.families.slice( 0, 5 )' ) && false !== strpos( $mr_js, "'…fetched rights files directly'" ), 'Machine Readers opens with who the readers are, then five families, and keeps the direct rights-file row' );
+ok( array( 'verified' => 7, 'unverified' => 5, 'not_measured' => 3 ) === snt_desktop_machine_readers_identity( array( array( 'hits' => 7, 'verified_bot' => 'search', 'network' => 'GOOGLE' ), array( 'hits' => 5, 'verified_bot' => '', 'network' => 'GOOGLE' ), array( 'hits' => 3, 'verified_bot' => '', 'network' => '' ), 'junk' ) ), 'identity: verified by the edge, named and not verified, and reads from before the network was recorded' );
+$keep_scan = $GLOBALS['__health_scan'];
+$GLOBALS['__health_scan'] = fixture_scan( array( 'missing_alt' => 0, 'broken_links' => 0 ) );
+$GLOBALS['__health_scan']['checks']['broken_links']['skipped'] = 'The AI provider refused the call.';
+$sk = snt_health_summary_for_localize();
+ok( array( array( 'label' => 'Broken links', 'reason' => 'The AI provider refused the call.' ) ) === ( $sk['skipped'] ?? null ) && 1 === $sk['passed'] && 2 === $sk['total'], 'the health payload names a check that could not run, with its reason, and does not count it as a pass' );
+$GLOBALS['__health_scan'] = $keep_scan;
+$health_js = (string) file_get_contents( SNT_PATH . 'assets/desktop-mode-widget-health.js' );
+ok( false !== strpos( $health_js, 'summary.all_passed && ! ( summary.skipped || [] ).length' ) && false !== strpos( $health_js, "'could not run'" ), 'a check that could not run is named and turns the dot amber' );
 
 // The PHP seam the JS guard depends on: when the accessor is missing the payload
 // must be an EMPTY array (no `total` key), not a zeroed struct.

@@ -140,8 +140,20 @@
 					style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));'
 				} ) );
 			} else {
+				// Who they are comes first: a user agent is a claim, and only the
+				// verified share is vouched for by the edge.
+				var id = payload.edge_verified; // its own key: `identity` is the summary's signature evidence
+				if ( id && ( id.verified + id.unverified + id.not_measured ) > 0 ) {
+					var who = section( 'Identity' );
+					who.appendChild( statRow( 'Verified by Cloudflare', String( id.verified ) ) );
+					who.appendChild( statRow( 'Named themselves, not verified', String( id.unverified ) ) );
+					if ( id.not_measured > 0 ) {
+						who.appendChild( statRow( 'Not measured', String( id.not_measured ) ) );
+					}
+					body.appendChild( who );
+				}
 				var fam = section( 'Top families' );
-				payload.families.forEach( function( row ) {
+				payload.families.slice( 0, 5 ).forEach( function( row ) {
 					fam.appendChild( statRow( String( row.family ), String( row.hits ) ) );
 				} );
 				body.appendChild( fam );
@@ -178,9 +190,15 @@
 				// an older cached payload or worker response without the field
 				// renders exactly as before, byte-identical.
 				if ( payload.ai_surfaces && payload.ai_surfaces.length ) {
-					payload.ai_surfaces.forEach( function( row ) {
+					// The three largest surfaces, the rest as one line: the leaf has all of them.
+					var surfaces = payload.ai_surfaces.filter( function( row ) { return 'rights' !== String( row.surface ); } );
+					surfaces.slice( 0, 3 ).forEach( function( row ) {
 						ai.appendChild( statRow( '…on ' + String( row.surface ), String( row.hits ) ) );
 					} );
+					var rest = surfaces.slice( 3 );
+					if ( rest.length ) {
+						ai.appendChild( statRow( '…on ' + rest.length + ' other surface' + ( 1 === rest.length ? '' : 's' ), String( rest.reduce( function( n, row ) { return n + ( Number( row.hits ) || 0 ); }, 0 ) ) ) );
+					}
 				}
 				body.appendChild( ai );
 			}

@@ -108,7 +108,7 @@ foreach ( array( 'started', 'running', 'nothing', 'unconfigured', 'unscheduled' 
 $classic = $src( 'inc/archive-push-admin.php' );
 ok( false !== strpos( $classic, "sn_admin_post_url( 'archive_push_existing' )" ) && false !== strpos( $classic, 'value="sn_archive_push_existing"' ) && false !== strpos( $src( 'inc/provenance-admin.php' ), 'sn_archive_existing_render_fieldset();' ), 'the classic Provenance page carries the same button through the same handler' );
 ok( false !== strpos( $src( 'apps/sn-dashboard/parts/leaves/tools-provenance-archive.php' ), "'archive_push_existing'" ), 'and the native leaf' );
-ok( false !== strpos( $src( 'assets/desktop-mode-widget-anchors.js' ), "archiveLine = ''; // a refresh" ), 'the widget clears its archive line at each load' );
+ok( false !== strpos( $src( 'assets/desktop-mode-widget-anchors.js' ), "archive = null; // a refresh" ) && false !== strpos( $src( 'assets/desktop-mode-widget-anchors.js' ), "[ 'Internet Archive', runText, halted || ! archive.configured ]" ) && false !== strpos( $src( 'assets/desktop-mode-widget-anchors.js' ), "' no answer'" ) && false !== strpos( $src( 'assets/desktop-mode-widget-anchors.js' ), "'every note asked'" ), 'the widget clears its archive reading at each load and paints it as rows: each run state in its own words, unconfirmed apart from waiting, unconfigured said' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
