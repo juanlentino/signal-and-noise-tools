@@ -158,7 +158,7 @@ $kit     = snt_leaf_paint( 'tools', 'citations' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'claim' ) === snt_leaf_names( $kit ), 'rich fixture: one field in both, the claim to forget: ' . implode( ',', snt_leaf_names( $classic ) ) . ' / ' . implode( ',', snt_leaf_names( $kit ) ) );
 ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && array( 'citation_forget' ) === snt_leaf_actions( $kit ), 'rich fixture: one action in both, citation_forget: ' . implode( ',', snt_leaf_actions( $classic ) ) . ' / ' . implode( ',', snt_leaf_actions( $kit ) ) );
 foreach ( array( 'classic' => $classic, 'kit' => $kit ) as $which => $html ) {
-	ok( false !== strpos( $html, 'gone.example, cites /notes/prov (asserted)' ) && false !== strpos( $html, 'unreachable.example, cites /notes/other (unverified)' ) && false === strpos( $html, 'blog.example, cites' ), "$which: the form offers the two claims shown to nobody and never the verified one" );
+	ok( false !== strpos( $html, 'gone.example/x, cites /notes/prov (asserted)' ) && false !== strpos( $html, 'unreachable.example/y, cites /notes/other (unverified)' ) && false === strpos( $html, 'blog.example/2026/post, cites' ), "$which: the form offers the two claims shown to nobody and never the verified one" );
 }
 ok( array() === snt_leaf_classic_markers( $kit ), 'rich fixture: no wp-admin markup: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 

@@ -109,7 +109,8 @@ function citations_table( array $rows ) {
  * @return string
  */
 function citations_forget_form( array $rows ) {
-	$options = function_exists( 'sn_cit_forgettable' ) ? \sn_cit_forgettable( $rows ) : array();
+	unset( $rows ); // the form reads every forgettable claim, not only the listed 100.
+	$options = function_exists( 'sn_cit_forgettable_all' ) ? \sn_cit_forgettable_all() : array();
 	if ( array() === $options ) {
 		return '';
 	}
@@ -122,7 +123,7 @@ function citations_forget_form( array $rows ) {
 		. \snt_kit_field( 'hidden', '_wpnonce', '', \snt_kit_nonce( 'citation_forget' ) );
 	return \snt_kit_tag(
 		'os-form',
-		array( 'class' => 'snt-form', 'os-action' => 'post', 'submit-label' => __( 'Forget this claim', 'signal-and-noise-tools' ), 'show-reset' => 'false' ),
+		array( 'class' => 'snt-form', 'os-action' => 'post', 'submit-label' => __( 'Forget this claim', 'signal-and-noise-tools' ), 'show-reset' => 'false', 'os-confirm' => __( 'The claim is deleted. If the source sends its webmention again, it is recorded as a new claim.', 'signal-and-noise-tools' ), 'os-confirm-title' => __( 'Forget this claim?', 'signal-and-noise-tools' ), 'os-confirm-label' => __( 'Forget', 'signal-and-noise-tools' ), 'os-confirm-danger' => true ),
 		$inner
 	) . '<p class="snt-hint">' . \snt_kit_esc( __( 'Only claims shown to nobody can be forgotten. If the source sends its webmention again, it is a new claim.', 'signal-and-noise-tools' ) ) . '</p>';
 }

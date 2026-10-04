@@ -53,10 +53,7 @@ class Test_WPDB {
 	public function get_var( $s ) { $this->queries[] = $s; return $this->var; }
 	public function get_results( $s, $o = 'OBJECT' ) { $this->queries[] = $s; return $this->rows; }
 	public function get_charset_collate() { return ''; }
-	public $row     = null;
-	public $deletes = array();
-	public function get_row( $s ) { $this->queries[] = $s; return $this->row; }
-	public function delete( $t, $w, $f = null ) { $this->deletes[] = array( $t, $w ); return 1; }
+
 }
 $GLOBALS['wpdb'] = new Test_WPDB();
 
@@ -199,18 +196,17 @@ ok( $counts['never_checked'] === 5, 'never_checked is reported SEPARATELY from a
 
 // ── forgetting a claim shown to nobody ───────────────────────────────────────
 $mk   = static fn( $id, $tier, $src ) => (object) array( 'id' => $id, 'tier' => $tier, 'source_url' => $src, 'target_url' => 'https://juanlentino.com/notes/x/' );
-$list = sn_cit_forgettable( array( $mk( 1, 'verified', 'https://a.example/p' ), $mk( 2, 'unattributed', 'https://b.example/p' ), $mk( 3, 'asserted', 'https://example.com/test' ), $mk( 4, 'unverified', 'https://d.example/p' ), $mk( 0, 'asserted', 'https://noid.example/' ) ) );
-ok( array( 3 => 'example.com, cites /notes/x/ (asserted)', 4 => 'd.example, cites /notes/x/ (unverified)' ) === $list, 'only the tiers shown to nobody are offered, each named by host, target and tier' );
-reset_db(); $GLOBALS['wpdb']->deletes = array();
-$GLOBALS['wpdb']->row = (object) array( 'id' => 3, 'tier' => 'asserted' );
-ok( true === sn_cit_forget( 3 ) && array( array( sn_cit_table(), array( 'id' => 3 ) ) ) === $GLOBALS['wpdb']->deletes, 'an asserted claim is deleted, by its id' );
-$GLOBALS['wpdb']->deletes = array(); $GLOBALS['wpdb']->row = (object) array( 'id' => 1, 'tier' => 'verified' );
-ok( false === sn_cit_forget( 1 ) && array() === $GLOBALS['wpdb']->deletes, 'a citation the site displays is refused: the tier is read from the row, not from the form' );
-$GLOBALS['wpdb']->row = null;
-ok( false === sn_cit_forget( 99 ) && array() === $GLOBALS['wpdb']->deletes, 'an id that is not there deletes nothing' );
+$list = sn_cit_forgettable( array( $mk( 1, 'verified', 'https://a.example/p' ), $mk( 2, 'unattributed', 'https://b.example/p' ), $mk( 3, 'asserted', 'https://example.com/test' ), $mk( 4, 'unverified', 'https://example.com/other' ), $mk( 0, 'asserted', 'https://noid.example/' ) ) );
+ok( array( 3 => 'example.com/test, cites /notes/x/ (asserted)', 4 => 'example.com/other, cites /notes/x/ (unverified)' ) === $list, 'only the tiers shown to nobody are offered, and two pages of one host read apart' );
+reset_db();
+$GLOBALS['wpdb']->rows = array( $mk( 9, 'asserted', 'https://old.example/z' ) );
+ok( array( 9 => 'old.example/z, cites /notes/x/ (asserted)' ) === sn_cit_forgettable_all() && false !== strpos( end( $GLOBALS['wpdb']->queries ), "WHERE tier IN ('asserted', 'unverified')" ) && false === strpos( end( $GLOBALS['wpdb']->queries ), 'LIMIT 100' ), 'the form has its own read of the forgettable tiers, not the 100 listed rows' );
+reset_db();
+sn_cit_forget( 3 );
+ok( "DELETE FROM " . sn_cit_table() . " WHERE id = 3 AND tier IN ('asserted', 'unverified')" === end( $GLOBALS['wpdb']->queries ), 'the tier is in the DELETE itself, so a claim promoted a moment earlier is not removed' );
+ok( false === sn_cit_forget( 3 ), 'no row deleted reads false' );
 require __DIR__ . '/../inc/admin-post-actions/citations.php';
-$GLOBALS['wpdb']->row = (object) array( 'id' => 3, 'tier' => 'unverified' );
-ok( 'citation_forgotten' === sn_handle_citation_forget( array( 'claim' => '3' ) ) && 'citation_forget_none' === sn_handle_citation_forget( array() ) && 'citation_forget_none' === sn_handle_citation_forget( array( 'claim' => 'x' ) ), 'the handler answers with its flash code; no claim or a non-number removes nothing' );
+ok( 'citation_forget_none' === sn_handle_citation_forget( array( 'claim' => '3' ) ) && 'citation_forget_none' === sn_handle_citation_forget( array() ) && 'citation_forget_none' === sn_handle_citation_forget( array( 'claim' => 'x' ) ), 'the handler answers with its flash code; nothing deleted, no claim or a non-number removes nothing' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

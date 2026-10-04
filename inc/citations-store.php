@@ -199,7 +199,7 @@ function sn_cit_all( $limit = 100 ) {
  * is never offered here.
  *
  * @param array<int,object> $rows Rows of the citations table.
- * @return array<int,string> Row id => "host, cites /path (tier)".
+ * @return array<int,string> Row id => "host/path, cites /path (tier)".
  */
 function sn_cit_forgettable( array $rows ) {
 	$out = array();
@@ -208,7 +208,8 @@ function sn_cit_forgettable( array $rows ) {
 		if ( (int) ( $r->id ?? 0 ) < 1 || sn_cit_tier_is_public( $tier ) ) {
 			continue;
 		}
-		$host = (string) parse_url( (string) $r->source_url, PHP_URL_HOST ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- pure, for the standalone test.
+		// The source without its scheme: two pages of one host must not read alike.
+		$host = (string) preg_replace( '#^https?://#i', '', (string) $r->source_url );
 		$path = (string) parse_url( (string) $r->target_url, PHP_URL_PATH ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- same.
 		$out[ (int) $r->id ] = sprintf( '%s, cites %s (%s)', '' !== $host ? $host : (string) $r->source_url, '' !== $path ? $path : '/', $tier );
 	}
@@ -225,11 +226,23 @@ function sn_cit_forgettable( array $rows ) {
 function sn_cit_forget( $id ) {
 	global $wpdb;
 	$table = sn_cit_table();
-	$row   = $wpdb->get_row( $wpdb->prepare( "SELECT id, tier FROM {$table} WHERE id = %d", (int) $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-	if ( ! is_object( $row ) || sn_cit_tier_is_public( (string) $row->tier ) ) {
-		return false;
-	}
-	return 1 === (int) $wpdb->delete( $table, array( 'id' => (int) $row->id ), array( '%d' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+	// The tier is part of the DELETE itself: the hourly verifier may promote a
+	// claim between any read and this statement, and a displayed citation must
+	// not go with it.
+	return 1 === (int) $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE id = %d AND tier IN ('asserted', 'unverified')", (int) $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+}
+
+/**
+ * Every claim that may be forgotten, newest first: its own read, because the
+ * listed table stops at 100 rows and an older claim must still be reachable.
+ *
+ * @return array<int,string> See sn_cit_forgettable().
+ */
+function sn_cit_forgettable_all() {
+	global $wpdb;
+	$table = sn_cit_table();
+	$rows  = $wpdb->get_results( "SELECT id, tier, source_url, target_url FROM {$table} WHERE tier IN ('asserted', 'unverified') ORDER BY first_seen_gmt DESC LIMIT 500" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+	return sn_cit_forgettable( is_array( $rows ) ? $rows : array() );
 }
 
 /**
