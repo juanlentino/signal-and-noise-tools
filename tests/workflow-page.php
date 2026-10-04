@@ -28,7 +28,7 @@ function sanitize_textarea_field( $s ) { return trim( strip_tags( (string) $s ) 
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8', false ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8', false ); }
 function get_option( $k, $d = false ) { return $GLOBALS['__opt'][ $k ] ?? $d; }
-function update_option( $k, $v, $a = null ) { $GLOBALS['__opt'][ $k ] = $v; return true; }
+function update_option( $k, $v, $a = null ) { if ( ! empty( $GLOBALS['__opt_fail'] ) ) { return false; } $GLOBALS['__opt'][ $k ] = $v; return true; }
 function delete_option( $k ) { $had = isset( $GLOBALS['__opt'][ $k ] ); unset( $GLOBALS['__opt'][ $k ] ); return $had; }
 function get_page_by_path( $p, $o = OBJECT, $t = 'page' ) { return 'workflow' === $p ? $GLOBALS['__page'] : null; }
 // Core unslashes what it is handed; so do these, so the stored body is what WP would store.
@@ -46,7 +46,7 @@ function wp_update_post( $a, $e = false ) {
 	return $a['ID'];
 }
 function get_post_status( $id ) { return $GLOBALS['__page']->post_status ?? false; }
-function update_post_meta( $id, $k, $v ) { $GLOBALS['__meta'][ $k ] = $v; return true; }
+function update_post_meta( $id, $k, $v ) { $GLOBALS['__meta'][ $k ] = wp_unslash( $v ); return true; }
 function delete_post_meta( $id, $k ) { unset( $GLOBALS['__meta'][ $k ] ); return true; }
 function do_action() {}
 if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $x ) { return false; } }
@@ -189,6 +189,20 @@ $GLOBALS['__page']->post_status = 'publish';
 $GLOBALS['__upd_fail'] = true;
 ok( 'workflow_failed' === sn_handle_workflow_save( array( 'workflow' => array( 'map' => array( array( 'title' => 'A', 'line' => 'x' ) ) ) ) ) && ! get_option( SN_WORKFLOW_WITHDRAWN_OPT ), 'a withdrawal whose write fails reports failed, not withdrawn' );
 $GLOBALS['__upd_fail'] = false;
+
+echo "\nGroup: Codex round on b21b887\n";
+wf_reset();
+sn_handle_workflow_save( wp_slash( array( 'workflow' => array( 'dek' => 'C:\\Work', 'map' => array( array( 'title' => 'A', 'line' => 'x', 'show' => '1' ) ) ) ) ) );
+ok( 'C:\\Work' === ( $GLOBALS['__meta']['_sn_meta_description'] ?? '' ), 'a backslash in the Dek survives into the meta description' );
+ok( 'page-workflow' === ( $GLOBALS['__ins'][0]['page_template'] ?? '' ), 'a new page gets the workflow template' );
+sn_handle_workflow_save( array( 'workflow' => array( 'title' => 'Again', 'map' => array( array( 'title' => 'A', 'line' => 'x', 'show' => '1' ) ) ) ) );
+ok( 'page-workflow' === ( end( $GLOBALS['__upd'] )['page_template'] ?? '' ), 'an update to an existing page binds the workflow template too' );
+$GLOBALS['__opt_fail'] = true;
+ok( 'workflow_failed' === sn_handle_workflow_save( array( 'workflow' => array( 'map' => array( array( 'title' => 'A', 'line' => 'x' ) ) ) ) ) && 'publish' === $GLOBALS['__page']->post_status, 'a document that did not store reports failed and leaves the page as it was' );
+$GLOBALS['__opt_fail'] = false;
+$GLOBALS['__page']->post_status = 'future';
+ok( 'workflow_withdrawn' === sn_handle_workflow_save( array( 'workflow' => array( 'map' => array( array( 'title' => 'A', 'line' => 'x' ) ) ) ) ) && 'draft' === $GLOBALS['__page']->post_status, 'a scheduled page with nothing public left goes to draft, not to an empty publish' );
+ok( false === snt_generated_page_guard( 'workflow', '<div class="sn-workflow-page"><section></section></div>' ), 'the write guard refuses a body without the hero' );
 
 echo "\nGroup: the sample renders Label, Title, Intro, Outcome, Body\n";
 $ord = sn_workflow_sample_html( array( 'label' => 'L', 'title' => 'T', 'intro' => 'I', 'outcome' => 'O', 'body' => 'B' ) );

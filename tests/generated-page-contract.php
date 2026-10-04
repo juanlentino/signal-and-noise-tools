@@ -43,8 +43,8 @@ function gp_good() {
 			. '</div><!-- /wp:group -->',
 		'now'    => '<!-- wp:html -->' . "\n" . '<div class="sn-now-page"><header class="sn-now-hero"></header></div>' . "\n" . '<!-- /wp:html -->',
 		'uses'   => '<!-- wp:html -->' . "\n" . '<div class="sn-uses-page"><header class="sn-uses-hero"></header></div>' . "\n" . '<!-- /wp:html -->',
-		// Unreleased: /workflow. Wrapper only; every section, the hero too, is optional.
-		'workflow' => '<!-- wp:html -->' . "\n" . '<div class="sn-workflow-page"><ol class="sn-workflow-rules__list"></ol></div>' . "\n" . '<!-- /wp:html -->',
+		// Unreleased: /workflow. Every non-empty body opens with the hero (its h1 has a fallback).
+		'workflow' => '<!-- wp:html -->' . "\n" . '<div class="sn-workflow-page"><header class="sn-workflow-hero"><h1 class="sn-workflow-title">Workflow</h1></header><ol class="sn-workflow-rules__list"></ol></div>' . "\n" . '<!-- /wp:html -->',
 	);
 }
 
@@ -107,7 +107,7 @@ $bad_resume = '<!-- wp:html -->' . "\n" . '<div class="sn-resume-hero-split"></d
 ok( false === snt_generated_page_guard( 'resume', $bad_resume ), 'the v10.33.1 wp:html /resume body is REFUSED at the write boundary' );
 
 ok( false === snt_generated_page_guard( 'uses', '<div>no markers</div>' ), 'a /uses body that lost its hero is REFUSED' );
-ok( true === snt_generated_page_guard( 'workflow', $good['workflow'] ), 'a /workflow body with no hero (title and dek empty) is allowed: the hero is optional there' );
+ok( false === snt_generated_page_guard( 'workflow', str_replace( 'sn-workflow-hero', 'x', $good['workflow'] ) ), 'a /workflow body without its hero is refused: every generated body has one' );
 
 $fired = array_filter( $GLOBALS['__actions'], function ( $a ) { return 'snt_generated_page_write_refused' === $a[0]; } );
 ok( count( $fired ) >= 2, 'each refusal fires snt_generated_page_write_refused so it is observable' );

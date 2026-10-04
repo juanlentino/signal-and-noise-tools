@@ -163,17 +163,18 @@ function sn_workflow_public_data( $doc = null ) {
 
 /**
  * Store (or clear) the document. A document with nothing in it deletes the
- * option. Returns true on a real change.
+ * option. Returns true on a real change, false when nothing changed, and
+ * null when the write failed: core's false means both "unchanged" and
+ * "refused", so the stored value is read back to tell them apart.
  *
  * @param array $doc Normalized document.
- * @return bool
+ * @return bool|null
  */
 function sn_workflow_page_save( array $doc ) {
-	if ( ! sn_workflow_has_content( $doc ) ) {
-		return delete_option( SN_WORKFLOW_PAGE_OPTION );
-	}
-	if ( get_option( SN_WORKFLOW_PAGE_OPTION ) === $doc ) {
+	$want = sn_workflow_has_content( $doc ) ? $doc : false;
+	if ( get_option( SN_WORKFLOW_PAGE_OPTION ) === $want ) {
 		return false;
 	}
-	return update_option( SN_WORKFLOW_PAGE_OPTION, $doc, false );
+	false === $want ? delete_option( SN_WORKFLOW_PAGE_OPTION ) : update_option( SN_WORKFLOW_PAGE_OPTION, $doc, false );
+	return get_option( SN_WORKFLOW_PAGE_OPTION ) === $want ? true : null;
 }

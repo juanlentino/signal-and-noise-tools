@@ -143,7 +143,9 @@ function sn_workflow_upsert_page( $body, array $pub ) {
 		// private, even after a withdrawal) is kept.
 		$was    = (string) ( $page->post_status ?? '' );
 		$status = 'publish' === $was || ( 'draft' === $was && get_option( SN_WORKFLOW_WITHDRAWN_OPT ) ) ? 'publish' : $was;
-		$done = wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_status' => $status ) + $fields ), true );
+		// The template is bound here too: a page already at the slug (made by
+		// hand, or re-templated since) still renders the workflow layout.
+		$done = wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_status' => $status, 'page_template' => 'page-workflow' ) + $fields ), true );
 		if ( ! $done || is_wp_error( $done ) ) {
 			return 0;
 		}
@@ -181,7 +183,7 @@ function sn_workflow_write_description( $id, $dek ) {
 		delete_post_meta( $id, '_sn_meta_description' );
 		return;
 	}
-	update_post_meta( $id, '_sn_meta_description', $dek );
+	update_post_meta( $id, '_sn_meta_description', wp_slash( $dek ) );
 	delete_post_meta( $id, '_sn_autogen_meta_description' );
 }
 
@@ -207,7 +209,8 @@ function sn_workflow_sync_page() {
 		return 'publish' === get_post_status( $id ) ? 'published' : 'offline';
 	}
 	$page = get_page_by_path( SN_WORKFLOW_SLUG );
-	if ( $page && 'publish' === ( $page->post_status ?? '' ) ) {
+	// A scheduled page counts as live: left alone it would publish empty.
+	if ( $page && in_array( $page->post_status ?? '', array( 'publish', 'future' ), true ) ) {
 		// The draft keeps no rows: the wall's rule is that a hidden row is not
 		// in the Page at all, published or not.
 		$done = wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_status' => 'draft', 'post_content' => '' ) ), true );

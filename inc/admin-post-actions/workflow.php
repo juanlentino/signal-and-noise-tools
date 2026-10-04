@@ -25,6 +25,10 @@ function sn_handle_workflow_save( $post ) {
 		return 'workflow_failed';
 	}
 	$changed = sn_workflow_page_save( sn_workflow_normalize( $post['workflow'] ?? array() ) );
+	if ( null === $changed ) {
+		// The document did not store: syncing now would republish the old one.
+		return 'workflow_failed';
+	}
 	$result  = sn_workflow_sync_page();
 	if ( 'published' === $result || 'withdrawn' === $result ) {
 		sn_content_route_purge( '/' . SN_WORKFLOW_SLUG );
