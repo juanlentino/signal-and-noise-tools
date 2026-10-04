@@ -1898,6 +1898,10 @@ ok( false === strpos( $act_js, "'full-reset', 'Resetting" ) && false === strpos(
 $mr_js = (string) file_get_contents( SNT_PATH . 'assets/desktop-mode-widget-machine-readers.js' );
 ok( false !== strpos( $mr_js, 'payload.edge_verified' ) && false !== strpos( $mr_js, "section( 'Identity' )" ) && strpos( $mr_js, "section( 'Identity' )" ) < strpos( $mr_js, "section( 'Top families' )" ) && false !== strpos( $mr_js, "'…fetched rights files directly'" ), 'Machine Readers opens with who the readers are, then the families, and keeps the direct rights-file row' );
 ok( array( 'verified' => 7, 'unverified' => 5, 'not_measured' => 3 ) === snt_desktop_machine_readers_identity( array( array( 'hits' => 7, 'verified_bot' => 'search', 'network' => 'GOOGLE' ), array( 'hits' => 5, 'verified_bot' => '', 'network' => 'GOOGLE' ), array( 'hits' => 3, 'verified_bot' => '', 'network' => '' ), 'junk' ) ), 'identity: verified by the edge, named and not verified, and reads from before the network was recorded' );
+if ( ! function_exists( 'sn_rights_evidence_identity_class' ) ) {
+	function sn_rights_evidence_identity_class( $day, $bot ) { return $day < '2026-09-28' ? 'unverifiable' : ( '' !== (string) $bot ? 'verified' : 'unverified' ); }
+}
+ok( array( 'verified' => 7, 'unverified' => 5, 'not_measured' => 3 ) === snt_desktop_machine_readers_identity( array( array( 'day' => '2026-10-01', 'hits' => 7, 'verified_bot' => 'search', 'network' => '' ), array( 'day' => '2026-09-29', 'hits' => 5, 'verified_bot' => '', 'network' => '' ), array( 'day' => '2026-09-20', 'hits' => 3, 'verified_bot' => '', 'network' => 'GOOGLE' ) ) ), 'identity is classed by the row\'s day: an unverified read after verification began is not "not measured" for lacking a network, and a day before it is, whatever it carries' );
 $keep_scan = $GLOBALS['__health_scan'];
 $GLOBALS['__health_scan'] = fixture_scan( array( 'missing_alt' => 0, 'broken_links' => 0 ) );
 $GLOBALS['__health_scan']['checks']['broken_links']['skipped'] = 'The AI provider refused the call.';
