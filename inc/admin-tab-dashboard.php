@@ -86,6 +86,12 @@ function snt_deploy_status_for( $package ) {
 		// sn_gh_latest_plugin_tag is plugin-owned (inc/wp-update-integration.php) —
 		// calling it directly is fine; same repo as the caller.
 		$latest  = function_exists( 'sn_gh_latest_plugin_tag' ) ? sn_gh_latest_plugin_tag() : null;
+		// Installed newer than the cached newest tag: the cache predates the
+		// release. Re-fetch once per five minutes (the same rule as the workers).
+		if ( $latest && $current && version_compare( $current, ltrim( (string) $latest, 'v' ), '>' ) && false === get_transient( 'snt_gh_plugin_refetch' ) ) {
+			set_transient( 'snt_gh_plugin_refetch', 1, 5 * MINUTE_IN_SECONDS );
+			$latest = sn_gh_latest_plugin_tag( true );
+		}
 		$reason  = function_exists( 'sn_gh_latest_plugin_tag_error' ) ? sn_gh_latest_plugin_tag_error() : '';
 	}
 	$latest_version = $latest ? ltrim( $latest, 'v' ) : '';

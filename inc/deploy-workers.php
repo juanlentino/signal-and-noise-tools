@@ -23,10 +23,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /** Live-probe success TTL — readout freshness, not monitoring. */
-const SNT_DEPLOY_WORKER_LIVE_TTL_OK = 600; // 10 min; mirrors SN_WORKER_VERSION_TTL_OK.
+const SNT_DEPLOY_WORKER_LIVE_TTL_OK = 600; // 10 min: slack for a late WP-Cron run. Freshness comes from the warm, which probes every five minutes whatever the cache says.
 
 /** Live-probe failure TTL — retry sooner after a miss. */
 const SNT_DEPLOY_WORKER_LIVE_TTL_FAIL = 120; // 2 min; mirrors SN_WORKER_VERSION_TTL_FAIL.
+
+/** At most one early tag re-fetch per worker in this window (see snt_deploy_worker_tag_is_stale()). */
+const SNT_DEPLOY_WORKER_TAG_REFETCH_TTL = 5 * MINUTE_IN_SECONDS;
 
 /** GitHub tags cache TTL — mirrors SN_GH_PLUGIN_CACHE_TTL. */
 const SNT_DEPLOY_WORKER_TAG_TTL = HOUR_IN_SECONDS;
@@ -411,6 +414,21 @@ function snt_deploy_worker_live_probe( $id, array $cfg, $force = false ) {
 }
 
 /**
+ * Whether the cached newest tag is older than the version actually running.
+ * PURE. Only a real version pair counts: '' or "unprobeable" is not a newer
+ * live version, it is no reading.
+ *
+ * @param string $live   Probed version.
+ * @param string $latest Cached newest tag (no leading v).
+ * @return bool
+ */
+function snt_deploy_worker_tag_is_stale( $live, $latest ) {
+	$live   = (string) $live;
+	$latest = (string) $latest;
+	return '' !== $live && 'unprobeable' !== $live && '' !== $latest && version_compare( $live, $latest, '>' );
+}
+
+/**
  * Compare live vs latest into ok | behind | unknown.
  *
  * @param string $live   Probed version, "unprobeable", or ''.
@@ -488,6 +506,18 @@ function snt_deploy_worker_status_for( $id, $opts = array() ) {
 	$latest = snt_deploy_worker_latest_tag( $repo, $id, $force );
 	$latest = null === $latest ? '' : (string) $latest;
 	$live   = (string) ( $live_result['live'] ?? '' );
+	// A live version newer than the newest tag cannot be true: the tag cache is
+	// from before the release. Ask GitHub again, at most once per worker per
+	// TTL, so a deploy whose tag is late (or never made) cannot spend the
+	// rate limit on every read.
+	if ( ! $force && snt_deploy_worker_tag_is_stale( $live, $latest ) ) {
+		$guard = 'snt_dw_tag_refetch_' . preg_replace( '/[^a-z0-9_-]/i', '', $id );
+		if ( false === get_transient( $guard ) ) {
+			set_transient( $guard, 1, SNT_DEPLOY_WORKER_TAG_REFETCH_TTL );
+			$fresh  = snt_deploy_worker_latest_tag( $repo, $id, true );
+			$latest = null === $fresh ? $latest : (string) $fresh;
+		}
+	}
 	$state  = snt_deploy_worker_state( $live, $latest );
 
 	$reason = '';
@@ -591,6 +621,15 @@ function snt_deploy_workers_status( $opts = array() ) {
 
 /** Cron: probe every cold worker with a full budget (never in a page load). */
 function snt_deploy_workers_warm_cb() {
+	// Every warm probes, whatever the cache says: a cache still valid at the
+	// warm would skip it and leave a fresh deploy unread for another cycle.
+	// One worker at a time, each overwriting its own entry, so a page load
+	// during the warm never finds the fleet cold.
+	foreach ( snt_deploy_workers_registry() as $id => $cfg ) {
+		if ( is_array( $cfg ) ) {
+			snt_deploy_worker_live_probe( (string) $id, $cfg, true );
+		}
+	}
 	snt_deploy_workers_status( array( 'probe_budget' => 10 ) );
 }
 add_action( 'snt_deploy_workers_warm', 'snt_deploy_workers_warm_cb' );
