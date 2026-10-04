@@ -53,6 +53,10 @@ class Test_WPDB {
 	public function get_var( $s ) { $this->queries[] = $s; return $this->var; }
 	public function get_results( $s, $o = 'OBJECT' ) { $this->queries[] = $s; return $this->rows; }
 	public function get_charset_collate() { return ''; }
+	public $row     = null;
+	public $deletes = array();
+	public function get_row( $s ) { $this->queries[] = $s; return $this->row; }
+	public function delete( $t, $w, $f = null ) { $this->deletes[] = array( $t, $w ); return 1; }
 }
 $GLOBALS['wpdb'] = new Test_WPDB();
 
@@ -192,6 +196,21 @@ $counts = sn_cit_counts();
 foreach ( SN_CIT_TIERS as $tier ) { ok( array_key_exists( $tier, $counts ), "the readout names the $tier tier even at zero" ); }
 ok( $counts['verified'] === 3 && $counts['asserted'] === 0, 'measured tiers carry their count; unmeasured ones read an explicit 0' );
 ok( $counts['never_checked'] === 5, 'never_checked is reported SEPARATELY from any tier' );
+
+// ── forgetting a claim shown to nobody ───────────────────────────────────────
+$mk   = static fn( $id, $tier, $src ) => (object) array( 'id' => $id, 'tier' => $tier, 'source_url' => $src, 'target_url' => 'https://juanlentino.com/notes/x/' );
+$list = sn_cit_forgettable( array( $mk( 1, 'verified', 'https://a.example/p' ), $mk( 2, 'unattributed', 'https://b.example/p' ), $mk( 3, 'asserted', 'https://example.com/test' ), $mk( 4, 'unverified', 'https://d.example/p' ), $mk( 0, 'asserted', 'https://noid.example/' ) ) );
+ok( array( 3 => 'example.com, cites /notes/x/ (asserted)', 4 => 'd.example, cites /notes/x/ (unverified)' ) === $list, 'only the tiers shown to nobody are offered, each named by host, target and tier' );
+reset_db(); $GLOBALS['wpdb']->deletes = array();
+$GLOBALS['wpdb']->row = (object) array( 'id' => 3, 'tier' => 'asserted' );
+ok( true === sn_cit_forget( 3 ) && array( array( sn_cit_table(), array( 'id' => 3 ) ) ) === $GLOBALS['wpdb']->deletes, 'an asserted claim is deleted, by its id' );
+$GLOBALS['wpdb']->deletes = array(); $GLOBALS['wpdb']->row = (object) array( 'id' => 1, 'tier' => 'verified' );
+ok( false === sn_cit_forget( 1 ) && array() === $GLOBALS['wpdb']->deletes, 'a citation the site displays is refused: the tier is read from the row, not from the form' );
+$GLOBALS['wpdb']->row = null;
+ok( false === sn_cit_forget( 99 ) && array() === $GLOBALS['wpdb']->deletes, 'an id that is not there deletes nothing' );
+require __DIR__ . '/../inc/admin-post-actions/citations.php';
+$GLOBALS['wpdb']->row = (object) array( 'id' => 3, 'tier' => 'unverified' );
+ok( 'citation_forgotten' === sn_handle_citation_forget( array( 'claim' => '3' ) ) && 'citation_forget_none' === sn_handle_citation_forget( array() ) && 'citation_forget_none' === sn_handle_citation_forget( array( 'claim' => 'x' ) ), 'the handler answers with its flash code; no claim or a non-number removes nothing' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

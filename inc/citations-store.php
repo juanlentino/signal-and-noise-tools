@@ -194,6 +194,45 @@ function sn_cit_all( $limit = 100 ) {
 }
 
 /**
+ * The claims the owner may forget: the ones shown to nobody. PURE. A citation
+ * the site displays (verified, unattributed) is evidence a reader can see and
+ * is never offered here.
+ *
+ * @param array<int,object> $rows Rows of the citations table.
+ * @return array<int,string> Row id => "host, cites /path (tier)".
+ */
+function sn_cit_forgettable( array $rows ) {
+	$out = array();
+	foreach ( $rows as $r ) {
+		$tier = (string) ( $r->tier ?? '' );
+		if ( (int) ( $r->id ?? 0 ) < 1 || sn_cit_tier_is_public( $tier ) ) {
+			continue;
+		}
+		$host = (string) parse_url( (string) $r->source_url, PHP_URL_HOST ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- pure, for the standalone test.
+		$path = (string) parse_url( (string) $r->target_url, PHP_URL_PATH ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- same.
+		$out[ (int) $r->id ] = sprintf( '%s, cites %s (%s)', '' !== $host ? $host : (string) $r->source_url, '' !== $path ? $path : '/', $tier );
+	}
+	return $out;
+}
+
+/**
+ * Forget one claim: delete its row, only when it is one shown to nobody. The
+ * source can send its webmention again; a forgotten claim is then a new claim.
+ *
+ * @param int $id Row id.
+ * @return bool Whether a row was deleted.
+ */
+function sn_cit_forget( $id ) {
+	global $wpdb;
+	$table = sn_cit_table();
+	$row   = $wpdb->get_row( $wpdb->prepare( "SELECT id, tier FROM {$table} WHERE id = %d", (int) $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+	if ( ! is_object( $row ) || sn_cit_tier_is_public( (string) $row->tier ) ) {
+		return false;
+	}
+	return 1 === (int) $wpdb->delete( $table, array( 'id' => (int) $row->id ), array( '%d' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+}
+
+/**
  * Rows due for a check: never checked, or checked longer ago than the window.
  * Ordered never-checked first so a new claim is adjudicated before an old one is
  * re-adjudicated.

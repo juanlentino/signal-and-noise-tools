@@ -124,6 +124,7 @@ function sn_admin_post_handlers() {
 		'rights_evidence_retract'    => 'sn_handle_rights_evidence_retract', // one signed retraction per click (inc/admin-post-actions/rights-evidence-retract.php)
 		'rights_evidence_hold'       => 'sn_handle_rights_evidence_hold', // a composed month in its review window onto the hold; never runs the pass
 		'archive_push_existing'      => 'sn_handle_archive_push_existing', // 21.1.0: start or resume the Internet Archive run over older notes (inc/admin-post-actions/archive-push-existing.php)
+		'citation_forget'            => 'sn_handle_citation_forget', // Integrity > Citations: remove one claim shown to nobody (inc/admin-post-actions/citations.php)
 		'rights_evidence_post_now'   => 'sn_handle_rights_evidence_post_now', // the owner's bypass of the review window (inc/admin-post-actions/rights-evidence-post-now.php)
 	);
 }
