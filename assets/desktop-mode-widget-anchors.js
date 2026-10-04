@@ -108,9 +108,11 @@
 				// One line for "all good"; the detail rows return when something is pending.
 				var allPages = Number( pages.total ) > 0 ? ', ' + Number( pages.total ) + ' pages' : '';
 				var allDone  = confirmed === total && ( Number( pages.confirmed ) || 0 ) === ( Number( pages.total ) || 0 );
+				// Nothing signed is not "all anchored": no green claim over an empty corpus.
+				var none     = 0 === total && 0 === ( Number( pages.total ) || 0 );
 				wrap.appendChild( el( 'p', {
-					style: 'margin:0;font-weight:600;color:#3fb950;',
-					text:  allDone
+					style: none ? 'margin:0;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));' : 'margin:0;font-weight:600;color:#3fb950;',
+					text:  none ? 'No signed notes or pages yet.' : allDone
 						? '✓ All anchored: ' + total + ' notes' + allPages
 						: '✓ ' + confirmed + ' of ' + total + ' notes anchored' + ( pagesLine ? ', ' + pagesLine : '' ),
 				} ) );

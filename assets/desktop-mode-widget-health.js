@@ -58,14 +58,19 @@
 	}
 
 	/**
-	 * A glance-sized reason: long parentheticals (raw provider errors, over
+	 * A glance-sized reason. One that fits in 140 characters is shown whole;
+	 * a longer one has long parentheticals (raw provider errors, over
 	 * 40 characters) dropped, short ones kept (a setup location such as
 	 * "(Connections › Credentials)"), then at most 140 characters cut at a word, keeping every
 	 * sentence that fits; the first sentence is not always the reason. The
 	 * full text stays on the Health tab, one click away.
 	 */
 	function shortReason( text ) {
-		var t = text;
+		var t = text.replace( /\s+/g, ' ' ).trim();
+		// A reason that already fits is shown whole, asides and all.
+		if ( t.length <= 140 ) {
+			return t;
+		}
 		// Outermost parentheticals, balanced, so a nested "(400)" goes with its long aside.
 		var out = '', depth = 0, start = 0;
 		for ( var i = 0; i < t.length; i++ ) {
