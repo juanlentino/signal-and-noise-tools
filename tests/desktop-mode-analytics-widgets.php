@@ -124,7 +124,7 @@ if ( '' === $node ) { echo "SKIP: node not found\n"; } else {
 	$tone = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-groups.js' );
 	ok( false !== strpos( $tone, "up: '#3fb950', down: '#c9503f'" ) && false !== strpos( $tone, 'TONE[ r.tone ]' ), 'the painter colors a toned row with the two Site Views colors, and nothing else' );
 	$hero = $run( 'sn-reading', json_encode( array( 'window' => array( 'days' => 14 ), 'generated_at' => time() - 240, 'hero' => array( 'value' => '40%', 'label' => 'of views engaged', 'change' => '▼ 7 pts vs. prior 14 days', 'tone' => 'down' ), 'groups' => array() ) ) );
-	ok( array( '40%', 'of views engaged · last 14 days', '▼ 7 pts vs. prior 14 days', '', 'Read 4 min ago', 'Open Analytics →' ) === $hero['lines'], 'a hero opens the tile with its figure, its unit and window, and its change; the foot says how old the reading is' );
+	ok( array( '40%', 'of views engaged · last 14 days', '▼ 7 pts vs. prior 14 days', '' ) === array_slice( $hero['lines'], 0, 4 ) && 1 === preg_match( '/^Read at \d{1,2}[:.]\d{2}/', $hero['lines'][4] ) && 'Open Analytics →' === $hero['lines'][5], 'a hero opens the tile with its figure, its unit and window, and its change; the foot says when the reading was taken, as a clock time' );
 	$bad = $run( 'sn-reading', 'FAIL' );
 	ok( array( '/signal-noise/v1/desktop/reading' ) === $bad['paths'] && 'Could not load this reading.' === $bad['lines'][0], 'a failed fetch says so; Reading fetches its own route' );
 }

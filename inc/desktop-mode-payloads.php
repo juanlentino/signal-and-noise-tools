@@ -515,7 +515,9 @@ function snt_desktop_machine_readers_payload() {
 	$payload = snt_mr_summary_payload( 30 );
 	if ( ! empty( $payload['ok'] ) && function_exists( 'snt_mr_fetch' ) ) {
 		$read = snt_mr_fetch( 30 ); // the same read the summary made; memoized.
-		if ( ! empty( $read['ok'] ) ) {
+		// Not when the read hit the edge's row cap: the split would be of the
+		// newest rows only and would read as the whole.
+		if ( ! empty( $read['ok'] ) && empty( $read['truncated'] ) ) {
 			$payload['edge_verified'] = snt_desktop_machine_readers_identity( (array) ( $read['rows'] ?? array() ) );
 		}
 	}

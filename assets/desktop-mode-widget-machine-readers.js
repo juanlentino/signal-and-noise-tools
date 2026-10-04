@@ -153,7 +153,7 @@
 					body.appendChild( who );
 				}
 				var fam = section( 'Top families' );
-				payload.families.slice( 0, 5 ).forEach( function( row ) {
+				payload.families.forEach( function( row ) {
 					fam.appendChild( statRow( String( row.family ), String( row.hits ) ) );
 				} );
 				body.appendChild( fam );

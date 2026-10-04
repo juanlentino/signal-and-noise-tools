@@ -67,11 +67,11 @@
 				body.appendChild( row );
 			} );
 		} );
-		// How old these figures are: the server caches them for 15 minutes.
+		// When these figures were read, as a clock time: the tile paints once,
+		// so a relative age would go stale on a desktop left open.
 		var at = payload && Number( payload.generated_at );
 		if ( at > 0 ) {
-			var mins = Math.max( 0, Math.round( ( Date.now() / 1000 - at ) / 60 ) );
-			body.appendChild( el( 'div', 'font-size:10px;margin-top:8px;' + SUBTLE, mins < 1 ? 'Read just now' : 'Read ' + mins + ' min ago' ) );
+			body.appendChild( el( 'div', 'font-size:10px;margin-top:8px;' + SUBTLE, 'Read at ' + new Date( at * 1000 ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) ) );
 		}
 	}
 
