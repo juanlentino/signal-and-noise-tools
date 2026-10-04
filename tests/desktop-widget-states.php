@@ -28,7 +28,7 @@ ok( 1 === preg_match( '/text:\s*shortReason\(\s*String\(\s*s\.reason\s*\)\s*\)/'
 
 echo "\nGroup: SN Anchors\n";
 ok( false !== strpos( $anchors, "'✓ All anchored: '" ) && false === strpos( $anchors, "'No anchors pending.'" ), 'all anchored is one line, not three' );
-ok( 1 === preg_match( '/if\s*\(\s*archive\.line\s*&&\s*halted\s*\)/', $anchors ), 'the Archive line shows only when the run is halted; otherwise it repeats the rows' );
+ok( 1 === preg_match( '/if\s*\(\s*archive\.line\s*&&\s*\(\s*halted\s*\|\|\s*!\s*archive\.configured\s*\)\s*\)/', $anchors ), 'the Archive line shows when the run is halted (its reason) or Archive is not configured (the setup step); otherwise it repeats the rows' );
 
 echo "\nGroup: notices\n";
 ok( 1 === preg_match( "/'role'\s*=>\s*'danger'\s*===\s*snt_kit_tone\(\s*\\\$kind\s*\)\s*\?\s*'alert'/", $kit ), 'an error notice is role="alert"; os-notice defaults the rest to status' );

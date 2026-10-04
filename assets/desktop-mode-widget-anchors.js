@@ -195,8 +195,8 @@
 					box.appendChild( line );
 				} );
 				// The rows above already say what the line says, except when the run
-				// is halted: then the line carries the reason.
-				if ( archive.line && halted ) {
+				// is halted (the reason) or Archive is not configured (the setup step).
+				if ( archive.line && ( halted || ! archive.configured ) ) {
 					box.appendChild( el( 'p', { style: 'margin:2px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: archive.line } ) );
 				}
 				wrap.appendChild( box );
