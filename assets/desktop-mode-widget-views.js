@@ -147,10 +147,11 @@
 	/** A label/value row for the secondary stats. */
 	function statRow( label, value, valueStyle ) {
 		var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
-		row.appendChild( el( 'span', { text: label, style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));' } ) );
+		// A long label (a source name, a page path) wraps; the count never leaves the card.
+		row.appendChild( el( 'span', { text: label, style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));min-width:0;overflow-wrap:anywhere;' } ) );
 		row.appendChild( el( 'span', {
 			text:  value,
-			style: 'font-variant-numeric:tabular-nums;font-weight:600;' + ( valueStyle || '' )
+			style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;' + ( valueStyle || '' )
 		} ) );
 		return row;
 	}

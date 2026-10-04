@@ -168,7 +168,9 @@
 		loading.setAttribute( 'role', 'status' );
 		container.appendChild( loading );
 
-		function render( overview, note ) {
+		// `waiting`: anchor-status has not answered yet. The anchor part then
+		// says it is loading (no alert, no Sweep) while the readers paint.
+		function render( overview, note, waiting ) {
 			if ( torn ) {
 				return;
 			}
@@ -190,7 +192,11 @@
 				? ( Number( pages.confirmed ) || 0 ) + ' of ' + Number( pages.total ) + ' pages anchored'
 				: '';
 
-			if ( ! overview ) {
+			if ( waiting ) {
+				var wait = el( 'p', { style: 'margin:0;' + SUBTLE, text: 'Loading anchor status…' } );
+				wait.setAttribute( 'role', 'status' );
+				wrap.appendChild( wait );
+			} else if ( ! overview ) {
 				var down = el( 'p', { style: 'margin:0;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: note || 'Anchor status unavailable.' } );
 				down.setAttribute( 'role', 'alert' );
 				wrap.appendChild( down );
@@ -336,7 +342,9 @@
 					report( 'Sweep failed: ' + ( ( err && err.message ) || 'unknown error' ) );
 				} );
 			} );
-			actions.appendChild( sweepBtn );
+			if ( ! waiting ) {
+				actions.appendChild( sweepBtn );
+			}
 			var links = [];
 			[ [ 'Open Provenance', dashboardUrl ], [ 'Open Machine Readers', readersUrl ] ].forEach( function( l ) {
 				if ( ! l[1] ) { return; }
@@ -355,7 +363,8 @@
 			container.appendChild( wrap );
 			if ( hadFocus ) {
 				var back = links.filter( function( a ) { return a.textContent === onLink; } )[0];
-				( back || sweepBtn ).focus();
+				var to = back || ( waiting ? null : sweepBtn );
+				if ( to ) { to.focus(); }
 			}
 		}
 
@@ -368,20 +377,21 @@
 			readers = null;
 			// The last anchor answer (or its error), so a reader answer that lands
 			// later repaints with it rather than without it.
-			var shown = { overview: null, note: note };
+			var shown = { overview: null, note: note, waiting: true };
 			if ( window.wp && window.wp.apiFetch ) {
 				window.wp.apiFetch( { path: '/signal-noise/v1/desktop/machine-readers' } ).then( function( res ) {
 					if ( res && typeof res === 'object' ) {
 						readers = res;
-						render( shown.overview, shown.note );
+						render( shown.overview, shown.note, shown.waiting );
 					}
 				} ).catch( function() {
 					readers = { ok: false, error: 'unreachable' };
-					render( shown.overview, shown.note );
+					render( shown.overview, shown.note, shown.waiting );
 				} );
 			}
 			window.sntAbilityRun( 'anchor-status', {}, { silent: true } ).then( function( overview ) {
 				shown.overview = overview;
+				shown.waiting  = false;
 				render( overview, note );
 				window.sntAbilityRun( 'archive-status', {}, { silent: true } ).then( function( res ) {
 					if ( res && res.ok ) {
@@ -390,7 +400,8 @@
 					}
 				} ).catch( function() {} );
 			} ).catch( function( err ) {
-				shown.note = ( err && err.message ) || 'Could not load anchor status.';
+				shown.note    = ( err && err.message ) || 'Could not load anchor status.';
+				shown.waiting = false;
 				render( null, shown.note );
 			} );
 		}

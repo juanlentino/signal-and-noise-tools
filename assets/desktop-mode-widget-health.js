@@ -139,7 +139,10 @@
 		var mons = up.rows || [];
 		if ( ! mons.length ) { tally.unknown++; return { empty: 'No monitors configured.' }; }
 		var upN  = mons.filter( function( m ) { return 'ok' === m.level; } ).length;
-		var rows = [ { label: 'Monitors', value: [ upN + ' of ' + mons.length + ' up' ].concat( uptimeSummary( mons ) ).join( ' · ' ), tone: upN === mons.length ? '' : DANGER_FG } ];
+		// Red only when a monitor is down; a shortfall of paused, maintenance,
+		// pending or validating monitors is amber.
+		var anyDown = mons.some( function( m ) { return 'alert' === m.level; } );
+		var rows = [ { label: 'Monitors', value: [ upN + ' of ' + mons.length + ' up' ].concat( uptimeSummary( mons ) ).join( ' · ' ), tone: upN === mons.length ? '' : ( anyDown ? DANGER_FG : WARN_FG ) } ];
 		// One line when all are up; each monitor only when one is not.
 		if ( upN !== mons.length ) {
 			mons.forEach( function( m ) {
@@ -287,6 +290,7 @@
 		var torn      = false;
 		var timer     = null;
 		var pending   = false;
+		var controller = null; // the in-flight uptime read, aborted at teardown
 		var lastAt    = 0;
 		var nextAt    = 0;
 		var lastDelay = REFRESH_MS;
@@ -397,6 +401,7 @@
 		function refresh() {
 			if ( torn || pending ) { return; }
 			pending = true;
+			controller = window.AbortController ? new window.AbortController() : null;
 			var delay = REFRESH_MS;
 			// SN Uptime's resilience contract: the promise boundary catches a
 			// missing runner or a synchronous throw; a malformed answer is a
@@ -406,7 +411,7 @@
 				if ( torn ) { return; }
 				if ( typeof window.sntAbilityRun !== 'function' ) { throw new Error( 'sntAbilityRun unavailable' ); }
 				// detail: the 30-day availability and response times the first row condenses.
-				return window.sntAbilityRun( 'uptime-status', { detail: true }, { silent: true } );
+				return window.sntAbilityRun( 'uptime-status', { detail: true }, { signal: controller ? controller.signal : undefined, silent: true } );
 			} ).then( function( res ) {
 				if ( torn ) { return; }
 				if ( ! res || typeof res.configured !== 'boolean' || ( res.configured && ( ! Array.isArray( res.rows ) || ! res.rows.every( function( row ) { return row && typeof row === 'object' && ! Array.isArray( row ); } ) ) ) ) { throw new Error( 'Invalid uptime response' ); }
@@ -429,7 +434,8 @@
 					uptime = { configured: true, rows: [], error: message };
 				}
 			} ).then( function() {
-				pending   = false;
+				pending    = false;
+				controller = null;
 				lastAt    = Date.now();
 				lastDelay = delay;
 				paint();
@@ -452,6 +458,7 @@
 			if ( toastTimer ) { window.clearTimeout( toastTimer ); }
 			document.removeEventListener( 'visibilitychange', onVisibilityChange );
 			unwatchFocus();
+			if ( controller ) { controller.abort(); }
 			if ( wrap.parentNode ) { wrap.parentNode.removeChild( wrap ); }
 		};
 	};

@@ -726,6 +726,9 @@ foreach ( array( 'views.js' => $dv_views, 'anchors.js' => $dv_an ) as $dv_name =
 	ok( false !== strpos( $dv_js, "arrow.setAttribute( 'aria-hidden', 'true' );" ) && false !== strpos( $dv_js, "words.className = 'screen-reader-text';" ), "$dv_name says a change twice: the arrow hidden from assistive tech, the direction in words" );
 }
 
+ok( false !== strpos( $dv_views, "style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));min-width:0;overflow-wrap:anywhere;'" ) && false !== strpos( $dv_views, "style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;' + ( valueStyle || '' )" ),
+	'SN Traffic\'s rows wrap a long label (a source name, a page path) and keep the count on the card' );
+
 echo "\n── The gate: no desktop-mode, no registration ──\n";
 // Re-running the hook with the registry fn absent must be a no-op. We can't
 // un-define a function, so assert the guard is present in the source instead.

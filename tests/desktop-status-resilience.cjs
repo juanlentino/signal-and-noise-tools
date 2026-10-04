@@ -368,6 +368,39 @@ async function run() {
     assert.doesNotMatch(m.root.textContent, /Top crawler family/, 'no reads: the row is left out, never 0%');
     m.stop();
   }
+  // Codex round 2: an anchor read still pending is loading, not an error.
+  {
+    const x = harness(), root = new Element('div');
+    const stop = x.window.desktopModeWidgets['sn-anchors'](root); await flush();
+    const mr = x.calls.find(c => c.opts.path.includes('machine-readers'));
+    const as = x.calls.find(c => c.opts.path.includes('anchor-status'));
+    mr.resolve({ok: true, days: 30, total: 10, families: []}); await flush();
+    assert.match(root.textContent, /Loading anchor status…/, 'readers first: the anchor part says it is loading');
+    assert.ok(!nodes(root).some(n => n.attrs.role === 'alert'), 'no alert while anchor-status is pending');
+    assert.doesNotMatch(root.textContent, /Sweep now|unavailable/, 'no Sweep and no error while pending');
+    assert.match(root.textContent, /Machine reads 10/, 'the readers paint meanwhile');
+    as.reject(new Error('boom')); await flush();
+    assert.ok(nodes(root).some(n => n.attrs.role === 'alert' && /boom/.test(n.textContent)), 'the alert only after anchor-status rejects');
+    stop();
+  }
+  // SN Systems: the uptime read is aborted at teardown, and the count is red
+  // only when a monitor is down (amber for paused, maintenance, pending).
+  {
+    const x = harness(), root = new Element('div');
+    const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
+    const sig = x.calls[0].opts.signal;
+    assert.ok(sig, 'the uptime read carries an abort signal');
+    stop(); assert.equal(sig.aborted, true, 'teardown aborts the in-flight uptime read');
+    const tone = async (rows) => {
+      const y = harness(), r = new Element('div');
+      const s2 = y.window.desktopModeWidgets['sn-health'](r); await flush();
+      y.calls[0].resolve({configured: true, rows}); await flush();
+      const v = nodes(r).find(n => /^\d+ of \d+ up/.test(n.text));
+      s2(); return v.attrs.style || '';
+    };
+    assert.match(await tone([{name: 'a', level: 'ok'}, {name: 'b', level: 'warn'}]), /color:#d29922/, 'a paused or maintenance shortfall is amber');
+    assert.match(await tone([{name: 'a', level: 'alert'}, {name: 'b', level: 'warn'}]), /color:#ff9d94/, 'a down monitor is red');
+  }
   console.log('PASS: runner and both widgets — stale/429/recovery/backoff, malformed data, cross-widget cadence, abort/cleanup/remount');
 }
 run().catch(e => { console.error(e); process.exitCode = 1; });
