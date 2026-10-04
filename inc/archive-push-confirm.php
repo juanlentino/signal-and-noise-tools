@@ -145,14 +145,34 @@ function sn_archive_confirm_run() {
 		$resp = wp_remote_get( SN_ARCHIVE_CONFIRM_STATUS . rawurlencode( $job ), array( 'timeout' => 6, 'redirection' => 0, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'signal-and-noise-tools' ) ) );
 		$bad  = is_wp_error( $resp );
 		$out  = sn_archive_confirm_parse( $bad ? 0 : (int) wp_remote_retrieve_response_code( $resp ), $bad ? '' : (string) wp_remote_retrieve_body( $resp ), (int) ( $push['requested_at'] ?? 0 ), time() );
+		// Did the job status answer at all? A failed or unreadable status read
+		// is one witness missing, however old the request is.
+		$answered = ! $bad && 200 === (int) wp_remote_retrieve_response_code( $resp ) && is_array( json_decode( (string) wp_remote_retrieve_body( $resp ), true ) );
 		// No answer from the job (or none after two days): ask whether the
 		// capture exists. One more keyless request, only for these notes.
 		if ( null === $out || 'unconfirmed' === $out['state'] ) {
-			$seen = wp_remote_get( SN_ARCHIVE_CONFIRM_EXISTS . rawurlencode( (string) get_permalink( $id ) ), array( 'timeout' => 6, 'redirection' => 0, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'signal-and-noise-tools' ) ) );
-			$ts   = is_wp_error( $seen ) ? null : sn_archive_confirm_exists_parse( (int) wp_remote_retrieve_response_code( $seen ), (string) wp_remote_retrieve_body( $seen ), (int) ( $push['requested_at'] ?? 0 ) );
+			// Both spellings of the URL: the endpoint answers "no snapshot" for
+			// one form of a URL whose other form it holds. Seen both ways round:
+			// the https:// form found this site's captures on 2026-10-04 while
+			// the scheme-less form read empty; internetarchive/wayback#296
+			// reports the reverse. The second read happens only when the first
+			// answered and found nothing.
+			$link = (string) get_permalink( $id );
+			$ts   = '';
+			foreach ( array( $link, (string) preg_replace( '#^https?://#i', '', $link ) ) as $form ) {
+				$seen = wp_remote_get( SN_ARCHIVE_CONFIRM_EXISTS . rawurlencode( $form ), array( 'timeout' => 6, 'redirection' => 0, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'signal-and-noise-tools' ) ) );
+				$got  = is_wp_error( $seen ) ? null : sn_archive_confirm_exists_parse( (int) wp_remote_retrieve_response_code( $seen ), (string) wp_remote_retrieve_body( $seen ), (int) ( $push['requested_at'] ?? 0 ) );
+				if ( is_string( $got ) && '' !== $got ) {
+					$ts = $got;
+					break;
+				}
+				if ( null === $got ) {
+					$ts = null; // one form unread: absence is not established.
+				}
+			}
 			if ( is_string( $ts ) && '' !== $ts ) {
 				$out = array( 'state' => 'captured', 'timestamp' => $ts, 'reason' => 'found in the Wayback Machine; the job status had not answered', 'checked_at' => time() );
-			} elseif ( null === $ts ) {
+			} elseif ( null === $ts || ! $answered ) {
 				// Giving up needs both witnesses to have answered. A refused or
 				// failed read here is not "no capture"; ask again next hour.
 				$out = null;

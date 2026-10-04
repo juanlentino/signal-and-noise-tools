@@ -79,7 +79,11 @@ $GLOBALS['meta'] = array( 9 => array( '_sn_archive_push' => $req( 'spn2-9', $ask
 $GLOBALS['resp'] = array( array( 'code' => 200, 'body' => '{"status":"pending"}' ) ); $GLOBALS['avail'] = array( array( 'code' => 200, 'body' => $snap( '20261004063000' ) ) ); $GLOBALS['http_exists'] = array();
 sn_archive_confirm_run();
 $cap = $GLOBALS['meta'][9]['_sn_archive_capture'] ?? array();
-ok( 'captured' === ( $cap['state'] ?? '' ) && '20261004063000' === $cap['timestamp'] && 1 === count( $GLOBALS['http_exists'] ) && false !== strpos( $GLOBALS['http_exists'][0][0], rawurlencode( 'https://juanlentino.com/notes/n9/' ) ) && ! isset( $GLOBALS['http_exists'][0][1]['headers']['Authorization'] ), 'a job still pending whose capture exists is recorded as captured, from a keyless read of the note\'s own URL' );
+ok( 'captured' === ( $cap['state'] ?? '' ) && '20261004063000' === $cap['timestamp'] && 1 === count( $GLOBALS['http_exists'] ) && false !== strpos( $GLOBALS['http_exists'][0][0], '?url=' . rawurlencode( 'https://juanlentino.com/notes/n9/' ) ) && ! isset( $GLOBALS['http_exists'][0][1]['headers']['Authorization'] ), 'a job still pending whose capture exists is recorded as captured, from a keyless read of the note\'s own URL' );
+$GLOBALS['meta'] = array( 11 => array( '_sn_archive_push' => $req( 'spn2-11', $asked ) ) );
+$GLOBALS['resp'] = array( array( 'code' => 200, 'body' => '{"status":"pending"}' ) ); $GLOBALS['avail'] = array( array( 'code' => 200, 'body' => '{"archived_snapshots":{}}' ), array( 'code' => 200, 'body' => $snap( '20261004063000' ) ) ); $GLOBALS['http_exists'] = array();
+sn_archive_confirm_run();
+ok( 'captured' === ( $GLOBALS['meta'][11]['_sn_archive_capture']['state'] ?? '' ) && 2 === count( $GLOBALS['http_exists'] ) && false !== strpos( $GLOBALS['http_exists'][1][0], '?url=' . rawurlencode( 'juanlentino.com/notes/n11/' ) ), 'the first spelling answers empty: the scheme-less one is asked, and its capture counts' );
 $GLOBALS['meta'] = array( 10 => array( '_sn_archive_push' => $req( 'spn2-10', time() - 3 * 86400 ) ) );
 $GLOBALS['resp'] = array( array( 'code' => 200, 'body' => '{"status":"pending"}' ) ); $GLOBALS['avail'] = array( array( 'code' => 429, 'body' => 'slow down' ) );
 sn_archive_confirm_run();
@@ -87,6 +91,9 @@ ok( ! isset( $GLOBALS['meta'][10]['_sn_archive_capture'] ), 'two days pending an
 $GLOBALS['resp'] = array( array( 'code' => 200, 'body' => '{"status":"pending"}' ) ); $GLOBALS['avail'] = array( array( 'code' => 200, 'body' => '<html>maintenance</html>' ) );
 sn_archive_confirm_run();
 ok( ! isset( $GLOBALS['meta'][10]['_sn_archive_capture'] ), 'nor when the capture read came back 200 and unreadable' );
+$GLOBALS['resp'] = array( array( 'code' => 503, 'body' => 'down' ) ); $GLOBALS['avail'] = array();
+sn_archive_confirm_run();
+ok( ! isset( $GLOBALS['meta'][10]['_sn_archive_capture'] ), 'nor when the job status itself could not be read, even though the Archive answered that it holds no capture' );
 $GLOBALS['resp'] = array( array( 'code' => 200, 'body' => '{"status":"pending"}' ) ); $GLOBALS['avail'] = array();
 sn_archive_confirm_run();
 ok( 'unconfirmed' === ( $GLOBALS['meta'][10]['_sn_archive_capture']['state'] ?? '' ), 'two days pending and the Archive answers that it holds no capture: unconfirmed' );
