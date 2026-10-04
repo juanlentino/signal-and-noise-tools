@@ -1,8 +1,8 @@
 # What the MCP doors expose, and what an exposed ability does, is the owner's
 # call, and an ability's behavior lives wherever its callback reaches: so every
 # path that runs on the server is listed. The enforcement is the required check in .github/workflows/door-owner.yml
-# (a pull request touching these paths passes only when the owner opened and
-# last pushed it); this file asks the owner for review on anyone else's.
+# (a pull request touching these paths passes only when the owner was the last to
+# push its branch); this file asks the owner for review on anyone else's.
 # tests/mcp-door-manifest.php pins the three door lists and requires every file
 # that registers an ability to be covered by that check.
 /inc/ @juanlentino
