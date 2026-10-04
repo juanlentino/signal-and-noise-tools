@@ -133,7 +133,10 @@ function sn_colophon_shortcode( $atts = array() ) {
 				. esc_html__( 'for SEO, search & ops', 'signal-and-noise-tools' );
 		} elseif ( 'ai' === $slug && '' !== $workflow_url ) {
 			$text = esc_html__( 'engineered with Claude (Anthropic) as a', 'signal-and-noise-tools' )
-				. ' <a href="' . esc_url( $workflow_url ) . '">' . esc_html__( 'pair programmer', 'signal-and-noise-tools' ) . '</a>';
+				. ' <a href="' . esc_url( $workflow_url ) . '">' . esc_html__( 'pair programmer', 'signal-and-noise-tools' )
+				// Screen-reader-only context for link lists. A suffix, never an aria-label:
+				// the accessible name must start with the visible words (WCAG 2.5.3).
+				. '<span class="screen-reader-text">' . esc_html__( ': how I work with AI', 'signal-and-noise-tools' ) . '</span></a>';
 		} elseif ( 'interop' === $slug && '' !== $urls['openstation'] ) {
 			$text = esc_html__( 'runs inside', 'signal-and-noise-tools' )
 				. ' <a href="' . esc_url( $urls['openstation'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( 'OpenStation' ) . '</a>';

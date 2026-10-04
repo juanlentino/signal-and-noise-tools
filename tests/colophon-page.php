@@ -61,7 +61,7 @@ ok( strpos( $html, 'sn-colophon-item--tooling' ) < strpos( $html, 'sn-colophon-i
 	'interop sits between tooling and AI assistance' );
 
 echo "\nGroup: the AI credit links /workflow\n";
-ok( false !== strpos( $html, '<strong>AI assistance</strong> - engineered with Claude (Anthropic) as a <a href="https://example.com/workflow/">pair programmer</a></li>' ), 'the AI line reads as before, with "pair programmer" linking /workflow in the same tab' );
+ok( false !== strpos( $html, '<strong>AI assistance</strong> - engineered with Claude (Anthropic) as a <a href="https://example.com/workflow/">pair programmer<span class="screen-reader-text">: how I work with AI</span></a></li>' ) && false === strpos( $html, 'aria-label' ), 'the link\'s name starts with its visible words, then hidden context for link lists, and no aria-label replaces it; the AI line reads as before, with "pair programmer" linking /workflow in the same tab' );
 $GLOBALS['__page_urls']['workflow'] = '';
 $nowf = call_user_func( $GLOBALS['__shortcodes']['sn_colophon'] );
 ok( false !== strpos( $nowf, '<strong>AI assistance</strong> - engineered with Claude (Anthropic) as a pair programmer</li>' ), 'with /workflow unpublished the line is plain text, never a dead link' );

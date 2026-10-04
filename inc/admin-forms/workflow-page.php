@@ -52,6 +52,7 @@ function sn_wf_proof_row( $prefix, array $row ) {
 	sn_rsm_controls();
 	echo '</div>';
 	sn_rsm_input( $prefix . '[url]', (string) ( $row['url'] ?? '' ), 'Link', '/maturity/' );
+	echo '<p class="sn-field-helper">The title is the link text. Name where it goes (&quot;Maturity index&quot;), not &quot;here&quot; or &quot;link&quot;.</p>';
 	sn_rsm_input( $prefix . '[line]', (string) ( $row['line'] ?? '' ), 'Line', 'One sentence on what it proves' );
 	echo '<label class="sn-rsm-field"><input type="checkbox" name="' . esc_attr( $prefix . '[show]' ) . '" value="1"' . ( true === ( $row['show'] ?? false ) ? ' checked="checked"' : '' ) . '> Show on page</label>';
 	echo '</div>';

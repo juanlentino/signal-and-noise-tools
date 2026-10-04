@@ -57,7 +57,7 @@ function workflow_proof_row( $prefix, array $row ) {
 	return resume_card(
 		$prefix,
 		resume_pair(
-			resume_text( $prefix . '[title]', __( 'Title', 'signal-and-noise-tools' ), $row['title'] ?? '', 'Maturity index' ),
+			\snt_kit_field( 'text', $prefix . '[title]', __( 'Title', 'signal-and-noise-tools' ), (string) ( $row['title'] ?? '' ), array( 'placeholder' => 'Maturity index', 'hint' => __( 'The title is the link text. Name where it goes ("Maturity index"), not "here" or "link".', 'signal-and-noise-tools' ) ) ),
 			resume_text( $prefix . '[url]', __( 'Link', 'signal-and-noise-tools' ), $row['url'] ?? '', '/maturity/' )
 		)
 		. resume_text( $prefix . '[line]', __( 'Line', 'signal-and-noise-tools' ), $row['line'] ?? '', 'One sentence on what it proves' )

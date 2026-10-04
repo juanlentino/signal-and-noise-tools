@@ -62,5 +62,6 @@ $live = preg_replace( '#<template\b.*?</template>#s', '', $kit );
 ok( 1 === preg_match( '#<template data-rsm-tpl data-rsm-token="__P__">.*?name="workflow\[proof\]\[__P__\]\[url\]"#s', $kit ) && false !== strpos( $kit, 'add-label="+ Add proof link"' ), 'the Proof repeater carries its template (title, link, line, show) and its Add button' );
 ok( false === strpos( $live, '[__M__]' ) && false === strpos( $live, '[__R__]' ) && false === strpos( $live, '[__P__]' ), 'no blank row posts outside its template: an empty form adds nothing' );
 
+ok( false !== strpos( $kit, 'Name where it goes' ), 'the proof title field tells the owner it is the link text and to name where it goes' );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
