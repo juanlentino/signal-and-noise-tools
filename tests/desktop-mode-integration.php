@@ -688,8 +688,8 @@ $sys_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/d
 $dep_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget.js' ) );
 ok( false !== strpos( $sys_js, "text:  'Clear DB overrides'," ) && false !== strpos( $sys_js, "window.sntAbilityRun( 'clear-template-overrides' )" ),
 	'SN Systems carries Clear DB overrides, on the same ability Quick Actions called' );
-ok( preg_match( "/confirmAction\\(.*?\\)\\.then\\( function\\( yes \\) \\{\\s*if \\( ! yes \\|\\| torn \\) \\{ return; \\}\\s*btn\\.setAttribute\\( 'aria-busy', 'true' \\);/s", $sys_js ) === 1,
-	'clearing overrides asks first (the shell\'s confirm dialog, else the browser\'s) and only a yes runs it; the button is aria-busy while it does' );
+ok( preg_match( "/btn\\.setAttribute\\( 'aria-busy', 'true' \\);\\s*confirmAction\\(.*?\\)\\.then\\( function\\( yes \\) \\{\\s*if \\( ! yes \\|\\| torn \\) \\{ btn\\.removeAttribute\\( 'aria-busy' \\); return; \\}/s", $sys_js ) === 1,
+	'clearing overrides asks first and only a yes runs it; the button is aria-busy from before the dialog (a second click cannot open another) and a no releases it' );
 ok( false !== strpos( $sys_js, "btn.removeAttribute( 'aria-busy' );" ), 'the busy state is cleared when the call settles, either way' );
 ok( false !== strpos( $dep_js, "text:  'Check for updates'," ) && false !== strpos( $dep_js, "window.sntAbilityRun( 'get-deploy-status', { force_refresh: true } )" )
 	&& false !== strpos( $dep_js, "btn.setAttribute( 'aria-busy', 'true' );" ) && false !== strpos( $dep_js, "btn.removeAttribute( 'aria-busy' );" ),
