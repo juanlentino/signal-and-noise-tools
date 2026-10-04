@@ -28,7 +28,7 @@ $E = array( array( 'day' => '2026-10-05', 'ev' => 'ce', 'n' => 5, 'with_pid' => 
 $c = sn_analytics_v2_compare( $L, $P, $E, '2026-10-05' );
 ok( true === $c['ok'] && true === $c['read'] && 0 === $c['mismatched'], 'equal counts from the first full day on: ok' );
 ok( 'partial' === $c['days'][0]['state'] && 69 === $c['days'][0]['legacy_pageview_side'] && 4 === $c['days'][0]['v2_pageviews'], 'the day the dual write began is partial, not a mismatch, and still shows both counts' );
-ok( array( 'day' => '2026-10-05', 'legacy_pageview_side' => 125, 'v2_pageviews' => 125, 'legacy_events' => 12, 'v2_events' => 12, 'with_pid' => 135, 'sampled' => false, 'state' => 'match' ) === $c['days'][1], 'every legacy row but cp against the pageviews dataset, ce and cp against the events dataset: a ce row counts on both sides' );
+ok( array( 'day' => '2026-10-05', 'legacy_pageview_side' => 125, 'v2_pageviews' => 125, 'legacy_events' => 12, 'v2_events' => 12, 'with_pid' => 135, 'sampled' => false, 'sampled_events' => array(), 'differs' => array(), 'state' => 'match' ) === $c['days'][1], 'every legacy row but cp against the pageviews dataset, ce and cp against the events dataset: a ce row counts on both sides' );
 $noce = array_slice( $P, 0, 3 );
 ok( 'mismatch' === sn_analytics_v2_compare( $L, $noce, $E, '2026-10-05' )['days'][1]['state'], 'a pageviews dataset missing the custom events\' base rows is a mismatch (the worker 1.24.0 shape)' );
 $P2 = $P; $P2[1]['n'] = 39;
@@ -41,6 +41,14 @@ $m = sn_analytics_v2_compare( $L, $S, $E, '2026-10-05' );
 ok( true === $m['ok'] && 0 === $m['mismatched'] && 'sampled' === $m['days'][1]['state'] && true === $m['days'][1]['sampled'], 'unequal counts on a sampled day are inconclusive, not a mismatch' );
 $X = $P; $X[1]['r'] = 40;
 ok( 'match' === sn_analytics_v2_compare( $L, $X, $E, '2026-10-05' )['days'][1]['state'], 'rows that each stand for themselves (r equals n) are exact' );
+$comp = $P; $comp[1]['n'] = 39; $comp[2]['n'] = 81; // one pageview short, one scroll event over: the totals still agree.
+$m = sn_analytics_v2_compare( $L, $comp, $E, '2026-10-05' );
+ok( 'mismatch' === $m['days'][1]['state'] && $m['days'][1]['legacy_pageview_side'] === $m['days'][1]['v2_pageviews'] && 2 === count( $m['days'][1]['differs'] ), 'two errors that cancel in the total are still a mismatch: the comparison is event by event' );
+$eq = $P; $eq[1]['r'] = 20; // equal estimates, but the pageviews were sampled.
+ok( 'sampled' === sn_analytics_v2_compare( $L, $eq, $E, '2026-10-05' )['days'][1]['state'], 'pageviews that are an estimate cannot make a match, even when the numbers agree' );
+$sc = $P; $sc[2]['r'] = 30; $sc[2]['n'] = 77; // scroll events sampled and unequal; pageviews exact and equal.
+$m = sn_analytics_v2_compare( $L, $sc, $E, '2026-10-05' );
+ok( 'match' === $m['days'][1]['state'] && array( 'sc' ) === $m['days'][1]['sampled_events'], 'a sampled event is skipped, named, and does not block a day whose pageviews match exactly' );
 $n = sn_analytics_v2_compare( $L, null, $E, '2026-10-05' );
 ok( false === $n['ok'] && false === $n['read'] && 0 === $n['mismatched'] && array() === $n['days'], 'a failed read is "not read": never a mismatch, never a match' );
 ok( true === sn_analytics_v2_compare( array(), array(), array(), '2026-10-05' )['ok'], 'three empty datasets agree' );

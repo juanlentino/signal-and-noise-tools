@@ -4,10 +4,11 @@
  *
  * The analytics worker writes two generations (see inc/analytics-v2-compare.php).
  * A read moves to the second generation when BOTH hold:
- *   - the daily check has verified it: at least one full day on or after
- *     SN_ANALYTICS_V2_FROM matches the legacy dataset and none mismatches;
- *   - the read's window starts on or after SN_ANALYTICS_V2_FROM, the first
- *     full UTC day both generations hold. A window reaching further back
+ *   - the daily check has verified it: a complete day matched the legacy
+ *     dataset event by event, counted exactly;
+ *   - the read's window starts on or after the clean day: the first full UTC
+ *     day both generations hold (SN_ANALYTICS_V2_FROM), or the day after the
+ *     latest mismatch if there has been one. A window reaching further back
  *     stays on the legacy dataset, which holds all of it.
  * Otherwise the legacy dataset answers, exactly as before. The switch is per
  * read and reverses by itself: a later mismatch sends every read back.
@@ -26,7 +27,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_ANALYTICS_V2_FROM         = '2026-10-05';
-const SN_ANALYTICS_V2_VERIFIED_OPT = 'sn_analytics_v2_verified'; // { ok: bool, day: Y-m-d, at: unix, why: string }.
+const SN_ANALYTICS_V2_VERIFIED_OPT = 'sn_analytics_v2_verified'; // { ok, day, clean_from, at, why }.
 
 /**
  * Whether the second generation is verified. Request-scoped; `$set` is the
@@ -36,13 +37,26 @@ const SN_ANALYTICS_V2_VERIFIED_OPT = 'sn_analytics_v2_verified'; // { ok: bool, 
  * @return bool
  */
 function sn_analytics_v2_verified( $set = null ) {
+	return '' !== sn_analytics_v2_clean_from( null === $set ? null : ( $set ? SN_ANALYTICS_V2_FROM : '' ) );
+}
+
+/**
+ * The first day from which the second generation may be read: the first full
+ * day, or the day after the latest mismatch, whichever is later. '' while it
+ * is not verified. Request-scoped; `$set` publishes a fresh answer (and is the
+ * test seam).
+ *
+ * @param string|null $set A day to hold for this request, '' for "not verified".
+ * @return string Y-m-d or ''.
+ */
+function sn_analytics_v2_clean_from( $set = null ) {
 	static $memo = null;
 	if ( null !== $set ) {
-		$memo = (bool) $set;
+		$memo = (string) $set;
 	}
 	if ( null === $memo ) {
 		$v    = function_exists( 'get_option' ) ? get_option( SN_ANALYTICS_V2_VERIFIED_OPT, array() ) : array();
-		$memo = is_array( $v ) && ! empty( $v['ok'] );
+		$memo = is_array( $v ) && ! empty( $v['ok'] ) ? max( SN_ANALYTICS_V2_FROM, (string) ( $v['clean_from'] ?? '' ) ) : '';
 	}
 	return $memo;
 }
@@ -56,7 +70,11 @@ function sn_analytics_v2_verified( $set = null ) {
  */
 function sn_analytics_source( $from_day, $kind = 'pageviews' ) {
 	$legacy = defined( 'SN_ANALYTICS_DATASET' ) ? SN_ANALYTICS_DATASET : 'sn_pageviews';
-	if ( ! sn_analytics_v2_verified() || 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from_day ) || (string) $from_day < SN_ANALYTICS_V2_FROM ) {
+	// A window is served by the second generation only when every day in it
+	// was dual-written AND none of them is a day the two generations disagreed
+	// on: it must start at or after the clean day.
+	$clean = sn_analytics_v2_clean_from();
+	if ( '' === $clean || 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from_day ) || (string) $from_day < $clean ) {
 		return $legacy;
 	}
 	return 'events' === $kind ? 'sn_events_v2' : 'sn_pageviews_v2';
@@ -109,41 +127,56 @@ function sn_analytics_col( $col, $dataset ) {
 /**
  * The verdict from one comparison. PURE.
  *
- * @param array<string,mixed> $check sn_analytics_v2_check() output.
- * @param int                 $now   Unix time.
- * @return array{ok:bool,day:string,at:int,why:string}
+ * Only COMPLETE days count, either way: today is still filling, and the three
+ * datasets are read one after another, so a beacon landing between two reads
+ * makes today differ with nothing wrong. A mismatch is remembered: the clean
+ * day moves past it and stays there on later runs, so a read whose window
+ * still holds the bad day keeps to the legacy dataset after the check itself
+ * has stopped looking that far back.
+ *
+ * @param array<string,mixed> $check  sn_analytics_v2_check() output.
+ * @param int                 $now    Unix time.
+ * @param array<string,mixed> $before The stored verdict, for the remembered clean day.
+ * @return array{ok:bool,day:string,clean_from:string,at:int,why:string}
  */
-function sn_analytics_v2_verdict( array $check, $now ) {
-	$out = array( 'ok' => false, 'day' => '', 'at' => (int) $now, 'why' => '' );
+function sn_analytics_v2_verdict( array $check, $now, array $before = array() ) {
+	$clean = max( SN_ANALYTICS_V2_FROM, (string) ( $before['clean_from'] ?? '' ) );
+	$out   = array( 'ok' => false, 'day' => '', 'clean_from' => $clean, 'at' => (int) $now, 'why' => '' );
 	if ( empty( $check['read'] ) ) {
 		$out['why'] = 'not read: ' . (string) ( $check['failed'] ?? '' ) . ' ' . (string) ( $check['error'] ?? '' );
 		return $out;
 	}
+	$today = gmdate( 'Y-m-d', (int) $now );
 	$match = '';
 	foreach ( (array) ( $check['days'] ?? array() ) as $d ) {
-		if ( 'mismatch' === ( $d['state'] ?? '' ) ) {
-			$out['why'] = 'mismatch on ' . (string) $d['day'];
-			return $out;
+		$day = (string) ( $d['day'] ?? '' );
+		if ( $day >= $today ) {
+			continue;
 		}
-		// Today is still filling: a match there can turn before midnight.
-		if ( 'match' === ( $d['state'] ?? '' ) && (string) $d['day'] < gmdate( 'Y-m-d', (int) $now ) ) {
-			$match = (string) $d['day'];
+		if ( 'mismatch' === ( $d['state'] ?? '' ) ) {
+			$clean = max( $clean, gmdate( 'Y-m-d', (int) strtotime( $day . ' 00:00:00 UTC' ) + 86400 ) );
+			$match = '';
+		} elseif ( 'match' === ( $d['state'] ?? '' ) && $day >= $clean ) {
+			$match = $day;
 		}
 	}
+	$out['clean_from'] = $clean;
 	if ( '' === $match ) {
-		$out['why'] = 'no complete day has matched yet';
+		$out['why'] = $clean > SN_ANALYTICS_V2_FROM ? 'no complete day has matched since the mismatch before ' . $clean : 'no complete day has matched yet';
 		return $out;
 	}
-	return array( 'ok' => true, 'day' => $match, 'at' => (int) $now, 'why' => '' );
+	return array( 'ok' => true, 'day' => $match ) + $out;
 }
 
 /**
  * Daily: compare the generations and store the verdict. A failed read keeps
  * the previous verdict (not knowing is not a mismatch); a mismatch clears it.
  *
+ * @param int|null $now Unix time; null reads the clock.
  * @return array<string,mixed>|null The stored verdict, null when nothing was stored.
  */
-function sn_analytics_v2_verify() {
+function sn_analytics_v2_verify( $now = null ) {
+	$now = null === $now ? time() : (int) $now;
 	if ( ! function_exists( 'sn_analytics_v2_check' ) || ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		return null;
 	}
@@ -151,16 +184,18 @@ function sn_analytics_v2_verify() {
 	if ( empty( $check['read'] ) ) {
 		return null;
 	}
-	$verdict = sn_analytics_v2_verdict( $check, time() );
-	$before  = get_option( SN_ANALYTICS_V2_VERIFIED_OPT, array() );
+	$before  = (array) get_option( SN_ANALYTICS_V2_VERIFIED_OPT, array() );
+	$verdict = sn_analytics_v2_verdict( $check, $now, $before );
 	update_option( SN_ANALYTICS_V2_VERIFIED_OPT, $verdict, false );
 	// When the verdict flips, the reads change dataset. The over-cap visitor
 	// list is cached for an hour and goes into every human/bot predicate, so
 	// the rollup that runs next must not classify with a list read from the
 	// dataset just left.
-	if ( ( is_array( $before ) && ! empty( $before['ok'] ) ) !== $verdict['ok'] && defined( 'SNT_ANALYTICS_VDAY_CACHE_KEY' ) && function_exists( 'delete_transient' ) ) {
+	$was = ! empty( $before['ok'] ) ? max( SN_ANALYTICS_V2_FROM, (string) ( $before['clean_from'] ?? '' ) ) : '';
+	$is  = $verdict['ok'] ? $verdict['clean_from'] : '';
+	if ( $was !== $is && defined( 'SNT_ANALYTICS_VDAY_CACHE_KEY' ) && function_exists( 'delete_transient' ) ) {
 		delete_transient( SNT_ANALYTICS_VDAY_CACHE_KEY );
 	}
-	sn_analytics_v2_verified( $verdict['ok'] );
+	sn_analytics_v2_clean_from( $is );
 	return $verdict;
 }
