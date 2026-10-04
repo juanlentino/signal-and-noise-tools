@@ -66,6 +66,7 @@ function sn_admin_post_handlers() {
 		'scheduled_reads_save'       => 'sn_handle_scheduled_reads_save',
 		'now_save'                   => 'sn_handle_now_save',
 		'uses_save'                  => 'sn_handle_uses_save',
+		'workflow_save'              => 'sn_handle_workflow_save', // Unreleased: Content > Workflow (/workflow)
 		'resume_pdf_generate'        => 'sn_handle_resume_pdf_generate',
 		'resume_pdf_private'         => 'sn_handle_resume_pdf_private',
 		// Unreleased: /resume drafts. Save never goes live; these do.

@@ -197,6 +197,8 @@ function sn_admin_top_tabs() {
 				// v10.33.0: the /resume STRUCTURED editor (repeatable rows, not a
 				// plain-text box) — same regenerate-on-save architecture as Now/Uses.
 				'resume'           => array( 'label' => 'Resume Page', 'render' => 'sn_admin_render_resume_section', 'wide' => true ),
+				// Unreleased: /workflow, same regenerate-on-save architecture.
+				'workflow'         => array( 'label' => 'Workflow', 'render' => 'sn_admin_render_workflow_section' ),
 				// ── The three content scanners, reunited (v10.46.0). Tags was here,
 				// Pattern Adoption was a section buried inside Measurement → Health,
 				// and Block Migrations was in Tools — three siblings in three tabs.

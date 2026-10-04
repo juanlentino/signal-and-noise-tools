@@ -50,6 +50,7 @@ function sn_admin_render_tag_cleanup_section() { $GLOBALS['__calls'][] = 'fn:sn_
 function sn_admin_render_scheduled_content_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_scheduled_content_section'; }
 function sn_admin_render_now_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_now_section'; } // v7.5.0: Content → Now Page
 function sn_admin_render_uses_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_uses_section'; } // v7.6.0: Content → Uses Page
+function sn_admin_render_workflow_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_workflow_section'; } // Unreleased: Content > Workflow (real fn lives in inc/admin-forms/workflow-page.php)
 function sn_admin_render_resume_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_resume_section'; } // v10.33.0: Content → Resume Page (real fn lives in inc/admin-forms/resume-page.php)
 function sn_admin_render_ai_settings_form() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_ai_settings_form'; } // v10.46.0: AI → Models & Budget (real fn lives in inc/admin-forms/ai-settings.php)
 // NB: sn_admin_render_pattern_adoption_section() is NOT stubbed — it is a real
@@ -120,8 +121,8 @@ ok( array_keys( $by_tab['site']['sub_tabs'] ) === array( 'identity-and-seo', 'fr
 
 // Content: page editors + the three sibling content scanners (finding 5 —
 // Tags / Pattern Adoption / Block Migrations were in three different tabs).
-ok( array_keys( $by_tab['content']['sub_tabs'] ) === array( 'now', 'uses', 'resume', 'tags', 'pattern-adoption', 'block-migrations', 'vocabulary' ),
-	'content leaves: now, uses, resume, tags, pattern-adoption, block-migrations, vocabulary (three scanners reunited + the v11.2.0 drift mirror)' );
+ok( array_keys( $by_tab['content']['sub_tabs'] ) === array( 'now', 'uses', 'resume', 'workflow', 'tags', 'pattern-adoption', 'block-migrations', 'vocabulary' ),
+	'content leaves: now, uses, resume, workflow, tags, pattern-adoption, block-migrations, vocabulary (three scanners reunited + the v11.2.0 drift mirror; workflow joins the generated pages)' );
 // All four scanners own their own .sn-fieldset card, so all four must be
 // 'wide' — a capped leaf would wrap that card in a second one. block-migrations
 // had exactly that defect until v10.46.0; putting the siblings side by side is

@@ -41,6 +41,7 @@ require_once __DIR__ . '/admin-post-actions/health-insights.php';
 require_once __DIR__ . '/admin-post-actions/webhooks.php';
 require_once __DIR__ . '/admin-post-actions/reports.php';
 require_once __DIR__ . '/admin-post-actions/content.php';
+require_once __DIR__ . '/admin-post-actions/workflow.php'; // Unreleased: Content > Workflow (/workflow)
 require_once __DIR__ . '/admin-post-actions/resume-draft.php'; // Unreleased: /resume drafts (save, preview, publish, discard, revert)
 require_once __DIR__ . '/admin-post-actions/scans.php';
 require_once __DIR__ . '/admin-post-actions/monitoring.php';

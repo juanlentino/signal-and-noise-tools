@@ -255,6 +255,9 @@ require_once SNT_PATH . 'inc/resume-pdf/generate.php';       // Resume PDF: Domp
 require_once SNT_PATH . 'inc/admin-forms/resume-page.php';   // v10.33.0: Content → Resume Page structured editor form (repeatable rows, not a text box)
 require_once SNT_PATH . 'inc/admin-forms/rights-evidence.php'; // Unreleased: rights evidence on Machine Readers (view payloads, lift hold)
 require_once SNT_PATH . 'inc/admin-forms/resume-draft.php';  // Unreleased: the draft controls (previews, publish, discard, revert)
+require_once SNT_PATH . 'inc/workflow-page.php';             // Unreleased: /workflow data layer; sn_workflow_public_data() is the hidden-row wall
+require_once SNT_PATH . 'inc/workflow-page-render.php';      // Unreleased: /workflow generator + top-level Page upsert (reads only the public data)
+require_once SNT_PATH . 'inc/admin-forms/workflow-page.php'; // Unreleased: Content > Workflow classic form (after resume-page.php: uses its sn_rsm_* helpers)
 require_once SNT_PATH . 'inc/rest-api.php';
 require_once SNT_PATH . 'inc/analytics-rest.php'; // v6.1.0: read-only /analytics REST routes
 require_once SNT_PATH . 'inc/analytics-refresh-rest.php'; // v9.27.0: token-gated rollup-refresh trigger (CF Cron worker → reliable freshness)

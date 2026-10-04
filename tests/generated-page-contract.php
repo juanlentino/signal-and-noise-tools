@@ -43,13 +43,15 @@ function gp_good() {
 			. '</div><!-- /wp:group -->',
 		'now'    => '<!-- wp:html -->' . "\n" . '<div class="sn-now-page"><header class="sn-now-hero"></header></div>' . "\n" . '<!-- /wp:html -->',
 		'uses'   => '<!-- wp:html -->' . "\n" . '<div class="sn-uses-page"><header class="sn-uses-hero"></header></div>' . "\n" . '<!-- /wp:html -->',
+		// Unreleased: /workflow. Wrapper only; every section, the hero too, is optional.
+		'workflow' => '<!-- wp:html -->' . "\n" . '<div class="sn-workflow-page"><ol class="sn-workflow-rules__list"></ol></div>' . "\n" . '<!-- /wp:html -->',
 	);
 }
 
 echo "Group: a healthy stored body set passes every page\n";
 $v = snt_generated_pages_evaluate( gp_good() );
-ok( is_array( $v ) && 3 === count( $v ), 'three pages come back' );
-foreach ( array( 'resume', 'now', 'uses' ) as $page ) {
+ok( is_array( $v ) && 4 === count( $v ), 'four pages come back' );
+foreach ( array( 'resume', 'now', 'uses', 'workflow' ) as $page ) {
 	ok( true === ( $v[ $page ]['ok'] ?? false ), "page '$page' ok on a healthy body" );
 }
 
@@ -61,7 +63,7 @@ ok( false === ( $v['resume']['ok'] ?? true ), 'a wp:html /resume body FAILS (no 
 ok( true === ( $v['now']['ok'] ?? false ), 'and the wp:html /now body still passes — wp:html is correct THERE' );
 
 echo "\nGroup: a lost hero is caught on every page\n";
-foreach ( array( 'resume' => 'sn-resume-hero-split', 'now' => 'sn-now-hero', 'uses' => 'sn-uses-hero' ) as $page => $marker ) {
+foreach ( array( 'resume' => 'sn-resume-hero-split', 'now' => 'sn-now-hero', 'uses' => 'sn-uses-hero', 'workflow' => 'sn-workflow-page' ) as $page => $marker ) {
 	$bad = gp_good();
 	$bad[ $page ] = str_replace( $marker, 'gone', $bad[ $page ] );
 	$v = snt_generated_pages_evaluate( $bad );
@@ -80,7 +82,7 @@ $v = snt_generated_pages_evaluate( $bad );
 ok( false === ( $v['now']['ok'] ?? true ), 'an empty stored body fails' );
 
 $v = snt_generated_pages_evaluate( array() );
-ok( 3 === count( $v ) && false === ( $v['resume']['ok'] ?? true ), 'a page absent from the set fails rather than disappearing' );
+ok( 4 === count( $v ) && false === ( $v['resume']['ok'] ?? true ), 'a page absent from the set fails rather than disappearing' );
 
 echo "\nGroup: verdicts carry a human-readable reason\n";
 $bad = gp_good(); $bad['uses'] = str_replace( 'sn-uses-hero', 'gone', $bad['uses'] );
@@ -105,6 +107,7 @@ $bad_resume = '<!-- wp:html -->' . "\n" . '<div class="sn-resume-hero-split"></d
 ok( false === snt_generated_page_guard( 'resume', $bad_resume ), 'the v10.33.1 wp:html /resume body is REFUSED at the write boundary' );
 
 ok( false === snt_generated_page_guard( 'uses', '<div>no markers</div>' ), 'a /uses body that lost its hero is REFUSED' );
+ok( true === snt_generated_page_guard( 'workflow', $good['workflow'] ), 'a /workflow body with no hero (title and dek empty) is allowed: the hero is optional there' );
 
 $fired = array_filter( $GLOBALS['__actions'], function ( $a ) { return 'snt_generated_page_write_refused' === $a[0]; } );
 ok( count( $fired ) >= 2, 'each refusal fires snt_generated_page_write_refused so it is observable' );

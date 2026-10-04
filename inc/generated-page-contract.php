@@ -71,6 +71,12 @@ function snt_generated_pages_contract() {
 			'markers'      => array( 'sn-uses-page', 'sn-uses-hero' ),
 			'block_markup' => false,
 		),
+		// The wrapper only: every section of /workflow, the hero included, is
+		// optional, so a hero marker would refuse a valid body.
+		'workflow' => array(
+			'markers'      => array( 'sn-workflow-page' ),
+			'block_markup' => false,
+		),
 	);
 }
 
