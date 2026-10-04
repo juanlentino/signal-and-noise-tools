@@ -105,19 +105,14 @@
 				wrap.appendChild( el( 'p', { style: 'margin:0;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: note || 'Anchor status unavailable.' } ) );
 			} else if ( ! pending.length && ! recording.length ) {
 				// The honest idle state — this is what the widget shows most days.
+				// One line for "all good"; the detail rows return when something is pending.
+				var allPages = Number( pages.total ) > 0 ? ', ' + Number( pages.total ) + ' pages' : '';
+				var allDone  = confirmed === total && ( Number( pages.confirmed ) || 0 ) === ( Number( pages.total ) || 0 );
 				wrap.appendChild( el( 'p', {
 					style: 'margin:0;font-weight:600;color:#3fb950;',
-					text:  '✓ ' + confirmed + ' of ' + total + ' notes anchored',
-				} ) );
-				if ( pagesLine ) {
-					wrap.appendChild( el( 'p', {
-						style: 'margin:2px 0 0;font-weight:600;color:#3fb950;',
-						text:  '✓ ' + pagesLine,
-					} ) );
-				}
-				wrap.appendChild( el( 'p', {
-					style: 'margin:4px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
-					text:  'No anchors pending.',
+					text:  allDone
+						? '✓ All anchored: ' + total + ' notes' + allPages
+						: '✓ ' + confirmed + ' of ' + total + ' notes anchored' + ( pagesLine ? ', ' + pagesLine : '' ),
 				} ) );
 			} else {
 				var parts = [];
@@ -199,7 +194,9 @@
 					line.appendChild( el( 'span', { text: r[1], style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;min-width:0;white-space:normal;overflow-wrap:anywhere;text-align:right;' + ( r[2] ? 'color:#d29922;' : '' ) } ) );
 					box.appendChild( line );
 				} );
-				if ( archive.line ) {
+				// The rows above already say what the line says, except when the run
+				// is halted: then the line carries the reason.
+				if ( archive.line && halted ) {
 					box.appendChild( el( 'p', { style: 'margin:2px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: archive.line } ) );
 				}
 				wrap.appendChild( box );

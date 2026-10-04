@@ -763,7 +763,7 @@ namespace {
 		'   ...and so does a navigation: leaving a "Saved." over a report the reader has since re-filtered would say something nobody measured' );
 	$state = st( $app, array( 'notice' => array( 'error', 'It <a href="x">broke</a>.' ) ) );
 	$html  = paint( $app, $state );
-	ok( false !== strpos( $html, '<os-notice tone="danger">It <a href="x">broke</a>.</os-notice>' ),
+	ok( false !== strpos( $html, '<os-notice tone="danger" role="alert">It <a href="x">broke</a>.</os-notice>' ),
 		'a notice paints as the kit`s notice in the severity`s tone, with its deliberate inline <a> intact' );
 	ok( false !== strpos( $html, '<os-notice' ) && strpos( $html, '<os-notice' ) < strpos( $html, 'os-empty-state' ), '   ...above the body, where the classic page prints it under its heading' );
 	// #1609: every paint queues the runtime's snt-paint effect; assets/os-host.js

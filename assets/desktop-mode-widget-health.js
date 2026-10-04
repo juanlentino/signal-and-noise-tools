@@ -58,7 +58,18 @@
 	}
 
 	// A link's trailing arrow is decoration: hidden from assistive tech.
-	function withArrow( link ) {
+/**
+	 * A glance-sized reason: the first clause, before any parenthetical or
+	 * second sentence, at most 100 characters. The full text stays on the
+	 * Health tab, one click away.
+	 */
+	function shortReason( text ) {
+		var cut = text.split( /\s\(|\.\s/ )[ 0 ].replace( /\.$/, '' );
+		cut = cut.length > 100 ? cut.slice( 0, 99 ).replace( /\s+\S*$/, '' ) + '…' : cut;
+		return cut + '. Full reason on the Health tab.';
+	}
+
+		function withArrow( link ) {
 		var arrow = el( 'span', { text: '→' } );
 		arrow.setAttribute( 'aria-hidden', 'true' );
 		link.appendChild( arrow );
@@ -113,8 +124,14 @@
 			style: 'width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:' +
 				( summary.all_passed && ! ( summary.skipped || [] ).length ? '#3fb950' : '#d29922' ) + ';'
 		} ) );
+		// A finding and a check that could not run are different things; the
+		// headline counts them apart instead of folding both into "not passed".
+		var skipN = ( summary.skipped || [] ).length;
+		var lookN = Math.max( 0, ( Number( summary.total ) || 0 ) - ( Number( summary.passed ) || 0 ) - skipN );
 		row.appendChild( el( 'span', {
-			text: summary.passed + '/' + summary.total + ' checks passed',
+			text: ( lookN || skipN )
+				? summary.passed + ' passed' + ( lookN ? ' · ' + lookN + ' to look at' : '' ) + ( skipN ? ' · ' + skipN + ' could not run' : '' )
+				: 'All ' + summary.total + ' checks passed',
 			style: 'font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;'
 		} ) );
 		wrap.appendChild( row );
@@ -163,7 +180,7 @@
 				skipList.appendChild( srow );
 				if ( s.reason ) {
 					skipList.appendChild( el( 'div', {
-						text:  String( s.reason ),
+						text:  shortReason( String( s.reason ) ),
 						style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));overflow-wrap:anywhere;'
 					} ) );
 				}

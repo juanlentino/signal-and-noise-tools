@@ -131,6 +131,8 @@ function snt_kit_notice( $kind, $inner, $dismissible = false ) {
 		array(
 			'tone'            => snt_kit_tone( $kind ),
 			'not-dismissible' => ! $dismissible,
+			// os-notice defaults to role="status" (polite); an error interrupts.
+			'role'            => 'danger' === snt_kit_tone( $kind ) ? 'alert' : null,
 		),
 		$inner
 	);
