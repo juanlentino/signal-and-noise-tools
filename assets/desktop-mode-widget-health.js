@@ -57,19 +57,26 @@
 		return node;
 	}
 
-	// A link's trailing arrow is decoration: hidden from assistive tech.
-/**
-	 * A glance-sized reason: the first clause, before any parenthetical or
-	 * second sentence, at most 100 characters. The full text stays on the
-	 * Health tab, one click away.
+	/**
+	 * A glance-sized reason: parenthetical asides (raw provider errors)
+	 * dropped, then at most 140 characters cut at a word, keeping every
+	 * sentence that fits; the first sentence is not always the reason. The
+	 * full text stays on the Health tab, one click away.
 	 */
 	function shortReason( text ) {
-		var cut = text.split( /\s\(|\.\s/ )[ 0 ].replace( /\.$/, '' );
-		cut = cut.length > 100 ? cut.slice( 0, 99 ).replace( /\s+\S*$/, '' ) + '…' : cut;
-		return cut + '. Full reason on the Health tab.';
+		var t = text;
+		while ( /\([^()]*\)/.test( t ) ) {
+			t = t.replace( /\s*\([^()]*\)/g, '' );
+		}
+		t = t.replace( /\s+([,.;:])/g, '$1' ).replace( /\s+/g, ' ' ).trim();
+		if ( t.length > 140 ) {
+			t = t.slice( 0, 139 ).replace( /\s+\S*$/, '' ).replace( /[,;:]$/, '' ) + '…';
+		}
+		return t + ' Full reason on the Health tab.';
 	}
 
-		function withArrow( link ) {
+	// A link's trailing arrow is decoration: hidden from assistive tech.
+	function withArrow( link ) {
 		var arrow = el( 'span', { text: '→' } );
 		arrow.setAttribute( 'aria-hidden', 'true' );
 		link.appendChild( arrow );
