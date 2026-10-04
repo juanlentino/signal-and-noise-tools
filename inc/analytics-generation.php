@@ -152,7 +152,15 @@ function sn_analytics_v2_verify() {
 		return null;
 	}
 	$verdict = sn_analytics_v2_verdict( $check, time() );
+	$before  = get_option( SN_ANALYTICS_V2_VERIFIED_OPT, array() );
 	update_option( SN_ANALYTICS_V2_VERIFIED_OPT, $verdict, false );
+	// When the verdict flips, the reads change dataset. The over-cap visitor
+	// list is cached for an hour and goes into every human/bot predicate, so
+	// the rollup that runs next must not classify with a list read from the
+	// dataset just left.
+	if ( ( is_array( $before ) && ! empty( $before['ok'] ) ) !== $verdict['ok'] && defined( 'SNT_ANALYTICS_VDAY_CACHE_KEY' ) && function_exists( 'delete_transient' ) ) {
+		delete_transient( SNT_ANALYTICS_VDAY_CACHE_KEY );
+	}
 	sn_analytics_v2_verified( $verdict['ok'] );
 	return $verdict;
 }

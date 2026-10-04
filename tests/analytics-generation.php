@@ -52,6 +52,24 @@ ok( true === sn_analytics_v2_verdict( array( 'read' => true, 'days' => array( $d
 $n = sn_analytics_v2_verdict( array( 'read' => false, 'failed' => 'sn_events_v2', 'error' => 'HTTP 403' ), $oct08 );
 ok( false === $n['ok'] && 0 === strpos( $n['why'], 'not read: sn_events_v2' ), 'a failed read is no verdict' );
 
+echo "\nA flipped verdict drops the cached over-cap list\n";
+$GLOBALS['deleted'] = array();
+function delete_transient( $k ) { $GLOBALS['deleted'][] = $k; return true; }
+function sn_analytics_config() { return array( 'account_id' => 'a', 'token' => 't' ); }
+$today = gmdate( 'Y-m-d' ); $yday = gmdate( 'Y-m-d', time() - 86400 );
+$GLOBALS['next_check'] = array( 'read' => true, 'days' => array( array( 'day' => $yday, 'state' => 'match' ) ) );
+function sn_analytics_v2_check( $days, $from ) { return $GLOBALS['next_check']; }
+$GLOBALS['opt'] = array();
+$r1 = sn_analytics_v2_verify();
+ok( true === $r1['ok'] && array( SNT_ANALYTICS_VDAY_CACHE_KEY ) === $GLOBALS['deleted'], 'unverified to verified: the cached list is dropped' );
+$GLOBALS['deleted'] = array(); sn_analytics_v2_verify();
+ok( array() === $GLOBALS['deleted'], 'verified again: nothing changed, nothing dropped' );
+$GLOBALS['next_check'] = array( 'read' => true, 'days' => array( array( 'day' => $yday, 'state' => 'mismatch' ) ) );
+$r3 = sn_analytics_v2_verify();
+ok( false === $r3['ok'] && array( SNT_ANALYTICS_VDAY_CACHE_KEY ) === $GLOBALS['deleted'] && false === sn_analytics_v2_verified(), 'a mismatch reverts the reads and drops the list read from the dataset just left' );
+$GLOBALS['next_check'] = array( 'read' => false ); $GLOBALS['deleted'] = array();
+ok( null === sn_analytics_v2_verify() && false === $GLOBALS['opt'][ SN_ANALYTICS_V2_VERIFIED_OPT ]['ok'] && array() === $GLOBALS['deleted'], 'a failed read stores nothing and keeps the previous verdict' );
+
 echo "\nThe statements, second generation\n";
 sn_analytics_v2_verified( true ); sn_analytics_clock( $oct20 );
 $e = sn_analytics_events_rollup_sql( 7 );
