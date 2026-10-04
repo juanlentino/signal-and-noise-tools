@@ -468,7 +468,7 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 $expected_height = array(
 	'sn-site-views'       => 500, // 21.2.1 BUDGETED: 620 less Visits, Engaged and the Top sources block; was budgeted: 450 + 3 glance rows (today/engaged/top_mover) ~+60, + north star block (5 rows + hairline) ~+110
 	'sn-audience'         => 560, // BUDGETED: window line + five groups (5/3/5/3/2 rows) + link
-	'sn-reading'          => 510, // BUDGETED: window line + four groups (5/4/4/3 rows) + link
+	'sn-reading'          => 555, // BUDGETED: window line + four groups (5/6/4/3 rows) + link
 	'sn-rss-subscribers'  => 220, // measured 207
 	'sn-queue'            => 380, // measured 365 live (15.8.1): two-line headline + depth line + two headings + six rows
 	'sn-health'           => 160, // measured 148 all-passing
@@ -476,7 +476,7 @@ $expected_height = array(
 	'sn-deploy-status'    => 310, // v11.11.2 budgeted: measured-192 two-row grid + five worker rows ~22px each
 	'sn-cron'             => 170, // v11.29.0 BUDGETED: health measures 148 for the same dot-row + hairline-list shape, +1 line when orphans exist
 	'sn-quick-actions'    => 290, // v11.29.0 BUDGETED: measured-242 three buttons + a fourth ~40px (8px pad x2 + 13px/1.2 + 1px border x2 + 6px margin)
-	'sn-anchors'          => 215, // measured 167 idle; 21.1.0 + the Internet Archive line
+	'sn-anchors'          => 240, // measured 167 idle; + the Internet Archive line with its capture counts (three lines) BUDGETED
 	'sn-machine-readers'  => 560, // budgeted: measured-508 −3 sensor rows +≤5 purpose rows
 );
 ok( array_keys( $expected_height ) === array_keys( $widgets ),

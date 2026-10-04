@@ -62,6 +62,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
+
 require_once __DIR__ . '/analytics-network-terms.php'; // the statement-length cap
 
 /**
@@ -367,6 +369,6 @@ function sn_analytics_query( $sql ) {
 function sn_analytics_probe() {
 	// AE SQL: count() takes ZERO arguments (count(*)/count(col) → HTTP 422
 	// "COUNT() function must have 0 arguments"). Row count is count() with no args.
-	$sql = 'SELECT count() AS n FROM ' . SN_ANALYTICS_DATASET . " WHERE timestamp >= now() - INTERVAL '1' HOUR";
+	$sql = 'SELECT count() AS n FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ) . " WHERE timestamp >= now() - INTERVAL '1' HOUR";
 	return is_array( sn_analytics_query( $sql ) );
 }

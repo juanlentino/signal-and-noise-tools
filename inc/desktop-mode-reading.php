@@ -59,13 +59,19 @@ function snt_desktop_reading_page_rows( $totals, array $dist, $engaged = null ) 
 /**
  * Visit rows: a visits-weighted fold of the daily session rollup. PURE.
  *
- * @param array|null $days [{visits, bounce_pct, ppv, median_dur}]; null when the read failed.
+ * @param array|null $days [{visits, bounce_pct, ppv, median_dur, two_pages?, deep_pages?}]; null when the read failed.
  * @return array<int,array{label:string,value:string}>|null Null when the read failed.
  */
 function snt_desktop_reading_visit_rows( $days ) {
 	$n = 0; $bounce = 0.0; $ppv = 0.0; $dur = 0.0;
+	$known = 0; $two = 0; $deep = 0; // the depth split, over the days that measured it.
 	foreach ( (array) $days as $d ) {
 		$w       = (int) ( $d['visits'] ?? 0 );
+		if ( isset( $d['two_pages'], $d['deep_pages'] ) ) {
+			$known += $w;
+			$two   += (int) $d['two_pages'];
+			$deep  += (int) $d['deep_pages'];
+		}
 		$n      += $w;
 		$bounce += $w * (float) ( $d['bounce_pct'] ?? 0 );
 		$ppv    += $w * (float) ( $d['ppv'] ?? 0 );
@@ -77,12 +83,24 @@ function snt_desktop_reading_visit_rows( $days ) {
 	if ( $n < 1 ) {
 		return array();
 	}
-	return array(
+	$rows = array(
 		array( 'label' => 'Sessions', 'value' => number_format_i18n( $n ) ),
-		array( 'label' => 'One page only', 'value' => round( $bounce / $n ) . '%' ),
+		// With the depth split measured, all three shares come from the same
+		// sessions (the days that measured it), so they add up; before any day
+		// measured it, the one-page share is the rollup's own.
+		array( 'label' => 'One page only', 'value' => $known > 0 ? snt_desktop_pct( max( 0, $known - $two - $deep ), $known ) : round( $bounce / $n ) . '%' ),
 		array( 'label' => 'Pages per session', 'value' => number_format_i18n( $ppv / $n, 2 ) ),
 		array( 'label' => 'Typical session', 'value' => snt_desktop_reading_seconds( $dur / $n ) ),
 	);
+	// Days rolled up before the split existed do not count toward it: a share
+	// of the days that measured it, never zeros for the ones that did not.
+	if ( $known > 0 ) {
+		array_splice( $rows, 2, 0, array(
+			array( 'label' => 'Two pages', 'value' => snt_desktop_pct( $two, $known ) ),
+			array( 'label' => 'Three or more', 'value' => snt_desktop_pct( $deep, $known ) ),
+		) );
+	}
+	return $rows;
 }
 
 /**
@@ -128,7 +146,19 @@ function snt_desktop_reading_vital_row( $name, array $dist, $pct = null ) {
  * @return array<int,array<string,mixed>>
  */
 function snt_desktop_reading_groups( array $win ) {
-	$dist   = static fn( $m ) => function_exists( 'sn_analytics_distribution' ) ? (array) sn_analytics_distribution( $m, $win['from'], $win['to'], 'human' ) : array();
+	// The two shared readers below answer a FAILED query with zeros or an empty
+	// list (their contract, relied on by every Analytics view). Here that would
+	// paint a broken table as "0%" or "none", so each call is followed by a look
+	// at the database's own error.
+	$failed = array();
+	$dist   = static function ( $m ) use ( $win, &$failed ) {
+		$rows = function_exists( 'sn_analytics_distribution' ) ? (array) sn_analytics_distribution( $m, $win['from'], $win['to'], 'human' ) : array();
+		if ( snt_desktop_db_failed() ) {
+			$failed[ $m ] = true;
+			return array();
+		}
+		return $rows;
+	};
 	$totals = function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( $win['from'], $win['to'], 'human' ) : null;
 	// The engaged share and its change against the prior window: the row SN Site Views used to carry.
 	$engaged = null;
@@ -141,7 +171,12 @@ function snt_desktop_reading_groups( array $win ) {
 		}
 	}
 	$events = array();
-	foreach ( function_exists( 'sn_analytics_top_events' ) ? (array) sn_analytics_top_events( $win['from'], $win['to'], 4 ) : array() as $e ) {
+	$top    = function_exists( 'sn_analytics_top_events' ) ? (array) sn_analytics_top_events( $win['from'], $win['to'], 4 ) : array();
+	if ( snt_desktop_db_failed() ) {
+		$failed['events'] = true;
+		$top              = array();
+	}
+	foreach ( $top as $e ) {
 		$events[] = array( 'label' => (string) $e['name'], 'value' => number_format_i18n( (int) $e['events'] ) . ' · ' . number_format_i18n( (int) $e['visitors'] ) . ' visitor-days' ); // the rollup counts distinct visitors per day and the visitor hash rotates daily, so the sum over a window is visitor-days, not people.
 	}
 	// The percentile is one Analytics Engine request per vital (cached 15
@@ -163,7 +198,7 @@ function snt_desktop_reading_groups( array $win ) {
 		snt_desktop_group( 'On the page', snt_desktop_reading_page_rows( $totals, $dist( 'scroll' ), $engaged ), 'No page views in this window, or the daily totals could not be read.' ), // a failed read and an empty window share one shape (views 0); the sentence claims neither.
 		snt_desktop_group( 'Sessions', (array) $visits, null === $visits ? 'The sessions could not be read.' : 'No sessions rolled up in this window.' ), // sessions, not Site Views' visitor-days: the heading keeps the two apart.
 		snt_desktop_group( 'Custom events · all traffic', $events, // the events rollup has no traffic class; unlike the rows above, this is not people only.
-			 'No custom events in this window.' ),
-		snt_desktop_group( 'Core Web Vitals', $vitals, 'No field measurements in this window.' ),
+			isset( $failed['events'] ) ? 'The custom events could not be read.' : 'No custom events in this window.' ),
+		snt_desktop_group( 'Core Web Vitals', $vitals, array_intersect_key( $failed, array( 'lcp' => 1, 'inp' => 1, 'cls' => 1 ) ) ? 'The field measurements could not be read.' : 'No field measurements in this window.' ),
 	);
 }

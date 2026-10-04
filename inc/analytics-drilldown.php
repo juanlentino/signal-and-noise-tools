@@ -21,6 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
+
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
 
 /**
@@ -67,7 +69,8 @@ function sn_analytics_drilldown_sql( $dim, $values, $from, $to, $class ) {
 	if ( ! isset( SN_ANALYTICS_DIM_COLUMNS[ $dim ] ) ) {
 		return '';
 	}
-	$col   = SN_ANALYTICS_DIM_COLUMNS[ $dim ];
+	$source = sn_analytics_source( (string) $from );
+	$col    = sn_analytics_col( SN_ANALYTICS_DIM_COLUMNS[ $dim ], $source );
 	$class = in_array( $class, SN_ANALYTICS_CLASSES, true ) ? $class : 'human';
 	$from  = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from ) ? (string) $from : '1970-01-01';
 	$to    = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $to ) ? (string) $to : '1970-01-01';
@@ -85,7 +88,7 @@ function sn_analytics_drilldown_sql( $dim, $values, $from, $to, $class ) {
 		'SELECT blob2 AS path,',
 		'sum(_sample_interval) AS views,',
 		'count(DISTINCT index1) AS visits',
-		'FROM ' . SN_ANALYTICS_DATASET,
+		'FROM ' . $source,
 		"WHERE blob1 = 'pv' AND {$col} IN ({$in}) AND " . sn_analytics_class_where( $class ),
 		"AND timestamp >= toDateTime('{$from} 00:00:00')",
 		"AND timestamp <= toDateTime('{$to} 23:59:59')",
@@ -154,7 +157,10 @@ function sn_analytics_drilldown( $dim, $value, $from, $to, $class = 'human' ) {
 		$query_values = array( $value );
 	}
 
-	$cache_key = 'sn_drill_' . md5( $dim . '|' . $value . '|' . $from . '|' . $to . '|' . $class );
+	// The dataset is part of the key, as for the percentiles: a verdict that
+	// moves this window must not be answered from the generation just left.
+	$source    = sn_analytics_source( (string) $from );
+	$cache_key = 'sn_drill_' . md5( $dim . '|' . $value . '|' . $from . '|' . $to . '|' . $class . ( SN_ANALYTICS_DATASET === $source ? '' : '|' . $source ) );
 	$cached    = get_transient( $cache_key );
 	if ( false !== $cached ) {
 		return is_array( $cached ) ? $cached : null;

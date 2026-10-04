@@ -165,8 +165,8 @@ add_action( 'init', function() {
 			'icon'           => 'dashicons-book-alt',
 			'script'         => 'sn-desktop-mode-widget-groups',
 			// BUDGETED 470, not browser-measured: a window line, four groups
-			// (heading + up to 5/4/4/3 rows at ~22px) and the link.
-			'default_height' => 510,
+			// (heading + up to 5/6/4/3 rows at ~22px) and the link.
+			'default_height' => 555,
 		) ) );
 
 		// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that
@@ -276,8 +276,9 @@ add_action( 'init', function() {
 			'script'         => 'sn-desktop-mode-widget-anchors',
 			// Measured 167 idle ("30 of 30 notes anchored" + Sweep), 194 with
 			// two pending rows. Sized for idle — the state it holds most days.
-			// 21.1.0: + one Internet Archive line (two when it wraps).
-			'default_height' => 215,
+			// 21.1.0: + one Internet Archive line (two when it wraps); the capture
+			// counts joined it later and it now wraps to three. BUDGETED.
+			'default_height' => 240,
 		) ) );
 
 		// v10.1.0: the machine half of the audience. Human readership is

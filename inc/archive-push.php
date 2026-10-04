@@ -150,6 +150,11 @@ function sn_archive_push_store( $post_id, array $record, $on_post = true ) {
 	$last = (array) get_option( SN_ARCHIVE_PUSH_LAST_OPT, array() );
 	if ( $on_post ) {
 		update_post_meta( (int) $post_id, SN_ARCHIVE_PUSH_META, $record );
+		// A new request needs a new outcome: an earlier one (a failed first
+		// attempt) must not stand for this one (inc/archive-push-confirm.php).
+		if ( defined( 'SN_ARCHIVE_CAPTURE_META' ) && function_exists( 'delete_post_meta' ) ) {
+			delete_post_meta( (int) $post_id, SN_ARCHIVE_CAPTURE_META );
+		}
 	}
 	update_option( SN_ARCHIVE_PUSH_LAST_OPT, $record + array( 'post_id' => (int) $post_id, 'failures' => sn_archive_push_failures( (array) ( $last['failures'] ?? array() ), (int) $post_id, $record ) ), false );
 }

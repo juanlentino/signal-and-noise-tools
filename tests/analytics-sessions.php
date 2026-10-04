@@ -84,6 +84,9 @@ ok( abs( $m['pages_per_visit'] - ( 5 / 3 ) ) < 0.001, 'pages_per_visit = 5/3' );
 ok( 40 === $m['median_duration'], 'median duration of {0,120,40} = 40' );
 ok( 2 === $m['engaged_visits'], '2 engaged visits' );
 ok( 0 === sn_session_metrics( array() )['visits'], 'empty input → 0 visits, no divide-by-zero' );
+$depth = sn_session_metrics( array( array( 'pageviews' => 1 ), array( 'pageviews' => 1 ), array( 'pageviews' => 2 ), array( 'pageviews' => 3 ), array( 'pageviews' => 7 ) ) );
+ok( 1 === $depth['two_page_visits'] && 2 === $depth['deep_visits'] && abs( $depth['bounce_rate'] - 0.4 ) < 0.001, 'depth: exactly two pages and three or more are counted apart from the one-page visits' );
+ok( 0 === sn_session_metrics( array() )['two_page_visits'] && 0 === sn_session_metrics( array() )['deep_visits'], 'depth on an empty set is zero, not missing' );
 
 echo "\nGroup: sn_session_paths\n";
 $sp = array(
@@ -205,6 +208,11 @@ ok( array() === sn_pageview_visits( array() ), 'empty input → empty' );
 // Reading time is a per-flush DELTA (sn-beacon.js v10.44.4): slices add up.
 $sd = sn_visit_summary( array( ev( 'D', 0, 'pv', '/n' ), ev( 'D', 1, 'sc', '/n', '', 60, 0 ), ev( 'D', 2, 'tm', '/n', '', 0, 9000 ), ev( 'D', 3, 'tm', '/n', '', 0, 8000 ) ), 50, 15000 );
 ok( true === $sd['engaged'], 'two 9 s + 8 s slices are a 17 s dwell: engaged past the 15 s floor (the larger slice alone was 9 s)' );
+
+echo "\nGroup: a pageview's UTM source is never a custom event (second-generation column)\n";
+$utm = sn_visit_summary( array( ev( 'U', 10, 'pv', '/a', 'google' ), ev( 'U', 20, 'ce', '/a', 'subscribe' ) ) );
+ok( array( 'subscribe' ) === array_values( (array) $utm['goals'] ), 'a pv row carrying "google" in the name column yields no goal; the ce row does' );
+ok( array( '', 'subscribe' ) === array_column( (array) ( $utm['events'] ?? array() ), 'ce' ), 'and the funnel sequence carries the name only on the ce row' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

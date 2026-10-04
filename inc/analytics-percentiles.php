@@ -29,6 +29,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
+
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
 
 /**
@@ -72,16 +74,47 @@ function sn_analytics_percentiles_sql( $event, $col, $from, $to, $class ) {
 	$from  = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from ) ? (string) $from : '1970-01-01';
 	$to    = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $to ) ? (string) $to : '1970-01-01';
 
+	list( $lo, $hi ) = sn_analytics_local_day_bounds_utc( $from, $to );
+
 	return implode( ' ', array(
 		'SELECT',
 		"quantileExactWeighted(0.5)({$col}, _sample_interval) AS p50,",
 		"quantileExactWeighted(0.75)({$col}, _sample_interval) AS p75,",
 		"quantileExactWeighted(0.9)({$col}, _sample_interval) AS p90",
-		'FROM ' . SN_ANALYTICS_DATASET,
+		// The dataset follows the first UTC day the window touches: east of UTC
+		// the site's day starts on the UTC day before.
+		'FROM ' . sn_analytics_source( substr( $lo, 0, 10 ) ),
 		"WHERE blob1 = '{$event}' AND " . sn_analytics_class_where( $class ),
-		"AND timestamp >= toDateTime('{$from} 00:00:00')",
-		"AND timestamp <= toDateTime('{$to} 23:59:59')",
+		"AND timestamp >= toDateTime('{$lo}')",
+		"AND timestamp <= toDateTime('{$hi}')",
 	) );
+}
+
+/**
+ * The UTC instants that bound the SITE's days [from, to]. The rollups bucket
+ * by the site's day, so a percentile over the same dates has to cover the
+ * same hours; UTC midnights would shift it by the site's offset. The bounds
+ * are computed here and sent as plain UTC literals, the form Analytics Engine
+ * already takes, so no timezone argument enters the statement. PURE given the
+ * zone; with no zone available (a standalone test) the days are UTC days.
+ *
+ * @param string            $from Y-m-d (already validated).
+ * @param string            $to   Y-m-d (already validated).
+ * @param DateTimeZone|null $zone The site's zone; null reads wp_timezone().
+ * @return array{0:string,1:string} 'Y-m-d H:i:s' in UTC.
+ */
+function sn_analytics_local_day_bounds_utc( $from, $to, $zone = null ) {
+	if ( null === $zone ) {
+		$zone = function_exists( 'wp_timezone' ) ? wp_timezone() : new DateTimeZone( 'UTC' );
+	}
+	$utc = new DateTimeZone( 'UTC' );
+	try {
+		$lo = ( new DateTimeImmutable( $from . ' 00:00:00', $zone ) )->setTimezone( $utc )->format( 'Y-m-d H:i:s' );
+		$hi = ( new DateTimeImmutable( $to . ' 23:59:59', $zone ) )->setTimezone( $utc )->format( 'Y-m-d H:i:s' );
+	} catch ( Exception $e ) {
+		return array( $from . ' 00:00:00', $to . ' 23:59:59' );
+	}
+	return array( $lo, $hi );
 }
 
 /**
@@ -109,7 +142,11 @@ function sn_analytics_percentiles( $metric, $from, $to, $class = 'human' ) {
 		return null;
 	}
 
-	$cache_key = 'sn_pctl_' . md5( $metric . '|' . $from . '|' . $to . '|' . $class );
+	// The dataset is part of the key: when the daily verdict moves a window from
+	// one generation to the other, an answer cached from the one just left is
+	// not served.
+	$source    = sn_analytics_source( substr( sn_analytics_local_day_bounds_utc( $from, $to )[0], 0, 10 ) );
+	$cache_key = 'sn_pctl_' . md5( $metric . '|' . $from . '|' . $to . '|' . $class . ( SN_ANALYTICS_DATASET === $source ? '' : '|' . $source ) );
 	$cached    = get_transient( $cache_key );
 	if ( false !== $cached ) {
 		return is_array( $cached ) ? $cached : null; // '' sentinel → cached failure.

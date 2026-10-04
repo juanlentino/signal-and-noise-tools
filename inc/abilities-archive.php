@@ -23,7 +23,7 @@ function snt_ability_archive_push_existing( $input = array() ) {
 function snt_ability_archive_status( $input = array() ) {
 	unset( $input );
 	if ( ! function_exists( 'sn_archive_existing_status_line' ) ) {
-		return array( 'ok' => false, 'configured' => false, 'pending' => 0, 'line' => 'unavailable', 'watch' => '', 'run' => (object) array(), 'last' => (object) array(), 'failures' => array() );
+		return array( 'ok' => false, 'configured' => false, 'pending' => 0, 'line' => 'unavailable', 'captures' => (object) array(), 'watch' => '', 'run' => (object) array(), 'last' => (object) array(), 'failures' => array() );
 	}
 	$last = (array) get_option( SN_ARCHIVE_PUSH_LAST_OPT, array() );
 	$fail = array();
@@ -36,6 +36,7 @@ function snt_ability_archive_status( $input = array() ) {
 		'configured' => null !== sn_archive_push_keys(),
 		'pending'    => count( sn_archive_existing_pending() ),
 		'line'       => sn_archive_existing_status_line(),
+		'captures'   => function_exists( 'sn_archive_confirm_counts' ) ? sn_archive_confirm_counts() : (object) array(),
 		'watch'      => snt_watch_ripe_archive_push( array(), time() )['note'],
 		'run'        => (object) (array) get_option( SN_ARCHIVE_EXISTING_OPT, array() ),
 		'last'       => (object) $last,
@@ -81,12 +82,12 @@ add_action( 'wp_abilities_api_init', function () {
 	) );
 	wp_register_ability( 'signal-noise/archive-status', array(
 		'label'               => 'Internet Archive: push state',
-		'description'         => 'The Internet Archive push as data: whether the keys are set, how many published notes have no push on record (`pending`), the run over older notes (`run`: state running|halted|done, reason, asked, last_tick), the last push (`last`) and the failures not since accepted for the same note (`failures`). `requested` means the archive took the job, NOT that the capture finished; that is never polled, check web.archive.org. Never a key. Read-only.',
+		'description'         => 'The Internet Archive push as data: whether the keys are set, how many published notes have no push on record (`pending`), the run over older notes (`run`: state running|halted|done, reason, asked, last_tick), the last push (`last`) and the failures not since accepted for the same note (`failures`). `requested` means the archive took the job, NOT that the capture finished. `captures` is the outcome the Archive reports for those requests, asked hourly (captured, failed, unconfirmed after two days, waiting = asked and not yet answered). Never a key. Read-only.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_archive_status',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
-		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'configured' => array( 'type' => 'boolean' ), 'pending' => array( 'type' => 'integer' ), 'line' => array( 'type' => 'string' ), 'watch' => array( 'type' => 'string' ), 'run' => array( 'type' => 'object' ), 'last' => array( 'type' => 'object' ), 'failures' => array( 'type' => 'array' ) ) ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'configured' => array( 'type' => 'boolean' ), 'pending' => array( 'type' => 'integer' ), 'line' => array( 'type' => 'string' ), 'captures' => array( 'type' => 'object' ), 'watch' => array( 'type' => 'string' ), 'run' => array( 'type' => 'object' ), 'last' => array( 'type' => 'object' ), 'failures' => array( 'type' => 'array' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
 	) );
 	wp_register_ability( 'signal-noise/ai-models-status', array(

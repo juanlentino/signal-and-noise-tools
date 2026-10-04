@@ -172,6 +172,7 @@ require_once SNT_PATH . 'inc/analytics-view-overview.php';   // v9.68.0: the wir
 require_once SNT_PATH . 'inc/analytics-sources.php'; // v6.25.0: referrer host → canonical source fold (brand grouping + self-referral/www)
 require_once SNT_PATH . 'inc/analytics-dims.php';   // referrer/country/device + edge dimension breakdowns
 require_once SNT_PATH . 'inc/analytics-utm.php';    // v9.28.0: UTM campaign attribution (packed blob20 → Source/Medium + Campaign)
+require_once SNT_PATH . 'inc/analytics-generation.php'; // which Analytics Engine dataset a read uses.
 require_once SNT_PATH . 'inc/analytics-v2-compare.php'; // the dual-write check for the second-generation datasets (worker 1.24.0).
 require_once SNT_PATH . 'inc/analytics-events.php'; // v6.2.0: custom-events table install + read accessors
 require_once SNT_PATH . 'inc/analytics-events-rollup.php'; // v6.10.0: live ce/cp rollups feeding the events tables
@@ -631,6 +632,7 @@ require_once __DIR__ . '/inc/websub.php';            // v6.17.0 (D4): WebSub pub
 require_once __DIR__ . '/inc/archive-push-status.php'; // 20.8.0: the unresolved archive failures and the watch that reads them
 require_once __DIR__ . '/inc/archive-push.php';      // 20.8.0: a note's first publish is pushed to the Internet Archive (Save Page Now)
 require_once __DIR__ . '/inc/archive-push-existing.php'; // 21.1.0: the owner-started run over notes that predate the keys.
+require_once __DIR__ . '/inc/archive-push-confirm.php'; // hourly: the Archive's own outcome for each request (captured, failed).
 require_once __DIR__ . '/inc/archive-push-admin.php'; // 21.1.0: its fieldset on the classic Tools > Provenance page.
 require_once __DIR__ . '/inc/ability-run-client.php';   // v7.7.2: annotation-derived verb map + shared run-path JS client.
 require_once __DIR__ . '/inc/abilities-rate-gate.php';  // v10.34.0: per-user courtesy throttle for expensive abilities (native run-route has no rate limit of its own).

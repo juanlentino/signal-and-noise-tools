@@ -36,6 +36,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
+
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
 
 const SN_ANALYTICS_BUCKETS_TABLE          = 'sn_analytics_buckets';
@@ -210,7 +212,7 @@ function sn_analytics_buckets_hour_sql( $days ) {
 		"formatDateTime(timestamp, '%H') AS bucket,",
 		sn_analytics_class_select() . ' AS class,',
 		'sum(_sample_interval) AS views',
-		'FROM ' . SN_ANALYTICS_DATASET,
+		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( $days ) ),
 		"WHERE blob1 = 'pv' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where() . sn_analytics_window_upper(),
 		'GROUP BY day, bucket, class',
 	) );
@@ -249,7 +251,7 @@ function sn_analytics_buckets_dist_sql( $event, $col, $buckets, $days ) {
 		"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
 		sn_analytics_class_select() . ' AS class,',
 		implode( ', ', $selects ),
-		'FROM ' . SN_ANALYTICS_DATASET,
+		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( $days ) ),
 		"WHERE blob1 = '{$event}' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where() . sn_analytics_window_upper(),
 		'GROUP BY day, class',
 	) );

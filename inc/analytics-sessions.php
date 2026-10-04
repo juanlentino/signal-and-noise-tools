@@ -20,6 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
+
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
 
 const SN_ANALYTICS_SESSION_GAP_SEC     = 1800;  // >30 min idle starts a new visit.
@@ -520,7 +522,9 @@ function sn_visit_summary( array $events, $engaged_scroll = SN_ANALYTICS_SESSION
 		$last_ts  = ( null === $last_ts ) ? $ts : max( $last_ts, $ts );
 		$type     = (string) ( $e['ev'] ?? '' );
 		$p        = (string) ( $e['path'] ?? '' );
-		$seq[]    = array( 'ev' => $type, 'path' => $p, 'ce' => (string) ( $e['ce'] ?? '' ) );
+		// The name is read only off a `ce` row. In the second-generation dataset
+		// the same column holds a pageview's UTM source, which is not an event.
+		$seq[]    = array( 'ev' => $type, 'path' => $p, 'ce' => 'ce' === $type ? (string) ( $e['ce'] ?? '' ) : '' );
 
 		if ( 'pv' === $type ) {
 			$path[] = $p;
@@ -583,7 +587,7 @@ function sn_pageview_visits( array $summaries ) {
  * Aggregate visit-quality metrics from a list of visit summaries.
  *
  * @param array $summaries Visit summaries from sn_visit_summary().
- * @return array{visits:int,bounce_rate:float,pages_per_visit:float,median_duration:int,engaged_visits:int,engaged_rate:float}
+ * @return array{visits:int,bounce_rate:float,pages_per_visit:float,median_duration:int,engaged_visits:int,engaged_rate:float,two_page_visits:int,deep_visits:int}
  */
 function sn_session_metrics( array $summaries ) {
 	$n = count( $summaries );
@@ -595,10 +599,14 @@ function sn_session_metrics( array $summaries ) {
 			'median_duration' => 0,
 			'engaged_visits'  => 0,
 			'engaged_rate'    => 0.0,
+			'two_page_visits' => 0,
+			'deep_visits'     => 0,
 		);
 	}
 
 	$bounces    = 0;
+	$two        = 0; // visits of exactly two pageviews.
+	$deep       = 0; // visits of three or more.
 	$pv_total   = 0;
 	$engaged    = 0;
 	$durations  = array();
@@ -607,6 +615,10 @@ function sn_session_metrics( array $summaries ) {
 		$pv_total += $pv;
 		if ( $pv <= 1 ) {
 			$bounces++;
+		} elseif ( 2 === $pv ) {
+			$two++;
+		} else {
+			$deep++;
 		}
 		if ( ! empty( $s['engaged'] ) ) {
 			$engaged++;
@@ -627,6 +639,8 @@ function sn_session_metrics( array $summaries ) {
 		'median_duration' => $median,
 		'engaged_visits'  => $engaged,
 		'engaged_rate'    => $engaged / $n,
+		'two_page_visits' => $two,
+		'deep_visits'     => $deep,
 	);
 }
 
@@ -818,13 +832,14 @@ function sn_analytics_session_sql( $from, $to, $class, $cap ) {
 		return '';
 	}
 	$cap     = max( 1, (int) $cap );
-	$dataset = defined( 'SN_ANALYTICS_DATASET' ) ? SN_ANALYTICS_DATASET : 'sn_pageviews';
+	$dataset = sn_analytics_source( (string) $from );
 
 	return implode(
 		' ',
 		array(
 			'SELECT index1 AS vid, toUnixTimestamp(timestamp) AS ts,',
-			'blob1 AS ev, blob2 AS path, blob3 AS ref, blob16 AS ce,',
+			// The custom event's name: blob16 in the legacy row, blob17 on a `ce` row of the second generation.
+			'blob1 AS ev, blob2 AS path, blob3 AS ref, ' . sn_analytics_col( 'blob16', $dataset ) . ' AS ce,',
 			'double1 AS scroll, double2 AS dwell, blob5 AS device',
 			'FROM ' . $dataset,
 			// AE's SQL types are strict: the DateTime `timestamp` column cannot be

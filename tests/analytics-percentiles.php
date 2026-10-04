@@ -17,6 +17,7 @@ define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) );
 // Transient seam.
 $GLOBALS['__pc_trans'] = array();
 function get_transient( $k ) {
+	$GLOBALS['__keys'][] = $k;
 	if ( SNT_ANALYTICS_VDAY_CACHE_KEY === $k ) { return array( 'hashes' => array(), 'ok' => true, 'truncated' => false ); } // the human rule's list, primed so call counts stay this module's own
 	return array_key_exists( $k, $GLOBALS['__pc_trans'] ) ? $GLOBALS['__pc_trans'][ $k ] : false;
 }
@@ -73,6 +74,31 @@ ok( strpos( sn_analytics_percentiles_sql( 'sc', "double1); DROP", '2026-06-01', 
 ok( strpos( sn_analytics_percentiles_sql( 'sc', 'double1', "2026-06-01'; DROP", '2026-06-30', 'human' ), 'DROP' ) === false, 'sql: from re-validated YMD (no injection)' );
 ok( strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-06-01', '2026-06-30', "human'; DROP" ), 'DROP' ) === false, 'sql: class allowlisted' );
 ok( strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-06-01', '2026-06-30', 'martian' ), sn_analytics_counted_condition( 'human', array() ) ) !== false, 'sql: unknown class → human' );
+
+echo "\nGroup: the window is the site's days, sent as UTC instants\n";
+$ny = new DateTimeZone( 'America/New_York' );
+ok( array( '2026-10-06 04:00:00', '2026-10-20 03:59:59' ) === sn_analytics_local_day_bounds_utc( '2026-10-06', '2026-10-19', $ny ), 'New York days Oct 6 to Oct 19 are 04:00 UTC to 03:59:59 UTC the day after' );
+ok( array( '2026-11-01 04:00:00', '2026-11-02 04:59:59' ) === sn_analytics_local_day_bounds_utc( '2026-11-01', '2026-11-01', $ny ), 'the day the clocks go back is 25 hours long, and the bounds say so' );
+ok( array( '2026-06-01 00:00:00', '2026-06-30 23:59:59' ) === sn_analytics_local_day_bounds_utc( '2026-06-01', '2026-06-30', new DateTimeZone( 'UTC' ) ), 'a UTC site keeps the UTC midnights' );
+ok( false !== strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-06-01', '2026-06-30', 'human' ), "timestamp >= toDateTime('2026-06-01 00:00:00') AND timestamp <= toDateTime('2026-06-30 23:59:59')" ), 'the statement keeps its proven shape: a plain UTC literal inside toDateTime(), no timezone argument' );
+
+if ( function_exists( 'sn_analytics_v2_clean_from' ) ) {
+	function wp_timezone() { return new DateTimeZone( $GLOBALS['__tz'] ?? 'UTC' ); }
+	sn_analytics_v2_clean_from( '2026-10-05' );
+	$GLOBALS['__tz'] = 'Asia/Tokyo'; // Tokyo's Oct 5 starts at 15:00 UTC on Oct 4, before the clean day.
+	ok( false !== strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-10-05', '2026-10-10', 'human' ), 'FROM sn_pageviews WHERE' ), 'east of UTC, a window starting on the clean day reaches the UTC day before it: the legacy dataset' );
+	ok( false !== strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-10-06', '2026-10-10', 'human' ), 'FROM sn_pageviews_v2' ), 'one day later it is inside: the second generation' );
+	$GLOBALS['__tz'] = 'America/New_York';
+	ok( false !== strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-10-05', '2026-10-10', 'human' ), 'FROM sn_pageviews_v2' ), 'west of UTC the same window starts inside the clean day' );
+	$GLOBALS['__tz'] = 'UTC';
+	$GLOBALS['__keys'] = array();
+	$pk = static fn() => array_values( array_filter( $GLOBALS['__keys'], static fn( $k ) => 0 === strpos( (string) $k, 'sn_pctl_' ) ) );
+	sn_analytics_percentiles( 'scroll', '2026-10-06', '2026-10-10', 'human' ); $k2 = $pk()[0] ?? null;
+	$GLOBALS['__keys'] = array();
+	sn_analytics_v2_clean_from( '' );
+	sn_analytics_percentiles( 'scroll', '2026-10-06', '2026-10-10', 'human' ); $k1 = $pk()[0] ?? null;
+	ok( is_string( $k1 ) && is_string( $k2 ) && $k1 !== $k2, 'the cache key changes with the dataset, so a verdict that moves the window cannot serve the other generation\'s answer' );
+}
 
 echo "\nGroup: read accessor — success shape + caching\n";
 pc_reset();
