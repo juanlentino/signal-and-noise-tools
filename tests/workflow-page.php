@@ -143,11 +143,15 @@ sn_handle_workflow_save( array( 'workflow' => array( 'map' => array( array( 'tit
 ok( 'publish' === $GLOBALS['__page']->post_status, 'published while the row is shown' );
 ok( 'workflow_withdrawn' === sn_handle_workflow_save( array( 'workflow' => array( 'map' => array( array( 'title' => 'Once public', 'line' => 'x' ) ) ) ) ), 'unchecking the last public row withdraws the page' );
 ok( 'draft' === $GLOBALS['__page']->post_status && 2 === count( $GLOBALS['__purged'] ), '...to draft, and /workflow is purged' );
+ok( '' === $GLOBALS['__page']->post_content, 'the withdrawn draft keeps none of the rows that were public' );
 ok( 'workflow_saved' === sn_handle_workflow_save( array( 'workflow' => array( 'title' => 'Back' ) ) ) && 'publish' === $GLOBALS['__page']->post_status, 'content again republishes the same page' );
 
 $GLOBALS['__page']->post_status = 'private';
 sn_handle_workflow_save( array( 'workflow' => array( 'title' => 'Owner set private' ) ) );
 ok( 'private' === $GLOBALS['__page']->post_status, 'a status the owner chose by hand (private) survives a save; only a page this module withdrew is republished' );
+
+$only_map = sn_workflow_page_html( array( 'title' => '', 'dek' => '', 'sample' => array( 'label' => '', 'title' => '', 'intro' => '', 'body' => '', 'outcome' => '' ), 'map' => array( array( 'title' => 'One', 'line' => 'x', 'show' => true ) ), 'rules' => array() ) );
+ok( false !== strpos( $only_map, '<h1 class="sn-workflow-title">Workflow</h1>' ) && strpos( $only_map, '<h1' ) < strpos( $only_map, '<section' ), 'with no Title the page still opens with an h1 (the Page title fallback), before any section' );
 
 echo "\nGroup: the write guard knows /workflow\n";
 ok( false === snt_generated_page_guard( 'workflow', '<div>no wrapper</div>' ), 'a body without sn-workflow-page is refused' );

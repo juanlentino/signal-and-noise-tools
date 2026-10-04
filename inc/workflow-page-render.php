@@ -77,14 +77,7 @@ function sn_workflow_page_html( $pub ) {
 	if ( ! is_array( $pub ) ) {
 		return '';
 	}
-	$out = '';
-	if ( '' !== $pub['title'] || '' !== $pub['dek'] ) {
-		$out .= '<header class="sn-workflow-hero">';
-		$out .= '' !== $pub['title'] ? '<h1 class="sn-workflow-title">' . sn_workflow_esc( $pub['title'] ) . '</h1>' : '';
-		$out .= '' !== $pub['dek'] ? '<p class="sn-workflow-dek">' . sn_workflow_esc( $pub['dek'] ) . '</p>' : '';
-		$out .= '</header>';
-	}
-	$out .= sn_workflow_sample_html( $pub['sample'] );
+	$out = sn_workflow_sample_html( $pub['sample'] );
 	if ( ! empty( $pub['map'] ) ) {
 		$out .= '<section class="sn-workflow-map"><ul class="sn-workflow-map__list">';
 		foreach ( $pub['map'] as $row ) {
@@ -103,10 +96,15 @@ function sn_workflow_page_html( $pub ) {
 		}
 		$out .= '</ol></section>';
 	}
-	if ( '' === $out ) {
+	if ( '' === $out && '' === $pub['title'] && '' === $pub['dek'] ) {
 		return '';
 	}
-	return "<!-- wp:html -->\n<div class=\"sn-workflow-page\">" . $out . "</div>\n<!-- /wp:html -->";
+	// A published page always opens with its h1: the template has no title
+	// block, so without one the first heading would be a section's h2. The
+	// same fallback the Page title uses.
+	$hero = '<header class="sn-workflow-hero"><h1 class="sn-workflow-title">' . sn_workflow_esc( '' !== $pub['title'] ? $pub['title'] : 'Workflow' ) . '</h1>'
+		. ( '' !== $pub['dek'] ? '<p class="sn-workflow-dek">' . sn_workflow_esc( $pub['dek'] ) . '</p>' : '' ) . '</header>';
+	return "<!-- wp:html -->\n<div class=\"sn-workflow-page\">" . $hero . $out . "</div>\n<!-- /wp:html -->";
 }
 
 
@@ -175,7 +173,9 @@ function sn_workflow_sync_page() {
 	}
 	$page = get_page_by_path( SN_WORKFLOW_SLUG );
 	if ( $page && 'publish' === ( $page->post_status ?? '' ) ) {
-		wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_status' => 'draft' ) ) );
+		// The draft keeps no rows: the wall's rule is that a hidden row is not
+		// in the Page at all, published or not.
+		wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_status' => 'draft', 'post_content' => '' ) ) );
 		update_option( SN_WORKFLOW_WITHDRAWN_OPT, 1, false );
 		return 'withdrawn';
 	}
