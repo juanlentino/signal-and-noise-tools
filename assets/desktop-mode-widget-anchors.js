@@ -264,7 +264,8 @@
 				wrap.appendChild( box );
 			}
 
-			if ( readers && overview ) {
+			// The readers are their own read: they paint beside an anchor error too.
+			if ( readers ) {
 				wrap.appendChild( readersBox( readers ) );
 			}
 
@@ -334,19 +335,23 @@
 			}
 			archive = null; // a refresh whose archive read fails must not keep the last reading
 			readers = null;
+			// The last anchor answer (or its error), so a reader answer that lands
+			// later repaints with it rather than without it.
+			var shown = { overview: null, note: note };
+			if ( window.wp && window.wp.apiFetch ) {
+				window.wp.apiFetch( { path: '/signal-noise/v1/desktop/machine-readers' } ).then( function( res ) {
+					if ( res && typeof res === 'object' ) {
+						readers = res;
+						render( shown.overview, shown.note );
+					}
+				} ).catch( function() {
+					readers = { ok: false, error: 'unreachable' };
+					render( shown.overview, shown.note );
+				} );
+			}
 			window.sntAbilityRun( 'anchor-status', {}, { silent: true } ).then( function( overview ) {
+				shown.overview = overview;
 				render( overview, note );
-				if ( window.wp && window.wp.apiFetch ) {
-					window.wp.apiFetch( { path: '/signal-noise/v1/desktop/machine-readers' } ).then( function( res ) {
-						if ( res && typeof res === 'object' ) {
-							readers = res;
-							render( overview, note );
-						}
-					} ).catch( function() {
-						readers = { ok: false, error: 'unreachable' };
-						render( overview, note );
-					} );
-				}
 				window.sntAbilityRun( 'archive-status', {}, { silent: true } ).then( function( res ) {
 					if ( res && res.ok ) {
 						archive = res;
@@ -354,7 +359,8 @@
 					}
 				} ).catch( function() {} );
 			} ).catch( function( err ) {
-				render( null, ( err && err.message ) || 'Could not load anchor status.' );
+				shown.note = ( err && err.message ) || 'Could not load anchor status.';
+				render( null, shown.note );
 			} );
 		}
 

@@ -143,7 +143,8 @@
 		if ( upN !== mons.length ) {
 			mons.forEach( function( m ) {
 				var level = String( m.level || 'unknown' );
-				if ( 'alert' === level ) { tally.down++; } else if ( 'ok' !== level ) { tally.look++; }
+				if ( 'ok' === level ) { return; } // the count above already says how many are up
+				if ( 'alert' === level ) { tally.down++; } else { tally.look++; }
 				rows.push( { label: String( m.name || 'monitor' ), value: LEVEL_TEXT[ level ] || 'Unknown', tone: 'ok' === level ? OK_FG : ( 'alert' === level ? DANGER_FG : WARN_FG ) } );
 			} );
 		}
@@ -300,9 +301,10 @@
 		btn.addEventListener( 'click', function() {
 			if ( btn.getAttribute( 'aria-busy' ) === 'true' ) { return; }
 			if ( typeof window.sntAbilityRun !== 'function' ) { toast( 'sntAbilityRun unavailable', false ); return; }
+			// Busy before the dialog: a second click while it is open must not open another.
+			btn.setAttribute( 'aria-busy', 'true' );
 			confirmAction( 'Remove the wp_template, wp_template_part and wp_navigation rows from the database, so the theme files are what renders?' ).then( function( yes ) {
-				if ( ! yes || torn ) { return; }
-				btn.setAttribute( 'aria-busy', 'true' );
+				if ( ! yes || torn ) { btn.removeAttribute( 'aria-busy' ); return; }
 				btn.textContent   = 'Clearing…';
 				btn.style.opacity = '0.55';
 				return window.sntAbilityRun( 'clear-template-overrides' ).then( function( res ) {

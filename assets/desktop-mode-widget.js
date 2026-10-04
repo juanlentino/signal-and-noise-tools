@@ -301,6 +301,7 @@
 		var torn = false;
 		var timer = null;
 		var pending = false;
+		var again = false; // a forced check landed while a poll was in flight
 		var nextAt = 0;
 		var lastAt = 0;
 		var lastDelay = REFRESH_MS;
@@ -312,7 +313,10 @@
 		// sits outside it, so a repaint never drops its focus or its busy state.
 		var region = el( 'div' );
 		container.appendChild( region );
-		container.appendChild( checkButton( function() { return torn; }, function() { window.clearTimeout( timer ); refresh(); } ) );
+		container.appendChild( checkButton( function() { return torn; }, function() {
+			window.clearTimeout( timer );
+			if ( pending ) { again = true; } else { refresh(); }
+		} ) );
 		renderLoading( region );
 
 		function refresh() {
@@ -360,6 +364,12 @@
 				lastAt = Date.now();
 				lastDelay = delay;
 				arm();
+				// The poll in flight may predate the forced check: read once more.
+				if ( again && ! torn ) {
+					again = false;
+					window.clearTimeout( timer );
+					refresh();
+				}
 			} );
 		}
 
