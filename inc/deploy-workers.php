@@ -621,6 +621,12 @@ function snt_deploy_workers_status( $opts = array() ) {
 
 /** Cron: probe every cold worker with a full budget (never in a page load). */
 function snt_deploy_workers_warm_cb() {
+	// Every warm probes, whatever the cache says: a cache still valid at the
+	// warm would skip it and leave a fresh deploy unread for another cycle.
+	// The cache is for page loads between warms, not for the warm itself.
+	foreach ( array_keys( snt_deploy_workers_registry() ) as $id ) {
+		delete_transient( 'snt_dw_live_' . preg_replace( '/[^a-z0-9_-]/i', '', (string) $id ) );
+	}
 	snt_deploy_workers_status( array( 'probe_budget' => 10 ) );
 }
 add_action( 'snt_deploy_workers_warm', 'snt_deploy_workers_warm_cb' );

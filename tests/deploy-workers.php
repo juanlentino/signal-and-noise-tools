@@ -342,6 +342,13 @@ $GLOBALS['__dw_site_transients']['snt_dw_tag_sn-remote-mcp'] = '1.13.0';
 snt_deploy_worker_status_for( 'sn-remote-mcp', array( 'allow_probe' => true ) );
 dw_assert( $calls === count( $GLOBALS['__dw_get_calls'] ), 'the early re-fetch happens at most once per five minutes, so a missing tag cannot spend the GitHub rate limit' );
 
+echo "\nGroup C3: every warm probes, even inside the cache window\n";
+$GLOBALS['__dw_transients']['snt_dw_live_sn-remote-mcp'] = array( 'ok' => true, 'live' => '1.13.0', 'commit' => 'old' );
+$GLOBALS['__dw_http'] = array( dw_http_json( 200, array( 'worker' => 'sn-remote-mcp', 'version' => '2.0.0', 'source_commit' => 'new' ) ) );
+$GLOBALS['__dw_get_calls'] = array();
+snt_deploy_workers_warm_cb();
+dw_assert( false !== strpos( (string) ( $GLOBALS['__dw_get_calls'][0]['url'] ?? '' ), '/_sn/remote-mcp/status' ) && '2.0.0' === ( $GLOBALS['__dw_transients']['snt_dw_live_sn-remote-mcp']['live'] ?? '' ), 'a warm inside the cache window still probes, so a deploy right after a probe is read on the next warm' );
+
 // ─── D: cache behavior ───────────────────────────────────────────────
 echo "\nGroup D: cache behavior\n";
 dw_reset();
