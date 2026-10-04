@@ -53,8 +53,12 @@ function sn_workflow_sample_html( array $s ) {
 		// No whitespace between <pre> and <code>: HTML drops a newline right
 		// after <pre>, and the body's own first character must survive.
 		$label = '' !== $s['title'] ? $s['title'] : 'Sample';
+		// The body is esc_html'd with double encoding ON: core's esc_html
+		// passes existing entities through, so a typed `&amp;` would render
+		// as `&` and the sample would not be verbatim.
+		$body  = htmlspecialchars( $s['body'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', true );
 		$out  .= '<pre class="sn-workflow-sample__body" tabindex="0" role="region" aria-label="' . str_replace( array( '[', ']' ), array( '&#91;', '&#93;' ), esc_attr( $label ) ) . '"><code>'
-			. sn_workflow_esc( $s['body'] ) . '</code></pre>';
+			. str_replace( array( '[', ']' ), array( '&#91;', '&#93;' ), $body ) . '</code></pre>';
 	}
 	if ( '' !== $s['outcome'] ) {
 		$out .= '<p class="sn-workflow-sample__outcome">' . sn_workflow_esc( $s['outcome'] ) . '</p>';
