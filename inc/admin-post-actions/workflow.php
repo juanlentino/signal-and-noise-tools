@@ -35,5 +35,8 @@ function sn_handle_workflow_save( $post ) {
 	if ( 'withdrawn' === $result ) {
 		return 'workflow_withdrawn';
 	}
+	if ( 'offline' === $result ) {
+		return 'workflow_offline';
+	}
 	return 'failed' === $result ? 'workflow_failed' : 'workflow_nothing';
 }

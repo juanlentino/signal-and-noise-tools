@@ -40,10 +40,14 @@ function wp_insert_post( $a, $e = false ) {
 }
 function wp_update_post( $a, $e = false ) {
 	$a = wp_unslash( $a );
+	if ( ! empty( $GLOBALS['__upd_fail'] ) ) { return 0; }
 	$GLOBALS['__upd'][] = $a;
 	foreach ( $a as $k => $v ) { $GLOBALS['__page']->$k = $v; }
 	return $a['ID'];
 }
+function get_post_status( $id ) { return $GLOBALS['__page']->post_status ?? false; }
+function update_post_meta( $id, $k, $v ) { $GLOBALS['__meta'][ $k ] = $v; return true; }
+function delete_post_meta( $id, $k ) { unset( $GLOBALS['__meta'][ $k ] ); return true; }
 function do_action() {}
 if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $x ) { return false; } }
 function home_url( $p = '' ) { return 'https://example.test' . $p; }
@@ -167,6 +171,24 @@ ok( false !== strpos( $named, 'aria-labelledby="sn-workflow-sample-title"' ) && 
 
 echo "\nGroup: the write guard knows /workflow\n";
 ok( false === snt_generated_page_guard( 'workflow', '<div>no wrapper</div>' ), 'a body without sn-workflow-page is refused' );
+
+echo "\nGroup: Codex round on 49c0de6\n";
+wf_reset();
+sn_handle_workflow_save( array( 'workflow' => array( 'dek' => 'Owner dek', 'map' => array( array( 'title' => 'A', 'line' => 'x', 'show' => '1' ) ) ) ) );
+ok( 'Owner dek' === ( $GLOBALS['__meta']['_sn_meta_description'] ?? '' ), 'the Dek is written to the meta-description override, so AI prepop leaves it alone' );
+sn_handle_workflow_save( array( 'workflow' => array( 'dek' => '', 'map' => array( array( 'title' => 'A', 'line' => 'x', 'show' => '1' ) ) ) ) );
+ok( ! isset( $GLOBALS['__meta']['_sn_meta_description'] ), 'an emptied Dek clears the override' );
+$GLOBALS['__page']->post_status = 'draft';
+ok( 'workflow_offline' === sn_handle_workflow_save( array( 'workflow' => array( 'title' => 'Hand draft' ) ) ) && 'draft' === $GLOBALS['__page']->post_status, 'saving into a draft the owner set reports offline, not live' );
+$GLOBALS['__page']->post_status = 'publish';
+sn_handle_workflow_save( array( 'workflow' => array( 'map' => array( array( 'title' => 'A', 'line' => 'x' ) ) ) ) );
+$GLOBALS['__page']->post_status = 'private';
+sn_handle_workflow_save( array( 'workflow' => array( 'title' => 'Back' ) ) );
+ok( 'private' === $GLOBALS['__page']->post_status, 'private set by hand after a withdrawal survives the next save with content' );
+$GLOBALS['__page']->post_status = 'publish';
+$GLOBALS['__upd_fail'] = true;
+ok( 'workflow_failed' === sn_handle_workflow_save( array( 'workflow' => array( 'map' => array( array( 'title' => 'A', 'line' => 'x' ) ) ) ) ) && ! get_option( SN_WORKFLOW_WITHDRAWN_OPT ), 'a withdrawal whose write fails reports failed, not withdrawn' );
+$GLOBALS['__upd_fail'] = false;
 
 echo "\nGroup: the sample renders Label, Title, Intro, Outcome, Body\n";
 $ord = sn_workflow_sample_html( array( 'label' => 'L', 'title' => 'T', 'intro' => 'I', 'outcome' => 'O', 'body' => 'B' ) );

@@ -138,15 +138,17 @@ function sn_workflow_upsert_page( $body, array $pub ) {
 	);
 	$page = get_page_by_path( SN_WORKFLOW_SLUG );
 	if ( $page ) {
-		// Back to publish only if it was published or this module withdrew
-		// it. A status the owner chose by hand (draft, private) is kept.
+		// Back to publish only if it was published or is still the draft this
+		// module withdrew it to. A status the owner chose by hand (draft,
+		// private, even after a withdrawal) is kept.
 		$was    = (string) ( $page->post_status ?? '' );
-		$status = 'publish' === $was || get_option( SN_WORKFLOW_WITHDRAWN_OPT ) ? 'publish' : $was;
+		$status = 'publish' === $was || ( 'draft' === $was && get_option( SN_WORKFLOW_WITHDRAWN_OPT ) ) ? 'publish' : $was;
 		$done = wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_status' => $status ) + $fields ), true );
 		if ( ! $done || is_wp_error( $done ) ) {
 			return 0;
 		}
 		delete_option( SN_WORKFLOW_WITHDRAWN_OPT );
+		sn_workflow_write_description( (int) $page->ID, $pub['dek'] );
 		return (int) $page->ID;
 	}
 	$new_id = wp_insert_post(
@@ -159,15 +161,37 @@ function sn_workflow_upsert_page( $body, array $pub ) {
 		) ),
 		false
 	);
-	return is_int( $new_id ) && $new_id > 0 ? $new_id : 0;
+	if ( ! is_int( $new_id ) || $new_id <= 0 ) {
+		return 0;
+	}
+	sn_workflow_write_description( $new_id, $pub['dek'] );
+	return $new_id;
+}
+
+/**
+ * The Dek is the page's meta description: written to the per-post override
+ * that outranks the excerpt, so AI prepopulation (which fills only an empty
+ * override) never replaces it. An empty Dek clears the override.
+ *
+ * @param int    $id  Page ID.
+ * @param string $dek Public Dek.
+ */
+function sn_workflow_write_description( $id, $dek ) {
+	if ( '' === $dek ) {
+		delete_post_meta( $id, '_sn_meta_description' );
+		return;
+	}
+	update_post_meta( $id, '_sn_meta_description', $dek );
+	delete_post_meta( $id, '_sn_autogen_meta_description' );
 }
 
 /**
  * Regenerate the /workflow Page from the stored document. When the public
  * view is empty (everything cleared, or only hidden rows remain), a Page that
  * already exists is moved to draft rather than left showing rows that are no
- * longer public: fail closed. Returns 'published', 'withdrawn', 'empty', or
- * 'failed' (the write guard or wp_insert_post refused).
+ * longer public: fail closed. Returns 'published', 'offline' (saved
+ * into a draft or private page the owner set), 'withdrawn', 'empty', or
+ * 'failed' (the write guard or a post write refused).
  *
  * @return string
  */
@@ -175,13 +199,21 @@ function sn_workflow_sync_page() {
 	$pub  = sn_workflow_public_data();
 	$body = sn_workflow_page_html( $pub );
 	if ( '' !== $body ) {
-		return sn_workflow_upsert_page( $body, $pub ) > 0 ? 'published' : 'failed';
+		$id = sn_workflow_upsert_page( $body, $pub );
+		if ( $id <= 0 ) {
+			return 'failed';
+		}
+		// A draft or private status the owner set is kept: saved, not live.
+		return 'publish' === get_post_status( $id ) ? 'published' : 'offline';
 	}
 	$page = get_page_by_path( SN_WORKFLOW_SLUG );
 	if ( $page && 'publish' === ( $page->post_status ?? '' ) ) {
 		// The draft keeps no rows: the wall's rule is that a hidden row is not
 		// in the Page at all, published or not.
-		wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_status' => 'draft', 'post_content' => '' ) ) );
+		$done = wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_status' => 'draft', 'post_content' => '' ) ), true );
+		if ( ! $done || is_wp_error( $done ) ) {
+			return 'failed';
+		}
 		update_option( SN_WORKFLOW_WITHDRAWN_OPT, 1, false );
 		return 'withdrawn';
 	}

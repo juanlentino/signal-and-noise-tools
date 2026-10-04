@@ -81,6 +81,7 @@ function sn_admin_flash_messages() {
 		'workflow_saved'            => array( 'success', 'Workflow saved: the live /workflow page renders this content.' ),
 		'workflow_resynced'         => array( 'success', 'No content changes: the live /workflow page was re-rendered anyway.' ),
 		'workflow_nothing'          => array( 'info', 'Saved. Nothing to publish yet: /workflow stays offline until a field or a shown row has content.' ),
+		'workflow_offline'          => array( 'info', 'Saved. /workflow is set to draft or private, so the page holds this content but is not public.' ),
 		'workflow_withdrawn'        => array( 'info', 'Saved. Nothing public is left, so /workflow was moved to draft and is offline.' ),
 		'workflow_failed'           => array( 'error', 'Workflow page was not published: the editor module is unavailable or the page write was refused (see the error log).' ),
 		'identity_unchanged'        => array( 'info', 'No changes to save.' ),
