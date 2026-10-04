@@ -54,7 +54,12 @@ ok( 1 === preg_match_all( '/ checked[ =>]/', $kit ) && 1 === preg_match_all( '/ 
 ok( 1 === preg_match( '/name="workflow\[map\]\[0\]\[show\]"[^>]*checked/', $kit ) && 1 === preg_match( '/name="workflow\[map\]\[0\]\[show\]"[^>]*checked/', $classic ), '...and it is row 0' );
 ok( false !== strpos( $kit, 'value="  &lt;b&gt;x&lt;/b&gt;' ) && false !== strpos( $classic, "&lt;b&gt;x&lt;/b&gt;\n\tindent\n</textarea>" ), 'the body is escaped and keeps its whitespace in both editors' );
 ok( false !== strpos( $classic, "class=\"large-text code\">\n  &lt;b&gt;" ), 'the classic body textarea is monospace and protects a leading newline' );
-ok( false === strpos( $kit, 'data-rsm' ), 'no JS-template plumbing in the kit markup' );
+preg_match_all( '/<os-repeater [^>]*>/', $kit, $reps );
+ok( 2 === count( $reps[0] ) && 2 === count( preg_grep( '/ reorderable /', $reps[0] ) ) && 2 === count( preg_grep( '/ os-prop-keys="/', $reps[0] ) ), 'Map and Rules are each a reorderable <os-repeater> with its keys, as on Resume' );
+ok( 1 === preg_match( '#<os-repeater [^>]*os-key="workflow\[map\]"[^>]*>.*?<template data-rsm-tpl data-rsm-token="__M__">.*?name="workflow\[map\]\[__M__\]\[title\]".*?</template></os-repeater>#s', $kit ) && 1 === preg_match( '#<template data-rsm-tpl data-rsm-token="__R__">.*?name="workflow\[rules\]\[__R__\]\[rule\]"#s', $kit ), 'each repeater carries the classic row template under its token, which resume-admin.js clones on Add' );
+ok( false !== strpos( $kit, 'slot="row-0"' ) && false !== strpos( $kit, 'slot="row-1"' ) && false !== strpos( $kit, 'add-label="+ Add map step"' ) && false !== strpos( $kit, 'add-label="+ Add rule"' ), 'stored rows are slotted by index and each list has its Add button' );
+$live = preg_replace( '#<template\b.*?</template>#s', '', $kit );
+ok( false === strpos( $live, '[__M__]' ) && false === strpos( $live, '[__R__]' ), 'no blank row posts outside its template: an empty form adds nothing' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

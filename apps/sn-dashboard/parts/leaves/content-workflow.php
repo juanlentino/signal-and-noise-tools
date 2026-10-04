@@ -4,10 +4,12 @@
  *
  * The native twin of inc/admin-forms/workflow-page.php: the same
  * `workflow[...]` names in the same order and the same action
- * (workflow_save, sn_handle_workflow_save()). Laid out like Now and Uses:
- * every field sits in a compact card, cards pair two-up, and each list ends
- * in one blank spare card under the classic template's token (`__M__`,
- * `__R__`); a blank row is pruned at save. The "Show on page" checkbox posts
+ * (workflow_save, sn_handle_workflow_save()). The page fields sit in compact
+ * cards paired two-up, as on Now and Uses. Map and Rules are Resume's
+ * repeater (resume_list(), content-resume-parts.php): an <os-repeater> with
+ * Add, Remove and reorder, the classic <template> (`__M__`, `__R__`) inert
+ * inside it, driven by assets/resume-admin.js; the form posts rows in screen
+ * order and sn_workflow_normalize() reindexes them. The "Show on page" checkbox posts
  * nothing when unchecked, and absent means hidden (sn_workflow_normalize()),
  * so a new row is hidden until checked.
  *
@@ -21,42 +23,32 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/content-cards-parts.php';
+require_once __DIR__ . '/content-resume-parts.php';
 
 /** A compact card around stacked fields, the Now/Uses card. @param string $fields @return string */
 function workflow_card( $fields ) {
 	return \snt_kit_tag( 'os-card', array( 'compact' => true ), '<os-stack gap="8">' . $fields . '</os-stack>' );
 }
 
-/**
- * One map card: step, line, Show on page.
- *
- * @param string              $index Row index, or `__M__` for the spare.
- * @param array<string,mixed> $row   title, line, show.
- * @param string              $hint  Optional hint under the step field.
- * @return string
- */
-function workflow_map_card( $index, array $row, $hint = '' ) {
-	$p = 'workflow[map][' . $index . ']';
-	return workflow_card(
-		\snt_kit_field( 'text', $p . '[title]', __( 'Map step', 'signal-and-noise-tools' ), (string) ( $row['title'] ?? '' ), array( 'placeholder' => 'Drafting', 'hint' => '' !== $hint ? $hint : null ) )
-		. \snt_kit_field( 'text', $p . '[line]', __( 'Line', 'signal-and-noise-tools' ), (string) ( $row['line'] ?? '' ), array( 'placeholder' => 'One sentence on what happens here' ) )
-		. \snt_kit_field( 'checkbox', $p . '[show]', __( 'Show on page', 'signal-and-noise-tools' ), true === ( $row['show'] ?? false ) )
+/** One map row in its repeater: step, line, Show on page. @param string $prefix @param array $row {title,line,show} @return string */
+function workflow_map_row( $prefix, array $row ) {
+	return resume_card(
+		$prefix,
+		resume_pair(
+			resume_text( $prefix . '[title]', __( 'Map step', 'signal-and-noise-tools' ), $row['title'] ?? '', 'Drafting' ),
+			resume_text( $prefix . '[line]', __( 'Line', 'signal-and-noise-tools' ), $row['line'] ?? '', 'One sentence on what happens here' )
+		) . \snt_kit_field( 'checkbox', $prefix . '[show]', __( 'Show on page', 'signal-and-noise-tools' ), true === ( $row['show'] ?? false ) ),
+		true
 	);
 }
 
-/**
- * One rule card: rule, explanation.
- *
- * @param string              $index Row index, or `__R__` for the spare.
- * @param array<string,mixed> $row   rule, explanation.
- * @param string              $hint  Optional hint under the rule field.
- * @return string
- */
-function workflow_rule_card( $index, array $row, $hint = '' ) {
-	$p = 'workflow[rules][' . $index . ']';
-	return workflow_card(
-		\snt_kit_field( 'text', $p . '[rule]', __( 'Rule', 'signal-and-noise-tools' ), (string) ( $row['rule'] ?? '' ), array( 'hint' => '' !== $hint ? $hint : null ) )
-		. \snt_kit_field( 'textarea', $p . '[explanation]', __( 'Explanation', 'signal-and-noise-tools' ), (string) ( $row['explanation'] ?? '' ), array( 'rows' => 3 ) )
+/** One rule row in its repeater: rule, explanation. @param string $prefix @param array $row {rule,explanation} @return string */
+function workflow_rule_row( $prefix, array $row ) {
+	return resume_card(
+		$prefix,
+		resume_text( $prefix . '[rule]', __( 'Rule', 'signal-and-noise-tools' ), $row['rule'] ?? '' )
+		. \snt_kit_field( 'textarea', $prefix . '[explanation]', __( 'Explanation', 'signal-and-noise-tools' ), (string) ( $row['explanation'] ?? '' ), array( 'rows' => 3 ) ),
+		true
 	);
 }
 
@@ -101,16 +93,9 @@ function paint_content_workflow( array $ctx ) {
 	$doc = function_exists( 'sn_workflow_page_get' ) ? \sn_workflow_page_get() : null;
 	$doc = is_array( $doc ) ? $doc : \sn_workflow_normalize( array() );
 
-	$map = array();
-	foreach ( $doc['map'] as $i => $row ) {
-		$map[] = workflow_map_card( (string) $i, $row );
-	}
-	$map[]  = workflow_map_card( '__M__', array(), __( 'New map step: fill it in to add it, or leave it empty.', 'signal-and-noise-tools' ) );
-	$rules = array();
-	foreach ( $doc['rules'] as $i => $row ) {
-		$rules[] = workflow_rule_card( (string) $i, $row );
-	}
-	$rules[] = workflow_rule_card( '__R__', array(), __( 'New rule: fill it in to add it, or leave it empty.', 'signal-and-noise-tools' ) );
+	$ns    = __NAMESPACE__;
+	$map   = resume_list( $doc['map'], $ns . '\\workflow_map_row', 'workflow[map]', '__M__', __( '+ Add map step', 'signal-and-noise-tools' ), __( 'map step', 'signal-and-noise-tools' ) );
+	$rules = resume_list( $doc['rules'], $ns . '\\workflow_rule_row', 'workflow[rules]', '__R__', __( '+ Add rule', 'signal-and-noise-tools' ), __( 'rule', 'signal-and-noise-tools' ) );
 
 	$intro = '<p class="snt-prose">' . sprintf(
 		/* translators: %s: link to the /workflow page */
@@ -118,9 +103,11 @@ function paint_content_workflow( array $ctx ) {
 		\snt_kit_link( '/workflow', home_url( '/workflow' ) )
 	) . '</p>'
 		. '<p class="snt-hint">' . \snt_kit_esc( __( 'A map step appears on the public page only when "Show on page" is checked. Unchecked steps stay here and nowhere else.', 'signal-and-noise-tools' ) ) . '</p>'
-		. '<p class="snt-hint">' . \snt_kit_esc( __( 'The last map card and the last rule card are spares: fill one in to add a row. To remove a row, clear its fields; to reorder, move the text between cards.', 'signal-and-noise-tools' ) ) . '</p>';
+		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Add, remove and reorder map steps and rules with their buttons, or Alt+Arrow keys on a row; the page shows them in this order.', 'signal-and-noise-tools' ) ) . '</p>';
 
-	$cards = snt_pair_cards( workflow_top_cards( $doc ) ) . snt_pair_cards( $map ) . snt_pair_cards( $rules );
+	$cards = snt_pair_cards( workflow_top_cards( $doc ) )
+		. resume_section( __( 'Map', 'signal-and-noise-tools' ), '', count( $doc['map'] ), $map )
+		. resume_section( __( 'Rules', 'signal-and-noise-tools' ), '', count( $doc['rules'] ), $rules );
 	$form  = \snt_kit_form( 'workflow_save', '<os-stack gap="12">' . $cards . '</os-stack>', array( 'submit' => __( 'Save workflow page', 'signal-and-noise-tools' ) ) );
 	return \snt_kit_section( __( 'Workflow page', 'signal-and-noise-tools' ), $intro . $form );
 }

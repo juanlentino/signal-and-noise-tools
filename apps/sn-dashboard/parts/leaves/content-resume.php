@@ -26,29 +26,6 @@ require_once __DIR__ . '/content-resume-parts.php';
 require_once __DIR__ . '/content-resume-draft.php';
 
 /**
- * One collapsed section — sn_rsm_section_open(): heading, row-count badge
- * (the fold's hint), helper line, body. Closed by default, as the classic
- * `<details>`; a closed fold's fields still submit with the form.
- *
- * @param string $title Section title.
- * @param string $hint  Helper line shown when open ('' for none).
- * @param int    $count Row count for the summary (-1 = none).
- * @param string $inner Painted body.
- * @return string
- */
-function resume_section( $title, $hint, $count, $inner ) {
-	$helper = '' !== $hint ? '<p class="snt-hint">' . \snt_kit_esc( $hint ) . '</p>' : '';
-	return \snt_kit_tag(
-		'os-disclosure',
-		array(
-			'heading' => (string) $title,
-			'hint'    => $count >= 0 ? (string) (int) $count : null,
-		),
-		$helper . $inner
-	);
-}
-
-/**
  * The intro: which page this edits, and whether the form has taken it over.
  *
  * @param array $doc The document.
