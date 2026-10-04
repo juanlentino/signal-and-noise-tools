@@ -2298,6 +2298,10 @@ os-cluster > .snt-verdict-panel {
 .sn-rsm-row > textarea {
 	flex: 1;
 }
+.sn-rsm-hinted {
+	flex: 1;
+	min-width: 0;
+}
 .sn-rsm-controls {
 	display: inline-flex;
 	gap: 4px;

@@ -31,6 +31,11 @@ $GLOBALS['__page_urls'] = array(
 	'workflow' => 'https://example.com/workflow/',
 	'notes'    => 'https://example.com/notes/',
 );
+function get_page_by_path( $path ) {
+	$u = $GLOBALS['__page_urls'][ $path ] ?? '';
+	return '' === $u ? null : (object) array( 'post_status' => $GLOBALS['__page_status'][ $path ] ?? 'publish', 'url' => $u );
+}
+function get_permalink( $p ) { return $p->url; }
 function sn_maturity_index_resolve_url( $slug ) {
 	return isset( $GLOBALS['__page_urls'][ $slug ] ) ? $GLOBALS['__page_urls'][ $slug ] : '';
 }
@@ -66,6 +71,11 @@ $GLOBALS['__page_urls']['workflow'] = '';
 $nowf = call_user_func( $GLOBALS['__shortcodes']['sn_colophon'] );
 ok( false !== strpos( $nowf, '<strong>AI assistance</strong> - engineered with Claude (Anthropic) as a pair programmer</li>' ), 'with /workflow unpublished the line is plain text, never a dead link' );
 $GLOBALS['__page_urls']['workflow'] = 'https://example.com/workflow/';
+
+$GLOBALS['__page_status']['workflow'] = 'draft';
+$draftwf = call_user_func( $GLOBALS['__shortcodes']['sn_colophon'] );
+ok( false === strpos( $draftwf, 'example.com/workflow' ), 'the top-level /workflow page in draft leaves the line unlinked, whatever else shares the slug' );
+unset( $GLOBALS['__page_status']['workflow'] );
 
 echo "\nGroup: the maturity loop-closer\n";
 ok( false !== strpos( $html, 'href="https://example.com/maturity/"' ), 'trust line links the maturity index when it resolves' );

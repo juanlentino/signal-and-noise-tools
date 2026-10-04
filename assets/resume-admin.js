@@ -84,7 +84,7 @@
 		rows.forEach( function ( row, i ) {
 			var n = i + 1;
 			var set = function ( sel, label ) {
-				var b = row.querySelector( ':scope > .sn-rsm-card-head > .sn-rsm-controls > ' + sel + ', :scope > .sn-rsm-controls > ' + sel );
+				var b = row.querySelector( ':scope > .sn-rsm-card-head > .sn-rsm-controls > ' + sel + ', :scope > .sn-rsm-role-head > .sn-rsm-controls > ' + sel + ', :scope > .sn-rsm-controls > ' + sel );
 				if ( b ) {
 					b.setAttribute( 'aria-label', label );
 				}

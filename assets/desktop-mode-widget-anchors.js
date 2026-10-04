@@ -85,6 +85,7 @@
 			}
 			// The rebuild detaches whatever had focus; put it back on the button.
 			var hadFocus = !! ( document.activeElement && container.contains( document.activeElement ) );
+			var onLink   = hadFocus && 'A' === document.activeElement.tagName;
 			clearChildren( container );
 			var wrap = el( 'div', {
 				style: 'padding:14px 16px;color:inherit;font-size:13px;line-height:1.5;',
@@ -241,8 +242,9 @@
 				} );
 			} );
 			actions.appendChild( sweepBtn );
+			var link = null;
 			if ( dashboardUrl ) {
-				var link = el( 'a', {
+				link = el( 'a', {
 					style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;',
 					text:  'Open Provenance',
 					href:  dashboardUrl,
@@ -255,7 +257,7 @@
 			wrap.appendChild( actions );
 			container.appendChild( wrap );
 			if ( hadFocus ) {
-				sweepBtn.focus();
+				( onLink && link ? link : sweepBtn ).focus();
 			}
 		}
 

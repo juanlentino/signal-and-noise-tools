@@ -116,7 +116,9 @@ function sn_colophon_shortcode( $atts = array() ) {
 	$maturity_url = sn_colophon_maturity_url();
 	// /workflow is how the AI credit works in practice; linked only while it is
 	// published (the module withdraws it to draft when nothing public is left).
-	$workflow_url = function_exists( 'sn_maturity_index_resolve_url' ) ? sn_maturity_index_resolve_url( 'workflow' ) : '';
+	// By full path: a child page elsewhere with the same slug is not /workflow.
+	$wf_page      = function_exists( 'get_page_by_path' ) ? get_page_by_path( 'workflow' ) : null;
+	$workflow_url = $wf_page && 'publish' === ( $wf_page->post_status ?? '' ) ? (string) get_permalink( $wf_page ) : '';
 	$urls         = sn_colophon_urls();
 	foreach ( sn_colophon_items() as $slug => $item ) {
 		$label = esc_html( isset( $item[0] ) ? $item[0] : $slug );

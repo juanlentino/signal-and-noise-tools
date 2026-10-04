@@ -200,10 +200,11 @@
 				'background:' + ( success ? OK_BG : DANGER_BG ) + ';' +
 				'color:' + ( success ? OK_FG : DANGER_FG ) + ';' +
 				'border:1px solid ' + ( success ? OK_LINE : DANGER_LINE ) + ';',
-			text:      message,
 		} );
+		// A status region announces a change, so it is attached empty and filled after.
 		t.setAttribute( 'role', 'status' );
 		widget.appendChild( t );
+		t.textContent = message;
 
 		// Tracked so teardown can reap it — an untracked timeout outliving the
 		// widget touches a detached node (harmless) but keeps the closure

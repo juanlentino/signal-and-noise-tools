@@ -45,9 +45,12 @@ function sn_rsm_controls() {
 /** One labelled text input. @param string $name @param string $value @param string $label @param string $ph */
 function sn_rsm_input( $name, $value, $label, $ph = '', $hint = '' ) {
 	$hid = '' !== $hint ? sn_rsm_hint_id( $name ) : '';
-	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">' . esc_html( $label ) . '</span>'
+	// A hinted field and its hint share one wrapper, so in a flex row head
+	// the hint sits under the input instead of beside it.
+	echo ( '' !== $hid ? '<div class="sn-rsm-hinted">' : '' )
+		. '<label class="sn-rsm-field"><span class="sn-rsm-label">' . esc_html( $label ) . '</span>'
 		. '<input type="text" class="regular-text" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" placeholder="' . esc_attr( $ph ) . '"' . ( '' !== $hid ? ' aria-describedby="' . esc_attr( $hid ) . '"' : '' ) . '></label>'
-		. ( '' !== $hid ? '<p class="sn-field-helper" id="' . esc_attr( $hid ) . '">' . esc_html( $hint ) . '</p>' : '' );
+		. ( '' !== $hid ? '<p class="sn-field-helper" id="' . esc_attr( $hid ) . '">' . esc_html( $hint ) . '</p></div>' : '' );
 }
 
 /**

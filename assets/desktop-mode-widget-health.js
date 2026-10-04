@@ -177,7 +177,7 @@
 		if ( summary.advisory_total > 0 ) {
 			// The reason is visible text, not a title only a mouse can reach.
 			wrap.appendChild( el( 'div', {
-				text:  summary.advisory_total + ' advisories (not faults): external links and link opportunities always carry findings; they are informational.',
+				text:  summary.advisory_total + ' advisories (not faults): informational checks that carry findings by nature, never problems.',
 				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.45));margin-top:6px;'
 			} ) );
 		}
