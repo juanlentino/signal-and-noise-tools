@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **A claim shown to nobody can be forgotten.** Integrity › Citations kept every webmention claim forever, so a test claim (an `example.com` page that never linked here) sat in the list with no way out. Under the table, on the classic page and the native leaf alike, one small form now lists the claims in the two tiers the site shows to nobody (asserted, unverified) and removes the chosen one. A citation the site displays (verified, unattributed) is never offered, and the handler reads the tier from the stored row, not from the form, so a crafted request cannot remove one either. If the source sends its webmention again, it is a new claim.
+
 ## [21.4.0] - 2026-10-04 — the reads follow a verified dataset, and a capture is confirmed
 
 ### Added

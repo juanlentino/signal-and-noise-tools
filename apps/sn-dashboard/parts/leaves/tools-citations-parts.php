@@ -100,3 +100,30 @@ function citations_table( array $rows ) {
 	}
 	return $out;
 }
+
+/**
+ * One small form: forget a claim that is shown to nobody (classic twin in
+ * `sn_admin_render_citations_section()`). '' when no listed claim qualifies.
+ *
+ * @param array<int,object> $rows The listed claims.
+ * @return string
+ */
+function citations_forget_form( array $rows ) {
+	unset( $rows ); // the form reads every forgettable claim, not only the listed 100.
+	$options = function_exists( 'sn_cit_forgettable_all' ) ? \sn_cit_forgettable_all() : array();
+	if ( array() === $options ) {
+		return '';
+	}
+	$opts = array();
+	foreach ( $options as $id => $label ) {
+		$opts[ (string) $id ] = $label;
+	}
+	$inner = \snt_kit_field( 'select', 'claim', __( 'Forget a claim', 'signal-and-noise-tools' ), (string) array_key_first( $opts ), array( 'options' => $opts ) )
+		. \snt_kit_field( 'hidden', 'action', '', \snt_kit_hook_action( 'citation_forget' ) )
+		. \snt_kit_field( 'hidden', '_wpnonce', '', \snt_kit_nonce( 'citation_forget' ) );
+	return \snt_kit_tag(
+		'os-form',
+		array( 'class' => 'snt-form', 'os-action' => 'post', 'submit-label' => __( 'Forget this claim', 'signal-and-noise-tools' ), 'show-reset' => 'false', 'os-confirm' => __( 'The claim is deleted. If the source sends its webmention again, it is recorded as a new claim.', 'signal-and-noise-tools' ), 'os-confirm-title' => __( 'Forget this claim?', 'signal-and-noise-tools' ), 'os-confirm-label' => __( 'Forget', 'signal-and-noise-tools' ), 'os-confirm-danger' => true ),
+		$inner
+	) . '<p class="snt-hint">' . \snt_kit_esc( __( 'Only claims shown to nobody can be forgotten. If the source sends its webmention again, it is a new claim.', 'signal-and-noise-tools' ) ) . '</p>';
+}

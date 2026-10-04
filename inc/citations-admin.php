@@ -255,5 +255,18 @@ function sn_admin_render_citations_section() {
 	if ( 100 === count( $rows ) ) {
 		echo '<p class="description">' . esc_html__( 'The newest 100 claims are listed.', 'signal-and-noise-tools' ) . '</p>';
 	}
+	// One small form: forget a claim that is shown to nobody (a test, a link
+	// that never existed). A citation the site displays is not offered.
+	$forgettable = sn_cit_forgettable_all();
+	if ( $forgettable && function_exists( 'sn_admin_post_url' ) ) {
+		echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'citation_forget' ) ) . '">';
+		echo '<input type="hidden" name="action" value="sn_citation_forget" />';
+		echo '<p><label>' . esc_html__( 'Forget a claim', 'signal-and-noise-tools' ) . ' <select name="claim">';
+		foreach ( $forgettable as $id => $label ) {
+			echo '<option value="' . esc_attr( (string) $id ) . '">' . esc_html( $label ) . '</option>';
+		}
+		echo '</select></label> <button type="submit" class="button" data-snt-confirm="' . esc_attr__( 'The claim is deleted. If the source sends its webmention again, it is recorded as a new claim.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Forget this claim?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Forget', 'signal-and-noise-tools' ) . '">' . esc_html__( 'Forget this claim', 'signal-and-noise-tools' ) . '</button></p></form>';
+		echo '<p class="sn-field-helper">' . esc_html__( 'Only claims shown to nobody can be forgotten. If the source sends its webmention again, it is a new claim.', 'signal-and-noise-tools' ) . '</p>';
+	}
 	echo '</div>';
 }

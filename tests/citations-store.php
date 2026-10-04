@@ -53,6 +53,7 @@ class Test_WPDB {
 	public function get_var( $s ) { $this->queries[] = $s; return $this->var; }
 	public function get_results( $s, $o = 'OBJECT' ) { $this->queries[] = $s; return $this->rows; }
 	public function get_charset_collate() { return ''; }
+
 }
 $GLOBALS['wpdb'] = new Test_WPDB();
 
@@ -192,6 +193,20 @@ $counts = sn_cit_counts();
 foreach ( SN_CIT_TIERS as $tier ) { ok( array_key_exists( $tier, $counts ), "the readout names the $tier tier even at zero" ); }
 ok( $counts['verified'] === 3 && $counts['asserted'] === 0, 'measured tiers carry their count; unmeasured ones read an explicit 0' );
 ok( $counts['never_checked'] === 5, 'never_checked is reported SEPARATELY from any tier' );
+
+// ── forgetting a claim shown to nobody ───────────────────────────────────────
+$mk   = static fn( $id, $tier, $src ) => (object) array( 'id' => $id, 'tier' => $tier, 'source_url' => $src, 'target_url' => 'https://juanlentino.com/notes/x/' );
+$list = sn_cit_forgettable( array( $mk( 1, 'verified', 'https://a.example/p' ), $mk( 2, 'unattributed', 'https://b.example/p' ), $mk( 3, 'asserted', 'https://example.com/test' ), $mk( 4, 'unverified', 'https://example.com/other' ), $mk( 0, 'asserted', 'https://noid.example/' ) ) );
+ok( array( 3 => 'example.com/test, cites /notes/x/ (asserted)', 4 => 'example.com/other, cites /notes/x/ (unverified)' ) === $list, 'only the tiers shown to nobody are offered, and two pages of one host read apart' );
+reset_db();
+$GLOBALS['wpdb']->rows = array( $mk( 9, 'asserted', 'https://old.example/z' ) );
+ok( array( 9 => 'old.example/z, cites /notes/x/ (asserted)' ) === sn_cit_forgettable_all() && false !== strpos( end( $GLOBALS['wpdb']->queries ), "WHERE tier IN ('asserted', 'unverified')" ) && false === strpos( end( $GLOBALS['wpdb']->queries ), 'LIMIT 100' ), 'the form has its own read of the forgettable tiers, not the 100 listed rows' );
+reset_db();
+sn_cit_forget( 3 );
+ok( "DELETE FROM " . sn_cit_table() . " WHERE id = 3 AND tier IN ('asserted', 'unverified')" === end( $GLOBALS['wpdb']->queries ), 'the tier is in the DELETE itself, so a claim promoted a moment earlier is not removed' );
+ok( false === sn_cit_forget( 3 ), 'no row deleted reads false' );
+require __DIR__ . '/../inc/admin-post-actions/citations.php';
+ok( 'citation_forget_none' === sn_handle_citation_forget( array( 'claim' => '3' ) ) && 'citation_forget_none' === sn_handle_citation_forget( array() ) && 'citation_forget_none' === sn_handle_citation_forget( array( 'claim' => 'x' ) ), 'the handler answers with its flash code; nothing deleted, no claim or a non-number removes nothing' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -68,6 +68,8 @@ function sn_admin_flash_messages() {
 		'archive_existing_nothing'      => array( 'info', 'Nothing to push: every published note already has a push on record.' ),
 		'archive_existing_unconfigured' => array( 'error', 'Nothing started: add SN_ARCHIVE_ACCESS_KEY and SN_ARCHIVE_SECRET_KEY to wp-config first.' ),
 		'archive_existing_unscheduled'  => array( 'error', 'Nothing started: the first push could not be scheduled. Try again.' ),
+		'citation_forgotten'        => array( 'success', 'Forgotten. If the source sends its webmention again, it is a new claim.' ),
+		'citation_forget_none'      => array( 'info', 'Nothing removed: that claim is gone already, or it is one the site displays.' ),
 		'resume_no_prev'            => array( 'info', 'There is no earlier version to revert to.' ),
 		'resume_reverted'           => array( 'success', 'Reverted: the previous version is live again. Revert once more to undo.' ),
 		'resume_reverted_pdf_failed' => array( 'error', 'Reverted: the previous version is live again, but the PDF could not be rebuilt. Generate PDF to retry.' ),

@@ -98,7 +98,8 @@ function paint_tools_citations( array $ctx ) {
 		. '<p class="snt-prose">' . \snt_kit_esc( __( 'A webmention is a claim that someone cited you. Each claim is re-fetched and sorted by what can be checked: verified and unattributed citations appear on the site; a claim whose link has gone, or that could not be reached, is kept here and shown to nobody else.', 'signal-and-noise-tools' ) ) . '</p>'
 		. '<p class="snt-prose">' . \snt_kit_esc( __( 'Inbox:', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( function_exists( 'sn_cit_endpoint_url' ) ? sn_cit_endpoint_url() : '', false ) . '</p>'
 		. citations_legend()
-		. citations_table( $rows );
+		. citations_table( $rows )
+		. citations_forget_form( $rows );
 	$out .= \snt_kit_section( __( 'Citations', 'signal-and-noise-tools' ), $body );
 	return $out;
 }
