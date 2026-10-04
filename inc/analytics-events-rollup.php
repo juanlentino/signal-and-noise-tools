@@ -32,6 +32,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
+
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
 
 require_once __DIR__ . '/analytics-derive.php'; // sn_analytics_rollup_day_exprs()
@@ -52,13 +54,14 @@ const SN_ANALYTICS_EVENTS_ROLLUP_PROP_CAP = 200; // top (property,value) per day
 function sn_analytics_events_rollup_sql( $days, $tz = '' ) {
 	$days = max( 1, (int) $days );
 	list( $day_col, $lower ) = sn_analytics_rollup_day_exprs( $days, $tz );
+	$source = sn_analytics_source( sn_analytics_trailing_from( $days ), 'events' );
 
 	return implode( ' ', array(
 		"SELECT {$day_col} AS day,",
-		'blob16 AS name,',
+		sn_analytics_col( 'blob16', $source ) . ' AS name,',
 		'sum(_sample_interval) AS events,',
 		'count(DISTINCT index1) AS visitors',
-		'FROM ' . SN_ANALYTICS_DATASET,
+		'FROM ' . $source,
 		"WHERE blob1 = 'ce' AND " . sn_analytics_class_where( 'human' ) . " AND timestamp >= {$lower}" . sn_analytics_window_upper( $tz ),
 		'GROUP BY day, name',
 		'ORDER BY day DESC, events DESC',
@@ -76,14 +79,15 @@ function sn_analytics_events_rollup_sql( $days, $tz = '' ) {
 function sn_analytics_event_props_rollup_sql( $days, $tz = '' ) {
 	$days = max( 1, (int) $days );
 	list( $day_col, $lower ) = sn_analytics_rollup_day_exprs( $days, $tz );
+	$source = sn_analytics_source( sn_analytics_trailing_from( $days ), 'events' );
 
 	return implode( ' ', array(
 		"SELECT {$day_col} AS day,",
-		'blob17 AS property,',
-		'blob18 AS value,',
+		sn_analytics_col( 'blob17', $source ) . ' AS property,',
+		sn_analytics_col( 'blob18', $source ) . ' AS value,',
 		'sum(_sample_interval) AS events,',
 		'count(DISTINCT index1) AS visitors',
-		'FROM ' . SN_ANALYTICS_DATASET,
+		'FROM ' . $source,
 		"WHERE blob1 = 'cp' AND " . sn_analytics_class_where( 'human' ) . " AND timestamp >= {$lower}" . sn_analytics_window_upper( $tz ),
 		'GROUP BY day, property, value',
 		'ORDER BY day DESC, events DESC',

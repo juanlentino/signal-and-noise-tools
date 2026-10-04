@@ -15,6 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
+
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
 
 /** Hosts that count as research destinations; a subdomain matches its parent. */
@@ -71,11 +73,14 @@ function snt_nsm_research_links( $from, $to, $now ) {
 	if ( ! function_exists( 'sn_analytics_query' ) || 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from ) || 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $to ) ) {
 		return null;
 	}
-	$dataset = defined( 'SN_ANALYTICS_DATASET' ) ? SN_ANALYTICS_DATASET : 'sn_pageviews';
+	// Property rows: the events dataset in the second generation, where the
+	// name, property and value sit one column later (sn_analytics_col()).
+	$dataset = sn_analytics_source( (string) $from, 'events' );
+	$c       = static fn( $col ) => sn_analytics_col( $col, $dataset );
 	$rows    = sn_analytics_query(
-		"SELECT index1 AS vid, toUnixTimestamp(timestamp) AS ts, blob18 AS host FROM {$dataset}"
+		'SELECT index1 AS vid, toUnixTimestamp(timestamp) AS ts, ' . $c( 'blob18' ) . " AS host FROM {$dataset}"
 		. " WHERE timestamp >= toDateTime('{$from} 00:00:00') AND timestamp <= toDateTime('{$to} 23:59:59')"
-		. " AND " . sn_analytics_class_where( 'human' ) . " AND blob1 = 'cp' AND blob16 = 'outbound' AND blob17 = 'host' LIMIT 10000"
+		. " AND " . sn_analytics_class_where( 'human' ) . " AND blob1 = 'cp' AND " . $c( 'blob16' ) . " = 'outbound' AND " . $c( 'blob17' ) . " = 'host' LIMIT 10000"
 	);
 	return is_array( $rows ) ? snt_nsm_research_weeks( $rows, $now )[0] : null;
 }

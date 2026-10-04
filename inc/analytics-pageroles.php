@@ -35,6 +35,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
+
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
 
 // sn_analytics_canonical_path_sql() — pure, zero WP calls, safe to require both
@@ -288,7 +290,7 @@ function sn_analytics_pageroles_rollup_sql( $days, $tz = '' ) {
 		'blob2 AS path,',
 		'sum(_sample_interval) AS views,',
 		'count(DISTINCT index1) AS visits',
-		'FROM ' . SN_ANALYTICS_DATASET,
+		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( $days ) ),
 		"WHERE blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(),
 		"AND ( blob3 = '' OR blob3 NOT IN ('{$host}','www.{$host}') )" . sn_analytics_not_internal_click_sql(),
 		"AND timestamp >= {$lower}" . sn_analytics_window_upper( $tz ),

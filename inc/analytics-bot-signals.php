@@ -19,6 +19,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
+
 require_once __DIR__ . '/analytics-network-terms.php';
 require_once __DIR__ . '/analytics-human-rule.php';
 
@@ -43,6 +45,7 @@ const SNT_BOT_SIGNAL_OPTION    = 'sn_bot_signals_last';
  */
 function sn_bot_signals_sql( $days = SNT_BOT_SIGNAL_DAYS ) {
 	$days = max( 1, min( 92, (int) $days ) );
+	$source = sn_analytics_source( sn_analytics_trailing_from( $days ) );
 	$t    = sn_analytics_network_terms();
 	$net  = sn_analytics_network_human_sql();
 	$cols = array( 'index1 AS vid' );
@@ -50,13 +53,14 @@ function sn_bot_signals_sql( $days = SNT_BOT_SIGNAL_DAYS ) {
 		$cols[] = "max(bitAnd(toUInt32(double8), {$bit})) AS {$name}";
 	}
 	$cols[] = "sum(if(blob1 = 'pv', _sample_interval, 0)) AS views";
-	$cols[] = "max(if(blob1 = 'ce' AND (blob16 = 'download' OR blob16 = 'verify' OR blob16 LIKE 'contact%'), 1, 0)) AS intent";
+	$ce     = sn_analytics_col( 'blob16', $source ); // the custom event's name.
+	$cols[] = "max(if(blob1 = 'ce' AND ({$ce} = 'download' OR {$ce} = 'verify' OR {$ce} LIKE 'contact%'), 1, 0)) AS intent";
 	$cols[] = "max(if(blob7 = 'bot', 1, 0)) AS stored_bot";
 	$cols[] = "max(if(blob7 != 'bot' AND blob8 = 'Safari' AND (blob9 = 'iOS' OR blob9 = 'macOS') AND " . sn_analytics_org_ilike_any( $t['relay'] ) . ', 1, 0)) AS relay';
 	$cols[] = "max(if(blob7 != 'bot' AND NOT ({$net}), 1, 0)) AS hosting";
 	$cols[] = "max(if(blob7 != 'bot' AND ({$net}), 1, 0)) AS human";
 	return 'SELECT ' . implode( ', ', $cols )
-		. ' FROM ' . ( defined( 'SN_ANALYTICS_DATASET' ) ? SN_ANALYTICS_DATASET : 'sn_pageviews' )
+		. ' FROM ' . $source
 		. " WHERE timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY) AND bitAnd(toUInt32(double8), " . SNT_BOT_SIGNAL_PRESENT . ') > 0'
 		. ' GROUP BY vid LIMIT ' . SNT_BOT_SIGNAL_LIMIT;
 }
@@ -69,7 +73,8 @@ function sn_bot_signals_sql( $days = SNT_BOT_SIGNAL_DAYS ) {
  */
 function sn_bot_signals_days_sql( $days = SNT_BOT_SIGNAL_DAYS ) {
 	$days = max( 1, min( 92, (int) $days ) );
-	return 'SELECT toStartOfDay(timestamp) AS day, count() AS n FROM ' . ( defined( 'SN_ANALYTICS_DATASET' ) ? SN_ANALYTICS_DATASET : 'sn_pageviews' )
+	$source = sn_analytics_source( sn_analytics_trailing_from( $days ) );
+	return 'SELECT toStartOfDay(timestamp) AS day, count() AS n FROM ' . $source
 		. " WHERE timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY) AND bitAnd(toUInt32(double8), " . SNT_BOT_SIGNAL_PRESENT . ') > 0 GROUP BY day';
 }
 

@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The analytics reads move to the second-generation datasets, each one when it safely can.** The worker writes every beacon to the old dataset and to two new ones. A daily check compares them before the rollup; once a complete day matches, a read uses the new datasets whenever its window starts on or after 2026-10-05, the first full day both hold, and the old dataset otherwise. So today's views and the live visitor count move first, the 7-day rollups about a week later, the 14-day bot-signal read after that. A mismatch sends every read back to the old dataset by itself, and a failed check changes nothing. All 21 statements were ported: the timezone column and the custom-event columns sit elsewhere in the new rows, custom events and their properties are read from the events dataset, and campaign attribution is grouped on source, medium and campaign in the query itself, no longer unpacked afterwards. No stored table changes shape and no displayed figure is dropped. One internal reading shifts: the ingest health check's "rows in the last day" no longer counts custom-event property rows once it switches, because those live only in the events dataset; it is a liveness signal and its pageview count is unchanged. `analytics-dual-write` now also returns the stored verdict the reads follow.
+
 ## [21.3.0] - 2026-10-04 — site views is the overview again
 
 ### Added

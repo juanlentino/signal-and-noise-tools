@@ -83,6 +83,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
+
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
 
 const SN_ANALYTICS_DAILY_TABLE          = 'sn_analytics_daily';
@@ -299,7 +301,7 @@ function sn_analytics_rollup_sql( $days, $tz = '' ) {
 		"sumIf(_sample_interval, blob1 = 'sc') AS scroll_events,",
 		"sumIf(double2 * _sample_interval, blob1 = 'tm') AS time_sum,",
 		"sumIf(_sample_interval, blob1 = 'tm') AS time_events",
-		'FROM ' . SN_ANALYTICS_DATASET,
+		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( $days ) ),
 		"WHERE timestamp >= {$lower}" . sn_analytics_window_upper( $tz ) . sn_analytics_overcap_where(),
 		'GROUP BY day, path, class',
 		'ORDER BY day DESC, views DESC',
@@ -333,7 +335,7 @@ function sn_analytics_rollup_gated_sql( $days, $tz = '' ) {
 		'blob2 AS path,',
 		sn_analytics_class_select() . ' AS class,',
 		'count(DISTINCT index1) AS pageview_visits',
-		'FROM ' . SN_ANALYTICS_DATASET,
+		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( $days ) ),
 		"WHERE timestamp >= {$lower}" . sn_analytics_window_upper( $tz ) . sn_analytics_overcap_where(),
 		"AND blob1 = 'pv'",
 		'GROUP BY day, path, class',
@@ -761,6 +763,7 @@ function sn_analytics_pageviews_run_rollup() {
 }
 
 add_action( SN_ANALYTICS_ROLLUP_HOOK, 'sn_analytics_run_rollup' );
+add_action( SN_ANALYTICS_ROLLUP_DAILY_HOOK, 'sn_analytics_v2_verify', 5 ); // before the rollup: compare the two dataset generations and store the verdict the reads follow.
 add_action( SN_ANALYTICS_ROLLUP_DAILY_HOOK, 'sn_analytics_run_rollup' );
 
 /**
