@@ -71,6 +71,12 @@ function snt_generated_pages_contract() {
 			'markers'      => array( 'sn-uses-page', 'sn-uses-hero' ),
 			'block_markup' => false,
 		),
+		// Every non-empty body opens with the hero and its h1 (the title has
+		// a fallback), so a body without it is malformed.
+		'workflow' => array(
+			'markers'      => array( 'sn-workflow-page', 'sn-workflow-hero' ),
+			'block_markup' => false,
+		),
 	);
 }
 
