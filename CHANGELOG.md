@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **A check that the new analytics datasets hold what the old one holds.** The analytics worker (1.24.0) writes every beacon to the legacy dataset and to two second-generation ones. `analytics-dual-write` counts rows per UTC day in all three and compares them: pageview-side events against `sn_pageviews_v2`, custom events against `sn_events_v2`, and how many new rows carry a pageview ID. A day before the first full day of the dual write reads `partial`, never `mismatch`; a failed read is reported as not read, never as a mismatch. Nothing else reads the new datasets yet: this is the test that has to pass before any read moves.
+
 ## [21.2.0] - 2026-10-04 — analytics is four desktop widgets
 
 ### Added

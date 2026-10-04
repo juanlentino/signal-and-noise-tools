@@ -127,6 +127,7 @@ function sn_mcp_allowlist() {
 		'signal-noise/jev-query-fit', // 16.5.0: the stored fit pass, same tier
 		'signal-noise/archive-status', // 21.1.0: the Internet Archive push state
 		'signal-noise/ai-models-status', // 21.1.0: where the AI model lists and prices came from
+		'signal-noise/analytics-dual-write', // the dual-write check for the second-generation analytics datasets
 		'signal-noise/jev-meter', // 16.6.0: the Jev meter, same tier
 		'signal-noise/jev-tells', // 16.7.0: the stored anti-tell pass, same tier
 		'signal-noise/jev-tags', // 16.8.0: the stored tag-fit pass, same tier
