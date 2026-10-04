@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [21.8.0] - 2026-10-04 — a Proof section on /workflow, and an accessibility pass
+
 ### Added
 - **/workflow gets a Proof section, edited on Content › Workflow.** A heading (default placeholder "Check it yourself") and a list of links to evidence a reader can check, each row a title, a link, a one-line note and "Show on page", in Resume's repeater (add, remove, reorder). It renders after the rules, each link in the row's lead line with its note beside it. A row goes public only when it is ticked, has a title, and its link is a path on this site (`/maturity/`) or an https URL; http, `javascript:`, protocol-relative and untitled rows stay off the page, and brackets in a link are encoded so no shortcode can run from it. The owner writes every word; the plugin ships no default rows. The title is the link's text, so its field hint asks for a name of where the link goes, never "here" or "link".
 
@@ -22,9 +24,4 @@ adds a bullet below. A release is a separate, deliberate act:
   - The classic wp-admin repeater (Resume and Workflow): 24px control targets (2.5.8), buttons named per row ("Remove row 3"), focus kept on a real control after add, move and remove, and each change announced. Field hints are tied to their fields with aria-describedby.
   - Two kit-side questions stay open for OpenStation: whether os-notice announces itself, and whether os-repeater names its buttons per row.
 - **The Colophon's AI credit links /workflow, and loses its hyphen.** The line now reads "engineered with Claude (Anthropic) as a pair programmer" (no hyphen, the owner's call); "pair programmer" links the /workflow page in the same tab, and only while that page is published, so a withdrawn page leaves plain text rather than a dead link. For screen-reader users browsing by links, the link carries hidden context after its visible words ("pair programmer: how I work with AI"); it is a hidden suffix, not an aria-label, so the accessible name still starts with what is on screen (WCAG 2.5.3) and voice control still finds it. Owner approved the exact line and the hidden text.
-
-## [21.7.1] - 2026-10-04 — Workflow's map and rules get Resume's repeater
-
-### Changed
-- **Content › Workflow: the page fields in cards like Now and Uses, the map and rules in Resume's repeater.** The page title and Dek sit beside the two section headings and the sample's text beside its body, in compact cards two-up. Map and Rules are each a collapsible section holding Resume's repeater: + Add map step / + Add rule, a Remove button on every row, and move handles (Alt+Arrow on a row works too), so a list of eight ordered steps no longer takes eight saves. The form posts rows in screen order and the page shows them in that order. The loose sub-headings are gone, and the field labels say which part they fill (Map step, Sample body). The classic form moves its two heading fields up beside the Dek, so both forms post the same fields in the same order. `resume_section()` moves into the shared Resume parts file, unchanged.
 
