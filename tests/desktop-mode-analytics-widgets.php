@@ -75,8 +75,8 @@ ok( 'LCP · p75 1.8s' === snt_desktop_reading_vital_row( 'LCP', $d( array( 8, 1,
 ok( null === snt_desktop_reading_vital_row( 'INP', $d( array( 0, 0, 0 ) ) ), 'a vital nobody measured is absent, not 0% good' );
 
 $au2 = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-audience.php' );
-ok( false !== strpos( $au2, "sn_analytics_top_sources( $win['from'], $win['to'], 'human', 500 )" ) && false === strpos( $au2, 'sn_analytics_referrer_categories' ), 'Sources are the named ones (Hacker News, LinkedIn), not the five categories' );
-ok( false !== strpos( $au2, "'(none)' !== (string) ( $r['value'] ?? '' )" ), 'the no-campaign bucket is not a campaign' );
+ok( false !== strpos( $au2, "sn_analytics_top_sources( \$win['from'], \$win['to'], 'human', 500 )" ) && false === strpos( $au2, 'sn_analytics_referrer_categories' ), 'Sources are the named ones (Hacker News, LinkedIn), not the five categories' );
+ok( false !== strpos( $au2, "'(none)' !== (string) ( \$r['value'] ?? '' )" ), 'the no-campaign bucket is not a campaign' );
 
 echo "\nSource pins\n";
 $rd = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-reading.php' );
