@@ -204,6 +204,14 @@ $GLOBALS['__page']->post_status = 'future';
 ok( 'workflow_withdrawn' === sn_handle_workflow_save( array( 'workflow' => array( 'map' => array( array( 'title' => 'A', 'line' => 'x' ) ) ) ) ) && 'draft' === $GLOBALS['__page']->post_status, 'a scheduled page with nothing public left goes to draft, not to an empty publish' );
 ok( false === snt_generated_page_guard( 'workflow', '<div class="sn-workflow-page"><section></section></div>' ), 'the write guard refuses a body without the hero' );
 
+echo "\nGroup: Codex round on cb6d8c1\n";
+wf_reset();
+sn_handle_workflow_save( array( 'workflow' => array( 'map' => array( array( 'title' => 'A', 'line' => 'x', 'show' => '1' ) ) ) ) );
+sn_handle_workflow_save( array( 'workflow' => array( 'map' => array( array( 'title' => 'A', 'line' => 'x' ) ) ) ) );
+$GLOBALS['__page'] = (object) array( 'ID' => 91, 'post_status' => 'draft', 'post_content' => 'owner draft' );
+sn_handle_workflow_save( array( 'workflow' => array( 'title' => 'Back' ) ) );
+ok( 'draft' === $GLOBALS['__page']->post_status, 'a different draft now at the slug is not republished by the withdrawal marker' );
+
 echo "\nGroup: the sample renders Label, Title, Intro, Outcome, Body\n";
 $ord = sn_workflow_sample_html( array( 'label' => 'L', 'title' => 'T', 'intro' => 'I', 'outcome' => 'O', 'body' => 'B' ) );
 $pos = array_map( static fn( $c ) => strpos( $ord, 'sn-workflow-sample__' . $c ), array( 'label', 'title', 'intro', 'outcome', 'body' ) );

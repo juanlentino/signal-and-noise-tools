@@ -111,7 +111,7 @@ function sn_workflow_page_html( $pub ) {
 }
 
 
-/** Set while /workflow is in draft because this module withdrew it; a later save with content republishes only then. */
+/** The ID of the page this module withdrew to draft; a later save with content republishes only that page. */
 const SN_WORKFLOW_WITHDRAWN_OPT = 'sn_workflow_withdrawn';
 
 /**
@@ -142,7 +142,7 @@ function sn_workflow_upsert_page( $body, array $pub ) {
 		// module withdrew it to. A status the owner chose by hand (draft,
 		// private, even after a withdrawal) is kept.
 		$was    = (string) ( $page->post_status ?? '' );
-		$status = 'publish' === $was || ( 'draft' === $was && get_option( SN_WORKFLOW_WITHDRAWN_OPT ) ) ? 'publish' : $was;
+		$status = 'publish' === $was || ( 'draft' === $was && (int) get_option( SN_WORKFLOW_WITHDRAWN_OPT ) === (int) $page->ID ) ? 'publish' : $was;
 		// The template is bound here too: a page already at the slug (made by
 		// hand, or re-templated since) still renders the workflow layout.
 		$done = wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_status' => $status, 'page_template' => 'page-workflow' ) + $fields ), true );
@@ -217,7 +217,7 @@ function sn_workflow_sync_page() {
 		if ( ! $done || is_wp_error( $done ) ) {
 			return 'failed';
 		}
-		update_option( SN_WORKFLOW_WITHDRAWN_OPT, 1, false );
+		update_option( SN_WORKFLOW_WITHDRAWN_OPT, (int) $page->ID, false );
 		return 'withdrawn';
 	}
 	if ( $page && '' !== (string) ( $page->post_content ?? '' ) ) {
