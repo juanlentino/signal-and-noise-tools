@@ -4,8 +4,8 @@
  * analytics datasets (analytics worker 1.24.0 and later).
  *
  * The worker writes every accepted beacon twice: the legacy `sn_pageviews`
- * row, and a row in `sn_pageviews_v2` (pv, sc, tm, vitals) or `sn_events_v2`
- * (ce, cp). Before any read moves to the new datasets, their counts have to
+ * row, a row in `sn_pageviews_v2` for everything except a property row, and
+ * a row in `sn_events_v2` for a custom event and each of its properties. Before any read moves to the new datasets, their counts have to
  * equal the legacy ones day by day. This reads all three and compares them.
  * It is the acceptance test for the cutover, and nothing else reads the new
  * datasets yet.
@@ -48,8 +48,9 @@ function sn_analytics_v2_count_sql( $dataset, $days, $pid = false ) {
  * A day before `$first_full_day` is `partial`: the worker started writing the
  * new datasets partway through it, so a shortfall there is expected and is
  * not a finding. From that day on, each side must hold exactly the legacy
- * count: pageview-side events against sn_pageviews_v2, ce and cp against
- * sn_events_v2. A day Analytics Engine sampled reads `sampled` when its
+ * count: every legacy row except `cp` against sn_pageviews_v2 (which keeps
+ * one `ce` row per custom event since worker 1.25.0), and `ce` plus `cp`
+ * against sn_events_v2. A day Analytics Engine sampled reads `sampled` when its
  * estimates differ: inconclusive, not a mismatch.
  *
  * @param array|null $legacy         Rows {day, ev, n} from the legacy dataset; null when the read failed.
@@ -75,7 +76,17 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day 
 	foreach ( $legacy as $r ) {
 		$day = (string) ( $r['day'] ?? '' );
 		$slot( $day );
-		$days[ $day ][ in_array( (string) ( $r['ev'] ?? '' ), array( 'ce', 'cp' ), true ) ? 'legacy_events' : 'legacy_pageview_side' ] += (int) round( (float) ( $r['n'] ?? 0 ) );
+		$ev = (string) ( $r['ev'] ?? '' );
+		$n  = (int) round( (float) ( $r['n'] ?? 0 ) );
+		// The pageviews dataset holds every legacy row except the property
+		// rows; the events dataset holds the custom events and their property
+		// rows. A `ce` row is therefore expected in BOTH (worker 1.25.0).
+		if ( 'cp' !== $ev ) {
+			$days[ $day ]['legacy_pageview_side'] += $n;
+		}
+		if ( 'ce' === $ev || 'cp' === $ev ) {
+			$days[ $day ]['legacy_events'] += $n;
+		}
 		$days[ $day ]['sampled'] = $days[ $day ]['sampled'] || $sampled( $r );
 	}
 	foreach ( array( 'v2_pageviews' => $pageviews, 'v2_events' => $events ) as $key => $rows ) {
@@ -136,7 +147,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/analytics-dual-write', array(
 		'label'               => 'Analytics: do the new datasets hold what the old one holds?',
-		'description'         => 'The analytics worker (1.24.0 and later) writes every beacon to the legacy dataset and to two second-generation datasets. This counts rows per UTC day in all three (three live Analytics Engine requests) and compares them: pageview-side events against sn_pageviews_v2, custom events against sn_events_v2. `state` per day: `partial` before `first_full_day` (the dual write began mid-day; a shortfall there is expected), then `match` or `mismatch`. `with_pid` is how many new rows carry a pageview ID (theme 15.3.0 and later). `read: false` means a request failed and nothing was compared (`failed` names the dataset, `error` the reason); it is NOT a mismatch. `sampled` on a day means Analytics Engine sampled and the unequal counts are estimates: inconclusive. Read this before moving any read to the new datasets. Read-only.',
+		'description'         => 'The analytics worker (1.24.0 and later) writes every beacon to the legacy dataset and to two second-generation datasets. This counts rows per UTC day in all three (three live Analytics Engine requests) and compares them: every legacy row except property rows (`cp`) against sn_pageviews_v2, and custom events with their property rows against sn_events_v2 (the base row of a custom event is in both, by design, since worker 1.25.0). `state` per day: `partial` before `first_full_day` (the dual write began mid-day; a shortfall there is expected), then `match` or `mismatch`. `with_pid` is how many new rows carry a pageview ID (theme 15.3.0 and later). `read: false` means a request failed and nothing was compared (`failed` names the dataset, `error` the reason); it is NOT a mismatch. `sampled` on a day means Analytics Engine sampled and the unequal counts are estimates: inconclusive. Read this before moving any read to the new datasets. Read-only.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_analytics_dual_write',

@@ -18,15 +18,31 @@ if ( ! defined( 'ABSPATH' ) ) {
  * page is the count of 50% milestones over PAGE VIEWS, never over events.
  *
  * @param array|null $totals sn_analytics_range_totals(): views, scroll_avg_per_view, time_avg_per_view (ms).
+ * @param array|null $engaged {rate, pts?}: the engaged share of views and its change in points; null when not read.
  * @param array      $dist   The scroll distribution, [{label, views}]: [0,25), [25,50), [50,75), 75+.
  * @return array<int,array{label:string,value:string}>
  */
-function snt_desktop_reading_page_rows( $totals, array $dist ) {
+function snt_desktop_reading_page_rows( $totals, array $dist, $engaged = null ) {
 	$views = is_array( $totals ) ? (int) ( $totals['views'] ?? 0 ) : 0;
-	if ( $views < 1 ) {
-		return array();
+	$rows  = array();
+	// Before the page-view test: a window can hold visitor-days with no page
+	// view (a feed reader), and SN Site Views no longer paints this figure.
+	if ( is_array( $totals ) && (int) ( $totals['visits'] ?? 0 ) > 0 ) {
+		$rows[] = array( 'label' => 'Visitor-days', 'value' => number_format_i18n( (int) $totals['visits'] ) ); // the figure SN Site Views called Visits.
 	}
-	$rows = array();
+	if ( $views < 1 ) {
+		return $rows;
+	}
+	if ( is_array( $engaged ) && isset( $engaged['rate'] ) ) {
+		// As SN Site Views painted it: an arrow and the change in percentage
+		// POINTS, colored only when the change is 5 points or more.
+		$pts = isset( $engaged['pts'] ) ? (int) $engaged['pts'] : 0;
+		$row = array( 'label' => 'Engaged', 'value' => (int) $engaged['rate'] . '%' . ( 0 !== $pts ? ' ' . ( $pts > 0 ? '▲' : '▼' ) . ' ' . abs( $pts ) . ' pts' : '' ) );
+		if ( abs( $pts ) >= 5 ) {
+			$row['tone'] = $pts > 0 ? 'up' : 'down';
+		}
+		$rows[] = $row;
+	}
 	$half = (int) ( array_values( $dist )[2]['views'] ?? 0 ); // [50,75) holds exactly the 50% milestone.
 	if ( 4 === count( $dist ) && $half <= $views ) {
 		$rows[] = array( 'label' => 'Views that reached half the page', 'value' => snt_desktop_pct( $half, $views ) );
@@ -62,10 +78,10 @@ function snt_desktop_reading_visit_rows( $days ) {
 		return array();
 	}
 	return array(
-		array( 'label' => 'Visits', 'value' => number_format_i18n( $n ) ),
+		array( 'label' => 'Sessions', 'value' => number_format_i18n( $n ) ),
 		array( 'label' => 'One page only', 'value' => round( $bounce / $n ) . '%' ),
-		array( 'label' => 'Pages per visit', 'value' => number_format_i18n( $ppv / $n, 2 ) ),
-		array( 'label' => 'Typical visit', 'value' => snt_desktop_reading_seconds( $dur / $n ) ),
+		array( 'label' => 'Pages per session', 'value' => number_format_i18n( $ppv / $n, 2 ) ),
+		array( 'label' => 'Typical session', 'value' => snt_desktop_reading_seconds( $dur / $n ) ),
 	);
 }
 
@@ -114,6 +130,16 @@ function snt_desktop_reading_vital_row( $name, array $dist, $pct = null ) {
 function snt_desktop_reading_groups( array $win ) {
 	$dist   = static fn( $m ) => function_exists( 'sn_analytics_distribution' ) ? (array) sn_analytics_distribution( $m, $win['from'], $win['to'], 'human' ) : array();
 	$totals = function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( $win['from'], $win['to'], 'human' ) : null;
+	// The engaged share and its change against the prior window: the row SN Site Views used to carry.
+	$engaged = null;
+	$rate    = function_exists( 'sn_analytics_engaged_rate' ) ? sn_analytics_engaged_rate( $win['from'], $win['to'], 'human' ) : null;
+	if ( null !== $rate ) {
+		$engaged = array( 'rate' => (int) $rate );
+		$d       = function_exists( 'sn_analytics_engaged_rate_delta' ) ? sn_analytics_engaged_rate_delta( $win['from'], $win['to'], 'human' ) : null;
+		if ( is_array( $d ) && isset( $d['current'], $d['previous'] ) && is_numeric( $d['current'] ) && is_numeric( $d['previous'] ) ) {
+			$engaged['pts'] = (int) $d['current'] - (int) $d['previous'];
+		}
+	}
 	$events = array();
 	foreach ( function_exists( 'sn_analytics_top_events' ) ? (array) sn_analytics_top_events( $win['from'], $win['to'], 4 ) : array() as $e ) {
 		$events[] = array( 'label' => (string) $e['name'], 'value' => number_format_i18n( (int) $e['events'] ) . ' · ' . number_format_i18n( (int) $e['visitors'] ) . ' visitor-days' ); // the rollup counts distinct visitors per day and the visitor hash rotates daily, so the sum over a window is visitor-days, not people.
@@ -134,8 +160,8 @@ function snt_desktop_reading_groups( array $win ) {
 	}
 	$visits = snt_desktop_reading_visit_rows( function_exists( 'sn_session_rollup_read' ) ? sn_session_rollup_read( $win['from'], $win['to'], 'human' ) : null );
 	return array(
-		snt_desktop_group( 'On the page', snt_desktop_reading_page_rows( $totals, $dist( 'scroll' ) ), 'No page views in this window, or the daily totals could not be read.' ), // a failed read and an empty window share one shape (views 0); the sentence claims neither.
-		snt_desktop_group( 'Visits', (array) $visits, null === $visits ? 'The visits could not be read.' : 'No visits rolled up in this window.' ),
+		snt_desktop_group( 'On the page', snt_desktop_reading_page_rows( $totals, $dist( 'scroll' ), $engaged ), 'No page views in this window, or the daily totals could not be read.' ), // a failed read and an empty window share one shape (views 0); the sentence claims neither.
+		snt_desktop_group( 'Sessions', (array) $visits, null === $visits ? 'The sessions could not be read.' : 'No sessions rolled up in this window.' ), // sessions, not Site Views' visitor-days: the heading keeps the two apart.
 		snt_desktop_group( 'Custom events · all traffic', $events, // the events rollup has no traffic class; unlike the rows above, this is not people only.
 			 'No custom events in this window.' ),
 		snt_desktop_group( 'Core Web Vitals', $vitals, 'No field measurements in this window.' ),

@@ -58,6 +58,14 @@ $some = snt_desktop_reading_page_rows( array( 'views' => 40, 'scroll_avg_per_vie
 ok( array( '25%', '38%', '3m 05s' ) === array_column( $some, 'value' ) && 'Average time per view' === $some[2]['label'], 'the depth and time are the per-view averages, labeled as averages' );
 ok( array() === snt_desktop_reading_page_rows( array( 'views' => 0 ), $d( array( 0, 0, 0, 0 ) ) ) && array() === snt_desktop_reading_page_rows( null, array() ), 'no page views gives no rows' );
 ok( 2 === count( snt_desktop_reading_page_rows( array( 'views' => 5, 'scroll_avg_per_view' => 50.0, 'time_avg_per_view' => 1000.0 ), $d( array( 0, 9, 9, 9 ) ) ) ), 'a milestone count above the views (windows that disagree) drops the reach row instead of printing over 100%' );
+ok( array( 'label' => 'Visitor-days', 'value' => '244' ) === snt_desktop_reading_page_rows( array( 'views' => 203, 'visits' => 244 ), array() )[0], 'the visitor-days figure Site Views called Visits is kept, under its real name' );
+ok( array( array( 'label' => 'Visitor-days', 'value' => '7' ) ) === snt_desktop_reading_page_rows( array( 'views' => 0, 'visits' => 7 ), array() ), 'visitor-days with no page view (feed readers) still show: the figure has no other home now' );
+$e = static fn( $rate, $pts ) => snt_desktop_reading_page_rows( array( 'views' => 10 ), array(), array( 'rate' => $rate, 'pts' => $pts ) )[0];
+ok( array( 'label' => 'Engaged', 'value' => '37% ▼ 10 pts', 'tone' => 'down' ) === $e( 37, -10 ), 'engaged, 10 points down: arrow, no sign, toned down' );
+ok( array( 'label' => 'Engaged', 'value' => '40% ▲ 5 pts', 'tone' => 'up' ) === $e( 40, 5 ), 'at the 5-point threshold: toned up' );
+ok( array( 'label' => 'Engaged', 'value' => '40% ▲ 4 pts' ) === $e( 40, 4 ), 'just under: the change is shown but not colored' );
+ok( array( 'label' => 'Engaged', 'value' => '0%' ) === snt_desktop_reading_page_rows( array( 'views' => 10 ), array(), array( 'rate' => 0 ) )[0], 'a measured 0% with no prior window is a row, without a change' );
+ok( 'Sessions' === snt_desktop_reading_visit_rows( array( array( 'visits' => 3, 'bounce_pct' => 0.0, 'ppv' => 1.0, 'median_dur' => 5 ) ) )[0]['label'], 'the unit is sessions, so it cannot be read as SN Site Views visitor-days' );
 $v = snt_desktop_reading_visit_rows( array( array( 'visits' => 30, 'bounce_pct' => 80.0, 'ppv' => 1.2, 'median_dur' => 20 ), array( 'visits' => 10, 'bounce_pct' => 40.0, 'ppv' => 2.0, 'median_dur' => 100 ) ) );
 ok( array( '40', '70%', '1.40', '40s' ) === array_column( $v, 'value' ), 'visits fold weighted by each day\'s visits, not as a plain mean of days' );
 ok( null === snt_desktop_reading_visit_rows( null ) && array() === snt_desktop_reading_visit_rows( array() ), 'a failed visits read stays null (the group says it could not be read); an empty window is an empty list' );
@@ -67,11 +75,15 @@ $p75 = static fn( $x ) => array( array( 'label' => 'p50', 'value' => 1.0 ), arra
 ok( 'LCP · p75 1.8s' === snt_desktop_reading_vital_row( 'LCP', $d( array( 8, 1, 1 ) ), $p75( 1840.0 ) )['label'] && 'INP · p75 120ms' === snt_desktop_reading_vital_row( 'INP', $d( array( 8, 1, 1 ) ), $p75( 120.0 ) )['label'] && 'CLS · p75 0.05' === snt_desktop_reading_vital_row( 'CLS', $d( array( 8, 1, 1 ) ), $p75( 50.0 ) )['label'], 'the 75th percentile reads in each vital\'s own unit: seconds, milliseconds, and CLS back from its x1000 storage' );
 ok( null === snt_desktop_reading_vital_row( 'INP', $d( array( 0, 0, 0 ) ) ), 'a vital nobody measured is absent, not 0% good' );
 
+$au2 = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-audience.php' );
+ok( false !== strpos( $au2, "sn_analytics_top_sources( \$win['from'], \$win['to'], 'human', 500 )" ) && false === strpos( $au2, 'sn_analytics_referrer_categories' ), 'Sources are the named ones (Hacker News, LinkedIn), not the five categories' );
+ok( false !== strpos( $au2, "'(none)' !== (string) ( \$r['value'] ?? '' )" ), 'the no-campaign bucket is not a campaign' );
+
 echo "\nSource pins\n";
 $rd = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-reading.php' );
 ok( false !== strpos( $rd, "'Custom events · all traffic'" ) && false === strpos( $rd, "'Goal events'" ), 'the event group is named for what the table holds: custom events, not goals' );
 ok( false !== strpos( $rd, '$ask = $ask && null !== $pct;' ) && false === strpos( $rd, "sn_analytics_percentiles( 'time'" ), 'after one percentile that cannot be read the rest are not asked; time needs no request at all' );
-ok( false !== strpos( $rd, "'The visits could not be read.'" ), 'a failed visits read has its own sentence' );
+ok( false !== strpos( $rd, "'The sessions could not be read.'" ), 'a failed sessions read has its own sentence' );
 ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-audience.php' ), "'Hacker News · latest stories'" ), 'the Hacker News group says it is not bound to the window' );
 
 echo "\nThe painter\n";
@@ -81,6 +93,8 @@ if ( '' === $node ) { echo "SKIP: node not found\n"; } else {
 	$out = $run( 'sn-audience', json_encode( array( 'window' => array( 'days' => 14 ), 'groups' => array( snt_desktop_group( 'Countries', $rows, 'x' ), snt_desktop_group( 'Hacker News', array(), 'No story links here yet.' ) ) ) ) );
 	ok( array( 'Last 14 days', 'Countries', 'US', '30 · 75%', '(unknown)', '10 · 25%', 'Hacker News', 'No story links here yet.', 'Open Analytics →' ) === $out['lines'], 'groups, rows and an empty group paint in order, then the link' );
 	ok( array( '/signal-noise/v1/desktop/audience' ) === $out['paths'] && 'function' === $out['teardown'] && true === $out['same'], 'Audience fetches its own route and returns a teardown' );
+	$tone = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-groups.js' );
+	ok( false !== strpos( $tone, "up: '#3fb950', down: '#c9503f'" ) && false !== strpos( $tone, 'TONE[ r.tone ]' ), 'the painter colors a toned row with the two Site Views colors, and nothing else' );
 	$bad = $run( 'sn-reading', 'FAIL' );
 	ok( array( '/signal-noise/v1/desktop/reading' ) === $bad['paths'] && 'Could not load this reading.' === $bad['lines'][0], 'a failed fetch says so; Reading fetches its own route' );
 }

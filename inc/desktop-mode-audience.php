@@ -83,9 +83,12 @@ function snt_desktop_audience_groups( array $win ) {
 	$out = array(
 		snt_desktop_group( 'Countries', snt_desktop_audience_rows( $dim( 'country' ), 'value', 5 ), 'No views in this window.' ),
 		snt_desktop_group( 'Devices', snt_desktop_audience_rows( $dim( 'device' ), 'value', 3 ), 'No views in this window.' ),
-		snt_desktop_group( 'Sources', snt_desktop_audience_rows( function_exists( 'sn_analytics_referrer_categories' ) ? sn_analytics_referrer_categories( $win['from'], $win['to'], 'human' ) : null, 'label', 5 ), 'No views in this window.' ),
+		// Named sources (Hacker News, LinkedIn, direct), the list SN Site Views used to carry: a name says more than a category.
+		snt_desktop_group( 'Sources', snt_desktop_audience_rows( function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $win['from'], $win['to'], 'human', 500 ) : null, 'value', 5 ), 'No views in this window.' ),
 	);
-	$camp = snt_desktop_audience_rows( function_exists( 'sn_analytics_top_utm_campaigns' ) ? sn_analytics_top_utm_campaigns( $win['from'], $win['to'], 'human', 3 ) : null, 'value', 3 );
+	// '(none)' is the rollup's bucket for a tagged link that named no campaign: not a campaign.
+	$named = array_filter( (array) ( function_exists( 'sn_analytics_top_utm_campaigns' ) ? sn_analytics_top_utm_campaigns( $win['from'], $win['to'], 'human', 25 ) : null ), static fn( $r ) => is_array( $r ) && '(none)' !== (string) ( $r['value'] ?? '' ) );
+	$camp  = snt_desktop_audience_rows( $named, 'value', 3 );
 	if ( $camp ) {
 		$out[] = snt_desktop_group( 'Campaigns', $camp, '' ); // only when a tagged link was followed.
 	}
