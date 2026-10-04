@@ -41,7 +41,7 @@ function sn_workflow_sample_html( array $s ) {
 	}
 	$out = '<section class="sn-workflow-sample">';
 	if ( '' !== $s['label'] ) {
-		$out .= '<p class="sn-workflow-sample__label">' . sn_workflow_esc( $s['label'] ) . '</p>';
+		$out .= '<p class="sn-workflow-sample__label sn-workflow-eyebrow">' . sn_workflow_esc( $s['label'] ) . '</p>';
 	}
 	if ( '' !== $s['title'] ) {
 		$out .= '<h2 class="sn-workflow-sample__title">' . sn_workflow_esc( $s['title'] ) . '</h2>';
@@ -109,6 +109,10 @@ function sn_workflow_page_html( $pub ) {
 	return "<!-- wp:html -->\n<div class=\"sn-workflow-page\">" . $out . "</div>\n<!-- /wp:html -->";
 }
 
+
+/** Set while /workflow is in draft because this module withdrew it; a later save with content republishes only then. */
+const SN_WORKFLOW_WITHDRAWN_OPT = 'sn_workflow_withdrawn';
+
 /**
  * Create-or-update the top-level /workflow Page. Title and excerpt are the
  * owner's own fields, so both are written on every sync (the excerpt is the
@@ -133,7 +137,12 @@ function sn_workflow_upsert_page( $body, array $pub ) {
 	);
 	$page = get_page_by_path( SN_WORKFLOW_SLUG );
 	if ( $page ) {
-		wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_status' => 'publish' ) + $fields ) );
+		// Back to publish only if it was published or this module withdrew
+		// it. A status the owner chose by hand (draft, private) is kept.
+		$was    = (string) ( $page->post_status ?? '' );
+		$status = 'publish' === $was || get_option( SN_WORKFLOW_WITHDRAWN_OPT ) ? 'publish' : $was;
+		wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_status' => $status ) + $fields ) );
+		delete_option( SN_WORKFLOW_WITHDRAWN_OPT );
 		return (int) $page->ID;
 	}
 	$new_id = wp_insert_post(
@@ -167,6 +176,7 @@ function sn_workflow_sync_page() {
 	$page = get_page_by_path( SN_WORKFLOW_SLUG );
 	if ( $page && 'publish' === ( $page->post_status ?? '' ) ) {
 		wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_status' => 'draft' ) ) );
+		update_option( SN_WORKFLOW_WITHDRAWN_OPT, 1, false );
 		return 'withdrawn';
 	}
 	return 'empty';

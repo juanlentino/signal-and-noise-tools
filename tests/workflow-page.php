@@ -145,6 +145,10 @@ ok( 'workflow_withdrawn' === sn_handle_workflow_save( array( 'workflow' => array
 ok( 'draft' === $GLOBALS['__page']->post_status && 2 === count( $GLOBALS['__purged'] ), '...to draft, and /workflow is purged' );
 ok( 'workflow_saved' === sn_handle_workflow_save( array( 'workflow' => array( 'title' => 'Back' ) ) ) && 'publish' === $GLOBALS['__page']->post_status, 'content again republishes the same page' );
 
+$GLOBALS['__page']->post_status = 'private';
+sn_handle_workflow_save( array( 'workflow' => array( 'title' => 'Owner set private' ) ) );
+ok( 'private' === $GLOBALS['__page']->post_status, 'a status the owner chose by hand (private) survives a save; only a page this module withdrew is republished' );
+
 echo "\nGroup: the write guard knows /workflow\n";
 ok( false === snt_generated_page_guard( 'workflow', '<div>no wrapper</div>' ), 'a body without sn-workflow-page is refused' );
 

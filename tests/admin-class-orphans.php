@@ -83,7 +83,7 @@ const SN_ORPHAN_CLASS_BASELINE = array(
 	'sn-uses-hero', 'sn-uses-item', 'sn-uses-item-name', 'sn-uses-item-note',
 	'sn-uses-meta',
 	// Unreleased (/workflow): styled by the theme's workflow.css, like sn-uses-*.
-	'sn-workflow-dek', 'sn-workflow-hero', 'sn-workflow-map', 'sn-workflow-page',
+	'sn-workflow-dek', 'sn-workflow-eyebrow', 'sn-workflow-hero', 'sn-workflow-map', 'sn-workflow-page',
 	'sn-workflow-rules', 'sn-workflow-sample', 'sn-workflow-title',
 );
 
