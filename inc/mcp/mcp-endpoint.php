@@ -107,6 +107,11 @@ function sn_mcp_dispatch_body( $body, $door = SN_MCP_DOOR_READ, $headers = array
 	if ( null === $decoded && 'null' !== trim( (string) $body ) ) {
 		return array( 'status' => 200, 'payload' => sn_mcp_error_response( null, -32700, 'Parse error' ) );
 	}
+	// Which protocol version this client announced: counted here, after the
+	// route's permission check and before either generation handles it.
+	if ( function_exists( 'sn_mcp_protocol_seen_record' ) ) {
+		sn_mcp_protocol_seen_record( $door, $headers, $decoded );
+	}
 	// Dual-era (v14.2.0): a request that carries the modern per-request
 	// metadata, or names a modern version in its header, is served
 	// statelessly by mcp-modern.php. Everything else is the handshake path

@@ -420,6 +420,11 @@ function snt_ability_sn_site_facts( $input ) {
 			$out[ $fact ] = function_exists( 'sn_mcp_telemetry_summary' )
 				? sn_mcp_telemetry_summary()
 				: array( 'error' => 'unavailable' );
+			// Which protocol version each door's clients announce: today's
+			// counts and the kept last-seen stamps (inc/mcp/mcp-protocol-seen.php).
+			if ( function_exists( 'sn_mcp_protocol_seen' ) && is_array( $out[ $fact ] ) && ! isset( $out[ $fact ]['error'] ) ) {
+				$out[ $fact ]['protocols'] = sn_mcp_protocol_seen();
+			}
 			continue;
 		}
 		if ( 'configuration_drift' === $fact ) {
