@@ -55,16 +55,17 @@ function snt_desktop_audience_hn_rows( array $items, $limit ) {
  *
  * @param array|null $google snt_gsc_window_totals().
  * @param array|null $bing   sn_bing_data().
+ * @param bool       $google_failed Whether the last scheduled Search Console sync failed.
  * @return array<int,array{label:string,value:string}>
  */
-function snt_desktop_audience_search_rows( $google, $bing ) {
+function snt_desktop_audience_search_rows( $google, $bing, $google_failed = false ) {
 	$rows = array();
-	// A failed Bing sync keeps the last good totals with the failure beside
+	// A failed sync (either engine) keeps the last good totals with the failure beside
 	// them; the row says so rather than passing an old reading off as current.
 	$stale = is_array( $bing ) && '' !== (string) ( $bing['last_error'] ?? '' ) ? ' · last sync failed' : '';
 	foreach ( array( 'Google' => $google, 'Bing' => is_array( $bing ) ? ( $bing['totals'] ?? null ) : null ) as $name => $t ) {
 		if ( is_array( $t ) && isset( $t['clicks'] ) ) {
-			$rows[] = array( 'label' => $name . ( ! empty( $t['days'] ) ? ' · ' . (int) $t['days'] . 'd' : '' ) . ( 'Bing' === $name ? $stale : '' ), 'value' => number_format_i18n( (int) $t['clicks'] ) . ' clicks · ' . number_format_i18n( (int) ( $t['impressions'] ?? 0 ) ) . ' impressions' );
+			$rows[] = array( 'label' => $name . ( ! empty( $t['days'] ) ? ' · ' . (int) $t['days'] . 'd' : '' ) . ( 'Bing' === $name ? $stale : ( $google_failed ? ' · last sync failed' : '' ) ), 'value' => number_format_i18n( (int) $t['clicks'] ) . ' clicks · ' . number_format_i18n( (int) ( $t['impressions'] ?? 0 ) ) . ' impressions' );
 		}
 	}
 	return $rows;
@@ -77,7 +78,7 @@ function snt_desktop_audience_search_rows( $google, $bing ) {
  * @return array<int,array<string,mixed>>
  */
 function snt_desktop_audience_groups( array $win ) {
-	$dim = static fn( $d ) => function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( $d, $win['from'], $win['to'], 'human', 25 ) : null;
+	$dim = static fn( $d ) => function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( $d, $win['from'], $win['to'], 'human', 500 ) : null; // every row: the shares divide by all of them, the tile shows the top few.
 	$hn  = defined( 'SN_HN_OPT' ) ? (array) get_option( SN_HN_OPT, array() ) : array();
 	$out = array(
 		snt_desktop_group( 'Countries', snt_desktop_audience_rows( $dim( 'country' ), 'value', 5 ), 'No views in this window.' ),
@@ -88,7 +89,11 @@ function snt_desktop_audience_groups( array $win ) {
 	if ( $camp ) {
 		$out[] = snt_desktop_group( 'Campaigns', $camp, '' ); // only when a tagged link was followed.
 	}
-	$out[] = snt_desktop_group( 'Hacker News · latest stories', snt_desktop_audience_hn_rows( (array) ( $hn['items'] ?? array() ), 3 ), 'No story links here yet.' );
-	$out[] = snt_desktop_group( 'Search', snt_desktop_audience_search_rows( function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null, function_exists( 'sn_bing_data' ) ? sn_bing_data() : null ), 'No search reading stored yet.' );
+	// A failed discovery read keeps the stories already known; the heading says
+	// the list may be missing new ones.
+	$out[] = snt_desktop_group( 'Hacker News · latest stories' . ( '' !== (string) ( $hn['error'] ?? '' ) ? ' · last check failed' : '' ), snt_desktop_audience_hn_rows( (array) ( $hn['items'] ?? array() ), 3 ), 'No story links here yet.' );
+	$gsc        = function_exists( 'snt_gsc_sync_last_status' ) ? snt_gsc_sync_last_status() : null;
+	$gsc_failed = is_array( $gsc ) && empty( $gsc['ok'] );
+	$out[]      = snt_desktop_group( 'Search', snt_desktop_audience_search_rows( function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null, function_exists( 'sn_bing_data' ) ? sn_bing_data() : null, $gsc_failed ), 'No search reading stored yet.' );
 	return $out;
 }

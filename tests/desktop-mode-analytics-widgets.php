@@ -43,6 +43,9 @@ ok( '14 pts · 3 comments · #7 on the front page' === $hn[0]['value'] && '2 pts
 $s = snt_desktop_audience_search_rows( array( 'clicks' => 12, 'impressions' => 3400, 'days' => 28 ), array( 'totals' => array( 'clicks' => 1, 'impressions' => 90, 'days' => 30 ) ) );
 ok( array( 'Google · 28d', 'Bing · 30d' ) === array_column( $s, 'label' ) && '12 clicks · 3,400 impressions' === $s[0]['value'], 'search rows name their own windows' );
 ok( 'Bing · 30d · last sync failed' === snt_desktop_audience_search_rows( null, array( 'last_error' => '2026-10-03 403', 'totals' => array( 'clicks' => 1, 'impressions' => 90, 'days' => 30 ) ) )[0]['label'] && 'Bing · 30d' === $s[1]['label'], 'totals kept from before a failed Bing sync are marked, not passed off as current' );
+ok( 'Google · 28d · last sync failed' === snt_desktop_audience_search_rows( array( 'clicks' => 12, 'impressions' => 3400, 'days' => 28 ), null, true )[0]['label'], 'Google totals kept from before a failed sync are marked too' );
+$au = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-audience.php' );
+ok( false !== strpos( $au, "'human', 500 )" ) && false !== strpos( $au, "' · last check failed'" ), 'shares divide by every country, and a failed Hacker News check is said on its heading' );
 ok( array() === snt_desktop_audience_search_rows( null, null ) && 1 === count( snt_desktop_audience_search_rows( null, array( 'totals' => array( 'clicks' => 0, 'impressions' => 0 ) ) ) ), 'an engine with no stored reading has no row; one that read zero has a row' );
 
 echo "\nReading\n";
@@ -66,7 +69,7 @@ ok( null === snt_desktop_reading_vital_row( 'INP', $d( array( 0, 0, 0 ) ) ), 'a 
 
 echo "\nSource pins\n";
 $rd = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-reading.php' );
-ok( false !== strpos( $rd, "'Custom events'" ) && false === strpos( $rd, "'Goal events'" ), 'the event group is named for what the table holds: custom events, not goals' );
+ok( false !== strpos( $rd, "'Custom events · all traffic'" ) && false === strpos( $rd, "'Goal events'" ), 'the event group is named for what the table holds: custom events, not goals' );
 ok( false !== strpos( $rd, '$ask = $ask && null !== $pct;' ) && false === strpos( $rd, "sn_analytics_percentiles( 'time'" ), 'after one percentile that cannot be read the rest are not asked; time needs no request at all' );
 ok( false !== strpos( $rd, "'The visits could not be read.'" ), 'a failed visits read has its own sentence' );
 ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-audience.php' ), "'Hacker News · latest stories'" ), 'the Hacker News group says it is not bound to the window' );

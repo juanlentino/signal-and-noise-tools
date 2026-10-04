@@ -166,7 +166,7 @@
 			}
 
 			if ( archiveLine && overview ) {
-				wrap.appendChild( el( 'p', { style: 'margin:8px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: 'Internet Archive: ' + archiveLine } ) );
+				wrap.appendChild( el( 'p', { style: 'margin:8px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: 'Internet Archive · ' + archiveLine } ) );
 			}
 
 			if ( note && overview ) {

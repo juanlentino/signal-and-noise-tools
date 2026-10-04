@@ -134,9 +134,10 @@ function snt_desktop_reading_groups( array $win ) {
 	}
 	$visits = snt_desktop_reading_visit_rows( function_exists( 'sn_session_rollup_read' ) ? sn_session_rollup_read( $win['from'], $win['to'], 'human' ) : null );
 	return array(
-		snt_desktop_group( 'On the page', snt_desktop_reading_page_rows( $totals, $dist( 'scroll' ) ), 'No page views in this window.' ),
+		snt_desktop_group( 'On the page', snt_desktop_reading_page_rows( $totals, $dist( 'scroll' ) ), 'No page views in this window, or the daily totals could not be read.' ), // a failed read and an empty window share one shape (views 0); the sentence claims neither.
 		snt_desktop_group( 'Visits', (array) $visits, null === $visits ? 'The visits could not be read.' : 'No visits rolled up in this window.' ),
-		snt_desktop_group( 'Custom events', $events, 'No custom events in this window.' ),
+		snt_desktop_group( 'Custom events · all traffic', $events, // the events rollup has no traffic class; unlike the rows above, this is not people only.
+			 'No custom events in this window.' ),
 		snt_desktop_group( 'Core Web Vitals', $vitals, 'No field measurements in this window.' ),
 	);
 }

@@ -153,7 +153,7 @@ function sn_archive_existing_status_line() {
 		return 'Not configured: add SN_ARCHIVE_ACCESS_KEY and SN_ARCHIVE_SECRET_KEY to wp-config.';
 	}
 	if ( 'running' === $state ) {
-		return sprintf( 'Running: %d asked so far, %d to go, one every five minutes.', (int) ( $run['asked'] ?? 0 ), $pending );
+		return sprintf( 'Running: %d asked so far, %d to go, about one every five to ten minutes.', (int) ( $run['asked'] ?? 0 ), $pending );
 	}
 	if ( 'halted' === $state ) {
 		return sprintf( 'Halted after %d (%s). %d to go; the note that failed keeps its one retry and is not picked again.', (int) ( $run['asked'] ?? 0 ), (string) ( $run['reason'] ?? '' ), $pending );
