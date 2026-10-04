@@ -38,7 +38,7 @@
 
 	/** Swap token for key in the rewritable attributes of one element. */
 	function rewriteAttrs( el, token, key ) {
-		[ 'name', 'data-rsm-add', 'data-rsm-tpl', 'data-rsm-list', 'slot', 'os-key' ].forEach( function ( attr ) {
+		[ 'name', 'id', 'aria-describedby', 'data-rsm-add', 'data-rsm-tpl', 'data-rsm-list', 'slot', 'os-key' ].forEach( function ( attr ) {
 			var v = el.getAttribute && el.getAttribute( attr );
 			if ( v && v.indexOf( token ) !== -1 ) {
 				el.setAttribute( attr, v.split( token ).join( key ) );
@@ -69,6 +69,45 @@
 		} );
 	}
 
+	/**
+	 * Name each row's controls by position ("Remove row 3"), so a screen
+	 * reader does not hear a column of identical "Remove" buttons (WCAG
+	 * 2.4.6). Rerun after every add, remove and move.
+	 */
+	function nameRows( parent ) {
+		if ( ! parent ) {
+			return;
+		}
+		var rows = Array.prototype.filter.call( parent.children, function ( el ) {
+			return el.hasAttribute( 'data-rsm-row' );
+		} );
+		rows.forEach( function ( row, i ) {
+			var n = i + 1;
+			var set = function ( sel, label ) {
+				var b = row.querySelector( ':scope > .sn-rsm-card-head > .sn-rsm-controls > ' + sel + ', :scope > .sn-rsm-controls > ' + sel );
+				if ( b ) {
+					b.setAttribute( 'aria-label', label );
+				}
+			};
+			set( '.sn-rsm-up', 'Move row ' + n + ' up' );
+			set( '.sn-rsm-down', 'Move row ' + n + ' down' );
+			set( '.sn-rsm-del', 'Remove row ' + n );
+		} );
+	}
+
+	/** Announce a change politely where wp-admin offers wp.a11y. */
+	function say( text ) {
+		if ( window.wp && wp.a11y && wp.a11y.speak ) {
+			wp.a11y.speak( text );
+		}
+	}
+
+	document.addEventListener( 'DOMContentLoaded', function () {
+		document.querySelectorAll( '[data-rsm-row]' ).forEach( function ( row ) {
+			nameRows( row.parentNode );
+		} );
+	} );
+
 	function findByAttr( attr, id ) {
 		return document.querySelector( '[' + attr + '="' + id + '"]' );
 	}
@@ -93,6 +132,8 @@
 			var row = list.lastElementChild;
 			if ( row ) {
 				rewriteTokens( row, tpl.getAttribute( 'data-rsm-token' ), uid() );
+				nameRows( list );
+				say( 'Row added.' );
 				var first = row.querySelector( 'input, textarea' );
 				if ( first ) {
 					first.focus();
@@ -105,15 +146,33 @@
 		if ( ! row ) {
 			return;
 		}
+		var parent = row.parentNode;
 		if ( btn.classList.contains( 'sn-rsm-del' ) ) {
 			e.preventDefault();
-			row.parentNode.removeChild( row );
+			// Focus lands on a neighbor's first field (or the list's Add
+			// button), never on <body> (WCAG 2.4.3).
+			var next = row.nextElementSibling || row.previousElementSibling;
+			parent.removeChild( row );
+			nameRows( parent );
+			var target = next && next.hasAttribute( 'data-rsm-row' ) ? next.querySelector( 'input, textarea' ) : null;
+			var add    = parent.hasAttribute( 'data-rsm-list' ) ? document.querySelector( '[data-rsm-add="' + parent.getAttribute( 'data-rsm-list' ) + '"]' ) : null;
+			var to     = target || add;
+			if ( to ) {
+				to.focus();
+			}
+			say( 'Row removed.' );
 		} else if ( btn.classList.contains( 'sn-rsm-up' ) && row.previousElementSibling ) {
 			e.preventDefault();
-			row.parentNode.insertBefore( row, row.previousElementSibling );
+			parent.insertBefore( row, row.previousElementSibling );
+			nameRows( parent );
+			btn.focus();
+			say( 'Moved up.' );
 		} else if ( btn.classList.contains( 'sn-rsm-down' ) && row.nextElementSibling ) {
 			e.preventDefault();
-			row.parentNode.insertBefore( row.nextElementSibling, row );
+			parent.insertBefore( row.nextElementSibling, row );
+			nameRows( parent );
+			btn.focus();
+			say( 'Moved down.' );
 		}
 	} );
 

@@ -124,7 +124,7 @@ ok( false !== strpos( $html, '>/notes/a-readout/</a></td>' ), 'a row without a p
 ok( false !== strpos( $html, '>Example Domain</a><br><span class="description">example.com</span>' ), 'a titled source prints its host beneath the title' );
 ok( false !== strpos( $html, '>fresh.example.dev</a></td>' ), 'an untitled source links its host and prints no second line' );
 ok( 1 === substr_count( $html, '<td>never</td>' ), 'exactly one row has never been checked, and says never' );
-ok( false !== strpos( $html, '<td>—</td>' ), 'no response at all prints as a dash, never as a status' );
+ok( false !== strpos( $html, '<td>No response</td>' ) && false === strpos( $html, '<td>—</td>' ), 'no response at all prints as "No response" in words, never as a status or a bare dash' );
 ok( false === strpos( $html, 'newest 100' ), 'no cap notice below the cap' );
 
 echo "\nthe empty graph\n";

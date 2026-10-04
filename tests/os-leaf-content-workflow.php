@@ -63,5 +63,7 @@ ok( 1 === preg_match( '#<template data-rsm-tpl data-rsm-token="__P__">.*?name="w
 ok( false === strpos( $live, '[__M__]' ) && false === strpos( $live, '[__R__]' ) && false === strpos( $live, '[__P__]' ), 'no blank row posts outside its template: an empty form adds nothing' );
 
 ok( false !== strpos( $kit, 'Name where it goes' ), 'the proof title field tells the owner it is the link text and to name where it goes' );
+ok( false !== strpos( $classic, 'aria-describedby="sn-hint-workflow-sample-outcome"' ) && false !== strpos( $classic, 'id="sn-hint-workflow-sample-outcome"' ), 'classic: the Outcome hint is tied to its field' );
+ok( false !== strpos( $classic, 'aria-describedby="sn-hint-workflow-proof-__P__-title"' ) && false !== strpos( $classic, 'id="sn-hint-workflow-proof-__P__-title"' ), 'classic: the proof title hint is tied to its field, with the row token in the id so each cloned row keeps its own' );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

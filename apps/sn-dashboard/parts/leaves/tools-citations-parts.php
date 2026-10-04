@@ -65,7 +65,8 @@ function citations_row( $r ) {
 		'first'   => array( 'html' => \snt_kit_esc( $first ), 'text' => (string) $r->first_seen_gmt ),
 		'checked' => array( 'html' => \snt_kit_esc( $checked ), 'text' => (string) $r->last_checked_gmt ),
 		// 0 means no response was received at all — distinct from a 200 or a 404.
-		'http'    => (int) $r->last_status ? (string) (int) $r->last_status : '—',
+		// Words, not a dash: a screen reader skips or reads "dash" (WCAG 1.3.1).
+		'http'    => (int) $r->last_status ? (string) (int) $r->last_status : __( 'No response', 'signal-and-noise-tools' ),
 	);
 }
 
@@ -118,12 +119,12 @@ function citations_forget_form( array $rows ) {
 	foreach ( $options as $id => $label ) {
 		$opts[ (string) $id ] = $label;
 	}
-	$inner = \snt_kit_field( 'select', 'claim', __( 'Forget a claim', 'signal-and-noise-tools' ), (string) array_key_first( $opts ), array( 'options' => $opts ) )
+	$inner = \snt_kit_field( 'select', 'claim', __( 'Forget a claim', 'signal-and-noise-tools' ), (string) array_key_first( $opts ), array( 'options' => $opts, 'hint' => __( 'Only claims shown to nobody can be forgotten. If the source sends its webmention again, it is a new claim.', 'signal-and-noise-tools' ) ) )
 		. \snt_kit_field( 'hidden', 'action', '', \snt_kit_hook_action( 'citation_forget' ) )
 		. \snt_kit_field( 'hidden', '_wpnonce', '', \snt_kit_nonce( 'citation_forget' ) );
 	return \snt_kit_tag(
 		'os-form',
-		array( 'class' => 'snt-form', 'os-action' => 'post', 'submit-label' => __( 'Forget this claim', 'signal-and-noise-tools' ), 'show-reset' => 'false', 'os-confirm' => __( 'The claim is deleted. If the source sends its webmention again, it is recorded as a new claim.', 'signal-and-noise-tools' ), 'os-confirm-title' => __( 'Forget this claim?', 'signal-and-noise-tools' ), 'os-confirm-label' => __( 'Forget', 'signal-and-noise-tools' ), 'os-confirm-danger' => true ),
+		array( 'class' => 'snt-form', 'os-action' => 'post', 'submit-label' => __( 'Forget this claim', 'signal-and-noise-tools' ), 'show-reset' => 'false', 'os-confirm' => __( 'The claim selected in "Forget a claim" is deleted. If the source sends its webmention again, it is recorded as a new claim.', 'signal-and-noise-tools' ), 'os-confirm-title' => __( 'Forget this claim?', 'signal-and-noise-tools' ), 'os-confirm-label' => __( 'Forget', 'signal-and-noise-tools' ), 'os-confirm-danger' => true ),
 		$inner
-	) . '<p class="snt-hint">' . \snt_kit_esc( __( 'Only claims shown to nobody can be forgotten. If the source sends its webmention again, it is a new claim.', 'signal-and-noise-tools' ) ) . '</p>';
+	);
 }

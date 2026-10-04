@@ -43,9 +43,23 @@ function sn_rsm_controls() {
 }
 
 /** One labelled text input. @param string $name @param string $value @param string $label @param string $ph */
-function sn_rsm_input( $name, $value, $label, $ph = '' ) {
+function sn_rsm_input( $name, $value, $label, $ph = '', $hint = '' ) {
+	$hid = '' !== $hint ? sn_rsm_hint_id( $name ) : '';
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">' . esc_html( $label ) . '</span>'
-		. '<input type="text" class="regular-text" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" placeholder="' . esc_attr( $ph ) . '"></label>';
+		. '<input type="text" class="regular-text" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" placeholder="' . esc_attr( $ph ) . '"' . ( '' !== $hid ? ' aria-describedby="' . esc_attr( $hid ) . '"' : '' ) . '></label>'
+		. ( '' !== $hid ? '<p class="sn-field-helper" id="' . esc_attr( $hid ) . '">' . esc_html( $hint ) . '</p>' : '' );
+}
+
+/**
+ * The id of a field's hint, from its name. A template row's token rides in
+ * the id, and resume-admin.js rewrites id and aria-describedby with the
+ * name, so every cloned row's hint stays its own (WCAG 1.3.1).
+ *
+ * @param string $name Field name.
+ * @return string
+ */
+function sn_rsm_hint_id( $name ) {
+	return 'sn-hint-' . trim( (string) preg_replace( '/[^A-Za-z0-9_-]+/', '-', (string) $name ), '-' );
 }
 
 /** One bullet row (leaf list — plain [] name). @param string $prefix @param string $value */

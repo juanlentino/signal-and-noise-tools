@@ -27,11 +27,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param string $label Visible label.
  * @param int    $rows  Rows.
  * @param string $class Extra class (`code` for monospace).
+ * @param string $hint  Optional hint, tied to the field by aria-describedby.
  */
-function sn_wf_textarea( $name, $value, $label, $rows = 3, $class = '' ) {
+function sn_wf_textarea( $name, $value, $label, $rows = 3, $class = '', $hint = '' ) {
+	$hid = '' !== $hint ? sn_rsm_hint_id( $name ) : '';
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">' . esc_html( $label ) . '</span>'
-		. '<textarea name="' . esc_attr( $name ) . '" rows="' . esc_attr( (string) (int) $rows ) . '" class="' . esc_attr( trim( 'large-text ' . $class ) ) . '">' . "\n"
-		. esc_textarea( $value ) . '</textarea></label>';
+		. '<textarea name="' . esc_attr( $name ) . '" rows="' . esc_attr( (string) (int) $rows ) . '" class="' . esc_attr( trim( 'large-text ' . $class ) ) . '"' . ( '' !== $hid ? ' aria-describedby="' . esc_attr( $hid ) . '"' : '' ) . '>' . "\n"
+		. esc_textarea( $value ) . '</textarea></label>'
+		. ( '' !== $hid ? '<p class="sn-field-helper" id="' . esc_attr( $hid ) . '">' . esc_html( $hint ) . '</p>' : '' );
 }
 
 /** One map row: title, line, Show on page. @param string $prefix @param array $row */
@@ -48,11 +51,10 @@ function sn_wf_map_row( $prefix, array $row ) {
 /** One proof row: title, link, line, Show on page. @param string $prefix @param array $row */
 function sn_wf_proof_row( $prefix, array $row ) {
 	echo '<div class="sn-rsm-row sn-rsm-card" data-rsm-row><div class="sn-rsm-card-head">';
-	sn_rsm_input( $prefix . '[title]', (string) ( $row['title'] ?? '' ), 'Title', 'Maturity index' );
+	sn_rsm_input( $prefix . '[title]', (string) ( $row['title'] ?? '' ), 'Title', 'Maturity index', 'The title is the link text. Name where it goes ("Maturity index"), not "here" or "link".' );
 	sn_rsm_controls();
 	echo '</div>';
 	sn_rsm_input( $prefix . '[url]', (string) ( $row['url'] ?? '' ), 'Link', '/maturity/' );
-	echo '<p class="sn-field-helper">The title is the link text. Name where it goes (&quot;Maturity index&quot;), not &quot;here&quot; or &quot;link&quot;.</p>';
 	sn_rsm_input( $prefix . '[line]', (string) ( $row['line'] ?? '' ), 'Line', 'One sentence on what it proves' );
 	echo '<label class="sn-rsm-field"><input type="checkbox" name="' . esc_attr( $prefix . '[show]' ) . '" value="1"' . ( true === ( $row['show'] ?? false ) ? ' checked="checked"' : '' ) . '> Show on page</label>';
 	echo '</div>';
@@ -93,8 +95,7 @@ function sn_admin_render_workflow_section() {
 	sn_rsm_input( 'workflow[sample][label]', $s['label'], 'Label', 'Sample' );
 	sn_rsm_input( 'workflow[sample][title]', $s['title'], 'Title', '' );
 	sn_wf_textarea( 'workflow[sample][intro]', $s['intro'], 'Intro', 3 );
-	sn_wf_textarea( 'workflow[sample][outcome]', $s['outcome'], 'Outcome (optional)', 3 );
-	echo '<p class="sn-field-helper">Shown before the Body. Write it to stand on its own.</p>';
+	sn_wf_textarea( 'workflow[sample][outcome]', $s['outcome'], 'Outcome (optional)', 3, '', 'Shown before the Body. Write it to stand on its own.' );
 	sn_wf_textarea( 'workflow[sample][body]', $s['body'], 'Body (shown exactly as typed, whitespace included)', 14, 'code' );
 
 	echo '<h3>Map</h3>';

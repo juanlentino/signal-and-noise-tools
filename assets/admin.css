@@ -2300,7 +2300,7 @@ os-cluster > .snt-verdict-panel {
 }
 .sn-rsm-controls {
 	display: inline-flex;
-	gap: 2px;
+	gap: 4px;
 	margin-top: 22px;
 	white-space: nowrap;
 }
@@ -2311,6 +2311,12 @@ os-cluster > .snt-verdict-panel {
 .sn-rsm-controls .button-link {
 	color: #787c82;
 	text-decoration: none;
+	/* 24px targets (WCAG 2.5.8). */
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 24px;
+	min-height: 24px;
 	padding: 2px 5px;
 	border-radius: 3px;
 	font-size: 14px;
