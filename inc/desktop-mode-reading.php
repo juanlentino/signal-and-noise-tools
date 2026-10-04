@@ -116,7 +116,7 @@ function snt_desktop_reading_groups( array $win ) {
 	$totals = function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( $win['from'], $win['to'], 'human' ) : null;
 	$events = array();
 	foreach ( function_exists( 'sn_analytics_top_events' ) ? (array) sn_analytics_top_events( $win['from'], $win['to'], 4 ) : array() as $e ) {
-		$events[] = array( 'label' => (string) $e['name'], 'value' => number_format_i18n( (int) $e['events'] ) . ' · ' . number_format_i18n( (int) $e['visitors'] ) . ' visitors' );
+		$events[] = array( 'label' => (string) $e['name'], 'value' => number_format_i18n( (int) $e['events'] ) . ' · ' . number_format_i18n( (int) $e['visitors'] ) . ' visitor-days' ); // the rollup counts distinct visitors per day and the visitor hash rotates daily, so the sum over a window is visitor-days, not people.
 	}
 	// The percentile is one Analytics Engine request per vital (cached 15
 	// minutes, a failure 5). After the first one that cannot be read the rest
