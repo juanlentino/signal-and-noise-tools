@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /** Live-probe success TTL — readout freshness, not monitoring. */
-const SNT_DEPLOY_WORKER_LIVE_TTL_OK = 360; // 6 min: just over the 5-minute warm, so a deploy shows within about 5 minutes and the cache never goes cold between warms.
+const SNT_DEPLOY_WORKER_LIVE_TTL_OK = 600; // 10 min: slack for a late WP-Cron run. Freshness comes from the warm, which probes every five minutes whatever the cache says.
 
 /** Live-probe failure TTL — retry sooner after a miss. */
 const SNT_DEPLOY_WORKER_LIVE_TTL_FAIL = 120; // 2 min; mirrors SN_WORKER_VERSION_TTL_FAIL.
@@ -623,9 +623,12 @@ function snt_deploy_workers_status( $opts = array() ) {
 function snt_deploy_workers_warm_cb() {
 	// Every warm probes, whatever the cache says: a cache still valid at the
 	// warm would skip it and leave a fresh deploy unread for another cycle.
-	// The cache is for page loads between warms, not for the warm itself.
-	foreach ( array_keys( snt_deploy_workers_registry() ) as $id ) {
-		delete_transient( 'snt_dw_live_' . preg_replace( '/[^a-z0-9_-]/i', '', (string) $id ) );
+	// One worker at a time, each overwriting its own entry, so a page load
+	// during the warm never finds the fleet cold.
+	foreach ( snt_deploy_workers_registry() as $id => $cfg ) {
+		if ( is_array( $cfg ) ) {
+			snt_deploy_worker_live_probe( (string) $id, $cfg, true );
+		}
 	}
 	snt_deploy_workers_status( array( 'probe_budget' => 10 ) );
 }

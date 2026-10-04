@@ -13,7 +13,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Fixed
-- **SN Deploy Status no longer shows the previous version for up to an hour after a release.** The newest release from GitHub is cached for an hour, so right after a cut or a worker deploy the widget compared against a "latest" from before that release existed. When the running version is newer than the cached newest tag, which can only mean the cache predates the release, the tag is read again at once (at most once per five minutes per worker, and the same for the plugin). A worker's live version is now cached for six minutes, not ten, so a deploy shows within about five.
+- **SN Deploy Status no longer shows the previous version for up to an hour after a release.** The newest release from GitHub is cached for an hour, so right after a cut or a worker deploy the widget compared against a "latest" from before that release existed. When the running version is newer than the cached newest tag, which can only mean the cache predates the release, the tag is read again at once (at most once per five minutes per worker, and the same for the plugin). The five-minute background refresh now probes every worker whatever its cache says, so a deploy shows within about five minutes; the ten-minute cache stays as slack for a late run.
 
 ## [21.6.0] - 2026-10-04 — the local doors count the protocol versions clients announce
 
