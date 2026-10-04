@@ -135,7 +135,7 @@ t( array() === $offenders, 'D.1 /wp-abilities/ appears only in snt-ability-run.j
 // Every consumer that runs abilities does it through the runner.
 $consumers = array(
 	'command-palette.js', 'desktop-mode.js', 'desktop-mode-widget.js',
-	'desktop-mode-widget-actions.js', 'desktop-mode-widget-rss.js',
+	'desktop-mode-widget-health.js', // SN Systems: Clear DB overrides and the uptime poll (Quick Actions, SN Uptime folded in).
 	'cron-dashboard.js', 'health-suggest-actions.js', 'ai-excerpt.js',
 	'ai-meta-description.js', 'ai-og-card-title.js', 'prepop-notice.js',
 );
@@ -238,8 +238,7 @@ t( is_array( $l10n['verbs'] ?? null ), 'E.7 the verb map still rides the same ob
 // widget's two calls carried the flag (the click-driven sweep must not).
 $silent_calls = array(
 	'desktop-mode-widget.js'         => "window.sntAbilityRun( 'get-deploy-status', undefined, { signal: controller ? controller.signal : undefined, silent: true } )",
-	'desktop-mode-widget-uptime.js'  => "window.sntAbilityRun( 'uptime-status', { detail: true }, { signal: controller ? controller.signal : undefined, silent: true } )",
-	'desktop-mode-widget-rss.js'     => "window.sntAbilityRun( 'get-rss-stats', undefined, { silent: true } )",
+	'desktop-mode-widget-health.js'  => "window.sntAbilityRun( 'uptime-status', {}, { silent: true } )",
 	'desktop-mode-widget-queue.js'   => "window.sntAbilityRun( 'content-queue', undefined, { silent: true } )",
 	'desktop-mode-widget-anchors.js' => "window.sntAbilityRun( 'anchor-status', {}, { silent: true } )",
 );
@@ -248,6 +247,7 @@ foreach ( $silent_calls as $base => $call ) {
 	t( false !== strpos( $src, $call ), "E.8 $base passes silent: true on its background refresh call" );
 }
 t( false !== strpos( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ), "window.sntAbilityRun( 'anchor-sweep', {} )" ), 'E.8b the anchors Sweep, a click, stays loud (no silent flag)' );
+t( false !== strpos( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ), "window.sntAbilityRun( 'clear-template-overrides' )" ) && false !== strpos( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode.js' ) . (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget.js' ), "window.sntAbilityRun( 'get-deploy-status', { force_refresh: true } )" ), 'E.8c the two buttons moved from Quick Actions are clicks: they stay loud' );
 
 // A refused response whose body is not JSON (an HTML 503 from Varnish, a
 // challenge page, the WAF's 403 page) rejected with a raw SyntaxError, code

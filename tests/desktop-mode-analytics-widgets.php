@@ -1,7 +1,8 @@
 <?php
 /**
- * Standalone test: the SN Audience and SN Reading desktop widgets. The row
- * builders are pure; the painter runs in node against a fake DOM.
+ * Standalone test: SN Reading and the groups SN Traffic paints under its
+ * sparkline (SN Audience and SN RSS Subscribers, folded in). The row builders
+ * are pure; the painter runs in node against a fake DOM.
  *
  * Run: php tests/desktop-mode-analytics-widgets.php
  */
@@ -80,7 +81,22 @@ ok( null === snt_desktop_reading_vital_row( 'INP', $d( array( 0, 0, 0 ) ) ), 'a 
 
 $au2 = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-audience.php' );
 ok( false !== strpos( $au2, "sn_analytics_top_sources( \$win['from'], \$win['to'], 'human', 500 )" ) && false === strpos( $au2, 'sn_analytics_referrer_categories' ), 'Sources are the named ones (Hacker News, LinkedIn), not the five categories' );
-ok( false !== strpos( $au2, "'(none)' !== (string) ( \$r['value'] ?? '' )" ), 'the no-campaign bucket is not a campaign' );
+
+echo "\nSN Traffic's groups\n";
+ok( array( array( 'label' => '24h', 'value' => '3 unique · 40 requests' ), array( 'label' => '7d', 'value' => '9 unique · 300 requests' ), array( 'label' => '30d', 'value' => '1,204 unique · 9,001 requests' ) ) === snt_desktop_traffic_feed_rows( array( 'windows' => array( 1 => array( 'total' => 40, 'uniques' => 3 ), 7 => array( 'total' => 300, 'uniques' => 9 ), 30 => array( 'total' => 9001, 'uniques' => 1204 ) ) ) ), 'feed subscribers read as SN RSS Subscribers did: 24h, 7d, 30d, unique readers then requests' );
+ok( array() === snt_desktop_traffic_feed_rows( null ) && 1 === count( snt_desktop_traffic_feed_rows( array( 'windows' => array( 7 => array( 'total' => 0, 'uniques' => 0 ) ) ) ) ), 'a failed feed read gives no rows (the group says it could not be read); a measured zero is a row' );
+$GLOBALS['wpdb'] = (object) array( 'last_error' => '' );
+function sn_analytics_top_dimension( $d, $f, $t, $c, $l ) { $out = array(); foreach ( range( 1, 6 ) as $i ) { $out[] = array( 'value' => "$d$i", 'views' => 10 - $i ); } return $out; }
+function sn_analytics_top_sources( $f, $t, $c, $l ) { return sn_analytics_top_dimension( 'src', $f, $t, $c, $l ); }
+function sn_rss_tracker_window_stats_multi( $d ) { return array( 'windows' => array( 1 => array( 'total' => 1, 'uniques' => 1 ), 7 => array( 'total' => 2, 'uniques' => 2 ), 30 => array( 'total' => 3, 'uniques' => 3 ) ) ); }
+function get_option( $k, $d = null ) { return $d; }
+$tg = snt_desktop_traffic_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) );
+ok( array( 'Countries', 'Devices', 'Sources', 'Hacker News · latest stories', 'Search', 'Feed subscribers' ) === array_column( $tg, 'title' ), 'SN Traffic\'s groups, in the approved order: countries, devices, sources, Hacker News, search, feed subscribers (no campaigns)' );
+ok( array( 3, 2, 4 ) === array( count( $tg[0]['rows'] ), count( $tg[1]['rows'] ), count( $tg[2]['rows'] ) ) && 3 === count( $tg[5]['rows'] ), 'top 3 countries, 2 devices (desktop, mobile), top 4 sources, three feed windows' );
+$GLOBALS['wpdb']->last_error = "Table 'wp_sn_rss_tracker' doesn't exist";
+$tg = snt_desktop_traffic_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) );
+ok( 'The feed log could not be read.' === ( $tg[5]['empty'] ?? '' ), 'a broken feed table says it could not be read, never zero subscribers' );
+unset( $GLOBALS['wpdb'] );
 
 echo "\nA failed table is not an empty one\n";
 $GLOBALS['wpdb'] = (object) array( 'last_error' => '' );
@@ -118,11 +134,12 @@ ok( array( 'value' => '9', 'label' => 'x' ) === $resp['hero'] && 1 === count( $r
 $node = trim( (string) shell_exec( 'command -v node' ) );
 if ( '' === $node ) { echo "SKIP: node not found\n"; } else {
 	$run = static fn( $id, $arg ) => json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/groups-render.js' ) . ' ' . escapeshellarg( $id ) . ' ' . escapeshellarg( $arg ) ), true );
-	$out = $run( 'sn-audience', json_encode( array( 'window' => array( 'days' => 14 ), 'groups' => array( snt_desktop_group( 'Countries', $rows, 'x' ), snt_desktop_group( 'Hacker News', array(), 'No story links here yet.' ) ) ) ) );
+	ok( ! preg_match( "/desktopModeWidgets\\[\\s*'sn-audience'/", (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-groups.js' ) ), 'the painter mounts no SN Audience: that card folded into SN Traffic' );
+	$out = $run( 'sn-reading', json_encode( array( 'window' => array( 'days' => 14 ), 'groups' => array( snt_desktop_group( 'Countries', $rows, 'x' ), snt_desktop_group( 'Hacker News', array(), 'No story links here yet.' ) ) ) ) );
 	ok( array( 'Last 14 days', 'Countries', 'US', '30 · 75%', '(unknown)', '10 · 25%', 'Hacker News', 'No story links here yet.', 'Open Analytics', '→' ) === $out['lines'], 'groups, rows and an empty group paint in order, then the link' );
 	ok( array( 'status', 'heading', 'list', 'listitem', 'listitem', 'heading' ) === $out['roles'], 'the reading is a polite status region; each group title is a heading and its rows a list' );
-	ok( 'Open Analytics, from the SN Audience widget' === $out['link']['name'] && true === $out['link']['arrowHidden'], 'the link name starts with its visible words and says which tile it is on; the arrow is hidden from assistive tech' );
-	ok( array( '/signal-noise/v1/desktop/audience' ) === $out['paths'] && 'function' === $out['teardown'] && true === $out['same'], 'Audience fetches its own route and returns a teardown' );
+	ok( 'Open Analytics, from the SN Reading widget' === $out['link']['name'] && true === $out['link']['arrowHidden'], 'the link name starts with its visible words and says which tile it is on; the arrow is hidden from assistive tech' );
+	ok( array( '/signal-noise/v1/desktop/reading' ) === $out['paths'] && 'function' === $out['teardown'] && true === $out['same'], 'Reading fetches its own route and returns a teardown' );
 	$tone = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-groups.js' );
 	ok( false !== strpos( $tone, "up: '#3fb950', down: '#ff9d94'" ) && false !== strpos( $tone, 'TONE[ r.tone ]' ), 'the painter colors a toned row green or a red light enough for text on the dark card, and nothing else' );
 	$hero = $run( 'sn-reading', json_encode( array( 'window' => array( 'days' => 14 ), 'generated_at' => time() - 240, 'hero' => array( 'value' => '40%', 'label' => 'of views engaged', 'change' => '▼ 7 pts vs. prior 14 days', 'tone' => 'down' ), 'groups' => array() ) ) );

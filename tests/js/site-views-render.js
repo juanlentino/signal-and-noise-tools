@@ -1,4 +1,4 @@
-// Renders the SN Site Views card against a fake DOM and prints its rows as
+// Renders the SN Traffic card (sn-site-views) against a fake DOM and prints its rows as
 // JSON: [{ text, color }]. Payload is argv[2] (JSON). Used by
 // tests/desktop-mode-widget-views-delta.php.
 'use strict';
@@ -15,7 +15,7 @@ function node( tag ) {
 }
 global.document = { createElement: node, createElementNS: ( ns, t ) => node( t ) };
 const payload = JSON.parse( process.argv[ 2 ] );
-global.window = { wp: { apiFetch: () => ( { then( f ) { f( payload ); return { catch() {} }; } } ) } };
+global.window = { snDesktopData: { pages: { analytics: 'https://example.test/analytics' } }, wp: { apiFetch: () => ( { then( f ) { f( payload ); return { catch() {} }; } } ) } };
 require( path.join( __dirname, '../../assets/desktop-mode-widget-views.js' ) );
 const root = node( 'div' );
 window.desktopModeWidgets[ 'sn-site-views' ]( root, {} );
@@ -27,4 +27,13 @@ const out = [];
 	}
 	n.children.forEach( walk );
 } )( root );
-process.stdout.write( JSON.stringify( { rows: out, helpers: Object.keys( window.snSiteViewsDelta || {} ) } ) );
+// The links, the ARIA roles in document order, and the body's own role.
+const links = [], roles = [];
+( function walk( n ) {
+	if ( n.tag === 'a' ) { links.push( n ); }
+	if ( n.attrs.role ) { roles.push( n.attrs.role ); }
+	n.children.forEach( walk );
+} )( root );
+const a = links[ 0 ];
+const link = a ? { text: a._text, name: a.attrs[ 'aria-label' ] || a.textContent, arrowHidden: a.children.length > 0 && a.children.every( ( c ) => c.attrs[ 'aria-hidden' ] === 'true' ) } : null;
+process.stdout.write( JSON.stringify( { rows: out, helpers: Object.keys( window.snSiteViewsDelta || {} ), links: links.length, link, roles, bodyRole: roles[ 0 ] || '' } ) );

@@ -175,7 +175,8 @@ function snt_health_summary_for_localize() {
 }
 
 /**
- * The 14-day view series behind the Site Views + Pulse widgets.
+ * The 14-day view series behind SN Traffic (the sn-site-views widget), with
+ * the who-and-from-where groups it paints under the sparkline.
  *
  * Transient-cached for 15 minutes: several widgets can mount in the same
  * shell and each calls this endpoint once, and the underlying rollup only
@@ -197,7 +198,7 @@ function snt_desktop_site_views_payload() {
 	$cache_key = 'sn_desktop_site_views_' . $today;
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) ) {
-		return new WP_REST_Response( snt_desktop_site_views_with_north_star( $cached ), 200 );
+		return new WP_REST_Response( $cached, 200 );
 	}
 
 	// v9.53.0 — THE FIT WINDOW. The forecast engine suppresses below
@@ -415,38 +416,14 @@ function snt_desktop_site_views_payload() {
 		}
 	}
 
-	set_transient( $cache_key, $payload, 15 * MINUTE_IN_SECONDS );
-	return new WP_REST_Response( snt_desktop_site_views_with_north_star( $payload ), 200 );
-}
+	// SN Traffic: SN Audience and SN RSS Subscribers folded into this card.
+	// Their rows ride the same 15-minute cache as the series above.
+	if ( function_exists( 'snt_desktop_traffic_groups' ) ) {
+		$payload['groups'] = snt_desktop_traffic_groups( array( 'from' => $from, 'to' => $today, 'days' => 14 ) );
+	}
 
-/**
- * The north star, compact: the number and the rows the card shows. Added on
- * every response, OUTSIDE the 15-minute payload transient, so the card reads
- * the same cached reading the `signal-noise/north-star` ability returns at
- * that moment. Freezing it inside the payload cache let the card show a
- * reading up to 15 minutes older than the ability's (4 vs 3 after the
- * counted-human rule landed). The key is omitted when analytics is unset.
- *
- * @param array $payload The cached site-views payload.
- * @return array
- */
-function snt_desktop_site_views_with_north_star( array $payload ) {
-	unset( $payload['north_star'] ); // an older cached payload may still carry a frozen copy
-	if ( ! function_exists( 'snt_nsm_reading' ) ) {
-		return $payload;
-	}
-	$ns = snt_nsm_reading();
-	if ( ! empty( $ns['configured'] ) ) {
-		$payload['north_star'] = array(
-			'value'     => (int) $ns['value'],
-			'previous'  => (int) $ns['previous'],
-			'deep'      => $ns['layers']['intent']['deep_readers']['value'] ?? null,
-			'actions'   => $ns['layers']['intent']['actions']['value'] ?? null,
-			'doi'       => $ns['layers']['return']['doi_downloads'] ?? null,
-			'inquiries' => $ns['layers']['return']['inquiries']['value'] ?? null,
-		);
-	}
-	return $payload;
+	set_transient( $cache_key, $payload, 15 * MINUTE_IN_SECONDS );
+	return new WP_REST_Response( $payload, 200 );
 }
 
 add_action( 'rest_api_init', function() {

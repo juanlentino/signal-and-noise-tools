@@ -1,13 +1,14 @@
 <?php
 /**
- * Signal & Noise Tools: the SN Audience and SN Reading desktop widgets, the
- * shared parts. Each payload is a list of groups, each group a list of rows
- * (label, value); the script paints what it is handed and knows no metric.
- * A group whose reader failed, or has nothing, carries `empty` instead of
- * rows: not measured is never painted as zero.
+ * Signal & Noise Tools: the group-shaped desktop readings (SN Reading, and
+ * the groups under SN Traffic's sparkline), the shared parts. Each payload is
+ * a list of groups, each group a list of rows (label, value); the script
+ * paints what it is handed and knows no metric. A group whose reader failed,
+ * or has nothing, carries `empty` instead of rows: not measured is never
+ * painted as zero.
  *
- * Both follow SN Site Views: fetch on render, a 15-minute transient stamped
- * with the site's day, the same 14-day window.
+ * Both follow SN Traffic: fetch on render, a 15-minute transient stamped with
+ * the site's day, the same 14-day window.
  *
  * @package SignalNoiseTools
  */
@@ -63,7 +64,7 @@ function snt_desktop_widget_window() {
 /**
  * Serve a payload from its transient, building it when cold.
  *
- * @param string   $name  'audience' | 'reading'.
+ * @param string   $name  'reading'.
  * @param callable $build Takes the window, returns the groups.
  * @return WP_REST_Response
  */
@@ -85,17 +86,9 @@ function snt_desktop_widget_response( $name, callable $build ) {
 }
 
 add_action( 'rest_api_init', function () {
-	// Two literal registrations: tests/rest-routes.php reads each route and
-	// its gate from source.
-	register_rest_route( 'signal-noise/v1', '/desktop/audience', array(
-		'methods'             => 'GET',
-		'callback'            => static function () {
-			return snt_desktop_widget_response( 'audience', 'snt_desktop_audience_groups' );
-		},
-		'permission_callback' => function() {
-			return current_user_can( 'manage_options' );
-		},
-	) );
+	// A literal registration: tests/rest-routes.php reads each route and its
+	// gate from source. SN Audience's route went with the card: its rows ride
+	// SN Traffic's site-views payload now (snt_desktop_traffic_groups()).
 	register_rest_route( 'signal-noise/v1', '/desktop/reading', array(
 		'methods'             => 'GET',
 		'callback'            => static function () {

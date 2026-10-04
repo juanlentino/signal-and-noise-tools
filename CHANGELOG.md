@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Twelve desktop cards fold to six, as the owner approved.** Three cards now carry their neighbors and keep their ids, so each keeps its place on the desktop. **SN Traffic** (was SN Site Views) keeps the views headline, the trend and the sparkline, then shows today so far, top countries, devices, top sources, Hacker News, search, feed subscribers (24h, 7d, 30d) and top pages, with one Open Analytics link; the engaged readers, the other north star rows and the bot share left it, since SN Reading already carries them. **SN Systems** (was SN Health) says "All systems normal" in one line when uptime, the content-health checks and cron are all fine, and says what is wrong when they are not ("1 down", "1 to look at · 1 could not run"); it names a monitor only when one is down and an orphaned cron event only when there is one. **SN Provenance** (was SN Anchors) adds the machine readers under the anchors: reads in the last 30 days, who the edge verified, and declared AI-training reads, with links to Provenance and Machine Readers. SN Audience, SN RSS Subscribers, SN Uptime, SN Cron, SN Quick Actions and SN Machine Readers are retired. Quick Actions' buttons moved: "Clear DB overrides" to SN Systems, now behind a confirm, and "Check for updates" to SN Deploy Status. A saved layout keeps each card's old height, so resize SN Traffic, SN Systems and SN Provenance once.
+
 ## [21.8.2] - 2026-10-04 — SN Reading fits its card; SN Health without the reason line
 
 ### Fixed

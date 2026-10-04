@@ -36,7 +36,7 @@ the page, not just here.
 | Where | What it shows |
 | --- | --- |
 | **Measurement, Machine Readers** (wp-admin tab) | The MIXED-leaf composition (v12.22.0, `docs/proposals/admin-leaf-composition-2026-08-23.md`), a readout that owns its own settings and therefore the one kind that earns a two-column row. A **full-width hero** first: the Sensor status pipeline (deployed sensor, read token, the read itself, crawler-list check) with the summary stat strip beneath it incl. feed fetches. The strip summarises the whole leaf, so it sits above both columns rather than at the top of one. Then one two-column row. **Left, wide, the evidence:** the rights-surface stream, showing EXTERNAL readers by default with this site's own CI traffic folded beneath it and declared by count (hidden, never dropped, and never subtracted from any figure, because a number that quietly stops counting part of its population makes comparison across the change invalid); then the family delta cards and the unclassified-user-agent review list. **Right, narrow, reference**, every table behind a closed disclosure, since folded reference is what keeps the two columns the same order of height: reads by purpose with the first-party exclusion stated underneath; reads by agent and purpose; reads per family; reads per surface class; the observed vs declared compliance read; AI-training reads counted both ways (frozen family vs declared purpose) with the gap named rather than reconciled; and the feed-fetch windows (fetches are never summed with crawler reads). A section that renders nothing produces no fold at all. Below the folds, the read-only Edge sensor readout over the Sensor settings form. |
-| **SN Machine Readers** (Desktop Mode tile, v10.1.0) | The same aggregates in tile form, served by `/wp-json/signal-noise/v1/desktop/machine-readers`. |
+| **SN Provenance** (Desktop Mode tile; SN Machine Readers from v10.1.0, folded into it on 2026-10-04) | A glance under the anchors: machine reads in the window, the identity split, declared AI-training reads, and the crawler-list verdict only when it is not in sync, served by `/wp-json/signal-noise/v1/desktop/machine-readers`. The rest is one link away on the leaf. |
 | **Content Health, Rights signals** | A separate drift probe ([`inc/health-check-rights-signals.php`](../inc/health-check-rights-signals.php)) that verifies the rights surfaces themselves are still standing. It is a sibling of this surface, not part of it. |
 
 WordPress stores none of this data. Every number on the tab is a live read of the
@@ -517,9 +517,9 @@ questions.
   Human readership belongs to the beacon pipeline, which is a separate system.
 - **The two counts are never summed.** Beacons see people, the edge sensor sees
   machines, and the overlap between the two populations is not zero-sum or even
-  well defined. The Machine Readers tab and the SN Machine Readers tile report
-  machine reads only, the analytics dashboard and the SN Site Views tile report
-  beacon reads only, and no view adds the two together.
+  well defined. The Machine Readers tab and SN Provenance's machine-readers rows
+  report machine reads only, the analytics dashboard and the SN Traffic tile
+  report beacon reads only, and no view adds the two together.
 - **Cookieless, like everything else here.** The sensor sets nothing, reads no
   cookie, and has no notion of identity beyond the family enum. This is a
   standing project principle, not a property of this feature.

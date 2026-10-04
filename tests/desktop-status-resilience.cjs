@@ -5,8 +5,11 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 class Element {
-  constructor(tag) { this.tag = tag; this.children = []; this.attrs = {}; this.text = ''; }
+  constructor(tag) { this.tag = tag; this.children = []; this.attrs = {}; this.text = ''; this.style = {}; }
   setAttribute(k, v) { this.attrs[k] = v; }
+  getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
+  removeAttribute(k) { delete this.attrs[k]; }
+  addEventListener() {}
   appendChild(n) { this.children.push(n); Object.defineProperty(n, "parentNode", {value: this, writable: true, configurable: true}); return n; }
   querySelector() { return null; }
   remove() { if (this.parentNode) this.parentNode.removeChild(this); }
@@ -25,7 +28,10 @@ function harness() {
   const timers = new Map(), calls = [];
   const window = {
     AbortController,
-    snDesktopData: {},
+    // SN Systems reads health and cron from the localize; both all clear here,
+    // so its verdict turns on the uptime poll the fixtures drive.
+    snDesktopData: { healthSummary: {passed: 8, total: 8, all_passed: true, skipped: [], flagged: []},
+      cronSummary: {total: 85, sn_count: 30, orphans: 0, next: {hook: 'sn_queue_tick', in_s: 300}, health: {ok: true}} },
     sntAbilityRunData: { verbs: { 'signal-noise/get-deploy-status': 'GET', 'signal-noise/uptime-status': 'GET',
       'signal-noise/get-rss-stats': 'GET', 'signal-noise/content-queue': 'GET', 'signal-noise/cache-freshness': 'GET' } },
     setTimeout(fn, delay) { const id = ++nextId; timers.set(id, {fn, at: now + delay}); return id; },
@@ -43,8 +49,8 @@ function harness() {
     dispatch(t) { (listeners.get(t) || []).forEach(fn => fn()); } };
   class Clock extends Date { constructor(...a) { super(...(a.length ? a : [now])); } static now() { return now; } }
   const context = vm.createContext({window, document, Date: Clock, Promise, Error, Math, Number, Array, Object, AbortController});
-  for (const name of ['snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-uptime.js',
-    'desktop-mode-widget-rss.js', 'desktop-mode-widget-queue.js']) {
+  for (const name of ['snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-health.js',
+    'desktop-mode-widget-queue.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets', name), 'utf8'), context, {filename: name});
   }
   return {window, document, calls, timers, async tick(ms) {
@@ -60,9 +66,17 @@ function harness() {
   }};
 }
 const fixtures = [
-  {id: 'sn-deploy-status', period: 60000, good: {theme: {current: '12.18.10', state: 'ok'}, plugin: {current: '13.107.3', state: 'ok'}}, marker: '12.18.10'},
-  {id: 'sn-uptime', period: 120000, good: {configured: true, fetched_at: '2026-09-08T11:59:30Z', rows: [{name: 'example.test', level: 'ok', status: 'up'}]}, marker: 'example.test'}
+  {id: 'sn-deploy-status', period: 60000, good: {theme: {current: '12.18.10', state: 'ok'}, plugin: {current: '13.107.3', state: 'ok'}}, marker: '12.18.10'}
 ];
+// SN Uptime folded into SN Systems (sn-health): the uptime poll lives there now,
+// painted as one verdict line, so it has its own block below rather than the
+// deploy card's footer-and-cue fixture loop.
+const systems = {id: 'sn-health', period: 120000, good: {configured: true, fetched_at: '2026-09-08T11:59:30Z',
+  rows: [{name: 'example.test', level: 'ok', status: 'up'}, {name: 'heartbeat', level: 'ok', status: 'up'}]}};
+const pollerPair = [fixtures[0], systems];
+// The deploy card paints its polled reading into its first child; the Check
+// for updates button (moved from Quick Actions) sits beside it, never repainted.
+const view = root => root.firstChild;
 async function run() {
   // The third argument can cancel but cannot override the annotation verb/path.
   const h = harness(), controller = new AbortController();
@@ -78,9 +92,9 @@ async function run() {
     await flush();
     x.calls[0].resolve(f.good); await flush();
     assert.match(root.textContent, new RegExp(f.marker));
-    const goodCard = root.firstChild, goodText = root.textContent, goodStyles = styles(root);
+    const goodCard = view(root).firstChild, goodText = root.textContent, goodStyles = styles(root);
     await x.tick(f.period);
-    assert.equal(root.firstChild, goodCard, 'ordinary refresh must not replace the rendered card');
+    assert.equal(view(root).firstChild, goodCard, 'ordinary refresh must not replace the rendered card');
     assert.equal(root.textContent, goodText, 'ordinary refresh is silent, including recency metadata');
     assert.equal(styles(root), goodStyles, 'ordinary refresh must not recolor retained data');
     x.calls[1].reject({code: 'sn_mcp_read_rate_limited', message: 'Rate limited', data: {status: 429, retry_after: 180}}); await flush();
@@ -92,7 +106,7 @@ async function run() {
     assert.equal(cue.attrs.role, 'img');
     assert.equal(cue.attrs.tabindex, '0', 'failure details are keyboard discoverable');
     assert.equal(cue.title, cue.attrs['aria-label']);
-    assert.equal(root.children.length, 2, 'failed refresh keeps card plus existing recency footer');
+    assert.equal(view(root).children.length, 2, 'failed refresh keeps card plus existing recency footer');
     assert.ok(root.textContent.includes(goodText.match(/Last successful refresh: ([^\s]+)/)[1]), 'failure keeps last-good recency');
     assert.doesNotMatch(styles(root), /#3fb950/, 'stale data must not look currently green');
     assert.match(root.textContent, /2026-09-08/, 'stale message timestamps last success');
@@ -152,10 +166,10 @@ async function run() {
     const x = harness(), root = new Element('div');
     const stop = x.window.desktopModeWidgets[f.id](root); await flush();
     x.calls[0].resolve(f.good); await flush();
-    const snapshot = JSON.stringify(root), card = root.firstChild;
+    const snapshot = JSON.stringify(root), card = view(root).firstChild;
     await x.tick(f.period);
     assert.equal(JSON.stringify(root), snapshot, 'no DOM attributes, children, styles or text change while pending');
-    assert.equal(root.firstChild, card);
+    assert.equal(view(root).firstChild, card);
     const next = JSON.parse(JSON.stringify(f.good));
     if (next.theme) { next.theme.current = '12.18.11'; next.last_deploy = '2 minutes ago'; }
     else { next.rows[0].name = 'changed.test'; }
@@ -223,22 +237,46 @@ async function run() {
       'legitimate unknown package status remains a successful response');
     stop();
   }
-  // A malformed row must not poison the retained successful snapshot.
+  // SN Systems: one verdict line when all is up, the last good uptime reading
+  // kept through a 429 (and the server's retry_after honored), the monitor
+  // named only once it is down, and a malformed row never poisoning the kept reading.
   {
-    const x = harness(), root = new Element('div'), f = fixtures[1];
+    const x = harness(), root = new Element('div'), f = systems;
     const stop = x.window.desktopModeWidgets[f.id](root); await flush();
-    x.calls[0].resolve(f.good); await flush(); await x.tick(f.period);
-    x.calls[1].resolve({configured: true, rows: [null]}); await flush();
-    assert.match(root.textContent, /example.test/, 'invalid row preserves last good uptime data');
-    assert.match(details(root), /unavailable/); stop();
+    assert.match(root.textContent, /Checking…/, 'the verdict waits for the uptime read');
+    x.calls[0].resolve(f.good); await flush();
+    assert.match(root.textContent, /All systems normal/);
+    assert.match(root.textContent, /2 of 2 up/);
+    assert.doesNotMatch(root.textContent, /example\.test|heartbeat/, 'all up: one line, no row per monitor');
+    await x.tick(f.period); assert.equal(x.calls.length, 2);
+    x.calls[1].reject({code: 'sn_mcp_read_rate_limited', message: 'Rate limited', data: {status: 429, retry_after: 600}}); await flush();
+    assert.match(root.textContent, /2 of 2 up/, 'last good uptime survives a 429');
+    assert.match(root.textContent, /Last check failed: Rate limited/);
+    assert.doesNotMatch(root.textContent, /All systems normal/, 'a kept reading is not a current all clear');
+    await x.tick(599999); assert.equal(x.calls.length, 2, 'no retry before data.retry_after');
+    await x.tick(1); assert.equal(x.calls.length, 3);
+    x.calls[2].resolve({configured: true, rows: [{name: 'example.test', level: 'alert', status: 'down'}, {name: 'heartbeat', level: 'ok', status: 'up'}]}); await flush();
+    assert.match(root.textContent, /1 down/, 'the verdict says what is wrong');
+    assert.match(root.textContent, /example\.test/, 'a monitor that is down is named');
+    assert.doesNotMatch(root.textContent, /Last check failed/, 'success clears the failure');
+    await x.tick(f.period);
+    x.calls[3].resolve({configured: true, rows: [null]}); await flush();
+    assert.match(root.textContent, /example\.test/, 'invalid row preserves last good uptime data');
+    assert.match(root.textContent, /Invalid uptime response/);
+    stop(); await x.tick(1000000);
+    assert.equal(root.textContent, ''); assert.equal(x.timers.size, 0); assert.equal(x.calls.length, 4);
+    // Teardown before the first microtask never even starts the request.
+    const z = harness();
+    z.window.desktopModeWidgets[f.id](new Element('div'))(); await flush();
+    assert.equal(z.calls.length, 0); assert.equal(z.timers.size, 0);
   }
   // Independent widgets share the actual runner without multiplying each
-  // other's polls: over ten minutes deploy=11, uptime=6 including first load.
+  // other's polls: over ten minutes deploy=11, uptime (SN Systems)=6 including first load.
   {
     const x = harness(); let answered = 0;
-    const stops = fixtures.map(f => x.window.desktopModeWidgets[f.id](new Element('div')));
+    const stops = pollerPair.map(f => x.window.desktopModeWidgets[f.id](new Element('div')));
     const answer = async () => { for (; answered < x.calls.length; answered++) {
-      const c = x.calls[answered]; c.resolve(fixtures[c.opts.path.includes('uptime-status') ? 1 : 0].good);
+      const c = x.calls[answered]; c.resolve(pollerPair[c.opts.path.includes('uptime-status') ? 1 : 0].good);
     } await flush(); };
     await flush(); await answer();
     for (let minute = 0; minute < 10; minute++) { await x.tick(60000); await answer(); }
@@ -250,9 +288,9 @@ async function run() {
   // costs exactly one call per widget, a quick flip costs none.
   {
     const x = harness(); let answered = 0;
-    const stops = fixtures.map(f => x.window.desktopModeWidgets[f.id](new Element('div')));
+    const stops = pollerPair.map(f => x.window.desktopModeWidgets[f.id](new Element('div')));
     const answer = async () => { for (; answered < x.calls.length; answered++) {
-      const c = x.calls[answered]; c.resolve(fixtures[c.opts.path.includes('uptime-status') ? 1 : 0].good);
+      const c = x.calls[answered]; c.resolve(pollerPair[c.opts.path.includes('uptime-status') ? 1 : 0].good);
     } await flush(); };
     await flush(); await answer(); assert.equal(x.calls.length, 2);
     x.document.hidden = true; x.document.dispatch('visibilitychange');
@@ -268,11 +306,10 @@ async function run() {
     stops.forEach(stop => stop()); assert.equal(x.timers.size, 0);
     x.document.dispatch('visibilitychange'); assert.equal(x.timers.size, 0, 'teardown drops the listener');
   }
-  // Recipe 2 for the interval pollers (RSS, queue) (#1603
+  // Recipe 2 for the interval poller (queue; RSS folded into SN Traffic, which does not poll) (#1603
   // repair): a source pin cannot tell a no-op stopPolling from a real one,
   // so each is driven through the same hidden stretch, reveal and quick flip.
   const pollers = [
-    {id: 'sn-rss-subscribers', period: 5 * 60000, good: {ok: true, data: {windows: {}}}},
     {id: 'sn-queue', period: 60000, good: {next: [], published: []}}
   ];
   for (const f of pollers) {

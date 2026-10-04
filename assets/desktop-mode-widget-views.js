@@ -1,7 +1,10 @@
 /**
- * Signal & Noise Tools — desktop-mode "SN Site Views" widget.
+ * Signal & Noise Tools — desktop-mode "SN Traffic" widget (id sn-site-views,
+ * kept so the card keeps its place on a saved desktop).
  *
- * A 14-day first-party pageview sparkline + total + delta. The stock
+ * A 14-day first-party pageview sparkline + total + delta, then who came and
+ * from where: countries, devices, sources, Hacker News, search, feed
+ * subscribers (SN Audience and SN RSS Subscribers, folded in), and top pages. The stock
  * desktop-mode "Site Views" tile can't show our numbers: it reads Jetpack
  * or `_post_views_YYYY-MM-DD` postmeta, and we write neither by design —
  * our views come from the edge beacon → Analytics Engine → the durable
@@ -152,26 +155,79 @@
 		return row;
 	}
 
+	/**
+	 * A group the way SN Reading paints one (assets/desktop-mode-widget-groups.js):
+	 * a hairline, a heading, the rows as a list; `empty` when there are none.
+	 */
+	function group( title, rows, empty ) {
+		var box  = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
+		var head = el( 'div', { text: title, style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:2px;' } );
+		head.setAttribute( 'role', 'heading' );
+		head.setAttribute( 'aria-level', '3' );
+		box.appendChild( head );
+		if ( ! rows.length ) {
+			box.appendChild( el( 'div', { text: empty || 'Nothing to show.', style: 'font-size:11px;padding:2px 0;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } ) );
+			return box;
+		}
+		box.appendChild( list( rows ) );
+		return box;
+	}
+
+	/** Label/value rows as a list (role=list, each row a listitem). */
+	function list( rows ) {
+		var ul = el( 'div' );
+		ul.setAttribute( 'role', 'list' );
+		rows.forEach( function( r ) {
+			var row = statRow( String( r.label ), String( r.value ) );
+			row.setAttribute( 'role', 'listitem' );
+			ul.appendChild( row );
+		} );
+		return ul;
+	}
+
 	window.desktopModeWidgets['sn-site-views'] = function( container, ctx ) {
 		var aborted = false;
 		var ctrl    = ( typeof AbortController !== 'undefined' ) ? new AbortController() : null;
 
 		var wrap = el( 'div', { style: 'padding:10px 12px;' } );
 		var body = el( 'div', { text: 'Loading…', style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
+		body.setAttribute( 'role', 'status' ); // the load and its outcome are announced politely
 		wrap.appendChild( body );
 		container.appendChild( wrap );
 
 		function render( payload ) {
 			body.textContent = '';
+			body.setAttribute( 'style', '' );
 
+			// No views is a headline of its own; the groups below still paint (a
+			// feed can have subscribers in a window no page was viewed).
 			if ( ! payload.days || ! payload.days.length ) {
 				body.appendChild( el( 'div', {
 					text: 'No views in the last 14 days',
 					style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
 				} ) );
-				return;
+			} else {
+				headline( payload );
 			}
 
+			// SN Traffic: SN Audience's rows and SN RSS Subscribers' windows
+			// paint here as groups (inc/desktop-mode-audience.php), then the top
+			// pages. The north star rows, the top mover and the bot share are not
+			// painted: SN Reading carries the reading figures. Additive: an older
+			// cached payload without `groups` paints none.
+			( payload.groups || [] ).forEach( function( g ) {
+				if ( g && g.title ) { body.appendChild( group( g.title, g.rows || [], g.empty ) ); }
+			} );
+
+			var pageRows = ( payload.top_paths || [] ).filter( function( pg ) { return pg && pg.path; } ).map( function( pg ) {
+				return { label: pg.path, value: String( pg.views ) };
+			} );
+			if ( pageRows.length ) {
+				body.appendChild( group( 'Top pages', pageRows ) );
+			}
+		}
+
+		function headline( payload ) {
 			body.appendChild( el( 'div', {
 				text: String( payload.total ),
 				style: 'font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1;'
@@ -184,127 +240,29 @@
 			// Additive: an older cached payload without `today` paints nothing.
 			// A measured 0 is a number and renders; absent/null does not.
 			if ( typeof payload.today === 'number' ) {
-				body.appendChild( statRow( 'Today so far', String( payload.today ) ) );
+				body.appendChild( list( [ { label: 'Today so far', value: payload.today } ] ) );
 			}
 
 			// The spark line and the links below ride the card token contract's
 			// --os-ui-color-accent (OpenStation 1.1.5, #1603): with no theme worn
 			// it chains to --os-ui-accent and follows the picker; Legacy pins it
-			// to its own #3b82f6 (see the palette note in widget-actions.js). The
+			// to its own #3b82f6 (see the palette note in widget-health.js). The
 			// fallback is the plugin's own blue.
 			var chart = el( 'div', { style: 'color:var(--os-ui-color-accent, #4a9eff);margin:4px 0 6px;' } );
 			chart.appendChild( sparkline( payload.days ) );
 			body.appendChild( chart );
 
 			body.appendChild( deltaLine( payload.delta_pct, payload.total ) );
-
-			// The north star: views say how many came, this says how many read.
-			// Additive: absent key (analytics unset, older cached payload) paints nothing.
-			var ns = payload.north_star;
-			if ( ns && typeof ns.value === 'number' ) {
-				var nsBox = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
-				var nsDelta = ns.value - ( ns.previous || 0 );
-				nsBox.appendChild( statRow( 'Engaged readers · 7d', String( ns.value ) + ( nsDelta ? ' ' + deltaText( nsDelta ) : '' ), nsDelta ? 'color:' + deltaColor( nsDelta, nsDelta, relOf( nsDelta, ns.previous || 0 ), false ) + ';' : '' ) );
-				if ( typeof ns.deep === 'number' ) { nsBox.appendChild( statRow( 'Read 2+ pages', String( ns.deep ) ) ); }
-				if ( typeof ns.actions === 'number' ) { nsBox.appendChild( statRow( 'Downloads, outbound', String( ns.actions ) ) ); }
-				if ( ns.doi && typeof ns.doi.value === 'number' ) { nsBox.appendChild( statRow( 'DOI downloads · ' + ns.doi.window, String( ns.doi.value ) ) ); }
-				if ( typeof ns.inquiries === 'number' ) { nsBox.appendChild( statRow( 'Inquiries · 7d', String( ns.inquiries ) ) ); }
-				body.appendChild( nsBox );
-			}
-
-			// ── v9.53.0 secondary stats ──
-			var stats = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
-
-			// 21.2.1: Visits and Engaged moved to SN Reading, and Top sources to
-			// SN Audience. This tile is the overview: the headline, the north
-			// star, the mover, the bot share and the top pages. The payload still
-			// carries the moved keys; only the paint changed.
-
-			// Additive: the strongest PATH mover (path + signed views delta,
-			// from the rail tile's own producer). Absent/malformed key → no
-			// row. Same path-row idiom as Top pages.
-			if ( payload.top_mover && payload.top_mover.path
-				&& typeof payload.top_mover.delta === 'number' && payload.top_mover.delta !== 0 ) {
-				var mvD = payload.top_mover.delta;
-				var mvPrior = typeof payload.top_mover.views === 'number' ? payload.top_mover.views - mvD : 0;
-				var mv = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
-				mv.appendChild( el( 'span', {
-					text:  payload.top_mover.path,
-					style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
-				} ) );
-				mv.appendChild( el( 'span', {
-					text:  deltaText( mvD ),
-					style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;color:' + deltaColor( mvD, mvD, relOf( mvD, mvPrior ), false ) + ';'
-				} ) );
-				stats.appendChild( mv );
-			}
-
-			// bot_pct is null (not 0) when there was nothing to divide by —
-			// "no data" is not "0% bots", so omit the row rather than claim a
-			// clean feed we never measured.
-			if ( payload.bot_pct !== null && typeof payload.bot_pct !== 'undefined' ) {
-				stats.appendChild( statRow(
-					'Bot share',
-					payload.bot_pct + '%',
-					// Not an alarm — the beacon already excludes bots from the
-					// human class. This is a data-quality read, so it only tints
-					// once it's high enough to be worth a glance.
-					payload.bot_pct >= 50 ? 'color:#d29922;' : ''
-				) );
-			}
-
-			// Prefer the additive top_paths list. An older cached payload
-			// without that key falls back to the original single top_path row.
-			if ( ! ( payload.top_paths && payload.top_paths.length ) && payload.top_path && payload.top_path.path ) {
-				var top = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
-				top.appendChild( el( 'span', {
-					text:  payload.top_path.path,
-					title: payload.top_path.path,
-					style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
-				} ) );
-				top.appendChild( el( 'span', {
-					text:  String( payload.top_path.views ),
-					style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;'
-				} ) );
-				stats.appendChild( top );
-			}
-
-			if ( stats.childNodes.length ) {
-				body.appendChild( stats );
-			}
-
-			if ( payload.top_paths && payload.top_paths.length ) {
-				var pages = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
-				pages.appendChild( el( 'div', {
-					text:  'Top pages',
-					style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));margin-bottom:2px;'
-				} ) );
-				payload.top_paths.forEach( function( pg ) {
-					if ( ! pg || ! pg.path ) { return; }
-					var prow = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
-					prow.appendChild( el( 'span', {
-						text:  pg.path,
-						title: pg.path,
-						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
-					} ) );
-					prow.appendChild( el( 'span', {
-						text:  String( pg.views ),
-						style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;'
-					} ) );
-					pages.appendChild( prow );
-				} );
-				body.appendChild( pages );
-			}
-
-			// ── v9.57.0: top sources ──
 		}
 
 		function fail() {
 			body.textContent = '';
-			body.appendChild( el( 'div', {
+			var alert = el( 'div', {
 				text: 'Views unavailable',
 				style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
-			} ) );
+			} );
+			alert.setAttribute( 'role', 'alert' );
+			body.appendChild( alert );
 		}
 
 		if ( window.wp && window.wp.apiFetch ) {
@@ -322,12 +280,18 @@
 			fail();
 		}
 
+		// The card's one link. SN Reading's says the same words, so the name
+		// starts with them and says which card it is on (WCAG 2.5.3).
 		if ( analyticsUrl ) {
 			var link = el( 'a', {
 				href: analyticsUrl,
-				text: 'Open Analytics →',
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
+				text: 'Open Analytics',
+				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
 			} );
+			var arrow = el( 'span', { text: '→' } );
+			arrow.setAttribute( 'aria-hidden', 'true' );
+			link.appendChild( arrow );
+			link.setAttribute( 'aria-label', 'Open Analytics, from the SN Traffic widget' );
 			wrap.appendChild( link );
 		}
 

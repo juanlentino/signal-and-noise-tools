@@ -1,6 +1,7 @@
 <?php
 /**
- * Signal & Noise Tools — the desktop widgets (eleven since 15.8.0).
+ * Signal & Noise Tools — the desktop widgets (six: twelve folded to six by
+ * owner decision, 2026-10-04).
  *
  * Registration on `init` priority 6, in the same closure shape the commands
  * use. ORDER IS REGISTRATION ORDER — openstation_register_widget() has no
@@ -130,33 +131,29 @@ add_action( 'init', function() {
 			'default_width' => 312,
 		);
 
+		// 2026-10-04: TWELVE CARDS FOLDED TO SIX, owner-approved. Three cards
+		// absorbed their neighbors and kept their ids, so each keeps its slot
+		// (and its saved size) on the owner's desktop: sn-site-views is SN
+		// Traffic (+ SN Audience, SN RSS Subscribers), sn-health is SN Systems
+		// (+ SN Uptime, SN Cron and Quick Actions' Clear DB overrides), sn-anchors
+		// is SN Provenance (+ SN Machine Readers). Deploy Status took Quick
+		// Actions' Check for updates. Retired ids: sn-audience,
+		// sn-rss-subscribers, sn-uptime, sn-cron, sn-quick-actions,
+		// sn-machine-readers. A SAVED LAYOUT KEEPS THE OLD HEIGHT: the three
+		// merged cards need one resize by hand; default_height applies only to a
+		// card placed fresh.
 		snt_os_register_widget( 'sn-site-views', array_merge( $sn_drag, array(
-			'label'          => 'SN Site Views',
-			'description'    => 'First-party traffic: 14-day sparkline, the north star, bot share, top pages.',
+			'label'          => 'SN Traffic',
+			'description'    => 'Views over 14 days with the trend, then who came and from where: countries, devices, sources, Hacker News, search, feed subscribers, top pages.',
 			'icon'           => 'dashicons-chart-area',
 			'script'         => 'sn-desktop-mode-widget-views',
-			// North star rows: +5 × ~20px + a hairline = +110 (BUDGETED, measure live).
-			// BUDGETED 510, not browser-measured — 450 + 3 glance rows
-			// (today + engaged + top_mover) × ~20px = +60. "Today so far"
-			// rides the 15-min payload transient so the number lags ≤15 min.
-			// 21.2.1: Visits, Engaged and Top sources moved to Reading and Audience:
-			// 620 less two rows and a heading with three rows and a hairline. BUDGETED.
-			'default_height' => 500,
-		) ) );
-
-		// The analytics family sits together in the picker: Site Views, then
-		// Audience (who, from where) and Reading (what they do here), then RSS.
-		// Both new tiles read rollups the Analytics views already fill, through
-		// one painter (assets/desktop-mode-widget-groups.js).
-		snt_os_register_widget( 'sn-audience', array_merge( $sn_drag, array(
-			'label'          => 'SN Audience',
-			'description'    => 'Who reads and from where: countries, devices, sources, campaigns, Hacker News, search.',
-			'icon'           => 'dashicons-groups',
-			'script'         => 'sn-desktop-mode-widget-groups',
-			// BUDGETED 560, not browser-measured: a window line, five groups
-			// (heading + up to 5/3/5/3/2 rows at ~22px) and the link; a sixth
-			// group, Campaigns, appears only when a tagged link was followed.
-			'default_height' => 620,
+			// BUDGETED 940, not browser-measured: the old 500 headline, today row,
+			// sparkline and delta (~140) plus seven groups at a hairline and a
+			// heading (~36) each and ~20px a row (3 countries, 2 devices, 4
+			// sources, 3 Hacker News stories at up to two lines, 2 search, 3
+			// feed windows, 3 top pages), the link, chrome and padding. The body
+			// scrolls past it; measure live before trimming.
+			'default_height' => 940,
 		) ) );
 
 		snt_os_register_widget( 'sn-reading', array_merge( $sn_drag, array(
@@ -169,21 +166,7 @@ add_action( 'init', function() {
 			'default_height' => 575,
 		) ) );
 
-		// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that
-		// was previously buried under S&N → RSS tab + a single line on the
-		// SN Dashboard tab. At-a-glance subscriber growth on the desktop.
-		snt_os_register_widget( 'sn-rss-subscribers', array_merge( $sn_drag, array(
-			'label'          => 'SN RSS Subscribers',
-			'description'    => 'Unique feed subscribers over 24h / 7d / 30d.',
-			'icon'           => 'dashicons-rss',
-			'script'         => 'sn-desktop-mode-widget-rss',
-			// Measured 207: the last-request line, the 24h/7d/30d grid, the
-			// link. Fixed three rows — this card's height never moves.
-			'default_height' => 220,
-		) ) );
-
 		// 15.8.0: SN Queue — "is the queue fed, and what goes out next". The
-		// editorial pair with Site Views sits at the top of the column: the
 		// next note as the headline, the depth line (N scheduled · runs to
 		// Dec 27), three more, the last three published. Fetch-on-render via
 		// the content-queue ability; labels are the site timezone's.
@@ -200,101 +183,51 @@ add_action( 'init', function() {
 		) ) );
 
 		snt_os_register_widget( 'sn-health', array_merge( $sn_drag, array(
-			'label'          => 'SN Health',
-			'description'    => 'Content-health checks passing — and which ones are not.',
+			'label'          => 'SN Systems',
+			'description'    => 'Uptime, content-health checks and scheduled cron in one line when all is well, and what is wrong when not. Clear DB overrides.',
 			'icon'           => 'dashicons-shield-alt',
 			'script'         => 'sn-desktop-mode-widget-health',
-			// Measured 148 all-passing (the state it idles in), 279 with four
-			// flagged checks + remainder + advisories. Sized for the former.
-			'default_height' => 200,
-		) ) );
-
-		// v9.53.0: new. Was one row inside Pulse; uptime deserves its own card
-		// once it can show 30d availability + response time.
-		snt_os_register_widget( 'sn-uptime', array_merge( $sn_drag, array(
-			'label'          => 'SN Uptime',
-			'description'    => 'Monitor status, 30-day availability and response time.',
-			'icon'           => 'dashicons-chart-bar',
-			'script'         => 'sn-desktop-mode-widget-uptime',
-			// Measured 210 with the two live monitors (juanlentino.com + the JL
-			// heartbeat), each carrying a name line and a stats line.
-			'default_height' => 220,
+			// BUDGETED 360, not browser-measured, for the state it idles in (all
+			// clear): the verdict line, three sections at a hairline, a heading
+			// and one row (~52 each), the full-width button (~44), the link,
+			// chrome and padding = ~350. A flagged check or a down monitor adds
+			// ~20 a row and the body scrolls.
+			'default_height' => 360,
 		) ) );
 
 		snt_os_register_widget( 'sn-deploy-status', array_merge( $sn_drag, array(
 			'label'          => 'SN Deploy Status',
-			'description'    => 'Theme, plugin, and worker versions with last deploy time.',
+			'description'    => 'Theme, plugin, and worker versions with last deploy time, and a forced update check.',
 			'icon'           => 'dashicons-update',
 			'script'         => 'sn-desktop-mode-widget',
 			// v11.11.2: BUDGETED 310, not browser-measured — the old measured
 			// 192 covered the two-row grid; five worker rows add ~22px each.
-			// If the owner reports clipping, rebuild the Trap-11 measurement
-			// recipe rather than guessing again.
-			'default_height' => 310,
+			// + the Check for updates button from Quick Actions (~40px, the
+			// figure that card's own budget used per button). If the owner
+			// reports clipping, rebuild the Trap-11 measurement recipe rather
+			// than guessing again.
+			'default_height' => 350,
 		) ) );
 
-		// v2.1.0: Quick Actions widget — replaces the 3-click path of
-		// S&N → Dashboard → Maintenance with single-click access from desktop.
-		// v11.29.0: SN Cron. The desktop could report traffic, health, uptime,
-		// versions and anchors but not whether the site's scheduled work was
-		// still running — the one "is it awake?" question with no surface.
-		// Reads the already-localized cronSummary; no new data layer.
-		snt_os_register_widget( 'sn-cron', array_merge( $sn_drag, array(
-			'label'          => 'SN Cron',
-			'description'    => 'Scheduled events, how many are ours, and any orphaned.',
-			'icon'           => 'dashicons-clock',
-			'script'         => 'sn-desktop-mode-widget-cron',
-			// BUDGETED, not browser-measured: the health card measures 148 for a
-			// dot row + a 2-row hairline list, and this is the same shape with one
-			// extra 11px line when orphans exist. 170 with slack.
-			'default_height' => 170,
-		) ) );
-
-		snt_os_register_widget( 'sn-quick-actions', array_merge( $sn_drag, array(
-			'label'          => 'SN Quick Actions',
-			'description'    => 'One-click clear overrides and force update-check.',
-			'icon'           => 'dashicons-controls-repeat',
-			'script'         => 'sn-desktop-mode-widget-actions',
-			// Was measured 242 for THREE full-width buttons + the footnote.
-			// v11.29.0 adds the force update-check button the description has
-			// always promised. 290 is DERIVED, not browser-measured: a button is
-			// 8px padding x2 + 13px/1.2 text + 1px border x2 + 6px margin ~= 40px,
-			// so 250 + 40 = 290. If it clips, measure rather than guess again.
-			'default_height' => 215,
-		) ) );
-
-		// v9.78.0: SN Anchors — the one glanceable that had no mirror.
-		// Pending Notes with their live in-flight Bitcoin tx (N/6, captured
-		// by the worker's pending callbacks) + a Sweep action; idles at an
-		// honest "N notes anchored". Fetch-on-render via the anchor-status
-		// ability — the aggregate walks every Note's chain meta, which must
-		// never ride a page-load localize.
+		// v9.78.0: SN Anchors, now SN Provenance: pending Notes with their live
+		// in-flight Bitcoin tx (N/6, captured by the worker's pending
+		// callbacks) + a Sweep action; idles at an honest "N notes anchored".
+		// Fetch-on-render via the anchor-status ability — the aggregate walks
+		// every Note's chain meta, which must never ride a page-load localize.
+		// The machine readers ride under it (the edge sensor, never summed with
+		// SN Traffic's beacon readership).
 		snt_os_register_widget( 'sn-anchors', array_merge( $sn_drag, array(
-			'label'          => 'SN Anchors',
-			'description'    => 'Provenance anchor status: pending Bitcoin confirmations + on-demand sweep.',
+			'label'          => 'SN Provenance',
+			'description'    => 'Anchor status with an on-demand sweep, the Internet Archive run, and who reads by machine: identity and declared AI-training reads.',
 			'icon'           => 'dashicons-admin-links',
 			'script'         => 'sn-desktop-mode-widget-anchors',
 			// Measured 167 idle ("30 of 30 notes anchored" + Sweep), 194 with
 			// two pending rows. Sized for idle — the state it holds most days.
 			// 21.1.0: + one Internet Archive line (two when it wraps); the capture
 			// counts joined it later and it now wraps to three. BUDGETED.
-			'default_height' => 250,
-		) ) );
-
-		// v10.1.0: the machine half of the audience. Human readership is
-		// sn-site-views' job (beacons); this reads the edge sensor, and the two
-		// are never summed.
-		snt_os_register_widget( 'sn-machine-readers', array_merge( $sn_drag, array(
-			'label'          => 'SN Machine Readers',
-			'description'    => 'AI crawler readership: top families, purposes, declared AI-training reads.',
-			'icon'           => 'dashicons-visibility',
-			'script'         => 'sn-desktop-mode-widget-machine-readers',
-			// BUDGETED 560, not browser-measured — the old measured 508 covered
-			// headline + families + AI-training + 3 sensor rows. Sensor rows
-			// are gone (version lives on Deploy Status); Purposes adds a
-			// heading + ≤4 rows (≤5). 508 − 3×22 + ≤5×22 = 552, rounded up
-			// with slack. `ai_surfaces` is still variable-length.
-			'default_height' => 535,
+			// + the machine readers (a hairline, a heading, up to five rows:
+			// ~136) and the second link wrapping the action row (~28). BUDGETED.
+			'default_height' => 420,
 		) ) );
 	}
 }, 6 );
