@@ -44,10 +44,13 @@ function snt_tap_doorway_links( $js ) {
 		$body = $hit[1][0];
 		// Any doorway, not just the "Open …" ones: `Cron events →` is the
 		// same control and an `Open`-prefixed pattern walked straight past it.
-		if ( ! preg_match( '/text:\s*[\'"]\s*([^\'"]*?→)\s*[\'"]/u', $body, $t ) ) {
+		// The arrow moved into an aria-hidden span on most of them, so a link
+		// painted on the accent token is a doorway too.
+		preg_match( '/style:\s*[\'"]([^\'"]*)[\'"]/', $body, $s );
+		$accent = isset( $s[1] ) && false !== strpos( $s[1], 'color:var(--os-ui-color-accent' );
+		if ( ! preg_match( '/text:\s*[\'"]\s*([^\'"]*?→)\s*[\'"]/u', $body, $t ) && ! ( $accent && preg_match( '/text:\s*[\'"]([^\'"]*)[\'"]/u', $body, $t ) ) ) {
 			continue;
 		}
-		preg_match( '/style:\s*[\'"]([^\'"]*)[\'"]/', $body, $s );
 		$out[] = array(
 			'text'  => $t[1],
 			'style' => isset( $s[1] ) ? $s[1] : '',

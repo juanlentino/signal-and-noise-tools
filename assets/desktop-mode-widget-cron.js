@@ -153,23 +153,27 @@
 		if ( health && Object.prototype.hasOwnProperty.call( health, 'ok' ) && ! health.ok && health.summary ) {
 			wrap.appendChild( el( 'div', {
 				text:  String( health.summary ),
-				style: 'font-size:10px;margin-top:6px;color:' + WARN_FG + ';'
+				style: 'font-size:11px;margin-top:6px;color:' + WARN_FG + ';'
 			} ) );
 		}
 
 		if ( orphans > 0 ) {
 			wrap.appendChild( el( 'div', {
 				text:  orphans === 1 ? 'An event is registered with no handler.' : 'Events are registered with no handler.',
-				style: 'font-size:10px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));margin-top:6px;'
+				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));margin-top:6px;'
 			} ) );
 		}
 
 		if ( cronUrl ) {
-			wrap.appendChild( el( 'a', {
+			var link = el( 'a', {
 				href:  cronUrl,
-				text:  'Cron events →',
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
-			} ) );
+				text:  'Cron events',
+				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
+			} );
+			var arrow = el( 'span', { text: '→' } );
+			arrow.setAttribute( 'aria-hidden', 'true' );
+			link.appendChild( arrow );
+			wrap.appendChild( link );
 		}
 
 		container.appendChild( wrap );

@@ -69,8 +69,8 @@
 		var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
 		row.appendChild( el( 'span', {
 			text:  label,
-			title: label,
-			style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+			// Wraps rather than clips, so the full label is readable at any zoom.
+			style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));min-width:0;white-space:normal;overflow-wrap:anywhere;'
 		} ) );
 		row.appendChild( el( 'span', {
 			text:  value,
@@ -95,6 +95,7 @@
 
 		var wrap = el( 'div', { style: 'padding:10px 12px;' } );
 		var body = el( 'div', { text: 'Loading…', style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
+		body.setAttribute( 'role', 'status' );
 		wrap.appendChild( body );
 		container.appendChild( wrap );
 
@@ -113,14 +114,17 @@
 						? 'Add the read token on the Machine Readers tab.'
 						: 'The edge sensor did not answer; it retries on the next load.'
 				};
-				body.appendChild( el( 'div', {
+				var alert = el( 'div' );
+				alert.setAttribute( 'role', 'alert' );
+				alert.appendChild( el( 'div', {
 					text:  hint.title,
 					style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
 				} ) );
-				body.appendChild( el( 'div', {
+				alert.appendChild( el( 'div', {
 					text:  hint.detail + ( payload.error ? ' (' + payload.error + ')' : '' ),
 					style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.45));margin-top:2px;'
 				} ) );
+				body.appendChild( alert );
 				return;
 			}
 
@@ -228,10 +232,12 @@
 
 		function fail() {
 			body.textContent = '';
-			body.appendChild( el( 'div', {
+			var alert = el( 'div', {
 				text:  'Machine readers unavailable',
 				style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
-			} ) );
+			} );
+			alert.setAttribute( 'role', 'alert' );
+			body.appendChild( alert );
 		}
 
 		if ( window.wp && window.wp.apiFetch ) {
@@ -250,11 +256,15 @@
 		}
 
 		if ( mrUrl ) {
-			wrap.appendChild( el( 'a', {
+			var mrLink = el( 'a', {
 				href:  mrUrl,
-				text:  'Open Machine Readers →',
+				text:  'Open Machine Readers ',
 				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
-			} ) );
+			} );
+			var mrArrow = el( 'span', { text: '→' } );
+			mrArrow.setAttribute( 'aria-hidden', 'true' );
+			mrLink.appendChild( mrArrow );
+			wrap.appendChild( mrLink );
 		}
 
 		return function teardown() {

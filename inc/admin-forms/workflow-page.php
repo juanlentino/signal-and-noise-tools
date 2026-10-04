@@ -27,11 +27,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param string $label Visible label.
  * @param int    $rows  Rows.
  * @param string $class Extra class (`code` for monospace).
+ * @param string $hint  Optional hint, tied to the field by aria-describedby.
  */
-function sn_wf_textarea( $name, $value, $label, $rows = 3, $class = '' ) {
+function sn_wf_textarea( $name, $value, $label, $rows = 3, $class = '', $hint = '' ) {
+	$hid = '' !== $hint ? sn_rsm_hint_id( $name ) : '';
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">' . esc_html( $label ) . '</span>'
-		. '<textarea name="' . esc_attr( $name ) . '" rows="' . esc_attr( (string) (int) $rows ) . '" class="' . esc_attr( trim( 'large-text ' . $class ) ) . '">' . "\n"
-		. esc_textarea( $value ) . '</textarea></label>';
+		. '<textarea name="' . esc_attr( $name ) . '" rows="' . esc_attr( (string) (int) $rows ) . '" class="' . esc_attr( trim( 'large-text ' . $class ) ) . '"' . ( '' !== $hid ? ' aria-describedby="' . esc_attr( $hid ) . '"' : '' ) . '>' . "\n"
+		. esc_textarea( $value ) . '</textarea></label>'
+		. ( '' !== $hid ? '<p class="sn-field-helper" id="' . esc_attr( $hid ) . '">' . esc_html( $hint ) . '</p>' : '' );
 }
 
 /** One map row: title, line, Show on page. @param string $prefix @param array $row */
@@ -41,6 +44,18 @@ function sn_wf_map_row( $prefix, array $row ) {
 	sn_rsm_controls();
 	echo '</div>';
 	sn_rsm_input( $prefix . '[line]', (string) ( $row['line'] ?? '' ), 'Line', 'One sentence on what happens here' );
+	echo '<label class="sn-rsm-field"><input type="checkbox" name="' . esc_attr( $prefix . '[show]' ) . '" value="1"' . ( true === ( $row['show'] ?? false ) ? ' checked="checked"' : '' ) . '> Show on page</label>';
+	echo '</div>';
+}
+
+/** One proof row: title, link, line, Show on page. @param string $prefix @param array $row */
+function sn_wf_proof_row( $prefix, array $row ) {
+	echo '<div class="sn-rsm-row sn-rsm-card" data-rsm-row><div class="sn-rsm-card-head">';
+	sn_rsm_input( $prefix . '[title]', (string) ( $row['title'] ?? '' ), 'Title', 'Maturity index', 'The title is the link text. Name where it goes ("Maturity index"), not "here" or "link".' );
+	sn_rsm_controls();
+	echo '</div>';
+	sn_rsm_input( $prefix . '[url]', (string) ( $row['url'] ?? '' ), 'Link', '/maturity/' );
+	sn_rsm_input( $prefix . '[line]', (string) ( $row['line'] ?? '' ), 'Line', 'One sentence on what it proves' );
 	echo '<label class="sn-rsm-field"><input type="checkbox" name="' . esc_attr( $prefix . '[show]' ) . '" value="1"' . ( true === ( $row['show'] ?? false ) ? ' checked="checked"' : '' ) . '> Show on page</label>';
 	echo '</div>';
 }
@@ -74,13 +89,13 @@ function sn_admin_render_workflow_section() {
 	sn_wf_textarea( 'workflow[dek]', $doc['dek'], 'Dek (also the meta description)', 2 );
 	sn_rsm_input( 'workflow[map_heading]', $doc['map_heading'], 'Map heading', 'The rest of the set' );
 	sn_rsm_input( 'workflow[rules_heading]', $doc['rules_heading'], 'Rules heading', 'Field rules' );
+	sn_rsm_input( 'workflow[proof_heading]', $doc['proof_heading'], 'Proof heading', 'Check it yourself' );
 
 	echo '<h3>Sample</h3>';
 	sn_rsm_input( 'workflow[sample][label]', $s['label'], 'Label', 'Sample' );
 	sn_rsm_input( 'workflow[sample][title]', $s['title'], 'Title', '' );
 	sn_wf_textarea( 'workflow[sample][intro]', $s['intro'], 'Intro', 3 );
-	sn_wf_textarea( 'workflow[sample][outcome]', $s['outcome'], 'Outcome (optional)', 3 );
-	echo '<p class="sn-field-helper">Shown before the Body. Write it to stand on its own.</p>';
+	sn_wf_textarea( 'workflow[sample][outcome]', $s['outcome'], 'Outcome (optional)', 3, '', 'Shown before the Body. Write it to stand on its own.' );
 	sn_wf_textarea( 'workflow[sample][body]', $s['body'], 'Body (shown exactly as typed, whitespace included)', 14, 'code' );
 
 	echo '<h3>Map</h3>';
@@ -101,6 +116,16 @@ function sn_admin_render_workflow_section() {
 	echo '</div><template data-rsm-tpl="workflow-rules" data-rsm-token="__R__">';
 	sn_wf_rule_row( 'workflow[rules][__R__]', array() );
 	echo '</template><button type="button" class="button sn-rsm-add" data-rsm-add="workflow-rules">+ Add rule</button>';
+
+	echo '<h3>Proof</h3>';
+	echo '<p class="sn-field-helper">Links to evidence a reader can check. A row appears only when "Show on page" is ticked and its link is a path on this site (/maturity/) or an https URL.</p>';
+	echo '<div class="sn-rsm-list" data-rsm-list="workflow-proof">';
+	foreach ( $doc['proof'] as $i => $row ) {
+		sn_wf_proof_row( 'workflow[proof][' . $i . ']', $row );
+	}
+	echo '</div><template data-rsm-tpl="workflow-proof" data-rsm-token="__P__">';
+	sn_wf_proof_row( 'workflow[proof][__P__]', array() );
+	echo '</template><button type="button" class="button sn-rsm-add" data-rsm-add="workflow-proof">+ Add proof link</button>';
 
 	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_workflow_save" class="button button-primary">Save workflow page</button></div>';
 	echo '</div></form>';

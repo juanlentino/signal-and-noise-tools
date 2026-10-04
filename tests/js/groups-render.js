@@ -3,15 +3,18 @@
 // Used by tests/desktop-mode-analytics-widgets.php.
 'use strict';
 const path = require( 'path' );
+// Text is a child node, as in a browser: setting textContent replaces the
+// children, and removing children removes the text.
+function textNode( v ) { return { tag: '#text', children: [], attrs: {}, textContent: v }; }
 function node( tag ) {
 	return {
-		tag, children: [], attrs: {}, _text: '', href: '',
+		tag, children: [], attrs: {}, href: '',
 		get firstChild() { return this.children[ 0 ] || null; },
 		setAttribute( k, v ) { this.attrs[ k ] = String( v ); },
 		appendChild( c ) { this.children.push( c ); return c; },
 		removeChild( c ) { this.children = this.children.filter( ( x ) => x !== c ); },
-		set textContent( v ) { this._text = String( v ); this.children = []; },
-		get textContent() { return this._text + this.children.map( ( c ) => c.textContent ).join( ' | ' ); },
+		set textContent( v ) { this.children = '' === String( v ) ? [] : [ textNode( String( v ) ) ]; },
+		get textContent() { return this.children.map( ( c ) => c.textContent ).join( ' | ' ); },
 	};
 }
 global.document = { createElement: node };
@@ -26,5 +29,12 @@ require( path.join( __dirname, '../../assets/desktop-mode-widget-groups.js' ) );
 const root = node( 'div' );
 const teardown = window.desktopModeWidgets[ process.argv[ 2 ] ]( root, {} );
 const lines = [];
-( function walk( n ) { if ( ! n.children.length ) { lines.push( n.textContent ); } n.children.forEach( walk ); } )( root );
-process.stdout.write( JSON.stringify( { lines, paths, teardown: typeof teardown, same: window.openStationWidgets === window.desktopModeWidgets } ) );
+const roles = [];
+let link = null;
+( function walk( n ) {
+	if ( ! n.children.length ) { lines.push( n.textContent ); }
+	if ( n.attrs.role ) { roles.push( n.attrs.role ); }
+	if ( 'a' === n.tag ) { link = { name: n.attrs[ 'aria-label' ] || '', arrowHidden: n.children.some( ( c ) => '→' === c.textContent && 'true' === c.attrs[ 'aria-hidden' ] ) }; }
+	n.children.forEach( walk );
+} )( root );
+process.stdout.write( JSON.stringify( { lines, roles, link, paths, teardown: typeof teardown, same: window.openStationWidgets === window.desktopModeWidgets } ) );

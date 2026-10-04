@@ -205,7 +205,7 @@ function sn_cit_render_row( $r ) {
 	echo '<td>' . esc_html( sn_cit_ago_label( $r->first_seen_gmt ) ) . '</td>';
 	echo '<td>' . esc_html( sn_cit_last_checked_label( $r->last_checked_gmt ) ) . '</td>';
 	// 0 means no response was received at all — distinct from a 200 or a 404.
-	echo '<td>' . ( (int) $r->last_status ? esc_html( (string) (int) $r->last_status ) : '—' ) . '</td>';
+	echo '<td>' . ( (int) $r->last_status ? esc_html( (string) (int) $r->last_status ) : esc_html__( 'No response', 'signal-and-noise-tools' ) ) . '</td>';
 	echo '</tr>';
 }
 
@@ -261,12 +261,12 @@ function sn_admin_render_citations_section() {
 	if ( $forgettable && function_exists( 'sn_admin_post_url' ) ) {
 		echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'citation_forget' ) ) . '">';
 		echo '<input type="hidden" name="action" value="sn_citation_forget" />';
-		echo '<p><label>' . esc_html__( 'Forget a claim', 'signal-and-noise-tools' ) . ' <select name="claim">';
+		echo '<p><label>' . esc_html__( 'Forget a claim', 'signal-and-noise-tools' ) . ' <select name="claim" aria-describedby="sn-cit-forget-hint">';
 		foreach ( $forgettable as $id => $label ) {
 			echo '<option value="' . esc_attr( (string) $id ) . '">' . esc_html( $label ) . '</option>';
 		}
-		echo '</select></label> <button type="submit" class="button" data-snt-confirm="' . esc_attr__( 'The claim is deleted. If the source sends its webmention again, it is recorded as a new claim.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Forget this claim?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Forget', 'signal-and-noise-tools' ) . '">' . esc_html__( 'Forget this claim', 'signal-and-noise-tools' ) . '</button></p></form>';
-		echo '<p class="sn-field-helper">' . esc_html__( 'Only claims shown to nobody can be forgotten. If the source sends its webmention again, it is a new claim.', 'signal-and-noise-tools' ) . '</p>';
+		echo '</select></label> <button type="submit" class="button" data-snt-confirm="' . esc_attr__( 'The claim selected in "Forget a claim" is deleted. If the source sends its webmention again, it is recorded as a new claim.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Forget this claim?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Forget', 'signal-and-noise-tools' ) . '">' . esc_html__( 'Forget this claim', 'signal-and-noise-tools' ) . '</button></p></form>';
+		echo '<p class="sn-field-helper" id="sn-cit-forget-hint">' . esc_html__( 'Only claims shown to nobody can be forgotten. If the source sends its webmention again, it is a new claim.', 'signal-and-noise-tools' ) . '</p>';
 	}
 	echo '</div>';
 }

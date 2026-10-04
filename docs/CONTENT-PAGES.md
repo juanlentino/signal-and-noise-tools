@@ -45,6 +45,7 @@ Content > Workflow edits `/workflow`. Data layer: `inc/workflow-page.php`.
   `post_content`. Every other field gets the same escaping.
 - **Map heading** (text, in the card beside Title and Dek) and **Map** (one card per step): Title, Line, Show on page. The heading renders only over at least one shown row.
 - **Rules heading** (text, beside the Map heading) and **Rules** (one card per rule): Rule, Explanation. Rendered as an ordered list; the heading renders only over at least one rule.
+- **Proof heading** (text, beside the other headings) and **Proof** (Resume's repeater): Title, Link, Line, Show on page. Rendered after the rules as a list of links. A row is public only when ticked, titled, and linked to a path on this site (`/maturity/`) or an https URL.
 
 Row order is display order. A section with no content renders nothing,
 heading included. A save with nothing public creates no Page; until then

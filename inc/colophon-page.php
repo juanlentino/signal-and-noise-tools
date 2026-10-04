@@ -50,7 +50,7 @@ function sn_colophon_items() {
 		'hosting'  => array( __( 'Hosting', 'signal-and-noise-tools' ), __( 'Cloudways, Cloudflare CDN & DNS', 'signal-and-noise-tools' ) ),
 		'tooling'  => array( __( 'Tooling', 'signal-and-noise-tools' ), __( 'companion plugin Signal & Noise Tools for SEO, search & ops', 'signal-and-noise-tools' ) ),
 		'interop'  => array( __( 'Interop', 'signal-and-noise-tools' ), __( 'runs inside OpenStation', 'signal-and-noise-tools' ) ),
-		'ai'       => array( __( 'AI assistance', 'signal-and-noise-tools' ), __( 'engineered with Claude (Anthropic) as a pair-programmer', 'signal-and-noise-tools' ) ),
+		'ai'       => array( __( 'AI assistance', 'signal-and-noise-tools' ), __( 'engineered with Claude (Anthropic) as a pair programmer', 'signal-and-noise-tools' ) ),
 		'trust'    => array( __( 'Trust', 'signal-and-noise-tools' ), __( 'every system documented at the maturity index', 'signal-and-noise-tools' ) ),
 	);
 	return apply_filters( 'sn_colophon_items', $items );
@@ -114,6 +114,11 @@ function sn_colophon_shortcode( $atts = array() ) {
 		. '<ul class="sn-colophon-items">';
 
 	$maturity_url = sn_colophon_maturity_url();
+	// /workflow is how the AI credit works in practice; linked only while it is
+	// published (the module withdraws it to draft when nothing public is left).
+	// By full path: a child page elsewhere with the same slug is not /workflow.
+	$wf_page      = function_exists( 'get_page_by_path' ) ? get_page_by_path( 'workflow' ) : null;
+	$workflow_url = $wf_page && 'publish' === ( $wf_page->post_status ?? '' ) ? (string) get_permalink( $wf_page ) : '';
 	$urls         = sn_colophon_urls();
 	foreach ( sn_colophon_items() as $slug => $item ) {
 		$label = esc_html( isset( $item[0] ) ? $item[0] : $slug );
@@ -128,6 +133,12 @@ function sn_colophon_shortcode( $atts = array() ) {
 			$text = esc_html__( 'companion plugin', 'signal-and-noise-tools' )
 				. ' <a href="' . esc_url( $urls['plugin_repo'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Signal & Noise Tools', 'signal-and-noise-tools' ) . '</a> '
 				. esc_html__( 'for SEO, search & ops', 'signal-and-noise-tools' );
+		} elseif ( 'ai' === $slug && '' !== $workflow_url ) {
+			$text = esc_html__( 'engineered with Claude (Anthropic) as a', 'signal-and-noise-tools' )
+				. ' <a href="' . esc_url( $workflow_url ) . '">' . esc_html__( 'pair programmer', 'signal-and-noise-tools' )
+				// Screen-reader-only context for link lists. A suffix, never an aria-label:
+				// the accessible name must start with the visible words (WCAG 2.5.3).
+				. '<span class="screen-reader-text">' . esc_html__( ': how I work with AI', 'signal-and-noise-tools' ) . '</span></a>';
 		} elseif ( 'interop' === $slug && '' !== $urls['openstation'] ) {
 			$text = esc_html__( 'runs inside', 'signal-and-noise-tools' )
 				. ' <a href="' . esc_url( $urls['openstation'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( 'OpenStation' ) . '</a>';

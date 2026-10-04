@@ -611,8 +611,12 @@ function snt_dashboard_delta_badge_html( $delta ) {
 	$arrow = 'up' === $dir ? '▲' : ( 'down' === $dir ? '▼' : '■' );
 	$pct   = $delta['pct'] ?? null;
 	$text  = ( null === $pct ) ? 'flat' : ( ( $pct >= 0 ? '+' : '' ) . (int) $pct . '%' );
+	// The glyph is hidden from screen readers, so the direction is said in
+	// words; "flat" with no percentage can still be up from a zero week.
+	$said = 'up' === $dir ? 'up' : ( 'down' === $dir ? 'down' : 'no change' );
 	return '<span class="sn-glance-delta sn-glance-delta--' . esc_attr( $dir ) . '">'
-		. esc_html( $arrow . ' ' . $text . ' WoW' ) . '</span>';
+		. '<span aria-hidden="true">' . esc_html( $arrow ) . '</span>'
+		. '<span class="screen-reader-text">' . esc_html( $said . ', ' ) . '</span> ' . esc_html( $text . ' WoW' ) . '</span>';
 }
 
 /**

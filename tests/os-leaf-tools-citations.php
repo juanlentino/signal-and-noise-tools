@@ -157,6 +157,7 @@ $kit     = snt_leaf_paint( 'tools', 'citations' );
 
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'claim' ) === snt_leaf_names( $kit ), 'rich fixture: one field in both, the claim to forget: ' . implode( ',', snt_leaf_names( $classic ) ) . ' / ' . implode( ',', snt_leaf_names( $kit ) ) );
 ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && array( 'citation_forget' ) === snt_leaf_actions( $kit ), 'rich fixture: one action in both, citation_forget: ' . implode( ',', snt_leaf_actions( $classic ) ) . ' / ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( false !== strpos( $classic, 'aria-describedby="sn-cit-forget-hint"' ) && false !== strpos( $classic, 'id="sn-cit-forget-hint"' ) && 1 === preg_match( '/<os-select[^>]*name="claim"[^>]*>|name="claim"[^>]*hint=/s', $kit ) && false !== strpos( $kit, 'Only claims shown to nobody' ), 'the forget hint is tied to its select on both forms (aria-describedby; the kit field\'s own hint)' );
 foreach ( array( 'classic' => $classic, 'kit' => $kit ) as $which => $html ) {
 	ok( false !== strpos( $html, 'gone.example/x, cites /notes/prov (asserted)' ) && false !== strpos( $html, 'unreachable.example/y, cites /notes/other (unverified)' ) && false === strpos( $html, 'blog.example/2026/post, cites' ), "$which: the form offers the two claims shown to nobody and never the verified one" );
 }
@@ -183,7 +184,7 @@ ok( false !== strpos( $kit, '/notes/other' ), 'rich fixture: an uncited target f
 $cit_table = snt_leaf_tables( $kit )[0] ?? array( 'columns' => array(), 'data' => array() );
 $cit_http  = array_column( $cit_table['data'], 'http' );
 ok( in_array( '404', $cit_http, true ), 'rich fixture: the 404 status is printed in the HTTP field' );
-ok( in_array( '—', $cit_http, true ) && ! in_array( '0', $cit_http, true ), 'rich fixture: the zero-status row prints the em dash, not "0"' );
+ok( in_array( 'No response', $cit_http, true ) && ! in_array( '0', $cit_http, true ) && ! in_array( '—', $cit_http, true ), 'rich fixture: the zero-status row says "No response" in words, not "0" or a dash a screen reader skips' );
 ok( array( 'Tier', 'Source', 'Cites', 'First seen', 'Last checked', 'HTTP' ) === array_column( $cit_table['columns'], 'label' ) && false === strpos( $kit, '<os-card compact' ) && false !== strpos( $kit, 'data-snt-stack-on-phone' ), '#1624: the classic table\'s six columns as one os-table, not a card per claim; stacks on a phone' );
 ok( false !== strpos( $kit, 'The newest 100 claims are listed' ), 'rich fixture: exactly 100 rows triggers the cap notice' );
 

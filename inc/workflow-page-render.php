@@ -99,6 +99,15 @@ function sn_workflow_page_html( $pub ) {
 		}
 		$out .= '</ol></section>';
 	}
+	if ( ! empty( $pub['proof'] ) ) {
+		// The link sits in the item's first span, so it takes the row lead's styling.
+		$out .= '<section class="sn-workflow-proof">' . ( '' !== ( $pub['proof_heading'] ?? '' ) ? '<h2 class="sn-workflow-proof__heading">' . sn_workflow_esc( $pub['proof_heading'] ) . '</h2>' : '' ) . '<ul class="sn-workflow-proof__list" role="list">';
+		foreach ( $pub['proof'] as $row ) {
+			$out .= '<li class="sn-workflow-proof__item"><span class="sn-workflow-proof__title"><a href="' . str_replace( array( '[', ']' ), array( '&#91;', '&#93;' ), esc_url( $row['href'] ) ) . '">' . sn_workflow_esc( $row['title'] ) . '</a></span>'
+				. ( '' !== $row['line'] ? ' <span class="sn-workflow-proof__line">' . sn_workflow_esc( $row['line'] ) . '</span>' : '' ) . '</li>';
+		}
+		$out .= '</ul></section>';
+	}
 	if ( '' === $out && '' === $pub['title'] && '' === $pub['dek'] ) {
 		return '';
 	}

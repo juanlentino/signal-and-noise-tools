@@ -28,7 +28,7 @@
 	}
 	window.desktopModeWidgets = window.openStationWidgets = __osWidgets;
 
-	var TONE   = { up: '#3fb950', down: '#c9503f' }; // a row's change when the server calls it meaningful; SN Site Views' two colors.
+	var TONE   = { up: '#3fb950', down: '#ff9d94' }; // a row's change when the server calls it meaningful; the down red is Quick Actions' text red, legible on the dark card.
 	var SUBTLE = 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));';
 
 	function el( tag, style, text ) {
@@ -55,35 +55,56 @@
 			body.appendChild( el( 'div', 'font-size:11px;margin-bottom:4px;' + SUBTLE, 'Last ' + win.days + ' days' ) );
 		}
 		( ( payload && payload.groups ) || [] ).forEach( function( group, i ) {
-			body.appendChild( el( 'div', 'font-size:11px;margin:' + ( i ? '10px' : '2px' ) + ' 0 2px;padding-top:' + ( i ? '8px' : '0' ) + ';' + ( i ? 'border-top:1px solid rgba(128,128,128,.25);' : '' ) + SUBTLE, group.title ) );
+			var head = el( 'div', 'font-size:11px;margin:' + ( i ? '10px' : '2px' ) + ' 0 2px;padding-top:' + ( i ? '8px' : '0' ) + ';' + ( i ? 'border-top:1px solid rgba(128,128,128,.25);' : '' ) + SUBTLE, group.title );
+			head.setAttribute( 'role', 'heading' );
+			head.setAttribute( 'aria-level', '3' );
+			body.appendChild( head );
 			if ( ! group.rows || ! group.rows.length ) {
 				body.appendChild( el( 'div', 'font-size:11px;padding:2px 0;' + SUBTLE, group.empty || 'Nothing to show.' ) );
 				return;
 			}
+			var list = el( 'div' );
+			list.setAttribute( 'role', 'list' );
 			group.rows.forEach( function( r ) {
 				var row = el( 'div', 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' );
-				row.appendChild( el( 'span', 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;', r.label ) );
+				row.setAttribute( 'role', 'listitem' );
+				row.appendChild( el( 'span', 'white-space:normal;overflow-wrap:anywhere;min-width:0;', r.label ) );
 				row.appendChild( el( 'span', 'flex:none;font-variant-numeric:tabular-nums;font-weight:600;' + ( TONE[ r.tone ] ? 'color:' + TONE[ r.tone ] + ';' : '' ), r.value ) );
-				body.appendChild( row );
+				list.appendChild( row );
 			} );
+			body.appendChild( list );
 		} );
 		// When these figures were read, as a clock time: the tile paints once,
 		// so a relative age would go stale on a desktop left open.
 		var at = payload && Number( payload.generated_at );
 		if ( at > 0 ) {
-			body.appendChild( el( 'div', 'font-size:10px;margin-top:8px;' + SUBTLE, 'Read at ' + new Date( at * 1000 ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) ) );
+			body.appendChild( el( 'div', 'font-size:11px;margin-top:8px;' + SUBTLE, 'Read at ' + new Date( at * 1000 ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) ) );
 		}
 	}
 
-	function mounter( route, linkText ) {
+	// A failure is said once, assertively, inside the polite status region.
+	function alertLine( body, text ) {
+		while ( body.firstChild ) { body.removeChild( body.firstChild ); }
+		var line = el( 'div', '', text );
+		line.setAttribute( 'role', 'alert' );
+		body.appendChild( line );
+	}
+
+	function mounter( route, linkText, widgetName ) {
 		return function mount( container, ctx ) { // eslint-disable-line no-unused-vars
 			var torn = false;
 			var wrap = el( 'div', 'padding:14px 16px;color:inherit;font-size:13px;line-height:1.5;' );
 			var body = el( 'div', 'font-size:12px;' + SUBTLE, 'Loading…' );
+			body.setAttribute( 'role', 'status' );
 			wrap.appendChild( body );
 			var url = ( window.snDesktopData && window.snDesktopData.pages && window.snDesktopData.pages.analytics ) || '';
 			if ( url ) {
-				var link = el( 'a', 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;', linkText );
+				// Two tiles share this link text; the name starts with the visible words (WCAG 2.5.3).
+				var link = el( 'a', 'display:inline-flex;align-items:center;gap:4px;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;', linkText );
+				var arrow = el( 'span', '', '→' );
+				arrow.setAttribute( 'aria-hidden', 'true' );
+				link.appendChild( arrow );
+				link.setAttribute( 'aria-label', linkText + ', from the ' + widgetName + ' widget' );
 				link.href = url;
 				wrap.appendChild( link );
 			}
@@ -92,15 +113,15 @@
 				window.wp.apiFetch( { path: '/signal-noise/v1/desktop/' + route } ).then( function( payload ) {
 					if ( ! torn ) { body.setAttribute( 'style', '' ); paint( body, payload ); }
 				} ).catch( function() {
-					if ( ! torn ) { body.textContent = 'Could not load this reading.'; }
+					if ( ! torn ) { alertLine( body, 'Could not load this reading.' ); }
 				} );
 			} else {
-				body.textContent = 'The API client is unavailable.';
+				alertLine( body, 'The API client is unavailable.' );
 			}
 			return function teardown() { torn = true; };
 		};
 	}
 
-	window.desktopModeWidgets['sn-audience'] = mounter( 'audience', 'Open Analytics →' );
-	window.desktopModeWidgets['sn-reading']  = mounter( 'reading', 'Open Analytics →' );
+	window.desktopModeWidgets['sn-audience'] = mounter( 'audience', 'Open Analytics', 'SN Audience' );
+	window.desktopModeWidgets['sn-reading']  = mounter( 'reading', 'Open Analytics', 'SN Reading' );
 } )();

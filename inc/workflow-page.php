@@ -89,6 +89,8 @@ function sn_workflow_normalize( $in, $slashed = true ) {
 		'map'           => array(),
 		'rules_heading' => sn_workflow_text( $in['rules_heading'] ?? '' ),
 		'rules'         => array(),
+		'proof_heading' => sn_workflow_text( $in['proof_heading'] ?? '' ),
+		'proof'         => array(),
 	);
 	foreach ( (array) ( $in['map'] ?? array() ) as $row ) {
 		$row   = is_array( $row ) ? $row : array();
@@ -112,7 +114,43 @@ function sn_workflow_normalize( $in, $slashed = true ) {
 			$doc['rules'][] = array( 'rule' => $rule, 'explanation' => $expl );
 		}
 	}
+	foreach ( (array) ( $in['proof'] ?? array() ) as $row ) {
+		$row   = is_array( $row ) ? $row : array();
+		$title = sn_workflow_text( $row['title'] ?? '' );
+		$url   = sn_workflow_text( $row['url'] ?? '' );
+		$line  = sn_workflow_text( $row['line'] ?? '' );
+		if ( '' === $title . $url . $line ) {
+			continue;
+		}
+		$show           = $row['show'] ?? null;
+		$doc['proof'][] = array(
+			'title' => $title,
+			'url'   => $url,
+			'line'  => $line,
+			'show'  => true === $show || '1' === $show,
+		);
+	}
 	return $doc;
+}
+
+/**
+ * The link a proof row may carry: a path on this site ("/maturity/") or an
+ * https URL. Anything else ('', http:, javascript:, a protocol-relative
+ * "//host") is '' and the row stays off the page.
+ *
+ * @param string $url Stored URL.
+ * @return string Absolute URL, or ''.
+ */
+function sn_workflow_proof_url( $url ) {
+	$url = trim( (string) $url );
+	if ( '' !== $url && '/' === $url[0] && ( ! isset( $url[1] ) || '/' !== $url[1] ) ) {
+		return home_url( $url );
+	}
+	$parts = wp_parse_url( $url );
+	if ( is_array( $parts ) && 'https' === strtolower( (string) ( $parts['scheme'] ?? '' ) ) && '' !== (string) ( $parts['host'] ?? '' ) ) {
+		return $url;
+	}
+	return '';
 }
 
 /**
@@ -122,7 +160,7 @@ function sn_workflow_normalize( $in, $slashed = true ) {
  * @return bool
  */
 function sn_workflow_has_content( array $doc ) {
-	return '' !== $doc['title'] . $doc['dek'] . implode( '', $doc['sample'] ) || ! empty( $doc['map'] ) || ! empty( $doc['rules'] );
+	return '' !== $doc['title'] . $doc['dek'] . implode( '', $doc['sample'] ) || ! empty( $doc['map'] ) || ! empty( $doc['rules'] ) || ! empty( $doc['proof'] );
 }
 
 /**
@@ -158,6 +196,15 @@ function sn_workflow_public_data( $doc = null ) {
 		}
 	}
 	$doc['map'] = $map;
+	// Proof rows obey the same wall, and also need a link that may go public.
+	$proof = array();
+	foreach ( $doc['proof'] as $row ) {
+		$href = sn_workflow_proof_url( $row['url'] );
+		if ( true === $row['show'] && '' !== $href && '' !== $row['title'] ) {
+			$proof[] = array( 'title' => $row['title'], 'href' => $href, 'line' => $row['line'] );
+		}
+	}
+	$doc['proof'] = $proof;
 	return $doc;
 }
 

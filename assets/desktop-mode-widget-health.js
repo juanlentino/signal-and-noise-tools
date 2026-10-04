@@ -57,6 +57,14 @@
 		return node;
 	}
 
+	// A link's trailing arrow is decoration: hidden from assistive tech.
+	function withArrow( link ) {
+		var arrow = el( 'span', { text: '→' } );
+		arrow.setAttribute( 'aria-hidden', 'true' );
+		link.appendChild( arrow );
+		return link;
+	}
+
 	/**
 	 * "3d ago" from scanned_at. sn_health_run_scan() stores it as time() — a
 	 * UNIX timestamp in SECONDS, not a MySQL datetime string — so multiply to
@@ -88,11 +96,11 @@
 				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
 			} ) );
 			if ( healthUrl ) {
-				wrap.appendChild( el( 'a', {
+				wrap.appendChild( withArrow( el( 'a', {
 					href: healthUrl,
-					text: 'Run a scan →',
-					style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
-				} ) );
+					text: 'Run a scan',
+					style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
+				} ) ) );
 			}
 			container.appendChild( wrap );
 			return function teardown() {
@@ -123,8 +131,7 @@
 				var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
 				row.appendChild( el( 'span', {
 					text:  String( f.label ),
-					title: String( f.label ),
-					style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+					style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));min-width:0;white-space:normal;overflow-wrap:anywhere;'
 				} ) );
 				row.appendChild( el( 'span', {
 					text:  String( f.count ),
@@ -135,13 +142,13 @@
 			if ( summary.flagged_more > 0 ) {
 				list.appendChild( el( 'div', {
 					text:  '+' + summary.flagged_more + ' more',
-					style: 'font-size:10px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.45));margin-top:2px;'
+					style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.45));margin-top:2px;'
 				} ) );
 			}
 			wrap.appendChild( list );
 		}
 
-		// A check that could not run: named, with its reason on hover. Not a
+		// A check that could not run: named, with its reason on the line under it. Not a
 		// finding and not a pass, so the dot above is amber while one exists.
 		var skipped = summary.skipped || [];
 		if ( skipped.length ) {
@@ -150,11 +157,16 @@
 				var srow = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
 				srow.appendChild( el( 'span', {
 					text:  String( s.label ),
-					title: String( s.reason || s.label ),
-					style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+					style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));min-width:0;white-space:normal;overflow-wrap:anywhere;'
 				} ) );
-				srow.appendChild( el( 'span', { text: 'could not run', title: String( s.reason || '' ), style: 'font-weight:600;color:#d29922;flex:0 0 auto;' } ) );
+				srow.appendChild( el( 'span', { text: 'could not run', style: 'font-weight:600;color:#d29922;flex:0 0 auto;' } ) );
 				skipList.appendChild( srow );
+				if ( s.reason ) {
+					skipList.appendChild( el( 'div', {
+						text:  String( s.reason ),
+						style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));overflow-wrap:anywhere;'
+					} ) );
+				}
 			} );
 			wrap.appendChild( skipList );
 		}
@@ -163,10 +175,10 @@
 		// external_links / link_opportunities carry findings by nature, so
 		// counting them as problems would make a healthy site read as alarming.
 		if ( summary.advisory_total > 0 ) {
+			// The reason is visible text, not a title only a mouse can reach.
 			wrap.appendChild( el( 'div', {
-				text:  summary.advisory_total + ' advisories (not faults)',
-				title: 'Advisory checks — external links and link opportunities — always carry findings. They are informational, not problems.',
-				style: 'font-size:10px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.45));margin-top:6px;'
+				text:  summary.advisory_total + ' advisories (not faults): informational checks that carry findings by nature, never problems.',
+				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.45));margin-top:6px;'
 			} ) );
 		}
 
@@ -177,11 +189,11 @@
 		} ) );
 
 		if ( healthUrl ) {
-			wrap.appendChild( el( 'a', {
+			wrap.appendChild( withArrow( el( 'a', {
 				href: healthUrl,
-				text: 'Open Health →',
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
-			} ) );
+				text: 'Open Health',
+				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
+			} ) ) );
 		}
 
 		container.appendChild( wrap );
