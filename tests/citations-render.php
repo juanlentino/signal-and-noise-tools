@@ -26,6 +26,9 @@ function in_the_loop() { return $GLOBALS['__inloop']; }
 function is_main_query() { return $GLOBALS['__mainq']; }
 function doing_filter( $f ) { return ( 'get_the_excerpt' === $f ) ? $GLOBALS['__excerpt'] : false; }
 function get_the_ID() { return $GLOBALS['__id']; }
+$GLOBALS['__block_theme'] = false; $GLOBALS['__queried'] = 0;
+function wp_is_block_theme() { return $GLOBALS['__block_theme']; }
+function get_queried_object_id() { return $GLOBALS['__queried']; }
 
 require __DIR__ . '/../inc/citations-core.php';
 require __DIR__ . '/../inc/citations-render.php';
@@ -105,6 +108,22 @@ $GLOBALS['__excerpt'] = false;
 $GLOBALS['__id'] = 0;
 ok( sn_cit_render_append( 'BODY' ) === 'BODY', 'no post id means no aside' );
 $GLOBALS['__id'] = 42;
+
+// ── on a block theme the aside is a SIBLING of the post-content element ──────
+$GLOBALS['__rows'] = array( row( 'unattributed', 'https://quiet.example/p' ) );
+$GLOBALS['__singular'] = true; $GLOBALS['__inloop'] = true; $GLOBALS['__mainq'] = true; $GLOBALS['__excerpt'] = false; $GLOBALS['__id'] = 7; $GLOBALS['__queried'] = 7;
+$GLOBALS['__block_theme'] = true;
+ok( 'BODY' === sn_cit_render_append( 'BODY' ), 'on a block theme the_content is left alone: nothing of ours goes inside the element the ledger checks' );
+$el  = '<div class="entry-content wp-block-post-content"><p>Signed.</p></div>';
+$out = sn_cit_render_after_content( $el );
+ok( 0 === strpos( $out, $el ) && strpos( $out, '<aside class="snt-cit"' ) === strlen( $el ), 'the aside follows the closing tag of the post-content element, so it is outside the signed region' );
+$other = (object) array( 'context' => array( 'postId' => 9 ) );
+ok( $el === sn_cit_render_after_content( $el, array(), $other ), 'a post-content block rendering another post (a query loop) gets no aside' );
+$GLOBALS['__singular'] = false;
+ok( $el === sn_cit_render_after_content( $el ), 'and none off a single note' );
+$GLOBALS['__singular'] = true; $GLOBALS['__rows'] = array();
+ok( $el === sn_cit_render_after_content( $el ), 'no public citation: the element is returned untouched' );
+$GLOBALS['__block_theme'] = false;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
