@@ -85,7 +85,10 @@ function snt_desktop_reading_visit_rows( $days ) {
 	}
 	$rows = array(
 		array( 'label' => 'Sessions', 'value' => number_format_i18n( $n ) ),
-		array( 'label' => 'One page only', 'value' => round( $bounce / $n ) . '%' ),
+		// With the depth split measured, all three shares come from the same
+		// sessions (the days that measured it), so they add up; before any day
+		// measured it, the one-page share is the rollup's own.
+		array( 'label' => 'One page only', 'value' => $known > 0 ? snt_desktop_pct( max( 0, $known - $two - $deep ), $known ) : round( $bounce / $n ) . '%' ),
 		array( 'label' => 'Pages per session', 'value' => number_format_i18n( $ppv / $n, 2 ) ),
 		array( 'label' => 'Typical session', 'value' => snt_desktop_reading_seconds( $dur / $n ) ),
 	);

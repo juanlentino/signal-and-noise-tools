@@ -52,6 +52,7 @@ $req = static fn( $job, $at ) => array( 'state' => 'requested', 'job_id' => $job
 foreach ( range( 1, 7 ) as $i ) { $GLOBALS['meta'][ $i ]['_sn_archive_push'] = $req( "spn2-$i", time() - 600 ); }
 $GLOBALS['meta'][2]['_sn_archive_push'] = array( 'state' => 'failed', 'job_id' => '', 'requested_at' => time() - 600 );
 $GLOBALS['resp'] = array( array( 'code' => 200, 'body' => '{"status":"success","timestamp":"20261004000000"}' ), array( 'code' => 200, 'body' => '{"status":"pending"}' ), array( 'code' => 200, 'body' => '{"status":"error","message":"no"}' ), new WP_Error() );
+ok( 6 === sn_archive_confirm_counts()['waiting'], 'before any pass: six accepted requests are waiting; the push the Archive refused is not' );
 $n = sn_archive_confirm_run();
 ok( 2 === $n && 4 === count( $GLOBALS['http'] ), 'five notes a pass; a failed push is skipped without a request; two outcomes recorded' );
 ok( 'not_requested' === $GLOBALS['meta'][2]['_sn_archive_capture']['state'], 'the failed push is marked as having nothing to confirm, so it does not take a place in every later pass' );

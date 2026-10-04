@@ -81,7 +81,9 @@ function sn_analytics_percentiles_sql( $event, $col, $from, $to, $class ) {
 		"quantileExactWeighted(0.5)({$col}, _sample_interval) AS p50,",
 		"quantileExactWeighted(0.75)({$col}, _sample_interval) AS p75,",
 		"quantileExactWeighted(0.9)({$col}, _sample_interval) AS p90",
-		'FROM ' . sn_analytics_source( $from ),
+		// The dataset follows the first UTC day the window touches: east of UTC
+		// the site's day starts on the UTC day before.
+		'FROM ' . sn_analytics_source( substr( $lo, 0, 10 ) ),
 		"WHERE blob1 = '{$event}' AND " . sn_analytics_class_where( $class ),
 		"AND timestamp >= toDateTime('{$lo}')",
 		"AND timestamp <= toDateTime('{$hi}')",

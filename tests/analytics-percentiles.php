@@ -81,6 +81,17 @@ ok( array( '2026-11-01 04:00:00', '2026-11-02 04:59:59' ) === sn_analytics_local
 ok( array( '2026-06-01 00:00:00', '2026-06-30 23:59:59' ) === sn_analytics_local_day_bounds_utc( '2026-06-01', '2026-06-30', new DateTimeZone( 'UTC' ) ), 'a UTC site keeps the UTC midnights' );
 ok( false !== strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-06-01', '2026-06-30', 'human' ), "timestamp >= toDateTime('2026-06-01 00:00:00') AND timestamp <= toDateTime('2026-06-30 23:59:59')" ), 'the statement keeps its proven shape: a plain UTC literal inside toDateTime(), no timezone argument' );
 
+if ( function_exists( 'sn_analytics_v2_clean_from' ) ) {
+	function wp_timezone() { return new DateTimeZone( $GLOBALS['__tz'] ?? 'UTC' ); }
+	sn_analytics_v2_clean_from( '2026-10-05' );
+	$GLOBALS['__tz'] = 'Asia/Tokyo'; // Tokyo's Oct 5 starts at 15:00 UTC on Oct 4, before the clean day.
+	ok( false !== strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-10-05', '2026-10-10', 'human' ), 'FROM sn_pageviews WHERE' ), 'east of UTC, a window starting on the clean day reaches the UTC day before it: the legacy dataset' );
+	ok( false !== strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-10-06', '2026-10-10', 'human' ), 'FROM sn_pageviews_v2' ), 'one day later it is inside: the second generation' );
+	$GLOBALS['__tz'] = 'America/New_York';
+	ok( false !== strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-10-05', '2026-10-10', 'human' ), 'FROM sn_pageviews_v2' ), 'west of UTC the same window starts inside the clean day' );
+	$GLOBALS['__tz'] = 'UTC'; sn_analytics_v2_clean_from( '' );
+}
+
 echo "\nGroup: read accessor — success shape + caching\n";
 pc_reset();
 $r = sn_analytics_percentiles( 'scroll', '2026-06-01', '2026-06-30', 'human' );

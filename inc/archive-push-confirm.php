@@ -120,7 +120,14 @@ function sn_archive_confirm_run() {
  * @return array{captured:int,failed:int,unconfirmed:int,waiting:int}
  */
 function sn_archive_confirm_counts() {
-	$out = array( 'captured' => 0, 'failed' => 0, 'unconfirmed' => 0, 'waiting' => count( sn_archive_confirm_pending() ) );
+	// Waiting is a request the Archive accepted and has not answered for yet. A
+	// push it never accepted is not waiting, whether or not the hourly pass has
+	// reached it to say so.
+	$waiting = 0;
+	foreach ( sn_archive_confirm_pending() as $id ) {
+		$waiting += 'requested' === ( ( (array) get_post_meta( $id, SN_ARCHIVE_PUSH_META, true ) )['state'] ?? '' ) ? 1 : 0;
+	}
+	$out = array( 'captured' => 0, 'failed' => 0, 'unconfirmed' => 0, 'waiting' => $waiting );
 	$ids = get_posts( array( 'post_type' => 'post', 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids', 'no_found_rows' => true, 'meta_key' => SN_ARCHIVE_CAPTURE_META ) ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- on demand, one site's notes.
 	foreach ( $ids as $id ) {
 		$state = (string) ( ( (array) get_post_meta( (int) $id, SN_ARCHIVE_CAPTURE_META, true ) )['state'] ?? '' );
