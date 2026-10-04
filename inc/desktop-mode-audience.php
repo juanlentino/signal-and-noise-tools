@@ -106,13 +106,35 @@ function snt_desktop_traffic_groups( array $win ) {
 	}
 	return array(
 		snt_desktop_group( 'Countries', snt_desktop_audience_rows( $dim( 'country' ), 'value', 3 ), 'No views in this window.' ),
-		snt_desktop_group( 'Devices', snt_desktop_audience_rows( $dim( 'device' ), 'value', 2 ), 'No views in this window.' ),
 		// Named sources (Hacker News, LinkedIn, direct): a name says more than a category.
 		snt_desktop_group( 'Sources', snt_desktop_audience_rows( function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $win['from'], $win['to'], 'human', 500 ) : null, 'value', 4 ), 'No views in this window.' ),
 		// A failed discovery read keeps the stories already known; the heading says
 		// the list may be missing new ones.
-		snt_desktop_group( 'Hacker News · latest stories' . ( '' !== (string) ( $hn['error'] ?? '' ) ? ' · last check failed' : '' ), snt_desktop_audience_hn_rows( (array) ( $hn['items'] ?? array() ), 3 ), 'No story links here yet.' ),
-		snt_desktop_group( 'Search', snt_desktop_audience_search_rows( function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null, function_exists( 'sn_bing_data' ) ? sn_bing_data() : null, is_array( $gsc ) && empty( $gsc['ok'] ) ), 'No search reading stored yet.' ),
-		snt_desktop_group( 'Feed subscribers', snt_desktop_traffic_feed_rows( $rss ), null === $rss ? 'The feed log could not be read.' : 'No feed requests logged yet.' ),
+		snt_desktop_group( 'Hacker News · latest story' . ( '' !== (string) ( $hn['error'] ?? '' ) ? ' · last check failed' : '' ), snt_desktop_audience_hn_rows( (array) ( $hn['items'] ?? array() ), 1 ), 'No story links here yet.' ),
+		// Devices, search and the feed, one row each: the card is a glance, the
+		// detail lives in Analytics.
+		snt_desktop_group(
+			'Devices, search, feed',
+			array_values( array_filter( array(
+				snt_desktop_traffic_fold( 'Devices', snt_desktop_audience_rows( $dim( 'device' ), 'value', 2 ), static fn( $r ) => $r['label'] . ' ' . preg_replace( '/^.* · /', '', $r['value'] ) ),
+				snt_desktop_traffic_fold( 'Search', snt_desktop_audience_search_rows( function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null, function_exists( 'sn_bing_data' ) ? sn_bing_data() : null, is_array( $gsc ) && empty( $gsc['ok'] ) ), static fn( $r ) => preg_replace( '/ · \d+d/', '', $r['label'] ) . ' ' . preg_replace( '/ clicks · .*$/', ' clicks', $r['value'] ) ),
+				// A feed table that cannot be read says so; it never reads as zero subscribers.
+				null === $rss ? array( 'label' => 'Feed', 'value' => 'could not be read' ) : snt_desktop_traffic_fold( 'Feed, unique 24h · 7d · 30d', snt_desktop_traffic_feed_rows( $rss ), static fn( $r ) => preg_replace( '/ unique · .*$/', '', $r['value'] ) ),
+			) ) ),
+			'No views in this window.'
+		),
 	);
+}
+
+/**
+ * Several rows as one: "Devices · desktop 70% · mobile 30%". Null when there
+ * are none, so the row is left out rather than shown empty. PURE.
+ *
+ * @param string   $label Row label.
+ * @param array    $rows  Rows to fold.
+ * @param callable $part  fn( row ): string, one row's part of the value.
+ * @return array{label:string,value:string}|null
+ */
+function snt_desktop_traffic_fold( $label, array $rows, callable $part ) {
+	return array() === $rows ? null : array( 'label' => (string) $label, 'value' => implode( ' · ', array_map( $part, $rows ) ) );
 }

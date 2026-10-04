@@ -91,11 +91,12 @@ function sn_analytics_top_sources( $f, $t, $c, $l ) { return sn_analytics_top_di
 function sn_rss_tracker_window_stats_multi( $d ) { return array( 'windows' => array( 1 => array( 'total' => 1, 'uniques' => 1 ), 7 => array( 'total' => 2, 'uniques' => 2 ), 30 => array( 'total' => 3, 'uniques' => 3 ) ) ); }
 function get_option( $k, $d = null ) { return $d; }
 $tg = snt_desktop_traffic_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) );
-ok( array( 'Countries', 'Devices', 'Sources', 'Hacker News · latest stories', 'Search', 'Feed subscribers' ) === array_column( $tg, 'title' ), 'SN Traffic\'s groups, in the approved order: countries, devices, sources, Hacker News, search, feed subscribers (no campaigns)' );
-ok( array( 3, 2, 4 ) === array( count( $tg[0]['rows'] ), count( $tg[1]['rows'] ), count( $tg[2]['rows'] ) ) && 3 === count( $tg[5]['rows'] ), 'top 3 countries, 2 devices (desktop, mobile), top 4 sources, three feed windows' );
+ok( array( 'Countries', 'Sources', 'Hacker News · latest story', 'Devices, search, feed' ) === array_column( $tg, 'title' ), 'SN Traffic\'s groups: countries, sources, Hacker News, then devices, search and feed as one-line rows (no campaigns)' );
+$glance = array_column( $tg[3]['rows'], 'value', 'label' );
+ok( array( 3, 4 ) === array( count( $tg[0]['rows'] ), count( $tg[1]['rows'] ) ) && 1 === preg_match( '/^device1 \d+% · device2 \d+%$/', $glance['Devices'] ?? '' ) && '1 · 2 · 3' === ( $glance['Feed, unique 24h · 7d · 30d'] ?? '' ), 'top 3 countries, top 4 sources; devices and the three feed windows each fold into one row' );
 $GLOBALS['wpdb']->last_error = "Table 'wp_sn_rss_tracker' doesn't exist";
 $tg = snt_desktop_traffic_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) );
-ok( 'The feed log could not be read.' === ( $tg[5]['empty'] ?? '' ), 'a broken feed table says it could not be read, never zero subscribers' );
+ok( 'could not be read' === ( array_column( $tg[3]['rows'], 'value', 'label' )['Feed'] ?? '' ), 'a broken feed table says it could not be read, never zero subscribers' );
 unset( $GLOBALS['wpdb'] );
 
 echo "\nA failed table is not an empty one\n";
@@ -118,7 +119,7 @@ $rd = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-reading.php' )
 ok( false !== strpos( $rd, "'Custom events · all traffic'" ) && false === strpos( $rd, "'Goal events'" ), 'the event group is named for what the table holds: custom events, not goals' );
 ok( false !== strpos( $rd, '$ask = $ask && null !== $pct;' ) && false === strpos( $rd, "sn_analytics_percentiles( 'time'" ), 'after one percentile that cannot be read the rest are not asked; time needs no request at all' );
 ok( false !== strpos( $rd, "'The sessions could not be read.'" ), 'a failed sessions read has its own sentence' );
-ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-audience.php' ), "'Hacker News · latest stories'" ), 'the Hacker News group says it is not bound to the window' );
+ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-audience.php' ), "'Hacker News · latest story'" ), 'the Hacker News group says it is not bound to the window' );
 
 echo "\nThe painter\n";
 echo "\nThe opening figure\n";

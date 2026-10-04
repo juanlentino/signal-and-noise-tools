@@ -478,7 +478,7 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 // 2026-10-04: the three merged cards are BUDGETED, not measured, and a saved
 // layout keeps its old height: the owner resizes each once.
 $expected_height = array(
-	'sn-site-views'       => 940, // SN Traffic, BUDGETED: the 500 headline block less the north star, + seven groups (~36 each + ~20 a row) and one link
+	'sn-site-views'       => 760, // SN Traffic, BUDGETED: the old card less its north-star rows (~360) + four groups (~36 each + ~20 a row) and one link
 	'sn-reading'          => 575, // BUDGETED: 555 + the opening figure and age line, less the two rows it replaced
 	'sn-queue'            => 380, // measured 365 live (15.8.1): two-line headline + depth line + two headings + six rows
 	'sn-health'           => 360, // SN Systems, BUDGETED: the verdict line, three one-row sections (~52 each), the button (~44), the link

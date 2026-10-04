@@ -147,13 +147,13 @@ add_action( 'init', function() {
 			'description'    => 'Views over 14 days with the trend, then who came and from where: countries, devices, sources, Hacker News, search, feed subscribers, top pages.',
 			'icon'           => 'dashicons-chart-area',
 			'script'         => 'sn-desktop-mode-widget-views',
-			// BUDGETED 940, not browser-measured: the old 500 headline, today row,
-			// sparkline and delta (~140) plus seven groups at a hairline and a
-			// heading (~36) each and ~20px a row (3 countries, 2 devices, 4
-			// sources, 3 Hacker News stories at up to two lines, 2 search, 3
-			// feed windows, 3 top pages), the link, chrome and padding. The body
-			// scrolls past it; measure live before trimming.
-			'default_height' => 940,
+			// BUDGETED 760, not browser-measured: the old card less its dropped
+			// north-star rows (~360: headline, today row, sparkline, delta, top
+			// pages, link) plus four groups at a hairline and a heading (~36)
+			// each and ~20px a row (3 countries, 4 sources, 1 Hacker News story
+			// at up to two lines, 3 one-line rows for devices, search and feed).
+			// The body scrolls past it; measure live before trimming.
+			'default_height' => 760,
 		) ) );
 
 		snt_os_register_widget( 'sn-reading', array_merge( $sn_drag, array(
