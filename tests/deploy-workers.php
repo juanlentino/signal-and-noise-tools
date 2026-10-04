@@ -313,6 +313,35 @@ dw_assert( '1.2.0' === ( $row['latest'] ?? '' ), 'behind fixture: latest from ta
 dw_assert( 'behind' === ( $row['state'] ?? '' ), 'behind fixture: state behind' );
 dw_assert( 'abc123' === ( $row['source_commit'] ?? '' ), 'behind fixture: source_commit path' );
 
+// ─── C2: a live version ahead of the cached tag re-fetches the tag ───
+echo "\nGroup C2: a cached tag older than the running version is re-read\n";
+dw_assert( true === snt_deploy_worker_tag_is_stale( '2.0.0', '1.13.0' ) && false === snt_deploy_worker_tag_is_stale( '1.13.0', '1.13.0' ) && false === snt_deploy_worker_tag_is_stale( '1.0.0', '1.2.0' ), 'stale only when live is NEWER than the tag' );
+dw_assert( false === snt_deploy_worker_tag_is_stale( '', '1.2.0' ) && false === snt_deploy_worker_tag_is_stale( 'unprobeable', '1.2.0' ) && false === snt_deploy_worker_tag_is_stale( '2.0.0', '' ), 'no reading on either side is never stale' );
+dw_reset();
+$GLOBALS['__dw_filters']['snt_deploy_workers_registry'] = static function () {
+	return array(
+		'sn-remote-mcp' => array(
+			'label'        => 'Remote MCP',
+			'repo'         => 'juanlentino/sn-remote-mcp-worker',
+			'probe_url'    => 'https://juanlentino.com/_sn/remote-mcp/status',
+			'version_path' => 'version',
+			'commit_path'  => 'source_commit',
+			'worker_id'    => 'sn-remote-mcp',
+		),
+	);
+};
+// The tag cache still says 1.13.0 (it was read before the 2.0.0 release).
+$GLOBALS['__dw_site_transients']['snt_dw_tag_sn-remote-mcp'] = '1.13.0';
+$GLOBALS['__dw_http'][] = dw_http_json( 200, array( 'worker' => 'sn-remote-mcp', 'version' => '2.0.0', 'source_commit' => 'def' ) );
+$GLOBALS['__dw_http'][] = dw_http_json( 200, array( array( 'name' => 'v2.0.0' ), array( 'name' => 'v1.13.0' ) ) );
+$row = snt_deploy_worker_status_for( 'sn-remote-mcp', array( 'allow_probe' => true ) );
+dw_assert( '2.0.0' === $row['live'] && '2.0.0' === $row['latest'] && 'ok' === $row['state'], 'live 2.0.0 against a cached 1.13.0 tag: the tag is re-read and the row reads 2.0.0, ok' );
+$calls = count( $GLOBALS['__dw_get_calls'] );
+// The tag never caught up (a release not yet tagged): the next read must not ask again.
+$GLOBALS['__dw_site_transients']['snt_dw_tag_sn-remote-mcp'] = '1.13.0';
+snt_deploy_worker_status_for( 'sn-remote-mcp', array( 'allow_probe' => true ) );
+dw_assert( $calls === count( $GLOBALS['__dw_get_calls'] ), 'the early re-fetch happens at most once per five minutes, so a missing tag cannot spend the GitHub rate limit' );
+
 // ─── D: cache behavior ───────────────────────────────────────────────
 echo "\nGroup D: cache behavior\n";
 dw_reset();
