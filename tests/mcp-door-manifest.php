@@ -61,7 +61,9 @@ foreach ( $it as $f ) {
 	// whitespace, named arguments or a variable callback, so the call is not
 	// what is matched. The files that already name it (they ask whether the
 	// list function exists, or apply the filter) are listed; a new one fails.
-	if ( ! in_array( $rel, $names_ok, true ) && preg_match( '/[\'"]sn_mcp_(rw_)?allowlist[\'"]/', $src ) ) {
+	// The seven files that already name the filters are exempt from the name
+	// scan only; a hook call inside one of them is still a hook.
+	if ( ( ! in_array( $rel, $names_ok, true ) && preg_match( '/[\'"]sn_mcp_(rw_)?allowlist[\'"]/', $src ) ) || preg_match( '/add_filter\b[^;]*[\'"]sn_mcp_(rw_)?allowlist[\'"]/', $src ) ) {
 		$hooks[] = $rel;
 	}
 }

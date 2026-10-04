@@ -530,17 +530,27 @@ function snt_desktop_machine_readers_payload() {
  * is a read from before the edge recorded the network, and the rest named
  * themselves and were not vouched for.
  *
- * @param array $rows Sensor rows { hits, verified_bot, network }.
+ * Measured is decided by the row's DAY, the way the rights evidence decides it
+ * (sn_rights_evidence_identity_class()): verification began on a known date,
+ * one worker version before the network was recorded, so an empty network is
+ * not "not measured".
+ *
+ * @param array $rows Sensor rows { day, hits, verified_bot, network }.
  * @return array{verified:int,unverified:int,not_measured:int}
  */
 function snt_desktop_machine_readers_identity( array $rows ) {
 	$out = array( 'verified' => 0, 'unverified' => 0, 'not_measured' => 0 );
 	foreach ( $rows as $row ) {
 		$hits = is_array( $row ) ? max( 0, (int) ( $row['hits'] ?? 0 ) ) : 0;
-		if ( '' !== (string) ( $row['verified_bot'] ?? '' ) ) {
+		$bot = is_array( $row ) ? (string) ( $row['verified_bot'] ?? '' ) : '';
+		$day = is_array( $row ) ? (string) ( $row['day'] ?? '' ) : '';
+		if ( function_exists( 'sn_rights_evidence_identity_class' ) && '' !== $day ) {
+			$class = sn_rights_evidence_identity_class( $day, $bot );
+			$out[ 'unverifiable' === $class ? 'not_measured' : $class ] += $hits;
+		} elseif ( '' !== $bot ) {
 			$out['verified'] += $hits;
 		} elseif ( '' === (string) ( $row['network'] ?? '' ) ) {
-			$out['not_measured'] += $hits;
+			$out['not_measured'] += $hits; // no day to class by: the older rule.
 		} else {
 			$out['unverified'] += $hits;
 		}

@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **SN Machine Readers counted too many reads as "Not measured".** The widget took a read with no recorded network to be unmeasured, but the edge began verifying clients one worker version before it began recording networks. Reads are now classed by their day, the same rule the rights evidence uses: before verification began they are not measured, from then on they are verified or named and not verified.
+
 ## [21.5.1] - 2026-10-04 — the Cited by list sits outside the signed content
 
 ### Fixed
