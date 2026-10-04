@@ -12,7 +12,7 @@ name: Door owner
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited] # edited: a pull request retargeted to main
     branches: [main]
 
 permissions:
@@ -38,12 +38,12 @@ jobs:
       HEAD_REF: ${{ github.event.pull_request.head.ref }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       CHANGED: ${{ github.event.pull_request.changed_files }}
-      # Everything that runs on the server, the tests and tools that guard it,
+      # Everything that runs on the server, the data files it reads, the tests and tools that guard it,
       # and this repository's automation. An exposed ability's behavior lives
       # wherever its callback reaches, so a narrower list protects only the
       # registration. tests/mcp-door-manifest.php reads this line. Keep
       # .github/CODEOWNERS in step.
-      OWNED: '^(inc/|apps/|blocks/|lib/|tests/|tools/|\.github/|[^/]+\.php$)'
+      OWNED: '^(inc/|apps/|blocks/|lib/|data/|tests/|tools/|\.github/|[^/]+\.php$)'
     steps:
       - name: Owned paths change only in the owner's hands
         run: |
@@ -56,7 +56,7 @@ jobs:
           if [ "$HEAD_REPO" = "$REPO" ]; then
             ref=$(jq -rn --arg r "refs/heads/$HEAD_REF" '$r|@uri')
             pusher=$(gh api "repos/$REPO/activity?ref=$ref&per_page=30" \
-              | jq -r --arg sha "$HEAD_SHA" '[.[] | select(.after == $sha)][0].actor.login // ""')
+              | jq -r --arg sha "$HEAD_SHA" '[.[] | select(.after == $sha)][0] | (.actor.login // .pusher.login // "")')
           fi
           if [ "$AUTHOR" = "$OWNER" ] && [ "$pusher" = "$OWNER" ]; then
             echo "Opened and last pushed by $OWNER."
