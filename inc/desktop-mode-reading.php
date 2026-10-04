@@ -24,12 +24,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function snt_desktop_reading_page_rows( $totals, array $dist, $engaged = null ) {
 	$views = is_array( $totals ) ? (int) ( $totals['views'] ?? 0 ) : 0;
-	if ( $views < 1 ) {
-		return array();
-	}
-	$rows = array();
-	if ( isset( $totals['visits'] ) ) {
+	$rows  = array();
+	// Before the page-view test: a window can hold visitor-days with no page
+	// view (a feed reader), and SN Site Views no longer paints this figure.
+	if ( is_array( $totals ) && (int) ( $totals['visits'] ?? 0 ) > 0 ) {
 		$rows[] = array( 'label' => 'Visitor-days', 'value' => number_format_i18n( (int) $totals['visits'] ) ); // the figure SN Site Views called Visits.
+	}
+	if ( $views < 1 ) {
+		return $rows;
 	}
 	if ( is_array( $engaged ) && isset( $engaged['rate'] ) ) {
 		// As SN Site Views painted it: an arrow and the change in percentage

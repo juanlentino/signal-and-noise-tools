@@ -59,6 +59,7 @@ ok( array( '25%', '38%', '3m 05s' ) === array_column( $some, 'value' ) && 'Avera
 ok( array() === snt_desktop_reading_page_rows( array( 'views' => 0 ), $d( array( 0, 0, 0, 0 ) ) ) && array() === snt_desktop_reading_page_rows( null, array() ), 'no page views gives no rows' );
 ok( 2 === count( snt_desktop_reading_page_rows( array( 'views' => 5, 'scroll_avg_per_view' => 50.0, 'time_avg_per_view' => 1000.0 ), $d( array( 0, 9, 9, 9 ) ) ) ), 'a milestone count above the views (windows that disagree) drops the reach row instead of printing over 100%' );
 ok( array( 'label' => 'Visitor-days', 'value' => '244' ) === snt_desktop_reading_page_rows( array( 'views' => 203, 'visits' => 244 ), array() )[0], 'the visitor-days figure Site Views called Visits is kept, under its real name' );
+ok( array( array( 'label' => 'Visitor-days', 'value' => '7' ) ) === snt_desktop_reading_page_rows( array( 'views' => 0, 'visits' => 7 ), array() ), 'visitor-days with no page view (feed readers) still show: the figure has no other home now' );
 $e = static fn( $rate, $pts ) => snt_desktop_reading_page_rows( array( 'views' => 10 ), array(), array( 'rate' => $rate, 'pts' => $pts ) )[0];
 ok( array( 'label' => 'Engaged', 'value' => '37% ▼ 10 pts', 'tone' => 'down' ) === $e( 37, -10 ), 'engaged, 10 points down: arrow, no sign, toned down' );
 ok( array( 'label' => 'Engaged', 'value' => '40% ▲ 5 pts', 'tone' => 'up' ) === $e( 40, 5 ), 'at the 5-point threshold: toned up' );
