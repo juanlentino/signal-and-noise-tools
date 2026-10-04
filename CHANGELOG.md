@@ -15,6 +15,9 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Added
 - **A claim shown to nobody can be forgotten.** Integrity › Citations kept every webmention claim forever, so a test claim (an `example.com` page that never linked here) sat in the list with no way out. Under the table, on the classic page and the native leaf alike, one small form now lists the claims in the two tiers the site shows to nobody (asserted, unverified) and removes the chosen one. A citation the site displays (verified, unattributed) is never offered, and the handler reads the tier from the stored row, not from the form, so a crafted request cannot remove one either. If the source sends its webmention again, it is a new claim.
 
+### Changed
+- **Only the owner changes what the MCP doors expose.** An ability reaches a door only by being on one of three lists in code (read, write, remote). A new test pins those lists whole against `tests/fixtures/mcp-door-manifest.json` and fails when a new file names the filters the lists pass through. A new required check, `door-owner`, fails a pull request that touches anything but prose (`docs/` and the top-level Markdown files) unless the owner was the last to push to its branch (Dependabot's own bumps aside); the owner takes over someone else's pull request by pushing to it. Everything else is owned because an exposed ability's behavior lives wherever its callback reaches: server code, the scripts that run in the owner's browser, data files, the served skill files, tests, tools and the repository's automation. The check runs from `main`, never from the pull request's copy, checks nothing out, reads the last pusher from the branch's activity log, and fails when it cannot read the changed files. The owner's pull requests merge as before, with no approval step. Nothing a door exposes changed.
+
 ## [21.4.0] - 2026-10-04 — the reads follow a verified dataset, and a capture is confirmed
 
 ### Added

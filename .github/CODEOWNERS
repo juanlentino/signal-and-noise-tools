@@ -1,0 +1,10 @@
+# What the MCP doors expose, and what an exposed ability does, is the owner's
+# call, and an ability's behavior lives wherever its callback reaches. So the
+# owner owns everything, and only prose is open: docs/ and the top-level
+# Markdown files. The enforcement is the required check in
+# .github/workflows/door-owner.yml (a pull request touching an owned path
+# passes only when the owner was the last to push its branch); this file asks
+# the owner for review on anyone else's.
+*       @juanlentino
+/docs/
+/*.md
