@@ -138,7 +138,9 @@ function sn_analytics_v2_check( $days = 4, $first_full_day = '2026-10-05' ) {
 
 function snt_ability_analytics_dual_write( $input = array() ) {
 	$days = isset( $input['days'] ) ? (int) $input['days'] : 4;
-	return sn_analytics_v2_check( max( 1, min( 14, $days ) ) );
+	$stored = function_exists( 'get_option' ) && defined( 'SN_ANALYTICS_V2_VERIFIED_OPT' ) ? get_option( SN_ANALYTICS_V2_VERIFIED_OPT, null ) : null;
+	// `verdict` is what the reads follow: the daily check's stored answer, not this live one.
+	return sn_analytics_v2_check( max( 1, min( 14, $days ) ) ) + array( 'verdict' => is_array( $stored ) ? $stored : (object) array() );
 }
 
 add_action( 'wp_abilities_api_init', function () {
@@ -147,12 +149,12 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/analytics-dual-write', array(
 		'label'               => 'Analytics: do the new datasets hold what the old one holds?',
-		'description'         => 'The analytics worker (1.24.0 and later) writes every beacon to the legacy dataset and to two second-generation datasets. This counts rows per UTC day in all three (three live Analytics Engine requests) and compares them: every legacy row except property rows (`cp`) against sn_pageviews_v2, and custom events with their property rows against sn_events_v2 (the base row of a custom event is in both, by design, since worker 1.25.0). `state` per day: `partial` before `first_full_day` (the dual write began mid-day; a shortfall there is expected), then `match` or `mismatch`. `with_pid` is how many new rows carry a pageview ID (theme 15.3.0 and later). `read: false` means a request failed and nothing was compared (`failed` names the dataset, `error` the reason); it is NOT a mismatch. `sampled` on a day means Analytics Engine sampled and the unequal counts are estimates: inconclusive. Read this before moving any read to the new datasets. Read-only.',
+		'description'         => 'The analytics worker (1.24.0 and later) writes every beacon to the legacy dataset and to two second-generation datasets. This counts rows per UTC day in all three (three live Analytics Engine requests) and compares them: every legacy row except property rows (`cp`) against sn_pageviews_v2, and custom events with their property rows against sn_events_v2 (the base row of a custom event is in both, by design, since worker 1.25.0). `state` per day: `partial` before `first_full_day` (the dual write began mid-day; a shortfall there is expected), then `match` or `mismatch`. `with_pid` is how many new rows carry a pageview ID (theme 15.3.0 and later). `read: false` means a request failed and nothing was compared (`failed` names the dataset, `error` the reason); it is NOT a mismatch. `sampled` on a day means Analytics Engine sampled and the unequal counts are estimates: inconclusive. `verdict` is the daily check's stored answer ({ok, day, at, why}; empty until it has run): while `ok` is true, every read whose window starts on or after `first_full_day` uses the new datasets, and a mismatch sends them all back to the old one. Read-only.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_analytics_dual_write',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array( 'days' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 14, 'default' => 4, 'description' => 'UTC days back, today included.' ) ), 'additionalProperties' => false ),
-		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'read' => array( 'type' => 'boolean' ), 'days' => array( 'type' => 'array' ), 'mismatched' => array( 'type' => 'integer' ), 'first_full_day' => array( 'type' => 'string' ), 'datasets' => array( 'type' => 'array' ), 'failed' => array( 'type' => 'string' ), 'error' => array( 'type' => 'string' ) ) ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'read' => array( 'type' => 'boolean' ), 'days' => array( 'type' => 'array' ), 'mismatched' => array( 'type' => 'integer' ), 'first_full_day' => array( 'type' => 'string' ), 'datasets' => array( 'type' => 'array' ), 'failed' => array( 'type' => 'string' ), 'error' => array( 'type' => 'string' ), 'verdict' => array( 'type' => 'object' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => true ) ),
 	) );
 } );

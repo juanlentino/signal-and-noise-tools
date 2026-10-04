@@ -27,6 +27,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
+
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
 
 const SN_ANALYTICS_UTM_TABLE          = 'sn_analytics_utm';
@@ -114,7 +116,26 @@ add_action( 'init', 'sn_analytics_utm_maybe_install' );
  * @return string AE SQL.
  */
 function sn_analytics_utm_rollup_sql( $days ) {
-	$days = max( 1, (int) $days );
+	$days   = max( 1, (int) $days );
+	$source = sn_analytics_source( sn_analytics_trailing_from( $days ) );
+	if ( 'sn_pageviews_v2' === $source ) {
+		// The second generation stores source, medium and campaign as columns
+		// and term with content in blob20, so the grouping is on the fields
+		// themselves. sn_analytics_utm_pack_rows() rebuilds the packed tuple the
+		// upsert already splits. blob1 = 'pv' keeps a custom event's name
+		// (blob17 on a `ce` row) out of the sources.
+		return implode( ' ', array(
+			"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
+			'blob17 AS us, blob18 AS um, blob19 AS uc, blob20 AS utc,',
+			sn_analytics_class_select() . ' AS class,',
+			'sum(_sample_interval) AS views,',
+			'count(DISTINCT index1) AS visits',
+			'FROM ' . $source,
+			"WHERE blob1 = 'pv' AND (blob17 != '' OR blob18 != '' OR blob19 != '' OR blob20 != '') AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where() . sn_analytics_window_upper(),
+			'GROUP BY day, us, um, uc, utc, class',
+			'ORDER BY day DESC, views DESC',
+		) );
+	}
 
 	return implode( ' ', array(
 		"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
@@ -122,7 +143,7 @@ function sn_analytics_utm_rollup_sql( $days ) {
 		sn_analytics_class_select() . ' AS class,',
 		'sum(_sample_interval) AS views,',
 		'count(DISTINCT index1) AS visits',
-		'FROM ' . SN_ANALYTICS_DATASET,
+		'FROM ' . $source,
 		"WHERE blob1 = 'pv' AND blob20 != '' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where() . sn_analytics_window_upper(),
 		'GROUP BY day, packed, class',
 		'ORDER BY day DESC, views DESC',
@@ -235,12 +256,31 @@ function sn_analytics_utm_run_rollup() {
 	if ( ! is_array( $rows ) ) {
 		return;
 	}
+	$rows = sn_analytics_utm_pack_rows( $rows );
 	$write = static function () use ( $rows ) {
 		if ( ! empty( $rows ) ) {
 			sn_analytics_utm_upsert( $rows );
 		}
 	};
 	function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( ! empty( $rows ) && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() ), SN_ANALYTICS_UTM_TABLE, '', $write ) : $write();
+}
+
+/**
+ * Second-generation UTM rows as the packed rows the upsert takes. PURE. A row
+ * that already has `packed` (the legacy shape) passes through.
+ *
+ * @param array $rows Rows from sn_analytics_utm_rollup_sql().
+ * @return array
+ */
+function sn_analytics_utm_pack_rows( array $rows ) {
+	$sep = "\x1f";
+	foreach ( $rows as $i => $r ) {
+		if ( is_array( $r ) && ! isset( $r['packed'] ) && isset( $r['us'], $r['um'], $r['uc'] ) ) {
+			$tc                  = (string) ( $r['utc'] ?? '' );
+			$rows[ $i ]['packed'] = $r['us'] . $sep . $r['um'] . $sep . $r['uc'] . $sep . ( '' !== $tc ? $tc : $sep ); // utc is term␟content, or '' for neither.
+		}
+	}
+	return $rows;
 }
 
 /**

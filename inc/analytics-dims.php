@@ -19,6 +19,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
+
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
 
 const SN_ANALYTICS_DIMS_TABLE          = 'sn_analytics_dims';
@@ -110,7 +112,8 @@ function sn_analytics_dims_rollup_sql( $dim, $days, $tz = '' ) {
 	if ( ! isset( SN_ANALYTICS_DIM_COLUMNS[ $dim ] ) ) {
 		return '';
 	}
-	$col = SN_ANALYTICS_DIM_COLUMNS[ $dim ];
+	$source = sn_analytics_source( sn_analytics_trailing_from( $days ) );
+	$col    = sn_analytics_col( SN_ANALYTICS_DIM_COLUMNS[ $dim ], $source ); // the timezone column moved in the second generation.
 	// Unreleased: the worker stores an internal click with a blank referrer,
 	// which read "(direct)". From worker 1.23.0 on it is stored as its own
 	// value (the one shared rule, inc/analytics-referrer-kind.php). Relabelled,
@@ -136,7 +139,7 @@ function sn_analytics_dims_rollup_sql( $dim, $days, $tz = '' ) {
 		sn_analytics_class_select() . ' AS class,',
 		'sum(_sample_interval) AS views,',
 		'count(DISTINCT index1) AS visits',
-		'FROM ' . SN_ANALYTICS_DATASET,
+		'FROM ' . $source,
 		"WHERE blob1 = 'pv' AND timestamp >= {$lower}" . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where() . sn_analytics_window_upper( $tz ),
 		'GROUP BY day, value, class',
 		'ORDER BY day DESC, views DESC',

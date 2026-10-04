@@ -20,6 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
+
 const SN_HEALTH_INGEST_STALE_SECS = 86400;
 
 /**
@@ -28,7 +30,7 @@ const SN_HEALTH_INGEST_STALE_SECS = 86400;
  * @return string AE SQL.
  */
 function sn_health_analytics_ingest_sql() {
-	$dataset = defined( 'SN_ANALYTICS_DATASET' ) ? SN_ANALYTICS_DATASET : 'sn_pageviews';
+	$dataset = sn_analytics_source( sn_analytics_trailing_from( 7 ) );
 	$day     = "timestamp >= now() - INTERVAL '1' DAY";
 	return 'SELECT blob7 AS cls,'
 		. " sum(if({$day}, _sample_interval, 0)) AS recent,"

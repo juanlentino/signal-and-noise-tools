@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
+
 require_once __DIR__ . '/analytics-network-terms.php';
 require_once __DIR__ . '/analytics-referrer-kind.php'; // the ONE internal-click rule (worker 1.23.0)
 
@@ -48,7 +50,7 @@ function sn_analytics_overcap_sql() {
 	$max  = (int) SNT_ANALYTICS_VDAY_LIST_MAX;
 	return implode( ' ', array(
 		'SELECT index1 AS vid, sum(_sample_interval) AS views',
-		'FROM ' . ( defined( 'SN_ANALYTICS_DATASET' ) ? SN_ANALYTICS_DATASET : 'sn_pageviews' ),
+		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( $days ) ),
 		"WHERE blob1 = 'pv' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
 		'GROUP BY vid',
 		"HAVING views > {$cap}",
