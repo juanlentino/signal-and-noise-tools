@@ -43,8 +43,8 @@ Content > Workflow edits `/workflow`. Data layer: `inc/workflow-page.php`.
   `<pre><code>` region. On output it is escaped with `esc_html`, and `[` `]`
   are encoded as `&#91;` `&#93;` because WordPress runs shortcodes over
   `post_content`. Every other field gets the same escaping.
-- **Map heading** (text) and **Map** (repeater): Title, Line, Show on page. The heading renders only over at least one shown row.
-- **Rules heading** (text) and **Rules** (repeater): Rule, Explanation. Rendered as an ordered list; the heading renders only over at least one rule.
+- **Map heading** (text, in the card beside Title and Dek) and **Map** (one card per step): Title, Line, Show on page. The heading renders only over at least one shown row.
+- **Rules heading** (text, beside the Map heading) and **Rules** (one card per rule): Rule, Explanation. Rendered as an ordered list; the heading renders only over at least one rule.
 
 Row order is display order. A section with no content renders nothing,
 heading included. A save with nothing public creates no Page; until then

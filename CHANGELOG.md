@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Content › Workflow: the page fields in cards like Now and Uses, the map and rules in Resume's repeater.** The page title and Dek sit beside the two section headings and the sample's text beside its body, in compact cards two-up. Map and Rules are each a collapsible section holding Resume's repeater: + Add map step / + Add rule, a Remove button on every row, and move handles (Alt+Arrow on a row works too), so a list of eight ordered steps no longer takes eight saves. The form posts rows in screen order and the page shows them in that order. The loose sub-headings are gone, and the field labels say which part they fill (Map step, Sample body). The classic form moves its two heading fields up beside the Dek, so both forms post the same fields in the same order. `resume_section()` moves into the shared Resume parts file, unchanged.
+
 ## [21.7.0] - 2026-10-04 — a /workflow page, edited on Content › Workflow
 
 ### Added
