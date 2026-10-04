@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Content › Workflow is laid out like Now and Uses.** Every field sits in a compact card and the cards pair two-up: the page title and Dek beside the two section headings, the sample's label, title, intro and outcome beside its body, then the map steps and the rules, each list ending in its spare card. The loose sub-headings are gone, and the field labels say which part they fill (Map step, Sample body). The classic form moves its two heading fields up beside the Dek, so both forms post the same fields in the same order. Nothing about the save or the page changes.
+
 ## [21.7.0] - 2026-10-04 — a /workflow page, edited on Content › Workflow
 
 ### Added
