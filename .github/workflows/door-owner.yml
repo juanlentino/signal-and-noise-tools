@@ -1,0 +1,86 @@
+name: Door owner
+
+# What the MCP doors expose, what an exposed ability does, and this
+# repository's own automation change only in a pull request the owner opened
+# and last pushed. Anyone else's pull request that touches those paths fails
+# this check until the owner takes it over.
+#
+# pull_request_target on purpose: the job runs THIS file from main, never the
+# pull request's copy, so a pull request cannot edit its way past the check.
+# Nothing is checked out; the branch name and file names are handled as data,
+# never evaluated.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  pull-requests: read
+  contents: read
+
+concurrency:
+  group: door-owner-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  door-owner:
+    name: door-owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      OWNER: ${{ github.repository_owner }}
+      NUMBER: ${{ github.event.pull_request.number }}
+      AUTHOR: ${{ github.event.pull_request.user.login }}
+      HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      CHANGED: ${{ github.event.pull_request.changed_files }}
+      # Everything that runs on the server, the tests and tools that guard it,
+      # and this repository's automation. An exposed ability's behavior lives
+      # wherever its callback reaches, so a narrower list protects only the
+      # registration. tests/mcp-door-manifest.php reads this line. Keep
+      # .github/CODEOWNERS in step.
+      OWNED: '^(inc/|apps/|blocks/|lib/|tests/|tools/|\.github/|[^/]+\.php$)'
+    steps:
+      - name: Owned paths change only in the owner's hands
+        run: |
+          set -euo pipefail
+          # Who pushed this head, from the branch's own activity log: the event's
+          # sender is whoever opened or reopened the pull request, which says
+          # nothing about the last push. No matching push on record reads as
+          # nobody, and nobody is not the owner.
+          pusher=""
+          if [ "$HEAD_REPO" = "$REPO" ]; then
+            ref=$(jq -rn --arg r "refs/heads/$HEAD_REF" '$r|@uri')
+            pusher=$(gh api "repos/$REPO/activity?ref=$ref&per_page=30" \
+              | jq -r --arg sha "$HEAD_SHA" '[.[] | select(.after == $sha)][0].actor.login // ""')
+          fi
+          if [ "$AUTHOR" = "$OWNER" ] && [ "$pusher" = "$OWNER" ]; then
+            echo "Opened and last pushed by $OWNER."
+            exit 0
+          fi
+          # Dependabot's own pull requests bump the pinned actions under .github/.
+          # Only while Dependabot is also the last pusher.
+          if [ "$AUTHOR" = "dependabot[bot]" ] && [ "$pusher" = "dependabot[bot]" ]; then
+            echo "Opened and last pushed by Dependabot."
+            exit 0
+          fi
+          # The files API stops at 3000; past it the list is not the whole diff.
+          if [ "$CHANGED" -ge 3000 ]; then
+            echo "::error::$CHANGED files changed; the list cannot be read whole."
+            exit 1
+          fi
+          # Read first, match second: a failed read must fail the check, and
+          # grep finding nothing must not.
+          files=$(gh api "repos/$REPO/pulls/$NUMBER/files" --paginate \
+            --jq '.[] | .filename, (.previous_filename // empty)')
+          touched=$(printf '%s\n' "$files" | grep -E "$OWNED" | sort -u || true)
+          if [ -n "$touched" ]; then
+            echo "::error::This pull request (author $AUTHOR, last pushed by ${pusher:-unknown}) touches paths only $OWNER changes:"
+            echo "$touched"
+            exit 1
+          fi
+          echo "No owned path touched."
