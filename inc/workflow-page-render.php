@@ -44,7 +44,7 @@ function sn_workflow_sample_html( array $s ) {
 		$out .= '<p class="sn-workflow-sample__label sn-workflow-eyebrow">' . sn_workflow_esc( $s['label'] ) . '</p>';
 	}
 	if ( '' !== $s['title'] ) {
-		$out .= '<h2 class="sn-workflow-sample__title">' . sn_workflow_esc( $s['title'] ) . '</h2>';
+		$out .= '<h2 class="sn-workflow-sample__title" id="sn-workflow-sample-title">' . sn_workflow_esc( $s['title'] ) . '</h2>';
 	}
 	if ( '' !== $s['intro'] ) {
 		$out .= '<p class="sn-workflow-sample__intro">' . sn_workflow_esc( $s['intro'] ) . '</p>';
@@ -57,7 +57,9 @@ function sn_workflow_sample_html( array $s ) {
 		// passes existing entities through, so a typed `&amp;` would render
 		// as `&` and the sample would not be verbatim.
 		$body  = htmlspecialchars( $s['body'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', true );
-		$out  .= '<pre class="sn-workflow-sample__body" tabindex="0" role="region" aria-label="' . str_replace( array( '[', ']' ), array( '&#91;', '&#93;' ), esc_attr( $label ) ) . '"><code>'
+		// Named by the sample's h2 when there is one, so a screen reader does not read the title twice.
+		$name  = '' !== $s['title'] ? 'aria-labelledby="sn-workflow-sample-title"' : 'aria-label="' . esc_attr( $label ) . '"';
+		$out  .= '<pre class="sn-workflow-sample__body" tabindex="0" role="region" ' . $name . '><code>'
 			. str_replace( array( '[', ']' ), array( '&#91;', '&#93;' ), $body ) . '</code></pre>';
 	}
 	if ( '' !== $s['outcome'] ) {
@@ -79,7 +81,7 @@ function sn_workflow_page_html( $pub ) {
 	}
 	$out = sn_workflow_sample_html( $pub['sample'] );
 	if ( ! empty( $pub['map'] ) ) {
-		$out .= '<section class="sn-workflow-map"><ul class="sn-workflow-map__list">';
+		$out .= '<section class="sn-workflow-map">' . ( '' !== ( $pub['map_heading'] ?? '' ) ? '<h2 class="sn-workflow-map__heading">' . sn_workflow_esc( $pub['map_heading'] ) . '</h2>' : '' ) . '<ul class="sn-workflow-map__list" role="list">';
 		foreach ( $pub['map'] as $row ) {
 			$out .= '<li class="sn-workflow-map__item">'
 				. ( '' !== $row['title'] ? '<span class="sn-workflow-map__title">' . sn_workflow_esc( $row['title'] ) . '</span>' : '' )
@@ -88,7 +90,7 @@ function sn_workflow_page_html( $pub ) {
 		$out .= '</ul></section>';
 	}
 	if ( ! empty( $pub['rules'] ) ) {
-		$out .= '<section class="sn-workflow-rules"><ol class="sn-workflow-rules__list">';
+		$out .= '<section class="sn-workflow-rules">' . ( '' !== ( $pub['rules_heading'] ?? '' ) ? '<h2 class="sn-workflow-rules__heading">' . sn_workflow_esc( $pub['rules_heading'] ) . '</h2>' : '' ) . '<ol class="sn-workflow-rules__list">';
 		foreach ( $pub['rules'] as $row ) {
 			$out .= '<li class="sn-workflow-rules__item">'
 				. ( '' !== $row['rule'] ? '<strong class="sn-workflow-rules__rule">' . sn_workflow_esc( $row['rule'] ) . '</strong>' : '' )
@@ -139,7 +141,10 @@ function sn_workflow_upsert_page( $body, array $pub ) {
 		// it. A status the owner chose by hand (draft, private) is kept.
 		$was    = (string) ( $page->post_status ?? '' );
 		$status = 'publish' === $was || get_option( SN_WORKFLOW_WITHDRAWN_OPT ) ? 'publish' : $was;
-		wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_status' => $status ) + $fields ) );
+		$done = wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_status' => $status ) + $fields ), true );
+		if ( ! $done || is_wp_error( $done ) ) {
+			return 0;
+		}
 		delete_option( SN_WORKFLOW_WITHDRAWN_OPT );
 		return (int) $page->ID;
 	}
@@ -178,6 +183,11 @@ function sn_workflow_sync_page() {
 		wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_status' => 'draft', 'post_content' => '' ) ) );
 		update_option( SN_WORKFLOW_WITHDRAWN_OPT, 1, false );
 		return 'withdrawn';
+	}
+	if ( $page && '' !== (string) ( $page->post_content ?? '' ) ) {
+		// A draft or private page the owner set by hand: its status stays,
+		// but it keeps no rows either.
+		wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_content' => '' ) ) );
 	}
 	return 'empty';
 }

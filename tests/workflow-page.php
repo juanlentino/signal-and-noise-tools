@@ -38,13 +38,14 @@ function wp_insert_post( $a, $e = false ) {
 	$GLOBALS['__page']  = (object) array( 'ID' => 77, 'post_status' => $a['post_status'], 'post_content' => $a['post_content'] );
 	return 77;
 }
-function wp_update_post( $a ) {
+function wp_update_post( $a, $e = false ) {
 	$a = wp_unslash( $a );
 	$GLOBALS['__upd'][] = $a;
 	foreach ( $a as $k => $v ) { $GLOBALS['__page']->$k = $v; }
 	return $a['ID'];
 }
 function do_action() {}
+if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $x ) { return false; } }
 function home_url( $p = '' ) { return 'https://example.test' . $p; }
 function sn_cf_purge_urls( $urls ) { $GLOBALS['__purged'][] = $urls; return true; }
 
@@ -111,7 +112,7 @@ ok( false === stripos( $html, '<script' ) && false !== strpos( $html, '&lt;scrip
 ok( false === strpos( $html, '[gallery]' ) && false !== strpos( $html, '&#91;gallery&#93;' ) && false !== strpos( $html, '&#91;/caption&#93;' ), 'brackets are encoded, so no shortcode can run' );
 ok( 1 === substr_count( $html, '<!-- wp:' ) && 1 === substr_count( $html, '<!-- /wp:' ) && 2 === substr_count( $html, '-->' ), 'the body cannot open or close a block: only the wrapper\'s own delimiters remain' );
 ok( false !== strpos( $html, '--&gt; &lt;!-- wp:paragraph --&gt;' ), '"-->" and "<!-- wp:" are encoded text' );
-ok( false !== strpos( $html, '<pre class="sn-workflow-sample__body" tabindex="0" role="region" aria-label="Prompt &#91;x&#93;"><code>' ), 'the body sits in the focusable pre region, labelled by the sample title' );
+ok( false !== strpos( $html, '<pre class="sn-workflow-sample__body" tabindex="0" role="region" aria-labelledby="sn-workflow-sample-title"><code>' ) && false !== strpos( $html, 'id="sn-workflow-sample-title">Prompt &#91;x&#93;</h2>' ), 'the body sits in the focusable pre region, named by the sample h2 (brackets encoded there)' );
 ok( false !== strpos( $html, 'Prompt &#91;x&#93;</h2>' ), 'every other field is bracket-encoded too' );
 
 // ── (4) Whitespace survives exactly.
@@ -152,6 +153,17 @@ ok( 'private' === $GLOBALS['__page']->post_status, 'a status the owner chose by 
 
 $only_map = sn_workflow_page_html( array( 'title' => '', 'dek' => '', 'sample' => array( 'label' => '', 'title' => '', 'intro' => '', 'body' => '', 'outcome' => '' ), 'map' => array( array( 'title' => 'One', 'line' => 'x', 'show' => true ) ), 'rules' => array() ) );
 ok( false !== strpos( $only_map, '<h1 class="sn-workflow-title">Workflow</h1>' ) && strpos( $only_map, '<h1' ) < strpos( $only_map, '<section' ), 'with no Title the page still opens with an h1 (the Page title fallback), before any section' );
+
+$headed = sn_workflow_page_html( sn_workflow_public_data( array( 'title' => 'W', 'map_heading' => 'The rest', 'rules_heading' => 'Field rules', 'map' => array( array( 'title' => 'One', 'line' => 'x', 'show' => '1' ) ), 'rules' => array() ) ) );
+ok( false !== strpos( $headed, '<h2 class="sn-workflow-map__heading">The rest</h2>' ) && false === strpos( $headed, 'Field rules' ), 'a section heading renders with its rows; a heading over no rows renders nothing' );
+$hidden_only = sn_workflow_page_html( sn_workflow_public_data( array( 'title' => 'W', 'map_heading' => 'The rest', 'map' => array( array( 'title' => 'Secret', 'line' => 'x' ) ) ) ) );
+ok( false === strpos( $hidden_only, 'The rest' ), 'a map whose rows are all hidden renders no heading either' );
+
+$GLOBALS['__page']->post_status = 'private'; $GLOBALS['__page']->post_content = 'old rows';
+sn_handle_workflow_save( array( 'workflow' => array( 'map' => array( array( 'title' => 'Now hidden', 'line' => 'x' ) ) ) ) );
+ok( 'private' === $GLOBALS['__page']->post_status && '' === $GLOBALS['__page']->post_content, 'a private page with nothing public left keeps its status and none of its rows' );
+$named = sn_workflow_page_html( sn_workflow_public_data( array( 'title' => 'W', 'sample' => array( 'title' => 'Drafting', 'body' => "x\n" ), 'map' => array( array( 'title' => 'A', 'line' => 'b', 'show' => '1' ) ) ) ) );
+ok( false !== strpos( $named, 'aria-labelledby="sn-workflow-sample-title"' ) && false !== strpos( $named, 'id="sn-workflow-sample-title"' ) && false !== strpos( $named, 'role="list"' ), 'the sample region is named by its h2; the unstyled map list keeps list semantics' );
 
 echo "\nGroup: the write guard knows /workflow\n";
 ok( false === snt_generated_page_guard( 'workflow', '<div>no wrapper</div>' ), 'a body without sn-workflow-page is refused' );

@@ -81,6 +81,7 @@ function sn_admin_render_workflow_section() {
 	sn_wf_textarea( 'workflow[sample][outcome]', $s['outcome'], 'Outcome (optional)', 3 );
 
 	echo '<h3>Map</h3>';
+	sn_rsm_input( 'workflow[map_heading]', $doc['map_heading'], 'Heading', 'The rest of the set' );
 	echo '<p class="sn-field-helper">A row appears on the public page only when "Show on page" is checked. Unchecked rows stay here and nowhere else.</p>';
 	echo '<div class="sn-rsm-list" data-rsm-list="workflow-map">';
 	foreach ( $doc['map'] as $i => $row ) {
@@ -91,6 +92,7 @@ function sn_admin_render_workflow_section() {
 	echo '</template><button type="button" class="button sn-rsm-add" data-rsm-add="workflow-map">+ Add map row</button>';
 
 	echo '<h3>Rules</h3>';
+	sn_rsm_input( 'workflow[rules_heading]', $doc['rules_heading'], 'Heading', 'Field rules' );
 	echo '<div class="sn-rsm-list" data-rsm-list="workflow-rules">';
 	foreach ( $doc['rules'] as $i => $row ) {
 		sn_wf_rule_row( 'workflow[rules][' . $i . ']', $row );

@@ -88,9 +88,11 @@ function paint_content_workflow( array $ctx ) {
 		. \snt_kit_field( 'textarea', 'workflow[sample][body]', __( 'Body', 'signal-and-noise-tools' ), $s['body'], array( 'rows' => 14, 'hint' => __( 'Shown exactly as typed, whitespace included, in a monospace block.', 'signal-and-noise-tools' ) ) )
 		. \snt_kit_field( 'textarea', 'workflow[sample][outcome]', __( 'Outcome (optional)', 'signal-and-noise-tools' ), $s['outcome'], array( 'rows' => 3 ) )
 		. '<h4 class="snt-h">' . \snt_kit_esc( __( 'Map', 'signal-and-noise-tools' ) ) . '</h4>'
+		. \snt_kit_field( 'text', 'workflow[map_heading]', __( 'Heading', 'signal-and-noise-tools' ), $doc['map_heading'], array( 'placeholder' => 'The rest of the set' ) )
 		. '<p class="snt-hint">' . \snt_kit_esc( __( 'A row appears on the public page only when "Show on page" is checked. Unchecked rows stay here and nowhere else.', 'signal-and-noise-tools' ) ) . '</p>'
 		. snt_pair_cards( $map )
 		. '<h4 class="snt-h">' . \snt_kit_esc( __( 'Rules', 'signal-and-noise-tools' ) ) . '</h4>'
+		. \snt_kit_field( 'text', 'workflow[rules_heading]', __( 'Heading', 'signal-and-noise-tools' ), $doc['rules_heading'], array( 'placeholder' => 'Field rules' ) )
 		. snt_pair_cards( $rules );
 
 	$inner = '<p class="snt-prose">' . sprintf(

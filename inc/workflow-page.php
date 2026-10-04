@@ -85,8 +85,10 @@ function sn_workflow_normalize( $in, $slashed = true ) {
 			'body'    => sn_workflow_verbatim( $sample['body'] ?? '' ),
 			'outcome' => sn_workflow_prose( $sample['outcome'] ?? '' ),
 		),
-		'map'    => array(),
-		'rules'  => array(),
+		'map_heading'   => sn_workflow_text( $in['map_heading'] ?? '' ),
+		'map'           => array(),
+		'rules_heading' => sn_workflow_text( $in['rules_heading'] ?? '' ),
+		'rules'         => array(),
 	);
 	foreach ( (array) ( $in['map'] ?? array() ) as $row ) {
 		$row   = is_array( $row ) ? $row : array();

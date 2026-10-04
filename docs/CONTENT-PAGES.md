@@ -43,8 +43,8 @@ Content > Workflow edits `/workflow`. Data layer: `inc/workflow-page.php`.
   `<pre><code>` region. On output it is escaped with `esc_html`, and `[` `]`
   are encoded as `&#91;` `&#93;` because WordPress runs shortcodes over
   `post_content`. Every other field gets the same escaping.
-- **Map** (repeater): Title, Line, Show on page.
-- **Rules** (repeater): Rule, Explanation. Rendered as an ordered list.
+- **Map heading** (text) and **Map** (repeater): Title, Line, Show on page. The heading renders only over at least one shown row.
+- **Rules heading** (text) and **Rules** (repeater): Rule, Explanation. Rendered as an ordered list; the heading renders only over at least one rule.
 
 Row order is display order. A section with no content renders nothing,
 heading included. A save with nothing public creates no Page; until then
@@ -70,3 +70,10 @@ unchecked), an existing `/workflow` Page is moved to draft so it stops
 showing rows that are no longer public.
 
 Pinned by `tests/workflow-page.php` and `tests/os-leaf-content-workflow.php`.
+
+## Known limits
+
+- **Hiding is from now on, not a retraction.** A row that was public and is later unchecked leaves the Page, but it stays in the Page's older revisions (readable only by editors), in anything that copied the page while it was public (search caches, archives, a provenance signature if the page was signed), and in edge caches until their purge. Delete the revisions by hand if a row must leave the site's own history too.
+- **The sample is verbatim up to core's own filters.** WordPress's `capital_P_dangit` runs over page content and does not skip code blocks, so a sample containing "Wordpress" shows "WordPress".
+- **The generated markup assumes an administrator saves it.** A user without `unfiltered_html` gets the page through kses, which drops `tabindex` from the sample block and leaves it unreachable by keyboard.
+- **Only the Content form regenerates the page.** Editing the option by other means (WP-CLI, an import) does not.
