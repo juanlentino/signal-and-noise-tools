@@ -77,7 +77,7 @@
 		var torn = false;
 		// 21.1.0: the Internet Archive line (archive-status). A second, separate
 		// read: the anchors paint without it, and a failed read paints nothing.
-		var archiveLine = '';
+		var archive = null;
 
 		function render( overview, note ) {
 			if ( torn ) {
@@ -165,8 +165,35 @@
 				} );
 			}
 
-			if ( archiveLine && overview ) {
-				wrap.appendChild( el( 'p', { style: 'margin:8px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: 'Internet Archive · ' + archiveLine } ) );
+			if ( archive && overview ) {
+				// Two rows, not a sentence: the run over the notes, and what the
+				// Archive has confirmed. A halted run and a failed capture are amber.
+				var run      = archive.run || {};
+				var caps     = archive.captures || {};
+				var asked    = Number( run.asked ) || 0;
+				var pendingN = Number( archive.pending ) || 0;
+				var halted   = 'halted' === run.state;
+				// Each state says what it is: a run that never started or has
+				// finished must not read like one in progress.
+				var runText = ! archive.configured ? 'not configured'
+					: halted ? 'halted' + ( run.reason ? ': ' + run.reason : '' ) + ( pendingN > 0 ? ' · ' + pendingN + ' to go' : '' )
+					: 'running' === run.state ? asked + ' asked · ' + pendingN + ' to go'
+					: pendingN > 0 ? pendingN + ' not pushed yet'
+					: 'every note asked';
+				var failedN  = Number( caps.failed ) || 0;
+				var silentN  = Number( caps.unconfirmed ) || 0; // past the cutoff with no answer: not waiting any more.
+				var capText  = ( Number( caps.captured ) || 0 ) + ' confirmed · ' + ( Number( caps.waiting ) || 0 ) + ' waiting'
+					+ ( silentN > 0 ? ' · ' + silentN + ' no answer' : '' ) + ( failedN > 0 ? ' · ' + failedN + ' failed' : '' );
+				var rows = [ [ 'Internet Archive', runText, halted || ! archive.configured ] ];
+				if ( archive.configured ) { rows.push( [ 'Captures', capText, failedN > 0 || silentN > 0 ] ); }
+				var box = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));', title: archive.line || '' } );
+				rows.forEach( function( r ) {
+					var line = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+					line.appendChild( el( 'span', { text: r[0], style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));' } ) );
+					line.appendChild( el( 'span', { text: r[1], style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' + ( r[2] ? 'color:#d29922;' : '' ) } ) );
+					box.appendChild( line );
+				} );
+				wrap.appendChild( box );
 			}
 
 			if ( note && overview ) {
@@ -221,12 +248,12 @@
 				render( null, 'The abilities client is unavailable.' );
 				return;
 			}
-			archiveLine = ''; // a refresh whose archive read fails must not keep the last line
+			archive = null; // a refresh whose archive read fails must not keep the last reading
 			window.sntAbilityRun( 'anchor-status', {}, { silent: true } ).then( function( overview ) {
 				render( overview, note );
-				window.sntAbilityRun( 'archive-status', {}, { silent: true } ).then( function( archive ) {
-					if ( archive && archive.ok && archive.line ) {
-						archiveLine = String( archive.line );
+				window.sntAbilityRun( 'archive-status', {}, { silent: true } ).then( function( res ) {
+					if ( res && res.ok ) {
+						archive = res;
 						render( overview, note );
 					}
 				} ).catch( function() {} );

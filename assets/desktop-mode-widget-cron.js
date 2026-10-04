@@ -98,10 +98,16 @@
 		// orphans, not total.
 		var healthNotOk = !! ( summary.health && typeof summary.health === 'object'
 			&& Object.prototype.hasOwnProperty.call( summary.health, 'ok' ) && ! summary.health.ok );
+		// How far past its time the soonest SN job is. WP-Cron runs on a page
+		// load, so a job is routinely "due" for seconds; it is late only past
+		// LATE_S, and only then does the card change color.
+		var LATE_S = 600;
+		var nextJob = summary.next && typeof summary.next === 'object' ? summary.next : null;
+		var lateS   = nextJob && nextJob.hook ? Math.max( 0, -num( nextJob.in_s ) ) : 0;
 		var row = el( 'div', { style: 'display:flex;align-items:center;gap:8px;' } );
 		row.appendChild( el( 'span', {
 			style: 'width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:' +
-				( orphans > 0 || healthNotOk ? WARN_FG : OK_FG ) + ';'
+				( orphans > 0 || healthNotOk || lateS > LATE_S ? WARN_FG : OK_FG ) + ';'
 		} ) );
 		row.appendChild( el( 'span', {
 			text:  total + ( 1 === total ? ' event scheduled' : ' events scheduled' ),
@@ -130,12 +136,12 @@
 		list.appendChild( detail( 'Orphaned', orphans, orphans > 0 ? WARN_FG : '' ) );
 		// 15.8.2: the soonest SN job. "Next: … in 4 min" says the pipeline is
 		// alive; a count says only that it is registered. A past due time is
-		// wp-cron lagging, worded as "due", never a negative "in".
+		// wp-cron waiting for a page load: "running now" until LATE_S, then late.
 		var next = summary.next && typeof summary.next === 'object' ? summary.next : null;
 		if ( next && next.hook ) {
 			var inS = num( next.in_s );
-			var when = inS <= 0 ? 'due' : ( inS < 90 ? 'in ' + Math.max( 1, Math.round( inS ) ) + ' s' : ( inS < 5400 ? 'in ' + Math.round( inS / 60 ) + ' min' : 'in ' + Math.round( inS / 3600 ) + ' h' ) );
-			list.appendChild( detail( 'Next', String( next.hook ).replace( /^snt?_/, '' ) + ' · ' + when ) );
+			var when = lateS > LATE_S ? Math.round( lateS / 60 ) + ' min late' : inS <= 0 ? 'running now' : ( inS < 90 ? 'in ' + Math.max( 1, Math.round( inS ) ) + ' s' : ( inS < 5400 ? 'in ' + Math.round( inS / 60 ) + ' min' : 'in ' + Math.round( inS / 3600 ) + ' h' ) );
+			list.appendChild( detail( 'Next', String( next.hook ).replace( /^snt?_/, '' ) + ' · ' + when, lateS > LATE_S ? WARN_FG : '' ) );
 		}
 		wrap.appendChild( list );
 

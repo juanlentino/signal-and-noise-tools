@@ -834,7 +834,7 @@ function toolbar_html( $check_updates_url ) {
 		'full_reset',
 		array(
 			'variant'       => 'danger',
-			'confirm'       => __( 'Reset every Signal & Noise setting to its default? This cannot be undone.', 'signal-and-noise-tools' ),
+			'confirm'       => __( 'Clear every template override and purge every cache? No setting is changed.', 'signal-and-noise-tools' ),
 			'confirm_title' => __( 'Full reset', 'signal-and-noise-tools' ),
 			'danger'        => true,
 		)

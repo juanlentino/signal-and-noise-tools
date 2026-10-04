@@ -72,7 +72,13 @@ function snt_desktop_widget_response( $name, callable $build ) {
 	$key    = 'sn_desktop_' . $name . '_' . $win['to'];
 	$cached = get_transient( $key );
 	if ( ! is_array( $cached ) ) {
-		$cached = array( 'window' => $win, 'groups' => array_values( (array) call_user_func( $build, $win ) ) );
+		// A builder may hand back a `hero` beside its groups: the one figure the
+		// tile opens with. `generated_at` is when these figures were read, so
+		// the tile can say how old they are (they are cached for 15 minutes).
+		$built = (array) call_user_func( $build, $win );
+		$hero  = isset( $built['hero'] ) && is_array( $built['hero'] ) ? $built['hero'] : null;
+		unset( $built['hero'] );
+		$cached = array( 'window' => $win, 'generated_at' => time(), 'hero' => $hero, 'groups' => array_values( $built ) );
 		set_transient( $key, $cached, 15 * MINUTE_IN_SECONDS );
 	}
 	return new WP_REST_Response( $cached, 200 );

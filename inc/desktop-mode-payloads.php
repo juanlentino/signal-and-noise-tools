@@ -144,6 +144,16 @@ function snt_health_summary_for_localize() {
 	}
 	$shown = array_slice( $flagged, 0, 4 );
 
+	// A check that could not run is neither a pass nor a finding. Without its
+	// name the card read "17/18" beside a green dot and named nothing.
+	$skipped = array();
+	foreach ( function_exists( 'sn_health_skipped_checks' ) ? sn_health_skipped_checks( $scan ) : array() as $key => $check ) {
+		$skipped[] = array(
+			'label'  => (string) ( $check['label'] ?? $key ),
+			'reason' => (string) ( is_string( $check['skipped'] ?? null ) ? $check['skipped'] : '' ),
+		);
+	}
+
 	return array(
 		'passed'         => $passed,
 		// Report-only checks, excluded from BOTH passed and total above.
@@ -152,6 +162,7 @@ function snt_health_summary_for_localize() {
 		'all_passed'     => 0 === $flagged_n,
 		// sn_health_run_scan() stores scanned_at as time() — an INT timestamp.
 		'scanned_at'     => (int) ( $scan['scanned_at'] ?? 0 ),
+		'skipped'        => $skipped,
 		'flagged'        => $shown,
 		'flagged_more'   => max( 0, count( $flagged ) - count( $shown ) ),
 		// Advisories are reported SEPARATELY and never as faults: external_links
@@ -501,5 +512,38 @@ function snt_desktop_machine_readers_payload() {
 	if ( ! function_exists( 'snt_mr_summary_payload' ) ) {
 		return array( 'ok' => false, 'error' => 'unavailable', 'days' => 30 );
 	}
-	return snt_mr_summary_payload( 30 );
+	$payload = snt_mr_summary_payload( 30 );
+	if ( ! empty( $payload['ok'] ) && function_exists( 'snt_mr_fetch' ) ) {
+		$read = snt_mr_fetch( 30 ); // the same read the summary made; memoized.
+		// Not when the read hit the edge's row cap: the split would be of the
+		// newest rows only and would read as the whole.
+		if ( ! empty( $read['ok'] ) && empty( $read['truncated'] ) ) {
+			$payload['edge_verified'] = snt_desktop_machine_readers_identity( (array) ( $read['rows'] ?? array() ) );
+		}
+	}
+	return $payload;
+}
+
+/**
+ * Who the readers are, as far as the edge measured it. PURE. A user agent is
+ * a claim; `verified` is Cloudflare vouching for the client, `not_measured`
+ * is a read from before the edge recorded the network, and the rest named
+ * themselves and were not vouched for.
+ *
+ * @param array $rows Sensor rows { hits, verified_bot, network }.
+ * @return array{verified:int,unverified:int,not_measured:int}
+ */
+function snt_desktop_machine_readers_identity( array $rows ) {
+	$out = array( 'verified' => 0, 'unverified' => 0, 'not_measured' => 0 );
+	foreach ( $rows as $row ) {
+		$hits = is_array( $row ) ? max( 0, (int) ( $row['hits'] ?? 0 ) ) : 0;
+		if ( '' !== (string) ( $row['verified_bot'] ?? '' ) ) {
+			$out['verified'] += $hits;
+		} elseif ( '' === (string) ( $row['network'] ?? '' ) ) {
+			$out['not_measured'] += $hits;
+		} else {
+			$out['unverified'] += $hits;
+		}
+	}
+	return $out;
 }

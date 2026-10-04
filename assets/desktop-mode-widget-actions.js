@@ -160,7 +160,6 @@
 	var DANGER_FG    = '#ff9d94';
 	var DANGER_BG    = 'rgba(201,80,63,0.16)';
 	var DANGER_LINE  = 'rgba(201,80,63,0.45)';
-	var DANGER_HOVER = 'rgba(201,80,63,0.22)';
 
 	/** Hover feedback for an inline-styled button (no stylesheet here). */
 	function hoverable( btn, restBg, hoverBg ) {
@@ -268,7 +267,6 @@
 			';color:inherit;border:1px solid ' + HAIRLINE +
 			';border-radius:8px;font-size:13px;line-height:1.2;cursor:pointer;text-align:left;' +
 			'transition:background 120ms ease,border-color 120ms ease;';
-		var dangerStyle = btnStyle + 'color:' + DANGER_FG + ';border-color:' + DANGER_LINE + ';';
 
 		var btnClear = el( 'button', {
 			text:  'Clear DB overrides',
@@ -296,20 +294,11 @@
 		hoverable( btnCheck, SURFACE, SURFACE_HOVER );
 		wrap.appendChild( btnCheck );
 
-		var btnReset = el( 'button', {
-			text:  'Full reset',
-			style: dangerStyle,
-			title: 'Clear DB overrides AND purge every cache',
-		} );
-		btnReset.addEventListener( 'click', function() {
-			runAction( wrap, btnReset, 'full-reset', 'Resetting…', 'Full reset complete.' );
-		} );
-		hoverable( btnReset, SURFACE, DANGER_HOVER );
-		wrap.appendChild( btnReset );
-
+		// Full reset (overrides plus a purge of every cache) is no longer one click
+		// from "Check for updates": it lives under Maintenance, behind its confirm.
 		wrap.appendChild( el( 'p', {
 			style: 'margin:8px 0 0;font-size:10px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.5));',
-			text:  'Same actions as S&N → Dashboard → Maintenance',
+			text:  'Full reset is in S&N Home › Dashboard, under Maintenance.',
 		} ) );
 
 		container.appendChild( wrap );

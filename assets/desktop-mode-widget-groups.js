@@ -40,8 +40,18 @@
 
 	function paint( body, payload ) {
 		while ( body.firstChild ) { body.removeChild( body.firstChild ); }
-		var win = payload && payload.window;
-		if ( win && win.days ) {
+		var win  = payload && payload.window;
+		var hero = payload && payload.hero;
+		var span = win && win.days ? 'last ' + win.days + ' days' : '';
+		if ( hero && hero.value ) {
+			// The one figure the tile opens with, the way SN Site Views opens.
+			body.appendChild( el( 'div', 'font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1;', hero.value ) );
+			body.appendChild( el( 'div', 'font-size:11px;' + SUBTLE, hero.label + ( span ? ' · ' + span : '' ) ) );
+			if ( hero.change ) {
+				body.appendChild( el( 'div', 'font-size:11px;margin-top:2px;' + ( TONE[ hero.tone ] ? 'color:' + TONE[ hero.tone ] + ';' : SUBTLE ), hero.change ) );
+			}
+			body.appendChild( el( 'div', 'height:6px;' ) );
+		} else if ( span ) {
 			body.appendChild( el( 'div', 'font-size:11px;margin-bottom:4px;' + SUBTLE, 'Last ' + win.days + ' days' ) );
 		}
 		( ( payload && payload.groups ) || [] ).forEach( function( group, i ) {
@@ -57,6 +67,12 @@
 				body.appendChild( row );
 			} );
 		} );
+		// When these figures were read, as a clock time: the tile paints once,
+		// so a relative age would go stale on a desktop left open.
+		var at = payload && Number( payload.generated_at );
+		if ( at > 0 ) {
+			body.appendChild( el( 'div', 'font-size:10px;margin-top:8px;' + SUBTLE, 'Read at ' + new Date( at * 1000 ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) ) );
+		}
 	}
 
 	function mounter( route, linkText ) {
