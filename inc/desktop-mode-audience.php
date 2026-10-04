@@ -59,9 +59,12 @@ function snt_desktop_audience_hn_rows( array $items, $limit ) {
  */
 function snt_desktop_audience_search_rows( $google, $bing ) {
 	$rows = array();
+	// A failed Bing sync keeps the last good totals with the failure beside
+	// them; the row says so rather than passing an old reading off as current.
+	$stale = is_array( $bing ) && '' !== (string) ( $bing['last_error'] ?? '' ) ? ' · last sync failed' : '';
 	foreach ( array( 'Google' => $google, 'Bing' => is_array( $bing ) ? ( $bing['totals'] ?? null ) : null ) as $name => $t ) {
 		if ( is_array( $t ) && isset( $t['clicks'] ) ) {
-			$rows[] = array( 'label' => $name . ( ! empty( $t['days'] ) ? ' · ' . (int) $t['days'] . 'd' : '' ), 'value' => number_format_i18n( (int) $t['clicks'] ) . ' clicks · ' . number_format_i18n( (int) ( $t['impressions'] ?? 0 ) ) . ' impressions' );
+			$rows[] = array( 'label' => $name . ( ! empty( $t['days'] ) ? ' · ' . (int) $t['days'] . 'd' : '' ) . ( 'Bing' === $name ? $stale : '' ), 'value' => number_format_i18n( (int) $t['clicks'] ) . ' clicks · ' . number_format_i18n( (int) ( $t['impressions'] ?? 0 ) ) . ' impressions' );
 		}
 	}
 	return $rows;
@@ -85,7 +88,7 @@ function snt_desktop_audience_groups( array $win ) {
 	if ( $camp ) {
 		$out[] = snt_desktop_group( 'Campaigns', $camp, '' ); // only when a tagged link was followed.
 	}
-	$out[] = snt_desktop_group( 'Hacker News', snt_desktop_audience_hn_rows( (array) ( $hn['items'] ?? array() ), 3 ), 'No story links here yet.' );
+	$out[] = snt_desktop_group( 'Hacker News · latest stories', snt_desktop_audience_hn_rows( (array) ( $hn['items'] ?? array() ), 3 ), 'No story links here yet.' );
 	$out[] = snt_desktop_group( 'Search', snt_desktop_audience_search_rows( function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null, function_exists( 'sn_bing_data' ) ? sn_bing_data() : null ), 'No search reading stored yet.' );
 	return $out;
 }

@@ -42,21 +42,34 @@ $hn = snt_desktop_audience_hn_rows( array( 9 => array( 'title' => 'A note', 'poi
 ok( '14 pts · 3 comments · #7 on the front page' === $hn[0]['value'] && '2 pts · 0 comments' === $hn[1]['value'], 'a Hacker News row names the rank only while the story is on the front page' );
 $s = snt_desktop_audience_search_rows( array( 'clicks' => 12, 'impressions' => 3400, 'days' => 28 ), array( 'totals' => array( 'clicks' => 1, 'impressions' => 90, 'days' => 30 ) ) );
 ok( array( 'Google · 28d', 'Bing · 30d' ) === array_column( $s, 'label' ) && '12 clicks · 3,400 impressions' === $s[0]['value'], 'search rows name their own windows' );
+ok( 'Bing · 30d · last sync failed' === snt_desktop_audience_search_rows( null, array( 'last_error' => '2026-10-03 403', 'totals' => array( 'clicks' => 1, 'impressions' => 90, 'days' => 30 ) ) )[0]['label'] && 'Bing · 30d' === $s[1]['label'], 'totals kept from before a failed Bing sync are marked, not passed off as current' );
 ok( array() === snt_desktop_audience_search_rows( null, null ) && 1 === count( snt_desktop_audience_search_rows( null, array( 'totals' => array( 'clicks' => 0, 'impressions' => 0 ) ) ) ), 'an engine with no stored reading has no row; one that read zero has a row' );
 
 echo "\nReading\n";
 $d = static fn( array $v ) => array_map( static fn( $n ) => array( 'label' => 'x', 'views' => $n ), $v );
-$sc = snt_desktop_reading_scroll_rows( $d( array( 10, 30, 40, 20 ) ) );
-ok( '60%' === $sc[0]['value'] && '20%' === $sc[1]['value'], 'scroll: half is the top two bands, three quarters the top one' );
-ok( array() === snt_desktop_reading_scroll_rows( $d( array( 0, 0, 0, 0 ) ) ) && array() === snt_desktop_reading_scroll_rows( array() ), 'no scroll events gives no rows' );
+// Every view read to the end: each fires 25, 50, 75 and 100. The share that
+// reached half is 100%, not 75% (which dividing by events would give).
+$all = snt_desktop_reading_page_rows( array( 'views' => 10, 'scroll_avg_per_view' => 100.0, 'time_avg_per_view' => 42000.0 ), $d( array( 0, 10, 10, 20 ) ) );
+ok( array( '100%', '100%', '42s' ) === array_column( $all, 'value' ), 'scroll reach is the 50% milestones over page views, not over events' );
+$some = snt_desktop_reading_page_rows( array( 'views' => 40, 'scroll_avg_per_view' => 37.5, 'time_avg_per_view' => 185000.0 ), $d( array( 0, 30, 10, 10 ) ) );
+ok( array( '25%', '38%', '3m 05s' ) === array_column( $some, 'value' ) && 'Average time per view' === $some[2]['label'], 'the depth and time are the per-view averages, labeled as averages' );
+ok( array() === snt_desktop_reading_page_rows( array( 'views' => 0 ), $d( array( 0, 0, 0, 0 ) ) ) && array() === snt_desktop_reading_page_rows( null, array() ), 'no page views gives no rows' );
+ok( 2 === count( snt_desktop_reading_page_rows( array( 'views' => 5, 'scroll_avg_per_view' => 50.0, 'time_avg_per_view' => 1000.0 ), $d( array( 0, 9, 9, 9 ) ) ) ), 'a milestone count above the views (windows that disagree) drops the reach row instead of printing over 100%' );
 $v = snt_desktop_reading_visit_rows( array( array( 'visits' => 30, 'bounce_pct' => 80.0, 'ppv' => 1.2, 'median_dur' => 20 ), array( 'visits' => 10, 'bounce_pct' => 40.0, 'ppv' => 2.0, 'median_dur' => 100 ) ) );
 ok( array( '40', '70%', '1.40', '40s' ) === array_column( $v, 'value' ), 'visits fold weighted by each day\'s visits, not as a plain mean of days' );
-ok( array() === snt_desktop_reading_visit_rows( null ) && array() === snt_desktop_reading_visit_rows( array() ), 'no rolled-up day gives no rows' );
+ok( null === snt_desktop_reading_visit_rows( null ) && array() === snt_desktop_reading_visit_rows( array() ), 'a failed visits read stays null (the group says it could not be read); an empty window is an empty list' );
 ok( '42s' === snt_desktop_reading_seconds( 42 ) && '3m 05s' === snt_desktop_reading_seconds( 185 ), 'seconds read as people say them' );
 ok( array( 'label' => 'LCP', 'value' => '80% good · 10% poor' ) === snt_desktop_reading_vital_row( 'LCP', $d( array( 8, 1, 1 ) ) ), 'a vital whose percentile could not be read still shows its good and poor shares' );
 $p75 = static fn( $x ) => array( array( 'label' => 'p50', 'value' => 1.0 ), array( 'label' => 'p75', 'value' => $x ) );
 ok( 'LCP · p75 1.8s' === snt_desktop_reading_vital_row( 'LCP', $d( array( 8, 1, 1 ) ), $p75( 1840.0 ) )['label'] && 'INP · p75 120ms' === snt_desktop_reading_vital_row( 'INP', $d( array( 8, 1, 1 ) ), $p75( 120.0 ) )['label'] && 'CLS · p75 0.05' === snt_desktop_reading_vital_row( 'CLS', $d( array( 8, 1, 1 ) ), $p75( 50.0 ) )['label'], 'the 75th percentile reads in each vital\'s own unit: seconds, milliseconds, and CLS back from its x1000 storage' );
 ok( null === snt_desktop_reading_vital_row( 'INP', $d( array( 0, 0, 0 ) ) ), 'a vital nobody measured is absent, not 0% good' );
+
+echo "\nSource pins\n";
+$rd = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-reading.php' );
+ok( false !== strpos( $rd, "'Custom events'" ) && false === strpos( $rd, "'Goal events'" ), 'the event group is named for what the table holds: custom events, not goals' );
+ok( false !== strpos( $rd, '$ask = $ask && null !== $pct;' ) && false === strpos( $rd, "sn_analytics_percentiles( 'time'" ), 'after one percentile that cannot be read the rest are not asked; time needs no request at all' );
+ok( false !== strpos( $rd, "'The visits could not be read.'" ), 'a failed visits read has its own sentence' );
+ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-audience.php' ), "'Hacker News · latest stories'" ), 'the Hacker News group says it is not bound to the window' );
 
 echo "\nThe painter\n";
 $node = trim( (string) shell_exec( 'command -v node' ) );

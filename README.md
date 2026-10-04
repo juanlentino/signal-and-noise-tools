@@ -54,7 +54,7 @@ WordPress hardening (Permissions-Policy, REST user-enumeration lock, XML-RPC off
 
 first-party, cookieless edge analytics: a Cloudflare Worker collects pageviews into Cloudflare Analytics Engine, server-side SQL rollups aggregate them into durable tables, and a server-rendered dashboard plus two home-dashboard widgets read them, with AI insights and narration derived from the same rollups (the third-party Plausible dependency this replaced is fully retired; only the widget IDs still carry the old name)
 
-On the OpenStation desktop the analytics widgets are a family of four: **Site Views** (the overview), **Audience** (countries, devices, sources, campaigns, Hacker News, search), **Reading** (scroll depth, time on page, visits, goal events, Core Web Vitals) and **RSS Subscribers**.
+On the OpenStation desktop the analytics widgets are a family of four: **Site Views** (the overview), **Audience** (countries, devices, sources, campaigns, Hacker News, search), **Reading** (scroll depth, time per view, visits, custom events, Core Web Vitals) and **RSS Subscribers**.
 
 **Alerts** run hourly and say only what changed: a traffic spike on a note or the site, a break in collection, a purge that never landed, and a new Hacker News story linking to the site or one reaching the front page (`inc/hn-mentions.php`, the public Algolia and Firebase APIs, no key). They arrive by email and as an in-app notification in the OpenStation shell; there is no push service.
 

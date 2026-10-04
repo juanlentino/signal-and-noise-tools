@@ -159,7 +159,7 @@ add_action( 'init', function() {
 
 		snt_os_register_widget( 'sn-reading', array_merge( $sn_drag, array(
 			'label'          => 'SN Reading',
-			'description'    => 'What readers do here: scroll depth, time on page, visits, goal events, Core Web Vitals.',
+			'description'    => 'What readers do here: scroll depth, time per view, visits, custom events, Core Web Vitals.',
 			'icon'           => 'dashicons-book-alt',
 			'script'         => 'sn-desktop-mode-widget-groups',
 			// BUDGETED 470, not browser-measured: a window line, four groups
