@@ -84,7 +84,6 @@ function snt_cron_sn_owned_hooks() {
 		// v13.91.0: the daily IPv6-criterion store, so the watch reading it costs
 		// an option read rather than an uncached analytics query.
 		array( 'SNT_IPV6_CRITERION_HOOK', 'snt_ipv6_criterion_refresh' ),
-		array( 'SN_ARCHIVE_EXISTING_HOOK', 'sn_archive_push_existing_tick' ), // the owner-started Internet Archive run over older notes: ours, so the Cron screen says so.
 		array( 'SN_AI_MODELS_HOOK', 'snt_ai_models_refresh' ), // 21.0.0: daily read of what the AI providers serve, for the model pickers.
 		array( 'SNT_PDF_ENGINE_HOOK', 'snt_pdf_engine_check' ), // 20.6.0: daily latest-Dompdf read the watch consumes.
 		array( 'SNT_ALERTS_HOOK', 'snt_alerts_hourly' ), // Unreleased: hourly spike and break alerts; always scheduled, the toggle is read in the callback.

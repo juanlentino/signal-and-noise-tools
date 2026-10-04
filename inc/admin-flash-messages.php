@@ -63,7 +63,7 @@ function sn_admin_flash_messages() {
 		'rights_evidence_posted_now'      => array( 'success', 'Posted. The worker signed every composed record of the month and committed it to the ledger; it is anchored with the next OpenTimestamps pass.' ),
 		'rights_evidence_post_now_partial' => array( 'error', 'Not everything posted: the worker refused a record (the month is now held, the reason is shown under Rights evidence) or could not be reached (the daily pass retries).' ),
 		'rights_evidence_post_now_unconfigured' => array( 'error', 'Nothing posted: the provenance worker URL or its secret is not set.' ),
-		'archive_existing_started'      => array( 'success', 'Started. The first note is asked for in about a minute, then one every five minutes; this page shows the count.' ),
+		'archive_existing_started'      => array( 'success', 'Started. The first note is asked for in about a minute, then about one every five to ten minutes; this page shows the count.' ),
 		'archive_existing_running'      => array( 'info', 'Already running; nothing was started twice.' ),
 		'archive_existing_nothing'      => array( 'info', 'Nothing to push: every published note already has a push on record.' ),
 		'archive_existing_unconfigured' => array( 'error', 'Nothing started: add SN_ARCHIVE_ACCESS_KEY and SN_ARCHIVE_SECRET_KEY to wp-config first.' ),
