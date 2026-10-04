@@ -17,6 +17,7 @@ define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) );
 // Transient seam.
 $GLOBALS['__pc_trans'] = array();
 function get_transient( $k ) {
+	$GLOBALS['__keys'][] = $k;
 	if ( SNT_ANALYTICS_VDAY_CACHE_KEY === $k ) { return array( 'hashes' => array(), 'ok' => true, 'truncated' => false ); } // the human rule's list, primed so call counts stay this module's own
 	return array_key_exists( $k, $GLOBALS['__pc_trans'] ) ? $GLOBALS['__pc_trans'][ $k ] : false;
 }
@@ -89,7 +90,14 @@ if ( function_exists( 'sn_analytics_v2_clean_from' ) ) {
 	ok( false !== strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-10-06', '2026-10-10', 'human' ), 'FROM sn_pageviews_v2' ), 'one day later it is inside: the second generation' );
 	$GLOBALS['__tz'] = 'America/New_York';
 	ok( false !== strpos( sn_analytics_percentiles_sql( 'sc', 'double1', '2026-10-05', '2026-10-10', 'human' ), 'FROM sn_pageviews_v2' ), 'west of UTC the same window starts inside the clean day' );
-	$GLOBALS['__tz'] = 'UTC'; sn_analytics_v2_clean_from( '' );
+	$GLOBALS['__tz'] = 'UTC';
+	$GLOBALS['__keys'] = array();
+	$pk = static fn() => array_values( array_filter( $GLOBALS['__keys'], static fn( $k ) => 0 === strpos( (string) $k, 'sn_pctl_' ) ) );
+	sn_analytics_percentiles( 'scroll', '2026-10-06', '2026-10-10', 'human' ); $k2 = $pk()[0] ?? null;
+	$GLOBALS['__keys'] = array();
+	sn_analytics_v2_clean_from( '' );
+	sn_analytics_percentiles( 'scroll', '2026-10-06', '2026-10-10', 'human' ); $k1 = $pk()[0] ?? null;
+	ok( is_string( $k1 ) && is_string( $k2 ) && $k1 !== $k2, 'the cache key changes with the dataset, so a verdict that moves the window cannot serve the other generation\'s answer' );
 }
 
 echo "\nGroup: read accessor — success shape + caching\n";

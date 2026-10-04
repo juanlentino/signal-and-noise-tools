@@ -118,6 +118,9 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day 
 		// themselves counted exactly and equal. A day with nothing exact to
 		// compare is `sampled`, never `match`.
 		$pv_exact = isset( $l['pv'], $p['pv'] ) && $l['pv']['exact'] && $p['pv']['exact'];
+		// The events dataset is proven only by a custom event counted exactly in
+		// both: a day with no custom events says nothing about it.
+		$ev_exact = isset( $l['ce'], $e['ce'] ) && $l['ce']['exact'] && $e['ce']['exact'] && $l['ce']['n'] === $e['ce']['n'] && $l['ce']['n'] > 0;
 		if ( $day < (string) $first_full_day ) {
 			$state = 'partial';
 		} elseif ( $differs ) {
@@ -138,6 +141,7 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day 
 			'sampled'              => array() !== $sampled,
 			'sampled_events'       => array_values( array_unique( $sampled ) ),
 			'differs'              => $differs,
+			'events_proven'        => 'match' === $state && $ev_exact,
 			'state'                => $state,
 		);
 	}

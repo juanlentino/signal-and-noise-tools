@@ -265,6 +265,8 @@ function sn_session_rollup_run( $day = '' ) {
 		sn_session_rollup_upsert( $clean );
 	}
 }
+require_once __DIR__ . '/analytics-generation.php';
+add_action( SN_SESSION_ROLLUP_HOOK, 'sn_analytics_v2_verify', 5, 0 ); // this rollup can fire before the analytics one: it must not write from a verdict a day old.
 add_action( SN_SESSION_ROLLUP_HOOK, 'sn_session_rollup_run' );
 
 /**

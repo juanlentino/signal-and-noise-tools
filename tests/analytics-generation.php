@@ -30,7 +30,7 @@ $oct08 = gmmktime( 12, 0, 0, 10, 8, 2026 );
 echo "\nThe choice\n";
 sn_analytics_v2_verified( false );
 ok( 'sn_pageviews' === sn_analytics_source( '2026-10-10' ) && 'sn_pageviews' === sn_analytics_source( '2026-10-10', 'events' ), 'unverified: the legacy dataset, whatever the window' );
-sn_analytics_v2_verified( true );
+sn_analytics_v2_verified( true ); sn_analytics_v2_events_proven( true );
 ok( 'sn_pageviews_v2' === sn_analytics_source( '2026-10-05' ) && 'sn_events_v2' === sn_analytics_source( '2026-10-05', 'events' ), 'verified and a window starting on the first full day: the second generation' );
 ok( 'sn_pageviews' === sn_analytics_source( '2026-10-04' ) && 'sn_pageviews' === sn_analytics_source( '2026-10-04', 'events' ), 'a window reaching before the first full day stays on the legacy dataset, which holds all of it' );
 ok( 'sn_pageviews' === sn_analytics_source( 'not-a-day' ) && 'sn_pageviews' === sn_analytics_source( '' ), 'a day that is not a day is the legacy dataset' );
@@ -40,6 +40,18 @@ echo "\nThe clean day\n";
 sn_analytics_v2_clean_from( '2026-10-09' );
 ok( 'sn_pageviews' === sn_analytics_source( '2026-10-08' ) && 'sn_pageviews_v2' === sn_analytics_source( '2026-10-09' ), 'after a mismatch on Oct 8, a window that still holds that day stays on the legacy dataset; one that starts after it does not' );
 sn_analytics_v2_verified( true );
+
+echo "\nThe events dataset needs its own evidence\n";
+sn_analytics_v2_clean_from( '2026-10-05' ); sn_analytics_v2_events_proven( false );
+ok( 'sn_pageviews_v2' === sn_analytics_source( '2026-10-06' ) && 'sn_pageviews' === sn_analytics_source( '2026-10-06', 'events' ), 'pageviews verified, no custom event compared yet: event reads stay on the legacy dataset' );
+sn_analytics_v2_events_proven( true );
+ok( 'sn_events_v2' === sn_analytics_source( '2026-10-06', 'events' ), 'once a custom event matched exactly, event reads move too' );
+$ev = sn_analytics_v2_verdict( array( 'read' => true, 'days' => array( array( 'day' => '2026-10-06', 'state' => 'match', 'events_proven' => false ) ) ), $oct08 );
+ok( true === $ev['ok'] && false === $ev['events_ok'], 'a matching day with no custom events verifies the pageviews and leaves the events unproven' );
+$ev2 = sn_analytics_v2_verdict( array( 'read' => true, 'days' => array( array( 'day' => '2026-10-07', 'state' => 'match', 'events_proven' => true ) ) ), $oct08, $ev );
+ok( true === $ev2['events_ok'], 'a later day with a custom event proves them' );
+$ev3 = sn_analytics_v2_verdict( array( 'read' => true, 'days' => array( array( 'day' => '2026-10-09', 'state' => 'mismatch' ) ) ), gmmktime( 12, 0, 0, 10, 10, 2026 ), $ev2 );
+ok( false === $ev3['events_ok'] && false === $ev3['ok'], 'a mismatch takes the events proof away with the rest' );
 
 echo "\nThe columns that moved\n";
 ok( 'blob16' === sn_analytics_col( 'blob19', 'sn_pageviews_v2' ) && 'blob17' === sn_analytics_col( 'blob16', 'sn_pageviews_v2' ) && 'blob4' === sn_analytics_col( 'blob4', 'sn_pageviews_v2' ), 'pageviews: timezone 19 to 16, the custom event name 16 to 17, the rest where they were' );
@@ -67,20 +79,24 @@ $GLOBALS['deleted'] = array();
 function delete_transient( $k ) { $GLOBALS['deleted'][] = $k; return true; }
 function sn_analytics_config() { return array( 'account_id' => 'a', 'token' => 't' ); }
 $GLOBALS['next_check'] = array( 'read' => true, 'days' => array( array( 'day' => '2026-10-07', 'state' => 'match' ) ) );
-function sn_analytics_v2_check( $days, $from ) { return $GLOBALS['next_check']; }
+$GLOBALS['checks'] = 0;
+function sn_analytics_v2_check( $days, $from ) { $GLOBALS['checks']++; return $GLOBALS['next_check']; }
 $GLOBALS['opt'] = array();
 $r1 = sn_analytics_v2_verify( $oct08 );
 ok( true === $r1['ok'] && array( SNT_ANALYTICS_VDAY_CACHE_KEY ) === $GLOBALS['deleted'], 'unverified to verified: the cached list is dropped' );
-$GLOBALS['deleted'] = array(); sn_analytics_v2_verify( $oct08 );
-ok( array() === $GLOBALS['deleted'], 'verified again: nothing changed, nothing dropped' );
+$calls_before = $GLOBALS['checks'];
+$again = sn_analytics_v2_verify( $oct08 + 600 );
+ok( $calls_before === $GLOBALS['checks'] && true === $again['ok'], 'a second writer ten minutes later takes the stored verdict: no second comparison' );
+$GLOBALS['deleted'] = array(); sn_analytics_v2_verify( $oct08 + 86400 );
+ok( array() === $GLOBALS['deleted'], 'verified again the next day: nothing changed, nothing dropped' );
 $GLOBALS['next_check'] = array( 'read' => true, 'days' => array( array( 'day' => '2026-10-07', 'state' => 'mismatch' ) ) );
-$r3 = sn_analytics_v2_verify( $oct08 );
+$r3 = sn_analytics_v2_verify( $oct08 + 2 * 86400 );
 ok( false === $r3['ok'] && array( SNT_ANALYTICS_VDAY_CACHE_KEY ) === $GLOBALS['deleted'] && false === sn_analytics_v2_verified(), 'a mismatch reverts the reads and drops the list read from the dataset just left' );
 $GLOBALS['next_check'] = array( 'read' => false ); $GLOBALS['deleted'] = array();
-ok( null === sn_analytics_v2_verify( $oct08 ) && false === $GLOBALS['opt'][ SN_ANALYTICS_V2_VERIFIED_OPT ]['ok'] && array() === $GLOBALS['deleted'], 'a failed read stores nothing and keeps the previous verdict' );
+ok( null === sn_analytics_v2_verify( $oct08 + 3 * 86400 ) && false === $GLOBALS['opt'][ SN_ANALYTICS_V2_VERIFIED_OPT ]['ok'] && array() === $GLOBALS['deleted'], 'a failed read stores nothing and keeps the previous verdict' );
 
 echo "\nThe statements, second generation\n";
-sn_analytics_v2_verified( true ); sn_analytics_clock( $oct20 );
+sn_analytics_v2_verified( true ); sn_analytics_v2_events_proven( true ); sn_analytics_clock( $oct20 );
 $e = sn_analytics_events_rollup_sql( 7 );
 ok( false !== strpos( $e, 'blob17 AS name,' ) && false !== strpos( $e, 'FROM sn_events_v2' ) && false !== strpos( $e, "blob1 = 'ce'" ), 'custom events: the events dataset, name in blob17' );
 $p = sn_analytics_event_props_rollup_sql( 7 );

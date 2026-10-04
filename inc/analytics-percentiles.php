@@ -142,7 +142,11 @@ function sn_analytics_percentiles( $metric, $from, $to, $class = 'human' ) {
 		return null;
 	}
 
-	$cache_key = 'sn_pctl_' . md5( $metric . '|' . $from . '|' . $to . '|' . $class );
+	// The dataset is part of the key: when the daily verdict moves a window from
+	// one generation to the other, an answer cached from the one just left is
+	// not served.
+	$source    = sn_analytics_source( substr( sn_analytics_local_day_bounds_utc( $from, $to )[0], 0, 10 ) );
+	$cache_key = 'sn_pctl_' . md5( $metric . '|' . $from . '|' . $to . '|' . $class . ( SN_ANALYTICS_DATASET === $source ? '' : '|' . $source ) );
 	$cached    = get_transient( $cache_key );
 	if ( false !== $cached ) {
 		return is_array( $cached ) ? $cached : null; // '' sentinel → cached failure.

@@ -763,7 +763,7 @@ function sn_analytics_pageviews_run_rollup() {
 }
 
 add_action( SN_ANALYTICS_ROLLUP_HOOK, 'sn_analytics_run_rollup' );
-add_action( SN_ANALYTICS_ROLLUP_DAILY_HOOK, 'sn_analytics_v2_verify', 5 ); // before the rollup: compare the two dataset generations and store the verdict the reads follow.
+add_action( SN_ANALYTICS_ROLLUP_DAILY_HOOK, 'sn_analytics_v2_verify', 5, 0 ); // before the rollup: compare the two dataset generations and store the verdict the reads follow.
 add_action( SN_ANALYTICS_ROLLUP_DAILY_HOOK, 'sn_analytics_run_rollup' );
 
 /**

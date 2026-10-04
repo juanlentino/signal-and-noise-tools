@@ -58,7 +58,8 @@ function sn_archive_confirm_parse( $code, $body, $requested_at, $now ) {
 }
 
 /**
- * Notes with a push on record and no capture outcome yet, oldest first.
+ * Notes with a push on record and no capture outcome yet: all of them oldest
+ * first, or a random few when a limit is given.
  *
  * @param int $limit How many ids; -1 for all.
  * @return int[]
@@ -71,7 +72,9 @@ function sn_archive_confirm_pending( $limit = -1 ) {
 				'post_type'      => 'post',
 				'post_status'    => 'publish',
 				'posts_per_page' => (int) $limit,
-				'orderby'        => 'date',
+				// A batch is drawn at random: a few jobs that stay pending must not
+				// hold the same places every hour while newer requests wait behind them.
+				'orderby'        => (int) $limit > 0 ? 'rand' : 'date',
 				'order'          => 'ASC',
 				'fields'         => 'ids',
 				'no_found_rows'  => true,

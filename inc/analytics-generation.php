@@ -27,7 +27,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_ANALYTICS_V2_FROM         = '2026-10-05';
-const SN_ANALYTICS_V2_VERIFIED_OPT = 'sn_analytics_v2_verified'; // { ok, day, clean_from, at, why }.
+const SN_ANALYTICS_V2_VERIFIED_OPT = 'sn_analytics_v2_verified'; // { ok, day, clean_from, events_ok, at, why }.
 
 /**
  * Whether the second generation is verified. Request-scoped; `$set` is the
@@ -62,6 +62,25 @@ function sn_analytics_v2_clean_from( $set = null ) {
 }
 
 /**
+ * Whether the events dataset has been proven. Request-scoped; `$set` is the
+ * writer's way to publish it and the test seam.
+ *
+ * @param bool|null $set A value to hold for this request.
+ * @return bool
+ */
+function sn_analytics_v2_events_proven( $set = null ) {
+	static $memo = null;
+	if ( null !== $set ) {
+		$memo = (bool) $set;
+	}
+	if ( null === $memo ) {
+		$v    = function_exists( 'get_option' ) ? get_option( SN_ANALYTICS_V2_VERIFIED_OPT, array() ) : array();
+		$memo = is_array( $v ) && ! empty( $v['ok'] ) && ! empty( $v['events_ok'] );
+	}
+	return $memo;
+}
+
+/**
  * The dataset for a read. PURE given the verdict.
  *
  * @param string $from_day The first UTC day the read's window can touch, Y-m-d.
@@ -77,7 +96,12 @@ function sn_analytics_source( $from_day, $kind = 'pageviews' ) {
 	if ( '' === $clean || 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from_day ) || (string) $from_day < $clean ) {
 		return $legacy;
 	}
-	return 'events' === $kind ? 'sn_events_v2' : 'sn_pageviews_v2';
+	if ( 'events' === $kind ) {
+		// The events dataset needs its own evidence (a custom event counted
+		// exactly in both generations) from a day inside the same clean range.
+		return sn_analytics_v2_events_proven() ? 'sn_events_v2' : $legacy;
+	}
+	return 'sn_pageviews_v2';
 }
 
 /**
@@ -140,8 +164,10 @@ function sn_analytics_col( $col, $dataset ) {
  * @return array{ok:bool,day:string,clean_from:string,at:int,why:string}
  */
 function sn_analytics_v2_verdict( array $check, $now, array $before = array() ) {
-	$clean = max( SN_ANALYTICS_V2_FROM, (string) ( $before['clean_from'] ?? '' ) );
-	$out   = array( 'ok' => false, 'day' => '', 'clean_from' => $clean, 'at' => (int) $now, 'why' => '' );
+	$clean  = max( SN_ANALYTICS_V2_FROM, (string) ( $before['clean_from'] ?? '' ) );
+	// Proven once, it stays proven until a mismatch (which resets it below).
+	$events = ! empty( $before['events_ok'] );
+	$out    = array( 'ok' => false, 'day' => '', 'clean_from' => $clean, 'events_ok' => $events, 'at' => (int) $now, 'why' => '' );
 	if ( empty( $check['read'] ) ) {
 		$out['why'] = 'not read: ' . (string) ( $check['failed'] ?? '' ) . ' ' . (string) ( $check['error'] ?? '' );
 		return $out;
@@ -154,13 +180,16 @@ function sn_analytics_v2_verdict( array $check, $now, array $before = array() ) 
 			continue;
 		}
 		if ( 'mismatch' === ( $d['state'] ?? '' ) ) {
-			$clean = max( $clean, gmdate( 'Y-m-d', (int) strtotime( $day . ' 00:00:00 UTC' ) + 86400 ) );
-			$match = '';
+			$clean  = max( $clean, gmdate( 'Y-m-d', (int) strtotime( $day . ' 00:00:00 UTC' ) + 86400 ) );
+			$match  = '';
+			$events = false;
 		} elseif ( 'match' === ( $d['state'] ?? '' ) && $day >= $clean ) {
-			$match = $day;
+			$match  = $day;
+			$events = $events || ! empty( $d['events_proven'] );
 		}
 	}
 	$out['clean_from'] = $clean;
+	$out['events_ok']  = $events;
 	if ( '' === $match ) {
 		$out['why'] = $clean > SN_ANALYTICS_V2_FROM ? 'no complete day has matched since the mismatch before ' . $clean : 'no complete day has matched yet';
 		return $out;
@@ -177,6 +206,13 @@ function sn_analytics_v2_verdict( array $check, $now, array $before = array() ) 
  */
 function sn_analytics_v2_verify( $now = null ) {
 	$now = null === $now ? time() : (int) $now;
+	// Two daily writers follow the verdict (the analytics rollup and the
+	// session rollup), on separate hooks minutes apart. Whichever runs first
+	// refreshes it; the other, inside half an hour, takes it as stored.
+	$last = function_exists( 'get_option' ) ? get_option( SN_ANALYTICS_V2_VERIFIED_OPT, array() ) : array();
+	if ( is_array( $last ) && isset( $last['at'] ) && $now - (int) $last['at'] < 1800 && $now >= (int) $last['at'] ) {
+		return $last;
+	}
 	if ( ! function_exists( 'sn_analytics_v2_check' ) || ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		return null;
 	}
@@ -193,9 +229,10 @@ function sn_analytics_v2_verify( $now = null ) {
 	// dataset just left.
 	$was = ! empty( $before['ok'] ) ? max( SN_ANALYTICS_V2_FROM, (string) ( $before['clean_from'] ?? '' ) ) : '';
 	$is  = $verdict['ok'] ? $verdict['clean_from'] : '';
-	if ( $was !== $is && defined( 'SNT_ANALYTICS_VDAY_CACHE_KEY' ) && function_exists( 'delete_transient' ) ) {
+	if ( ( $was !== $is || ! empty( $before['events_ok'] ) !== $verdict['events_ok'] ) && defined( 'SNT_ANALYTICS_VDAY_CACHE_KEY' ) && function_exists( 'delete_transient' ) ) {
 		delete_transient( SNT_ANALYTICS_VDAY_CACHE_KEY );
 	}
 	sn_analytics_v2_clean_from( $is );
+	sn_analytics_v2_events_proven( $verdict['ok'] && $verdict['events_ok'] );
 	return $verdict;
 }
