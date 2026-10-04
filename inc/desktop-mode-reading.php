@@ -95,9 +95,9 @@ function snt_desktop_reading_visit_rows( $days ) {
 	// Days rolled up before the split existed do not count toward it: a share
 	// of the days that measured it, never zeros for the ones that did not.
 	if ( $known > 0 ) {
+		// One row for the rest of the split, so the card keeps its height.
 		array_splice( $rows, 2, 0, array(
-			array( 'label' => 'Two pages', 'value' => snt_desktop_pct( $two, $known ) ),
-			array( 'label' => 'Three or more', 'value' => snt_desktop_pct( $deep, $known ) ),
+			array( 'label' => 'Two pages · three or more', 'value' => snt_desktop_pct( $two, $known ) . ' · ' . snt_desktop_pct( $deep, $known ) ),
 		) );
 	}
 	return $rows;
