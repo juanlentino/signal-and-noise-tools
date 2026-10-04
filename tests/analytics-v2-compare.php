@@ -17,7 +17,7 @@ require __DIR__ . '/../inc/analytics-v2-compare.php';
 
 echo "\nThe statement\n";
 $stmt = sn_analytics_v2_count_sql( "sn_pageviews_v2", 4, true );
-ok( "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, blob1 AS ev, sum(_sample_interval) AS n, count() AS r, sum(if(double11 > 0, _sample_interval, 0)) AS with_pid FROM sn_pageviews_v2 WHERE timestamp >= toStartOfDay(now() - INTERVAL '3' DAY) GROUP BY day, ev" === $stmt, 'the exact v2 statement: weighted counts, aliases in GROUP BY, no function there' );
+ok( "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, blob1 AS ev, sum(_sample_interval) AS n, count() AS r, count(DISTINCT index1) AS v, sum(if(double11 > 0, _sample_interval, 0)) AS with_pid FROM sn_pageviews_v2 WHERE timestamp >= toStartOfDay(now() - INTERVAL '3' DAY) GROUP BY day, ev" === $stmt, 'the exact v2 statement: weighted counts, aliases in GROUP BY, no function there' );
 ok( false === strpos( sn_analytics_v2_count_sql( 'sn_pageviews', 4 ), 'double11' ), 'the legacy read asks for no pageview ID (the column does not exist there)' );
 ok( false !== strpos( sn_analytics_v2_count_sql( 'x; DROP', 99 ), "FROM sn_pageviews WHERE timestamp >= toStartOfDay(now() - INTERVAL '13' DAY)" ), 'an unknown dataset falls back to the legacy name and the window is clamped: nothing typed reaches the statement' );
 
@@ -54,6 +54,16 @@ ok( 'match' === $quiet['days'][0]['state'] && false === $quiet['days'][0]['event
 $n = sn_analytics_v2_compare( $L, null, $E, '2026-10-05' );
 ok( false === $n['ok'] && false === $n['read'] && 0 === $n['mismatched'] && array() === $n['days'], 'a failed read is "not read": never a mismatch, never a match' );
 ok( true === sn_analytics_v2_compare( array(), array(), array(), '2026-10-05' )['ok'], 'three empty datasets agree' );
+
+echo "\nWhat equal counts cannot hide\n";
+$lv = array( array( 'day' => '2026-10-05', 'ev' => 'pv', 'n' => 40, 'r' => 40, 'v' => 31 ) );
+$m  = sn_analytics_v2_compare( $lv, array( array( 'day' => '2026-10-05', 'ev' => 'pv', 'n' => 40, 'r' => 40, 'v' => 1 ) ), array(), '2026-10-05' );
+ok( 'mismatch' === $m['days'][0]['state'] && array( 'pv (pageviews visitors: 31 vs 1)' ) === $m['days'][0]['differs'], 'the same rows under different visitor hashes is a mismatch: visits and sessions are counted from them' );
+ok( 'match' === sn_analytics_v2_compare( $lv, $lv, array(), '2026-10-05' )['days'][0]['state'], 'and equal hashes match' );
+$gone = sn_analytics_v2_compare( array_merge( $lv, array( array( 'day' => '2026-10-05', 'ev' => 'sc', 'n' => 77, 'r' => 30 ) ) ), $lv, array(), '2026-10-05' );
+ok( 'mismatch' === $gone['days'][0]['state'] && array( 'sc (pageviews: 77 vs 0)' ) === $gone['days'][0]['differs'], 'a sampled event with no row at all on the other side is a mismatch, not an estimate' );
+$cp = sn_analytics_v2_compare( $lv, array_merge( $lv, array( array( 'day' => '2026-10-05', 'ev' => 'cp', 'n' => 3, 'r' => 3 ) ) ), array(), '2026-10-05' );
+ok( 'mismatch' === $cp['days'][0]['state'] && array( 'cp (pageviews: must hold none, has 3)' ) === $cp['days'][0]['differs'], 'property rows in the pageviews dataset break the contract and the match' );
 
 echo "\nThe live read\n";
 $GLOBALS['answers'] = array( $L, $P, $E );

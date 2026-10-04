@@ -245,8 +245,16 @@ function sn_analytics_v2_verify( $now = null ) {
 	// dataset just left.
 	$was = ! empty( $before['ok'] ) ? max( SN_ANALYTICS_V2_FROM, (string) ( $before['clean_from'] ?? '' ) ) : '';
 	$is  = $verdict['ok'] ? $verdict['clean_from'] : '';
-	if ( ( $was !== $is || ! empty( $before['events_ok'] ) !== $verdict['events_ok'] ) && defined( 'SNT_ANALYTICS_VDAY_CACHE_KEY' ) && function_exists( 'delete_transient' ) ) {
-		delete_transient( SNT_ANALYTICS_VDAY_CACHE_KEY );
+	if ( ( $was !== $is || ! empty( $before['events_ok'] ) !== $verdict['events_ok'] ) && function_exists( 'delete_transient' ) ) {
+		if ( defined( 'SNT_ANALYTICS_VDAY_CACHE_KEY' ) ) {
+			delete_transient( SNT_ANALYTICS_VDAY_CACHE_KEY );
+		}
+		// The realtime snapshot and today's last-good count carry no dataset in
+		// their keys; a count from the dataset just left must not outlive it.
+		if ( defined( 'SN_ANALYTICS_REALTIME_KEY' ) ) {
+			delete_transient( SN_ANALYTICS_REALTIME_KEY );
+			delete_option( SN_ANALYTICS_VIEWS_TODAY_LASTGOOD );
+		}
 	}
 	sn_analytics_v2_clean_from( $is );
 	sn_analytics_v2_events_proven( $verdict['ok'] && $verdict['events_ok'] );

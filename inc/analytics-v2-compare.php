@@ -27,6 +27,8 @@ const SN_ANALYTICS_DATASET_EVENTS_V2 = 'sn_events_v2';
  * @param string $dataset One of the three dataset names.
  * @param int    $days    Days back, today included (1..14).
  * @param bool   $pid     Also count the rows that carry a pageview ID (double11, v2 only).
+ * `v` is the distinct visitor-day hashes (index1): the rollups count and group
+ * by it, so equal row counts over different hashes are not the same data.
  * `n` is the weighted count; `r` is the rows actually stored. They differ only
  * when Analytics Engine sampled, and then `n` is an estimate.
  *
@@ -35,7 +37,7 @@ const SN_ANALYTICS_DATASET_EVENTS_V2 = 'sn_events_v2';
 function sn_analytics_v2_count_sql( $dataset, $days, $pid = false ) {
 	$dataset = in_array( $dataset, array( SN_ANALYTICS_DATASET, SN_ANALYTICS_DATASET_PV_V2, SN_ANALYTICS_DATASET_EVENTS_V2 ), true ) ? $dataset : SN_ANALYTICS_DATASET;
 	$days    = max( 1, min( 14, (int) $days ) );
-	return 'SELECT ' . "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, blob1 AS ev, sum(_sample_interval) AS n, count() AS r"
+	return 'SELECT ' . "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, blob1 AS ev, sum(_sample_interval) AS n, count() AS r, count(DISTINCT index1) AS v"
 		. ( $pid ? ', sum(if(double11 > 0, _sample_interval, 0)) AS with_pid' : '' )
 		. ' FROM ' . $dataset
 		. " WHERE timestamp >= toStartOfDay(now() - INTERVAL '" . ( $days - 1 ) . "' DAY)"
@@ -73,10 +75,10 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day 
 			$day = (string) ( $r['day'] ?? '' );
 			$ev  = (string) ( $r['ev'] ?? '' );
 			$n   = (int) round( (float) ( $r['n'] ?? 0 ) );
-			$had = $counts[ $day ][ $side ][ $ev ] ?? array( 'n' => 0, 'exact' => true );
+			$had = $counts[ $day ][ $side ][ $ev ] ?? array( 'n' => 0, 'exact' => true, 'v' => 0 );
 			// Analytics Engine samples each dataset on its own; once a stored row
 			// stands for several, the weighted sum is an estimate.
-			$counts[ $day ][ $side ][ $ev ] = array( 'n' => $had['n'] + $n, 'exact' => $had['exact'] && ( ! isset( $r['r'] ) || (int) round( (float) $r['r'] ) === $n ) );
+			$counts[ $day ][ $side ][ $ev ] = array( 'n' => $had['n'] + $n, 'exact' => $had['exact'] && ( ! isset( $r['r'] ) || (int) round( (float) $r['r'] ) === $n ), 'v' => $had['v'] + (int) round( (float) ( $r['v'] ?? 0 ) ) );
 			$pid[ $day ] = ( $pid[ $day ] ?? 0 ) + (int) round( (float) ( $r['with_pid'] ?? 0 ) );
 		}
 	}
@@ -103,13 +105,25 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day 
 		foreach ( array_unique( array_merge( array_intersect( array_keys( $l ), array( 'ce', 'cp' ) ), array_keys( $e ) ) ) as $ev ) {
 			$pairs[] = array( $ev, $l[ $ev ] ?? null, $e[ $ev ] ?? null, 'events' );
 		}
+		if ( ( $p['cp']['n'] ?? 0 ) > 0 ) {
+			// The contract: property rows live in the events dataset only. The
+			// rollups read the pageviews dataset without an event filter.
+			$differs[] = 'cp (pageviews: must hold none, has ' . $p['cp']['n'] . ')';
+		}
 		foreach ( $pairs as list( $ev, $a, $b, $side ) ) {
-			$a = $a ?? array( 'n' => 0, 'exact' => true );
-			$b = $b ?? array( 'n' => 0, 'exact' => true );
-			if ( ! $a['exact'] || ! $b['exact'] ) {
+			$a = $a ?? array( 'n' => 0, 'exact' => true, 'v' => 0 );
+			$b = $b ?? array( 'n' => 0, 'exact' => true, 'v' => 0 );
+			if ( ( 0 === $a['n'] ) !== ( 0 === $b['n'] ) ) {
+				// Rows on one side and none on the other is a finding whatever the
+				// sampling: an estimate can be off, it cannot be of nothing.
+				$differs[] = $ev . ' (' . $side . ': ' . $a['n'] . ' vs ' . $b['n'] . ')';
+			} elseif ( ! $a['exact'] || ! $b['exact'] ) {
 				$sampled[] = $ev; // estimates prove nothing either way.
 			} elseif ( $a['n'] !== $b['n'] ) {
 				$differs[] = $ev . ' (' . $side . ': ' . $a['n'] . ' vs ' . $b['n'] . ')';
+			} elseif ( $a['v'] !== $b['v'] ) {
+				// Same rows, different visitor hashes: visits and sessions would differ.
+				$differs[] = $ev . ' (' . $side . ' visitors: ' . $a['v'] . ' vs ' . $b['v'] . ')';
 			} else {
 				++$exact;
 			}

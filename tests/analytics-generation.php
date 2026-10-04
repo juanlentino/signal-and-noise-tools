@@ -131,5 +131,16 @@ ok( 'x' . $sep . $sep . $sep . $sep === $rows[1]['packed'] && 5 === count( explo
 ok( array( 'google', 'cpc', 'Sale', 'kw', 'ad1' ) === array_values( sn_analytics_utm_split( $rows[0]['packed'] ) ), 'the existing splitter reads it back' );
 ok( 'legacy' === $rows[2]['packed'], 'a legacy row passes through untouched' );
 
+echo "\nA flipped verdict drops the realtime snapshot too\n";
+define( 'SN_ANALYTICS_REALTIME_KEY', 'sn_analytics_realtime' );
+define( 'SN_ANALYTICS_VIEWS_TODAY_LASTGOOD', 'sn_analytics_views_today_lastgood' );
+if ( ! function_exists( 'delete_option' ) ) {
+	function delete_option( $k ) { $GLOBALS['deleted'][] = 'option:' . $k; unset( $GLOBALS['opt'][ $k ] ); return true; }
+}
+$GLOBALS['opt'] = array(); $GLOBALS['deleted'] = array();
+$GLOBALS['next_check'] = array( 'read' => true, 'days' => array( array( 'day' => '2026-10-07', 'state' => 'match' ) ) );
+sn_analytics_v2_verify( $oct08 );
+ok( in_array( SN_ANALYTICS_REALTIME_KEY, $GLOBALS['deleted'], true ) && in_array( 'option:' . SN_ANALYTICS_VIEWS_TODAY_LASTGOOD, $GLOBALS['deleted'], true ), 'the realtime snapshot and the last-good count carry no dataset in their keys, so they go with the flip' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
