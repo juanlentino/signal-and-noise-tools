@@ -93,6 +93,11 @@
 		// null means "not measured", never painted as 0.
 		if ( mr.ai_training !== null && typeof mr.ai_training !== 'undefined' ) {
 			list.appendChild( listRow( 'Declared AI-training reads', String( mr.ai_training ) ) );
+			// A crawler that went looking for the declarations on purpose. The
+			// reservation rides every response, so 0 here is healthy, never an alarm.
+			if ( mr.ai_rights !== null && typeof mr.ai_rights !== 'undefined' ) {
+				list.appendChild( listRow( 'Fetched the rights files directly', String( mr.ai_rights ) ) );
+			}
 		}
 		box.appendChild( list );
 		// Crawler-list drift stays loud: one amber line, only when the verdict is

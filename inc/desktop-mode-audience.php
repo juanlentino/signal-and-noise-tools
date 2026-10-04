@@ -104,10 +104,20 @@ function snt_desktop_traffic_groups( array $win ) {
 	if ( snt_desktop_db_failed() ) {
 		$rss = null; // a missing feed table reads as zeros; say it could not be read.
 	}
-	return array(
+	$out = array(
 		snt_desktop_group( 'Countries', snt_desktop_audience_rows( $dim( 'country' ), 'value', 3 ), 'No views in this window.' ),
 		// Named sources (Hacker News, LinkedIn, direct): a name says more than a category.
 		snt_desktop_group( 'Sources', snt_desktop_audience_rows( function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $win['from'], $win['to'], 'human', 500 ) : null, 'value', 4 ), 'No views in this window.' ),
+	);
+	// Campaigns, only when a tagged link was followed, as SN Audience showed
+	// them. '(none)' is the rollup's bucket for a tagged link that named no
+	// campaign: not a campaign.
+	$named = array_filter( (array) ( function_exists( 'sn_analytics_top_utm_campaigns' ) ? sn_analytics_top_utm_campaigns( $win['from'], $win['to'], 'human', 25 ) : null ), static fn( $r ) => is_array( $r ) && '(none)' !== (string) ( $r['value'] ?? '' ) );
+	$camp  = snt_desktop_audience_rows( $named, 'value', 3 );
+	if ( $camp ) {
+		$out[] = snt_desktop_group( 'Campaigns', $camp, '' );
+	}
+	array_push( $out,
 		// A failed discovery read keeps the stories already known; the heading says
 		// the list may be missing new ones.
 		snt_desktop_group( 'Hacker News · latest story' . ( '' !== (string) ( $hn['error'] ?? '' ) ? ' · last check failed' : '' ), snt_desktop_audience_hn_rows( (array) ( $hn['items'] ?? array() ), 1 ), 'No story links here yet.' ),
@@ -117,13 +127,15 @@ function snt_desktop_traffic_groups( array $win ) {
 			'Devices, search, feed',
 			array_values( array_filter( array(
 				snt_desktop_traffic_fold( 'Devices', snt_desktop_audience_rows( $dim( 'device' ), 'value', 2 ), static fn( $r ) => $r['label'] . ' ' . preg_replace( '/^.* · /', '', $r['value'] ) ),
-				snt_desktop_traffic_fold( 'Search', snt_desktop_audience_search_rows( function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null, function_exists( 'sn_bing_data' ) ? sn_bing_data() : null, is_array( $gsc ) && empty( $gsc['ok'] ) ), static fn( $r ) => preg_replace( '/ · \d+d/', '', $r['label'] ) . ' ' . preg_replace( '/ clicks · .*$/', ' clicks', $r['value'] ) ),
+				// Clicks and impressions per engine: "Google 5 clicks · 478 impr".
+				snt_desktop_traffic_fold( 'Search', snt_desktop_audience_search_rows( function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null, function_exists( 'sn_bing_data' ) ? sn_bing_data() : null, is_array( $gsc ) && empty( $gsc['ok'] ) ), static fn( $r ) => preg_replace( '/ · \d+d/', '', $r['label'] ) . ' ' . str_replace( ' impressions', ' impr', $r['value'] ) ),
 				// A feed table that cannot be read says so; it never reads as zero subscribers.
 				null === $rss ? array( 'label' => 'Feed', 'value' => 'could not be read' ) : snt_desktop_traffic_fold( 'Feed, unique 24h · 7d · 30d', snt_desktop_traffic_feed_rows( $rss ), static fn( $r ) => preg_replace( '/ unique · .*$/', '', $r['value'] ) ),
 			) ) ),
 			'No views in this window.'
-		),
+		)
 	);
+	return $out;
 }
 
 /**

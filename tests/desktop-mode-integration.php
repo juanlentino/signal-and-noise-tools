@@ -478,12 +478,12 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 // 2026-10-04: the three merged cards are BUDGETED, not measured, and a saved
 // layout keeps its old height: the owner resizes each once.
 $expected_height = array(
-	'sn-site-views'       => 760, // SN Traffic, BUDGETED: the old card less its north-star rows (~360) + four groups (~36 each + ~20 a row) and one link
+	'sn-site-views'       => 860, // SN Traffic, BUDGETED: 760 + This week (engaged readers, DOI downloads, inquiries: ~96)
 	'sn-reading'          => 575, // BUDGETED: 555 + the opening figure and age line, less the two rows it replaced
 	'sn-queue'            => 380, // measured 365 live (15.8.1): two-line headline + depth line + two headings + six rows
 	'sn-health'           => 360, // SN Systems, BUDGETED: the verdict line, three one-row sections (~52 each), the button (~44), the link
 	'sn-deploy-status'    => 350, // v11.11.2 budgeted 310 + the Check for updates button (~40)
-	'sn-anchors'          => 420, // SN Provenance, BUDGETED: 250 + the machine readers (~136) + the second link wrapping the action row (~28)
+	'sn-anchors'          => 440, // SN Provenance, BUDGETED: 250 + the machine readers (~136) + the rights-files row (~20) + the wrapped action row (~28)
 );
 ok( array_keys( $expected_height ) === array_keys( $widgets ),
 	'the measured-height table covers exactly the registered widgets, in registration order' );
@@ -698,6 +698,19 @@ ok( false !== strpos( $dep_js, 'if ( shellToast( message ) ) {' ) || false !== s
 	'its result goes to the shell toast first, the in-card status line only as the fallback' );
 ok( false !== strpos( $sys_js, "'All systems normal'" ) && false !== strpos( $sys_js, "headlineText( tally ) || 'All systems normal'" ),
 	'SN Systems says "All systems normal" only when no source has anything to say (render pins: tests/desktop-status-resilience.cjs)' );
+
+echo "\n── 2026-10-04: the owner's six restored figures, and nothing past them ──\n";
+$six_an = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
+ok( false !== strpos( $six_an, "listRow( 'Fetched the rights files directly', String( mr.ai_rights ) )" ) && strpos( $six_an, "'Declared AI-training reads'" ) < strpos( $six_an, "'Fetched the rights files directly'" ),
+	'SN Provenance shows the AI-training reads that fetched the rights files directly, under the AI-training reads' );
+ok( false === strpos( $six_an, 'mr.families' ) && false === strpos( $six_an, 'mr.purposes' ) && false === strpos( $six_an, 'ai_surfaces' ),
+	'not restored: top families, purposes and the other AI-training surfaces stay on the Machine Readers leaf' );
+$six_sys = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ) );
+ok( false === strpos( $six_sys, "'Signal & Noise'" ) && false !== strpos( $six_sys, 'if ( orphans > 0 )' ) && false === strpos( $six_sys, 'response_ms' ),
+	'not restored in SN Systems: per-monitor uptime rows, the Signal & Noise cron count and an always-shown Orphaned row' );
+$six_au = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-audience.php' );
+ok( false !== strpos( $six_au, "'value', 3 ), 'No views in this window.' )" ) && false !== strpos( $six_au, "'value', 4 ), 'No views in this window.' )" ) && false !== strpos( $six_au, "snt_desktop_audience_hn_rows( (array) ( \$hn['items'] ?? array() ), 1 )" ),
+	'not restored in SN Traffic: countries stay 3, sources 4, one Hacker News story' );
 
 echo "\n── The gate: no desktop-mode, no registration ──\n";
 // Re-running the hook with the registry fn absent must be a no-op. We can't
@@ -1968,7 +1981,7 @@ ok( false !== strpos( $views_js, 'payload.today' ), 'tile reads the additive tod
 ok( 1 === preg_match( '/typeof payload\.today === \'number\'/', $views_js ),
 	'today render is guarded on a number — an older cached payload without the key paints nothing' );
 ok( false === strpos( $views_js, "'Engaged'" ) && false === strpos( $views_js, "'Visits'" ) && false === strpos( $views_js, "'Top sources'" ), '21.2.1: Engaged and Visits moved to SN Reading and Top sources to SN Audience; the tile paints none of them (the payload keeps the keys)' );
-ok( false === strpos( $views_js, 'payload.top_mover' ) && false === strpos( $views_js, 'payload.north_star' ) && false === strpos( $views_js, 'payload.bot_pct' ), 'SN Traffic paints no top mover, north star or bot share: none is among its approved rows (the payload keeps top_mover and bot_pct)' );
+ok( false === strpos( $views_js, 'payload.top_mover' ) && false === strpos( $views_js, 'payload.bot_pct' ) && false !== strpos( $views_js, "weekRows( payload.north_star )" ) && false === strpos( $views_js, 'ns.deep' ) && false === strpos( $views_js, 'ns.actions' ), 'SN Traffic paints three north star rows (engaged readers, DOI downloads, inquiries) and no top mover, bot share, read 2+ pages or downloads outbound (the owner\'s pick; the payload keeps the keys)' );
 ok( false === strpos( $views_js, 'innerHTML' ),
 	'views tile never uses innerHTML — glance strings reach the DOM as textContent only' );
 

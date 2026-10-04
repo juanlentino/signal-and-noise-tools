@@ -153,7 +153,10 @@ add_action( 'init', function() {
 			// each and ~20px a row (3 countries, 4 sources, 1 Hacker News story
 			// at up to two lines, 3 one-line rows for devices, search and feed).
 			// The body scrolls past it; measure live before trimming.
-			'default_height' => 760,
+			// + This week (2026-10-04, the owner's pick: engaged readers, DOI
+			// downloads, inquiries): a hairline, a heading and three rows, ~96.
+			// A Campaigns group adds ~100 only when a tagged link was followed.
+			'default_height' => 860,
 		) ) );
 
 		snt_os_register_widget( 'sn-reading', array_merge( $sn_drag, array(
@@ -227,7 +230,8 @@ add_action( 'init', function() {
 			// counts joined it later and it now wraps to three. BUDGETED.
 			// + the machine readers (a hairline, a heading, up to five rows:
 			// ~136) and the second link wrapping the action row (~28). BUDGETED.
-			'default_height' => 420,
+			// + the rights-files row under the AI-training reads (~20).
+			'default_height' => 440,
 		) ) );
 	}
 }, 6 );

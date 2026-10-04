@@ -90,10 +90,19 @@ function sn_analytics_top_dimension( $d, $f, $t, $c, $l ) { $out = array(); fore
 function sn_analytics_top_sources( $f, $t, $c, $l ) { return sn_analytics_top_dimension( 'src', $f, $t, $c, $l ); }
 function sn_rss_tracker_window_stats_multi( $d ) { return array( 'windows' => array( 1 => array( 'total' => 1, 'uniques' => 1 ), 7 => array( 'total' => 2, 'uniques' => 2 ), 30 => array( 'total' => 3, 'uniques' => 3 ) ) ); }
 function get_option( $k, $d = null ) { return $d; }
+function snt_gsc_window_totals() { return array( 'clicks' => 5, 'impressions' => 478, 'days' => 28 ); }
+function sn_bing_data() { return array( 'totals' => array( 'clicks' => 0, 'impressions' => 0, 'days' => 16 ) ); }
 $tg = snt_desktop_traffic_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) );
-ok( array( 'Countries', 'Sources', 'Hacker News · latest story', 'Devices, search, feed' ) === array_column( $tg, 'title' ), 'SN Traffic\'s groups: countries, sources, Hacker News, then devices, search and feed as one-line rows (no campaigns)' );
+ok( array( 'Countries', 'Sources', 'Hacker News · latest story', 'Devices, search, feed' ) === array_column( $tg, 'title' ), 'SN Traffic\'s groups: countries, sources, Hacker News, then devices, search and feed as one-line rows (no campaigns when no tagged link was followed)' );
 $glance = array_column( $tg[3]['rows'], 'value', 'label' );
+ok( 'Google 5 clicks · 478 impr · Bing 0 clicks · 0 impr' === ( $glance['Search'] ?? '' ), 'search keeps impressions beside clicks per engine, on its one row (owner\'s pick, 2026-10-04): ' . ( $glance['Search'] ?? '' ) );
 ok( array( 3, 4 ) === array( count( $tg[0]['rows'] ), count( $tg[1]['rows'] ) ) && 1 === preg_match( '/^device1 \d+% · device2 \d+%$/', $glance['Devices'] ?? '' ) && '1 · 2 · 3' === ( $glance['Feed, unique 24h · 7d · 30d'] ?? '' ), 'top 3 countries, top 4 sources; devices and the three feed windows each fold into one row' );
+function sn_analytics_top_utm_campaigns( $f, $t, $c, $l ) { return $GLOBALS['__camp'] ?? array(); }
+$GLOBALS['__camp'] = array( array( 'value' => '(none)', 'views' => 9 ), array( 'value' => 'spring', 'views' => 3 ) );
+$tgc = snt_desktop_traffic_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) );
+ok( array( 'Countries', 'Sources', 'Campaigns', 'Hacker News · latest story', 'Devices, search, feed' ) === array_column( $tgc, 'title' ) && array( 'spring' ) === array_column( $tgc[2]['rows'], 'label' ), 'a Campaigns group appears when a tagged link was followed, as SN Audience showed it; the no-campaign bucket is not a campaign' );
+$GLOBALS['__camp'] = array( array( 'value' => '(none)', 'views' => 9 ) );
+ok( ! in_array( 'Campaigns', array_column( snt_desktop_traffic_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) ), 'title' ), true ), 'only the no-campaign bucket: no Campaigns group' );
 $GLOBALS['wpdb']->last_error = "Table 'wp_sn_rss_tracker' doesn't exist";
 $tg = snt_desktop_traffic_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) );
 ok( 'could not be read' === ( array_column( $tg[3]['rows'], 'value', 'label' )['Feed'] ?? '' ), 'a broken feed table says it could not be read, never zero subscribers' );

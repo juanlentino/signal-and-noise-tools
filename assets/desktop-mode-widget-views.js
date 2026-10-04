@@ -178,11 +178,27 @@
 		var ul = el( 'div' );
 		ul.setAttribute( 'role', 'list' );
 		rows.forEach( function( r ) {
-			var row = statRow( String( r.label ), String( r.value ) );
+			var row = statRow( String( r.label ), String( r.value ), r.style );
 			row.setAttribute( 'role', 'listitem' );
 			ul.appendChild( row );
 		} );
 		return ul;
+	}
+
+	/**
+	 * Engaged readers with their change, DOI downloads and inquiries, the
+	 * owner's pick of Site Views' north star rows (2026-10-04). Additive: an
+	 * absent key (analytics unset, an older cached payload) paints no row, and
+	 * a measured 0 is a number and paints.
+	 */
+	function weekRows( ns ) {
+		var rows = [];
+		if ( ! ns || typeof ns.value !== 'number' ) { return rows; }
+		var d = ns.value - ( ns.previous || 0 );
+		rows.push( { label: 'Engaged readers · 7d', value: String( ns.value ) + ( d ? ' ' + deltaText( d ) : '' ), style: d ? 'color:' + deltaColor( d, d, relOf( d, ns.previous || 0 ), false ) + ';' : '' } );
+		if ( ns.doi && typeof ns.doi.value === 'number' ) { rows.push( { label: 'DOI downloads · ' + ns.doi.window, value: ns.doi.value } ); }
+		if ( typeof ns.inquiries === 'number' ) { rows.push( { label: 'Inquiries · 7d', value: ns.inquiries } ); }
+		return rows;
 	}
 
 	window.desktopModeWidgets['sn-site-views'] = function( container, ctx ) {
@@ -210,11 +226,17 @@
 				headline( payload );
 			}
 
+			// This week: three of the north star's rows, right under the headline.
+			var week = weekRows( payload.north_star );
+			if ( week.length ) {
+				body.appendChild( group( 'This week', week ) );
+			}
+
 			// SN Traffic: SN Audience's rows and SN RSS Subscribers' windows
 			// paint here as groups (inc/desktop-mode-audience.php), then the top
-			// pages. The north star rows, the top mover and the bot share are not
-			// painted: SN Reading carries the reading figures. Additive: an older
-			// cached payload without `groups` paints none.
+			// pages. Read 2+ pages, downloads outbound, the bot share and the top
+			// mover are not painted (owner's pick, 2026-10-04): they live in S&N
+			// Analytics. Additive: an older cached payload without `groups` paints none.
 			( payload.groups || [] ).forEach( function( g ) {
 				if ( g && g.title ) { body.appendChild( group( g.title, g.rows || [], g.empty ) ); }
 			} );

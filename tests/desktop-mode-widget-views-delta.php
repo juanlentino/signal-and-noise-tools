@@ -28,12 +28,20 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 
 echo "SN Site Views deltas\n\n";
 
-// ── The north star left the card: SN Reading carries those figures ──
+// ── The mismatch: the card reads the ability's reading ──
+// The ability's cached reading says 3; the card's day payload was cached
+// earlier with a frozen north star of 4. The card must answer 3.
 $GLOBALS['t'][ SNT_NSM_CACHE_KEY ] = array( 'configured' => true, 'value' => 3, 'previous' => 2, 'layers' => array() );
+$GLOBALS['t']['sn_desktop_site_views_2026-09-27'] = array( 'days' => array(), 'total' => 0, 'north_star' => array( 'value' => 4, 'previous' => 1 ) );
 $res = snt_desktop_site_views_payload()->data;
-ok( ! isset( $res['north_star'] ), 'the payload no longer reads the north star on every response: the card paints none of it' );
+$ability = snt_ability_north_star();
+ok( 3 === ( $res['north_star']['value'] ?? null ), 'a cached card payload holding a stale 4 answers the current 3' );
+ok( $ability['value'] === $res['north_star']['value'] && $ability['previous'] === $res['north_star']['previous'], 'card value and previous equal the north-star ability from the same data' );
+$GLOBALS['t'][ SNT_NSM_CACHE_KEY ]['configured'] = false;
+$res = snt_desktop_site_views_payload()->data;
+ok( ! isset( $res['north_star'] ), 'analytics unset: no north star, and the frozen copy is dropped too' );
 function snt_desktop_traffic_groups( $win ) { return array( array( 'title' => 'Countries', 'rows' => array(), 'empty' => 'none', 'win' => $win ) ); }
-$GLOBALS['t'] = array();
+unset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27'] );
 $res = snt_desktop_site_views_payload()->data;
 ok( 'Countries' === ( $res['groups'][0]['title'] ?? '' ) && array( 'from' => '2026-09-14', 'to' => '2026-09-27', 'days' => 14 ) === $res['groups'][0]['win'], 'the payload carries SN Traffic\'s groups, read over the same 14 days as the sparkline' );
 ok( isset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27']['groups'] ), 'the groups ride the payload\'s own 15-minute cache' );
@@ -63,7 +71,7 @@ if ( '' === $node ) {
 	ok( 0 === preg_match( '/[▲▼] [+\-−]/u', $all ), 'no sign follows any arrow' );
 	ok( $down === $r['▼ 41.3% vs. prior 14 days'], 'views -41.3% on 100 (abs 70): red' );
 
-	// SN Traffic: the folded groups paint, the duplicates of SN Reading do not.
+	// SN Traffic: This week, the folded groups and the top pages paint.
 	$full = array(
 		'today'      => 7,
 		'north_star' => array( 'value' => 4, 'previous' => 1, 'deep' => 2, 'actions' => 3, 'doi' => array( 'value' => 5, 'window' => '28d' ), 'inquiries' => 1 ),
@@ -80,11 +88,20 @@ if ( '' === $node ) {
 		ok( isset( $t[ $want ] ), "Traffic paints \"$want\"" );
 	}
 	$text = implode( ' | ', array_keys( $t ) );
-	ok( 0 === preg_match( '/Engaged readers|Read 2\+ pages|Downloads, outbound|DOI downloads|Inquiries|Bot share/', $text ), 'none of the rows SN Reading already shows, and no bot share: ' . $text );
-	ok( ! isset( $t['▼ 16'] ) && false === strpos( $text, '/notes' ), 'no top mover: it is not among the approved rows' );
+	// Owner's pick, 2026-10-04: three north star rows come back as This week,
+	// under the headline; the rest stays in S&N Analytics.
+	foreach ( array( 'This week', 'Engaged readers · 7d', '4 ▲ 3', 'DOI downloads · 28d', 'Inquiries · 7d' ) as $want ) {
+		ok( isset( $t[ $want ] ), "Traffic paints \"$want\" in This week" );
+	}
+	ok( strpos( $text, 'vs. prior 14 days' ) < strpos( $text, 'This week' ) && strpos( $text, 'This week' ) < strpos( $text, 'Countries' ), 'This week sits right under the headline block, before the audience groups' );
+	ok( $muted( $t['4 ▲ 3'] ), '+3 on 1 (abs 3 < 5): muted' );
+	$t2 = $render( array( 'north_star' => array( 'value' => 30, 'previous' => 25 ) ) );
+	ok( '#3fb950' === ( $t2['30 ▲ 5'] ?? '' ), 'at threshold (abs 5, rel 20%): green' );
+	ok( 0 === preg_match( '/Read 2\+ pages|Downloads, outbound|Bot share/', $text ) && ! isset( $t['▼ 16'] ) && false === strpos( $text, '/notes' ), 'not restored: read 2+ pages, downloads outbound, the bot share and the top mover live in S&N Analytics: ' . $text );
+	ok( ! isset( $render( array() )['This week'] ), 'an older payload without the north star paints no This week group (absent is not zero)' );
 	$out = $render( $full, true );
 	ok( 1 === $out['links'] && 'Open Analytics' === $out['link']['text'] && 'Open Analytics, from the SN Traffic widget' === $out['link']['name'] && true === $out['link']['arrowHidden'], 'exactly one footer link, Open Analytics, its name starting with the visible words and the arrow hidden' );
-	ok( 'status' === $out['bodyRole'] && 3 === count( array_filter( $out['roles'], static fn( $r ) => 'heading' === $r ) ), 'the body is a status region and each group title (two groups, Top pages) is a heading' );
+	ok( 'status' === $out['bodyRole'] && 4 === count( array_filter( $out['roles'], static fn( $r ) => 'heading' === $r ) ), 'the body is a status region and each group title (This week, two groups, Top pages) is a heading' );
 	ok( count( array_filter( $out['roles'], static fn( $r ) => 'list' === $r ) ) >= 3, 'rows are lists (today, each group with rows, top pages)' );
 }
 
