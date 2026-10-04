@@ -55,10 +55,10 @@ if ( '' === $node ) {
 	$up = '#3fb950'; $down = '#c9503f';
 	$muted = function ( $c ) { return 0 === strpos( (string) $c, 'var(--os-ui-color-text-subtle' ); };
 
+	// 21.2.1: the Engaged row moved to SN Reading (tests/desktop-mode-analytics-widgets.php pins its text and color there).
 	// Text: arrow present, no sign.
 	$r = $render( array( 'north_star' => array( 'value' => 4, 'previous' => 1 ), 'engaged' => array( 'rate' => 37, 'pts' => -10, 'dir' => 'down' ), 'top_mover' => array( 'path' => '/notes', 'delta' => -16, 'views' => 10 ), 'delta_pct' => -41.3 ) );
 	ok( isset( $r['4 ▲ 3'] ), 'up: "4 ▲ 3", no plus sign' );
-	ok( isset( $r['37% ▼ 10 pts'] ), 'points down: "37% ▼ 10 pts"' );
 	ok( isset( $r['▼ 16'] ), 'mover down: "▼ 16", no minus sign' );
 	ok( isset( $r['▼ 41.3% vs. prior 14 days'] ), 'views down: "▼ 41.3% vs. prior 14 days"' );
 	$r0 = $render( array( 'north_star' => array( 'value' => 4, 'previous' => 4 ), 'delta_pct' => 0 ) );
@@ -68,15 +68,12 @@ if ( '' === $node ) {
 
 	// Colour thresholds: abs >= 5 AND rel >= 20%; points >= 5.
 	ok( $muted( $r['4 ▲ 3'] ), '+3 on 1 (abs 3 < 5): muted' );
-	ok( $down === $r['37% ▼ 10 pts'], '10 points down: red' );
 	ok( $down === $r['▼ 16'], 'mover -16 on 26: red' );
 	ok( $down === $r['▼ 41.3% vs. prior 14 days'], 'views -41.3% on 100 (abs 70): red' );
 	$t = $render( array( 'north_star' => array( 'value' => 30, 'previous' => 25 ), 'engaged' => array( 'rate' => 40, 'pts' => 5, 'dir' => 'up' ) ) );
 	ok( $up === ( $t['30 ▲ 5'] ?? '' ), 'at threshold (abs 5, rel 20%): green' );
-	ok( $up === ( $t['40% ▲ 5 pts'] ?? '' ), 'at threshold (5 points): green' );
 	$u = $render( array( 'north_star' => array( 'value' => 31, 'previous' => 26 ), 'engaged' => array( 'rate' => 40, 'pts' => 4, 'dir' => 'up' ), 'top_mover' => array( 'path' => '/a', 'delta' => 4, 'views' => 4 ) ) );
 	ok( $muted( $u['31 ▲ 5'] ?? '' ), 'just under (abs 5, rel 19.2%): muted' );
-	ok( $muted( $u['40% ▲ 4 pts'] ?? '' ), 'just under (4 points): muted' );
 	ok( $muted( $u['▲ 4'] ?? '' ), 'just under (mover abs 4, from zero): muted' );
 }
 

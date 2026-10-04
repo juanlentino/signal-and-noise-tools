@@ -28,6 +28,7 @@
 	}
 	window.desktopModeWidgets = window.openStationWidgets = __osWidgets;
 
+	var TONE   = { up: '#3fb950', down: '#c9503f' }; // a row's change when the server calls it meaningful; SN Site Views' two colors.
 	var SUBTLE = 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));';
 
 	function el( tag, style, text ) {
@@ -52,7 +53,7 @@
 			group.rows.forEach( function( r ) {
 				var row = el( 'div', 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' );
 				row.appendChild( el( 'span', 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;', r.label ) );
-				row.appendChild( el( 'span', 'flex:none;font-variant-numeric:tabular-nums;font-weight:600;', r.value ) );
+				row.appendChild( el( 'span', 'flex:none;font-variant-numeric:tabular-nums;font-weight:600;' + ( TONE[ r.tone ] ? 'color:' + TONE[ r.tone ] + ';' : '' ), r.value ) );
 				body.appendChild( row );
 			} );
 		} );

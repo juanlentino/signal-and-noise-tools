@@ -466,9 +466,9 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 //
 // Changing a card's content SHOULD fail this test. Re-measure, don't re-guess.
 $expected_height = array(
-	'sn-site-views'       => 620, // budgeted: 450 + 3 glance rows (today/engaged/top_mover) ~+60, + north star block (5 rows + hairline) ~+110
+	'sn-site-views'       => 500, // 21.2.1 BUDGETED: 620 less Visits, Engaged and the Top sources block; was budgeted: 450 + 3 glance rows (today/engaged/top_mover) ~+60, + north star block (5 rows + hairline) ~+110
 	'sn-audience'         => 560, // BUDGETED: window line + five groups (5/3/5/3/2 rows) + link
-	'sn-reading'          => 470, // BUDGETED: window line + four groups (3/4/4/3 rows) + link
+	'sn-reading'          => 510, // BUDGETED: window line + four groups (5/4/4/3 rows) + link
 	'sn-rss-subscribers'  => 220, // measured 207
 	'sn-queue'            => 380, // measured 365 live (15.8.1): two-line headline + depth line + two headings + six rows
 	'sn-health'           => 160, // measured 148 all-passing
@@ -1954,12 +1954,7 @@ ok( false !== strpos( $views_js, "'Today so far'" ), 'tile renders a Today so fa
 ok( false !== strpos( $views_js, 'payload.today' ), 'tile reads the additive today key' );
 ok( 1 === preg_match( '/typeof payload\.today === \'number\'/', $views_js ),
 	'today render is guarded on a number — an older cached payload without the key paints nothing' );
-ok( false !== strpos( $views_js, "'Engaged'" ), 'tile renders an Engaged row' );
-ok( false !== strpos( $views_js, 'payload.engaged' ), 'tile reads the additive engaged key' );
-ok( 1 === preg_match( '/payload\.engaged\s*&&\s*typeof payload\.engaged\.rate === \'number\'/', $views_js ),
-	'engaged render is guarded on a numeric rate — missing/malformed key paints nothing' );
-ok( false !== strpos( $views_js, "' pts'" ) || false !== strpos( $views_js, '" pts"' ),
-	'engaged delta is labelled pts (percentage points), not a relative %' );
+ok( false === strpos( $views_js, "'Engaged'" ) && false === strpos( $views_js, "'Visits'" ) && false === strpos( $views_js, "'Top sources'" ), '21.2.1: Engaged and Visits moved to SN Reading and Top sources to SN Audience; the tile paints none of them (the payload keeps the keys)' );
 ok( false !== strpos( $views_js, 'payload.top_mover' ), 'tile reads the additive top_mover key' );
 ok( 1 === preg_match( '/payload\.top_mover\s*&&\s*payload\.top_mover\.path/', $views_js ),
 	'top_mover render is guarded on path — empty/absent movers paint nothing' );

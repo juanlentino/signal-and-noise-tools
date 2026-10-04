@@ -132,14 +132,16 @@ add_action( 'init', function() {
 
 		snt_os_register_widget( 'sn-site-views', array_merge( $sn_drag, array(
 			'label'          => 'SN Site Views',
-			'description'    => 'First-party traffic: 14-day sparkline, bot share, top pages.',
+			'description'    => 'First-party traffic: 14-day sparkline, the north star, bot share, top pages.',
 			'icon'           => 'dashicons-chart-area',
 			'script'         => 'sn-desktop-mode-widget-views',
 			// North star rows: +5 × ~20px + a hairline = +110 (BUDGETED, measure live).
 			// BUDGETED 510, not browser-measured — 450 + 3 glance rows
 			// (today + engaged + top_mover) × ~20px = +60. "Today so far"
 			// rides the 15-min payload transient so the number lags ≤15 min.
-			'default_height' => 620,
+			// 21.2.1: Visits, Engaged and Top sources moved to Reading and Audience:
+			// 620 less two rows and a heading with three rows and a hairline. BUDGETED.
+			'default_height' => 500,
 		) ) );
 
 		// The analytics family sits together in the picker: Site Views, then
@@ -163,8 +165,8 @@ add_action( 'init', function() {
 			'icon'           => 'dashicons-book-alt',
 			'script'         => 'sn-desktop-mode-widget-groups',
 			// BUDGETED 470, not browser-measured: a window line, four groups
-			// (heading + up to 3/4/4/3 rows at ~22px) and the link.
-			'default_height' => 470,
+			// (heading + up to 5/4/4/3 rows at ~22px) and the link.
+			'default_height' => 510,
 		) ) );
 
 		// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that
