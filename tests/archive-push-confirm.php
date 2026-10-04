@@ -19,7 +19,12 @@ function sn_archive_push_keys() { return $GLOBALS['keys'] ? array( 'a', 's' ) : 
 function get_post_meta( $id, $k ) { return $GLOBALS['meta'][ $id ][ $k ] ?? ''; }
 function update_post_meta( $id, $k, $v ) { $GLOBALS['meta'][ $id ][ $k ] = $v; return true; }
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
-function wp_remote_get( $u, $a ) { $GLOBALS['http'][] = array( $u, $a ); return array_shift( $GLOBALS['resp'] ); }
+$GLOBALS['avail'] = array(); $GLOBALS['http_exists'] = array();
+function wp_remote_get( $u, $a ) {
+	if ( 0 === strpos( $u, 'https://archive.org/wayback/available' ) ) { $GLOBALS['http_exists'][] = array( $u, $a ); return array_shift( $GLOBALS['avail'] ) ?? array( 'code' => 200, 'body' => '{"archived_snapshots":{}}' ); }
+	$GLOBALS['http'][] = array( $u, $a ); return array_shift( $GLOBALS['resp'] );
+}
+if ( ! function_exists( 'get_permalink' ) ) { function get_permalink( $id ) { return 'https://juanlentino.com/notes/n' . $id . '/'; } }
 function wp_remote_retrieve_response_code( $r ) { return $r['code']; }
 function wp_remote_retrieve_body( $r ) { return $r['body']; }
 // The two queries the module makes, answered from the meta store.
@@ -63,11 +68,34 @@ ok( 'Captures: 1 captured, 4 asked and not yet confirmed, 1 the Archive could no
 $GLOBALS['resp'] = array( array( 'code' => 200, 'body' => '{"status":"pending"}' ), array( 'code' => 200, 'body' => '{"status":"pending"}' ), array( 'code' => 200, 'body' => '{"status":"success","timestamp":"20261004000001"}' ), array( 'code' => 200, 'body' => '{"status":"success","timestamp":"20261004000002"}' ) );
 $GLOBALS['http'] = array(); sn_archive_confirm_run();
 ok( 4 === count( $GLOBALS['http'] ) && 'captured' === $GLOBALS['meta'][7]['_sn_archive_capture']['state'], 'the next pass reaches the notes behind the ones still pending' );
+echo "\nThe capture itself is the second witness\n";
+$asked = gmmktime( 6, 25, 0, 10, 4, 2026 );
+$snap  = static fn( $ts, $status = '200', $avail = true ) => json_encode( array( 'archived_snapshots' => array( 'closest' => array( 'available' => $avail, 'status' => $status, 'timestamp' => $ts, 'url' => 'x' ) ) ) );
+ok( '20261004063000' === sn_archive_confirm_exists_parse( 200, $snap( '20261004063000' ), $asked ), 'a capture made after the request counts, by its own timestamp' );
+ok( '20261004062200' === sn_archive_confirm_exists_parse( 200, $snap( '20261004062200' ), $asked ) && '' === sn_archive_confirm_exists_parse( 200, $snap( '20261003120000' ), $asked ), 'five minutes of slack between two clocks; a capture from the day before is someone else\'s crawl' );
+ok( '' === sn_archive_confirm_exists_parse( 200, '{"archived_snapshots":{}}', $asked ) && '' === sn_archive_confirm_exists_parse( 200, $snap( '20261004063000', '404' ), $asked ) && '' === sn_archive_confirm_exists_parse( 200, $snap( '20261004063000', '200', false ), $asked ), 'no snapshot, a capture of an error page, or one not available: answered, nothing to count' );
+ok( null === sn_archive_confirm_exists_parse( 429, 'slow down', $asked ) && null === sn_archive_confirm_exists_parse( 200, 'not json', $asked ) && null === sn_archive_confirm_exists_parse( 200, '{"other":1}', $asked ), 'a refused request or a 200 that is not the answer: not read, which is not "no capture"' );
+$GLOBALS['meta'] = array( 9 => array( '_sn_archive_push' => $req( 'spn2-9', $asked ) ) );
+$GLOBALS['resp'] = array( array( 'code' => 200, 'body' => '{"status":"pending"}' ) ); $GLOBALS['avail'] = array( array( 'code' => 200, 'body' => $snap( '20261004063000' ) ) ); $GLOBALS['http_exists'] = array();
+sn_archive_confirm_run();
+$cap = $GLOBALS['meta'][9]['_sn_archive_capture'] ?? array();
+ok( 'captured' === ( $cap['state'] ?? '' ) && '20261004063000' === $cap['timestamp'] && 1 === count( $GLOBALS['http_exists'] ) && false !== strpos( $GLOBALS['http_exists'][0][0], rawurlencode( 'https://juanlentino.com/notes/n9/' ) ) && ! isset( $GLOBALS['http_exists'][0][1]['headers']['Authorization'] ), 'a job still pending whose capture exists is recorded as captured, from a keyless read of the note\'s own URL' );
+$GLOBALS['meta'] = array( 10 => array( '_sn_archive_push' => $req( 'spn2-10', time() - 3 * 86400 ) ) );
+$GLOBALS['resp'] = array( array( 'code' => 200, 'body' => '{"status":"pending"}' ) ); $GLOBALS['avail'] = array( array( 'code' => 429, 'body' => 'slow down' ) );
+sn_archive_confirm_run();
+ok( ! isset( $GLOBALS['meta'][10]['_sn_archive_capture'] ), 'two days pending and the capture read refused: not given up on, asked again next hour' );
+$GLOBALS['resp'] = array( array( 'code' => 200, 'body' => '{"status":"pending"}' ) ); $GLOBALS['avail'] = array( array( 'code' => 200, 'body' => '<html>maintenance</html>' ) );
+sn_archive_confirm_run();
+ok( ! isset( $GLOBALS['meta'][10]['_sn_archive_capture'] ), 'nor when the capture read came back 200 and unreadable' );
+$GLOBALS['resp'] = array( array( 'code' => 200, 'body' => '{"status":"pending"}' ) ); $GLOBALS['avail'] = array();
+sn_archive_confirm_run();
+ok( 'unconfirmed' === ( $GLOBALS['meta'][10]['_sn_archive_capture']['state'] ?? '' ), 'two days pending and the Archive answers that it holds no capture: unconfirmed' );
 $GLOBALS['keys'] = false;
 ok( false === sn_archive_confirm_enabled(), 'no keys: the pass is off, and the cron registry reads the same predicate' );
 $src = static fn( $f ) => (string) file_get_contents( __DIR__ . '/../' . $f );
 ok( false !== strpos( $src( 'inc/cron-dashboard.php' ), "'sn_archive_confirm_hourly', 'sn_archive_confirm_enabled'" ) && false !== strpos( $src( 'inc/cron-lifecycle.php' ), 'SN_ARCHIVE_CONFIRM_HOOK,' ), 'the hourly hook is in the opt-in gates and the deactivation list' );
 ok( false === strpos( $src( 'inc/archive-push-confirm.php' ), 'wp_update_post' ) && false === strpos( $src( 'inc/archive-push-confirm.php' ), 'Authorization' ), 'the module writes meta only and sends no key' );
+ok( false !== strpos( $src( 'inc/archive-push-confirm.php' ), 'microtime( true ) - $start > SN_ARCHIVE_CONFIRM_BUDGET' ) && 30 === SN_ARCHIVE_CONFIRM_BUDGET, 'a pass stops drawing notes after thirty seconds, so a slow Archive cannot hold the cron request' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
