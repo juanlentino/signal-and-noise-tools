@@ -76,7 +76,11 @@ function sn_mcp_protocol_seen_fold( $state, $door, $label, array $known, $now ) 
 			$label = 'other';
 		}
 	}
-	$today[ $door ][ $label ] = (int) ( $today[ $door ][ $label ] ?? 0 ) + 1;
+	// A bucket that is not an array (a hand edit, an older shape) is replaced,
+	// never indexed: this runs inline in the dispatch.
+	$bucket                   = is_array( $today[ $door ] ?? null ) ? $today[ $door ] : array();
+	$bucket[ $label ]         = ( is_numeric( $bucket[ $label ] ?? null ) ? (int) $bucket[ $label ] : 0 ) + 1;
+	$today[ $door ]           = $bucket;
 	$mine[ $label ]           = (int) $now;
 	$seen[ $door ]            = $mine;
 	return array( 'day' => $day, 'today' => $today, 'last_seen' => $seen );
@@ -98,7 +102,15 @@ function sn_mcp_protocol_seen_record( $door, $headers, $decoded ) {
 		function_exists( 'sn_mcp_legacy_protocol_versions' ) ? sn_mcp_legacy_protocol_versions() : array(),
 		defined( 'SN_MCP_MODERN_VERSIONS' ) ? SN_MCP_MODERN_VERSIONS : array()
 	);
-	update_option( SN_MCP_PROTOCOL_SEEN_OPT, sn_mcp_protocol_seen_fold( get_option( SN_MCP_PROTOCOL_SEEN_OPT, array() ), $door, sn_mcp_announced_protocol( $headers, $decoded ), $known, time() ), false );
+	// An instrument, never a gate: whatever goes wrong here, the request goes on.
+	// ponytail: read-modify-write on one option, so two simultaneous requests
+	// can lose a count; one row per door and label if the counts ever matter
+	// more than "was this version seen".
+	try {
+		update_option( SN_MCP_PROTOCOL_SEEN_OPT, sn_mcp_protocol_seen_fold( get_option( SN_MCP_PROTOCOL_SEEN_OPT, array() ), $door, sn_mcp_announced_protocol( $headers, $decoded ), $known, time() ), false );
+	} catch ( \Throwable $e ) {
+		return;
+	}
 }
 
 /**

@@ -43,6 +43,10 @@ $full = sn_mcp_protocol_seen_fold( $full, 'rw', 'fresh-on-the-other-door', $know
 ok( 1 === $full['today']['read']['other'] && ! isset( $full['last_seen']['read']['one-too-many'] ) && 1 === $full['today']['read']['2025-06-18'] && 2 === $full['today']['read']['v-3'] && 1 === $full['today']['rw']['fresh-on-the-other-door'], 'past twelve unrecognized names a new one is counted as other; a served version and a name already seen keep theirs; the cap is per door' );
 ok( array( 'day' => '2026-10-04', 'today' => array( 'read' => array( 'none' => 1 ) ), 'last_seen' => array( 'read' => array( 'none' => $t ) ) ) === sn_mcp_protocol_seen_fold( 'garbage', 'read', '', $known, $t ), 'a stored value that is not a reading is replaced, and an empty label is none' );
 
+$bad = sn_mcp_protocol_seen_fold( array( 'day' => '2026-10-04', 'today' => array( 'read' => 'oops', 'rw' => array( 'none' => 'x' ) ), 'last_seen' => array( 'read' => 7 ) ), 'read', 'none', $known, $t );
+$bad = sn_mcp_protocol_seen_fold( $bad, 'rw', 'none', $known, $t );
+ok( array( 'none' => 1 ) === $bad['today']['read'] && array( 'none' => 1 ) === $bad['today']['rw'] && $t === $bad['last_seen']['read']['none'], 'a bucket or a count of the wrong type is replaced, not indexed: the count runs inside the dispatch' );
+
 echo "\nThe record and the readout\n";
 sn_mcp_protocol_seen_record( 'read', array(), $meta );
 ok( 1 === $GLOBALS['opt'][ SN_MCP_PROTOCOL_SEEN_OPT ]['today']['read']['2026-07-28'] && false === $GLOBALS['autoload'], 'one request is one count, stored without autoload' );
