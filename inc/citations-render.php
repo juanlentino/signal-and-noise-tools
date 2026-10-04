@@ -2,7 +2,8 @@
 /**
  * Signal & Noise — the verified citation graph: the public surface.
  *
- * Appends a "Cited by" aside to single notes, listing ONLY the tiers the site
+ * Places a "Cited by" aside after a single note's content (outside the
+ * post-content element the public ledger checks), listing ONLY the tiers the site
  * can actually vouch for (`verified` and `unattributed`). An `asserted` claim —
  * one whose link has since gone — is recorded and visible in the admin and shown
  * to nobody else, because publishing it would be exactly the conflation this
@@ -140,6 +141,13 @@ function sn_cit_public_html( $post_id ) {
  * @return string
  */
 function sn_cit_render_append( $content ) {
+	// On a block theme the aside is placed AFTER the post-content element
+	// (sn_cit_render_after_content): that element is the region the public
+	// ledger's checker reads against the signed text, and nothing of ours
+	// may sit inside it.
+	if ( function_exists( 'wp_is_block_theme' ) && wp_is_block_theme() ) {
+		return $content;
+	}
 	if ( ! is_singular( 'post' ) || ! in_the_loop() || ! is_main_query() ) {
 		return $content;
 	}
@@ -154,7 +162,37 @@ function sn_cit_render_append( $content ) {
 	return '' === $html ? $content : $content . $html;
 }
 
+/**
+ * Place the aside after the note's post-content element, never inside it.
+ *
+ * The public ledger's checker reads the served page from the post-content
+ * element's opening tag to its end (or the first provenance, share or footer
+ * element) and compares that text with what was signed. An aside appended
+ * through `the_content` sits inside that element, so the first public citation
+ * a note received would have failed its public check, and anyone can cause a
+ * citation by linking to a note and sending a webmention. Here the aside is a
+ * sibling that follows the element's closing tag.
+ *
+ * @param string $html     The rendered core/post-content block.
+ * @param array  $block    The parsed block (unused).
+ * @param object $instance The WP_Block, for the post it renders.
+ * @return string
+ */
+function sn_cit_render_after_content( $html, $block = array(), $instance = null ) {
+	if ( ! is_singular( 'post' ) ) {
+		return $html;
+	}
+	// Only the note the page is for: a query loop on the same page renders
+	// other posts through this block too.
+	$post_id = is_object( $instance ) && isset( $instance->context['postId'] ) ? (int) $instance->context['postId'] : (int) get_the_ID();
+	if ( $post_id <= 0 || (int) get_queried_object_id() !== $post_id ) {
+		return $html;
+	}
+	return $html . sn_cit_public_html( $post_id );
+}
+
 if ( ! defined( 'SN_CIT_TEST' ) || ! SN_CIT_TEST ) {
+	add_filter( 'render_block_core/post-content', 'sn_cit_render_after_content', 21, 3 );
 	// Priority 21: after the provenance panel and the related-notes aside (both
 	// at 20), so inbound citations read last — the note, then what it says, then
 	// who says they took it.
