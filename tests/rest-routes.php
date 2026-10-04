@@ -76,7 +76,7 @@ echo "\nGroup: the route count is pinned, so a new route is a deliberate edit he
 // 24 since the feed-open pixel (GET /feed-open, public, below).
 // 25 since 20.9.0: GET /desktop/alert-notice, the last alert headline for
 // the app's wp.os.notify; manage_options, one option read.
-$expected_count = 25;
+$expected_count = 27; // + desktop/audience and desktop/reading (the two analytics widgets), both manage_options.
 ok( $expected_count === count( $calls ), "exactly $expected_count REST route registrations (found " . count( $calls ) . ')' . ( $expected_count !== count( $calls ) ? "\n        " . implode( "\n        ", array_map( static fn( $k, $c ) => "$k  {$c['ns']}{$c['route']}  [{$c['perm']}]", array_keys( $calls ), $calls ) ) : '' ) );
 
 echo "\nGroup: exactly these routes are public, each for a stated reason\n";

@@ -37,7 +37,7 @@ function sn_archive_existing_render_fieldset() {
 				/* translators: %s: number of notes. */
 				: sprintf( __( 'Push %s older notes', 'signal-and-noise-tools' ), number_format_i18n( $pending ) )
 		) . '</button></form>';
-		echo '<p class="sn-field-helper">' . esc_html__( 'One note every five minutes, oldest first. Any refusal halts the run until you resume it.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-field-helper">' . esc_html__( 'About one note every five to ten minutes, oldest first. Any refusal halts the run until you resume it.', 'signal-and-noise-tools' ) . '</p>';
 	}
 	echo '</div>';
 }

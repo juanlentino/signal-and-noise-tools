@@ -326,7 +326,7 @@ echo "\n── REGISTRATION TIMING (the v9.52.1 root cause) ──\n";
 // a refresh — so a late registry can also actively remove live widgets.
 fire( 'init' );
 $widgets = $GLOBALS['__dm_widgets'];
-ok( count( $widgets ) === 10, 'all ten widgets are registered by the end of init (NOT admin_enqueue_scripts), got ' . count( $widgets ) );
+ok( count( $widgets ) === 12, 'all twelve widgets are registered by the end of init (NOT admin_enqueue_scripts), got ' . count( $widgets ) );
 ok( count( $GLOBALS['__dm_commands'] ) === 22, 'all 22 Cmd+K commands are registered by the end of init, got ' . count( $GLOBALS['__dm_commands'] ) );
 ok( count( $GLOBALS['__dm_icons'] ) === 2, 'both desktop icons are registered on init (this part was always correct)' );
 foreach ( array( 'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-widget-views', 'sn-desktop-mode-widget-uptime', 'sn-desktop-mode-widget-health' ) as $h ) {
@@ -365,9 +365,10 @@ foreach ( $widgets as $id => $args ) {
 // one row Pulse alone carried — uptime — becomes its own SN Uptime widget.
 // Registration order IS picker order: traffic, then site condition, then ops.
 // v9.78.0 appends SN Anchors (provenance) at the end of the ops group.
-// 15.8.0 slots SN Queue second: the editorial pair with Site Views.
-ok( array_keys( $widgets ) === array( 'sn-site-views', 'sn-queue', 'sn-health', 'sn-uptime', 'sn-deploy-status', 'sn-cron', 'sn-quick-actions', 'sn-rss-subscribers', 'sn-anchors', 'sn-machine-readers' ),
-	'widgets register one-per-domain in display order (Site Views first, no Pulse)' );
+// 15.8.0 slotted SN Queue second; the analytics family (Site Views, Audience,
+// Reading, RSS Subscribers) now sits together ahead of it, owner's grouping.
+ok( array_keys( $widgets ) === array( 'sn-site-views', 'sn-audience', 'sn-reading', 'sn-rss-subscribers', 'sn-queue', 'sn-health', 'sn-uptime', 'sn-deploy-status', 'sn-cron', 'sn-quick-actions', 'sn-anchors', 'sn-machine-readers' ),
+	'widgets register in display order: the analytics family first (Site Views, Audience, Reading, RSS Subscribers), then Queue, site condition, ops' );
 ok( ! isset( $widgets['sn-pulse'] ), 'SN Pulse is retired — it duplicated Site Views + Health' );
 ok( ! isset( $widgets['sn-cache'] ), 'SN Cache is retired: purging is automated, and a cache problem surfaces in the attention queue only when the automation failed' );
 
@@ -466,13 +467,15 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 // Changing a card's content SHOULD fail this test. Re-measure, don't re-guess.
 $expected_height = array(
 	'sn-site-views'       => 620, // budgeted: 450 + 3 glance rows (today/engaged/top_mover) ~+60, + north star block (5 rows + hairline) ~+110
+	'sn-audience'         => 560, // BUDGETED: window line + five groups (5/3/5/3/2 rows) + link
+	'sn-reading'          => 470, // BUDGETED: window line + four groups (3/4/4/3 rows) + link
+	'sn-rss-subscribers'  => 220, // measured 207
 	'sn-queue'            => 380, // measured 365 live (15.8.1): two-line headline + depth line + two headings + six rows
 	'sn-health'           => 160, // measured 148 all-passing
 	'sn-uptime'           => 220, // measured 210
 	'sn-deploy-status'    => 310, // v11.11.2 budgeted: measured-192 two-row grid + five worker rows ~22px each
 	'sn-cron'             => 170, // v11.29.0 BUDGETED: health measures 148 for the same dot-row + hairline-list shape, +1 line when orphans exist
 	'sn-quick-actions'    => 290, // v11.29.0 BUDGETED: measured-242 three buttons + a fourth ~40px (8px pad x2 + 13px/1.2 + 1px border x2 + 6px margin)
-	'sn-rss-subscribers'  => 220, // measured 207
 	'sn-anchors'          => 215, // measured 167 idle; 21.1.0 + the Internet Archive line
 	'sn-machine-readers'  => 560, // budgeted: measured-508 −3 sensor rows +≤5 purpose rows
 );
@@ -657,7 +660,7 @@ $widgets = $GLOBALS['__dm_widgets'];
 ok( isset( $widgets['sn-site-views'] ), 'W1: registers the sn-site-views widget' );
 ok( isset( $widgets['sn-uptime'] ),     'W2: registers the sn-uptime widget' );
 ok( isset( $widgets['sn-health'] ),     'W3: registers the sn-health widget' );
-ok( count( $widgets ) === 10, 'all ten widgets register (v11.29.0 adds SN Cron; 15.8.0 SN Queue; SN Cache retired), got ' . count( $widgets ) );
+ok( count( $widgets ) === 12, 'all twelve widgets register (SN Audience and SN Reading join the analytics family; v11.29.0 adds SN Cron; 15.8.0 SN Queue; SN Cache retired), got ' . count( $widgets ) );
 
 ok( ( $widgets['sn-site-views']['label'] ?? '' ) === 'SN Site Views', 'W1 carries its label' );
 ok( ( $widgets['sn-uptime']['label'] ?? '' ) === 'SN Uptime',         'W2 carries its label' );
@@ -1787,6 +1790,8 @@ $js_map = array(
 	'sn-quick-actions'   => 'desktop-mode-widget-actions.js',
 	'sn-rss-subscribers' => 'desktop-mode-widget-rss.js',
 	'sn-site-views'      => 'desktop-mode-widget-views.js',
+	'sn-audience'        => 'desktop-mode-widget-groups.js',
+	'sn-reading'         => 'desktop-mode-widget-groups.js',
 	'sn-uptime'          => 'desktop-mode-widget-uptime.js',
 	'sn-health'          => 'desktop-mode-widget-health.js',
 );

@@ -35,7 +35,7 @@ function provenance_archive_html() {
 				? __( 'Resume', 'signal-and-noise-tools' )
 				/* translators: %s: number of notes. */
 				: sprintf( __( 'Push %s older notes', 'signal-and-noise-tools' ), number_format_i18n( $pending ) )
-		) . '<p class="snt-hint">' . \snt_kit_esc( __( 'One note every five minutes, oldest first. Any refusal halts the run until you resume it.', 'signal-and-noise-tools' ) ) . '</p>';
+		) . '<p class="snt-hint">' . \snt_kit_esc( __( 'About one note every five to ten minutes, oldest first. Any refusal halts the run until you resume it.', 'signal-and-noise-tools' ) ) . '</p>';
 	}
 	return \snt_kit_section( __( 'Internet Archive', 'signal-and-noise-tools' ), $inner );
 }
