@@ -139,6 +139,51 @@ function snt_desktop_traffic_groups( array $win ) {
 }
 
 /**
+ * How many distinct countries and named sources had views. PURE.
+ *
+ * @param array|null $countries sn_analytics_top_dimension( 'country' ) rows; null when the read failed.
+ * @param array|null $sources   sn_analytics_top_sources() rows; null when the read failed.
+ * @return array{countries:int,sources:int}|null Null when either read failed.
+ */
+function snt_desktop_traffic_reach_counts( $countries, $sources ) {
+	if ( ! is_array( $countries ) || ! is_array( $sources ) ) {
+		return null;
+	}
+	$n = static fn( $list ) => count( array_filter( $list, static fn( $r ) => is_array( $r ) && (int) ( $r['views'] ?? 0 ) > 0 && '' !== (string) ( $r['value'] ?? '' ) ) );
+	return array( 'countries' => $n( $countries ), 'sources' => $n( $sources ) );
+}
+
+/**
+ * SN Traffic's reach row: distinct countries and named sources with views in
+ * the window, and the same two counts over the prior window of equal length
+ * (the two rollup reads asked again for the earlier dates; no new tracking).
+ * Null when the window cannot be read or had no views: the row is left out,
+ * never painted as 0. `prior` is null when that window cannot be read.
+ *
+ * @param array{from:string,to:string,days:int} $win Window.
+ * @return array{countries:int,sources:int,prior:array{countries:int,sources:int}|null}|null
+ */
+function snt_desktop_traffic_reach( array $win ) {
+	if ( ! function_exists( 'sn_analytics_top_dimension' ) || ! function_exists( 'sn_analytics_top_sources' ) ) {
+		return null;
+	}
+	$read = static function ( $from, $to ) {
+		$c = sn_analytics_top_dimension( 'country', $from, $to, 'human', 500 );
+		$f = snt_desktop_db_failed();
+		$s = sn_analytics_top_sources( $from, $to, 'human', 500 );
+		return $f || snt_desktop_db_failed() ? null : snt_desktop_traffic_reach_counts( $c, $s );
+	};
+	$now = $read( $win['from'], $win['to'] );
+	if ( null === $now || 0 === $now['countries'] + $now['sources'] ) {
+		return null;
+	}
+	$days       = max( 1, (int) $win['days'] );
+	$prior_to   = gmdate( 'Y-m-d', (int) strtotime( $win['from'] . ' -1 day' ) );
+	$prior_from = gmdate( 'Y-m-d', (int) strtotime( $win['from'] . ' -' . $days . ' days' ) );
+	return $now + array( 'prior' => $read( $prior_from, $prior_to ) );
+}
+
+/**
  * Several rows as one: "Devices · desktop 70% · mobile 30%". Null when there
  * are none, so the row is left out rather than shown empty. PURE.
  *

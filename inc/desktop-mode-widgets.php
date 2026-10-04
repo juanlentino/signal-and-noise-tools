@@ -156,7 +156,8 @@ add_action( 'init', function() {
 			// + This week (2026-10-04, the owner's pick: engaged readers, DOI
 			// downloads, inquiries): a hairline, a heading and three rows, ~96.
 			// A Campaigns group adds ~100 only when a tagged link was followed.
-			'default_height' => 860,
+			// + the reach row (a hairline and one row, ~30).
+			'default_height' => 890,
 		) ) );
 
 		snt_os_register_widget( 'sn-reading', array_merge( $sn_drag, array(
@@ -194,8 +195,9 @@ add_action( 'init', function() {
 			// clear): the verdict line, three sections at a hairline, a heading
 			// and one row (~52 each), the full-width button (~44), the link,
 			// chrome and padding = ~350. A flagged check or a down monitor adds
-			// ~20 a row and the body scrolls.
-			'default_height' => 360,
+			// ~20 a row and the body scrolls. + the uptime row's mean uptime and
+			// response time, which wraps it to a second line (~20).
+			'default_height' => 380,
 		) ) );
 
 		snt_os_register_widget( 'sn-deploy-status', array_merge( $sn_drag, array(
@@ -230,8 +232,9 @@ add_action( 'init', function() {
 			// counts joined it later and it now wraps to three. BUDGETED.
 			// + the machine readers (a hairline, a heading, up to five rows:
 			// ~136) and the second link wrapping the action row (~28). BUDGETED.
-			// + the rights-files row under the AI-training reads (~20).
-			'default_height' => 440,
+			// + the rights-files row under the AI-training reads (~20) and the
+			// top crawler family row (~20).
+			'default_height' => 460,
 		) ) );
 	}
 }, 6 );

@@ -55,12 +55,31 @@
 	var readersUrl   = ( data.pages && data.pages.machine_readers ) || '';
 	var SUBTLE       = 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));';
 
-	/** A label/value row as a listitem; `amber` tones the value. */
-	function listRow( label, value, amber ) {
+	/**
+	 * A change, said twice: the arrow for the eye (aria-hidden) and the
+	 * direction in words for a screen reader. Null for no change.
+	 */
+	function changeNode( d, unit ) {
+		if ( typeof d !== 'number' || ! d ) { return null; }
+		var wrap  = el( 'span', { style: 'margin-left:4px;' + SUBTLE } );
+		var arrow = el( 'span', { text: d > 0 ? '▲' : '▼' } );
+		arrow.setAttribute( 'aria-hidden', 'true' );
+		var words = el( 'span', { text: d > 0 ? 'up' : 'down' } );
+		words.className = 'screen-reader-text';
+		wrap.appendChild( arrow );
+		wrap.appendChild( words );
+		wrap.appendChild( el( 'span', { text: ' ' + Math.abs( d ) + ( unit || '' ) } ) );
+		return wrap;
+	}
+
+	/** A label/value row as a listitem; `amber` tones the value; `extra` follows it. */
+	function listRow( label, value, amber, extra ) {
 		var line = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
 		line.setAttribute( 'role', 'listitem' );
 		line.appendChild( el( 'span', { text: label, style: 'min-width:0;' + SUBTLE } ) );
-		line.appendChild( el( 'span', { text: value, style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;min-width:0;white-space:normal;overflow-wrap:anywhere;text-align:right;' + ( amber ? 'color:#d29922;' : '' ) } ) );
+		var val = el( 'span', { text: value, style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;min-width:0;white-space:normal;overflow-wrap:anywhere;text-align:right;' + ( amber ? 'color:#d29922;' : '' ) } );
+		if ( extra ) { val.appendChild( extra ); }
+		line.appendChild( val );
 		return line;
 	}
 
@@ -98,6 +117,13 @@
 			if ( mr.ai_rights !== null && typeof mr.ai_rights !== 'undefined' ) {
 				list.appendChild( listRow( 'Fetched the rights files directly', String( mr.ai_rights ) ) );
 			}
+		}
+		// The top crawler family's share of the window's reads, with its change
+		// in points against the prior 30 days when that window was read. Absent
+		// when there are no reads: never a 0%.
+		var top = mr.top_family;
+		if ( top && top.family && typeof top.share === 'number' ) {
+			list.appendChild( listRow( 'Top crawler family', top.family + ', ' + top.share + '%', false, typeof top.prior_share === 'number' ? changeNode( top.share - top.prior_share, ' pts' ) : null ) );
 		}
 		box.appendChild( list );
 		// Crawler-list drift stays loud: one amber line, only when the verdict is

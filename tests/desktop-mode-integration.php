@@ -478,12 +478,12 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 // 2026-10-04: the three merged cards are BUDGETED, not measured, and a saved
 // layout keeps its old height: the owner resizes each once.
 $expected_height = array(
-	'sn-site-views'       => 860, // SN Traffic, BUDGETED: 760 + This week (engaged readers, DOI downloads, inquiries: ~96)
+	'sn-site-views'       => 890, // SN Traffic, BUDGETED: 760 + This week (~96) + the reach row (~30)
 	'sn-reading'          => 575, // BUDGETED: 555 + the opening figure and age line, less the two rows it replaced
 	'sn-queue'            => 380, // measured 365 live (15.8.1): two-line headline + depth line + two headings + six rows
-	'sn-health'           => 360, // SN Systems, BUDGETED: the verdict line, three one-row sections (~52 each), the button (~44), the link
+	'sn-health'           => 380, // SN Systems, BUDGETED: the verdict line, three one-row sections (~52 each), the uptime row's second line (~20), the button (~44), the link
 	'sn-deploy-status'    => 350, // v11.11.2 budgeted 310 + the Check for updates button (~40)
-	'sn-anchors'          => 440, // SN Provenance, BUDGETED: 250 + the machine readers (~136) + the rights-files row (~20) + the wrapped action row (~28)
+	'sn-anchors'          => 460, // SN Provenance, BUDGETED: 250 + the machine readers (~136) + the rights-files and top-family rows (~40) + the wrapped action row (~28)
 );
 ok( array_keys( $expected_height ) === array_keys( $widgets ),
 	'the measured-height table covers exactly the registered widgets, in registration order' );
@@ -706,11 +706,25 @@ ok( false !== strpos( $six_an, "listRow( 'Fetched the rights files directly', St
 ok( false === strpos( $six_an, 'mr.families' ) && false === strpos( $six_an, 'mr.purposes' ) && false === strpos( $six_an, 'ai_surfaces' ),
 	'not restored: top families, purposes and the other AI-training surfaces stay on the Machine Readers leaf' );
 $six_sys = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ) );
-ok( false === strpos( $six_sys, "'Signal & Noise'" ) && false !== strpos( $six_sys, 'if ( orphans > 0 )' ) && false === strpos( $six_sys, 'response_ms' ),
+ok( false === strpos( $six_sys, "'Signal & Noise'" ) && false !== strpos( $six_sys, 'if ( orphans > 0 )' ) && false !== strpos( $six_sys, "if ( 'ok' === level ) { return; }" ),
 	'not restored in SN Systems: per-monitor uptime rows, the Signal & Noise cron count and an always-shown Orphaned row' );
 $six_au = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-audience.php' );
 ok( false !== strpos( $six_au, "'value', 3 ), 'No views in this window.' )" ) && false !== strpos( $six_au, "'value', 4 ), 'No views in this window.' )" ) && false !== strpos( $six_au, "snt_desktop_audience_hn_rows( (array) ( \$hn['items'] ?? array() ), 1 )" ),
 	'not restored in SN Traffic: countries stay 3, sources 4, one Hacker News story' );
+
+echo "\n── 2026-10-04: three derived summary rows ──\n";
+$tf_payload = array( 'families' => array( array( 'family' => 'unclassified-machine', 'hits' => 88 ) ), 'total' => 200 );
+ok( array( 'family' => 'unclassified-machine', 'share' => 44, 'prior_share' => 41 ) === snt_desktop_machine_readers_top_family( $tf_payload, array( array( 'family' => 'unclassified-machine', 'hits' => 41 ), array( 'family' => 'GPTBot', 'hits' => 59 ), 'junk' ) ),
+	'the top crawler family\'s share of the window, and its share of the prior window' );
+ok( null === snt_desktop_machine_readers_top_family( $tf_payload, null )['prior_share'] && null === snt_desktop_machine_readers_top_family( $tf_payload, array() )['prior_share'],
+	'a prior window not read, or with no reads, gives no prior share (no change shown), never 0%' );
+ok( null === snt_desktop_machine_readers_top_family( array( 'families' => array(), 'total' => 0 ), array() ) && null === snt_desktop_machine_readers_top_family( array( 'families' => array( array( 'family' => 'x', 'hits' => 0 ) ), 'total' => 0 ), null ),
+	'no families or no reads: no row' );
+$dv_views = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' ) );
+$dv_an    = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
+foreach ( array( 'views.js' => $dv_views, 'anchors.js' => $dv_an ) as $dv_name => $dv_js ) {
+	ok( false !== strpos( $dv_js, "arrow.setAttribute( 'aria-hidden', 'true' );" ) && false !== strpos( $dv_js, "words.className = 'screen-reader-text';" ), "$dv_name says a change twice: the arrow hidden from assistive tech, the direction in words" );
+}
 
 echo "\n── The gate: no desktop-mode, no registration ──\n";
 // Re-running the hook with the registry fn absent must be a no-op. We can't

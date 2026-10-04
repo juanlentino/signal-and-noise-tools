@@ -35,5 +35,7 @@ const links = [], roles = [];
 	n.children.forEach( walk );
 } )( root );
 const a = links[ 0 ];
+const srText = [];
+( function walk( n ) { if ( n.className === 'screen-reader-text' ) { srText.push( n.textContent ); } n.children.forEach( walk ); } )( root );
 const link = a ? { text: a._text, name: a.attrs[ 'aria-label' ] || a.textContent, arrowHidden: a.children.length > 0 && a.children.every( ( c ) => c.attrs[ 'aria-hidden' ] === 'true' ) } : null;
-process.stdout.write( JSON.stringify( { rows: out, helpers: Object.keys( window.snSiteViewsDelta || {} ), links: links.length, link, roles, bodyRole: roles[ 0 ] || '' } ) );
+process.stdout.write( JSON.stringify( { rows: out, helpers: Object.keys( window.snSiteViewsDelta || {} ), links: links.length, link, roles, srText, bodyRole: roles[ 0 ] || '' } ) );

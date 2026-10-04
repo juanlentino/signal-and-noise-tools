@@ -103,6 +103,14 @@ $tgc = snt_desktop_traffic_groups( array( 'from' => '2026-09-20', 'to' => '2026-
 ok( array( 'Countries', 'Sources', 'Campaigns', 'Hacker News · latest story', 'Devices, search, feed' ) === array_column( $tgc, 'title' ) && array( 'spring' ) === array_column( $tgc[2]['rows'], 'label' ), 'a Campaigns group appears when a tagged link was followed, as SN Audience showed it; the no-campaign bucket is not a campaign' );
 $GLOBALS['__camp'] = array( array( 'value' => '(none)', 'views' => 9 ) );
 ok( ! in_array( 'Campaigns', array_column( snt_desktop_traffic_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) ), 'title' ), true ), 'only the no-campaign bucket: no Campaigns group' );
+echo "\nSN Traffic's reach row\n";
+ok( array( 'countries' => 2, 'sources' => 1 ) === snt_desktop_traffic_reach_counts( array( array( 'value' => 'US', 'views' => 3 ), array( 'value' => 'AR', 'views' => 1 ), array( 'value' => '', 'views' => 9 ), array( 'value' => 'FR', 'views' => 0 ) ), array( array( 'value' => 'direct', 'views' => 2 ) ) ), 'reach counts distinct countries and sources that had views; an unknown or zero row is not a country' );
+ok( null === snt_desktop_traffic_reach_counts( null, array() ) && null === snt_desktop_traffic_reach_counts( array(), null ), 'a failed read is no count, never 0' );
+$reach = snt_desktop_traffic_reach( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) );
+ok( 6 === $reach['countries'] && 6 === $reach['sources'] && array( 'countries' => 6, 'sources' => 6 ) === $reach['prior'], 'reach reads the window and the prior 14 days (the same rollup reads, earlier dates)' );
+$GLOBALS['wpdb']->last_error = 'gone';
+ok( null === snt_desktop_traffic_reach( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) ), 'a failed read leaves the reach row out' );
+$GLOBALS['wpdb']->last_error = '';
 $GLOBALS['wpdb']->last_error = "Table 'wp_sn_rss_tracker' doesn't exist";
 $tg = snt_desktop_traffic_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) );
 ok( 'could not be read' === ( array_column( $tg[3]['rows'], 'value', 'label' )['Feed'] ?? '' ), 'a broken feed table says it could not be read, never zero subscribers' );

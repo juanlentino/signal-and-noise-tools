@@ -14,7 +14,8 @@
  * DATA. Health and cron are localized (window.snDesktopData.healthSummary and
  * .cronSummary, each one cheap read; healthSummary is NULL when no scan has
  * ever run, never a 0/0 pass). Uptime is the signal-noise/uptime-status
- * ability, light tier (statuses from a 90s server cache), fetched on mount and
+ * ability, detail tier (statuses from a 90s server cache, availability and
+ * response times from their own caches), fetched on mount and
  * every two minutes while the card is visible: it is the one reading here that
  * changes while a desktop sits open.
  *
@@ -138,7 +139,7 @@
 		var mons = up.rows || [];
 		if ( ! mons.length ) { tally.unknown++; return { empty: 'No monitors configured.' }; }
 		var upN  = mons.filter( function( m ) { return 'ok' === m.level; } ).length;
-		var rows = [ { label: 'Monitors', value: upN + ' of ' + mons.length + ' up', tone: upN === mons.length ? '' : DANGER_FG } ];
+		var rows = [ { label: 'Monitors', value: [ upN + ' of ' + mons.length + ' up' ].concat( uptimeSummary( mons ) ).join( ' · ' ), tone: upN === mons.length ? '' : DANGER_FG } ];
 		// One line when all are up; each monitor only when one is not.
 		if ( upN !== mons.length ) {
 			mons.forEach( function( m ) {
@@ -149,6 +150,25 @@
 			} );
 		}
 		return { rows: rows };
+	}
+
+	/**
+	 * SN Uptime's per-monitor figures, condensed: the mean 30-day availability
+	 * and the mean response time across the monitors that report them. A
+	 * figure no monitor reports is left out, never shown as 0. No change is
+	 * shown: the uptime data carries no prior period to compare against.
+	 */
+	function uptimeSummary( mons ) {
+		var mean = function( key ) {
+			var v = mons.map( function( m ) { return m[ key ]; } ).filter( function( x ) { return x !== null && x !== undefined && x !== '' && ! isNaN( Number( x ) ); } ).map( Number );
+			return v.length ? v.reduce( function( a, b ) { return a + b; }, 0 ) / v.length : null;
+		};
+		var out = [];
+		var a   = mean( 'availability' );
+		var r   = mean( 'response_ms' );
+		if ( null !== a ) { out.push( ( Math.round( a * 100 ) / 100 ) + '% over 30 days' ); }
+		if ( null !== r ) { out.push( 'average ' + Math.round( r ) + ' ms' ); }
+		return out;
 	}
 
 	function readHealth( h, tally ) {
@@ -385,7 +405,8 @@
 			Promise.resolve().then( function() {
 				if ( torn ) { return; }
 				if ( typeof window.sntAbilityRun !== 'function' ) { throw new Error( 'sntAbilityRun unavailable' ); }
-				return window.sntAbilityRun( 'uptime-status', {}, { silent: true } );
+				// detail: the 30-day availability and response times the first row condenses.
+				return window.sntAbilityRun( 'uptime-status', { detail: true }, { silent: true } );
 			} ).then( function( res ) {
 				if ( torn ) { return; }
 				if ( ! res || typeof res.configured !== 'boolean' || ( res.configured && ( ! Array.isArray( res.rows ) || ! res.rows.every( function( row ) { return row && typeof row === 'object' && ! Array.isArray( row ); } ) ) ) ) { throw new Error( 'Invalid uptime response' ); }

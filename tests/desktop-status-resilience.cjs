@@ -50,7 +50,7 @@ function harness() {
   class Clock extends Date { constructor(...a) { super(...(a.length ? a : [now])); } static now() { return now; } }
   const context = vm.createContext({window, document, Date: Clock, Promise, Error, Math, Number, Array, Object, AbortController});
   for (const name of ['snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-health.js',
-    'desktop-mode-widget-queue.js']) {
+    'desktop-mode-widget-queue.js', 'desktop-mode-widget-anchors.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets', name), 'utf8'), context, {filename: name});
   }
   return {window, document, calls, timers, async tick(ms) {
@@ -72,7 +72,7 @@ const fixtures = [
 // painted as one verdict line, so it has its own block below rather than the
 // deploy card's footer-and-cue fixture loop.
 const systems = {id: 'sn-health', period: 120000, good: {configured: true, fetched_at: '2026-09-08T11:59:30Z',
-  rows: [{name: 'example.test', level: 'ok', status: 'up'}, {name: 'heartbeat', level: 'ok', status: 'up'}]}};
+  rows: [{name: 'example.test', level: 'ok', status: 'up', availability: 100, response_ms: 106}, {name: 'heartbeat', level: 'ok', status: 'up', availability: 99.98, response_ms: null}]}};
 const pollerPair = [fixtures[0], systems];
 // The deploy card paints its polled reading into its first child; the Check
 // for updates button (moved from Quick Actions) sits beside it, never repainted.
@@ -246,7 +246,8 @@ async function run() {
     assert.match(root.textContent, /Checking…/, 'the verdict waits for the uptime read');
     x.calls[0].resolve(f.good); await flush();
     assert.match(root.textContent, /All systems normal/);
-    assert.match(root.textContent, /2 of 2 up/);
+    assert.match(root.textContent, /2 of 2 up · 99\.99% over 30 days · average 106 ms/, 'the first uptime row condenses the monitors: mean 30-day uptime and mean response time');
+    assert.doesNotMatch(root.textContent, /▲|▼/, 'no change on the uptime row: the uptime data carries no prior period');
     assert.doesNotMatch(root.textContent, /example\.test|heartbeat/, 'all up: one line, no row per monitor');
     await x.tick(f.period); assert.equal(x.calls.length, 2);
     x.calls[1].reject({code: 'sn_mcp_read_rate_limited', message: 'Rate limited', data: {status: 429, retry_after: 600}}); await flush();
@@ -327,6 +328,45 @@ async function run() {
     await x.tick(f.period); await answer(); assert.equal(x.calls.length, 3, f.id + ': polling resumed on reveal');
     stop(); await x.tick(10 * f.period); assert.equal(x.calls.length, 3, f.id + ': teardown stops the poll');
     assert.equal(x.timers.size, 0, f.id + ': teardown clears every timer');
+  }
+  // The derived rows leave out what they cannot compute, never a 0.
+  {
+    const x = harness(), root = new Element('div');
+    const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
+    x.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}, {name: 'b', level: 'ok', availability: null, response_ms: undefined}]}); await flush();
+    assert.match(root.textContent, /Monitors 2 of 2 up /, 'no availability and no response time: the row is only the count');
+    assert.doesNotMatch(root.textContent, /over 30 days|average|0 ms|NaN/);
+    stop();
+  }
+  // SN Provenance: the top crawler family's share, with its change in points
+  // against the prior 30 days, the arrow hidden and the direction in words.
+  {
+    const mount = async (readers) => {
+      const x = harness(), root = new Element('div');
+      const stop = x.window.desktopModeWidgets['sn-anchors'](root); await flush();
+      for (const c of x.calls) {
+        if (c.opts.path.includes('anchor-status')) c.resolve({pending: [], recording: [], confirmed: 50, total: 50, pages: {confirmed: 6, total: 6}});
+        else if (c.opts.path.includes('machine-readers')) c.resolve(readers);
+        else c.reject(new Error('not in this fixture'));
+      }
+      await flush();
+      return {root, stop};
+    };
+    const base = {ok: true, days: 30, total: 200, families: [{family: 'unclassified-machine', hits: 88}], ai_training: 40, ai_rights: 19};
+    let m = await mount({...base, top_family: {family: 'unclassified-machine', share: 44, prior_share: 41}});
+    assert.match(m.root.textContent, /Top crawler family unclassified-machine, 44%▲ up  3 pts/, 'the top family, its share and its change in points');
+    const arrow = nodes(m.root).find(n => n.text === '▲');
+    assert.equal(arrow.attrs['aria-hidden'], 'true', 'the arrow is hidden from assistive tech');
+    assert.equal(nodes(m.root).find(n => n.text === 'up').className, 'screen-reader-text', 'the direction is said in words');
+    assert.match(m.root.textContent, /Fetched the rights files directly 19/);
+    m.stop();
+    m = await mount({...base, top_family: {family: 'unclassified-machine', share: 44, prior_share: null}});
+    assert.match(m.root.textContent, /unclassified-machine, 44%/);
+    assert.doesNotMatch(m.root.textContent, /▲|▼/, 'no prior window read: no change shown');
+    m.stop();
+    m = await mount({...base, families: [], total: 0});
+    assert.doesNotMatch(m.root.textContent, /Top crawler family/, 'no reads: the row is left out, never 0%');
+    m.stop();
   }
   console.log('PASS: runner and both widgets — stale/429/recovery/backoff, malformed data, cross-widget cadence, abort/cleanup/remount');
 }

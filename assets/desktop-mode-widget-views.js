@@ -201,6 +201,44 @@
 		return rows;
 	}
 
+	/**
+	 * A change, said twice: the arrow for the eye (aria-hidden) and the
+	 * direction in words for a screen reader. Null for no change or no prior.
+	 */
+	function changeNode( d ) {
+		if ( typeof d !== 'number' || ! d ) { return null; }
+		var wrap  = el( 'span', { style: 'margin-left:4px;font-weight:600;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
+		var arrow = el( 'span', { text: d > 0 ? '▲' : '▼' } );
+		arrow.setAttribute( 'aria-hidden', 'true' );
+		var words = el( 'span', { text: d > 0 ? 'up' : 'down' } );
+		words.className = 'screen-reader-text';
+		wrap.appendChild( arrow );
+		wrap.appendChild( words );
+		wrap.appendChild( el( 'span', { text: ' ' + Math.abs( d ) } ) );
+		return wrap;
+	}
+
+	/** "Reach · 14 days: 5 countries ▲ 2 · 5 sources", as one listed row. */
+	function reachRow( r ) {
+		var box = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
+		var ul  = el( 'div' );
+		ul.setAttribute( 'role', 'list' );
+		var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+		row.setAttribute( 'role', 'listitem' );
+		row.appendChild( el( 'span', { text: 'Reach · 14 days', style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));min-width:0;' } ) );
+		var val = el( 'span', { style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;text-align:right;' } );
+		var p   = r.prior && typeof r.prior.countries === 'number' ? r.prior : null;
+		[ [ r.countries, 'countries', p && p.countries ], [ r.sources, 'sources', p && p.sources ] ].forEach( function( f, i ) {
+			val.appendChild( el( 'span', { text: ( i ? ' · ' : '' ) + f[0] + ' ' + f[1] } ) );
+			var c = p ? changeNode( f[0] - f[2] ) : null;
+			if ( c ) { val.appendChild( c ); }
+		} );
+		row.appendChild( val );
+		ul.appendChild( row );
+		box.appendChild( ul );
+		return box;
+	}
+
 	window.desktopModeWidgets['sn-site-views'] = function( container, ctx ) {
 		var aborted = false;
 		var ctrl    = ( typeof AbortController !== 'undefined' ) ? new AbortController() : null;
@@ -230,6 +268,13 @@
 			var week = weekRows( payload.north_star );
 			if ( week.length ) {
 				body.appendChild( group( 'This week', week ) );
+			}
+
+			// Reach: distinct countries and named sources with views in the window,
+			// each with its change against the prior 14 days. Absent when it could
+			// not be read: never a 0.
+			if ( payload.reach && typeof payload.reach.countries === 'number' ) {
+				body.appendChild( reachRow( payload.reach ) );
 			}
 
 			// SN Traffic: SN Audience's rows and SN RSS Subscribers' windows

@@ -238,7 +238,7 @@ t( is_array( $l10n['verbs'] ?? null ), 'E.7 the verb map still rides the same ob
 // widget's two calls carried the flag (the click-driven sweep must not).
 $silent_calls = array(
 	'desktop-mode-widget.js'         => "window.sntAbilityRun( 'get-deploy-status', undefined, { signal: controller ? controller.signal : undefined, silent: true } )",
-	'desktop-mode-widget-health.js'  => "window.sntAbilityRun( 'uptime-status', {}, { silent: true } )",
+	'desktop-mode-widget-health.js'  => "window.sntAbilityRun( 'uptime-status', { detail: true }, { silent: true } )",
 	'desktop-mode-widget-queue.js'   => "window.sntAbilityRun( 'content-queue', undefined, { silent: true } )",
 	'desktop-mode-widget-anchors.js' => "window.sntAbilityRun( 'anchor-status', {}, { silent: true } )",
 );

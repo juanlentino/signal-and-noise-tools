@@ -99,6 +99,17 @@ if ( '' === $node ) {
 	ok( '#3fb950' === ( $t2['30 ▲ 5'] ?? '' ), 'at threshold (abs 5, rel 20%): green' );
 	ok( 0 === preg_match( '/Read 2\+ pages|Downloads, outbound|Bot share/', $text ) && ! isset( $t['▼ 16'] ) && false === strpos( $text, '/notes' ), 'not restored: read 2+ pages, downloads outbound, the bot share and the top mover live in S&N Analytics: ' . $text );
 	ok( ! isset( $render( array() )['This week'] ), 'an older payload without the north star paints no This week group (absent is not zero)' );
+
+	// The reach row: distinct countries and sources, each with its change
+	// against the prior 14 days, the arrow hidden and the direction in words.
+	$rr = $render( array( 'reach' => array( 'countries' => 5, 'sources' => 5, 'prior' => array( 'countries' => 3, 'sources' => 6 ) ), 'groups' => array( array( 'title' => 'Countries', 'rows' => array() ) ) ), true );
+	$rt = implode( ' | ', array_column( $rr['rows'], 'text' ) );
+	ok( false !== strpos( $rt, 'Reach · 14 days' ) && false !== strpos( $rt, '5 countries▲up 2 · 5 sources▼down 1' ) && array( 'up', 'down' ) === $rr['srText'], 'Reach · 14 days: 5 countries ▲ 2 · 5 sources ▼ 1: ' . $rt );
+	ok( strpos( $rt, 'Reach' ) < strpos( $rt, 'Countries' ), 'the reach row opens the audience part' );
+	$rr0 = $render( array( 'reach' => array( 'countries' => 5, 'sources' => 5, 'prior' => null ) ), true );
+	$rt0 = implode( ' | ', array_column( $rr0['rows'], 'text' ) );
+	ok( false !== strpos( $rt0, '5 countries' ) && false === strpos( $rt0, '▲' ) && false === strpos( $rt0, '▼' ), 'no prior window read: the counts without a change' );
+	ok( ! isset( $render( array() )['Reach · 14 days'] ), 'no reach in the payload: no row, never 0 countries' );
 	$out = $render( $full, true );
 	ok( 1 === $out['links'] && 'Open Analytics' === $out['link']['text'] && 'Open Analytics, from the SN Traffic widget' === $out['link']['name'] && true === $out['link']['arrowHidden'], 'exactly one footer link, Open Analytics, its name starting with the visible words and the arrow hidden' );
 	ok( 'status' === $out['bodyRole'] && 4 === count( array_filter( $out['roles'], static fn( $r ) => 'heading' === $r ) ), 'the body is a status region and each group title (This week, two groups, Top pages) is a heading' );

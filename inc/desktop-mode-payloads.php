@@ -421,6 +421,11 @@ function snt_desktop_site_views_payload() {
 	if ( function_exists( 'snt_desktop_traffic_groups' ) ) {
 		$payload['groups'] = snt_desktop_traffic_groups( array( 'from' => $from, 'to' => $today, 'days' => 14 ) );
 	}
+	// The reach row at the top of the audience part; omitted when it cannot be read.
+	$reach = function_exists( 'snt_desktop_traffic_reach' ) ? snt_desktop_traffic_reach( array( 'from' => $from, 'to' => $today, 'days' => 14 ) ) : null;
+	if ( null !== $reach ) {
+		$payload['reach'] = $reach;
+	}
 
 	set_transient( $cache_key, $payload, 15 * MINUTE_IN_SECONDS );
 	return new WP_REST_Response( snt_desktop_site_views_with_north_star( $payload ), 200 );
@@ -527,6 +532,21 @@ function snt_desktop_machine_readers_payload() {
 		if ( ! empty( $read['ok'] ) && empty( $read['truncated'] ) ) {
 			$payload['edge_verified'] = snt_desktop_machine_readers_identity( (array) ( $read['rows'] ?? array() ) );
 		}
+		// The prior 30 days, for the top family's share change: one sensor read
+		// of 60 days (cached per window length, as the Machine Readers leaf's
+		// delta cards read it), split locally. A capped or failed read gives no
+		// prior, so no change is shown rather than one built on half a window.
+		$prior = null;
+		if ( function_exists( 'snt_mr_split_windows' ) ) {
+			$wide = snt_mr_fetch( 60 );
+			if ( ! empty( $wide['ok'] ) && empty( $wide['truncated'] ) ) {
+				$prior = snt_mr_split_windows( (array) ( $wide['rows'] ?? array() ), 30, gmdate( 'Y-m-d' ) )['prior'];
+			}
+		}
+		$top = snt_desktop_machine_readers_top_family( $payload, $prior );
+		if ( null !== $top ) {
+			$payload['top_family'] = $top;
+		}
 	}
 	return $payload;
 }
@@ -563,4 +583,38 @@ function snt_desktop_machine_readers_identity( array $rows ) {
 		}
 	}
 	return $out;
+}
+
+/**
+ * The top crawler family and its share of the window's machine reads, with the
+ * share over the prior window when its rows were read. PURE. Null when there
+ * are no families or no reads: the row is left out, never painted as 0%.
+ *
+ * @param array      $payload    The machine-readers summary (families, total).
+ * @param array|null $prior_rows Sensor rows of the prior window; null when not read.
+ * @return array{family:string,share:int,prior_share:int|null}|null
+ */
+function snt_desktop_machine_readers_top_family( array $payload, $prior_rows ) {
+	$top   = $payload['families'][0] ?? null;
+	$total = (int) ( $payload['total'] ?? 0 );
+	if ( ! is_array( $top ) || '' === (string) ( $top['family'] ?? '' ) || $total < 1 ) {
+		return null;
+	}
+	$family = (string) $top['family'];
+	$prior  = null;
+	if ( is_array( $prior_rows ) ) {
+		$hits = array();
+		foreach ( $prior_rows as $r ) {
+			if ( is_array( $r ) && '' !== (string) ( $r['family'] ?? '' ) ) {
+				$hits[ (string) $r['family'] ] = (int) ( $hits[ (string) $r['family'] ] ?? 0 ) + max( 0, (int) ( $r['hits'] ?? 0 ) );
+			}
+		}
+		$all   = array_sum( $hits );
+		$prior = $all > 0 ? (int) round( 100 * (int) ( $hits[ $family ] ?? 0 ) / $all ) : null;
+	}
+	return array(
+		'family'      => $family,
+		'share'       => (int) round( 100 * (int) ( $top['hits'] ?? 0 ) / $total ),
+		'prior_share' => $prior,
+	);
 }
