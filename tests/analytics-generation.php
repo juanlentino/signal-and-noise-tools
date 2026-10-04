@@ -71,6 +71,10 @@ $m3 = sn_analytics_v2_verdict( array( 'read' => true, 'days' => array( $day( '20
 ok( true === $m3['ok'] && '2026-10-07' === $m3['clean_from'], 'the clean day is remembered after the check stops looking that far back' );
 ok( true === sn_analytics_v2_verdict( array( 'read' => true, 'days' => array( $day( '2026-10-07', 'match' ), $day( '2026-10-08', 'mismatch' ) ) ), $oct08 )['ok'], 'a mismatch on today, still filling and read in three separate requests, is ignored like a match on today' );
 ok( true === sn_analytics_v2_verdict( array( 'read' => true, 'days' => array( $day( '2026-10-05', 'match' ), $day( '2026-10-06', 'sampled' ) ) ), $oct08 )['ok'], 'a sampled day is neutral: it neither verifies nor refuses' );
+$kept = sn_analytics_v2_verdict( array( 'read' => true, 'days' => array( $day( '2026-10-09', 'sampled' ), $day( '2026-10-10', 'sampled' ) ) ), gmmktime( 21, 45, 0, 10, 11, 2026 ), array( 'ok' => true, 'day' => '2026-10-06', 'clean_from' => '2026-10-05', 'events_ok' => true ) );
+ok( true === $kept['ok'] && '2026-10-06' === $kept['day'] && true === $kept['events_ok'] && 0 === strpos( $kept['why'], 'kept' ), 'sampled or quiet days after a verification keep it: no evidence is not counter-evidence' );
+ok( false === sn_analytics_v2_verdict( array( 'read' => true, 'days' => array( $day( '2026-10-09', 'sampled' ) ) ), gmmktime( 21, 45, 0, 10, 11, 2026 ) )['ok'], 'but the FIRST verification still waits for an exact match' );
+ok( false === sn_analytics_v2_verdict( array( 'read' => true, 'days' => array( $day( '2026-10-09', 'mismatch' ), $day( '2026-10-10', 'sampled' ) ) ), gmmktime( 21, 45, 0, 10, 11, 2026 ), array( 'ok' => true, 'day' => '2026-10-06', 'clean_from' => '2026-10-05' ) )['ok'], 'and a mismatch still takes an earned verdict away' );
 $n = sn_analytics_v2_verdict( array( 'read' => false, 'failed' => 'sn_events_v2', 'error' => 'HTTP 403' ), $oct08 );
 ok( false === $n['ok'] && 0 === strpos( $n['why'], 'not read: sn_events_v2' ), 'a failed read is no verdict' );
 

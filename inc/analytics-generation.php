@@ -191,6 +191,13 @@ function sn_analytics_v2_verdict( array $check, $now, array $before = array() ) 
 	$out['clean_from'] = $clean;
 	$out['events_ok']  = $events;
 	if ( '' === $match ) {
+		// Nothing matched in this look, and nothing mismatched either (a
+		// mismatch moved the clean day above). A verdict already earned stands:
+		// quiet or sampled days are no evidence against it. Only the first
+		// verification has to wait for an exact match.
+		if ( ! empty( $before['ok'] ) && $clean === max( SN_ANALYTICS_V2_FROM, (string) ( $before['clean_from'] ?? '' ) ) ) {
+			return array( 'ok' => true, 'day' => (string) ( $before['day'] ?? '' ), 'why' => 'kept: no complete day in this check was exact, and none mismatched' ) + $out;
+		}
 		$out['why'] = $clean > SN_ANALYTICS_V2_FROM ? 'no complete day has matched since the mismatch before ' . $clean : 'no complete day has matched yet';
 		return $out;
 	}
@@ -220,6 +227,13 @@ function sn_analytics_v2_verify( $now = null ) {
 	}
 	$check = sn_analytics_v2_check( 4, SN_ANALYTICS_V2_FROM );
 	if ( empty( $check['read'] ) ) {
+		return null;
+	}
+	// The three datasets are read one after another, each against its own
+	// now(). If UTC midnight fell between them they cover different days, and
+	// the day only one of them reached would read as a mismatch. Such a check
+	// is thrown away; tomorrow's run decides. (`$now` given: a test's clock.)
+	if ( func_num_args() < 1 && gmdate( 'Y-m-d', $now ) !== gmdate( 'Y-m-d' ) ) {
 		return null;
 	}
 	$before  = (array) get_option( SN_ANALYTICS_V2_VERIFIED_OPT, array() );
