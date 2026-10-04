@@ -50,7 +50,7 @@ function sn_colophon_items() {
 		'hosting'  => array( __( 'Hosting', 'signal-and-noise-tools' ), __( 'Cloudways, Cloudflare CDN & DNS', 'signal-and-noise-tools' ) ),
 		'tooling'  => array( __( 'Tooling', 'signal-and-noise-tools' ), __( 'companion plugin Signal & Noise Tools for SEO, search & ops', 'signal-and-noise-tools' ) ),
 		'interop'  => array( __( 'Interop', 'signal-and-noise-tools' ), __( 'runs inside OpenStation', 'signal-and-noise-tools' ) ),
-		'ai'       => array( __( 'AI assistance', 'signal-and-noise-tools' ), __( 'engineered with Claude (Anthropic) as a pair-programmer', 'signal-and-noise-tools' ) ),
+		'ai'       => array( __( 'AI assistance', 'signal-and-noise-tools' ), __( 'engineered with Claude (Anthropic) as a pair programmer', 'signal-and-noise-tools' ) ),
 		'trust'    => array( __( 'Trust', 'signal-and-noise-tools' ), __( 'every system documented at the maturity index', 'signal-and-noise-tools' ) ),
 	);
 	return apply_filters( 'sn_colophon_items', $items );
@@ -133,7 +133,7 @@ function sn_colophon_shortcode( $atts = array() ) {
 				. esc_html__( 'for SEO, search & ops', 'signal-and-noise-tools' );
 		} elseif ( 'ai' === $slug && '' !== $workflow_url ) {
 			$text = esc_html__( 'engineered with Claude (Anthropic) as a', 'signal-and-noise-tools' )
-				. ' <a href="' . esc_url( $workflow_url ) . '">' . esc_html__( 'pair-programmer', 'signal-and-noise-tools' ) . '</a>';
+				. ' <a href="' . esc_url( $workflow_url ) . '">' . esc_html__( 'pair programmer', 'signal-and-noise-tools' ) . '</a>';
 		} elseif ( 'interop' === $slug && '' !== $urls['openstation'] ) {
 			$text = esc_html__( 'runs inside', 'signal-and-noise-tools' )
 				. ' <a href="' . esc_url( $urls['openstation'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( 'OpenStation' ) . '</a>';
