@@ -258,8 +258,8 @@
 		if ( mrUrl ) {
 			var mrLink = el( 'a', {
 				href:  mrUrl,
-				text:  'Open Machine Readers ',
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
+				text:  'Open Machine Readers',
+				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
 			} );
 			var mrArrow = el( 'span', { text: '→' } );
 			mrArrow.setAttribute( 'aria-hidden', 'true' );
