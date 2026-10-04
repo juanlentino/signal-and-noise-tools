@@ -83,6 +83,8 @@
 			if ( torn ) {
 				return;
 			}
+			// The rebuild detaches whatever had focus; put it back on the button.
+			var hadFocus = !! ( document.activeElement && container.contains( document.activeElement ) );
 			clearChildren( container );
 			var wrap = el( 'div', {
 				style: 'padding:14px 16px;color:inherit;font-size:13px;line-height:1.5;',
@@ -136,22 +138,25 @@
 					var line = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
 					line.appendChild( el( 'span', {
 						text:  ( 'page' === row.type ? 'Page: ' : '' ) + ( row.title || ( '#' + row.post_id ) ) + ' v' + row.version,
-						title: row.title || '',
-						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.75));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.75));min-width:0;white-space:normal;overflow-wrap:anywhere;',
 					} ) );
 					line.appendChild( el( 'span', {
 						text:  'recording',
-						title: 'Committed locally; the anchor dispatch has not reached the Worker yet.',
 						style: 'font-weight:600;color:#d29922;flex:0 0 auto;',
 					} ) );
 					wrap.appendChild( line );
 				} );
+				if ( recording.length ) {
+					wrap.appendChild( el( 'p', {
+						style: 'margin:0 0 4px;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));',
+						text:  'Recording: committed locally; the anchor dispatch has not reached the Worker yet.',
+					} ) );
+				}
 				pending.forEach( function( row ) {
 					var line = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
 					line.appendChild( el( 'span', {
 						text:  ( 'page' === row.type ? 'Page: ' : '' ) + ( row.title || ( '#' + row.post_id ) ) + ' v' + row.version,
-						title: row.title || '',
-						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.75));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.75));min-width:0;white-space:normal;overflow-wrap:anywhere;',
 					} ) );
 					var stat = null === row.confirmations || undefined === row.confirmations
 						? ( row.bitcoin_txid ? shortTx( row.bitcoin_txid ) : 'awaiting tx' )
@@ -186,13 +191,16 @@
 					+ ( silentN > 0 ? ' · ' + silentN + ' no answer' : '' ) + ( failedN > 0 ? ' · ' + failedN + ' failed' : '' );
 				var rows = [ [ 'Internet Archive', runText, halted || ! archive.configured ] ];
 				if ( archive.configured ) { rows.push( [ 'Captures', capText, failedN > 0 || silentN > 0 ] ); }
-				var box = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));', title: archive.line || '' } );
+				var box = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
 				rows.forEach( function( r ) {
 					var line = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
 					line.appendChild( el( 'span', { text: r[0], style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));' } ) );
-					line.appendChild( el( 'span', { text: r[1], style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' + ( r[2] ? 'color:#d29922;' : '' ) } ) );
+					line.appendChild( el( 'span', { text: r[1], style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;min-width:0;white-space:normal;overflow-wrap:anywhere;text-align:right;' + ( r[2] ? 'color:#d29922;' : '' ) } ) );
 					box.appendChild( line );
 				} );
+				if ( archive.line ) {
+					box.appendChild( el( 'p', { style: 'margin:2px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: archive.line } ) );
+				}
 				wrap.appendChild( box );
 			}
 
@@ -205,10 +213,11 @@
 			sweepBtn.type = 'button';
 			sweepBtn.setAttribute( 'style', 'font:inherit;font-size:11px;padding:2px 10px;border-radius:5px;border:1px solid rgba(128,128,128,.45);background:transparent;color:inherit;cursor:pointer;min-height:24px;' );
 			sweepBtn.addEventListener( 'click', function() {
-				if ( ! window.sntAbilityRun ) {
+				// aria-disabled, not disabled: a disabled button drops keyboard focus to <body>.
+				if ( ! window.sntAbilityRun || 'true' === sweepBtn.getAttribute( 'aria-disabled' ) ) {
 					return;
 				}
-				sweepBtn.disabled = true;
+				sweepBtn.setAttribute( 'aria-disabled', 'true' );
 				sweepBtn.textContent = 'Sweeping…';
 				// 15.8.1: the sweep's result goes to the shell toast
 				// (wp.os.showToast, Stable) and the card just refreshes; the
@@ -233,14 +242,21 @@
 			} );
 			actions.appendChild( sweepBtn );
 			if ( dashboardUrl ) {
-				actions.appendChild( el( 'a', {
-					style: 'display:inline-flex;align-items:center;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;',
-					text:  'Open Provenance →',
+				var link = el( 'a', {
+					style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;',
+					text:  'Open Provenance',
 					href:  dashboardUrl,
-				} ) );
+				} );
+				var arrow = el( 'span', { text: '→' } );
+				arrow.setAttribute( 'aria-hidden', 'true' );
+				link.appendChild( arrow );
+				actions.appendChild( link );
 			}
 			wrap.appendChild( actions );
 			container.appendChild( wrap );
+			if ( hadFocus ) {
+				sweepBtn.focus();
+			}
 		}
 
 		function load( note ) {

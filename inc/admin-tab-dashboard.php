@@ -612,7 +612,7 @@ function snt_dashboard_delta_badge_html( $delta ) {
 	$pct   = $delta['pct'] ?? null;
 	$text  = ( null === $pct ) ? 'flat' : ( ( $pct >= 0 ? '+' : '' ) . (int) $pct . '%' );
 	return '<span class="sn-glance-delta sn-glance-delta--' . esc_attr( $dir ) . '">'
-		. esc_html( $arrow . ' ' . $text . ' WoW' ) . '</span>';
+		. '<span aria-hidden="true">' . esc_html( $arrow ) . '</span> ' . esc_html( $text . ' WoW' ) . '</span>';
 }
 
 /**

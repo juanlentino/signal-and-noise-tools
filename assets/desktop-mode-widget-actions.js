@@ -202,6 +202,7 @@
 				'border:1px solid ' + ( success ? OK_LINE : DANGER_LINE ) + ';',
 			text:      message,
 		} );
+		t.setAttribute( 'role', 'status' );
 		widget.appendChild( t );
 
 		// Tracked so teardown can reap it — an untracked timeout outliving the
@@ -225,6 +226,7 @@
 		button.dataset.snBusy = '1';
 		button.textContent    = busyLabel;
 		button.style.opacity  = '0.55';
+		button.setAttribute( 'aria-busy', 'true' );
 
 		// v7.7.2: annotation-derived verb via the shared runner (these
 		// destructive+idempotent maintenance abilities require DELETE; the old
@@ -241,6 +243,7 @@
 			.finally( function() {
 				button.textContent    = originalText;
 				button.style.opacity  = '1';
+				button.removeAttribute( 'aria-busy' );
 				delete button.dataset.snBusy;
 			} );
 	}
@@ -297,7 +300,7 @@
 		// Full reset (overrides plus a purge of every cache) is no longer one click
 		// from "Check for updates": it lives under Maintenance, behind its confirm.
 		wrap.appendChild( el( 'p', {
-			style: 'margin:8px 0 0;font-size:10px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.5));',
+			style: 'margin:8px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.5));',
 			text:  'Full reset is in S&N Home › Dashboard, under Maintenance.',
 		} ) );
 

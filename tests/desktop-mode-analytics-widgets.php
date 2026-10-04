@@ -119,14 +119,16 @@ $node = trim( (string) shell_exec( 'command -v node' ) );
 if ( '' === $node ) { echo "SKIP: node not found\n"; } else {
 	$run = static fn( $id, $arg ) => json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/groups-render.js' ) . ' ' . escapeshellarg( $id ) . ' ' . escapeshellarg( $arg ) ), true );
 	$out = $run( 'sn-audience', json_encode( array( 'window' => array( 'days' => 14 ), 'groups' => array( snt_desktop_group( 'Countries', $rows, 'x' ), snt_desktop_group( 'Hacker News', array(), 'No story links here yet.' ) ) ) ) );
-	ok( array( 'Last 14 days', 'Countries', 'US', '30 · 75%', '(unknown)', '10 · 25%', 'Hacker News', 'No story links here yet.', 'Open Analytics →' ) === $out['lines'], 'groups, rows and an empty group paint in order, then the link' );
+	ok( array( 'Last 14 days', 'Countries', 'US', '30 · 75%', '(unknown)', '10 · 25%', 'Hacker News', 'No story links here yet.', 'Open Analytics', '→' ) === $out['lines'], 'groups, rows and an empty group paint in order, then the link' );
+	ok( array( 'status', 'heading', 'list', 'listitem', 'listitem', 'heading' ) === $out['roles'], 'the reading is a polite status region; each group title is a heading and its rows a list' );
+	ok( 'Open Analytics, from the SN Audience widget' === $out['link']['name'] && true === $out['link']['arrowHidden'], 'the link name starts with its visible words and says which tile it is on; the arrow is hidden from assistive tech' );
 	ok( array( '/signal-noise/v1/desktop/audience' ) === $out['paths'] && 'function' === $out['teardown'] && true === $out['same'], 'Audience fetches its own route and returns a teardown' );
 	$tone = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-groups.js' );
-	ok( false !== strpos( $tone, "up: '#3fb950', down: '#c9503f'" ) && false !== strpos( $tone, 'TONE[ r.tone ]' ), 'the painter colors a toned row with the two Site Views colors, and nothing else' );
+	ok( false !== strpos( $tone, "up: '#3fb950', down: '#ff9d94'" ) && false !== strpos( $tone, 'TONE[ r.tone ]' ), 'the painter colors a toned row green or a red light enough for text on the dark card, and nothing else' );
 	$hero = $run( 'sn-reading', json_encode( array( 'window' => array( 'days' => 14 ), 'generated_at' => time() - 240, 'hero' => array( 'value' => '40%', 'label' => 'of views engaged', 'change' => '▼ 7 pts vs. prior 14 days', 'tone' => 'down' ), 'groups' => array() ) ) );
-	ok( array( '40%', 'of views engaged · last 14 days', '▼ 7 pts vs. prior 14 days', '' ) === array_slice( $hero['lines'], 0, 4 ) && 1 === preg_match( '/^Read at \d{1,2}[:.]\d{2}/', $hero['lines'][4] ) && 'Open Analytics →' === $hero['lines'][5], 'a hero opens the tile with its figure, its unit and window, and its change; the foot says when the reading was taken, as a clock time' );
+	ok( array( '40%', 'of views engaged · last 14 days', '▼ 7 pts vs. prior 14 days', '' ) === array_slice( $hero['lines'], 0, 4 ) && 1 === preg_match( '/^Read at \d{1,2}[:.]\d{2}/', $hero['lines'][4] ) && 'Open Analytics' === $hero['lines'][5] && 'Open Analytics, from the SN Reading widget' === $hero['link']['name'], 'a hero opens the tile with its figure, its unit and window, and its change; the foot says when the reading was taken, as a clock time' );
 	$bad = $run( 'sn-reading', 'FAIL' );
-	ok( array( '/signal-noise/v1/desktop/reading' ) === $bad['paths'] && 'Could not load this reading.' === $bad['lines'][0], 'a failed fetch says so; Reading fetches its own route' );
+	ok( array( '/signal-noise/v1/desktop/reading' ) === $bad['paths'] && 'Could not load this reading.' === $bad['lines'][0] && array( 'status', 'alert' ) === $bad['roles'], 'a failed fetch says so, as an alert; Reading fetches its own route' );
 }
 
 echo "\nResult: $pass passed, $fail failed.\n";
