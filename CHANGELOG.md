@@ -15,6 +15,9 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Added
 - **/workflow gets a Proof section, edited on Content › Workflow.** A heading (default placeholder "Check it yourself") and a list of links to evidence a reader can check, each row a title, a link, a one-line note and "Show on page", in Resume's repeater (add, remove, reorder). It renders after the rules, each link in the row's lead line with its note beside it. A row goes public only when it is ticked, has a title, and its link is a path on this site (`/maturity/`) or an https URL; http, `javascript:`, protocol-relative and untitled rows stay off the page, and brackets in a link are encoded so no shortcode can run from it. The owner writes every word; the plugin ships no default rows.
 
+### Fixed
+- **The Colophon's AI credit links /workflow, and loses its hyphen.** The line now reads "engineered with Claude (Anthropic) as a pair programmer" (no hyphen, the owner's call); "pair programmer" links the /workflow page in the same tab, and only while that page is published, so a withdrawn page leaves plain text rather than a dead link. Owner approved the exact line.
+
 ## [21.7.1] - 2026-10-04 — Workflow's map and rules get Resume's repeater
 
 ### Changed

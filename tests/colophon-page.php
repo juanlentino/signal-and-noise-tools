@@ -28,6 +28,7 @@ function add_shortcode( $tag, $cb ) { $GLOBALS['__shortcodes'][ $tag ] = $cb; }
 // The page resolver, stubbed as a slug map so every branch is testable.
 $GLOBALS['__page_urls'] = array(
 	'maturity' => 'https://example.com/maturity/',
+	'workflow' => 'https://example.com/workflow/',
 	'notes'    => 'https://example.com/notes/',
 );
 function sn_maturity_index_resolve_url( $slug ) {
@@ -50,7 +51,7 @@ ok( false !== strpos( $html, 'custom WordPress block theme' ), 'intro paragraph 
 foreach ( array( 'platform', 'type', 'appearance', 'build', 'hosting', 'tooling', 'interop', 'ai', 'trust' ) as $slug ) {
 	ok( false !== strpos( $html, 'sn-colophon-item--' . $slug ), "item present: $slug" );
 }
-ok( false !== strpos( $html, 'pair-programmer' ), 'the AI-assistance credit is kept verbatim' );
+ok( false !== strpos( $html, 'pair programmer' ), 'the AI-assistance credit is kept verbatim' );
 ok( strpos( $html, 'sn-colophon-item--type' ) < strpos( $html, 'sn-colophon-item--appearance' )
 	&& strpos( $html, 'sn-colophon-item--appearance' ) < strpos( $html, 'sn-colophon-item--build' ),
 	'appearance sits between type and build — both are how the page LOOKS, before how it is made' );
@@ -58,6 +59,13 @@ ok( false !== strpos( $html, 'dark inversion' ), 'the appearance line names the 
 ok( strpos( $html, 'sn-colophon-item--tooling' ) < strpos( $html, 'sn-colophon-item--interop' )
 	&& strpos( $html, 'sn-colophon-item--interop' ) < strpos( $html, 'sn-colophon-item--ai' ),
 	'interop sits between tooling and AI assistance' );
+
+echo "\nGroup: the AI credit links /workflow\n";
+ok( false !== strpos( $html, '<strong>AI assistance</strong> - engineered with Claude (Anthropic) as a <a href="https://example.com/workflow/">pair programmer</a></li>' ), 'the AI line reads as before, with "pair programmer" linking /workflow in the same tab' );
+$GLOBALS['__page_urls']['workflow'] = '';
+$nowf = call_user_func( $GLOBALS['__shortcodes']['sn_colophon'] );
+ok( false !== strpos( $nowf, '<strong>AI assistance</strong> - engineered with Claude (Anthropic) as a pair programmer</li>' ), 'with /workflow unpublished the line is plain text, never a dead link' );
+$GLOBALS['__page_urls']['workflow'] = 'https://example.com/workflow/';
 
 echo "\nGroup: the maturity loop-closer\n";
 ok( false !== strpos( $html, 'href="https://example.com/maturity/"' ), 'trust line links the maturity index when it resolves' );
