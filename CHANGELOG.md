@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The Colophon's AI credit links /workflow.** "engineered with Claude (Anthropic) as a pair-programmer" keeps its words; "pair-programmer" now links the /workflow page in the same tab, and only while that page is published, so a withdrawn page leaves plain text rather than a dead link. Owner approved the exact line.
+
 ## [21.7.1] - 2026-10-04 — Workflow's map and rules get Resume's repeater
 
 ### Changed

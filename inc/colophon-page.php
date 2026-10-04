@@ -114,6 +114,9 @@ function sn_colophon_shortcode( $atts = array() ) {
 		. '<ul class="sn-colophon-items">';
 
 	$maturity_url = sn_colophon_maturity_url();
+	// /workflow is how the AI credit works in practice; linked only while it is
+	// published (the module withdraws it to draft when nothing public is left).
+	$workflow_url = function_exists( 'sn_maturity_index_resolve_url' ) ? sn_maturity_index_resolve_url( 'workflow' ) : '';
 	$urls         = sn_colophon_urls();
 	foreach ( sn_colophon_items() as $slug => $item ) {
 		$label = esc_html( isset( $item[0] ) ? $item[0] : $slug );
@@ -128,6 +131,9 @@ function sn_colophon_shortcode( $atts = array() ) {
 			$text = esc_html__( 'companion plugin', 'signal-and-noise-tools' )
 				. ' <a href="' . esc_url( $urls['plugin_repo'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Signal & Noise Tools', 'signal-and-noise-tools' ) . '</a> '
 				. esc_html__( 'for SEO, search & ops', 'signal-and-noise-tools' );
+		} elseif ( 'ai' === $slug && '' !== $workflow_url ) {
+			$text = esc_html__( 'engineered with Claude (Anthropic) as a', 'signal-and-noise-tools' )
+				. ' <a href="' . esc_url( $workflow_url ) . '">' . esc_html__( 'pair-programmer', 'signal-and-noise-tools' ) . '</a>';
 		} elseif ( 'interop' === $slug && '' !== $urls['openstation'] ) {
 			$text = esc_html__( 'runs inside', 'signal-and-noise-tools' )
 				. ' <a href="' . esc_url( $urls['openstation'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( 'OpenStation' ) . '</a>';
