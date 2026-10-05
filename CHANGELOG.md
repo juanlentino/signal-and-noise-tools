@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The rollup-replace test no longer fails near midnight.** `tests/analytics-rollup-replace.php` built its expected window days from a separate "now", while `sn_analytics_rollup_window_days()` reads its first day at now+300 s and its last at now-300 s. On 2026-10-04 at 23:56 to 23:58 UTC the bounded-batch assertion failed on main and on CI, then passed minutes later. The test now captures the exact second the code read and builds both expectations from it, with the same skew and zone. It also expects six days instead of seven while the skew straddles a UTC midnight, which is what the code names then. Verified under a fixed fake clock at 12:00, 23:58, 00:02, 03:58 and 04:02 UTC: the old test fails at 23:58 and 00:02, the new one passes at all five. Tests only, no release.
+
 ## [21.8.2] - 2026-10-04 — SN Reading fits its card; SN Health without the reason line
 
 ### Fixed
