@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Analytics reads that cross the 2.0 clean day read each dataset for its own side.** Split at New York midnight on the clean day (when the worker rotates the visitor hash), so no visitor-day straddles it and sums and distinct counts merge exactly. The over-cap visitor list, which feeds every human/bot filter, is the first read to do so: once the dual-write check turns green it is built from the old dataset before the split and the new one from it, so the stitch is proven live during the seven green days before analytics 2.0.0 stops the old write. A failed half fails the read, never half a list. Nothing changes before that first green verdict.
+
 ## [22.1.2] - 2026-10-05 — /stats bars drawn at their exact proportion
 
 ### Fixed

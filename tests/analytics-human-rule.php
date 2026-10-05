@@ -24,7 +24,7 @@ $GLOBALS['__q'] = array();
 $GLOBALS['__q_ret'] = array();
 function get_transient( $k ) { return $GLOBALS['__t'][ $k ] ?? false; }
 function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__t'][ $k ] = $v; return true; }
-function sn_analytics_query( $sql ) { $GLOBALS['__q'][] = $sql; return $GLOBALS['__q_ret']; }
+function sn_analytics_query( $sql ) { $GLOBALS['__q'][] = $sql; if ( is_array( $GLOBALS['__q_seq'] ?? null ) ) { return array_shift( $GLOBALS['__q_seq'] ); } return $GLOBALS['__q_ret']; }
 function sn_setting( $k, $d = null ) { return $GLOBALS['__ns'] ?? $d; }
 
 require __DIR__ . '/../inc/analytics-derive.php';
@@ -89,6 +89,52 @@ $GLOBALS['__t'] = array(); $GLOBALS['__q'] = array();
 $GLOBALS['__q_ret'] = array( array( 'vid' => 'c70545e0be2a6240', 'views' => 258 ), array( 'vid' => 'nope!', 'views' => 60 ) );
 $r = sn_analytics_overcap_vdays();
 ok( $r['ok'] && array( 'c70545e0be2a6240' ) === $r['hashes'], 'read: hex hashes kept, junk dropped' );
+
+echo "\nGroup: analytics 2.0 stitched over-cap read\n";
+$__saved_t = $GLOBALS['__t']; // the next group reads the list cached above
+// Not verified: one legacy read, as before.
+sn_analytics_v2_clean_from( '' );
+ok( '' === sn_analytics_split_at() && null === sn_analytics_stitch( '2026-07-01' ), 'not verified: no split, legacy answers whole' );
+sn_analytics_v2_clean_from( '2026-10-05' );
+ok( '2026-10-05 04:00:00' === sn_analytics_split_at(), 'the split is New York midnight on the clean day (04:00 UTC under EDT)' );
+sn_analytics_v2_clean_from( '2026-11-02' );
+ok( '2026-11-02 05:00:00' === sn_analytics_split_at(), 'and 05:00 UTC under EST' );
+sn_analytics_v2_clean_from( '2026-10-05' );
+ok( null === sn_analytics_stitch( '2026-10-05' ) && null === sn_analytics_stitch( '2026-11-01' ), 'a window starting on or after the clean day is whole on the second generation' );
+$st = sn_analytics_stitch( '2026-07-14' );
+ok( is_array( $st ) && 'sn_pageviews' === $st['legacy'] && 'sn_pageviews_v2' === $st['v2'] && '2026-10-05 04:00:00' === $st['at'], 'a window crossing the clean day splits: legacy before, sn_pageviews_v2 from' );
+sn_analytics_v2_events_proven( false );
+ok( null === sn_analytics_stitch( '2026-07-14', 'events' ), 'events: no split while the events dataset is unproven' );
+sn_analytics_v2_events_proven( true );
+ok( 'sn_events_v2' === sn_analytics_stitch( '2026-07-14', 'events' )['v2'], 'events: the events dataset once proven' );
+// The read: two halves, one per side, merged.
+sn_analytics_clock( strtotime( '2026-10-20 12:00:00 UTC' ) );
+$GLOBALS['__t'] = array(); $GLOBALS['__q'] = array();
+$GLOBALS['__q_seq'] = array(
+	array( array( 'vid' => 'aaaaaaaa', 'views' => 60 ), array( 'vid' => 'bbbbbbbb', 'views' => 51 ) ),
+	array( array( 'vid' => 'cccccccc', 'views' => 258 ) ),
+);
+$r = sn_analytics_overcap_vdays();
+ok( 2 === count( $GLOBALS['__q'] ), 'a crossing window reads twice' );
+ok( false !== strpos( $GLOBALS['__q'][0], 'FROM sn_pageviews WHERE' ) && false !== strpos( $GLOBALS['__q'][0], "AND timestamp < toDateTime('2026-10-05 04:00:00')" ), 'the legacy half reads before the split' );
+ok( false !== strpos( $GLOBALS['__q'][1], 'FROM sn_pageviews_v2 WHERE' ) && false !== strpos( $GLOBALS['__q'][1], "AND timestamp >= toDateTime('2026-10-05 04:00:00')" ), 'the second-generation half reads from it' );
+ok( array() === $ae_clause_fns( $GLOBALS['__q'][1] ) && false !== strpos( $GLOBALS['__q'][1], 'GROUP BY vid HAVING views > 50' ), 'each half keeps the proven clause shape' );
+ok( $r['ok'] && array( 'cccccccc', 'aaaaaaaa', 'bbbbbbbb' ) === $r['hashes'] && false === $r['truncated'], 'both halves merge into one list, heaviest first' );
+$GLOBALS['__t'] = array(); $GLOBALS['__q'] = array();
+$GLOBALS['__q_seq'] = array( array( array( 'vid' => 'aaaaaaaa', 'views' => 60 ) ), null );
+$r = sn_analytics_overcap_vdays();
+ok( false === $r['ok'] && array() === $r['hashes'], 'a failed half fails the read: never half a list' );
+$GLOBALS['__q_seq'] = null;
+$m = sn_analytics_overcap_merge( array( array( 'vid' => 'aaaaaaaa', 'views' => 30 ) ), array( array( 'vid' => 'aaaaaaaa', 'views' => 40 ), array( 'vid' => 'dddddddd', 'views' => 55 ) ) );
+ok( array( array( 'vid' => 'aaaaaaaa', 'views' => 70 ), array( 'vid' => 'dddddddd', 'views' => 55 ) ) === $m, 'merge sums a key seen on both sides and sorts heaviest first' );
+ok( SNT_ANALYTICS_VDAY_LIST_MAX === count( sn_analytics_overcap_merge( array_map( static fn( $i ) => array( 'vid' => sprintf( '%08x', $i ), 'views' => 60 + $i ), range( 1, 200 ) ), array_map( static fn( $i ) => array( 'vid' => sprintf( '%08x', 1000 + $i ), 'views' => 60 ), range( 1, 200 ) ) ) ), 'the merged list keeps the cap' );
+ok( '' === substr( sn_analytics_overcap_sql( 'sn_pageviews_v2', "' OR 1=1 --" ), -1 ) || false === strpos( sn_analytics_overcap_sql( 'sn_pageviews_v2', "' OR 1=1 --" ), 'OR 1=1' ), 'a range that is not the split bound never reaches SQL' );
+// After the window has passed the clean day: one read on the second generation.
+sn_analytics_clock( strtotime( '2027-01-20 12:00:00 UTC' ) );
+$GLOBALS['__t'] = array(); $GLOBALS['__q'] = array(); $GLOBALS['__q_ret'] = array();
+sn_analytics_overcap_vdays();
+ok( 1 === count( $GLOBALS['__q'] ) && false !== strpos( $GLOBALS['__q'][0], 'FROM sn_pageviews_v2 WHERE' ) && false === strpos( $GLOBALS['__q'][0], 'toDateTime(' ), 'a window wholly after the clean day reads the second generation once' );
+sn_analytics_clock( 0 ); sn_analytics_v2_clean_from( '' ); $GLOBALS['__t'] = $__saved_t; $GLOBALS['__q'] = array();
 
 echo "\nGroup: every routed builder carries the exclusion\n";
 $GLOBALS['__q_ret'] = array();
