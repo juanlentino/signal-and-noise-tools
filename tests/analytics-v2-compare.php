@@ -81,20 +81,26 @@ ok( 2 === count( $GLOBALS['sql'] ), 'and nothing is asked after it, so a later s
 
 echo "\nWho was sampled (diagnostic)\n";
 $sq = sn_analytics_v2_sampled_sql( 'sn_pageviews_v2', 4 );
-ok( false !== strpos( $sq, 'FROM sn_pageviews_v2 ' ) && false !== strpos( $sq, 'AND _sample_interval > 1' ) && false !== strpos( $sq, 'GROUP BY day, vid LIMIT 200' ), 'reads only the sampled rows, per day and visitor-day, bounded' );
+ok( false !== strpos( $sq, 'FROM sn_pageviews_v2 ' ) && false !== strpos( $sq, 'AND _sample_interval > 1' ) && false !== strpos( $sq, 'GROUP BY day, vid LIMIT 201' ), 'reads only the sampled rows, per day and visitor-day, one row past the list size' );
+ok( false !== strpos( $sq, "max(if(blob7 != 'bot' AND (" ) && false !== strpos( $sq, ') AS human' ), 'human is the read-time rule (not a stored bot, and the network rule), per row' );
 ok( false !== strpos( sn_analytics_v2_sampled_sql( "x'; DROP", 4 ), 'FROM sn_pageviews ' ), 'an unknown dataset falls back to the legacy name' );
-$sv = sn_analytics_v2_sampled_visitors(
-	array(
-		'sn_pageviews'    => array( array( 'day' => '2026-10-05', 'vid' => 'AAAA1111', 'n' => 40, 'r' => 4, 'stored_bot' => 1 ), array( 'day' => '2026-10-05', 'vid' => 'bbbb2222', 'n' => 20, 'r' => 2, 'stored_bot' => 0 ) ),
-		'sn_pageviews_v2' => array( array( 'day' => '2026-10-05', 'vid' => 'cccc3333', 'n' => 9, 'r' => 3, 'stored_bot' => 0 ) ),
-		'sn_events_v2'    => null,
-	),
-	array( 'bbbb2222' )
+$capl = array( 'hashes' => array( 'bbbb2222' ), 'ok' => true, 'truncated' => false );
+$rows3 = array(
+	'sn_pageviews'    => array( array( 'day' => '2026-10-05', 'vid' => 'AAAA1111', 'n' => 40, 'r' => 4, 'stored_bot' => 1, 'human' => 1 ), array( 'day' => '2026-10-05', 'vid' => 'bbbb2222', 'n' => 20, 'r' => 2, 'stored_bot' => 0, 'human' => 1 ) ),
+	'sn_pageviews_v2' => array( array( 'day' => '2026-10-05', 'vid' => 'cccc3333', 'n' => 9, 'r' => 3, 'stored_bot' => 0, 'human' => 0 ) ),
+	'sn_events_v2'    => array(),
 );
-ok( false === $sv['read'] && 3 === count( $sv['rows'] ), 'a failed dataset read is flagged; the others still list' );
-ok( true === $sv['rows'][0]['stored_bot'] && 'aaaa1111' === $sv['rows'][0]['vid'] && 4 === $sv['rows'][0]['rows'] && 40 === $sv['rows'][0]['stands_for'], 'a stored bot, its stored rows and what they stand for' );
-ok( true === $sv['rows'][1]['over_cap'] && false === $sv['rows'][2]['over_cap'], 'over-cap visitor-days are named from the cap list' );
-ok( 1 === $sv['counted_human'], 'counted_human: only traffic the reads count (not a bot, not over the cap)' );
+$sv = sn_analytics_v2_sampled_visitors( $rows3, $capl );
+ok( true === $sv['conclusive'] && 3 === count( $sv['rows'] ), 'every read in, nothing cut, the cap list read: conclusive' );
+ok( true === $sv['rows'][0]['stored_bot'] && 'aaaa1111' === $sv['rows'][0]['vid'] && 4 === $sv['rows'][0]['rows'] && 40 === $sv['rows'][0]['stands_for'], 'a visitor-day, its stored rows and what they stand for' );
+ok( 1 === $sv['counted_human'], 'counted_human: a visitor-day with human rows counts even beside a bot row; over-cap and hosting-only (human 0) do not' );
+$rows3['sn_events_v2'] = null;
+ok( false === sn_analytics_v2_sampled_visitors( $rows3, $capl )['conclusive'], 'a failed read is inconclusive' );
+$rows3['sn_events_v2'] = array();
+ok( false === sn_analytics_v2_sampled_visitors( $rows3, array( 'hashes' => array(), 'ok' => false, 'truncated' => false ) )['conclusive'] && false === sn_analytics_v2_sampled_visitors( $rows3, array( 'hashes' => array(), 'ok' => true, 'truncated' => true ) )['conclusive'], 'no over-cap list, or a cut-short one, is inconclusive' );
+$many = array_map( static fn( $i ) => array( 'day' => '2026-10-05', 'vid' => sprintf( '%08x', $i ), 'n' => 2, 'r' => 1, 'stored_bot' => 1, 'human' => 0 ), range( 1, SN_ANALYTICS_V2_SAMPLED_MAX + 1 ) );
+$cut = sn_analytics_v2_sampled_visitors( array( 'sn_pageviews' => $many ), $capl );
+ok( true === $cut['truncated'] && false === $cut['conclusive'] && SN_ANALYTICS_V2_SAMPLED_MAX === count( $cut['rows'] ), 'a list past its size says so, keeps the size, and is inconclusive' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
