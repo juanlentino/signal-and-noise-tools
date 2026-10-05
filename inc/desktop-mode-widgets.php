@@ -199,7 +199,7 @@ add_action( 'init', function() {
 			// ~20 a row and the body scrolls. + the uptime row's mean uptime and
 			// response time, which wraps it to a second line (~20).
 			// 21.9.1: +60 for the busiest state (2 checks, 2 could-not-run, 2 monitors down, each with "+N more").
-			'default_height' => 440,
+			'default_height' => 580, // 2026-10-05: + Edge and Cache sections, the cron-day row, incidents and slowest (~140).
 		) ) );
 
 		snt_os_register_widget( 'sn-deploy-status', array_merge( $sn_drag, array(
@@ -237,7 +237,7 @@ add_action( 'init', function() {
 			// + the rights-files row under the AI-training reads (~20) and the
 			// top crawler family row (~20).
 			// 21.9.1: +60 for the busiest state (2 recording, 2 pending, each with "+N more").
-			'default_height' => 520,
+			'default_height' => 620, // 2026-10-05: + signatures, rights evidence, last posted, DOIs (~100).
 		) ) );
 	}
 }, 6 );

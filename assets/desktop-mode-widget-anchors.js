@@ -51,6 +51,8 @@
 	window.desktopModeWidgets = window.openStationWidgets = __osWidgets;
 
 	var data         = window.snDesktopData || {};
+	// 2026-10-05: signatures, rights evidence and DOIs (inc/desktop-mode-status-extra.php), owner only.
+	var provExtra    = ( data.statusExtra && data.statusExtra.provenance ) || {};
 	var dashboardUrl = ( data.pages && ( data.pages.provenance || data.pages.dashboard ) ) || ''; // 15.8.2: Tools › Provenance
 	var readersUrl   = ( data.pages && data.pages.machine_readers ) || '';
 	var SUBTLE       = 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));';
@@ -132,6 +134,17 @@
 			box.appendChild( el( 'p', { style: 'margin:2px 0 0;font-size:11px;color:#d29922;', text: 'Crawler list ' + String( mr.crawler_list ) } ) );
 		}
 		return box;
+	}
+
+	/** "3d ago" from a UNIX time in seconds, the form SN Systems uses; '' when absent. */
+	function agoWords( ts ) {
+		var secs = Number( ts );
+		if ( ! secs || isNaN( secs ) || secs <= 0 ) { return ''; }
+		var mins = Math.max( 0, Math.floor( ( Date.now() - secs * 1000 ) / 60000 ) );
+		if ( mins < 60 ) { return mins + 'm ago'; }
+		var hrs = Math.floor( mins / 60 );
+		if ( hrs < 24 ) { return hrs + 'h ago'; }
+		return Math.floor( hrs / 24 ) + 'd ago';
 	}
 
 	function el( tag, opts ) {
@@ -310,6 +323,45 @@
 					box.appendChild( el( 'p', { style: 'margin:2px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: archive.line } ) );
 				}
 				wrap.appendChild( box );
+			}
+
+			// The provenance record beyond the anchors: what verifies, where the
+			// rights-evidence ledger stands, and the DOIs. Each row only when its
+			// source answered; unknown is left out, never painted as zero.
+			var prow = [];
+			var integ = provExtra.integrity;
+			if ( integ && Number( integ.fleet ) > 0 ) {
+				// The sweep's checks (hash, twin, ledger, key), not a signature re-verify:
+				// so "pass", and a subject not reached yet is said, never counted as passing.
+				var unchecked = Number( integ.fleet ) - Number( integ.checked );
+				prow.push( [ 'Integrity checks', Number( integ.clean ) + ' of ' + Number( integ.fleet ) + ' pass' + ( Number( integ.failing ) > 0 ? ' · ' + Number( integ.failing ) + ' failing' : '' ) + ( Number( integ.unreachable ) > 0 ? ' · ' + Number( integ.unreachable ) + ' unreachable' : '' ) + ( unchecked > 0 ? ' · ' + unchecked + ' not checked yet' : '' ), Number( integ.failing ) > 0 || !! integ.keys ] );
+				// A fleet-level key finding is said on its own row: no subject can pass it away.
+				var KEY_WORDS = { key_mismatch: 'the published key does not match', keys_missing: 'the key file is missing', keys_unreachable: 'the key file could not be read' };
+				if ( integ.keys ) { prow.push( [ 'Signing key', KEY_WORDS[ integ.keys ] || String( integ.keys ), true ] ); }
+			}
+			var rights = provExtra.rights;
+			if ( rights && rights.text ) {
+				prow.push( [ 'Rights evidence · ' + String( rights.month ), String( rights.text ), !! rights.attention ] );
+				var postedAgo = agoWords( rights.last_posted );
+				if ( postedAgo ) { prow.push( [ 'Last posted', postedAgo, false ] ); }
+			}
+			var zen = provExtra.zenodo;
+			if ( zen && Number( zen.total ) > 0 ) {
+				prow.push( [ 'DOIs', Number( zen.minted ) + ' of ' + Number( zen.total ) + ' minted', false ] );
+			}
+			if ( prow.length ) {
+				var pbox = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
+				var phead = el( 'div', { text: 'Provenance', style: 'font-size:11px;margin-bottom:2px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));' } );
+				phead.setAttribute( 'role', 'heading' );
+				phead.setAttribute( 'aria-level', '3' );
+				pbox.appendChild( phead );
+				prow.forEach( function( r ) {
+					var line = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
+					line.appendChild( el( 'span', { text: r[0], style: 'min-width:0;overflow-wrap:break-word;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));' } ) );
+					line.appendChild( el( 'span', { text: r[1], style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;max-width:100%;margin-left:auto;min-width:0;white-space:normal;overflow-wrap:break-word;text-align:right;' + ( r[2] ? 'color:#d29922;' : '' ) } ) );
+					pbox.appendChild( line );
+				} );
+				wrap.appendChild( pbox );
 			}
 
 			// The readers are their own read: they paint beside an anchor error too.

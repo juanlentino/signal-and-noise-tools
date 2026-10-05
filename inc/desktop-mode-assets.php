@@ -234,6 +234,8 @@ add_action( 'admin_enqueue_scripts', function() {
 		// transient — on EVERY wp-admin page load, for a payload nothing reads.
 		// That is precisely the cost this file's data rule exists to prevent.
 		'healthSummary' => $sn_is_owner ? snt_health_summary_for_localize() : null,
+		// 2026-10-05: the extra SN Systems and SN Provenance rows, local reads only, cached 5 min. Owner only.
+		'statusExtra'   => $sn_is_owner && function_exists( 'snt_desktop_status_extra' ) ? snt_desktop_status_extra() : null,
 		// v9.55.0: resolve every link instead of hardcoding a slug. These all
 		// pointed at the pre-v3.8.1 legacy slugs (sn-identity, sn-login, …),
 		// which stopped being registered when the submenu was cut to 6 top

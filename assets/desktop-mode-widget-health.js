@@ -48,6 +48,8 @@
 	window.desktopModeWidgets = window.openStationWidgets = __osWidgets;
 
 	var data      = window.snDesktopData || {};
+	// 2026-10-05: edge, cron-day and cache rows (inc/desktop-mode-status-extra.php), owner only.
+	var extra     = ( data.statusExtra && data.statusExtra.systems ) || {};
 	var healthUrl = ( data.pages && ( data.pages.health || data.pages.dashboard ) ) || ''; // 15.8.2: Monitoring › Health, the leaf the reading lives on
 	// Monitors don't flap by the second; the statuses ride a 90s server cache
 	// anyway, so a 2-minute poll never outruns the data underneath it.
@@ -143,7 +145,7 @@
 		// Red only when a monitor is down; a shortfall of paused, maintenance,
 		// pending or validating monitors is amber.
 		var anyDown = mons.some( function( m ) { return 'alert' === m.level; } );
-		var rows = [ { label: 'Monitors', value: [ upN + ' of ' + mons.length + ' up' ].concat( uptimeSummary( mons ) ).join( ' · ' ), tone: upN === mons.length ? '' : ( anyDown ? DANGER_FG : WARN_FG ) } ];
+		var rows = [ { label: 'Monitors', value: [ upN + ' of ' + mons.length + ' up' ].concat( uptimeSummary( mons ) ).join( ' · ' ), tone: upN === mons.length ? '' : ( anyDown ? DANGER_FG : WARN_FG ) } ].concat( uptimeExtraRows( mons ) );
 		// One line when all are up; each monitor only when one is not.
 		if ( upN !== mons.length ) {
 			var shown = 0;
@@ -177,6 +179,78 @@
 		if ( null !== a ) { out.push( ( Math.round( a * 100 ) / 100 ) + '% over 30 days' ); }
 		if ( null !== r ) { out.push( 'average ' + Math.round( r ) + ' ms' ); }
 		return out;
+	}
+
+	/**
+	 * Two figures the uptime read already carries (2026-10-05): incidents over
+	 * 30 days across the monitors that report them, and the slowest monitor
+	 * when there are two or more to compare. Left out when no monitor reports.
+	 */
+	function uptimeExtraRows( mons ) {
+		var rows = [];
+		var inc  = mons.filter( function( m ) { return m.incidents_30d !== null && m.incidents_30d !== undefined && ! isNaN( Number( m.incidents_30d ) ); } );
+		if ( inc.length ) {
+			// A total only when every monitor reported; otherwise say how many did.
+			var sum = inc.reduce( function( a, m ) { return a + Number( m.incidents_30d ); }, 0 );
+			rows.push( { label: 'Incidents · 30 days', value: String( sum ) + ( inc.length < mons.length ? ' · ' + inc.length + ' of ' + mons.length + ' monitors read' : '' ) } );
+		}
+		var timed = mons.filter( function( m ) { return m.response_ms !== null && m.response_ms !== undefined && m.response_ms !== '' && ! isNaN( Number( m.response_ms ) ); } );
+		// Heartbeats never carry a response time: they are not in the denominator.
+		var timeable = mons.filter( function( m ) { return ! m.kind || 'monitor' === m.kind; } ).length;
+		if ( timed.length > 1 ) {
+			var slow = timed.reduce( function( a, b ) { return Number( b.response_ms ) > Number( a.response_ms ) ? b : a; } );
+			rows.push( { label: 'Slowest', value: String( slow.name || 'monitor' ) + ' · ' + Math.round( Number( slow.response_ms ) ) + ' ms' + ( timed.length < timeable ? ' · ' + timed.length + ' of ' + timeable + ' monitors timed' : '' ) } );
+		}
+		return rows;
+	}
+
+	/** Edge 5xx for the last complete UTC day, against the day before. */
+	function readEdge( e, tally ) {
+		if ( ! e ) { tally.unknown++; return { empty: 'No complete day in the edge rollup yet.' }; } // not measured is never an all-clear.
+		if ( e.failed ) { tally.unknown++; return { empty: 'The 5xx read for ' + String( e.day || 'the newest day' ) + ' failed.' }; }
+		var total = num( e.total );
+		// In words, not an arrow: a screen reader says the words, not "triangle".
+		var delta = null === e.prior || undefined === e.prior ? '' : ( total === num( e.prior ) ? ' · same as the day before' : ' · ' + Math.abs( total - num( e.prior ) ) + ( total > num( e.prior ) ? ' more' : ' fewer' ) + ' than the day before' );
+		// Every 5xx reaches the headline: most "through a Worker" rows are a
+		// visitor's request the rights Worker forwarded (inc/edge-rollup.php),
+		// so "who asked" cannot separate visitors from the Worker's own calls.
+		if ( total > 0 ) { tally.look++; }
+		return { rows: [ { label: '5xx · ' + String( e.day || 'yesterday' ), value: total + delta, tone: total > 0 ? WARN_FG : '' } ] };
+	}
+
+	/** Cron runs over the last 24 hours, and the hooks that failed. */
+	function cronDayRows( d, tally ) {
+		if ( ! d ) {
+			// The owner payload came but the history read did not: not measured.
+			if ( data.statusExtra && data.statusExtra.systems ) { tally.unknown++; return [ { label: 'Last 24 hours', value: 'could not be read', tone: WARN_FG } ]; }
+			return [];
+		}
+		var failed = num( d.failed );
+		// Runs RECORDED: a scheduled run that dies fatally leaves no row, so "0
+		// failed" would claim more than the history knows. Failures only when
+		// some were recorded.
+		var rows   = [ { label: 'Last 24 hours', value: num( d.fires ) + ' runs recorded' + ( failed > 0 ? ' · ' + failed + ' failed' : '' ), tone: failed > 0 ? WARN_FG : '' } ];
+		if ( failed > 0 ) {
+			tally.look++;
+			var hooks = d.failing || [];
+			hooks.slice( 0, LIST_CAP ).forEach( function( h ) { rows.push( { label: String( h ).replace( /^snt?_/, '' ), value: 'failed', tone: WARN_FG } ); } );
+			if ( hooks.length > LIST_CAP ) { rows.push( { label: '+' + ( hooks.length - LIST_CAP ) + ' more failed', value: '' } ); }
+		}
+		return rows;
+	}
+
+	/** The last full edge purge and how fresh the edge was after the last check. */
+	function readCache( c, tally ) {
+		if ( ! c ) { tally.unknown++; return { empty: 'No purge recorded yet.' }; } // no evidence is not a clean edge.
+		var rows = [];
+		var when = ago( c.last_purge );
+		if ( when ) { rows.push( { label: 'Last full purge', value: when } ); }
+		// Only a verified fresh edge stays out of the headline: stale is to look
+		// at; pending (a purge still verifying) and unknown are not measured yet.
+		var fresh = String( c.fresh || 'unknown' );
+		if ( 'stale' === fresh ) { tally.look++; } else if ( 'fresh' !== fresh ) { tally.unknown++; }
+		rows.push( { label: 'Edge freshness', value: String( c.headline || ( 'unknown' === fresh ? 'not verified yet' : fresh ) ), tone: 'fresh' === fresh ? '' : WARN_FG } );
+		return rows.length ? { rows: rows } : { empty: 'No purge recorded yet.' };
 	}
 
 	function readHealth( h, tally ) {
@@ -213,7 +287,7 @@
 		var late    = lateS > LATE_S;
 		var row     = { label: total + ' scheduled', value: next ? 'next: ' + String( next.hook ).replace( /^snt?_/, '' ) + ( late ? ' · ' + Math.round( lateS / 60 ) + ' min late' : '' ) : '' };
 		if ( late ) { row.tone = WARN_FG; tally.look++; }
-		var rows = [ row ];
+		var rows = [ row ].concat( cronDayRows( extra.cron, tally ) );
 		if ( orphans > 0 ) { tally.orphaned += orphans; rows.push( { label: 'Orphaned', value: String( orphans ), tone: WARN_FG } ); }
 		// The cron-health verdict, only when it is not ok: the counts cannot say
 		// "a recurring job is expected and not scheduled"; this can.
@@ -389,6 +463,11 @@
 			if ( torn ) { return; }
 			var tally = { down: 0, look: 0, orphaned: 0, skipped: 0, unknown: 0 };
 			var reads = [ [ 'Uptime', readUptime( uptime, tally, stale ) ], [ 'Health', readHealth( data.healthSummary, tally ) ], [ 'Cron', readCron( data.cronSummary, tally ) ] ];
+			// Edge and Cache only when the owner payload came: without it (another
+			// role, an older build) there is no source to call unmeasured.
+			if ( data.statusExtra && data.statusExtra.systems ) {
+				reads.push( [ 'Edge', readEdge( extra.edge, tally ) ], [ 'Cache', readCache( extra.cache, tally ) ] );
+			}
 			var words = 'pending' === uptime ? 'Checking…' : ( headlineText( tally ) || 'All systems normal' );
 			if ( verdict.textContent !== words ) { verdict.textContent = words; }
 			dot.style.background = 'pending' === uptime ? SURFACE_HOVER : tally.down ? DANGER_FG : ( 'All systems normal' === words ? OK_FG : WARN_FG );
