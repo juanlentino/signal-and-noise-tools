@@ -368,10 +368,29 @@ verdict and document what it does and does not establish.
 **Deliverable.** An offline verification path plus a written statement of exactly which claims
 survive the origin disappearing.
 
-### Gap 1 — identity (deferred)
+### Gap 1 — identity (step 1 shipped 2026-10-05)
 
-Blocked on publication of *Provenance Without Institutions: A Weighted Identity Framework for
-Music Contributors*. Paper 1's tiered model is the interim position and is already largely met.
+*Provenance Without Institutions: A Weighted Identity Framework for Music Contributors*
+(Lentino, SSRN 7456638, manuscript dated 2026-09-13) is public, and the paper splits the
+key-to-person question in two. **Anchoring**: given a key, what makes the party behind it
+recognizable to a verifier who has never met them. The paper answers that with a weight
+computed from the record under a policy the verifier states (its equation 1). **Custody**: who
+holds the key and what happens when it is lost. The paper leaves that open (its Limitations
+section), and so does this plan.
+
+Step 1, the anchoring half, shipped on 2026-10-05 in the ledger repo
+([signal-and-noise-provenance#40](https://github.com/juanlentino/signal-and-noise-provenance/pull/40)).
+`weigh.mjs` computes the key's weight offline from the public ledger under a stated policy:
+exact fractions, the earliest block each record's proof attests as the clock, and only records
+that pass the ledger's own offline checks. The attestation term is zero, because no third party
+has signed a recognition attestation about this key and the author's own ORCID, WebFinger and
+`did:web` entries are not attestations. The weight is therefore the persistence sum, the paper's
+floor property on a key with no recognized attester. `VERIFY.md`, "Weigh the key", says what a
+result does not show.
+
+Custody is unchanged: deviation D-1 stands exactly as written above, and the weight belongs to
+the Worker-held key. Still parked: a recognition-attestation format (it needs a second real
+signer with their own key), custody itself, and anything on the public site.
 
 ### Gap 3 — multi-contributor attribution (SELECTED)
 
@@ -409,8 +428,8 @@ first thing this gap needs; everything else is downstream of it.
 
 **Sequencing note.** (2) is where the custodial-signing divergence bites hardest: co-authors
 signing "later" is meaningless if a single worker key signs for everyone. Gap 3 step 2 is
-therefore partly blocked on the key-custody question, which is gap 1's territory and deferred
-to paper 3. Steps 1, 3 and 4 are not blocked.
+therefore partly blocked on the key-custody question, which is gap 1's territory and which
+paper 3 leaves open. Steps 1, 3 and 4 are not blocked.
 
 ### Gap 4 — retained, not selected
 
