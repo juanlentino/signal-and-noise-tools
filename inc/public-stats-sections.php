@@ -20,6 +20,7 @@ const SN_PUBLIC_STATS_MIN_GROUP = 3;
 const SN_PUBLIC_STATS_LIST_N    = 5;
 const SN_PUBLIC_STATS_READ_CAP  = 500; // the accessor limit the sources and countries reads pass.
 const SN_PUBLIC_STATS_MACHINES_OPT  = 'sn_public_stats_machines';
+const SN_PUBLIC_STATS_MACHINES_LAST  = 'sn_public_stats_machines_last';
 const SN_PUBLIC_STATS_MACHINES_HOOK = 'sn_public_stats_machines_refresh';
 
 /**
@@ -163,21 +164,70 @@ function sn_public_stats_machines_stored( $stored, $from, $to ) {
 	return is_array( $stored ) && $from === ( $stored['from'] ?? '' ) && $to === ( $stored['to'] ?? '' ) && is_array( $stored['machines'] ?? null ) ? $stored['machines'] : null;
 }
 
-/** Hourly: read the sensor off the render path and store this window's snapshot. */
+/**
+ * Why a sensor read gave no machine figures. PURE. '' when it gave them.
+ *
+ * @param array|null $totals snt_mr_fetch( 31, 'totals' ).
+ * @param string     $from   Window start.
+ * @return string
+ */
+function sn_public_stats_machines_why( $totals, $from ) {
+	if ( ! is_array( $totals ) || empty( $totals['ok'] ) ) {
+		return 'totals read failed: ' . ( is_array( $totals ) ? (string) ( $totals['error'] ?? 'unknown' ) : 'no read' );
+	}
+	if ( ! empty( $totals['truncated'] ) ) {
+		return 'totals read capped';
+	}
+	$days = array_column( (array) ( $totals['rows'] ?? array() ), 'day' );
+	return in_array( $from, $days, true ) ? '' : 'totals read does not reach ' . $from . ' (' . count( $days ) . ' rows, first ' . (string) ( $days[0] ?? 'none' ) . ')';
+}
+
+/** Hourly: read the sensor off the render path and store this window's snapshot, and why when it could not. */
 function sn_public_stats_machines_refresh() {
 	if ( ! function_exists( 'snt_mr_fetch' ) ) {
 		return;
 	}
 	list( $from, $to ) = sn_public_stats_window();
-	$m = sn_public_stats_machines( snt_mr_fetch( 31, 'totals' ), snt_mr_fetch( 31 ), $from, $to );
+	$totals = snt_mr_fetch( 31, 'totals' );
+	$m      = sn_public_stats_machines( $totals, snt_mr_fetch( 31 ), $from, $to );
+	$why    = null === $m ? sn_public_stats_machines_why( $totals, $from ) : '';
+	update_option( SN_PUBLIC_STATS_MACHINES_LAST, array( 'at' => time(), 'why' => $why ), false );
 	if ( null !== $m ) {
 		update_option( SN_PUBLIC_STATS_MACHINES_OPT, array( 'from' => $from, 'to' => $to, 'machines' => $m ), false );
 		delete_transient( SN_PUBLIC_STATS_CACHE_KEY ); // the next render reads it, not one an hour later.
 	}
 }
 
-/** Keep the hourly snapshot scheduled. */
+/**
+ * Watch: ripe while the last hourly refresh stored nothing, or none has run
+ * in three hours. The note says why. PURE given $state.
+ *
+ * @param array            $watch The watch row.
+ * @param int              $now   Unix time.
+ * @param array|false|null $state Test seam; null reads the option.
+ * @return array{ripe:bool,note:string}
+ */
+function snt_watch_ripe_public_stats_machines( $watch, $now, $state = null ) {
+	$state = null === $state ? get_option( SN_PUBLIC_STATS_MACHINES_LAST, false ) : $state;
+	if ( ! is_array( $state ) ) {
+		return array( 'ripe' => false, 'note' => '' ); // no baseline yet: the schedule records one on its first call.
+	}
+	if ( (int) $now - (int) ( $state['at'] ?? 0 ) > 3 * HOUR_IN_SECONDS ) {
+		return array( 'ripe' => true, 'note' => 'no refresh since ' . gmdate( 'Y-m-d H:i', (int) ( $state['at'] ?? 0 ) ) . ' UTC' );
+	}
+	$why = (string) ( $state['why'] ?? '' );
+	return array( 'ripe' => '' !== $why, 'note' => $why );
+}
+
+/**
+ * Keep the hourly snapshot scheduled. The first call records a baseline
+ * (add_option never overwrites), so a refresh that never runs at all, a
+ * dead WP-Cron included, ripens the watch three hours later.
+ */
 function sn_public_stats_machines_schedule() {
+	if ( function_exists( 'add_option' ) ) {
+		add_option( SN_PUBLIC_STATS_MACHINES_LAST, array( 'at' => time(), 'why' => '' ), '', false );
+	}
 	if ( function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( SN_PUBLIC_STATS_MACHINES_HOOK ) ) {
 		wp_schedule_event( time() + MINUTE_IN_SECONDS, 'hourly', SN_PUBLIC_STATS_MACHINES_HOOK );
 	}
@@ -188,21 +238,28 @@ if ( function_exists( 'add_action' ) ) {
 }
 
 /**
- * The session rows only when every day of the window rolled up. PURE. A
- * partial window (missed nights, a backfill) is never summed as the whole:
- * Visits and One page only are then left out.
+ * The session rows and how many days of the window they cover. PURE. The
+ * nightly rollup records the day before, so the newest day of the window can
+ * lag; a run of days from the window's first day is shown with its count
+ * ("29 of 30 days"). A hole inside the run, or a missing first day, is a
+ * failure, not a lag: null, and Visits and One page only are left out.
  *
  * @param array|null $rows sn_session_rollup_read() rows.
  * @param string     $from Window start.
  * @param string     $to   Window end.
- * @return array|null
+ * @return array{rows:array,days:int}|null
  */
-function sn_public_stats_full_window( $rows, $from, $to ) {
-	if ( ! is_array( $rows ) ) {
+function sn_public_stats_session_coverage( $rows, $from, $to ) {
+	if ( ! is_array( $rows ) || array() === $rows ) {
 		return null;
 	}
-	$want = (int) round( ( strtotime( $to . ' 00:00:00 UTC' ) - strtotime( $from . ' 00:00:00 UTC' ) ) / 86400 ) + 1;
-	return count( array_unique( array_column( $rows, 'day' ) ) ) >= $want ? $rows : null;
+	$have = array_flip( array_column( $rows, 'day' ) );
+	$days = 0;
+	for ( $t = strtotime( $from . ' 00:00:00 UTC' ), $end = strtotime( $to . ' 00:00:00 UTC' ); $t <= $end && isset( $have[ gmdate( 'Y-m-d', $t ) ] ); $t += 86400 ) {
+		++$days;
+	}
+	$inside = count( array_filter( array_keys( $have ), static fn( $d ) => (string) $d >= $from && (string) $d <= $to ) );
+	return ( $days > 0 && $days === $inside ) ? array( 'rows' => $rows, 'days' => $days ) : null;
 }
 
 /**
@@ -252,15 +309,25 @@ function sn_public_stats_sections_html( $data ) {
 		}
 		$cols .= '</dl></section>';
 	}
-	$out = '' === $cols ? '' : '<div class="sn-public-stats__cols">' . $cols . '</div>';
+	$cols .= sn_public_stats_machines_html( $data );
+	return '' === $cols ? '' : '<div class="sn-public-stats__cols">' . $cols . '</div>';
+}
 
+/**
+ * Humans and machines, the third column. '' when no snapshot of this window.
+ *
+ * @param array $data The assembled payload.
+ * @return string
+ */
+function sn_public_stats_machines_html( $data ) {
 	$m = $data['machines'] ?? null;
 	if ( ! is_array( $m ) ) {
-		return $out;
+		return '';
 	}
+	$out   = '';
 	$views = (int) ( $data['views'] ?? 0 );
 	$max   = max( 1, $views, (int) $m['total'] );
-	$out  .= '<section class="sn-public-stats__machines"><h2>' . esc_html__( 'Humans and machines', 'signal-and-noise-tools' ) . '</h2>'
+	$out  .= '<section class="sn-public-stats__col sn-public-stats__machines"><h2>' . esc_html__( 'Humans and machines', 'signal-and-noise-tools' ) . '</h2>'
 		. sn_public_stats_bars_html( array(
 			array( 'label' => __( 'Human views', 'signal-and-noise-tools' ), 'text' => number_format_i18n( $views ), 'pct' => (int) round( 100 * $views / $max ) ),
 			array( 'label' => __( 'Machine reads', 'signal-and-noise-tools' ), 'text' => number_format_i18n( (int) $m['total'] ), 'pct' => (int) round( 100 * (int) $m['total'] / $max ) ),

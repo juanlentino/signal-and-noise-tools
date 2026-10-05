@@ -157,6 +157,16 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_archive_push',
 		),
+		// Unreleased: /stats reads machine figures from an hourly snapshot.
+		array(
+			'id'        => 'public_stats_machines',
+			'label'     => '/stats machine figures not refreshing',
+			'why'       => 'The public /stats page never calls the edge sensor; an hourly event stores the machine reads for the report window, and the Humans and machines section is left out while no snapshot of this window exists. Ripe while the last refresh stored nothing (the note says why) or none has run in three hours.',
+			'read'      => 'option sn_public_stats_machines_last; signal-noise/get-cron-history sn_public_stats_machines_refresh',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_public_stats_machines',
+		),
 		array(
 			'id'        => 'wave4_telemetry',
 			'label'     => 'wave-4 tool retirement read',

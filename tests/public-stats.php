@@ -48,12 +48,13 @@ $GLOBALS['__sessions'] = array( array( 'day' => '2026-08-01', 'visits' => 400, '
 // The render path reads a full window; the fixture rows plus a zero row for
 // every window day, unless a test asks for the partial window as given.
 $GLOBALS['__pad'] = true;
+$GLOBALS['__pad_skip'] = 0; // leave the newest N window days unrolled (the nightly lag)
 function sn_session_rollup_read( $from, $to, $class ) {
 	$r = $GLOBALS['__sessions'];
 	if ( ! is_array( $r ) || array() === $r || ! $GLOBALS['__pad'] ) {
 		return $r;
 	}
-	for ( $t = strtotime( $from . ' UTC' ); $t <= strtotime( $to . ' UTC' ); $t += 86400 ) {
+	for ( $t = strtotime( $from . ' UTC' ); $t <= strtotime( $to . ' UTC' ) - 86400 * $GLOBALS['__pad_skip']; $t += 86400 ) {
 		$r[] = array( 'day' => gmdate( 'Y-m-d', $t ), 'visits' => 0, 'bounce_pct' => 0, 'ppv' => 0, 'median_dur' => 0, 'two_pages' => 0, 'deep_pages' => 0 );
 	}
 	return $r;
@@ -323,12 +324,42 @@ ok( null === sn_public_stats_machines( array( 'ok' => true, 'truncated' => true,
 ok( null === sn_public_stats_machines( $tot, array( 'ok' => true, 'truncated' => true, 'rows' => array() ), '2026-08-01', '2026-08-02' )['split'], 'a capped aggregate read keeps the total and drops the split' );
 ok( null === sn_public_stats_machines_stored( false, '2026-08-01', '2026-08-02' ), 'no snapshot yet: the section is left out' );
 // A partial session window is never summed as the whole.
-ok( null === sn_public_stats_full_window( array( array( 'day' => '2026-08-01' ) ), '2026-08-01', '2026-08-02' ), 'a window missing a rolled-up day is partial: null' );
-ok( 2 === count( sn_public_stats_full_window( array( array( 'day' => '2026-08-01' ), array( 'day' => '2026-08-02' ) ), '2026-08-01', '2026-08-02' ) ), 'every day rolled up: the rows pass' );
+$cov = static fn( $days ) => sn_public_stats_session_coverage( array_map( static fn( $d ) => array( 'day' => $d ), $days ), '2026-08-01', '2026-08-03' );
+ok( 3 === $cov( array( '2026-08-01', '2026-08-02', '2026-08-03' ) )['days'], 'every day rolled up: 3 of 3' );
+ok( 2 === $cov( array( '2026-08-01', '2026-08-02' ) )['days'], 'the newest day not rolled up yet (the nightly lag): 2 of 3, still shown' );
+ok( null === $cov( array( '2026-08-01', '2026-08-03' ) ), 'a hole inside the window is a failure: null' );
+ok( null === $cov( array( '2026-08-02', '2026-08-03' ) ), 'a missing first day is a failure: null' );
+ok( null === sn_public_stats_session_coverage( array(), '2026-08-01', '2026-08-03' ) && null === sn_public_stats_session_coverage( null, '2026-08-01', '2026-08-03' ), 'no rows or a failed read: null' );
+$GLOBALS['__sessions'] = array( array( 'day' => '1999-01-01', 'visits' => 640, 'bounce_pct' => 60, 'ppv' => 1.4, 'median_dur' => 50, 'two_pages' => 100, 'deep_pages' => 60 ) );
+$GLOBALS['__pad_skip'] = 1;
+$hl = $fresh();
+ok( false !== strpos( $hl, '>Visits<' ) && false !== strpos( $hl, '(29 of 30 days)' ) && false !== strpos( $hl, 'One page only' ), 'the nightly lag keeps Visits and One page only, and the tile says 29 of 30 days' );
+$GLOBALS['__pad_skip'] = 0;
+$hc30 = $fresh();
+ok( false !== strpos( $hc30, '>Visits<' ) && false === strpos( $hc30, ' of 30 days)' ), 'a full window shows no coverage note' );
 $GLOBALS['__pad'] = false; $GLOBALS['__sessions'] = array( array( 'day' => '2026-08-01', 'visits' => 640 ) );
 $hp = $fresh();
-ok( false === strpos( $hp, '>Visits<' ) && false === strpos( $hp, 'One page only' ), 'a partial session window leaves Visits and One page only out' );
+ok( false === strpos( $hp, '>Visits<' ) && false === strpos( $hp, 'One page only' ), 'sessions that do not start at the window\'s first day leave Visits and One page only out' );
 $GLOBALS['__pad'] = true;
+// The watch that says why the machine figures are missing.
+ok( false === snt_watch_ripe_public_stats_machines( array(), 1000, false )['ripe'], 'no refresh has run yet: quiet' );
+// Codex on d641620: a refresh that never runs must still ripen. The schedule records a baseline once.
+function add_option( $k, $v, $d = '', $a = null ) { if ( isset( $GLOBALS['__options'][ $k ] ) ) { return false; } $GLOBALS['__options'][ $k ] = $v; return true; }
+unset( $GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_LAST ] );
+sn_public_stats_machines_schedule();
+$base = $GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_LAST ] ?? null;
+ok( is_array( $base ) && '' === $base['why'] && abs( time() - (int) $base['at'] ) < 5, 'the first schedule call records a baseline' );
+ok( true === snt_watch_ripe_public_stats_machines( array(), time() + 3 * 3600 + 5, $base )['ripe'], 'with no refresh after it, the baseline ripens the watch in three hours' );
+$GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_LAST ] = array( 'at' => 1, 'why' => 'x' );
+sn_public_stats_machines_schedule();
+ok( 'x' === $GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_LAST ]['why'], 'a later schedule call never overwrites a real run' );
+ok( true === snt_watch_ripe_public_stats_machines( array(), 1000, array( 'at' => 900, 'why' => 'totals read failed: network' ) )['ripe'] && 'totals read failed: network' === snt_watch_ripe_public_stats_machines( array(), 1000, array( 'at' => 900, 'why' => 'totals read failed: network' ) )['note'], 'a refresh that stored nothing ripens, and the note says why' );
+ok( false === snt_watch_ripe_public_stats_machines( array(), 1000, array( 'at' => 900, 'why' => '' ) )['ripe'], 'a refresh that stored the snapshot is quiet' );
+ok( true === snt_watch_ripe_public_stats_machines( array(), 900 + 3 * 3600 + 1, array( 'at' => 900, 'why' => '' ) )['ripe'], 'no refresh in three hours ripens' );
+ok( 'totals read capped' === sn_public_stats_machines_why( array( 'ok' => true, 'truncated' => true ), '2026-08-01' ) && 0 === strpos( sn_public_stats_machines_why( array( 'ok' => true, 'rows' => array( array( 'day' => '2026-08-02' ) ) ), '2026-08-01' ), 'totals read does not reach 2026-08-01' ) && '' === sn_public_stats_machines_why( array( 'ok' => true, 'rows' => array( array( 'day' => '2026-08-01' ) ) ), '2026-08-01' ), 'the refresh names why it stored nothing' );
+// Wide: machines is the third column; the page takes the shared page track.
+ok( 1 === preg_match( '/<div class="sn-public-stats__cols">.*<section class="sn-public-stats__col sn-public-stats__machines">/s', $h ), 'Humans and machines is a column of the section row' );
+ok( false !== strpos( $css, 'var(--wp--custom--page-track,1320px)' ) && false !== strpos( $css, 'repeat(auto-fit,minmax(18rem,1fr))' ), 'the page takes the theme\'s page track; the columns fit three, two or one' );
 // Shares are of every view, not of the 500 rows the accessor kept.
 $full = array_merge( array( array( 'value' => 'a', 'views' => 60, 'visits' => 10 ) ), array_fill( 0, SN_PUBLIC_STATS_READ_CAP - 1, array( 'value' => '', 'views' => 0 ) ) );
 $cap  = sn_public_stats_fold( $full, 'strval', 200 );
