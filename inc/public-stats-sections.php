@@ -263,7 +263,10 @@ function sn_public_stats_session_coverage( $rows, $from, $to ) {
 }
 
 /**
- * Label, decorative bar, number in text. Escaped.
+ * Label, decorative bar, number in text. Escaped. The bar is drawn from the
+ * exact proportion (six decimals, so no positive share prints as 0), never
+ * the rounded text: 356 human views
+ * beside 89,578 machine reads is 0.4% of the track, not 0%.
  *
  * @param array<int,array{label:string,text:string,pct:int}> $rows Rows.
  * @return string
@@ -272,7 +275,7 @@ function sn_public_stats_bars_html( array $rows ) {
 	$out = '<ul class="sn-public-stats__bars">';
 	foreach ( $rows as $r ) {
 		$out .= '<li><span class="sn-public-stats__bar-label">' . esc_html( $r['label'] ) . '</span>'
-			. '<span class="sn-public-stats__bar" aria-hidden="true"><span style="width:' . (int) max( 0, min( 100, $r['pct'] ) ) . '%"></span></span>'
+			. '<span class="sn-public-stats__bar" aria-hidden="true"><span style="width:' . rtrim( rtrim( number_format( max( 0.0, min( 100.0, (float) $r['pct'] ) ), 6, '.', '' ), '0' ), '.' ) . '%"></span></span>'
 			. '<span class="sn-public-stats__bar-value">' . esc_html( $r['text'] ) . '</span></li>';
 	}
 	return $out . '</ul>';
@@ -281,7 +284,8 @@ function sn_public_stats_bars_html( array $rows ) {
 /** A folded list as bars, shares as text. */
 function sn_public_stats_share_list( array $rows ) {
 	// A share that rounds to 0 is still a real group: "<1%", never "0%".
-	return sn_public_stats_bars_html( array_map( static fn( $r ) => array( 'label' => $r['label'], 'text' => ( $r['share'] < 1 && $r['views'] > 0 ? '<1' : $r['share'] ) . '%', 'pct' => $r['share'] ), $rows ) );
+	$total = max( 1, array_sum( array_column( $rows, 'views' ) ) ); // the folded rows, Other included, are every view.
+	return sn_public_stats_bars_html( array_map( static fn( $r ) => array( 'label' => $r['label'], 'text' => ( $r['share'] < 1 && $r['views'] > 0 ? '<1' : $r['share'] ) . '%', 'pct' => 100 * $r['views'] / $total ), $rows ) );
 }
 
 /**
@@ -329,8 +333,8 @@ function sn_public_stats_machines_html( $data ) {
 	$max   = max( 1, $views, (int) $m['total'] );
 	$out  .= '<section class="sn-public-stats__col sn-public-stats__machines"><h2>' . esc_html__( 'Humans and machines', 'signal-and-noise-tools' ) . '</h2>'
 		. sn_public_stats_bars_html( array(
-			array( 'label' => __( 'Human views', 'signal-and-noise-tools' ), 'text' => number_format_i18n( $views ), 'pct' => (int) round( 100 * $views / $max ) ),
-			array( 'label' => __( 'Machine reads', 'signal-and-noise-tools' ), 'text' => number_format_i18n( (int) $m['total'] ), 'pct' => (int) round( 100 * (int) $m['total'] / $max ) ),
+			array( 'label' => __( 'Human views', 'signal-and-noise-tools' ), 'text' => number_format_i18n( $views ), 'pct' => 100 * $views / $max ),
+			array( 'label' => __( 'Machine reads', 'signal-and-noise-tools' ), 'text' => number_format_i18n( (int) $m['total'] ), 'pct' => 100 * (int) $m['total'] / $max ),
 		) );
 	$split = is_array( $m['split'] ) ? array_filter( $m['split'] ) : array();
 	$all   = array_sum( $split );
@@ -343,8 +347,7 @@ function sn_public_stats_machines_html( $data ) {
 		$rows = array();
 		foreach ( $names as $k => $label ) {
 			if ( isset( $split[ $k ] ) ) {
-				$pct    = (int) round( 100 * $split[ $k ] / $all );
-				$rows[] = array( 'label' => $label, 'text' => $pct . '%', 'pct' => $pct );
+				$rows[] = array( 'label' => $label, 'text' => (int) round( 100 * $split[ $k ] / $all ) . '%', 'pct' => 100 * $split[ $k ] / $all );
 			}
 		}
 		$out .= '<h3>' . esc_html__( 'Who the machines are', 'signal-and-noise-tools' ) . '</h3>' . sn_public_stats_bars_html( $rows );
