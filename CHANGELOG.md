@@ -13,7 +13,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Changed
-- **Gap analysis: gap 3 step 2 is shipped and the provenance work has a stop rule.** `docs/proposals/proving-the-provenance-thesis.md` records the author's countersigning key as live (ledger #41 to #43, Worker 1.25.0, plugin 22.5.0, the first batch attesting all 105 passing records), marks the second-active-key item resolved by 22.5.0, and adds "Where the provenance work stops": the remaining gap 3 steps, gap 2, gap 4 and the custody move stay designed and unbuilt until a concrete need names one. Docs only.
+- **Gap analysis: gap 3 step 2 is shipped and the provenance work has a stop rule.** `docs/proposals/proving-the-provenance-thesis.md` records the author's countersigning key as live (ledger #41 to #43, Worker 1.25.0, plugin 22.5.0, the first batch attesting all 105 passing records), marks the second-active-key item resolved by 22.5.0, describes the author key in the README's Provenance section, and adds "Where the provenance work stops": the remaining gap 3 steps, gap 2, gap 4 and the custody move stay designed and unbuilt until a concrete need names one. Docs only.
 
 ## [22.5.0] - 2026-10-05 — the author's countersigning key is published
 
