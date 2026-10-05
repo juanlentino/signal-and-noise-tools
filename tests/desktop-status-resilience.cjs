@@ -370,6 +370,12 @@ async function run() {
     assert.match(zroot.textContent, /No complete day in the edge rollup yet/, 'no extra payload: the section says so, never a 0');
     assert.doesNotMatch(zroot.textContent, /Incidents|Slowest|Last 24 hours/, 'rows with no source are left out');
     zstop();
+    const v = harness({statusExtra: {systems: {cache: {last_purge: 0, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), vroot = new Element('div');
+    const vstop = v.window.desktopModeWidgets['sn-health'](vroot); await flush();
+    v.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok', incidents_30d: 0}, {name: 'b', level: 'ok', incidents_30d: null}]}); await flush();
+    assert.doesNotMatch(vroot.textContent, /All systems normal/, 'Codex on 8a300aa: a purge still verifying is never an all-clear');
+    assert.match(vroot.textContent, /Incidents · 30 days 0 · 1 of 2 monitors read/, 'Codex on 8a300aa: a partial incident count says it is partial');
+    vstop();
     const w = harness({statusExtra: {systems: {cron: {fires: 12, failed: 0, failing: []}}, provenance: {}}}), wroot = new Element('div');
     const wstop = w.window.desktopModeWidgets['sn-health'](wroot); await flush();
     w.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();

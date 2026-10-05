@@ -190,7 +190,9 @@
 		var rows = [];
 		var inc  = mons.filter( function( m ) { return m.incidents_30d !== null && m.incidents_30d !== undefined && ! isNaN( Number( m.incidents_30d ) ); } );
 		if ( inc.length ) {
-			rows.push( { label: 'Incidents · 30 days', value: String( inc.reduce( function( a, m ) { return a + Number( m.incidents_30d ); }, 0 ) ) } );
+			// A total only when every monitor reported; otherwise say how many did.
+			var sum = inc.reduce( function( a, m ) { return a + Number( m.incidents_30d ); }, 0 );
+			rows.push( { label: 'Incidents · 30 days', value: String( sum ) + ( inc.length < mons.length ? ' · ' + inc.length + ' of ' + mons.length + ' monitors read' : '' ) } );
 		}
 		var timed = mons.filter( function( m ) { return m.response_ms !== null && m.response_ms !== undefined && m.response_ms !== '' && ! isNaN( Number( m.response_ms ) ); } );
 		if ( timed.length > 1 ) {
@@ -232,10 +234,11 @@
 		var rows = [];
 		var when = ago( c.last_purge );
 		if ( when ) { rows.push( { label: 'Last full purge', value: when } ); }
-		if ( c.fresh && 'unknown' !== c.fresh ) {
-			if ( 'stale' === c.fresh ) { tally.look++; } // the headline must not say "All systems normal" over a stale edge.
-			rows.push( { label: 'Edge freshness', value: String( c.headline || c.fresh ), tone: 'stale' === c.fresh ? WARN_FG : '' } );
-		}
+		// Only a verified fresh edge stays out of the headline: stale is to look
+		// at; pending (a purge still verifying) and unknown are not measured yet.
+		var fresh = String( c.fresh || 'unknown' );
+		if ( 'stale' === fresh ) { tally.look++; } else if ( 'fresh' !== fresh ) { tally.unknown++; }
+		rows.push( { label: 'Edge freshness', value: String( c.headline || ( 'unknown' === fresh ? 'not verified yet' : fresh ) ), tone: 'fresh' === fresh ? '' : WARN_FG } );
 		return rows.length ? { rows: rows } : { empty: 'No purge recorded yet.' };
 	}
 

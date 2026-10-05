@@ -256,7 +256,9 @@ function snt_desktop_rights_state( $data, array $held ) {
  */
 function snt_desktop_zenodo() {
 	$z = function_exists( 'snt_ability_zenodo_status' ) ? snt_ability_zenodo_status() : null;
-	if ( ! is_array( $z ) || empty( $z['enabled'] ) || ! isset( $z['total'] ) ) {
+	// The counts come from stored post meta: they stand without a token (a
+	// rotation must not hide minted DOIs or the subjects still waiting).
+	if ( ! is_array( $z ) || ! isset( $z['total'] ) ) {
 		return null;
 	}
 	return array( 'minted' => (int) ( $z['minted'] ?? 0 ), 'total' => (int) $z['total'] );
