@@ -143,11 +143,15 @@ method inspectable, and an inspectable method is what makes a witness statement 
 
 **When the deviation must end.** Whichever comes first:
 
-- **Gap 3, step 2.** Additive co-author signatures are meaningless under one shared Worker key —
-  a second party must hold their own. This is the hard boundary.
+- **The publish-time signature moves to an author-held key.** Revised 2026-10-05 under the
+  owner's single-author direction: gap 3 step 2 (the author's own key countersigning) narrows
+  the deviation, since a compromised site can no longer forge the author's countersignature,
+  but it does not end it, because the Worker still signs at publish. The countersigning key is
+  the key that move would promote. This is the hard boundary.
 - **Any presentation of the notes system as the general implementation** rather than one narrow
   instantiation.
-- **Paper 3**, whose subject is identity and key custody directly.
+- **Paper 3**, whose subject is identity and key custody directly. Published 2026-09-13; it
+  leaves custody open, so it does not end the deviation.
 
 ### Gap 4 is a core claim, not a refinement
 
@@ -440,9 +444,12 @@ So the design has four separable pieces, in dependency order:
    record; the author's says the author attests it. This also opens the custody question (D-1)
    without retiring the Worker key. The ceiling, stated plainly: two keys held by one person
    prove the mechanism, not two independent parties.
-3. **Ownership.** The author's rights terms (the license, and the reservations the rights files
-   already publish) become signed, mutable ownership records kept apart from the permanent
-   authorship attestation, so a change of terms appends a record instead of touching a work.
+3. **Ownership, and terms kept apart from it.** An ownership record names the owner and changes
+   only by a transfer the current owner signs. With one author the chain holds a single entry,
+   the author's own declaration, and a transfer may never happen. Rights terms (the license,
+   and the reservations the rights files already publish) are a separate signed record type the
+   owner may change; a change of terms appends a terms record and touches neither ownership nor
+   the authorship attestation.
 4. **Disputes.** The ledger already has the shape: a retraction annotates a record and never
    modifies it. With one author the exercisable case is a self-correction, a signed record
    naming what was wrong in an earlier one; `ERRATA.md` does this by hand today.
