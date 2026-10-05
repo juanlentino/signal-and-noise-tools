@@ -524,8 +524,10 @@ Still open:
    deliberate deviation D-1**, with its cost stated and its end conditions named. One follow-on
    remains: the public-facing wording. `VERIFY.md` and the provenance surfaces should describe
    what the signature attests — the author's publishing infrastructure witnessing a publication
-   event — rather than implying a hand-signature. That is a copy change to live public text and
-   has not been made.
+   event — rather than implying a hand-signature. **Resolved, checked 2026-10-05:** the ledger's
+   `VERIFY.md` says it in "What the signature attests" (the Worker signs on publish; no person
+   applies a key by hand), and the live `/verify` page and the chip and panel strings in
+   `inc/provenance-render.php` make no hand-signature claim.
 3. **Sequencing of `edit_log` against gap 2.** Its first emission is permanent on an append-only
    ledger. Gap 2 makes every emitted field auditable. Recommend gap 2 lands **before** the first
    `edit_log` record is written, so the field is evidence from its first appearance rather than
