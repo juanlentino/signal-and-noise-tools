@@ -143,11 +143,16 @@ method inspectable, and an inspectable method is what makes a witness statement 
 
 **When the deviation must end.** Whichever comes first:
 
-- **Gap 3, step 2.** Additive co-author signatures are meaningless under one shared Worker key —
-  a second party must hold their own. This is the hard boundary.
+- **The publish-time signature moves to an author-held key.** Revised 2026-10-05 under the
+  owner's single-author direction: gap 3 step 2 (the author's own key countersigning) narrows
+  the deviation, since a compromised site can no longer forge the author's countersignature,
+  but it does not end it, because the Worker still signs at publish. The countersigning key is
+  the key that move would promote. This is the hard boundary.
 - **Any presentation of the notes system as the general implementation** rather than one narrow
   instantiation.
-- **Paper 3**, whose subject is identity and key custody directly.
+
+Evaluated and not a trigger: **paper 3**, whose subject is identity and key custody. It was
+listed here until it was published (2026-09-13); it leaves custody open.
 
 ### Gap 4 is a core claim, not a refinement
 
@@ -389,12 +394,20 @@ floor property on a key with no recognized attester. `VERIFY.md`, "Weigh the key
 result does not show.
 
 Custody is unchanged: deviation D-1 stands exactly as written above, and the weight belongs to
-the Worker-held key. Still parked: a recognition-attestation format (it needs a second real
-signer with their own key), custody itself, and anything on the public site.
+the Worker-held key. Still parked: a recognition-attestation format, custody itself, and
+anything on the public site. An attestation in paper 3 is a claim about the author signed by a
+third party holding its own key, not a co-author; none exists, so the attestation term stays
+zero, which is the paper's unaffiliated case. Custody needs no one else, though it is more than
+a key transition: `sn_prov_dispatch()` sends every publication to the Worker to sign, so moving
+custody also means an author-side signing step at publish. Rotating the key history alone would
+leave the Worker either unable to sign or holding the author's key.
 
-### Gap 3 — multi-contributor attribution (SELECTED)
+### Gap 3 — multi-contributor attribution (designed within one author)
 
-Confirmed by the owner 2026-08-15 as the second item alongside gap 2.
+Confirmed by the owner 2026-08-15 as the second item alongside gap 2. **Owner direction
+2026-10-05: this is a single-author site and stays one, and the design works within that
+limit.** Each piece below is built so it is honest with one author, and the plan says where
+one author is the ceiling.
 
 **It is not paper-3 material.** P1 Layer 1 lists "collaborator identities and contribution
 timestamps" and devotes a full section to *Derivative Chain Tracking*. P2 specifies the
@@ -421,15 +434,49 @@ So the design has four separable pieces, in dependency order:
 4. **Dispute records.** A distinct format that annotates rather than modifies. P2 is explicit
    that disputes must not touch the attestation.
 
-**The proving-ground problem stands.** The notes corpus has one author, so it can demonstrate
-(1) and (3) structurally but cannot exercise (2) or (4) honestly — a second real signer is
-required, holding their own key. Choosing that proving ground is an owner decision and is the
-first thing this gap needs; everything else is downstream of it.
+**Each piece within one author.**
 
-**Sequencing note.** (2) is where the custodial-signing divergence bites hardest: co-authors
-signing "later" is meaningless if a single worker key signs for everyone. Gap 3 step 2 is
-therefore partly blocked on the key-custody question, which is gap 1's territory and which
-paper 3 leaves open. Steps 1, 3 and 4 are not blocked.
+1. **Roles.** The claim block becomes a list of parties with roles, holding one party: the
+   author, with the roles the author actually holds. The shape is right for one and does not
+   change if that ever grows. It changes the signed payload, so it lands as a new record
+   version, decided in the ledger repository.
+2. **Additive signatures, from the author's own key.** The second signer is the author, holding
+   a key of their own. That key countersigns records the Worker already signed, through an
+   append-only sidecar set that references each record's hash, so no original attestation or
+   hash changes. The Worker's signature says the publishing infrastructure witnessed the
+   record; the author's says the author attests it. Each countersignature names its signer
+   key; that key is bound to the author by its `author` role in the key history, a fingerprint
+   record it signs that also names the publisher key, and the public pins (DNS and the site's
+   key document). This also opens the custody question (D-1) without retiring the Worker key. The ceiling, stated plainly: two keys held by one person
+   prove the mechanism, not two independent parties.
+3. **Ownership, and terms kept apart from it.** An ownership record names the owner and changes
+   only by a transfer the current owner signs. With one author the chain holds a single entry,
+   the author's own declaration, and a transfer may never happen. Rights terms (the license,
+   and the reservations the rights files already publish) are a separate signed record type the
+   owner may change; a change of terms appends a terms record and touches neither ownership nor
+   the authorship attestation. Open before building it: each terms record should name the work,
+   the terms record it supersedes, the anchor height from which it applies, and the ownership
+   record that authorized it, so a verifier can tell which terms held at a given time.
+4. **Disputes.** The ledger already has the shape: a retraction annotates a record and never
+   modifies it. With one author the exercisable case is a self-correction, a signed record
+   naming what was wrong in an earlier one; `ERRATA.md` does this by hand today.
+
+**Sequencing note.** (2) prepares custody without completing it: the author-held key that
+countersigns is the key a later custody move would promote, and that move still needs the
+author-side publish signer described under gap 1. Nothing in this gap waits on another person. (1) is a record-format change and goes first in the ledger repository; (3) and
+(4) build on record kinds the ledger already verifies.
+
+**Open before building (2026-10-05 review), one line each:**
+
+- The site's key documents need a state for a second active key: today the plugin's key history
+  marks every non-current key `retired` and drops its role, and the `did:web` document authorizes
+  only the current key in `assertionMethod` (`inc/provenance-did.php`).
+- Each party entry in (1) should carry a contribution timestamp, or a separate signed
+  contribution event should, so a later signature never stands in for when the work was done.
+- An ownership transfer in (3) must say which terms survive it, or terms must name the
+  ownership record they hold under and lapse with it.
+- A dispute or self-correction in (4) needs its own kind and verifier outcome: a retraction
+  dominates the verdict as "withdrawn" (`prov-verify-core.js`), which a correction must not.
 
 ### Gap 4 — retained, not selected
 
@@ -447,9 +494,8 @@ Substrate* supplied and audited. `edit_log` approved as design.
 
 Still open:
 
-1. **A proving ground for gap 3.** Multi-contributor attribution needs a second real signer
-   holding their own key. The notes corpus cannot supply one. This is the first decision gap 3
-   needs and everything else in it is downstream.
+1. ~~A proving ground for gap 3.~~ **Resolved 2026-10-05: the author's own second key.** The
+   site has one author and keeps one; gap 3 is designed within that (see gap 3).
 2. ~~Custodial signing — argue it or change it.~~ **Resolved 2026-08-15: documented as
    deliberate deviation D-1**, with its cost stated and its end conditions named. One follow-on
    remains: the public-facing wording. `VERIFY.md` and the provenance surfaces should describe
