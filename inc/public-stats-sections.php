@@ -210,7 +210,7 @@ function sn_public_stats_machines_refresh() {
 function snt_watch_ripe_public_stats_machines( $watch, $now, $state = null ) {
 	$state = null === $state ? get_option( SN_PUBLIC_STATS_MACHINES_LAST, false ) : $state;
 	if ( ! is_array( $state ) ) {
-		return array( 'ripe' => false, 'note' => '' ); // never run yet: the first hour is not a failure.
+		return array( 'ripe' => false, 'note' => '' ); // no baseline yet: the schedule records one on its first call.
 	}
 	if ( (int) $now - (int) ( $state['at'] ?? 0 ) > 3 * HOUR_IN_SECONDS ) {
 		return array( 'ripe' => true, 'note' => 'no refresh since ' . gmdate( 'Y-m-d H:i', (int) ( $state['at'] ?? 0 ) ) . ' UTC' );
@@ -219,8 +219,15 @@ function snt_watch_ripe_public_stats_machines( $watch, $now, $state = null ) {
 	return array( 'ripe' => '' !== $why, 'note' => $why );
 }
 
-/** Keep the hourly snapshot scheduled. */
+/**
+ * Keep the hourly snapshot scheduled. The first call records a baseline
+ * (add_option never overwrites), so a refresh that never runs at all, a
+ * dead WP-Cron included, ripens the watch three hours later.
+ */
 function sn_public_stats_machines_schedule() {
+	if ( function_exists( 'add_option' ) ) {
+		add_option( SN_PUBLIC_STATS_MACHINES_LAST, array( 'at' => time(), 'why' => '' ), '', false );
+	}
 	if ( function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( SN_PUBLIC_STATS_MACHINES_HOOK ) ) {
 		wp_schedule_event( time() + MINUTE_IN_SECONDS, 'hourly', SN_PUBLIC_STATS_MACHINES_HOOK );
 	}

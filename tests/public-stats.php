@@ -343,6 +343,16 @@ ok( false === strpos( $hp, '>Visits<' ) && false === strpos( $hp, 'One page only
 $GLOBALS['__pad'] = true;
 // The watch that says why the machine figures are missing.
 ok( false === snt_watch_ripe_public_stats_machines( array(), 1000, false )['ripe'], 'no refresh has run yet: quiet' );
+// Codex on d641620: a refresh that never runs must still ripen. The schedule records a baseline once.
+function add_option( $k, $v, $d = '', $a = null ) { if ( isset( $GLOBALS['__options'][ $k ] ) ) { return false; } $GLOBALS['__options'][ $k ] = $v; return true; }
+unset( $GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_LAST ] );
+sn_public_stats_machines_schedule();
+$base = $GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_LAST ] ?? null;
+ok( is_array( $base ) && '' === $base['why'] && abs( time() - (int) $base['at'] ) < 5, 'the first schedule call records a baseline' );
+ok( true === snt_watch_ripe_public_stats_machines( array(), time() + 3 * 3600 + 5, $base )['ripe'], 'with no refresh after it, the baseline ripens the watch in three hours' );
+$GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_LAST ] = array( 'at' => 1, 'why' => 'x' );
+sn_public_stats_machines_schedule();
+ok( 'x' === $GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_LAST ]['why'], 'a later schedule call never overwrites a real run' );
 ok( true === snt_watch_ripe_public_stats_machines( array(), 1000, array( 'at' => 900, 'why' => 'totals read failed: network' ) )['ripe'] && 'totals read failed: network' === snt_watch_ripe_public_stats_machines( array(), 1000, array( 'at' => 900, 'why' => 'totals read failed: network' ) )['note'], 'a refresh that stored nothing ripens, and the note says why' );
 ok( false === snt_watch_ripe_public_stats_machines( array(), 1000, array( 'at' => 900, 'why' => '' ) )['ripe'], 'a refresh that stored the snapshot is quiet' );
 ok( true === snt_watch_ripe_public_stats_machines( array(), 900 + 3 * 3600 + 1, array( 'at' => 900, 'why' => '' ) )['ripe'], 'no refresh in three hours ripens' );
