@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **The author's countersigning key is published beside the publisher's.** Set in the `sn_prov_author_key` option (`id`, `public_key_base64`, `introduced_at`), it appears in `/.well-known/provenance-keys.json` as a `role: "author"` entry after the publisher key, and in `did.json` as a verification method that is never an assertion method, so no credential reader takes it for a key that signs notes. The site's verifier skips it by role when it picks the active key. The ledger accepts the author key only when this entry and a `_provenance-author` DNS record agree with its key history. A malformed value, or one equal to the publisher key, publishes nothing, and an unconfigured site serves exactly what it did before. Pinned in `tests/provenance-author-key.php` and `tests/js/prov-verify-core.test.mjs`.
+
 ## [22.4.1] - 2026-10-05 — the dual-write check accepts the same sample
 
 ### Changed

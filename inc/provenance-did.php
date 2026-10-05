@@ -110,6 +110,19 @@ function sn_prov_did_document() {
 		);
 	}
 
+	// The author's countersigning key is key MATERIAL this DID vouches for, so
+	// it is listed, and it is never an assertion method: it signs no note and
+	// no credential (inc/provenance-author-key.php).
+	$author = function_exists( 'sn_prov_author_key' ) ? sn_prov_author_key() : null;
+	if ( null !== $author ) {
+		$methods[] = array(
+			'id'           => $did . '#' . $author['id'],
+			'type'         => 'JsonWebKey2020',
+			'controller'   => $did,
+			'publicKeyJwk' => array( 'kty' => 'OKP', 'crv' => 'Ed25519', 'x' => sn_prov_base64url( base64_decode( $author['public_key_base64'], true ) ) ),
+		);
+	}
+
 	return array(
 		'@context'           => array( 'https://www.w3.org/ns/did/v1', 'https://w3id.org/security/suites/jws-2020/v1' ),
 		'id'                 => $did,
@@ -368,6 +381,11 @@ function sn_prov_key_document() {
 	);
 	foreach ( sn_prov_key_history() as $retired ) {
 		$keys[] = $retired;
+	}
+	// The author key, after the publisher and its history, with its role.
+	$author = function_exists( 'sn_prov_author_key_entry' ) ? sn_prov_author_key_entry() : null;
+	if ( null !== $author ) {
+		$keys[] = $author;
 	}
 
 	$doc = array(

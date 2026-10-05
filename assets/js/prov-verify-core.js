@@ -746,7 +746,8 @@
 			return undefined;
 		}
 		for ( var i = 0; i < keys.length; i++ ) {
-			if ( keys[ i ] && keys[ i ].status === 'active' && keys[ i ].public_key_base64 ) {
+			// The author's countersigning key is active too, and signs no note.
+			if ( keys[ i ] && keys[ i ].status === 'active' && 'author' !== keys[ i ].role && keys[ i ].public_key_base64 ) {
 				return keys[ i ].public_key_base64;
 			}
 		}
@@ -1104,6 +1105,7 @@
 		ledgerRecordUrl:          ledgerRecordUrl,
 		SUBJECT_ROOTS:            SUBJECT_ROOTS,
 		ledgerKeysUrl:            ledgerKeysUrl,
+		activeKeyB64:             activeKeyB64,
 		mempoolTxStatusUrl:       mempoolTxStatusUrl,
 		deriveBlockOnlyAnchor:    deriveBlockOnlyAnchor,
 		deriveLedgerTxAnchor:     deriveLedgerTxAnchor,

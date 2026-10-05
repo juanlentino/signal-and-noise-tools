@@ -840,5 +840,14 @@ console.log( '\nGroup 14: diffWords (9.81.0 — the /verify version-compare dock
 	ok( ! /undefined/.test( three.line ), 'no undefined leaks into the reader-facing line' );
 }
 
+// The author's countersigning key is active too, and signs no note: the
+// picker skips it by role even when a document lists it first.
+{
+	const pub = { id: 'sn-ed25519-2026-07', status: 'active', public_key_base64: 'PUB' };
+	const author = { id: 'sn-author-ed25519-2026-10', role: 'author', status: 'active', public_key_base64: 'AUTHOR' };
+	eq( 'PUB', core.activeKeyB64( { keys: [ pub, author ] } ), 'the publisher key is the active key' );
+	eq( 'PUB', core.activeKeyB64( { keys: [ author, pub ] } ), 'an author key listed first is still skipped' );
+}
+
 console.log( `\nResult: ${pass} passed, ${fail} failed.` );
 process.exit( fail > 0 ? 1 : 0 );
