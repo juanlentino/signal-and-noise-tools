@@ -461,10 +461,22 @@ So the design has four separable pieces, in dependency order:
    modifies it. With one author the exercisable case is a self-correction, a signed record
    naming what was wrong in an earlier one; `ERRATA.md` does this by hand today.
 
-**Sequencing note.** (2) and custody are now the same step: the author-held key that
-countersigns is the key a later custody move would promote. Nothing in this gap waits on
-another person. (1) is a record-format change and goes first in the ledger repository; (3) and
+**Sequencing note.** (2) prepares custody without completing it: the author-held key that
+countersigns is the key a later custody move would promote, and that move still needs the
+author-side publish signer described under gap 1. Nothing in this gap waits on another person. (1) is a record-format change and goes first in the ledger repository; (3) and
 (4) build on record kinds the ledger already verifies.
+
+**Open before building (2026-10-05 review), one line each:**
+
+- The site's key documents need a state for a second active key: today the plugin's key history
+  marks every non-current key `retired` and drops its role, and the `did:web` document authorizes
+  only the current key in `assertionMethod` (`inc/provenance-did.php`).
+- Each party entry in (1) should carry a contribution timestamp, or a separate signed
+  contribution event should, so a later signature never stands in for when the work was done.
+- An ownership transfer in (3) must say which terms survive it, or terms must name the
+  ownership record they hold under and lapse with it.
+- A dispute or self-correction in (4) needs its own kind and verifier outcome: a retraction
+  dominates the verdict as "withdrawn" (`prov-verify-core.js`), which a correction must not.
 
 ### Gap 4 — retained, not selected
 
