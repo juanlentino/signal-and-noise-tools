@@ -150,8 +150,9 @@ method inspectable, and an inspectable method is what makes a witness statement 
   the key that move would promote. This is the hard boundary.
 - **Any presentation of the notes system as the general implementation** rather than one narrow
   instantiation.
-- **Paper 3**, whose subject is identity and key custody directly. Published 2026-09-13; it
-  leaves custody open, so it does not end the deviation.
+
+Evaluated and not a trigger: **paper 3**, whose subject is identity and key custody. It was
+listed here until it was published (2026-09-13); it leaves custody open.
 
 ### Gap 4 is a core claim, not a refinement
 
@@ -396,8 +397,10 @@ Custody is unchanged: deviation D-1 stands exactly as written above, and the wei
 the Worker-held key. Still parked: a recognition-attestation format, custody itself, and
 anything on the public site. An attestation in paper 3 is a claim about the author signed by a
 third party holding its own key, not a co-author; none exists, so the attestation term stays
-zero, which is the paper's unaffiliated case. Custody needs no one else: an author-held key is
-one signed transition away, through the key history the ledger already keeps.
+zero, which is the paper's unaffiliated case. Custody needs no one else, though it is more than
+a key transition: `sn_prov_dispatch()` sends every publication to the Worker to sign, so moving
+custody also means an author-side signing step at publish. Rotating the key history alone would
+leave the Worker either unable to sign or holding the author's key.
 
 ### Gap 3 — multi-contributor attribution (designed within one author)
 
@@ -441,15 +444,19 @@ So the design has four separable pieces, in dependency order:
    a key of their own. That key countersigns records the Worker already signed, through an
    append-only sidecar set that references each record's hash, so no original attestation or
    hash changes. The Worker's signature says the publishing infrastructure witnessed the
-   record; the author's says the author attests it. This also opens the custody question (D-1)
-   without retiring the Worker key. The ceiling, stated plainly: two keys held by one person
+   record; the author's says the author attests it. Each countersignature names its signer
+   key; that key is bound to the author by its `author` role in the key history, a fingerprint
+   record it signs that also names the publisher key, and the public pins (DNS and the site's
+   key document). This also opens the custody question (D-1) without retiring the Worker key. The ceiling, stated plainly: two keys held by one person
    prove the mechanism, not two independent parties.
 3. **Ownership, and terms kept apart from it.** An ownership record names the owner and changes
    only by a transfer the current owner signs. With one author the chain holds a single entry,
    the author's own declaration, and a transfer may never happen. Rights terms (the license,
    and the reservations the rights files already publish) are a separate signed record type the
    owner may change; a change of terms appends a terms record and touches neither ownership nor
-   the authorship attestation.
+   the authorship attestation. Open before building it: each terms record should name the work,
+   the terms record it supersedes, the anchor height from which it applies, and the ownership
+   record that authorized it, so a verifier can tell which terms held at a given time.
 4. **Disputes.** The ledger already has the shape: a retraction annotates a record and never
    modifies it. With one author the exercisable case is a self-correction, a signed record
    naming what was wrong in an earlier one; `ERRATA.md` does this by hand today.
