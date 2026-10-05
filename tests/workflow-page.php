@@ -177,7 +177,7 @@ ok( false === snt_generated_page_guard( 'workflow', '<div>no wrapper</div>' ), '
 echo "\nGroup: Codex round on 49c0de6\n";
 wf_reset();
 sn_handle_workflow_save( array( 'workflow' => array( 'dek' => 'Owner dek', 'map' => array( array( 'title' => 'A', 'line' => 'x', 'show' => '1' ) ) ) ) );
-ok( 'Owner dek' === ( $GLOBALS['__meta']['_sn_meta_description'] ?? '' ), 'the Dek is written to the meta-description override, so AI prepop leaves it alone' );
+ok( 'Owner dek' === ( $GLOBALS['__meta']['_sn_meta_description'] ?? '' ), 'the Dek is written to the meta-description override, which outranks the excerpt' );
 sn_handle_workflow_save( array( 'workflow' => array( 'dek' => '', 'map' => array( array( 'title' => 'A', 'line' => 'x', 'show' => '1' ) ) ) ) );
 ok( ! isset( $GLOBALS['__meta']['_sn_meta_description'] ), 'an emptied Dek clears the override' );
 $GLOBALS['__page']->post_status = 'draft';
