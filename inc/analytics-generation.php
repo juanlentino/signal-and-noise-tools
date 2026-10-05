@@ -326,10 +326,11 @@ function sn_analytics_v2_verdict( array $check, $now, array $before = array() ) 
  * The analytics worker's live version: the cached probe, else the last good
  * one ('' when never read). Reuses the Analytics admin's version card read.
  *
+ * @param bool $force Probe the edge now instead of the cached read.
  * @return string
  */
-function sn_analytics_worker_version() {
-	$r = function_exists( 'sn_worker_version_get' ) ? sn_worker_version_get() : array();
+function sn_analytics_worker_version( $force = false ) {
+	$r = function_exists( 'sn_worker_version_get' ) ? sn_worker_version_get( (bool) $force ) : array();
 	if ( empty( $r['ok'] ) && function_exists( 'get_option' ) && defined( 'SN_WORKER_VERSION_LASTGOOD' ) ) {
 		$r = get_option( SN_WORKER_VERSION_LASTGOOD, array() );
 	}
@@ -368,9 +369,10 @@ function sn_analytics_version_stops_legacy( $version ) {
 
 /**
  * The comparison is over: keep a good verdict, frozen, and never compare
- * again. A verdict that is not good when the legacy write stops is not frozen
- * into a good one: it stays as it is, says why, and the watch ripens, because
- * reads then stay on a legacy dataset that no longer receives data.
+ * again. Good means both datasets: pageviews matched AND the events dataset
+ * was proven. Anything less is not frozen into a good one: it stays as it
+ * is, says why, and the watch ripens, because the reads it leaves on the
+ * legacy dataset no longer receive data.
  *
  * @param int $now Unix time.
  * @return array<string,mixed> The stored verdict.
@@ -381,18 +383,23 @@ function sn_analytics_v2_freeze( $now ) {
 		return $v;
 	}
 	$v['frozen'] = (int) $now;
-	$v['why']    = ! empty( $v['ok'] )
-		? 'frozen: the legacy write stopped (analytics worker ' . SN_ANALYTICS_V2_LEGACY_STOP . ' or later), so the comparison is over and this verdict stands'
-		: 'the legacy write stopped while the verdict was not ok: every read stays on the legacy dataset, which no longer receives data';
+	if ( ! empty( $v['ok'] ) && ! empty( $v['events_ok'] ) ) {
+		$v['why'] = 'frozen: the legacy write stopped (analytics worker ' . SN_ANALYTICS_V2_LEGACY_STOP . ' or later), so the comparison is over and this verdict stands';
+	} elseif ( ! empty( $v['ok'] ) ) {
+		$v['why'] = 'the legacy write stopped before the events dataset was proven: pageview reads stay on the new dataset, but custom-event reads stay on the legacy one, which no longer receives data';
+	} else {
+		$v['why'] = 'the legacy write stopped while the verdict was not ok: every read stays on the legacy dataset, which no longer receives data';
+	}
 	update_option( SN_ANALYTICS_V2_VERIFIED_OPT, $v, false );
-	if ( empty( $v['ok'] ) ) {
+	if ( empty( $v['ok'] ) || empty( $v['events_ok'] ) ) {
 		error_log( '[sn-analytics] ' . $v['why'] );
 	}
 	return $v;
 }
 
 /**
- * Watch: ripe when the legacy write stopped while the verdict was not ok.
+ * Watch: ripe when the legacy write stopped while the verdict was not ok, or
+ * before the events dataset was proven (event reads would stall).
  * PURE given $state.
  *
  * @param array      $watch The watch row.
@@ -402,7 +409,7 @@ function sn_analytics_v2_freeze( $now ) {
  */
 function snt_watch_ripe_analytics_v2_freeze( $watch, $now, $state = null ) {
 	$v = null === $state ? (array) get_option( SN_ANALYTICS_V2_VERIFIED_OPT, array() ) : (array) $state;
-	$bad = ! empty( $v['frozen'] ) && empty( $v['ok'] );
+	$bad = ! empty( $v['frozen'] ) && ( empty( $v['ok'] ) || empty( $v['events_ok'] ) );
 	return array( 'ripe' => $bad, 'note' => $bad ? (string) ( $v['why'] ?? '' ) : '' );
 }
 
@@ -447,6 +454,14 @@ function sn_analytics_v2_verify( $now = null ) {
 	}
 	$before  = (array) get_option( SN_ANALYTICS_V2_VERIFIED_OPT, array() );
 	$verdict = sn_analytics_v2_verdict( $check, $now, $before );
+	// The version above is a cached read (10 minutes). A worker deployed in
+	// that window has stopped the legacy write, and the day it reached reads
+	// as a mismatch: before a mismatch replaces a good verdict, ask the edge
+	// again, and freeze instead when the stop is real.
+	if ( empty( $verdict['ok'] ) && ! empty( $before['ok'] ) && sn_analytics_version_stops_legacy( sn_analytics_worker_version( true ) ) ) {
+		sn_analytics_legacy_stopped( true );
+		return sn_analytics_v2_freeze( $now );
+	}
 	update_option( SN_ANALYTICS_V2_VERIFIED_OPT, $verdict, false );
 	// When the verdict flips, the reads change dataset. The over-cap visitor
 	// list is cached for an hour and goes into every human/bot predicate, so

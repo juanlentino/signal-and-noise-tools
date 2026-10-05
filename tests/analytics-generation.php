@@ -143,6 +143,8 @@ sn_analytics_v2_verify( $oct08 );
 ok( in_array( SN_ANALYTICS_REALTIME_KEY, $GLOBALS['deleted'], true ) && in_array( 'option:' . SN_ANALYTICS_VIEWS_TODAY_LASTGOOD, $GLOBALS['deleted'], true ), 'the realtime snapshot and the last-good count carry no dataset in their keys, so they go with the flip' );
 
 echo "\nAnalytics 2.0.0 stops the legacy write: the comparison ends\n";
+$GLOBALS['wv'] = array(); $GLOBALS['wv_forced'] = false;
+function sn_worker_version_get( $force = false ) { if ( $force ) { $GLOBALS['wv_forced'] = true; } return $GLOBALS['wv'] ?? array(); }
 // Worker version read: the live probe, else the last good one.
 ok( sn_analytics_version_stops_legacy( '2.0.0' ) && sn_analytics_version_stops_legacy( '2.1.3' ) && ! sn_analytics_version_stops_legacy( '1.25.0' ) && ! sn_analytics_version_stops_legacy( '' ) && ! sn_analytics_version_stops_legacy( 'unknown' ), 'worker 2.0.0 or later stops the legacy write; 1.x and an unread version do not' );
 ok( false === sn_analytics_legacy_stopped( false ), 'test seam: not stopped' );
@@ -165,6 +167,24 @@ $GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => array( 'ok' => false, '
 $bad = sn_analytics_v2_verify( $oct08 + 9 * 86400 );
 ok( false === $bad['ok'] && false !== strpos( $bad['why'], 'no longer receives data' ), 'a bad verdict at the stop stays bad and says why' );
 ok( true === snt_watch_ripe_analytics_v2_freeze( array(), 0, $bad )['ripe'], 'and the watch ripens' );
+sn_analytics_legacy_stopped( false );
+
+// Codex on aaa82f9: unproven events are a bad freeze.
+sn_analytics_legacy_stopped( true );
+$GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => array( 'ok' => true, 'day' => '2026-10-12', 'clean_from' => '2026-10-05', 'events_ok' => false, 'at' => $oct08, 'why' => '' ) );
+$ev = sn_analytics_v2_verify( $oct08 + 9 * 86400 );
+ok( false !== strpos( $ev['why'], 'events dataset was proven' ) && true === snt_watch_ripe_analytics_v2_freeze( array(), 0, $ev )['ripe'], 'pageviews good but events unproven at the stop: not a good freeze, the watch ripens' );
+// Codex on aaa82f9: a cached 1.x read must not let the deployment race store a mismatch.
+sn_analytics_legacy_stopped( false ); // the cached probe still says 1.x
+$GLOBALS['wv'] = array( 'ok' => true, 'data' => array( 'version' => '2.0.0' ) ); // the edge, asked again
+$GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => array( 'ok' => true, 'day' => '2026-10-12', 'clean_from' => '2026-10-05', 'events_ok' => true, 'at' => $oct08, 'why' => '' ) );
+$GLOBALS['next_check'] = array( 'read' => true, 'days' => array( array( 'day' => '2026-10-14', 'state' => 'mismatch' ) ) );
+$race = sn_analytics_v2_verify( $oct08 + 9 * 86400 );
+ok( true === $race['ok'] && $race['frozen'] > 0 && true === $GLOBALS['wv_forced'], 'a mismatch over a good verdict asks the edge again; the stop is real, so it freezes instead' );
+sn_analytics_legacy_stopped( false );
+$GLOBALS['wv'] = array( 'ok' => true, 'data' => array( 'version' => '1.25.0' ) ); $GLOBALS['wv_forced'] = false;
+$GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => array( 'ok' => true, 'day' => '2026-10-12', 'clean_from' => '2026-10-05', 'events_ok' => true, 'at' => $oct08, 'why' => '' ) );
+ok( false === sn_analytics_v2_verify( $oct08 + 9 * 86400 )['ok'], 'still 1.x when asked again: the mismatch stands' );
 sn_analytics_legacy_stopped( false );
 
 echo "\nResult: $pass passed, $fail failed.\n";

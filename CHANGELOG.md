@@ -13,7 +13,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Added
-- **The analytics 2.0 comparison ends when the old write stops.** Once the analytics worker reports 2.0.0 or later, the daily dual-write check no longer compares (a day with rows in one dataset only would read as a mismatch and send every read to a dataset with no new data). A good verdict freezes with its clean day, so reads stay on the new dataset; a bad verdict is never frozen into a good one: it says why, and the `analytics_v2_frozen_bad` watch ripens. Rolling the worker back to 1.x resumes the comparison.
+- **The analytics 2.0 comparison ends when the old write stops.** Once the analytics worker reports 2.0.0 or later, the daily dual-write check no longer compares (a day with rows in one dataset only would read as a mismatch and send every read to a dataset with no new data). A good verdict (pageviews matched and the events dataset proven) freezes with its clean day, so reads stay on the new dataset; anything less is never frozen into a good one: it says why, and the `analytics_v2_frozen_bad` watch ripens. Before a mismatch replaces a good verdict, the worker version is asked again live, so a deploy inside the version cache's ten minutes freezes instead of clearing. Rolling the worker back to 1.x resumes the comparison.
 
 ## [22.2.0] - 2026-10-05 — analytics reads stitch across the 2.0 clean day
 
