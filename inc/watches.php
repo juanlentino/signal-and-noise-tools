@@ -157,6 +157,16 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_archive_push',
 		),
+		// Unreleased: analytics 2.0 stops the legacy write; the verdict freezes.
+		array(
+			'id'        => 'analytics_v2_frozen_bad',
+			'label'     => 'analytics 2.0: the legacy write stopped on a bad verdict',
+			'why'       => 'Analytics worker 2.0.0 stops writing the legacy dataset and the daily comparison ends there: a good verdict freezes and reads stay on the second generation. If the verdict was NOT ok when the stop was seen, every read stays on the legacy dataset, which receives nothing new, so every live figure stalls. Ripe in that state; the fix is to restore the legacy write (roll the worker back) until seven green verdicts are in.',
+			'read'      => 'signal-noise/analytics-dual-write (verdict); option sn_analytics_v2_verified',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_analytics_v2_freeze',
+		),
 		// Unreleased: /stats reads machine figures from an hourly snapshot.
 		array(
 			'id'        => 'public_stats_machines',
