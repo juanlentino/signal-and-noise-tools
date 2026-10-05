@@ -851,8 +851,8 @@ update_option(
 	)
 );
 $sum = snt_ai_usage_summary( 30 );
-// Existing shape preserved — the prepop daily-ceiling reads ['calls'].
-hc_eq( 3, $sum['calls'] ?? null, 'calls unchanged (prepop contract)' );
+// Existing shape preserved: ['calls'] stays the call total.
+hc_eq( 3, $sum['calls'] ?? null, 'calls unchanged' );
 hc_eq( 3100, $sum['prompt'] ?? null, 'prompt tokens summed (1000+2000+100)' );
 hc_eq( 1550, $sum['completion'] ?? null, 'completion tokens summed (500+1000+50)' );
 hc_eq( 4650, $sum['total'] ?? null, 'total tokens summed' );

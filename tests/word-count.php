@@ -1,8 +1,9 @@
 <?php
 /**
  * Tests for snt_word_count() (v10.24.0) — the Unicode-safe word counter that
- * replaces PHP's ASCII-only str_word_count() at all four call sites
- * (reading time, schema.org wordCount, AI prepop gate, AI excerpt length).
+ * replaces PHP's ASCII-only str_word_count() at its call sites (reading
+ * time, schema.org wordCount, AI excerpt length; the AI auto-fill's gate was a
+ * fourth until that fill was removed on 2026-10-05).
  * str_word_count's two failure modes, both pinned here as fixed:
  *   - non-ASCII letters split/vanish ("señal" counted as two words or less);
  *   - standalone numbers count as ZERO words ("2026" is a word to a reader).

@@ -151,7 +151,7 @@ ok( '<div class="notice notice-warning inline"><p>x</p></div>' === wp_get_admin_
 if ( SNT_KSES_IS_CORE ) {
 	$dirty = '<div class="notice notice-info"><p>x <script>alert(1)</script> <a href="https://e.test/?a=1&b=2" onclick="x()">l</a> <input type="text"> <form></form></p></div>';
 	ok( '<div class="notice notice-info"><p>x alert(1) <a href="https://e.test/?a=1&amp;b=2">l</a>  </p></div>' === wp_kses_post( $dirty ), 'negative control: the echo is core kses, which strips <script>, onclick, <input> and <form> (a pass-through would keep them)' );
-	ok( function_exists( 'wp_kses_allowed_html' ) && isset( wp_kses_allowed_html( 'post' )['button']['data-*'] ), 'and the post context of the loaded kses allows <button data-*>, which the prepop notice needs' );
+	ok( function_exists( 'wp_kses_allowed_html' ) && isset( wp_kses_allowed_html( 'post' )['button']['data-*'] ), 'and the post context of the loaded kses allows <button data-*> (a notice with a button needs it)' );
 } else {
 	$skip += 2;
 	echo "  SKIP - core kses: no WordPress checkout on this machine (SNT_WP_HTML_API=<wp>/wp-includes/html-api with kses.php beside it); the echo ran a pass-through\n";

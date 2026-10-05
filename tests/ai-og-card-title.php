@@ -6,8 +6,10 @@
  *   - snt_ai_og_card_title_impl()  — USER-facing entry. Adds an internal
  *     current_user_can('edit_post', $id) guard (defense-in-depth behind the
  *     REST permission_callback / ability cap check) before delegating.
- *   - snt_ai_og_card_title_write() — no-cap internal writer. WP-Cron prepop
- *     (no logged-in user) calls THIS directly so a cap check can't reject it.
+ *   - snt_ai_og_card_title_write() — no-cap internal writer. It was split out
+ *     for the publish-time auto-fill, which ran in WP-Cron with no logged-in
+ *     user; that fill was removed on 2026-10-05, and every caller now goes
+ *     through the impl. The writer's own contract is still pinned below.
  *
  * @since plugin v6.39.2
  */
@@ -119,7 +121,7 @@ og_eq( 'A Punchy Card Title', is_array( $res ) ? $res['title'] : null, 'title re
 og_eq( 1, $GLOBALS['__og_gen_calls'], 'one AI generation fired' );
 og_eq( 'A Punchy Card Title', $GLOBALS['__og_meta'][50]['_sn_og_card_title'] ?? null, 'override meta persisted' );
 
-// ─── Test 3: writer ignores caps (the WP-Cron prepop path) ──────────
+// ─── Test 3: writer ignores caps (the unchecked half) ──────────
 echo "\nTest 3: snt_ai_og_card_title_write — no cap check (cron has no user)\n";
 og_reset();
 $GLOBALS['__og_caps'][50] = false; // a cap check WOULD reject — the writer must not check.

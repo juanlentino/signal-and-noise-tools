@@ -6,7 +6,8 @@
  *   a11y    — #1 sub-tab focus ring, #7 AA delta colour, #18 deploy-status SR text,
  *             #19 url-preview focus ring
  *   layout  — #2 Security audit-log goes wide (+ carded Maintenance), #8 Health
- *             findings uncap, #14 prepop notice scoped to the meta box
+ *             findings uncap, #14 prepop notice scoped to the meta box (the
+ *             notice was removed 2026-10-05; #14 now pins that no rule is left)
  *   converge— #4 RSS + #10 audit-log heroes render through sn_admin_glance_grid
  *             (the bespoke .sn-rss-activity-card / .sn-audit-state-grid vocab gone)
  *   hygiene — #3 dead .sn-state-card vocabulary removed (shipped in v6.46.1 #104)
