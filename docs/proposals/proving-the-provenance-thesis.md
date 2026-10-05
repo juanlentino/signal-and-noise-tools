@@ -499,7 +499,7 @@ steps 1, 3 and 4, gap 2, gap 4, and moving the publish signature to the author's
 designed and unbuilt; `edit_log`'s approval as a design and its open sequencing question stand
 but no longer authorize building it. One of them is built only when a concrete need names it: a
 collaborator, a rights claim that needs an ownership or terms record, an error that needs a
-self-correction record, or a paper whose claim depends on it. Countersigning new records stays
+self-correction record, or a new paper, beyond the three audited here, whose argument cannot be made without it. What P1 and P2 already ask for is recorded in this document and does not reopen anything on its own. Countersigning new records stays
 routine: `node countersign.mjs prepare`, the author signs, `finish`, a pull request.
 
 ### Gap 4 — retained, not selected
