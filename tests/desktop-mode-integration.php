@@ -481,9 +481,9 @@ $expected_height = array(
 	'sn-site-views'       => 950, // SN Traffic, BUDGETED (+60 busiest state, 21.9.1): 760 + This week (~96) + the reach row (~30)
 	'sn-reading'          => 575, // BUDGETED: 555 + the opening figure and age line, less the two rows it replaced
 	'sn-queue'            => 380, // measured 365 live (15.8.1): two-line headline + depth line + two headings + six rows
-	'sn-health'           => 440, // SN Systems, BUDGETED (+60 busiest state, 21.9.1): the verdict line, three one-row sections (~52 each), the uptime row's second line (~20), the button (~44), the link
+	'sn-health'           => 580, // SN Systems, +140 (2026-10-05: Edge and Cache sections, cron-day row, incidents and slowest); BUDGETED (+60 busiest state, 21.9.1): the verdict line, three one-row sections (~52 each), the uptime row's second line (~20), the button (~44), the link
 	'sn-deploy-status'    => 350, // v11.11.2 budgeted 310 + the Check for updates button (~40)
-	'sn-anchors'          => 520, // SN Provenance, BUDGETED (+60 busiest state, 21.9.1): 250 + the machine readers (~136) + the rights-files and top-family rows (~40) + the wrapped action row (~28)
+	'sn-anchors'          => 620, // SN Provenance, +100 (2026-10-05: signatures, rights evidence, last posted, DOIs); BUDGETED (+60 busiest state, 21.9.1): 250 + the machine readers (~136) + the rights-files and top-family rows (~40) + the wrapped action row (~28)
 );
 ok( array_keys( $expected_height ) === array_keys( $widgets ),
 	'the measured-height table covers exactly the registered widgets, in registration order' );

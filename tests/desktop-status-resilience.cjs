@@ -23,7 +23,7 @@ const nodes = n => [n, ...n.children.flatMap(nodes)];
 const details = n => nodes(n).map(e => e.attrs['aria-label'] || '').filter(Boolean).join(' ');
 const styles = n => String(n.attrs.style || '') + n.children.map(styles).join(' ');
 const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
-function harness() {
+function harness(extraData) {
   let now = Date.parse('2026-09-08T12:00:00Z'), nextId = 0;
   const timers = new Map(), calls = [];
   const window = {
@@ -31,7 +31,7 @@ function harness() {
     // SN Systems reads health and cron from the localize; both all clear here,
     // so its verdict turns on the uptime poll the fixtures drive.
     snDesktopData: { healthSummary: {passed: 8, total: 8, all_passed: true, skipped: [], flagged: []},
-      cronSummary: {total: 85, sn_count: 30, orphans: 0, next: {hook: 'sn_queue_tick', in_s: 300}, health: {ok: true}} },
+      cronSummary: {total: 85, sn_count: 30, orphans: 0, next: {hook: 'sn_queue_tick', in_s: 300}, health: {ok: true}}, ...(extraData || {}) },
     sntAbilityRunData: { verbs: { 'signal-noise/get-deploy-status': 'GET', 'signal-noise/uptime-status': 'GET',
       'signal-noise/get-rss-stats': 'GET', 'signal-noise/content-queue': 'GET', 'signal-noise/cache-freshness': 'GET' } },
     setTimeout(fn, delay) { const id = ++nextId; timers.set(id, {fn, at: now + delay}); return id; },
@@ -328,6 +328,52 @@ async function run() {
     await x.tick(f.period); await answer(); assert.equal(x.calls.length, 3, f.id + ': polling resumed on reveal');
     stop(); await x.tick(10 * f.period); assert.equal(x.calls.length, 3, f.id + ': teardown stops the poll');
     assert.equal(x.timers.size, 0, f.id + ': teardown clears every timer');
+  }
+  // 2026-10-05: the extra Systems and Provenance rows (local reads, localized).
+  {
+    const extra = {statusExtra: {
+      systems: {edge: {day: 'Oct 4', total: 12, prior: 15}, cron: {fires: 40, failed: 2, failing: ['sn_queue_tick', 'snt_alerts_hourly', 'sn_x']}, cache: {last_purge: Date.parse('2026-09-08T09:00:00Z') / 1000, fresh: 'stale', headline: '1 stale page'}},
+      provenance: {integrity: {fleet: 50, verified: 49, failing: 1}, rights: {month: 'September', text: '8 waiting for a Bitcoin block', attention: false, last_posted: Date.parse('2026-09-05T12:00:00Z') / 1000}, zenodo: {minted: 7, total: 9}}}};
+    const x = harness(extra), root = new Element('div');
+    const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
+    x.calls[0].resolve({configured: true, rows: [{name: 'Home', level: 'ok', response_ms: 120, incidents_30d: 1}, {name: 'Feed', level: 'ok', response_ms: 340, incidents_30d: 0}]}); await flush();
+    const t = root.textContent;
+    assert.match(t, /Incidents · 30 days 1/, 'incidents over 30 days across the monitors');
+    assert.match(t, /Slowest Feed · 340 ms/, 'the slowest monitor, by name');
+    assert.match(t, /5xx · Oct 4 12 · 3 fewer than the day before/, 'edge 5xx for the last complete day against the day before, in words');
+    assert.match(t, /Last 24 hours 40 runs recorded · 2 failed/, 'cron runs recorded and recorded failures over 24 hours');
+    assert.match(t, /queue_tick failed/, 'a failing job is named');
+    assert.match(t, /\+1 more failed/, 'and the list is capped');
+    assert.match(t, /Last full purge 3h ago/, 'the last full purge');
+    assert.match(t, /Edge freshness 1 stale page/, 'edge freshness after the last check');
+    assert.match(t, /to look at/, 'a failed cron run is something to look at');
+    stop();
+    const y = harness(extra), proot = new Element('div');
+    const pstop = y.window.desktopModeWidgets['sn-anchors'](proot); await flush();
+    for (const c of y.calls) {
+      if (c.opts.path.includes('anchor-status')) c.resolve({pending: [], recording: [], confirmed: 50, total: 50, pages: {confirmed: 6, total: 6}});
+      else c.reject(new Error('not in this fixture'));
+    }
+    await flush();
+    const p = proot.textContent;
+    assert.match(p, /Signatures 49 of 50 verify/, 'signatures that verify out of the fleet');
+    assert.match(p, /Rights evidence · September 8 waiting for a Bitcoin block/, 'where the newest rights-evidence month stands');
+    assert.match(p, /Provenance Signatures/, 'the block has its heading');
+    assert.match(p, /Last posted 3d ago/, 'when a record was last posted, in the Systems card\'s form');
+    assert.match(p, /DOIs 7 of 9 minted/, 'DOIs minted');
+    pstop();
+    const z = harness(), zroot = new Element('div');
+    const zstop = z.window.desktopModeWidgets['sn-health'](zroot); await flush();
+    z.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
+    assert.match(zroot.textContent, /No complete day in the edge rollup yet/, 'no extra payload: the section says so, never a 0');
+    assert.doesNotMatch(zroot.textContent, /Incidents|Slowest|Last 24 hours/, 'rows with no source are left out');
+    zstop();
+    const w = harness({statusExtra: {systems: {cron: {fires: 12, failed: 0, failing: []}}, provenance: {}}}), wroot = new Element('div');
+    const wstop = w.window.desktopModeWidgets['sn-health'](wroot); await flush();
+    w.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
+    assert.match(wroot.textContent, /Last 24 hours 12 runs recorded/, 'runs recorded');
+    assert.doesNotMatch(wroot.textContent, /0 failed/, 'no recorded failure is not painted as "0 failed": a fatal run leaves no row');
+    wstop();
   }
   // The derived rows leave out what they cannot compute, never a 0.
   {
