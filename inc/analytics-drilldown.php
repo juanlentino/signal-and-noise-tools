@@ -63,13 +63,16 @@ function sn_analytics_drilldown_parse( $raw ) {
  * @param string                 $from   YYYY-MM-DD.
  * @param string                 $to     YYYY-MM-DD.
  * @param string                 $class  Traffic class.
+ * @param string                 $source One half of a stitched read; '' picks the dataset.
+ * @param string                 $range  That half's side of the split (sn_analytics_split_range_ok()).
  * @return string AE SQL, or '' for an unknown dim / empty value set.
  */
-function sn_analytics_drilldown_sql( $dim, $values, $from, $to, $class ) {
+function sn_analytics_drilldown_sql( $dim, $values, $from, $to, $class, $source = '', $range = '' ) {
 	if ( ! isset( SN_ANALYTICS_DIM_COLUMNS[ $dim ] ) ) {
 		return '';
 	}
-	$source = sn_analytics_source( (string) $from );
+	$source = '' !== (string) $source ? (string) $source : sn_analytics_source( (string) $from );
+	$range  = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
 	$col    = sn_analytics_col( SN_ANALYTICS_DIM_COLUMNS[ $dim ], $source );
 	$class = in_array( $class, SN_ANALYTICS_CLASSES, true ) ? $class : 'human';
 	$from  = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from ) ? (string) $from : '1970-01-01';
@@ -91,7 +94,7 @@ function sn_analytics_drilldown_sql( $dim, $values, $from, $to, $class ) {
 		'FROM ' . $source,
 		"WHERE blob1 = 'pv' AND {$col} IN ({$in}) AND " . sn_analytics_class_where( $class ),
 		"AND timestamp >= toDateTime('{$from} 00:00:00')",
-		"AND timestamp <= toDateTime('{$to} 23:59:59')",
+		"AND timestamp <= toDateTime('{$to} 23:59:59'){$range}",
 		'GROUP BY path',
 		'ORDER BY views DESC',
 	) );
@@ -159,8 +162,7 @@ function sn_analytics_drilldown( $dim, $value, $from, $to, $class = 'human' ) {
 
 	// The dataset is part of the key, as for the percentiles: a verdict that
 	// moves this window must not be answered from the generation just left.
-	$source    = sn_analytics_source( (string) $from );
-	$cache_key = 'sn_drill_' . md5( $dim . '|' . $value . '|' . $from . '|' . $to . '|' . $class . ( SN_ANALYTICS_DATASET === $source ? '' : '|' . $source ) );
+	$cache_key = 'sn_drill_' . md5( $dim . '|' . $value . '|' . $from . '|' . $to . '|' . $class . sn_analytics_read_key( (string) $from, $to . ' 23:59:59' ) );
 	$cached    = get_transient( $cache_key );
 	if ( false !== $cached ) {
 		return is_array( $cached ) ? $cached : null;
@@ -169,23 +171,34 @@ function sn_analytics_drilldown( $dim, $value, $from, $to, $class = 'human' ) {
 		return null;
 	}
 
-	$res = sn_analytics_query( sn_analytics_drilldown_sql( $dim, $query_values, $from, $to, $class ) );
-	if ( ! is_array( $res ) ) {
+	// Analytics 2.0: a window across the clean day reads each generation for
+	// its side. A visitor-day lives on one side of the split, so per-path
+	// views and distinct visits add up exactly.
+	$sets = sn_analytics_stitched_rows(
+		static fn( $source, $range ) => sn_analytics_drilldown_sql( $dim, $query_values, $from, $to, $class, $source, $range ),
+		(string) $from,
+		$to . ' 23:59:59'
+	);
+	if ( null === $sets ) {
 		set_transient( $cache_key, '', 5 * 60 );
 		return null;
 	}
 
-	$rows = array();
-	foreach ( $res as $r ) {
-		if ( ! is_array( $r ) ) {
-			continue;
+	$by = array();
+	foreach ( $sets as $res ) {
+		foreach ( $res as $r ) {
+			if ( ! is_array( $r ) ) {
+				continue;
+			}
+			$path = (string) ( $r['path'] ?? '' );
+			$by[ $path ] = array(
+				'path'   => $path,
+				'views'  => ( $by[ $path ]['views'] ?? 0 ) + (int) ( $r['views'] ?? 0 ),
+				'visits' => ( $by[ $path ]['visits'] ?? 0 ) + (int) ( $r['visits'] ?? 0 ),
+			);
 		}
-		$rows[] = array(
-			'path'   => (string) ( $r['path'] ?? '' ),
-			'views'  => (int) ( $r['views'] ?? 0 ),
-			'visits' => (int) ( $r['visits'] ?? 0 ),
-		);
 	}
+	$rows = array_values( $by );
 	usort( $rows, static function ( $a, $b ) {
 		return $b['views'] <=> $a['views'];
 	} );

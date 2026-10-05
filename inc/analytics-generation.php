@@ -157,6 +157,71 @@ function sn_analytics_stitch( $from_day, $kind = 'pageviews' ) {
 }
 
 /**
+ * Whether a range clause is exactly one side of the split, the only shape the
+ * stitched builders interpolate. PURE.
+ *
+ * @param string $range ' AND timestamp < toDateTime(...)' or '>='.
+ * @return bool
+ */
+function sn_analytics_split_range_ok( $range ) {
+	return 1 === preg_match( "/^ AND timestamp (<|>=) toDateTime\\('\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}'\\)$/", (string) $range );
+}
+
+/**
+ * Run one read whose window may cross the clean day. `$build( $source, $range )`
+ * returns the SQL for one dataset, `$range` being '' (the whole window) or one
+ * side of the split. Returns the row sets to merge: one when a dataset answers
+ * the window whole, two (legacy, then the second generation) when it crosses
+ * the split. Null when any read failed, so a caller never shows half a window.
+ *
+ * @param callable $build    fn( string $source, string $range ): string.
+ * @param string   $from_day The first UTC day the window touches, Y-m-d.
+ * @param string   $to_utc   The window's last instant, UTC 'Y-m-d H:i:s'; a window that ends before the split is the legacy dataset's alone.
+ * @param string   $kind     'pageviews' or 'events'.
+ * @return array<int,array>|null
+ */
+function sn_analytics_stitched_rows( callable $build, $from_day, $to_utc, $kind = 'pageviews' ) {
+	$halves = sn_analytics_stitch( $from_day, $kind );
+	$parts  = ( null === $halves || (string) $to_utc < $halves['at'] )
+		? array( array( sn_analytics_source( $from_day, $kind ), '' ) )
+		: array(
+			array( $halves['legacy'], " AND timestamp < toDateTime('{$halves['at']}')" ),
+			array( $halves['v2'], " AND timestamp >= toDateTime('{$halves['at']}')" ),
+		);
+	$out = array();
+	foreach ( $parts as $p ) {
+		$sql  = (string) $build( $p[0], $p[1] );
+		$rows = '' === $sql ? null : sn_analytics_query( $sql );
+		if ( ! is_array( $rows ) ) {
+			return null;
+		}
+		$out[] = $rows;
+	}
+	return $out;
+}
+
+/**
+ * The part of a cache key that names what answers a window: '' for the legacy
+ * dataset whole (the keys cached before 2.0 stay valid), the dataset when the
+ * second generation answers whole, 'stitch@<split>' when the window crosses
+ * it. A verdict that moves the window never serves an answer from the source
+ * just left. PURE given the verdict.
+ *
+ * @param string $from_day First UTC day the window touches.
+ * @param string $to_utc   The window's last instant, UTC.
+ * @param string $kind     'pageviews' or 'events'.
+ * @return string
+ */
+function sn_analytics_read_key( $from_day, $to_utc, $kind = 'pageviews' ) {
+	$halves = sn_analytics_stitch( $from_day, $kind );
+	if ( null !== $halves && (string) $to_utc >= $halves['at'] ) {
+		return '|stitch@' . $halves['at'];
+	}
+	$source = sn_analytics_source( $from_day, $kind );
+	return ( defined( 'SN_ANALYTICS_DATASET' ) ? SN_ANALYTICS_DATASET : 'sn_pageviews' ) === $source ? '' : '|' . $source;
+}
+
+/**
  * The first UTC day a trailing window of `$days` can touch. One day of slack:
  * the rollups floor to a LOCAL day start, which can sit up to 14 hours before
  * the UTC one.

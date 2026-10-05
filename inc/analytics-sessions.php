@@ -820,9 +820,11 @@ function sn_goal_attribution( array $summaries, $goal_value, $prefix = true, $li
  * @param string $to    Window end, 'Y-m-d'.
  * @param string $class Traffic class (human/suspect/bot).
  * @param int    $cap   Row cap (LIMIT).
+ * @param string $source One half of a stitched read; '' picks the dataset.
+ * @param string $range  That half's side of the split (sn_analytics_split_range_ok()).
  * @return string SQL, or '' when inputs are invalid.
  */
-function sn_analytics_session_sql( $from, $to, $class, $cap ) {
+function sn_analytics_session_sql( $from, $to, $class, $cap, $source = '', $range = '' ) {
 	if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from )
 		|| 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $to ) ) {
 		return '';
@@ -832,7 +834,8 @@ function sn_analytics_session_sql( $from, $to, $class, $cap ) {
 		return '';
 	}
 	$cap     = max( 1, (int) $cap );
-	$dataset = sn_analytics_source( (string) $from );
+	$dataset = '' !== (string) $source ? (string) $source : sn_analytics_source( (string) $from );
+	$range   = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
 
 	return implode(
 		' ',
@@ -845,7 +848,7 @@ function sn_analytics_session_sql( $from, $to, $class, $cap ) {
 			// AE's SQL types are strict: the DateTime `timestamp` column cannot be
 			// compared to a String literal (>= 422s), so wrap the validated bounds
 			// in toDateTime(). $from/$to are regex-checked Y-m-d above.
-			"WHERE timestamp >= toDateTime('{$from} 00:00:00') AND timestamp <= toDateTime('{$to} 23:59:59')",
+			"WHERE timestamp >= toDateTime('{$from} 00:00:00') AND timestamp <= toDateTime('{$to} 23:59:59'){$range}",
 			'AND ' . sn_analytics_class_where( $class ),
 			"AND blob1 IN ('pv','sc','tm','ce')",
 			// No ORDER BY: AE resolves ORDER BY against SELECT aliases (not raw
@@ -873,11 +876,19 @@ function sn_analytics_fetch_session_events( $from, $to, $class ) {
 	if ( '' === $sql || ! function_exists( 'sn_analytics_query' ) ) {
 		return array( 'summaries' => array(), 'visits' => array(), 'capped' => false, 'configured' => false );
 	}
-	$rows = sn_analytics_query( $sql );
-	if ( ! is_array( $rows ) ) {
+	// Analytics 2.0: across the clean day each generation is read for its side;
+	// a visitor-day (and so a session) lives on one side, so the rows simply
+	// join. Either half reaching the cap is a capped read.
+	$sets = sn_analytics_stitched_rows(
+		static fn( $source, $range ) => sn_analytics_session_sql( $from, $to, $class, $cfg['row_cap'], $source, $range ),
+		(string) $from,
+		$to . ' 23:59:59'
+	);
+	if ( null === $sets ) {
 		return array( 'summaries' => array(), 'visits' => array(), 'capped' => false, 'configured' => false );
 	}
-	$capped = count( $rows ) >= $cfg['row_cap'];
+	$rows   = array_merge( ...$sets );
+	$capped = array() !== array_filter( $sets, static fn( $s ) => count( $s ) >= $cfg['row_cap'] );
 	$visits = sn_sessionize( $rows, $cfg['gap_sec'] );
 	$summaries = array();
 	foreach ( $visits as $v ) {
