@@ -402,7 +402,7 @@ a key transition: `sn_prov_dispatch()` sends every publication to the Worker to 
 custody also means an author-side signing step at publish. Rotating the key history alone would
 leave the Worker either unable to sign or holding the author's key.
 
-### Gap 3 — multi-contributor attribution (designed within one author)
+### Gap 3 — multi-contributor attribution (designed within one author; step 2 shipped 2026-10-05)
 
 Confirmed by the owner 2026-08-15 as the second item alongside gap 2. **Owner direction
 2026-10-05: this is a single-author site and stays one, and the design works within that
@@ -449,6 +449,12 @@ So the design has four separable pieces, in dependency order:
    record it signs that also names the publisher key, and the public pins (DNS and the site's
    key document). This also opens the custody question (D-1) without retiring the Worker key. The ceiling, stated plainly: two keys held by one person
    prove the mechanism, not two independent parties.
+   **Shipped 2026-10-05.** The ledger's `countersign.mjs` and `verify-countersignatures.mjs`
+   (signal-and-noise-provenance#41), the key `sn-author-ed25519-2026-10` introduced and pinned
+   (#42, DNS `_provenance-author` and the `sn_prov_author_key` option, plugin 22.5.0), the Worker
+   anchoring batches without a WordPress confirm (sn-provenance-worker 1.25.0), and the first
+   batch, `countersignatures/2026-10-05-1.json`, attesting all 105 passing note and page records
+   (#43). What it does not show is listed in the ledger's `VERIFY.md`.
 3. **Ownership, and terms kept apart from it.** An ownership record names the owner and changes
    only by a transfer the current owner signs. With one author the chain holds a single entry,
    the author's own declaration, and a transfer may never happen. Rights terms (the license,
@@ -468,15 +474,26 @@ author-side publish signer described under gap 1. Nothing in this gap waits on a
 
 **Open before building (2026-10-05 review), one line each:**
 
-- The site's key documents need a state for a second active key: today the plugin's key history
-  marks every non-current key `retired` and drops its role, and the `did:web` document authorizes
-  only the current key in `assertionMethod` (`inc/provenance-did.php`).
+- Resolved in 22.5.0: the site's key document carries the author key as a second active entry
+  with `role: "author"`, and `did.json` lists it as a verification method, never in
+  `assertionMethod`.
 - Each party entry in (1) should carry a contribution timestamp, or a separate signed
   contribution event should, so a later signature never stands in for when the work was done.
 - An ownership transfer in (3) must say which terms survive it, or terms must name the
   ownership record they hold under and lapse with it.
 - A dispute or self-correction in (4) needs its own kind and verifier outcome: a retraction
   dominates the verdict as "withdrawn" (`prov-verify-core.js`), which a correction must not.
+
+### Where the provenance work stops (2026-10-05)
+
+With gap 1 step 1 and gap 3 step 2 shipped, the provenance system is complete for this site.
+Its readers are the author and anyone checking evidence: over the last 90 days of human
+traffic, `/provenance/` had 44 views and `/provenance/verify/` had 4. The remaining pieces
+(gap 3 steps 1, 3 and 4, gap 2, gap 4, and moving the publish signature to the author's key)
+stay designed and unbuilt. One of them is built only when a concrete need names it: a
+collaborator, a rights claim that needs an ownership or terms record, an error that needs a
+self-correction record, or a paper whose claim depends on it. Countersigning new records stays
+routine: `node countersign.mjs prepare`, the author signs, `finish`, a pull request.
 
 ### Gap 4 — retained, not selected
 
