@@ -49,7 +49,7 @@ $gd      = strpos( $css, '.sn-glance-delta--up' );
 $gd_line = false !== $gd ? substr( $css, $gd, 40 ) : '';
 ap_ok( false !== strpos( $gd_line, '#0a7c2f' ), '#7 glance delta up uses the AA-passing #0a7c2f (not var(--sn-ok))' );
 ap_ok( false !== strpos( $css, '.sn-health-findings .sn-fieldset' ), '#8 Health findings carry a scoped full-width uncap' );
-ap_ok( false !== strpos( $css, '#sn_post_settings .sn-prepop-notice' ), '#14 prepop notice is scoped to the meta box' );
+ap_ok( false === strpos( $css, '.sn-prepop-notice' ), '#14 the retired auto-generated notice has no rule left' );
 ap_ok( false !== strpos( $css, '.sn-url-preview:focus-visible' ), '#19 url-preview link has a focus-visible ring' );
 ap_ok( false === strpos( $css, 'sn-state-card' ), '#3 dead .sn-state-card vocabulary is gone (v6.46.1 #104)' );
 ap_ok( false === strpos( $css, 'border-color: #8c8f94' ), 'v8.0.2 link-card hover no longer hardcodes a hex (token cleanup)' );

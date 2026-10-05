@@ -45,7 +45,6 @@
 	var useEntityProp = wp.coreData.useEntityProp;
 	var C = wp.components;
 	var __ = ( wp.i18n && wp.i18n.__ ) || function( s ) { return s; };
-	var cfg = window.sntPostSettingsConfig || {};
 
 	// Field table. `page` marks the Pages-only controls; `kind` picks the
 	// control; `help` is the helper line under it.
@@ -80,8 +79,8 @@
 			help: __( 'Editorial number, for example 1.01. The pillar rail sorts numerically by major.minor.', 'signal-noise-tools' ) }
 	];
 
-	// Every key the panel owns: the field table plus the prepop sentinels.
-	var OWN_KEYS = FIELDS.map( function( f ) { return f.key; } ).concat( Object.keys( cfg.prepop || {} ) );
+	// Every key the panel owns: the field table.
+	var OWN_KEYS = FIELDS.map( function( f ) { return f.key; } );
 
 	// A key at its default goes back as null so the REST meta controller
 	// deletes the row instead of storing '' (see the file header).
@@ -157,27 +156,6 @@
 		return el( 'div', { className: 'snt-post-settings-field', style: { marginBottom: '12px' } }, control, buttons );
 	}
 
-	// The "auto-generated when you published" notice, read off the prepop
-	// sentinels the entity carries. Dismiss clears them in the entity now
-	// (deleted on save) and on the server through the prepop-dismiss ability.
-	function PrepopNotice( props ) {
-		var labels = cfg.prepop || {};
-		var set = Object.keys( labels ).filter( function( k ) { return !! props.meta[ k ]; } );
-		if ( ! set.length ) {
-			return null;
-		}
-		function dismiss() {
-			var next = Object.assign( {}, props.meta );
-			set.forEach( function( k ) { next[ k ] = null; } );
-			props.setMeta( normalize( next ) );
-			if ( props.postId && 'function' === typeof window.sntAbilityRun ) {
-				window.sntAbilityRun( 'prepop-dismiss', { post_id: props.postId } ).catch( function() {} );
-			}
-		}
-		return el( C.Notice, { status: 'info', onRemove: dismiss },
-			__( 'Auto-generated when you published: ', 'signal-noise-tools' ) + set.map( function( k ) { return labels[ k ]; } ).join( ', ' ) + '.' );
-	}
-
 	function Panel() {
 		var editor = useSelect( function( select ) {
 			var e = select( 'core/editor' );
@@ -209,7 +187,6 @@
 			);
 		} );
 		return el( PluginDocumentSettingPanel, { name: 'snt-post-settings', title: 'Signal & Noise' },
-			el( PrepopNotice, { meta: meta, setMeta: setMeta, postId: editor.postId } ),
 			fields,
 			loose
 		);

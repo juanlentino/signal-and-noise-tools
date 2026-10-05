@@ -102,7 +102,6 @@ The reference for the 146 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/pattern-adoption-scan` | Scan posts for v9.2.0 pattern-adoption opportunities | tools | — |
 | `signal-noise/pattern-adoption-suggest` | Suggest a v9.2.0 pattern upgrade for a structural block | ai-generation | — |
 | `signal-noise/posts-signals` | Per-note signals (the Posts tab as data) | diagnostics | READ |
-| `signal-noise/prepop-dismiss` | Dismiss the AI-prepopulation notice for a post | tools | — |
 | `signal-noise/provenance-integrity-status` | Provenance integrity sweep status | diagnostics | READ |
 | `signal-noise/prune-unused-tags` | Delete unused (zero-post) tags | content | RW |
 | `signal-noise/purge-all-caches` | Purge all caches | maintenance | RW |
@@ -171,7 +170,7 @@ The reference for the 146 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-and-noise/get-theme-version` | Get theme + WP version | diagnostics | — |
 | `signal-and-noise/list-block-patterns` | List block patterns | content | — |
 
-**Totals:** 113 plugin abilities + 17 remote twins + 16 theme = 146. **49** on the read door, **16** on the write door, 0 on both, **48** plugin abilities on neither. Theme abilities are on no door by design: `sn-site-facts` dispatches to them, so the read door carries zero theme slugs. Each remote twin shares its admin ability's output schema byte for byte, except three named strips (deploy status without `runtime`, and the machine-readers networks slice, which carries the crosstab's `agent_networks` alone; both run a wrapper); remote contract version 14.
+**Totals:** 112 plugin abilities + 17 remote twins + 16 theme = 145. **49** on the read door, **16** on the write door, 0 on both, **47** plugin abilities on neither. Theme abilities are on no door by design: `sn-site-facts` dispatches to them, so the read door carries zero theme slugs. Each remote twin shares its admin ability's output schema byte for byte, except three named strips (deploy status without `runtime`, and the machine-readers networks slice, which carries the crosstab's `agent_networks` alone; both run a wrapper); remote contract version 14.
 
 ## How to use this catalog
 
@@ -460,7 +459,6 @@ These abilities spend AI budget and/or modify content. Exposed on write door onl
 
 #### Post Metadata Maintenance (1 ability)
 - `signal-noise/dismiss-candidate` | `edit_post` — Dismiss a scan candidate (idempotent postmeta write)
-- `signal-noise/prepop-dismiss` | `edit_post` — Clear AI-prepopulation sentinels (idempotent)
 
 #### Social Share (1 ability)
 - `signal-noise/regenerate-og-card` | `edit_post` — Rebuild social-share PNG (idempotent file write)

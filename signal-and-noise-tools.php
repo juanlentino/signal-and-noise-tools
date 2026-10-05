@@ -529,8 +529,6 @@ require_once __DIR__ . '/inc/ai-tag-describe.php'; // v13.25.0: draft the one-se
 require_once __DIR__ . '/inc/ai-meta-description.php';
 require_once __DIR__ . '/inc/ai-og-card-title.php';
 require_once __DIR__ . '/inc/ai-ai-dedupe.php';
-require_once __DIR__ . '/inc/ai-prepopulate.php';
-require_once __DIR__ . '/inc/ai-prepopulate-notice.php';
 require_once __DIR__ . '/inc/block-fingerprint-engine.php'; // v7.7.1: shared fingerprint locate/replace/sanitize/apply engine behind both surfaces below.
 require_once __DIR__ . '/inc/pattern-adoption-detect.php';
 require_once __DIR__ . '/inc/pattern-adoption-suggest.php';

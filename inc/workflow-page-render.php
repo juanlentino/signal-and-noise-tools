@@ -181,9 +181,7 @@ function sn_workflow_upsert_page( $body, array $pub ) {
 
 /**
  * The Dek is the page's meta description: written to the per-post override
- * that outranks the excerpt. Writing it also clears the "unreviewed" flag a
- * removed publish-time auto-fill may have left. An empty Dek clears the
- * override.
+ * that outranks the excerpt. An empty Dek clears the override.
  *
  * @param int    $id  Page ID.
  * @param string $dek Public Dek.
@@ -194,7 +192,6 @@ function sn_workflow_write_description( $id, $dek ) {
 		return;
 	}
 	update_post_meta( $id, '_sn_meta_description', wp_slash( $dek ) );
-	delete_post_meta( $id, '_sn_autogen_meta_description' );
 }
 
 /**

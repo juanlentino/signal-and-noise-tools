@@ -137,7 +137,7 @@ $consumers = array(
 	'command-palette.js', 'desktop-mode.js', 'desktop-mode-widget.js',
 	'desktop-mode-widget-health.js', // SN Systems: Clear DB overrides and the uptime poll (Quick Actions, SN Uptime folded in).
 	'cron-dashboard.js', 'health-suggest-actions.js', 'ai-excerpt.js',
-	'ai-meta-description.js', 'ai-og-card-title.js', 'prepop-notice.js',
+	'ai-meta-description.js', 'ai-og-card-title.js',
 );
 foreach ( $consumers as $base ) {
 	$src = (string) file_get_contents( __DIR__ . '/../assets/' . $base );

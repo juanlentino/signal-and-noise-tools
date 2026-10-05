@@ -120,7 +120,7 @@ ok( '2.00' === call_user_func( $desig['sanitize_callback'], '<b>2.00</b>' ), 'de
 ok( 'as-substrate 2.00' === call_user_func( $desig['sanitize_callback'], 'as-substrate 2.00' ), 'designation stays free text (owner numbering, no format validation)' );
 ok( 'rest_sanitize_boolean' === ( $GLOBALS['__registered']['page']['_sn_pillar']['sanitize_callback'] ?? '' ), 'the flag sanitizes as a REST boolean' );
 ok( ! isset( $GLOBALS['__registered']['post']['_sn_pillar'] ) && ! isset( $GLOBALS['__registered']['post']['_sn_pillar_designation'] ), "a crafted REST write against a 'post' never sets the pair: unregistered meta is refused by the controller" );
-ok( false !== strpos( $js, "if ( '' === next[ k ] || false === next[ k ] ) {" ) && 2 === substr_count( $js, 'setMeta( normalize( next ) );' ), 'an unticked flag or an emptied designation goes back as null, so the key is deleted instead of stored as an empty row' );
+ok( false !== strpos( $js, "if ( '' === next[ k ] || false === next[ k ] ) {" ) && 1 === substr_count( $js, 'setMeta( normalize( next ) );' ), 'an unticked flag or an emptied designation goes back as null, so the key is deleted instead of stored as an empty row' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
