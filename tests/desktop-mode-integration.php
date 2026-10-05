@@ -688,6 +688,9 @@ ok( false !== strpos( $anc_js, "if ( sweeping ) { sweepBtn.setAttribute( 'aria-d
 ok( false !== strpos( $anc_js, "signal: readCtl ? readCtl.signal : undefined" ) && 1 === preg_match( '/teardown\(\) \{\s*torn = true;\s*if \( readCtl \) \{ readCtl\.abort\(\); \}/', $anc_js ), 'the reader request is aborted when superseded or when SN Provenance unmounts' );
 
 $hl_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ) );
+ok( false !== strpos( $hl_js, "mons.slice().sort( function( a, b ) { return ( 'alert' === b.level ) - ( 'alert' === a.level ); } )" ), 'down monitors are named before warnings, so the cap never hides an outage' );
+$gr_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-groups.js' ) );
+ok( false !== strpos( $gr_js, 'flex:none;max-width:100%;margin-left:auto;text-align:right;overflow-wrap:anywhere;' ), 'a group value wider than its row takes its own line and stays on the card' );
 ok( false !== strpos( $hl_js, 'flagged.slice( 0, LIST_CAP )' ) && false !== strpos( $hl_js, 'skipped.slice( 0, LIST_CAP )' ) && false !== strpos( $hl_js, "more not up" ), 'SN Systems shows at most two of each growing list (checks, could-not-run, monitors not up) and counts the rest' );
 ok( false !== strpos( $anc_js, 'recording.slice( 0, LIST_CAP )' ) && false !== strpos( $anc_js, 'pending.slice( 0, LIST_CAP )' ) && false !== strpos( $anc_js, "' more ' + what + ' in Provenance'" ), 'SN Provenance shows at most two notes minting and two pending, and counts the rest' );
 

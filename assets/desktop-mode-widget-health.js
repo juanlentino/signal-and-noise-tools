@@ -147,7 +147,8 @@
 		// One line when all are up; each monitor only when one is not.
 		if ( upN !== mons.length ) {
 			var shown = 0;
-			mons.forEach( function( m ) {
+			// Down monitors first, so the cap never hides an outage behind warnings.
+			mons.slice().sort( function( a, b ) { return ( 'alert' === b.level ) - ( 'alert' === a.level ); } ).forEach( function( m ) {
 				var level = String( m.level || 'unknown' );
 				if ( 'ok' === level ) { return; } // the count above already says how many are up
 				if ( 'alert' === level ) { tally.down++; } else { tally.look++; }

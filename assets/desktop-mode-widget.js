@@ -105,7 +105,9 @@
 		// in words ("Last good reading 6 min ago"), never a raw timestamp.
 		if ( ! message ) { return; }
 		var footer = el( 'p', {
-			text: lastSuccess ? 'Last good reading ' + agoWords( lastSuccess ) + ' · retrying in ' + Math.max( 1, Math.round( delay / 60000 ) ) + ' min' : 'Status unavailable · retrying in ' + Math.max( 1, Math.round( delay / 60000 ) ) + ' min',
+			// No interval: the real wait depends on focus (snt-poll-cadence), so a
+			// number here would promise a time the poll does not keep.
+			text: lastSuccess ? 'Last good reading ' + agoWords( lastSuccess ) + ' · retrying' : 'Status unavailable · retrying',
 			style: 'position:relative;padding:0 32px 0 16px;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
 		} );
 		if ( message ) {

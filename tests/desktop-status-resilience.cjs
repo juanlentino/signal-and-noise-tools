@@ -108,7 +108,7 @@ async function run() {
     assert.equal(cue.title, cue.attrs['aria-label']);
     assert.equal(view(root).children.length, 2, 'failed refresh keeps the card and adds a failure footer');
     assert.doesNotMatch(goodText, /Last successful refresh|Last good reading|\d{4}-\d\d-\d\dT/, 'a current reading carries no recency footer and no raw timestamp');
-    assert.match(root.textContent, /Last good reading (just now|\d+ (min|h) ago) · retrying in \d+ min/, 'failure says in words how old the kept reading is');
+    assert.match(root.textContent, /Last good reading (just now|\d+ (min|h) ago) · retrying/, 'failure says in words how old the kept reading is');
     assert.doesNotMatch(styles(root), /#3fb950/, 'stale data must not look currently green');
     await x.tick(179999); assert.equal(x.calls.length, 2, 'no retry before data.retry_after');
     await x.tick(1); assert.equal(x.calls.length, 3);

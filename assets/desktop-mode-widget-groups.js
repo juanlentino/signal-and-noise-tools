@@ -70,7 +70,7 @@
 				var row = el( 'div', 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' );
 				row.setAttribute( 'role', 'listitem' );
 				row.appendChild( el( 'span', 'white-space:normal;overflow-wrap:break-word;min-width:0;', r.label ) );
-				row.appendChild( el( 'span', 'flex:none;font-variant-numeric:tabular-nums;font-weight:600;' + ( TONE[ r.tone ] ? 'color:' + TONE[ r.tone ] + ';' : '' ), r.value ) );
+				row.appendChild( el( 'span', 'flex:none;max-width:100%;margin-left:auto;text-align:right;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;font-weight:600;' + ( TONE[ r.tone ] ? 'color:' + TONE[ r.tone ] + ';' : '' ), r.value ) );
 				list.appendChild( row );
 			} );
 			body.appendChild( list );
