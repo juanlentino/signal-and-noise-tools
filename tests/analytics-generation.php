@@ -142,5 +142,30 @@ $GLOBALS['next_check'] = array( 'read' => true, 'days' => array( array( 'day' =>
 sn_analytics_v2_verify( $oct08 );
 ok( in_array( SN_ANALYTICS_REALTIME_KEY, $GLOBALS['deleted'], true ) && in_array( 'option:' . SN_ANALYTICS_VIEWS_TODAY_LASTGOOD, $GLOBALS['deleted'], true ), 'the realtime snapshot and the last-good count carry no dataset in their keys, so they go with the flip' );
 
+echo "\nAnalytics 2.0.0 stops the legacy write: the comparison ends\n";
+// Worker version read: the live probe, else the last good one.
+ok( sn_analytics_version_stops_legacy( '2.0.0' ) && sn_analytics_version_stops_legacy( '2.1.3' ) && ! sn_analytics_version_stops_legacy( '1.25.0' ) && ! sn_analytics_version_stops_legacy( '' ) && ! sn_analytics_version_stops_legacy( 'unknown' ), 'worker 2.0.0 or later stops the legacy write; 1.x and an unread version do not' );
+ok( false === sn_analytics_legacy_stopped( false ), 'test seam: not stopped' );
+$GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => array( 'ok' => true, 'day' => '2026-10-12', 'clean_from' => '2026-10-05', 'events_ok' => true, 'at' => $oct08, 'why' => '' ) );
+$GLOBALS['next_check'] = array( 'read' => true, 'days' => array( array( 'day' => '2026-10-14', 'state' => 'mismatch' ) ) ); // legacy 0 vs v2 N
+$n0 = $GLOBALS['checks'];
+sn_analytics_legacy_stopped( true );
+$fz = sn_analytics_v2_verify( $oct08 + 9 * 86400 );
+ok( $n0 === $GLOBALS['checks'], 'once the legacy write has stopped, no comparison runs' );
+ok( true === $fz['ok'] && '2026-10-05' === $fz['clean_from'] && $fz['frozen'] > 0 && 0 === strpos( $fz['why'], 'frozen:' ), 'a good verdict freezes with its clean day, so the reads stay on the second generation' );
+ok( $fz === sn_analytics_v2_verify( $oct08 + 30 * 86400 ) && $n0 === $GLOBALS['checks'], 'and stays frozen: a day with rows in one generation only can never clear it' );
+ok( false === snt_watch_ripe_analytics_v2_freeze( array(), 0, $fz )['ripe'], 'a good frozen verdict keeps the watch quiet' );
+// Before the stop, the same one-sided day still clears the verdict.
+sn_analytics_legacy_stopped( false );
+$GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => array( 'ok' => true, 'day' => '2026-10-12', 'clean_from' => '2026-10-05', 'events_ok' => true, 'at' => $oct08, 'why' => '' ) );
+ok( false === sn_analytics_v2_verify( $oct08 + 9 * 86400 )['ok'], 'before the stop a mismatch still clears the verdict' );
+// A bad verdict at the stop is never frozen into a good one.
+sn_analytics_legacy_stopped( true );
+$GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => array( 'ok' => false, 'day' => '', 'clean_from' => '2026-10-09', 'events_ok' => false, 'at' => $oct08, 'why' => 'mismatch' ) );
+$bad = sn_analytics_v2_verify( $oct08 + 9 * 86400 );
+ok( false === $bad['ok'] && false !== strpos( $bad['why'], 'no longer receives data' ), 'a bad verdict at the stop stays bad and says why' );
+ok( true === snt_watch_ripe_analytics_v2_freeze( array(), 0, $bad )['ripe'], 'and the watch ripens' );
+sn_analytics_legacy_stopped( false );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
