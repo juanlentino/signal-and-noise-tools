@@ -230,9 +230,10 @@
 		row.appendChild( el( 'span', { text: 'Reach · 14 days', style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));min-width:0;' } ) );
 		var val = el( 'span', { style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;text-align:right;' } );
 		var p   = r.prior && typeof r.prior.countries === 'number' ? r.prior : null;
-		[ [ r.countries, 'countries', p && p.countries ], [ r.sources, 'sources', p && p.sources ] ].forEach( function( f, i ) {
-			val.appendChild( el( 'span', { text: ( i ? ' · ' : '' ) + f[0] + ' ' + f[1] } ) );
-			var c = p ? changeNode( f[0] - f[2] ) : null;
+		// A capped count is a floor ("500+"), and a change against a floor means nothing.
+		[ [ r.countries, 'countries', p && p.countries, r.countries_capped || ( p && p.countries_capped ) ], [ r.sources, 'sources', p && p.sources, r.sources_capped || ( p && p.sources_capped ) ] ].forEach( function( f, i ) {
+			val.appendChild( el( 'span', { text: ( i ? ' · ' : '' ) + f[0] + ( f[3] && f[0] >= 500 ? '+' : '' ) + ' ' + f[1] } ) );
+			var c = p && ! f[3] ? changeNode( f[0] - f[2] ) : null;
 			if ( c ) { val.appendChild( c ); }
 		} );
 		row.appendChild( val );

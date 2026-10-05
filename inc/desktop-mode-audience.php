@@ -150,7 +150,13 @@ function snt_desktop_traffic_reach_counts( $countries, $sources ) {
 		return null;
 	}
 	$n = static fn( $list ) => count( array_filter( $list, static fn( $r ) => is_array( $r ) && (int) ( $r['views'] ?? 0 ) > 0 && '' !== (string) ( $r['value'] ?? '' ) ) );
-	return array( 'countries' => $n( $countries ), 'sources' => $n( $sources ) );
+	// The reads are top-500 lists: a full list is a floor, painted "500+", not a count.
+	return array(
+		'countries'        => $n( $countries ),
+		'sources'          => $n( $sources ),
+		'countries_capped' => count( $countries ) >= 500,
+		'sources_capped'   => count( $sources ) >= 500,
+	);
 }
 
 /**
