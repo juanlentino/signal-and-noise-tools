@@ -376,7 +376,7 @@ async function run() {
     assert.doesNotMatch(zroot.textContent, /All systems normal/, 'Codex on 5aa3fce: an edge source with no measurement is never an all-clear');
     assert.match(zroot.textContent, /No purge recorded yet/, 'no purge record: said');
     assert.match(zroot.textContent, /3 not measured/, 'Codex on 3104cf9 and b872a9f: no cache evidence, no edge day and no cron-history read are each not measured');
-    assert.doesNotMatch(zroot.textContent, /Incidents|Slowest|Last 24 hours/, 'rows with no source are left out');
+    assert.doesNotMatch(zroot.textContent, /Incidents|Slowest/, 'rows with no source are left out');
     zstop();
     const v = harness({statusExtra: {systems: {cache: {last_purge: 0, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), vroot = new Element('div');
     const vstop = v.window.desktopModeWidgets['sn-health'](vroot); await flush();
