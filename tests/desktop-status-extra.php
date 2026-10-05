@@ -34,6 +34,11 @@ ok( true === snt_desktop_rights_state( $d, array( '2026-09' ) )['attention'] && 
 $d['2026-09']['y'] = array( 'status' => 'refused', 'at' => 0 );
 ok( true === snt_desktop_rights_state( $d, array() )['attention'], 'a refused record needs the owner' );
 ok( null === snt_desktop_rights_state( array(), array() ) && null === snt_desktop_rights_state( null, array() ), 'no ledger: null, the row is left out' );
+$h = snt_desktop_rights_state( array(), array( '2026-10' ) );
+ok( 'October' === $h['month'] && 'held' === $h['text'] && true === $h['attention'], 'Codex on 1aa80a1: a month held before anything was composed still shows, and needs the owner' );
+ok( 'October' === snt_desktop_rights_state( $d, array( '2026-10' ) )['month'], 'a newer held month wins over an older populated one' );
+$rt = snt_desktop_rights_state( array( '2026-09' => array( 'a' => array( 'status' => 'retracted', 'at' => 900 ), 'b' => array( 'status' => 'confirmed', 'at' => 100 ) ) ), array() );
+ok( 900 === $rt['last_posted'], 'Codex on 1aa80a1: a retracted record was still posted: last posted counts it' );
 
 echo "\nEdge 5xx\n";
 $d1 = gmdate( 'Y-m-d', time() - DAY_IN_SECONDS ); $d2 = gmdate( 'Y-m-d', time() - 2 * DAY_IN_SECONDS ); $d3 = gmdate( 'Y-m-d', time() - 3 * DAY_IN_SECONDS );
@@ -55,6 +60,9 @@ echo "\nIntegrity\n";
 $ig = snt_desktop_integrity_shape( array( 'last_sweep' => array( 'fleet' => 50 ), 'notes' => array( 1 => array( 'last_checked' => 5, 'failures' => array() ), 2 => array( 'last_checked' => 5, 'failures' => array( 'twin' ) ), 3 => array( 'last_checked' => 0 ) ) ) );
 ok( 50 === $ig['fleet'] && 2 === $ig['checked'] && 1 === $ig['clean'] && 1 === $ig['failing'], 'Codex on 2bee69f: counted from stored per-subject results; a subject not reached is not passing' );
 ok( null === snt_desktop_integrity_shape( array() ), 'no sweep yet: null' );
+$kg = snt_desktop_integrity_shape( array( 'last_sweep' => array( 'fleet' => 2, 'keys' => 'keys_missing' ), 'notes' => array( 1 => array( 'last_checked' => 5, 'failures' => array() ), 2 => array( 'last_checked' => 5, 'failures' => array() ) ) ) );
+ok( 'keys_missing' === $kg['keys'] && 2 === $kg['clean'], 'Codex on 1aa80a1: a fleet-level key finding is carried, however clean the subjects' );
+ok( '' === snt_desktop_integrity_shape( array( 'last_sweep' => array( 'fleet' => 2, 'keys' => 'ok' ), 'notes' => array() ) )['keys'], 'a good key verdict carries nothing' );
 
 echo "\nLocal reads only\n";
 $src = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-status-extra.php' );

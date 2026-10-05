@@ -164,7 +164,7 @@ function snt_desktop_integrity() {
  * Count the stored per-subject results. PURE.
  *
  * @param array $state sn_prov_integrity_state().
- * @return array{fleet:int,checked:int,clean:int,failing:int}|null
+ * @return array{fleet:int,checked:int,clean:int,failing:int,keys:string}|null `keys` names a fleet-level key finding, '' when none.
  */
 function snt_desktop_integrity_shape( array $state ) {
 	$fleet = (int) ( $state['last_sweep']['fleet'] ?? 0 );
@@ -180,7 +180,10 @@ function snt_desktop_integrity_shape( array $state ) {
 		++$checked;
 		$clean += array() === (array) ( $n['failures'] ?? array() ) ? 1 : 0;
 	}
-	return array( 'fleet' => $fleet, 'checked' => min( $checked, $fleet ), 'clean' => min( $clean, $fleet ), 'failing' => $checked - $clean );
+	// The published-key verdict is fleet-level: a missing, contradictory or
+	// unreadable key file is a finding however clean the subjects are.
+	$keys = (string) ( $state['last_sweep']['keys'] ?? '' );
+	return array( 'fleet' => $fleet, 'checked' => min( $checked, $fleet ), 'clean' => min( $clean, $fleet ), 'failing' => $checked - $clean, 'keys' => in_array( $keys, array( 'key_mismatch', 'keys_missing', 'keys_unreachable' ), true ) ? $keys : '' );
 }
 
 /**
@@ -193,22 +196,28 @@ function snt_desktop_integrity_shape( array $state ) {
  * @return array{month:string,text:string,attention:bool,last_posted:int}|null
  */
 function snt_desktop_rights_state( $data, array $held ) {
-	if ( ! is_array( $data ) || array() === $data ) {
+	$data = is_array( $data ) ? $data : array();
+	// The newest month of the ledger AND the held list: a month held before
+	// anything was composed has no ledger row and still needs the owner.
+	$months = array_unique( array_merge( array_keys( $data ), array_map( 'strval', $held ) ) );
+	if ( array() === $months ) {
 		return null;
 	}
+	sort( $months );
 	ksort( $data );
-	$month  = (string) array_key_last( $data );
+	$month  = (string) end( $months );
 	$counts = array();
 	$posted = 0;
 	foreach ( $data as $families ) {
 		foreach ( (array) $families as $row ) {
 			$st = (string) ( $row['status'] ?? '' );
-			if ( in_array( $st, array( 'pending', 'confirmed' ), true ) ) {
+			// A retracted record was posted all the same: the ledger is append-only.
+			if ( in_array( $st, array( 'pending', 'confirmed', 'retracted' ), true ) ) {
 				$posted = max( $posted, (int) ( $row['at'] ?? 0 ) );
 			}
 		}
 	}
-	foreach ( (array) $data[ $month ] as $row ) {
+	foreach ( (array) ( $data[ $month ] ?? array() ) as $row ) {
 		$st            = (string) ( $row['status'] ?? '' );
 		$counts[ $st ] = ( $counts[ $st ] ?? 0 ) + 1;
 	}

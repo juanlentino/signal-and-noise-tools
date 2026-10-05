@@ -333,7 +333,7 @@ async function run() {
   {
     const extra = {statusExtra: {
       systems: {edge: {day: 'Oct 4', total: 12, prior: 15}, cron: {fires: 40, failed: 2, failing: ['sn_queue_tick', 'snt_alerts_hourly', 'sn_x']}, cache: {last_purge: Date.parse('2026-09-08T09:00:00Z') / 1000, fresh: 'stale', headline: '1 stale page'}},
-      provenance: {integrity: {fleet: 50, checked: 40, clean: 39, failing: 1}, rights: {month: 'September', text: '8 waiting for a Bitcoin block', attention: false, last_posted: Date.parse('2026-09-05T12:00:00Z') / 1000}, zenodo: {minted: 7, total: 9}}}};
+      provenance: {integrity: {fleet: 50, checked: 40, clean: 39, failing: 1, keys: 'keys_missing'}, rights: {month: 'September', text: '8 waiting for a Bitcoin block', attention: false, last_posted: Date.parse('2026-09-05T12:00:00Z') / 1000}, zenodo: {minted: 7, total: 9}}}};
     const x = harness(extra), root = new Element('div');
     const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
     x.calls[0].resolve({configured: true, rows: [{name: 'Home', level: 'ok', response_ms: 120, incidents_30d: 1}, {name: 'Feed', level: 'ok', response_ms: 340, incidents_30d: 0}]}); await flush();
@@ -359,6 +359,7 @@ async function run() {
     assert.match(p, /Integrity checks 39 of 50 pass · 1 failing · 10 not checked yet/, 'integrity checks that pass, failing, and subjects not reached yet (never counted as passing)');
     assert.match(p, /Rights evidence · September 8 waiting for a Bitcoin block/, 'where the newest rights-evidence month stands');
     assert.match(p, /Provenance Integrity checks/, 'the block has its heading');
+    assert.match(p, /Signing key the key file is missing/, 'a fleet-level key finding gets its own row');
     assert.doesNotMatch(p, /verify|Signatures/, 'the row claims what the sweep measures, not a signature re-verify');
     assert.match(p, /Last posted 3d ago/, 'when a record was last posted, in the Systems card\'s form');
     assert.match(p, /DOIs 7 of 9 minted/, 'DOIs minted');
