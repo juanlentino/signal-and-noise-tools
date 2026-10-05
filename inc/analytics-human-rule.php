@@ -42,20 +42,46 @@ const SNT_ANALYTICS_VDAY_CACHE_KEY   = 'sn_analytics_overcap_vdays_v3';
  * and let it slip under the cap (measured 2026-09-27: 65 views read as 18 + 47).
  * AE takes only column names or aliases in GROUP BY and HAVING.
  *
+ * @param string $source A dataset (one half of a stitched read); '' picks it.
+ * @param string $range  ' AND timestamp < toDateTime(...)' or '>=' for a half; anything else is dropped.
  * @return string
  */
-function sn_analytics_overcap_sql() {
-	$days = (int) SNT_ANALYTICS_VDAY_WINDOW_DAYS;
-	$cap  = (int) SNT_ANALYTICS_VDAY_PV_CAP;
-	$max  = (int) SNT_ANALYTICS_VDAY_LIST_MAX;
+function sn_analytics_overcap_sql( $source = '', $range = '' ) {
+	$days  = (int) SNT_ANALYTICS_VDAY_WINDOW_DAYS;
+	$cap   = (int) SNT_ANALYTICS_VDAY_PV_CAP;
+	$max   = (int) SNT_ANALYTICS_VDAY_LIST_MAX;
+	$range = 1 === preg_match( "/^ AND timestamp (<|>=) toDateTime\\('\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}'\\)$/", (string) $range ) ? (string) $range : '';
 	return implode( ' ', array(
 		'SELECT index1 AS vid, sum(_sample_interval) AS views',
-		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( $days ) ),
-		"WHERE blob1 = 'pv' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)",
+		'FROM ' . ( '' !== (string) $source ? (string) $source : sn_analytics_source( sn_analytics_trailing_from( $days ) ) ),
+		"WHERE blob1 = 'pv' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY){$range}",
 		'GROUP BY vid',
 		"HAVING views > {$cap}",
 		"LIMIT {$max}",
 	) );
+}
+
+/**
+ * Merge the two halves of a stitched over-cap read. PURE. A visitor-day lives
+ * wholly on one side of the split, so the halves share no key; a key in both
+ * is summed all the same. Heaviest first, capped at the list size.
+ *
+ * @param array $a Rows {vid, views}.
+ * @param array $b Rows {vid, views}.
+ * @return array<int,array{vid:string,views:int}>
+ */
+function sn_analytics_overcap_merge( array $a, array $b ) {
+	$sum = array();
+	foreach ( array_merge( $a, $b ) as $r ) {
+		$vid         = (string) ( $r['vid'] ?? '' );
+		$sum[ $vid ] = ( $sum[ $vid ] ?? 0 ) + (int) ( $r['views'] ?? 0 );
+	}
+	arsort( $sum );
+	$out = array();
+	foreach ( array_slice( $sum, 0, SNT_ANALYTICS_VDAY_LIST_MAX, true ) as $vid => $views ) {
+		$out[] = array( 'vid' => (string) $vid, 'views' => (int) $views );
+	}
+	return $out;
 }
 
 /**
@@ -92,7 +118,19 @@ function sn_analytics_overcap_vdays() {
 	if ( is_array( $cached ) && isset( $cached['hashes'], $cached['ok'] ) ) {
 		return $cached;
 	}
-	$rows = sn_analytics_query( sn_analytics_overcap_sql() );
+	// Analytics 2.0: a window that crosses the clean day reads each generation
+	// for its own side of the split. The legacy write stops at 2.0.0, so a
+	// legacy-only read would go stale and misclassify every reader after it.
+	$halves = sn_analytics_stitch( sn_analytics_trailing_from( SNT_ANALYTICS_VDAY_WINDOW_DAYS ) );
+	if ( null === $halves ) {
+		$rows  = sn_analytics_query( sn_analytics_overcap_sql() );
+		$capped = is_array( $rows ) && count( $rows ) >= SNT_ANALYTICS_VDAY_LIST_MAX;
+	} else {
+		$old    = sn_analytics_query( sn_analytics_overcap_sql( $halves['legacy'], " AND timestamp < toDateTime('{$halves['at']}')" ) );
+		$new    = sn_analytics_query( sn_analytics_overcap_sql( $halves['v2'], " AND timestamp >= toDateTime('{$halves['at']}')" ) );
+		$rows   = is_array( $old ) && is_array( $new ) ? sn_analytics_overcap_merge( $old, $new ) : null;
+		$capped = is_array( $rows ) && ( count( $old ) >= SNT_ANALYTICS_VDAY_LIST_MAX || count( $new ) >= SNT_ANALYTICS_VDAY_LIST_MAX || count( $old ) + count( $new ) > SNT_ANALYTICS_VDAY_LIST_MAX );
+	}
 	if ( ! is_array( $rows ) ) {
 		error_log( '[sn-analytics] over-cap visitor-day read failed; the page-view cap is not applied' );
 		set_transient( SNT_ANALYTICS_VDAY_CACHE_KEY, $fail, 5 * 60 );
@@ -101,7 +139,7 @@ function sn_analytics_overcap_vdays() {
 	$out = array(
 		'hashes'    => sn_analytics_valid_vday_hashes( array_column( $rows, 'vid' ) ),
 		'ok'        => true,
-		'truncated' => count( $rows ) >= SNT_ANALYTICS_VDAY_LIST_MAX,
+		'truncated' => $capped,
 	);
 	set_transient( SNT_ANALYTICS_VDAY_CACHE_KEY, $out, 3600 );
 	return $out;

@@ -27,6 +27,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_ANALYTICS_V2_FROM         = '2026-10-05';
+// The analytics worker's SN_ROTATE_TZ: index1 rotates at midnight here. The
+// split follows THIS zone, the hash rotation, which is what keeps every
+// visitor-day on one side; the site's own zone (sn_analytics_site_tz_name())
+// is the same today, so its rollup day does not straddle the split either.
+const SN_ANALYTICS_SPLIT_TZ        = 'America/New_York';
 const SN_ANALYTICS_V2_VERIFIED_OPT = 'sn_analytics_v2_verified'; // { ok, day, clean_from, events_ok, at, why }.
 
 /**
@@ -102,6 +107,53 @@ function sn_analytics_source( $from_day, $kind = 'pageviews' ) {
 		return sn_analytics_v2_events_proven() ? 'sn_events_v2' : $legacy;
 	}
 	return 'sn_pageviews_v2';
+}
+
+/**
+ * Where a read that crosses the clean day is split between the generations:
+ * the first America/New_York midnight on the clean day, as a UTC
+ * 'Y-m-d H:i:s' (04:00 or 05:00 UTC that date). Both generations hold every
+ * row from the clean day's UTC start until the legacy write stops, so the cut
+ * can sit at any instant in that span; at this one no visitor-day straddles
+ * it (the worker rotates index1 at that midnight) and no site-local rollup
+ * day does either, so per-key sums and distinct counts merge exactly. ''
+ * while the second generation is not verified.
+ *
+ * @return string
+ */
+function sn_analytics_split_at() {
+	$clean = sn_analytics_v2_clean_from();
+	if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $clean ) ) {
+		return '';
+	}
+	$at = new DateTimeImmutable( $clean . ' 00:00:00', new DateTimeZone( SN_ANALYTICS_SPLIT_TZ ) );
+	return $at->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+}
+
+/**
+ * The two halves of a read whose window starts before the clean day, or null
+ * when one dataset answers it whole (not verified: legacy; starts on or after
+ * the clean day: the second generation, through sn_analytics_source()). PURE
+ * given the verdict. The legacy half reads rows before `at`, the other from
+ * it; when the legacy rows age out, the legacy half is simply empty.
+ *
+ * @param string $from_day The first UTC day the read's window can touch.
+ * @param string $kind     'pageviews' or 'events'.
+ * @return array{legacy:string,v2:string,at:string}|null
+ */
+function sn_analytics_stitch( $from_day, $kind = 'pageviews' ) {
+	$at = sn_analytics_split_at();
+	if ( '' === $at || 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from_day ) || (string) $from_day >= sn_analytics_v2_clean_from() ) {
+		return null;
+	}
+	if ( 'events' === $kind && ! sn_analytics_v2_events_proven() ) {
+		return null; // the events dataset has no evidence yet: legacy answers whole, as before.
+	}
+	return array(
+		'legacy' => defined( 'SN_ANALYTICS_DATASET' ) ? SN_ANALYTICS_DATASET : 'sn_pageviews',
+		'v2'     => 'events' === $kind ? 'sn_events_v2' : 'sn_pageviews_v2',
+		'at'     => $at,
+	);
 }
 
 /**
