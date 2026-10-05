@@ -221,5 +221,9 @@ $GLOBALS['__test_can'] = true;
 ok( true === call_user_func( $route['permission_callback'] ), 'route allows with manage_options' );
 
 // ─── Summary ──────────────────────────────────────────────────────────
+// 2026-10-05: the async request runner is off; the queue runs from WP-Cron.
+ok( in_array( 'action_scheduler_allow_async_request_runner', $GLOBALS['__test_filters_added'], true ), 'the Action Scheduler async request runner filter is registered' );
+ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/scheduled-actions-health.php' ), "add_filter( 'action_scheduler_allow_async_request_runner', '__return_false' );" ), 'and it turns the page-load runner off' );
+
 echo "\nResult: {$pass} passed, {$fail} failed.\n";
 exit( $fail > 0 ? 1 : 0 );
