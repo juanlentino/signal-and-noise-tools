@@ -83,14 +83,27 @@ echo "\nThe same sample on both sides counts (owner rule 2026-10-05)\n";
 // Measured on 22.3.0: both pageview datasets held the same sampled rows with the same weights.
 $Ls = array( array( 'day' => '2026-10-06', 'ev' => 'pv', 'n' => 44, 'r' => 39, 'v' => 20 ), array( 'day' => '2026-10-06', 'ev' => 'sc', 'n' => 30, 'r' => 30, 'v' => 15 ) );
 $Ps = array( array( 'day' => '2026-10-06', 'ev' => 'pv', 'n' => 44, 'r' => 39, 'v' => 20 ), array( 'day' => '2026-10-06', 'ev' => 'sc', 'n' => 30, 'r' => 30, 'v' => 15 ) );
-$cs = sn_analytics_v2_compare( $Ls, $Ps, array(), '2026-10-05' );
+$D  = array(
+	'legacy'    => array( array( 'day' => '2026-10-06', 'ev' => 'pv', 'vid' => 'aaaa1111', 'r' => 2, 'n' => 4 ), array( 'day' => '2026-10-06', 'ev' => 'pv', 'vid' => 'bbbb2222', 'r' => 3, 'n' => 6 ) ),
+	'pageviews' => array( array( 'day' => '2026-10-06', 'ev' => 'pv', 'vid' => 'BBBB2222', 'r' => 3, 'n' => 6 ), array( 'day' => '2026-10-06', 'ev' => 'pv', 'vid' => 'aaaa1111', 'r' => 2, 'n' => 4 ) ),
+);
+$cs = sn_analytics_v2_compare( $Ls, $Ps, array(), '2026-10-05', $D );
 ok( 'match' === $cs['days'][0]['state'] && array( 'pv' ) === $cs['days'][0]['identical_sample'] && array() === $cs['days'][0]['sampled_events'], 'pageviews sampled identically (same rows, weights, visitors): a match, and the event is named' );
 $Pd = $Ps; $Pd[0]['r'] = 40; $Pd[0]['n'] = 44;
-ok( 'sampled' === sn_analytics_v2_compare( $Ls, $Pd, array(), '2026-10-05' )['days'][0]['state'], 'same weighted count from different stored rows is a different sample: inconclusive, never a match' );
+ok( 'sampled' === sn_analytics_v2_compare( $Ls, $Pd, array(), '2026-10-05', $D )['days'][0]['state'], 'same weighted count from different stored rows is a different sample: inconclusive, never a match' );
+$Dx = $D; $Dx['pageviews'][1]['vid'] = 'cccc3333';
+ok( 'sampled' === sn_analytics_v2_compare( $Ls, $Ps, array(), '2026-10-05', $Dx )['days'][0]['state'], 'Codex on 44f6348: equal totals from different sampled visitors are not the same sample' );
+$Dw = $D; $Dw['pageviews'][0]['r'] = 2; $Dw['pageviews'][0]['n'] = 4; $Dw['pageviews'][1]['r'] = 3; $Dw['pageviews'][1]['n'] = 6;
+ok( 'sampled' === sn_analytics_v2_compare( $Ls, $Ps, array(), '2026-10-05', $Dw )['days'][0]['state'], 'the same visitors with their rows and weights swapped are not the same sample' );
+ok( 'sampled' === sn_analytics_v2_compare( $Ls, $Ps, array(), '2026-10-05' )['days'][0]['state'], 'without the visitor-by-visitor read, no identical match' );
+$Dc = $D; $Dc['legacy'] = array_fill( 0, SN_ANALYTICS_V2_SAMPLED_ROWS_MAX + 1, array( 'day' => '2026-10-06', 'ev' => 'pv', 'vid' => 'aaaa1111', 'r' => 2, 'n' => 4 ) );
+ok( 'sampled' === sn_analytics_v2_compare( $Ls, $Ps, array(), '2026-10-05', $Dc )['days'][0]['state'], 'a cut-short visitor list proves nothing' );
+$rq = sn_analytics_v2_sampled_rows_sql( 'sn_pageviews_v2', 4 );
+ok( false !== strpos( $rq, 'GROUP BY day, ev, vid LIMIT ' . ( SN_ANALYTICS_V2_SAMPLED_ROWS_MAX + 1 ) ) && false !== strpos( $rq, 'AND _sample_interval > 1' ) && false !== strpos( sn_analytics_v2_sampled_rows_sql( 'sn_events_v2', 4 ), 'FROM sn_pageviews ' ), 'the sampled-rows read: per day, event and visitor, bounded, pageview datasets only' );
 $Pv = $Ps; $Pv[0]['v'] = 19;
-ok( 'sampled' === sn_analytics_v2_compare( $Ls, $Pv, array(), '2026-10-05' )['days'][0]['state'], 'same rows and weights over different visitors: not identical' );
+ok( 'sampled' === sn_analytics_v2_compare( $Ls, $Pv, array(), '2026-10-05', $D )['days'][0]['state'], 'same rows and weights over different visitors: not identical' );
 $Pn = $Ps; $Pn[1]['n'] = 31; $Pn[1]['r'] = 31;
-ok( 'mismatch' === sn_analytics_v2_compare( $Ls, $Pn, array(), '2026-10-05' )['days'][0]['state'], 'an exact event that differs is still a mismatch beside an identical sample' );
+ok( 'mismatch' === sn_analytics_v2_compare( $Ls, $Pn, array(), '2026-10-05', $D )['days'][0]['state'], 'an exact event that differs is still a mismatch beside an identical sample' );
 
 echo "\nWho was sampled (diagnostic)\n";
 $sq = sn_analytics_v2_sampled_sql( 'sn_pageviews_v2', 4 );
