@@ -360,8 +360,10 @@ ok( 'totals read capped' === sn_public_stats_machines_why( array( 'ok' => true, 
 ok( 1 === preg_match( '/<div class="sn-public-stats__rhythm"><p class="sn-public-stats__rhythm-summary">.*<svg class="sn-public-stats__chart".*<div class="sn-public-stats__twin".*<\/table><\/div><\/div>/s', $h ), 'Reading rhythm keeps its reading order (sentence, chart, calendar) inside one wrapper' );
 ok( false !== strpos( $css, 'grid-template-areas:"chart chart" "summary twin"' ), 'on a wide page the chart spans and the calendar sits beside the sentence' );
 // Accurate bars (owner 2026-10-05): drawn from the exact proportion, never the rounded text.
-ok( false !== strpos( sn_public_stats_bars_html( array( array( 'label' => 'Human views', 'text' => '356', 'pct' => 100 * 356 / 89578 ) ) ), 'style="width:0.40%"' ), '356 beside 89,578 draws 0.40% of the track, not 0%' );
-ok( false !== strpos( $h, 'style="width:21.43%"' ) && false !== strpos( $h, 'style="width:100.00%"' ), 'human views against machine reads at their exact proportion (900 / 4,200)' );
+ok( false !== strpos( sn_public_stats_bars_html( array( array( 'label' => 'Human views', 'text' => '356', 'pct' => 100 * 356 / 89578 ) ) ), 'style="width:0.397419%"' ), '356 beside 89,578 draws 0.397419% of the track, not 0%' );
+ok( false !== strpos( sn_public_stats_bars_html( array( array( 'label' => 'x', 'text' => '3', 'pct' => 100 * 3 / 100000 ) ) ), 'style="width:0.003%"' ), 'Codex on e04225d: 3 of 100,000 keeps a nonzero width (two decimals printed 0.00%)' );
+ok( false !== strpos( sn_public_stats_bars_html( array( array( 'label' => 'x', 'text' => '0', 'pct' => 0 ) ) ), 'style="width:0%"' ) && false !== strpos( sn_public_stats_bars_html( array( array( 'label' => 'x', 'text' => '', 'pct' => 100 ) ) ), 'style="width:100%"' ), 'zero and full widths print plainly' );
+ok( false !== strpos( $h, 'style="width:21.428571%"' ) && false !== strpos( $h, 'style="width:100%"' ), 'human views against machine reads at their exact proportion (900 / 4,200)' );
 ok( false !== strpos( $css, 'border:2px solid currentColor;padding:1px' ), 'a 1px gap keeps a hairline fill apart from the outline' );
 // Wide: machines is the third column; the page takes the shared page track.
 ok( 1 === preg_match( '/<div class="sn-public-stats__cols">.*<section class="sn-public-stats__col sn-public-stats__machines">/s', $h ), 'Humans and machines is a column of the section row' );

@@ -264,7 +264,8 @@ function sn_public_stats_session_coverage( $rows, $from, $to ) {
 
 /**
  * Label, decorative bar, number in text. Escaped. The bar is drawn from the
- * exact proportion (two decimals), never the rounded text: 356 human views
+ * exact proportion (six decimals, so no positive share prints as 0), never
+ * the rounded text: 356 human views
  * beside 89,578 machine reads is 0.4% of the track, not 0%.
  *
  * @param array<int,array{label:string,text:string,pct:int}> $rows Rows.
@@ -274,7 +275,7 @@ function sn_public_stats_bars_html( array $rows ) {
 	$out = '<ul class="sn-public-stats__bars">';
 	foreach ( $rows as $r ) {
 		$out .= '<li><span class="sn-public-stats__bar-label">' . esc_html( $r['label'] ) . '</span>'
-			. '<span class="sn-public-stats__bar" aria-hidden="true"><span style="width:' . number_format( max( 0.0, min( 100.0, (float) $r['pct'] ) ), 2, '.', '' ) . '%"></span></span>'
+			. '<span class="sn-public-stats__bar" aria-hidden="true"><span style="width:' . rtrim( rtrim( number_format( max( 0.0, min( 100.0, (float) $r['pct'] ) ), 6, '.', '' ), '0' ), '.' ) . '%"></span></span>'
 			. '<span class="sn-public-stats__bar-value">' . esc_html( $r['text'] ) . '</span></li>';
 	}
 	return $out . '</ul>';
