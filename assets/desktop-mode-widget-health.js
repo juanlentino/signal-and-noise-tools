@@ -62,6 +62,7 @@
 	// A purge's deferred verify lands about 75 s after it; past this, a purge
 	// still "verifying" is not in progress any more, it is unverified.
 	var VERIFY_S   = 15 * 60;
+	var SKEW_S     = 5 * 60;
 	// The AI provider's refusal for an empty credit balance: the check is
 	// paused, not broken, and nothing on this site can fix it (2026-10-05).
 	var AI_CREDIT  = /credit balance is too low/i;
@@ -275,7 +276,9 @@
 		// Aged from the report's own time: the ledger's last purge also moves on
 		// a manual purge, which never touches a pending report (Codex on #1925).
 		var since    = num( c.fresh_time ) > 0 ? Date.now() / 1000 - num( c.fresh_time ) : Infinity;
-		var checking = 'pending' === fresh && since < VERIFY_S;
+		// A report from the future is broken timing, not a check in progress
+		// (Codex on #1925); SKEW_S allows the ordinary browser/server drift.
+		var checking = 'pending' === fresh && since >= -SKEW_S && since < VERIFY_S;
 		if ( 'stale' === fresh ) { tally.look++; } else if ( checking ) { tally.checking++; } else if ( 'fresh' !== fresh ) { tally.unknown++; }
 		rows.push( { label: 'Edge freshness', value: String( c.headline || ( 'unknown' === fresh ? 'not verified yet' : fresh ) ), tone: 'fresh' === fresh || checking ? '' : WARN_FG } );
 		return rows.length ? { rows: rows } : { empty: 'No purge recorded yet.' };

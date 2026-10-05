@@ -428,6 +428,11 @@ async function run() {
     assert.doesNotMatch(oldroot.textContent, /verifying ·|\d verifying/, 'an hour-old pending report is not in progress any more, even when a manual purge just moved the ledger (Codex on #1925)');
     assert.match(oldroot.textContent, /not measured/, 'it is unmeasured, and amber');
     oldstop();
+    const fut = harness({statusExtra: {systems: {cache: {last_purge: 0, fresh_time: Date.parse('2026-09-08T13:00:00Z') / 1000, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), futroot = new Element('div');
+    const futstop = fut.window.desktopModeWidgets['sn-health'](futroot); await flush();
+    fut.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
+    assert.match(futroot.textContent, /1 not measured/, 'Codex on #1925: a report an hour in the future is broken timing, not verifying');
+    futstop();
     const mix = harness({pages: {health: '/h'}, healthSummary: {passed: 16, total: 18, skipped: [credit], flagged: [{label: 'Broken links', count: 2}]}}), mixroot = new Element('div');
     const mixstop = mix.window.desktopModeWidgets['sn-health'](mixroot); await flush();
     mix.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
