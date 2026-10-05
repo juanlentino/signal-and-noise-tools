@@ -478,12 +478,12 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 // 2026-10-04: the three merged cards are BUDGETED, not measured, and a saved
 // layout keeps its old height: the owner resizes each once.
 $expected_height = array(
-	'sn-site-views'       => 890, // SN Traffic, BUDGETED: 760 + This week (~96) + the reach row (~30)
+	'sn-site-views'       => 950, // SN Traffic, BUDGETED (+60 busiest state, 21.9.1): 760 + This week (~96) + the reach row (~30)
 	'sn-reading'          => 575, // BUDGETED: 555 + the opening figure and age line, less the two rows it replaced
 	'sn-queue'            => 380, // measured 365 live (15.8.1): two-line headline + depth line + two headings + six rows
-	'sn-health'           => 380, // SN Systems, BUDGETED: the verdict line, three one-row sections (~52 each), the uptime row's second line (~20), the button (~44), the link
+	'sn-health'           => 440, // SN Systems, BUDGETED (+60 busiest state, 21.9.1): the verdict line, three one-row sections (~52 each), the uptime row's second line (~20), the button (~44), the link
 	'sn-deploy-status'    => 350, // v11.11.2 budgeted 310 + the Check for updates button (~40)
-	'sn-anchors'          => 460, // SN Provenance, BUDGETED: 250 + the machine readers (~136) + the rights-files and top-family rows (~40) + the wrapped action row (~28)
+	'sn-anchors'          => 520, // SN Provenance, BUDGETED (+60 busiest state, 21.9.1): 250 + the machine readers (~136) + the rights-files and top-family rows (~40) + the wrapped action row (~28)
 );
 ok( array_keys( $expected_height ) === array_keys( $widgets ),
 	'the measured-height table covers exactly the registered widgets, in registration order' );
@@ -687,6 +687,13 @@ $anc_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/d
 ok( false !== strpos( $anc_js, "if ( sweeping ) { sweepBtn.setAttribute( 'aria-disabled', 'true' ); }" ) && false !== strpos( $anc_js, '|| sweeping ||' ), 'a repaint mid-sweep keeps Sweep busy, so a second click cannot start another sweep' );
 ok( false !== strpos( $anc_js, "signal: readCtl ? readCtl.signal : undefined" ) && 1 === preg_match( '/teardown\(\) \{\s*torn = true;\s*if \( readCtl \) \{ readCtl\.abort\(\); \}/', $anc_js ), 'the reader request is aborted when superseded or when SN Provenance unmounts' );
 
+$hl_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ) );
+ok( false !== strpos( $hl_js, "mons.slice().sort( function( a, b ) { return ( 'alert' === b.level ) - ( 'alert' === a.level ); } )" ), 'down monitors are named before warnings, so the cap never hides an outage' );
+$gr_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-groups.js' ) );
+ok( false !== strpos( $gr_js, 'flex:none;max-width:100%;margin-left:auto;text-align:right;overflow-wrap:anywhere;' ), 'a group value wider than its row takes its own line and stays on the card' );
+ok( false !== strpos( $hl_js, 'flagged.slice( 0, LIST_CAP )' ) && false !== strpos( $hl_js, 'skipped.slice( 0, LIST_CAP )' ) && false !== strpos( $hl_js, "more not up" ), 'SN Systems shows at most two of each growing list (checks, could-not-run, monitors not up) and counts the rest' );
+ok( false !== strpos( $anc_js, 'recording.slice( 0, LIST_CAP )' ) && false !== strpos( $anc_js, 'pending.slice( 0, LIST_CAP )' ) && false !== strpos( $anc_js, "' more ' + what + ' in Provenance'" ), 'SN Provenance shows at most two notes minting and two pending, and counts the rest' );
+
 echo "\n── 2026-10-04: Quick Actions' two buttons moved, one to each card that owns its subject ──\n";
 $sys_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ) );
 $dep_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget.js' ) );
@@ -730,8 +737,8 @@ foreach ( array( 'views.js' => $dv_views, 'anchors.js' => $dv_an ) as $dv_name =
 	ok( false !== strpos( $dv_js, "arrow.setAttribute( 'aria-hidden', 'true' );" ) && false !== strpos( $dv_js, "words.className = 'screen-reader-text';" ), "$dv_name says a change twice: the arrow hidden from assistive tech, the direction in words" );
 }
 
-ok( false !== strpos( $dv_views, "style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));min-width:0;overflow-wrap:anywhere;'" ) && false !== strpos( $dv_views, "style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;' + ( valueStyle || '' )" ),
-	'SN Traffic\'s rows wrap a long label (a source name, a page path) and keep the count on the card' );
+ok( false !== strpos( $dv_views, "style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));min-width:0;overflow-wrap:break-word;'" ) && false !== strpos( $dv_views, "style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;max-width:100%;margin-left:auto;text-align:right;' + ( valueStyle || '' )" ) && false !== strpos( $dv_views, 'display:flex;flex-wrap:wrap;' ),
+	'SN Traffic\'s rows: a label breaks only an over-long word (never "Searc / h"), and a value too wide for the row takes its own line, right-aligned' );
 
 echo "\n── The gate: no desktop-mode, no registration ──\n";
 // Re-running the hook with the registry fn absent must be a no-op. We can't

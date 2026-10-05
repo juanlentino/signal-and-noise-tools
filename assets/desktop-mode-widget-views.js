@@ -147,12 +147,12 @@
 
 	/** A label/value row for the secondary stats. */
 	function statRow( label, value, valueStyle ) {
-		var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+		var row = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
 		// A long label (a source name, a page path) wraps; the count never leaves the card.
-		row.appendChild( el( 'span', { text: label, style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));min-width:0;overflow-wrap:anywhere;' } ) );
+		row.appendChild( el( 'span', { text: label, style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));min-width:0;overflow-wrap:break-word;' } ) );
 		row.appendChild( el( 'span', {
 			text:  value,
-			style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;' + ( valueStyle || '' )
+			style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;max-width:100%;margin-left:auto;text-align:right;' + ( valueStyle || '' )
 		} ) );
 		return row;
 	}
@@ -225,7 +225,7 @@
 		var box = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
 		var ul  = el( 'div' );
 		ul.setAttribute( 'role', 'list' );
-		var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+		var row = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
 		row.setAttribute( 'role', 'listitem' );
 		row.appendChild( el( 'span', { text: 'Reach · 14 days', style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));min-width:0;' } ) );
 		var val = el( 'span', { style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;text-align:right;' } );

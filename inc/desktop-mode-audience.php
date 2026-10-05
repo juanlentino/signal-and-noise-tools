@@ -113,7 +113,11 @@ function snt_desktop_traffic_groups( array $win ) {
 	// them. '(none)' is the rollup's bucket for a tagged link that named no
 	// campaign: not a campaign.
 	$named = array_filter( (array) ( function_exists( 'sn_analytics_top_utm_campaigns' ) ? sn_analytics_top_utm_campaigns( $win['from'], $win['to'], 'human', 25 ) : null ), static fn( $r ) => is_array( $r ) && '(none)' !== (string) ( $r['value'] ?? '' ) );
-	$camp  = snt_desktop_audience_rows( $named, 'value', 3 );
+	// Two at most, the rest counted (a growing list never pushes the link out).
+	$camp  = snt_desktop_audience_rows( $named, 'value', 2 );
+	if ( count( $named ) > 2 ) {
+		$camp[] = array( 'label' => '+' . ( count( $named ) - 2 ) . ' more in Analytics', 'value' => '' );
+	}
 	if ( $camp ) {
 		$out[] = snt_desktop_group( 'Campaigns', $camp, '' );
 	}
