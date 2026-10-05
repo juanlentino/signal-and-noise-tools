@@ -59,6 +59,26 @@
 	// WP-Cron runs on a page load, so a job is routinely "due" for seconds; it
 	// is late only past this.
 	var LATE_S     = 600;
+	// A purge's deferred verify lands about 75 s after it; past this, a purge
+	// still "verifying" is not in progress any more, it is unverified.
+	var VERIFY_S   = 15 * 60;
+	// The AI provider's refusal for an empty credit balance: the check is
+	// paused, not broken, and nothing on this site can fix it (2026-10-05).
+	var AI_CREDIT  = /credit balance is too low/i;
+	/*
+	 * WHERE EACH SECTION IS FIXED. A section that puts anything in the headline
+	 * links to the screen where it is dealt with, so a yellow line is never a
+	 * dead end (owner, 2026-10-05). Keys of window.snDesktopData.pages, or a
+	 * URL for a fix that lives off the site.
+	 */
+	var FIX = {
+		Uptime: { href: 'https://uptime.betterstack.com/', text: 'Open Better Stack' },
+		Health: { page: 'health', text: 'Open Health' },
+		Cron:   { page: 'cron', text: 'Open Cron' },
+		Edge:   { page: 'cloudflare', text: 'Open Cloudflare' },
+		Cache:  { page: 'cloudflare', text: 'Open Cloudflare' },
+	};
+	var BILLING = { href: 'https://console.anthropic.com/settings/billing', text: 'Open Anthropic billing' };
 
 	/*
 	 * PALETTE. The widget card is FIXED DARK GLASS, not a themeable surface
@@ -123,7 +143,9 @@
 	 * What each source says, as rows and a tally for the headline. A row is
 	 * { label, value, tone }; `empty` stands in for rows a source could not give.
 	 * tally: down, look (to look at), orphaned, skipped (could not run), unknown
-	 * (not measured).
+	 * (not measured); and two that are not faults and never turn the dot
+	 * amber: checking (a purge verifying right now), paused (an AI check
+	 * waiting on the provider's credit).
 	 */
 	function readUptime( up, tally, stale ) {
 		if ( 'pending' === up ) { return { rows: [ { label: 'Monitors', value: 'checking…' } ] }; }
@@ -134,7 +156,7 @@
 		// A failed poll after a good one keeps the good reading, says so, and
 		// paints none of it green: it is the last answer, not the current one.
 		if ( stale ) {
-			var kept = readUptime( up, { down: 0, look: 0, orphaned: 0, skipped: 0, unknown: 0 } );
+			var kept = readUptime( up, newTally() );
 			tally.unknown++;
 			return kept.empty ? kept : { rows: kept.rows.map( function( r ) { return { label: r.label, value: r.value, tone: OK_FG === r.tone ? '' : r.tone }; } ).concat( [ { label: 'Last check failed: ' + stale, value: '', tone: WARN_FG } ] ) };
 		}
@@ -248,21 +270,28 @@
 		// Only a verified fresh edge stays out of the headline: stale is to look
 		// at; pending (a purge still verifying) and unknown are not measured yet.
 		var fresh = String( c.fresh || 'unknown' );
-		if ( 'stale' === fresh ) { tally.look++; } else if ( 'fresh' !== fresh ) { tally.unknown++; }
-		rows.push( { label: 'Edge freshness', value: String( c.headline || ( 'unknown' === fresh ? 'not verified yet' : fresh ) ), tone: 'fresh' === fresh ? '' : WARN_FG } );
+		// A purge verifying inside its window is in progress, not unmeasured;
+		// one still "verifying" past it never got its check.
+		var since    = num( c.last_purge ) > 0 ? Date.now() / 1000 - num( c.last_purge ) : Infinity;
+		var checking = 'pending' === fresh && since < VERIFY_S;
+		if ( 'stale' === fresh ) { tally.look++; } else if ( checking ) { tally.checking++; } else if ( 'fresh' !== fresh ) { tally.unknown++; }
+		rows.push( { label: 'Edge freshness', value: String( c.headline || ( 'unknown' === fresh ? 'not verified yet' : fresh ) ), tone: 'fresh' === fresh || checking ? '' : WARN_FG } );
 		return rows.length ? { rows: rows } : { empty: 'No purge recorded yet.' };
 	}
 
 	function readHealth( h, tally ) {
 		if ( ! h ) { tally.unknown++; return { empty: 'No health scan yet.' }; }
-		var skipped = h.skipped || [];
-		var lookN   = Math.max( 0, num( h.total ) - num( h.passed ) - skipped.length );
+		var all     = h.skipped || [];
+		var paused  = all.filter( function( s ) { return AI_CREDIT.test( String( s.reason || '' ) ); } );
+		var skipped = all.filter( function( s ) { return paused.indexOf( s ) < 0; } );
+		var lookN   = Math.max( 0, num( h.total ) - num( h.passed ) - all.length );
 		var age     = ago( h.scanned_at );
 		tally.look    += lookN;
 		tally.skipped += skipped.length;
+		tally.paused  += paused.length;
 		var rows = [ {
 			label: 'Checks' + ( age ? ' · scanned ' + age : '' ),
-			value: lookN || skipped.length ? num( h.passed ) + ' of ' + num( h.total ) + ' passed' : 'All ' + num( h.total ) + ' passed',
+			value: lookN || all.length ? num( h.passed ) + ' of ' + num( h.total ) + ' passed' : 'All ' + num( h.total ) + ' passed',
 		} ];
 		// WHICH checks, ranked count-desc by the server and capped at 4; a
 		// check that could not run is named apart, its reason left to the tab.
@@ -274,7 +303,10 @@
 		if ( moreFlagged > 0 ) { rows.push( { label: '+' + moreFlagged + ' more to look at', value: '' } ); }
 		skipped.slice( 0, LIST_CAP ).forEach( function( s ) { rows.push( { label: String( s.label ), value: 'could not run', tone: WARN_FG } ); } );
 		if ( skipped.length > LIST_CAP ) { rows.push( { label: '+' + ( skipped.length - LIST_CAP ) + ' more could not run', value: '' } ); }
-		return { rows: rows };
+		// Paused, in the card's plain text: still said, never amber.
+		paused.forEach( function( s ) { rows.push( { label: String( s.label ), value: 'paused: AI credit out' } ); } );
+		// The billing link only when nothing else here needs the Health tab.
+		return { rows: rows, fix: paused.length && ! lookN && ! skipped.length ? BILLING : null };
 	}
 
 	function readCron( c, tally ) {
@@ -307,7 +339,26 @@
 		if ( t.orphaned ) { parts.push( t.orphaned + ' orphaned' ); }
 		if ( t.skipped )  { parts.push( t.skipped + ' could not run' ); }
 		if ( t.unknown )  { parts.push( t.unknown + ' not measured' ); }
+		if ( t.checking ) { parts.push( t.checking + ' verifying' ); }
+		if ( t.paused )   { parts.push( t.paused + ' paused' ); }
 		return parts.join( ' · ' );
+	}
+
+	function newTally() {
+		return { down: 0, look: 0, orphaned: 0, skipped: 0, unknown: 0, checking: 0, paused: 0 };
+	}
+
+	/** The counts that make the dot amber (or red): everything but checking and paused. */
+	function faults( t ) {
+		return t.down + t.look + t.orphaned + t.skipped + t.unknown;
+	}
+
+	/** The section's fix link, as { href, text }, or null when the page is not known. */
+	function fixFor( title ) {
+		var f = FIX[ title ];
+		if ( ! f ) { return null; }
+		var href = f.href || ( data.pages && data.pages[ f.page ] ) || '';
+		return href ? { href: href, text: f.text } : null;
 	}
 
 	function section( title, read, first ) {
@@ -318,7 +369,7 @@
 		box.appendChild( head );
 		if ( read.empty ) {
 			box.appendChild( el( 'div', { text: read.empty, style: 'font-size:11px;padding:2px 0;' + SUBTLE } ) );
-			return box;
+			return fixLink( box, read.fix );
 		}
 		var list = el( 'div' );
 		list.setAttribute( 'role', 'list' );
@@ -332,6 +383,24 @@
 			list.appendChild( row );
 		} );
 		box.appendChild( list );
+		return fixLink( box, read.fix );
+	}
+
+	/** Append the section's fix link, styled as the card's "Open Health →". */
+	function fixLink( box, fix ) {
+		if ( ! fix ) { return box; }
+		var origin   = ( window.location && window.location.origin ) || '';
+		var external = /^https?:/.test( fix.href ) && ( ! origin || fix.href.indexOf( origin ) !== 0 );
+		var a = el( 'a', { href: fix.href, text: fix.text, style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;' } );
+		if ( external ) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+		var arr = el( 'span', { text: external ? '↗' : '→' } );
+		arr.setAttribute( 'aria-hidden', 'true' ); // the arrow is decoration; the words name the place
+		a.appendChild( arr );
+		if ( external ) {
+			// Said to a screen reader, not shown: the visible name stays the words (WCAG 2.5.3).
+			a.appendChild( el( 'span', { text: ' (opens in a new tab)', style: 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;' } ) );
+		}
+		box.appendChild( a );
 		return box;
 	}
 
@@ -461,16 +530,28 @@
 
 		function paint() {
 			if ( torn ) { return; }
-			var tally = { down: 0, look: 0, orphaned: 0, skipped: 0, unknown: 0 };
-			var reads = [ [ 'Uptime', readUptime( uptime, tally, stale ) ], [ 'Health', readHealth( data.healthSummary, tally ) ], [ 'Cron', readCron( data.cronSummary, tally ) ] ];
+			var tally = newTally();
+			// Each read with the fix link for whatever it added to the headline.
+			var read  = function( title, fn ) {
+				var before = faults( tally ), r = fn();
+				if ( faults( tally ) > before && ! r.fix ) { r.fix = fixFor( title ); }
+				return [ title, r ];
+			};
+			var reads = [
+				read( 'Uptime', function() { return readUptime( uptime, tally, stale ); } ),
+				read( 'Health', function() { return readHealth( data.healthSummary, tally ); } ),
+				read( 'Cron', function() { return readCron( data.cronSummary, tally ); } ),
+			];
 			// Edge and Cache only when the owner payload came: without it (another
 			// role, an older build) there is no source to call unmeasured.
 			if ( data.statusExtra && data.statusExtra.systems ) {
-				reads.push( [ 'Edge', readEdge( extra.edge, tally ) ], [ 'Cache', readCache( extra.cache, tally ) ] );
+				reads.push( read( 'Edge', function() { return readEdge( extra.edge, tally ); } ), read( 'Cache', function() { return readCache( extra.cache, tally ); } ) );
 			}
 			var words = 'pending' === uptime ? 'Checking…' : ( headlineText( tally ) || 'All systems normal' );
 			if ( verdict.textContent !== words ) { verdict.textContent = words; }
-			dot.style.background = 'pending' === uptime ? SURFACE_HOVER : tally.down ? DANGER_FG : ( 'All systems normal' === words ? OK_FG : WARN_FG );
+			// Gray, not green, when the only words are verifying or paused: not a
+			// fault, and not everything ran either.
+			dot.style.background = 'pending' === uptime ? SURFACE_HOVER : tally.down ? DANGER_FG : faults( tally ) ? WARN_FG : ( 'All systems normal' === words ? OK_FG : SURFACE_HOVER );
 			clearChildren( detail );
 			reads.forEach( function( r, i ) { detail.appendChild( section( r[0], r[1], 0 === i ) ); } );
 		}
