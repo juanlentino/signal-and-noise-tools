@@ -12,17 +12,11 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [22.6.0] - 2026-10-05 — SN Systems and SN Provenance carry more
+
 ### Added
 - **SN Systems and SN Provenance carry more of the story, as the owner approved.** Systems adds incidents over 30 days and the slowest monitor (from the uptime read it already makes), an Edge section (5xx on the newest day the rollup has covered against the day before, in words), cron runs recorded over 24 hours with any recorded failures named (a run that dies fatally leaves no record, so "0 failed" is never shown), and a Cache section (the last full purge and edge freshness). Provenance adds the integrity checks that pass (hash, twin, ledger, key; subjects not reached yet are said, never counted as passing), where the newest rights-evidence month stands and when a record was last posted, and DOIs minted. Every figure is a local read already stored, held five minutes; a source that cannot answer leaves its row out. Card budgets: Systems 580, Provenance 620.
 
 ### Changed
 - **Gap analysis: gap 3 step 2 is shipped and the provenance work has a stop rule.** `docs/proposals/proving-the-provenance-thesis.md` records the author's countersigning key as live (ledger #41 to #43, Worker 1.25.0, plugin 22.5.0, the first batch attesting all 105 passing records), marks the second-active-key item resolved by 22.5.0, describes the author key in the README's Provenance section, and adds "Where the provenance work stops": the remaining gap 3 steps, gap 2, gap 4 and the custody move stay designed and unbuilt until a concrete need names one. Docs only.
-
-## [22.5.0] - 2026-10-05 — the author's countersigning key is published
-
-### Added
-- **The author's countersigning key is published beside the publisher's.** Set in the `sn_prov_author_key` option (`id`, `public_key_base64`, `introduced_at`), it appears in `/.well-known/provenance-keys.json` as a `role: "author"` entry after the publisher key, and in `did.json` as a verification method that is never an assertion method, so no credential reader takes it for a key that signs notes. The site's verifier refuses it by role, both when it picks the active key and when a record names a key: a credential or retraction naming the author key fails. The ledger accepts the author key only when this entry and a `_provenance-author` DNS record agree with its key history. A malformed value (including an impossible date), one whose key bytes equal a publisher key in any base64 spelling, or one reusing a publisher id publishes nothing, and an unconfigured site serves exactly what it did before. Pinned in `tests/provenance-author-key.php` and `tests/js/prov-verify-core.test.mjs`.
-
-### Changed
-- **Gap analysis: gap 3 is designed within one author, and nothing waits on another person.** `docs/proposals/proving-the-provenance-thesis.md` records the owner's 2026-10-05 direction that this is and stays a single-author site and the design works within that: roles as a one-party list, additive signatures from the author's own second key (which also opens custody), ownership (the owner's declaration and owner-signed transfers) kept apart from signed rights terms, and disputes as self-corrections on the retraction shape. D-1 now ends when the publish-time signature moves to an author-held key; countersigning narrows it. Gap 1's parked list now says what each item actually needs: a recognition attestation is a third party's signed claim about the author (none exists, so the attestation term stays zero), and custody needs no one else. Docs only.
 
