@@ -359,6 +359,10 @@ ok( true === snt_watch_ripe_public_stats_machines( array(), 900 + 3 * 3600 + 1, 
 ok( 'totals read capped' === sn_public_stats_machines_why( array( 'ok' => true, 'truncated' => true ), '2026-08-01' ) && 0 === strpos( sn_public_stats_machines_why( array( 'ok' => true, 'rows' => array( array( 'day' => '2026-08-02' ) ) ), '2026-08-01' ), 'totals read does not reach 2026-08-01' ) && '' === sn_public_stats_machines_why( array( 'ok' => true, 'rows' => array( array( 'day' => '2026-08-01' ) ) ), '2026-08-01' ), 'the refresh names why it stored nothing' );
 ok( 1 === preg_match( '/<div class="sn-public-stats__rhythm"><p class="sn-public-stats__rhythm-summary">.*<svg class="sn-public-stats__chart".*<div class="sn-public-stats__twin".*<\/table><\/div><\/div>/s', $h ), 'Reading rhythm keeps its reading order (sentence, chart, calendar) inside one wrapper' );
 ok( false !== strpos( $css, 'grid-template-areas:"chart chart" "summary twin"' ), 'on a wide page the chart spans and the calendar sits beside the sentence' );
+// Accurate bars (owner 2026-10-05): drawn from the exact proportion, never the rounded text.
+ok( false !== strpos( sn_public_stats_bars_html( array( array( 'label' => 'Human views', 'text' => '356', 'pct' => 100 * 356 / 89578 ) ) ), 'style="width:0.40%"' ), '356 beside 89,578 draws 0.40% of the track, not 0%' );
+ok( false !== strpos( $h, 'style="width:21.43%"' ) && false !== strpos( $h, 'style="width:100.00%"' ), 'human views against machine reads at their exact proportion (900 / 4,200)' );
+ok( false !== strpos( $css, 'border:2px solid currentColor;padding:1px' ), 'a 1px gap keeps a hairline fill apart from the outline' );
 // Wide: machines is the third column; the page takes the shared page track.
 ok( 1 === preg_match( '/<div class="sn-public-stats__cols">.*<section class="sn-public-stats__col sn-public-stats__machines">/s', $h ), 'Humans and machines is a column of the section row' );
 ok( false !== strpos( $css, 'var(--wp--custom--page-track,1320px)' ) && false !== strpos( $css, 'repeat(auto-fit,minmax(18rem,1fr))' ), 'the page takes the theme\'s page track; the columns fit three, two or one' );

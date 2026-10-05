@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **/stats bars are drawn at their exact proportion.** Every bar took the rounded whole percent, so 356 human views beside 89,578 machine reads drew an empty bar (0.4% rounded to 0). Bars now use the exact share to two decimals while the number beside them keeps its rounding, and a 1px gap inside the outline keeps a hairline fill visible instead of merging into the border.
+
 ## [22.1.1] - 2026-10-05 — /stats calendar beside the rhythm
 
 ### Fixed

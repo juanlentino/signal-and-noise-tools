@@ -73,7 +73,7 @@ main.is-layout-constrained:has(.sn-public-stats)>*,.wp-block-post-content>.sn-pu
 .sn-public-stats__bars{list-style:none;margin:0;padding:0;font-family:var(--sn-ps-mono);font-size:.8rem}
 .sn-public-stats__bars li{display:grid;grid-template-columns:minmax(0,9rem) minmax(0,1fr) 3.5em;gap:.6em;align-items:center;padding:.35em 0;border-bottom:1px solid var(--sn-ps-rule)}
 .sn-public-stats__bar-label{overflow-wrap:anywhere}
-.sn-public-stats__bar{display:block;height:.6rem;border:2px solid currentColor}
+.sn-public-stats__bar{display:block;height:.6rem;border:2px solid currentColor;padding:1px} /* the 1px gap keeps a hairline fill apart from the outline */
 .sn-public-stats__bar span{display:block;height:100%;background:currentColor}
 .sn-public-stats__bar-value{font-variant-numeric:tabular-nums;text-align:right}
 .sn-public-stats__facts{margin:0;font-family:var(--sn-ps-mono);font-size:.8rem}
