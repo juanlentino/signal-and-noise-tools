@@ -223,15 +223,16 @@ function sn_analytics_v2_sampled_sql( $dataset, $days ) {
  * whether it is over the page-view cap. PURE given its inputs.
  *
  * `conclusive` is false when a read failed, a list was cut at its cap, or the
- * over-cap list could not be read: `counted_human` is then a floor, not an
- * answer. Even when conclusive, this is a separate query: Analytics Engine
+ * over-cap list could not be read: `counted_human` is then null (a cut list
+ * could miss humans, a missing cap list could count over-cap visitors as
+ * human, so it is neither a floor nor a ceiling). Even when conclusive, this is a separate query: Analytics Engine
  * picks a read resolution per query, so it shows the rows as THIS read saw
  * them, which is the stored (write-time) sampling when it reads at full
  * resolution.
  *
  * @param array<string,array|null> $by_dataset Rows of sn_analytics_v2_sampled_sql() keyed by dataset; null when that read failed.
  * @param array                    $over_cap   sn_analytics_overcap_vdays() result {hashes, ok, truncated}.
- * @return array{read:bool,conclusive:bool,rows:array<int,array<string,mixed>>,counted_human:int,truncated:bool,over_cap_ok:bool}
+ * @return array{read:bool,conclusive:bool,rows:array<int,array<string,mixed>>,counted_human:int|null,truncated:bool,over_cap_ok:bool}
  */
 function sn_analytics_v2_sampled_visitors( array $by_dataset, array $over_cap ) {
 	$cap   = array_flip( array_map( 'strtolower', (array) ( $over_cap['hashes'] ?? array() ) ) );
@@ -261,13 +262,16 @@ function sn_analytics_v2_sampled_visitors( array $by_dataset, array $over_cap ) 
 	}
 	// The question the check needs answered: did traffic the human reads COUNT get sampled?
 	$human = count( array_filter( $out, static fn( $x ) => $x['human'] && ! $x['over_cap'] ) );
+	$conclusive = $read && ! $trunc && $cap_ok;
 	return array(
 		'read'          => $read,
-		'conclusive'    => $read && ! $trunc && $cap_ok,
+		'conclusive'    => $conclusive,
 		'truncated'     => $trunc,
 		'over_cap_ok'   => $cap_ok,
 		'rows'          => $out,
-		'counted_human' => $human,
+		// A cut list can miss humans (too low); a missing cap list can count
+		// over-cap visitors as human (too high). Neither is a bound: unknown.
+		'counted_human' => $conclusive ? $human : null,
 	);
 }
 
@@ -306,7 +310,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/analytics-dual-write', array(
 		'label'               => 'Analytics: do the new datasets hold what the old one holds?',
-		'description'         => 'The analytics worker (1.24.0 and later) writes every beacon to the legacy dataset and to two second-generation datasets. This counts rows per UTC day in all three (three live Analytics Engine requests) and compares them: every legacy row except property rows (`cp`) against sn_pageviews_v2, and custom events with their property rows against sn_events_v2 (the base row of a custom event is in both, by design, since worker 1.25.0). `state` per day: `partial` before `first_full_day` (the dual write began mid-day; a shortfall there is expected), then `match` or `mismatch`. `with_pid` is how many new rows carry a pageview ID (theme 15.3.0 and later). `read: false` means a request failed and nothing was compared (`failed` names the dataset, `error` the reason); it is NOT a mismatch. The comparison is event by event; `differs` names the events whose exact counts disagree. `sampled` means Analytics Engine sampled some events that day (`sampled_events`): those are estimates, and a day with any sampled event is `sampled`, never `match`; on such a day `sampled_visitors` names the sampled visitor-days per dataset (rows stored vs rows they stand for), whether each holds rows the human reads count (the read-time rule) and whether it is over the page-view cap, and `counted_human`. `conclusive: false` (a failed or cut-short read, or no over-cap list) makes `counted_human` a floor. It is a separate query: Analytics Engine picks a read resolution per query, so it shows the rows as this read saw them. `verdict` is the stored answer of the daily check ({ok, day, at, why}; empty until it has run): while `ok` is true, every read whose window starts on or after `first_full_day` uses the new datasets, and a mismatch sends them all back to the old one. Read-only.',
+		'description'         => 'The analytics worker (1.24.0 and later) writes every beacon to the legacy dataset and to two second-generation datasets. This counts rows per UTC day in all three (three live Analytics Engine requests) and compares them: every legacy row except property rows (`cp`) against sn_pageviews_v2, and custom events with their property rows against sn_events_v2 (the base row of a custom event is in both, by design, since worker 1.25.0). `state` per day: `partial` before `first_full_day` (the dual write began mid-day; a shortfall there is expected), then `match` or `mismatch`. `with_pid` is how many new rows carry a pageview ID (theme 15.3.0 and later). `read: false` means a request failed and nothing was compared (`failed` names the dataset, `error` the reason); it is NOT a mismatch. The comparison is event by event; `differs` names the events whose exact counts disagree. `sampled` means Analytics Engine sampled some events that day (`sampled_events`): those are estimates, and a day with any sampled event is `sampled`, never `match`; on such a day `sampled_visitors` names the sampled visitor-days per dataset (rows stored vs rows they stand for), whether each holds rows the human reads count (the read-time rule) and whether it is over the page-view cap, and `counted_human`. `conclusive: false` (a failed or cut-short read, or no over-cap list) makes `counted_human` null: unknown, neither a floor nor a ceiling. It is a separate query: Analytics Engine picks a read resolution per query, so it shows the rows as this read saw them. `verdict` is the stored answer of the daily check ({ok, day, at, why}; empty until it has run): while `ok` is true, every read whose window starts on or after `first_full_day` uses the new datasets, and a mismatch sends them all back to the old one. Read-only.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_analytics_dual_write',

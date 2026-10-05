@@ -95,9 +95,10 @@ ok( true === $sv['conclusive'] && 3 === count( $sv['rows'] ), 'every read in, no
 ok( true === $sv['rows'][0]['stored_bot'] && 'aaaa1111' === $sv['rows'][0]['vid'] && 4 === $sv['rows'][0]['rows'] && 40 === $sv['rows'][0]['stands_for'], 'a visitor-day, its stored rows and what they stand for' );
 ok( 1 === $sv['counted_human'], 'counted_human: a visitor-day with human rows counts even beside a bot row; over-cap and hosting-only (human 0) do not' );
 $rows3['sn_events_v2'] = null;
-ok( false === sn_analytics_v2_sampled_visitors( $rows3, $capl )['conclusive'], 'a failed read is inconclusive' );
+ok( false === sn_analytics_v2_sampled_visitors( $rows3, $capl )['conclusive'] && null === sn_analytics_v2_sampled_visitors( $rows3, $capl )['counted_human'], 'a failed read is inconclusive, and counted_human is unknown' );
 $rows3['sn_events_v2'] = array();
 ok( false === sn_analytics_v2_sampled_visitors( $rows3, array( 'hashes' => array(), 'ok' => false, 'truncated' => false ) )['conclusive'] && false === sn_analytics_v2_sampled_visitors( $rows3, array( 'hashes' => array(), 'ok' => true, 'truncated' => true ) )['conclusive'], 'no over-cap list, or a cut-short one, is inconclusive' );
+ok( null === sn_analytics_v2_sampled_visitors( $rows3, array( 'hashes' => array(), 'ok' => false, 'truncated' => false ) )['counted_human'], 'Codex on 003ead8: without the cap list counted_human is unknown, never a number that could be too high' );
 $many = array_map( static fn( $i ) => array( 'day' => '2026-10-05', 'vid' => sprintf( '%08x', $i ), 'n' => 2, 'r' => 1, 'stored_bot' => 1, 'human' => 0 ), range( 1, SN_ANALYTICS_V2_SAMPLED_MAX + 1 ) );
 $cut = sn_analytics_v2_sampled_visitors( array( 'sn_pageviews' => $many ), $capl );
 ok( true === $cut['truncated'] && false === $cut['conclusive'] && SN_ANALYTICS_V2_SAMPLED_MAX === count( $cut['rows'] ), 'a list past its size says so, keeps the size, and is inconclusive' );
