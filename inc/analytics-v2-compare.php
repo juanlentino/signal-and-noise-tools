@@ -19,6 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SN_ANALYTICS_DATASET_PV_V2     = 'sn_pageviews_v2';
 const SN_ANALYTICS_DATASET_EVENTS_V2 = 'sn_events_v2';
+const SN_ANALYTICS_V2_SAMPLED_MAX    = 200; // visitor-days listed per dataset in the sampling diagnostic.
 
 /**
  * Rows per UTC day and event in one dataset. PURE. UTC days on purpose: the
@@ -192,11 +193,115 @@ function sn_analytics_v2_check( $days = 4, $first_full_day = '2026-10-05' ) {
 		+ $fail + array( 'first_full_day' => (string) $first_full_day, 'datasets' => $sets );
 }
 
+/**
+ * AE SQL: the visitor-days whose rows Analytics Engine sampled, per UTC day,
+ * in one dataset. PURE. Analytics Engine samples per index value (index1, the
+ * visitor-day hash) and only at high volume, so a sampled day should trace to
+ * a few heavy visitor-days. `stored_bot` says whether the worker classed any
+ * of the visitor's rows as a bot.
+ *
+ * @param string $dataset One of the three dataset names.
+ * @param int    $days    Days back, today included (1..14).
+ * @return string
+ */
+function sn_analytics_v2_sampled_sql( $dataset, $days ) {
+	$dataset = in_array( $dataset, array( SN_ANALYTICS_DATASET, SN_ANALYTICS_DATASET_PV_V2, SN_ANALYTICS_DATASET_EVENTS_V2 ), true ) ? $dataset : SN_ANALYTICS_DATASET;
+	$days    = max( 1, min( 14, (int) $days ) );
+	// `human` uses the read-time rule every human figure uses (not a stored bot,
+	// and the network rule); the over-cap list is applied in PHP. One row past
+	// the cap says the list was cut short.
+	$net = function_exists( 'sn_analytics_network_human_sql' ) ? sn_analytics_network_human_sql() : '1';
+	return 'SELECT ' . "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, index1 AS vid, sum(_sample_interval) AS n, count() AS r, max(if(blob7 = 'bot', 1, 0)) AS stored_bot, max(if(blob7 != 'bot' AND ({$net}), 1, 0)) AS human"
+		. ' FROM ' . $dataset
+		. " WHERE timestamp >= toStartOfDay(now() - INTERVAL '" . ( $days - 1 ) . "' DAY) AND _sample_interval > 1"
+		. ' GROUP BY day, vid LIMIT ' . ( SN_ANALYTICS_V2_SAMPLED_MAX + 1 );
+}
+
+/**
+ * Who was sampled: one row per dataset, day and visitor-day, with whether the
+ * visitor-day holds rows the human reads count (the read-time rule) and
+ * whether it is over the page-view cap. PURE given its inputs.
+ *
+ * `conclusive` is false when a read failed, a list was cut at its cap, or the
+ * over-cap list could not be read: `counted_human` is then null (a cut list
+ * could miss humans, a missing cap list could count over-cap visitors as
+ * human, so it is neither a floor nor a ceiling). Even when conclusive, this is a separate query: Analytics Engine
+ * picks a read resolution per query, so it shows the rows as THIS read saw
+ * them, which is the stored (write-time) sampling when it reads at full
+ * resolution.
+ *
+ * @param array<string,array|null> $by_dataset Rows of sn_analytics_v2_sampled_sql() keyed by dataset; null when that read failed.
+ * @param array                    $over_cap   sn_analytics_overcap_vdays() result {hashes, ok, truncated}.
+ * @return array{read:bool,conclusive:bool,rows:array<int,array<string,mixed>>,counted_human:int|null,truncated:bool,over_cap_ok:bool}
+ */
+function sn_analytics_v2_sampled_visitors( array $by_dataset, array $over_cap ) {
+	$cap   = array_flip( array_map( 'strtolower', (array) ( $over_cap['hashes'] ?? array() ) ) );
+	$cap_ok = ! empty( $over_cap['ok'] ) && empty( $over_cap['truncated'] );
+	$out   = array();
+	$read  = true;
+	$trunc = false;
+	foreach ( $by_dataset as $ds => $rows ) {
+		if ( ! is_array( $rows ) ) {
+			$read = false;
+			continue;
+		}
+		$trunc = $trunc || count( $rows ) > SN_ANALYTICS_V2_SAMPLED_MAX;
+		foreach ( array_slice( $rows, 0, SN_ANALYTICS_V2_SAMPLED_MAX ) as $r ) {
+			$vid   = strtolower( (string) ( $r['vid'] ?? '' ) );
+			$out[] = array(
+				'dataset'    => (string) $ds,
+				'day'        => (string) ( $r['day'] ?? '' ),
+				'vid'        => $vid,
+				'rows'       => (int) round( (float) ( $r['r'] ?? 0 ) ),
+				'stands_for' => (int) round( (float) ( $r['n'] ?? 0 ) ),
+				'stored_bot' => (int) ( $r['stored_bot'] ?? 0 ) > 0,
+				'human'      => (int) ( $r['human'] ?? 0 ) > 0,
+				'over_cap'   => isset( $cap[ $vid ] ),
+			);
+		}
+	}
+	// The question the check needs answered: did traffic the human reads COUNT get sampled?
+	$human = count( array_filter( $out, static fn( $x ) => $x['human'] && ! $x['over_cap'] ) );
+	$conclusive = $read && ! $trunc && $cap_ok;
+	return array(
+		'read'          => $read,
+		'conclusive'    => $conclusive,
+		'truncated'     => $trunc,
+		'over_cap_ok'   => $cap_ok,
+		'rows'          => $out,
+		// A cut list can miss humans (too low); a missing cap list can count
+		// over-cap visitors as human (too high). Neither is a bound: unknown.
+		'counted_human' => $conclusive ? $human : null,
+	);
+}
+
 function snt_ability_analytics_dual_write( $input = array() ) {
 	$days = isset( $input['days'] ) ? (int) $input['days'] : 4;
 	$stored = function_exists( 'get_option' ) && defined( 'SN_ANALYTICS_V2_VERIFIED_OPT' ) ? get_option( SN_ANALYTICS_V2_VERIFIED_OPT, null ) : null;
 	// `verdict` is what the reads follow: the daily check's stored answer, not this live one.
-	return sn_analytics_v2_check( max( 1, min( 14, $days ) ) ) + array( 'verdict' => is_array( $stored ) ? $stored : (object) array() );
+	$days   = max( 1, min( 14, $days ) );
+	$out    = sn_analytics_v2_check( $days ) + array( 'verdict' => is_array( $stored ) ? $stored : (object) array() );
+	// Diagnostic (2026-10-05): every day so far reads `sampled`, at a volume
+	// Analytics Engine documents as never sampled. Name the sampled
+	// visitor-days, three more reads, on demand only (never the daily check).
+	if ( array() !== array_filter( (array) ( $out['days'] ?? array() ), static fn( $d ) => ! empty( $d['sampled'] ) ) ) {
+		// The over-cap list first (it may query too), then the three reads, stopping
+		// at the first failure so its dataset and reason survive, as the check does.
+		$list = function_exists( 'sn_analytics_overcap_vdays' ) ? (array) sn_analytics_overcap_vdays() : array();
+		$by   = array();
+		$fail = array();
+		foreach ( array( SN_ANALYTICS_DATASET, SN_ANALYTICS_DATASET_PV_V2, SN_ANALYTICS_DATASET_EVENTS_V2 ) as $ds ) {
+			$rows = function_exists( 'sn_analytics_query' ) ? sn_analytics_query( sn_analytics_v2_sampled_sql( $ds, $days ) ) : null;
+			$by[ $ds ] = $rows;
+			if ( ! is_array( $rows ) ) {
+				$err  = function_exists( 'sn_analytics_last_error' ) ? sn_analytics_last_error() : null;
+				$fail = array( 'failed' => $ds, 'error' => is_array( $err ) ? 'HTTP ' . (int) ( $err['code'] ?? 0 ) . ' ' . substr( (string) ( $err['message'] ?? '' ), 0, 200 ) : '' );
+				break;
+			}
+		}
+		$out['sampled_visitors'] = sn_analytics_v2_sampled_visitors( $by, $list ) + $fail;
+	}
+	return $out;
 }
 
 add_action( 'wp_abilities_api_init', function () {
@@ -205,12 +310,12 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/analytics-dual-write', array(
 		'label'               => 'Analytics: do the new datasets hold what the old one holds?',
-		'description'         => 'The analytics worker (1.24.0 and later) writes every beacon to the legacy dataset and to two second-generation datasets. This counts rows per UTC day in all three (three live Analytics Engine requests) and compares them: every legacy row except property rows (`cp`) against sn_pageviews_v2, and custom events with their property rows against sn_events_v2 (the base row of a custom event is in both, by design, since worker 1.25.0). `state` per day: `partial` before `first_full_day` (the dual write began mid-day; a shortfall there is expected), then `match` or `mismatch`. `with_pid` is how many new rows carry a pageview ID (theme 15.3.0 and later). `read: false` means a request failed and nothing was compared (`failed` names the dataset, `error` the reason); it is NOT a mismatch. The comparison is event by event; `differs` names the events whose exact counts disagree. `sampled` means Analytics Engine sampled some events that day (`sampled_events`): those are estimates, and a day with any sampled event is `sampled`, never `match`. `verdict` is the stored answer of the daily check ({ok, day, at, why}; empty until it has run): while `ok` is true, every read whose window starts on or after `first_full_day` uses the new datasets, and a mismatch sends them all back to the old one. Read-only.',
+		'description'         => 'The analytics worker (1.24.0 and later) writes every beacon to the legacy dataset and to two second-generation datasets. This counts rows per UTC day in all three (three live Analytics Engine requests) and compares them: every legacy row except property rows (`cp`) against sn_pageviews_v2, and custom events with their property rows against sn_events_v2 (the base row of a custom event is in both, by design, since worker 1.25.0). `state` per day: `partial` before `first_full_day` (the dual write began mid-day; a shortfall there is expected), then `match` or `mismatch`. `with_pid` is how many new rows carry a pageview ID (theme 15.3.0 and later). `read: false` means a request failed and nothing was compared (`failed` names the dataset, `error` the reason); it is NOT a mismatch. The comparison is event by event; `differs` names the events whose exact counts disagree. `sampled` means Analytics Engine sampled some events that day (`sampled_events`): those are estimates, and a day with any sampled event is `sampled`, never `match`; on such a day `sampled_visitors` names the sampled visitor-days per dataset (rows stored vs rows they stand for), whether each holds rows the human reads count (the read-time rule) and whether it is over the page-view cap, and `counted_human`. `conclusive: false` (a failed or cut-short read, or no over-cap list) makes `counted_human` null: unknown, neither a floor nor a ceiling. It is a separate query: Analytics Engine picks a read resolution per query, so it shows the rows as this read saw them. `verdict` is the stored answer of the daily check ({ok, day, at, why}; empty until it has run): while `ok` is true, every read whose window starts on or after `first_full_day` uses the new datasets, and a mismatch sends them all back to the old one. Read-only.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_analytics_dual_write',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array( 'days' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 14, 'default' => 4, 'description' => 'UTC days back, today included.' ) ), 'additionalProperties' => false ),
-		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'read' => array( 'type' => 'boolean' ), 'days' => array( 'type' => 'array' ), 'mismatched' => array( 'type' => 'integer' ), 'first_full_day' => array( 'type' => 'string' ), 'datasets' => array( 'type' => 'array' ), 'failed' => array( 'type' => 'string' ), 'error' => array( 'type' => 'string' ), 'verdict' => array( 'type' => 'object' ) ) ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'read' => array( 'type' => 'boolean' ), 'days' => array( 'type' => 'array' ), 'mismatched' => array( 'type' => 'integer' ), 'first_full_day' => array( 'type' => 'string' ), 'datasets' => array( 'type' => 'array' ), 'failed' => array( 'type' => 'string' ), 'error' => array( 'type' => 'string' ), 'verdict' => array( 'type' => 'object' ), 'sampled_visitors' => array( 'type' => 'object' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => true ) ),
 	) );
 } );
