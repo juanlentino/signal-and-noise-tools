@@ -18,6 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SN_PUBLIC_STATS_MIN_GROUP = 3;
 const SN_PUBLIC_STATS_LIST_N    = 5;
+const SN_PUBLIC_STATS_READ_CAP  = 500; // the accessor limit the sources and countries reads pass.
 const SN_PUBLIC_STATS_MACHINES_OPT  = 'sn_public_stats_machines';
 const SN_PUBLIC_STATS_MACHINES_HOOK = 'sn_public_stats_machines_refresh';
 
@@ -73,9 +74,11 @@ function sn_public_stats_fold( $rows, $label, $all = 0 ) {
 	if ( $sum < 1 ) {
 		return null;
 	}
-	// The accessor keeps its top 500 rows; the tail it dropped is Other, and
-	// shares are of every view in the window, not of the rows that survived.
-	$total = max( $sum, (int) $all );
+	// The accessor keeps its top SN_PUBLIC_STATS_READ_CAP rows. Only a read
+	// that filled the cap has a dropped tail, which is Other, with shares of
+	// every view. A shorter read short of the total is missing coverage (a
+	// failed dimension day), never Other: its shares stay of the rows read.
+	$total = count( $rows ) >= SN_PUBLIC_STATS_READ_CAP ? max( $sum, (int) $all ) : $sum;
 	$out   = array();
 	$other = $total - $sum;
 	foreach ( $rows as $r ) {
@@ -169,6 +172,7 @@ function sn_public_stats_machines_refresh() {
 	$m = sn_public_stats_machines( snt_mr_fetch( 31, 'totals' ), snt_mr_fetch( 31 ), $from, $to );
 	if ( null !== $m ) {
 		update_option( SN_PUBLIC_STATS_MACHINES_OPT, array( 'from' => $from, 'to' => $to, 'machines' => $m ), false );
+		delete_transient( SN_PUBLIC_STATS_CACHE_KEY ); // the next render reads it, not one an hour later.
 	}
 }
 

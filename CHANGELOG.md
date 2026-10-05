@@ -17,8 +17,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Fixed
 - **/stats: Visits counts site-wide sessions.** The tile first read the rollup's plain visits, which also count feed- and beacon-only reader-days (520 visits against 337 views over 30 days), and then reader-days with a pageview, which are summed per page, so a reader who opened two pages counted twice. It now sums the session rollup the SN Reading card reads, under the owner-approved line "times a reader came to the site; reading several pages in one sitting counts once". A failed or empty session read leaves the tile out rather than showing 0.
-
-- **/stats reads only what it can stand behind.** The page never calls the edge sensor while rendering: an hourly event stores the machine reads for the same 30 days as the human figures, and a snapshot of another window leaves the section out. Visits and One page only show only when every day of the window rolled up. Source and country shares are of every view in the window, and the tail past the 500-row read joins Other.
+- **/stats reads only what it can stand behind.** The page never calls the edge sensor while rendering: an hourly event stores the machine reads for the same 30 days as the human figures, and a snapshot of another window leaves the section out. Visits and One page only show only when every day of the window rolled up. When a source or country read fills its 500-row limit, the rows it dropped join Other and shares are of every view; a shorter read keeps its shares of the rows read.
 
 ## [21.9.1] - 2026-10-05 — desktop cards read cleanly
 

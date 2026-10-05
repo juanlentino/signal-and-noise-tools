@@ -330,9 +330,12 @@ $hp = $fresh();
 ok( false === strpos( $hp, '>Visits<' ) && false === strpos( $hp, 'One page only' ), 'a partial session window leaves Visits and One page only out' );
 $GLOBALS['__pad'] = true;
 // Shares are of every view, not of the 500 rows the accessor kept.
-$cap = sn_public_stats_fold( array( array( 'value' => 'a', 'views' => 60, 'visits' => 10 ), array( 'value' => 'b', 'views' => 40, 'visits' => 10 ) ), 'strval', 200 );
-ok( 30 === $cap[0]['share'] && 'Other' === $cap[2]['label'] && 100 === $cap[2]['views'] && 50 === $cap[2]['share'], 'the tail past the accessor cap is Other, and shares are of all views' );
-ok( 60 === sn_public_stats_fold( array( array( 'value' => 'a', 'views' => 60, 'visits' => 10 ), array( 'value' => 'b', 'views' => 40, 'visits' => 10 ) ), 'strval', 50 )[0]['share'], 'a window total below the rows\' sum never pushes shares past 100' );
+$full = array_merge( array( array( 'value' => 'a', 'views' => 60, 'visits' => 10 ) ), array_fill( 0, SN_PUBLIC_STATS_READ_CAP - 1, array( 'value' => '', 'views' => 0 ) ) );
+$cap  = sn_public_stats_fold( $full, 'strval', 200 );
+ok( 30 === $cap[0]['share'] && 'Other' === end( $cap )['label'] && 140 === end( $cap )['views'], 'a read that filled the cap: the dropped tail is Other, shares of all views' );
+$two = array( array( 'value' => 'a', 'views' => 60, 'visits' => 10 ), array( 'value' => 'b', 'views' => 40, 'visits' => 10 ) );
+ok( 60 === sn_public_stats_fold( $two, 'strval', 200 )[0]['share'] && 2 === count( sn_public_stats_fold( $two, 'strval', 200 ) ), 'a short read short of the total is missing coverage, never Other' );
+ok( 60 === sn_public_stats_fold( $two, 'strval', 50 )[0]['share'], 'a window total below the rows\' sum never pushes shares past 100' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
