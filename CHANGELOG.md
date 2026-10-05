@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **/stats: the calendar sits beside the reading-rhythm sentence on a wide page**, under a full-width chart, instead of leaving the right half empty. Reading order is unchanged (sentence, chart, calendar); under 900px it stacks as before.
+
 ## [22.1.0] - 2026-10-05 — /stats takes the wide page
 
 ### Added

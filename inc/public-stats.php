@@ -246,7 +246,10 @@ function sn_public_stats_rhythm_html( $data ) {
 	$peak = sn_public_stats_busiest_day( $daily );
 
 		// H2: the shortcode sits directly under the page's H1 post title (#1040).
-	$out  = '<h2>' . esc_html__( 'Reading rhythm', 'signal-and-noise-tools' ) . '</h2>';
+	// The wrapper lays the chart full width and the calendar beside the
+	// sentence on a wide page; source order (sentence, chart, calendar) is
+	// the reading order everywhere, and the chart is aria-hidden.
+	$out  = '<h2>' . esc_html__( 'Reading rhythm', 'signal-and-noise-tools' ) . '</h2><div class="sn-public-stats__rhythm">';
 	$out .= '<p class="sn-public-stats__rhythm-summary">' . esc_html( $sent ) . '</p>';
 
 	// One bar per day, integer geometry. A non-zero day never rounds to
@@ -317,7 +320,7 @@ function sn_public_stats_rhythm_html( $data ) {
 		}
 		$out .= '</tr>';
 	}
-	return $out . '</tbody></table></div>';
+	return $out . '</tbody></table></div></div>';
 }
 
 /**
