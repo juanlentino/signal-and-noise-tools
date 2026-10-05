@@ -28,7 +28,7 @@ $E = array( array( 'day' => '2026-10-05', 'ev' => 'ce', 'n' => 5, 'with_pid' => 
 $c = sn_analytics_v2_compare( $L, $P, $E, '2026-10-05' );
 ok( true === $c['ok'] && true === $c['read'] && 0 === $c['mismatched'], 'equal counts from the first full day on: ok' );
 ok( 'partial' === $c['days'][0]['state'] && 69 === $c['days'][0]['legacy_pageview_side'] && 4 === $c['days'][0]['v2_pageviews'], 'the day the dual write began is partial, not a mismatch, and still shows both counts' );
-ok( array( 'day' => '2026-10-05', 'legacy_pageview_side' => 125, 'v2_pageviews' => 125, 'legacy_events' => 12, 'v2_events' => 12, 'with_pid' => 135, 'sampled' => false, 'sampled_events' => array(), 'differs' => array(), 'events_proven' => true, 'state' => 'match' ) === $c['days'][1], 'every legacy row but cp against the pageviews dataset, ce and cp against the events dataset: a ce row counts on both sides' );
+ok( array( 'day' => '2026-10-05', 'legacy_pageview_side' => 125, 'v2_pageviews' => 125, 'legacy_events' => 12, 'v2_events' => 12, 'with_pid' => 135, 'sampled' => false, 'sampled_events' => array(), 'identical_sample' => array(), 'differs' => array(), 'events_proven' => true, 'state' => 'match' ) === $c['days'][1], 'every legacy row but cp against the pageviews dataset, ce and cp against the events dataset: a ce row counts on both sides' );
 $noce = array_slice( $P, 0, 3 );
 ok( 'mismatch' === sn_analytics_v2_compare( $L, $noce, $E, '2026-10-05' )['days'][1]['state'], 'a pageviews dataset missing the custom events\' base rows is a mismatch (the worker 1.24.0 shape)' );
 $P2 = $P; $P2[1]['n'] = 39;
@@ -78,6 +78,19 @@ $GLOBALS['sql'] = array(); $GLOBALS['answers'] = array( $L, null, $E );
 $f = sn_analytics_v2_check( 4, '2026-10-05' );
 ok( false === $f['read'] && 'sn_pageviews_v2' === $f['failed'] && 'HTTP 403 no permission' === $f['error'], 'a failed request names its dataset and keeps its reason' );
 ok( 2 === count( $GLOBALS['sql'] ), 'and nothing is asked after it, so a later success cannot clear that reason' );
+
+echo "\nThe same sample on both sides counts (owner rule 2026-10-05)\n";
+// Measured on 22.3.0: both pageview datasets held the same sampled rows with the same weights.
+$Ls = array( array( 'day' => '2026-10-06', 'ev' => 'pv', 'n' => 44, 'r' => 39, 'v' => 20 ), array( 'day' => '2026-10-06', 'ev' => 'sc', 'n' => 30, 'r' => 30, 'v' => 15 ) );
+$Ps = array( array( 'day' => '2026-10-06', 'ev' => 'pv', 'n' => 44, 'r' => 39, 'v' => 20 ), array( 'day' => '2026-10-06', 'ev' => 'sc', 'n' => 30, 'r' => 30, 'v' => 15 ) );
+$cs = sn_analytics_v2_compare( $Ls, $Ps, array(), '2026-10-05' );
+ok( 'match' === $cs['days'][0]['state'] && array( 'pv' ) === $cs['days'][0]['identical_sample'] && array() === $cs['days'][0]['sampled_events'], 'pageviews sampled identically (same rows, weights, visitors): a match, and the event is named' );
+$Pd = $Ps; $Pd[0]['r'] = 40; $Pd[0]['n'] = 44;
+ok( 'sampled' === sn_analytics_v2_compare( $Ls, $Pd, array(), '2026-10-05' )['days'][0]['state'], 'same weighted count from different stored rows is a different sample: inconclusive, never a match' );
+$Pv = $Ps; $Pv[0]['v'] = 19;
+ok( 'sampled' === sn_analytics_v2_compare( $Ls, $Pv, array(), '2026-10-05' )['days'][0]['state'], 'same rows and weights over different visitors: not identical' );
+$Pn = $Ps; $Pn[1]['n'] = 31; $Pn[1]['r'] = 31;
+ok( 'mismatch' === sn_analytics_v2_compare( $Ls, $Pn, array(), '2026-10-05' )['days'][0]['state'], 'an exact event that differs is still a mismatch beside an identical sample' );
 
 echo "\nWho was sampled (diagnostic)\n";
 $sq = sn_analytics_v2_sampled_sql( 'sn_pageviews_v2', 4 );
