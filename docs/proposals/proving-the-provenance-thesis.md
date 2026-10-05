@@ -1,6 +1,6 @@
 # Proving the provenance thesis: gap analysis and plan
 
-**Status**: planning only — nothing to implement yet. Public in this repository since 2026-08-17 (#695); the earlier "stays local" label was stale.
+**Status**: planning and tracking; a gap that ships a step records it with its date (gap 1, 2026-10-05). Public in this repository since 2026-08-17 (#695); the earlier "stays local" label was stale.
 **Date**: 2026-08-15
 **Audited against**, both read in full:
 - **P1** — *Provenance Over Detection: A Cryptographic Framework for Human Authorship
