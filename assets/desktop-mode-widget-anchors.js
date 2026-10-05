@@ -331,7 +331,10 @@
 			var prow = [];
 			var integ = provExtra.integrity;
 			if ( integ && Number( integ.fleet ) > 0 ) {
-				prow.push( [ 'Signatures', Number( integ.verified ) + ' of ' + Number( integ.fleet ) + ' verify', Number( integ.failing ) > 0 ] );
+				// The sweep's checks (hash, twin, ledger, key), not a signature re-verify:
+				// so "pass", and a subject not reached yet is said, never counted as passing.
+				var unchecked = Number( integ.fleet ) - Number( integ.checked );
+				prow.push( [ 'Integrity checks', Number( integ.clean ) + ' of ' + Number( integ.fleet ) + ' pass' + ( Number( integ.failing ) > 0 ? ' · ' + Number( integ.failing ) + ' failing' : '' ) + ( unchecked > 0 ? ' · ' + unchecked + ' not checked yet' : '' ), Number( integ.failing ) > 0 ] );
 			}
 			var rights = provExtra.rights;
 			if ( rights && rights.text ) {

@@ -227,12 +227,13 @@
 	}
 
 	/** The last full edge purge and how fresh the edge was after the last check. */
-	function readCache( c ) {
+	function readCache( c, tally ) {
 		if ( ! c ) { return { empty: 'No purge recorded yet.' }; }
 		var rows = [];
 		var when = ago( c.last_purge );
 		if ( when ) { rows.push( { label: 'Last full purge', value: when } ); }
 		if ( c.fresh && 'unknown' !== c.fresh ) {
+			if ( 'stale' === c.fresh ) { tally.look++; } // the headline must not say "All systems normal" over a stale edge.
 			rows.push( { label: 'Edge freshness', value: String( c.headline || c.fresh ), tone: 'stale' === c.fresh ? WARN_FG : '' } );
 		}
 		return rows.length ? { rows: rows } : { empty: 'No purge recorded yet.' };
@@ -447,7 +448,7 @@
 		function paint() {
 			if ( torn ) { return; }
 			var tally = { down: 0, look: 0, orphaned: 0, skipped: 0, unknown: 0 };
-			var reads = [ [ 'Uptime', readUptime( uptime, tally, stale ) ], [ 'Health', readHealth( data.healthSummary, tally ) ], [ 'Cron', readCron( data.cronSummary, tally ) ], [ 'Edge', readEdge( extra.edge ) ], [ 'Cache', readCache( extra.cache ) ] ];
+			var reads = [ [ 'Uptime', readUptime( uptime, tally, stale ) ], [ 'Health', readHealth( data.healthSummary, tally ) ], [ 'Cron', readCron( data.cronSummary, tally ) ], [ 'Edge', readEdge( extra.edge ) ], [ 'Cache', readCache( extra.cache, tally ) ] ];
 			var words = 'pending' === uptime ? 'Checking…' : ( headlineText( tally ) || 'All systems normal' );
 			if ( verdict.textContent !== words ) { verdict.textContent = words; }
 			dot.style.background = 'pending' === uptime ? SURFACE_HOVER : tally.down ? DANGER_FG : ( 'All systems normal' === words ? OK_FG : WARN_FG );

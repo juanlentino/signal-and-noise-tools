@@ -39,15 +39,22 @@ echo "\nEdge 5xx\n";
 $d1 = gmdate( 'Y-m-d', time() - DAY_IN_SECONDS ); $d2 = gmdate( 'Y-m-d', time() - 2 * DAY_IN_SECONDS ); $d3 = gmdate( 'Y-m-d', time() - 3 * DAY_IN_SECONDS );
 $GLOBALS['__edge'] = array(
 	$d1 => array( 'total' => 0, 'days' => array( array( 'day' => $d1, 'read' => 'pending' ) ) ),
-	$d2 => array( 'total' => 9, 'days' => array( array( 'day' => $d2, 'read' => 'ok' ) ) ),
-	$d3 => array( 'total' => 4, 'days' => array( array( 'day' => $d3, 'read' => 'ok' ) ) ),
+	$d2 => array( 'total' => 9, 'days' => array( array( 'day' => $d2, 'read' => 'read' ) ) ),
+	$d3 => array( 'total' => 4, 'days' => array( array( 'day' => $d3, 'read' => 'read' ) ) ),
 );
 $e = snt_desktop_edge_yesterday();
 ok( 9 === $e['total'] && 4 === $e['prior'] && gmdate( 'M j', time() - 2 * DAY_IN_SECONDS ) === $e['day'], 'yesterday still pending: the newest covered day answers, labeled, against the day before it' );
-$GLOBALS['__edge'][ $d1 ] = array( 'total' => 12, 'days' => array( array( 'day' => $d1, 'read' => 'ok' ) ) );
+$GLOBALS['__edge'][ $d3 ] = array( 'total' => 0, 'query' => array( 'error' => '' ), 'days' => array( array( 'day' => $d3, 'read' => 'failed' ) ) );
+ok( null === snt_desktop_edge_yesterday()['prior'], 'Codex on 2bee69f: a failed prior day is no prior, never a 0 that makes a false delta' );
+$GLOBALS['__edge'][ $d1 ] = array( 'total' => 12, 'days' => array( array( 'day' => $d1, 'read' => 'read' ) ) );
 ok( 12 === snt_desktop_edge_yesterday()['total'] && 9 === snt_desktop_edge_yesterday()['prior'], 'once covered, yesterday answers' );
 $GLOBALS['__edge'] = array();
 ok( null === snt_desktop_edge_yesterday(), 'no day readable: null, the card says so instead of a 0' );
+
+echo "\nIntegrity\n";
+$ig = snt_desktop_integrity_shape( array( 'last_sweep' => array( 'fleet' => 50 ), 'notes' => array( 1 => array( 'last_checked' => 5, 'failures' => array() ), 2 => array( 'last_checked' => 5, 'failures' => array( 'twin' ) ), 3 => array( 'last_checked' => 0 ) ) ) );
+ok( 50 === $ig['fleet'] && 2 === $ig['checked'] && 1 === $ig['clean'] && 1 === $ig['failing'], 'Codex on 2bee69f: counted from stored per-subject results; a subject not reached is not passing' );
+ok( null === snt_desktop_integrity_shape( array() ), 'no sweep yet: null' );
 
 echo "\nLocal reads only\n";
 $src = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-status-extra.php' );

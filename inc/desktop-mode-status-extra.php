@@ -56,19 +56,28 @@ function snt_desktop_edge_yesterday() {
 	if ( ! function_exists( 'sn_edge_errors_range' ) ) {
 		return null;
 	}
-	$ok = static fn( $r ) => is_array( $r ) && empty( $r['query']['error'] ) && array() !== array_filter( (array) ( $r['days'] ?? array() ), static fn( $d ) => 'pending' !== ( $d['read'] ?? '' ) );
+	// Only the requested day's own state counts: 'read' (not failed, pending
+	// or untracked). query.error is global to the last query, not this day.
+	$ok = static function ( $r, $day ) {
+		foreach ( (array) ( is_array( $r ) ? ( $r['days'] ?? array() ) : array() ) as $d ) {
+			if ( $day === (string) ( $d['day'] ?? '' ) ) {
+				return 'read' === (string) ( $d['read'] ?? '' );
+			}
+		}
+		return false;
+	};
 	// Yesterday reads pending until the daily edge rollup runs: walk back to
 	// the newest day it has covered, and label that day.
 	for ( $back = 1; $back <= 3; $back++ ) {
 		$t = time() - $back * DAY_IN_SECONDS;
 		$d = gmdate( 'Y-m-d', $t );
 		$a = sn_edge_errors_range( $d, $d );
-		if ( ! $ok( $a ) ) {
+		if ( ! $ok( $a, $d ) ) {
 			continue;
 		}
 		$pd = gmdate( 'Y-m-d', $t - DAY_IN_SECONDS );
 		$b  = sn_edge_errors_range( $pd, $pd );
-		return array( 'day' => gmdate( 'M j', $t ), 'total' => (int) ( $a['total'] ?? 0 ), 'prior' => $ok( $b ) ? (int) ( $b['total'] ?? 0 ) : null );
+		return array( 'day' => gmdate( 'M j', $t ), 'total' => (int) ( $a['total'] ?? 0 ), 'prior' => $ok( $b, $pd ) ? (int) ( $b['total'] ?? 0 ) : null );
 	}
 	return null;
 }
@@ -139,19 +148,39 @@ function snt_desktop_cache_state() {
 }
 
 /**
- * Signature integrity over the published corpus. The sweep checks a batch per
- * run; the notes that verify are the fleet minus the ones on the failing list.
+ * The integrity sweep (payload hash, live twin, ledger record, published key;
+ * it does not re-verify signature bytes) over the published corpus, counted
+ * from the per-subject results the sweep stored: a subject it has not reached
+ * yet is "not checked", never counted as passing.
  *
- * @return array{fleet:int,verified:int,failing:int,swept_at:int}|null
+ * @return array{fleet:int,checked:int,clean:int,failing:int}|null
  */
 function snt_desktop_integrity() {
-	$s = function_exists( 'snt_ability_provenance_integrity_status' ) ? snt_ability_provenance_integrity_status() : null;
-	if ( ! is_array( $s ) || ! isset( $s['fleet'] ) ) {
+	$state = function_exists( 'sn_prov_integrity_state' ) ? sn_prov_integrity_state() : null;
+	return is_array( $state ) ? snt_desktop_integrity_shape( $state ) : null;
+}
+
+/**
+ * Count the stored per-subject results. PURE.
+ *
+ * @param array $state sn_prov_integrity_state().
+ * @return array{fleet:int,checked:int,clean:int,failing:int}|null
+ */
+function snt_desktop_integrity_shape( array $state ) {
+	$fleet = (int) ( $state['last_sweep']['fleet'] ?? 0 );
+	if ( $fleet < 1 ) {
 		return null;
 	}
-	$failing = count( (array) ( $s['failing'] ?? array() ) );
-	$fleet   = (int) $s['fleet'];
-	return array( 'fleet' => $fleet, 'verified' => max( 0, $fleet - $failing ), 'failing' => $failing, 'swept_at' => (int) ( $s['swept_at'] ?? 0 ) );
+	$checked = 0;
+	$clean   = 0;
+	foreach ( (array) ( $state['notes'] ?? array() ) as $n ) {
+		if ( ! is_array( $n ) || (int) ( $n['last_checked'] ?? 0 ) < 1 ) {
+			continue;
+		}
+		++$checked;
+		$clean += array() === (array) ( $n['failures'] ?? array() ) ? 1 : 0;
+	}
+	return array( 'fleet' => $fleet, 'checked' => min( $checked, $fleet ), 'clean' => min( $clean, $fleet ), 'failing' => $checked - $clean );
 }
 
 /**
