@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     22.3.0
+ * Version:     22.4.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -529,8 +529,6 @@ require_once __DIR__ . '/inc/ai-tag-describe.php'; // v13.25.0: draft the one-se
 require_once __DIR__ . '/inc/ai-meta-description.php';
 require_once __DIR__ . '/inc/ai-og-card-title.php';
 require_once __DIR__ . '/inc/ai-ai-dedupe.php';
-require_once __DIR__ . '/inc/ai-prepopulate.php';
-require_once __DIR__ . '/inc/ai-prepopulate-notice.php';
 require_once __DIR__ . '/inc/block-fingerprint-engine.php'; // v7.7.1: shared fingerprint locate/replace/sanitize/apply engine behind both surfaces below.
 require_once __DIR__ . '/inc/pattern-adoption-detect.php';
 require_once __DIR__ . '/inc/pattern-adoption-suggest.php';

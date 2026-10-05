@@ -49,7 +49,7 @@ ok( function_exists( 'sn_post_settings_sanitize_focus_keyword' ) && 80 === mb_st
 echo "\nGroup: the classic save handler is gone (#1608)\n";
 ok( ! function_exists( 'sn_post_settings_save' ) && ! isset( $GLOBALS['__hooks']['save_post'] ), 'no save_post handler: nothing prints the form it read, so the registered sanitizer is the one write path' );
 $js = (string) file_get_contents( __DIR__ . '/../assets/post-settings-panel.js' );
-ok( false !== strpos( $js, "if ( '' === next[ k ] || false === next[ k ] ) {" ) && 2 === substr_count( $js, 'setMeta( normalize( next ) );' ), 'an emptied keyword goes back as null, so the key is deleted instead of stored as an empty row' );
+ok( false !== strpos( $js, "if ( '' === next[ k ] || false === next[ k ] ) {" ) && 1 === substr_count( $js, 'setMeta( normalize( next ) );' ), 'an emptied keyword goes back as null, so the key is deleted instead of stored as an empty row' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

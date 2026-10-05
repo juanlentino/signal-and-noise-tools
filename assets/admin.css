@@ -1003,15 +1003,6 @@
 	line-height: 1.4;
 }
 
-/* v6.47.0: the AI-prepop dormant notice reuses core .notice chrome (defensible,
-   WP-native) but core's heavy 4px left border + full-page margins read too dense
-   above the flat .sn-field stack in this ~280px side meta box. Soften it to the
-   field-stack density. */
-#sn_post_settings .sn-prepop-notice {
-	margin: 0 0 var(--sn-space-3);
-	border-left-width: 1px;
-}
-
 /* ═══════════════════════════════════════════════════════════════════════
    v1.14.0 — Admin UI unified pattern
    ═══════════════════════════════════════════════════════════════════════
