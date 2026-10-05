@@ -304,7 +304,7 @@
 		skipped.slice( 0, LIST_CAP ).forEach( function( s ) { rows.push( { label: String( s.label ), value: 'could not run', tone: WARN_FG } ); } );
 		if ( skipped.length > LIST_CAP ) { rows.push( { label: '+' + ( skipped.length - LIST_CAP ) + ' more could not run', value: '' } ); }
 		// Paused, in the card's plain text: still said, never amber.
-		paused.forEach( function( s ) { rows.push( { label: String( s.label ), value: 'paused: AI credit out' } ); } );
+		paused.forEach( function( s ) { rows.push( { label: String( s.label ), value: 'paused: AI credit out', tone: 'var(--os-ui-color-text-subtle, rgba(255,255,255,.7))' } ); } );
 		// The billing link only when nothing else here needs the Health tab.
 		return { rows: rows, fix: paused.length && ! lookN && ! skipped.length ? BILLING : null };
 	}
