@@ -157,7 +157,8 @@ add_action( 'init', function() {
 			// downloads, inquiries): a hairline, a heading and three rows, ~96.
 			// A Campaigns group adds ~100 only when a tagged link was followed.
 			// + the reach row (a hairline and one row, ~30).
-			'default_height' => 890,
+			// 21.9.1: +60 for the busiest state (Campaigns: 2 rows and "+N more").
+			'default_height' => 950,
 		) ) );
 
 		snt_os_register_widget( 'sn-reading', array_merge( $sn_drag, array(
@@ -197,7 +198,8 @@ add_action( 'init', function() {
 			// chrome and padding = ~350. A flagged check or a down monitor adds
 			// ~20 a row and the body scrolls. + the uptime row's mean uptime and
 			// response time, which wraps it to a second line (~20).
-			'default_height' => 380,
+			// 21.9.1: +60 for the busiest state (2 checks, 2 could-not-run, 2 monitors down, each with "+N more").
+			'default_height' => 440,
 		) ) );
 
 		snt_os_register_widget( 'sn-deploy-status', array_merge( $sn_drag, array(
@@ -234,7 +236,8 @@ add_action( 'init', function() {
 			// ~136) and the second link wrapping the action row (~28). BUDGETED.
 			// + the rights-files row under the AI-training reads (~20) and the
 			// top crawler family row (~20).
-			'default_height' => 460,
+			// 21.9.1: +60 for the busiest state (2 recording, 2 pending, each with "+N more").
+			'default_height' => 520,
 		) ) );
 	}
 }, 6 );

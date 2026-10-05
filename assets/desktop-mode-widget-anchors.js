@@ -170,7 +170,16 @@
 
 		// `waiting`: anchor-status has not answered yet. The anchor part then
 		// says it is loading (no alert, no Sweep) while the readers paint.
+		var LIST_CAP = 2;
+
 		function render( overview, note, waiting ) {
+			// A list that grows (notes being minted, anchors pending) shows two rows
+			// and a count of the rest, so a busy day never pushes the buttons out.
+			function moreLine( n, what ) {
+				if ( n <= LIST_CAP ) { return; }
+				wrap.appendChild( el( 'p', { style: 'margin:0 0 4px;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: '+' + ( n - LIST_CAP ) + ' more ' + what + ' in Provenance' } ) );
+			}
+
 			if ( torn ) {
 				return;
 			}
@@ -229,7 +238,7 @@
 				}
 				// A freshly minted version: the commit exists, the Worker has not
 				// answered yet. Nothing to poll; the settle window does the work.
-				recording.forEach( function( row ) {
+				recording.slice( 0, LIST_CAP ).forEach( function( row ) {
 					var line = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
 					line.appendChild( el( 'span', {
 						text:  ( 'page' === row.type ? 'Page: ' : '' ) + ( row.title || ( '#' + row.post_id ) ) + ' v' + row.version,
@@ -241,13 +250,14 @@
 					} ) );
 					wrap.appendChild( line );
 				} );
+				moreLine( recording.length, 'recording' );
 				if ( recording.length ) {
 					wrap.appendChild( el( 'p', {
 						style: 'margin:0 0 4px;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));',
 						text:  'Recording: committed locally; the anchor dispatch has not reached the Worker yet.',
 					} ) );
 				}
-				pending.forEach( function( row ) {
+				pending.slice( 0, LIST_CAP ).forEach( function( row ) {
 					var line = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
 					line.appendChild( el( 'span', {
 						text:  ( 'page' === row.type ? 'Page: ' : '' ) + ( row.title || ( '#' + row.post_id ) ) + ' v' + row.version,
@@ -263,6 +273,7 @@
 					} ) );
 					wrap.appendChild( line );
 				} );
+				moreLine( pending.length, 'pending' );
 			}
 
 			if ( archive && overview ) {

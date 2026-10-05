@@ -52,6 +52,7 @@
 	// Monitors don't flap by the second; the statuses ride a 90s server cache
 	// anyway, so a 2-minute poll never outruns the data underneath it.
 	var REFRESH_MS = 2 * 60 * 1000;
+	var LIST_CAP   = 2; // rows a growing list shows before "+N more"
 	var TOAST_MS   = 3500;
 	// WP-Cron runs on a page load, so a job is routinely "due" for seconds; it
 	// is late only past this.
@@ -145,12 +146,15 @@
 		var rows = [ { label: 'Monitors', value: [ upN + ' of ' + mons.length + ' up' ].concat( uptimeSummary( mons ) ).join( ' · ' ), tone: upN === mons.length ? '' : ( anyDown ? DANGER_FG : WARN_FG ) } ];
 		// One line when all are up; each monitor only when one is not.
 		if ( upN !== mons.length ) {
+			var shown = 0;
 			mons.forEach( function( m ) {
 				var level = String( m.level || 'unknown' );
 				if ( 'ok' === level ) { return; } // the count above already says how many are up
 				if ( 'alert' === level ) { tally.down++; } else { tally.look++; }
+				if ( ++shown > LIST_CAP ) { return; } // counted in the verdict, named in the "+N more" row
 				rows.push( { label: String( m.name || 'monitor' ), value: LEVEL_TEXT[ level ] || 'Unknown', tone: 'ok' === level ? OK_FG : ( 'alert' === level ? DANGER_FG : WARN_FG ) } );
 			} );
+			if ( shown > LIST_CAP ) { rows.push( { label: '+' + ( shown - LIST_CAP ) + ' more not up', value: '' } ); }
 		}
 		return { rows: rows };
 	}
@@ -187,9 +191,14 @@
 		} ];
 		// WHICH checks, ranked count-desc by the server and capped at 4; a
 		// check that could not run is named apart, its reason left to the tab.
-		( h.flagged || [] ).forEach( function( f ) { rows.push( { label: String( f.label ), value: String( f.count ), tone: WARN_FG } ); } );
-		if ( num( h.flagged_more ) > 0 ) { rows.push( { label: '+' + num( h.flagged_more ) + ' more', value: '' } ); }
-		skipped.forEach( function( s ) { rows.push( { label: String( s.label ), value: 'could not run', tone: WARN_FG } ); } );
+		// Two of each at most, the rest counted, so a bad scan never pushes the
+		// buttons out of the card; every check is on the Health tab.
+		var flagged = h.flagged || [];
+		flagged.slice( 0, LIST_CAP ).forEach( function( f ) { rows.push( { label: String( f.label ), value: String( f.count ), tone: WARN_FG } ); } );
+		var moreFlagged = Math.max( 0, flagged.length - LIST_CAP ) + num( h.flagged_more );
+		if ( moreFlagged > 0 ) { rows.push( { label: '+' + moreFlagged + ' more to look at', value: '' } ); }
+		skipped.slice( 0, LIST_CAP ).forEach( function( s ) { rows.push( { label: String( s.label ), value: 'could not run', tone: WARN_FG } ); } );
+		if ( skipped.length > LIST_CAP ) { rows.push( { label: '+' + ( skipped.length - LIST_CAP ) + ' more could not run', value: '' } ); }
 		return { rows: rows };
 	}
 

@@ -478,12 +478,12 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 // 2026-10-04: the three merged cards are BUDGETED, not measured, and a saved
 // layout keeps its old height: the owner resizes each once.
 $expected_height = array(
-	'sn-site-views'       => 890, // SN Traffic, BUDGETED: 760 + This week (~96) + the reach row (~30)
+	'sn-site-views'       => 950, // SN Traffic, BUDGETED (+60 busiest state, 21.9.1): 760 + This week (~96) + the reach row (~30)
 	'sn-reading'          => 575, // BUDGETED: 555 + the opening figure and age line, less the two rows it replaced
 	'sn-queue'            => 380, // measured 365 live (15.8.1): two-line headline + depth line + two headings + six rows
-	'sn-health'           => 380, // SN Systems, BUDGETED: the verdict line, three one-row sections (~52 each), the uptime row's second line (~20), the button (~44), the link
+	'sn-health'           => 440, // SN Systems, BUDGETED (+60 busiest state, 21.9.1): the verdict line, three one-row sections (~52 each), the uptime row's second line (~20), the button (~44), the link
 	'sn-deploy-status'    => 350, // v11.11.2 budgeted 310 + the Check for updates button (~40)
-	'sn-anchors'          => 460, // SN Provenance, BUDGETED: 250 + the machine readers (~136) + the rights-files and top-family rows (~40) + the wrapped action row (~28)
+	'sn-anchors'          => 520, // SN Provenance, BUDGETED (+60 busiest state, 21.9.1): 250 + the machine readers (~136) + the rights-files and top-family rows (~40) + the wrapped action row (~28)
 );
 ok( array_keys( $expected_height ) === array_keys( $widgets ),
 	'the measured-height table covers exactly the registered widgets, in registration order' );
@@ -686,6 +686,10 @@ ok( isset( $GLOBALS['__scripts']['sn-desktop-mode-widget-health'] ), 'W3 script 
 $anc_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
 ok( false !== strpos( $anc_js, "if ( sweeping ) { sweepBtn.setAttribute( 'aria-disabled', 'true' ); }" ) && false !== strpos( $anc_js, '|| sweeping ||' ), 'a repaint mid-sweep keeps Sweep busy, so a second click cannot start another sweep' );
 ok( false !== strpos( $anc_js, "signal: readCtl ? readCtl.signal : undefined" ) && 1 === preg_match( '/teardown\(\) \{\s*torn = true;\s*if \( readCtl \) \{ readCtl\.abort\(\); \}/', $anc_js ), 'the reader request is aborted when superseded or when SN Provenance unmounts' );
+
+$hl_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ) );
+ok( false !== strpos( $hl_js, 'flagged.slice( 0, LIST_CAP )' ) && false !== strpos( $hl_js, 'skipped.slice( 0, LIST_CAP )' ) && false !== strpos( $hl_js, "more not up" ), 'SN Systems shows at most two of each growing list (checks, could-not-run, monitors not up) and counts the rest' );
+ok( false !== strpos( $anc_js, 'recording.slice( 0, LIST_CAP )' ) && false !== strpos( $anc_js, 'pending.slice( 0, LIST_CAP )' ) && false !== strpos( $anc_js, "' more ' + what + ' in Provenance'" ), 'SN Provenance shows at most two notes minting and two pending, and counts the rest' );
 
 echo "\n── 2026-10-04: Quick Actions' two buttons moved, one to each card that owns its subject ──\n";
 $sys_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ) );
