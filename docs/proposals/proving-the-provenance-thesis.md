@@ -1,6 +1,6 @@
 # Proving the provenance thesis: gap analysis and plan
 
-**Status**: planning and tracking; a gap that ships a step records it with its date (gap 1, 2026-10-05). Public in this repository since 2026-08-17 (#695); the earlier "stays local" label was stale.
+**Status**: complete for this site as of 2026-10-05, under the stop rule below; a gap that ships a step records it with its date (gap 1 and gap 3, 2026-10-05). Public in this repository since 2026-08-17 (#695); the earlier "stays local" label was stale.
 **Date**: 2026-08-15
 **Audited against**, both read in full:
 - **P1** — *Provenance Over Detection: A Cryptographic Framework for Human Authorship
@@ -10,6 +10,8 @@
 
 Owner selection 2026-08-15: **gaps 2 and 3 now**; gap 1 after the third paper is public; gap 4
 retained because P2 promotes it from a nice-to-have to a core architectural claim (below).
+**Superseded 2026-10-05:** gap 1 step 1 and gap 3 step 2 shipped, and everything else waits for a
+concrete need (see "Where the provenance work stops").
 
 ---
 
@@ -196,7 +198,7 @@ central differentiator, which is why gap 4 stays in scope even though it was not
 | Hash over a canonical representation | `sn_prov_canonical_json` + `normalize_v1`, pinned by parity tests | **met**, and unusually well-specified |
 | Self-issuing — no agency, no registration step | Worker signs on the author's behalf | **divergence** — see above |
 | Signed authorship attestation naming author(s) **and roles** | single `author` string, no roles | **gap 3** |
-| Signature "can only be added to" — co-authors sign later | one signature per record, no additive path | **gap 3** |
+| Signature "can only be added to" — co-authors sign later | the author's own key countersigns records in an append-only sidecar (`countersignatures/`, live 2026-10-05); no path for anyone else to sign | **partly met** (gap 3 step 2); other signers remain gap 3 |
 | Dispute annotation via a separate dispute-record format | none | **gap 3** |
 | Public key reference via W3C DID | `provenance-did.php`, did:web | **met** — P2 explicitly endorses DID alignment |
 | Issuance timestamp from a trusted timestamp authority | OTS + Bitcoin anchor | **met, and stronger** than P2 asks |
@@ -335,6 +337,8 @@ domain.
 
 Owner decision 2026-08-15: **do gaps 2 and 3 now; gap 1 after the third paper is public.**
 `edit_log` approved as design. Planning only — no implementation authorized.
+**Superseded 2026-10-05:** gap 1 step 1 and gap 3 step 2 were built on the owner's say-so, and
+the rest of this plan is governed by "Where the provenance work stops" below.
 
 ### Gap 2 — open the minting path
 
@@ -402,7 +406,7 @@ a key transition: `sn_prov_dispatch()` sends every publication to the Worker to 
 custody also means an author-side signing step at publish. Rotating the key history alone would
 leave the Worker either unable to sign or holding the author's key.
 
-### Gap 3 — multi-contributor attribution (designed within one author)
+### Gap 3 — multi-contributor attribution (designed within one author; step 2 shipped 2026-10-05)
 
 Confirmed by the owner 2026-08-15 as the second item alongside gap 2. **Owner direction
 2026-10-05: this is a single-author site and stays one, and the design works within that
@@ -418,7 +422,7 @@ against an unpublished paper:
 > replaced; it can only be added to (in the case of co-authors signing later) or annotated (in
 > the case of disputes, which require a separate dispute-record format). Ownership is mutable.
 
-So the design has four separable pieces, in dependency order:
+So the design has four separable pieces. Only (2) stands alone: it countersigns records as they are, so it shipped first; (1) changes the record format, and (3) and (4) are new record kinds:
 
 1. **Roles in the claim block.** P2: the claim block "names the author or authors, their roles
    (composer, lyricist, performer, producer)". Today there is one `author` string. First change
@@ -449,6 +453,12 @@ So the design has four separable pieces, in dependency order:
    record it signs that also names the publisher key, and the public pins (DNS and the site's
    key document). This also opens the custody question (D-1) without retiring the Worker key. The ceiling, stated plainly: two keys held by one person
    prove the mechanism, not two independent parties.
+   **Shipped 2026-10-05.** The ledger's `countersign.mjs` and `verify-countersignatures.mjs`
+   ([ledger #41](https://github.com/juanlentino/signal-and-noise-provenance/pull/41)), the key `sn-author-ed25519-2026-10` introduced and pinned
+   ([ledger #42](https://github.com/juanlentino/signal-and-noise-provenance/pull/42), DNS `_provenance-author` and the `sn_prov_author_key` option, plugin 22.5.0), the Worker
+   anchoring batches without a WordPress confirm (sn-provenance-worker 1.25.0), and the first
+   batch, `countersignatures/2026-10-05-1.json`, attesting all 105 passing note and page records
+   ([ledger #43](https://github.com/juanlentino/signal-and-noise-provenance/pull/43)). What it does not show is listed in the ledger's `VERIFY.md`.
 3. **Ownership, and terms kept apart from it.** An ownership record names the owner and changes
    only by a transfer the current owner signs. With one author the chain holds a single entry,
    the author's own declaration, and a transfer may never happen. Rights terms (the license,
@@ -463,20 +473,34 @@ So the design has four separable pieces, in dependency order:
 
 **Sequencing note.** (2) prepares custody without completing it: the author-held key that
 countersigns is the key a later custody move would promote, and that move still needs the
-author-side publish signer described under gap 1. Nothing in this gap waits on another person. (1) is a record-format change and goes first in the ledger repository; (3) and
+author-side publish signer described under gap 1. Nothing in this gap waits on another person. (1) is a record-format change, decided in the ledger repository if it is ever built; (3) and
 (4) build on record kinds the ledger already verifies.
 
 **Open before building (2026-10-05 review), one line each:**
 
-- The site's key documents need a state for a second active key: today the plugin's key history
-  marks every non-current key `retired` and drops its role, and the `did:web` document authorizes
-  only the current key in `assertionMethod` (`inc/provenance-did.php`).
+- Resolved in 22.5.0: the site's key document carries the author key as a second active entry
+  with `role: "author"`, and `did.json` lists it as a verification method, never in
+  `assertionMethod`.
 - Each party entry in (1) should carry a contribution timestamp, or a separate signed
   contribution event should, so a later signature never stands in for when the work was done.
 - An ownership transfer in (3) must say which terms survive it, or terms must name the
   ownership record they hold under and lapse with it.
 - A dispute or self-correction in (4) needs its own kind and verifier outcome: a retraction
   dominates the verdict as "withdrawn" (`prov-verify-core.js`), which a correction must not.
+
+### Where the provenance work stops (2026-10-05)
+
+With gap 1 step 1 and gap 3 step 2 shipped, the provenance system is complete for this site.
+The owner judges its readers to be the author and anyone checking evidence. Over the last 90
+days of human traffic `/provenance/` had 44 views; how often notes are verified is not measured,
+because the standalone `/verify` page the "Verify it yourself" links open carries no analytics
+beacon (`/provenance/verify/` is a different page). The remaining pieces (`edit_log`, gap 3
+steps 1, 3 and 4, a signing path for anyone other than the author (step 2 covers the author's key only), gap 2, gap 4, and moving the publish signature to the author's key) stay
+designed and unbuilt; `edit_log`'s approval as a design and its open sequencing question stand
+but no longer authorize building it. One of them is built only when a concrete need names it: a
+collaborator, a rights claim that needs an ownership or terms record, an error that needs a
+self-correction record, or a new paper, beyond P1 and P2 audited here, whose argument cannot be made without it. What P1 and P2 already ask for is recorded in this document and does not reopen anything on its own. Countersigning new records stays
+routine: `node countersign.mjs prepare`, the author signs, `finish`, a pull request.
 
 ### Gap 4 — retained, not selected
 
@@ -497,11 +521,11 @@ Still open:
 1. ~~A proving ground for gap 3.~~ **Resolved 2026-10-05: the author's own second key.** The
    site has one author and keeps one; gap 3 is designed within that (see gap 3).
 2. ~~Custodial signing — argue it or change it.~~ **Resolved 2026-08-15: documented as
-   deliberate deviation D-1**, with its cost stated and its end conditions named. One follow-on
-   remains: the public-facing wording. `VERIFY.md` and the provenance surfaces should describe
-   what the signature attests — the author's publishing infrastructure witnessing a publication
-   event — rather than implying a hand-signature. That is a copy change to live public text and
-   has not been made.
+   deliberate deviation D-1**, with its cost stated and its end conditions named. Its follow-on,
+   the public wording, is **resolved (checked 2026-10-05):** the ledger's `VERIFY.md` says what
+   the signature attests in "What the signature attests" (the Worker signs on publish; no person
+   applies a key by hand), and the live `/verify` page and the chip and panel strings in
+   `inc/provenance-render.php` make no hand-signature claim.
 3. **Sequencing of `edit_log` against gap 2.** Its first emission is permanent on an append-only
    ledger. Gap 2 makes every emitted field auditable. Recommend gap 2 lands **before** the first
    `edit_log` record is written, so the field is evidence from its first appearance rather than
