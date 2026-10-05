@@ -30,7 +30,8 @@
  *   real function (the static would otherwise short-circuit it), and the
  *   structural guarantee makes that redundant.
  *
- * Pure-PHP CLI harness, modeled on tests/prepop-on-publish.php's stub idiom +
+ * Pure-PHP CLI harness, modeled on the stub idiom of the former
+ * tests/prepop-on-publish.php (removed with the auto-fill, 2026-10-05) +
  * the add_filter/apply_filters/has_filter simulator from tests/contracts-stub.php.
  *
  * @since plugin v4.8.1
