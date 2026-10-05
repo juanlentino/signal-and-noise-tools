@@ -716,6 +716,11 @@
 		if ( ! named ) {
 			return { verdict: { state: STATE.FAIL, detail: 'This record is signed by key "' + keyId + '", which no published key document lists. There is nothing to verify it against.' } };
 		}
+		// The author's key countersigns ledger records and signs no note,
+		// credential or retraction, so naming it here is a failure, not a pass.
+		if ( ( siteEntry && 'author' === siteEntry.role ) || ( ledgerEntry && 'author' === ledgerEntry.role ) ) {
+			return { verdict: { state: STATE.FAIL, detail: 'This record names key "' + keyId + '", the author\'s countersigning key, which signs no notes.' } };
+		}
 		if ( siteEntry && ledgerEntry && siteEntry.public_key_base64 !== ledgerEntry.public_key_base64 ) {
 			return { verdict: { state: STATE.FAIL, detail: 'Key mismatch: this site\'s own key mirror and the independent ledger copy publish different bytes for key "' + keyId + '".' } };
 		}
@@ -746,7 +751,8 @@
 			return undefined;
 		}
 		for ( var i = 0; i < keys.length; i++ ) {
-			if ( keys[ i ] && keys[ i ].status === 'active' && keys[ i ].public_key_base64 ) {
+			// The author's countersigning key is active too, and signs no note.
+			if ( keys[ i ] && keys[ i ].status === 'active' && 'author' !== keys[ i ].role && keys[ i ].public_key_base64 ) {
 				return keys[ i ].public_key_base64;
 			}
 		}
@@ -1104,6 +1110,8 @@
 		ledgerRecordUrl:          ledgerRecordUrl,
 		SUBJECT_ROOTS:            SUBJECT_ROOTS,
 		ledgerKeysUrl:            ledgerKeysUrl,
+		activeKeyB64:             activeKeyB64,
+		resolveNamedKey:          resolveNamedKey,
 		mempoolTxStatusUrl:       mempoolTxStatusUrl,
 		deriveBlockOnlyAnchor:    deriveBlockOnlyAnchor,
 		deriveLedgerTxAnchor:     deriveLedgerTxAnchor,
