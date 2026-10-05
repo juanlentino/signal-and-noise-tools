@@ -43,6 +43,8 @@ function get_the_title( $id ) { return 77 === (int) $id ? 'Alpha & the <Signal>'
 // The rollup read layer — counting stubs, fixture-driven.
 $GLOBALS['__ct_calls'] = 0; $GLOBALS['__ct_return'] = array();
 $GLOBALS['__dr_calls'] = 0; $GLOBALS['__dr_return'] = array();
+$GLOBALS['__pv'] = 640;
+function sn_analytics_range_totals( $from, $to, $class = 'human' ) { return array( 'pageview_visits' => $GLOBALS['__pv'] ); }
 function sn_analytics_class_totals( $from, $to ) { $GLOBALS['__ct_calls']++; $GLOBALS['__ct_window'] = array( $from, $to ); return $GLOBALS['__ct_return']; }
 function sn_analytics_daily_range( $from, $to, $class = 'human' ) { $GLOBALS['__dr_calls']++; $GLOBALS['__dr_class'] = $class; return $GLOBALS['__dr_return']; }
 function sn_analytics_is_excluded_path( $path ) {
@@ -86,8 +88,9 @@ $rows = array(
 	array( 'day' => $win_day( 2 ), 'path' => '/', 'views' => 50 ),
 	array( 'day' => $win_day( 1 ), 'path' => '/notes/beta', 'views' => 100 ),
 );
-$a = sn_public_stats_assemble( $ct, $rows );
-ok( 900 === $a['views'] && 1100 === $a['visits'], 'human totals pass through — visits CAN exceed views (reader-days, the structural fact, never "corrected")' );
+$a = sn_public_stats_assemble( $ct, $rows, null, 640 );
+ok( 900 === $a['views'] && 640 === $a['visits'], 'Visits is reader-days with a pageview (pageview_visits), not the rollup visits that also count feed- and beacon-only days (1100 here)' );
+ok( null === sn_public_stats_assemble( $ct, $rows )['visits'], 'unmeasured pageview visits stay null, never 0' );
 ok( 100 === $a['automated_views'], 'automated = suspect + bot views summed' );
 ok( array( '/notes/alpha/' => 500, '/notes/beta/' => 450, '/' => 50 ) === $a['top'], 'top aggregates a path ACROSS days AND across slash variants (/notes/beta + /notes/beta/ = one entry), sorts by views, and the admin path NEVER surfaces (v10.65.1: the live split-ranking fix)' );
 
@@ -110,13 +113,13 @@ ok( $GLOBALS['__ct_calls'] === $calls_before + 1, 'second call serves the transi
 echo "\nGroup: render\n";
 $html = call_user_func( $GLOBALS['__shortcodes']['sn_public_stats'] );
 ok( in_array( 'sn-public-stats-front', $GLOBALS['__enq'], true ), 'enqueues its own front stylesheet' );
-ok( false !== strpos( $html, '>900<' ) && false !== strpos( $html, '>1,100<' ), 'tiles render the human totals (i18n-formatted)' );
+ok( false !== strpos( $html, '>900<' ) && false !== strpos( $html, '>640<' ) && false === strpos( $html, '>1,100<' ), 'tiles render views and reader-days with a pageview, not the rollup visits (i18n-formatted)' );
 ok( false !== strpos( $html, '>100<' ), 'the automated tile renders — the filtered class is shown, not hidden' );
 ok( false !== strpos( $html, 'Alpha &amp; the &lt;Signal&gt;' ), 'a resolved title renders ESCAPED' );
 ok( false !== strpos( $html, '/notes/beta/' ), 'an unresolvable path falls back to the path itself' );
 ok( false !== strpos( $html, 'Home' ), 'the homepage path renders as Home' );
 ok( false === strpos( $html, 'wp-admin' ), 'no admin path anywhere in the public render' );
-ok( false !== strpos( $html, 'reader-days' ), 'the visits tile carries the reader-days honesty line' );
+ok( false !== strpos( $html, 'days a reader opened at least one page' ), 'the visits tile says what it counts: days a reader opened at least one page' );
 ok( false !== strpos( $html, 'cookieless' ), 'the method note renders' );
 
 echo "\nGroup: render — never-measured\n";
@@ -195,7 +198,7 @@ ok( false === strpos( $html4, 'sn-public-stats__twin' ), 'and no twin — a tabl
 ok( false !== strpos( $html4, 'sn-public-stats__stat' ), 'while the tiles still render (totals exist)' );
 // A stale cached payload from before the series existed must not fatal or
 // half-render: the key carries a version so it can never be read again.
-ok( 'sn_public_stats_v2' === SN_PUBLIC_STATS_CACHE_KEY, 'cache key bumped to _v2 — a pre-series payload can never be served into the new render' );
+ok( 'sn_public_stats_v3' === SN_PUBLIC_STATS_CACHE_KEY, 'cache key bumped to _v3: a payload cached with the old Visits figure can never be served into the new render' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

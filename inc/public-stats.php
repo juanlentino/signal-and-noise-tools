@@ -38,7 +38,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // _v2: the payload gained the 'daily' series (charts that speak). The key
 // carries the shape version so an hour-old pre-series payload can never be
 // served into a render that expects the series (the narration _v2 pattern).
-const SN_PUBLIC_STATS_CACHE_KEY = 'sn_public_stats_v2';
+const SN_PUBLIC_STATS_CACHE_KEY = 'sn_public_stats_v3'; // v3: Visits counts reader-days with a pageview.
 const SN_PUBLIC_STATS_CACHE_TTL = HOUR_IN_SECONDS;
 const SN_PUBLIC_STATS_DAYS      = 30;
 const SN_PUBLIC_STATS_TOP_N     = 8;
@@ -62,9 +62,11 @@ function sn_public_stats_window() {
  * @param array<string,array{views:int,visits:int}> $class_totals sn_analytics_class_totals() shape.
  * @param array<int,array<string,mixed>>            $human_rows   sn_analytics_daily_range() shape (class 'human').
  * @param array{0:string,1:string}|null             $window       [from, to] YYYY-MM-DD; null derives the live window.
+ * @param int|null                                  $pv_visits    Reader-days with at least one pageview (sn_analytics_range_totals()'s
+ *                                                                pageview_visits); null when not measured, and the tile is left out.
  * @return array{views:int,visits:int,automated_views:int,top:array<string,int>,days:int,daily:array<string,int>}|null
  */
-function sn_public_stats_assemble( $class_totals, $human_rows, $window = null ) {
+function sn_public_stats_assemble( $class_totals, $human_rows, $window = null, $pv_visits = null ) {
 	$class_totals = is_array( $class_totals ) ? $class_totals : array();
 	$human_rows   = is_array( $human_rows ) ? $human_rows : array();
 	if ( array() === $class_totals && array() === $human_rows ) {
@@ -118,7 +120,10 @@ function sn_public_stats_assemble( $class_totals, $human_rows, $window = null ) 
 
 	return array(
 		'views'           => (int) ( $human['views'] ?? 0 ),
-		'visits'          => (int) ( $human['visits'] ?? 0 ),
+		// Reader-days that opened a page. The rollup's plain `visits` also counts
+		// feed- and beacon-only reader-days, which is how it read 520 against
+		// 337 views; the analytics module's headline visit figure is this one.
+		'visits'          => null === $pv_visits ? null : (int) $pv_visits,
 		'automated_views' => $automated,
 		'top'             => array_slice( $by_path, 0, SN_PUBLIC_STATS_TOP_N, true ),
 		'days'            => SN_PUBLIC_STATS_DAYS,
@@ -309,7 +314,8 @@ function sn_public_stats_data() {
 	$assembled = sn_public_stats_assemble(
 		function_exists( 'sn_analytics_class_totals' ) ? sn_analytics_class_totals( $from, $to ) : array(),
 		function_exists( 'sn_analytics_daily_range' ) ? sn_analytics_daily_range( $from, $to, 'human' ) : array(),
-		array( $from, $to )
+		array( $from, $to ),
+		function_exists( 'sn_analytics_range_totals' ) ? ( sn_analytics_range_totals( $from, $to, 'human' )['pageview_visits'] ?? null ) : null
 	);
 
 	set_transient( SN_PUBLIC_STATS_CACHE_KEY, null === $assembled ? array( 'none' => true ) : $assembled, SN_PUBLIC_STATS_CACHE_TTL );
@@ -362,11 +368,13 @@ function sn_public_stats_html() {
 
 	$tiles = array(
 		array( $data['views'], __( 'Views', 'signal-and-noise-tools' ), __( 'human pageviews', 'signal-and-noise-tools' ), '' ),
-		array( $data['visits'], __( 'Visits', 'signal-and-noise-tools' ), __( 'reader-days — the same reader tomorrow counts again', 'signal-and-noise-tools' ), '' ),
+		array( $data['visits'], __( 'Visits', 'signal-and-noise-tools' ), __( 'days a reader opened at least one page; the same reader tomorrow counts again', 'signal-and-noise-tools' ), '' ),
 		array( $data['automated_views'], __( 'Automated', 'signal-and-noise-tools' ), __( 'crawler and bot views, filtered OUT of the numbers to the left', 'signal-and-noise-tools' ), ' sn-public-stats__tile--dim' ),
 	);
 
 	$out .= '<p class="sn-public-stats__window">' . $window_label . '</p><div class="sn-public-stats__tiles">';
+	// A figure that was not measured is left out, never painted as 0.
+	$tiles = array_values( array_filter( $tiles, static fn( $t ) => null !== $t[0] ) );
 	foreach ( $tiles as $tile ) {
 		$out .= '<div class="sn-public-stats__tile' . esc_attr( $tile[3] ) . '">'
 			. '<span class="sn-public-stats__stat">' . esc_html( number_format_i18n( (int) $tile[0] ) ) . '</span>'

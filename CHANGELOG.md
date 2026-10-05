@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **/stats: Visits counts days a reader opened a page.** The tile read the rollup's plain visits, which also count feed- and beacon-only reader-days, so it showed 520 visits against 337 views over 30 days. It now reads the analytics module's headline figure, reader-days with at least one pageview (250 over the same 30 days), under the owner-approved line "days a reader opened at least one page; the same reader tomorrow counts again". An unmeasured figure leaves the tile out rather than showing 0. The page stays read-only over the stored analytics.
+
 ## [21.9.0] - 2026-10-05 — twelve desktop cards fold to six
 
 ### Added
