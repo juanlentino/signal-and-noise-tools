@@ -239,9 +239,9 @@
 		var list = el( 'div' );
 		list.setAttribute( 'role', 'list' );
 		read.rows.forEach( function( r ) {
-			var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+			var row = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
 			row.setAttribute( 'role', 'listitem' );
-			row.appendChild( el( 'span', { text: r.label, style: 'min-width:0;white-space:normal;overflow-wrap:anywhere;' + SUBTLE } ) );
+			row.appendChild( el( 'span', { text: r.label, style: 'min-width:0;white-space:normal;overflow-wrap:break-word;' + SUBTLE } ) );
 			if ( r.value ) {
 				row.appendChild( el( 'span', { text: r.value, style: 'flex:0 1 auto;text-align:right;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;font-weight:600;' + ( r.tone ? 'color:' + r.tone + ';' : '' ) } ) );
 			}
@@ -317,8 +317,8 @@
 		// (it deletes wp_template / wp_template_part / wp_navigation rows).
 		var btn = el( 'button', {
 			text:  'Clear DB overrides',
-			style: 'display:block;width:100%;min-height:24px;margin:10px 0 0;padding:8px 10px;background:' + SURFACE + ';color:inherit;border:1px solid ' + HAIRLINE +
-				';border-radius:8px;font-size:13px;line-height:1.2;cursor:pointer;text-align:left;transition:background 120ms ease,border-color 120ms ease;',
+			// The cards' one button style (SN Provenance's Sweep now), on the link's line.
+			style: 'font:inherit;font-size:11px;padding:2px 10px;border-radius:5px;border:1px solid rgba(128,128,128,.45);background:transparent;color:inherit;cursor:pointer;min-height:24px;',
 		} );
 		btn.type = 'button';
 		hoverable( btn );
@@ -342,18 +342,20 @@
 				} );
 			} );
 		} );
-		wrap.appendChild( btn );
+		var actions = el( 'div', { style: 'margin-top:10px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;' } );
+		actions.appendChild( btn );
+		wrap.appendChild( actions );
 
 		if ( healthUrl ) {
 			var link = el( 'a', {
 				href:  healthUrl,
 				text:  'Open Health',
-				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
+				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
 			} );
 			var arrow = el( 'span', { text: '→' } );
 			arrow.setAttribute( 'aria-hidden', 'true' ); // a link's trailing arrow is decoration
 			link.appendChild( arrow );
-			wrap.appendChild( link );
+			actions.appendChild( link );
 		}
 		container.appendChild( wrap );
 

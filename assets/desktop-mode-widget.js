@@ -93,15 +93,24 @@
 		} ) );
 	}
 
-	// Recency is useful content; only actual failures get an inline detail cue.
+	/** "just now", "6 min ago", "2 h ago" from an ISO time. */
+	function agoWords( iso ) {
+		var s = Math.max( 0, Math.round( ( Date.now() - Date.parse( iso ) ) / 1000 ) );
+		return s < 60 ? 'just now' : s < 3600 ? Math.round( s / 60 ) + ' min ago' : Math.round( s / 3600 ) + ' h ago';
+	}
+
+	// Only actual failures get a footer and an inline detail cue.
 	function renderRefreshStatus( container, lastSuccess, message, delay ) {
+		// A current reading needs no footer; only a failed refresh says anything,
+		// in words ("Last good reading 6 min ago"), never a raw timestamp.
+		if ( ! message ) { return; }
 		var footer = el( 'p', {
-			text: lastSuccess ? 'Last successful refresh: ' + lastSuccess : 'Status unavailable.',
+			text: lastSuccess ? 'Last good reading ' + agoWords( lastSuccess ) + ' · retrying in ' + Math.max( 1, Math.round( delay / 60000 ) ) + ' min' : 'Status unavailable · retrying in ' + Math.max( 1, Math.round( delay / 60000 ) ) + ' min',
 			style: 'position:relative;padding:0 32px 0 16px;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
 		} );
 		if ( message ) {
 			var detail = ( lastSuccess ? 'Showing last-known data. ' : 'No successful refresh yet. ' ) +
-				'Current status unavailable: ' + message + '. Retry after ' + new Date( Date.now() + delay ).toISOString();
+				'Current status unavailable: ' + message + '.';
 			var cue = el( 'span', { text: '⚠', style: 'position:absolute;right:16px;top:0;color:#d29922;' } );
 			cue.title = detail;
 			cue.setAttribute( 'role', 'img' );
@@ -221,14 +230,6 @@
 		deployEl.title = 'Theme and plugin only. The Cloudflare workers deploy outside the WordPress upgrader, so their releases are not recorded in this feed.';
 		wrap.appendChild( deployEl );
 
-		if ( dashboardUrl ) {
-			wrap.appendChild( el( 'a', {
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;',
-				text:  'Open Dashboard →',
-				href:  dashboardUrl,
-			} ) );
-		}
-
 		container.appendChild( wrap );
 	}
 
@@ -256,16 +257,15 @@
 	 * ability's job). The card then repaints from the fresh reading.
 	 */
 	function checkButton( isTorn, repaint ) {
-		var hair = 'var(--os-ui-color-border, rgba(255,255,255,0.14))';
 		var btn  = el( 'button', {
 			text:  'Check for updates',
-			style: 'display:block;width:calc(100% - 32px);min-height:24px;margin:8px 16px 12px;padding:8px 10px;background:rgba(255,255,255,0.06);color:inherit;border:1px solid ' + hair +
-				';border-radius:8px;font-size:13px;line-height:1.2;cursor:pointer;text-align:left;transition:background 120ms ease,border-color 120ms ease;',
+			// The cards' one button style (SN Provenance's Sweep now).
+			style: 'font:inherit;font-size:11px;padding:2px 10px;border-radius:5px;border:1px solid rgba(128,128,128,.45);background:transparent;color:inherit;cursor:pointer;min-height:24px;',
 		} );
 		btn.type  = 'button';
 		btn.title = 'Clear the GitHub tag + WordPress update transients and re-fetch';
-		btn.addEventListener( 'mouseenter', function() { if ( btn.getAttribute( 'aria-busy' ) !== 'true' ) { btn.style.background = 'rgba(255,255,255,0.13)'; } } );
-		btn.addEventListener( 'mouseleave', function() { btn.style.background = 'rgba(255,255,255,0.06)'; } );
+		btn.addEventListener( 'mouseenter', function() { if ( btn.getAttribute( 'aria-busy' ) !== 'true' ) { btn.style.background = 'rgba(255,255,255,0.08)'; } } );
+		btn.addEventListener( 'mouseleave', function() { btn.style.background = 'transparent'; } );
 		var note = el( 'p', { style: 'margin:0 16px 8px;font-size:11px;' } );
 		note.setAttribute( 'role', 'status' ); // the fallback when the shell has no toast
 		btn.addEventListener( 'click', function() {
@@ -289,8 +289,23 @@
 				btn.removeAttribute( 'aria-busy' );
 			} );
 		} );
-		var box = el( 'div' );
-		box.appendChild( btn );
+		// Button and link on one line, outside the repainted reading, so a
+		// repaint never drops the button's focus or its busy state.
+		var box  = el( 'div' );
+		var line = el( 'div', { style: 'margin:8px 16px 12px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;' } );
+		line.appendChild( btn );
+		if ( dashboardUrl ) {
+			var link  = el( 'a', {
+				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;',
+				text:  'Open Dashboard',
+				href:  dashboardUrl,
+			} );
+			var arrow = el( 'span', { text: '→' } );
+			arrow.setAttribute( 'aria-hidden', 'true' );
+			link.appendChild( arrow );
+			line.appendChild( link );
+		}
+		box.appendChild( line );
 		box.appendChild( note );
 		return box;
 	}

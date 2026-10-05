@@ -74,10 +74,10 @@
 
 	/** A label/value row as a listitem; `amber` tones the value; `extra` follows it. */
 	function listRow( label, value, amber, extra ) {
-		var line = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+		var line = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
 		line.setAttribute( 'role', 'listitem' );
 		line.appendChild( el( 'span', { text: label, style: 'min-width:0;' + SUBTLE } ) );
-		var val = el( 'span', { text: value, style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;min-width:0;white-space:normal;overflow-wrap:anywhere;text-align:right;' + ( amber ? 'color:#d29922;' : '' ) } );
+		var val = el( 'span', { text: value, style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;min-width:0;white-space:normal;overflow-wrap:break-word;text-align:right;' + ( amber ? 'color:#d29922;' : '' ) } );
 		if ( extra ) { val.appendChild( extra ); }
 		line.appendChild( val );
 		return line;
@@ -230,10 +230,10 @@
 				// A freshly minted version: the commit exists, the Worker has not
 				// answered yet. Nothing to poll; the settle window does the work.
 				recording.forEach( function( row ) {
-					var line = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+					var line = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
 					line.appendChild( el( 'span', {
 						text:  ( 'page' === row.type ? 'Page: ' : '' ) + ( row.title || ( '#' + row.post_id ) ) + ' v' + row.version,
-						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.75));min-width:0;white-space:normal;overflow-wrap:anywhere;',
+						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.75));min-width:0;white-space:normal;overflow-wrap:break-word;',
 					} ) );
 					line.appendChild( el( 'span', {
 						text:  'recording',
@@ -248,10 +248,10 @@
 					} ) );
 				}
 				pending.forEach( function( row ) {
-					var line = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+					var line = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
 					line.appendChild( el( 'span', {
 						text:  ( 'page' === row.type ? 'Page: ' : '' ) + ( row.title || ( '#' + row.post_id ) ) + ' v' + row.version,
-						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.75));min-width:0;white-space:normal;overflow-wrap:anywhere;',
+						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.75));min-width:0;white-space:normal;overflow-wrap:break-word;',
 					} ) );
 					var stat = null === row.confirmations || undefined === row.confirmations
 						? ( row.bitcoin_txid ? shortTx( row.bitcoin_txid ) : 'awaiting tx' )
@@ -288,9 +288,9 @@
 				if ( archive.configured ) { rows.push( [ 'Captures', capText, failedN > 0 || silentN > 0 ] ); }
 				var box = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
 				rows.forEach( function( r ) {
-					var line = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+					var line = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
 					line.appendChild( el( 'span', { text: r[0], style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));' } ) );
-					line.appendChild( el( 'span', { text: r[1], style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;min-width:0;white-space:normal;overflow-wrap:anywhere;text-align:right;' + ( r[2] ? 'color:#d29922;' : '' ) } ) );
+					line.appendChild( el( 'span', { text: r[1], style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;min-width:0;white-space:normal;overflow-wrap:break-word;text-align:right;' + ( r[2] ? 'color:#d29922;' : '' ) } ) );
 					box.appendChild( line );
 				} );
 				// The rows above already say what the line says, except when the run
