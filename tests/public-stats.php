@@ -45,7 +45,20 @@ $GLOBALS['__ct_calls'] = 0; $GLOBALS['__ct_return'] = array();
 $GLOBALS['__dr_calls'] = 0; $GLOBALS['__dr_return'] = array();
 // Sessions: one row per day of the session rollup; visits is site-wide sessions.
 $GLOBALS['__sessions'] = array( array( 'day' => '2026-08-01', 'visits' => 400, 'bounce_pct' => 60, 'ppv' => 1.4, 'median_dur' => 50, 'two_pages' => 100, 'deep_pages' => 60 ), array( 'day' => '2026-08-02', 'visits' => 240, 'bounce_pct' => 60, 'ppv' => 1.4, 'median_dur' => 50, 'two_pages' => 60, 'deep_pages' => 36 ) );
-function sn_session_rollup_read( $from, $to, $class ) { return $GLOBALS['__sessions']; }
+// The render path reads a full window; the fixture rows plus a zero row for
+// every window day, unless a test asks for the partial window as given.
+$GLOBALS['__pad'] = true;
+function sn_session_rollup_read( $from, $to, $class ) {
+	$r = $GLOBALS['__sessions'];
+	if ( ! is_array( $r ) || array() === $r || ! $GLOBALS['__pad'] ) {
+		return $r;
+	}
+	for ( $t = strtotime( $from . ' UTC' ); $t <= strtotime( $to . ' UTC' ); $t += 86400 ) {
+		$r[] = array( 'day' => gmdate( 'Y-m-d', $t ), 'visits' => 0, 'bounce_pct' => 0, 'ppv' => 0, 'median_dur' => 0, 'two_pages' => 0, 'deep_pages' => 0 );
+	}
+	return $r;
+}
+function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; }
 // pageview_visits is deliberately 999: Visits must never read it again.
 $GLOBALS['__totals'] = array( 'views' => 900, 'visits' => 1100, 'pageview_visits' => 999, 'scroll_avg_per_view' => 47.6, 'time_avg_per_view' => 65000 );
 function sn_analytics_range_totals( $from, $to, $class = 'human' ) { return $GLOBALS['__totals']; }
@@ -58,12 +71,15 @@ $GLOBALS['__sources'] = array(
 );
 function sn_analytics_top_sources( $from, $to, $class = 'human', $limit = 10 ) { return $GLOBALS['__sources']; }
 $GLOBALS['__countries'] = array(
-	array( 'value' => 'US', 'views' => 500, 'visits' => 300 ),
+	array( 'value' => 'US', 'views' => 898, 'visits' => 300 ), // with IS, every view of the window (900)
 	array( 'value' => 'IS', 'views' => 2, 'visits' => 1 ),
 );
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) { return 'country' === $dim ? $GLOBALS['__countries'] : array(); }
-$GLOBALS['__machines'] = array( 'ok' => true, 'total' => 4200, 'edge_verified' => array( 'verified' => 2100, 'unverified' => 1680, 'not_measured' => 420 ) );
-function snt_desktop_machine_readers_payload() { return $GLOBALS['__machines']; }
+function snt_desktop_machine_readers_identity( array $rows ) {
+	$out = array( 'verified' => 0, 'unverified' => 0, 'not_measured' => 0 );
+	foreach ( $rows as $r ) { $out[ $r['id'] ] += $r['hits']; }
+	return $out;
+}
 function snt_desktop_db_failed() { return false; }
 function snt_desktop_pct( $part, $whole ) { return $whole > 0 ? round( 100 * $part / $whole ) . '%' : ''; }
 require __DIR__ . '/../inc/desktop-mode-reading.php'; // the SN Reading rows, reused as is.
@@ -75,6 +91,8 @@ function sn_analytics_is_excluded_path( $path ) {
 }
 
 require __DIR__ . '/../inc/public-stats.php';
+list( $__wf, $__wt ) = sn_public_stats_window();
+$GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_OPT ] = array( 'from' => $__wf, 'to' => $__wt, 'machines' => array( 'total' => 4200, 'split' => array( 'verified' => 2100, 'unverified' => 1680, 'not_measured' => 420 ) ) );
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
@@ -280,17 +298,41 @@ ok( false !== strpos( $h, 'Automated counts bot pageviews that reached the track
 ok( false !== strpos( $h, '<a href="https://github.com/juanlentino/signal-and-noise-provenance">Public ledger</a>' ), 'the public ledger link' );
 
 // Failures leave sections out, never zeros.
-$GLOBALS['__machines'] = array( 'ok' => false, 'error' => 'timeout', 'days' => 30 );
+$__snap = $GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_OPT ];
+$GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_OPT ] = array( 'from' => '2026-01-01', 'to' => '2026-01-30', 'machines' => $__snap['machines'] ); // another window's snapshot
 $GLOBALS['__sources']  = null; $GLOBALS['__countries'] = null;
 $GLOBALS['__totals']   = array( 'views' => 0, 'visits' => 0 ); $GLOBALS['__dist'] = array(); $GLOBALS['__sessions'] = null;
 $hf = $fresh();
-ok( false === strpos( $hf, 'Humans and machines' ) && false === strpos( $hf, 'Public ledger' ), 'a failed machine-readers read leaves the section out' );
+ok( false === strpos( $hf, 'Humans and machines' ) && false === strpos( $hf, 'Public ledger' ), 'a snapshot of another window leaves the section out' );
 ok( false === strpos( $hf, 'Where readers come from' ) && false === strpos( $hf, '>Other<' ), 'failed source and country reads leave the column out' );
 ok( false === strpos( $hf, 'How they read' ), 'no readable reading figure leaves the column out' );
 ok( false !== strpos( $hf, '<h2>Most read</h2>' ), 'while Most read still renders' );
-$GLOBALS['__machines'] = array( 'ok' => true, 'total' => 50 ); // capped read: no split
+$GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_OPT ] = array( 'from' => $__wf, 'to' => $__wt, 'machines' => array( 'total' => 50, 'split' => null ) ); // capped aggregate: no split
 $hc = $fresh();
 ok( false !== strpos( $hc, 'Humans and machines' ) && false === strpos( $hc, 'Verified by Cloudflare' ), 'without a measured split the totals stay and the split is left out' );
+
+// Codex on 37c3a84: the sensor stays off the render path, in the report window.
+$src = (string) file_get_contents( __DIR__ . '/../inc/public-stats.php' );
+ok( false === strpos( $src, 'snt_desktop_machine_readers_payload' ) && false === strpos( $src, 'snt_mr_fetch' ), 'the public render never calls the sensor; it reads the stored snapshot' );
+$tot = array( 'ok' => true, 'truncated' => false, 'rows' => array( array( 'day' => '2026-08-01', 'hits' => 10 ), array( 'day' => '2026-08-02', 'hits' => 20 ), array( 'day' => '2026-08-03', 'hits' => 99 ) ) );
+$agg = array( 'ok' => true, 'truncated' => false, 'rows' => array( array( 'day' => '2026-08-01', 'hits' => 10, 'id' => 'verified' ), array( 'day' => '2026-08-03', 'hits' => 99, 'id' => 'unverified' ) ) );
+$m   = sn_public_stats_machines( $tot, $agg, '2026-08-01', '2026-08-02' );
+ok( 30 === $m['total'] && 10 === $m['split']['verified'] && 0 === $m['split']['unverified'], 'machine reads are cut to the report window: today\'s partial day is out' );
+ok( null === sn_public_stats_machines( $tot, $agg, '2026-07-31', '2026-08-02' ), 'a totals read that does not reach the window\'s first day leaves the section out' );
+ok( null === sn_public_stats_machines( array( 'ok' => true, 'truncated' => true, 'rows' => $tot['rows'] ), $agg, '2026-08-01', '2026-08-02' ), 'a capped totals read leaves the section out' );
+ok( null === sn_public_stats_machines( $tot, array( 'ok' => true, 'truncated' => true, 'rows' => array() ), '2026-08-01', '2026-08-02' )['split'], 'a capped aggregate read keeps the total and drops the split' );
+ok( null === sn_public_stats_machines_stored( false, '2026-08-01', '2026-08-02' ), 'no snapshot yet: the section is left out' );
+// A partial session window is never summed as the whole.
+ok( null === sn_public_stats_full_window( array( array( 'day' => '2026-08-01' ) ), '2026-08-01', '2026-08-02' ), 'a window missing a rolled-up day is partial: null' );
+ok( 2 === count( sn_public_stats_full_window( array( array( 'day' => '2026-08-01' ), array( 'day' => '2026-08-02' ) ), '2026-08-01', '2026-08-02' ) ), 'every day rolled up: the rows pass' );
+$GLOBALS['__pad'] = false; $GLOBALS['__sessions'] = array( array( 'day' => '2026-08-01', 'visits' => 640 ) );
+$hp = $fresh();
+ok( false === strpos( $hp, '>Visits<' ) && false === strpos( $hp, 'One page only' ), 'a partial session window leaves Visits and One page only out' );
+$GLOBALS['__pad'] = true;
+// Shares are of every view, not of the 500 rows the accessor kept.
+$cap = sn_public_stats_fold( array( array( 'value' => 'a', 'views' => 60, 'visits' => 10 ), array( 'value' => 'b', 'views' => 40, 'visits' => 10 ) ), 'strval', 200 );
+ok( 30 === $cap[0]['share'] && 'Other' === $cap[2]['label'] && 100 === $cap[2]['views'] && 50 === $cap[2]['share'], 'the tail past the accessor cap is Other, and shares are of all views' );
+ok( 60 === sn_public_stats_fold( array( array( 'value' => 'a', 'views' => 60, 'visits' => 10 ), array( 'value' => 'b', 'views' => 40, 'visits' => 10 ) ), 'strval', 50 )[0]['share'], 'a window total below the rows\' sum never pushes shares past 100' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

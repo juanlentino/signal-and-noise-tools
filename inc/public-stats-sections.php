@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SN_PUBLIC_STATS_MIN_GROUP = 3;
 const SN_PUBLIC_STATS_LIST_N    = 5;
+const SN_PUBLIC_STATS_MACHINES_OPT  = 'sn_public_stats_machines';
+const SN_PUBLIC_STATS_MACHINES_HOOK = 'sn_public_stats_machines_refresh';
 
 /**
  * Site-wide sessions over the window: the visits field of the session rollup,
@@ -60,18 +62,22 @@ function sn_public_stats_country_label( $code ) {
  *
  * @param array|null $rows  [{value, views, visits?}]; null when the read failed.
  * @param callable   $label Value => label, or null to fold.
+ * @param int        $all   Every view in the window; the rows' sum when smaller.
  * @return array<int,array{label:string,views:int,share:int}>|null Null when failed or empty.
  */
-function sn_public_stats_fold( $rows, $label ) {
+function sn_public_stats_fold( $rows, $label, $all = 0 ) {
 	if ( ! is_array( $rows ) ) {
 		return null;
 	}
-	$total = array_sum( array_map( static fn( $r ) => (int) ( $r['views'] ?? 0 ), $rows ) );
-	if ( $total < 1 ) {
+	$sum = array_sum( array_map( static fn( $r ) => (int) ( $r['views'] ?? 0 ), $rows ) );
+	if ( $sum < 1 ) {
 		return null;
 	}
+	// The accessor keeps its top 500 rows; the tail it dropped is Other, and
+	// shares are of every view in the window, not of the rows that survived.
+	$total = max( $sum, (int) $all );
 	$out   = array();
-	$other = 0;
+	$other = $total - $sum;
 	foreach ( $rows as $r ) {
 		$views = (int) ( $r['views'] ?? 0 );
 		$size  = isset( $r['visits'] ) ? (int) $r['visits'] : $views;
@@ -112,18 +118,87 @@ function sn_public_stats_reading_rows( $totals, $dist, $sessions ) {
 }
 
 /**
- * Humans and machines, from the desktop's machine-readers payload. PURE.
- * Null when the sensor read failed: the section is left out, never zeros.
+ * Machine reads over the report window. PURE. The total is the sensor's
+ * uncapped per-day totals cut to [from, to]; the identity split is from the
+ * aggregate rows of the same days, and only when that read was not capped.
+ * Null when the totals read failed, was capped, or does not reach the
+ * window's first day: the section is left out, never zeros.
  *
- * @param array|null $payload snt_desktop_machine_readers_payload().
+ * @param array|null $totals snt_mr_fetch( 31, 'totals' ).
+ * @param array|null $agg    snt_mr_fetch( 31 ).
+ * @param string     $from   Window start, Y-m-d.
+ * @param string     $to     Window end, Y-m-d.
  * @return array{total:int,split:array<string,int>|null}|null
  */
-function sn_public_stats_machines( $payload ) {
-	if ( ! is_array( $payload ) || empty( $payload['ok'] ) || ! isset( $payload['total'] ) ) {
+function sn_public_stats_machines( $totals, $agg, $from, $to ) {
+	if ( ! is_array( $totals ) || empty( $totals['ok'] ) || ! empty( $totals['truncated'] ) ) {
 		return null;
 	}
-	$split = isset( $payload['edge_verified'] ) && is_array( $payload['edge_verified'] ) ? array_map( 'intval', $payload['edge_verified'] ) : null;
-	return array( 'total' => (int) $payload['total'], 'split' => $split );
+	$in   = static fn( $r ) => is_array( $r ) && (string) ( $r['day'] ?? '' ) >= $from && (string) ( $r['day'] ?? '' ) <= $to;
+	$days = array_values( array_filter( (array) ( $totals['rows'] ?? array() ), $in ) );
+	if ( ! in_array( $from, array_column( $days, 'day' ), true ) ) {
+		return null;
+	}
+	$split = null;
+	if ( is_array( $agg ) && ! empty( $agg['ok'] ) && empty( $agg['truncated'] ) && function_exists( 'snt_desktop_machine_readers_identity' ) ) {
+		$split = snt_desktop_machine_readers_identity( array_values( array_filter( (array) ( $agg['rows'] ?? array() ), $in ) ) );
+	}
+	return array( 'total' => (int) array_sum( array_column( $days, 'hits' ) ), 'split' => $split );
+}
+
+/**
+ * The stored machine snapshot when it is of this window. PURE. The public
+ * page never calls the sensor: an hourly event stores the snapshot, and a
+ * snapshot of another window leaves the section out.
+ *
+ * @param mixed  $stored get_option( SN_PUBLIC_STATS_MACHINES_OPT ).
+ * @param string $from   Window start.
+ * @param string $to     Window end.
+ * @return array|null
+ */
+function sn_public_stats_machines_stored( $stored, $from, $to ) {
+	return is_array( $stored ) && $from === ( $stored['from'] ?? '' ) && $to === ( $stored['to'] ?? '' ) && is_array( $stored['machines'] ?? null ) ? $stored['machines'] : null;
+}
+
+/** Hourly: read the sensor off the render path and store this window's snapshot. */
+function sn_public_stats_machines_refresh() {
+	if ( ! function_exists( 'snt_mr_fetch' ) ) {
+		return;
+	}
+	list( $from, $to ) = sn_public_stats_window();
+	$m = sn_public_stats_machines( snt_mr_fetch( 31, 'totals' ), snt_mr_fetch( 31 ), $from, $to );
+	if ( null !== $m ) {
+		update_option( SN_PUBLIC_STATS_MACHINES_OPT, array( 'from' => $from, 'to' => $to, 'machines' => $m ), false );
+	}
+}
+
+/** Keep the hourly snapshot scheduled. */
+function sn_public_stats_machines_schedule() {
+	if ( function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( SN_PUBLIC_STATS_MACHINES_HOOK ) ) {
+		wp_schedule_event( time() + MINUTE_IN_SECONDS, 'hourly', SN_PUBLIC_STATS_MACHINES_HOOK );
+	}
+}
+if ( function_exists( 'add_action' ) ) {
+	add_action( 'init', 'sn_public_stats_machines_schedule' );
+	add_action( SN_PUBLIC_STATS_MACHINES_HOOK, 'sn_public_stats_machines_refresh', 10, 0 );
+}
+
+/**
+ * The session rows only when every day of the window rolled up. PURE. A
+ * partial window (missed nights, a backfill) is never summed as the whole:
+ * Visits and One page only are then left out.
+ *
+ * @param array|null $rows sn_session_rollup_read() rows.
+ * @param string     $from Window start.
+ * @param string     $to   Window end.
+ * @return array|null
+ */
+function sn_public_stats_full_window( $rows, $from, $to ) {
+	if ( ! is_array( $rows ) ) {
+		return null;
+	}
+	$want = (int) round( ( strtotime( $to . ' 00:00:00 UTC' ) - strtotime( $from . ' 00:00:00 UTC' ) ) / 86400 ) + 1;
+	return count( array_unique( array_column( $rows, 'day' ) ) ) >= $want ? $rows : null;
 }
 
 /**

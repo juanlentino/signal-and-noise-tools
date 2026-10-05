@@ -334,7 +334,7 @@ function sn_public_stats_data() {
 	}
 
 	list( $from, $to ) = sn_public_stats_window();
-	$sessions  = function_exists( 'sn_session_rollup_read' ) ? sn_session_rollup_read( $from, $to, 'human' ) : null;
+	$sessions  = sn_public_stats_full_window( function_exists( 'sn_session_rollup_read' ) ? sn_session_rollup_read( $from, $to, 'human' ) : null, $from, $to );
 	$assembled = sn_public_stats_assemble(
 		function_exists( 'sn_analytics_class_totals' ) ? sn_analytics_class_totals( $from, $to ) : array(),
 		function_exists( 'sn_analytics_daily_range' ) ? sn_analytics_daily_range( $from, $to, 'human' ) : array(),
@@ -348,10 +348,10 @@ function sn_public_stats_data() {
 		if ( function_exists( 'snt_desktop_db_failed' ) && snt_desktop_db_failed() ) {
 			$dist = array();
 		}
-		$assembled['sources']   = sn_public_stats_fold( function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $from, $to, 'human', 500 ) : null, 'sn_public_stats_source_label' );
-		$assembled['countries'] = sn_public_stats_fold( function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'country', $from, $to, 'human', 500 ) : null, 'sn_public_stats_country_label' );
+		$assembled['sources']   = sn_public_stats_fold( function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $from, $to, 'human', 500 ) : null, 'sn_public_stats_source_label', $assembled['views'] );
+		$assembled['countries'] = sn_public_stats_fold( function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'country', $from, $to, 'human', 500 ) : null, 'sn_public_stats_country_label', $assembled['views'] );
 		$assembled['reading']   = sn_public_stats_reading_rows( function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( $from, $to, 'human' ) : null, $dist, $sessions );
-		$assembled['machines']  = sn_public_stats_machines( function_exists( 'snt_desktop_machine_readers_payload' ) ? snt_desktop_machine_readers_payload() : null );
+		$assembled['machines']  = sn_public_stats_machines_stored( get_option( SN_PUBLIC_STATS_MACHINES_OPT ), $from, $to );
 	}
 
 	set_transient( SN_PUBLIC_STATS_CACHE_KEY, null === $assembled ? array( 'none' => true ) : $assembled, SN_PUBLIC_STATS_CACHE_TTL );
