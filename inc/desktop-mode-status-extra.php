@@ -144,7 +144,7 @@ function snt_desktop_cron_24h_shape( array $rows ) {
 /**
  * The last full edge purge and the freshness of the last purge checked.
  *
- * @return array{last_purge:int,fresh:string,headline:string}|null
+ * @return array{last_purge:int,fresh:string,fresh_time:int,headline:string}|null
  */
 function snt_desktop_cache_state() {
 	$last  = function_exists( 'snt_purge_ledger_last_edge' ) ? (int) snt_purge_ledger_last_edge() : 0;
@@ -156,6 +156,10 @@ function snt_desktop_cache_state() {
 		'last_purge' => $last,
 		'fresh'      => is_array( $fresh ) ? (string) ( $fresh['last'] ?? 'unknown' ) : 'unknown',
 		'headline'   => is_array( $fresh ) ? (string) ( $fresh['headline'] ?? '' ) : '',
+		// When the freshness report itself was written: a pending verdict ages
+		// from this, never from the ledger's last purge (a manual purge moves
+		// the ledger and leaves the report alone, Codex on #1925).
+		'fresh_time' => is_array( $fresh ) ? (int) ( $fresh['last_time'] ?? 0 ) : 0,
 	);
 }
 

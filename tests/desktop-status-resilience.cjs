@@ -404,6 +404,42 @@ async function run() {
     assert.match(wroot.textContent, /Last 24 hours 12 runs recorded/, 'runs recorded');
     assert.doesNotMatch(wroot.textContent, /0 failed/, 'no recorded failure is not painted as "0 failed": a fatal run leaves no row');
     wstop();
+    // 2026-10-05: a yellow line names where it is fixed; paused and verifying are not faults.
+    const links = n => nodes(n).filter(e => 'a' === e.tag).map(e => e.text + '|' + e.href);
+    const credit = {label: 'Time-relative drift', reason: 'Bad Request (400) - Your credit balance is too low to access the Anthropic API.'};
+    const fx = harness({pages: {health: '/h', cron: '/c', cloudflare: '/cf'}, healthSummary: {passed: 17, total: 18, skipped: [credit], flagged: []},
+      statusExtra: {systems: {edge: {day: 'Oct 4', total: 18, prior: 27}, cron: {fires: 9, failed: 0, failing: []}, cache: {last_purge: Date.parse('2026-09-08T11:58:00Z') / 1000, fresh_time: Date.parse('2026-09-08T11:58:00Z') / 1000, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), fxroot = new Element('div');
+    const fxstop = fx.window.desktopModeWidgets['sn-health'](fxroot); await flush();
+    fx.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
+    const ft = fxroot.textContent;
+    assert.match(ft, /Time-relative drift paused: AI credit out/, 'a check refused for credit is said, as paused');
+    assert.doesNotMatch(ft, /could not run/, 'and is not counted as a check that could not run');
+    assert.match(ft, /1 to look at · 1 verifying · 1 paused/, 'the 5xx stays to look at; a purge verifying within its window and a paused check are said apart');
+    assert.doesNotMatch(ft, /not measured/, 'a purge two minutes old is verifying, not unmeasured');
+    const fl = links(fxroot);
+    assert.ok(fl.includes('Open Cloudflare|/cf'), 'the 5xx line links to where the paths are');
+    assert.ok(fl.includes('Open Anthropic billing|https://console.anthropic.com/settings/billing'), 'the paused check links to where it is fixed');
+    assert.ok(!fl.some(l => l.startsWith('Open Cron')), 'a section with nothing in the headline gets no fix link');
+    assert.match(ft, /opens in a new tab/, 'an off-site link says it opens a new tab');
+    fxstop();
+    const old = harness({pages: {cloudflare: '/cf'}, statusExtra: {systems: {cache: {last_purge: Date.parse('2026-09-08T11:59:00Z') / 1000, fresh_time: Date.parse('2026-09-08T11:00:00Z') / 1000, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), oldroot = new Element('div');
+    const oldstop = old.window.desktopModeWidgets['sn-health'](oldroot); await flush();
+    old.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
+    assert.doesNotMatch(oldroot.textContent, /verifying ·|\d verifying/, 'an hour-old pending report is not in progress any more, even when a manual purge just moved the ledger (Codex on #1925)');
+    assert.match(oldroot.textContent, /not measured/, 'it is unmeasured, and amber');
+    oldstop();
+    const fut = harness({statusExtra: {systems: {cache: {last_purge: 0, fresh_time: Date.parse('2026-09-08T13:00:00Z') / 1000, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), futroot = new Element('div');
+    const futstop = fut.window.desktopModeWidgets['sn-health'](futroot); await flush();
+    fut.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
+    assert.doesNotMatch(futroot.textContent, /\d verifying/, 'Codex on #1925: a report an hour in the future is broken timing, not verifying');
+    assert.match(futroot.textContent, /3 not measured/, 'it is unmeasured, beside the empty edge and cron reads');
+    futstop();
+    const mix = harness({pages: {health: '/h'}, healthSummary: {passed: 16, total: 18, skipped: [credit], flagged: [{label: 'Broken links', count: 2}]}}), mixroot = new Element('div');
+    const mixstop = mix.window.desktopModeWidgets['sn-health'](mixroot); await flush();
+    mix.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
+    const ml = links(mixroot);
+    assert.ok(ml.includes('Open Health|/h') && ml.some(l => l.startsWith('Open Anthropic billing')), 'Codex on #1925: a finding beside a paused check gets the Health link and keeps the billing link');
+    mixstop();
   }
   // The derived rows leave out what they cannot compute, never a 0.
   {

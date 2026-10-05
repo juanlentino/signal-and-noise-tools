@@ -11,6 +11,8 @@ define( 'DAY_IN_SECONDS', 86400 );
 function sn_prov_integrity_is_outage( $c ) { return in_array( (string) $c, array( 'twin_unreachable', 'ledger_unreachable', 'keys_unreachable' ), true ); }
 $GLOBALS['__edge'] = array();
 function sn_edge_errors_range( $from, $to ) { return $GLOBALS['__edge'][ $from ] ?? array( 'query' => array( 'error' => 'no fixture' ) ); }
+function snt_purge_ledger_last_edge() { return 5000; }
+function snt_cf_freshness_summary() { return array( 'last' => 'pending', 'last_time' => 1000, 'headline' => 'Purge dispatched, verifying' ); }
 require __DIR__ . '/../inc/desktop-mode-status-extra.php';
 
 $pass = 0; $fail = 0;
@@ -21,6 +23,10 @@ $c = snt_desktop_cron_24h_shape( array( array( 'hook' => 'a', 'fires' => '10', '
 ok( 18 === $c['fires'] && 4 === $c['failed'], 'runs and failures add across hooks (numeric strings from wpdb included)' );
 ok( array( 'c', 'b' ) === $c['failing'], 'failing hooks, most failures first; a clean hook is not named' );
 ok( array( 'fires' => 0, 'failed' => 0, 'failing' => array() ) === snt_desktop_cron_24h_shape( array() ), 'no runs: zero runs and nothing failing (a read that answered, not a failed read)' );
+
+echo "\nCache\n";
+$cs = snt_desktop_cache_state();
+ok( 1000 === $cs['fresh_time'] && 5000 === $cs['last_purge'], 'Codex on #1925: the report\'s own time travels beside the ledger\'s last purge, so a pending verdict ages from the report' );
 
 echo "\nRights evidence\n";
 $d = array(
