@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Gap analysis: gap 3 is not site work, and nothing waits on a second signer.** `docs/proposals/proving-the-provenance-thesis.md` records the owner's 2026-10-05 decision that this is and stays a single-author site, so gap 3 (multi-contributor attribution) has no proving ground here and its open question is closed. Gap 1's parked list now says what each item actually needs: a recognition attestation is a third party's signed claim about the author (none exists, so the attestation term stays zero), and custody needs no one else. Docs only.
+
 ## [22.4.0] - 2026-10-05 — BREAKING: the publish-time AI auto-fill is gone
 
 ### Removed

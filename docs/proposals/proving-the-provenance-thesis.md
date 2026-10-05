@@ -389,12 +389,19 @@ floor property on a key with no recognized attester. `VERIFY.md`, "Weigh the key
 result does not show.
 
 Custody is unchanged: deviation D-1 stands exactly as written above, and the weight belongs to
-the Worker-held key. Still parked: a recognition-attestation format (it needs a second real
-signer with their own key), custody itself, and anything on the public site.
+the Worker-held key. Still parked: a recognition-attestation format, custody itself, and
+anything on the public site. An attestation in paper 3 is a claim about the author signed by a
+third party holding its own key, not a co-author; none exists, so the attestation term stays
+zero, which is the paper's unaffiliated case. Custody needs no one else: an author-held key is
+one signed transition away, through the key history the ledger already keeps.
 
-### Gap 3 — multi-contributor attribution (SELECTED)
+### Gap 3 — multi-contributor attribution (not for this site)
 
-Confirmed by the owner 2026-08-15 as the second item alongside gap 2.
+Confirmed by the owner 2026-08-15 as the second item alongside gap 2. **Owner decision
+2026-10-05: this is a single-author site and will stay one,** so there is no second signer and
+no proving ground here. Pieces 2 and 4 below cannot be exercised on this corpus and are not
+planned; pieces 1 and 3 would be possible with one author but have no use on this site. The
+design stays in this document as the papers' argument, not as site work.
 
 **It is not paper-3 material.** P1 Layer 1 lists "collaborator identities and contribution
 timestamps" and devotes a full section to *Derivative Chain Tracking*. P2 specifies the
@@ -423,8 +430,8 @@ So the design has four separable pieces, in dependency order:
 
 **The proving-ground problem stands.** The notes corpus has one author, so it can demonstrate
 (1) and (3) structurally but cannot exercise (2) or (4) honestly — a second real signer is
-required, holding their own key. Choosing that proving ground is an owner decision and is the
-first thing this gap needs; everything else is downstream of it.
+required, holding their own key. Choosing that proving ground was an owner decision, and on
+2026-10-05 the owner settled it: there is none on this site.
 
 **Sequencing note.** (2) is where the custodial-signing divergence bites hardest: co-authors
 signing "later" is meaningless if a single worker key signs for everyone. Gap 3 step 2 is
@@ -447,9 +454,8 @@ Substrate* supplied and audited. `edit_log` approved as design.
 
 Still open:
 
-1. **A proving ground for gap 3.** Multi-contributor attribution needs a second real signer
-   holding their own key. The notes corpus cannot supply one. This is the first decision gap 3
-   needs and everything else in it is downstream.
+1. ~~A proving ground for gap 3.~~ **Resolved 2026-10-05: none.** The site has one author and
+   will keep one, so multi-contributor attribution is not site work (see gap 3).
 2. ~~Custodial signing — argue it or change it.~~ **Resolved 2026-08-15: documented as
    deliberate deviation D-1**, with its cost stated and its end conditions named. One follow-on
    remains: the public-facing wording. `VERIFY.md` and the provenance surfaces should describe
