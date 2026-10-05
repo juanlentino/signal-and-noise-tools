@@ -2,8 +2,7 @@
 /**
  * Signal & Noise — snt_word_count(), the Unicode-safe word counter
  * (v10.24.0). Its own tiny PURE module (zero WP calls) so every consumer —
- * reading time, schema.org wordCount, the AI prepop gate, AI excerpt
- * length — and every standalone CLI fixture can load exactly this and
+ * reading time, schema.org wordCount, AI excerpt length — and every standalone CLI fixture can load exactly this and
  * nothing else.
  *
  * str_word_count is ASCII-only: accented letters split words apart and

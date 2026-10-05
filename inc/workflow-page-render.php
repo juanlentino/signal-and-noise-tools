@@ -181,8 +181,9 @@ function sn_workflow_upsert_page( $body, array $pub ) {
 
 /**
  * The Dek is the page's meta description: written to the per-post override
- * that outranks the excerpt, so AI prepopulation (which fills only an empty
- * override) never replaces it. An empty Dek clears the override.
+ * that outranks the excerpt. Writing it also clears the "unreviewed" flag a
+ * removed publish-time auto-fill may have left. An empty Dek clears the
+ * override.
  *
  * @param int    $id  Page ID.
  * @param string $dek Public Dek.

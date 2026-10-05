@@ -86,7 +86,6 @@ function sn_cron_hooks() {
 		SN_WEBHOOK_DISPATCH_HOOK,
 		SN_WEBSUB_CRON_HOOK,
 		SN_ZENODO_HOOK,
-		'snt_prepop_event',
 		'snt_core_version_refill', // one-off core update check after an object-cache flush.
 	);
 }

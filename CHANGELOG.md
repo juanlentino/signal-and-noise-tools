@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Removed
+- **The publish-time AI auto-fill.** When a note or page went live with an empty meta description, OG card title or excerpt, a background job filled them with no review step. It is removed (owner decision 2026-10-05), so no model text reaches a published field without a person applying it: the editor's Suggest and Apply buttons are the path for all three. Text the job already wrote keeps its "auto-generated at publish" notice until a person saves or dismisses it; the notice, its dismiss ability and the sentinels stay until none is left on the site. Removed with it: the `snt_prepop_event` handler, schedule and deactivation entry (an event still queued at deploy fires once with no handler), `snt_prepop_passes_content_gate()`, the `SNT_PREPOP_*` constants and the `snt_prepop_min_words`, `snt_prepop_schedule_jitter_max` and `snt_prepop_daily_call_ceiling` filters (no caller here or in the theme). No figure on any screen came from the job. AI.md drops its exception and the public AI-maturity page says nothing is generated at publish. Pinned in `tests/prepop-removed.php`, which fails against the old file.
+
 ## [22.3.0] - 2026-10-05 — the analytics 2.0 freeze and the sampling diagnostic
 
 ### Added

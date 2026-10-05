@@ -45,7 +45,7 @@ add_action( 'wp_abilities_api_init', function() {
 				'concise' => array(
 					'type'        => 'boolean',
 					'default'     => false,
-					'description' => 'Tighten output to the shortest on-brand form (used by publish-time auto-prepopulation).',
+					'description' => 'Tighten output to the shortest on-brand form.',
 				),
 				// v10.6.1: the plugin stores no focus keyword, so a caller that
 				// knows it (agent, SEO grading workflow) passes it explicitly;
@@ -145,7 +145,7 @@ add_action( 'wp_abilities_api_init', function() {
 				'concise' => array(
 					'type'        => 'boolean',
 					'default'     => false,
-					'description' => 'Tighten output to the shortest on-brand form (used by publish-time auto-prepopulation).',
+					'description' => 'Tighten output to the shortest on-brand form.',
 				),
 			),
 			'additionalProperties' => false,

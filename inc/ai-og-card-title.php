@@ -87,9 +87,9 @@ add_filter( 'sn_og_card_title', function( $default, $post_id ) {
  * impl can never write meta / regenerate a card for a post the current user
  * cannot edit, regardless of how it is reached.
  *
- * WP-Cron prepop must NOT use this entry — cron has no logged-in user, so the
- * cap check would reject it. The prepop engine calls snt_ai_og_card_title_write()
- * (the no-cap writer below) directly. See inc/ai-prepopulate.php.
+ * The capability check lives here; snt_ai_og_card_title_write() below is the
+ * unchecked half and has no other caller since the publish-time auto-fill
+ * was removed.
  *
  * @param int $post_id
  * @return array{ok:bool,title:string,length:int,card_regenerated:bool,card_url:?string}|WP_Error
@@ -110,10 +110,10 @@ function snt_ai_og_card_title_impl( $post_id ) {
  * No-cap internal writer: generate an OG card title via the WP AI Client +
  * persist the override meta + regenerate the card PNG.
  *
- * Gates ONLY on AI availability — NOT on any capability — so the WP-Cron
- * prepopulation path (snt_run_prepop(), which runs with no logged-in user)
- * can fill an empty OG card title. User-facing callers go through
- * snt_ai_og_card_title_impl() instead, which adds the edit_post cap.
+ * Gates ONLY on AI availability, not on any capability. It was split out for
+ * the publish-time auto-fill, which ran with no logged-in user and is now
+ * removed; every caller goes through snt_ai_og_card_title_impl(), which adds
+ * the edit_post cap.
  *
  * @param int $post_id
  * @return array{ok:bool,title:string,length:int,card_regenerated:bool,card_url:?string}|WP_Error
