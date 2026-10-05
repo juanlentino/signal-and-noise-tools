@@ -395,13 +395,12 @@ third party holding its own key, not a co-author; none exists, so the attestatio
 zero, which is the paper's unaffiliated case. Custody needs no one else: an author-held key is
 one signed transition away, through the key history the ledger already keeps.
 
-### Gap 3 — multi-contributor attribution (not for this site)
+### Gap 3 — multi-contributor attribution (designed within one author)
 
-Confirmed by the owner 2026-08-15 as the second item alongside gap 2. **Owner decision
-2026-10-05: this is a single-author site and will stay one,** so there is no second signer and
-no proving ground here. Pieces 2 and 4 below cannot be exercised on this corpus and are not
-planned; pieces 1 and 3 would be possible with one author but have no use on this site. The
-design stays in this document as the papers' argument, not as site work.
+Confirmed by the owner 2026-08-15 as the second item alongside gap 2. **Owner direction
+2026-10-05: this is a single-author site and stays one, and the design works within that
+limit.** Each piece below is built so it is honest with one author, and the plan says where
+one author is the ceiling.
 
 **It is not paper-3 material.** P1 Layer 1 lists "collaborator identities and contribution
 timestamps" and devotes a full section to *Derivative Chain Tracking*. P2 specifies the
@@ -428,15 +427,30 @@ So the design has four separable pieces, in dependency order:
 4. **Dispute records.** A distinct format that annotates rather than modifies. P2 is explicit
    that disputes must not touch the attestation.
 
-**The proving-ground problem stands.** The notes corpus has one author, so it can demonstrate
-(1) and (3) structurally but cannot exercise (2) or (4) honestly — a second real signer is
-required, holding their own key. Choosing that proving ground was an owner decision, and on
-2026-10-05 the owner settled it: there is none on this site.
+**Each piece within one author.**
 
-**Sequencing note.** (2) is where the custodial-signing divergence bites hardest: co-authors
-signing "later" is meaningless if a single worker key signs for everyone. Gap 3 step 2 is
-therefore partly blocked on the key-custody question, which is gap 1's territory and which
-paper 3 leaves open. Steps 1, 3 and 4 are not blocked.
+1. **Roles.** The claim block becomes a list of parties with roles, holding one party: the
+   author, with the roles the author actually holds. The shape is right for one and does not
+   change if that ever grows. It changes the signed payload, so it lands as a new record
+   version, decided in the ledger repository.
+2. **Additive signatures, from the author's own key.** The second signer is the author, holding
+   a key of their own. That key countersigns records the Worker already signed, through an
+   append-only sidecar set that references each record's hash, so no original attestation or
+   hash changes. The Worker's signature says the publishing infrastructure witnessed the
+   record; the author's says the author attests it. This also opens the custody question (D-1)
+   without retiring the Worker key. The ceiling, stated plainly: two keys held by one person
+   prove the mechanism, not two independent parties.
+3. **Ownership.** The author's rights terms (the license, and the reservations the rights files
+   already publish) become signed, mutable ownership records kept apart from the permanent
+   authorship attestation, so a change of terms appends a record instead of touching a work.
+4. **Disputes.** The ledger already has the shape: a retraction annotates a record and never
+   modifies it. With one author the exercisable case is a self-correction, a signed record
+   naming what was wrong in an earlier one; `ERRATA.md` does this by hand today.
+
+**Sequencing note.** (2) and custody are now the same step: the author-held key that
+countersigns is the key a later custody move would promote. Nothing in this gap waits on
+another person. (1) is a record-format change and goes first in the ledger repository; (3) and
+(4) build on record kinds the ledger already verifies.
 
 ### Gap 4 — retained, not selected
 
@@ -454,8 +468,8 @@ Substrate* supplied and audited. `edit_log` approved as design.
 
 Still open:
 
-1. ~~A proving ground for gap 3.~~ **Resolved 2026-10-05: none.** The site has one author and
-   will keep one, so multi-contributor attribution is not site work (see gap 3).
+1. ~~A proving ground for gap 3.~~ **Resolved 2026-10-05: the author's own second key.** The
+   site has one author and keeps one; gap 3 is designed within that (see gap 3).
 2. ~~Custodial signing — argue it or change it.~~ **Resolved 2026-08-15: documented as
    deliberate deviation D-1**, with its cost stated and its end conditions named. One follow-on
    remains: the public-facing wording. `VERIFY.md` and the provenance surfaces should describe
