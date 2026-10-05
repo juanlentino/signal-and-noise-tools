@@ -12,14 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [22.6.1] - 2026-10-05 — Action Scheduler runs from WP-Cron
+
 ### Changed
 - **Action Scheduler no longer runs its queue from page loads.** A third-party plugin's Action Scheduler started a loopback queue run from ordinary requests: about 150 runs a day at about 5.8 seconds each on this 2 GB / 2 vCPU server, overlapping the desktop's own REST calls when the edge recorded 503s (8 at the origin in 24 hours, 5 of them OpenStation's session check). Its queue still runs from WP-Cron, which the system cron fires every 5 minutes; only when it runs moves. Owner-approved.
-
-## [22.6.0] - 2026-10-05 — SN Systems and SN Provenance carry more
-
-### Added
-- **SN Systems and SN Provenance carry more of the story, as the owner approved.** Systems adds incidents over 30 days and the slowest monitor (from the uptime read it already makes), an Edge section (5xx on the newest day the rollup has covered against the day before, in words), cron runs recorded over 24 hours with any recorded failures named (a run that dies fatally leaves no record, so "0 failed" is never shown), and a Cache section (the last full purge and edge freshness). Provenance adds the integrity checks that pass (hash, twin, ledger, key; subjects not reached yet are said, never counted as passing), where the newest rights-evidence month stands and when a record was last posted, and DOIs minted. Every figure is a local read already stored, held five minutes; a source that cannot answer leaves its row out. Card budgets: Systems 580, Provenance 620.
-
-### Changed
-- **Gap analysis: gap 3 step 2 is shipped and the provenance work has a stop rule.** `docs/proposals/proving-the-provenance-thesis.md` records the author's countersigning key as live (ledger #41 to #43, Worker 1.25.0, plugin 22.5.0, the first batch attesting all 105 passing records), marks the second-active-key item resolved by 22.5.0, describes the author key in the README's Provenance section, and adds "Where the provenance work stops": the remaining gap 3 steps, gap 2, gap 4 and the custody move stay designed and unbuilt until a concrete need names one. Docs only.
 
