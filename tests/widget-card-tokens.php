@@ -114,14 +114,14 @@ $cadence     = strip_js( (string) $cadence_src );
 ok( false !== strpos( $cadence, 'var IDLE_MS = 5 * 60 * 1000;' ), 'the cadence idles at 5 minutes' );
 ok( false !== strpos( $cadence, 'window.top' ) && false !== strpos( $cadence, 'doc.hasFocus()' ), 'focus is read from the TOP document: an iframe window taking focus is still the owner working in the desktop' );
 ok( false !== strpos( $cadence, "return 'visible' === state() ? Math.max( focusedMs, IDLE_MS ) : focusedMs;" ), 'only visible-but-unfocused slows down; focused keeps the widget\'s own rate' );
-foreach ( array( 'desktop-mode-widget.js', 'desktop-mode-widget-health.js', 'desktop-mode-widget-queue.js' ) as $name ) {
+foreach ( array( 'desktop-mode-widget.js', 'desktop-mode-widget-health.js', 'desktop-mode-widget-queue.js', 'desktop-mode-widget-views.js' ) as $name ) {
 	$js = $code[ $name ];
 	ok( false !== strpos( $js, 'window.sntPollCadence ? window.sntPollCadence.onFocusChange( onVisibilityChange ) : function() {}' ) && false !== strpos( $js, 'unwatchFocus();' ), "$name re-arms on focus change and drops the watcher at teardown" );
 	ok( false !== strpos( $js, 'window.sntPollCadence ? window.sntPollCadence.wait(' ), "$name asks the cadence for its wait, and keeps its fixed rate when the helper is absent" );
 }
 ok( false !== strpos( $code['desktop-mode-widget.js'], 'nextAt = lastAt + Math.max( lastDelay, cadence( REFRESH_MS ) );' ), 'the deploy card: a failure backoff still wins when longer than the cadence' );
 $assets_php = (string) file_get_contents( dirname( __DIR__ ) . '/inc/desktop-mode-assets.php' );
-ok( 3 === substr_count( $assets_php, "'snt-poll-cadence' )" ), 'the three pollers (deploy, queue, systems) declare the cadence as a dependency' );
+ok( 4 === substr_count( $assets_php, "'snt-poll-cadence' )" ), 'the four pollers (deploy, queue, systems, traffic) declare the cadence as a dependency' );
 
 // 6. Negative control: the status colours have no widget token and stay literal.
 ok( false !== strpos( $code['desktop-mode-widget.js'], "'#3fb950'" ) && false !== strpos( $code['desktop-mode-widget.js'], "'#d29922'" ) && false !== strpos( $code['desktop-mode-widget.js'], "'#ff9d94'" ), 'the deploy card keeps its green, amber and red status glyphs literal' );

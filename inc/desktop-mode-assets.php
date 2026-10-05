@@ -183,7 +183,7 @@ add_action( 'init', function() {
 			plugins_url( 'assets/desktop-mode-widget-' . $sn_widget . '.js', SNT_PATH . 'signal-and-noise-tools.php' ),
 			'health' === $sn_widget
 				? array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run', 'sn-desktop-mode', 'snt-poll-cadence' )
-				: array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode' ),
+				: array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode', 'snt-poll-cadence' ), // SN Traffic polls every five minutes
 			SNT_VERSION,
 			true
 		);

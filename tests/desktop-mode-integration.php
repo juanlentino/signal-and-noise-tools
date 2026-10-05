@@ -714,7 +714,7 @@ ok( false !== strpos( $six_au, "'value', 3 ), 'No views in this window.' )" ) &&
 
 echo "\n── 2026-10-04: three derived summary rows ──\n";
 $tf_payload = array( 'families' => array( array( 'family' => 'unclassified-machine', 'hits' => 88 ) ), 'total' => 200 );
-ok( array( 'family' => 'unclassified-machine', 'share' => 44, 'prior_share' => 41 ) === snt_desktop_machine_readers_top_family( $tf_payload, array( array( 'family' => 'unclassified-machine', 'hits' => 41 ), array( 'family' => 'GPTBot', 'hits' => 59 ), 'junk' ) ),
+ok( array( 'family' => 'unclassified-machine', 'share' => 44, 'prior_share' => 41 ) === snt_desktop_machine_readers_top_family( $tf_payload, array( array( 'day' => '2026-09-01', 'family' => 'unclassified-machine', 'hits' => 41 ), array( 'day' => '2026-09-02', 'family' => 'GPTBot', 'hits' => 59 ), 'junk' ), 2 ),
 	'the top crawler family\'s share of the window, and its share of the prior window' );
 ok( null === snt_desktop_machine_readers_top_family( $tf_payload, null )['prior_share'] && null === snt_desktop_machine_readers_top_family( $tf_payload, array() )['prior_share'],
 	'a prior window not read, or with no reads, gives no prior share (no change shown), never 0%' );

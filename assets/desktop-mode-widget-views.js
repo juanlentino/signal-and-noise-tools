@@ -51,6 +51,7 @@
 	window.desktopModeWidgets = window.openStationWidgets = __osWidgets;
 
 	var data         = window.snDesktopData || {};
+	var REFRESH_MS   = 5 * 60 * 1000; // SN RSS Subscribers' rate, now carried here
 	var analyticsUrl = ( data.pages && data.pages.analytics ) || '';
 
 	function el( tag, opts ) {
@@ -241,8 +242,14 @@
 	}
 
 	window.desktopModeWidgets['sn-site-views'] = function( container, ctx ) {
-		var aborted = false;
-		var ctrl    = ( typeof AbortController !== 'undefined' ) ? new AbortController() : null;
+		var aborted   = false;
+		var ctrl      = null;
+		var timer     = null;
+		var pending   = false;
+		var lastAt    = 0;
+		var lastDelay = REFRESH_MS;
+		var failures  = 0;
+		var shownJson = ''; // the payload on screen; an identical poll repaints nothing
 
 		var wrap = el( 'div', { style: 'padding:10px 12px;' } );
 		var body = el( 'div', { text: 'Loading…', style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
@@ -333,20 +340,71 @@
 			body.appendChild( alert );
 		}
 
-		if ( window.wp && window.wp.apiFetch ) {
-			window.wp.apiFetch( {
-				path: '/signal-noise/v1/desktop/site-views',
-				signal: ctrl ? ctrl.signal : undefined
+		// SN RSS Subscribers refreshed every five minutes; SN Traffic carries its
+		// rows, so the whole payload polls at that rate (the payload itself is a
+		// 15-minute server cache). The shape is the deploy card's
+		// (assets/desktop-mode-widget.js): no poll while the tab is hidden,
+		// reveal re-arms for what is left of the wait, a failure backs off and
+		// keeps the last good reading, and teardown aborts the read in flight.
+		function repaint( payload ) {
+			var json = JSON.stringify( payload );
+			if ( json === shownJson ) { return; }
+			// Keep the reader's place: the card body scrolls, and a rebuild of the
+			// same height must not jump it.
+			var scrollers = [ container, container.parentNode ].filter( function( n ) { return n && typeof n.scrollTop === 'number'; } );
+			var tops      = scrollers.map( function( n ) { return n.scrollTop; } );
+			render( payload );
+			shownJson = json;
+			scrollers.forEach( function( n, k ) { n.scrollTop = tops[ k ]; } );
+		}
+
+		function refresh() {
+			if ( aborted || pending ) { return; }
+			pending = true;
+			ctrl = ( typeof AbortController !== 'undefined' ) ? new AbortController() : null;
+			var delay = REFRESH_MS;
+			Promise.resolve().then( function() {
+				if ( aborted ) { return; }
+				if ( ! window.wp || ! window.wp.apiFetch ) { throw new Error( 'the API client is unavailable' ); }
+				return window.wp.apiFetch( { path: '/signal-noise/v1/desktop/site-views', signal: ctrl ? ctrl.signal : undefined } );
 			} ).then( function( res ) {
 				if ( aborted ) { return; }
-				render( res || {} );
-			} ).catch( function() {
+				failures = 0;
+				repaint( res || {} );
+			} ).catch( function( err ) {
 				if ( aborted ) { return; }
-				fail();
+				failures++;
+				delay = Math.min( 15 * 60 * 1000, REFRESH_MS * Math.pow( 2, Math.min( failures - 1, 4 ) ) );
+				var retry = Number( err && err.data && err.data.retry_after );
+				if ( isFinite( retry ) && retry > 0 && retry <= 2147483 ) { delay = Math.max( delay, retry * 1000 ); }
+				// The last good reading stays; only a card that never loaded says so.
+				if ( ! shownJson ) { fail(); }
+			} ).then( function() {
+				pending   = false;
+				ctrl      = null;
+				lastAt    = Date.now();
+				lastDelay = delay;
+				arm();
 			} );
-		} else {
-			fail();
 		}
+
+		function cadence( ms ) {
+			return window.sntPollCadence ? window.sntPollCadence.wait( ms ) : ms;
+		}
+		function arm() {
+			window.clearTimeout( timer );
+			if ( aborted || pending || document.hidden ) { return; }
+			var nextAt = lastAt + Math.max( lastDelay, cadence( REFRESH_MS ) );
+			timer = window.setTimeout( refresh, Math.max( 0, nextAt - Date.now() ) );
+		}
+		function onVisibilityChange() {
+			if ( document.hidden ) { window.clearTimeout( timer ); return; }
+			arm();
+		}
+		document.addEventListener( 'visibilitychange', onVisibilityChange );
+		var unwatchFocus = window.sntPollCadence ? window.sntPollCadence.onFocusChange( onVisibilityChange ) : function() {};
+
+		refresh();
 
 		// The card's one link. SN Reading's says the same words, so the name
 		// starts with them and says which card it is on (WCAG 2.5.3).
@@ -365,6 +423,9 @@
 
 		return function teardown() {
 			aborted = true;
+			window.clearTimeout( timer );
+			document.removeEventListener( 'visibilitychange', onVisibilityChange );
+			unwatchFocus();
 			if ( ctrl ) { ctrl.abort(); }
 			if ( wrap.parentNode ) { wrap.parentNode.removeChild( wrap ); }
 		};

@@ -368,7 +368,14 @@
 			}
 		}
 
+		// Each load() takes the next generation; every answer it started bails
+		// once a newer load() has begun, so a read from before a Sweep can never
+		// repaint over the one after it.
+		var gen = 0;
+
 		function load( note ) {
+			var mine = ++gen;
+			var live = function() { return mine === gen && ! torn; };
 			if ( ! window.sntAbilityRun ) {
 				render( null, 'The abilities client is unavailable.' );
 				return;
@@ -380,26 +387,29 @@
 			var shown = { overview: null, note: note, waiting: true };
 			if ( window.wp && window.wp.apiFetch ) {
 				window.wp.apiFetch( { path: '/signal-noise/v1/desktop/machine-readers' } ).then( function( res ) {
-					if ( res && typeof res === 'object' ) {
+					if ( live() && res && typeof res === 'object' ) {
 						readers = res;
 						render( shown.overview, shown.note, shown.waiting );
 					}
 				} ).catch( function() {
+					if ( ! live() ) { return; }
 					readers = { ok: false, error: 'unreachable' };
 					render( shown.overview, shown.note, shown.waiting );
 				} );
 			}
 			window.sntAbilityRun( 'anchor-status', {}, { silent: true } ).then( function( overview ) {
+				if ( ! live() ) { return; }
 				shown.overview = overview;
 				shown.waiting  = false;
 				render( overview, note );
 				window.sntAbilityRun( 'archive-status', {}, { silent: true } ).then( function( res ) {
-					if ( res && res.ok ) {
+					if ( live() && res && res.ok ) {
 						archive = res;
 						render( overview, note );
 					}
 				} ).catch( function() {} );
 			} ).catch( function( err ) {
+				if ( ! live() ) { return; }
 				shown.note    = ( err && err.message ) || 'Could not load anchor status.';
 				shown.waiting = false;
 				render( null, shown.note );

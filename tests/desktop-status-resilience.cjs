@@ -9,7 +9,7 @@ class Element {
   setAttribute(k, v) { this.attrs[k] = v; }
   getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
   removeAttribute(k) { delete this.attrs[k]; }
-  addEventListener() {}
+  addEventListener(t, fn) { (this.handlers = this.handlers || {})[t] = fn; }
   appendChild(n) { this.children.push(n); Object.defineProperty(n, "parentNode", {value: this, writable: true, configurable: true}); return n; }
   querySelector() { return null; }
   remove() { if (this.parentNode) this.parentNode.removeChild(this); }
@@ -43,14 +43,14 @@ function harness() {
   };
   // A document with a visibility state the fixture can flip (#1603).
   const listeners = new Map();
-  const document = { hidden: false, createElement: tag => new Element(tag),
+  const document = { hidden: false, createElement: tag => new Element(tag), createElementNS: (ns, tag) => new Element(tag),
     addEventListener(t, fn) { listeners.set(t, [...(listeners.get(t) || []), fn]); },
     removeEventListener(t, fn) { listeners.set(t, (listeners.get(t) || []).filter(f => f !== fn)); },
     dispatch(t) { (listeners.get(t) || []).forEach(fn => fn()); } };
   class Clock extends Date { constructor(...a) { super(...(a.length ? a : [now])); } static now() { return now; } }
   const context = vm.createContext({window, document, Date: Clock, Promise, Error, Math, Number, Array, Object, AbortController});
   for (const name of ['snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-health.js',
-    'desktop-mode-widget-queue.js', 'desktop-mode-widget-anchors.js']) {
+    'desktop-mode-widget-queue.js', 'desktop-mode-widget-anchors.js', 'desktop-mode-widget-views.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets', name), 'utf8'), context, {filename: name});
   }
   return {window, document, calls, timers, async tick(ms) {
@@ -400,6 +400,54 @@ async function run() {
     };
     assert.match(await tone([{name: 'a', level: 'ok'}, {name: 'b', level: 'warn'}]), /color:#d29922/, 'a paused or maintenance shortfall is amber');
     assert.match(await tone([{name: 'a', level: 'alert'}, {name: 'b', level: 'warn'}]), /color:#ff9d94/, 'a down monitor is red');
+  }
+  // Codex round 3: a read from before a Sweep never repaints over the newer one.
+  {
+    const x = harness(), root = new Element('div');
+    const stop = x.window.desktopModeWidgets['sn-anchors'](root); await flush();
+    const find = (from, what) => x.calls.slice(from).find(c => c.opts.path.includes(what));
+    const oldReaders = find(0, 'machine-readers');
+    find(0, 'anchor-status').resolve({pending: [], recording: [], confirmed: 5, total: 5}); await flush();
+    const sweep = nodes(root).find(n => n.tag === 'button' && /Sweep now/.test(n.textContent));
+    const before = x.calls.length;
+    sweep.handlers.click(); await flush();
+    find(before, 'anchor-sweep').resolve({ok: true, upgraded: 1, still_pending: 0}); await flush();
+    find(before, 'machine-readers').resolve({ok: true, days: 30, total: 2}); await flush();
+    find(before + 1, 'anchor-status').resolve({pending: [], recording: [], confirmed: 6, total: 6}); await flush();
+    assert.match(root.textContent, /Machine reads 2/);
+    oldReaders.resolve({ok: true, days: 30, total: 1}); await flush();
+    assert.match(root.textContent, /Machine reads 2/, 'the pre-Sweep readers answer is dropped');
+    assert.doesNotMatch(root.textContent, /Machine reads 1/);
+    assert.match(root.textContent, /6 notes/, 'the newer anchor reading stands');
+    stop();
+  }
+  // Codex round 3: SN Traffic polls its payload every five minutes (SN RSS
+  // Subscribers' rate), hidden tabs poll nothing, a failure keeps the last
+  // good reading and backs off, and teardown aborts the read in flight.
+  {
+    const x = harness(), root = new Element('div');
+    const good = n => ({days: [{date: 'd', views: 1}, {date: 'e', views: 2}], total: n, delta_pct: null, groups: []});
+    const stop = x.window.desktopModeWidgets['sn-site-views'](root); await flush();
+    const traffic = () => x.calls.filter(c => c.opts.path.includes('site-views'));
+    assert.equal(traffic().length, 1, 'one read at mount');
+    traffic()[0].resolve(good(100)); await flush();
+    assert.match(root.textContent, /100/);
+    await x.tick(5 * 60000 - 1); assert.equal(traffic().length, 1, 'no read before five minutes');
+    await x.tick(1); assert.equal(traffic().length, 2, 'the payload is read again at five minutes');
+    traffic()[1].reject({message: 'Rate limited', data: {status: 429, retry_after: 900}}); await flush();
+    assert.match(root.textContent, /100/, 'last good reading kept on failure');
+    assert.doesNotMatch(root.textContent, /unavailable/);
+    await x.tick(899999); assert.equal(traffic().length, 2, 'no retry before retry_after');
+    await x.tick(1); assert.equal(traffic().length, 3);
+    traffic()[2].resolve(good(140)); await flush();
+    assert.match(root.textContent, /140/, 'a later read repaints');
+    x.document.hidden = true; x.document.dispatch('visibilitychange');
+    await x.tick(30 * 60000); assert.equal(traffic().length, 3, 'a hidden tab reads nothing');
+    x.document.hidden = false; x.document.dispatch('visibilitychange'); await x.tick(0);
+    assert.equal(traffic().length, 4, 'reveal after the period catches up with one read');
+    const sig = traffic()[3].opts.signal;
+    stop(); assert.equal(sig.aborted, true, 'teardown aborts the read in flight');
+    await x.tick(60 * 60000); assert.equal(traffic().length, 4); assert.equal(x.timers.size, 0, 'teardown clears every timer');
   }
   console.log('PASS: runner and both widgets — stale/429/recovery/backoff, malformed data, cross-widget cadence, abort/cleanup/remount');
 }

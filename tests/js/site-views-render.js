@@ -13,12 +13,14 @@ function node( tag ) {
 		get textContent() { return this._text + this.children.map( ( c ) => c.textContent ).join( '' ); },
 	};
 }
-global.document = { createElement: node, createElementNS: ( ns, t ) => node( t ) };
+global.document = { hidden: false, createElement: node, createElementNS: ( ns, t ) => node( t ), addEventListener() {}, removeEventListener() {} };
 const payload = JSON.parse( process.argv[ 2 ] );
-global.window = { snDesktopData: { pages: { analytics: 'https://example.test/analytics' } }, wp: { apiFetch: () => ( { then( f ) { f( payload ); return { catch() {} }; } } ) } };
+global.window = { setTimeout: () => 0, clearTimeout() {}, snDesktopData: { pages: { analytics: 'https://example.test/analytics' } }, wp: { apiFetch: () => ( { then( f ) { f( payload ); return { catch() {} }; } } ) } };
 require( path.join( __dirname, '../../assets/desktop-mode-widget-views.js' ) );
 const root = node( 'div' );
 window.desktopModeWidgets[ 'sn-site-views' ]( root, {} );
+// The card reads through a promise chain; walk it once that has settled.
+setImmediate( () => {
 const out = [];
 ( function walk( n ) {
 	if ( n.tag === 'span' || ( n.tag === 'div' && ! n.children.length ) ) {
@@ -39,3 +41,4 @@ const srText = [];
 ( function walk( n ) { if ( n.className === 'screen-reader-text' ) { srText.push( n.textContent ); } n.children.forEach( walk ); } )( root );
 const link = a ? { text: a._text, name: a.attrs[ 'aria-label' ] || a.textContent, arrowHidden: a.children.length > 0 && a.children.every( ( c ) => c.attrs[ 'aria-hidden' ] === 'true' ) } : null;
 process.stdout.write( JSON.stringify( { rows: out, helpers: Object.keys( window.snSiteViewsDelta || {} ), links: links.length, link, roles, srText, bodyRole: roles[ 0 ] || '' } ) );
+} );
