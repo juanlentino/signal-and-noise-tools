@@ -193,7 +193,10 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day,
 			'legacy_events'        => ( $l['ce']['n'] ?? 0 ) + ( $l['cp']['n'] ?? 0 ),
 			'v2_events'            => $sum( $e, array() ),
 			'with_pid'             => (int) ( $pid[ $day ] ?? 0 ),
-			'sampled'              => array() !== $sampled,
+			// Sampled is a fact about the day (Analytics Engine sampled some of it),
+			// whether or not the samples proved identical: `sampled_events` holds
+			// the unresolved ones, `identical_sample` the proven ones.
+			'sampled'              => array() !== $sampled || array() !== $same,
 			'sampled_events'       => array_values( array_unique( $sampled ) ),
 			'identical_sample'     => array_values( array_unique( $same ) ),
 			'differs'              => $differs,

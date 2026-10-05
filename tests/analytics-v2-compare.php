@@ -89,6 +89,7 @@ $D  = array(
 );
 $cs = sn_analytics_v2_compare( $Ls, $Ps, array(), '2026-10-05', $D );
 ok( 'match' === $cs['days'][0]['state'] && array( 'pv' ) === $cs['days'][0]['identical_sample'] && array() === $cs['days'][0]['sampled_events'], 'pageviews sampled identically (same rows, weights, visitors): a match, and the event is named' );
+ok( true === $cs['days'][0]['sampled'], 'Codex on 3ba2f59: a day whose samples proved identical still reads sampled: true (so the diagnostic runs)' );
 $Pd = $Ps; $Pd[0]['r'] = 40; $Pd[0]['n'] = 44;
 ok( 'sampled' === sn_analytics_v2_compare( $Ls, $Pd, array(), '2026-10-05', $D )['days'][0]['state'], 'same weighted count from different stored rows is a different sample: inconclusive, never a match' );
 $Dx = $D; $Dx['pageviews'][1]['vid'] = 'cccc3333';
