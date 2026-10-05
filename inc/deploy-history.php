@@ -395,7 +395,8 @@ function snt_deploy_history_version_check() {
 	// (its own hook recorded the version during the install, beside the
 	// theme's update purge). A version found only now is a deploy that
 	// bypassed the updater, and its rollover must run.
-	$via_updater = true;
+	$via_updater   = true;
+	$theme_changed = false;
 
 	if ( '' !== $current_plugin ) {
 		$seen_plugin = isset( $sentinel['plugin'] ) ? (string) $sentinel['plugin'] : '';
@@ -429,7 +430,8 @@ function snt_deploy_history_version_check() {
 				snt_deploy_history_record( 'theme', $current_theme );
 			}
 			$sentinel['theme'] = $current_theme;
-			$dirty = true;
+			$dirty             = true;
+			$theme_changed     = true;
 		}
 	}
 
@@ -452,6 +454,12 @@ function snt_deploy_history_version_check() {
 		// update purge, inside the update request), so this second purge only
 		// emptied caches again. It stays for deploys that bypass the updater.
 		$update_purged = $via_updater && function_exists( 'snt_purge_ran_recently' ) && snt_purge_ran_recently( 'update', 15 * MINUTE_IN_SECONDS );
+		// Owner 2026-10-05 (option B): a plugin-only change whose release says
+		// it changes nothing public needs no rollover either (the theme's update
+		// purge skips it for the same reason). A theme change always rolls over.
+		if ( ! $theme_changed && 'no' === snt_release_front_end_change() ) {
+			$update_purged = true;
+		}
 		if ( ! $update_purged && has_filter( 'sn_purge_all_caches_result' ) && function_exists( 'wp_schedule_single_event' ) ) {
 			$already_scheduled = function_exists( 'wp_next_scheduled' ) && wp_next_scheduled( SNT_DEPLOY_HISTORY_PURGE_HOOK );
 			if ( ! $via_updater ) {
@@ -464,6 +472,24 @@ function snt_deploy_history_version_check() {
 	}
 }
 add_action( 'admin_init', 'snt_deploy_history_version_check' );
+
+/**
+ * This release's `Front-End Change:` header, written by tools/cut-release.sh:
+ * 'yes', 'no', or '' when absent (an older release). Anything but an explicit
+ * 'no' purges.
+ *
+ * @param string|null $file Test seam: the plugin main file.
+ * @return string
+ */
+function snt_release_front_end_change( $file = null ) {
+	$file = null === $file ? ( defined( 'SNT_PATH' ) ? SNT_PATH . 'signal-and-noise-tools.php' : '' ) : (string) $file;
+	if ( '' === $file || ! is_readable( $file ) || ! function_exists( 'get_file_data' ) ) {
+		return '';
+	}
+	$h = get_file_data( $file, array( 'front_end' => 'Front-End Change' ) );
+	$v = strtolower( trim( (string) ( $h['front_end'] ?? '' ) ) );
+	return in_array( $v, array( 'yes', 'no' ), true ) ? $v : '';
+}
 
 /**
  * Out-of-band handler for the version-change rollover purge — hooked to

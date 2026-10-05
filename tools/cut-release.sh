@@ -14,6 +14,7 @@
 #   tools/cut-release.sh release|fix "one-line headline"
 #   tools/cut-release.sh release "the batch door" --dry-run
 #   tools/cut-release.sh fix "envelope fix" --tag
+#   tools/cut-release.sh fix "admin-only fix" --front-end=no   (no public change: updates leave caches warm)
 #
 # Numbering is the WordPress / WooCommerce shape (docs/VERSIONING.md): X.Y.0 is
 # a release, X.Y.Z a fix, and X rolls when Y would reach 10 (14.9.0 -> 15.0.0).
@@ -39,11 +40,17 @@ LEVEL="${1:-}"
 HEADLINE="${2:-}"
 DRY_RUN=0
 DO_TAG=0
+# Owner 2026-10-05 (option B): does this release change the public site? The
+# answer is written into the plugin header; the theme's update purge and the
+# plugin's rollover skip the cache purge on 'no'. Default 'yes': when in doubt, purge.
+FRONT_END=yes
 shift 2 2>/dev/null || true
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
     --tag)     DO_TAG=1 ;;
+    --front-end=yes) FRONT_END=yes ;;
+    --front-end=no)  FRONT_END=no ;;
     *) die "unknown option: $arg" ;;
   esac
 done
@@ -155,6 +162,7 @@ echo
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "  --dry-run: nothing written. Would edit:"
   echo "    ${PLUGIN_FILE}       Version: ${CURRENT} -> ${NEXT}"
+  echo "    ${PLUGIN_FILE}       Front-End Change: ${FRONT_END} (a 'no' leaves the caches warm on update)"
   echo "    ${CHANGELOG}         promote Unreleased to '## [${NEXT}] - ${TODAY} - ${HEADLINE}'"
   if [ -n "$PREVIOUS_CUT" ]; then
     echo "    ${ARCHIVE}           receive the previous cut ($(printf '%s' "$PREVIOUS_CUT" | grep -m1 -oE '^## \[[0-9.]+\]' || echo 'current section'))"
@@ -175,6 +183,15 @@ awk -v cur="$CURRENT" -v nextver="$NEXT" '
   !done && /^[[:space:]]*\*[[:space:]]*Version:/ { sub(cur, nextver); done = 1 }
   { print }
 ' "$PLUGIN_FILE" > "$tmp" && mv "$tmp" "$PLUGIN_FILE"
+
+# ── 1b. Front-End Change header: replaced, or added under Version ────────
+tmp="$(mktemp)"
+awk -v fe="$FRONT_END" '
+  /^[[:space:]]*\*[[:space:]]*Front-End Change:/ { next }
+  { print }
+  !done && /^[[:space:]]*\*[[:space:]]*Version:/ { print " * Front-End Change: " fe; done = 1 }
+' "$PLUGIN_FILE" > "$tmp" && mv "$tmp" "$PLUGIN_FILE"
+grep -qE "^[[:space:]]*\*[[:space:]]*Front-End Change: ${FRONT_END}\$" "$PLUGIN_FILE" || die "could not write the Front-End Change header"
 
 # ── 2. archive receives the previous cut, newest-first under the header ──
 if [ -n "$PREVIOUS_CUT" ]; then
