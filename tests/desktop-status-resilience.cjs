@@ -375,7 +375,7 @@ async function run() {
     assert.match(zroot.textContent, /No complete day in the edge rollup yet/, 'no extra payload: the section says so, never a 0');
     assert.doesNotMatch(zroot.textContent, /All systems normal/, 'Codex on 5aa3fce: an edge source with no measurement is never an all-clear');
     assert.match(zroot.textContent, /No purge recorded yet/, 'no purge record: said');
-    assert.match(zroot.textContent, /2 not measured/, 'Codex on 3104cf9: no cache evidence is not measured, like no edge day');
+    assert.match(zroot.textContent, /3 not measured/, 'Codex on 3104cf9 and b872a9f: no cache evidence, no edge day and no cron-history read are each not measured');
     assert.doesNotMatch(zroot.textContent, /Incidents|Slowest|Last 24 hours/, 'rows with no source are left out');
     zstop();
     const v = harness({statusExtra: {systems: {cache: {last_purge: 0, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), vroot = new Element('div');
@@ -389,6 +389,15 @@ async function run() {
     q.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok', response_ms: 100}, {name: 'b', level: 'ok', response_ms: 300}, {name: 'c', level: 'ok', response_ms: null}]}); await flush();
     assert.match(qroot.textContent, /Slowest b · 300 ms · 2 of 3 monitors timed/, 'Codex on 5aa3fce: the slowest of a partial read says how many were compared');
     qstop();
+    const hb = harness({statusExtra: {systems: {edge: {day: 'Oct 4', failed: true}}, provenance: {}}}), hbroot = new Element('div');
+    const hbstop = hb.window.desktopModeWidgets['sn-health'](hbroot); await flush();
+    hb.calls[0].resolve({configured: true, rows: [{name: 'a', kind: 'monitor', level: 'ok', response_ms: 100}, {name: 'b', kind: 'monitor', level: 'ok', response_ms: 300}, {name: 'beat', kind: 'heartbeat', level: 'ok', response_ms: null}]}); await flush();
+    assert.match(hbroot.textContent, /Slowest b · 300 ms/, 'the slowest of two timed monitors');
+    assert.doesNotMatch(hbroot.textContent, /of 3 monitors timed/, 'Codex on b872a9f: a heartbeat is not counted as an untimed monitor');
+    assert.match(hbroot.textContent, /The 5xx read for Oct 4 failed/, 'Codex on b872a9f: a failed newest day is said, not replaced by an older one');
+    assert.match(hbroot.textContent, /Last 24 hours could not be read/, 'Codex on b872a9f: a failed cron-history read is said');
+    assert.doesNotMatch(hbroot.textContent, /All systems normal/, 'and neither is an all-clear');
+    hbstop();
     const w = harness({statusExtra: {systems: {cron: {fires: 12, failed: 0, failing: []}}, provenance: {}}}), wroot = new Element('div');
     const wstop = w.window.desktopModeWidgets['sn-health'](wroot); await flush();
     w.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();

@@ -50,7 +50,7 @@ function snt_desktop_status_extra() {
  * before it. There is no rolling 24 hours: today is still filling. Null when
  * none of the last three days could be read.
  *
- * @return array{day:string,total:int,visitor:int,prior:int|null}|null `day` is the label ("Oct 4"); `visitor` the 5xx a visitor received.
+ * @return array{day:string,total?:int,visitor?:int,prior?:int|null,failed?:bool}|null `failed` when the newest non-pending day's read failed. `day` is the label ("Oct 4"); `visitor` the 5xx a visitor received.
  */
 function snt_desktop_edge_yesterday() {
 	if ( ! function_exists( 'sn_edge_errors_range' ) ) {
@@ -58,14 +58,15 @@ function snt_desktop_edge_yesterday() {
 	}
 	// Only the requested day's own state counts: 'read' (not failed, pending
 	// or untracked). query.error is global to the last query, not this day.
-	$ok = static function ( $r, $day ) {
+	$state = static function ( $r, $day ) {
 		foreach ( (array) ( is_array( $r ) ? ( $r['days'] ?? array() ) : array() ) as $d ) {
 			if ( $day === (string) ( $d['day'] ?? '' ) ) {
-				return 'read' === (string) ( $d['read'] ?? '' );
+				return (string) ( $d['read'] ?? '' );
 			}
 		}
-		return false;
+		return '';
 	};
+	$ok = static fn( $r, $day ) => 'read' === $state( $r, $day );
 	// Yesterday reads pending until the daily edge rollup runs: walk back to
 	// the newest day it has covered, and label that day.
 	for ( $back = 1; $back <= 3; $back++ ) {
@@ -73,6 +74,11 @@ function snt_desktop_edge_yesterday() {
 		$d = gmdate( 'Y-m-d', $t );
 		$a = sn_edge_errors_range( $d, $d );
 		if ( ! $ok( $a, $d ) ) {
+			// A pending (or unrecorded) day walks back; a FAILED read of the
+			// newest day is said, never replaced by an older day's count.
+			if ( 'failed' === $state( $a, $d ) ) {
+				return array( 'day' => gmdate( 'M j', $t ), 'failed' => true );
+			}
 			continue;
 		}
 		$pd = gmdate( 'Y-m-d', $t - DAY_IN_SECONDS );

@@ -195,9 +195,11 @@
 			rows.push( { label: 'Incidents · 30 days', value: String( sum ) + ( inc.length < mons.length ? ' · ' + inc.length + ' of ' + mons.length + ' monitors read' : '' ) } );
 		}
 		var timed = mons.filter( function( m ) { return m.response_ms !== null && m.response_ms !== undefined && m.response_ms !== '' && ! isNaN( Number( m.response_ms ) ); } );
+		// Heartbeats never carry a response time: they are not in the denominator.
+		var timeable = mons.filter( function( m ) { return ! m.kind || 'monitor' === m.kind; } ).length;
 		if ( timed.length > 1 ) {
 			var slow = timed.reduce( function( a, b ) { return Number( b.response_ms ) > Number( a.response_ms ) ? b : a; } );
-			rows.push( { label: 'Slowest', value: String( slow.name || 'monitor' ) + ' · ' + Math.round( Number( slow.response_ms ) ) + ' ms' + ( timed.length < mons.length ? ' · ' + timed.length + ' of ' + mons.length + ' monitors timed' : '' ) } );
+			rows.push( { label: 'Slowest', value: String( slow.name || 'monitor' ) + ' · ' + Math.round( Number( slow.response_ms ) ) + ' ms' + ( timed.length < timeable ? ' · ' + timed.length + ' of ' + timeable + ' monitors timed' : '' ) } );
 		}
 		return rows;
 	}
@@ -205,6 +207,7 @@
 	/** Edge 5xx for the last complete UTC day, against the day before. */
 	function readEdge( e, tally ) {
 		if ( ! e ) { tally.unknown++; return { empty: 'No complete day in the edge rollup yet.' }; } // not measured is never an all-clear.
+		if ( e.failed ) { tally.unknown++; return { empty: 'The 5xx read for ' + String( e.day || 'the newest day' ) + ' failed.' }; }
 		var total = num( e.total );
 		// In words, not an arrow: a screen reader says the words, not "triangle".
 		var delta = null === e.prior || undefined === e.prior ? '' : ( total === num( e.prior ) ? ' · same as the day before' : ' · ' + Math.abs( total - num( e.prior ) ) + ( total > num( e.prior ) ? ' more' : ' fewer' ) + ' than the day before' );
@@ -217,7 +220,11 @@
 
 	/** Cron runs over the last 24 hours, and the hooks that failed. */
 	function cronDayRows( d, tally ) {
-		if ( ! d ) { return []; }
+		if ( ! d ) {
+			// The owner payload came but the history read did not: not measured.
+			if ( data.statusExtra && data.statusExtra.systems ) { tally.unknown++; return [ { label: 'Last 24 hours', value: 'could not be read', tone: WARN_FG } ]; }
+			return [];
+		}
 		var failed = num( d.failed );
 		// Runs RECORDED: a scheduled run that dies fatally leaves no row, so "0
 		// failed" would claim more than the history knows. Failures only when

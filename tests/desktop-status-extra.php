@@ -53,6 +53,10 @@ ok( 3 === $e['visitor'], 'Codex on 90eb194: the 5xx a visitor received are carri
 ok( 9 === $e['total'] && 4 === $e['prior'] && gmdate( 'M j', time() - 2 * DAY_IN_SECONDS ) === $e['day'], 'yesterday still pending: the newest covered day answers, labeled, against the day before it' );
 $GLOBALS['__edge'][ $d3 ] = array( 'total' => 0, 'query' => array( 'error' => '' ), 'days' => array( array( 'day' => $d3, 'read' => 'failed' ) ) );
 ok( null === snt_desktop_edge_yesterday()['prior'], 'Codex on 2bee69f: a failed prior day is no prior, never a 0 that makes a false delta' );
+$keep = $GLOBALS['__edge'][ $d2 ];
+$GLOBALS['__edge'][ $d2 ] = array( 'total' => 0, 'days' => array( array( 'day' => $d2, 'read' => 'failed' ) ) );
+ok( true === ( snt_desktop_edge_yesterday()['failed'] ?? false ), 'Codex on b872a9f: a failed newest non-pending day is said, never replaced by an older day' );
+$GLOBALS['__edge'][ $d2 ] = $keep;
 $GLOBALS['__edge'][ $d1 ] = array( 'total' => 12, 'days' => array( array( 'day' => $d1, 'read' => 'read' ) ) );
 ok( 12 === snt_desktop_edge_yesterday()['total'] && 9 === snt_desktop_edge_yesterday()['prior'], 'once covered, yesterday answers' );
 $GLOBALS['__edge'] = array();
