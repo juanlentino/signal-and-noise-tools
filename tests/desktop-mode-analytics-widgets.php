@@ -131,6 +131,7 @@ $g = array_column( snt_desktop_reading_groups( array( 'from' => '2026-09-20', 't
 ok( 'No custom events in this window.' === $g['Custom events · all traffic']['empty'] && 'No field measurements in this window.' === $g['Core Web Vitals']['empty'], 'the same empty answers with no error are a real "none"' );
 unset( $GLOBALS['wpdb'] );
 
+ok( 1 === snt_desktop_traffic_reach_counts( array( array( 'value' => 'US', 'views' => 3 ), array( 'value' => '(unknown)', 'views' => 5 ) ), array() )['countries'], 'the (unknown) bucket is not counted as a country' );
 $cap = snt_desktop_traffic_reach_counts( array_fill( 0, 500, array( 'value' => 'x', 'views' => 1 ) ), array( array( 'value' => 's', 'views' => 2 ) ) );
 ok( true === $cap['countries_capped'] && false === $cap['sources_capped'] && 500 === $cap['countries'], 'a reach list that fills the 500-row read is marked capped (a floor), a shorter one is not' );
 $vjs = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' );

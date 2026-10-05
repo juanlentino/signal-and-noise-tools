@@ -311,14 +311,17 @@
 			}
 
 			var actions = el( 'div', { style: 'margin-top:10px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;' } );
-			var sweepBtn = el( 'button', { text: 'Sweep now' } );
+			var sweepBtn = el( 'button', { text: sweeping ? 'Sweeping…' : 'Sweep now' } );
 			sweepBtn.type = 'button';
+			// A repaint mid-sweep (a reader answer landing) keeps the busy state.
+			if ( sweeping ) { sweepBtn.setAttribute( 'aria-disabled', 'true' ); }
 			sweepBtn.setAttribute( 'style', 'font:inherit;font-size:11px;padding:2px 10px;border-radius:5px;border:1px solid rgba(128,128,128,.45);background:transparent;color:inherit;cursor:pointer;min-height:24px;' );
 			sweepBtn.addEventListener( 'click', function() {
 				// aria-disabled, not disabled: a disabled button drops keyboard focus to <body>.
-				if ( ! window.sntAbilityRun || 'true' === sweepBtn.getAttribute( 'aria-disabled' ) ) {
+				if ( ! window.sntAbilityRun || sweeping || 'true' === sweepBtn.getAttribute( 'aria-disabled' ) ) {
 					return;
 				}
+				sweeping = true;
 				sweepBtn.setAttribute( 'aria-disabled', 'true' );
 				sweepBtn.textContent = 'Sweeping…';
 				// 15.8.1: the sweep's result goes to the shell toast
@@ -328,6 +331,7 @@
 				// showToast. `still_pending` counts the worker's whole queue
 				// (notes AND rights-signal documents), so say so.
 				function report( msg ) {
+					sweeping = false;
 					var os = ( window.wp && ( window.wp.os || window.wp.desktop ) ) || null;
 					if ( os && typeof os.showToast === 'function' ) {
 						try { os.showToast( { message: msg, duration: 3500, source: 'sn-anchors' } ); load(); return; } catch ( e ) { /* fall through */ }
@@ -371,10 +375,14 @@
 		// Each load() takes the next generation; every answer it started bails
 		// once a newer load() has begun, so a read from before a Sweep can never
 		// repaint over the one after it.
-		var gen = 0;
+		var gen      = 0;
+		var sweeping = false; // survives repaints, so a rebuilt button stays busy
+		var readCtl  = null;  // the reader request in flight, aborted when superseded or torn down
 
 		function load( note ) {
 			var mine = ++gen;
+			if ( readCtl ) { readCtl.abort(); }
+			readCtl = window.AbortController ? new window.AbortController() : null;
 			var live = function() { return mine === gen && ! torn; };
 			if ( ! window.sntAbilityRun ) {
 				render( null, 'The abilities client is unavailable.' );
@@ -386,7 +394,7 @@
 			// later repaints with it rather than without it.
 			var shown = { overview: null, note: note, waiting: true };
 			if ( window.wp && window.wp.apiFetch ) {
-				window.wp.apiFetch( { path: '/signal-noise/v1/desktop/machine-readers' } ).then( function( res ) {
+				window.wp.apiFetch( { path: '/signal-noise/v1/desktop/machine-readers', signal: readCtl ? readCtl.signal : undefined } ).then( function( res ) {
 					if ( live() && res && typeof res === 'object' ) {
 						readers = res;
 						render( shown.overview, shown.note, shown.waiting );
@@ -420,6 +428,7 @@
 
 		return function teardown() {
 			torn = true;
+			if ( readCtl ) { readCtl.abort(); }
 			clearChildren( container );
 		};
 	};

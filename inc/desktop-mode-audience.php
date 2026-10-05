@@ -149,7 +149,8 @@ function snt_desktop_traffic_reach_counts( $countries, $sources ) {
 	if ( ! is_array( $countries ) || ! is_array( $sources ) ) {
 		return null;
 	}
-	$n = static fn( $list ) => count( array_filter( $list, static fn( $r ) => is_array( $r ) && (int) ( $r['views'] ?? 0 ) > 0 && '' !== (string) ( $r['value'] ?? '' ) ) );
+	// '(unknown)' is the dims rollup's bucket for a missing value, not a country or a source.
+	$n = static fn( $list ) => count( array_filter( $list, static fn( $r ) => is_array( $r ) && (int) ( $r['views'] ?? 0 ) > 0 && ! in_array( (string) ( $r['value'] ?? '' ), array( '', '(unknown)' ), true ) ) );
 	// The reads are top-500 lists: a full list is a floor, painted "500+", not a count.
 	return array(
 		'countries'        => $n( $countries ),
