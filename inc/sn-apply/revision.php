@@ -118,9 +118,9 @@
  *   - `transition_post_status`: also unconditional (only gated on
  *     attachment-vs-not; a revision insert isn't an attachment, so
  *     `wp_transition_post_status( 'inherit', 'new', $revision_post )` fires
- *     same as any other insert, post.php:5082-5083). Five of our own
- *     modules hook it (ml-artifacts.php, ai-prepopulate.php, indexnow.php,
- *     webhooks.php, websub.php); each is independently safe because it
+ *     same as any other insert, post.php:5082-5083). Four of our own
+ *     modules hook it (ml-artifacts.php, indexnow.php, webhooks.php,
+ *     websub.php); each is independently safe because it
  *     separately guards on post_type (revision post_type is 'revision',
  *     never in any of their `post`/`page`/allowed-post-types checks) and/or
  *     requires 'publish' to be involved (a revision's status is always
@@ -137,7 +137,7 @@
  * The pattern across all of this: nothing in WordPress core itself skips a
  * hook because the row being inserted is a revision. Every safety property
  * this file relies on comes from a plugin-side `wp_is_post_revision()` (or
- * equivalent) check, verified present in each of the five files above.
+ * equivalent) check, verified present in each of the four files above.
  *
  * ── The meta problem ──
  *

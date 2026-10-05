@@ -93,7 +93,7 @@ ok( false !== stripos( $help, 'cannot withdraw' ), 'and says unticking cannot wi
 echo "\nGroup: checked state + the REST write\n";
 ok( false !== strpos( $js, 'checked: !! value' ), 'a stored flag paints the box ticked' );
 ok( false !== strpos( $js, "props.set( f.key, v ? true : null )" ), 'ticking writes true (stored 1), unticking writes null (deleted)' );
-ok( false !== strpos( $js, "if ( '' === next[ k ] || false === next[ k ] ) {" ) && 2 === substr_count( $js, 'setMeta( normalize( next ) );' ), 'a never-ticked flag goes back as null too, so no empty row is stored for a page that is not signed' );
+ok( false !== strpos( $js, "if ( '' === next[ k ] || false === next[ k ] ) {" ) && 1 === substr_count( $js, 'setMeta( normalize( next ) );' ), 'a never-ticked flag goes back as null too, so no empty row is stored for a page that is not signed' );
 ok( 'rest_sanitize_boolean' === ( $GLOBALS['__registered']['page']['_sn_prov_sign']['sanitize_callback'] ?? '' ), 'the flag sanitizes as a REST boolean' );
 ok( ! function_exists( 'sn_post_settings_save' ) && ! isset( $GLOBALS['__hooks']['save_post'] ), 'no classic save handler remains: the resolver reads what the entity save stored' );
 

@@ -1,59 +1,58 @@
 <?php
 /**
- * The publish-time auto-fill is gone, and the "unreviewed" notice it left
- * behind still works.
+ * The publish-time auto-fill is gone, and so is everything that tracked it.
  *
- * Until this change, inc/ai-prepopulate.php hooked transition_post_status and
- * a cron event that wrote an empty meta description, excerpt and OG card
- * title with no review step. The owner removed it on 2026-10-05 so every
- * model output reaches a published field through a human click. Pinned here:
- * nothing in the plugin schedules or handles that event, the generator's
- * functions and constants are gone, and the sentinel helpers the kept notice
- * reads still clear what an earlier run flagged.
+ * Until 2026-10-05, inc/ai-prepopulate.php hooked transition_post_status and a
+ * cron event that wrote an empty meta description, excerpt and OG card title
+ * with no review step, flagging each with an "auto-generated at publish"
+ * sentinel that a notice and a dismiss ability read and
+ * cleared. The owner removed the generator so every model output reaches a
+ * published field through a human click, reviewed the four fields it had
+ * written (the count of sentinels on the site read zero on 2026-10-05), and
+ * the tracking went too. Pinned here: none of it can come back unnoticed.
  *
  * Run: php tests/prepop-removed.php
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
-define( 'ABSPATH', '/' );
 
-$GLOBALS['__actions'] = array();
-$GLOBALS['__meta']    = array();
-function add_action( $hook, $cb ) { $GLOBALS['__actions'][ $hook ][] = $cb; }
-function delete_post_meta( $id, $key ) { unset( $GLOBALS['__meta'][ $id ][ $key ] ); return true; }
-
-require __DIR__ . '/../inc/ai-prepopulate.php';
+$root = dirname( __DIR__ );
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
-ok( empty( $GLOBALS['__actions']['transition_post_status'] ), 'nothing hooks a publish to start an auto-fill' );
-ok( empty( $GLOBALS['__actions']['snt_prepop_event'] ), 'nothing handles the auto-fill cron event' );
-foreach ( array( 'snt_prepop_on_transition', 'snt_run_prepop', 'snt_prepop_passes_content_gate' ) as $fn ) {
-	ok( ! function_exists( $fn ), "{$fn}() is gone" );
-}
-foreach ( array( 'SNT_PREPOP_MIN_WORDS', 'SNT_PREPOP_SCHEDULE_JITTER_MAX', 'SNT_PREPOP_DAILY_CALL_CEILING' ) as $const ) {
-	ok( ! defined( $const ), "{$const} is gone" );
+foreach ( array( 'inc/ai-prepopulate.php', 'inc/ai-prepopulate-notice.php', 'inc/abilities-prepop-dismiss.php', 'assets/prepop-notice.js' ) as $gone ) {
+	ok( ! file_exists( "$root/$gone" ), "$gone is gone" );
 }
 
-// No other file brings it back: no plugin code schedules or handles the event.
+// Strip comments before matching, so a history note cannot trip the guard.
+$strip = function ( $src ) {
+	return (string) preg_replace( '#//[^\n]*|/\*.*?\*/#s', '', $src );
+};
 $hits = array();
-$it   = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( __DIR__ . '/../inc', FilesystemIterator::SKIP_DOTS ) );
+$it   = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ) );
 foreach ( $it as $file ) {
-	if ( 'php' !== $file->getExtension() ) {
+	$path = $file->getPathname();
+	$rel  = substr( $path, strlen( $root ) + 1 );
+	if ( ! preg_match( '#^(inc/|assets/|signal-and-noise-tools\.php$)#', $rel ) || ! preg_match( '/\.(php|js)$/', $rel ) ) {
 		continue;
 	}
-	$src = preg_replace( '#//[^\n]*|/\*.*?\*/#s', '', (string) file_get_contents( $file->getPathname() ) );
-	if ( preg_match( '/wp_schedule_\w+\([^;]*snt_prepop_event|add_action\(\s*[\'"]snt_prepop_event/', $src ) ) {
-		$hits[] = basename( $file->getPathname() );
+	$src = $strip( (string) file_get_contents( $path ) );
+	foreach ( array(
+		'the auto-fill cron event'           => '/snt_prepop_event/',
+		'a sentinel meta key'                => '/_sn_autogen_/',
+		'the dismiss ability'                => '#prepop-dismiss#',
+		'a dismiss REST route'               => '#prepop/dismiss#',
+		'the sentinel helpers'               => '/sn_prepop_(fields|clear_sentinels|render_notice)/',
+		'the generator'                      => '/snt_(run_prepop|prepop_on_transition|prepop_passes_content_gate)/',
+	) as $what => $re ) {
+		if ( preg_match( $re, $src ) ) {
+			$hits[] = "$rel ($what)";
+		}
 	}
 }
-ok( array() === $hits, 'no file in inc/ schedules or handles snt_prepop_event (' . implode( ', ', $hits ) . ')' );
+ok( array() === $hits, 'no shipped file names the auto-fill or its tracking' . ( $hits ? ': ' . implode( '; ', $hits ) : '' ) );
 
-// The kept half: the notice's sentinel map and the clear the dismiss uses.
-ok( array( '_sn_autogen_meta_description', '_sn_autogen_excerpt', '_sn_autogen_og_card_title' ) === array_keys( sn_prepop_fields() ), 'the sentinel map still names the three fields' );
-$GLOBALS['__meta'][7] = array( '_sn_autogen_excerpt' => '1', '_sn_meta_description' => 'kept' );
-sn_prepop_clear_sentinels( 7 );
-ok( ! isset( $GLOBALS['__meta'][7]['_sn_autogen_excerpt'] ), 'clearing removes an earlier run\'s sentinel' );
-ok( 'kept' === ( $GLOBALS['__meta'][7]['_sn_meta_description'] ?? '' ), 'clearing never touches the field itself' );
+$main = (string) file_get_contents( "$root/signal-and-noise-tools.php" );
+ok( false === strpos( $main, 'ai-prepopulate' ), 'the main plugin file loads neither removed module' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

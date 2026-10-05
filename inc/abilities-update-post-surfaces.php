@@ -14,10 +14,6 @@
  *     writes: post_excerpt (wp_update_post → revision), _sn_meta_description,
  *             _sn_og_card_title (+ regenerates the card PNG when possible)
  *
- * Each written surface also deletes its _sn_autogen_* sentinel — text that
- * arrived through this door was reviewed by a person, which is exactly what
- * the "auto-generated at publish" notice exists to flag the absence of.
- *
  * rw door only (edit_post-gated on top of the door's own auth + kill switch).
  * No AI call anywhere — category 'tools'.
  *
@@ -50,7 +46,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/update-post-surfaces', array(
 		'label'               => 'Write reviewed excerpt / meta description / OG card title to a post',
-		'description'         => 'Sets any combination of post_excerpt, _sn_meta_description, and _sn_og_card_title to caller-supplied (human-reviewed) text. NO AI — this is the apply step after a draft → review workflow. Writing the OG card title also regenerates the card PNG. Each written surface clears its _sn_autogen_* sentinel. The excerpt write goes through wp_update_post, so a revision is created.',
+		'description'         => 'Sets any combination of post_excerpt, _sn_meta_description, and _sn_og_card_title to caller-supplied (human-reviewed) text. NO AI — this is the apply step after a draft → review workflow. Writing the OG card title also regenerates the card PNG. The excerpt write goes through wp_update_post, so a revision is created.',
 		'category'            => 'tools',
 		'permission_callback' => 'snt_ability_perm_edit_post',
 		'execute_callback'    => 'snt_ability_update_post_surfaces',
@@ -184,19 +180,16 @@ function snt_ability_update_post_surfaces( $input ) {
 		if ( is_wp_error( $res ) ) {
 			return $res;
 		}
-		delete_post_meta( $post_id, '_sn_autogen_excerpt' );
 		$updated[] = 'excerpt';
 	}
 
 	if ( null !== $meta_desc ) {
 		update_post_meta( $post_id, '_sn_meta_description', wp_slash( $meta_desc ) );
-		delete_post_meta( $post_id, '_sn_autogen_meta_description' );
 		$updated[] = 'meta_description';
 	}
 
 	if ( null !== $og_title ) {
 		update_post_meta( $post_id, '_sn_og_card_title', wp_slash( $og_title ) );
-		delete_post_meta( $post_id, '_sn_autogen_og_card_title' );
 		// Same immediate-PNG-refresh behavior as the AI path in
 		// inc/ai-og-card-title.php — quiet on failure, reported honestly.
 		$card_regenerated = function_exists( 'sn_generate_og_card' )

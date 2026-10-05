@@ -115,18 +115,6 @@ function sn_post_settings_register_meta() {
 		register_post_meta( $post_type, '_sn_focus_keyword',    $keyword_args ); // v10.8.0: SEO focus keyword (fed to the AI meta-description generator; also writable via the rw-door update-post-surfaces ability)
 	}
 
-	// #1608: the prepop sentinels (owned by inc/ai-prepopulate.php, written
-	// by cron after publish) reach the panel's "auto-generated when you
-	// published" notice through the same entity. Guarded: the fixture suites
-	// load this file without the prepop module.
-	if ( function_exists( 'sn_prepop_fields' ) ) {
-		foreach ( SN_POST_SETTINGS_POST_TYPES as $post_type ) {
-			foreach ( array_keys( sn_prepop_fields() ) as $sentinel ) {
-				register_post_meta( $post_type, $sentinel, $bool_args );
-			}
-		}
-	}
-
 	// v9.79.0: pillar essay curation, Pages ONLY (pillars are Pages; the
 	// theme's pillar rail derives from this meta). show_in_rest was false
 	// while the meta-box bridge saved via POST; #1608's panel is the React
@@ -208,38 +196,12 @@ function sn_post_settings_enqueue_panel() {
 		SNT_VERSION,
 		true
 	);
-	// The prepop sentinel labels for the panel's notice: one source
-	// (sn_prepop_fields), an object even when empty (a bare [] is a list).
-	$prepop = function_exists( 'sn_prepop_fields' ) ? sn_prepop_fields() : array();
-	wp_add_inline_script(
-		'snt-post-settings-panel',
-		'window.sntPostSettingsConfig = ' . wp_json_encode( array( 'prepop' => (object) $prepop ) ) . ';',
-		'before'
-	);
 	wp_enqueue_script( 'snt-post-settings-panel' );
 	if ( function_exists( 'wp_set_script_translations' ) ) {
 		wp_set_script_translations( 'snt-post-settings-panel', 'signal-noise-tools' );
 	}
 }
 add_action( 'enqueue_block_editor_assets', 'sn_post_settings_enqueue_panel' );
-
-/**
- * An editor save through REST acknowledges the prepop notice, the way the
- * classic save handler did for a POST save. The sentinels are set by cron
- * after publish, never inside this request, so clearing here cannot race
- * the write.
- *
- * @param WP_Post $post Saved post.
- */
-function sn_post_settings_rest_after_insert( $post ) {
-	if ( function_exists( 'sn_prepop_clear_sentinels' ) ) {
-		sn_prepop_clear_sentinels( $post->ID );
-	}
-}
-foreach ( SN_POST_SETTINGS_POST_TYPES as $sn_post_settings_type ) {
-	add_action( 'rest_after_insert_' . $sn_post_settings_type, 'sn_post_settings_rest_after_insert' );
-}
-unset( $sn_post_settings_type );
 
 /**
  * Typed accessors — read meta with predictable types. Consumers

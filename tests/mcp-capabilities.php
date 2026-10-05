@@ -317,7 +317,8 @@ $retired_without_absorber = array(
 	'signal-noise/ai-generate-meta-description', 'signal-noise/ai-generate-og-card-title',
 	'signal-noise/suggest-tags', 'signal-noise/run-audit-prune',
 	'signal-noise/get-audit-log', 'signal-noise/export-audit-log',
-	'signal-noise/dismiss-candidate', 'signal-noise/prepop-dismiss',
+	'signal-noise/dismiss-candidate',
+	'signal-noise/prepop-dismiss', // since deleted with the auto-generated notice (2026-10-05); kept as the record of the door decision.
 	'signal-and-noise/ai-generate-page-note-summary', 'signal-and-noise/ai-suggest-block-pattern',
 	'signal-and-noise/ai-validate-brand-alignment', 'signal-and-noise/ai-generate-pattern-content',
 	'signal-and-noise/ai-rewrite-in-brand-voice',

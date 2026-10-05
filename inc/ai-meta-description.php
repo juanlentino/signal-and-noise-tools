@@ -94,7 +94,7 @@ function snt_ai_truncate_meta_description( $text, $max = 155 ) {
  * gone). Single source of truth.
  *
  * @param int    $post_id
- * @param bool   $concise       Concise prepop variant (kept for API compat; same prompt since v10.6.1).
+ * @param bool   $concise       Concise variant (kept for API compat; same prompt since v10.6.1).
  * @param string $focus_keyword Optional keyword that must appear verbatim (v10.6.1).
  *                              The plugin stores no focus keyword itself, so callers
  *                              that know it (agents, future meta-box field) pass it in;

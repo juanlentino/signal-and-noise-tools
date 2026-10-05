@@ -73,7 +73,6 @@ function wp_die( $m = '' ) { throw new RuntimeException( 'wp_die: ' . $m ); }
 function get_post_meta( $id, $key, $single = false ) { return $GLOBALS['__meta'][ $id ][ $key ] ?? ''; }
 function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . ltrim( $p, '/' ); }
 function get_option( $k, $d = false ) { return $d; }
-function sn_prepop_fields() { return array( '_sn_autogen_excerpt' => 'excerpt', '_sn_autogen_og_card_title' => 'OG card title' ); }
 function sn_admin_flash_to_notice( $key ) { return 'purged' === $key ? array( 'success', 'Purged. <a href="https://example.test/log">See the log</a>.' ) : null; }
 
 require_once __DIR__ . '/lib/wp-admin-notice-stub.php';
@@ -82,7 +81,6 @@ require_once __DIR__ . '/../inc/rss-feed-tracker.php';        // post-redirect r
 require_once __DIR__ . '/../inc/admin-render-sections.php';   // inline warning inside a tab
 require_once __DIR__ . '/../inc/machine-readers-render.php';  // notice-alt inline readouts that RETURN a string
 require_once __DIR__ . '/../inc/batch-schedule.php';          // admin_notices hook
-require_once __DIR__ . '/../inc/ai-prepopulate-notice.php';   // attributes + a Dismiss button
 require_once __DIR__ . '/../inc/analytics-dashboard-page.php'; // the flash renderer
 
 function capture( callable $fn ) {
@@ -203,19 +201,6 @@ ok( 0 === strpos( $html, '<div class="notice notice-warning"><p>' ) && false !==
 $_REQUEST = array();
 
 // ═════════════════════════════════════════════════════════════════════════
-echo "\nGroup: attributes and a Dismiss button (inc/ai-prepopulate-notice.php)\n";
-$GLOBALS['__actions_fired'] = array();
-$GLOBALS['__meta']          = array( 7 => array( '_sn_autogen_excerpt' => '1' ) );
-$post                       = (object) array( 'ID' => 7 );
-$html                       = capture( function () use ( $post ) { sn_prepop_render_notice( $post ); } );
-ok( '<div class="notice notice-info sn-prepop-notice" data-post="7"><p>Auto-generated when you published: excerpt. <button type="button" class="button-link sn-prepop-dismiss">Dismiss</button></p></div>' === $html, 'data-post rides attributes, the house class rides additional_classes, the button survives: ' . $html );
-$args = last_notice_args();
-ok( array( 'data-post' => '7' ) === ( $args['attributes'] ?? array() ) && array( 'sn-prepop-notice' ) === ( $args['additional_classes'] ?? array() ), 'the action saw the attribute and the class' );
-$js = (string) file_get_contents( SNT_PATH . 'assets/prepop-notice.js' );
-ok( false !== strpos( $js, "closest( '.sn-prepop-notice' )" ) && false !== strpos( $js, "getAttribute( 'data-post' )" ), 'assets/prepop-notice.js still reads .sn-prepop-notice and data-post (class order moved; the selector does not care)' );
-$GLOBALS['__meta'] = array();
-ok( '' === capture( function () use ( $post ) { sn_prepop_render_notice( $post ); } ), 'no sentinel, no notice' );
-
 // ═════════════════════════════════════════════════════════════════════════
 echo "\nGroup: the flash renderer (inc/analytics-dashboard-page.php)\n";
 $GLOBALS['__actions_fired'] = array();

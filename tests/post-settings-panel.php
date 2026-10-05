@@ -3,9 +3,9 @@
  * Tests: the per-post settings ride the editor's native document panel (#1608).
  *
  * inc/post-settings.php no longer adds a meta box; it enqueues
- * assets/post-settings-panel.js on the block editor screens, registers the
- * prepop sentinels in REST so the panel's notice can read them, and clears
- * them on a REST save the way the classic save did. The script registers the
+ * assets/post-settings-panel.js on the block editor screens. The
+ * "auto-generated at publish" sentinels and the panel's notice left with the
+ * publish-time auto-fill (2026-10-05). The script registers the
  * `snt-post-settings` plugin whose render is a PluginDocumentSettingPanel
  * over useEntityProp, with the meta box's fields and labels, and the three
  * AI scripts contribute actions instead of polling the DOM.
@@ -40,9 +40,6 @@ function plugins_url( $path, $file ) { return 'https://example.test/plugins/' . 
 function wp_json_encode( $v ) { return json_encode( $v ); }
 function get_current_screen() { return $GLOBALS['__screen']; }
 function sanitize_text_field( $s ) { return trim( preg_replace( '/\s+/', ' ', strip_tags( (string) $s ) ) ); }
-// The prepop module the panel's notice reads through; loaded before post-settings in the plugin.
-function sn_prepop_fields() { return array( '_sn_autogen_meta_description' => 'meta description', '_sn_autogen_excerpt' => 'excerpt', '_sn_autogen_og_card_title' => 'OG card title' ); }
-function sn_prepop_clear_sentinels( $id ) { $GLOBALS['__cleared'][] = (int) $id; }
 
 $php = (string) file_get_contents( __DIR__ . '/../inc/post-settings.php' );
 require __DIR__ . '/../inc/post-settings.php';
@@ -56,12 +53,11 @@ ok( ! function_exists( 'sn_post_settings_save' ), 'the classic save handler is g
 ok( ! isset( $GLOBALS['__hooks']['save_post'] ), 'nothing hooks save_post' );
 ok( false === strpos( $php, 'sn_post_settings_nonce' ) && false === strpos( $php, 'SN_POST_SETTINGS_NONCE' ), 'no nonce is named: the entity save carries the meta' );
 
-echo "\nGroup: every key rides REST, the sentinels included\n";
+echo "\nGroup: every key rides REST, and the retired sentinels do not\n";
 sn_post_settings_register_meta();
 foreach ( array( 'post', 'page' ) as $t ) {
-	foreach ( array_keys( sn_prepop_fields() ) as $sentinel ) {
-		$args = $GLOBALS['__registered'][ $t ][ $sentinel ] ?? array();
-		ok( true === ( $args['show_in_rest'] ?? null ) && 'boolean' === ( $args['type'] ?? '' ), "$sentinel on '$t' is a REST boolean for the panel's notice" );
+	foreach ( array( '_sn_autogen_meta_description', '_sn_autogen_excerpt', '_sn_autogen_og_card_title' ) as $sentinel ) {
+		ok( ! isset( $GLOBALS['__registered'][ $t ][ $sentinel ] ), "$sentinel on '$t' is no longer registered" );
 	}
 }
 ok( true === ( $GLOBALS['__registered']['page']['_sn_pillar']['show_in_rest'] ?? null ), '_sn_pillar rides REST' );
@@ -89,15 +85,8 @@ foreach ( array( 'wp-plugins', 'wp-editor', 'wp-core-data', 'wp-components', 'wp
 	ok( in_array( $dep, $reg['deps'] ?? array(), true ), "depends on $dep" );
 }
 ok( in_array( 'snt-post-settings-panel', $GLOBALS['__enqueued'], true ), 'and enqueues it' );
-$inline = $GLOBALS['__inline']['snt-post-settings-panel'] ?? array( '', '' );
-ok( 'before' === $inline[1] && false !== strpos( $inline[0], 'window.sntPostSettingsConfig = {"prepop":{"_sn_autogen_meta_description":"meta description"' ), 'hands the panel the sentinel labels from sn_prepop_fields, as an object' );
-
-echo "\nGroup: a REST save acknowledges the prepop notice\n";
-foreach ( array( 'post', 'page' ) as $t ) {
-	ok( in_array( 'sn_post_settings_rest_after_insert', $GLOBALS['__hooks'][ 'rest_after_insert_' . $t ] ?? array(), true ), "rest_after_insert_$t clears the sentinels" );
-}
-if ( function_exists( 'sn_post_settings_rest_after_insert' ) ) { sn_post_settings_rest_after_insert( (object) array( 'ID' => 44 ) ); }
-ok( array( 44 ) === $GLOBALS['__cleared'], 'the hook delegates to sn_prepop_clear_sentinels on the saved post' );
+ok( ! isset( $GLOBALS['__inline']['snt-post-settings-panel'] ), 'no inline config: the panel needs none since the notice left' );
+ok( ! isset( $GLOBALS['__hooks']['rest_after_insert_post'] ) && ! isset( $GLOBALS['__hooks']['rest_after_insert_page'] ), 'no REST-save hook: there is no notice to acknowledge' );
 
 echo "\nGroup: the script is the native panel\n";
 $js_path = __DIR__ . '/../assets/post-settings-panel.js';
@@ -128,8 +117,9 @@ ok( false === strpos( $js, 'sn_post_settings_nonce' ) && false === strpos( $js, 
 // key at its default as an '' row, so every S&N key at its default goes
 // back as null before each entity write.
 ok( false !== strpos( $js, "if ( '' === next[ k ] || false === next[ k ] ) {" ) && false !== strpos( $js, 'next[ k ] = null;' ), 'normalize() turns every S&N key at its default into null' );
-ok( false !== strpos( $js, 'var OWN_KEYS = FIELDS.map( function( f ) { return f.key; } ).concat( Object.keys( cfg.prepop || {} ) );' ), 'over the field table and the prepop sentinels, no other plugin\'s keys' );
-ok( 2 === substr_count( $js, 'setMeta( normalize( next ) );' ) && false === strpos( $js, 'setMeta( next );' ), 'both entity writes (a field edit, the notice dismiss) go through normalize()' );
+ok( false !== strpos( $js, 'var OWN_KEYS = FIELDS.map( function( f ) { return f.key; } );' ), 'over the field table, no other plugin\'s keys' );
+ok( 1 === substr_count( $js, 'setMeta( normalize( next ) );' ) && false === strpos( $js, 'setMeta( next );' ), 'the entity write goes through normalize()' );
+ok( false === strpos( $js, 'PrepopNotice' ) && false === strpos( $js, 'prepop-dismiss' ), 'the auto-generated notice and its dismiss are gone from the panel' );
 
 echo "\nGroup: the AI scripts are panel actions, not DOM pollers\n";
 foreach ( array( 'ai-meta-description.js' => '_sn_meta_description', 'ai-og-card-title.js' => '_sn_og_card_title', 'ai-excerpt.js' => null ) as $file => $field ) {

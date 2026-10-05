@@ -52,8 +52,8 @@ function snt_ai_usage_summary( $days = 30 ) {
 	if ( ! is_array( $log ) ) {
 		return $out;
 	}
-	// Hoist the rate map once — snt_ai_usage_summary( 1 ) runs on the prepop
-	// path, so we avoid re-running the `snt_ai_model_pricing` filter per entry.
+	// Hoist the rate map once, so the `snt_ai_model_pricing` filter is not
+	// re-run per entry.
 	$rates  = snt_ai_model_pricing();
 	$cutoff = time() - ( max( 1, (int) $days ) * DAY_IN_SECONDS );
 	foreach ( $log as $entry ) {

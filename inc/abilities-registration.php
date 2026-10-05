@@ -36,7 +36,6 @@
  *     scan (structural 'tools' category, v4.6.0).
  *   - inc/abilities-dismiss.php              — 1 ability: unified
  *     dismiss-candidate (v7.7.0; the per-surface dismisses' replacement).
- *   - inc/abilities-prepop-dismiss.php       — 1 ability (v6.55.0).
  *   - inc/abilities-health.php               — 1 ability (v7.0.0).
  *   - inc/abilities-machine-readers.php      1 ability (v10.1.0): the
  *     read-only Machine Readers glance (the agent twin of the Desktop Mode
@@ -85,7 +84,6 @@ require_once __DIR__ . '/abilities-ai-cache-probe.php';    // v10.69.0: 1 abilit
 require_once __DIR__ . '/abilities-ai-pattern-adoption.php';
 require_once __DIR__ . '/abilities-pattern-adoption.php';  // v4.6.0: 1 ability (scan; dismiss unified into dismiss-candidate)
 require_once __DIR__ . '/abilities-dismiss.php';           // v7.7.0: 1 ability (unified dismiss-candidate)
-require_once __DIR__ . '/abilities-prepop-dismiss.php';    // v6.55.0: 1 ability (prepop notice dismiss)
 require_once __DIR__ . '/abilities-health.php';            // v7.0.0: 1 ability (read-only Content-Health scan summary)
 require_once __DIR__ . '/abilities-machine-readers.php';   // v10.1.0: 1 ability (read-only Machine Readers glance)
 require_once __DIR__ . '/abilities-note-dossier.php';      // v13.100.0: 1 ability (read-only note dossier for the Signal & Noise app)

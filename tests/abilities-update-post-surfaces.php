@@ -144,9 +144,7 @@ ok( ( $GLOBALS['__meta'][10]['_sn_meta_description'] ?? '' ) === 'New descriptio
 ok( ( $GLOBALS['__meta'][10]['_sn_og_card_title'] ?? '' ) === 'New card title', 'OG title written to _sn_og_card_title' );
 ok( ( $GLOBALS['__meta'][10]['_sn_seo_title'] ?? '' ) === 'New SEO title', 'SEO title written to _sn_seo_title' );
 ok( ( $GLOBALS['__meta'][10]['_sn_focus_keyword'] ?? '' ) === 'provenance', 'focus keyword written to _sn_focus_keyword' );
-ok( in_array( '10:_sn_autogen_excerpt', $GLOBALS['__meta_deleted'], true )
-	&& in_array( '10:_sn_autogen_meta_description', $GLOBALS['__meta_deleted'], true )
-	&& in_array( '10:_sn_autogen_og_card_title', $GLOBALS['__meta_deleted'], true ), 'autogen sentinels cleared for the three prepop surfaces' );
+ok( array() === array_filter( (array) ( $GLOBALS['__meta_deleted'] ?? array() ), function ( $k ) { return false !== strpos( $k, '_sn_autogen_' ); } ), 'no retired auto-fill sentinel is touched' );
 ok( $GLOBALS['__card_calls'] === array( 10 ) && true === $r['card_regenerated'], 'OG card PNG regenerated once and reported' );
 
 // ── Partial write: only meta description ─────────────────────────────
