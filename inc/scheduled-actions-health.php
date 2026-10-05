@@ -240,4 +240,14 @@ function snt_asb_site_health_rest() {
 if ( function_exists( 'add_action' ) ) {
 	add_filter( 'site_status_tests', 'snt_asb_register_site_health_test' );
 	add_action( 'rest_api_init', 'snt_asb_register_rest_route' );
+	// 2026-10-05 (owner-approved): Action Scheduler's async request runner
+	// starts a loopback queue run from ordinary page loads. Measured on
+	// Cloudways over 24 h: ~150 runs at ~5.8 s each on a 2 GB / 2 vCPU
+	// server, overlapping the desktop's REST calls when the edge recorded
+	// 503s. Its queue still runs from WP-Cron (action_scheduler_run_queue),
+	// which the system cron fires every 5 minutes (DISABLE_WP_CRON is set);
+	// only WHEN it runs moves. A stalled WP-Cron would stall it too: the cron
+	// health check already says so, and this file's Site Health test names a
+	// growing backlog.
+	add_filter( 'action_scheduler_allow_async_request_runner', '__return_false' );
 }

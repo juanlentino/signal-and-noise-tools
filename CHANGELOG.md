@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Action Scheduler no longer runs its queue from page loads.** A third-party plugin's Action Scheduler started a loopback queue run from ordinary requests: about 150 runs a day at about 5.8 seconds each on this 2 GB / 2 vCPU server, overlapping the desktop's own REST calls when the edge recorded 503s (8 at the origin in 24 hours, 5 of them OpenStation's session check). Its queue still runs from WP-Cron, which the system cron fires every 5 minutes; only when it runs moves. Owner-approved.
+
 ## [22.6.0] - 2026-10-05 — SN Systems and SN Provenance carry more
 
 ### Added
