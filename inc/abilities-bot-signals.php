@@ -22,12 +22,22 @@ function sn_bot_signals_refresh() {
 	if ( ! function_exists( 'sn_analytics_query' ) ) {
 		return false;
 	}
-	$rows = sn_analytics_query( sn_bot_signals_sql() );
-	$days = is_array( $rows ) ? sn_analytics_query( sn_bot_signals_days_sql() ) : null;
-	if ( ! is_array( $rows ) || ! is_array( $days ) ) {
+	// Analytics 2.0: across the clean day each generation is read for its side.
+	// A visitor-day lives on one side, so the rows join; the split day's
+	// signal count comes from both and is merged into one day.
+	$from = sn_analytics_trailing_from( SNT_BOT_SIGNAL_DAYS );
+	$now  = gmdate( 'Y-m-d H:i:s', sn_analytics_clock() );
+	$sets = sn_analytics_stitched_rows( static fn( $s, $r ) => sn_bot_signals_sql( SNT_BOT_SIGNAL_DAYS, $s, $r ), $from, $now );
+	$dset = null === $sets ? null : sn_analytics_stitched_rows( static fn( $s, $r ) => sn_bot_signals_days_sql( SNT_BOT_SIGNAL_DAYS, $s, $r ), $from, $now );
+	if ( null === $sets || null === $dset ) {
 		return false;
 	}
-	update_option( SNT_BOT_SIGNAL_OPTION, sn_bot_signals_readout( $rows, $days ) + array( 'measured_at' => time() ), false );
+	$rows = array_merge( ...$sets );
+	$days = sn_bot_signals_days_merge( $dset );
+	$readout = sn_bot_signals_readout( $rows, $days );
+	// Truncated means a half reached its LIMIT, not that two halves add up past it.
+	$readout['truncated'] = array() !== array_filter( $sets, static fn( $set ) => count( $set ) >= SNT_BOT_SIGNAL_LIMIT );
+	update_option( SNT_BOT_SIGNAL_OPTION, $readout + array( 'measured_at' => time() ), false );
 	return true;
 }
 if ( defined( 'SN_ANALYTICS_ROLLUP_DAILY_HOOK' ) ) {

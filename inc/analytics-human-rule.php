@@ -50,7 +50,7 @@ function sn_analytics_overcap_sql( $source = '', $range = '' ) {
 	$days  = (int) SNT_ANALYTICS_VDAY_WINDOW_DAYS;
 	$cap   = (int) SNT_ANALYTICS_VDAY_PV_CAP;
 	$max   = (int) SNT_ANALYTICS_VDAY_LIST_MAX;
-	$range = 1 === preg_match( "/^ AND timestamp (<|>=) toDateTime\\('\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}'\\)$/", (string) $range ) ? (string) $range : '';
+	$range = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
 	return implode( ' ', array(
 		'SELECT index1 AS vid, sum(_sample_interval) AS views',
 		'FROM ' . ( '' !== (string) $source ? (string) $source : sn_analytics_source( sn_analytics_trailing_from( $days ) ) ),

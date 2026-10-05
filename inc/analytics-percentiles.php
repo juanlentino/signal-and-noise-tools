@@ -91,6 +91,66 @@ function sn_analytics_percentiles_sql( $event, $col, $from, $to, $class ) {
 }
 
 /**
+ * One half of a stitched percentile read: the value distribution, not the
+ * quantile (quantiles do not merge; distributions do). Same filters and
+ * bounds as sn_analytics_percentiles_sql(), plus the half's side of the split.
+ * GROUP BY takes the bare alias, the shape AE accepts.
+ *
+ * @param string $event  Event filter ('sc'|'tm').
+ * @param string $col    Double column.
+ * @param string $from   Inclusive start day.
+ * @param string $to     Inclusive end day.
+ * @param string $class  Traffic class.
+ * @param string $source The half's dataset.
+ * @param string $range  The half's side of the split.
+ * @return string AE SQL, or '' for a range that is not a split bound.
+ */
+function sn_analytics_percentiles_dist_sql( $event, $col, $from, $to, $class, $source, $range ) {
+	if ( ! sn_analytics_split_range_ok( $range ) ) {
+		return '';
+	}
+	$event  = preg_replace( '/[^a-z]/', '', (string) $event );
+	$col    = preg_replace( '/[^a-z0-9]/', '', (string) $col );
+	$class  = in_array( $class, SN_ANALYTICS_CLASSES, true ) ? $class : 'human';
+	$source = preg_replace( '/[^a-z0-9_]/', '', (string) $source );
+	list( $lo, $hi ) = sn_analytics_local_day_bounds_utc( (string) $from, (string) $to );
+	return implode( ' ', array(
+		"SELECT {$col} AS v, sum(_sample_interval) AS w",
+		'FROM ' . $source,
+		"WHERE blob1 = '{$event}' AND " . sn_analytics_class_where( $class ),
+		"AND timestamp >= toDateTime('{$lo}')",
+		"AND timestamp <= toDateTime('{$hi}'){$range}",
+		'GROUP BY v',
+	) );
+}
+
+/**
+ * The weighted quantile of a merged distribution, the way AE's
+ * quantileExactWeighted takes it: values ascending, the first whose running
+ * weight reaches ceil(total * level). PURE. Null for an empty distribution.
+ *
+ * @param array<int,array{v:float,w:float}> $pairs Value and weight.
+ * @param float                             $level 0..1.
+ * @return float|null
+ */
+function sn_analytics_weighted_quantile( array $pairs, $level ) {
+	usort( $pairs, static fn( $a, $b ) => $a['v'] <=> $b['v'] );
+	$total = array_sum( array_column( $pairs, 'w' ) );
+	if ( $total <= 0 ) {
+		return null;
+	}
+	$threshold = ceil( $total * (float) $level );
+	$acc       = 0.0;
+	foreach ( $pairs as $p ) {
+		$acc += $p['w'];
+		if ( $acc >= $threshold ) {
+			return (float) $p['v'];
+		}
+	}
+	return (float) end( $pairs )['v'];
+}
+
+/**
  * The UTC instants that bound the SITE's days [from, to]. The rollups bucket
  * by the site's day, so a percentile over the same dates has to cover the
  * same hours; UTC midnights would shift it by the site's offset. The bounds
@@ -145,8 +205,8 @@ function sn_analytics_percentiles( $metric, $from, $to, $class = 'human' ) {
 	// The dataset is part of the key: when the daily verdict moves a window from
 	// one generation to the other, an answer cached from the one just left is
 	// not served.
-	$source    = sn_analytics_source( substr( sn_analytics_local_day_bounds_utc( $from, $to )[0], 0, 10 ) );
-	$cache_key = 'sn_pctl_' . md5( $metric . '|' . $from . '|' . $to . '|' . $class . ( SN_ANALYTICS_DATASET === $source ? '' : '|' . $source ) );
+	list( $lo, $hi ) = sn_analytics_local_day_bounds_utc( $from, $to );
+	$cache_key = 'sn_pctl_' . md5( $metric . '|' . $from . '|' . $to . '|' . $class . sn_analytics_read_key( substr( $lo, 0, 10 ), $hi ) );
 	$cached    = get_transient( $cache_key );
 	if ( false !== $cached ) {
 		return is_array( $cached ) ? $cached : null; // '' sentinel → cached failure.
@@ -157,8 +217,42 @@ function sn_analytics_percentiles( $metric, $from, $to, $class = 'human' ) {
 	}
 
 	$m   = $metrics[ $metric ];
-	$res = sn_analytics_query( sn_analytics_percentiles_sql( $m['event'], $m['col'], $from, $to, $class ) );
 	$ttl = defined( 'SN_ANALYTICS_ROLLUP_TTL' ) ? SN_ANALYTICS_ROLLUP_TTL : ( 15 * 60 );
+
+	// Analytics 2.0: a window across the clean day reads each generation's
+	// value distribution for its side, merged, and takes the quantiles here.
+	// A half at the row cap is a partial distribution: no answer, never an
+	// approximation.
+	$halves = sn_analytics_stitch( substr( $lo, 0, 10 ) );
+	if ( null !== $halves && $hi >= $halves['at'] ) {
+		$sets = sn_analytics_stitched_rows(
+			static fn( $source, $range ) => sn_analytics_percentiles_dist_sql( $m['event'], $m['col'], $from, $to, $class, $source, $range ),
+			substr( $lo, 0, 10 ),
+			$hi
+		);
+		$cap  = defined( 'SN_ANALYTICS_AE_ROW_CAP' ) ? SN_ANALYTICS_AE_ROW_CAP : 10000;
+		if ( null === $sets || array() !== array_filter( $sets, static fn( $set ) => count( $set ) >= $cap ) ) {
+			set_transient( $cache_key, '', 5 * 60 );
+			return null;
+		}
+		$pairs = array();
+		foreach ( array_merge( ...$sets ) as $p ) {
+			$pairs[] = array( 'v' => (float) ( $p['v'] ?? 0 ), 'w' => (float) ( $p['w'] ?? 0 ) );
+		}
+		$q = array();
+		foreach ( array( 'p50' => 0.5, 'p75' => 0.75, 'p90' => 0.9 ) as $label => $level ) {
+			$q[ $label ] = sn_analytics_weighted_quantile( $pairs, $level );
+		}
+		$out = array(
+			array( 'label' => 'p50', 'value' => (float) $q['p50'] ),
+			array( 'label' => 'p75', 'value' => (float) $q['p75'] ),
+			array( 'label' => 'p90', 'value' => (float) $q['p90'] ),
+		);
+		set_transient( $cache_key, $out, $ttl );
+		return $out;
+	}
+
+	$res = sn_analytics_query( sn_analytics_percentiles_sql( $m['event'], $m['col'], $from, $to, $class ) );
 
 	if ( ! is_array( $res ) || ! isset( $res[0] ) || ! is_array( $res[0] ) ) {
 		set_transient( $cache_key, '', 5 * 60 ); // brief negative cache

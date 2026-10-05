@@ -40,12 +40,15 @@ const SNT_BOT_SIGNAL_OPTION    = 'sn_bot_signals_last';
  * One row per visitor-day that carried signals: each bit's max, pv views, and
  * the cohort flags. Absent-signal rows are filtered out by the presence bit. PURE.
  *
- * @param int $days Trailing window.
+ * @param int    $days   Trailing window.
+ * @param string $source One half of a stitched read; '' picks the dataset.
+ * @param string $range  That half's side of the split.
  * @return string
  */
-function sn_bot_signals_sql( $days = SNT_BOT_SIGNAL_DAYS ) {
-	$days = max( 1, min( 92, (int) $days ) );
-	$source = sn_analytics_source( sn_analytics_trailing_from( $days ) );
+function sn_bot_signals_sql( $days = SNT_BOT_SIGNAL_DAYS, $source = '', $range = '' ) {
+	$days   = max( 1, min( 92, (int) $days ) );
+	$source = '' !== (string) $source ? (string) $source : sn_analytics_source( sn_analytics_trailing_from( $days ) );
+	$range  = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
 	$t    = sn_analytics_network_terms();
 	$net  = sn_analytics_network_human_sql();
 	$cols = array( 'index1 AS vid' );
@@ -61,21 +64,48 @@ function sn_bot_signals_sql( $days = SNT_BOT_SIGNAL_DAYS ) {
 	$cols[] = "max(if(blob7 != 'bot' AND ({$net}), 1, 0)) AS human";
 	return 'SELECT ' . implode( ', ', $cols )
 		. ' FROM ' . $source
-		. " WHERE timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY) AND bitAnd(toUInt32(double8), " . SNT_BOT_SIGNAL_PRESENT . ') > 0'
+		. " WHERE timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY){$range} AND bitAnd(toUInt32(double8), " . SNT_BOT_SIGNAL_PRESENT . ') > 0'
 		. ' GROUP BY vid LIMIT ' . SNT_BOT_SIGNAL_LIMIT;
 }
 
 /**
  * UTC days in the window that carried any signal-bearing row. PURE.
  *
- * @param int $days Trailing window.
+ * @param int    $days   Trailing window.
+ * @param string $source One half of a stitched read; '' picks the dataset.
+ * @param string $range  That half's side of the split.
  * @return string
  */
-function sn_bot_signals_days_sql( $days = SNT_BOT_SIGNAL_DAYS ) {
-	$days = max( 1, min( 92, (int) $days ) );
-	$source = sn_analytics_source( sn_analytics_trailing_from( $days ) );
+function sn_bot_signals_days_sql( $days = SNT_BOT_SIGNAL_DAYS, $source = '', $range = '' ) {
+	$days   = max( 1, min( 92, (int) $days ) );
+	$source = '' !== (string) $source ? (string) $source : sn_analytics_source( sn_analytics_trailing_from( $days ) );
+	$range  = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
 	return 'SELECT toStartOfDay(timestamp) AS day, count() AS n FROM ' . $source
-		. " WHERE timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY) AND bitAnd(toUInt32(double8), " . SNT_BOT_SIGNAL_PRESENT . ') > 0 GROUP BY day';
+		. " WHERE timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY){$range} AND bitAnd(toUInt32(double8), " . SNT_BOT_SIGNAL_PRESENT . ') > 0 GROUP BY day';
+}
+
+/**
+ * Join the halves of a stitched days read. PURE. The split falls inside a UTC
+ * day, so that day comes back from both halves: its counts add, and it is one
+ * day, never two.
+ *
+ * @param array<int,array> $sets Row sets from sn_analytics_stitched_rows().
+ * @return array<int,array{day:string,n:int}>
+ */
+function sn_bot_signals_days_merge( array $sets ) {
+	$by = array();
+	foreach ( $sets as $rows ) {
+		foreach ( $rows as $r ) {
+			$r             = (array) $r;
+			$d             = (string) ( $r['day'] ?? '' );
+			$by[ $d ]      = ( $by[ $d ] ?? 0 ) + (int) ( $r['n'] ?? 0 );
+		}
+	}
+	$out = array();
+	foreach ( $by as $d => $n ) {
+		$out[] = array( 'day' => (string) $d, 'n' => $n );
+	}
+	return $out;
 }
 
 /**
