@@ -491,10 +491,13 @@ author-side publish signer described under gap 1. Nothing in this gap waits on a
 ### Where the provenance work stops (2026-10-05)
 
 With gap 1 step 1 and gap 3 step 2 shipped, the provenance system is complete for this site.
-Its readers are the author and anyone checking evidence: over the last 90 days of human
-traffic, `/provenance/` had 44 views and `/provenance/verify/` had 4. The remaining pieces
-(gap 3 steps 1, 3 and 4, gap 2, gap 4, and moving the publish signature to the author's key)
-stay designed and unbuilt. One of them is built only when a concrete need names it: a
+The owner judges its readers to be the author and anyone checking evidence. Over the last 90
+days of human traffic `/provenance/` had 44 views; how often notes are verified is not measured,
+because the standalone `/verify` page the "Verify it yourself" links open carries no analytics
+beacon (`/provenance/verify/` is a different page). The remaining pieces (`edit_log`, gap 3
+steps 1, 3 and 4, gap 2, gap 4, and moving the publish signature to the author's key) stay
+designed and unbuilt; `edit_log`'s approval as a design and its open sequencing question stand
+but no longer authorize building it. One of them is built only when a concrete need names it: a
 collaborator, a rights claim that needs an ownership or terms record, an error that needs a
 self-correction record, or a paper whose claim depends on it. Countersigning new records stays
 routine: `node countersign.mjs prepare`, the author signs, `finish`, a pull request.
