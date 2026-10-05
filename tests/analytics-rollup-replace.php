@@ -102,17 +102,27 @@ $seed = function () use ( $pv, $D, $OLD ) {
 $main = "sumIf(_sample_interval, blob1 = 'pv') AS views";
 
 // ── Window days: exactly the days the floored SQL window reads. ──
-sn_analytics_rollup_window( false );
-$w = sn_analytics_rollup_window_days( 'America/New_York' );
 // The window reads its first day at now+300 s and its last at now-300 s (the
-// edge skew in sn_analytics_rollup_window_days), so expect the same: within
-// five minutes of New York midnight the plain $day() straddles the boundary.
-$at  = static function ( $offset, $ago ) use ( $ny ) { return ( new DateTimeImmutable( '@' . ( time() + $offset ) ) )->setTimezone( $ny )->modify( "-{$ago} days" )->format( 'Y-m-d' ); };
-$len = (int) round( ( strtotime( $at( -300, 0 ) . ' 12:00 UTC' ) - strtotime( $at( 300, 7 ) . ' 12:00 UTC' ) ) / 86400 ) + 1;
-ok( $at( 300, 7 ) === $w[0] && $at( -300, 0 ) === end( $w ) && $len === count( $w ) && count( $w ) >= 7, 'nightly window: 7 days ago (the floored lower bound) through today, ' . count( $w ) . ' days' );
+// edge skew in sn_analytics_rollup_window_days), so the expectation is built
+// from the SAME second the code read, with the same skew, in the same zone.
+// Within five minutes of a midnight a plain "now" straddles the boundary
+// (failed at 23:56 UTC on 2026-10-04). The loop retries the rare call that
+// crosses a second, so $now is exactly the code's time() ($t is the transient store).
+$read = static function ( $tz ) { do { $t = time(); $w = sn_analytics_rollup_window_days( $tz ); } while ( $t !== time() ); return array( $t, $w ); };
+$at   = static function ( $t, $ago, $zone ) { return ( new DateTimeImmutable( '@' . $t ) )->setTimezone( $zone )->modify( "-{$ago} days" )->format( 'Y-m-d' ); };
+$span = static function ( $a, $b ) { return (int) round( ( strtotime( $b . ' 12:00 UTC' ) - strtotime( $a . ' 12:00 UTC' ) ) / 86400 ) + 1; };
+sn_analytics_rollup_window( false );
+list( $now, $w ) = $read( 'America/New_York' );
+$first = $at( $now + 300, 7, $ny ); $last = $at( $now - 300, 0, $ny );
+ok( $first === $w[0] && $last === end( $w ) && $span( $first, $last ) === count( $w ) && count( $w ) >= 7, 'nightly window: 7 days ago (the floored lower bound) through today, ' . count( $w ) . ' days' );
 sn_analytics_rollup_window( array( 'days' => 90, 'until' => 83 ) );
-$w = sn_analytics_rollup_window_days( '' );
-ok( $day( 90, new DateTimeZone( 'UTC' ) ) === $w[0] && $day( 84, new DateTimeZone( 'UTC' ) ) === end( $w ) && 7 === count( $w ), 'bounded batch: 90..84 days ago in UTC; day 83 (the exclusive upper bound) is not named' );
+list( $now, $w ) = $read( '' );
+$utc = new DateTimeZone( 'UTC' );
+$first = $at( $now + 300, 90, $utc ); $last = $at( $now - 300, 84, $utc );
+// Seven days, except while the skew straddles a UTC midnight (then six: the
+// skewed first day has rolled and the skewed last has not).
+$seven = $at( $now + 300, 0, $utc ) !== $at( $now - 300, 0, $utc ) || 7 === count( $w );
+ok( $first === $w[0] && $last === end( $w ) && $span( $first, $last ) === count( $w ) && $seven, 'bounded batch: 90..84 days ago in UTC; day 83 (the exclusive upper bound) is not named, ' . count( $w ) . ' days' );
 sn_analytics_rollup_window( false );
 ok( array() === sn_analytics_rollup_window_days( 'Not/AZone' ), 'an invalid zone names no days (so nothing is deleted)' );
 
