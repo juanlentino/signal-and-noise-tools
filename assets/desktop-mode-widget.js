@@ -103,13 +103,15 @@
 	function renderRefreshStatus( container, lastSuccess, message, delay ) {
 		// A current reading needs no footer; only a failed refresh says anything,
 		// in words ("Last good reading 6 min ago"), never a raw timestamp.
-		if ( ! message ) { return; }
+		if ( ! message ) { return null; }
 		var footer = el( 'p', {
-			// No interval: the real wait depends on focus (snt-poll-cadence), so a
-			// number here would promise a time the poll does not keep.
-			text: lastSuccess ? 'Last good reading ' + agoWords( lastSuccess ) + ' · retrying' : 'Status unavailable · retrying',
 			style: 'position:relative;padding:0 32px 0 16px;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
 		} );
+		// No interval: the real wait depends on focus (snt-poll-cadence), so a
+		// number here would promise a time the poll does not keep. The age is
+		// its own node so the mount can keep it current while the footer shows.
+		var age = el( 'span', { text: failText( lastSuccess ) } );
+		footer.appendChild( age );
 		if ( message ) {
 			var detail = ( lastSuccess ? 'Showing last-known data. ' : 'No successful refresh yet. ' ) +
 				'Current status unavailable: ' + message + '.';
@@ -121,6 +123,11 @@
 			footer.appendChild( cue );
 		}
 		container.appendChild( footer );
+		return { node: age, since: lastSuccess };
+	}
+
+	function failText( lastSuccess ) {
+		return lastSuccess ? 'Last good reading ' + agoWords( lastSuccess ) + ' · retrying' : 'Status unavailable · retrying';
 	}
 
 	function renderCard( container, status, stale ) {
@@ -329,6 +336,12 @@
 		// The polled reading repaints `region` on every refresh; the button
 		// sits outside it, so a repaint never drops its focus or its busy state.
 		var region = el( 'div' );
+		// The failure footer's age, kept current while it shows (a footer that
+		// says "just now" ten minutes later misstates how old the reading is).
+		var stale    = null;
+		var ageTimer = window.setInterval( function() {
+			if ( stale && ! torn ) { stale.node.textContent = failText( stale.since ); }
+		}, 30000 );
 		container.appendChild( region );
 		container.appendChild( checkButton( function() { return torn; }, function() {
 			window.clearTimeout( timer );
@@ -359,7 +372,7 @@
 				lastSuccess = new Date().toISOString();
 				failures = 0;
 				renderCard( region, res );
-				renderRefreshStatus( region, lastSuccess );
+				stale = renderRefreshStatus( region, lastSuccess );
 			} ).catch( function( err ) {
 				if ( torn ) { return; }
 				failures++;
@@ -374,7 +387,7 @@
 				} else {
 					clearChildren( region );
 				}
-				renderRefreshStatus( region, lastSuccess, message, delay );
+				stale = renderRefreshStatus( region, lastSuccess, message, delay );
 			} ).then( function() {
 				pending = false;
 				controller = null;
@@ -421,6 +434,7 @@
 		return function teardown() {
 			torn = true;
 			window.clearTimeout( timer );
+			window.clearInterval( ageTimer );
 			document.removeEventListener( 'visibilitychange', onVisibilityChange );
 			unwatchFocus();
 			if ( controller ) { controller.abort(); }

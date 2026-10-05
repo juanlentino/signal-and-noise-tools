@@ -110,7 +110,8 @@ async function run() {
     assert.doesNotMatch(goodText, /Last successful refresh|Last good reading|\d{4}-\d\d-\d\dT/, 'a current reading carries no recency footer and no raw timestamp');
     assert.match(root.textContent, /Last good reading (just now|\d+ (min|h) ago) · retrying/, 'failure says in words how old the kept reading is');
     assert.doesNotMatch(styles(root), /#3fb950/, 'stale data must not look currently green');
-    await x.tick(179999); assert.equal(x.calls.length, 2, 'no retry before data.retry_after');
+    { const before = root.textContent; await x.tick(120000); assert.notEqual(root.textContent, before, 'the last-good age is kept current while the failure footer shows'); assert.match(root.textContent, /Last good reading \d+ min ago/); }
+    await x.tick(59999); assert.equal(x.calls.length, 2, 'no retry before data.retry_after');
     await x.tick(1); assert.equal(x.calls.length, 3);
     x.calls[2].resolve(f.good); await flush();
     assert.doesNotMatch(root.textContent, /stale|unavailable/i, 'successful recovery clears failure state');
@@ -200,7 +201,7 @@ async function run() {
     await x.tick(f.period * 4); assert.equal(x.calls.length, 4);
     x.calls[3].reject({message: 'bad hint', data: {retry_after: 1e300}}); await flush();
     assert.match(details(root), /bad hint/, 'unrepresentable retry hint cannot crash failure handling');
-    assert.equal(x.timers.size, 1, 'bad retry hint retains bounded backoff');
+    assert.equal([...x.timers.values()].filter(t => !t.repeat).length, 1, 'bad retry hint retains bounded backoff (one pending poll; the age ticker is an interval)');
     stop(); await x.tick(1000000); assert.equal(x.calls.length, 4);
     stop = x.window.desktopModeWidgets[f.id](root); await flush();
     assert.equal(x.calls.length, 5, 'remount has fresh state');
