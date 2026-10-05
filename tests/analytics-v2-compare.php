@@ -79,5 +79,22 @@ $f = sn_analytics_v2_check( 4, '2026-10-05' );
 ok( false === $f['read'] && 'sn_pageviews_v2' === $f['failed'] && 'HTTP 403 no permission' === $f['error'], 'a failed request names its dataset and keeps its reason' );
 ok( 2 === count( $GLOBALS['sql'] ), 'and nothing is asked after it, so a later success cannot clear that reason' );
 
+echo "\nWho was sampled (diagnostic)\n";
+$sq = sn_analytics_v2_sampled_sql( 'sn_pageviews_v2', 4 );
+ok( false !== strpos( $sq, 'FROM sn_pageviews_v2 ' ) && false !== strpos( $sq, 'AND _sample_interval > 1' ) && false !== strpos( $sq, 'GROUP BY day, vid LIMIT 200' ), 'reads only the sampled rows, per day and visitor-day, bounded' );
+ok( false !== strpos( sn_analytics_v2_sampled_sql( "x'; DROP", 4 ), 'FROM sn_pageviews ' ), 'an unknown dataset falls back to the legacy name' );
+$sv = sn_analytics_v2_sampled_visitors(
+	array(
+		'sn_pageviews'    => array( array( 'day' => '2026-10-05', 'vid' => 'AAAA1111', 'n' => 40, 'r' => 4, 'stored_bot' => 1 ), array( 'day' => '2026-10-05', 'vid' => 'bbbb2222', 'n' => 20, 'r' => 2, 'stored_bot' => 0 ) ),
+		'sn_pageviews_v2' => array( array( 'day' => '2026-10-05', 'vid' => 'cccc3333', 'n' => 9, 'r' => 3, 'stored_bot' => 0 ) ),
+		'sn_events_v2'    => null,
+	),
+	array( 'bbbb2222' )
+);
+ok( false === $sv['read'] && 3 === count( $sv['rows'] ), 'a failed dataset read is flagged; the others still list' );
+ok( true === $sv['rows'][0]['stored_bot'] && 'aaaa1111' === $sv['rows'][0]['vid'] && 4 === $sv['rows'][0]['rows'] && 40 === $sv['rows'][0]['stands_for'], 'a stored bot, its stored rows and what they stand for' );
+ok( true === $sv['rows'][1]['over_cap'] && false === $sv['rows'][2]['over_cap'], 'over-cap visitor-days are named from the cap list' );
+ok( 1 === $sv['counted_human'], 'counted_human: only traffic the reads count (not a bot, not over the cap)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
