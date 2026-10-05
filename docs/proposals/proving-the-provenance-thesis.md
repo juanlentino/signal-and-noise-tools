@@ -1,6 +1,6 @@
 # Proving the provenance thesis: gap analysis and plan
 
-**Status**: planning only — nothing to implement yet. Document stays local (owner decision).
+**Status**: planning only — nothing to implement yet. Public in this repository since 2026-08-17 (#695); the earlier "stays local" label was stale.
 **Date**: 2026-08-15
 **Audited against**, both read in full:
 - **P1** — *Provenance Over Detection: A Cryptographic Framework for Human Authorship
@@ -328,7 +328,7 @@ domain.
 
 ## Plan
 
-Owner decision 2026-08-15: **do gaps 2 and 4 now; gap 1 after the third paper is public.**
+Owner decision 2026-08-15: **do gaps 2 and 3 now; gap 1 after the third paper is public.**
 `edit_log` approved as design. Planning only — no implementation authorized.
 
 ### Gap 2 — open the minting path
@@ -443,7 +443,7 @@ the origin site proves less than either change suggests alone.
 ## Open questions for the owner
 
 Resolved 2026-08-15: the second selected gap is **3**, not a repeat of 4. *Provenance as
-Substrate* supplied and audited. `edit_log` approved as design. This document stays **local**.
+Substrate* supplied and audited. `edit_log` approved as design.
 
 Still open:
 
