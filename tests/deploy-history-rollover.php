@@ -275,5 +275,47 @@ $before = count( $GLOBALS['__dh_sched'] );
 snt_deploy_history_version_check();
 dh_eq( $before, count( $GLOBALS['__dh_sched'] ), 'second invocation short-circuits (no extra event scheduled)' );
 
+// ─── Owner 2026-10-05 (option B): the release's Front-End Change header ───
+echo "\nFront-End Change header\n";
+if ( ! function_exists( 'get_file_data' ) ) {
+	function get_file_data( $file, $headers ) {
+		$src = (string) file_get_contents( $file );
+		$out = array();
+		foreach ( $headers as $k => $name ) {
+			$out[ $k ] = preg_match( '/^[ \t\/*#@]*' . preg_quote( $name, '/' ) . ':(.*)$/mi', $src, $m ) ? trim( $m[1] ) : '';
+		}
+		return $out;
+	}
+}
+$fe = tempnam( sys_get_temp_dir(), 'snfe' );
+file_put_contents( $fe, "<?php\n/**\n * Version: 1.0.0\n * Front-End Change: no\n */\n" );
+dh_eq( 'no', snt_release_front_end_change( $fe ), 'reads no' );
+file_put_contents( $fe, "<?php\n/**\n * Front-End Change: YES\n */\n" );
+dh_eq( 'yes', snt_release_front_end_change( $fe ), 'reads yes, case-insensitive' );
+file_put_contents( $fe, "<?php\n/**\n * Front-End Change: maybe\n */\n" );
+dh_eq( '', snt_release_front_end_change( $fe ), 'anything else is unknown (purges)' );
+file_put_contents( $fe, "<?php\n/**\n * Version: 1.0.0\n */\n" );
+dh_eq( '', snt_release_front_end_change( $fe ), 'absent is unknown (an older release purges)' );
+unlink( $fe );
+dh_eq( '', snt_release_front_end_change( $fe ), 'unreadable is unknown' );
+$dh_src = (string) file_get_contents( __DIR__ . '/../inc/deploy-history.php' );
+dh_true( false !== strpos( $dh_src, "if ( ! \$theme_changed && snt_release_skips_purge( \$prior_plugin, \$current_plugin ) ) {" ), 'a plugin-only change whose release says no schedules no rollover; a theme change always does' );
+
+// Codex P1 on 11ea2e6: the "no" covers a forward step from its baseline only.
+echo "\nFront-End Baseline\n";
+$fe = tempnam( sys_get_temp_dir(), 'snfe' );
+file_put_contents( $fe, "<?php\n/**\n * Version: 1.0.3\n * Front-End Change: no\n * Front-End Baseline: 1.0.1\n */\n" );
+dh_true( snt_release_skips_purge( '1.0.2', '1.0.3', $fe ), 'a forward step from the direct predecessor skips' );
+dh_true( snt_release_skips_purge( '1.0.1', '1.0.3', $fe ), 'a jump from the baseline itself skips (nothing public changed since)' );
+dh_true( ! snt_release_skips_purge( '1.0.0', '1.0.3', $fe ), 'a jump past the public release at the baseline purges' );
+dh_true( ! snt_release_skips_purge( '1.0.4', '1.0.3', $fe ), 'a rollback purges' );
+dh_true( ! snt_release_skips_purge( '', '1.0.3', $fe ), 'an unknown prior version purges' );
+dh_true( ! snt_release_skips_purge( '1.0.3', '1.0.3', $fe ), 'the same version is not a forward step' );
+file_put_contents( $fe, "<?php\n/**\n * Version: 1.0.3\n * Front-End Change: no\n */\n" );
+dh_true( ! snt_release_skips_purge( '1.0.2', '1.0.3', $fe ), 'a "no" with no baseline purges' );
+file_put_contents( $fe, "<?php\n/**\n * Version: 1.0.3\n * Front-End Change: yes\n * Front-End Baseline: 1.0.3\n */\n" );
+dh_true( ! snt_release_skips_purge( '1.0.2', '1.0.3', $fe ), 'a "yes" purges' );
+unlink( $fe );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
