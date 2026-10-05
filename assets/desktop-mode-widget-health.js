@@ -272,7 +272,9 @@
 		var fresh = String( c.fresh || 'unknown' );
 		// A purge verifying inside its window is in progress, not unmeasured;
 		// one still "verifying" past it never got its check.
-		var since    = num( c.last_purge ) > 0 ? Date.now() / 1000 - num( c.last_purge ) : Infinity;
+		// Aged from the report's own time: the ledger's last purge also moves on
+		// a manual purge, which never touches a pending report (Codex on #1925).
+		var since    = num( c.fresh_time ) > 0 ? Date.now() / 1000 - num( c.fresh_time ) : Infinity;
 		var checking = 'pending' === fresh && since < VERIFY_S;
 		if ( 'stale' === fresh ) { tally.look++; } else if ( checking ) { tally.checking++; } else if ( 'fresh' !== fresh ) { tally.unknown++; }
 		rows.push( { label: 'Edge freshness', value: String( c.headline || ( 'unknown' === fresh ? 'not verified yet' : fresh ) ), tone: 'fresh' === fresh || checking ? '' : WARN_FG } );
@@ -305,8 +307,8 @@
 		if ( skipped.length > LIST_CAP ) { rows.push( { label: '+' + ( skipped.length - LIST_CAP ) + ' more could not run', value: '' } ); }
 		// Paused, in the card's plain text: still said, never amber.
 		paused.forEach( function( s ) { rows.push( { label: String( s.label ), value: 'paused: AI credit out', tone: 'var(--os-ui-color-text-subtle, rgba(255,255,255,.7))' } ); } );
-		// The billing link only when nothing else here needs the Health tab.
-		return { rows: rows, fix: paused.length && ! lookN && ! skipped.length ? BILLING : null };
+		// Billing beside the Health tab when both apply (Codex on #1925).
+		return { rows: rows, fix: paused.length ? [ BILLING ] : [] };
 	}
 
 	function readCron( c, tally ) {
@@ -386,12 +388,16 @@
 		return fixLink( box, read.fix );
 	}
 
-	/** Append the section's fix link, styled as the card's "Open Health →". */
-	function fixLink( box, fix ) {
-		if ( ! fix ) { return box; }
+	/** Append the section's fix links, styled as the card's "Open Health →". */
+	function fixLink( box, fixes ) {
+		( fixes || [] ).forEach( function( fix ) { fixOne( box, fix ); } );
+		return box;
+	}
+
+	function fixOne( box, fix ) {
 		var origin   = ( window.location && window.location.origin ) || '';
 		var external = /^https?:/.test( fix.href ) && ( ! origin || fix.href.indexOf( origin ) !== 0 );
-		var a = el( 'a', { href: fix.href, text: fix.text, style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;' } );
+		var a = el( 'a', { href: fix.href, text: fix.text, style: 'display:inline-flex;align-items:center;gap:4px;margin-right:12px;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;' } );
 		if ( external ) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
 		var arr = el( 'span', { text: external ? '↗' : '→' } );
 		arr.setAttribute( 'aria-hidden', 'true' ); // the arrow is decoration; the words name the place
@@ -534,7 +540,8 @@
 			// Each read with the fix link for whatever it added to the headline.
 			var read  = function( title, fn ) {
 				var before = faults( tally ), r = fn();
-				if ( faults( tally ) > before && ! r.fix ) { r.fix = fixFor( title ); }
+				var f = faults( tally ) > before ? fixFor( title ) : null;
+				r.fix = ( r.fix || [] ).concat( f ? [ f ] : [] );
 				return [ title, r ];
 			};
 			var reads = [

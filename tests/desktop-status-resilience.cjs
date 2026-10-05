@@ -408,7 +408,7 @@ async function run() {
     const links = n => nodes(n).filter(e => 'a' === e.tag).map(e => e.text + '|' + e.href);
     const credit = {label: 'Time-relative drift', reason: 'Bad Request (400) - Your credit balance is too low to access the Anthropic API.'};
     const fx = harness({pages: {health: '/h', cron: '/c', cloudflare: '/cf'}, healthSummary: {passed: 17, total: 18, skipped: [credit], flagged: []},
-      statusExtra: {systems: {edge: {day: 'Oct 4', total: 18, prior: 27}, cron: {fires: 9, failed: 0, failing: []}, cache: {last_purge: Date.parse('2026-09-08T11:58:00Z') / 1000, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), fxroot = new Element('div');
+      statusExtra: {systems: {edge: {day: 'Oct 4', total: 18, prior: 27}, cron: {fires: 9, failed: 0, failing: []}, cache: {last_purge: Date.parse('2026-09-08T11:58:00Z') / 1000, fresh_time: Date.parse('2026-09-08T11:58:00Z') / 1000, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), fxroot = new Element('div');
     const fxstop = fx.window.desktopModeWidgets['sn-health'](fxroot); await flush();
     fx.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
     const ft = fxroot.textContent;
@@ -422,12 +422,18 @@ async function run() {
     assert.ok(!fl.some(l => l.startsWith('Open Cron')), 'a section with nothing in the headline gets no fix link');
     assert.match(ft, /opens in a new tab/, 'an off-site link says it opens a new tab');
     fxstop();
-    const old = harness({pages: {cloudflare: '/cf'}, statusExtra: {systems: {cache: {last_purge: Date.parse('2026-09-08T11:00:00Z') / 1000, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), oldroot = new Element('div');
+    const old = harness({pages: {cloudflare: '/cf'}, statusExtra: {systems: {cache: {last_purge: Date.parse('2026-09-08T11:59:00Z') / 1000, fresh_time: Date.parse('2026-09-08T11:00:00Z') / 1000, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), oldroot = new Element('div');
     const oldstop = old.window.desktopModeWidgets['sn-health'](oldroot); await flush();
     old.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
-    assert.doesNotMatch(oldroot.textContent, /verifying ·|\d verifying/, 'an hour-old purge still pending is not in progress any more');
+    assert.doesNotMatch(oldroot.textContent, /verifying ·|\d verifying/, 'an hour-old pending report is not in progress any more, even when a manual purge just moved the ledger (Codex on #1925)');
     assert.match(oldroot.textContent, /not measured/, 'it is unmeasured, and amber');
     oldstop();
+    const mix = harness({pages: {health: '/h'}, healthSummary: {passed: 16, total: 18, skipped: [credit], flagged: [{label: 'Broken links', count: 2}]}}), mixroot = new Element('div');
+    const mixstop = mix.window.desktopModeWidgets['sn-health'](mixroot); await flush();
+    mix.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
+    const ml = links(mixroot);
+    assert.ok(ml.includes('Open Health|/h') && ml.some(l => l.startsWith('Open Anthropic billing')), 'Codex on #1925: a finding beside a paused check gets the Health link and keeps the billing link');
+    mixstop();
   }
   // The derived rows leave out what they cannot compute, never a 0.
   {
