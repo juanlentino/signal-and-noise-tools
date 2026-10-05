@@ -197,14 +197,14 @@
 		var timed = mons.filter( function( m ) { return m.response_ms !== null && m.response_ms !== undefined && m.response_ms !== '' && ! isNaN( Number( m.response_ms ) ); } );
 		if ( timed.length > 1 ) {
 			var slow = timed.reduce( function( a, b ) { return Number( b.response_ms ) > Number( a.response_ms ) ? b : a; } );
-			rows.push( { label: 'Slowest', value: String( slow.name || 'monitor' ) + ' · ' + Math.round( Number( slow.response_ms ) ) + ' ms' } );
+			rows.push( { label: 'Slowest', value: String( slow.name || 'monitor' ) + ' · ' + Math.round( Number( slow.response_ms ) ) + ' ms' + ( timed.length < mons.length ? ' · ' + timed.length + ' of ' + mons.length + ' monitors timed' : '' ) } );
 		}
 		return rows;
 	}
 
 	/** Edge 5xx for the last complete UTC day, against the day before. */
 	function readEdge( e, tally ) {
-		if ( ! e ) { return { empty: 'No complete day in the edge rollup yet.' }; }
+		if ( ! e ) { tally.unknown++; return { empty: 'No complete day in the edge rollup yet.' }; } // not measured is never an all-clear.
 		var total = num( e.total );
 		// In words, not an arrow: a screen reader says the words, not "triangle".
 		var delta = null === e.prior || undefined === e.prior ? '' : ( total === num( e.prior ) ? ' · same as the day before' : ' · ' + Math.abs( total - num( e.prior ) ) + ( total > num( e.prior ) ? ' more' : ' fewer' ) + ' than the day before' );
@@ -454,7 +454,12 @@
 		function paint() {
 			if ( torn ) { return; }
 			var tally = { down: 0, look: 0, orphaned: 0, skipped: 0, unknown: 0 };
-			var reads = [ [ 'Uptime', readUptime( uptime, tally, stale ) ], [ 'Health', readHealth( data.healthSummary, tally ) ], [ 'Cron', readCron( data.cronSummary, tally ) ], [ 'Edge', readEdge( extra.edge, tally ) ], [ 'Cache', readCache( extra.cache, tally ) ] ];
+			var reads = [ [ 'Uptime', readUptime( uptime, tally, stale ) ], [ 'Health', readHealth( data.healthSummary, tally ) ], [ 'Cron', readCron( data.cronSummary, tally ) ] ];
+			// Edge and Cache only when the owner payload came: without it (another
+			// role, an older build) there is no source to call unmeasured.
+			if ( data.statusExtra && data.statusExtra.systems ) {
+				reads.push( [ 'Edge', readEdge( extra.edge, tally ) ], [ 'Cache', readCache( extra.cache, tally ) ] );
+			}
 			var words = 'pending' === uptime ? 'Checking…' : ( headlineText( tally ) || 'All systems normal' );
 			if ( verdict.textContent !== words ) { verdict.textContent = words; }
 			dot.style.background = 'pending' === uptime ? SURFACE_HOVER : tally.down ? DANGER_FG : ( 'All systems normal' === words ? OK_FG : WARN_FG );
