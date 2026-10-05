@@ -9,14 +9,12 @@
  * COMPLETE UTC days (ending yesterday — today is a partial day and would
  * undercount; the read layer's UTC-"today" lesson applied) and renders:
  *
- *   - three stat tiles: human views, human visits, automated views
+ *   - three stat tiles: human views, site-wide sessions, automated views
  *     filtered (suspect + bot classes, shown so the human numbers are
  *     believable rather than merely flattering);
  *   - the most-read pages (top human paths aggregated across the window,
  *     admin/login paths dropped by the same predicate ingestion uses);
- *   - a method note: first-party, cookieless, aggregates only, and the
- *     visits = reader-days honesty line (visits can exceed views per
- *     path-day structurally — a visit is one reader-day, site-wide).
+ *   - a method note: first-party, cookieless, aggregates only.
  *
  * Zero and null are different answers (the family invariant): an empty
  * rollup window renders "not measured yet", NEVER a wall of zeros. The
@@ -24,7 +22,8 @@
  * "assembled, found nothing" is a marker array so a cache hit on
  * no-data is distinguishable from a cache miss.
  *
- * Light-only brutalist register, same as every public maturity surface;
+ * Brutalist register on the theme's color tokens, so dark mode follows the
+ * theme; sections 3 and 4 live in inc/public-stats-sections.php;
  * stylesheet enqueued at shortcode render only.
  *
  * @package SignalNoiseTools
@@ -38,10 +37,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 // _v2: the payload gained the 'daily' series (charts that speak). The key
 // carries the shape version so an hour-old pre-series payload can never be
 // served into a render that expects the series (the narration _v2 pattern).
-const SN_PUBLIC_STATS_CACHE_KEY = 'sn_public_stats_v2';
+const SN_PUBLIC_STATS_CACHE_KEY = 'sn_public_stats_v4'; // v4: Visits is site-wide sessions; sources, countries, reading and machines join the payload.
 const SN_PUBLIC_STATS_CACHE_TTL = HOUR_IN_SECONDS;
 const SN_PUBLIC_STATS_DAYS      = 30;
 const SN_PUBLIC_STATS_TOP_N     = 8;
+
+require_once __DIR__ . '/public-stats-sections.php';
 
 /**
  * The window: the last 30 COMPLETE UTC days, ending yesterday.
@@ -62,9 +63,11 @@ function sn_public_stats_window() {
  * @param array<string,array{views:int,visits:int}> $class_totals sn_analytics_class_totals() shape.
  * @param array<int,array<string,mixed>>            $human_rows   sn_analytics_daily_range() shape (class 'human').
  * @param array{0:string,1:string}|null             $window       [from, to] YYYY-MM-DD; null derives the live window.
+ * @param int|null                                  $pv_visits    Site-wide sessions over the window (sn_public_stats_sessions_total());
+ *                                                                null when not measured, and the tile is left out.
  * @return array{views:int,visits:int,automated_views:int,top:array<string,int>,days:int,daily:array<string,int>}|null
  */
-function sn_public_stats_assemble( $class_totals, $human_rows, $window = null ) {
+function sn_public_stats_assemble( $class_totals, $human_rows, $window = null, $pv_visits = null ) {
 	$class_totals = is_array( $class_totals ) ? $class_totals : array();
 	$human_rows   = is_array( $human_rows ) ? $human_rows : array();
 	if ( array() === $class_totals && array() === $human_rows ) {
@@ -118,7 +121,11 @@ function sn_public_stats_assemble( $class_totals, $human_rows, $window = null ) 
 
 	return array(
 		'views'           => (int) ( $human['views'] ?? 0 ),
-		'visits'          => (int) ( $human['visits'] ?? 0 ),
+		// Site-wide sessions from the session rollup: a reader who opens several
+		// pages in one sitting counts once. The rollup's plain `visits` counted
+		// feed- and beacon-only reader-days, and pageview_visits is summed per
+		// path, so a reader opening two pages counted twice.
+		'visits'          => null === $pv_visits ? null : (int) $pv_visits,
 		'automated_views' => $automated,
 		'top'             => array_slice( $by_path, 0, SN_PUBLIC_STATS_TOP_N, true ),
 		'days'            => SN_PUBLIC_STATS_DAYS,
@@ -153,6 +160,27 @@ function sn_public_stats_day_label( $day ) {
  * tiles already state the totals, and a rhythm section narrating silence
  * would be filler wearing accessibility clothes.
  *
+ * The busiest day is shared with the red bar and the red calendar cell, so
+ * all three name the same day.
+ *
+ * @param array<string,int> $daily Date => views, in window order.
+ * @return string|null The busiest day, or null when every day is zero.
+ */
+function sn_public_stats_busiest_day( $daily ) {
+	$best = null;
+	$top  = 0;
+	foreach ( (array) $daily as $day => $views ) {
+		if ( (int) $views > $top ) {
+			$best = (string) $day;
+			$top  = (int) $views;
+		}
+	}
+	return $best;
+}
+
+/**
+ * The rhythm sentence. See the block above for the tie rule.
+ *
  * @param array<string,int> $daily Date => views, in window order.
  * @return string Plain text; the render escapes at its sink.
  */
@@ -163,15 +191,11 @@ function sn_public_stats_rhythm_sentence( $daily ) {
 		return '';
 	}
 
-	$busiest_day  = null;
-	$busiest_v    = -1;
+	$busiest_day  = sn_public_stats_busiest_day( $daily );
+	$busiest_v    = (int) $daily[ $busiest_day ];
 	$quietest_day = null;
 	$quietest_v   = PHP_INT_MAX;
 	foreach ( $daily as $day => $views ) {
-		if ( $views > $busiest_v ) {
-			$busiest_day = $day;
-			$busiest_v   = $views;
-		}
 		if ( $views < $quietest_v ) {
 			$quietest_day = $day;
 			$quietest_v   = $views;
@@ -217,8 +241,9 @@ function sn_public_stats_rhythm_html( $data ) {
 		return '';
 	}
 
-	$max = max( $daily );
-	$n   = count( $daily );
+	$max  = max( $daily );
+	$n    = count( $daily );
+	$peak = sn_public_stats_busiest_day( $daily );
 
 		// H2: the shortcode sits directly under the page's H1 post title (#1040).
 	$out  = '<h2>' . esc_html__( 'Reading rhythm', 'signal-and-noise-tools' ) . '</h2>';
@@ -232,10 +257,10 @@ function sn_public_stats_rhythm_html( $data ) {
 	$width  = $n * ( $bar_w + $gap ) - $gap;
 	$out   .= '<svg class="sn-public-stats__chart" viewBox="0 0 ' . (int) $width . ' ' . (int) $chart_h . '" preserveAspectRatio="none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">';
 	$x      = 0;
-	foreach ( $daily as $views ) {
+	foreach ( $daily as $day => $views ) {
 		$h    = $max > 0 ? (int) round( $views / $max * $chart_h ) : 0;
 		$h    = ( $views > 0 && $h < 1 ) ? 1 : $h;
-		$out .= '<rect x="' . (int) $x . '" y="' . (int) ( $chart_h - $h ) . '" width="' . (int) $bar_w . '" height="' . (int) $h . '"/>';
+		$out .= '<rect' . ( $peak === (string) $day ? ' class="sn-public-stats__peak"' : '' ) . ' x="' . (int) $x . '" y="' . (int) ( $chart_h - $h ) . '" width="' . (int) $bar_w . '" height="' . (int) $h . '"/>';
 		$x   += $bar_w + $gap;
 	}
 	$out .= '</svg>';
@@ -248,8 +273,11 @@ function sn_public_stats_rhythm_html( $data ) {
 	// an explicit em-dash cell so the grid stays rectangular — a missing cell
 	// would silently shift every announcement after it one column left.
 	$days_keys = array_keys( $daily );
-	$out .= '<details class="sn-public-stats__twin"><summary>' . esc_html__( 'The same numbers as a table', 'signal-and-noise-tools' ) . '</summary>';
-	$out .= '<table><caption>' . esc_html( sprintf(
+	// Owner call: the calendar is visible, not folded. The wrapper scrolls on
+	// its own at narrow widths so the page never scrolls sideways; it takes
+	// focus so a keyboard can scroll it too.
+	$out .= '<div class="sn-public-stats__twin" role="region" tabindex="0" aria-labelledby="sn-public-stats-calendar">';
+	$out .= '<table><caption id="sn-public-stats-calendar">' . esc_html( sprintf(
 		/* translators: 1: first day of the window (e.g. "Jul 13"). 2: last day (e.g. "Aug 11"). */
 		__( 'Daily human pageviews, %1$s to %2$s', 'signal-and-noise-tools' ),
 		sn_public_stats_day_label( (string) $days_keys[0] ),
@@ -282,14 +310,14 @@ function sn_public_stats_rhythm_html( $data ) {
 		for ( $d = 0; $d < 7; $d++ ) {
 			$date = gmdate( 'Y-m-d', $week + $d * DAY_IN_SECONDS );
 			if ( array_key_exists( $date, $daily ) ) {
-				$out .= '<td class="sn-public-stats__twin-day">' . esc_html( number_format_i18n( (int) $daily[ $date ] ) ) . '</td>';
+				$out .= '<td class="sn-public-stats__twin-day' . ( $peak === $date ? ' sn-public-stats__peak' : '' ) . '">' . esc_html( number_format_i18n( (int) $daily[ $date ] ) ) . '</td>';
 			} else {
 				$out .= '<td class="sn-public-stats__twin-out">' . esc_html__( '—', 'signal-and-noise-tools' ) . '</td>';
 			}
 		}
 		$out .= '</tr>';
 	}
-	return $out . '</tbody></table></details>';
+	return $out . '</tbody></table></div>';
 }
 
 /**
@@ -306,11 +334,25 @@ function sn_public_stats_data() {
 	}
 
 	list( $from, $to ) = sn_public_stats_window();
+	$sessions  = sn_public_stats_full_window( function_exists( 'sn_session_rollup_read' ) ? sn_session_rollup_read( $from, $to, 'human' ) : null, $from, $to );
 	$assembled = sn_public_stats_assemble(
 		function_exists( 'sn_analytics_class_totals' ) ? sn_analytics_class_totals( $from, $to ) : array(),
 		function_exists( 'sn_analytics_daily_range' ) ? sn_analytics_daily_range( $from, $to, 'human' ) : array(),
-		array( $from, $to )
+		array( $from, $to ),
+		sn_public_stats_sessions_total( $sessions )
 	);
+	if ( null !== $assembled ) {
+		// The shared readers fold a failed query into an empty list; the
+		// database's own error is checked straight after, as SN Reading does.
+		$dist = function_exists( 'sn_analytics_distribution' ) ? (array) sn_analytics_distribution( 'scroll', $from, $to, 'human' ) : array();
+		if ( function_exists( 'snt_desktop_db_failed' ) && snt_desktop_db_failed() ) {
+			$dist = array();
+		}
+		$assembled['sources']   = sn_public_stats_fold( function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $from, $to, 'human', SN_PUBLIC_STATS_READ_CAP ) : null, 'sn_public_stats_source_label', $assembled['views'] );
+		$assembled['countries'] = sn_public_stats_fold( function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'country', $from, $to, 'human', SN_PUBLIC_STATS_READ_CAP ) : null, 'sn_public_stats_country_label', $assembled['views'] );
+		$assembled['reading']   = sn_public_stats_reading_rows( function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( $from, $to, 'human' ) : null, $dist, $sessions );
+		$assembled['machines']  = sn_public_stats_machines_stored( get_option( SN_PUBLIC_STATS_MACHINES_OPT ), $from, $to );
+	}
 
 	set_transient( SN_PUBLIC_STATS_CACHE_KEY, null === $assembled ? array( 'none' => true ) : $assembled, SN_PUBLIC_STATS_CACHE_TTL );
 	return $assembled;
@@ -362,11 +404,13 @@ function sn_public_stats_html() {
 
 	$tiles = array(
 		array( $data['views'], __( 'Views', 'signal-and-noise-tools' ), __( 'human pageviews', 'signal-and-noise-tools' ), '' ),
-		array( $data['visits'], __( 'Visits', 'signal-and-noise-tools' ), __( 'reader-days — the same reader tomorrow counts again', 'signal-and-noise-tools' ), '' ),
+		array( $data['visits'], __( 'Visits', 'signal-and-noise-tools' ), __( 'times a reader came to the site; reading several pages in one sitting counts once', 'signal-and-noise-tools' ), '' ),
 		array( $data['automated_views'], __( 'Automated', 'signal-and-noise-tools' ), __( 'crawler and bot views, filtered OUT of the numbers to the left', 'signal-and-noise-tools' ), ' sn-public-stats__tile--dim' ),
 	);
 
 	$out .= '<p class="sn-public-stats__window">' . $window_label . '</p><div class="sn-public-stats__tiles">';
+	// A figure that was not measured is left out, never painted as 0.
+	$tiles = array_values( array_filter( $tiles, static fn( $t ) => null !== $t[0] ) );
 	foreach ( $tiles as $tile ) {
 		$out .= '<div class="sn-public-stats__tile' . esc_attr( $tile[3] ) . '">'
 			. '<span class="sn-public-stats__stat">' . esc_html( number_format_i18n( (int) $tile[0] ) ) . '</span>'
@@ -377,6 +421,7 @@ function sn_public_stats_html() {
 	$out .= '</div>';
 
 	$out .= sn_public_stats_rhythm_html( $data );
+	$out .= sn_public_stats_sections_html( $data );
 
 	if ( array() !== $data['top'] ) {
 		$out .= '<h2>' . esc_html__( 'Most read', 'signal-and-noise-tools' ) . '</h2><ol class="sn-public-stats__top">';
