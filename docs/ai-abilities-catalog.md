@@ -1,6 +1,6 @@
 # Signal & Noise AI Abilities Catalog
 
-The reference for the 146 Signal & Noise WordPress Abilities: 113 plugin abilities, 17 remote twins of them, and 16 theme abilities. They are consumed by `wp ability run`, the REST endpoint `/wp-json/wp-abilities/v1/abilities/<slug>/run`, the plugin's two MCP doors, and (for the twins) the remote MCP Worker.
+The reference for the 145 Signal & Noise WordPress Abilities: 112 plugin abilities, 17 remote twins of them, and 16 theme abilities. They are consumed by `wp ability run`, the REST endpoint `/wp-json/wp-abilities/v1/abilities/<slug>/run`, the plugin's two MCP doors, and (for the twins) the remote MCP Worker.
 
 **Machine-readable source:** the live registry is an MCP resource, `sn://abilities-catalog`, on both doors. Query it for schemas; this document is the human map.
 

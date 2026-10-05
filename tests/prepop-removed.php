@@ -5,7 +5,7 @@
  * Until 2026-10-05, inc/ai-prepopulate.php hooked transition_post_status and a
  * cron event that wrote an empty meta description, excerpt and OG card title
  * with no review step, flagging each with an "auto-generated at publish"
- * sentinel that a notice, a dismiss ability and a REST route read and
+ * sentinel that a notice and a dismiss ability read and
  * cleared. The owner removed the generator so every model output reaches a
  * published field through a human click, reviewed the four fields it had
  * written (the count of sentinels on the site read zero on 2026-10-05), and
@@ -40,7 +40,7 @@ foreach ( $it as $file ) {
 		'the auto-fill cron event'           => '/snt_prepop_event/',
 		'a sentinel meta key'                => '/_sn_autogen_/',
 		'the dismiss ability'                => '#prepop-dismiss#',
-		'the legacy dismiss REST route'      => '#prepop/dismiss#',
+		'a dismiss REST route'               => '#prepop/dismiss#',
 		'the sentinel helpers'               => '/sn_prepop_(fields|clear_sentinels|render_notice)/',
 		'the generator'                      => '/snt_(run_prepop|prepop_on_transition|prepop_passes_content_gate)/',
 	) as $what => $re ) {

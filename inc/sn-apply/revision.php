@@ -137,7 +137,7 @@
  * The pattern across all of this: nothing in WordPress core itself skips a
  * hook because the row being inserted is a revision. Every safety property
  * this file relies on comes from a plugin-side `wp_is_post_revision()` (or
- * equivalent) check, verified present in each of the five files above.
+ * equivalent) check, verified present in each of the four files above.
  *
  * ── The meta problem ──
  *
