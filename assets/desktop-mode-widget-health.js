@@ -253,7 +253,7 @@
 			row.setAttribute( 'role', 'listitem' );
 			row.appendChild( el( 'span', { text: r.label, style: 'min-width:0;white-space:normal;overflow-wrap:break-word;' + SUBTLE } ) );
 			if ( r.value ) {
-				row.appendChild( el( 'span', { text: r.value, style: 'flex:0 1 auto;text-align:right;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;font-weight:600;' + ( r.tone ? 'color:' + r.tone + ';' : '' ) } ) );
+				row.appendChild( el( 'span', { text: r.value, style: 'flex:0 1 auto;max-width:100%;margin-left:auto;text-align:right;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;font-weight:600;' + ( r.tone ? 'color:' + r.tone + ';' : '' ) } ) );
 			}
 			list.appendChild( row );
 		} );

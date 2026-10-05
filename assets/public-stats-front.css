@@ -8,6 +8,10 @@
    the family's ruled list. Scoped to .sn-public-stats; enqueued only when
    the shortcode renders. */
 .sn-public-stats{margin:2rem 0;line-height:1.6}
+/* The page takes the theme's shared page track (theme.json custom.pageTrack,
+   1320px as on About, Resume and Services), its title and rule with it: a
+   data page wants the room. Beats core's :where() constrained rule. */
+main.is-layout-constrained:has(.sn-public-stats)>*,.wp-block-post-content>.sn-public-stats{max-width:var(--wp--custom--page-track,1320px)}
 /* v13.97.5: h2, not h3 -- the shortcode sits directly under the page H1.
    theme.json styles page-level h2 at xx-large with -0.01em tracking, so the
    size and tracking are pinned to what the h3 rendered at (the theme's
@@ -29,7 +33,7 @@
 .sn-public-stats__sub{display:block;font-size:.72rem;color:var(--sn-ps-dim);margin-top:.45rem}
 
 /* Most-read: the family's ruled list, rank numerals in the gutter. */
-.sn-public-stats__top{list-style:none;margin:0;padding:0;counter-reset:sn-top;font-size:.9rem}
+.sn-public-stats__top{list-style:none;margin:0;padding:0;counter-reset:sn-top;font-size:.9rem;max-width:48rem}
 .sn-public-stats__top li{counter-increment:sn-top;display:flex;align-items:baseline;gap:.75em;padding:.55em 0;border-bottom:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
 .sn-public-stats__top li:last-child{border-bottom:0}
 .sn-public-stats__top li::before{content:counter(sn-top,decimal-leading-zero);font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.7rem;font-weight:700;color:var(--sn-ps-dim)}
@@ -58,7 +62,7 @@
 .sn-public-stats__twin-out{color:var(--sn-ps-dim)}
 
 /* Where readers come from / How they read: two columns, one on phones. */
-.sn-public-stats__cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 2.5rem}
+.sn-public-stats__cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(18rem,1fr));gap:0 2.5rem}
 .sn-public-stats__bars{list-style:none;margin:0;padding:0;font-family:var(--sn-ps-mono);font-size:.8rem}
 .sn-public-stats__bars li{display:grid;grid-template-columns:minmax(0,9rem) minmax(0,1fr) 3.5em;gap:.6em;align-items:center;padding:.35em 0;border-bottom:1px solid var(--sn-ps-rule)}
 .sn-public-stats__bar-label{overflow-wrap:anywhere}

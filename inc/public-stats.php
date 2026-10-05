@@ -334,7 +334,8 @@ function sn_public_stats_data() {
 	}
 
 	list( $from, $to ) = sn_public_stats_window();
-	$sessions  = sn_public_stats_full_window( function_exists( 'sn_session_rollup_read' ) ? sn_session_rollup_read( $from, $to, 'human' ) : null, $from, $to );
+	$coverage  = sn_public_stats_session_coverage( function_exists( 'sn_session_rollup_read' ) ? sn_session_rollup_read( $from, $to, 'human' ) : null, $from, $to );
+	$sessions  = null === $coverage ? null : $coverage['rows'];
 	$assembled = sn_public_stats_assemble(
 		function_exists( 'sn_analytics_class_totals' ) ? sn_analytics_class_totals( $from, $to ) : array(),
 		function_exists( 'sn_analytics_daily_range' ) ? sn_analytics_daily_range( $from, $to, 'human' ) : array(),
@@ -342,6 +343,7 @@ function sn_public_stats_data() {
 		sn_public_stats_sessions_total( $sessions )
 	);
 	if ( null !== $assembled ) {
+		$assembled['visits_days'] = null === $coverage ? null : $coverage['days'];
 		// The shared readers fold a failed query into an empty list; the
 		// database's own error is checked straight after, as SN Reading does.
 		$dist = function_exists( 'sn_analytics_distribution' ) ? (array) sn_analytics_distribution( 'scroll', $from, $to, 'human' ) : array();
@@ -404,7 +406,7 @@ function sn_public_stats_html() {
 
 	$tiles = array(
 		array( $data['views'], __( 'Views', 'signal-and-noise-tools' ), __( 'human pageviews', 'signal-and-noise-tools' ), '' ),
-		array( $data['visits'], __( 'Visits', 'signal-and-noise-tools' ), __( 'times a reader came to the site; reading several pages in one sitting counts once', 'signal-and-noise-tools' ), '' ),
+		array( $data['visits'], __( 'Visits', 'signal-and-noise-tools' ), __( 'times a reader came to the site; reading several pages in one sitting counts once', 'signal-and-noise-tools' ) . sn_public_stats_coverage_note( $data ), '' ),
 		array( $data['automated_views'], __( 'Automated', 'signal-and-noise-tools' ), __( 'crawler and bot views, filtered OUT of the numbers to the left', 'signal-and-noise-tools' ), ' sn-public-stats__tile--dim' ),
 	);
 
@@ -437,6 +439,23 @@ function sn_public_stats_html() {
 	return $out . '</div>';
 }
 
+/**
+ * " (29 of 30 days)" when the newest session day has not rolled up yet; ''
+ * when every day has. PURE.
+ *
+ * @param array $data The assembled payload.
+ * @return string
+ */
+function sn_public_stats_coverage_note( $data ) {
+	$got = $data['visits_days'] ?? null;
+	$all = (int) ( $data['days'] ?? 0 );
+	if ( null === $got || (int) $got >= $all ) {
+		return '';
+	}
+	/* translators: 1: days the session count covers, 2: days in the window. */
+	return ' ' . sprintf( __( '(%1$d of %2$d days)', 'signal-and-noise-tools' ), (int) $got, $all );
+}
+
 /** Enqueue the front stylesheet; shortcode-render time only. */
 function sn_public_stats_enqueue() {
 	wp_enqueue_style(
@@ -445,6 +464,21 @@ function sn_public_stats_enqueue() {
 		array(),
 		SNT_VERSION
 	);
+}
+
+/**
+ * Load the stylesheet in the head on a page that carries the shortcode, so
+ * the wide page track applies from the first paint (render-time enqueue
+ * lands in the footer, after the title has painted at the narrow width).
+ */
+function sn_public_stats_enqueue_early() {
+	$post = get_post();
+	if ( is_singular() && $post && has_shortcode( (string) $post->post_content, 'sn_public_stats' ) ) {
+		sn_public_stats_enqueue();
+	}
+}
+if ( function_exists( 'add_action' ) ) {
+	add_action( 'wp_enqueue_scripts', 'sn_public_stats_enqueue_early' );
 }
 
 /**
