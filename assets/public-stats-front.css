@@ -45,6 +45,13 @@ main.is-layout-constrained:has(.sn-public-stats)>*,.wp-block-post-content>.sn-pu
  * content; the SVG is a decorative silhouette of the same series — flat
  * currentColor bars in the tile idiom, no second palette, no gradients. */
 .sn-public-stats__rhythm-summary{font-size:.9rem;max-width:60ch;margin:0 0 .9rem}
+/* Wide page: the chart spans, the calendar sits beside the sentence. */
+@media (min-width:900px){
+	.sn-public-stats__rhythm{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"chart chart" "summary twin";column-gap:2.5rem;align-items:start}
+	.sn-public-stats__rhythm>.sn-public-stats__chart{grid-area:chart}
+	.sn-public-stats__rhythm>.sn-public-stats__rhythm-summary{grid-area:summary;margin-top:1rem}
+	.sn-public-stats__rhythm>.sn-public-stats__twin{grid-area:twin}
+}
 .sn-public-stats__chart{display:block;width:100%;height:72px;border:2px solid currentColor;background:var(--wp--preset--color--void,#fff);padding:6px;box-sizing:border-box}
 .sn-public-stats__chart rect{fill:currentColor}
 .sn-public-stats__chart rect.sn-public-stats__peak{fill:var(--sn-ps-red)}
