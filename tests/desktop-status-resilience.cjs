@@ -340,13 +340,13 @@ async function run() {
     const t = root.textContent;
     assert.match(t, /Incidents · 30 days 1/, 'incidents over 30 days across the monitors');
     assert.match(t, /Slowest Feed · 340 ms/, 'the slowest monitor, by name');
-    assert.match(t, /5xx · Oct 4 12 · 2 seen by visitors · 3 fewer than the day before/, 'edge 5xx, those a visitor received, against the day before, in words');
+    assert.match(t, /5xx · Oct 4 12 · 3 fewer than the day before/, 'edge 5xx against the day before, in words');
     assert.match(t, /Last 24 hours 40 runs recorded · 2 failed/, 'cron runs recorded and recorded failures over 24 hours');
     assert.match(t, /queue_tick failed/, 'a failing job is named');
     assert.match(t, /\+1 more failed/, 'and the list is capped');
     assert.match(t, /Last full purge 3h ago/, 'the last full purge');
     assert.match(t, /Edge freshness 1 stale page/, 'edge freshness after the last check');
-    assert.match(t, /3 to look at/, 'a recorded cron failure, 5xx seen by visitors and a stale edge are each something to look at');
+    assert.match(t, /3 to look at/, 'a recorded cron failure, edge 5xx and a stale edge are each something to look at (Codex on 3104cf9: forwarded visitor 5xx read as Worker rows)');
     stop();
     const y = harness(extra), proot = new Element('div');
     const pstop = y.window.desktopModeWidgets['sn-anchors'](proot); await flush();
@@ -374,6 +374,8 @@ async function run() {
     z.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
     assert.match(zroot.textContent, /No complete day in the edge rollup yet/, 'no extra payload: the section says so, never a 0');
     assert.doesNotMatch(zroot.textContent, /All systems normal/, 'Codex on 5aa3fce: an edge source with no measurement is never an all-clear');
+    assert.match(zroot.textContent, /No purge recorded yet/, 'no purge record: said');
+    assert.match(zroot.textContent, /2 not measured/, 'Codex on 3104cf9: no cache evidence is not measured, like no edge day');
     assert.doesNotMatch(zroot.textContent, /Incidents|Slowest|Last 24 hours/, 'rows with no source are left out');
     zstop();
     const v = harness({statusExtra: {systems: {cache: {last_purge: 0, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), vroot = new Element('div');

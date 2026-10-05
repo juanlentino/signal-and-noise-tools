@@ -208,10 +208,11 @@
 		var total = num( e.total );
 		// In words, not an arrow: a screen reader says the words, not "triangle".
 		var delta = null === e.prior || undefined === e.prior ? '' : ( total === num( e.prior ) ? ' · same as the day before' : ' · ' + Math.abs( total - num( e.prior ) ) + ( total > num( e.prior ) ? ' more' : ' fewer' ) + ' than the day before' );
-		// Only 5xx a visitor received reach the headline; a Worker subrequest's do not.
-		var seen = num( e.visitor );
-		if ( seen > 0 ) { tally.look++; }
-		return { rows: [ { label: '5xx · ' + String( e.day || 'yesterday' ), value: total + ( seen > 0 ? ' · ' + seen + ' seen by visitors' : '' ) + delta, tone: seen > 0 ? WARN_FG : '' } ] };
+		// Every 5xx reaches the headline: most "through a Worker" rows are a
+		// visitor's request the rights Worker forwarded (inc/edge-rollup.php),
+		// so "who asked" cannot separate visitors from the Worker's own calls.
+		if ( total > 0 ) { tally.look++; }
+		return { rows: [ { label: '5xx · ' + String( e.day || 'yesterday' ), value: total + delta, tone: total > 0 ? WARN_FG : '' } ] };
 	}
 
 	/** Cron runs over the last 24 hours, and the hooks that failed. */
@@ -233,7 +234,7 @@
 
 	/** The last full edge purge and how fresh the edge was after the last check. */
 	function readCache( c, tally ) {
-		if ( ! c ) { return { empty: 'No purge recorded yet.' }; }
+		if ( ! c ) { tally.unknown++; return { empty: 'No purge recorded yet.' }; } // no evidence is not a clean edge.
 		var rows = [];
 		var when = ago( c.last_purge );
 		if ( when ) { rows.push( { label: 'Last full purge', value: when } ); }
