@@ -332,7 +332,7 @@ async function run() {
   // 2026-10-05: the extra Systems and Provenance rows (local reads, localized).
   {
     const extra = {statusExtra: {
-      systems: {edge: {day: 'Oct 4', total: 12, prior: 15}, cron: {fires: 40, failed: 2, failing: ['sn_queue_tick', 'snt_alerts_hourly', 'sn_x']}, cache: {last_purge: Date.parse('2026-09-08T09:00:00Z') / 1000, fresh: 'stale', headline: '1 stale page'}},
+      systems: {edge: {day: 'Oct 4', total: 12, visitor: 2, prior: 15}, cron: {fires: 40, failed: 2, failing: ['sn_queue_tick', 'snt_alerts_hourly', 'sn_x']}, cache: {last_purge: Date.parse('2026-09-08T09:00:00Z') / 1000, fresh: 'stale', headline: '1 stale page'}},
       provenance: {integrity: {fleet: 50, checked: 40, clean: 39, failing: 1, keys: 'keys_missing'}, rights: {month: 'September', text: '8 waiting for a Bitcoin block', attention: false, last_posted: Date.parse('2026-09-05T12:00:00Z') / 1000}, zenodo: {minted: 7, total: 9}}}};
     const x = harness(extra), root = new Element('div');
     const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
@@ -340,13 +340,13 @@ async function run() {
     const t = root.textContent;
     assert.match(t, /Incidents · 30 days 1/, 'incidents over 30 days across the monitors');
     assert.match(t, /Slowest Feed · 340 ms/, 'the slowest monitor, by name');
-    assert.match(t, /5xx · Oct 4 12 · 3 fewer than the day before/, 'edge 5xx for the last complete day against the day before, in words');
+    assert.match(t, /5xx · Oct 4 12 · 2 seen by visitors · 3 fewer than the day before/, 'edge 5xx, those a visitor received, against the day before, in words');
     assert.match(t, /Last 24 hours 40 runs recorded · 2 failed/, 'cron runs recorded and recorded failures over 24 hours');
     assert.match(t, /queue_tick failed/, 'a failing job is named');
     assert.match(t, /\+1 more failed/, 'and the list is capped');
     assert.match(t, /Last full purge 3h ago/, 'the last full purge');
     assert.match(t, /Edge freshness 1 stale page/, 'edge freshness after the last check');
-    assert.match(t, /2 to look at/, 'a recorded cron failure and a stale edge are both something to look at');
+    assert.match(t, /3 to look at/, 'a recorded cron failure, 5xx seen by visitors and a stale edge are each something to look at');
     stop();
     const y = harness(extra), proot = new Element('div');
     const pstop = y.window.desktopModeWidgets['sn-anchors'](proot); await flush();

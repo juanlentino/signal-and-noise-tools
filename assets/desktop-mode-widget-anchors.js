@@ -334,7 +334,7 @@
 				// The sweep's checks (hash, twin, ledger, key), not a signature re-verify:
 				// so "pass", and a subject not reached yet is said, never counted as passing.
 				var unchecked = Number( integ.fleet ) - Number( integ.checked );
-				prow.push( [ 'Integrity checks', Number( integ.clean ) + ' of ' + Number( integ.fleet ) + ' pass' + ( Number( integ.failing ) > 0 ? ' · ' + Number( integ.failing ) + ' failing' : '' ) + ( unchecked > 0 ? ' · ' + unchecked + ' not checked yet' : '' ), Number( integ.failing ) > 0 || !! integ.keys ] );
+				prow.push( [ 'Integrity checks', Number( integ.clean ) + ' of ' + Number( integ.fleet ) + ' pass' + ( Number( integ.failing ) > 0 ? ' · ' + Number( integ.failing ) + ' failing' : '' ) + ( Number( integ.unreachable ) > 0 ? ' · ' + Number( integ.unreachable ) + ' unreachable' : '' ) + ( unchecked > 0 ? ' · ' + unchecked + ' not checked yet' : '' ), Number( integ.failing ) > 0 || !! integ.keys ] );
 				// A fleet-level key finding is said on its own row: no subject can pass it away.
 				var KEY_WORDS = { key_mismatch: 'the published key does not match', keys_missing: 'the key file is missing', keys_unreachable: 'the key file could not be read' };
 				if ( integ.keys ) { prow.push( [ 'Signing key', KEY_WORDS[ integ.keys ] || String( integ.keys ), true ] ); }

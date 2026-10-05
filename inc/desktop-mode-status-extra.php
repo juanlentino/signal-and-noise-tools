@@ -50,7 +50,7 @@ function snt_desktop_status_extra() {
  * before it. There is no rolling 24 hours: today is still filling. Null when
  * none of the last three days could be read.
  *
- * @return array{day:string,total:int,prior:int|null}|null `day` is the label ("Oct 4").
+ * @return array{day:string,total:int,visitor:int,prior:int|null}|null `day` is the label ("Oct 4"); `visitor` the 5xx a visitor received.
  */
 function snt_desktop_edge_yesterday() {
 	if ( ! function_exists( 'sn_edge_errors_range' ) ) {
@@ -77,7 +77,13 @@ function snt_desktop_edge_yesterday() {
 		}
 		$pd = gmdate( 'Y-m-d', $t - DAY_IN_SECONDS );
 		$b  = sn_edge_errors_range( $pd, $pd );
-		return array( 'day' => gmdate( 'M j', $t ), 'total' => (int) ( $a['total'] ?? 0 ), 'prior' => $ok( $b, $pd ) ? (int) ( $b['total'] ?? 0 ) : null );
+		// Who asked (18.2.0): only a visitor's 5xx is an outage someone saw;
+		// a Worker subrequest's is the Worker's own business.
+		$visitor = 0;
+		foreach ( (array) ( $a['days'] ?? array() ) as $row ) {
+			$visitor += $d === (string) ( $row['day'] ?? '' ) ? (int) ( $row['visitor'] ?? 0 ) : 0;
+		}
+		return array( 'day' => gmdate( 'M j', $t ), 'total' => (int) ( $a['total'] ?? 0 ), 'visitor' => $visitor, 'prior' => $ok( $b, $pd ) ? (int) ( $b['total'] ?? 0 ) : null );
 	}
 	return null;
 }
@@ -173,17 +179,28 @@ function snt_desktop_integrity_shape( array $state ) {
 	}
 	$checked = 0;
 	$clean   = 0;
+	$unreach = 0;
 	foreach ( (array) ( $state['notes'] ?? array() ) as $n ) {
 		if ( ! is_array( $n ) || (int) ( $n['last_checked'] ?? 0 ) < 1 ) {
 			continue;
 		}
 		++$checked;
-		$clean += array() === (array) ( $n['failures'] ?? array() ) ? 1 : 0;
+		$codes = (array) ( $n['failures'] ?? array() );
+		if ( array() === $codes ) {
+			++$clean;
+			continue;
+		}
+		// An outage (twin or ledger unreachable) is no evidence either way:
+		// not a failure, and not a pass.
+		$real = function_exists( 'sn_prov_integrity_is_outage' ) ? array_filter( $codes, static fn( $c ) => ! sn_prov_integrity_is_outage( is_array( $c ) ? ( $c['code'] ?? '' ) : $c ) ) : $codes;
+		if ( array() === $real ) {
+			++$unreach;
+		}
 	}
 	// The published-key verdict is fleet-level: a missing, contradictory or
 	// unreadable key file is a finding however clean the subjects are.
 	$keys = (string) ( $state['last_sweep']['keys'] ?? '' );
-	return array( 'fleet' => $fleet, 'checked' => min( $checked, $fleet ), 'clean' => min( $clean, $fleet ), 'failing' => $checked - $clean, 'keys' => in_array( $keys, array( 'key_mismatch', 'keys_missing', 'keys_unreachable' ), true ) ? $keys : '' );
+	return array( 'fleet' => $fleet, 'checked' => min( $checked, $fleet ), 'clean' => min( $clean, $fleet ), 'failing' => $checked - $clean - $unreach, 'unreachable' => $unreach, 'keys' => in_array( $keys, array( 'key_mismatch', 'keys_missing', 'keys_unreachable' ), true ) ? $keys : '' );
 }
 
 /**

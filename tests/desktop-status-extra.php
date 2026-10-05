@@ -8,6 +8,7 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); 
 define( 'ABSPATH', '/' );
 define( 'MINUTE_IN_SECONDS', 60 );
 define( 'DAY_IN_SECONDS', 86400 );
+function sn_prov_integrity_is_outage( $c ) { return in_array( (string) $c, array( 'twin_unreachable', 'ledger_unreachable', 'keys_unreachable' ), true ); }
 $GLOBALS['__edge'] = array();
 function sn_edge_errors_range( $from, $to ) { return $GLOBALS['__edge'][ $from ] ?? array( 'query' => array( 'error' => 'no fixture' ) ); }
 require __DIR__ . '/../inc/desktop-mode-status-extra.php';
@@ -44,10 +45,11 @@ echo "\nEdge 5xx\n";
 $d1 = gmdate( 'Y-m-d', time() - DAY_IN_SECONDS ); $d2 = gmdate( 'Y-m-d', time() - 2 * DAY_IN_SECONDS ); $d3 = gmdate( 'Y-m-d', time() - 3 * DAY_IN_SECONDS );
 $GLOBALS['__edge'] = array(
 	$d1 => array( 'total' => 0, 'days' => array( array( 'day' => $d1, 'read' => 'pending' ) ) ),
-	$d2 => array( 'total' => 9, 'days' => array( array( 'day' => $d2, 'read' => 'read' ) ) ),
+	$d2 => array( 'total' => 9, 'days' => array( array( 'day' => $d2, 'read' => 'read', 'visitor' => 3 ) ) ),
 	$d3 => array( 'total' => 4, 'days' => array( array( 'day' => $d3, 'read' => 'read' ) ) ),
 );
 $e = snt_desktop_edge_yesterday();
+ok( 3 === $e['visitor'], 'Codex on 90eb194: the 5xx a visitor received are carried apart from Worker subrequests' );
 ok( 9 === $e['total'] && 4 === $e['prior'] && gmdate( 'M j', time() - 2 * DAY_IN_SECONDS ) === $e['day'], 'yesterday still pending: the newest covered day answers, labeled, against the day before it' );
 $GLOBALS['__edge'][ $d3 ] = array( 'total' => 0, 'query' => array( 'error' => '' ), 'days' => array( array( 'day' => $d3, 'read' => 'failed' ) ) );
 ok( null === snt_desktop_edge_yesterday()['prior'], 'Codex on 2bee69f: a failed prior day is no prior, never a 0 that makes a false delta' );
@@ -60,6 +62,8 @@ echo "\nIntegrity\n";
 $ig = snt_desktop_integrity_shape( array( 'last_sweep' => array( 'fleet' => 50 ), 'notes' => array( 1 => array( 'last_checked' => 5, 'failures' => array() ), 2 => array( 'last_checked' => 5, 'failures' => array( 'twin' ) ), 3 => array( 'last_checked' => 0 ) ) ) );
 ok( 50 === $ig['fleet'] && 2 === $ig['checked'] && 1 === $ig['clean'] && 1 === $ig['failing'], 'Codex on 2bee69f: counted from stored per-subject results; a subject not reached is not passing' );
 ok( null === snt_desktop_integrity_shape( array() ), 'no sweep yet: null' );
+$ur = snt_desktop_integrity_shape( array( 'last_sweep' => array( 'fleet' => 3 ), 'notes' => array( 1 => array( 'last_checked' => 5, 'failures' => array( 'twin_unreachable' ) ), 2 => array( 'last_checked' => 5, 'failures' => array( 'hash_mismatch' ) ), 3 => array( 'last_checked' => 5, 'failures' => array() ) ) ) );
+ok( 1 === $ur['unreachable'] && 1 === $ur['failing'] && 1 === $ur['clean'], 'Codex on 90eb194: an unreachable twin is not a failure and not a pass' );
 $kg = snt_desktop_integrity_shape( array( 'last_sweep' => array( 'fleet' => 2, 'keys' => 'keys_missing' ), 'notes' => array( 1 => array( 'last_checked' => 5, 'failures' => array() ), 2 => array( 'last_checked' => 5, 'failures' => array() ) ) ) );
 ok( 'keys_missing' === $kg['keys'] && 2 === $kg['clean'], 'Codex on 1aa80a1: a fleet-level key finding is carried, however clean the subjects' );
 ok( '' === snt_desktop_integrity_shape( array( 'last_sweep' => array( 'fleet' => 2, 'keys' => 'ok' ), 'notes' => array() ) )['keys'], 'a good key verdict carries nothing' );

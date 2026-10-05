@@ -203,12 +203,15 @@
 	}
 
 	/** Edge 5xx for the last complete UTC day, against the day before. */
-	function readEdge( e ) {
+	function readEdge( e, tally ) {
 		if ( ! e ) { return { empty: 'No complete day in the edge rollup yet.' }; }
 		var total = num( e.total );
 		// In words, not an arrow: a screen reader says the words, not "triangle".
 		var delta = null === e.prior || undefined === e.prior ? '' : ( total === num( e.prior ) ? ' · same as the day before' : ' · ' + Math.abs( total - num( e.prior ) ) + ( total > num( e.prior ) ? ' more' : ' fewer' ) + ' than the day before' );
-		return { rows: [ { label: '5xx · ' + String( e.day || 'yesterday' ), value: total + delta } ] };
+		// Only 5xx a visitor received reach the headline; a Worker subrequest's do not.
+		var seen = num( e.visitor );
+		if ( seen > 0 ) { tally.look++; }
+		return { rows: [ { label: '5xx · ' + String( e.day || 'yesterday' ), value: total + ( seen > 0 ? ' · ' + seen + ' seen by visitors' : '' ) + delta, tone: seen > 0 ? WARN_FG : '' } ] };
 	}
 
 	/** Cron runs over the last 24 hours, and the hooks that failed. */
@@ -451,7 +454,7 @@
 		function paint() {
 			if ( torn ) { return; }
 			var tally = { down: 0, look: 0, orphaned: 0, skipped: 0, unknown: 0 };
-			var reads = [ [ 'Uptime', readUptime( uptime, tally, stale ) ], [ 'Health', readHealth( data.healthSummary, tally ) ], [ 'Cron', readCron( data.cronSummary, tally ) ], [ 'Edge', readEdge( extra.edge ) ], [ 'Cache', readCache( extra.cache, tally ) ] ];
+			var reads = [ [ 'Uptime', readUptime( uptime, tally, stale ) ], [ 'Health', readHealth( data.healthSummary, tally ) ], [ 'Cron', readCron( data.cronSummary, tally ) ], [ 'Edge', readEdge( extra.edge, tally ) ], [ 'Cache', readCache( extra.cache, tally ) ] ];
 			var words = 'pending' === uptime ? 'Checking…' : ( headlineText( tally ) || 'All systems normal' );
 			if ( verdict.textContent !== words ) { verdict.textContent = words; }
 			dot.style.background = 'pending' === uptime ? SURFACE_HOVER : tally.down ? DANGER_FG : ( 'All systems normal' === words ? OK_FG : WARN_FG );
