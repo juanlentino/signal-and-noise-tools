@@ -13,6 +13,6 @@ jq -rs '
   def version_only:
     (.patch // "") | split("\n")
     | map(select(test("^[-+]")))
-    | (length > 0) and all(test("^[-+] \\* (Version: +[0-9]+\\.[0-9]+\\.[0-9]+|Front-End Change: (yes|no))$"));
+    | (length > 0) and all(test("^[-+] \\* (Version: +[0-9]+\\.[0-9]+\\.[0-9]+|Front-End Change: (yes|no)|Front-End Baseline: [0-9]+\\.[0-9]+\\.[0-9]+)$"));
   (length > 0) and all((.filename | docs) or (.filename == "signal-and-noise-tools.php" and version_only))
 ' <<<"$rows" 2>/dev/null || echo false

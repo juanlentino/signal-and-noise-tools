@@ -14,6 +14,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Changed
 - **A release says whether it changes the public site; an update that does not leaves the caches warm.** Owner, 2026-10-05: 50 edge purges in a week, 42 by plugin updates. `tools/cut-release.sh` takes `--front-end=yes|no` (default `yes`) and writes a `Front-End Change:` header into the plugin. The theme's update purge (theme PR) and this plugin's version-change rollover skip the purge on an explicit `no` for a plugin-only update; a theme change, any other package, and a missing header purge as before.
+  The `no` holds only for a forward update from a version at or after the release's `Front-End Baseline:` (the last release that changed the public site, carried forward by every `no` cut and reset by every `yes`). An update that jumps past a public release, a rollback, or an unknown prior version purges (Codex P1: the updater installs the latest tag directly).
 
 ## [22.6.1] - 2026-10-05 — Action Scheduler runs from WP-Cron
 

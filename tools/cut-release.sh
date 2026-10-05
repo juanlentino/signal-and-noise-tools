@@ -159,10 +159,25 @@ echo "  headline: ${HEADLINE}"
 echo "  date    : ${TODAY}"
 echo
 
+# The last release whose public output this one still matches. A "no" alone
+# describes only the step from the release before; an update that jumps past
+# a public release, or rolls back, must still purge (Codex P1 on #1924).
+# "yes" starts a new baseline; "no" inherits the current one, and a release
+# cut before the header existed is its own baseline.
+OLD_BASELINE="$(grep -m1 -E '^[[:space:]]*\*[[:space:]]*Front-End Baseline:' "$PLUGIN_FILE" | sed -E 's/.*Front-End Baseline:[[:space:]]*//; s/[[:space:]]*$//' || true)"
+if [ "$FRONT_END" = yes ]; then
+  BASELINE="$NEXT"
+elif [[ "$OLD_BASELINE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  BASELINE="$OLD_BASELINE"
+else
+  BASELINE="$CURRENT"
+fi
+
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "  --dry-run: nothing written. Would edit:"
   echo "    ${PLUGIN_FILE}       Version: ${CURRENT} -> ${NEXT}"
   echo "    ${PLUGIN_FILE}       Front-End Change: ${FRONT_END} (a 'no' leaves the caches warm on update)"
+  echo "    ${PLUGIN_FILE}       Front-End Baseline: ${BASELINE} (an update from older than this purges)"
   echo "    ${CHANGELOG}         promote Unreleased to '## [${NEXT}] - ${TODAY} - ${HEADLINE}'"
   if [ -n "$PREVIOUS_CUT" ]; then
     echo "    ${ARCHIVE}           receive the previous cut ($(printf '%s' "$PREVIOUS_CUT" | grep -m1 -oE '^## \[[0-9.]+\]' || echo 'current section'))"
@@ -184,14 +199,15 @@ awk -v cur="$CURRENT" -v nextver="$NEXT" '
   { print }
 ' "$PLUGIN_FILE" > "$tmp" && mv "$tmp" "$PLUGIN_FILE"
 
-# ── 1b. Front-End Change header: replaced, or added under Version ────────
+# ── 1b. Front-End Change and Baseline headers: replaced, or added under Version
 tmp="$(mktemp)"
-awk -v fe="$FRONT_END" '
-  /^[[:space:]]*\*[[:space:]]*Front-End Change:/ { next }
+awk -v fe="$FRONT_END" -v base="$BASELINE" '
+  /^[[:space:]]*\*[[:space:]]*Front-End (Change|Baseline):/ { next }
   { print }
-  !done && /^[[:space:]]*\*[[:space:]]*Version:/ { print " * Front-End Change: " fe; done = 1 }
+  !done && /^[[:space:]]*\*[[:space:]]*Version:/ { print " * Front-End Change: " fe; print " * Front-End Baseline: " base; done = 1 }
 ' "$PLUGIN_FILE" > "$tmp" && mv "$tmp" "$PLUGIN_FILE"
 grep -qE "^[[:space:]]*\*[[:space:]]*Front-End Change: ${FRONT_END}\$" "$PLUGIN_FILE" || die "could not write the Front-End Change header"
+grep -qE "^[[:space:]]*\*[[:space:]]*Front-End Baseline: ${BASELINE}\$" "$PLUGIN_FILE" || die "could not write the Front-End Baseline header"
 
 # ── 2. archive receives the previous cut, newest-first under the header ──
 if [ -n "$PREVIOUS_CUT" ]; then

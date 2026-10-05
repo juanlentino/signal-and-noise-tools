@@ -36,6 +36,8 @@ ok( 'false' === scope( array( array( 'filename' => 'signal-and-noise-tools.php',
 ok( 'true' === scope( array( array( 'filename' => 'signal-and-noise-tools.php', 'patch' => "- * Version:     1.0.0\n+ * Version:     1.0.1\n- * Front-End Change: yes\n+ * Front-End Change: no\n" ), array( 'filename' => 'CHANGELOG.md', 'patch' => '+x' ) ) ), 'Codex on 5b27031: a cut that also writes the Front-End Change header still skips the scan' );
 ok( 'true' === scope( array( array( 'filename' => 'signal-and-noise-tools.php', 'patch' => "- * Version:     1.0.0\n+ * Version:     1.0.1\n+ * Front-End Change: yes\n" ) ) ), 'the first cut that adds the header skips it too' );
 ok( 'false' === scope( array( array( 'filename' => 'signal-and-noise-tools.php', 'patch' => "+ * Front-End Change: maybe\n" ) ) ), 'any other Front-End Change value is scanned' );
+ok( 'true' === scope( array( array( 'filename' => 'signal-and-noise-tools.php', 'patch' => "- * Version:     1.0.0\n+ * Version:     1.0.1\n+ * Front-End Change: no\n+ * Front-End Baseline: 1.0.0\n" ) ) ), 'Codex P1 on 11ea2e6: a cut that writes the Front-End Baseline still skips the scan' );
+ok( 'false' === scope( array( array( 'filename' => 'signal-and-noise-tools.php', 'patch' => "+ * Front-End Baseline: soon\n" ) ) ), 'a baseline that is not a version is scanned' );
 ok( 'false' === scope( array( array( 'filename' => 'signal-and-noise-tools.php' ) ) ), 'a header with no patch (GitHub omits large ones) is scanned' );
 ok( 'false' === scope( array( array( 'filename' => 'inc/readme.md.php', 'patch' => '+x' ) ) ), 'a PHP file with .md in its name is scanned' );
 ok( 'false' === scope( array() ), 'an empty file list is scanned' );

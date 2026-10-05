@@ -397,6 +397,7 @@ function snt_deploy_history_version_check() {
 	// bypassed the updater, and its rollover must run.
 	$via_updater   = true;
 	$theme_changed = false;
+	$prior_plugin  = '';
 
 	if ( '' !== $current_plugin ) {
 		$seen_plugin = isset( $sentinel['plugin'] ) ? (string) $sentinel['plugin'] : '';
@@ -413,6 +414,7 @@ function snt_deploy_history_version_check() {
 			if ( ! snt_deploy_history_has_version( 'plugin', $current_plugin ) ) {
 				snt_deploy_history_record( 'plugin', $current_plugin );
 			}
+			$prior_plugin       = $seen_plugin;
 			$sentinel['plugin'] = $current_plugin;
 			$dirty = true;
 		}
@@ -456,8 +458,9 @@ function snt_deploy_history_version_check() {
 		$update_purged = $via_updater && function_exists( 'snt_purge_ran_recently' ) && snt_purge_ran_recently( 'update', 15 * MINUTE_IN_SECONDS );
 		// Owner 2026-10-05 (option B): a plugin-only change whose release says
 		// it changes nothing public needs no rollover either (the theme's update
-		// purge skips it for the same reason). A theme change always rolls over.
-		if ( ! $theme_changed && 'no' === snt_release_front_end_change() ) {
+		// purge skips it for the same reason). A theme change always rolls over,
+		// and so does a jump past a public release or a rollback (Codex P1).
+		if ( ! $theme_changed && snt_release_skips_purge( $prior_plugin, $current_plugin ) ) {
 			$update_purged = true;
 		}
 		if ( ! $update_purged && has_filter( 'sn_purge_all_caches_result' ) && function_exists( 'wp_schedule_single_event' ) ) {
@@ -489,6 +492,34 @@ function snt_release_front_end_change( $file = null ) {
 	$h = get_file_data( $file, array( 'front_end' => 'Front-End Change' ) );
 	$v = strtolower( trim( (string) ( $h['front_end'] ?? '' ) ) );
 	return in_array( $v, array( 'yes', 'no' ), true ) ? $v : '';
+}
+
+/**
+ * Whether moving the plugin from $from to $to changes nothing public.
+ *
+ * True only for a FORWARD update to a release that says "Front-End Change:
+ * no", from a version at or after its "Front-End Baseline:" (the last
+ * release that changed the public output). The "no" describes one step; the
+ * baseline makes it hold across every release since, so an update that
+ * jumps past a public release, a rollback, an unknown prior version or a
+ * missing header all purge.
+ *
+ * @param string      $from The plugin version before the update ('' unknown).
+ * @param string      $to   The plugin version now.
+ * @param string|null $file Test seam: the plugin main file.
+ * @return bool
+ */
+function snt_release_skips_purge( $from, $to, $file = null ) {
+	$semver = '/^\d+\.\d+\.\d+$/';
+	$from   = (string) $from;
+	$to     = (string) $to;
+	if ( 'no' !== snt_release_front_end_change( $file ) || ! preg_match( $semver, $from ) || ! preg_match( $semver, $to ) ) {
+		return false;
+	}
+	$file = null === $file ? ( defined( 'SNT_PATH' ) ? SNT_PATH . 'signal-and-noise-tools.php' : '' ) : (string) $file;
+	$h    = get_file_data( $file, array( 'base' => 'Front-End Baseline' ) );
+	$base = trim( (string) ( $h['base'] ?? '' ) );
+	return 1 === preg_match( $semver, $base ) && version_compare( $to, $from, '>' ) && version_compare( $from, $base, '>=' );
 }
 
 /**
