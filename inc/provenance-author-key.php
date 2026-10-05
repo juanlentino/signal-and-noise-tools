@@ -15,7 +15,11 @@
  *
  * It ONLY countersigns. It never enters did.json's assertionMethod, so no
  * credential reader can take it for a key that signs notes, and readers that
- * pick "the active key" skip it by role.
+ * pick "the active key" or resolve a key by name refuse it by role.
+ *
+ * Only the ACTIVE author key is published. Retired author keys stay in the
+ * ledger's own key history, which is what verifies old countersignatures; the
+ * ledger's pin check covers only the active one, so the site needs no history.
  *
  * @package SignalNoiseTools
  */
@@ -39,14 +43,22 @@ function sn_prov_author_key() {
 	$b64  = trim( (string) ( $conf['public_key_base64'] ?? '' ) );
 	$date = trim( (string) ( $conf['introduced_at'] ?? '' ) );
 	$raw  = '' === $b64 ? false : base64_decode( $b64, true );
-	if ( ! preg_match( '/^sn-author-ed25519-\d{4}-\d{2}$/', $id ) || false === $raw || 32 !== strlen( $raw ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+	if ( ! preg_match( '/^sn-author-ed25519-\d{4}-\d{2}$/', $id ) || false === $raw || 32 !== strlen( $raw ) || ! preg_match( '/^(\d{4})-(\d{2})-(\d{2})$/', $date, $ymd ) || ! checkdate( (int) $ymd[2], (int) $ymd[3], (int) $ymd[1] ) ) {
 		return null;
 	}
-	// The author key must never be the publisher key: that would put both
-	// signatures in one hand, which is what the ledger refuses too.
-	$publisher = function_exists( 'sn_prov_pubkey_b64' ) ? trim( (string) sn_prov_pubkey_b64() ) : '';
-	if ( '' !== $publisher && hash_equals( $publisher, $b64 ) ) {
-		return null;
+	// The author key must never be a publisher key, compared as key BYTES so a
+	// second base64 spelling cannot slip past: that would put both signatures
+	// in one hand, which is what the ledger refuses too. Nor may it reuse a
+	// publisher id, or a reader resolving by id could land on either row.
+	$publishers = array( array( 'id' => function_exists( 'sn_prov_key_id' ) ? sn_prov_key_id() : '', 'public_key_base64' => function_exists( 'sn_prov_pubkey_b64' ) ? (string) sn_prov_pubkey_b64() : '' ) );
+	foreach ( function_exists( 'sn_prov_key_history' ) ? sn_prov_key_history() : array() as $row ) {
+		$publishers[] = $row;
+	}
+	foreach ( $publishers as $row ) {
+		$bytes = base64_decode( trim( (string) ( $row['public_key_base64'] ?? '' ) ), true );
+		if ( ( false !== $bytes && hash_equals( $bytes, $raw ) ) || $id === (string) ( $row['id'] ?? '' ) ) {
+			return null;
+		}
 	}
 	return array(
 		'id'                 => $id,

@@ -847,6 +847,8 @@ console.log( '\nGroup 14: diffWords (9.81.0 — the /verify version-compare dock
 	const author = { id: 'sn-author-ed25519-2026-10', role: 'author', status: 'active', public_key_base64: 'AUTHOR' };
 	eq( 'PUB', core.activeKeyB64( { keys: [ pub, author ] } ), 'the publisher key is the active key' );
 	eq( 'PUB', core.activeKeyB64( { keys: [ author, pub ] } ), 'an author key listed first is still skipped' );
+	const named = core.resolveNamedKey( { keys: [ pub, { ...author, public_key_base64: Buffer.from( new Uint8Array( 32 ) ).toString( 'base64' ) } ] }, null, 'sn-author-ed25519-2026-10' );
+	eq( 'FAIL', named.verdict && named.verdict.state, 'a record naming the author key fails by role' );
 }
 
 console.log( `\nResult: ${pass} passed, ${fail} failed.` );

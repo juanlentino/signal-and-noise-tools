@@ -17,6 +17,8 @@ ob_start();
 
 $GLOBALS['__options'] = array();
 $GLOBALS['__pub']     = base64_encode( str_repeat( "\x01", 32 ) );
+// A publisher id in the author shape, so the id-collision rule has something to catch.
+$GLOBALS['__options']['sn_prov_key_history'] = array( array( 'id' => 'sn-author-ed25519-2026-07', 'public_key_base64' => base64_encode( str_repeat( "\x02", 32 ) ) ) );
 
 if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return 'https://juanlentino.com' . $p; } }
 if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
@@ -65,7 +67,9 @@ $author     = array( 'id' => 'sn-author-ed25519-2026-10', 'public_key_base64' =>
 $before_keys = sn_prov_key_document();
 $before_did  = sn_prov_did_document();
 ok( null === sn_prov_author_key() && null === sn_prov_author_key_txt(), 'no option, no author key' );
-ok( 1 === count( $before_keys['keys'] ) && 1 === count( $before_did['verificationMethod'] ), 'an unconfigured site serves one key in each document' );
+$base_keys = count( $before_keys['keys'] );
+$base_did  = count( $before_did['verificationMethod'] );
+ok( 2 === $base_keys && 2 === $base_did, 'an unconfigured site serves the publisher key and its history, nothing more' );
 
 // Configured.
 $GLOBALS['__options']['sn_prov_author_key'] = $author;
@@ -85,10 +89,13 @@ foreach ( array(
 	'short key'       => array( 'public_key_base64' => base64_encode( 'x' ) ) + $author,
 	'bad date'        => array( 'introduced_at' => 'October' ) + $author,
 	'the publisher'   => array( 'public_key_base64' => $GLOBALS['__pub'] ) + $author,
+	'publisher, unpadded' => array( 'public_key_base64' => rtrim( $GLOBALS['__pub'], '=' ) ) + $author,
+	'impossible date' => array( 'introduced_at' => '2026-02-31' ) + $author,
+	'a publisher id'  => array( 'id' => 'sn-author-ed25519-2026-07' ) + $author,
 	'not an array'    => 'sn-author-ed25519-2026-10',
 ) as $label => $value ) {
 	$GLOBALS['__options']['sn_prov_author_key'] = $value;
-	ok( null === sn_prov_author_key() && 1 === count( sn_prov_key_document()['keys'] ), "$label: refused, nothing published" );
+	ok( null === sn_prov_author_key() && $base_keys === count( sn_prov_key_document()['keys'] ), "$label: refused, nothing published" );
 }
 
 echo "\nResult: $pass passed, $fail failed.\n";
