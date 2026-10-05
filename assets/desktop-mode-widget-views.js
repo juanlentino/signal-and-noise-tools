@@ -1,7 +1,10 @@
 /**
- * Signal & Noise Tools — desktop-mode "SN Site Views" widget.
+ * Signal & Noise Tools — desktop-mode "SN Traffic" widget (id sn-site-views,
+ * kept so the card keeps its place on a saved desktop).
  *
- * A 14-day first-party pageview sparkline + total + delta. The stock
+ * A 14-day first-party pageview sparkline + total + delta, then who came and
+ * from where: countries, devices, sources, Hacker News, search, feed
+ * subscribers (SN Audience and SN RSS Subscribers, folded in), and top pages. The stock
  * desktop-mode "Site Views" tile can't show our numbers: it reads Jetpack
  * or `_post_views_YYYY-MM-DD` postmeta, and we write neither by design —
  * our views come from the edge beacon → Analytics Engine → the durable
@@ -48,6 +51,7 @@
 	window.desktopModeWidgets = window.openStationWidgets = __osWidgets;
 
 	var data         = window.snDesktopData || {};
+	var REFRESH_MS   = 5 * 60 * 1000; // SN RSS Subscribers' rate, now carried here
 	var analyticsUrl = ( data.pages && data.pages.analytics ) || '';
 
 	function el( tag, opts ) {
@@ -144,34 +148,162 @@
 	/** A label/value row for the secondary stats. */
 	function statRow( label, value, valueStyle ) {
 		var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
-		row.appendChild( el( 'span', { text: label, style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));' } ) );
+		// A long label (a source name, a page path) wraps; the count never leaves the card.
+		row.appendChild( el( 'span', { text: label, style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));min-width:0;overflow-wrap:anywhere;' } ) );
 		row.appendChild( el( 'span', {
 			text:  value,
-			style: 'font-variant-numeric:tabular-nums;font-weight:600;' + ( valueStyle || '' )
+			style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;' + ( valueStyle || '' )
 		} ) );
 		return row;
 	}
 
+	/**
+	 * A group the way SN Reading paints one (assets/desktop-mode-widget-groups.js):
+	 * a hairline, a heading, the rows as a list; `empty` when there are none.
+	 */
+	function group( title, rows, empty ) {
+		var box  = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
+		var head = el( 'div', { text: title, style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:2px;' } );
+		head.setAttribute( 'role', 'heading' );
+		head.setAttribute( 'aria-level', '3' );
+		box.appendChild( head );
+		if ( ! rows.length ) {
+			box.appendChild( el( 'div', { text: empty || 'Nothing to show.', style: 'font-size:11px;padding:2px 0;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } ) );
+			return box;
+		}
+		box.appendChild( list( rows ) );
+		return box;
+	}
+
+	/** Label/value rows as a list (role=list, each row a listitem). */
+	function list( rows ) {
+		var ul = el( 'div' );
+		ul.setAttribute( 'role', 'list' );
+		rows.forEach( function( r ) {
+			var row = statRow( String( r.label ), String( r.value ), r.style );
+			row.setAttribute( 'role', 'listitem' );
+			ul.appendChild( row );
+		} );
+		return ul;
+	}
+
+	/**
+	 * Engaged readers with their change, DOI downloads and inquiries, the
+	 * owner's pick of Site Views' north star rows (2026-10-04). Additive: an
+	 * absent key (analytics unset, an older cached payload) paints no row, and
+	 * a measured 0 is a number and paints.
+	 */
+	function weekRows( ns ) {
+		var rows = [];
+		if ( ! ns || typeof ns.value !== 'number' ) { return rows; }
+		var d = ns.value - ( ns.previous || 0 );
+		rows.push( { label: 'Engaged readers · 7d', value: String( ns.value ) + ( d ? ' ' + deltaText( d ) : '' ), style: d ? 'color:' + deltaColor( d, d, relOf( d, ns.previous || 0 ), false ) + ';' : '' } );
+		if ( ns.doi && typeof ns.doi.value === 'number' ) { rows.push( { label: 'DOI downloads · ' + ns.doi.window, value: ns.doi.value } ); }
+		if ( typeof ns.inquiries === 'number' ) { rows.push( { label: 'Inquiries · 7d', value: ns.inquiries } ); }
+		return rows;
+	}
+
+	/**
+	 * A change, said twice: the arrow for the eye (aria-hidden) and the
+	 * direction in words for a screen reader. Null for no change or no prior.
+	 */
+	function changeNode( d ) {
+		if ( typeof d !== 'number' || ! d ) { return null; }
+		var wrap  = el( 'span', { style: 'margin-left:4px;font-weight:600;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
+		var arrow = el( 'span', { text: d > 0 ? '▲' : '▼' } );
+		arrow.setAttribute( 'aria-hidden', 'true' );
+		var words = el( 'span', { text: d > 0 ? 'up' : 'down' } );
+		words.className = 'screen-reader-text';
+		wrap.appendChild( arrow );
+		wrap.appendChild( words );
+		wrap.appendChild( el( 'span', { text: ' ' + Math.abs( d ) } ) );
+		return wrap;
+	}
+
+	/** "Reach · 14 days: 5 countries ▲ 2 · 5 sources", as one listed row. */
+	function reachRow( r ) {
+		var box = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
+		var ul  = el( 'div' );
+		ul.setAttribute( 'role', 'list' );
+		var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+		row.setAttribute( 'role', 'listitem' );
+		row.appendChild( el( 'span', { text: 'Reach · 14 days', style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));min-width:0;' } ) );
+		var val = el( 'span', { style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;text-align:right;' } );
+		var p   = r.prior && typeof r.prior.countries === 'number' ? r.prior : null;
+		// A capped count is a floor ("500+"), and a change against a floor means nothing.
+		[ [ r.countries, 'countries', p && p.countries, r.countries_capped || ( p && p.countries_capped ) ], [ r.sources, 'sources', p && p.sources, r.sources_capped || ( p && p.sources_capped ) ] ].forEach( function( f, i ) {
+			val.appendChild( el( 'span', { text: ( i ? ' · ' : '' ) + f[0] + ( f[3] && f[0] >= 500 ? '+' : '' ) + ' ' + f[1] } ) );
+			var c = p && ! f[3] ? changeNode( f[0] - f[2] ) : null;
+			if ( c ) { val.appendChild( c ); }
+		} );
+		row.appendChild( val );
+		ul.appendChild( row );
+		box.appendChild( ul );
+		return box;
+	}
+
 	window.desktopModeWidgets['sn-site-views'] = function( container, ctx ) {
-		var aborted = false;
-		var ctrl    = ( typeof AbortController !== 'undefined' ) ? new AbortController() : null;
+		var aborted   = false;
+		var ctrl      = null;
+		var timer     = null;
+		var pending   = false;
+		var lastAt    = 0;
+		var lastDelay = REFRESH_MS;
+		var failures  = 0;
+		var shownJson = ''; // the payload on screen; an identical poll repaints nothing
 
 		var wrap = el( 'div', { style: 'padding:10px 12px;' } );
 		var body = el( 'div', { text: 'Loading…', style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
+		body.setAttribute( 'role', 'status' ); // the load and its outcome are announced politely
 		wrap.appendChild( body );
 		container.appendChild( wrap );
 
 		function render( payload ) {
 			body.textContent = '';
+			body.setAttribute( 'style', '' );
 
+			// No views is a headline of its own; the groups below still paint (a
+			// feed can have subscribers in a window no page was viewed).
 			if ( ! payload.days || ! payload.days.length ) {
 				body.appendChild( el( 'div', {
 					text: 'No views in the last 14 days',
 					style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
 				} ) );
-				return;
+			} else {
+				headline( payload );
 			}
 
+			// This week: three of the north star's rows, right under the headline.
+			var week = weekRows( payload.north_star );
+			if ( week.length ) {
+				body.appendChild( group( 'This week', week ) );
+			}
+
+			// Reach: distinct countries and named sources with views in the window,
+			// each with its change against the prior 14 days. Absent when it could
+			// not be read: never a 0.
+			if ( payload.reach && typeof payload.reach.countries === 'number' ) {
+				body.appendChild( reachRow( payload.reach ) );
+			}
+
+			// SN Traffic: SN Audience's rows and SN RSS Subscribers' windows
+			// paint here as groups (inc/desktop-mode-audience.php), then the top
+			// pages. Read 2+ pages, downloads outbound, the bot share and the top
+			// mover are not painted (owner's pick, 2026-10-04): they live in S&N
+			// Analytics. Additive: an older cached payload without `groups` paints none.
+			( payload.groups || [] ).forEach( function( g ) {
+				if ( g && g.title ) { body.appendChild( group( g.title, g.rows || [], g.empty ) ); }
+			} );
+
+			var pageRows = ( payload.top_paths || [] ).filter( function( pg ) { return pg && pg.path; } ).map( function( pg ) {
+				return { label: pg.path, value: String( pg.views ) };
+			} );
+			if ( pageRows.length ) {
+				body.appendChild( group( 'Top pages', pageRows ) );
+			}
+		}
+
+		function headline( payload ) {
 			body.appendChild( el( 'div', {
 				text: String( payload.total ),
 				style: 'font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1;'
@@ -184,155 +316,117 @@
 			// Additive: an older cached payload without `today` paints nothing.
 			// A measured 0 is a number and renders; absent/null does not.
 			if ( typeof payload.today === 'number' ) {
-				body.appendChild( statRow( 'Today so far', String( payload.today ) ) );
+				body.appendChild( list( [ { label: 'Today so far', value: payload.today } ] ) );
 			}
 
 			// The spark line and the links below ride the card token contract's
 			// --os-ui-color-accent (OpenStation 1.1.5, #1603): with no theme worn
 			// it chains to --os-ui-accent and follows the picker; Legacy pins it
-			// to its own #3b82f6 (see the palette note in widget-actions.js). The
+			// to its own #3b82f6 (see the palette note in widget-health.js). The
 			// fallback is the plugin's own blue.
 			var chart = el( 'div', { style: 'color:var(--os-ui-color-accent, #4a9eff);margin:4px 0 6px;' } );
 			chart.appendChild( sparkline( payload.days ) );
 			body.appendChild( chart );
 
 			body.appendChild( deltaLine( payload.delta_pct, payload.total ) );
-
-			// The north star: views say how many came, this says how many read.
-			// Additive: absent key (analytics unset, older cached payload) paints nothing.
-			var ns = payload.north_star;
-			if ( ns && typeof ns.value === 'number' ) {
-				var nsBox = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
-				var nsDelta = ns.value - ( ns.previous || 0 );
-				nsBox.appendChild( statRow( 'Engaged readers · 7d', String( ns.value ) + ( nsDelta ? ' ' + deltaText( nsDelta ) : '' ), nsDelta ? 'color:' + deltaColor( nsDelta, nsDelta, relOf( nsDelta, ns.previous || 0 ), false ) + ';' : '' ) );
-				if ( typeof ns.deep === 'number' ) { nsBox.appendChild( statRow( 'Read 2+ pages', String( ns.deep ) ) ); }
-				if ( typeof ns.actions === 'number' ) { nsBox.appendChild( statRow( 'Downloads, outbound', String( ns.actions ) ) ); }
-				if ( ns.doi && typeof ns.doi.value === 'number' ) { nsBox.appendChild( statRow( 'DOI downloads · ' + ns.doi.window, String( ns.doi.value ) ) ); }
-				if ( typeof ns.inquiries === 'number' ) { nsBox.appendChild( statRow( 'Inquiries · 7d', String( ns.inquiries ) ) ); }
-				body.appendChild( nsBox );
-			}
-
-			// ── v9.53.0 secondary stats ──
-			var stats = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
-
-			// 21.2.1: Visits and Engaged moved to SN Reading, and Top sources to
-			// SN Audience. This tile is the overview: the headline, the north
-			// star, the mover, the bot share and the top pages. The payload still
-			// carries the moved keys; only the paint changed.
-
-			// Additive: the strongest PATH mover (path + signed views delta,
-			// from the rail tile's own producer). Absent/malformed key → no
-			// row. Same path-row idiom as Top pages.
-			if ( payload.top_mover && payload.top_mover.path
-				&& typeof payload.top_mover.delta === 'number' && payload.top_mover.delta !== 0 ) {
-				var mvD = payload.top_mover.delta;
-				var mvPrior = typeof payload.top_mover.views === 'number' ? payload.top_mover.views - mvD : 0;
-				var mv = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
-				mv.appendChild( el( 'span', {
-					text:  payload.top_mover.path,
-					style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
-				} ) );
-				mv.appendChild( el( 'span', {
-					text:  deltaText( mvD ),
-					style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;color:' + deltaColor( mvD, mvD, relOf( mvD, mvPrior ), false ) + ';'
-				} ) );
-				stats.appendChild( mv );
-			}
-
-			// bot_pct is null (not 0) when there was nothing to divide by —
-			// "no data" is not "0% bots", so omit the row rather than claim a
-			// clean feed we never measured.
-			if ( payload.bot_pct !== null && typeof payload.bot_pct !== 'undefined' ) {
-				stats.appendChild( statRow(
-					'Bot share',
-					payload.bot_pct + '%',
-					// Not an alarm — the beacon already excludes bots from the
-					// human class. This is a data-quality read, so it only tints
-					// once it's high enough to be worth a glance.
-					payload.bot_pct >= 50 ? 'color:#d29922;' : ''
-				) );
-			}
-
-			// Prefer the additive top_paths list. An older cached payload
-			// without that key falls back to the original single top_path row.
-			if ( ! ( payload.top_paths && payload.top_paths.length ) && payload.top_path && payload.top_path.path ) {
-				var top = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
-				top.appendChild( el( 'span', {
-					text:  payload.top_path.path,
-					title: payload.top_path.path,
-					style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
-				} ) );
-				top.appendChild( el( 'span', {
-					text:  String( payload.top_path.views ),
-					style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;'
-				} ) );
-				stats.appendChild( top );
-			}
-
-			if ( stats.childNodes.length ) {
-				body.appendChild( stats );
-			}
-
-			if ( payload.top_paths && payload.top_paths.length ) {
-				var pages = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
-				pages.appendChild( el( 'div', {
-					text:  'Top pages',
-					style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));margin-bottom:2px;'
-				} ) );
-				payload.top_paths.forEach( function( pg ) {
-					if ( ! pg || ! pg.path ) { return; }
-					var prow = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
-					prow.appendChild( el( 'span', {
-						text:  pg.path,
-						title: pg.path,
-						style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
-					} ) );
-					prow.appendChild( el( 'span', {
-						text:  String( pg.views ),
-						style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;'
-					} ) );
-					pages.appendChild( prow );
-				} );
-				body.appendChild( pages );
-			}
-
-			// ── v9.57.0: top sources ──
 		}
 
 		function fail() {
 			body.textContent = '';
-			body.appendChild( el( 'div', {
+			var alert = el( 'div', {
 				text: 'Views unavailable',
 				style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));'
-			} ) );
+			} );
+			alert.setAttribute( 'role', 'alert' );
+			body.appendChild( alert );
 		}
 
-		if ( window.wp && window.wp.apiFetch ) {
-			window.wp.apiFetch( {
-				path: '/signal-noise/v1/desktop/site-views',
-				signal: ctrl ? ctrl.signal : undefined
+		// SN RSS Subscribers refreshed every five minutes; SN Traffic carries its
+		// rows, so the whole payload polls at that rate (the payload itself is a
+		// 15-minute server cache). The shape is the deploy card's
+		// (assets/desktop-mode-widget.js): no poll while the tab is hidden,
+		// reveal re-arms for what is left of the wait, a failure backs off and
+		// keeps the last good reading, and teardown aborts the read in flight.
+		function repaint( payload ) {
+			var json = JSON.stringify( payload );
+			if ( json === shownJson ) { return; }
+			// Keep the reader's place: the card body scrolls, and a rebuild of the
+			// same height must not jump it.
+			var scrollers = [ container, container.parentNode ].filter( function( n ) { return n && typeof n.scrollTop === 'number'; } );
+			var tops      = scrollers.map( function( n ) { return n.scrollTop; } );
+			render( payload );
+			shownJson = json;
+			scrollers.forEach( function( n, k ) { n.scrollTop = tops[ k ]; } );
+		}
+
+		function refresh() {
+			if ( aborted || pending ) { return; }
+			pending = true;
+			ctrl = ( typeof AbortController !== 'undefined' ) ? new AbortController() : null;
+			var delay = REFRESH_MS;
+			Promise.resolve().then( function() {
+				if ( aborted ) { return; }
+				if ( ! window.wp || ! window.wp.apiFetch ) { throw new Error( 'the API client is unavailable' ); }
+				return window.wp.apiFetch( { path: '/signal-noise/v1/desktop/site-views', signal: ctrl ? ctrl.signal : undefined } );
 			} ).then( function( res ) {
 				if ( aborted ) { return; }
-				render( res || {} );
-			} ).catch( function() {
+				failures = 0;
+				repaint( res || {} );
+			} ).catch( function( err ) {
 				if ( aborted ) { return; }
-				fail();
+				failures++;
+				delay = Math.min( 15 * 60 * 1000, REFRESH_MS * Math.pow( 2, Math.min( failures - 1, 4 ) ) );
+				var retry = Number( err && err.data && err.data.retry_after );
+				if ( isFinite( retry ) && retry > 0 && retry <= 2147483 ) { delay = Math.max( delay, retry * 1000 ); }
+				// The last good reading stays; only a card that never loaded says so.
+				if ( ! shownJson ) { fail(); }
+			} ).then( function() {
+				pending   = false;
+				ctrl      = null;
+				lastAt    = Date.now();
+				lastDelay = delay;
+				arm();
 			} );
-		} else {
-			fail();
 		}
 
+		function cadence( ms ) {
+			return window.sntPollCadence ? window.sntPollCadence.wait( ms ) : ms;
+		}
+		function arm() {
+			window.clearTimeout( timer );
+			if ( aborted || pending || document.hidden ) { return; }
+			var nextAt = lastAt + Math.max( lastDelay, cadence( REFRESH_MS ) );
+			timer = window.setTimeout( refresh, Math.max( 0, nextAt - Date.now() ) );
+		}
+		function onVisibilityChange() {
+			if ( document.hidden ) { window.clearTimeout( timer ); return; }
+			arm();
+		}
+		document.addEventListener( 'visibilitychange', onVisibilityChange );
+		var unwatchFocus = window.sntPollCadence ? window.sntPollCadence.onFocusChange( onVisibilityChange ) : function() {};
+
+		refresh();
+
+		// The card's one link. SN Reading's says the same words, so the name
+		// starts with them and says which card it is on (WCAG 2.5.3).
 		if ( analyticsUrl ) {
 			var link = el( 'a', {
 				href: analyticsUrl,
-				text: 'Open Analytics →',
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
+				text: 'Open Analytics',
+				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
 			} );
+			var arrow = el( 'span', { text: '→' } );
+			arrow.setAttribute( 'aria-hidden', 'true' );
+			link.appendChild( arrow );
+			link.setAttribute( 'aria-label', 'Open Analytics, from the SN Traffic widget' );
 			wrap.appendChild( link );
 		}
 
 		return function teardown() {
 			aborted = true;
+			window.clearTimeout( timer );
+			document.removeEventListener( 'visibilitychange', onVisibilityChange );
+			unwatchFocus();
 			if ( ctrl ) { ctrl.abort(); }
 			if ( wrap.parentNode ) { wrap.parentNode.removeChild( wrap ); }
 		};

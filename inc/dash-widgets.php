@@ -7,16 +7,18 @@
  * and v8.3.0 + v11.30.0 both folded boxes AWAY. The owner reopened it on
  * 2026-08-29 with a constraint that keeps the spirit of those folds: while
  * OpenStation's command palette is severed upstream (WordPress/openstation#705)
- * the Classic Admin home is the surface actually in use, so the ten desktop
- * widgets are grouped by WHAT THEY SHOW rather than mirrored one for one.
+ * the Classic Admin home is the surface actually in use, so the desktop
+ * widgets are grouped by WHAT THEY SHOW rather than mirrored one for one. (The
+ * desktop itself folded its cards to six on 2026-10-04; the boxes below name
+ * the subjects, which did not change.)
  *
- *   Audience     ← sn-site-views + sn-rss-subscribers     "who is reading?"
- *   Machines     ← sn-machine-readers                     "which machines?"
- *   Operations   ← sn-deploy-status + sn-cron             "what shipped, is it awake?"
- *   Provenance   ← sn-anchors                             "are the Notes anchored?"
+ *   Audience     ← SN Traffic (views, feed subscribers)     "who is reading?"
+ *   Machines     ← SN Provenance's machine readers         "which machines?"
+ *   Operations   ← SN Deploy Status + SN Systems' cron      "what shipped, is it awake?"
+ *   Provenance   ← SN Provenance's anchors                 "are the Notes anchored?"
  *
  * Machines stays out of Audience deliberately: human and machine readership are
- * never summed (see inc/desktop-mode-widgets.php on sn-machine-readers), and two
+ * never summed (the edge sensor and the beacon count different things), and two
  * boxes encode that rule where one box would invite the addition.
  *
  * The fifth box, sn_dashboard, is inc/dash-widget.php's and is untouched — it

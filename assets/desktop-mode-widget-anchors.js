@@ -1,5 +1,7 @@
 /**
- * Signal & Noise Tools — desktop-mode "SN Anchors" widget.
+ * Signal & Noise Tools — desktop-mode "SN Provenance" widget (id sn-anchors,
+ * kept so the card keeps its place on a saved desktop). SN Anchors with SN
+ * Machine Readers' glance folded in under it.
  *
  * v9.78.0. The one glanceable that had no Desktop Mode mirror: provenance
  * anchor state. Pending Notes render with their live in-flight Bitcoin
@@ -50,6 +52,87 @@
 
 	var data         = window.snDesktopData || {};
 	var dashboardUrl = ( data.pages && ( data.pages.provenance || data.pages.dashboard ) ) || ''; // 15.8.2: Tools › Provenance
+	var readersUrl   = ( data.pages && data.pages.machine_readers ) || '';
+	var SUBTLE       = 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));';
+
+	/**
+	 * A change, said twice: the arrow for the eye (aria-hidden) and the
+	 * direction in words for a screen reader. Null for no change.
+	 */
+	function changeNode( d, unit ) {
+		if ( typeof d !== 'number' || ! d ) { return null; }
+		var wrap  = el( 'span', { style: 'margin-left:4px;' + SUBTLE } );
+		var arrow = el( 'span', { text: d > 0 ? '▲' : '▼' } );
+		arrow.setAttribute( 'aria-hidden', 'true' );
+		var words = el( 'span', { text: d > 0 ? 'up' : 'down' } );
+		words.className = 'screen-reader-text';
+		wrap.appendChild( arrow );
+		wrap.appendChild( words );
+		wrap.appendChild( el( 'span', { text: ' ' + Math.abs( d ) + ( unit || '' ) } ) );
+		return wrap;
+	}
+
+	/** A label/value row as a listitem; `amber` tones the value; `extra` follows it. */
+	function listRow( label, value, amber, extra ) {
+		var line = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+		line.setAttribute( 'role', 'listitem' );
+		line.appendChild( el( 'span', { text: label, style: 'min-width:0;' + SUBTLE } ) );
+		var val = el( 'span', { text: value, style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;min-width:0;white-space:normal;overflow-wrap:anywhere;text-align:right;' + ( amber ? 'color:#d29922;' : '' ) } );
+		if ( extra ) { val.appendChild( extra ); }
+		line.appendChild( val );
+		return line;
+	}
+
+	/**
+	 * The machine half of provenance, from SN Machine Readers (folded into this
+	 * card): how many machine reads, who the edge vouched for, and the declared
+	 * AI-training reads. A sensor that did not answer is one line, never a zero.
+	 */
+	function readersBox( mr ) {
+		var box  = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
+		var head = el( 'div', { text: 'Machine readers · last ' + ( Number( mr.days ) || 30 ) + ' days', style: 'font-size:11px;margin-bottom:2px;' + SUBTLE } );
+		head.setAttribute( 'role', 'heading' );
+		head.setAttribute( 'aria-level', '3' );
+		box.appendChild( head );
+		if ( ! mr.ok ) {
+			var hint = mr.hint && mr.hint.title ? mr.hint.title : ( 'not_configured' === mr.error ? 'Sensor not configured' : 'Sensor unreachable' );
+			box.appendChild( el( 'p', { style: 'margin:0;font-size:11px;' + SUBTLE, text: hint + '.' } ) );
+			return box;
+		}
+		var list = el( 'div' );
+		list.setAttribute( 'role', 'list' );
+		list.appendChild( listRow( 'Machine reads', String( Number( mr.total ) || 0 ) ) );
+		// A user agent is a claim; only the verified share is vouched for by the edge.
+		var id = mr.edge_verified; // its own key: `identity` is the summary's signature evidence
+		if ( id && ( id.verified + id.unverified + id.not_measured ) > 0 ) {
+			list.appendChild( listRow( 'Verified by Cloudflare', String( id.verified ) ) );
+			list.appendChild( listRow( 'Named themselves, not verified', String( id.unverified ) ) );
+			if ( id.not_measured > 0 ) { list.appendChild( listRow( 'Not measured', String( id.not_measured ) ) ); }
+		}
+		// null means "not measured", never painted as 0.
+		if ( mr.ai_training !== null && typeof mr.ai_training !== 'undefined' ) {
+			list.appendChild( listRow( 'Declared AI-training reads', String( mr.ai_training ) ) );
+			// A crawler that went looking for the declarations on purpose. The
+			// reservation rides every response, so 0 here is healthy, never an alarm.
+			if ( mr.ai_rights !== null && typeof mr.ai_rights !== 'undefined' ) {
+				list.appendChild( listRow( 'Fetched the rights files directly', String( mr.ai_rights ) ) );
+			}
+		}
+		// The top crawler family's share of the window's reads, with its change
+		// in points against the prior 30 days when that window was read. Absent
+		// when there are no reads: never a 0%.
+		var top = mr.top_family;
+		if ( top && top.family && typeof top.share === 'number' ) {
+			list.appendChild( listRow( 'Top crawler family', top.family + ', ' + top.share + '%', false, typeof top.prior_share === 'number' ? changeNode( top.share - top.prior_share, ' pts' ) : null ) );
+		}
+		box.appendChild( list );
+		// Crawler-list drift stays loud: one amber line, only when the verdict is
+		// not the healthy 'in sync' ('drift' | 'check failed'; null is unknown).
+		if ( mr.crawler_list && 'in sync' !== mr.crawler_list ) {
+			box.appendChild( el( 'p', { style: 'margin:2px 0 0;font-size:11px;color:#d29922;', text: 'Crawler list ' + String( mr.crawler_list ) } ) );
+		}
+		return box;
+	}
 
 	function el( tag, opts ) {
 		var node = document.createElement( tag );
@@ -78,14 +161,22 @@
 		// 21.1.0: the Internet Archive line (archive-status). A second, separate
 		// read: the anchors paint without it, and a failed read paints nothing.
 		var archive = null;
+		// SN Provenance: the machine readers (GET desktop/machine-readers, the
+		// route that carries the edge's identity split). A third separate read.
+		var readers = null;
+		var loading = el( 'p', { style: 'margin:0;padding:14px 16px;font-size:12px;' + SUBTLE, text: 'Loading…' } );
+		loading.setAttribute( 'role', 'status' );
+		container.appendChild( loading );
 
-		function render( overview, note ) {
+		// `waiting`: anchor-status has not answered yet. The anchor part then
+		// says it is loading (no alert, no Sweep) while the readers paint.
+		function render( overview, note, waiting ) {
 			if ( torn ) {
 				return;
 			}
 			// The rebuild detaches whatever had focus; put it back on the button.
 			var hadFocus = !! ( document.activeElement && container.contains( document.activeElement ) );
-			var onLink   = hadFocus && 'A' === document.activeElement.tagName;
+			var onLink   = hadFocus && 'A' === document.activeElement.tagName ? document.activeElement.textContent : '';
 			clearChildren( container );
 			var wrap = el( 'div', {
 				style: 'padding:14px 16px;color:inherit;font-size:13px;line-height:1.5;',
@@ -101,8 +192,14 @@
 				? ( Number( pages.confirmed ) || 0 ) + ' of ' + Number( pages.total ) + ' pages anchored'
 				: '';
 
-			if ( ! overview ) {
-				wrap.appendChild( el( 'p', { style: 'margin:0;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: note || 'Anchor status unavailable.' } ) );
+			if ( waiting ) {
+				var wait = el( 'p', { style: 'margin:0;' + SUBTLE, text: 'Loading anchor status…' } );
+				wait.setAttribute( 'role', 'status' );
+				wrap.appendChild( wait );
+			} else if ( ! overview ) {
+				var down = el( 'p', { style: 'margin:0;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: note || 'Anchor status unavailable.' } );
+				down.setAttribute( 'role', 'alert' );
+				wrap.appendChild( down );
 			} else if ( ! pending.length && ! recording.length ) {
 				// The honest idle state — this is what the widget shows most days.
 				// One line for "all good"; the detail rows return when something is pending.
@@ -204,19 +301,27 @@
 				wrap.appendChild( box );
 			}
 
+			// The readers are their own read: they paint beside an anchor error too.
+			if ( readers ) {
+				wrap.appendChild( readersBox( readers ) );
+			}
+
 			if ( note && overview ) {
 				wrap.appendChild( el( 'p', { style: 'margin:8px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: note } ) );
 			}
 
-			var actions = el( 'div', { style: 'margin-top:10px;display:flex;gap:12px;align-items:center;' } );
-			var sweepBtn = el( 'button', { text: 'Sweep now' } );
+			var actions = el( 'div', { style: 'margin-top:10px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;' } );
+			var sweepBtn = el( 'button', { text: sweeping ? 'Sweeping…' : 'Sweep now' } );
 			sweepBtn.type = 'button';
+			// A repaint mid-sweep (a reader answer landing) keeps the busy state.
+			if ( sweeping ) { sweepBtn.setAttribute( 'aria-disabled', 'true' ); }
 			sweepBtn.setAttribute( 'style', 'font:inherit;font-size:11px;padding:2px 10px;border-radius:5px;border:1px solid rgba(128,128,128,.45);background:transparent;color:inherit;cursor:pointer;min-height:24px;' );
 			sweepBtn.addEventListener( 'click', function() {
 				// aria-disabled, not disabled: a disabled button drops keyboard focus to <body>.
-				if ( ! window.sntAbilityRun || 'true' === sweepBtn.getAttribute( 'aria-disabled' ) ) {
+				if ( ! window.sntAbilityRun || sweeping || 'true' === sweepBtn.getAttribute( 'aria-disabled' ) ) {
 					return;
 				}
+				sweeping = true;
 				sweepBtn.setAttribute( 'aria-disabled', 'true' );
 				sweepBtn.textContent = 'Sweeping…';
 				// 15.8.1: the sweep's result goes to the shell toast
@@ -226,6 +331,7 @@
 				// showToast. `still_pending` counts the worker's whole queue
 				// (notes AND rights-signal documents), so say so.
 				function report( msg ) {
+					sweeping = false;
 					var os = ( window.wp && ( window.wp.os || window.wp.desktop ) ) || null;
 					if ( os && typeof os.showToast === 'function' ) {
 						try { os.showToast( { message: msg, duration: 3500, source: 'sn-anchors' } ); load(); return; } catch ( e ) { /* fall through */ }
@@ -240,42 +346,81 @@
 					report( 'Sweep failed: ' + ( ( err && err.message ) || 'unknown error' ) );
 				} );
 			} );
-			actions.appendChild( sweepBtn );
-			var link = null;
-			if ( dashboardUrl ) {
-				link = el( 'a', {
+			if ( ! waiting ) {
+				actions.appendChild( sweepBtn );
+			}
+			var links = [];
+			[ [ 'Open Provenance', dashboardUrl ], [ 'Open Machine Readers', readersUrl ] ].forEach( function( l ) {
+				if ( ! l[1] ) { return; }
+				var link = el( 'a', {
 					style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;',
-					text:  'Open Provenance',
-					href:  dashboardUrl,
+					text:  l[0],
+					href:  l[1],
 				} );
 				var arrow = el( 'span', { text: '→' } );
 				arrow.setAttribute( 'aria-hidden', 'true' );
 				link.appendChild( arrow );
 				actions.appendChild( link );
-			}
+				links.push( link );
+			} );
 			wrap.appendChild( actions );
 			container.appendChild( wrap );
 			if ( hadFocus ) {
-				( onLink && link ? link : sweepBtn ).focus();
+				var back = links.filter( function( a ) { return a.textContent === onLink; } )[0];
+				var to = back || ( waiting ? null : sweepBtn );
+				if ( to ) { to.focus(); }
 			}
 		}
 
+		// Each load() takes the next generation; every answer it started bails
+		// once a newer load() has begun, so a read from before a Sweep can never
+		// repaint over the one after it.
+		var gen      = 0;
+		var sweeping = false; // survives repaints, so a rebuilt button stays busy
+		var readCtl  = null;  // the reader request in flight, aborted when superseded or torn down
+
 		function load( note ) {
+			var mine = ++gen;
+			if ( readCtl ) { readCtl.abort(); }
+			readCtl = window.AbortController ? new window.AbortController() : null;
+			var live = function() { return mine === gen && ! torn; };
 			if ( ! window.sntAbilityRun ) {
 				render( null, 'The abilities client is unavailable.' );
 				return;
 			}
 			archive = null; // a refresh whose archive read fails must not keep the last reading
+			readers = null;
+			// The last anchor answer (or its error), so a reader answer that lands
+			// later repaints with it rather than without it.
+			var shown = { overview: null, note: note, waiting: true };
+			if ( window.wp && window.wp.apiFetch ) {
+				window.wp.apiFetch( { path: '/signal-noise/v1/desktop/machine-readers', signal: readCtl ? readCtl.signal : undefined } ).then( function( res ) {
+					if ( live() && res && typeof res === 'object' ) {
+						readers = res;
+						render( shown.overview, shown.note, shown.waiting );
+					}
+				} ).catch( function() {
+					if ( ! live() ) { return; }
+					readers = { ok: false, error: 'unreachable' };
+					render( shown.overview, shown.note, shown.waiting );
+				} );
+			}
 			window.sntAbilityRun( 'anchor-status', {}, { silent: true } ).then( function( overview ) {
+				if ( ! live() ) { return; }
+				shown.overview = overview;
+				shown.waiting  = false;
 				render( overview, note );
 				window.sntAbilityRun( 'archive-status', {}, { silent: true } ).then( function( res ) {
-					if ( res && res.ok ) {
+					if ( live() && res && res.ok ) {
 						archive = res;
 						render( overview, note );
 					}
 				} ).catch( function() {} );
 			} ).catch( function( err ) {
-				render( null, ( err && err.message ) || 'Could not load anchor status.' );
+				if ( ! live() ) { return; }
+				shown.note    = ( err && err.message ) || 'Could not load anchor status.';
+				shown.waiting = false;
+				render( null, shown.note );
 			} );
 		}
 
@@ -283,6 +428,7 @@
 
 		return function teardown() {
 			torn = true;
+			if ( readCtl ) { readCtl.abort(); }
 			clearChildren( container );
 		};
 	};

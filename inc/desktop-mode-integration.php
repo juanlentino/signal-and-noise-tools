@@ -20,10 +20,10 @@
  *      version/info, cron, insights, and audit-log. (The display-only
  *      theme-ability launchers were removed in v9.52.3; the registration
  *      loop is the source of truth.)           → desktop-mode-commands.php
- *   4. Eight desktop widgets via register_widget(): SN Site Views, SN
- *      Health, SN Uptime, SN Deploy Status, SN Quick Actions, SN RSS
- *      Subscribers, SN Anchors, SN Machine Readers — one per domain since
- *      v9.53.0 (SN Pulse retired: it duplicated Site Views + Health).
+ *   4. Six desktop widgets via register_widget(): SN Traffic, SN Reading,
+ *      SN Queue, SN Systems, SN Deploy Status, SN Provenance (twelve folded
+ *      to six on 2026-10-04; SN Pulse was retired in v9.53.0 for the same
+ *      reason: the same numbers on two cards).
  *                                              → desktop-mode-widgets.php
  *   5. (v9.52.0) The living_tree_traffic filter, so the wallpaper tree's
  *      wind responds to real 14-day traffic.   → desktop-mode-payloads.php
@@ -119,7 +119,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * but it keeps the file order matching the data-flow order.
  */
 require_once __DIR__ . '/desktop-mode-payloads.php';
-require_once __DIR__ . '/desktop-mode-analytics-widgets.php'; // SN Audience and SN Reading: the routes and shared parts.
+require_once __DIR__ . '/desktop-mode-analytics-widgets.php'; // SN Reading's route and the group parts SN Traffic shares.
 require_once __DIR__ . '/desktop-mode-audience.php';
 require_once __DIR__ . '/desktop-mode-reading.php';
 require_once __DIR__ . '/desktop-mode-assets.php';

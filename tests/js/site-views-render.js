@@ -1,4 +1,4 @@
-// Renders the SN Site Views card against a fake DOM and prints its rows as
+// Renders the SN Traffic card (sn-site-views) against a fake DOM and prints its rows as
 // JSON: [{ text, color }]. Payload is argv[2] (JSON). Used by
 // tests/desktop-mode-widget-views-delta.php.
 'use strict';
@@ -13,12 +13,14 @@ function node( tag ) {
 		get textContent() { return this._text + this.children.map( ( c ) => c.textContent ).join( '' ); },
 	};
 }
-global.document = { createElement: node, createElementNS: ( ns, t ) => node( t ) };
+global.document = { hidden: false, createElement: node, createElementNS: ( ns, t ) => node( t ), addEventListener() {}, removeEventListener() {} };
 const payload = JSON.parse( process.argv[ 2 ] );
-global.window = { wp: { apiFetch: () => ( { then( f ) { f( payload ); return { catch() {} }; } } ) } };
+global.window = { setTimeout: () => 0, clearTimeout() {}, snDesktopData: { pages: { analytics: 'https://example.test/analytics' } }, wp: { apiFetch: () => ( { then( f ) { f( payload ); return { catch() {} }; } } ) } };
 require( path.join( __dirname, '../../assets/desktop-mode-widget-views.js' ) );
 const root = node( 'div' );
 window.desktopModeWidgets[ 'sn-site-views' ]( root, {} );
+// The card reads through a promise chain; walk it once that has settled.
+setImmediate( () => {
 const out = [];
 ( function walk( n ) {
 	if ( n.tag === 'span' || ( n.tag === 'div' && ! n.children.length ) ) {
@@ -27,4 +29,16 @@ const out = [];
 	}
 	n.children.forEach( walk );
 } )( root );
-process.stdout.write( JSON.stringify( { rows: out, helpers: Object.keys( window.snSiteViewsDelta || {} ) } ) );
+// The links, the ARIA roles in document order, and the body's own role.
+const links = [], roles = [];
+( function walk( n ) {
+	if ( n.tag === 'a' ) { links.push( n ); }
+	if ( n.attrs.role ) { roles.push( n.attrs.role ); }
+	n.children.forEach( walk );
+} )( root );
+const a = links[ 0 ];
+const srText = [];
+( function walk( n ) { if ( n.className === 'screen-reader-text' ) { srText.push( n.textContent ); } n.children.forEach( walk ); } )( root );
+const link = a ? { text: a._text, name: a.attrs[ 'aria-label' ] || a.textContent, arrowHidden: a.children.length > 0 && a.children.every( ( c ) => c.attrs[ 'aria-hidden' ] === 'true' ) } : null;
+process.stdout.write( JSON.stringify( { rows: out, helpers: Object.keys( window.snSiteViewsDelta || {} ), links: links.length, link, roles, srText, bodyRole: roles[ 0 ] || '' } ) );
+} );

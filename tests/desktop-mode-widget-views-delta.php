@@ -1,9 +1,10 @@
 <?php
 /**
- * SN Site Views: the arrow carries the direction (no +/- sign), direction
- * colour only for a meaningful change, and the card's engaged-readers number
- * is the north-star ability's own reading, never a copy frozen in the card's
- * 15-minute payload cache.
+ * SN Traffic (sn-site-views): the arrow carries the direction (no +/- sign),
+ * direction color only for a meaningful change; the groups SN Audience and
+ * SN RSS Subscribers carried paint under the sparkline; the rows SN Reading
+ * already shows (the north star's engaged readers, read 2+ pages, downloads,
+ * DOI downloads, inquiries) and the bot share are gone; one Open Analytics link.
  */
 
 define( 'ABSPATH', __DIR__ . '/' );
@@ -39,42 +40,80 @@ ok( $ability['value'] === $res['north_star']['value'] && $ability['previous'] ==
 $GLOBALS['t'][ SNT_NSM_CACHE_KEY ]['configured'] = false;
 $res = snt_desktop_site_views_payload()->data;
 ok( ! isset( $res['north_star'] ), 'analytics unset: no north star, and the frozen copy is dropped too' );
+function snt_desktop_traffic_groups( $win ) { return array( array( 'title' => 'Countries', 'rows' => array(), 'empty' => 'none', 'win' => $win ) ); }
+unset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27'] );
+$res = snt_desktop_site_views_payload()->data;
+ok( 'Countries' === ( $res['groups'][0]['title'] ?? '' ) && array( 'from' => '2026-09-14', 'to' => '2026-09-27', 'days' => 14 ) === $res['groups'][0]['win'], 'the payload carries SN Traffic\'s groups, read over the same 14 days as the sparkline' );
+ok( isset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27']['groups'] ), 'the groups ride the payload\'s own 15-minute cache' );
 
 // ── The rendered rows (node, the real widget file) ──
 $node = trim( (string) shell_exec( 'command -v node' ) );
 if ( '' === $node ) {
 	echo "SKIP: node not on PATH, render pins not run\n";
 } else {
-	$render = function ( array $p ) use ( $node ) {
+	$render = function ( array $p, $raw = false ) use ( $node ) {
 		$p += array( 'days' => array( array( 'date' => 'd', 'views' => 1 ) ), 'total' => 100, 'delta_pct' => null );
 		$out = json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/site-views-render.js' ) . ' ' . escapeshellarg( json_encode( $p ) ) ), true );
+		if ( $raw ) { return $out; }
 		$rows = array();
 		foreach ( (array) ( $out['rows'] ?? array() ) as $r ) { $rows[ $r['text'] ] = $r['color']; }
 		return $rows;
 	};
-	$up = '#3fb950'; $down = '#c9503f';
+	$down = '#c9503f';
 	$muted = function ( $c ) { return 0 === strpos( (string) $c, 'var(--os-ui-color-text-subtle' ); };
 
-	// 21.2.1: the Engaged row moved to SN Reading (tests/desktop-mode-analytics-widgets.php pins its text and color there).
 	// Text: arrow present, no sign.
-	$r = $render( array( 'north_star' => array( 'value' => 4, 'previous' => 1 ), 'engaged' => array( 'rate' => 37, 'pts' => -10, 'dir' => 'down' ), 'top_mover' => array( 'path' => '/notes', 'delta' => -16, 'views' => 10 ), 'delta_pct' => -41.3 ) );
-	ok( isset( $r['4 ▲ 3'] ), 'up: "4 ▲ 3", no plus sign' );
-	ok( isset( $r['▼ 16'] ), 'mover down: "▼ 16", no minus sign' );
+	$r = $render( array( 'delta_pct' => -41.3 ) );
 	ok( isset( $r['▼ 41.3% vs. prior 14 days'] ), 'views down: "▼ 41.3% vs. prior 14 days"' );
-	$r0 = $render( array( 'north_star' => array( 'value' => 4, 'previous' => 4 ), 'delta_pct' => 0 ) );
-	ok( isset( $r0['4'] ) && isset( $r0['▲ 0% vs. prior 14 days'] ) && $muted( $r0['▲ 0% vs. prior 14 days'] ), 'zero: bare value, flat views line muted' );
+	$r0 = $render( array( 'delta_pct' => 0 ) );
+	ok( isset( $r0['▲ 0% vs. prior 14 days'] ) && $muted( $r0['▲ 0% vs. prior 14 days'] ), 'zero: the flat views line is muted' );
 	$all = implode( ' ', array_keys( $r + $r0 ) );
 	ok( 0 === preg_match( '/[▲▼] [+\-−]/u', $all ), 'no sign follows any arrow' );
-
-	// Colour thresholds: abs >= 5 AND rel >= 20%; points >= 5.
-	ok( $muted( $r['4 ▲ 3'] ), '+3 on 1 (abs 3 < 5): muted' );
-	ok( $down === $r['▼ 16'], 'mover -16 on 26: red' );
 	ok( $down === $r['▼ 41.3% vs. prior 14 days'], 'views -41.3% on 100 (abs 70): red' );
-	$t = $render( array( 'north_star' => array( 'value' => 30, 'previous' => 25 ), 'engaged' => array( 'rate' => 40, 'pts' => 5, 'dir' => 'up' ) ) );
-	ok( $up === ( $t['30 ▲ 5'] ?? '' ), 'at threshold (abs 5, rel 20%): green' );
-	$u = $render( array( 'north_star' => array( 'value' => 31, 'previous' => 26 ), 'engaged' => array( 'rate' => 40, 'pts' => 4, 'dir' => 'up' ), 'top_mover' => array( 'path' => '/a', 'delta' => 4, 'views' => 4 ) ) );
-	ok( $muted( $u['31 ▲ 5'] ?? '' ), 'just under (abs 5, rel 19.2%): muted' );
-	ok( $muted( $u['▲ 4'] ?? '' ), 'just under (mover abs 4, from zero): muted' );
+
+	// SN Traffic: This week, the folded groups and the top pages paint.
+	$full = array(
+		'today'      => 7,
+		'north_star' => array( 'value' => 4, 'previous' => 1, 'deep' => 2, 'actions' => 3, 'doi' => array( 'value' => 5, 'window' => '28d' ), 'inquiries' => 1 ),
+		'bot_pct'    => 61,
+		'top_mover'  => array( 'path' => '/notes', 'delta' => -16, 'views' => 10 ),
+		'top_paths'  => array( array( 'path' => '/a', 'views' => 9 ), array( 'path' => '/b', 'views' => 4 ) ),
+		'groups'     => array(
+			array( 'title' => 'Countries', 'rows' => array( array( 'label' => 'US', 'value' => '30 · 75%' ) ) ),
+			array( 'title' => 'Feed subscribers', 'rows' => array(), 'empty' => 'No feed requests logged yet.' ),
+		),
+	);
+	$t = $render( $full );
+	foreach ( array( 'Today so far', 'Countries', 'US', '30 · 75%', 'Feed subscribers', 'No feed requests logged yet.', 'Top pages', '/a', '9' ) as $want ) {
+		ok( isset( $t[ $want ] ), "Traffic paints \"$want\"" );
+	}
+	$text = implode( ' | ', array_keys( $t ) );
+	// Owner's pick, 2026-10-04: three north star rows come back as This week,
+	// under the headline; the rest stays in S&N Analytics.
+	foreach ( array( 'This week', 'Engaged readers · 7d', '4 ▲ 3', 'DOI downloads · 28d', 'Inquiries · 7d' ) as $want ) {
+		ok( isset( $t[ $want ] ), "Traffic paints \"$want\" in This week" );
+	}
+	ok( strpos( $text, 'vs. prior 14 days' ) < strpos( $text, 'This week' ) && strpos( $text, 'This week' ) < strpos( $text, 'Countries' ), 'This week sits right under the headline block, before the audience groups' );
+	ok( $muted( $t['4 ▲ 3'] ), '+3 on 1 (abs 3 < 5): muted' );
+	$t2 = $render( array( 'north_star' => array( 'value' => 30, 'previous' => 25 ) ) );
+	ok( '#3fb950' === ( $t2['30 ▲ 5'] ?? '' ), 'at threshold (abs 5, rel 20%): green' );
+	ok( 0 === preg_match( '/Read 2\+ pages|Downloads, outbound|Bot share/', $text ) && ! isset( $t['▼ 16'] ) && false === strpos( $text, '/notes' ), 'not restored: read 2+ pages, downloads outbound, the bot share and the top mover live in S&N Analytics: ' . $text );
+	ok( ! isset( $render( array() )['This week'] ), 'an older payload without the north star paints no This week group (absent is not zero)' );
+
+	// The reach row: distinct countries and sources, each with its change
+	// against the prior 14 days, the arrow hidden and the direction in words.
+	$rr = $render( array( 'reach' => array( 'countries' => 5, 'sources' => 5, 'prior' => array( 'countries' => 3, 'sources' => 6 ) ), 'groups' => array( array( 'title' => 'Countries', 'rows' => array() ) ) ), true );
+	$rt = implode( ' | ', array_column( $rr['rows'], 'text' ) );
+	ok( false !== strpos( $rt, 'Reach · 14 days' ) && false !== strpos( $rt, '5 countries▲up 2 · 5 sources▼down 1' ) && array( 'up', 'down' ) === $rr['srText'], 'Reach · 14 days: 5 countries ▲ 2 · 5 sources ▼ 1: ' . $rt );
+	ok( strpos( $rt, 'Reach' ) < strpos( $rt, 'Countries' ), 'the reach row opens the audience part' );
+	$rr0 = $render( array( 'reach' => array( 'countries' => 5, 'sources' => 5, 'prior' => null ) ), true );
+	$rt0 = implode( ' | ', array_column( $rr0['rows'], 'text' ) );
+	ok( false !== strpos( $rt0, '5 countries' ) && false === strpos( $rt0, '▲' ) && false === strpos( $rt0, '▼' ), 'no prior window read: the counts without a change' );
+	ok( ! isset( $render( array() )['Reach · 14 days'] ), 'no reach in the payload: no row, never 0 countries' );
+	$out = $render( $full, true );
+	ok( 1 === $out['links'] && 'Open Analytics' === $out['link']['text'] && 'Open Analytics, from the SN Traffic widget' === $out['link']['name'] && true === $out['link']['arrowHidden'], 'exactly one footer link, Open Analytics, its name starting with the visible words and the arrow hidden' );
+	ok( 'status' === $out['bodyRole'] && 4 === count( array_filter( $out['roles'], static fn( $r ) => 'heading' === $r ) ), 'the body is a status region and each group title (This week, two groups, Top pages) is a heading' );
+	ok( count( array_filter( $out['roles'], static fn( $r ) => 'list' === $r ) ) >= 3, 'rows are lists (today, each group with rows, top pages)' );
 }
 
 echo "\n$pass passed, $fail failed\n";

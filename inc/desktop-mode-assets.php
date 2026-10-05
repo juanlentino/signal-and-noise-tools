@@ -133,28 +133,11 @@ add_action( 'init', function() {
 		true
 	);
 
-	// v2.1.0: two new widget scripts — Quick Actions + RSS Subscribers.
-	wp_register_script(
-		'sn-desktop-mode-widget-actions',
-		plugins_url( 'assets/desktop-mode-widget-actions.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run' ),
-		SNT_VERSION,
-		true
-	);
-
-	// SN Audience and SN Reading share one painter; each fetches its own route.
+	// SN Reading's group painter (SN Audience, which shared it, folded into SN Traffic).
 	wp_register_script(
 		'sn-desktop-mode-widget-groups',
 		plugins_url( 'assets/desktop-mode-widget-groups.js', SNT_PATH . 'signal-and-noise-tools.php' ),
 		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode' ),
-		SNT_VERSION,
-		true
-	);
-
-	wp_register_script(
-		'sn-desktop-mode-widget-rss',
-		plugins_url( 'assets/desktop-mode-widget-rss.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run' ),
 		SNT_VERSION,
 		true
 	);
@@ -169,35 +152,14 @@ add_action( 'init', function() {
 		true
 	);
 
-	// v9.78.0: SN Anchors widget — everything rides the abilities run-path
-	// (anchor-status read + anchor-sweep action), so snt-ability-run is the
-	// sole real dependency; sn-desktop-mode orders the snDesktopData global
-	// it reads for the dashboard link.
-	wp_register_script(
-		'sn-desktop-mode-widget-machine-readers',
-		plugins_url( 'assets/desktop-mode-widget-machine-readers.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'sn-desktop-mode' ),
-		SNT_VERSION,
-		true
-	);
-
+	// v9.78.0: SN Anchors, now SN Provenance. The anchors ride the abilities
+	// run-path (anchor-status read + anchor-sweep action) and the machine
+	// readers the desktop/machine-readers REST route (wp-api-fetch);
+	// sn-desktop-mode orders the snDesktopData global it reads for the links.
 	wp_register_script(
 		'sn-desktop-mode-widget-anchors',
 		plugins_url( 'assets/desktop-mode-widget-anchors.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'snt-ability-run', 'sn-desktop-mode' ),
-		SNT_VERSION,
-		true
-	);
-
-	// v11.29.0: the cron widget. Reads window.snDesktopData.cronSummary only —
-	// no REST call, no ability run — so its dependencies are exactly the compat
-	// prelude and the handle that carries the data global. Deliberately NOT in
-	// the analytics loop below, which hands out wp-api-fetch this widget never
-	// uses.
-	wp_register_script(
-		'sn-desktop-mode-widget-cron',
-		plugins_url( 'assets/desktop-mode-widget-cron.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'sn-desktop-mode' ),
+		array( 'sn-desktop-mode-os-compat', 'snt-ability-run', 'wp-api-fetch', 'sn-desktop-mode' ),
 		SNT_VERSION,
 		true
 	);
@@ -211,13 +173,17 @@ add_action( 'init', function() {
 	// (wp-api-fetch) never ordered them — the pre-v9.52.1 comment claiming it
 	// did was wrong — so name the real edge and let WP guarantee the data
 	// global is printed before any widget script runs.
-	foreach ( array( 'views', 'health', 'uptime' ) as $sn_widget ) {
+	//
+	// SN Systems (sn-health) reads the localized health and cron summaries and
+	// polls the uptime-status ability, so it adds snt-ability-run and the poll
+	// cadence; SN Uptime, SN Cron and Quick Actions folded into it.
+	foreach ( array( 'views', 'health' ) as $sn_widget ) {
 		wp_register_script(
 			'sn-desktop-mode-widget-' . $sn_widget,
 			plugins_url( 'assets/desktop-mode-widget-' . $sn_widget . '.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-			'uptime' === $sn_widget
-				? array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode', 'snt-poll-cadence' )
-				: array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode' ),
+			'health' === $sn_widget
+				? array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run', 'sn-desktop-mode', 'snt-poll-cadence' )
+				: array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode', 'snt-poll-cadence' ), // SN Traffic polls every five minutes
 			SNT_VERSION,
 			true
 		);

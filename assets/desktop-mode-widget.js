@@ -236,12 +236,72 @@
 	 * v9.52.0: mount( container, ctx ) → teardown. See the contract note at
 	 * the top of this file.
 	 */
+	// The shell's own toast (wp.os.showToast, Stable) paints at the top of the
+	// shell and never grows the card; false when there is none.
+	function shellToast( message ) {
+		var os = ( window.wp && ( window.wp.os || window.wp.desktop ) ) || null;
+		if ( ! os || typeof os.showToast !== 'function' ) { return false; }
+		try {
+			os.showToast( { message: String( message ), duration: 3500, source: 'sn-deploy-status' } );
+			return true;
+		} catch ( e ) {
+			return false;
+		}
+	}
+
+	/**
+	 * "Check for updates", moved from SN Quick Actions with the same call:
+	 * get-deploy-status with force_refresh clears the GitHub-tag, update and
+	 * worker-probe transients and re-fetches (the removed force-check-updates
+	 * ability's job). The card then repaints from the fresh reading.
+	 */
+	function checkButton( isTorn, repaint ) {
+		var hair = 'var(--os-ui-color-border, rgba(255,255,255,0.14))';
+		var btn  = el( 'button', {
+			text:  'Check for updates',
+			style: 'display:block;width:calc(100% - 32px);min-height:24px;margin:8px 16px 12px;padding:8px 10px;background:rgba(255,255,255,0.06);color:inherit;border:1px solid ' + hair +
+				';border-radius:8px;font-size:13px;line-height:1.2;cursor:pointer;text-align:left;transition:background 120ms ease,border-color 120ms ease;',
+		} );
+		btn.type  = 'button';
+		btn.title = 'Clear the GitHub tag + WordPress update transients and re-fetch';
+		btn.addEventListener( 'mouseenter', function() { if ( btn.getAttribute( 'aria-busy' ) !== 'true' ) { btn.style.background = 'rgba(255,255,255,0.13)'; } } );
+		btn.addEventListener( 'mouseleave', function() { btn.style.background = 'rgba(255,255,255,0.06)'; } );
+		var note = el( 'p', { style: 'margin:0 16px 8px;font-size:11px;' } );
+		note.setAttribute( 'role', 'status' ); // the fallback when the shell has no toast
+		btn.addEventListener( 'click', function() {
+			if ( btn.getAttribute( 'aria-busy' ) === 'true' ) { return; }
+			function say( message ) {
+				if ( ! shellToast( message ) ) { note.textContent = message; }
+			}
+			if ( typeof window.sntAbilityRun !== 'function' ) { say( 'sntAbilityRun unavailable' ); return; }
+			btn.setAttribute( 'aria-busy', 'true' );
+			btn.textContent   = 'Checking…';
+			btn.style.opacity = '0.55';
+			note.textContent  = '';
+			window.sntAbilityRun( 'get-deploy-status', { force_refresh: true } ).then( function() {
+				say( 'Update check complete.' );
+				if ( ! isTorn() ) { repaint(); }
+			}, function( err ) {
+				say( ( err && err.message ) ? err.message : 'Action failed.' );
+			} ).then( function() {
+				btn.textContent   = 'Check for updates';
+				btn.style.opacity = '1';
+				btn.removeAttribute( 'aria-busy' );
+			} );
+		} );
+		var box = el( 'div' );
+		box.appendChild( btn );
+		box.appendChild( note );
+		return box;
+	}
+
 	function mount( container, ctx ) {
 		if ( ! container ) { return function() {}; }
 
 		var torn = false;
 		var timer = null;
 		var pending = false;
+		var again = false; // a forced check landed while a poll was in flight
 		var nextAt = 0;
 		var lastAt = 0;
 		var lastDelay = REFRESH_MS;
@@ -249,7 +309,15 @@
 		var lastGood = null;
 		var lastSuccess = '';
 		var failures = 0;
-		renderLoading( container );
+		// The polled reading repaints `region` on every refresh; the button
+		// sits outside it, so a repaint never drops its focus or its busy state.
+		var region = el( 'div' );
+		container.appendChild( region );
+		container.appendChild( checkButton( function() { return torn; }, function() {
+			window.clearTimeout( timer );
+			if ( pending ) { again = true; } else { refresh(); }
+		} ) );
+		renderLoading( region );
 
 		function refresh() {
 			if ( torn || pending ) { return; }
@@ -273,8 +341,8 @@
 				lastGood = res;
 				lastSuccess = new Date().toISOString();
 				failures = 0;
-				renderCard( container, res );
-				renderRefreshStatus( container, lastSuccess );
+				renderCard( region, res );
+				renderRefreshStatus( region, lastSuccess );
 			} ).catch( function( err ) {
 				if ( torn ) { return; }
 				failures++;
@@ -285,17 +353,23 @@
 				if ( isFinite( retry ) && retry > 0 && retry <= 2147483 ) { delay = Math.max( delay, retry * 1000 ); }
 				var message = ( err && err.message ) || 'unknown error';
 				if ( lastGood ) {
-					renderCard( container, lastGood, true );
+					renderCard( region, lastGood, true );
 				} else {
-					clearChildren( container );
+					clearChildren( region );
 				}
-				renderRefreshStatus( container, lastSuccess, message, delay );
+				renderRefreshStatus( region, lastSuccess, message, delay );
 			} ).then( function() {
 				pending = false;
 				controller = null;
 				lastAt = Date.now();
 				lastDelay = delay;
 				arm();
+				// The poll in flight may predate the forced check: read once more.
+				if ( again && ! torn ) {
+					again = false;
+					window.clearTimeout( timer );
+					refresh();
+				}
 			} );
 		}
 

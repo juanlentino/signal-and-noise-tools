@@ -150,6 +150,8 @@ $GLOBALS['__sources'] = array();
 function sn_analytics_class_series( $from, $to, $granularity = 'day' ) { return $GLOBALS['__classes']; }
 function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { return array_slice( $GLOBALS['__top'], 0, $limit ); }
 function sn_analytics_top_sources( $from, $to, $class = 'human', $limit = 10 ) { return array_slice( $GLOBALS['__sources'], 0, $limit ); }
+// SN Traffic's groups (inc/desktop-mode-audience.php) format through WordPress's own helper.
+if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, $d ); } }
 function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day', $refresh = false ) {
 	$GLOBALS['__series_calls'] = (int) ( $GLOBALS['__series_calls'] ?? 0 ) + 1;
 	return $GLOBALS['__series'];
@@ -326,10 +328,10 @@ echo "\n── REGISTRATION TIMING (the v9.52.1 root cause) ──\n";
 // a refresh — so a late registry can also actively remove live widgets.
 fire( 'init' );
 $widgets = $GLOBALS['__dm_widgets'];
-ok( count( $widgets ) === 12, 'all twelve widgets are registered by the end of init (NOT admin_enqueue_scripts), got ' . count( $widgets ) );
+ok( count( $widgets ) === 6, 'all six widgets are registered by the end of init (NOT admin_enqueue_scripts), got ' . count( $widgets ) );
 ok( count( $GLOBALS['__dm_commands'] ) === 22, 'all 22 Cmd+K commands are registered by the end of init, got ' . count( $GLOBALS['__dm_commands'] ) );
 ok( count( $GLOBALS['__dm_icons'] ) === 2, 'both desktop icons are registered on init (this part was always correct)' );
-foreach ( array( 'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-widget-views', 'sn-desktop-mode-widget-uptime', 'sn-desktop-mode-widget-health' ) as $h ) {
+foreach ( array( 'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-widget-views', 'sn-desktop-mode-widget-health' ) as $h ) {
 	ok( isset( $GLOBALS['__scripts'][ $h ] ), "script handle $h is registered by the end of init (desktop-mode enqueues widget scripts at admin_enqueue_scripts:20)" );
 }
 
@@ -342,11 +344,9 @@ ok( isset( $GLOBALS['__scripts']['sn-desktop-mode-os-compat'] ), 'sn-desktop-mod
 ok( array() === ( $GLOBALS['__scripts']['sn-desktop-mode-os-compat']['deps'] ?? null ),
 	'the compat prelude itself has zero dependencies — nothing can beat it to the punch' );
 foreach ( array(
-	'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-widget-actions',
-	'sn-desktop-mode-widget-rss', 'sn-desktop-mode-widget-machine-readers',
+	'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-widget-groups',
 	'sn-desktop-mode-widget-anchors', 'sn-desktop-mode-widget-views',
-	'sn-desktop-mode-widget-health', 'sn-desktop-mode-widget-uptime',
-	'sn-desktop-mode-widget-queue',
+	'sn-desktop-mode-widget-health', 'sn-desktop-mode-widget-queue',
 ) as $h ) {
 	$deps = $GLOBALS['__scripts'][ $h ]['deps'] ?? array();
 	ok( in_array( 'sn-desktop-mode-os-compat', $deps, true ), "$h depends directly on sn-desktop-mode-os-compat" );
@@ -367,8 +367,18 @@ foreach ( $widgets as $id => $args ) {
 // v9.78.0 appends SN Anchors (provenance) at the end of the ops group.
 // 15.8.0 slotted SN Queue second; the analytics family (Site Views, Audience,
 // Reading, RSS Subscribers) now sits together ahead of it, owner's grouping.
-ok( array_keys( $widgets ) === array( 'sn-site-views', 'sn-audience', 'sn-reading', 'sn-rss-subscribers', 'sn-queue', 'sn-health', 'sn-uptime', 'sn-deploy-status', 'sn-cron', 'sn-quick-actions', 'sn-anchors', 'sn-machine-readers' ),
-	'widgets register in display order: the analytics family first (Site Views, Audience, Reading, RSS Subscribers), then Queue, site condition, ops' );
+// 2026-10-04: twelve folded to six, owner-approved. The three merged cards
+// keep their ids so each keeps its slot on a saved desktop.
+ok( array_keys( $widgets ) === array( 'sn-site-views', 'sn-reading', 'sn-queue', 'sn-health', 'sn-deploy-status', 'sn-anchors' ),
+	'six widgets register in display order: Traffic, Reading, Queue, Systems, Deploy Status, Provenance' );
+ok( 'SN Traffic' === ( $widgets['sn-site-views']['label'] ?? '' ) && 'SN Systems' === ( $widgets['sn-health']['label'] ?? '' ) && 'SN Provenance' === ( $widgets['sn-anchors']['label'] ?? '' ),
+	'the merged cards keep their ids and take their new names: sn-site-views is SN Traffic, sn-health SN Systems, sn-anchors SN Provenance' );
+foreach ( array( 'sn-audience', 'sn-rss-subscribers', 'sn-uptime', 'sn-cron', 'sn-quick-actions', 'sn-machine-readers' ) as $retired ) {
+	ok( ! isset( $widgets[ $retired ] ), "$retired is retired (folded into Traffic, Systems, Deploy Status or Provenance)" );
+}
+foreach ( array( 'actions', 'rss', 'uptime', 'cron', 'machine-readers' ) as $gone ) {
+	ok( ! isset( $GLOBALS['__scripts'][ 'sn-desktop-mode-widget-' . $gone ] ) && ! file_exists( __DIR__ . '/../assets/desktop-mode-widget-' . $gone . '.js' ), "the retired card's script sn-desktop-mode-widget-$gone is neither registered nor shipped" );
+}
 ok( ! isset( $widgets['sn-pulse'] ), 'SN Pulse is retired — it duplicated Site Views + Health' );
 ok( ! isset( $widgets['sn-cache'] ), 'SN Cache is retired: purging is automated, and a cache problem surfaces in the attention queue only when the automation failed' );
 
@@ -465,19 +475,15 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 // site payloads — then rounded up to the next 10 with ~10px of slack.
 //
 // Changing a card's content SHOULD fail this test. Re-measure, don't re-guess.
+// 2026-10-04: the three merged cards are BUDGETED, not measured, and a saved
+// layout keeps its old height: the owner resizes each once.
 $expected_height = array(
-	'sn-site-views'       => 500, // 21.2.1 BUDGETED: 620 less Visits, Engaged and the Top sources block
-	'sn-audience'         => 620, // BUDGETED: 560 + the opening figure in place of the window line + the age line
+	'sn-site-views'       => 890, // SN Traffic, BUDGETED: 760 + This week (~96) + the reach row (~30)
 	'sn-reading'          => 575, // BUDGETED: 555 + the opening figure and age line, less the two rows it replaced
-	'sn-rss-subscribers'  => 220, // measured 207
 	'sn-queue'            => 380, // measured 365 live (15.8.1): two-line headline + depth line + two headings + six rows
-	'sn-health'           => 200, // BUDGETED: measured 148 all-passing + one named check that could not run
-	'sn-uptime'           => 220, // measured 210
-	'sn-deploy-status'    => 310, // v11.11.2 budgeted: measured-192 two-row grid + five worker rows ~22px each
-	'sn-cron'             => 170, // v11.29.0 BUDGETED: health measures 148 for the same dot-row + hairline-list shape, +1 line when orphans exist
-	'sn-quick-actions'    => 215, // BUDGETED: measured 242 with three buttons, less Full reset (~40px)
-	'sn-anchors'          => 250, // BUDGETED: measured 167 idle + a hairline and two Internet Archive rows
-	'sn-machine-readers'  => 535, // BUDGETED: 560 + the identity block (heading, up to 3 rows), less six surface rows
+	'sn-health'           => 380, // SN Systems, BUDGETED: the verdict line, three one-row sections (~52 each), the uptime row's second line (~20), the button (~44), the link
+	'sn-deploy-status'    => 350, // v11.11.2 budgeted 310 + the Check for updates button (~40)
+	'sn-anchors'          => 460, // SN Provenance, BUDGETED: 250 + the machine readers (~136) + the rights-files and top-family rows (~40) + the wrapped action row (~28)
 );
 ok( array_keys( $expected_height ) === array_keys( $widgets ),
 	'the measured-height table covers exactly the registered widgets, in registration order' );
@@ -509,13 +515,11 @@ echo "\n── v9.52.4: the chrome owns the title (no doubled headings) ──\n
 // shipped uppercase headings through a green suite (the drift trap, again).
 $sn_widget_js = array(
 	'desktop-mode-widget.js'         => 'Signal & Noise',
-	'desktop-mode-widget-actions.js' => 'Quick actions',
-	'desktop-mode-widget-rss.js'     => 'RSS subscribers',
 );
 foreach ( glob( __DIR__ . '/../assets/desktop-mode-widget*.js' ) as $sn_widget_path ) {
 	$sn_widget_js += array( basename( $sn_widget_path ) => null );
 }
-ok( count( $sn_widget_js ) >= 10, 'the widget-file scan found every widget script (' . count( $sn_widget_js ) . ', floor 10)' );
+ok( count( $sn_widget_js ) >= 6, 'the widget-file scan found every widget script (' . count( $sn_widget_js ) . ', floor 6: twelve cards folded to six)' );
 foreach ( $sn_widget_js as $file => $old_heading ) {
 	$code = strip_js_comments( file_get_contents( __DIR__ . '/../assets/' . $file ) );
 	ok( strpos( $code, 'text-transform:uppercase' ) === false,
@@ -582,7 +586,7 @@ foreach ( array_keys( $sn_widget_js ) as $file ) {
 		"$file uses no font: shorthand that resets the family" . ( $bad ? ' [' . implode( ', ', $bad ) . ']' : '' ) );
 }
 
-echo "\n── v9.52.2: Quick Actions reads on the dark glass card ──\n";
+echo "\n── v9.52.2: Quick Actions' button reads on the dark glass card (now in SN Systems) ──\n";
 // .desktop-mode-widgets__card is NOT theme-switchable: it is fixed dark glass
 // — background rgba(20,20,22,.55) + backdrop-filter blur, color:#fff
 // (assets/css/desktop.css). The card sets white text and every SN widget
@@ -596,7 +600,8 @@ echo "\n── v9.52.2: Quick Actions reads on the dark glass card ──\n";
 // v10.28.0: re-verified at v0.9.8, AFTER desktop themes shipped. The card
 // background is still the literal rgba(20,20,22,0.55) — the one surface a
 // theme cannot retint — so light-on-dark stays correct and these literals stay
-// literals. See assets/desktop-mode-widget-actions.js for why adopting the
+// literals. See the PALETTE note in assets/desktop-mode-widget-health.js
+// (Quick Actions folded into SN Systems, 2026-10-04) for why adopting the
 // --wpd-* body palette here would REGRESS contrast under a light theme.
 //
 // #1603: OpenStation 1.1.5 declared the widget card's own on-dark token
@@ -606,16 +611,16 @@ echo "\n── v9.52.2: Quick Actions reads on the dark glass card ──\n";
 // translucent-white pin below still holds (it sits inside the var() fallback).
 // The green, amber and red status colours have no widget token and stay
 // literal. tests/widget-card-tokens.php pins the port.
-$aj = file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-actions.js' );
+$aj = file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ); // SN Systems carries Clear DB overrides.
 $aj_code = strip_js_comments( $aj );
 ok( strpos( $aj_code, 'background:#fff' ) === false,
-	'Quick Actions buttons are not opaque white blocks on the dark glass card' );
+	'SN Systems\' button is not an opaque white block on the dark glass card' );
 ok( strpos( $aj_code, 'color:#1d2327' ) === false,
-	'Quick Actions uses no near-black text (invisible on a dark card)' );
+	'SN Systems uses no near-black text (invisible on a dark card)' );
 ok( strpos( $aj_code, '#dff4dc' ) === false && strpos( $aj_code, '#fbe2e2' ) === false,
-	'Quick Actions toasts are not light pastel fills on dark glass' );
+	'SN Systems\' fallback toast is not a light pastel fill on dark glass' );
 ok( preg_match( '/rgba\(\s*255\s*,\s*255\s*,\s*255/', $aj_code ) === 1,
-	'Quick Actions styles light-on-dark (translucent white), matching the card idiom' );
+	'SN Systems styles its button light-on-dark (translucent white), matching the card idiom' );
 // 15.8.1: an action's result goes to the SHELL toast (wp.os.showToast, Stable),
 // never into the card. The in-card strip grew the card by a row for 3.5s and
 // shrank it back on every click; it remains only as the no-showToast fallback,
@@ -623,7 +628,7 @@ ok( preg_match( '/rgba\(\s*255\s*,\s*255\s*,\s*255/', $aj_code ) === 1,
 $aj_shell = strpos( $aj_code, "typeof os.showToast !== 'function'" );
 $aj_strip = strpos( $aj_code, "querySelector( '.sn-dm-toast' )" );
 ok( false !== $aj_shell && false !== $aj_strip && $aj_shell < $aj_strip,
-	'Quick Actions tries the shell toast before painting anything inside the card' );
+	'SN Systems tries the shell toast before painting anything inside the card' );
 ok( strpos( $aj_code, 'if ( shellToast( message ) ) { return; }' ) !== false,
 	'a shell toast that painted ends the toast path; the card is untouched' );
 // 15.8.2: every "Open … →" lands on the LEAF where its reading lives, not on
@@ -639,10 +644,10 @@ foreach ( array(
 ) as $sn_w => $sn_key ) {
 	ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../assets/' . $sn_w ), $sn_key ), "$sn_w links to its own leaf ($sn_key)" );
 }
-ok( false === strpos( strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-uptime.js' ) ), "'Open Uptime →'" ),
-	'the uptime card names where its link goes (the Dashboard leaf), not a leaf that does not exist' );
 $sn_views_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' ) );
-ok( false !== strpos( $sn_views_code, "text:  deltaText( mvD )," ), 'the top-mover delta rides the one arrow-only formatter (render pins: tests/desktop-mode-widget-views-delta.php)' );
+ok( false !== strpos( $sn_views_code, "text: deltaText( pct, '%' ) + ' vs. prior 14 days'," ) && false === strpos( $sn_views_code, 'top_mover' ), 'SN Traffic\'s trend rides the one arrow-only formatter, and the top mover is not painted (render pins: tests/desktop-mode-widget-views-delta.php)' );
+$sn_an_raw = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' );
+ok( false !== strpos( $sn_an_raw, "data.pages.machine_readers" ) && false !== strpos( $sn_an_raw, "[ 'Open Machine Readers', readersUrl ]" ), 'SN Provenance links to the Machine Readers leaf beside Provenance' );
 // Same rule for SN Anchors' Sweep now: the result is a shell toast, the card
 // only refreshes; the in-card note is the fallback.
 $an_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
@@ -651,32 +656,82 @@ $an_note  = strpos( $an_code, 'load( msg );' );
 ok( false !== $an_shell && false !== $an_note && $an_shell < $an_note,
 	'SN Anchors reports the sweep through the shell toast before falling back to the in-card note' );
 ok( strpos( $aj_code, 'mouseenter' ) !== false || strpos( $aj_code, 'mouseover' ) !== false,
-	'Quick Actions buttons have a real hover state (the transition existed but nothing changed on hover)' );
+	'SN Systems\' button has a real hover state (the transition existed but nothing changed on hover)' );
 
 echo "\n── Widget registration gate ──\n";
 fire( 'admin_enqueue_scripts' );
 $widgets = $GLOBALS['__dm_widgets'];
 
 ok( isset( $widgets['sn-site-views'] ), 'W1: registers the sn-site-views widget' );
-ok( isset( $widgets['sn-uptime'] ),     'W2: registers the sn-uptime widget' );
+ok( isset( $widgets['sn-anchors'] ),    'W2: registers the sn-anchors widget' );
 ok( isset( $widgets['sn-health'] ),     'W3: registers the sn-health widget' );
-ok( count( $widgets ) === 12, 'all twelve widgets register (SN Audience and SN Reading join the analytics family; v11.29.0 adds SN Cron; 15.8.0 SN Queue; SN Cache retired), got ' . count( $widgets ) );
+ok( count( $widgets ) === 6, 'all six widgets register (twelve folded to six, 2026-10-04: Traffic, Reading, Queue, Systems, Deploy Status, Provenance), got ' . count( $widgets ) );
 
-ok( ( $widgets['sn-site-views']['label'] ?? '' ) === 'SN Site Views', 'W1 carries its label' );
-ok( ( $widgets['sn-uptime']['label'] ?? '' ) === 'SN Uptime',         'W2 carries its label' );
-ok( ( $widgets['sn-health']['label'] ?? '' ) === 'SN Health',         'W3 carries its label' );
+ok( ( $widgets['sn-site-views']['label'] ?? '' ) === 'SN Traffic', 'W1 carries its label' );
+ok( ( $widgets['sn-anchors']['label'] ?? '' ) === 'SN Provenance', 'W2 carries its label' );
+ok( ( $widgets['sn-health']['label'] ?? '' ) === 'SN Systems',     'W3 carries its label' );
 
 // desktop-mode's picker shows description + icon; a missing icon fails
 // WIDGET_CHECKS on the client-side path and renders a generic tile here.
-foreach ( array( 'sn-site-views', 'sn-uptime', 'sn-health' ) as $id ) {
+foreach ( array( 'sn-site-views', 'sn-anchors', 'sn-health' ) as $id ) {
 	ok( ! empty( $widgets[ $id ]['description'] ?? '' ), "$id declares a picker description" );
 	ok( ! empty( $widgets[ $id ]['icon'] ?? '' ),        "$id declares a dashicon" );
 }
 
 ok( ( $widgets['sn-site-views']['script'] ?? '' ) === 'sn-desktop-mode-widget-views', 'W1 names its script handle' );
 ok( isset( $GLOBALS['__scripts']['sn-desktop-mode-widget-views'] ), 'W1 script handle is registered' );
-ok( isset( $GLOBALS['__scripts']['sn-desktop-mode-widget-uptime'] ), 'W2 script handle is registered' );
+ok( isset( $GLOBALS['__scripts']['sn-desktop-mode-widget-anchors'] ), 'W2 script handle is registered' );
 ok( isset( $GLOBALS['__scripts']['sn-desktop-mode-widget-health'] ), 'W3 script handle is registered' );
+
+$anc_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
+ok( false !== strpos( $anc_js, "if ( sweeping ) { sweepBtn.setAttribute( 'aria-disabled', 'true' ); }" ) && false !== strpos( $anc_js, '|| sweeping ||' ), 'a repaint mid-sweep keeps Sweep busy, so a second click cannot start another sweep' );
+ok( false !== strpos( $anc_js, "signal: readCtl ? readCtl.signal : undefined" ) && 1 === preg_match( '/teardown\(\) \{\s*torn = true;\s*if \( readCtl \) \{ readCtl\.abort\(\); \}/', $anc_js ), 'the reader request is aborted when superseded or when SN Provenance unmounts' );
+
+echo "\n── 2026-10-04: Quick Actions' two buttons moved, one to each card that owns its subject ──\n";
+$sys_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ) );
+$dep_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget.js' ) );
+ok( false !== strpos( $sys_js, "text:  'Clear DB overrides'," ) && false !== strpos( $sys_js, "window.sntAbilityRun( 'clear-template-overrides' )" ),
+	'SN Systems carries Clear DB overrides, on the same ability Quick Actions called' );
+ok( preg_match( "/btn\\.setAttribute\\( 'aria-busy', 'true' \\);\\s*confirmAction\\(.*?\\)\\.then\\( function\\( yes \\) \\{\\s*if \\( ! yes \\|\\| torn \\) \\{ btn\\.removeAttribute\\( 'aria-busy' \\); return; \\}/s", $sys_js ) === 1,
+	'clearing overrides asks first and only a yes runs it; the button is aria-busy from before the dialog (a second click cannot open another) and a no releases it' );
+ok( false !== strpos( $sys_js, "btn.removeAttribute( 'aria-busy' );" ), 'the busy state is cleared when the call settles, either way' );
+ok( false !== strpos( $dep_js, "text:  'Check for updates'," ) && false !== strpos( $dep_js, "window.sntAbilityRun( 'get-deploy-status', { force_refresh: true } )" )
+	&& false !== strpos( $dep_js, "btn.setAttribute( 'aria-busy', 'true' );" ) && false !== strpos( $dep_js, "btn.removeAttribute( 'aria-busy' );" ),
+	'SN Deploy Status carries Check for updates (get-deploy-status with force_refresh, Quick Actions\' own call), aria-busy while it runs' );
+ok( false !== strpos( $dep_js, 'if ( shellToast( message ) ) {' ) || false !== strpos( $dep_js, 'if ( ! shellToast( message ) )' ),
+	'its result goes to the shell toast first, the in-card status line only as the fallback' );
+ok( false !== strpos( $sys_js, "'All systems normal'" ) && false !== strpos( $sys_js, "headlineText( tally ) || 'All systems normal'" ),
+	'SN Systems says "All systems normal" only when no source has anything to say (render pins: tests/desktop-status-resilience.cjs)' );
+
+echo "\n── 2026-10-04: the owner's six restored figures, and nothing past them ──\n";
+$six_an = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
+ok( false !== strpos( $six_an, "listRow( 'Fetched the rights files directly', String( mr.ai_rights ) )" ) && strpos( $six_an, "'Declared AI-training reads'" ) < strpos( $six_an, "'Fetched the rights files directly'" ),
+	'SN Provenance shows the AI-training reads that fetched the rights files directly, under the AI-training reads' );
+ok( false === strpos( $six_an, 'mr.families' ) && false === strpos( $six_an, 'mr.purposes' ) && false === strpos( $six_an, 'ai_surfaces' ),
+	'not restored: top families, purposes and the other AI-training surfaces stay on the Machine Readers leaf' );
+$six_sys = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ) );
+ok( false === strpos( $six_sys, "'Signal & Noise'" ) && false !== strpos( $six_sys, 'if ( orphans > 0 )' ) && false !== strpos( $six_sys, "if ( 'ok' === level ) { return; }" ),
+	'not restored in SN Systems: per-monitor uptime rows, the Signal & Noise cron count and an always-shown Orphaned row' );
+$six_au = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-audience.php' );
+ok( false !== strpos( $six_au, "'value', 3 ), 'No views in this window.' )" ) && false !== strpos( $six_au, "'value', 4 ), 'No views in this window.' )" ) && false !== strpos( $six_au, "snt_desktop_audience_hn_rows( (array) ( \$hn['items'] ?? array() ), 1 )" ),
+	'not restored in SN Traffic: countries stay 3, sources 4, one Hacker News story' );
+
+echo "\n── 2026-10-04: three derived summary rows ──\n";
+$tf_payload = array( 'families' => array( array( 'family' => 'unclassified-machine', 'hits' => 88 ) ), 'total' => 200 );
+ok( array( 'family' => 'unclassified-machine', 'share' => 44, 'prior_share' => 41 ) === snt_desktop_machine_readers_top_family( $tf_payload, array( array( 'day' => '2026-09-01', 'family' => 'unclassified-machine', 'hits' => 41 ), array( 'day' => '2026-09-02', 'family' => 'GPTBot', 'hits' => 59 ), 'junk' ), 2 ),
+	'the top crawler family\'s share of the window, and its share of the prior window' );
+ok( null === snt_desktop_machine_readers_top_family( $tf_payload, null )['prior_share'] && null === snt_desktop_machine_readers_top_family( $tf_payload, array() )['prior_share'],
+	'a prior window not read, or with no reads, gives no prior share (no change shown), never 0%' );
+ok( null === snt_desktop_machine_readers_top_family( array( 'families' => array(), 'total' => 0 ), array() ) && null === snt_desktop_machine_readers_top_family( array( 'families' => array( array( 'family' => 'x', 'hits' => 0 ) ), 'total' => 0 ), null ),
+	'no families or no reads: no row' );
+$dv_views = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' ) );
+$dv_an    = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
+foreach ( array( 'views.js' => $dv_views, 'anchors.js' => $dv_an ) as $dv_name => $dv_js ) {
+	ok( false !== strpos( $dv_js, "arrow.setAttribute( 'aria-hidden', 'true' );" ) && false !== strpos( $dv_js, "words.className = 'screen-reader-text';" ), "$dv_name says a change twice: the arrow hidden from assistive tech, the direction in words" );
+}
+
+ok( false !== strpos( $dv_views, "style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.55));min-width:0;overflow-wrap:anywhere;'" ) && false !== strpos( $dv_views, "style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;' + ( valueStyle || '' )" ),
+	'SN Traffic\'s rows wrap a long label (a source name, a page path) and keep the count on the card' );
 
 echo "\n── The gate: no desktop-mode, no registration ──\n";
 // Re-running the hook with the registry fn absent must be a no-op. We can't
@@ -1787,12 +1842,8 @@ echo "\n── THE MOUNT CONTRACT (all six widgets) ──\n";
 // they never mounted. Lock all six to the correct contract.
 $js_map = array(
 	'sn-deploy-status'   => 'desktop-mode-widget.js',
-	'sn-quick-actions'   => 'desktop-mode-widget-actions.js',
-	'sn-rss-subscribers' => 'desktop-mode-widget-rss.js',
 	'sn-site-views'      => 'desktop-mode-widget-views.js',
-	'sn-audience'        => 'desktop-mode-widget-groups.js',
 	'sn-reading'         => 'desktop-mode-widget-groups.js',
-	'sn-uptime'          => 'desktop-mode-widget-uptime.js',
 	'sn-health'          => 'desktop-mode-widget-health.js',
 );
 /**
@@ -1822,12 +1873,11 @@ foreach ( $js_map as $id => $file ) {
 		"$file's mount callback takes (container, ctx)" );
 }
 
-// ── v10.1.0: the Machine Readers tile (owner rule: new surfaces get a DM
-// surface where earned — this one is earned; the readership data is a glance).
-$mr_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-machine-readers.js' ) );
-ok( false !== strpos( $mr_js, "window.desktopModeWidgets['sn-machine-readers']" ), 'tile assigns the PHP-declared mount global (not wp.desktop.registerWidget)' );
-ok( false !== strpos( $mr_js, 'return function teardown' ), 'tile returns a teardown' );
-ok( false !== strpos( $mr_js, 'AbortController' ), 'tile aborts its fetch on teardown (the site-views precedent)' );
+// ── v10.1.0: the Machine Readers glance (owner rule: new surfaces get a DM
+// surface where earned). Since 2026-10-04 it rides under SN Provenance.
+$mr_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
+ok( false !== strpos( $mr_js, "window.desktopModeWidgets[ 'sn-anchors' ]" ), 'SN Provenance assigns the PHP-declared mount global (not wp.desktop.registerWidget)' );
+ok( false !== strpos( $mr_js, 'return function teardown' ) && false !== strpos( $mr_js, 'torn = true;' ), 'SN Provenance returns a teardown, and the torn flag gates every async render (the machine-readers read included)' );
 
 // ── v11.29.0: the SN Cron tile. The desktop could report traffic, health,
 // uptime, versions and anchors but never whether the site's scheduled work was
@@ -1839,7 +1889,7 @@ ok( ! file_exists( __DIR__ . '/../assets/desktop-mode-widget-cache.js' ), 'the c
 $cache_php = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-assets.php' );
 ok( false === strpos( $cache_php, 'sn-desktop-mode-widget-cache' ) && false === strpos( $cache_php, 'cacheFreshness' ),
 	'and neither its script handle nor its localized cacheFreshness key is still shipped' );
-ok( false === strpos( strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode.js' ) . (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-actions.js' ) ), 'snt-cache-purged' ),
+ok( false === strpos( strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode.js' ) . (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ) ), 'snt-cache-purged' ),
 	'nor the snt-cache-purged event only that tile listened for' );
 // The purge BUTTONS left with it, on every surface; the COMMAND stays.
 $purge_free = array(
@@ -1850,7 +1900,7 @@ $purge_free = array(
 	'inc/cloudflare-purge.php'                                        => 'value="sn_cf_purge_now"',
 	'inc/admin-bar.php'                                               => 'sn-quick-purge-caches',
 	'inc/dash-widgets.php'                                            => 'signal-noise/purge-all-caches',
-	'assets/desktop-mode-widget-actions.js'                           => 'Purge all caches',
+	'assets/desktop-mode-widget-health.js'                            => 'Purge all caches', // Quick Actions' buttons live here now
 );
 foreach ( $purge_free as $purge_file => $purge_needle ) {
 	ok( false === strpos( (string) file_get_contents( __DIR__ . '/../' . $purge_file ), $purge_needle ), "$purge_file paints no purge button ($purge_needle)" );
@@ -1872,31 +1922,32 @@ ok( file_exists( __DIR__ . '/../inc/abilities-purge-verification-log.php' ) && f
 ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' ), 'Post-purge probes' ),
 	'and still rendered for a human on the Cloudflare tab' );
 
-$cron_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-cron.js' ) );
-ok( false !== strpos( $cron_js, "window.openStationWidgets['sn-cron']" ), 'cron tile assigns the PHP-declared mount global' );
-ok( false !== strpos( $cron_js, 'return function teardown' ), 'cron tile returns a teardown' );
-ok( false === strpos( $cron_js, 'apiFetch' ) && false === strpos( $cron_js, 'sntAbilityRun' ),
-	'cron tile reads the localized global only — no REST call, no ability run' );
+// SN Cron folded into SN Systems (2026-10-04): the cron reading is its Cron section.
+$cron_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ) );
+ok( false !== strpos( $cron_js, "window.desktopModeWidgets['sn-health']" ), 'SN Systems assigns the PHP-declared mount global' );
+ok( false !== strpos( $cron_js, 'return function teardown' ), 'SN Systems returns a teardown' );
+ok( false !== strpos( $cron_js, 'readCron( data.cronSummary, tally )' ) && false === strpos( $cron_js, 'apiFetch' ),
+	'the cron section reads the localized global only (the card\'s one live read is the uptime ability)' );
 
 // ABSENT IS NOT ZERO. hasOwnProperty distinguishes "the cron module is not on
 // this install" from "there are genuinely 0 scheduled events". A falsy check on
 // summary.total would collapse the two and render a synthetic all-clear.
-ok( false !== strpos( $cron_js, "hasOwnProperty.call( summary, 'total' )" ),
-	'CRON TILE DISTINGUISHES ABSENT FROM ZERO via hasOwnProperty, not a falsy check' );
+ok( false !== strpos( $cron_js, "Object.prototype.hasOwnProperty.call( c, 'total' )" ),
+	'CRON SECTION DISTINGUISHES ABSENT FROM ZERO via hasOwnProperty, not a falsy check' );
 
-// The dot tracks ORPHANS and the cron-health VERDICT, never the event count:
+// The verdict tracks ORPHANS and the cron-health VERDICT, never the event count:
 // a count is not a verdict. 15.8.2 added the verdict after sn_gsc_inspect_one
 // sat "expected but not scheduled" for months behind a green dot.
-ok( false !== strpos( $cron_js, 'orphans > 0 || healthNotOk || lateS > LATE_S ? WARN_FG : OK_FG' ),
-	'the cron dot tracks orphans and the cron-health verdict rather than the raw event count' );
+ok( false !== strpos( $cron_js, "if ( orphans > 0 ) { tally.orphaned += orphans; rows.push( { label: 'Orphaned'" ),
+	'an Orphaned row and a headline part appear only when an event is orphaned (the count alone is no verdict)' );
 ok( false !== strpos( $cron_js, '! health.ok && health.summary' ),
-	'the cron-health summary line paints only when the verdict is not ok' );
-ok( false !== strpos( $cron_js, "detail( 'Next'" ) && false !== strpos( $cron_js, "inS <= 0 ? 'running now'" ) && false !== strpos( $cron_js, "lateS > LATE_S ? Math.round( lateS / 60 ) + ' min late'" ) && false !== strpos( $cron_js, 'var LATE_S = 600;' ),
-	'the next SN job paints with its due time; a past time reads "running now", and only past ten minutes is it late and amber' );
-$act_js = (string) file_get_contents( SNT_PATH . 'assets/desktop-mode-widget-actions.js' );
-ok( false === strpos( $act_js, "'full-reset', 'Resetting" ) && false === strpos( $act_js, "text:  'Full reset'," ), 'Quick Actions has no Full reset button: a purge of every cache is not one click from the desktop' );
-$mr_js = (string) file_get_contents( SNT_PATH . 'assets/desktop-mode-widget-machine-readers.js' );
-ok( false !== strpos( $mr_js, 'payload.edge_verified' ) && false !== strpos( $mr_js, "section( 'Identity' )" ) && strpos( $mr_js, "section( 'Identity' )" ) < strpos( $mr_js, "section( 'Top families' )" ) && false !== strpos( $mr_js, "'…fetched rights files directly'" ), 'Machine Readers opens with who the readers are, then the families, and keeps the direct rights-file row' );
+	'the cron-health summary row paints only when the verdict is not ok' );
+ok( false !== strpos( $cron_js, "total + ' scheduled'" ) && false !== strpos( $cron_js, "'next: ' + String( next.hook ).replace( /^snt?_/, '' )" ) && false !== strpos( $cron_js, "Math.round( lateS / 60 ) + ' min late'" ) && false !== strpos( $cron_js, 'var LATE_S     = 600;' ),
+	'cron is one line, "85 scheduled · next: <hook>", and only past ten minutes is the next job late and amber' );
+$act_js = (string) file_get_contents( SNT_PATH . 'assets/desktop-mode-widget-health.js' );
+ok( false === strpos( $act_js, "'full-reset'" ) && false === strpos( $act_js, "'Full reset'" ), 'Quick Actions\' buttons moved without Full reset: a purge of every cache is not one click from the desktop' );
+$mr_js = (string) file_get_contents( SNT_PATH . 'assets/desktop-mode-widget-anchors.js' );
+ok( false !== strpos( $mr_js, 'mr.edge_verified' ) && strpos( $mr_js, "'Verified by Cloudflare'" ) < strpos( $mr_js, "'Named themselves, not verified'" ) && strpos( $mr_js, "'Named themselves, not verified'" ) < strpos( $mr_js, "'Declared AI-training reads'" ), 'SN Provenance\'s machine readers say who the readers are, then the declared AI-training reads' );
 ok( array( 'verified' => 7, 'unverified' => 5, 'not_measured' => 3 ) === snt_desktop_machine_readers_identity( array( array( 'hits' => 7, 'verified_bot' => 'search', 'network' => 'GOOGLE' ), array( 'hits' => 5, 'verified_bot' => '', 'network' => 'GOOGLE' ), array( 'hits' => 3, 'verified_bot' => '', 'network' => '' ), 'junk' ) ), 'identity: verified by the edge, named and not verified, and reads from before the network was recorded' );
 if ( ! function_exists( 'sn_rights_evidence_identity_class' ) ) {
 	function sn_rights_evidence_identity_class( $day, $bot ) { return $day < '2026-09-28' ? 'unverifiable' : ( '' !== (string) $bot ? 'verified' : 'unverified' ); }
@@ -1909,7 +1960,7 @@ $sk = snt_health_summary_for_localize();
 ok( array( array( 'label' => 'Broken links', 'reason' => 'The AI provider refused the call.' ) ) === ( $sk['skipped'] ?? null ) && 1 === $sk['passed'] && 2 === $sk['total'], 'the health payload names a check that could not run, with its reason, and does not count it as a pass' );
 $GLOBALS['__health_scan'] = $keep_scan;
 $health_js = (string) file_get_contents( SNT_PATH . 'assets/desktop-mode-widget-health.js' );
-ok( false !== strpos( $health_js, 'summary.all_passed && ! ( summary.skipped || [] ).length' ) && false !== strpos( $health_js, "'could not run'" ), 'a check that could not run is named and turns the dot amber' );
+ok( false !== strpos( $health_js, 'tally.skipped += skipped.length;' ) && false !== strpos( $health_js, "value: 'could not run'" ) && false !== strpos( $health_js, "t.skipped + ' could not run'" ), 'a check that could not run is named and said in the verdict, so it is never "All systems normal"' );
 
 // The PHP seam the JS guard depends on: when the accessor is missing the payload
 // must be an EMPTY array (no `total` key), not a zeroed struct.
@@ -1917,39 +1968,19 @@ $cron_assets_src = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-a
 ok( false !== strpos( $cron_assets_src, "function_exists( 'snt_cron_summary_for_localize' ) ? snt_cron_summary_for_localize() : array()" ),
 	'and the PHP sends array() when the cron module is absent, so that guard has something to see' );
 ok( false === strpos( $mr_js, 'innerHTML' ), 'tile never uses innerHTML — worker-derived strings reach the DOM as text only' );
-ok( false !== strpos( $mr_js, '/signal-noise/v1/desktop/machine-readers' ), 'tile reads its own desktop route, not the localize' );
-// v10.27.0: the additive ai_surfaces field (per-surface split for AI-training
-// families). The tile renders it when present but MUST NOT assume it exists —
-// an older cached payload or a widget build that predates the field has to
-// keep working, so the render path guards on presence, never indexes blind.
-ok( false !== strpos( $mr_js, 'ai_surfaces' ), 'tile reads payload.ai_surfaces' );
-ok(
-	1 === preg_match( '/payload\.ai_surfaces\s*&&\s*payload\.ai_surfaces\.length/', $mr_js )
-		|| 1 === preg_match( '/payload\.ai_surfaces\s*\|\|\s*\[\s*\]/', $mr_js ),
-	'the ai_surfaces render is guarded (truthy + length check, or a safe default), not a blind index'
-);
+ok( false !== strpos( $mr_js, '/signal-noise/v1/desktop/machine-readers' ), 'SN Provenance reads the machine readers\' own desktop route, not the localize' );
+ok( false !== strpos( $mr_js, 'readers = null;' ) && false !== strpos( $mr_js, "readers = { ok: false, error: 'unreachable' };" ), 'a refresh clears the last machine-readers reading, and a failed read says the sensor is unreachable rather than painting zeros' );
 $dm_src = dm_integration_src();
 ok( false !== strpos( $dm_src, "'/desktop/machine-readers'" ), 'the desktop route is registered' );
 ok( false !== strpos( $dm_src, "'machine_readers' => snt_desktop_admin_url" ), 'the pages map carries the tab link for the tile footer' );
 
-echo "\n── Machine Readers tile: Sensor section gone, Purposes in, crawler drift stays loud ──\n";
-// Version now lives on Deploy Status's Rights signals row. Rendering it here
-// is duplication. The crawler-list verdict must NOT go blind: one amber line
+echo "\n── Machine readers in SN Provenance: crawler drift stays loud ──\n";
+// The families, purposes and per-surface rows stay on the Machine Readers leaf
+// (one link away); the crawler-list verdict must NOT go blind: one amber line
 // only when the verdict is not the healthy 'in sync' (the three verdicts
 // the builder emits are 'in sync' | 'drift' | 'check failed', or null).
-ok( false === strpos( $mr_js, "section( 'Sensor' )" ), 'tile no longer paints a Sensor section (version lives on Deploy Status)' );
-ok( false === strpos( $mr_js, "'Version'" ), 'tile no longer renders the sensor Version row' );
-ok( false !== strpos( $mr_js, "section( 'Purposes' )" ), 'tile renders a Purposes section from payload.purposes' );
-ok( false !== strpos( $mr_js, "section( 'Top families' )" ), 'Top families is unchanged' );
-ok( false !== strpos( $mr_js, "section( 'Declared AI-training' )" ), 'Declared AI-training is unchanged' );
-ok(
-	1 === preg_match( '/payload\.purposes\s*&&\s*payload\.purposes\.length/', $mr_js ),
-	'Purposes is guarded on a truthy non-empty array — null (never-measured) paints no heading'
-);
-ok( false !== strpos( $mr_js, '.slice( 0, 4 )' ) || false !== strpos( $mr_js, '.slice(0, 4)' ) || false !== strpos( $mr_js, '.slice(0,4)' ),
-	'Purposes is capped at 4 rows — a tile is a glance' );
-ok( false !== strpos( $mr_js, 'crawler_list' ), 'tile still reads payload.crawler_list — drift must not go blind' );
-ok( false !== strpos( $mr_js, "'in sync'" ), 'the healthy crawler-list verdict is the literal the builder emits' );
+ok( false === strpos( $mr_js, "'Version'" ), 'no sensor Version row (version lives on Deploy Status)' );
+ok( false !== strpos( $mr_js, "mr.crawler_list && 'in sync' !== mr.crawler_list" ), 'the crawler-list verdict still paints when it is not in sync: drift must not go blind' );
 ok( false !== strpos( $mr_js, 'color:#d29922' ), 'the crawler-list warning reuses the existing amber warning idiom' );
 
 echo "\n── Site Views tile: forecast gone, Top pages list of 3 ──\n";
@@ -1958,10 +1989,9 @@ ok( false === strpos( $views_js, 'function forecastBlock' ), 'forecastBlock is g
 ok( false === strpos( $views_js, "'Next 7 days'" ), 'the Next 7 days heading is gone with the forecast block' );
 ok( false !== strpos( $views_js, "'Top pages'" ), 'tile renders a Top pages list' );
 ok( false !== strpos( $views_js, 'payload.top_paths' ), 'tile reads the additive top_paths array' );
-ok( false !== strpos( $views_js, 'payload.top_path' ), 'tile still knows the old single top_path key (cached-payload fallback)' );
 ok(
-	1 === preg_match( '/payload\.top_paths\s*&&\s*payload\.top_paths\.length/', $views_js ),
-	'top_paths render is guarded — an older cached payload without the array falls through'
+	1 === preg_match( '/\(\s*payload\.top_paths\s*\|\|\s*\[\s*\]\s*\)\.filter\(/', $views_js ),
+	'top_paths render is guarded: an older cached payload without the array paints no Top pages'
 );
 ok( false === strpos( $views_js, 'forecastBlock( payload.forecast )' ),
 	'the widget no longer calls forecastBlock on payload.forecast — the producer still ships the key' );
@@ -1972,9 +2002,7 @@ ok( false !== strpos( $views_js, 'payload.today' ), 'tile reads the additive tod
 ok( 1 === preg_match( '/typeof payload\.today === \'number\'/', $views_js ),
 	'today render is guarded on a number — an older cached payload without the key paints nothing' );
 ok( false === strpos( $views_js, "'Engaged'" ) && false === strpos( $views_js, "'Visits'" ) && false === strpos( $views_js, "'Top sources'" ), '21.2.1: Engaged and Visits moved to SN Reading and Top sources to SN Audience; the tile paints none of them (the payload keeps the keys)' );
-ok( false !== strpos( $views_js, 'payload.top_mover' ), 'tile reads the additive top_mover key' );
-ok( 1 === preg_match( '/payload\.top_mover\s*&&\s*payload\.top_mover\.path/', $views_js ),
-	'top_mover render is guarded on path — empty/absent movers paint nothing' );
+ok( false === strpos( $views_js, 'payload.top_mover' ) && false === strpos( $views_js, 'payload.bot_pct' ) && false !== strpos( $views_js, "weekRows( payload.north_star )" ) && false === strpos( $views_js, 'ns.deep' ) && false === strpos( $views_js, 'ns.actions' ), 'SN Traffic paints three north star rows (engaged readers, DOI downloads, inquiries) and no top mover, bot share, read 2+ pages or downloads outbound (the owner\'s pick; the payload keeps the keys)' );
 ok( false === strpos( $views_js, 'innerHTML' ),
 	'views tile never uses innerHTML — glance strings reach the DOM as textContent only' );
 

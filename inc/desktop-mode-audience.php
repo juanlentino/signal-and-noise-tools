@@ -1,9 +1,10 @@
 <?php
 /**
- * Signal & Noise Tools: SN Audience, who reads and where they come from.
- * Countries, devices, source categories, campaigns, Hacker News, search.
- * Every figure is read from a table or option another view already fills;
- * nothing here collects.
+ * Signal & Noise Tools: who reads and where they come from, the rows SN
+ * Traffic paints under its sparkline (SN Audience folded into it). Countries,
+ * devices, named sources, Hacker News, search, feed subscribers. Every figure
+ * is read from a table or option another view already fills; nothing here
+ * collects.
  *
  * @package SignalNoiseTools
  */
@@ -72,36 +73,132 @@ function snt_desktop_audience_search_rows( $google, $bing, $google_failed = fals
 }
 
 /**
- * The groups, read live.
+ * Feed subscriber rows: distinct readers per window, then requests. PURE.
+ *
+ * @param array|null $stats sn_rss_tracker_window_stats_multi( [1, 7, 30] ); null when the read failed.
+ * @return array<int,array{label:string,value:string}>
+ */
+function snt_desktop_traffic_feed_rows( $stats ) {
+	$rows = array();
+	foreach ( array( 1 => '24h', 7 => '7d', 30 => '30d' ) as $d => $label ) {
+		$w = is_array( $stats ) ? ( $stats['windows'][ $d ] ?? null ) : null;
+		if ( is_array( $w ) ) {
+			$rows[] = array( 'label' => $label, 'value' => number_format_i18n( (int) ( $w['uniques'] ?? 0 ) ) . ' unique · ' . number_format_i18n( (int) ( $w['total'] ?? 0 ) ) . ' requests' );
+		}
+	}
+	return $rows;
+}
+
+/**
+ * SN Traffic's groups below the sparkline, read live: who came and from
+ * where. SN Audience's rows, cut to what one card holds.
  *
  * @param array{from:string,to:string,days:int} $win Window.
  * @return array<int,array<string,mixed>>
  */
-function snt_desktop_audience_groups( array $win ) {
+function snt_desktop_traffic_groups( array $win ) {
 	$dim = static fn( $d ) => function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( $d, $win['from'], $win['to'], 'human', 500 ) : null; // every row: the shares divide by all of them, the tile shows the top few.
 	$hn  = defined( 'SN_HN_OPT' ) ? (array) get_option( SN_HN_OPT, array() ) : array();
+	$gsc = function_exists( 'snt_gsc_sync_last_status' ) ? snt_gsc_sync_last_status() : null;
+	$rss = function_exists( 'sn_rss_tracker_window_stats_multi' ) ? sn_rss_tracker_window_stats_multi( array( 1, 7, 30 ) ) : null;
+	if ( snt_desktop_db_failed() ) {
+		$rss = null; // a missing feed table reads as zeros; say it could not be read.
+	}
 	$out = array(
-		snt_desktop_group( 'Countries', snt_desktop_audience_rows( $dim( 'country' ), 'value', 5 ), 'No views in this window.' ),
-		snt_desktop_group( 'Devices', snt_desktop_audience_rows( $dim( 'device' ), 'value', 3 ), 'No views in this window.' ),
-		// Named sources (Hacker News, LinkedIn, direct), the list SN Site Views used to carry: a name says more than a category.
-		snt_desktop_group( 'Sources', snt_desktop_audience_rows( function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $win['from'], $win['to'], 'human', 500 ) : null, 'value', 5 ), 'No views in this window.' ),
+		snt_desktop_group( 'Countries', snt_desktop_audience_rows( $dim( 'country' ), 'value', 3 ), 'No views in this window.' ),
+		// Named sources (Hacker News, LinkedIn, direct): a name says more than a category.
+		snt_desktop_group( 'Sources', snt_desktop_audience_rows( function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $win['from'], $win['to'], 'human', 500 ) : null, 'value', 4 ), 'No views in this window.' ),
 	);
-	// '(none)' is the rollup's bucket for a tagged link that named no campaign: not a campaign.
+	// Campaigns, only when a tagged link was followed, as SN Audience showed
+	// them. '(none)' is the rollup's bucket for a tagged link that named no
+	// campaign: not a campaign.
 	$named = array_filter( (array) ( function_exists( 'sn_analytics_top_utm_campaigns' ) ? sn_analytics_top_utm_campaigns( $win['from'], $win['to'], 'human', 25 ) : null ), static fn( $r ) => is_array( $r ) && '(none)' !== (string) ( $r['value'] ?? '' ) );
 	$camp  = snt_desktop_audience_rows( $named, 'value', 3 );
 	if ( $camp ) {
-		$out[] = snt_desktop_group( 'Campaigns', $camp, '' ); // only when a tagged link was followed.
+		$out[] = snt_desktop_group( 'Campaigns', $camp, '' );
 	}
-	// A failed discovery read keeps the stories already known; the heading says
-	// the list may be missing new ones.
-	$out[] = snt_desktop_group( 'Hacker News · latest stories' . ( '' !== (string) ( $hn['error'] ?? '' ) ? ' · last check failed' : '' ), snt_desktop_audience_hn_rows( (array) ( $hn['items'] ?? array() ), 3 ), 'No story links here yet.' );
-	$gsc        = function_exists( 'snt_gsc_sync_last_status' ) ? snt_gsc_sync_last_status() : null;
-	$gsc_failed = is_array( $gsc ) && empty( $gsc['ok'] );
-	$totals     = function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( $win['from'], $win['to'], 'human' ) : null;
-	if ( is_array( $totals ) && (int) ( $totals['visits'] ?? 0 ) > 0 ) {
-		// The visitor hash rotates daily, so a window's sum is visitor-days, not people.
-		$out['hero'] = array( 'value' => number_format_i18n( (int) $totals['visits'] ), 'label' => 1 === (int) $totals['visits'] ? 'visitor-day' : 'visitor-days' );
-	}
-	$out[]      = snt_desktop_group( 'Search', snt_desktop_audience_search_rows( function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null, function_exists( 'sn_bing_data' ) ? sn_bing_data() : null, $gsc_failed ), 'No search reading stored yet.' );
+	array_push( $out,
+		// A failed discovery read keeps the stories already known; the heading says
+		// the list may be missing new ones.
+		snt_desktop_group( 'Hacker News · latest story' . ( '' !== (string) ( $hn['error'] ?? '' ) ? ' · last check failed' : '' ), snt_desktop_audience_hn_rows( (array) ( $hn['items'] ?? array() ), 1 ), 'No story links here yet.' ),
+		// Devices, search and the feed, one row each: the card is a glance, the
+		// detail lives in Analytics.
+		snt_desktop_group(
+			'Devices, search, feed',
+			array_values( array_filter( array(
+				snt_desktop_traffic_fold( 'Devices', snt_desktop_audience_rows( $dim( 'device' ), 'value', 2 ), static fn( $r ) => $r['label'] . ' ' . preg_replace( '/^.* · /', '', $r['value'] ) ),
+				// Clicks and impressions per engine: "Google 5 clicks · 478 impr".
+				snt_desktop_traffic_fold( 'Search', snt_desktop_audience_search_rows( function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null, function_exists( 'sn_bing_data' ) ? sn_bing_data() : null, is_array( $gsc ) && empty( $gsc['ok'] ) ), static fn( $r ) => preg_replace( '/ · \d+d/', '', $r['label'] ) . ' ' . str_replace( ' impressions', ' impr', $r['value'] ) ),
+				// A feed table that cannot be read says so; it never reads as zero subscribers.
+				null === $rss ? array( 'label' => 'Feed', 'value' => 'could not be read' ) : snt_desktop_traffic_fold( 'Feed, unique 24h · 7d · 30d', snt_desktop_traffic_feed_rows( $rss ), static fn( $r ) => preg_replace( '/ unique · .*$/', '', $r['value'] ) ),
+			) ) ),
+			'No views in this window.'
+		)
+	);
 	return $out;
+}
+
+/**
+ * How many distinct countries and named sources had views. PURE.
+ *
+ * @param array|null $countries sn_analytics_top_dimension( 'country' ) rows; null when the read failed.
+ * @param array|null $sources   sn_analytics_top_sources() rows; null when the read failed.
+ * @return array{countries:int,sources:int}|null Null when either read failed.
+ */
+function snt_desktop_traffic_reach_counts( $countries, $sources ) {
+	if ( ! is_array( $countries ) || ! is_array( $sources ) ) {
+		return null;
+	}
+	// '(unknown)' is the dims rollup's bucket for a missing value, not a country or a source.
+	$n = static fn( $list ) => count( array_filter( $list, static fn( $r ) => is_array( $r ) && (int) ( $r['views'] ?? 0 ) > 0 && ! in_array( (string) ( $r['value'] ?? '' ), array( '', '(unknown)' ), true ) ) );
+	// The reads are top-500 lists: a full list is a floor, painted "500+", not a count.
+	return array(
+		'countries'        => $n( $countries ),
+		'sources'          => $n( $sources ),
+		'countries_capped' => count( $countries ) >= 500,
+		'sources_capped'   => count( $sources ) >= 500,
+	);
+}
+
+/**
+ * SN Traffic's reach row: distinct countries and named sources with views in
+ * the window, and the same two counts over the prior window of equal length
+ * (the two rollup reads asked again for the earlier dates; no new tracking).
+ * Null when the window cannot be read or had no views: the row is left out,
+ * never painted as 0. `prior` is null when that window cannot be read.
+ *
+ * @param array{from:string,to:string,days:int} $win Window.
+ * @return array{countries:int,sources:int,prior:array{countries:int,sources:int}|null}|null
+ */
+function snt_desktop_traffic_reach( array $win ) {
+	if ( ! function_exists( 'sn_analytics_top_dimension' ) || ! function_exists( 'sn_analytics_top_sources' ) ) {
+		return null;
+	}
+	$read = static function ( $from, $to ) {
+		$c = sn_analytics_top_dimension( 'country', $from, $to, 'human', 500 );
+		$f = snt_desktop_db_failed();
+		$s = sn_analytics_top_sources( $from, $to, 'human', 500 );
+		return $f || snt_desktop_db_failed() ? null : snt_desktop_traffic_reach_counts( $c, $s );
+	};
+	$now = $read( $win['from'], $win['to'] );
+	if ( null === $now || 0 === $now['countries'] + $now['sources'] ) {
+		return null;
+	}
+	$days       = max( 1, (int) $win['days'] );
+	$prior_to   = gmdate( 'Y-m-d', (int) strtotime( $win['from'] . ' -1 day' ) );
+	$prior_from = gmdate( 'Y-m-d', (int) strtotime( $win['from'] . ' -' . $days . ' days' ) );
+	return $now + array( 'prior' => $read( $prior_from, $prior_to ) );
+}
+
+/**
+ * Several rows as one: "Devices · desktop 70% · mobile 30%". Null when there
+ * are none, so the row is left out rather than shown empty. PURE.
+ *
+ * @param string   $label Row label.
+ * @param array    $rows  Rows to fold.
+ * @param callable $part  fn( row ): string, one row's part of the value.
+ * @return array{label:string,value:string}|null
+ */
+function snt_desktop_traffic_fold( $label, array $rows, callable $part ) {
+	return array() === $rows ? null : array( 'label' => (string) $label, 'value' => implode( ' · ', array_map( $part, $rows ) ) );
 }

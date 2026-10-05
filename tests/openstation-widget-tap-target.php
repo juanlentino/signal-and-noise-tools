@@ -75,7 +75,10 @@ foreach ( $files as $f ) {
 		$links[]   = $l;
 	}
 }
-ok( count( $links ) >= 9, 'the scan finds the doorway links (' . count( $links ) . ' found, 9 measured live) — a regex that stopped matching would report a clean sweep over nothing' );
+// Nine measured live across twelve cards; the six cards that remain carry four
+// literal doorways (SN Provenance builds its two from a list the scan cannot read,
+// and its style string is the same min-height:24px one).
+ok( count( $links ) >= 4, 'the scan finds the doorway links (' . count( $links ) . ' found, 4 literal across the six cards); a regex that stopped matching would report a clean sweep over nothing' );
 
 $short = array();
 foreach ( $links as $l ) {
@@ -86,6 +89,19 @@ foreach ( $links as $l ) {
 ok( array() === $short,
 	'every doorway link declares min-height >= ' . SNT_TAP_TARGET_MIN . 'px — they are standalone links, so SC 2.5.8\'s inline exception does not apply'
 	. ( $short ? ":\n    " . implode( "\n    ", $short ) : '' ) );
+
+// The buttons Quick Actions carried moved to SN Systems (Clear DB overrides)
+// and SN Deploy Status (Check for updates): a button is a pointer target too.
+$buttons = array();
+foreach ( array( 'desktop-mode-widget-health.js', 'desktop-mode-widget.js' ) as $bf ) {
+	$bjs = (string) file_get_contents( __DIR__ . '/../assets/' . $bf );
+	preg_match_all( '/el\(\s*[\'"]button[\'"]\s*,\s*\{(.*?)\}\s*\)/s', $bjs, $bm );
+	foreach ( $bm[1] as $body ) {
+		$buttons[] = array( 'file' => $bf, 'min' => snt_tap_min_height( preg_replace( '/[\'"]\s*\+\s*[A-Z_]+\s*\+\s*[\'"]/', '', $body ) ) );
+	}
+}
+ok( 2 === count( $buttons ) && array() === array_filter( $buttons, static fn( $b ) => $b['min'] < SNT_TAP_TARGET_MIN ),
+	'the two buttons moved from Quick Actions (one per card) declare min-height >= ' . SNT_TAP_TARGET_MIN . 'px (' . count( $buttons ) . ' found)' );
 
 // ── the CSS side ────────────────────────────────────────────────────────
 // Two interactive controls in S&N Home carry the same 18px line box, and are

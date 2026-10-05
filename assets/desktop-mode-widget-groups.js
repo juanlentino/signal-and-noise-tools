@@ -1,16 +1,17 @@
 /**
- * Signal & Noise Tools — desktop "SN Audience" and "SN Reading" widgets.
+ * Signal & Noise Tools — desktop "SN Reading" widget.
  *
- * One painter for both: the server hands a list of groups, each a list of
- * rows (label, value) or an `empty` sentence, and this paints them the way
- * the tiles beside it paint theirs. It knows no metric; what a row means is
- * decided in inc/desktop-mode-audience.php and inc/desktop-mode-reading.php.
+ * A group painter: the server hands a list of groups, each a list of rows
+ * (label, value) or an `empty` sentence, and this paints them the way the
+ * tiles beside it paint theirs. It knows no metric; what a row means is
+ * decided in inc/desktop-mode-reading.php. (SN Audience, its other tile, was
+ * folded into SN Traffic, which paints the same group shape itself.)
  *
  * MOUNT CONTRACT: the shell looks the mount up at
  * `window.desktopModeWidgets[ id ]`, a plain global (see
  * desktop-mode-widget-views.js). mount( container, ctx ) → teardown.
  *
- * Data: GET signal-noise/v1/desktop/audience | reading, fetched on render.
+ * Data: GET signal-noise/v1/desktop/reading, fetched on render.
  */
 ( function() {
 	'use strict';
@@ -28,7 +29,7 @@
 	}
 	window.desktopModeWidgets = window.openStationWidgets = __osWidgets;
 
-	var TONE   = { up: '#3fb950', down: '#ff9d94' }; // a row's change when the server calls it meaningful; the down red is Quick Actions' text red, legible on the dark card.
+	var TONE   = { up: '#3fb950', down: '#ff9d94' }; // a row's change when the server calls it meaningful; the down red is the cards' text red (#ff9d94), legible on the dark card.
 	var SUBTLE = 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));';
 
 	function el( tag, style, text ) {
@@ -99,7 +100,7 @@
 			wrap.appendChild( body );
 			var url = ( window.snDesktopData && window.snDesktopData.pages && window.snDesktopData.pages.analytics ) || '';
 			if ( url ) {
-				// Two tiles share this link text; the name starts with the visible words (WCAG 2.5.3).
+				// SN Traffic shares this link text; the name starts with the visible words (WCAG 2.5.3).
 				var link = el( 'a', 'display:inline-flex;align-items:center;gap:4px;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;', linkText );
 				var arrow = el( 'span', '', '→' );
 				arrow.setAttribute( 'aria-hidden', 'true' );
@@ -122,6 +123,5 @@
 		};
 	}
 
-	window.desktopModeWidgets['sn-audience'] = mounter( 'audience', 'Open Analytics', 'SN Audience' );
 	window.desktopModeWidgets['sn-reading']  = mounter( 'reading', 'Open Analytics', 'SN Reading' );
 } )();

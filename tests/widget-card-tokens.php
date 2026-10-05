@@ -7,7 +7,7 @@
  * (`assets/css/variables.css`: --os-ui-color-surface, -text, -text-subtle,
  * -border, -accent; documented under "Theme tokens" in
  * docs/examples/register-widget.md, Stable with the widget API). The eleven
- * `assets/desktop-mode-widget*.js` files read none of them at 17.4.4: muted
+ * (six since 2026-10-04) `assets/desktop-mode-widget*.js` files read none of them at 17.4.4: muted
  * text was `opacity`, hairlines were a private rgba, and the 13 link sites
  * borrowed `--os-window-link-*`, the overlay lines drawn between windows, which
  * a worn theme pins to its own blue. (The contract's accent follows the picker
@@ -43,7 +43,9 @@ function strip_js( $js ) {
 
 $root  = dirname( __DIR__ );
 $files = glob( $root . '/assets/desktop-mode-widget*.js' );
-ok( count( $files ) >= 10, 'the widget scan found every widget script (' . count( $files ) . ', floor 10)' );
+// Six since the cards folded twelve to six (2026-10-04): views, groups, queue,
+// health, the deploy card, anchors.
+ok( count( $files ) >= 6, 'the widget scan found every widget script (' . count( $files ) . ', floor 6)' );
 ok( ! in_array( $root . '/assets/desktop-mode-widget-cache.js', $files, true ), 'the cache widget script is gone: the desktop carries no always-on cache readout' );
 
 $code = array();
@@ -74,7 +76,7 @@ foreach ( $files as $path ) {
 }
 
 // Link sites: each file that paints a card link reads the accent token.
-$link_files = array( 'desktop-mode-widget-anchors.js', 'desktop-mode-widget-health.js', 'desktop-mode-widget-uptime.js', 'desktop-mode-widget-machine-readers.js', 'desktop-mode-widget-queue.js', 'desktop-mode-widget-cron.js', 'desktop-mode-widget-views.js', 'desktop-mode-widget.js', 'desktop-mode-widget-rss.js' );
+$link_files = array( 'desktop-mode-widget-anchors.js', 'desktop-mode-widget-health.js', 'desktop-mode-widget-queue.js', 'desktop-mode-widget-views.js', 'desktop-mode-widget.js' );
 foreach ( $link_files as $name ) {
 	ok( isset( $code[ $name ] ) && false !== strpos( $code[ $name ], 'color:var(--os-ui-color-accent, #4a9eff)' ), "$name paints its link on --os-ui-color-accent with the plugin blue as fallback" );
 }
@@ -84,17 +86,17 @@ ok( empty( $dimmed ), 'no link on the accent carries an opacity that would dim t
 ok( preg_match( '/color:var\(--os-ui-color-accent, #4a9eff\);margin:4px 0 6px;/', $code['desktop-mode-widget-views.js'] ) === 1, 'the views sparkline rides --os-ui-color-accent, not the window-links overlay colour' );
 $subtle = 0;
 foreach ( $code as $js ) { $subtle += substr_count( $js, 'var(--os-ui-color-text-subtle, rgba(255,255,255,.' ); }
-ok( $subtle >= 50, "muted text reads --os-ui-color-text-subtle across the set ($subtle sites, floor 50)" );
+ok( $subtle >= 25, "muted text reads --os-ui-color-text-subtle across the set ($subtle sites, floor 25)" ); // 50 across twelve cards; six now.
 
 // 5. Recipe 2 on the four pollers.
-foreach ( array( 'desktop-mode-widget.js', 'desktop-mode-widget-uptime.js' ) as $name ) {
+foreach ( array( 'desktop-mode-widget.js', 'desktop-mode-widget-health.js' ) as $name ) { // SN Systems carries SN Uptime's poll.
 	$js = $code[ $name ];
 	ok( false !== strpos( $js, "document.addEventListener( 'visibilitychange', onVisibilityChange )" ) && false !== strpos( $js, "document.removeEventListener( 'visibilitychange', onVisibilityChange )" ), "$name listens on visibilitychange and drops the listener at teardown" );
 	ok( false !== strpos( $js, 'if ( torn || pending || document.hidden ) { return; }' ), "$name arms no timer while the tab is hidden" );
 	ok( false !== strpos( $js, 'Math.max( 0, nextAt - Date.now() )' ), "$name re-arms on reveal for what is left of the wait, zero when stale" );
 	ok( false === strpos( $js, 'timer = window.setTimeout( refresh, delay )' ), "$name no longer re-arms bare after every poll" );
 }
-foreach ( array( 'desktop-mode-widget-rss.js', 'desktop-mode-widget-queue.js' ) as $name ) {
+foreach ( array( 'desktop-mode-widget-queue.js' ) as $name ) {
 	$js = $code[ $name ];
 	ok( false !== strpos( $js, "document.addEventListener( 'visibilitychange', onVisibilityChange )" ) && false !== strpos( $js, "document.removeEventListener( 'visibilitychange', onVisibilityChange )" ), "$name listens on visibilitychange and drops the listener at teardown" );
 	ok( false !== strpos( $js, 'if ( document.hidden ) { stopPolling(); return; }' ), "$name stops its interval when the tab hides" );
@@ -112,18 +114,18 @@ $cadence     = strip_js( (string) $cadence_src );
 ok( false !== strpos( $cadence, 'var IDLE_MS = 5 * 60 * 1000;' ), 'the cadence idles at 5 minutes' );
 ok( false !== strpos( $cadence, 'window.top' ) && false !== strpos( $cadence, 'doc.hasFocus()' ), 'focus is read from the TOP document: an iframe window taking focus is still the owner working in the desktop' );
 ok( false !== strpos( $cadence, "return 'visible' === state() ? Math.max( focusedMs, IDLE_MS ) : focusedMs;" ), 'only visible-but-unfocused slows down; focused keeps the widget\'s own rate' );
-foreach ( array( 'desktop-mode-widget.js', 'desktop-mode-widget-uptime.js', 'desktop-mode-widget-queue.js' ) as $name ) {
+foreach ( array( 'desktop-mode-widget.js', 'desktop-mode-widget-health.js', 'desktop-mode-widget-queue.js', 'desktop-mode-widget-views.js' ) as $name ) {
 	$js = $code[ $name ];
 	ok( false !== strpos( $js, 'window.sntPollCadence ? window.sntPollCadence.onFocusChange( onVisibilityChange ) : function() {}' ) && false !== strpos( $js, 'unwatchFocus();' ), "$name re-arms on focus change and drops the watcher at teardown" );
 	ok( false !== strpos( $js, 'window.sntPollCadence ? window.sntPollCadence.wait(' ), "$name asks the cadence for its wait, and keeps its fixed rate when the helper is absent" );
 }
 ok( false !== strpos( $code['desktop-mode-widget.js'], 'nextAt = lastAt + Math.max( lastDelay, cadence( REFRESH_MS ) );' ), 'the deploy card: a failure backoff still wins when longer than the cadence' );
 $assets_php = (string) file_get_contents( dirname( __DIR__ ) . '/inc/desktop-mode-assets.php' );
-ok( 3 === substr_count( $assets_php, "'snt-poll-cadence' )" ), 'the three pollers (deploy, queue, uptime) declare the cadence as a dependency' );
+ok( 4 === substr_count( $assets_php, "'snt-poll-cadence' )" ), 'the four pollers (deploy, queue, systems, traffic) declare the cadence as a dependency' );
 
 // 6. Negative control: the status colours have no widget token and stay literal.
 ok( false !== strpos( $code['desktop-mode-widget.js'], "'#3fb950'" ) && false !== strpos( $code['desktop-mode-widget.js'], "'#d29922'" ) && false !== strpos( $code['desktop-mode-widget.js'], "'#ff9d94'" ), 'the deploy card keeps its green, amber and red status glyphs literal' );
-ok( false !== strpos( $code['desktop-mode-widget-actions.js'], "'#3fb950'" ), 'Quick Actions keeps its success colour literal' );
+ok( false !== strpos( $code['desktop-mode-widget-health.js'], "'#3fb950'" ), 'SN Systems (Quick Actions\' button and SN Uptime folded in) keeps its success color literal' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail ? 1 : 0 );
