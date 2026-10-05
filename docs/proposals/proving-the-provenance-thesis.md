@@ -454,11 +454,11 @@ So the design has four separable pieces. Only (2) stands alone: it countersigns 
    key document). This also opens the custody question (D-1) without retiring the Worker key. The ceiling, stated plainly: two keys held by one person
    prove the mechanism, not two independent parties.
    **Shipped 2026-10-05.** The ledger's `countersign.mjs` and `verify-countersignatures.mjs`
-   (signal-and-noise-provenance#41), the key `sn-author-ed25519-2026-10` introduced and pinned
-   (#42, DNS `_provenance-author` and the `sn_prov_author_key` option, plugin 22.5.0), the Worker
+   ([ledger #41](https://github.com/juanlentino/signal-and-noise-provenance/pull/41)), the key `sn-author-ed25519-2026-10` introduced and pinned
+   ([ledger #42](https://github.com/juanlentino/signal-and-noise-provenance/pull/42), DNS `_provenance-author` and the `sn_prov_author_key` option, plugin 22.5.0), the Worker
    anchoring batches without a WordPress confirm (sn-provenance-worker 1.25.0), and the first
    batch, `countersignatures/2026-10-05-1.json`, attesting all 105 passing note and page records
-   (#43). What it does not show is listed in the ledger's `VERIFY.md`.
+   ([ledger #43](https://github.com/juanlentino/signal-and-noise-provenance/pull/43)). What it does not show is listed in the ledger's `VERIFY.md`.
 3. **Ownership, and terms kept apart from it.** An ownership record names the owner and changes
    only by a transfer the current owner signs. With one author the chain holds a single entry,
    the author's own declaration, and a transfer may never happen. Rights terms (the license,
@@ -495,11 +495,11 @@ The owner judges its readers to be the author and anyone checking evidence. Over
 days of human traffic `/provenance/` had 44 views; how often notes are verified is not measured,
 because the standalone `/verify` page the "Verify it yourself" links open carries no analytics
 beacon (`/provenance/verify/` is a different page). The remaining pieces (`edit_log`, gap 3
-steps 1, 3 and 4, gap 2, gap 4, and moving the publish signature to the author's key) stay
+steps 1, 3 and 4, a signing path for anyone other than the author (step 2 covers the author's key only), gap 2, gap 4, and moving the publish signature to the author's key) stay
 designed and unbuilt; `edit_log`'s approval as a design and its open sequencing question stand
 but no longer authorize building it. One of them is built only when a concrete need names it: a
 collaborator, a rights claim that needs an ownership or terms record, an error that needs a
-self-correction record, or a new paper, beyond the three audited here, whose argument cannot be made without it. What P1 and P2 already ask for is recorded in this document and does not reopen anything on its own. Countersigning new records stays
+self-correction record, or a new paper, beyond P1 and P2 audited here, whose argument cannot be made without it. What P1 and P2 already ask for is recorded in this document and does not reopen anything on its own. Countersigning new records stays
 routine: `node countersign.mjs prepare`, the author signs, `finish`, a pull request.
 
 ### Gap 4 — retained, not selected
@@ -521,11 +521,9 @@ Still open:
 1. ~~A proving ground for gap 3.~~ **Resolved 2026-10-05: the author's own second key.** The
    site has one author and keeps one; gap 3 is designed within that (see gap 3).
 2. ~~Custodial signing — argue it or change it.~~ **Resolved 2026-08-15: documented as
-   deliberate deviation D-1**, with its cost stated and its end conditions named. One follow-on
-   remains: the public-facing wording. `VERIFY.md` and the provenance surfaces should describe
-   what the signature attests — the author's publishing infrastructure witnessing a publication
-   event — rather than implying a hand-signature. **Resolved, checked 2026-10-05:** the ledger's
-   `VERIFY.md` says it in "What the signature attests" (the Worker signs on publish; no person
+   deliberate deviation D-1**, with its cost stated and its end conditions named. Its follow-on,
+   the public wording, is **resolved (checked 2026-10-05):** the ledger's `VERIFY.md` says what
+   the signature attests in "What the signature attests" (the Worker signs on publish; no person
    applies a key by hand), and the live `/verify` page and the chip and panel strings in
    `inc/provenance-render.php` make no hand-signature claim.
 3. **Sequencing of `edit_log` against gap 2.** Its first emission is permanent on an append-only
