@@ -196,7 +196,7 @@ central differentiator, which is why gap 4 stays in scope even though it was not
 | Hash over a canonical representation | `sn_prov_canonical_json` + `normalize_v1`, pinned by parity tests | **met**, and unusually well-specified |
 | Self-issuing — no agency, no registration step | Worker signs on the author's behalf | **divergence** — see above |
 | Signed authorship attestation naming author(s) **and roles** | single `author` string, no roles | **gap 3** |
-| Signature "can only be added to" — co-authors sign later | one signature per record, no additive path | **gap 3** |
+| Signature "can only be added to" — co-authors sign later | the author's own key countersigns records in an append-only sidecar (`countersignatures/`, live 2026-10-05); no path for anyone else to sign | **partly met** (gap 3 step 2); other signers remain gap 3 |
 | Dispute annotation via a separate dispute-record format | none | **gap 3** |
 | Public key reference via W3C DID | `provenance-did.php`, did:web | **met** — P2 explicitly endorses DID alignment |
 | Issuance timestamp from a trusted timestamp authority | OTS + Bitcoin anchor | **met, and stronger** than P2 asks |
@@ -335,6 +335,8 @@ domain.
 
 Owner decision 2026-08-15: **do gaps 2 and 3 now; gap 1 after the third paper is public.**
 `edit_log` approved as design. Planning only — no implementation authorized.
+**Superseded 2026-10-05:** gap 1 step 1 and gap 3 step 2 were built on the owner's say-so, and
+the rest of this plan is governed by "Where the provenance work stops" below.
 
 ### Gap 2 — open the minting path
 
@@ -418,7 +420,7 @@ against an unpublished paper:
 > replaced; it can only be added to (in the case of co-authors signing later) or annotated (in
 > the case of disputes, which require a separate dispute-record format). Ownership is mutable.
 
-So the design has four separable pieces, in dependency order:
+So the design has four separable pieces. Only (2) stands alone: it countersigns records as they are, so it shipped first; (1) changes the record format, and (3) and (4) are new record kinds:
 
 1. **Roles in the claim block.** P2: the claim block "names the author or authors, their roles
    (composer, lyricist, performer, producer)". Today there is one `author` string. First change
@@ -469,7 +471,7 @@ So the design has four separable pieces, in dependency order:
 
 **Sequencing note.** (2) prepares custody without completing it: the author-held key that
 countersigns is the key a later custody move would promote, and that move still needs the
-author-side publish signer described under gap 1. Nothing in this gap waits on another person. (1) is a record-format change and goes first in the ledger repository; (3) and
+author-side publish signer described under gap 1. Nothing in this gap waits on another person. (1) is a record-format change, decided in the ledger repository if it is ever built; (3) and
 (4) build on record kinds the ledger already verifies.
 
 **Open before building (2026-10-05 review), one line each:**
