@@ -52,6 +52,7 @@
 	// Monitors don't flap by the second; the statuses ride a 90s server cache
 	// anyway, so a 2-minute poll never outruns the data underneath it.
 	var REFRESH_MS = 2 * 60 * 1000;
+	var LIST_CAP   = 2; // rows a growing list shows before "+N more"
 	var TOAST_MS   = 3500;
 	// WP-Cron runs on a page load, so a job is routinely "due" for seconds; it
 	// is late only past this.
@@ -145,12 +146,16 @@
 		var rows = [ { label: 'Monitors', value: [ upN + ' of ' + mons.length + ' up' ].concat( uptimeSummary( mons ) ).join( ' · ' ), tone: upN === mons.length ? '' : ( anyDown ? DANGER_FG : WARN_FG ) } ];
 		// One line when all are up; each monitor only when one is not.
 		if ( upN !== mons.length ) {
-			mons.forEach( function( m ) {
+			var shown = 0;
+			// Down monitors first, so the cap never hides an outage behind warnings.
+			mons.slice().sort( function( a, b ) { return ( 'alert' === b.level ) - ( 'alert' === a.level ); } ).forEach( function( m ) {
 				var level = String( m.level || 'unknown' );
 				if ( 'ok' === level ) { return; } // the count above already says how many are up
 				if ( 'alert' === level ) { tally.down++; } else { tally.look++; }
+				if ( ++shown > LIST_CAP ) { return; } // counted in the verdict, named in the "+N more" row
 				rows.push( { label: String( m.name || 'monitor' ), value: LEVEL_TEXT[ level ] || 'Unknown', tone: 'ok' === level ? OK_FG : ( 'alert' === level ? DANGER_FG : WARN_FG ) } );
 			} );
+			if ( shown > LIST_CAP ) { rows.push( { label: '+' + ( shown - LIST_CAP ) + ' more not up', value: '' } ); }
 		}
 		return { rows: rows };
 	}
@@ -187,9 +192,14 @@
 		} ];
 		// WHICH checks, ranked count-desc by the server and capped at 4; a
 		// check that could not run is named apart, its reason left to the tab.
-		( h.flagged || [] ).forEach( function( f ) { rows.push( { label: String( f.label ), value: String( f.count ), tone: WARN_FG } ); } );
-		if ( num( h.flagged_more ) > 0 ) { rows.push( { label: '+' + num( h.flagged_more ) + ' more', value: '' } ); }
-		skipped.forEach( function( s ) { rows.push( { label: String( s.label ), value: 'could not run', tone: WARN_FG } ); } );
+		// Two of each at most, the rest counted, so a bad scan never pushes the
+		// buttons out of the card; every check is on the Health tab.
+		var flagged = h.flagged || [];
+		flagged.slice( 0, LIST_CAP ).forEach( function( f ) { rows.push( { label: String( f.label ), value: String( f.count ), tone: WARN_FG } ); } );
+		var moreFlagged = Math.max( 0, flagged.length - LIST_CAP ) + num( h.flagged_more );
+		if ( moreFlagged > 0 ) { rows.push( { label: '+' + moreFlagged + ' more to look at', value: '' } ); }
+		skipped.slice( 0, LIST_CAP ).forEach( function( s ) { rows.push( { label: String( s.label ), value: 'could not run', tone: WARN_FG } ); } );
+		if ( skipped.length > LIST_CAP ) { rows.push( { label: '+' + ( skipped.length - LIST_CAP ) + ' more could not run', value: '' } ); }
 		return { rows: rows };
 	}
 
@@ -239,9 +249,9 @@
 		var list = el( 'div' );
 		list.setAttribute( 'role', 'list' );
 		read.rows.forEach( function( r ) {
-			var row = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+			var row = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
 			row.setAttribute( 'role', 'listitem' );
-			row.appendChild( el( 'span', { text: r.label, style: 'min-width:0;white-space:normal;overflow-wrap:anywhere;' + SUBTLE } ) );
+			row.appendChild( el( 'span', { text: r.label, style: 'min-width:0;white-space:normal;overflow-wrap:break-word;' + SUBTLE } ) );
 			if ( r.value ) {
 				row.appendChild( el( 'span', { text: r.value, style: 'flex:0 1 auto;text-align:right;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;font-weight:600;' + ( r.tone ? 'color:' + r.tone + ';' : '' ) } ) );
 			}
@@ -317,8 +327,8 @@
 		// (it deletes wp_template / wp_template_part / wp_navigation rows).
 		var btn = el( 'button', {
 			text:  'Clear DB overrides',
-			style: 'display:block;width:100%;min-height:24px;margin:10px 0 0;padding:8px 10px;background:' + SURFACE + ';color:inherit;border:1px solid ' + HAIRLINE +
-				';border-radius:8px;font-size:13px;line-height:1.2;cursor:pointer;text-align:left;transition:background 120ms ease,border-color 120ms ease;',
+			// The cards' one button style (SN Provenance's Sweep now), on the link's line.
+			style: 'font:inherit;font-size:11px;padding:2px 10px;border-radius:5px;border:1px solid rgba(128,128,128,.45);background:transparent;color:inherit;cursor:pointer;min-height:24px;',
 		} );
 		btn.type = 'button';
 		hoverable( btn );
@@ -342,18 +352,20 @@
 				} );
 			} );
 		} );
-		wrap.appendChild( btn );
+		var actions = el( 'div', { style: 'margin-top:10px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;' } );
+		actions.appendChild( btn );
+		wrap.appendChild( actions );
 
 		if ( healthUrl ) {
 			var link = el( 'a', {
 				href:  healthUrl,
 				text:  'Open Health',
-				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
+				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
 			} );
 			var arrow = el( 'span', { text: '→' } );
 			arrow.setAttribute( 'aria-hidden', 'true' ); // a link's trailing arrow is decoration
 			link.appendChild( arrow );
-			wrap.appendChild( link );
+			actions.appendChild( link );
 		}
 		container.appendChild( wrap );
 
