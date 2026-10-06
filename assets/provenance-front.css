@@ -86,9 +86,9 @@
 .sn-prov-ver{display:flex;gap:.6em;align-items:baseline;padding:.4em 0;border-bottom:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
 .sn-prov-ver:last-child{border-bottom:0}
 .sn-prov-ver > .sn-prov-v{font-weight:700}
-.sn-prov-meta{opacity:.6}
+.sn-prov-meta{color:var(--wp--preset--color--rust,#666)} /* dimmed by the token, not opacity: at .6 the block link ran 2.5:1 (WCAG 1.4.3, sitewide audit 2026-10-06) */
 /* The block number links to that block on a public explorer — underlined so it
-   reads as clickable within the dimmed meta; inherits color to stay subtle. */
+   reads as clickable within the dimmed meta; inherits the meta's rust. */
 .sn-prov-block{color:inherit;text-decoration:underline;text-underline-offset:2px}
 /* The whole byline chip can be a link (to its Bitcoin block, or the in-flight tx
    for a pending Note) — strip the default anchor styling so the chip keeps its
@@ -109,8 +109,8 @@
    not as a shout — just a clearly-worded way in. */
 .sn-prov-onchain{margin:0 0 .7rem;font-size:.8rem;line-height:1.5}
 .sn-prov-onchain-cta{text-decoration:underline;text-underline-offset:2px}
-.sn-prov-onchain-host{opacity:.6}
-.sn-prov-caveat{font-size:.75rem;opacity:.65;font-style:italic}
+.sn-prov-onchain-host{color:var(--wp--preset--color--rust,#666)}
+.sn-prov-caveat{font-size:.75rem;color:var(--wp--preset--color--rust,#666);font-style:italic}
 /* The action row, in the established mono-action vocabulary (the same voice
    as .sn-prov-chip-verify): quiet uppercase red links with real hit areas,
    separated by a rule from the record above — actions, not chain rows. */
