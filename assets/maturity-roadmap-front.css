@@ -131,10 +131,11 @@
 .sn-maturity-roadmap-board__cell ul{list-style:none;margin:0;padding:0}
 .sn-maturity-roadmap-board__cell li{padding:.35em 0;border-bottom:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
 .sn-maturity-roadmap-board__cell li:last-child{border-bottom:0}
-.sn-maturity-roadmap-board__cell--planned{opacity:.88}
-.sn-maturity-roadmap-board__cell--considering{opacity:.72}
-.sn-maturity-roadmap-board__cell--later{opacity:.58}
-.sn-maturity-roadmap-board__empty{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);opacity:.35}
+/* 2026-10-06: the dim is the rust token, not opacity. Opacity faded
+   everything in a cell, words and badge numbers alike. Committed and planned read at full ink; considering and
+   later, the speculative tenses, read in rust, as the legend's stats do. */
+.sn-maturity-roadmap-board__cell--considering,.sn-maturity-roadmap-board__cell--later{color:var(--wp--preset--color--rust,#666666)}
+.sn-maturity-roadmap-board__empty{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);color:var(--wp--preset--color--rust,#666666)}
 
 /* The folds: native details, the signal spent on the act of opening.
    The glyph is a bordered +/− that inverts to signal on hover; the open
@@ -180,7 +181,7 @@
 	.sn-maturity-roadmap-board tbody tr:last-child{border-bottom:0}
 	.sn-maturity-roadmap-board th:not(:last-child),.sn-maturity-roadmap-board td:not(:last-child){border-right:0}
 	.sn-maturity-roadmap-board__family{white-space:normal;font-size:.85rem;padding-bottom:.2em}
-	.sn-maturity-roadmap-board__cell::before{content:attr(data-label);display:block;font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;opacity:.6;margin-bottom:.15em}
+	.sn-maturity-roadmap-board__cell::before{content:attr(data-label);display:block;font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--wp--preset--color--rust,#666666);margin-bottom:.15em}
 	.sn-maturity-roadmap-board__cell{border-bottom:0;padding-top:.35em}
 }
 
@@ -191,6 +192,6 @@
 	.sn-maturity-roadmap-fold::details-content{content-visibility:visible;display:block}
 	.sn-maturity-roadmap-fold summary{display:none}
 	.sn-maturity-roadmap-fold ul{border-top:0;margin-top:0}
-	.sn-maturity-roadmap-board__cell--planned,.sn-maturity-roadmap-board__cell--considering,.sn-maturity-roadmap-board__cell--later{opacity:1}
+	.sn-maturity-roadmap-board__cell--considering,.sn-maturity-roadmap-board__cell--later{color:inherit}
 	.sn-maturity-roadmap-board,.sn-maturity-roadmap-legend{box-shadow:none}
 }

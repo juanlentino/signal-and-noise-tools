@@ -21,5 +21,11 @@ foreach ( array( '.sn-prov-meta', '.sn-prov-onchain-host', '.sn-prov-caveat' ) a
 $sub = $rule( $road, '.sn-maturity-roadmap-legend__sub' );
 ok( null !== $sub && false === strpos( $sub, 'opacity' ) && false !== strpos( $sub, 'max(.68rem,11px)' ), 'the legend sub carries no opacity and holds the 11px floor' );
 ok( 0 === preg_match( '/\.sn-maturity-roadmap-legend__cell(--[a-z]+)?(:hover)?\{[^}]*opacity/', $road ), 'no legend cell fades as a whole (it faded every word in it)' );
+// 2026-10-06: the whole maturity family. Every sheet faded a column, a
+// dash, a planned badge or a board cell with opacity; all now use rust.
+foreach ( glob( $dir . '*maturity*.css' ) as $f ) {
+	$css = (string) preg_replace( '#/\*.*?\*/#s', '', (string) file_get_contents( $f ) );
+	ok( 0 === preg_match( '/(?<![-\w])opacity\s*:/', $css ), basename( $f ) . ' dims nothing with opacity' );
+}
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

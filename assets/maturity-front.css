@@ -17,14 +17,14 @@
 .sn-maturity-table tbody tr:last-child td{border-bottom:0}
 /* Tier + question columns stay compact so the engine column carries the prose. */
 .sn-maturity-table td:first-child{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.76rem;font-weight:600;white-space:nowrap}
-.sn-maturity-table td:nth-child(2){white-space:nowrap;font-style:italic;opacity:.75}
+.sn-maturity-table td:nth-child(2){white-space:nowrap;font-style:italic;color:var(--wp--preset--color--rust,#666666)}
 @media (max-width:600px){.sn-maturity-table td:nth-child(2){white-space:normal}}
 
 /* The principles: a spaced, ruled list with a mono dash in the gutter. */
 .sn-maturity-principles{list-style:none;margin:0;padding:0;font-size:.9rem}
 .sn-maturity-principles li{position:relative;padding:.6em 0 .6em 1.5em;border-bottom:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
 .sn-maturity-principles li:last-child{border-bottom:0}
-.sn-maturity-principles li::before{content:"—";position:absolute;left:0;font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);opacity:.5}
+.sn-maturity-principles li::before{content:"—";position:absolute;left:0;font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);color:var(--wp--preset--color--rust,#666666)}
 
 /* The compact strip: one sentence, then four hard-edged mono badges. */
 .sn-maturity p.sn-maturity-compact-intro{margin:0 0 .75rem}
