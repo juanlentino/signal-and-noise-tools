@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The Maturity pages dim with rust, not opacity.** Every system sheet faded its second table column, its list dashes and its planned scope badges with `opacity`, the hub faded its card notes and unlinked cards, and the roadmap faded whole board cells. All now use the `rust` token: planned board cells read at full ink, considering and later in rust. `tests/front-end-text-not-faded.php` now refuses any `opacity` declaration in the maturity stylesheets.
+
 ### Changed
 - **README:** a Public pages section for the colophon and Maturity spec sheets; the contrast report's live tier under Content health; the health module count corrected to 28.
 
