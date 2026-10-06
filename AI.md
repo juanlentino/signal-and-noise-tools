@@ -45,7 +45,7 @@ The site is also something models fetch, and the plugin treats that as a first-c
 | Cloudflare Workers AI (embeddings) | this plugin's keyring | S&N › Connections › Credentials (`workers_ai_token`) |
 | TypeSafe (Jev) | Connector for TypeSafe Jev | Settings › Connectors (`typesafe`, type `ai_decision`) |
 
-The connector deliberately does not register as an `ai_provider`: Core validates those keys against the generative AI Client on save and clears what it cannot verify, and Jev is not generative. Its `CLAUDE.md` records that decision and the others that look like bugs until you know why they are there.
+The connector does not register as an `ai_provider` yet: on save, Core checks each `ai_provider` key against the AI Client provider class registered under the same id and clears it when there is none, and Jev has no provider class because the AI Client has no capability for decision models ([php-ai-client#296](https://github.com/WordPress/php-ai-client/issues/296)). Its `CLAUDE.md` records that decision and the others that look like bugs until you know why they are there.
 
 ## What is deliberately not built
 

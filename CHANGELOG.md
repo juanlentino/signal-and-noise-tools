@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Documentation
+
+- `AI.md`: corrected why Connector for TypeSafe Jev is not an `ai_provider`. Core clears an `ai_provider` key on save when no AI Client provider class is registered under that id, not because Jev is non-generative; the connector switches once the AI Client supports decision models (php-ai-client#296).
+
 ## [22.6.3] - 2026-10-06 — each card link closes the section it opens
 
 ### Fixed
