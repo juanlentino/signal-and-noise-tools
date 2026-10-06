@@ -64,7 +64,7 @@ function sn_colophon_items() {
 		'plugin'     => array( __( 'Companion plugin', 'signal-and-noise-tools' ), __( 'Signal & Noise Tools, which I also wrote, adds what the theme leaves out, such as search and social previews, cookie-free visitor counts, the signed records described below, and checks for broken links and missing image descriptions.', 'signal-and-noise-tools' ) ),
 		'type'       => array( __( 'Type', 'signal-and-noise-tools' ), __( 'Bebas Neue for headings, buttons and navigation, and DM Mono for body text and captions, both served from this site rather than a font service, so no font company sees your visit.', 'signal-and-noise-tools' ) ),
 		'appearance' => array( __( 'Appearance', 'signal-and-noise-tools' ), __( 'light by default, with a dark version that follows your device\'s setting; the toggle overrides that and remembers your choice on this device.', 'signal-and-noise-tools' ) ),
-		'records'    => array( __( 'Records', 'signal-and-noise-tools' ), __( 'each note I publish gets a fingerprint of its text (SHA-256), a digital signature from the site\'s key (Ed25519) and a timestamp written into Bitcoin (OpenTimestamps), and an edit adds a new signed version while keeping the earlier ones, so anyone can check a note\'s text, source and date at Verify a Note.', 'signal-and-noise-tools' ) ),
+		'records'    => array( __( 'Records', 'signal-and-noise-tools' ), __( 'each note I publish gets a fingerprint of its text (SHA-256), a digital signature from the site\'s key (Ed25519) and a timestamp written into Bitcoin (OpenTimestamps), and an edit to the text adds a new signed version while keeping the earlier ones, so anyone can check a note\'s text, source and date at Verify a Note.', 'signal-and-noise-tools' ) ),
 		'systems'    => array( __( 'Systems', 'signal-and-noise-tools' ), __( 'every system documented at the maturity index, where each one has a page stating what it does and what it will never do.', 'signal-and-noise-tools' ) ),
 		'ai'         => array( __( 'AI', 'signal-and-noise-tools' ), __( 'engineered with Claude (Anthropic) as a pair programmer, an AI that writes code with me; the notes themselves stay mine.', 'signal-and-noise-tools' ) ),
 		'interop'    => array( __( 'Interop', 'signal-and-noise-tools' ), __( 'the site\'s admin dashboard runs inside OpenStation, a free WordPress plugin that turns it into a desktop with windows and a dock; readers of the public site never see it.', 'signal-and-noise-tools' ) ),
@@ -182,6 +182,16 @@ function sn_colophon_links() {
 }
 
 /**
+ * Said to a screen reader, not shown: a link that opens a new tab says so.
+ * Hidden text after the visible words, never an aria-label (WCAG 2.5.3).
+ *
+ * @return string
+ */
+function sn_colophon_new_tab_note() {
+	return '<span class="screen-reader-text">' . esc_html__( ' (opens in a new tab)', 'signal-and-noise-tools' ) . '</span>';
+}
+
+/**
  * One row's text, escaped, with its phrase linked when it has a URL.
  *
  * @param string $text Plain text.
@@ -199,7 +209,8 @@ function sn_colophon_row_html( $text, $link ) {
 		return $safe; // A filtered row without the phrase stays plain text.
 	}
 	$a = '<a href="' . esc_url( (string) $link[1] ) . '"' . ( ! empty( $link[2] ) ? ' target="_blank" rel="noopener noreferrer"' : '' ) . '>'
-		. $phrase . ( '' !== (string) $link[3] ? '<span class="screen-reader-text">' . esc_html( (string) $link[3] ) . '</span>' : '' ) . '</a>';
+		. $phrase . ( '' !== (string) $link[3] ? '<span class="screen-reader-text">' . esc_html( (string) $link[3] ) . '</span>' : '' )
+		. ( ! empty( $link[2] ) ? sn_colophon_new_tab_note() : '' ) . '</a>';
 	return substr( $safe, 0, $at ) . $a . substr( $safe, $at + strlen( $phrase ) );
 }
 
@@ -214,10 +225,10 @@ function sn_colophon_shortcode( $atts = array() ) {
 	$items = sn_colophon_items();
 	$links = sn_colophon_links();
 	$repo  = '' !== $urls['theme_repo']
-		? '<a href="' . esc_url( $urls['theme_repo'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'public on GitHub', 'signal-and-noise-tools' ) . '</a>'
+		? '<a href="' . esc_url( $urls['theme_repo'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'public on GitHub', 'signal-and-noise-tools' ) . sn_colophon_new_tab_note() . '</a>'
 		: esc_html__( 'public on GitHub', 'signal-and-noise-tools' );
 	$out = '<div class="sn-colophon">'
-		. '<p>' . esc_html__( 'This site runs on code I wrote, and I am the only person who maintains it. All of that code is', 'signal-and-noise-tools' ) . ' ' . $repo . esc_html__( ', so anyone can read how a page here is made.', 'signal-and-noise-tools' ) . '</p>';
+		. '<p>' . esc_html__( 'This site runs on a theme and a plugin I wrote, and I am the only person who maintains it. Both are', 'signal-and-noise-tools' ) . ' ' . $repo . esc_html__( ', so anyone can read how a page here is made.', 'signal-and-noise-tools' ) . '</p>';
 
 	$row = static function ( $slug ) use ( $items, $links ) {
 		$item = $items[ $slug ];

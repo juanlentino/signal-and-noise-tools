@@ -53,7 +53,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 echo "Group: registration + structure (2026-10-06 rewrite)\n";
 ok( isset( $GLOBALS['__shortcodes']['sn_colophon'] ), 'shortcode registered on load' );
 $html = sn_colophon_shortcode();
-ok( 1 === preg_match( '#^<div class="sn-colophon"><p>This site runs on code I wrote#', $html ), 'the opening is first person and comes first' );
+ok( 1 === preg_match( '#^<div class="sn-colophon"><p>This site runs on a theme and a plugin I wrote#', $html ), 'the opening is first person and comes first' );
 $h2 = array();
 preg_match_all( '#<h2[^>]*>(.*?)</h2>#', $html, $h2 );
 ok( array( 'Made with', 'On the page', 'Kept honest' ) === $h2[1], 'three groups, H2 headings, in order (the page title is the H1)' );
@@ -78,7 +78,7 @@ ok( false !== strpos( $html, 'the code in the public repositories is exactly the
 ok( false !== strpos( $html, 'Cloudways' ) && false !== strpos( $html, 'Cloudflare' ), 'hosting names the host and the CDN/DNS provider' );
 ok( false !== strpos( $html, 'Bebas Neue' ) && false !== strpos( $html, 'DM Mono' ), 'type names both faces' );
 ok( false !== strpos( $html, 'follows your device' ) && false !== strpos( $html, 'toggle' ), 'appearance: dark follows the system, the toggle overrides' );
-ok( false !== strpos( $html, 'SHA-256' ) && false !== strpos( $html, 'Ed25519' ) && false !== strpos( $html, 'OpenTimestamps' ) && false !== strpos( $html, 'new signed version' ), 'records names only what the provenance code does' );
+ok( false !== strpos( $html, 'SHA-256' ) && false !== strpos( $html, 'Ed25519' ) && false !== strpos( $html, 'OpenTimestamps' ) && false !== strpos( $html, 'an edit to the text adds a new signed version' ), 'records names only what the provenance code does (a markup-only save makes no version)' );
 ok( false !== strpos( $html, 'engineered with Claude (Anthropic) as a' ) && false !== strpos( $html, 'an AI that writes code with me' ), 'the AI statement is kept, and "pair programmer" is explained in the row' );
 ok( 1 === preg_match( '#<strong>Platform:</strong> WordPress with Full Site Editing, so#', $html ), 'the platform row has one colon, after its label' );
 ok( false !== strpos( $html, 'OpenStation' ) && false !== strpos( $html, 'readers of the public site never see it' ), 'interop says what OpenStation is and that readers never see it' );
@@ -86,7 +86,8 @@ ok( false !== strpos( $html, 'OpenStation' ) && false !== strpos( $html, 'reader
 echo "\nGroup: links (every existing destination kept)\n";
 ok( false !== strpos( $html, '<a href="https://example.com/workflow/">pair programmer<span class="screen-reader-text">: how I work with AI</span></a>' ) && false === strpos( $html, 'aria-label' ), 'the AI link keeps its visible name plus hidden context, no aria-label' );
 ok( false !== strpos( $html, 'href="https://example.com/maturity/"' ), 'systems links the maturity index' );
-ok( false !== strpos( $html, 'href="https://github.com/juanlentino/signal-and-noise-tools"' ) && false !== strpos( $html, '>Signal &amp; Noise Tools</a>' ), 'companion plugin links its repo, named' );
+ok( false !== strpos( $html, 'href="https://github.com/juanlentino/signal-and-noise-tools"' ) && false !== strpos( $html, '>Signal &amp; Noise Tools<span class="screen-reader-text"> (opens in a new tab)</span></a>' ), 'companion plugin links its repo, named, and says it opens a new tab' );
+ok( substr_count( $html, '<span class="screen-reader-text"> (opens in a new tab)</span></a>' ) === substr_count( $html, 'target="_blank"' ) - 2, 'every new-tab link in the rows and opening says so to a screen reader (the two changelog links in the unchanged version line excepted)' );
 ok( false !== strpos( $html, 'href="https://openstation.me/"' ), 'interop links OpenStation' );
 ok( false !== strpos( $html, 'href="https://example.com/verify"' ) && false !== strpos( $html, '>Verify a Note</a>' ), 'records links where a reader checks a note' );
 ok( false !== strpos( $html, 'href="https://github.com/juanlentino/signal-and-noise"' ), 'the opening links the public source' );
