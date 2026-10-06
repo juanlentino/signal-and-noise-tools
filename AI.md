@@ -14,7 +14,7 @@ Three kinds of model run in the ecosystem, and each has exactly one job. The rul
 
 ### A text model suggests
 
-Anthropic's Claude through WordPress's AI Client (Sonnet 5 pinned as the default with a same-model safety net, so an unresolvable id never falls through to the provider's most expensive default). Every use is an opt-in suggest-and-apply surface in the editor: alt text (whole-library and inline), meta description, excerpt, OG card title, brand-voice alignment, tag descriptions in the house register from owner-approved seed sentences, internal-link and note-pair suggestions from the health scan's own nominations, drift phrases, orphan rescue. (Tag suggestion left this list in 16.9.0, and 16.9.2 retired proposals altogether: Jev reads the tags a note carries and proposes none.) Over the analytics it writes the Insights advisor (five structured recommendations) and the weekly narration (what happened, as prose), both from the same first-party rollups. Inside OpenStation it is the Copilot behind the shell's own AI switch, with two read-only tools of ours registered for it. Every feature is itemised on a monthly budget page with a per-feature line, and a cache probe (`ai-cache-probe-status`) says whether the provider's prompt cache is doing its job.
+Anthropic's Claude through WordPress's AI Client (Sonnet 5.5 pinned as the default, with Sonnet 5 one generation back as the safety net, so an unresolvable id never falls through to the provider's most expensive default). Alt text is the one vision job, and its default is Google's Gemini 3.1 Flash-Lite through the same AI Client. Every use is an opt-in suggest-and-apply surface in the editor: alt text (whole-library and inline), meta description, excerpt, OG card title, brand-voice alignment, tag descriptions in the house register from owner-approved seed sentences, internal-link and note-pair suggestions from the health scan's own nominations, drift phrases, orphan rescue. (Tag suggestion left this list in 16.9.0, and 16.9.2 retired proposals altogether: Jev reads the tags a note carries and proposes none.) Over the analytics it writes the Insights advisor (five structured recommendations) and the weekly narration (what happened, as prose), both from the same first-party rollups. Inside OpenStation it is the Copilot behind the shell's own AI switch, with two read-only tools of ours registered for it. Every feature is itemised on a monthly budget page with a per-feature line, and a cache probe (`ai-cache-probe-status`) says whether the provider's prompt cache is doing its job.
 
 ### An embedding model relates
 
@@ -42,6 +42,7 @@ The site is also something models fetch, and the plugin treats that as a first-c
 | Provider | Holder | Screen |
 |---|---|---|
 | Anthropic (text) | WordPress AI Client | Settings › Connectors (Core's `ai_provider` card) |
+| Google (alt text, vision) | WordPress AI Client | Settings › Connectors (Core's `ai_provider` card) |
 | Cloudflare Workers AI (embeddings) | this plugin's keyring | S&N › Connections › Credentials (`workers_ai_token`) |
 | TypeSafe (Jev) | Connector for TypeSafe Jev | Settings › Connectors (`typesafe`, type `ai_decision`) |
 

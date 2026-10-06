@@ -36,6 +36,8 @@ ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'failure' ), null )['sta
 ok( 'none' === snt_contrast_rendered_evaluate( array( 'workflow_runs' => array() ), null )['state'], 'no completed run yet: none, not ok' );
 ok( 'unknown' === snt_contrast_rendered_evaluate( null, null )['state'], 'an unreadable API: unknown, never ok' );
 ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'cancelled' ), null )['state'], 'a cancelled run is no verdict' );
+ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'success' ), array( array( 'annotation_level' => 'warning', 'title' => '', 'message' => 'Contrast run inconclusive' ) ) )['state'], 'a green run with no contrast-summary is unknown: the workflow turns an inconclusive run (exit 2) into a green job' );
+ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'success' ), null )['state'], 'a green run whose annotations could not be read is unknown, never ok' );
 
 echo "\nGroup: the line\n";
 $h = snt_contrast_rendered_html( snt_contrast_rendered_evaluate( $run( 'success' ), array( $summary ) ), 'snt-hint' );

@@ -53,12 +53,14 @@ function snt_contrast_rendered_evaluate( $runs, $annotations ) {
 	// on #1942). The annotation count is only the fallback for a run whose
 	// summary is missing.
 	$total = null;
+	$measured = false;
 	foreach ( is_array( $annotations ) ? $annotations : array() as $a ) {
 		$a = (array) $a;
 		if ( 'failure' === ( $a['annotation_level'] ?? '' ) ) {
 			$v['failures']++;
 		}
 		if ( 'contrast-summary' === ( $a['title'] ?? '' ) ) {
+			$measured     = true;
 			$s            = json_decode( (string) ( $a['message'] ?? '' ), true );
 			$v['pages']   = (int) ( $s['pages'] ?? 0 );
 			$v['checked'] = (int) ( $s['checked'] ?? 0 );
@@ -71,7 +73,10 @@ function snt_contrast_rendered_evaluate( $runs, $annotations ) {
 	}
 	$conclusion = (string) ( $run['conclusion'] ?? '' );
 	if ( 'success' === $conclusion ) {
-		$v['state'] = 'ok';
+		// Green is a pass only with the runner's summary: an inconclusive run
+		// (exit 2: sitemap unreadable, home blocked, a page that did not
+		// render) is turned into a green job with a warning and no summary.
+		$v['state'] = $measured ? 'ok' : 'unknown';
 	} elseif ( 'failure' === $conclusion ) {
 		// A red run whose failures could not be read (annotations unfetched, or
 		// none counted) is unknown, never "0 failures" (Codex on #1942).
