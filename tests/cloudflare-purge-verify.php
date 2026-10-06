@@ -329,6 +329,10 @@ ok( false !== strpos( snt_cf_probe_retired_note( $plog ), 'last run Oct 3' ), 't
 ok( false !== strpos( snt_cf_probe_retired_note( array() ), 'last run never' ), 'no rows: never, not a date' );
 $plog2 = array_merge( array( array( 'time' => gmmktime( 9, 0, 0, 10, 5, 2026 ), 'result' => 'stale', 'source' => 'manual_zone_purge' ) ), $plog );
 ok( gmmktime( 20, 45, 0, 10, 3, 2026 ) === snt_cf_probe_status( $plog2 )['last_run'], 'Codex on #1930: a newer manual zone-purge row is not a run of the retired post-save path' );
+if ( ! function_exists( '_n' ) ) { function _n( $s, $p, $n ) { return 1 === (int) $n ? $s : $p; } }
+ok( false !== strpos( snt_cf_probe_retired_note( $plog2 ), '1 row is a check run right after a manual purge' ) && false === strpos( snt_cf_probe_retired_note( $plog ), 'manual purge' ), 'Codex on #1930: manual rows are said apart, and only when there are some' );
+$cfp = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
+ok( 1 === preg_match( "/<\\/span><\\/summary>/", $cfp ) && false !== strpos( $cfp, "snt_cf_probe_status( \$probe_log )['retired'] ? ' · ' . __( 'no longer runs'" ), 'Codex on #1930: the classic tab\'s collapsed summary says the probe no longer runs' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

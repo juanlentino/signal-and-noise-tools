@@ -211,11 +211,23 @@ function snt_cf_probe_retired_note( $log = null ) {
 	if ( ! $st['retired'] ) {
 		return '';
 	}
-	return sprintf(
+	$note = sprintf(
 		/* translators: %s: date of the last probe */
-		__( 'Old per-URL purge path, last run %s. A save now purges the cache tag, which empties every tagged page, and no probe runs after it; these rows are its history.', 'signal-and-noise-tools' ),
+		__( 'Old per-URL purge path, last run %s. A save now purges the cache tag, which empties every tagged page, and no probe runs after it; its post-save rows below are that path\'s history.', 'signal-and-noise-tools' ),
 		$st['last_run'] > 0 ? gmdate( 'M j', $st['last_run'] ) : __( 'never', 'signal-and-noise-tools' )
 	);
+	// Manual rows are a different writer: a check right after a manual zone
+	// purge, which can race propagation (Codex on #1930). Said apart.
+	$log    = is_array( $log ) ? $log : get_option( SN_CF_PROBE_LOG_OPT, array() );
+	$manual = count( array_filter( (array) $log, static fn( $r ) => is_array( $r ) && 'manual_zone_purge' === (string) ( $r['source'] ?? '' ) ) );
+	if ( $manual > 0 ) {
+		$note .= ' ' . sprintf(
+			/* translators: %d: manual rows */
+			_n( '%d row is a check run right after a manual purge, not the post-save path.', '%d rows are checks run right after a manual purge, not the post-save path.', $manual, 'signal-and-noise-tools' ),
+			$manual
+		);
+	}
+	return $note;
 }
 
 /**
