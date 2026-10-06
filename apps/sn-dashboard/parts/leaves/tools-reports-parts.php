@@ -357,7 +357,9 @@ function tools_reports_render_contrast( array $report ) {
 	$large_aa   = isset( $thresholds['aa_large'] ) ? (float) $thresholds['aa_large'] : 3.0;
 	$would_fail = (int) ( $report['would_fail_body'] ?? 0 );
 
-	$out = tools_reports_contrast_usage( isset( $report['usage'] ) && is_array( $report['usage'] ) ? $report['usage'] : array() );
+	// The rendered tier first (inc/health-contrast-rendered.php, 2026-10-06).
+	$out = function_exists( 'snt_contrast_rendered' ) ? snt_contrast_rendered_html( snt_contrast_rendered(), 'snt-hint' ) : '';
+	$out .= tools_reports_contrast_usage( isset( $report['usage'] ) && is_array( $report['usage'] ) ? $report['usage'] : array() );
 
 	if ( empty( $pairs ) ) {
 		$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'No theme palette tokens were readable, so no pairs were scored. A theme.json palette (theme or custom origin) is what this check reads.', 'signal-and-noise-tools' ) ) . '</p>';
