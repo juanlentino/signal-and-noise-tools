@@ -554,8 +554,16 @@
 			// Gray, not green, when the only words are verifying or paused: not a
 			// fault, and not everything ran either.
 			dot.style.background = 'pending' === uptime ? SURFACE_HOVER : tally.down ? DANGER_FG : faults( tally ) ? WARN_FG : ( 'All systems normal' === words ? OK_FG : SURFACE_HOVER );
+			// A repaint rebuilds the section links: a keyboard user on one keeps
+			// it (Codex on #1927), found again by its address and words.
+			var focused = document.activeElement && detail.contains && detail.contains( document.activeElement ) && 'A' === document.activeElement.tagName ? document.activeElement : null;
+			var key     = focused ? focused.href + '|' + focused.textContent : '';
 			clearChildren( detail );
 			reads.forEach( function( r, i ) { detail.appendChild( section( r[0], r[1], 0 === i ) ); } );
+			if ( key ) {
+				var back = Array.prototype.filter.call( detail.querySelectorAll( 'a' ), function( a ) { return a.href + '|' + a.textContent === key; } )[0];
+				if ( back ) { back.focus(); }
+			}
 		}
 
 		// Recipe 2 (OpenStation docs/examples/register-widget.md, #1603), as SN

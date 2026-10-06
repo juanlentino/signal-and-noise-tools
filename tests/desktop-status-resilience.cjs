@@ -439,6 +439,18 @@ async function run() {
     const hp = nodes(fxroot).find(n => n.children.some(c => 'a' === c.tag && c.text === 'Open Health'));
     assert.ok(hp && hp.children.some(c => 'heading' === c.attrs.role && 'Health' === c.text), 'and it closes the Health section');
     assert.match(ft, /opens in a new tab/, 'an off-site link says it opens a new tab');
+    // Codex on #1927: a keyboard user on a section link keeps focus through the two-minute repaint.
+    const fl0 = nodes(fxroot).find(n => 'a' === n.tag && n.text === 'Open Cloudflare');
+    fl0.tagName = 'A';
+    fx.document.activeElement = fl0;
+    Element.prototype.contains = function(n) { return nodes(this).includes(n); };
+    Element.prototype.querySelectorAll = function(sel) { return 'a' === sel ? nodes(this).filter(n => 'a' === n.tag).map(n => (n.tagName = 'A', n)) : []; };
+    Element.prototype.focus = function() { fx.document.activeElement = this; };
+    await fx.tick(2 * 60 * 1000 + 1000);
+    fx.calls[fx.calls.length - 1].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
+    const now = fx.document.activeElement;
+    assert.ok(now && now !== fl0 && 'Open Cloudflare' === now.text && nodes(fxroot).includes(now), 'focus moves to the rebuilt link, not to nowhere');
+    delete Element.prototype.contains; delete Element.prototype.querySelectorAll; delete Element.prototype.focus;
     fxstop();
     const old = harness({pages: {cloudflare: '/cf'}, statusExtra: {systems: {cache: {last_purge: Date.parse('2026-09-08T11:59:00Z') / 1000, fresh_time: Date.parse('2026-09-08T11:00:00Z') / 1000, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), oldroot = new Element('div');
     const oldstop = old.window.desktopModeWidgets['sn-health'](oldroot); await flush();

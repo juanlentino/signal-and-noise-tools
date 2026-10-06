@@ -15,6 +15,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Fixed
 - **SN Provenance: each link sits in the section it opens.** "Open Provenance" and "Open Machine Readers" sat together on the action row under both sections. Now "Open Provenance" closes the Provenance section and "Open Machine Readers" closes the Machine readers section, as SN Systems' links do. "Sweep now" stays on the action row, and a link whose section did not paint falls back to that row.
 - **SN Systems: "Open Health" sits in the Health section, once.** It sat on the bottom row beside "Clear DB overrides", and a Health finding added a second "Open Health" inside the section. It now always closes the Health section, beside "Open Anthropic billing" when a check is paused.
+  The card's two-minute repaint rebuilds its section links; a keyboard user on one now keeps focus on the rebuilt link instead of dropping to the page (Codex on #1927; the 22.6.2 section links had the same gap).
 
 ## [22.6.2] - 2026-10-05 — Systems lines link to their fix; releases declare Front-End Change
 
