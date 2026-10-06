@@ -603,6 +603,7 @@ require_once __DIR__ . '/inc/machine-maturity-page.php'; // v10.11.0: [sn_machin
 require_once __DIR__ . '/inc/ops-maturity-page.php';     // v10.11.0: [sn_ops_maturity] — how the site runs itself
 require_once __DIR__ . '/inc/a11y-maturity-page.php';    // v10.11.0: [sn_a11y_maturity] — the /accessibility/ claims in the family skeleton
 require_once __DIR__ . '/inc/maturity-index-page.php';   // v10.11.0: [sn_maturity_index] — the family hub for /maturity/
+require_once __DIR__ . '/inc/maturity-layout.php';         // 2026-10-06: the maturity pages on the page track, spec-sheet bands
 require_once __DIR__ . '/inc/maturity-legacy-redirects.php'; // v10.12.0: narrow 301 map for the family's dead top-level URLs (post re-parenting)
 require_once __DIR__ . '/inc/ml-maturity-page.php';       // v10.18.0: [sn_ml_maturity] — the ML-kernel explainer (three never badges; leak-proof by test contract)
 require_once __DIR__ . '/inc/ml-candidates-ui.php';       // v10.19.0: editor buttons for keyword/link candidates (pure kernel — no AI gate; posts only)
