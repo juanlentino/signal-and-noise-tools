@@ -53,7 +53,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 echo "Group: registration + structure (2026-10-06 rewrite)\n";
 ok( isset( $GLOBALS['__shortcodes']['sn_colophon'] ), 'shortcode registered on load' );
 $html = sn_colophon_shortcode();
-ok( 1 === preg_match( '#^<div class="sn-colophon"><p>This site runs on a theme and a plugin I wrote#', $html ), 'the opening is first person and comes first' );
+ok( 1 === preg_match( '#^<div class="sn-colophon"><p>I designed and built this site, and I maintain it#', $html ), 'the opening is first person and comes first' );
 $h2 = array();
 preg_match_all( '#<h2[^>]*>(.*?)</h2>#', $html, $h2 );
 ok( array( 'Made with', 'On the page', 'Kept honest' ) === $h2[1], 'three groups, H2 headings, in order (the page title is the H1)' );
@@ -74,12 +74,15 @@ foreach ( array( 'simply', 'seamless', 'powerful', 'robust' ) as $w ) {
 
 echo "\nGroup: the facts\n";
 ok( false !== strpos( $html, 'no page builder' ), 'platform says what Full Site Editing means here' );
-ok( false !== strpos( $html, 'the code in the public repositories is exactly the code that runs' ), 'code says what no build step buys' );
+ok( false !== strpos( $html, 'what is in the public repositories is what runs, with nothing compiled in between' ), 'code says what no build step buys' );
 ok( false !== strpos( $html, 'Cloudways' ) && false !== strpos( $html, 'Cloudflare' ), 'hosting names the host and the CDN/DNS provider' );
 ok( false !== strpos( $html, 'Bebas Neue' ) && false !== strpos( $html, 'DM Mono' ), 'type names both faces' );
 ok( false !== strpos( $html, 'follows your device' ) && false !== strpos( $html, 'toggle' ), 'appearance: dark follows the system, the toggle overrides' );
 ok( false !== strpos( $html, 'SHA-256' ) && false !== strpos( $html, 'Ed25519' ) && false !== strpos( $html, 'OpenTimestamps' ) && false !== strpos( $html, 'an edit to the text adds a new signed version' ), 'records names only what the provenance code does (a markup-only save makes no version)' );
-ok( false !== strpos( $html, 'engineered with Claude (Anthropic) as a' ) && false !== strpos( $html, 'an AI that writes code with me' ), 'the AI statement is kept, and "pair programmer" is explained in the row' );
+ok( false !== strpos( $html, 'engineered with Claude (Anthropic) as a' ) && false !== strpos( $html, 'meaning an AI that helps write the site' ), 'the AI statement is kept, and "pair programmer" is explained in the row' );
+foreach ( array( 'stay mine', 'only person', 'exactly the code', 'load quickly', 'which I also wrote', 'sees your visit', 'will never do' ) as $claim ) {
+	ok( false === strpos( $html, $claim ), "no promise or claim beyond a checkable fact: '$claim' (owner 2026-10-06)" );
+}
 ok( 1 === preg_match( '#<strong>Platform:</strong> WordPress with Full Site Editing, so#', $html ), 'the platform row has one colon, after its label' );
 ok( false !== strpos( $html, 'OpenStation' ) && false !== strpos( $html, 'readers of the public site never see it' ), 'interop says what OpenStation is and that readers never see it' );
 
@@ -93,7 +96,7 @@ ok( false !== strpos( $html, 'href="https://example.com/verify"' ) && false !== 
 ok( false !== strpos( $html, 'href="https://github.com/juanlentino/signal-and-noise"' ), 'the opening links the public source' );
 ok( substr_count( $html, 'target="_blank" rel="noopener noreferrer"' ) >= 5, 'external links carry the codebase target/rel convention' );
 $GLOBALS['__page_urls']['workflow'] = '';
-ok( false !== strpos( call_user_func( $GLOBALS['__shortcodes']['sn_colophon'] ), 'as a pair programmer, an AI that writes code with me' ), 'with /workflow unpublished the AI line is plain text, never a dead link' );
+ok( false !== strpos( call_user_func( $GLOBALS['__shortcodes']['sn_colophon'] ), 'as a pair programmer, meaning an AI that helps write the site' ), 'with /workflow unpublished the AI line is plain text, never a dead link' );
 $GLOBALS['__page_urls']['workflow'] = 'https://example.com/workflow/';
 $GLOBALS['__page_status']['workflow'] = 'draft';
 ok( false === strpos( call_user_func( $GLOBALS['__shortcodes']['sn_colophon'] ), 'example.com/workflow' ), 'the /workflow page in draft leaves the line unlinked' );
@@ -129,7 +132,7 @@ add_filter( 'sn_colophon_urls', function ( $urls ) {
 	return $urls;
 } );
 $u = sn_colophon_shortcode();
-ok( false === strpos( $u, 'github.com/juanlentino/signal-and-noise-tools"' ) && false !== strpos( $u, '<strong>Companion plugin:</strong> Signal &amp; Noise Tools,' ), 'blanked repo URL: the plugin row degrades to plain text' );
+ok( false === strpos( $u, 'github.com/juanlentino/signal-and-noise-tools"' ) && false !== strpos( $u, '<strong>Companion plugin:</strong> Signal &amp; Noise Tools adds' ), 'blanked repo URL: the plugin row degrades to plain text' );
 ok( false === strpos( $u, 'openstation.me' ) && false !== strpos( $u, 'inside OpenStation, a free' ), 'blanked OpenStation URL: plain text' );
 ok( false === strpos( $u, 'signal-and-noise/blob' ) && false !== strpos( $u, 'Theme v11.1.10-test' ), 'blanked theme changelog → unlinked version, stamp text intact' );
 $GLOBALS['__filters'] = array();
