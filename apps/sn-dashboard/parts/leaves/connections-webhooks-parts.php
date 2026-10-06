@@ -228,31 +228,6 @@ function webhooks_log_html( $id, $watching = false ) {
 }
 
 /**
- * One token field of the monitoring form: constant-locked → a read-only
- * `••••` naming the constant (no name, as the classic's disabled input);
- * otherwise the obscured value, paste a fresh one to update.
- *
- * @param string $name        Field name.
- * @param string $label       Label.
- * @param string $const       Locking wp-config constant.
- * @param string $opt         Option holding the token.
- * @param string $help        Hint.
- * @param string $placeholder Placeholder.
- * @return string
- */
-function webhooks_token_field( $name, $label, $const, $opt, $help, $placeholder ) {
-	if ( defined( $const ) && constant( $const ) ) {
-		return \snt_kit_static(
-			$label,
-			webhooks_code( '••••' ),
-			'<b>' . \snt_kit_esc( __( 'Locked.', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( __( 'Set via', 'signal-and-noise-tools' ) ) . ' ' . webhooks_code( $const ) . ' ' . \snt_kit_esc( __( 'in', 'signal-and-noise-tools' ) ) . ' ' . webhooks_code( 'wp-config.php' ) . '.'
-		);
-	}
-	$obscured = function_exists( 'sn_mask_secret' ) ? \sn_mask_secret( (string) get_option( $opt, '' ) ) : '';
-	return \snt_kit_field( 'text', $name, $label, $obscured, array( 'placeholder' => (string) $placeholder, 'hint' => (string) $help ) );
-}
-
-/**
  * The rail's status box: how many webhooks, how many enabled, and a pill.
  *
  * @param int $total   Configured webhooks.

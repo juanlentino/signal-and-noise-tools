@@ -33,6 +33,9 @@
  * that module keeps a separate durable rollup. Nothing here should be summed as
  * if it were complete.
  *
+ * NOTHING READS IT YET. Its two readers had no production caller and were
+ * removed; the log keeps recording so a future reader starts with history.
+ *
  * @package SignalNoiseTools
  * @since 12.23.0
  */
@@ -103,43 +106,3 @@ function sn_health_history_append( $scan ) {
 }
 
 add_action( 'sn_health_scan_stored', 'sn_health_history_append' );
-
-/**
- * The log, oldest first.
- *
- * @param int $limit Newest N rows, or 0 for all kept.
- * @return array
- */
-function sn_health_history( $limit = 0 ) {
-	$log   = get_option( SN_HEALTH_HISTORY_OPT );
-	$log   = is_array( $log ) ? $log : array();
-	$limit = (int) $limit;
-	return $limit > 0 ? array_slice( $log, -$limit ) : $log;
-}
-
-/**
- * How many consecutive most-recent scans flagged a given check.
- *
- * The question a series exists to answer: "how long has this been red?" Counts
- * back from the newest row and stops at the first scan that did not flag it, so
- * a check that cleared and returned reports its CURRENT streak, not its total.
- *
- * Returns 0 when the newest scan did not flag it — including when the log is
- * empty, which is why callers should treat 0 as "not currently red" and never as
- * "measured clean over the window".
- *
- * @param string $check Check key, e.g. 'broken_links'.
- * @return int
- */
-function sn_health_history_streak( $check ) {
-	$check  = (string) $check;
-	$streak = 0;
-	foreach ( array_reverse( sn_health_history() ) as $row ) {
-		if ( (int) ( $row['flagged'][ $check ] ?? 0 ) > 0 ) {
-			$streak++;
-			continue;
-		}
-		break;
-	}
-	return $streak;
-}

@@ -422,7 +422,7 @@ add_action( 'admin_enqueue_scripts', 'snt_os_enqueue_posts_script', 5 );
  * core's `_fields` accepts `meta.<key>` and ships that one key alone, never
  * the other keys registered on the post.
  */
-const SNT_OS_POSTS_FIELDS = array( 'sn_provenance', 'sn_edge', 'meta._sn_evergreen' );
+const SNT_OS_POSTS_FIELDS = array( 'sn_provenance', 'meta._sn_evergreen' );
 
 /**
  * Ship our fields on the Posts window's list request.

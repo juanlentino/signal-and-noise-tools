@@ -46,7 +46,6 @@ class WP_Error {}
 // AI + cleanup seams.
 $GLOBALS['__ai']       = false;
 $GLOBALS['__transient'] = false;
-$GLOBALS['__untagged']  = array();
 $GLOBALS['__unused']    = array();
 function snt_ai_is_available() { return $GLOBALS['__ai']; }
 require_once dirname( __DIR__ ) . '/inc/jev-tags.php';
@@ -54,7 +53,6 @@ function get_transient( $k ) { return $GLOBALS['__transient']; }
 function set_transient( $k, $v, $t = 0 ) { $GLOBALS['__transient'] = $v; return true; }
 function delete_transient( $k ) { $GLOBALS['__transient'] = false; return true; }
 function get_current_user_id() { return 1; }
-function sn_tag_untagged_notes( $l = 20 ) { return $GLOBALS['__untagged']; }
 function sn_tag_find_unused() { return $GLOBALS['__unused']; }
 function _n( $s, $p, $n, $d = null ) { return 1 === (int) $n ? $s : $p; }
 

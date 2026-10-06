@@ -104,6 +104,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 );
 
 /**
+ * Test seam only: tests/remote-contract-shapes.php pins SN_REMOTE_CONTRACT_VERSION_HASHES with it.
+ *
  * Canonical sha256 over a slug-keyed map of output_schemas.
  *
  * Canonicalization: recursive key sort, then plain json_encode — so array

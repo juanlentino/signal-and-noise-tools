@@ -4,9 +4,8 @@
  * Consumes (summary, Signal[]) → a short narrative. AI path wraps the WP AI
  * Client; a deterministic template is the guaranteed floor. Spec §5.2.
  *
- * Render-path hardening: sn_aw_insight_header() (dashboard widget) and
- * snt_analytics_render_insights_band() (Analytics page) call sn_analytics_narrate()
- * / sn_analytics_digest() on EVERY admin page load — a passive render, not a
+ * Render-path hardening: snt_analytics_render_insights_band() (Analytics page)
+ * calls sn_analytics_narrate() / sn_analytics_digest() on EVERY admin page load — a passive render, not a
  * user-initiated action. Before this hardening, a cache miss meant an inline
  * 2.5-8.2s billed Anthropic call blocking that render. The *_ai() functions
  * below are now CACHE-READERS ONLY: cache hit → cached text; cache miss →

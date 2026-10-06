@@ -16,9 +16,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// The feature-flag option row. Absent (default) = the tab does not exist.
-const SN_MR_PREVIEW_OPT = 'sn_machine_readers_preview';
-
 /**
  * True iff the Machine Readers preview surface is enabled. Reads the plain
  * option (one WP-CLI line to toggle), then offers the house filter seam (the

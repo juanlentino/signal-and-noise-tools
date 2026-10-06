@@ -55,8 +55,9 @@ const SN_MATURITY_ROADMAP_MAX_LABEL_LEN = 80;
  * failure at that ceiling is WHOLESALE: the roadmap write replaces the entire
  * board, so the first family to overflow fails gate 2 and blocks EVERY board
  * edit — including the one that would fix it. The same validator guards the
- * read path (sn_maturity_roadmap_override_board()), so an over-cap override
- * returns null and the public page silently reverts to the static floor.
+ * read path (sn_maturity_roadmap_effective_report()), so an over-cap board
+ * is not served: the public page reverts to the static floor, flagged invalid
+ * for the Health check.
  *
  * A tighter ceiling does not make that failure shape better; it makes the
  * board hit it while the board is still small enough to fix by hand, and it
@@ -544,23 +545,6 @@ function sn_maturity_roadmap_board_problems( $board ) {
 		}
 	}
 	return $problems;
-}
-
-/**
- * The stored override, or null when absent/invalid. Absent and invalid
- * collapse deliberately: the public page's contract is "never render a
- * broken board", so an override that fails validation is IGNORED wholesale
- * rather than partially applied — the fallback is the static board, which
- * is always renderable.
- *
- * @return array<string,array<string,string[]>>|null
- */
-function sn_maturity_roadmap_override_board() {
-	$stored = get_option( SN_MATURITY_ROADMAP_OPTION, null );
-	if ( ! is_array( $stored ) || array() !== sn_maturity_roadmap_board_problems( $stored ) ) {
-		return null;
-	}
-	return $stored;
 }
 
 /**

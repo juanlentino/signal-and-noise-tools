@@ -244,8 +244,8 @@ foreach ( array( 'visits', 'scroll_avg', 'time_avg' ) as $gone ) {
 }
 ok( isset( $props['views'] ), 'views STAYS — it was never deprecated, only clarified' );
 // The removal is at the ABILITY boundary only: sn_analytics_range_totals()
-// still returns the quartet, because the Dashboard widget renders all three
-// (inc/analytics-widget.php) and annotations gate on visits. Pinned so a
+// still returns the quartet, because internal consumers read it and
+// annotations gate on visits. Pinned so a
 // future cleanup does not "finish the job" and break the owner's dashboard.
 $sn_impl = (string) file_get_contents( __DIR__ . '/../inc/analytics-read.php' );
 ok( false !== strpos( $sn_impl, "'visits'     => (int) ( \$r['visits'] ?? 0 )," ), 'sn_analytics_range_totals() still returns visits for internal consumers' );

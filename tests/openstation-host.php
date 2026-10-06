@@ -779,14 +779,6 @@ $_GET = array();
 ok( '' === snt_os_host_resolve_sub( 'dashboard', 'anything' ), 'a landing tab has no sub-tab, whatever was asked for' );
 ok( 'health' === snt_os_host_resolve_sub( 'monitoring', 'health' ), 'a leaf the tab really has is kept' );
 
-ok( array( 'tab' => 'connections', 'sub' => 'cloudflare', 'anchor' => '' ) === snt_os_host_destination( 'site', 'cloudflare' ),
-	'a moved leaf is re-homed by the estate\'s own resolver (site/cloudflare -> connections/cloudflare)' );
-ok( 'dashboard' === snt_os_host_destination( 'no-such-tab' )['tab'], 'an unknown tab lands on dashboard' );
-ok( 'dashboard' === snt_os_host_destination( '' )['tab'], 'and so does an empty one -- a window opened with no params is the Dashboard' );
-$identity = snt_os_host_destination( 'identity' );
-ok( 'site' === $identity['tab'] && 'identity-and-seo' === $identity['sub'] && 'identity' === $identity['anchor'],
-	'a pre-v3.8 legacy slug still resolves, anchor included -- sn_admin_legacy_redirect_map(), called' );
-
 echo "\nGroup 6: the `sn_*` params a window carries\n";
 // The WIRE shape, expanded the way every entry point expands it -- feeding
 // `sn_tag_from` un-bracketed here is how the whole bracket class stayed

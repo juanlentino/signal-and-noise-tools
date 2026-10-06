@@ -270,6 +270,8 @@ function snt_ai_cache_obs_peek() {
 }
 
 /**
+ * Test seam only: resets the observation queue between test cases.
+ *
  * Empty the queue.
  *
  * @since 10.70.0

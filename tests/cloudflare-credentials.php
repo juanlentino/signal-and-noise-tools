@@ -30,8 +30,7 @@ ok( 'central-tok' === sn_cf_analytics_token() && '' === sn_cf_analytics_override
 $GLOBALS['__opt'][ SN_CF_ANALYTICS_TOKEN_OPT ] = 'legacy-tok';
 ok( 'legacy-tok' === sn_cf_analytics_token() && 'option' === sn_cf_analytics_override_source(), 'a saved analytics token overrides the central one, and says so (option)' );
 $GLOBALS['__opt'][ SN_CF_ACCOUNT_ID_OPT ] = 'acct-1';
-$c = sn_cf_credentials();
-ok( true === $c['token_set'] && 'option' === $c['token_source'] && 'acct-1' === $c['account_id'] && 'option' === $c['analytics_override'], 'the credential set reports token, account and the override with their sources' );
+ok( 'acct-1' === sn_cf_get_account_id(), 'the account id resolves from its option' );
 
 // ── Grants
 $grants = sn_cf_required_grants();

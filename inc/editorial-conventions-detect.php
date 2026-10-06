@@ -30,9 +30,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** The ids this detector knows how to test, in the order findings sort. */
-const SNT_EDITORIAL_CONVENTION_CHECKS = array( 'correction', 'references', 'lead', 'steps-enumerated', 'svg-figure' );
-
 /**
  * The registry, keyed by id, or null when the theme does not provide it.
  *

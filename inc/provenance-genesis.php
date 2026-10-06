@@ -82,6 +82,8 @@ function sn_prov_merkle_proof( array $leaves, $index ) {
 }
 
 /**
+ * Test seam only: the verifier half of the Merkle proofs the ledger publishes, kept so tests prove a built proof verifies.
+ *
  * Verify an inclusion proof against a known hex root.
  *
  * @param string $leaf_data

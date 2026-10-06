@@ -568,10 +568,9 @@ ok( null !== $pp && array( 'wp-hooks' ) === $pp['deps'] && SNT_VERSION === $pp['
 ok( ! file_exists( SNT_PATH . 'assets/os-posts-provenance.js' ), 'posts columns: the 14.3 single-column file is gone (renamed, not duplicated)' );
 $pp_js = file_get_contents( SNT_PATH . 'assets/os-posts.js' );
 ok( false !== strpos( $pp_js, "'openstation.postsWindow.columns'" ), 'posts columns: registers on the Posts window columns filter' );
-ok( false !== strpos( $pp_js, "key: 'sn_provenance'" ) && false !== strpos( $pp_js, "key: 'sn_edge'" ), 'posts columns: Provenance reads sn_provenance, Edge reads sn_edge' );
+ok( false !== strpos( $pp_js, "key: 'sn_provenance'" ) && false === strpos( $pp_js, "key: 'sn_edge'" ), 'posts columns: Provenance reads sn_provenance; no Edge column (no per-post probe since #1850, removed 2026-10-06)' );
 ok( false !== strpos( $pp_js, 'c.key === col.key' ), 'posts columns: idempotent — the filter runs on every paint and each column is added once' );
 ok( 1 === preg_match( '/if \( ! value \|\| ! value\.versions \) \{\s*return document\.createElement/', $pp_js ), 'posts columns: an unsigned Note paints an EMPTY node, never a gray badge (absent is not zero)' );
-ok( 1 === preg_match( '/if \( ! value \|\| ! value\.state \) \{\s*return document\.createElement/', $pp_js ), 'posts columns: an unprobed post paints an EMPTY Edge cell — a gap, never fresh' );
 ok( 1 === preg_match( '/true !== meta\._sn_evergreen \) \{\s*return document\.createElement/', $pp_js ), 'posts columns: not flagged, or meta never shipped, paints an EMPTY Evergreen cell, never a dash, never false' );
 ok( false !== strpos( $pp_js, "key: 'meta._sn_evergreen'" ) && false !== strpos( $pp_js, 'row && row.meta' ), 'posts columns: the evergreen flag rides core\'s meta field, read off the row, not the flat value' );
 ok( false !== strpos( $pp_js, "label: 'Evergreen'" ), 'posts columns: the column carries the classic column\'s word' );
@@ -579,10 +578,10 @@ ok( strpos( $pp_js, 'wp.os' ) > strpos( $pp_js, 'function fetchAttention' ) && f
 
 // v14.3.1: the Posts window trims its list with a `_fields` allowlist, so the
 // fields behind our columns must be APPENDED there or the cells stay empty.
-// v14.4.0: two fields, one list (SNT_OS_POSTS_FIELDS) shared with the script.
+// v14.4.0: one list (SNT_OS_POSTS_FIELDS) shared with the script.
 $shell_default = array( '_embed' => 'author,wp:term,wp:featuredmedia', '_fields' => 'id,title,status,date,openstation_lock,_links,_embedded' );
 $out = snt_os_posts_window_query_args( $shell_default );
-ok( 'id,title,status,date,openstation_lock,_links,_embedded,sn_provenance,sn_edge,meta._sn_evergreen' === $out['_fields'], 'posts columns: sn_provenance, sn_edge AND meta._sn_evergreen are APPENDED to the window\'s _fields allowlist' );
+ok( 'id,title,status,date,openstation_lock,_links,_embedded,sn_provenance,meta._sn_evergreen' === $out['_fields'], 'posts columns: sn_provenance AND meta._sn_evergreen are APPENDED to the window\'s _fields allowlist (sn_edge removed 2026-10-06)' );
 ok( 'author,wp:term,wp:featuredmedia' === $out['_embed'], 'posts columns: every other query arg passes through untouched' );
 ok( $out === snt_os_posts_window_query_args( $out ), 'posts columns: idempotent — a second pass adds nothing' );
 ok( array( 'post_type' => 'x' ) === snt_os_posts_window_query_args( array( 'post_type' => 'x' ) ), 'posts columns: no _fields (a shell that ships everything) → nothing to append' );

@@ -255,7 +255,7 @@ ci_true( isset( $computed['counts']['intra_post_duplication'], $computed['counts
 ci_eq( 0, count( $GLOBALS['__test_transients'] ), 'Test 8.2: compute() writes NO transient' );
 $ran = snt_corpus_integrity_run_scan();
 ci_eq( 1, count( $GLOBALS['__test_transients'] ), 'Test 8.3: run_scan() writes exactly one user-scoped transient' );
-ci_eq( json_encode( $ran ), json_encode( snt_corpus_integrity_last_scan() ), 'Test 8.4: last_scan() round-trips run_scan()' );
+ci_eq( json_encode( $ran ), json_encode( reset( $GLOBALS['__test_transients'] ) ), 'Test 8.4: the cached transient round-trips run_scan()' );
 $sev = array_unique( array_column( $ran['candidates'], 'severity' ) );
 ci_true( ! in_array( 'error', $sev, true ), 'Test 8.5: no finding is ever an ERROR (warning/info only)' );
 

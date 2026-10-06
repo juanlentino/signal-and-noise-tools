@@ -44,33 +44,16 @@ sn_admin_glance_grid( array( array( 'label' => 'X', 'value' => 'y', 'href' => 'j
 $evil = ob_get_clean();
 ok( false === strpos( $evil, 'javascript:' ), 'a javascript: href is refused by esc_url' );
 
-// ── Attention sort: rank, then stability ──
-$cards = array(
-	array( 'label' => 'A', 'pill' => array( 'kind' => 'ok', 'text' => 'fine' ) ),
-	array( 'label' => 'B', 'pill' => array( 'kind' => 'warn', 'text' => 'look' ) ),
-	array( 'label' => 'C' ),
-	array( 'label' => 'D', 'pill' => array( 'kind' => 'err', 'text' => 'bad' ) ),
-	array( 'label' => 'E', 'pill' => array( 'kind' => 'warn', 'text' => 'look' ) ),
-	array( 'label' => 'F', 'pill' => array( 'kind' => 'ok', 'text' => 'fine' ) ),
-);
-$sorted = array_column( sn_admin_glance_sort_by_attention( $cards ), 'label' );
-ok( array( 'D', 'B', 'E', 'A', 'C', 'F' ) === $sorted,
-	'err first, then warn, then the rest — and ORIGINAL order is preserved inside each class (a reshuffling grid trains people to stop reading it)' );
-ok( array() === sn_admin_glance_sort_by_attention( array() ), 'an empty set sorts to empty' );
-
 // ── the shared opt-out predicate (v11.28.0) ─────────────────────────────────
-// This rule lived in THREE byte-identical copies: here, sn_dash_zone_state(),
-// and sn_dash_zone_attention(). Three copies is three chances to update two —
-// and the count/state disagreement that produces is exactly the v11.16.0
-// cold-caches-lead-the-dashboard regression.
+// This rule once lived in three byte-identical copies. Three copies is three
+// chances to update two, and the count/state disagreement that produces is
+// exactly the v11.16.0 cold-caches-lead-the-dashboard regression.
 ok( true === sn_admin_card_wants_attention( array( 'label' => 'x' ) ), 'a card with no opinion wants attention by default' );
 ok( true === sn_admin_card_wants_attention( array( 'attention' => true ) ), 'an explicit true wants attention' );
 ok( false === sn_admin_card_wants_attention( array( 'attention' => false ) ), 'ONLY an explicit false opts out' );
 // The distinction that matters: absent is not the same as false.
 ok( true === sn_admin_card_wants_attention( array( 'attention' => null ) ), 'a null attention is not an opt-out — only false is' );
 ok( true === sn_admin_card_wants_attention( array( 'attention' => 0 ) ), 'nor is a falsy 0 — the check is identity, not truthiness' );
-$one = sn_admin_glance_sort_by_attention( array( array( 'label' => 'solo' ) ) );
-ok( 'solo' === $one[0]['label'], 'a single card survives the sort' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

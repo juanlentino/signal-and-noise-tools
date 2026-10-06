@@ -178,35 +178,6 @@ function snt_mr_render_compliance( $rows ) {
 }
 
 /**
- * Sensor card: deployed worker version + deploy date vs the contract minimum
- * (SN_MR_SENSOR_MIN). Null info renders the quiet dash, never a warning or a
- * fatal; a below-minimum deploy warns and names the required version. Pure.
- *
- * @param array|null $info snt_mr_sensor_info() shape, or null on failure.
- * @return string HTML.
- */
-function snt_mr_render_sensor_card( $info ) {
-	$min = defined( 'SN_MR_SENSOR_MIN' ) ? (string) SN_MR_SENSOR_MIN : '1.4.0';
-	if ( ! is_array( $info ) || '' === (string) ( $info['version'] ?? '' ) ) {
-		return '<p class="sn-mr-sensor"><strong>' . esc_html__( 'Sensor', 'signal-and-noise-tools' ) . ':</strong> &mdash;</p>';
-	}
-	$version  = (string) $info['version'];
-	$deployed = (string) ( $info['deployed_at'] ?? '' );
-	$out      = '<p class="sn-mr-sensor"><strong>' . esc_html__( 'Sensor', 'signal-and-noise-tools' ) . ':</strong> sn-rights-signals v'
-		. esc_html( $version )
-		. ( '' !== $deployed ? ' <span class="description">(' . esc_html__( 'deployed', 'signal-and-noise-tools' ) . ' ' . esc_html( $deployed ) . ')</span>' : '' )
-		. '</p>';
-	if ( version_compare( $version, $min, '<' ) ) {
-		$out .= wp_get_admin_notice(
-			'<strong>' . esc_html__( 'Sensor outdated:', 'signal-and-noise-tools' ) . '</strong> '
-			. esc_html( sprintf( /* translators: 1: deployed version, 2: required minimum. */ __( 'the deployed worker is v%1$s; these panels need v%2$s or newer. Deploy the sensor release.', 'signal-and-noise-tools' ), $version, $min ) ),
-			array( 'type' => 'warning', 'additional_classes' => array( 'notice-alt', 'inline' ) )
-		);
-	}
-	return $out;
-}
-
-/**
  * Summary stat strip: total machine reads, top family, AI-training reads —
  * the at-a-glance row above the tables. Pure; every value escaped; empty rows
  * still render the strip (zeros), never a fatal.

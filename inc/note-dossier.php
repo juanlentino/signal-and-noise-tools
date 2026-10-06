@@ -228,24 +228,6 @@ function sn_note_dossier_unreadable( $group, $heading, $source_name ) {
 }
 
 /**
- * "2 hours ago" for a unix time; '' for no time.
- *
- * @param int $ts
- * @return string
- */
-function sn_note_dossier_ago( $ts ) {
-	$ts = (int) $ts;
-	if ( $ts <= 0 ) {
-		return '';
-	}
-	return sprintf(
-		/* translators: %s: human time difference. */
-		__( '%s ago', 'signal-and-noise-tools' ),
-		human_time_diff( $ts, time() )
-	);
-}
-
-/**
  * The whole dossier for one note: the four builders in the owner's order,
  * each in its own try. Null when the id is not a note.
  *

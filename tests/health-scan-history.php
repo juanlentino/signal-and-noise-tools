@@ -9,8 +9,8 @@
  *
  * The assertions that matter here are the honest-reporting ones, not the
  * plumbing: a malformed scan must record NOTHING rather than a row saying zero
- * findings, and the streak must count the CURRENT consecutive run rather than a
- * lifetime total, because the log is a FIFO that forgets.
+ * findings, and the log must evict its oldest rows, because it is a FIFO that
+ * forgets.
  *
  * Run: php tests/health-scan-history.php
  *
@@ -78,36 +78,17 @@ ok( array() === sn_health_history_row( 'not a scan' ), 'a non-array records noth
 ok( array() === sn_health_history_row( array( 'scanned_at' => 1 ) ), 'a result with no checks records nothing' );
 $GLOBALS['__opt'] = array();
 sn_health_history_append( array( 'scanned_at' => 1 ) );
-ok( array() === sn_health_history(), 'and appending a malformed scan writes NO row — never a row saying zero findings' );
+ok( ! isset( $GLOBALS['__opt'][ SN_HEALTH_HISTORY_OPT ] ), 'and appending a malformed scan writes NO row — never a row saying zero findings' );
 
 echo "\nGroup: it is a FIFO, and it forgets the oldest\n";
 $GLOBALS['__opt'] = array();
 for ( $i = 1; $i <= SN_HEALTH_HISTORY_CAP + 25; $i++ ) {
 	sn_health_history_append( hh_scan( 1700000000 + $i, $i ) );
 }
-$log = sn_health_history();
+$log = $GLOBALS['__opt'][ SN_HEALTH_HISTORY_OPT ];
 ok( SN_HEALTH_HISTORY_CAP === count( $log ), 'the log caps at SN_HEALTH_HISTORY_CAP (' . count( $log ) . ')' );
 ok( SN_HEALTH_HISTORY_CAP + 25 === (int) end( $log )['findings'], 'the NEWEST row survives' );
 ok( 26 === (int) $log[0]['findings'], 'and the oldest 25 were evicted, not archived' );
-ok( 5 === count( sn_health_history( 5 ) ), 'a limit returns the newest N' );
-
-echo "\nGroup: the streak answers 'how long has this been red', not 'how often ever'\n";
-$GLOBALS['__opt'] = array();
-// red, red, CLEAR, red, red, red  (oldest -> newest)
-foreach ( array(
-	array( 'broken_links' => 2 ),
-	array( 'broken_links' => 2 ),
-	array(),
-	array( 'broken_links' => 1 ),
-	array( 'broken_links' => 1 ),
-	array( 'broken_links' => 4 ),
-) as $i => $f ) {
-	sn_health_history_append( hh_scan( 1700000000 + $i, count( $f ) ? 1 : 0, $f ) );
-}
-ok( 3 === sn_health_history_streak( 'broken_links' ), 'counts back to the last clear scan, not the lifetime total (3, not 5)' );
-ok( 0 === sn_health_history_streak( 'missing_alt' ), 'a check the newest scan did not flag has streak 0' );
-$GLOBALS['__opt'] = array();
-ok( 0 === sn_health_history_streak( 'broken_links' ), 'an EMPTY log is streak 0 — "not currently red", never "measured clean"' );
 
 echo "\nGroup: wired to the store seam, not tangled into the writer\n";
 ok( in_array( 'sn_health_history_append', (array) ( $GLOBALS['__actions']['sn_health_scan_stored'] ?? array() ), true ),

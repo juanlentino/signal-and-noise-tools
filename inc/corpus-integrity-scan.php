@@ -449,16 +449,6 @@ function snt_corpus_integrity_run_scan() {
 }
 
 /**
- * Cached scan result for the current user, or null.
- *
- * @return array|null
- */
-function snt_corpus_integrity_last_scan() {
-	$val = get_transient( 'snt_corpus_integrity_candidates_' . (int) get_current_user_id() );
-	return is_array( $val ) ? $val : null;
-}
-
-/**
  * Dismiss one corpus-integrity finding: append "<check>:<fingerprint>" to
  * the post's dismiss meta and drop the user's cached scan. Mirrors
  * snt_block_migrations_dismiss_impl() including the phantom-empty-entry

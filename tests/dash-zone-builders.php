@@ -7,37 +7,12 @@ if ( ! function_exists( '_n' ) ) { function _n( $s, $p, $n, $d = '' ) { return 1
 // v11.28.0: the shared opt-out predicate lives with its original owner.
 require __DIR__ . '/../inc/admin-glance.php';
 require __DIR__ . '/../inc/dash-zones.php';
-require __DIR__ . '/../inc/dash-zone-attention.php';
 require __DIR__ . '/../inc/dash-zone-fleet.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 echo "dashboard zone builders\n\n";
 
-$green = array( 'label' => 'Health', 'pill' => array( 'kind' => 'ok', 'text' => 'clear' ) );
-$bad   = array( 'label' => 'Health', 'pill' => array( 'kind' => 'err', 'text' => '3 findings' ) );
-
-$z = sn_dash_zone_attention( array( $green, $green ) );
-ok( $z['id'] === 'attention', 'the attention zone has a stable id' );
-ok( $z['state'] === 'ok', 'all-green attention zone is ok' );
-ok( false !== stripos( $z['summary'], 'nothing needs attention' ), 'and says nothing needs attention' );
-
-$z = sn_dash_zone_attention( array( $green, $bad ) );
-ok( $z['state'] === 'attention', 'one bad card flips the zone' );
-ok( false !== strpos( $z['summary'], '1' ), 'the summary counts what needs attention' );
-
-$z = sn_dash_zone_attention( array( $bad, $bad ) );
-ok( false !== strpos( $z['summary'], '2' ), 'and counts two' );
-
-// The COUNT must agree with the STATE about what counts. A cold probe keeps its
-// amber pill and opts out of promotion (v11.16.0); if the count ignores that
-// opt-out the summary says "2 need attention" on a zone that considers 1 needy —
-// the same cold-caches-lead-the-dashboard regression, back in the summary line.
-$cold = array( 'label' => 'Edge cache', 'pill' => array( 'kind' => 'warn', 'text' => 'warming' ), 'attention' => false );
-$z    = sn_dash_zone_attention( array( $bad, $cold ) );
-ok( $z['state'] === 'attention', 'a real finding beside a cold probe still needs attention' );
-ok( false !== strpos( $z['summary'], '1' ) && false === strpos( $z['summary'], '2' ),
-	'THE COUNT HONOURS THE OPT-OUT — a cold probe does not inflate it' );
 
 $z = sn_dash_zone_fleet( array( 'theme' => '11.12.0', 'plugin' => '11.27.0' ), '28 minutes ago' );
 ok( $z['id'] === 'fleet', 'the fleet zone has a stable id' );

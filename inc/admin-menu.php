@@ -100,8 +100,8 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 	);
 	// Widget tokenization: the shared D4 --sn-an-* token layer (formerly declared
 	// inline in analytics-admin.css's own :root block) now lives in its own
-	// stylesheet so analytics-widget.css can read the same palette on the
-	// Dashboard home screen. Registered as a dependency below so WP's dep graph —
+	// stylesheet (the removed Dashboard-home widget sheet once shared it).
+	// Registered as a dependency below so WP's dep graph —
 	// not enqueue call order — guarantees it loads first.
 	wp_enqueue_style(
 		'snt-analytics-tokens',

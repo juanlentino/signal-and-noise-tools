@@ -155,20 +155,13 @@ pv_eq( $hash, sn_prov_content_hash( sn_prov_canonical_json( sn_prov_build_payloa
 
 echo "\nTask 6: chain CRUD + bearing hash\n";
 pv_eq( array(), sn_prov_get_chain( 777 ), 'empty chain for unknown post' );
-pv_eq( null, sn_prov_latest_hash( 777 ), 'latest hash null when empty' );
 
 sn_prov_append_commit( 777, array( 'version' => 1, 'content_hash' => 'aa', 'bearing_hash' => 'b1' ) );
 sn_prov_append_commit( 777, array( 'version' => 2, 'content_hash' => 'bb', 'bearing_hash' => 'b2' ) );
 pv_eq( 2, count( sn_prov_get_chain( 777 ) ), 'append grows the chain' );
-pv_eq( 'bb', sn_prov_latest_hash( 777 ), 'latest hash is the last commit content_hash' );
+$pv_chain = sn_prov_get_chain( 777 );
+pv_eq( 'bb', end( $pv_chain )['content_hash'], 'the newest commit is last in the chain' );
 
-// bearing hash excludes version + parent (so an unchanged edit coalesces).
-$b1 = sn_prov_bearing_hash( $post, 'Juan Lentino' );   // $post from Task 5
-$b2 = sn_prov_bearing_hash( $post, 'Juan Lentino' );
-pv_eq( $b1, $b2, 'bearing hash stable for identical content' );
-$post->post_title = 'On over-detection (revised)';
-pv_true( $b1 !== sn_prov_bearing_hash( $post, 'Juan Lentino' ), 'bearing hash changes when title changes' );
-$post->post_title = 'On over-detection'; // restore
 
 echo "\nTask 7: sn_prov_record (coalescing + seam)\n";
 $rp               = new stdClass();
@@ -202,6 +195,11 @@ $c3 = sn_prov_record( $rp, 'Juan Lentino' );
 pv_eq( 2, count( $c3 ), 'material change records version 2' );
 pv_eq( 2, $c3[1]['version'], 'second commit is version 2' );
 pv_eq( $c3[0]['content_hash'], $c3[1]['parent'], 'version 2 parent = version 1 content_hash' );
+
+// The title is a bearing field: a title-only change is not coalesced.
+$rp->post_title = 'A note, retitled';
+$c4 = sn_prov_record( $rp, 'Juan Lentino' );
+pv_eq( 3, is_array( $c4 ) ? count( $c4 ) : 0, 'a title-only change records version 3' );
 
 echo "\nTask 8: genesis parent feeds the first commit\n";
 $gp                = new stdClass();

@@ -58,16 +58,6 @@ ok( array() === sn_uses_parse_groups( 'prose with no headers' ), 'headerless con
 $multi = sn_uses_parse_groups( "## G\n- A | B | C\n" );
 ok( 'A' === ( $multi[0]['items'][0]['name'] ?? '' ) && 'B | C' === ( $multi[0]['items'][0]['note'] ?? '' ), 'only the first pipe splits (rest stays in the note)' );
 
-// ── serializer round-trips (prefill from the theme's live groups) ──
-echo "\nTest: sn_uses_serialize_groups\n";
-$text = sn_uses_serialize_groups( $groups );
-ok( false !== strpos( $text, '## Interface & control' ), 'serializer emits section headers' );
-ok( false !== strpos( $text, '- Universal Audio Apollo Twin X DUO | Custom 10 plug-in upgrade' ), 'serializer emits name | note' );
-ok( false !== strpos( $text, "- SSL UF8\n" ) && false === strpos( $text, 'SSL UF8 |' ), 'empty note emits no pipe' );
-ok( sn_uses_parse_groups( $text ) === $groups, 'parse(serialize(groups)) round-trips exactly' );
-ok( '' === sn_uses_serialize_groups( array() ), 'empty groups → empty string' );
-ok( '' === sn_uses_serialize_groups( 'hostile' ), 'non-array input → empty string (no fatal)' );
-
 // ── save / get round-trip ──
 echo "\nTest: sn_uses_page_save / sn_uses_page_get\n";
 ok( true === sn_uses_page_save( $raw ), 'save returns true' );

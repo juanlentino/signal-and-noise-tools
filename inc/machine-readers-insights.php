@@ -252,32 +252,6 @@ function snt_mr_family_delta_cards( $current_rows, $prior_rows, $days ) {
 }
 
 /**
- * Fetch both windows in one sensor read and run the detector over them.
- *
- * One call for 2*$days of rows (the sensor clamps at 90, so $days clamps at 45)
- * split locally, rather than two fetches: the read path already caches per
- * window length, and one call keeps the two halves consistent with each other.
- * A failed or unconfigured read yields no cards, never a card built on half a
- * comparison.
- *
- * @param int $days Window length in days, clamped 1..45.
- * @return array<int,array<string,mixed>> Cards (possibly empty).
- */
-function snt_mr_delta_cards( $days = 30 ) {
-	$days = max( 1, min( 45, (int) $days ) );
-	if ( ! function_exists( 'snt_mr_fetch' ) ) {
-		return array();
-	}
-	$result = snt_mr_fetch( $days * 2 );
-	if ( empty( $result['ok'] ) ) {
-		return array();
-	}
-	// The sensor aggregates by UTC day, so the reference day is a UTC date.
-	$split = snt_mr_split_windows( (array) ( $result['rows'] ?? array() ), $days, gmdate( 'Y-m-d' ) );
-	return snt_mr_family_delta_cards( $split['current'], $split['prior'], $days );
-}
-
-/**
  * Render the delta cards as a list, in the .sn-an-recs idiom the analytics
  * recommendations panel uses. Empty is first-class: no cards renders nothing at
  * all, so a host page can place this without an emptiness check of its own.

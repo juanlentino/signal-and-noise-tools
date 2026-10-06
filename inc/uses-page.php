@@ -66,37 +66,6 @@ function sn_uses_parse_groups( $raw ) {
 }
 
 /**
- * Serialize theme-shaped groups back into the editor's text format —
- * parse(serialize(x)) === x for normalized groups. Used to prefill the
- * editor with the theme's CURRENT file content on first open.
- *
- * @param array $groups Theme-shaped groups (sn_uses_groups() output).
- * @return string
- */
-function sn_uses_serialize_groups( $groups ) {
-	if ( ! is_array( $groups ) ) {
-		return '';
-	}
-	$out = array();
-	foreach ( $groups as $group ) {
-		if ( ! is_array( $group ) || '' === trim( (string) ( $group['label'] ?? '' ) ) || empty( $group['items'] ) ) {
-			continue;
-		}
-		$out[] = '## ' . trim( (string) $group['label'] );
-		foreach ( (array) $group['items'] as $item ) {
-			$name = trim( (string) ( is_array( $item ) ? ( $item['name'] ?? '' ) : $item ) );
-			if ( '' === $name ) {
-				continue;
-			}
-			$note  = is_array( $item ) ? trim( (string) ( $item['note'] ?? '' ) ) : '';
-			$out[] = '- ' . $name . ( '' !== $note ? ' | ' . $note : '' );
-		}
-		$out[] = '';
-	}
-	return empty( $out ) ? '' : implode( "\n", $out );
-}
-
-/**
  * The stored /uses page, shape-validated. Null when nothing is saved (the
  * theme's file content is live) or the stored value is hostile.
  *

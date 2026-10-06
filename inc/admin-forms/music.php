@@ -20,18 +20,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Obscure a stored secret for display: "••••" + last 4 chars (or '' when unset).
- *
- * @param string $value Stored credential.
- * @return string Masked value for the field, or ''.
- */
-function sn_music_mask( $value ) {
-	// Delegates to the shared length-aware mask (v4.14.2) so a short secret
-	// never renders in cleartext. Kept as a named wrapper for existing callers.
-	return sn_mask_secret( $value );
-}
-
-/**
  * Render the Connections → Discography sub-tab.
  *
  * @return void

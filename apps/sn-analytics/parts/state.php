@@ -83,33 +83,6 @@ function snt_os_analytics_defaults() {
 }
 
 /**
- * The window params a tab switch resets, as STATE keys.
- *
- * `snt_analytics_view_reset_params()` is the estate's one source for this list
- * — the tab strip and the Overview doorway builder both consume it — and it is
- * read here rather than retyped, so a param added there is reset here too.
- * `sn_compare` is deliberately absent from it: the active compare mode rides
- * along across a tab switch, and nothing in this file may put it back.
- *
- * `view` is dropped from the mapping because the switch itself sets it.
- *
- * @return string[]
- */
-function snt_os_analytics_reset_keys() {
-	if ( ! function_exists( 'snt_analytics_view_reset_params' ) ) {
-		return array();
-	}
-	$keys = array();
-	foreach ( (array) snt_analytics_view_reset_params() as $param ) {
-		$key = preg_replace( '/^sn_/', '', (string) $param );
-		if ( '' !== $key && 'view' !== $key ) {
-			$keys[] = $key;
-		}
-	}
-	return $keys;
-}
-
-/**
  * The window [ token, from, to ] for a raw range/from/to triple.
  *
  * `from`/`to` are kept ONLY for a resolved `custom` window, exactly as

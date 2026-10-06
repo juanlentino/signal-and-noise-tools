@@ -92,13 +92,6 @@ function sn_rsm_lines( $name, $items, $label, $ph = '', $rows = 4 ) {
 	echo '</div>';
 }
 
-function sn_rsm_bullet_row( $prefix, $value ) {
-	echo '<div class="sn-rsm-row sn-rsm-bullet" data-rsm-row>'
-		. '<textarea rows="2" class="large-text" name="' . esc_attr( $prefix . '[bullets][]' ) . '">' . esc_textarea( $value ) . '</textarea>';
-	sn_rsm_controls();
-	echo '</div>';
-}
-
 /**
  * One role row: title + its bullets list. Shared by Experience and the
  * Earlier-career fold.

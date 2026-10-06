@@ -38,11 +38,12 @@ $families  = snt_mr_valid_families();
 $ai_labels = snt_mr_ai_source_labels();
 
 echo "Group: the join is EXPLICIT — the pair that a string match would miss\n";
-ok( 'openai' === snt_mr_operator_for_family( 'openai' ), 'the openai crawler family resolves to the openai operator' );
-ok( 'openai' === snt_mr_operator_for_source( 'ChatGPT' ), 'the ChatGPT referrer label resolves to the SAME operator' );
-ok( snt_mr_operator_for_family( 'openai' ) === snt_mr_operator_for_source( 'ChatGPT' ), 'GPTBot and chatgpt.com are one company — the whole point of the map' );
-ok( 'google' === snt_mr_operator_for_family( 'google-ai' ) && 'google' === snt_mr_operator_for_source( 'Gemini' ), 'google-ai and Gemini join, and share no substring' );
-ok( 'mistral' === snt_mr_operator_for_source( 'Le Chat' ), '"Le Chat" joins to mistral — a label a string match could never reach' );
+// The live join (inc/machine-readers-giveback.php) iterates each operator's
+// families and sources, so the map itself is what is asserted.
+ok( in_array( 'openai', $ops['openai']['families'], true ), 'the openai crawler family belongs to the openai operator' );
+ok( in_array( 'ChatGPT', $ops['openai']['sources'], true ), 'the ChatGPT referrer label belongs to the SAME operator: GPTBot and chatgpt.com are one company, the whole point of the map' );
+ok( in_array( 'google-ai', $ops['google']['families'], true ) && in_array( 'Gemini', $ops['google']['sources'], true ), 'google-ai and Gemini join, and share no substring' );
+ok( in_array( 'Le Chat', $ops['mistral']['sources'], true ), '"Le Chat" joins to mistral, a label a string match could never reach' );
 
 echo "\nGroup: COMPLETENESS — every family is decided, none silently dropped\n";
 $mapped_families = array();
@@ -80,15 +81,9 @@ ok( ! empty( $ops['microsoft']['sources'] ), 'and Microsoft does have a source' 
 
 echo "\nGroup: non-AI crawler families are NOT operators\n";
 foreach ( array( 'search', 'seo', 'feed', 'uptime', 'other-bot', 'unclassified-machine' ) as $f ) {
-	ok( null === snt_mr_operator_for_family( $f ), "'$f' resolves to no operator — it is not an AI company" );
+	ok( ! in_array( $f, $mapped_families, true ), "'$f' belongs to no operator: it is not an AI company" );
 	ok( isset( $unmapped[ $f ] ), "'$f' is on the unmapped list with a reason" );
 }
-
-echo "\nGroup: unknown input is UNKNOWN, never a guess\n";
-ok( null === snt_mr_operator_for_family( 'not-a-family' ), 'an unknown family returns null' );
-ok( null === snt_mr_operator_for_source( 'Bing' ), 'a non-AI source label returns null (Bing is search, not an assistant)' );
-ok( null === snt_mr_operator_for_source( '' ), 'an empty label returns null' );
-ok( null === snt_mr_operator_for_family( 'OpenAI' ), 'family lookup is exact — the enum is lowercase, and a near-miss must not resolve' );
 
 echo "\nGroup: every operator is well-formed\n";
 foreach ( $ops as $key => $op ) {

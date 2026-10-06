@@ -108,6 +108,8 @@ function snt_os_active() {
 }
 
 /**
+ * Test seam only: no production branch reads it; tests/openstation-compat.php uses it to prove which family is live.
+ *
  * True when the ACTIVE install is post-#475 OpenStation. Verified real:
  * `openstation_register_command()` is defined at includes/commands.php
  * in post-rename trunk (there is no `desktop_mode_register_command` there at

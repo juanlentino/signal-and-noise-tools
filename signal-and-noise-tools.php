@@ -142,7 +142,6 @@ require_once SNT_PATH . 'inc/schedule-pages.php';
 require_once SNT_PATH . 'inc/schedule-admin.php';
 require_once SNT_PATH . 'inc/analytics-panels.php'; // v8.5.0: the ONE panel-chrome primitive for the Analytics page
 require_once SNT_PATH . 'inc/analytics-annotations.php'; // v9.4.0: rules-only panel-annotation resolvers
-require_once SNT_PATH . 'inc/analytics-widget.php';
 // First-party edge analytics (P2 data layer). analytics-api.php is the AE SQL
 // read-client; analytics-rollup.php (its first consumer) must load after it.
 require_once SNT_PATH . 'inc/analytics-api.php';
@@ -212,11 +211,8 @@ require_once SNT_PATH . 'inc/admin-dispatch.php';        // admin refactor Phase
 require_once SNT_PATH . 'inc/admin-shell.php';           // v6.42.0: two-column main+rail layout primitive
 require_once SNT_PATH . 'inc/admin-glance.php';          // Phase 1 redesign: reusable first-glance stat-card grid
 require_once SNT_PATH . 'inc/dash-zones.php';            // v11.28.0: zone contract, state, renderer
-require_once SNT_PATH . 'inc/dash-pins.php';             // v11.28.0: per-user zone pins + REST toggle
-require_once SNT_PATH . 'inc/dash-zone-attention.php';   // v11.28.0: is anything wrong?
 require_once SNT_PATH . 'inc/dash-zone-fleet.php';       // v11.28.0: did it ship?
 require_once SNT_PATH . 'inc/dash-zone-measurement.php'; // v11.28.0: how is the site doing?
-require_once SNT_PATH . 'inc/dash-briefing.php';         // v11.29.1: the briefing band — fixed chrome, cannot be hidden
 require_once SNT_PATH . 'inc/dash-trend.php';            // v11.30.0: the 30-day chart
 require_once SNT_PATH . 'inc/dash-ops-render.php';       // v11.30.0: the detail columns
 require_once SNT_PATH . 'inc/dash-console.php';          // v11.29.1: direction B — band + systems rail + stage
@@ -228,7 +224,6 @@ require_once SNT_PATH . 'inc/dash-widget.php';           // v11.30.0: the consol
 require_once SNT_PATH . 'inc/dash-widgets.php';          // v13.30.0: four subject boxes beside it, the Classic Admin fallback while OpenStation is severed
 require_once SNT_PATH . 'inc/dash-ops-panels.php';       // v11.29.2: the ops wall's panels — a projection of existing accessors
 require_once SNT_PATH . 'inc/dash-deploy-rows.php';      // v11.28.1: one deploy run's glyph, repo, duration, relative time
-require_once SNT_PATH . 'inc/dash-api-summary.php';      // v11.28.1: the rate-limit line + whether it earns its space
 require_once SNT_PATH . 'inc/script-package-origin.php'; // v12.24.0: names the plugin SERVING core's wp-* JS handles (the Gutenberg-override class of breakage)
 require_once SNT_PATH . 'inc/dash-debug-info.php';       // v11.28.1: the Site Health > Info panel (not a Dashboard surface)
 require_once SNT_PATH . 'inc/admin-legacy-redirect.php';
@@ -384,10 +379,6 @@ require_once SNT_PATH . 'inc/abilities-rights-evidence.php'; // 17.0.0: rights-e
 require_once SNT_PATH . 'inc/machine-readers-render.php';
 require_once SNT_PATH . 'inc/machine-readers-render-taxonomy.php'; // v10.79.0: purpose/vendor tables + the unknown-agent review.
 require_once SNT_PATH . 'inc/machine-readers-compose.php'; // v12.22.0: the leaf's arrangement, pure — see docs/proposals/admin-leaf-composition-2026-08-23.md
-// The one-sentence summarizer, loaded AFTER the render module whose aggregate
-// helpers it reads. No side effects, no hooks: a pure string builder narrator
-// surfaces can call once they hold a payload.
-require_once SNT_PATH . 'inc/machine-readers-narration.php';
 // Crawler-family volume deltas as insight cards (R3). Loads AFTER the render
 // module too: it reuses that lane's one "reads per family" aggregator. Pure
 // detector plus one guarded fetch wrapper, no hooks, no side effects.
@@ -450,9 +441,8 @@ require_once SNT_PATH . 'inc/abilities-zenodo.php'; // 15.11.0: zenodo-status on
 require_once SNT_PATH . 'inc/login-defense.php';
 require_once SNT_PATH . 'inc/login-defense-gauges.php';
 // Login defense analytics: the Analytics-dashboard Login defense view + renderers
-// (reads the same query builders); and the dashboard widget (owner-requested glance).
+// (reads the same query builders).
 require_once SNT_PATH . 'inc/login-defense-analytics.php';
-require_once SNT_PATH . 'inc/login-defense-widget.php';
 
 // ── Guard #3 (v1.3.0): function-redeclare defense ──────────────────
 //

@@ -10,8 +10,8 @@
  * reference marks the entities filter "inert" (it runs, nothing reads it)
  * and the window-args filter "went with the legacy window". Nothing errored,
  * so nothing warned; the folder simply stopped rendering. The module that
- * built it (inc/desktop-mode-explorer.php) stays for the REST field it
- * registers, but it no longer paints anything.
+ * built it was removed on 2026-10-06; the REST fields it registered now live
+ * in inc/post-rest-fields.php.
  *
  * WHAT THIS IS. The same two surfaces -- Notes with their provenance chain,
  * and the Discography -- as a window of their own, declared in one PHP file

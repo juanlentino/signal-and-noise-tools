@@ -667,33 +667,3 @@ function snt_os_host_resolve_sub( $tab, $requested ) {
 	}
 	return (string) array_key_first( $sub_tabs );
 }
-
-/**
- * Where a (tab, sub) pair actually lands: canonical tab, resolved sub, anchor.
- *
- * `sn_admin_post_redirect_target()` is the estate's own resolver for a moved
- * leaf, a legacy slug and an unknown tab (which falls back to dashboard); the
- * sub is then resolved the way the renderer resolves it. Both CALLED.
- *
- * @param string $tab Requested top tab.
- * @param string $sub Requested sub-tab.
- * @return array{tab:string,sub:string,anchor:string}
- */
-function snt_os_host_destination( $tab, $sub = '' ) {
-	$tab = (string) $tab;
-	$sub = (string) $sub;
-	if ( ! function_exists( 'sn_admin_post_redirect_target' ) ) {
-		return array(
-			'tab'    => '' !== $tab ? $tab : 'dashboard',
-			'sub'    => $sub,
-			'anchor' => '',
-		);
-	}
-	$target = sn_admin_post_redirect_target( '' !== $tab ? $tab : 'dashboard', $sub );
-	$tab    = (string) ( $target['tab'] ?? 'dashboard' );
-	return array(
-		'tab'    => $tab,
-		'sub'    => snt_os_host_resolve_sub( $tab, (string) ( $target['sub'] ?? '' ) ),
-		'anchor' => (string) ( $target['anchor'] ?? '' ),
-	);
-}

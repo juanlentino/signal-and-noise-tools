@@ -11,7 +11,7 @@
  * them from one hook instead of 22 files.
  *
  * Three parts. A source walk over inc/ and the bootstrap: zero hand-echoed
- * `<div ... notice notice-` literals, at least 35 calls (the vacuity guard,
+ * `<div ... notice notice-` literals, at least 34 calls (the vacuity guard,
  * so a walk that matched nothing cannot pass), and every quoted word from a
  * call's `'type' =>` to the end of that line is one word with no space, since
  * core _doing_it_wrong()s a `type` with a space (functions.php:9196) and the
@@ -136,8 +136,10 @@ foreach ( $files as $path ) {
 }
 ok( count( $files ) > 100, 'the walk saw the tree (' . count( $files ) . ' files)' );
 ok( array() === $literal_lines, 'no hand-echoed <div class="notice notice-..."> literal remains' . ( $literal_lines ? ': ' . implode( ', ', $literal_lines ) : '' ) );
-ok( $call_count >= 35, "at least 35 wp_admin_notice()/wp_get_admin_notice() calls (vacuity guard): $call_count" );
-ok( $type_lines >= 35, "at least 35 calls name a type (vacuity guard for the type walk): $type_lines" );
+// 34, not 35: the dead-code pass removed snt_mr_render_sensor_card()'s warning
+// call; its live twin is the sensor pill (tests/machine-readers-render.php).
+ok( $call_count >= 34, "at least 34 wp_admin_notice()/wp_get_admin_notice() calls (vacuity guard): $call_count" );
+ok( $type_lines >= 34, "at least 34 calls name a type (vacuity guard for the type walk): $type_lines" );
 ok( array() === $type_spaced, 'type is the one word at every call, and so is every class beside it on the line (core _doing_it_wrong()s a space)' . ( $type_spaced ? ': ' . implode( ', ', $type_spaced ) : '' ) );
 $mr_src = (string) file_get_contents( SNT_PATH . 'inc/machine-readers-render.php' );
 ok( false !== strpos( $mr_src, '<p class="sn-mr-truncated notice notice-warning inline">' ), 'the truncation readout stays a <p>: a paragraph styled as a notice, not a notice div' );
@@ -183,10 +185,6 @@ $html = snt_mr_render_edge_readout( array( 'version' => '1.21.0', 'deployed_at' 
 ok( 0 === strpos( $html, '<div class="notice notice-info notice-alt inline"><p><strong>Worker</strong> <code>sn-rights-signals</code> <code>v1.21.0</code></p>' ), 'the edge readout opens as the classic literal did: ' . substr( $html, 0, 120 ) );
 ok( '</p></div>' === substr( $html, -10 ) && false === strpos( $html, '<p><p>' ), 'paragraph_wrap is off: the readout keeps its own <p> tags, no double wrap' );
 ok( 1 === count( $GLOBALS['__markup_seen'] ) && $GLOBALS['__markup_seen'][0] === $html, 'the getter passed wp_admin_notice_markup once, and returned what the filter saw' );
-$GLOBALS['__markup_seen'] = array();
-$html = snt_mr_render_sensor_card( array( 'version' => '1.3.0', 'deployed_at' => '2026-07-23T23:01:27Z' ) );
-ok( false !== strpos( $html, '<div class="notice notice-warning notice-alt inline"><p><strong>Sensor outdated:</strong> the deployed worker is v1.3.0;' ), 'the outdated-sensor warning is the classic literal: ' . $html );
-ok( 1 === count( $GLOBALS['__markup_seen'] ), 'and it passed the markup filter' );
 
 // ═════════════════════════════════════════════════════════════════════════
 echo "\nGroup: admin_notices hook (inc/batch-schedule.php)\n";

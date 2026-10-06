@@ -7,30 +7,11 @@
  * Override details + Actions card grid that previously rendered inline
  * in admin-page.php were absorbed into this file in v1.14.0.
  *
- * Composition (top to bottom), after the v11.28.0 mission-control redesign.
- * This file COMPOSES; the zones and their formatting live in inc/dash-*.php.
- *   1. ZONES             — attention and fleet, each rendered by
- *                          sn_dash_render_zone(). STATE decides whether a zone
- *                          takes space: ok/unknown collapse to a line, attention
- *                          expands and leads. Cards still come from
- *                          snt_dashboard_glance_cards() and an expanded zone
- *                          still renders them via sn_admin_glance_grid() — the
- *                          v10.48.0 reading order inside a zone is unchanged.
- *                          Recent deploys is FOLDED into the fleet zone.
- *   2. MEASUREMENT STRIP — five figures that never collapse, because they have
- *                          no green/red state to fold. Absent renders as an em
- *                          dash, never a 0.
- *   3. ATTENTION STRIP   — one bg-warning row, shown only when something is off
- *                          (health findings, DB overrides, cron orphans, stale
- *                          scan, failed deploy), linking to the relevant tab.
- *   4. EXTERNAL APIs     — only when a host is warn/crit. Interesting at 4%
- *                          remaining, noise at 99%. (RSS activity was cut in
- *                          v11.28.0; the RSS tab owns the full view.)
- *   5. MAINTENANCE       — 3-card action grid. Forms POST to
- *                          sn_handle_admin_post() through admin-post.php, one
- *                          nonce per button (sn_admin_post_button()).
- *   6. DIAGNOSTICS       — collapsible override-detail list (only renders
- *                          when there ARE overrides)
+ * Composition: v11.28.0 built this tab from collapsing zones, a measurement
+ * strip, an attention strip, an external-APIs line and a Maintenance grid.
+ * v11.29.1 and v11.30.0 replaced that screen with the console (inc/dash-*.php
+ * compose it; this file gathers the inputs). The zone renderer, the strip
+ * renderer and the Maintenance grid were removed once nothing called them.
  *
  * Design principles (per memory: feedback_no_brutalist_in_admin_ui.md):
  *   - WP-admin native (.button, .notice, .widefat, .form-table where it fits)
@@ -183,7 +164,6 @@ function snt_dashboard_tab_data() {
 	// AI spend, cron, login blocks, views), built only from accessors that
 	// actually exist on this install.
 	$cards = snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago );
-	$pins  = function_exists( 'sn_dash_pins' ) ? sn_dash_pins( get_current_user_id() ) : array();
 
 	// v11.28.0: state earns space. Attention collapses to a line when nothing is
 	// wrong; fleet collapses unless a component was never probed. The cards
@@ -207,7 +187,7 @@ function snt_dashboard_tab_data() {
 	// assigned to $fleet_zone['body_html'] and then overwritten wholesale by
 	// the second sn_dash_zone_fleet() call a few lines down, so it rendered a
 	// list into a buffer and threw it away on every dashboard load. Its only
-	// consumer, sn_dash_render_zone(), now has no production caller at all.
+	// consumer, sn_dash_render_zone(), has since been removed.
 
 	// ── 1. THE CONSOLE ── v11.29.1, direction B with C's band.
 	//
@@ -752,78 +732,6 @@ add_action( 'admin_post_sn_force_update_check', function() {
 // v11.28.0: the Site Health > Info panel moved to inc/dash-debug-info.php and
 // took its add_filter with it. It never rendered on this tab — it lived here
 // only by history.
-
-/**
- * The Maintenance action grid.
- *
- * v11.29.0: extracted from the tab renderer so a metabox can call it. The
- * markup and the nonce are unchanged; the <h2> is dropped because the box
- * title now carries that word and repeating it reads as a stutter.
- *
- * @since 11.29.0
- * @return void
- */
-function snt_dashboard_render_maintenance_actions() {
-	echo '<h2 class="sn-section-h">Maintenance</h2>';
-	// ── 4. LOWER ROW ── v11.28.0: Recent deploys moved into the fleet zone
-	// above, so this row is Maintenance alone. The .sn-dash-cols wrapper stays
-	// for the existing responsive behaviour and the Diagnostics fold below it.
-	echo '<div class="sn-dash-cols">';
-
-	// Maintenance action grid.
-	echo '<div class="sn-dash-cols__side">';
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'full_reset' ) ) . '">';
-	echo '<div class="sn-card-grid sn-card-grid--dash">';
-
-	// v4.1.6 (U-13): button hierarchy matches action gravity.
-	//   - Full Reset is the most destructive (overrides + caches in one go) → button-link-delete (red).
-	//   - Clear Overrides + Check for Updates are reversible/informational → bare button.
-	echo '<div class="sn-card">';
-	echo '<strong>Full Reset</strong>';
-	echo '<p class="sn-helper">Clears all overrides and purges every cache. Use after theme updates.</p>';
-	echo '<button type="submit"' . sn_admin_post_button( 'full_reset' ) . ' class="button button-link-delete">Run Full Reset</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
-	echo '</div>';
-
-	echo '<div class="sn-card">';
-	echo '<strong>Clear Overrides</strong>';
-	echo '<p class="sn-helper">Removes template, template part, and navigation DB entries.</p>';
-	echo '<button type="submit"' . sn_admin_post_button( 'clear_overrides' ) . ' class="button">Clear Overrides</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
-	echo '</div>';
-
-	// v2.5.3: visible UI shortcut for the "tagged a new release, where's
-	// the Updates UI?" workflow. Replaces the need to run
-	// `gh workflow run deploy.yml --ref vX.Y.Z` for every release.
-	//
-	// Why this exists: WP's `update_plugins` site transient has a ~12h TTL.
-	// Our pre_set_site_transient_update_plugins filter only fires when WP
-	// is about to RE-SET that transient — i.e., on cache miss, on
-	// WP_FORCE_UPDATE_CHECK, or on `?force-check=1`. Without an explicit
-	// re-check, a freshly-tagged release can stay invisible to Updates UI
-	// for up to 12 hours. This button is one click → both transients
-	// cleared → redirect to update-core.php?force-check=1 → WP repolls →
-	// our filter injects the new tag → Updates UI shows it.
-	//
-	// As a bonus, this is just an admin-bar-free version of the
-	// `signal-noise/get-deploy-status` ability's force_refresh path (Cmd+K;
-	// force-check-updates removed v8.0.0), reachable without depending on
-	// the ⌘K palette working.
-	// v2.5.3: re-use the existing sn_force_update_check admin-post handler
-	// (lower in this file) which clears both transients + redirects to
-	// update-core.php?force-check=1. Same handler as the API summary's
-	// "Refresh now" link — single source of truth for force-check.
-	// v14.0.3: core's nonce-free force check (load-update-core.php runs the plugin's clear).
-	$check_updates_url = admin_url( 'update-core.php?force-check=1' );
-	echo '<div class="sn-card">';
-	echo '<strong>Check for Updates</strong>';
-	echo '<p class="sn-helper">Clears the theme + plugin update caches and re-polls GitHub. Use after tagging a new release.</p>';
-	echo '<a class="button" href="' . esc_url( $check_updates_url ) . '">Check Now</a>';
-	echo '</div>';
-
-	echo '</div>'; // .sn-card-grid--dash
-	echo '</form>';
-	echo '</div>'; // .sn-dash-cols__side
-	echo '</div>'; // .sn-dash-cols
-}
 
 /**
  * The override diagnostics fold.

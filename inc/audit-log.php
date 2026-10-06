@@ -44,7 +44,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_AUDIT_OPTION         = 'sn_audit_log_v1';
 const SN_AUDIT_TRANSIENT_IPS  = 'sn_audit_today_ips';
 const SN_AUDIT_IPS_TTL        = 25 * HOUR_IN_SECONDS;
-const SN_AUDIT_RETENTION_DAYS = 90;
 const SN_AUDIT_LOGIN_SUCCESS_CAP = 500;
 const SN_AUDIT_PRUNE_HOOK     = 'sn_audit_log_prune';
 const SN_AUDIT_LLA_LAST_COUNT_OPT = 'sn_audit_lla_last_lockout_count';

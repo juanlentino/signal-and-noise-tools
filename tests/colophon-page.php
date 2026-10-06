@@ -59,7 +59,7 @@ preg_match_all( '#<h2[^>]*>(.*?)</h2>#', $html, $h2 );
 ok( array( 'Made with', 'On the page', 'Kept honest' ) === $h2[1], 'three groups, H2 headings, in order (the page title is the H1)' );
 ok( false === strpos( $html, '<h1' ) && false === strpos( $html, '<h3' ), 'no other heading levels' );
 ok( 3 === preg_match_all( '#font-size:clamp\(2rem, 5vw, 3\.5rem\)#', $html ), 'group headings use the site\'s section-heading scale, not the theme\'s 6rem H2' );
-$order = array( 'platform', 'code', 'hosting', 'plugin', 'type', 'appearance', 'records', 'systems', 'ai', 'interop' );
+$order = array( 'platform', 'build', 'hosting', 'tooling', 'type', 'appearance', 'records', 'trust', 'ai', 'interop' );
 $pos = array_map( static fn( $s ) => strpos( $html, 'sn-colophon-item--' . $s . '"' ), $order );
 ok( ! in_array( false, $pos, true ) && $pos === array_values( array_unique( $pos ) ) && $pos == array_values( ( static function ( $p ) { sort( $p ); return $p; } )( $pos ) ), 'the ten rows, in the brief\'s order' );
 ok( 10 === substr_count( $html, '<li class="sn-colophon-item--' ), 'exactly ten rows' );
@@ -142,6 +142,21 @@ $u = sn_colophon_shortcode();
 ok( false === strpos( $u, 'github.com/juanlentino/signal-and-noise-tools"' ) && false !== strpos( $u, '<strong>Companion plugin:</strong> Signal &amp; Noise Tools adds' ), 'blanked repo URL: the plugin row degrades to plain text' );
 ok( false === strpos( $u, 'openstation.me' ) && false !== strpos( $u, 'inside OpenStation, a free' ), 'blanked OpenStation URL: plain text' );
 ok( false === strpos( $u, 'signal-and-noise/blob' ) && false !== strpos( $u, 'Theme v11.1.10-test' ), 'blanked theme changelog → unlinked version, stamp text intact' );
+$GLOBALS['__filters'] = array();
+
+echo "\nGroup: compatibility with existing filter callbacks (Codex on #1932)\n";
+add_filter( 'sn_colophon_urls', function () {
+	return array( 'plugin_repo' => 'https://github.com/juanlentino/signal-and-noise-tools', 'plugin_changelog' => '', 'theme_changelog' => '', 'openstation' => 'https://openstation.me/' );
+} );
+$old = sn_colophon_shortcode();
+ok( false === strpos( $old, 'href=""' ) && false !== strpos( $old, 'are public on GitHub, so anyone' ), 'a callback returning the pre-rewrite URL map: no notice, no empty href, the opening degrades to plain text' );
+$GLOBALS['__filters'] = array();
+add_filter( 'sn_colophon_items', function ( $items ) {
+	unset( $items['build'], $items['tooling'], $items['trust'] );
+	return $items;
+} );
+$sl = sn_colophon_shortcode();
+ok( false === strpos( $sl, 'sn-colophon-item--build' ) && false === strpos( $sl, '<strong>Companion plugin:' ) && false === strpos( $sl, '<strong>Systems:' ), 'a callback addressing the pre-rewrite slugs (build, tooling, trust) still reaches its rows' );
 $GLOBALS['__filters'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";

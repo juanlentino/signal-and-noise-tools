@@ -245,8 +245,8 @@ ok( array() === sn_maturity_roadmap_board_problems( sn_maturity_roadmap_static_b
  * WHOLESALE: the first family to overflow fails gate 2, and because the
  * roadmap write replaces the entire board, that blocks EVERY board edit —
  * including the one that would fix it. On the read side the same validator
- * guards sn_maturity_roadmap_override_board(), so an over-cap override
- * returns null and the public page silently reverts to the static floor.
+ * guards sn_maturity_roadmap_effective_report(), so an over-cap board is not
+ * served and the public page reverts to the static floor.
  *
  * So 'done' gets a tighter, purpose-named ceiling, a refusal that names the
  * fix (the door's standing rule), and a CI canary that reds one row BEFORE

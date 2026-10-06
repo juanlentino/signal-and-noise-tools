@@ -1269,8 +1269,7 @@
 
 /* ─── Glance-card delta badge (Phase 1) ──────────────────────────────────
    The week-over-week badge on the Views glance card. Uses the SAME up/down
-   direction colours as the dashboard-widget badge (.sn-aw-delta) and the
-   analytics-page badge — #0a7c2f / #b32d2e — so the identical up/down semantic
+   direction colours as the analytics-page badge — #0a7c2f / #b32d2e — so the identical up/down semantic
    renders identically wherever it appears. These also clear WCAG AA for text
    at this size (5.33:1 / ~5.9:1), where the old --sn-ok #00a32a was only 3.35:1. */
 .sn-glance-delta {

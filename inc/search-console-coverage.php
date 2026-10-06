@@ -33,9 +33,6 @@ const SNT_GSC_COVERAGE_STATUS   = 'snt_gsc_coverage_status';
 const SNT_GSC_COVERAGE_TIMEOUT  = 15;                 // seconds per inspection; Google usually answers in 3-15s.
 const SNT_GSC_COVERAGE_FRESH    = 6 * DAY_IN_SECONDS; // an entry younger than this is not re-inspected (resume).
 
-/** Verdicts Google can return; anything else is stored verbatim but counted as 'other'. */
-const SNT_GSC_COVERAGE_VERDICTS = array( 'PASS', 'NEUTRAL', 'FAIL', 'PARTIAL', 'VERDICT_UNSPECIFIED' );
-
 /**
  * Normalize one inspection response. PURE.
  *

@@ -258,5 +258,16 @@ $GLOBALS['__cf_sched']['snt_core_version_refill'] = 999;
 snt_core_refill_guard();
 cf_ok( 999 === $GLOBALS['__cf_sched']['snt_core_version_refill'] && 0 === $GLOBALS['__cf_opt']['snt_core_refill_guard_at'], 'guard: a refill already queued (the purge path) is left alone and not counted' );
 
+// 2026-10-06: the guard and the Core row read the cache through ONE test. A
+// cached value that is not a usable check (no updates list) made the row read
+// "unknown" while the guard, which only asked "is it false?", stood down.
+foreach ( array( 'an object with no updates list' => (object) array( 'last_checked' => time() ), 'a non-object' => 'stale-string', 'updates that is not a list' => (object) array( 'updates' => 'x' ) ) as $label => $shape ) {
+	$GLOBALS['__cf_sched'] = array(); $GLOBALS['__cf_opt'] = array();
+	$GLOBALS['__cf_transient'] = $shape;
+	cf_ok( 'unknown' === snt_core_status()['state'], "row: $label reads unknown" );
+	snt_core_refill_guard();
+	cf_ok( isset( $GLOBALS['__cf_sched']['snt_core_version_refill'] ), "guard: $label queues the refill too, the same test the row uses" );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail ? 1 : 0 );

@@ -1,7 +1,7 @@
 <?php
 /**
- * Wiring tests: the three sn_analytics_signals() call sites (insights band,
- * recommendations self-fetch, WP-home widget) must pass sn_analytics_signal_opts()
+ * Wiring tests: the sn_analytics_signals() call sites (insights band,
+ * recommendations self-fetch) must pass sn_analytics_signal_opts()
  * as the 4th argument (settings hub, v9.36.0). sn_analytics_signals is a SPY here
  * (defined before the requires), so each call's args are captured; the sentinel
  * opts stub proves the value flows through unmodified.
@@ -39,7 +39,6 @@ function sn_analytics_signal_opts() {
 
 require __DIR__ . '/../inc/analytics-insights.php';
 require __DIR__ . '/../inc/analytics-recommendations.php';
-require __DIR__ . '/../inc/analytics-widget.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -59,15 +58,6 @@ echo "Group: recommendations self-fetch\n";
 $GLOBALS['__sig_calls'] = array();
 try { sn_analytics_recommend( null ); } catch ( Throwable $e ) {}
 ok( 0 === count( $GLOBALS['__sig_calls'] ), 'recommend(null): the private trailing-14d signals self-fetch is GONE (D2)' );
-
-echo "Group: WP-home widget header\n";
-$GLOBALS['__sig_calls'] = array();
-if ( ! function_exists( 'snt_analytics_render_signal_chip' ) ) { function snt_analytics_render_signal_chip( $s ) { return ''; } }
-ob_start();
-try { sn_aw_insight_header(); } catch ( Throwable $e ) {}
-ob_end_clean();
-ok( 1 === count( $GLOBALS['__sig_calls'] ), 'widget header fetched signals exactly once' );
-ok( $sentinel === ( $GLOBALS['__sig_calls'][0]['opts'] ?? null ), 'widget passes sn_analytics_signal_opts() through' );
 
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

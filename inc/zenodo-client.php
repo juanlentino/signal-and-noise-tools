@@ -267,12 +267,3 @@ function sn_zenodo_probe( $env ) {
 	return array( 'status' => 'ok', 'detail' => sprintf( 'Zenodo %s creates a draft (a test draft was created and deleted).', $env ) );
 }
 
-/**
- * Open a new version of a published record; the answer's links.latest_draft
- * is the deposition to fill.
- *
- * @since 15.11.0
- */
-function sn_zenodo_new_version( $id, $env = null ) {
-	return sn_zenodo_request( 'POST', sn_zenodo_api_base( null === $env ? sn_zenodo_env() : $env ) . '/deposit/depositions/' . rawurlencode( (string) $id ) . '/actions/newversion', null, $env );
-}

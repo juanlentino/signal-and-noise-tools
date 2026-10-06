@@ -254,7 +254,7 @@ wh_eq( 5, $log[0]['fired_at'], 'oldest retained is index 5 (last 20 of 25)' );
 wh_eq( 24, $log[19]['fired_at'], 'newest retained is the last one written' );
 
 // ─── Test 7: payload shape ────────────────────────────────────────────
-echo "\nTest 7: sn_webhook_build_post_published_payload\n";
+echo "\nTest 7: sn_webhook_build_payload( 'post.published' )\n";
 $GLOBALS['__test_posts'] = array(
 	100 => (object) array(
 		'ID'            => 100,
@@ -266,7 +266,7 @@ $GLOBALS['__test_posts'] = array(
 		'post_type'     => 'post',
 	),
 );
-$body = sn_webhook_build_post_published_payload( 100, 'del_test' );
+$body = sn_webhook_build_payload( 'post.published', 100, 'del_test' );
 wh_true( is_string( $body ), 'returns a string body' );
 $decoded = json_decode( $body, true );
 wh_eq( 'post.published', $decoded['event'], 'event = post.published' );
@@ -278,8 +278,8 @@ wh_true( $decoded['post']['published_at'] > 0, 'published_at is a unix ts' );
 
 // Non-published post → null
 $GLOBALS['__test_posts'][101] = (object) array( 'ID' => 101, 'post_status' => 'draft' );
-wh_eq( null, sn_webhook_build_post_published_payload( 101, 'del_d' ), 'draft post → null' );
-wh_eq( null, sn_webhook_build_post_published_payload( 99999, 'del_z' ), 'unknown post → null' );
+wh_eq( null, sn_webhook_build_payload( 'post.published', 101, 'del_d' ), 'draft post → null' );
+wh_eq( null, sn_webhook_build_payload( 'post.published', 99999, 'del_z' ), 'unknown post → null' );
 
 // ─── Test 8: transition handler enqueues for enabled webhooks ─────────
 // v4.10.0: widened cron-arg order is [ webhook_id, event, post_id, snapshot, attempt, delivery_id ].
@@ -391,10 +391,6 @@ $body_unp = sn_webhook_build_payload( 'post.unpublished', 555, 'del_un', $snap )
 $d = json_decode( $body_unp, true );
 wh_eq( 'post.unpublished', $d['event'], 'post.unpublished event field' );
 wh_eq( 'Gone Post', $d['post']['title'], 'unpublished snapshot title used' );
-// Legacy shim still delegates.
-$shim = sn_webhook_build_post_published_payload( 100, 'del_shim' );
-$d = json_decode( $shim, true );
-wh_eq( 'post.published', $d['event'], 'legacy shim still builds post.published' );
 
 // ─── Test 15: fan-out by subscribed events (v4.10.0) ──────────────────
 echo "\nTest 15: fan-out — events list gates the enqueue\n";

@@ -9,7 +9,7 @@
  * forever-retained, sample-corrected views) with a `WHERE path = %s` predicate —
  * no Analytics Engine call, no sampling, no retention ceiling.
  *
- * Pure helpers (cumulative-by-day-of-life, median, velocity, decay, rank) carry
+ * Pure helpers (day-of-life bucketing, velocity, decay) carry
  * the age-alignment math and are unit-tested in tests/analytics-posts.php.
  *
  * @package signal-and-noise-tools
@@ -21,12 +21,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Classification windows + thresholds (named, not magic).
-const SN_POSTS_RECENT_LIMIT  = 12;   // cohort size for the baseline + leaderboard.
-const SN_POSTS_VELOCITY_DAYS = 2;    // "launch window" ≈ first 48h (daily granularity).
 const SN_POSTS_DECAY_DAYS    = 7;    // early-life window for the sustained/spike split.
 const SN_POSTS_SPIKE_SHARE   = 0.8;  // ≥ this share of lifetime views in week 1 → spike.
 const SN_POSTS_SUSTAINED_SHARE = 0.5; // ≤ this share → sustained (a long tail, not a spike).
-const SN_POSTS_BUNDLE_TTL    = 900;  // 15-min transient cache for the N-read bundle.
 
 /* ───────────────────────── pure age-alignment math ───────────────────────── */
 
@@ -107,45 +104,6 @@ function sn_analytics_posts_daily_by_dol( $series, $publish_ts ) {
 }
 
 /**
- * Cumulative views through day-of-life $age (inclusive). Reads past the last
- * recorded day just return the lifetime-so-far.
- *
- * @param array<int,int> $by_dol [day_of_life => views]
- * @param int            $age
- * @return int
- */
-function sn_analytics_posts_cumulative_at( $by_dol, $age ) {
-	$sum = 0;
-	foreach ( (array) $by_dol as $dol => $views ) {
-		if ( (int) $dol >= 0 && (int) $dol <= (int) $age ) {
-			$sum += (int) $views;
-		}
-	}
-	return $sum;
-}
-
-/**
- * Median of a numeric list. Empty → 0 (the caller reads 0 as "no baseline").
- *
- * @param array $vals
- * @return int|float
- */
-function sn_analytics_median( $vals ) {
-	$vals = array_values( array_map( 'floatval', (array) $vals ) );
-	$n    = count( $vals );
-	if ( 0 === $n ) {
-		return 0;
-	}
-	sort( $vals, SORT_NUMERIC );
-	$mid = intdiv( $n, 2 );
-	if ( 1 === $n % 2 ) {
-		$v = $vals[ $mid ];
-		return ( $v === floor( $v ) ) ? (int) $v : $v; // keep ints integral.
-	}
-	return ( $vals[ $mid - 1 ] + $vals[ $mid ] ) / 2;
-}
-
-/**
  * Launch velocity — views in the first $n days of life.
  *
  * @param array<int,int> $by_dol
@@ -187,25 +145,6 @@ function sn_analytics_posts_decay( $by_dol, $early_days ) {
 		return 'sustained';
 	}
 	return 'cooling';
-}
-
-/**
- * The subject's 1-based rank among {subject} ∪ cohort (higher value = better
- * rank). Ties resolve to the better rank (strictly-greater count + 1).
- *
- * @param int|float       $subject
- * @param array<int,mixed> $cohort
- * @return array{rank:int,of:int}
- */
-function sn_analytics_posts_rank( $subject, $cohort ) {
-	$cohort  = array_values( array_map( 'floatval', (array) $cohort ) );
-	$greater = 0;
-	foreach ( $cohort as $v ) {
-		if ( $v > (float) $subject ) {
-			++$greater;
-		}
-	}
-	return array( 'rank' => $greater + 1, 'of' => count( $cohort ) + 1 );
 }
 
 /* ───────────────────────── durable-rollup accessors ──────────────────────── */
@@ -342,127 +281,3 @@ function sn_analytics_path_window( $path, $from, $to ) {
 	);
 }
 
-/**
- * The most recent published posts (the cohort): id/title/permalink/path/publish_ts.
- *
- * @param int $limit
- * @return array<int,array{id:int,title:string,permalink:string,path:string,publish_ts:int}>
- */
-function sn_analytics_posts_recent( $limit = SN_POSTS_RECENT_LIMIT ) {
-	$q = new WP_Query( array(
-		'post_type'           => 'post',
-		'post_status'         => 'publish',
-		'posts_per_page'      => max( 1, (int) $limit ),
-		'orderby'             => 'date',
-		'order'               => 'DESC',
-		'no_found_rows'       => true,
-		'ignore_sticky_posts' => true,
-	) );
-	$out = array();
-	foreach ( (array) $q->posts as $p ) {
-		$out[] = array(
-			'id'         => (int) $p->ID,
-			'title'      => get_the_title( $p->ID ),
-			'permalink'  => (string) get_permalink( $p->ID ),
-			'path'       => sn_analytics_post_path( $p->ID ),
-			'publish_ts' => (int) get_post_time( 'U', true, $p->ID ),
-		);
-	}
-	return $out;
-}
-
-/**
- * The full age-aligned bundle the Posts view renders: the subject (newest post)
- * verdict, the cohort baseline trajectory, the leaderboard, velocity, decay.
- * Transient-cached (N per-path reads) keyed on the cohort id-set + day.
- *
- * @param int $limit Cohort size.
- * @return array|null Bundle, or null when no published post / no analytics config.
- */
-function sn_analytics_posts_bundle( $limit = SN_POSTS_RECENT_LIMIT ) {
-	$posts = sn_analytics_posts_recent( $limit );
-	if ( empty( $posts ) ) {
-		return null;
-	}
-
-	$ids       = wp_list_pluck( $posts, 'id' );
-	$cache_key = 'sn_posts_bundle_' . md5( implode( ',', $ids ) . '|' . gmdate( 'Y-m-d' ) );
-	$cached    = get_transient( $cache_key );
-	if ( is_array( $cached ) ) {
-		return $cached;
-	}
-
-	$now   = time();
-	$today = sn_analytics_posts_local_day( $now );
-	$rows  = array();
-
-	foreach ( $posts as $p ) {
-		$age    = sn_analytics_posts_age( $p['publish_ts'], $now );
-		$from   = sn_analytics_posts_local_day( $p['publish_ts'] > 0 ? $p['publish_ts'] : $now );
-		$series = '' !== $p['path'] ? sn_analytics_path_daily_series( $p['path'], $from, $today ) : array();
-		$by_dol = sn_analytics_posts_daily_by_dol( $series, $p['publish_ts'] );
-		$life   = '' !== $p['path'] ? sn_analytics_path_lifetime( $p['path'] ) : 0;
-
-		$rows[] = array(
-			'id'        => $p['id'],
-			'title'     => $p['title'],
-			'permalink' => $p['permalink'],
-			'age'       => $age,
-			'by_dol'    => $by_dol,
-			'lifetime'  => $life,
-			'per_day'   => $age > 0 ? round( $life / ( $age + 1 ), 1 ) : (float) $life,
-			'velocity'  => sn_analytics_posts_velocity( $by_dol, SN_POSTS_VELOCITY_DAYS ),
-			'decay'     => sn_analytics_posts_decay( $by_dol, SN_POSTS_DECAY_DAYS ),
-		);
-	}
-
-	$bundle = array(
-		'subject'     => sn_analytics_posts_subject( $rows ),
-		'leaderboard' => $rows,
-		'generated'   => $now,
-	);
-	set_transient( $cache_key, $bundle, SN_POSTS_BUNDLE_TTL );
-	return $bundle;
-}
-
-/**
- * The "did it land" verdict for the newest post (rows[0]) against the cohort at
- * its CURRENT age — the load-bearing age-aligned comparison.
- *
- * @param array $rows Leaderboard rows (rows[0] = newest).
- * @return array Subject summary with cohort verdict + rank.
- */
-function sn_analytics_posts_subject( $rows ) {
-	$s   = $rows[0];
-	$age = (int) $s['age'];
-
-	$subject_at_age = sn_analytics_posts_cumulative_at( $s['by_dol'], $age );
-
-	// Cohort = the OTHER posts that have lived at least as long, measured at the
-	// SAME age (day-7 vs cohort-at-day-7) so the comparison is apples-to-apples.
-	$cohort = array();
-	foreach ( array_slice( $rows, 1 ) as $r ) {
-		if ( (int) $r['age'] >= $age ) {
-			$cohort[] = sn_analytics_posts_cumulative_at( $r['by_dol'], $age );
-		}
-	}
-	$median  = sn_analytics_median( $cohort );
-	$delta   = function_exists( 'sn_analytics_delta' )
-		? sn_analytics_delta( $subject_at_age, $median )
-		: array( 'pct' => null, 'dir' => 'flat' );
-	$rank    = sn_analytics_posts_rank( $subject_at_age, $cohort );
-
-	return array(
-		'id'        => $s['id'],
-		'title'     => $s['title'],
-		'permalink' => $s['permalink'],
-		'age'       => $age,
-		'views'     => $subject_at_age,
-		'lifetime'  => (int) $s['lifetime'],
-		'median'    => $median,
-		'delta'     => $delta,
-		'rank'      => $rank,
-		'by_dol'    => $s['by_dol'],
-		'has_data'  => $subject_at_age > 0 || ! empty( $cohort ),
-	);
-}
