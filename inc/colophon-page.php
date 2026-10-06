@@ -54,18 +54,22 @@ if ( ! defined( 'ABSPATH' ) ) {
  * the Worker signs with the site's Ed25519 key and anchors in Bitcoin through
  * OpenTimestamps; inc/provenance-verify.php: the /verify route).
  *
+ * The slugs `build`, `tooling` and `trust` are the pre-rewrite keys, kept so
+ * existing `sn_colophon_items` callbacks still reach their rows; only the
+ * labels changed (Code, Companion plugin, Systems). Codex on #1932.
+ *
  * @return array<string,array{0:string,1:string}>
  */
 function sn_colophon_items() {
 	$items = array(
 		'platform'   => array( __( 'Platform', 'signal-and-noise-tools' ), __( 'WordPress with Full Site Editing, so the theme\'s templates, headers and footers are assembled from WordPress\'s own blocks, with no page builder on top.', 'signal-and-noise-tools' ) ),
-		'code'       => array( __( 'Code', 'signal-and-noise-tools' ), __( 'hand-written PHP for the server, plain JavaScript for the browser, and a theme.json file of design settings, with no build step, so what is in the public repositories is what runs, with nothing compiled in between.', 'signal-and-noise-tools' ) ),
+		'build'      => array( __( 'Code', 'signal-and-noise-tools' ), __( 'hand-written PHP for the server, plain JavaScript for the browser, and a theme.json file of design settings, with no build step, so what is in the public repositories is what runs, with nothing compiled in between.', 'signal-and-noise-tools' ) ),
 		'hosting'    => array( __( 'Hosting', 'signal-and-noise-tools' ), __( 'Cloudways runs the server the site lives on, and Cloudflare directs the domain name to it and keeps copies of each page in data centers around the world, so a page can be served from a copy near you instead of from the server.', 'signal-and-noise-tools' ) ),
-		'plugin'     => array( __( 'Companion plugin', 'signal-and-noise-tools' ), __( 'Signal & Noise Tools adds what the theme leaves out, such as search and social previews, cookie-free visitor counts, the signed records described below, and checks for broken links and missing image descriptions.', 'signal-and-noise-tools' ) ),
+		'tooling'    => array( __( 'Companion plugin', 'signal-and-noise-tools' ), __( 'Signal & Noise Tools adds what the theme leaves out, such as search and social previews, cookie-free visitor counts, the signed records described below, and checks for broken links and missing image descriptions.', 'signal-and-noise-tools' ) ),
 		'type'       => array( __( 'Type', 'signal-and-noise-tools' ), __( 'Bebas Neue for headings, buttons and navigation, and DM Mono for body text and captions, both served from this site rather than a font service, so the fonts load from no one else\'s servers.', 'signal-and-noise-tools' ) ),
 		'appearance' => array( __( 'Appearance', 'signal-and-noise-tools' ), __( 'light by default, with a dark version that follows your device\'s setting; the toggle overrides that and remembers your choice on this device.', 'signal-and-noise-tools' ) ),
 		'records'    => array( __( 'Records', 'signal-and-noise-tools' ), __( 'each note I publish gets a fingerprint (SHA-256) of a record holding its text, title, date and version, a digital signature from the site\'s key (Ed25519) and a timestamp written into Bitcoin (OpenTimestamps); when the text changes after a version is signed, a new signed version is added and the earlier ones are kept, so anyone can check that a note is unchanged and when it was published at Verify a Note.', 'signal-and-noise-tools' ) ),
-		'systems'    => array( __( 'Systems', 'signal-and-noise-tools' ), __( 'every system documented at the maturity index, where each system has a page explaining what it does.', 'signal-and-noise-tools' ) ),
+		'trust'      => array( __( 'Systems', 'signal-and-noise-tools' ), __( 'every system documented at the maturity index, where each system has a page explaining what it does.', 'signal-and-noise-tools' ) ),
 		'ai'         => array( __( 'AI', 'signal-and-noise-tools' ), __( 'engineered with Claude (Anthropic) as a pair programmer, meaning an AI that helps write the site\'s code.', 'signal-and-noise-tools' ) ),
 		'interop'    => array( __( 'Interop', 'signal-and-noise-tools' ), __( 'the site\'s admin dashboard runs inside OpenStation, a free WordPress plugin that turns it into a desktop with windows and a dock, which readers of the public site never see; Daniel López Sánchez, one of OpenStation\'s maintainers, contributed to this site\'s OpenStation integration.', 'signal-and-noise-tools' ) ),
 	);
@@ -80,9 +84,9 @@ function sn_colophon_items() {
  */
 function sn_colophon_groups() {
 	return array(
-		'made'   => array( __( 'Made with', 'signal-and-noise-tools' ), array( 'platform', 'code', 'hosting', 'plugin' ) ),
+		'made'   => array( __( 'Made with', 'signal-and-noise-tools' ), array( 'platform', 'build', 'hosting', 'tooling' ) ),
 		'page'   => array( __( 'On the page', 'signal-and-noise-tools' ), array( 'type', 'appearance' ) ),
-		'honest' => array( __( 'Kept honest', 'signal-and-noise-tools' ), array( 'records', 'systems', 'ai', 'interop' ) ),
+		'honest' => array( __( 'Kept honest', 'signal-and-noise-tools' ), array( 'records', 'trust', 'ai', 'interop' ) ),
 	);
 }
 
@@ -127,7 +131,10 @@ function sn_colophon_urls() {
 		'credit_daniel'  => 'https://github.com/AllTerrainDeveloper',
 		'theme_repo'       => 'https://github.com/juanlentino/signal-and-noise',
 	);
-	return apply_filters( 'sn_colophon_urls', $urls );
+	// A callback returning the pre-rewrite map (no theme_repo, no credit link)
+	// must not raise a notice or emit href="": absent keys read as '' and
+	// degrade to plain text (Codex on #1932).
+	return array_merge( array_fill_keys( array_keys( $urls ), '' ), (array) apply_filters( 'sn_colophon_urls', $urls ) );
 }
 
 /**
@@ -173,9 +180,9 @@ function sn_colophon_links() {
 	$wf_page      = function_exists( 'get_page_by_path' ) ? get_page_by_path( 'workflow' ) : null;
 	$workflow_url = $wf_page && 'publish' === ( $wf_page->post_status ?? '' ) ? (string) get_permalink( $wf_page ) : '';
 	return array(
-		'plugin'  => array( array( 'Signal & Noise Tools', $urls['plugin_repo'], true, '' ) ),
+		'tooling' => array( array( 'Signal & Noise Tools', $urls['plugin_repo'], true, '' ) ),
 		'records' => array( array( 'Verify a Note', function_exists( 'home_url' ) ? home_url( '/verify' ) : '', false, '' ) ),
-		'systems' => array( array( 'maturity index', sn_colophon_maturity_url(), false, '' ) ),
+		'trust'   => array( array( 'maturity index', sn_colophon_maturity_url(), false, '' ) ),
 		// Screen-reader-only context for link lists. A suffix, never an aria-label:
 		// the accessible name must start with the visible words (WCAG 2.5.3).
 		'ai'      => array( array( 'pair programmer', $workflow_url, false, __( ': how I work with AI', 'signal-and-noise-tools' ) ) ),

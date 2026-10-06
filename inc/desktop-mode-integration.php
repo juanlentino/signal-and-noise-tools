@@ -129,9 +129,9 @@ require_once __DIR__ . '/desktop-mode-widgets.php';
 require_once __DIR__ . '/desktop-mode-dock.php';
 require_once __DIR__ . '/desktop-mode-plugins-window.php';
 require_once __DIR__ . '/desktop-mode-ai.php';
-// The two REST fields the Posts window reads (sn_provenance, sn_edge). They
-// lived in the v12.4.0 WP Explorer module until 2026-10-06, when the rest of
-// it (inert since OpenStation 1.1.6) was removed. Same slot, same order.
+// The REST field the Posts window reads (sn_provenance). It lived in the
+// v12.4.0 WP Explorer module until 2026-10-06, when the rest of it (inert
+// since OpenStation 1.1.6) was removed. Same slot, same order.
 require_once __DIR__ . '/post-rest-fields.php';
 // v13.105.1: the one-time carry of a user's shell placement from the two
 // auto-imported menu ids to the app ids (#1080). Registers only an admin_init
