@@ -238,7 +238,14 @@
 		// visitor's request the rights Worker forwarded (inc/edge-rollup.php),
 		// so "who asked" cannot separate visitors from the Worker's own calls.
 		if ( total > 0 ) { tally.look++; }
-		return { rows: [ { label: '5xx · ' + String( e.day || 'yesterday' ), value: total + delta, tone: total > 0 ? WARN_FG : '' } ] };
+		var rows = [ { label: '5xx · ' + String( e.day || 'yesterday' ), value: total + delta, tone: total > 0 ? WARN_FG : '' } ];
+		// Whose (2026-10-05): most of these are this dashboard's own polls, not
+		// a reader's page. Said beside the count, never subtracted from it.
+		if ( total > 0 && typeof e.dashboard === 'number' ) {
+			var dash = Math.min( total, num( e.dashboard ) );
+			rows.push( { label: 'Your dashboard · everything else', value: dash + ' · ' + ( total - dash ) } );
+		}
+		return { rows: rows };
 	}
 
 	/** Cron runs over the last 24 hours, and the hooks that failed. */
