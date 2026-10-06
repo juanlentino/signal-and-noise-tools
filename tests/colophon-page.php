@@ -53,12 +53,17 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 echo "Group: registration + structure (2026-10-06 rewrite)\n";
 ok( isset( $GLOBALS['__shortcodes']['sn_colophon'] ), 'shortcode registered on load' );
 $html = sn_colophon_shortcode();
-ok( 1 === preg_match( '#^<div class="sn-colophon"><p>I designed and built this site, and I maintain it#', $html ), 'the opening is first person and comes first' );
+ok( 1 === preg_match( '#^<div class="sn-colophon"><div class="sn-colophon-head"><p>I designed and built this site, and I maintain it#', $html ), 'the opening is first person and comes first' );
 $h2 = array();
 preg_match_all( '#<h2[^>]*>(.*?)</h2>#', $html, $h2 );
 ok( array( 'Made with', 'On the page', 'Kept honest' ) === $h2[1], 'three groups, H2 headings, in order (the page title is the H1)' );
 ok( false === strpos( $html, '<h1' ) && false === strpos( $html, '<h3' ), 'no other heading levels' );
-ok( 3 === preg_match_all( '#font-size:clamp\(2rem, 5vw, 3\.5rem\)#', $html ), 'group headings use the site\'s section-heading scale, not the theme\'s 6rem H2' );
+ok( false === strpos( $html, 'style=' ), 'no inline styles: the bands and the heading scale live in assets/colophon-front.css' );
+$css = (string) file_get_contents( dirname( __DIR__ ) . '/assets/colophon-front.css' );
+ok( false !== strpos( $css, '.sn-colophon-group h2{font-size:clamp(2rem,5vw,3.5rem)' ), 'group headings use the site\'s section-heading scale, not the theme\'s 6rem H2' );
+$bands = array();
+preg_match_all( '#<section class="sn-colophon-group sn-colophon-group--([a-z]+)"><h2 id="sn-colophon-\1">#', $html, $bands );
+ok( array( 'made', 'page', 'honest' ) === $bands[1], 'each group is a band (section) opening with its H2, in order' );
 $order = array( 'platform', 'build', 'hosting', 'tooling', 'type', 'appearance', 'records', 'trust', 'ai', 'interop' );
 $pos = array_map( static fn( $s ) => strpos( $html, 'sn-colophon-item--' . $s . '"' ), $order );
 ok( ! in_array( false, $pos, true ) && $pos === array_values( array_unique( $pos ) ) && $pos == array_values( ( static function ( $p ) { sort( $p ); return $p; } )( $pos ) ), 'the ten rows, in the brief\'s order' );
@@ -114,7 +119,7 @@ ok( false === strpos( $plain, 'example.com/maturity' ) && false !== strpos( $pla
 $GLOBALS['__page_urls']['maturity'] = 'https://example.com/maturity/';
 
 echo "\nGroup: versions (the existing build line, unchanged)\n";
-ok( 1 === preg_match( '/<p class="sn-colophon-versions">Theme <a[^>]*>v11\.1\.10-test<\/a> · plugin <a[^>]*>v10\.13\.0-test<\/a><\/p><\/div>$/u', $html ), 'stamp reads Theme vX · plugin vY, numbers linked, last before the wrapper closes' );
+ok( 1 === preg_match( '/<\/p><p class="sn-colophon-versions">Theme <a[^>]*>v11\.1\.10-test<\/a> · plugin <a[^>]*>v10\.13\.0-test<\/a><\/p><\/div><section /u', $html ), 'stamp reads Theme vX · plugin vY, numbers linked, in the header after the opening (seen without scrolling)' );
 ok( false !== strpos( $html, 'href="https://github.com/juanlentino/signal-and-noise/blob/main/CHANGELOG.md"' ) && false !== strpos( $html, 'href="https://github.com/juanlentino/signal-and-noise-tools/blob/main/CHANGELOG.md"' ), 'each version links its changelog' );
 ok( false === strpos( $html, 'sn-colophon-notes' ) && false === strpos( $html, 'example.com/notes' ), 'no notes line: dropped in 11.10.1, stays dropped' );
 

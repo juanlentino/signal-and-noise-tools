@@ -254,19 +254,23 @@ function sn_colophon_shortcode( $atts = array() ) {
 	$repo  = '' !== $urls['theme_repo']
 		? '<a href="' . esc_url( $urls['theme_repo'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'public on GitHub', 'signal-and-noise-tools' ) . sn_colophon_new_tab_note() . '</a>'
 		: esc_html__( 'public on GitHub', 'signal-and-noise-tools' );
-	$out = '<div class="sn-colophon">'
+	if ( function_exists( 'sn_colophon_enqueue' ) && function_exists( 'wp_enqueue_style' ) ) {
+		sn_colophon_enqueue(); // Already in the head when the page carries the shortcode; a no-op then.
+	}
+	$out = '<div class="sn-colophon"><div class="sn-colophon-head">'
 		// One translatable sentence; the link is a placeholder so a translator
 		// can move it (Codex on #1932).
 		. '<p>' . sprintf(
 			/* translators: %s: the words "public on GitHub", linked to the source. */
 			esc_html__( 'I designed and built this site, and I maintain it. The theme and the plugin that run it are %s, so anyone can read how a page here is made.', 'signal-and-noise-tools' ),
 			$repo
-		) . '</p>';
+		) . '</p>' . sn_colophon_versions_html( $urls ) . '</div>';
 
 	$row = static function ( $slug ) use ( $items, $links ) {
 		$item = $items[ $slug ];
 		return '<li class="sn-colophon-item--' . esc_attr( $slug ) . '"><strong>' . esc_html( (string) ( $item[0] ?? $slug ) ) . ':</strong> '
-			. sn_colophon_row_html( (string) ( $item[1] ?? '' ), $links[ $slug ] ?? array() ) . '</li>';
+			. sn_colophon_row_html( (string) ( $item[1] ?? '' ), $links[ $slug ] ?? array() )
+			. ( 'records' === $slug && function_exists( 'sn_colophon_record_html' ) ? sn_colophon_record_html() : '' ) . '</li>';
 	};
 	$placed = array();
 	foreach ( sn_colophon_groups() as $gslug => $group ) {
@@ -280,10 +284,12 @@ function sn_colophon_shortcode( $atts = array() ) {
 		if ( '' === $rows ) {
 			continue;
 		}
-		// The theme's H2 is 6rem, larger than this page's title: the group
-		// headings take the site's section-heading scale (as on /resume).
-		$out .= '<h2 id="sn-colophon-' . esc_attr( $gslug ) . '" style="font-size:clamp(2rem, 5vw, 3.5rem);line-height:1.05">' . esc_html( $group[0] ) . '</h2>'
-			. '<ul class="sn-colophon-items">' . $rows . '</ul>';
+		// A band per group (assets/colophon-front.css): heading left, rows in a
+		// grid right. The theme's H2 is 6rem; the stylesheet sets the
+		// section-heading scale (as on /resume).
+		$out .= '<section class="sn-colophon-group sn-colophon-group--' . esc_attr( $gslug ) . '">'
+			. '<h2 id="sn-colophon-' . esc_attr( $gslug ) . '">' . esc_html( $group[0] ) . '</h2>'
+			. '<ul class="sn-colophon-items">' . $rows . '</ul></section>';
 	}
 	// A row added through the items seam that no group names: after the last group.
 	$extra = '';
@@ -296,6 +302,19 @@ function sn_colophon_shortcode( $atts = array() ) {
 		$out .= '<ul class="sn-colophon-items">' . $extra . '</ul>';
 	}
 
+	return $out . '</div>';
+}
+add_shortcode( 'sn_colophon', 'sn_colophon_shortcode' );
+
+/**
+ * The live theme and plugin versions, each linked to its changelog. Shown in
+ * the colophon's header (2026-10-06), so it is seen without scrolling; the
+ * text is unchanged and identical when a URL is filtered away.
+ *
+ * @param array $urls sn_colophon_urls().
+ * @return string '' when neither version is known.
+ */
+function sn_colophon_versions_html( $urls ) {
 	// Live versions, unchanged: each version number links its package's
 	// changelog; the text is identical when a URL is filtered away.
 	$theme_version  = function_exists( 'wp_get_theme' ) ? (string) wp_get_theme()->get( 'Version' ) : '';
@@ -308,9 +327,8 @@ function sn_colophon_shortcode( $atts = array() ) {
 		$stamp[] = esc_html( 'plugin' ) . ' ' . sn_colophon_version_link( 'v' . $plugin_version, $urls['plugin_changelog'] );
 	}
 	if ( array() !== $stamp ) {
-		$out .= '<p class="sn-colophon-versions">' . implode( ' · ', $stamp ) . '</p>';
+		return '<p class="sn-colophon-versions">' . implode( ' · ', $stamp ) . '</p>';
 	}
-
-	return $out . '</div>';
+	return '';
 }
-add_shortcode( 'sn_colophon', 'sn_colophon_shortcode' );
+

@@ -2,7 +2,10 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-This file holds two things only: **`## [Unreleased]`**, the working log that
+This file holds two things only: **`## [Unreleased]`
+### Changed
+- **The colophon is a spec sheet, not a scroll.** The page takes the shared 1320px page track (title and rule with it, as on Resume and the stats page), and each group is a band: its heading on the left, its rows in a grid on the right (Made with two by two, On the page side by side, Kept honest with Records across and Systems, AI and Interop three across). The theme and plugin versions moved from the bottom to the header, beside the opening, so they are seen without scrolling. The Records row shows one real record: the newest published note whose newest version is signed and confirmed in a Bitcoin block, with its version and date, shortened fingerprint, signature and block, and a Verify a Note button. The Type row shows the heading face and the Appearance row the palette, both decorative and hidden from screen readers. Kept honest is inverted in both palettes. The rows' words are unchanged. New `assets/colophon-front.css`, loaded in the head only on a page carrying the shortcode, and `inc/colophon-front.php`.
+**, the working log that
 accumulates across pull requests, and the **current release**. Everything older
 lives in [docs/changelog/](docs/changelog/).
 

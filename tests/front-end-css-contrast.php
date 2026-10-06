@@ -101,6 +101,13 @@ $tinted_surfaces = array(
 	// (--sn-signal-ink-on), so the ink pass already measures the real pair.
 	'assets/maturity-roadmap-front.css :: .sn-maturity-roadmap-fold summary:hover .sn-maturity-roadmap-fold__glyph'
 		=> 'declares its own background and its own ink; measured directly by the ink pass',
+	// The colophon's Kept honest band, inverted in every palette: it declares
+	// its own background (bone) AND its own ink (void), so the ink pass measures
+	// the text pair. Also on it: concrete captions and tile labels (14.6:1 light,
+	// 11.6:1 dark), rust row rules (non-text), the Verify chip painted void with
+	// bone ink (the page pair, inverted).
+	'assets/colophon-front.css :: .sn-colophon-group--honest'
+		=> 'declares its own background and its own ink; captions in concrete, rules in rust, the chip the page pair inverted',
 );
 
 // ── colour maths (WCAG 2.x relative luminance) ─────────────────────────────
