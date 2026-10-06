@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The colophon reads for someone who is not a developer.** /colophon keeps its facts and regroups them into ten rows under three H2 headings (Made with, On the page, Kept honest). Each row is the fact plus one clause on what it means, with a colon after the label and no hyphen separators. A first-person opening says I designed, built and maintain the site, and that its theme and plugin are public on GitHub. The page states checkable facts only: no promises about speed, privacy or authorship beyond what the code shows (pinned). Two rows are new. **Records** states only what the provenance code does: a SHA-256 fingerprint of each note's text, a signature from the site's Ed25519 key, a timestamp in Bitcoin through OpenTimestamps, a new signed version on each edit, and a link to Verify a Note. **Interop** now says what OpenStation is: a WordPress plugin that turns the admin into a desktop, which readers never see. "Build" is now **Code**: "vanilla ES5" was not true of every script, so it reads "plain JavaScript". "Tooling" is now **Companion plugin**, listing what the plugin actually does, and "Trust" is now **Systems**. Every existing link and its destination is kept, and the version line is unchanged. The group headings use the site's section-heading scale (`clamp(2rem, 5vw, 3.5rem)`, as on /resume), because the theme's default H2 is larger than the page title. The rows are also the single source for the theme's humans.txt, through `sn_colophon_plain_facts()`. Interop credits Daniel López Sánchez, one of OpenStation's maintainers, who contributed to this site's OpenStation integration (#751), linked to his GitHub. Every link that opens a new tab now says so to a screen reader, in hidden text after its visible words.
+
 ## [22.6.4] - 2026-10-06 — say whose 5xx; count every purge
 
 ### Fixed
