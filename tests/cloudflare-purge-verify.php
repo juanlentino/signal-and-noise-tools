@@ -327,6 +327,8 @@ if ( ! function_exists( 'sn_cf_tagged' ) ) { function sn_cf_tagged() { return tr
 ok( true === snt_cf_probe_status( $plog )['retired'] && gmmktime( 20, 45, 0, 10, 3, 2026 ) === snt_cf_probe_status( $plog )['last_run'], 'a tagging theme: retired, last run the newest row' );
 ok( false !== strpos( snt_cf_probe_retired_note( $plog ), 'last run Oct 3' ), 'the note dates the last run' );
 ok( false !== strpos( snt_cf_probe_retired_note( array() ), 'last run never' ), 'no rows: never, not a date' );
+$plog2 = array_merge( array( array( 'time' => gmmktime( 9, 0, 0, 10, 5, 2026 ), 'result' => 'stale', 'source' => 'manual_zone_purge' ) ), $plog );
+ok( gmmktime( 20, 45, 0, 10, 3, 2026 ) === snt_cf_probe_status( $plog2 )['last_run'], 'Codex on #1930: a newer manual zone-purge row is not a run of the retired post-save path' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

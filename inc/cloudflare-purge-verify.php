@@ -187,7 +187,12 @@ function snt_cf_probe_status( $log = null ) {
 	$log  = is_array( $log ) ? $log : get_option( SN_CF_PROBE_LOG_OPT, array() );
 	$last = 0;
 	foreach ( (array) $log as $row ) {
-		$last = max( $last, (int) ( is_array( $row ) ? ( $row['time'] ?? 0 ) : 0 ) );
+		// The post-save path only: a retained manual zone-purge check is not a
+		// run of the retired per-URL path (Codex on #1930).
+		if ( ! is_array( $row ) || 'manual_zone_purge' === (string) ( $row['source'] ?? '' ) ) {
+			continue;
+		}
+		$last = max( $last, (int) ( $row['time'] ?? 0 ) );
 	}
 	return array(
 		'retired'  => function_exists( 'sn_cf_tagged' ) && sn_cf_tagged(),

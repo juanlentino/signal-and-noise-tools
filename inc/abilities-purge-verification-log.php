@@ -78,6 +78,14 @@ add_action( 'wp_abilities_api_init', function() {
 					'type'        => 'integer',
 					'description' => 'Rows present but excluded from counts because a retired detector produced them.',
 				),
+				'retired'              => array(
+					'type'        => 'boolean',
+					'description' => 'True when a save purges the theme\'s cache tag and no post-save probe runs any more (2026-10-05). Present in every state, never_probed included.',
+				),
+				'last_run'             => array(
+					'type'        => 'integer',
+					'description' => 'Unix time of the newest post-save probe row (manual rows ignored), 0 when none.',
+				),
 				'rows'                 => array(
 					'type'        => 'array',
 					'description' => 'Newest-first probe outcomes: time, time_iso, post_id, url, result, escalated, source, algo.',
@@ -129,7 +137,7 @@ function snt_ability_purge_verification_log( $input ) {
 			'counts'               => array( 'total' => 0, 'fresh' => 0, 'stale' => 0, 'escalated' => 0, 'stale_pct' => null, 'by_source' => array() ),
 			'counts_excluded_rows' => 0,
 			'rows'                 => array(),
-		);
+		) + snt_purge_probe_log_status( $log );
 	}
 
 	$rows     = array();
@@ -234,9 +242,18 @@ function snt_ability_purge_verification_log( $input ) {
 		),
 		'counts'               => $counts,
 		'counts_excluded_rows' => $excluded,
-		// 2026-10-05: true when a save purges the theme's cache tag and no
-		// probe runs any more; the rows are then the old path's history.
-		'retired'              => function_exists( 'snt_cf_probe_status' ) ? snt_cf_probe_status()['retired'] : false,
 		'rows'                 => $rows,
-	);
+	) + snt_purge_probe_log_status( $log );
+}
+
+/**
+ * The probe's retirement fields for every response (Codex on #1930): a
+ * retired probe and one that has not run yet must read differently even
+ * when the log is empty.
+ *
+ * @param mixed $log The probe log.
+ * @return array{retired:bool,last_run:int}
+ */
+function snt_purge_probe_log_status( $log ) {
+	return function_exists( 'snt_cf_probe_status' ) ? snt_cf_probe_status( is_array( $log ) ? $log : array() ) : array( 'retired' => false, 'last_run' => 0 );
 }
