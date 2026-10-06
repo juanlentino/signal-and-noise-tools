@@ -56,34 +56,10 @@ ok( '/notes/foo' === sn_path_join_key( '//juanlentino.com/notes/foo' ), 'a proto
 
 echo "\nGroup: THE NEGATIVE CONTROL — a mis-spelled path must go red\n";
 // "A join test that passes against an unfixed normalizer is worse than none."
-$ae  = array( '/notes/foo/' => 120, '/notes/bar' => 40, '/' => 900 );
-$gsc = array( 'https://juanlentino.com/notes/foo' => 12, '/notes/bar?utm=x' => 3, '/' => 88 );
-$r   = sn_path_join( $ae, $gsc );
-ok( 3 === count( $r['joined'] ), 'the join matches all three pages ACROSS four different spellings' );
-ok( 120 === $r['joined']['/notes/foo']['left'] && 12 === $r['joined']['/notes/foo']['right'], 'and carries both sides of each pair' );
-
-// Now mis-spell one, exactly as the proposal instructs.
-$gsc_typo = array( 'https://juanlentino.com/notes/fooo' => 12, '/notes/bar?utm=x' => 3, '/' => 88 );
-$r2 = sn_path_join( $ae, $gsc_typo );
-ok( 2 === count( $r2['joined'] ), 'a MIS-SPELLED path drops the join count from 3 to 2 — the control fires' );
-ok( in_array( '/notes/foo', $r2['left_only'], true ), 'and the unmatched side is NAMED, so a dropped row cannot pass as absence' );
-ok( in_array( '/notes/fooo', $r2['right_only'], true ), 'from both directions' );
-
-echo "\nGroup: unjoinable rows are counted, never folded onto the homepage\n";
-$with_junk = array( '' => 5, '   ' => 6, '/notes/foo' => 7 );
-$r3 = sn_path_join( $with_junk, array( '/notes/foo' => 1, '/' => 999 ) );
-ok( 2 === $r3['left_unjoinable'], 'unjoinable rows are COUNTED' );
-ok( 1 === count( $r3['joined'] ), 'and excluded from the join' );
-ok( ! array_key_exists( '/', $r3['joined'] ), 'the homepage is NOT credited with them — that is the inflation this rule prevents' );
-
-echo "\nGroup: #1228 — two raw keys colliding on one canonical key never silently overwrite\n";
-// 'https://juanlentino.com/notes/foo' and '/notes/foo/' both normalize to
-// '/notes/foo' — a real (if currently unexercised) collision shape.
-$colliding = array( 'https://juanlentino.com/notes/foo' => 'first', '/notes/foo/' => 'second' );
-$r4 = sn_path_join( $colliding, array( '/notes/foo' => 1 ) );
-ok( 1 === count( $r4['joined'] ), 'the collision still produces exactly one joined row (not two, not a fatal)' );
-ok( 'first' === $r4['joined']['/notes/foo']['left'], 'first-seen value wins deterministically, never silently clobbered by the second' );
-ok( 1 === $r4['left_unjoinable'], 'the collision is COUNTED (like an empty key), not dropped with no trace' );
+// The live join sites (insights, posts signals, inbound pass) compare keys
+// directly, so the control is on the key itself.
+ok( sn_path_join_key( 'https://juanlentino.com/notes/foo' ) === sn_path_join_key( '/notes/foo/' ), 'two spellings of one page share a key' );
+ok( sn_path_join_key( 'https://juanlentino.com/notes/fooo' ) !== sn_path_join_key( '/notes/foo/' ), 'a MIS-SPELLED path does not: the control fires' );
 
 echo "\nGroup: the key is pure\n";
 ok( sn_path_join_key( '/notes/foo' ) === sn_path_join_key( '/notes/foo' ), 'same input, same key' );

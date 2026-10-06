@@ -102,12 +102,6 @@ function sn_resume_doc_same( $a, $b ) {
 	return $a === $b;
 }
 
-/** Whether a draft exists and differs from the live document. @return bool */
-function sn_resume_draft_differs() {
-	$draft = sn_resume_draft_get();
-	return null !== $draft && ! sn_resume_doc_same( $draft, sn_resume_doc_get() );
-}
-
 /**
  * The editor's status line, one sentence, shared by both surfaces.
  *

@@ -26,14 +26,12 @@ $GLOBALS['__alltags']   = array();
 $GLOBALS['__ai']        = false;
 $GLOBALS['__transient'] = false;
 $GLOBALS['__jev']       = false; // 16.9.0: the connector's key
-$GLOBALS['__untagged']  = array();
 $GLOBALS['__unused']    = array();
 function sn_tag_find_duplicate_clusters() { return $GLOBALS['__clusters']; }
 // Input-aware like the real one: an empty/invalid $from is a WP_Error, so the
 // params parse is exercised (a blind stub would hide an array-vs-string slip).
 function sn_tag_merge_preview( $f, $i ) { return ( is_array( $f ) && $f && $i ) ? $GLOBALS['__preview'] : new WP_Error(); }
 function sn_tag_find_unused() { return $GLOBALS['__unused']; }
-function sn_tag_untagged_notes( $l = 20 ) { return $GLOBALS['__untagged']; }
 function snt_ai_is_available() { return $GLOBALS['__ai']; }
 function sn_jev_is_ready() { return $GLOBALS['__jev']; }
 function human_time_diff( $a, $b = 0 ) { return '2 hours'; }
@@ -63,7 +61,7 @@ function ledger_rows( $kit, $heading ) {
 
 ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['content/tags'] ), 'the painter is registered under content/tags' );
 
-// ── The rich list view: one cluster, three tags, AI available with an untagged Note, one unused tag, history.
+// ── The rich list view: one cluster, three tags, AI available, one unused tag, history.
 $GLOBALS['__alltags']  = array( tag_obj( 5, 'Jazz', 'jazz', 4 ), tag_obj( 10, 'AI-Generated Music', 'ai-generated-music', 5 ), tag_obj( 11, 'AI Generated Music', 'ai-generated-music-2', 2 ) );
 $GLOBALS['__clusters'] = array( array(
 	'key'       => 'ai generated music',
@@ -75,7 +73,6 @@ $GLOBALS['__clusters'] = array( array(
 ) );
 $GLOBALS['__ai']       = true;
 $GLOBALS['__jev']      = true;
-$GLOBALS['__untagged'] = array( array( 'id' => 7, 'title' => 'Untagged Note' ) );
 $GLOBALS['__unused']   = array( array( 'term_id' => 9, 'name' => 'Empty', 'slug' => 'empty', 'count' => 0 ) );
 $GLOBALS['__options']['sn_tag_merge_history'] = array(
 	array( 'from' => array( 'ai-generated-music-2', 'ai-generated-music-3' ), 'into' => 'music', 'posts' => 3, 'user' => 1, 'ts' => 100 ),
@@ -158,7 +155,7 @@ ok( false === strpos( $kit, 'Recent tag operations' ), 'empty view: no history, 
 ok( false !== strpos( $kit, 'caption="clean"' ) && false === strpos( $kit, 'swatch' ), 'empty view: the glance pills read clean with no swatch' );
 
 // ── Jev ready, a pass with nothing flagged.
-$GLOBALS['__ai'] = true; $GLOBALS['__jev'] = true; $GLOBALS['__untagged'] = array();
+$GLOBALS['__ai'] = true; $GLOBALS['__jev'] = true;
 $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 3, 'notes' => array( 7 => array( 'title' => 'Fine', 'attached' => array( array( 'id' => 2, 'name' => 'Jazz', 'score' => 1.9, 'confidence' => 0.9 ) ), 'missing' => array() ) ), 'usage' => array(), 'last_error' => '' );
 $kit = kit_tags();
 ok( false !== strpos( $kit, 'Last read <os-relative-time datetime="' ) && false !== strpos( $kit, '>2 hours ago</os-relative-time>: every tag on every note touches its subject.' ) && false !== strpos( $kit, 'submit-label="Read tags now"' ) && false === strpos( $kit, 'tag_fit_apply' ), '16.9.0: a clean pass says so and still offers Read tags now; no apply form' );

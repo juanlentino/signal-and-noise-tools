@@ -432,15 +432,6 @@ namespace {
 	$reset = snt_analytics_view_reset_params();
 	ok( in_array( 'sn_drill', $reset, true ) && ! in_array( 'sn_compare', $reset, true ),
 		'VACUITY: snt_analytics_view_reset_params() is the list the tab strip and the doorway builder share, and sn_compare is not in it' );
-	$expected_keys = array();
-	foreach ( $reset as $param ) {
-		$key = preg_replace( '/^sn_/', '', $param );
-		if ( 'view' !== $key ) {
-			$expected_keys[] = $key;
-		}
-	}
-	ok( $expected_keys === snt_os_analytics_reset_keys(),
-		'the host`s reset keys ARE that list, read from the function and never retyped -- a param added there is reset here' );
 
 	$state = st(
 		$app,

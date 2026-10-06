@@ -93,6 +93,8 @@ function sn_prov_author_key_entry() {
 }
 
 /**
+ * Test seam only: no screen prints it yet; it is the one PHP encoding of the _provenance-author TXT record.
+ *
  * The DNS TXT value the owner sets at _provenance-author.<domain>, in the same
  * format as the publisher's _provenance record. Shown, never set, by the site.
  *

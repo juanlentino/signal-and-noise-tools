@@ -78,7 +78,7 @@ ok( 0 === calls( 'sync' ) && 0 === calls( 'pdf' ) && 0 === calls( 'purge:/resume
 ok( false === $GLOBALS['__autoload'][ SN_RESUME_DRAFT_OPTION ], 'the draft is stored autoload=no' );
 $d = sn_resume_draft_get();
 ok( is_array( $d ) && 'DRAFTED PRACTICE' === $d['experience'][0]['org'] && '1999-12-31' === $d['updated'], 'draft get returns the normalized draft with its own saved date' );
-ok( 'Draft saved 1999-12-31; differs from live.' === sn_resume_draft_status() && sn_resume_draft_differs(), 'status: the draft differs from live' );
+ok( 'Draft saved 1999-12-31; differs from live.' === sn_resume_draft_status(), 'status: the draft differs from live' );
 ok( false === sn_resume_draft_save( array( 'hero' => array( 'summary' => 'no anchor' ) ) ) && 'DRAFTED PRACTICE' === sn_resume_draft_get()['experience'][0]['org'], 'a refused save leaves the earlier draft standing' );
 
 echo "\nTest: publish equals today's save (no PDF generated yet)\n";
@@ -106,7 +106,7 @@ ok( 'DRAFTED PRACTICE' === $GLOBALS['__options'][ SN_RESUME_DOC_OPTION ]['experi
 echo "\nTest: identical publish is a no-op\n";
 fresh( array( SN_RESUME_DOC_OPTION => $live_a, 'sn_resume_pdf' => array( 'sha256' => 'old' ) ) );
 sn_resume_draft_save( $seed );
-ok( 'Draft saved 1999-12-31; it matches the live résumé.' === sn_resume_draft_status() && ! sn_resume_draft_differs(), 'status: a draft equal to live says so' );
+ok( 'Draft saved 1999-12-31; it matches the live résumé.' === sn_resume_draft_status(), 'status: a draft equal to live says so' );
 ok( 'identical' === sn_resume_draft_publish(), 'publish reports identical' );
 ok( $live_a === $GLOBALS['__options'][ SN_RESUME_DOC_OPTION ] && ! isset( $GLOBALS['__options'][ SN_RESUME_PREV_OPTION ] ), 'live untouched (its old date kept), no snapshot' );
 ok( 0 === calls( 'sync' ) && 0 === calls( 'pdf' ) && 0 === calls( 'purge:/resume' ) && ! isset( $GLOBALS['__options'][ SN_RESUME_DRAFT_OPTION ] ), 'no sync, no PDF, no purge; the draft is deleted' );

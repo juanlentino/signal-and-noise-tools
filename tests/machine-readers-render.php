@@ -57,14 +57,12 @@ preg_match( '/<caption>(.*?)<\/caption>/s', $html, $sn_cap );
 ok( isset( $sn_cap[1] ) && false === stripos( $sn_cap[1], 'self-reported' ), 'caption is a title, not the paragraph-length disclaimer' );
 ok( false !== stripos( $html, 'self-reported' ) && false !== strpos( $html, 'sn-field-helper' ), 'the self-reported disclaimer still renders, as the house helper line' );
 
-echo "\nGroup: sensor card, deployed version vs the contract minimum\n";
-$html = snt_mr_render_sensor_card( array( 'version' => '1.4.0', 'deployed_at' => '2026-07-28T17:12:22Z' ) );
-ok( '' !== $html && false !== strpos( $html, '1.4.0' ), 'card shows the deployed version' );
-ok( false === stripos( $html, 'outdated' ), 'contract-satisfying version raises no warning' );
-$html = snt_mr_render_sensor_card( array( 'version' => '1.3.0', 'deployed_at' => '2026-07-23T23:01:27Z' ) );
-ok( false !== stripos( $html, 'outdated' ) && false !== strpos( $html, '1.4.0' ), 'below-minimum version warns and names the required 1.4.0' );
-$html = snt_mr_render_sensor_card( null );
-ok( '' !== $html && false === stripos( $html, 'outdated' ), 'null info renders the quiet dash card, not a warning or a fatal' );
+echo "\nGroup: the sensor pill checks the deployed version against the contract minimum\n";
+$min_pills = snt_mr_sensor_pills( array( 'version' => '99.0.0' ), null, array( 'ok' => true ) );
+ok( 'ok' === ( $min_pills[0][0] ?? '' ), 'a contract-satisfying version is an ok pill' );
+$old_pills = snt_mr_sensor_pills( array( 'version' => '1.0.0' ), null, array( 'ok' => true ) );
+ok( 'warn' === ( $old_pills[0][0] ?? '' ) && false !== stripos( (string) ( $old_pills[0][1] ?? '' ), 'outdated' ), 'a below-minimum version warns' );
+ok( false !== strpos( (string) ( $old_pills[0][2] ?? '' ), 'or newer' ), 'and names the required version' );
 
 echo "\nGroup: v9.86.0 — summary stat strip\n";
 $html = snt_mr_render_summary_chips( $rows, 30 );

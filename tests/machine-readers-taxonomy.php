@@ -149,7 +149,6 @@ $purposes = snt_mr_valid_purposes();
 ok( 13 === count( $purposes ), 'exactly thirteen purposes' );
 ok( in_array( 'ads', $purposes, true ), "the 'ads' purpose exists so ad validators are not stretched into security" );
 ok( in_array( 'train', $purposes, true ) && ! in_array( 'training', $purposes, true ), 'the value is train, not a near-miss synonym' );
-ok( array( 'train', 'retrieval' ) === snt_mr_ai_purposes(), 'the AI-consumption set is train + retrieval, and does not silently include user or search' );
 
 echo "\nGroup: RULE 3 , the rights stream is normalized on its OWN shape\n";
 $rights_raw = array( array(

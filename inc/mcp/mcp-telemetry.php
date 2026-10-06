@@ -464,34 +464,6 @@ function sn_mcp_telemetry_unwrap_envelope_message( $message ) {
 }
 
 /**
- * The HTTP-ish status the WP_Error carries in its data array — DIAGNOSTIC ONLY,
- * same non-aggregation rule as sn_mcp_telemetry_error_detail().
- *
- * The classifier already reads this value to choose an outcome, and that
- * reading is lossy on purpose: 400 and 422 both become schema_error, every 5xx
- * becomes server_error. Storing the number keeps the precise status recoverable
- * on the row without widening the outcome grammar that the metrics depend on.
- *
- * Bounded to the SMALLINT UNSIGNED column's range and to plausible status
- * values; anything else is null rather than a coerced 0, because a 0 would read
- * as a real measurement.
- *
- * @since 13.48.0
- * @param mixed $error A WP_Error (or test stand-in) exposing get_error_data().
- * @return int|null
- */
-function sn_mcp_telemetry_error_status( $error ) {
-	if ( ! is_object( $error ) || ! method_exists( $error, 'get_error_data' ) ) {
-		return null;
-	}
-	$data = $error->get_error_data();
-	if ( ! is_array( $data ) || ! isset( $data['status'] ) || ! is_numeric( $data['status'] ) ) {
-		return null;
-	}
-	return sn_mcp_telemetry_error_status_allowed( $data['status'] );
-}
-
-/**
  * The status bound itself, callable on a bare value so build_row() can
  * re-apply it at the persist choke point — the same belt-and-braces the
  * error_code grammar already gets.

@@ -32,7 +32,6 @@ function add_action() {} // admin-post-handler.php registers on admin_init at lo
 // each records its own call so routing assertions can see which fired).
 function sn_admin_render_login_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_login_section'; }
 function sn_login_defense_render() { $GLOBALS['__calls'][] = 'fn:sn_login_defense_render'; }
-function sn_login_defense_view_render() { $GLOBALS['__calls'][] = 'fn:sn_login_defense_view_render'; }
 function snt_audit_log_render_tab() { $GLOBALS['__calls'][] = 'fn:snt_audit_log_render_tab'; }
 function sn_admin_render_indexnow_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_indexnow_section'; }
 function sn_admin_render_zenodo_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_zenodo_section'; } // 15.11.0: Connections → Zenodo (real fn lives in inc/admin-forms/zenodo.php)

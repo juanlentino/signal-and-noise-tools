@@ -325,17 +325,17 @@ foreach ( array( 'hash_mismatch', 'twin_drift', 'ledger_missing', 'ledger_hash_m
 
 // ── Group: keys verdict ─────────────────────────────────────────────────────
 echo "\nGroup: keys/provenance-keys.json still serves the published key id\n";
-ok( 'ok' === sn_prov_integrity_keys_verdict( pi_fetcher( array( 'keys/provenance-keys.json' => $KEYS_OK ) ) ),
+ok( 'ok' === sn_prov_integrity_keys_probe( pi_fetcher( array( 'keys/provenance-keys.json' => $KEYS_OK ) ) )['verdict'],
 	'matching id + matching key bytes → ok' );
-ok( 'key_mismatch' === sn_prov_integrity_keys_verdict( pi_fetcher( array(
+ok( 'key_mismatch' === sn_prov_integrity_keys_probe( pi_fetcher( array(
 	'keys/provenance-keys.json' => pi_json( array( 'keys' => array( array( 'id' => 'some-other-key', 'public_key_base64' => 'ZZZZ' ) ) ) ),
-) ) ), 'published key id absent from the ledger key file → key_mismatch' );
-ok( 'key_mismatch' === sn_prov_integrity_keys_verdict( pi_fetcher( array(
+) ) )['verdict'], 'published key id absent from the ledger key file → key_mismatch' );
+ok( 'key_mismatch' === sn_prov_integrity_keys_probe( pi_fetcher( array(
 	'keys/provenance-keys.json' => pi_json( array( 'keys' => array( array( 'id' => 'sn-ed25519-2026-07', 'public_key_base64' => 'DIFFERENT==' ) ) ) ),
-) ) ), 'right id but different key bytes → key_mismatch (a swapped key must not pass on its label)' );
-ok( 'keys_unreachable' === sn_prov_integrity_keys_verdict( pi_fetcher( array(
+) ) )['verdict'], 'right id but different key bytes → key_mismatch (a swapped key must not pass on its label)' );
+ok( 'keys_unreachable' === sn_prov_integrity_keys_probe( pi_fetcher( array(
 	'keys/provenance-keys.json' => array( 'code' => 0, 'body' => '' ),
-) ) ), 'network-dead key file → keys_unreachable — an outage, not a key rotation claim' );
+) ) )['verdict'], 'network-dead key file → keys_unreachable — an outage, not a key rotation claim' );
 
 // ── Group: run_sweep — cap, rotation, durable state ─────────────────────────
 echo "\nGroup: run_sweep — cap + rotation + autoload=no state\n";

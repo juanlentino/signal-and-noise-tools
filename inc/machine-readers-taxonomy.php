@@ -36,20 +36,6 @@ function snt_mr_valid_purposes() {
 }
 
 /**
- * Purposes that constitute AI consumption of the content, for the observed vs
- * declared read. Deliberately NOT the same question as the frozen
- * snt_mr_ai_training_families(): that one asks "which crawler families does the
- * operator publicly class as AI-training", this one asks "what was this read
- * for". `train` alone is the training claim; `retrieval` is AI use that is not
- * corpus collection and must not be added to it.
- *
- * @return string[]
- */
-function snt_mr_ai_purposes() {
-	return array( 'train', 'retrieval' );
-}
-
-/**
  * Vendor is an OPEN field — new organisations appear without a plugin release,
  * so it cannot be an allowlist without silently discarding real data. It is
  * therefore the one attacker-influenced string on this surface, and is

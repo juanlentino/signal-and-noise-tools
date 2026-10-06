@@ -343,29 +343,6 @@ function sn_schedule_count( $target_type ) {
 }
 
 /**
- * Delete one schedule row by id.
- *
- * @param int $id Row id.
- * @return bool True when a row was deleted, false otherwise.
- */
-function sn_schedule_delete( $id ) {
-	$id = (int) $id;
-	if ( $id <= 0 ) {
-		return false;
-	}
-
-	global $wpdb;
-	$table = $wpdb->prefix . SN_SCHEDULES_TABLE;
-
-	$deleted = $wpdb->query( $wpdb->prepare(
-		"DELETE FROM {$table} WHERE id = %d",
-		$id
-	) );
-
-	return is_int( $deleted ) && $deleted > 0;
-}
-
-/**
  * For a fragment-bearing post, delete the fragment rows whose schedule_id is
  * NOT in $keep_ids. Fragment rows store the post id in target_ref, so the
  * filter is target_type='fragment' AND target_ref=$post_id. When $keep_ids is

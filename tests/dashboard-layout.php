@@ -45,7 +45,6 @@ require __DIR__ . '/../inc/admin-glance.php';      // Phase 1: the glance-grid h
 if ( ! function_exists( 'get_current_user_id' ) ) { function get_current_user_id() { return 1; } }
 if ( ! function_exists( 'get_user_meta' ) ) { function get_user_meta( $u, $k, $s = false ) { return $s ? '' : array(); } }
 require __DIR__ . '/../inc/dash-zones.php';          // v11.28.0: zone contract + renderer
-require __DIR__ . '/../inc/dash-pins.php';           // v11.28.0: per-user pins
 if ( ! function_exists( '_n' ) ) { function _n( $s, $p, $n, $d = '' ) { return 1 === (int) $n ? $s : $p; } }
 // v11.29.1: the console — band + rail + stage.
 require_once __DIR__ . '/../inc/dash-verdict.php';      // v11.30.0: the shared verdict

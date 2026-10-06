@@ -164,7 +164,6 @@ function snt_dashboard_tab_data() {
 	// AI spend, cron, login blocks, views), built only from accessors that
 	// actually exist on this install.
 	$cards = snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago );
-	$pins  = function_exists( 'sn_dash_pins' ) ? sn_dash_pins( get_current_user_id() ) : array();
 
 	// v11.28.0: state earns space. Attention collapses to a line when nothing is
 	// wrong; fleet collapses unless a component was never probed. The cards

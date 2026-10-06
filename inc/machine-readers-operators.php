@@ -119,47 +119,6 @@ function snt_mr_unmapped_families() {
 }
 
 /**
- * Which operator owns a crawler family.
- *
- * @param string $family A snt_mr_valid_families() value.
- * @return string|null Operator key, or null when the family belongs to no AI
- *                     operator (or is not a family at all). Never a guess.
- */
-function snt_mr_operator_for_family( $family ) {
-	if ( ! is_string( $family ) || '' === $family ) {
-		return null;
-	}
-	foreach ( snt_mr_operators() as $key => $op ) {
-		if ( in_array( $family, $op['families'], true ) ) {
-			return $key;
-		}
-	}
-	return null;
-}
-
-/**
- * Which operator owns an AI referrer label.
- *
- * Exact match on the brand label inc/analytics-sources.php resolves a host to —
- * never the host itself, and never a substring test. The label is the closed
- * value; the host list behind it can grow without touching this map.
- *
- * @param string $label An 'ai'-category label, e.g. 'ChatGPT'.
- * @return string|null Operator key, or null. Never a guess.
- */
-function snt_mr_operator_for_source( $label ) {
-	if ( ! is_string( $label ) || '' === $label ) {
-		return null;
-	}
-	foreach ( snt_mr_operators() as $key => $op ) {
-		if ( in_array( $label, $op['sources'], true ) ) {
-			return $key;
-		}
-	}
-	return null;
-}
-
-/**
  * Whether both sides of an operator are populated — i.e. whether a give-back
  * ratio is even askable for it.
  *

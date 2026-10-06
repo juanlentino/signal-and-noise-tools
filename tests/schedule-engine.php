@@ -412,16 +412,6 @@ $ids = array_map( function ( $r ) { return (int) $r['id']; }, $all );
 sort( $ids );
 ok( $ids === array( $id1, $id3, $id4 ), 'all: returns the expected ids ordered ascending' );
 
-// ─── Group: delete round-trip ─────────────────────────────────────────
-echo "\nGroup: sn_schedule_delete\n";
-ok( sn_schedule_delete( $id3 ) === true, 'delete: existing id returns true' );
-ok( sn_schedule_get( $id3 ) === null, 'delete: deleted row is gone' );
-ok( count( sn_schedule_all() ) === 2, 'delete: row count drops to 2' );
-ok( sn_schedule_delete( 999999 ) === false, 'delete: unknown id returns false' );
-// Guard paths: non-positive ids are rejected without touching the DB.
-ok( sn_schedule_delete( 0 ) === false, 'delete: id 0 returns false (guard)' );
-ok( sn_schedule_delete( -1 ) === false, 'delete: id -1 returns false (guard)' );
-
 // ─── Group: delete_missing filtering ──────────────────────────────────
 echo "\nGroup: sn_schedule_delete_missing\n";
 // Reset to a known fixture: post 100 has 3 fragment rows; post 200 has 1;

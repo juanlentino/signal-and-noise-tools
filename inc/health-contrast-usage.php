@@ -120,7 +120,7 @@ function sn_health_contrast_usage_admin_sheets() {
 		// source glob never reached it - it sat in a subdirectory, so nothing
 		// had to decide about it. Walking the tree made it visible and the
 		// drift test immediately red: it is enqueued on admin_enqueue_scripts
-		// only (inc/analytics-widget.php, inc/admin-menu.php), same case as
+		// only (inc/admin-menu.php, inc/openstation-host-assets.php), same case as
 		// dash-widget.css. analytics-admin.css is caught by the substring rule.
 		'analytics-tokens.css',
 		// v13.106.0: the native-window kit sheet. Registered on

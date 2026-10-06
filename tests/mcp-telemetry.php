@@ -597,17 +597,16 @@ ok( false !== strpos( $ins_body, 'error_status' ), 'insert_row: error_status is 
 // WP_AI_Client_Prompt_Builder::exception_to_wp_error() constructs it.
 $ai_err = new WP_Error( 'prompt_client_error', 'Invalid value for parameter max_output_tokens.', array( 'status' => 400, 'exception_class' => 'ClientException' ) );
 ok( 'Invalid value for parameter max_output_tokens.' === sn_mcp_telemetry_error_detail( $ai_err ), 'error_detail: the provider message survives, where before only the code did' );
-ok( 400 === sn_mcp_telemetry_error_status( $ai_err ), 'error_status: the precise status survives the lossy outcome grammar' );
 $ai_class = sn_mcp_telemetry_classify_wp_error( $ai_err );
 ok( 'schema_error' === $ai_class['outcome'] && 'prompt_client_error' === $ai_class['error_code'], 'classify: the diagnostic pair does not disturb the existing verdict' );
-ok( 'Invalid value for parameter max_output_tokens.' === $ai_class['error_detail'] && 400 === $ai_class['error_status'], 'classify: carries the diagnostic pair from the one place still holding the real WP_Error' );
+ok( 'Invalid value for parameter max_output_tokens.' === $ai_class['error_detail'] && 400 === $ai_class['error_status'], 'classify: the precise status survives the lossy outcome grammar, and carries the diagnostic pair from the one place still holding the real WP_Error' );
 
 // Absence is null, never a coerced empty string or zero — a 0 status would
 // read as a measurement.
 $bare = new WP_Error( 'snt_no_status', '' );
 ok( null === sn_mcp_telemetry_error_detail( $bare ), 'error_detail: an empty message is NULL, not an empty string' );
-ok( null === sn_mcp_telemetry_error_status( $bare ), 'error_status: a missing status is NULL, not 0' );
-ok( null === sn_mcp_telemetry_error_status( new WP_Error( 'snt_odd', 'x', array( 'status' => 0 ) ) ), 'error_status: an out-of-band status is NULL rather than stored' );
+ok( null === sn_mcp_telemetry_classify_wp_error( $bare )['error_status'], 'error_status: a missing status is NULL, not 0' );
+ok( null === sn_mcp_telemetry_classify_wp_error( new WP_Error( 'snt_odd', 'x', array( 'status' => 0 ) ) )['error_status'], 'error_status: an out-of-band status is NULL rather than stored' );
 ok( null === sn_mcp_telemetry_error_detail( 'a bare string' ), 'error_detail: a non-object cannot supply a detail' );
 
 // Truncation, and specifically NOT a broken multibyte tail.

@@ -287,11 +287,13 @@ function sn_login_defense_render_body() {
 }
 
 /**
- * Thin wrapper preserving the single direct entry point (tests/login-defense-analytics.php
- * + any other caller): the header then the body. Standalone output is the header's
- * dormant notice exactly once when unconfigured, or the full view when configured.
- * Registered in SN_ANALYTICS_VIEWS; the dashboard dispatches header + body separately
- * (header above the tabs, body below) so this wrapper is NOT the dashboard path.
+ * Test seam only: tests/login-defense-analytics.php renders the header and body together through it.
+ *
+ * The header then the body. Standalone output is the header's dormant notice
+ * exactly once when unconfigured, or the full view when configured. The
+ * 'login-defense' slug in SN_ANALYTICS_VIEWS names the view, not this function:
+ * the S&N Analytics window paints header and body separately (header above the
+ * tabs, body below), so this wrapper is NOT the production path.
  */
 function sn_login_defense_view_render() {
 	sn_login_defense_render_header();

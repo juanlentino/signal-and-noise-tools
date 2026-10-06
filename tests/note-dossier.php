@@ -42,7 +42,6 @@ ok( 'status' === $st['kind'] && 'success' === $st['tone'] && 'verified 2 hours a
 ok( 'neutral' === sn_note_dossier_status( 'state', 'x', 'bogus', 'y' )['tone'], 'a tone outside the kit set falls to neutral' );
 $u = sn_note_dossier_unreadable( 'numbers', 'Numbers', 'the analytics table' );
 ok( 'status' === $u['kind'] && 'warning' === $u['tone'] && false !== strpos( $u['text'], 'could not be read' ) && false !== strpos( $u['meta'], 'the analytics table' ), 'an unreadable source is a warning block that names the source' );
-ok( '2 hours ago' === sn_note_dossier_ago( time() - 7200 ) && '' === sn_note_dossier_ago( 0 ), 'ago wording; nothing for no time' );
 
 echo "\ncompose: one failing builder is one block\n";
 function sn_note_dossier_trust( $id, $f = null ) { return array( sn_note_dossier_text( 'trust', 'Trust', 'ok' ) ); }

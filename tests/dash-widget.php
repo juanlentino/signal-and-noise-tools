@@ -66,15 +66,12 @@ ok( 1 === count( $GLOBALS['__widgets'] ), 'AND IT IS THE ONLY ONE THIS MODULE AD
 
 // ── REMOVAL GUARDS — the four folded boxes stay gone ────────────────────────
 echo "\nRemoval guards (v11.30.0 consolidation)\n";
-foreach ( array(
-	'sn_plausible_snapshot'  => 'analytics-widget',
-	'sn_plausible_pages'     => 'analytics-widget',
-) as $id => $module ) {
+// The analytics boxes' module (inc/analytics-widget.php) kept only a token
+// enqueue nothing on index.php read, so the file itself is gone.
+foreach ( array( 'sn_plausible_snapshot', 'sn_plausible_pages' ) as $id ) {
 	ok( ! isset( $GLOBALS['__widgets'][ $id ] ), "no $id widget registered any more" );
-	$src = (string) file_get_contents( __DIR__ . '/../inc/' . $module . '.php' );
-	ok( false === strpos( $src, "wp_add_dashboard_widget( '" . $id ),
-		"inc/$module.php contains no registration call for $id" );
 }
+ok( ! file_exists( __DIR__ . '/../inc/analytics-widget.php' ), 'inc/analytics-widget.php no longer exists (its last enqueue loaded a sheet nothing on index.php used)' );
 // The fourth box's module (inc/site-health-widget.php) registered nothing since
 // 11.30.0 and nothing called its render; the file itself is gone, not just the
 // registration, so its guard is the file's absence.

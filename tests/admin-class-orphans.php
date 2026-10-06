@@ -72,7 +72,7 @@ const SN_ORPHAN_CLASS_BASELINE = array(
 	'sn-health-contrast-usage', 'sn-health-elsewhere', 'sn-health-motion-uncovered', 'sn-health-skipped',
 	'sn-kpi-note', 'sn-machine-maturity-giveback', 'sn-machine-maturity-reads', 'sn-mcp-tools',
 	'sn-mcp-usage', 'sn-mcp-usage-zero', 'sn-mr-delta', 'sn-mr-deltas',
-	'sn-mr-empty', 'sn-mr-leaf', 'sn-mr-rights-log', 'sn-mr-sensor',
+	'sn-mr-empty', 'sn-mr-leaf', 'sn-mr-rights-log',
 	'sn-mr-truncated', 'sn-mr-unknown-log', 'sn-mr-vendor-purpose', 'sn-now-dek',
 	'sn-now-eyebrow', 'sn-now-headline', 'sn-now-hero', 'sn-now-item',
 	'sn-now-item-text', 'sn-now-meta', 'sn-prov-paper-blurb',

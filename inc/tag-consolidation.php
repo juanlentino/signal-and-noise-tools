@@ -313,28 +313,6 @@ function sn_tag_merge_history_record( array $old_slugs, $into_slug, $posts, $op 
 }
 
 /**
- * Published Notes (posts) carrying no post_tag, up to $limit. [{id,title}].
- *
- * @param int $limit Max posts.
- * @return array
- */
-function sn_tag_untagged_notes( $limit = 20 ) {
-	$posts = get_posts(
-		array(
-			'post_type'   => 'post',
-			'post_status' => 'publish',
-			'numberposts' => (int) $limit,
-			'tax_query'   => array( array( 'taxonomy' => 'post_tag', 'operator' => 'NOT EXISTS' ) ), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query -- admin maintenance list, not a front-end query.
-		)
-	);
-	$out = array();
-	foreach ( (array) $posts as $p ) {
-		$out[] = array( 'id' => (int) $p->ID, 'title' => (string) get_the_title( $p->ID ) );
-	}
-	return $out;
-}
-
-/**
  * Whether a post_tag term has ZERO term relationships across every status.
  *
  * #1178: `term->count` is publish-only (core's _update_post_term_count), so a

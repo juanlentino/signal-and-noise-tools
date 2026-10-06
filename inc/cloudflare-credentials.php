@@ -84,24 +84,6 @@ function sn_cf_analytics_override_source() {
 }
 
 /**
- * The whole credential set with sources, for the leaves and sn-status.
- *
- * @return array<string,mixed>
- */
-function sn_cf_credentials() {
-	$token = function_exists( 'sn_cf_get_token' ) ? (string) sn_cf_get_token() : '';
-	return array(
-		'token_set'          => '' !== $token,
-		'token_source'       => ( defined( 'SN_CLOUDFLARE_API_TOKEN' ) && SN_CLOUDFLARE_API_TOKEN ) ? 'constant' : ( '' !== $token ? 'option' : '' ),
-		'zone_id'            => function_exists( 'sn_cf_get_zone' ) ? (string) sn_cf_get_zone() : '',
-		'zone_source'        => defined( 'SN_CLOUDFLARE_ZONE_ID' ) ? 'constant' : '',
-		'account_id'         => sn_cf_get_account_id(),
-		'account_source'     => ( defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) SN_CF_ACCOUNT_ID ) ? 'constant' : '',
-		'analytics_override' => sn_cf_analytics_override_source(),
-	);
-}
-
-/**
  * Every grant the one token needs, with the caller that needs it. The
  * leaf paints this list so the owner can compare it against the token
  * summary in the Cloudflare dashboard. `status` says how sure we are:

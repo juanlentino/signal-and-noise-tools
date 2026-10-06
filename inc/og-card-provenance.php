@@ -86,6 +86,8 @@ function sn_og_png_set_itxt( $png, $keyword, $text ) {
 }
 
 /**
+ * Test seam only: reads back the chunk sn_og_png_set_itxt() writes, so tests can prove the card carries it.
+ *
  * Read the text of the first `iTXt` chunk with $keyword, or null.
  *
  * @param string $png

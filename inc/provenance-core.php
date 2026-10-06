@@ -327,19 +327,6 @@ function sn_prov_get_chain( $post_id ) {
 }
 
 /**
- * @param int $post_id
- * @return string|null hex content_hash of the newest commit, or null
- */
-function sn_prov_latest_hash( $post_id ) {
-	$chain = sn_prov_get_chain( $post_id );
-	if ( ! $chain ) {
-		return null;
-	}
-	$last = end( $chain );
-	return isset( $last['content_hash'] ) ? (string) $last['content_hash'] : null;
-}
-
-/**
  * The chain's newest `committed_at`, as a MySQL GMT datetime ('Y-m-d H:i:s').
  *
  * FORMAT IS LOAD-BEARING, not cosmetic. Commits store ISO-8601
@@ -442,19 +429,6 @@ function sn_prov_replace_head_commit( $post_id, array $commit ) {
 	update_post_meta( (int) $post_id, SN_PROV_CHAIN_META, $chain );
 	sn_prov_stamp_last_commit( (int) $post_id, $chain );
 	return $chain;
-}
-
-/**
- * Hash of the provenance-BEARING fields only (no version, no parent). Two
- * saves with identical words/title/author/date produce the same bearing
- * hash — the basis for coalescing trivial diffs.
- *
- * @param WP_Post|object $post
- * @param string         $author
- * @return string
- */
-function sn_prov_bearing_hash( $post, $author ) {
-	return sn_prov_content_hash( sn_prov_canonical_json( sn_prov_bearing_fields( $post, $author ) ) );
 }
 
 /**

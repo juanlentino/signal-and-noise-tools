@@ -334,19 +334,6 @@ function sn_webhook_build_payload( $event, $post_id, $delivery_id, $snapshot = a
 }
 
 /**
- * Back-compat shim: delegate to sn_webhook_build_payload() for the
- * original post-published event. Retained for any external caller +
- * the legacy 4-arg cron path.
- *
- * @param int    $post_id
- * @param string $delivery_id
- * @return string|null
- */
-function sn_webhook_build_post_published_payload( $post_id, $delivery_id ) {
-	return sn_webhook_build_payload( 'post.published', $post_id, $delivery_id );
-}
-
-/**
  * Snapshot a post's identity at TRIGGER time, for events whose post may
  * be gone (or no longer published) by dispatch time.
  *

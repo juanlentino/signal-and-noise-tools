@@ -243,20 +243,6 @@ function sn_prov_integrity_select_batch( array $ids, array $last_checked, $cap, 
 }
 
 /**
- * Fleet-level key attestation: does the public ledger's
- * keys/provenance-keys.json still serve the published key id with the
- * published key bytes? One verdict per sweep (one key file for the whole
- * fleet), fetched once.
- *
- * @since 9.80.0
- * @param callable $fetcher
- * @return string 'ok' | 'key_mismatch' | 'keys_unreachable' | 'skipped' (no key configured).
- */
-function sn_prov_integrity_keys_verdict( $fetcher ) {
-	return sn_prov_integrity_keys_probe( $fetcher )['verdict'];
-}
-
-/**
  * The keys verdict PLUS the raw HTTP code, so the sweep can distinguish a
  * 404 (a real "the file is absent" answer) from a network error and escalate
  * a PERSISTENT 404 to keys_missing after SN_PROV_INTEGRITY_404_STREAK
