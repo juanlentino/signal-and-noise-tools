@@ -173,6 +173,47 @@ function snt_cf_probe_is_stale( $bare_html, $fresh_html ) {
 }
 
 /**
+ * Whether the post-save probe still runs, and when it last ran.
+ *
+ * 2026-10-05: since #1850 a save with a tagging theme purges the cache tag
+ * and returns before scheduling a probe, so the probe log is the OLD
+ * per-URL path's history. Every surface that shows its counts says so;
+ * nothing is removed (owner rule: a figure is relabeled, not dropped).
+ *
+ * @param array|null $log The probe log (test seam); null reads the option.
+ * @return array{retired:bool,last_run:int}
+ */
+function snt_cf_probe_status( $log = null ) {
+	$log  = is_array( $log ) ? $log : get_option( SN_CF_PROBE_LOG_OPT, array() );
+	$last = 0;
+	foreach ( (array) $log as $row ) {
+		$last = max( $last, (int) ( is_array( $row ) ? ( $row['time'] ?? 0 ) : 0 ) );
+	}
+	return array(
+		'retired'  => function_exists( 'sn_cf_tagged' ) && sn_cf_tagged(),
+		'last_run' => $last,
+	);
+}
+
+/**
+ * The sentence that says the probe no longer runs, or '' while it does.
+ *
+ * @param array|null $log The probe log (test seam).
+ * @return string
+ */
+function snt_cf_probe_retired_note( $log = null ) {
+	$st = snt_cf_probe_status( $log );
+	if ( ! $st['retired'] ) {
+		return '';
+	}
+	return sprintf(
+		/* translators: %s: date of the last probe */
+		__( 'Old per-URL purge path, last run %s. A save now purges the cache tag, which empties every tagged page, and no probe runs after it; these rows are its history.', 'signal-and-noise-tools' ),
+		$st['last_run'] > 0 ? gmdate( 'M j', $st['last_run'] ) : __( 'never', 'signal-and-noise-tools' )
+	);
+}
+
+/**
  * Append one probe outcome to the bounded log the admin tab reads.
  *
  * @param array $entry Outcome record.

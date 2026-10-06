@@ -80,6 +80,10 @@ function cloudflare_probes_html( array $d ) {
 		__( 'Each row is one check of the page a reader would actually get, %d seconds after its purge. A stale row escalated to a full zone purge at the time, so it records a purge that needed a second attempt, not a page still stale now.', 'signal-and-noise-tools' ),
 		$delay
 	);
+	$retired = function_exists( 'snt_cf_probe_retired_note' ) ? snt_cf_probe_retired_note( $d['probe_log'] ) : '';
+	if ( '' !== $retired ) {
+		$intro = $retired . ' ' . $intro;
+	}
 	$inner = \snt_kit_table(
 		array(
 			array( 'key' => 'when', 'label' => __( 'When', 'signal-and-noise-tools' ) ),

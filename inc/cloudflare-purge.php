@@ -621,7 +621,8 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 				count( $probe_log ),
 				$probe_stale
 			) ) . '</span></summary>';
-		echo '<p class="sn-fieldset-intro">Each row is one check of the page a reader would actually get, '
+		$probe_retired = function_exists( 'snt_cf_probe_retired_note' ) ? snt_cf_probe_retired_note( $probe_log ) : '';
+		echo '<p class="sn-fieldset-intro">' . ( '' !== $probe_retired ? esc_html( $probe_retired ) . ' ' : '' ) . 'Each row is one check of the page a reader would actually get, '
 			. (int) SN_CF_PROBE_DELAY . ' seconds after its purge. A stale row escalated to a full zone purge at the time,'
 			. ' so it records a purge that needed a second attempt — not a page still stale now.</p>';
 		echo '<table class="widefat striped"><thead><tr>';

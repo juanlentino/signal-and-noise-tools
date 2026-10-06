@@ -319,5 +319,14 @@ $GLOBALS['__opts']['sn_last_purge_report'] = array( 'epoch' => 7 ); // no time, 
 $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ]  = array();
 ok( null === snt_cf_freshness_summary(), 'nothing known from either source is NULL, never a fabricated fresh' );
 
+echo "\nThe retired probe (2026-10-05)\n";
+if ( ! function_exists( '__' ) ) { function __( $t ) { return $t; } }
+$plog = array( array( 'time' => gmmktime( 20, 45, 0, 10, 3, 2026 ), 'result' => 'fresh' ), array( 'time' => gmmktime( 20, 5, 0, 10, 3, 2026 ), 'result' => 'stale' ) );
+ok( '' === snt_cf_probe_retired_note( $plog ) && false === snt_cf_probe_status( $plog )['retired'], 'a theme that does not tag: the probe still runs, nothing is said' );
+if ( ! function_exists( 'sn_cf_tagged' ) ) { function sn_cf_tagged() { return true; } }
+ok( true === snt_cf_probe_status( $plog )['retired'] && gmmktime( 20, 45, 0, 10, 3, 2026 ) === snt_cf_probe_status( $plog )['last_run'], 'a tagging theme: retired, last run the newest row' );
+ok( false !== strpos( snt_cf_probe_retired_note( $plog ), 'last run Oct 3' ), 'the note dates the last run' );
+ok( false !== strpos( snt_cf_probe_retired_note( array() ), 'last run never' ), 'no rows: never, not a date' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
