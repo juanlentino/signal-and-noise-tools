@@ -508,17 +508,7 @@
 		actions.appendChild( btn );
 		wrap.appendChild( actions );
 
-		if ( healthUrl ) {
-			var link = el( 'a', {
-				href:  healthUrl,
-				text:  'Open Health',
-				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
-			} );
-			var arrow = el( 'span', { text: '→' } );
-			arrow.setAttribute( 'aria-hidden', 'true' ); // a link's trailing arrow is decoration
-			link.appendChild( arrow );
-			actions.appendChild( link );
-		}
+		// "Open Health" closes the Health section now (paint()), not this row.
 		container.appendChild( wrap );
 
 		function toast( message, success ) {
@@ -543,7 +533,9 @@
 			// Each read with the fix link for whatever it added to the headline.
 			var read  = function( title, fn ) {
 				var before = faults( tally ), r = fn();
-				var f = faults( tally ) > before ? fixFor( title ) : null;
+				// Health always links to its tab (it was the bottom row's link,
+				// 2026-10-05); every other section only when it added a fault.
+				var f = 'Health' === title && healthUrl ? { href: healthUrl, text: 'Open Health' } : ( faults( tally ) > before ? fixFor( title ) : null );
 				r.fix = ( r.fix || [] ).concat( f ? [ f ] : [] );
 				return [ title, r ];
 			};
@@ -562,8 +554,16 @@
 			// Gray, not green, when the only words are verifying or paused: not a
 			// fault, and not everything ran either.
 			dot.style.background = 'pending' === uptime ? SURFACE_HOVER : tally.down ? DANGER_FG : faults( tally ) ? WARN_FG : ( 'All systems normal' === words ? OK_FG : SURFACE_HOVER );
+			// A repaint rebuilds the section links: a keyboard user on one keeps
+			// it (Codex on #1927), found again by its address and words.
+			var focused = document.activeElement && detail.contains && detail.contains( document.activeElement ) && 'A' === document.activeElement.tagName ? document.activeElement : null;
+			var key     = focused ? focused.href + '|' + focused.textContent : '';
 			clearChildren( detail );
 			reads.forEach( function( r, i ) { detail.appendChild( section( r[0], r[1], 0 === i ) ); } );
+			if ( key ) {
+				var back = Array.prototype.filter.call( detail.querySelectorAll( 'a' ), function( a ) { return a.href + '|' + a.textContent === key; } )[0];
+				if ( back ) { back.focus(); }
+			}
 		}
 
 		// Recipe 2 (OpenStation docs/examples/register-widget.md, #1603), as SN

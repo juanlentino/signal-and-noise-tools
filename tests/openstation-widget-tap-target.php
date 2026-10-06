@@ -75,10 +75,13 @@ foreach ( $files as $f ) {
 		$links[]   = $l;
 	}
 }
-// Nine measured live across twelve cards; the six cards that remain carry four
+// Nine measured live across twelve cards; the six cards that remain carry three
 // literal doorways (SN Provenance builds its two from a list the scan cannot read,
-// and its style string is the same min-height:24px one).
-ok( count( $links ) >= 4, 'the scan finds the doorway links (' . count( $links ) . ' found, 4 literal across the six cards); a regex that stopped matching would report a clean sweep over nothing' );
+// and its style string is the same min-height:24px one; SN Systems' "Open Health"
+// became a section fix link built by fixOne() on 2026-10-05, pinned below).
+ok( count( $links ) >= 3, 'the scan finds the doorway links (' . count( $links ) . ' found, 3 literal across the six cards); a regex that stopped matching would report a clean sweep over nothing' );
+$snt_sys = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' );
+ok( 1 === preg_match( "/function fixOne\\(.*?el\\( 'a', \\{[^}]*min-height:24px/s", $snt_sys ), 'SN Systems\' section fix links (fixOne) declare min-height >= 24px too' );
 
 $short = array();
 foreach ( $links as $l ) {

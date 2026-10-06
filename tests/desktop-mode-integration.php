@@ -647,7 +647,7 @@ foreach ( array(
 $sn_views_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' ) );
 ok( false !== strpos( $sn_views_code, "text: deltaText( pct, '%' ) + ' vs. prior 14 days'," ) && false === strpos( $sn_views_code, 'top_mover' ), 'SN Traffic\'s trend rides the one arrow-only formatter, and the top mover is not painted (render pins: tests/desktop-mode-widget-views-delta.php)' );
 $sn_an_raw = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' );
-ok( false !== strpos( $sn_an_raw, "data.pages.machine_readers" ) && false !== strpos( $sn_an_raw, "[ 'Open Machine Readers', readersUrl ]" ), 'SN Provenance links to the Machine Readers leaf beside Provenance' );
+ok( false !== strpos( $sn_an_raw, "data.pages.machine_readers" ) && false !== strpos( $sn_an_raw, "[ 'Open Machine Readers', readersUrl, rbox ]" ), 'SN Provenance links to the Machine Readers leaf, inside the readers section (2026-10-05; render pin in tests/desktop-status-resilience.cjs)' );
 // Same rule for SN Anchors' Sweep now: the result is a shell toast, the card
 // only refreshes; the in-card note is the fallback.
 $an_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );

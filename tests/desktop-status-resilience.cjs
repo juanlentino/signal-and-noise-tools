@@ -364,6 +364,21 @@ async function run() {
     assert.match(p, /Last posted 3d ago/, 'when a record was last posted, in the Systems card\'s form');
     assert.match(p, /DOIs 7 of 9 minted/, 'DOIs minted');
     pstop();
+    // 2026-10-05: each link closes the section it opens.
+    const lk = harness({...extra, pages: {provenance: '/prov', machine_readers: '/mr'}}), lroot = new Element('div');
+    const lstop = lk.window.desktopModeWidgets['sn-anchors'](lroot); await flush();
+    for (const c of lk.calls) {
+      if (c.opts.path.includes('anchor-status')) c.resolve({pending: [], recording: [], confirmed: 50, total: 50, pages: {confirmed: 6, total: 6}});
+      else if (c.opts.path.includes('machine-readers')) c.resolve({ok: true, days: 30, total: 120});
+      else c.reject(new Error('not in this fixture'));
+    }
+    await flush();
+    const parentOf = text => nodes(lroot).find(n => n.children.some(c => 'a' === c.tag && c.text === text));
+    const heads = box => box ? box.children.filter(c => 'heading' === c.attrs.role).map(c => c.text).join() : '';
+    assert.equal(heads(parentOf('Open Provenance')), 'Provenance', 'Open Provenance sits in the Provenance section');
+    const mrParent = parentOf('Open Machine Readers');
+    assert.match(heads(mrParent), /Machine readers/, 'Open Machine Readers sits in the Machine readers section');
+    lstop();
     const n0 = harness(), n0root = new Element('div');
     const n0stop = n0.window.desktopModeWidgets['sn-health'](n0root); await flush();
     n0.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
@@ -420,7 +435,22 @@ async function run() {
     assert.ok(fl.includes('Open Cloudflare|/cf'), 'the 5xx line links to where the paths are');
     assert.ok(fl.includes('Open Anthropic billing|https://console.anthropic.com/settings/billing'), 'the paused check links to where it is fixed');
     assert.ok(!fl.some(l => l.startsWith('Open Cron')), 'a section with nothing in the headline gets no fix link');
+    assert.equal(fl.filter(l => l.startsWith('Open Health')).length, 1, 'Open Health appears once, in the Health section, never again on the bottom row');
+    const hp = nodes(fxroot).find(n => n.children.some(c => 'a' === c.tag && c.text === 'Open Health'));
+    assert.ok(hp && hp.children.some(c => 'heading' === c.attrs.role && 'Health' === c.text), 'and it closes the Health section');
     assert.match(ft, /opens in a new tab/, 'an off-site link says it opens a new tab');
+    // Codex on #1927: a keyboard user on a section link keeps focus through the two-minute repaint.
+    const fl0 = nodes(fxroot).find(n => 'a' === n.tag && n.text === 'Open Cloudflare');
+    fl0.tagName = 'A';
+    fx.document.activeElement = fl0;
+    Element.prototype.contains = function(n) { return nodes(this).includes(n); };
+    Element.prototype.querySelectorAll = function(sel) { return 'a' === sel ? nodes(this).filter(n => 'a' === n.tag).map(n => (n.tagName = 'A', n)) : []; };
+    Element.prototype.focus = function() { fx.document.activeElement = this; };
+    await fx.tick(2 * 60 * 1000 + 1000);
+    fx.calls[fx.calls.length - 1].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
+    const now = fx.document.activeElement;
+    assert.ok(now && now !== fl0 && 'Open Cloudflare' === now.text && nodes(fxroot).includes(now), 'focus moves to the rebuilt link, not to nowhere');
+    delete Element.prototype.contains; delete Element.prototype.querySelectorAll; delete Element.prototype.focus;
     fxstop();
     const old = harness({pages: {cloudflare: '/cf'}, statusExtra: {systems: {cache: {last_purge: Date.parse('2026-09-08T11:59:00Z') / 1000, fresh_time: Date.parse('2026-09-08T11:00:00Z') / 1000, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), oldroot = new Element('div');
     const oldstop = old.window.desktopModeWidgets['sn-health'](oldroot); await flush();
