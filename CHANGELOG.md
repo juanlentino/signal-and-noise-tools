@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **README:** a Public pages section for the colophon and Maturity spec sheets; the contrast report's live tier under Content health; the health module count corrected to 28.
+
 ## [22.7.0] - 2026-10-06 — maturity pages on the page track, contrast report shows the live pages
 
 ### Changed

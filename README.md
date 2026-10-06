@@ -21,6 +21,7 @@ Built on WordPress 7.0's Abilities API and AI Client (what every model does here
 - **OpenStation** — three native windows, 10 widgets, 22 palette commands, the Copilot seams
 - **AI, models and Jev** — three kinds of model, one job each: a text model suggests, an embedding model relates, and Jev judges; nothing a model says is written to a note without a human's click
 - **Agent surface** — more than a hundred abilities plus their remote twins; an MCP server with a read door (49 tools) and a write door (18), and a remote door for Claude on a phone; the site as something agents read, with the rights terms they read it under
+- **Public pages**: the `[sn_colophon]` page and the Maturity hub with its system pages, painted as spec sheets
 - **Self-updater** — GitHub-poll updater wired into WordPress's native update system
 
 Each of these is expanded under [In depth](#in-depth).
@@ -64,7 +65,7 @@ The queue closes the loop. A tenth Attention reader, **Search**, reads the same 
 
 ### Content health
 
-a 33-check scan (missing alt text, orphaned media, broken internal + rotted external links, stale posts, time-phrase and color drift, unlinked mentions, link opportunities, edge security-header drift, edge-Worker reachability, analytics integrity, the provenance integrity sweep, the rights-signals drift probe, the public ledger's own CI, ML cousins, publishing cadence, the rights-signal anchoring gap, search titles, Zenodo DOIs, Jev's reading of every note's search title and description, and Jev's reading of every note against its tags), run from Measurement → Health or the `run-health-scan` ability (`inc/health-check-*.php` — 27 modules; a check is only live once it carries all four of its registrations)
+a 33-check scan (missing alt text, orphaned media, broken internal + rotted external links, stale posts, time-phrase and color drift, unlinked mentions, link opportunities, edge security-header drift, edge-Worker reachability, analytics integrity, the provenance integrity sweep, the rights-signals drift probe, the public ledger's own CI, ML cousins, publishing cadence, the rights-signal anchoring gap, search titles, Zenodo DOIs, Jev's reading of every note's search title and description, and Jev's reading of every note against its tags), run from Measurement → Health or the `run-health-scan` ability (`inc/health-check-*.php`, 28 modules; a check is only live once it carries all four of its registrations). The contrast report leads with what the live pages show: `inc/health-contrast-rendered.php` reads the theme's latest `contrast.yml` run from the public GitHub API (cached six hours) and says ok, the failure count linked to the run, or unknown, never a pass it cannot read. The placement-dependent pairings and token-pair counts below it are possibilities, not failures
 
 ### Provenance
 
@@ -153,6 +154,10 @@ Everything reachable without a credential, so nothing is public by accident. The
 | `/_sn/login-guard/status`, `/_sn/remote-mcp/status` | their Workers | presence booleans and contract version — never secrets |
 | `/_sn/px` | `sn-analytics` Worker | the beacon; token-gated, but the token ships in every page, so it is a bot filter, not authentication — rate-limited per IP |
 | `/.well-known/tdmrep.json`, `/license.xml`, `/robots.txt`, `/tdm-policy`, `/ns/tdm`, `/webmcp/bridge.js` | `sn-rights-signals` Worker | the rights surface itself |
+
+### Public pages
+
+The `[sn_colophon]` page and the Maturity hub plus its seven system pages render as spec sheets: one band per group, the heading on the left and the items two across, stacking at 900px. Each takes the 1320px page track. The sheets load in the head only on pages that carry their shortcodes (`inc/colophon-front.php`, `inc/maturity-layout.php`), with a render-time fallback for a shortcode the head check could not see. Links are underlined at rest and dim text uses the `rust` token, never opacity.
 
 ### Self-updater
 
