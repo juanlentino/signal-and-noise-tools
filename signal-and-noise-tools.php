@@ -608,6 +608,7 @@ require_once __DIR__ . '/inc/ml-maturity-page.php';       // v10.18.0: [sn_ml_ma
 require_once __DIR__ . '/inc/ml-candidates-ui.php';       // v10.19.0: editor buttons for keyword/link candidates (pure kernel — no AI gate; posts only)
 require_once __DIR__ . '/inc/ml-cadence.php';             // v10.22.0: cadence flags (publish + cron rhythm deviations — ML pipeline #5)
 require_once __DIR__ . '/inc/colophon-page.php';             // v10.13.0: [sn_colophon] — the colophon moves from theme template to CMS (theme stays frozen)
+require_once __DIR__ . '/inc/colophon-front.php';            // 2026-10-06: the colophon's stylesheet and its one real record
 require_once __DIR__ . '/inc/abilities-provenance.php'; // v9.78.0: anchor-status + anchor-sweep
 require_once __DIR__ . '/inc/login-hide.php';
 require_once __DIR__ . '/inc/seo-schema.php';

@@ -1,0 +1,65 @@
+/* Signal & Noise — [sn_colophon] front-end styling (2026-10-06).
+   A spec sheet: each group is a band, its heading on the left and its rows
+   in a grid on the right (Made with 2x2, On the page 1x2, Kept honest:
+   Records across, then three). Theme color tokens only, so dark mode
+   follows the theme; the Kept honest band inverts in both palettes.
+   Scoped to .sn-colophon; loaded only on a page carrying the shortcode. */
+
+/* The page takes the shared page track (1320px, as on Resume and the stats
+   page), its title and rule with it. Beats core's :where() constrained rule. */
+main.is-layout-constrained:has(.sn-colophon)>*,.wp-block-post-content>.sn-colophon{max-width:var(--wp--custom--page-track,1320px)}
+
+.sn-colophon{--sn-col-ink:var(--wp--preset--color--bone,#000);--sn-col-ground:var(--wp--preset--color--void,#fff);--sn-col-dim:var(--wp--preset--color--rust,#666);--sn-col-rule:var(--wp--preset--color--concrete,#d9d9d9);--sn-col-red:var(--wp--preset--color--blood,#e00404);--sn-col-head:var(--wp--preset--font-family--heading,'Bebas Neue',Impact,sans-serif);--sn-col-bleed:var(--wp--preset--spacing--40,1.5rem);counter-reset:sn-col}
+
+.sn-colophon-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:1rem 3rem;margin-bottom:2.5rem}
+.sn-colophon-head>p{margin:0;max-width:44rem}
+.sn-colophon .sn-colophon-versions{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;border-top:2px solid currentColor;padding-top:.6rem}
+
+.sn-colophon-group{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3fr);gap:1rem 3rem;padding:3rem 0;border-top:2px solid currentColor}
+.sn-colophon-group h2{font-size:clamp(2rem,5vw,3.5rem);line-height:.95;letter-spacing:normal;margin:0}
+.sn-colophon-group h2::before{counter-increment:sn-col;content:counter(sn-col,decimal-leading-zero) / "";display:block;font-family:var(--wp--preset--font-family--body,'DM Mono',monospace);font-size:.75rem;letter-spacing:.18em;color:var(--sn-col-red);margin-bottom:.4rem}
+
+.sn-colophon-items{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2rem 2.5rem}
+.sn-colophon-group--honest .sn-colophon-items{grid-template-columns:repeat(3,minmax(0,1fr))}
+.sn-colophon-items>li{margin:0;padding-top:1rem;border-top:1px solid var(--sn-col-rule);line-height:1.7}
+.sn-colophon-items>li>strong{display:block;font-family:var(--sn-col-head);font-weight:400;font-size:1.4rem;letter-spacing:.04em;line-height:1.2;margin-bottom:.25rem}
+.sn-colophon-item--records{grid-column:1/-1}
+
+/* The faces and the palette, shown in their own rows. Decorative: the row
+   text names them; the empty alt keeps screen readers off the samples. */
+.sn-colophon-item--type>strong::after{content:"Bebas Neue" / "";display:block;font-size:2.6rem;line-height:1.1;margin-top:.5rem}
+.sn-colophon-item--appearance>strong::after{content:"" / "";display:block;width:10.5rem;height:2rem;margin-top:.6rem;border:1px solid currentColor;background:linear-gradient(90deg,var(--sn-col-ground) 0 33.3%,var(--sn-col-ink) 33.3% 66.6%,var(--sn-col-red) 66.6%)}
+
+/* Kept honest: inverted in both palettes (bone ground, void ink, written as
+   the preset tokens so the contrast suite can resolve them). Dim text uses
+   concrete, the light grey on the dark band and the dark grey on the light
+   one. The Verify button is the page ground on the band: an inverted chip.
+   The band bleeds into main's side padding (spacing-40, never more), so its
+   heading lines up with the other bands' and nothing overflows. */
+.sn-colophon-group--honest{background:var(--wp--preset--color--bone,#000);color:var(--wp--preset--color--void,#fff);border-top:0;padding:3rem var(--sn-col-bleed);margin-inline:calc(-1 * var(--sn-col-bleed))}
+.sn-colophon-group--honest .sn-colophon-items>li{border-top-color:var(--sn-col-dim)}
+.sn-colophon-group--honest h2,.sn-colophon-group--honest h2::before{color:inherit}
+.sn-colophon-group--honest a{color:inherit;text-decoration-color:var(--wp--preset--color--signal,#ff4c47)}
+
+.sn-colophon-record{margin:1.5rem 0 0}
+.sn-colophon-record figcaption{font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--sn-col-rule);margin-bottom:.4rem}
+.sn-colophon-record dl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:0;border:2px solid currentColor}
+.sn-colophon-record dl>div{padding:1rem 1.2rem}
+.sn-colophon-record dl>div+div{border-left:2px solid currentColor}
+.sn-colophon-record dt{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--sn-col-rule)}
+.sn-colophon-record dd{margin:0;font-size:.95rem;overflow-wrap:anywhere}
+.sn-colophon-record .sn-colophon-big{display:block;font-family:var(--sn-col-head);font-size:2.2rem;line-height:1.1}
+.sn-colophon .sn-colophon-verify{display:inline-flex;align-items:center;min-height:44px;margin-top:1rem;padding:0 1.25rem;background:var(--wp--preset--color--void,#fff);color:var(--wp--preset--color--bone,#000);font-family:var(--sn-col-head);font-size:1.35rem;letter-spacing:.06em;text-decoration:none}
+.sn-colophon .sn-colophon-verify:hover,.sn-colophon .sn-colophon-verify:focus-visible{text-decoration:underline;text-decoration-color:var(--wp--preset--color--signal,#ff4c47);text-decoration-thickness:3px;text-underline-offset:4px;outline:2px solid var(--wp--preset--color--void,#fff);outline-offset:3px}
+
+@media (max-width:900px){
+	.sn-colophon-group{grid-template-columns:minmax(0,1fr);padding:2.5rem 0}
+	.sn-colophon-group--honest{padding:2.5rem var(--sn-col-bleed)}
+	.sn-colophon-group--honest .sn-colophon-items{grid-template-columns:repeat(2,minmax(0,1fr))}
+	.sn-colophon-record dl{grid-template-columns:repeat(2,minmax(0,1fr))}
+	.sn-colophon-record dl>div:nth-child(3){border-left:0}
+	.sn-colophon-record dl>div:nth-child(n+3){border-top:2px solid currentColor}
+}
+@media (max-width:640px){
+	.sn-colophon-items,.sn-colophon-group--honest .sn-colophon-items{grid-template-columns:minmax(0,1fr)}
+}

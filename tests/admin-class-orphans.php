@@ -66,8 +66,7 @@ const SN_ORPHAN_CLASS_BASELINE = array(
 	// elsewhere unstyled, as before.
 	'sn-an-signal-dir',
 	'sn-an-tuning-radios', 'sn-audit-logins-log', 'sn-availability',
-	'sn-catalog-number', 'sn-colophon', 'sn-colophon-items',
-	'sn-colophon-versions', 'sn-cron-dashboard',
+	'sn-catalog-number', 'sn-cron-dashboard',
 	'sn-geo', 'sn-health-advisory', 'sn-health-contrast-arithmetic', 'sn-health-contrast-conditional',
 	'sn-health-contrast-usage', 'sn-health-elsewhere', 'sn-health-motion-uncovered', 'sn-health-skipped',
 	'sn-kpi-note', 'sn-machine-maturity-giveback', 'sn-machine-maturity-reads', 'sn-mcp-tools',
