@@ -86,7 +86,9 @@ function snt_contrast_rendered_evaluate( $runs, $annotations ) {
 		// (exit 2: sitemap unreadable, home blocked, a page that did not
 		// render) is turned into a green job with a warning and no summary.
 		$v['state'] = $measured ? 'ok' : 'unknown';
-		if ( ! $measured ) {
+		// Inconclusive only when the annotations were read and carry no
+		// summary; unread annotations are an API gap (Codex on #1948).
+		if ( ! $measured && is_array( $annotations ) ) {
 			$v['reason'] = 'inconclusive';
 		}
 	} elseif ( 'failure' === $conclusion ) {
