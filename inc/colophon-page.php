@@ -67,7 +67,7 @@ function sn_colophon_items() {
 		'records'    => array( __( 'Records', 'signal-and-noise-tools' ), __( 'each note I publish gets a fingerprint of its text (SHA-256), a digital signature from the site\'s key (Ed25519) and a timestamp written into Bitcoin (OpenTimestamps), and an edit to the text adds a new signed version while keeping the earlier ones, so anyone can check that a note is unchanged and when it was published at Verify a Note.', 'signal-and-noise-tools' ) ),
 		'systems'    => array( __( 'Systems', 'signal-and-noise-tools' ), __( 'every system documented at the maturity index, where each system has a page explaining what it does.', 'signal-and-noise-tools' ) ),
 		'ai'         => array( __( 'AI', 'signal-and-noise-tools' ), __( 'engineered with Claude (Anthropic) as a pair programmer, meaning an AI that helps write the site\'s code.', 'signal-and-noise-tools' ) ),
-		'interop'    => array( __( 'Interop', 'signal-and-noise-tools' ), __( 'the site\'s admin dashboard runs inside OpenStation, a free WordPress plugin that turns it into a desktop with windows and a dock; readers of the public site never see it.', 'signal-and-noise-tools' ) ),
+		'interop'    => array( __( 'Interop', 'signal-and-noise-tools' ), __( 'the site\'s admin dashboard runs inside OpenStation, a free WordPress plugin that turns it into a desktop with windows and a dock, which readers of the public site never see; Daniel López Sánchez, one of OpenStation\'s maintainers, contributed to this site\'s OpenStation integration.', 'signal-and-noise-tools' ) ),
 	);
 	return apply_filters( 'sn_colophon_items', $items );
 }
@@ -124,6 +124,7 @@ function sn_colophon_urls() {
 		'plugin_changelog' => 'https://github.com/juanlentino/signal-and-noise-tools/blob/main/CHANGELOG.md',
 		'theme_changelog'  => 'https://github.com/juanlentino/signal-and-noise/blob/main/CHANGELOG.md',
 		'openstation'      => 'https://openstation.me/',
+		'openstation_dev'  => 'https://github.com/AllTerrainDeveloper',
 		'theme_repo'       => 'https://github.com/juanlentino/signal-and-noise',
 	);
 	return apply_filters( 'sn_colophon_urls', $urls );
@@ -158,10 +159,11 @@ function sn_colophon_maturity_url() {
 }
 
 /**
- * Which phrase in each row is a link: slug => [phrase, url, external, hidden
- * suffix]. A row whose url is '' renders as plain text, never a dead link.
+ * Which phrases in each row are links: slug => list of [phrase, url,
+ * external, hidden suffix]. A link whose url is '' renders as plain text,
+ * never a dead link.
  *
- * @return array<string,array{0:string,1:string,2:bool,3:string}>
+ * @return array<string,array<int,array{0:string,1:string,2:bool,3:string}>>
  */
 function sn_colophon_links() {
 	$urls = sn_colophon_urls();
@@ -171,13 +173,17 @@ function sn_colophon_links() {
 	$wf_page      = function_exists( 'get_page_by_path' ) ? get_page_by_path( 'workflow' ) : null;
 	$workflow_url = $wf_page && 'publish' === ( $wf_page->post_status ?? '' ) ? (string) get_permalink( $wf_page ) : '';
 	return array(
-		'plugin'  => array( 'Signal & Noise Tools', $urls['plugin_repo'], true, '' ),
-		'records' => array( 'Verify a Note', function_exists( 'home_url' ) ? home_url( '/verify' ) : '', false, '' ),
-		'systems' => array( 'maturity index', sn_colophon_maturity_url(), false, '' ),
+		'plugin'  => array( array( 'Signal & Noise Tools', $urls['plugin_repo'], true, '' ) ),
+		'records' => array( array( 'Verify a Note', function_exists( 'home_url' ) ? home_url( '/verify' ) : '', false, '' ) ),
+		'systems' => array( array( 'maturity index', sn_colophon_maturity_url(), false, '' ) ),
 		// Screen-reader-only context for link lists. A suffix, never an aria-label:
 		// the accessible name must start with the visible words (WCAG 2.5.3).
-		'ai'      => array( 'pair programmer', $workflow_url, false, __( ': how I work with AI', 'signal-and-noise-tools' ) ),
-		'interop' => array( 'OpenStation', $urls['openstation'], true, '' ),
+		'ai'      => array( array( 'pair programmer', $workflow_url, false, __( ': how I work with AI', 'signal-and-noise-tools' ) ) ),
+		// Owner 2026-10-06: credit the OpenStation maintainer who contributed
+		// to the plugin's OpenStation integration (#751; the folder it built was
+		// retired by OpenStation 1.1.6, so the credit names the integration, not
+		// the folder). One of several maintainers.
+		'interop' => array( array( 'OpenStation', $urls['openstation'], true, '' ), array( 'Daniel López Sánchez', $urls['openstation_dev'], true, '' ) ),
 	);
 }
 
@@ -192,15 +198,29 @@ function sn_colophon_new_tab_note() {
 }
 
 /**
- * One row's text, escaped, with its phrase linked when it has a URL.
+ * One row's text, escaped, with each of its phrases linked when it has a URL.
  *
- * @param string $text Plain text.
- * @param array  $link [phrase, url, external, hidden suffix], or empty.
+ * @param string $text  Plain text.
+ * @param array  $links List of [phrase, url, external, hidden suffix].
  * @return string
  */
-function sn_colophon_row_html( $text, $link ) {
+function sn_colophon_row_html( $text, $links ) {
 	$safe = esc_html( $text );
-	if ( empty( $link ) || '' === (string) $link[1] ) {
+	foreach ( (array) $links as $link ) {
+		$safe = sn_colophon_link_phrase( $safe, (array) $link );
+	}
+	return $safe;
+}
+
+/**
+ * Link the first plain-text occurrence of one phrase in escaped row HTML.
+ *
+ * @param string $safe Escaped row HTML.
+ * @param array  $link [phrase, url, external, hidden suffix].
+ * @return string
+ */
+function sn_colophon_link_phrase( $safe, $link ) {
+	if ( '' === (string) ( $link[1] ?? '' ) ) {
 		return $safe;
 	}
 	$phrase = esc_html( (string) $link[0] );
