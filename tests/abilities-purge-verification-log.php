@@ -58,6 +58,7 @@ $GLOBALS['__option'] = array();
 $r = snt_ability_purge_verification_log( null );
 ok( 'never_probed' === $r['state'], 'an empty log reports never_probed' );
 ok( 0 === $r['counts']['stale'] && null === $r['counts']['stale_pct'], 'never_probed carries no rate — nothing to divide' );
+ok( array_key_exists( 'retired', $r ) && array_key_exists( 'last_run', $r ) && 0 === $r['last_run'], 'Codex on #1930: never_probed still says whether the probe is retired, and when it last ran (never)' );
 ok( array() === $r['rows'], 'and no rows' );
 // The whole point: absence of evidence must not read as evidence of freshness.
 ok( 'fresh' !== $r['state'] && ( $r['counts']['fresh'] ?? 0 ) === 0, 'an unprobed edge is NEVER reported as fresh' );

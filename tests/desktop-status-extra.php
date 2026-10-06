@@ -68,6 +68,15 @@ ok( 12 === snt_desktop_edge_yesterday()['total'] && 9 === snt_desktop_edge_yeste
 $GLOBALS['__edge'] = array();
 ok( null === snt_desktop_edge_yesterday(), 'no day readable: null, the card says so instead of a 0' );
 
+echo "\nEdge: whose 5xx\n";
+$dp = array( array( 'value' => '/wp-json/desktop-mode/v1/session', 'requests' => 33 ), array( 'value' => '/', 'requests' => 6 ), array( 'value' => '/wp-json/wp-abilities/v1/abilities/signal-noise/get-deploy-status/run', 'requests' => 5 ), array( 'value' => '/wp-admin/admin.php', 'requests' => 3 ), array( 'value' => '/openstation/sw.js', 'requests' => 3 ), array( 'value' => '/lib/editor/tiny/loader.php', 'requests' => 3 ), array( 'value' => '/wp-json/allterrain-forms/v1/forms', 'requests' => 3 ), array( 'value' => '/provenance/', 'requests' => 2 ) );
+ok( 44 === snt_desktop_edge_dashboard_count( $dp ), 'the session ping, the abilities polls, wp-admin and the shell count as the dashboard; the home page, a scanner path, a public form and a note do not' );
+ok( null === snt_desktop_edge_dashboard_count( null ) && 0 === snt_desktop_edge_dashboard_count( array() ), 'no paths: unknown, never a 0; an empty list is 0' );
+ok( 0 === snt_desktop_edge_dashboard_count( array( array( 'value' => '/wp-admin-fake/', 'requests' => 9 ), array( 'value' => '/notes/wp-admin/', 'requests' => 9 ) ) ), 'a path that only contains the words is not the dashboard' );
+$GLOBALS['__edge'] = array( $d1 => array( 'total' => 12, 'paths' => array( array( 'value' => '/wp-admin/x', 'requests' => 10 ) ), 'days' => array( array( 'day' => $d1, 'read' => 'read' ) ) ) );
+ok( 10 === snt_desktop_edge_yesterday()['dashboard'], 'the card row carries the dashboard count' );
+$GLOBALS['__edge'] = array();
+
 echo "\nIntegrity\n";
 $ig = snt_desktop_integrity_shape( array( 'last_sweep' => array( 'fleet' => 50 ), 'notes' => array( 1 => array( 'last_checked' => 5, 'failures' => array() ), 2 => array( 'last_checked' => 5, 'failures' => array( 'twin' ) ), 3 => array( 'last_checked' => 0 ) ) ) );
 ok( 50 === $ig['fleet'] && 2 === $ig['checked'] && 1 === $ig['clean'] && 1 === $ig['failing'], 'Codex on 2bee69f: counted from stored per-subject results; a subject not reached is not passing' );

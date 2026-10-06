@@ -68,7 +68,7 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'post_save' => array(
 					'type'        => 'object',
-					'description' => 'probes / stale / escalated over POST-SAVE probes only. Manual purges never write here, so pressing Purge cannot move them.',
+					'description' => 'probes / stale / escalated over POST-SAVE probes only. Manual purges never write here, so pressing Purge cannot move them. READ `retired` FIRST: true means a save now purges the theme\'s cache tag and no probe runs, so these counts are the old per-URL path\'s history, last written at `last_run` (2026-10-05).',
 				),
 				'purges'    => array(
 					'type'        => 'object',
@@ -119,7 +119,7 @@ function snt_ability_cache_freshness( $input ) {
 			'last_iso'  => null,
 			'headline'  => function_exists( 'snt_cf_freshness_headline' ) ? snt_cf_freshness_headline( 'unknown' ) : '',
 			'phrase'    => '',
-			'post_save' => array( 'probes' => 0, 'stale' => 0, 'escalated' => 0 ),
+			'post_save' => array_merge( array( 'probes' => 0, 'stale' => 0, 'escalated' => 0 ), function_exists( 'snt_cf_probe_status' ) ? snt_cf_probe_status() : array() ),
 			'probe_scope' => 'permalink',
 			'purges'    => function_exists( 'snt_purge_ledger_summary' ) ? snt_purge_ledger_summary() : array(),
 		);
@@ -147,7 +147,7 @@ function snt_ability_cache_freshness( $input ) {
 			'probes'    => (int) ( $sum['total'] ?? 0 ),
 			'stale'     => (int) ( $sum['stale'] ?? 0 ),
 			'escalated' => (int) ( $sum['escalated'] ?? 0 ),
-		),
+		) + ( function_exists( 'snt_cf_probe_status' ) ? snt_cf_probe_status() : array() ),
 		'purges'    => function_exists( 'snt_purge_ledger_summary' ) ? snt_purge_ledger_summary() : array(),
 	);
 }

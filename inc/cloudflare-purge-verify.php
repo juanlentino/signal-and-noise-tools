@@ -173,6 +173,64 @@ function snt_cf_probe_is_stale( $bare_html, $fresh_html ) {
 }
 
 /**
+ * Whether the post-save probe still runs, and when it last ran.
+ *
+ * 2026-10-05: since #1850 a save with a tagging theme purges the cache tag
+ * and returns before scheduling a probe, so the probe log is the OLD
+ * per-URL path's history. Every surface that shows its counts says so;
+ * nothing is removed (owner rule: a figure is relabeled, not dropped).
+ *
+ * @param array|null $log The probe log (test seam); null reads the option.
+ * @return array{retired:bool,last_run:int}
+ */
+function snt_cf_probe_status( $log = null ) {
+	$log  = is_array( $log ) ? $log : get_option( SN_CF_PROBE_LOG_OPT, array() );
+	$last = 0;
+	foreach ( (array) $log as $row ) {
+		// The post-save path only: a retained manual zone-purge check is not a
+		// run of the retired per-URL path (Codex on #1930).
+		if ( ! is_array( $row ) || 'manual_zone_purge' === (string) ( $row['source'] ?? '' ) ) {
+			continue;
+		}
+		$last = max( $last, (int) ( $row['time'] ?? 0 ) );
+	}
+	return array(
+		'retired'  => function_exists( 'sn_cf_tagged' ) && sn_cf_tagged(),
+		'last_run' => $last,
+	);
+}
+
+/**
+ * The sentence that says the probe no longer runs, or '' while it does.
+ *
+ * @param array|null $log The probe log (test seam).
+ * @return string
+ */
+function snt_cf_probe_retired_note( $log = null ) {
+	$st = snt_cf_probe_status( $log );
+	if ( ! $st['retired'] ) {
+		return '';
+	}
+	$note = sprintf(
+		/* translators: %s: date of the last probe */
+		__( 'Old per-URL purge path, last run %s. A save now purges the cache tag, which empties every tagged page, and no probe runs after it; its post-save rows below are that path\'s history.', 'signal-and-noise-tools' ),
+		$st['last_run'] > 0 ? gmdate( 'M j', $st['last_run'] ) : __( 'never', 'signal-and-noise-tools' )
+	);
+	// Manual rows are a different writer: a check right after a manual zone
+	// purge, which can race propagation (Codex on #1930). Said apart.
+	$log    = is_array( $log ) ? $log : get_option( SN_CF_PROBE_LOG_OPT, array() );
+	$manual = count( array_filter( (array) $log, static fn( $r ) => is_array( $r ) && 'manual_zone_purge' === (string) ( $r['source'] ?? '' ) ) );
+	if ( $manual > 0 ) {
+		$note .= ' ' . sprintf(
+			/* translators: %d: manual rows */
+			_n( '%d row is a check run right after a manual purge, not the post-save path.', '%d rows are checks run right after a manual purge, not the post-save path.', $manual, 'signal-and-noise-tools' ),
+			$manual
+		);
+	}
+	return $note;
+}
+
+/**
  * Append one probe outcome to the bounded log the admin tab reads.
  *
  * @param array $entry Outcome record.

@@ -151,7 +151,12 @@ echo "\nGroup: the theme's cache tag\n";
 reset_all( array( array( 200, true ) ) );
 ok( false === sn_cf_purge_tag() && array() === $GLOBALS['__http'], 'a theme that does not tag yet: no call' );
 define( 'SN_EDGE_CACHE_TAG', 'sn-render' );
+$GLOBALS['__ledger'] = array();
 ok( true === sn_cf_purge_tag() && 'purge_cache' === $GLOBALS['__http'][0][0] && '{"tags":["sn-render"]}' === $GLOBALS['__http'][0][1]['body'], 'one purge_cache call carrying the one tag' );
+ok( 1 === count( $GLOBALS['__ledger'] ) && 'save' === $GLOBALS['__ledger'][0]['trigger'] && 'tag' === $GLOBALS['__ledger'][0]['scope'] && true === $GLOBALS['__ledger'][0]['edge'], 'a confirmed tag purge is a ledger row: it empties every tagged page (2026-10-05)' );
+reset_all( array( array( 400, false ) ) );
+$GLOBALS['__ledger'] = array();
+ok( false === sn_cf_purge_tag() && array() === $GLOBALS['__ledger'], 'a refused tag purge records nothing: nothing was emptied' );
 $purge_src = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
 ok( 1 === substr_count( $purge_src, "sn_cf_purge_tag();" ) && false !== strpos( $purge_src, 'if ( sn_cf_tagged() ) {' ), 'the save handler purges the tag in one place, ahead of the older-theme path' );
 

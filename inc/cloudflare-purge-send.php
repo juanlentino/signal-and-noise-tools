@@ -188,7 +188,15 @@ function sn_cf_purge_tag() {
 		return false;
 	}
 	// constant(): PHPStan reads a defined() guard only in the function that holds it.
-	return sn_cf_api_send( 'purge_cache', array( 'tags' => array( (string) constant( 'SN_EDGE_CACHE_TAG' ) ) ) );
+	$confirmed = sn_cf_api_send( 'purge_cache', array( 'tags' => array( (string) constant( 'SN_EDGE_CACHE_TAG' ) ) ) );
+	// 2026-10-05: one tag purge empties every tagged page, so it is a purge
+	// the ledger must count; since #1850 every save sent one and none was
+	// recorded, and the week's count read low. Same rule as a zone purge:
+	// the edge leg is true only when Cloudflare confirmed it in this request.
+	if ( ( $confirmed || 'queued' === sn_cf_send_last() ) && function_exists( 'snt_purge_ledger_add' ) ) {
+		snt_purge_ledger_add( array( 'trigger' => 'save', 'scope' => 'tag', 'redis' => false, 'pages' => false, 'edge' => $confirmed, 'cloudways' => 'not run' ) );
+	}
+	return $confirmed;
 }
 
 /**

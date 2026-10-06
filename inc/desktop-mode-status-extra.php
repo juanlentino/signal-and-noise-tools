@@ -50,7 +50,7 @@ function snt_desktop_status_extra() {
  * before it. There is no rolling 24 hours: today is still filling. Null when
  * none of the last three days could be read.
  *
- * @return array{day:string,total?:int,visitor?:int,prior?:int|null,failed?:bool}|null `failed` when the newest non-pending day's read failed. `day` is the label ("Oct 4"); `visitor` the 5xx a visitor received.
+ * @return array{day:string,total?:int,visitor?:int,dashboard?:int|null,prior?:int|null,failed?:bool}|null `failed` when the newest non-pending day's read failed. `day` is the label ("Oct 4"); `visitor` the 5xx a visitor received; `dashboard` how many hit the owner's own admin and its polls (null when the day carries no paths).
  */
 function snt_desktop_edge_yesterday() {
 	if ( ! function_exists( 'sn_edge_errors_range' ) ) {
@@ -89,9 +89,33 @@ function snt_desktop_edge_yesterday() {
 		foreach ( (array) ( $a['days'] ?? array() ) as $row ) {
 			$visitor += $d === (string) ( $row['day'] ?? '' ) ? (int) ( $row['visitor'] ?? 0 ) : 0;
 		}
-		return array( 'day' => gmdate( 'M j', $t ), 'total' => (int) ( $a['total'] ?? 0 ), 'visitor' => $visitor, 'prior' => $ok( $b, $pd ) ? (int) ( $b['total'] ?? 0 ) : null );
+		return array( 'day' => gmdate( 'M j', $t ), 'total' => (int) ( $a['total'] ?? 0 ), 'visitor' => $visitor, 'dashboard' => snt_desktop_edge_dashboard_count( $a['paths'] ?? null ), 'prior' => $ok( $b, $pd ) ? (int) ( $b['total'] ?? 0 ) : null );
 	}
 	return null;
+}
+
+/**
+ * How many of a day's 5xx hit the owner's own dashboard: wp-admin, the
+ * OpenStation shell and its session ping, and the abilities and desktop
+ * reads its cards poll (2026-10-05: about 25 of the week's 30). Counted from
+ * the day's top failing paths, so a dashboard path outside that list counts
+ * as "everything else"; the split never overstates the dashboard. PURE.
+ *
+ * @param mixed $paths The day's `paths`: list of { value, requests }.
+ * @return int|null Null when the day carries no paths to split by.
+ */
+function snt_desktop_edge_dashboard_count( $paths ) {
+	if ( ! is_array( $paths ) ) {
+		return null;
+	}
+	$n = 0;
+	foreach ( $paths as $p ) {
+		$path = (string) ( is_array( $p ) ? ( $p['value'] ?? '' ) : '' );
+		if ( preg_match( '#^/(wp-admin/|openstation/|wp-json/(desktop-mode|openstation|wp-abilities)/|wp-json/signal-noise/v1/desktop/)#', $path ) ) {
+			$n += (int) ( $p['requests'] ?? 0 );
+		}
+	}
+	return $n;
 }
 
 /**

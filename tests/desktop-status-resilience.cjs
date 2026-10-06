@@ -341,6 +341,7 @@ async function run() {
     assert.match(t, /Incidents · 30 days 1/, 'incidents over 30 days across the monitors');
     assert.match(t, /Slowest Feed · 340 ms/, 'the slowest monitor, by name');
     assert.match(t, /5xx · Oct 4 12 · 3 fewer than the day before/, 'edge 5xx against the day before, in words');
+    assert.doesNotMatch(t, /Your dashboard/, 'no dashboard count from the payload: no split row');
     assert.match(t, /Last 24 hours 40 runs recorded · 2 failed/, 'cron runs recorded and recorded failures over 24 hours');
     assert.match(t, /queue_tick failed/, 'a failing job is named');
     assert.match(t, /\+1 more failed/, 'and the list is capped');
@@ -452,6 +453,12 @@ async function run() {
     assert.ok(now && now !== fl0 && 'Open Cloudflare' === now.text && nodes(fxroot).includes(now), 'focus moves to the rebuilt link, not to nowhere');
     delete Element.prototype.contains; delete Element.prototype.querySelectorAll; delete Element.prototype.focus;
     fxstop();
+    const sp = harness({statusExtra: {systems: {edge: {day: 'Oct 4', total: 18, prior: 27, dashboard: 14}}, provenance: {}}}), sproot = new Element('div');
+    const spstop = sp.window.desktopModeWidgets['sn-health'](sproot); await flush();
+    sp.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
+    assert.match(sproot.textContent, /5xx · Oct 4 18 · 9 fewer than the day before/, 'the count stays whole');
+    assert.match(sproot.textContent, /Your dashboard · everything else 14 · 4/, 'and says how much of it was the dashboard');
+    spstop();
     const old = harness({pages: {cloudflare: '/cf'}, statusExtra: {systems: {cache: {last_purge: Date.parse('2026-09-08T11:59:00Z') / 1000, fresh_time: Date.parse('2026-09-08T11:00:00Z') / 1000, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), oldroot = new Element('div');
     const oldstop = old.window.desktopModeWidgets['sn-health'](oldroot); await flush();
     old.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
