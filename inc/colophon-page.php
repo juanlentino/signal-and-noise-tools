@@ -248,7 +248,13 @@ function sn_colophon_shortcode( $atts = array() ) {
 		? '<a href="' . esc_url( $urls['theme_repo'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'public on GitHub', 'signal-and-noise-tools' ) . sn_colophon_new_tab_note() . '</a>'
 		: esc_html__( 'public on GitHub', 'signal-and-noise-tools' );
 	$out = '<div class="sn-colophon">'
-		. '<p>' . esc_html__( 'I designed and built this site, and I maintain it. The theme and the plugin that run it are', 'signal-and-noise-tools' ) . ' ' . $repo . esc_html__( ', so anyone can read how a page here is made.', 'signal-and-noise-tools' ) . '</p>';
+		// One translatable sentence; the link is a placeholder so a translator
+		// can move it (Codex on #1932).
+		. '<p>' . sprintf(
+			/* translators: %s: the words "public on GitHub", linked to the source. */
+			esc_html__( 'I designed and built this site, and I maintain it. The theme and the plugin that run it are %s, so anyone can read how a page here is made.', 'signal-and-noise-tools' ),
+			$repo
+		) . '</p>';
 
 	$row = static function ( $slug ) use ( $items, $links ) {
 		$item = $items[ $slug ];

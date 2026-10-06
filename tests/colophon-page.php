@@ -72,6 +72,10 @@ foreach ( array( 'simply', 'seamless', 'powerful', 'robust' ) as $w ) {
 	ok( false === stripos( $html, $w ), "no marketing word: $w" );
 }
 
+$cp_src = (string) file_get_contents( __DIR__ . '/../inc/colophon-page.php' );
+ok( false !== strpos( $cp_src, "it are %s, so anyone can read how a page here is made.'" ), 'Codex on #1932: the opening is one translatable sentence with the link as a placeholder' );
+ok( false !== strpos( $html, 'that run it are <a href=' ) && false !== strpos( $html, '</a>, so anyone can read' ), 'the opening still renders the link in place' );
+
 echo "\nGroup: the facts\n";
 ok( false !== strpos( $html, 'no page builder' ), 'platform says what Full Site Editing means here' );
 ok( false !== strpos( $html, 'what is in the public repositories is what runs, with nothing compiled in between' ), 'code says what no build step buys' );
