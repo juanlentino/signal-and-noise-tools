@@ -48,6 +48,11 @@ function snt_contrast_rendered_evaluate( $runs, $annotations ) {
 	$run      = (array) $runs['workflow_runs'][0];
 	$v['at']  = substr( (string) ( $run['updated_at'] ?? '' ), 0, 10 );
 	$v['url'] = (string) ( $run['html_url'] ?? '' );
+	// The total comes from the runner's summary: GitHub keeps at most ten
+	// error annotations a step, so counting them understates a bad run (Codex
+	// on #1942). The annotation count is only the fallback for a run whose
+	// summary is missing.
+	$total = null;
 	foreach ( is_array( $annotations ) ? $annotations : array() as $a ) {
 		$a = (array) $a;
 		if ( 'failure' === ( $a['annotation_level'] ?? '' ) ) {
@@ -58,13 +63,19 @@ function snt_contrast_rendered_evaluate( $runs, $annotations ) {
 			$v['pages']   = (int) ( $s['pages'] ?? 0 );
 			$v['checked'] = (int) ( $s['checked'] ?? 0 );
 			$v['links']   = (int) ( $s['links'] ?? 0 );
+			$total        = isset( $s['failures'] ) ? (int) $s['failures'] : null;
 		}
+	}
+	if ( null !== $total ) {
+		$v['failures'] = $total;
 	}
 	$conclusion = (string) ( $run['conclusion'] ?? '' );
 	if ( 'success' === $conclusion ) {
 		$v['state'] = 'ok';
 	} elseif ( 'failure' === $conclusion ) {
-		$v['state'] = 'red';
+		// A red run whose failures could not be read (annotations unfetched, or
+		// none counted) is unknown, never "0 failures" (Codex on #1942).
+		$v['state'] = $v['failures'] > 0 ? 'red' : 'unknown';
 	}
 	return $v;
 }

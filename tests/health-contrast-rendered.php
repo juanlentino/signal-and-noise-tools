@@ -29,6 +29,10 @@ $v = snt_contrast_rendered_evaluate( $run( 'success' ), array( $summary ) );
 ok( 'ok' === $v['state'] && 40 === $v['pages'] && 1300 === $v['checked'] && 95 === $v['links'] && '2026-10-07' === $v['at'], 'a green run reads ok, with its page, pair and link counts and its date' );
 $v = snt_contrast_rendered_evaluate( $run( 'failure' ), array( $summary, array( 'annotation_level' => 'failure' ), array( 'annotation_level' => 'failure' ), array( 'annotation_level' => 'warning' ) ) );
 ok( 'red' === $v['state'] && 2 === $v['failures'], 'a red run counts failure annotations only (a warning is not a failure)' );
+$many = array( array( 'annotation_level' => 'notice', 'title' => 'contrast-summary', 'message' => '{"pages":40,"checked":1300,"links":95,"failures":37}' ) );
+for ( $i = 0; $i < 10; $i++ ) { $many[] = array( 'annotation_level' => 'failure' ); }
+ok( 37 === snt_contrast_rendered_evaluate( $run( 'failure' ), $many )['failures'], 'the total comes from the summary, not the ten-per-step annotation cap' );
+ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'failure' ), null )['state'], 'a red run whose annotations could not be read is unknown, never 0 failures' );
 ok( 'none' === snt_contrast_rendered_evaluate( array( 'workflow_runs' => array() ), null )['state'], 'no completed run yet: none, not ok' );
 ok( 'unknown' === snt_contrast_rendered_evaluate( null, null )['state'], 'an unreadable API: unknown, never ok' );
 ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'cancelled' ), null )['state'], 'a cancelled run is no verdict' );
