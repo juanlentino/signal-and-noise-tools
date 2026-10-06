@@ -9,7 +9,7 @@
    page), its title and rule with it. Beats core's :where() constrained rule. */
 main.is-layout-constrained:has(.sn-colophon)>*,.wp-block-post-content>.sn-colophon{max-width:var(--wp--custom--page-track,1320px)}
 
-.sn-colophon{--sn-col-ink:var(--wp--preset--color--bone,#000);--sn-col-ground:var(--wp--preset--color--void,#fff);--sn-col-dim:var(--wp--preset--color--rust,#666);--sn-col-rule:var(--wp--preset--color--concrete,#d9d9d9);--sn-col-red:var(--wp--preset--color--blood,#e00404);--sn-col-head:var(--wp--preset--font-family--heading,'Bebas Neue',Impact,sans-serif);counter-reset:sn-col}
+.sn-colophon{--sn-col-ink:var(--wp--preset--color--bone,#000);--sn-col-ground:var(--wp--preset--color--void,#fff);--sn-col-dim:var(--wp--preset--color--rust,#666);--sn-col-rule:var(--wp--preset--color--concrete,#d9d9d9);--sn-col-red:var(--wp--preset--color--blood,#e00404);--sn-col-head:var(--wp--preset--font-family--heading,'Bebas Neue',Impact,sans-serif);--sn-col-bleed:var(--wp--preset--spacing--40,1.5rem);counter-reset:sn-col}
 
 .sn-colophon-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:1rem 3rem;margin-bottom:2.5rem}
 .sn-colophon-head>p{margin:0;max-width:44rem}
@@ -33,8 +33,10 @@ main.is-layout-constrained:has(.sn-colophon)>*,.wp-block-post-content>.sn-coloph
 /* Kept honest: inverted in both palettes (bone ground, void ink, written as
    the preset tokens so the contrast suite can resolve them). Dim text uses
    concrete, the light grey on the dark band and the dark grey on the light
-   one. The Verify button is the page ground on the band: an inverted chip. */
-.sn-colophon-group--honest{background:var(--wp--preset--color--bone,#000);color:var(--wp--preset--color--void,#fff);border-top:0;padding:3rem 2.5rem}
+   one. The Verify button is the page ground on the band: an inverted chip.
+   The band bleeds into main's side padding (spacing-40, never more), so its
+   heading lines up with the other bands' and nothing overflows. */
+.sn-colophon-group--honest{background:var(--wp--preset--color--bone,#000);color:var(--wp--preset--color--void,#fff);border-top:0;padding:3rem var(--sn-col-bleed);margin-inline:calc(-1 * var(--sn-col-bleed))}
 .sn-colophon-group--honest .sn-colophon-items>li{border-top-color:var(--sn-col-dim)}
 .sn-colophon-group--honest h2,.sn-colophon-group--honest h2::before{color:inherit}
 .sn-colophon-group--honest a{color:inherit;text-decoration-color:var(--wp--preset--color--signal,#ff4c47)}
@@ -52,7 +54,7 @@ main.is-layout-constrained:has(.sn-colophon)>*,.wp-block-post-content>.sn-coloph
 
 @media (max-width:900px){
 	.sn-colophon-group{grid-template-columns:minmax(0,1fr);padding:2.5rem 0}
-	.sn-colophon-group--honest{padding:2.5rem 1.25rem}
+	.sn-colophon-group--honest{padding-block:2.5rem}
 	.sn-colophon-group--honest .sn-colophon-items{grid-template-columns:repeat(2,minmax(0,1fr))}
 	.sn-colophon-record dl{grid-template-columns:repeat(2,minmax(0,1fr))}
 	.sn-colophon-record dl>div:nth-child(3){border-left:0}

@@ -103,8 +103,10 @@ $tinted_surfaces = array(
 		=> 'declares its own background and its own ink; measured directly by the ink pass',
 	// The colophon's Kept honest band, inverted in every palette: it declares
 	// its own background (bone) AND its own ink (void), so the ink pass measures
-	// the text pair. Also on it: concrete captions and tile labels (14.6:1 light,
-	// 11.6:1 dark), rust row rules (non-text), the Verify chip painted void with
+	// the text pair (mutation-checked 2026-10-06: a rust ink on the band goes
+	// red). Also on it, NOT measured here (the stylesheet names them through
+	// its own custom properties): concrete captions and tile labels, 14.6:1
+	// light and 11.6:1 dark by hand, rust row rules (non-text), the Verify chip painted void with
 	// bone ink (the page pair, inverted).
 	'assets/colophon-front.css :: .sn-colophon-group--honest'
 		=> 'declares its own background and its own ink; captions in concrete, rules in rust, the chip the page pair inverted',
