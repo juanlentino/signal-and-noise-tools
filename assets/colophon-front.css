@@ -40,6 +40,10 @@ main.is-layout-constrained:has(.sn-colophon)>*,.wp-block-post-content>.sn-coloph
 .sn-colophon-group--honest .sn-colophon-items>li{border-top-color:var(--sn-col-dim)}
 .sn-colophon-group--honest h2,.sn-colophon-group--honest h2::before{color:inherit}
 .sn-colophon-group--honest a{color:inherit;text-decoration-color:var(--wp--preset--color--signal,#ff4c47)}
+/* The theme drops link underlines; on the band a link shares the text's
+   color, so the underline is what marks it (WCAG 1.4.1). Always on. */
+.sn-colophon-group--honest a:not(.sn-colophon-verify){text-decoration-line:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+.sn-colophon-group--honest a:not(.sn-colophon-verify):hover,.sn-colophon-group--honest a:not(.sn-colophon-verify):focus-visible{text-decoration-thickness:4px}
 
 .sn-colophon-record{margin:1.5rem 0 0}
 .sn-colophon-record figcaption{font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--sn-col-rule);margin-bottom:.4rem}

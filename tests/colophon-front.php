@@ -69,6 +69,7 @@ ok( false !== strpos( $css, '.sn-colophon-group--honest{padding:2.5rem var(--sn-
 ok( 1 === preg_match( '/@media \(max-width:640px\)\{[^}]*grid-template-columns:minmax\(0,1fr\)/', $css ), 'one column on a phone' );
 $no_fallback = preg_replace( '/var\([^()]*,[^()]*\)/', '', $css );
 ok( 0 === preg_match_all( '/#[0-9a-f]{3,6}\b/i', $no_fallback ), 'colors are theme tokens only (hex appears only as var() fallbacks)' );
+ok( false !== strpos( $css, '.sn-colophon-group--honest a:not(.sn-colophon-verify){text-decoration-line:underline' ), 'links on the band are underlined at rest, not only on hover (they share the text color; WCAG 1.4.1)' );
 ok( false === strpos( $css, 'opacity' ), 'dimmed text uses a token, never opacity' );
 ok( false !== strpos( $css, 'min-height:44px' ), 'the Verify button is a 44px target' );
 
