@@ -157,7 +157,7 @@ Everything reachable without a credential, so nothing is public by accident. The
 
 ### Public pages
 
-The `[sn_colophon]` page and the Maturity hub plus its seven system pages render as spec sheets: one band per group, the heading on the left and the items two across, stacking at 900px. Each takes the 1320px page track. The sheets load in the head only on pages that carry their shortcodes (`inc/colophon-front.php`, `inc/maturity-layout.php`), with a render-time fallback for a shortcode the head check could not see. Links are underlined at rest and dim text uses the `rust` token, never opacity.
+The `[sn_colophon]` page and the Maturity hub plus its seven system pages render as spec sheets: one band per group, the heading on the left and the items two across, stacking at 900px. Each takes the 1320px page track. The sheets load in the head only on pages that carry their shortcodes (`inc/colophon-front.php`, `inc/maturity-layout.php`), with a render-time fallback for a shortcode the head check could not see. Links in the colophon's inverted band are underlined at rest. The theme's live contrast check (`contrast.yml`) measures every page in its sample, these included, against AA.
 
 ### Self-updater
 
