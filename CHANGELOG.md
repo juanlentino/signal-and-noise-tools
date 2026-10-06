@@ -13,7 +13,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Fixed
-- **The Health contrast line no longer reads an inconclusive run as ok.** The theme's `contrast.yml` turns a run that could not measure (exit 2) into a green job with a warning and no `contrast-summary`; `snt_contrast_rendered_evaluate()` read any green run as ok. Green now counts only with the summary; without it the line says unknown.
+- **The Health contrast line no longer reads an inconclusive run as ok.** The theme's `contrast.yml` turns a run that could not measure (exit 2) into a green job with a warning and no `contrast-summary`; `snt_contrast_rendered_evaluate()` read any green run as ok. Green now counts only with a well-formed summary that measured at least one page; without it the line says the run could not measure and links it, rather than blaming the GitHub API. The cache key moved to `snt_contrast_rendered_v2`, so an `ok` cached under the old reading is never served.
 
 ### Changed
 - **README and AI.md match the code.** A 34-check scan (was 33), 6 desktop widgets (was 10; Traffic and Reading for analytics), a 50-slug read door (was 49), the eighth tab is Integrity, ~40 leaves, the provenance contract row names the render functions the plugin owns, the default text model is Sonnet 5.5 with Sonnet 5 as the net, and alt text runs on Gemini.

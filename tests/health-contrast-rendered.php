@@ -38,6 +38,14 @@ ok( 'unknown' === snt_contrast_rendered_evaluate( null, null )['state'], 'an unr
 ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'cancelled' ), null )['state'], 'a cancelled run is no verdict' );
 ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'success' ), array( array( 'annotation_level' => 'warning', 'title' => '', 'message' => 'Contrast run inconclusive' ) ) )['state'], 'a green run with no contrast-summary is unknown: the workflow turns an inconclusive run (exit 2) into a green job' );
 ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'success' ), null )['state'], 'a green run whose annotations could not be read is unknown, never ok' );
+foreach ( array( '', 'not json', '{"pages":0,"checked":0,"links":0}', '{"pages":40}' ) as $bad ) {
+	ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'success' ), array( array( 'annotation_level' => 'notice', 'title' => 'contrast-summary', 'message' => $bad ) ) )['state'], "a malformed or empty summary is not a pass: '$bad'" );
+}
+$inc = snt_contrast_rendered_evaluate( $run( 'success' ), array() );
+ok( 'inconclusive' === $inc['reason'], 'a green run without a summary carries the reason: inconclusive, not an API outage' );
+$h = snt_contrast_rendered_html( $inc, 'snt-hint' );
+ok( false !== strpos( $h, 'could not measure' ) && false === strpos( $h, 'GitHub API did not answer' ) && false !== strpos( $h, 'actions/runs/1' ), 'an inconclusive run says it could not measure and links the run, and does not blame the API' );
+ok( 'snt_contrast_rendered_v2' === SN_CONTRAST_RENDERED_CACHE, 'the cache key moved with the pass semantics, so a v1 ok is never served' );
 
 echo "\nGroup: the line\n";
 $h = snt_contrast_rendered_html( snt_contrast_rendered_evaluate( $run( 'success' ), array( $summary ) ), 'snt-hint' );
