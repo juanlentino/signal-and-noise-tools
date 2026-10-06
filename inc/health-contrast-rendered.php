@@ -67,7 +67,15 @@ function snt_contrast_rendered_evaluate( $runs, $annotations ) {
 			$s            = json_decode( (string) ( $a['message'] ?? '' ), true );
 			// A summary is evidence only in its full shape and with pages
 			// measured: a malformed or empty one is not a pass (Codex on #1948).
-			if ( ! is_array( $s ) || ! isset( $s['pages'], $s['checked'], $s['links'] ) || (int) $s['pages'] < 1 ) {
+			$counts_ok = is_array( $s ) && isset( $s['pages'], $s['checked'], $s['links'] );
+			foreach ( array( 'pages', 'checked', 'links', 'failures' ) as $key ) {
+				// Whole numbers only: (int) turns an array, a boolean or "3x" into
+				// a count (Codex on #1948). failures may be absent, never wrong.
+				if ( $counts_ok && array_key_exists( $key, $s ) && ! ( is_int( $s[ $key ] ) && $s[ $key ] >= 0 ) ) {
+					$counts_ok = false;
+				}
+			}
+			if ( ! $counts_ok || $s['pages'] < 1 ) {
 				continue;
 			}
 			$measured     = true;

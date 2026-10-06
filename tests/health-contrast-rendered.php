@@ -39,7 +39,7 @@ ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'cancelled' ), null )['s
 ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'success' ), array( array( 'annotation_level' => 'warning', 'title' => '', 'message' => 'Contrast run inconclusive' ) ) )['state'], 'a green run with no contrast-summary is unknown: the workflow turns an inconclusive run (exit 2) into a green job' );
 $gap = snt_contrast_rendered_evaluate( $run( 'success' ), null );
 ok( 'unknown' === $gap['state'] && 'api' === $gap['reason'], 'a green run whose annotations could not be read is unknown for an API gap, not inconclusive' );
-foreach ( array( '', 'not json', '{"pages":0,"checked":0,"links":0}', '{"pages":40}' ) as $bad ) {
+foreach ( array( '', 'not json', '{"pages":0,"checked":0,"links":0}', '{"pages":40}', '{"pages":[1],"checked":[2],"links":[3]}', '{"pages":true,"checked":1,"links":1}', '{"pages":"3x","checked":1,"links":1}', '{"pages":3,"checked":-1,"links":1}', '{"pages":3,"checked":1,"links":1,"failures":"0"}' ) as $bad ) {
 	ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'success' ), array( array( 'annotation_level' => 'notice', 'title' => 'contrast-summary', 'message' => $bad ) ) )['state'], "a malformed or empty summary is not a pass: '$bad'" );
 }
 $inc = snt_contrast_rendered_evaluate( $run( 'success' ), array() );
