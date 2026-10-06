@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Links on the colophon's Kept honest band were invisible until hovered.** On the band a link takes the text's color, and the theme removes link underlines, so the maturity index, pair programmer, OpenStation, Daniel López Sánchez and the record's note title read as plain text. They are now underlined at rest in the signal red, thicker on hover and focus.
+
 ## [22.6.6] - 2026-10-06 — the colophon is a spec sheet
 
 ### Changed
