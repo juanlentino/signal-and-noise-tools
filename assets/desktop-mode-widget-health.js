@@ -508,17 +508,7 @@
 		actions.appendChild( btn );
 		wrap.appendChild( actions );
 
-		if ( healthUrl ) {
-			var link = el( 'a', {
-				href:  healthUrl,
-				text:  'Open Health',
-				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;'
-			} );
-			var arrow = el( 'span', { text: '→' } );
-			arrow.setAttribute( 'aria-hidden', 'true' ); // a link's trailing arrow is decoration
-			link.appendChild( arrow );
-			actions.appendChild( link );
-		}
+		// "Open Health" closes the Health section now (paint()), not this row.
 		container.appendChild( wrap );
 
 		function toast( message, success ) {
@@ -543,7 +533,9 @@
 			// Each read with the fix link for whatever it added to the headline.
 			var read  = function( title, fn ) {
 				var before = faults( tally ), r = fn();
-				var f = faults( tally ) > before ? fixFor( title ) : null;
+				// Health always links to its tab (it was the bottom row's link,
+				// 2026-10-05); every other section only when it added a fault.
+				var f = 'Health' === title && healthUrl ? { href: healthUrl, text: 'Open Health' } : ( faults( tally ) > before ? fixFor( title ) : null );
 				r.fix = ( r.fix || [] ).concat( f ? [ f ] : [] );
 				return [ title, r ];
 			};

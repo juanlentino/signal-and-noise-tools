@@ -435,6 +435,9 @@ async function run() {
     assert.ok(fl.includes('Open Cloudflare|/cf'), 'the 5xx line links to where the paths are');
     assert.ok(fl.includes('Open Anthropic billing|https://console.anthropic.com/settings/billing'), 'the paused check links to where it is fixed');
     assert.ok(!fl.some(l => l.startsWith('Open Cron')), 'a section with nothing in the headline gets no fix link');
+    assert.equal(fl.filter(l => l.startsWith('Open Health')).length, 1, 'Open Health appears once, in the Health section, never again on the bottom row');
+    const hp = nodes(fxroot).find(n => n.children.some(c => 'a' === c.tag && c.text === 'Open Health'));
+    assert.ok(hp && hp.children.some(c => 'heading' === c.attrs.role && 'Health' === c.text), 'and it closes the Health section');
     assert.match(ft, /opens in a new tab/, 'an off-site link says it opens a new tab');
     fxstop();
     const old = harness({pages: {cloudflare: '/cf'}, statusExtra: {systems: {cache: {last_purge: Date.parse('2026-09-08T11:59:00Z') / 1000, fresh_time: Date.parse('2026-09-08T11:00:00Z') / 1000, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), oldroot = new Element('div');
