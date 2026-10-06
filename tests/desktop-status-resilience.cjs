@@ -364,6 +364,21 @@ async function run() {
     assert.match(p, /Last posted 3d ago/, 'when a record was last posted, in the Systems card\'s form');
     assert.match(p, /DOIs 7 of 9 minted/, 'DOIs minted');
     pstop();
+    // 2026-10-05: each link closes the section it opens.
+    const lk = harness({...extra, pages: {provenance: '/prov', machine_readers: '/mr'}}), lroot = new Element('div');
+    const lstop = lk.window.desktopModeWidgets['sn-anchors'](lroot); await flush();
+    for (const c of lk.calls) {
+      if (c.opts.path.includes('anchor-status')) c.resolve({pending: [], recording: [], confirmed: 50, total: 50, pages: {confirmed: 6, total: 6}});
+      else if (c.opts.path.includes('machine-readers')) c.resolve({ok: true, days: 30, total: 120});
+      else c.reject(new Error('not in this fixture'));
+    }
+    await flush();
+    const parentOf = text => nodes(lroot).find(n => n.children.some(c => 'a' === c.tag && c.text === text));
+    const heads = box => box ? box.children.filter(c => 'heading' === c.attrs.role).map(c => c.text).join() : '';
+    assert.equal(heads(parentOf('Open Provenance')), 'Provenance', 'Open Provenance sits in the Provenance section');
+    const mrParent = parentOf('Open Machine Readers');
+    assert.match(heads(mrParent), /Machine readers/, 'Open Machine Readers sits in the Machine readers section');
+    lstop();
     const n0 = harness(), n0root = new Element('div');
     const n0stop = n0.window.desktopModeWidgets['sn-health'](n0root); await flush();
     n0.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();

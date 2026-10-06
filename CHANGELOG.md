@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **SN Provenance: each link sits in the section it opens.** "Open Provenance" and "Open Machine Readers" sat together on the action row under both sections. Now "Open Provenance" closes the Provenance section and "Open Machine Readers" closes the Machine readers section, as SN Systems' links do. "Sweep now" stays on the action row, and a link whose section did not paint falls back to that row.
+
 ## [22.6.2] - 2026-10-05 — Systems lines link to their fix; releases declare Front-End Change
 
 ### Changed

@@ -365,8 +365,10 @@
 			}
 
 			// The readers are their own read: they paint beside an anchor error too.
+			var rbox = null;
 			if ( readers ) {
-				wrap.appendChild( readersBox( readers ) );
+				rbox = readersBox( readers );
+				wrap.appendChild( rbox );
 			}
 
 			if ( note && overview ) {
@@ -413,7 +415,9 @@
 				actions.appendChild( sweepBtn );
 			}
 			var links = [];
-			[ [ 'Open Provenance', dashboardUrl ], [ 'Open Machine Readers', readersUrl ] ].forEach( function( l ) {
+			// Each link closes the section it opens (owner, 2026-10-05, as SN
+			// Systems does); with no section painted it stays on the action row.
+			[ [ 'Open Provenance', dashboardUrl, pbox ], [ 'Open Machine Readers', readersUrl, rbox ] ].forEach( function( l ) {
 				if ( ! l[1] ) { return; }
 				var link = el( 'a', {
 					style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;',
@@ -423,7 +427,7 @@
 				var arrow = el( 'span', { text: '→' } );
 				arrow.setAttribute( 'aria-hidden', 'true' );
 				link.appendChild( arrow );
-				actions.appendChild( link );
+				( l[2] || actions ).appendChild( link );
 				links.push( link );
 			} );
 			wrap.appendChild( actions );
