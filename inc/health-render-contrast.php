@@ -119,6 +119,11 @@ function sn_health_render_contrast_report( $report ) {
 	$large_aa   = isset( $thresholds['aa_large'] ) ? (float) $thresholds['aa_large'] : 3.0;
 	$would_fail = (int) ( $report['would_fail_body'] ?? 0 );
 
+	// The rendered tier first: what the live pages show, so the stylesheet
+	// counts below read as the possibilities they are (2026-10-06).
+	if ( function_exists( 'snt_contrast_rendered' ) ) {
+		echo snt_contrast_rendered_html( snt_contrast_rendered(), 'sn-field-helper' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped by the builder.
+	}
 	sn_health_render_contrast_usage( isset( $report['usage'] ) && is_array( $report['usage'] ) ? $report['usage'] : array() );
 
 	if ( empty( $pairs ) ) {

@@ -37,6 +37,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // here — not only from the plugin loader — so every existing load site of
 // this file (tests included) keeps getting the whole renderer set.
 require_once __DIR__ . '/health-render-contrast.php';
+require_once __DIR__ . '/health-contrast-rendered.php';
 require_once __DIR__ . '/health-render-motion.php';
 
 /**
