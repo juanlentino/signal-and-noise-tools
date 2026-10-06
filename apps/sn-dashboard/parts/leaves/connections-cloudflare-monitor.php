@@ -292,13 +292,3 @@ function cloudflare_monitor_footer_html( array $d, $record ) {
 	return $out;
 }
 
-/**
- * The right column's two monitor sections. Kept under this name so the
- * leaf's call site reads as before.
- *
- * @param array<string,mixed> $d From cloudflare_data().
- * @return string
- */
-function cloudflare_monitor_html( array $d ) {
-	return cloudflare_edge_html( $d ) . cloudflare_firewall_html( $d );
-}

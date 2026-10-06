@@ -12,8 +12,7 @@
  * (#1d2327) · --sn-an-muted (#646970) · --sn-an-accent (#2271b1) · --sn-an-hairline
  * (#dcdcde) · --sn-an-down (#d63638). The tokens themselves now live in
  * analytics-tokens.css (a 'snt-analytics-tokens' dependency of this stylesheet, so
- * WP's dep graph guarantees it loads first) — shared verbatim with
- * analytics-widget.css on the Dashboard home screen. wp-admin already ships
+ * WP's dep graph guarantees it loads first). wp-admin already ships
  * .postbox, .widefat, .nav-tab, .button, .notice core CSS — this file adds ONLY
  * the custom dense-layout rules those core classes don't provide.
  */

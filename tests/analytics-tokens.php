@@ -16,7 +16,6 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  PASS: 
 $an  = (string) file_get_contents( __DIR__ . '/../assets/analytics/analytics-admin.css' );
 $uw  = (string) file_get_contents( __DIR__ . '/../assets/uptime-status.css' );
 $tok = (string) file_get_contents( __DIR__ . '/../assets/analytics/analytics-tokens.css' );
-$wg  = (string) file_get_contents( __DIR__ . '/../assets/analytics/analytics-widget.css' );
 
 echo "analytics-tokens suite - plugin v8.5.0\n";
 
@@ -165,72 +164,12 @@ ok( '' !== $presc_a && false !== strpos( $presc_a, 'var(--sn-an-tier-prescriptiv
 $diag_a = tok_block( $an, '.sn-an-tier--diagnostic' );
 ok( '' !== $diag_a && false !== strpos( $diag_a, 'var(--sn-an-tier-diagnostic)' ) && false !== strpos( $diag_a, 'var(--sn-an-tier-diagnostic-border)' ) && false === strpos( $diag_a, '#' ), 'admin: diagnostic tier variant reads tokens, no raw hex' );
 
-echo "\nTest: analytics-widget.css — tokenized hex list gone from rules (comments exempt)\n";
-$wg_no_comments = (string) preg_replace( '/\/\*.*?\*\//s', '', $wg );
-foreach ( array( '#646970', '#1d2327', '#0a7c2f', '#f6f7f7', '#d63638', '#2271b1', '#dcdcde', '#c4b5fd', '#9ec2e6', '#7c3aed', '#b32d2e', '#00a32a', '#8a6100', '#fcf0d6', '#e5f3ea' ) as $hex ) {
-	ok( false === stripos( $wg_no_comments, $hex ), "widget: no raw $hex outside comments (tokenized)" );
-}
-ok( substr_count( $wg, 'var(--sn-an-muted)' ) === 10, 'widget: all 10 #646970 rule-occurrences read the muted token (12 before the S&N Health rules left with the widget)' );
-ok( substr_count( $wg, 'var(--sn-an-text)' ) === 4, 'widget: all 4 #1d2327 rule-occurrences read the text token (5 before the S&N Health rules left)' );
-ok( substr_count( $wg, 'var(--sn-an-up)' ) === 2, 'widget: all 2 up-token rule-occurrences read the up token (mover-up included, FIX2; the S&N Health ok pair left with the widget)' );
-ok( substr_count( $wg, 'var(--sn-an-surface-2)' ) === 3, 'widget: all 3 #f6f7f7 rule-occurrences read the surface-2 token' );
-ok( substr_count( $wg, 'var(--sn-an-down)' ) === 3, 'widget: all 3 down-token rule-occurrences read the down token (delta-down now included — FIX2)' );
-ok( substr_count( $wg, 'var(--sn-an-accent)' ) === 2, 'widget: all 2 #2271b1 rule-occurrences read the accent token' );
-ok( substr_count( $wg, 'var(--sn-an-hairline)' ) === 2, 'widget: all 2 #dcdcde rule-occurrences read the hairline token' );
-ok( substr_count( $wg, 'var(--sn-an-tier-predictive-border)' ) === 1, 'widget: predictive border reads its token' );
-ok( substr_count( $wg, 'var(--sn-an-tier-prescriptive-border)' ) === 1, 'widget: prescriptive border reads its token' );
-ok( substr_count( $wg, 'var(--sn-an-tier-prescriptive)' ) === 1, 'widget: prescriptive color reads its token' );
-
-echo "\nTest: widget-only literals stay hex (genuinely unrelated to this token vocabulary)\n";
-// #b32d2e / #00a32a were drift, not a deliberate choice — see the FIX2 block
-// below. Only the truly unrelated literals stay hex: the list-row hairline
-// and the settings-page hairline contract (a DIFFERENT, untouched token).
-ok( false !== strpos( $wg, '#f0f0f1' ) && false !== strpos( $wg, '#c3c4c7' ), 'widget: lighter-hairline + settings-page-contract literals untouched' );
-
-echo "\nTest: FIX2 — mover/delta drift reconciled onto the shared up/down tokens\n";
-// .sn-aw-delta--down and .sn-aw-mv-up used to carry their own one-off hexes
-// (#b32d2e / #00a32a) even though their partners (.sn-aw-delta--up,
-// .sn-aw-mv-down) already read the shared tokens, and the file comment
-// claimed this was "this file's own movers up/down pair" — a deliberate
-// different shade. It wasn't: it's the same up/down semantic the rest of the
-// dashboard already tokenizes. DELIBERATE VISUAL CHANGE: the mover green
-// darkens #00a32a -> #0a7c2f and the delta-down red shifts #b32d2e -> #d63638
-// (now matching the Analytics pages).
-$delta_down_block = tok_block( $wg, '.sn-aw-delta--down{' );
-ok( '' !== $delta_down_block && false !== strpos( $delta_down_block, 'var(--sn-an-down)' ) && false === strpos( $delta_down_block, '#' ), '.sn-aw-delta--down reads the shared down token (was raw #b32d2e)' );
-$mv_up_block = tok_block( $wg, '.sn-aw-mv-up {' );
-ok( '' !== $mv_up_block && false !== strpos( $mv_up_block, 'var(--sn-an-up)' ) && false === strpos( $mv_up_block, '#' ), '.sn-aw-mv-up reads the shared up token (was raw #00a32a)' );
-ok( false === strpos( $wg, "own movers up/down pair" ), 'widget: the false "own movers up/down pair" comment claim is gone (they now share the real tokens)' );
-ok( false === strpos( $wg, "warn/ok state colors) or belong to a different, untouched token" ), 'widget: the false "warn/ok state colors are a different, untouched contract" comment claim is gone' );
-$header_comment = substr( $wg, 0, (int) strpos( $wg, '*/' ) );
-ok( false !== stripos( $header_comment, 'mover' ) && false !== stripos( $header_comment, 'ok/warn' ), 'widget: header comment still documents the mover + ok/warn tokens, just correctly now (not silently deleted)' );
-
-echo "\nTest: FIX3, warn/ok state-color unification (admin pill; the S&N Health widget half is deleted with the widget)\n";
-// The widget's .sn-hw-* state rules were the other reader of these tokens;
-// they left with inc/site-health-widget.php, a module nothing called since
-// 11.30.0. No rule may bring the widget's vocabulary back.
-ok( false === strpos( $wg, '.sn-hw-' ), 'widget: no .sn-hw-* rule remains (the S&N Health widget is deleted)' );
-ok( false === stripos( $wg, '8a6100' ), 'widget: the darker pre-unification warn amber (#8a6100) is fully gone' );
-
+echo "\nTest: FIX3, warn/ok state-color unification (admin pill)\n";
 $pill_warn_block = tok_block( $an, '.sn-an-pill--warn {' );
 ok( '' !== $pill_warn_block && false !== strpos( $pill_warn_block, 'var(--sn-an-warn-border)' ) && false !== strpos( $pill_warn_block, 'var(--sn-an-warn-bg)' ) && false === strpos( $pill_warn_block, '#' ), 'admin: .sn-an-pill--warn reads the shared warn-bg/warn-border tokens (was raw #fcf0d6/#e5cf8c)' );
 $pill_warn_mark_block = tok_block( $an, '.sn-an-pill--warn .sn-an-pill-mark {' );
 ok( '' !== $pill_warn_mark_block && false !== strpos( $pill_warn_mark_block, 'var(--sn-an-warn-text)' ) && false === strpos( $pill_warn_mark_block, '#' ), 'admin: .sn-an-pill--warn .sn-an-pill-mark reads the shared warn-text token (was raw #996800)' );
 ok( 0 === substr_count( $an, '#fcf0d6' ) && 0 === substr_count( $an, '#e5cf8c' ) && 0 === substr_count( $an, '#996800' ), 'admin: no raw warn hexes remain outside the pill\'s token adoption (value-identical swap)' );
-
-echo "\nTest: the missing diagnostic tier variant — the one deliberate visual change\n";
-$diag_w = tok_block( $wg, '.sn-aw-insight .sn-an-tier--diagnostic' );
-ok( '' !== $diag_w, 'widget: .sn-aw-insight .sn-an-tier--diagnostic is now defined (was missing — an unstyled insight bug)' );
-ok( false !== strpos( $diag_w, 'var(--sn-an-tier-diagnostic)' ) && false !== strpos( $diag_w, 'var(--sn-an-tier-diagnostic-border)' ) && false === strpos( $diag_w, '#' ), 'widget: diagnostic variant reads tokens, no raw hex' );
-
-echo "\nTest: the accent rgba tint stays literal, with a comment naming its token\n";
-$rgba_pos = strpos( $wg, 'rgba(34, 113, 177, 0.07)' );
-ok( false !== $rgba_pos, 'widget: accent rgba tint present, kept literal (not var()-ified)' );
-$rgba_ctx = false !== $rgba_pos ? substr( $wg, max( 0, $rgba_pos - 400 ), 400 ) : '';
-ok( false !== strpos( $rgba_ctx, '--sn-an-accent' ), 'widget: rgba tint has a nearby comment naming the accent token it mirrors' );
-
-echo "\nTest: deliberate chip-scale deltas carry an explicit comment\n";
-ok( false !== stripos( $wg, 'chip-scale: one step below the dashboard scale' ), 'widget: chip-scale size deltas are flagged explicit, not silent drift' );
 
 echo "\nTest: kicker canon — ONE letter-spacing token for the uppercase-kicker role (.04em)\n";
 ok( false !== strpos( $tok, '--sn-an-kicker-track: .04em' ), 'tokens file: --sn-an-kicker-track declared as .04em' );
@@ -265,20 +204,6 @@ ok( '' !== $tier_admin_kicker, 'admin kicker rule found: .sn-an-tier{' );
 ok( false !== strpos( $tier_admin_kicker, 'letter-spacing:var(--sn-an-kicker-track)' ), 'admin kicker reads --sn-an-kicker-track: .sn-an-tier{' );
 ok( substr_count( $an, 'letter-spacing: var(--sn-an-kicker-track)' ) + substr_count( $an, 'letter-spacing:var(--sn-an-kicker-track)' ) === 11, 'admin: exactly 11 kicker declarations read the token (no strays, no doubles; +1 v9.69.0 — the attention strip\'s .sn-an-attn-label uppercase kicker)' );
 
-// Every declaration in analytics-widget.css is written condensed (no space
-// after ':') — match that file's convention throughout.
-$widget_kicker_selectors = array(
-	'.sn-aw-subhead{',
-	'.sn-aw-insight .sn-an-signal-badge{',
-	'.sn-aw-insight .sn-an-tier{',
-);
-foreach ( $widget_kicker_selectors as $sel ) {
-	$block = tok_block( $wg, $sel );
-	ok( '' !== $block, "widget kicker rule found: $sel" );
-	ok( false !== strpos( $block, 'letter-spacing:var(--sn-an-kicker-track)' ), "widget kicker reads --sn-an-kicker-track: $sel" );
-}
-ok( substr_count( $wg, 'letter-spacing:var(--sn-an-kicker-track)' ) === 3, 'widget: exactly 3 kicker declarations read the token (chip-scale kickers adopt it too — sizes stay, only tracking calibrates)' );
-
 echo "\nTest: display-numeral track — a DIFFERENT role from the kicker, tokenized separately\n";
 $display_selectors = array(
 	'.sn-kpi-promoted .sn-kpi-value {'                       => 'promoted KPI numeral (base)',
@@ -306,20 +231,6 @@ $delta_block = tok_block( $an, '.sn-an-delta {' );
 ok( '' !== $delta_block, '.sn-an-delta rule found' );
 ok( false !== strpos( $delta_block, 'font-size: 0.72em' ), '.sn-an-delta: 0.72em kept as-is — no ancestor selector in this file pins a font-size for it, so the computed px cannot be proven from the stylesheet' );
 
-echo "\nTest: unit convergence — analytics-widget.css rem font-sizes onto px (16px root; verified no html{font-size} override exists anywhere in this plugin's own CSS)\n";
-ok( 0 === preg_match( '/font-size:\s*[0-9.]*rem/', $wg ), 'widget: zero rem font-sizes remain' );
-$widget_rem_to_px = array(
-	'.sn-aw-subhead{' => '11.2px',
-	'.sn-aw-stat-n{'  => '25.6px',
-	'.sn-aw-big{'     => '40px',
-	'.sn-aw-nt-v{'    => '28.8px',
-	'.sn-aw-nt-k{'    => '11.52px',
-);
-foreach ( $widget_rem_to_px as $sel => $px ) {
-	$block = tok_block( $wg, $sel );
-	ok( false !== strpos( $block, "font-size:$px" ), "widget: $sel converged to $px (deterministic rem*16 parity, no rendering change)" );
-}
-
 echo "\nTest: unit convergence — analytics-admin.css's 2 rem font-sizes, same treatment\n";
 ok( 0 === preg_match( '/font-size:\s*[0-9.]*rem/', $an ), 'admin: zero rem font-sizes remain' );
 $kpi_glance = tok_block( $an, '.sn-an-postbox .sn-kpi-value {' );
@@ -327,33 +238,12 @@ ok( false !== strpos( $kpi_glance, 'font-size: 21.6px' ), 'admin: .sn-an-postbox
 $kpi_glance_promo = tok_block( $an, '.sn-an-postbox .sn-kpi-promoted .sn-kpi-value {' );
 ok( false !== strpos( $kpi_glance_promo, 'font-size: 27.2px' ), 'admin: .sn-an-postbox .sn-kpi-promoted .sn-kpi-value converged 1.7rem -> 27.2px' );
 
-echo "\nTest: analytics-widget.css's 8 em font-sizes stay literal (unprovable context, reported not guessed)\n";
-$widget_unconverted_em = array(
-	'.sn-aw-stat-l{'         => '0.85em',
-	'.sn-aw-big-l{'          => '0.85em',
-	'.sn-aw-list{'           => '0.875em',
-	'.sn-aw-foot{'           => '0.85em',
-	'.sn-aw-trend-l{'        => '0.78em',
-	'.sn-aw-empty{'          => '0.875em',
-	'.sn-aw-err{'            => '0.9em',
-	'.sn-aw-config-snippet{' => '0.85em',
-);
-foreach ( $widget_unconverted_em as $sel => $em ) {
-	$block = tok_block( $wg, $sel );
-	ok( false !== strpos( $block, "font-size:$em" ), "widget: $sel kept as $em — no same-file ancestor pins its parent font-size, so px parity can't be proven" );
-}
-ok( preg_match_all( '/font-size:\s*[0-9.]+em(?!\w)/', $wg ) === 8, 'widget: exactly 8 unprovable em font-sizes remain (none silently converted, none silently dropped; .sn-hw-sub left with the widget)' );
-
 echo "\nTest: token-polish riders — value-identical swaps in the shared .sn-an-tier base block\n";
 $tier_admin = tok_block( $an, '.sn-an-tier{' );
 ok( false !== strpos( $tier_admin, 'border:1px solid var(--sn-an-hairline)' ), 'admin .sn-an-tier: border reads --sn-an-hairline (was raw #dcdcde)' );
 ok( false !== strpos( $tier_admin, 'background:var(--sn-an-surface-2)' ), 'admin .sn-an-tier: background reads --sn-an-surface-2 (was raw #f6f7f7)' );
 ok( false !== strpos( $tier_admin, 'color:var(--sn-an-tier-text)' ), 'admin .sn-an-tier: text color reads --sn-an-tier-text (was raw #50575e)' );
 ok( false === strpos( $tier_admin, '#dcdcde' ) && false === strpos( $tier_admin, '#f6f7f7' ) && false === strpos( $tier_admin, '#50575e' ), 'admin .sn-an-tier: no raw hex left in the base block' );
-
-$tier_widget = tok_block( $wg, '.sn-aw-insight .sn-an-tier{' );
-ok( false !== strpos( $tier_widget, 'color:var(--sn-an-tier-text)' ), 'widget .sn-aw-insight .sn-an-tier: text color reads --sn-an-tier-text (was raw #50575e)' );
-ok( false === strpos( $tier_widget, '#50575e' ), 'widget .sn-aw-insight .sn-an-tier: no raw #50575e left' );
 
 // The two OTHER #50575e literals in admin.css (.sn-an-drill .sn-an-subh,
 // .sn-an-view-tabs .nav-tab) are a DIFFERENT role from the shared tier badge —

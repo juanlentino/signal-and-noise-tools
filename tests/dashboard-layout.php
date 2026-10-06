@@ -46,10 +46,8 @@ if ( ! function_exists( 'get_current_user_id' ) ) { function get_current_user_id
 if ( ! function_exists( 'get_user_meta' ) ) { function get_user_meta( $u, $k, $s = false ) { return $s ? '' : array(); } }
 require __DIR__ . '/../inc/dash-zones.php';          // v11.28.0: zone contract + renderer
 require __DIR__ . '/../inc/dash-pins.php';           // v11.28.0: per-user pins
-require __DIR__ . '/../inc/dash-zone-attention.php'; // v11.28.0
 if ( ! function_exists( '_n' ) ) { function _n( $s, $p, $n, $d = '' ) { return 1 === (int) $n ? $s : $p; } }
 // v11.29.1: the console — band + rail + stage.
-require __DIR__ . '/../inc/dash-briefing.php';
 require_once __DIR__ . '/../inc/dash-verdict.php';      // v11.30.0: the shared verdict
 require_once __DIR__ . '/../inc/dash-signals.php';      // v11.30.0: signals with comparisons
 require_once __DIR__ . '/../inc/dash-systems.php';      // v11.30.0: the systems grid
@@ -61,7 +59,6 @@ require __DIR__ . '/../inc/dash-zone-fleet.php';     // v11.28.0
 require __DIR__ . '/../inc/dash-zone-measurement.php'; // v11.28.0: the five figures + strip
 // v11.28.0: split out of admin-tab-dashboard.php.
 require_once __DIR__ . '/../inc/dash-deploy-rows.php';
-require __DIR__ . '/../inc/dash-api-summary.php';
 require __DIR__ . '/../inc/admin-tab-dashboard.php';
 
 $pass = 0; $fail = 0;

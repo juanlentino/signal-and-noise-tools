@@ -819,30 +819,6 @@ function detail_html( array $panels, $group = 'ops', $heading = null ) {
 }
 
 /**
- * Maintenance buttons.
- *
- * @param string $check_updates_url Admin post URL for update check.
- * @return string
- */
-function toolbar_html( $check_updates_url ) {
-	$buttons = \snt_kit_action_button( __( 'Clear overrides', 'signal-and-noise-tools' ), 'clear_overrides' );
-	if ( '' !== (string) $check_updates_url ) {
-		$buttons .= \snt_kit_door( __( 'Check for updates', 'signal-and-noise-tools' ), (string) $check_updates_url, array( 'variant' => 'secondary' ) );
-	}
-	$buttons .= \snt_kit_action_button(
-		__( 'Full reset', 'signal-and-noise-tools' ),
-		'full_reset',
-		array(
-			'variant'       => 'danger',
-			'confirm'       => __( 'Clear every template override and purge every cache? No setting is changed.', 'signal-and-noise-tools' ),
-			'confirm_title' => __( 'Full reset', 'signal-and-noise-tools' ),
-			'danger'        => true,
-		)
-	);
-	return \snt_kit_section( __( 'Maintenance', 'signal-and-noise-tools' ), '<os-cluster gap="8">' . $buttons . '</os-cluster>' );
-}
-
-/**
  * The Dashboard tab painter (S&N Home).
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.

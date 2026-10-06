@@ -134,24 +134,6 @@ function scheduled_content_target_html( $target_id, $unlinked_label ) {
 }
 
 /**
- * The Target cell for a native-scheduled-post row: its own title/id/edit_link,
- * as sn_schedule_future_posts() normalizes them (no get_the_title() lookup).
- *
- * @param array<string,mixed> $post A sn_schedule_future_posts() row.
- * @return string
- */
-function scheduled_content_post_target_html( array $post ) {
-	$title     = (string) ( $post['title'] ?? '' );
-	$post_id   = (int) ( $post['id'] ?? 0 );
-	$edit_link = (string) ( $post['edit_link'] ?? '' );
-	$body      = '' !== $edit_link ? \snt_kit_door( $title, $edit_link ) : '<span>' . \snt_kit_esc( $title ) . '</span>';
-	if ( $post_id > 0 ) {
-		$body .= ' <span class="snt-hint">#' . \snt_kit_esc( (string) $post_id ) . '</span>';
-	}
-	return $body;
-}
-
-/**
  * One tiny op form (Run now / Re-purge): the SAME sn_action + row_id the
  * classic sn_admin_render_schedule_op_button() posts, as a kit form.
  *
@@ -203,30 +185,6 @@ function scheduled_content_fragment_row_html( array $row ) {
 		$status,
 		'' !== $next ? \snt_kit_esc( $next ) : '&mdash;',
 		$actions
-	);
-}
-
-/**
- * One native-scheduled-post row: same reads as
- * sn_admin_render_schedule_future_post_row(). Core-managed, so no ops.
- *
- * @param array<string,mixed> $post A sn_schedule_future_posts() row.
- * @return string
- */
-function scheduled_content_post_row_html( array $post ) {
-	$gmt        = (string) ( $post['scheduled_gmt'] ?? '' );
-	$next       = function_exists( 'sn_admin_schedule_next_transition' ) ? \sn_admin_schedule_next_transition( $gmt, null ) : '';
-	$window     = function_exists( 'sn_admin_schedule_fmt_gmt' ) ? \snt_kit_esc( \sn_admin_schedule_fmt_gmt( $gmt ) ) : '';
-	$type_label = 'page' === ( $post['post_type'] ?? '' ) ? __( 'Page', 'signal-and-noise-tools' ) : __( 'Post', 'signal-and-noise-tools' );
-
-	return scheduled_content_row_html(
-		scheduled_content_post_target_html( $post ),
-		$type_label,
-		__( 'Publish', 'signal-and-noise-tools' ),
-		$window,
-		__( 'Scheduled', 'signal-and-noise-tools' ),
-		'' !== $next ? \snt_kit_esc( $next ) : '&mdash;',
-		'<span class="snt-hint">' . \snt_kit_esc( __( 'native', 'signal-and-noise-tools' ) ) . '</span>'
 	);
 }
 

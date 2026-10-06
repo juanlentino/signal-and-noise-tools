@@ -120,9 +120,7 @@ if ( ! function_exists( 'get_current_user_id' ) ) { function get_current_user_id
 if ( ! function_exists( 'get_user_meta' ) ) { function get_user_meta( $u, $k, $s = false ) { return $s ? '' : array(); } }
 require_once __DIR__ . '/../inc/dash-zones.php';          // v11.28.0: zone contract + renderer
 require_once __DIR__ . '/../inc/dash-pins.php';           // v11.28.0: per-user pins
-require_once __DIR__ . '/../inc/dash-zone-attention.php'; // v11.28.0
 // v11.29.1: the console — band + rail + stage.
-require_once __DIR__ . '/../inc/dash-briefing.php';
 require_once __DIR__ . '/../inc/dash-trend.php';
 require_once __DIR__ . '/../inc/dash-ops-render.php';
 require_once __DIR__ . '/../inc/dash-console.php';
@@ -132,7 +130,6 @@ require_once __DIR__ . '/../inc/dash-zone-measurement.php'; // v11.28.0: the fiv
 require_once __DIR__ . '/../inc/dash-deploy-rows.php';
 require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
-require_once __DIR__ . '/../inc/dash-api-summary.php';
 require_once __DIR__ . '/../inc/dash-verdict.php';      // v11.30.0: the shared verdict
 require_once __DIR__ . '/../inc/dash-signals.php';      // v11.30.0: signals with comparisons
 require_once __DIR__ . '/../inc/dash-systems.php';      // v11.30.0: the systems grid

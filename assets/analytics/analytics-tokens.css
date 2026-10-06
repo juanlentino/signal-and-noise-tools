@@ -2,14 +2,12 @@
  * Signal & Noise — shared analytics token layer (--sn-an-*).
  *
  * The D4 token vocabulary (v9.40.0), extracted out of analytics-admin.css so
- * BOTH admin surfaces can read from ONE palette instead of maintaining
- * parallel hex literals:
- *   - analytics-admin.css   — the Analytics/Monitoring admin pages
- *   - analytics-widget.css  — the WP Dashboard-home widgets
+ * admin surfaces read from ONE palette instead of maintaining parallel hex
+ * literals. (analytics-widget.css, the Dashboard-home widgets' sheet, was the
+ * second reader until it was removed as dead code.)
  * Registered as the 'snt-analytics-tokens' handle and enqueued as a
- * dependency of BOTH stylesheets (inc/admin-menu.php + sn_aw_enqueue_styles()
- * in inc/analytics-widget.php), so WP's dependency graph — not enqueue call
- * order — guarantees this file loads first on every surface that needs it.
+ * dependency of analytics-admin.css (inc/admin-menu.php), so WP's dependency
+ * graph — not enqueue call order — guarantees this file loads first.
  *
  * WP admin native palette: --sn-an-text (#1d2327) · --sn-an-muted (#646970) ·
  * --sn-an-accent (#2271b1) · --sn-an-hairline (#dcdcde) · --sn-an-down
@@ -45,9 +43,9 @@
 	--sn-an-tier-text: #50575e;
 
 	/* Maturity tier badge variants (v9.35.0 I6): predictive/prescriptive/
-	   diagnostic chip colors, duplicated verbatim across analytics-admin.css
-	   (.sn-an-tier--*) and analytics-widget.css (.sn-aw-insight .sn-an-tier--*)
-	   — genuinely shared, so they belong here rather than as parallel hex.
+	   diagnostic chip colors for analytics-admin.css (.sn-an-tier--*), once
+	   shared with the removed dashboard widget sheet, so they live here
+	   rather than as parallel hex.
 	   The predictive variant's TEXT color reuses --sn-an-accent above; only
 	   its border needed a new name. */
 	--sn-an-tier-predictive-border: #9ec2e6;

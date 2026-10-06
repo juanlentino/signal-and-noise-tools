@@ -236,10 +236,6 @@ $contract = array(
 	'inc/analytics-render-tables.php'     => array(
 		"esc_html__( 'Trend', 'signal-and-noise-tools' )",
 	),
-	'inc/analytics-widget.php'            => array(
-		"__( 'No page views in the last 7 days.', 'signal-and-noise-tools' )",
-		"__( 'No referrers in the last 7 days.', 'signal-and-noise-tools' )",
-	),
 	'inc/analytics-recommendations.php'   => array(
 		"__( 'Open', 'signal-and-noise-tools' )",
 	),

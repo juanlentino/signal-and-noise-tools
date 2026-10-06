@@ -89,18 +89,6 @@ function snt_analytics_render_delta_badge( $delta ) {
 }
 
 /**
- * Echo a period-over-period delta badge in the new KPI strip style (▲/▼/■ + signed pct).
- * pct null → "new" (prev window was empty). No-op when no valid delta is supplied.
- *
- * @param array|null $delta       {pct:?int, dir:string}
- * @param string     $basis_label Comparison-basis tooltip label; '' = previous period.
- */
-function snt_analytics_render_delta_badge_kpi( $delta, $basis_label = '' ) {
-	// v9.40.0 D4: thin wrapper — delegates to the shared primitive (kpi variant).
-	snt_an_delta_badge( $delta, array( 'variant' => 'kpi', 'basis_label' => $basis_label ) );
-}
-
-/**
  * Fused dense KPI strip — the honest vocabulary (v9.64.0, spec §4): Views +
  * Visits (promoted; Visits IS the gated `pageview_visits`, which cannot exceed
  * views by construction), Now, exact Scroll / view + Time / view (the

@@ -67,7 +67,6 @@ ok( 1 === count( $GLOBALS['__widgets'] ), 'AND IT IS THE ONLY ONE THIS MODULE AD
 // ── REMOVAL GUARDS — the four folded boxes stay gone ────────────────────────
 echo "\nRemoval guards (v11.30.0 consolidation)\n";
 foreach ( array(
-	'sn_login_defense'       => 'login-defense-widget',
 	'sn_plausible_snapshot'  => 'analytics-widget',
 	'sn_plausible_pages'     => 'analytics-widget',
 ) as $id => $module ) {
@@ -81,6 +80,10 @@ foreach ( array(
 // registration, so its guard is the file's absence.
 ok( ! isset( $GLOBALS['__widgets']['sn_site_health'] ), 'no sn_site_health widget registered any more' );
 ok( ! file_exists( __DIR__ . '/../inc/site-health-widget.php' ), 'inc/site-health-widget.php no longer exists (a module with no caller since 11.30.0)' );
+// Same for the login-defense box: its module registered nothing since 11.30.0
+// and nothing called its render, so the guard is the file's absence.
+ok( ! isset( $GLOBALS['__widgets']['sn_login_defense'] ), 'no sn_login_defense widget registered any more' );
+ok( ! file_exists( __DIR__ . '/../inc/login-defense-widget.php' ), 'inc/login-defense-widget.php no longer exists (a module with no caller since 11.30.0)' );
 
 // ── ZERO COST. index.php renders on every admin login. ──────────────────────
 echo "\nZero-cost render\n";

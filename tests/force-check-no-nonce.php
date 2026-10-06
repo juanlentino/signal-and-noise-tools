@@ -19,7 +19,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 $root = dirname( __DIR__ );
 
 echo "Group 1: no link to the nonce door remains\n";
-foreach ( array( 'inc/admin-tab-dashboard.php', 'inc/dash-api-summary.php' ) as $f ) {
+foreach ( array( 'inc/admin-tab-dashboard.php' ) as $f ) { // inc/dash-api-summary.php removed: no caller.
 	$src = (string) file_get_contents( $root . '/' . $f );
 	// The handler's own registration and its check_admin_referer are allowed; a wp_nonce_url() LINK to it is not.
 	ok( 0 === preg_match( "/wp_nonce_url\\(\\s*admin_url\\(\\s*'admin-post\\.php\\?action=sn_force_update_check'/", $src ), "$f builds no nonce link to the force-check door" );

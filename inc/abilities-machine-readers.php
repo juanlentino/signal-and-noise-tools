@@ -42,9 +42,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** The DM tile's window, and this ability's default (the delegation hinge). */
 const SN_MR_ABILITY_DEFAULT_DAYS = 30;
 
-/** How many families a glance carries. The full table is one click away. */
-const SN_MR_ABILITY_TOP_FAMILIES = 3;
-
 add_action( 'wp_abilities_api_init', function() {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;

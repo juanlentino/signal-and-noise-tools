@@ -61,9 +61,13 @@ const SN_ORPHAN_CLASS_BASELINE = array(
 	'sn-ai-usage--empty', 'sn-an-botbreak', 'sn-an-breakdown', 'sn-an-collector',
 	'sn-an-exclude', 'sn-an-funnels', 'sn-an-gate', 'sn-an-heatmap-panel',
 	'sn-an-mirrors', 'sn-an-prior-note', 'sn-an-refcats', 'sn-an-status',
+	// sn-an-signal-dir: its only rule was scoped to the removed dashboard widget
+	// (.sn-aw-insight .sn-an-signal-dir in analytics-widget.css); the chip prints it
+	// elsewhere unstyled, as before.
+	'sn-an-signal-dir',
 	'sn-an-tuning-radios', 'sn-audit-logins-log', 'sn-availability',
 	'sn-catalog-number', 'sn-colophon', 'sn-colophon-items',
-	'sn-colophon-versions', 'sn-cron-dashboard', 'sn-dash-briefing', 'sn-dash-zone-label',
+	'sn-colophon-versions', 'sn-cron-dashboard',
 	'sn-geo', 'sn-health-advisory', 'sn-health-contrast-arithmetic', 'sn-health-contrast-conditional',
 	'sn-health-contrast-usage', 'sn-health-elsewhere', 'sn-health-motion-uncovered', 'sn-health-skipped',
 	'sn-kpi-note', 'sn-machine-maturity-giveback', 'sn-machine-maturity-reads', 'sn-mcp-tools',

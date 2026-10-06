@@ -1,88 +1,36 @@
 <?php
 /**
- * Tests for the dashboard-widget stylesheet enqueue (refinement-audit item E5).
+ * Tests for the Dashboard-home analytics token enqueue (inc/analytics-widget.php).
  *
- * The .sn-aw-* CSS moved out of an inline <style> echoed mid-body by
- * sn_aw_styles() into a properly enqueued external stylesheet, gated to the WP
- * Dashboard home screen (index.php) and cache-busted by SNT_VERSION — mirroring
- * the analytics-admin.css enqueue in inc/admin-menu.php.
- *
- * Regression guard: a body-injected <style> can render the widgets UNSTYLED on
- * the live page (edge/cache HTML rewriting + a strict CSP) — the v6.5.0-class
- * bug fixed for the analytics dashboard in v6.5.1. A WRONG screen gate would
- * reintroduce it, so this asserts the stylesheet loads on the dashboard and
- * NOT on any other admin screen.
+ * The four standalone analytics boxes were folded away in v11.30.0, and their
+ * sn_aw_* renders plus assets/analytics/analytics-widget.css were later removed
+ * as dead code. What remains is the shared 'snt-analytics-tokens' enqueue,
+ * gated to the WP Dashboard home screen (index.php) and cache-busted by
+ * SNT_VERSION. A WRONG screen gate would load it everywhere, so this asserts it
+ * loads on the dashboard and NOT on any other admin screen.
  *
  * Run: php tests/analytics-widget-enqueue.php
  * @since plugin v6.11.5
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 
-// v12.10.0 seam: the Analytics screen moved to its own top-level menu and its
-// URL is now an accessor owned by inc/analytics-dashboard-page.php. Stubbed
-// here rather than guarded with function_exists() in the producer — a guard
-// there would silently emit an empty href and every link assertion would still
-// pass.
-if ( ! function_exists( 'snt_analytics_page_url' ) ) {
-	function snt_analytics_page_url( $args = array() ) {
-		$url = 'https://example.test/wp-admin/admin.php?page=sn-analytics';
-		if ( is_array( $args ) && array() !== $args ) {
-			foreach ( $args as $k => $v ) { $url .= '&' . $k . '=' . $v; }
-		}
-		return $url;
-	}
-}
-
-
 define( 'ABSPATH', '/' );
-define( 'DAY_IN_SECONDS', 86400 );
 define( 'SNT_URL', 'https://example.test/wp-content/plugins/signal-and-noise-tools/' );
 define( 'SNT_VERSION', '9.9.9-test' );
 
-// Stubs for the WP functions the widget file touches at require time.
 if ( ! function_exists( 'add_action' ) ) { function add_action( $h, $c = null, $p = 10, $a = 1 ) {} }
-if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $c ) { return true; } }
 
-// Recorder for wp_enqueue_style — captures every enqueue call for assertions.
+// Recorder for wp_enqueue_style: captures every enqueue call for assertions.
 $GLOBALS['__enq'] = array();
 function wp_enqueue_style( $handle, $src = '', $deps = array(), $ver = false, $media = 'all' ) {
 	$GLOBALS['__enq'][] = array( 'handle' => $handle, 'src' => $src, 'deps' => $deps, 'ver' => $ver );
 }
-
-// Minimal seam so a widget can be rendered to assert it emits no inline <style>.
-function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
-function esc_url( $s ) { return (string) $s; }
-function number_format_i18n( $n ) { return number_format( (float) $n ); }
-function admin_url( $p = '' ) { return '/wp-admin/' . $p; }
-function sn_analytics_config() { return array( 'a' => 1 ); }
-function sn_analytics_realtime( $class = 'human' ) { return 7; }
 
 require_once __DIR__ . '/../inc/analytics-widget.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m\n"; } else { ++$fail; echo "FAIL: $m\n"; } }
 
-/**
- * Invoke the enqueue callback for a hook and return the widget-stylesheet
- * enqueues it produced. Tolerates the function not existing yet (RED phase):
- * returns an empty list rather than fataling, so the summary line still prints.
- */
-function aw_enqueues_for( $hook ) {
-	$GLOBALS['__enq'] = array();
-	if ( function_exists( 'sn_aw_enqueue_styles' ) ) {
-		sn_aw_enqueue_styles( $hook );
-	}
-	return array_values( array_filter(
-		$GLOBALS['__enq'],
-		function ( $e ) { return strpos( (string) $e['src'], 'analytics-widget.css' ) !== false; }
-	) );
-}
-
-/**
- * Same as aw_enqueues_for() but returns EVERY enqueue call unfiltered — used
- * to assert the shared tokens stylesheet (which doesn't match 'analytics-widget.css')
- * is present alongside it, or absent everywhere aw_enqueues_for() expects zero.
- */
 function aw_all_enqueues_for( $hook ) {
 	$GLOBALS['__enq'] = array();
 	if ( function_exists( 'sn_aw_enqueue_styles' ) ) {
@@ -91,54 +39,26 @@ function aw_all_enqueues_for( $hook ) {
 	return $GLOBALS['__enq'];
 }
 
-echo "Dashboard-widget stylesheet enqueue (E5)\n\n";
+echo "Dashboard-home token enqueue\n\n";
 
 ok( function_exists( 'sn_aw_enqueue_styles' ), 'enqueue: sn_aw_enqueue_styles() is defined (named, testable callback)' );
 
 echo "\nGroup: enqueued on the Dashboard home screen\n";
-$dash = aw_enqueues_for( 'index.php' );
-ok( count( $dash ) === 1, 'enqueue: widget stylesheet enqueued exactly once on the dashboard (index.php)' );
-$row = $dash[0] ?? array();
-ok( ( $row['handle'] ?? '' ) === 'sn-analytics-widget', 'enqueue: registered under the sn-analytics-widget handle' );
-ok( ( $row['src'] ?? '' ) === SNT_URL . 'assets/analytics/analytics-widget.css', 'enqueue: src is assets/analytics/analytics-widget.css under SNT_URL' );
-ok( ( $row['ver'] ?? '' ) === SNT_VERSION, 'enqueue: cache-busted by SNT_VERSION (mirrors analytics-admin.css)' );
-
-echo "\nGroup: NOT enqueued off the dashboard (the unstyled-bug screen guard)\n";
-foreach ( array( 'post.php', 'edit.php', 'options-general.php', 'toplevel_page_sn-theme-options', 'sn-theme-options_page_sn-monitoring' ) as $other ) {
-	ok( count( aw_enqueues_for( $other ) ) === 0, "enqueue: NOT loaded on '$other'" );
-	ok( count( aw_all_enqueues_for( $other ) ) === 0, "enqueue: the shared tokens stylesheet also NOT loaded on '$other'" );
-}
-
-echo "\nGroup: shared tokens stylesheet (widget tokenization) — dependency of the widget CSS\n";
 $all_dash = aw_all_enqueues_for( 'index.php' );
-$tok_rows = array_values( array_filter( $all_dash, function ( $e ) { return ( $e['handle'] ?? '' ) === 'snt-analytics-tokens'; } ) );
-ok( count( $tok_rows ) === 1, 'enqueue: snt-analytics-tokens style enqueued exactly once on the dashboard' );
-$tok_row = $tok_rows[0] ?? array();
+ok( 1 === count( $all_dash ), 'enqueue: exactly one stylesheet on index.php (the tokens sheet)' );
+$tok_row = $all_dash[0] ?? array();
+ok( 'snt-analytics-tokens' === ( $tok_row['handle'] ?? '' ), 'enqueue: registered under the snt-analytics-tokens handle' );
 ok( ( $tok_row['src'] ?? '' ) === SNT_URL . 'assets/analytics/analytics-tokens.css', 'enqueue: tokens src is assets/analytics/analytics-tokens.css under SNT_URL' );
 ok( ( $tok_row['ver'] ?? '' ) === SNT_VERSION, 'enqueue: tokens cache-busted by SNT_VERSION' );
 
-$widget_rows = array_values( array_filter( $all_dash, function ( $e ) { return ( $e['handle'] ?? '' ) === 'sn-analytics-widget'; } ) );
-$widget_row  = $widget_rows[0] ?? array();
-ok( in_array( 'snt-analytics-tokens', (array) ( $widget_row['deps'] ?? array() ), true ), 'enqueue: sn-analytics-widget depends on snt-analytics-tokens (ordering guaranteed by WP deps, not enqueue call order)' );
+echo "\nGroup: NOT enqueued off the dashboard\n";
+foreach ( array( 'post.php', 'edit.php', 'options-general.php', 'toplevel_page_sn-theme-options', 'sn-theme-options_page_sn-monitoring' ) as $other ) {
+	ok( 0 === count( aw_all_enqueues_for( $other ) ), "enqueue: tokens stylesheet NOT loaded on '$other'" );
+}
 
-echo "\nGroup: CSS lives in an external asset, not inline\n";
-$css_path = __DIR__ . '/../assets/analytics/analytics-widget.css';
-ok( is_file( $css_path ), 'asset: assets/analytics/analytics-widget.css exists' );
-$css = is_file( $css_path ) ? (string) file_get_contents( $css_path ) : '';
-ok( strpos( $css, '.sn-aw-grid' ) !== false, 'asset: contains the .sn-aw-grid rule (moved from sn_aw_styles)' );
-ok( strpos( $css, '.sn-aw-config-snippet' ) !== false, 'asset: contains the .sn-aw-config-snippet rule (full block moved)' );
-// Match the CLOSING tag: a real <style>…</style> wrapper has </style>; the file
-// header's prose mention of the old inline "<style>" does not.
-ok( stripos( $css, '</style>' ) === false, 'asset: pure CSS — not the inline <style>…</style> block pasted verbatim' );
-
-echo "\nGroup: inline emitter removed — behaviorally, not by source grep\n";
-ok( ! function_exists( 'sn_aw_styles' ), 'cleanup: sn_aw_styles() inline emitter no longer exists' );
-// Render a widget: a lingering sn_aw_styles() call would either fatal (undefined
-// function) or emit an inline <style>. Neither may happen now.
-ob_start();
-sn_aw_realtime();
-$rendered = ob_get_clean();
-ok( $rendered !== '' && stripos( $rendered, '<style' ) === false, 'cleanup: rendering a widget emits no inline <style> (CSS is enqueued, not echoed)' );
+echo "\nGroup: the removed widget stylesheet stays gone\n";
+ok( ! file_exists( __DIR__ . '/../assets/analytics/analytics-widget.css' ), 'assets/analytics/analytics-widget.css no longer exists (its renders had no caller)' );
+ok( ! function_exists( 'sn_aw_overview' ) && ! function_exists( 'sn_aw_snapshot' ), 'the sn_aw_* render functions are gone' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

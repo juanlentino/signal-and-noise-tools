@@ -133,14 +133,5 @@ ob_start(); sn_rss_tracker_render_stats( $stats ); $h = ob_get_clean();
 ap_ok( false !== strpos( $h, 'class="sn-glance"' ), '#4 RSS activity renders through the shared glance grid' );
 ap_ok( false === strpos( $h, 'sn-rss-activity-card' ), '#4 the bespoke .sn-rss-activity-card hero is gone' );
 
-// ── Group: deploy status SR text (#18) ──────────────────────────────────────
-echo "\nGroup: deploy status — screen-reader text\n";
-// v11.28.0: split out of admin-tab-dashboard.php.
-require_once __DIR__ . '/../inc/dash-deploy-rows.php';
-require_once __DIR__ . '/../inc/admin-tab-dashboard.php';
-$g = snt_dashboard_run_glyph_html( 'sn-deploy-row__status--ok', '&#x2713;', 'Success' );
-ap_ok( false !== strpos( $g, 'screen-reader-text' ) && false !== strpos( $g, 'Success' ), '#18 status glyph carries a screen-reader label' );
-ap_ok( false !== strpos( $g, 'aria-hidden="true"' ), '#18 the decorative glyph is aria-hidden' );
-
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -116,14 +116,13 @@ function sn_health_contrast_usage_admin_sheets() {
 		'machine-readers.css',
 		'provenance-admin.css',
 		'uptime-status.css',
-		// v13.95.3: assets/analytics/. These two were never in this list because
-		// the source glob never reached them - they sat in a subdirectory, so
-		// nothing had to decide about them. Walking the tree made them visible
-		// and the drift test immediately red: both are enqueued on
-		// admin_enqueue_scripts only (inc/analytics-widget.php), same case as
+		// v13.95.3: assets/analytics/. This was never in this list because the
+		// source glob never reached it - it sat in a subdirectory, so nothing
+		// had to decide about it. Walking the tree made it visible and the
+		// drift test immediately red: it is enqueued on admin_enqueue_scripts
+		// only (inc/analytics-widget.php, inc/admin-menu.php), same case as
 		// dash-widget.css. analytics-admin.css is caught by the substring rule.
 		'analytics-tokens.css',
-		'analytics-widget.css',
 		// v13.106.0: the native-window kit sheet. Registered on
 		// admin_enqueue_scripts only (inc/openstation-host-assets.php), same
 		// case as uptime-status.css — it never paints a public page.

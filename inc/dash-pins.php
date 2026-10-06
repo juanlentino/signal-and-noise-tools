@@ -3,15 +3,14 @@
  * Signal & Noise — Dashboard zone pins.
  *
  * A pin is a PERSONAL view preference, so it lives in user meta rather than a
- * site option. It can force a zone open; sn_dash_zone_is_open() guarantees it can
- * never force one closed.
+ * site option. It could force a zone open, never closed (that check,
+ * sn_dash_zone_is_open(), was removed with the unused zone renderer).
  *
  * v11.29.0 — READER ONLY. The setter and its REST route were removed: nothing in
  * the admin ever called them, so no pin could be set, so this always returned an
  * empty array and the whole feature had no effect while a live endpoint sat on
- * the REST surface. The reader stays because sn_dash_zone_is_open() takes a pin
- * list and its safety property — a pin can open a zone, never close one — is
- * worth keeping correct and tested for whenever a control does land.
+ * the REST surface. Its one caller (inc/admin-tab-dashboard.php) now assigns a
+ * value nothing reads, since the zone renderer was removed.
  *
  * Zone ids are validated against an allowlist because the id is echoed into a
  * data attribute and used as a storage key.

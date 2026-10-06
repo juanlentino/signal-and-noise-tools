@@ -136,26 +136,3 @@ function snt_gsc_credential_identity() {
 	);
 }
 
-/**
- * Human-readable reason for a rejected paste.
- *
- * @param string $code From snt_gsc_credential_validate()['error'].
- * @return string
- */
-function snt_gsc_credential_error_text( $code ) {
-	$map = array(
-		'empty'                  => __( 'Nothing was pasted.', 'signal-and-noise-tools' ),
-		'not_json'               => __( 'That is not valid JSON. Paste the whole downloaded key file, including the outer braces.', 'signal-and-noise-tools' ),
-		'not_service_account'    => __( 'That JSON is not a service-account key (its "type" is not "service_account"). An OAuth client JSON looks similar and cannot be used here.', 'signal-and-noise-tools' ),
-		'private_key_not_pem'    => __( 'The "private_key" field is not a PEM block. The pasted JSON may have been reformatted or truncated.', 'signal-and-noise-tools' ),
-		'client_email_malformed' => __( 'The "client_email" field is not an email address.', 'signal-and-noise-tools' ),
-	);
-	if ( isset( $map[ $code ] ) ) {
-		return $map[ $code ];
-	}
-	if ( 0 === strpos( (string) $code, 'missing_' ) ) {
-		/* translators: %s: the missing JSON field name. */
-		return sprintf( __( 'The pasted JSON is missing the "%s" field.', 'signal-and-noise-tools' ), substr( (string) $code, 8 ) );
-	}
-	return __( 'The pasted credential was rejected.', 'signal-and-noise-tools' );
-}
