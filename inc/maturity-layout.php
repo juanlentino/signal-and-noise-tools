@@ -40,13 +40,38 @@ function sn_maturity_layout_wanted( $content ) {
 	return false;
 }
 
+/** Register the sheet once, so the head path and the render path share it. */
+function sn_maturity_layout_register() {
+	wp_register_style( 'sn-maturity-layout-front', plugins_url( 'assets/maturity-layout-front.css', SNT_PATH . 'signal-and-noise-tools.php' ), array(), SNT_VERSION );
+}
+
 /** Enqueue the sheet in the head on a page that wants it. */
 function sn_maturity_layout_enqueue() {
+	sn_maturity_layout_register();
 	$post = get_post();
 	if ( is_singular() && $post && sn_maturity_layout_wanted( (string) $post->post_content ) ) {
-		wp_enqueue_style( 'sn-maturity-layout-front', plugins_url( 'assets/maturity-layout-front.css', SNT_PATH . 'signal-and-noise-tools.php' ), array(), SNT_VERSION );
+		wp_enqueue_style( 'sn-maturity-layout-front' );
 	}
+}
+
+/**
+ * The fallback: a maturity shortcode that renders from somewhere other than
+ * the post's own content (a synced pattern, a template, a content filter)
+ * still gets the sheet, in the footer (Codex on #1943). The head path above
+ * stays the first-paint path; this one only fills the gap.
+ *
+ * @param string $output Rendered shortcode output, returned unchanged.
+ * @param string $tag    Shortcode tag.
+ * @return string
+ */
+function sn_maturity_layout_on_render( $output, $tag ) {
+	if ( in_array( $tag, sn_maturity_layout_shortcodes(), true ) && function_exists( 'wp_enqueue_style' ) ) {
+		sn_maturity_layout_register();
+		wp_enqueue_style( 'sn-maturity-layout-front' );
+	}
+	return $output;
 }
 if ( function_exists( 'add_action' ) ) {
 	add_action( 'wp_enqueue_scripts', 'sn_maturity_layout_enqueue' );
+	add_filter( 'do_shortcode_tag', 'sn_maturity_layout_on_render', 10, 2 );
 }

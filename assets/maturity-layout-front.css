@@ -20,8 +20,10 @@ body :is(.sn-maturity--full,.sn-a11y-maturity--full,.sn-ai-maturity--full,.sn-op
 body :is(.sn-maturity--full,.sn-a11y-maturity--full,.sn-ai-maturity--full,.sn-ops-maturity--full,.sn-ml-maturity--full,.sn-machine-maturity--full,.sn-prov-maturity--full)>h3{grid-column:1;margin:var(--wp--custom--air--lg,2.5rem) 0 0;padding:var(--wp--custom--air--sm,1.75rem) 2rem 0 0;border-top:2px solid currentColor;align-self:stretch}
 body :is(.sn-maturity--full,.sn-a11y-maturity--full,.sn-ai-maturity--full,.sn-ops-maturity--full,.sn-ml-maturity--full,.sn-machine-maturity--full,.sn-prov-maturity--full)>h3+*{grid-column:2;margin:var(--wp--custom--air--lg,2.5rem) 0 0;padding-top:var(--wp--custom--air--sm,1.75rem);border-top:2px solid currentColor}
 /* Principles and give-back lists: two across, each item keeping its own
-   ruled, dashed look from the family sheet. */
-body :is(.sn-maturity-principles,.sn-a11y-maturity-principles,.sn-ai-maturity-principles,.sn-ops-maturity-principles,.sn-ml-maturity-principles,.sn-machine-maturity-principles,.sn-machine-maturity-giveback,.sn-prov-maturity-principles){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:2.5rem}
+   ruled, dashed look from the family sheet. Only inside a full page: an
+   embedded format="principles" sits in the 760px column and stays one
+   list (Codex on #1943). */
+body [class*="maturity--full"] > :is(.sn-maturity-principles,.sn-a11y-maturity-principles,.sn-ai-maturity-principles,.sn-ops-maturity-principles,.sn-ml-maturity-principles,.sn-machine-maturity-principles,.sn-machine-maturity-giveback,.sn-prov-maturity-principles){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:2.5rem}
 
 @media (max-width:900px){
 	body :is(.sn-maturity--full,.sn-a11y-maturity--full,.sn-ai-maturity--full,.sn-ops-maturity--full,.sn-ml-maturity--full,.sn-machine-maturity--full,.sn-prov-maturity--full){display:block}
@@ -29,5 +31,5 @@ body :is(.sn-maturity-principles,.sn-a11y-maturity-principles,.sn-ai-maturity-pr
 	body :is(.sn-maturity--full,.sn-a11y-maturity--full,.sn-ai-maturity--full,.sn-ops-maturity--full,.sn-ml-maturity--full,.sn-machine-maturity--full,.sn-prov-maturity--full)>h3+*{margin-top:.75rem;padding-top:0;border-top:0}
 }
 @media (max-width:640px){
-	body :is(.sn-maturity-principles,.sn-a11y-maturity-principles,.sn-ai-maturity-principles,.sn-ops-maturity-principles,.sn-ml-maturity-principles,.sn-machine-maturity-principles,.sn-machine-maturity-giveback,.sn-prov-maturity-principles){display:block}
+	body [class*="maturity--full"] > :is(.sn-maturity-principles,.sn-a11y-maturity-principles,.sn-ai-maturity-principles,.sn-ops-maturity-principles,.sn-ml-maturity-principles,.sn-machine-maturity-principles,.sn-machine-maturity-giveback,.sn-prov-maturity-principles){display:block}
 }

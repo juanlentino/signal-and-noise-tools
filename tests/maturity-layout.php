@@ -7,6 +7,13 @@
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 define( 'ABSPATH', '/' );
 function has_shortcode( $c, $t ) { return false !== strpos( $c, '[' . $t ); }
+$GLOBALS['__hooks'] = array(); $GLOBALS['__enq'] = array();
+function add_action( $h, $cb ) { $GLOBALS['__hooks'][ $h ] = $cb; }
+function add_filter( $h, $cb ) { $GLOBALS['__hooks'][ $h ] = $cb; }
+function wp_register_style() {}
+function plugins_url( $p ) { return $p; }
+function wp_enqueue_style( $h ) { $GLOBALS['__enq'][] = $h; }
+define( 'SNT_PATH', '/' ); define( 'SNT_VERSION', 't' );
 require dirname( __DIR__ ) . '/inc/maturity-layout.php';
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -27,5 +34,11 @@ ok( array() === $missing, 'all seven system pages are in the band and principles
 ok( 1 === preg_match( '/>h3\{grid-column:1;/', $css ) && 1 === preg_match( '/>h3\+\*\{grid-column:2;/', $css ), 'each later heading takes the left column and its block the right: the band' );
 ok( 1 === preg_match( '/@media \(max-width:900px\)\{[^@]*display:block/', $css ) && 1 === preg_match( '/@media \(max-width:640px\)\{[^@]*display:block/', $css ), 'bands stack under 900px and lists go to one column under 640px' );
 ok( false === strpos( $css, 'opacity' ), 'no text is faded' );
+ok( 'sn_maturity_layout_on_render' === ( $GLOBALS['__hooks']['do_shortcode_tag'] ?? '' ), 'a render-time fallback is hooked on do_shortcode_tag (pattern, template, filter)' );
+ok( 'x' === sn_maturity_layout_on_render( 'x', 'sn_ops_maturity' ) && in_array( 'sn-maturity-layout-front', $GLOBALS['__enq'], true ), 'a maturity shortcode rendering enqueues the sheet and returns its output unchanged' );
+$GLOBALS['__enq'] = array();
+sn_maturity_layout_on_render( 'x', 'sn_maturity_roadmap' );
+ok( array() === $GLOBALS['__enq'], 'the roadmap rendering does not' );
+ok( 0 === preg_match( '/(^|\})\s*body :is\(\.sn-maturity-principles/', $css ) && 2 === substr_count( $css, 'body [class*="maturity--full"] > :is(.sn-maturity-principles' ), 'the two-across lists apply only inside a full page, never to an embedded format' );
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
