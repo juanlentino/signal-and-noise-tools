@@ -124,7 +124,7 @@ function sn_colophon_urls() {
 		'plugin_changelog' => 'https://github.com/juanlentino/signal-and-noise-tools/blob/main/CHANGELOG.md',
 		'theme_changelog'  => 'https://github.com/juanlentino/signal-and-noise/blob/main/CHANGELOG.md',
 		'openstation'      => 'https://openstation.me/',
-		'openstation_dev'  => 'https://github.com/AllTerrainDeveloper',
+		'credit_daniel'  => 'https://github.com/AllTerrainDeveloper',
 		'theme_repo'       => 'https://github.com/juanlentino/signal-and-noise',
 	);
 	return apply_filters( 'sn_colophon_urls', $urls );
@@ -183,7 +183,7 @@ function sn_colophon_links() {
 		// to the plugin's OpenStation integration (#751; the folder it built was
 		// retired by OpenStation 1.1.6, so the credit names the integration, not
 		// the folder). One of several maintainers.
-		'interop' => array( array( 'OpenStation', $urls['openstation'], true, '' ), array( 'Daniel López Sánchez', $urls['openstation_dev'], true, '' ) ),
+		'interop' => array( array( 'OpenStation', $urls['openstation'], true, '' ), array( 'Daniel López Sánchez', $urls['credit_daniel'], true, '' ) ),
 	);
 }
 
