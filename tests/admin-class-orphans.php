@@ -69,7 +69,7 @@ const SN_ORPHAN_CLASS_BASELINE = array(
 	'sn-catalog-number', 'sn-cron-dashboard',
 	'sn-geo', 'sn-health-advisory', 'sn-health-contrast-arithmetic', 'sn-health-contrast-conditional',
 	'sn-health-contrast-usage', 'sn-health-elsewhere', 'sn-health-motion-uncovered', 'sn-health-skipped',
-	'sn-kpi-note', 'sn-machine-maturity-giveback', 'sn-machine-maturity-reads', 'sn-mcp-tools',
+	'sn-kpi-note', 'sn-machine-maturity-reads', 'sn-mcp-tools',
 	'sn-mcp-usage', 'sn-mcp-usage-zero', 'sn-mr-delta', 'sn-mr-deltas',
 	'sn-mr-empty', 'sn-mr-leaf', 'sn-mr-rights-log',
 	'sn-mr-truncated', 'sn-mr-unknown-log', 'sn-mr-vendor-purpose', 'sn-now-dek',

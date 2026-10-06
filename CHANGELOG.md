@@ -12,6 +12,11 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The maturity pages are on the page track, as a spec sheet.** The hub and the seven system pages (Accessibility, AI, Operations, Machine learning, Machine readability, Proof of origin, Analytics) leave the 760px column for the shared 1320px track: the hub's cards go four across (1,274px to 948px tall at 1440), and on each system page every heading after the opening table becomes a band, the heading on the left and its list or block on the right, with the principles and give-back lists two across (Machine readability: 3,097px to 2,335px). One sheet, `assets/maturity-layout-front.css`, loaded in the head on a page carrying a maturity shortcode (`inc/maturity-layout.php`); each family's own sheet keeps its look. The roadmap keeps its own wide layout. Words unchanged.
+
+## [22.6.8] - 2026-10-06 — text is dimmed by the rust token, not opacity
+
 ### Added
 - **The contrast report says what the live pages show.** Above its two stylesheet counts (token pairs that would fail if rendered together; placement-dependent pairings), the report on both the classic Health tab and the dashboard now leads with the latest run of the theme's live contrast check (`contrast.yml`): every text pair at AA and every color-only link at 3:1 across the site, light and dark, or the failure count linked to the run that names each. Read from the public GitHub API, cached six hours; an unreachable API reads as unknown, never as a pass (`inc/health-contrast-rendered.php`).
 

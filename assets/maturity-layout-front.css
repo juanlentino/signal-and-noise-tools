@@ -1,0 +1,33 @@
+/* Signal & Noise — the maturity pages on the page track, as a spec sheet
+   (2026-10-06, owner-approved mockup). One sheet for the hub and the seven
+   system pages, which share one shape: a heading, an intro and a table, then
+   heading + content pairs. Loaded in the head on a page carrying a maturity
+   shortcode (inc/maturity-layout.php), so the first paint is already wide.
+   Each family's own sheet keeps its look; this owns only the layout. Its
+   rules lead with `body` because the family sheets load later (render time,
+   footer) and would win a tie on their heading margins. */
+
+/* The page track (1320px, as on Resume, the colophon and /stats), title and
+   rule with it. Beats core's :where() constrained rule. */
+main.is-layout-constrained:has(.sn-maturity-index, [class*="maturity--full"])>*,
+.wp-block-post-content>:is(.sn-maturity-index, [class*="maturity--full"]){max-width:var(--wp--custom--page-track,1320px)}
+
+/* The system pages: a two-column grid on the root. The opening heading,
+   intro and table span it; each later heading takes the left column and the
+   block after it the right, under one 2px rule: the spec-sheet band. */
+body :is(.sn-maturity--full,.sn-a11y-maturity--full,.sn-ai-maturity--full,.sn-ops-maturity--full,.sn-ml-maturity--full,.sn-machine-maturity--full,.sn-prov-maturity--full){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3fr);column-gap:0;align-items:start}
+body :is(.sn-maturity--full,.sn-a11y-maturity--full,.sn-ai-maturity--full,.sn-ops-maturity--full,.sn-ml-maturity--full,.sn-machine-maturity--full,.sn-prov-maturity--full)>*{grid-column:1/-1}
+body :is(.sn-maturity--full,.sn-a11y-maturity--full,.sn-ai-maturity--full,.sn-ops-maturity--full,.sn-ml-maturity--full,.sn-machine-maturity--full,.sn-prov-maturity--full)>h3{grid-column:1;margin:var(--wp--custom--air--lg,2.5rem) 0 0;padding:var(--wp--custom--air--sm,1.75rem) 2rem 0 0;border-top:2px solid currentColor;align-self:stretch}
+body :is(.sn-maturity--full,.sn-a11y-maturity--full,.sn-ai-maturity--full,.sn-ops-maturity--full,.sn-ml-maturity--full,.sn-machine-maturity--full,.sn-prov-maturity--full)>h3+*{grid-column:2;margin:var(--wp--custom--air--lg,2.5rem) 0 0;padding-top:var(--wp--custom--air--sm,1.75rem);border-top:2px solid currentColor}
+/* Principles and give-back lists: two across, each item keeping its own
+   ruled, dashed look from the family sheet. */
+body :is(.sn-maturity-principles,.sn-a11y-maturity-principles,.sn-ai-maturity-principles,.sn-ops-maturity-principles,.sn-ml-maturity-principles,.sn-machine-maturity-principles,.sn-machine-maturity-giveback,.sn-prov-maturity-principles){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:2.5rem}
+
+@media (max-width:900px){
+	body :is(.sn-maturity--full,.sn-a11y-maturity--full,.sn-ai-maturity--full,.sn-ops-maturity--full,.sn-ml-maturity--full,.sn-machine-maturity--full,.sn-prov-maturity--full){display:block}
+	body :is(.sn-maturity--full,.sn-a11y-maturity--full,.sn-ai-maturity--full,.sn-ops-maturity--full,.sn-ml-maturity--full,.sn-machine-maturity--full,.sn-prov-maturity--full)>h3{padding-right:0}
+	body :is(.sn-maturity--full,.sn-a11y-maturity--full,.sn-ai-maturity--full,.sn-ops-maturity--full,.sn-ml-maturity--full,.sn-machine-maturity--full,.sn-prov-maturity--full)>h3+*{margin-top:.75rem;padding-top:0;border-top:0}
+}
+@media (max-width:640px){
+	body :is(.sn-maturity-principles,.sn-a11y-maturity-principles,.sn-ai-maturity-principles,.sn-ops-maturity-principles,.sn-ml-maturity-principles,.sn-machine-maturity-principles,.sn-machine-maturity-giveback,.sn-prov-maturity-principles){display:block}
+}
