@@ -17,6 +17,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Removed
 - **The WP Explorer module, inert since OpenStation 1.1.6.** `inc/desktop-mode-explorer.php` (v12.4.0, #751) hooked two OpenStation filters that 1.1.6 retired, so its "Signal & Noise" folder, its script (`assets/desktop-mode-explorer.js`, still registered on every admin load) and its `GET signal-noise/v1/desktop/discography` route (read only by that script) had done nothing since. They are removed. The two parts still in use, the `sn_provenance` and `sn_edge` REST fields the Posts window reads, moved unchanged to `inc/post-rest-fields.php` (callbacks renamed `snt_post_provenance_field` and `snt_post_edge_field`), with their contracts ported to `tests/post-rest-fields.php`. The pinned REST route count is now 25.
+- **The Posts window's Edge column is gone.** It showed each post's last edge-cache probe (`sn_edge`), but since #1850 a save purges the cache tag and no per-post probe runs, so the column could only ever show verdicts from before 2026-10-03, as if they were current. The column, the `sn_edge` field and its entry in the window's field list are removed. The probe history (every figure the column showed) stays on the Cloudflare screen's Post-purge probes table, labeled as the retired path's history.
 
 ## [22.6.4] - 2026-10-06 — say whose 5xx; count every purge
 

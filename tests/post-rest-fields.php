@@ -1,7 +1,7 @@
 <?php
 /**
- * Tests for inc/post-rest-fields.php: the sn_provenance and sn_edge REST
- * fields the OpenStation Posts window reads. Contracts ported verbatim from
+ * Tests for inc/post-rest-fields.php: the sn_provenance REST field the
+ * OpenStation Posts window reads, and the absence of sn_edge. Contracts ported verbatim from
  * tests/desktop-mode-explorer.php when the inert Explorer module was removed
  * (2026-10-06).
  * Run: php tests/post-rest-fields.php
@@ -30,9 +30,6 @@ $GLOBALS['__chains'] = array();
 function sn_prov_get_chain( $post_id ) { return $GLOBALS['__chains'][ $post_id ] ?? array(); }
 
 require __DIR__ . '/../inc/post-rest-fields.php';
-const SN_CF_PROBE_LOG_OPT = 'sn_cf_purge_probe_log';
-const SN_CF_PROBE_ALGO    = 2;
-require __DIR__ . '/../inc/note-dossier-state.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m\n"; } else { ++$fail; echo "FAIL: $m\n"; } }
@@ -43,27 +40,11 @@ echo "Group: registration\n";
 ok( array() === $GLOBALS['__routes'], 'no REST route: the /desktop/discography route went with the Explorer it served' );
 $field = $GLOBALS['__rest_fields']['post:sn_provenance'] ?? null;
 ok( is_array( $field ) && 'snt_post_provenance_field' === ( $field['get_callback'] ?? null ), 'the sn_provenance REST field is registered on post' );
-$edge_field = $GLOBALS['__rest_fields']['post:sn_edge'] ?? null;
-ok( is_array( $edge_field ) && 'snt_post_edge_field' === ( $edge_field['get_callback'] ?? null ), 'the sn_edge REST field is registered on post' );
-ok( in_array( 'view', $edge_field['schema']['context'] ?? array(), true ), 'sn_edge rides the VIEW context: the Posts window sends no context arg, so edit-only would never ship' );
+ok( ! isset( $GLOBALS['__rest_fields']['post:sn_edge'] ), 'no sn_edge field: no per-post probe has run since #1850, so it could only report verdicts from before 2026-10-03' );
 $posts_fields = (string) file_get_contents( __DIR__ . '/../inc/openstation-preferences.php' );
-ok( false !== strpos( $posts_fields, "'sn_provenance', 'sn_edge'" ), 'the Posts window still asks for both fields (SNT_OS_POSTS_FIELDS)' );
-
-echo "\nGroup: sn_edge\n";
-$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
-	array( 'time' => 2000, 'post_id' => 21, 'url' => 'https://x.test/b', 'result' => 'stale', 'escalated' => true, 'algo' => 2 ),
-	array( 'time' => 1500, 'post_id' => 22, 'url' => 'https://x.test/c', 'result' => 'fresh', 'algo' => 1 ),
-	array( 'time' => 1000, 'post_id' => 21, 'url' => 'https://x.test/b', 'result' => 'fresh', 'algo' => 2 ),
-);
-ok( null === snt_post_edge_field( array( 'id' => 20 ) ), 'a post with no probe row yields null: a gap, never fresh' );
-ok( array( 'state' => 'stale', 'verified_at' => 2000, 'escalated' => true ) === snt_post_edge_field( array( 'id' => 21 ) ), 'the NEWEST current-detector row wins' );
-ok( null === snt_post_edge_field( array( 'id' => 22 ) ), 'a retired-detector row (algo 1) is not a verdict' );
-$GLOBALS['__caps'] = array( 'manage_options' => false );
-ok( null === snt_post_edge_field( array( 'id' => 21 ) ), 'sn_edge is NOT public: a reader without manage_options gets null' );
-$GLOBALS['__caps'] = array();
-$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = 'not-an-array';
-ok( null === snt_post_edge_field( array( 'id' => 21 ) ), 'a corrupt log yields null, not a notice' );
-unset( $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] );
+ok( false !== strpos( $posts_fields, "SNT_OS_POSTS_FIELDS = array( 'sn_provenance', 'meta._sn_evergreen' )" ), 'the Posts window asks for sn_provenance and the evergreen flag, not sn_edge' );
+$posts_js = (string) file_get_contents( __DIR__ . '/../assets/os-posts.js' );
+ok( false === strpos( $posts_js, "key: 'sn_edge'" ) && false !== strpos( $posts_js, "key: 'sn_provenance'" ), 'the Posts window paints no Edge column, and keeps Provenance' );
 
 echo "\nGroup: sn_provenance\n";
 ok( null === snt_post_provenance_field( array( 'id' => 10 ) ), 'a non-Note post yields null' );

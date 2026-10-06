@@ -3,21 +3,22 @@
  *
  * The Posts workspace (OpenStation 1.1.8, #779) lists `/wp/v2/posts` and lets
  * a plugin append cells through the `openstation.postsWindow.columns` filter.
- * All three values ride the list request the window already makes (the PHP
- * side appends `sn_provenance`, `sn_edge` and `meta._sn_evergreen` to the
- * window's `_fields`): no extra fetch per row.
+ * Both values ride the list request the window already makes (the PHP side
+ * appends `sn_provenance` and `meta._sn_evergreen` to the window's
+ * `_fields`): no extra fetch per row.
  *
  *   Provenance — the anchor-status badge the Explorer paints (`sn_provenance`).
- *   Edge       — the last edge-cache probe verdict for the post (`sn_edge`),
- *                the same row the note dossier's Edge block reads.
  *   Evergreen  - the `_sn_evergreen` flag (`meta._sn_evergreen`), the classic
  *                list-table column's twin (inc/post-evergreen.php); not
  *                flagged paints nothing.
  *
- * ABSENT IS NOT ZERO. A Note without `sn_provenance` is unsigned; a post with
- * no `sn_edge` has no probe in the site-wide twenty-row log. Either cell stays
- * empty — never a gray badge, never "fresh" — the rule the Explorer tile and
- * the dossier both follow.
+ * ABSENT IS NOT ZERO. A Note without `sn_provenance` is unsigned: the cell
+ * stays empty, never a gray badge.
+ *
+ * 2026-10-06: the Edge column (`sn_edge`, the post's last edge-cache probe)
+ * is gone. Since #1850 a save purges the cache tag and no per-post probe
+ * runs, so it could only ever show verdicts from before Oct 3. The probe
+ * history stays on the Cloudflare screen.
  *
  * One node per render call, as the workspace docs require: the table, the
  * writing-desk cards and the inspector each render their own instance of a
@@ -29,9 +30,8 @@
  * `/openstation/attention` and never triggers the nine-reader scan itself.
  * No cache → "Attention" with no number, marked stale in the title.
  *
- * Loaded on every shell request (beside the settings-tab script), not with
- * the lazily-loaded Explorer bundle: the Posts window paints its columns
- * whether or not the Explorer has ever been opened.
+ * Loaded on every shell request (beside the settings-tab script): the Posts
+ * window paints its columns whenever it opens.
  */
 ( function () {
 	'use strict';
@@ -71,28 +71,6 @@
 		return node;
 	}
 
-	// Same tones as the dossier's Edge block: success / warning / neutral.
-	var EDGE = {
-		fresh: { label: 'Edge fresh', color: '#3fb950' },
-		stale: { label: 'Edge stale', color: '#d29922' }
-	};
-
-	function edgeBadge( edge ) {
-		var e    = EDGE[ edge.state ] || { label: 'Edge unread', color: '#8b949e' };
-		var node = document.createElement( 'span' );
-		node.style.cssText =
-			'display:inline-flex;align-items:center;gap:4px;font-size:11px;line-height:1;white-space:nowrap;' +
-			'color: var( --os-ui-fg-muted, #8b949e );';
-		var dot = document.createElement( 'span' );
-		dot.style.cssText = 'width:6px;height:6px;border-radius:50%;background:' + e.color + ';';
-		node.appendChild( dot );
-		node.appendChild( document.createTextNode( edge.state ) );
-		var when = edge.verified_at ? new Date( edge.verified_at * 1000 ).toLocaleString() : '';
-		node.title = e.label + ( when ? ' · probed ' + when : '' ) + ( edge.escalated ? ' · zone purge forced' : '' );
-		node.setAttribute( 'aria-label', node.title );
-		return node;
-	}
-
 	var COLUMNS = [
 		{
 			key: 'sn_provenance',
@@ -104,18 +82,6 @@
 					return document.createElement( 'span' );
 				}
 				return badge( value );
-			}
-		},
-		{
-			key: 'sn_edge',
-			label: 'Edge',
-			render: function ( value ) {
-				// Unprobed: nothing. "No row in the last twenty" is a gap,
-				// never a pass.
-				if ( ! value || ! value.state ) {
-					return document.createElement( 'span' );
-				}
-				return edgeBadge( value );
 			}
 		},
 		{

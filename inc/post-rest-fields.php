@@ -1,21 +1,22 @@
 <?php
 /**
- * Signal & Noise Tools: the two REST fields on posts that the OpenStation
- * Posts window reads (SNT_OS_POSTS_FIELDS, inc/openstation-preferences.php).
+ * Signal & Noise Tools: the sn_provenance REST field on posts, the note's
+ * provenance chain summary (public: a fact about the Note), which the
+ * OpenStation Posts window reads as its Provenance column
+ * (SNT_OS_POSTS_FIELDS, inc/openstation-preferences.php).
  *
- *   sn_provenance  the note's provenance chain summary (public: a fact about
- *                  the Note), shown as the Provenance column.
- *   sn_edge        the last edge-freshness probe verdict (admins only), shown
- *                  as the Edge column.
+ * The sn_edge field (the post's last edge-cache probe, the Edge column) was
+ * removed the same day: since #1850 no per-post probe runs, so it could only
+ * report verdicts from before 2026-10-03.
  *
  * Moved verbatim on 2026-10-06 from inc/desktop-mode-explorer.php, the
  * v12.4.0 WP Explorer integration (#751, contributed by Daniel López
  * Sánchez). OpenStation 1.1.6 retired the Explorer hooks that module rode,
  * so its folder, its script and its /desktop/discography route had done
- * nothing since; these two fields were the only part still read.
+ * nothing since; its REST fields were the only part still read.
  *
  * @package SignalNoiseTools
- * @since 12.4.0 (sn_provenance), 14.4.0 (sn_edge)
+ * @since 12.4.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -89,59 +90,10 @@ function snt_post_provenance_field( $post_arr ) {
 	);
 }
 
-/**
- * REST field callback: `sn_edge` — the last edge-freshness verdict for a post.
- *
- * The Posts window's Edge column (v14.4.0) reads this. It wraps
- * sn_note_dossier_last_probe(), the reader the note dossier already uses, so
- * the column and the dossier cannot disagree about the same row. The probe
- * log is a twenty-row SITE-WIDE buffer: a post with no row in it is
- * "unprobed" — null here, nothing painted — never "fresh".
- *
- * Not public, unlike `sn_provenance`: a stale-edge verdict is an operating
- * fact about the cache, not a fact about the Note. Anonymous readers get
- * null, which the column paints as absence.
- *
- * @since 14.4.0
- * @param array<string,mixed> $post_arr Prepared post row (needs only `id`).
- * @return array{state:string,verified_at:int,escalated:bool}|null
- */
-function snt_post_edge_field( $post_arr ) {
-	$post_id = (int) ( $post_arr['id'] ?? 0 );
-	if ( $post_id <= 0
-		|| ! function_exists( 'sn_note_dossier_last_probe' )
-		|| ! function_exists( 'current_user_can' )
-		|| ! current_user_can( 'manage_options' ) ) {
-		return null;
-	}
-	$probe = sn_note_dossier_last_probe( $post_id );
-	if ( null === $probe ) {
-		return null;
-	}
-	return array(
-		'state'       => (string) $probe['result'],
-		'verified_at' => (int) $probe['time'],
-		'escalated'   => (bool) $probe['escalated'],
-	);
-}
-
 add_action( 'rest_api_init', function () {
 	// The provenance field registers regardless of shell presence: it is a
 	// statement about Notes, not about the Explorer, and other REST readers
 	// (the theme, the verifier) may use it. Guarded inside the callback.
-	register_rest_field( 'post', 'sn_edge', array(
-		'get_callback' => 'snt_post_edge_field',
-		'schema'       => array(
-			'description' => __( 'Last edge-cache probe verdict for the post: fresh, stale, or absent when no probe is in the log.', 'signal-and-noise-tools' ),
-			'type'        => array( 'object', 'null' ),
-			'readonly'    => true,
-			// `view` on purpose: the Posts window lists with no `context`
-			// arg, so an edit-only field would never ride it. The callback,
-			// not the context, is the gate.
-			'context'     => array( 'view', 'edit' ),
-		),
-	) );
-
 	register_rest_field( 'post', 'sn_provenance', array(
 		'get_callback' => 'snt_post_provenance_field',
 		'schema'       => array(
