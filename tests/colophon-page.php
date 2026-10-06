@@ -78,7 +78,9 @@ ok( false !== strpos( $html, 'what is in the public repositories is what runs, w
 ok( false !== strpos( $html, 'Cloudways' ) && false !== strpos( $html, 'Cloudflare' ), 'hosting names the host and the CDN/DNS provider' );
 ok( false !== strpos( $html, 'Bebas Neue' ) && false !== strpos( $html, 'DM Mono' ), 'type names both faces' );
 ok( false !== strpos( $html, 'follows your device' ) && false !== strpos( $html, 'toggle' ), 'appearance: dark follows the system, the toggle overrides' );
-ok( false !== strpos( $html, 'SHA-256' ) && false !== strpos( $html, 'Ed25519' ) && false !== strpos( $html, 'OpenTimestamps' ) && false !== strpos( $html, 'an edit to the text adds a new signed version' ), 'records names only what the provenance code does (a markup-only save makes no version)' );
+ok( false !== strpos( $html, 'SHA-256' ) && false !== strpos( $html, 'Ed25519' ) && false !== strpos( $html, 'OpenTimestamps' ) && false !== strpos( $html, 'when the text changes after a version is signed, a new signed version is added' ), 'records names only what the provenance code does (a markup-only save, or an edit inside the settle window, makes no new version: Codex on #1932)' );
+ok( false !== strpos( $html, 'a fingerprint (SHA-256) of a record holding its text' ) && false === strpos( $html, 'fingerprint of its text' ), 'Codex on #1932: the hash covers the signed record, not the text alone' );
+ok( false !== strpos( $html, 'the theme&#039;s templates, headers and footers' ) && false === strpos( $html, 'every page' ), 'Codex on #1932: no claim that every page is built from blocks (/verify is served outside the theme)' );
 ok( false !== strpos( $html, 'engineered with Claude (Anthropic) as a' ) && false !== strpos( $html, 'meaning an AI that helps write the site' ), 'the AI statement is kept, and "pair programmer" is explained in the row' );
 foreach ( array( 'stay mine', 'only person', 'exactly the code', 'load quickly', 'which I also wrote', 'sees your visit', 'will never do' ) as $claim ) {
 	ok( false === strpos( $html, $claim ), "no promise or claim beyond a checkable fact: '$claim' (owner 2026-10-06)" );
