@@ -41,8 +41,8 @@
 		return;
 	}
 
-	// Same palette as assets/desktop-mode-explorer.js — the two must read the
-	// same status the same way, and the Explorer's copy is not on this page.
+	// The status palette (it was shared with the retired WP Explorer bundle,
+	// removed 2026-10-06; this is now the only copy).
 	var STATUS = {
 		confirmed:  { label: 'Anchored',         color: '#3fb950' },
 		pending:    { label: 'Awaiting anchor',  color: '#d29922' },

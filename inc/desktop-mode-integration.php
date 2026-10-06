@@ -27,10 +27,10 @@
  *                                              → desktop-mode-widgets.php
  *   5. (v9.52.0) The living_tree_traffic filter, so the wallpaper tree's
  *      wind responds to real 14-day traffic.   → desktop-mode-payloads.php
- *   6. (v12.4.0) A "Signal & Noise" folder in the shell's WP Explorer
- *      window: Notes with their provenance chains (tile badges + preview
- *      pane) and the Discography as a cover-art grid via a custom entity
- *      kind.                                   → desktop-mode-explorer.php
+ *   6. The REST fields the Posts window reads: each Note's provenance
+ *      summary and its last edge-probe verdict. (The v12.4.0 Explorer
+ *      folder that first carried them was removed 2026-10-06; OpenStation
+ *      1.1.6 had retired its hooks.)        → post-rest-fields.php
  *
  * EVERY integration is gated on function_exists() (through the snt_os_*
  * shims in inc/openstation-compat.php) — the plugin behaves identically when
@@ -129,11 +129,10 @@ require_once __DIR__ . '/desktop-mode-widgets.php';
 require_once __DIR__ . '/desktop-mode-dock.php';
 require_once __DIR__ . '/desktop-mode-plugins-window.php';
 require_once __DIR__ . '/desktop-mode-ai.php';
-// v12.4.0: the WP Explorer surface — a "Signal & Noise" folder (Notes with
-// provenance + Discography) in the shell's file-explorer window. Last on
-// purpose: it shares no registration slot with the modules above, and
-// appending keeps the shell's payload order for them byte-identical.
-require_once __DIR__ . '/desktop-mode-explorer.php';
+// The two REST fields the Posts window reads (sn_provenance, sn_edge). They
+// lived in the v12.4.0 WP Explorer module until 2026-10-06, when the rest of
+// it (inert since OpenStation 1.1.6) was removed. Same slot, same order.
+require_once __DIR__ . '/post-rest-fields.php';
 // v13.105.1: the one-time carry of a user's shell placement from the two
 // auto-imported menu ids to the app ids (#1080). Registers only an admin_init
 // callback; last because it shares no registration slot with anything above.
