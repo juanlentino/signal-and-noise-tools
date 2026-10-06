@@ -14,7 +14,9 @@ function home_url( $p = '' ) { return 'https://example.com' . $p; }
 function get_permalink( $id ) { return 'https://example.com/n/' . $id . '/'; }
 function get_the_title( $id ) { return 'Note &amp; ' . $id; }
 $GLOBALS['__chains'] = array();
-function get_posts( $a ) { return array_keys( $GLOBALS['__chains'] ); }
+$GLOBALS['__args']   = array();
+function get_posts( $a ) { $GLOBALS['__args'][] = $a; return array_slice( array_keys( $GLOBALS['__chains'] ), ( $a['paged'] - 1 ) * $a['posts_per_page'], $a['posts_per_page'] ); }
+function get_post_time( $f, $gmt, $id ) { return '2026-07-01'; }
 function sn_prov_get_chain( $id ) { return $GLOBALS['__chains'][ $id ] ?? array(); }
 require dirname( __DIR__ ) . '/inc/colophon-front.php';
 
@@ -44,11 +46,26 @@ ok( false !== strpos( $html, '<a href="https://example.com/n/4/">Note &amp; 4</a
 ok( false !== strpos( $html, '<a class="sn-colophon-verify" href="https://example.com/verify">Verify a Note</a>' ), 'Verify a Note, by its visible name' );
 ok( 4 === substr_count( $html, '<dt>' ) && false === strpos( $html, 'aria-label' ), 'four labeled tiles, no aria-label' );
 
+ok( false === $GLOBALS['__args'][0]['has_password'], 'password-protected notes are never candidates (Verify refuses them)' );
+
+// Thirty notes, only the oldest qualifies: the search pages past twenty.
+$GLOBALS['__chains'] = array();
+for ( $id = 130; $id > 100; $id-- ) {
+	$GLOBALS['__chains'][ $id ] = array( $pending );
+}
+$GLOBALS['__chains'][101] = array( $good );
+$GLOBALS['__args']        = array();
+ok( false !== strpos( sn_colophon_record_html(), 'https://example.com/n/101/' ) && 2 === count( $GLOBALS['__args'] ), 'the search pages past the twenty newest until a note qualifies' );
+
+$GLOBALS['__chains'] = array( 4 => array( array_diff_key( $good, array( 'committed_at' => 1 ) ) ) );
+ok( false !== strpos( sn_colophon_record_html(), 'v2</span>2026-07-01' ), 'a legacy chain without committed_at shows the note\'s publish date' );
+
 echo "\nGroup: stylesheet contracts\n";
 $css = (string) file_get_contents( dirname( __DIR__ ) . '/assets/colophon-front.css' );
 ok( false !== strpos( $css, 'main.is-layout-constrained:has(.sn-colophon)>*' ) && false !== strpos( $css, 'var(--wp--custom--page-track,1320px)' ), 'the page, title and rule included, takes the shared page track' );
 ok( false !== strpos( $css, '.sn-colophon-items{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))' ), 'rows sit two across' );
 ok( false !== strpos( $css, '.sn-colophon-item--records{grid-column:1/-1}' ), 'Records spans its band' );
+ok( false !== strpos( $css, '.sn-colophon-group--honest{padding:2.5rem var(--sn-col-bleed)}' ), 'under 900px the band keeps its side padding to match its bleed' );
 ok( 1 === preg_match( '/@media \(max-width:640px\)\{[^}]*grid-template-columns:minmax\(0,1fr\)/', $css ), 'one column on a phone' );
 $no_fallback = preg_replace( '/var\([^()]*,[^()]*\)/', '', $css );
 ok( 0 === preg_match_all( '/#[0-9a-f]{3,6}\b/i', $no_fallback ), 'colors are theme tokens only (hex appears only as var() fallbacks)' );

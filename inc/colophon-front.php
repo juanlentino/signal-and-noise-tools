@@ -70,18 +70,27 @@ function sn_colophon_record_html() {
 	if ( ! function_exists( 'sn_prov_get_chain' ) || ! function_exists( 'get_posts' ) ) {
 		return '';
 	}
-	$ids    = get_posts( array( 'post_type' => 'post', 'post_status' => 'publish', 'numberposts' => 20, 'orderby' => 'date', 'order' => 'DESC', 'fields' => 'ids', 'no_found_rows' => true ) );
-	$chains = array();
-	foreach ( (array) $ids as $id ) {
-		$chains[ (int) $id ] = sn_prov_get_chain( (int) $id );
-	}
-	$pick = sn_colophon_pick_record( $chains );
-	if ( null === $pick ) {
-		return '';
+	// Newest first, a page at a time, until a note qualifies or none are left.
+	// Password-protected notes are left out: Verify refuses them (Codex on #1935).
+	$pick = null;
+	for ( $page = 1; null === $pick; $page++ ) {
+		$ids = get_posts( array( 'post_type' => 'post', 'post_status' => 'publish', 'has_password' => false, 'posts_per_page' => 20, 'paged' => $page, 'orderby' => 'date', 'order' => 'DESC', 'fields' => 'ids', 'no_found_rows' => true ) );
+		if ( ! $ids ) {
+			return '';
+		}
+		$chains = array();
+		foreach ( (array) $ids as $id ) {
+			$chains[ (int) $id ] = sn_prov_get_chain( (int) $id );
+		}
+		$pick = sn_colophon_pick_record( $chains );
 	}
 	$c    = $pick['commit'];
 	$hash = (string) $c['content_hash'];
+	// A legacy chain can lack committed_at; the note's own publish date stands in.
 	$date = substr( (string) ( $c['committed_at'] ?? '' ), 0, 10 );
+	if ( '' === $date && function_exists( 'get_post_time' ) ) {
+		$date = (string) get_post_time( 'Y-m-d', true, $pick['post_id'] );
+	}
 	$tile = static function ( $label, $value ) {
 		return '<div><dt>' . esc_html( $label ) . '</dt><dd>' . $value . '</dd></div>';
 	};
