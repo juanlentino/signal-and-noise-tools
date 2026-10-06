@@ -113,8 +113,7 @@ bound. Keep.
 ## 5. Finding in passing: `toB64` vs the 1 MB calendar bound — RESOLVED
 
 > **Resolved 2026-08-25** in sn-provenance-worker
-> [v1.12.2](https://github.com/juanlentino/sn-provenance-worker/releases/tag/v1.12.2)
-> ([PR #23](https://github.com/juanlentino/sn-provenance-worker/pull/23)):
+> v1.12.2 (its PR #23, in a private repository):
 > `toB64` now builds the binary string in 32 KB slices before a single `btoa`,
 > and a test round-trips a 1 MB `Uint8Array` through `toB64`/`fromB64` so the
 > encoder's bound can never again fall below the calendar cap. The chunking

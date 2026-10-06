@@ -36,6 +36,17 @@ ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'failure' ), null )['sta
 ok( 'none' === snt_contrast_rendered_evaluate( array( 'workflow_runs' => array() ), null )['state'], 'no completed run yet: none, not ok' );
 ok( 'unknown' === snt_contrast_rendered_evaluate( null, null )['state'], 'an unreadable API: unknown, never ok' );
 ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'cancelled' ), null )['state'], 'a cancelled run is no verdict' );
+ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'success' ), array( array( 'annotation_level' => 'warning', 'title' => '', 'message' => 'Contrast run inconclusive' ) ) )['state'], 'a green run with no contrast-summary is unknown: the workflow turns an inconclusive run (exit 2) into a green job' );
+$gap = snt_contrast_rendered_evaluate( $run( 'success' ), null );
+ok( 'unknown' === $gap['state'] && 'api' === $gap['reason'], 'a green run whose annotations could not be read is unknown for an API gap, not inconclusive' );
+foreach ( array( '', 'not json', '{"pages":0,"checked":0,"links":0}', '{"pages":40}', '{"pages":[1],"checked":[2],"links":[3]}', '{"pages":true,"checked":1,"links":1}', '{"pages":"3x","checked":1,"links":1}', '{"pages":3,"checked":-1,"links":1}', '{"pages":3,"checked":1,"links":1,"failures":"0"}' ) as $bad ) {
+	ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'success' ), array( array( 'annotation_level' => 'notice', 'title' => 'contrast-summary', 'message' => $bad ) ) )['state'], "a malformed or empty summary is not a pass: '$bad'" );
+}
+$inc = snt_contrast_rendered_evaluate( $run( 'success' ), array() );
+ok( 'inconclusive' === $inc['reason'], 'a green run without a summary carries the reason: inconclusive, not an API outage' );
+$h = snt_contrast_rendered_html( $inc, 'snt-hint' );
+ok( false !== strpos( $h, 'could not measure' ) && false === strpos( $h, 'GitHub API did not answer' ) && false !== strpos( $h, 'actions/runs/1' ), 'an inconclusive run says it could not measure and links the run, and does not blame the API' );
+ok( 'snt_contrast_rendered_v2' === SN_CONTRAST_RENDERED_CACHE, 'the cache key moved with the pass semantics, so a v1 ok is never served' );
 
 echo "\nGroup: the line\n";
 $h = snt_contrast_rendered_html( snt_contrast_rendered_evaluate( $run( 'success' ), array( $summary ) ), 'snt-hint' );

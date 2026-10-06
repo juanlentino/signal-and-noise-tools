@@ -26,6 +26,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// The cache key carries the verdict's semantics: v2 since a green run without
+// a summary stopped reading as ok, so a v1 'ok' cached before that is never
+// served (Codex on #1948).
+const SN_CONTRAST_RENDERED_CACHE = 'snt_contrast_rendered_v2';
 const SN_CONTRAST_RENDERED_RUNS_URL = 'https://api.github.com/repos/juanlentino/signal-and-noise/actions/workflows/contrast.yml/runs?status=completed&per_page=1';
 
 /**
@@ -37,7 +41,7 @@ const SN_CONTRAST_RENDERED_RUNS_URL = 'https://api.github.com/repos/juanlentino/
  *               state: ok | red | unknown | none.
  */
 function snt_contrast_rendered_evaluate( $runs, $annotations ) {
-	$v = array( 'state' => 'unknown', 'failures' => 0, 'pages' => 0, 'checked' => 0, 'links' => 0, 'at' => '', 'url' => '' );
+	$v = array( 'state' => 'unknown', 'reason' => 'api', 'failures' => 0, 'pages' => 0, 'checked' => 0, 'links' => 0, 'at' => '', 'url' => '' );
 	if ( ! is_array( $runs ) || ! isset( $runs['workflow_runs'] ) || ! is_array( $runs['workflow_runs'] ) ) {
 		return $v;
 	}
@@ -53,6 +57,7 @@ function snt_contrast_rendered_evaluate( $runs, $annotations ) {
 	// on #1942). The annotation count is only the fallback for a run whose
 	// summary is missing.
 	$total = null;
+	$measured = false;
 	foreach ( is_array( $annotations ) ? $annotations : array() as $a ) {
 		$a = (array) $a;
 		if ( 'failure' === ( $a['annotation_level'] ?? '' ) ) {
@@ -60,6 +65,20 @@ function snt_contrast_rendered_evaluate( $runs, $annotations ) {
 		}
 		if ( 'contrast-summary' === ( $a['title'] ?? '' ) ) {
 			$s            = json_decode( (string) ( $a['message'] ?? '' ), true );
+			// A summary is evidence only in its full shape and with pages
+			// measured: a malformed or empty one is not a pass (Codex on #1948).
+			$counts_ok = is_array( $s ) && isset( $s['pages'], $s['checked'], $s['links'] );
+			foreach ( array( 'pages', 'checked', 'links', 'failures' ) as $key ) {
+				// Whole numbers only: (int) turns an array, a boolean or "3x" into
+				// a count (Codex on #1948). failures may be absent, never wrong.
+				if ( $counts_ok && array_key_exists( $key, $s ) && ! ( is_int( $s[ $key ] ) && $s[ $key ] >= 0 ) ) {
+					$counts_ok = false;
+				}
+			}
+			if ( ! $counts_ok || $s['pages'] < 1 ) {
+				continue;
+			}
+			$measured     = true;
 			$v['pages']   = (int) ( $s['pages'] ?? 0 );
 			$v['checked'] = (int) ( $s['checked'] ?? 0 );
 			$v['links']   = (int) ( $s['links'] ?? 0 );
@@ -71,7 +90,15 @@ function snt_contrast_rendered_evaluate( $runs, $annotations ) {
 	}
 	$conclusion = (string) ( $run['conclusion'] ?? '' );
 	if ( 'success' === $conclusion ) {
-		$v['state'] = 'ok';
+		// Green is a pass only with the runner's summary: an inconclusive run
+		// (exit 2: sitemap unreadable, home blocked, a page that did not
+		// render) is turned into a green job with a warning and no summary.
+		$v['state'] = $measured ? 'ok' : 'unknown';
+		// Inconclusive only when the annotations were read and carry no
+		// summary; unread annotations are an API gap (Codex on #1948).
+		if ( ! $measured && is_array( $annotations ) ) {
+			$v['reason'] = 'inconclusive';
+		}
 	} elseif ( 'failure' === $conclusion ) {
 		// A red run whose failures could not be read (annotations unfetched, or
 		// none counted) is unknown, never "0 failures" (Codex on #1942).
@@ -115,7 +142,7 @@ function snt_contrast_rendered() {
 	if ( ! function_exists( 'get_transient' ) || ! function_exists( 'wp_remote_get' ) ) {
 		return snt_contrast_rendered_evaluate( null, null );
 	}
-	$cached = get_transient( 'snt_contrast_rendered' );
+	$cached = get_transient( SN_CONTRAST_RENDERED_CACHE );
 	if ( is_array( $cached ) ) {
 		return $cached;
 	}
@@ -130,7 +157,7 @@ function snt_contrast_rendered() {
 		}
 	}
 	$v = snt_contrast_rendered_evaluate( $runs, $annotations );
-	set_transient( 'snt_contrast_rendered', $v, 'unknown' === $v['state'] ? 30 * MINUTE_IN_SECONDS : 6 * HOUR_IN_SECONDS );
+	set_transient( SN_CONTRAST_RENDERED_CACHE, $v, 'unknown' === $v['state'] ? 30 * MINUTE_IN_SECONDS : 6 * HOUR_IN_SECONDS );
 	return $v;
 }
 
@@ -164,6 +191,11 @@ function snt_contrast_rendered_html( array $v, $class ) {
 			$text = esc_html__( 'Rendered on the live site: not measured yet (the theme\'s contrast.yml has no completed run).', 'signal-and-noise-tools' );
 			break;
 		default:
+			if ( 'inconclusive' === ( $v['reason'] ?? '' ) ) {
+				/* translators: %s: date of the run, linked */
+				$text = sprintf( esc_html__( 'Rendered on the live site: unknown. The last run (%s) could not measure (the sitemap, a page or the edge failed), so it carries no result; its warning says which. Rechecks within thirty minutes.', 'signal-and-noise-tools' ), $link( '' !== $v['at'] ? $v['at'] : __( 'the run', 'signal-and-noise-tools' ) ) );
+				break;
+			}
 			$text = esc_html__( 'Rendered on the live site: unknown right now (the GitHub API did not answer; an outage is a gap in evidence, not a result). Retries within thirty minutes.', 'signal-and-noise-tools' );
 	}
 	return '<p class="' . esc_attr( $class ) . '">' . $text . '</p>';
