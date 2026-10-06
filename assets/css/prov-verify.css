@@ -576,8 +576,11 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 	.sn-verify-cmp-form button{width:100%}
 }
 @media (prefers-reduced-motion:reduce){
-	.sn-verify-check-state,.sn-verify-check[data-state] .sn-verify-check-state{animation:none;transform:none}
-	.sn-verify-check-no,.sn-verify-tally-seg{transition:none}
+	/* /verify is a standalone document (no theme sheets), so it carries its
+	   own complete reset: the buttons, tabs and check states were missed by
+	   the per-selector list this replaced (plugin motion scan, 2026-10-06). */
+	*,*::before,*::after{animation:none!important;transition:none!important}
+	.sn-verify-check-state,.sn-verify-check[data-state] .sn-verify-check-state{transform:none}
 }
 
 /* ── The standalone section (v11.6.0, R5): the escape hatch from trusting

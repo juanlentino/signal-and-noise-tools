@@ -15,5 +15,8 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [22.6.8] - 2026-10-06 — text is dimmed by the rust token, not opacity
 
 ### Fixed
+- **/verify honors a reduced-motion setting everywhere on the page.** Its own reset listed the check states and tally only, so the form button, the tabs and the compare button still faded for a visitor who asked for less motion (5 of the motion scan's 44 uncovered declarations). /verify is a standalone document without the theme's sheets, so `assets/css/prov-verify.css` now carries a complete reset of its own; the theme's new global reset covers the rest of the site.
+
+### Fixed
 - **Text dimmed with opacity fell under AA; it is dimmed by the rust token now.** A sitewide computed contrast audit (every page template, light and dark) found two plugin surfaces. The note provenance panel faded its meta (the Bitcoin block link) and the "(mempool.space)" host to .6, measured 2.5:1 and 2.9:1; the caveat line used the same .65 fade. The roadmap legend faded whole cells (.55 to .62) and the sub line again (.55, at 10.9px, under the 11px floor), reaching 2.86:1 in dark. All of them take rust instead (5.7:1 light, 7.4:1 dark), the legend's speculative numerals turn rust (large text), the badge borders keep their solid/dashed/dotted fade, and the sub holds 11px. Same look, readable words. Guarded by `tests/front-end-text-not-faded.php`.
 
