@@ -57,6 +57,19 @@ function snt_core_auto_updates() {
 const SNT_CORE_POINT_REASON = 'A point release is waiting (WordPress ships security fixes as point releases but does not flag them).';
 
 /**
+ * The cached core update check, when it is usable, else null. The ONE test
+ * both the Core row and the refill guard use: until 2026-10-06 the guard only
+ * asked "is it false?", so a cached value without an updates list read
+ * "unknown" on the row while the guard stood down, and Core stayed unknown.
+ *
+ * @return object|null
+ */
+function snt_core_cached_check() {
+	$cached = get_site_transient( 'update_core' );
+	return is_object( $cached ) && isset( $cached->updates ) && is_array( $cached->updates ) ? $cached : null;
+}
+
+/**
  * The `core` row. Reads the CACHED update_core site transient only; never calls
  * wp_version_check or anything that reaches the network.
  *
@@ -68,8 +81,8 @@ const SNT_CORE_POINT_REASON = 'A point release is waiting (WordPress ships secur
 function snt_core_status() {
 	$current = isset( $GLOBALS['wp_version'] ) ? (string) $GLOBALS['wp_version'] : '';
 	$row     = array( 'current' => $current, 'latest' => $current, 'state' => 'unknown', 'offer' => '', 'auto_updates' => snt_core_auto_updates(), 'reason' => '' );
-	$cached  = get_site_transient( 'update_core' );
-	if ( '' === $current || ! is_object( $cached ) || ! isset( $cached->updates ) || ! is_array( $cached->updates ) ) {
+	$cached  = snt_core_cached_check();
+	if ( '' === $current || null === $cached ) {
 		// Object-cache flushes empty it: the theme's purge after an update (refilled
 		// by snt_core_refill_after_flush) and the nightly Breeze purge reaching the
 		// Cloudways app purge, documented to clear Redis too (refilled by
@@ -169,7 +182,7 @@ add_action( 'snt_core_version_refill', 'snt_core_version_refill' );
  * @return void
  */
 function snt_core_refill_guard() {
-	if ( false !== get_site_transient( 'update_core' ) || wp_next_scheduled( 'snt_core_version_refill' ) ) {
+	if ( null !== snt_core_cached_check() || wp_next_scheduled( 'snt_core_version_refill' ) ) {
 		return;
 	}
 	$now = time();
