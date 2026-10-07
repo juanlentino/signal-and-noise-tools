@@ -28,7 +28,7 @@ $E = array( array( 'day' => '2026-10-05', 'ev' => 'ce', 'n' => 5, 'with_pid' => 
 $c = sn_analytics_v2_compare( $L, $P, $E, '2026-10-05' );
 ok( true === $c['ok'] && true === $c['read'] && 0 === $c['mismatched'], 'equal counts from the first full day on: ok' );
 ok( 'partial' === $c['days'][0]['state'] && 69 === $c['days'][0]['legacy_pageview_side'] && 4 === $c['days'][0]['v2_pageviews'], 'the day the dual write began is partial, not a mismatch, and still shows both counts' );
-ok( array( 'day' => '2026-10-05', 'legacy_pageview_side' => 125, 'v2_pageviews' => 125, 'legacy_events' => 12, 'v2_events' => 12, 'with_pid' => 135, 'sampled' => false, 'sampled_events' => array(), 'identical_sample' => array(), 'differs' => array(), 'events_proven' => true, 'state' => 'match' ) === $c['days'][1], 'every legacy row but cp against the pageviews dataset, ce and cp against the events dataset: a ce row counts on both sides' );
+ok( array( 'day' => '2026-10-05', 'legacy_pageview_side' => 125, 'v2_pageviews' => 125, 'legacy_events' => 12, 'v2_events' => 12, 'with_pid' => 135, 'sampled' => false, 'sampled_events' => array(), 'identical_sample' => array(), 'human_sample' => array(), 'set_aside' => array(), 'differs' => array(), 'events_proven' => true, 'state' => 'match' ) === $c['days'][1], 'every legacy row but cp against the pageviews dataset, ce and cp against the events dataset: a ce row counts on both sides' );
 $noce = array_slice( $P, 0, 3 );
 ok( 'mismatch' === sn_analytics_v2_compare( $L, $noce, $E, '2026-10-05' )['days'][1]['state'], 'a pageviews dataset missing the custom events\' base rows is a mismatch (the worker 1.24.0 shape)' );
 $P2 = $P; $P2[1]['n'] = 39;
@@ -129,6 +129,41 @@ ok( null === sn_analytics_v2_sampled_visitors( $rows3, array( 'hashes' => array(
 $many = array_map( static fn( $i ) => array( 'day' => '2026-10-05', 'vid' => sprintf( '%08x', $i ), 'n' => 2, 'r' => 1, 'stored_bot' => 1, 'human' => 0 ), range( 1, SN_ANALYTICS_V2_SAMPLED_MAX + 1 ) );
 $cut = sn_analytics_v2_sampled_visitors( array( 'sn_pageviews' => $many ), $capl );
 ok( true === $cut['truncated'] && false === $cut['conclusive'] && SN_ANALYTICS_V2_SAMPLED_MAX === count( $cut['rows'] ), 'a list past its size says so, keeps the size, and is inconclusive' );
+
+echo "\nUncounted visitor-days may be sampled differently (owner rule 2026-10-07)\n";
+// Shaped on Oct 7: pageviews sampled differently, but only for a stored bot and a non-human heavy reader.
+$Lh = array( array( 'day' => '2026-10-07', 'ev' => 'pv', 'n' => 108, 'r' => 52, 'v' => 30 ) );
+$Ph = array( array( 'day' => '2026-10-07', 'ev' => 'pv', 'n' => 112, 'r' => 55, 'v' => 30 ) );
+$Dh = array(
+	'legacy'    => array( array( 'day' => '2026-10-07', 'ev' => 'pv', 'vid' => 'b094de4b', 'r' => 10, 'n' => 40, 'human' => 0 ), array( 'day' => '2026-10-07', 'ev' => 'pv', 'vid' => '20ac7f14', 'r' => 20, 'n' => 44, 'human' => 0 ), array( 'day' => '2026-10-07', 'ev' => 'pv', 'vid' => 'aaaa1111', 'r' => 2, 'n' => 4, 'human' => 1 ) ),
+	'pageviews' => array( array( 'day' => '2026-10-07', 'ev' => 'pv', 'vid' => 'b094de4b', 'r' => 11, 'n' => 40, 'human' => 0 ), array( 'day' => '2026-10-07', 'ev' => 'pv', 'vid' => '20ac7f14', 'r' => 22, 'n' => 48, 'human' => 0 ), array( 'day' => '2026-10-07', 'ev' => 'pv', 'vid' => 'aaaa1111', 'r' => 2, 'n' => 4, 'human' => 1 ) ),
+);
+$capok = array( 'hashes' => array(), 'ok' => true, 'truncated' => false );
+$h = sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $Dh, $capok );
+ok( 'match' === $h['days'][0]['state'] && array( 'pv' ) === $h['days'][0]['human_sample'] && array( '20ac7f14', 'b094de4b' ) === $h['days'][0]['set_aside'] && array() === $h['days'][0]['sampled_events'], 'differences only in visitor-days no human figure counts: a match, with the event and the set-aside visitors named' );
+ok( 'sampled' === sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $Dh )['days'][0]['state'], 'without the over-cap list nothing is set aside' );
+ok( 'sampled' === sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $Dh, array( 'hashes' => array(), 'ok' => false, 'truncated' => false ) )['days'][0]['state'], 'a failed over-cap list sets nothing aside' );
+ok( 'sampled' === sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $Dh, array( 'hashes' => array(), 'ok' => true, 'truncated' => true ) )['days'][0]['state'], 'a cut-short over-cap list sets nothing aside' );
+$Dhh = $Dh; $Dhh['pageviews'][2]['r'] = 3; $Dhh['pageviews'][2]['n'] = 5; $Phh = $Ph; $Phh[0]['n'] = 113; $Phh[0]['r'] = 56;
+ok( 'sampled' === sn_analytics_v2_compare( $Lh, $Phh, array(), '2026-10-05', $Dhh, $capok )['days'][0]['state'], 'a counted human visitor-day sampled differently withholds the match' );
+$Dk = $Dh; $Dk['pageviews'][2]['r'] = 3; $Dk['pageviews'][2]['n'] = 5; // a counted reader one row heavier, one unsampled row lighter: the totals agree.
+ok( 'sampled' === sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $Dk, $capok )['days'][0]['state'], 'equal totals over a counted visitor-day sampled differently are not a match: it is compared visitor by visitor' );
+$Dh1 = $Dh; $Dh1['pageviews'][1]['human'] = 1;
+ok( 'sampled' === sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $Dh1, $capok )['days'][0]['state'], 'a visitor-day human on either side counts: it is not set aside' );
+$Dh2 = $Dh1; $Dh2['legacy'][1]['human'] = 1;
+$hc  = sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $Dh2, array( 'hashes' => array( '20AC7F14' ), 'ok' => true, 'truncated' => false ) );
+ok( 'match' === $hc['days'][0]['state'] && in_array( '20ac7f14', $hc['days'][0]['set_aside'], true ), 'a human visitor-day over the page-view cap is set aside: the human reads exclude it' );
+$Pv2 = $Ph; $Pv2[0]['v'] = 31;
+ok( 'sampled' === sn_analytics_v2_compare( $Lh, $Pv2, array(), '2026-10-05', $Dh, $capok )['days'][0]['state'], 'what is left after setting aside must hold the same visitors too' );
+$Pr = $Ph; $Pr[0]['n'] = 113; $Pr[0]['r'] = 56;
+ok( 'sampled' === sn_analytics_v2_compare( $Lh, $Pr, array(), '2026-10-05', $Dh, $capok )['days'][0]['state'], 'an unsampled row more on one side is not hidden by setting the sampled ones aside' );
+$Dno = $Dh; unset( $Dno['legacy'][0]['human'], $Dno['pageviews'][0]['human'] );
+ok( 'sampled' === sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $Dno, $capok )['days'][0]['state'], 'a row without the human column counts as human: nothing is set aside on a guess' );
+ok( 'mismatch' === sn_analytics_v2_compare( array_merge( $Lh, array( array( 'day' => '2026-10-07', 'ev' => 'vi', 'n' => 2, 'r' => 2, 'v' => 2 ) ) ), $Ph, array(), '2026-10-05', $Dh, $capok )['days'][0]['state'], 'rows on one side and none on the other stay a mismatch' );
+ok( false !== strpos( sn_analytics_v2_sampled_rows_sql( 'sn_pageviews_v2', 4 ), "max(if(blob7 != 'bot' AND (" ), 'the sampled-rows read carries the human rule per visitor and event' );
+$GLOBALS['sql'] = array(); $GLOBALS['answers'] = array( $Lh, $Ph, array(), $Dh['legacy'], $Dh['pageviews'] );
+function sn_analytics_overcap_vdays() { return array( 'hashes' => array(), 'ok' => true, 'truncated' => false ); }
+ok( 'match' === sn_analytics_v2_check( 4, '2026-10-05' )['days'][0]['state'] && 5 === count( $GLOBALS['sql'] ), 'the daily check passes the over-cap list through: five reads, and the rule applies' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
