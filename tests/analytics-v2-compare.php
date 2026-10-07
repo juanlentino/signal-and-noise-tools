@@ -189,7 +189,14 @@ ok( 'mismatch' === sn_analytics_v2_compare( $Lx, $Px3, array(), '2026-10-05' )['
 $Px4 = $Px; $Px4[1]['v'] = 7;
 ok( 'mismatch' === sn_analytics_v2_compare( $Lx, $Px4, array(), '2026-10-05' )['days'][0]['state'], 'visitors three apart are past the allowance too' );
 $Px5 = $Px; $Px5[1]['r'] = 3;
-ok( 'sampled' === sn_analytics_v2_compare( $Lx, $Px5, array(), '2026-10-05' )['days'][0]['state'], 'a sampled side gets no allowance: estimates are not counts' );
+ok( 'match' === sn_analytics_v2_compare( $Lx, $Px5, array(), '2026-10-05' )['days'][0]['state'], 'a sampled side within 2 is allowed too (22.9.4)' );
+$Lv = $Lx; $Lv[1]['r'] = 1; // Oct 6 as stored: one vi row standing for 2 in legacy, none in v2.
+$xv = sn_analytics_v2_compare( $Lv, $Px, array(), '2026-10-05' );
+ok( 'match' === $xv['days'][0]['state'] && in_array( 'vi (pageviews: 2 vs 0, visitors 2 vs 0)', $xv['days'][0]['allowed'], true ), 'Oct 6: one sampled row standing for 2 against none is allowed and named' );
+$Lv3 = $Lv; $Lv3[1]['n'] = 3;
+ok( 'mismatch' === sn_analytics_v2_compare( $Lv3, $Px, array(), '2026-10-05' )['days'][0]['state'], 'an estimate of 3 against none is past the allowance: a mismatch' );
+$Lv4 = $Lx; $Lv4[0]['r'] = 20; $Pv4 = $Px; $Pv4[0]['n'] = 41; $Pv4[0]['r'] = 21;
+ok( 'mismatch' !== sn_analytics_v2_compare( $Lv4, $Pv4, array(), '2026-10-05' )['days'][0]['state'] && array() === array_filter( sn_analytics_v2_compare( $Lv4, $Pv4, array(), '2026-10-05' )['days'][0]['allowed'], static fn( $x ) => 0 === strpos( $x, 'pv' ) ), 'sampled pageviews within 2 still get no allowance' );
 ok( false === sn_analytics_v2_allowed( 'sc', array( 'n' => 5, 'exact' => true, 'v' => 3 ), array( 'n' => 5, 'exact' => true, 'v' => 3 ) ), 'equal sides are not an allowance, just equal' );
 
 echo "\nThe figures a reader sees (owner rule 2026-10-07)\n";

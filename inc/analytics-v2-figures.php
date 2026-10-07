@@ -7,8 +7,8 @@
  * visitor-days included, and drops the odd row on either side with no code
  * difference (writeDataPoint is fire-and-forget). Exact equality is then
  * unreachable on a busy day. Two things are accepted instead, and nothing
- * else: a gap of at most two rows on an exactly counted event other than
- * pageviews, and, on a sampled day, the human figures a reader sees (views
+ * else: a gap of at most two rows on an event other than pageviews, counted
+ * or estimated, and, on a sampled day, the human figures a reader sees (views
  * and visits) agreeing between the datasets within 1% or 2, whichever is
  * larger.
  *
@@ -24,8 +24,10 @@ const SN_ANALYTICS_V2_FIGURE_MARGIN = 0.01; // share a human figure may differ b
 const SN_ANALYTICS_V2_FIGURE_FLOOR  = 2;    // and never less than this many.
 
 /**
- * An exactly counted event whose two sides differ by no more than the
- * allowance. PURE. Pageviews never qualify: they are the figure itself.
+ * An event whose two sides differ by no more than the allowance. PURE.
+ * Pageviews never qualify: they are the figure itself. Since 22.9.4 a side
+ * may be a sampled estimate: Oct 6's `vi` was one stored row standing for 2
+ * against none, independent sampling landing on zero, not a lost row.
  *
  * @param string $ev Event type.
  * @param array  $a  {n, exact, v} one side.
@@ -33,7 +35,7 @@ const SN_ANALYTICS_V2_FIGURE_FLOOR  = 2;    // and never less than this many.
  * @return bool
  */
 function sn_analytics_v2_allowed( $ev, array $a, array $b ) {
-	if ( 'pv' === $ev || empty( $a['exact'] ) || empty( $b['exact'] ) || ( $a['n'] === $b['n'] && $a['v'] === $b['v'] ) ) {
+	if ( 'pv' === $ev || ( $a['n'] === $b['n'] && $a['v'] === $b['v'] ) ) {
 		return false;
 	}
 	return abs( $a['n'] - $b['n'] ) <= SN_ANALYTICS_V2_ROW_ALLOWANCE && abs( $a['v'] - $b['v'] ) <= SN_ANALYTICS_V2_ROW_ALLOWANCE;
