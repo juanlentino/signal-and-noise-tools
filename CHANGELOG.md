@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The 2-row allowance covers an estimate too** (owner rule 2026-10-07). The first live run of the 22.9.3 gate showed Oct 6's `vi` 2 vs 0 was not a lost row: the legacy dataset held one sampled row standing for 2, the new one held none. Independent sampling can land on zero on one side for any small event. An event other than pageviews whose two sides differ by at most 2 (rows and visitors) is now allowed whether either side is counted or estimated. Pageviews still get no allowance, and a gap of 3 is still a mismatch.
+
 ## [22.9.3] - 2026-10-07 — the analytics 2.0 gate checks that the figures agree
 
 ### Changed
