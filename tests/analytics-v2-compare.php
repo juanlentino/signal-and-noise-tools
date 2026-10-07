@@ -204,6 +204,7 @@ ok( 'match' === sn_analytics_v2_compare( $Lf, $Pf, array(), '2026-10-05', null, 
 ok( 'sampled' === sn_analytics_v2_compare( $Lf, $Pf, array(), '2026-10-05' )['days'][0]['state'], 'figures not read: not a match' );
 ok( 'sampled' === sn_analytics_v2_compare( $Lf, $Pf, array(), '2026-10-05', null, null, array( 'legacy' => array(), 'pageviews' => null ) )['days'][0]['state'], 'one side of the figures failed: not a match' );
 ok( 'sampled' === sn_analytics_v2_compare( $Lf, $Pf, array(), '2026-10-05', null, null, $F( 0, 0, 0, 0 ) )['days'][0]['state'], 'no human views on either side proves nothing' );
+ok( true === sn_analytics_v2_day_figures( $F( 0, 0, 2, 1 ), '2026-10-07' )['agree'] && false === sn_analytics_v2_day_figures( $F( 0, 0, 3, 1 ), '2026-10-07' )['agree'], 'none on one side: within the floor of 2 agrees, 3 does not (a pageview gap of that kind is a differs first)' );
 $Pg = array_merge( $Pf, array( array( 'day' => '2026-10-07', 'ev' => 'tm', 'n' => 9, 'r' => 9, 'v' => 5 ) ) );
 ok( 'mismatch' === sn_analytics_v2_compare( $Lf, $Pg, array(), '2026-10-05', null, null, $F( 500, 120, 500, 120 ) )['days'][0]['state'], 'agreeing figures do not cover a gap past the allowance' );
 ok( false !== strpos( sn_analytics_v2_figures_sql( 'sn_pageviews_v2', 4, array( 'abcdef12' ) ), "FROM sn_pageviews_v2 WHERE timestamp >= toStartOfDay(now() - INTERVAL '3' DAY) AND blob1 = 'pv' AND " ) && false !== strpos( sn_analytics_v2_figures_sql( 'x', 4, array() ), 'FROM sn_pageviews ' ), 'the figure read: pageviews only, the human rule, an unknown dataset falls back' );

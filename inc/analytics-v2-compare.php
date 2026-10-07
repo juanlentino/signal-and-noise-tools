@@ -263,6 +263,8 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day,
 		} elseif ( array() !== $sampled && null !== $fig && $fig['agree'] ) {
 			// Owner rule 2026-10-07: sampled differently, but the human figures
 			// a reader sees agree within the margin. That is what 2.0 must keep.
+			// The figures read the pageview datasets only: they never vouch for
+			// sn_events_v2, which stays proven by an exact `ce` (events_proven).
 			$state = 'match';
 		} else {
 			$state = 'sampled';
