@@ -175,6 +175,7 @@ require_once SNT_PATH . 'inc/analytics-sources.php'; // v6.25.0: referrer host â
 require_once SNT_PATH . 'inc/analytics-dims.php';   // referrer/country/device + edge dimension breakdowns
 require_once SNT_PATH . 'inc/analytics-utm.php';    // v9.28.0: UTM campaign attribution (packed blob20 â†’ Source/Medium + Campaign)
 require_once SNT_PATH . 'inc/analytics-generation.php'; // which Analytics Engine dataset a read uses.
+require_once SNT_PATH . 'inc/analytics-v2-figures.php'; // what the v2 check accepts when exact equality is unreachable (owner rule 2026-10-07).
 require_once SNT_PATH . 'inc/analytics-v2-compare.php'; // the dual-write check for the second-generation datasets (worker 1.24.0).
 require_once SNT_PATH . 'inc/analytics-events.php'; // v6.2.0: custom-events table install + read accessors
 require_once SNT_PATH . 'inc/analytics-events-rollup.php'; // v6.10.0: live ce/cp rollups feeding the events tables
