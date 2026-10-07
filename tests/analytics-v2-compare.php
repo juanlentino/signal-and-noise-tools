@@ -28,7 +28,7 @@ $E = array( array( 'day' => '2026-10-05', 'ev' => 'ce', 'n' => 5, 'with_pid' => 
 $c = sn_analytics_v2_compare( $L, $P, $E, '2026-10-05' );
 ok( true === $c['ok'] && true === $c['read'] && 0 === $c['mismatched'], 'equal counts from the first full day on: ok' );
 ok( 'partial' === $c['days'][0]['state'] && 69 === $c['days'][0]['legacy_pageview_side'] && 4 === $c['days'][0]['v2_pageviews'], 'the day the dual write began is partial, not a mismatch, and still shows both counts' );
-ok( array( 'day' => '2026-10-05', 'legacy_pageview_side' => 125, 'v2_pageviews' => 125, 'legacy_events' => 12, 'v2_events' => 12, 'with_pid' => 135, 'sampled' => false, 'sampled_events' => array(), 'identical_sample' => array(), 'human_sample' => array(), 'set_aside' => array(), 'differs' => array(), 'events_proven' => true, 'state' => 'match' ) === $c['days'][1], 'every legacy row but cp against the pageviews dataset, ce and cp against the events dataset: a ce row counts on both sides' );
+ok( array( 'day' => '2026-10-05', 'legacy_pageview_side' => 125, 'v2_pageviews' => 125, 'legacy_events' => 12, 'v2_events' => 12, 'with_pid' => 135, 'sampled' => false, 'sampled_events' => array(), 'identical_sample' => array(), 'human_sample' => array(), 'set_aside' => array(), 'sampled_why' => array(), 'differs' => array(), 'events_proven' => true, 'state' => 'match' ) === $c['days'][1], 'every legacy row but cp against the pageviews dataset, ce and cp against the events dataset: a ce row counts on both sides' );
 $noce = array_slice( $P, 0, 3 );
 ok( 'mismatch' === sn_analytics_v2_compare( $L, $noce, $E, '2026-10-05' )['days'][1]['state'], 'a pageviews dataset missing the custom events\' base rows is a mismatch (the worker 1.24.0 shape)' );
 $P2 = $P; $P2[1]['n'] = 39;
@@ -164,6 +164,17 @@ ok( false !== strpos( sn_analytics_v2_sampled_rows_sql( 'sn_pageviews_v2', 4 ), 
 $GLOBALS['sql'] = array(); $GLOBALS['answers'] = array( $Lh, $Ph, array(), $Dh['legacy'], $Dh['pageviews'] );
 function sn_analytics_overcap_vdays() { return array( 'hashes' => array(), 'ok' => true, 'truncated' => false ); }
 ok( 'match' === sn_analytics_v2_check( 4, '2026-10-05' )['days'][0]['state'] && 5 === count( $GLOBALS['sql'] ), 'the daily check passes the over-cap list through: five reads, and the rule applies' );
+
+echo "\nWhy an event stays sampled (diagnostic, 2026-10-07)\n";
+$w = static fn( $c ) => $c['days'][0]['sampled_why'];
+ok( array( 'pv: no complete over-cap list' ) === $w( sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $Dh ) ), 'no over-cap list: said' );
+$D1 = $Dh; $D1['pageviews'] = array();
+ok( 1 === preg_match( '/^pv: no sampled visitor-day read on v2 /', $w( sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $D1, $capok ) )[0] ?? '' ), 'sampled on one side only: names the side with no sampled rows' );
+$Dall = $Dh; foreach ( array( 'legacy', 'pageviews' ) as $sd ) { foreach ( $Dall[ $sd ] as $i => $row ) { $Dall[ $sd ][ $i ]['human'] = 1; } }
+ok( 1 === preg_match( '/^pv: every sampled visitor-day is counted/', $w( sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $Dall, $capok ) )[0] ?? '' ), 'nothing to set aside: said' );
+ok( array( 'pv: counted visitor-days differ (rows:weighted, legacy vs v2): aaaa1111 2:4 vs 3:5' ) === $w( sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $Dk, $capok ) ), 'a counted visitor-day that differs is named with both readings' );
+ok( array( 'pv: what is left after setting aside differs in total (legacy n 24, r 22, v 28 vs v2 n 25, r 23, v 28)' ) === $w( sn_analytics_v2_compare( $Lh, $Pr, array(), '2026-10-05', $Dh, $capok ) ), 'totals that disagree after setting aside: both sides given' );
+ok( array() === $w( sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $Dh, $capok ) ), 'a match says nothing' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
