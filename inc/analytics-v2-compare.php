@@ -65,9 +65,10 @@ function sn_analytics_v2_count_sql( $dataset, $days, $pid = false ) {
  * @param string     $first_full_day YYYY-MM-DD, from the worker's /_sn/version.
  * @param array|null $detail         Sampled rows per side {legacy, pageviews}: sn_analytics_v2_sampled_rows_sql() rows; null when not read (no identical-sample match is then possible).
  * @param array|null $over_cap       sn_analytics_overcap_vdays() {hashes, ok, truncated}; null, failed or cut short: no sample is set aside.
+ * @param array|null $figures        Human figures per side {legacy, pageviews}: sn_analytics_v2_figures_sql() rows; null when not read.
  * @return array{ok:bool,read:bool,days:array<int,array<string,mixed>>,mismatched:int}
  */
-function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day, $detail = null, $over_cap = null ) {
+function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day, $detail = null, $over_cap = null, $figures = null ) {
 	if ( ! is_array( $legacy ) || ! is_array( $pageviews ) || ! is_array( $events ) ) {
 		return array( 'ok' => false, 'read' => false, 'days' => array(), 'mismatched' => 0 );
 	}
@@ -192,7 +193,8 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day,
 			}
 			return array( 'vids' => array_keys( $x ) );
 		};
-		$why = array();
+		$why     = array();
+		$allowed = array();
 		$set_aside = array();
 		$human_ev  = array();
 		foreach ( array_unique( array_merge( array_keys( $l ), array_keys( $p ) ) ) as $ev ) {
@@ -211,7 +213,12 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day,
 		foreach ( $pairs as list( $ev, $a, $b, $side ) ) {
 			$a = $a ?? array( 'n' => 0, 'exact' => true, 'v' => 0, 'r' => 0 );
 			$b = $b ?? array( 'n' => 0, 'exact' => true, 'v' => 0, 'r' => 0 );
-			if ( ( 0 === $a['n'] ) !== ( 0 === $b['n'] ) ) {
+			if ( sn_analytics_v2_allowed( $ev, $a, $b ) ) {
+				// Owner rule 2026-10-07: Analytics Engine drops the odd row on
+				// either side; up to two on an exact non-pageview event is named, not a finding.
+				++$exact;
+				$allowed[] = $ev . ' (' . $side . ': ' . $a['n'] . ' vs ' . $b['n'] . ( $a['v'] !== $b['v'] ? ', visitors ' . $a['v'] . ' vs ' . $b['v'] : '' ) . ')';
+			} elseif ( ( 0 === $a['n'] ) !== ( 0 === $b['n'] ) ) {
 				// Rows on one side and none on the other is a finding whatever the
 				// sampling: an estimate can be off, it cannot be of nothing.
 				$differs[] = $ev . ' (' . $side . ': ' . $a['n'] . ' vs ' . $b['n'] . ')';
@@ -243,6 +250,7 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day,
 		// The events dataset is proven only by a custom event counted exactly in
 		// both: a day with no custom events says nothing about it.
 		$ev_exact = isset( $l['ce'], $e['ce'] ) && $l['ce']['exact'] && $e['ce']['exact'] && $l['ce']['n'] === $e['ce']['n'] && $l['ce']['n'] > 0; // a match already means cp, where present, was exact and equal too.
+		$fig = sn_analytics_v2_day_figures( $figures, $day );
 		if ( $day < (string) $first_full_day ) {
 			$state = 'partial';
 		} elseif ( $differs ) {
@@ -251,6 +259,10 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day,
 			// Every event type read from these datasets was counted exactly and
 			// agrees. One sampled type is enough to withhold the match: its
 			// counts are estimates, and the rollups read that type too.
+			$state = 'match';
+		} elseif ( array() !== $sampled && null !== $fig && $fig['agree'] ) {
+			// Owner rule 2026-10-07: sampled differently, but the human figures
+			// a reader sees agree within the margin. That is what 2.0 must keep.
 			$state = 'match';
 		} else {
 			$state = 'sampled';
@@ -275,6 +287,10 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day,
 			'set_aside'            => array_values( array_unique( $set_aside ) ),
 			// Per event still `sampled`: why the set-aside rule did not match it.
 			'sampled_why'          => array_values( array_unique( $why ) ),
+			// Exact non-pageview gaps within the allowance, named.
+			'allowed'              => $allowed,
+			// Human views and visits per dataset, read on a sampled day; null when not read.
+			'figures'              => $fig,
 			'differs'              => $differs,
 			'events_proven'        => 'match' === $state && $ev_exact,
 			'state'                => $state,
@@ -317,8 +333,17 @@ function sn_analytics_v2_check( $days = 4, $first_full_day = '2026-10-05' ) {
 			'pageviews' => sn_analytics_query( sn_analytics_v2_sampled_rows_sql( SN_ANALYTICS_DATASET_PV_V2, $days ) ),
 		);
 		$cap = function_exists( 'sn_analytics_overcap_vdays' ) ? (array) sn_analytics_overcap_vdays() : null; // cached an hour.
+		// The human figures from each side, only under a complete over-cap list:
+		// without it the human rule cannot be applied as every figure applies it.
+		if ( is_array( $cap ) && ! empty( $cap['ok'] ) && empty( $cap['truncated'] ) ) {
+			$hashes  = (array) ( $cap['hashes'] ?? array() );
+			$figures = array(
+				'legacy'    => sn_analytics_query( sn_analytics_v2_figures_sql( SN_ANALYTICS_DATASET, $days, $hashes ) ),
+				'pageviews' => sn_analytics_query( sn_analytics_v2_figures_sql( SN_ANALYTICS_DATASET_PV_V2, $days, $hashes ) ),
+			);
+		}
 	}
-	return sn_analytics_v2_compare( $read[0] ?? null, $read[1] ?? null, $read[2] ?? null, $first_full_day, $detail, $cap )
+	return sn_analytics_v2_compare( $read[0] ?? null, $read[1] ?? null, $read[2] ?? null, $first_full_day, $detail, $cap, $figures ?? null )
 		+ $fail + array( 'first_full_day' => (string) $first_full_day, 'datasets' => $sets );
 }
 
@@ -460,7 +485,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/analytics-dual-write', array(
 		'label'               => 'Analytics: do the new datasets hold what the old one holds?',
-		'description'         => 'The analytics worker (1.24.0 and later) writes every beacon to the legacy dataset and to two second-generation datasets. This counts rows per UTC day in all three (three live Analytics Engine requests) and compares them: every legacy row except property rows (`cp`) against sn_pageviews_v2, and custom events with their property rows against sn_events_v2 (the base row of a custom event is in both, by design, since worker 1.25.0). `state` per day: `partial` before `first_full_day` (the dual write began mid-day; a shortfall there is expected), then `match` or `mismatch`. `with_pid` is how many new rows carry a pageview ID (theme 15.3.0 and later). `read: false` means a request failed and nothing was compared (`failed` names the dataset, `error` the reason); it is NOT a mismatch. The comparison is event by event; `differs` names the events whose exact counts disagree. `sampled` means Analytics Engine sampled some events that day (`sampled_events`): those are estimates, and an event type both pageview datasets sampled identically (the same sampled visitor-days with the same stored rows and weights, read visitor by visitor) counts as exact and is listed in `identical_sample`; a day with any event sampled DIFFERENTLY is `sampled`, never `match`, unless the difference lies only in visitor-days no human figure counts (no human row for that event, or over the page-view cap, with a complete over-cap list): then the event is listed in `human_sample`, those visitor-days in `set_aside`; an event that stays sampled says why in `sampled_why` (no over-cap list, sampled on one side only, nothing to set aside, the counted visitor-days that differ, or the totals left after setting aside), and what is left must be identical visitor by visitor and in its totals (owner rule 2026-10-07; the bot and suspect figures for that event are then estimates that may differ); on such a day `sampled_visitors` names the sampled visitor-days per dataset (rows stored vs rows they stand for), whether each holds rows the human reads count (the read-time rule) and whether it is over the page-view cap, and `counted_human`. `conclusive: false` (a failed or cut-short read, or no over-cap list) makes `counted_human` null: unknown, neither a floor nor a ceiling. It is a separate query: Analytics Engine picks a read resolution per query, so it shows the rows as this read saw them. `verdict` is the stored answer of the daily check ({ok, day, at, why}; empty until it has run): while `ok` is true, every read whose window starts on or after `first_full_day` uses the new datasets, and a mismatch sends them all back to the old one. Read-only.',
+		'description'         => 'The analytics worker (1.24.0 and later) writes every beacon to the legacy dataset and to two second-generation datasets. This counts rows per UTC day in all three (three live Analytics Engine requests) and compares them: every legacy row except property rows (`cp`) against sn_pageviews_v2, and custom events with their property rows against sn_events_v2 (the base row of a custom event is in both, by design, since worker 1.25.0). `state` per day: `partial` before `first_full_day` (the dual write began mid-day; a shortfall there is expected), then `match` or `mismatch`. `with_pid` is how many new rows carry a pageview ID (theme 15.3.0 and later). `read: false` means a request failed and nothing was compared (`failed` names the dataset, `error` the reason); it is NOT a mismatch. The comparison is event by event; `differs` names the events whose exact counts disagree. `sampled` means Analytics Engine sampled some events that day (`sampled_events`): those are estimates, and an event type both pageview datasets sampled identically (the same sampled visitor-days with the same stored rows and weights, read visitor by visitor) counts as exact and is listed in `identical_sample`; a day with any event sampled DIFFERENTLY is `sampled`, never `match`, unless the difference lies only in visitor-days no human figure counts (no human row for that event, or over the page-view cap, with a complete over-cap list): then the event is listed in `human_sample`, those visitor-days in `set_aside`; an event that stays sampled says why in `sampled_why` (no over-cap list, sampled on one side only, nothing to set aside, the counted visitor-days that differ, or the totals left after setting aside), and what is left must be identical visitor by visitor and in its totals (owner rule 2026-10-07; the bot and suspect figures for that event are then estimates that may differ); since owner rule 2026-10-07 two things are accepted besides: an exactly counted event other than pageviews whose sides differ by at most 2 rows (and 2 visitors) is listed in `allowed`, not `differs`; and a sampled day whose human views and visits, read from each pageview dataset under the human rule, agree within 1% or 2 (whichever is larger) is a `match`, with both readings in `figures` (null when not read; they are read only with a complete over-cap list); on such a day `sampled_visitors` names the sampled visitor-days per dataset (rows stored vs rows they stand for), whether each holds rows the human reads count (the read-time rule) and whether it is over the page-view cap, and `counted_human`. `conclusive: false` (a failed or cut-short read, or no over-cap list) makes `counted_human` null: unknown, neither a floor nor a ceiling. It is a separate query: Analytics Engine picks a read resolution per query, so it shows the rows as this read saw them. `verdict` is the stored answer of the daily check ({ok, day, at, why}; empty until it has run): while `ok` is true, every read whose window starts on or after `first_full_day` uses the new datasets, and a mismatch sends them all back to the old one. Read-only.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_analytics_dual_write',

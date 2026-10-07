@@ -13,6 +13,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 function add_action() {}
 $GLOBALS['sql'] = array(); $GLOBALS['answers'] = array();
 function sn_analytics_query( $sql ) { $GLOBALS['sql'][] = $sql; return array_shift( $GLOBALS['answers'] ); }
+require __DIR__ . '/../inc/analytics-v2-figures.php';
 require __DIR__ . '/../inc/analytics-v2-compare.php';
 
 echo "\nThe statement\n";
@@ -28,7 +29,7 @@ $E = array( array( 'day' => '2026-10-05', 'ev' => 'ce', 'n' => 5, 'with_pid' => 
 $c = sn_analytics_v2_compare( $L, $P, $E, '2026-10-05' );
 ok( true === $c['ok'] && true === $c['read'] && 0 === $c['mismatched'], 'equal counts from the first full day on: ok' );
 ok( 'partial' === $c['days'][0]['state'] && 69 === $c['days'][0]['legacy_pageview_side'] && 4 === $c['days'][0]['v2_pageviews'], 'the day the dual write began is partial, not a mismatch, and still shows both counts' );
-ok( array( 'day' => '2026-10-05', 'legacy_pageview_side' => 125, 'v2_pageviews' => 125, 'legacy_events' => 12, 'v2_events' => 12, 'with_pid' => 135, 'sampled' => false, 'sampled_events' => array(), 'identical_sample' => array(), 'human_sample' => array(), 'set_aside' => array(), 'sampled_why' => array(), 'differs' => array(), 'events_proven' => true, 'state' => 'match' ) === $c['days'][1], 'every legacy row but cp against the pageviews dataset, ce and cp against the events dataset: a ce row counts on both sides' );
+ok( array( 'day' => '2026-10-05', 'legacy_pageview_side' => 125, 'v2_pageviews' => 125, 'legacy_events' => 12, 'v2_events' => 12, 'with_pid' => 135, 'sampled' => false, 'sampled_events' => array(), 'identical_sample' => array(), 'human_sample' => array(), 'set_aside' => array(), 'sampled_why' => array(), 'allowed' => array(), 'figures' => null, 'differs' => array(), 'events_proven' => true, 'state' => 'match' ) === $c['days'][1], 'every legacy row but cp against the pageviews dataset, ce and cp against the events dataset: a ce row counts on both sides' );
 $noce = array_slice( $P, 0, 3 );
 ok( 'mismatch' === sn_analytics_v2_compare( $L, $noce, $E, '2026-10-05' )['days'][1]['state'], 'a pageviews dataset missing the custom events\' base rows is a mismatch (the worker 1.24.0 shape)' );
 $P2 = $P; $P2[1]['n'] = 39;
@@ -41,7 +42,7 @@ $m = sn_analytics_v2_compare( $L, $S, $E, '2026-10-05' );
 ok( true === $m['ok'] && 0 === $m['mismatched'] && 'sampled' === $m['days'][1]['state'] && true === $m['days'][1]['sampled'], 'unequal counts on a sampled day are inconclusive, not a mismatch' );
 $X = $P; $X[1]['r'] = 40;
 ok( 'match' === sn_analytics_v2_compare( $L, $X, $E, '2026-10-05' )['days'][1]['state'], 'rows that each stand for themselves (r equals n) are exact' );
-$comp = $P; $comp[1]['n'] = 39; $comp[2]['n'] = 81; // one pageview short, one scroll event over: the totals still agree.
+$comp = $P; $comp[1]['n'] = 37; $comp[2]['n'] = 83; // three pageviews short, three scroll events over: the totals still agree.
 $m = sn_analytics_v2_compare( $L, $comp, $E, '2026-10-05' );
 ok( 'mismatch' === $m['days'][1]['state'] && $m['days'][1]['legacy_pageview_side'] === $m['days'][1]['v2_pageviews'] && 2 === count( $m['days'][1]['differs'] ), 'two errors that cancel in the total are still a mismatch: the comparison is event by event' );
 $eq = $P; $eq[1]['r'] = 20; // equal estimates, but the pageviews were sampled.
@@ -103,7 +104,7 @@ $rq = sn_analytics_v2_sampled_rows_sql( 'sn_pageviews_v2', 4 );
 ok( false !== strpos( $rq, 'GROUP BY day, ev, vid LIMIT ' . ( SN_ANALYTICS_V2_SAMPLED_ROWS_MAX + 1 ) ) && false !== strpos( $rq, 'AND _sample_interval > 1' ) && false !== strpos( sn_analytics_v2_sampled_rows_sql( 'sn_events_v2', 4 ), 'FROM sn_pageviews ' ), 'the sampled-rows read: per day, event and visitor, bounded, pageview datasets only' );
 $Pv = $Ps; $Pv[0]['v'] = 19;
 ok( 'sampled' === sn_analytics_v2_compare( $Ls, $Pv, array(), '2026-10-05', $D )['days'][0]['state'], 'same rows and weights over different visitors: not identical' );
-$Pn = $Ps; $Pn[1]['n'] = 31; $Pn[1]['r'] = 31;
+$Pn = $Ps; $Pn[1]['n'] = 33; $Pn[1]['r'] = 33;
 ok( 'mismatch' === sn_analytics_v2_compare( $Ls, $Pn, array(), '2026-10-05', $D )['days'][0]['state'], 'an exact event that differs is still a mismatch beside an identical sample' );
 
 echo "\nWho was sampled (diagnostic)\n";
@@ -159,11 +160,11 @@ $Pr = $Ph; $Pr[0]['n'] = 113; $Pr[0]['r'] = 56;
 ok( 'sampled' === sn_analytics_v2_compare( $Lh, $Pr, array(), '2026-10-05', $Dh, $capok )['days'][0]['state'], 'an unsampled row more on one side is not hidden by setting the sampled ones aside' );
 $Dno = $Dh; unset( $Dno['legacy'][0]['human'], $Dno['pageviews'][0]['human'] );
 ok( 'sampled' === sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $Dno, $capok )['days'][0]['state'], 'a row without the human column counts as human: nothing is set aside on a guess' );
-ok( 'mismatch' === sn_analytics_v2_compare( array_merge( $Lh, array( array( 'day' => '2026-10-07', 'ev' => 'vi', 'n' => 2, 'r' => 2, 'v' => 2 ) ) ), $Ph, array(), '2026-10-05', $Dh, $capok )['days'][0]['state'], 'rows on one side and none on the other stay a mismatch' );
+ok( 'mismatch' === sn_analytics_v2_compare( array_merge( $Lh, array( array( 'day' => '2026-10-07', 'ev' => 'vi', 'n' => 3, 'r' => 3, 'v' => 3 ) ) ), $Ph, array(), '2026-10-05', $Dh, $capok )['days'][0]['state'], 'rows on one side and none on the other, past the allowance, stay a mismatch' );
 ok( false !== strpos( sn_analytics_v2_sampled_rows_sql( 'sn_pageviews_v2', 4 ), "max(if(blob7 != 'bot' AND (" ), 'the sampled-rows read carries the human rule per visitor and event' );
-$GLOBALS['sql'] = array(); $GLOBALS['answers'] = array( $Lh, $Ph, array(), $Dh['legacy'], $Dh['pageviews'] );
-function sn_analytics_overcap_vdays() { return array( 'hashes' => array(), 'ok' => true, 'truncated' => false ); }
-ok( 'match' === sn_analytics_v2_check( 4, '2026-10-05' )['days'][0]['state'] && 5 === count( $GLOBALS['sql'] ), 'the daily check passes the over-cap list through: five reads, and the rule applies' );
+$GLOBALS['sql'] = array(); $GLOBALS['answers'] = array( $Lh, $Ph, array(), $Dh['legacy'], $Dh['pageviews'], array(), array() );
+function sn_analytics_overcap_vdays() { return $GLOBALS['cap'] ?? array( 'hashes' => array(), 'ok' => true, 'truncated' => false ); }
+ok( 'match' === sn_analytics_v2_check( 4, '2026-10-05' )['days'][0]['state'] && 7 === count( $GLOBALS['sql'] ), 'the daily check passes the over-cap list through: seven reads with the two figure reads, and the rule applies' );
 
 echo "\nWhy an event stays sampled (diagnostic, 2026-10-07)\n";
 $w = static fn( $c ) => $c['days'][0]['sampled_why'];
@@ -175,6 +176,41 @@ ok( 1 === preg_match( '/^pv: every sampled visitor-day is counted/', $w( sn_anal
 ok( array( 'pv: counted visitor-days differ (rows:weighted, legacy vs v2): aaaa1111 2:4 vs 3:5' ) === $w( sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $Dk, $capok ) ), 'a counted visitor-day that differs is named with both readings' );
 ok( array( 'pv: what is left after setting aside differs in total (legacy n 24, r 22, v 28 vs v2 n 25, r 23, v 28)' ) === $w( sn_analytics_v2_compare( $Lh, $Pr, array(), '2026-10-05', $Dh, $capok ) ), 'totals that disagree after setting aside: both sides given' );
 ok( array() === $w( sn_analytics_v2_compare( $Lh, $Ph, array(), '2026-10-05', $Dh, $capok ) ), 'a match says nothing' );
+
+echo "\nThe row allowance (owner rule 2026-10-07)\n";
+$Lx = array( array( 'day' => '2026-10-06', 'ev' => 'pv', 'n' => 40, 'r' => 40, 'v' => 20 ), array( 'day' => '2026-10-06', 'ev' => 'vi', 'n' => 2, 'r' => 2, 'v' => 2 ), array( 'day' => '2026-10-06', 'ev' => 'tm', 'n' => 6, 'r' => 6, 'v' => 4 ) );
+$Px = array( array( 'day' => '2026-10-06', 'ev' => 'pv', 'n' => 40, 'r' => 40, 'v' => 20 ), array( 'day' => '2026-10-06', 'ev' => 'tm', 'n' => 7, 'r' => 7, 'v' => 5 ) );
+$x  = sn_analytics_v2_compare( $Lx, $Px, array(), '2026-10-05' );
+ok( 'match' === $x['days'][0]['state'] && array( 'vi (pageviews: 2 vs 0, visitors 2 vs 0)', 'tm (pageviews: 6 vs 7, visitors 4 vs 5)' ) === $x['days'][0]['allowed'], 'Oct 5 and Oct 6 shaped gaps (tm one over, vi two missing) are allowed and named, and the day matches' );
+$Px2 = $Px; $Px2[0]['n'] = 39; $Px2[0]['r'] = 39;
+ok( 'mismatch' === sn_analytics_v2_compare( $Lx, $Px2, array(), '2026-10-05' )['days'][0]['state'], 'pageviews get no allowance: one short is a mismatch' );
+$Px3 = $Px; $Px3[1]['n'] = 9; $Px3[1]['r'] = 9;
+ok( 'mismatch' === sn_analytics_v2_compare( $Lx, $Px3, array(), '2026-10-05' )['days'][0]['state'], 'three rows over the allowance is a mismatch' );
+$Px4 = $Px; $Px4[1]['v'] = 7;
+ok( 'mismatch' === sn_analytics_v2_compare( $Lx, $Px4, array(), '2026-10-05' )['days'][0]['state'], 'visitors three apart are past the allowance too' );
+$Px5 = $Px; $Px5[1]['r'] = 3;
+ok( 'sampled' === sn_analytics_v2_compare( $Lx, $Px5, array(), '2026-10-05' )['days'][0]['state'], 'a sampled side gets no allowance: estimates are not counts' );
+ok( false === sn_analytics_v2_allowed( 'sc', array( 'n' => 5, 'exact' => true, 'v' => 3 ), array( 'n' => 5, 'exact' => true, 'v' => 3 ) ), 'equal sides are not an allowance, just equal' );
+
+echo "\nThe figures a reader sees (owner rule 2026-10-07)\n";
+$Lf = array( array( 'day' => '2026-10-07', 'ev' => 'pv', 'n' => 2028, 'r' => 900, 'v' => 300 ), array( 'day' => '2026-10-07', 'ev' => 'sc', 'n' => 400, 'r' => 200, 'v' => 100 ) );
+$Pf = array( array( 'day' => '2026-10-07', 'ev' => 'pv', 'n' => 2028, 'r' => 905, 'v' => 300 ), array( 'day' => '2026-10-07', 'ev' => 'sc', 'n' => 404, 'r' => 202, 'v' => 100 ) );
+$F  = static fn( $lv, $lvis, $pv, $pvis ) => array( 'legacy' => array( array( 'day' => '2026-10-07', 'views' => $lv, 'visits' => $lvis ) ), 'pageviews' => array( array( 'day' => '2026-10-07', 'views' => $pv, 'visits' => $pvis ) ) );
+$f  = sn_analytics_v2_compare( $Lf, $Pf, array(), '2026-10-05', null, null, $F( 500, 120, 504, 121 ) );
+ok( 'match' === $f['days'][0]['state'] && array( 'legacy' => array( 'views' => 500, 'visits' => 120 ), 'v2' => array( 'views' => 504, 'visits' => 121 ), 'agree' => true ) === $f['days'][0]['figures'] && array( 'pv', 'sc' ) === $f['days'][0]['sampled_events'], 'sampled differently, human views and visits within 1%: a match, figures shown, sampled events still named' );
+ok( 'sampled' === sn_analytics_v2_compare( $Lf, $Pf, array(), '2026-10-05', null, null, $F( 500, 120, 507, 121 ) )['days'][0]['state'] && 'match' === sn_analytics_v2_compare( $Lf, $Pf, array(), '2026-10-05', null, null, $F( 500, 120, 506, 121 ) )['days'][0]['state'], 'views: 6 apart on 506 is within 1% rounded up (6), 7 apart on 507 is not' );
+ok( 'sampled' === sn_analytics_v2_compare( $Lf, $Pf, array(), '2026-10-05', null, null, $F( 500, 120, 500, 123 ) )['days'][0]['state'], 'visits past the floor of 2: not a match' );
+ok( 'match' === sn_analytics_v2_compare( $Lf, $Pf, array(), '2026-10-05', null, null, $F( 40, 10, 42, 12 ) )['days'][0]['state'], 'a small day may differ by 2 (the floor)' );
+ok( 'sampled' === sn_analytics_v2_compare( $Lf, $Pf, array(), '2026-10-05' )['days'][0]['state'], 'figures not read: not a match' );
+ok( 'sampled' === sn_analytics_v2_compare( $Lf, $Pf, array(), '2026-10-05', null, null, array( 'legacy' => array(), 'pageviews' => null ) )['days'][0]['state'], 'one side of the figures failed: not a match' );
+ok( 'sampled' === sn_analytics_v2_compare( $Lf, $Pf, array(), '2026-10-05', null, null, $F( 0, 0, 0, 0 ) )['days'][0]['state'], 'no human views on either side proves nothing' );
+$Pg = array_merge( $Pf, array( array( 'day' => '2026-10-07', 'ev' => 'tm', 'n' => 9, 'r' => 9, 'v' => 5 ) ) );
+ok( 'mismatch' === sn_analytics_v2_compare( $Lf, $Pg, array(), '2026-10-05', null, null, $F( 500, 120, 500, 120 ) )['days'][0]['state'], 'agreeing figures do not cover a gap past the allowance' );
+ok( false !== strpos( sn_analytics_v2_figures_sql( 'sn_pageviews_v2', 4, array( 'abcdef12' ) ), "FROM sn_pageviews_v2 WHERE timestamp >= toStartOfDay(now() - INTERVAL '3' DAY) AND blob1 = 'pv' AND " ) && false !== strpos( sn_analytics_v2_figures_sql( 'x', 4, array() ), 'FROM sn_pageviews ' ), 'the figure read: pageviews only, the human rule, an unknown dataset falls back' );
+$GLOBALS['sql'] = array(); $GLOBALS['answers'] = array( $Lh, $Ph, array(), $Dh['legacy'], $Dh['pageviews'] ); $GLOBALS['cap'] = array( 'hashes' => array(), 'ok' => false, 'truncated' => false );
+sn_analytics_v2_check( 4, '2026-10-05' );
+ok( 5 === count( $GLOBALS['sql'] ), 'without a complete over-cap list the figures are not read' );
+unset( $GLOBALS['cap'] );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
