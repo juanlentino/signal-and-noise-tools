@@ -43,6 +43,9 @@ foreach ( array( '', 'not json', '{"pages":0,"checked":0,"links":0}', '{"pages":
 	ok( 'unknown' === snt_contrast_rendered_evaluate( $run( 'success' ), array( array( 'annotation_level' => 'notice', 'title' => 'contrast-summary', 'message' => $bad ) ) )['state'], "a malformed or empty summary is not a pass: '$bad'" );
 }
 $inc = snt_contrast_rendered_evaluate( $run( 'success' ), array() );
+$mal = snt_contrast_rendered_evaluate( $run( 'success' ), array( array( 'annotation_level' => 'notice', 'title' => 'contrast-summary', 'message' => '{"pages":[1],"checked":1,"links":1}' ) ) );
+$mh  = snt_contrast_rendered_html( $mal, 'snt-hint' );
+ok( 'malformed' === $mal['reason'] && false !== strpos( $mh, 'cannot read' ) && false === strpos( $mh, 'could not measure' ), 'a summary present but unusable says so, not the exit-2 diagnosis' );
 ok( 'inconclusive' === $inc['reason'], 'a green run without a summary carries the reason: inconclusive, not an API outage' );
 $h = snt_contrast_rendered_html( $inc, 'snt-hint' );
 ok( false !== strpos( $h, 'could not measure' ) && false === strpos( $h, 'GitHub API did not answer' ) && false !== strpos( $h, 'actions/runs/1' ), 'an inconclusive run says it could not measure and links the run, and does not blame the API' );

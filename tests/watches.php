@@ -157,6 +157,10 @@ ok( true === $ad( '0.7.0' )['ripe'] && true === $ad( '1.0.0' )['ripe'], '0.7.0, 
 ok( false === $ad( '0.7.0-beta1' )['ripe'], 'a 0.7.0 pre-release does not count' );
 $ids = array_column( snt_watches(), 'id' );
 ok( in_array( 'connector_key_wipe_65551', $ids, true ) && in_array( 'mcp_adapter_read_door', $ids, true ), 'both watches are registered' );
+// #1625: the Secrets API watch ripens on the function, never the clock.
+ok( in_array( 'secrets_api_keyring_storage', $ids, true ), 'the Secrets API keyring watch is registered (#1625)' );
+ok( false === snt_watch_ripe_secrets_api( array(), 0, false )['ripe'] && true === snt_watch_ripe_secrets_api( array(), 0, true )['ripe'], 'it is pending without wp_set_secret and ripe with it' );
+ok( false === snt_watch_ripe_secrets_api( array(), 0 )['ripe'], 'on this machine (WordPress 7.1 shape, no wp_set_secret) it reads pending' );
 $gs = static function ( $init, $general ) { return snt_watch_ripe_general_save_guard( array(), 0, array( 'abilities_init' => $init, 'general' => $general ) ); };
 ok( false === $gs( true, array( 'blogname', 'admin_email' ) )['ripe'] && true === $gs( true, array( 'blogname', 'preferred_languages' ) )['ripe'] && false === $gs( false, array() )['ripe'], '16.8.0: the General-save guard watch ripens when admin_email leaves the group after the registry initialised; never when the registry did not initialise' );
 ok( in_array( 'general_save_guard_ai_1048', $ids, true ), 'the guard watch is registered' );
