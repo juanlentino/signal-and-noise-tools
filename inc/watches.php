@@ -97,6 +97,16 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_mcp_adapter',
 		),
+		// #1625: the keyring's storage half moves to Core's Secrets API when it exists.
+		array(
+			'id'        => 'secrets_api_keyring_storage',
+			'label'     => 'keyring storage onto the Secrets API (#1625)',
+			'why'       => 'Seventeen keyring rows are plain options and two live inside sn_settings. WordPress 7.2 proposes a Secrets API (wp_set_secret, encrypted at rest, hidden from options.php and /wp/v2/settings). Ripe when wp_set_secret exists on this site (7.2 Beta 1, 20 to 22 October 2026, or a trunk build). Then: sn_keyring_stored() and sn_keyring_write() go through it behind function_exists, one upgrade import per option-backed row flagged for rotation; the registry, the probes, Verify all and the site-secret derivation stay ours. Issued rows do NOT become Core connectors (one paste surface).',
+			'read'      => 'Connections › Credentials; https://github.com/juanlentino/signal-and-noise-tools/issues/1625',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_secrets_api',
+		),
 		// 16.8.0 — the General-save guard (16.7.2) is a workaround for WordPress/ai#1048.
 		array(
 			'id'        => 'general_save_guard_ai_1048',
@@ -378,6 +388,25 @@ function snt_watches_ripe( $now = null, $rows = null ) {
  * @param string|null $version Injected for tests; null reads the global.
  * @return array{ripe:bool,note:string}
  */
+/**
+ * #1625: ripe once Core's Secrets API exists on this site. Takes the answer as
+ * a parameter for tests; never reads the clock.
+ *
+ * @param array     $watch  The watch row (unused).
+ * @param int       $now    Unix time (unused: a state, not a date).
+ * @param bool|null $exists Whether wp_set_secret exists; null reads the site.
+ * @return array{ripe:bool,note:string}
+ */
+function snt_watch_ripe_secrets_api( $watch, $now, $exists = null ) {
+	unset( $watch, $now );
+	if ( null === $exists ) {
+		$exists = function_exists( 'wp_set_secret' );
+	}
+	return $exists
+		? array( 'ripe' => true, 'note' => 'wp_set_secret exists: move keyring storage onto the Secrets API (#1625)' )
+		: array( 'ripe' => false, 'note' => 'no Secrets API on this site yet' );
+}
+
 function snt_watch_ripe_wp_72( $watch, $now, $version = null ) {
 	unset( $watch, $now );
 	if ( null === $version ) {

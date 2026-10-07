@@ -57,7 +57,8 @@ function snt_contrast_rendered_evaluate( $runs, $annotations ) {
 	// on #1942). The annotation count is only the fallback for a run whose
 	// summary is missing.
 	$total = null;
-	$measured = false;
+	$measured  = false;
+	$malformed = false;
 	foreach ( is_array( $annotations ) ? $annotations : array() as $a ) {
 		$a = (array) $a;
 		if ( 'failure' === ( $a['annotation_level'] ?? '' ) ) {
@@ -76,6 +77,7 @@ function snt_contrast_rendered_evaluate( $runs, $annotations ) {
 				}
 			}
 			if ( ! $counts_ok || $s['pages'] < 1 ) {
+				$malformed = true;
 				continue;
 			}
 			$measured     = true;
@@ -97,7 +99,9 @@ function snt_contrast_rendered_evaluate( $runs, $annotations ) {
 		// Inconclusive only when the annotations were read and carry no
 		// summary; unread annotations are an API gap (Codex on #1948).
 		if ( ! $measured && is_array( $annotations ) ) {
-			$v['reason'] = 'inconclusive';
+			// A summary that is there but unusable is a runner fault, not the
+			// exit-2 path (Codex on #1948, logged low, fixed after).
+			$v['reason'] = $malformed ? 'malformed' : 'inconclusive';
 		}
 	} elseif ( 'failure' === $conclusion ) {
 		// A red run whose failures could not be read (annotations unfetched, or
@@ -191,6 +195,11 @@ function snt_contrast_rendered_html( array $v, $class ) {
 			$text = esc_html__( 'Rendered on the live site: not measured yet (the theme\'s contrast.yml has no completed run).', 'signal-and-noise-tools' );
 			break;
 		default:
+			if ( 'malformed' === ( $v['reason'] ?? '' ) ) {
+				/* translators: %s: date of the run, linked */
+				$text = sprintf( esc_html__( 'Rendered on the live site: unknown. The last run (%s) printed a summary this report cannot read, so it carries no result; the runner\'s output is the place to look.', 'signal-and-noise-tools' ), $link( '' !== $v['at'] ? $v['at'] : __( 'the run', 'signal-and-noise-tools' ) ) );
+				break;
+			}
 			if ( 'inconclusive' === ( $v['reason'] ?? '' ) ) {
 				/* translators: %s: date of the run, linked */
 				$text = sprintf( esc_html__( 'Rendered on the live site: unknown. The last run (%s) could not measure (the sitemap, a page or the edge failed), so it carries no result; its warning says which. Rechecks within thirty minutes.', 'signal-and-noise-tools' ), $link( '' !== $v['at'] ? $v['at'] : __( 'the run', 'signal-and-noise-tools' ) ) );
