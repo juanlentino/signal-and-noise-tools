@@ -43,9 +43,18 @@
 		var b = document.createElement( 'div' );
 		b.setAttribute( 'aria-hidden', 'true' );
 		b.setAttribute( 'style', 'flex:0 0 100%;display:flex;gap:1px;height:6px;border-radius:3px;overflow:hidden;margin:3px 0 4px;background:var(--os-ui-color-border, rgba(255,255,255,0.12));' );
+		// Grow factors, not fixed widths: the 1px gaps then come out of the
+		// segments instead of pushing the last one past the clip. The rest of
+		// the whole is an empty segment of its own, so the track still shows it.
+		var used = 0;
 		shares.forEach( function( n, i ) {
-			if ( typeof n === 'number' && n > 0 ) { b.appendChild( mark( 'flex:0 0 ' + Math.min( 100, n ) + '%;' + fill( i, quality ) ) ); }
+			if ( typeof n === 'number' && n > 0 ) {
+				var w = Math.min( 100 - used, n );
+				used += w;
+				if ( w > 0 ) { b.appendChild( mark( 'flex:' + w + ' 1 0;min-width:1px;' + fill( i, quality ) ) ); }
+			}
 		} );
+		if ( used < 100 ) { b.appendChild( mark( 'flex:' + ( 100 - used ) + ' 1 0;' ) ); }
 		return b;
 	}
 
