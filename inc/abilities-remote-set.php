@@ -126,7 +126,9 @@ function snt_ability_perm_remote_rss_stats() {
 function snt_ability_remote_get_deploy_status( $input = null ) {
 	$out = snt_ability_get_deploy_status( null );
 	if ( is_array( $out ) ) {
-		unset( $out['runtime'] );
+		// last_worker_deploy stays on the local door: adding it here would change
+		// the remote contract (and its pinned shape hash) for a field no device needs.
+		unset( $out['runtime'], $out['last_worker_deploy'] );
 	}
 	return $out;
 }
@@ -541,7 +543,8 @@ add_action( 'wp_abilities_api_init', function () {
 			'additionalProperties' => false,
 		),
 		// output_schema: copied BYTE-IDENTICAL from the admin registration in
-		// inc/abilities-system.php, MINUS `runtime` (contract 13): the parity
+		// inc/abilities-system.php, MINUS `runtime` (contract 13) and
+		// `last_worker_deploy` (local door only, 2026-10-08): the parity
 		// pin in tests enforces === against the admin schema with runtime removed.
 		'output_schema'       => array(
 			'type'       => 'object',

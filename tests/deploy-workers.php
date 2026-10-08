@@ -199,6 +199,7 @@ if ( ! class_exists( 'WP_Error' ) ) {
 
 // Fixed endpoints for the default registry (no analytics/provenance helpers loaded).
 require_once __DIR__ . '/../inc/deploy-workers.php';
+require_once __DIR__ . '/../inc/deploy-workers-seen.php';
 require_once __DIR__ . '/../inc/mcp/mcp-remote-contract.php'; // phase 2: SN_REMOTE_CONTRACT_VERSION for the probe comparison
 
 function dw_assert( $cond, $msg ) {
@@ -599,6 +600,37 @@ $GLOBALS['__dw_http'][] = dw_http_json( 200, array(
 $row = snt_deploy_worker_status_for( 'sn-analytics', array( 'allow_probe' => true, 'force' => true ) );
 dw_assert( ! array_key_exists( 'contract_match', $row ) && ! array_key_exists( 'contract_expected', $row ),
 	'status_for: no contract_path → the row carries NO contract keys either' );
+
+// --- When each worker was last deployed (inc/deploy-workers-seen.php) ---
+$log = snt_deploy_workers_seen_merge( null, 'sn-analytics', '1.25.0', 1000 );
+dw_assert( 1000 === $log['since'] && array( 'version' => '1.25.0', 'at' => null ) === $log['workers']['sn-analytics'] && null === $log['last'], 'seen: the first version read is a baseline, never a deploy' );
+dw_assert( $log === snt_deploy_workers_seen_merge( $log, 'sn-analytics', '1.25.0', 2000 ), 'seen: the same version again changes nothing' );
+dw_assert( $log === snt_deploy_workers_seen_merge( $log, 'sn-analytics', '', 2000 ) && $log === snt_deploy_workers_seen_merge( $log, 'sn-analytics', 'unprobeable', 2000 ), 'seen: no reading is not a version change' );
+$once = snt_deploy_workers_seen_merge( $log, 'sn-analytics', '1.26.0', 3000 );
+dw_assert( null === $once['last'] && '1.25.0' === $once['workers']['sn-analytics']['version'], 'seen: one read of a new version is not yet a deploy' );
+$log2 = snt_deploy_workers_seen_merge( $once, 'sn-analytics', '1.26.0', 3300 );
+dw_assert( array( 'id' => 'sn-analytics', 'version' => '1.26.0', 'at' => 3000 ) === $log2['last'] && 1000 === $log2['since'] && ! isset( $log2['workers']['sn-analytics']['pending'] ), 'seen: the second read in a row makes it a deploy, stamped at the first' );
+$flip = $log;
+foreach ( array( '1.26.0', '1.25.0', '1.26.0', '1.25.0', '1.26.0' ) as $k => $v ) { $flip = snt_deploy_workers_seen_merge( $flip, 'sn-analytics', $v, 4000 + $k * 300 ); }
+dw_assert( null === $flip['last'] && '1.25.0' === $flip['workers']['sn-analytics']['version'], 'seen: a rollout answering old and new in turn never counts as a deploy' );
+$log3 = snt_deploy_workers_seen_merge( $log2, 'sn-remote-mcp', '2.0.0', 4000 );
+dw_assert( $log2['last'] === $log3['last'], 'seen: another worker\'s first read does not claim the last deploy' );
+dw_assert( array( 'since' => gmdate( 'c', 1000 ) ) === snt_deploy_workers_seen_last( $log, array() ), 'seen: before any change the card says since when it has watched' );
+dw_assert( array( 'label' => 'Analytics', 'version' => '1.26.0', 'at' => gmdate( 'c', 3000 ) ) === snt_deploy_workers_seen_last( $log3, array( 'sn-analytics' => 'Analytics' ) ), 'seen: the last deploy names the worker by its label' );
+dw_assert( null === snt_deploy_workers_seen_last( false, array() ), 'seen: no log yet is null, not a date' );
+
+dw_reset();
+$GLOBALS['__dw_http'][] = dw_http_json( 200, array( 'worker' => 'sn-analytics', 'version' => '1.25.0' ) );
+snt_deploy_worker_status_for( 'sn-analytics', array( 'allow_probe' => true, 'force' => true ) );
+$GLOBALS['__dw_http'][] = dw_http_json( 200, array( 'worker' => 'sn-analytics', 'version' => '1.26.0' ) );
+snt_deploy_worker_status_for( 'sn-analytics', array( 'allow_probe' => true, 'force' => true ) );
+$GLOBALS['__dw_http'][] = dw_http_json( 200, array( 'worker' => 'sn-analytics', 'version' => '1.26.0' ) );
+snt_deploy_worker_status_for( 'sn-analytics', array( 'allow_probe' => true, 'force' => true ) );
+dw_assert( '1.26.0' === ( $GLOBALS['__dw_options'][ SNT_DEPLOY_WORKERS_SEEN_OPT ]['last']['version'] ?? '' ), 'seen: probes that read a new version twice record the deploy' );
+
+$card = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget.js' );
+dw_assert( false !== strpos( $card, "section( 'WordPress' )" ) && false !== strpos( $card, "section( 'Site' )" ) && false !== strpos( $card, "section( 'Workers' )" ) && strpos( $card, "section( 'WordPress' )" ) < strpos( $card, "section( 'Site' )" ) && strpos( $card, "section( 'Site' )" ) < strpos( $card, "section( 'Workers' )" ), 'card: WordPress, then Site, then Workers, each its own group' );
+dw_assert( false !== strpos( $card, 'status.last_worker_deploy' ) && false !== strpos( $card, "'No worker deploy seen since '" ), 'card: the Workers group says its own last deploy, or since when it has watched' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

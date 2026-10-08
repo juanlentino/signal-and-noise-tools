@@ -93,10 +93,10 @@
 		} ) );
 	}
 
-	/** "just now", "6 min ago", "2 h ago" from an ISO time. */
+	/** "just now", "6 min ago", "2 h ago", "3 days ago" from an ISO time. */
 	function agoWords( iso ) {
 		var s = Math.max( 0, Math.round( ( Date.now() - Date.parse( iso ) ) / 1000 ) );
-		return s < 60 ? 'just now' : s < 3600 ? Math.round( s / 60 ) + ' min ago' : Math.round( s / 3600 ) + ' h ago';
+		return s < 60 ? 'just now' : s < 3600 ? Math.round( s / 60 ) + ' min ago' : s < 172800 ? Math.round( s / 3600 ) + ' h ago' : Math.round( s / 86400 ) + ' days ago';
 	}
 
 	// Only actual failures get a footer and an inline detail cue.
@@ -142,14 +142,41 @@
 		// remove), rendered since movable:true in v9.52.2, already names this
 		// card. Painting "Signal & Noise" here put a second title on the card.
 
-		var grid = el( 'div', {
-			style: 'display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;font-size:13px;line-height:1.4;align-items:baseline;',
-		} );
-
-		// Core joins theme/plugin when the payload carries it (contract 13);
-		// an older payload renders the old rows.
-		[ 'theme', 'plugin', 'core' ].forEach( function( pkg ) {
-			if ( pkg === 'core' && ! status.core ) { return; }
+		// 2026-10-08: three groups, each under its own heading: WordPress (core
+		// alone), Site (theme and plugin, with their last deploy), Workers
+		// (with theirs). One grid per group, so the columns line up inside it.
+		var SUBTLE  = 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));';
+		var started = false;
+		function section( title ) {
+			var box = el( 'div', { style: started ? 'margin-top:10px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.14));' : '' } );
+			started = true;
+			var head = el( 'div', { style: 'font-size:11px;margin-bottom:4px;' + SUBTLE, text: title } );
+			head.setAttribute( 'role', 'heading' );
+			head.setAttribute( 'aria-level', '3' );
+			box.appendChild( head );
+			var grid = el( 'div', {
+				// The name column has one width in every group, so the versions
+				// line up down the whole card ("Provenance edge" is the longest).
+				style: 'display:grid;grid-template-columns:minmax(0,8.5em) 1fr auto;gap:4px 12px;font-size:13px;line-height:1.4;align-items:baseline;',
+			} );
+			box.appendChild( grid );
+			wrap.appendChild( box );
+			return { box: box, grid: grid };
+		}
+		function versionRow( grid, label, text, glyph, why ) {
+			grid.appendChild( el( 'span', { style: SUBTLE, text: label } ) );
+			grid.appendChild( el( 'span', { style: 'font-variant-numeric:tabular-nums;font-weight:500;', text: text } ) );
+			var glyphEl = el( 'span', { style: 'color:' + glyph.color + ';font-weight:600;', text: glyph.label } );
+			// v9.54.0: a bare '?' is a dead end; the glyph's hover says why.
+			if ( why ) { glyphEl.title = why; }
+			grid.appendChild( glyphEl );
+		}
+		function deployLine( box, text, title ) {
+			var line = el( 'p', { style: 'margin:6px 0 0;font-size:11px;' + SUBTLE, text: text } );
+			if ( title ) { line.title = title; }
+			box.appendChild( line );
+		}
+		function pkgRow( grid, pkg ) {
 			var info = status[ pkg ] || {};
 			var glyph = stateGlyph( stale ? 'unknown' : ( info.state || 'unknown' ) );
 			// 19.8.0: core 'unknown' with a version means only that WordPress's
@@ -157,55 +184,20 @@
 			// or a missing version keeps the red '?'.
 			var unchecked = pkg === 'core' && ! stale && !! info.current && ( info.state || 'unknown' ) === 'unknown';
 			if ( unchecked ) { glyph = { label: '–', color: 'var(--os-ui-color-text-subtle, rgba(255,255,255,.6))' }; }
-
-			grid.appendChild( el( 'span', {
-				style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
-				text:  { theme: 'Theme', plugin: 'Plugin', core: 'Core' }[ pkg ],
-			} ) );
-			grid.appendChild( el( 'span', {
-				style: 'font-variant-numeric:tabular-nums;font-weight:500;',
+			versionRow( grid, { theme: 'Theme', plugin: 'Plugin', core: 'Core' }[ pkg ],
 				// Core names what is waiting: "behind (point)" / "behind (major)".
-				text:  ( info.current || '—' ) + ( pkg === 'core' && info.state === 'behind' && info.offer ? ' · behind (' + info.offer + ')' : '' ) + ( unchecked ? ' · update check not cached' : '' ),
-			} ) );
-			var glyphEl = el( 'span', {
-				style: 'color:' + glyph.color + ';font-weight:600;',
-				text:  glyph.label,
-			} );
-			// v9.54.0: a bare '?' is a dead end. When the fetch layer recorded
-			// why, hang it on the glyph so hovering explains it even before the
-			// line below is read.
-			if ( info.reason ) { glyphEl.title = info.reason; }
-			grid.appendChild( glyphEl );
-		} );
+				( info.current || '—' ) + ( pkg === 'core' && info.state === 'behind' && info.offer ? ' · behind (' + info.offer + ')' : '' ) + ( unchecked ? ' · update check not cached' : '' ),
+				glyph, info.reason );
+		}
 
-		// v11.11.2: the five workers join the card beneath theme/plugin —
-		// same grid, same glyph vocabulary. Rows come from the ability's
-		// additive `workers` array; a missing/older payload (array absent)
-		// renders exactly the old two-row card. Each row: label, live
-		// version ('unprobeable' shortens to an em dash with the reason on
-		// the glyph), state ok/behind/unknown.
-		( Array.isArray( status.workers ) ? status.workers : [] ).forEach( function( w ) {
-			if ( ! w || typeof w !== 'object' ) { return; }
-			var wGlyph = stateGlyph( stale ? 'unknown' : ( w.state || 'unknown' ) );
-			grid.appendChild( el( 'span', {
-				style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
-				text:  w.label || w.id || 'worker',
-			} ) );
-			grid.appendChild( el( 'span', {
-				style: 'font-variant-numeric:tabular-nums;font-weight:500;',
-				text:  ( w.live && w.live !== 'unprobeable' ) ? w.live : '—',
-			} ) );
-			var wGlyphEl = el( 'span', {
-				style: 'color:' + wGlyph.color + ';font-weight:600;',
-				text:  wGlyph.label,
-			} );
-			if ( w.reason ) { wGlyphEl.title = w.reason; }
-			else if ( w.live === 'unprobeable' ) { wGlyphEl.title = 'no version route to probe'; }
-			grid.appendChild( wGlyphEl );
-		} );
+		// Core when the payload carries it (contract 13); an older payload has no group.
+		if ( status.core ) {
+			pkgRow( section( 'WordPress' ).grid, 'core' );
+		}
 
-		wrap.appendChild( grid );
-
+		var site = section( 'Site' );
+		pkgRow( site.grid, 'theme' );
+		pkgRow( site.grid, 'plugin' );
 		// v9.54.0: print WHY, not just '?'. Theme and plugin authenticate with
 		// the SAME wp-config constant, so a dead token yields two identical
 		// reasons — say it once rather than stuttering the same sentence twice.
@@ -215,29 +207,37 @@
 			if ( reason && reasons.indexOf( reason ) === -1 ) { reasons.push( reason ); }
 		} );
 		reasons.forEach( function ( reason ) {
-			wrap.appendChild( el( 'p', {
-				style: 'margin:8px 0 0;font-size:11px;line-height:1.4;color:#ff9d94;',
-				text:  reason,
-			} ) );
+			site.box.appendChild( el( 'p', { style: 'margin:6px 0 0;font-size:11px;line-height:1.4;color:#ff9d94;', text: reason } ) );
 		} );
-
-		// v12.13.0: name the subject. This line sits under seven independently
-		// versioned rows — theme, plugin, five workers — so a bare age read as
-		// though it covered the whole card. It never did: only theme and plugin
-		// install through the WP upgrader, and only they have records in the
-		// feed behind it. The package name answers "of what" in the visible
-		// text, and doubles as the scope; the title states the scope outright
-		// for the case where the feed names nothing.
+		// v12.13.0: the line names its package. Theme and plugin only: they
+		// install through the WP upgrader and the feed behind it records them.
 		var deployAge  = status.last_deploy || 'unknown';
 		var deployWhat = status.last_deploy_component || '';
-		var deployEl   = el( 'p', {
-			style: 'margin:10px 0 0;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.14));font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
-			text:  deployWhat
-				? 'Last deploy: ' + deployWhat + ' · ' + deployAge
-				: 'Last deploy: ' + deployAge,
-		} );
-		deployEl.title = 'Theme and plugin only. The Cloudflare workers deploy outside the WordPress upgrader, so their releases are not recorded in this feed.';
-		wrap.appendChild( deployEl );
+		deployLine( site.box, deployWhat ? 'Last deploy: ' + deployWhat + ' · ' + deployAge : 'Last deploy: ' + deployAge, 'Theme and plugin only, from the WordPress upgrader\'s record. The workers have their own line.' );
+
+		// v11.11.2: the workers, same glyph vocabulary. Rows come from the
+		// ability's additive `workers` array; an older payload has no group.
+		var workers = Array.isArray( status.workers ) ? status.workers : [];
+		if ( workers.length ) {
+			var fleet = section( 'Workers' );
+			workers.forEach( function( w ) {
+				if ( ! w || typeof w !== 'object' ) { return; }
+				versionRow( fleet.grid, w.label || w.id || 'worker',
+					( w.live && w.live !== 'unprobeable' ) ? w.live : '—',
+					stateGlyph( stale ? 'unknown' : ( w.state || 'unknown' ) ),
+					w.reason || ( w.live === 'unprobeable' ? 'no version route to probe' : '' ) );
+			} );
+			// The workers' own last deploy: when the five-minute version probe
+			// first read a new version (inc/deploy-workers-seen.php). Until one
+			// changes, since when it has watched; an older payload, nothing.
+			var lw    = status.last_worker_deploy;
+			var probe = 'When the five-minute version check first saw this version live; it counts once two checks in a row agree.';
+			if ( lw && lw.at ) {
+				deployLine( fleet.box, 'Last deploy: ' + [ lw.label || 'worker', lw.version ].filter( Boolean ).join( ' ' ) + ' · ' + agoWords( lw.at ), probe );
+			} else if ( lw && lw.since ) {
+				deployLine( fleet.box, 'No worker deploy seen since ' + new Date( lw.since ).toLocaleDateString( [], { month: 'short', day: 'numeric' } ), probe );
+			}
+		}
 
 		container.appendChild( wrap );
 	}
