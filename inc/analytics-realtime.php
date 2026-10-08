@@ -261,9 +261,14 @@ function sn_analytics_realtime_refresh() {
 		), false );
 	}
 
+	// Third read: the pages behind the live count (inc/analytics-live-pages.php).
+	// Null on failure, so the list is absent rather than falsely empty.
+	$pages = function_exists( 'sn_analytics_live_pages_read' ) ? sn_analytics_live_pages_read() : null;
+
 	set_transient( SN_ANALYTICS_REALTIME_KEY, array(
 		'counts'      => $counts,
 		'views_today' => $views_today,
+		'pages'       => $pages,
 		'fetched'     => time(),
 	), SN_ANALYTICS_REALTIME_RETENTION );
 }

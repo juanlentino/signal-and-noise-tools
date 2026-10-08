@@ -31,6 +31,7 @@ function sn_analytics_query( $sql ) { return null; }
 function register_rest_route( $ns, $route, $args ) { $GLOBALS['routes'][ $ns . $route ] = $args; }
 
 require dirname( __DIR__ ) . '/inc/analytics-realtime.php';
+require dirname( __DIR__ ) . '/inc/analytics-live-pages.php';
 require dirname( __DIR__ ) . '/inc/analytics-live.php';
 
 $pass = 0; $fail = 0;
@@ -66,6 +67,36 @@ ok( array() === $GLOBALS['sched'], 'the admin warmer still refuses a caller with
 $GLOBALS['cap'] = true;
 sn_analytics_realtime_warm();
 ok( array( SN_ANALYTICS_REALTIME_HOOK ) === $GLOBALS['sched'], 'and still warms for one with it' );
+
+echo "\nGroup: being read now\n";
+$sql = sn_analytics_live_pages_sql();
+ok( false !== strpos( $sql, 'count(DISTINCT index1) AS readers' ) && false !== strpos( $sql, "INTERVAL '5' MINUTE" ) && false !== strpos( $sql, 'GROUP BY path' ), 'one grouped query: distinct readers per path over the same 5-minute window as Reading now' );
+ok( false !== strpos( $sql, "blob2 ILIKE '/wp-admin'" ), 'admin, login and asset paths are excluded in the query' );
+$resolve = static function ( $path ) {
+	$known = array( '/' => array( 'Home', 'https://x.test/' ), '/notes/alpha/' => array( 'Alpha', 'https://x.test/notes/alpha/' ), '/about/' => array( 'About', 'https://x.test/about/' ) );
+	return $known[ $path ] ?? null;
+};
+$rows = array(
+	array( 'path' => '/notes/alpha/', 'readers' => 2 ),
+	array( 'path' => '/notes/alpha/?utm_source=x', 'readers' => 1 ),
+	array( 'path' => '/draft-or-private/', 'readers' => 5 ),
+	array( 'path' => '/', 'readers' => 1 ),
+	array( 'path' => '/about', 'readers' => 1 ),
+	array( 'path' => '', 'readers' => 3 ),
+);
+$pages = sn_analytics_live_pages_from_rows( $rows, $resolve );
+ok( array( 'label' => 'Alpha', 'url' => 'https://x.test/notes/alpha/', 'readers' => 3 ) === $pages[0], 'a query string folds into its page, counts summed' );
+ok( ! in_array( '/draft-or-private/', array_column( $pages, 'url' ), true ) && 3 === count( $pages ), 'a path that does not resolve to a public page is never listed' );
+ok( 'About' === $pages[2]['label'] || 'About' === $pages[1]['label'], 'a missing trailing slash folds into the canonical page' );
+$many = array();
+for ( $i = 0; $i < 9; $i++ ) { $many[] = array( 'path' => '/', 'readers' => 1 ); }
+ok( 1 === count( sn_analytics_live_pages_from_rows( $many, $resolve ) ), 'one page appears once' );
+ok( array() === sn_analytics_live_pages_from_rows( array(), $resolve ), 'nobody active: an empty list, not null' );
+$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array( 'human' => 3 ), 'views_today' => 4, 'fetched' => 9, 'pages' => array( array( 'label' => 'Alpha', 'url' => 'u', 'readers' => 3 ) ) );
+ok( 'Alpha' === sn_analytics_live_payload( false )['pages'][0]['label'], 'the public payload carries the list' );
+$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array(), 'views_today' => 0, 'fetched' => 9 );
+ok( null === sn_analytics_live_payload( false )['pages'], 'a cache written before the list existed answers null, never an empty list' );
+ok( false !== strpos( (string) file_get_contents( dirname( __DIR__ ) . '/inc/public-stats-live.php' ), 'data-sn-live-pages' ), 'the strip carries the list hook' );
 
 echo "\nGroup: two routes, the public one human only\n";
 sn_analytics_live_register_routes();

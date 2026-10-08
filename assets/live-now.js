@@ -54,6 +54,9 @@
 				write( el, format( v ) );
 			}
 		} );
+		document.querySelectorAll( '[data-sn-live-pages]' ).forEach( function ( list ) {
+			pages( list, data );
+		} );
 		if ( cfg ) {
 			// "Not measured" only when nothing was: views today can come from the
 			// same-day last-good while the 5-minute reading has lapsed, and the
@@ -64,6 +67,34 @@
 				meta( typeof data.now === 'number' || typeof data.today === 'number' ? '' : String( cfg.unknown ) );
 			}
 		}
+	}
+
+	// Being read now: a link per page with its reader count. Null (not read)
+	// leaves the list as it was; an empty answer says nobody is on a page.
+	function pages( list, data ) {
+		if ( ! Array.isArray( data.pages ) || ! cfg ) {
+			return;
+		}
+		while ( list.firstChild ) {
+			list.removeChild( list.firstChild );
+		}
+		if ( ! data.pages.length ) {
+			var none = document.createElement( 'li' );
+			none.className = 'sn-public-stats__live-empty';
+			none.textContent = String( cfg.nobody );
+			list.appendChild( none );
+			return;
+		}
+		data.pages.forEach( function ( p ) {
+			var li = document.createElement( 'li' ), a = document.createElement( 'a' ), n = document.createElement( 'span' );
+			a.href = String( p.url );
+			a.textContent = String( p.label );
+			n.className = 'sn-public-stats__views';
+			n.textContent = Number( p.readers ).toLocaleString() + ' ' + String( Number( p.readers ) === 1 ? cfg.reader : cfg.readers );
+			li.appendChild( a );
+			li.appendChild( n );
+			list.appendChild( li );
+		} );
 	}
 
 	function load() {
