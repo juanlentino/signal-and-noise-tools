@@ -41,6 +41,7 @@ function sn_analytics_live_payload( $all_classes ) {
 		'now'     => sn_analytics_realtime( 'human' ),
 		'today'   => sn_analytics_views_today(),
 		'pages'   => is_array( $cached ) && isset( $cached['pages'] ) && is_array( $cached['pages'] ) ? array_values( $cached['pages'] ) : null,
+		'hour'    => is_array( $cached ) && isset( $cached['hour'] ) && is_array( $cached['hour'] ) ? array_values( $cached['hour'] ) : null,
 		'fetched' => $fetched,
 	);
 	if ( $all_classes ) {

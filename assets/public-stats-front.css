@@ -114,3 +114,9 @@ main.is-layout-constrained:has(.sn-public-stats)>*,.wp-block-post-content>.sn-pu
 .sn-public-stats__live-pages h3{margin-top:0}
 .sn-public-stats__top li.sn-public-stats__live-empty{color:var(--sn-ps-dim);counter-increment:none}
 .sn-public-stats__top li.sn-public-stats__live-empty::before{content:none}
+/* The last hour: flat bars in the text color, the current slot in red,
+   the reading-rhythm chart's idiom at strip size. Redrawn, never animated. */
+.sn-public-stats__live-hour{display:block;width:100%;max-width:22rem;height:34px;margin-top:.7rem;border-bottom:1px solid var(--sn-ps-rule)}
+.sn-public-stats__live-hour rect{fill:currentColor}
+.sn-public-stats__live-hour rect.is-now{fill:var(--sn-ps-red)}
+.sn-public-stats__live-ax{display:flex;justify-content:space-between;max-width:22rem;font-family:var(--sn-ps-mono);font-size:max(.68rem,11px);color:var(--sn-ps-dim);margin-top:.2rem}
