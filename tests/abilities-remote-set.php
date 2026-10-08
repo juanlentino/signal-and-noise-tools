@@ -229,9 +229,10 @@ foreach ( $pairs_output as $pair ) {
 // Contract 13: the deploy twin is the admin schema MINUS runtime, and runs a
 // wrapper that unsets runtime. Pinned as a strip, not skipped.
 $sn_admin_deploy_out = $GLOBALS['__abilities'][ $ADMIN_DEPLOY ]['output_schema'];
-unset( $sn_admin_deploy_out['properties']['runtime'] );
+unset( $sn_admin_deploy_out['properties']['runtime'], $sn_admin_deploy_out['properties']['last_worker_deploy'] );
 ok( isset( $GLOBALS['__abilities'][ $ADMIN_DEPLOY ]['output_schema']['properties']['runtime'] ), 'THE STRIP PIN: get-deploy-status declares runtime' );
-ok( $GLOBALS['__abilities'][ $REMOTE_DEPLOY ]['output_schema'] === $sn_admin_deploy_out, "$REMOTE_DEPLOY output_schema === $ADMIN_DEPLOY's minus runtime" );
+ok( isset( $GLOBALS['__abilities'][ $ADMIN_DEPLOY ]['output_schema']['properties']['last_worker_deploy'] ) && ! isset( $GLOBALS['__abilities'][ $REMOTE_DEPLOY ]['output_schema']['properties']['last_worker_deploy'] ), 'last_worker_deploy is local-door only: the remote contract shape does not move' );
+ok( $GLOBALS['__abilities'][ $REMOTE_DEPLOY ]['output_schema'] === $sn_admin_deploy_out, "$REMOTE_DEPLOY output_schema === $ADMIN_DEPLOY's minus runtime and last_worker_deploy" );
 ok( 'snt_ability_remote_get_deploy_status' === $GLOBALS['__abilities'][ $REMOTE_DEPLOY ]['execute_callback'], "$REMOTE_DEPLOY runs the runtime-stripping wrapper" );
 
 // Contract 14: the networks twin is the crosstab schema MINUS the crosstab
