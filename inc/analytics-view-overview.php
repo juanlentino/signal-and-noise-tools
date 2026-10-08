@@ -571,7 +571,7 @@ function snt_analytics_render_overview_rightnow( $now, $today, $class = 'human' 
 	snt_an_kpi_row( $cards, array( 'empty_slot' => 'omit' ) );
 	// The last hour, Being read now and Arrived from, filled live (inc/analytics-live-admin.php).
 	if ( function_exists( 'sn_analytics_live_admin_html' ) ) {
-		echo sn_analytics_live_admin_html();
+		echo sn_analytics_live_admin_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every piece is escaped inside the builder (declared an escaping function in phpcs.xml.dist; Plugin Check reads its own ruleset).
 	}
 	snt_an_panel_close();
 }
