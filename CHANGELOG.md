@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Being read now, on /stats.** Under the Live figures, the pages people are on right now (the same 5-minute window as Reading now), each with its reader count, top five, in the most-read list's style. One more grouped query per realtime refresh (`inc/analytics-live-pages.php`); a path is listed only when it resolves to a published, unprotected note or page that is not hidden from search (or Home), so a draft, a private or noindex page, another post type or a junk path never appears; two spellings of one page count as one entry. A query string folds into its page. Not read yet stays a dash; nobody on a page says so. Aggregate counts, cookieless as before; nothing new collected.
+
 ## [23.0.0] - 2026-10-08 — live visits on /stats and in admin, still cookieless
 
 ### Added

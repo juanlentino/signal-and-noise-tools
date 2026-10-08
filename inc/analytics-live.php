@@ -40,6 +40,7 @@ function sn_analytics_live_payload( $all_classes ) {
 	$out     = array(
 		'now'     => sn_analytics_realtime( 'human' ),
 		'today'   => sn_analytics_views_today(),
+		'pages'   => is_array( $cached ) && isset( $cached['pages'] ) && is_array( $cached['pages'] ) ? array_values( $cached['pages'] ) : null,
 		'fetched' => $fetched,
 	);
 	if ( $all_classes ) {

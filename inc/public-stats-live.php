@@ -39,6 +39,11 @@ function sn_public_stats_live_html() {
 		. $fig( 'now', __( 'Reading now', 'signal-and-noise-tools' ), __( 'readers active in the last 5 minutes', 'signal-and-noise-tools' ) )
 		. $fig( 'today', __( 'Views today', 'signal-and-noise-tools' ), __( 'human pageviews since midnight, site time', 'signal-and-noise-tools' ) )
 		. '</div>'
+		// Being read now: filled by live-now.js; only published public pages.
+		. '<div class="sn-public-stats__live-pages">'
+		. '<h3 id="sn-public-stats-live-pages-h">' . esc_html__( 'Being read now', 'signal-and-noise-tools' ) . '</h3>'
+		. '<ol class="sn-public-stats__top" aria-labelledby="sn-public-stats-live-pages-h" data-sn-live-pages><li class="sn-public-stats__live-empty">—</li></ol>'
+		. '</div>'
 		. '<p class="sn-public-stats__live-meta" data-sn-live-meta>' . esc_html__( 'The live figures need JavaScript.', 'signal-and-noise-tools' ) . '</p>'
 		. '</section>';
 }
@@ -56,5 +61,8 @@ function sn_public_stats_live_enqueue() {
 		/* translators: %s: the time the live figures were last read, e.g. 14:03. */
 		'updated'  => __( 'Updated %s', 'signal-and-noise-tools' ),
 		'unknown'  => __( 'Not measured right now.', 'signal-and-noise-tools' ),
+		'nobody'   => __( 'Nobody on a page right now.', 'signal-and-noise-tools' ),
+		'readers'  => __( 'readers', 'signal-and-noise-tools' ),
+		'reader'   => __( 'reader', 'signal-and-noise-tools' ),
 	) );
 }

@@ -150,6 +150,7 @@ require_once SNT_PATH . 'inc/analytics-rollup.php';
 require_once SNT_PATH . 'inc/public-stats.php'; // v10.65.0: [sn_public_stats] — the public stats page, rollups read-only (roadmap Analytics planned row)
 require_once SNT_PATH . 'inc/analytics-derive.php'; // Phase A pure derive layer (spec §4) — zero WP calls; consumed by the read layer
 require_once SNT_PATH . 'inc/analytics-realtime.php';
+require_once SNT_PATH . 'inc/analytics-live-pages.php'; // being read now: readers per public page, top five
 require_once SNT_PATH . 'inc/analytics-live.php'; // the live pair: public /live (human) and gated /live/admin
 require_once SNT_PATH . 'inc/analytics-read.php';   // path read accessors (dashboard + widgets)
 require_once SNT_PATH . 'inc/analytics-topics.php'; // v10.21.0: topic-level aggregation (ML partition × path rollups)

@@ -108,3 +108,9 @@ main.is-layout-constrained:has(.sn-public-stats)>*,.wp-block-post-content>.sn-pu
 .sn-public-stats__live-l{display:block;font-family:var(--sn-ps-mono);font-size:max(.72rem,11px);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-top:.4rem}
 .sn-public-stats__live-meta{font-family:var(--sn-ps-mono);font-size:max(.72rem,11px);color:var(--sn-ps-dim);margin:.75rem 0 0}
 @media (max-width:480px){.sn-public-stats__live-row{grid-template-columns:minmax(0,1fr)}}
+/* Being read now: the most-read list's idiom, one rule above it. The empty
+   line takes no rank number. */
+.sn-public-stats__live-pages{margin-top:1rem;padding-top:.8rem;border-top:1px solid var(--sn-ps-rule)}
+.sn-public-stats__live-pages h3{margin-top:0}
+.sn-public-stats__top li.sn-public-stats__live-empty{color:var(--sn-ps-dim);counter-increment:none}
+.sn-public-stats__top li.sn-public-stats__live-empty::before{content:none}

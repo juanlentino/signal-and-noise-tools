@@ -146,7 +146,7 @@ Everything reachable without a credential, so nothing is public by accident. The
 | Surface | Who serves it | Why it is public |
 | --- | --- | --- |
 | `POST /wp-json/signal-noise/v1/webmention` | plugin | W3C receiver; can only ever create an `unverified` row |
-| `GET /wp-json/signal-noise/v1/live` | plugin | the live pair on /stats: two aggregate human counts (readers in the last 5 minutes, views today), read from a transient; edge-cacheable for 30 s; `live/admin` (every class) is `view_stats` |
+| `GET /wp-json/signal-noise/v1/live` | plugin | the live pair on /stats: two aggregate human counts (readers in the last 5 minutes, views today) and the top five published pages being read now, each with its reader count, read from a transient; edge-cacheable for 30 s; `live/admin` (every class) is `view_stats` |
 | `GET /wp-json/sn-prov/v1/credential/{uid}` | plugin | a verifiable credential exists to be verified by anyone |
 | `POST /wp-json/signal-noise/v1/bridge` | plugin | bearer-checked in its handler; not registered unless armed; hidden from the index |
 | `GET /wp-json/` route index, `/wp/v2/posts` (metadata only) | plugin-hardened core | discovery stays; anonymous callers get no rendered content, no users, no comments, no `/batch/v1` |
