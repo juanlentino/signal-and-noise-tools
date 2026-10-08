@@ -115,5 +115,19 @@ sn_plugin_update_version_watchdog();
 ok( array() === $GLOBALS['__deleted'], 'no version change: deletes nothing (safe to run on every request)' );
 ok( 0 === $GLOBALS['__clean_plugins_cache'], 'no version change: does not touch the plugin-header cache' );
 
+// ── 5. Read-time guard: an entry for the installed version is not an update ──
+$mk = static function ( $v ) { $e = new stdClass(); $e->new_version = $v; $t = new stdClass(); $t->response = array( SN_GH_PLUGIN_BASENAME => $e, 'other/other.php' => new stdClass() ); return $t; };
+$stale = $mk( SNT_VERSION );
+$read  = sn_plugin_update_drop_stale( $stale );
+ok( ! isset( $read->response[ SN_GH_PLUGIN_BASENAME ] ) && isset( $read->no_update[ SN_GH_PLUGIN_BASENAME ] ), 'read guard: "update to the installed version" moves to no_update (the stale badge after an install)' );
+ok( isset( $read->response['other/other.php'] ), 'read guard: another plugin\'s update is left alone' );
+ok( isset( $stale->response[ SN_GH_PLUGIN_BASENAME ] ), 'read guard: the object read is copied, never mutated' );
+ok( ! isset( sn_plugin_update_drop_stale( $mk( '1.0.0' ) )->response[ SN_GH_PLUGIN_BASENAME ] ), 'read guard: an OLDER "new" version is not an update either' );
+$real = $mk( '99.0.0' );
+ok( sn_plugin_update_drop_stale( $real ) === $real, 'read guard: a real newer release stays an update, untouched' );
+ok( false === sn_plugin_update_drop_stale( false ), 'read guard: no record is passed through' );
+ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/wp-update-integration.php' ), "add_filter( 'site_transient_update_plugins', 'sn_plugin_update_drop_stale' );" ), 'read guard: registered on every read of update_plugins' );
+
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
