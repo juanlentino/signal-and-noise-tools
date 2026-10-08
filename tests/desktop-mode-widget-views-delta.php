@@ -1,4 +1,5 @@
 <?php
+if ( ! defined( 'SNT_VERSION' ) ) { define( 'SNT_VERSION', '0.0.0-test' ); } // the desktop payload caches are version-stamped
 /**
  * SN Traffic (sn-site-views): the arrow carries the direction (no +/- sign),
  * direction color only for a meaningful change; the groups SN Audience and
@@ -32,7 +33,7 @@ echo "SN Site Views deltas\n\n";
 // The ability's cached reading says 3; the card's day payload was cached
 // earlier with a frozen north star of 4. The card must answer 3.
 $GLOBALS['t'][ SNT_NSM_CACHE_KEY ] = array( 'configured' => true, 'value' => 3, 'previous' => 2, 'layers' => array() );
-$GLOBALS['t']['sn_desktop_site_views_2026-09-27'] = array( 'days' => array(), 'total' => 0, 'north_star' => array( 'value' => 4, 'previous' => 1 ) );
+$GLOBALS['t']['sn_desktop_site_views_2026-09-27_' . SNT_VERSION] = array( 'days' => array(), 'total' => 0, 'north_star' => array( 'value' => 4, 'previous' => 1 ) );
 $res = snt_desktop_site_views_payload()->data;
 $ability = snt_ability_north_star();
 ok( 3 === ( $res['north_star']['value'] ?? null ), 'a cached card payload holding a stale 4 answers the current 3' );
@@ -41,10 +42,10 @@ $GLOBALS['t'][ SNT_NSM_CACHE_KEY ]['configured'] = false;
 $res = snt_desktop_site_views_payload()->data;
 ok( ! isset( $res['north_star'] ), 'analytics unset: no north star, and the frozen copy is dropped too' );
 function snt_desktop_traffic_groups( $win ) { return array( array( 'title' => 'Countries', 'rows' => array(), 'empty' => 'none', 'win' => $win ) ); }
-unset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27'] );
+unset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27_' . SNT_VERSION] );
 $res = snt_desktop_site_views_payload()->data;
 ok( 'Countries' === ( $res['groups'][0]['title'] ?? '' ) && array( 'from' => '2026-09-14', 'to' => '2026-09-27', 'days' => 14 ) === $res['groups'][0]['win'], 'the payload carries SN Traffic\'s groups, read over the same 14 days as the sparkline' );
-ok( isset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27']['groups'] ), 'the groups ride the payload\'s own 15-minute cache' );
+ok( isset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27_' . SNT_VERSION]['groups'] ), 'the groups ride the payload\'s own 15-minute cache' );
 
 // ── The rendered rows (node, the real widget file) ──
 $node = trim( (string) shell_exec( 'command -v node' ) );

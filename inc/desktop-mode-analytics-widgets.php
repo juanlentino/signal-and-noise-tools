@@ -70,7 +70,7 @@ function snt_desktop_widget_window() {
  */
 function snt_desktop_widget_response( $name, callable $build ) {
 	$win    = snt_desktop_widget_window();
-	$key    = 'sn_desktop_' . $name . '_' . $win['to'];
+	$key    = 'sn_desktop_' . $name . '_' . $win['to'] . '_' . SNT_VERSION; // the version: a release's new shape shows at once
 	$cached = get_transient( $key );
 	if ( ! is_array( $cached ) ) {
 		// A builder may hand back a `hero` beside its groups: the one figure the

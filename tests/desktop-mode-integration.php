@@ -482,7 +482,7 @@ $expected_height = array(
 	'sn-reading'          => 575, // BUDGETED: 555 + the opening figure and age line, less the two rows it replaced
 	'sn-queue'            => 380, // measured 365 live (15.8.1): two-line headline + depth line + two headings + six rows
 	'sn-health'           => 580, // SN Systems, +140 (2026-10-05: Edge and Cache sections, cron-day row, incidents and slowest); BUDGETED (+60 busiest state, 21.9.1): the verdict line, three one-row sections (~52 each), the uptime row's second line (~20), the button (~44), the link
-	'sn-deploy-status'    => 350, // v11.11.2 budgeted 310 + the Check for updates button (~40)
+	'sn-deploy-status'    => 470, // v11.11.2 budgeted 310 + the Check for updates button (~40); 23.3.1 + groups and the workers' deploy line (~110, measured ~450)
 	'sn-anchors'          => 620, // SN Provenance, +100 (2026-10-05: signatures, rights evidence, last posted, DOIs); BUDGETED (+60 busiest state, 21.9.1): 250 + the machine readers (~136) + the rights-files and top-family rows (~40) + the wrapped action row (~28)
 );
 ok( array_keys( $expected_height ) === array_keys( $widgets ),
@@ -948,7 +948,7 @@ $GLOBALS['__cap'] = true;
 ok( call_user_func( $route['permission_callback'] ) === true, 'permission callback allows manage_options' );
 
 echo "\n── site-views payload shape ──\n";
-delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) );
+delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) . '_' . SNT_VERSION );
 $GLOBALS['__series'] = array(
 	array( 'day' => '2026-07-15', 'views' => 10, 'visits' => 8 ),
 	array( 'day' => '2026-07-16', 'views' => 30, 'visits' => 20 ),
@@ -964,7 +964,7 @@ ok( ( $body['total'] ?? null ) === 40, 'payload total comes from range totals' )
 ok( array_key_exists( 'delta_pct', $body ), 'payload carries delta_pct' );
 
 echo "\n── v9.53.0: Site Views enrichment ──\n";
-delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) );
+delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) . '_' . SNT_VERSION );
 // 60 days of NOISY history. Two reasons this shape matters:
 //   1. The stub ignores $from/$to and returns this global for any range, so a
 //      14-day seed capped the 60-day FIT at 14 — below MIN_POINTS (21) — and
@@ -1063,7 +1063,7 @@ if ( is_array( $body['forecast'] ) ) {
 
 // Too little history → the engine returns null → the payload says null, and the
 // widget must render NOTHING rather than invent a number.
-delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) );
+delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) . '_' . SNT_VERSION );
 $GLOBALS['__series'] = array( array( 'day' => '2026-07-15', 'views' => 10, 'visits' => 5 ) );
 $res2  = call_user_func( $route['callback'] );
 $body2 = $res2 instanceof WP_REST_Response ? $res2->get_data() : $res2;
@@ -1104,7 +1104,7 @@ $GLOBALS['__movers']        = array(
 );
 $GLOBALS['__movers_calls'] = array();
 $GLOBALS['__series_calls'] = 0;
-delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) );
+delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) . '_' . SNT_VERSION );
 $res  = call_user_func( $route['callback'] );
 $body = $res instanceof WP_REST_Response ? $res->get_data() : $res;
 
@@ -1165,7 +1165,7 @@ $GLOBALS['__engaged_delta'] = array( 'current' => null, 'previous' => null, 'pct
 $GLOBALS['__movers']        = array();
 $GLOBALS['__series']        = array( array( 'day' => '2026-07-15', 'views' => 10, 'visits' => 5 ) );
 $GLOBALS['__series_calls']  = 0;
-delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) );
+delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) . '_' . SNT_VERSION );
 $res3  = call_user_func( $route['callback'] );
 $body3 = $res3 instanceof WP_REST_Response ? $res3->get_data() : $res3;
 ok( ! array_key_exists( 'today', $body3 ),
@@ -1176,7 +1176,7 @@ ok( ! array_key_exists( 'top_mover', $body3 ),
 	'empty movers [] → top_mover key omitted, never a fabricated row' );
 
 $GLOBALS['__movers'] = null;
-delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) );
+delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) . '_' . SNT_VERSION );
 $res3b  = call_user_func( $route['callback'] );
 $body3b = $res3b instanceof WP_REST_Response ? $res3b->get_data() : $res3b;
 ok( ! array_key_exists( 'top_mover', $body3b ),
@@ -1186,7 +1186,7 @@ ok( ! array_key_exists( 'top_mover', $body3b ),
 $GLOBALS['__series']        = array( array( 'day' => '2026-07-16', 'views' => 0, 'visits' => 0 ) );
 $GLOBALS['__engaged']       = 0;
 $GLOBALS['__engaged_delta'] = array( 'current' => 0, 'previous' => 5, 'pct' => -100, 'dir' => 'down' );
-delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) );
+delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) . '_' . SNT_VERSION );
 $res4  = call_user_func( $route['callback'] );
 $body4 = $res4 instanceof WP_REST_Response ? $res4->get_data() : $res4;
 ok( array_key_exists( 'today', $body4 ) && 0 === $body4['today'],
@@ -1225,7 +1225,7 @@ echo "\n── site-views fail-soft (the REAL failure mode: empty rollup, not AE
 // $wpdb — there is no Analytics Engine call on this path and thus no AE
 // exception to catch. The real degenerate case is an empty/missing rollup:
 // a fresh install, a table not yet created, or a window with no traffic.
-delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) );
+delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) . '_' . SNT_VERSION );
 $GLOBALS['__series'] = array();
 $GLOBALS['__totals'] = array( '*' => array( 'views' => 0, 'visits' => 0, 'scroll_avg' => 0.0, 'time_avg' => 0.0 ) );
 $res  = call_user_func( $route['callback'] );
