@@ -88,7 +88,9 @@ function snt_desktop_reading_visit_rows( $days ) {
 		// With the depth split measured, all three shares come from the same
 		// sessions (the days that measured it), so they add up; before any day
 		// measured it, the one-page share is the rollup's own.
-		array( 'label' => 'One page only', 'value' => $known > 0 ? snt_desktop_pct( max( 0, $known - $two - $deep ), $known ) : round( $bounce / $n ) . '%' ),
+		// `split` (with the depth split measured): one page, two, three or more,
+		// as numbers for the bar under the row.
+		array( 'label' => 'One page only', 'value' => $known > 0 ? snt_desktop_pct( max( 0, $known - $two - $deep ), $known ) : round( $bounce / $n ) . '%' ) + ( $known > 0 ? array( 'split' => array( round( 100 * max( 0, $known - $two - $deep ) / $known, 1 ), round( 100 * $two / $known, 1 ), round( 100 * $deep / $known, 1 ) ) ) : array() ),
 		array( 'label' => 'Pages per session', 'value' => number_format_i18n( $ppv / $n, 2 ) ),
 		array( 'label' => 'Typical session', 'value' => snt_desktop_reading_seconds( $dur / $n ) ),
 	);
@@ -155,7 +157,7 @@ function snt_desktop_reading_seconds( $s ) {
  * @param string     $name LCP | INP | CLS.
  * @param array      $dist [{label, views}] in band order: good, needs work, poor.
  * @param array|null $pct  sn_analytics_percentiles() rows; null when not read.
- * @return array{label:string,value:string}|null Null when nothing was measured.
+ * @return array{label:string,value:string,split:array<int,float>,quality:bool}|null Null when nothing was measured.
  */
 function snt_desktop_reading_vital_row( $name, array $dist, $pct = null ) {
 	$v     = array_map( static fn( $r ) => (int) ( $r['views'] ?? 0 ), array_values( $dist ) );
@@ -170,7 +172,13 @@ function snt_desktop_reading_vital_row( $name, array $dist, $pct = null ) {
 			$p75 = 'CLS' === $name ? number_format_i18n( $x / 1000, 2 ) : ( 'LCP' === $name ? number_format_i18n( $x / 1000, 1 ) . 's' : number_format_i18n( $x ) . 'ms' );
 		}
 	}
-	return array( 'label' => $name . ( '' !== $p75 ? ' · p75 ' . $p75 : '' ), 'value' => snt_desktop_pct( $v[0], $total ) . ' good · ' . snt_desktop_pct( $v[2], $total ) . ' poor' );
+	// `split`: good, needs work, poor as numbers; `quality` colors the bar by band.
+	return array(
+		'label'   => $name . ( '' !== $p75 ? ' · p75 ' . $p75 : '' ),
+		'value'   => snt_desktop_pct( $v[0], $total ) . ' good · ' . snt_desktop_pct( $v[2], $total ) . ' poor',
+		'split'   => array_map( static fn( $x ) => round( 100 * $x / $total, 1 ), $v ),
+		'quality' => true,
+	);
 }
 
 /**

@@ -71,6 +71,10 @@
 				row.setAttribute( 'role', 'listitem' );
 				row.appendChild( el( 'span', 'white-space:normal;overflow-wrap:break-word;min-width:0;', r.label ) );
 				row.appendChild( el( 'span', 'flex:none;max-width:100%;margin-left:auto;text-align:right;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;font-weight:600;' + ( TONE[ r.tone ] ? 'color:' + TONE[ r.tone ] + ';' : '' ), r.value ) );
+				// A row's `split` (percents) draws a bar under it (assets/desktop-mode-card-kit.js);
+				// `quality` colors it good, needs work, poor. Without the kit, the row alone.
+				var bar = window.sntCardKit && Array.isArray( r.split ) ? window.sntCardKit.bar( r.split, !! r.quality ) : null;
+				if ( bar ) { row.appendChild( bar ); }
 				list.appendChild( row );
 			} );
 			body.appendChild( list );

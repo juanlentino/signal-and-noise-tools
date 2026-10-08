@@ -14,6 +14,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Changed
 - **The docs describe the live arc.** The README's Analytics section explains the live figures, /stats strip, admin Right now panel, Arrived from and the live-surge signal (and why it is analytics, not ML); the public routes table says what `/live` carries and what only `live/admin` does; `docs/ai-abilities-catalog.md` lists `signal-noise/live-now`.
+- **The desktop cards draw shares, and SN Traffic is shorter on a quiet day.** A shared card kit (`assets/desktop-mode-card-kit.js`) draws a thin share bar, the dot that ties a row to its segment, and two groups on one row. SN Traffic: Today so far and Reading now are one list; the hour bars and Top now show only when there is a reader to show; Countries and Sources sit side by side, each over its share bar, and Devices has its own. SN Reading: one page, two, and three or more as a bar under One page only; each Core Web Vital as a good, needs work, poor bar. SN Provenance: verified, named-not-verified and not-measured machine reads as a bar under Machine reads. Every row and figure is still printed; the marks are decoration, hidden from assistive tech, and a card without the kit draws plain rows. Pairing This week with Reach, Uptime with Cron, Edge with Cache and Internet Archive with Provenance was tried and left out: their rows are too long to share a 312px card.
 
 ## [23.2.0] - 2026-10-08 — live visits, the right-now panel and a live-surge signal
 

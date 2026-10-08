@@ -121,7 +121,8 @@ foreach ( array( 'desktop-mode-widget.js', 'desktop-mode-widget-health.js', 'des
 }
 ok( false !== strpos( $code['desktop-mode-widget.js'], 'nextAt = lastAt + Math.max( lastDelay, cadence( REFRESH_MS ) );' ), 'the deploy card: a failure backoff still wins when longer than the cadence' );
 $assets_php = (string) file_get_contents( dirname( __DIR__ ) . '/inc/desktop-mode-assets.php' );
-ok( 4 === substr_count( $assets_php, "'snt-poll-cadence' )" ), 'the four pollers (deploy, queue, systems, traffic) declare the cadence as a dependency' );
+ok( 4 === preg_match_all( "/array\\([^)]*'snt-poll-cadence'/", $assets_php ), 'the four pollers (deploy, queue, systems, traffic) declare the cadence as a dependency' );
+ok( 3 === preg_match_all( "/array\\([^)]*'snt-card-kit'/", $assets_php ), 'the three cards that draw share bars (traffic, reading, provenance) declare the card kit as a dependency' );
 
 // 6. Negative control: the status colours have no widget token and stay literal.
 ok( false !== strpos( $code['desktop-mode-widget.js'], "'#3fb950'" ) && false !== strpos( $code['desktop-mode-widget.js'], "'#d29922'" ) && false !== strpos( $code['desktop-mode-widget.js'], "'#ff9d94'" ), 'the deploy card keeps its green, amber and red status glyphs literal' );

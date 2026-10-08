@@ -174,67 +174,43 @@
 			box.appendChild( el( 'div', { text: empty || 'Nothing to show.', style: 'font-size:11px;padding:2px 0;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } ) );
 			return box;
 		}
-		var bar = opts.share ? shareBar( rows ) : null;
+		var kit = window.sntCardKit;
+		var bar = opts.share && kit ? kit.bar( rows.map( function( r ) { return r.share; } ) ) : null;
 		if ( bar ) { box.appendChild( bar ); }
-		box.appendChild( list( rows, bar ? SHADES : null ) );
+		box.appendChild( list( rows, !! bar ) );
 		return box;
 	}
 
-	// The share bar's segments, strongest first, in the card's accent; the rest
-	// of the whole (rows not shown) is the bare track. The same shade marks the
-	// row it stands for.
-	var SHADES = [ 1, 0.7, 0.48, 0.3 ];
-
-	/**
-	 * One thin bar split by the rows' shares (percent of ALL rows, so the track
-	 * left over is everything not listed). Decoration: the figures are in the
-	 * rows, so it is hidden from assistive tech. Null when no row has a share.
-	 */
-	function shareBar( rows ) {
-		var any = rows.some( function( r ) { return typeof r.share === 'number' && r.share > 0; } );
-		if ( ! any ) { return null; }
-		var bar = el( 'div', { style: 'display:flex;gap:1px;height:6px;border-radius:3px;overflow:hidden;margin:3px 0 4px;background:var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
-		bar.setAttribute( 'aria-hidden', 'true' );
-		rows.forEach( function( r, i ) {
-			if ( typeof r.share !== 'number' || r.share <= 0 ) { return; }
-			bar.appendChild( el( 'span', { style: 'flex:0 0 ' + Math.min( 100, r.share ) + '%;background:var(--os-ui-color-accent, #4a9eff);opacity:' + SHADES[ Math.min( i, SHADES.length - 1 ) ] + ';' } ) );
-		} );
-		return bar;
-	}
-
-	/**
-	 * Groups the server marked `pair` share a row with the next group: one
-	 * hairline over both, two columns that fold to one in a narrow card. Each
-	 * column starts at its own content's width and they share what is left, so
-	 * two-letter country codes leave room for "Hacker News 16 · 6%".
-	 */
+	/** Groups the server marked `pair` share a row with the next (sntCardKit.pair); without the kit they stack. */
 	function pairOf( a, b ) {
-		var box = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));display:flex;flex-wrap:wrap;gap:6px 12px;' } );
-		[ a, b ].forEach( function( g ) {
-			var col = group( g.title, g.rows || [], g.empty, { share: g.share, bare: true } );
-			col.style.flex = '1 1 auto';
-			col.style.minWidth = '100px';
-			box.appendChild( col );
-		} );
-		return box;
+		var kit = window.sntCardKit;
+		var ga  = group( a.title, a.rows || [], a.empty, { share: a.share, bare: !! kit } );
+		var gb  = group( b.title, b.rows || [], b.empty, { share: b.share, bare: !! kit } );
+		if ( kit ) { return kit.pair( ga, gb ); }
+		var both = el( 'div' );
+		both.appendChild( ga );
+		both.appendChild( gb );
+		return both;
 	}
 
 	/**
-	 * Label/value rows as a list (role=list, each row a listitem). shades: the
-	 * share bar's, so each row carries a dot in its segment's shade.
+	 * Label/value rows as a list (role=list, each row a listitem). dots: the
+	 * group drew a share bar, so each row carries a dot in its segment's shade.
+	 * A row's `split` (percents) draws its own bar under it (Devices).
 	 */
-	function list( rows, shades ) {
+	function list( rows, dots ) {
+		var kit = window.sntCardKit;
 		var ul = el( 'div' );
 		ul.setAttribute( 'role', 'list' );
 		rows.forEach( function( r, i ) {
 			var row = statRow( String( r.label ), String( r.value ), r.style );
 			row.setAttribute( 'role', 'listitem' );
-			if ( shades && typeof r.share === 'number' && r.share > 0 ) {
-				var dot = el( 'span', { style: 'display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:1px;background:var(--os-ui-color-accent, #4a9eff);opacity:' + shades[ Math.min( i, shades.length - 1 ) ] + ';' } );
-				dot.setAttribute( 'aria-hidden', 'true' );
-				row.firstChild.insertBefore( dot, row.firstChild.firstChild );
+			if ( dots && kit && typeof r.share === 'number' && r.share > 0 ) {
+				row.firstChild.insertBefore( kit.dot( i ), row.firstChild.firstChild );
 				row.style.columnGap = '6px'; // a half-width column: "Hacker News 16 · 6%" stays on one line
 			}
+			var split = kit && Array.isArray( r.split ) ? kit.bar( r.split ) : null;
+			if ( split ) { row.appendChild( split ); }
 			ul.appendChild( row );
 		} );
 		return ul;
