@@ -834,3 +834,45 @@ function attention_search_door( $url ) {
 	}
 	return 'https://search.google.com/search-console/inspect?resource_id=' . rawurlencode( $property ) . '&id=' . rawurlencode( $url );
 }
+
+/**
+ * The live-surge analytics signal (inc/analytics-live-surge.php): one row while the last
+ * completed 5-minute slot is a surge against the same time of day. Neutral,
+ * not a warning: more readers than usual is news, not a fault. Learning and
+ * usual are no row (a standing row teaches its reader to stop looking).
+ * Reads the realtime cache only.
+ *
+ * @return array{rows:array,stamp:string,unreadable:bool}
+ */
+function attention_live() {
+	if ( ! function_exists( 'sn_analytics_live_payload' ) ) {
+		return attention_read();
+	}
+	try {
+		$live  = \sn_analytics_live_payload( true );
+		$surge = is_array( $live ) && is_array( $live['surge'] ?? null ) ? $live['surge'] : null;
+		if ( null === $surge || 'surge' !== (string) ( $surge['state'] ?? '' ) ) {
+			return attention_read();
+		}
+		$stamp = isset( $live['fetched'] ) && is_int( $live['fetched'] ) ? attention_stamp( $live['fetched'] ) : attention_stamp( attention_now() );
+		$readers = (int) ( $surge['readers'] ?? 0 );
+		$ratio   = $surge['ratio'] ?? null;
+		return attention_read( array( attention_row( array(
+			'kind'       => 'live',
+			'key'        => 'surge',
+			'title'      => __( 'Unusual traffic right now', 'signal-and-noise-tools' ),
+			'subtitle'   => is_numeric( $ratio )
+				/* translators: 1: readers in the last 5-minute slot, 2: times the usual. */
+				? sprintf( __( '%1$d readers in the last completed 5-minute slot, about %2$s times the usual for this time of day', 'signal-and-noise-tools' ), $readers, number_format_i18n( (float) $ratio, 1 ) )
+				/* translators: %d: readers in the last 5-minute slot. */
+				: sprintf( __( '%d readers in the last completed 5-minute slot, at a time of day that is usually empty', 'signal-and-noise-tools' ), $readers ),
+			'tone'       => 'neutral',
+			'stamp'      => $stamp,
+			'source'     => __( 'The live-surge analytics signal, last completed 5-minute slot', 'signal-and-noise-tools' ),
+			'door'       => attention_door( 'sn-analytics' ),
+			'door_label' => __( 'Open S&N Analytics', 'signal-and-noise-tools' ),
+		) ) ), $stamp );
+	} catch ( \Throwable $e ) {
+		return attention_unreadable();
+	}
+}

@@ -152,6 +152,8 @@ require_once SNT_PATH . 'inc/analytics-derive.php'; // Phase A pure derive layer
 require_once SNT_PATH . 'inc/analytics-realtime.php';
 require_once SNT_PATH . 'inc/analytics-live-pages.php'; // being read now: readers per public page, top five
 require_once SNT_PATH . 'inc/analytics-live-hour.php'; // the last hour behind Reading now, twelve 5-minute slots
+require_once SNT_PATH . 'inc/analytics-live-sources.php'; // admin only: where current readers arrived from
+require_once SNT_PATH . 'inc/analytics-live-admin.php'; // the admin Right now block (classic and native)
 require_once SNT_PATH . 'inc/analytics-live.php'; // the live pair: public /live (human) and gated /live/admin
 require_once SNT_PATH . 'inc/analytics-read.php';   // path read accessors (dashboard + widgets)
 require_once SNT_PATH . 'inc/analytics-topics.php'; // v10.21.0: topic-level aggregation (ML partition × path rollups)
@@ -596,6 +598,8 @@ require_once __DIR__ . '/inc/ml-drift.php';            // v11.2.0: corpus drift 
 require_once __DIR__ . '/inc/ml-drift-admin.php';      // v11.2.0: the Vocabulary leaf (Content tab) — the drift mirror's ONLY surface
 require_once __DIR__ . '/inc/abilities-reader-anomalies.php'; // v13.76.0: read-door ability for the pipeline below.
 require_once __DIR__ . '/inc/ml-reader-anomalies.php';
+require_once __DIR__ . '/inc/analytics-live-surge.php';
+require_once __DIR__ . '/inc/abilities-live-now.php'; // 23.2.0: the read-door ability over the live answer // 23.2.0: is right now unusual? the live slot log and its robust z
 require_once __DIR__ . '/inc/ml-reader-anomalies-health.php'; // v13.76.0: its Site Health surface. // v13.76.0: reader anomalies — machine-reader volume/shape deviations through the analytics signal engine — ML pipeline #11
 require_once __DIR__ . '/inc/ml-paths.php';            // v11.3.0: reading paths — the chain one post sits on (reads ml-artifacts' additive path field) — ML pipeline #10
 require_once __DIR__ . '/inc/ml-paths-render.php';     // v11.3.0: [sn_reading_path] — plugin owns the renderer, the THEME places it (single.html)

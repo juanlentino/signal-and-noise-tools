@@ -190,6 +190,7 @@ function attention_kinds() {
 		'watches'   => __( 'Watches', 'signal-and-noise-tools' ),
 		'readers'   => __( 'Machine readers', 'signal-and-noise-tools' ),
 		'search'    => __( 'Search', 'signal-and-noise-tools' ),
+		'live'      => __( 'Live traffic', 'signal-and-noise-tools' ),
 	);
 }
 
@@ -222,6 +223,7 @@ function attention_kind_icon( $kind ) {
 		'watches'   => 'dashicons-visibility',
 		'readers'   => 'dashicons-rest-api',
 		'search'    => 'dashicons-search',
+		'live'      => 'dashicons-chart-line',
 	);
 	return isset( $icons[ (string) $kind ] ) ? $icons[ (string) $kind ] : 'dashicons-flag';
 }
@@ -243,6 +245,7 @@ function attention_signals() {
 		'watches'   => __NAMESPACE__ . '\attention_watches',
 		'readers'   => __NAMESPACE__ . '\attention_readers',
 		'search'    => __NAMESPACE__ . '\attention_search', // v14.7.0
+		'live'      => __NAMESPACE__ . '\attention_live', // 23.2.0: the live-surge analytics signal
 	);
 }
 

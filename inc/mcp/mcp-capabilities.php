@@ -212,6 +212,8 @@ function sn_mcp_allowlist() {
 		// v13.62.0 — weave Phase 5. Read-only over the stored drift report.
 		'signal-noise/family-drift',
 		'signal-noise/reader-anomalies',
+		// 23.2.0 — the site right now (the sn-status `live` source); reads the realtime cache only. Read door 50 → 51.
+		'signal-noise/live-now',
 		// v13.63.0 — stored index coverage per post; never inspects on read.
 		'signal-noise/search-coverage',
 		// v13.68.0 — stored inbound-pass report; never calls the model on read.

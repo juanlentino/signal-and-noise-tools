@@ -328,6 +328,24 @@
 				nowVal.setAttribute( 'data-sn-live-class', 'human' );
 			}
 			body.appendChild( nowList );
+			// The last hour as small bars (live-now.js draws them) and the page
+			// most read right now. Both stay empty or "—" until the first read.
+			if ( document.createElementNS ) {
+				var bars = document.createElementNS( 'http://www.w3.org/2000/svg', 'svg' );
+				bars.setAttribute( 'viewBox', '0 0 240 18' );
+				bars.setAttribute( 'preserveAspectRatio', 'none' );
+				bars.setAttribute( 'aria-hidden', 'true' );
+				bars.setAttribute( 'data-sn-live-hour', '' );
+				bars.setAttribute( 'style', 'display:block;width:100%;height:18px;margin:2px 0 4px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' );
+				body.appendChild( bars );
+			}
+			var topList = list( [ { label: 'Top now', value: '—' } ] );
+			var topRow  = topList.children && topList.children[ 0 ];
+			var topVal  = topRow && topRow.children && topRow.children[ topRow.children.length - 1 ];
+			if ( topVal ) {
+				topVal.setAttribute( 'data-sn-live-top', '' );
+			}
+			body.appendChild( topList );
 			if ( typeof window.CustomEvent === 'function' && document.dispatchEvent ) {
 				document.dispatchEvent( new window.CustomEvent( 'sn-live-refresh' ) );
 			}

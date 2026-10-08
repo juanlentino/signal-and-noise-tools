@@ -49,9 +49,16 @@ function sn_post_settings_get_noindex( $id ) { return (bool) ( sn_test_post( $id
 function get_the_title( $id ) { return 'Title ' . $id; }
 function get_permalink( $id ) { return 'https://x.test' . sn_test_post( $id )['path']; }
 function __( $s, $d = null ) { return $s; }
+function esc_html__( $s, $d = null ) { return htmlspecialchars( $s, ENT_QUOTES ); }
+function esc_attr__( $s, $d = null ) { return htmlspecialchars( $s, ENT_QUOTES ); }
+function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 require dirname( __DIR__ ) . '/inc/analytics-realtime.php';
 require dirname( __DIR__ ) . '/inc/analytics-live-pages.php';
 require dirname( __DIR__ ) . '/inc/analytics-live-hour.php';
+require dirname( __DIR__ ) . '/inc/analytics-sources.php';
+require dirname( __DIR__ ) . '/inc/analytics-live-sources.php';
+require dirname( __DIR__ ) . '/inc/analytics-live-admin.php';
 require dirname( __DIR__ ) . '/inc/analytics-live.php';
 
 $pass = 0; $fail = 0;
@@ -142,6 +149,37 @@ ok( null === sn_analytics_live_payload( false )['hour'], 'a cache written before
 $GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ]['hour'] = $hour;
 ok( 12 === count( sn_analytics_live_payload( false )['hour'] ), 'the public payload carries the hour' );
 ok( false !== strpos( (string) file_get_contents( dirname( __DIR__ ) . '/inc/public-stats-live.php' ), 'data-sn-live-hour' ), 'the strip carries the hour hook' );
+
+echo "\nGroup: where current readers arrived from (admin only)\n";
+$sql = sn_analytics_live_sources_sql();
+ok( false !== strpos( $sql, 'blob3 AS host' ) && false !== strpos( $sql, "blob1 = 'pv'" ) && false !== strpos( $sql, "INTERVAL '5' MINUTE" ) && false !== strpos( $sql, 'GROUP BY host' ), 'pageviews in the last 5 minutes, distinct readers per referrer host' );
+$src = sn_analytics_live_sources_from_rows( array(
+	array( 'host' => 'www.google.com', 'readers' => 2 ),
+	array( 'host' => 'google.com', 'readers' => 1 ),
+	array( 'host' => '', 'readers' => 2 ),
+	array( 'host' => SN_ANALYTICS_INTERNAL_REFERRER, 'readers' => 7 ),
+	array( 'host' => 'news.ycombinator.com', 'readers' => 1 ),
+), array() );
+ok( array( 'label' => 'Google', 'readers' => 3 ) === $src[0], 'hosts fold into the dashboard\'s source names, counts summed' );
+ok( in_array( 'Direct', array_column( $src, 'label' ), true ) && in_array( 'Hacker News', array_column( $src, 'label' ), true ), 'no referrer reads Direct; a known host gets its name' );
+ok( ! in_array( SN_ANALYTICS_INTERNAL_REFERRER, array_column( $src, 'label' ), true ) && 3 === count( $src ), 'a click inside the site is not a source' );
+$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array( 'human' => 3 ), 'views_today' => 4, 'fetched' => 9, 'sources' => $src );
+ok( ! array_key_exists( 'sources', sn_analytics_live_payload( false ) ), 'the public payload never carries sources' );
+$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ]['surge'] = array( 'state' => 'surge', 'readers' => 9, 'usual' => 1.0, 'ratio' => 9.0, 'z' => 8.0, 'days' => 7 );
+ok( ! array_key_exists( 'surge', sn_analytics_live_payload( false ) ) && 'surge' === sn_analytics_live_payload( true )['surge']['state'], 'the ML verdict is admin only' );
+ok( 'Google' === sn_analytics_live_payload( true )['sources'][0]['label'], 'the admin payload does' );
+
+echo "\nGroup: the admin Right now block\n";
+$html = sn_analytics_live_admin_html();
+foreach ( array( 'data-sn-live-hour', 'data-sn-live-pages', 'data-sn-live-sources', 'data-sn-live-meta', 'data-updated=', 'data-empty=', 'data-sn-live-surge', 'data-learning=' ) as $hook ) {
+	ok( false !== strpos( $html, $hook ), "the block carries $hook" );
+}
+$root = dirname( __DIR__ );
+ok( false !== strpos( (string) file_get_contents( "$root/inc/analytics-view-overview.php" ), 'sn_analytics_live_admin_html(' ), 'the classic Right now panel prints the block' );
+ok( false !== strpos( (string) file_get_contents( "$root/apps/sn-analytics/parts/painters/view-overview.php" ), 'sn_analytics_live_admin_html(' ), 'the native Overview prints the block' );
+$widget = (string) file_get_contents( "$root/assets/desktop-mode-widget-views.js" );
+ok( false !== strpos( $widget, 'data-sn-live-hour' ) && false !== strpos( $widget, 'data-sn-live-top' ), 'the Traffic widget carries the bars and the top page' );
+ok( false !== strpos( (string) file_get_contents( "$root/phpcs.xml.dist" ), 'sn_analytics_live_admin_html' ), 'the builder is declared an escaping function (everything in it is escaped inside)' );
 
 echo "\nGroup: two routes, the public one human only\n";
 sn_analytics_live_register_routes();
