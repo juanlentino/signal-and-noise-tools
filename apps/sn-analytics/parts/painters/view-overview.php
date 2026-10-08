@@ -28,8 +28,8 @@ function paint_view_overview( array $ctx ) {
 	$today = function_exists( 'sn_analytics_views_today' ) ? sn_analytics_views_today() : null;
 	$out   = stats(
 		array(
-			array( 'l' => __( 'Right now', 'signal-and-noise-tools' ), 'n' => null === $now ? '—' : num( $now ) ),
-			array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => null === $today ? '—' : num( $today ), 'sub' => __( 'human', 'signal-and-noise-tools' ) ),
+			array( 'l' => __( 'Right now', 'signal-and-noise-tools' ), 'n' => null === $now ? '—' : num( $now ), 'attrs' => function_exists( 'sn_analytics_live_attrs' ) ? sn_analytics_live_attrs( 'now', $class ) : array() ),
+			array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => null === $today ? '—' : num( $today ), 'sub' => __( 'human', 'signal-and-noise-tools' ), 'attrs' => function_exists( 'sn_analytics_live_attrs' ) ? sn_analytics_live_attrs( 'today', 'human' ) : array() ), // data-sn-live
 		)
 	);
 	$doors = '<div class="snt-doors snt-toolbar__group" role="navigation" aria-label="' . esc_attr__( 'Quick jump to analytics views', 'signal-and-noise-tools' ) . '">'

@@ -94,7 +94,7 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 	if ( ! $annotations_after ) {
 		$annotations();
 	}
-	snt_analytics_render_cards( $now, $totals, $deltas, $engaged, $basis_label );
+	snt_analytics_render_cards( $now, $totals, $deltas, $engaged, $basis_label, $class ); // data-sn-live: 'now' updates in place
 	if ( function_exists( 'sn_analytics_human_rule_reading' ) ) {
 		snt_analytics_render_human_rule_note( sn_analytics_human_rule_reading( $from, $to, $class ) );
 	}

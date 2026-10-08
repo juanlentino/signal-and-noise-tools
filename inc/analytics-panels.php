@@ -409,7 +409,11 @@ function snt_an_kpi_row( $cards, $opts = array() ) {
 		}
 		echo '<div class="sn-kpi' . ( ! empty( $c['promoted'] ) ? ' sn-kpi-promoted' : '' ) . '">';
 		echo '<p class="sn-kpi-label">' . esc_html( (string) $c['l'] ) . '</p>';
-		echo '<p class="sn-kpi-value">' . esc_html( (string) $c['n'] ) . '</p>';
+		$live = '';
+		foreach ( (array) ( $c['attrs'] ?? array() ) as $k => $v ) {
+			$live .= ' ' . esc_attr( (string) $k ) . '="' . esc_attr( (string) $v ) . '"';
+		}
+		echo '<p class="sn-kpi-value"' . $live . '>' . esc_html( (string) $c['n'] ) . '</p>';
 		if ( ! empty( $c['live'] ) ) {
 			echo '<span class="sn-kpi-delta sn-delta-flat">' . esc_html__( 'live', 'signal-and-noise-tools' ) . '</span>';
 		} elseif ( ! empty( $c['delta'] ) ) {

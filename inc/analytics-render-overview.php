@@ -117,7 +117,7 @@ function snt_analytics_render_delta_badge( $delta ) {
  *                                                                                or null to omit the card.
  * @param string     $basis_label Comparison-basis tooltip label; '' = previous period.
  */
-function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged = null, $basis_label = '' ) {
+function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged = null, $basis_label = '', $class = 'human' ) {
 	$totals = is_array( $totals ) ? $totals : array();
 	$known  = function ( $key ) use ( $totals ) {
 		return array_key_exists( $key, $totals ) && null !== $totals[ $key ];
@@ -137,7 +137,7 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
 	$cards[] = $known( 'pageview_visits' )
 		? array( 'l' => 'Visits', 'n' => number_format_i18n( (int) $totals['pageview_visits'] ), 'delta' => $deltas['pageview_visits'] ?? null, 'promoted' => true )
 		: array( 'l' => 'Visits', 'n' => '—', 'sub' => $caveat, 'promoted' => true );
-	$cards[] = array( 'l' => 'Now', 'n' => ( null === $now ? '—' : number_format_i18n( (int) $now ) ), 'live' => true );
+	$cards[] = array( 'l' => 'Now', 'n' => ( null === $now ? '—' : number_format_i18n( (int) $now ) ), 'live' => true, 'attrs' => function_exists( 'sn_analytics_live_attrs' ) ? sn_analytics_live_attrs( 'now', $class ) : array() );
 	$cards[] = $known( 'scroll_avg_per_view' )
 		? array( 'l' => 'Scroll / view', 'n' => (int) round( (float) $totals['scroll_avg_per_view'] ) . '%', 'delta' => $deltas['scroll_avg_per_view'] ?? null )
 		: array( 'l' => 'Scroll / view', 'n' => '—', 'sub' => $caveat );

@@ -554,18 +554,20 @@ function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows
  * @param int|null $now   Active visitors in the 5-minute window (class-filtered).
  * @param int|null $today Human pageviews so far in the site-local day.
  */
-function snt_analytics_render_overview_rightnow( $now, $today ) {
+function snt_analytics_render_overview_rightnow( $now, $today, $class = 'human' ) {
+	// data-sn-live: both figures update in place (assets/live-now.js).
+	$live = static fn( $k ) => function_exists( 'sn_analytics_live_attrs' ) ? sn_analytics_live_attrs( $k, 'today' === $k ? 'human' : $class ) : array();
 	snt_an_panel_open( __( 'Right now', 'signal-and-noise-tools' ), array(
 		'panel_class' => 'sn-an-rightnow',
 		'header_meta' => __( 'cron-warmed: never queried on page load', 'signal-and-noise-tools' ),
 	) );
 	$cards   = array();
 	$cards[] = ( null === $now )
-		? array( 'l' => __( 'Active visitors', 'signal-and-noise-tools' ), 'n' => '—', 'sub' => __( 'warming: no cron sample yet', 'signal-and-noise-tools' ) )
-		: array( 'l' => __( 'Active visitors', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $now ), 'sub' => __( '5-minute window', 'signal-and-noise-tools' ) );
+		? array( 'l' => __( 'Active visitors', 'signal-and-noise-tools' ), 'n' => '—', 'sub' => __( 'warming: no cron sample yet', 'signal-and-noise-tools' ), 'attrs' => $live( 'now' ) )
+		: array( 'l' => __( 'Active visitors', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $now ), 'sub' => __( '5-minute window', 'signal-and-noise-tools' ), 'attrs' => $live( 'now' ) );
 	$cards[] = ( null === $today )
-		? array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => '—', 'sub' => __( 'warming: no sample for today yet', 'signal-and-noise-tools' ) )
-		: array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $today ), 'sub' => __( 'human pageviews · site-local day', 'signal-and-noise-tools' ) );
+		? array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => '—', 'sub' => __( 'warming: no sample for today yet', 'signal-and-noise-tools' ), 'attrs' => $live( 'today' ) )
+		: array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $today ), 'sub' => __( 'human pageviews · site-local day', 'signal-and-noise-tools' ), 'attrs' => $live( 'today' ) );
 	snt_an_kpi_row( $cards, array( 'empty_slot' => 'omit' ) );
 	snt_an_panel_close();
 }
@@ -955,7 +957,8 @@ function snt_analytics_render_view_overview( $from, $to, $class, $range = '7', $
 	// promotes: instantaneous — it cannot be notable vs a prior period.
 	snt_analytics_render_overview_rightnow(
 		function_exists( 'sn_analytics_realtime' ) ? sn_analytics_realtime( $class ) : null,
-		function_exists( 'sn_analytics_views_today' ) ? sn_analytics_views_today() : null
+		function_exists( 'sn_analytics_views_today' ) ? sn_analytics_views_today() : null,
+		$class
 	);
 
 	// ── The bento: the UNPROMOTED minis, re-packed into the standard two

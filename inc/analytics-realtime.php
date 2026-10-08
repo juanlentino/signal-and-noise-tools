@@ -280,17 +280,29 @@ function sn_analytics_realtime_warm() {
 	if ( ! current_user_can( 'view_stats' ) && ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
-	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
-		return;
-	}
+	sn_analytics_realtime_schedule_if_stale();
+}
 
+/**
+ * The throttle itself, with no capability check: one background refresh when
+ * the cached pair is older than the 30 s target and none is already queued.
+ * The admin warmer gates it on a capability; the public live route calls it
+ * bare, so a reader on /stats keeps the pair fresh without an admin present.
+ * However many callers arrive, at most one refresh is queued at a time.
+ *
+ * @return bool True when this call scheduled a refresh.
+ */
+function sn_analytics_realtime_schedule_if_stale() {
+	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
+		return false;
+	}
 	$cached = get_transient( SN_ANALYTICS_REALTIME_KEY );
 	$age    = ( is_array( $cached ) && isset( $cached['fetched'] ) )
 		? ( time() - (int) $cached['fetched'] )
 		: PHP_INT_MAX;
-
-	if ( $age > SN_ANALYTICS_REALTIME_TTL && ! wp_next_scheduled( SN_ANALYTICS_REALTIME_HOOK ) ) {
-		wp_schedule_single_event( time(), SN_ANALYTICS_REALTIME_HOOK );
+	if ( $age <= SN_ANALYTICS_REALTIME_TTL || wp_next_scheduled( SN_ANALYTICS_REALTIME_HOOK ) ) {
+		return false;
 	}
+	return (bool) wp_schedule_single_event( time(), SN_ANALYTICS_REALTIME_HOOK );
 }
 add_action( 'admin_init', 'sn_analytics_realtime_warm', 5 );

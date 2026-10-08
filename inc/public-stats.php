@@ -43,6 +43,7 @@ const SN_PUBLIC_STATS_DAYS      = 30;
 const SN_PUBLIC_STATS_TOP_N     = 8;
 
 require_once __DIR__ . '/public-stats-sections.php';
+require_once __DIR__ . '/public-stats-live.php'; // the live strip, filled client-side
 
 /**
  * The window: the last 30 COMPLETE UTC days, ending yesterday.
@@ -396,7 +397,7 @@ function sn_public_stats_path_label( $path ) {
 function sn_public_stats_html() {
 	$data = sn_public_stats_data();
 
-	$out = '<div class="sn-public-stats">';
+	$out = '<div class="sn-public-stats">' . ( function_exists( 'sn_analytics_live_attrs' ) ? sn_public_stats_live_html() : '' );
 
 	if ( null === $data ) {
 		// Never-measured is an answer, not an error — and never a zero.
@@ -492,6 +493,7 @@ if ( function_exists( 'add_action' ) ) {
  */
 function sn_public_stats_shortcode( $atts = array() ) {
 	sn_public_stats_enqueue();
+	sn_public_stats_live_enqueue();
 	return sn_public_stats_html();
 }
 add_shortcode( 'sn_public_stats', 'sn_public_stats_shortcode' );

@@ -82,7 +82,8 @@ function stats( array $cards ) {
 			(string) ( $card['n'] ?? '' ),
 			(string) ( $card['l'] ?? '' ),
 			(string) ( $card['sub'] ?? '' ),
-			(string) ( $card['kind'] ?? '' )
+			(string) ( $card['kind'] ?? '' ),
+			(array) ( $card['attrs'] ?? array() )
 		);
 	}
 	return \snt_kit_grid( $out, 160, 10 );

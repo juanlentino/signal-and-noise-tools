@@ -64,7 +64,7 @@ function snt_os_host_asset_handles( $id = 'sn-dashboard' ) {
 	if ( 'sn-analytics' === (string) $id ) {
 		return array(
 			'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'snt-os-app', 'snt-sn-analytics-app' ),
-			'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit', 'snt-analytics-native-tables' ),
+			'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit', 'snt-analytics-native-tables', 'sn-live-now-admin' ),
 		);
 	}
 	return array(
@@ -148,6 +148,9 @@ function snt_os_host_register_assets() {
 	// 17.9.0 (#1624): a leaf table marked data-snt-stack-on-phone is a card list on a phone.
 	if ( ! wp_script_is( 'snt-os-kit-stack', 'registered' ) ) {
 		wp_register_script( 'snt-os-kit-stack', SNT_URL . 'assets/os-kit-stack.js', array(), SNT_VERSION, true );
+	}
+	if ( ! wp_script_is( 'sn-live-now-admin', 'registered' ) ) {
+		wp_register_script( 'sn-live-now-admin', SNT_URL . 'assets/live-now.js', array( 'wp-api-fetch' ), SNT_VERSION, true );
 	}
 	if ( ! wp_script_is( 'snt-analytics-native-tables', 'registered' ) ) {
 		wp_register_script( 'snt-analytics-native-tables', SNT_URL . 'apps/sn-analytics/native-tables.js', array( 'snt-os-kit' ), SNT_VERSION, true );
