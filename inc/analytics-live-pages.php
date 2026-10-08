@@ -5,7 +5,8 @@
  * One grouped query on each realtime refresh: distinct readers per path over
  * the same 5-minute window as "Reading now", human only, admin/login/asset
  * paths excluded. A path is listed only when it resolves to a published,
- * unprotected page or note (or is Home): a draft, a private page or a junk
+ * unprotected page or note the owner has not hidden from search (or is
+ * Home): a draft, a private or noindex page, another post type or a junk
  * path never appears, even when someone is on it. Top five. Aggregate counts,
  * cookieless as the beacon is; nothing new is collected.
  *
@@ -53,13 +54,23 @@ function sn_analytics_live_pages_from_rows( array $rows, callable $resolve ) {
 		$path = rtrim( $path, '/' ) . '/';
 		$by[ $path ] = ( $by[ $path ] ?? 0 ) + max( 0, (int) $row['readers'] );
 	}
+	// Keyed by the page the path resolves to, not the path string: /About/
+	// and /about/ (or a /2/ suffix) are one page, listed once with one count,
+	// and a forged case variant cannot duplicate an entry (review on #1964).
 	$out = array();
 	foreach ( $by as $path => $readers ) {
 		$hit = $resolve( $path );
-		if ( is_array( $hit ) && $readers > 0 ) {
-			$out[] = array( 'label' => (string) $hit[0], 'url' => (string) $hit[1], 'readers' => (int) $readers );
+		if ( ! is_array( $hit ) || $readers < 1 ) {
+			continue;
+		}
+		$url = (string) $hit[1];
+		if ( isset( $out[ $url ] ) ) {
+			$out[ $url ]['readers'] += (int) $readers;
+		} else {
+			$out[ $url ] = array( 'label' => (string) $hit[0], 'url' => $url, 'readers' => (int) $readers );
 		}
 	}
+	$out = array_values( $out );
 	usort( $out, static fn( $a, $b ) => $b['readers'] <=> $a['readers'] ?: strcmp( $a['label'], $b['label'] ) );
 	return array_slice( $out, 0, SN_ANALYTICS_LIVE_PAGES_MAX );
 }
@@ -76,6 +87,15 @@ function sn_analytics_live_pages_resolve( $path ) {
 	}
 	$id = url_to_postid( home_url( $path ) );
 	if ( $id < 1 || 'publish' !== get_post_status( $id ) || post_password_required( $id ) || '' !== (string) get_post_field( 'post_password', $id ) ) {
+		return null;
+	}
+	// Notes and pages only, and never one the owner hides from search: an
+	// unlisted page sent to one person must not show up, with its reader, on a
+	// public page (review on #1964).
+	if ( ! in_array( get_post_type( $id ), array( 'post', 'page' ), true ) ) {
+		return null;
+	}
+	if ( function_exists( 'sn_post_settings_get_noindex' ) ? sn_post_settings_get_noindex( $id ) : '1' === (string) get_post_meta( $id, '_sn_noindex', true ) ) {
 		return null;
 	}
 	$title = html_entity_decode( (string) get_the_title( $id ), ENT_QUOTES, 'UTF-8' );

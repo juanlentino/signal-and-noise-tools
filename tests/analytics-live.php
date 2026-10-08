@@ -30,6 +30,25 @@ function sn_analytics_config() { return $GLOBALS['cfg'] ? array( 'account_id' =>
 function sn_analytics_query( $sql ) { return null; }
 function register_rest_route( $ns, $route, $args ) { $GLOBALS['routes'][ $ns . $route ] = $args; }
 
+// The resolver's WordPress reads: id by path, and each post's facts.
+$GLOBALS['posts'] = array(
+	'/notes/alpha/' => array( 'id' => 1, 'status' => 'publish', 'type' => 'post', 'pw' => '', 'noindex' => false ),
+	'/draft/'       => array( 'id' => 2, 'status' => 'draft', 'type' => 'post', 'pw' => '', 'noindex' => false ),
+	'/locked/'      => array( 'id' => 3, 'status' => 'publish', 'type' => 'page', 'pw' => 'x', 'noindex' => false ),
+	'/hidden/'      => array( 'id' => 4, 'status' => 'publish', 'type' => 'page', 'pw' => '', 'noindex' => true ),
+	'/product/'     => array( 'id' => 5, 'status' => 'publish', 'type' => 'product', 'pw' => '', 'noindex' => false ),
+);
+function sn_test_post( $id ) { foreach ( $GLOBALS['posts'] as $p => $r ) { if ( $r['id'] === $id ) { return $r + array( 'path' => $p ); } } return null; }
+function home_url( $p = '' ) { return 'https://x.test' . $p; }
+function url_to_postid( $u ) { $p = substr( $u, strlen( 'https://x.test' ) ); return $GLOBALS['posts'][ $p ]['id'] ?? 0; }
+function get_post_status( $id ) { return sn_test_post( $id )['status'] ?? false; }
+function post_password_required( $id ) { return '' !== ( sn_test_post( $id )['pw'] ?? '' ); }
+function get_post_field( $f, $id ) { return 'post_password' === $f ? ( sn_test_post( $id )['pw'] ?? '' ) : ''; }
+function get_post_type( $id ) { return sn_test_post( $id )['type'] ?? false; }
+function sn_post_settings_get_noindex( $id ) { return (bool) ( sn_test_post( $id )['noindex'] ?? false ); }
+function get_the_title( $id ) { return 'Title ' . $id; }
+function get_permalink( $id ) { return 'https://x.test' . sn_test_post( $id )['path']; }
+function __( $s, $d = null ) { return $s; }
 require dirname( __DIR__ ) . '/inc/analytics-realtime.php';
 require dirname( __DIR__ ) . '/inc/analytics-live-pages.php';
 require dirname( __DIR__ ) . '/inc/analytics-live.php';
@@ -88,6 +107,12 @@ $pages = sn_analytics_live_pages_from_rows( $rows, $resolve );
 ok( array( 'label' => 'Alpha', 'url' => 'https://x.test/notes/alpha/', 'readers' => 3 ) === $pages[0], 'a query string folds into its page, counts summed' );
 ok( ! in_array( '/draft-or-private/', array_column( $pages, 'url' ), true ) && 3 === count( $pages ), 'a path that does not resolve to a public page is never listed' );
 ok( 'About' === $pages[2]['label'] || 'About' === $pages[1]['label'], 'a missing trailing slash folds into the canonical page' );
+$case = static function ( $path ) { return '/about/' === strtolower( $path ) ? array( 'About', 'https://x.test/about/' ) : null; };
+$dup = sn_analytics_live_pages_from_rows( array( array( 'path' => '/About/', 'readers' => 1 ), array( 'path' => '/about/', 'readers' => 2 ) ), $case );
+ok( 1 === count( $dup ) && 3 === $dup[0]['readers'], 'two spellings of one page are listed once, counts summed (keyed by the page, not the path)' );
+$listed = array();
+foreach ( array( '/notes/alpha/', '/draft/', '/locked/', '/hidden/', '/product/', '/' ) as $p ) { $listed[ $p ] = null !== sn_analytics_live_pages_resolve( $p ); }
+ok( array( '/notes/alpha/' => true, '/draft/' => false, '/locked/' => false, '/hidden/' => false, '/product/' => false, '/' => true ) === $listed, 'only a published, password-free, indexable note or page (or Home) resolves: draft, password, noindex and other post types never do' );
 $many = array();
 for ( $i = 0; $i < 9; $i++ ) { $many[] = array( 'path' => '/', 'readers' => 1 ); }
 ok( 1 === count( sn_analytics_live_pages_from_rows( $many, $resolve ) ), 'one page appears once' );

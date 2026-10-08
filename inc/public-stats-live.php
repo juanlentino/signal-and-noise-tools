@@ -41,8 +41,8 @@ function sn_public_stats_live_html() {
 		. '</div>'
 		// Being read now: filled by live-now.js; only published public pages.
 		. '<div class="sn-public-stats__live-pages">'
-		. '<h3>' . esc_html__( 'Being read now', 'signal-and-noise-tools' ) . '</h3>'
-		. '<ol class="sn-public-stats__top" data-sn-live-pages><li class="sn-public-stats__live-empty">—</li></ol>'
+		. '<h3 id="sn-public-stats-live-pages-h">' . esc_html__( 'Being read now', 'signal-and-noise-tools' ) . '</h3>'
+		. '<ol class="sn-public-stats__top" aria-labelledby="sn-public-stats-live-pages-h" data-sn-live-pages><li class="sn-public-stats__live-empty">—</li></ol>'
 		. '</div>'
 		. '<p class="sn-public-stats__live-meta" data-sn-live-meta>' . esc_html__( 'The live figures need JavaScript.', 'signal-and-noise-tools' ) . '</p>'
 		. '</section>';
