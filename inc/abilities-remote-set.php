@@ -574,6 +574,17 @@ add_action( 'wp_abilities_api_init', function () {
 					'type'        => 'string',
 					'description' => 'Relative time of the most recent deploy GHA workflow run across both repos — the pre-v9.63.3 last_deploy reading, kept as a clearly-labeled secondary field. deploy.yml is the workflow_dispatch-only emergency fallback, so this moves only on manual dispatches. Empty string if unknown. Added v9.63.3.',
 				),
+				// Additive: the worker deploy line (inc/deploy-workers-seen.php).
+				'last_worker_deploy' => array(
+					'type'        => array( 'object', 'null' ),
+					'description' => 'When the five-minute version probe first read a worker\'s new live version: { label, version, at (ISO 8601) }, accurate to five minutes. Until any worker changes after the log started: { since (ISO 8601) }. Null before any probe. The first version read for a worker is a baseline, never a deploy.',
+					'properties'  => array(
+						'label'   => array( 'type' => 'string' ),
+						'version' => array( 'type' => 'string' ),
+						'at'      => array( 'type' => 'string' ),
+						'since'   => array( 'type' => 'string' ),
+					),
+				),
 				// Additive (contract 13, 2026-09-29): WordPress core beside theme and plugin.
 				'core' => array(
 					'type'        => 'object',

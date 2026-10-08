@@ -140,6 +140,17 @@ add_action( 'wp_abilities_api_init', function() {
 					'type'        => 'string',
 					'description' => 'Relative time of the most recent deploy GHA workflow run across both repos — the pre-v9.63.3 last_deploy reading, kept as a clearly-labeled secondary field. deploy.yml is the workflow_dispatch-only emergency fallback, so this moves only on manual dispatches. Empty string if unknown. Added v9.63.3.',
 				),
+				// Additive: the worker deploy line (inc/deploy-workers-seen.php).
+				'last_worker_deploy' => array(
+					'type'        => array( 'object', 'null' ),
+					'description' => 'When the five-minute version probe first read a worker\'s new live version: { label, version, at (ISO 8601) }, accurate to five minutes. Until any worker changes after the log started: { since (ISO 8601) }. Null before any probe. The first version read for a worker is a baseline, never a deploy.',
+					'properties'  => array(
+						'label'   => array( 'type' => 'string' ),
+						'version' => array( 'type' => 'string' ),
+						'at'      => array( 'type' => 'string' ),
+						'since'   => array( 'type' => 'string' ),
+					),
+				),
 				// Additive (contract 13, 2026-09-29): WordPress core beside theme and plugin.
 				'core' => array(
 					'type'        => 'object',
@@ -540,6 +551,9 @@ function snt_ability_get_deploy_status( $input = null ) {
 		'last_deploy_component' => $last_deploy_component,
 		'last_gha_run'          => $last_gha_run,
 		'workers'               => $workers,
+		// When the version probe last saw a worker change (inc/deploy-workers-seen.php):
+		// { label, version, at } or { since } until a change is seen; null before any probe.
+		'last_worker_deploy'    => function_exists( 'snt_deploy_workers_seen_last' ) ? snt_deploy_workers_seen_last( get_option( SNT_DEPLOY_WORKERS_SEEN_OPT, array() ), array_column( $workers, 'label', 'id' ) ) : null,
 		// Contract 13: inc/deploy-core-status.php. Guarded so a harness that
 		// loads only this file still gets a payload.
 		'core'                  => function_exists( 'snt_core_status' ) ? snt_core_status() : array( 'current' => '', 'latest' => '', 'state' => 'unknown', 'offer' => '', 'auto_updates' => 'off', 'reason' => 'core status module not loaded' ),

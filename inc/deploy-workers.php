@@ -410,6 +410,11 @@ function snt_deploy_worker_live_probe( $id, array $cfg, $force = false ) {
 		$result,
 		$result['ok'] ? SNT_DEPLOY_WORKER_LIVE_TTL_OK : SNT_DEPLOY_WORKER_LIVE_TTL_FAIL
 	);
+	// A read version stamps the worker's deploy time when it is new
+	// (inc/deploy-workers-seen.php). Only fresh reads reach here, never a cache hit.
+	if ( $result['ok'] && function_exists( 'snt_deploy_workers_seen_note' ) ) {
+		snt_deploy_workers_seen_note( $id, $live );
+	}
 	return $result;
 }
 
