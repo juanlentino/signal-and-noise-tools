@@ -55,9 +55,14 @@
 			}
 		} );
 		if ( cfg ) {
-			meta( typeof data.fetched === 'number'
-				? String( cfg.updated ).replace( '%s', new Date( data.fetched * 1000 ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) )
-				: String( cfg.unknown ) );
+			// "Not measured" only when nothing was: views today can come from the
+			// same-day last-good while the 5-minute reading has lapsed, and the
+			// line must not deny a figure it sits under (review on #1961).
+			if ( typeof data.fetched === 'number' ) {
+				meta( String( cfg.updated ).replace( '%s', new Date( data.fetched * 1000 ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) ) );
+			} else {
+				meta( typeof data.now === 'number' || typeof data.today === 'number' ? '' : String( cfg.unknown ) );
+			}
 		}
 	}
 
@@ -67,7 +72,10 @@
 			if ( ! window.wp || ! window.wp.apiFetch ) {
 				return Promise.reject( new Error( 'no apiFetch' ) );
 			}
-			return window.wp.apiFetch( { path: '/signal-noise/v1/live/admin?b=' + b } );
+			// Unique per request, never the shared bucket: an edge that caches
+			// /wp-json/ past its headers can then neither serve an admin answer
+			// to anyone else nor freeze the admin on a cached 401 (review on #1961).
+			return window.wp.apiFetch( { path: '/signal-noise/v1/live/admin?n=' + Date.now().toString( 36 ) + Math.random().toString( 36 ).slice( 2 ) } );
 		}
 		var url = String( cfg.url );
 		return fetch( url + ( url.indexOf( '?' ) === -1 ? '?' : '&' ) + 'b=' + b, { credentials: 'omit' } )
@@ -94,6 +102,9 @@
 	function start() {
 		tick();
 		window.setInterval( tick, seconds * 1000 );
+		// A surface that paints its figures after load (the Traffic widget) asks
+		// for a read now instead of waiting up to a whole interval.
+		document.addEventListener( 'sn-live-refresh', tick );
 		document.addEventListener( 'visibilitychange', function () {
 			if ( ! document.hidden ) {
 				tick();

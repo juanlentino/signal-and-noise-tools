@@ -328,6 +328,9 @@
 				nowVal.setAttribute( 'data-sn-live-class', 'human' );
 			}
 			body.appendChild( nowList );
+			if ( typeof window.CustomEvent === 'function' && document.dispatchEvent ) {
+				document.dispatchEvent( new window.CustomEvent( 'sn-live-refresh' ) );
+			}
 
 			// The spark line and the links below ride the card token contract's
 			// --os-ui-color-accent (OpenStation 1.1.5, #1603): with no theme worn
