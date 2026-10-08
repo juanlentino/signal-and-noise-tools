@@ -36,7 +36,7 @@ define( 'SNT_PATH', '/wp-content/plugins/signal-and-noise-tools/' );
 // ── WP seams. Only the seams: the module under test is the real one. ────────
 $GLOBALS['__actions'] = array();
 function add_action( $h, $c = null, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $h ][] = $c; }
-function add_filter( $h, $c = null, $p = 10, $a = 1 ) {}
+function add_filter( $h, $c = null, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $h ][] = $c; }
 
 $GLOBALS['__options'] = array();
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
@@ -126,7 +126,7 @@ ok( ! isset( sn_plugin_update_drop_stale( $mk( '1.0.0' ) )->response[ SN_GH_PLUG
 $real = $mk( '99.0.0' );
 ok( sn_plugin_update_drop_stale( $real ) === $real, 'read guard: a real newer release stays an update, untouched' );
 ok( false === sn_plugin_update_drop_stale( false ), 'read guard: no record is passed through' );
-ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/wp-update-integration.php' ), "add_filter( 'site_transient_update_plugins', 'sn_plugin_update_drop_stale' );" ), 'read guard: registered on every read of update_plugins' );
+ok( in_array( 'sn_plugin_update_drop_stale', $GLOBALS['__filters']['site_transient_update_plugins'] ?? array(), true ), 'read guard: registered on every read of update_plugins' );
 
 
 echo "\n$pass passed, $fail failed\n";
