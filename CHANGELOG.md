@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **The last hour under Reading now, on /stats.** Twelve 5-minute bars of distinct human readers (the same rule as Reading now), the current slot in red, scaled to the hour's own peak, with the peak said in words underneath for anyone not reading the chart. One more grouped query per realtime refresh (`inc/analytics-live-hour.php`), grouped by a SELECT alias since Analytics Engine refuses a function in GROUP BY. A slot with no readers is a real 0; an hour not read yet leaves the chart empty. Redrawn every 60 s, never animated. Cookieless as before; nothing new collected.
+
 ## [23.1.0] - 2026-10-08 — being read now on /stats
 
 ### Added

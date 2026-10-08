@@ -51,6 +51,7 @@ function get_permalink( $id ) { return 'https://x.test' . sn_test_post( $id )['p
 function __( $s, $d = null ) { return $s; }
 require dirname( __DIR__ ) . '/inc/analytics-realtime.php';
 require dirname( __DIR__ ) . '/inc/analytics-live-pages.php';
+require dirname( __DIR__ ) . '/inc/analytics-live-hour.php';
 require dirname( __DIR__ ) . '/inc/analytics-live.php';
 
 $pass = 0; $fail = 0;
@@ -122,6 +123,25 @@ ok( 'Alpha' === sn_analytics_live_payload( false )['pages'][0]['label'], 'the pu
 $GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array(), 'views_today' => 0, 'fetched' => 9 );
 ok( null === sn_analytics_live_payload( false )['pages'], 'a cache written before the list existed answers null, never an empty list' );
 ok( false !== strpos( (string) file_get_contents( dirname( __DIR__ ) . '/inc/public-stats-live.php' ), 'data-sn-live-pages' ), 'the strip carries the list hook' );
+
+echo "\nGroup: the last hour\n";
+$sql = sn_analytics_live_hour_sql();
+ok( false !== strpos( $sql, "toUnixTimestamp(toStartOfInterval(timestamp, INTERVAL '5' MINUTE)) AS slot" ) && false !== strpos( $sql, 'GROUP BY slot' ) && false === strpos( $sql, 'GROUP BY toStart' ), 'twelve 5-minute slots, grouped by the SELECT alias (Analytics Engine refuses a function in GROUP BY)' );
+ok( false !== strpos( $sql, 'count(DISTINCT index1) AS readers' ) && false !== strpos( $sql, "INTERVAL '60' MINUTE" ), 'distinct readers per slot over the last hour' );
+$now  = 1791490000; // 2026-10-08 16:06:40 UTC
+$cur  = intdiv( $now, 300 ) * 300;
+$rows = array( array( 'slot' => gmdate( 'Y-m-d H:i:s', $cur ), 'readers' => 3 ), array( 'slot' => gmdate( 'Y-m-d H:i:s', $cur - 600 ), 'readers' => 4 ), array( 'slot' => gmdate( 'Y-m-d H:i:s', $cur - 7200 ), 'readers' => 9 ) );
+$hour = sn_analytics_live_hour_from_rows( $rows, $now );
+ok( 12 === count( $hour ) && $cur === $hour[11]['t'] && $cur - 3300 === $hour[0]['t'], 'always twelve slots, oldest first, ending at the current slot' );
+ok( 3 === $hour[11]['readers'] && 4 === $hour[9]['readers'] && 0 === $hour[10]['readers'], 'a slot the answer left out is a real 0, the others keep their counts' );
+ok( 9 !== max( array_column( $hour, 'readers' ) ), 'a row outside the hour is ignored' );
+ok( 5 === sn_analytics_live_hour_from_rows( array( array( 'slot' => (string) $cur, 'readers' => 5 ) ), $now )[11]['readers'], 'a slot in unix seconds (what the query now selects) lands in its place' );
+ok( array_fill( 0, 12, 0 ) === array_column( sn_analytics_live_hour_from_rows( array(), $now ), 'readers' ), 'a quiet hour is twelve zeros, not null' );
+$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array(), 'views_today' => 0, 'fetched' => 9 );
+ok( null === sn_analytics_live_payload( false )['hour'], 'a cache written before the hour existed answers null' );
+$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ]['hour'] = $hour;
+ok( 12 === count( sn_analytics_live_payload( false )['hour'] ), 'the public payload carries the hour' );
+ok( false !== strpos( (string) file_get_contents( dirname( __DIR__ ) . '/inc/public-stats-live.php' ), 'data-sn-live-hour' ), 'the strip carries the hour hook' );
 
 echo "\nGroup: two routes, the public one human only\n";
 sn_analytics_live_register_routes();

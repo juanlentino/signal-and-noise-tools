@@ -54,6 +54,9 @@
 				write( el, format( v ) );
 			}
 		} );
+		document.querySelectorAll( '[data-sn-live-hour]' ).forEach( function ( svg ) {
+			hour( svg, data );
+		} );
 		document.querySelectorAll( '[data-sn-live-pages]' ).forEach( function ( list ) {
 			pages( list, data );
 		} );
@@ -67,6 +70,39 @@
 				meta( typeof data.now === 'number' || typeof data.today === 'number' ? '' : String( cfg.unknown ) );
 			}
 		}
+	}
+
+	// The last hour: twelve bars in the text color, the current slot in red,
+	// scaled to the hour's own peak; the note says the peak in words. Null
+	// leaves the chart as it was.
+	var SVGNS = 'http://www.w3.org/2000/svg';
+	function hour( svg, data ) {
+		if ( ! Array.isArray( data.hour ) || ! data.hour.length || ! cfg ) {
+			return;
+		}
+		while ( svg.firstChild ) {
+			svg.removeChild( svg.firstChild );
+		}
+		var slots = data.hour, n = slots.length, w = 240 / n, peak = 0, at = 0;
+		slots.forEach( function ( s, i ) {
+			if ( Number( s.readers ) >= peak ) { peak = Number( s.readers ); at = i; }
+		} );
+		slots.forEach( function ( s, i ) {
+			var h = peak > 0 ? Math.max( Number( s.readers ) > 0 ? 2 : 0, Math.round( 32 * Number( s.readers ) / peak ) ) : 0;
+			var r = document.createElementNS( SVGNS, 'rect' );
+			r.setAttribute( 'x', String( i * w + 1 ) );
+			r.setAttribute( 'y', String( 34 - h ) );
+			r.setAttribute( 'width', String( w - 3 ) );
+			r.setAttribute( 'height', String( h ) );
+			if ( i === n - 1 ) { r.setAttribute( 'class', 'is-now' ); }
+			svg.appendChild( r );
+		} );
+		var note = String( cfg.hourNone );
+		if ( peak > 0 ) {
+			var mins = Math.round( ( Number( slots[ n - 1 ].t ) - Number( slots[ at ].t ) ) / 60 );
+			note = String( cfg.hourPeak ).replace( '%1$s', peak.toLocaleString() ).replace( '%2$s', mins > 0 ? String( cfg.agoMin ).replace( '%s', String( mins ) ) : String( cfg.agoNow ) );
+		}
+		document.querySelectorAll( '[data-sn-live-hour-note]' ).forEach( function ( el ) { el.textContent = note; } );
 	}
 
 	// Being read now: a link per page with its reader count. Null (not read)
