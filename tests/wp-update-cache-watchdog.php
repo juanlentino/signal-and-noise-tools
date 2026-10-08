@@ -36,7 +36,7 @@ define( 'SNT_PATH', '/wp-content/plugins/signal-and-noise-tools/' );
 // ── WP seams. Only the seams: the module under test is the real one. ────────
 $GLOBALS['__actions'] = array();
 function add_action( $h, $c = null, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $h ][] = $c; }
-function add_filter( $h, $c = null, $p = 10, $a = 1 ) {}
+function add_filter( $h, $c = null, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $h ][] = $c; }
 
 $GLOBALS['__options'] = array();
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
@@ -114,6 +114,20 @@ sn_plugin_update_version_watchdog();
 
 ok( array() === $GLOBALS['__deleted'], 'no version change: deletes nothing (safe to run on every request)' );
 ok( 0 === $GLOBALS['__clean_plugins_cache'], 'no version change: does not touch the plugin-header cache' );
+
+// ── 5. Read-time guard: an entry for the installed version is not an update ──
+$mk = static function ( $v ) { $e = new stdClass(); $e->new_version = $v; $t = new stdClass(); $t->response = array( SN_GH_PLUGIN_BASENAME => $e, 'other/other.php' => new stdClass() ); return $t; };
+$stale = $mk( SNT_VERSION );
+$read  = sn_plugin_update_drop_stale( $stale );
+ok( ! isset( $read->response[ SN_GH_PLUGIN_BASENAME ] ) && isset( $read->no_update[ SN_GH_PLUGIN_BASENAME ] ), 'read guard: "update to the installed version" moves to no_update (the stale badge after an install)' );
+ok( isset( $read->response['other/other.php'] ), 'read guard: another plugin\'s update is left alone' );
+ok( isset( $stale->response[ SN_GH_PLUGIN_BASENAME ] ), 'read guard: the object read is copied, never mutated' );
+ok( ! isset( sn_plugin_update_drop_stale( $mk( '1.0.0' ) )->response[ SN_GH_PLUGIN_BASENAME ] ), 'read guard: an OLDER "new" version is not an update either' );
+$real = $mk( '99.0.0' );
+ok( sn_plugin_update_drop_stale( $real ) === $real, 'read guard: a real newer release stays an update, untouched' );
+ok( false === sn_plugin_update_drop_stale( false ), 'read guard: no record is passed through' );
+ok( in_array( 'sn_plugin_update_drop_stale', $GLOBALS['__filters']['site_transient_update_plugins'] ?? array(), true ), 'read guard: registered on every read of update_plugins' );
+
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

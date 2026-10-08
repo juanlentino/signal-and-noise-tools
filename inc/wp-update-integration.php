@@ -541,6 +541,43 @@ add_filter( 'pre_set_site_transient_update_plugins', function( $transient ) {
 } );
 
 /**
+ * Read-time guard: never report S&N as updatable to the version that is
+ * already installed.
+ *
+ * The install request runs the OLD code to its end (SNT_VERSION is still the
+ * previous release), and anything in it that rebuilds `update_plugins` writes
+ * "new version available" back into the record. The version watchdog below
+ * clears that on the first new-code request, but the desk fires many requests
+ * at once after an install: a new-code request can run the watchdog before
+ * the slow install request finishes writing, and the stale entry lands after
+ * it, for good. The admin bar then showed one update until the Plugins screen
+ * made WordPress re-check (owner, 2026-10-08: "since always").
+ *
+ * Checking on READ makes every reader right whoever wrote the record: an
+ * entry whose new_version is not newer than the running SNT_VERSION moves from
+ * `response` to `no_update`. PURE (no I/O); the object is never mutated, a
+ * copy is returned.
+ *
+ * @param mixed $transient The update_plugins site transient as read.
+ * @return mixed
+ */
+function sn_plugin_update_drop_stale( $transient ) {
+	if ( ! is_object( $transient ) || ! isset( $transient->response ) || ! is_array( $transient->response ) || ! defined( 'SNT_VERSION' ) ) {
+		return $transient;
+	}
+	$entry = $transient->response[ SN_GH_PLUGIN_BASENAME ] ?? null;
+	if ( ! is_object( $entry ) || ! isset( $entry->new_version ) || version_compare( (string) $entry->new_version, SNT_VERSION, '>' ) ) {
+		return $transient;
+	}
+	$out = clone $transient;
+	unset( $out->response[ SN_GH_PLUGIN_BASENAME ] );
+	$out->no_update                           = isset( $out->no_update ) && is_array( $out->no_update ) ? $out->no_update : array();
+	$out->no_update[ SN_GH_PLUGIN_BASENAME ] = $entry;
+	return $out;
+}
+add_filter( 'site_transient_update_plugins', 'sn_plugin_update_drop_stale' );
+
+/**
  * Rename the unpacked source directory so WP installs to the correct
  * plugin slug.
  *
