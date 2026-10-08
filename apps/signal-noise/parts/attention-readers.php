@@ -863,9 +863,9 @@ function attention_live() {
 			'title'      => __( 'Unusual traffic right now', 'signal-and-noise-tools' ),
 			'subtitle'   => is_numeric( $ratio )
 				/* translators: 1: readers in the last 5-minute slot, 2: times the usual. */
-				? sprintf( __( '%1$d readers in the last 5 minutes, about %2$s times the usual for this time of day', 'signal-and-noise-tools' ), $readers, number_format_i18n( (float) $ratio, 1 ) )
+				? sprintf( __( '%1$d readers in the last completed 5-minute slot, about %2$s times the usual for this time of day', 'signal-and-noise-tools' ), $readers, number_format_i18n( (float) $ratio, 1 ) )
 				/* translators: %d: readers in the last 5-minute slot. */
-				: sprintf( __( '%d readers in the last 5 minutes, at a time of day that is usually empty', 'signal-and-noise-tools' ), $readers ),
+				: sprintf( __( '%d readers in the last completed 5-minute slot, at a time of day that is usually empty', 'signal-and-noise-tools' ), $readers ),
 			'tone'       => 'neutral',
 			'stamp'      => $stamp,
 			'source'     => __( 'The live-surge analytics signal, last completed 5-minute slot', 'signal-and-noise-tools' ),

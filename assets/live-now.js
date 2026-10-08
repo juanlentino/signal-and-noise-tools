@@ -72,11 +72,16 @@
 		document.querySelectorAll( '[data-sn-live-surge]' ).forEach( function ( el ) {
 			var s = data.surge;
 			if ( ! s || typeof s !== 'object' ) {
+				// Nothing read at all: a loud line must not outlive its reading.
+				if ( typeof data.fetched !== 'number' ) {
+					el.textContent = '';
+					el.className = 'sn-live-admin__surge';
+				}
 				return;
 			}
 			var text = '';
 			if ( s.state === 'learning' ) {
-				text = el.getAttribute( 'data-learning' ).replace( '%1$s', String( s.days ) ).replace( '%2$s', '4' );
+				text = el.getAttribute( 'data-learning' ).replace( '%1$s', String( s.days ) ).replace( '%2$s', String( s.need || 4 ) );
 			} else if ( s.state === 'surge' ) {
 				text = typeof s.ratio === 'number'
 					? el.getAttribute( 'data-surge' ).replace( '%1$s', String( s.ratio ) ).replace( '%2$s', String( s.readers ) ).replace( '%3$s', String( s.usual ) )
@@ -139,7 +144,16 @@
 			svg.appendChild( r );
 		} );
 		if ( ! cfg ) {
-			return; // admin: the chart is labelled by its own aria-label
+			// Admin: the label carries the peak in words, as the public note does.
+			var base = svg.getAttribute( 'data-label' ) || svg.getAttribute( 'aria-label' ) || '';
+			svg.setAttribute( 'data-label', base );
+			if ( peak > 0 ) {
+				var ago = Math.round( ( Number( slots[ n - 1 ].t ) - Number( slots[ at ].t ) ) / 60 );
+				svg.setAttribute( 'aria-label', base + ': peak ' + peak + ( ago > 0 ? ', ' + ago + ' minutes ago' : ', in the current 5 minutes' ) );
+			} else {
+				svg.setAttribute( 'aria-label', base + ': no readers' );
+			}
+			return;
 		}
 		var note = String( cfg.hourNone );
 		if ( peak > 0 ) {
@@ -159,7 +173,9 @@
 			return;
 		}
 		var empty = list.getAttribute( 'data-empty' ) || ( cfg ? String( cfg.nobody ) : '—' );
-		var emptyClass = list.querySelector( 'li' ) ? list.querySelector( 'li' ).className : '';
+		// Fixed per surface, never copied from whatever row is first: after a
+		// list with rows went empty, the copied class was '' (review on #1967).
+		var emptyClass = cfg ? 'sn-public-stats__live-empty' : 'sn-live-admin__empty';
 		while ( list.firstChild ) {
 			list.removeChild( list.firstChild );
 		}

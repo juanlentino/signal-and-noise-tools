@@ -84,7 +84,7 @@ function sn_analytics_live_surge( array $log, $slot, $x ) {
 			$days[ (int) round( $back / 86400 ) ] = true;
 		}
 	}
-	$out = array( 'state' => 'learning', 'readers' => (int) $x, 'usual' => null, 'ratio' => null, 'z' => null, 'days' => count( $days ) );
+	$out = array( 'state' => 'learning', 'readers' => (int) $x, 'usual' => null, 'ratio' => null, 'z' => null, 'days' => count( $days ), 'need' => SN_ANALYTICS_SURGE_MIN_DAYS );
 	if ( count( $days ) < SN_ANALYTICS_SURGE_MIN_DAYS ) {
 		return $out;
 	}

@@ -150,7 +150,7 @@ function snt_os_host_register_assets() {
 		wp_register_script( 'snt-os-kit-stack', SNT_URL . 'assets/os-kit-stack.js', array(), SNT_VERSION, true );
 	}
 	if ( ! wp_style_is( 'sn-live-admin', 'registered' ) ) {
-		wp_register_style( 'sn-live-admin', SNT_URL . 'assets/analytics/live-admin.css', array( 'snt-os-app' ), SNT_VERSION );
+		wp_register_style( 'sn-live-admin', SNT_URL . 'assets/analytics/live-admin.css', array(), SNT_VERSION );
 	}
 	if ( ! wp_script_is( 'sn-live-now-admin', 'registered' ) ) {
 		wp_register_script( 'sn-live-now-admin', SNT_URL . 'assets/live-now.js', array( 'wp-api-fetch' ), SNT_VERSION, true );
