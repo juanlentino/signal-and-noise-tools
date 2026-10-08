@@ -107,6 +107,7 @@ The reference for the 145 Signal & Noise WordPress Abilities: 112 plugin abiliti
 | `signal-noise/purge-all-caches` | Purge all caches | maintenance | RW |
 | `signal-noise/purge-verification-log` | Purge Verification Log | diagnostics | READ |
 | `signal-noise/reader-anomalies` | Machine-reader volume and shape deviations | diagnostics | READ |
+| `signal-noise/live-now` | What the site looks like right now (23.2.0; the `sn-status{live}` source; local only) | diagnostics | READ |
 | `signal-noise/regenerate-og-card` | Regenerate Open Graph card image | content | — |
 | `signal-noise/rights-evidence` | Rights evidence: the monthly records | diagnostics | READ |
 | `signal-noise/rights-evidence-now` | Rights evidence: run the daily pass now | maintenance | RW |
