@@ -94,6 +94,7 @@ The reference for the 145 Signal & Noise WordPress Abilities: 112 plugin abiliti
 | `signal-noise/list-cron-events` | List Cron Events | diagnostics | READ |
 | `signal-noise/list-posts` | List corpus metadata for every post | tools | — |
 | `signal-noise/list-template-overrides` | List database template overrides | diagnostics | — |
+| `signal-noise/live-now` | What the site looks like right now (23.2.0; the `sn-status{live}` source; local only) | diagnostics | READ |
 | `signal-noise/login-defense-ipv6-criterion` | Login defense: IPv6 criterion | analytics | READ |
 | `signal-noise/merge-tags` | Merge duplicate post tags | content | — |
 | `signal-noise/near-duplicate-scan` | Scan the corpus for near-duplicate (cousin) post pairs | tools | — |

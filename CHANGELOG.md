@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The docs describe the live arc.** The README's Analytics section explains the live figures, /stats strip, admin Right now panel, Arrived from and the live-surge signal (and why it is analytics, not ML); the public routes table says what `/live` carries and what only `live/admin` does; `docs/ai-abilities-catalog.md` lists `signal-noise/live-now`.
+
 ## [23.2.0] - 2026-10-08 — live visits, the right-now panel and a live-surge signal
 
 ### Added
