@@ -68,6 +68,25 @@
 				el.textContent = data.pages.length ? String( data.pages[ 0 ].label ) + ' · ' + Number( data.pages[ 0 ].readers ).toLocaleString() : '—';
 			}
 		} );
+		// The live-surge verdict (admin): its words ride on the element.
+		document.querySelectorAll( '[data-sn-live-surge]' ).forEach( function ( el ) {
+			var s = data.surge;
+			if ( ! s || typeof s !== 'object' ) {
+				return;
+			}
+			var text = '';
+			if ( s.state === 'learning' ) {
+				text = el.getAttribute( 'data-learning' ).replace( '%1$s', String( s.days ) ).replace( '%2$s', '4' );
+			} else if ( s.state === 'surge' ) {
+				text = typeof s.ratio === 'number'
+					? el.getAttribute( 'data-surge' ).replace( '%1$s', String( s.ratio ) ).replace( '%2$s', String( s.readers ) ).replace( '%3$s', String( s.usual ) )
+					: el.getAttribute( 'data-surge-zero' ).replace( '%s', String( s.readers ) );
+			} else {
+				text = el.getAttribute( 'data-usual' );
+			}
+			el.textContent = text;
+			el.className = 'sn-live-admin__surge' + ( s.state === 'surge' ? ' is-surge' : '' );
+		} );
 		// Admin meta carries its own strings; the public one reads the config.
 		document.querySelectorAll( '[data-sn-live-meta][data-updated]' ).forEach( function ( m ) {
 			m.textContent = typeof data.fetched === 'number'
@@ -186,7 +205,7 @@
 	}
 
 	function tick() {
-		if ( document.hidden || ! document.querySelector( '[data-sn-live]' ) ) {
+		if ( document.hidden || ! document.querySelector( '[data-sn-live],[data-sn-live-hour],[data-sn-live-pages],[data-sn-live-sources],[data-sn-live-top],[data-sn-live-surge]' ) ) {
 			return;
 		}
 		load().then( apply, function () {

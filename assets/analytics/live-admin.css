@@ -17,3 +17,6 @@
 .sn-live-admin__n{font-variant-numeric:tabular-nums;color:var(--os-ui-color-text-subtle,#646970)}
 .sn-live-admin__empty{color:var(--os-ui-color-text-subtle,#646970)}
 .sn-live-admin__meta{font-size:11px;color:var(--os-ui-color-text-subtle,#646970);margin:10px 0 0}
+.sn-live-admin__surge{font-size:13px;margin:10px 0 0;min-height:1em}
+.sn-live-admin__surge.is-surge{font-weight:600}
+.sn-live-admin__surge.is-surge::before{content:"";display:inline-block;width:8px;height:8px;margin-right:6px;background:#d63638}

@@ -268,6 +268,8 @@ function sn_analytics_realtime_refresh() {
 	$hour = function_exists( 'sn_analytics_live_hour_read' ) ? sn_analytics_live_hour_read() : null;
 	// Fifth, admin only: where current readers arrived from (inc/analytics-live-sources.php).
 	$sources = function_exists( 'sn_analytics_live_sources_read' ) ? sn_analytics_live_sources_read() : null;
+	// The live-surge signal (inc/analytics-live-surge.php): log the hour's completed slots, judge the last one.
+	$surge = function_exists( 'sn_analytics_live_surge_step' ) ? sn_analytics_live_surge_step( $hour ) : null;
 
 	set_transient( SN_ANALYTICS_REALTIME_KEY, array(
 		'counts'      => $counts,
@@ -275,6 +277,7 @@ function sn_analytics_realtime_refresh() {
 		'pages'       => $pages,
 		'hour'        => $hour,
 		'sources'     => $sources,
+		'surge'       => $surge,
 		'fetched'     => time(),
 	), SN_ANALYTICS_REALTIME_RETENTION );
 }

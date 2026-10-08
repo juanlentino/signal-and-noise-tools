@@ -598,6 +598,8 @@ require_once __DIR__ . '/inc/ml-drift.php';            // v11.2.0: corpus drift 
 require_once __DIR__ . '/inc/ml-drift-admin.php';      // v11.2.0: the Vocabulary leaf (Content tab) — the drift mirror's ONLY surface
 require_once __DIR__ . '/inc/abilities-reader-anomalies.php'; // v13.76.0: read-door ability for the pipeline below.
 require_once __DIR__ . '/inc/ml-reader-anomalies.php';
+require_once __DIR__ . '/inc/analytics-live-surge.php';
+require_once __DIR__ . '/inc/abilities-live-now.php'; // 23.2.0: the read-door ability over the live answer // 23.2.0: is right now unusual? the live slot log and its robust z
 require_once __DIR__ . '/inc/ml-reader-anomalies-health.php'; // v13.76.0: its Site Health surface. // v13.76.0: reader anomalies — machine-reader volume/shape deviations through the analytics signal engine — ML pipeline #11
 require_once __DIR__ . '/inc/ml-paths.php';            // v11.3.0: reading paths — the chain one post sits on (reads ml-artifacts' additive path field) — ML pipeline #10
 require_once __DIR__ . '/inc/ml-paths-render.php';     // v11.3.0: [sn_reading_path] — plugin owns the renderer, the THEME places it (single.html)

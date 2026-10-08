@@ -28,6 +28,7 @@
         "signal-noise/keyring-status",
         "signal-noise/keyword-candidates",
         "signal-noise/list-cron-events",
+        "signal-noise/live-now",
         "signal-noise/login-defense-ipv6-criterion",
         "signal-noise/north-star",
         "signal-noise/posts-signals",

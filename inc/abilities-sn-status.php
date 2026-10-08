@@ -142,6 +142,8 @@ function snt_sn_status_map() {
 		'edge_errors'          => 'signal-noise/edge-errors-summary',
 		// 15.2.0 — every credential's source and last verdict; never a value.
 		'keyring'              => 'signal-noise/keyring-status',
+		// 23.2.0 — the site right now: live counts, the hour, pages, sources and the live-surge signal.
+		'live'                 => 'signal-noise/live-now',
 		// 16.6.0 — Jev's spend this credit cycle, from the site's own ledger.
 		'jev_spend'            => 'signal-noise/jev-meter',
 		// 19.4.3 — the analytics history recompute: state, cursor, the unit it died in.

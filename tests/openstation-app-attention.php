@@ -1081,5 +1081,21 @@ $note_item = \SignalNoise\OpenStationApp\attention_item( \SignalNoise\OpenStatio
 ok( 'pages' === $page_item['status'] && 'Anchors' === $page_item['badge']['text'], 'a page row files under Pages and its badge still says Anchors' );
 ok( 'anchors' === $note_item['status'], 'a note row stays under its signal' );
 
+echo "\nGroup: the live-surge reader (23.2.0)\n";
+$GLOBALS['__live_payload'] = null;
+function sn_analytics_live_payload( $all ) { $p = $GLOBALS['__live_payload'] ?? null; if ( $p instanceof \Throwable ) { throw $p; } return $p; }
+if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, (int) $d ); } }
+if ( ! function_exists( 'wp_json_encode' ) ) { function wp_json_encode( $v ) { return json_encode( $v ); } }
+$GLOBALS['__live_payload'] = array( 'fetched' => 1791490000, 'surge' => array( 'state' => 'surge', 'readers' => 9, 'usual' => 1.0, 'ratio' => 9.0, 'z' => 8.0, 'days' => 7 ) );
+$lr = \SignalNoise\OpenStationApp\attention_live();
+ok( 1 === count( $lr['rows'] ) && false !== strpos( wp_json_encode( $lr['rows'][0] ), 'about 9.0 times the usual' ), 'a surge is one row, the readers and the ratio in words' );
+$GLOBALS['__live_payload']['surge']['state'] = 'usual';
+ok( array() === \SignalNoise\OpenStationApp\attention_live()['rows'], 'usual: no row' );
+$GLOBALS['__live_payload']['surge'] = array( 'state' => 'learning', 'days' => 2 );
+ok( array() === \SignalNoise\OpenStationApp\attention_live()['rows'], 'learning: no row, never a guess' );
+$GLOBALS['__live_payload'] = new \RuntimeException( 'x' );
+ok( true === \SignalNoise\OpenStationApp\attention_live()['unreadable'], 'a cache read that throws is unreadable, never calm' );
+ok( isset( \SignalNoise\OpenStationApp\attention_signals()['live'], \SignalNoise\OpenStationApp\attention_kinds()['live'] ), 'the reader is composed and its kind has a label' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

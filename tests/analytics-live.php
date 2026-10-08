@@ -165,11 +165,13 @@ ok( in_array( 'Direct', array_column( $src, 'label' ), true ) && in_array( 'Hack
 ok( ! in_array( SN_ANALYTICS_INTERNAL_REFERRER, array_column( $src, 'label' ), true ) && 3 === count( $src ), 'a click inside the site is not a source' );
 $GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array( 'human' => 3 ), 'views_today' => 4, 'fetched' => 9, 'sources' => $src );
 ok( ! array_key_exists( 'sources', sn_analytics_live_payload( false ) ), 'the public payload never carries sources' );
+$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ]['surge'] = array( 'state' => 'surge', 'readers' => 9, 'usual' => 1.0, 'ratio' => 9.0, 'z' => 8.0, 'days' => 7 );
+ok( ! array_key_exists( 'surge', sn_analytics_live_payload( false ) ) && 'surge' === sn_analytics_live_payload( true )['surge']['state'], 'the ML verdict is admin only' );
 ok( 'Google' === sn_analytics_live_payload( true )['sources'][0]['label'], 'the admin payload does' );
 
 echo "\nGroup: the admin Right now block\n";
 $html = sn_analytics_live_admin_html();
-foreach ( array( 'data-sn-live-hour', 'data-sn-live-pages', 'data-sn-live-sources', 'data-sn-live-meta', 'data-updated=', 'data-empty=' ) as $hook ) {
+foreach ( array( 'data-sn-live-hour', 'data-sn-live-pages', 'data-sn-live-sources', 'data-sn-live-meta', 'data-updated=', 'data-empty=', 'data-sn-live-surge', 'data-learning=' ) as $hook ) {
 	ok( false !== strpos( $html, $hook ), "the block carries $hook" );
 }
 $root = dirname( __DIR__ );

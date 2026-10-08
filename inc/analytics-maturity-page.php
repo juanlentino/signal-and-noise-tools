@@ -67,6 +67,9 @@ function sn_analytics_maturity_principles() {
 		// being deleted -- graduation off the hub is not deletion. Count pin moved
 		// 13 -> 14 in tests/analytics-maturity-page.php in the same change.
 		__( 'Search-side numbers are reported before the click: the queries, impressions and positions Google records, synced daily on their own schedule and read over a window that ends three days back, because Google is still counting.', 'signal-and-noise-tools' ),
+		// 23.2.0: the live figures behave like the rest. Phrased as a fact about the
+		// numbers. Count pin 14 -> 15 in tests/analytics-maturity-page.php.
+		__( 'Right now is judged the same way: a live surge is the last 5-minute slot against the same time of day on at least four earlier days, by median and MAD; with less history the answer is "still learning", never a guess.', 'signal-and-noise-tools' ),
 	);
 }
 
