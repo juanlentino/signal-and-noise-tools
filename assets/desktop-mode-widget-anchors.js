@@ -103,13 +103,24 @@
 		}
 		var list = el( 'div' );
 		list.setAttribute( 'role', 'list' );
-		list.appendChild( listRow( 'Machine reads', String( Number( mr.total ) || 0 ) ) );
+		var reads = listRow( 'Machine reads', String( Number( mr.total ) || 0 ) );
+		list.appendChild( reads );
 		// A user agent is a claim; only the verified share is vouched for by the edge.
 		var id = mr.edge_verified; // its own key: `identity` is the summary's signature evidence
-		if ( id && ( id.verified + id.unverified + id.not_measured ) > 0 ) {
-			list.appendChild( listRow( 'Verified by Cloudflare', String( id.verified ) ) );
-			list.appendChild( listRow( 'Named themselves, not verified', String( id.unverified ) ) );
-			if ( id.not_measured > 0 ) { list.appendChild( listRow( 'Not measured', String( id.not_measured ) ) ); }
+		var sum = id ? id.verified + id.unverified + id.not_measured : 0;
+		if ( id && sum > 0 ) {
+			// The three parts as a share bar under Machine reads, each row with its
+			// segment's dot (assets/desktop-mode-card-kit.js); without the kit, the rows alone.
+			var kit   = window.sntCardKit;
+			var parts = [ [ 'Verified by Cloudflare', id.verified ], [ 'Named themselves, not verified', id.unverified ], [ 'Not measured', id.not_measured ] ];
+			var bar   = kit ? kit.bar( parts.map( function( p ) { return 100 * p[1] / sum; } ) ) : null;
+			if ( bar ) { reads.appendChild( bar ); }
+			parts.forEach( function( p, i ) {
+				if ( 2 === i && ! ( p[1] > 0 ) ) { return; }
+				var row = listRow( p[0], String( p[1] ) );
+				if ( bar ) { row.firstChild.insertBefore( kit.dot( i ), row.firstChild.firstChild ); }
+				list.appendChild( row );
+			} );
 		}
 		// null means "not measured", never painted as 0.
 		if ( mr.ai_training !== null && typeof mr.ai_training !== 'undefined' ) {

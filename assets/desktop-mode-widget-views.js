@@ -160,9 +160,12 @@
 	/**
 	 * A group the way SN Reading paints one (assets/desktop-mode-widget-groups.js):
 	 * a hairline, a heading, the rows as a list; `empty` when there are none.
+	 * opts.share: a bar of the rows' shares under the heading. opts.bare: no
+	 * hairline of its own (a pair draws one over both).
 	 */
-	function group( title, rows, empty ) {
-		var box  = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
+	function group( title, rows, empty, opts ) {
+		opts = opts || {};
+		var box  = el( 'div', { style: opts.bare ? 'min-width:0;' : 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
 		var head = el( 'div', { text: title, style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:2px;' } );
 		head.setAttribute( 'role', 'heading' );
 		head.setAttribute( 'aria-level', '3' );
@@ -171,20 +174,51 @@
 			box.appendChild( el( 'div', { text: empty || 'Nothing to show.', style: 'font-size:11px;padding:2px 0;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } ) );
 			return box;
 		}
-		box.appendChild( list( rows ) );
+		var kit = window.sntCardKit;
+		var bar = opts.share && kit ? kit.bar( rows.map( function( r ) { return r.share; } ) ) : null;
+		if ( bar ) { box.appendChild( bar ); }
+		box.appendChild( list( rows, !! bar ) );
 		return box;
 	}
 
-	/** Label/value rows as a list (role=list, each row a listitem). */
-	function list( rows ) {
+	/** Groups the server marked `pair` share a row with the next (sntCardKit.pair); without the kit they stack. */
+	function pairOf( a, b ) {
+		var kit = window.sntCardKit;
+		var ga  = group( a.title, a.rows || [], a.empty, { share: a.share, bare: !! kit } );
+		var gb  = group( b.title, b.rows || [], b.empty, { share: b.share, bare: !! kit } );
+		if ( kit ) { return kit.pair( ga, gb ); }
+		var both = el( 'div' );
+		both.appendChild( ga );
+		both.appendChild( gb );
+		return both;
+	}
+
+	/**
+	 * Label/value rows as a list (role=list, each row a listitem). dots: the
+	 * group drew a share bar, so each row carries a dot in its segment's shade.
+	 * A row's `split` (percents) draws its own bar under it (Devices).
+	 */
+	function list( rows, dots ) {
+		var kit = window.sntCardKit;
 		var ul = el( 'div' );
 		ul.setAttribute( 'role', 'list' );
-		rows.forEach( function( r ) {
+		rows.forEach( function( r, i ) {
 			var row = statRow( String( r.label ), String( r.value ), r.style );
 			row.setAttribute( 'role', 'listitem' );
+			if ( dots && kit && typeof r.share === 'number' && r.share > 0 ) {
+				row.firstChild.insertBefore( kit.dot( i ), row.firstChild.firstChild );
+				row.style.columnGap = '6px'; // a half-width column: "Hacker News 16 · 6%" stays on one line
+			}
+			var split = kit && Array.isArray( r.split ) ? kit.bar( r.split ) : null;
+			if ( split ) { row.appendChild( split ); }
 			ul.appendChild( row );
 		} );
 		return ul;
+	}
+
+	/** The value cell of a statRow (its last child), or null. */
+	function lastCell( row ) {
+		return row && row.children && row.children.length ? row.children[ row.children.length - 1 ] : null;
 	}
 
 	/**
@@ -291,9 +325,15 @@
 			// pages. Read 2+ pages, downloads outbound, the bot share and the top
 			// mover are not painted (owner's pick, 2026-10-04): they live in S&N
 			// Analytics. Additive: an older cached payload without `groups` paints none.
-			( payload.groups || [] ).forEach( function( g ) {
-				if ( g && g.title ) { body.appendChild( group( g.title, g.rows || [], g.empty ) ); }
-			} );
+			var groups = ( payload.groups || [] ).filter( function( g ) { return g && g.title; } );
+			for ( var gi = 0; gi < groups.length; gi++ ) {
+				var g = groups[ gi ];
+				if ( g.pair && groups[ gi + 1 ] ) {
+					body.appendChild( pairOf( g, groups[ ++gi ] ) );
+				} else {
+					body.appendChild( group( g.title, g.rows || [], g.empty, { share: g.share } ) );
+				}
+			}
 
 			var pageRows = ( payload.top_paths || [] ).filter( function( pg ) { return pg && pg.path; } ).map( function( pg ) {
 				return { label: pg.path, value: String( pg.views ) };
@@ -313,35 +353,40 @@
 				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:6px;'
 			} ) );
 
-			// Additive: an older cached payload without `today` paints nothing.
-			// A measured 0 is a number and renders; absent/null does not.
-			if ( typeof payload.today === 'number' ) {
-				body.appendChild( list( [ { label: 'Today so far', value: payload.today } ] ) );
-			}
-			// Live: readers in the last five minutes, filled and kept current by
-			// assets/live-now.js (a dependency of this script). "—" until read.
-			var nowList = list( [ { label: 'Reading now', value: '—' } ] );
-			var nowRow  = nowList.children && nowList.children[ 0 ];
-			var nowVal  = nowRow && nowRow.children && nowRow.children[ nowRow.children.length - 1 ];
+			// Today so far and Reading now as one list. Additive: an older cached
+			// payload without `today` paints no Today row; a measured 0 renders.
+			// Reading now is filled and kept current by assets/live-now.js (a
+			// dependency of this script): "—" until read.
+			var nowRows = typeof payload.today === 'number' ? [ { label: 'Today so far', value: payload.today } ] : [];
+			nowRows.push( { label: 'Reading now', value: '—' } );
+			var nowList = list( nowRows );
+			var nowVal  = lastCell( nowList.lastChild );
 			if ( nowVal ) {
 				nowVal.setAttribute( 'data-sn-live', 'now' );
 				nowVal.setAttribute( 'data-sn-live-class', 'human' );
 			}
 			body.appendChild( nowList );
-			// The last hour as small bars (live-now.js draws them) and the page
-			// most read right now. Both stay empty or "—" until the first read.
+			// The last hour as small bars and the page most read right now. Both
+			// start hidden; live-now.js shows each only when it has something to
+			// say (a reader in the hour, a page being read), so a quiet card adds
+			// no empty strip and no "—" row.
 			if ( document.createElementNS ) {
+				var barsBox = el( 'div' );
+				barsBox.hidden = true;
+				barsBox.setAttribute( 'data-sn-live-hide-empty', '' );
 				var bars = document.createElementNS( 'http://www.w3.org/2000/svg', 'svg' );
 				bars.setAttribute( 'viewBox', '0 0 240 18' );
 				bars.setAttribute( 'preserveAspectRatio', 'none' );
 				bars.setAttribute( 'aria-hidden', 'true' );
 				bars.setAttribute( 'data-sn-live-hour', '' );
 				bars.setAttribute( 'style', 'display:block;width:100%;height:18px;margin:2px 0 4px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' );
-				body.appendChild( bars );
+				barsBox.appendChild( bars );
+				body.appendChild( barsBox );
 			}
 			var topList = list( [ { label: 'Top now', value: '—' } ] );
-			var topRow  = topList.children && topList.children[ 0 ];
-			var topVal  = topRow && topRow.children && topRow.children[ topRow.children.length - 1 ];
+			topList.hidden = true;
+			topList.setAttribute( 'data-sn-live-hide-empty', '' );
+			var topVal = lastCell( topList.lastChild );
 			if ( topVal ) {
 				topVal.setAttribute( 'data-sn-live-top', '' );
 			}

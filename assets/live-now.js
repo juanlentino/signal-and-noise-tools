@@ -41,6 +41,15 @@
 		}
 	}
 
+	// A part marked data-sn-live-hide-empty (the Traffic widget's hour bars
+	// and Top now row) shows only when the answer has something for it.
+	function showIf( el, has ) {
+		var box = el.closest ? el.closest( '[data-sn-live-hide-empty]' ) : null;
+		if ( box ) {
+			box.hidden = ! has;
+		}
+	}
+
 	function meta( text ) {
 		document.querySelectorAll( '[data-sn-live-meta]:not([data-updated])' ).forEach( function ( m ) {
 			m.textContent = text;
@@ -66,6 +75,7 @@
 		document.querySelectorAll( '[data-sn-live-top]' ).forEach( function ( el ) {
 			if ( Array.isArray( data.pages ) ) {
 				el.textContent = data.pages.length ? String( data.pages[ 0 ].label ) + ' · ' + Number( data.pages[ 0 ].readers ).toLocaleString() : '—';
+				showIf( el, data.pages.length > 0 );
 			}
 		} );
 		// The live-surge verdict (admin): its words ride on the element.
@@ -130,6 +140,7 @@
 		slots.forEach( function ( s, i ) {
 			if ( Number( s.readers ) >= peak ) { peak = Number( s.readers ); at = i; }
 		} );
+		showIf( svg, peak > 0 );
 		slots.forEach( function ( s, i ) {
 			var h = peak > 0 ? Math.max( Number( s.readers ) > 0 ? 2 : 0, Math.round( ( vb - 2 ) * Number( s.readers ) / peak ) ) : 0;
 			var r = document.createElementNS( SVGNS, 'rect' );

@@ -34,11 +34,11 @@ ok( 1 === $calls && $a->data === $b->data && 900 === $GLOBALS['ttl'] && isset( $
 
 echo "\nAudience\n";
 $rows = snt_desktop_audience_rows( array( array( 'value' => 'US', 'views' => 30 ), array( 'value' => '', 'views' => 10 ), array( 'value' => 'AR', 'views' => 0 ) ), 'value', 5 );
-ok( array( array( 'label' => 'US', 'value' => '30 · 75%' ), array( 'label' => '(unknown)', 'value' => '10 · 25%' ) ) === $rows, 'rows carry views and share; a zero row is dropped; a blank name says unknown' );
+ok( array( array( 'label' => 'US', 'value' => '30 · 75%', 'share' => 75.0 ), array( 'label' => '(unknown)', 'value' => '10 · 25%', 'share' => 25.0 ) ) === $rows, 'rows carry views and share (as text and as a number for the bar); a zero row is dropped; a blank name says unknown' );
 ok( array() === snt_desktop_audience_rows( null, 'value', 5 ), 'a failed read gives no rows (the group then says so), never zeros' );
 $many = array(); foreach ( range( 1, 8 ) as $i ) { $many[] = array( 'value' => "c$i", 'views' => 10 ); }
 $top = snt_desktop_audience_rows( $many, 'value', 5 );
-ok( 5 === count( $top ) && '10 · 13%' === $top[0]['value'], 'the share is of ALL rows, not of the rows kept' );
+ok( 5 === count( $top ) && '10 · 13%' === $top[0]['value'] && 12.5 === $top[0]['share'], 'the share is of ALL rows, not of the rows kept' );
 $hn = snt_desktop_audience_hn_rows( array( 9 => array( 'title' => 'A note', 'points' => 14, 'comments' => 3, 'rank' => 7 ), 8 => array( 'title' => 'Older', 'points' => 2, 'comments' => 0, 'rank' => 0 ) ), 3 );
 ok( '14 pts · 3 comments · #7 on the front page' === $hn[0]['value'] && '2 pts · 0 comments' === $hn[1]['value'], 'a Hacker News row names the rank only while the story is on the front page' );
 $s = snt_desktop_audience_search_rows( array( 'clicks' => 12, 'impressions' => 3400, 'days' => 28 ), array( 'totals' => array( 'clicks' => 1, 'impressions' => 90, 'days' => 30 ) ) );
@@ -70,11 +70,11 @@ ok( 'Sessions' === snt_desktop_reading_visit_rows( array( array( 'visits' => 3, 
 $v = snt_desktop_reading_visit_rows( array( array( 'visits' => 30, 'bounce_pct' => 80.0, 'ppv' => 1.2, 'median_dur' => 20 ), array( 'visits' => 10, 'bounce_pct' => 40.0, 'ppv' => 2.0, 'median_dur' => 100 ) ) );
 ok( array( '40', '70%', '1.40', '40s' ) === array_column( $v, 'value' ), 'visits fold weighted by each day\'s visits, not as a plain mean of days' );
 $dv = snt_desktop_reading_visit_rows( array( array( 'visits' => 10, 'bounce_pct' => 70.0, 'ppv' => 1.5, 'median_dur' => 20, 'two_pages' => 2, 'deep_pages' => 1 ), array( 'visits' => 30, 'bounce_pct' => 80.0, 'ppv' => 1.2, 'median_dur' => 20, 'two_pages' => null, 'deep_pages' => null ) ) );
-ok( array( 'Sessions', 'One page only', 'Two pages · three or more', 'Pages per session', 'Typical session' ) === array_column( $dv, 'label' ) && '20% · 10%' === $dv[2]['value'] && '70%' === $dv[1]['value'], 'the three depth shares come from the same sessions (the 10 that measured it) and add up to 100%; two pages and three or more share one row, so the card keeps its height' );
+ok( array( 'Sessions', 'One page only', 'Two pages · three or more', 'Pages per session', 'Typical session' ) === array_column( $dv, 'label' ) && '20% · 10%' === $dv[2]['value'] && '70%' === $dv[1]['value'] && array( 70.0, 20.0, 10.0 ) === ( $dv[1]['split'] ?? null ), 'the three depth shares (also as numbers for the bar) come from the same sessions (the 10 that measured it) and add up to 100%; two pages and three or more share one row, so the card keeps its height' );
 ok( 4 === count( $v ), 'with no day measuring the split, the two rows are absent, not zero' );
 ok( null === snt_desktop_reading_visit_rows( null ) && array() === snt_desktop_reading_visit_rows( array() ), 'a failed visits read stays null (the group says it could not be read); an empty window is an empty list' );
 ok( '42s' === snt_desktop_reading_seconds( 42 ) && '3m 05s' === snt_desktop_reading_seconds( 185 ), 'seconds read as people say them' );
-ok( array( 'label' => 'LCP', 'value' => '80% good · 10% poor' ) === snt_desktop_reading_vital_row( 'LCP', $d( array( 8, 1, 1 ) ) ), 'a vital whose percentile could not be read still shows its good and poor shares' );
+ok( array( 'label' => 'LCP', 'value' => '80% good · 10% poor', 'split' => array( 80.0, 10.0, 10.0 ), 'quality' => true ) === snt_desktop_reading_vital_row( 'LCP', $d( array( 8, 1, 1 ) ) ), 'a vital whose percentile could not be read still shows its good and poor shares, and the three bands as numbers for its bar' );
 $p75 = static fn( $x ) => array( array( 'label' => 'p50', 'value' => 1.0 ), array( 'label' => 'p75', 'value' => $x ) );
 ok( 'LCP · p75 1.8s' === snt_desktop_reading_vital_row( 'LCP', $d( array( 8, 1, 1 ) ), $p75( 1840.0 ) )['label'] && 'INP · p75 120ms' === snt_desktop_reading_vital_row( 'INP', $d( array( 8, 1, 1 ) ), $p75( 120.0 ) )['label'] && 'CLS · p75 0.05' === snt_desktop_reading_vital_row( 'CLS', $d( array( 8, 1, 1 ) ), $p75( 50.0 ) )['label'], 'the 75th percentile reads in each vital\'s own unit: seconds, milliseconds, and CLS back from its x1000 storage' );
 ok( null === snt_desktop_reading_vital_row( 'INP', $d( array( 0, 0, 0 ) ) ), 'a vital nobody measured is absent, not 0% good' );
@@ -94,6 +94,9 @@ function snt_gsc_window_totals() { return array( 'clicks' => 5, 'impressions' =>
 function sn_bing_data() { return array( 'totals' => array( 'clicks' => 0, 'impressions' => 0, 'days' => 16 ) ); }
 $tg = snt_desktop_traffic_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) );
 ok( array( 'Countries', 'Sources', 'Hacker News · latest story', 'Devices, search, feed' ) === array_column( $tg, 'title' ), 'SN Traffic\'s groups: countries, sources, Hacker News, then devices, search and feed as one-line rows (no campaigns when no tagged link was followed)' );
+ok( ! empty( $tg[0]['share'] ) && ! empty( $tg[0]['pair'] ) && ! empty( $tg[1]['share'] ) && empty( $tg[1]['pair'] ) && empty( $tg[2]['share'] ), 'Countries pairs with Sources and both draw a share bar; nothing else is hinted' );
+$dev = array_values( array_filter( $tg[3]['rows'], static fn( $r ) => 'Devices' === $r['label'] ) );
+ok( 1 === count( $dev ) && is_array( $dev[0]['split'] ?? null ) && count( $dev[0]['split'] ) === count( explode( ' · ', $dev[0]['value'] ) ), 'the Devices row carries one share per device it names, for its bar' );
 $glance = array_column( $tg[3]['rows'], 'value', 'label' );
 ok( 'Google 5 clicks · 478 impr · Bing 0 clicks · 0 impr' === ( $glance['Search'] ?? '' ), 'search keeps impressions beside clicks per engine, on its one row (owner\'s pick, 2026-10-04): ' . ( $glance['Search'] ?? '' ) );
 ok( array( 3, 4 ) === array( count( $tg[0]['rows'] ), count( $tg[1]['rows'] ) ) && 1 === preg_match( '/^device1 \d+% · device2 \d+%$/', $glance['Devices'] ?? '' ) && '1 · 2 · 3' === ( $glance['Feed, unique 24h · 7d · 30d'] ?? '' ), 'top 3 countries, top 4 sources; devices and the three feed windows each fold into one row' );

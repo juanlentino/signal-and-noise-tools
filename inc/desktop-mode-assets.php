@@ -133,11 +133,21 @@ add_action( 'init', function() {
 		true
 	);
 
+	// The cards' shared marks: share bars, their dots, two groups on one row.
+	// Optional to every card that uses it (each draws plain rows without it).
+	wp_register_script(
+		'snt-card-kit',
+		plugins_url( 'assets/desktop-mode-card-kit.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array(),
+		SNT_VERSION,
+		true
+	);
+
 	// SN Reading's group painter (SN Audience, which shared it, folded into SN Traffic).
 	wp_register_script(
 		'sn-desktop-mode-widget-groups',
 		plugins_url( 'assets/desktop-mode-widget-groups.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode' ),
+		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode', 'snt-card-kit' ),
 		SNT_VERSION,
 		true
 	);
@@ -159,7 +169,7 @@ add_action( 'init', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget-anchors',
 		plugins_url( 'assets/desktop-mode-widget-anchors.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'snt-ability-run', 'wp-api-fetch', 'sn-desktop-mode' ),
+		array( 'sn-desktop-mode-os-compat', 'snt-ability-run', 'wp-api-fetch', 'sn-desktop-mode', 'snt-card-kit' ),
 		SNT_VERSION,
 		true
 	);
@@ -183,7 +193,7 @@ add_action( 'init', function() {
 			plugins_url( 'assets/desktop-mode-widget-' . $sn_widget . '.js', SNT_PATH . 'signal-and-noise-tools.php' ),
 			'health' === $sn_widget
 				? array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run', 'sn-desktop-mode', 'snt-poll-cadence' )
-				: array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode', 'sn-live-now-admin', 'snt-poll-cadence' ), // SN Traffic polls every five minutes; its Reading now row is live
+				: array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode', 'sn-live-now-admin', 'snt-poll-cadence', 'snt-card-kit' ), // SN Traffic polls every five minutes; its Reading now row is live
 			SNT_VERSION,
 			true
 		);
