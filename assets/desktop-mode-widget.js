@@ -213,7 +213,7 @@
 		// install through the WP upgrader and the feed behind it records them.
 		var deployAge  = status.last_deploy || 'unknown';
 		var deployWhat = status.last_deploy_component || '';
-		deployLine( site.box, deployWhat ? 'Last deploy: ' + deployWhat + ' · ' + deployAge : 'Last deploy: ' + deployAge );
+		deployLine( site.box, deployWhat ? 'Last deploy: ' + deployWhat + ' · ' + deployAge : 'Last deploy: ' + deployAge, 'Theme and plugin only, from the WordPress upgrader\'s record. The workers have their own line.' );
 
 		// v11.11.2: the workers, same glyph vocabulary. Rows come from the
 		// ability's additive `workers` array; an older payload has no group.
@@ -231,9 +231,9 @@
 			// first read a new version (inc/deploy-workers-seen.php). Until one
 			// changes, since when it has watched; an older payload, nothing.
 			var lw    = status.last_worker_deploy;
-			var probe = 'The time the five-minute version check first saw this version live, accurate to five minutes.';
+			var probe = 'When the five-minute version check first saw this version live; it counts once two checks in a row agree.';
 			if ( lw && lw.at ) {
-				deployLine( fleet.box, 'Last deploy: ' + ( lw.label || 'worker' ) + ' ' + ( lw.version || '' ) + ' · ' + agoWords( lw.at ), probe );
+				deployLine( fleet.box, 'Last deploy: ' + [ lw.label || 'worker', lw.version ].filter( Boolean ).join( ' ' ) + ' · ' + agoWords( lw.at ), probe );
 			} else if ( lw && lw.since ) {
 				deployLine( fleet.box, 'No worker deploy seen since ' + new Date( lw.since ).toLocaleDateString( [], { month: 'short', day: 'numeric' } ), probe );
 			}

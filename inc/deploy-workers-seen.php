@@ -7,7 +7,8 @@
  * merge is not a deploy (Workers Builds can skip one), and the Cloudflare
  * deployments API needs a token this plugin does not hold. So the moment a
  * probe first reads a NEW live version is stamped, accurate to the probe's
- * five minutes. The first version ever read for a worker is a baseline, not a
+ * five minutes (a new version counts on its second read in a row, so the
+ * line moves up to ten minutes after the deploy). The first version ever read for a worker is a baseline, not a
  * deploy; until a worker changes, the card says since when it has watched.
  *
  * @package SignalNoiseTools
@@ -22,7 +23,7 @@ const SNT_DEPLOY_WORKERS_SEEN_OPT = 'snt_deploy_workers_seen';
 /**
  * The log after one probe read. PURE.
  *
- * Shape: { since: int, workers: { id: { version, at|null } }, last: { id, version, at }|null }.
+ * Shape: { since: int, workers: { id: { version, at|null, pending? } }, last: { id, version, at }|null }.
  * A version that is not a reading ('' or "unprobeable") changes nothing.
  *
  * @param mixed  $log     The stored log (anything not an array starts a new one).
@@ -44,10 +45,20 @@ function snt_deploy_workers_seen_merge( $log, $id, $version, $now ) {
 		return $log;
 	}
 	if ( (string) ( $was['version'] ?? '' ) === $version ) {
+		unset( $log['workers'][ $id ]['pending'] ); // back on the known version: a flip, not a deploy
 		return $log;
 	}
-	$log['workers'][ $id ] = array( 'version' => $version, 'at' => (int) $now );
-	$log['last']           = array( 'id' => (string) $id, 'version' => $version, 'at' => (int) $now );
+	// A new version counts on its second read in a row, stamped at the first:
+	// a gradual rollout or a stale edge answering old and new in turn never
+	// settles, so it never moves the line. Costs one probe (five minutes) of delay.
+	$pending = $was['pending'] ?? null;
+	if ( ! is_array( $pending ) || (string) ( $pending['version'] ?? '' ) !== $version ) {
+		$log['workers'][ $id ]['pending'] = array( 'version' => $version, 'at' => (int) $now );
+		return $log;
+	}
+	$at                    = (int) $pending['at'];
+	$log['workers'][ $id ] = array( 'version' => $version, 'at' => $at );
+	$log['last']           = array( 'id' => (string) $id, 'version' => $version, 'at' => $at );
 	return $log;
 }
 

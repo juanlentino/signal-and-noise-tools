@@ -606,8 +606,13 @@ $log = snt_deploy_workers_seen_merge( null, 'sn-analytics', '1.25.0', 1000 );
 dw_assert( 1000 === $log['since'] && array( 'version' => '1.25.0', 'at' => null ) === $log['workers']['sn-analytics'] && null === $log['last'], 'seen: the first version read is a baseline, never a deploy' );
 dw_assert( $log === snt_deploy_workers_seen_merge( $log, 'sn-analytics', '1.25.0', 2000 ), 'seen: the same version again changes nothing' );
 dw_assert( $log === snt_deploy_workers_seen_merge( $log, 'sn-analytics', '', 2000 ) && $log === snt_deploy_workers_seen_merge( $log, 'sn-analytics', 'unprobeable', 2000 ), 'seen: no reading is not a version change' );
-$log2 = snt_deploy_workers_seen_merge( $log, 'sn-analytics', '1.26.0', 3000 );
-dw_assert( array( 'id' => 'sn-analytics', 'version' => '1.26.0', 'at' => 3000 ) === $log2['last'] && 1000 === $log2['since'], 'seen: a new version is a deploy, stamped at the read' );
+$once = snt_deploy_workers_seen_merge( $log, 'sn-analytics', '1.26.0', 3000 );
+dw_assert( null === $once['last'] && '1.25.0' === $once['workers']['sn-analytics']['version'], 'seen: one read of a new version is not yet a deploy' );
+$log2 = snt_deploy_workers_seen_merge( $once, 'sn-analytics', '1.26.0', 3300 );
+dw_assert( array( 'id' => 'sn-analytics', 'version' => '1.26.0', 'at' => 3000 ) === $log2['last'] && 1000 === $log2['since'] && ! isset( $log2['workers']['sn-analytics']['pending'] ), 'seen: the second read in a row makes it a deploy, stamped at the first' );
+$flip = $log;
+foreach ( array( '1.26.0', '1.25.0', '1.26.0', '1.25.0', '1.26.0' ) as $k => $v ) { $flip = snt_deploy_workers_seen_merge( $flip, 'sn-analytics', $v, 4000 + $k * 300 ); }
+dw_assert( null === $flip['last'] && '1.25.0' === $flip['workers']['sn-analytics']['version'], 'seen: a rollout answering old and new in turn never counts as a deploy' );
 $log3 = snt_deploy_workers_seen_merge( $log2, 'sn-remote-mcp', '2.0.0', 4000 );
 dw_assert( $log2['last'] === $log3['last'], 'seen: another worker\'s first read does not claim the last deploy' );
 dw_assert( array( 'since' => gmdate( 'c', 1000 ) ) === snt_deploy_workers_seen_last( $log, array() ), 'seen: before any change the card says since when it has watched' );
@@ -619,7 +624,9 @@ $GLOBALS['__dw_http'][] = dw_http_json( 200, array( 'worker' => 'sn-analytics', 
 snt_deploy_worker_status_for( 'sn-analytics', array( 'allow_probe' => true, 'force' => true ) );
 $GLOBALS['__dw_http'][] = dw_http_json( 200, array( 'worker' => 'sn-analytics', 'version' => '1.26.0' ) );
 snt_deploy_worker_status_for( 'sn-analytics', array( 'allow_probe' => true, 'force' => true ) );
-dw_assert( '1.26.0' === ( $GLOBALS['__dw_options'][ SNT_DEPLOY_WORKERS_SEEN_OPT ]['last']['version'] ?? '' ), 'seen: a probe that reads a new version records the deploy' );
+$GLOBALS['__dw_http'][] = dw_http_json( 200, array( 'worker' => 'sn-analytics', 'version' => '1.26.0' ) );
+snt_deploy_worker_status_for( 'sn-analytics', array( 'allow_probe' => true, 'force' => true ) );
+dw_assert( '1.26.0' === ( $GLOBALS['__dw_options'][ SNT_DEPLOY_WORKERS_SEEN_OPT ]['last']['version'] ?? '' ), 'seen: probes that read a new version twice record the deploy' );
 
 $card = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget.js' );
 dw_assert( false !== strpos( $card, "section( 'WordPress' )" ) && false !== strpos( $card, "section( 'Site' )" ) && false !== strpos( $card, "section( 'Workers' )" ) && strpos( $card, "section( 'WordPress' )" ) < strpos( $card, "section( 'Site' )" ) && strpos( $card, "section( 'Site' )" ) < strpos( $card, "section( 'Workers' )" ), 'card: WordPress, then Site, then Workers, each its own group' );
