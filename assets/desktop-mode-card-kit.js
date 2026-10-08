@@ -17,7 +17,10 @@
 
 	var ACCENT = 'var(--os-ui-color-accent, #4a9eff)';
 	// The accent, strongest first: a segment and its row's dot share a shade.
-	var SHADES = [ 1, 0.7, 0.48, 0.3 ];
+	// Dimmed (23.3.1, the owner's call): a share is not a warning, and an
+	// accent at full strength (red on this desk) read like one beside SN
+	// Systems' real alarms. Quality bars keep their full colors.
+	var SHADES = [ 0.6, 0.42, 0.28, 0.18 ];
 	// Good, needs work, poor (the cards' own greens, ambers and reds).
 	var QUALITY = [ '#3fb950', '#d29922', '#ff9d94' ];
 

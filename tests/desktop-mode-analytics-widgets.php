@@ -1,4 +1,5 @@
 <?php
+if ( ! defined( 'SNT_VERSION' ) ) { define( 'SNT_VERSION', '0.0.0-test' ); } // the desktop payload caches are version-stamped
 /**
  * Standalone test: SN Reading and the groups SN Traffic paints under its
  * sparkline (SN Audience and SN RSS Subscribers, folded in). The row builders
@@ -30,7 +31,7 @@ ok( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) === snt_
 $calls = 0;
 $build = static function ( $win ) use ( &$calls ) { $calls++; return array( snt_desktop_group( 'G', array(), 'e' ) ); };
 $a = snt_desktop_widget_response( 'audience', $build ); $b = snt_desktop_widget_response( 'audience', $build );
-ok( 1 === $calls && $a->data === $b->data && 900 === $GLOBALS['ttl'] && isset( $GLOBALS['tr']['sn_desktop_audience_2026-10-03'] ), 'a payload is built once and held 15 minutes under a day-stamped key' );
+ok( 1 === $calls && $a->data === $b->data && 900 === $GLOBALS['ttl'] && isset( $GLOBALS['tr'][ 'sn_desktop_audience_2026-10-03_' . SNT_VERSION ] ), 'a payload is built once and held 15 minutes under a key stamped with the day and the plugin version' );
 
 echo "\nAudience\n";
 $rows = snt_desktop_audience_rows( array( array( 'value' => 'US', 'views' => 30 ), array( 'value' => '', 'views' => 10 ), array( 'value' => 'AR', 'views' => 0 ) ), 'value', 5 );

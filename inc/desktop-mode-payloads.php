@@ -195,7 +195,9 @@ function snt_desktop_site_views_payload() {
 	// Date-stamped key: a flat key cached at 23:58 would keep serving the
 	// PREVIOUS day's 14-day window for up to 15 minutes after local midnight.
 	// Stamping the local day makes the rollover exact and self-expiring.
-	$cache_key = 'sn_desktop_site_views_' . $today;
+	// And the plugin version (23.3.1): a release that reshapes the payload is
+	// read at once, not after the old build's 15 minutes run out.
+	$cache_key = 'sn_desktop_site_views_' . $today . '_' . SNT_VERSION;
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) ) {
 		return new WP_REST_Response( snt_desktop_site_views_with_north_star( $cached ), 200 );

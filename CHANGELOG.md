@@ -12,6 +12,11 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A release's new card layout shows at once.** SN Traffic's and SN Reading's payload caches were keyed by the day only, so 23.3.0's Countries and Sources pair waited out the old build's 15 minutes. The keys now carry the plugin version.
+- **The share bars are dimmer.** They keep the card's accent, at lower strength, so a share (89% one page only, 88% direct) no longer reads like SN Systems' warnings. Core Web Vitals keep their full good, needs work and poor colors.
+- **SN Deploy Status fits when placed fresh.** Its default height is 470 (about 450 measured with the groups and the workers' deploy line); a saved layout keeps its own height.
+
 ## [23.3.0] - 2026-10-08 — the desktop cards draw shares, and Deploy Status groups and dates the workers
 
 ### Added

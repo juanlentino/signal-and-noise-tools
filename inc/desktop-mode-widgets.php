@@ -213,7 +213,9 @@ add_action( 'init', function() {
 			// figure that card's own budget used per button). If the owner
 			// reports clipping, rebuild the Trap-11 measurement recipe rather
 			// than guessing again.
-			'default_height' => 350,
+			// 23.3.1: + three group headings, two hairlines and the workers'
+			// own deploy line (~110), measured on the owner's desk at ~450.
+			'default_height' => 470,
 		) ) );
 
 		// v9.78.0: SN Anchors, now SN Provenance: pending Notes with their live
