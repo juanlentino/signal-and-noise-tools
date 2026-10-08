@@ -187,6 +187,11 @@
 		return ul;
 	}
 
+	/** The value cell of a statRow (its last child), or null. */
+	function lastCell( row ) {
+		return row && row.children && row.children.length ? row.children[ row.children.length - 1 ] : null;
+	}
+
 	/**
 	 * Engaged readers with their change, DOI downloads and inquiries, the
 	 * owner's pick of Site Views' north star rows (2026-10-04). Additive: an
@@ -313,35 +318,40 @@
 				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:6px;'
 			} ) );
 
-			// Additive: an older cached payload without `today` paints nothing.
-			// A measured 0 is a number and renders; absent/null does not.
-			if ( typeof payload.today === 'number' ) {
-				body.appendChild( list( [ { label: 'Today so far', value: payload.today } ] ) );
-			}
-			// Live: readers in the last five minutes, filled and kept current by
-			// assets/live-now.js (a dependency of this script). "—" until read.
-			var nowList = list( [ { label: 'Reading now', value: '—' } ] );
-			var nowRow  = nowList.children && nowList.children[ 0 ];
-			var nowVal  = nowRow && nowRow.children && nowRow.children[ nowRow.children.length - 1 ];
+			// Today so far and Reading now as one list. Additive: an older cached
+			// payload without `today` paints no Today row; a measured 0 renders.
+			// Reading now is filled and kept current by assets/live-now.js (a
+			// dependency of this script): "—" until read.
+			var nowRows = typeof payload.today === 'number' ? [ { label: 'Today so far', value: payload.today } ] : [];
+			nowRows.push( { label: 'Reading now', value: '—' } );
+			var nowList = list( nowRows );
+			var nowVal  = lastCell( nowList.lastChild );
 			if ( nowVal ) {
 				nowVal.setAttribute( 'data-sn-live', 'now' );
 				nowVal.setAttribute( 'data-sn-live-class', 'human' );
 			}
 			body.appendChild( nowList );
-			// The last hour as small bars (live-now.js draws them) and the page
-			// most read right now. Both stay empty or "—" until the first read.
+			// The last hour as small bars and the page most read right now. Both
+			// start hidden; live-now.js shows each only when it has something to
+			// say (a reader in the hour, a page being read), so a quiet card adds
+			// no empty strip and no "—" row.
 			if ( document.createElementNS ) {
+				var barsBox = el( 'div' );
+				barsBox.hidden = true;
+				barsBox.setAttribute( 'data-sn-live-hide-empty', '' );
 				var bars = document.createElementNS( 'http://www.w3.org/2000/svg', 'svg' );
 				bars.setAttribute( 'viewBox', '0 0 240 18' );
 				bars.setAttribute( 'preserveAspectRatio', 'none' );
 				bars.setAttribute( 'aria-hidden', 'true' );
 				bars.setAttribute( 'data-sn-live-hour', '' );
 				bars.setAttribute( 'style', 'display:block;width:100%;height:18px;margin:2px 0 4px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' );
-				body.appendChild( bars );
+				barsBox.appendChild( bars );
+				body.appendChild( barsBox );
 			}
 			var topList = list( [ { label: 'Top now', value: '—' } ] );
-			var topRow  = topList.children && topList.children[ 0 ];
-			var topVal  = topRow && topRow.children && topRow.children[ topRow.children.length - 1 ];
+			topList.hidden = true;
+			topList.setAttribute( 'data-sn-live-hide-empty', '' );
+			var topVal = lastCell( topList.lastChild );
 			if ( topVal ) {
 				topVal.setAttribute( 'data-sn-live-top', '' );
 			}
