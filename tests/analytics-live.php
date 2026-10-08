@@ -126,7 +126,7 @@ ok( false !== strpos( (string) file_get_contents( dirname( __DIR__ ) . '/inc/pub
 
 echo "\nGroup: the last hour\n";
 $sql = sn_analytics_live_hour_sql();
-ok( false !== strpos( $sql, "toStartOfInterval(timestamp, INTERVAL '5' MINUTE) AS slot" ) && false !== strpos( $sql, 'GROUP BY slot' ) && false === strpos( $sql, 'GROUP BY toStart' ), 'twelve 5-minute slots, grouped by the SELECT alias (Analytics Engine refuses a function in GROUP BY)' );
+ok( false !== strpos( $sql, "toUnixTimestamp(toStartOfInterval(timestamp, INTERVAL '5' MINUTE)) AS slot" ) && false !== strpos( $sql, 'GROUP BY slot' ) && false === strpos( $sql, 'GROUP BY toStart' ), 'twelve 5-minute slots, grouped by the SELECT alias (Analytics Engine refuses a function in GROUP BY)' );
 ok( false !== strpos( $sql, 'count(DISTINCT index1) AS readers' ) && false !== strpos( $sql, "INTERVAL '60' MINUTE" ), 'distinct readers per slot over the last hour' );
 $now  = 1791490000; // 2026-10-08 16:06:40 UTC
 $cur  = intdiv( $now, 300 ) * 300;
@@ -135,6 +135,7 @@ $hour = sn_analytics_live_hour_from_rows( $rows, $now );
 ok( 12 === count( $hour ) && $cur === $hour[11]['t'] && $cur - 3300 === $hour[0]['t'], 'always twelve slots, oldest first, ending at the current slot' );
 ok( 3 === $hour[11]['readers'] && 4 === $hour[9]['readers'] && 0 === $hour[10]['readers'], 'a slot the answer left out is a real 0, the others keep their counts' );
 ok( 9 !== max( array_column( $hour, 'readers' ) ), 'a row outside the hour is ignored' );
+ok( 5 === sn_analytics_live_hour_from_rows( array( array( 'slot' => (string) $cur, 'readers' => 5 ) ), $now )[11]['readers'], 'a slot in unix seconds (what the query now selects) lands in its place' );
 ok( array_fill( 0, 12, 0 ) === array_column( sn_analytics_live_hour_from_rows( array(), $now ), 'readers' ), 'a quiet hour is twelve zeros, not null' );
 $GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array(), 'views_today' => 0, 'fetched' => 9 );
 ok( null === sn_analytics_live_payload( false )['hour'], 'a cache written before the hour existed answers null' );

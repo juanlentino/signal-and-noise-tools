@@ -26,7 +26,10 @@ const SN_ANALYTICS_LIVE_HOUR_SLOTS = 12;
  */
 function sn_analytics_live_hour_sql() {
 	return implode( ' ', array(
-		"SELECT toStartOfInterval(timestamp, INTERVAL '5' MINUTE) AS slot, count(DISTINCT index1) AS readers",
+		// The slot as unix seconds: no date-string format to parse, so a change
+		// in how Analytics Engine prints a DateTime cannot read as an empty hour
+		// (review on #1966).
+		"SELECT toUnixTimestamp(toStartOfInterval(timestamp, INTERVAL '5' MINUTE)) AS slot, count(DISTINCT index1) AS readers",
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
 		"WHERE timestamp >= now() - INTERVAL '60' MINUTE AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where(),
 		'GROUP BY slot ORDER BY slot',
@@ -47,7 +50,7 @@ function sn_analytics_live_hour_from_rows( array $rows, $now ) {
 		if ( ! is_array( $row ) || ! isset( $row['slot'], $row['readers'] ) ) {
 			continue;
 		}
-		$t = strtotime( (string) $row['slot'] . ' UTC' );
+		$t = is_numeric( $row['slot'] ) ? (int) $row['slot'] : strtotime( (string) $row['slot'] . ' UTC' );
 		if ( false !== $t ) {
 			$by[ intdiv( $t, SN_ANALYTICS_LIVE_HOUR_SLOT ) * SN_ANALYTICS_LIVE_HOUR_SLOT ] = max( 0, (int) $row['readers'] );
 		}
@@ -66,6 +69,9 @@ function sn_analytics_live_hour_from_rows( array $rows, $now ) {
  * @return array|null
  */
 function sn_analytics_live_hour_read() {
+	// The clock is read before the query: read after a slow round trip, a
+	// 5-minute boundary could pass and leave the newest slot an empty 0.
+	$now  = time();
 	$rows = sn_analytics_query( sn_analytics_live_hour_sql() );
-	return is_array( $rows ) ? sn_analytics_live_hour_from_rows( $rows, time() ) : null;
+	return is_array( $rows ) ? sn_analytics_live_hour_from_rows( $rows, $now ) : null;
 }
