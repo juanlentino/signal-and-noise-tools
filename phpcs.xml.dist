@@ -100,6 +100,7 @@
 		<properties>
 			<property name="customEscapingFunctions" type="array">
 				<element value="sn_admin_post_button"/>
+				<element value="sn_analytics_live_admin_html"/>
 			</property>
 		</properties>
 	</rule>

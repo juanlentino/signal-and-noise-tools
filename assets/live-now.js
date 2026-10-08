@@ -42,7 +42,7 @@
 	}
 
 	function meta( text ) {
-		document.querySelectorAll( '[data-sn-live-meta]' ).forEach( function ( m ) {
+		document.querySelectorAll( '[data-sn-live-meta]:not([data-updated])' ).forEach( function ( m ) {
 			m.textContent = text;
 		} );
 	}
@@ -59,6 +59,20 @@
 		} );
 		document.querySelectorAll( '[data-sn-live-pages]' ).forEach( function ( list ) {
 			pages( list, data );
+		} );
+		document.querySelectorAll( '[data-sn-live-sources]' ).forEach( function ( list ) {
+			rows( list, data.sources, false );
+		} );
+		document.querySelectorAll( '[data-sn-live-top]' ).forEach( function ( el ) {
+			if ( Array.isArray( data.pages ) ) {
+				el.textContent = data.pages.length ? String( data.pages[ 0 ].label ) + ' · ' + Number( data.pages[ 0 ].readers ).toLocaleString() : '—';
+			}
+		} );
+		// Admin meta carries its own strings; the public one reads the config.
+		document.querySelectorAll( '[data-sn-live-meta][data-updated]' ).forEach( function ( m ) {
+			m.textContent = typeof data.fetched === 'number'
+				? m.getAttribute( 'data-updated' ).replace( '%s', new Date( data.fetched * 1000 ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) )
+				: m.getAttribute( 'data-unknown' );
 		} );
 		if ( cfg ) {
 			// "Not measured" only when nothing was: views today can come from the
@@ -77,26 +91,37 @@
 	// leaves the chart as it was.
 	var SVGNS = 'http://www.w3.org/2000/svg';
 	function hour( svg, data ) {
-		if ( ! Array.isArray( data.hour ) || ! data.hour.length || ! cfg ) {
+		if ( ! Array.isArray( data.hour ) || ! data.hour.length ) {
 			return;
 		}
 		while ( svg.firstChild ) {
 			svg.removeChild( svg.firstChild );
 		}
 		var slots = data.hour, n = slots.length, w = 240 / n, peak = 0, at = 0;
+		var vb = svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.height ? svg.viewBox.baseVal.height : 34;
+		// The last bar is red only while it still is the current slot: an answer
+		// read from a cache a few seconds old can end on the slot before
+		// (review on #1966); then no bar claims to be now.
+		var current = Date.now() / 1000 - Number( slots[ n - 1 ].t ) < 300;
 		slots.forEach( function ( s, i ) {
 			if ( Number( s.readers ) >= peak ) { peak = Number( s.readers ); at = i; }
 		} );
 		slots.forEach( function ( s, i ) {
-			var h = peak > 0 ? Math.max( Number( s.readers ) > 0 ? 2 : 0, Math.round( 32 * Number( s.readers ) / peak ) ) : 0;
+			var h = peak > 0 ? Math.max( Number( s.readers ) > 0 ? 2 : 0, Math.round( ( vb - 2 ) * Number( s.readers ) / peak ) ) : 0;
 			var r = document.createElementNS( SVGNS, 'rect' );
 			r.setAttribute( 'x', String( i * w + 1 ) );
-			r.setAttribute( 'y', String( 34 - h ) );
+			r.setAttribute( 'y', String( vb - h ) );
 			r.setAttribute( 'width', String( w - 3 ) );
 			r.setAttribute( 'height', String( h ) );
-			if ( i === n - 1 ) { r.setAttribute( 'class', 'is-now' ); }
+			// Presentation fills, so a surface with no stylesheet for the bars (the
+			// widget) still draws them; a stylesheet's rules win over these.
+			r.setAttribute( 'fill', 'currentColor' );
+			if ( i === n - 1 && current ) { r.setAttribute( 'class', 'is-now' ); r.setAttribute( 'fill', '#e5484d' ); }
 			svg.appendChild( r );
 		} );
+		if ( ! cfg ) {
+			return; // admin: the chart is labelled by its own aria-label
+		}
 		var note = String( cfg.hourNone );
 		if ( peak > 0 ) {
 			var mins = Math.round( ( Number( slots[ n - 1 ].t ) - Number( slots[ at ].t ) ) / 60 );
@@ -107,31 +132,37 @@
 
 	// Being read now: a link per page with its reader count. Null (not read)
 	// leaves the list as it was; an empty answer says nobody is on a page.
-	function pages( list, data ) {
-		if ( ! Array.isArray( data.pages ) || ! cfg ) {
+	// A ranked list (pages, or admin sources). Strings ride on the list's own
+	// attributes (admin) or the public config; the public list says "reader(s)",
+	// the admin one prints the bare count.
+	function rows( list, items, linked ) {
+		if ( ! Array.isArray( items ) ) {
 			return;
 		}
+		var empty = list.getAttribute( 'data-empty' ) || ( cfg ? String( cfg.nobody ) : '—' );
+		var emptyClass = list.querySelector( 'li' ) ? list.querySelector( 'li' ).className : '';
 		while ( list.firstChild ) {
 			list.removeChild( list.firstChild );
 		}
-		if ( ! data.pages.length ) {
+		if ( ! items.length ) {
 			var none = document.createElement( 'li' );
-			none.className = 'sn-public-stats__live-empty';
-			none.textContent = String( cfg.nobody );
+			none.className = emptyClass;
+			none.textContent = empty;
 			list.appendChild( none );
 			return;
 		}
-		data.pages.forEach( function ( p ) {
-			var li = document.createElement( 'li' ), a = document.createElement( 'a' ), n = document.createElement( 'span' );
-			a.href = String( p.url );
-			a.textContent = String( p.label );
-			n.className = 'sn-public-stats__views';
-			n.textContent = Number( p.readers ).toLocaleString() + ' ' + String( Number( p.readers ) === 1 ? cfg.reader : cfg.readers );
-			li.appendChild( a );
+		items.forEach( function ( p ) {
+			var li = document.createElement( 'li' ), name = document.createElement( linked && p.url ? 'a' : 'span' ), n = document.createElement( 'span' );
+			if ( linked && p.url ) { name.href = String( p.url ); }
+			name.textContent = String( p.label );
+			n.className = cfg ? 'sn-public-stats__views' : 'sn-live-admin__n';
+			n.textContent = Number( p.readers ).toLocaleString() + ( cfg ? ' ' + String( Number( p.readers ) === 1 ? cfg.reader : cfg.readers ) : '' );
+			li.appendChild( name );
 			li.appendChild( n );
 			list.appendChild( li );
 		} );
 	}
+	function pages( list, data ) { rows( list, data.pages, true ); }
 
 	function load() {
 		var b = Math.floor( Date.now() / BUCKET );

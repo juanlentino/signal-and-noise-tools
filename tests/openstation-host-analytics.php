@@ -769,7 +769,7 @@ namespace {
 
 	echo "\nGroup 11: the window carries the analytics page`s own assets\n";
 	$handles = snt_os_host_asset_handles( 'sn-analytics' );
-	ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'snt-os-app', 'snt-sn-analytics-app' ) === $handles['styles'],
+	ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'snt-os-app', 'snt-sn-analytics-app', 'sn-live-admin' ) === $handles['styles'],
 		'the four stylesheets toplevel_page_sn-analytics loads: admin.css, the token layer, the analytics sheet and the uptime panel' );
 	ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit', 'snt-analytics-native-tables', 'sn-live-now-admin' ) === $handles['scripts'],
 		'Analytics carries its interaction scripts plus the native table presenter and the live updater' );

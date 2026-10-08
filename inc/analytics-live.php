@@ -45,6 +45,8 @@ function sn_analytics_live_payload( $all_classes ) {
 		'fetched' => $fetched,
 	);
 	if ( $all_classes ) {
+		// Admin only: the public answer never says where readers came from.
+		$out['sources'] = is_array( $cached ) && isset( $cached['sources'] ) && is_array( $cached['sources'] ) ? array_values( $cached['sources'] ) : null;
 		$out['classes'] = array();
 		foreach ( array( 'human', 'suspect', 'bot' ) as $class ) {
 			$out['classes'][ $class ] = sn_analytics_realtime( $class );

@@ -127,6 +127,7 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 	// the range control). Self-gating: no-op unless a [data-brush-from] chart exists.
 	// The live pair (Now, Views today) updates in place; self-gating.
 	wp_enqueue_script( 'sn-live-now-admin' );
+	wp_enqueue_style( 'sn-live-admin', SNT_URL . 'assets/analytics/live-admin.css', array( 'sn-analytics-admin' ), SNT_VERSION );
 	wp_enqueue_script(
 		'sn-analytics-brush',
 		SNT_URL . 'assets/analytics/analytics-brush.js',

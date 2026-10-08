@@ -266,12 +266,15 @@ function sn_analytics_realtime_refresh() {
 	$pages = function_exists( 'sn_analytics_live_pages_read' ) ? sn_analytics_live_pages_read() : null;
 	// Fourth: readers per 5-minute slot over the last hour (inc/analytics-live-hour.php).
 	$hour = function_exists( 'sn_analytics_live_hour_read' ) ? sn_analytics_live_hour_read() : null;
+	// Fifth, admin only: where current readers arrived from (inc/analytics-live-sources.php).
+	$sources = function_exists( 'sn_analytics_live_sources_read' ) ? sn_analytics_live_sources_read() : null;
 
 	set_transient( SN_ANALYTICS_REALTIME_KEY, array(
 		'counts'      => $counts,
 		'views_today' => $views_today,
 		'pages'       => $pages,
 		'hour'        => $hour,
+		'sources'     => $sources,
 		'fetched'     => time(),
 	), SN_ANALYTICS_REALTIME_RETENTION );
 }
