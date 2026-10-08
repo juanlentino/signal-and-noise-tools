@@ -30,6 +30,9 @@ $GLOBALS['__shortcodes'] = array();
 function add_shortcode( $tag, $cb ) { $GLOBALS['__shortcodes'][ $tag ] = $cb; }
 $GLOBALS['__enq'] = array();
 function wp_enqueue_style( $h, $s = '', $d = array(), $v = false, $m = 'all' ) { $GLOBALS['__enq'][] = $h; return true; }
+function wp_enqueue_script( $h, $s = '', $d = array(), $v = false, $f = false ) { $GLOBALS['__enq'][] = $h; return true; }
+function wp_localize_script( $h, $n, $d ) { $GLOBALS['__l10n'][ $h ] = $d; return true; }
+function rest_url( $p = '' ) { return 'https://example.com/wp-json/' . ltrim( (string) $p, '/' ); }
 function plugins_url( $path = '', $plugin = '' ) { return 'https://example.com/wp-content/plugins/snt/' . ltrim( (string) $path, '/' ); }
 $GLOBALS['__transients'] = array();
 function get_transient( $k ) { return $GLOBALS['__transients'][ $k ] ?? false; }

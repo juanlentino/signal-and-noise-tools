@@ -39,7 +39,7 @@ function paint_chrome_header( array $ctx ) {
 	$cards[] = $known( 'pageview_visits' )
 		? array( 'l' => __( 'Visits', 'signal-and-noise-tools' ), 'n' => num( $totals['pageview_visits'] ) )
 		: array( 'l' => __( 'Visits', 'signal-and-noise-tools' ), 'n' => '—', 'sub' => $caveat );
-	$cards[] = array( 'l' => __( 'Now', 'signal-and-noise-tools' ), 'n' => null === $now ? '—' : num( $now ) );
+	$cards[] = array( 'l' => __( 'Now', 'signal-and-noise-tools' ), 'n' => null === $now ? '—' : num( $now ), 'attrs' => function_exists( 'sn_analytics_live_attrs' ) ? sn_analytics_live_attrs( 'now', $class ) : array() ); // data-sn-live
 	$cards[] = $known( 'scroll_avg_per_view' )
 		? array( 'l' => __( 'Scroll / view', 'signal-and-noise-tools' ), 'n' => (int) round( (float) $totals['scroll_avg_per_view'] ) . '%' )
 		: array( 'l' => __( 'Scroll / view', 'signal-and-noise-tools' ), 'n' => '—', 'sub' => $caveat );

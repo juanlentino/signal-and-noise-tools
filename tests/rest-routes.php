@@ -76,7 +76,7 @@ echo "\nGroup: the route count is pinned, so a new route is a deliberate edit he
 // 24 since the feed-open pixel (GET /feed-open, public, below).
 // 25 since 20.9.0: GET /desktop/alert-notice, the last alert headline for
 // the app's wp.os.notify; manage_options, one option read.
-$expected_count = 25; // + desktop/reading (SN Reading), manage_options. desktop/audience left with SN Audience: its rows ride desktop/site-views (SN Traffic). 2026-10-06: - desktop/discography, which only the removed WP Explorer bundle read.
+$expected_count = 27; // + live (public, human) and live/admin (view_stats), inc/analytics-live.php. // + desktop/reading (SN Reading), manage_options. desktop/audience left with SN Audience: its rows ride desktop/site-views (SN Traffic). 2026-10-06: - desktop/discography, which only the removed WP Explorer bundle read.
 ok( $expected_count === count( $calls ), "exactly $expected_count REST route registrations (found " . count( $calls ) . ')' . ( $expected_count !== count( $calls ) ? "\n        " . implode( "\n        ", array_map( static fn( $k, $c ) => "$k  {$c['ns']}{$c['route']}  [{$c['perm']}]", array_keys( $calls ), $calls ) ) : '' ) );
 
 echo "\nGroup: exactly these routes are public, each for a stated reason\n";
@@ -87,6 +87,7 @@ $public_expected = array(
 	'/credential/(?P<uid>[A-Za-z0-9-]+)'   => 'verifiable credential (inc/provenance-credential.php): exists to be verified by anyone',
 	'/feed-open'                           => 'feed-open pixel (inc/feed-opens.php): fetched by feed readers with no session; records only (day, note id, UA hash) for a published note, bots dropped',
 	'/bridge'                              => 'Worker->origin bridge (inc/mcp/mcp-bridge-route.php): bearer-checked in the handler, in one ordered place; not even registered unless armed',
+	'/live'                                => 'the live pair on /stats (inc/analytics-live.php): two aggregate human counts already on the public page as a 30-day record; reads a transient, never Analytics Engine; at most one refresh queued however many readers poll',
 );
 $public_found = array();
 foreach ( $calls as $where => $c ) {
@@ -96,13 +97,13 @@ $unexpected = array_diff_key( $public_found, $public_expected );
 $vanished   = array_diff_key( $public_expected, $public_found );
 ok( array() === $unexpected, 'no route is public that this suite does not name' . ( $unexpected ? ' — NEW PUBLIC ROUTE: ' . implode( ', ', array_map( static fn( $k, $w ) => "$k at $w", array_keys( $unexpected ), $unexpected ) ) : '' ) );
 ok( array() === $vanished, 'every named public route still exists (a removed one needs its line removed here too)' . ( $vanished ? ' — GONE: ' . implode( ', ', array_keys( $vanished ) ) : '' ) );
-ok( 4 === count( $public_found ), 'four public routes, no more' );
+ok( 5 === count( $public_found ), 'five public routes, no more' );
 
 echo "\nGroup: everything else is gated on a capability, a token, or a signature\n";
 $gated = array_filter( $calls, static fn( $c ) => '__return_true' !== $c['perm'] );
 $named = array_unique( array_column( $gated, 'perm' ) );
 sort( $named );
-ok( count( $gated ) === count( $calls ) - 4, count( $gated ) . ' gated routes; permission callbacks in use: ' . implode( ', ', $named ) );
+ok( count( $gated ) === count( $calls ) - 5, count( $gated ) . ' gated routes; permission callbacks in use: ' . implode( ', ', $named ) );
 
 echo "\nGroup: negative control — the parser can tell a closure from a name from nothing\n";
 $probe = "register_rest_route( 'x/v1', '/a', array( 'permission_callback' => function () { return true; } ) );\n"

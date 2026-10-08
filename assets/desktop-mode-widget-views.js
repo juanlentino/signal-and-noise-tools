@@ -318,6 +318,19 @@
 			if ( typeof payload.today === 'number' ) {
 				body.appendChild( list( [ { label: 'Today so far', value: payload.today } ] ) );
 			}
+			// Live: readers in the last five minutes, filled and kept current by
+			// assets/live-now.js (a dependency of this script). "—" until read.
+			var nowList = list( [ { label: 'Reading now', value: '—' } ] );
+			var nowRow  = nowList.children && nowList.children[ 0 ];
+			var nowVal  = nowRow && nowRow.children && nowRow.children[ nowRow.children.length - 1 ];
+			if ( nowVal ) {
+				nowVal.setAttribute( 'data-sn-live', 'now' );
+				nowVal.setAttribute( 'data-sn-live-class', 'human' );
+			}
+			body.appendChild( nowList );
+			if ( typeof window.CustomEvent === 'function' && document.dispatchEvent ) {
+				document.dispatchEvent( new window.CustomEvent( 'sn-live-refresh' ) );
+			}
 
 			// The spark line and the links below ride the card token contract's
 			// --os-ui-color-accent (OpenStation 1.1.5, #1603): with no theme worn

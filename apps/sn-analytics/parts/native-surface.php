@@ -36,7 +36,7 @@ function native_stats( array $cards, array $opts ) {
 		} elseif ( 'omit' !== ( $opts['empty_slot'] ?? 'no-change' ) ) {
 			$caption = __( 'no change', 'signal-and-noise-tools' );
 		}
-		$html .= '<div class="snt-native-stat">' . \snt_kit_stat( (string) $card['n'], (string) $card['l'], $caption );
+		$html .= '<div class="snt-native-stat">' . \snt_kit_stat( (string) $card['n'], (string) $card['l'], $caption, '', (array) ( $card['attrs'] ?? array() ) );
 		$html .= '' !== $note ? '<div class="snt-native-stat-note">' . $note . '</div>' : '';
 		$html .= '</div>';
 	}
