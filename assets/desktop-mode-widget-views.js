@@ -160,9 +160,12 @@
 	/**
 	 * A group the way SN Reading paints one (assets/desktop-mode-widget-groups.js):
 	 * a hairline, a heading, the rows as a list; `empty` when there are none.
+	 * opts.share: a bar of the rows' shares under the heading. opts.bare: no
+	 * hairline of its own (a pair draws one over both).
 	 */
-	function group( title, rows, empty ) {
-		var box  = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
+	function group( title, rows, empty, opts ) {
+		opts = opts || {};
+		var box  = el( 'div', { style: opts.bare ? 'min-width:0;' : 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
 		var head = el( 'div', { text: title, style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:2px;' } );
 		head.setAttribute( 'role', 'heading' );
 		head.setAttribute( 'aria-level', '3' );
@@ -171,17 +174,67 @@
 			box.appendChild( el( 'div', { text: empty || 'Nothing to show.', style: 'font-size:11px;padding:2px 0;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } ) );
 			return box;
 		}
-		box.appendChild( list( rows ) );
+		var bar = opts.share ? shareBar( rows ) : null;
+		if ( bar ) { box.appendChild( bar ); }
+		box.appendChild( list( rows, bar ? SHADES : null ) );
 		return box;
 	}
 
-	/** Label/value rows as a list (role=list, each row a listitem). */
-	function list( rows ) {
+	// The share bar's segments, strongest first, in the card's accent; the rest
+	// of the whole (rows not shown) is the bare track. The same shade marks the
+	// row it stands for.
+	var SHADES = [ 1, 0.7, 0.48, 0.3 ];
+
+	/**
+	 * One thin bar split by the rows' shares (percent of ALL rows, so the track
+	 * left over is everything not listed). Decoration: the figures are in the
+	 * rows, so it is hidden from assistive tech. Null when no row has a share.
+	 */
+	function shareBar( rows ) {
+		var any = rows.some( function( r ) { return typeof r.share === 'number' && r.share > 0; } );
+		if ( ! any ) { return null; }
+		var bar = el( 'div', { style: 'display:flex;gap:1px;height:6px;border-radius:3px;overflow:hidden;margin:3px 0 4px;background:var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
+		bar.setAttribute( 'aria-hidden', 'true' );
+		rows.forEach( function( r, i ) {
+			if ( typeof r.share !== 'number' || r.share <= 0 ) { return; }
+			bar.appendChild( el( 'span', { style: 'flex:0 0 ' + Math.min( 100, r.share ) + '%;background:var(--os-ui-color-accent, #4a9eff);opacity:' + SHADES[ Math.min( i, SHADES.length - 1 ) ] + ';' } ) );
+		} );
+		return bar;
+	}
+
+	/**
+	 * Groups the server marked `pair` share a row with the next group: one
+	 * hairline over both, two columns that fold to one in a narrow card. Each
+	 * column starts at its own content's width and they share what is left, so
+	 * two-letter country codes leave room for "Hacker News 16 · 6%".
+	 */
+	function pairOf( a, b ) {
+		var box = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));display:flex;flex-wrap:wrap;gap:6px 12px;' } );
+		[ a, b ].forEach( function( g ) {
+			var col = group( g.title, g.rows || [], g.empty, { share: g.share, bare: true } );
+			col.style.flex = '1 1 auto';
+			col.style.minWidth = '100px';
+			box.appendChild( col );
+		} );
+		return box;
+	}
+
+	/**
+	 * Label/value rows as a list (role=list, each row a listitem). shades: the
+	 * share bar's, so each row carries a dot in its segment's shade.
+	 */
+	function list( rows, shades ) {
 		var ul = el( 'div' );
 		ul.setAttribute( 'role', 'list' );
-		rows.forEach( function( r ) {
+		rows.forEach( function( r, i ) {
 			var row = statRow( String( r.label ), String( r.value ), r.style );
 			row.setAttribute( 'role', 'listitem' );
+			if ( shades && typeof r.share === 'number' && r.share > 0 ) {
+				var dot = el( 'span', { style: 'display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:4px;vertical-align:1px;background:var(--os-ui-color-accent, #4a9eff);opacity:' + shades[ Math.min( i, shades.length - 1 ) ] + ';' } );
+				dot.setAttribute( 'aria-hidden', 'true' );
+				row.firstChild.insertBefore( dot, row.firstChild.firstChild );
+				row.style.columnGap = '6px'; // a half-width column: "Hacker News 16 · 6%" stays on one line
+			}
 			ul.appendChild( row );
 		} );
 		return ul;
@@ -296,9 +349,15 @@
 			// pages. Read 2+ pages, downloads outbound, the bot share and the top
 			// mover are not painted (owner's pick, 2026-10-04): they live in S&N
 			// Analytics. Additive: an older cached payload without `groups` paints none.
-			( payload.groups || [] ).forEach( function( g ) {
-				if ( g && g.title ) { body.appendChild( group( g.title, g.rows || [], g.empty ) ); }
-			} );
+			var groups = ( payload.groups || [] ).filter( function( g ) { return g && g.title; } );
+			for ( var gi = 0; gi < groups.length; gi++ ) {
+				var g = groups[ gi ];
+				if ( g.pair && groups[ gi + 1 ] ) {
+					body.appendChild( pairOf( g, groups[ ++gi ] ) );
+				} else {
+					body.appendChild( group( g.title, g.rows || [], g.empty, { share: g.share } ) );
+				}
+			}
 
 			var pageRows = ( payload.top_paths || [] ).filter( function( pg ) { return pg && pg.path; } ).map( function( pg ) {
 				return { label: pg.path, value: String( pg.views ) };

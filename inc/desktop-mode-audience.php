@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param array|null $list  Reader output; null when the read failed.
  * @param string     $key   'value' or 'label'.
  * @param int        $limit Rows kept.
- * @return array<int,array{label:string,value:string}>
+ * @return array<int,array{label:string,value:string,share:float}> share: percent of ALL rows, for a share bar.
  */
 function snt_desktop_audience_rows( $list, $key, $limit ) {
 	$list  = array_values( array_filter( (array) $list, static fn( $r ) => is_array( $r ) && (int) ( $r['views'] ?? 0 ) > 0 ) );
@@ -27,7 +27,7 @@ function snt_desktop_audience_rows( $list, $key, $limit ) {
 	$rows  = array();
 	foreach ( array_slice( $list, 0, (int) $limit ) as $r ) {
 		$name   = (string) ( $r[ $key ] ?? '' );
-		$rows[] = array( 'label' => '' !== $name ? $name : '(unknown)', 'value' => number_format_i18n( (int) $r['views'] ) . ' · ' . snt_desktop_pct( (int) $r['views'], $total ) );
+		$rows[] = array( 'label' => '' !== $name ? $name : '(unknown)', 'value' => number_format_i18n( (int) $r['views'] ) . ' · ' . snt_desktop_pct( (int) $r['views'], $total ), 'share' => $total > 0 ? round( 100 * (int) $r['views'] / $total, 1 ) : 0.0 );
 	}
 	return $rows;
 }
@@ -104,10 +104,13 @@ function snt_desktop_traffic_groups( array $win ) {
 	if ( snt_desktop_db_failed() ) {
 		$rss = null; // a missing feed table reads as zeros; say it could not be read.
 	}
+	// Countries and Sources are short and split a whole: each draws a share
+	// bar over its rows (`share`), and the two sit side by side (`pair`: this
+	// group and the next share a row). Both keys are hints a client may ignore.
 	$out = array(
-		snt_desktop_group( 'Countries', snt_desktop_audience_rows( $dim( 'country' ), 'value', 3 ), 'No views in this window.' ),
+		array( 'share' => true, 'pair' => true ) + snt_desktop_group( 'Countries', snt_desktop_audience_rows( $dim( 'country' ), 'value', 3 ), 'No views in this window.' ),
 		// Named sources (Hacker News, LinkedIn, direct): a name says more than a category.
-		snt_desktop_group( 'Sources', snt_desktop_audience_rows( function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $win['from'], $win['to'], 'human', 500 ) : null, 'value', 4 ), 'No views in this window.' ),
+		array( 'share' => true ) + snt_desktop_group( 'Sources', snt_desktop_audience_rows( function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $win['from'], $win['to'], 'human', 500 ) : null, 'value', 4 ), 'No views in this window.' ),
 	);
 	// Campaigns, only when a tagged link was followed, as SN Audience showed
 	// them. '(none)' is the rollup's bucket for a tagged link that named no

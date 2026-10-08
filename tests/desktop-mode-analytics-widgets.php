@@ -34,11 +34,11 @@ ok( 1 === $calls && $a->data === $b->data && 900 === $GLOBALS['ttl'] && isset( $
 
 echo "\nAudience\n";
 $rows = snt_desktop_audience_rows( array( array( 'value' => 'US', 'views' => 30 ), array( 'value' => '', 'views' => 10 ), array( 'value' => 'AR', 'views' => 0 ) ), 'value', 5 );
-ok( array( array( 'label' => 'US', 'value' => '30 · 75%' ), array( 'label' => '(unknown)', 'value' => '10 · 25%' ) ) === $rows, 'rows carry views and share; a zero row is dropped; a blank name says unknown' );
+ok( array( array( 'label' => 'US', 'value' => '30 · 75%', 'share' => 75.0 ), array( 'label' => '(unknown)', 'value' => '10 · 25%', 'share' => 25.0 ) ) === $rows, 'rows carry views and share (as text and as a number for the bar); a zero row is dropped; a blank name says unknown' );
 ok( array() === snt_desktop_audience_rows( null, 'value', 5 ), 'a failed read gives no rows (the group then says so), never zeros' );
 $many = array(); foreach ( range( 1, 8 ) as $i ) { $many[] = array( 'value' => "c$i", 'views' => 10 ); }
 $top = snt_desktop_audience_rows( $many, 'value', 5 );
-ok( 5 === count( $top ) && '10 · 13%' === $top[0]['value'], 'the share is of ALL rows, not of the rows kept' );
+ok( 5 === count( $top ) && '10 · 13%' === $top[0]['value'] && 12.5 === $top[0]['share'], 'the share is of ALL rows, not of the rows kept' );
 $hn = snt_desktop_audience_hn_rows( array( 9 => array( 'title' => 'A note', 'points' => 14, 'comments' => 3, 'rank' => 7 ), 8 => array( 'title' => 'Older', 'points' => 2, 'comments' => 0, 'rank' => 0 ) ), 3 );
 ok( '14 pts · 3 comments · #7 on the front page' === $hn[0]['value'] && '2 pts · 0 comments' === $hn[1]['value'], 'a Hacker News row names the rank only while the story is on the front page' );
 $s = snt_desktop_audience_search_rows( array( 'clicks' => 12, 'impressions' => 3400, 'days' => 28 ), array( 'totals' => array( 'clicks' => 1, 'impressions' => 90, 'days' => 30 ) ) );
@@ -94,6 +94,7 @@ function snt_gsc_window_totals() { return array( 'clicks' => 5, 'impressions' =>
 function sn_bing_data() { return array( 'totals' => array( 'clicks' => 0, 'impressions' => 0, 'days' => 16 ) ); }
 $tg = snt_desktop_traffic_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) );
 ok( array( 'Countries', 'Sources', 'Hacker News · latest story', 'Devices, search, feed' ) === array_column( $tg, 'title' ), 'SN Traffic\'s groups: countries, sources, Hacker News, then devices, search and feed as one-line rows (no campaigns when no tagged link was followed)' );
+ok( ! empty( $tg[0]['share'] ) && ! empty( $tg[0]['pair'] ) && ! empty( $tg[1]['share'] ) && empty( $tg[1]['pair'] ) && empty( $tg[2]['share'] ), 'Countries pairs with Sources and both draw a share bar; nothing else is hinted' );
 $glance = array_column( $tg[3]['rows'], 'value', 'label' );
 ok( 'Google 5 clicks · 478 impr · Bing 0 clicks · 0 impr' === ( $glance['Search'] ?? '' ), 'search keeps impressions beside clicks per engine, on its one row (owner\'s pick, 2026-10-04): ' . ( $glance['Search'] ?? '' ) );
 ok( array( 3, 4 ) === array( count( $tg[0]['rows'] ), count( $tg[1]['rows'] ) ) && 1 === preg_match( '/^device1 \d+% · device2 \d+%$/', $glance['Devices'] ?? '' ) && '1 · 2 · 3' === ( $glance['Feed, unique 24h · 7d · 30d'] ?? '' ), 'top 3 countries, top 4 sources; devices and the three feed windows each fold into one row' );
