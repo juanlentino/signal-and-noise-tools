@@ -454,6 +454,8 @@ us_eq( true, sn_uptime_status_is_ours( 'https://api.juanlentino.com/', 'www.juan
 us_eq( false, sn_uptime_status_is_ours( 'https://panaceastudio.com/', 'juanlentino.com' ), 'not ours: another site on the account' );
 us_eq( false, sn_uptime_status_is_ours( 'https://notjuanlentino.com/', 'juanlentino.com' ), 'not ours: a host that only ends in the same letters' );
 us_eq( true, sn_uptime_status_is_ours( '', 'juanlentino.com' ), 'ours: no URL (a heartbeat)' );
+us_eq( false, sn_uptime_status_is_ours( 'panaceastudio.com', 'juanlentino.com' ), 'not ours: a ping or TCP monitor\'s bare host' );
+us_eq( true, sn_uptime_status_is_ours( 'juanlentino.com', 'juanlentino.com' ), 'ours: this site as a bare host' );
 us_eq( true, sn_uptime_status_is_ours( 'https://panaceastudio.com/', '' ), 'ours: no site host to compare, never hide on a guess' );
 $GLOBALS['__http_queue'][] = array( 'code' => 200, 'body' => wp_json_encode_stub( array( 'data' => array(
 	array( 'id' => '1', 'type' => 'monitor', 'attributes' => array( 'pronounceable_name' => 'Juan Lentino', 'url' => 'https://juanlentino.com/', 'status' => 'up' ) ),

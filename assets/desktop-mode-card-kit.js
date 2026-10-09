@@ -23,10 +23,17 @@
 	// then crowded. Each step keeps the accent's hue (oklch relative color)
 	// at an even lightness, about 0.1 apart, with chroma easing off as it
 	// lightens so the palest is calm, not bright: every step at roughly 3:1
-	// or more on the card. Where relative color is not supported, the plain
-	// accent (first declaration) draws.
+	// or more on the card. A browser without relative color gets the accent
+	// faded by opacity instead: checked here, not left to a second CSS
+	// declaration, because a declaration holding var() is accepted when parsed
+	// and only fails when computed, which leaves the segment transparent
+	// rather than falling back (review on #1977).
+	var RELATIVE = !! ( window.CSS && window.CSS.supports && window.CSS.supports( 'background', 'oklch(from red l c h)' ) );
 	var SHADES = [ [ 0.52, 0.15 ], [ 0.63, 0.12 ], [ 0.73, 0.085 ], [ 0.82, 0.055 ] ].map( function( lc ) {
-		return 'oklch(from ' + ACCENT + ' ' + lc[0] + ' ' + lc[1] + ' h)';
+		return 'background:oklch(from ' + ACCENT + ' ' + lc[0] + ' ' + lc[1] + ' h);';
+	} );
+	var FADES = [ 1, 0.6, 0.38, 0.22 ].map( function( o ) {
+		return 'background:' + ACCENT + ';opacity:' + o + ';';
 	} );
 	// Good, needs work, poor (the cards' own greens, ambers and reds).
 	var QUALITY = [ '#3fb950', '#d29922', '#ff9d94' ];
@@ -39,7 +46,8 @@
 	}
 
 	function fill( i, quality ) {
-		return quality ? 'background:' + QUALITY[ Math.min( i, QUALITY.length - 1 ) ] + ';' : 'background:' + ACCENT + ';background:' + SHADES[ Math.min( i, SHADES.length - 1 ) ] + ';';
+		var steps = RELATIVE ? SHADES : FADES;
+		return quality ? 'background:' + QUALITY[ Math.min( i, QUALITY.length - 1 ) ] + ';' : steps[ Math.min( i, steps.length - 1 ) ];
 	}
 
 	/**

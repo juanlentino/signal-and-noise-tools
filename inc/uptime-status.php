@@ -165,7 +165,9 @@ function sn_uptime_status_is_ours( $url, $site_host ) {
 		return true;
 	}
 	$bare = static fn( $h ) => preg_replace( '/^www\./', '', strtolower( (string) $h ) );
-	$host = $bare( wp_parse_url( $url, PHP_URL_HOST ) );
+	// A ping or TCP monitor stores a bare host ("example.com"), which has no
+	// host until it is given a scheme-relative prefix (review on #1977).
+	$host = $bare( wp_parse_url( str_contains( $url, '//' ) ? $url : '//' . $url, PHP_URL_HOST ) );
 	$site = $bare( $site_host );
 	if ( '' === $site || '' === $host ) {
 		return true; // nothing to compare against: never hide a monitor on a guess
