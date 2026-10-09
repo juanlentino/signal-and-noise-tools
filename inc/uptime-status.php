@@ -146,6 +146,41 @@ function sn_uptime_status_api_get( $resource ) {
 }
 
 /**
+ * Whether a monitored URL belongs to this site: its host is the site's host
+ * or a subdomain of it (www. ignored on both sides). A resource with no URL
+ * (a heartbeat) is ours. PURE.
+ *
+ * 2026-10-09, the owner: the Better Stack account also watches Panacea
+ * Studio, another site. Its monitor counted in "N of N up", "Slowest" and
+ * the verdict on this site's desk. Decided by URL, not by name, so a site
+ * added to the account later is left out without a list to keep.
+ *
+ * @param string $url       The monitored URL ('' for none).
+ * @param string $site_host This site's host.
+ * @return bool
+ */
+function sn_uptime_status_is_ours( $url, $site_host ) {
+	$url = (string) $url;
+	if ( '' === $url ) {
+		return true;
+	}
+	$bare = static fn( $h ) => preg_replace( '/^www\./', '', strtolower( (string) $h ) );
+	// A ping or TCP monitor stores a bare host ("example.com"), which has no
+	// host until it is given a scheme-relative prefix (review on #1977).
+	$host = $bare( wp_parse_url( str_contains( $url, '//' ) ? $url : '//' . $url, PHP_URL_HOST ) );
+	$site = $bare( $site_host );
+	if ( '' === $site || '' === $host ) {
+		return true; // nothing to compare against: never hide a monitor on a guess
+	}
+	return $host === $site || str_ends_with( $host, '.' . $site );
+}
+
+/** This site's host, for sn_uptime_status_is_ours(). */
+function sn_uptime_status_site_host() {
+	return (string) wp_parse_url( home_url(), PHP_URL_HOST );
+}
+
+/**
  * Normalize one JSON:API resource into a display row. The id rides along
  * (v8.3.0) so the availability layer can join its per-resource summaries.
  *
@@ -295,8 +330,12 @@ function sn_uptime_status_incidents() {
 	}
 
 	$incidents = array();
+	$site      = sn_uptime_status_site_host();
 	foreach ( (array) $resp['data'] as $item ) {
 		$attrs = isset( $item['attributes'] ) && is_array( $item['attributes'] ) ? $item['attributes'] : array();
+		if ( ! sn_uptime_status_is_ours( (string) ( $attrs['url'] ?? '' ), $site ) ) {
+			continue; // another site's incident, as its monitor is left out above
+		}
 		$start = isset( $attrs['started_at'] ) ? (string) $attrs['started_at'] : '';
 		$end   = isset( $attrs['resolved_at'] ) && null !== $attrs['resolved_at'] ? (string) $attrs['resolved_at'] : null;
 		$s_ts  = $start ? strtotime( $start ) : false;
@@ -349,7 +388,12 @@ function sn_uptime_status_fetch( $force = false ) {
 	}
 
 	$rows = array();
+	$site = sn_uptime_status_site_host();
 	foreach ( $monitors['data'] as $item ) {
+		// Another site's monitor on the same account is not this site's uptime.
+		if ( ! sn_uptime_status_is_ours( (string) ( $item['attributes']['url'] ?? '' ), $site ) ) {
+			continue;
+		}
 		$rows[] = sn_uptime_status_row( $item, 'monitor' );
 	}
 	foreach ( $heartbeats['data'] as $item ) {
