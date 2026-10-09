@@ -16,11 +16,18 @@
 	}
 
 	var ACCENT = 'var(--os-ui-color-accent, #4a9eff)';
-	// The accent, strongest first: a segment and its row's dot share a shade.
-	// Dimmed (23.3.1, the owner's call): a share is not a warning, and an
-	// accent at full strength (red on this desk) read like one beside SN
-	// Systems' real alarms. Quality bars keep their full colors.
-	var SHADES = [ 0.6, 0.42, 0.28, 0.18 ];
+	// The accent as an even lightness ramp, strongest first: a segment and its
+	// row's dot share a step. 23.3.3, the owner: fading one red by opacity
+	// only darkened it into the card (steps under 0.1 apart in OKLab, the
+	// last two under 1.5:1 on the card), and mixing with white jumped once and
+	// then crowded. Each step keeps the accent's hue (oklch relative color)
+	// at an even lightness, about 0.1 apart, with chroma easing off as it
+	// lightens so the palest is calm, not bright: every step at roughly 3:1
+	// or more on the card. Where relative color is not supported, the plain
+	// accent (first declaration) draws.
+	var SHADES = [ [ 0.52, 0.15 ], [ 0.63, 0.12 ], [ 0.73, 0.085 ], [ 0.82, 0.055 ] ].map( function( lc ) {
+		return 'oklch(from ' + ACCENT + ' ' + lc[0] + ' ' + lc[1] + ' h)';
+	} );
 	// Good, needs work, poor (the cards' own greens, ambers and reds).
 	var QUALITY = [ '#3fb950', '#d29922', '#ff9d94' ];
 
@@ -32,7 +39,7 @@
 	}
 
 	function fill( i, quality ) {
-		return quality ? 'background:' + QUALITY[ Math.min( i, QUALITY.length - 1 ) ] + ';' : 'background:' + ACCENT + ';opacity:' + SHADES[ Math.min( i, SHADES.length - 1 ) ] + ';';
+		return quality ? 'background:' + QUALITY[ Math.min( i, QUALITY.length - 1 ) ] + ';' : 'background:' + ACCENT + ';background:' + SHADES[ Math.min( i, SHADES.length - 1 ) ] + ';';
 	}
 
 	/**
@@ -45,8 +52,8 @@
 		if ( ! any ) { return null; }
 		var b = document.createElement( 'div' );
 		b.setAttribute( 'aria-hidden', 'true' );
-		b.setAttribute( 'style', 'flex:0 0 100%;display:flex;gap:1px;height:6px;border-radius:3px;overflow:hidden;margin:3px 0 4px;background:var(--os-ui-color-border, rgba(255,255,255,0.12));' );
-		// Grow factors, not fixed widths: the 1px gaps then come out of the
+		b.setAttribute( 'style', 'flex:0 0 100%;display:flex;gap:2px;height:6px;border-radius:3px;overflow:hidden;margin:3px 0 4px;background:var(--os-ui-color-border, rgba(255,255,255,0.12));' );
+		// Grow factors, not fixed widths: the 2px gaps then come out of the
 		// segments instead of pushing the last one past the clip. The rest of
 		// the whole is an empty segment of its own, so the track still shows it.
 		var used = 0;

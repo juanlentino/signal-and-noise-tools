@@ -101,6 +101,8 @@ function us_eq( $e, $a, $msg ) {
 function us_ok( $c, $msg ) { us_eq( true, (bool) $c, $msg ); }
 
 function wp_json_encode_stub( $v ) { return json_encode( $v ); }
+if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
+if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return 'https://juanlentino.com' . $p; } }
 function us_monitors_body() {
 	return wp_json_encode_stub( array( 'data' => array(
 		array( 'id' => '1', 'type' => 'monitor', 'attributes' => array( 'pronounceable_name' => 'Home', 'url' => 'https://juanlentino.com/', 'status' => 'up', 'last_checked_at' => '2026-07-02T22:00:00.000Z' ) ),
@@ -444,6 +446,22 @@ echo "\nTest 11: SN_BETTERSTACK_API_TOKEN constant\n";
 define( 'SN_BETTERSTACK_API_TOKEN', 'const-token-wxyz9876' );
 update_option( 'sn_betterstack_api_token', 'option-should-lose', false );
 us_eq( 'const-token-wxyz9876', sn_uptime_status_token(), 'constant wins over option' );
+
+// ── Another site's monitor on the same account is not this site's uptime ──
+us_eq( true, sn_uptime_status_is_ours( 'https://juanlentino.com/', 'juanlentino.com' ), 'ours: the site itself' );
+us_eq( true, sn_uptime_status_is_ours( 'https://www.juanlentino.com/wp-json/x', 'juanlentino.com' ), 'ours: www. is the same site' );
+us_eq( true, sn_uptime_status_is_ours( 'https://api.juanlentino.com/', 'www.juanlentino.com' ), 'ours: a subdomain, whichever side carries www.' );
+us_eq( false, sn_uptime_status_is_ours( 'https://panaceastudio.com/', 'juanlentino.com' ), 'not ours: another site on the account' );
+us_eq( false, sn_uptime_status_is_ours( 'https://notjuanlentino.com/', 'juanlentino.com' ), 'not ours: a host that only ends in the same letters' );
+us_eq( true, sn_uptime_status_is_ours( '', 'juanlentino.com' ), 'ours: no URL (a heartbeat)' );
+us_eq( true, sn_uptime_status_is_ours( 'https://panaceastudio.com/', '' ), 'ours: no site host to compare, never hide on a guess' );
+$GLOBALS['__http_queue'][] = array( 'code' => 200, 'body' => wp_json_encode_stub( array( 'data' => array(
+	array( 'id' => '1', 'type' => 'monitor', 'attributes' => array( 'pronounceable_name' => 'Juan Lentino', 'url' => 'https://juanlentino.com/', 'status' => 'up' ) ),
+	array( 'id' => '5', 'type' => 'monitor', 'attributes' => array( 'pronounceable_name' => 'Panacea Studio', 'url' => 'https://panaceastudio.com/', 'status' => 'down' ) ),
+) ) ) );
+$GLOBALS['__http_queue'][] = array( 'code' => 200, 'body' => us_heartbeats_body() );
+$snap = sn_uptime_status_fetch( true );
+us_eq( array( 'Juan Lentino', 'WP-Cron heartbeat' ), array_column( $snap['rows'], 'name' ), 'fetch: another site\'s monitor is left out (a down Panacea cannot reach this desk), heartbeats stay' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
