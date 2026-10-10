@@ -770,7 +770,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'description'         => 'Remote-scoped twin of signal-noise/get-machine-readers-summary. '
 			. 'Aggregate crawler reads over a window: totals, top families, the '
 			. 'AI-training slice and its per-surface breakdown. Counts only — no post '
-			. 'bodies, no UA samples. Read-only. Reachable only by a principal holding '
+			. 'bodies, no UA samples. series: "day" (optional) adds `daily`: one entry per UTC date, oldest first, zero-filled, each with day, total, first_party, ai_training, purposes and ai_surfaces that sum to the window figures; the window is rolling, so the first and last dates carry partial: true, and `daily_total_exact` says whether the per-day totals are exact. The sensor records no response status, so there is no ai_training_status. Read-only. Reachable only by a principal holding '
 			. 'the sn_read_remote_analytics capability, and only while the remote door '
 			. 'is explicitly enabled.',
 		'category'            => 'analytics',
@@ -782,6 +782,7 @@ add_action( 'wp_abilities_api_init', function () {
 			'type'                 => array( 'object', 'null' ),
 			'properties'           => array(
 				'days' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 90, 'default' => 30 ),
+				'series' => array( 'type' => 'string', 'enum' => array( 'day' ) ),
 			),
 			'additionalProperties' => false,
 		),
@@ -872,6 +873,27 @@ add_action( 'wp_abilities_api_init', function () {
 				'sensor_version' => array( 'type' => array( 'string', 'null' ) ),
 				'crawler_list'   => array( 'type' => array( 'string', 'null' ) ),
 				'error'          => array( 'type' => array( 'string', 'null' ) ),
+				// Unreleased: present ONLY when the call passed series: "day".
+				'daily'                  => array(
+					'type'        => 'array',
+					'description' => 'Present only with series: "day". One entry per UTC date in the window, oldest first, zero-filled: a date with no reads is zeros and empty lists, not a gap. The window is rolling (now minus `days`), so it touches days+1 dates and the first and last carry partial: true. Each field sums to its window figure. Dates before the sensor held data also read zero; days_covered says how many dates it holds. When `truncated` is true the per-day breakdowns may be partial, and the aggregate keeps its oldest rows first, so the newest days lose rows first. No response status is recorded by the sensor, so there is no per-status split.',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'day'         => array( 'type' => 'string' ),
+							'total'       => array( 'type' => 'integer' ),
+							'first_party' => array( 'type' => array( 'integer', 'null' ) ),
+							'ai_training' => array( 'type' => 'integer' ),
+							'purposes'    => array( 'type' => array( 'array', 'null' ) ),
+							'ai_surfaces' => array( 'type' => 'array' ),
+							'partial'     => array( 'type' => 'boolean' ),
+						),
+					),
+				),
+				'daily_total_exact'      => array(
+					'type'        => 'boolean',
+					'description' => 'Present only with series: "day". True when each day\'s total comes from the exact day-only totals view; false when it was summed from the aggregate and is a floor.',
+				),
 			),
 		),
 		'meta'                => array(

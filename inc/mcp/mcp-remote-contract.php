@@ -104,7 +104,7 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	// RED-then-pin, 2026-09-29: 17-twin map, bot-signals + agent_networks joined.
 	'14' => '8af49ec631820d9127a97e6271de37eaf80d28129bdf4b38db98f9bbdeb8b046',
 	// RED-then-pin, 2026-10-10: 18-twin map, remote-analytics-rows joined.
-	'15' => 'ed9ec0fb33ce5db352930506134d17a964a9b7325e9ff2e26f98a2a2c1a6e9cd',
+	'15' => '3158c41d6236a25c6e9f1a0c87904b5e03096b3c6e86b701fd3421be2856e2ec',
 );
 
 /**

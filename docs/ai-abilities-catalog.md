@@ -218,6 +218,28 @@ What the stored data supports: the daily table holds path by day with every metr
 
 **Parity:** the path and day reads use the summary's table and filters (`wp_sn_analytics_daily`, `day` range, `class`), so the views of an untruncated `path` query sum to `analytics_summary.views` for the same range and class. Referrer, country and device read the dims table, a separate rollup, so their sums can differ slightly from the summary.
 
+## Machine readers by day: `series: "day"` (contract 15)
+
+`sn_remote_machine_readers` (`signal-noise/remote-machine-readers-summary`, and its admin `signal-noise/get-machine-readers-summary`) takes an optional `series`. The only accepted value is `"day"`; anything else is refused with `ability_invalid_input`. Without it, the response is byte-identical to the one before the series existed (pinned by `tests/machine-readers-daily.php` against `tests/fixtures/mr-summary-default.json`, captured before the change).
+
+With `series: "day"` the response gains two keys after `crawler_list`:
+
+| Key | Meaning |
+|---|---|
+| `daily` | One entry per UTC date in the window, oldest first, zero-filled. Each entry: `day`, `total`, `first_party`, `ai_training`, `purposes` (`{purpose, hits}`), `ai_surfaces` (`{surface, hits}`), and `partial: true` on the first and last date only. |
+| `daily_total_exact` | True when each day's `total` comes from the sensor's day-only totals view (exact); false when it was summed from the aggregate (a floor). |
+
+What the numbers are:
+
+- **Time zone: UTC.** The sensor buckets by `toDate(timestamp)` in Analytics Engine.
+- **Partial days.** The window is rolling (now minus `days`), so it touches `days + 1` dates. The first starts mid-day and the last is today; both carry `partial: true`.
+- **Sums.** Every daily field is the same rows the window figure folds, folded per day, so `total`, `ai_training`, `first_party`, and each purpose and surface sum to the window figure.
+- **Zeros.** A date with no reads is zeros and empty lists. Dates before the sensor held data also read zero: the sensor started 2026-07-28 and Analytics Engine keeps three months, so `days_covered` is the number of dates actually held.
+- **Truncation.** When `truncated` is true the per-day breakdowns may be partial. The aggregate keeps its oldest rows first, so the newest days lose rows first; `total` stays exact when `daily_total_exact` is true.
+- **No `ai_training_status`.** The rights-signals worker records a crawler read before the response exists, so no response status is stored. Capturing it is a worker change (record after the response, one new field); it is not built and would count only from its deploy.
+
+Counts only: no user agents, IPs, paths or networks in the series. The remote door rules are unchanged; door off, the bridge answers the standard 404.
+
 ## Detailed reference (selected abilities)
 
 > Written across v9–v13 and kept for its use-case notes. Door statuses and counts below are historical; the Quick reference above is current.

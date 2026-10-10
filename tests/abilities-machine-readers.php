@@ -113,7 +113,7 @@ ok( 'integer' === ( $days_schema['type'] ?? null ), 'days is an integer' );
 ok( 30 === ( $days_schema['default'] ?? null ), 'days defaults to 30 (the DM tile window)' );
 ok( 1 === ( $days_schema['minimum'] ?? null ), 'days minimum 1' );
 ok( 90 === ( $days_schema['maximum'] ?? null ), 'days maximum 90 (the sensor clamp)' );
-ok( array( 'days' ) === array_keys( $in['properties'] ?? array() ), 'days is the ONLY input' );
+ok( array( 'days', 'series' ) === array_keys( $in['properties'] ?? array() ), 'days and series are the only inputs (series: tests/machine-readers-daily.php)' );
 
 echo "\nGroup E: output schema keys\n";
 $props = $a['output_schema']['properties'] ?? array();
@@ -123,8 +123,8 @@ ok(
 	// in snt_mr_summary_payload()'s return since v10.79.0 but undeclared here,
 	// so an agent reading the schema could not know the purpose axis existed.
 	// ADDITIVE and in the payload's own order — nothing renamed, nothing moved.
-	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'identity', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'error' ) === array_keys( $props ),
-	'schema pins the DM tile payload fields in response order, with error appended'
+	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'identity', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'error', 'daily', 'daily_total_exact' ) === array_keys( $props ),
+	'schema pins the DM tile payload fields in response order, with error appended, then the series-only daily and daily_total_exact'
 );
 ok( 'boolean' === ( $props['ok']['type'] ?? null ), 'ok is a boolean' );
 ok( 'integer' === ( $props['days']['type'] ?? null ), 'days is an integer' );

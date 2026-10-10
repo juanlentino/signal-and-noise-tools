@@ -370,6 +370,7 @@ require_once SNT_PATH . 'inc/machine-readers-operators.php';
 // Loads after the map it divides across.
 require_once SNT_PATH . 'inc/machine-readers-giveback.php';
 require_once SNT_PATH . 'inc/machine-readers-summary.php'; // v10.2.0: the one summary builder (tile route + ability).
+require_once SNT_PATH . 'inc/machine-readers-daily.php'; // the daily series (series: "day") on the same summary.
 require_once SNT_PATH . 'inc/machine-readers-ledger.php'; // 17.0.0: the crosstab and rights-cadence folds.
 require_once SNT_PATH . 'inc/abilities-machine-readers-ledger.php'; // 17.0.0: get-machine-readers-crosstab + get-rights-reads.
 require_once SNT_PATH . 'inc/rights-evidence-compose.php'; // 17.0.0: one record per crawler family per month, the pure half.

@@ -27,10 +27,12 @@ const SN_MR_TOP_FAMILIES = 3;
  * same failure contract. Pure with respect to its inputs: the fetched rows
  * are read, never written back.
  *
- * @param int $days Window, already clamped to 1-90.
+ * @param int         $days   Window, already clamped to 1-90.
+ * @param string|null $series "day" appends the daily series; null leaves the
+ *                            response exactly as it was before the series.
  * @return array Payload; ok:false + error + days when the sensor did not answer.
  */
-function snt_mr_summary_payload( $days ) {
+function snt_mr_summary_payload( $days, $series = null ) {
 	$days = (int) $days;
 	if ( ! function_exists( 'snt_mr_fetch' ) ) {
 		// The module is optional at the file level; say so rather than 500.
@@ -183,7 +185,7 @@ function snt_mr_summary_payload( $days ) {
 		$purpose_rows[] = array( 'purpose' => (string) $p, 'hits' => (int) $hits );
 	}
 
-	return array(
+	$payload = array(
 		'ok'             => true,
 		'days'           => $days,
 		// The exact figure when the edge can give one; the aggregate sum only as
@@ -226,6 +228,13 @@ function snt_mr_summary_payload( $days ) {
 		'sensor_version' => ( is_array( $info ) && isset( $info['version'] ) ) ? (string) $info['version'] : null,
 		'crawler_list'   => $verdict,
 	);
+	// Unreleased: appended, never interleaved, so a call without `series` is
+	// byte-identical to the response before the series existed.
+	if ( 'day' === $series && function_exists( 'snt_mr_daily_series' ) ) {
+		$payload['daily']             = snt_mr_daily_series( $rows, null === $exact_total ? null : (array) $totals_read['rows'], $days, time(), $has_tax );
+		$payload['daily_total_exact'] = null !== $exact_total;
+	}
+	return $payload;
 }
 
 /**
