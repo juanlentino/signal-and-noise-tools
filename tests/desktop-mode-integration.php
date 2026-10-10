@@ -478,7 +478,7 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 // 2026-10-04: the three merged cards are BUDGETED, not measured, and a saved
 // layout keeps its old height: the owner resizes each once.
 $expected_height = array(
-	'sn-site-views'       => 950, // SN Traffic, BUDGETED (+60 busiest state, 21.9.1): 760 + This week (~96) + the reach row (~30)
+	'sn-site-views'       => 1010, // SN Traffic, BUDGETED (+60 busiest state, 21.9.1): 760 + This week (~96) + the reach row (~30); +60 (2026-10-10): forecast line, Read at foot, surge line
 	'sn-reading'          => 575, // BUDGETED: 555 + the opening figure and age line, less the two rows it replaced
 	'sn-queue'            => 380, // measured 365 live (15.8.1): two-line headline + depth line + two headings + six rows
 	'sn-health'           => 580, // SN Systems, +140 (2026-10-05: Edge and Cache sections, cron-day row, incidents and slowest); BUDGETED (+60 busiest state, 21.9.1): the verdict line, three one-row sections (~52 each), the uptime row's second line (~20), the button (~44), the link
@@ -1006,7 +1006,11 @@ $res  = call_user_func( $route['callback'] );
 $body = $res instanceof WP_REST_Response ? $res->get_data() : $res;
 
 ok( ( $body['visits'] ?? null ) === 98, 'payload carries visits alongside views' );
-ok( ( $body['bot_pct'] ?? null ) === 30, 'payload carries the window bot share (weighted across the class series, not the last day)' );
+// 2026-10-10: the card never painted these (owner's pick, 2026-10-04), so the payload stops computing them.
+foreach ( array( 'bot_pct', 'top_mover', 'top_sources' ) as $gone ) {
+	ok( ! array_key_exists( $gone, $body ), "payload no longer carries $gone (never painted, nothing else read it)" );
+}
+ok( is_int( $body['generated_at'] ?? null ) && $body['generated_at'] > 0, 'payload carries generated_at, the read time the card\'s "Read at" foot says' );
 ok( ( $body['top_path']['path'] ?? '' ) === '/notes/provenance', 'payload carries the top path' );
 ok( ( $body['top_path']['views'] ?? null ) === 42, 'the top path carries its view count' );
 
@@ -1025,21 +1029,6 @@ ok( isset( $top_paths[0] ) && array( 'path', 'views' ) === array_keys( $top_path
 ok( ( $body['top_path']['path'] ?? '' ) === ( $top_paths[0]['path'] ?? null )
 	&& ( $body['top_path']['views'] ?? null ) === ( $top_paths[0]['views'] ?? null ),
 	'top_path remains byte-identical to the first top_paths row' );
-
-echo "\n── v9.57.0: top sources (folded in from the retired sn-analytics-hud) ──\n";
-// The desktop had no surface for WHERE traffic comes from. The HUD existed
-// largely to show this; everything else it showed, this tile already covered.
-//
-// Row keys are the accessor's OWN: `value` / `visits` (inc/analytics-sources.php).
-// NOT `source` — that invented key shipped in v9.56.0 and rendered `undefined`
-// for every row, because the STUB invented the same wrong name. Pin the real one.
-ok( is_array( $body['top_sources'] ?? null ), 'payload carries top_sources' );
-ok( count( $body['top_sources'] ) === 3, 'top_sources is capped at 3 — a tile is a glance, not the full list' );
-ok( ( $body['top_sources'][0]['value'] ?? '' ) === '(direct)',
-	'top_sources rows use the REAL key `value` (inc/analytics-sources.php), never the invented `source`' );
-ok( ( $body['top_sources'][0]['visits'] ?? null ) === 40, 'top_sources rows carry visits' );
-ok( ! array_key_exists( 'source', $body['top_sources'][0] ),
-	'top_sources rows do NOT expose `source` — the accessor has never emitted that key' );
 
 echo "\n── v9.53.0: the forecast, and its honesty gates ──\n";
 // sn_analytics_forecast_of() already encodes the discipline: below
@@ -1070,7 +1059,7 @@ $body2 = $res2 instanceof WP_REST_Response ? $res2->get_data() : $res2;
 ok( array_key_exists( 'forecast', $body2 ) && $body2['forecast'] === null,
 	'one day of history yields NO forecast (present-and-null) — never a fabricated number' );
 
-echo "\n── v11.11.4: glance rows — today / engaged / top_mover (additive) ──\n";
+echo "\n── v11.11.4: glance rows — today / engaged (additive) ──\n";
 // Restore the 60-day noisy series + the enrichment fixtures so the old keys
 // stay byte-identical to the block above while the new optional keys appear.
 $GLOBALS['__series'] = array();
@@ -1110,15 +1099,11 @@ $body = $res instanceof WP_REST_Response ? $res->get_data() : $res;
 
 // Additive compat: every pre-v11.11.4 key keeps its value. New keys sit beside.
 ok( ( $body['visits'] ?? null ) === 98, 'compat: visits is byte-unchanged' );
-ok( ( $body['bot_pct'] ?? null ) === 30, 'compat: bot_pct is byte-unchanged' );
 ok( ( $body['top_path']['path'] ?? '' ) === '/notes/provenance' && ( $body['top_path']['views'] ?? null ) === 42,
 	'compat: top_path is byte-unchanged' );
 ok( is_array( $body['top_paths'] ?? null ) && count( $body['top_paths'] ) === 3
 	&& ( $body['top_paths'][0]['path'] ?? '' ) === '/notes/provenance',
 	'compat: top_paths is byte-unchanged' );
-ok( is_array( $body['top_sources'] ?? null ) && ( $body['top_sources'][0]['value'] ?? '' ) === '(direct)'
-	&& ( $body['top_sources'][0]['visits'] ?? null ) === 40,
-	'compat: top_sources is byte-unchanged' );
 ok( array_key_exists( 'forecast', $body ), 'compat: forecast key still present' );
 ok( ( $body['total'] ?? null ) === 189, 'compat: total is byte-unchanged' );
 
@@ -1146,18 +1131,8 @@ ok( isset( $GLOBALS['__engaged_calls'][0] ) && array( '2026-07-03', '2026-07-16'
 ok( array_key_exists( '__engaged_delta_cwin', $GLOBALS ) && null === $GLOBALS['__engaged_delta_cwin'],
 	'engaged_rate_delta is called with null $cwin — the glance/widget convention, not an explicit compare window' );
 
-// top_mover — the strongest PATH mover from sn_analytics_movers (the rail
-// tile's producer: {path, views, delta} behind its own 15-min cache).
-ok( is_array( $body['top_mover'] ?? null ), 'payload carries top_mover when movers is a non-empty list' );
-ok( ( $body['top_mover']['path'] ?? '' ) === '/notes/two-kinds-of-provenance'
-	&& ( $body['top_mover']['delta'] ?? null ) === 12,
-	'top_mover is row 0 of the path movers, real keys path+delta' );
-ok( is_array( $body['top_mover'] ?? null ) && ! array_key_exists( 'metric', $body['top_mover'] ),
-	'top_mover carries no metric key — it is the PATH mover, not the baseline metric mover' );
-ok( isset( $GLOBALS['__movers_calls'][0] ) && '2026-07-03' === $GLOBALS['__movers_calls'][0][0]
-	&& '2026-07-16' === $GLOBALS['__movers_calls'][0][1] && 'human' === $GLOBALS['__movers_calls'][0][2]
-	&& 1 === $GLOBALS['__movers_calls'][0][3],
-	'top_mover uses the display window and asks the producer for exactly one row' );
+// 2026-10-10: the top mover is no longer asked for (never painted).
+ok( ! array_key_exists( 'top_mover', $body ) && array() === $GLOBALS['__movers_calls'], 'the payload no longer reads the path movers: no top_mover, no call' );
 
 echo "\n── v11.11.4: null/empty producers omit the key — never a fabricated 0 ──\n";
 $GLOBALS['__engaged']       = null;
@@ -1172,15 +1147,6 @@ ok( ! array_key_exists( 'today', $body3 ),
 	'no today row in the series → today key omitted, never a fabricated 0' );
 ok( ! array_key_exists( 'engaged', $body3 ),
 	'null engaged_rate → engaged key omitted (0 and null are different answers)' );
-ok( ! array_key_exists( 'top_mover', $body3 ),
-	'empty movers [] → top_mover key omitted, never a fabricated row' );
-
-$GLOBALS['__movers'] = null;
-delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) . '_' . SNT_VERSION );
-$res3b  = call_user_func( $route['callback'] );
-$body3b = $res3b instanceof WP_REST_Response ? $res3b->get_data() : $res3b;
-ok( ! array_key_exists( 'top_mover', $body3b ),
-	'null movers → top_mover key omitted (defensive: the real callee returns [])' );
 
 // A measured 0 is an answer and must survive.
 $GLOBALS['__series']        = array( array( 'day' => '2026-07-16', 'views' => 0, 'visits' => 0 ) );
@@ -1990,10 +1956,10 @@ ok( false === strpos( $mr_js, "'Version'" ), 'no sensor Version row (version liv
 ok( false !== strpos( $mr_js, "mr.crawler_list && 'in sync' !== mr.crawler_list" ), 'the crawler-list verdict still paints when it is not in sync: drift must not go blind' );
 ok( false !== strpos( $mr_js, 'color:#d29922' ), 'the crawler-list warning reuses the existing amber warning idiom' );
 
-echo "\n── Site Views tile: forecast gone, Top pages list of 3 ──\n";
+echo "\n── Site Views tile: one forecast line, Top pages list of 3 ──\n";
 $views_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' ) );
-ok( false === strpos( $views_js, 'function forecastBlock' ), 'forecastBlock is gone — the interval cried wolf on this site\'s volumes' );
-ok( false === strpos( $views_js, "'Next 7 days'" ), 'the Next 7 days heading is gone with the forecast block' );
+ok( false === strpos( $views_js, 'function forecastBlock' ), 'forecastBlock stays gone (its interval cried wolf on this site\'s volumes); one line replaces it' );
+ok( false !== strpos( $views_js, 'forecastLine( payload.forecast )' ) && false !== strpos( $views_js, "' views (estimate)'" ) && false !== strpos( $views_js, "f.confidence === 'high'" ), '2026-10-10: one forecast line, said as an estimate, its spread only at measured high confidence (render pins: tests/desktop-mode-widget-views-delta.php)' );
 ok( false !== strpos( $views_js, "'Top pages'" ), 'tile renders a Top pages list' );
 ok( false !== strpos( $views_js, 'payload.top_paths' ), 'tile reads the additive top_paths array' );
 ok(
@@ -2001,15 +1967,15 @@ ok(
 	'top_paths render is guarded: an older cached payload without the array paints no Top pages'
 );
 ok( false === strpos( $views_js, 'forecastBlock( payload.forecast )' ),
-	'the widget no longer calls forecastBlock on payload.forecast — the producer still ships the key' );
+	'the widget no longer calls forecastBlock on payload.forecast' );
 
-echo "\n── v11.11.4: Site Views tile glance rows (today / engaged / top_mover) ──\n";
+echo "\n── v11.11.4: Site Views tile glance rows (today / engaged) ──\n";
 ok( false !== strpos( $views_js, "'Today so far'" ), 'tile renders a Today so far row' );
 ok( false !== strpos( $views_js, 'payload.today' ), 'tile reads the additive today key' );
 ok( 1 === preg_match( '/typeof payload\.today === \'number\'/', $views_js ),
 	'today render is guarded on a number — an older cached payload without the key paints nothing' );
 ok( false === strpos( $views_js, "'Engaged'" ) && false === strpos( $views_js, "'Visits'" ) && false === strpos( $views_js, "'Top sources'" ), '21.2.1: Engaged and Visits moved to SN Reading and Top sources to SN Audience; the tile paints none of them (the payload keeps the keys)' );
-ok( false === strpos( $views_js, 'payload.top_mover' ) && false === strpos( $views_js, 'payload.bot_pct' ) && false !== strpos( $views_js, "weekRows( payload.north_star )" ) && false === strpos( $views_js, 'ns.deep' ) && false === strpos( $views_js, 'ns.actions' ), 'SN Traffic paints three north star rows (engaged readers, DOI downloads, inquiries) and no top mover, bot share, read 2+ pages or downloads outbound (the owner\'s pick; the payload keeps the keys)' );
+ok( false === strpos( $views_js, 'payload.top_mover' ) && false === strpos( $views_js, 'payload.bot_pct' ) && false !== strpos( $views_js, "weekRows( payload.north_star )" ) && false === strpos( $views_js, 'ns.deep' ) && false === strpos( $views_js, 'ns.actions' ), 'SN Traffic paints three north star rows (engaged visitor-days, DOI downloads, inquiries) and no top mover, bot share, read 2+ pages or downloads outbound (the owner\'s pick; the payload no longer computes the top mover or bot share)' );
 ok( false === strpos( $views_js, 'innerHTML' ),
 	'views tile never uses innerHTML — glance strings reach the DOM as textContent only' );
 
