@@ -240,8 +240,10 @@
 		// visitor's request the rights Worker forwarded (inc/edge-rollup.php),
 		// so "who asked" cannot separate visitors from the Worker's own calls.
 		if ( total > 0 ) { tally.look++; }
-		// 2026-10-10: how many a visitor received, of all; a day stored before
-		// who-asked has no visitor count, and none is painted (never a 0).
+		// 2026-10-10: how many a visitor asked for directly, of all. A floor, not
+		// the whole answer: a visitor's request the Worker forwarded counts on
+		// the Worker's side. A day stored before who-asked has no visitor
+		// count, and none is painted (never a 0).
 		var count = typeof e.visitor === 'number' ? 'visitors ' + Math.min( total, num( e.visitor ) ) + ' of ' + total : String( total );
 		var rows = [ { label: '5xx · ' + String( e.day || 'yesterday' ), value: count + delta, tone: total > 0 ? WARN_FG : '' } ];
 		// Whose (2026-10-05): most of these are this dashboard's own polls, not
