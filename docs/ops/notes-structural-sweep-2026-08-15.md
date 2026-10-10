@@ -134,7 +134,7 @@ would land; 3 did, for the reasons above.
 
 ## Phase 3 — tag merge map (produced, nothing written)
 
-`tag-merge-map.md` at the repo root. There is no MCP path to reassign tags on existing posts, so
+`tag-merge-map.md` at the repo root (moved to `docs/ops/tag-merge-map.md` on 2026-10-10). There is no MCP path to reassign tags on existing posts, so
 this is a WP admin pass. I did not attempt a write.
 
 The inventory reconciled exactly against the brief: **83 tags, 47 used once (57%)**.

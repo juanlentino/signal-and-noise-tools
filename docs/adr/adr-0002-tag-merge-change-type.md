@@ -11,7 +11,7 @@
 The notes corpus carries **83 distinct tags across 42 notes, 47 of them used exactly once** — a
 57% singleton rate, measured 2026-08-15. `Provenance` (15 posts) and `Music Provenance` (12) were
 splitting the primary archive between two names for the same thing. The remediation plan is
-`tag-merge-map.md`: 83 terms → 23, via 53 merges and 7 deletions.
+`docs/ops/tag-merge-map.md`: 83 terms → 23, via 53 merges and 7 deletions.
 
 **There is no MCP path to execute it.** `suggest-tags` is read-only. `prune-unused-tags` only
 deletes terms that already have zero posts. The single place tags appear in a write payload is
@@ -99,7 +99,7 @@ before the change type may run outside `dry_run`.
 
 `sn-validate` already performs a tag-vocabulary-membership check. **Confirm its severity on the
 `create_draft` path**; if it is a WARNING rather than an ERROR, raise it to ERROR against the
-23-term vocabulary in `tag-merge-map.md`.
+23-term vocabulary in `docs/ops/tag-merge-map.md`.
 
 This is a smaller change than the merge engine and it addresses the cause rather than the symptom.
 Sequenced the other way round, the merge tool gets run again in six months against a fresh crop of

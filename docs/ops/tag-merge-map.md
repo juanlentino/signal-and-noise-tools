@@ -2,6 +2,8 @@
 
 Prepared 2026-08-15. **Executed on the live site the same day** (83 terms to 23; 61 emptied terms pruned). Kept as the record of what went where: `inc/tag-retired-map.php` is generated from §2 and 301s every retired slug.
 
+> **Done 2026-08-15; moved here 2026-10-10.** The pass has run. `tag-merge-apply.sh` was removed from the plugin root on 2026-10-10 (it shipped in every release and was publicly downloadable); it remains in git history before that date. This map moved from the root to `docs/ops/`, which does not ship.
+
 **To execute it: `./tag-merge-apply.sh` (dry run) then `--apply`.** That script is generated from
 this file's own per-post table, so the two cannot drift; regenerate it rather than hand-editing.
 

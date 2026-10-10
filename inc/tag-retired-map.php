@@ -1,6 +1,6 @@
 <?php
 /**
- * The tags retired by the 83-to-23 pass (2026-08-15, tag-merge-map.md §2).
+ * The tags retired by the 83-to-23 pass (2026-08-15, docs/ops/tag-merge-map.md §2).
  * That pass ran through wp-cli, not sn_tag_merge(), so it never filled the
  * sn_tag_redirects option and Search Console kept 404s for the old
  * archives. Old slug => surviving slug; '' means the tag was deleted with
