@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param bool       $has_tax Whether the window carries the purpose taxonomy (purposes / first_party are null otherwise).
  * @return array<int,array> Oldest first.
  */
-function snt_mr_daily_series( array $rows, $totals, $days, $now, $has_tax = true ) {
+function snt_mr_summary_daily( array $rows, $totals, $days, $now, $has_tax = true ) {
 	$ai_set = snt_mr_ai_training_families();
 	$by_day = array();
 	for ( $t = $now - (int) $days * DAY_IN_SECONDS; gmdate( 'Y-m-d', $t ) <= gmdate( 'Y-m-d', $now ); $t += DAY_IN_SECONDS ) {

@@ -230,8 +230,8 @@ function snt_mr_summary_payload( $days, $series = null ) {
 	);
 	// Unreleased: appended, never interleaved, so a call without `series` is
 	// byte-identical to the response before the series existed.
-	if ( 'day' === $series && function_exists( 'snt_mr_daily_series' ) ) {
-		$payload['daily']             = snt_mr_daily_series( $rows, null === $exact_total ? null : (array) $totals_read['rows'], $days, time(), $has_tax );
+	if ( 'day' === $series && function_exists( 'snt_mr_summary_daily' ) ) {
+		$payload['daily']             = snt_mr_summary_daily( $rows, null === $exact_total ? null : (array) $totals_read['rows'], $days, time(), $has_tax );
 		$payload['daily_total_exact'] = null !== $exact_total;
 	}
 	return $payload;

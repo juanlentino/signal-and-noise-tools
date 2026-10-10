@@ -82,7 +82,7 @@ echo "\nThe pure series: oldest first, zero-filled, edges partial, sums hold\n";
 $fixed = gmmktime( 15, 0, 0, 10, 10, 2026 ); // 2026-10-10 15:00 UTC
 $rows  = $scenarios['exact'][0]['rows'];
 $tot   = $scenarios['exact'][1]['rows'];
-$s     = snt_mr_daily_series( $rows, $tot, 7, $fixed );
+$s     = snt_mr_summary_daily( $rows, $tot, 7, $fixed );
 $days  = array_column( $s, 'day' );
 ok( '2026-10-03' === $days[0] && '2026-10-10' === end( $days ) && 8 === count( $days ), 'a 7-day rolling window touches 8 UTC dates, oldest first' );
 ok( true === ( $s[0]['partial'] ?? null ) && true === ( $s[7]['partial'] ?? null ) && ! array_key_exists( 'partial', $s[3] ), 'the first and last dates carry partial: true; full days carry no partial key' );
@@ -90,7 +90,7 @@ $z = $s[1]; // 2026-10-04: no rows at all
 ok( 0 === $z['total'] && 0 === $z['ai_training'] && 0 === $z['first_party'] && array() === $z['purposes'] && array() === $z['ai_surfaces'], 'a no-data day appears as zeros and empty lists' );
 ok( 40 === $s[0]['total'] && 16 === $s[2]['total'], 'per-day total comes from the exact totals view' );
 
-$blank = snt_mr_daily_series( array( $row( '', 'openai', 'html', 'train', 4 ) ), null, 7, $fixed );
+$blank = snt_mr_summary_daily( array( $row( '', 'openai', 'html', 'train', 4 ) ), null, 7, $fixed );
 ok( 8 === count( $blank ) && '2026-10-03' === $blank[0]['day'] && 4 === $blank[0]['ai_training'] && true === $blank[0]['partial'], 'a row with a blanked day joins the first date: no empty date, the sum holds' );
 
 echo "\nThrough the ability: daily fields sum to the window figures\n";
