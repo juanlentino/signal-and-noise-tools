@@ -1,6 +1,6 @@
 # Signal & Noise AI Abilities Catalog
 
-The reference for the 145 Signal & Noise WordPress Abilities: 112 plugin abilities, 17 remote twins of them, and 16 theme abilities. They are consumed by `wp ability run`, the REST endpoint `/wp-json/wp-abilities/v1/abilities/<slug>/run`, the plugin's two MCP doors, and (for the twins) the remote MCP Worker.
+The reference for the 147 Signal & Noise WordPress Abilities: 113 plugin abilities, 18 remote twins of them, and 16 theme abilities. They are consumed by `wp ability run`, the REST endpoint `/wp-json/wp-abilities/v1/abilities/<slug>/run`, the plugin's two MCP doors, and (for the twins) the remote MCP Worker.
 
 **Machine-readable source:** the live registry is an MCP resource, `sn://abilities-catalog`, on both doors. Query it for schemas; this document is the human map.
 
@@ -28,6 +28,7 @@ The reference for the 145 Signal & Noise WordPress Abilities: 112 plugin abiliti
 | `signal-noise/ai-orphan-suggest` | Suggest orphan-media verdict for an attachment | ai-generation | — |
 | `signal-noise/ai-pair-suggest` | Suggest whether two related notes should link | ai-generation | RW |
 | `signal-noise/analytics-query` | Query analytics (via sn-metrics{analytics_query}) | analytics | — |
+| `signal-noise/analytics-rows` | Analytics rows (via sn-metrics{analytics_rows}; twin below) | analytics | — |
 | `signal-noise/anchor-status` | Provenance anchor overview | diagnostics | READ |
 | `signal-noise/anchor-sweep` | Run the anchor upgrade sweep | maintenance | — |
 | `signal-noise/apply-tag-description` | Write one tag description | content | RW |
@@ -136,6 +137,7 @@ The reference for the 145 Signal & Noise WordPress Abilities: 112 plugin abiliti
 | `signal-noise/watches` | Watches Due | diagnostics | READ |
 | `signal-noise/zenodo-status` | Zenodo DOI status | diagnostics | READ |
 | **REMOTE TWINS** (plugin, reached only through the sn-remote-mcp Worker) | | | |
+| `signal-noise/remote-analytics-rows` | Analytics rows (remote): `sn_remote_analytics_query` | analytics | REMOTE |
 | `signal-noise/remote-bot-signals` | Beacon bot signals (remote) | analytics | REMOTE |
 | `signal-noise/remote-cron-health-summary` | Cron health, summarized (remote) | diagnostics | REMOTE |
 | `signal-noise/remote-edge-errors-summary` | Edge 5xx summary (remote) | diagnostics | REMOTE |
@@ -171,7 +173,7 @@ The reference for the 145 Signal & Noise WordPress Abilities: 112 plugin abiliti
 | `signal-and-noise/get-theme-version` | Get theme + WP version | diagnostics | — |
 | `signal-and-noise/list-block-patterns` | List block patterns | content | — |
 
-**Totals:** 112 plugin abilities + 17 remote twins + 16 theme = 145. **49** on the read door, **16** on the write door, 0 on both, **47** plugin abilities on neither. Theme abilities are on no door by design: `sn-site-facts` dispatches to them, so the read door carries zero theme slugs. Each remote twin shares its admin ability's output schema byte for byte, except three named strips (deploy status without `runtime`, and the machine-readers networks slice, which carries the crosstab's `agent_networks` alone; both run a wrapper); remote contract version 14.
+**Totals:** 113 plugin abilities + 18 remote twins + 16 theme = 147. **49** on the read door, **16** on the write door, 0 on both, **48** plugin abilities on neither. Theme abilities are on no door by design: `sn-site-facts` dispatches to them, so the read door carries zero theme slugs. Each remote twin shares its admin ability's output schema byte for byte, except three named strips (deploy status without `runtime`, and the machine-readers networks slice, which carries the crosstab's `agent_networks` alone; both run a wrapper); remote contract version 15.
 
 ## How to use this catalog
 
@@ -184,6 +186,37 @@ wp ability run <slug> --input='{"post_id": 42}'
 **REST API** — POST to `/wp-json/wp-abilities/v1/abilities/<slug>/run` with `wordpress_logged_in_*` session cookie and `X-WP-Nonce` header for write operations. The MCP doors expose subsets of these abilities via their respective allowlists.
 
 **MCP client** — Query the `sn://abilities-catalog` resource on either door for the live registry snapshot. The read door offers 49 tools (read-only); the write door offers 16 (state-modifying, behind a kill switch, a bound application password, a rate limit and its own audit log).
+
+## Analytics rows: the remote query tool (contract 15)
+
+`signal-noise/analytics-rows` (local, as `sn-metrics{analytics_rows}`) and its remote twin `signal-noise/remote-analytics-rows` (the Worker's `sn_remote_analytics_query`) return the stored analytics as counted rows. Code: `inc/analytics-rows.php` (validation, the path allowlist, the hostname rule, the floor), `inc/analytics-rows-fetch.php` (the read), `inc/abilities-analytics-rows.php` (both registrations, one schema, one callback). Tests: `tests/analytics-rows.php`.
+
+Added 2026-10-10 because the remote door could answer "how much" and not "where" or "from where": asked which pages moved after a Hacker News submission, it reported a 37% lift and named no page and no source.
+
+| Argument | Values | Default |
+|---|---|---|
+| `dimensions` | one of `path`, `referrer`, `country`, `device`, `day`, or one of the first four with `day` | required |
+| `range` | 7, 14, 30, 90, 365, all | 30 |
+| `class` | human, suspect, bot | human |
+| `path` | a site path; only with `path` or `day` | none |
+| `referrer` | a hostname; only with `referrer` or `day`, and no `path` | none |
+| `sort` | views, visits, time (time only with `path` or `day`) | views |
+| `limit` | 1 to 500 | 50 |
+
+Out-of-set values are refused at the origin with `ability_invalid_input`, never coerced. The Worker passes arguments through and keeps no copy of the allowed sets. Each row carries its dimension values, `views`, `pageview_visits`, `time_avg_per_view` (milliseconds) and `scroll_avg_per_view`; the envelope carries `rows`, `row_count`, `truncated`, `range`, `class` and `exact_metrics_since`, and never echoes a caller's `path` or `referrer`.
+
+What the stored data supports: the daily table holds path by day with every metric; the dims table holds referrer, country and device by day with views and visits only, so time and scroll are null there. No table holds path by referrer, country or device, so those pairs are refused rather than estimated.
+
+**Hard limits, and why. Do not relax them to make something easier.**
+
+- **Nothing finer than a day.** No hit-level rows, no timestamps below a day, no visitor identifiers, hashes, IPs or user agents. The tool describes traffic; it does not follow anyone.
+- **Paths are an allowlist, not a passthrough.** The stored path is whatever a visitor requested, so `/notes/x?ignore=previous`, a 2,000-character path, a newline followed by instructions, or markup can all sit in the table. This tool's answer lands in a model's context, so passing paths through would let any visitor write into the reader by requesting a crafted URL. A path is returned only when it is the site's own content (a published post or page, a tag archive, the home page or a known archive route); everything else collapses into `(unmatched)`, its counts kept.
+- **Referrers are hostnames only.** Lowercase, `www.` dropped, matched against a strict hostname pattern and capped at 253 characters. A value with a path, a query, credentials or any other character is `(invalid)`. The three sentinels the analytics worker writes (`(direct)`, `(internal)`, `(unknown)`) pass as they are; an empty referrer is `(direct)`. Country must be two letters or digits and device a short lowercase word, or they too read `(invalid)`.
+- **Values seen by fewer than 3 visitor-days are folded into `(withheld)`,** the same floor as the local query sections. The withheld row keeps its views and visits, so sums still hold, and carries no engagement, which would describe the hidden pages. On a quiet site most path-by-day rows are withheld; a busy day, like the Hacker News one, answers.
+- **Read-only, and behind the same door.** The twin's permission callback asks the remote door for its own slug; door off, the bridge answers the same deliberately vague 404 as every other twin. No REST run route is registered for the twin.
+- **Cookieless.** It reads what is already stored and collects nothing new.
+
+**Parity:** the path and day reads use the summary's table and filters (`wp_sn_analytics_daily`, `day` range, `class`), so the views of an untruncated `path` query sum to `analytics_summary.views` for the same range and class. Referrer, country and device read the dims table, a separate rollup, so their sums can differ slightly from the summary.
 
 ## Detailed reference (selected abilities)
 

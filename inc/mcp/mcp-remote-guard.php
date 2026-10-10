@@ -86,6 +86,11 @@ function sn_mcp_remote_slugs() {
 		// readout and the machine readers' agent_networks. Aggregate counts.
 		'signal-noise/remote-bot-signals',
 		'signal-noise/remote-machine-readers-networks',
+		// Contract 15 — owner brief 2026-10-10: stored analytics as counted
+		// rows by path, referrer, country, device or day, so "which pages moved
+		// after the Hacker News post" has a remote answer. Paths are an
+		// allowlist and referrers hostnames (inc/analytics-rows.php).
+		'signal-noise/remote-analytics-rows',
 	);
 }
 
@@ -197,6 +202,7 @@ function sn_mcp_remote_verdicts() {
 		'analytics_geography'  => $out( false, 'Local only in 20.4.0: country counts, floored at 3 visits; a twin waits for the vocabulary to settle.' ),
 		'analytics_devices'    => $out( false, 'Local only in 20.4.0: device counts, floored at 3 visits; a twin waits for the vocabulary to settle.' ),
 		'analytics_journeys'   => $out( false, 'Local only in 20.4.0: entry and exit PATHS carry the same requested-path residual as analytics_top_content, so it follows that verdict.' ),
+		'analytics_rows'       => $out( true, 'Owner brief 2026-10-10: the counted rows behind the dashboard by path, referrer, country, device or day, nothing finer than a day. Answers the requested-path residual the top-content verdict names: a path is returned only when it is the site\'s own content, everything else is (unmatched); referrers are hostnames only; values under 3 visitor-days are withheld.', 'signal-noise/remote-analytics-rows' ),
 		'analytics_query'      => $out( false, 'Local only in 20.4.0: a query surface widens what a remote caller can slice; it earns a twin only after the local door has shown which questions it is used for.' ),
 
 		/* ── sn-site-facts ────────────────────────────────────────────── */

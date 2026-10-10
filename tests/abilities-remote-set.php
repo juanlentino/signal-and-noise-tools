@@ -80,6 +80,7 @@ $FULL_SET = array(
 	'signal-noise/remote-edge-errors-summary', // 18.0.0
 	'signal-noise/remote-bot-signals',              // contract 14
 	'signal-noise/remote-machine-readers-networks', // contract 14
+	'signal-noise/remote-analytics-rows',           // contract 15
 );
 $GLOBALS['__remote_slugs'] = $FULL_SET;
 
@@ -119,6 +120,7 @@ require __DIR__ . '/../inc/search-console-store.php';
 require __DIR__ . '/../inc/search-console-derive.php';
 require __DIR__ . '/../inc/abilities-search-console.php';
 require __DIR__ . '/../inc/abilities-edge-errors.php'; // 18.0.0
+require __DIR__ . '/../inc/abilities-analytics-rows.php'; // contract 15: admin ability and twin in one file.
 // Contract 14: the bot-signals admin + the crosstab the networks twin slices.
 // The sensor read is stubbed so the wrapper runs over a fixed crosstab.
 if ( ! function_exists( 'snt_mr_fetch' ) ) {
@@ -162,6 +164,7 @@ $REMOTE_SX = 'signal-noise/remote-search-crossexam';   $ADMIN_SX = 'signal-noise
 $REMOTE_EE = 'signal-noise/remote-edge-errors-summary';   $ADMIN_EE = 'signal-noise/edge-errors-summary'; // 18.0.0
 $REMOTE_BS = 'signal-noise/remote-bot-signals';              $ADMIN_BS = 'signal-noise/bot-signals';                    // contract 14
 $REMOTE_AN = 'signal-noise/remote-machine-readers-networks'; $ADMIN_AN = 'signal-noise/get-machine-readers-crosstab'; // contract 14
+$REMOTE_AR = 'signal-noise/remote-analytics-rows';           $ADMIN_AR = 'signal-noise/analytics-rows';                 // contract 15
 $ADMIN_PROV  = 'signal-noise/provenance-integrity-status';
 $ADMIN_MR    = 'signal-noise/get-machine-readers-summary';
 $ADMIN_CRON  = 'signal-noise/cron-health-summary';
@@ -182,6 +185,7 @@ $MAP = array(
 	$REMOTE_EE        => 'snt_ability_perm_remote_edge_errors',
 	$REMOTE_BS        => 'snt_ability_perm_remote_bot_signals',
 	$REMOTE_AN        => 'snt_ability_perm_remote_agent_networks',
+	$REMOTE_AR        => 'snt_ability_perm_remote_analytics_rows',
 );
 
 $GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
@@ -217,6 +221,7 @@ $pairs_output = array(
 	array( $REMOTE_SX, $ADMIN_SX ),
 	array( $REMOTE_EE, $ADMIN_EE ),
 	array( $REMOTE_BS, $ADMIN_BS ),
+	array( $REMOTE_AR, $ADMIN_AR ),
 );
 foreach ( $pairs_output as $pair ) {
 	list( $remote, $admin ) = $pair;
@@ -262,6 +267,7 @@ ok(
 	$GLOBALS['__abilities'][ $REMOTE_EVENTS ]['input_schema'] === $GLOBALS['__abilities'][ $ADMIN_EVENTS ]['input_schema'],
 	"$REMOTE_EVENTS input_schema === $ADMIN_EVENTS's"
 );
+ok( $GLOBALS['__abilities'][ $REMOTE_AR ]['input_schema'] === $GLOBALS['__abilities'][ $ADMIN_AR ]['input_schema'], "$REMOTE_AR input_schema === $ADMIN_AR's (contract 15: one input definition)" );
 $empty_pairs = array(
 	array( $REMOTE_INSIGHTS, $ADMIN_INSIGHTS ),
 	array( $REMOTE_NARRATION, $ADMIN_NARRATION ),
@@ -344,6 +350,7 @@ $execute_pairs = array(
 	array( $REMOTE_CRON, $ADMIN_CRON ),
 	array( $REMOTE_EE, $ADMIN_EE ),
 	array( $REMOTE_BS, $ADMIN_BS ),
+	array( $REMOTE_AR, $ADMIN_AR ),
 );
 foreach ( $execute_pairs as $pair ) {
 	list( $remote, $admin ) = $pair;

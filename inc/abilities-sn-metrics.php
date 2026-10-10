@@ -35,7 +35,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-metrics', array(
 		'label'               => 'Batch-read readership metrics (consolidated)',
-		'description'         => 'One coherent answer to "how is the site being read?": a sectioned batch over the readership reads. analytics_summary (range totals with the honest-denominator semantics: prefer view_visit_ratio, engagement times are MILLISECONDS), analytics_events (top custom events), rss_stats (feed fetches; its own fixed 7d/30d windows), machine_readers, analytics_top_content (pages with visits, scroll, time, and Search Console impressions and position over search_window), 404_log, analytics_sources (labels with category), analytics_series (views and visits per day), analytics_geography (country), analytics_devices, analytics_journeys (entry and exit pages, human only), and analytics_query (an allowlisted query: one or two dimensions, the second always day; see `query`). Windows follow the site\'s own day. Sources, geography, devices, journeys and query fold rows under 3 visits into withheld, so rows plus withheld add up. `range` (default 30) and `class` (default human) apply as each section\'s description says. Each entry carries its source ability\'s exact payload. If a source refuses, that ONE section degrades to {error:"unavailable"}; the call fails as a whole only on invalid input (empty or unknown sections, or a bad query).',
+		'description'         => 'One coherent answer to "how is the site being read?": a sectioned batch over the readership reads. analytics_summary (range totals with the honest-denominator semantics: prefer view_visit_ratio, engagement times are MILLISECONDS), analytics_events (top custom events), rss_stats (feed fetches; its own fixed 7d/30d windows), machine_readers, analytics_top_content (pages with visits, scroll, time, and Search Console impressions and position over search_window), 404_log, analytics_sources (labels with category), analytics_series (views and visits per day), analytics_geography (country), analytics_devices, analytics_journeys (entry and exit pages, human only), analytics_query (an allowlisted query: one or two dimensions, the second always day; see `query`), and analytics_rows (counted rows by path, referrer, country, device or day, the shape the remote door serves; see `rows`). Windows follow the site\'s own day. Sources, geography, devices, journeys and query fold rows under 3 visits into withheld, so rows plus withheld add up. `range` (default 30) and `class` (default human) apply as each section\'s description says. Each entry carries its source ability\'s exact payload. If a source refuses, that ONE section degrades to {error:"unavailable"}; the call fails as a whole only on invalid input (empty or unknown sections, or a bad query).',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_sn_metrics',
@@ -66,6 +66,10 @@ add_action( 'wp_abilities_api_init', function() {
 					'minimum'     => 1,
 					'maximum'     => 500,
 					'description' => 'Rows for analytics_top_content (default 5, max 100), sources, geography, devices and journeys (default 25).',
+				),
+				'rows'     => array(
+					'type'        => 'object',
+					'description' => 'analytics_rows only: {dimensions, path, referrer, sort, limit}; range and class come from the top level. dimensions is one of path, referrer, country, device, day, or one of the first four with day. Paths outside site content read (unmatched), referrers are hostnames, values under 3 visitor-days are (withheld). Out-of-set values fail the whole call.',
 				),
 				'query'    => array(
 					'type'        => 'object',
@@ -121,6 +125,9 @@ function snt_sn_metrics_map() {
 		'analytics_devices'   => 'signal-noise/get-analytics-devices',
 		'analytics_journeys'  => 'signal-noise/get-analytics-journeys',
 		'analytics_query'     => 'signal-noise/analytics-query',
+		// Owner brief 2026-10-10: counted rows by path, referrer, country,
+		// device or day; its twin is the remote door's one query tool.
+		'analytics_rows'      => 'signal-noise/analytics-rows',
 	);
 }
 
@@ -168,6 +175,13 @@ function snt_ability_sn_metrics( $input ) {
 			return $valid;
 		}
 	}
+	$rows = array_merge( isset( $input['rows'] ) && is_array( $input['rows'] ) ? $input['rows'] : array(), array( 'range' => $range, 'class' => $class ) );
+	if ( in_array( 'analytics_rows', $sections, true ) && function_exists( 'snt_arows_validate' ) ) {
+		$valid = snt_arows_validate( $rows );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+	}
 	$windowed = array_filter( array( 'range' => $range, 'class' => $class, 'limit' => $limit ), static fn( $v ) => null !== $v );
 
 	// Per-section args, forwarded only where the source schema declares them.
@@ -187,6 +201,7 @@ function snt_ability_sn_metrics( $input ) {
 		'analytics_devices'     => $windowed,
 		'analytics_journeys'    => array_diff_key( $windowed, array( 'class' => 1 ) ),
 		'analytics_query'       => $query,
+		'analytics_rows'        => $rows,
 	);
 
 	$out = array();

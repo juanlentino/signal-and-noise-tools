@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **The remote door can say where and from where: `sn_remote_analytics_query` (remote contract 15).** Asked on 2026-10-10 which pages moved after a Hacker News submission, the remote surface could report a 37% lift and name no page and no source. `signal-noise/analytics-rows` (local, as `sn-metrics{analytics_rows}`) and its twin `signal-noise/remote-analytics-rows` return the stored analytics as counted rows by path, referrer, country, device or day, or one of the first four with day: views, pageview_visits, time and scroll per view (milliseconds; path and day only, the dims table stores no engagement). Path by referrer, country or device is not stored and is refused, not estimated. Hard limits: nothing finer than a day and no visitor identifiers; paths are an allowlist of the site's own content, anything else `(unmatched)`, because stored paths are visitor-chosen text and the answer lands in a model's context; referrers are strict hostnames or the worker's sentinels, anything else `(invalid)`; values under 3 visitor-days are `(withheld)` with their counts kept; out-of-set arguments are refused at the origin. The remote contract moves from 14 to 15 (`SN_REMOTE_CONTRACT_VERSION`, the remote contract, not the plugin version); the sn-remote-mcp Worker needs its matching release. Pinned by `tests/analytics-rows.php` (refusals, crafted paths and referrers, the floor, the limit boundary, the summary's table and filters), `tests/remote-contract-shapes.php` (the contract 15 hash), `tests/abilities-remote-set.php`, `tests/mcp-remote-guard.php`, `tests/mcp-remote-verdicts.php`, `tests/abilities-sn-metrics.php` and the door manifest. The hard limits and their reasons are in `docs/ai-abilities-catalog.md`.
+
 ## [23.4.0] - 2026-10-10 — break alerts count visitors and explain the day; the edge rollup runs at 01:15 UTC
 
 ### Changed
