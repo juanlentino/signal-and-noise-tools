@@ -86,6 +86,7 @@
 				if ( typeof data.fetched !== 'number' ) {
 					el.textContent = '';
 					el.className = 'sn-live-admin__surge';
+					showIf( el, false );
 				}
 				return;
 			}
@@ -101,6 +102,8 @@
 			}
 			el.textContent = text;
 			el.className = 'sn-live-admin__surge' + ( s.state === 'surge' ? ' is-surge' : '' );
+			// The Traffic widget's surge line shows only during a surge (admin: no box, no-op).
+			showIf( el, s.state === 'surge' && text !== '' );
 		} );
 		// Admin meta carries its own strings; the public one reads the config.
 		document.querySelectorAll( '[data-sn-live-meta][data-updated]' ).forEach( function ( m ) {

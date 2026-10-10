@@ -41,7 +41,15 @@ $many = array(); foreach ( range( 1, 8 ) as $i ) { $many[] = array( 'value' => "
 $top = snt_desktop_audience_rows( $many, 'value', 5 );
 ok( 5 === count( $top ) && '10 · 13%' === $top[0]['value'] && 12.5 === $top[0]['share'], 'the share is of ALL rows, not of the rows kept' );
 $hn = snt_desktop_audience_hn_rows( array( 9 => array( 'title' => 'A note', 'points' => 14, 'comments' => 3, 'rank' => 7 ), 8 => array( 'title' => 'Older', 'points' => 2, 'comments' => 0, 'rank' => 0 ) ), 3 );
-ok( '14 pts · 3 comments · #7 on the front page' === $hn[0]['value'] && '2 pts · 0 comments' === $hn[1]['value'], 'a Hacker News row names the rank only while the story is on the front page' );
+ok( '14 points · 3 comments · #7 on the front page' === $hn[0]['value'] && '2 points · 0 comments' === $hn[1]['value'], 'a Hacker News row names the rank only while the story is on the front page' );
+$hn1 = snt_desktop_audience_hn_rows( array( array( 'title' => 'One', 'points' => 1, 'comments' => 1 ) ), 1 );
+ok( '1 point · 1 comment' === $hn1[0]['value'], 'Hacker News says "1 point" and "1 comment", never "1 pts": ' . $hn1[0]['value'] );
+// The Search row's label carries the engines' own windows, not the card's 14 days.
+$g28 = array( 'clicks' => 5, 'days' => 28 );
+$b28 = array( 'totals' => array( 'clicks' => 1, 'days' => 25 ), 'window' => array( 'start' => '2026-09-10', 'end' => '2026-10-07', 'days' => 28 ) );
+ok( 'Search · 28 days to Oct 7' === snt_desktop_traffic_search_label( $g28, $b28, array( 'start' => '2026-09-10', 'end' => '2026-10-07' ) ), 'one window: "Search · 28 days to Oct 7"' );
+ok( 'Search · Google 28 days to Oct 7, Bing 28 days to Oct 8' === snt_desktop_traffic_search_label( $g28, array( 'window' => array( 'end' => '2026-10-08', 'days' => 28 ) ) + $b28, array( 'end' => '2026-10-07' ) ), 'windows that differ: each engine says its own' );
+ok( 'Search · 28 days' === snt_desktop_traffic_search_label( $g28, null ) && 'Search' === snt_desktop_traffic_search_label( null, null ), 'no stored end date: the length alone; no engine: the bare label' );
 $s = snt_desktop_audience_search_rows( array( 'clicks' => 12, 'impressions' => 3400, 'days' => 28 ), array( 'totals' => array( 'clicks' => 1, 'impressions' => 90, 'days' => 30 ) ) );
 ok( array( 'Google · 28d', 'Bing · 30d' ) === array_column( $s, 'label' ) && '12 clicks · 3,400 impressions' === $s[0]['value'], 'search rows name their own windows' );
 ok( 'Bing · 30d · last sync failed' === snt_desktop_audience_search_rows( null, array( 'last_error' => '2026-10-03 403', 'totals' => array( 'clicks' => 1, 'impressions' => 90, 'days' => 30 ) ) )[0]['label'] && 'Bing · 30d' === $s[1]['label'], 'totals kept from before a failed Bing sync are marked, not passed off as current' );
@@ -92,14 +100,17 @@ function sn_analytics_top_sources( $f, $t, $c, $l ) { return sn_analytics_top_di
 function sn_rss_tracker_window_stats_multi( $d ) { return array( 'windows' => array( 1 => array( 'total' => 1, 'uniques' => 1 ), 7 => array( 'total' => 2, 'uniques' => 2 ), 30 => array( 'total' => 3, 'uniques' => 3 ) ) ); }
 function get_option( $k, $d = null ) { return $d; }
 function snt_gsc_window_totals() { return array( 'clicks' => 5, 'impressions' => 478, 'days' => 28 ); }
-function sn_bing_data() { return array( 'totals' => array( 'clicks' => 0, 'impressions' => 0, 'days' => 16 ) ); }
+function sn_bing_data() { return array( 'totals' => array( 'clicks' => 0, 'impressions' => 0, 'days' => 16 ), 'window' => array( 'start' => '2026-09-06', 'end' => '2026-10-03', 'days' => 28 ) ); }
+function snt_gsc_data() { return array( 'window' => array( 'start' => '2026-09-03', 'end' => '2026-09-30' ) ); }
 $tg = snt_desktop_traffic_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) );
 ok( array( 'Countries', 'Sources', 'Hacker News · latest story', 'Devices, search, feed' ) === array_column( $tg, 'title' ), 'SN Traffic\'s groups: countries, sources, Hacker News, then devices, search and feed as one-line rows (no campaigns when no tagged link was followed)' );
 ok( ! empty( $tg[0]['share'] ) && ! empty( $tg[0]['pair'] ) && ! empty( $tg[1]['share'] ) && empty( $tg[1]['pair'] ) && empty( $tg[2]['share'] ), 'Countries pairs with Sources and both draw a share bar; nothing else is hinted' );
 $dev = array_values( array_filter( $tg[3]['rows'], static fn( $r ) => 'Devices' === $r['label'] ) );
 ok( 1 === count( $dev ) && is_array( $dev[0]['split'] ?? null ) && count( $dev[0]['split'] ) === count( explode( ' · ', $dev[0]['value'] ) ), 'the Devices row carries one share per device it names, for its bar' );
 $glance = array_column( $tg[3]['rows'], 'value', 'label' );
-ok( 'Google 5 clicks · 478 impr · Bing 0 clicks · 0 impr' === ( $glance['Search'] ?? '' ), 'search keeps impressions beside clicks per engine, on its one row (owner\'s pick, 2026-10-04): ' . ( $glance['Search'] ?? '' ) );
+$search = array_values( array_filter( $tg[3]['rows'], static fn( $r ) => 0 === strpos( $r['label'], 'Search' ) ) );
+ok( 'Google 5 clicks · 478 impr · Bing 0 clicks · 0 impr' === ( $search[0]['value'] ?? '' ), 'search keeps impressions beside clicks per engine, on its one row (owner\'s pick, 2026-10-04): ' . ( $search[0]['value'] ?? '' ) );
+ok( 'Search · Google 28 days to Sep 30, Bing 28 days to Oct 3' === ( $search[0]['label'] ?? '' ), 'the Search row is labeled with the engines\' windows, read from the stored readings: ' . ( $search[0]['label'] ?? '' ) );
 ok( array( 3, 4 ) === array( count( $tg[0]['rows'] ), count( $tg[1]['rows'] ) ) && 1 === preg_match( '/^device1 \d+% · device2 \d+%$/', $glance['Devices'] ?? '' ) && '1 · 2 · 3' === ( $glance['Feed, unique 24h · 7d · 30d'] ?? '' ), 'top 3 countries, top 4 sources; devices and the three feed windows each fold into one row' );
 function sn_analytics_top_utm_campaigns( $f, $t, $c, $l ) { return $GLOBALS['__camp'] ?? array(); }
 $GLOBALS['__camp'] = array( array( 'value' => '(none)', 'views' => 9 ), array( 'value' => 'spring', 'views' => 3 ) );

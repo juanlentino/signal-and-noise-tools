@@ -158,7 +158,9 @@ add_action( 'init', function() {
 			// A Campaigns group adds ~100 only when a tagged link was followed.
 			// + the reach row (a hairline and one row, ~30).
 			// 21.9.1: +60 for the busiest state (Campaigns: 2 rows and "+N more").
-			'default_height' => 950,
+			// 2026-10-10: +60, the forecast line (up to two lines, ~30), the Read
+			// at foot (~24) and, only during a surge, the surge line.
+			'default_height' => 1010,
 		) ) );
 
 		snt_os_register_widget( 'sn-reading', array_merge( $sn_drag, array(

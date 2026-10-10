@@ -43,9 +43,11 @@ function snt_desktop_audience_hn_rows( array $items, $limit ) {
 	$rows = array();
 	foreach ( array_slice( array_values( array_filter( $items, 'is_array' ) ), 0, (int) $limit ) as $s ) {
 		$rank   = (int) ( $s['rank'] ?? 0 );
+		$points = (int) ( $s['points'] ?? 0 );
+		$notes  = (int) ( $s['comments'] ?? 0 );
 		$rows[] = array(
 			'label' => (string) ( $s['title'] ?? $s['path'] ?? '' ),
-			'value' => (int) ( $s['points'] ?? 0 ) . ' pts · ' . (int) ( $s['comments'] ?? 0 ) . ' comments' . ( $rank > 0 ? ' · #' . $rank . ' on the front page' : '' ),
+			'value' => $points . ( 1 === $points ? ' point · ' : ' points · ' ) . $notes . ( 1 === $notes ? ' comment' : ' comments' ) . ( $rank > 0 ? ' · #' . $rank . ' on the front page' : '' ),
 		);
 	}
 	return $rows;
@@ -125,6 +127,10 @@ function snt_desktop_traffic_groups( array $win ) {
 		$out[] = snt_desktop_group( 'Campaigns', $camp, '' );
 	}
 	$devices = snt_desktop_audience_rows( $dim( 'device' ), 'value', 2 );
+	$google  = function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null;
+	$bing    = function_exists( 'sn_bing_data' ) ? sn_bing_data() : null;
+	// Google's end date lives on the stored reading, not on the totals (whose shape the insights twin carries).
+	$gwin    = function_exists( 'snt_gsc_data' ) ? ( snt_gsc_data()['window'] ?? null ) : null;
 	array_push( $out,
 		// A failed discovery read keeps the stories already known; the heading says
 		// the list may be missing new ones.
@@ -137,7 +143,9 @@ function snt_desktop_traffic_groups( array $win ) {
 				// `split`: the shares again as numbers, for the bar under the row.
 				snt_desktop_traffic_split( snt_desktop_traffic_fold( 'Devices', $devices, static fn( $r ) => $r['label'] . ' ' . preg_replace( '/^.* · /', '', $r['value'] ) ), $devices ),
 				// Clicks and impressions per engine: "Google 5 clicks · 478 impr".
-				snt_desktop_traffic_fold( 'Search', snt_desktop_audience_search_rows( function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null, function_exists( 'sn_bing_data' ) ? sn_bing_data() : null, is_array( $gsc ) && empty( $gsc['ok'] ) ), static fn( $r ) => preg_replace( '/ · \d+d/', '', $r['label'] ) . ' ' . str_replace( ' impressions', ' impr', $r['value'] ) ),
+				// The label carries the engines' own window ("Search · 28 days to Oct 7"):
+				// neither is the card's 14 days.
+				snt_desktop_traffic_fold( snt_desktop_traffic_search_label( $google, $bing, $gwin ), snt_desktop_audience_search_rows( $google, $bing, is_array( $gsc ) && empty( $gsc['ok'] ) ), static fn( $r ) => preg_replace( '/ · \d+d/', '', $r['label'] ) . ' ' . str_replace( ' impressions', ' impr', $r['value'] ) ),
 				// A feed table that cannot be read says so; it never reads as zero subscribers.
 				null === $rss ? array( 'label' => 'Feed', 'value' => 'could not be read' ) : snt_desktop_traffic_fold( 'Feed, unique 24h · 7d · 30d', snt_desktop_traffic_feed_rows( $rss ), static fn( $r ) => preg_replace( '/ unique · .*$/', '', $r['value'] ) ),
 			) ) ),
@@ -145,6 +153,35 @@ function snt_desktop_traffic_groups( array $win ) {
 		)
 	);
 	return $out;
+}
+
+/**
+ * The Search row's label with the engines' windows: "Search · 28 days to Oct 7",
+ * or each engine's own when they differ. Only an engine with totals counts; one
+ * with no stored end date says its length alone. PURE.
+ *
+ * @param array|null $google     snt_gsc_window_totals() ({clicks, days}).
+ * @param array|null $bing       sn_bing_data() ({totals, window:{days, end}}).
+ * @param array|null $google_win snt_gsc_data()['window'] ({start, end}); null when not stored.
+ * @return string
+ */
+function snt_desktop_traffic_search_label( $google, $bing, $google_win = null ) {
+	$wins = array();
+	foreach ( array( 'Google' => is_array( $google ) && isset( $google['clicks'] ) ? array( 'days' => $google['days'] ?? 0, 'end' => is_array( $google_win ) ? ( $google_win['end'] ?? '' ) : '' ) : null, 'Bing' => is_array( $bing ) && is_array( $bing['totals'] ?? null ) && isset( $bing['totals']['clicks'] ) ? (array) ( $bing['window'] ?? array() ) + array( 'days' => $bing['totals']['days'] ?? 0 ) : null ) as $name => $w ) {
+		$days = is_array( $w ) ? (int) ( $w['days'] ?? 0 ) : 0;
+		if ( $days > 0 ) {
+			$end           = (string) ( $w['end'] ?? '' );
+			$t             = '' !== $end ? strtotime( $end . ' 00:00:00 UTC' ) : false;
+			$wins[ $name ] = $days . ' days' . ( false !== $t ? ' to ' . gmdate( 'M j', $t ) : '' );
+		}
+	}
+	if ( ! $wins ) {
+		return 'Search';
+	}
+	if ( 1 === count( array_unique( $wins ) ) ) {
+		return 'Search · ' . reset( $wins );
+	}
+	return 'Search · ' . implode( ', ', array_map( static fn( $n, $w ) => $n . ' ' . $w, array_keys( $wins ), $wins ) );
 }
 
 /**
