@@ -165,5 +165,14 @@ ok( is_wp_error( $bad ) && false === $GLOBALS['__abilities']['signal-noise/analy
 $good = snt_ability_sn_metrics( array( 'sections' => array( 'analytics_query' ), 'range' => 7, 'class' => 'bot', 'query' => array( 'dimensions' => array( 'day', 'country' ) ) ) );
 ok( ! is_wp_error( $good ) && array( 'dimensions' => array( 'day', 'country' ), 'range' => 7, 'class' => 'bot' ) === $GLOBALS['__abilities']['signal-noise/analytics-query']->last_call_args(), 'a good query reaches the source with the top-level range and class' );
 
+// The machine-readers series reaches the local door too (2026-10-10), as the remote twin takes it.
+snt_ability_sn_metrics( array( 'sections' => array( 'machine_readers' ), 'range' => 7, 'series' => 'day' ) );
+ok( array( 'days' => 7, 'series' => 'day' ) === $GLOBALS['__abilities'][ $expected_map['machine_readers'] ]->last_call_args(), 'series "day" reaches machine_readers beside days' );
+snt_ability_sn_metrics( array( 'sections' => array( 'machine_readers' ), 'range' => 7 ) );
+ok( array( 'days' => 7 ) === $GLOBALS['__abilities'][ $expected_map['machine_readers'] ]->last_call_args(), 'without series, machine_readers receives exactly what it did before' );
+$bad_series = snt_ability_sn_metrics( array( 'sections' => array( 'machine_readers' ), 'series' => 'week' ) );
+ok( is_wp_error( $bad_series ) && 'ability_invalid_input' === $bad_series->get_error_code(), 'a series other than "day" fails the call rather than reading as an outage' );
+ok( array( 'day' ) === ( $reg['input_schema']['properties']['series']['enum'] ?? null ), 'the input schema declares series as enum ["day"]' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -71,6 +71,11 @@ add_action( 'wp_abilities_api_init', function() {
 					'type'        => 'object',
 					'description' => 'analytics_rows only: {dimensions, path, referrer, sort, limit}; range and class come from the top level. dimensions is one of path, referrer, country, device, day, or one of the first four with day. Paths outside site content read (unmatched), referrers are hostnames, values under 3 visitor-days are (withheld). Out-of-set values fail the whole call.',
 				),
+				'series'   => array(
+					'type'        => 'string',
+					'enum'        => array( 'day' ),
+					'description' => 'machine_readers only: "day" adds `daily` (one entry per UTC date, oldest first, zero-filled; first and last dates partial; daily fields sum to the window figures) and `daily_total_exact`. Omitted, the section is unchanged.',
+				),
 				'query'    => array(
 					'type'        => 'object',
 					'description' => 'analytics_query only: {dimensions, metrics, filters, compare, order_by, order, limit}. range and class come from the top level. Unknown words fail the whole call (422).',
@@ -182,6 +187,12 @@ function snt_ability_sn_metrics( $input ) {
 			return $valid;
 		}
 	}
+	// The machine-readers series, as the remote twin takes it. A bad value fails
+	// the call, as a bad query does, rather than reading as an outage.
+	$series = $input['series'] ?? null;
+	if ( null !== $series && 'day' !== $series ) {
+		return new WP_Error( 'ability_invalid_input', 'series must be "day" or omitted.', array( 'status' => 400 ) );
+	}
 	$windowed = array_filter( array( 'range' => $range, 'class' => $class, 'limit' => $limit ), static fn( $v ) => null !== $v );
 
 	// Per-section args, forwarded only where the source schema declares them.
@@ -192,7 +203,7 @@ function snt_ability_sn_metrics( $input ) {
 		'analytics_summary'     => array( 'range' => $range, 'class' => $class ),
 		'analytics_events'      => array( 'range' => $range ),
 		'rss_stats'             => array(),
-		'machine_readers'       => array( 'days' => $range ),
+		'machine_readers'       => array( 'days' => $range ) + ( null === $series ? array() : array( 'series' => $series ) ),
 		'analytics_top_content' => array( 'limit' => null === $limit ? 5 : min( 100, $limit ) ) + $windowed, // its own cap is 100
 		'404_log'               => array(),
 		'analytics_sources'     => $windowed,

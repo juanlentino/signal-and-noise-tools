@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **The local door takes the machine-readers series too: `sn-metrics{machine_readers}` with `series: "day"`.** The daily split shipped on the remote twin only (23.5.0); the local `sn` door's `machine_readers` section had no way to ask for it. `series` is now an `sn-metrics` argument (enum `day`, machine_readers only) passed beside `days`; omitted, the section receives exactly what it did before. Any other value fails the call, as a bad query does, rather than reading as an outage. Pinned by `tests/abilities-sn-metrics.php`.
+
 ## [23.6.0] - 2026-10-10 — the desktop widgets stay current without a reload
 
 ### Changed
