@@ -456,21 +456,38 @@
 		var gen      = 0;
 		var sweeping = false; // survives repaints, so a rebuilt button stays busy
 		var readCtl  = null;  // the reader request in flight, aborted when superseded or torn down
+		var lastOverview = null; // the last anchor answer, kept on screen through a quiet re-read
+		var lastLoadAt   = 0;
 
-		function load( note ) {
+		// quiet (2026-10-10): a background re-read. It keeps the last reading
+		// on screen, paints only what changed, and never shows the waiting
+		// state; a failed quiet read leaves the card as it was.
+		function load( note, quiet ) {
 			var mine = ++gen;
 			if ( readCtl ) { readCtl.abort(); }
 			readCtl = window.AbortController ? new window.AbortController() : null;
 			var live = function() { return mine === gen && ! torn; };
+			lastLoadAt = Date.now();
 			if ( ! window.sntAbilityRun ) {
 				render( null, 'The abilities client is unavailable.' );
 				return;
 			}
-			archive = null; // a refresh whose archive read fails must not keep the last reading
-			readers = null;
+			if ( ! quiet ) {
+				archive = null; // a refresh whose archive read fails must not keep the last reading
+				readers = null;
+			}
 			// The last anchor answer (or its error), so a reader answer that lands
 			// later repaints with it rather than without it.
-			var shown = { overview: null, note: note, waiting: true };
+			var shown = quiet && lastOverview ? { overview: lastOverview, note: note, waiting: false } : { overview: null, note: note, waiting: true };
+			// The page-load provenance rows (integrity, rights, Zenodo), read again.
+			if ( quiet && data.statusExtra && window.wp && window.wp.apiFetch ) {
+				window.wp.apiFetch( { path: '/signal-noise/v1/desktop/systems' } ).then( function( res ) {
+					if ( live() && res && res.statusExtra && res.statusExtra.provenance ) {
+						provExtra = res.statusExtra.provenance;
+						if ( ! shown.waiting ) { render( shown.overview, shown.note ); }
+					}
+				} ).catch( function() {} );
+			}
 			if ( window.wp && window.wp.apiFetch ) {
 				window.wp.apiFetch( { path: '/signal-noise/v1/desktop/machine-readers', signal: readCtl ? readCtl.signal : undefined } ).then( function( res ) {
 					if ( live() && res && typeof res === 'object' ) {
@@ -478,13 +495,14 @@
 						render( shown.overview, shown.note, shown.waiting );
 					}
 				} ).catch( function() {
-					if ( ! live() ) { return; }
+					if ( ! live() || quiet ) { return; }
 					readers = { ok: false, error: 'unreachable' };
 					render( shown.overview, shown.note, shown.waiting );
 				} );
 			}
 			window.sntAbilityRun( 'anchor-status', {}, { silent: true } ).then( function( overview ) {
 				if ( ! live() ) { return; }
+				lastOverview   = overview;
 				shown.overview = overview;
 				shown.waiting  = false;
 				render( overview, note );
@@ -495,7 +513,7 @@
 					}
 				} ).catch( function() {} );
 			} ).catch( function( err ) {
-				if ( ! live() ) { return; }
+				if ( ! live() || quiet ) { return; }
 				shown.note    = ( err && err.message ) || 'Could not load anchor status.';
 				shown.waiting = false;
 				render( null, shown.note );
@@ -504,8 +522,38 @@
 
 		load();
 
+		// 2026-10-10: re-read every REFRESH_MS while the window is focused (5 min
+		// visible, paused hidden: assets/snt-poll-cadence.js), and at once when
+		// a publish or edit moves the pulse's content stamp (assets/snt-pulse.js).
+		// Never during a sweep: its own reload follows it.
+		var REFRESH_MS = 5 * 60 * 1000;
+		var timer = 0;
+		function background() {
+			if ( torn ) { return; }
+			if ( ! sweeping ) { load( undefined, true ); }
+			arm();
+		}
+		function arm() {
+			window.clearTimeout( timer );
+			if ( torn || document.hidden ) { return; }
+			var wait = window.sntPollCadence ? window.sntPollCadence.wait( REFRESH_MS ) : REFRESH_MS;
+			timer = window.setTimeout( background, Math.max( 0, lastLoadAt + wait - Date.now() ) );
+		}
+		function onVisibilityChange() {
+			if ( document.hidden ) { window.clearTimeout( timer ); return; }
+			arm();
+		}
+		document.addEventListener( 'visibilitychange', onVisibilityChange );
+		var unwatchFocus = window.sntPollCadence ? window.sntPollCadence.onFocusChange( onVisibilityChange ) : function() {};
+		var unwatchPulse = window.sntPulse ? window.sntPulse.on( 'content', background ) : function() {};
+		arm();
+
 		return function teardown() {
 			torn = true;
+			window.clearTimeout( timer );
+			document.removeEventListener( 'visibilitychange', onVisibilityChange );
+			unwatchFocus();
+			unwatchPulse();
 			if ( readCtl ) { readCtl.abort(); }
 			clearChildren( container );
 		};

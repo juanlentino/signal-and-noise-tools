@@ -237,6 +237,9 @@
 		document.addEventListener( 'visibilitychange', onVisibilityChange );
 		// Back in focus, stale data catches up at once, as on reveal.
 		var unwatchFocus = window.sntPollCadence ? window.sntPollCadence.onFocusChange( onVisibilityChange ) : function() {};
+		// A schedule, publish or edit anywhere moves the pulse's content stamp:
+		// read now rather than at the next tick (assets/snt-pulse.js).
+		var unwatchPulse = window.sntPulse ? window.sntPulse.on( 'content', poll ) : function() {};
 		if ( ! document.hidden ) { startPolling(); }
 
 		return function teardown() {
@@ -244,6 +247,7 @@
 			stopPolling();
 			document.removeEventListener( 'visibilitychange', onVisibilityChange );
 			unwatchFocus();
+			unwatchPulse();
 			container.textContent = '';
 		};
 	}

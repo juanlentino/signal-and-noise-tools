@@ -17,13 +17,17 @@ function node( tag ) {
 		get textContent() { return this.children.map( ( c ) => c.textContent ).join( ' | ' ); },
 	};
 }
-global.document = { createElement: node };
+global.document = { createElement: node, hidden: false, addEventListener() {}, removeEventListener() {} };
 const fail = 'FAIL' === process.argv[ 3 ];
 const payload = fail ? null : JSON.parse( process.argv[ 3 ] );
 const paths = [];
 global.window = {
 	snDesktopData: { pages: { analytics: 'https://example.test/analytics' } },
-	wp: { apiFetch: ( o ) => { paths.push( o.path ); return { then( f ) { if ( ! fail ) { f( payload ); } return { catch( g ) { if ( fail ) { g( new Error( 'x' ) ); } } }; } }; } },
+	// A synchronous thenable, chainable as far as the widget chains it (then, catch, then).
+	wp: { apiFetch: ( o ) => { paths.push( o.path ); return { then( f ) { if ( ! fail ) { f( payload ); } return { catch( g ) { if ( fail ) { g( new Error( 'x' ) ); } return { then( h ) { h(); } }; } }; } }; } },
+	// The re-read timer is armed and never fires here: one read per run.
+	setTimeout() { return 1; },
+	clearTimeout() {},
 };
 require( path.join( __dirname, '../../assets/desktop-mode-widget-groups.js' ) );
 const root = node( 'div' );

@@ -121,6 +121,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/desktop-mode-payloads.php';
 require_once __DIR__ . '/desktop-mode-status-extra.php'; // SN Systems and SN Provenance extra rows (local reads, cached).
 require_once __DIR__ . '/desktop-mode-analytics-widgets.php'; // SN Reading's route and the group parts SN Traffic shares.
+require_once __DIR__ . '/desktop-mode-live.php'; // the widgets' pulse and SN Systems' re-read lines.
 require_once __DIR__ . '/desktop-mode-audience.php';
 require_once __DIR__ . '/desktop-mode-reading.php';
 require_once __DIR__ . '/desktop-mode-assets.php';
