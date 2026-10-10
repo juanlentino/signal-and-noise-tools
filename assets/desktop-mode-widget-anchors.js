@@ -348,10 +348,11 @@
 					: 'every note asked';
 				var failedN  = Number( caps.failed ) || 0;
 				var silentN  = Number( caps.unconfirmed ) || 0; // past the cutoff with no answer: not waiting any more.
-				var capText  = ( Number( caps.captured ) || 0 ) + ' confirmed · ' + ( Number( caps.waiting ) || 0 ) + ' waiting'
+				// Short, so the column fits beside the DOIs: "49 · 2 waiting".
+				var capText  = ( Number( caps.captured ) || 0 ) + ' · ' + ( Number( caps.waiting ) || 0 ) + ' waiting'
 					+ ( silentN > 0 ? ' · ' + silentN + ' no answer' : '' ) + ( failedN > 0 ? ' · ' + failedN + ' failed' : '' );
-				var rows = [ [ 'Internet Archive', runText, halted || ! archive.configured ] ];
-				if ( archive.configured ) { rows.push( [ 'Captures', capText, failedN > 0 || silentN > 0 ] ); }
+				var rows = [ [ 'Archive', runText, halted || ! archive.configured ] ];
+				if ( archive.configured ) { rows.push( [ 'Captured', capText, failedN > 0 || silentN > 0 ] ); }
 				// A column of its own, paired with the DOIs below.
 				archBox = el( 'div' );
 				rows.forEach( function( r ) { archBox.appendChild( plainLine( r[0], r[1], r[2] ) ); } );
@@ -369,7 +370,7 @@
 			var zenLink = null;
 			if ( zen && Number( zen.total ) > 0 ) {
 				doiBox = el( 'div' );
-				doiBox.appendChild( plainLine( 'DOIs', Number( zen.minted ) + ' of ' + Number( zen.total ) + ' minted', false ) );
+				doiBox.appendChild( plainLine( 'DOIs', Number( zen.minted ) + ' of ' + Number( zen.total ), false ) );
 				if ( Number( zen.failed ) > 0 ) {
 					doiBox.appendChild( plainLine( 'Deposits failed', String( Number( zen.failed ) ), true ) );
 					if ( zenodoUrl ) { zenLink = doiBox.appendChild( linkTo( 'Open Zenodo', zenodoUrl ) ); }

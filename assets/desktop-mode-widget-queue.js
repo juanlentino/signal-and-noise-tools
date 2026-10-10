@@ -138,8 +138,8 @@
 		// payload could not count it (or predates 23.8.0).
 		var runsTo = data.runs_to && typeof data.runs_to.label === 'string' ? data.runs_to.label : '';
 		var cell = 'margin:0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));font-variant-numeric:tabular-nums;';
-		var depth = el( 'p', { style: cell, text: 'Scheduled: ' + total + ( total && runsTo ? ' · to ' + runsTo : '' ) } );
-		var drafts = typeof data.drafts === 'number' ? el( 'p', { style: cell, text: 'Drafts: ' + data.drafts } ) : null;
+		var depth = el( 'p', { style: cell, text: total + ' scheduled' + ( total && runsTo ? ' · to ' + runsTo : '' ) } );
+		var drafts = typeof data.drafts === 'number' ? el( 'p', { style: cell, text: data.drafts + ( 1 === data.drafts ? ' draft' : ' drafts' ) } ) : null;
 		var kit = window.sntCardKit;
 		if ( drafts && kit && typeof kit.pair === 'function' ) {
 			wrap.appendChild( kit.pair( depth, drafts ) );

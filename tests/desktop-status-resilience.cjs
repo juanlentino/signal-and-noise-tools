@@ -344,19 +344,19 @@ async function run() {
     const t = root.textContent;
     assert.match(t, /Incidents · 30 days 1/, 'incidents over 30 days across the monitors');
     assert.match(t, /Slowest Feed · 340 ms/, 'the slowest monitor, by name');
-    assert.match(t, /5xx · Oct 4 visitors 2 of 12 · 3 fewer than the day before/, 'edge 5xx: how many a visitor received, of all, against the day before, in words');
+    assert.match(t, /5xx · Oct 4 12 Visitors 2 Day before 15/, 'edge 5xx: the count, the visitors among them and the day before, as short rows that fit beside Cache');
     assert.doesNotMatch(t, /Your dashboard/, 'no dashboard count from the payload: no split row');
     assert.match(t, /Last 24 hours 40 runs recorded · 2 failed/, 'cron runs recorded and recorded failures over 24 hours');
     // The page-load lines are re-read beside the poll, and the answer repaints them.
     assert.equal(x.side.length, 1, 'SN Systems re-reads its page-load lines once per poll');
     x.side[0].resolve({healthSummary: {passed: 8, total: 8, all_passed: true, skipped: [], flagged: []}, cronSummary: extra.statusExtra ? {total: 85, sn_count: 30, orphans: 0, next: {hook: 'sn_queue_tick', in_s: 300}, health: {ok: true}} : {},
       statusExtra: {systems: {edge: {day: 'Oct 5', total: 4, visitor: 0, prior: 12}, cron: {fires: 41, failed: 0, failing: []}, cache: extra.statusExtra.systems.cache}, provenance: {}}}); await flush();
-    assert.match(root.textContent, /5xx · Oct 5 visitors 0 of 4 · 8 fewer than the day before/, 'a re-read moves the edge line without a reload');
+    assert.match(root.textContent, /5xx · Oct 5 4 Visitors 0 Day before 12/, 'a re-read moves the edge line without a reload');
     assert.match(root.textContent, /Last 24 hours 41 runs recorded/, 'and the cron day line');
     assert.match(t, /queue_tick failed/, 'a failing job is named');
     assert.match(t, /\+1 more failed/, 'and the list is capped');
-    assert.match(t, /Last full purge 3h ago/, 'the last full purge');
-    assert.match(t, /Edge freshness 1 stale page/, 'edge freshness after the last check');
+    assert.match(t, /Purged 3h ago/, 'the last full purge');
+    assert.match(t, /Freshness 1 stale page/, 'edge freshness after the last check');
     assert.match(t, /3 to look at/, 'a recorded cron failure, edge 5xx and a stale edge are each something to look at (Codex on 3104cf9: forwarded visitor 5xx read as Worker rows)');
     stop();
     const y = harness(extra), proot = new Element('div');
@@ -373,7 +373,7 @@ async function run() {
     assert.match(p, /Signing key the key file is missing/, 'a fleet-level key finding gets its own row');
     assert.doesNotMatch(p, /verify|Signatures/, 'the row claims what the sweep measures, not a signature re-verify');
     assert.match(p, /Last posted 3d ago/, 'when a record was last posted, in the Systems card\'s form');
-    assert.match(p, /DOIs 7 of 9 minted/, 'DOIs minted');
+    assert.match(p, /DOIs 7 of 9/, 'DOIs minted, of all');
     assert.doesNotMatch(p, /Provenance Integrity checks[^]*DOIs/, '2026-10-10: DOIs left the Provenance block for the Internet Archive pair');
     assert.doesNotMatch(p, /Deposits failed/, 'no failed deposit: no line');
     pstop();
@@ -468,8 +468,8 @@ async function run() {
     const sp = harness({statusExtra: {systems: {edge: {day: 'Oct 4', total: 18, prior: 27, dashboard: 14}}, provenance: {}}}), sproot = new Element('div');
     const spstop = sp.window.desktopModeWidgets['sn-health'](sproot); await flush();
     sp.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
-    assert.match(sproot.textContent, /5xx · Oct 4 18 · 9 fewer than the day before/, 'the count stays whole');
-    assert.match(sproot.textContent, /Your dashboard · everything else 14 · 4/, 'and says how much of it was the dashboard');
+    assert.match(sproot.textContent, /5xx · Oct 4 18 Day before 27/, 'the count stays whole');
+    assert.match(sproot.textContent, /Your dashboard 14/, 'and says how much of it was the dashboard');
     spstop();
     const old = harness({pages: {cloudflare: '/cf'}, statusExtra: {systems: {cache: {last_purge: Date.parse('2026-09-08T11:59:00Z') / 1000, fresh_time: Date.parse('2026-09-08T11:00:00Z') / 1000, fresh: 'pending', headline: 'Purge dispatched, verifying'}}, provenance: {}}}), oldroot = new Element('div');
     const oldstop = old.window.desktopModeWidgets['sn-health'](oldroot); await flush();
@@ -503,29 +503,30 @@ async function run() {
     const valueOf = (root, text) => nodes(root).find(n => 'span' === n.tag && n.text === text);
     let m = await mount({analytics2: {ok: true, days: 5, since: 'Oct 5', reset: '', frozen: false, bad: false, why: ''}, watches: [], credentials: {keyring: [], cloudflare: null}});
     assert.match(m.t, /S&N jobs · 30 of 85 scheduled next: queue_tick/, 'the cron headline counts S&N jobs of every scheduled event');
-    assert.match(m.t, /5xx · Oct 9 visitors 0 of 0 · same as the day before/, 'the visitor 5xx are painted');
-    assert.match(m.t, /Analytics 2.0 5 days clean · since Oct 5/, 'the analytics 2.0 verdict: clean days and since when');
+    assert.match(m.t, /5xx · Oct 9 0 Day before 0/, 'a day with no 5xx says 0');
+    assert.doesNotMatch(m.t, /Visitors/, 'and no "visitors 0 of 0": a day with no 5xx has no visitor row');
+    assert.match(m.t, /Cutover check 5 days clean · since Oct 5/, 'the analytics 2.0 verdict: clean days and since when');
     assert.doesNotMatch(m.t, /Watch|Credential|Cloudflare API token/, 'nothing due and nothing failing: no line and no section');
     assert.equal(m.verdict.text, 'All systems normal', 'a good verdict adds nothing to the headline');
     m.stop();
     m = await mount({analytics2: {ok: true, days: 1, since: 'Oct 9', reset: '', frozen: true, bad: false, why: ''}});
-    assert.match(m.t, /Analytics 2.0 1 day clean · since Oct 9 · frozen/, 'one day, singular; a frozen good verdict says frozen');
+    assert.match(m.t, /Cutover check 1 day clean · since Oct 9 · frozen/, 'one day, singular; a frozen good verdict says frozen');
     m.stop();
     m = await mount({analytics2: {ok: false, days: 0, since: 'Oct 10', reset: 'Oct 9', frozen: false, bad: false, why: 'no complete day has matched since the mismatch before 2026-10-10'}});
-    assert.match(m.t, /Analytics 2.0 reset Oct 9 · no exact day since/, 'a reset says the day, in plain words');
+    assert.match(m.t, /Cutover check reset Oct 9 · no exact day since/, 'a reset says the day, in plain words');
     assert.doesNotMatch(String(valueOf(m.root, 'reset Oct 9 · no exact day since').attrs.style), /#d29922/, 'a reset nothing on the site can fix is said, never amber');
     assert.equal(m.verdict.text, 'All systems normal', 'and stays out of the headline');
     m.stop();
     m = await mount({analytics2: {ok: false, days: 0, since: 'Oct 5', reset: '', frozen: false, bad: false, why: ''}});
-    assert.match(m.t, /Analytics 2.0 not verified yet · no exact day so far/, 'never verified: said');
+    assert.match(m.t, /Cutover check not verified yet · no exact day so far/, 'never verified: said');
     m.stop();
     m = await mount({analytics2: {ok: false, days: 0, since: 'Oct 5', reset: '', frozen: true, bad: true, why: 'stopped'}});
-    assert.match(m.t, /Analytics 2.0 legacy write stopped on a bad verdict/, 'the frozen bad verdict is said');
+    assert.match(m.t, /Cutover check legacy write stopped on a bad verdict/, 'the frozen bad verdict is said');
     assert.match(m.verdict.text, /1 to look at/, 'and is something to look at');
     assert.ok(m.links.includes('Open Analytics|/an'), 'its amber line links to where it is read');
     m.stop();
     m = await mount({analytics2: null});
-    assert.match(m.t, /Analytics 2.0 no verdict stored yet/, 'no verdict stored: said, never a 0');
+    assert.match(m.t, /Cutover check no verdict stored yet/, 'no verdict stored: said, never a 0');
     m.stop();
     m = await mount({});
     assert.doesNotMatch(m.t, /Analytics 2.0/, 'an older payload without the key paints no line');
@@ -556,7 +557,7 @@ async function run() {
     assert.match(String(boxOf(m.root, 'Edge').attrs.style), /border-top/, 'without the kit each stacks with its own hairline');
     m.stop();
     m = await mount({edge: {day: 'Oct 9', total: 18, prior: 27}});
-    assert.match(m.t, /5xx · Oct 9 18 · 9 fewer than the day before/, 'a day stored before who-asked paints no visitor count, never a 0');
+    assert.match(m.t, /5xx · Oct 9 18 Day before 27/, 'a day stored before who-asked paints no visitor count, never a 0');
     m.stop();
   }
   // SN Provenance (2026-10-10): DOIs beside the Internet Archive, a failed
@@ -577,7 +578,7 @@ async function run() {
       return {root, stop, span, t: root.textContent, links: nodes(root).filter(e => 'a' === e.tag).map(e => e.text + '|' + e.href)};
     };
     let m = await mount({minted: 7, total: 9, failed: 2}, {kit: true});
-    const ia = m.span('Internet Archive').parentNode.parentNode, doi = m.span('DOIs').parentNode.parentNode;
+    const ia = m.span('Archive').parentNode.parentNode, doi = m.span('DOIs').parentNode.parentNode;
     assert.equal(ia.parentNode, doi.parentNode, 'DOIs sit beside the Internet Archive');
     assert.match(String(ia.parentNode.attrs.style), /display:flex;flex-wrap:wrap/, 'as the kit\'s pair');
     assert.match(m.t, /Deposits failed 2/, 'failed deposits are said');
@@ -722,8 +723,8 @@ async function run() {
     x.calls[0].resolve(payload({from: '2026-09-25', to: '2026-10-08', from_label: 'Sep 25', to_label: 'Oct 8'})); await flush();
     const pair = nodes(root).find(n => /border-top/.test(n.attrs.style || '') && n.children.length === 2);
     assert.ok(pair, 'Scheduled and Drafts share one card-kit row');
-    assert.equal(pair.children[0].textContent, 'Scheduled: 6 · to Nov 30');
-    assert.equal(pair.children[1].textContent, 'Drafts: 4');
+    assert.equal(pair.children[0].textContent, '6 scheduled · to Nov 30');
+    assert.equal(pair.children[1].textContent, '4 drafts');
     const gapLine = nodes(root).find(n => /^Gap: /.test(n.text));
     assert.ok(gapLine, 'a gap paints its line');
     assert.equal(gapLine.text, 'Gap: no note Sep 25 to Oct 8');
@@ -733,11 +734,11 @@ async function run() {
     x.calls[1].resolve(payload(null)); await flush();
     assert.doesNotMatch(root.textContent, /Gap:/, 'no gap, no line');
     assert.doesNotMatch(styles(root), /#d29922/, 'and no amber');
-    assert.match(root.textContent, /Drafts: 4/);
+    assert.match(root.textContent, /4 drafts/);
     await x.tick(60000);
     x.calls[2].resolve({...payload(null), drafts: null}); await flush();
     assert.doesNotMatch(root.textContent, /Drafts/, 'an uncounted drafts total is left out, never painted as 0');
-    assert.match(root.textContent, /Scheduled: 6/);
+    assert.match(root.textContent, /6 scheduled/);
     stop();
   }
   console.log('PASS: runner and both widgets — stale/429/recovery/backoff, malformed data, cross-widget cadence, abort/cleanup/remount');

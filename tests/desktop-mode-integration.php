@@ -1961,7 +1961,7 @@ ok( false !== strpos( $mr_js, 'color:#d29922' ), 'the crawler-list warning reuse
 echo "\n── Site Views tile: one forecast line, Top pages list of 3 ──\n";
 $views_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' ) );
 ok( false === strpos( $views_js, 'function forecastBlock' ), 'forecastBlock stays gone (its interval cried wolf on this site\'s volumes); one line replaces it' );
-ok( false !== strpos( $views_js, 'forecastLine( payload.forecast )' ) && false !== strpos( $views_js, "' a day (estimate)'" ) && false !== strpos( $views_js, "f.confidence === 'high'" ), '2026-10-10: one forecast line, said as an estimate, its spread only at measured high confidence (render pins: tests/desktop-mode-widget-views-delta.php)' );
+ok( false !== strpos( $views_js, 'forecastLine( payload.forecast )' ) && false !== strpos( $views_js, "' a day (estimate'" ) && false !== strpos( $views_js, "f.confidence === 'high'" ), '2026-10-10: one forecast line, said as an estimate, its spread only at measured high confidence (render pins: tests/desktop-mode-widget-views-delta.php)' );
 ok( false !== strpos( $views_js, "'Top pages'" ), 'tile renders a Top pages list' );
 ok( false !== strpos( $views_js, 'payload.top_paths' ), 'tile reads the additive top_paths array' );
 ok(

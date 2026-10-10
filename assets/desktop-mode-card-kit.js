@@ -91,7 +91,9 @@
 		box.setAttribute( 'style', 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));display:flex;flex-wrap:wrap;gap:6px 12px;' );
 		[ a, b ].forEach( function( col ) {
 			col.style.flex = '1 1 auto';
-			col.style.minWidth = '100px';
+			// Each column at its own content's width, however short ("0 drafts"):
+			// the content widths alone decide when the pair has to stack.
+			col.style.minWidth = '0';
 			box.appendChild( col );
 		} );
 		return box;

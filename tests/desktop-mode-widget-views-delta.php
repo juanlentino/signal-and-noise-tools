@@ -116,7 +116,7 @@ if ( '' === $node ) {
 	$fc = array( 'value' => 20.4, 'interval' => array( 'low' => 15.3, 'high' => 25.5 ), 'confidence' => 'high', 'direction' => 'flat', 'horizon' => 7 );
 	$tf = $render( array( 'delta_pct' => 10, 'forecast' => $fc ) );
 	$tft = implode( ' | ', array_keys( $tf ) );
-	ok( isset( $tf['In 7 days: about 20 views a day (estimate), usually within ±25%'] ), 'forecast high confidence: "In 7 days: about 20 views a day (estimate), usually within ±25%": ' . $tft );
+	ok( isset( $tf['In 7 days: about 20 views a day (estimate, ±25%)'] ), 'forecast high confidence: "In 7 days: about 20 views a day (estimate, ±25%)": ' . $tft );
 	ok( strpos( $tft, 'vs. prior 14 days' ) < strpos( $tft, 'In 7 days' ), 'the forecast line sits under the change line' );
 	$tl = $render( array( 'forecast' => array( 'confidence' => 'low' ) + $fc ) );
 	ok( isset( $tl['In 7 days: about 20 views a day (estimate)'] ), 'a low-confidence forecast says no spread: "usually" would not be true' );

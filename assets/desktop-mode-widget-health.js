@@ -234,8 +234,6 @@
 		if ( ! e ) { tally.unknown++; return { empty: 'No complete day in the edge rollup yet.' }; } // not measured is never an all-clear.
 		if ( e.failed ) { tally.unknown++; return { empty: 'The 5xx read for ' + String( e.day || 'the newest day' ) + ' failed.' }; }
 		var total = num( e.total );
-		// In words, not an arrow: a screen reader says the words, not "triangle".
-		var delta = null === e.prior || undefined === e.prior ? '' : ( total === num( e.prior ) ? ' · same as the day before' : ' · ' + Math.abs( total - num( e.prior ) ) + ( total > num( e.prior ) ? ' more' : ' fewer' ) + ' than the day before' );
 		// Every 5xx reaches the headline: most "through a Worker" rows are a
 		// visitor's request the rights Worker forwarded (inc/edge-rollup.php),
 		// so "who asked" cannot separate visitors from the Worker's own calls.
@@ -244,13 +242,20 @@
 		// the whole answer: a visitor's request the Worker forwarded counts on
 		// the Worker's side. A day stored before who-asked has no visitor
 		// count, and none is painted (never a 0).
-		var count = typeof e.visitor === 'number' ? 'visitors ' + Math.min( total, num( e.visitor ) ) + ' of ' + total : String( total );
-		var rows = [ { label: '5xx · ' + String( e.day || 'yesterday' ), value: count + delta, tone: total > 0 ? WARN_FG : '' } ];
+		// Short rows, so Edge fits beside Cache on one line (2026-10-10): the
+		// count, the visitors among them when there were any, and the day before.
+		var rows = [ { label: '5xx · ' + String( e.day || 'yesterday' ), value: String( total ), tone: total > 0 ? WARN_FG : '' } ];
+		if ( total > 0 && typeof e.visitor === 'number' ) {
+			rows.push( { label: 'Visitors', value: String( Math.min( total, num( e.visitor ) ) ) } );
+		}
+		if ( null !== e.prior && undefined !== e.prior ) {
+			rows.push( { label: 'Day before', value: String( num( e.prior ) ) } );
+		}
 		// Whose (2026-10-05): most of these are this dashboard's own polls, not
 		// a reader's page. Said beside the count, never subtracted from it.
 		if ( total > 0 && typeof e.dashboard === 'number' ) {
 			var dash = Math.min( total, num( e.dashboard ) );
-			rows.push( { label: 'Your dashboard · everything else', value: dash + ' · ' + ( total - dash ) } );
+			rows.push( { label: 'Your dashboard', value: String( dash ) } );
 		}
 		return { rows: rows };
 	}
@@ -281,7 +286,7 @@
 		if ( ! c ) { tally.unknown++; return { empty: 'No purge recorded yet.' }; } // no evidence is not a clean edge.
 		var rows = [];
 		var when = ago( c.last_purge );
-		if ( when ) { rows.push( { label: 'Last full purge', value: when } ); }
+		if ( when ) { rows.push( { label: 'Purged', value: when } ); }
 		// Only a verified fresh edge stays out of the headline: stale is to look
 		// at; pending (a purge still verifying) and unknown are not measured yet.
 		var fresh = String( c.fresh || 'unknown' );
@@ -294,7 +299,7 @@
 		// (Codex on #1925); SKEW_S allows the ordinary browser/server drift.
 		var checking = 'pending' === fresh && since >= -SKEW_S && since < VERIFY_S;
 		if ( 'stale' === fresh ) { tally.look++; } else if ( checking ) { tally.checking++; } else if ( 'fresh' !== fresh ) { tally.unknown++; }
-		rows.push( { label: 'Edge freshness', value: String( c.headline || ( 'unknown' === fresh ? 'not verified yet' : fresh ) ), tone: 'fresh' === fresh || checking ? '' : WARN_FG } );
+		rows.push( { label: 'Freshness', value: String( c.headline || ( 'unknown' === fresh ? 'not verified yet' : fresh ) ), tone: 'fresh' === fresh || checking ? '' : WARN_FG } );
 		return rows.length ? { rows: rows } : { empty: 'No purge recorded yet.' };
 	}
 
@@ -304,16 +309,16 @@
 	 * site fixes it. Only the legacy write stopping on a bad verdict is.
 	 */
 	function readAnalytics2( a, tally ) {
-		if ( ! a ) { return { rows: [ { label: 'Analytics 2.0', value: 'no verdict stored yet' } ] }; }
+		if ( ! a ) { return { rows: [ { label: 'Cutover check', value: 'no verdict stored yet' } ] }; }
 		if ( a.bad ) {
 			tally.look++;
-			return { rows: [ { label: 'Analytics 2.0', value: 'legacy write stopped on a bad verdict', tone: WARN_FG } ] };
+			return { rows: [ { label: 'Cutover check', value: 'legacy write stopped on a bad verdict', tone: WARN_FG } ] };
 		}
 		var days  = num( a.days );
 		var value = a.ok ? days + ( 1 === days ? ' day' : ' days' ) + ' clean · since ' + String( a.since ) + ( a.frozen ? ' · frozen' : '' )
 			: a.reset ? 'reset ' + String( a.reset ) + ' · no exact day since'
 			: 'not verified yet · no exact day so far';
-		return { rows: [ { label: 'Analytics 2.0', value: value } ] };
+		return { rows: [ { label: 'Cutover check', value: value } ] };
 	}
 
 	/** The watches due now (sn-status{watches}): a to-do, not a fault. */
