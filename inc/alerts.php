@@ -58,7 +58,8 @@ function snt_alerts_clean( $text ) {
  *     today    string               The site-local day, YYYY-MM-DD.
  *     views    array<string,int>    Today's human views by path.
  *     history  array<string,int>    Human views by path, summed over the prior 7 days.
- *     errors   array<string,array<string,int>> Stored 5xx by UTC day, then path.
+ *     errors   array<string,array<string,int>> Stored 5xx by UTC day, then path: visitor-asked only where the day stored who asked (snt_alerts_break_detail()), every error before that.
+ *     error_detail array<string,array<string,array>> UTC day => path => snt_alerts_break_detail() entry, for the mail.
  *     sent     array<string,int>    Alert key => when it was mailed.
  *     excluded callable|null        The plugin's excluded-path rule.
  *     cache    array|null           A cache call nothing could retry (sn_cf_purge_failure()).
@@ -121,7 +122,8 @@ function snt_alerts_evaluate( array $in, array $t ) {
 	foreach ( (array) ( $in['errors'] ?? array() ) as $day => $paths ) {
 		foreach ( (array) $paths as $path => $n ) {
 			if ( (int) $n >= $t['break_min'] && ! $junk( (string) $path ) && is_callable( $real ) && call_user_func( $real, (string) $path ) ) {
-				$add( 'break', (string) $path, (string) $day, (int) $n, 0, $t['break_min'] );
+				$detail = $in['error_detail'][ $day ][ $path ] ?? null;
+				$add( 'break', (string) $path, (string) $day, (int) $n, 0, $t['break_min'], is_array( $detail ) ? array( 'detail' => $detail ) : array() );
 			}
 		}
 	}
@@ -149,6 +151,58 @@ function snt_alerts_evaluate( array $in, array $t ) {
 		$add( 'cache', (string) ( $cache['what'] ?? '' ), gmdate( 'Y-m-d H:i:s', (int) $cache['time'] ), (int) ( $cache['http'] ?? 0 ), (int) ( $cache['attempts'] ?? 1 ), 0 );
 	}
 	return $found;
+}
+
+/**
+ * One day's stored 5xx per path, split by who asked, and the words for it.
+ * PURE. Reads the edge rollup's err_path_asker rows ("<asker> <edge> <origin>
+ * <cache> <path>"); a day stored before those rows existed has only
+ * err_path_status ("<edge> <cache> <path>"), which says the status but not
+ * who asked.
+ *
+ * 2026-10-08: "/" mailed a break for 4 errors and nobody could tell whether a
+ * person or a Worker had asked. The line counts visitors only; the rest of
+ * the day's errors on the path ride along as context.
+ *
+ * @param array<int,array{value:string,requests:int}> $asker  err_path_asker rows for the day.
+ * @param array<int,array{value:string,requests:int}> $status err_path_status rows for the day.
+ * @return array<string,array{asked:bool,visitor:int,total:int,parts:array<string,int>}> Path => detail.
+ */
+function snt_alerts_break_detail( array $asker, array $status ) {
+	$out  = array();
+	$note = static function ( $path, $label, $n, $visitor, $asked ) use ( &$out ) {
+		$d                    = $out[ $path ] ?? array( 'asked' => $asked, 'visitor' => 0, 'total' => 0, 'parts' => array() );
+		$d['total']          += $n;
+		$d['visitor']        += $visitor ? $n : 0;
+		$d['parts'][ $label ] = ( $d['parts'][ $label ] ?? 0 ) + $n;
+		$out[ $path ]         = $d;
+	};
+	foreach ( $asker as $r ) {
+		if ( preg_match( '/^(\S+) (\d+) (\d+|-) (\S+) (.+)$/', (string) ( $r['value'] ?? '' ), $m ) ) {
+			$who  = 'visitor' === $m[1] ? 'visitor' : ( 'worker' === $m[1] ? 'via Worker' : $m[1] );
+			$from = '-' === $m[3] ? 'Cloudflare, origin never answered' : ( $m[3] === $m[2] ? 'origin' : 'origin said ' . $m[3] );
+			$note( $m[5], $m[2] . ' (' . $from . ', ' . $who . ')', (int) ( $r['requests'] ?? 0 ), 'visitor' === $m[1], true );
+		}
+	}
+	if ( $out ) {
+		return $out; // who asked is stored for this day: the status-only rows add nothing.
+	}
+	foreach ( $status as $r ) {
+		if ( preg_match( '/^(\d+) (\S+) (.+)$/', (string) ( $r['value'] ?? '' ), $m ) ) {
+			$note( $m[3], $m[1] . ' (' . $m[2] . ')', (int) ( $r['requests'] ?? 0 ), false, false );
+		}
+	}
+	return $out;
+}
+
+/** "3 x 522 (Cloudflare, origin never answered, visitor), 1 x 503 (origin, via Worker)", largest first. PURE. */
+function snt_alerts_break_parts( array $parts ) {
+	arsort( $parts );
+	$words = array();
+	foreach ( $parts as $label => $n ) {
+		$words[] = (int) $n . ' x ' . snt_alerts_clean( $label );
+	}
+	return implode( ', ', $words );
 }
 
 /**
@@ -215,7 +269,13 @@ function snt_alerts_compose( array $alerts, $sources, $site, $where ) {
 			continue;
 		}
 		if ( 'break' === $a['kind'] ) {
-			$lines[] = sprintf( 'BREAK: %s answered a server error %d times on %s (UTC), in the stored edge 5xx rollup. The alert line is %d.', $path, $a['value'], $a['day'], $a['line'] );
+			$d     = (array) ( $a['detail'] ?? array() );
+			$parts = ! empty( $d['parts'] ) ? snt_alerts_break_parts( (array) $d['parts'] ) : '';
+			if ( ! empty( $d['asked'] ) ) {
+				$lines[] = sprintf( 'BREAK: %s answered a server error to visitors %d times on %s (UTC), in the stored edge 5xx rollup. All %d on %s that day: %s. The alert line is %d visitor errors; Worker and other errors are context and do not count.', $path, $a['value'], $a['day'], (int) $d['total'], $path, $parts, $a['line'] );
+			} else {
+				$lines[] = sprintf( 'BREAK: %s answered a server error %d times on %s (UTC), in the stored edge 5xx rollup.%s Who asked was not stored per path for this day, so every error counted. The alert line is %d.', $path, $a['value'], $a['day'], '' !== $parts ? ' By status: ' . $parts . '.' : '', $a['line'] );
+			}
 			continue;
 		}
 		++$spikes;

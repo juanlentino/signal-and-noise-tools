@@ -233,6 +233,7 @@ function sn_edge_status_bucket( $status ) {
  * a test reading the wrong side of a DB stub.
  *
  *   err_path    which URLs failed
+ *   err_path_asker  per path, who asked and who answered (the break alert)
  *   err_source  WHO answered. `edge=503 origin=503` is the origin, or the cache
  *               in front of it, failing. `edge=503 origin=-` is Cloudflare or a
  *               Worker answering by itself. That distinction is the one datum
@@ -269,6 +270,16 @@ function sn_edge_errors_dims( array $rows ) {
 		$prefix = $edge . ' ' . ( '' !== $cache ? $cache : '-' ) . ' ';
 		$ps     = $prefix . substr( $path, 0, max( 0, 160 - strlen( $prefix ) ) );
 		$out['err_path_status'][ $ps ] = ( $out['err_path_status'][ $ps ] ?? 0 ) + $req;
+		// Who asked for which path, with who answered: "<asker> <edge> <origin>
+		// <cache> <path>", the path cut to the column. err_source has the asker
+		// but no path and err_path_status the path but no asker, so a break
+		// alert could not tell a visitor's 522 from a Worker's 503 (2026-10-08).
+		// The asker words are sn_edge_error_asker()'s, inline: this function stays
+		// self-contained (tests/edge-analytics-sees-5xx.php lifts it out alone).
+		$ask = 'eyeball' === $from ? 'visitor' : ( 0 === strpos( $from, 'edgeWorker' ) ? 'worker' : ( '' === $from ? 'unrecorded' : 'other' ) );
+		$pa  = $ask . ' ' . $edge . ' ' . $orig . ' ' . ( '' !== $cache ? $cache : '-' ) . ' ';
+		$pa = $pa . substr( $path, 0, max( 0, 160 - strlen( $pa ) ) );
+		$out['err_path_asker'][ $pa ] = ( $out['err_path_asker'][ $pa ] ?? 0 ) + $req;
 	}
 
 	return $out;

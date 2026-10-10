@@ -89,6 +89,14 @@ $ps   = array_keys( sn_edge_errors_dims( array( $row( $long, 520, 'dynamic' ) ) 
 ok( 160 === strlen( $ps ) && 0 === strpos( $ps, '520 dynamic /' ), 'an over-long path is cut at the column\'s 160 from the PATH end, the status prefix kept' );
 ok( isset( $dims['err_path'] ) && isset( $dims['err_source'] ), 'the two existing dims are unchanged' );
 
+echo "\nGroup 2c: per path, who asked and who answered (the break alert)\n";
+$src  = function ( $path, $edge, $orig, $cache, $from, $n = 1 ) { return array( 'count' => $n, 'dimensions' => array( 'clientRequestPath' => $path, 'edgeResponseStatus' => $edge, 'originResponseStatus' => $orig, 'cacheStatus' => $cache, 'requestSource' => $from ) ); };
+$pa   = sn_edge_errors_dims( array( $src( '/', 522, 0, 'dynamic', 'eyeball', 3 ), $src( '/', 503, 503, 'bypass', 'edgeWorkerFetch' ), $src( '/x', 503, 0, '', '' ), $src( '/x', 503, 0, '', 'something' ) ) )['err_path_asker'] ?? array();
+ok( 3 === ( $pa['visitor 522 - dynamic /'] ?? null ) && 1 === ( $pa['worker 503 503 bypass /'] ?? null ), 'err_path_asker is "<asker> <edge> <origin> <cache> <path>": a visitor 522 the origin never answered, a Worker 503 the origin gave' );
+ok( isset( $pa['unrecorded 503 - - /x'] ) && isset( $pa['other 503 - - /x'] ), 'no request source is unrecorded, any other source is other, an absent cache is "-"' );
+$pl = array_keys( sn_edge_errors_dims( array( $src( $long, 522, 0, 'dynamic', 'eyeball' ) ) )['err_path_asker'] ?? array() )[0] ?? '';
+ok( 160 === strlen( $pl ) && 0 === strpos( $pl, 'visitor 522 - dynamic /' ), 'an over-long path is cut at 160 from the PATH end, the prefix kept' );
+
 echo "\nGroup 3: every surface reads it\n";
 $native  = (string) file_get_contents( $root . '/apps/sn-dashboard/parts/leaves/connections-cloudflare-errors.php' );
 $monitor = (string) file_get_contents( $root . '/apps/sn-dashboard/parts/leaves/connections-cloudflare-monitor.php' );
