@@ -344,14 +344,14 @@ async function run() {
     const t = root.textContent;
     assert.match(t, /Incidents · 30 days 1/, 'incidents over 30 days across the monitors');
     assert.match(t, /Slowest Feed · 340 ms/, 'the slowest monitor, by name');
-    assert.match(t, /5xx · Oct 4 12 Visitors 2 Day before 15/, 'edge 5xx: the count, the visitors among them and the day before, as short rows that fit beside Cache');
+    assert.match(t, /5xx · Oct 4 12 Visitors, direct 2 Day before 15/, 'edge 5xx: the count, the visitors among them and the day before, as short rows that fit beside Cache');
     assert.doesNotMatch(t, /Your dashboard/, 'no dashboard count from the payload: no split row');
     assert.match(t, /Last 24 hours 40 runs recorded · 2 failed/, 'cron runs recorded and recorded failures over 24 hours');
     // The page-load lines are re-read beside the poll, and the answer repaints them.
     assert.equal(x.side.length, 1, 'SN Systems re-reads its page-load lines once per poll');
     x.side[0].resolve({healthSummary: {passed: 8, total: 8, all_passed: true, skipped: [], flagged: []}, cronSummary: extra.statusExtra ? {total: 85, sn_count: 30, orphans: 0, next: {hook: 'sn_queue_tick', in_s: 300}, health: {ok: true}} : {},
       statusExtra: {systems: {edge: {day: 'Oct 5', total: 4, visitor: 0, prior: 12}, cron: {fires: 41, failed: 0, failing: []}, cache: extra.statusExtra.systems.cache}, provenance: {}}}); await flush();
-    assert.match(root.textContent, /5xx · Oct 5 4 Visitors 0 Day before 12/, 'a re-read moves the edge line without a reload');
+    assert.match(root.textContent, /5xx · Oct 5 4 Visitors, direct 0 Day before 12/, 'a re-read moves the edge line without a reload');
     assert.match(root.textContent, /Last 24 hours 41 runs recorded/, 'and the cron day line');
     assert.match(t, /queue_tick failed/, 'a failing job is named');
     assert.match(t, /\+1 more failed/, 'and the list is capped');

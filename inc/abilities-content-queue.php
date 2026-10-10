@@ -360,6 +360,10 @@ function snt_ability_content_queue( $input = null ) {
 		'post_type'        => 'post',
 		'suppress_filters' => false,
 		'orderby'          => 'date',
+		// The whole future queue is read for the gap check: titles and dates
+		// only, so no meta or term caches are primed for every scheduled note.
+		'update_post_meta_cache' => false,
+		'update_post_term_cache' => false,
 	);
 
 	$queue = get_posts( $base + array( 'post_status' => 'future', 'order' => 'ASC', 'numberposts' => -1 ) );

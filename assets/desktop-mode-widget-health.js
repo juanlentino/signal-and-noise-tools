@@ -246,7 +246,7 @@
 		// count, the visitors among them when there were any, and the day before.
 		var rows = [ { label: '5xx · ' + String( e.day || 'yesterday' ), value: String( total ), tone: total > 0 ? WARN_FG : '' } ];
 		if ( total > 0 && typeof e.visitor === 'number' ) {
-			rows.push( { label: 'Visitors', value: String( Math.min( total, num( e.visitor ) ) ) } );
+			rows.push( { label: 'Visitors, direct', value: String( Math.min( total, num( e.visitor ) ) ) } );
 		}
 		if ( null !== e.prior && undefined !== e.prior ) {
 			rows.push( { label: 'Day before', value: String( num( e.prior ) ) } );
