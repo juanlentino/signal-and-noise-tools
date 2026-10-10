@@ -685,7 +685,7 @@ ok( isset( $GLOBALS['__scripts']['sn-desktop-mode-widget-health'] ), 'W3 script 
 
 $anc_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
 ok( false !== strpos( $anc_js, "if ( sweeping ) { sweepBtn.setAttribute( 'aria-disabled', 'true' ); }" ) && false !== strpos( $anc_js, '|| sweeping ||' ), 'a repaint mid-sweep keeps Sweep busy, so a second click cannot start another sweep' );
-ok( false !== strpos( $anc_js, "signal: readCtl ? readCtl.signal : undefined" ) && 1 === preg_match( '/teardown\(\) \{\s*torn = true;[^}]*?(?:\{[^}]*\}[^}]*?)*?if \( readCtl \) \{ readCtl\.abort\(\); \}/', $anc_js ), 'the reader request is aborted when superseded or when SN Provenance unmounts' );
+ok( false !== strpos( $anc_js, "signal: readCtl ? readCtl.signal : undefined" ) && 1 === preg_match( '/return function teardown\(\) \{\s*torn = true;(.*?)\n\t\t\};/s', $anc_js, $anc_td ) && false !== strpos( $anc_td[1], 'if ( readCtl ) { readCtl.abort(); }' ), 'the reader request is aborted when superseded or when SN Provenance unmounts' );
 
 $hl_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ) );
 ok( false !== strpos( $hl_js, "mons.slice().sort( function( a, b ) { return ( 'alert' === b.level ) - ( 'alert' === a.level ); } )" ), 'down monitors are named before warnings, so the cap never hides an outage' );

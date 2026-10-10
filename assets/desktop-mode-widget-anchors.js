@@ -458,17 +458,23 @@
 		var readCtl  = null;  // the reader request in flight, aborted when superseded or torn down
 		var lastOverview = null; // the last anchor answer, kept on screen through a quiet re-read
 		var lastLoadAt   = 0;
+		var loud         = false; // a non-quiet read is in flight
 
 		// quiet (2026-10-10): a background re-read. It keeps the last reading
 		// on screen, paints only what changed, and never shows the waiting
 		// state; a failed quiet read leaves the card as it was.
 		function load( note, quiet ) {
+			// Nothing read yet (or the last read failed): a background read must
+			// be able to paint its error, so it is not quiet.
+			quiet = quiet && null !== lastOverview;
 			var mine = ++gen;
+			loud = ! quiet;
 			if ( readCtl ) { readCtl.abort(); }
 			readCtl = window.AbortController ? new window.AbortController() : null;
 			var live = function() { return mine === gen && ! torn; };
 			lastLoadAt = Date.now();
 			if ( ! window.sntAbilityRun ) {
+				loud = false;
 				render( null, 'The abilities client is unavailable.' );
 				return;
 			}
@@ -503,6 +509,7 @@
 			window.sntAbilityRun( 'anchor-status', {}, { silent: true } ).then( function( overview ) {
 				if ( ! live() ) { return; }
 				lastOverview   = overview;
+				loud           = false;
 				shown.overview = overview;
 				shown.waiting  = false;
 				render( overview, note );
@@ -514,6 +521,7 @@
 				} ).catch( function() {} );
 			} ).catch( function( err ) {
 				if ( ! live() || quiet ) { return; }
+				loud          = false;
 				shown.note    = ( err && err.message ) || 'Could not load anchor status.';
 				shown.waiting = false;
 				render( null, shown.note );
@@ -530,7 +538,8 @@
 		var timer = 0;
 		function background() {
 			if ( torn ) { return; }
-			if ( ! sweeping ) { load( undefined, true ); }
+			// Never over a sweep or a read the owner started (its note would be lost).
+			if ( ! sweeping && ! loud ) { load( undefined, true ); }
 			arm();
 		}
 		function arm() {

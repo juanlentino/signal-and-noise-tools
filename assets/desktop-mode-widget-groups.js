@@ -39,6 +39,10 @@
 		return node;
 	}
 
+	function readAt( at ) {
+		return 'Read at ' + new Date( at * 1000 ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } );
+	}
+
 	function paint( body, payload ) {
 		while ( body.firstChild ) { body.removeChild( body.firstChild ); }
 		var win  = payload && payload.window;
@@ -83,7 +87,10 @@
 		// go stale between re-reads on a desktop left open.
 		var at = payload && Number( payload.generated_at );
 		if ( at > 0 ) {
-			body.appendChild( el( 'div', 'font-size:11px;margin-top:8px;' + SUBTLE, 'Read at ' + new Date( at * 1000 ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) ) );
+			var stampEl = el( 'div', 'font-size:11px;margin-top:8px;' + SUBTLE, readAt( at ) );
+			stampEl.setAttribute( 'data-sn-read-at', '' );
+			stampEl.setAttribute( 'aria-live', 'off' );
+			body.appendChild( stampEl );
 		}
 	}
 
@@ -130,8 +137,16 @@
 				lastAt  = Date.now();
 				window.wp.apiFetch( { path: '/signal-noise/v1/desktop/' + route } ).then( function( payload ) {
 					if ( torn ) { return; }
-					var json = JSON.stringify( payload );
-					if ( json === shown ) { return; }
+					// The figures decide a repaint, not generated_at: the 15-minute
+					// cache moves it on every refill. The read time updates in place,
+					// out of the live region's announcements.
+					var json = JSON.stringify( Object.assign( {}, payload, { generated_at: 0 } ) );
+					if ( json === shown ) {
+						var stamp = body.querySelector ? body.querySelector( '[data-sn-read-at]' ) : null;
+						var at2   = payload && Number( payload.generated_at );
+						if ( stamp && at2 > 0 ) { stamp.textContent = readAt( at2 ); }
+						return;
+					}
 					shown = json;
 					body.setAttribute( 'style', '' );
 					// The body stays a polite status region: a re-read that changed

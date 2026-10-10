@@ -73,7 +73,7 @@
 			}
 			failures = 0;
 			fire( stamps );
-			last = stamps;
+			last = count ? stamps : null;
 		} ).catch( function () {
 			failures = Math.min( failures + 1, 5 );
 		} ).then( function () {
