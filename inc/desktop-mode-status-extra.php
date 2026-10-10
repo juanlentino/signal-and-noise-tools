@@ -16,12 +16,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SNT_DESKTOP_STATUS_EXTRA_KEY = 'snt_desktop_status_extra_v1';
+// v2 (2026-10-10): analytics2, watches, credentials, zenodo.failed and `at`
+// joined the shape; a v1 payload still cached is never served for it.
+const SNT_DESKTOP_STATUS_EXTRA_KEY = 'snt_desktop_status_extra_v2';
 
 /**
  * The extra rows for both cards, cached five minutes.
  *
- * @return array{systems:array,provenance:array}
+ * @return array{systems:array,provenance:array,at:int}
  */
 function snt_desktop_status_extra() {
 	$cached = get_transient( SNT_DESKTOP_STATUS_EXTRA_KEY );
@@ -33,12 +35,19 @@ function snt_desktop_status_extra() {
 			'edge'  => snt_desktop_edge_yesterday(),
 			'cron'  => snt_desktop_cron_24h(),
 			'cache' => snt_desktop_cache_state(),
+			// 2026-10-10: the analytics 2.0 verdict as stored (never the live
+			// check), the watches due now, and a credential that is failing.
+			'analytics2'  => snt_desktop_analytics2_shape( get_option( defined( 'SN_ANALYTICS_V2_VERIFIED_OPT' ) ? SN_ANALYTICS_V2_VERIFIED_OPT : 'sn_analytics_v2_verified', null ) ),
+			'watches'     => function_exists( 'snt_watches_ripe' ) ? snt_desktop_watches_shape( snt_watches_ripe() ) : null,
+			'credentials' => snt_desktop_credentials_shape( function_exists( 'snt_ability_keyring_status' ) ? snt_ability_keyring_status() : null, function_exists( 'sn_cf_monitor_read' ) ? sn_cf_monitor_read() : null, time() ),
 		),
 		'provenance' => array(
 			'integrity' => snt_desktop_integrity(),
 			'rights'    => snt_desktop_rights_state( function_exists( 'sn_rights_evidence_data' ) ? sn_rights_evidence_data() : null, function_exists( 'sn_rights_evidence_held' ) ? (array) sn_rights_evidence_held( false ) : array() ),
 			'zenodo'    => snt_desktop_zenodo(),
 		),
+		// When these rows were read: SN Provenance's "Read at" foot.
+		'at'         => time(),
 	);
 	set_transient( SNT_DESKTOP_STATUS_EXTRA_KEY, $out, 5 * MINUTE_IN_SECONDS );
 	return $out;
@@ -50,7 +59,7 @@ function snt_desktop_status_extra() {
  * before it. There is no rolling 24 hours: today is still filling. Null when
  * none of the last three days could be read.
  *
- * @return array{day:string,total?:int,visitor?:int,dashboard?:int|null,prior?:int|null,failed?:bool}|null `failed` when the newest non-pending day's read failed. `day` is the label ("Oct 4"); `visitor` the 5xx a visitor received; `dashboard` how many hit the owner's own admin and its polls (null when the day carries no paths).
+ * @return array{day:string,total?:int,visitor?:int|null,dashboard?:int|null,prior?:int|null,failed?:bool}|null `failed` when the newest non-pending day's read failed. `day` is the label ("Oct 4"); `visitor` the 5xx a visitor received (null when the day predates who-asked); `dashboard` how many hit the owner's own admin and its polls (null when the day carries no paths).
  */
 function snt_desktop_edge_yesterday() {
 	if ( ! function_exists( 'sn_edge_errors_range' ) ) {
@@ -85,9 +94,12 @@ function snt_desktop_edge_yesterday() {
 		$b  = sn_edge_errors_range( $pd, $pd );
 		// Who asked (18.2.0): only a visitor's 5xx is an outage someone saw;
 		// a Worker subrequest's is the Worker's own business.
-		$visitor = 0;
+		// Null when the day was stored before who-asked was: unknown, never 0.
+		$visitor = null;
 		foreach ( (array) ( $a['days'] ?? array() ) as $row ) {
-			$visitor += $d === (string) ( $row['day'] ?? '' ) ? (int) ( $row['visitor'] ?? 0 ) : 0;
+			if ( $d === (string) ( $row['day'] ?? '' ) && isset( $row['visitor'] ) ) {
+				$visitor = (int) $visitor + (int) $row['visitor'];
+			}
 		}
 		return array( 'day' => gmdate( 'M j', $t ), 'total' => (int) ( $a['total'] ?? 0 ), 'visitor' => $visitor, 'dashboard' => snt_desktop_edge_dashboard_count( $a['paths'] ?? null ), 'prior' => $ok( $b, $pd ) ? (int) ( $b['total'] ?? 0 ) : null );
 	}
@@ -301,9 +313,10 @@ function snt_desktop_rights_state( $data, array $held ) {
 }
 
 /**
- * Zenodo DOIs: production DOIs minted out of the subjects that should have one.
+ * Zenodo DOIs: production DOIs minted out of the subjects that should have one,
+ * and how many documents' last deposit failed (an error stored, no DOI).
  *
- * @return array{minted:int,total:int}|null
+ * @return array{minted:int,total:int,failed:int}|null
  */
 function snt_desktop_zenodo() {
 	$z = function_exists( 'snt_ability_zenodo_status' ) ? snt_ability_zenodo_status() : null;
@@ -312,5 +325,90 @@ function snt_desktop_zenodo() {
 	if ( ! is_array( $z ) || ! isset( $z['total'] ) ) {
 		return null;
 	}
-	return array( 'minted' => (int) ( $z['minted'] ?? 0 ), 'total' => (int) $z['total'] );
+	$failed = count( array_filter( (array) ( $z['missing'] ?? array() ), static fn( $r ) => '' !== (string) ( is_array( $r ) ? ( $r['error'] ?? '' ) : '' ) ) );
+	return array( 'minted' => (int) ( $z['minted'] ?? 0 ), 'total' => (int) $z['total'], 'failed' => $failed );
+}
+
+/**
+ * The analytics 2.0 verdict the daily check stored (inc/analytics-generation.php),
+ * in the card's terms. Days are 'M j' labels. PURE.
+ *
+ * ok: `days` clean days (the clean day through the last day that matched)
+ * since `since`. Not ok: `reset` names the day that did not match, '' when
+ * the second generation has never been verified. `frozen` once the legacy
+ * write stopped; `bad` when it stopped on a verdict that was not good (the
+ * analytics_v2_frozen_bad watch's state).
+ *
+ * @param mixed $v The stored option.
+ * @return array{ok:bool,days:int,since:string,reset:string,frozen:bool,bad:bool,why:string}|null Null when no verdict is stored yet.
+ */
+function snt_desktop_analytics2_shape( $v ) {
+	if ( ! is_array( $v ) || ! isset( $v['at'] ) ) {
+		return null;
+	}
+	$from  = defined( 'SN_ANALYTICS_V2_FROM' ) ? SN_ANALYTICS_V2_FROM : '2026-10-05';
+	$clean = max( $from, (string) ( $v['clean_from'] ?? '' ) );
+	$ts    = static fn( $day ) => 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $day ) ? (int) strtotime( $day . ' 00:00:00 UTC' ) : 0;
+	$ok    = ! empty( $v['ok'] );
+	$last  = $ts( $v['day'] ?? '' );
+	$frozen = ! empty( $v['frozen'] );
+	return array(
+		'ok'     => $ok,
+		'days'   => $ok && $last >= $ts( $clean ) ? (int) round( ( $last - $ts( $clean ) ) / DAY_IN_SECONDS ) + 1 : 0,
+		'since'  => gmdate( 'M j', $ts( $clean ) ),
+		'reset'  => $clean > $from ? gmdate( 'M j', $ts( $clean ) - DAY_IN_SECONDS ) : '',
+		'frozen' => $frozen,
+		'bad'    => $frozen && ( ! $ok || empty( $v['events_ok'] ) ),
+		'why'    => (string) ( $v['why'] ?? '' ),
+	);
+}
+
+/**
+ * The watches due now (snt_watches_ripe(), the sn-status{watches} read), as
+ * id and label. PURE.
+ *
+ * @param array $ripe Ripe watch rows.
+ * @return array<int,array{id:string,label:string}>
+ */
+function snt_desktop_watches_shape( array $ripe ) {
+	$out = array();
+	foreach ( $ripe as $w ) {
+		if ( is_array( $w ) && '' !== (string) ( $w['label'] ?? '' ) ) {
+			$out[] = array( 'id' => (string) ( $w['id'] ?? '' ), 'label' => (string) $w['label'] );
+		}
+	}
+	return $out;
+}
+
+/**
+ * Credentials that are wrong now: keyring rows whose last Verify all verdict
+ * refused or errored (never verified is not a failure), and the Cloudflare
+ * API token when the daily monitor found it not active or expiring within 14
+ * days (the Dashboard row's threshold). Ids and states only, never a value.
+ * PURE given its inputs.
+ *
+ * @param mixed $keyring snt_ability_keyring_status().
+ * @param mixed $cf      sn_cf_monitor_read().
+ * @param int   $now     Unix time.
+ * @return array{keyring:array<int,array{id:string,verdict:string}>,cloudflare:array{status:string,expires:string}|null}
+ */
+function snt_desktop_credentials_shape( $keyring, $cf, $now ) {
+	$failing = array();
+	foreach ( (array) ( is_array( $keyring ) ? ( $keyring['rows'] ?? array() ) : array() ) as $r ) {
+		$verdict = is_array( $r ) ? (string) ( $r['verdict'] ?? '' ) : '';
+		if ( in_array( $verdict, array( 'refused', 'error' ), true ) ) {
+			$failing[] = array( 'id' => (string) ( $r['id'] ?? '' ), 'verdict' => $verdict );
+		}
+	}
+	$token = null;
+	// Not run yet or not configured is no reading: nothing to say wrong.
+	if ( is_array( $cf ) && ! empty( $cf['configured'] ) && is_array( $cf['token'] ?? null ) ) {
+		$t      = $cf['token'];
+		$status = empty( $t['verified'] ) ? (string) ( $t['status'] ?? 'unverified' ) : (string) ( $t['status'] ?? '' );
+		$exp    = '' !== (string) ( $t['expires_on'] ?? '' ) ? (int) strtotime( (string) $t['expires_on'] ) : 0;
+		if ( 'active' !== $status || ( $exp > 0 && $exp < (int) $now + 14 * DAY_IN_SECONDS ) ) {
+			$token = array( 'status' => $status, 'expires' => $exp > 0 ? gmdate( 'M j', $exp ) : '' );
+		}
+	}
+	return array( 'keyring' => $failing, 'cloudflare' => $token );
 }

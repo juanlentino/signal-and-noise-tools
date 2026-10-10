@@ -110,6 +110,8 @@ $GLOBALS['__transients'] = array();
 function get_transient( $k ) { return array_key_exists( $k, $GLOBALS['__transients'] ) ? $GLOBALS['__transients'][ $k ] : false; }
 function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__transients'][ $k ] = $v; return true; }
 function delete_transient( $k ) { unset( $GLOBALS['__transients'][ $k ] ); return true; }
+// 2026-10-10: the status-extra payload reads the stored analytics 2.0 verdict.
+function get_option( $k, $d = false ) { return $d; }
 
 function current_time( $type = 'mysql' ) { return '2026-07-16 12:00:00'; }
 

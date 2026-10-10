@@ -23,7 +23,7 @@ const nodes = n => [n, ...n.children.flatMap(nodes)];
 const details = n => nodes(n).map(e => e.attrs['aria-label'] || '').filter(Boolean).join(' ');
 const styles = n => String(n.attrs.style || '') + n.children.map(styles).join(' ');
 const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
-function harness(extraData) {
+function harness(extraData, opts) {
   let now = Date.parse('2026-09-08T12:00:00Z'), nextId = 0;
   const timers = new Map(), calls = [], side = [];
   const window = {
@@ -51,7 +51,9 @@ function harness(extraData) {
     dispatch(t) { (listeners.get(t) || []).forEach(fn => fn()); } };
   class Clock extends Date { constructor(...a) { super(...(a.length ? a : [now])); } static now() { return now; } }
   const context = vm.createContext({window, document, Date: Clock, Promise, Error, Math, Number, Array, Object, AbortController});
-  for (const name of ['desktop-mode-card-kit.js', 'snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-health.js',
+  // The card kit only where a fixture asks: its bars and dots are spans the
+  // fake textContent joins with spaces, which would move every other regex.
+  for (const name of [...((opts && opts.kit) ? ['desktop-mode-card-kit.js'] : []), 'snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-health.js',
     'desktop-mode-widget-queue.js', 'desktop-mode-widget-anchors.js', 'desktop-mode-widget-views.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets', name), 'utf8'), context, {filename: name});
   }
@@ -342,14 +344,14 @@ async function run() {
     const t = root.textContent;
     assert.match(t, /Incidents · 30 days 1/, 'incidents over 30 days across the monitors');
     assert.match(t, /Slowest Feed · 340 ms/, 'the slowest monitor, by name');
-    assert.match(t, /5xx · Oct 4 12 · 3 fewer than the day before/, 'edge 5xx against the day before, in words');
+    assert.match(t, /5xx · Oct 4 visitors 2 of 12 · 3 fewer than the day before/, 'edge 5xx: how many a visitor received, of all, against the day before, in words');
     assert.doesNotMatch(t, /Your dashboard/, 'no dashboard count from the payload: no split row');
     assert.match(t, /Last 24 hours 40 runs recorded · 2 failed/, 'cron runs recorded and recorded failures over 24 hours');
     // The page-load lines are re-read beside the poll, and the answer repaints them.
     assert.equal(x.side.length, 1, 'SN Systems re-reads its page-load lines once per poll');
     x.side[0].resolve({healthSummary: {passed: 8, total: 8, all_passed: true, skipped: [], flagged: []}, cronSummary: extra.statusExtra ? {total: 85, sn_count: 30, orphans: 0, next: {hook: 'sn_queue_tick', in_s: 300}, health: {ok: true}} : {},
       statusExtra: {systems: {edge: {day: 'Oct 5', total: 4, visitor: 0, prior: 12}, cron: {fires: 41, failed: 0, failing: []}, cache: extra.statusExtra.systems.cache}, provenance: {}}}); await flush();
-    assert.match(root.textContent, /5xx · Oct 5 4 · 8 fewer than the day before/, 'a re-read moves the edge line without a reload');
+    assert.match(root.textContent, /5xx · Oct 5 visitors 0 of 4 · 8 fewer than the day before/, 'a re-read moves the edge line without a reload');
     assert.match(root.textContent, /Last 24 hours 41 runs recorded/, 'and the cron day line');
     assert.match(t, /queue_tick failed/, 'a failing job is named');
     assert.match(t, /\+1 more failed/, 'and the list is capped');
@@ -372,6 +374,8 @@ async function run() {
     assert.doesNotMatch(p, /verify|Signatures/, 'the row claims what the sweep measures, not a signature re-verify');
     assert.match(p, /Last posted 3d ago/, 'when a record was last posted, in the Systems card\'s form');
     assert.match(p, /DOIs 7 of 9 minted/, 'DOIs minted');
+    assert.doesNotMatch(p, /Provenance Integrity checks[^]*DOIs/, '2026-10-10: DOIs left the Provenance block for the Internet Archive pair');
+    assert.doesNotMatch(p, /Deposits failed/, 'no failed deposit: no line');
     pstop();
     // 2026-10-05: each link closes the section it opens.
     const lk = harness({...extra, pages: {provenance: '/prov', machine_readers: '/mr'}}), lroot = new Element('div');
@@ -486,6 +490,108 @@ async function run() {
     assert.ok(ml.includes('Open Health|/h') && ml.some(l => l.startsWith('Open Anthropic billing')), 'Codex on #1925: a finding beside a paused check gets the Health link and keeps the billing link');
     mixstop();
   }
+  // 2026-10-10: S&N jobs of all, the visitor 5xx, Edge beside Cache, the
+  // analytics 2.0 verdict, watches due and failing credentials.
+  {
+    const clean = {edge: {day: 'Oct 9', total: 0, visitor: 0, prior: 0}, cron: {fires: 5, failed: 0, failing: []}, cache: {last_purge: Date.parse('2026-09-08T09:00:00Z') / 1000, fresh: 'fresh', headline: 'All fresh'}};
+    const mount = async (systems, opts) => {
+      const x = harness({pages: {analytics: '/an', credentials: '/cr', cloudflare: '/cf'}, statusExtra: {systems: {...clean, ...systems}, provenance: {}}}, opts), root = new Element('div');
+      const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
+      x.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
+      return {root, stop, t: root.textContent, links: nodes(root).filter(e => 'a' === e.tag).map(e => e.text + '|' + e.href), verdict: nodes(root).find(n => 'status' === n.attrs.role)};
+    };
+    const valueOf = (root, text) => nodes(root).find(n => 'span' === n.tag && n.text === text);
+    let m = await mount({analytics2: {ok: true, days: 5, since: 'Oct 5', reset: '', frozen: false, bad: false, why: ''}, watches: [], credentials: {keyring: [], cloudflare: null}});
+    assert.match(m.t, /S&N jobs · 30 of 85 scheduled next: queue_tick/, 'the cron headline counts S&N jobs of every scheduled event');
+    assert.match(m.t, /5xx · Oct 9 visitors 0 of 0 · same as the day before/, 'the visitor 5xx are painted');
+    assert.match(m.t, /Analytics 2.0 5 days clean · since Oct 5/, 'the analytics 2.0 verdict: clean days and since when');
+    assert.doesNotMatch(m.t, /Watch|Credential|Cloudflare API token/, 'nothing due and nothing failing: no line and no section');
+    assert.equal(m.verdict.text, 'All systems normal', 'a good verdict adds nothing to the headline');
+    m.stop();
+    m = await mount({analytics2: {ok: true, days: 1, since: 'Oct 9', reset: '', frozen: true, bad: false, why: ''}});
+    assert.match(m.t, /Analytics 2.0 1 day clean · since Oct 9 · frozen/, 'one day, singular; a frozen good verdict says frozen');
+    m.stop();
+    m = await mount({analytics2: {ok: false, days: 0, since: 'Oct 10', reset: 'Oct 9', frozen: false, bad: false, why: 'no complete day has matched since the mismatch before 2026-10-10'}});
+    assert.match(m.t, /Analytics 2.0 reset Oct 9 · no exact day since/, 'a reset says the day, in plain words');
+    assert.doesNotMatch(String(valueOf(m.root, 'reset Oct 9 · no exact day since').attrs.style), /#d29922/, 'a reset nothing on the site can fix is said, never amber');
+    assert.equal(m.verdict.text, 'All systems normal', 'and stays out of the headline');
+    m.stop();
+    m = await mount({analytics2: {ok: false, days: 0, since: 'Oct 5', reset: '', frozen: false, bad: false, why: ''}});
+    assert.match(m.t, /Analytics 2.0 not verified yet · no exact day so far/, 'never verified: said');
+    m.stop();
+    m = await mount({analytics2: {ok: false, days: 0, since: 'Oct 5', reset: '', frozen: true, bad: true, why: 'stopped'}});
+    assert.match(m.t, /Analytics 2.0 legacy write stopped on a bad verdict/, 'the frozen bad verdict is said');
+    assert.match(m.verdict.text, /1 to look at/, 'and is something to look at');
+    assert.ok(m.links.includes('Open Analytics|/an'), 'its amber line links to where it is read');
+    m.stop();
+    m = await mount({analytics2: null});
+    assert.match(m.t, /Analytics 2.0 no verdict stored yet/, 'no verdict stored: said, never a 0');
+    m.stop();
+    m = await mount({});
+    assert.doesNotMatch(m.t, /Analytics 2.0/, 'an older payload without the key paints no line');
+    m.stop();
+    m = await mount({watches: [{id: 'a', label: 'wave-4 tool retirement read'}, {id: 'b', label: 'WordPress 7.2'}, {id: 'c', label: 'third'}]});
+    assert.match(m.t, /Watch due: wave-4 tool retirement read/, 'a watch due is named');
+    assert.match(m.t, /\+1 more due/, 'and the list is capped');
+    assert.equal(m.verdict.text, '3 watches due', 'the headline says how many, not as a fault');
+    m.stop();
+    m = await mount({credentials: {keyring: [{id: 'zenodo_token', verdict: 'refused'}], cloudflare: {status: 'active', expires: 'Oct 20'}}});
+    assert.match(m.t, /Credential zenodo_token refused/, 'a failing credential is named, never its value');
+    assert.match(m.t, /Cloudflare API token expires Oct 20/, 'a token expiring within 14 days is said');
+    assert.match(m.verdict.text, /2 to look at/, 'each is something to look at');
+    assert.ok(m.links.includes('Open Credentials|/cr') && m.links.includes('Open Cloudflare|/cf'), 'each amber line links to its fix');
+    m.stop();
+    m = await mount({credentials: {keyring: [], cloudflare: {status: 'expired', expires: ''}}});
+    assert.match(m.t, /Cloudflare API token expired/, 'a token not active says its status');
+    m.stop();
+    // Edge beside Cache (the card kit's pair), stacked without the kit.
+    const boxOf = (root, title) => { const head = nodes(root).find(n => 'heading' === n.attrs.role && n.text === title); return head && head.parentNode; };
+    m = await mount({}, {kit: true});
+    const edgeBox = boxOf(m.root, 'Edge'), cacheBox = boxOf(m.root, 'Cache');
+    assert.equal(edgeBox.parentNode, cacheBox.parentNode, 'Edge and Cache share one row');
+    assert.match(String(edgeBox.parentNode.attrs.style), /display:flex;flex-wrap:wrap/, 'as the kit\'s pair');
+    assert.doesNotMatch(String(edgeBox.attrs.style || ''), /border-top/, 'a paired column draws no hairline of its own');
+    m.stop();
+    m = await mount({});
+    assert.match(String(boxOf(m.root, 'Edge').attrs.style), /border-top/, 'without the kit each stacks with its own hairline');
+    m.stop();
+    m = await mount({edge: {day: 'Oct 9', total: 18, prior: 27}});
+    assert.match(m.t, /5xx · Oct 9 18 · 9 fewer than the day before/, 'a day stored before who-asked paints no visitor count, never a 0');
+    m.stop();
+  }
+  // SN Provenance (2026-10-10): DOIs beside the Internet Archive, a failed
+  // deposit, and the read time.
+  {
+    const mount = async (zenodo, opts) => {
+      const x = harness({pages: {zenodo: '/z'}, statusExtra: {systems: {}, provenance: {zenodo}, at: Date.parse('2026-09-08T11:58:00Z') / 1000}}, opts), root = new Element('div');
+      const stop = x.window.desktopModeWidgets['sn-anchors'](root); await flush();
+      for (let i = 0; i < 3; i++) {
+        for (const c of x.calls.splice(0)) {
+          if (c.opts.path.includes('anchor-status')) c.resolve({pending: [], recording: [], confirmed: 50, total: 50, pages: {confirmed: 6, total: 6}});
+          else if (c.opts.path.includes('archive-status')) c.resolve({ok: true, configured: true, run: {state: 'done'}, pending: 0, captures: {captured: 40, waiting: 2}});
+          else c.reject(new Error('not in this fixture'));
+        }
+        await flush();
+      }
+      const span = text => nodes(root).find(n => 'span' === n.tag && n.text === text);
+      return {root, stop, span, t: root.textContent, links: nodes(root).filter(e => 'a' === e.tag).map(e => e.text + '|' + e.href)};
+    };
+    let m = await mount({minted: 7, total: 9, failed: 2}, {kit: true});
+    const ia = m.span('Internet Archive').parentNode.parentNode, doi = m.span('DOIs').parentNode.parentNode;
+    assert.equal(ia.parentNode, doi.parentNode, 'DOIs sit beside the Internet Archive');
+    assert.match(String(ia.parentNode.attrs.style), /display:flex;flex-wrap:wrap/, 'as the kit\'s pair');
+    assert.match(m.t, /Deposits failed 2/, 'failed deposits are said');
+    assert.match(String(m.span('2').attrs.style), /#d29922/, 'in amber');
+    assert.ok(m.links.includes('Open Zenodo|/z'), 'with a link to where they are fixed');
+    const stamp = nodes(m.root).find(n => /^Read at /.test(n.text));
+    assert.ok(stamp, 'a Read at foot, from the payload time');
+    assert.equal(stamp.attrs['aria-live'], 'off', 'never announced');
+    m.stop();
+    m = await mount({minted: 9, total: 9, failed: 0});
+    assert.doesNotMatch(m.t, /Deposits failed|Open Zenodo/, 'no failed deposit: no line and no link');
+    assert.match(String(m.span('DOIs').parentNode.parentNode.attrs.style), /border-top/, 'without the kit the DOIs stack under their own hairline');
+    m.stop();
+  }
   // The derived rows leave out what they cannot compute, never a 0.
   {
     const x = harness(), root = new Element('div');
@@ -511,7 +617,7 @@ async function run() {
     };
     const base = {ok: true, days: 30, total: 200, families: [{family: 'unclassified-machine', hits: 88}], ai_training: 40, ai_rights: 19};
     let m = await mount({...base, top_family: {family: 'unclassified-machine', share: 44, prior_share: 41}});
-    assert.match(m.root.textContent, /Top crawler family unclassified-machine, 44%▲ up  3 pts/, 'the top family, its share and its change in points');
+    assert.match(m.root.textContent, /Top crawler family unclassified-machine, 44%▲ up  3 points/, 'the top family, its share and its change in points, said as points');
     const arrow = nodes(m.root).find(n => n.text === '▲');
     assert.equal(arrow.attrs['aria-hidden'], 'true', 'the arrow is hidden from assistive tech');
     assert.equal(nodes(m.root).find(n => n.text === 'up').className, 'screen-reader-text', 'the direction is said in words');
@@ -609,7 +715,7 @@ async function run() {
   // 23.8.0: SN Queue pairs Scheduled with Drafts under the card kit's
   // hairline, and paints the amber gap line only when the payload has a gap.
   {
-    const x = harness({pages: {scheduled: 'https://x.test/scheduled'}}), root = new Element('div');
+    const x = harness({pages: {scheduled: 'https://x.test/scheduled'}}, {kit: true}), root = new Element('div');
     const stop = x.window.desktopModeWidgets['sn-queue'](root); await flush();
     const payload = gap => ({next: [{title: 'Soon', when: 'Tomorrow 09:38'}], published: [], scheduled_total: 6,
       runs_to: {label: 'Nov 30'}, drafts: 4, gap});

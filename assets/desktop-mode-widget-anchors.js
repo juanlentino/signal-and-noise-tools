@@ -55,6 +55,10 @@
 	var provExtra    = ( data.statusExtra && data.statusExtra.provenance ) || {};
 	var dashboardUrl = ( data.pages && ( data.pages.provenance || data.pages.dashboard ) ) || ''; // 15.8.2: Tools › Provenance
 	var readersUrl   = ( data.pages && data.pages.machine_readers ) || '';
+	var zenodoUrl    = ( data.pages && data.pages.zenodo ) || ''; // 2026-10-10: where a failed deposit is fixed
+	// When the provenance rows were read (the payload's own time), for the foot.
+	var readAtTs     = Number( data.statusExtra && data.statusExtra.at ) || 0;
+	var HAIRLINE_BOX = 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));';
 	var SUBTLE       = 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));';
 
 	/**
@@ -136,7 +140,7 @@
 		// when there are no reads: never a 0%.
 		var top = mr.top_family;
 		if ( top && top.family && typeof top.share === 'number' ) {
-			list.appendChild( listRow( 'Top crawler family', top.family + ', ' + top.share + '%', false, typeof top.prior_share === 'number' ? changeNode( top.share - top.prior_share, ' pts' ) : null ) );
+			list.appendChild( listRow( 'Top crawler family', top.family + ', ' + top.share + '%', false, typeof top.prior_share === 'number' ? changeNode( top.share - top.prior_share, ' points' ) : null ) );
 		}
 		box.appendChild( list );
 		// Crawler-list drift stays loud: one amber line, only when the verdict is
@@ -170,6 +174,32 @@
 
 	function clearChildren( node ) {
 		while ( node.firstChild ) { node.removeChild( node.firstChild ); }
+	}
+
+	/** One label/value line, as the Internet Archive rows draw it; `amber` tones the value. */
+	function plainLine( label, value, amber ) {
+		var line = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
+		line.appendChild( el( 'span', { text: label, style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));' } ) );
+		line.appendChild( el( 'span', { text: value, style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;min-width:0;white-space:normal;overflow-wrap:break-word;text-align:right;' + ( amber ? 'color:#d29922;' : '' ) } ) );
+		return line;
+	}
+
+	/** A section link, "Open Provenance →": the arrow is decoration, the words name the place. */
+	function linkTo( text, href ) {
+		var link = el( 'a', {
+			style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;',
+			text:  text,
+			href:  href,
+		} );
+		var arrow = el( 'span', { text: '→' } );
+		arrow.setAttribute( 'aria-hidden', 'true' );
+		link.appendChild( arrow );
+		return link;
+	}
+
+	/** "Read at 14:05" for a UNIX time in seconds, the form SN Reading uses. */
+	function readAt( at ) {
+		return 'Read at ' + new Date( at * 1000 ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } );
 	}
 
 	function shortTx( txid ) {
@@ -300,6 +330,7 @@
 				moreLine( pending.length, 'pending' );
 			}
 
+			var archBox = null;
 			if ( archive && overview ) {
 				// Two rows, not a sentence: the run over the notes, and what the
 				// Archive has confirmed. A halted run and a failed capture are amber.
@@ -321,23 +352,40 @@
 					+ ( silentN > 0 ? ' · ' + silentN + ' no answer' : '' ) + ( failedN > 0 ? ' · ' + failedN + ' failed' : '' );
 				var rows = [ [ 'Internet Archive', runText, halted || ! archive.configured ] ];
 				if ( archive.configured ) { rows.push( [ 'Captures', capText, failedN > 0 || silentN > 0 ] ); }
-				var box = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
-				rows.forEach( function( r ) {
-					var line = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
-					line.appendChild( el( 'span', { text: r[0], style: 'color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));' } ) );
-					line.appendChild( el( 'span', { text: r[1], style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;min-width:0;white-space:normal;overflow-wrap:break-word;text-align:right;' + ( r[2] ? 'color:#d29922;' : '' ) } ) );
-					box.appendChild( line );
-				} );
+				// A column of its own, paired with the DOIs below.
+				archBox = el( 'div' );
+				rows.forEach( function( r ) { archBox.appendChild( plainLine( r[0], r[1], r[2] ) ); } );
 				// The rows above already say what the line says, except when the run
 				// is halted (the reason) or Archive is not configured (the setup step).
 				if ( archive.line && ( halted || ! archive.configured ) ) {
-					box.appendChild( el( 'p', { style: 'margin:2px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: archive.line } ) );
+					archBox.appendChild( el( 'p', { style: 'margin:2px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.7));', text: archive.line } ) );
 				}
-				wrap.appendChild( box );
 			}
 
-			// The provenance record beyond the anchors: what verifies, where the
-			// rights-evidence ledger stands, and the DOIs. Each row only when its
+			// The DOIs beside the Internet Archive (2026-10-10, moved out of the
+			// Provenance block), and the deposits that failed only when some did.
+			var zen    = provExtra.zenodo;
+			var doiBox = null;
+			var zenLink = null;
+			if ( zen && Number( zen.total ) > 0 ) {
+				doiBox = el( 'div' );
+				doiBox.appendChild( plainLine( 'DOIs', Number( zen.minted ) + ' of ' + Number( zen.total ) + ' minted', false ) );
+				if ( Number( zen.failed ) > 0 ) {
+					doiBox.appendChild( plainLine( 'Deposits failed', String( Number( zen.failed ) ), true ) );
+					if ( zenodoUrl ) { zenLink = doiBox.appendChild( linkTo( 'Open Zenodo', zenodoUrl ) ); }
+				}
+			}
+			// Side by side with the card kit; stacked, each under its own hairline, without it.
+			if ( archBox && doiBox && window.sntCardKit ) {
+				wrap.appendChild( window.sntCardKit.pair( archBox, doiBox ) );
+			} else {
+				[ archBox, doiBox ].forEach( function( b ) {
+					if ( b ) { b.setAttribute( 'style', HAIRLINE_BOX ); wrap.appendChild( b ); }
+				} );
+			}
+
+			// The provenance record beyond the anchors: what verifies and where the
+			// rights-evidence ledger stands. Each row only when its
 			// source answered; unknown is left out, never painted as zero.
 			var prow = [];
 			var integ = provExtra.integrity;
@@ -355,10 +403,6 @@
 				prow.push( [ 'Rights evidence · ' + String( rights.month ), String( rights.text ), !! rights.attention ] );
 				var postedAgo = agoWords( rights.last_posted );
 				if ( postedAgo ) { prow.push( [ 'Last posted', postedAgo, false ] ); }
-			}
-			var zen = provExtra.zenodo;
-			if ( zen && Number( zen.total ) > 0 ) {
-				prow.push( [ 'DOIs', Number( zen.minted ) + ' of ' + Number( zen.total ) + ' minted', false ] );
 			}
 			if ( prow.length ) {
 				var pbox = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));' } );
@@ -425,23 +469,24 @@
 			if ( ! waiting ) {
 				actions.appendChild( sweepBtn );
 			}
-			var links = [];
+			var links = zenLink ? [ zenLink ] : [];
 			// Each link closes the section it opens (owner, 2026-10-05, as SN
 			// Systems does); with no section painted it stays on the action row.
 			[ [ 'Open Provenance', dashboardUrl, pbox ], [ 'Open Machine Readers', readersUrl, rbox ] ].forEach( function( l ) {
 				if ( ! l[1] ) { return; }
-				var link = el( 'a', {
-					style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;',
-					text:  l[0],
-					href:  l[1],
-				} );
-				var arrow = el( 'span', { text: '→' } );
-				arrow.setAttribute( 'aria-hidden', 'true' );
-				link.appendChild( arrow );
+				var link = linkTo( l[0], l[1] );
 				( l[2] || actions ).appendChild( link );
 				links.push( link );
 			} );
 			wrap.appendChild( actions );
+			// When the provenance rows were read, as a clock time (SN Reading's
+			// foot): a relative age would go stale on a desktop left open.
+			if ( readAtTs > 0 ) {
+				var stamp = el( 'div', { style: 'font-size:11px;margin-top:8px;' + SUBTLE, text: readAt( readAtTs ) } );
+				stamp.setAttribute( 'data-sn-read-at', '' );
+				stamp.setAttribute( 'aria-live', 'off' );
+				wrap.appendChild( stamp );
+			}
 			container.appendChild( wrap );
 			if ( hadFocus ) {
 				var back = links.filter( function( a ) { return a.textContent === onLink; } )[0];
@@ -490,6 +535,7 @@
 				window.wp.apiFetch( { path: '/signal-noise/v1/desktop/systems' } ).then( function( res ) {
 					if ( live() && res && res.statusExtra && res.statusExtra.provenance ) {
 						provExtra = res.statusExtra.provenance;
+						readAtTs  = Number( res.statusExtra.at ) || readAtTs;
 						if ( ! shown.waiting ) { render( shown.overview, shown.note ); }
 					}
 				} ).catch( function() {} );
