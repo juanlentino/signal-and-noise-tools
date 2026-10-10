@@ -153,7 +153,7 @@ add_action( 'init', function() {
 			// each and ~20px a row (3 countries, 4 sources, 1 Hacker News story
 			// at up to two lines, 3 one-line rows for devices, search and feed).
 			// The body scrolls past it; measure live before trimming.
-			// + This week (2026-10-04, the owner's pick: engaged readers, DOI
+			// + This week (2026-10-04, the owner's pick: engaged visitor-days, DOI
 			// downloads, inquiries): a hairline, a heading and three rows, ~96.
 			// A Campaigns group adds ~100 only when a tagged link was followed.
 			// + the reach row (a hairline and one row, ~30).

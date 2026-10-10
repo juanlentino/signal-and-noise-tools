@@ -48,7 +48,8 @@ ok( '1 point · 1 comment' === $hn1[0]['value'], 'Hacker News says "1 point" and
 $g28 = array( 'clicks' => 5, 'days' => 28 );
 $b28 = array( 'totals' => array( 'clicks' => 1, 'days' => 25 ), 'window' => array( 'start' => '2026-09-10', 'end' => '2026-10-07', 'days' => 28 ) );
 ok( 'Search · 28 days to Oct 7' === snt_desktop_traffic_search_label( $g28, $b28, array( 'start' => '2026-09-10', 'end' => '2026-10-07' ) ), 'one window: "Search · 28 days to Oct 7"' );
-ok( 'Search · Google 28 days to Oct 7, Bing 28 days to Oct 8' === snt_desktop_traffic_search_label( $g28, array( 'window' => array( 'end' => '2026-10-08', 'days' => 28 ) ) + $b28, array( 'end' => '2026-10-07' ) ), 'windows that differ: each engine says its own' );
+ok( 'Search · 28 days, Google to Oct 7, Bing to Oct 8' === snt_desktop_traffic_search_label( $g28, array( 'window' => array( 'end' => '2026-10-08', 'days' => 28 ) ) + $b28, array( 'end' => '2026-10-07' ) ), 'same length, different ends (the usual case): the length once, then each end' );
+ok( 'Search · Google 28 days to Oct 7, Bing 30 days to Oct 8' === snt_desktop_traffic_search_label( $g28, array( 'window' => array( 'end' => '2026-10-08', 'days' => 30 ) ) + $b28, array( 'end' => '2026-10-07' ) ), 'different lengths: each engine says its own window' );
 ok( 'Search · 28 days' === snt_desktop_traffic_search_label( $g28, null ) && 'Search' === snt_desktop_traffic_search_label( null, null ), 'no stored end date: the length alone; no engine: the bare label' );
 $s = snt_desktop_audience_search_rows( array( 'clicks' => 12, 'impressions' => 3400, 'days' => 28 ), array( 'totals' => array( 'clicks' => 1, 'impressions' => 90, 'days' => 30 ) ) );
 ok( array( 'Google · 28d', 'Bing · 30d' ) === array_column( $s, 'label' ) && '12 clicks · 3,400 impressions' === $s[0]['value'], 'search rows name their own windows' );
@@ -110,7 +111,7 @@ ok( 1 === count( $dev ) && is_array( $dev[0]['split'] ?? null ) && count( $dev[0
 $glance = array_column( $tg[3]['rows'], 'value', 'label' );
 $search = array_values( array_filter( $tg[3]['rows'], static fn( $r ) => 0 === strpos( $r['label'], 'Search' ) ) );
 ok( 'Google 5 clicks · 478 impr · Bing 0 clicks · 0 impr' === ( $search[0]['value'] ?? '' ), 'search keeps impressions beside clicks per engine, on its one row (owner\'s pick, 2026-10-04): ' . ( $search[0]['value'] ?? '' ) );
-ok( 'Search · Google 28 days to Sep 30, Bing 28 days to Oct 3' === ( $search[0]['label'] ?? '' ), 'the Search row is labeled with the engines\' windows, read from the stored readings: ' . ( $search[0]['label'] ?? '' ) );
+ok( 'Search · 28 days, Google to Sep 30, Bing to Oct 3' === ( $search[0]['label'] ?? '' ), 'the Search row is labeled with the engines\' windows, read from the stored readings: ' . ( $search[0]['label'] ?? '' ) );
 ok( array( 3, 4 ) === array( count( $tg[0]['rows'] ), count( $tg[1]['rows'] ) ) && 1 === preg_match( '/^device1 \d+% · device2 \d+%$/', $glance['Devices'] ?? '' ) && '1 · 2 · 3' === ( $glance['Feed, unique 24h · 7d · 30d'] ?? '' ), 'top 3 countries, top 4 sources; devices and the three feed windows each fold into one row' );
 function sn_analytics_top_utm_campaigns( $f, $t, $c, $l ) { return $GLOBALS['__camp'] ?? array(); }
 $GLOBALS['__camp'] = array( array( 'value' => '(none)', 'views' => 9 ), array( 'value' => 'spring', 'views' => 3 ) );

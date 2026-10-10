@@ -81,11 +81,14 @@
 		// The live-surge verdict (admin): its words ride on the element.
 		document.querySelectorAll( '[data-sn-live-surge]' ).forEach( function ( el ) {
 			var s = data.surge;
+			// Only the admin panel's line wears the panel's classes; the Traffic
+			// widget's line is styled inline and must not pick up their rules.
+			var own = /(^|\s)sn-live-admin__surge(\s|$)/.test( el.className || '' );
 			if ( ! s || typeof s !== 'object' ) {
 				// Nothing read at all: a loud line must not outlive its reading.
 				if ( typeof data.fetched !== 'number' ) {
 					el.textContent = '';
-					el.className = 'sn-live-admin__surge';
+					if ( own ) { el.className = 'sn-live-admin__surge'; }
 					showIf( el, false );
 				}
 				return;
@@ -101,7 +104,7 @@
 				text = el.getAttribute( 'data-usual' );
 			}
 			el.textContent = text;
-			el.className = 'sn-live-admin__surge' + ( s.state === 'surge' ? ' is-surge' : '' );
+			if ( own ) { el.className = 'sn-live-admin__surge' + ( s.state === 'surge' ? ' is-surge' : '' ); }
 			// The Traffic widget's surge line shows only during a surge (admin: no box, no-op).
 			showIf( el, s.state === 'surge' && text !== '' );
 		} );

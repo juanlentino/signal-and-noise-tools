@@ -19,4 +19,4 @@ global.document = {
 };
 global.window = { setInterval() {}, wp: { apiFetch: () => Promise.resolve( answer ) } };
 require( path.join( __dirname, '../../assets/live-now.js' ) );
-setImmediate( () => process.stdout.write( JSON.stringify( { hidden: box.hidden, text: line.textContent } ) ) );
+setImmediate( () => process.stdout.write( JSON.stringify( { hidden: box.hidden, text: line.textContent, className: line.className } ) ) );

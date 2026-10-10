@@ -131,6 +131,7 @@ if ( '' === $node ) {
 	$live = static fn( $a ) => json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/live-now-surge.js' ) . ' ' . escapeshellarg( json_encode( $a ) ) ), true );
 	$ls   = $live( array( 'fetched' => 1, 'surge' => array( 'state' => 'surge', 'ratio' => 4, 'readers' => 8, 'usual' => 2 ) ) );
 	ok( false === ( $ls['hidden'] ?? true ) && 'Unusual: about 4× the usual for this time of day (8 readers, usually 2).' === ( $ls['text'] ?? '' ), 'a surge verdict shows the line with its words: ' . json_encode( $ls ) );
+	ok( '' === ( $ls['className'] ?? 'x' ), 'the card\'s line never wears the admin panel\'s classes (live-admin.css would restyle it)' );
 	foreach ( array( 'usual' => array( 'state' => 'usual' ), 'learning' => array( 'state' => 'learning', 'days' => 2, 'need' => 4 ) ) as $state => $s ) {
 		ok( true === ( $live( array( 'fetched' => 1, 'surge' => $s ) )['hidden'] ?? false ), "a $state verdict keeps the line hidden" );
 	}

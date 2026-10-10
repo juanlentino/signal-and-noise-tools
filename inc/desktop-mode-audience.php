@@ -172,16 +172,23 @@ function snt_desktop_traffic_search_label( $google, $bing, $google_win = null ) 
 		if ( $days > 0 ) {
 			$end           = (string) ( $w['end'] ?? '' );
 			$t             = '' !== $end ? strtotime( $end . ' 00:00:00 UTC' ) : false;
-			$wins[ $name ] = $days . ' days' . ( false !== $t ? ' to ' . gmdate( 'M j', $t ) : '' );
+			$wins[ $name ] = array( $days . ' days', false !== $t ? 'to ' . gmdate( 'M j', $t ) : '' );
 		}
 	}
 	if ( ! $wins ) {
 		return 'Search';
 	}
-	if ( 1 === count( array_unique( $wins ) ) ) {
-		return 'Search · ' . reset( $wins );
+	$lens = array_unique( array_column( $wins, 0 ) );
+	$ends = array_unique( array_column( $wins, 1 ) );
+	if ( 1 === count( $lens ) && 1 === count( $ends ) ) {
+		return trim( 'Search · ' . reset( $lens ) . ' ' . reset( $ends ) );
 	}
-	return 'Search · ' . implode( ', ', array_map( static fn( $n, $w ) => $n . ' ' . $w, array_keys( $wins ), $wins ) );
+	// The engines end on different days (the usual case: each reports a day or
+	// three back): say the shared length once, then each end.
+	if ( 1 === count( $lens ) ) {
+		return 'Search · ' . reset( $lens ) . ', ' . implode( ', ', array_map( static fn( $n, $w ) => trim( $n . ' ' . $w[1] ), array_keys( $wins ), $wins ) );
+	}
+	return 'Search · ' . implode( ', ', array_map( static fn( $n, $w ) => trim( $n . ' ' . $w[0] . ' ' . $w[1] ), array_keys( $wins ), $wins ) );
 }
 
 /**
