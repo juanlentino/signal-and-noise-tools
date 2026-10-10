@@ -157,7 +157,7 @@
 		if ( gap ) {
 			var gapText = 'Gap: no note ' + gap.from_label + ( gap.to_label && gap.to_label !== gap.from_label ? ' to ' + gap.to_label : '' );
 			var gapStyle = 'display:block;margin:4px 0 0;font-size:11px;color:#d29922;font-variant-numeric:tabular-nums;text-decoration:none;';
-			wrap.appendChild( scheduledUrl ? el( 'a', { href: scheduledUrl, text: gapText, style: gapStyle } ) : el( 'p', { text: gapText, style: gapStyle } ) );
+			wrap.appendChild( scheduledUrl ? el( 'a', { href: scheduledUrl, text: gapText, style: gapStyle + 'display:flex;align-items:center;min-height:24px;margin-top:0;' } ) : el( 'p', { text: gapText, style: gapStyle } ) );
 		}
 
 		if ( next.length > 1 ) {
