@@ -58,6 +58,7 @@ add_action( 'wp_abilities_api_init', function() {
 			. '`ai_surfaces` breaks the SAME ai_training reads down per surface class instead of collapsing them into one number, so "did AI-training crawlers fetch robots.txt / llms.txt / the sitemap here" has a direct answer; each entry is `{surface, hits}`, descending by hits, and it is an empty array (never omitted) when no AI-training family read anything in the window. '
 			. 'Provenance rides along so the numbers can be judged: `sensor_version` is the deployed edge worker, `crawler_list` is its list-drift verdict (in sync | drift | check failed), null when either document could not be read. '
 			. 'User agents are self-reported, so this is observation, never proof of identity. '
+			. 'series: "day" (optional) adds `daily`: one entry per UTC date, oldest first, zero-filled, each with day, total, first_party, ai_training, purposes and ai_surfaces that sum to the window figures; the window is rolling, so the first and last dates carry partial: true, and `daily_total_exact` says whether the per-day totals are exact. The sensor records no response status, so there is no ai_training_status. '
 			. 'When the sensor is unconfigured or unreachable the response is `ok: false` with a machine-readable `error` (not_configured, blocked, network, bad_schema, http_NNN) and NO counts at all: an absent total means "we never asked", which is not the same claim as zero crawlers. Read-only.',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
@@ -73,6 +74,11 @@ add_action( 'wp_abilities_api_init', function() {
 					'minimum'     => 1,
 					'maximum'     => 90,
 					'description' => 'Window in days; clamped to the sensor\'s own 1-90 range.',
+				),
+				'series' => array(
+					'type'        => 'string',
+					'enum'        => array( 'day' ),
+					'description' => 'Optional. "day" adds `daily` (per UTC date, oldest first) and `daily_total_exact`. Omitted, the response is unchanged.',
 				),
 			),
 			'additionalProperties' => false,
@@ -167,6 +173,27 @@ add_action( 'wp_abilities_api_init', function() {
 				'sensor_version' => array( 'type' => array( 'string', 'null' ) ),
 				'crawler_list'   => array( 'type' => array( 'string', 'null' ) ),
 				'error'          => array( 'type' => array( 'string', 'null' ) ),
+				// Unreleased: present ONLY when the call passed series: "day".
+				'daily'                  => array(
+					'type'        => 'array',
+					'description' => 'Present only with series: "day". One entry per UTC date in the window, oldest first, zero-filled: a date with no reads is zeros and empty lists, not a gap. The window is rolling (now minus `days`), so it touches days+1 dates and the first and last carry partial: true. Each field sums to its window figure. Dates before the sensor held data also read zero; days_covered says how many dates it holds. When `truncated` is true the per-day breakdowns may be partial, and the aggregate keeps its oldest rows first, so the newest days lose rows first. No response status is recorded by the sensor, so there is no per-status split.',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'day'         => array( 'type' => 'string' ),
+							'total'       => array( 'type' => 'integer' ),
+							'first_party' => array( 'type' => array( 'integer', 'null' ) ),
+							'ai_training' => array( 'type' => 'integer' ),
+							'purposes'    => array( 'type' => array( 'array', 'null' ) ),
+							'ai_surfaces' => array( 'type' => 'array' ),
+							'partial'     => array( 'type' => 'boolean' ),
+						),
+					),
+				),
+				'daily_total_exact'      => array(
+					'type'        => 'boolean',
+					'description' => 'Present only with series: "day". True when each day\'s total comes from the exact day-only totals view; false when it was summed from the aggregate and is a floor.',
+				),
 			),
 		),
 		'meta'                => array(
@@ -197,9 +224,13 @@ function snt_ability_get_machine_readers_summary( $input ) {
 	$input = is_array( $input ) ? $input : array();
 	$days  = isset( $input['days'] ) ? (int) $input['days'] : 30;
 	$days  = max( 1, min( 90, $days ) );
+	$series = $input['series'] ?? null;
+	if ( null !== $series && 'day' !== $series ) {
+		return new WP_Error( 'ability_invalid_input', 'series must be "day" or omitted.', array( 'status' => 400 ) );
+	}
 	// v10.2.0: ONE builder, no fork. snt_mr_summary_payload() lives beside the
 	// fetch it uses and is the single source both this ability and the desktop
 	// tile route read, so neither can drift when the other gains a field.
-	return snt_mr_summary_payload( $days );
+	return snt_mr_summary_payload( $days, $series );
 }
 

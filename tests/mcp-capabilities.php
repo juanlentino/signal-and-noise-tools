@@ -406,6 +406,7 @@ $verdict_absorbed_by_section = array(
 	'signal-noise/get-analytics-devices'       => 'sn-metrics{analytics_devices}',
 	'signal-noise/get-analytics-journeys'      => 'sn-metrics{analytics_journeys}',
 	'signal-noise/analytics-query'             => 'sn-metrics{analytics_query}',
+	'signal-noise/analytics-rows'              => 'sn-metrics{analytics_rows}',
 	'signal-noise/get-machine-readers-summary' => 'sn-metrics{machine_readers}',
 	'signal-noise/schedule-cron-event'         => 'sn-apply{schedule_cron_event}',
 	// The CAPABILITY (cause a health scan to run) is reachable: sn_health_scan_daily

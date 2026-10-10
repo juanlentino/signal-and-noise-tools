@@ -70,7 +70,8 @@ ok( array(
 	'signal-noise/remote-edge-errors-summary', // 18.0.0 — owner ruling 2026-09-23.
 	'signal-noise/remote-bot-signals',              // contract 14 — owner ruling 2026-09-29.
 	'signal-noise/remote-machine-readers-networks', // contract 14 — owner ruling 2026-09-29.
-) === sn_mcp_remote_slugs(), 'the remote list holds exactly the seventeen slugs: eight from Increments 1+2, three ratified 2026-09-01, three Search Console twins, the 5xx rollup, bot signals, agent networks' );
+	'signal-noise/remote-analytics-rows',           // contract 15 — owner brief 2026-10-10.
+) === sn_mcp_remote_slugs(), 'the remote list holds exactly the eighteen slugs: eight from Increments 1+2, three ratified 2026-09-01, three Search Console twins, the 5xx rollup, bot signals, agent networks, analytics rows' );
 
 // Contract 14 kept two things LOCAL by owner ruling: the deploy runtime (pinned
 // in tests/abilities-remote-set.php as a strip) and the recompute status.

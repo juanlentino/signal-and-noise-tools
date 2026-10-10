@@ -69,6 +69,7 @@ require_once __DIR__ . '/../inc/abilities-search-console.php'; // v13.61.0: the 
 require_once __DIR__ . '/../inc/abilities-edge-errors.php'; // 18.0.0: the 5xx twin reads its schema from here.
 require_once __DIR__ . '/../inc/analytics-bot-signals.php'; // contract 14: the bot-signals twin reads its schema from here.
 require_once __DIR__ . '/../inc/abilities-bot-signals.php';
+require_once __DIR__ . '/../inc/abilities-analytics-rows.php'; // contract 15: the analytics-rows twin and its schema.
 require_once __DIR__ . '/../inc/abilities-remote-set.php';
 foreach ( $GLOBALS['__actions']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(); }
 
