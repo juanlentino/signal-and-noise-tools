@@ -31,7 +31,8 @@ function get_post_status( $id ) { return 13 === $id ? 'draft' : 'publish'; }
 function sn_analytics_local_day( $now ) { return gmdate( 'Y-m-d', $now ); }
 $GLOBALS['wpdb'] = (object) array( 'last_error' => '' ); $GLOBALS['fail_read'] = '';
 function sn_analytics_daily_range( $from, $to ) { $GLOBALS['wpdb']->last_error = ( 'history' === $GLOBALS['fail_read'] && $from !== $to ) || ( 'today' === $GLOBALS['fail_read'] && $from === $to ) ? 'Table is marked as crashed' : ''; if ( '' !== $GLOBALS['wpdb']->last_error ) { return array(); } return array_values( array_filter( $GLOBALS['rows'], static fn( $r ) => $r['day'] >= $from && $r['day'] <= $to ) ); }
-function sn_edge_top_dim( $dim, $from, $to, $limit = 10 ) { $GLOBALS["wpdb"]->last_error = ""; return array_slice( $GLOBALS['err'][ $from ] ?? array(), 0, $limit ); }
+function sn_edge_top_dim( $dim, $from, $to, $limit = 10 ) { $GLOBALS["wpdb"]->last_error = ""; return array_slice( 'err_path' === $dim ? ( $GLOBALS['err'][ $from ] ?? array() ) : ( $GLOBALS['errx'][ $dim ][ $from ] ?? array() ), 0, $limit ); }
+$GLOBALS['errx'] = array(); // err_path_asker / err_path_status rows by day
 define( 'SN_EDGE_ERRORS_READ_OPT', 'sn_edge_errors_read_days' ); $GLOBALS['src_fail'] = false;
 function sn_analytics_top_sources() { if ( $GLOBALS['src_fail'] ) { return null; } return array( array( 'value' => 'Hacker News', 'views' => 20 ), array( 'value' => '(direct)', 'views' => 9 ) ); }
 function __return_true_t() { return true; }
@@ -83,7 +84,7 @@ echo "\nThe email\n";
 $msg = snt_alerts_compose( array_merge( $eval( array( 'views' => array( "/a/\r\nBcc: x@y" => 36 ), 'history' => array(), 'errors' => $errs ) ) ), sn_analytics_top_sources(), 'Test Site', 'https://example.test/wp-admin/admin.php?page=sn-analytics' );
 ok( '[Test Site] Alert: 1 spike, 1 break' === $msg[0], 'the subject counts what fired' );
 ok( false !== strpos( $msg[1], 'has 36 human views today (2026-10-03). The prior 7-day mean is 0 a day; the alert line is more than 15.' ), 'a spike line carries the number, the baseline and the line' );
-ok( false !== strpos( $msg[1], 'BREAK: /notes/a/ answered a server error 3 times on 2026-10-02 (UTC)' ), 'a break line carries the page, the count and the day' );
+ok( false !== strpos( $msg[1], 'BREAK: /notes/a/ answered a server error 3 times on 2026-10-02 (UTC)' ) && false !== strpos( $msg[1], 'Who asked was not stored per path for this day, so every error counted.' ), 'a break line carries the page, the count and the day; with no stored detail it says every error counted' );
 ok( false !== strpos( $msg[1], 'Top sources today, site-wide (views): Hacker News 20, (direct) 9.' ) && false !== strpos( $msg[1], 'Visits with no referrer (apps, RSS readers, privacy browsers) show as direct.' ), 'a spike names the top sources and says what direct means' );
 ok( false !== strpos( $msg[1], 'page=sn-analytics' ), 'and where to look' );
 ok( false === strpos( $msg[1], "\r" ) && false !== strpos( $msg[1], '/a/??Bcc: x@y' ), 'a path is request text: control characters never reach the email' );
@@ -123,6 +124,33 @@ $GLOBALS['err']['2026-10-02'] = array_merge( array_map( static fn( $i ) => array
 $last = snt_alerts_run( $now );
 ok( in_array( 'break|/notes/b/|2026-10-02', $last['fired'], true ), 'filter, then truncate: 49 louder probe rows do not push a real page with 3 errors out of the local read' );
 ok( array( '2026-10-02' ) === $last['capped'] && false !== strpos( snt_watch_ripe_alerts( array(), $now )['note'], 'the stored 5xx list was full on 2026-10-02' ), 'a day that stored all 50 path groups is named: upstream may have cut a quieter page' );
+
+echo "\nA break counts visitors and says who asked\n";
+$ask = array(
+	array( 'value' => 'visitor 522 - dynamic /', 'requests' => 3 ),
+	array( 'value' => 'worker 503 503 bypass /', 'requests' => 1 ),
+	array( 'value' => 'worker 503 503 bypass /notes/a/', 'requests' => 5 ),
+	array( 'value' => 'visitor 503 - bypass /terraform.tfstate', 'requests' => 9 ),
+);
+$det = snt_alerts_break_detail( $ask, array( array( 'value' => '999 x /ignored', 'requests' => 50 ) ) );
+ok( 3 === $det['/']['visitor'] && 4 === $det['/']['total'] && true === $det['/']['asked'] && 0 === $det['/notes/a/']['visitor'] && ! isset( $det['/ignored'] ), 'per path: visitors counted apart from Worker errors; with who-asked stored, the status-only rows are not read' );
+ok( '3 x 522 (Cloudflare, origin never answered, visitor), 1 x 503 (origin, via Worker)' === snt_alerts_break_parts( $det['/']['parts'] ), 'the breakdown line names each status, who answered and who asked, largest first' );
+$GLOBALS['opt'][ SNT_ALERTS_SENT_OPT ] = array(); $GLOBALS['mail'] = array();
+$GLOBALS['err']  = array( '2026-10-02' => array( array( 'value' => '/', 'requests' => 4 ), array( 'value' => '/notes/a/', 'requests' => 5 ) ) );
+$GLOBALS['errx'] = array( 'err_path_asker' => array( '2026-10-02' => $ask ) );
+$last = snt_alerts_run( $now );
+ok( in_array( 'break|/|2026-10-02', $last['fired'], true ) && ! in_array( 'break|/notes/a/|2026-10-02', $last['fired'], true ), 'the line counts visitor errors only: 3 visitor 522s on / fire; 5 Worker 503s on a real page do not' );
+$body = end( $GLOBALS['mail'] )['b'];
+ok( false !== strpos( $body, 'BREAK: / answered a server error to visitors 3 times on 2026-10-02 (UTC), in the stored edge 5xx rollup. All 4 on / that day: 3 x 522 (Cloudflare, origin never answered, visitor), 1 x 503 (origin, via Worker). The alert line is 3 visitor errors' ), 'the mail carries the day\'s breakdown for the path, the Worker error as context' );
+$GLOBALS['errx'] = array( 'err_path_asker' => array( '2026-10-02' => array( array( 'value' => 'visitor 522 - dynamic /', 'requests' => 2 ), array( 'value' => 'worker 503 503 bypass /', 'requests' => 2 ) ) ) );
+$GLOBALS['opt'][ SNT_ALERTS_SENT_OPT ] = array();
+ok( ! in_array( 'break|/|2026-10-02', snt_alerts_run( $now )['fired'], true ), '2 visitor errors and 2 Worker errors on / are below the line: Worker errors do not make up the count' );
+$GLOBALS['errx'] = array( 'err_path_status' => array( '2026-10-02' => array( array( 'value' => '522 dynamic /', 'requests' => 3 ), array( 'value' => '503 bypass /', 'requests' => 1 ) ) ) );
+$GLOBALS['opt'][ SNT_ALERTS_SENT_OPT ] = array(); $GLOBALS['mail'] = array();
+$last = snt_alerts_run( $now );
+$body = end( $GLOBALS['mail'] )['b'];
+ok( in_array( 'break|/|2026-10-02', $last['fired'], true ) && false !== strpos( $body, 'BREAK: / answered a server error 4 times on 2026-10-02 (UTC), in the stored edge 5xx rollup. By status: 3 x 522 (dynamic), 1 x 503 (bypass). Who asked was not stored per path for this day, so every error counted.' ), 'a day with no stored who-asked keeps every error and says so, with the status breakdown it does have' );
+$GLOBALS['err'] = array(); $GLOBALS['errx'] = array(); $GLOBALS['opt'][ SNT_ALERTS_SENT_OPT ] = array(); $GLOBALS['mail'] = array();
 
 echo "\nAn unread 5xx day is not a clean day\n";
 $D1 = '2026-10-02'; $D2 = '2026-10-01';

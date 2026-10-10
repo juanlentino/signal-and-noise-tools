@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **A break alert counts visitor errors and says what the day's errors were.** On 2026-10-09 the mail said "/" answered a server error 4 times on 2026-10-08, and nothing stored could say whether a person or a Worker had asked: `err_path_status` had the status but no asker, `err_source` the asker but no path. The edge rollup now also stores `err_path_asker` per day (`"<asker> <edge> <origin> <cache> <path>"`). The break line counts visitor-asked errors only (still 3 in a UTC day); Worker and other errors on the path ride along as context. The mail carries the day's breakdown, for example "All 4 on / that day: 3 x 522 (Cloudflare, origin never answered, visitor), 1 x 503 (origin, via Worker)". A day stored before the new rows keeps counting every error and says so, with the status breakdown it has. Counts and status words only. Pinned by `tests/alerts.php` (visitor-only counting, Worker errors not making up the count, the breakdown line, a day with no stored asker), `tests/edge-5xx-read-back.php` and `tests/edge-analytics-sees-5xx.php` (the stored value, its cut at 160 characters). The Oct 8 finding and a proposal to run the rollup sooner after the UTC day closes are in `docs/ops/edge-5xx-break-alert.md`.
+
 ## [23.3.3] - 2026-10-09 — share bars on an even accent ramp, another site's monitor is not this site's uptime
 
 ### Fixed

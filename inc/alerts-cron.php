@@ -76,6 +76,7 @@ function snt_alerts_gather( $now ) {
 		return $out;
 	};
 	$errors = array();
+	$detail = array();
 	$capped = array();
 	// Three UTC days, not two: a day the rollup filed late is still read, and
 	// the key is the error day, so a wider window never mails twice.
@@ -88,6 +89,16 @@ function snt_alerts_gather( $now ) {
 		$check( 'edge 5xx ' . $day );
 		foreach ( $rows as $r ) {
 			$errors[ $day ][ $r['value'] ] = (int) $r['requests'];
+		}
+		// Who asked, per path: the line counts visitors only. A day stored
+		// before err_path_asker existed keeps every error, and the mail says so.
+		$asker  = function_exists( 'sn_edge_top_dim' ) ? sn_edge_top_dim( 'err_path_asker', $day, $day, 300 ) : array();
+		$check( 'edge 5xx by asker ' . $day );
+		$status = $asker || ! $rows || ! function_exists( 'sn_edge_top_dim' ) ? array() : sn_edge_top_dim( 'err_path_status', $day, $day, 300 );
+		$check( 'edge 5xx by status ' . $day );
+		$detail[ $day ] = snt_alerts_break_detail( $asker, $status );
+		if ( $asker ) {
+			$errors[ $day ] = array_map( static fn( $d ) => (int) $d['visitor'], $detail[ $day ] );
 		}
 		if ( count( $rows ) >= SNT_ALERT_EDGE_GROUPS ) {
 			$capped[] = $day;
@@ -103,6 +114,7 @@ function snt_alerts_gather( $now ) {
 		'views'    => $views,
 		'history'  => $history,
 		'errors'   => $errors,
+		'error_detail' => $detail,
 		'cache'    => function_exists( 'sn_cf_purge_failure' ) ? sn_cf_purge_failure() : null,
 		'excluded' => function_exists( 'sn_analytics_is_excluded_path' ) ? 'sn_analytics_is_excluded_path' : null,
 		'real'     => 'snt_alerts_is_real_page',
