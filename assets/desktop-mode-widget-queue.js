@@ -3,7 +3,8 @@
  *
  * "Is the queue fed, and what goes out next." The next scheduled note as the
  * headline with its site-timezone time, the depth of the schedule and the
- * date it runs to, three more upcoming, and the last three published. Core's
+ * date it runs to beside the draft count, the first gap in the schedule when
+ * there is one, three more upcoming, and the last three published. Core's
  * Activity box frames the same rows as activity; this site lives on a
  * scheduled queue, so the depth line is the reading.
  *
@@ -131,14 +132,33 @@
 			wrap.appendChild( el( 'p', { style: 'margin:0;font-size:14px;font-weight:600;', text: 'Nothing scheduled' } ) );
 		}
 
-		// The reading: depth and horizon.
+		// The reading: depth and horizon beside the drafts waiting behind it,
+		// one row under the card kit's hairline (SN Traffic's Countries and
+		// Sources pairing). Drafts is left out, never painted as 0, when the
+		// payload could not count it (or predates 23.8.0).
 		var runsTo = data.runs_to && typeof data.runs_to.label === 'string' ? data.runs_to.label : '';
-		wrap.appendChild( el( 'p', {
-			style: 'margin:8px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));font-variant-numeric:tabular-nums;',
-			text:  total
-				? total + ' scheduled' + ( runsTo ? ' · runs to ' + runsTo : '' )
-				: 'The queue is empty',
-		} ) );
+		var cell = 'margin:0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));font-variant-numeric:tabular-nums;';
+		var depth = el( 'p', { style: cell, text: 'Scheduled: ' + total + ( total && runsTo ? ' · to ' + runsTo : '' ) } );
+		var drafts = typeof data.drafts === 'number' ? el( 'p', { style: cell, text: 'Drafts: ' + data.drafts } ) : null;
+		var kit = window.sntCardKit;
+		if ( drafts && kit && typeof kit.pair === 'function' ) {
+			wrap.appendChild( kit.pair( depth, drafts ) );
+		} else {
+			depth.style.marginTop = '8px';
+			wrap.appendChild( depth );
+			if ( drafts ) { wrap.appendChild( drafts ); }
+		}
+
+		// 23.8.0: the first hole in the schedule, by the publishing-cadence
+		// flag's own threshold (server-side). Amber, and only when there is
+		// one; it links to where the queue is fixed.
+		var gap = data.gap && typeof data.gap.from_label === 'string' ? data.gap : null;
+		var scheduledUrl = ( window.snDesktopData && window.snDesktopData.pages && window.snDesktopData.pages.scheduled ) || '';
+		if ( gap ) {
+			var gapText = 'Gap: no note ' + gap.from_label + ( gap.to_label && gap.to_label !== gap.from_label ? ' to ' + gap.to_label : '' );
+			var gapStyle = 'display:block;margin:4px 0 0;font-size:11px;color:#d29922;font-variant-numeric:tabular-nums;text-decoration:none;';
+			wrap.appendChild( scheduledUrl ? el( 'a', { href: scheduledUrl, text: gapText, style: gapStyle } ) : el( 'p', { text: gapText, style: gapStyle } ) );
+		}
 
 		if ( next.length > 1 ) {
 			wrap.appendChild( heading( 'Then' ) );
@@ -152,7 +172,6 @@
 
 		// 15.8.2: the leaf where the queue lives (Connections › Scheduled folds
 		// native future posts with the fragment queue).
-		var scheduledUrl = ( window.snDesktopData && window.snDesktopData.pages && window.snDesktopData.pages.scheduled ) || '';
 		if ( scheduledUrl ) {
 			wrap.appendChild( el( 'a', {
 				href:  scheduledUrl,

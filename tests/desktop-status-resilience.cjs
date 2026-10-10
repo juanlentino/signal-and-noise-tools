@@ -51,7 +51,7 @@ function harness(extraData) {
     dispatch(t) { (listeners.get(t) || []).forEach(fn => fn()); } };
   class Clock extends Date { constructor(...a) { super(...(a.length ? a : [now])); } static now() { return now; } }
   const context = vm.createContext({window, document, Date: Clock, Promise, Error, Math, Number, Array, Object, AbortController});
-  for (const name of ['snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-health.js',
+  for (const name of ['desktop-mode-card-kit.js', 'snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-health.js',
     'desktop-mode-widget-queue.js', 'desktop-mode-widget-anchors.js', 'desktop-mode-widget-views.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets', name), 'utf8'), context, {filename: name});
   }
@@ -605,6 +605,34 @@ async function run() {
     const sig = traffic()[3].opts.signal;
     stop(); assert.equal(sig.aborted, true, 'teardown aborts the read in flight');
     await x.tick(60 * 60000); assert.equal(traffic().length, 4); assert.equal(x.timers.size, 0, 'teardown clears every timer');
+  }
+  // 23.8.0: SN Queue pairs Scheduled with Drafts under the card kit's
+  // hairline, and paints the amber gap line only when the payload has a gap.
+  {
+    const x = harness({pages: {scheduled: 'https://x.test/scheduled'}}), root = new Element('div');
+    const stop = x.window.desktopModeWidgets['sn-queue'](root); await flush();
+    const payload = gap => ({next: [{title: 'Soon', when: 'Tomorrow 09:38'}], published: [], scheduled_total: 6,
+      runs_to: {label: 'Nov 30'}, drafts: 4, gap});
+    x.calls[0].resolve(payload({from: '2026-09-25', to: '2026-10-08', from_label: 'Sep 25', to_label: 'Oct 8'})); await flush();
+    const pair = nodes(root).find(n => /border-top/.test(n.attrs.style || '') && n.children.length === 2);
+    assert.ok(pair, 'Scheduled and Drafts share one card-kit row');
+    assert.equal(pair.children[0].textContent, 'Scheduled: 6 · to Nov 30');
+    assert.equal(pair.children[1].textContent, 'Drafts: 4');
+    const gapLine = nodes(root).find(n => /^Gap: /.test(n.text));
+    assert.ok(gapLine, 'a gap paints its line');
+    assert.equal(gapLine.text, 'Gap: no note Sep 25 to Oct 8');
+    assert.match(gapLine.attrs.style, /#d29922/, 'the gap line is amber');
+    assert.equal(gapLine.tag, 'a'); assert.equal(gapLine.href, 'https://x.test/scheduled', 'the amber line links to where the queue is fixed');
+    await x.tick(60000);
+    x.calls[1].resolve(payload(null)); await flush();
+    assert.doesNotMatch(root.textContent, /Gap:/, 'no gap, no line');
+    assert.doesNotMatch(styles(root), /#d29922/, 'and no amber');
+    assert.match(root.textContent, /Drafts: 4/);
+    await x.tick(60000);
+    x.calls[2].resolve({...payload(null), drafts: null}); await flush();
+    assert.doesNotMatch(root.textContent, /Drafts/, 'an uncounted drafts total is left out, never painted as 0');
+    assert.match(root.textContent, /Scheduled: 6/);
+    stop();
   }
   console.log('PASS: runner and both widgets — stale/429/recovery/backoff, malformed data, cross-widget cadence, abort/cleanup/remount');
 }

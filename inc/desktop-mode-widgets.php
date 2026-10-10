@@ -177,7 +177,7 @@ add_action( 'init', function() {
 		// the content-queue ability; labels are the site timezone's.
 		snt_os_register_widget( 'sn-queue', array_merge( $sn_drag, array(
 			'label'          => 'SN Queue',
-			'description'    => 'The next scheduled note, how deep the queue runs, and the last three published.',
+			'description'    => 'The next scheduled note, how deep the queue runs, the drafts waiting, any gap in the schedule, and the last three published.',
 			'icon'           => 'dashicons-calendar-alt',
 			'script'         => 'sn-desktop-mode-widget-queue',
 			// Measured 365 (15.8.1, live at the docked width with the real
