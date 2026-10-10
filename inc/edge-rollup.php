@@ -139,10 +139,50 @@ add_action( 'init', 'sn_edge_resample_maybe_schedule' );
 /** Daily cron: re-pull + upsert. WP passes no args → today defaults to now (UTC). */
 add_action( SN_EDGE_ROLLUP_HOOK, 'sn_edge_run_rollup' );
 add_action( 'init', 'sn_edge_maybe_schedule' );
+
+const SN_EDGE_ROLLUP_AT = '01:15'; // UTC: the day just closed is stored about an hour after, so a break mails within ~2h, not ~21h.
+
+/**
+ * The next SN_EDGE_ROLLUP_AT (UTC) strictly after $now. PURE.
+ *
+ * @param int $now Unix time.
+ * @return int
+ */
+function sn_edge_rollup_next_run( $now ) {
+	$at = strtotime( gmdate( 'Y-m-d', (int) $now ) . ' ' . SN_EDGE_ROLLUP_AT . ':00 UTC' );
+	return $at > (int) $now ? $at : $at + DAY_IN_SECONDS;
+}
+
+/**
+ * Keep the daily rollup at SN_EDGE_ROLLUP_AT. It used to be scheduled at
+ * whatever moment it was first seen unscheduled (20:43 UTC on this site), so
+ * the hourly alert read a day's 5xx about 21 hours after the day closed. A run
+ * at another time is moved once; when the move would leave yesterday unread
+ * until tomorrow's run, one run now stores it.
+ */
 function sn_edge_maybe_schedule() {
-	if ( function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( SN_EDGE_ROLLUP_HOOK ) ) {
-		wp_schedule_event( time(), 'daily', SN_EDGE_ROLLUP_HOOK );
+	if ( ! function_exists( 'wp_get_scheduled_event' ) ) {
+		return;
 	}
+	$event = wp_get_scheduled_event( SN_EDGE_ROLLUP_HOOK );
+	$next  = $event ? (int) $event->timestamp : 0;
+	// The soonest event is a one-off catch-up queued by the move below: leave it
+	// and the daily alone, or every request in its minute would move again and
+	// push the catch-up back (review on #1980).
+	if ( $event && empty( $event->schedule ) ) {
+		return;
+	}
+	if ( $next && SN_EDGE_ROLLUP_AT === gmdate( 'H:i', $next ) ) {
+		return;
+	}
+	if ( $next ) {
+		wp_clear_scheduled_hook( SN_EDGE_ROLLUP_HOOK );
+		$read = function_exists( 'get_option' ) ? (array) get_option( SN_EDGE_ERRORS_READ_OPT, array() ) : array();
+		if ( ! array_key_exists( gmdate( 'Y-m-d', time() - DAY_IN_SECONDS ), $read ) ) {
+			wp_schedule_single_event( time() + 60, SN_EDGE_ROLLUP_HOOK );
+		}
+	}
+	wp_schedule_event( sn_edge_rollup_next_run( time() ), 'daily', SN_EDGE_ROLLUP_HOOK );
 }
 
 /** UPSERT exact daily rows. @return int rows written. */
@@ -572,7 +612,7 @@ function sn_edge_errors_reading( $days = 7, $today = null ) {
  *
  * @param string $from First day.
  * @param string $to   Last day.
- * @return array{from:string,to:string,total:int,paths:array,paths_by_status:array,sources:array,days:array,asked_by:array}
+ * @return array{from:string,to:string,total:int,paths:array,paths_by_status:array,sources:array,days:array,asked_by:array,paths_by_day:array}
  */
 function sn_edge_errors_range( $from, $to ) {
 	$from    = (string) $from;
@@ -609,7 +649,51 @@ function sn_edge_errors_range( $from, $to ) {
 		'sources'     => $sources,
 		'days'        => $days,
 		'asked_by'    => $asked_by,
+		// Each day's top paths with who asked; local readers only (the
+		// remote twin copies named keys, so this never reaches it).
+		'paths_by_day' => sn_edge_errors_paths_by_day( $from, $to ),
 	);
+}
+
+/**
+ * Each day's top failing paths with who asked and who answered, from the
+ * err_path_asker rows. PURE. A day with no rows was stored before those rows
+ * existed (or had no 5xx): `stored` false and `paths` null, never an empty
+ * list that would read as a clean day. Local surfaces only; the remote
+ * edge-errors twin keeps its week (contract 14).
+ *
+ * @param array<string,array<int,array{value:string,requests:int}>> $by_day Day => err_path_asker rows, most first.
+ * @param int                                                       $limit  Paths kept per day.
+ * @return array<int,array{day:string,stored:bool,paths:array|null}>
+ */
+function sn_edge_errors_paths_by_day_shape( array $by_day, $limit = 5 ) {
+	$out = array();
+	foreach ( $by_day as $day => $rows ) {
+		$paths = array();
+		foreach ( (array) $rows as $r ) {
+			if ( count( $paths ) < (int) $limit && preg_match( '/^(\S+) (\d+) (\d+|-) (\S+) (.+)$/', (string) ( $r['value'] ?? '' ), $m ) ) {
+				$paths[] = array( 'path' => $m[5], 'edge' => (int) $m[2], 'origin' => $m[3], 'cache' => $m[4], 'asker' => $m[1], 'requests' => (int) ( $r['requests'] ?? 0 ) );
+			}
+		}
+		$out[] = array( 'day' => (string) $day, 'stored' => (bool) $rows, 'paths' => $rows ? $paths : null );
+	}
+	return $out;
+}
+
+/**
+ * sn_edge_errors_paths_by_day_shape() over [$from,$to], one read per day.
+ *
+ * @param string $from First day.
+ * @param string $to   Last day.
+ * @return array
+ */
+function sn_edge_errors_paths_by_day( $from, $to ) {
+	$by_day = array();
+	for ( $t = strtotime( (string) $from . ' UTC' ), $end = strtotime( (string) $to . ' UTC' ); false !== $t && false !== $end && $t <= $end && count( $by_day ) < 31; $t += DAY_IN_SECONDS ) {
+		$day            = gmdate( 'Y-m-d', $t );
+		$by_day[ $day ] = sn_edge_top_dim( 'err_path_asker', $day, $day, 5 ); // the shape's own limit, read no further.
+	}
+	return sn_edge_errors_paths_by_day_shape( $by_day, 5 );
 }
 
 /**

@@ -54,7 +54,7 @@ function e5r_extract( $src, $name ) {
 }
 
 $roll = (string) file_get_contents( $root . '/inc/edge-rollup.php' );
-foreach ( array( 'sn_edge_errors_dims', 'sn_edge_errors_reading', 'sn_edge_errors_range', 'sn_edge_error_source_label', 'sn_edge_error_asker_label', 'sn_edge_error_asker', 'sn_edge_errors_days_shape', 'sn_edge_errors_asked_by_totals', 'sn_edge_errors_days_annotate' ) as $name ) {
+foreach ( array( 'sn_edge_errors_dims', 'sn_edge_errors_reading', 'sn_edge_errors_range', 'sn_edge_error_source_label', 'sn_edge_error_asker_label', 'sn_edge_error_asker', 'sn_edge_errors_days_shape', 'sn_edge_errors_asked_by_totals', 'sn_edge_errors_days_annotate', 'sn_edge_errors_paths_by_day_shape', 'sn_edge_errors_paths_by_day' ) as $name ) {
 	$fn = e5r_extract( $roll, $name );
 	ok( '' !== $fn, "$name() was extracted; if empty, every assertion below is vacuous" );
 	eval( $fn ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- test-only extraction.
@@ -96,6 +96,20 @@ ok( 3 === ( $pa['visitor 522 - dynamic /'] ?? null ) && 1 === ( $pa['worker 503 
 ok( isset( $pa['unrecorded 503 - - /x'] ) && isset( $pa['other 503 - - /x'] ), 'no request source is unrecorded, any other source is other, an absent cache is "-"' );
 $pl = array_keys( sn_edge_errors_dims( array( $src( $long, 522, 0, 'dynamic', 'eyeball' ) ) )['err_path_asker'] ?? array() )[0] ?? '';
 ok( 160 === strlen( $pl ) && 0 === strpos( $pl, 'visitor 522 - dynamic /' ), 'an over-long path is cut at 160 from the PATH end, the prefix kept' );
+
+echo "\nGroup 2d: each day's paths with who asked (local readers)\n";
+$pbd = sn_edge_errors_paths_by_day_shape( array(
+	'2026-10-08' => array(),
+	'2026-10-09' => array( array( 'value' => 'visitor 522 - dynamic /', 'requests' => 3 ), array( 'value' => 'worker 503 503 bypass /notes/a b/', 'requests' => 1 ) ),
+) );
+ok( array( 'day' => '2026-10-08', 'stored' => false, 'paths' => null ) === $pbd[0], 'a day with no who-asked rows reads stored false and paths null, never an empty list that looks clean' );
+ok( array( 'path' => '/', 'edge' => 522, 'origin' => '-', 'cache' => 'dynamic', 'asker' => 'visitor', 'requests' => 3 ) === $pbd[1]['paths'][0] && '/notes/a b/' === $pbd[1]['paths'][1]['path'], 'each path carries its status, who answered and who asked; a path with a space survives whole' );
+$many = array(); foreach ( range( 1, 8 ) as $i ) { $many[] = array( 'value' => "visitor 503 - dynamic /p$i", 'requests' => 9 - $i ); }
+ok( 5 === count( sn_edge_errors_paths_by_day_shape( array( '2026-10-09' => $many ) )[0]['paths'] ), 'five paths a day at most' );
+$r = sn_edge_errors_range( '2026-10-08', '2026-10-09' );
+ok( 2 === count( $r['paths_by_day'] ?? array() ) && in_array( 'err_path_asker', array_column( $GLOBALS['e5r_calls'], 0 ), true ), 'the range reading carries paths_by_day, one entry per day, from err_path_asker' );
+$ee = (string) file_get_contents( $root . '/inc/abilities-edge-errors.php' );
+ok( false === strpos( $ee, 'paths_by_day' ), 'the edge-errors ability (and so its remote twin) does not carry it: contract 14 unchanged' );
 
 echo "\nGroup 3: every surface reads it\n";
 $native  = (string) file_get_contents( $root . '/apps/sn-dashboard/parts/leaves/connections-cloudflare-errors.php' );
