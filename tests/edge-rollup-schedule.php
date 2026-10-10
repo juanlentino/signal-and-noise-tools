@@ -24,10 +24,15 @@ foreach ( array( 'sn_edge_rollup_next_run', 'sn_edge_maybe_schedule' ) as $name 
 }
 
 $GLOBALS['next'] = false; $GLOBALS['ev'] = array(); $GLOBALS['opt'] = array();
-function wp_next_scheduled( $h ) { return $GLOBALS['next']; }
-function wp_clear_scheduled_hook( $h ) { $GLOBALS['ev'][] = array( 'clear', $h ); $GLOBALS['next'] = false; }
+// The soonest event for the hook, as WordPress keeps it: a one-off sorts before the daily.
+$GLOBALS['single'] = false;
+function wp_get_scheduled_event( $h ) {
+	if ( $GLOBALS['single'] ) { return (object) array( 'timestamp' => $GLOBALS['single'], 'schedule' => false ); }
+	return $GLOBALS['next'] ? (object) array( 'timestamp' => $GLOBALS['next'], 'schedule' => 'daily' ) : false;
+}
+function wp_clear_scheduled_hook( $h ) { $GLOBALS['ev'][] = array( 'clear', $h ); $GLOBALS['next'] = false; $GLOBALS['single'] = false; }
 function wp_schedule_event( $t, $r, $h ) { $GLOBALS['ev'][] = array( 'event', $t, $r ); $GLOBALS['next'] = $t; }
-function wp_schedule_single_event( $t, $h ) { $GLOBALS['ev'][] = array( 'single', $t ); }
+function wp_schedule_single_event( $t, $h ) { $GLOBALS['ev'][] = array( 'single', $t ); $GLOBALS['single'] = $t; }
 function get_option( $k, $d = false ) { return $GLOBALS['opt'][ $k ] ?? $d; }
 
 echo "\nThe run time\n";
@@ -48,6 +53,9 @@ ok( array( 'clear', SN_EDGE_ROLLUP_HOOK ) === $GLOBALS['ev'][0] && 'event' === $
 $GLOBALS['ev'] = array(); $GLOBALS['next'] = strtotime( 'tomorrow 20:43:00 UTC' ); $GLOBALS['opt'] = array();
 sn_edge_maybe_schedule();
 ok( in_array( 'single', array_column( $GLOBALS['ev'], 0 ), true ), 'moving it with yesterday unread runs once now, so the move never skips a day' );
+$GLOBALS['ev'] = array();
+sn_edge_maybe_schedule(); sn_edge_maybe_schedule();
+ok( array() === $GLOBALS['ev'], 'while that one-off is pending, later requests change nothing: the catch-up is not pushed back (review on #1980)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

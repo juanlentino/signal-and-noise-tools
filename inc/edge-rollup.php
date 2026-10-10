@@ -161,11 +161,18 @@ function sn_edge_rollup_next_run( $now ) {
  * until tomorrow's run, one run now stores it.
  */
 function sn_edge_maybe_schedule() {
-	if ( ! function_exists( 'wp_next_scheduled' ) ) {
+	if ( ! function_exists( 'wp_get_scheduled_event' ) ) {
 		return;
 	}
-	$next = wp_next_scheduled( SN_EDGE_ROLLUP_HOOK );
-	if ( $next && SN_EDGE_ROLLUP_AT === gmdate( 'H:i', (int) $next ) ) {
+	$event = wp_get_scheduled_event( SN_EDGE_ROLLUP_HOOK );
+	$next  = $event ? (int) $event->timestamp : 0;
+	// The soonest event is a one-off catch-up queued by the move below: leave it
+	// and the daily alone, or every request in its minute would move again and
+	// push the catch-up back (review on #1980).
+	if ( $event && empty( $event->schedule ) ) {
+		return;
+	}
+	if ( $next && SN_EDGE_ROLLUP_AT === gmdate( 'H:i', $next ) ) {
 		return;
 	}
 	if ( $next ) {
@@ -684,9 +691,9 @@ function sn_edge_errors_paths_by_day( $from, $to ) {
 	$by_day = array();
 	for ( $t = strtotime( (string) $from . ' UTC' ), $end = strtotime( (string) $to . ' UTC' ); false !== $t && false !== $end && $t <= $end && count( $by_day ) < 31; $t += DAY_IN_SECONDS ) {
 		$day            = gmdate( 'Y-m-d', $t );
-		$by_day[ $day ] = sn_edge_top_dim( 'err_path_asker', $day, $day, 5 );
+		$by_day[ $day ] = sn_edge_top_dim( 'err_path_asker', $day, $day, 5 ); // the shape's own limit, read no further.
 	}
-	return sn_edge_errors_paths_by_day_shape( $by_day );
+	return sn_edge_errors_paths_by_day_shape( $by_day, 5 );
 }
 
 /**
