@@ -36,7 +36,7 @@ function snt_arows_validate( $input ) {
 	$in   = is_array( $input ) ? $input : array();
 	$bad  = static fn( $m ) => new WP_Error( 'ability_invalid_input', $m, array( 'status' => 400 ) );
 	$dims = $in['dimensions'] ?? null;
-	if ( ! is_array( $dims ) || ! $dims || count( $dims ) > 2 || array_diff( $dims, SNT_AROWS_DIMENSIONS ) || count( array_unique( $dims ) ) !== count( $dims ) ) {
+	if ( ! is_array( $dims ) || ! $dims || count( $dims ) > 2 || count( array_filter( $dims, 'is_string' ) ) !== count( $dims ) || array_diff( $dims, SNT_AROWS_DIMENSIONS ) || count( array_unique( $dims ) ) !== count( $dims ) ) {
 		return $bad( 'dimensions must be one or two different values of path, referrer, country, device, day.' );
 	}
 	$dims  = array_values( $dims );
@@ -87,6 +87,9 @@ function snt_arows_input_path( $raw ) {
 
 /** A stored or caller referrer as a strict lowercase hostname, a worker sentinel, or "(invalid)". PURE. */
 function snt_arows_host( $raw ) {
+	if ( ! is_scalar( $raw ) ) {
+		return '(invalid)';
+	}
 	$h = strtolower( trim( (string) $raw ) );
 	if ( '' === $h ) {
 		return '(direct)';

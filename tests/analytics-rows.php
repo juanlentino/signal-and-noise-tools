@@ -43,6 +43,8 @@ foreach ( array(
 	'a repeated dimension'     => array( 'dimensions' => array( 'day', 'day' ) ),
 	'two non-day dimensions'   => array( 'dimensions' => array( 'path', 'referrer' ) ),
 	'dimensions not a list'    => array( 'dimensions' => 'path' ),
+	'a nested dimension'       => array( 'dimensions' => array( array( 'path' ) ) ),
+	'a referrer array'         => array( 'dimensions' => array( 'referrer' ), 'referrer' => array( 'x.com' ) ),
 	'range 60'                 => array( 'range' => 60 ),
 	'range "week"'             => array( 'range' => 'week' ),
 	'class "everyone"'         => array( 'class' => 'everyone' ),

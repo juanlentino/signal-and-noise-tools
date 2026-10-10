@@ -32,15 +32,17 @@ function snt_mr_daily_series( array $rows, $totals, $days, $now, $has_tax = true
 		$by_day[ gmdate( 'Y-m-d', $t ) ] = array( 'rows' => array(), 'total' => 0 );
 	}
 	// A row dated outside the computed range (a cached read across midnight)
-	// still lands on its own date, so the sums hold.
+	// still lands on its own date, so the sums hold. A row whose day the
+	// normalizer blanked joins the first date rather than becoming a date.
+	$first = (string) array_key_first( $by_day );
 	foreach ( $rows as $r ) {
-		$k                        = (string) ( $r['day'] ?? '' );
+		$k                        = (string) ( $r['day'] ?? '' ) ?: $first;
 		$by_day[ $k ]           ??= array( 'rows' => array(), 'total' => 0 );
 		$by_day[ $k ]['rows'][]   = $r;
 		$by_day[ $k ]['total']   += null === $totals ? (int) ( $r['hits'] ?? 0 ) : 0;
 	}
 	foreach ( null === $totals ? array() : $totals as $r ) {
-		$k                       = (string) ( $r['day'] ?? '' );
+		$k                       = (string) ( $r['day'] ?? '' ) ?: $first;
 		$by_day[ $k ]          ??= array( 'rows' => array(), 'total' => 0 );
 		$by_day[ $k ]['total'] += (int) ( $r['hits'] ?? 0 );
 	}

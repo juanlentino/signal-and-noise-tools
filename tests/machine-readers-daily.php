@@ -90,6 +90,9 @@ $z = $s[1]; // 2026-10-04: no rows at all
 ok( 0 === $z['total'] && 0 === $z['ai_training'] && 0 === $z['first_party'] && array() === $z['purposes'] && array() === $z['ai_surfaces'], 'a no-data day appears as zeros and empty lists' );
 ok( 40 === $s[0]['total'] && 16 === $s[2]['total'], 'per-day total comes from the exact totals view' );
 
+$blank = snt_mr_daily_series( array( $row( '', 'openai', 'html', 'train', 4 ) ), null, 7, $fixed );
+ok( 8 === count( $blank ) && '2026-10-03' === $blank[0]['day'] && 4 === $blank[0]['ai_training'] && true === $blank[0]['partial'], 'a row with a blanked day joins the first date: no empty date, the sum holds' );
+
 echo "\nThrough the ability: daily fields sum to the window figures\n";
 foreach ( array( 'exact', 'fallback' ) as $name ) {
 	$out = $run( $name, array( 'days' => 7, 'series' => 'day' ) );
