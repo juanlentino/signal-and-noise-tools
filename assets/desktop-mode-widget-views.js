@@ -146,10 +146,10 @@
 	}
 
 	/**
-	 * "Next 7 days: about 140 views (estimate)", from the payload's forecast
+	 * "In 7 days: about 20 views a day (estimate)", from the payload's forecast
 	 * (sn_analytics_forecast_of(): a per-day point at the horizon, already
-	 * withheld when the fit does not beat a same-value baseline). The week is
-	 * the day's point times the horizon, so it is said as an estimate. The
+	 * withheld when the fit does not beat a same-value baseline). It is said
+	 * as the day's rate it is, never multiplied into a week's total. The
 	 * spread is added only when the backtest measured the interval holding at
 	 * least 80% of the time (confidence high): only then is "usually" true.
 	 * Null when there is no forecast: the card says nothing rather than guess.
@@ -157,7 +157,8 @@
 	function forecastLine( f ) {
 		if ( ! f || typeof f.value !== 'number' || ! f.interval ) { return null; }
 		var days = typeof f.horizon === 'number' && f.horizon > 0 ? f.horizon : 7;
-		var text = 'Next ' + days + ' days: about ' + Math.round( f.value * days ).toLocaleString() + ' views (estimate)';
+		var perDay = Math.round( f.value );
+		var text = 'In ' + days + ' days: about ' + perDay.toLocaleString() + ( 1 === perDay ? ' view' : ' views' ) + ' a day (estimate)';
 		var half = ( Number( f.interval.high ) - Number( f.interval.low ) ) / 2;
 		if ( f.confidence === 'high' && f.value > 0 && half > 0 ) {
 			text += ', usually within ±' + Math.round( 100 * half / f.value ) + '%';

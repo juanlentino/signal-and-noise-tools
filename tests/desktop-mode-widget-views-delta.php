@@ -116,10 +116,10 @@ if ( '' === $node ) {
 	$fc = array( 'value' => 20.4, 'interval' => array( 'low' => 15.3, 'high' => 25.5 ), 'confidence' => 'high', 'direction' => 'flat', 'horizon' => 7 );
 	$tf = $render( array( 'delta_pct' => 10, 'forecast' => $fc ) );
 	$tft = implode( ' | ', array_keys( $tf ) );
-	ok( isset( $tf['Next 7 days: about 143 views (estimate), usually within ±25%'] ), 'forecast high confidence: "Next 7 days: about 143 views (estimate), usually within ±25%": ' . $tft );
-	ok( strpos( $tft, 'vs. prior 14 days' ) < strpos( $tft, 'Next 7 days' ), 'the forecast line sits under the change line' );
+	ok( isset( $tf['In 7 days: about 20 views a day (estimate), usually within ±25%'] ), 'forecast high confidence: "In 7 days: about 20 views a day (estimate), usually within ±25%": ' . $tft );
+	ok( strpos( $tft, 'vs. prior 14 days' ) < strpos( $tft, 'In 7 days' ), 'the forecast line sits under the change line' );
 	$tl = $render( array( 'forecast' => array( 'confidence' => 'low' ) + $fc ) );
-	ok( isset( $tl['Next 7 days: about 143 views (estimate)'] ), 'a low-confidence forecast says no spread: "usually" would not be true' );
+	ok( isset( $tl['In 7 days: about 20 views a day (estimate)'] ), 'a low-confidence forecast says no spread: "usually" would not be true' );
 	ok( 0 === preg_match( '/Next \d+ days/', implode( ' | ', array_keys( $render( array( 'forecast' => null ) ) ) ) ), 'forecast null: no forecast line, never a guessed number' );
 
 	// The live surge line: present, hidden until live-now.js reads a surge.
@@ -129,6 +129,8 @@ if ( '' === $node ) {
 
 	// live-now.js (the real file) shows the line only for a surge verdict.
 	$live = static fn( $a ) => json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/live-now-surge.js' ) . ' ' . escapeshellarg( json_encode( $a ) ) ), true );
+	$was = json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/live-now-surge.js' ) . ' ' . escapeshellarg( json_encode( array( 'fetched' => 1760000000 ) ) ) . ' shown' ), true );
+	ok( true === ( $was['hidden'] ?? null ) && '' === ( $was['text'] ?? null ), 'a read with no surge verdict hides the card line that was showing one: it never keeps a stale alert' );
 	$ls   = $live( array( 'fetched' => 1, 'surge' => array( 'state' => 'surge', 'ratio' => 4, 'readers' => 8, 'usual' => 2 ) ) );
 	ok( false === ( $ls['hidden'] ?? true ) && 'Unusual: about 4× the usual for this time of day (8 readers, usually 2).' === ( $ls['text'] ?? '' ), 'a surge verdict shows the line with its words: ' . json_encode( $ls ) );
 	ok( '' === ( $ls['className'] ?? 'x' ), 'the card\'s line never wears the admin panel\'s classes (live-admin.css would restyle it)' );

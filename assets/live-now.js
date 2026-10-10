@@ -86,7 +86,9 @@
 			var own = /(^|\s)sn-live-admin__surge(\s|$)/.test( el.className || '' );
 			if ( ! s || typeof s !== 'object' ) {
 				// Nothing read at all: a loud line must not outlive its reading.
-				if ( typeof data.fetched !== 'number' ) {
+				// The Traffic card's line hides whenever there is no verdict: it is
+				// a surge alert, not a panel that keeps its last reading.
+				if ( typeof data.fetched !== 'number' || ! own ) {
 					el.textContent = '';
 					if ( own ) { el.className = 'sn-live-admin__surge'; }
 					showIf( el, false );
