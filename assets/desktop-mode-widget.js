@@ -428,6 +428,13 @@
 		// Focus in or out re-arms the same way: back in focus, a wait that ran
 		// past the full rate fires at once; out of focus, it stretches.
 		var unwatchFocus = window.sntPollCadence ? window.sntPollCadence.onFocusChange( onVisibilityChange ) : function() {};
+		// A new plugin, theme, core or worker deploy moves the pulse's deploy
+		// stamp: read now (assets/snt-pulse.js), as the button does, unforced.
+		var unwatchPulse = window.sntPulse ? window.sntPulse.on( 'deploy', function() {
+			if ( torn ) { return; }
+			window.clearTimeout( timer );
+			if ( pending ) { again = true; } else { refresh(); }
+		} ) : function() {};
 
 		refresh();
 
@@ -437,6 +444,7 @@
 			window.clearInterval( ageTimer );
 			document.removeEventListener( 'visibilitychange', onVisibilityChange );
 			unwatchFocus();
+			unwatchPulse();
 			if ( controller ) { controller.abort(); }
 			container.textContent = '';
 		};

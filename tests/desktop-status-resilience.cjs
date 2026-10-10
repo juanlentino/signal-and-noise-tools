@@ -25,7 +25,7 @@ const styles = n => String(n.attrs.style || '') + n.children.map(styles).join(' 
 const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
 function harness(extraData) {
   let now = Date.parse('2026-09-08T12:00:00Z'), nextId = 0;
-  const timers = new Map(), calls = [];
+  const timers = new Map(), calls = [], side = [];
   const window = {
     AbortController,
     // SN Systems reads health and cron from the localize; both all clear here,
@@ -39,7 +39,9 @@ function harness(extraData) {
     setInterval(fn, delay) { const id = ++nextId; timers.set(id, {fn, at: now + delay, repeat: delay}); return id; },
     clearInterval(id) { timers.delete(id); },
     addEventListener() {}, removeEventListener() {},
-    wp: { apiFetch(opts) { return new Promise((resolve, reject) => calls.push({opts, resolve, reject})); } }
+    // SN Systems' owner-only re-read of its page-load lines (2026-10-10) rides
+    // beside the uptime poll; it gets its own list so the poll's positions hold.
+    wp: { apiFetch(opts) { return new Promise((resolve, reject) => (String(opts.path).includes('/desktop/systems') ? side : calls).push({opts, resolve, reject})); } }
   };
   // A document with a visibility state the fixture can flip (#1603).
   const listeners = new Map();
@@ -53,7 +55,7 @@ function harness(extraData) {
     'desktop-mode-widget-queue.js', 'desktop-mode-widget-anchors.js', 'desktop-mode-widget-views.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets', name), 'utf8'), context, {filename: name});
   }
-  return {window, document, calls, timers, async tick(ms) {
+  return {window, document, calls, side, timers, async tick(ms) {
     const end = now + ms;
     for (;;) {
       const entry = [...timers].filter(([,t]) => t.at <= end).sort((a,b) => a[1].at-b[1].at)[0];
@@ -343,6 +345,12 @@ async function run() {
     assert.match(t, /5xx · Oct 4 12 · 3 fewer than the day before/, 'edge 5xx against the day before, in words');
     assert.doesNotMatch(t, /Your dashboard/, 'no dashboard count from the payload: no split row');
     assert.match(t, /Last 24 hours 40 runs recorded · 2 failed/, 'cron runs recorded and recorded failures over 24 hours');
+    // The page-load lines are re-read beside the poll, and the answer repaints them.
+    assert.equal(x.side.length, 1, 'SN Systems re-reads its page-load lines once per poll');
+    x.side[0].resolve({healthSummary: {passed: 8, total: 8, all_passed: true, skipped: [], flagged: []}, cronSummary: extra.statusExtra ? {total: 85, sn_count: 30, orphans: 0, next: {hook: 'sn_queue_tick', in_s: 300}, health: {ok: true}} : {},
+      statusExtra: {systems: {edge: {day: 'Oct 5', total: 4, visitor: 0, prior: 12}, cron: {fires: 41, failed: 0, failing: []}, cache: extra.statusExtra.systems.cache}, provenance: {}}}); await flush();
+    assert.match(root.textContent, /5xx · Oct 5 4 · 8 fewer than the day before/, 'a re-read moves the edge line without a reload');
+    assert.match(root.textContent, /Last 24 hours 41 runs recorded/, 'and the cron day line');
     assert.match(t, /queue_tick failed/, 'a failing job is named');
     assert.match(t, /\+1 more failed/, 'and the list is capped');
     assert.match(t, /Last full purge 3h ago/, 'the last full purge');

@@ -39,6 +39,10 @@
 		return node;
 	}
 
+	function readAt( at ) {
+		return 'Read at ' + new Date( at * 1000 ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } );
+	}
+
 	function paint( body, payload ) {
 		while ( body.firstChild ) { body.removeChild( body.firstChild ); }
 		var win  = payload && payload.window;
@@ -79,11 +83,14 @@
 			} );
 			body.appendChild( list );
 		} );
-		// When these figures were read, as a clock time: the tile paints once,
-		// so a relative age would go stale on a desktop left open.
+		// When these figures were read, as a clock time: a relative age would
+		// go stale between re-reads on a desktop left open.
 		var at = payload && Number( payload.generated_at );
 		if ( at > 0 ) {
-			body.appendChild( el( 'div', 'font-size:11px;margin-top:8px;' + SUBTLE, 'Read at ' + new Date( at * 1000 ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) ) );
+			var stampEl = el( 'div', 'font-size:11px;margin-top:8px;' + SUBTLE, readAt( at ) );
+			stampEl.setAttribute( 'data-sn-read-at', '' );
+			stampEl.setAttribute( 'aria-live', 'off' );
+			body.appendChild( stampEl );
 		}
 	}
 
@@ -114,16 +121,61 @@
 				wrap.appendChild( link );
 			}
 			container.appendChild( wrap );
-			if ( window.wp && window.wp.apiFetch ) {
-				window.wp.apiFetch( { path: '/signal-noise/v1/desktop/' + route } ).then( function( payload ) {
-					if ( ! torn ) { body.setAttribute( 'style', '' ); paint( body, payload ); }
-				} ).catch( function() {
-					if ( ! torn ) { alertLine( body, 'Could not load this reading.' ); }
-				} );
-			} else {
+			if ( ! window.wp || ! window.wp.apiFetch ) {
 				alertLine( body, 'The API client is unavailable.' );
+				return function teardown() { torn = true; };
 			}
-			return function teardown() { torn = true; };
+			// 2026-10-10: re-read every REFRESH_MS while the window is focused
+			// (5 min visible, paused hidden: assets/snt-poll-cadence.js). The
+			// figures sit behind a 15-minute server cache, so most reads are
+			// free. A failed re-read keeps the last reading rather than an alert.
+			var REFRESH_MS = 5 * 60 * 1000;
+			var painted = false, pending = false, lastAt = 0, timer = 0, shown = '';
+			function load() {
+				if ( torn || pending ) { return; }
+				pending = true;
+				lastAt  = Date.now();
+				window.wp.apiFetch( { path: '/signal-noise/v1/desktop/' + route } ).then( function( payload ) {
+					if ( torn ) { return; }
+					// The figures decide a repaint, not generated_at: the 15-minute
+					// cache moves it on every refill. The read time updates in place,
+					// out of the live region's announcements.
+					var json = JSON.stringify( Object.assign( {}, payload, { generated_at: 0 } ) );
+					if ( json === shown ) {
+						var stamp = body.querySelector ? body.querySelector( '[data-sn-read-at]' ) : null;
+						var at2   = payload && Number( payload.generated_at );
+						if ( stamp && at2 > 0 ) { stamp.textContent = readAt( at2 ); }
+						return;
+					}
+					shown = json;
+					body.setAttribute( 'style', '' );
+					// The body stays a polite status region: a re-read that changed
+					// the figures is worth hearing; one that did not never repaints.
+					paint( body, payload );
+					painted = true;
+				} ).catch( function() {
+					if ( ! torn && ! painted ) { alertLine( body, 'Could not load this reading.' ); }
+				} ).then( function() { pending = false; arm(); } );
+			}
+			function arm() {
+				window.clearTimeout( timer );
+				if ( torn || document.hidden ) { return; }
+				var wait = window.sntPollCadence ? window.sntPollCadence.wait( REFRESH_MS ) : REFRESH_MS;
+				timer = window.setTimeout( load, Math.max( 0, lastAt + wait - Date.now() ) );
+			}
+			function onVisibilityChange() {
+				if ( document.hidden ) { window.clearTimeout( timer ); return; }
+				arm();
+			}
+			document.addEventListener( 'visibilitychange', onVisibilityChange );
+			var unwatchFocus = window.sntPollCadence ? window.sntPollCadence.onFocusChange( onVisibilityChange ) : function() {};
+			load();
+			return function teardown() {
+				torn = true;
+				window.clearTimeout( timer );
+				document.removeEventListener( 'visibilitychange', onVisibilityChange );
+				unwatchFocus();
+			};
 		};
 	}
 

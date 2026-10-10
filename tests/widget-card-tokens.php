@@ -114,14 +114,14 @@ $cadence     = strip_js( (string) $cadence_src );
 ok( false !== strpos( $cadence, 'var IDLE_MS = 5 * 60 * 1000;' ), 'the cadence idles at 5 minutes' );
 ok( false !== strpos( $cadence, 'window.top' ) && false !== strpos( $cadence, 'doc.hasFocus()' ), 'focus is read from the TOP document: an iframe window taking focus is still the owner working in the desktop' );
 ok( false !== strpos( $cadence, "return 'visible' === state() ? Math.max( focusedMs, IDLE_MS ) : focusedMs;" ), 'only visible-but-unfocused slows down; focused keeps the widget\'s own rate' );
-foreach ( array( 'desktop-mode-widget.js', 'desktop-mode-widget-health.js', 'desktop-mode-widget-queue.js', 'desktop-mode-widget-views.js' ) as $name ) {
-	$js = $code[ $name ];
+foreach ( array( 'desktop-mode-widget.js', 'desktop-mode-widget-health.js', 'desktop-mode-widget-queue.js', 'desktop-mode-widget-views.js', 'desktop-mode-widget-groups.js', 'desktop-mode-widget-anchors.js' ) as $name ) {
+	$js = $code[ $name ] ?? strip_js( (string) file_get_contents( dirname( __DIR__ ) . '/assets/' . $name ) );
 	ok( false !== strpos( $js, 'window.sntPollCadence ? window.sntPollCadence.onFocusChange( onVisibilityChange ) : function() {}' ) && false !== strpos( $js, 'unwatchFocus();' ), "$name re-arms on focus change and drops the watcher at teardown" );
 	ok( false !== strpos( $js, 'window.sntPollCadence ? window.sntPollCadence.wait(' ), "$name asks the cadence for its wait, and keeps its fixed rate when the helper is absent" );
 }
 ok( false !== strpos( $code['desktop-mode-widget.js'], 'nextAt = lastAt + Math.max( lastDelay, cadence( REFRESH_MS ) );' ), 'the deploy card: a failure backoff still wins when longer than the cadence' );
 $assets_php = (string) file_get_contents( dirname( __DIR__ ) . '/inc/desktop-mode-assets.php' );
-ok( 4 === preg_match_all( "/array\\([^)]*'snt-poll-cadence'/", $assets_php ), 'the four pollers (deploy, queue, systems, traffic) declare the cadence as a dependency' );
+ok( 7 === preg_match_all( "/array\\([^)]*'snt-poll-cadence'/", $assets_php ), 'the six pollers (deploy, queue, systems, traffic, reading, provenance) and the pulse declare the cadence as a dependency' );
 ok( 3 === preg_match_all( "/array\\([^)]*'snt-card-kit'/", $assets_php ), 'the three cards that draw share bars (traffic, reading, provenance) declare the card kit as a dependency' );
 
 // 6. Negative control: the status colours have no widget token and stay literal.

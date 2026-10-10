@@ -685,7 +685,7 @@ ok( isset( $GLOBALS['__scripts']['sn-desktop-mode-widget-health'] ), 'W3 script 
 
 $anc_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
 ok( false !== strpos( $anc_js, "if ( sweeping ) { sweepBtn.setAttribute( 'aria-disabled', 'true' ); }" ) && false !== strpos( $anc_js, '|| sweeping ||' ), 'a repaint mid-sweep keeps Sweep busy, so a second click cannot start another sweep' );
-ok( false !== strpos( $anc_js, "signal: readCtl ? readCtl.signal : undefined" ) && 1 === preg_match( '/teardown\(\) \{\s*torn = true;\s*if \( readCtl \) \{ readCtl\.abort\(\); \}/', $anc_js ), 'the reader request is aborted when superseded or when SN Provenance unmounts' );
+ok( false !== strpos( $anc_js, "signal: readCtl ? readCtl.signal : undefined" ) && 1 === preg_match( '/return function teardown\(\) \{\s*torn = true;(.*?)\n\t\t\};/s', $anc_js, $anc_td ) && false !== strpos( $anc_td[1], 'if ( readCtl ) { readCtl.abort(); }' ), 'the reader request is aborted when superseded or when SN Provenance unmounts' );
 
 $hl_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ) );
 ok( false !== strpos( $hl_js, "mons.slice().sort( function( a, b ) { return ( 'alert' === b.level ) - ( 'alert' === a.level ); } )" ), 'down monitors are named before warnings, so the cap never hides an outage' );
@@ -1933,8 +1933,8 @@ ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/cloudflare-
 $cron_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-health.js' ) );
 ok( false !== strpos( $cron_js, "window.desktopModeWidgets['sn-health']" ), 'SN Systems assigns the PHP-declared mount global' );
 ok( false !== strpos( $cron_js, 'return function teardown' ), 'SN Systems returns a teardown' );
-ok( false !== strpos( $cron_js, 'readCron( data.cronSummary, tally )' ) && false === strpos( $cron_js, 'apiFetch' ),
-	'the cron section reads the localized global only (the card\'s one live read is the uptime ability)' );
+ok( false !== strpos( $cron_js, 'readCron( data.cronSummary, tally )' ) && 1 === substr_count( $cron_js, 'apiFetch(' ) && false !== strpos( $cron_js, "apiFetch( { path: '/signal-noise/v1/desktop/systems'" ),
+	'the cron section reads the localized global first, then the owner-only /desktop/systems re-read beside the uptime ability (2026-10-10); no other route' );
 
 // ABSENT IS NOT ZERO. hasOwnProperty distinguishes "the cron module is not on
 // this install" from "there are genuinely 0 scheduled events". A falsy check on

@@ -600,6 +600,18 @@
 				if ( torn ) { return; }
 				if ( typeof window.sntAbilityRun !== 'function' ) { throw new Error( 'sntAbilityRun unavailable' ); }
 				// detail: the 30-day availability and response times the first row condenses.
+				// 2026-10-10: the health, cron, edge and cache lines were read once,
+				// from the page-load localize. Re-read them beside the monitors
+				// (owner only: the localize carries statusExtra only for the
+				// owner); a failure keeps the lines already shown.
+				if ( data.statusExtra && window.wp && window.wp.apiFetch ) {
+					window.wp.apiFetch( { path: '/signal-noise/v1/desktop/systems', signal: controller ? controller.signal : undefined } ).then( function( lines ) {
+						if ( torn || ! lines || 'object' !== typeof lines ) { return; }
+						data  = Object.assign( {}, data, { healthSummary: lines.healthSummary, cronSummary: lines.cronSummary, statusExtra: lines.statusExtra || data.statusExtra } );
+						extra = ( data.statusExtra && data.statusExtra.systems ) || extra;
+						paint();
+					} ).catch( function() {} );
+				}
 				return window.sntAbilityRun( 'uptime-status', { detail: true }, { signal: controller ? controller.signal : undefined, silent: true } );
 			} ).then( function( res ) {
 				if ( torn ) { return; }

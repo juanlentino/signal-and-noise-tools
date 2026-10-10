@@ -117,6 +117,16 @@ add_action( 'init', function() {
 		true
 	);
 
+	// One pulse for every widget: stamps that move when what a widget shows
+	// changed, read every 20 s focused (inc/desktop-mode-live.php).
+	wp_register_script(
+		'snt-pulse',
+		plugins_url( 'assets/snt-pulse.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array( 'wp-api-fetch', 'snt-poll-cadence' ),
+		SNT_VERSION,
+		true
+	);
+
 	wp_register_script(
 		'sn-desktop-mode',
 		plugins_url( 'assets/desktop-mode.js', SNT_PATH . 'signal-and-noise-tools.php' ),
@@ -128,7 +138,7 @@ add_action( 'init', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget',
 		plugins_url( 'assets/desktop-mode-widget.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run', 'snt-poll-cadence' ),
+		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run', 'snt-poll-cadence', 'snt-pulse' ),
 		SNT_VERSION,
 		true
 	);
@@ -147,7 +157,7 @@ add_action( 'init', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget-groups',
 		plugins_url( 'assets/desktop-mode-widget-groups.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode', 'snt-card-kit' ),
+		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode', 'snt-card-kit', 'snt-poll-cadence' ),
 		SNT_VERSION,
 		true
 	);
@@ -157,7 +167,7 @@ add_action( 'init', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget-queue',
 		plugins_url( 'assets/desktop-mode-widget-queue.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'snt-ability-run', 'snt-poll-cadence' ),
+		array( 'sn-desktop-mode-os-compat', 'snt-ability-run', 'snt-poll-cadence', 'snt-pulse' ),
 		SNT_VERSION,
 		true
 	);
@@ -169,7 +179,7 @@ add_action( 'init', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget-anchors',
 		plugins_url( 'assets/desktop-mode-widget-anchors.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'snt-ability-run', 'wp-api-fetch', 'sn-desktop-mode', 'snt-card-kit' ),
+		array( 'sn-desktop-mode-os-compat', 'snt-ability-run', 'wp-api-fetch', 'sn-desktop-mode', 'snt-card-kit', 'snt-poll-cadence', 'snt-pulse' ),
 		SNT_VERSION,
 		true
 	);
