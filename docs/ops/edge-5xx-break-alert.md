@@ -35,6 +35,10 @@ The mail of 2026-10-09 (~20:50 UTC) said "/" answered a server error 4 times on 
 
 The alert could not say any of this because `err_path_status` had no asker and `err_source` no path. `err_path_asker` closes that from the next rollup on.
 
-## When it runs (proposal, not changed)
+## When it runs
 
-The rollup's `daily` event is anchored to when it was first scheduled; on 2026-10-09 it ran at 20:43 UTC, so a day's break mails about 21 hours after the day closes. Rescheduling the rollup to about 01:15 UTC (after Cloudflare's previous-day groups settle) would bring the mail to within about two hours of the day closing. Not changed without the owner's go-ahead.
+The rollup runs at 01:15 UTC (`SN_EDGE_ROLLUP_AT`), so a day's 5xx are stored about an hour after the UTC day closes and a break mails within about two hours. It used to be a `daily` event anchored to whenever it was first seen unscheduled (20:43 UTC on this site), so a break mailed about 21 hours after the day closed. On the first request after the change, an event at any other time is moved once; when the move would leave yesterday unread until the next run, one run fires right away so no day is skipped. Pinned by `tests/edge-rollup-schedule.php`.
+
+## Reading a day's breakdown (local only)
+
+`cloudflare-status` (`errors_5xx.paths_by_day`, also `sn-status{cloudflare}`) carries each day's top five failing paths with status, who answered and who asked: `{day, stored, paths[{path, edge, origin, cache, asker, requests}]}`. A day recorded before who-asked was stored reads `stored: false, paths: null`, never an empty list. The remote `edge-errors-summary` twin keeps its weekly shape (contract 14); the per-day field reaches it with the MCP worker's next major release, when the contract moves anyway.
