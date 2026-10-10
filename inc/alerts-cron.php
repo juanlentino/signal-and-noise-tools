@@ -94,10 +94,15 @@ function snt_alerts_gather( $now ) {
 		// before err_path_asker existed keeps every error, and the mail says so.
 		$asker  = function_exists( 'sn_edge_top_dim' ) ? sn_edge_top_dim( 'err_path_asker', $day, $day, 300 ) : array();
 		$check( 'edge 5xx by asker ' . $day );
-		$status = $asker || ! $rows || ! function_exists( 'sn_edge_top_dim' ) ? array() : sn_edge_top_dim( 'err_path_status', $day, $day, 300 );
-		$check( 'edge 5xx by status ' . $day );
+		$status = array();
+		if ( ! $asker && $rows && function_exists( 'sn_edge_top_dim' ) ) {
+			$status = sn_edge_top_dim( 'err_path_status', $day, $day, 300 );
+			$check( 'edge 5xx by status ' . $day ); // only when read: a skipped read must not repeat the last one's error.
+		}
 		$detail[ $day ] = snt_alerts_break_detail( $asker, $status );
-		if ( $asker ) {
+		// Replace the counts only when the who-asked rows parsed: rows that did
+		// not would otherwise drop the day's errors without a word (review on #1979).
+		if ( $asker && $detail[ $day ] ) {
 			$errors[ $day ] = array_map( static fn( $d ) => (int) $d['visitor'], $detail[ $day ] );
 		}
 		if ( count( $rows ) >= SNT_ALERT_EDGE_GROUPS ) {
