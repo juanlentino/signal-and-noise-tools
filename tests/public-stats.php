@@ -66,6 +66,7 @@ function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d
 // pageview_visits is deliberately 999: Visits must never read it again.
 $GLOBALS['__totals'] = array( 'views' => 900, 'visits' => 1100, 'pageview_visits' => 999, 'scroll_avg_per_view' => 47.6, 'time_avg_per_view' => 65000 );
 function sn_analytics_range_totals( $from, $to, $class = 'human' ) { return $GLOBALS['__totals']; }
+function sn_analytics_likely_automated( $from, $to, $class ) { return $GLOBALS['__la'] ?? null; }
 $GLOBALS['__dist'] = array( array( 'label' => '0-25', 'views' => 300 ), array( 'label' => '25-50', 'views' => 200 ), array( 'label' => '50-75', 'views' => 270 ), array( 'label' => '75+', 'views' => 130 ) );
 function sn_analytics_distribution( $m, $from, $to, $class = 'human' ) { return 'scroll' === $m ? $GLOBALS['__dist'] : array(); }
 $GLOBALS['__sources'] = array(
@@ -294,6 +295,13 @@ ok( 1 === preg_match( '/<span class="sn-public-stats__bar" aria-hidden="true">/'
 ok( false !== strpos( $h, '<dt>Views that reached half the page</dt><dd>30%</dd>' ), 'half the page: the 50% milestone over views (270 / 900)' );
 ok( false !== strpos( $h, '<dt>Average depth reached</dt><dd>48%</dd>' ) && false !== strpos( $h, '<dt>Average time per view</dt><dd>1m 05s</dd>' ), 'average depth and time per view' );
 ok( false !== strpos( $h, '<dt>One page only</dt>' ), 'one page only, from the session rollup' );
+// 2026-10-11: the theme's phone rule (.wp-block-group h3 { 1.3rem !important })
+// made the column labels 20.8px on phones; the label size holds at every width.
+ok( 1 === preg_match( '/\.sn-public-stats h3\{[^}]*font-size:max\(\.72rem,11px\) !important/', (string) file_get_contents( __DIR__ . '/../assets/public-stats-front.css' ) ), 'the column labels keep their size against the theme\'s phone h3 rule' );
+// 2026-10-11: How they read keeps the desktop's rows by key; an English label
+// reworded on the desktop would otherwise drop the row here without a sound.
+$__secsrc = (string) file_get_contents( __DIR__ . '/../inc/public-stats-sections.php' );
+ok( false === strpos( $__secsrc, "'Average depth reached'" ) && false === strpos( $__secsrc, "'One page only'" ) && 4 === count( array_filter( array_merge( snt_desktop_reading_page_rows( $GLOBALS['__totals'], (array) $GLOBALS['__dist'] ), (array) snt_desktop_reading_visit_rows( $GLOBALS['__sessions'] ) ), static fn( $r ) => in_array( $r['key'] ?? '', array( 'half', 'depth', 'time', 'one_page' ), true ) ) ), 'How they read keeps rows by key, and the desktop gives all four keys' );
 
 // Humans and machines.
 ok( false !== strpos( $h, '>4,200<' ) && false !== strpos( $h, '>Presumed human views<' ), 'presumed human views against machine reads' );
@@ -322,6 +330,31 @@ $GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_OPT ] = array( 'from' => $__wf, 
 $hp = $fresh();
 ok( false !== strpos( $hp, "This site\u{2019}s own tools" ) && 1 === preg_match( "/This site\u{2019}s own tools<\/span><span class=\"sn-public-stats__bar\"[^>]*><span[^>]*><\/span><\/span><span class=\"sn-public-stats__bar-value\">25%</", $hp ), 'the first-party part reads as this site\'s own tools, 25% of machine reads' );
 ok( 1 === preg_match( '/Named themselves, not verified<\/span><span class="sn-public-stats__bar"[^>]*><span[^>]*><\/span><\/span><span class="sn-public-stats__bar-value">25%</', $hp ), 'and the readers that named themselves are only the third-party ones' );
+// 2026-10-11: the headline bar compares humans with machine READERS; this
+// site's own tools leave it, and the full total is said in the note.
+ok( 1 === preg_match( '/Machine readers<\/span><span class="sn-public-stats__bar"[^>]*><span[^>]*><\/span><\/span><span class="sn-public-stats__bar-value">1,500</', $hp ), 'the bar is machine readers: 2,000 reads less 500 by this site\'s own tools' );
+ok( false !== strpos( $hp, "2,000 machine reads in all; 500 were this site\u{2019}s own monitors and checks, not readers." ), 'the full total, said in the note' );
+ok( false === strpos( $hp, 'AI training' ) && false === strpos( $hp, 'robots.txt token' ), 'an older snapshot without the AI-training split paints no block' );
+ok( 1 === preg_match( '/Machine reads<\/span><span class="sn-public-stats__bar"[^>]*><span[^>]*><\/span><\/span><span class="sn-public-stats__bar-value">50</', $hc ), 'without a split no own-tools part is known: the bar stays machine reads' );
+// AI training, claimed against proof, and the control tokens credited to no one (live 30 days to 2026-10-11).
+$GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_OPT ]['machines'] += array(
+	'train'  => array( 'claimed' => 4760, 'verified' => 50, 'verified_matched' => 50, 'unverified' => 2665, 'unverifiable' => 2045 ),
+	'tokens' => array( array( 'token' => 'Google-Extended', 'hits' => 575 ) ),
+);
+$ht = $fresh();
+ok( false !== strpos( $ht, '<section class="sn-public-stats__training"><h2>AI training, claimed against proof</h2>' ), 'AI training is its own section, the page\'s width' );
+ok( strpos( $ht, '</div><section class="sn-public-stats__training">' ) !== false && strpos( $ht, 'sn-public-stats__training' ) < strpos( $ht, '<h2>Most read</h2>' ), 'under the three columns, above Most read' );
+ok( false !== strpos( $ht, '<strong>4,760</strong> reads came from crawlers that say they gather AI training data. Cloudflare verified <strong>50</strong> of them.' ), 'the claim and the proof, as text' );
+ok( 1 === preg_match( '/<span class="sn-public-stats__proof" aria-hidden="true">(.*?)<\/span><\/span>/s', $ht, $pm ) && array( 'verified', 'claimed', 'before' ) === ( preg_match_all( '/data-part="(\w+)"/', $pm[1], $pp ) ? $pp[1] : array() ), 'one decorative bar, its parts in order: verified, named only, before verification' );
+ok( false !== strpos( $ht, '<li><span class="sn-public-stats__key-sw" data-part="verified"></span>Verified by Cloudflare <span class="sn-public-stats__key-n">50</span></li>' ) && false !== strpos( $ht, 'Named themselves, not verified <span class="sn-public-stats__key-n">2,665</span>' ) && false !== strpos( $ht, 'Before verification was recorded <span class="sn-public-stats__key-n">2,045</span>' ), 'the key carries every part as a count' );
+ok( false !== strpos( $ht, 'Google-Extended is a robots.txt token, not a crawler: 575 reads presented it as their name and are credited to no one.' ), 'the control-token reads, credited to no one' );
+// Likely automated beside the presumed-human views, only once a day is measured.
+$GLOBALS['__la'] = array( 'visitor_days' => 3, 'scored_visitor_days' => 41, 'measured_days' => 9, 'unmeasured_days' => 21 );
+$hl2 = $fresh();
+ok( false !== strpos( $hl2, "The beacon\u{2019}s bot signals mark 3 of 41 scored visitor-days as likely automated (9 of 30 days measured). Nothing is subtracted from the views." ), 'likely automated, beside and never subtracted' );
+$GLOBALS['__la'] = array( 'visitor_days' => null, 'scored_visitor_days' => null, 'measured_days' => 0, 'unmeasured_days' => 30 );
+ok( false === strpos( $fresh(), 'likely automated' ), 'no day measured: no line, never a 0 and never a promise' );
+unset( $GLOBALS['__la'] );
 
 // Codex on 37c3a84: the sensor stays off the render path, in the report window.
 $src = (string) file_get_contents( __DIR__ . '/../inc/public-stats.php' );
@@ -334,6 +367,23 @@ ok( null === sn_public_stats_machines( $tot, $agg, '2026-07-31', '2026-08-02' ),
 ok( null === sn_public_stats_machines( array( 'ok' => true, 'truncated' => true, 'rows' => $tot['rows'] ), $agg, '2026-08-01', '2026-08-02' ), 'a capped totals read leaves the section out' );
 ok( null === sn_public_stats_machines( $tot, array( 'ok' => true, 'truncated' => true, 'rows' => array() ), '2026-08-01', '2026-08-02' )['split'], 'a capped aggregate read keeps the total and drops the split' );
 ok( null === sn_public_stats_machines_stored( false, '2026-08-01', '2026-08-02' ), 'no snapshot yet: the section is left out' );
+// 2026-10-11: the hourly snapshot carries AI training claimed against proof and
+// the control tokens, over the window's rows only, through the summary's own fold.
+foreach ( array( 'machine-readers-taxonomy', 'machine-readers-basis', 'machine-readers-basis-tokens', 'machine-readers-basis-fold' ) as $__f ) { require_once __DIR__ . "/../inc/$__f.php"; }
+if ( ! function_exists( 'snt_mr_ai_training_families' ) ) { function snt_mr_ai_training_families() { return array( 'openai' ); } }
+if ( ! function_exists( 'sn_rights_evidence_identity_class' ) ) { function sn_rights_evidence_identity_class( $day, $bot ) { return '' !== $bot ? 'verified' : 'unverified'; } } // the wiring under test, not the since date
+$__r  = static fn( $day, $hits, $x ) => $x + array( 'day' => $day, 'hits' => $hits, 'family' => 'openai', 'surface' => 'html', 'purpose' => 'train', 'agent' => 'openai-gptbot', 'vendor' => 'openai', 'taxonomy_version' => '1.4.0', 'first_party' => false, 'verified_bot' => '', 'network' => 'Microsoft Corporation', 'id' => '' === ( $x['verified_bot'] ?? '' ) ? 'unverified' : 'verified' );
+$agg2 = array( 'ok' => true, 'truncated' => false, 'rows' => array(
+	$__r( '2026-10-01', 40, array( 'verified_bot' => 'AI Crawler' ) ),
+	$__r( '2026-10-02', 60, array() ),
+	$__r( '2026-10-02', 7, array( 'family' => 'other-bot', 'purpose' => 'unknown', 'agent' => 'google-extended', 'vendor' => 'google' ) ),
+	$__r( '2026-10-03', 999, array() ), // after the window
+) );
+$tot2 = array( 'ok' => true, 'truncated' => false, 'rows' => array( array( 'day' => '2026-10-01', 'hits' => 40 ), array( 'day' => '2026-10-02', 'hits' => 67 ) ) );
+$m2   = sn_public_stats_machines( $tot2, $agg2, '2026-10-01', '2026-10-02' );
+ok( 100 === ( $m2['train']['claimed'] ?? null ) && 40 === $m2['train']['verified'] && 60 === $m2['train']['unverified'], 'the snapshot carries AI training claimed (100) against verified (40), the window only' );
+ok( array( array( 'token' => 'Google-Extended', 'hits' => 7 ) ) === ( $m2['tokens'] ?? null ), 'and the control-token reads, credited to no one' );
+ok( ! isset( sn_public_stats_machines( $tot2, array( 'ok' => true, 'truncated' => true, 'rows' => array() ), '2026-10-01', '2026-10-02' )['train'] ), 'a capped aggregate read carries no AI-training split' );
 // A partial session window is never summed as the whole.
 $cov = static fn( $days ) => sn_public_stats_session_coverage( array_map( static fn( $d ) => array( 'day' => $d ), $days ), '2026-08-01', '2026-08-03' );
 ok( 3 === $cov( array( '2026-08-01', '2026-08-02', '2026-08-03' ) )['days'], 'every day rolled up: 3 of 3' );

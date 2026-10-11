@@ -20,7 +20,17 @@ function snt_ev_box( $surface, $heading, $inner ) {
 	if ( 'kit' === $surface ) {
 		return snt_kit_section( $heading, $inner );
 	}
-	return '<div class="sn-fieldset"><h3 class="sn-fieldset-h">' . esc_html( $heading ) . '</h3>' . $inner . '</div>';
+	// The analytics panel (inc/analytics-panels.php): a postbox on the classic
+	// page, an os-section through S&N Analytics' native capture. Never a
+	// settings fieldset, which no dark window maps (white box, light text).
+	if ( function_exists( 'snt_an_panel_open' ) ) {
+		ob_start();
+		snt_an_panel_open( (string) $heading );
+		echo $inner; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the section painters escape at their sinks.
+		snt_an_panel_close();
+		return (string) ob_get_clean();
+	}
+	return '<div class="postbox sn-an-postbox"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $heading ) . '</span></h2></div><div class="inside">' . $inner . '</div></div>';
 }
 
 /** The one-sentence finding a box leads with. */
@@ -30,7 +40,9 @@ function snt_ev_lead( $surface, $text ) {
 
 /** A verdict that IS a finding (warning tone), as a notice on either surface. */
 function snt_ev_verdict( $surface, $html ) {
-	return 'kit' === $surface ? snt_kit_notice( 'warn', $html ) : wp_get_admin_notice( $html, array( 'type' => 'warning', 'additional_classes' => array( 'inline' ) ) );
+	// Classic: the analytics callout, which both the wp-admin page and the dark
+	// native window style (a core .notice is white in the native window).
+	return 'kit' === $surface ? snt_kit_notice( 'warn', $html ) : '<div class="sn-an-note sn-mr-verdict" role="note">' . $html . '</div>';
 }
 
 /**
@@ -43,35 +55,41 @@ function snt_ev_pair( $surface, $a, $b, $rows = null ) {
 	if ( '' === (string) $a || '' === (string) $b || $apart ) {
 		return (string) $a . (string) $b;
 	}
-	return 'kit' === $surface ? snt_kit_grid( array( $a, $b ) ) : '<div class="sn-2up">' . $a . $b . '</div>';
+	return 'kit' === $surface ? snt_kit_grid( array( $a, $b ) ) : '<div class="sn-an-grid">' . $a . $b . '</div>';
 }
 
 /**
  * A stat tile as ONE element: the stat, its basis chip and any $extra (an
  * evidence strip) inside one wrapper, so a grid holds one child per tile.
- * Classic: the chip sits under the value, never in the label (the label's
- * nowrap, ellipsis and uppercase clip it).
+ * Classic returns a KPI card array instead (see snt_ev_tiles()).
  */
 function snt_ev_stat( $surface, $value, $label, $caption = '', $chip = '', $extra = '' ) {
 	if ( 'kit' === $surface ) {
 		return '<div class="snt-ev-tile">' . snt_kit_stat( $value, $label, $caption ) . $chip . $extra . '</div>';
 	}
-	return '<div class="sn-kpi"><p class="sn-kpi-label">' . esc_html( $label ) . '</p><p class="sn-kpi-value">' . esc_html( (string) $value ) . '</p>'
-		. ( '' !== (string) $caption ? '<p class="sn-kpi-caption">' . esc_html( $caption ) . '</p>' : '' )
-		. ( '' !== (string) $chip ? '<p class="sn-kpi-basis">' . $chip . '</p>' : '' ) . $extra . '</div>';
+	// Classic: an snt_an_kpi_row() card for snt_ev_tiles(). The label already
+	// names the basis (claimed, Web Bot Auth), so the chip and strip stay kit-only.
+	unset( $chip, $extra );
+	return array_filter( array( 'l' => ucfirst( (string) $label ), 'n' => (string) $value, 'sub' => (string) $caption ), static fn( $v ) => '' !== $v );
 }
 
 /**
- * A row of stat tiles. Classic: up to four on a row, then four columns; an
- * odd count lets the first tile span two, so no row ends on a lone card.
+ * A row of stat tiles. Classic: snt_an_kpi_row(), the analytics KPI row.
  */
 function snt_ev_tiles( $surface, array $tiles ) {
 	if ( 'kit' === $surface ) {
 		return snt_kit_grid( $tiles, 160, 10 );
 	}
-	$n     = count( $tiles );
-	$class = 'sn-kpi-row sn-mr-kpi-row' . ( $n >= 5 ? ' sn-mr-kpi-row--wrap' : '' ) . ( 1 === $n % 2 && $n > 1 ? ' sn-mr-kpi-row--odd' : '' );
-	return '<div class="' . $class . '" style="--sn-kpi-cols:' . (int) min( 4, max( 1, $n ) ) . '">' . implode( '', $tiles ) . '</div>';
+	// Classic tiles are snt_an_kpi_row() cards (see snt_ev_stat()): the same
+	// row the Overview paints, which S&N Analytics' native capture turns into
+	// os-stat tiles. Anything that is not a card passes through as markup.
+	$cards = array_values( array_filter( $tiles, 'is_array' ) );
+	if ( array() !== $cards && function_exists( 'snt_an_kpi_row' ) ) {
+		ob_start();
+		snt_an_kpi_row( $cards, array( 'empty_slot' => 'omit' ) );
+		return (string) ob_get_clean() . implode( '', array_filter( $tiles, 'is_string' ) );
+	}
+	return implode( '', array_map( static fn( $t ) => is_array( $t ) ? '<p class="sn-an-settings-help">' . esc_html( $t['l'] . ': ' . $t['n'] ) . '</p>' : (string) $t, $tiles ) );
 }
 
 /**
@@ -106,15 +124,19 @@ function snt_ev_table( $surface, array $columns, array $rows, $more = 0, $captio
 		return snt_kit_table( $cols, $rows, array( 'stack_on_phone' => true ) ) . $tail;
 	}
 	$out = '<table class="widefat striped sn-an-table"><caption class="screen-reader-text">' . esc_html( $caption ) . '</caption><thead><tr>';
-	foreach ( $columns as $label ) {
-		$out .= '<th scope="col">' . esc_html( $label ) . '</th>';
+	$num = array();
+	foreach ( $columns as $k => $label ) {
+		// Counts align to the end, as every other S&N Analytics table does
+		// (`num`, which the native tables read too).
+		$num[ $k ] = snt_ev_numeric_column( $rows, $k );
+		$out      .= '<th scope="col"' . ( $num[ $k ] ? ' class="num"' : '' ) . '>' . esc_html( $label ) . '</th>';
 	}
 	$out .= '</tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		$out .= '<tr>';
 		foreach ( array_keys( $columns ) as $k ) {
 			$cell = $r[ $k ] ?? '';
-			$out .= '<td>' . ( is_array( $cell ) ? (string) $cell['html'] : esc_html( (string) $cell ) ) . '</td>';
+			$out .= '<td' . ( $num[ $k ] ? ' class="num"' : '' ) . '>' . ( is_array( $cell ) ? (string) $cell['html'] : esc_html( (string) $cell ) ) . '</td>';
 		}
 		$out .= '</tr>';
 	}
@@ -126,8 +148,11 @@ function snt_ev_numeric_column( array $rows, $key ) {
 	$seen = false;
 	foreach ( $rows as $r ) {
 		$cell = $r[ $key ] ?? '';
+		if ( is_array( $cell ) ) {
+			return false; // A painted cell (a strip) is not a count.
+		}
 		$none = (string) $cell === __( 'not measured', 'signal-and-noise-tools' );
-		if ( is_array( $cell ) || ( ! $none && 1 !== preg_match( '/^\d[\d,.]*( \/ \d[\d,.]*)?$/', (string) $cell ) ) ) {
+		if ( ! $none && 1 !== preg_match( '/^\d[\d,.]*( \/ \d[\d,.]*)?$/', (string) $cell ) ) {
 			return false;
 		}
 		$seen = $seen || ! $none;

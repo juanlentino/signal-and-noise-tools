@@ -13,46 +13,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** Rows the unnamed table shows before its "+N more" line. */
 const SN_EV_UNNAMED_ROWS = 20;
 
-/** A ranked network row: name, a single-tone bar (share of the whole), the count. */
-function snt_ev_network_row( $name, $hits, $whole ) {
-	$w = rtrim( rtrim( number_format( 100 * (int) $hits / max( 1, (int) $whole ), 3, '.', '' ), '0' ), '.' );
-	return '<li class="snt-ev-rank"><span class="snt-ev-rank__name">' . esc_html( (string) $name ) . '</span>'
-		. '<span class="snt-ev-bar" aria-hidden="true"><span style="--w:' . esc_attr( $w ) . '%"></span></span>'
-		. '<span class="snt-ev-rank__n">' . esc_html( number_format_i18n( (int) $hits ) ) . '</span></li>';
-}
-
-/**
- * Control tokens credited to no one: a warning verdict (this IS a finding),
- * then one card per token with its networks ranked.
- *
- * @param array  $imp     snt_mr_impersonations() entries.
- * @param string $surface kit|classic.
- * @return string
- */
-function snt_ev_paint_control_tokens( array $imp, $surface = 'kit' ) {
-	$title = __( 'Control tokens credited to no one', 'signal-and-noise-tools' );
-	if ( array() === $imp ) {
-		return snt_ev_box( $surface, $title, snt_ev_lead( $surface, __( 'No robots.txt control token was presented as a user agent in this window.', 'signal-and-noise-tools' ) ) );
-	}
-	$verdict = esc_html( sprintf(
-		/* translators: 1: reads, 2: the tokens. */
-		__( '%1$s reads presented %2$s, a robots.txt token with no crawler of its own. Credited to no vendor.', 'signal-and-noise-tools' ),
-		number_format_i18n( array_sum( array_column( $imp, 'hits' ) ) ),
-		implode( ', ', array_column( $imp, 'token' ) )
-	) );
-	$cards = array();
-	foreach ( $imp as $i ) {
-		$list = '';
-		foreach ( (array) $i['networks'] as $n ) {
-			$list .= snt_ev_network_row( $n['network'], $n['hits'], $i['hits'] );
-		}
-		/* translators: 1: token, 2: reads. */
-		$cards[] = snt_ev_box( $surface, sprintf( __( '%1$s: %2$s reads', 'signal-and-noise-tools' ), $i['token'], number_format_i18n( (int) $i['hits'] ) ), snt_basis_chip( 'claimed', 'classic' === $surface ) . ( '' === $list ? snt_ev_lead( $surface, __( 'No network recorded.', 'signal-and-noise-tools' ) ) : '<ol class="snt-ev-ranks">' . $list . '</ol>' ) );
-	}
-	$grid = 2 === count( $cards ) ? snt_ev_pair( $surface, $cards[0], $cards[1] ) : implode( '', $cards );
-	return snt_ev_box( $surface, $title, snt_ev_verdict( $surface, $verdict ) . $grid );
-}
-
 /**
  * Is this crawler real: the agents with reads Cloudflare did not verify.
  *

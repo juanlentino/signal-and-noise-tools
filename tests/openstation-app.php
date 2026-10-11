@@ -385,7 +385,8 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	// a missing key would be falsy by accident rather than by declaration.
 	ok( array_key_exists( 'hasDossier', $p['section'] ) && false === $p['section']['hasDossier'], 'Discography declines the dossier, and SAYS so: hasDossier is present and false, not absent' );
 	ok( array( 'Newer', 'Older' ) === array_column( $p['items'], 'title' ), 'newest year first' );
-	ok( 'https://img/1.jpg' === $p['items'][1]['thumbnail'] && '2019' === $p['items'][1]['badge']['text'], 'cover art as the tile thumbnail; the year as its badge' );
+	// 2026-10-11: the corner badge sat on every cover; the year is a caption under the title.
+	ok( 'https://img/1.jpg' === $p['items'][1]['thumbnail'] && null === $p['items'][1]['badge'] && '2019' === ( $p['items'][1]['caption'] ?? null ), 'cover art as the tile thumbnail; the year as a caption under it, never a badge on the cover' );
 	ok( 'Tracks' === $p['items'][1]['detail']['blocks'][0]['heading'] && 'One' === $p['items'][1]['detail']['blocks'][0]['rows'][0]['title'] && array( 'Open in Spotify' ) === array_column( $p['items'][1]['detail']['actions'], 'label' ), 'the dossier carries the tracks and only the links the entry has' );
 	ok( array() === $p['items'][0]['detail']['blocks'] && array( 'Credits on Muso.AI' ) === array_column( $p['items'][0]['detail']['actions'], 'label' ), 'no tracks: no table' );
 	// The section had NO count callable, so payload() built every release --

@@ -57,15 +57,8 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_shape_settled',
 		),
-		array(
-			'id'        => 'notes_drift_reread',
-			'label'     => '/notes position drift',
-			'why'       => 'Its first reading cleared the 5.0-drift and 10-impression floors by a hair; an average position over eleven impressions is noise-adjacent. Still drifting with more impressions behind it is a finding. CONFOUNDED 2026-09-09: the page changed materially mid-window (theme v12.19.0-v12.20.3 added the pillar rail to the hero, moved the corpus stamp out, changed the heading outline, and moved the first note twice). A reading on 2026-09-11 CANNOT separate continued drift from the effect of those changes. Treat a worse position as unattributable rather than as a finding, and re-baseline from the first full week after 2026-09-10 before drawing any conclusion.',
-			'read'      => 'sn-status{search_drift}',
-			'date_only' => false,
-			'due'       => '2026-09-11',
-			'ripe'      => 'snt_watch_ripe_notes_drift',
-		),
+		// notes_drift_reread retired 2026-10-11: search_drift measured /notes with no
+		// drift a month past its re-read date. It was sample noise; that is the answer.
 		array(
 			'id'        => 'ipv6_build_ranges',
 			'label'     => 'login-guard IPv6 ranges',
@@ -92,7 +85,7 @@ function snt_watches() {
 			'id'        => 'mcp_adapter_read_door',
 			'label'     => 'retire the MCP read door into the core adapter',
 			'why'       => 'The plugin hand-rolls its MCP transport (inc/mcp/). WordPress/mcp-adapter ships as an installable plugin from 0.7.0 (0.6.1 was a Composer library), and may later move into core. The abilities, the allowlists as policy, the rw audit and the telemetry are ours and stay; the JSON-RPC routing and version negotiation become duplicate. Ripe when the adapter is active on this site at 0.7.0 or later, read from McpAdapter::VERSION so a plugin, a bundle and core all count the same. Then: register the abilities with it, verify its door serves the same calls, retire /mcp (read) first, /mcp-rw only once its per-door hardening matches mcp-rw-guard. The watch firing is not the verification.',
-			'read'      => 'Connections › MCP connect (adapter_active)',
+			'read'      => 'AI › MCP Clients (the Adapter card)',
 			'date_only' => false,
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_mcp_adapter',
@@ -122,7 +115,7 @@ function snt_watches() {
 			'id'        => 'rights_evidence_review',
 			'label'     => 'rights evidence: a month waits to post, or a rule held one',
 			'why'       => 'A composed month posts on its own to the public, append-only ledger once its 72-hour review window passes, unless held: this is the time to View its payloads and Hold it, or Post now. A month a rule held (a compose or ledger-walk error, a train count that moved more than 3x, a worker refusal) never posts until the owner reads the reason and lifts it.',
-			'read'      => 'Monitoring › Machine Readers › Rights evidence; signal-noise/rights-evidence{in_review,hold_reasons}',
+			'read'      => 'Measurement › Machine Readers › Rights evidence; signal-noise/rights-evidence{in_review,hold_reasons}',
 			'date_only' => false,
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_rights_evidence',
@@ -132,7 +125,7 @@ function snt_watches() {
 			'id'        => 'dompdf_bump',
 			'label'     => 'Dompdf release newer than the vendored one',
 			'why'       => 'The PDF engine is vendored with a Cpdf patch (20.3.2) that upstream confirmed for 3.1.7 (dompdf/dompdf#3771). A newer release is the time to bump lib/pdf and drop the patch if the fix shipped; tests/resume-pdf.php pins the bytes either way.',
-			'read'      => 'Content › Resume › Resume PDF (the engine line)',
+			'read'      => 'Content › Resume Page › Resume PDF (the engine line)',
 			'date_only' => false,
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_dompdf',
@@ -280,44 +273,6 @@ function snt_watch_ripe_ipv6_criterion( $watch, $now ) {
 	// Carry the gauge's OWN reason, not a restatement: it names the share, the
 	// window and the observations that crossed, which is what the build needs.
 	return array( 'ripe' => true, 'note' => (string) ( $v['reason'] ?? 'criterion met' ) );
-}
-
-/**
- * Ripe when the re-read date has passed AND /notes is still drifting.
- *
- * BOTH halves, deliberately. The date alone would surface it on the 11th even
- * if the drift had reverted — which is the answer, and not one that needs
- * anybody's attention.
- *
- * @param array $watch The watch row.
- * @return array{ripe:bool,note:string}
- */
-function snt_watch_ripe_notes_drift( $watch, $now ) {
-	$due = (string) ( $watch['due'] ?? '' );
-	if ( '' !== $due && (int) $now < strtotime( $due . ' 00:00:00 UTC' ) ) {
-		return array( 'ripe' => false, 'note' => 'not due until ' . $due );
-	}
-	if ( ! function_exists( 'snt_gsc_position_drift' ) ) {
-		return array( 'ripe' => false, 'note' => 'drift reader unavailable' );
-	}
-	$drift = snt_gsc_position_drift();
-	if ( ! is_array( $drift ) ) {
-		// null = the history cannot answer. Not ripe, and NOT "no drift".
-		return array( 'ripe' => false, 'note' => 'drift history cannot answer yet' );
-	}
-	if ( ! isset( $drift['/notes'] ) ) {
-		return array( 'ripe' => false, 'note' => '/notes no longer drifting — it was sample noise' );
-	}
-	$d = $drift['/notes'];
-	return array(
-		'ripe' => true,
-		'note' => sprintf(
-			'still drifting: %.1f to %.1f over %d impressions',
-			(float) ( $d['from'] ?? 0 ),
-			(float) ( $d['to'] ?? 0 ),
-			(int) ( $d['impressions'] ?? 0 )
-		),
-	);
 }
 
 /**
