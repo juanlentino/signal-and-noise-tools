@@ -340,7 +340,7 @@ function snt_desktop_zenodo() {
  * analytics_v2_frozen_bad watch's state).
  *
  * @param mixed $v The stored option.
- * @return array{ok:bool,days:int,since:string,reset:string,frozen:bool,bad:bool,why:string}|null Null when no verdict is stored yet.
+ * @return array{ok:bool,days:int,since:string,last:string,reset:string,frozen:bool,bad:bool,why:string}|null Null when no verdict is stored yet.
  */
 function snt_desktop_analytics2_shape( $v ) {
 	if ( ! is_array( $v ) || ! isset( $v['at'] ) ) {
@@ -356,6 +356,7 @@ function snt_desktop_analytics2_shape( $v ) {
 		'ok'     => $ok,
 		'days'   => $ok && $last >= $ts( $clean ) ? (int) round( ( $last - $ts( $clean ) ) / DAY_IN_SECONDS ) + 1 : 0,
 		'since'  => gmdate( 'M j', $ts( $clean ) ),
+		'last'   => $ok && $last > 0 ? gmdate( 'M j', $last ) : '', // the last exact day; a sampled day after it is neither counted nor a reset.
 		'reset'  => $clean > $from ? gmdate( 'M j', $ts( $clean ) - DAY_IN_SECONDS ) : '',
 		'frozen' => $frozen,
 		'bad'    => $frozen && ( ! $ok || empty( $v['events_ok'] ) ),

@@ -439,11 +439,21 @@ function snt_watch_ripe_general_save_guard( $watch, $now, $state = null ) {
 		}
 		$state = array(
 			'abilities_init' => (bool) did_action( 'wp_abilities_api_init' ),
+			// Core puts admin_email into the General group itself, in
+			// register_initial_settings(), hooked on rest_api_init only. So a
+			// REST read always sees it there and can never ripen; only a wp-admin
+			// request (admin_init, no rest_api_init) shows whether something else
+			// still adds it (2026-10-10: the desktop said due, the REST read said
+			// not, and the desktop was the one that could tell).
+			'settings_init'  => did_action( 'admin_init' ) > 0 && 0 === did_action( 'rest_api_init' ),
 			'general'        => (array) ( $GLOBALS['new_allowed_options']['general'] ?? array() ),
 		);
 	}
 	if ( empty( $state['abilities_init'] ) ) {
 		return array( 'ripe' => false, 'note' => 'the abilities registry has not initialised in this request; cannot tell' );
+	}
+	if ( array_key_exists( 'settings_init', $state ) && empty( $state['settings_init'] ) ) {
+		return array( 'ripe' => false, 'note' => 'only a wp-admin request can tell (a REST request has Core\'s own admin_email in the group; cron and others run no admin_init); cannot tell' );
 	}
 	return in_array( 'admin_email', (array) $state['general'], true )
 		? array( 'ripe' => false, 'note' => 'admin_email still lands in the General group; the guard is still needed' )

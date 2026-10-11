@@ -11,6 +11,8 @@ define( 'SNT_VERSION', 'test' );
 
 // ── WP stubs ────────────────────────────────────────────────────────────────
 $GLOBALS['__cq_actions'] = array();
+function get_option( $k, $d = false ) { return $GLOBALS['__cq_opts'][ $k ] ?? $d; }
+function update_option( $k, $v, $a = null ) { $GLOBALS['__cq_opts'][ $k ] = $v; return true; }
 function add_action( $tag, $cb = null ) { $GLOBALS['__cq_actions'][ $tag ][] = $cb; return true; }
 $GLOBALS['__cq_abilities'] = array();
 function wp_register_ability( $slug, $args ) { $GLOBALS['__cq_abilities'][ $slug ] = $args; return true; }
@@ -109,6 +111,16 @@ ok( is_array( $gap ) && 'Sep 25' === $gap['from_label'] && 'Oct 8' === $gap['to_
 $as_rows = static function ( $list ) { return array_map( static function ( $t ) { return array( 'id' => 1, 'title' => 't', 'ts' => $t ); }, $list ); };
 $shaped  = sn_content_queue_shape( $as_rows( array_reverse( $holey ) ), 6, $as_rows( $hist ), $NOW, $TZ, 2 );
 ok( is_array( $shaped['gap'] ) && '2026-09-25' === $shaped['gap']['from'], 'the shaper carries the gap from its own rows, in any order' );
+// 2026-10-10: a gap marked planned (the holidays) is skipped, and the next one shows.
+$holey2 = array_merge( $holey, array( $at( 12, 20 ) ) );
+$g1 = sn_content_queue_gap( $holey2, $hist, $NOW, $TZ, array( '2026-09-25|2026-10-08' ) );
+ok( is_array( $g1 ) && '2026-10-13' === $g1['from'], 'a planned gap is skipped: the next gap in the schedule shows instead' );
+ok( null === sn_content_queue_gap( $holey, $hist, $NOW, $TZ, array( '2026-09-25|2026-10-08', '2026-10-13|2026-11-29' ) ), 'every gap planned: no line' );
+$sp = sn_content_queue_shape( $as_rows( $holey ), 6, $as_rows( $hist ), $NOW, $TZ, 2, array( '2026-09-25|2026-10-08' ) );
+ok( is_array( $sp['gap'] ) && '2026-09-25' !== $sp['gap']['from'], 'the shaper passes the planned gaps through' );
+$GLOBALS['__cq_opts'] = array();
+ok( false === sn_content_queue_mark_planned( '2026-10-08', '2026-09-25' ) && false === sn_content_queue_mark_planned( 'x', '2026-09-25' ) && false === sn_content_queue_mark_planned( '2026-99-99', '2026-99-99' ) && false === sn_content_queue_mark_planned( "2026-10-08\n", '2026-10-09' ) && array() === sn_content_queue_planned_gaps(), 'a reversed, malformed, impossible or newline-suffixed range is refused and nothing is stored' );
+ok( true === sn_content_queue_mark_planned( '2026-12-20', '2027-01-03' ) && array( '2026-12-20|2027-01-03' ) === sn_content_queue_planned_gaps(), 'a planned gap is stored as from|to' );
 $steady = array( $at( 9, 18 ), $at( 9, 21 ), $at( 9, 24 ), $at( 9, 27 ), $at( 9, 30 ) );
 ok( null === sn_content_queue_gap( $steady, $hist, $NOW, $TZ ), 'a schedule at the site\'s cadence has no gap' );
 ok( null === sn_content_queue_shape( $as_rows( $steady ), 5, $as_rows( $hist ), $NOW, $TZ, 2 )['gap'], 'and the shaper says null for it' );

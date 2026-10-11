@@ -314,8 +314,10 @@
 			tally.look++;
 			return { rows: [ { label: 'Cutover check', value: 'legacy write stopped on a bad verdict', tone: WARN_FG } ] };
 		}
-		var days  = num( a.days );
-		var value = a.ok ? days + ( 1 === days ? ' day' : ' days' ) + ' clean · since ' + String( a.since ) + ( a.frozen ? ' · frozen' : '' )
+		// "clean since Oct 7 · last exact day Oct 8" (2026-10-10): a count of
+		// days read as if every day since were checked, but a sampled day is
+		// neither counted nor a reset, so the card says the two dates instead.
+		var value = a.ok ? 'clean since ' + String( a.since ) + ( a.last ? ' · last exact day ' + String( a.last ) : '' ) + ( a.frozen ? ' · frozen' : '' )
 			: a.reset ? 'reset ' + String( a.reset ) + ' · no exact day since'
 			: 'not verified yet · no exact day so far';
 		return { rows: [ { label: 'Cutover check', value: value } ] };
