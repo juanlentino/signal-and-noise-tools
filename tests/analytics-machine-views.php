@@ -16,7 +16,7 @@ namespace {
 	$GLOBALS['__report'] = null;
 	function snt_ml_reader_anomalies() { return $GLOBALS['__report']; }
 	function sn_edge_config() { return true; }
-	foreach ( array( 'machine-readers-taxonomy', 'machine-readers-render', 'machine-readers-insights', 'rights-evidence-compose', 'machine-readers-basis', 'machine-readers-basis-fold', 'machine-readers-ledger', 'mr-series', 'ml-reader-anomalies-split', 'machine-readers-readers-model', 'machine-readers-evidence-model', 'evidence-kit', 'evidence-paint-surface', 'evidence-paint-readers', 'evidence-paint-proof', 'evidence-paint-actors', 'evidence-paint-anomalies', 'evidence-paint-reference', 'evidence-paint-rights', 'analytics-machine-views', 'analytics-view-machine-readers', 'analytics-view-reader-evidence', 'analytics-admin', 'analytics-likely-automated' ) as $f ) {
+	foreach ( array( 'machine-readers-taxonomy', 'machine-readers-render', 'machine-readers-insights', 'rights-evidence-compose', 'machine-readers-basis', 'machine-readers-basis-fold', 'machine-readers-ledger', 'mr-series', 'ml-reader-anomalies-split', 'machine-readers-readers-model', 'machine-readers-evidence-model', 'evidence-kit', 'evidence-paint-surface', 'evidence-paint-readers', 'evidence-paint-charts', 'evidence-paint-tiles', 'analytics-panels', 'evidence-paint-actors', 'evidence-paint-anomalies', 'evidence-paint-reference', 'evidence-paint-rights', 'analytics-machine-views', 'analytics-view-machine-readers', 'analytics-view-reader-evidence', 'analytics-admin', 'analytics-likely-automated' ) as $f ) {
 		require_once SNT_PATH . "inc/$f.php";
 	}
 }
@@ -87,24 +87,24 @@ namespace {
 	foreach ( array( 'machine-readers', 'reader-evidence' ) as $v ) {
 		foreach ( $both( $v ) as $s => $h ) {
 			ok( false === strpos( $h, 'os-disclosure' ) && false === strpos( $h, 'sn-disclosure' ) && false === strpos( $h, '<details' ), "$v ($s): no os-disclosure, sn-disclosure or details" );
-			ok( 1 === substr_count( $h, 'class="snt-evidence-legend"' ), "$v ($s): the legend appears exactly once" );
-			ok( strpos( $h, 'class="snt-evidence-legend"' ) < strpos( $h, 'class="snt-evidence"' ), "$v ($s): the legend sits above the first strip" );
+			// 2026-10-11 redesign: the shared key (snt_ev_share_key()), once per view, above the first strip or bar.
+			ok( 1 === substr_count( $h, '<p class="sn-mr-key"><span class="sn-mr-key__item">' ), "$v ($s): the key appears exactly once" );
+			$first = min( array_filter( array( strpos( $h, 'class="snt-evidence"' ), strpos( $h, 'class="sn-mr-bar"' ) ) ) );
+			if ( 'classic' === $s ) { // The production path (canonical_piece); the kit hero tile carries its own strip.
+				ok( strpos( $h, '<p class="sn-mr-key"><span class="sn-mr-key__item">' ) < $first, "$v ($s): the key sits above the first strip or bar" );
+			}
 		}
 	}
 	$strip = snt_evidence_strip( array( 'claimed' => 1984, 'verified' => 29, 'verified_matched' => 25, 'unverified' => 1955, 'unverifiable' => 0 ) );
 	ok( 0 === strpos( $strip, '<span class="snt-evidence" data-size="cell" aria-hidden="true">' ), 'the strip is aria-hidden: the numbers sit beside it as text' );
 	ok( 3 === preg_match_all( '/data-part="([a-z_]+)"/', $strip, $m ) && array( 'verified_matched', 'verified', 'unverified' ) === $m[1], 'segments in order (matched, verified otherwise, claimed only), a zero part dropped' );
-	foreach ( array( 'apps/sn-analytics/sn-analytics.css', 'assets/analytics/analytics-admin.css' ) as $css ) {
-		$src = (string) file_get_contents( SNT_PATH . $css );
-		ok( 1 === preg_match( '/\.snt-evidence__seg\s*\{[^}]*min-width:\s*3px/', $src ), "$css: a non-zero segment is never narrower than 3px" );
-	}
+	// One stylesheet for both surfaces since the 2026-10-11 redesign (sn-analytics.css remaps the --sn-an-* tokens).
+	$evcss = (string) file_get_contents( SNT_PATH . 'assets/analytics/analytics-admin.css' );
+	ok( 1 === preg_match( '/\.snt-evidence__seg, \.sn-mr-bar__seg\s*\{[^}]*min-width:\s*3px/', $evcss ), 'a non-zero strip or bar segment is never narrower than 3px' );
 	ok( '<span class="snt-evidence-none">not measured</span>' === snt_evidence_strip( null ), 'a null split paints no strip, only "not measured"' );
 	$legend = snt_evidence_legend( SN_RIGHTS_EVIDENCE_VERIFIED_SINCE );
 	ok( 4 === preg_match_all( '/data-part="([a-z_]+)"/', $legend, $lm ) && array( 'verified_matched', 'verified', 'unverified', 'unverifiable' ) === $lm[1] && false !== strpos( $legend, 'Verified, not for its claimed purpose' ), 'the legend keys all four parts the strip can paint, the half segment included' );
-	foreach ( array( 'apps/sn-analytics/sn-analytics.css', 'assets/analytics/analytics-admin.css' ) as $css ) {
-		$src = (string) file_get_contents( SNT_PATH . $css );
-		ok( 1 === preg_match( '/\.snt-evidence__seg\[data-part="verified"\]\s*\{([^}]*)\}/', $src, $vm ) && false !== strpos( $vm[1], 'border: 1px solid' ) && false === strpos( $vm[1], 'opacity' ), "$css: verified-not-for-its-purpose differs by an outline, not by opacity alone" );
-	}
+	ok( 1 === preg_match( '/:is\(\.snt-evidence__seg, \.sn-mr-bar__seg\)\[data-part="verified"\]\s*\{([^}]*)\}/', $evcss, $vm ) && false !== strpos( $vm[1], 'border: 1px solid' ) && false === strpos( $vm[1], 'opacity' ), 'verified-not-for-its-purpose differs by an outline, not by opacity alone' );
 	ok( '<os-chip tone="success">signed</os-chip>' === snt_basis_chip( 'signed' ) && '<os-chip tone="info">verified</os-chip>' === snt_basis_chip( 'verified' ) && '<os-chip>claimed</os-chip>' === snt_basis_chip( 'claimed' ) && '<os-chip>inferred</os-chip>' === snt_basis_chip( 'inferred' ) && '<os-chip>not measured</os-chip>' === snt_basis_chip( 'unmeasured' ), 'chips carry the basis word and the tone table' );
 	ok( false === strpos( implode( '', array_map( 'snt_basis_chip', SN_MR_BASIS_VALUES ) ), 'warning' ) && false === strpos( implode( '', array_map( 'snt_basis_chip', SN_MR_BASIS_VALUES ) ), 'danger' ), 'no basis chip takes a warning or danger tone' );
 
@@ -135,21 +135,21 @@ namespace {
 		'proved identity, valid of measured (25 / 21,503)' => '25 / 21,503',
 		'asked for markdown (570)'                    => '570',
 		'feed fetches, 30d (210)'                     => '210',
-		'agent tool calls (label)'                    => 'agent tool calls, 7d',
+		'agent tool calls (label)'                    => 'gent tool calls, 7d',
 		'Who reads: other-bot leads'                  => 'other-bot leads with 4,107 reads, 570 verified',
 		'What for: unmapped purpose'                  => 'unmapped',
 		'rights log: an external read'                => 'GPTBot/1.0',
 		'rights log: this site’s own checks apart'    => 'SignalNoise-SmokeTest/1.0',
 		'feeds: fetchers'                             => 'Fetchers',
-		'observed vs declared'                        => 'Observed vs declared',
-		'counted both ways, legacy marked'            => 'By crawler family, LEGACY (ai_training)',
+		'observed against declared'                   => 'Observed against declared',
+		'counted both ways, legacy marked'            => 'By crawler family, legacy',
 		'agent and purpose pairs'                     => 'Agent and purpose pairs',
 		'surfaces'                                    => 'Surfaces',
 	) as $what => $needle ) {
 		ok( false !== strpos( $mk, esc_html( $needle ) ) || false !== strpos( $mk, htmlspecialchars( json_encode( $needle ), ENT_QUOTES ) ) || false !== strpos( html_entity_decode( $mk, ENT_QUOTES ), $needle ), "kit: $what" );
 		ok( false !== strpos( html_entity_decode( $mc, ENT_QUOTES ), $needle ), "classic: $what" );
 	}
-	ok( false !== strpos( $mk, 'value="9" label="agent tool calls, 7d"' ) && false !== strpos( $mc, '<p class="sn-kpi-value">9</p>' ), 'agent tool calls (9) on both surfaces' );
+	ok( false !== strpos( $mk, 'value="9" label="agent tool calls, 7d"' ) && false !== strpos( $mc, '<p class="sn-kpi-label">Agent tool calls, 7d</p><p class="sn-kpi-value">9</p>' ), 'agent tool calls (9) on both surfaces' );
 	ok( false === strpos( $mk, '<script>alert' ) && false === strpos( $mc, '<script>alert' ), 'a hostile user agent in the rights log is escaped on both surfaces' );
 	$ek = html_entity_decode( $kit['reader-evidence'], ENT_QUOTES );
 	$ec = html_entity_decode( $classic['reader-evidence'], ENT_QUOTES );
@@ -159,7 +159,7 @@ namespace {
 		'signed vs verified line'                     => 'Signed is not verified',
 		'families never verified'                     => 'families were never verified by Cloudflare',
 		'the train line'                              => '1,984 reads claimed training; 25 verified, 25 as a training crawler.',
-		'control token verdict'                       => '170 reads presented Google-Extended, a robots.txt token with no crawler of its own. Credited to no vendor.',
+		'control token verdict'                       => '170 reads presented Google-Extended, a robots.txt token with no crawler of its own: credited to no vendor, family or purpose, and still counted in the total.',
 		'is this crawler real'                        => '5 named agents read with a user agent Cloudflare did not verify, 4 of them never verified. Verified on every read: 1.',
 		'unnamed: GrokBot leads'                      => '1 user agent matches no taxonomy entry: GrokBot.',
 		'unnamed: top network'                        => 'Google LLC 200',
@@ -169,18 +169,18 @@ namespace {
 		ok( false !== strpos( $ec, $needle ), "evidence classic: $what" );
 	}
 	ok( false !== strpos( $kit['reader-evidence'], '<os-histogram' ) && false !== strpos( $kit['reader-evidence'], 'legend' ), 'the anomalies are a two-series time histogram on the kit' );
-	$signed = '25 of 21,503 measured reads carried a valid Web Bot Auth signature; 0 invalid, 0 unknown key. Top signers: anthropic-claudebot 25.';
-	ok( false !== strpos( $ek, $signed ) && false !== strpos( $ec, $signed ), 'Web Bot Auth valid, invalid and unknown key (the old identity line) on both surfaces' );
+	$signed = 'of 21,503 measured; 0 invalid, 0 unknown key; top signer anthropic-claudebot';
+	ok( false !== strpos( $ek, $signed ) && false !== strpos( $ec, $signed ), 'Web Bot Auth valid, invalid, unknown key and top signer (the Signed tile) on both surfaces' );
 	$with_cards          = snt_mr_view_data( 7 );
-	$with_cards['cards'] = array( array( 'title' => 'openai reads rose 40%', 'detail' => 'from 300 to 420 over 3 days' ) );
+	$with_cards['cards'] = array( array( 'id' => 'mr_delta_openai', 'direction' => 'up', 'percent' => 40, 'current' => 420, 'prior' => 300 ) );
 	foreach ( array( 'kit', 'classic' ) as $s ) {
 		$h = html_entity_decode( snt_mr_view_machine_readers_html( $with_cards, $s, array() ), ENT_QUOTES );
-		ok( false !== strpos( $h, 'openai reads rose 40%' ) && false !== strpos( $h, 'from 300 to 420 over 3 days' ) && strpos( $h, 'openai reads rose 40%' ) < strpos( $h, 'Who reads' ), "family delta cards ($s): painted after the hero, before Who reads" );
+		ok( false !== strpos( $h, 'Movers' ) && false !== strpos( $h, 'up 40%' ) && false !== strpos( $h, '420' ) && strpos( $h, 'Movers' ) < strpos( $h, 'Who reads' ), "movers ($s): one table after the hero, before Who reads" );
 	}
-	// Core's wp_admin_notice_markup filter sees only notices built by core; a hand-echoed literal never passes it.
-	add_filter( 'wp_admin_notice_markup', static fn( $m ) => '<!--core-notice-->' . $m );
-	$cards = snt_ev_paint_delta_cards( array( array( 'title' => 'GPTBot rose', 'detail' => 'by 40%' ) ), 'classic' );
-	ok( 0 === strpos( snt_ev_verdict( 'classic', 'capped' ), '<!--core-notice-->' ) && 0 === strpos( $cards, '<!--core-notice-->' ) && false !== strpos( $cards, 'GPTBot rose' ), 'classic verdicts and delta cards are built by core (they pass wp_admin_notice_markup)' );
+	// 2026-10-11: a classic verdict is the analytics callout, which the dark
+	// native window maps; a core notice (wp_get_admin_notice) renders white there.
+	ok( 0 === strpos( snt_ev_verdict( 'classic', 'capped' ), '<div class="sn-an-note sn-mr-verdict" role="note">' ), 'a classic verdict is the dark-mapped analytics callout, not a core notice' );
+	ok( '' === snt_ev_paint_movers( array(), 'classic' ), 'no movers, no panel' );
 
 	echo "\nGroup E: the unnamed count is a count, or says it is a floor\n";
 	$many = array();
@@ -214,7 +214,7 @@ namespace {
 		}
 		return $out;
 	};
-	foreach ( array( 'machine-readers' => 7, 'reader-evidence' => 2 ) as $v => $tiles ) {
+	foreach ( array( 'machine-readers' => 7, 'reader-evidence' => 5 ) as $v => $tiles ) {
 		$k = $kids( $kit[ $v ], '//os-grid' );
 		$c = $kids( $classic[ $v ], "//div[contains(concat(' ', @class, ' '), ' sn-kpi-row ')]" );
 		ok( $tiles === count( $k ) && array() === array_filter( $k, static fn( $e ) => 'snt-ev-tile' !== $e->getAttribute( 'class' ) ), "$v (kit): the tile grid has $tiles children, each one tile element (" . count( $k ) . ')' );
@@ -222,7 +222,8 @@ namespace {
 	}
 	ok( 1 !== preg_match( '/class="sn-kpi-label"[^>]*>[^<]*<span class="sn-mr-chip"/', $classic['machine-readers'] ), 'classic: the basis chip is not inside the label (its nowrap and uppercase clip it)' );
 	$css = (string) file_get_contents( SNT_PATH . 'assets/analytics/analytics-admin.css' );
-	ok( false !== strpos( $classic['machine-readers'], 'class="sn-kpi-row sn-mr-kpi-row sn-mr-kpi-row--wrap sn-mr-kpi-row--odd" style="--sn-kpi-cols:4"' ) && 1 === preg_match( '/\.sn-mr-kpi-row--wrap\.sn-mr-kpi-row--odd > \.sn-kpi:first-child \{ grid-column: span 2; \}/', $css ), 'classic: seven tiles run four across with the first spanning two (8 slots: 4 + 4, or 2 + 2 + 2 + 2 narrow), so no row ends on a lone card' );
+	// 2026-10-11: the classic tiles are the analytics KPI row (snt_an_kpi_row), which S&N Analytics' native capture turns into os-stat tiles.
+	ok( false !== strpos( $classic['machine-readers'], '<div class="sn-kpi-row"><div class="sn-kpi">' ) && false === strpos( $classic['machine-readers'], 'sn-mr-kpi-row' ), 'classic: the tiles are the analytics KPI row, not a machine-view variant' );
 
 	echo "\nGroup I: painters that cut, word and align\n";
 	$ua   = str_repeat( 'a', 199 ) . 'é' . ' tail';
@@ -237,7 +238,7 @@ namespace {
 		$many[] = array( 'observed_at' => sprintf( '2026-10-%02dT09:00:00Z', 1 + $i ), 'path' => '/license.xml', 'user_agent' => 'GPTBot/1.0', 'vendor' => 'openai', 'purpose' => 'train', 'family' => 'openai', 'hits' => 1 );
 	}
 	ok( false !== strpos( snt_ev_paint_rights( $many, 'classic' ), '+2 more, older' ), 'rights: newest first, so the "+N more" line says older, not the quiet end' );
-	$gap = static fn( $rs ) => html_entity_decode( snt_ev_paint_reference( $rs, 'classic' ), ENT_QUOTES );
+	$gap = static fn( $rs ) => html_entity_decode( snt_ev_paint_reference( $rs, 'classic' )['both'], ENT_QUOTES );
 	$eq  = $gap( array( $r( 'openai', 'train', 'openai-gptbot', 10, 'Google LLC' ) ) );
 	$hi  = $gap( array( $r( 'openai', 'train', 'openai-gptbot', 10, 'Google LLC' ), $r( 'openai', 'search', 'openai-searchbot', 5, 'Google LLC' ) ) );
 	$lo  = $gap( array( $r( 'openai', 'train', 'openai-gptbot', 10, 'Google LLC' ), $r( 'other-bot', 'train', 'other-trainer', 4, 'Google LLC' ) ) );
@@ -251,13 +252,13 @@ namespace {
 	$one = array( $r( 'openai', 'train', 'openai-gptbot', 10, 'Google LLC' ) );
 	ok( 0 === strpos( snt_mr_who_reads( $one )['lead'], '1 family; openai leads' ), 'Who reads: one family is "1 family"' );
 	ok( 0 === strpos( snt_mr_what_for( $one )['lead'], '1 purpose,' ), 'What for: one purpose is "1 purpose"' );
-	$hostile_card = array( array( 'id' => 'mr_delta_x', 'title' => '<img src=x onerror=1>', 'detail' => '<script>alert(1)</script>' ) );
+	$hostile_card = array( array( 'id' => 'mr_delta_<img src=x onerror=1>', 'direction' => 'up', 'percent' => 40, 'current' => 4, 'prior' => 2 ) );
 	foreach ( array( 'kit', 'classic' ) as $sf ) {
-		$hc = snt_ev_paint_delta_cards( $hostile_card, $sf );
-		ok( false === strpos( $hc, '<img' ) && false === strpos( $hc, '<script' ) && '' === snt_ev_paint_delta_cards( array(), $sf ), "delta cards ($sf): title and detail escaped at the sink; no cards paints nothing" );
+		$hc = snt_ev_paint_movers( $hostile_card, $sf );
+		ok( false === strpos( $hc, '<img' ) && '' === snt_ev_paint_movers( array(), $sf ), "movers ($sf): the family is escaped at the sink; no movers paints nothing" );
 	}
 	$blank = snt_ev_paint_rights( array( array( 'observed_at' => '2026-10-10T09:00:00Z', 'path' => '/license.xml', 'user_agent' => 'Odd/1.0', 'vendor' => '', 'purpose' => 'unknown', 'family' => 'other-bot', 'hits' => 1 ) ), 'classic' )
-		. snt_ev_paint_reference( array( $r( 'other-bot', 'unknown', '', 3, 'Google LLC', '', array( 'vendor' => 'acme' ) ) ), 'classic' );
+		. implode( '', array_filter( snt_ev_paint_reference( array( $r( 'other-bot', 'unknown', '', 3, 'Google LLC', '', array( 'vendor' => 'acme' ) ) ), 'classic' ), 'is_string' ) );
 	ok( false === strpos( $blank, '—' ) && false !== strpos( $blank, '<td>none</td>' ), 'a cell with no vendor or no agent says none, never a dash' );
 	$tiles = snt_ev_paint_hero_tiles( array( 'days' => 7, 'total' => 1, 'readers' => 1, 'first_party' => 0, 'ai' => null, 'identity' => array( 'measured' => 1, 'valid' => 1, 'invalid' => 0, 'unknown_key' => 0, 'markdown' => 0 ), 'feed_total' => null, 'tool_calls' => null ), 'kit' );
 	ok( 1 === substr_count( $tiles, 'not measured' ), 'hero: a null AI-training figure says "not measured" once, not again under it' );
@@ -267,7 +268,7 @@ namespace {
 	ok( false !== strpos( $edge, 'label="Presumed human pageviews"' ) && false !== strpos( $edge, 'minus the beacon’s presumed-human pageviews.' ) && false === strpos( $edge, 'label="Human pageviews"' ), 'native Traffic & edge: presumed human, as the classic view says' );
 
 	echo "\nGroup J: two boxes share a row only within 1.5x of each other\n";
-	foreach ( array( 'kit' => '<os-grid', 'classic' => 'class="sn-2up"' ) as $sf => $row ) {
+	foreach ( array( 'kit' => '<os-grid', 'classic' => 'class="sn-an-grid"' ) as $sf => $row ) {
 		ok( false !== strpos( snt_ev_pair( $sf, '<p>a</p>', '<p>b</p>', array( 6, 4 ) ), $row ), "pair ($sf): 6 rows beside 4 share a row" );
 		ok( false === strpos( snt_ev_pair( $sf, '<p>a</p>', '<p>b</p>', array( 17, 3 ) ), $row ), "pair ($sf): 17 rows beside 3 stack full width" );
 	}

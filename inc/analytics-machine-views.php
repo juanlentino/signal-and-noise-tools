@@ -93,17 +93,23 @@ function snt_mr_view_machine_readers_html( array $d, $surface, array $links ) {
 	if ( ! $d['ok'] ) {
 		return snt_mr_view_unread( $d, $surface, $links['config'] ?? '' );
 	}
-	$since = defined( 'SN_RIGHTS_EVIDENCE_VERIFIED_SINCE' ) ? SN_RIGHTS_EVIDENCE_VERIFIED_SINCE : null;
-	$cap   = $d['truncated'] ? snt_ev_verdict( $surface, esc_html__( 'The edge capped this read at its row limit, so every figure here is a floor, not a count. Narrow the window to get a complete one.', 'signal-and-noise-tools' ) ) : '';
-	$hero  = '<div class="snt-ev-hero snt-ev-hero--band"><div class="snt-ev-mesh" aria-hidden="true"></div>' . $cap . snt_evidence_legend( $since )
-		. snt_ev_paint_hero_tiles( $d['hero'], $surface ) . snt_ev_paint_finding( snt_mr_ai_finding( $d['rows'] ), $links['evidence'] ?? '', $surface ) . '</div>';
+	$cap  = $d['truncated'] ? snt_ev_verdict( $surface, esc_html__( 'The edge capped this read at its row limit, so every figure here is a floor, not a count. Narrow the window to get a complete one.', 'signal-and-noise-tools' ) ) : '';
 	$who  = snt_mr_who_reads( $d['rows'] );
 	$what = snt_mr_what_for( $d['rows'] );
-	return $hero
-		. snt_ev_paint_delta_cards( $d['cards'], $surface )
+	$ref  = snt_ev_paint_reference( $d['rows'], $surface );
+	$find = snt_mr_ai_finding( $d['rows'] );
+	// 2026-10-11 redesign, from the owner-approved prototype: tiles, the
+	// finding, reads per day, movers, then panels paired by height.
+	return $cap . snt_ev_paint_hero_tiles( $d['hero'], $surface )
+		. ( '' === $find ? '' : snt_ev_box( $surface, __( 'AI training, claimed against proof', 'signal-and-noise-tools' ), snt_ev_lead( $surface, $find ) . ( $links['evidence'] ?? '' ) ) )
+		. snt_ev_paint_daily( $d['rows'], $d['days'], $surface )
+		. snt_ev_paint_movers( $d['cards'], $surface )
+		. snt_ev_share_key()
 		. snt_ev_pair( $surface, snt_ev_paint_who_reads( $who, $surface ), snt_ev_paint_what_for( $what, $surface ), array( count( $who['rows'] ) + 1, count( (array) $what['rows'] ) ) )
-		. snt_ev_pair( $surface, snt_ev_paint_rights( $d['rights'], $surface ), snt_ev_paint_feeds( $d['feed'], $surface ), array( snt_ev_rights_size( $d['rights'] ), count( (array) ( $d['feed']['windows'] ?? array() ) ) ) )
-		. snt_ev_paint_reference( $d['rows'], $surface );
+		. snt_ev_paint_rights( $d['rights'], $surface )
+		. snt_ev_pair( $surface, snt_ev_paint_feeds( $d['feed'], $surface ), $ref['both'] )
+		. snt_ev_pair( $surface, $ref['observed'], $ref['surfaces'], array( $ref['rows']['observed'], $ref['rows']['surfaces'] ) )
+		. $ref['pairs'] . ( $links['config'] ?? '' );
 }
 
 /**
@@ -118,17 +124,25 @@ function snt_mr_view_reader_evidence_html( array $d, $surface, array $links ) {
 	if ( ! $d['ok'] ) {
 		return snt_mr_view_unread( $d, $surface, $links['config'] ?? '' );
 	}
-	$since = defined( 'SN_RIGHTS_EVIDENCE_VERIFIED_SINCE' ) ? SN_RIGHTS_EVIDENCE_VERIFIED_SINCE : null;
-	$t     = snt_mr_claim_proof( $d['rows'] );
-	$who   = snt_mr_who_reads( $d['rows'] );
-	$disp  = snt_mr_basis_display( $d['rows'] );
-	$from  = gmdate( 'Y-m-d', time() - $d['days'] * DAY_IN_SECONDS );
-	return snt_ev_paint_claim_proof( $t, $since, $surface )
-		. snt_ev_paint_proofs( snt_mr_identity_breakdown( $d['rows'] ), $t, $since, $surface )
-		. snt_ev_paint_family_split( $who, $surface )
-		. snt_ev_paint_purpose_split( $disp['purposes'], $surface )
-		. snt_ev_paint_control_tokens( $disp['impersonations'], $surface )
-		. snt_ev_paint_agents( snt_mr_agent_exceptions( $d['rows'] ), $surface )
-		. snt_ev_paint_unnamed( $d['unnamed'], $surface, ! empty( $d['unnamed_floor'] ) )
-		. snt_ev_paint_anomalies( snt_mr_verification_daily( $d['rows'], $from, gmdate( 'Y-m-d' ) ), $d['report'], $surface );
+	$since  = defined( 'SN_RIGHTS_EVIDENCE_VERIFIED_SINCE' ) ? SN_RIGHTS_EVIDENCE_VERIFIED_SINCE : null;
+	$t      = snt_mr_claim_proof( $d['rows'] );
+	$who    = snt_mr_who_reads( $d['rows'] );
+	$disp   = snt_mr_basis_display( $d['rows'] );
+	$tokens = array_sum( array_column( (array) $disp['impersonations'], 'hits' ) );
+	$from   = gmdate( 'Y-m-d', time() - ( $d['days'] - 1 ) * DAY_IN_SECONDS ); // the window's own days, as the reads-per-day chart counts them.
+	$purp   = array_map( static fn( $p ) => array( 'label' => $p['label'], 'split' => $p ), (array) $disp['purposes'] );
+	$fams   = array_map( static fn( $f ) => array( 'label' => $f['family'], 'split' => $f['split'] ), array_slice( $who['rows'], 0, SN_MR_EVIDENCE_ROWS ) );
+	// 2026-10-11 redesign, from the owner-approved prototype: tiles, the
+	// verified share by purpose and by family, then the actors and signals.
+	return snt_ev_paint_evidence_tiles( $t, snt_mr_identity_breakdown( $d['rows'] ), (int) $tokens, $since, $surface )
+		. snt_ev_share_key()
+		. snt_ev_pair(
+			$surface,
+			null === $disp['purposes'] ? snt_ev_box( $surface, __( 'Verified share by purpose', 'signal-and-noise-tools' ), snt_ev_lead( $surface, snt_mr_train_line( null ) ) ) : snt_ev_paint_share_bars( __( 'Verified share by purpose', 'signal-and-noise-tools' ), snt_mr_train_line( $disp['purposes'] ), $purp, $surface ),
+			snt_ev_paint_share_bars( __( 'Verified share by family', 'signal-and-noise-tools' ), snt_mr_family_exceptions( $who ), $fams, $surface, max( 0, count( $who['rows'] ) - SN_MR_EVIDENCE_ROWS ) ),
+			array( count( $purp ) + 2, count( $fams ) + 2 )
+		)
+		. snt_ev_pair( $surface, snt_ev_paint_agents( snt_mr_agent_exceptions( $d['rows'] ), $surface ), snt_ev_paint_unnamed( $d['unnamed'], $surface, ! empty( $d['unnamed_floor'] ) ) )
+		. snt_ev_pair( $surface, snt_ev_paint_tokens( (array) $disp['impersonations'], $surface ), snt_ev_paint_anomalies( snt_mr_verification_daily( $d['rows'], $from, gmdate( 'Y-m-d' ) ), $d['report'], $surface ) )
+		. ( $links['config'] ?? '' );
 }

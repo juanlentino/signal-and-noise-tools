@@ -92,7 +92,9 @@ function snt_basis_chip( $basis, $classic = false ) {
 	$word  = 'unmeasured' === $basis ? __( 'not measured', 'signal-and-noise-tools' ) : $basis;
 	$tone  = $tones[ $basis ] ?? '';
 	if ( $classic ) {
-		return '<span class="sn-mr-chip"' . ( '' !== $tone ? ' data-tone="' . esc_attr( $tone ) . '"' : '' ) . '>' . esc_html( $word ) . '</span>';
+		// Classic and S&N Analytics name the basis in the label instead (2026-10-11:
+		// the light chip read as a pale box in the dark window).
+		return '';
 	}
 	return snt_kit_chip( $word, $tone );
 }

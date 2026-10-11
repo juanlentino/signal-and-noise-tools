@@ -62,18 +62,6 @@ function snt_ev_paint_hero_tiles( array $h, $surface = 'kit' ) {
 }
 
 /**
- * The finding in one sentence, then the way to how each count is known.
- *
- * @param string $sentence snt_mr_ai_finding().
- * @param string $link     A painted link with visible text, or ''.
- * @param string $surface  kit|classic.
- * @return string
- */
-function snt_ev_paint_finding( $sentence, $link = '', $surface = 'kit' ) {
-	return '' === (string) $sentence ? '' : '<div class="snt-ev-finding">' . snt_ev_lead( $surface, $sentence ) . $link . '</div>';
-}
-
-/**
  * Who reads: family, reads, verified, the strip, last seen; this site's own
  * tools as one muted closing row, never a family.
  *
