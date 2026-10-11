@@ -32,6 +32,7 @@ require __DIR__ . '/../inc/machine-readers-taxonomy.php';
 require __DIR__ . '/../inc/machine-readers-api.php';
 require __DIR__ . '/../inc/machine-readers-render.php';
 require __DIR__ . '/../inc/machine-readers-render-taxonomy.php';
+require __DIR__ . '/../inc/machine-readers-basis.php'; // Unreleased: unmapped, and the control-token rule.
 
 echo "\nGroup: RULE 1 , the frozen family enum did not move\n";
 $families = snt_mr_valid_families();
@@ -452,6 +453,18 @@ foreach ( array( '<script>alert(1)</script>', '"><img src=x onerror=y>', "a'b`c"
 }
 ok( 128 === mb_strlen( $nf( str_repeat( 'é', 300 ) ) ), 'network caps at 128 characters without splitting a multibyte one' );
 ok( '' === $nf( "\xC3\x28" ), 'invalid UTF-8 reads as empty, not as an error' );
+
+echo "\nGroup: unknown reads as unmapped; a control token is credited to no purpose (Unreleased)\n";
+$sn_rows = array(
+	array( 'family' => 'other-bot', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 30, 'purpose' => 'unknown', 'agent' => '', 'vendor' => '', 'taxonomy_version' => '1.3.1' ),
+	array( 'family' => 'google-ai', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 170, 'purpose' => 'train', 'agent' => 'google-extended', 'vendor' => 'google', 'taxonomy_version' => '1.3.1' ),
+	array( 'family' => 'anthropic', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 25, 'purpose' => 'train', 'agent' => 'anthropic-claudebot', 'vendor' => 'anthropic', 'taxonomy_version' => '1.3.1' ),
+);
+$sn_pt = snt_mr_render_purpose_table( $sn_rows, 7 );
+ok( false !== strpos( $sn_pt, '<strong>unmapped</strong>' ) && false === strpos( $sn_pt, '<strong>unknown</strong>' ), 'the purpose table shows unknown as unmapped' );
+ok( array( 'unknown' => 30, 'train' => 25 ) === snt_mr_purpose_totals( $sn_rows )['purposes'], 'purpose totals leave the Google-Extended hits out of train (25, not 195)' );
+$sn_rc = snt_mr_render_ai_reconciliation( $sn_rows );
+ok( 2 === substr_count( $sn_rc, '>25<' ), 'the reconciliation counts 25 both ways: the control token is in neither the family nor the purpose figure' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

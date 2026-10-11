@@ -146,6 +146,10 @@ $sn_fp = \SignalNoise\OpenStationHost\Dashboard\Leaves\machine_readers_summary_s
 ), 7, null );
 ok( false !== strpos( $sn_fp, '<os-stat value="2,000" label="this site’s own tools">' ), 'the native strip states this site\'s own tools apart' );
 ok( false !== strpos( $sn_fp, '<os-stat value="9" label="AI-training reads">' ), 'and AI-training reads leave out the Google-Extended control token' );
+$sn_pt = \SignalNoise\OpenStationHost\Dashboard\Leaves\machine_readers_purpose_table_html( array(
+	array( 'family' => 'other-bot', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 30, 'purpose' => 'unknown', 'agent' => '', 'taxonomy_version' => '1.3.1' ),
+), 7 );
+ok( false !== strpos( $sn_pt, 'unmapped' ) && false === strpos( $sn_pt, '>unknown<' ), 'the native purpose table shows unknown as unmapped' );
 ok( false !== strpos( $kit, '210' ) && false !== strpos( $kit, 'feed fetches' ), 'the feed-fetches stat carries the 30d feed total' );
 ok( false !== strpos( $kit, '<os-stat value="9" label="agent tool calls, 30d">' ) && false !== strpos( $kit, '<os-stat value="663" label="machine reads, 30d">' ), '15.5.0: the tool-calls stat sums the webmcp rows (7+2=9) and the reads stat did not grow (663)' );
 ok( false !== strpos( $classic, 'agent tool calls, 30d' ) && false !== strpos( $classic, '<p class="sn-kpi-value">9</p>' ) && false === strpos( $kit, '>webmcp<' ) && false === strpos( $classic, '>webmcp<' ), 'the classic tab paints the same figure; webmcp is not a family on either leaf' );

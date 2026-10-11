@@ -182,7 +182,7 @@ function machine_readers_rights_table( array $visible ) {
 		$rows[] = array(
 			'when'       => substr( preg_replace( '/[^0-9T:.\-Z]/', '', (string) ( $r['observed_at'] ?? '' ) ), 0, 20 ),
 			'vendor'     => '' !== $vendor ? $vendor : '—',
-			'purpose'    => (string) ( $r['purpose'] ?? 'unknown' ),
+			'purpose'    => \snt_mr_purpose_label( (string) ( $r['purpose'] ?? 'unknown' ) ),
 			'document'   => substr( (string) ( $r['path'] ?? '' ), 0, 120 ),
 			'user_agent' => substr( (string) ( $r['user_agent'] ?? '' ), 0, 200 ),
 		);
@@ -306,7 +306,7 @@ function machine_readers_purpose_table_html( array $rows, $days ) {
 	}
 	$table_rows = array();
 	foreach ( $totals['purposes'] as $purpose => $hits ) {
-		$table_rows[] = array( 'purpose' => (string) $purpose, 'reads' => number_format_i18n( (int) $hits ) );
+		$table_rows[] = array( 'purpose' => \snt_mr_purpose_label( $purpose ), 'reads' => number_format_i18n( (int) $hits ) );
 	}
 	$out = '<p class="snt-hint">' . \snt_kit_esc( sprintf( __( 'Reads by purpose, last %d days.', 'signal-and-noise-tools' ), (int) $days ) ) . '</p>';
 	$out .= \snt_kit_table(
@@ -345,7 +345,7 @@ function machine_readers_vendor_purpose_html( array $rows, $limit = 20 ) {
 	$table_rows = array();
 	foreach ( $shown as $key => $hits ) {
 		list( $vendor, $purpose, $agent ) = array_pad( explode( '|', (string) $key, 3 ), 3, '' );
-		$table_rows[] = array( 'vendor' => $vendor, 'agent' => '' !== $agent ? $agent : '—', 'purpose' => $purpose, 'reads' => number_format_i18n( (int) $hits ) );
+		$table_rows[] = array( 'vendor' => $vendor, 'agent' => '' !== $agent ? $agent : '—', 'purpose' => \snt_mr_purpose_label( $purpose ), 'reads' => number_format_i18n( (int) $hits ) );
 	}
 	$out = '<p class="snt-hint">' . \snt_kit_esc( __( 'Reads by agent and purpose, third parties only.', 'signal-and-noise-tools' ) ) . '</p>';
 	$out .= \snt_kit_table(
@@ -463,6 +463,10 @@ function machine_readers_reconciliation_html( array $rows ) {
 	$by_purpose  = 0;
 	foreach ( $rows as $r ) {
 		$hits = (int) ( $r['hits'] ?? 0 );
+		// Unreleased: a control token is credited to neither figure (as in the summary).
+		if ( \snt_mr_is_impersonation( $r ) ) {
+			continue;
+		}
 		if ( in_array( (string) ( $r['family'] ?? '' ), $ai_families, true ) ) {
 			$by_family += $hits;
 		}

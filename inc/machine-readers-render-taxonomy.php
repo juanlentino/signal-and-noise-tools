@@ -41,6 +41,10 @@ function snt_mr_purpose_totals( $rows ) {
 			$first += $hits;
 			continue;
 		}
+		// Unreleased: a robots.txt control token is credited to no purpose (as in the summary).
+		if ( function_exists( 'snt_mr_is_impersonation' ) && snt_mr_is_impersonation( $r ) ) {
+			continue;
+		}
 		$purpose         = (string) ( $r['purpose'] ?? 'unknown' );
 		$out[ $purpose ] = (int) ( $out[ $purpose ] ?? 0 ) + $hits;
 	}
@@ -76,7 +80,7 @@ function snt_mr_render_purpose_table( $rows, $days ) {
 		__( 'Reads', 'signal-and-noise-tools' )   => 'num',
 	) );
 	foreach ( $totals['purposes'] as $purpose => $hits ) {
-		$out .= '<tr><td class="column-primary"><strong>' . esc_html( (string) $purpose ) . '</strong></td>'
+		$out .= '<tr><td class="column-primary"><strong>' . esc_html( function_exists( 'snt_mr_purpose_label' ) ? snt_mr_purpose_label( $purpose ) : (string) $purpose ) . '</strong></td>'
 			. '<td class="num" data-colname="Reads">' . esc_html( number_format_i18n( (int) $hits ) ) . '</td></tr>';
 	}
 	$out .= '</tbody></table>';
@@ -151,7 +155,7 @@ function snt_mr_render_vendor_purpose_table( $rows, $limit = 20 ) {
 		list( $vendor, $purpose, $agent ) = array_pad( explode( '|', (string) $key, 3 ), 3, '' );
 		$out                             .= '<tr><td class="column-primary"><strong>' . esc_html( $vendor ) . '</strong></td>'
 			. '<td data-colname="Agent"><code>' . esc_html( '' !== $agent ? $agent : '—' ) . '</code></td>'
-			. '<td data-colname="Purpose">' . esc_html( $purpose ) . '</td>'
+			. '<td data-colname="Purpose">' . esc_html( function_exists( 'snt_mr_purpose_label' ) ? snt_mr_purpose_label( $purpose ) : $purpose ) . '</td>'
 			. '<td class="num" data-colname="Reads">' . esc_html( number_format_i18n( (int) $hits ) ) . '</td></tr>';
 	}
 	$out .= '</tbody></table>';
@@ -194,6 +198,10 @@ function snt_mr_render_ai_reconciliation( $rows ) {
 	$by_purpose  = 0;
 	foreach ( (array) $rows as $r ) {
 		$hits = (int) ( $r['hits'] ?? 0 );
+		// Unreleased: a control token is credited to neither figure (as in the summary).
+		if ( function_exists( 'snt_mr_is_impersonation' ) && snt_mr_is_impersonation( $r ) ) {
+			continue;
+		}
 		if ( in_array( (string) ( $r['family'] ?? '' ), $ai_families, true ) ) {
 			$by_family += $hits;
 		}
@@ -292,7 +300,7 @@ function snt_mr_rights_table( $visible ) {
 		$vendor = snt_mr_normalize_vendor( $r['vendor'] ?? '' );
 		$out   .= '<tr><td class="column-primary"><code>' . esc_html( $when ) . '</code></td>'
 			. '<td data-colname="Vendor">' . esc_html( '' !== $vendor ? $vendor : '—' ) . '</td>'
-			. '<td data-colname="Purpose">' . esc_html( (string) ( $r['purpose'] ?? 'unknown' ) ) . '</td>'
+			. '<td data-colname="Purpose">' . esc_html( function_exists( 'snt_mr_purpose_label' ) ? snt_mr_purpose_label( (string) ( $r['purpose'] ?? 'unknown' ) ) : (string) ( $r['purpose'] ?? 'unknown' ) ) . '</td>'
 			// mb_-safe (#1227): path/UA caps are character caps, not byte caps.
 			. '<td data-colname="Document"><code>' . esc_html( mb_substr( (string) ( $r['path'] ?? '' ), 0, 120 ) ) . '</code></td>'
 			. '<td data-colname="User agent"><code>' . esc_html( mb_substr( (string) ( $r['user_agent'] ?? '' ), 0, 200 ) ) . '</code></td></tr>';
