@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The desktop widgets read like the rest of the desktop.** Counts carry thousands separators: SN Provenance's machine reads (107,882, the verified, unverified and unmeasured parts, AI-training reads and rights-file fetches) and SN Systems' cron runs (2,471 runs recorded). SN Queue's times use the 12-hour clock every other card uses ("Tue 1:01 PM", not "Tue 13:01"); the `content-queue` ability's `when` labels change with them. SN Traffic's last-hour bars sit on a hairline baseline with a caption under them ("Last hour, per 5 minutes: peak 4, 10 minutes ago"): one reader in one slot drew a lone full-height bar that read as a stray square. The public /stats strip and the admin Right now panel are unchanged.
+
 ## [23.9.2] - 2026-10-11 — the General-save guard is retired
 
 ### Removed

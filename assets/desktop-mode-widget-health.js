@@ -271,7 +271,7 @@
 		// Runs RECORDED: a scheduled run that dies fatally leaves no row, so "0
 		// failed" would claim more than the history knows. Failures only when
 		// some were recorded.
-		var rows   = [ { label: 'Last 24 hours', value: num( d.fires ) + ' runs recorded' + ( failed > 0 ? ' · ' + failed + ' failed' : '' ), tone: failed > 0 ? WARN_FG : '' } ];
+		var rows   = [ { label: 'Last 24 hours', value: num( d.fires ).toLocaleString( 'en-US' ) + ' runs recorded' + ( failed > 0 ? ' · ' + failed + ' failed' : '' ), tone: failed > 0 ? WARN_FG : '' } ];
 		if ( failed > 0 ) {
 			tally.look++;
 			var hooks = d.failing || [];

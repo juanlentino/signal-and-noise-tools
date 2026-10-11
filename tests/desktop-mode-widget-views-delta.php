@@ -139,6 +139,20 @@ if ( '' === $node ) {
 	}
 	ok( true === ( $live( array() )['hidden'] ?? false ), 'nothing read: the line stays hidden' );
 
+	// The last-hour bars carry a caption in the card (2026-10-11: one reader
+	// in one slot drew a lone full-height bar that read as a stray square).
+	$hour = static fn( $a ) => json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/live-now-hour.js' ) . ' ' . escapeshellarg( json_encode( $a ) ) ), true );
+	$t0   = time() - 11 * 300;
+	$slots = array();
+	for ( $i = 0; $i < 12; $i++ ) {
+		$slots[] = array( 't' => $t0 + $i * 300, 'readers' => 6 === $i ? 1 : 0 );
+	}
+	$h = $hour( array( 'fetched' => time(), 'hour' => $slots ) );
+	ok( false === ( $h['hidden'] ?? true ) && 12 === ( $h['bars'] ?? 0 ), 'one reader in the hour shows the twelve bars: ' . json_encode( $h ) );
+	ok( 'Last hour, per 5 minutes: peak 1, 25 minutes ago' === ( $h['note'] ?? '' ), 'and says what they are, in the card: ' . json_encode( $h ) );
+	$slots[11]['readers'] = 3;
+	ok( 'Last hour, per 5 minutes: peak 3, now' === ( $hour( array( 'fetched' => time(), 'hour' => $slots ) )['note'] ?? '' ), 'a peak in the current slot says now' );
+
 	// Read at: the payload's own read time, out of the live announcements.
 	$ra = $render( array( 'generated_at' => 1760000000 ), true );
 	ok( is_array( $ra['readAt'] ) && 0 === strpos( $ra['readAt']['text'], 'Read at ' ) && 'off' === $ra['readAt']['live'], 'a "Read at" foot from generated_at, aria-live off' );

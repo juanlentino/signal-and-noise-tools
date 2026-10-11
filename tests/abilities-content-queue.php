@@ -42,16 +42,16 @@ $TZ  = new DateTimeZone( 'UTC' );
 $NOW = gmmktime( 12, 0, 0, 9, 17, 2026 ); // Thu 2026-09-17 12:00Z
 
 echo "abilities-content-queue — 15.8.0\n\nGroup A: the scheduled-time label (site timezone)\n";
-ok( 'Today 21:38' === sn_content_queue_when( $NOW + 9 * 3600 + 38 * 60, $NOW, $TZ ), 'later today → "Today HH:MM"' );
-ok( 'Tomorrow 09:38' === sn_content_queue_when( gmmktime( 9, 38, 0, 9, 18, 2026 ), $NOW, $TZ ), 'tomorrow → "Tomorrow HH:MM"' );
-ok( 'Sun 11:38' === sn_content_queue_when( gmmktime( 11, 38, 0, 9, 20, 2026 ), $NOW, $TZ ), 'within the week → weekday + time' );
+ok( 'Today 9:38 PM' === sn_content_queue_when( $NOW + 9 * 3600 + 38 * 60, $NOW, $TZ ), 'later today → "Today 9:38 PM", the 12-hour clock the other cards use' );
+ok( 'Tomorrow 9:38 AM' === sn_content_queue_when( gmmktime( 9, 38, 0, 9, 18, 2026 ), $NOW, $TZ ), 'tomorrow → "Tomorrow 9:38 AM"' );
+ok( 'Sun 11:38 AM' === sn_content_queue_when( gmmktime( 11, 38, 0, 9, 20, 2026 ), $NOW, $TZ ), 'within the week → weekday + time' );
 ok( 'Sep 26' === sn_content_queue_when( gmmktime( 11, 20, 0, 9, 26, 2026 ), $NOW, $TZ ), 'beyond the week, same year → "Mon D"' );
 ok( 'Dec 27' === sn_content_queue_when( gmmktime( 18, 26, 0, 12, 27, 2026 ), $NOW, $TZ ), 'the end of the real queue → "Dec 27"' );
 ok( 'Jan 3, 2027' === sn_content_queue_when( gmmktime( 10, 0, 0, 1, 3, 2027 ), $NOW, $TZ ), 'next year carries the year' );
 ok( 'Overdue' === sn_content_queue_when( $NOW - 60, $NOW, $TZ ), 'a scheduled time in the past is "Overdue" (cron has not fired)' );
 // The timezone is the site's, not UTC: 23:30Z on the 17th is 01:30 on the 18th in Madrid (CEST).
 $madrid = new DateTimeZone( 'Europe/Madrid' );
-ok( 'Tomorrow 01:30' === sn_content_queue_when( gmmktime( 23, 30, 0, 9, 17, 2026 ), $NOW, $madrid ), 'the day boundary is the site timezone\'s, not UTC\'s' );
+ok( 'Tomorrow 1:30 AM' === sn_content_queue_when( gmmktime( 23, 30, 0, 9, 17, 2026 ), $NOW, $madrid ), 'the day boundary is the site timezone\'s, not UTC\'s' );
 
 echo "\nGroup B: the published age\n";
 ok( '1 minute ago' === sn_content_queue_ago( $NOW - 30, $NOW ), 'under a minute floors at 1 minute' );
@@ -77,7 +77,7 @@ ok( array( 'next', 'scheduled_total', 'runs_to', 'published', 'drafts', 'gap' ) 
 ok( null === $out['drafts'], 'drafts is null when the caller could not count them, never a guessed 0' );
 ok( 7 === sn_content_queue_shape( $future, 26, $published, $NOW, $TZ, 7 )['drafts'] && 0 === sn_content_queue_shape( $future, 26, $published, $NOW, $TZ, 0 )['drafts'], 'a counted draft total passes through, a real 0 included' );
 ok( 4 === count( $out['next'] ), 'next is capped at four (the headline plus three)' );
-ok( 'Note in 1 days' === $out['next'][0]['title'] && 'Tomorrow 12:00' === $out['next'][0]['when'], 'the first row is the soonest, labelled' );
+ok( 'Note in 1 days' === $out['next'][0]['title'] && 'Tomorrow 12:00 PM' === $out['next'][0]['when'], 'the first row is the soonest, labelled' );
 ok( 26 === $out['scheduled_total'], 'the total is the site-wide count, not the row count' );
 ok( is_array( $out['runs_to'] ) && 'Dec 27' === $out['runs_to']['label'], 'runs_to is the LAST future row, the furthest scheduled (101 days → Dec 27)' );
 ok( 3 === count( $out['published'] ), 'published is capped at three' );
