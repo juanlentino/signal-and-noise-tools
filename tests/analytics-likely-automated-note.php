@@ -18,7 +18,7 @@ $GLOBALS['__opt'] = array();
 function get_option( $k, $d = false ) { return $GLOBALS['__opt'][ $k ] ?? $d; }
 function sn_session_rollup_read( $from, $to, $class ) { return array(); }
 
-require __DIR__ . '/../inc/analytics-bot-signals-by-day.php';
+require __DIR__ . '/../inc/analytics-likely-automated.php';
 require __DIR__ . '/../inc/analytics-human-rule.php';
 require __DIR__ . '/../inc/analytics-render-overview.php';
 

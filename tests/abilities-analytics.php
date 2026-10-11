@@ -176,7 +176,7 @@ class AB_Stub_wpdb {
 }
 $GLOBALS['wpdb'] = new AB_Stub_wpdb();
 require __DIR__ . '/../inc/analytics-read.php';
-require_once __DIR__ . '/../inc/analytics-bot-signals-by-day.php'; // Unreleased: likely_automated per UTC day (abilities-analytics.php loads it too).
+require_once __DIR__ . '/../inc/analytics-likely-automated.php'; // Unreleased: likely_automated per UTC day (abilities-analytics.php loads it too).
 
 /** True iff $value conforms to a declared JSON-Schema type (string or union). */
 function ab_type_ok( $value, $type ) {

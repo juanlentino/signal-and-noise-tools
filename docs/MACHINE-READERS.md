@@ -360,8 +360,10 @@ reader-anomalies series leave first-party reads out entirely.
 `network`, capped at 10,000), folds them per sample and keeps the top 20, each
 with `verified_hits`, `not_measured` and its top 5 networks. A worker before
 1.30.0 ignores the parameter, sends no `detail` in the envelope, and the list
-reads `verified_hits: null`, `basis: unmeasured`, never 0. The admin review
-list keeps reading the default view (the top 50).
+reads `verified_hits: null`, `basis: unmeasured`, never 0. Reader evidence in
+S&N Analytics reads the same split view and counts every sample, paints the
+busiest 20 with a "+N more" line, and says "at least" when the count is a
+floor: the read was truncated, or an older worker answered only its top 50.
 
 ### Where it is painted
 

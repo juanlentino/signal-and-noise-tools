@@ -80,9 +80,10 @@ function snt_ev_ua_name( $ua ) {
  *
  * @param array|null $unnamed snt_mr_unnamed_fold(), or null when unread.
  * @param string     $surface kit|classic.
+ * @param bool       $floor   True when the read was capped, so the count is a floor.
  * @return string
  */
-function snt_ev_paint_unnamed( $unnamed, $surface = 'kit' ) {
+function snt_ev_paint_unnamed( $unnamed, $surface = 'kit', $floor = false ) {
 	$title = __( 'Unnamed user agents', 'signal-and-noise-tools' );
 	if ( null === $unnamed ) {
 		return snt_ev_box( $surface, $title, snt_ev_lead( $surface, __( 'The unnamed list could not be read: not measured.', 'signal-and-noise-tools' ) ) );
@@ -91,8 +92,11 @@ function snt_ev_paint_unnamed( $unnamed, $surface = 'kit' ) {
 		return snt_ev_box( $surface, $title, snt_ev_lead( $surface, __( 'Every machine read in this window matched the taxonomy.', 'signal-and-noise-tools' ) ) );
 	}
 	$lead = sprintf(
-		/* translators: 1: samples, 2: the three busiest. */
-		_n( '%1$d user agent matches no taxonomy entry: %2$s.', '%1$d user agents match no taxonomy entry; %2$s lead.', count( $unnamed ), 'signal-and-noise-tools' ),
+		$floor
+			/* translators: 1: samples read (a floor), 2: the three busiest. */
+			? _n( 'At least %1$d user agent matches no taxonomy entry: %2$s.', 'At least %1$d user agents match no taxonomy entry; %2$s lead.', count( $unnamed ), 'signal-and-noise-tools' )
+			/* translators: 1: samples, 2: the three busiest. */
+			: _n( '%1$d user agent matches no taxonomy entry: %2$s.', '%1$d user agents match no taxonomy entry; %2$s lead.', count( $unnamed ), 'signal-and-noise-tools' ),
 		count( $unnamed ),
 		implode( ', ', array_map( static fn( $u ) => snt_ev_ua_name( $u['ua_sample'] ), array_slice( $unnamed, 0, 3 ) ) )
 	);

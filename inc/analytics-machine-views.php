@@ -57,8 +57,10 @@ function snt_mr_view_data( $days, $evidence = false ) {
 		return $d;
 	}
 	if ( $evidence ) {
-		$unknown       = snt_mr_fetch( $days, 'unknown-network' );
-		$d['unnamed']  = ! empty( $unknown['ok'] ) ? snt_mr_unnamed_fold( $unknown, 50 ) : null;
+		$unknown      = snt_mr_fetch( $days, 'unknown-network' );
+		$d['unnamed'] = ! empty( $unknown['ok'] ) ? snt_mr_unnamed_fold( $unknown, PHP_INT_MAX ) : null;
+		// A floor, not a count: the read was truncated, or an older worker answered only its top 50.
+		$d['unnamed_floor'] = ! empty( $unknown['truncated'] ) || 'network' !== (string) ( $unknown['detail'] ?? '' );
 		$d['report']   = function_exists( 'snt_ml_reader_anomalies' ) ? snt_ml_reader_anomalies() : null;
 		return $d;
 	}
@@ -124,6 +126,6 @@ function snt_mr_view_reader_evidence_html( array $d, $surface, array $links ) {
 		. snt_ev_paint_purpose_split( $disp['purposes'], $surface )
 		. snt_ev_paint_control_tokens( $disp['impersonations'], $surface )
 		. snt_ev_paint_agents( snt_mr_agent_exceptions( $d['rows'] ), $surface )
-		. snt_ev_paint_unnamed( $d['unnamed'], $surface )
+		. snt_ev_paint_unnamed( $d['unnamed'], $surface, ! empty( $d['unnamed_floor'] ) )
 		. snt_ev_paint_anomalies( snt_mr_verification_daily( $d['rows'], $from, gmdate( 'Y-m-d' ) ), $d['report'], $surface );
 }

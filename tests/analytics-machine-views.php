@@ -151,8 +151,26 @@ namespace {
 		ok( false !== strpos( $ec, $needle ), "evidence classic: $what" );
 	}
 	ok( false !== strpos( $kit['reader-evidence'], '<os-histogram' ) && false !== strpos( $kit['reader-evidence'], 'legend' ), 'the anomalies are a two-series time histogram on the kit' );
+	// Core's wp_admin_notice_markup filter sees only notices built by core; a hand-echoed literal never passes it.
+	add_filter( 'wp_admin_notice_markup', static fn( $m ) => '<!--core-notice-->' . $m );
 	$cards = snt_ev_paint_delta_cards( array( array( 'title' => 'GPTBot rose', 'detail' => 'by 40%' ) ), 'classic' );
-	ok( false !== strpos( snt_ev_verdict( 'classic', 'capped' ), 'notice notice-warning inline' ) && false !== strpos( $cards, 'notice notice-info inline' ) && false !== strpos( $cards, 'GPTBot rose' ), 'classic verdicts and delta cards are core notices (wp_get_admin_notice)' );
+	ok( 0 === strpos( snt_ev_verdict( 'classic', 'capped' ), '<!--core-notice-->' ) && 0 === strpos( $cards, '<!--core-notice-->' ) && false !== strpos( $cards, 'GPTBot rose' ), 'classic verdicts and delta cards are built by core (they pass wp_admin_notice_markup)' );
+
+	echo "\nGroup E: the unnamed count is a count, or says it is a floor\n";
+	$many = array();
+	for ( $i = 1; $i <= 60; $i++ ) {
+		$many[] = array( 'user_agent' => "Bot$i/1.0", 'hits' => 100 - $i, 'verified_bot' => '', 'network' => 'Google LLC' );
+	}
+	$GLOBALS['__fetch']['unknown-network'] = array( 'ok' => true, 'detail' => 'network', 'truncated' => false, 'rows' => $many );
+	$full = snt_mr_view_data( 7, true );
+	$out  = html_entity_decode( snt_mr_view_reader_evidence_html( $full, 'classic', array() ), ENT_QUOTES );
+	ok( 60 === count( $full['unnamed'] ) && false !== strpos( $out, '60 user agents match no taxonomy entry; Bot1, Bot2, Bot3 lead.' ) && false !== strpos( $out, '+40 more' ), 'a complete read counts every sample (60), paints 20 and says +40 more' );
+	$GLOBALS['__fetch']['unknown-network'] = array( 'ok' => true, 'detail' => '', 'truncated' => false, 'rows' => array_slice( $many, 0, 50 ) );
+	$out = html_entity_decode( snt_mr_view_reader_evidence_html( snt_mr_view_data( 7, true ), 'classic', array() ), ENT_QUOTES );
+	ok( false !== strpos( $out, 'At least 50 user agents match no taxonomy entry' ) && false !== strpos( $out, 'not measured' ), 'an older worker (its top 50, no detail): at least 50, verified not measured' );
+	$GLOBALS['__fetch']['unknown-network'] = array( 'ok' => true, 'detail' => 'network', 'truncated' => true, 'rows' => $many );
+	$out = html_entity_decode( snt_mr_view_reader_evidence_html( snt_mr_view_data( 7, true ), 'kit', array() ), ENT_QUOTES );
+	ok( false !== strpos( $out, 'At least 60 user agents match no taxonomy entry' ), 'a truncated read is a floor: at least 60' );
 
 	echo "\nResult: $pass passed, $fail failed.\n";
 	exit( $fail > 0 ? 1 : 0 );

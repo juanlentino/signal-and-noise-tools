@@ -28,7 +28,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-require_once __DIR__ . '/analytics-bot-signals-by-day.php'; // likely_automated: its reader and the schema both doors share.
+require_once __DIR__ . '/analytics-likely-automated.php'; // likely_automated: its reader and the schema both doors share.
+require_once __DIR__ . '/abilities-analytics-events.php'; // the get-analytics-events and get-analytics-top-content callbacks.
 
 add_action( 'wp_abilities_api_init', function () {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
@@ -229,7 +230,7 @@ function sn_ability_get_analytics_summary( $input ) {
 	// annotations gate on visits), so no owner-facing surface changes.
 	unset( $totals['visits'], $totals['scroll_avg'], $totals['time_avg'] );
 	// Unreleased: beside the totals, never subtracted from them. Read from the
-	// nightly per-day store (inc/analytics-bot-signals-by-day.php): this call
+	// nightly per-day store (inc/analytics-likely-automated.php): this call
 	// never queries Analytics Engine.
 	$totals['likely_automated'] = function_exists( 'sn_analytics_likely_automated' ) ? sn_analytics_likely_automated( $from, $to, $class ) : null;
 	$totals['basis']            = 'inferred';

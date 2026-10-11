@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-require_once __DIR__ . '/analytics-bot-signals-by-day.php'; // likely_automated: its reader and the schema both doors share.
+require_once __DIR__ . '/analytics-likely-automated.php'; // likely_automated: its reader and the schema both doors share.
 
 /**
  * Permission callback for `signal-noise/remote-get-analytics-summary`.
