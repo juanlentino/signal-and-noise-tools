@@ -95,7 +95,7 @@ function paint_tools_citations( array $ctx ) {
 	$body = '<p class="snt-prose"><b>' . \snt_kit_esc( function_exists( 'sn_cit_summary_sentence' ) ? sn_cit_summary_sentence( $counts ) : '' ) . '</b></p>'
 		. '<p class="snt-prose">' . \snt_kit_esc( __( 'A webmention is a claim that someone cited you. Each claim is re-fetched and sorted by what can be checked: verified and unattributed citations appear on the site; a claim whose link has gone, or that could not be reached, is kept here and shown to nobody else.', 'signal-and-noise-tools' ) ) . '</p>'
 		. '<p class="snt-prose">' . \snt_kit_esc( __( 'Inbox:', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( function_exists( 'sn_cit_endpoint_url' ) ? sn_cit_endpoint_url() : '', false ) . '</p>'
-		. citations_table( $rows )
+		. citations_table( $rows, (int) array_sum( array_intersect_key( $counts, array_flip( defined( 'SN_CIT_TIERS' ) ? SN_CIT_TIERS : array() ) ) ) )
 		. citations_forget_form( $rows );
 	$out .= \snt_kit_section( __( 'Citations', 'signal-and-noise-tools' ), $body );
 	return $out;

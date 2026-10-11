@@ -194,6 +194,13 @@ ok( in_array( '404', $cit_http, true ), 'rich fixture: the 404 status is printed
 ok( in_array( 'No response', $cit_http, true ) && ! in_array( '0', $cit_http, true ) && ! in_array( '—', $cit_http, true ), 'rich fixture: the zero-status row says "No response" in words, not "0" or a dash a screen reader skips' );
 ok( array( 'Tier', 'Source', 'Cites', 'First seen', 'Last checked', 'HTTP' ) === array_column( $cit_table['columns'], 'label' ) && false === strpos( $kit, '<os-card compact' ) && false !== strpos( $kit, 'data-snt-stack-on-phone' ), '#1624: the classic table\'s six columns as one os-table, not a card per claim; stacks on a phone' );
 ok( false !== strpos( $kit, 'The newest 100 claims are listed' ), 'rich fixture: exactly 100 rows triggers the cap notice' );
+// 2026-10-11, never a silent cap: when the tiers count more claims than the
+// 100 listed, the cut is counted out loud.
+$cit_saved_counts   = $wpdb->counts_rows;
+$wpdb->counts_rows  = array( snt_cit_test_count_row( 'verified', 60 ), snt_cit_test_count_row( 'unattributed', 17 ), snt_cit_test_count_row( 'asserted', 40 ), snt_cit_test_count_row( 'unverified', 20 ) );
+$kit137             = snt_leaf_paint( 'tools', 'citations' );
+ok( false !== strpos( $kit137, '+37 older claims are not listed; the newest 100 are.' ) && false === strpos( $kit137, 'The newest 100 claims are listed' ), '137 claims, 100 listed: the "+37 more" line counts the cut' );
+$wpdb->counts_rows  = $cit_saved_counts;
 
 // ── Links: every href the classic table offers survives in the kit output
 // (os-card + os-link, not a table cell, but the same URLs must be reachable).

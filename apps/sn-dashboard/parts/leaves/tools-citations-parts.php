@@ -76,10 +76,11 @@ function citations_row( $r ) {
  * `<os-table>`; it was one `<os-card>` per claim while the kit had no
  * table-cell HTML slot. A card per claim on a phone.
  *
- * @param array<int,object> $rows Up to 100 rows, newest first.
+ * @param array<int,object> $rows  Up to 100 rows, newest first.
+ * @param int               $total Claims in the store (the tier counts' sum); 0 when unknown.
  * @return string
  */
-function citations_table( array $rows ) {
+function citations_table( array $rows, $total = 0 ) {
 	if ( empty( $rows ) ) {
 		return '<p class="snt-prose">' . \snt_kit_esc( __( 'Nothing to list yet.', 'signal-and-noise-tools' ) ) . '</p>';
 	}
@@ -97,7 +98,10 @@ function citations_table( array $rows ) {
 	);
 	$out = \snt_kit_table( $columns, $data, array( 'stack_on_phone' => true ) );
 	if ( 100 === count( $rows ) ) {
-		$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'The newest 100 claims are listed.', 'signal-and-noise-tools' ) ) . '</p>';
+		// Never a silent cap: past 100, the cut is counted (2026-10-11).
+		/* translators: %s: claims not listed. */
+		$more = \snt_kit_more( (int) $total - 100, __( '+%s older claims are not listed; the newest 100 are.', 'signal-and-noise-tools' ) );
+		$out .= '' !== $more ? $more : '<p class="snt-hint">' . \snt_kit_esc( __( 'The newest 100 claims are listed.', 'signal-and-noise-tools' ) ) . '</p>';
 	}
 	return $out;
 }
