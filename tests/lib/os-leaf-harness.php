@@ -136,6 +136,8 @@ foreach ( array( 'openstation-kit', 'openstation-kit-display', 'openstation-kit-
 require_once SNT_PATH . 'inc/admin-tabs-data.php';
 require_once SNT_PATH . 'apps/sn-dashboard/parts/nav.php';
 require_once SNT_PATH . 'apps/sn-dashboard/parts/frame.php';
+// 2026-10-11: the no-fold pins and the preview writer (snt_leaf_folds(), snt_leaf_preview()).
+require_once __DIR__ . '/os-leaf-nofold.php';
 
 /**
  * Run the registered painter for a leaf. The context carries a State stand-in

@@ -15,6 +15,7 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+require_once __DIR__ . '/openstation-kit-ledger.php'; // the no-fold list: finding, capped table, "+N more"
 
 /**
  * `<os-table>` fed from markup. A column is `key` plus optional `label`,
