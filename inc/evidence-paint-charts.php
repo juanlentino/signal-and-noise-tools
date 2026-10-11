@@ -76,7 +76,9 @@ function snt_ev_paint_daily( array $rows, $days, $surface = 'classic' ) {
 	);
 	$chart = (string) ob_get_clean();
 	$key   = '<p class="sn-mr-key"><span class="sn-mr-key__line"></span>' . esc_html__( 'Readers', 'signal-and-noise-tools' ) . ' <span class="sn-mr-key__dash"></span>' . esc_html__( 'Every machine read, this site’s own tools included', 'signal-and-noise-tools' ) . '</p>';
-	return snt_ev_box( $surface, __( 'Machine reads per day (UTC)', 'signal-and-noise-tools' ), $key . $chart );
+	$title = __( 'Machine reads per day (UTC)', 'signal-and-noise-tools' );
+	$table = snt_ev_sr_days_table( $title, $s['days'], array( __( 'Readers', 'signal-and-noise-tools' ) => $s['readers'], __( 'Every machine read', 'signal-and-noise-tools' ) => $s['all'] ) );
+	return snt_ev_box( $surface, $title, $key . $chart . $table );
 }
 
 /**
@@ -142,9 +144,34 @@ function snt_ev_paint_share_bars( $heading, $lead, array $items, $surface = 'cla
 		$s     = $i['split'];
 		$rows .= '<div class="sn-mr-bars__row"><span class="sn-mr-bars__label">' . esc_html( (string) $i['label'] ) . '</span>' . snt_ev_share_bar( $s, $max )
 			/* translators: 1: verified reads, 2: claimed reads. */
-			. '<span class="sn-mr-bars__n">' . wp_kses( sprintf( __( '<strong>%1$s</strong> of %2$s verified', 'signal-and-noise-tools' ), number_format_i18n( (int) $s['verified'] ), number_format_i18n( (int) $s['claimed'] ) ), array( 'strong' => array() ) ) . '</span></div>';
+			. '<span class="sn-mr-bars__n">' . wp_kses( sprintf( __( '<strong>%1$s</strong> of %2$s verified', 'signal-and-noise-tools' ), number_format_i18n( (int) $s['verified'] ), number_format_i18n( (int) $s['claimed'] ) ), array( 'strong' => array() ) ) . snt_ev_share_parts( $s ) . '</span></div>';
 	}
 	/* translators: %s: items not shown. */
 	$tail = $more > 0 ? snt_ev_lead( $surface, sprintf( __( '+%s more, the quiet end: the list is capped, not complete.', 'signal-and-noise-tools' ), number_format_i18n( (int) $more ) ) ) : '';
 	return snt_ev_box( $surface, $heading, snt_ev_lead( $surface, $lead ) . '<div class="sn-mr-bars">' . $rows . '</div>' . $tail );
+}
+
+/**
+ * The parts a bar draws besides verified, as counts under the row's figure:
+ * the bar is decorative, so no part lives only in it. '' when all verified.
+ *
+ * @param array $s A verification split.
+ * @return string
+ */
+function snt_ev_share_parts( array $s ) {
+	$parts = array(
+		/* translators: %s: reads. */
+		__( '%s for another purpose', 'signal-and-noise-tools' ) => (int) ( $s['verified'] ?? 0 ) - (int) ( $s['verified_matched'] ?? 0 ),
+		/* translators: %s: reads. */
+		__( '%s named only', 'signal-and-noise-tools' )          => (int) ( $s['unverified'] ?? 0 ),
+		/* translators: %s: reads. */
+		__( '%s before verification', 'signal-and-noise-tools' ) => (int) ( $s['unverifiable'] ?? 0 ),
+	);
+	$out = array();
+	foreach ( $parts as $fmt => $n ) {
+		if ( $n > 0 ) {
+			$out[] = sprintf( $fmt, number_format_i18n( $n ) );
+		}
+	}
+	return array() === $out ? '' : '<span class="sn-mr-bars__parts">' . esc_html( implode( ' · ', $out ) ) . '</span>';
 }

@@ -772,8 +772,8 @@ async function run() {
   // 2026-10-11: beside the views, the presumed-human visitor-days the beacon
   // scored likely automated: subtracted from nothing, unknown never a 0.
   for (const [la, want] of [
-    [{visitor_days: 3, scored_visitor_days: 41, measured_days: 9, unmeasured_days: 5}, /Likely automated: 3 of 41 scored visitor-days, 9 of 14 days measured/],
-    [{visitor_days: 2, scored_visitor_days: 50, measured_days: 14, unmeasured_days: 0}, /Likely automated: 2 of 50 scored visitor-days(?!,)/],
+    [{visitor_days: 3, scored_visitor_days: 41, measured_days: 9, unmeasured_days: 5}, /Likely automated, not subtracted: 3 of 41 scored visitor-days, 9 of 14 days measured/],
+    [{visitor_days: 1200, scored_visitor_days: 4100, measured_days: 14, unmeasured_days: 0}, /Likely automated, not subtracted: 1,200 of 4,100 scored visitor-days(?!,)/],
     [{visitor_days: null, scored_visitor_days: null, measured_days: 0, unmeasured_days: 14}, /Likely automated: not measured yet/],
     [undefined, null],
   ]) {

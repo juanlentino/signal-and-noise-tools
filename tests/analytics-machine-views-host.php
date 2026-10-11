@@ -87,6 +87,12 @@ namespace {
 	ok( false !== strpos( $re, 'Control tokens' ) && false !== strpos( $re, 'Google-Extended' ), 'Reader evidence: the control-token tile and panel name Google-Extended' );
 	ok( false !== strpos( $re, 'sn-mr-verdict' ) && false !== strpos( $re, 'Google LLC' ), 'Reader evidence: co-movement is a dark-mapped callout naming the network' );
 
+	// Review on #2004: the figures the old tables printed stay as text.
+	echo "\nGroup: no figure lives only in a bar or a line\n";
+	ok( false !== strpos( $re, '<span class="sn-mr-bars__parts">1,107 named only</span>' ), 'Reader evidence: each bar row says its other parts as counts (train: 1,107 named only)' );
+	ok( 1 === preg_match( '/<table class="screen-reader-text">\s*<caption>Third-party reads per day<\/caption>.*?<th scope="col">Verified<\/th><th scope="col">Unverified<\/th>/s', $re ), 'Reader evidence: the anomaly chart has its per-day table for a screen reader' );
+	ok( false !== strpos( $re, 'Top signers: anthropic-claudebot 25.' ), 'Reader evidence: the top signers with their counts' );
+	ok( false !== strpos( $mr, 'class="screen-reader-text"' ) && false !== strpos( $mr, '<caption>Machine reads per day (UTC)</caption>' ), 'Machine readers: the reads-per-day chart has its table too' );
 	echo "\nResult: $pass passed, $fail failed.\n";
 	exit( $fail > 0 ? 1 : 0 );
 }

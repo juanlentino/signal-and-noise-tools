@@ -128,13 +128,15 @@ function snt_mr_view_reader_evidence_html( array $d, $surface, array $links ) {
 	$t      = snt_mr_claim_proof( $d['rows'] );
 	$who    = snt_mr_who_reads( $d['rows'] );
 	$disp   = snt_mr_basis_display( $d['rows'] );
-	$tokens = array_sum( array_column( (array) $disp['impersonations'], 'hits' ) );
+	// null when no row carried a taxonomy version: no token could have been seen.
+	$ev     = snt_mr_evidence( $d['rows'] );
+	$tokens = null === $ev['impersonations'] ? null : array_sum( array_column( $ev['impersonations'], 'hits' ) );
 	$from   = gmdate( 'Y-m-d', time() - ( $d['days'] - 1 ) * DAY_IN_SECONDS ); // the window's own days, as the reads-per-day chart counts them.
 	$purp   = array_map( static fn( $p ) => array( 'label' => $p['label'], 'split' => $p ), (array) $disp['purposes'] );
 	$fams   = array_map( static fn( $f ) => array( 'label' => $f['family'], 'split' => $f['split'] ), array_slice( $who['rows'], 0, SN_MR_EVIDENCE_ROWS ) );
 	// 2026-10-11 redesign, from the owner-approved prototype: tiles, the
 	// verified share by purpose and by family, then the actors and signals.
-	return snt_ev_paint_evidence_tiles( $t, snt_mr_identity_breakdown( $d['rows'] ), (int) $tokens, $since, $surface )
+	return snt_ev_paint_evidence_tiles( $t, snt_mr_identity_breakdown( $d['rows'] ), $tokens, $since, $surface )
 		. snt_ev_share_key()
 		. snt_ev_pair(
 			$surface,

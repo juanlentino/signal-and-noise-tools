@@ -155,7 +155,7 @@
 		if ( ! la || typeof la !== 'object' ) { return null; }
 		var measured = Number( la.measured_days ) || 0, days = measured + ( Number( la.unmeasured_days ) || 0 );
 		var text = typeof la.visitor_days !== 'number' ? 'Likely automated: not measured yet'
-			: 'Likely automated: ' + la.visitor_days + ' of ' + la.scored_visitor_days + ' scored visitor-days' + ( measured < days ? ', ' + measured + ' of ' + days + ' days measured' : '' );
+			: 'Likely automated, not subtracted: ' + la.visitor_days.toLocaleString() + ' of ' + Number( la.scored_visitor_days ).toLocaleString() + ' scored visitor-days' + ( measured < days ? ', ' + measured + ' of ' + days + ' days measured' : '' );
 		var node = el( 'div', { text: text, style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
 		node.title = 'Inferred from the beacon\u2019s bot signals; the views above are presumed human and nothing is subtracted.';
 		return node;

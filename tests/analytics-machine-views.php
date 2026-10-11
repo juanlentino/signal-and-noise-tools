@@ -102,8 +102,11 @@ namespace {
 	$evcss = (string) file_get_contents( SNT_PATH . 'assets/analytics/analytics-admin.css' );
 	ok( 1 === preg_match( '/\.snt-evidence__seg, \.sn-mr-bar__seg\s*\{[^}]*min-width:\s*3px/', $evcss ), 'a non-zero strip or bar segment is never narrower than 3px' );
 	ok( '<span class="snt-evidence-none">not measured</span>' === snt_evidence_strip( null ), 'a null split paints no strip, only "not measured"' );
-	$legend = snt_evidence_legend( SN_RIGHTS_EVIDENCE_VERIFIED_SINCE );
-	ok( 4 === preg_match_all( '/data-part="([a-z_]+)"/', $legend, $lm ) && array( 'verified_matched', 'verified', 'unverified', 'unverifiable' ) === $lm[1] && false !== strpos( $legend, 'Verified, not for its claimed purpose' ), 'the legend keys all four parts the strip can paint, the half segment included' );
+	// Review on #2004: a chart's figures as a table only a screen reader reads; the bars' parts as counts.
+	$srt = snt_ev_sr_days_table( 'Reads', array( '2026-10-01', '2026-10-02' ), array( 'Verified' => array( 3, 1200 ), 'Unverified' => array( 0, 7 ) ) );
+	ok( 0 === strpos( $srt, '<table class="screen-reader-text"><caption>Reads</caption>' ) && false !== strpos( $srt, '<tr><th scope="row">2026-10-02</th><td>1,200</td><td>7</td></tr>' ), 'the screen-reader day table: one row per day, grouped counts, a column per series' );
+	ok( '<span class="sn-mr-bars__parts">10 for another purpose · 60 named only · 10 before verification</span>' === snt_ev_share_parts( array( 'claimed' => 100, 'verified' => 30, 'verified_matched' => 20, 'unverified' => 60, 'unverifiable' => 10 ) ) && '' === snt_ev_share_parts( array( 'claimed' => 5, 'verified' => 5, 'verified_matched' => 5, 'unverified' => 0, 'unverifiable' => 0 ) ), 'a bar row says its other parts as counts; an all-verified row adds nothing' );
+	ok( 4 === preg_match_all( '/data-part="(\w+)" style="--w:([\d.]+)%"/', snt_ev_share_bar( array( 'claimed' => 100, 'verified' => 30, 'verified_matched' => 20, 'unverified' => 60, 'unverifiable' => 10 ), 200 ), $bm ) && ( array( 'matched', 'verified', 'claimed', 'before' ) === $bm[1] && array( '20.00', '10.00', '60.00', '10.00' ) === $bm[2] ), 'the bar segments are each part\'s share of the claimed count, in order' );
 	ok( 1 === preg_match( '/:is\(\.snt-evidence__seg, \.sn-mr-bar__seg\)\[data-part="verified"\]\s*\{([^}]*)\}/', $evcss, $vm ) && false !== strpos( $vm[1], 'border: 1px solid' ) && false === strpos( $vm[1], 'opacity' ), 'verified-not-for-its-purpose differs by an outline, not by opacity alone' );
 	ok( '<os-chip tone="success">signed</os-chip>' === snt_basis_chip( 'signed' ) && '<os-chip tone="info">verified</os-chip>' === snt_basis_chip( 'verified' ) && '<os-chip>claimed</os-chip>' === snt_basis_chip( 'claimed' ) && '<os-chip>inferred</os-chip>' === snt_basis_chip( 'inferred' ) && '<os-chip>not measured</os-chip>' === snt_basis_chip( 'unmeasured' ), 'chips carry the basis word and the tone table' );
 	ok( false === strpos( implode( '', array_map( 'snt_basis_chip', SN_MR_BASIS_VALUES ) ), 'warning' ) && false === strpos( implode( '', array_map( 'snt_basis_chip', SN_MR_BASIS_VALUES ) ), 'danger' ), 'no basis chip takes a warning or danger tone' );
@@ -169,8 +172,10 @@ namespace {
 		ok( false !== strpos( $ec, $needle ), "evidence classic: $what" );
 	}
 	ok( false !== strpos( $kit['reader-evidence'], '<os-histogram' ) && false !== strpos( $kit['reader-evidence'], 'legend' ), 'the anomalies are a two-series time histogram on the kit' );
-	$signed = 'of 21,503 measured; 0 invalid, 0 unknown key; top signer anthropic-claudebot';
-	ok( false !== strpos( $ek, $signed ) && false !== strpos( $ec, $signed ), 'Web Bot Auth valid, invalid, unknown key and top signer (the Signed tile) on both surfaces' );
+	$signed = 'of 21,503 measured; 0 invalid, 0 unknown key';
+	ok( false !== strpos( $ek, $signed ) && false !== strpos( $ec, $signed ) && 1 === preg_match( '/Top signers: anthropic-claudebot [\d,]+/', $ec ), 'Web Bot Auth valid, invalid and unknown key on the Signed tile, the top signers with their counts in the line (both surfaces)' );
+	$__nt = snt_ev_paint_evidence_tiles( array( 'claimed' => 0, 'verified' => 0, 'verified_matched' => 0, 'unverified' => 0, 'unverifiable' => 0 ), array( 'measured' => 4, 'valid' => 4, 'invalid' => 0, 'unknown_key' => 0, 'by_agent' => array() ), null, null, 'classic' );
+	ok( 1 === substr_count( $__nt, 'not measured' ) && 1 === preg_match( '/Control tokens<\/p><p class="sn-kpi-value">not measured<\/p><span class="sn-kpi-delta[^"]*">credited to no vendor/', $__nt ), 'control tokens with no taxonomy read not measured, never 0' );
 	$with_cards          = snt_mr_view_data( 7 );
 	$with_cards['cards'] = array( array( 'id' => 'mr_delta_openai', 'direction' => 'up', 'percent' => 40, 'current' => 420, 'prior' => 300 ) );
 	foreach ( array( 'kit', 'classic' ) as $s ) {
@@ -220,7 +225,6 @@ namespace {
 		ok( $tiles === count( $k ) && array() === array_filter( $k, static fn( $e ) => 'snt-ev-tile' !== $e->getAttribute( 'class' ) ), "$v (kit): the tile grid has $tiles children, each one tile element (" . count( $k ) . ')' );
 		ok( $tiles === count( $c ) && array() === array_filter( $c, static fn( $e ) => 'sn-kpi' !== $e->getAttribute( 'class' ) ), "$v (classic): the tile row has $tiles children, each one .sn-kpi (" . count( $c ) . ')' );
 	}
-	ok( 1 !== preg_match( '/class="sn-kpi-label"[^>]*>[^<]*<span class="sn-mr-chip"/', $classic['machine-readers'] ), 'classic: the basis chip is not inside the label (its nowrap and uppercase clip it)' );
 	$css = (string) file_get_contents( SNT_PATH . 'assets/analytics/analytics-admin.css' );
 	// 2026-10-11: the classic tiles are the analytics KPI row (snt_an_kpi_row), which S&N Analytics' native capture turns into os-stat tiles.
 	ok( false !== strpos( $classic['machine-readers'], '<div class="sn-kpi-row"><div class="sn-kpi">' ) && false === strpos( $classic['machine-readers'], 'sn-mr-kpi-row' ), 'classic: the tiles are the analytics KPI row, not a machine-view variant' );

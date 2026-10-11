@@ -56,26 +56,28 @@ function snt_evidence_strip( $split, array $opts = array() ) {
 }
 
 /**
- * The legend: a swatch for each of the four parts the strip paints, once
- * per view, above the first strip.
+ * A chart's figures as a table only a screen reader reads (2026-10-11 review:
+ * a line or a bar carries no numbers, and the old per-day tables did).
  *
- * @param string|null $since SN_RIGHTS_EVIDENCE_VERIFIED_SINCE.
+ * @param string                $caption The chart's title.
+ * @param array<int,string>     $days    Y-m-d, oldest first.
+ * @param array<string,array>   $series  Column label => values, one per day.
  * @return string
  */
-function snt_evidence_legend( $since ) {
-	$when  = null === $since ? __( 'an unknown date', 'signal-and-noise-tools' ) : gmdate( 'Y-m-d', (int) strtotime( (string) $since ) );
-	$items = array(
-		'verified_matched' => __( 'Verified by Cloudflare for its claimed purpose', 'signal-and-noise-tools' ),
-		'verified'         => __( 'Verified, not for its claimed purpose', 'signal-and-noise-tools' ),
-		'unverified'       => __( 'Claimed by user agent only', 'signal-and-noise-tools' ),
-		/* translators: %s: the date the sensor began recording Cloudflare's verified-bot category. */
-		'unverifiable'     => sprintf( __( 'Before verification was recorded (since %s)', 'signal-and-noise-tools' ), $when ),
-	);
-	$out = '';
-	foreach ( $items as $part => $words ) {
-		$out .= '<span class="snt-evidence-legend__item"><span class="snt-evidence__seg snt-evidence-legend__swatch" data-part="' . esc_attr( $part ) . '" aria-hidden="true"></span>' . esc_html( $words ) . '</span>';
+function snt_ev_sr_days_table( $caption, array $days, array $series ) {
+	$head = '<th scope="col">' . esc_html__( 'Day', 'signal-and-noise-tools' ) . '</th>';
+	foreach ( array_keys( $series ) as $label ) {
+		$head .= '<th scope="col">' . esc_html( (string) $label ) . '</th>';
 	}
-	return '<p class="snt-evidence-legend">' . $out . '</p>';
+	$rows = '';
+	foreach ( array_values( $days ) as $i => $day ) {
+		$rows .= '<tr><th scope="row">' . esc_html( (string) $day ) . '</th>';
+		foreach ( $series as $values ) {
+			$rows .= '<td>' . esc_html( number_format_i18n( (int) ( array_values( $values )[ $i ] ?? 0 ) ) ) . '</td>';
+		}
+		$rows .= '</tr>';
+	}
+	return '<table class="screen-reader-text"><caption>' . esc_html( (string) $caption ) . '</caption><thead><tr>' . $head . '</tr></thead><tbody>' . $rows . '</tbody></table>';
 }
 
 /**

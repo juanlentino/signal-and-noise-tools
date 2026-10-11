@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @param array       $t       snt_mr_claim_proof().
  * @param array|null  $sig     snt_mr_identity_breakdown() (null: never measured).
- * @param int         $tokens  Reads that presented a control token.
+ * @param int|null    $tokens  Reads that presented a control token; null when not measured.
  * @param string|null $since   SN_RIGHTS_EVIDENCE_VERIFIED_SINCE.
  * @param string      $surface kit|classic.
  * @return string
@@ -29,8 +29,8 @@ function snt_ev_paint_evidence_tiles( array $t, $sig, $tokens, $since, $surface 
 		? array( __( 'not measured', 'signal-and-noise-tools' ), __( 'no read carried a signature state', 'signal-and-noise-tools' ) )
 		: array(
 			$n( $sig['valid'] ),
-			/* translators: 1: reads with a signature state, 2: invalid, 3: unknown key, 4: top signer. */
-			sprintf( __( 'of %1$s measured; %2$s invalid, %3$s unknown key; top signer %4$s', 'signal-and-noise-tools' ), $n( $sig['measured'] ), $n( $sig['invalid'] ), $n( $sig['unknown_key'] ), (string) ( $sig['by_agent'][0]['agent'] ?? __( 'none', 'signal-and-noise-tools' ) ) ),
+			/* translators: 1: reads with a signature state, 2: invalid, 3: unknown key. */
+			sprintf( __( 'of %1$s measured; %2$s invalid, %3$s unknown key', 'signal-and-noise-tools' ), $n( $sig['measured'] ), $n( $sig['invalid'] ), $n( $sig['unknown_key'] ) ),
 		);
 	$tiles = snt_ev_tiles( $surface, array(
 		snt_ev_stat( $surface, $n( $t['claimed'] ), __( 'Claimed', 'signal-and-noise-tools' ), __( 'reads credited to a vendor by their user agent', 'signal-and-noise-tools' ) ),
@@ -38,11 +38,15 @@ function snt_ev_paint_evidence_tiles( array $t, $sig, $tokens, $since, $surface 
 		snt_ev_stat( $surface, $n( $t['verified'] ), __( 'Verified by Cloudflare', 'signal-and-noise-tools' ), sprintf( __( '%s for the purpose they claimed', 'signal-and-noise-tools' ), $n( $t['verified_matched'] ) ) ),
 		snt_ev_stat( $surface, $n( $t['unverified'] ), __( 'Claimed only', 'signal-and-noise-tools' ), __( 'no verification on the request', 'signal-and-noise-tools' ) ),
 		snt_ev_stat( $surface, $sign[0], __( 'Signed (Web Bot Auth)', 'signal-and-noise-tools' ), $sign[1] ),
-		snt_ev_stat( $surface, $n( $tokens ), __( 'Control tokens', 'signal-and-noise-tools' ), __( 'credited to no vendor', 'signal-and-noise-tools' ) ),
+		// null: no row carried a taxonomy version, so no token could be seen.
+		snt_ev_stat( $surface, null === $tokens ? __( 'not measured', 'signal-and-noise-tools' ) : $n( $tokens ), __( 'Control tokens', 'signal-and-noise-tools' ), __( 'credited to no vendor', 'signal-and-noise-tools' ) ),
 	) );
 	$when = null === $since ? __( 'an unknown time', 'signal-and-noise-tools' ) : gmdate( 'Y-m-d H:i', (int) strtotime( (string) $since ) ) . ' UTC';
 	/* translators: 1: when the category began to be recorded, 2: reads before it. */
 	$line = sprintf( __( 'Verified means Cloudflare’s verified-bot category, recorded since %1$s; %2$s reads before that are unverifiable. Signed is not verified: a signature proves who sent a request, the category says Cloudflare recognized the client.', 'signal-and-noise-tools' ), $when, $n( $t['unverifiable'] ) );
+	$top = array_map( static fn( $a ) => (string) $a['agent'] . ' ' . $n( $a['hits'] ), array_slice( null === $sig ? array() : (array) ( $sig['by_agent'] ?? array() ), 0, 3 ) );
+	/* translators: %s: up to three signers with their reads. */
+	$line .= array() === $top ? '' : ' ' . sprintf( __( 'Top signers: %s.', 'signal-and-noise-tools' ), implode( ', ', $top ) );
 	return $tiles . snt_ev_lead( $surface, $line );
 }
 

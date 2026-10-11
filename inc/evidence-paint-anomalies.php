@@ -53,7 +53,8 @@ function snt_ev_paint_anomalies( array $daily, $report, $surface = 'kit' ) {
 				'aria_label'     => __( 'Third-party reads per day: verified, and every read', 'signal-and-noise-tools' ),
 			)
 		);
-		$chart = '<p class="sn-mr-key"><span class="sn-mr-key__line"></span>' . esc_html__( 'Verified by Cloudflare', 'signal-and-noise-tools' ) . ' <span class="sn-mr-key__dash"></span>' . esc_html__( 'Every third-party read', 'signal-and-noise-tools' ) . '</p>' . (string) ob_get_clean();
+		$chart = '<p class="sn-mr-key"><span class="sn-mr-key__line"></span>' . esc_html__( 'Verified by Cloudflare', 'signal-and-noise-tools' ) . ' <span class="sn-mr-key__dash"></span>' . esc_html__( 'Every third-party read', 'signal-and-noise-tools' ) . '</p>' . (string) ob_get_clean()
+			. snt_ev_sr_days_table( __( 'Third-party reads per day', 'signal-and-noise-tools' ), $days, array( __( 'Verified', 'signal-and-noise-tools' ) => array_map( static fn( $c ) => (int) $c[0], $daily['columns'] ), __( 'Unverified', 'signal-and-noise-tools' ) => array_map( static fn( $c ) => (int) $c[1], $daily['columns'] ) ) );
 	}
 	$verdicts = '';
 	foreach ( (array) ( is_array( $report ) ? ( $report['co_movement'] ?? array() ) : array() ) as $c ) {

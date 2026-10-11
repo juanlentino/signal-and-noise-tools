@@ -425,6 +425,15 @@ ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'IPv6' ) && false !== 
 ok( 1 === count( $f ) && false === strpos( $f[0]['note'], '4,586' ),
 	'…and the v6 finding does not mis-state the healthy v4 count' );
 
+// Review on #2004: the worker answers null (v6 meta unreadable) as it does for
+// v4; a null count is UNKNOWN, never "EMPTY".
+$f = sn_health_edge_worker_findings( true, 'u', array(
+	'denylistCount' => 4586, 'compiledAt' => $fresh,
+	'denylist6Count' => null, 'compiled6At' => null,
+), $NOW, $STALE );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'IPv6' ) && false !== strpos( $f[0]['note'], 'UNKNOWN' ) && false === strpos( $f[0]['note'], 'EMPTY' ),
+	'a null v6 count is UNKNOWN, not EMPTY' );
+
 $f = sn_health_edge_worker_findings( true, 'u', array(
 	'denylistCount' => 4586, 'compiledAt' => $fresh,
 	'denylist6Count' => 82, 'compiled6At' => $old,

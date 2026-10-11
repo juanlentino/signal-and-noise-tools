@@ -729,6 +729,8 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .sn-mr-bars__label { font-weight: 600; color: var(--sn-an-text); overflow-wrap: anywhere; }
 .sn-mr-bars__n { font-size: 12px; color: var(--sn-an-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sn-mr-bars__n strong { color: var(--sn-an-text); }
+.sn-mr-bars__parts { display: block; font-size: 11px; white-space: normal; text-align: end; }
+.snt-ev-muted, .snt-evidence-none { color: var(--sn-an-muted); font-size: max(12px, 0.92em); }
 .sn-mr-bar { display: block; min-width: 0; }
 .sn-mr-bar__fill { display: flex; gap: 2px; width: var(--w); height: 10px; border-radius: 999px; overflow: hidden; }
 .sn-mr-key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin: 4px 0 10px; font-size: 12px; color: var(--sn-an-muted); }
