@@ -38,6 +38,7 @@ function snt_ml_reader_anomalies_health( $report ) {
 	}
 	$anoms    = (int) ( $report['counts']['anomalies'] ?? 0 );
 	$silences = (int) ( $report['counts']['silences'] ?? 0 );
+	$co       = (int) ( $report['counts']['co_movements'] ?? 0 );
 	$eligible = (int) ( $report['counts']['families_eligible'] ?? 0 );
 	$seen     = (int) ( $report['counts']['families_seen'] ?? 0 );
 	if ( 0 === $eligible ) {
@@ -51,7 +52,7 @@ function snt_ml_reader_anomalies_health( $report ) {
 			),
 		);
 	}
-	if ( 0 === $anoms && 0 === $silences ) {
+	if ( 0 === $anoms && 0 === $silences && 0 === $co ) {
 		return array(
 			'status'  => 'good',
 			'summary' => sprintf(
@@ -71,6 +72,11 @@ function snt_ml_reader_anomalies_health( $report ) {
 	}
 	if ( $silences > 0 ) {
 		$parts[] = sprintf( '%d family-day(s) of total silence from a reader present on most days', $silences );
+	}
+	if ( $co > 0 ) {
+		// Several families moving the same day on unverified reads from one
+		// network: one finding per network, not one per family.
+		$parts[] = sprintf( '%d co-movement(s) of three or more families on unverified reads from one network', $co );
 	}
 	return array(
 		'status'  => 'recommended',
