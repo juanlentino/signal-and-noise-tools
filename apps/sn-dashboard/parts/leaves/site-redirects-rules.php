@@ -89,7 +89,7 @@ function redirects_rule_row( $source, array $r ) {
 		'type'    => 302 === redirects_code( $r ) ? __( '302 temporary', 'signal-and-noise-tools' ) : __( '301 permanent', 'signal-and-noise-tools' ),
 		'added'   => redirects_added( $r, __( 'unknown', 'signal-and-noise-tools' ) ),
 		'actions' => array(
-			'html' => \snt_kit_button( __( 'Edit', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'redirects', 'sn_edit' => redirects_edit_value( $source ), 'anchor' => 'snt-edit-region' ) ) ),
+			'html' => \snt_kit_button( __( 'Edit', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', /* translators: %s: the path. */ 'aria_label' => sprintf( __( 'Edit %s', 'signal-and-noise-tools' ), $source ), 'args' => array( 'sub' => 'redirects', 'sn_edit' => redirects_edit_value( $source ), 'anchor' => 'snt-edit-region' ) ) ),
 			'text' => '',
 		),
 	);

@@ -35,6 +35,8 @@ function snt_kit_button( $label, $action, array $opts = array() ) {
 		'os-confirm-label' => isset( $opts['confirm_label'] ) ? (string) $opts['confirm_label'] : null,
 		'os-confirm-danger' => ! empty( $opts['danger'] ),
 		'title'            => $opts['title'] ?? null,
+		// A name that starts with the visible word (WCAG 2.5.3), for a row's own button.
+		'aria-label'       => $opts['aria_label'] ?? null,
 		'disabled'         => ! empty( $opts['disabled'] ),
 	);
 	foreach ( (array) ( $opts['args'] ?? array() ) as $name => $value ) {

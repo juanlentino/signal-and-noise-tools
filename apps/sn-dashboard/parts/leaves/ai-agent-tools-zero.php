@@ -6,8 +6,8 @@
  * Zero calls means either nobody used a tool or nobody could: opposite
  * conclusions from identical evidence, so the verdict is counted in the
  * finding and printed beside every row, the bugs first. Its own section under
- * the call log (ai-agent-tools-usage.php), open and capped (2026-10-11, owner
- * rule: no collapsible sections). The first-party words are the classic
+ * the call log (ai-agent-tools-usage.php), open, every slug painted (2026-10-11,
+ * owner rule: no collapsible sections). The first-party words are the classic
  * block's helper (inc/admin-forms/mcp-usage-block.php).
  *
  * @package SignalNoiseTools
@@ -45,8 +45,8 @@ function agent_tools_zero_phrase( $verdict, $n ) {
 }
 
 /**
- * The section: the finding (the count, split by verdict), the tools as a
- * capped ledger, the bugs first, and the reading rule under it.
+ * The section: the finding (the count, split by verdict), every tool in a
+ * band per verdict, the bugs first, and the reading rule under it.
  *
  * @param array<int,array> $zero Entries from sn_mcp_telemetry_zero_call().
  * @return string '' when every allowlisted tool had a door call.
@@ -70,25 +70,32 @@ function agent_tools_zero_html( array $zero ) {
 	/* translators: 1: tool count, 2: the count by verdict, e.g. "1 cannot be projected; 41 retirement candidates". */
 	$finding = sprintf( _n( '%1$s allowlisted tool had no call through a door: %2$s.', '%1$s allowlisted tools had no call through a door: %2$s.', count( $zero ), 'signal-and-noise-tools' ), number_format_i18n( count( $zero ) ), implode( '; ', $parts ) );
 
+	// Every uncalled slug stays painted (review on #2005: a capped ledger left
+	// 34 slugs, most of the retirement evidence, painted nowhere). One band per
+	// verdict, the bugs first, the slugs as chips; a plugin-only tool keeps its
+	// own line, since its count is the point.
 	$labels = array(
-		'unused'       => __( 'Retirement candidate', 'signal-and-noise-tools' ),
-		'unreachable'  => __( 'Cannot be projected: a bug, not a retirement candidate', 'signal-and-noise-tools' ),
-		'undetermined' => __( 'Reachability unknown: no judgement possible', 'signal-and-noise-tools' ),
+		/* translators: %s: tool count. */
+		'unreachable'  => __( 'Cannot be projected, a bug (%s)', 'signal-and-noise-tools' ),
+		/* translators: %s: tool count. */
+		'undetermined' => __( 'Reachability unknown (%s)', 'signal-and-noise-tools' ),
+		/* translators: %s: tool count. */
+		'unused'       => __( 'Retirement candidates (%s)', 'signal-and-noise-tools' ),
 	);
-	$rows = array();
-	foreach ( $zero as $entry ) {
-		$verdict = (string) ( $entry['verdict'] ?? '' );
-		$rows[]  = array(
-			'tool'    => (string) ( $entry['slug'] ?? '' ),
-			'verdict' => ( 'first_party_only' === $verdict && function_exists( 'sn_admin_mcp_usage_first_party_label' ) ) ? sn_admin_mcp_usage_first_party_label( $entry ) : ( $labels[ $verdict ] ?? $verdict ),
-		);
+	$bands = array();
+	foreach ( $labels as $verdict => $label ) {
+		$slugs = array_values( array_filter( $zero, static fn( $e ) => $verdict === (string) ( $e['verdict'] ?? '' ) ) );
+		if ( $slugs ) {
+			$chips   = implode( '', array_map( static fn( $e ) => \snt_kit_chip( (string) ( $e['slug'] ?? '' ) ), $slugs ) );
+			$bands[] = array( 'label' => sprintf( $label, number_format_i18n( count( $slugs ) ) ), 'value' => \snt_kit_tag( 'os-cluster', array( 'gap' => '6' ), $chips ), 'html' => true );
+		}
 	}
-	$columns = array(
-		array( 'key' => 'tool', 'label' => __( 'Tool', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'verdict', 'label' => __( 'Why it has none', 'signal-and-noise-tools' ) ),
-	);
-	/* translators: %s: tools not listed. */
-	$ledger = \snt_kit_ledger( $finding, $columns, $rows, AGENT_TOOLS_USAGE_CAP, array( 'more' => __( '+%s more tools with no door calls; the bugs are listed first.', 'signal-and-noise-tools' ) ) );
+	foreach ( $zero as $entry ) {
+		if ( 'first_party_only' === (string) ( $entry['verdict'] ?? '' ) ) {
+			$bands[] = array( 'label' => (string) ( $entry['slug'] ?? '' ), 'value' => function_exists( 'sn_admin_mcp_usage_first_party_label' ) ? sn_admin_mcp_usage_first_party_label( $entry ) : __( 'called only by the plugin itself', 'signal-and-noise-tools' ) );
+		}
+	}
+	$ledger = '<p class="snt-prose">' . \snt_kit_esc( $finding ) . '</p>' . \snt_kit_kv( $bands );
 	$rule   = '<p class="snt-hint">' . \snt_kit_esc( __( 'Only “retirement candidate” entries are evidence for removal. A tool that cannot be projected has no calls because it cannot be called; retiring it would delete the evidence of the defect. Reachability is checked from inside the plugin, so it cannot see a client proxy rejecting a schema; treat it as necessary, not sufficient.', 'signal-and-noise-tools' ) ) . '</p>';
 	return \snt_kit_section( __( 'No calls in this window', 'signal-and-noise-tools' ), $ledger . $rule );
 }

@@ -137,10 +137,16 @@ $GLOBALS['__usage'] = array( 'measured_since' => '2026-08-01 00:04:12', 'measure
 $GLOBALS['__mr']['webmcp'] = array( 'calls' => 212, 'by_tool' => array( 'related-notes' => 118, 'verify-page' => 61, 'get-citation' => 21, 'get-site-map' => 12 ), 'outcomes' => array( 'related-notes' => array( 'ok' => 109, 'absent' => 9 ), 'verify-page' => array( 'ok' => 60, 'error' => 1 ), 'get-citation' => array( 'ok' => 21 ), 'get-site-map' => array( 'ok' => 12 ) ) );
 $kit = snt_leaf_paint( 'ai', 'agent-tools' );
 ok( array() === snt_leaf_folds( $kit ), 'live-shaped preview: the leaf paints no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
-ok( false !== strpos( $kit, '397 calls came through a door since 2026-08-01; sn-status took 24% of them.' ) && false !== strpos( $kit, '+15 more tools, busiest first' ), 'live-shaped preview: 397 door calls over 25 tools; the ledger shows 10 and says +15 more' );
-ok( false !== strpos( $kit, '44 allowlisted tools had no call through a door: 1 cannot be projected; 1 with reachability unknown; 41 retirement candidates; 1 called only by the plugin itself.' ) && false !== strpos( $kit, '+34 more tools with no door calls' ), 'live-shaped preview: the 44 uncalled tools split by verdict; the ledger shows 10 and says +34 more' );
+// Review on #2005 (P2): every figure the classic block lists stays painted:
+// all 25 called tools with their calls, and every uncalled slug by verdict.
+ok( false !== strpos( $kit, '397 calls came through a door since 2026-08-01; sn-status took 24% of them.' ) && false === strpos( $kit, 'more tools, busiest first' ), 'live-shaped preview: 397 door calls over 25 tools, every tool listed (the classic lists every one)' );
+$__zero_at = strpos( $kit, 'No calls in this window' );
+$__zero    = false === $__zero_at ? '' : substr( $kit, $__zero_at, strpos( $kit, '</os-section>', $__zero_at ) - $__zero_at ); // the section only, not the door bands after it
+ok( false !== strpos( $kit, '44 allowlisted tools had no call through a door: 1 cannot be projected; 1 with reachability unknown; 41 retirement candidates; 1 called only by the plugin itself.' ) && false === strpos( $kit, 'more tools with no door calls' ), 'live-shaped preview: the 44 uncalled tools split by verdict, none cut' );
+ok( 44 === count( array_filter( $zero, static fn( $e ) => false !== strpos( $__zero, (string) substr( $e['slug'], 13 ) ) ) ), 'live-shaped preview: every one of the 44 uncalled slugs is painted in its section' );
+ok( false !== strpos( $__zero, 'label="Retirement candidates (41)"' ) && false !== strpos( $__zero, '28,689' ), 'live-shaped preview: the retirement candidates are one band of chips, and the plugin-only tool keeps its 28,689 calls' );
 ok( false !== strpos( $kit, '51 read-only tools across 3 categories; Diagnostics holds 40 of them.' ) && false !== strpos( $kit, '18 read-write tools across 4 categories; Maintenance holds 11 of them.' ), 'live-shaped preview: each door leads with its count and its largest category, built from the abilities' );
-ok( 69 === substr_count( $kit, '<os-chip>' ) && false !== strpos( $kit, '<os-fact label="Diagnostics (40)">' ), 'live-shaped preview: all 69 tools are chips in their door bands, by category' );
+ok( 69 === substr_count( $kit, '<os-chip>' ) - substr_count( $__zero, '<os-chip>' ) && false !== strpos( $kit, '<os-fact label="Diagnostics (40)">' ), 'live-shaped preview: all 69 tools are chips in their door bands, by category' );
 snt_leaf_preview( 'ai-agent-tools', $kit );
 
 echo "\nResult: $pass passed, $fail failed.\n";

@@ -84,7 +84,7 @@ $row = $table['data'][0] ?? array();
 ok( 'https://example.com/moved' === ( $row['to'] ?? '' ) && '302 temporary' === ( $row['type'] ?? '' ) && $d1 === ( $row['added'] ?? '' ), 'a row carries the target, the type and the added date: ' . wp_json_encode( $row ) );
 ok( '/notes/design-tokens' === ( $table['data'][1]['to'] ?? '' ) && '301 permanent' === ( $table['data'][1]['type'] ?? '' ) && $d0 === ( $table['data'][1]['added'] ?? '' ), '...for every rule' );
 $cell = snt_leaf_cell_html( $table, $row['actions'] ?? null );
-ok( '<os-button variant="ghost" os-action="go" os-arg-sub="redirects" os-arg-sn_edit="/second" os-arg-anchor="snt-edit-region">Edit</os-button>' === $cell, 'a row carries ONE visible action, Edit, a go button naming its rule: ' . substr( $cell, 0, 160 ) );
+ok( '<os-button variant="ghost" os-action="go" aria-label="Edit /second" os-arg-sub="redirects" os-arg-sn_edit="/second" os-arg-anchor="snt-edit-region">Edit</os-button>' === $cell, 'a row carries ONE visible action, Edit, a go button naming its rule: ' . substr( $cell, 0, 160 ) );
 ok( 0 === slot_forms( $kit ) && 0 === slot_forms( $kit_ed ), 'no table cell holds a form, default or editing: ' . slot_forms( $kit ) . ' / ' . slot_forms( $kit_ed ) );
 ok( false === strpos( $kit, 'name="source" value="/second"' ) && false === strpos( $kit, 'name="source" value="/first"' ), 'the default paint binds no rule to any form: no stack of forms' );
 ok( false === strpos( $kit, 'submit-label="Save changes"' ) && false === strpos( $kit, 'snt-ledger-more' ), '...no edit form and no "+N more" under the cap' );
@@ -193,6 +193,9 @@ preg_match( '/os-arg-sn_edit="([^"]*)"/', $kit_long, $m_long );
 $sent = substr( html_entity_decode( $m_long[1] ?? '', ENT_QUOTES ), 0, 200 ); // What the host keeps.
 $kit_long_ed = editing( $sent );
 ok( strlen( $long ) > 200 && false !== strpos( $kit_long_ed, 'Editing ' . $long ) && false !== strpos( $kit_long_ed, 'name="source" value="' . $long . '"' ),'a ' . strlen( $long ) . '-character source still opens its edit region after the host cuts the param at 200' );
+
+// Review on #2005: each Edit names its rule for a screen reader, its visible word first.
+ok( false !== strpos( (string) ( $GLOBALS['__redir_kit'] ?? snt_leaf_paint( 'site', 'redirects' ) ), 'aria-label="Edit /' ), 'each Edit button is named "Edit /path" (label in name: the visible word first)' );
 
 // 2026-10-11: no type label is a period before a word (an old em-dash swap read "301. Permanent").
 ok( false === strpos( (string) file_get_contents( __DIR__ . '/../apps/sn-dashboard/parts/leaves/site-redirects-parts.php' ) . (string) file_get_contents( __DIR__ . '/../inc/redirects-admin.php' ), '301. Permanent' ), 'the redirect types read "301 permanent", on both twins' );

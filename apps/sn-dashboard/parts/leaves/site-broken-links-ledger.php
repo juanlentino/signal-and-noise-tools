@@ -81,7 +81,7 @@ function broken_links_row( $path, array $e, $suggested ) {
 		'referrer'  => broken_links_referrer( $e, __( 'none recorded', 'signal-and-noise-tools' ) ),
 		'suggested' => '' !== $suggested ? $suggested : __( 'no close match', 'signal-and-noise-tools' ),
 		'actions'   => array(
-			'html' => \snt_kit_button( __( 'Fix', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'broken-links', 'sn_edit' => redirects_edit_value( $path ), 'anchor' => 'snt-edit-region' ) ) ),
+			'html' => \snt_kit_button( __( 'Fix', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', /* translators: %s: the path. */ 'aria_label' => sprintf( __( 'Fix %s', 'signal-and-noise-tools' ), $path ), 'args' => array( 'sub' => 'broken-links', 'sn_edit' => redirects_edit_value( $path ), 'anchor' => 'snt-edit-region' ) ) ),
 			'text' => '',
 		),
 	);

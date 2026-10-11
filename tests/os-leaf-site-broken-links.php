@@ -89,7 +89,7 @@ ok( '/notes/desing-tokens' === ( $r0['path'] ?? '' ) && '/contact-us' === ( $r1[
 ok( 7 === ( $r0['hits'] ?? null ) && $d0 === ( $r0['last'] ?? '' ) && 'ref.example' === ( $r0['referrer'] ?? '' ) && '/notes/design-tokens' === ( $r0['suggested'] ?? '' ), 'a row carries hits, last date, referring host and the slug suggestion: ' . wp_json_encode( $r0 ) );
 ok( 2 === ( $r1['hits'] ?? null ) && $d1 === ( $r1['last'] ?? '' ) && 'none recorded' === ( $r1['referrer'] ?? '' ) && '/contact' === ( $r1['suggested'] ?? '' ), '...and a missing referrer reads "none recorded", never blank' );
 $cell = snt_leaf_cell_html( $broken, $r0['actions'] ?? null );
-ok( '<os-button variant="ghost" os-action="go" os-arg-sub="broken-links" os-arg-sn_edit="/notes/desing-tokens" os-arg-anchor="snt-edit-region">Fix</os-button>' === $cell, 'a row carries ONE visible action, Fix, a go button naming its path: ' . substr( $cell, 0, 160 ) );
+ok( '<os-button variant="ghost" os-action="go" aria-label="Fix /notes/desing-tokens" os-arg-sub="broken-links" os-arg-sn_edit="/notes/desing-tokens" os-arg-anchor="snt-edit-region">Fix</os-button>' === $cell, 'a row carries ONE visible action, Fix, a go button naming its path: ' . substr( $cell, 0, 160 ) );
 ok( 0 === slot_forms( $kit ) && 0 === slot_forms( $kit_ed ), 'no table cell holds a form, default or editing: ' . slot_forms( $kit ) . ' / ' . slot_forms( $kit_ed ) );
 ok( false === strpos( $kit, 'submit-label="Create redirect"' ) && false === strpos( $kit, 'submit-label="Dismiss"' ) && false === strpos( $kit, 'name="source"' ) && false === strpos( $kit, 'quieter paths' ), 'the default paint stacks no form at all, and no "+N more" under the cap' );
 
@@ -210,6 +210,9 @@ snt_leaf_preview( 'site-broken-links', $kit );
 snt_leaf_preview( 'site-broken-links-editing', $kit_ed );
 $focus_problems = snt_leaf_edit_focus_problems( $kit, $kit_ed );
 ok( array() === $focus_problems, 'a11y: Edit lands the keyboard on the one region, Cancel lands it back on the list: ' . implode( '; ', $focus_problems ) );
+
+// Review on #2005: each Fix names its path for a screen reader, its visible word first.
+ok( false !== strpos( $kit, 'aria-label="Fix /' ), 'each Fix button is named "Fix /path" (label in name: the visible word first)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -19,7 +19,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-const AGENT_TOOLS_USAGE_CAP = 10;
+// Every called tool, as the classic block lists them (review on #2005: a cap of
+// 10 left 15 tools' calls painted nowhere). The allowlist is about 70 tools.
+const AGENT_TOOLS_USAGE_CAP = 100;
 
 /**
  * The call log: the Through MCP section's body, and the section after it

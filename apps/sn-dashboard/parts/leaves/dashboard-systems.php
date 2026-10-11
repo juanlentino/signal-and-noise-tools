@@ -139,6 +139,12 @@ function system_cell( array $card, $tab ) {
 	$value = (string) ( $card['value'] ?? '' );
 	$go    = go_target( (string) ( $card['href'] ?? '' ) );
 	$pill  = (string) ( $card['pill']['text'] ?? '' );
+	// Only cards that need a look reach a cell; one with no warning pill (a
+	// contract skew) says so in words and tone, never in the success green.
+	if ( 'ok' === $kind || '' === $pill ) {
+		$kind = 'warn';
+		$pill = __( 'needs a look', 'signal-and-noise-tools' );
+	}
 	return '<div class="snt-sys snt-sys--' . \snt_kit_esc( $kind ) . '" data-tone="' . \snt_kit_tone( $kind ) . '">'
 		. '<span class="snt-sys__k">' . \snt_kit_esc( (string) ( $card['label'] ?? '' ) ) . '</span>'
 		. ( null !== $go ? \snt_kit_go( $value, $go + array( 'current' => $tab ), array( 'class' => 'snt-sys__v' ) ) : '<span class="snt-sys__v">' . \snt_kit_esc( $value ) . '</span>' )

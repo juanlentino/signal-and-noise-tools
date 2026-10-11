@@ -96,6 +96,9 @@ ok( false !== strpos( $warm_html, 'Analytics is not measured: no version reporte
 $skew = snt_home_fixture( true );
 $skew['components'][5] = array( 'label' => 'Remote MCP', 'value' => 'contract 15, site 16', 'measured' => true, 'attention' => true );
 ok( false !== strpos( ( $L . 'home_operations_html' )( $skew, 'dashboard' ), '1 of 10 systems needs a look: Remote MCP.' ), 'a fleet card asking for attention with no pill needs a look, never holding' );
+// Review on #2005 (P2): its card reads as a warning too, never the success tone.
+$__skew = ( $L . 'home_operations_html' )( $skew, 'dashboard' );
+ok( 1 === preg_match( '/<div class="snt-sys snt-sys--warn" data-tone="warning"><span class="snt-sys__k">Remote MCP<\/span>.*?needs a look<\/os-badge>/s', $__skew ) && false === strpos( $__skew, 'snt-sys--ok' ), 'a card that needs a look with no pill paints warn with a "needs a look" badge, never green' );
 $one_bad = snt_home_fixture( true );
 $one_bad['checks'][2] = array( 'label' => 'Cron', 'value' => '41 events', 'pill' => array( 'kind' => 'warn', 'text' => '2 orphans' ) );
 ok( false !== strpos( ( $L . 'home_operations_html' )( $one_bad, 'dashboard' ), '1 of 10 systems needs a look: Cron.' ), 'one: "needs", singular' );
