@@ -151,6 +151,14 @@ namespace {
 		ok( false !== strpos( $ec, $needle ), "evidence classic: $what" );
 	}
 	ok( false !== strpos( $kit['reader-evidence'], '<os-histogram' ) && false !== strpos( $kit['reader-evidence'], 'legend' ), 'the anomalies are a two-series time histogram on the kit' );
+	$signed = '25 of 21,503 measured reads carried a valid Web Bot Auth signature; 0 invalid, 0 unknown key. Top signers: anthropic-claudebot 25.';
+	ok( false !== strpos( $ek, $signed ) && false !== strpos( $ec, $signed ), 'Web Bot Auth valid, invalid and unknown key (the old identity line) on both surfaces' );
+	$with_cards          = snt_mr_view_data( 7 );
+	$with_cards['cards'] = array( array( 'title' => 'openai reads rose 40%', 'detail' => 'from 300 to 420 over 3 days' ) );
+	foreach ( array( 'kit', 'classic' ) as $s ) {
+		$h = html_entity_decode( snt_mr_view_machine_readers_html( $with_cards, $s, array() ), ENT_QUOTES );
+		ok( false !== strpos( $h, 'openai reads rose 40%' ) && false !== strpos( $h, 'from 300 to 420 over 3 days' ) && strpos( $h, 'openai reads rose 40%' ) < strpos( $h, 'Who reads' ), "family delta cards ($s): painted after the hero, before Who reads" );
+	}
 	// Core's wp_admin_notice_markup filter sees only notices built by core; a hand-echoed literal never passes it.
 	add_filter( 'wp_admin_notice_markup', static fn( $m ) => '<!--core-notice-->' . $m );
 	$cards = snt_ev_paint_delta_cards( array( array( 'title' => 'GPTBot rose', 'detail' => 'by 40%' ) ), 'classic' );
