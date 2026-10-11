@@ -120,7 +120,10 @@ function album_item( array $e ) {
 		'statusLabel' => '',
 		'date'        => $year > 0 ? $year . '-01-01' : '',
 		'dateLabel'   => $year > 0 ? (string) $year : '',
-		'badge'       => $year > 0 ? array( 'text' => (string) $year, 'tone' => 'neutral', 'title' => '' ) : null,
+		// The year is a fact, not a state: a caption under the title. As the
+		// corner badge it sat on every cover (2026-10-11).
+		'badge'       => null,
+		'caption'     => $year > 0 ? (string) $year : '',
 		'columns'     => array( 'artist' => $artist, 'year' => $year > 0 ? (string) $year : '', 'roles' => implode( ', ', $roles ) ),
 		'detail'      => array(
 			'hero'    => (string) ( $e['image'] ?? '' ),

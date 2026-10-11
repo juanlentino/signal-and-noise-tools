@@ -791,6 +791,7 @@
 						?selected=${ isSelected }
 					></os-tile>
 					${ item.badge ? html`<os-badge class="snt-badge" tone=${ item.badge.tone } no-dot title=${ item.badge.title || '' }>${ item.badge.text }</os-badge>` : '' }
+					${ item.caption ? html`<span class="snt-caption">${ item.caption }</span>` : '' }
 				</span>
 			</div>
 		`;
