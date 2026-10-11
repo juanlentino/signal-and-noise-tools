@@ -126,8 +126,9 @@ function paint_monitoring_health( array $ctx ) {
 
 	$out .= health_findings_html( (array) $data['faults'], (array) $data['advisories'], (bool) $data['ai_available'] );
 	$out .= health_reports_html( (array) $data['reports'] );
-	$out .= health_passing_html( (array) $data['passing'], (int) $data['check_total'], (int) $data['report_count'] );
+	// The checks that could not run read before the passing ones: an unknown is a gap to close, a pass asks nothing.
 	$out .= health_skipped_html( (array) $data['skipped'] );
+	$out .= health_passing_html( (array) $data['passing'], (int) $data['check_total'], (int) $data['report_count'] );
 	$out .= health_elsewhere_html( (array) $data['elsewhere'] );
 	return $out;
 }

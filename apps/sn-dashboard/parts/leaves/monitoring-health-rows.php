@@ -43,11 +43,13 @@ function health_suggest_all_html( $count ) {
 }
 
 /**
- * One check's findings as rows: subject, note, edit and, when the AI column
- * shows, the Suggest button carrying the data contract the classic cell
- * carries (`sn_health_suggest_cell_attrs()`; an empty contract paints an
- * empty cluster, the classic `''` path). Capped at 50 rows with the same
- * "+N more" hint the classic table carries.
+ * One check's findings as a ledger: the check's fix hint as the lead
+ * sentence, then the rows (subject, note, edit and, when the AI column shows,
+ * the Suggest button carrying the data contract the classic cell carries,
+ * `sn_health_suggest_cell_attrs()`; an empty contract paints an empty cell,
+ * the classic `''` path), capped at 50 with the same "+N more" sentence the
+ * classic table carries. Every finding becomes a row, so the count past the
+ * cap is the real one.
  *
  * @param string $key         Check key.
  * @param array  $check       Check envelope.
@@ -57,8 +59,6 @@ function health_suggest_all_html( $count ) {
  */
 function health_finding_rows_html( $key, array $check, $is_advisory, $show_ai ) {
 	$findings = isset( $check['findings'] ) && is_array( $check['findings'] ) ? $check['findings'] : array();
-	$visible  = array_slice( $findings, 0, 50 );
-	$hidden   = count( $findings ) - count( $visible );
 
 	$columns = array(
 		array( 'key' => 'subject', 'label' => __( 'Subject', 'signal-and-noise-tools' ), 'sortable' => true, 'stack' => 'title' ),
@@ -69,7 +69,7 @@ function health_finding_rows_html( $key, array $check, $is_advisory, $show_ai ) 
 		$columns[] = array( 'key' => 'ai', 'label' => __( 'AI fix', 'signal-and-noise-tools' ), 'stack' => 'actions' );
 	}
 	$rows = array();
-	foreach ( $visible as $f ) {
+	foreach ( $findings as $f ) {
 		$edit    = (string) ( $f['edit_url'] ?? '' );
 		// esc_url() (classic) blanks a disallowed scheme; snt_kit_link() does not.
 		$edit    = preg_match( '#^https?://#i', $edit ) ? $edit : '';
@@ -88,16 +88,19 @@ function health_finding_rows_html( $key, array $check, $is_advisory, $show_ai ) 
 		}
 		$rows[] = $row;
 	}
-	$out = \snt_kit_table( $columns, $rows, array( 'stack_on_phone' => true, 'striped' => false ) );
-	if ( $hidden > 0 ) {
-		$out .= '<p class="snt-hint">' . \snt_kit_esc(
-			sprintf(
-				/* translators: 1: hidden row count, 2: "findings" or "advisories" */
-				__( '+%1$d more %2$s: re-run scan after fixing the top batch.', 'signal-and-noise-tools' ),
-				$hidden,
-				$is_advisory ? __( 'advisories', 'signal-and-noise-tools' ) : __( 'findings', 'signal-and-noise-tools' )
-			)
-		) . '</p>';
-	}
-	return $out;
+	return \snt_kit_ledger(
+		trim( (string) ( $check['fix_hint'] ?? '' ) ),
+		$columns,
+		$rows,
+		50,
+		array(
+			'stack_on_phone' => true,
+			'striped'        => false,
+			'more'           => $is_advisory
+				/* translators: %s: advisories past the cap */
+				? __( '+%s more advisories: re-run scan after fixing the top batch.', 'signal-and-noise-tools' )
+				/* translators: %s: findings past the cap */
+				: __( '+%s more findings: re-run scan after fixing the top batch.', 'signal-and-noise-tools' ),
+		)
+	);
 }
