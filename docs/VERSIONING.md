@@ -24,7 +24,8 @@ The two schemes before it assumed a reader who does not exist:
 - **The WordPress shape** (2026-09-11 to 2026-10-11: `X.Y.0` a release,
   `X.Y.Z` a fix, `X` rolling when `Y` would reach 10) is how WordPress.org
   plugins number, so their readers can read it. Cut per merge, it rolled `X`
-  ten times in a month: 102 releases and 130 fixes, from 14.0.0 to 24.0.0.
+  ten times in a month: the tags from v14.0.0 to v24.0.0 are 101 releases and
+  128 fixes.
 
 The number can no longer run away: its first part is the year. How often to
 cut is now a question about installs (each one is a click, and a cache purge
@@ -95,4 +96,4 @@ headline starts with `BREAKING:`.
 - [proposals/2026-09-11-versioning-scheme.md](proposals/2026-09-11-versioning-scheme.md): the research behind the WordPress shape, including what CalVer projects do.
 - `.github/workflows/ci.yml` "CHANGELOG entry present": a bump needs its heading, and shippable code needs an Unreleased bullet.
 - `.github/workflows/version-tag-parity.yml`: the header must have a tag on `main`, daily.
-- The workers and the provenance verifier keep SemVer: the verifier is downloaded by strangers, and Deploy Status reads the workers' GitHub releases.
+- The workers and the provenance verifier keep SemVer: the verifier is downloaded by strangers, and the workers are versioned in their own repositories.

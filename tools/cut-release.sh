@@ -96,6 +96,7 @@ else
   NEXT="${YEAR}.${MONTH}.1"
 fi
 # Never down: a cut that would not sort above the installed version is refused.
+command -v php >/dev/null 2>&1 || die "php is required for the version-order check (version_compare)."
 php -r 'exit(version_compare($argv[1], $argv[2]) > 0 ? 0 : 1);' "$NEXT" "$CURRENT" 2>/dev/null \
   || die "next version ${NEXT} does not sort above ${CURRENT}; refusing to go down."
 TODAY="$(date -u +%Y-%m-%d)"

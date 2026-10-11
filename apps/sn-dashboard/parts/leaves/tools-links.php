@@ -39,8 +39,8 @@ function links_groups() {
 		array(
 			'label' => 'Releases',
 			'links' => array(
-				array( 'title' => 'Theme releases', 'href' => 'https://github.com/juanlentino/signal-and-noise/releases' ),
-				array( 'title' => 'Plugin releases', 'href' => 'https://github.com/juanlentino/signal-and-noise-tools/releases' ),
+				array( 'title' => 'Theme releases', 'href' => 'https://github.com/juanlentino/signal-and-noise/tags' ),
+				array( 'title' => 'Plugin releases', 'href' => 'https://github.com/juanlentino/signal-and-noise-tools/tags' ),
 			),
 		),
 		array(

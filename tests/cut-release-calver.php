@@ -55,7 +55,7 @@ ok( '2026.10.2' === $next( '2026.10.1', 2026, 10 ), 'the same month counts up: 2
 ok( '2026.10.10' === $next( '2026.10.9', 2026, 10 ), 'N is a count, not a digit: 2026.10.9 -> 2026.10.10' );
 ok( '2026.11.1' === $next( '2026.10.5', 2026, 11 ), 'a new month starts at 1: 2026.10.5 -> 2026.11.1' );
 ok( '2027.1.1' === $next( '2026.12.3', 2027, 1 ), 'a new year: 2026.12.3 -> 2027.1.1, no leading zero' );
-ok( '2026.10.2' === $next( '2026.10.1', 2026, 10, 'fix' ), '`fix` is accepted and cuts the same next number' );
+ok( '2026.11.1' === $next( '2026.10.1', 2026, 11, 'fix' ), '`fix` cuts the same date number as `release` (the old fix would have been 2026.10.2)' );
 list( $code, $out ) = cut( '2026.10.1', 2026, 10, 'major' );
 ok( 0 !== $code && false !== strpos( $out, 'first number is the year' ), '`major` is refused, and says why' );
 list( $code, $out ) = cut( '2027.1.1', 2026, 12 );

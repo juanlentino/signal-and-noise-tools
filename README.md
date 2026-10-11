@@ -173,7 +173,7 @@ GitHub-poll updater wired into WordPress's native update system
 
 ## Install
 
-Distributed via GitHub tags (each with a draft release). Install/update through **wp-admin → Dashboard → Updates → Update plugin**, powered by the plugin's self-updater (`inc/wp-update-integration.php`).
+Distributed via GitHub tags. Install/update through **wp-admin → Dashboard → Updates → Update plugin**, powered by the plugin's self-updater (`inc/wp-update-integration.php`).
 
 ## License
 

@@ -57,8 +57,8 @@ foreach ( array_unique( $classic_labels[1] ) as $classic_label ) {
 $expected_links = array(
 	array( 'Theme repo', 'https://github.com/juanlentino/signal-and-noise', 'github.com' ),
 	array( 'Plugin repo', 'https://github.com/juanlentino/signal-and-noise-tools', 'github.com' ),
-	array( 'Theme releases', 'https://github.com/juanlentino/signal-and-noise/releases', 'github.com' ),
-	array( 'Plugin releases', 'https://github.com/juanlentino/signal-and-noise-tools/releases', 'github.com' ),
+	array( 'Theme releases', 'https://github.com/juanlentino/signal-and-noise/tags', 'github.com' ),
+	array( 'Plugin releases', 'https://github.com/juanlentino/signal-and-noise-tools/tags', 'github.com' ),
 	array( 'Cloudflare dashboard', 'https://dash.cloudflare.com', 'dash.cloudflare.com' ),
 	array( 'Cloudways platform', 'https://platform.cloudways.com', 'platform.cloudways.com' ),
 );
