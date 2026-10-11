@@ -295,6 +295,9 @@ ok( 1 === preg_match( '/<span class="sn-public-stats__bar" aria-hidden="true">/'
 ok( false !== strpos( $h, '<dt>Views that reached half the page</dt><dd>30%</dd>' ), 'half the page: the 50% milestone over views (270 / 900)' );
 ok( false !== strpos( $h, '<dt>Average depth reached</dt><dd>48%</dd>' ) && false !== strpos( $h, '<dt>Average time per view</dt><dd>1m 05s</dd>' ), 'average depth and time per view' );
 ok( false !== strpos( $h, '<dt>One page only</dt>' ), 'one page only, from the session rollup' );
+// 2026-10-11: the theme's phone rule (.wp-block-group h3 { 1.3rem !important })
+// made the column labels 20.8px on phones; the label size holds at every width.
+ok( 1 === preg_match( '/\.sn-public-stats h3\{[^}]*font-size:max\(\.72rem,11px\) !important/', (string) file_get_contents( __DIR__ . '/../assets/public-stats-front.css' ) ), 'the column labels keep their size against the theme\'s phone h3 rule' );
 // 2026-10-11: How they read keeps the desktop's rows by key; an English label
 // reworded on the desktop would otherwise drop the row here without a sound.
 $__secsrc = (string) file_get_contents( __DIR__ . '/../inc/public-stats-sections.php' );

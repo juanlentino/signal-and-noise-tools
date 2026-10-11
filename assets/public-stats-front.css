@@ -18,7 +18,10 @@ main.is-layout-constrained:has(.sn-public-stats)>*,.wp-block-post-content>.sn-pu
    x-large preset, no tracking) and nothing moves. */
 .sn-public-stats h2{font-size:var(--wp--preset--font-size--x-large,42px);letter-spacing:normal;margin:2.25rem 0 .75rem}
 .sn-public-stats{--sn-ps-dim:var(--wp--preset--color--rust,#666);--sn-ps-red:var(--wp--preset--color--blood,#e00404);--sn-ps-rule:var(--wp--preset--color--concrete,#d9d9d9);--sn-ps-mono:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace)}
-.sn-public-stats h3{font-family:var(--sn-ps-mono);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:1.2rem 0 .5rem}
+/* !important only because the theme's phone rule sets every grouped h3 to
+   1.3rem !important (responsive.css, meant for the service headings); the
+   column labels here are small caps at every width. */
+.sn-public-stats h3{font-family:var(--sn-ps-mono);font-size:max(.72rem,11px) !important;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:1.2rem 0 .5rem}
 .sn-public-stats__window{font-family:var(--sn-ps-mono);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--sn-ps-dim);margin:0 0 .6rem}
 
 /* The tile row: one column per tile actually rendered, so a tile left out
