@@ -1,6 +1,6 @@
 <?php
 /**
- * S&N Dashboard, Monitoring > Health: the finding rows.
+ * S&N Dashboard, Monitoring > Health: the check card and its finding rows.
  *
  * Split out of monitoring-health-parts.php to keep that file under the house
  * line cap. Every function here is prefixed `health_` (unique across leaves,
@@ -103,4 +103,32 @@ function health_finding_rows_html( $key, array $check, $is_advisory, $show_ai ) 
 				: __( '+%s more findings: re-run scan after fixing the top batch.', 'signal-and-noise-tools' ),
 		)
 	);
+}
+
+/**
+ * One check's card: label, count badge and (when the AI column shows) the
+ * Suggest-all button in its header row, then the check's ledger. Advisories
+ * and faults share the anatomy; the badge tone and the noun differ.
+ *
+ * `<os-card class="snt-check">`: health-suggest-actions.js walks
+ * `closest('.sn-fieldset,.snt-check')` for Suggest all.
+ *
+ * @param string $key          Check key.
+ * @param array  $check        Check envelope.
+ * @param bool   $is_advisory  Advisory tier.
+ * @param bool   $ai_available Whether an AI provider is configured.
+ * @return string
+ */
+function health_finding_card_html( $key, array $check, $is_advisory, $ai_available ) {
+	$count   = (int) ( $check['count'] ?? 0 );
+	$show_ai = $ai_available && function_exists( 'sn_health_suggest_supported_checks' ) && in_array( $key, sn_health_suggest_supported_checks(), true );
+	$badge   = $is_advisory
+		/* translators: %d: advisory count */
+		? \snt_kit_badge( 'info', sprintf( _n( '%d advisory', '%d advisories', $count, 'signal-and-noise-tools' ), $count ) )
+		/* translators: %d: finding count */
+		: \snt_kit_badge( 'warn', sprintf( _n( '%d finding', '%d findings', $count, 'signal-and-noise-tools' ), $count ) );
+
+	$out  = '<header><h3>' . \snt_kit_esc( (string) ( $check['label'] ?? $key ) ) . '</h3>' . $badge . ( $show_ai ? health_suggest_all_html( $count ) : '' ) . '</header>';
+	$out .= health_finding_rows_html( $key, $check, $is_advisory, $show_ai );
+	return \snt_kit_tag( 'os-card', array( 'class' => 'snt-check' ), $out );
 }

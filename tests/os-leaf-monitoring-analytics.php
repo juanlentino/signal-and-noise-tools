@@ -110,6 +110,54 @@ require SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-analytics.php';
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
+/** The Cloudflare monitor's stored record the Edge, 7 days section paints from (15.3.0). */
+function an_edge_record() {
+	return array( 'fetched_at' => time(), 'configured' => true, 'token' => array( 'verified' => true, 'status' => 'active', 'expires_on' => '', 'error' => '', 'kind' => 'user' ), 'zone' => array( 'available' => true, 'needs_permission' => false, 'error' => '', 'days' => array(), 'totals' => array( 'requests' => 166684, 'cached' => 13500, 'bytes' => 2000000000, 'cached_bytes' => 1, 'threats' => 12804, 'status_4xx' => 0, 'status_5xx' => 4473, 'cache_share' => 8.1, 'status_5xx_codes' => array( 503 => 4314, 520 => 132 ) ) ), 'firewall' => array( 'available' => false, 'needs_permission' => true, 'error' => 'x', 'events' => 0, 'by_action' => array(), 'top_rules' => array() ) );
+}
+
+/**
+ * The live-shaped previews: pipeline complete (credentials set, the worker
+ * reachable with its bindings, exclusion on with 2 roles, tuned, 3 funnels,
+ * the north star set, the edge record present), then the same site with no
+ * read credentials, where the pipeline is incomplete and the setup steps
+ * show. Runs only in the child (see the end of this file).
+ */
+function an_live_previews() {
+	require_once SNT_PATH . 'inc/north-star.php';
+	if ( ! function_exists( 'sn_cf_get_token' ) ) {
+		function sn_cf_get_token() { return 'cf-api-token'; } // the one Cloudflare API token the live site reads with
+	}
+	$GLOBALS['__http_code'] = 200;
+	$GLOBALS['__http_body'] = wp_json_encode( array( 'worker' => 'sn-analytics', 'version' => '1.14.2', 'cf_version_id' => 'cfv-1', 'cf_version_tag' => 'v1.14.2', 'deployed_at' => '2026-10-01T00:00:00Z', 'config' => array( 'px_token_set' => true, 'ae_bound' => true ), 'salt' => array( 'rotate_tz' => 'America/New_York', 'today_day' => '2026-10-11', 'today_present' => true, 'prev_day' => '2026-10-10', 'prev_present' => true, 'prev_expires_at' => time() + 3600, 'key_count' => 2 ) ) );
+	$GLOBALS['__options'][ SN_CF_MONITOR_OPT ] = an_edge_record();
+	$GLOBALS['__configured'] = true;
+	$GLOBALS['__options']['sn_cf_account_id'] = '0f3a9c2e7b5d4e1a8c6b2d9f4e7a1c3b';
+	$GLOBALS['__roles'] = array( 'administrator' => 'Administrator', 'editor' => 'Editor', 'author' => 'Author', 'subscriber' => 'Subscriber' );
+	$GLOBALS['__excluded_now'] = true;
+	$GLOBALS['__settings']['analytics.exclude_roles']        = array( 'administrator', 'editor' );
+	$GLOBALS['__settings']['analytics.signal_baseline_days'] = 45;
+	$GLOBALS['__settings']['analytics.anomaly_sensitivity']  = 'relaxed';
+	$GLOBALS['__settings']['analytics.funnels']              = array( array( 'name' => 'Note to resume', 'steps' => array( '/notes/', '/resume' ) ), array( 'name' => 'Provenance read', 'steps' => array( '/provenance', '/provhub' ) ), array( 'name' => 'About to contact', 'steps' => array( '/about', '/contact' ) ) );
+	$GLOBALS['__settings']['theme.ai_monthly_budget']        = 20.0;
+	$GLOBALS['__settings']['north_star']                     = array( 'sections' => array( 'notes', 'provenance', 'resume', 'about' ), 'scroll' => 50, 'dwell_s' => 30 );
+	ok( true === sn_analytics_pipeline_complete(), 'live-shaped: the fixture really is a complete pipeline (every pill ok)' );
+	$kit = snt_leaf_paint( 'monitoring', 'analytics' );
+	ok( array() === snt_leaf_folds( $kit ) && false === strpos( $kit, 'heading="Cloudflare Worker setup"' ), 'live-shaped: no fold, and no setup steps on a complete pipeline' );
+	ok( false !== strpos( $kit, '<os-section heading="Credentials" description="Configured" stack>' ) && false === strpos( $kit, 'locked by' ) && false === strpos( $kit, 'override is in force' ) && false === strpos( $kit, 'No token anywhere' ) && false !== strpos( $kit, 'the Cloudflare API token</span>' ), 'live-shaped: credentials read as the live site has them: configured, read with the Cloudflare API token, no lock, no override' );
+	ok( false !== strpos( $kit, 'description="2 roles excluded"' ) && false !== strpos( $kit, 'description="45-day baseline · Relaxed: fewer flags (≈2.5σ)"' ) && false !== strpos( $kit, 'description="3 funnels"' ) && false !== strpos( $kit, 'description="Counts Notes, Provenance, Resume, About; a read is 50% scroll or 30 s on the page."' ), 'live-shaped: each section names its current state in one line' );
+	snt_leaf_preview( 'monitoring-analytics', $kit );
+	$GLOBALS['__configured'] = false;
+	$kit = snt_leaf_paint( 'monitoring', 'analytics' );
+	ok( array() === snt_leaf_folds( $kit ) && 1 === substr_count( $kit, 'heading="Cloudflare Worker setup"' ) && 4 === substr_count( $kit, '<os-step>' ), 'live-shaped setup: no fold; the four setup steps show, open, while the pipeline is incomplete' );
+	snt_leaf_preview( 'monitoring-analytics-setup', $kit );
+}
+
+if ( getenv( 'SNT_AN_PREVIEW_CHILD' ) ) {
+	an_live_previews();
+	echo "\nResult: $pass passed, $fail failed.\n";
+	exit( $fail > 0 ? 1 : 0 );
+}
+
 ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['monitoring/analytics'] ), 'the painter is registered under monitoring/analytics' );
 
 // ── Rich fixture: unlocked credentials, configured, two roles, populated
@@ -309,14 +357,13 @@ ok( false !== strpos( $kit, 'could not list its salt keys (KV read failed at the
 
 // ── 15.3.0: Edge, 7 days at the top, from the Cloudflare monitor's stored record; absent before it ran.
 ok( false === strpos( $kit, 'heading="Edge, 7 days"' ) && false === strpos( $classic, 'Edge, 7 days' ), 'no Edge section before the monitor ran, on either leaf' );
-$GLOBALS['__options'][ SN_CF_MONITOR_OPT ] = array( 'fetched_at' => time(), 'configured' => true, 'token' => array( 'verified' => true, 'status' => 'active', 'expires_on' => '', 'error' => '', 'kind' => 'user' ), 'zone' => array( 'available' => true, 'needs_permission' => false, 'error' => '', 'days' => array(), 'totals' => array( 'requests' => 166684, 'cached' => 13500, 'bytes' => 2000000000, 'cached_bytes' => 1, 'threats' => 12804, 'status_4xx' => 0, 'status_5xx' => 4473, 'cache_share' => 8.1, 'status_5xx_codes' => array( 503 => 4314, 520 => 132 ) ) ), 'firewall' => array( 'available' => false, 'needs_permission' => true, 'error' => 'x', 'events' => 0, 'by_action' => array(), 'top_rules' => array() ) );
+$GLOBALS['__options'][ SN_CF_MONITOR_OPT ] = an_edge_record();
 $classic = snt_leaf_classic_html( '\snt_analytics_render_settings_section' );
 $kit     = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( array() === snt_leaf_folds( $kit ), 'edge record: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
 ok( false !== strpos( $kit, 'heading="Edge, 7 days"' ) && strpos( $kit, 'heading="Edge, 7 days"' ) > strpos( $kit, snt_leaf_row( 2, 290, 24 ) ) && strpos( $kit, 'heading="Edge, 7 days"' ) < strpos( $kit, 'heading="Credentials"' ) && false !== strpos( $kit, '166,684' ) && false !== strpos( $kit, '8.1%' ) && false !== strpos( $kit, '503 · answered by the origin' ) && false !== strpos( $kit, '4,314' ), '15.3.1: Edge, 7 days heads the left column, above the Credentials fold: the five figures and the 5xx split' );
 ok( false !== strpos( $classic, 'Edge, 7 days' ) && false !== strpos( $classic, '166,684' ) && false !== strpos( $classic, '<th scope="row">503</th><td>4,314</td>' ) && strpos( $classic, 'Edge, 7 days' ) > strpos( $classic, '<div class="sn-2up">' ) && strpos( $classic, 'Edge, 7 days' ) < strpos( $classic, 'Credentials' ), 'the classic hub paints the same card at the head of its left column' );
 ok( in_array( 'cf_monitor_refresh', snt_leaf_actions( $kit ), true ) && in_array( 'cf_monitor_refresh', snt_leaf_actions( $classic ), true ) && false === strpos( $kit, 'heading="Firewall, 24 hours"' ), 'the Edge section carries the monitor\'s Refresh on both leaves; no Firewall here' );
-$an_edge_record = $GLOBALS['__options'][ SN_CF_MONITOR_OPT ];
 unset( $GLOBALS['__options'][ SN_CF_MONITOR_OPT ] );
 
 // ── The North star form (inc/north-star-settings.php) paints on this leaf only
@@ -330,31 +377,17 @@ ok( false !== strpos( $kit, '<os-section heading="North star" description="Count
 ok( strpos( $kit, 'heading="North star"' ) > strpos( $kit, 'heading="Identity salt window"' ) && strpos( $kit, 'heading="North star"' ) < strpos( $kit, 'heading="Session funnels"' ), 'north star: in the right column, above Session funnels, the two definitions together' );
 ok( in_array( 'north_star_save', snt_leaf_actions( $kit ), true ) && array() === array_diff( array( 'sn_nsm_sections[0]', 'sn_nsm_sections[3]', 'sn_nsm_scroll', 'sn_nsm_dwell_s' ), snt_leaf_names( $kit ) ) && 3 === substr_count( $kit, 'columns="auto"' ), 'north star: the form keeps its action and fields, two-up when wide enough' );
 
-// ── Live-shaped previews. Pipeline complete: credentials set, the worker
-// reachable with its bindings, exclusion on with 2 roles, tuned, 3 funnels,
-// the north star set, the edge record present. Then the same site with no
-// read credentials: the pipeline is incomplete and the setup steps show.
-$GLOBALS['__http_code'] = 200;
-$GLOBALS['__http_body'] = wp_json_encode( array( 'worker' => 'sn-analytics', 'version' => '1.14.2', 'cf_version_id' => 'cfv-1', 'cf_version_tag' => 'v1.14.2', 'deployed_at' => '2026-10-01T00:00:00Z', 'config' => array( 'px_token_set' => true, 'ae_bound' => true ), 'salt' => array( 'rotate_tz' => 'America/New_York', 'today_day' => '2026-10-11', 'today_present' => true, 'prev_day' => '2026-10-10', 'prev_present' => true, 'prev_expires_at' => time() + 3600, 'key_count' => 2 ) ) );
-$GLOBALS['__options'][ SN_CF_MONITOR_OPT ] = $an_edge_record;
-$GLOBALS['__configured'] = true;
-$GLOBALS['__roles'] = array( 'administrator' => 'Administrator', 'editor' => 'Editor', 'author' => 'Author', 'subscriber' => 'Subscriber' );
-$GLOBALS['__excluded_now'] = true;
-$GLOBALS['__settings']['analytics.exclude_roles']        = array( 'administrator', 'editor' );
-$GLOBALS['__settings']['analytics.signal_baseline_days'] = 45;
-$GLOBALS['__settings']['analytics.anomaly_sensitivity']  = 'relaxed';
-$GLOBALS['__settings']['analytics.funnels']              = array( array( 'name' => 'Note to resume', 'steps' => array( '/notes/', '/resume' ) ), array( 'name' => 'Provenance read', 'steps' => array( '/provenance', '/provhub' ) ), array( 'name' => 'About to contact', 'steps' => array( '/about', '/contact' ) ) );
-$GLOBALS['__settings']['theme.ai_monthly_budget']        = 20.0;
-$GLOBALS['__settings']['north_star']                     = array( 'sections' => array( 'notes', 'provenance', 'resume', 'about' ), 'scroll' => 50, 'dwell_s' => 30 );
-ok( true === sn_analytics_pipeline_complete(), 'live-shaped: the fixture really is a complete pipeline (every pill ok)' );
-$kit = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( array() === snt_leaf_folds( $kit ) && false === strpos( $kit, 'heading="Cloudflare Worker setup"' ), 'live-shaped: no fold, and no setup steps on a complete pipeline' );
-ok( false !== strpos( $kit, 'description="2 roles excluded"' ) && false !== strpos( $kit, 'description="45-day baseline · Relaxed: fewer flags (≈2.5σ)"' ) && false !== strpos( $kit, 'description="3 funnels"' ) && false !== strpos( $kit, 'description="Counts Notes, Provenance, Resume, About; a read is 50% scroll or 30 s on the page."' ), 'live-shaped: each section names its current state in one line' );
-snt_leaf_preview( 'monitoring-analytics', $kit );
-$GLOBALS['__configured'] = false;
-$kit = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( array() === snt_leaf_folds( $kit ) && 1 === substr_count( $kit, 'heading="Cloudflare Worker setup"' ) && 4 === substr_count( $kit, '<os-step>' ), 'live-shaped setup: no fold; the four setup steps show, open, while the pipeline is incomplete' );
-snt_leaf_preview( 'monitoring-analytics-setup', $kit );
+// ── Live-shaped previews, in a child run of this file (SNT_AN_PREVIEW_CHILD):
+// the locked-credentials pins above define SN_CF_ANALYTICS_TOKEN and
+// SN_CF_ACCOUNT_ID, a constant cannot be undefined, and an in-process preview
+// would show a lock and an override the live site does not have. The child
+// paints before any of that; its pins are reported here.
+putenv( 'SNT_AN_PREVIEW_CHILD=1' );
+exec( escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( __FILE__ ) . ' 2>&1', $an_child_out, $an_child_code );
+putenv( 'SNT_AN_PREVIEW_CHILD' );
+$an_child_out = implode( "\n", $an_child_out );
+$an_child_bad = preg_match_all( '/^(?:FAIL: .*|.*(?:Warning|Notice|Deprecated|Fatal error):.*)$/m', $an_child_out, $an_child_m ) ? implode( ' | ', $an_child_m[0] ) : '';
+ok( 0 === $an_child_code && '' === $an_child_bad && 1 === preg_match( '/Result: [1-9]\d* passed, 0 failed\./', $an_child_out ), 'live-shaped previews (child run, no locked constants): ' . ( '' !== $an_child_bad ? $an_child_bad : 'every child pin passes, no PHP notice' ) );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
