@@ -188,6 +188,32 @@ namespace {
 	$out = html_entity_decode( snt_mr_view_reader_evidence_html( snt_mr_view_data( 7, true ), 'kit', array() ), ENT_QUOTES );
 	ok( false !== strpos( $out, 'At least 60 user agents match no taxonomy entry' ), 'a truncated read is a floor: at least 60' );
 
+	echo "\nGroup H: one element per tile, on both surfaces\n";
+	// The element children of the first node matching $xpath.
+	$kids = static function ( $html, $xpath ) {
+		$doc = new DOMDocument();
+		libxml_use_internal_errors( true );
+		$doc->loadHTML( '<?xml encoding="utf-8"?><div>' . $html . '</div>' );
+		libxml_clear_errors();
+		$node = ( new DOMXPath( $doc ) )->query( $xpath )->item( 0 );
+		$out  = array();
+		foreach ( null === $node ? array() : $node->childNodes as $c ) {
+			if ( XML_ELEMENT_NODE === $c->nodeType ) {
+				$out[] = $c;
+			}
+		}
+		return $out;
+	};
+	foreach ( array( 'machine-readers' => 7, 'reader-evidence' => 2 ) as $v => $tiles ) {
+		$k = $kids( $kit[ $v ], '//os-grid' );
+		$c = $kids( $classic[ $v ], "//div[contains(concat(' ', @class, ' '), ' sn-kpi-row ')]" );
+		ok( $tiles === count( $k ) && array() === array_filter( $k, static fn( $e ) => 'snt-ev-tile' !== $e->getAttribute( 'class' ) ), "$v (kit): the tile grid has $tiles children, each one tile element (" . count( $k ) . ')' );
+		ok( $tiles === count( $c ) && array() === array_filter( $c, static fn( $e ) => 'sn-kpi' !== $e->getAttribute( 'class' ) ), "$v (classic): the tile row has $tiles children, each one .sn-kpi (" . count( $c ) . ')' );
+	}
+	ok( 1 !== preg_match( '/class="sn-kpi-label"[^>]*>[^<]*<span class="sn-mr-chip"/', $classic['machine-readers'] ), 'classic: the basis chip is not inside the label (its nowrap and uppercase clip it)' );
+	$css = (string) file_get_contents( SNT_PATH . 'assets/analytics/analytics-admin.css' );
+	ok( false !== strpos( $classic['machine-readers'], 'class="sn-kpi-row sn-mr-kpi-row sn-mr-kpi-row--wrap sn-mr-kpi-row--odd" style="--sn-kpi-cols:4"' ) && 1 === preg_match( '/\.sn-mr-kpi-row--wrap\.sn-mr-kpi-row--odd > \.sn-kpi:first-child \{ grid-column: span 2; \}/', $css ), 'classic: seven tiles run four across with the first spanning two (8 slots: 4 + 4, or 2 + 2 + 2 + 2 narrow), so no row ends on a lone card' );
+
 	echo "\nGroup F: a read before verification was recorded is unverifiable, never unverified\n";
 	// Before SN_RIGHTS_EVIDENCE_VERIFIED_SINCE (2026-09-27 15:49:59 UTC) no read can be verified.
 	$pre = array_merge( $rows, array(

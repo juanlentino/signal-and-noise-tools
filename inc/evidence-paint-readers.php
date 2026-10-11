@@ -34,8 +34,9 @@ function snt_ev_paint_hero_tiles( array $h, $surface = 'kit' ) {
 			__( 'AI-training reads, claimed', 'signal-and-noise-tools' ),
 			/* translators: %s: verified reads. */
 			is_array( $ai ) ? sprintf( __( '%s verified by Cloudflare', 'signal-and-noise-tools' ), number_format_i18n( (int) $ai['verified'] ) ) : '',
-			snt_basis_chip( 'claimed', $classic )
-		) . snt_evidence_strip( $ai, array( 'size' => 'hero' ) ),
+			snt_basis_chip( 'claimed', $classic ),
+			is_array( $ai ) ? snt_evidence_strip( $ai, array( 'size' => 'hero' ) ) : ''
+		),
 		snt_ev_stat(
 			$surface,
 			is_array( $id ) && $id['measured'] > 0 ? number_format_i18n( (int) $id['valid'] ) . ' / ' . number_format_i18n( (int) $id['measured'] ) : __( 'not measured', 'signal-and-noise-tools' ),

@@ -758,3 +758,14 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .sn-mr-chip[data-tone="info"] { border-color: var(--sn-an-accent); background: #f0f6fc; color: var(--sn-an-accent); }
 /* A stat tile's caption on the classic machine views (inc/evidence-paint-surface.php snt_ev_stat). */
 .sn-kpi-caption { margin: 4px 0 0; font-size: 12px; color: var(--sn-an-muted); }
+/* The classic machine views' tile row (inc/evidence-paint-surface.php snt_ev_tiles): up to four
+   across, then four columns; an odd count lets the first tile span two so no row ends on a lone card. */
+.sn-mr-kpi-row { grid-template-columns: repeat(var(--sn-kpi-cols, 4), minmax(0, 1fr)); }
+.sn-mr-kpi-row > .sn-kpi { border-right: 1px solid var(--sn-an-hairline); }
+.sn-mr-kpi-row--wrap.sn-mr-kpi-row--odd > .sn-kpi:first-child { grid-column: span 2; }
+.sn-kpi-basis { margin: 6px 0 0; }
+.sn-kpi .snt-evidence { margin-top: 6px; }
+@media screen and (max-width: 782px) {
+	.sn-mr-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.sn-mr-kpi-row--odd > .sn-kpi:first-child { grid-column: span 2; }
+}

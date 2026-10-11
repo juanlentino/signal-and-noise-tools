@@ -41,18 +41,32 @@ function snt_ev_pair( $surface, $a, $b ) {
 	return 'kit' === $surface ? snt_kit_grid( array( $a, $b ) ) : '<div class="sn-2up">' . $a . $b . '</div>';
 }
 
-/** A stat tile; $chip is a painted basis chip or ''. */
-function snt_ev_stat( $surface, $value, $label, $caption = '', $chip = '' ) {
+/**
+ * A stat tile as ONE element: the stat, its basis chip and any $extra (an
+ * evidence strip) inside one wrapper, so a grid holds one child per tile.
+ * Classic: the chip sits under the value, never in the label (the label's
+ * nowrap, ellipsis and uppercase clip it).
+ */
+function snt_ev_stat( $surface, $value, $label, $caption = '', $chip = '', $extra = '' ) {
 	if ( 'kit' === $surface ) {
-		return snt_kit_stat( $value, $label, $caption ) . $chip;
+		return '<div class="snt-ev-tile">' . snt_kit_stat( $value, $label, $caption ) . $chip . $extra . '</div>';
 	}
-	return '<div class="sn-kpi"><p class="sn-kpi-label">' . esc_html( $label ) . ' ' . $chip . '</p><p class="sn-kpi-value">' . esc_html( (string) $value ) . '</p>'
-		. ( '' !== (string) $caption ? '<p class="sn-kpi-caption">' . esc_html( $caption ) . '</p>' : '' ) . '</div>';
+	return '<div class="sn-kpi"><p class="sn-kpi-label">' . esc_html( $label ) . '</p><p class="sn-kpi-value">' . esc_html( (string) $value ) . '</p>'
+		. ( '' !== (string) $caption ? '<p class="sn-kpi-caption">' . esc_html( $caption ) . '</p>' : '' )
+		. ( '' !== (string) $chip ? '<p class="sn-kpi-basis">' . $chip . '</p>' : '' ) . $extra . '</div>';
 }
 
-/** A row of stat tiles. */
+/**
+ * A row of stat tiles. Classic: up to four on a row, then four columns; an
+ * odd count lets the first tile span two, so no row ends on a lone card.
+ */
 function snt_ev_tiles( $surface, array $tiles ) {
-	return 'kit' === $surface ? snt_kit_grid( $tiles, 160, 10 ) : '<div class="sn-kpi-row sn-mr-kpi-row">' . implode( '', $tiles ) . '</div>';
+	if ( 'kit' === $surface ) {
+		return snt_kit_grid( $tiles, 160, 10 );
+	}
+	$n     = count( $tiles );
+	$class = 'sn-kpi-row sn-mr-kpi-row' . ( $n >= 5 ? ' sn-mr-kpi-row--wrap' : '' ) . ( 1 === $n % 2 && $n > 1 ? ' sn-mr-kpi-row--odd' : '' );
+	return '<div class="' . $class . '" style="--sn-kpi-cols:' . (int) min( 4, max( 1, $n ) ) . '">' . implode( '', $tiles ) . '</div>';
 }
 
 /**
