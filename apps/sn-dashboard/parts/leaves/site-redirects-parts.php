@@ -97,8 +97,8 @@ function redirects_form( $sn_action, $inner, array $opts = array() ) {
  */
 function redirects_status_options() {
 	return array(
-		'301' => __( '301. Permanent', 'signal-and-noise-tools' ),
-		'302' => __( '302. Temporary', 'signal-and-noise-tools' ),
+		'301' => __( '301 permanent', 'signal-and-noise-tools' ),
+		'302' => __( '302 temporary', 'signal-and-noise-tools' ),
 	);
 }
 

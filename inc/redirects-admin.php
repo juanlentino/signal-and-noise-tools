@@ -252,8 +252,8 @@ function sn_redirects_render_broken_links_tab() {
 function sn_redirects_status_select_html( $current ) {
 	$current = ( 302 === (int) $current ) ? 302 : 301;
 	$out     = '<select name="status">';
-	$out    .= '<option value="301"' . selected( 301, $current, false ) . '>301. Permanent</option>';
-	$out    .= '<option value="302"' . selected( 302, $current, false ) . '>302. Temporary</option>';
+	$out    .= '<option value="301"' . selected( 301, $current, false ) . '>301 permanent</option>';
+	$out    .= '<option value="302"' . selected( 302, $current, false ) . '>302 temporary</option>';
 	$out    .= '</select>';
 	return $out;
 }

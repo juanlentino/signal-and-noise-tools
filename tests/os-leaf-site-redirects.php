@@ -95,7 +95,7 @@ ok( 1 === substr_count( $kit_ed, 'submit-label="Save changes"' ) && false !== st
 ok( false !== strpos( $kit_ed, 'description="Now a 301 to /notes/design-tokens; added ' . $d0 . '."' ), '...its description states the rule as it stands' );
 $edit = form_block( $kit_ed, 'Save changes' );
 ok( false !== strpos( $edit, '<input type="hidden" name="source" value="/first">' ) && false !== strpos( $edit, 'name="action" value="sn_redirect_update"' ) && false !== strpos( $edit, '<os-text-field name="target" type="text" value="/notes/design-tokens"' ) && false !== strpos( $edit, '<os-field-row label="Redirects to">' ), 'the edit form posts redirect_update with the source hidden and the current target filled' );
-ok( false !== strpos( $edit, '<os-select name="status" value="301"><os-option value="301">301. Permanent</os-option><os-option value="302">302. Temporary</os-option></os-select>' ), 'the type select offers 301/302 with the current one selected' );
+ok( false !== strpos( $edit, '<os-select name="status" value="301"><os-option value="301">301 permanent</os-option><os-option value="302">302 temporary</os-option></os-select>' ), 'the type select offers 301/302 with the current one selected' );
 ok( false !== strpos( $kit_ed, '<os-button variant="ghost" os-action="go" os-arg-sub="redirects" os-arg-anchor="snt-edit-list">Cancel</os-button>' ), 'Cancel is a go that clears the param' );
 $delete = form_block( $kit_ed, 'Delete' );
 ok( '' !== $delete && false !== strpos( $delete, '<os-form os-confirm-title="Delete this redirect?" os-confirm-label="Delete" class="snt-form" os-action="post" submit-label="Delete"' ) && false !== strpos( $delete, 'os-confirm="This redirect will stop working immediately." os-confirm-danger>' ) && false !== strpos( $delete, 'name="action" value="sn_redirect_delete"' ) && false !== strpos( $delete, '<input type="hidden" name="source" value="/first">' ) && before( $kit_ed, 'heading="Editing /first"', 'submit-label="Delete"' ), 'Delete lives in the edit region: it confirms as the classic button did (title, label, question, danger) and carries the rule' );
@@ -193,6 +193,9 @@ preg_match( '/os-arg-sn_edit="([^"]*)"/', $kit_long, $m_long );
 $sent = substr( html_entity_decode( $m_long[1] ?? '', ENT_QUOTES ), 0, 200 ); // What the host keeps.
 $kit_long_ed = editing( $sent );
 ok( strlen( $long ) > 200 && false !== strpos( $kit_long_ed, 'Editing ' . $long ) && false !== strpos( $kit_long_ed, 'name="source" value="' . $long . '"' ),'a ' . strlen( $long ) . '-character source still opens its edit region after the host cuts the param at 200' );
+
+// 2026-10-11: no type label is a period before a word (an old em-dash swap read "301. Permanent").
+ok( false === strpos( (string) file_get_contents( __DIR__ . '/../apps/sn-dashboard/parts/leaves/site-redirects-parts.php' ) . (string) file_get_contents( __DIR__ . '/../inc/redirects-admin.php' ), '301. Permanent' ), 'the redirect types read "301 permanent", on both twins' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
