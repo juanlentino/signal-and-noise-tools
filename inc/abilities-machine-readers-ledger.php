@@ -162,24 +162,55 @@ function snt_ability_get_machine_readers_crosstab( $input, $with_unnamed = true 
  * read is null (not measured), never [] (which says every read matched).
  * Each sample is sanitised again here; one that sanitises to '' is dropped.
  *
+ * Unreleased: each sample also carries verified_hits, not_measured and its top
+ * networks, the agent_networks shape. The edge splits the view's rows by
+ * verification and network once it reports them, so rows are folded by sample
+ * BEFORE the cut. Until the edge sends those columns (the read's `columns`
+ * lacks verified_bot), verified_hits is null and basis `unmeasured`: the
+ * normalizer writes '' for an absent column, which must not read as
+ * "none verified".
+ *
  * @param int $days Window, already clamped.
- * @return array<int,array{ua_sample:string,hits:int}>|null
+ * @return array<int,array{ua_sample:string,hits:int,verified_hits:int|null,not_measured:int,networks:array,basis:string}>|null
  */
 function snt_mr_unnamed_agents( $days ) {
 	$read = snt_mr_fetch( $days, 'unknown' );
 	if ( empty( $read['ok'] ) ) {
 		return null;
 	}
-	$out = array();
+	$measured = in_array( 'verified_bot', (array) ( $read['columns'] ?? array() ), true );
+	$by       = array();
 	foreach ( (array) ( $read['rows'] ?? array() ) as $row ) {
 		$ua = is_array( $row ) ? snt_mr_normalize_ua_sample( $row['user_agent'] ?? ( $row['ua_sample'] ?? '' ) ) : '';
-		if ( '' !== $ua ) {
-			$out[] = array( 'ua_sample' => $ua, 'hits' => max( 0, (int) ( $row['hits'] ?? 0 ) ) );
+		if ( '' === $ua ) {
+			continue;
 		}
+		$hits = max( 0, (int) ( $row['hits'] ?? 0 ) );
+		$net  = $measured ? (string) ( $row['network'] ?? '' ) : '';
+		$u    = $by[ $ua ] ?? array( 'ua_sample' => $ua, 'hits' => 0, 'verified_hits' => $measured ? 0 : null, 'not_measured' => 0, 'networks' => array(), 'basis' => $measured ? 'claimed' : 'unmeasured' );
+		$u['hits'] += $hits;
+		if ( $measured && '' !== (string) ( $row['verified_bot'] ?? '' ) ) {
+			$u['verified_hits'] += $hits;
+		}
+		if ( '' === $net ) {
+			$u['not_measured'] += $hits;
+		} else {
+			$u['networks'][ $net ] = ( $u['networks'][ $net ] ?? 0 ) + $hits;
+		}
+		$by[ $ua ] = $u;
 	}
 	// Rows that all sanitised away are not "every read matched".
-	if ( array() === $out && array() !== (array) ( $read['rows'] ?? array() ) ) {
+	if ( array() === $by && array() !== (array) ( $read['rows'] ?? array() ) ) {
 		return null;
+	}
+	$out = array();
+	foreach ( $by as $u ) {
+		arsort( $u['networks'] );
+		$nets = array();
+		foreach ( array_slice( $u['networks'], 0, SN_MR_AGENT_NETWORKS_TOP, true ) as $net => $h ) {
+			$nets[] = array( 'network' => (string) $net, 'hits' => (int) $h );
+		}
+		$out[] = array_merge( $u, array( 'networks' => $nets ) );
 	}
 	usort( $out, static fn( $a, $b ) => $b['hits'] <=> $a['hits'] );
 	return array_slice( $out, 0, SN_MR_UNNAMED_TOP );

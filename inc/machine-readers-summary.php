@@ -85,14 +85,27 @@ function snt_mr_summary_payload( $days, $series = null ) {
 	// reads zero until the bridge ships is not worth a contract bump and a
 	// worker redeploy. It joins in bridge v2 arc two, with a number.
 
-	$totals  = function_exists( 'snt_mr_sum_hits_by' ) ? snt_mr_sum_hits_by( $rows, 'family' ) : array();
+	// Unreleased: a hit presenting a robots.txt control token (Google-Extended,
+	// Applebot-Extended) is never the vendor's crawler, so it is credited to no
+	// family and no purpose; `impersonations` carries it and `total` still
+	// counts it, because it was a read. Every breakdown below reads $credited.
+	$is_imp   = function_exists( 'snt_mr_is_impersonation' ) ? 'snt_mr_is_impersonation' : static fn( $r ) => false;
+	$credited = array_values( array_filter( $rows, static fn( $r ) => ! $is_imp( $r ) ) );
+
+	$totals  = function_exists( 'snt_mr_sum_hits_by' ) ? snt_mr_sum_hits_by( $credited, 'family' ) : array();
 	$ai_set  = function_exists( 'snt_mr_ai_training_families' ) ? snt_mr_ai_training_families() : array();
 	$total   = 0;
 	$ai_hits = 0;
 	$ai_rght = 0;
+	$fp_fam  = array();
 	foreach ( $rows as $row ) {
-		$hits   = (int) ( $row['hits'] ?? 0 );
-		$total += $hits;
+		$total += (int) ( $row['hits'] ?? 0 );
+	}
+	foreach ( $credited as $row ) {
+		$hits = (int) ( $row['hits'] ?? 0 );
+		if ( ! empty( $row['first_party'] ) ) {
+			$fp_fam[ (string) ( $row['family'] ?? '' ) ] = ( $fp_fam[ (string) ( $row['family'] ?? '' ) ] ?? 0 ) + $hits;
+		}
 		if ( in_array( (string) ( $row['family'] ?? '' ), $ai_set, true ) ) {
 			$ai_hits += $hits;
 			// The compliance read: a declared AI-training crawler that fetched
@@ -105,7 +118,10 @@ function snt_mr_summary_payload( $days, $series = null ) {
 
 	$families = array();
 	foreach ( $totals as $family => $hits ) {
-		$families[] = array( 'family' => (string) $family, 'hits' => (int) $hits );
+		// first_party_hits: the part of the family that is this site's own
+		// tools (the sensor's first_party flag), so unclassified-machine's
+		// self-traffic reads apart from the rest of it.
+		$families[] = array( 'family' => (string) $family, 'hits' => (int) $hits, 'first_party_hits' => (int) ( $fp_fam[ (string) $family ] ?? 0 ) );
 		if ( count( $families ) >= SN_MR_TOP_FAMILIES ) {
 			break;
 		}
@@ -121,7 +137,7 @@ function snt_mr_summary_payload( $days, $series = null ) {
 	$ai_surfaces = array();
 	if ( function_exists( 'snt_mr_sum_hits_by' ) ) {
 		$ai_rows = array();
-		foreach ( $rows as $row ) {
+		foreach ( $credited as $row ) {
 			if ( in_array( (string) ( $row['family'] ?? '' ), $ai_set, true ) ) {
 				$ai_rows[] = $row;
 			}
@@ -158,8 +174,9 @@ function snt_mr_summary_payload( $days, $series = null ) {
 	$first_party = 0;
 	$tax_version = '';
 	$has_tax     = function_exists( 'snt_mr_taxonomy_absent' ) && ! snt_mr_taxonomy_absent( $rows );
+	$third_party = array();
 	if ( $has_tax ) {
-		foreach ( $rows as $row ) {
+		foreach ( $credited as $row ) {
 			// Reported from the DATA, never a literal: rows carry the version
 			// they were written under, so a window spanning a definition change
 			// is visibly mixed instead of stamped with today's number.
@@ -172,6 +189,7 @@ function snt_mr_summary_payload( $days, $series = null ) {
 				$first_party += $hits;
 				continue;
 			}
+			$third_party[]  = $row;
 			$p              = (string) ( $row['purpose'] ?? 'unknown' );
 			$purposes[ $p ] = (int) ( $purposes[ $p ] ?? 0 ) + $hits;
 			if ( 'train' === $p ) {
@@ -228,13 +246,71 @@ function snt_mr_summary_payload( $days, $series = null ) {
 		'sensor_version' => ( is_array( $info ) && isset( $info['version'] ) ) ? (string) $info['version'] : null,
 		'crawler_list'   => $verdict,
 	);
+	// Unreleased: additive. Where each attributed count came from.
+	if ( function_exists( 'snt_mr_verification_by' ) ) {
+		$payload += snt_mr_summary_basis( $rows, $credited, $third_party, $ai_set, $has_tax );
+	}
 	// Unreleased: appended, never interleaved, so a call without `series` is
 	// byte-identical to the response before the series existed.
 	if ( 'day' === $series && function_exists( 'snt_mr_summary_daily' ) ) {
+		// The daily breakdowns skip the control-token rows themselves
+		// (snt_mr_summary_daily), so each still sums to its window figure.
 		$payload['daily']             = snt_mr_summary_daily( $rows, null === $exact_total ? null : (array) $totals_read['rows'], $days, time(), $has_tax );
 		$payload['daily_total_exact'] = null !== $exact_total;
 	}
 	return $payload;
+}
+
+/**
+ * The summary's evidence fields: impersonations, the verification split of
+ * every attributed count, and the basis of each. PURE.
+ *
+ * The split reads the same rows its figure reads: `families` the credited rows
+ * (first-party included, as in `families`), `purposes` and
+ * `ai_training_by_purpose` the credited third-party rows (as in `purposes`),
+ * `ai_training` the credited rows of the AI-training family set.
+ *
+ * @param array $rows        Every aggregate row.
+ * @param array $credited    Rows less the control-token hits.
+ * @param array $third_party Credited rows less first-party ones (taxonomy windows only).
+ * @param array $ai_set      snt_mr_ai_training_families().
+ * @param bool  $has_tax     Whether the window carries the taxonomy.
+ * @return array{impersonations:array|null,verification:array,basis:array}
+ */
+function snt_mr_summary_basis( array $rows, array $credited, array $third_party, array $ai_set, $has_tax ) {
+	$ai = snt_mr_verification_zero();
+	foreach ( $credited as $row ) {
+		if ( in_array( (string) ( $row['family'] ?? '' ), $ai_set, true ) ) {
+			$ai = snt_mr_verification_add( $ai, $row );
+		}
+	}
+	$purposes = $has_tax ? snt_mr_verification_by( $third_party, 'purpose' ) : null;
+	return array(
+		// null, not [], when the taxonomy is absent: rows then carry no agent
+		// id, so no impersonation could have been seen.
+		'impersonations' => $has_tax ? snt_mr_impersonations( $rows ) : null,
+		'verification'   => array(
+			'source'                 => 'cloudflare verified bot category',
+			'since'                  => defined( 'SN_RIGHTS_EVIDENCE_VERIFIED_SINCE' ) ? SN_RIGHTS_EVIDENCE_VERIFIED_SINCE : null,
+			'basis'                  => array( 'claimed' => 'claimed', 'verified' => 'verified', 'verified_matched' => 'verified', 'unverified' => 'claimed', 'unverifiable' => 'unmeasured' ),
+			'families'               => snt_mr_verification_by( $credited, 'family' ),
+			'purposes'               => $purposes,
+			'ai_training'            => $ai,
+			'ai_training_by_purpose' => null === $purposes ? null : ( $purposes->train ?? snt_mr_verification_zero() ),
+		),
+		'basis'          => array(
+			'families'               => 'claimed',
+			'ai_training'            => 'claimed',
+			'ai_rights'              => 'claimed',
+			'ai_surfaces'            => 'claimed',
+			'purposes'               => 'claimed',
+			'ai_training_by_purpose' => 'claimed',
+			'first_party'            => 'claimed',
+			'identity'               => 'signed',
+			'verification'           => 'verified',
+			'impersonations'         => 'claimed',
+		),
+	);
 }
 
 /**

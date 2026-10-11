@@ -35,7 +35,11 @@ const SN_MR_AGENT_NETWORKS_TOP = 5;
  *
  * `days` is the number of distinct days the cell was seen on, `surfaces` the
  * cell's hits per surface class. A cell with purpose `unknown` is an unmapped
- * reader, not a reader with no purpose.
+ * reader, not a reader with no purpose. Unreleased: each cell also splits its
+ * hits by verification (claimed, verified, verified_matched, unverified,
+ * unverifiable; inc/machine-readers-basis.php), says whether it is this site's
+ * own tooling (`first_party`) or a robots.txt control token no crawler sends
+ * (`impersonation`), and names its `basis`.
  *
  * @param array $rows snt_mr_fetch() aggregate rows.
  * @return array{cells:array<int,array>,total:int,families:int}
@@ -43,6 +47,8 @@ const SN_MR_AGENT_NETWORKS_TOP = 5;
 function snt_mr_crosstab( $rows ) {
 	$cells = array();
 	$days  = array();
+	$split = array();
+	$fp    = array();
 	$total = 0;
 	foreach ( (array) $rows as $row ) {
 		if ( ! is_array( $row ) ) {
@@ -58,8 +64,12 @@ function snt_mr_crosstab( $rows ) {
 		if ( ! isset( $cells[ $key ] ) ) {
 			$cells[ $key ] = array( 'family' => $family, 'purpose' => $purpose, 'agent' => $agent, 'hits' => 0, 'days' => 0, 'surfaces' => array() );
 			$days[ $key ]  = array();
+			$split[ $key ] = function_exists( 'snt_mr_verification_zero' ) ? snt_mr_verification_zero() : null;
+			$fp[ $key ]    = false;
 		}
 		$cells[ $key ]['hits'] += $hits;
+		$split[ $key ]          = null === $split[ $key ] ? null : snt_mr_verification_add( $split[ $key ], $row );
+		$fp[ $key ]             = $fp[ $key ] || ! empty( $row['first_party'] );
 		if ( '' !== $surface ) {
 			$cells[ $key ]['surfaces'][ $surface ] = ( $cells[ $key ]['surfaces'][ $surface ] ?? 0 ) + $hits;
 		}
@@ -71,6 +81,13 @@ function snt_mr_crosstab( $rows ) {
 	foreach ( $cells as $key => &$cell ) {
 		$cell['days'] = count( $days[ $key ] );
 		arsort( $cell['surfaces'] );
+		if ( null !== $split[ $key ] ) {
+			$cell += $split[ $key ] + array(
+				'first_party'   => $fp[ $key ],
+				'impersonation' => snt_mr_is_impersonation( $cell ),
+				'basis'         => 'claimed',
+			);
+		}
 	}
 	unset( $cell );
 	usort( $cells, static fn( $a, $b ) => $b['hits'] <=> $a['hits'] ?: strcmp( $a['family'] . $a['purpose'] . $a['agent'], $b['family'] . $b['purpose'] . $b['agent'] ) );

@@ -72,6 +72,10 @@ require __DIR__ . '/../inc/machine-readers-render.php';
 // v10.2.0: the ONE shared builder lives here now (both this ability and the
 // desktop tile route call it), so the fixture drives the real thing.
 require __DIR__ . '/../inc/machine-readers-summary.php';
+// Unreleased: the evidence-basis fields (impersonations, verification, basis)
+// are built by the basis module from the rights evidence's own classifier.
+require __DIR__ . '/../inc/rights-evidence-compose.php';
+require __DIR__ . '/../inc/machine-readers-basis.php';
 
 require __DIR__ . '/../inc/abilities-machine-readers.php';
 foreach ( $GLOBALS['__acts']['wp_abilities_api_init'] ?? array() as $cb ) {
@@ -190,11 +194,11 @@ ok( 7 === $GLOBALS['__mr_days'], 'the requested window reaches snt_mr_fetch' );
 ok( 46 === ( $out['total'] ?? null ), 'total === 46 (every row, every surface)' );
 ok(
 	array(
-		array( 'family' => 'search',    'hits' => 20 ),
-		array( 'family' => 'openai',    'hits' => 15 ),
-		array( 'family' => 'anthropic', 'hits' => 7 ),
+		array( 'family' => 'search',    'hits' => 20, 'first_party_hits' => 0 ),
+		array( 'family' => 'openai',    'hits' => 15, 'first_party_hits' => 0 ),
+		array( 'family' => 'anthropic', 'hits' => 7, 'first_party_hits' => 0 ),
 	) === ( $out['families'] ?? null ),
-	'families is the top 3 by hits, descending (a glance, not the table)'
+	'families is the top 3 by hits, descending (a glance, not the table), each with its first_party_hits'
 );
 ok( 22 === ( $out['ai_training'] ?? null ), 'ai_training === 22 (openai 15 + anthropic 7; search/seo/other-bot excluded)' );
 ok( 12 === ( $out['ai_rights'] ?? null ), 'ai_rights === 12 (the rights-surface slice of those two)' );
@@ -215,8 +219,8 @@ ok(
 	// they qualify: `total` is now exact whenever the edge can serve the totals
 	// view, and a consumer drawing the family breakdown still needs to know that
 	// breakdown may be partial. ADDITIVE — nothing renamed, nothing moved.
-	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'identity', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list' ) === array_keys( $out ),
-	'success shape matches the DM route exactly'
+	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'identity', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'impersonations', 'verification', 'basis' ) === array_keys( $out ),
+	'success shape matches the DM route exactly (Unreleased: impersonations, verification and basis appended)'
 );
 ok( $rows_before === $GLOBALS['__mr']['rows'], 'the fetched rows are never mutated' );
 
@@ -225,6 +229,10 @@ ok( $rows_before === $GLOBALS['__mr']['rows'], 'the fetched rows are never mutat
 // new key sees exactly the old payload, nothing shifted or recomputed.
 $out_minus_new = $out;
 unset( $out_minus_new['ai_surfaces'] );
+// Unreleased: the evidence-basis fields are additive on the same principle;
+// without them (and each family's first_party_hits) the old payload is intact.
+unset( $out_minus_new['impersonations'], $out_minus_new['verification'], $out_minus_new['basis'] );
+$out_minus_new['families'] = array_map( static fn( $f ) => array_diff_key( $f, array( 'first_party_hits' => 0 ) ), $out_minus_new['families'] );
 // v10.79.0: the purpose axis is additive on the SAME principle , a consumer
 // that ignores the new keys must still see the pre-existing payload untouched.
 foreach ( array( 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy' ) as $sn_new_key ) {
@@ -273,7 +281,7 @@ ok( true === ( $sn_exact['total_exact'] ?? null ), 'and total_exact says so' );
 ok( in_array( 'totals', (array) $GLOBALS['__mr_views'], true ), 'the summary actually ASKED for the totals view' );
 ok( 2 === ( $sn_exact['days_covered'] ?? null ), 'days_covered counts the DAY-ROWS the totals view returned (2), which is how an uncovered window becomes visible' );
 ok(
-	array( array( 'family' => 'search', 'hits' => 20 ), array( 'family' => 'openai', 'hits' => 15 ), array( 'family' => 'anthropic', 'hits' => 7 ) ) === ( $sn_exact['families'] ?? null ),
+	array( array( 'family' => 'search', 'hits' => 20, 'first_party_hits' => 0 ), array( 'family' => 'openai', 'hits' => 15, 'first_party_hits' => 0 ), array( 'family' => 'anthropic', 'hits' => 7, 'first_party_hits' => 0 ) ) === ( $sn_exact['families'] ?? null ),
 	'the BREAKDOWN still comes from the aggregate — only the headline changed'
 );
 $GLOBALS['__mr_totals'] = array( 'ok' => false, 'rows' => array(), 'error' => 'not_configured' );
@@ -365,7 +373,9 @@ echo "\nGroup: v10.2.0 — ONE builder, verified against the real thing\n";
 // key-list literals typed into this file.
 $mr_direct = snt_mr_summary_payload( 30 );
 $mr_via    = snt_ability_get_machine_readers_summary( array( 'days' => 30 ) );
-ok( $mr_direct === $mr_via, 'the ability returns exactly what the shared builder returns' );
+// Compared as the wire sees it: the verification splits are JSON objects
+// (stdClass), and two equal objects are never === in PHP.
+ok( json_encode( $mr_direct ) === json_encode( $mr_via ), 'the ability returns exactly what the shared builder returns' );
 $mr_7 = snt_ability_get_machine_readers_summary( array( 'days' => 7 ) );
 ok( 7 === ( $mr_7['days'] ?? null ), 'a non-default window is honored (the old fork existed because the DM route hardcoded 30)' );
 ok( array_keys( $mr_direct ) === array_keys( $mr_7 ), 'every window returns the same shape' );

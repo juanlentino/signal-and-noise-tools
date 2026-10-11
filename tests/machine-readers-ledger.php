@@ -162,7 +162,10 @@ $sn_un[1] = array( 'ua_sample' => '<>', 'hits' => 98 );
 $GLOBALS['__mr']['unknown'] = array( 'ok' => true, 'rows' => $sn_un, 'truncated' => false, 'error' => null );
 $out = snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) );
 ok( SN_MR_UNNAMED_TOP === 20 && 20 === count( $out['unnamed'] ), 'unnamed: bounded to the top 20' );
-ok( array( 'ua_sample' => 'Evil script Bot/2.0 +https //x.example', 'hits' => 99 ) === $out['unnamed'][0], 'unnamed: each row is {ua_sample, hits}, the sample re-sanitised here and the hits int-cast' );
+// Unreleased: + verified_hits, not_measured, networks, basis. A read with no
+// `columns` envelope (the edge before its unknown view reports verification)
+// is unmeasured: verified_hits null, never 0 (tests/machine-readers-basis.php).
+ok( array( 'ua_sample' => 'Evil script Bot/2.0 +https //x.example', 'hits' => 99, 'verified_hits' => null, 'not_measured' => 99, 'networks' => array(), 'basis' => 'unmeasured' ) === $out['unnamed'][0], 'unnamed: each row is {ua_sample, hits, verified_hits, not_measured, networks, basis}, the sample re-sanitised here and the hits int-cast' );
 ok( 'Bot3/1.0' === $out['unnamed'][1]['ua_sample'], 'unnamed: a sample that sanitises to nothing is dropped, not listed blank' );
 $GLOBALS['__mr']['unknown'] = array( 'ok' => true, 'rows' => array(), 'truncated' => false, 'error' => null );
 ok( array() === snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) )['unnamed'], 'unnamed: an answered read with no rows is [], every read matched the taxonomy' );

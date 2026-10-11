@@ -374,6 +374,11 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate', array $filter = array() 
 				? snt_mr_normalize_totals_rows( $decoded['data'] )
 				: snt_mr_normalize_rows( $split['rows'] ) ),
 		'webmcp'    => $split['webmcp'],
+		// Unreleased: the column names the edge sent, read off the RAW rows,
+		// because the normalizer writes '' for an absent column and an absent
+		// verified_bot must not read as "none verified" (the unknown view
+		// gains verified_bot and network in a later worker release).
+		'columns'   => array_values( array_unique( array_merge( array(), ...array_map( static fn( $r ) => is_array( $r ) ? array_map( 'strval', array_keys( $r ) ) : array(), (array) $decoded['data'] ) ) ) ),
 		// Worker v1.23.0. UNTRUSTED like every other field: cast, never trusted
 		// as shape. A read that says it is truncated must not be summed into a
 		// headline, which is the whole reason the worker now reports it.

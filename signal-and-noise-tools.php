@@ -373,6 +373,7 @@ require_once SNT_PATH . 'inc/machine-readers-daily.php'; // the daily series (se
 require_once SNT_PATH . 'inc/machine-readers-ledger.php'; // 17.0.0: the crosstab and rights-cadence folds.
 require_once SNT_PATH . 'inc/abilities-machine-readers-ledger.php'; // 17.0.0: get-machine-readers-crosstab + get-rights-reads.
 require_once SNT_PATH . 'inc/rights-evidence-compose.php'; // 17.0.0: one record per crawler family per month, the pure half.
+require_once SNT_PATH . 'inc/machine-readers-basis.php'; // the evidence basis of each attributed count (signed, verified, claimed, inferred, unmeasured).
 require_once SNT_PATH . 'inc/rights-evidence-ledger.php';  // Unreleased: rights-signal history and record refresh, read-only.
 require_once SNT_PATH . 'inc/rights-evidence-dry-run.php'; // Unreleased: compose from live reads, post nothing (shared with the pass).
 require_once SNT_PATH . 'inc/rights-evidence-review.php';  // Unreleased: the review window and the holds (no fetch, no post).
