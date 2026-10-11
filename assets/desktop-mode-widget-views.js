@@ -146,6 +146,22 @@
 	}
 
 	/**
+	 * 2026-10-11: presumed-human visitor-days the beacon's bot-signal score
+	 * marks likely automated (sn_analytics_likely_automated()), beside the
+	 * views and subtracted from nothing. Null visitor_days is "not measured
+	 * yet", never a 0; an older payload without the field paints nothing.
+	 */
+	function automatedLine( la ) {
+		if ( ! la || typeof la !== 'object' ) { return null; }
+		var measured = Number( la.measured_days ) || 0, days = measured + ( Number( la.unmeasured_days ) || 0 );
+		var text = typeof la.visitor_days !== 'number' ? 'Likely automated: not measured yet'
+			: 'Likely automated: ' + la.visitor_days + ' of ' + la.scored_visitor_days + ' scored visitor-days' + ( measured < days ? ', ' + measured + ' of ' + days + ' days measured' : '' );
+		var node = el( 'div', { text: text, style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
+		node.title = 'Inferred from the beacon\u2019s bot signals; the views above are presumed human and nothing is subtracted.';
+		return node;
+	}
+
+	/**
 	 * "In 7 days: about 20 views a day (estimate)", from the payload's forecast
 	 * (sn_analytics_forecast_of(): a per-day point at the horizon, already
 	 * withheld when the fit does not beat a same-value baseline). It is said
@@ -462,6 +478,8 @@
 			body.appendChild( chart );
 
 			body.appendChild( deltaLine( payload.delta_pct, payload.total ) );
+			var auto = automatedLine( payload.likely_automated );
+			if ( auto ) { body.appendChild( auto ); }
 			var next = forecastLine( payload.forecast );
 			if ( next ) { body.appendChild( next ); }
 		}

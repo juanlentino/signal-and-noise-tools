@@ -769,6 +769,21 @@ async function run() {
     stop(); assert.equal(sig.aborted, true, 'teardown aborts the read in flight');
     await x.tick(60 * 60000); assert.equal(traffic().length, 4); assert.equal(x.timers.size, 0, 'teardown clears every timer');
   }
+  // 2026-10-11: beside the views, the presumed-human visitor-days the beacon
+  // scored likely automated: subtracted from nothing, unknown never a 0.
+  for (const [la, want] of [
+    [{visitor_days: 3, scored_visitor_days: 41, measured_days: 9, unmeasured_days: 5}, /Likely automated: 3 of 41 scored visitor-days, 9 of 14 days measured/],
+    [{visitor_days: 2, scored_visitor_days: 50, measured_days: 14, unmeasured_days: 0}, /Likely automated: 2 of 50 scored visitor-days(?!,)/],
+    [{visitor_days: null, scored_visitor_days: null, measured_days: 0, unmeasured_days: 14}, /Likely automated: not measured yet/],
+    [undefined, null],
+  ]) {
+    const x = harness(), root = new Element('div');
+    const stop = x.window.desktopModeWidgets['sn-site-views'](root); await flush();
+    x.calls.find(c => c.opts.path.includes('site-views')).resolve({days: [{date: 'd', views: 1}, {date: 'e', views: 2}], total: 3, delta_pct: null, groups: [], likely_automated: la}); await flush();
+    if (want) { assert.match(root.textContent, want); assert.doesNotMatch(root.textContent, /Likely automated: 0 of/, 'unknown is never painted as 0'); }
+    else assert.doesNotMatch(root.textContent, /Likely automated/, 'an older payload paints no line');
+    stop();
+  }
   // 23.8.0: SN Queue pairs Scheduled with Drafts under the card kit's
   // hairline, and paints the amber gap line only when the payload has a gap.
   {
