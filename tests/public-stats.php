@@ -295,6 +295,10 @@ ok( 1 === preg_match( '/<span class="sn-public-stats__bar" aria-hidden="true">/'
 ok( false !== strpos( $h, '<dt>Views that reached half the page</dt><dd>30%</dd>' ), 'half the page: the 50% milestone over views (270 / 900)' );
 ok( false !== strpos( $h, '<dt>Average depth reached</dt><dd>48%</dd>' ) && false !== strpos( $h, '<dt>Average time per view</dt><dd>1m 05s</dd>' ), 'average depth and time per view' );
 ok( false !== strpos( $h, '<dt>One page only</dt>' ), 'one page only, from the session rollup' );
+// 2026-10-11: How they read keeps the desktop's rows by key; an English label
+// reworded on the desktop would otherwise drop the row here without a sound.
+$__secsrc = (string) file_get_contents( __DIR__ . '/../inc/public-stats-sections.php' );
+ok( false === strpos( $__secsrc, "'Average depth reached'" ) && false === strpos( $__secsrc, "'One page only'" ) && 4 === count( array_filter( array_merge( snt_desktop_reading_page_rows( $GLOBALS['__totals'], (array) $GLOBALS['__dist'] ), (array) snt_desktop_reading_visit_rows( $GLOBALS['__sessions'] ) ), static fn( $r ) => in_array( $r['key'] ?? '', array( 'half', 'depth', 'time', 'one_page' ), true ) ) ), 'How they read keeps rows by key, and the desktop gives all four keys' );
 
 // Humans and machines.
 ok( false !== strpos( $h, '>4,200<' ) && false !== strpos( $h, '>Presumed human views<' ), 'presumed human views against machine reads' );
