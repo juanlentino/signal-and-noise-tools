@@ -55,6 +55,9 @@ $expected_types = array(
 	'time_avg_per_visit'        => array( 'number', 'null' ),
 	'integrity_violation'       => 'boolean',
 	'exact_metrics_since'       => array( 'string', 'null' ),
+	// Unreleased: beside the totals, never subtracted from them.
+	'likely_automated'          => array( 'object', 'null' ),
+	'basis'                     => 'string',
 );
 
 echo "\nGroup: summary output schema (Phase A spec-§4 contract)\n";
@@ -173,6 +176,7 @@ class AB_Stub_wpdb {
 }
 $GLOBALS['wpdb'] = new AB_Stub_wpdb();
 require __DIR__ . '/../inc/analytics-read.php';
+require_once __DIR__ . '/../inc/analytics-bot-signals-by-day.php'; // Unreleased: likely_automated per UTC day (abilities-analytics.php loads it too).
 
 /** True iff $value conforms to a declared JSON-Schema type (string or union). */
 function ab_type_ok( $value, $type ) {
@@ -181,7 +185,8 @@ function ab_type_ok( $value, $type ) {
 			|| ( 'integer' === $t && is_int( $value ) )
 			|| ( 'number' === $t && ( is_int( $value ) || is_float( $value ) ) )
 			|| ( 'boolean' === $t && is_bool( $value ) )
-			|| ( 'string' === $t && is_string( $value ) ) ) {
+			|| ( 'string' === $t && is_string( $value ) )
+			|| ( 'object' === $t && is_array( $value ) ) ) {
 			return true;
 		}
 	}
@@ -236,6 +241,22 @@ foreach ( $expected_types as $field => $type ) {
 		ok( is_array( $type ) && in_array( 'null', $type, true ), "legacy: $field is null AND its schema union allows null" );
 	}
 }
+
+echo "\nGroup: likely automated beside the presumed-human totals (inferred, nothing subtracted)\n";
+// The fixed clock puts range 7 at 2026-07-12..2026-07-18; two of its days carry signals.
+$GLOBALS['__opts'][ SNT_BOT_SIGNAL_BY_DAY_OPTION ] = array(
+	'2026-07-10' => array( 'visitor_days' => 50, 'likely_automated' => 50 ), // outside the range
+	'2026-07-17' => array( 'visitor_days' => 12, 'likely_automated' => 2 ),
+	'2026-07-18' => array( 'visitor_days' => 8, 'likely_automated' => 1 ),
+);
+$out = sn_ability_get_analytics_summary( array( 'range' => 7, 'class' => 'human' ) );
+ok( array( 'visitor_days' => 3, 'scored_visitor_days' => 20, 'measured_days' => 2, 'unmeasured_days' => 5, 'basis' => 'inferred', 'subtracted' => false ) === ( $out['likely_automated'] ?? null ), 'human: 3 of 20 scored visitor-days likely automated, 2 days measured, 5 unmeasured' );
+ok( 25 === $out['unique_visitor_days'], 'and nothing is subtracted from the presumed-human totals' );
+ok( 'inferred' === ( $out['basis'] ?? null ), 'the class itself is inferred: decided by a rule at read time' );
+$out = sn_ability_get_analytics_summary( array( 'range' => 7, 'class' => 'bot' ) );
+ok( array_key_exists( 'likely_automated', $out ) && null === $out['likely_automated'], 'suspect and bot carry likely_automated null: the score is a question about presumed humans' );
+ok( false !== strpos( $desc, 'presumed human (not flagged)' ) && false !== strpos( $desc, '`likely_automated`' ) && false !== strpos( $desc, 'unmeasured_days' ), 'the description says presumed human and documents likely_automated' );
+ok( 1 === preg_match( '/7\|14\|30\|90\|365\|all/', $desc ) && 1 === preg_match( '/human\|suspect\|bot/', $desc ), 'the range and class tokens the remote worker\'s tests read are still there' );
 
 echo "\nGroup: v10.0.0 — the deprecated quartet leaves the PUBLIC surface\n";
 foreach ( array( 'visits', 'scroll_avg', 'time_avg' ) as $gone ) {

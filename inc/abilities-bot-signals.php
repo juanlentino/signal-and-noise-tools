@@ -38,6 +38,14 @@ function sn_bot_signals_refresh() {
 	// Truncated means a half reached its LIMIT, not that two halves add up past it.
 	$readout['truncated'] = array() !== array_filter( $sets, static fn( $set ) => count( $set ) >= SNT_BOT_SIGNAL_LIMIT );
 	update_option( SNT_BOT_SIGNAL_OPTION, $readout + array( 'measured_at' => time() ), false );
+	// Unreleased: the same score per UTC day, so get-analytics-summary can
+	// say how many of a range's human visitor-days scored likely automated.
+	// Best-effort and separate: a failed or capped read keeps the stored days.
+	$bset = sn_analytics_stitched_rows( static fn( $s, $r ) => sn_bot_signals_by_day_sql( SNT_BOT_SIGNAL_DAYS, $s, $r ), $from, $now );
+	if ( null !== $bset && array() === array_filter( $bset, static fn( $set ) => count( $set ) >= SNT_BOT_SIGNAL_LIMIT ) ) {
+		$stored = get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION, array() );
+		update_option( SNT_BOT_SIGNAL_BY_DAY_OPTION, sn_bot_signals_by_day_merge( is_array( $stored ) ? $stored : array(), sn_bot_signals_by_day( array_merge( ...$bset ) ), $from ), false );
+	}
 	return true;
 }
 if ( defined( 'SN_ANALYTICS_ROLLUP_DAILY_HOOK' ) ) {

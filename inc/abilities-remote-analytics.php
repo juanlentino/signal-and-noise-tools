@@ -32,6 +32,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-bot-signals-by-day.php'; // likely_automated: its reader and the schema both doors share.
+
 /**
  * Permission callback for `signal-noise/remote-get-analytics-summary`.
  *
@@ -97,6 +99,9 @@ add_action( 'wp_abilities_api_init', function () {
 				'time_avg_per_visit'        => array( 'type' => array( 'number', 'null' ) ),
 				'integrity_violation'       => array( 'type' => 'boolean' ),
 				'exact_metrics_since'       => array( 'type' => array( 'string', 'null' ) ),
+				// Contract 16: byte-identical to the admin registration (one function).
+				'likely_automated'          => snt_analytics_likely_automated_schema(),
+				'basis'                     => array( 'type' => 'string', 'enum' => array( 'inferred' ) ),
 			),
 		),
 		'meta'                => array(

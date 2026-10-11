@@ -88,5 +88,29 @@ ok( false !== strpos( $o, 'Not subtracted' ) && 5 === substr_count( $o, '<tr><td
 ok( false !== strpos( $o, '50.0%' ), 'a rate paints as a percent' );
 ok( false !== strpos( $o, 'human baseline, not a bot rate' ), 'the caption names the short-page phone false positive' );
 
+// --- Unreleased: likely automated per UTC day, for any analytics range -------
+echo "\nGroup: likely automated, per day\n";
+$bsql = sn_bot_signals_by_day_sql();
+ok( false !== strpos( $bsql, "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day" ) && false !== strpos( $bsql, 'GROUP BY day, vid LIMIT 5000' ), 'the per-day read groups by the day alias and the visitor-day, never a function in GROUP BY' );
+ok( false !== strpos( $bsql, 'bitAnd(toUInt32(double8), 32) > 0' ) && false !== strpos( $bsql, 'AS human' ) && false === strpos( $bsql, 'SELECT (' ), 'only signal-bearing rows, the human flag, no subquery' );
+ok( ! sn_analytics_sql_too_long( $bsql ), 'under the AE character cap (' . strlen( $bsql ) . ')' );
+$dated = array();
+foreach ( $fx['rows'] as $i => $row ) {
+	$dated[] = $row + array( 'day' => $i < 4 ? '2026-09-28' : '2026-09-29' );
+}
+$bd = sn_bot_signals_by_day( $dated );
+ok( array( '2026-09-28' => array( 'visitor_days' => 2, 'likely_automated' => 0 ), '2026-09-29' => array( 'visitor_days' => 2, 'likely_automated' => 1 ) ) === $bd, 'per day: human visitor-days under the cap that carried signals, and how many scored at the threshold (the readout\'s human rule)' );
+$merged = sn_bot_signals_by_day_merge( array( '2026-09-01' => array( 'visitor_days' => 9, 'likely_automated' => 1 ), '2026-09-28' => array( 'visitor_days' => 99, 'likely_automated' => 9 ), '2026-09-29' => array( 'visitor_days' => 5, 'likely_automated' => 5 ) ), array( '2026-09-28' => array( 'visitor_days' => 2, 'likely_automated' => 0 ) ), '2026-09-15' );
+ok( array( '2026-09-01', '2026-09-28' ) === array_keys( $merged ) && 2 === $merged['2026-09-28']['visitor_days'], 'a nightly read REPLACES the days it covered (a day it no longer returns is dropped) and keeps the older ones' );
+$la = sn_bot_signals_likely_automated( $bd, '2026-09-24', '2026-09-30' );
+ok( array( 'visitor_days' => 1, 'scored_visitor_days' => 4, 'measured_days' => 2, 'unmeasured_days' => 5, 'basis' => 'inferred', 'subtracted' => false ) === $la, 'over a 7-day range: 1 of 4 scored visitor-days, on the 2 days the beacon carried signals; 5 days unmeasured' );
+$none = sn_bot_signals_likely_automated( array(), '2026-09-24', '2026-09-30' );
+ok( null === $none['visitor_days'] && null === $none['scored_visitor_days'] && 0 === $none['measured_days'] && 7 === $none['unmeasured_days'], 'no day measured: null, never 0, and all 7 days unmeasured' );
+$GLOBALS['__opt'] = array();
+$GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], $dated );
+ok( true === sn_bot_signals_refresh() && 2 === count( (array) get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION ) ), 'the nightly refresh stores the per-day reading beside the readout' );
+$GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], null );
+ok( true === sn_bot_signals_refresh() && 2 === count( (array) get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION ) ), 'a failed per-day read keeps the stored days and still stores the readout' );
+
 echo "\nResult: {$pass} passed, {$fail} failed.\n";
 exit( $fail > 0 ? 1 : 0 );
