@@ -46,17 +46,17 @@ $cards = static function ( $totals ) {
 };
 $c = $cards( array( 'likely_automated' => $r['likely_automated'] ) );
 ok( false !== strpos( $c, 'Likely automated (inferred)' ) && 1 === preg_match( '/Likely automated \(inferred\).{0,200}>3</s', $c ), 'classic: a Likely automated tile beside the totals, value 3' );
-ok( false !== strpos( $c, 'of 20 presumed-human visitor-days, never subtracted; measured 2 of 7 days' ), 'with its denominator, never subtracted, and the unmeasured days said' );
+ok( false !== strpos( $c, 'of 20 presumed-human visitor-days; inferred from beacon signals, never subtracted; measured 2 of 7 UTC days' ), 'with its denominator, never subtracted, and the unmeasured UTC days said' );
 
 $GLOBALS['__opt'] = array();
 $none = sn_analytics_human_rule_reading( '2026-10-04', '2026-10-10', 'human' );
 $c    = $cards( array( 'likely_automated' => $none['likely_automated'] ) );
-ok( false !== strpos( $c, '>not measured<' ) && false !== strpos( $c, 'measured 0 of 7 days' ), 'no day measured reads not measured, never 0' );
+ok( false !== strpos( $c, '>not measured<' ) && false !== strpos( $c, 'no UTC day in this range carried beacon signals' ) && false === strpos( $c, 'of 0' ), 'no day measured reads not measured, never 0, and never "of 0"' );
 
 $r = sn_analytics_human_rule_reading( '2026-10-04', '2026-10-10', 'bot' );
 ok( null === $r['likely_automated'] && false === strpos( $cards( array( 'likely_automated' => null ) ), 'Likely automated' ), 'the bot class carries no likely-automated tile' );
-$native = (string) file_get_contents( __DIR__ . '/../apps/sn-analytics/parts/painters/chrome-header.php' );
-ok( false !== strpos( $native, '\\snt_ev_paint_likely_automated( \\sn_analytics_likely_automated( $from, $to, $class ), \'kit\' )' ) && false !== strpos( $native, 'Presumed human (not flagged)' ), 'native: the Overview paints the same tile and says presumed human (not flagged)' );
+$sch = snt_analytics_likely_automated_schema();
+ok( false !== strpos( $sch['description'], 'UTC days' ), 'the schema says the days are UTC days: ' . $sch['description'] );
 
 echo "\nResult: {$pass} passed, {$fail} failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -113,7 +113,7 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	// RED-then-pin, 2026-10-10: 18-twin map, remote-analytics-rows joined.
 	'15' => '3158c41d6236a25c6e9f1a0c87904b5e03096b3c6e86b701fd3421be2856e2ec',
 	// RED-then-pin, 2026-10-11: evidence basis on the machine-readers and analytics summary twins.
-	'16' => 'b3a3a71e89dffbff52aeb5b88f7ade3e321669dfe52e73223d41748ddb5b6590',
+	'16' => '14565a3580c11d62d93822a5bf6c0cf5eaeacdd6d49c97c17846b205dc663be8',
 );
 
 /**

@@ -149,15 +149,9 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
 	}
 	// Unreleased: beside the presumed-human figures, the beacon's likely
 	// automated score (inferred, never subtracted); "not measured", never 0.
-	$la = $totals['likely_automated'] ?? null;
-	if ( is_array( $la ) ) {
-		$span    = (int) $la['measured_days'] + (int) $la['unmeasured_days'];
-		$cards[] = array(
-			'l'   => __( 'Likely automated (inferred)', 'signal-and-noise-tools' ),
-			'n'   => null === $la['visitor_days'] ? __( 'not measured', 'signal-and-noise-tools' ) : number_format_i18n( (int) $la['visitor_days'] ),
-			/* translators: 1: presumed-human visitor-days scored, 2: days measured, 3: days in the range. */
-			'sub' => sprintf( __( 'of %1$s presumed-human visitor-days, never subtracted; measured %2$d of %3$d days', 'signal-and-noise-tools' ), null === $la['scored_visitor_days'] ? '0' : number_format_i18n( (int) $la['scored_visitor_days'] ), (int) $la['measured_days'], $span ),
-		);
+	$la = function_exists( 'snt_analytics_likely_automated_card' ) ? snt_analytics_likely_automated_card( $totals['likely_automated'] ?? null ) : null;
+	if ( null !== $la ) {
+		$cards[] = $la;
 	}
 	// Body-only (no postbox wrapper): render_dashboard fuses this KPI strip and the
 	// trend chart into a single "Overview" panel (v6.5.2) so the sparkline is the

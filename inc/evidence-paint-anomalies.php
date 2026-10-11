@@ -1,7 +1,7 @@
 <?php
 /**
- * Signal & Noise Tools: reader behavior, verified apart, and the likely
- * automated tile. Section painters, host-agnostic.
+ * Signal & Noise Tools: reader behavior, verified apart.
+ * Section painters, host-agnostic.
  *
  * @package SignalNoiseTools
  */
@@ -64,34 +64,4 @@ function snt_ev_paint_anomalies( array $daily, $report, $surface = 'kit' ) {
 			: __( 'Reader behavior is not measured: the sensor did not answer.', 'signal-and-noise-tools' ) );
 	}
 	return snt_ev_box( $surface, __( 'Reader anomalies, verified apart', 'signal-and-noise-tools' ), $chart . $verdicts );
-}
-
-/**
- * The likely automated tile beside the presumed-human figure: inferred, never
- * subtracted; "not measured" for null, never 0.
- *
- * @param array|null $la      sn_bot_signals_likely_automated(), or null for another class.
- * @param string     $surface kit|classic.
- * @return string
- */
-function snt_ev_paint_likely_automated( $la, $surface = 'kit' ) {
-	if ( ! is_array( $la ) ) {
-		return '';
-	}
-	$span    = (int) $la['measured_days'] + (int) $la['unmeasured_days'];
-	$caption = null === $la['visitor_days']
-		? __( 'inferred from beacon signals, never subtracted; no day in this range carried them', 'signal-and-noise-tools' )
-		/* translators: %s: presumed-human visitor-days the beacon scored. */
-		: sprintf( __( 'of %s presumed-human visitor-days; inferred from beacon signals, never subtracted', 'signal-and-noise-tools' ), number_format_i18n( (int) $la['scored_visitor_days'] ) );
-	if ( (int) $la['measured_days'] < $span ) {
-		/* translators: 1: days measured, 2: days in the range. */
-		$caption .= '; ' . sprintf( __( 'measured %1$d of %2$d days', 'signal-and-noise-tools' ), (int) $la['measured_days'], $span );
-	}
-	return snt_ev_stat(
-		$surface,
-		null === $la['visitor_days'] ? __( 'not measured', 'signal-and-noise-tools' ) : number_format_i18n( (int) $la['visitor_days'] ),
-		__( 'Likely automated', 'signal-and-noise-tools' ),
-		$caption,
-		snt_basis_chip( 'inferred', 'classic' === $surface )
-	);
 }

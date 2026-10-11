@@ -15,7 +15,7 @@ namespace {
 	function sn_rss_tracker_window_stats_multi( $w ) { return array( 'most_recent' => '2026-10-11 09:00:00', 'windows' => array( 7 => array( 'total' => 40, 'uniques' => 5 ), 30 => array( 'total' => 210, 'uniques' => 9 ) ) ); }
 	$GLOBALS['__report'] = null;
 	function snt_ml_reader_anomalies() { return $GLOBALS['__report']; }
-	foreach ( array( 'machine-readers-taxonomy', 'machine-readers-render', 'machine-readers-insights', 'rights-evidence-compose', 'machine-readers-basis', 'machine-readers-basis-fold', 'machine-readers-ledger', 'mr-series', 'ml-reader-anomalies-split', 'machine-readers-readers-model', 'machine-readers-evidence-model', 'evidence-kit', 'evidence-paint-surface', 'evidence-paint-readers', 'evidence-paint-proof', 'evidence-paint-actors', 'evidence-paint-anomalies', 'evidence-paint-reference', 'evidence-paint-rights', 'analytics-machine-views', 'analytics-view-machine-readers', 'analytics-view-reader-evidence', 'analytics-admin' ) as $f ) {
+	foreach ( array( 'machine-readers-taxonomy', 'machine-readers-render', 'machine-readers-insights', 'rights-evidence-compose', 'machine-readers-basis', 'machine-readers-basis-fold', 'machine-readers-ledger', 'mr-series', 'ml-reader-anomalies-split', 'machine-readers-readers-model', 'machine-readers-evidence-model', 'evidence-kit', 'evidence-paint-surface', 'evidence-paint-readers', 'evidence-paint-proof', 'evidence-paint-actors', 'evidence-paint-anomalies', 'evidence-paint-reference', 'evidence-paint-rights', 'analytics-machine-views', 'analytics-view-machine-readers', 'analytics-view-reader-evidence', 'analytics-admin', 'analytics-likely-automated' ) as $f ) {
 		require_once SNT_PATH . "inc/$f.php";
 	}
 }
@@ -24,6 +24,7 @@ namespace SignalNoise\OpenStationHost\Analytics\Painters {
 	require_once SNT_PATH . 'apps/sn-analytics/parts/paint-kit.php';
 	require_once SNT_PATH . 'apps/sn-analytics/parts/painters/view-machine-readers.php';
 	require_once SNT_PATH . 'apps/sn-analytics/parts/painters/view-reader-evidence.php';
+	require_once SNT_PATH . 'apps/sn-analytics/parts/painters/chrome-header.php';
 }
 namespace {
 	$pass = 0; $fail = 0;
@@ -104,7 +105,14 @@ namespace {
 		ok( false !== strpos( $h, esc_html( $finding ) ), "machine-readers ($s): the finding leads the view" );
 		ok( false !== strpos( $h, 'How each count is known: Reader evidence' ), "machine-readers ($s): a visible-text link to Reader evidence" );
 	}
-	ok( false !== strpos( snt_ev_paint_likely_automated( array( 'visitor_days' => null, 'scored_visitor_days' => null, 'measured_days' => 0, 'unmeasured_days' => 7, 'basis' => 'inferred', 'subtracted' => false ) ), 'value="not measured"' ), 'likely automated null reads "not measured", never 0' );
+	$GLOBALS['__options'][ SNT_BOT_SIGNAL_BY_DAY_OPTION ] = array( '2026-10-09' => array( 'visitor_days' => 12, 'likely_automated' => 2 ) );
+	$head = call_user_func( $P . 'paint_chrome_header', array( 'from' => '2026-10-05', 'to' => '2026-10-11', 'class' => 'human' ) )['html'];
+	$grid = substr( $head, (int) strpos( $head, '<os-grid' ), strpos( $head, '</os-grid>' ) - (int) strpos( $head, '<os-grid' ) );
+	ok( false !== strpos( $grid, 'label="Likely automated (inferred)"' ) && false !== strpos( $grid, 'value="2"' ) && false !== strpos( $grid, 'label="Views"' ), 'native Overview: the likely automated tile sits inside the stats row, beside Views' );
+	ok( false !== strpos( $head, 'measured 1 of 7 UTC days' ), 'native Overview: the days are UTC days' );
+	$GLOBALS['__options'][ SNT_BOT_SIGNAL_BY_DAY_OPTION ] = array();
+	$head = call_user_func( $P . 'paint_chrome_header', array( 'from' => '2026-10-05', 'to' => '2026-10-11', 'class' => 'human' ) )['html'];
+	ok( 1 === substr_count( $head, 'not measured' ) && false === strpos( $head, 'of 0' ), 'native Overview: null reads "not measured" once, never 0 or "of 0"' );
 
 	echo "\nGroup D: every figure that left a fold is painted\n";
 	$mk = $kit['machine-readers'];

@@ -76,7 +76,7 @@ function snt_analytics_likely_automated_schema() {
 	$count = array( 'type' => array( 'integer', 'null' ) );
 	return array(
 		'type'        => array( 'object', 'null' ),
-		'description' => 'Class human only (null otherwise). Presumed-human visitor-days the beacon bot-signal score marks likely automated, beside the totals, never subtracted. Basis inferred: a heuristic.',
+		'description' => 'Class human only (null otherwise). Presumed-human visitor-days the beacon bot-signal score marks likely automated, beside the totals, never subtracted. Summed over the UTC days the range covers (the store is kept per UTC day), so an edge of a site-local range can differ by a day; measured_days and unmeasured_days are UTC days. Basis inferred: a heuristic.',
 		'properties'  => array(
 			'visitor_days'        => $count,
 			'scored_visitor_days' => $count,
@@ -85,5 +85,35 @@ function snt_analytics_likely_automated_schema() {
 			'basis'               => array( 'type' => 'string', 'enum' => array( 'inferred' ) ),
 			'subtracted'          => array( 'type' => 'boolean' ),
 		),
+	);
+}
+
+/**
+ * The likely automated tile as a stats-row card ({l, n, sub}), the same on the
+ * classic Overview and the native header: "not measured" once for null, never
+ * 0 and never "of 0"; the days are UTC days.
+ *
+ * @param array|null $la sn_bot_signals_likely_automated(), or null for another class.
+ * @return array|null
+ */
+function snt_analytics_likely_automated_card( $la ) {
+	if ( ! is_array( $la ) ) {
+		return null;
+	}
+	$span = (int) $la['measured_days'] + (int) $la['unmeasured_days'];
+	if ( null === $la['visitor_days'] ) {
+		$sub = __( 'no UTC day in this range carried beacon signals; inferred, never subtracted', 'signal-and-noise-tools' );
+	} else {
+		/* translators: %s: presumed-human visitor-days the beacon scored. */
+		$sub = sprintf( __( 'of %s presumed-human visitor-days; inferred from beacon signals, never subtracted', 'signal-and-noise-tools' ), number_format_i18n( (int) $la['scored_visitor_days'] ) );
+		if ( (int) $la['measured_days'] < $span ) {
+			/* translators: 1: UTC days measured, 2: UTC days in the range. */
+			$sub .= '; ' . sprintf( __( 'measured %1$d of %2$d UTC days', 'signal-and-noise-tools' ), (int) $la['measured_days'], $span );
+		}
+	}
+	return array(
+		'l'   => __( 'Likely automated (inferred)', 'signal-and-noise-tools' ),
+		'n'   => null === $la['visitor_days'] ? __( 'not measured', 'signal-and-noise-tools' ) : number_format_i18n( (int) $la['visitor_days'] ),
+		'sub' => $sub,
 	);
 }
