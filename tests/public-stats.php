@@ -335,7 +335,8 @@ $GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_OPT ]['machines'] += array(
 	'tokens' => array( array( 'token' => 'Google-Extended', 'hits' => 575 ) ),
 );
 $ht = $fresh();
-ok( false !== strpos( $ht, '<h3>AI training, claimed against proof</h3>' ), 'the AI-training block has its heading' );
+ok( false !== strpos( $ht, '<section class="sn-public-stats__training"><h2>AI training, claimed against proof</h2>' ), 'AI training is its own section, the page\'s width' );
+ok( strpos( $ht, '</div><section class="sn-public-stats__training">' ) !== false && strpos( $ht, 'sn-public-stats__training' ) < strpos( $ht, '<h2>Most read</h2>' ), 'under the three columns, above Most read' );
 ok( false !== strpos( $ht, '<strong>4,760</strong> reads came from crawlers that say they gather AI training data. Cloudflare verified <strong>50</strong> of them.' ), 'the claim and the proof, as text' );
 ok( 1 === preg_match( '/<span class="sn-public-stats__proof" aria-hidden="true">(.*?)<\/span><\/span>/s', $ht, $pm ) && array( 'verified', 'claimed', 'before' ) === ( preg_match_all( '/data-part="(\w+)"/', $pm[1], $pp ) ? $pp[1] : array() ), 'one decorative bar, its parts in order: verified, named only, before verification' );
 ok( false !== strpos( $ht, '<li><span class="sn-public-stats__key-sw" data-part="verified"></span>Verified by Cloudflare <span class="sn-public-stats__key-n">50</span></li>' ) && false !== strpos( $ht, 'Named themselves, not verified <span class="sn-public-stats__key-n">2,665</span>' ) && false !== strpos( $ht, 'Before verification was recorded <span class="sn-public-stats__key-n">2,045</span>' ), 'the key carries every part as a count' );

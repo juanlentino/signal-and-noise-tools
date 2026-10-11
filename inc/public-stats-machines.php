@@ -58,7 +58,6 @@ function sn_public_stats_machines_html( $data ) {
 		}
 		$out .= '<h3>' . esc_html__( 'Who the machines are', 'signal-and-noise-tools' ) . '</h3>' . sn_public_stats_bars_html( $rows );
 	}
-	$out .= sn_public_stats_proof_html( $m['train'] ?? null ) . sn_public_stats_tokens_html( $m['tokens'] ?? null );
 	/* translators: 1: every machine read, 2: this site's own. */
 	$all_line = null === $own ? '' : sprintf( __( '%1$s machine reads in all; %2$s were this site’s own monitors and checks, not readers.', 'signal-and-noise-tools' ), number_format_i18n( $total ), number_format_i18n( $own ) ) . ' ';
 	return $out . '<p class="sn-public-stats__note">' . esc_html( $all_line . __( 'Automated counts bot pageviews that reached the tracker. Machine reads count every request the edge sensor saw. They are different measures.', 'signal-and-noise-tools' ) )
@@ -66,13 +65,18 @@ function sn_public_stats_machines_html( $data ) {
 }
 
 /**
- * AI training, claimed against proof: one sentence, one decorative bar, a
- * key that carries every part as a count. '' for an older snapshot.
+ * AI training, claimed against proof: its own section under the columns, so
+ * the bar runs the page's width (the verified sliver reads at its true size)
+ * and Humans and machines stays a column the height of its neighbors. One
+ * sentence, one decorative bar, a key that carries every part as a count,
+ * then the control tokens. '' for an older snapshot or another window.
  *
- * @param array|null $t {claimed, verified, unverified, unverifiable}.
+ * @param array $data The assembled payload.
  * @return string
  */
-function sn_public_stats_proof_html( $t ) {
+function sn_public_stats_training_html( $data ) {
+	$m = $data['machines'] ?? null;
+	$t = is_array( $m ) ? ( $m['train'] ?? null ) : null;
 	if ( ! is_array( $t ) || (int) ( $t['claimed'] ?? 0 ) < 1 ) {
 		return '';
 	}
@@ -93,8 +97,9 @@ function sn_public_stats_proof_html( $t ) {
 	}
 	/* translators: 1: reads claiming AI training, 2: verified by Cloudflare. */
 	$lead = sprintf( esc_html__( '%1$s reads came from crawlers that say they gather AI training data. Cloudflare verified %2$s of them.', 'signal-and-noise-tools' ), '<strong>' . esc_html( number_format_i18n( $claimed ) ) . '</strong>', '<strong>' . esc_html( number_format_i18n( (int) ( $t['verified'] ?? 0 ) ) ) . '</strong>' );
-	return '<h3>' . esc_html__( 'AI training, claimed against proof', 'signal-and-noise-tools' ) . '</h3><p class="sn-public-stats__claim">' . $lead . '</p>'
-		. '<span class="sn-public-stats__proof" aria-hidden="true">' . $bar . '</span><ul class="sn-public-stats__key">' . $key . '</ul>';
+	return '<section class="sn-public-stats__training"><h2>' . esc_html__( 'AI training, claimed against proof', 'signal-and-noise-tools' ) . '</h2><p class="sn-public-stats__claim">' . $lead . '</p>'
+		. '<span class="sn-public-stats__proof" aria-hidden="true">' . $bar . '</span><ul class="sn-public-stats__key">' . $key . '</ul>'
+		. sn_public_stats_tokens_html( $m['tokens'] ?? null ) . '</section>';
 }
 
 /**

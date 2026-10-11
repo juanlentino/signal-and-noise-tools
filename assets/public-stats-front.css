@@ -121,19 +121,21 @@ main.is-layout-constrained:has(.sn-public-stats)>*,.wp-block-post-content>.sn-pu
 .sn-public-stats__live-hour rect.is-now{fill:var(--sn-ps-red)}
 .sn-public-stats__live-ax{display:flex;justify-content:space-between;max-width:22rem;font-family:var(--sn-ps-mono);font-size:max(.68rem,11px);color:var(--sn-ps-dim);margin-top:.2rem}
 
-/* 2026-10-11: AI training, claimed against proof. One outlined track in the
-   bars' idiom, split by how each read is known: verified in the page's red
-   (the eye goes to how little of it there is), named-only hatched in ink,
-   before verification was recorded in the rule gray. Decorative: the key
-   below carries every part as a count. A part never draws under 3px. */
-.sn-public-stats__claim{font-family:var(--sn-ps-mono);font-size:.8rem;margin:0 0 .6rem;max-width:60ch}
-.sn-public-stats__claim strong{font-size:1rem}
-.sn-public-stats__proof{display:flex;gap:2px;height:.9rem;border:2px solid currentColor;padding:1px}
+/* 2026-10-11: AI training, claimed against proof, its own section under the
+   columns. The two figures take the tiles' heading numerals inside one plain
+   sentence; the bar runs the page's width in the bars' outlined idiom, split
+   by how each read is known: verified in the page's red (the eye goes to how
+   little of it there is), named-only hatched in ink, before verification was
+   recorded in the rule gray. Decorative: the key carries every part as a
+   count. A part never draws under 3px. */
+.sn-public-stats__claim{font-family:var(--sn-ps-mono);font-size:.95rem;line-height:1.5;margin:0 0 .9rem;max-width:62ch}
+.sn-public-stats__claim strong{font-family:var(--wp--preset--font-family--heading,'Bebas Neue',Impact,sans-serif);font-size:clamp(1.7rem,3vw,2.4rem);font-weight:400;line-height:1;font-variant-numeric:tabular-nums}
+.sn-public-stats__proof{display:flex;gap:2px;height:1.6rem;border:2px solid currentColor;padding:2px}
 .sn-public-stats__proof span{flex-basis:0;min-width:3px}
 .sn-public-stats__proof [data-part="verified"],.sn-public-stats__key-sw[data-part="verified"]{background:var(--sn-ps-red)}
-.sn-public-stats__proof [data-part="claimed"],.sn-public-stats__key-sw[data-part="claimed"]{background:repeating-linear-gradient(135deg,currentColor 0 1.5px,transparent 1.5px 4px)}
+.sn-public-stats__proof [data-part="claimed"],.sn-public-stats__key-sw[data-part="claimed"]{background:repeating-linear-gradient(135deg,currentColor 0 1.5px,transparent 1.5px 5px)}
 .sn-public-stats__proof [data-part="before"],.sn-public-stats__key-sw[data-part="before"]{background:var(--sn-ps-rule)}
-.sn-public-stats__key{list-style:none;margin:.5rem 0 0;padding:0;font-family:var(--sn-ps-mono);font-size:max(.72rem,11px);display:flex;flex-wrap:wrap;gap:.3rem 1.1rem}
-.sn-public-stats__key li{display:flex;align-items:center;gap:.45em}
-.sn-public-stats__key-sw{display:inline-block;width:.8em;height:.8em;border:1px solid currentColor}
+.sn-public-stats__key{list-style:none;margin:.6rem 0 0;padding:0;font-family:var(--sn-ps-mono);font-size:max(.75rem,11px);display:flex;flex-wrap:wrap;gap:.3rem 1.6rem}
+.sn-public-stats__key li{display:flex;align-items:center;gap:.5em}
+.sn-public-stats__key-sw{display:inline-block;width:.85em;height:.85em;border:1px solid currentColor}
 .sn-public-stats__key-n{font-weight:700;font-variant-numeric:tabular-nums}

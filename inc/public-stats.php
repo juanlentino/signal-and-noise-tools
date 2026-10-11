@@ -430,6 +430,7 @@ function sn_public_stats_html() {
 
 	$out .= sn_public_stats_rhythm_html( $data );
 	$out .= sn_public_stats_sections_html( $data );
+	$out .= sn_public_stats_training_html( $data ); // 2026-10-11: AI training, claimed against proof, the page's width.
 
 	if ( array() !== $data['top'] ) {
 		$out .= '<h2>' . esc_html__( 'Most read', 'signal-and-noise-tools' ) . '</h2><ol class="sn-public-stats__top">';
