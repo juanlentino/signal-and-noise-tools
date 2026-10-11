@@ -117,7 +117,7 @@
 	gap: 6px;
 	padding: 2px 10px;
 	border-radius: 4px; /* v8.0.3 (S2-B): squared chip, was the 999px round pill */
-	font-size: 0.82em;
+	font-size: max(0.82em, 11px); /* the 11px floor: 0.82em of a 12px cell was 9.84px */
 	font-weight: 500;
 	background: rgba(0,0,0,0.04);
 	color: var(--sn-text);

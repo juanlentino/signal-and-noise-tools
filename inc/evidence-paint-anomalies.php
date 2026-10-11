@@ -38,17 +38,27 @@ function snt_ev_paint_anomalies( array $daily, $report, $surface = 'kit' ) {
 				'height'  => 140,
 			)
 		);
-	} else {
+	} elseif ( function_exists( 'snt_an_trend_svg' ) && count( $daily['columns'] ) > 1 ) {
+		// Classic and S&N Analytics: the Overview's chart, verified as the line
+		// and every third-party read as the dashed overlay on one scale.
 		$days = snt_mr_day_range( $daily['from'], $daily['to'] );
-		$rows = array();
-		foreach ( $daily['columns'] as $i => $c ) {
-			$rows[] = array( 'day' => (string) ( $days[ $i ] ?? '' ), 'verified' => number_format_i18n( (int) $c[0] ), 'unverified' => number_format_i18n( (int) $c[1] ) );
-		}
-		$chart = snt_ev_table( $surface, array( 'day' => __( 'Day', 'signal-and-noise-tools' ), 'verified' => __( 'Verified', 'signal-and-noise-tools' ), 'unverified' => __( 'Unverified', 'signal-and-noise-tools' ) ), $rows, 0, __( 'Third-party reads per day, verified and unverified', 'signal-and-noise-tools' ) );
+		$fmt  = static fn( $d ) => '' === (string) $d ? '' : gmdate( 'M j', (int) strtotime( $d . ' 00:00:00 UTC' ) );
+		ob_start();
+		snt_an_trend_svg(
+			array_map( static fn( $c ) => (int) $c[0], $daily['columns'] ),
+			array(
+				'overlay_series' => array_map( static fn( $c ) => (int) $c[0] + (int) $c[1], $daily['columns'] ),
+				'axis'           => array( $fmt( $days[0] ?? '' ), $fmt( end( $days ) ) ),
+				'id_suffix'      => 'MrEv',
+				'aria_label'     => __( 'Third-party reads per day: verified, and every read', 'signal-and-noise-tools' ),
+			)
+		);
+		$chart = '<p class="sn-mr-key"><span class="sn-mr-key__line"></span>' . esc_html__( 'Verified by Cloudflare', 'signal-and-noise-tools' ) . ' <span class="sn-mr-key__dash"></span>' . esc_html__( 'Every third-party read', 'signal-and-noise-tools' ) . '</p>' . (string) ob_get_clean()
+			. snt_ev_sr_days_table( __( 'Third-party reads per day', 'signal-and-noise-tools' ), $days, array( __( 'Verified', 'signal-and-noise-tools' ) => array_map( static fn( $c ) => (int) $c[0], $daily['columns'] ), __( 'Unverified', 'signal-and-noise-tools' ) => array_map( static fn( $c ) => (int) $c[1], $daily['columns'] ) ) );
 	}
 	$verdicts = '';
 	foreach ( (array) ( is_array( $report ) ? ( $report['co_movement'] ?? array() ) : array() ) as $c ) {
-		$chips = implode( ' ', array_map( static fn( $f ) => $classic ? '<span class="sn-mr-chip">' . esc_html( $f ) . '</span>' : snt_kit_chip( $f ), (array) $c['families'] ) );
+		$chips = $classic ? '<strong>' . esc_html( implode( ', ', (array) $c['families'] ) ) . '</strong>' : implode( ' ', array_map( static fn( $f ) => snt_kit_chip( $f ), (array) $c['families'] ) );
 		$verdicts .= snt_ev_verdict( $surface, esc_html( sprintf(
 			/* translators: 1: families, 2: rose or fell, 3: network owner, 4: day. */
 			__( '%1$d families %2$s together from %3$s on %4$s, unverified:', 'signal-and-noise-tools' ),

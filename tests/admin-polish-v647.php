@@ -133,5 +133,10 @@ ob_start(); sn_rss_tracker_render_stats( $stats ); $h = ob_get_clean();
 ap_ok( false !== strpos( $h, 'class="sn-glance"' ), '#4 RSS activity renders through the shared glance grid' );
 ap_ok( false === strpos( $h, 'sn-rss-activity-card' ), '#4 the bespoke .sn-rss-activity-card hero is gone' );
 
+// 2026-10-11: a status pill holds the 11px floor; 0.82em of a 12px table cell
+// painted 181 pills at 9.84px in S&N Analytics > Posts.
+preg_match( '/\n\.sn-pill \{[^}]*\}/', (string) file_get_contents( __DIR__ . '/../assets/admin.css' ), $__pill );
+ap_ok( isset( $__pill[0] ) && false !== strpos( $__pill[0], 'font-size: max(0.82em, 11px)' ), 'a status pill never draws under 11px' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

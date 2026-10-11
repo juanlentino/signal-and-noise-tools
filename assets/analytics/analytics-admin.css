@@ -713,59 +713,34 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 /* 16.2.3: a table's title inside a panel that already has a header (the Bing band). */
 .sn-an-postbox .inside .sn-an-subhead { margin: 14px 0 6px; font-size: 13px; font-weight: 600; }
 
-/* ── How each count is known (inc/evidence-kit.php, inc/evidence-paint-*.php):
-   proof fills, claims outline. Solid = verified for its purpose, half = verified
-   otherwise, hatched = claimed only, dashed outline = before verification was
-   recorded. The strip is aria-hidden; its numbers sit beside it as text. */
-.snt-evidence {
-	display: flex;
-	gap: 2px;
-	width: 100%;
-	min-width: 60px;
-	height: 8px;
-	border-radius: 999px;
-	overflow: hidden;
-	background: var( --os-ui-surface-sunken, rgba( 127, 127, 127, 0.18 ) );
-}
-.snt-evidence[data-size="hero"] { height: 12px; margin: 8px 0; }
-.snt-evidence[data-size="mini"] { height: 6px; }
-.snt-evidence__seg { flex: 0 1 var( --w ); min-width: 3px; }
-.snt-evidence__seg[data-part="verified_matched"] { background: var( --os-ui-accent, #8c5cff ); }
-.snt-evidence__seg[data-part="verified"] { box-sizing: border-box; border: 1px solid var( --os-ui-accent, #8c5cff ); background: color-mix( in srgb, var( --os-ui-accent, #8c5cff ) 50%, transparent ); }
-.snt-evidence__seg[data-part="unverified"] { background: repeating-linear-gradient( 135deg, var( --os-ui-fg-muted, #6b6672 ) 0 2px, transparent 2px 5px ); }
-.snt-evidence__seg[data-part="unverifiable"] { box-sizing: border-box; background: none; border: 1px dashed var( --os-ui-border-strong, #6b6672 ); }
-.snt-evidence-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0; font-size: 12px; color: var( --os-ui-fg-muted, inherit ); }
-.snt-evidence-legend__item { display: inline-flex; align-items: center; gap: 6px; }
-.snt-evidence-legend__swatch { display: inline-block; flex: 0 0 10px; width: 10px; height: 10px; border-radius: var(--sn-an-radius); }
-.snt-evidence-none, .snt-ev-muted { font-size: 12px; color: var( --os-ui-fg-muted, inherit ); }
-.snt-ev-muted { margin: 6px 0 0; }
-.snt-ev-hero--band { position: relative; isolation: isolate; overflow: hidden; margin-block-end: 18px; padding: 16px; border: 1px solid var( --os-ui-border, rgba( 127, 127, 127, 0.25 ) ); border-radius: var(--sn-an-radius); box-shadow: var( --os-ui-holo-edge, none ); }
-.snt-ev-mesh { position: absolute; z-index: -1; inset: 0; background: var( --os-ui-hero-mesh, none ); }
-.snt-ev-band { display: grid; grid-template-columns: minmax( 140px, 1fr ) 3fr; gap: 12px 24px; padding: 16px 0; border-top: 1px solid var( --os-ui-border, rgba( 127, 127, 127, 0.25 ) ); }
-.snt-ev-band__h { margin: 0; font-size: 13px; font-weight: 600; }
-.snt-ev-band__items { display: grid; grid-template-columns: repeat( 2, minmax( 0, 1fr ) ); gap: 12px 24px; }
-@media ( max-width: 640px ) {
-	.snt-ev-band, .snt-ev-band__items { grid-template-columns: 1fr; }
-}
-.snt-ev-ranks { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
-.snt-ev-rank { display: grid; grid-template-columns: minmax( 0, 2fr ) minmax( 60px, 3fr ) auto; align-items: center; gap: 8px; font-size: 13px; }
-.snt-ev-bar { height: 6px; overflow: hidden; border-radius: 999px; background: var( --os-ui-surface-sunken, rgba( 127, 127, 127, 0.18 ) ); }
-.snt-ev-bar > span { display: block; width: var( --w ); min-width: 3px; height: 100%; background: var( --os-ui-fg-muted, #6b6672 ); }
-.snt-ev-rank__n { font-variant-numeric: tabular-nums; }
-/* The basis chip, classic twin of os-chip (inc/evidence-kit.php snt_basis_chip). */
-.sn-mr-chip { display: inline-block; padding: 1px 8px; border: 1px solid var(--sn-an-hairline); border-radius: 999px; background: #f6f7f7; color: var(--sn-an-muted); font-size: 11px; line-height: 18px; }
-.sn-mr-chip[data-tone="success"] { border-color: var(--sn-an-up); background: #edfaef; color: var(--sn-an-up); }
-.sn-mr-chip[data-tone="info"] { border-color: var(--sn-an-accent); background: #f0f6fc; color: var(--sn-an-accent); }
-/* A stat tile's caption on the classic machine views (inc/evidence-paint-surface.php snt_ev_stat). */
-.sn-kpi-caption { margin: 4px 0 0; font-size: 12px; color: var(--sn-an-muted); }
-/* The classic machine views' tile row (inc/evidence-paint-surface.php snt_ev_tiles): up to four
-   across, then four columns; an odd count lets the first tile span two so no row ends on a lone card. */
-.sn-mr-kpi-row { grid-template-columns: repeat(var(--sn-kpi-cols, 4), minmax(0, 1fr)); }
-.sn-mr-kpi-row > .sn-kpi { border-right: 1px solid var(--sn-an-hairline); }
-.sn-mr-kpi-row--wrap.sn-mr-kpi-row--odd > .sn-kpi:first-child { grid-column: span 2; }
-.sn-kpi-basis { margin: 6px 0 0; }
-.sn-kpi .snt-evidence { margin-top: 6px; }
+/* ── How each count is known: the machine views (2026-10-11 redesign). One
+   block for both surfaces: --sn-an-* tokens are wp-admin's palette on the
+   classic page and the desktop's in S&N Analytics (sn-analytics.css remaps
+   them). Bars and strips are aria-hidden; their counts are the row's text. */
+.snt-evidence { display: flex; gap: 2px; width: 100%; min-width: 60px; height: 8px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--sn-an-muted) 18%, transparent); }
+.snt-evidence__seg, .sn-mr-bar__seg { flex: 0 1 var(--w); min-width: 3px; height: 100%; }
+:is(.snt-evidence__seg, .sn-mr-bar__seg):is([data-part="verified_matched"], [data-part="matched"]) { background: var(--sn-an-accent); }
+:is(.snt-evidence__seg, .sn-mr-bar__seg)[data-part="verified"] { box-sizing: border-box; border: 1px solid var(--sn-an-accent); background: color-mix(in srgb, var(--sn-an-accent) 35%, transparent); }
+:is(.snt-evidence__seg, .sn-mr-bar__seg):is([data-part="unverified"], [data-part="claimed"]) { background: repeating-linear-gradient(135deg, var(--sn-an-muted) 0 2px, transparent 2px 5px); }
+:is(.snt-evidence__seg, .sn-mr-bar__seg):is([data-part="unverifiable"], [data-part="before"]) { box-sizing: border-box; border: 1px dashed var(--sn-an-muted); background: none; }
+.sn-mr-bars { display: grid; gap: 2px; margin-top: 4px; }
+.sn-mr-bars__row { display: grid; grid-template-columns: minmax(84px, 9rem) minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 7px 0; border-bottom: 1px solid var(--sn-an-hairline); }
+.sn-mr-bars__row:last-child { border-bottom: 0; }
+.sn-mr-bars__label { font-weight: 600; color: var(--sn-an-text); overflow-wrap: anywhere; }
+.sn-mr-bars__n { font-size: 12px; color: var(--sn-an-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sn-mr-bars__n strong { color: var(--sn-an-text); }
+.sn-mr-bars__parts { display: block; font-size: 11px; white-space: normal; text-align: end; }
+.snt-ev-muted, .snt-evidence-none { color: var(--sn-an-muted); font-size: max(12px, 0.92em); }
+.sn-mr-bar { display: block; min-width: 0; }
+.sn-mr-bar__fill { display: flex; gap: 2px; width: var(--w); height: 10px; border-radius: 999px; overflow: hidden; }
+.sn-mr-key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin: 4px 0 10px; font-size: 12px; color: var(--sn-an-muted); }
+.sn-mr-key__item { display: inline-flex; align-items: center; gap: 6px; }
+.sn-mr-key .sn-mr-bar__seg { display: inline-block; flex: none; width: 10px; min-width: 10px; height: 10px; border-radius: 0; }
+.sn-mr-key__line, .sn-mr-key__dash { display: inline-block; width: 16px; margin-right: 6px; border-top: 2px solid var(--sn-an-accent); vertical-align: middle; }
+.sn-mr-key__dash { margin-left: 8px; border-top: 2px dashed var(--sn-an-muted); }
+/* A finding that is a warning (inc/evidence-paint-surface.php snt_ev_verdict). */
+.sn-mr-verdict { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--sn-an-warn-border, #dba617); border-left-width: 3px; border-radius: var(--sn-an-radius); background: var(--sn-an-warn-bg, #fcf9e8); color: var(--sn-an-text); font-size: 13px; }
 @media screen and (max-width: 782px) {
-	.sn-mr-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-	.sn-mr-kpi-row--odd > .sn-kpi:first-child { grid-column: span 2; }
+	.sn-mr-bars__row { grid-template-columns: minmax(0, 1fr) auto; }
+	.sn-mr-bars__row .sn-mr-bar { grid-column: 1 / -1; grid-row: 2; }
 }

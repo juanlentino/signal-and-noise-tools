@@ -96,18 +96,3 @@ function snt_ev_paint_feeds( array $stats, $surface = 'kit' ) {
 	return snt_ev_box( $surface, __( 'Feeds', 'signal-and-noise-tools' ), snt_ev_lead( $surface, $lead ) . snt_ev_table( $surface, array( 'window' => __( 'Window', 'signal-and-noise-tools' ), 'fetches' => __( 'Fetches', 'signal-and-noise-tools' ), 'fetchers' => __( 'Fetchers', 'signal-and-noise-tools' ) ), $rows, 0, __( 'Feeds', 'signal-and-noise-tools' ) ) );
 }
 
-/**
- * What changed: the family delta cards, as notices.
- *
- * @param array  $cards   snt_mr_family_delta_cards().
- * @param string $surface kit|classic.
- * @return string
- */
-function snt_ev_paint_delta_cards( array $cards, $surface = 'kit' ) {
-	$out = '';
-	foreach ( $cards as $c ) {
-		$body = '<b>' . esc_html( (string) ( $c['title'] ?? '' ) ) . '</b>' . ( '' !== (string) ( $c['detail'] ?? '' ) ? ' ' . esc_html( (string) $c['detail'] ) : '' );
-		$out .= 'kit' === $surface ? snt_kit_notice( 'info', $body ) : wp_get_admin_notice( $body, array( 'type' => 'info', 'additional_classes' => array( 'inline' ) ) );
-	}
-	return $out;
-}

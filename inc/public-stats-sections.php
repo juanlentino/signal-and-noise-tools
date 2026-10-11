@@ -115,9 +115,10 @@ function sn_public_stats_reading_rows( $totals, $dist, $sessions ) {
 	if ( function_exists( 'snt_desktop_reading_visit_rows' ) ) {
 		$rows = array_merge( $rows, (array) snt_desktop_reading_visit_rows( $sessions ) );
 	}
-	// ponytail: kept by the desktop's label, the way the desktop filters its own rows.
-	$keep = array( 'Views that reached half the page', 'Average depth reached', 'Average time per view', 'One page only' );
-	$rows = array_values( array_filter( $rows, static fn( $r ) => in_array( $r['label'], $keep, true ) && '' !== (string) $r['value'] ) );
+	// Kept by key, not by the desktop's English label: a reworded or translated
+	// label would have dropped the row from /stats without a sound.
+	$keep = array( 'half', 'depth', 'time', 'one_page' );
+	$rows = array_values( array_filter( $rows, static fn( $r ) => in_array( $r['key'] ?? '', $keep, true ) && '' !== (string) $r['value'] ) );
 	return array() === $rows ? null : $rows;
 }
 
@@ -144,10 +145,19 @@ function sn_public_stats_machines( $totals, $agg, $from, $to ) {
 		return null;
 	}
 	$split = null;
-	if ( is_array( $agg ) && ! empty( $agg['ok'] ) && empty( $agg['truncated'] ) && function_exists( 'snt_desktop_machine_readers_identity' ) ) {
-		$split = snt_desktop_machine_readers_identity( array_values( array_filter( (array) ( $agg['rows'] ?? array() ), $in ) ) );
+	$out   = array( 'total' => (int) array_sum( array_column( $days, 'hits' ) ) );
+	if ( is_array( $agg ) && ! empty( $agg['ok'] ) && empty( $agg['truncated'] ) ) {
+		$rows  = array_values( array_filter( (array) ( $agg['rows'] ?? array() ), $in ) );
+		$split = function_exists( 'snt_desktop_machine_readers_identity' ) ? snt_desktop_machine_readers_identity( $rows ) : null;
+		// 2026-10-11: AI training claimed against proof, and the control
+		// tokens credited to no one, over the same days (null without the taxonomy).
+		$ev = function_exists( 'snt_mr_evidence' ) ? snt_mr_evidence( $rows ) : null;
+		if ( is_array( $ev ) && null !== $ev['verification']['ai_training_by_purpose'] ) {
+			$out['train']  = (array) $ev['verification']['ai_training_by_purpose'];
+			$out['tokens'] = array_map( static fn( $i ) => array( 'token' => (string) $i['token'], 'hits' => (int) $i['hits'] ), (array) $ev['impersonations'] );
+		}
 	}
-	return array( 'total' => (int) array_sum( array_column( $days, 'hits' ) ), 'split' => $split );
+	return $out + array( 'split' => $split );
 }
 
 /**
@@ -315,45 +325,4 @@ function sn_public_stats_sections_html( $data ) {
 	}
 	$cols .= sn_public_stats_machines_html( $data );
 	return '' === $cols ? '' : '<div class="sn-public-stats__cols">' . $cols . '</div>';
-}
-
-/**
- * Humans and machines, the third column. '' when no snapshot of this window.
- *
- * @param array $data The assembled payload.
- * @return string
- */
-function sn_public_stats_machines_html( $data ) {
-	$m = $data['machines'] ?? null;
-	if ( ! is_array( $m ) ) {
-		return '';
-	}
-	$out   = '';
-	$views = (int) ( $data['views'] ?? 0 );
-	$max   = max( 1, $views, (int) $m['total'] );
-	$out  .= '<section class="sn-public-stats__col sn-public-stats__machines"><h2>' . esc_html__( 'Humans and machines', 'signal-and-noise-tools' ) . '</h2>'
-		. sn_public_stats_bars_html( array(
-			array( 'label' => __( 'Presumed human views', 'signal-and-noise-tools' ), 'text' => number_format_i18n( $views ), 'pct' => 100 * $views / $max ),
-			array( 'label' => __( 'Machine reads', 'signal-and-noise-tools' ), 'text' => number_format_i18n( (int) $m['total'] ), 'pct' => 100 * (int) $m['total'] / $max ),
-		) );
-	$split = is_array( $m['split'] ) ? array_filter( $m['split'] ) : array();
-	$all   = array_sum( $split );
-	if ( $all > 0 ) {
-		$names = array(
-			'verified'     => __( 'Verified by Cloudflare', 'signal-and-noise-tools' ),
-			'unverified'   => __( 'Named themselves, not verified', 'signal-and-noise-tools' ),
-			'not_measured' => __( 'Not measured', 'signal-and-noise-tools' ),
-			// Unreleased: this site's own monitors and checks, apart from readers.
-			'first_party'  => __( 'This site’s own tools', 'signal-and-noise-tools' ),
-		);
-		$rows = array();
-		foreach ( $names as $k => $label ) {
-			if ( isset( $split[ $k ] ) ) {
-				$rows[] = array( 'label' => $label, 'text' => (int) round( 100 * $split[ $k ] / $all ) . '%', 'pct' => 100 * $split[ $k ] / $all );
-			}
-		}
-		$out .= '<h3>' . esc_html__( 'Who the machines are', 'signal-and-noise-tools' ) . '</h3>' . sn_public_stats_bars_html( $rows );
-	}
-	return $out . '<p class="sn-public-stats__note">' . esc_html__( 'Automated counts bot pageviews that reached the tracker. Machine reads count every request the edge sensor saw. They are different measures.', 'signal-and-noise-tools' )
-		. ' <a href="https://github.com/juanlentino/signal-and-noise-provenance">' . esc_html__( 'Public ledger', 'signal-and-noise-tools' ) . '</a></p></section>';
 }

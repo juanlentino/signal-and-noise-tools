@@ -165,6 +165,21 @@ async function run() {
     assert.equal(g4.children[k + 1].text, '—', 'a versionless unknown says nothing about the cache');
     assert.equal(g4.children[k + 2].text, '?', 'a versionless unknown keeps the red ?');
     stop4();
+    // 2026-10-11: the Remote MCP row says its contract; a mismatch is amber
+    // and names both sides. A worker with no contract says nothing about one.
+    for (const [match, live, text, glyph] of [[true, '16', '2.2.0 · contract 16', '✓'], [false, '15', '2.2.0 · contract 15, plugin expects 16', '↑']]) {
+      const c = harness(), rc = new Element('div');
+      const stopc = c.window.desktopModeWidgets['sn-deploy-status'](rc); await flush();
+      c.calls[0].resolve({theme: {current: '1', state: 'ok'}, plugin: {current: '2', state: 'ok'}, workers: [
+        {id: 'sn-remote-mcp', label: 'Remote MCP', live: '2.2.0', latest: '2.2.0', state: 'ok', contract_live: live, contract_expected: '16', contract_match: match},
+        {id: 'sn-analytics', label: 'Analytics', live: '1.25.0', latest: '1.25.0', state: 'ok'}]}); await flush();
+      const lc = nodes(rc).find(n => n.text === 'Remote MCP'), gc = lc.parentNode, kc = gc.children.indexOf(lc);
+      assert.equal(gc.children[kc + 1].text, text, 'the Remote MCP row reads ' + text);
+      assert.equal(gc.children[kc + 2].text, glyph, match ? 'a matching contract keeps the check' : 'a contract mismatch is amber');
+      const la = nodes(rc).find(n => n.text === 'Analytics');
+      assert.equal(la.parentNode.children[la.parentNode.children.indexOf(la) + 1].text, '1.25.0', 'a worker with no contract says nothing about one');
+      stopc();
+    }
   }
   // Good -> pending -> good changes values and recency only after success.
   for (const f of fixtures) {
@@ -559,6 +574,10 @@ async function run() {
     assert.equal(edgeBox.parentNode, cacheBox.parentNode, 'Edge and Cache share one row');
     assert.match(String(edgeBox.parentNode.attrs.style), /display:flex;flex-wrap:wrap/, 'as the kit\'s pair');
     assert.doesNotMatch(String(edgeBox.attrs.style || ''), /border-top/, 'a paired column draws no hairline of its own');
+    // 2026-10-11: columns share the row equally and wrap their own text; one
+    // long value ("Purge dispatched, verifying") must not stack the pair.
+    assert.equal(edgeBox.style.flex, '1 1 0', 'a column grows from zero, never from its content width');
+    assert.match(String(edgeBox.style.minWidth), /^min\(100%, \d+px\)$/, 'and stacks only below a fixed column width');
     m.stop();
     m = await mount({});
     assert.match(String(boxOf(m.root, 'Edge').attrs.style), /border-top/, 'without the kit each stacks with its own hairline');
@@ -647,6 +666,15 @@ async function run() {
     const strip = nodes(m.root).find(n => n.className === 'snt-evidence');
     assert.ok(strip && strip.attrs['aria-hidden'] === 'true', 'with a decorative evidence strip');
     assert.deepEqual(strip.children.map(c => c.attrs['data-part']), ['verified_matched', 'unverified'], 'segments in order, zero parts dropped');
+    assert.doesNotMatch(m.root.textContent, /Control tokens/, 'no impersonations field: no control-token row');
+    m.stop();
+    // 2026-10-11: reads presenting a robots.txt control token are credited to
+    // no one, and the card says how many and which tokens; none is left out.
+    m = await mount({...base, impersonations: [{agent: 'google-extended', token: 'Google-Extended', hits: 170}, {agent: 'applebot-extended', token: 'Applebot-Extended', hits: 1200}]});
+    assert.match(m.root.textContent, /Control tokens, credited to no one 1,370 \u00b7 Google-Extended, Applebot-Extended/, 'the control-token reads, grouped, with their tokens');
+    m.stop();
+    m = await mount({...base, impersonations: []});
+    assert.doesNotMatch(m.root.textContent, /Control tokens/, 'none presented: no row');
     m.stop();
   }
   // Codex round 2: an anchor read still pending is loading, not an error.
@@ -740,6 +768,21 @@ async function run() {
     const sig = traffic()[3].opts.signal;
     stop(); assert.equal(sig.aborted, true, 'teardown aborts the read in flight');
     await x.tick(60 * 60000); assert.equal(traffic().length, 4); assert.equal(x.timers.size, 0, 'teardown clears every timer');
+  }
+  // 2026-10-11: beside the views, the presumed-human visitor-days the beacon
+  // scored likely automated: subtracted from nothing, unknown never a 0.
+  for (const [la, want] of [
+    [{visitor_days: 3, scored_visitor_days: 41, measured_days: 9, unmeasured_days: 5}, /Likely automated, not subtracted: 3 of 41 scored visitor-days, 9 of 14 days measured/],
+    [{visitor_days: 1200, scored_visitor_days: 4100, measured_days: 14, unmeasured_days: 0}, /Likely automated, not subtracted: 1,200 of 4,100 scored visitor-days(?!,)/],
+    [{visitor_days: null, scored_visitor_days: null, measured_days: 0, unmeasured_days: 14}, /Likely automated: not measured yet/],
+    [undefined, null],
+  ]) {
+    const x = harness(), root = new Element('div');
+    const stop = x.window.desktopModeWidgets['sn-site-views'](root); await flush();
+    x.calls.find(c => c.opts.path.includes('site-views')).resolve({days: [{date: 'd', views: 1}, {date: 'e', views: 2}], total: 3, delta_pct: null, groups: [], likely_automated: la}); await flush();
+    if (want) { assert.match(root.textContent, want); assert.doesNotMatch(root.textContent, /Likely automated: 0 of/, 'unknown is never painted as 0'); }
+    else assert.doesNotMatch(root.textContent, /Likely automated/, 'an older payload paints no line');
+    stop();
   }
   // 23.8.0: SN Queue pairs Scheduled with Drafts under the card kit's
   // hairline, and paints the amber gap line only when the payload has a gap.

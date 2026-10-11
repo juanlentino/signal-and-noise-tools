@@ -18,7 +18,10 @@ main.is-layout-constrained:has(.sn-public-stats)>*,.wp-block-post-content>.sn-pu
    x-large preset, no tracking) and nothing moves. */
 .sn-public-stats h2{font-size:var(--wp--preset--font-size--x-large,42px);letter-spacing:normal;margin:2.25rem 0 .75rem}
 .sn-public-stats{--sn-ps-dim:var(--wp--preset--color--rust,#666);--sn-ps-red:var(--wp--preset--color--blood,#e00404);--sn-ps-rule:var(--wp--preset--color--concrete,#d9d9d9);--sn-ps-mono:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace)}
-.sn-public-stats h3{font-family:var(--sn-ps-mono);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:1.2rem 0 .5rem}
+/* !important only because the theme's phone rule sets every grouped h3 to
+   1.3rem !important (responsive.css, meant for the service headings); the
+   column labels here are small caps at every width. */
+.sn-public-stats h3{font-family:var(--sn-ps-mono);font-size:max(.72rem,11px) !important;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:1.2rem 0 .5rem}
 .sn-public-stats__window{font-family:var(--sn-ps-mono);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--sn-ps-dim);margin:0 0 .6rem}
 
 /* The tile row: one column per tile actually rendered, so a tile left out
@@ -120,3 +123,22 @@ main.is-layout-constrained:has(.sn-public-stats)>*,.wp-block-post-content>.sn-pu
 .sn-public-stats__live-hour rect{fill:currentColor}
 .sn-public-stats__live-hour rect.is-now{fill:var(--sn-ps-red)}
 .sn-public-stats__live-ax{display:flex;justify-content:space-between;max-width:22rem;font-family:var(--sn-ps-mono);font-size:max(.68rem,11px);color:var(--sn-ps-dim);margin-top:.2rem}
+
+/* 2026-10-11: AI training, claimed against proof, its own section under the
+   columns. The two figures take the tiles' heading numerals inside one plain
+   sentence; the bar runs the page's width in the bars' outlined idiom, split
+   by how each read is known: verified in the page's red (the eye goes to how
+   little of it there is), named-only hatched in ink, before verification was
+   recorded in the rule gray. Decorative: the key carries every part as a
+   count. A part never draws under 3px. */
+.sn-public-stats__claim{font-family:var(--sn-ps-mono);font-size:.95rem;line-height:1.5;margin:0 0 .9rem;max-width:62ch}
+.sn-public-stats__claim strong{font-family:var(--wp--preset--font-family--heading,'Bebas Neue',Impact,sans-serif);font-size:clamp(1.7rem,3vw,2.4rem);font-weight:400;line-height:1;font-variant-numeric:tabular-nums}
+.sn-public-stats__proof{display:flex;gap:2px;height:1.6rem;border:2px solid currentColor;padding:2px}
+.sn-public-stats__proof span{flex-basis:0;min-width:3px}
+.sn-public-stats__proof [data-part="verified"],.sn-public-stats__key-sw[data-part="verified"]{background:var(--sn-ps-red)}
+.sn-public-stats__proof [data-part="claimed"],.sn-public-stats__key-sw[data-part="claimed"]{background:repeating-linear-gradient(135deg,currentColor 0 1.5px,transparent 1.5px 5px)}
+.sn-public-stats__proof [data-part="before"],.sn-public-stats__key-sw[data-part="before"]{background:var(--sn-ps-rule)}
+.sn-public-stats__key{list-style:none;margin:.6rem 0 0;padding:0;font-family:var(--sn-ps-mono);font-size:max(.75rem,11px);display:flex;flex-wrap:wrap;gap:.3rem 1.6rem}
+.sn-public-stats__key li{display:flex;align-items:center;gap:.5em}
+.sn-public-stats__key-sw{display:inline-block;width:.85em;height:.85em;border:1px solid currentColor}
+.sn-public-stats__key-n{font-weight:700;font-variant-numeric:tabular-nums}

@@ -357,6 +357,12 @@ function snt_desktop_site_views_payload() {
 		}
 	}
 
+	// 2026-10-11: presumed-human visitor-days likely automated over the same
+	// window, beside the views (never subtracted; null when none measured).
+	if ( function_exists( 'sn_analytics_likely_automated' ) ) {
+		$payload['likely_automated'] = sn_analytics_likely_automated( $from, $today, 'human' );
+	}
+
 	// SN Traffic: SN Audience and SN RSS Subscribers folded into this card.
 	// Their rows ride the same 15-minute cache as the series above.
 	if ( function_exists( 'snt_desktop_traffic_groups' ) ) {

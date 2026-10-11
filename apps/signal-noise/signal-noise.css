@@ -57,6 +57,10 @@
  * states: the fill says chosen, the outline above says previewed. */
 .snt-cell.is-selected .os-file-tile { background: var( --os-tile-selected-bg, rgba( 34, 113, 177, 0.14 ) ); border-radius: 8px; }
 .snt-badge { position: absolute; inset-block-start: 2px; inset-inline-end: 2px; pointer-events: none; }
+/* A quiet fact under the label (an album's year): a badge is a state and sits
+ * in the corner; a caption never covers the art. */
+.snt-tilebox:has( > .snt-caption ) { flex-direction: column; align-items: center; }
+.snt-caption { margin-block-start: -10px; font-size: 11px; line-height: 1.3; color: var( --os-ui-fg-muted, #a7aab0 ); font-variant-numeric: tabular-nums; pointer-events: none; }
 
 /* The drawn marquee. `createMarquee` appends its box to document.body, so this
  * rule cannot hang off .snt-app; the class is what keeps it ours. */

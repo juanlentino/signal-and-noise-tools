@@ -347,11 +347,17 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 			$lg6_reason = ' Last refresh attempt failed: ' . $lg['last6RefreshReason'] . '.';
 		}
 
-		$count6    = (int) ( $lg['denylist6Count'] ?? 0 );
 		$compiled6 = (string) ( $lg['compiled6At'] ?? '' );
 		$ts6       = '' !== $compiled6 ? strtotime( $compiled6 ) : false;
 
-		if ( $count6 <= 0 ) {
+		// null is UNKNOWN (the worker could not read its v6 meta), as for v4 above.
+		if ( null === $lg['denylist6Count'] ) {
+			$findings[] = $mk(
+				'sn-login-guard',
+				'',
+				'Login-guard IPv6 denylist size is UNKNOWN: the worker could not read its v6 list meta. Check Workers Logs; this is not a measured zero.' . $lg6_reason
+			);
+		} elseif ( (int) $lg['denylist6Count'] <= 0 ) {
 			$findings[] = $mk(
 				'sn-login-guard',
 				'',
@@ -365,7 +371,7 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 				sprintf(
 					/* translators: 1: IPv6 range count, 2: ISO timestamp, 3: age in days */
 					'Login-guard IPv6 denylist is STALE: %1$s ranges, last refreshed %2$s (%3$d days ago). The Spamhaus DROPv6 refresh has stalled; the IPv4 feed refreshes separately and may still be healthy.',
-					number_format_i18n( $count6 ),
+					number_format_i18n( (int) $lg['denylist6Count'] ),
 					$compiled6,
 					$days6
 				) . $lg6_reason

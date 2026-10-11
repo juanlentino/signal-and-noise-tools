@@ -68,26 +68,8 @@ $GLOBALS['__shape'] = null;
 ok( null === has_id( snt_watches_ripe( $BEFORE ), 'reader_anomalies_twin' ),
 	'a ledger that cannot answer leaves the watch quiet — absence of evidence is not a finding' );
 
-// --- date AND state, both halves ------------------------------------------
-$GLOBALS['__shape'] = array( 'state' => 'settling', 'reason' => 'x' );
-$GLOBALS['__drift'] = array( '/notes' => array( 'from' => 6.3, 'to' => 11.5, 'impressions' => 11 ) );
-ok( null === has_id( snt_watches_ripe( $BEFORE ), 'notes_drift_reread' ),
-	'drifting but BEFORE the re-read date: not ripe — the point is a wider sample, not an earlier look' );
-
-$w = has_id( snt_watches_ripe( $AFTER ), 'notes_drift_reread' );
-ok( null !== $w && false !== strpos( (string) $w['note'], 'still drifting' ),
-	'after the date AND still drifting: ripe, with the numbers' );
-
-// THE OTHER HALF. A date alone would surface this on the 11th even if the drift
-// had reverted — which is the answer, and not one that needs attention.
-$GLOBALS['__drift'] = array();
-$w = has_id( snt_watches_ripe( $AFTER ), 'notes_drift_reread' );
-ok( null === $w, 'after the date but NO LONGER drifting: silent — it was sample noise, which is a resolution' );
-
-// A drift history that cannot answer is not "no drift".
-$GLOBALS['__drift'] = null;
-ok( null === has_id( snt_watches_ripe( $AFTER ), 'notes_drift_reread' ),
-	'a drift history that cannot answer leaves it quiet rather than claiming either way' );
+// --- notes_drift_reread retired 2026-10-11 ---------------------------------
+ok( ! in_array( 'notes_drift_reread', array_column( snt_watches(), 'id' ), true ) && ! function_exists( 'snt_watch_ripe_notes_drift' ), 'notes_drift_reread is retired: /notes measured with no drift a month past its date, so it was sample noise' );
 
 // --- date-only watches ripen on their date and STAY ripe ------------------
 $GLOBALS['__drift'] = array();
@@ -174,6 +156,23 @@ $v = $re( array(), array( '2026-08' => array( 'openai crawling.train moved from 
 ok( true === $v['ripe'] && '2026-08 held: openai crawling.train moved from 60 in 2026-07 to 241, more than 3x' === $v['note'], 'a month a rule held ripens it with the reason (an owner hold has no reason and stays quiet)' );
 ok( false === snt_watch_ripe_rights_evidence( array(), $t0 )['ripe'] && str_contains( snt_watch_ripe_rights_evidence( array(), $t0 )['note'], 'not loaded' ), 'no module: never ripe, says why' );
 ok( in_array( 'rights_evidence_review', array_column( snt_watches(), 'id' ), true ), 'the rights evidence watch is registered' );
+
+// 2026-10-11: a watch's `read` that names an admin screen ("Tab › Leaf") names
+// one that exists: the top tab's label and a sub-tab label as they read today.
+// "Connections › MCP connect" sent the owner to a leaf that moved to AI › MCP Clients.
+$__src    = (string) file_get_contents( __DIR__ . '/../inc/admin-tabs-data.php' ) . (string) file_get_contents( __DIR__ . '/../inc/machine-readers-admin.php' );
+preg_match_all( "/'tab'\\s*=>\\s*'[\\w-]+',\\s*(?:\\/\\/[^\\n]*\\n\\s*)*'label'\\s*=>\\s*'([^']+)'/", $__src, $__tops );
+preg_match_all( "/'label'\\s*=>\\s*(?:__\\(\\s*)?'([^']+)'/", $__src, $__subs );
+$__bad = array();
+foreach ( snt_watches() as $w ) {
+	foreach ( explode( ';', (string) $w['read'] ) as $part ) {
+		$seg = array_map( 'trim', explode( '›', preg_replace( '/\\s*\\(.*$/', '', $part ) ) );
+		if ( count( $seg ) >= 2 && ( ! in_array( $seg[0], $__tops[1], true ) || ! in_array( $seg[1], $__subs[1], true ) ) ) {
+			$__bad[] = $w['id'] . ': ' . trim( $part );
+		}
+	}
+}
+ok( array() === $__bad && count( $__tops[1] ) > 5, 'every screen a watch names exists: ' . ( implode( ' | ', $__bad ) ?: 'all ' . count( $__tops[1] ) . ' top tabs read' ) );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

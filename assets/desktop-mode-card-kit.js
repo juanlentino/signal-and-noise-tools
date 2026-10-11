@@ -82,18 +82,23 @@
 	}
 
 	/**
-	 * Two groups on one row under one hairline. Each column starts at its own
-	 * content's width and they share what is left; a card too narrow for both
-	 * stacks them. Pass groups built without a hairline of their own.
+	 * Two groups on one row under one hairline. The columns share the row
+	 * equally and wrap their own text; the pair stacks only when the card is
+	 * too narrow for two columns of PAIR_MIN_COL px. Pass groups built without
+	 * a hairline of their own.
+	 *
+	 * 2026-10-11: the columns used to start at their content's width
+	 * (flex 1 1 auto), so one long value ("Purge dispatched, verifying" right
+	 * after an install, a long source name) stacked the pair on a card that had
+	 * room for both; the owner saw every pair fall back to one per line.
 	 */
+	var PAIR_MIN_COL = 110;
 	function pair( a, b ) {
 		var box = document.createElement( 'div' );
 		box.setAttribute( 'style', 'margin-top:8px;padding-top:8px;border-top:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));display:flex;flex-wrap:wrap;gap:6px 12px;' );
 		[ a, b ].forEach( function( col ) {
-			col.style.flex = '1 1 auto';
-			// Each column at its own content's width, however short ("0 drafts"):
-			// the content widths alone decide when the pair has to stack.
-			col.style.minWidth = '0';
+			col.style.flex = '1 1 0';
+			col.style.minWidth = 'min(100%, ' + PAIR_MIN_COL + 'px)';
 			box.appendChild( col );
 		} );
 		return box;

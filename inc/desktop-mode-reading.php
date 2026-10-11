@@ -45,13 +45,13 @@ function snt_desktop_reading_page_rows( $totals, array $dist, $engaged = null ) 
 	}
 	$half = (int) ( array_values( $dist )[2]['views'] ?? 0 ); // [50,75) holds exactly the 50% milestone.
 	if ( 4 === count( $dist ) && $half <= $views ) {
-		$rows[] = array( 'label' => 'Views that reached half the page', 'value' => snt_desktop_pct( $half, $views ) );
+		$rows[] = array( 'key' => 'half', 'label' => 'Views that reached half the page', 'value' => snt_desktop_pct( $half, $views ) );
 	}
 	if ( isset( $totals['scroll_avg_per_view'] ) ) {
-		$rows[] = array( 'label' => 'Average depth reached', 'value' => round( (float) $totals['scroll_avg_per_view'] ) . '%' );
+		$rows[] = array( 'key' => 'depth', 'label' => 'Average depth reached', 'value' => round( (float) $totals['scroll_avg_per_view'] ) . '%' );
 	}
 	if ( isset( $totals['time_avg_per_view'] ) ) {
-		$rows[] = array( 'label' => 'Average time per view', 'value' => snt_desktop_reading_seconds( (float) $totals['time_avg_per_view'] / 1000 ) ); // the beacon reports milliseconds.
+		$rows[] = array( 'key' => 'time', 'label' => 'Average time per view', 'value' => snt_desktop_reading_seconds( (float) $totals['time_avg_per_view'] / 1000 ) ); // the beacon reports milliseconds.
 	}
 	return $rows;
 }
@@ -90,7 +90,7 @@ function snt_desktop_reading_visit_rows( $days ) {
 		// measured it, the one-page share is the rollup's own.
 		// `split` (with the depth split measured): one page, two, three or more,
 		// as numbers for the bar under the row.
-		array( 'label' => 'One page only', 'value' => $known > 0 ? snt_desktop_pct( max( 0, $known - $two - $deep ), $known ) : round( $bounce / $n ) . '%' ) + ( $known > 0 ? array( 'split' => array( round( 100 * max( 0, $known - $two - $deep ) / $known, 1 ), round( 100 * $two / $known, 1 ), round( 100 * $deep / $known, 1 ) ) ) : array() ),
+		array( 'key' => 'one_page', 'label' => 'One page only', 'value' => $known > 0 ? snt_desktop_pct( max( 0, $known - $two - $deep ), $known ) : round( $bounce / $n ) . '%' ) + ( $known > 0 ? array( 'split' => array( round( 100 * max( 0, $known - $two - $deep ) / $known, 1 ), round( 100 * $two / $known, 1 ), round( 100 * $deep / $known, 1 ) ) ) : array() ),
 		array( 'label' => 'Pages per session', 'value' => number_format_i18n( $ppv / $n, 2 ) ),
 		array( 'label' => 'Typical session', 'value' => snt_desktop_reading_seconds( $dur / $n ) ),
 	);
