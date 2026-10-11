@@ -12,6 +12,13 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **SN Systems no longer says a watch is due when it cannot tell.** The General-save guard watch reads whether `admin_email` sits in Core's General settings group, which Core registers only on `admin_init` and `rest_api_init`. The OpenStation shell's page load runs neither, so the group read empty and the card said "1 watch due" while the REST read said not (seen live on 23.8.0). A request where Core registered no settings now answers "cannot tell". Pinned by `tests/watches.php`.
+- **The Cutover check says what it measured.** "2 days clean · since Oct 7" read as if every day since were checked, but a sampled day (Oct 9) is neither counted nor a reset. It now reads "clean since Oct 7 · last exact day Oct 8". Pinned by `tests/desktop-status-extra.php` and `tests/desktop-status-resilience.cjs`.
+
+### Added
+- **SN Queue: a gap can be marked planned.** The holidays are on purpose, so the gap line has a **Planned** button: it records that gap (`POST /signal-noise/v1/desktop/queue-gap-planned`, `manage_options`, option `sn_content_queue_planned_gaps`, last 20 kept) and the line goes; a different gap still shows. Pinned by `tests/abilities-content-queue.php` and `tests/desktop-status-resilience.cjs`.
+
 ## [23.8.0] - 2026-10-11 — the desktop widgets say more in about the same height
 
 ### Changed

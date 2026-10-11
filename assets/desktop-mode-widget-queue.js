@@ -157,7 +157,23 @@
 		if ( gap ) {
 			var gapText = 'Gap: no note ' + gap.from_label + ( gap.to_label && gap.to_label !== gap.from_label ? ' to ' + gap.to_label : '' );
 			var gapStyle = 'display:block;margin:4px 0 0;font-size:11px;color:#d29922;font-variant-numeric:tabular-nums;text-decoration:none;';
-			wrap.appendChild( scheduledUrl ? el( 'a', { href: scheduledUrl, text: gapText, style: gapStyle + 'display:flex;align-items:center;min-height:24px;margin-top:0;' } ) : el( 'p', { text: gapText, style: gapStyle } ) );
+			var gapLine = el( 'div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:24px;' } );
+			gapLine.appendChild( scheduledUrl ? el( 'a', { href: scheduledUrl, text: gapText, style: gapStyle + 'display:flex;align-items:center;min-height:24px;margin-top:0;' } ) : el( 'p', { text: gapText, style: gapStyle } ) );
+			// 2026-10-10: a gap can be on purpose (the holidays). "Planned" records
+			// this one and the line goes; a different gap still shows.
+			if ( window.wp && window.wp.apiFetch && gap.from && gap.to ) {
+				var planned = el( 'button', { text: 'Planned', style: 'flex:none;min-height:24px;padding:0 8px;font-size:11px;background:transparent;color:inherit;border:1px solid var(--os-ui-color-border, rgba(255,255,255,.25));border-radius:4px;cursor:pointer;' } );
+				planned.setAttribute( 'type', 'button' );
+				planned.setAttribute( 'aria-label', 'Planned: mark the gap ' + gapText.replace( /^Gap: /, '' ) + ' as intended' );
+				planned.addEventListener( 'click', function() {
+					planned.disabled = true;
+					window.wp.apiFetch( { path: '/signal-noise/v1/desktop/queue-gap-planned', method: 'POST', data: { from: gap.from, to: gap.to } } ).then( function() {
+						if ( gapLine.parentNode ) { gapLine.parentNode.removeChild( gapLine ); }
+					} ).catch( function() { planned.disabled = false; } );
+				} );
+				gapLine.appendChild( planned );
+			}
+			wrap.appendChild( gapLine );
 		}
 
 		if ( next.length > 1 ) {

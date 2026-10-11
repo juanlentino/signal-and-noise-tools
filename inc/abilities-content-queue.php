@@ -98,9 +98,11 @@ function sn_content_queue_day( DateTimeImmutable $at, DateTimeImmutable $today )
  * @param int[]        $history   Published Unix times (any order).
  * @param int          $now       Unix time now.
  * @param DateTimeZone $tz        Site timezone.
+ * @param string[]     $planned   Gaps the owner marked planned, as "from|to"
+ *                                (Y-m-d): skipped, so the next one shows.
  * @return array{from:string,to:string,from_label:string,to_label:string}|null
  */
-function sn_content_queue_gap( $scheduled, $history, $now, DateTimeZone $tz ) {
+function sn_content_queue_gap( $scheduled, $history, $now, DateTimeZone $tz, array $planned = array() ) {
 	if ( ! function_exists( 'snt_ml_cadence_deviation' ) || ! defined( 'SNT_ML_CADENCE_Z_FLAG' ) ) {
 		return null;
 	}
@@ -118,7 +120,7 @@ function sn_content_queue_gap( $scheduled, $history, $now, DateTimeZone $tz ) {
 		}
 		$from = ( new DateTimeImmutable( '@' . $ts[ $i - 1 ] ) )->setTimezone( $tz )->setTime( 0, 0, 0 )->modify( '+1 day' );
 		$to   = ( new DateTimeImmutable( '@' . $ts[ $i ] ) )->setTimezone( $tz )->setTime( 0, 0, 0 )->modify( '-1 day' );
-		if ( $from > $to ) {
+		if ( $from > $to || in_array( $from->format( 'Y-m-d' ) . '|' . $to->format( 'Y-m-d' ), $planned, true ) ) {
 			continue;
 		}
 		return array(
@@ -168,9 +170,10 @@ function sn_content_queue_ago( $ts, $now ) {
  * @param int          $now       Unix time now.
  * @param DateTimeZone $tz        Site timezone.
  * @param int|null     $drafts    Draft count, or null when it could not be read (never a guessed 0).
+ * @param string[]     $planned   Gaps marked planned ("from|to"), skipped by the gap line.
  * @return array{next:array,scheduled_total:int,runs_to:?array,published:array,drafts:?int,gap:?array}
  */
-function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone $tz, $drafts = null ) {
+function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone $tz, $drafts = null, array $planned = array() ) {
 	$future    = is_array( $future ) ? array_values( $future ) : array();
 	$published = is_array( $published ) ? array_values( $published ) : array();
 	$now       = (int) $now;
@@ -230,7 +233,7 @@ function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone
 		'runs_to'         => $runs_to,
 		'published'       => $recent,
 		'drafts'          => null === $drafts ? null : max( 0, (int) $drafts ),
-		'gap'             => sn_content_queue_gap( $stamps( $future ), $stamps( $published ), $now, $tz ),
+		'gap'             => sn_content_queue_gap( $stamps( $future ), $stamps( $published ), $now, $tz, $planned ),
 	);
 }
 
@@ -381,6 +384,58 @@ function snt_ability_content_queue( $input = null ) {
 		array_values( array_filter( array_map( 'sn_content_queue_row', is_array( $done ) ? $done : array() ) ) ),
 		time(),
 		wp_timezone(),
-		$drafts
+		$drafts,
+		sn_content_queue_planned_gaps()
 	);
 }
+
+/** Gaps the owner marked planned (2026-10-10: the holidays are on purpose). */
+const SN_CONTENT_QUEUE_PLANNED_OPT = 'sn_content_queue_planned_gaps';
+
+/**
+ * The planned gaps, as "from|to" (Y-m-d), newest last, at most 20.
+ *
+ * @return string[]
+ */
+function sn_content_queue_planned_gaps() {
+	$v = get_option( SN_CONTENT_QUEUE_PLANNED_OPT, array() );
+	return array_values( array_filter( (array) $v, static fn( $k ) => is_string( $k ) && 1 === preg_match( '/^\d{4}-\d{2}-\d{2}\|\d{4}-\d{2}-\d{2}$/', $k ) ) );
+}
+
+/**
+ * Marks one gap planned.
+ *
+ * @param string $from First empty day, Y-m-d.
+ * @param string $to   Last empty day, Y-m-d.
+ * @return bool False on a malformed range.
+ */
+function sn_content_queue_mark_planned( $from, $to ) {
+	$from = (string) $from;
+	$to   = (string) $to;
+	if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) || 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) || $from > $to ) {
+		return false;
+	}
+	$keep   = array_values( array_diff( sn_content_queue_planned_gaps(), array( $from . '|' . $to ) ) );
+	$keep[] = $from . '|' . $to;
+	update_option( SN_CONTENT_QUEUE_PLANNED_OPT, array_slice( $keep, -20 ), false );
+	return true;
+}
+
+add_action( 'rest_api_init', static function () {
+	register_rest_route( 'signal-noise/v1', '/desktop/queue-gap-planned', array(
+		'methods'             => 'POST',
+		'callback'            => static function ( WP_REST_Request $req ) {
+			if ( ! sn_content_queue_mark_planned( $req->get_param( 'from' ), $req->get_param( 'to' ) ) ) {
+				return new WP_Error( 'rest_invalid_param', 'from and to must be Y-m-d days, from first.', array( 'status' => 400 ) );
+			}
+			return rest_ensure_response( array( 'ok' => true ) );
+		},
+		'permission_callback' => function () {
+			return current_user_can( 'manage_options' );
+		},
+		'args'                => array(
+			'from' => array( 'type' => 'string', 'required' => true ),
+			'to'   => array( 'type' => 'string', 'required' => true ),
+		),
+	) );
+} );
