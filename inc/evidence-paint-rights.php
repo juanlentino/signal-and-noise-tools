@@ -20,7 +20,7 @@ function snt_ev_rights_rows( array $rows ) {
 	foreach ( $rows as $r ) {
 		$vendor = snt_mr_normalize_vendor( $r['vendor'] ?? '' );
 		$out[]  = array(
-			'when'       => substr( preg_replace( '/[^0-9T:.\-Z]/', '', (string) ( $r['observed_at'] ?? '' ) ), 0, 20 ),
+			'when'       => substr( preg_replace( '/[^0-9T:.\-Z]/', '', (string) ( $r['observed_at'] ?? '' ) ), 0, 24 ), // #1227: the full millisecond stamp, never a bare trailing dot.
 			'vendor'     => '' !== $vendor ? $vendor : __( 'none', 'signal-and-noise-tools' ),
 			'purpose'    => snt_mr_purpose_label( (string) ( $r['purpose'] ?? 'unknown' ) ),
 			'document'   => mb_substr( (string) ( $r['path'] ?? '' ), 0, 120, 'UTF-8' ),

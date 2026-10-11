@@ -103,7 +103,7 @@ function snt_mr_agent_exceptions( array $rows ) {
 	usort( $out, static fn( $x, $y ) => $y['split']['unverified'] <=> $x['split']['unverified'] ?: strcmp( $x['agent'], $y['agent'] ) );
 	$lead = sprintf(
 		/* translators: 1: agents with unverified reads, 2: of them never verified, 3: agents verified on every read. */
-		__( '%1$d named agents read with a user agent Cloudflare did not verify, %2$d of them never verified. Verified on every read: %3$d.', 'signal-and-noise-tools' ),
+		_n( '%1$d named agent read with a user agent Cloudflare did not verify; %2$d never verified. Verified on every read: %3$d.', '%1$d named agents read with a user agent Cloudflare did not verify, %2$d of them never verified. Verified on every read: %3$d.', count( $out ), 'signal-and-noise-tools' ),
 		count( $out ),
 		$none,
 		$verified

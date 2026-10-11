@@ -313,6 +313,17 @@ namespace {
 	ok( in_array( 'mr_delta_openai', $ids, true ), 'delta cards: a third-party family that rose tenfold cards (the control works)' );
 	ok( ! in_array( 'mr_delta_google-ai', $ids, true ) && ! in_array( 'mr_delta_uptime', $ids, true ), 'delta cards: Google-Extended (a control token) and uptime (this site\'s own monitor) move no card: ' . implode( ', ', $ids ) );
 
+	echo "\nGroup K: the rights log keeps a millisecond stamp whole (#1227, ported from the deleted classic renderer)\n";
+	$k_rows = snt_ev_rights_rows( array( array( 'observed_at' => '2026-08-10T09:14:02.511Z', 'vendor' => 'openai', 'purpose' => 'train', 'path' => '/ai.txt', 'user_agent' => 'GPTBot' ) ) );
+	ok( '2026-08-10T09:14:02.511Z' === $k_rows[0]['when'], 'the full millisecond timestamp renders, not truncated to a trailing dot: ' . $k_rows[0]['when'] );
+	ok( '.' !== substr( $k_rows[0]['when'], -1 ), 'no bare trailing dot' );
+
+	echo "\nGroup L: leads read right at a count of one\n";
+	$l_one = snt_mr_agent_exceptions( array( $r( 'openai', 'train', 'openai-gptbot', 10, 'Google LLC', '' ) ) );
+	ok( 0 === strpos( $l_one['lead'], '1 named agent read ' ), 'agents: one agent reads singular: ' . $l_one['lead'] );
+	$l_fin = snt_mr_ai_finding( array( $r( 'anthropic', 'train', 'anthropic-claudebot', 5, '', 'AI Crawler' ) ) );
+	ok( false === strpos( $l_fin, '1 networks' ), 'finding: one unnamed network reads singular: ' . $l_fin );
+
 	echo "\nResult: $pass passed, $fail failed.\n";
 	exit( $fail > 0 ? 1 : 0 );
 }

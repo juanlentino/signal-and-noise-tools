@@ -52,7 +52,7 @@ function snt_mr_ai_finding( array $rows ) {
 			/* translators: 1: verified reads, 2: the one network they came from. */
 			? sprintf( __( 'Cloudflare verified %1$s, all from %2$s.', 'signal-and-noise-tools' ), number_format_i18n( $t['verified'] ), (string) array_key_first( $nets ) )
 			/* translators: 1: verified reads, 2: networks. */
-			: sprintf( __( 'Cloudflare verified %1$s, from %2$d networks.', 'signal-and-noise-tools' ), number_format_i18n( $t['verified'] ), count( $nets ) ) );
+			: sprintf( _n( 'Cloudflare verified %1$s, from %2$d network.', 'Cloudflare verified %1$s, from %2$d networks.', count( $nets ), 'signal-and-noise-tools' ), number_format_i18n( $t['verified'] ), count( $nets ) ) );
 	if ( $taken > 0 ) {
 		return sprintf(
 			/* translators: 1: reads that claimed training, 2: control-token reads, 3: the tokens, 4: what is left, 5: the verification clause. */
