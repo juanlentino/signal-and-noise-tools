@@ -216,6 +216,18 @@ function snt_analytics_render_human_rule_note( array $rule ) {
 		}
 	}
 	echo '<p class="sn-an-visitor-note">' . esc_html( $line ) . '</p>';
+	$la = $rule['likely_automated'] ?? null;
+	if ( is_array( $la ) ) {
+		$span = (int) ( $la['measured_days'] ?? 0 ) + (int) ( $la['unmeasured_days'] ?? 0 );
+		/* translators: 1: days not measured, 2: days in the range. */
+		$gap  = sprintf( __( '%1$d of %2$d days not measured', 'signal-and-noise-tools' ), (int) ( $la['unmeasured_days'] ?? 0 ), $span );
+		$auto = null === ( $la['visitor_days'] ?? null )
+			/* translators: %s: days not measured. */
+			? sprintf( __( 'Likely automated (inferred, never subtracted): not measured for this range (%s): the beacon carried no bot signals on those days, or the nightly read has not stored them.', 'signal-and-noise-tools' ), $gap )
+			/* translators: 1: likely automated visitor-days, 2: visitor-days the beacon scored, 3: days not measured. */
+			: sprintf( __( 'Likely automated (inferred, never subtracted): %1$s of %2$s presumed-human visitor-days the beacon scored crossed its bot-signal threshold (%3$s).', 'signal-and-noise-tools' ), number_format_i18n( (int) $la['visitor_days'] ), number_format_i18n( (int) ( $la['scored_visitor_days'] ?? 0 ) ), $gap );
+		echo '<p class="sn-an-visitor-note">' . esc_html( $auto ) . '</p>';
+	}
 }
 
 /**
