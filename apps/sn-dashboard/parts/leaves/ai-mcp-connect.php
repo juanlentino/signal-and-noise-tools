@@ -9,7 +9,7 @@
  * readout, the "not Connector Approvals" callout and the deep links. Same
  * readers, same two forms (bind_mcp_rw_credential, remote_toggle), same
  * handlers; the kit's parts instead of wp-admin's. Helpers live in
- * ai-mcp-connect-parts.php (house line cap).
+ * ai-mcp-connect-parts.php and ai-mcp-connect-steps.php (house line cap).
  *
  * @package SignalNoiseTools
  * @since 13.107.0
@@ -22,6 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/ai-mcp-connect-parts.php';
+require_once __DIR__ . '/ai-mcp-connect-steps.php';
 
 /**
  * The status-glance grid: same 4 cards as sn_admin_glance_grid() painted,
@@ -103,6 +104,7 @@ function paint_ai_mcp_connect( array $ctx ) {
 	// block and a CLI command, and wrapping either is worse than the space costs.
 	$out .= mcp_connect_rw_binding_html();
 	$out .= mcp_connect_owner_steps_html();
+	$out .= mcp_connect_claude_app_html();
 
 	// 15.6.0: the four door inventories and the call log moved to AI › Agent
 	// tools (ai-agent-tools.php), one inventory of every tool an agent can call,

@@ -25,8 +25,8 @@ function sn_mcp_rw_enabled_option() { return $GLOBALS['__rw_option_on'] ?? true;
 function sn_mcp_remote_kill_switch_engaged() { return $GLOBALS['__remote_kill_engaged'] ?? true; }
 function sn_bridge_secret() { return $GLOBALS['__bridge_secret'] ?? ''; }
 // The optional usage-telemetry lane: same two accessors both the classic
-// mcp-usage-block.php and the port's mcp_connect_usage_html() guard behind
-// function_exists(), so without these stubs neither side paints it at all —
+// mcp-usage-block.php and the port's agent_tools_usage_html() guard behind
+// function_exists(), so without these stubs neither side paints it at all;
 // declaring them is what makes that whole section exercisable.
 function sn_mcp_telemetry_usage() { return $GLOBALS['__usage'] ?? null; }
 function sn_mcp_telemetry_table_exists() { return ! empty( $GLOBALS['__telemetry_installed'] ); }
@@ -52,7 +52,14 @@ if ( ! function_exists( 'snt_ai_tool_invocations_render' ) ) { function snt_ai_t
 require SNT_PATH . 'inc/agent-tools.php';
 require SNT_PATH . 'inc/agent-tools-admin.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/ai-agent-tools.php';
-function ai_leaf_both() { return snt_leaf_paint( 'ai', 'mcp-connect' ) . snt_leaf_paint( 'ai', 'agent-tools' ); }
+// 2026-10-11 (owner rule, no collapsible sections): every paint of the two
+// leaves is checked for a fold, and the tally is asserted at the end.
+function ai_leaf_both() {
+	$html                    = snt_leaf_paint( 'ai', 'mcp-connect' ) . snt_leaf_paint( 'ai', 'agent-tools' );
+	$GLOBALS['__fold_hits']  = array_merge( $GLOBALS['__fold_hits'] ?? array(), snt_leaf_folds( $html ) );
+	$GLOBALS['__fold_paint'] = ( $GLOBALS['__fold_paint'] ?? 0 ) + 1;
+	return $html;
+}
 function ai_classic_both() { return snt_leaf_classic_html( 'sn_admin_render_mcp_connect_section' ) . snt_leaf_classic_html( 'sn_admin_render_agent_tools_section' ); }
 
 $pass = 0; $fail = 0;
@@ -81,9 +88,21 @@ ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && array( 'bind_mc
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
 // ── Rich-fixture readouts: specific numbers/labels, not "non-empty".
-ok( false !== strpos( $kit, '3 read-only tools exposed' ), 'the read-door disclosure carries the live count (3)' );
-ok( false !== strpos( $kit, '2 read-write tools exposed' ) && false !== strpos( $kit, '4 withheld' ), 'the write-door disclosure carries the live rw count (2) and the withheld count (4)' );
-ok( false !== strpos( $kit, 'signal-noise/run-cron-event' ) && false !== strpos( $kit, 'signal-noise/ai-orphan-apply' ), 'the withheld slugs (from the classic data function) are listed' );
+// 2026-10-11 (no folds): the counts that headed the two tool-list folds lead
+// open findings now, and every slug the folds hid is a chip in its door band.
+ok( array() === snt_leaf_folds( $kit ), 'rich fixture: neither leaf paints a fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( false !== strpos( $kit, '3 read-only tools' ) && false === strpos( $kit, 'show the list' ), 'the read door count (3) leads an open finding, not a fold heading' );
+ok( false !== strpos( $kit, '3 read-only tools; their categories are not readable here, because the Abilities API did not answer for them.' ) && false !== strpos( $kit, '<os-fact label="Category not readable (3)">' ), 'no Abilities API here: the band says the categories are not readable and why, never a guessed category' );
+ok( false !== strpos( $kit, '2 read-write tools' ) && false !== strpos( $kit, '4 abilities never reach this door: 1 permanently, 3 pending an explicit future opt-in.' ), 'the write door count (2) and the withheld count (4, built from the data) are painted open' );
+$chips = array_filter( array_merge( $GLOBALS['__read_slugs'], $GLOBALS['__rw_slugs'] ), static function ( $slug ) use ( $kit ) { return false === strpos( $kit, '<os-chip>' . substr( $slug, strlen( 'signal-noise/' ) ) . '</os-chip>' ); } );
+ok( array() === $chips, 'every allowlisted slug (3 read, 2 rw) is a chip in its door band, the prefix dropped: missing ' . implode( ',', $chips ) );
+$withheld = array();
+foreach ( snt_leaf_tables( $kit ) as $t ) {
+	if ( 'signal-noise/run-cron-event' === ( $t['data'][0]['slug'] ?? '' ) ) {
+		$withheld = $t;
+	}
+}
+ok( 4 === count( $withheld['data'] ?? array() ) && 'signal-noise/ai-orphan-apply' === $withheld['data'][1]['slug'] && 'never' === $withheld['data'][0]['badge']['text'] && false !== strpos( (string) $withheld['data'][1]['reason'], 'skips the trash' ) && array( 'Ability', 'Status', 'Why' ) === array_column( $withheld['columns'], 'label' ), 'the withheld abilities are a 4-row kit table (Ability, Status, Why) from the classic data function' );
 ok( false !== strpos( $kit, 'MacBook' ), 'the bound Application Password name (MacBook) is shown' );
 ok( false !== strpos( $kit, 'Bound to' ), 'the RW-binding status reads Bound to …' );
 ok( false !== strpos( $kit, 'Bridge ready' ), 'the remote-door card reads Bridge ready' );
@@ -119,7 +138,7 @@ $GLOBALS['__remote_kill_engaged'] = false;
 
 // ── The usage-telemetry states: sn_mcp_telemetry_usage() is guarded by
 // function_exists() in both the classic mcp-usage-block.php and the port's
-// mcp_connect_usage_html() — without the stubs above every one of these was
+// agent_tools_usage_html() (mcp_connect_usage_html() until 2026-10-11): without the stubs above every one of these was
 // invisible to the suite (a mutation replacing the whole port function with
 // `return '';` still passed 21/21 before this block existed).
 $GLOBALS['__usage']               = null;
@@ -158,13 +177,18 @@ $GLOBALS['__usage'] = array(
 ok( array_sum( $GLOBALS['__usage']['by_door'] ) === $GLOBALS['__usage']['total_rows'], 'usage fixture: by_door sums to total_rows, as the reader pins for a live read' );
 $classic = ai_classic_both();
 $kit     = ai_leaf_both();
-ok( false !== strpos( $kit, '20 days of a 30-day window' ) && false !== strpos( $kit, '3 tools with no calls through a door' ) && false !== strpos( $classic, '3 tools with no calls through a door' ), 'usage state: the summary counts tools with no calls THROUGH A DOOR, on both surfaces' );
+// 2026-10-11 (no folds): the classic summary line becomes a tile row and two
+// findings on the kit leaf; every figure it carried is still painted.
+ok( false !== strpos( $kit, '20 days of a 30-day window' ) && false !== strpos( $kit, '3 allowlisted tools had no call through a door: 1 cannot be projected; 1 retirement candidate; 1 called only by the plugin itself.' ) && false !== strpos( $classic, '3 tools with no calls through a door' ), 'usage state: the measured window (20 of 30 days) and the tools with no calls THROUGH A DOOR (3, split by verdict) are painted' );
+ok( 3 === substr_count( $kit, '<os-stat ' ) && false !== strpos( $kit, 'value="43" label="Calls through a door"' ) && false !== strpos( $kit, 'value="2" label="Tools called through a door"' ) && false !== strpos( $kit, 'value="3" label="Tools with no door calls"' ), 'usage state: three tiles read the door calls (43), the tools called (2) and the tools with none (3)' );
+ok( false !== strpos( $kit, '43 calls came through a door since 2026-01-01; sn-status took 98% of them.' ), 'usage state: the call-log finding is a lead sentence built from the data, not a fold hint' );
+ok( false === strpos( $kit, 'more tools, busiest first' ) && false === strpos( $kit, 'more tools with no door calls' ), 'usage state: 2 called and 3 uncalled tools sit under both caps, so neither ledger says "+N more"' );
 ok( false !== strpos( $kit, 'sn-status' ) && false !== strpos( $kit, '42' ) && false !== strpos( $kit, 'sn-apply' ) && false !== strpos( $kit, '1 (30,000 direct)' ) && false !== strpos( $classic, '1 (30,000 direct)' ), 'usage state: the Calls cell is door calls with the direct count in parentheses, on both surfaces' );
 $door_split = '75,874 calls: 72,182 first-party (direct), 1,446 read door, 1,042 rw, 1,204 agent';
 ok( false !== strpos( $kit, $door_split ) && false !== strpos( $classic, $door_split ), 'usage state: the door-split sentence paints with the same words on both surfaces' );
 $first_party = "the plugin's own surfaces called it 28,689 times";
 ok( false !== strpos( html_entity_decode( $kit, ENT_QUOTES, 'UTF-8' ), $first_party ) && false !== strpos( html_entity_decode( $classic, ENT_QUOTES, 'UTF-8' ), $first_party ) && false !== strpos( $kit, 'only for the door allowlist' ), 'usage state: a first-party-only tool is labelled with its direct count and as an allowlist (not code) candidate, on both surfaces' );
-ok( false !== strpos( $kit, 'No calls in this window' ), 'usage state: the zero-call list keeps its heading' );
+ok( false !== strpos( $kit, '<os-section heading="No calls in this window"' ), 'usage state: the zero-call list is its own open section under the call log' );
 ok( false !== strpos( $kit, 'predate the sensor' ), 'usage state: the partial-window caveat keeps its interpretive sentence' );
 ok( false !== strpos( $kit, 'retirement candidate' ) && false !== strpos( $kit, 'evidence for removal' ), 'usage state: the zero-call trailing paragraph survives' );
 
@@ -172,9 +196,9 @@ ok( false !== strpos( $kit, 'retirement candidate' ) && false !== strpos( $kit, 
 // of meaningful length must survive into the kit render (as text or in an
 // attribute), normalized so tag/entity noise doesn't matter. This is the
 // assertion that would have caught every prose-reduction finding above —
-// mutation-proven: deleting mcp_connect_resources_prompts_html(),
-// mcp_connect_deep_links_html() or mcp_connect_door_adapter_html()'s body
-// (replacing the call with `$out .= '';` in ai-mcp-connect.php) reds this
+// mutation-proven: deleting the resources-and-prompts, deep-links or adapter
+// body (agent_tools_resources_prompts_html(), mcp_connect_deep_links_html(),
+// agent_tools_door_adapter_html() since 2026-10-11) reds this
 // block even though the older names/actions/markers assertions stayed green.
 function ai_mcp_connect_normalize_text( $html ) {
 	// Insert a sentence boundary at block edges FIRST: the kit and the classic
@@ -209,9 +233,24 @@ $missing  = '';
 // are pinned cell by cell in tests/os-leaf-ai-agent-tools.php; the kit paints
 // them as an <os-table> attribute the normalizer strips with the tag, so the
 // prose oracle reads the classic side without them.
-foreach ( ai_mcp_connect_split_sentences( preg_replace( '#<table.*?</table>#s', '', $classic ) ) as $sentence ) {
+// 2026-10-11 (no folds): the same holds for the lists the kit now paints as
+// tables (the withheld abilities, the tools with no door calls); a fold's
+// <summary> is the fold's own chrome ("... show the list"), and every figure
+// it carried is pinned on its own above. Two sentences the kit rewrote are
+// matched to their new words instead: the withheld count is built from the
+// data, and the desktop-app step no longer points "below" at a config that
+// sits above it.
+$classic_prose = preg_replace( array( '#<table.*?</table>#s', '#<summary>.*?</summary>#s', '#<ul class="sn-mcp-tool-list">.*?</ul>#s', '#<ul class="sn-mcp-usage-zero">.*?</ul>#s' ), '', $classic );
+$reworded      = array(
+	'Four abilities never reach this door' => '4 abilities never reach this door: 1 permanently, 3 pending an explicit future opt-in.',
+	'Install Node.js if the machine does not have it' => 'Install Node.js if the machine does not have it: the proxy config above runs through npx.',
+);
+foreach ( $reworded as $new ) {
+	ok( false !== strpos( $kit_norm, $new ), 'the kit paints its reworded sentence: ' . $new );
+}
+foreach ( ai_mcp_connect_split_sentences( $classic_prose ) as $sentence ) {
 	$sentence = trim( (string) $sentence );
-	if ( strlen( $sentence ) <= 40 ) {
+	if ( strlen( $sentence ) <= 40 || array() !== array_filter( array_keys( $reworded ), static function ( $old ) use ( $sentence ) { return 0 === strpos( $sentence, $old ); } ) ) {
 		continue;
 	}
 	$haystack = strtolower( (string) preg_replace( '/[^a-z0-9]+/i', '', $kit_norm ) );
@@ -237,11 +276,16 @@ ok( false !== strpos( $kit, 'Killed in wp-config' ) && false !== strpos( $kit, '
 // Measured live 2026-09-10: 2,852px -> 2,136px once paired, cards at 865px.
 $kit = ai_leaf_both();
 
-ok( 3 === substr_count( $kit, snt_leaf_row() ), 'three paired rows are painted across the two leaves (two door pairs on Agent tools, the footer pair on MCP Clients) -- ' . substr_count( $kit, snt_leaf_row() ) );
+// 2026-10-11 (no folds): the two native doors stand alone at full width now.
+// Each carries its whole tool list open (51 and 18 tools live), so they are
+// the tall boxes the pairing rule keeps out of a pair; the adapter and the
+// resources stay paired, two short prose boxes of matching height.
+ok( 2 === substr_count( $kit, snt_leaf_row() ), 'two paired rows are painted across the two leaves (the adapter pair on Agent tools, the footer pair on MCP Clients) -- ' . substr_count( $kit, snt_leaf_row() ) );
+$unpaired = preg_replace( '/' . preg_quote( snt_leaf_row(), '/' ) . '.*?<\/os-grid>/s', '', $kit );
+ok( false !== strpos( $unpaired, 'heading="Door 1: the native MCP server"' ) && false !== strpos( $unpaired, 'heading="Door 1b: the native write door"' ), 'the read and write doors each stand alone at full width, outside any pair' );
 
 // Each pair, by the two headings it must hold, in order.
 $pairs = array(
-	array( 'Door 1: the native MCP server', 'Door 1b: the native write door' ),
 	array( 'Door 2: the Abilities-registry adapter', 'Resources &amp; prompts' ),
 );
 foreach ( $pairs as $i => $pair ) {
@@ -267,21 +311,42 @@ ok(
 );
 
 // 17.4.4 (#1602): the two setup sequences are the kit's <os-steps>, not a
-// browser <ol>. Three owner steps in Connect a client, four inside the Claude
-// desktop app fold; the fold's hint still counts them.
+// browser <ol>. Three owner steps in Connect a client, four under Claude
+// desktop app. 2026-10-11 (no folds): the four are an open section of their
+// own, after the config they paste, and the file and its two paths are inline
+// code again, as the classic leaf paints them.
 $mcp = snt_leaf_paint( 'ai', 'mcp-connect' );
 ok( 2 === substr_count( $mcp, '<os-steps>' ) && 7 === substr_count( $mcp, '<os-step>' ), 'two <os-steps> and seven <os-step> paint the Connect a client and Claude desktop app sequences -- ' . substr_count( $mcp, '<os-steps>' ) . '/' . substr_count( $mcp, '<os-step>' ) );
 ok( false === strpos( $mcp, '<ol' ), 'no browser ordered list survives on MCP Clients' );
-$fold      = strpos( $mcp, 'hint="Show the 4 setup steps"' );
-$fold_end  = false !== $fold ? strpos( $mcp, '</os-disclosure>', $fold ) : false;
-$fold_html = false !== $fold_end ? substr( $mcp, $fold, $fold_end - $fold ) : '';
-ok( false !== $fold && 4 === substr_count( $fold_html, '<os-step>' ) && false !== strpos( $fold_html, 'Install Node.js' ), 'the Claude desktop app fold holds its four steps as <os-step> inside its </os-disclosure>, starting with Install Node.js -- ' . substr_count( $fold_html, '<os-step>' ) );
+ok( array() === snt_leaf_folds( $mcp ), 'MCP Clients paints no fold: ' . implode( ',', snt_leaf_folds( $mcp ) ) );
+$app      = strpos( $mcp, '<os-section heading="Claude desktop app"' );
+$app_html = false !== $app ? substr( $mcp, $app, (int) strpos( $mcp, '</os-section>', $app ) - $app ) : '';
+ok( false !== $app && 4 === substr_count( $app_html, '<os-step>' ) && false !== strpos( $app_html, 'Install Node.js' ) && false !== strpos( $app_html, 'Fully restart the Claude app' ) && false !== strpos( $app_html, 'Add custom connector' ), 'the Claude desktop app section holds its four steps open, from Install Node.js to the restart, and the connector warning -- ' . substr_count( $app_html, '<os-step>' ) );
+ok( false !== strpos( $app_html, '<os-code>claude_desktop_config.json</os-code>' ) && false !== strpos( $app_html, '<os-code>~/Library/Application Support/Claude/</os-code>' ) && false !== strpos( $app_html, '<os-code>%APPDATA%\\Claude\\</os-code>' ), 'the config file and both paths are inline code in the second step' );
+ok( false !== $app && $app > (int) strpos( $mcp, 'claude mcp add --transport http' ), 'the desktop-app steps come after the proxy config they paste' );
+ok( 1 === preg_match( '#<os-button variant="link" os-action="go" os-arg-sub="agent-tools">[^<]{20,}</os-button>#', $mcp ), 'MCP Clients points at Agent tools for the door lists with a visible in-window link, not a second copy of them' );
 ok( false !== strpos( $mcp, '<os-step>Create an <os-button variant="link" os-action="door" os-arg-url="https://example.test/wp-admin/profile.php#application-passwords-section"' ), 'the first owner step keeps the Application Password door inside the step body' );
 
 // Nothing was dropped in the rearrangement: every section still paints.
 foreach ( array( 'Status at a glance', 'Bind the write-door credential', 'Connect a client', 'Door 1: the native MCP server', 'Door 1b: the native write door', 'Resources &amp; prompts', 'Door 2: the Abilities-registry adapter', 'More' ) as $heading ) {
 	ok( false !== strpos( $kit, $heading ), "still painted after the regroup: $heading" );
 }
+
+ok( $GLOBALS['__fold_paint'] >= 10 && array() === array_unique( $GLOBALS['__fold_hits'] ), 'no fold on either leaf in any of the ' . $GLOBALS['__fold_paint'] . ' states this suite paints: ' . implode( ',', array_unique( $GLOBALS['__fold_hits'] ) ) );
+
+// ── Live-shaped preview: two Application Passwords with the write door bound
+// to one, the remote bridge ready, the live allowlists (51 read, 18 rw).
+$live = json_decode( (string) file_get_contents( __DIR__ . '/fixtures/mcp-door-manifest.json' ), true );
+$GLOBALS['__read_slugs']    = $live['read'];
+$GLOBALS['__rw_slugs']      = $live['write'];
+$GLOBALS['__passwords']     = array(
+	array( 'uuid' => 'uuid-mac', 'name' => 'MacBook Claude app', 'created' => time() - 40 * 86400, 'last_used' => time() - 2 * 3600 ),
+	array( 'uuid' => 'uuid-ci', 'name' => 'CI smoke checks', 'created' => time() - 90 * 86400, 'last_used' => time() - 86400 ),
+);
+$GLOBALS['__rw_bound_uuid'] = 'uuid-mac';
+$mcp = snt_leaf_paint( 'ai', 'mcp-connect' );
+ok( array() === snt_leaf_folds( $mcp ) && false !== strpos( $mcp, '<os-section heading="Claude desktop app"' ) && false !== strpos( $mcp, 'MacBook Claude app' ), 'live-shaped preview: MCP Clients paints fold-free, the desktop-app steps open, the bound password named' );
+snt_leaf_preview( 'ai-mcp-connect', $mcp );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

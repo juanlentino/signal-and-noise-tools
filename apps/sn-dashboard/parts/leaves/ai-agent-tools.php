@@ -17,6 +17,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+// The call log and the doors (2026-10-11, open sections), and the allowlist
+// reader they share with MCP Clients.
+require_once __DIR__ . '/ai-mcp-connect-parts.php';
+require_once __DIR__ . '/ai-agent-tools-usage.php';
+require_once __DIR__ . '/ai-agent-tools-zero.php';
+require_once __DIR__ . '/ai-agent-tools-doors.php';
+require_once __DIR__ . '/ai-agent-tools-adapter.php';
+
 /**
  * On the page: the bridge's tools and outcomes, and what they read.
  *
@@ -65,20 +73,20 @@ function agent_tools_bridge_html( array $m ) {
 }
 
 /**
- * Through MCP: the doors' abilities and the call log, the parts MCP Clients
- * painted until 15.6.0 (ai-mcp-connect-parts.php).
+ * Through MCP: the call log, the tools no door call reached, then every door
+ * as an open section of the leaf (2026-10-11: the doors were one fold inside
+ * this section and each tool list a fold inside that; owner rule, no
+ * collapsible sections). Setting a client up stays on MCP Clients, one
+ * visible link away.
  *
  * @return string
  */
 function agent_tools_mcp_html() {
-	// The call log open, the point of the leaf; the four doors folded under it,
-	// paired as before (the 2026-09-10 measurement), because what each door
-	// exposes is reference a reader opens once.
-	$usage = function_exists( __NAMESPACE__ . '\\mcp_connect_usage_html' ) ? mcp_connect_usage_html( true ) : '';
-	$doors = ( function_exists( __NAMESPACE__ . '\\mcp_connect_door_native_html' ) ? \snt_kit_grid( array( mcp_connect_door_native_html(), mcp_connect_door_native_write_html() ) ) : '' )
-		. ( function_exists( __NAMESPACE__ . '\\mcp_connect_door_adapter_html' ) ? \snt_kit_grid( array( mcp_connect_door_adapter_html(), mcp_connect_resources_prompts_html() ) ) : '' );
-	$fold  = '' !== $doors ? \snt_kit_tag( 'os-disclosure', array( 'heading' => __( 'The doors, and what each exposes', 'signal-and-noise-tools' ) ), $doors ) : '';
-	return \snt_kit_section( __( 'Through MCP', 'signal-and-noise-tools' ), $usage . $fold, __( 'The native read and write doors and the adapter, each behind an Application Password; the call log records every call through them. Set up under MCP Clients.', 'signal-and-noise-tools' ) );
+	$usage = agent_tools_usage_html();
+	$setup = '<p>' . \snt_kit_go( __( 'Connect a client: MCP Clients', 'signal-and-noise-tools' ), array( 'sub' => 'mcp-connect' ) ) . '</p>';
+	return \snt_kit_section( __( 'Through MCP', 'signal-and-noise-tools' ), $usage['body'] . $setup, __( 'The native read and write doors and the adapter, each behind an Application Password; the call log records every call through them.', 'signal-and-noise-tools' ) )
+		. $usage['zero']
+		. agent_tools_doors_html();
 }
 
 /**

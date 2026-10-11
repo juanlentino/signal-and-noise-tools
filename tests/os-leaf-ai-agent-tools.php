@@ -16,8 +16,8 @@ $GLOBALS['__mr'] = array( 'ok' => true, 'rows' => array(), 'webmcp' => array( 'c
 function snt_mr_fetch( $days, $view = 'aggregate' ) { $GLOBALS['__mr_days'] = $days; return $GLOBALS['__mr']; }
 $GLOBALS['__posts'] = array();
 function get_posts( $a ) { return $GLOBALS['__posts']; }
-function sn_mcp_telemetry_usage() { return null; }
-function sn_mcp_telemetry_table_exists() { return false; }
+function sn_mcp_telemetry_usage() { return $GLOBALS['__usage'] ?? null; }
+function sn_mcp_telemetry_table_exists() { return ! empty( $GLOBALS['__usage'] ); }
 function snt_ml_related_for_post( $id, $limit ) { return $GLOBALS['__related'] ?? null; }
 function wp_get_post_tags( $id, $a = array() ) { return array(); }
 function get_the_title( $id ) { return 'Note ' . $id; }
@@ -57,7 +57,17 @@ ok( false !== strpos( $kit, 'Reported by browsers' ) && false !== strpos( $class
 ok( false !== strpos( $kit, 'not built yet' ) && false !== strpos( $kit, 'snt-dot--err' ) && false !== strpos( $classic, '<strong>missing</strong>' ), 'no site map: the document reads not built with a red dot; classic says missing' );
 ok( false !== strpos( $kit, 'no published note to carry one' ), 'no note: the related manifest says so' );
 ok( false !== strpos( $kit, 'served bytes match the anchored record' ), 'no drift remembered: the bridge reads anchored' );
-ok( false !== strpos( $kit, 'heading="Through MCP"' ) && false !== strpos( $kit, 'The call log table is not installed yet' ) && false !== strpos( $kit, '<os-disclosure heading="The doors, and what each exposes">' ) && false !== strpos( $kit, 'Door 1: the native MCP server' ) && 2 === substr_count( $kit, snt_leaf_row() ), 'Through MCP: the call log open under the section, the four doors paired inside one fold' );
+// 2026-10-11 (owner rule, no collapsible sections): the four doors were one
+// fold inside Through MCP, each tool list a fold inside that. They are open
+// sections of the leaf now, after the call log, never nested in it; the read
+// and write doors stand alone (their lists are tall), the adapter and the
+// resources stay paired.
+ok( array() === snt_leaf_folds( $kit ), 'nothing yet: the leaf paints no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+$mcp_open = (int) strpos( $kit, '<os-section heading="Through MCP"' );
+$mcp_box  = substr( $kit, $mcp_open, (int) strpos( $kit, '</os-section>', $mcp_open ) - $mcp_open );
+ok( false !== strpos( $mcp_box, 'The call log table is not installed yet' ) && false === strpos( $mcp_box, 'Door 1' ) && false !== strpos( $kit, '<os-section heading="Door 1: the native MCP server"' ) && strpos( $kit, 'heading="Door 1: the native MCP server"' ) > $mcp_open && 1 === substr_count( $kit, snt_leaf_row() ), 'Through MCP: the call log open in the section, the doors open sections after it (not nested), one pair (the adapter and the resources)' );
+ok( 1 === preg_match( '#<os-button variant="link" os-action="go" os-arg-sub="mcp-connect">Connect a client: MCP Clients</os-button>#', $mcp_box ), 'Through MCP ends on a visible in-window link to MCP Clients, where a client is set up' );
+ok( false !== strpos( $kit, 'The read-door allowlist is not readable here' ) && false !== strpos( $kit, 'The write-door allowlist is not readable here' ) && false === strpos( $kit, '0 read-only tools' ), 'no allowlist reader loaded: each door says its list is not readable, never "0 tools"' );
 ok( false === strpos( $kit, 'heading="Tool usage"' ), 'the call log is not a second section or a fold of its own here' );
 ok( false !== strpos( $kit, 'heading="Through Copilot"' ) && false !== strpos( $kit, 'No Ask AI tool calls recorded yet' ), 'Through Copilot: the retired leaf\'s empty state' );
 ok( strpos( $kit, 'heading="On the page, 30 days"' ) < strpos( $kit, 'heading="Through MCP"' ) && strpos( $kit, 'heading="Through MCP"' ) < strpos( $kit, 'heading="Through Copilot"' ), 'doors in order: the page, MCP, Copilot' );
@@ -73,6 +83,7 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_agent_tools_section' );
 $kit     = snt_leaf_paint( 'ai', 'agent-tools' );
 $rows    = rows_of( $kit );
 $by      = array_column( $rows, null, 'tool' );
+ok( array() === snt_leaf_folds( $kit ), 'rich: the leaf paints no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
 ok( '9' === $by['related-notes']['calls'] && '7' === $by['related-notes']['ok'] && '2' === $by['related-notes']['absent'] && '0' === $by['related-notes']['error'], 'related-notes: 9 calls, 7 ok, 2 absent, 0 error' );
 ok( '6' === $by['verify-page']['calls'] && '1' === $by['verify-page']['error'], 'verify-page: 6 calls, 1 error' );
 ok( isset( $by['search-notes *'] ) && '2' === $by['search-notes *']['calls'] && false !== strpos( $by['search-notes *']['what'], 'Not in the registered list' ), 'a tool seen in the rows but not registered is painted, starred, and says so' );
@@ -82,6 +93,55 @@ ok( false !== strpos( $kit, 'have not matched their anchor for 1 hour' ), 'a rem
 ok( false !== strpos( $classic, '<td class="sn-mono">related-notes</td><td>The notes the kernel ranks closest to this one</td><td>9</td><td>7</td><td>2</td><td>0</td>' ), 'the classic table paints the same row' );
 ok( false !== strpos( $kit, '<strong>19</strong> calls across <strong>2</strong> tools' ) && false !== strpos( $classic, '<strong>19</strong> calls across <strong>2</strong> tools' ), 'Through Copilot: the ranked summary (19 calls across 2 tools) on both leaves' );
 ok( false !== strpos( $kit, 'search_posts' ) && strpos( $kit, 'search_posts' ) < strpos( $kit, 'export_audit_log' ), 'Copilot tools ranked by count' );
+
+// ── Live-shaped preview: the live allowlists (51 read, 18 rw, the pinned door
+// manifest) with each ability's real category, and a call log of ~400 door
+// calls over 25 tools across 71 measured days of the 90-day window, so both
+// ledgers cap. The readers are declared HERE, at run time, so every state
+// above painted without them (the not-readable paths).
+$live = json_decode( (string) file_get_contents( __DIR__ . '/fixtures/mcp-door-manifest.json' ), true );
+if ( ! function_exists( 'sn_mcp_allowlist' ) ) {
+	function sn_mcp_allowlist() { return $GLOBALS['__live']['read']; }
+	function sn_mcp_rw_allowlist() { return $GLOBALS['__live']['write']; }
+	function sn_mcp_get_ability( $slug ) {
+		$short = substr( $slug, strlen( 'signal-noise/' ) );
+		$cat   = in_array( $short, array( 'draft-echoes', 'keyword-candidates', 'topic-clusters', 'sn-posts', 'sn-scan', 'sn-validate', 'sn-apply' ), true ) ? 'tools'
+			: ( in_array( $short, array( 'get-analytics-summary', 'login-defense-ipv6-criterion', 'get-machine-readers-crosstab', 'get-rights-reads', 'sn-metrics' ), true ) ? 'analytics'
+			: ( in_array( $short, array( 'ai-link-apply', 'ai-pair-suggest' ), true ) ? 'ai-generation'
+			: ( in_array( $short, array( 'prune-unused-tags', 'describe-tags', 'apply-tag-description', 'forms-spam-apply' ), true ) ? 'content'
+			: ( in_array( $slug, $GLOBALS['__live']['write'], true ) ? 'maintenance' : 'diagnostics' ) ) ) );
+		return new class( $cat ) { private $c; public function __construct( $c ) { $this->c = $c; } public function get_category() { return $this->c; } };
+	}
+	function rest_url( $path = '' ) { return 'https://example.test/wp-json/' . ltrim( (string) $path, '/' ); }
+	function sn_mcp_namespace() { return 'signal-noise/v1'; }
+	function wp_has_ability_category( $slug ) { return true; }
+	function wp_get_ability_category( $slug ) {
+		$labels = array( 'diagnostics' => 'Diagnostics', 'tools' => 'Tools', 'analytics' => 'Analytics', 'maintenance' => 'Maintenance', 'content' => 'Content', 'ai-generation' => 'AI Generation' );
+		return new class( $labels[ $slug ] ?? $slug ) { private $l; public function __construct( $l ) { $this->l = $l; } public function get_label() { return $this->l; } };
+	}
+}
+$GLOBALS['__live'] = $live;
+$called = array_merge( array( 'signal-noise/sn-status', 'signal-noise/sn-posts', 'signal-noise/get-analytics-summary', 'signal-noise/search-performance', 'signal-noise/get-health-scan' ), array_slice( array_diff( $live['read'], array( 'signal-noise/sn-status', 'signal-noise/sn-posts', 'signal-noise/get-analytics-summary', 'signal-noise/search-performance', 'signal-noise/get-health-scan', 'signal-noise/get-deploy-status' ) ), 0, 15 ), array_slice( $live['write'], 0, 5 ) );
+$calls  = array( 96, 61, 44, 33, 27, 22, 18, 15, 13, 11, 9, 8, 7, 6, 5, 4, 4, 3, 3, 2, 2, 1, 1, 1, 1 );
+$by_tool = array();
+foreach ( $called as $i => $slug ) {
+	$rw = in_array( $slug, $live['write'], true );
+	$by_tool[ 'signal-noise__' . substr( $slug, 13 ) ] = array( 'calls' => $calls[ $i ] + ( 0 === $i ? 4100 : 0 ), 'door_calls' => $calls[ $i ], 'direct_calls' => 0 === $i ? 4100 : 0, 'last_seen' => gmdate( 'Y-m-d H:i:s', time() - $i * 9000 ), 'doors' => $rw ? array( 'rw' ) : ( 0 === $i ? array( 'read', 'agent', 'direct' ) : array( 'read' ) ) );
+}
+$zero = array();
+foreach ( array_values( array_diff( array_merge( $live['read'], $live['write'] ), $called ) ) as $i => $slug ) {
+	$verdict = 'signal-noise/get-deploy-status' === $slug ? 'first_party_only' : ( 3 === $i ? 'unreachable' : ( 7 === $i ? 'undetermined' : 'unused' ) );
+	$zero[]  = array( 'slug' => $slug, 'verdict' => $verdict, 'calls' => 'first_party_only' === $verdict ? 28689 : 0 );
+}
+$GLOBALS['__usage'] = array( 'measured_since' => '2026-08-01 00:04:12', 'measured_days' => 71, 'window_days' => 90, 'complete' => false, 'total_rows' => 72579, 'by_door' => array( 'direct' => 72182, 'read' => 300, 'rw' => 60, 'agent' => 37 ), 'by_tool' => $by_tool, 'zero_call' => $zero );
+$GLOBALS['__mr']['webmcp'] = array( 'calls' => 212, 'by_tool' => array( 'related-notes' => 118, 'verify-page' => 61, 'get-citation' => 21, 'get-site-map' => 12 ), 'outcomes' => array( 'related-notes' => array( 'ok' => 109, 'absent' => 9 ), 'verify-page' => array( 'ok' => 60, 'error' => 1 ), 'get-citation' => array( 'ok' => 21 ), 'get-site-map' => array( 'ok' => 12 ) ) );
+$kit = snt_leaf_paint( 'ai', 'agent-tools' );
+ok( array() === snt_leaf_folds( $kit ), 'live-shaped preview: the leaf paints no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( false !== strpos( $kit, '397 calls came through a door since 2026-08-01; sn-status took 24% of them.' ) && false !== strpos( $kit, '+15 more tools, busiest first' ), 'live-shaped preview: 397 door calls over 25 tools; the ledger shows 10 and says +15 more' );
+ok( false !== strpos( $kit, '44 allowlisted tools had no call through a door: 1 cannot be projected; 1 with reachability unknown; 41 retirement candidates; 1 called only by the plugin itself.' ) && false !== strpos( $kit, '+34 more tools with no door calls' ), 'live-shaped preview: the 44 uncalled tools split by verdict; the ledger shows 10 and says +34 more' );
+ok( false !== strpos( $kit, '51 read-only tools across 3 categories; Diagnostics holds 40 of them.' ) && false !== strpos( $kit, '18 read-write tools across 4 categories; Maintenance holds 11 of them.' ), 'live-shaped preview: each door leads with its count and its largest category, built from the abilities' );
+ok( 69 === substr_count( $kit, '<os-chip>' ) && false !== strpos( $kit, '<os-fact label="Diagnostics (40)">' ), 'live-shaped preview: all 69 tools are chips in their door bands, by category' );
+snt_leaf_preview( 'ai-agent-tools', $kit );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
