@@ -69,7 +69,6 @@ require SNT_PATH . 'inc/machine-readers-render.php';
 require SNT_PATH . 'inc/machine-readers-basis.php';
 require SNT_PATH . 'inc/machine-readers-basis-fold.php';
 require SNT_PATH . 'inc/machine-readers-ledger.php';
-require SNT_PATH . 'inc/machine-readers-render-basis.php';
 require SNT_PATH . 'inc/rights-evidence-compose.php';
 require SNT_PATH . 'inc/machine-readers-render-taxonomy.php';
 require SNT_PATH . 'inc/machine-readers-insights.php';
@@ -270,25 +269,15 @@ $kit2     = snt_leaf_paint( 'monitoring', 'machine-readers' );
 snt_mr_memo( null );
 $classic2 = snt_leaf_classic_html( 'snt_mr_render_tab' );
 foreach ( array( 'kit' => $kit2, 'classic' => $classic2 ) as $twin => $h ) {
-	ok( false !== strpos( $h, 'How each count is known' ), "$twin: the evidence-basis block paints" );
-	ok( false !== strpos( $h, 'Verified is not signed' ), "$twin: one plain line tells verified (Cloudflare) from signed (Web Bot Auth)" );
-	ok( false !== strpos( $h, 'AI-training, by family (legacy)' ) && false !== strpos( $h, 'AI-training, by purpose' ), "$twin: both AI-training figures, the family one marked legacy" );
-	ok( false !== strpos( $h, '823' ) && false !== strpos( $h, '798' ), "$twin: the train row shows 823 claimed and 798 unverified" );
-	ok( false !== strpos( $h, 'Google-Extended' ) && false !== strpos( $h, 'credited to no vendor' ), "$twin: the impersonations list names the control token" );
-	ok( false !== strpos( $h, '11,868' ), "$twin: the family table shows unclassified-machine's first-party reads" );
-	ok( false !== strpos( $h, 'unmapped' ), "$twin: purpose unknown reads unmapped" );
-	ok( false !== strpos( $h, 'xAI' ) && false !== strpos( $h, '110' ), "$twin: the unnamed list shows verified hits and top networks per sample" );
+	ok( false !== strpos( $h, 'Verified is not signed' ), "$twin: one plain line beside the identity figures tells verified (Cloudflare) from signed (Web Bot Auth)" );
+	ok( false !== strpos( $h, '11,868' ), "$twin: the family table still shows unclassified-machine's reads" );
+	ok( false !== strpos( $h, 'unmapped' ) && false === strpos( $h, '>unknown<' ), "$twin: purpose unknown reads unmapped" );
 }
+// The evidence split, the impersonations and the anomaly series get their own
+// place (Monitoring › Reader Evidence, in design); the parent leaf keeps its
+// question, and its Reader behaviour box keeps its height (no table added).
 $anoms2 = mr_leaf_box( $kit2, 'Reader behaviour' );
-ok( false !== strpos( $anoms2, 'Google LLC' ) && false !== strpos( $anoms2, '2026-10-10' ) && false !== strpos( $anoms2, 'amazon-ai, anthropic, bytedance, openai' ), 'the reader-behaviour box names the co-movement: network, day, families' );
-ok( false !== strpos( $anoms2, 'Verified' ) && false !== strpos( $anoms2, 'Unverified' ) && false !== strpos( $anoms2, 'withheld' ), 'and shows the verified and unverified series apart, with a withheld one said as withheld' );
-// A worker before 1.30.0: the list cannot say who was verified, and says so.
-$GLOBALS['__mr_fixtures']['unknown'] = mr_body( array( array( 'user_agent' => 'GrokBot/1.0', 'hits' => 310 ) ) );
-snt_mr_memo( null );
-$kit3 = snt_leaf_paint( 'monitoring', 'machine-readers' );
-snt_mr_memo( null );
-$classic3 = snt_leaf_classic_html( 'snt_mr_render_tab' );
-ok( false !== strpos( $kit3, 'not measured' ) && false !== strpos( $classic3, 'not measured' ), 'an unsplit unknown view reads not measured on both twins, never 0' );
+ok( false === strpos( $anoms2, '<os-table' ) && false === strpos( $kit2, 'How each count is known' ), 'the parent leaf is not crammed: no evidence block, no table in the behaviour box' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

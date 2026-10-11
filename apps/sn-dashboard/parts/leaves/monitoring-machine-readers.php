@@ -28,7 +28,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/monitoring-machine-readers-parts.php';
 require_once __DIR__ . '/monitoring-machine-readers-health.php';
 require_once __DIR__ . '/monitoring-machine-readers-evidence.php';
-require_once __DIR__ . '/monitoring-machine-readers-basis.php';
 
 /**
  * The hero: sensor pipeline pills, then (when the read succeeded) the
@@ -47,6 +46,7 @@ function machine_readers_hero_html( array $d ) {
 		}
 		$out .= machine_readers_summary_stats_html( $d['rows'], $d['days'], $d['feed_total'], (int) ( $d['webmcp']['calls'] ?? 0 ) );
 		$out .= machine_readers_identity_stats_html( $d['rows'], $d['days'] );
+		// Unreleased: verified and signed told apart beside the identity figures.
 		$out .= '<p class="snt-hint">' . \snt_kit_esc( \snt_mr_basis_not_signed_line() ) . '</p>';
 	}
 	return \snt_kit_section( __( 'Sensor status', 'signal-and-noise-tools' ), $out );
@@ -122,7 +122,7 @@ function paint_monitoring_machine_readers( array $ctx ) {
 	// two boxes of a height, under the hero and above the columns.
 	return machine_readers_hero_html( $d )
 		. machine_readers_health_row_html()
-		. \snt_kit_grid( array( \snt_kit_stack( machine_readers_evidence_html( $d ) . ( empty( $d['result']['ok'] ) ? '' : machine_readers_basis_html( $d['rows'] ) ) ), \snt_kit_stack( machine_readers_reference_html( $d ) ) ), 290, 24 );
+		. \snt_kit_grid( array( \snt_kit_stack( machine_readers_evidence_html( $d ) ), \snt_kit_stack( machine_readers_reference_html( $d ) ) ), 290, 24 );
 }
 
 add_filter(

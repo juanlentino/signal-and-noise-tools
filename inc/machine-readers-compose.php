@@ -108,6 +108,7 @@ function snt_mr_compose_tab( $ctx ) {
 		// read, but how many asked for markdown and how many proved who they are.
 		$out .= snt_mr_render_identity_row( $rows, $days );
 		if ( function_exists( 'snt_mr_basis_not_signed_line' ) ) {
+			// Unreleased: verified and signed told apart beside the identity figures.
 			$out .= '<p class="sn-an-settings-help">' . esc_html( snt_mr_basis_not_signed_line() ) . '</p>';
 		}
 	}
@@ -128,9 +129,6 @@ function snt_mr_compose_tab( $ctx ) {
 		}
 		if ( is_array( $ctx['unknown_rows'] ?? null ) ) {
 			$out .= snt_mr_render_unknown_agents( $ctx['unknown_rows'] );
-		}
-		if ( function_exists( 'snt_mr_render_basis' ) ) {
-			$out .= snt_mr_render_basis( $rows );
 		}
 	} else {
 		$out .= '<p class="sn-mr-empty">' . esc_html__( 'No readership data yet: the Sensor status card above says why.', 'signal-and-noise-tools' ) . '</p>';

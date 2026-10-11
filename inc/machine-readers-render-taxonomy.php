@@ -442,11 +442,7 @@ function snt_mr_render_unknown_agents( $rows, $limit = 50 ) {
 		}
 		++$count;
 		$body .= '<tr><td class="column-primary"><code>' . esc_html( $ua ) . '</code></td>'
-			. '<td class="num" data-colname="Reads">' . esc_html( number_format_i18n( (int) ( $r['hits'] ?? 0 ) ) ) . '</td>'
-			// Unreleased: verified hits and top networks; "not measured" when the
-			// edge could not split the list (never 0).
-			. '<td class="num" data-colname="Verified">' . esc_html( function_exists( 'snt_mr_basis_count' ) ? snt_mr_basis_count( $r['verified_hits'] ?? null ) : '' ) . '</td>'
-			. '<td data-colname="Top networks">' . esc_html( function_exists( 'snt_mr_basis_networks' ) ? snt_mr_basis_networks( (array) $r ) : '' ) . '</td></tr>';
+			. '<td class="num" data-colname="Reads">' . esc_html( number_format_i18n( (int) ( $r['hits'] ?? 0 ) ) ) . '</td></tr>';
 	}
 
 	// Fold only when there is something to fold. If every agent normalized
@@ -473,8 +469,6 @@ function snt_mr_render_unknown_agents( $rows, $limit = 50 ) {
 	$out .= snt_mr_table_open( __( 'Unclassified user agents, by volume — review these to extend the taxonomy.', 'signal-and-noise-tools' ), array(
 		__( 'User agent (sampled, sanitized)', 'signal-and-noise-tools' ) => '',
 		__( 'Reads', 'signal-and-noise-tools' ) => 'num',
-		__( 'Verified (Cloudflare)', 'signal-and-noise-tools' ) => 'num',
-		__( 'Top networks', 'signal-and-noise-tools' ) => '',
 	) );
 	$out .= $body;
 	$out .= '</tbody></table>';
