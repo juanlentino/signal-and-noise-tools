@@ -89,10 +89,10 @@ function trust_check_section( $label, array $reading, array $findings, $tab ) {
 function trust_public_html() {
 	$public  = '<p class="snt-prose">' . esc_html__( 'The same guarantees, checkable by anyone without access to this admin.', 'signal-and-noise-tools' ) . '</p>';
 	$public .= '<ul class="snt-plain">';
-	$public .= '<li>' . \snt_kit_link( __( 'Verification docket', 'signal-and-noise-tools' ), home_url( '/verify/' ) ) . '. ' . esc_html__( 'per-note signature, content hash, live match, and anchor, checked in the reader’s own browser.', 'signal-and-noise-tools' ) . '</li>';
-	$public .= '<li>' . \snt_kit_link( __( 'Public ledger', 'signal-and-noise-tools' ), 'https://github.com/juanlentino/signal-and-noise-provenance' ) . '. ' . esc_html__( 'the signed records and their daily verify workflow.', 'signal-and-noise-tools' ) . '</li>';
-	$public .= '<li>' . \snt_kit_link( __( 'TDM policy', 'signal-and-noise-tools' ), home_url( '/tdm-policy/' ) ) . '. ' . esc_html__( 'the human-readable terms behind the reservation headers.', 'signal-and-noise-tools' ) . '</li>';
-	$public .= '<li>' . \snt_kit_link( __( 'RSL licence', 'signal-and-noise-tools' ), home_url( '/license.xml' ) ) . '. ' . esc_html__( 'machine-readable licensing terms.', 'signal-and-noise-tools' ) . '</li>';
+	$public .= '<li>' . \snt_kit_link( __( 'Verification docket', 'signal-and-noise-tools' ), home_url( '/verify/' ) ) . ': ' . esc_html__( 'per-note signature, content hash, live match, and anchor, checked in the reader’s own browser.', 'signal-and-noise-tools' ) . '</li>';
+	$public .= '<li>' . \snt_kit_link( __( 'Public ledger', 'signal-and-noise-tools' ), 'https://github.com/juanlentino/signal-and-noise-provenance' ) . ': ' . esc_html__( 'the signed records and their daily verify workflow.', 'signal-and-noise-tools' ) . '</li>';
+	$public .= '<li>' . \snt_kit_link( __( 'TDM policy', 'signal-and-noise-tools' ), home_url( '/tdm-policy/' ) ) . ': ' . esc_html__( 'the human-readable terms behind the reservation headers.', 'signal-and-noise-tools' ) . '</li>';
+	$public .= '<li>' . \snt_kit_link( __( 'RSL licence', 'signal-and-noise-tools' ), home_url( '/license.xml' ) ) . ': ' . esc_html__( 'machine-readable licensing terms.', 'signal-and-noise-tools' ) . '</li>';
 	$public .= '</ul>';
 	return \snt_kit_section( __( 'The public side', 'signal-and-noise-tools' ), $public );
 }

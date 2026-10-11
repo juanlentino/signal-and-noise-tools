@@ -191,6 +191,9 @@ ok( false !== strpos( $kit, 'github.com/juanlentino/signal-and-noise-provenance'
 foreach ( array( 'Verification docket', 'Public ledger', 'TDM policy', 'RSL licence' ) as $label ) {
 	ok( false !== strpos( $classic, $label ) && false !== strpos( $kit, $label ), "public link $label printed by both" );
 }
+// 2026-10-11: each link is followed by a colon, not ". per-note ..." (a period
+// then a lowercase word, left by an old em-dash swap).
+ok( 4 === preg_match_all( '/(<\/os-button>|<\/a>): [a-z]/', $kit ) && 4 === preg_match_all( '/<\/a>: [a-z]/', $classic ) && false === strpos( $kit . $classic, '. per-note' ), 'each public link is followed by a colon, never a period before a lowercase word' );
 
 // ── State 5: the gate. The classic leaf prints NOTHING at all (not even a wrapper); the kit leaf explains why.
 $GLOBALS['__can'] = false;
