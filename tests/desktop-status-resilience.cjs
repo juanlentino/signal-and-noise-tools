@@ -638,13 +638,15 @@ async function run() {
     m = await mount({...base, families: [], total: 0});
     assert.doesNotMatch(m.root.textContent, /Top crawler family/, 'no reads: the row is left out, never 0%');
     m.stop();
-    // Unreleased: the part of the top family that is this site's own tools.
-    m = await mount({...base, top_family: {family: 'unclassified-machine', share: 56, prior_share: null, first_party_share: 55}, edge_verified: {verified: 4000, unverified: 9000, not_measured: 0, first_party: 23416}});
-    assert.match(m.root.textContent, /Top crawler family unclassified-machine, 56% \(55% this site\u2019s own tools\)/, 'the top family says how much of it is this site\'s own tools');
-    assert.match(m.root.textContent, /This site\u2019s own tools 23,416/, 'the first-party part is a row of its own, grouped');
-    m.stop();
-    m = await mount({...base, top_family: {family: 'anthropic', share: 20, prior_share: null, first_party_share: 0}});
-    assert.doesNotMatch(m.root.textContent, /own tools/, 'no first-party part: nothing is said');
+    // Unreleased: this site's own tools on their own line, never the top family;
+    // the AI-training figure claimed and verified, with a 6px evidence strip.
+    m = await mount({...base, top_family: {family: 'anthropic', share: 13, prior_share: null}, edge_verified: {verified: 4000, unverified: 9000, not_measured: 0, first_party: 23416}, ai_training_by_purpose: 1984, verification: {ai_training_by_purpose: {claimed: 1984, verified: 25, verified_matched: 25, unverified: 1959, unverifiable: 0}}});
+    assert.match(m.root.textContent, /Top crawler family anthropic, 13%/, 'the top family is a reader');
+    assert.match(m.root.textContent, /This site\u2019s own tools, not readership 23,416/, 'this site\'s own tools on their own line, grouped');
+    assert.match(m.root.textContent, /AI-training reads 1,984 claimed \u00b7 25 verified/, 'the AI-training figure says claimed and verified');
+    const strip = nodes(m.root).find(n => n.className === 'snt-evidence');
+    assert.ok(strip && strip.attrs['aria-hidden'] === 'true', 'with a decorative evidence strip');
+    assert.deepEqual(strip.children.map(c => c.attrs['data-part']), ['verified_matched', 'unverified'], 'segments in order, zero parts dropped');
     m.stop();
   }
   // Codex round 2: an anchor read still pending is loading, not an error.

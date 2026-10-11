@@ -550,15 +550,15 @@ function snt_desktop_machine_readers_identity( array $rows ) {
  * @param array      $payload    The machine-readers summary (families, total).
  * @param array|null $prior_rows Sensor rows of the prior window; null when not read.
  * @param int        $days       The prior window's length in days.
- * Unreleased: `first_party_share` is the part of `share` that is this site's
- * own tools (the family row's first_party_hits over the same total), so the
- * top family reads apart from the site's own probes inside it.
- *
- * @return array{family:string,share:int,prior_share:int|null,first_party_share:int}|null
+ * @return array{family:string,share:int,prior_share:int|null}|null
  */
 function snt_desktop_machine_readers_top_family( array $payload, $prior_rows, $days = 30 ) {
-	$top   = $payload['families'][0] ?? null;
-	$total = (int) ( $payload['total'] ?? 0 );
+	// Unreleased: the top family among READERS (reader_families: this site's
+	// own tools and control tokens left out), its share of reader reads. An
+	// older payload without the field falls back to families over the total.
+	$readers = isset( $payload['reader_families'] ) && is_array( $payload['reader_families'] );
+	$top     = $readers ? ( $payload['reader_families'][0] ?? null ) : ( $payload['families'][0] ?? null );
+	$total   = (int) ( $payload['total'] ?? 0 ) - ( $readers ? (int) ( $payload['first_party'] ?? 0 ) : 0 );
 	if ( ! is_array( $top ) || '' === (string) ( $top['family'] ?? '' ) || $total < 1 ) {
 		return null;
 	}
@@ -573,7 +573,8 @@ function snt_desktop_machine_readers_top_family( array $payload, $prior_rows, $d
 	if ( is_array( $prior_rows ) && count( $covered ) >= max( 1, (int) $days ) ) {
 		$hits = array();
 		foreach ( $prior_rows as $r ) {
-			if ( is_array( $r ) && '' !== (string) ( $r['family'] ?? '' ) ) {
+			$own = $readers && ( ! empty( $r['first_party'] ) || ( function_exists( 'snt_mr_is_impersonation' ) && snt_mr_is_impersonation( $r ) ) );
+			if ( is_array( $r ) && '' !== (string) ( $r['family'] ?? '' ) && ! $own ) {
 				$hits[ (string) $r['family'] ] = (int) ( $hits[ (string) $r['family'] ] ?? 0 ) + max( 0, (int) ( $r['hits'] ?? 0 ) );
 			}
 		}
@@ -581,9 +582,8 @@ function snt_desktop_machine_readers_top_family( array $payload, $prior_rows, $d
 		$prior = $all > 0 ? (int) round( 100 * (int) ( $hits[ $family ] ?? 0 ) / $all ) : null;
 	}
 	return array(
-		'family'            => $family,
-		'share'             => (int) round( 100 * (int) ( $top['hits'] ?? 0 ) / $total ),
-		'prior_share'       => $prior,
-		'first_party_share' => (int) round( 100 * (int) ( $top['first_party_hits'] ?? 0 ) / $total ),
+		'family'      => $family,
+		'share'       => (int) round( 100 * (int) ( $top['hits'] ?? 0 ) / max( 1, $total ) ),
+		'prior_share' => $prior,
 	);
 }

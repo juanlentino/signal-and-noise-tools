@@ -24,7 +24,8 @@ function wp_register_ability( $slug, $args ) { $GLOBALS['__ab'][ $slug ] = $args
 function snt_mr_fetch( $days = 30, $view = 'aggregate' ) { return 'totals' === $view ? $GLOBALS['__mr_totals'] : $GLOBALS['__mr']; }
 function snt_mr_sensor_info() { return array( 'version' => '1.29.0' ); }
 function snt_mr_crawler_list_status() { return array( 'last_check_ok' => '2026-10-10', 'last_check_drift' => '' ); }
-foreach ( array( 'machine-readers-taxonomy', 'machine-readers-render', 'rights-evidence-compose', 'machine-readers-basis', 'machine-readers-basis-fold', 'machine-readers-summary', 'machine-readers-daily', 'abilities-machine-readers' ) as $f ) {
+if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, (int) $d ); } }
+foreach ( array( 'machine-readers-taxonomy', 'machine-readers-render', 'rights-evidence-compose', 'machine-readers-basis', 'machine-readers-basis-fold', 'machine-readers-readers-model', 'machine-readers-summary', 'machine-readers-daily', 'abilities-machine-readers' ) as $f ) {
 	if ( is_file( __DIR__ . "/../inc/$f.php" ) ) { require __DIR__ . "/../inc/$f.php"; }
 }
 foreach ( $GLOBALS['__acts']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(); }
@@ -73,7 +74,7 @@ $before = json_decode( (string) file_get_contents( $fixture ), true );
 $legacy = static function ( $json ) {
 	$r = json_decode( $json, true );
 	if ( is_array( $r ) && ! empty( $r['ok'] ) ) {
-		unset( $r['impersonations'], $r['verification'], $r['basis'] );
+		unset( $r['impersonations'], $r['verification'], $r['basis'], $r['reader_families'] );
 		$r['families'] = array_map( static fn( $f ) => array_diff_key( $f, array( 'first_party_hits' => 0 ) ), (array) $r['families'] );
 		ok( array_key_exists( 'verification', json_decode( $json, true ) ), 'the ok response carries the new verification field' );
 	}

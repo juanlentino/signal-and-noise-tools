@@ -68,7 +68,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // path, referrer, country, device or day (inc/analytics-rows.php).
 // Contract 16 (owner brief 2026-10-11, one bump for the arc): every attributed
 // count carries its evidence basis. The machine-readers summary twin gains
-// impersonations, verification and basis, families[].first_party_hits, and
+// impersonations, verification, basis and reader_families, families[].first_party_hits, and
 // descriptions on ai_training (legacy), purposes (unknown is unmapped),
 // first_party and identity (signed is not verified); the analytics summary
 // twin gains likely_automated and basis. Additive. The worker's own
@@ -113,7 +113,7 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	// RED-then-pin, 2026-10-10: 18-twin map, remote-analytics-rows joined.
 	'15' => '3158c41d6236a25c6e9f1a0c87904b5e03096b3c6e86b701fd3421be2856e2ec',
 	// RED-then-pin, 2026-10-11: evidence basis on the machine-readers and analytics summary twins.
-	'16' => 'f94693e964cf804c40db8c67a50ec5f8389dfdf500e417704da513ec25b3cf78',
+	'16' => 'b3a3a71e89dffbff52aeb5b88f7ade3e321669dfe52e73223d41748ddb5b6590',
 );
 
 /**

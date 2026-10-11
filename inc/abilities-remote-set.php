@@ -901,6 +901,18 @@ add_action( 'wp_abilities_api_init', function () {
 					'type'        => 'object',
 					'description' => 'The evidence basis of each attributed field: signed (a cryptographic signature checked out), verified (Cloudflare\'s verified-bot category), claimed (the user agent the client sent), inferred (a rule or a score), unmeasured (not recorded).',
 				),
+				'reader_families'        => array(
+					'type'        => 'array',
+					'description' => 'The top 3 families by reads from readers: this site\'s own tools and control-token hits left out, so the top family is a reader, never the site\'s own probes. {family, hits (claimed), verified (Cloudflare)}.',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'family'   => array( 'type' => 'string' ),
+							'hits'     => array( 'type' => 'integer' ),
+							'verified' => array( 'type' => 'integer' ),
+						),
+					),
+				),
 				'error'          => array( 'type' => array( 'string', 'null' ) ),
 				// Unreleased: present ONLY when the call passed series: "day".
 				'daily'                  => array(

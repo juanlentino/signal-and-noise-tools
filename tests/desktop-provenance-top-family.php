@@ -19,7 +19,7 @@ require __DIR__ . '/../inc/machine-readers-insights.php'; // the real snt_mr_spl
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
-function snt_mr_summary_payload( $days ) { return array( 'ok' => true, 'days' => 30, 'total' => 200, 'families' => array( array( 'family' => 'unclassified-machine', 'hits' => 88, 'first_party_hits' => 80 ) ) ); }
+function snt_mr_summary_payload( $days ) { return $GLOBALS['__payload'] ?? array( 'ok' => true, 'days' => 30, 'total' => 200, 'families' => array( array( 'family' => 'unclassified-machine', 'hits' => 88 ) ) ); }
 $GLOBALS['__reads'] = array();
 function snt_mr_fetch( $days ) { return $GLOBALS['__reads'][ (int) $days ]; }
 
@@ -38,8 +38,16 @@ function prior_rows( $n ) {
 $current = array( 'ok' => true, 'truncated' => false, 'rows' => array() );
 $GLOBALS['__reads'] = array( 30 => $current, 60 => array( 'ok' => true, 'truncated' => false, 'rows' => prior_rows( 30 ) ) );
 $p = snt_desktop_machine_readers_payload();
-ok( array( 'family' => 'unclassified-machine', 'share' => 44, 'prior_share' => 25, 'first_party_share' => 40 ) === ( $p['top_family'] ?? null ), 'every prior day covered: the share and the prior share, and the part of the share that is this site\'s own tools (80 of 200 reads: 40%)' );
-ok( 0 === snt_desktop_machine_readers_top_family( array( 'families' => array( array( 'family' => 'x', 'hits' => 1 ) ), 'total' => 2 ), null )['first_party_share'], 'a family row without first_party_hits reads 0 first-party, never a missing key' );
+ok( array( 'family' => 'unclassified-machine', 'share' => 44, 'prior_share' => 25 ) === ( $p['top_family'] ?? null ), 'every prior day covered: the share and the prior share (an older payload: families over the total)' );
+// Unreleased: the top family is a READER (reader_families: this site's own
+// tools left out), its share of reader reads; the prior share leaves the
+// site's own rows out too.
+$GLOBALS['__payload'] = array( 'ok' => true, 'days' => 30, 'total' => 200, 'first_party' => 120, 'families' => array( array( 'family' => 'unclassified-machine', 'hits' => 130 ) ), 'reader_families' => array( array( 'family' => 'GPTBot', 'hits' => 60, 'verified' => 0 ) ) );
+$own = array_map( static fn( $r ) => $r + ( 'unclassified-machine' === $r['family'] ? array( 'first_party' => true ) : array() ), prior_rows( 30 ) );
+$GLOBALS['__reads'][60] = array( 'ok' => true, 'truncated' => false, 'rows' => $own );
+$p = snt_desktop_machine_readers_payload();
+ok( array( 'family' => 'GPTBot', 'share' => 75, 'prior_share' => 100 ) === ( $p['top_family'] ?? null ), 'the top family is the top reader (60 of 80 reader reads: 75%), never this site\'s own tools; the prior share counts readers only' );
+unset( $GLOBALS['__payload'] );
 
 $GLOBALS['__reads'][60] = array( 'ok' => true, 'truncated' => false, 'rows' => prior_rows( 5 ) );
 $p = snt_desktop_machine_readers_payload();

@@ -153,16 +153,26 @@ function snt_dwx_boxes() {
 							'delta' => array( 'label' => __( 'prior 30d', 'signal-and-noise-tools' ) ),
 						),
 						array(
-							'path'    => 'ai_training',
-							'label'   => __( 'AI-training', 'signal-and-noise-tools' ),
-							/* translators: %s: AI-training reads as a percentage of all reads */
-							'compare' => array( 'template' => __( '%s of reads', 'signal-and-noise-tools' ), 'percent_of' => 'total', 'path' => 'ai_training' ),
+							// Unreleased: the purpose figure, claimed, with the part
+							// Cloudflare verified (the legacy family figure is the
+							// Machine readers view's "counted both ways" band).
+							'path'    => 'ai_training_by_purpose',
+							'label'   => __( 'AI-training, claimed', 'signal-and-noise-tools' ),
+							/* translators: %s: of them verified by Cloudflare */
+							'compare' => array( 'template' => __( '%s verified', 'signal-and-noise-tools' ), 'path' => 'verification.ai_training_by_purpose.verified' ),
 						),
 						array(
 							// Top family is the LIST's fact. This cell carries the
 							// number the list cannot: rights-file reads.
 							'path'    => 'ai_rights',
 							'label'   => __( 'Rights-file reads', 'signal-and-noise-tools' ),
+							/* translators: %s: total machine reads in the window */
+							'compare' => array( 'template' => __( 'of %s total', 'signal-and-noise-tools' ), 'path' => 'total' ),
+						),
+						array(
+							// This site's own tools: a line of their own, never a family.
+							'path'    => 'first_party',
+							'label'   => __( 'This site’s own tools, not readership', 'signal-and-noise-tools' ),
 							/* translators: %s: total machine reads in the window */
 							'compare' => array( 'template' => __( 'of %s total', 'signal-and-noise-tools' ), 'path' => 'total' ),
 						),
@@ -174,12 +184,12 @@ function snt_dwx_boxes() {
 					'label'   => __( 'Top families', 'signal-and-noise-tools' ),
 					'ability' => 'signal-noise/get-machine-readers-summary',
 					'input'   => array( 'days' => 30 ),
-					'path'    => 'families',
-					'limit'   => 5,
-					// The part of a family that is this site's own tools, said
-					// under it (unclassified-machine is mostly the site's probes).
-					/* translators: %s: reads from this site's own tools */
-					'item'    => array( 'label' => 'family', 'value' => 'hits', 'sub' => 'first_party_hits', 'sub_template' => __( '%s from this site’s own tools', 'signal-and-noise-tools' ) ),
+					// Readers only: this site's own tools are the field above,
+					// never the top family.
+					'path'    => 'reader_families',
+					'limit'   => 3,
+					/* translators: %s: reads Cloudflare verified */
+					'item'    => array( 'label' => 'family', 'value' => 'hits', 'sub' => 'verified', 'sub_template' => __( '%s verified by Cloudflare', 'signal-and-noise-tools' ) ),
 				),
 				array(
 					// `purposes` is null when the taxonomy is unavailable; the list

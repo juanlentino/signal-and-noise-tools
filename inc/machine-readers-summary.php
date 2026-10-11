@@ -248,6 +248,11 @@ function snt_mr_summary_payload( $days, $series = null ) {
 	if ( function_exists( 'snt_mr_evidence' ) ) {
 		$payload += snt_mr_evidence( $rows );
 	}
+	// Unreleased: who reads, ranked without this site's own tools or the
+	// control tokens, so a top family is a reader, never the site's probes.
+	if ( function_exists( 'snt_mr_who_reads' ) ) {
+		$payload['reader_families'] = array_map( static fn( $f ) => array( 'family' => $f['family'], 'hits' => (int) $f['split']['claimed'], 'verified' => (int) $f['split']['verified'] ), array_slice( snt_mr_who_reads( $rows )['rows'], 0, SN_MR_TOP_FAMILIES ) );
+	}
 	// Unreleased: appended, never interleaved, so a call without `series` is
 	// byte-identical to the response before the series existed.
 	if ( 'day' === $series && function_exists( 'snt_mr_summary_daily' ) ) {

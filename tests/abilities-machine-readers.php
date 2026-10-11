@@ -77,6 +77,8 @@ require __DIR__ . '/../inc/machine-readers-summary.php';
 require __DIR__ . '/../inc/rights-evidence-compose.php';
 require __DIR__ . '/../inc/machine-readers-basis.php';
 require __DIR__ . '/../inc/machine-readers-basis-fold.php';
+if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, (int) $d ); } }
+require __DIR__ . '/../inc/machine-readers-readers-model.php';
 
 require __DIR__ . '/../inc/abilities-machine-readers.php';
 foreach ( $GLOBALS['__acts']['wp_abilities_api_init'] ?? array() as $cb ) {
@@ -128,7 +130,7 @@ ok(
 	// in snt_mr_summary_payload()'s return since v10.79.0 but undeclared here,
 	// so an agent reading the schema could not know the purpose axis existed.
 	// ADDITIVE and in the payload's own order — nothing renamed, nothing moved.
-	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'identity', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'impersonations', 'verification', 'basis', 'error', 'daily', 'daily_total_exact' ) === array_keys( $props ),
+	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'identity', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'impersonations', 'verification', 'basis', 'reader_families', 'error', 'daily', 'daily_total_exact' ) === array_keys( $props ),
 	'schema pins the DM tile payload fields in response order, with error appended, then the series-only daily and daily_total_exact'
 );
 ok( 'boolean' === ( $props['ok']['type'] ?? null ), 'ok is a boolean' );
@@ -222,7 +224,7 @@ ok(
 	// they qualify: `total` is now exact whenever the edge can serve the totals
 	// view, and a consumer drawing the family breakdown still needs to know that
 	// breakdown may be partial. ADDITIVE — nothing renamed, nothing moved.
-	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'identity', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'impersonations', 'verification', 'basis' ) === array_keys( $out ),
+	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'identity', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'impersonations', 'verification', 'basis', 'reader_families' ) === array_keys( $out ),
 	'success shape matches the DM route exactly (Unreleased: impersonations, verification and basis appended)'
 );
 ok( $rows_before === $GLOBALS['__mr']['rows'], 'the fetched rows are never mutated' );
@@ -234,7 +236,7 @@ $out_minus_new = $out;
 unset( $out_minus_new['ai_surfaces'] );
 // Unreleased: the evidence-basis fields are additive on the same principle;
 // without them (and each family's first_party_hits) the old payload is intact.
-unset( $out_minus_new['impersonations'], $out_minus_new['verification'], $out_minus_new['basis'] );
+unset( $out_minus_new['impersonations'], $out_minus_new['verification'], $out_minus_new['basis'], $out_minus_new['reader_families'] );
 $out_minus_new['families'] = array_map( static fn( $f ) => array_diff_key( $f, array( 'first_party_hits' => 0 ) ), $out_minus_new['families'] );
 // v10.79.0: the purpose axis is additive on the SAME principle , a consumer
 // that ignores the new keys must still see the pre-existing payload untouched.
