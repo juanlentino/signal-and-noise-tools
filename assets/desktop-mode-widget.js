@@ -222,10 +222,16 @@
 			var fleet = section( 'Workers' );
 			workers.forEach( function( w ) {
 				if ( ! w || typeof w !== 'object' ) { return; }
+				// 2026-10-11: a worker with a versioned contract (Remote MCP)
+				// says it; a mismatch is amber and names both sides. Absence
+				// stays absence: no contract is not a matching one.
+				var hasContract = typeof w.contract_match === 'boolean';
+				var mismatch    = hasContract && ! w.contract_match;
+				var contract    = ! hasContract ? '' : ' · contract ' + ( w.contract_live || '?' ) + ( mismatch ? ', plugin expects ' + ( w.contract_expected || '?' ) : '' );
 				versionRow( fleet.grid, w.label || w.id || 'worker',
-					( w.live && w.live !== 'unprobeable' ) ? w.live : '—',
-					stateGlyph( stale ? 'unknown' : ( w.state || 'unknown' ) ),
-					w.reason || ( w.live === 'unprobeable' ? 'no version route to probe' : '' ) );
+					( ( w.live && w.live !== 'unprobeable' ) ? w.live : '—' ) + contract,
+					stateGlyph( stale ? 'unknown' : ( mismatch ? 'behind' : ( w.state || 'unknown' ) ) ),
+					w.reason || ( mismatch ? 'The worker and this plugin disagree on the remote contract; deploy the side that is behind.' : '' ) || ( w.live === 'unprobeable' ? 'no version route to probe' : '' ) );
 			} );
 			// The workers' own last deploy: when the five-minute version probe
 			// first read a new version (inc/deploy-workers-seen.php). Until one

@@ -165,6 +165,21 @@ async function run() {
     assert.equal(g4.children[k + 1].text, '—', 'a versionless unknown says nothing about the cache');
     assert.equal(g4.children[k + 2].text, '?', 'a versionless unknown keeps the red ?');
     stop4();
+    // 2026-10-11: the Remote MCP row says its contract; a mismatch is amber
+    // and names both sides. A worker with no contract says nothing about one.
+    for (const [match, live, text, glyph] of [[true, '16', '2.2.0 · contract 16', '✓'], [false, '15', '2.2.0 · contract 15, plugin expects 16', '↑']]) {
+      const c = harness(), rc = new Element('div');
+      const stopc = c.window.desktopModeWidgets['sn-deploy-status'](rc); await flush();
+      c.calls[0].resolve({theme: {current: '1', state: 'ok'}, plugin: {current: '2', state: 'ok'}, workers: [
+        {id: 'sn-remote-mcp', label: 'Remote MCP', live: '2.2.0', latest: '2.2.0', state: 'ok', contract_live: live, contract_expected: '16', contract_match: match},
+        {id: 'sn-analytics', label: 'Analytics', live: '1.25.0', latest: '1.25.0', state: 'ok'}]}); await flush();
+      const lc = nodes(rc).find(n => n.text === 'Remote MCP'), gc = lc.parentNode, kc = gc.children.indexOf(lc);
+      assert.equal(gc.children[kc + 1].text, text, 'the Remote MCP row reads ' + text);
+      assert.equal(gc.children[kc + 2].text, glyph, match ? 'a matching contract keeps the check' : 'a contract mismatch is amber');
+      const la = nodes(rc).find(n => n.text === 'Analytics');
+      assert.equal(la.parentNode.children[la.parentNode.children.indexOf(la) + 1].text, '1.25.0', 'a worker with no contract says nothing about one');
+      stopc();
+    }
   }
   // Good -> pending -> good changes values and recency only after success.
   for (const f of fixtures) {
