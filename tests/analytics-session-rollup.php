@@ -109,7 +109,10 @@ if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
 // analytics-sessions.php is NOT loaded here, so these are safe stubs (no redeclare).
 $GLOBALS['__sr_metrics_pv'] = array();
 function sn_analytics_config() { return array( 'account_id' => 'a', 'token' => 't' ); }
+// The human rule's over-cap list (inc/analytics-human-rule.php is not loaded here).
+function sn_analytics_overcap_vdays() { return $GLOBALS['__sr_overcap'] ?? array( 'hashes' => array(), 'ok' => true, 'truncated' => false ); }
 function sn_analytics_fetch_session_events( $from, $to, $class ) {
+	$GLOBALS['__sr_fetches'][] = $class;
 	// Global-driven so later groups can vary the fetched day. Default: two real
 	// pageview visits + one pageview-less server/RSS group (the phantom).
 	return $GLOBALS['__sr_fetch'] ?? array( 'configured' => true, 'summaries' => array(
@@ -373,6 +376,18 @@ $GLOBALS['wpdb']->results = array(
 $rows2 = sn_session_rollup_read( '2026-06-01', '2026-06-03', 'human' );
 ok( is_array( $rows2 ) && 1 === count( $rows2 ) && '2026-06-01' === $rows2[0]['day'],
 	'read: a malformed row is DROPPED (never padded with fabricated 0s)' );
+
+// 2026-10-11: the nightly writes yesterday ONCE, with no self-heal window. An
+// over-cap list that did not read would store visits, bounce and engagement
+// with automated visitor-days as readers; it writes nothing instead, which
+// reads as not measured, never as a wrong figure.
+$GLOBALS['__sr_overcap']      = array( 'hashes' => array(), 'ok' => false, 'truncated' => false );
+$GLOBALS['__sr_fetches']      = array();
+$GLOBALS['__sr_metrics_pv']   = array();
+$GLOBALS['__sr_exit_upserts'] = array();
+sn_session_rollup_run();
+ok( array() === $GLOBALS['__sr_fetches'] && array() === $GLOBALS['__sr_metrics_pv'] && array() === $GLOBALS['__sr_exit_upserts'], 'run: a failed over-cap list fetches, computes and writes nothing' );
+unset( $GLOBALS['__sr_overcap'] );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
