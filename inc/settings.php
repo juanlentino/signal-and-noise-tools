@@ -252,7 +252,8 @@ function sn_settings_defaults() {
  *
  * The group is private and no settings_fields( 'sn_private' ) exists anywhere:
  * a Settings API form posting to options.php saves every option in its group,
- * posted or not (inc/general-save-guard.php guards core's own case). The forms
+ * posted or not (Core's own General form hit this until WordPress/ai#1048
+ * was fixed upstream). The forms
  * keep posting to sn_action and the handlers stay the writers.
  *
  * show_in_rest stays false: the tree holds keyring secrets. `default` is
