@@ -666,6 +666,15 @@ async function run() {
     const strip = nodes(m.root).find(n => n.className === 'snt-evidence');
     assert.ok(strip && strip.attrs['aria-hidden'] === 'true', 'with a decorative evidence strip');
     assert.deepEqual(strip.children.map(c => c.attrs['data-part']), ['verified_matched', 'unverified'], 'segments in order, zero parts dropped');
+    assert.doesNotMatch(m.root.textContent, /Control tokens/, 'no impersonations field: no control-token row');
+    m.stop();
+    // 2026-10-11: reads presenting a robots.txt control token are credited to
+    // no one, and the card says how many and which tokens; none is left out.
+    m = await mount({...base, impersonations: [{agent: 'google-extended', token: 'Google-Extended', hits: 170}, {agent: 'applebot-extended', token: 'Applebot-Extended', hits: 1200}]});
+    assert.match(m.root.textContent, /Control tokens, credited to no one 1,370 \u00b7 Google-Extended, Applebot-Extended/, 'the control-token reads, grouped, with their tokens');
+    m.stop();
+    m = await mount({...base, impersonations: []});
+    assert.doesNotMatch(m.root.textContent, /Control tokens/, 'none presented: no row');
     m.stop();
   }
   // Codex round 2: an anchor read still pending is loading, not an error.

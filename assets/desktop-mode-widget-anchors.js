@@ -141,6 +141,14 @@
 		} else if ( mr.ai_training !== null && typeof mr.ai_training !== 'undefined' ) {
 			list.appendChild( listRow( 'Declared AI-training reads', grouped( mr.ai_training ) ) );
 		}
+		// Reads presenting a robots.txt control token (Google-Extended): no
+		// crawler of its own, so credited to no vendor and left out of the
+		// AI-training figure above. Absent or none: no row.
+		var imp = Array.isArray( mr.impersonations ) ? mr.impersonations.filter( function( i ) { return i && Number( i.hits ) > 0; } ) : [];
+		if ( imp.length ) {
+			var impHits = imp.reduce( function( n, i ) { return n + Number( i.hits ); }, 0 );
+			list.appendChild( listRow( 'Control tokens, credited to no one', grouped( impHits ) + ' \u00b7 ' + imp.map( function( i ) { return String( i.token || i.agent ); } ).join( ', ' ) ) );
+		}
 		if ( mr.ai_training !== null && typeof mr.ai_training !== 'undefined' ) {
 			// A crawler that went looking for the declarations on purpose. The
 			// reservation rides every response, so 0 here is healthy, never an alarm.
