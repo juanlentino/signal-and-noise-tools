@@ -103,7 +103,7 @@ ok( false !== strpos( $kit, '<p class="snt-prose">3 candidates in 2 posts: 2 pul
 $pa_tables = snt_leaf_tables( $kit );
 ok( 1 === count( $pa_tables ) && 3 === count( $pa_tables[0]['data'] ) && 3 === substr_count( $classic, '<tr>' ) - 1, 'one table row per candidate, as one classic row per candidate' );
 ok( array( 'Post', 'Pattern', 'Action' ) === array_column( $pa_tables[0]['columns'] ?? array(), 'label' ) && false !== strpos( $kit, 'data-snt-stack-on-phone' ), 'the classic column labels (Post, Pattern, Action) head one os-table that stacks on a phone' );
-ok( false === strpos( $kit, 'snt-more' ), 'three candidates are under the cap: no "+N more" line' );
+ok( false === strpos( $kit, 'snt-ledger-more' ), 'three candidates are under the cap: no "+N more" line' );
 ok( false !== strpos( $kit, '<os-table' ) && strpos( $kit, '<os-table' ) < strpos( $kit, 'submit-label="Re-scan opportunities"' ), 'the Re-scan button comes after the ledger: actions last' );
 ok( 2 === substr_count( $kit, '<os-code>Two kinds of provenance</os-code>' ) && 1 === substr_count( $kit, '<os-code>Signal over noise</os-code>' ), 'every post title is printed as inline code' );
 // 14.7.5: a permalink is SAME-ORIGIN, so it is a door (a window), never a
@@ -167,10 +167,10 @@ function snt_pa_many( $n ) {
 }
 $GLOBALS['__pa_scan'] = snt_pa_scan( snt_pa_many( 25 ) );
 $kit = snt_leaf_paint( 'content', 'pattern-adoption' );
-ok( 25 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && false === strpos( $kit, 'snt-more' ) && array() === snt_leaf_folds( $kit ), 'exactly 25 candidates: every row painted, no "+N more" line, no fold' );
+ok( 25 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && false === strpos( $kit, 'snt-ledger-more' ) && array() === snt_leaf_folds( $kit ), 'exactly 25 candidates: every row painted, no "+N more" line, no fold' );
 $GLOBALS['__pa_scan'] = snt_pa_scan( snt_pa_many( 30 ) );
 $kit = snt_leaf_paint( 'content', 'pattern-adoption' );
-ok( 25 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && 25 === substr_count( $kit, 'data-snt-suggest="1"' ) && false !== strpos( $kit, '<p class="snt-hint snt-more">+5 more candidates; the list is capped, not complete. Work these, then re-scan to list the rest.</p>' ), '30 candidates: 25 rows, each with its Suggest, and "+5 more" said out loud' );
+ok( 25 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && 25 === substr_count( $kit, 'data-snt-suggest="1"' ) && false !== strpos( $kit, '<p class="snt-hint snt-ledger-more">+5 more candidates; the list is capped, not complete. Work these, then re-scan to list the rest.</p>' ), '30 candidates: 25 rows, each with its Suggest, and "+5 more" said out loud' );
 ok( false !== strpos( $kit, '30 candidates in 10 posts: 20 pull-quote, 10 steps-enumerated.' ) && array() === snt_leaf_folds( $kit ), '30 candidates: the finding counts all 30, not the 25 painted; no fold' );
 snt_leaf_preview( 'content-pattern-adoption', $kit );
 

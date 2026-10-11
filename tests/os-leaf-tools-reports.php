@@ -273,7 +273,7 @@ ok( null !== $fail_row && '2.10:1' === $fail_row['ratio'] && false !== strpos( $
 $motion_row = $reports_rows( 'sheet', 'assets/admin.css' );
 ok( null !== $motion_row && '.snt-spin' === $motion_row['selector'] && 'keyframe' === $motion_row['kind'], 'the uncovered-motion row is a ledger row: sheet, selector, kind' );
 ok( false !== strpos( $kit, 'moves only when a token changes' ), 'the arithmetic tier still says it is a palette property that moves only when a token changes' );
-ok( false === strpos( $kit, 'snt-more' ), 'under every cap: no "+N more" line is painted' );
+ok( false === strpos( $kit, 'snt-ledger-more' ), 'under every cap: no "+N more" line is painted' );
 // The reading: the contrast card leads with one tile per tier. Only the usage
 // tier's failing count may carry a warning; the placement-dependent and the
 // arithmetic counts are conditional and hedged, so they paint no swatch.

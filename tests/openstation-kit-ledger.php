@@ -21,11 +21,11 @@ $html   = snt_kit_ledger( '1,203 paths were hit.', $cols, $rows, 25 );
 $tables = snt_leaf_tables( $html );
 ok( 0 === strpos( $html, '<p class="snt-prose">1,203 paths were hit.</p><os-table' ), 'the finding leads, as prose, before the table' );
 ok( 1 === count( $tables ) && 25 === count( $tables[0]['data'] ) && '/p-25' === $tables[0]['data'][24]['path'], 'the table holds the first 25 rows, in order' );
-ok( false !== strpos( $html, '<p class="snt-hint snt-more">+1,178 more; the list is capped, not complete.</p>' ), 'the cut is counted out loud, formatted' );
+ok( false !== strpos( $html, '<p class="snt-hint snt-ledger-more">+1,178 more; the list is capped, not complete.</p>' ), 'the cut is counted out loud, formatted' );
 ok( array( 'Path', 'Hits' ) === array_column( $tables[0]['columns'], 'label' ), 'every column keeps its header' );
 
 $html = snt_kit_ledger( '', $cols, array_slice( $rows, 0, 25 ), 25 );
-ok( 0 === strpos( $html, '<os-table' ) && false === strpos( $html, 'snt-more' ), 'at the cap exactly: no finding asked for, no "+N more"' );
+ok( 0 === strpos( $html, '<os-table' ) && false === strpos( $html, 'snt-ledger-more' ), 'at the cap exactly: no finding asked for, no "+N more"' );
 
 $html = snt_kit_ledger( 'x', $cols, array_slice( $rows, 0, 26 ), 25, array( 'more' => '+%s more paths, quietest last.' ) );
 ok( false !== strpos( $html, '>+1 more paths, quietest last.</p>' ), 'a caller format replaces the default sentence' );

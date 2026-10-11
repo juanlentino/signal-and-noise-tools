@@ -110,7 +110,7 @@ ok( false !== strpos( $kit, 'description="The store keeps at most 500 successful
 $al_tables = snt_leaf_tables( $kit );
 $al_log    = array_values( array_filter( $al_tables, static function ( $t ) { return array( 'Timestamp', 'User' ) === array_column( $t['columns'], 'label' ); } ) );
 ok( 1 === count( $al_log ) && 3 === count( $al_log[0]['data'] ) && 'alice' === $al_log[0]['data'][0]['user'], 'the log is one Timestamp/User table, newest first, every row under the cap' );
-ok( false === strpos( $kit, 'snt-more' ), 'under the cap: no "+N more" line' );
+ok( false === strpos( $kit, 'snt-ledger-more' ), 'under the cap: no "+N more" line' );
 
 // ── Classic-heading parity: every sn-fieldset-h / sn-callout-h string in the
 // classic markup shows up somewhere in the kit output.
@@ -160,12 +160,12 @@ $kit = snt_leaf_paint( 'security', 'audit-log' );
 ok( false !== strpos( $kit, '<p class="snt-prose">52 successful logins in the window, by 52 users; the newest was ' ) && array() === snt_leaf_folds( $kit ), 'the finding reads the true count of 52, not the 50 painted, and nothing folds' );
 ok( false !== strpos( $kit, '&quot;user51&quot;' ), 'the newest login (highest ts) survives the display cap' );
 ok( false === strpos( $kit, '&quot;user0&quot;' ) && false === strpos( $kit, '&quot;user1&quot;' ), 'the two oldest logins are dropped by the display cap, not kept by an unsorted slice' );
-ok( false !== strpos( $kit, '<p class="snt-hint snt-more">+2 more logins; the list is capped, not complete. Newest first, so the tail is the oldest end.</p>' ), 'the "+2 more" remainder is reported on the kit more line, no em dash' );
+ok( false !== strpos( $kit, '<p class="snt-hint snt-ledger-more">+2 more logins; the list is capped, not complete. Newest first, so the tail is the oldest end.</p>' ), 'the "+2 more" remainder is reported on the kit more line, no em dash' );
 ok( 50 === substr_count( $kit, '&quot;user&quot;:&quot;' ), 'exactly 50 login rows are painted, matching SN_AUDIT_LOGIN_DISPLAY_MAX' );
 // Exactly at the cap: nothing is cut, so no "+N more" line.
 $GLOBALS['__options']['sn_audit_log_v1']['login_success'] = array_slice( $many, 2 );
 $kit = snt_leaf_paint( 'security', 'audit-log' );
-ok( 50 === substr_count( $kit, '&quot;user&quot;:&quot;' ) && false === strpos( $kit, 'snt-more' ) && false !== strpos( $kit, '50 successful logins in the window' ), 'exactly 50 logins: all painted, no "+N more" line' );
+ok( 50 === substr_count( $kit, '&quot;user&quot;:&quot;' ) && false === strpos( $kit, 'snt-ledger-more' ) && false !== strpos( $kit, '50 successful logins in the window' ), 'exactly 50 logins: all painted, no "+N more" line' );
 $GLOBALS['__options']['sn_audit_log_v1']['login_success'] = $saved_logins;
 
 // ── Clear state: no active lockouts paints "clear", not "locked".

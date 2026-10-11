@@ -71,13 +71,13 @@ ok( false !== strpos( $ops, 'description="3 checks · 7 components"' ), 'the Sys
 echo "\nOperations: the database overrides are open\n";
 ok( 1 === substr_count( $ops, 'id="sn-dash-diagnostics"' ) && false !== strpos( $ops, 'heading="Database overrides"' ), 'the overrides section keeps the #sn-dash-diagnostics anchor the attention strip links' );
 ok( false !== strpos( $ops, '<p class="snt-prose">3 theme items are served from the database, not from the theme files.</p><os-cluster gap="6"><os-code>wp_template/home</os-code><os-code>wp_template_part/header</os-code><os-code>wp_navigation/navigation</os-code></os-cluster>' ), 'a one-line finding over every override name, open' );
-ok( false === strpos( $ops, 'snt-more' ), 'three overrides are under the cap: no "+N more" line' );
+ok( false === strpos( $ops, 'snt-ledger-more' ), 'three overrides are under the cap: no "+N more" line' );
 $many = array();
 for ( $i = 1; $i <= 13; $i++ ) { $many[] = 'wp_template/page-' . $i; }
 $capped = ( $L . 'home_operations_html' )( array( 'overrides' => $many ) + snt_home_fixture(), 'dashboard' );
-ok( 10 === substr_count( $capped, '<os-code>' ) && false !== strpos( $capped, '<p class="snt-hint snt-more">+3 more overrides; the list is capped, not complete.</p>' ) && false !== strpos( $capped, '13 theme items are served' ), 'thirteen overrides: ten names, then "+3 more", the count in the finding is the whole thirteen' );
+ok( 10 === substr_count( $capped, '<os-code>' ) && false !== strpos( $capped, '<p class="snt-hint snt-ledger-more">+3 more overrides; the list is capped, not complete.</p>' ) && false !== strpos( $capped, '13 theme items are served' ), 'thirteen overrides: ten names, then "+3 more", the count in the finding is the whole thirteen' );
 $at_cap = ( $L . 'home_operations_html' )( array( 'overrides' => array_slice( $many, 0, 10 ) ) + snt_home_fixture(), 'dashboard' );
-ok( 10 === substr_count( $at_cap, '<os-code>' ) && false === strpos( $at_cap, 'snt-more' ), 'exactly at the cap: all ten names, no "+N more" line' );
+ok( 10 === substr_count( $at_cap, '<os-code>' ) && false === strpos( $at_cap, 'snt-ledger-more' ), 'exactly at the cap: all ten names, no "+N more" line' );
 
 echo "\nOperations: calm, and unknown is never zero\n";
 $calm = ( $L . 'home_operations_html' )( snt_home_fixture( true ), 'dashboard' );

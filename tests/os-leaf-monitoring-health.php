@@ -161,7 +161,7 @@ $hx_delta = preg_match( '#<os-fact label="Delta check">(.*?)</os-fact>#s', $kit,
 ok( false !== strpos( $hx_delta, 'not measured' ) && false !== strpos( $hx_delta, 'AI provider not configured' ) && false !== strpos( $hx_delta, 'Configure an AI provider.' ), 'rich scan: the skipped Delta check reads not measured, with its reason and its fix hint: ' . strip_tags( $hx_delta ) );
 ok( '' !== $hx_delta && false === stripos( $hx_delta, 'clear' ) && false === stripos( $hx_delta, 'holding' ) && 0 === preg_match( '/>\s*0\s*</', $hx_delta ) && false === strpos( $kit, '<os-chip>Delta check</os-chip>' ), 'rich scan: the skipped check never reads clear, holding or 0, and is not a passing chip' );
 ok( strpos( $kit, 'heading="Could not run"' ) < strpos( $kit, 'heading="Passing checks"' ), 'rich scan: the checks that could not run read before the passing ones' );
-ok( 1 === substr_count( $kit, 'class="snt-hint snt-more"' ), 'rich scan: exactly one "+N more" line, under the one capped table (Alpha, 52 rows); Beta (1) and Missing alt (2) carry none' );
+ok( 1 === substr_count( $kit, 'class="snt-hint snt-ledger-more"' ), 'rich scan: exactly one "+N more" line, under the one capped table (Alpha, 52 rows); Beta (1) and Missing alt (2) carry none' );
 
 // ── The advisory card (unreachable from health_data(): every advisory key is
 // worklist-surfaced) still paints a capped ledger, never a fold.
@@ -174,7 +174,7 @@ $hx_adv_t = snt_leaf_tables( $hx_adv );
 ok( array() === snt_leaf_folds( $hx_adv ) && 1 === count( $hx_adv_t ) && 50 === count( $hx_adv_t[0]['data'] ) && false !== strpos( $hx_adv, '+10 more advisories: re-run scan after fixing the top batch.' ) && false !== strpos( $hx_adv, '>60 advisories</os-badge>' ), 'advisory card: no fold; the count (was the "Show 60 advisories" fold heading) on the badge, a ledger of the first 50 and a "+10 more" line' );
 ok( false !== strpos( $hx_adv, '<p class="snt-prose">Describe each tag.</p>' ) && strpos( $hx_adv, 'Describe each tag.' ) < strpos( $hx_adv, '<os-table' ), 'advisory card: the ledger is led by its sentence' );
 $hx_adv3 = \SignalNoise\OpenStationHost\Dashboard\Leaves\health_finding_card_html( 'tag_hygiene', array( 'label' => 'Tag hygiene', 'count' => 3, 'findings' => array_slice( $hx_adv_rows, 0, 3 ) ), true, false );
-ok( array() === snt_leaf_folds( $hx_adv3 ) && false === strpos( $hx_adv3, 'snt-more' ), 'advisory card at or under the cap: no "+N more" line' );
+ok( array() === snt_leaf_folds( $hx_adv3 ) && false === strpos( $hx_adv3, 'snt-ledger-more' ), 'advisory card at or under the cap: no "+N more" line' );
 
 // ── Escaping: a hostile subject/note never reaches the markup raw.
 ok( false === strpos( $kit, '<script>' ) && false === strpos( $kit, '<b>title</b>' ), 'rich scan: a hostile finding subject/note is escaped' );
@@ -274,7 +274,7 @@ $hx_live['contrast_tokens']    = array( 'label' => 'Contrast tokens', 'count' =>
 $GLOBALS['__health_scan'] = array( 'scanned_at' => time() - 3600, 'elapsed_ms' => 23071, 'checks' => $hx_live );
 $kit = snt_leaf_paint( 'monitoring', 'health' );
 ok( array() === snt_leaf_folds( $kit ), 'live-shaped: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
-ok( 1 === substr_count( $kit, 'class="snt-hint snt-more"' ) && false !== strpos( $kit, '+14 more findings: re-run scan after fixing the top batch.' ), 'live-shaped: the 64-finding check caps at 50 and counts the other 14 out loud' );
+ok( 1 === substr_count( $kit, 'class="snt-hint snt-ledger-more"' ) && false !== strpos( $kit, '+14 more findings: re-run scan after fixing the top batch.' ), 'live-shaped: the 64-finding check caps at 50 and counts the other 14 out loud' );
 ok( false !== strpos( $kit, '53 of 60 checks passing, across 6 families.' ) && false !== strpos( $kit, '3 checks produced no evidence either way this scan, so they read not measured' ) && 3 === substr_count( $kit, '>not measured</os-badge>' ), 'live-shaped: 53 of 60 pass in six families; the three that could not run each read not measured' );
 snt_leaf_preview( 'monitoring-health', $kit );
 

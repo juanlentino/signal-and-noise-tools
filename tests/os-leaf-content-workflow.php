@@ -170,7 +170,7 @@ foreach ( $t['data'] as $i => $row ) {
 }
 ok( $edit_ok, 'every row carries a visible Edit button: a go to this leaf with sn_edit=<list>' );
 ok( false !== strpos( $kit, '<p class="snt-prose">1 of 2 map steps, 1 of 1 rule and no proof links show on the page.</p>' ), 'the finding states what reaches the page, from the data' );
-ok( false === strpos( $kit, 'snt-more' ), 'three lists: never capped, so no "+N more" line' );
+ok( false === strpos( $kit, 'snt-ledger-more' ), 'three lists: never capped, so no "+N more" line' );
 ok( 1 === preg_match( '#</os-table>.*<os-section heading="Map steps" description="[^"]*Show on page[^"]*"#s', $all['map'] ) && 1 === substr_count( $all['map'], '<os-section heading="Map steps"' ), 'editing the map paints ONE region below the table, named for the list, its helper line as the description' );
 ok( 1 === preg_match( '#<os-section heading="Proof links" description="Links to evidence a reader can check\\. A row shows only when &quot;Show on page&quot; is ticked and its link is a path on this site \\(/maturity/\\) or an https URL\\.#', $all['proof'] ) && false !== strpos( $all['rules'], '<os-section heading="Rules" description="Add, remove and reorder rows with their buttons, or Alt+Arrow keys on a row; the page shows them in this order."' ) && false !== strpos( $all['map'], 'Unchecked steps stay here and nowhere else.' ), 'the fold\'s and the intro\'s helper lines are the regions\' descriptions (the Proof link rule, the Show on page rule, the reorder keys)' );
 ok( 1 === preg_match( '#<span slot="footer-leading"><os-button variant="ghost" os-action="go" os-arg-sub="workflow">Cancel</os-button></span>#', $all['map'] ) && false === strpos( $kit, '>Cancel</os-button>' ), 'the region has a Cancel beside Save (a go that clears sn_edit); the default paint has none' );
@@ -220,7 +220,7 @@ ok( array( '6', '8', '5' ) === array_column( $t['data'], 'rows' ) && array( '4',
 ok( false !== strpos( $all[''], '<p class="snt-prose">4 of 6 map steps, 8 of 8 rules and 3 of 5 proof links show on the page.</p>' ), 'the finding counts the public view' );
 
 // ── Live-shaped preview: ~6 map steps, ~8 rules, ~5 proof links (the fixture above).
-ok( array() === $folds_in( $all ) && false === strpos( $all[''], 'snt-more' ), 'live-shaped: fold-free on every paint, the three-row ledger never capped' );
+ok( array() === $folds_in( $all ) && false === strpos( $all[''], 'snt-ledger-more' ), 'live-shaped: fold-free on every paint, the three-row ledger never capped' );
 snt_leaf_preview( 'content-workflow', $all[''] );
 snt_leaf_preview( 'content-workflow-editing', $all['map'] );
 

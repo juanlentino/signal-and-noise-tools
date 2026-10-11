@@ -34,7 +34,7 @@ function snt_kit_more( $more, $format = '' ) {
 		? (string) $format
 		/* translators: %s: rows not shown. */
 		: __( '+%s more; the list is capped, not complete.', 'signal-and-noise-tools' );
-	return '<p class="snt-hint snt-more">' . snt_kit_esc( sprintf( $format, number_format_i18n( $more ) ) ) . '</p>';
+	return '<p class="snt-hint snt-ledger-more">' . snt_kit_esc( sprintf( $format, number_format_i18n( $more ) ) ) . '</p>';
 }
 
 /**

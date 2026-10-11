@@ -102,7 +102,7 @@ ok( false !== strpos( $kit, '<os-badge tone="warning">2 candidates</os-badge>' )
 // 2026-10-11 (owner rule, no folds): the queue is open; the count its closed
 // "Review 2 candidates" heading carried is the finding sentence over the table.
 ok( false !== strpos( $kit, '<p class="snt-prose">2 candidates in 2 posts: 1 h3 → h2, 1 h4 → h2.</p>' ) && false !== strpos( $classic, 'Review 2 candidates' ), 'candidates: the finding counts the candidates, the posts and each heading jump, from the rows' );
-ok( false === strpos( $kit, 'snt-more' ) && false !== strpos( $kit, '<os-table' ) && strpos( $kit, '<os-table' ) < strpos( $kit, 'submit-label="Re-scan"' ), 'candidates: under the cap, no "+N more"; the Re-scan action comes after the ledger' );
+ok( false === strpos( $kit, 'snt-ledger-more' ) && false !== strpos( $kit, '<os-table' ) && strpos( $kit, '<os-table' ) < strpos( $kit, 'submit-label="Re-scan"' ), 'candidates: under the cap, no "+N more"; the Re-scan action comes after the ledger' );
 // 17.9.0 (#1624): an os-table. Its header is the component's own, so the
 // hand-rolled role=columnheader row is gone (the issue's inverted pin).
 $bm_tables = snt_leaf_tables( $kit );
@@ -156,16 +156,16 @@ function bm_many( $n ) {
 }
 $GLOBALS['__last_scan'] = bm_many( 25 );
 $kit = snt_leaf_paint( 'content', 'block-migrations' );
-ok( 25 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && false === strpos( $kit, 'snt-more' ) && array() === snt_leaf_folds( $kit ), 'exactly 25 candidates: every row painted, no "+N more" line, no fold' );
+ok( 25 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && false === strpos( $kit, 'snt-ledger-more' ) && array() === snt_leaf_folds( $kit ), 'exactly 25 candidates: every row painted, no "+N more" line, no fold' );
 $GLOBALS['__last_scan'] = bm_many( 30 );
 $kit = snt_leaf_paint( 'content', 'block-migrations' );
-ok( 25 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && 25 === substr_count( $kit, 'data-snt-suggest="1"' ) && false !== strpos( $kit, '<p class="snt-hint snt-more">+5 more candidates; the list is capped, not complete. Work these, then re-scan to list the rest.</p>' ), '30 candidates: 25 rows, each with its Suggest, and "+5 more" said out loud' );
+ok( 25 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && 25 === substr_count( $kit, 'data-snt-suggest="1"' ) && false !== strpos( $kit, '<p class="snt-hint snt-ledger-more">+5 more candidates; the list is capped, not complete. Work these, then re-scan to list the rest.</p>' ), '30 candidates: 25 rows, each with its Suggest, and "+5 more" said out loud' );
 ok( false !== strpos( $kit, '30 candidates in 15 posts: 15 h3 → h2, 15 h4 → h2.' ) && array() === snt_leaf_folds( $kit ), '30 candidates: the finding counts all 30, not the 25 painted; no fold' );
 
 // ── Live-shaped preview: ~20 heading skips over a dozen posts.
 $GLOBALS['__last_scan'] = bm_many( 20 );
 $kit = snt_leaf_paint( 'content', 'block-migrations' );
-ok( 20 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && false === strpos( $kit, 'snt-more' ) && array() === snt_leaf_folds( $kit ) && false !== strpos( $kit, '20 candidates in 10 posts' ), 'live-shaped: 20 candidates, all painted under the cap, no fold' );
+ok( 20 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && false === strpos( $kit, 'snt-ledger-more' ) && array() === snt_leaf_folds( $kit ) && false !== strpos( $kit, '20 candidates in 10 posts' ), 'live-shaped: 20 candidates, all painted under the cap, no fold' );
 snt_leaf_preview( 'content-block-migrations', $kit );
 
 echo "\nResult: $pass passed, $fail failed.\n";

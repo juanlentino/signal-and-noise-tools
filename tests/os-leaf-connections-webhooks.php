@@ -121,7 +121,7 @@ ok(
 	'log rows carry fired-at, attempt, HTTP, ok/fail and the response, newest first'
 );
 ok( '<os-badge tone="warning">fail</os-badge>' === snt_leaf_cell_html( $wh_log[0], $wh_rows[1]['status'] ?? null ) && 'ok' === snt_leaf_cell_html( $wh_log[0], $wh_rows[0]['status'] ?? null ), 'a failed delivery is toned (a warning badge, as the classic pill); an ok one is plain' );
-ok( false === strpos( $kit, 'snt-more' ), 'two deliveries are under the cap: no "+N more" line' );
+ok( false === strpos( $kit, 'snt-ledger-more' ), 'two deliveries are under the cap: no "+N more" line' );
 ok( false !== strpos( $kit, '<b>2 webhooks configured</b> <os-badge tone="success">Active</os-badge><br>1 enabled, 1 disabled.' ), 'the status box counts configured and enabled webhooks with an Active pill' );
 ok( false === strpos( $kit, 'name="sn_betterstack_token"' ) && false === strpos( $kit, 'name="sn_spend_gh_token"' ) && false === strpos( $kit, 'ABCD7890' ) && false === strpos( $kit, '••••7890' ) && false !== strpos( $kit, 'label="Better Stack API token"' ) && false !== strpos( $kit, '>saved</span></os-fact>' ) && false !== strpos( $kit, 'Connections › Credentials' ), '15.2.0: no token field and no value; the sources read saved and the section points to the keyring' );
 ok( false !== strpos( $kit, 'heading="Better Stack status"' ) && false !== strpos( $kit, 'data-sn-uptime-status' ), 'with a token, the Better Stack mount is painted for the shell script to fill' );
@@ -242,7 +242,7 @@ function webhooks_test_log( $n, array $failed_at = array(), $base = null ) {
 }
 fixture( array( 'sn_webhook_log_wh_alpha' => webhooks_test_log( 10 ) ) );
 $kit = snt_leaf_paint( 'connections', 'webhooks' );
-ok( false !== strpos( $kit, '10 deliveries logged, none failed; the newest was ' . gmdate( 'Y-m-d H:i:s', WH_T0 + 9 * 5400 ) . '.' ) && false === strpos( $kit, 'snt-more' ), 'exactly 10 deliveries, none failed: the finding says so, every row painted, no "+N more"' );
+ok( false !== strpos( $kit, '10 deliveries logged, none failed; the newest was ' . gmdate( 'Y-m-d H:i:s', WH_T0 + 9 * 5400 ) . '.' ) && false === strpos( $kit, 'snt-ledger-more' ), 'exactly 10 deliveries, none failed: the finding says so, every row painted, no "+N more"' );
 fixture(
 	array(
 		'sn_webhooks'              => array(
@@ -258,7 +258,7 @@ fixture(
 );
 $kitL = snt_leaf_paint( 'connections', 'webhooks' );
 ok( false !== strpos( $kitL, '20 deliveries logged, 2 failed; the last failure was ' . gmdate( 'Y-m-d H:i:s', WH_T0 + 17 * 5400 ) . ', HTTP 503.' ) && false !== strpos( $kitL, '20 deliveries logged, 1 failed;' ) && false !== strpos( $kitL, '10 deliveries logged, none failed;' ), 'live-shaped: each webhook\'s finding counts its log and its failures (2 + 1 + 0 = 3 of 50)' );
-ok( 2 === substr_count( $kitL, '<p class="snt-hint snt-more">+10 more deliveries; the list is capped, not complete. Newest first, so the tail is the oldest end.</p>' ) && 3 === count( array_filter( snt_leaf_tables( $kitL ), static function ( $t ) { return 10 === count( $t['data'] ); } ) ), 'live-shaped: each log paints its newest 10, and the two 20-entry logs say "+10 more"' );
+ok( 2 === substr_count( $kitL, '<p class="snt-hint snt-ledger-more">+10 more deliveries; the list is capped, not complete. Newest first, so the tail is the oldest end.</p>' ) && 3 === count( array_filter( snt_leaf_tables( $kitL ), static function ( $t ) { return 10 === count( $t['data'] ); } ) ), 'live-shaped: each log paints its newest 10, and the two 20-entry logs say "+10 more"' );
 ok( array() === snt_leaf_folds( $kitL ), 'live-shaped: no fold' );
 snt_leaf_preview( 'connections-webhooks', $kitL );
 $kitW = snt_leaf_paint( 'connections', 'webhooks', array( 'params' => array( 'sn_watch' => '1' ) ) );

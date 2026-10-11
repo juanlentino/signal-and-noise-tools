@@ -164,7 +164,7 @@ ok( $edit_ok, 'every row carries a visible Edit button: a go to this leaf with s
 $n_entries = count( $seed['stats'] ) + count( $seed['experience'] ) + count( $seed['earlier']['entries'] ) + count( $seed['education'] ) + count( $seed['affiliations'] ) + count( $seed['publications'] ) + count( $seed['skills'] );
 $n_roles   = count( $seed['experience'][0]['roles'] ) + count( $seed['experience'][1]['roles'] );
 ok( false !== strpos( $kit, '<p class="snt-prose">' . $n_entries . ' entries across 7 lists; Experience holds 2 employers with ' . $n_roles . ' roles.</p>' ), 'the finding over the table is built from the document (' . $n_entries . ' entries, ' . $n_roles . ' roles)' );
-ok( false === strpos( $kit, 'snt-more' ), 'nine sections, never capped: no "+N more" line' );
+ok( false === strpos( $kit, 'snt-ledger-more' ), 'nine sections, never capped: no "+N more" line' );
 // No section is being edited: no repeater, no editor form, no field.
 ok( false === strpos( $kit, '<os-repeater' ) && array() === snt_leaf_names( $kit ) && array( 'resume_pdf_generate' ) === snt_leaf_actions( $kit ), 'with no section being edited, the table is the whole editor: no repeater, no field, no Save draft (the separate PDF form stays)' );
 ok( snt_leaf_paint( 'content', 'resume', array( 'params' => array( 'sn_edit' => 'bogus' ) ) ) === $kit, 'an unknown sn_edit paints the default view' );
@@ -538,7 +538,7 @@ $GLOBALS['__resume_doc'] = array( 'updated' => '2026-10-02' ) + (array) $live;
 $kit      = snt_leaf_paint( 'content', 'resume' );
 $kit_edit = $paint_edit( 'experience' );
 ok( 41 === $counts && false !== strpos( $kit, '<p class="snt-prose">41 entries across 7 lists; Experience holds 6 employers with 9 roles.</p>' ), 'live-shaped: 41 entries across the seven lists, read into the finding' );
-ok( array() === $folds_in( array( 'default' => $kit, 'experience' => $kit_edit ) ) && false === strpos( $kit . $kit_edit, 'snt-more' ) && 9 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ), 'live-shaped: fold-free, nine rows, never capped (no "+N more")' );
+ok( array() === $folds_in( array( 'default' => $kit, 'experience' => $kit_edit ) ) && false === strpos( $kit . $kit_edit, 'snt-ledger-more' ) && 9 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ), 'live-shaped: fold-free, nine rows, never capped (no "+N more")' );
 ok( 6 === preg_match_all( '/<os-card os-key="resume\[experience\]\[\d+\]" slot="row-\d+"/', $kit_edit ) && false !== strpos( $kit_edit, '<input type="hidden" name="resume[skills][8][items]" value="Specs, papers, talks">' ), 'live-shaped: editing Experience paints its six employers, the ninth skills row rides along hidden' );
 snt_leaf_preview( 'content-resume', $kit );
 snt_leaf_preview( 'content-resume-editing', $kit_edit );

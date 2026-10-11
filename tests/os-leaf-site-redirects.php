@@ -87,7 +87,7 @@ $cell = snt_leaf_cell_html( $table, $row['actions'] ?? null );
 ok( '<os-button variant="ghost" os-action="go" os-arg-sub="redirects" os-arg-sn_edit="/second">Edit</os-button>' === $cell, 'a row carries ONE visible action, Edit, a go button naming its rule: ' . substr( $cell, 0, 160 ) );
 ok( 0 === slot_forms( $kit ) && 0 === slot_forms( $kit_ed ), 'no table cell holds a form, default or editing: ' . slot_forms( $kit ) . ' / ' . slot_forms( $kit_ed ) );
 ok( false === strpos( $kit, 'name="source" value="/second"' ) && false === strpos( $kit, 'name="source" value="/first"' ), 'the default paint binds no rule to any form: no stack of forms' );
-ok( false === strpos( $kit, 'submit-label="Save changes"' ) && false === strpos( $kit, 'snt-more' ), '...no edit form and no "+N more" under the cap' );
+ok( false === strpos( $kit, 'submit-label="Save changes"' ) && false === strpos( $kit, 'snt-ledger-more' ), '...no edit form and no "+N more" under the cap' );
 ok( false !== strpos( $kit, 'placeholder="/old-page"' ) && false !== strpos( $kit, 'hint="The path to match, e.g. /old-page. Trailing slash and query string are ignored."' ) && false !== strpos( $kit, 'placeholder="/new-page  or  https://example.com/page"' ) && false !== strpos( $kit, 'submit-label="Add redirect"' ) && false !== strpos( $kit, 'heading="Add a redirect"' ) && before( $kit, '<os-table', 'heading="Add a redirect"' ), 'the add form sits open below the table, with both placeholders, the hint and the Add redirect submit' );
 
 // The editing paint: ONE edit region below the table, for the rule sn_edit names.
@@ -140,7 +140,7 @@ $table   = rules_table( $kit );
 ok( 60 === count( $many ), 'sanity: the fixture built 60 redirect rules -- ' . count( $many ) );
 ok( SN_REDIRECT_LIST_CAP === count( $table['data'] ) && SN_REDIRECT_LIST_CAP === substr_count( $kit, 'os-arg-sn_edit="/rule-' ), 'exactly SN_REDIRECT_LIST_CAP (' . SN_REDIRECT_LIST_CAP . ') rules are listed of 60 -- listed ' . count( $table['data'] ) );
 ok( '/rule-0060' === ( $table['data'][0]['from'] ?? '' ) && ! in_array( '/rule-0001', array_column( $table['data'], 'from' ), true ), '...NEWEST first: the most recent rules are kept, the settled tail is dropped' );
-ok( false !== strpos( $kit, '<p class="snt-hint snt-more">+10 older rules are not listed. Showing the 50 most recent of 60 redirects.</p>' ), '...and the "+N more" line states the true total' );
+ok( false !== strpos( $kit, '<p class="snt-hint snt-ledger-more">+10 older rules are not listed. Showing the 50 most recent of 60 redirects.</p>' ), '...and the "+N more" line states the true total' );
 ok( false !== strpos( $kit, '<os-stat value="60" label="Rules"' ), '...the tile counts every rule, not the listed ones' );
 ok( false !== strpos( $classic, 'Showing the 50 most recent of 60 redirects' ), '...and the classic leaf caps identically' );
 ok( in_array( 'redirect_add', snt_leaf_actions( $kit ), true ) && false !== strpos( $kit, 'Add a redirect' ), 'the add form is still reachable below a capped list' );
@@ -175,7 +175,7 @@ foreach ( array(
 fixture( $live, array() );
 $kit    = snt_leaf_paint( 'site', 'redirects' );
 $kit_ed = editing( '/talks/aes-2024' );
-ok( 39 === count( $live ) && 39 === count( rules_table( $kit )['data'] ) && false === strpos( $kit, 'snt-more' ), 'live-shaped: 39 rules, all listed, no "+N more" under the cap' );
+ok( 39 === count( $live ) && 39 === count( rules_table( $kit )['data'] ) && false === strpos( $kit, 'snt-ledger-more' ), 'live-shaped: 39 rules, all listed, no "+N more" under the cap' );
 ok( false !== strpos( $kit, '<os-stat value="39" label="Rules"' ) && false !== strpos( $kit, '<os-stat value="29" label="Permanent"' ) && false !== strpos( $kit, '<os-stat value="10" label="Temporary"' ) && false !== strpos( $kit, '6 of the 39 rules send readers to another site' ), 'live-shaped: the tiles and the finding read 39 = 29 + 10, 6 off site' );
 ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_folds( $kit_ed ) && 1 === substr_count( $kit_ed, 'submit-label="Save changes"' ) && false !== strpos( $kit_ed, 'heading="Editing /talks/aes-2024"' ) && 1 === substr_count( $kit_ed, 'submit-label="Delete"' ) && 0 === slot_forms( $kit ), 'live-shaped: fold-free, no form in any row, and editing paints ONE region (update + delete)' );
 snt_leaf_preview( 'site-redirects', $kit );
