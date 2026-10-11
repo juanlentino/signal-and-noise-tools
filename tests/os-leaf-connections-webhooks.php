@@ -89,26 +89,39 @@ ok( 1 === substr_count( $kit, 'type="checkbox" name="rotate_secret"' ), 'rotate_
 ok( false !== strpos( $kit, '<os-code>••••wxyz</os-code>' ) && 1 === substr_count( $kit, 'name="rotate_secret"' ) && 1 === substr_count( $classic, 'name="rotate_secret"' ), 'the existing webhook shows a masked secret with one rotate checkbox, as the classic does' );
 ok( false !== strpos( $kit, '<os-code copy>BETASECRET0000000000abcd</os-code>' ) && false !== strpos( $kit, 'Copy this now' ), 'the just-added webhook reveals its secret once, copyable' );
 ok( false !== strpos( $kit, 'name="webhook_id" value="wh_alpha"' ) && false !== strpos( $kit, 'os-confirm-title="Delete this webhook?"' ) && false !== strpos( $kit, 'os-confirm="Pending retries will be dropped. This cannot be undone."' ) && false !== strpos( $kit, 'os-confirm-danger' ), 'delete carries the webhook id and the classic confirm (question, title, danger)' );
-ok( false !== strpos( $kit, 'heading="Recent deliveries (2)"' ) && false !== strpos( $kit, '<os-table' ), 'the delivery log is a disclosure around a kit table' );
-$log_region = substr( $kit, strpos( $kit, 'heading="Recent deliveries (2)"' ) );
-$log_region = substr( $log_region, 0, strpos( $log_region, '</os-disclosure>' ) );
+// 2026-10-11 (owner rule, no folds): the log is an open section on both paints.
+// The count the fold's heading carried, and the failures it hid, are the finding.
+ok( array() === snt_leaf_folds( $kit ), 'editing: no fold on the leaf: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( false !== strpos( $kit, '<os-section heading="Recent deliveries" description="The log keeps the newest 20 deliveries per webhook." stack><p class="snt-prose">2 deliveries logged, 1 failed; the last failure was ' . gmdate( 'Y-m-d H:i:s', 1756800000 ) . ', HTTP 500.</p><os-table' ), 'the delivery log is an open section: the store cap as context, then the finding (2 logged, 1 failed, when and how), then the kit table' );
+$log_region = substr( $kit, strpos( $kit, 'heading="Recent deliveries"' ) );
+$log_region = substr( $log_region, 0, strpos( $log_region, '</os-section>' ) );
 // #1607: the live refresh is the runtime's os-poll (Experimental, OpenStation
 // 1.1.10), gated on `sn_watch` because the editors and the add form carry text
 // fields the morph resets on every tick unless focused. Editing (the default
 // paint): no poll, no ghost Refresh, a Watch live go carrying sn_watch=1.
-ok( false === strpos( $log_region, '<os-button' ) && false === strpos( $kit, 'os-action="refresh"' ) && false === strpos( $kit, '>Refresh</os-button>' ), 'the delivery log disclosure carries no ghost Refresh, and nothing on the leaf dispatches refresh' );
+ok( '' !== $log_region && false === strpos( $log_region, '<os-button' ) && false === strpos( $kit, 'os-action="refresh"' ) && false === strpos( $kit, '>Refresh</os-button>' ), 'the delivery log section carries no ghost Refresh, and nothing on the leaf dispatches refresh' );
 ok( false === strpos( $kit, 'os-poll' ), 'the editing paint polls nothing: a tick would reset an unfocused typed field to the server value' );
 ok( false !== strpos( $kit, '<div class="snt-watch"><span class="snt-hint">Watch the delivery log refresh every 30 seconds; the forms fold while it does.</span><os-button variant="ghost" os-action="go" os-arg-sub="webhooks" os-arg-sn_watch="1">Watch live</os-button></div>' ), 'the watch bar offers a Watch live go that lands back on this leaf with sn_watch=1' );
 $watch = snt_leaf_paint( 'connections', 'webhooks', array( 'flash' => 'wh_added_wh_beta', 'params' => array( 'sn_watch' => '1' ) ) );
 ok( '' !== $watch && 1 === substr_count( $watch, '<span os-action="poll" os-poll="30000" hidden></span>' ) && false === strpos( $watch, 'os-action="refresh"' ), 'watching: one hidden os-poll trigger on the no-op poll action, every 30 s, never on refresh' );
 ok( false === strpos( $watch, '<form' ) && false === strpos( $watch, '<os-form' ) && array() === snt_leaf_actions( $watch ) && false === strpos( $watch, 'name="name"' ), 'watching: every form is folded away (no editor, no delete, no add), so no typed field exists for a tick to reset' );
-ok( false === strpos( $watch, '<os-disclosure' ) && false !== strpos( $watch, '<os-section heading="Recent deliveries (2)" stack>' ) && false !== strpos( $watch, '&quot;status&quot;:&quot;fail&quot;' ), 'watching: the delivery log is an open section around the same table, because os-disclosure keeps its open state as an attribute the morph strips on every repaint' );
+ok( array() === snt_leaf_folds( $watch ) && false !== strpos( $watch, '<os-section heading="Recent deliveries" description="The log keeps the newest 20 deliveries per webhook." stack><p class="snt-prose">2 deliveries logged, 1 failed;' ), 'watching: the delivery log is the same open section with the same finding, so a repaint has no open state to lose' );
+$wh_watch_log = array_values( array_filter( snt_leaf_tables( $watch ), static function ( $t ) { return in_array( 'Fired at', array_column( $t['columns'], 'label' ), true ); } ) );
+ok( 1 === count( $wh_watch_log ) && 'fail' === ( $wh_watch_log[0]['data'][1]['status']['text'] ?? '' ), 'watching: the same table, the failed row still reads fail' );
 ok( false !== strpos( $watch, 'heading="Alpha flow"' ) && false !== strpos( $watch, 'heading="Beta flow"' ) && false !== strpos( $watch, '<os-code>wh_alpha</os-code>: created ' ), 'watching: each webhook is still its own section with its id line' );
 ok( false === strpos( $watch, 'BETASECRET0000000000abcd' ) && false !== strpos( $watch, 'heading="Uptime monitoring"' ) && false !== strpos( $watch, 'heading="Payload reference"' ), 'watching: the secret rides the editor, so it is not on this paint; the read-only sections stay' );
 ok( false !== strpos( $watch, '<os-button variant="ghost" os-action="go" os-arg-sub="webhooks">Stop watching</os-button>' ) && false !== strpos( $watch, 'The delivery log refreshes every 30 seconds. The forms are folded while it does; stop watching to edit.' ), 'watching: a Stop watching go without sn_watch unfolds the forms and stops the poll' );
-$newest = strpos( $kit, '&quot;fired_at&quot;:&quot;' . gmdate( 'Y-m-d H:i:s', 1756800300 ) . '&quot;,&quot;attempt&quot;:&quot;2&quot;,&quot;http&quot;:&quot;200&quot;,&quot;status&quot;:&quot;ok&quot;,&quot;response&quot;:&quot;{\&quot;ok\&quot;:true}&quot;' );
-$oldest = strpos( $kit, '&quot;http&quot;:&quot;500&quot;,&quot;status&quot;:&quot;fail&quot;,&quot;response&quot;:&quot;upstream timeout&quot;' );
-ok( false !== $newest && false !== $oldest && $newest < $oldest, 'log rows carry fired-at, attempt, HTTP, ok/fail and the response, newest first' );
+// The status is a slot cell now: a failed row carries a toned badge, an ok row plain text.
+$wh_log = array_values( array_filter( snt_leaf_tables( $kit ), static function ( $t ) { return in_array( 'Fired at', array_column( $t['columns'], 'label' ), true ); } ) );
+$wh_rows = $wh_log[0]['data'] ?? array();
+ok(
+	2 === count( $wh_rows )
+	&& gmdate( 'Y-m-d H:i:s', 1756800300 ) === $wh_rows[0]['fired_at'] && '2' === $wh_rows[0]['attempt'] && '200' === $wh_rows[0]['http'] && 'ok' === ( $wh_rows[0]['status']['text'] ?? '' ) && '{"ok":true}' === $wh_rows[0]['response']
+	&& '500' === $wh_rows[1]['http'] && 'fail' === ( $wh_rows[1]['status']['text'] ?? '' ) && 'upstream timeout' === $wh_rows[1]['response'],
+	'log rows carry fired-at, attempt, HTTP, ok/fail and the response, newest first'
+);
+ok( '<os-badge tone="warning">fail</os-badge>' === snt_leaf_cell_html( $wh_log[0], $wh_rows[1]['status'] ?? null ) && 'ok' === snt_leaf_cell_html( $wh_log[0], $wh_rows[0]['status'] ?? null ), 'a failed delivery is toned (a warning badge, as the classic pill); an ok one is plain' );
+ok( false === strpos( $kit, 'snt-more' ), 'two deliveries are under the cap: no "+N more" line' );
 ok( false !== strpos( $kit, '<b>2 webhooks configured</b> <os-badge tone="success">Active</os-badge><br>1 enabled, 1 disabled.' ), 'the status box counts configured and enabled webhooks with an Active pill' );
 ok( false === strpos( $kit, 'name="sn_betterstack_token"' ) && false === strpos( $kit, 'name="sn_spend_gh_token"' ) && false === strpos( $kit, 'ABCD7890' ) && false === strpos( $kit, '••••7890' ) && false !== strpos( $kit, 'label="Better Stack API token"' ) && false !== strpos( $kit, '>saved</span></os-fact>' ) && false !== strpos( $kit, 'Connections › Credentials' ), '15.2.0: no token field and no value; the sources read saved and the section points to the keyring' );
 ok( false !== strpos( $kit, 'heading="Better Stack status"' ) && false !== strpos( $kit, 'data-sn-uptime-status' ), 'with a token, the Better Stack mount is painted for the shell script to fill' );
@@ -153,6 +166,12 @@ function webhooks_test_prose_oracle( $classic_html, $kit_html, $label ) {
 	$normalised_kit = trim( preg_replace( '/\s+/', ' ', str_replace( '\\"', '"', html_entity_decode( $kit_html, ENT_QUOTES ) ) ) );
 	$misses         = array();
 	foreach ( webhooks_test_prose_chunks( $classic_html ) as $chunk ) {
+		// 2026-10-11 (no folds): the classic fold's summary "Recent deliveries
+		// (N)" has no twin by design. The kit heading carries no figure and the
+		// count is the finding sentence, pinned above ("2 deliveries logged").
+		if ( 1 === preg_match( '/^Recent deliveries \(\d+\)$/', $chunk ) ) {
+			continue;
+		}
 		if ( false === strpos( $normalised_kit, $chunk ) ) {
 			$misses[] = $chunk;
 		}
@@ -169,7 +188,7 @@ webhooks_test_prose_oracle( $classic, $kit, 'rich fixture' );
 
 // ── Rotated: the rotated webhook's secret is the one revealed.
 $kit = snt_leaf_paint( 'connections', 'webhooks', array( 'flash' => 'wh_rotated_wh_alpha' ) );
-ok( false !== strpos( $kit, '<os-code copy>ALPHASECRET1234567890wxyz</os-code>' ) && false !== strpos( $kit, '<os-code>••••abcd</os-code>' ), 'a rotate flash reveals that webhook\'s new secret and masks the other' );
+ok( false !== strpos( $kit, '<os-code copy>ALPHASECRET1234567890wxyz</os-code>' ) && false !== strpos( $kit, '<os-code>••••abcd</os-code>' ) && array() === snt_leaf_folds( $kit ), 'a rotate flash reveals that webhook\'s new secret and masks the other; no fold' );
 
 // ── Escaping: a hostile name and a hostile log excerpt never reach the markup raw.
 fixture( array(
@@ -178,23 +197,25 @@ fixture( array(
 ) );
 $kit = snt_leaf_paint( 'connections', 'webhooks', array( 'flash' => 'wh_added_wh_x' ) );
 ok( false === strpos( $kit, '<script>' ) && false === strpos( $kit, '<img' ) && false === strpos( $kit, '"onmouseover' ) && false !== strpos( $kit, '&lt;script&gt;' ) && false !== strpos( $kit, '&lt;img src=x' ) && false !== strpos( $kit, 's3cr3t&quot;&gt;&lt;b&gt;' ), 'hostile name, URL, secret and log excerpt are escaped' );
+ok( array() === snt_leaf_folds( $kit ), 'hostile: no fold' );
 
 // ── Empty state: no webhooks, no per-webhook forms, the rail says so.
 fixture( array( 'sn_webhooks' => array() ) );
 $classic = snt_leaf_classic_html( 'sn_admin_render_webhooks_section' );
 $kit     = snt_leaf_paint( 'connections', 'webhooks' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'webhook_add' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'empty: names and the one remaining action match the classic leaf' );
-ok( false !== strpos( $kit, '<os-notice tone="warning" not-dismissible><b>No webhooks configured</b> <os-badge tone="warning">Inactive</os-badge>' ), 'empty: the rail paints the warning status box with an Inactive pill' );
+ok( false !== strpos( $kit, '<os-notice tone="warning" not-dismissible><b>No webhooks configured</b> <os-badge tone="warning">Inactive</os-badge>' ) && array() === snt_leaf_folds( $kit ), 'empty: the rail paints the warning status box with an Inactive pill; no fold' );
 
 // ── All disabled: configured but inactive.
 fixture( array( 'sn_webhooks' => array( array( 'id' => 'wh_off', 'name' => 'Off', 'url' => 'https://h.example.test/off', 'secret' => 'S', 'enabled' => false, 'created_at' => 1 ) ) ) );
 $kit = snt_leaf_paint( 'connections', 'webhooks' );
-ok( false !== strpos( $kit, '<b>1 webhook configured</b> <os-badge tone="warning">Inactive</os-badge><br>0 enabled, 1 disabled.' ) && false === strpos( $kit, '<os-disclosure' ), 'all disabled: the status box warns, and a webhook without deliveries has no log' );
+ok( false !== strpos( $kit, '<b>1 webhook configured</b> <os-badge tone="warning">Inactive</os-badge><br>0 enabled, 1 disabled.' ) && false === strpos( $kit, 'heading="Recent deliveries"' ) && array() === snt_leaf_folds( $kit ), 'all disabled: the status box warns, and a webhook without deliveries has no log' );
 
 // ── No Better Stack token: no panel, an empty token field.
 fixture( array( 'sn_betterstack_api_token' => '' ) );
 $kit = snt_leaf_paint( 'connections', 'webhooks' );
 ok( false === strpos( $kit, 'data-sn-uptime-status' ) && false !== strpos( $kit, '>not set</span></os-fact>' ), 'unconfigured: no Better Stack panel, the token source reads not set' );
+ok( array() === snt_leaf_folds( $kit ), 'unconfigured: no fold' );
 
 // ── Constant-locked token: no name on the field, the lock is explained, the panel is up.
 define( 'SN_BETTERSTACK_API_TOKEN', 'wp-config-token' );
@@ -203,7 +224,46 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_webhooks_section' );
 $kit     = snt_leaf_paint( 'connections', 'webhooks' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && ! in_array( 'sn_betterstack_token', snt_leaf_names( $kit ), true ), 'locked: neither form carries sn_betterstack_token: ' . implode( ',', snt_leaf_names( $kit ) ) );
 ok( false !== strpos( $kit, '>locked in wp-config.php</span></os-fact>' ) && false !== strpos( $kit, 'data-sn-uptime-status' ), 'locked: the source says wp-config and the Better Stack panel is painted' );
+ok( array() === snt_leaf_folds( $kit ), 'locked: no fold' );
 webhooks_test_prose_oracle( $classic, $kit, 'constant-locked fixture' );
+
+// ── The cap and the live shape: three webhooks, 20 + 20 + 10 deliveries (the
+// store keeps 20 per webhook, SN_WEBHOOK_LOG_CAP), 3 failed in all.
+/** @return array<int,array<string,mixed>> $n log entries, oldest first, failing at the given indexes. */
+define( 'WH_T0', time() - 20 * 5400 ); // the live fixture ends near now: one delivery every 90 minutes.
+function webhooks_test_log( $n, array $failed_at = array(), $base = null ) {
+	$base = null === $base ? WH_T0 : (int) $base;
+	$log  = array();
+	for ( $i = 0; $i < $n; $i++ ) {
+		$fail  = in_array( $i, $failed_at, true );
+		$log[] = array( 'delivery_id' => 'del_' . $base . '_' . $i, 'attempt' => $fail ? 1 : 1 + ( $i % 2 ), 'fired_at' => $base + $i * 5400, 'response_code' => $fail ? 503 : 200, 'response_excerpt' => $fail ? 'Service Unavailable' : '{"ok":true}', 'success' => ! $fail );
+	}
+	return $log;
+}
+fixture( array( 'sn_webhook_log_wh_alpha' => webhooks_test_log( 10 ) ) );
+$kit = snt_leaf_paint( 'connections', 'webhooks' );
+ok( false !== strpos( $kit, '10 deliveries logged, none failed; the newest was ' . gmdate( 'Y-m-d H:i:s', WH_T0 + 9 * 5400 ) . '.' ) && false === strpos( $kit, 'snt-more' ), 'exactly 10 deliveries, none failed: the finding says so, every row painted, no "+N more"' );
+fixture(
+	array(
+		'sn_webhooks'              => array(
+			array( 'id' => 'wh_n8n', 'name' => 'n8n publish flow', 'url' => 'https://n8n.example.test/webhook/sn', 'secret' => 'N8NSECRET000000000000aaaa', 'enabled' => true, 'events' => array( 'post.published', 'post.updated' ), 'created_at' => 1756684800 ),
+			array( 'id' => 'wh_zap', 'name' => 'Zapier digest', 'url' => 'https://hooks.zapier.example.test/abc', 'secret' => 'ZAPSECRET000000000000bbbb', 'enabled' => true, 'events' => array( 'post.published' ), 'created_at' => 1757684800 ),
+			array( 'id' => 'wh_arc', 'name' => 'Archive mirror', 'url' => 'https://archive.example.test/in', 'secret' => 'ARCSECRET000000000000cccc', 'enabled' => true, 'events' => array( 'post.published', 'post.deleted' ), 'created_at' => 1758684800 ),
+		),
+		'sn_webhook_log_wh_n8n'    => webhooks_test_log( 20, array( 4, 17 ) ),
+		'sn_webhook_log_wh_zap'    => webhooks_test_log( 20, array( 2 ), WH_T0 + 3000 ),
+		'sn_webhook_log_wh_arc'    => webhooks_test_log( 10, array(), WH_T0 + 6000 ),
+		'sn_webhook_log_wh_alpha'  => array(),
+	)
+);
+$kitL = snt_leaf_paint( 'connections', 'webhooks' );
+ok( false !== strpos( $kitL, '20 deliveries logged, 2 failed; the last failure was ' . gmdate( 'Y-m-d H:i:s', WH_T0 + 17 * 5400 ) . ', HTTP 503.' ) && false !== strpos( $kitL, '20 deliveries logged, 1 failed;' ) && false !== strpos( $kitL, '10 deliveries logged, none failed;' ), 'live-shaped: each webhook\'s finding counts its log and its failures (2 + 1 + 0 = 3 of 50)' );
+ok( 2 === substr_count( $kitL, '<p class="snt-hint snt-more">+10 more deliveries; the list is capped, not complete. Newest first, so the tail is the oldest end.</p>' ) && 3 === count( array_filter( snt_leaf_tables( $kitL ), static function ( $t ) { return 10 === count( $t['data'] ); } ) ), 'live-shaped: each log paints its newest 10, and the two 20-entry logs say "+10 more"' );
+ok( array() === snt_leaf_folds( $kitL ), 'live-shaped: no fold' );
+snt_leaf_preview( 'connections-webhooks', $kitL );
+$kitW = snt_leaf_paint( 'connections', 'webhooks', array( 'params' => array( 'sn_watch' => '1' ) ) );
+ok( array() === snt_leaf_folds( $kitW ) && 3 === substr_count( $kitW, 'heading="Recent deliveries"' ) && 1 === substr_count( $kitW, 'os-poll=' ), 'live-shaped, watching: the three logs stay open sections under one poll' );
+snt_leaf_preview( 'connections-webhooks-watching', $kitW );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

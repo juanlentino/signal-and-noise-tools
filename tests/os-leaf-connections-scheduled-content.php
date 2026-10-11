@@ -88,7 +88,14 @@ ok( false !== strpos( $kit, '(unlinked fragment)' ), 'the unlinked fragment fall
 ok( false !== strpos( $kit, 'Launch announcement' ) && false !== strpos( $kit, 'Page' ), 'the native future post shows its title and type (Page)' );
 // 15.10.1: native posts take the house table; fragments keep the list their forms need.
 ok( 1 === preg_match( '/<os-table[^>]*os-prop-columns=/', $kit ) && false !== strpos( $kit, '&quot;key&quot;:&quot;publishes&quot;' ), 'the native posts paint as an <os-table> with a Publishes column, the Cron leaf\'s shape' );
-ok( false !== strpos( $kit, '1 scheduled post' ) && false !== strpos( $kit, '3 scheduled fragments' ), 'the two producers get their own headings and counts' );
+// 2026-10-11 (owner rule, no folds): the fragments list is an open section,
+// not an always-open disclosure; both headings are short noun phrases and
+// the counts they carried are each section's finding sentence.
+ok( array() === snt_leaf_folds( $kit ), 'no fold on the rich paint: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( false !== strpos( $kit, '<os-section heading="Scheduled posts"' ) && false !== strpos( $kit, '<os-section heading="Scheduled fragments" stack>' ), 'the two producers get their own short headings' );
+ok( false !== strpos( $kit, '<p class="snt-prose">1 post or page waits to auto-publish; it publishes in 1 hour.</p>' ), 'the posts finding counts them and says when the soonest publishes' );
+ok( false !== strpos( $kit, '<p class="snt-prose">3 scheduled fragments: 1 queued, 1 error, 1 done.</p>' ), 'the fragments finding counts them by status, from the rows' );
+ok( false === strpos( $kit, 'snt-more' ), 'four items are under the cap: no "+N more" line' );
 ok( false === strpos( $kit, '>native<' ), 'no row is labelled "native" any more: the table IS the native section' );
 ok( false !== strpos( $kit, 'Run now' ) && false !== strpos( $kit, 'snt-list__row' ), 'fragment rows still paint as list rows and still carry Run now' );
 
@@ -103,7 +110,7 @@ ok( false !== strpos( $kit, 'name="row_id" value="201"' ) && false !== strpos( $
 // ── Escaping: a hostile action string never reaches the markup raw.
 $GLOBALS['__sched_fragments'][0]['action'] = '"><script>x</script>';
 $kit = snt_leaf_paint( 'connections', 'scheduled-content' );
-ok( false === strpos( $kit, '<script>' ) && false !== strpos( $kit, '&lt;script&gt;' ), 'a hostile action value is escaped' );
+ok( false === strpos( $kit, '<script>' ) && false !== strpos( $kit, '&lt;script&gt;' ) && array() === snt_leaf_folds( $kit ), 'a hostile action value is escaped; no fold' );
 $GLOBALS['__sched_fragments'][0]['action'] = 'reveal';
 
 // ── Empty state: no fragments, no posts.
@@ -113,6 +120,7 @@ $GLOBALS['__sched_pairs']     = array();
 $kit = snt_leaf_paint( 'connections', 'scheduled-content' );
 ok( false !== strpos( $kit, '<os-empty-state' ) && false !== strpos( $kit, 'No scheduled content.' ), 'the empty state paints when nothing is scheduled' );
 ok( false === strpos( $kit, 'snt-schedule-row' ), 'the empty state paints no rows' );
+ok( array() === snt_leaf_folds( $kit ) && false === strpos( $kit, 'snt-more' ), 'the empty state paints no fold and no "+N more"' );
 
 // ── Capped + remainder: more rows than the display cap.
 $many = array();
@@ -121,8 +129,32 @@ for ( $i = 1; $i <= 30; $i++ ) {
 }
 $GLOBALS['__sched_fragments'] = $many;
 $kit = snt_leaf_paint( 'connections', 'scheduled-content' );
-ok( false !== strpos( $kit, '30 scheduled fragments' ), 'the fragments fold carries the TRUE total, not the capped count' );
-ok( false !== strpos( $kit, '+5 more scheduled items, sorted soonest-first' ), 'the remainder line reports the hidden tail (30 - 25 cap = 5)' );
+ok( false !== strpos( $kit, '<p class="snt-prose">30 scheduled fragments: 30 queued.</p>' ) && array() === snt_leaf_folds( $kit ), 'the fragments finding carries the TRUE total, not the capped count; no fold' );
+ok( false !== strpos( $kit, '<p class="snt-hint snt-more">+5 more scheduled items, sorted soonest-first; the tail is the furthest out.</p>' ), 'the remainder line reports the hidden tail (30 - 25 cap = 5) on the kit more line, no em dash' );
+ok( 25 === substr_count( $kit, 'name="row_id"' ) / 2, 'the capped list paints 25 fragment rows, each with its two ops' );
+$GLOBALS['__sched_fragments'] = array_slice( $many, 0, 25 );
+$kit = snt_leaf_paint( 'connections', 'scheduled-content' );
+ok( 25 === substr_count( $kit, 'name="row_id"' ) / 2 && false === strpos( $kit, 'snt-more' ), 'exactly 25 items: every row painted, no "+N more" line' );
+
+// ── Live-shaped preview: a few fragments (one swap pair), three future posts.
+$GLOBALS['__titles']     = array( 55 => 'Now page', 61 => 'Speaking', 70 => 'About' );
+$GLOBALS['__edit_links'] = array( 55 => 'https://example.test/wp-admin/post.php?post=55&action=edit', 61 => 'https://example.test/wp-admin/post.php?post=61&action=edit', 70 => 'https://example.test/wp-admin/post.php?post=70&action=edit' );
+$GLOBALS['__sched_fragments'] = array(
+	array( 'id' => 401, 'target_ref' => 55, 'action' => 'hide', 'starts_at' => null, 'ends_at' => iso( 2 * 86400 ), 'status' => 'active' ),
+	array( 'id' => 402, 'target_ref' => 55, 'action' => 'reveal', 'starts_at' => iso( 2 * 86400 ), 'ends_at' => null, 'status' => 'queued' ),
+	array( 'id' => 403, 'target_ref' => 61, 'action' => 'reveal', 'starts_at' => iso( 9 * 86400 ), 'ends_at' => iso( 10 * 86400 ), 'status' => 'queued' ),
+	array( 'id' => 404, 'target_ref' => 70, 'action' => 'hide', 'starts_at' => null, 'ends_at' => iso( 30 * 86400 ), 'status' => 'active' ),
+	array( 'id' => 405, 'target_ref' => 61, 'action' => 'reveal', 'starts_at' => iso( -3 * 86400 ), 'ends_at' => null, 'status' => 'done' ),
+);
+$GLOBALS['__sched_posts'] = array(
+	array( 'id' => 811, 'title' => 'Two kinds of provenance', 'post_type' => 'post', 'scheduled_gmt' => iso( 86400 ) ),
+	array( 'id' => 812, 'title' => 'Provenance without institutions', 'post_type' => 'post', 'scheduled_gmt' => iso( 8 * 86400 ) ),
+	array( 'id' => 813, 'title' => 'Press kit', 'post_type' => 'page', 'scheduled_gmt' => iso( 15 * 86400 ) ),
+);
+$GLOBALS['__sched_pairs'] = array( array( 'target_ref' => 55, 'swap_at' => iso( 2 * 86400 ), 'hide' => array( 'id' => 401, 'status' => 'active' ), 'show' => array( 'id' => 402, 'status' => 'queued' ) ) );
+$kitL = snt_leaf_paint( 'connections', 'scheduled-content' );
+ok( array() === snt_leaf_folds( $kitL ) && false !== strpos( $kitL, '3 posts and pages wait to auto-publish' ) && false !== strpos( $kitL, '5 scheduled fragments: 2 active, 2 queued, 1 done.' ) && false === strpos( $kitL, 'snt-more' ), 'live-shaped: both findings, no fold, nothing capped' );
+snt_leaf_preview( 'connections-scheduled-content', $kitL );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

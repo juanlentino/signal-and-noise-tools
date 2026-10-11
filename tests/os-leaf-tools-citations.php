@@ -101,6 +101,7 @@ ok( false !== strpos( $kit, 'Nothing to list yet' ), 'empty state: the no-rows s
 foreach ( SN_CIT_TIERS as $tier ) {
 	ok( false !== strpos( $kit, '<os-stat value="0" label="' . $tier . '"' ), "empty state: the $tier glance card reads 0" );
 }
+ok( array() === snt_leaf_folds( $kit ) && false !== strpos( $kit, 'heading="What the tiers mean"' ), 'empty state: no fold, and the tier key is still painted' );
 
 // ── State 2: a rich fixture — mixed tiers, a never-checked row, a cited post,
 // a bare URL with no title, an HTTP failure (0), and exactly 100 rows (the cap notice).
@@ -171,9 +172,15 @@ ok( false !== strpos( $kit, '<os-stat value="4" label="unverified"' ) && false !
 ok( false !== strpos( $kit, '10 claims: 3 verified' ), 'rich fixture: the summary sentence states the total and per-tier breakdown' );
 ok( false !== strpos( $kit, '2 have never been checked' ), 'rich fixture: the summary sentence states the never-checked count' );
 ok( false !== strpos( $kit, 'https://example.test/wp-json/signal-noise/v1/webmention' ), 'rich fixture: the public inbox URL is printed' );
-ok( false !== strpos( $kit, '<os-disclosure' ) && false !== strpos( $kit, 'What the four tiers mean' ), 'rich fixture: the folded legend is a kit disclosure' );
+// 2026-10-11 (owner rule, no folds): the legend is reference material, open,
+// a facts list in its own small section right under the tiles it keys.
+ok( array() === snt_leaf_folds( $kit ), 'rich fixture: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+$cit_key   = strpos( $kit, '<os-section heading="What the tiers mean" stack><os-facts class="snt-kv">' );
+$cit_tiles = strrpos( $kit, '<os-stat ' );
+$cit_main  = strpos( $kit, '<os-section heading="Citations"' );
+ok( false !== $cit_key && false !== $cit_tiles && false !== $cit_main && $cit_tiles < $cit_key && $cit_key < $cit_main, 'rich fixture: the tier key is an open facts section between the tiles and the claims' );
 foreach ( SN_CIT_TIERS as $tier ) {
-	ok( false !== strpos( $kit, sn_cit_tier_sentence( $tier ) ), "rich fixture: the legend states $tier's sentence" );
+	ok( false !== strpos( $kit, '<os-fact label="' . $tier . '"><span class="snt-kv__v">' . sn_cit_tier_sentence( $tier ) . '</span></os-fact>' ), "rich fixture: the key states $tier's sentence against its tier" );
 }
 
 ok( false !== strpos( $kit, 'A Blog Post (blog.example)' ) || ( false !== strpos( $kit, 'A Blog Post' ) && false !== strpos( $kit, 'blog.example' ) ), 'rich fixture: a titled source carries its host' );
@@ -209,7 +216,23 @@ $wpdb->claim_rows = array(
 );
 $kit = snt_leaf_paint( 'tools', 'citations' );
 ok( false === strpos( $kit, '<script>x</script>' ) && false !== strpos( $kit, 'script' ), 'a hostile source title is escaped (raw <script> never appears)' );
-ok( false === strpos( $kit, '<script>' ), 'no literal <script> tag reaches the markup' );
+ok( false === strpos( $kit, '<script>' ) && array() === snt_leaf_folds( $kit ), 'no literal <script> tag reaches the markup, and nothing folds' );
+
+// ── Live-shaped preview: a dozen claims across the four tiers.
+$wpdb->counts_rows = array(
+	snt_cit_test_count_row( 'verified', 5 ),
+	snt_cit_test_count_row( 'unattributed', 2 ),
+	snt_cit_test_count_row( 'asserted', 3 ),
+	snt_cit_test_count_row( 'unverified', 2 ),
+);
+$wpdb->never       = 1;
+$wpdb->claim_rows  = array();
+foreach ( array( 'verified', 'verified', 'unverified', 'asserted', 'verified', 'unattributed', 'asserted', 'verified', 'unattributed', 'asserted', 'verified', 'unverified' ) as $i => $tier ) {
+	$wpdb->claim_rows[] = snt_cit_test_claim_row( array( 'id' => $i + 1, 'tier' => $tier, 'source_url' => 'https://site' . $i . '.example/post-' . $i, 'source_title' => 'Post ' . $i, 'target_post_id' => 77, 'last_status' => 'unverified' === $tier ? 0 : 200 ) );
+}
+$kitL = snt_leaf_paint( 'tools', 'citations' );
+ok( array() === snt_leaf_folds( $kitL ) && false !== strpos( $kitL, '12 claims: 5 verified' ) && 12 === count( snt_leaf_tables( $kitL )[0]['data'] ?? array() ), 'live-shaped: twelve claims, the key open, no fold' );
+snt_leaf_preview( 'tools-citations', $kitL );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

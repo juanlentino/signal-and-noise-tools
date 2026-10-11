@@ -11,11 +11,10 @@
  * Same readers, same forms, same field names, same handlers; the kit's parts
  * instead of wp-admin's.
  *
- * The classic Heartbeat client's delivery-log refresh is the runtime's own
- * `os-poll` here (snt_kit_watch_bar(), #1607), gated on `sn_watch`: the
- * editors and the add form carry text fields the morph resets to the server
- * value on every tick unless focused, so the leaf polls only while those
- * forms are folded away, and the logs open as sections while it does.
+ * The classic Heartbeat refresh of the delivery log is the runtime's `os-poll`
+ * here (snt_kit_watch_bar(), #1607), gated on `sn_watch`: a tick resets every
+ * unfocused field, so the leaf polls only while the forms are put away. The
+ * logs are open sections on both paints (connections-webhooks-log.php).
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -28,6 +27,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/connections-webhooks-parts.php';
+require_once __DIR__ . '/connections-webhooks-log.php';
 
 /**
  * One webhook's editor: the id line, the update form, the delete form, the
@@ -44,7 +44,7 @@ function webhooks_entry_html( array $wh, $is_new, $watching = false ) {
 		return \snt_kit_section(
 			(string) ( $wh['name'] ?? '' ),
 			'<p class="snt-hint">' . webhooks_code( $id ) . \snt_kit_esc( ': ' . __( 'created', 'signal-and-noise-tools' ) . ' ' . wp_date( 'Y-m-d', (int) ( $wh['created_at'] ?? 0 ) ) ) . '</p>'
-				. webhooks_log_html( $id, true )
+				. webhooks_log_html( $id )
 		);
 	}
 	$selected = isset( $wh['events'] ) ? (array) $wh['events'] : array( 'post.published' );
