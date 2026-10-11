@@ -18,9 +18,11 @@
  * because nothing here could honestly fill one — and a half-empty rail is the
  * same defect wearing different chrome.
  *
- * The CONTENT is deliberately unchanged by the split — the same sections, from
- * the same `redirects_*_html()` helpers in `site-redirects-parts.php`. What
- * changed is the width they are given. Behaviour, handlers and nonces untouched.
+ * 2026-10-11 (owner rule: no collapsible sections): the per-path folds and the
+ * probe fold became two tiles, one finding, the broken-path ledger with visible
+ * row actions (site-broken-links-ledger.php), ONE create region for the path
+ * `sn_edit` names (below), and the open probe ledger
+ * (site-broken-links-probes.php). Handlers, field names and nonces untouched.
  *
  * @package SignalNoiseTools
  * @since 13.109.8
@@ -33,6 +35,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/site-redirects-parts.php';
+require_once __DIR__ . '/site-broken-links-ledger.php';
+require_once __DIR__ . '/site-broken-links-probes.php';
 
 /**
  * The intro this leaf opens with — the sentence Redirects used to carry about
@@ -51,49 +55,61 @@ function broken_links_intro_html() {
 }
 
 /**
- * The broken-links sections: status, the probe bucket, one section per broken
- * path, and the whole-log clear.
+ * The ONE create-redirect region, for the path `sn_edit` names: the
+ * redirect_add form prefilled with the slug suggestion, and a Cancel.
  *
- * Was `redirects_rail_html()` in site-redirects.php until v13.109.7, when the
- * 404 log became its own leaf. Renamed with it: nothing here is a rail any more,
- * and a name that says otherwise is the next reader's wrong turn.
- *
- * @param array<string,mixed> $data From redirects_data().
+ * @param string              $path      The 404'd path (a key the log holds).
+ * @param array<string,mixed> $e         count, last_seen, referer.
+ * @param string              $suggested Suggested target ('' when none).
  * @return string
  */
-function broken_links_sections_html( array $data ) {
-	$total = count( $data['broken'] );
-	$out   = redirects_status_html( $total );
-	if ( ! empty( $data['probes'] ) ) {
-		$out .= redirects_probes_html( (array) $data['probes'], (int) $data['probe_hits'] );
+function broken_links_create_html( $path, array $e, $suggested ) {
+	$opts = array( 'placeholder' => '/new-page  or  https://…' );
+	if ( '' !== $suggested ) {
+		$opts['hint'] = __( 'Suggested from your published slugs (closest match); review before creating.', 'signal-and-noise-tools' );
 	}
-	if ( $total > 0 ) {
-		// Busiest first, then capped. A 404 log grows without bound and the tail
-		// is the part nobody acts on; painting all of it cost nine screens of
-		// scrolling on the live site. The true total is stated by
-		// redirects_status_html() above regardless of what is listed here, so
-		// the cap can never make the log look smaller than it is.
-		$listed = $data['broken'];
-		uasort(
-			$listed,
-			static function ( $a, $b ) {
-				return (int) ( $b['entry']['count'] ?? 0 ) <=> (int) ( $a['entry']['count'] ?? 0 );
-			}
-		);
-		$shown = array_slice( $listed, 0, SN_404_LIST_CAP, true );
-		foreach ( $shown as $path => $row ) {
-			$out .= redirects_404_row_html( (string) $path, (array) $row['entry'], (string) $row['suggested'] );
-		}
-		if ( $total > SN_404_LIST_CAP ) {
-			$out .= '<p class="snt-hint">' . \snt_kit_esc(
-				sprintf(
-					/* translators: 1: paths listed, 2: paths in the log in total. */
-					__( 'Showing the %1$s busiest of %2$s broken paths. Clear the log or act on these to see the rest.', 'signal-and-noise-tools' ),
-					number_format_i18n( SN_404_LIST_CAP ),
-					number_format_i18n( $total )
-				)
-			) . '</p>';
-		}
+	$fields = \snt_kit_field( 'hidden', 'source', '', $path ) . \snt_kit_field( 'text', 'target', __( 'Redirect to', 'signal-and-noise-tools' ), $suggested, $opts );
+	$host   = broken_links_referrer( $e, '' );
+	$last   = (int) ( $e['last_seen'] ?? 0 );
+	return \snt_kit_section(
+		/* translators: %s: the broken path. */
+		sprintf( __( 'New redirect for %s', 'signal-and-noise-tools' ), $path ),
+		\snt_kit_form( 'redirect_add', $fields, array( 'submit' => __( 'Create redirect', 'signal-and-noise-tools' ) ) )
+			. \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'broken-links' ) ) ),
+		sprintf(
+			/* translators: 1: "7 hits", 2: date of the latest hit (Y-m-d), 3: "from <host>" or "no referrer recorded". */
+			__( '%1$s, last %2$s, %3$s.', 'signal-and-noise-tools' ),
+			broken_links_hits( (int) ( $e['count'] ?? 0 ) ),
+			$last > 0 ? wp_date( 'Y-m-d', $last ) : __( 'unknown', 'signal-and-noise-tools' ),
+			/* translators: %s: the referring host. */
+			'' !== $host ? sprintf( __( 'from %s', 'signal-and-noise-tools' ), $host ) : __( 'no referrer recorded', 'signal-and-noise-tools' )
+		)
+	);
+}
+
+/**
+ * The leaf, top-down: the reading, the broken-path ledger, the ONE create
+ * region (when `sn_edit` names a broken path), the probe ledger, and the
+ * whole-log clear last.
+ *
+ * @param array<string,mixed> $ctx tab, sub, state, os.
+ * @return string
+ */
+function paint_site_broken_links( array $ctx ) {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return ''; // The classic renderer's own gate: a silent return, never a wp_die.
+	}
+	$data   = redirects_data();
+	$broken = (array) $data['broken'];
+	$path   = redirects_editing( $ctx );
+	$out    = broken_links_reading_html( $data ) . broken_links_paths_html( $broken );
+	if ( '' !== $path && isset( $broken[ $path ] ) ) {
+		$out .= broken_links_create_html( $path, (array) $broken[ $path ]['entry'], (string) $broken[ $path ]['suggested'] );
+	}
+	if ( ! empty( $data['probes'] ) ) {
+		$out .= broken_links_probes_html( (array) $data['probes'], (int) $data['probe_hits'] );
+	}
+	if ( array() !== $broken ) {
 		$out .= \snt_kit_action_button(
 			__( 'Clear 404 log', 'signal-and-noise-tools' ),
 			'redirect_404_clear',
@@ -103,26 +119,9 @@ function broken_links_sections_html( array $data ) {
 			)
 		);
 	}
-	return $out;
-}
-
-/**
- * The leaf.
- *
- * @param array<string,mixed> $ctx tab, sub, state, os.
- * @return string
- */
-function paint_site_broken_links( array $ctx ) {
-	unset( $ctx );
-	if ( ! current_user_can( 'manage_options' ) ) {
-		return ''; // The classic renderer's own gate: a silent return, never a wp_die.
-	}
-	$data = redirects_data();
-
-	// Full width, no wrapping grid. a pair grid would re-create the two-column
+	// Full width, no wrapping grid: a pair grid would re-create the two-column
 	// shell this split exists to leave behind.
-	return broken_links_intro_html()
-		. \snt_kit_tag( 'os-stack', array( 'gap' => '12' ), broken_links_sections_html( $data ) );
+	return broken_links_intro_html() . \snt_kit_tag( 'os-stack', array( 'gap' => '12' ), $out );
 }
 
 add_filter(

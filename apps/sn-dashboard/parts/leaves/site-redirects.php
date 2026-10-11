@@ -15,6 +15,12 @@
  * one-click button replays only `action` + `nonce` (posted_values() in the app
  * definition), so every per-row action that reads `source` is its own form.
  *
+ * 2026-10-11 (owner rule: no collapsible sections): the per-rule folds became
+ * one kit table with visible row actions and ONE form region below it
+ * (site-redirects-rules.php, site-redirects-forms.php). The edit form now
+ * paints only for the rule `sn_edit` names, so the classic's three actions
+ * show across the default and the editing paint together.
+ *
  * @package SignalNoiseTools
  * @since 13.106.0
  */
@@ -26,6 +32,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/site-redirects-parts.php';
+require_once __DIR__ . '/site-redirects-rules.php';
+require_once __DIR__ . '/site-redirects-forms.php';
 
 
 /**
@@ -39,50 +47,32 @@ function redirects_intro_html() {
 		. \snt_kit_code( '/new-page', false )
 		. \snt_kit_esc( __( ') or a full external URL (', 'signal-and-noise-tools' ) )
 		. \snt_kit_code( 'https://…', false )
-		. \snt_kit_esc( __( '). The ', 'signal-and-noise-tools' ) )
-		. '<strong>' . \snt_kit_esc( __( '404 log', 'signal-and-noise-tools' ) ) . '</strong>'
-		. \snt_kit_esc( __( ' in the sidebar surfaces paths visitors actually hit that don’t exist: one click turns any of them into a redirect.', 'signal-and-noise-tools' ) )
+		. \snt_kit_esc( __( '). Paths visitors actually hit that don’t exist are listed under ', 'signal-and-noise-tools' ) )
+		. '<strong>' . \snt_kit_esc( __( 'Site → Broken links', 'signal-and-noise-tools' ) ) . '</strong>'
+		. \snt_kit_esc( __( ', where one click turns any of them into a redirect.', 'signal-and-noise-tools' ) )
 		. '</p>';
 }
 
 
 /**
- * The leaf.
+ * The leaf: the rule ledger, then ONE form region below it (the rule
+ * `sn_edit` names, or the add form when none is open).
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
  */
 function paint_site_redirects( array $ctx ) {
-	unset( $ctx );
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return ''; // The classic renderer's own gate: a silent return, never a wp_die.
 	}
-	$data = redirects_data();
-	$main  = '';
-	$total = count( $data['redirects'] );
-	// Newest first is the order redirects_data() returns, and the newest are the
-	// ones being worked on -- so the cap drops the settled tail, not the live
-	// end. The add form stays below the list at every size.
-	foreach ( array_slice( $data['redirects'], 0, SN_REDIRECT_LIST_CAP, true ) as $source => $r ) {
-		$main .= redirects_row_html( (string) $source, (array) $r );
-	}
-	if ( $total > SN_REDIRECT_LIST_CAP ) {
-		$main .= '<p class="snt-hint">' . \snt_kit_esc(
-			sprintf(
-				/* translators: 1: rules listed, 2: rules in total. */
-				__( 'Showing the %1$s most recent of %2$s redirects.', 'signal-and-noise-tools' ),
-				number_format_i18n( SN_REDIRECT_LIST_CAP ),
-				number_format_i18n( $total )
-			)
-		) . '</p>';
-	}
-	$main .= redirects_add_html();
-	// v13.109.7: full width, no rail. The 404 log moved to Site → Broken links —
-	// it was 192 rows in a ~1fr column beside this table, which is the
-	// dead-half-window defect the parity pass removes. Pattern B: a redirect map
-	// is tabular, so give it the width rather than half of it.
+	$rules  = redirects_data()['redirects'];
+	$source = redirects_editing( $ctx );
+	$form   = ( '' !== $source && isset( $rules[ $source ] ) )
+		? redirects_edit_html( $source, (array) $rules[ $source ] )
+		: redirects_add_html();
+	// v13.109.7: full width, no rail; the 404 log is Site → Broken links.
 	return redirects_intro_html()
-		. \snt_kit_tag( 'os-stack', array( 'gap' => '12' ), $main );
+		. \snt_kit_tag( 'os-stack', array( 'gap' => '12' ), redirects_rules_html( $rules ) . $form );
 }
 
 add_filter(
