@@ -50,6 +50,8 @@ adds a bullet below. A release is a separate, deliberate act:
 - **The placement-dependent pairings table stopped at 25 rows without saying so**, and the native report had dropped each row's stylesheet. Both are fixed, on S&N Home and on the classic tab.
 - **Unknown read as zero or healthy on S&N Home.** A Home system that reported no reading, or whose probe was still warming, counted as holding; an agent-tools door whose allowlist reader was not loaded said "0 tools"; a north star signal with no reading said "No data yet"; a redirect with no recorded date said 1970-01-01. Each now says not measured, not readable or unknown, with the reason where there is one.
 - **Citations past 100 claims** now count the ones the table does not list.
+- **Edit lands the keyboard on the region it opens** (accessibility review of this pass). On Redirects, Broken links, Résumé and Workflow, a row's Edit or Fix opens one region below a long table; focus now moves to that region, and Cancel moves it back to the list. A redirect source or broken path longer than 200 characters opens its region too (the row action carries a short hash past the host's param cap).
+- **A trust finding links only over http(s).** A finding's subject link (Ledger CI's comes from GitHub) is painted as plain text when it is not an http or https address. A Home fleet card that asks for attention with no pill (a contract skew) needs a look, never holding.
 
 ## [2026.10.1] - 2026-10-11 — every machine-reader count says how it is known, and the machine readings move to S&N Analytics
 
