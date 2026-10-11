@@ -50,6 +50,7 @@ function trust_check_section( $label, array $reading, array $findings, $tab ) {
 		$finding = (array) $finding;
 		$name    = (string) ( $finding['subject_label'] ?? '' );
 		$url     = (string) ( $finding['subject_url'] ?? '' );
+		$url     = preg_match( '#^https?://#i', $url ) ? $url : ''; // snt_kit_link() filters no scheme; a GitHub html_url is outside data.
 		$subject = $subject || '' !== $name;
 		$rows[]  = array(
 			'subject' => '' !== $name && '' !== $url ? array( 'html' => \snt_kit_link( $name, $url ), 'text' => $name ) : $name,

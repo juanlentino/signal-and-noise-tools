@@ -42,13 +42,14 @@ function redirects_edit_html( $source, array $r ) {
 			'danger'        => true,
 		)
 	);
-	$cancel = \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'redirects' ) ) );
+	$cancel = \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'redirects', 'anchor' => 'snt-edit-list' ) ) );
 	return \snt_kit_section(
 		/* translators: %s: the rule's source path. */
 		sprintf( __( 'Editing %s', 'signal-and-noise-tools' ), $source ),
 		\snt_kit_form( 'redirect_update', $fields, array( 'submit' => __( 'Save changes', 'signal-and-noise-tools' ) ) ) . $delete . $cancel,
 		/* translators: 1: HTTP status (301/302), 2: the current target, 3: the date the rule was added (Y-m-d). */
-		sprintf( __( 'Now a %1$d to %2$s; added %3$s.', 'signal-and-noise-tools' ), $code, $target, redirects_added( $r, __( 'date unknown', 'signal-and-noise-tools' ) ) )
+		sprintf( __( 'Now a %1$d to %2$s; added %3$s.', 'signal-and-noise-tools' ), $code, $target, redirects_added( $r, __( 'date unknown', 'signal-and-noise-tools' ) ) ),
+		array( 'id' => 'snt-edit-region', 'tabindex' => '-1', 'data-snt-focus' => true )
 	);
 }
 

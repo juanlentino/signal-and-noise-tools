@@ -102,8 +102,8 @@ function pattern_adoption_finding( array $candidates ) {
 function pattern_adoption_queue_html( array $candidates ) {
 	$candidates = array_values( array_filter( $candidates, 'is_array' ) );
 	$columns    = array(
-		array( 'key' => 'post', 'label' => __( 'Post', 'signal-and-noise-tools' ), 'sortable' => true, 'stack' => 'title' ),
-		array( 'key' => 'pattern', 'label' => __( 'Pattern', 'signal-and-noise-tools' ), 'sortable' => true ),
+		array( 'key' => 'post', 'label' => __( 'Post', 'signal-and-noise-tools' ), 'stack' => 'title' ),
+		array( 'key' => 'pattern', 'label' => __( 'Pattern', 'signal-and-noise-tools' ) ),
 		array( 'key' => 'action', 'label' => __( 'Action', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
 	);
 	return \snt_kit_ledger(

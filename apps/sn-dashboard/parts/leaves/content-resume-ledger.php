@@ -103,7 +103,7 @@ function resume_edit_region( array $sections, $key ) {
 			'hidden' => resume_carry_others( $sections, $key ),
 		)
 	);
-	return \snt_kit_section( $section['title'], $form, $section['hint'] );
+	return \snt_kit_section( $section['title'], $form, $section['hint'], array( 'id' => 'snt-edit-region', 'tabindex' => '-1', 'data-snt-focus' => true ) );
 }
 
 /**
@@ -128,7 +128,9 @@ function paint_content_resume( array $ctx ) {
 	$editing  = resume_edit_key( $ctx, array_keys( $sections ) );
 	return \snt_kit_section(
 		__( 'Resume page', 'signal-and-noise-tools' ),
-		resume_intro( $live ) . resume_draft_status() . resume_ledger( $sections, $doc )
+		resume_intro( $live ) . resume_draft_status() . resume_ledger( $sections, $doc ),
+		'',
+		array( 'id' => 'snt-edit-list', 'tabindex' => '-1', 'data-snt-focus' => true )
 	)
 		. ( '' !== $editing ? resume_edit_region( $sections, $editing ) : '' )
 		. resume_draft_controls() . resume_pdf_generate();

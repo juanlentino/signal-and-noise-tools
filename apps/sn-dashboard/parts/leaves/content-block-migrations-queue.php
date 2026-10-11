@@ -116,8 +116,8 @@ function block_migrations_finding( array $candidates ) {
 function block_migrations_queue_html( array $candidates ) {
 	$candidates = array_values( array_filter( $candidates, 'is_array' ) );
 	$columns    = array(
-		array( 'key' => 'post', 'label' => __( 'Post', 'signal-and-noise-tools' ), 'sortable' => true, 'stack' => 'title' ),
-		array( 'key' => 'issue', 'label' => __( 'Issue', 'signal-and-noise-tools' ), 'sortable' => true ),
+		array( 'key' => 'post', 'label' => __( 'Post', 'signal-and-noise-tools' ), 'stack' => 'title' ),
+		array( 'key' => 'issue', 'label' => __( 'Issue', 'signal-and-noise-tools' ) ),
 		array( 'key' => 'action', 'label' => __( 'Action', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
 	);
 	return \snt_kit_ledger(

@@ -103,19 +103,38 @@ function redirects_status_options() {
 }
 
 /**
- * The item a row action opened: the `sn_edit` param a row's Edit (or
- * Redirect) button sets, '' when none. The painter looks it up by exact key,
- * so an unknown or stale value opens nothing.
+ * The `sn_edit` value a row's Edit (or Fix) carries: the key itself, or past
+ * the host's 200-character param cap (snt_os_host_params()) a short hash of
+ * it, so a long path still opens its region.
  *
- * ponytail: the host cuts a param at 200 characters, so a path longer than
- * that cannot open its form here; key the param by a hash if one ever does.
- *
- * @param array<string,mixed> $ctx Leaf context (tab, sub, state, os).
+ * @param string $key A rule's source or a broken path.
  * @return string
  */
-function redirects_editing( array $ctx ) {
+function redirects_edit_value( $key ) {
+	$key = (string) $key;
+	return strlen( $key ) <= 200 ? $key : 'h:' . substr( md5( $key ), 0, 16 );
+}
+
+/**
+ * The item a row action opened: the key among `$keys` whose
+ * redirects_edit_value() is the `sn_edit` param, '' when none, so an unknown
+ * or stale value opens nothing.
+ *
+ * @param array<string,mixed> $ctx  Leaf context (tab, sub, state, os).
+ * @param array<int,string>   $keys The rules' sources or the broken paths.
+ * @return string
+ */
+function redirects_editing( array $ctx, array $keys ) {
 	$state  = $ctx['state'] ?? null;
 	$params = ( is_object( $state ) && method_exists( $state, 'get' ) ) ? (array) $state->get( 'params' ) : array();
 	$value  = $params['sn_edit'] ?? '';
-	return is_scalar( $value ) ? (string) $value : '';
+	if ( ! is_scalar( $value ) || '' === (string) $value ) {
+		return '';
+	}
+	foreach ( $keys as $key ) {
+		if ( redirects_edit_value( $key ) === (string) $value ) {
+			return (string) $key;
+		}
+	}
+	return '';
 }

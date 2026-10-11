@@ -33,6 +33,34 @@ function snt_leaf_preview( $name, $html ) {
 }
 
 /**
+ * 2026-10-11 (a11y review): a row action that opens the one edit region must
+ * land the keyboard there, and Cancel must land it back on the list. The
+ * Edit/Fix `go` carries `anchor=snt-edit-region`, the region carries that id
+ * and `data-snt-focus` (assets/os-host.js focuses an anchored target that
+ * asks), and Cancel carries `anchor=snt-edit-list` to the list section.
+ *
+ * @param string $list_html    The default paint (the list, no region).
+ * @param string $editing_html The editing paint (the list and the region).
+ * @return string[] Problems found, `array()` when the focus path is whole.
+ */
+function snt_leaf_edit_focus_problems( $list_html, $editing_html ) {
+	$problems = array();
+	if ( ! preg_match( '/<os-button[^>]*os-action="go"[^>]*os-arg-anchor="snt-edit-region"/', (string) $list_html ) ) {
+		$problems[] = 'no row action anchors to the edit region';
+	}
+	if ( ! preg_match( '/id="snt-edit-list"[^>]*data-snt-focus|data-snt-focus[^>]*id="snt-edit-list"/', (string) $list_html ) ) {
+		$problems[] = 'the list section has no focusable snt-edit-list id';
+	}
+	if ( ! preg_match( '/id="snt-edit-region"[^>]*data-snt-focus|data-snt-focus[^>]*id="snt-edit-region"/', (string) $editing_html ) ) {
+		$problems[] = 'the edit region has no focusable snt-edit-region id';
+	}
+	if ( ! preg_match( '/<os-button[^>]*os-action="go"[^>]*os-arg-anchor="snt-edit-list"[^>]*>Cancel</', (string) $editing_html ) ) {
+		$problems[] = 'Cancel does not anchor back to the list';
+	}
+	return $problems;
+}
+
+/**
  * 2026-10-11 (owner rule: no collapsible sections): the fold markers a leaf
  * must not paint. `<os-disclosure`, a raw `<details`, the classic
  * `sn-disclosure` class.

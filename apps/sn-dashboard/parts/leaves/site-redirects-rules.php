@@ -89,7 +89,7 @@ function redirects_rule_row( $source, array $r ) {
 		'type'    => 302 === redirects_code( $r ) ? __( '302 temporary', 'signal-and-noise-tools' ) : __( '301 permanent', 'signal-and-noise-tools' ),
 		'added'   => redirects_added( $r, __( 'unknown', 'signal-and-noise-tools' ) ),
 		'actions' => array(
-			'html' => \snt_kit_button( __( 'Edit', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'redirects', 'sn_edit' => $source ) ) ),
+			'html' => \snt_kit_button( __( 'Edit', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'redirects', 'sn_edit' => redirects_edit_value( $source ), 'anchor' => 'snt-edit-region' ) ) ),
 			'text' => '',
 		),
 	);
@@ -117,7 +117,7 @@ function redirects_rules_html( array $rules ) {
 		array( 'key' => 'to', 'label' => __( 'To', 'signal-and-noise-tools' ) ),
 		array( 'key' => 'type', 'label' => __( 'Type', 'signal-and-noise-tools' ) ),
 		array( 'key' => 'added', 'label' => __( 'Added', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'actions', 'label' => __( 'Actions', 'signal-and-noise-tools' ) ),
+		array( 'key' => 'actions', 'label' => __( 'Actions', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
 	);
 	/* translators: 1: rules listed, 2: rules in total. */
 	$showing = sprintf( __( 'Showing the %1$s most recent of %2$s redirects.', 'signal-and-noise-tools' ), number_format_i18n( SN_REDIRECT_LIST_CAP ), number_format_i18n( $total ) );
@@ -128,6 +128,7 @@ function redirects_rules_html( array $rules ) {
 		redirects_reading_html( $rules )
 			. \snt_kit_table( $columns, $rows, array( 'stack_on_phone' => true ) )
 			. \snt_kit_more( $total - count( $rows ), $more ),
-		__( 'Newest first. Edit opens the rule below the table, to change it or delete it.', 'signal-and-noise-tools' )
+		__( 'Newest first. Edit opens the rule below the table, to change it or delete it.', 'signal-and-noise-tools' ),
+		array( 'id' => 'snt-edit-list', 'tabindex' => '-1', 'data-snt-focus' => true )
 	);
 }

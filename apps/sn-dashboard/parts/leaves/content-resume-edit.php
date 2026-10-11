@@ -43,7 +43,7 @@ function resume_edit_key( array $ctx, array $keys ) {
  * @return string
  */
 function resume_edit_button( $sub, $key ) {
-	return \snt_kit_button( __( 'Edit', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => (string) $sub, 'sn_edit' => (string) $key ) ) );
+	return \snt_kit_button( __( 'Edit', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => (string) $sub, 'sn_edit' => (string) $key, 'anchor' => 'snt-edit-region' ) ) );
 }
 
 /**
@@ -55,7 +55,7 @@ function resume_edit_button( $sub, $key ) {
  * @return string
  */
 function resume_edit_cancel( $sub ) {
-	return \snt_kit_tag( 'span', array( 'slot' => 'footer-leading' ), \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => (string) $sub ) ) ) );
+	return \snt_kit_tag( 'span', array( 'slot' => 'footer-leading' ), \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => (string) $sub, 'anchor' => 'snt-edit-list' ) ) ) );
 }
 
 /**

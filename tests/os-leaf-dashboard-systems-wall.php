@@ -91,6 +91,11 @@ $warm = snt_home_fixture( true );
 $warm['components'][2] = array( 'label' => 'Analytics', 'value' => 'warming…', 'measured' => true, 'attention' => false );
 $warm_html = ( $L . 'home_operations_html' )( $warm, 'dashboard' );
 ok( false !== strpos( $warm_html, 'Analytics is not measured: no version reported yet.' ) && false !== strpos( $warm_html, 'Not measured (1)"><span class="snt-kv__v"><os-cluster gap="6"><os-chip>Analytics</os-chip>' ), 'a probe still warming is a skipped reading: not measured, never holding' );
+// 2026-10-11 (code review): a contract-skew fleet card flags `attention => true`
+// with no pill (inc/dash-zone-fleet.php); it must not read as holding.
+$skew = snt_home_fixture( true );
+$skew['components'][5] = array( 'label' => 'Remote MCP', 'value' => 'contract 15, site 16', 'measured' => true, 'attention' => true );
+ok( false !== strpos( ( $L . 'home_operations_html' )( $skew, 'dashboard' ), '1 of 10 systems needs a look: Remote MCP.' ), 'a fleet card asking for attention with no pill needs a look, never holding' );
 $one_bad = snt_home_fixture( true );
 $one_bad['checks'][2] = array( 'label' => 'Cron', 'value' => '41 events', 'pill' => array( 'kind' => 'warn', 'text' => '2 orphans' ) );
 ok( false !== strpos( ( $L . 'home_operations_html' )( $one_bad, 'dashboard' ), '1 of 10 systems needs a look: Cron.' ), 'one: "needs", singular' );

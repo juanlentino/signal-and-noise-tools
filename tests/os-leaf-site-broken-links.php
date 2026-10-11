@@ -76,7 +76,7 @@ ok( in_array( 'redirect_add', snt_leaf_actions( $kit_ed ), true ) && in_array( '
 ok( array() === snt_leaf_classic_markers( $kit ) && ! styled( $kit ) && ! styled( $kit_ed ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
 // The reading: two tiles (broken, with attention; probes, without), then the finding.
-ok( false !== strpos( $kit, '<os-stat value="2" label="Broken paths" caption="9 hits" swatch data-tone="warning">' ), 'the broken tile reads 2 paths, 9 hits, with the attention swatch' );
+ok( false !== strpos( $kit, '<os-stat value="2" label="Broken paths" caption="9 hits; needs a look" swatch data-tone="warning">' ), 'the broken tile reads 2 paths, 9 hits, and says it needs a look in words, not only by the swatch (WCAG 1.4.1)' );
 ok( false !== strpos( $kit, '<os-stat value="30" label="Automated probes" caption="465 hits">' ), 'the probe tile reads 30 probes, 465 hits, without one' );
 ok( false !== strpos( $kit, '<p class="snt-prose">2 broken paths took 9 hits; the busiest, /notes/desing-tokens, took 7.</p>' ), 'the finding names the busiest path' );
 ok( before( $kit, '<os-stat', 'heading="Broken paths"' ), 'reading before ledger' );
@@ -89,7 +89,7 @@ ok( '/notes/desing-tokens' === ( $r0['path'] ?? '' ) && '/contact-us' === ( $r1[
 ok( 7 === ( $r0['hits'] ?? null ) && $d0 === ( $r0['last'] ?? '' ) && 'ref.example' === ( $r0['referrer'] ?? '' ) && '/notes/design-tokens' === ( $r0['suggested'] ?? '' ), 'a row carries hits, last date, referring host and the slug suggestion: ' . wp_json_encode( $r0 ) );
 ok( 2 === ( $r1['hits'] ?? null ) && $d1 === ( $r1['last'] ?? '' ) && 'none recorded' === ( $r1['referrer'] ?? '' ) && '/contact' === ( $r1['suggested'] ?? '' ), '...and a missing referrer reads "none recorded", never blank' );
 $cell = snt_leaf_cell_html( $broken, $r0['actions'] ?? null );
-ok( '<os-button variant="ghost" os-action="go" os-arg-sub="broken-links" os-arg-sn_edit="/notes/desing-tokens">Fix</os-button>' === $cell, 'a row carries ONE visible action, Fix, a go button naming its path: ' . substr( $cell, 0, 160 ) );
+ok( '<os-button variant="ghost" os-action="go" os-arg-sub="broken-links" os-arg-sn_edit="/notes/desing-tokens" os-arg-anchor="snt-edit-region">Fix</os-button>' === $cell, 'a row carries ONE visible action, Fix, a go button naming its path: ' . substr( $cell, 0, 160 ) );
 ok( 0 === slot_forms( $kit ) && 0 === slot_forms( $kit_ed ), 'no table cell holds a form, default or editing: ' . slot_forms( $kit ) . ' / ' . slot_forms( $kit_ed ) );
 ok( false === strpos( $kit, 'submit-label="Create redirect"' ) && false === strpos( $kit, 'submit-label="Dismiss"' ) && false === strpos( $kit, 'name="source"' ) && false === strpos( $kit, 'quieter paths' ), 'the default paint stacks no form at all, and no "+N more" under the cap' );
 
@@ -102,7 +102,7 @@ ok( false !== strpos( $create, '<input type="hidden" name="source" value="/notes
 $dismiss = form_block( $kit_ed, 'Dismiss' );
 ok( '' !== $dismiss && false !== strpos( $dismiss, '<input type="hidden" name="source" value="/notes/desing-tokens"><input type="hidden" name="action" value="sn_redirect_404_delete">' ) && false === strpos( $dismiss, 'os-confirm' ) && before( $kit_ed, 'submit-label="Create redirect"', 'submit-label="Dismiss"' ), 'Dismiss lives in the region too: unconfirmed (redirect_404_delete), carrying the path, after the create form' );
 ok( false !== strpos( $kit_ed, '<p class="snt-hint">Dismiss removes the path from the log without a redirect.</p>' ) && 2 === substr_count( $kit_ed, 'name="source" value="/notes/desing-tokens"' ) && false === strpos( $kit_ed, 'name="source" value="/contact-us"' ), '...said in one line; only the open path is bound, to its create and its dismiss form' );
-ok( false !== strpos( $kit_ed, '<os-button variant="ghost" os-action="go" os-arg-sub="broken-links">Cancel</os-button>' ), 'Cancel is a go that clears the param' );
+ok( false !== strpos( $kit_ed, '<os-button variant="ghost" os-action="go" os-arg-sub="broken-links" os-arg-anchor="snt-edit-list">Cancel</os-button>' ), 'Cancel is a go that clears the param' );
 ok( false !== strpos( editing( '/contact-us' ), 'description="2 hits, last ' . $d1 . ', no referrer recorded."' ), 'a path with no referrer says so in its region' );
 $unknown = editing( '/nope' );
 ok( false === strpos( $unknown, 'Create redirect' ) && false === strpos( $unknown, 'submit-label="Dismiss"' ) && false === strpos( $unknown, 'Fixing' ) && array() === snt_leaf_folds( $unknown ), 'an unknown sn_edit paints no region' );
@@ -208,6 +208,8 @@ ok( 25 === count( table_of( $kit, 6 )['data'] ) && false !== strpos( $kit, '+6 q
 ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_folds( $kit_ed ) && 1 === substr_count( $kit_ed, 'submit-label="Create redirect"' ) && 1 === substr_count( $kit_ed, 'submit-label="Dismiss"' ) && 0 === slot_forms( $kit ), 'live-shaped: fold-free, no form in any row, and editing paints ONE region (create + dismiss)' );
 snt_leaf_preview( 'site-broken-links', $kit );
 snt_leaf_preview( 'site-broken-links-editing', $kit_ed );
+$focus_problems = snt_leaf_edit_focus_problems( $kit, $kit_ed );
+ok( array() === $focus_problems, 'a11y: Edit lands the keyboard on the one region, Cancel lands it back on the list: ' . implode( '; ', $focus_problems ) );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

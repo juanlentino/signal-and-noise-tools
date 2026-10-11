@@ -182,7 +182,7 @@ foreach ( $keys as $i => $k ) {
 		&& 1 === substr_count( $h, 'submit-label="Save draft"' )
 		&& count( $vis[1] ) > 0 && count( $vis[1] ) === count( array_filter( $vis[1], $own ) )
 		&& count( $hid[1] ) > 0 && 0 === count( array_filter( $hid[1], $own ) )
-		&& 1 === preg_match( '#<span slot="footer-leading"><os-button variant="ghost" os-action="go" os-arg-sub="resume">Cancel</os-button></span>#', $h );
+		&& 1 === preg_match( '#<span slot="footer-leading"><os-button variant="ghost" os-action="go" os-arg-sub="resume" os-arg-anchor="snt-edit-list">Cancel</os-button></span>#', $h );
 	if ( ! $fine ) {
 		$region_bad[] = $k;
 	}
@@ -542,6 +542,8 @@ ok( array() === $folds_in( array( 'default' => $kit, 'experience' => $kit_edit )
 ok( 6 === preg_match_all( '/<os-card os-key="resume\[experience\]\[\d+\]" slot="row-\d+"/', $kit_edit ) && false !== strpos( $kit_edit, '<input type="hidden" name="resume[skills][8][items]" value="Specs, papers, talks">' ), 'live-shaped: editing Experience paints its six employers, the ninth skills row rides along hidden' );
 snt_leaf_preview( 'content-resume', $kit );
 snt_leaf_preview( 'content-resume-editing', $kit_edit );
+$focus_problems = snt_leaf_edit_focus_problems( $kit, $kit_edit );
+ok( array() === $focus_problems, 'a11y: Edit lands the keyboard on the one region, Cancel lands it back on the list: ' . implode( '; ', $focus_problems ) );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -131,9 +131,9 @@ function paint_content_workflow( array $ctx ) {
 		\snt_kit_link( '/workflow', home_url( '/workflow' ) )
 	) . '</p>';
 	$inner = \snt_kit_section( __( 'Workflow page', 'signal-and-noise-tools' ), $intro . snt_pair_cards( workflow_top_cards( $doc ) ) )
-		. \snt_kit_section( __( 'Map, rules and proof', 'signal-and-noise-tools' ), workflow_ledger( $lists ) );
+		. \snt_kit_section( __( 'Map, rules and proof', 'signal-and-noise-tools' ), workflow_ledger( $lists ), '', array( 'id' => 'snt-edit-list', 'tabindex' => '-1', 'data-snt-focus' => true ) );
 	if ( '' !== $editing ) {
-		$inner .= \snt_kit_section( $lists[ $editing ]['title'], (string) call_user_func( $lists[ $editing ]['paint'] ), $lists[ $editing ]['hint'] );
+		$inner .= \snt_kit_section( $lists[ $editing ]['title'], (string) call_user_func( $lists[ $editing ]['paint'] ), $lists[ $editing ]['hint'], array( 'id' => 'snt-edit-region', 'tabindex' => '-1', 'data-snt-focus' => true ) );
 	}
 	return \snt_kit_form(
 		'workflow_save',

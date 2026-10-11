@@ -27,6 +27,10 @@ function system_state( array $card ) {
 	if ( false === ( $card['measured'] ?? true ) || __( 'warming…', 'signal-and-noise-tools' ) === (string) ( $card['value'] ?? '' ) ) {
 		return 'unmeasured';
 	}
+	// A card that asks for attention with no pill (a contract skew) needs a look too.
+	if ( true === ( $card['attention'] ?? null ) ) {
+		return 'look';
+	}
 	return ( 'ok' !== (string) ( $card['pill']['kind'] ?? 'ok' ) && \sn_admin_card_wants_attention( $card ) ) ? 'look' : 'holding';
 }
 

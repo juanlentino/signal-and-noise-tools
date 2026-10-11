@@ -55,7 +55,7 @@ function broken_links_reading_html( array $data ) {
 	$p    = count( $data['probes'] );
 	return \snt_kit_grid(
 		array(
-			\snt_kit_stat( number_format_i18n( $n ), _n( 'Broken path', 'Broken paths', $n, 'signal-and-noise-tools' ), $n > 0 ? broken_links_hits( $hits ) : __( 'clean', 'signal-and-noise-tools' ), $n > 0 ? 'warn' : 'ok' ),
+			\snt_kit_stat( number_format_i18n( $n ), _n( 'Broken path', 'Broken paths', $n, 'signal-and-noise-tools' ), $n > 0 ? broken_links_hits( $hits ) . __( '; needs a look', 'signal-and-noise-tools' ) : __( 'clean', 'signal-and-noise-tools' ), $n > 0 ? 'warn' : 'ok' ),
 			\snt_kit_stat( number_format_i18n( $p ), _n( 'Automated probe', 'Automated probes', $p, 'signal-and-noise-tools' ), broken_links_hits( (int) $data['probe_hits'] ) ),
 		),
 		160,
@@ -81,7 +81,7 @@ function broken_links_row( $path, array $e, $suggested ) {
 		'referrer'  => broken_links_referrer( $e, __( 'none recorded', 'signal-and-noise-tools' ) ),
 		'suggested' => '' !== $suggested ? $suggested : __( 'no close match', 'signal-and-noise-tools' ),
 		'actions'   => array(
-			'html' => \snt_kit_button( __( 'Fix', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'broken-links', 'sn_edit' => $path ) ) ),
+			'html' => \snt_kit_button( __( 'Fix', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'broken-links', 'sn_edit' => redirects_edit_value( $path ), 'anchor' => 'snt-edit-region' ) ) ),
 			'text' => '',
 		),
 	);
@@ -117,7 +117,7 @@ function broken_links_paths_html( array $broken ) {
 		array( 'key' => 'last', 'label' => __( 'Last seen', 'signal-and-noise-tools' ) ),
 		array( 'key' => 'referrer', 'label' => __( 'Referrer', 'signal-and-noise-tools' ) ),
 		array( 'key' => 'suggested', 'label' => __( 'Suggested target', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'actions', 'label' => __( 'Actions', 'signal-and-noise-tools' ) ),
+		array( 'key' => 'actions', 'label' => __( 'Actions', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
 	);
 	/* translators: 1: paths listed, 2: paths in the log in total. */
 	$showing = sprintf( __( 'Showing the %1$s busiest of %2$s broken paths. Clear the log or act on these to see the rest.', 'signal-and-noise-tools' ), number_format_i18n( SN_404_LIST_CAP ), number_format_i18n( $n ) );
@@ -128,6 +128,7 @@ function broken_links_paths_html( array $broken ) {
 		'<p class="snt-prose">' . \snt_kit_esc( $finding ) . '</p>'
 			. \snt_kit_table( $columns, $rows, array( 'stack_on_phone' => true ) )
 			. \snt_kit_more( $n - count( $rows ), $more ),
-		__( 'Busiest first. Fix opens the path below the table, to redirect it or dismiss it; either clears it from this list.', 'signal-and-noise-tools' )
+		__( 'Busiest first. Fix opens the path below the table, to redirect it or dismiss it; either clears it from this list.', 'signal-and-noise-tools' ),
+		array( 'id' => 'snt-edit-list', 'tabindex' => '-1', 'data-snt-focus' => true )
 	);
 }

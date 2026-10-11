@@ -84,7 +84,7 @@ $row = $table['data'][0] ?? array();
 ok( 'https://example.com/moved' === ( $row['to'] ?? '' ) && '302 temporary' === ( $row['type'] ?? '' ) && $d1 === ( $row['added'] ?? '' ), 'a row carries the target, the type and the added date: ' . wp_json_encode( $row ) );
 ok( '/notes/design-tokens' === ( $table['data'][1]['to'] ?? '' ) && '301 permanent' === ( $table['data'][1]['type'] ?? '' ) && $d0 === ( $table['data'][1]['added'] ?? '' ), '...for every rule' );
 $cell = snt_leaf_cell_html( $table, $row['actions'] ?? null );
-ok( '<os-button variant="ghost" os-action="go" os-arg-sub="redirects" os-arg-sn_edit="/second">Edit</os-button>' === $cell, 'a row carries ONE visible action, Edit, a go button naming its rule: ' . substr( $cell, 0, 160 ) );
+ok( '<os-button variant="ghost" os-action="go" os-arg-sub="redirects" os-arg-sn_edit="/second" os-arg-anchor="snt-edit-region">Edit</os-button>' === $cell, 'a row carries ONE visible action, Edit, a go button naming its rule: ' . substr( $cell, 0, 160 ) );
 ok( 0 === slot_forms( $kit ) && 0 === slot_forms( $kit_ed ), 'no table cell holds a form, default or editing: ' . slot_forms( $kit ) . ' / ' . slot_forms( $kit_ed ) );
 ok( false === strpos( $kit, 'name="source" value="/second"' ) && false === strpos( $kit, 'name="source" value="/first"' ), 'the default paint binds no rule to any form: no stack of forms' );
 ok( false === strpos( $kit, 'submit-label="Save changes"' ) && false === strpos( $kit, 'snt-ledger-more' ), '...no edit form and no "+N more" under the cap' );
@@ -96,7 +96,7 @@ ok( false !== strpos( $kit_ed, 'description="Now a 301 to /notes/design-tokens; 
 $edit = form_block( $kit_ed, 'Save changes' );
 ok( false !== strpos( $edit, '<input type="hidden" name="source" value="/first">' ) && false !== strpos( $edit, 'name="action" value="sn_redirect_update"' ) && false !== strpos( $edit, '<os-text-field name="target" type="text" value="/notes/design-tokens"' ) && false !== strpos( $edit, '<os-field-row label="Redirects to">' ), 'the edit form posts redirect_update with the source hidden and the current target filled' );
 ok( false !== strpos( $edit, '<os-select name="status" value="301"><os-option value="301">301. Permanent</os-option><os-option value="302">302. Temporary</os-option></os-select>' ), 'the type select offers 301/302 with the current one selected' );
-ok( false !== strpos( $kit_ed, '<os-button variant="ghost" os-action="go" os-arg-sub="redirects">Cancel</os-button>' ), 'Cancel is a go that clears the param' );
+ok( false !== strpos( $kit_ed, '<os-button variant="ghost" os-action="go" os-arg-sub="redirects" os-arg-anchor="snt-edit-list">Cancel</os-button>' ), 'Cancel is a go that clears the param' );
 $delete = form_block( $kit_ed, 'Delete' );
 ok( '' !== $delete && false !== strpos( $delete, '<os-form os-confirm-title="Delete this redirect?" os-confirm-label="Delete" class="snt-form" os-action="post" submit-label="Delete"' ) && false !== strpos( $delete, 'os-confirm="This redirect will stop working immediately." os-confirm-danger>' ) && false !== strpos( $delete, 'name="action" value="sn_redirect_delete"' ) && false !== strpos( $delete, '<input type="hidden" name="source" value="/first">' ) && before( $kit_ed, 'heading="Editing /first"', 'submit-label="Delete"' ), 'Delete lives in the edit region: it confirms as the classic button did (title, label, question, danger) and carries the rule' );
 ok( false === strpos( $kit_ed, 'heading="Add a redirect"' ) && 2 === substr_count( $kit_ed, '<input type="hidden" name="source" value="/first">' ) && false === strpos( $kit_ed, 'name="source" value="/second"' ), 'while editing the add form steps aside; only /first is bound, to its update and its delete form' );
@@ -180,6 +180,19 @@ ok( false !== strpos( $kit, '<os-stat value="39" label="Rules"' ) && false !== s
 ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_folds( $kit_ed ) && 1 === substr_count( $kit_ed, 'submit-label="Save changes"' ) && false !== strpos( $kit_ed, 'heading="Editing /talks/aes-2024"' ) && 1 === substr_count( $kit_ed, 'submit-label="Delete"' ) && 0 === slot_forms( $kit ), 'live-shaped: fold-free, no form in any row, and editing paints ONE region (update + delete)' );
 snt_leaf_preview( 'site-redirects', $kit );
 snt_leaf_preview( 'site-redirects-editing', $kit_ed );
+$focus_problems = snt_leaf_edit_focus_problems( $kit, $kit_ed );
+ok( array() === $focus_problems, 'a11y: Edit lands the keyboard on the one region, Cancel lands it back on the list: ' . implode( '; ', $focus_problems ) );
+
+// ── 2026-10-11 (code review): the host keeps a `go` param to 200 characters
+// (snt_os_host_params(), substr( ..., 0, 200 )), and a path has no length cap.
+// The row's Edit must still open its rule when the source is longer.
+$long = '/archive/' . str_repeat( 'a-very-long-slug-', 15 );
+fixture( array( $long => array( 'to' => '/notes/design-tokens', 'status' => 301, 'created_at' => $t0 ) ), array() );
+$kit_long = snt_leaf_paint( 'site', 'redirects' );
+preg_match( '/os-arg-sn_edit="([^"]*)"/', $kit_long, $m_long );
+$sent = substr( html_entity_decode( $m_long[1] ?? '', ENT_QUOTES ), 0, 200 ); // What the host keeps.
+$kit_long_ed = editing( $sent );
+ok( strlen( $long ) > 200 && false !== strpos( $kit_long_ed, 'Editing ' . $long ) && false !== strpos( $kit_long_ed, 'name="source" value="' . $long . '"' ),'a ' . strlen( $long ) . '-character source still opens its edit region after the host cuts the param at 200' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

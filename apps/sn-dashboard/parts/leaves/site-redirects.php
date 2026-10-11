@@ -66,7 +66,7 @@ function paint_site_redirects( array $ctx ) {
 		return ''; // The classic renderer's own gate: a silent return, never a wp_die.
 	}
 	$rules  = redirects_data()['redirects'];
-	$source = redirects_editing( $ctx );
+	$source = redirects_editing( $ctx, array_keys( $rules ) );
 	$form   = ( '' !== $source && isset( $rules[ $source ] ) )
 		? redirects_edit_html( $source, (array) $rules[ $source ] )
 		: redirects_add_html();

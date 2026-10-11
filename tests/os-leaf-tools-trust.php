@@ -243,5 +243,20 @@ $kit = trust_paint();
 ok( false !== strpos( $kit, '+4 more on Health' ) && 'not measured' === ( trust_readings( $kit )['Rights anchoring'] ?? '' ) && 4 === count( trust_readings( $kit ) ), 'live-shaped: four trust rows of eight checks, 3 findings shown and "+4 more on Health", the skipped check not measured' );
 snt_leaf_preview( 'tools-trust', $kit );
 
+// ── 2026-10-11 (code review): a finding's subject_url can come from outside
+// the site (Ledger CI reads GitHub's html_url), and snt_kit_link() does not
+// filter a scheme. Only http(s) becomes a link; anything else is plain text.
+$GLOBALS['__scan'] = array(
+	'scanned_at' => time() - 300,
+	'checks'     => array(
+		'ledger_ci' => array( 'count' => 2, 'findings' => array(
+			array( 'subject_label' => 'run 41', 'subject_url' => 'javascript:alert(1)', 'note' => 'failed' ),
+			array( 'subject_label' => 'run 42', 'subject_url' => 'https://github.com/o/r/actions/runs/42', 'note' => 'failed' ),
+		) ),
+	),
+);
+$kit_js = trust_paint();
+ok( false === stripos( $kit_js, 'javascript:' ) && false !== strpos( $kit_js, 'run 41' ) && false !== strpos( $kit_js, 'https://github.com/o/r/actions/runs/42' ), 'a non-http(s) subject_url paints the subject as text, never a javascript: link; an https one stays a link' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

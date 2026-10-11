@@ -173,7 +173,7 @@ ok( false !== strpos( $kit, '<p class="snt-prose">1 of 2 map steps, 1 of 1 rule 
 ok( false === strpos( $kit, 'snt-ledger-more' ), 'three lists: never capped, so no "+N more" line' );
 ok( 1 === preg_match( '#</os-table>.*<os-section heading="Map steps" description="[^"]*Show on page[^"]*"#s', $all['map'] ) && 1 === substr_count( $all['map'], '<os-section heading="Map steps"' ), 'editing the map paints ONE region below the table, named for the list, its helper line as the description' );
 ok( 1 === preg_match( '#<os-section heading="Proof links" description="Links to evidence a reader can check\\. A row shows only when &quot;Show on page&quot; is ticked and its link is a path on this site \\(/maturity/\\) or an https URL\\.#', $all['proof'] ) && false !== strpos( $all['rules'], '<os-section heading="Rules" description="Add, remove and reorder rows with their buttons, or Alt+Arrow keys on a row; the page shows them in this order."' ) && false !== strpos( $all['map'], 'Unchecked steps stay here and nowhere else.' ), 'the fold\'s and the intro\'s helper lines are the regions\' descriptions (the Proof link rule, the Show on page rule, the reorder keys)' );
-ok( 1 === preg_match( '#<span slot="footer-leading"><os-button variant="ghost" os-action="go" os-arg-sub="workflow">Cancel</os-button></span>#', $all['map'] ) && false === strpos( $kit, '>Cancel</os-button>' ), 'the region has a Cancel beside Save (a go that clears sn_edit); the default paint has none' );
+ok( 1 === preg_match( '#<span slot="footer-leading"><os-button variant="ghost" os-action="go" os-arg-sub="workflow" os-arg-anchor="snt-edit-list">Cancel</os-button></span>#', $all['map'] ) && false === strpos( $kit, '>Cancel</os-button>' ), 'the region has a Cancel beside Save (a go that clears sn_edit); the default paint has none' );
 ok( false !== strpos( $kit, 'name="workflow[title]"' ) && false !== strpos( $all['proof'], 'name="workflow[sample][body]" value=' ), 'the page fields stay open on every paint' );
 ok( snt_leaf_paint( 'content', 'workflow', array( 'params' => array( 'sn_edit' => 'bogus' ) ) ) === $kit, 'an unknown sn_edit paints the default view' );
 
@@ -223,6 +223,8 @@ ok( false !== strpos( $all[''], '<p class="snt-prose">4 of 6 map steps, 8 of 8 r
 ok( array() === $folds_in( $all ) && false === strpos( $all[''], 'snt-ledger-more' ), 'live-shaped: fold-free on every paint, the three-row ledger never capped' );
 snt_leaf_preview( 'content-workflow', $all[''] );
 snt_leaf_preview( 'content-workflow-editing', $all['map'] );
+$focus_problems = snt_leaf_edit_focus_problems( $all[''], $all['map'] );
+ok( array() === $focus_problems, 'a11y: Edit lands the keyboard on the one region, Cancel lands it back on the list: ' . implode( '; ', $focus_problems ) );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

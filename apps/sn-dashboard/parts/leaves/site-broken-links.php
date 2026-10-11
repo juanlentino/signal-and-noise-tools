@@ -79,7 +79,7 @@ function broken_links_create_html( $path, array $e, $suggested ) {
 		\snt_kit_form( 'redirect_add', $fields, array( 'submit' => __( 'Create redirect', 'signal-and-noise-tools' ) ) )
 			. '<p class="snt-hint">' . \snt_kit_esc( __( 'Dismiss removes the path from the log without a redirect.', 'signal-and-noise-tools' ) ) . '</p>'
 			. \snt_kit_form( 'redirect_404_delete', \snt_kit_field( 'hidden', 'source', '', $path ), array( 'submit' => __( 'Dismiss', 'signal-and-noise-tools' ) ) )
-			. \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'broken-links' ) ) ),
+			. \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'broken-links', 'anchor' => 'snt-edit-list' ) ) ),
 		sprintf(
 			/* translators: 1: "7 hits", 2: date of the latest hit (Y-m-d), 3: "from <host>" or "no referrer recorded". */
 			__( '%1$s, last %2$s, %3$s.', 'signal-and-noise-tools' ),
@@ -87,7 +87,8 @@ function broken_links_create_html( $path, array $e, $suggested ) {
 			$last > 0 ? wp_date( 'Y-m-d', $last ) : __( 'unknown', 'signal-and-noise-tools' ),
 			/* translators: %s: the referring host. */
 			'' !== $host ? sprintf( __( 'from %s', 'signal-and-noise-tools' ), $host ) : __( 'no referrer recorded', 'signal-and-noise-tools' )
-		)
+		),
+		array( 'id' => 'snt-edit-region', 'tabindex' => '-1', 'data-snt-focus' => true )
 	);
 }
 
@@ -105,7 +106,7 @@ function paint_site_broken_links( array $ctx ) {
 	}
 	$data   = redirects_data();
 	$broken = (array) $data['broken'];
-	$path   = redirects_editing( $ctx );
+	$path   = redirects_editing( $ctx, array_keys( $broken ) );
 	$out    = broken_links_reading_html( $data ) . broken_links_paths_html( $broken );
 	if ( '' !== $path && isset( $broken[ $path ] ) ) {
 		$out .= broken_links_create_html( $path, (array) $broken[ $path ]['entry'], (string) $broken[ $path ]['suggested'] );
