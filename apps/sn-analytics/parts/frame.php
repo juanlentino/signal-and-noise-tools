@@ -166,7 +166,8 @@ function tab_view( $view ) {
 			echo '<div class="snt-classic">' . dashboard_html( $state ) . '</div></div>';
 			return;
 		}
-		if ( ! $ctx['configured'] ) {
+		// The machine views read the edge sensor (its own credentials): no gate.
+		if ( ! $ctx['configured'] && ( ! function_exists( 'snt_analytics_view_needs_ae' ) || \snt_analytics_view_needs_ae( $view ) ) ) {
 			echo paint_piece( 'chrome/empty', $ctx )['html'] . '</div>';
 			return;
 		}

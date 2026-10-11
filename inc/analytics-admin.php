@@ -145,6 +145,21 @@ function snt_analytics_view_owns_chrome( $view ) {
 	return in_array( (string) $view, SN_ANALYTICS_OWNS_CHROME, true );
 }
 
+/** Views that read the edge sensor (its own credentials), not Analytics Engine. */
+const SN_ANALYTICS_SENSOR_VIEWS = array( 'machine-readers', 'reader-evidence' );
+
+/**
+ * True iff $view needs Analytics Engine configured. The machine views read the
+ * rights-signals sensor, so the Analytics Engine gate does not hold them back;
+ * every people view stays behind it.
+ *
+ * @param string $view View slug.
+ * @return bool
+ */
+function snt_analytics_view_needs_ae( $view ) {
+	return ! in_array( (string) $view, SN_ANALYTICS_SENSOR_VIEWS, true );
+}
+
 /**
  * THE view-reset param list (v9.68.0 review 2, F2): the window/view/view-local
  * params a tab-switch strips from the current URL before re-adding its own
@@ -441,12 +456,14 @@ function snt_analytics_render_dashboard() {
 
 	// Config gate: the tab strip renders regardless (S2 §5 — the dashboard's
 	// shape is visible from day one); only the data below the gate is withheld.
-	// The gate is view-agnostic on purpose: login-defense checks this SAME
+	// The machine views (SN_ANALYTICS_SENSOR_VIEWS) read the edge sensor with its
+	// own credentials and pass the gate. For every other view it is agnostic on
+	// purpose: login-defense checks this SAME
 	// sn_analytics_config() flag (not a separate credential), so routing it to
 	// its own dormant card here would just show an identical message under a
 	// different label — one generic gate for every tab keeps the empty state
 	// coherent while switching tabs pre-configuration.
-	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
+	if ( snt_analytics_view_needs_ae( $view ) && ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) ) {
 		snt_analytics_render_view_tabs( $view, $range, $class, $from, $to );
 		snt_analytics_render_empty();
 		return;

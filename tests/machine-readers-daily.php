@@ -17,6 +17,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 class WP_Error { public $code; public $message; public $data; public function __construct( $c = '', $m = '', $d = null ) { $this->code = $c; $this->message = $m; $this->data = $d; } }
 function is_wp_error( $t ) { return $t instanceof WP_Error; }
 function __( $s, $d = null ) { return $s; }
+if ( ! function_exists( '_n' ) ) { function _n( $a, $b, $n, $d = null ) { return 1 === (int) $n ? $a : $b; } } // the readers model's leads pick on the count.
 function add_action( $t, $cb ) { $GLOBALS['__acts'][ $t ][] = $cb; }
 function wp_register_ability( $slug, $args ) { $GLOBALS['__ab'][ $slug ] = $args; }
 

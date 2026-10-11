@@ -77,8 +77,10 @@ namespace {
 	ok( snt_analytics_view_owns_chrome( 'machine-readers' ) && snt_analytics_view_owns_chrome( 'reader-evidence' ), 'both own their chrome (their own hero and window)' );
 	$painted = call_user_func( $P . 'painters' );
 	ok( isset( $painted['view/machine-readers'], $painted['view/reader-evidence'] ), 'both native painters are registered' );
+	ok( ! snt_analytics_view_needs_ae( 'machine-readers' ) && ! snt_analytics_view_needs_ae( 'reader-evidence' ) && array() === array_filter( array_diff( array_keys( SN_ANALYTICS_VIEWS ), array( 'machine-readers', 'reader-evidence' ) ), static fn( $v ) => ! snt_analytics_view_needs_ae( $v ) ), 'only the two machine views skip the Analytics Engine gate; every people view stays behind it' );
 	ok( false !== strpos( $classic['machine-readers'], 'Who reads' ) && false !== strpos( $classic['reader-evidence'], 'Is this crawler real' ), 'the classic dispatch reaches both bodies' );
-	ok( array( 7, 7, 7, 7 ) === array_slice( array_unique( $GLOBALS['__fetch_days'] ), 0, 1 ) + array( 7, 7, 7, 7 ), 'the window follows the page range (7)' );
+	$fd = $GLOBALS['__fetch_days'];
+	ok( count( $fd ) >= 8 && array( 7 ) === array_values( array_unique( $fd ) ), 'every sensor fetch the four renders made (' . count( $fd ) . ') reads the page range, 7 days: ' . implode( ',', $fd ) );
 	ok( array( 90, 'The edge sensor keeps 90 days, so this view opens at 90 days for the page’s longer range.' ) === snt_mr_view_window( '365' ) && 90 === snt_mr_view_window( 'all' )[0] && array( 14, '' ) === snt_mr_view_window( '14' ), 'a longer range opens at 90 and says so in one line; 14 stays 14' );
 
 	echo "\nGroup B: no folds, one legend, the strip, the chips\n";

@@ -35,7 +35,7 @@ the page, not just here.
 
 | Where | What it shows |
 | --- | --- |
-| **S&N Analytics, Machine readers** (view; native painter `apps/sn-analytics/parts/painters/view-machine-readers.php`, classic body `inc/analytics-view-machine-readers.php`) | Who reads, and for what. Its own 7/14/30/90-day window (a longer page range opens at 90 days and says so). A hero band: the evidence legend, the headline tiles, and one finding built from the payload (training reads claimed, the control-token reads taken out, how many Cloudflare verified and from whose network), linking to Reader evidence. Then the family delta cards; Who reads beside What for (each family and purpose with its evidence strip); Rights files beside Feed fetches; and the reference bands (observed vs declared, AI-training counted both ways, agent by purpose, surfaces), each capped with a "+N more" line. No folds. |
+| **S&N Analytics, Machine readers** (view; native painter `apps/sn-analytics/parts/painters/view-machine-readers.php`, classic body `inc/analytics-view-machine-readers.php`) | Who reads, and for what. Its own 7/14/30/90-day window (a longer page range opens at 90 days and says so). A hero band: the evidence legend, the headline tiles, and one finding built from the payload (training reads claimed, the control-token reads taken out, how many Cloudflare verified and from whose network), linking to Reader evidence. Then the family delta cards (readers only); Who reads and What for (each family and purpose with its evidence strip) and Rights files and Feed fetches, each pair side by side only when within 1.5x of each other's height; and the reference bands (observed vs declared, AI-training counted both ways, agent by purpose, surfaces), each capped with a "+N more" line. No folds. Both machine views read the edge sensor with its own credentials, so they open with Analytics Engine unconfigured. |
 | **S&N Analytics, Reader evidence** (view; `view-reader-evidence.php`, `inc/analytics-view-reader-evidence.php`) | How each count is known. Claim against proof (two tiles, the strip, the since line); Signed beside Verified, and the line that tells them apart; the split by family and by purpose; control tokens; "Is this crawler real" (named agents with reads Cloudflare did not verify, each with its top network); the unnamed samples with their verified reads and networks; and reader anomalies (a two-series verified and unverified day histogram on the native surface, a day table on the classic one, then the co-movement verdicts). |
 | **Monitoring, Machine Readers** (S&N Dashboard leaf and wp-admin tab) | Configuration only since the evidence-basis arc: the sensor status pills with the two links "Machine readers in S&N Analytics" and "Reader evidence in S&N Analytics", the two Site Health verdicts (crawler-list drift, reader anomalies), the Edge sensor readout beside the Sensor settings form (`sn_action=machine_readers_save`, unchanged), and the monthly rights evidence, which stays here because it posts forms. Before the arc this leaf was the MIXED composition of v12.22.0 (`docs/proposals/admin-leaf-composition-2026-08-23.md`); every reading it carried now lives in one of the two views above. |
 | **SN Provenance** (Desktop Mode tile; SN Machine Readers from v10.1.0, folded into it on 2026-10-04) | A glance under the anchors: machine reads in the window, the identity split (this site’s own tools a part of their own, not readership), AI-training reads as "N claimed · M verified" with a small evidence strip, the top reader family (first-party and control tokens out), and the crawler-list verdict only when it is not in sync, served by `/wp-json/signal-noise/v1/desktop/machine-readers`. Its link opens Machine readers in S&N Analytics. |
@@ -331,7 +331,11 @@ fits the claimed purpose (`SN_MR_PURPOSE_CATEGORIES`):
 Each row lists Cloudflare's legacy category string and the July 2026 behavior
 name, matched without regard to case, because the strings the edge stores could
 not be read back through any tool when the table was written. Crosstab cells
-carry the same split, plus `first_party`, `impersonation` and `basis`.
+carry the same split, plus `first_party_hits` (the exact part from this site's
+own tools; `first_party` is true when it is above zero), `impersonation` and
+`basis`. A read before the since date is unverifiable: the family and agent
+exceptions in Reader evidence read each agent's whole split, so such a read
+never makes an agent or family "never verified".
 
 ### Control tokens are not crawlers
 
@@ -360,7 +364,9 @@ reader-anomalies series leave first-party reads out entirely.
 `network`, capped at 10,000), folds them per sample and keeps the top 20, each
 with `verified_hits`, `not_measured` and its top 5 networks. A worker before
 1.30.0 ignores the parameter, sends no `detail` in the envelope, and the list
-reads `verified_hits: null`, `basis: unmeasured`, never 0. Reader evidence in
+reads `verified_hits: null`, `basis: unmeasured`, never 0. That view has no
+day, so hits less `verified_hits` is unverified or unverifiable: a read from
+before the since date counts as not verified there. Reader evidence in
 S&N Analytics reads the same split view and counts every sample, paints the
 busiest 20 with a "+N more" line, and says "at least" when the count is a
 floor: the read was truncated, or an older worker answered only its top 50.
@@ -369,10 +375,11 @@ floor: the read was truncated, or an older worker answered only its top 50.
 
 The two S&N Analytics views (see the surfaces table) paint the split with one
 primitive, the evidence strip (`snt_evidence_strip()`, `inc/evidence-kit.php`):
-a bar whose parts are verified (solid), unverified (hatched) and unverifiable
-(dashed outline), with the counts as text beside it, so the bar is never the
-only carrier of a number (it is `aria-hidden`). A view states the legend once
-(`snt_evidence_legend()`), and each count that has a basis carries a basis chip
+a bar whose parts are verified for the claimed purpose (solid), verified but
+not for that purpose (accent outline over a half fill), unverified (hatched)
+and unverifiable (dashed outline), with the counts as text beside it, so the
+bar is never the only carrier of a number (it is `aria-hidden`). A view states
+the legend once, a swatch per part (`snt_evidence_legend()`), and each count that has a basis carries a basis chip
 (`snt_basis_chip()`; `signed` reads as success, `verified` as info, the rest
 plain, `unmeasured` as "not measured"). A null split paints "not measured",
 never a zero bar.
@@ -384,7 +391,7 @@ is a reader, not this site's own ledger verifier.
 
 ### Reader anomalies
 
-First-party reads leave every series. Each family carries `by_verification`, a
+First-party reads and control tokens leave every series. Each family carries `by_verification`, a
 verified and an unverified series over the days the sensor recorded
 verification, with signals withheld until a series is present on 20 of them.
 Three or more families deviating on the same day, mostly on unverified reads,

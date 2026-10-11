@@ -584,6 +584,18 @@ ok( substr_count( $html, 'Configure analytics' ) === 1, 'dashboard(unconfigured)
 ok( strpos( $html, 'href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=analytics"' ) !== false,
 	'dashboard(unconfigured): CTA points at the analytics settings URL' );
 
+echo "\nGroup: dashboard: unconfigured: the machine views read the edge sensor, not Analytics Engine\n";
+if ( ! function_exists( 'snt_analytics_render_view_machine_readers' ) ) {
+	function snt_analytics_render_view_machine_readers( $range ) { echo '<p>MR-VIEW ' . esc_html( $range ) . '</p>'; }
+}
+$GLOBALS['__aa_config'] = false;
+aa_reset_call_counts();
+$_GET['sn_view'] = 'machine-readers';
+$html = capture( 'snt_analytics_render_dashboard' );
+unset( $_GET['sn_view'] );
+ok( false !== strpos( $html, 'MR-VIEW' ) && false === strpos( $html, 'sn-an-gate' ), 'unconfigured: Machine readers paints its view, not the Analytics Engine gate (the sensor has its own credentials)' );
+ok( 0 === $GLOBALS['__aa_calls']['range_totals'] && 0 === $GLOBALS['__aa_calls']['realtime'], 'unconfigured: and it still reads no Analytics Engine accessor' );
+
 echo "\nGroup: dashboard: unconfigured: tabs lead, ZERO accessor reads (S2 §5, resolves PR #275)\n";
 // The dashboard's SHAPE (which views exist) is now visible before Cloudflare
 // creds are set; only the DATA below the gate stays withheld. $_GET['sn_view']

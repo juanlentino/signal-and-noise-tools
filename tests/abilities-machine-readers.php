@@ -67,6 +67,7 @@ function snt_mr_crawler_list_status() { return $GLOBALS['__status']; }
 // (never-measured vs measured-zero) — stubbing it would hide the null
 // purposes contract the widget now has to honour.
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } } // 15.1.1: snt_mr_error_hint() speaks
+if ( ! function_exists( '_n' ) ) { function _n( $a, $b, $n, $d = null ) { return 1 === (int) $n ? $a : $b; } } // the readers model's leads pick on the count.
 require __DIR__ . '/../inc/machine-readers-taxonomy.php';
 require __DIR__ . '/../inc/machine-readers-render.php';
 // v10.2.0: the ONE shared builder lives here now (both this ability and the

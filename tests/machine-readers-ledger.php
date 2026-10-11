@@ -137,6 +137,9 @@ foreach ( array( 'signal-noise/get-machine-readers-crosstab' => 'snt_ability_get
 	ok( false === strpos( (string) ( $r['description'] ?? '' ), "\u{2014}" ), "$slug description carries no em dash" );
 }
 
+$xd = (string) ( $GLOBALS['__ab']['signal-noise/get-machine-readers-crosstab']['description'] ?? '' );
+ok( false !== strpos( $xd, 'unverified OR unverifiable' ) && false !== strpos( $xd, 'first_party_hits' ), 'the crosstab says its unnamed verified_hits cannot see the since date, and names first_party_hits' );
+
 echo "Group E: the sensor contract\n";
 $GLOBALS['__mr'] = array();
 $out = snt_ability_get_machine_readers_crosstab( null );
