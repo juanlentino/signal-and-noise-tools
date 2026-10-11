@@ -373,5 +373,15 @@ foreach ( snt_dwx_boxes() as $box ) {
 ok( is_array( $core_field ) && 'signal-noise/get-deploy-status' === $core_field['ability'], 'Operations leaf has a Core row from get-deploy-status' );
 ok( is_array( $core_field ) && 'core.offer' === ( $core_field['compare']['path'] ?? '' ) && 'behind (%s)' === ( $core_field['compare']['template'] ?? '' ), 'the Core row says behind (point|major), silent when offer is empty' );
 
+// Unreleased: the machine box keeps this site's own tools apart and says
+// "unmapped" for the purpose the taxonomy could not place.
+echo "\nFirst-party apart, unmapped said as such\n";
+$sn_mbox = array_values( array_filter( snt_dwx_boxes(), static fn( $b ) => 'sn_dash_machines' === $b['id'] ) )[0];
+$sn_lists = array_column( $sn_mbox['lists'], null, 'path' );
+ok( 'first_party_hits' === ( $sn_lists['families']['item']['sub'] ?? '' ) && false !== strpos( (string) ( $sn_lists['families']['item']['sub_template'] ?? '' ), 'own tools' ), 'Top families says how much of a family is this site\'s own tools' );
+ok( array( 'unknown' => 'unmapped' ) === ( $sn_lists['purposes']['item']['label_map'] ?? null ), 'Reads by purpose shows unknown as unmapped' );
+$sn_dwx_js = (string) file_get_contents( __DIR__ . '/../assets/dash-widgets.js' );
+ok( false !== strpos( $sn_dwx_js, 'item.label_map' ) && false !== strpos( $sn_dwx_js, "item.sub_template.replace( '%s', format( entry[ item.sub ] ) )" ), 'the list applies label_map and groups the sub figure' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

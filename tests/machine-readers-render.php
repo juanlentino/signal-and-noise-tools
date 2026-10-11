@@ -21,6 +21,7 @@ function esc_html__( $s, $d = null ) { return esc_html( $s ); }
 
 require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require __DIR__ . '/../inc/machine-readers-render.php';
+require __DIR__ . '/../inc/machine-readers-basis.php'; // Unreleased: the control-token rule the strip shares with the summary.
 
 $rows = array(
 	array( 'family' => 'openai',    'surface' => 'llms',   'day' => '2026-07-27', 'hits' => 12 ),
@@ -72,6 +73,14 @@ ok( false !== strpos( $html, '20' ), 'AI-training reads counted (openai 15 + ant
 $hostile = snt_mr_render_summary_chips( array( array( 'family' => 'openai', 'surface' => 'llms', 'day' => '<svg onload=x>', 'hits' => 2 ) ), 7 );
 ok( false === strpos( $hostile, '<svg' ), 'chips escape like every other sink' );
 ok( '' !== snt_mr_render_summary_chips( array(), 30 ), 'empty rows still render a strip, not a fatal' );
+// Unreleased: this site's own tools apart, and a control token credited to no vendor.
+$sn_fp = snt_mr_render_summary_chips( array(
+	array( 'family' => 'unclassified-machine', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 2000, 'first_party' => true ),
+	array( 'family' => 'google-ai', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 170, 'agent' => 'google-extended' ),
+	array( 'family' => 'openai', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 9 ),
+), 7 );
+ok( false !== strpos( $sn_fp, '2,000' ) && false !== strpos( $sn_fp, 'this site’s own tools' ), 'the strip states this site\'s own tools apart (2,000)' );
+ok( false !== strpos( $sn_fp, '<p class="sn-kpi-value">9</p>' ), 'AI-training reads leave out the Google-Extended control token (9, not 179)' );
 
 echo "\nGroup: v10.2.2 — the strip carries the feed half of the audience (fourth chip)\n";
 $html = snt_mr_render_summary_chips( $rows, 30, 946 );

@@ -163,6 +163,9 @@
 
 		data.slice( 0, spec.limit || 5 ).forEach( function ( entry ) {
 			var label = item.label ? String( entry[ item.label ] || '' ) : '';
+			if ( item.label_map && Object.prototype.hasOwnProperty.call( item.label_map, label ) ) {
+				label = item.label_map[ label ]; // a display word for a stored key (unknown purpose: unmapped)
+			}
 			var value;
 			if ( 'confirmations' === item.format ) {
 				value = confirmationsOf( entry );
@@ -180,7 +183,7 @@
 				var quiet = item.sub_when_differs
 					&& String( entry[ item.sub_when_differs ] ) === String( entry[ item.sub ] );
 				if ( ! quiet ) {
-					sub = item.sub_template.replace( '%s', String( entry[ item.sub ] ) );
+					sub = item.sub_template.replace( '%s', format( entry[ item.sub ] ) );
 				}
 			}
 			body.appendChild( row( label || '\u2014', value, sub ) );

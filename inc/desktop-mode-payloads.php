@@ -505,13 +505,21 @@ function snt_desktop_machine_readers_payload() {
  * one worker version before the network was recorded, so an empty network is
  * not "not measured".
  *
- * @param array $rows Sensor rows { day, hits, verified_bot, network }.
- * @return array{verified:int,unverified:int,not_measured:int}
+ * Unreleased: `first_party` is this site's own tools (the sensor's first_party
+ * flag), a part of its own whatever Cloudflare says of them: they are not
+ * readers, so they sit in none of the other three.
+ *
+ * @param array $rows Sensor rows { day, hits, verified_bot, network, first_party }.
+ * @return array{verified:int,unverified:int,not_measured:int,first_party:int}
  */
 function snt_desktop_machine_readers_identity( array $rows ) {
-	$out = array( 'verified' => 0, 'unverified' => 0, 'not_measured' => 0 );
+	$out = array( 'verified' => 0, 'unverified' => 0, 'not_measured' => 0, 'first_party' => 0 );
 	foreach ( $rows as $row ) {
 		$hits = is_array( $row ) ? max( 0, (int) ( $row['hits'] ?? 0 ) ) : 0;
+		if ( is_array( $row ) && ! empty( $row['first_party'] ) ) {
+			$out['first_party'] += $hits;
+			continue;
+		}
 		$bot = is_array( $row ) ? (string) ( $row['verified_bot'] ?? '' ) : '';
 		$day = is_array( $row ) ? (string) ( $row['day'] ?? '' ) : '';
 		if ( function_exists( 'sn_rights_evidence_identity_class' ) && '' !== $day ) {
@@ -542,7 +550,11 @@ function snt_desktop_machine_readers_identity( array $rows ) {
  * @param array      $payload    The machine-readers summary (families, total).
  * @param array|null $prior_rows Sensor rows of the prior window; null when not read.
  * @param int        $days       The prior window's length in days.
- * @return array{family:string,share:int,prior_share:int|null}|null
+ * Unreleased: `first_party_share` is the part of `share` that is this site's
+ * own tools (the family row's first_party_hits over the same total), so the
+ * top family reads apart from the site's own probes inside it.
+ *
+ * @return array{family:string,share:int,prior_share:int|null,first_party_share:int}|null
  */
 function snt_desktop_machine_readers_top_family( array $payload, $prior_rows, $days = 30 ) {
 	$top   = $payload['families'][0] ?? null;
@@ -569,8 +581,9 @@ function snt_desktop_machine_readers_top_family( array $payload, $prior_rows, $d
 		$prior = $all > 0 ? (int) round( 100 * (int) ( $hits[ $family ] ?? 0 ) / $all ) : null;
 	}
 	return array(
-		'family'      => $family,
-		'share'       => (int) round( 100 * (int) ( $top['hits'] ?? 0 ) / $total ),
-		'prior_share' => $prior,
+		'family'            => $family,
+		'share'             => (int) round( 100 * (int) ( $top['hits'] ?? 0 ) / $total ),
+		'prior_share'       => $prior,
+		'first_party_share' => (int) round( 100 * (int) ( $top['first_party_hits'] ?? 0 ) / $total ),
 	);
 }

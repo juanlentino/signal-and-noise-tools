@@ -115,9 +115,15 @@ function machine_readers_summary_stats_html( array $rows, $days, $feed_total, $t
 	foreach ( \snt_mr_ai_training_families() as $fam ) {
 		$ai += (int) ( $totals[ $fam ] ?? 0 );
 	}
+	// Unreleased: control-token hits leave AI-training reads; this site's own tools read apart.
+	$fig   = function_exists( 'snt_mr_strip_figures' ) ? \snt_mr_strip_figures( $rows ) : array( 'ai' => $ai, 'first_party' => 0 );
+	$ai    = $fig['ai'];
 	$out   = array();
 	$out[] = \snt_kit_stat( number_format_i18n( $total ), sprintf( __( 'machine reads, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ) );
 	$out[] = \snt_kit_stat( $top, __( 'top family', 'signal-and-noise-tools' ) );
+	if ( $fig['first_party'] > 0 ) {
+		$out[] = \snt_kit_stat( number_format_i18n( $fig['first_party'] ), __( 'this site’s own tools', 'signal-and-noise-tools' ) );
+	}
 	$out[] = \snt_kit_stat( number_format_i18n( $ai ), __( 'AI-training reads', 'signal-and-noise-tools' ) );
 	if ( null !== $feed_total ) {
 		$out[] = \snt_kit_stat( number_format_i18n( (int) $feed_total ), sprintf( __( 'feed fetches, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ) );

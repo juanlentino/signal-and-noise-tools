@@ -203,6 +203,10 @@ function snt_mr_render_summary_chips( $rows, $days, $feed_total = null, $tool_ca
 	foreach ( snt_mr_ai_training_families() as $fam ) {
 		$ai += (int) ( $totals[ $fam ] ?? 0 );
 	}
+	// Unreleased: the control-token hits leave AI-training reads, and this
+	// site's own tools read apart (inc/machine-readers-basis.php).
+	$fig = function_exists( 'snt_mr_strip_figures' ) ? snt_mr_strip_figures( (array) $rows ) : array( 'ai' => $ai, 'first_party' => 0 );
+	$ai  = $fig['ai'];
 	// v10.2.1: the Analytics KPI vocabulary (.sn-kpi-row / -label / -value),
 	// the same one snt_an_kpi_row() paints — not a second stat-card treatment.
 	$card = function ( $label, $value ) {
@@ -212,6 +216,7 @@ function snt_mr_render_summary_chips( $rows, $days, $feed_total = null, $tool_ca
 	return '<div class="sn-kpi-row sn-mr-kpi-row">'
 		. $card( sprintf( /* translators: %s: window length in days. */ __( 'machine reads, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ), number_format_i18n( $total ) )
 		. $card( __( 'top family', 'signal-and-noise-tools' ), '' === $top || '&mdash;' === $top ? '—' : $top )
+		. ( $fig['first_party'] > 0 ? $card( __( 'this site’s own tools', 'signal-and-noise-tools' ), number_format_i18n( $fig['first_party'] ) ) : '' )
 		. $card( __( 'AI-training reads', 'signal-and-noise-tools' ), number_format_i18n( $ai ) )
 		. ( null !== $feed_total
 			? $card( sprintf( /* translators: %s: window length in days. */ __( 'feed fetches, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ), number_format_i18n( (int) $feed_total ) )

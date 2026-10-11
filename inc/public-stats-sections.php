@@ -343,6 +343,8 @@ function sn_public_stats_machines_html( $data ) {
 			'verified'     => __( 'Verified by Cloudflare', 'signal-and-noise-tools' ),
 			'unverified'   => __( 'Named themselves, not verified', 'signal-and-noise-tools' ),
 			'not_measured' => __( 'Not measured', 'signal-and-noise-tools' ),
+			// Unreleased: this site's own monitors and checks, apart from readers.
+			'first_party'  => __( 'This site’s own tools', 'signal-and-noise-tools' ),
 		);
 		$rows = array();
 		foreach ( $names as $k => $label ) {

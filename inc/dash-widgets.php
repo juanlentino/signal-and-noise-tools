@@ -176,7 +176,10 @@ function snt_dwx_boxes() {
 					'input'   => array( 'days' => 30 ),
 					'path'    => 'families',
 					'limit'   => 5,
-					'item'    => array( 'label' => 'family', 'value' => 'hits' ),
+					// The part of a family that is this site's own tools, said
+					// under it (unclassified-machine is mostly the site's probes).
+					/* translators: %s: reads from this site's own tools */
+					'item'    => array( 'label' => 'family', 'value' => 'hits', 'sub' => 'first_party_hits', 'sub_template' => __( '%s from this site’s own tools', 'signal-and-noise-tools' ) ),
 				),
 				array(
 					// `purposes` is null when the taxonomy is unavailable; the list
@@ -187,7 +190,8 @@ function snt_dwx_boxes() {
 					'path'    => 'purposes',
 					'limit'   => 4,
 					'empty'   => __( 'Taxonomy unavailable.', 'signal-and-noise-tools' ),
-					'item'    => array( 'label' => 'purpose', 'value' => 'hits' ),
+					// `unknown` is a reader the taxonomy has no entry for.
+					'item'    => array( 'label' => 'purpose', 'value' => 'hits', 'label_map' => array( 'unknown' => 'unmapped' ) ),
 				),
 				array(
 					'label'   => __( 'AI-training reads by surface', 'signal-and-noise-tools' ),

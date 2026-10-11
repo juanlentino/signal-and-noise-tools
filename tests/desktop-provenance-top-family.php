@@ -19,7 +19,7 @@ require __DIR__ . '/../inc/machine-readers-insights.php'; // the real snt_mr_spl
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
-function snt_mr_summary_payload( $days ) { return array( 'ok' => true, 'days' => 30, 'total' => 200, 'families' => array( array( 'family' => 'unclassified-machine', 'hits' => 88 ) ) ); }
+function snt_mr_summary_payload( $days ) { return array( 'ok' => true, 'days' => 30, 'total' => 200, 'families' => array( array( 'family' => 'unclassified-machine', 'hits' => 88, 'first_party_hits' => 80 ) ) ); }
 $GLOBALS['__reads'] = array();
 function snt_mr_fetch( $days ) { return $GLOBALS['__reads'][ (int) $days ]; }
 
@@ -38,7 +38,8 @@ function prior_rows( $n ) {
 $current = array( 'ok' => true, 'truncated' => false, 'rows' => array() );
 $GLOBALS['__reads'] = array( 30 => $current, 60 => array( 'ok' => true, 'truncated' => false, 'rows' => prior_rows( 30 ) ) );
 $p = snt_desktop_machine_readers_payload();
-ok( array( 'family' => 'unclassified-machine', 'share' => 44, 'prior_share' => 25 ) === ( $p['top_family'] ?? null ), 'every prior day covered: the share and the prior share' );
+ok( array( 'family' => 'unclassified-machine', 'share' => 44, 'prior_share' => 25, 'first_party_share' => 40 ) === ( $p['top_family'] ?? null ), 'every prior day covered: the share and the prior share, and the part of the share that is this site\'s own tools (80 of 200 reads: 40%)' );
+ok( 0 === snt_desktop_machine_readers_top_family( array( 'families' => array( array( 'family' => 'x', 'hits' => 1 ) ), 'total' => 2 ), null )['first_party_share'], 'a family row without first_party_hits reads 0 first-party, never a missing key' );
 
 $GLOBALS['__reads'][60] = array( 'ok' => true, 'truncated' => false, 'rows' => prior_rows( 5 ) );
 $p = snt_desktop_machine_readers_payload();

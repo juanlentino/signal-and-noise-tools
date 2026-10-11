@@ -66,6 +66,7 @@ if ( ! function_exists( 'sn_rss_tracker_window_stats_multi' ) ) {
 require SNT_PATH . 'inc/machine-readers-api.php';
 require SNT_PATH . 'inc/machine-readers-taxonomy.php';
 require SNT_PATH . 'inc/machine-readers-render.php';
+require SNT_PATH . 'inc/machine-readers-basis.php';
 require SNT_PATH . 'inc/machine-readers-render-taxonomy.php';
 require SNT_PATH . 'inc/machine-readers-insights.php';
 require SNT_PATH . 'inc/machine-readers-compose.php';
@@ -137,6 +138,14 @@ ok( false !== strpos( $kit, 'Aggregates current' ), 'the aggregate-read pill rep
 ok( false !== strpos( $kit, '663' ), 'the total-reads stat sums every row (120+5+30+500+8=663)' );
 ok( false !== strpos( $kit, 'openai' ) && false !== strpos( $kit, 'top family' ), 'the top-family stat names openai' );
 ok( false !== strpos( $kit, '155' ) && false !== strpos( $kit, 'AI-training reads' ), 'the AI-training-reads stat sums openai+anthropic (120+5+30=155)' );
+// Unreleased: the same strip, with this site's own tools apart and a control token credited to no vendor.
+$sn_fp = \SignalNoise\OpenStationHost\Dashboard\Leaves\machine_readers_summary_stats_html( array(
+	array( 'family' => 'unclassified-machine', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 2000, 'first_party' => true ),
+	array( 'family' => 'google-ai', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 170, 'agent' => 'google-extended' ),
+	array( 'family' => 'openai', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 9 ),
+), 7, null );
+ok( false !== strpos( $sn_fp, '<os-stat value="2,000" label="this site’s own tools">' ), 'the native strip states this site\'s own tools apart' );
+ok( false !== strpos( $sn_fp, '<os-stat value="9" label="AI-training reads">' ), 'and AI-training reads leave out the Google-Extended control token' );
 ok( false !== strpos( $kit, '210' ) && false !== strpos( $kit, 'feed fetches' ), 'the feed-fetches stat carries the 30d feed total' );
 ok( false !== strpos( $kit, '<os-stat value="9" label="agent tool calls, 30d">' ) && false !== strpos( $kit, '<os-stat value="663" label="machine reads, 30d">' ), '15.5.0: the tool-calls stat sums the webmcp rows (7+2=9) and the reads stat did not grow (663)' );
 ok( false !== strpos( $classic, 'agent tool calls, 30d' ) && false !== strpos( $classic, '<p class="sn-kpi-value">9</p>' ) && false === strpos( $kit, '>webmcp<' ) && false === strpos( $classic, '>webmcp<' ), 'the classic tab paints the same figure; webmcp is not a family on either leaf' );

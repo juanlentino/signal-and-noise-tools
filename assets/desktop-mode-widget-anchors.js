@@ -116,16 +116,17 @@
 		list.appendChild( reads );
 		// A user agent is a claim; only the verified share is vouched for by the edge.
 		var id = mr.edge_verified; // its own key: `identity` is the summary's signature evidence
-		var sum = id ? id.verified + id.unverified + id.not_measured : 0;
+		var sum = id ? id.verified + id.unverified + id.not_measured + ( Number( id.first_party ) || 0 ) : 0;
 		if ( id && sum > 0 ) {
-			// The three parts as a share bar under Machine reads, each row with its
+			// The parts as a share bar under Machine reads, each row with its
 			// segment's dot (assets/desktop-mode-card-kit.js); without the kit, the rows alone.
+			// This site's own tools are a part of their own: not readers at all.
 			var kit   = window.sntCardKit;
-			var parts = [ [ 'Verified by Cloudflare', id.verified ], [ 'Named themselves, not verified', id.unverified ], [ 'Not measured', id.not_measured ] ];
+			var parts = [ [ 'Verified by Cloudflare', id.verified ], [ 'Named themselves, not verified', id.unverified ], [ 'Not measured', id.not_measured ], [ 'This site\u2019s own tools', Number( id.first_party ) || 0 ] ];
 			var bar   = kit ? kit.bar( parts.map( function( p ) { return 100 * p[1] / sum; } ) ) : null;
 			if ( bar ) { reads.appendChild( bar ); }
 			parts.forEach( function( p, i ) {
-				if ( 2 === i && ! ( p[1] > 0 ) ) { return; }
+				if ( i >= 2 && ! ( p[1] > 0 ) ) { return; }
 				var row = listRow( p[0], grouped( p[1] ) );
 				if ( bar ) { row.firstChild.insertBefore( kit.dot( i ), row.firstChild.firstChild ); }
 				list.appendChild( row );
@@ -145,7 +146,9 @@
 		// when there are no reads: never a 0%.
 		var top = mr.top_family;
 		if ( top && top.family && typeof top.share === 'number' ) {
-			list.appendChild( listRow( 'Top crawler family', top.family + ', ' + top.share + '%', false, typeof top.prior_share === 'number' ? changeNode( top.share - top.prior_share, ' points' ) : null ) );
+			// The part of it that is this site's own tools, said beside the share.
+			var own = top.first_party_share > 0 ? ' (' + top.first_party_share + '% this site\u2019s own tools)' : '';
+			list.appendChild( listRow( 'Top crawler family', top.family + ', ' + top.share + '%' + own, false, typeof top.prior_share === 'number' ? changeNode( top.share - top.prior_share, ' points' ) : null ) );
 		}
 		box.appendChild( list );
 		// Crawler-list drift stays loud: one amber line, only when the verdict is

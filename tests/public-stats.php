@@ -314,6 +314,12 @@ ok( false !== strpos( $hf, '<h2>Most read</h2>' ), 'while Most read still render
 $GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_OPT ] = array( 'from' => $__wf, 'to' => $__wt, 'machines' => array( 'total' => 50, 'split' => null ) ); // capped aggregate: no split
 $hc = $fresh();
 ok( false !== strpos( $hc, 'Humans and machines' ) && false === strpos( $hc, 'Verified by Cloudflare' ), 'without a measured split the totals stay and the split is left out' );
+// Unreleased: this site's own tools are a part of their own, apart from the
+// readers that named themselves (live 7 days to 2026-10-11: 23,416 of 36,548).
+$GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_OPT ] = array( 'from' => $__wf, 'to' => $__wt, 'machines' => array( 'total' => 2000, 'split' => array( 'verified' => 1000, 'unverified' => 500, 'not_measured' => 0, 'first_party' => 500 ) ) );
+$hp = $fresh();
+ok( false !== strpos( $hp, "This site\u{2019}s own tools" ) && 1 === preg_match( "/This site\u{2019}s own tools<\/span><span class=\"sn-public-stats__bar\"[^>]*><span[^>]*><\/span><\/span><span class=\"sn-public-stats__bar-value\">25%</", $hp ), 'the first-party part reads as this site\'s own tools, 25% of machine reads' );
+ok( 1 === preg_match( '/Named themselves, not verified<\/span><span class="sn-public-stats__bar"[^>]*><span[^>]*><\/span><\/span><span class="sn-public-stats__bar-value">25%</', $hp ), 'and the readers that named themselves are only the third-party ones' );
 
 // Codex on 37c3a84: the sensor stays off the render path, in the report window.
 $src = (string) file_get_contents( __DIR__ . '/../inc/public-stats.php' );
