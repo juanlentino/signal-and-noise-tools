@@ -55,7 +55,7 @@ function paint_chrome_controls( array $ctx ) {
 	);
 
 	$class_row = '';
-	foreach ( array( 'human' => __( 'Human', 'signal-and-noise-tools' ), 'suspect' => __( 'Suspect', 'signal-and-noise-tools' ), 'bot' => __( 'Bot', 'signal-and-noise-tools' ) ) as $token => $label ) {
+	foreach ( array( 'human' => __( 'Presumed human', 'signal-and-noise-tools' ), 'suspect' => __( 'Suspect', 'signal-and-noise-tools' ), 'bot' => __( 'Bot', 'signal-and-noise-tools' ) ) as $token => $label ) {
 		$class_row .= \snt_kit_tag( 'os-segment', array( 'value' => $token ), \snt_kit_esc( $label ) );
 	}
 	$class_control = \snt_kit_tag(

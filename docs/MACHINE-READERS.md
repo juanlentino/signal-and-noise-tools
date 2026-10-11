@@ -35,8 +35,10 @@ the page, not just here.
 
 | Where | What it shows |
 | --- | --- |
-| **Measurement, Machine Readers** (wp-admin tab) | The MIXED-leaf composition (v12.22.0, `docs/proposals/admin-leaf-composition-2026-08-23.md`), a readout that owns its own settings and therefore the one kind that earns a two-column row. A **full-width hero** first: the Sensor status pipeline (deployed sensor, read token, the read itself, crawler-list check) with the summary stat strip beneath it incl. feed fetches. The strip summarises the whole leaf, so it sits above both columns rather than at the top of one. Then one two-column row. **Left, wide, the evidence:** the rights-surface stream, showing EXTERNAL readers by default with this site's own CI traffic folded beneath it and declared by count (hidden, never dropped, and never subtracted from any figure, because a number that quietly stops counting part of its population makes comparison across the change invalid); then the family delta cards and the unclassified-user-agent review list. **Right, narrow, reference**, every table behind a closed disclosure, since folded reference is what keeps the two columns the same order of height: reads by purpose with the first-party exclusion stated underneath; reads by agent and purpose; reads per family; reads per surface class; the observed vs declared compliance read; AI-training reads counted both ways (frozen family vs declared purpose) with the gap named rather than reconciled; and the feed-fetch windows (fetches are never summed with crawler reads). A section that renders nothing produces no fold at all. Below the folds, the read-only Edge sensor readout over the Sensor settings form. |
-| **SN Provenance** (Desktop Mode tile; SN Machine Readers from v10.1.0, folded into it on 2026-10-04) | A glance under the anchors: machine reads in the window, the identity split, declared AI-training reads, and the crawler-list verdict only when it is not in sync, served by `/wp-json/signal-noise/v1/desktop/machine-readers`. The rest is one link away on the leaf. |
+| **S&N Analytics, Machine readers** (view; native painter `apps/sn-analytics/parts/painters/view-machine-readers.php`, classic body `inc/analytics-view-machine-readers.php`) | Who reads, and for what. Its own 7/14/30/90-day window (a longer page range opens at 90 days and says so). A hero band: the evidence legend, the headline tiles, and one finding built from the payload (training reads claimed, the control-token reads taken out, how many Cloudflare verified and from whose network), linking to Reader evidence. Then the family delta cards (readers only); Who reads and What for (each family and purpose with its evidence strip) and Rights files and Feed fetches, each pair side by side only when within 1.5x of each other's height; and the reference bands (observed vs declared, AI-training counted both ways, agent by purpose, surfaces), each capped with a "+N more" line. No folds. Both machine views read the edge sensor with its own credentials, so they open with Analytics Engine unconfigured. |
+| **S&N Analytics, Reader evidence** (view; `view-reader-evidence.php`, `inc/analytics-view-reader-evidence.php`) | How each count is known. Claim against proof (two tiles, the strip, the since line); Signed beside Verified, and the line that tells them apart; the split by family and by purpose; control tokens; "Is this crawler real" (named agents with reads Cloudflare did not verify, each with its top network); the unnamed samples with their verified reads and networks; and reader anomalies (a two-series verified and unverified day histogram on the native surface, a day table on the classic one, then the co-movement verdicts). |
+| **Monitoring, Machine Readers** (S&N Dashboard leaf and wp-admin tab) | Configuration only since the evidence-basis arc: the sensor status pills with the two links "Machine readers in S&N Analytics" and "Reader evidence in S&N Analytics", the two Site Health verdicts (crawler-list drift, reader anomalies), the Edge sensor readout beside the Sensor settings form (`sn_action=machine_readers_save`, unchanged), and the monthly rights evidence, which stays here because it posts forms. Before the arc this leaf was the MIXED composition of v12.22.0 (`docs/proposals/admin-leaf-composition-2026-08-23.md`); every reading it carried now lives in one of the two views above. |
+| **SN Provenance** (Desktop Mode tile; SN Machine Readers from v10.1.0, folded into it on 2026-10-04) | A glance under the anchors: machine reads in the window, the identity split (this site’s own tools a part of their own, not readership), AI-training reads as "N claimed · M verified" with a small evidence strip, the top reader family (first-party and control tokens out), and the crawler-list verdict only when it is not in sync, served by `/wp-json/signal-noise/v1/desktop/machine-readers`. Its link opens Machine readers in S&N Analytics. |
 | **Content Health, Rights signals** | A separate drift probe ([`inc/health-check-rights-signals.php`](../inc/health-check-rights-signals.php)) that verifies the rights surfaces themselves are still standing. It is a sibling of this surface, not part of it. |
 
 WordPress stores none of this data. Every number on the tab is a live read of the
@@ -283,6 +285,118 @@ an empty string, and `hits` to a non negative integer
 ([`snt_mr_normalize_rows()`](../inc/machine-readers-api.php)). A hostile Worker
 response therefore cannot put an arbitrary string on an admin page even before
 escaping gets a turn, and the render lane escapes every cell anyway.
+
+## Evidence basis (Unreleased, remote contract 16)
+
+Every count attributed to an identity (a vendor family, a purpose, a traffic
+class) says how that identity is known, in one of five words
+(`SN_MR_BASIS_VALUES`, `inc/machine-readers-basis.php`):
+
+| Basis | Means |
+| --- | --- |
+| `signed` | A cryptographic signature checked out: Web Bot Auth `valid` (the summary's `identity`), or the provenance ledger's own signature. |
+| `verified` | Cloudflare's verified-bot category was on the request (`verified_bot`), on a day the sensor recorded it. Not a signature. |
+| `claimed` | The client said so: a user agent the taxonomy matched. |
+| `inferred` | A rule or a score decided it: the human, suspect and bot classes; the beacon's likely-automated score. |
+| `unmeasured` | The signal was not recorded for these hits. |
+
+Verified keeps the rights-evidence meaning: a row is classed by
+`sn_rights_evidence_identity_class()` and `SN_RIGHTS_EVIDENCE_VERIFIED_SINCE`,
+called, never copied (`snt_mr_row_verification()`). A row with no valid day is
+unverifiable. Rights evidence schema 2 is unchanged.
+
+### The split
+
+The machine-readers summary carries `verification`: per family, per purpose,
+for `ai_training` and for `ai_training_by_purpose`, a split
+`{claimed, verified, verified_matched, unverified, unverifiable}` where claimed
+is the sum of the last three. `verified_matched` is verified AND the category
+fits the claimed purpose (`SN_MR_PURPOSE_CATEGORIES`):
+
+| Purpose | Categories that fit |
+| --- | --- |
+| `train` | AI Crawler, Training |
+| `search` | Search Engine Crawler, AI Search, Search |
+| `retrieval` | AI Assistant, AI Search, Agent, Search |
+| `user` | AI Assistant, Agent |
+| `archive` | Archiver, Academic Research |
+| `ops` | Monitoring & Analytics, Webhooks, Monitoring & Operations |
+| `seo` | Search Engine Optimization, SEO |
+| `feed` | Feed Fetcher, Aggregator, Feed Fetching |
+| `social` | Page Preview, Social Media Marketing, Social / Link Preview |
+| `security` | Security, Security Testing |
+| `ads` | Advertising & Marketing, Ads Verification |
+| `dev`, `unknown` | none: they never match |
+
+Each row lists Cloudflare's legacy category string and the July 2026 behavior
+name, matched without regard to case, because the strings the edge stores could
+not be read back through any tool when the table was written. Crosstab cells
+carry the same split, plus `first_party_hits` (the exact part from this site's
+own tools; `first_party` is true when it is above zero), `impersonation` and
+`basis`. A read before the since date is unverifiable: the family and agent
+exceptions in Reader evidence read each agent's whole split, so such a read
+never makes an agent or family "never verified".
+
+### Control tokens are not crawlers
+
+Google-Extended and Applebot-Extended are names a vendor reads in robots.txt,
+not user agents of their own (Google's common-crawlers page; Apple's support
+article 119829). A request presenting one is never the vendor's crawler, so its
+hits are credited to no family and no purpose: they leave `families`,
+`purposes`, `ai_training` and `ai_training_by_purpose`, stay in `total`, and are
+listed in `impersonations` (`{agent, token, hits, networks, basis: claimed}`).
+The list mirrors the taxonomy's `observable: false` entries
+(`SN_MR_CONTROL_TOKENS`). Rights evidence still counts the google-ai family's
+hits, a decision left to the owner.
+
+### First-party apart
+
+The sensor's `first_party` flag (this site's own probes, ledger verifier and
+uptime monitor) decides first-party. `families[].first_party_hits` shows the
+part of a family that is first-party (unclassified-machine is mostly that);
+the desktop and public split of machine reads gains a `first_party` part; the
+reader-anomalies series leave first-party reads out entirely.
+
+### The unnamed list
+
+`get-machine-readers-crosstab`'s `unnamed` reads the unknown view with
+`detail=network` (rights-signals 1.30.0: rows split by `verified_bot` and
+`network`, capped at 10,000), folds them per sample and keeps the top 20, each
+with `verified_hits`, `not_measured` and its top 5 networks. A worker before
+1.30.0 ignores the parameter, sends no `detail` in the envelope, and the list
+reads `verified_hits: null`, `basis: unmeasured`, never 0. That view has no
+day, so hits less `verified_hits` is unverified or unverifiable: a read from
+before the since date counts as not verified there. Reader evidence in
+S&N Analytics reads the same split view and counts every sample, paints the
+busiest 20 with a "+N more" line, and says "at least" when the count is a
+floor: the read was truncated, or an older worker answered only its top 50.
+
+### Where it is painted
+
+The two S&N Analytics views (see the surfaces table) paint the split with one
+primitive, the evidence strip (`snt_evidence_strip()`, `inc/evidence-kit.php`):
+a bar whose parts are verified for the claimed purpose (solid), verified but
+not for that purpose (accent outline over a half fill), unverified (hatched)
+and unverifiable (dashed outline), with the counts as text beside it, so the
+bar is never the only carrier of a number (it is `aria-hidden`). A view states
+the legend once, a swatch per part (`snt_evidence_legend()`), and each count that has a basis carries a basis chip
+(`snt_basis_chip()`; `signed` reads as success, `verified` as info, the rest
+plain, `unmeasured` as "not measured"). A null split paints "not measured",
+never a zero bar.
+
+The summary gains `reader_families`: the top 3 third-party families by reads,
+first-party and control tokens out, each `{family, hits, verified}`. The
+desktop tile and the dashboard's Top families list read it, so the top family
+is a reader, not this site's own ledger verifier.
+
+### Reader anomalies
+
+First-party reads and control tokens leave every series. Each family carries `by_verification`, a
+verified and an unverified series over the days the sensor recorded
+verification, with signals withheld until a series is present on 20 of them.
+Three or more families deviating on the same day, mostly on unverified reads,
+from the same network are one `reader_co_movement` signal naming the network,
+with the per-family signals inside it as `members`.
 
 ## Rights evidence, schema 2 (Worker v1.29.0)
 

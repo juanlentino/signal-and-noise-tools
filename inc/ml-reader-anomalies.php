@@ -47,7 +47,13 @@ function snt_ml_reader_anomalies( $now = null ) {
 	if ( empty( $fetched['ok'] ) ) {
 		return snt_ml_reader_unavailable( (string) ( $fetched['error'] ?? 'fetch_failed' ), $from, $to );
 	}
-	$rows = (array) ( $fetched['rows'] ?? array() );
+	// Unreleased: first-party reads (the sensor's first_party flag: this site's
+	// own probes, ledger verifier and uptime monitor) are not readership and
+	// leave every series. Live 2026-10-05: unclassified-machine flagged at
+	// 13.1 sigma, and the spike was the site's own ledger verifier.
+	// A robots.txt control token (Google-Extended) is no family's reader either:
+	// it would sum into google-ai and could seed a co-movement.
+	$rows = array_values( array_filter( (array) ( $fetched['rows'] ?? array() ), static fn( $r ) => is_array( $r ) && empty( $r['first_party'] ) && ! ( function_exists( 'snt_mr_is_impersonation' ) && snt_mr_is_impersonation( $r ) ) ) );
 
 	$days_by_family = snt_mr_family_days( $rows, $from, $to );
 	$eligible       = snt_mr_eligible_families( $rows, $from, $to );
@@ -59,28 +65,10 @@ function snt_ml_reader_anomalies( $now = null ) {
 	}
 
 	$families = array();
-	$flagged  = 0;
-	$silent   = 0;
 	foreach ( $eligible as $family ) {
 		$series  = snt_mr_daily_series( $rows, $family, $from, $to );
 		$signals = snt_ml_reader_signals_for( $family, $series, $from, $to );
-		$flagged += count(
-			array_filter(
-				$signals,
-				static function ( $s ) {
-					return 'anomaly' === ( $s['kind'] ?? '' );
-				}
-			)
-		);
-		$silent += count(
-			array_filter(
-				$signals,
-				static function ( $s ) {
-					return 'reader_silent' === ( $s['kind'] ?? '' );
-				}
-			)
-		);
-		$values = array_map( static function ( $r ) { return (int) $r['views']; }, $series );
+		$values  = array_map( static function ( $r ) { return (int) $r['views']; }, $series );
 		// BASELINE on every row, including quiet ones. Without it the median
 		// exists only INSIDE an anomaly signal's interval and label, so a family
 		// that deviated from nothing reports no norm at all — and "is 400/day
@@ -101,7 +89,22 @@ function snt_ml_reader_anomalies( $now = null ) {
 			'total'        => array_sum( $values ),
 			'baseline'     => array( 'median' => $median, 'mad' => $mad ),
 			'signals'      => $signals,
-		);
+		) + ( function_exists( 'snt_ml_reader_verification_split' ) ? array( 'by_verification' => snt_ml_reader_verification_split( $rows, $family, $from, $to ) ) : array() );
+	}
+
+	// Unreleased: three or more families deviating the same day on unverified
+	// reads from one network are one finding (inc/ml-reader-anomalies-split.php).
+	$co_movement = array();
+	if ( function_exists( 'snt_ml_reader_co_movement' ) ) {
+		list( $families, $co_movement ) = snt_ml_reader_co_movement( $families, $rows, $from, $to );
+	}
+	$flagged = 0;
+	$silent  = 0;
+	foreach ( $families as $f ) {
+		foreach ( $f['signals'] as $sig ) {
+			$flagged += 'anomaly' === ( $sig['kind'] ?? '' ) ? 1 : 0;
+			$silent  += 'reader_silent' === ( $sig['kind'] ?? '' ) ? 1 : 0;
+		}
 	}
 
 	$out = array(
@@ -117,7 +120,10 @@ function snt_ml_reader_anomalies( $now = null ) {
 			'families_eligible' => count( $eligible ),
 			'anomalies'         => $flagged,
 			'silences'          => $silent,
+			'co_movements'      => count( $co_movement ),
 		),
+		'co_movement'          => $co_movement,
+		'first_party_excluded' => true,
 	);
 
 	// Record this payload's STRUCTURE, so "has the shape held still?" is a

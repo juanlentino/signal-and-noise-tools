@@ -69,6 +69,17 @@ function snt_analytics_render_view_body( $view, $from, $to, $class, $granularity
 			sn_login_defense_render_body();
 			break;
 
+		case 'machine-readers':
+			// Who reads, and for what: inc/analytics-view-machine-readers.php.
+			// Owns its chrome; the window comes from the range token.
+			snt_analytics_render_view_machine_readers( $range );
+			break;
+
+		case 'reader-evidence':
+			// How each machine-reader count is known: inc/analytics-view-reader-evidence.php.
+			snt_analytics_render_view_reader_evidence( $range );
+			break;
+
 		case 'campaigns':
 			// v9.29.0: UTM campaign attribution — inc/analytics-view-campaigns.php.
 			snt_analytics_render_view_campaigns( $from, $to, $class, $granularity );

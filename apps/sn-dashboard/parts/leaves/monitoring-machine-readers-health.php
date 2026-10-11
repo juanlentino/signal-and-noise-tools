@@ -4,7 +4,7 @@
  * about machine readers, painted where the question is asked (#1599).
  *
  * Crawler-family drift (inc/family-drift.php, `sn_family_drift_health()`)
- * and machine-reader behaviour (inc/ml-reader-anomalies-health.php,
+ * and machine-reader behavior (inc/ml-reader-anomalies-health.php,
  * `snt_ml_reader_anomalies_health()`) register as core Site Health direct
  * tests and reached no leaf, classic or native. Here each is one kit box in
  * the 17.4.0 shape: the verdict summary as the notice on top when the status
@@ -42,7 +42,7 @@ function machine_readers_drift_html() {
 }
 
 /**
- * The "Reader behaviour" box, or '' when the module is absent.
+ * The "Reader behavior" box, or '' when the module is absent.
  *
  * @return string
  */
@@ -54,7 +54,7 @@ function machine_readers_anomalies_html() {
 	$report = function_exists( 'snt_ml_reader_anomalies' ) ? \snt_ml_reader_anomalies() : null;
 	$v      = \snt_ml_reader_anomalies_health( $report );
 	return \snt_kit_section(
-		__( 'Reader behaviour', 'signal-and-noise-tools' ),
+		__( 'Reader behavior', 'signal-and-noise-tools' ),
 		\snt_kit_verdict( is_array( $v ) ? $v : array() ),
 		__( 'Whether any measured crawler family deviated from its 30-day norm or went silent in the last 7 days. An instrument, not a gate.', 'signal-and-noise-tools' )
 	);

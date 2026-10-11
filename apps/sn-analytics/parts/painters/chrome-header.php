@@ -52,9 +52,17 @@ function paint_chrome_header( array $ctx ) {
 		}
 	}
 
+	// Unreleased: in the stats row beside the presumed-human figures, the likely
+	// automated tile (class human only; inferred, never subtracted; "not
+	// measured", never 0), the same card the classic Overview paints.
+	$la = function_exists( 'sn_analytics_likely_automated' ) && function_exists( 'snt_analytics_likely_automated_card' ) ? \snt_analytics_likely_automated_card( \sn_analytics_likely_automated( $from, $to, $class ) ) : null;
+	if ( null !== $la ) {
+		$cards[] = $la;
+	}
 	$html = \snt_kit_section(
 		__( 'Overview', 'signal-and-noise-tools' ),
-		stats( $cards ) . daily_histogram( $series, __( 'Views per day', 'signal-and-noise-tools' ) )
+		stats( $cards ) . daily_histogram( $series, __( 'Views per day', 'signal-and-noise-tools' ) ),
+		'human' === $class ? __( 'Presumed human (not flagged): the counted-human rule, inferred when read.', 'signal-and-noise-tools' ) : ''
 	);
 	return array(
 		'html'   => $html,

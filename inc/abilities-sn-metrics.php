@@ -59,7 +59,7 @@ add_action( 'wp_abilities_api_init', function() {
 				'class'    => array(
 					'type'        => 'string',
 					'default'     => 'human',
-					'description' => 'Traffic class (human|suspect|bot) for analytics_summary, top_content, sources, series, geography, devices and query. journeys is recorded for human traffic only and says so; the others ignore it.',
+					'description' => 'Traffic class (human|suspect|bot; human is presumed human (not flagged), an inferred class) for analytics_summary, top_content, sources, series, geography, devices and query. journeys is recorded for human traffic only and says so; the others ignore it.',
 				),
 				'limit'    => array(
 					'type'        => 'integer',

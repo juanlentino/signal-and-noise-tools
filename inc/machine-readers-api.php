@@ -154,7 +154,10 @@ function snt_mr_normalize_rows( $data ) {
  * @return array{ok:bool,rows:array,error:?string}
  */
 /** The views snt_mr_fetch() accepts; anything else is coerced to 'aggregate'. */
-const SNT_MR_VIEWS = array( 'aggregate', 'unknown', 'rights', 'totals' );
+// `unknown-network` is the unknown view with `detail=network` (rights-signals
+// 1.30.0): rows split by verified_bot and network, for the crosstab's unnamed
+// fold. The admin review list keeps reading `unknown`, the top-50 default.
+const SNT_MR_VIEWS = array( 'aggregate', 'unknown', 'rights', 'totals', 'unknown-network' );
 
 /**
  * The display-transient key for one (window, view) pair — the ONE builder,
@@ -293,7 +296,9 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate', array $filter = array() 
 
 	$url = $cfg['url'] . ( false === strpos( $cfg['url'], '?' ) ? '?' : '&' ) . 'days=' . $days;
 	// Only ever appended from the allowlist above; never interpolated raw.
-	if ( 'aggregate' !== $view ) {
+	if ( 'unknown-network' === $view ) {
+		$url .= '&view=unknown&detail=network';
+	} elseif ( 'aggregate' !== $view ) {
 		$url .= '&view=' . $view;
 	}
 	// Allowlisted above ([a-z-] names only), so appended as is: never raw input.
@@ -374,6 +379,11 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate', array $filter = array() 
 				? snt_mr_normalize_totals_rows( $decoded['data'] )
 				: snt_mr_normalize_rows( $split['rows'] ) ),
 		'webmcp'    => $split['webmcp'],
+		// Unreleased: the detail the edge applied ('network' from rights-signals
+		// 1.30.0 on a detail=network read, '' otherwise). The normalizer writes
+		// '' for an absent verified_bot, so this, not the rows, says whether
+		// verification was measured at all.
+		'detail'    => is_string( $decoded['detail'] ?? null ) ? preg_replace( '/[^a-z]/', '', $decoded['detail'] ) : '',
 		// Worker v1.23.0. UNTRUSTED like every other field: cast, never trusted
 		// as shape. A read that says it is truncated must not be summed into a
 		// headline, which is the whole reason the worker now reports it.

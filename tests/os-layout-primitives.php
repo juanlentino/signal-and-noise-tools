@@ -68,7 +68,9 @@ foreach ( glob( $root . '/apps/sn-dashboard/parts/leaves/*.php' ) as $file ) {
 	$leaves .= strip_comments( (string) file_get_contents( $file ) );
 }
 ok( substr_count( $leaves, 'snt_kit_grid(' ) >= 30, 'the leaves paint their rows through snt_kit_grid() (' . substr_count( $leaves, 'snt_kit_grid(' ) . ' calls)' );
-ok( substr_count( $leaves, 'snt_kit_stack(' ) >= 8, 'the two-up columns are snt_kit_stack() (' . substr_count( $leaves, 'snt_kit_stack(' ) . ' calls)' );
+// 6 since the evidence-basis arc: the Machine Readers leaf became configuration
+// only and its two stacks went with the readings (now S&N Analytics views).
+ok( substr_count( $leaves, 'snt_kit_stack(' ) >= 6, 'the two-up columns are snt_kit_stack() (' . substr_count( $leaves, 'snt_kit_stack(' ) . ' calls)' );
 ok( substr_count( $leaves, "'os-card'" ) >= 12, 'the bordered cells are os-card (' . substr_count( $leaves, "'os-card'" ) . ' tags)' );
 
 // ── 2. Neither sheet carries a rule for one, nor the two dead rules. ──

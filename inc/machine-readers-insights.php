@@ -175,9 +175,10 @@ function snt_mr_family_delta_cards( $current_rows, $prior_rows, $days ) {
 		return array();
 	}
 
-	$url   = function_exists( 'admin_url' )
-		? admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=machine-readers' )
-		: '';
+	// The readings live in S&N Analytics (Machine readers) since the evidence-basis arc.
+	$url   = function_exists( 'snt_mr_analytics_view_url' )
+		? snt_mr_analytics_view_url( 'machine-readers' )
+		: ( function_exists( 'admin_url' ) ? admin_url( 'admin.php?page=sn-analytics&sn_view=machine-readers' ) : '' );
 	$cards = array();
 	// v10.2.0 (verifier finding): iterate the UNION, not just the current
 	// window. Iterating $cur_tot alone meant a family that stopped entirely
@@ -251,40 +252,3 @@ function snt_mr_family_delta_cards( $current_rows, $prior_rows, $days ) {
 	return array_slice( $cards, 0, SN_MR_DELTA_CARD_MAX );
 }
 
-/**
- * Render the delta cards as a list, in the .sn-an-recs idiom the analytics
- * recommendations panel uses. Empty is first-class: no cards renders nothing at
- * all, so a host page can place this without an emptiness check of its own.
- *
- * Every dynamic value is escaped here, at the sink, even though the detector
- * builds these strings from allowlisted family slugs and integers.
- *
- * @param array $cards snt_mr_family_delta_cards() output.
- * @return string HTML, or '' when there is nothing to say.
- */
-function snt_mr_render_delta_cards( $cards ) {
-	$cards = (array) $cards;
-	if ( empty( $cards ) ) {
-		return '';
-	}
-	$out = '<ul class="sn-an-recs sn-mr-deltas">';
-	foreach ( $cards as $c ) {
-		if ( ! is_array( $c ) ) {
-			continue;
-		}
-		$dir  = 'down' === (string) ( $c['direction'] ?? '' ) ? 'down' : 'up';
-		$out .= '<li class="sn-an-rec sn-mr-delta sn-mr-delta--' . esc_attr( $dir ) . '">';
-		$out .= '<p class="sn-an-rec-title">' . esc_html( (string) ( $c['title'] ?? '' ) ) . '</p>';
-		$detail = (string) ( $c['detail'] ?? '' );
-		if ( '' !== $detail ) {
-			$out .= '<p class="sn-an-rec-detail">' . esc_html( $detail ) . '</p>';
-		}
-		$url = (string) ( $c['action_url'] ?? '' );
-		if ( '' !== $url ) {
-			$out .= '<a class="button button-small" href="' . esc_url( $url ) . '">'
-				. esc_html( (string) ( $c['action_label'] ?? __( 'Open', 'signal-and-noise-tools' ) ) ) . '</a>';
-		}
-		$out .= '</li>';
-	}
-	return $out . '</ul>';
-}

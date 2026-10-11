@@ -94,7 +94,10 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 	if ( ! $annotations_after ) {
 		$annotations();
 	}
-	snt_analytics_render_cards( $now, $totals, $deltas, $engaged, $basis_label, $class ); // data-sn-live: 'now' updates in place
+	// Unreleased: the likely-automated tile beside the presumed-human figures
+	// (class human only; inferred, never subtracted).
+	$cards_totals = $totals + array( 'likely_automated' => function_exists( 'sn_analytics_likely_automated' ) ? sn_analytics_likely_automated( $from, $to, $class ) : null );
+	snt_analytics_render_cards( $now, $cards_totals, $deltas, $engaged, $basis_label, $class ); // data-sn-live: 'now' updates in place
 	if ( function_exists( 'sn_analytics_human_rule_reading' ) ) {
 		snt_analytics_render_human_rule_note( sn_analytics_human_rule_reading( $from, $to, $class ) );
 	}

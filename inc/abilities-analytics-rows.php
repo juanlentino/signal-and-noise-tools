@@ -81,13 +81,13 @@ function snt_ability_perm_remote_analytics_rows() {
 /** The description, shared: what the numbers are and are not. */
 function snt_analytics_rows_description() {
 	return 'Stored analytics as counted rows, by one of path, referrer, country, device or day, or one of the first four with day (path and day is the finest grain served: no hit-level rows, nothing below a day). '
-		. 'Arguments: dimensions (required), range 7|14|30|90|365|all (default 30), class human|suspect|bot (default human), path (a site path; only with path or day), referrer (a hostname; only with referrer or day), sort views|visits|time (time only with path or day), limit 1-500 (default 50). Out-of-set values are refused, not coerced. '
+		. 'Arguments: dimensions (required), range 7|14|30|90|365|all (default 30), class human|suspect|bot (default human; human is presumed human (not flagged), an inferred class), path (a site path; only with path or day), referrer (a hostname; only with referrer or day), sort views|visits|time (time only with path or day), limit 1-500 (default 50). Out-of-set values are refused, not coerced. '
 		. 'Each row: its dimension values, views, pageview_visits, time_avg_per_view and scroll_avg_per_view. Times are MILLISECONDS; scroll is mean max depth 0-100. Time and scroll are stored per page only, so they are null for referrer, country and device. '
 		. 'pageview_visits counts visitor-DAYS that viewed: an estimate, not a session count. views are sample-corrected. '
 		. 'truncated: true means the limit cut rows, so sums over the rows are a floor. '
 		. 'Referrers are hostnames only, with (direct), (internal) and (unknown) as stored; anything that is not a clean hostname is (invalid). Paths are returned only when they are the site\'s own content; scanner probes and other requests are (unmatched). '
 		. 'A value seen by fewer than 3 visitor-days is folded into (withheld), its counts kept so totals hold; on a quiet site most path-by-day rows are withheld, a busy day answers. '
-		. 'Nothing is subtracted for bot signals: human is the stored class; judge how much of it is automated with the bot-signals reading. '
+		. 'Nothing is subtracted for bot signals: human is the stored class, presumed human (not flagged); judge how much of it is automated with likely_automated on the analytics summary or the bot-signals reading. '
 		. 'Untruncated, the views of a path query sum to the analytics summary\'s views for the same range and class. Read-only.';
 }
 

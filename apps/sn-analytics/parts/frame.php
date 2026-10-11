@@ -2,7 +2,7 @@
 /**
  * S&N Analytics — the tab frame: what every view tab paints around its body.
  *
- * The thirteen views are the framework's tabs (Overview is the main view),
+ * The fifteen views are the framework's tabs (Overview is the main view),
  * each its own session holding the page's nine parameters. A tab paints, in
  * the classic page's order: the notice, the AE diagnostic, the insights band,
  * the header region (controls, the Overview panel, the rail), the drill-down
@@ -166,7 +166,8 @@ function tab_view( $view ) {
 			echo '<div class="snt-classic">' . dashboard_html( $state ) . '</div></div>';
 			return;
 		}
-		if ( ! $ctx['configured'] ) {
+		// The machine views read the edge sensor (its own credentials): no gate.
+		if ( ! $ctx['configured'] && ( ! function_exists( 'snt_analytics_view_needs_ae' ) || \snt_analytics_view_needs_ae( $view ) ) ) {
 			echo paint_piece( 'chrome/empty', $ctx )['html'] . '</div>';
 			return;
 		}

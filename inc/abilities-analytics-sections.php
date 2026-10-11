@@ -30,7 +30,7 @@ require_once __DIR__ . '/sn-metrics-analytics-query.php';
 function snt_metrics_section_props() {
 	return array(
 		'range' => array( 'type' => array( 'string', 'integer' ), 'default' => 30, 'description' => '7|14|30|90|365|all, on the site\'s own day.' ),
-		'class' => array( 'type' => 'string', 'default' => 'human', 'description' => 'human|suspect|bot.' ),
+		'class' => array( 'type' => 'string', 'default' => 'human', 'description' => 'human|suspect|bot. human is presumed human (not flagged); every class is inferred.' ),
 		'limit' => array( 'type' => 'integer', 'default' => 25, 'minimum' => 1, 'maximum' => 500 ),
 	);
 }

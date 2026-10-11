@@ -310,7 +310,11 @@ namespace {
 	ok( false === strpos( $shared_css, '.snt-stats' ) && false !== strpos( $shared_css, '--os-ui-stat-padding' ), 'assets/os-app.css carries no .snt-stats grid; the stat tile is styled through its tokens' );
 
 	$mr_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers.php' );
-	ok( false !== strpos( $mr_src, 'snt_kit_grid( array( \\snt_kit_stack( machine_readers_evidence_html( $d ) ), \\snt_kit_stack( machine_readers_reference_html( $d ) ) ), 290, 24 )' ), 'monitoring/machine-readers paints two os-stack columns on the kit grid' );
+	// Configuration only since the evidence-basis arc: hero (pills and the links
+	// to the S&N Analytics views), the Site Health row, the worker readout beside
+	// the settings form, then the monthly rights evidence. No readings, no folds.
+	ok( false !== strpos( $mr_src, '. machine_readers_health_row_html()' ) && false !== strpos( $mr_src, '. \\snt_kit_grid( array( $edge, machine_readers_settings_html( $d ) ) )' ) && false !== strpos( $mr_src, '. machine_readers_rights_evidence_html();' ), 'monitoring/machine-readers paints hero, health row, readout beside settings, rights evidence' );
+	ok( false === strpos( $mr_src . (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers-parts.php' ), 'os-disclosure' ), 'monitoring/machine-readers folds nothing' );
 	ok( false === strpos( $mr_src, "'os-card'" ), 'monitoring/machine-readers keeps no redundant card wrappers' );
 
 	$mr_parts_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers-parts.php' );

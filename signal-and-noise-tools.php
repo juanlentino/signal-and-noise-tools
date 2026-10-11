@@ -373,6 +373,21 @@ require_once SNT_PATH . 'inc/machine-readers-daily.php'; // the daily series (se
 require_once SNT_PATH . 'inc/machine-readers-ledger.php'; // 17.0.0: the crosstab and rights-cadence folds.
 require_once SNT_PATH . 'inc/abilities-machine-readers-ledger.php'; // 17.0.0: get-machine-readers-crosstab + get-rights-reads.
 require_once SNT_PATH . 'inc/rights-evidence-compose.php'; // 17.0.0: one record per crawler family per month, the pure half.
+require_once SNT_PATH . 'inc/machine-readers-basis.php'; // the evidence basis of each attributed count (signed, verified, claimed, inferred, unmeasured).
+require_once SNT_PATH . 'inc/machine-readers-basis-fold.php'; // the evidence fields over a window, for the summary and both leaves.
+require_once SNT_PATH . 'inc/machine-readers-readers-model.php'; // who reads, and for what: the Machine readers view's readings.
+require_once SNT_PATH . 'inc/machine-readers-evidence-model.php'; // how each count is known: the Reader evidence view's readings.
+require_once SNT_PATH . 'inc/evidence-kit.php'; // the evidence strip, its legend, the basis chips.
+require_once SNT_PATH . 'inc/evidence-paint-surface.php'; // the section painters' kit and classic surfaces.
+require_once SNT_PATH . 'inc/evidence-paint-readers.php';
+require_once SNT_PATH . 'inc/evidence-paint-proof.php';
+require_once SNT_PATH . 'inc/evidence-paint-actors.php';
+require_once SNT_PATH . 'inc/evidence-paint-anomalies.php';
+require_once SNT_PATH . 'inc/evidence-paint-reference.php';
+require_once SNT_PATH . 'inc/evidence-paint-rights.php';
+require_once SNT_PATH . 'inc/analytics-machine-views.php'; // S&N Analytics: Machine readers and Reader evidence, composed for both surfaces.
+require_once SNT_PATH . 'inc/analytics-view-machine-readers.php';
+require_once SNT_PATH . 'inc/analytics-view-reader-evidence.php';
 require_once SNT_PATH . 'inc/rights-evidence-ledger.php';  // Unreleased: rights-signal history and record refresh, read-only.
 require_once SNT_PATH . 'inc/rights-evidence-dry-run.php'; // Unreleased: compose from live reads, post nothing (shared with the pass).
 require_once SNT_PATH . 'inc/rights-evidence-review.php';  // Unreleased: the review window and the holds (no fetch, no post).
@@ -383,7 +398,6 @@ require_once SNT_PATH . 'inc/rights-evidence-retract.php';   // Unreleased: one 
 require_once SNT_PATH . 'inc/rights-evidence-cli.php';     // Unreleased: wp sn rights-evidence dry-run (WP-CLI only).
 require_once SNT_PATH . 'inc/abilities-rights-evidence.php'; // 17.0.0: rights-evidence (read) + rights-evidence-now (rw).
 require_once SNT_PATH . 'inc/machine-readers-render.php';
-require_once SNT_PATH . 'inc/machine-readers-render-taxonomy.php'; // v10.79.0: purpose/vendor tables + the unknown-agent review.
 require_once SNT_PATH . 'inc/machine-readers-compose.php'; // v12.22.0: the leaf's arrangement, pure — see docs/proposals/admin-leaf-composition-2026-08-23.md
 // Crawler-family volume deltas as insight cards (R3). Loads AFTER the render
 // module too: it reuses that lane's one "reads per family" aggregator. Pure
@@ -599,6 +613,7 @@ require_once __DIR__ . '/inc/ml-drift.php';            // v11.2.0: corpus drift 
 require_once __DIR__ . '/inc/ml-drift-admin.php';      // v11.2.0: the Vocabulary leaf (Content tab) — the drift mirror's ONLY surface
 require_once __DIR__ . '/inc/abilities-reader-anomalies.php'; // v13.76.0: read-door ability for the pipeline below.
 require_once __DIR__ . '/inc/ml-reader-anomalies.php';
+require_once __DIR__ . '/inc/ml-reader-anomalies-split.php'; // the verified/unverified series and the co-movement rule.
 require_once __DIR__ . '/inc/analytics-live-surge.php';
 require_once __DIR__ . '/inc/abilities-live-now.php'; // 23.2.0: the read-door ability over the live answer // 23.2.0: is right now unusual? the live slot log and its robust z
 require_once __DIR__ . '/inc/ml-reader-anomalies-health.php'; // v13.76.0: its Site Health surface. // v13.76.0: reader anomalies — machine-reader volume/shape deviations through the analytics signal engine — ML pipeline #11

@@ -28,6 +28,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-likely-automated.php'; // likely_automated: its reader and the schema both doors share.
+require_once __DIR__ . '/abilities-analytics-events.php'; // the get-analytics-events and get-analytics-top-content callbacks.
+
 add_action( 'wp_abilities_api_init', function () {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
@@ -132,6 +135,8 @@ add_action( 'wp_abilities_api_init', function () {
 		// an AI caller must be able to pick the right field from this text
 		// alone, so each metric names its exact denominator and its traps.
 		'description'         => 'Returns range analytics totals (range: 7|14|30|90|365|all, class: human|suspect|bot). Read-only. '
+			. 'Classes are inferred, not verified: `human` is presumed human (not flagged): not a stored bot, on a network the one counted-human rule accepts, and under the page-view cap; `suspect` failed the network rule; `bot` is a self-declared bot user agent or a visitor-day over the cap. `basis` says so (inferred). '
+			. '`likely_automated` (class human only, null otherwise) sits BESIDE the totals and is subtracted from nothing: the beacon\'s observe-only bot-signal score (sum of the weights of the signals a visitor-day fired, at or above the threshold of 3) per UTC day, summed over the range. visitor_days is how many presumed-human visitor-days scored likely automated, scored_visitor_days how many carried the signals at all; measured_days counts the range\'s UTC days with signals stored and unmeasured_days the rest (before the beacon carried the signals, or not yet stored by the nightly read); visitor_days is null when no day is measured. A heuristic, basis inferred. '
 			. 'Denominators, honestly named: '
 			. '`unique_visitor_days` includes visitor-days that fired no pageview (e.g. feed/beacon-only), so it can exceed `views`; `unique_visitor_days` is its honest alias. '
 			. '(The wp-admin Sessions tab is a third unit again: within-day sessions from the live session engine, resetting at UTC midnight: no field here carries it.) '
@@ -179,6 +184,8 @@ add_action( 'wp_abilities_api_init', function () {
 				'time_avg_per_visit'        => array( 'type' => array( 'number', 'null' ) ),
 				'integrity_violation'       => array( 'type' => 'boolean' ),
 				'exact_metrics_since'       => array( 'type' => array( 'string', 'null' ) ),
+				'likely_automated'          => snt_analytics_likely_automated_schema(),
+				'basis'                     => array( 'type' => 'string', 'enum' => array( 'inferred' ) ),
 			),
 		),
 		'meta'                => array(
@@ -222,75 +229,10 @@ function sn_ability_get_analytics_summary( $input ) {
 	// internal consumers (the Dashboard widget renders all three, and
 	// annotations gate on visits), so no owner-facing surface changes.
 	unset( $totals['visits'], $totals['scroll_avg'], $totals['time_avg'] );
+	// Unreleased: beside the totals, never subtracted from them. Read from the
+	// nightly per-day store (inc/analytics-likely-automated.php): this call
+	// never queries Analytics Engine.
+	$totals['likely_automated'] = function_exists( 'sn_analytics_likely_automated' ) ? sn_analytics_likely_automated( $from, $to, $class ) : null;
+	$totals['basis']            = 'inferred';
 	return $totals;
-}
-
-/**
- * Execute callback for signal-noise/get-analytics-events.
- * Resolves window from input, delegates to sn_analytics_top_events().
- *
- * @param array|null $input  Optional. { range?: int|string }.
- * @return array             Array of { name: string, events: int, visitors: int }.
- */
-function sn_ability_get_analytics_events( $input ) {
-	$input = is_array( $input ) ? $input : array();
-	if ( isset( $input['range'] ) && function_exists( 'snt_analytics_range_is_valid' ) && ! snt_analytics_range_is_valid( $input['range'] ) ) {
-		return new WP_Error( 'ability_invalid_input', 'range must be one of 7, 14, 30, 90, 365 or "all".', array( 'status' => 400 ) ); // #1239
-	}
-	$range = snt_analytics_resolve_range( $input['range'] ?? 30 );
-	list( $from, $to ) = snt_analytics_range_dates( $range );
-	return function_exists( 'sn_analytics_top_events' ) ? sn_analytics_top_events( $from, $to, 100 ) : array();
-}
-
-/**
- * Ability execute callback: signal-noise/get-analytics-top-content.
- *
- * Clamps on this side as well as inside sn_analytics_top_paths(), so a hostile
- * or careless `days` cannot widen the query beyond the sensor's own range.
- *
- * @since 13.33.0
- * @param array<string,mixed>|null $input Ability input.
- * @return array<string,mixed>
- */
-function snt_ability_get_analytics_top_content( $input ) {
-	$input = is_array( $input ) ? $input : array();
-	$days  = max( 1, min( 90, (int) ( $input['days'] ?? 7 ) ) );
-	$limit = max( 1, min( 100, (int) ( $input['limit'] ?? 5 ) ) );
-	$class = snt_analytics_resolve_class( $input['class'] ?? 'human' );
-	$range = null;
-	if ( isset( $input['range'] ) ) {
-		if ( ! snt_analytics_range_is_valid( $input['range'] ) ) {
-			return new WP_Error( 'snt_top_content_range', 'range must be one of 7, 14, 30, 90, 365 or all.', array( 'status' => 422 ) );
-		}
-		list( $range, $from, $to ) = snt_analytics_resolve_window( (string) $input['range'] );
-	} else {
-		// The site's own day, like the dashboard (was UTC until Unreleased).
-		list( $from, $to ) = snt_analytics_range_dates( $days );
-	}
-
-	$gsc   = function_exists( 'snt_gsc_data' ) ? snt_gsc_data() : null;
-	$pages = array();
-	foreach ( (array) sn_analytics_top_paths( $from, $to, $class, $limit ) as $row ) {
-		$path    = (string) ( $row['path'] ?? '' );
-		$search  = null !== $gsc ? snt_gsc_metrics_for_path( $path ) : null;
-		$pages[] = array(
-			'path'        => $path,
-			'views'       => (int) ( $row['views'] ?? 0 ),
-			'visits'      => (int) ( $row['visits'] ?? 0 ),
-			'scroll_avg'  => round( (float) ( $row['scroll_avg'] ?? 0 ), 2 ),
-			'time_avg'    => round( (float) ( $row['time_avg'] ?? 0 ), 2 ),
-			'impressions' => null === $search ? null : (int) $search['impressions'],
-			'position'    => null === $search ? null : round( (float) $search['position'], 1 ),
-		);
-	}
-
-	return array(
-		'days'          => $days,
-		'range'         => $range,
-		'from'          => $from,
-		'to'            => $to,
-		'class'         => $class,
-		'search_window' => null !== $gsc && isset( $gsc['window'] ) ? $gsc['window'] : null,
-		'pages'         => $pages,
-	);
 }

@@ -23,6 +23,7 @@ require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses
 
 require_once __DIR__ . '/analytics-network-terms.php';
 require_once __DIR__ . '/analytics-human-rule.php';
+require_once __DIR__ . '/analytics-likely-automated.php'; // the same score per UTC day (its store), and the reader for likely_automated.
 
 // Bit => name; weight per bit for the score. Weights are a first guess to be
 // replaced by the two-week validation, not a finding.

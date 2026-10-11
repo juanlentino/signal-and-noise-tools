@@ -66,7 +66,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Deploy runtime and the recompute status stay local.
 // Contract 15 (owner brief 2026-10-10): remote-analytics-rows, counted rows by
 // path, referrer, country, device or day (inc/analytics-rows.php).
-const SN_REMOTE_CONTRACT_VERSION = '15';
+// Contract 16 (owner brief 2026-10-11, one bump for the arc): every attributed
+// count carries its evidence basis. The machine-readers summary twin gains
+// impersonations, verification, basis and reader_families, families[].first_party_hits, and
+// descriptions on ai_training (legacy), purposes (unknown is unmapped),
+// first_party and identity (signed is not verified); the analytics summary
+// twin gains likely_automated and basis. Additive. The worker's own
+// CONTRACT_VERSION bump is a separate PR after this one.
+const SN_REMOTE_CONTRACT_VERSION = '16';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -105,6 +112,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'14' => '8af49ec631820d9127a97e6271de37eaf80d28129bdf4b38db98f9bbdeb8b046',
 	// RED-then-pin, 2026-10-10: 18-twin map, remote-analytics-rows joined.
 	'15' => '3158c41d6236a25c6e9f1a0c87904b5e03096b3c6e86b701fd3421be2856e2ec',
+	// RED-then-pin, 2026-10-11: evidence basis on the machine-readers and analytics summary twins.
+	'16' => '14565a3580c11d62d93822a5bf6c0cf5eaeacdd6d49c97c17846b205dc663be8',
 );
 
 /**

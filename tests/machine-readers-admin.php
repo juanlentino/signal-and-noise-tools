@@ -45,7 +45,6 @@ require __DIR__ . '/../inc/machine-readers-taxonomy.php';
 require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require __DIR__ . '/../inc/machine-readers-render.php';
-require __DIR__ . '/../inc/machine-readers-render-taxonomy.php'; // v10.79.0: the tab renders purpose/vendor tables.
 require __DIR__ . '/../inc/machine-readers-compose.php'; // v12.22.0: snt_mr_render_tab() delegates the arrangement to the pure composer.
 // The stylesheet registrar the S&N Dashboard host window calls: the desktop
 // page carries none of the hook suffixes sn_admin_page_hooks() names, so the
@@ -97,77 +96,20 @@ echo "\nGroup: v10.2.3 — the tab IS the Analytics leaf silhouette (owner UAT, 
 ob_start();
 snt_mr_render_tab();
 $tab = ob_get_clean();
-// The Analytics leaf skeleton: one capped hero card, then ONE .sn-2up of two
-// flat cards, everything inside a card. Exactly three fieldsets, no more.
+// Configuration only since the evidence-basis arc: the readings are S&N
+// Analytics views (tests/analytics-machine-views.php pins each moved figure).
 ok( false !== strpos( $tab, 'sn-an-settings-leaf' ), 'whole tab wrapped in the Analytics leaf class' );
-// SUPERSEDED v13.20.1. These two asserted the hero was CAPPED and that the leaf
-// carried no width modifier, on the rationale "the Analytics leaf has exactly one
-// width system". That rationale did not survive reading the CSS: admin.css already
-// uncaps every fieldset inside .sn-2up by DESCENDANT SELECTOR, so this leaf has had
-// two rendered widths all along and the hero was the only thing still at the 820px
-// cap. What those pins really protected was "no modifier CLASSES", which is a
-// weaker and less useful invariant than the one below. Owner call on the screenshot:
-// a six-tile KPI grid wrapping 4-then-2 with dead space beside it.
-ok( false !== strpos( $tab, 'sn-fieldset sn-fieldset--wide sn-an-pipeline sn-mr-hero' ), 'sensor status hero runs FULL width — it holds the KPI grid, and its siblings in the 2up below were never capped either' );
-ok( 1 === substr_count( $tab, 'sn-fieldset--wide' ), 'exactly ONE width modifier on this leaf: the hero. The 2up cards stay uncapped by descendant selector, never by a modifier of their own — two ways to reach full width would be the real divergence' );
-ok( 1 === substr_count( $tab, 'sn-2up' ), 'exactly ONE two-column row, like Analytics' );
-ok( 3 === preg_match_all( '/<div class="sn-fieldset[" ]/', $tab ), 'exactly three cards: hero + data column + sensor column (sn-fieldset-actions is not a card)' );
-// Order: status first (like Pipeline status), then the data.
-ok( strpos( $tab, 'sn-an-pipeline' ) < strpos( $tab, 'sn-kpi-row' ), 'Sensor status renders ABOVE the readership data, like Analytics' );
-// Everything lives inside a card — no bare prose above the hero.
-ok( false === strpos( $tab, 'sn-prose' ), 'no bare intro paragraph; the intro is the data card help line' );
-// All four tables stack as sections INSIDE the left data card (one card, many
-// sections — the Analytics right-column pattern).
-// v12.22.0 RECOMPOSITION. The leaf is no longer "one data card of stacked
-// sections". A right column exists only when the leaf has a second job, and this
-// one has two — evidence (who read the rights) wide, reference + settings narrow
-// and folded. See docs/proposals/admin-leaf-composition-2026-08-23.md.
-//
-// These assertions changed DELIBERATELY: they pinned the old arrangement, and
-// the arrangement is what the release changes. The load-bearing content
-// assertions below are unchanged in meaning — only re-anchored from the removed
-// .sn-mr-data card to the whole tab, because presence was always the claim and
-// the card was only ever where it happened to live.
-ok( false !== strpos( $tab, 'sn-fieldset sn-mr-evidence' ), 'the wide column is the evidence card' );
-ok( false !== strpos( $tab, 'sn-fieldset sn-mr-reference' ), 'the narrow column is the reference card' );
-ok( strpos( $tab, 'sn-mr-evidence' ) < strpos( $tab, 'sn-mr-reference' ), 'evidence comes before reference — the primary job leads' );
-// The numbers moved OUT of a column and into the hero, where they summarise the
-// whole leaf rather than the top of one side (the owner's actual complaint).
-ok( strpos( $tab, 'sn-mr-hero' ) < strpos( $tab, 'sn-kpi-row' )
-	&& strpos( $tab, 'sn-kpi-row' ) < strpos( $tab, 'sn-2up' ), 'the KPI row sits in the hero, above the two columns' );
-// Reference material is FOLDED — that is what keeps the two columns the same
-// order of height, which is the whole fix.
-// FIVE, not seven: this fixture is a legacy (pre-taxonomy) sensor, so
-// vendor/purpose and AI-reconciliation render nothing at all, and snt_mr_fold()
-// suppresses a fold whose body would be empty. A closed disclosure promising a
-// table and opening on nothing is worse than no disclosure — so the count being
-// lower than the number of sections is the contract, not a shortfall.
-ok( 5 === substr_count( $tab, 'sn-mr-fold' ), 'the reference tables are folded, and empty sections produce no fold (' . substr_count( $tab, 'sn-mr-fold' ) . ')' );
-ok( '' === snt_mr_fold( 'anything', '   ' ), 'snt_mr_fold() returns nothing for empty content' );
-
-$sn_caps = array(
-
-	'Reads per crawler family',
-	'Reads per machine surface class',
-	'Observed vs declared',
-	'Feed fetches per window',
-	'Unclassified user agents',
-	'Rights-surface reads, in full',
-);
-$sn_missing = array();
-foreach ( $sn_caps as $sn_cap ) {
-	if ( false === strpos( $tab, $sn_cap ) ) { $sn_missing[] = $sn_cap; }
+ok( false !== strpos( $tab, '<div class="sn-fieldset sn-fieldset--wide sn-an-pipeline">' ), 'the sensor status hero runs full width' );
+ok( 1 === substr_count( $tab, 'sn-fieldset--wide' ), 'exactly one width modifier: the hero' );
+ok( false !== strpos( $tab, 'Machine readers in S&amp;N Analytics' ) || false !== strpos( $tab, 'Machine readers in S&N Analytics' ), 'a visible-text link to Machine readers in S&N Analytics' );
+ok( false !== strpos( $tab, 'Reader evidence in S&amp;N Analytics' ) || false !== strpos( $tab, 'Reader evidence in S&N Analytics' ), 'a visible-text link to Reader evidence in S&N Analytics' );
+ok( false !== strpos( $tab, 'sn_mr_worker_url' ) && false !== strpos( $tab, 'sn_machine_readers_save' ), 'the worker URL form posts machine_readers_save, unchanged' );
+ok( false === strpos( $tab, 'sn-disclosure' ) && false === strpos( $tab, '<details' ), 'nothing folded: the settings form is open' );
+foreach ( array( 'sn-kpi-row', 'Reads per crawler family', 'Rights-surface reads, in full', 'Unclassified user agents', 'Feed fetches per window', 'Observed vs declared' ) as $sn_gone ) {
+	ok( false === strpos( $tab, $sn_gone ), "no reading left on the tab ($sn_gone)" );
 }
-ok( empty( $sn_missing ), 'every expected table is still rendered somewhere in the leaf (missing: ' . ( $sn_missing ? implode( ', ', $sn_missing ) : 'none' ) . ')' );
-// The load-bearing one: an older sensor must not render a purpose table full of
-// zeroes. Never-measured and measured-zero are different answers.
-ok( false !== stripos( $tab, 'not a measured zero' ), 'a pre-taxonomy sensor states the absence instead of fabricating purpose rows' );
-// The sensor readout uses the Analytics Edge-worker treatment (native notice),
-// not the invented gray bar.
 ok( false !== strpos( $tab, 'notice notice-info notice-alt inline' ), 'Edge sensor readout is the Analytics notice-info treatment' );
-ok( false === strpos( $tab, 'sn-an-worker-card' ), 'the invented gray worker-card class is gone' );
-// The strip carries the feed chip from the same tracker read the table uses.
-ok( 2 === substr_count( $tab, '946' ), 'the 30d feed total reaches the strip chip AND the feed table (one tracker read)' );
+ok( strpos( $tab, 'sn-fieldset--wide sn-an-pipeline"' ) < strpos( $tab, 'Edge sensor' ) && strpos( $tab, 'Edge sensor' ) < strpos( $tab, 'Sensor settings' ), 'hero first, then the readout beside the settings' );
 
 echo "\nGroup: v10.2.6 — zebra tables carry gutters from the CENTRAL sheet\n";
 $sn_an_css = (string) file_get_contents( __DIR__ . '/../assets/analytics/analytics-admin.css' );
@@ -175,17 +117,9 @@ $sn_mr_css = (string) file_get_contents( __DIR__ . '/../assets/machine-readers.c
 ok( 1 === preg_match( '/\.sn-an-table\.widefat th,\s*\.sn-an-table\.widefat td \{ padding: 8px 12px; \}/', $sn_an_css ), 'central sheet gives striped sn-an-tables the dashboard cell gutters (the glued-text fix, plugin-wide)' );
 ok( false !== strpos( $sn_an_css, '.sn-an-table.widefat td:last-child { padding-right: 12px; }' ), 'the trailing number column keeps a right gutter (not glued to the card border)' );
 ok( false === strpos( $sn_mr_css, '6px 10px 6px 0' ), 'machine-readers.css no longer carries its own flush cell override (superseded by the central rule)' );
-// MR4: a CLOSED fold is a section of this card, so it takes the caption
-// rhythm. Without this the summary crowds the block above it — the shared
-// .sn-disclosure margin is tuned for the Health tab's tighter stack.
-ok( 1 === preg_match( '/\.sn-mr-reference \.sn-disclosure \{ margin-top: 20px; \}/', $sn_mr_css ), 'MR4: a closed fold takes the same 20px section rhythm the table captions take' );
-ok( 1 === preg_match( '/\.sn-mr-reference \.sn-disclosure \.sn-an-table \{ margin-top: 8px; \}/', $sn_mr_css ), 'MR4: inside an open fold the table sits closer to its own summary (which is now the section heading)' );
-// The rules are only reachable if the folds actually carry the shared class —
-// pin the three renderers' class lists against the sheet they depend on.
-$sn_mr_render_src = (string) file_get_contents( __DIR__ . '/../inc/machine-readers-render-taxonomy.php' );
-foreach ( array( 'sn-mr-rights-log', 'sn-mr-unknown-log', 'sn-mr-vendor-purpose' ) as $sn_mr_fold ) {
-	ok( false !== strpos( $sn_mr_render_src, '<details class="' . $sn_mr_fold . ' sn-disclosure"' ), "MR4: the {$sn_mr_fold} fold carries the shared .sn-disclosure class, so the caret and rhythm rules reach it" );
-}
+// The fold rules (MR4) and the reading layout's KPI rules left with the readings
+// (S&N Analytics views since the evidence-basis arc): none may come back.
+ok( false === strpos( $sn_mr_css, 'sn-disclosure' ) && false === strpos( $sn_mr_css, 'sn-mr-reference' ) && false === strpos( $sn_mr_css, 'sn-mr-fold' ), 'machine-readers.css carries no fold rule: the leaf has no folds' );
 // Non-vacuity: the CSS file must actually parse as rules, not be truncated
 // mid-comment (the v10.83.0 comment-delimiter lesson).
 ok( substr_count( $sn_mr_css, '/*' ) === substr_count( $sn_mr_css, '*/' ), 'machine-readers.css comment delimiters balance (no orphaned block killing the rules below it)' );

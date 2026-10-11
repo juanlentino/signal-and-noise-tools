@@ -38,7 +38,40 @@ function sn_bot_signals_refresh() {
 	// Truncated means a half reached its LIMIT, not that two halves add up past it.
 	$readout['truncated'] = array() !== array_filter( $sets, static fn( $set ) => count( $set ) >= SNT_BOT_SIGNAL_LIMIT );
 	update_option( SNT_BOT_SIGNAL_OPTION, $readout + array( 'measured_at' => time() ), false );
+	sn_bot_signals_by_day_refresh( $from, $now );
 	return true;
+}
+
+/**
+ * The same score per UTC day, so get-analytics-summary can say how many of a
+ * range's human visitor-days scored likely automated (Unreleased).
+ * Best-effort and separate from the readout: a failed, capped or empty read
+ * keeps the stored days, and the capped and empty cases are logged.
+ *
+ * @param string $from Stitch day (the read's first day less one day of slack).
+ * @param string $now  The read's last instant, UTC.
+ * @return void
+ */
+function sn_bot_signals_by_day_refresh( $from, $now ) {
+	$bset = sn_analytics_stitched_rows( static fn( $s, $r ) => sn_bot_signals_by_day_sql( SNT_BOT_SIGNAL_DAYS, $s, $r ), $from, $now );
+	if ( null === $bset ) {
+		return;
+	}
+	if ( array() !== array_filter( $bset, static fn( $set ) => count( $set ) >= SNT_BOT_SIGNAL_LIMIT ) ) {
+		error_log( '[sn-analytics] bot signals by day: the read reached its row limit; the stored days are kept' );
+		return;
+	}
+	$fresh = sn_bot_signals_by_day( array_merge( ...$bset ) );
+	if ( array() === $fresh ) {
+		error_log( '[sn-analytics] bot signals by day: the read returned no day; the stored days are kept' );
+		return;
+	}
+	// The merge replaces from the SQL's own first day (now less SNT_BOT_SIGNAL_DAYS),
+	// not the stitch day: replacing from the stitch day deleted a day nightly
+	// that no read covers again, so the store never passed 15 days.
+	$first  = gmdate( 'Y-m-d', sn_analytics_clock() - SNT_BOT_SIGNAL_DAYS * 86400 );
+	$stored = get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION, array() );
+	update_option( SNT_BOT_SIGNAL_BY_DAY_OPTION, sn_bot_signals_by_day_merge( is_array( $stored ) ? $stored : array(), $fresh, $first ), false );
 }
 if ( defined( 'SN_ANALYTICS_ROLLUP_DAILY_HOOK' ) ) {
 	add_action( SN_ANALYTICS_ROLLUP_DAILY_HOOK, 'sn_bot_signals_refresh', 20 );
@@ -97,7 +130,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/bot-signals', array(
 		'label'               => 'Beacon Bot Signals',
-		'description'         => 'Observe-only readout of the beacon bot signals over the last 14 days, per visitor-day that carried them: human.visitor_days and human.likely_automated (score = sum of weights of fired bits >= threshold; NOT subtracted from any count), and per cohort (relay, intent, stored_bot, over_cap, hosting) n, fired and rate (percent of that cohort\'s visitor-days) for each signal: webdriver, no_input, ua_mismatch, headless, tz_mismatch. days_present counts UTC days carrying any signal row; truncated means the visitor-day list hit its row limit. measured:false means nothing has been stored yet. Read-only; stored nightly. Read it through sn-status{bot_signals}.',
+		'description'         => 'Observe-only readout of the beacon bot signals over the last 14 days, per visitor-day that carried them: human.visitor_days (presumed human, not flagged) and human.likely_automated (score = sum of weights of fired bits >= threshold; NOT subtracted from any count), and per cohort (relay, intent, stored_bot, over_cap, hosting) n, fired and rate (percent of that cohort\'s visitor-days) for each signal: webdriver, no_input, ua_mismatch, headless, tz_mismatch. days_present counts UTC days carrying any signal row; truncated means the visitor-day list hit its row limit. measured:false means nothing has been stored yet. Read-only; stored nightly. Read it through sn-status{bot_signals}.',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_bot_signals',

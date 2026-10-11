@@ -217,7 +217,7 @@ ok( false !== strpos( $html3, 'aria-hidden="true"' ) && false !== strpos( $html3
 ok( false === strpos( $html3, '<details' ) && false === strpos( $html3, '<summary' ), 'the calendar is VISIBLE: not folded behind a details (owner call)' );
 ok( 1 === preg_match( '/<div class="sn-public-stats__twin"[^>]*><table>/', $html3 ), 'the calendar table sits in a plain scroll wrapper' );
 ok( false === strpos( $html3, 'screen-reader-text' ) && false === strpos( $html3, 'visually-hidden' ), 'and is not visually hidden' );
-ok( false !== strpos( $html3, '<caption id="sn-public-stats-calendar">Daily human pageviews' ), 'the calendar keeps its caption, and the scroll region is named by it' );
+ok( false !== strpos( $html3, '<caption id="sn-public-stats-calendar">Daily presumed human pageviews' ), 'the calendar keeps its caption, and the scroll region is named by it' );
 // The twin is CALENDAR-shaped (owner call after the live 30-row column read
 // as a wall): weeks as rows, weekdays as columns. This is MORE navigable,
 // not merely shorter — a screen reader announces every cell with its row
@@ -296,7 +296,9 @@ ok( false !== strpos( $h, '<dt>Average depth reached</dt><dd>48%</dd>' ) && fals
 ok( false !== strpos( $h, '<dt>One page only</dt>' ), 'one page only, from the session rollup' );
 
 // Humans and machines.
-ok( false !== strpos( $h, '>4,200<' ) && false !== strpos( $h, '>Human views<' ), 'human views against machine reads' );
+ok( false !== strpos( $h, '>4,200<' ) && false !== strpos( $h, '>Presumed human views<' ), 'presumed human views against machine reads' );
+// Unreleased: the human class is presumed (not flagged as automated), and the page says so.
+ok( false !== strpos( $h, 'presumed human pageviews (not flagged as automated)' ), 'the Views tile says what human means' );
 ok( false !== strpos( $h, 'Verified by Cloudflare' ) && false !== strpos( $h, '>50%<' ) && false !== strpos( $h, 'Named themselves, not verified' ) && false !== strpos( $h, '>10%<' ), 'the identity split as shares of machine reads' );
 ok( false !== strpos( $h, 'Automated counts bot pageviews that reached the tracker. Machine reads count every request the edge sensor saw. They are different measures.' ), 'the one line that keeps Automated and machine reads apart' );
 ok( false !== strpos( $h, '<a href="https://github.com/juanlentino/signal-and-noise-provenance">Public ledger</a>' ), 'the public ledger link' );
@@ -314,6 +316,12 @@ ok( false !== strpos( $hf, '<h2>Most read</h2>' ), 'while Most read still render
 $GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_OPT ] = array( 'from' => $__wf, 'to' => $__wt, 'machines' => array( 'total' => 50, 'split' => null ) ); // capped aggregate: no split
 $hc = $fresh();
 ok( false !== strpos( $hc, 'Humans and machines' ) && false === strpos( $hc, 'Verified by Cloudflare' ), 'without a measured split the totals stay and the split is left out' );
+// Unreleased: this site's own tools are a part of their own, apart from the
+// readers that named themselves (live 7 days to 2026-10-11: 23,416 of 36,548).
+$GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_OPT ] = array( 'from' => $__wf, 'to' => $__wt, 'machines' => array( 'total' => 2000, 'split' => array( 'verified' => 1000, 'unverified' => 500, 'not_measured' => 0, 'first_party' => 500 ) ) );
+$hp = $fresh();
+ok( false !== strpos( $hp, "This site\u{2019}s own tools" ) && 1 === preg_match( "/This site\u{2019}s own tools<\/span><span class=\"sn-public-stats__bar\"[^>]*><span[^>]*><\/span><\/span><span class=\"sn-public-stats__bar-value\">25%</", $hp ), 'the first-party part reads as this site\'s own tools, 25% of machine reads' );
+ok( 1 === preg_match( '/Named themselves, not verified<\/span><span class="sn-public-stats__bar"[^>]*><span[^>]*><\/span><\/span><span class="sn-public-stats__bar-value">25%</', $hp ), 'and the readers that named themselves are only the third-party ones' );
 
 // Codex on 37c3a84: the sensor stays off the render path, in the report window.
 $src = (string) file_get_contents( __DIR__ . '/../inc/public-stats.php' );

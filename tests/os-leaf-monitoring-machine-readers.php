@@ -66,7 +66,10 @@ if ( ! function_exists( 'sn_rss_tracker_window_stats_multi' ) ) {
 require SNT_PATH . 'inc/machine-readers-api.php';
 require SNT_PATH . 'inc/machine-readers-taxonomy.php';
 require SNT_PATH . 'inc/machine-readers-render.php';
-require SNT_PATH . 'inc/machine-readers-render-taxonomy.php';
+require SNT_PATH . 'inc/machine-readers-basis.php';
+require SNT_PATH . 'inc/machine-readers-basis-fold.php';
+require SNT_PATH . 'inc/machine-readers-ledger.php';
+require SNT_PATH . 'inc/rights-evidence-compose.php';
 require SNT_PATH . 'inc/machine-readers-insights.php';
 require SNT_PATH . 'inc/machine-readers-compose.php';
 require SNT_PATH . 'inc/machine-readers-admin.php';
@@ -130,33 +133,24 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match th
 ok( array( 'machine_readers_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is machine_readers_save, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
-// ── Sensor pipeline + KPI readout.
+// ── Configuration only since the evidence-basis arc. Every reading this leaf
+// painted (the KPI strip, the rights log, the unknown agents, the six reference
+// folds, the feed table) is an S&N Analytics view now, Machine readers and
+// Reader evidence; tests/analytics-machine-views.php pins each moved figure.
 ok( false !== strpos( $kit, 'Sensor v1.20.0' ) && false !== strpos( $kit, 'tone="success"' ), 'the sensor version pill reads v1.20.0, ok toned' );
 ok( false !== strpos( $kit, 'Read token set' ), 'the read-token pill reports set' );
 ok( false !== strpos( $kit, 'Aggregates current' ), 'the aggregate-read pill reports current' );
-ok( false !== strpos( $kit, '663' ), 'the total-reads stat sums every row (120+5+30+500+8=663)' );
-ok( false !== strpos( $kit, 'openai' ) && false !== strpos( $kit, 'top family' ), 'the top-family stat names openai' );
-ok( false !== strpos( $kit, '155' ) && false !== strpos( $kit, 'AI-training reads' ), 'the AI-training-reads stat sums openai+anthropic (120+5+30=155)' );
-ok( false !== strpos( $kit, '210' ) && false !== strpos( $kit, 'feed fetches' ), 'the feed-fetches stat carries the 30d feed total' );
-ok( false !== strpos( $kit, '<os-stat value="9" label="agent tool calls, 30d">' ) && false !== strpos( $kit, '<os-stat value="663" label="machine reads, 30d">' ), '15.5.0: the tool-calls stat sums the webmcp rows (7+2=9) and the reads stat did not grow (663)' );
-ok( false !== strpos( $classic, 'agent tool calls, 30d' ) && false !== strpos( $classic, '<p class="sn-kpi-value">9</p>' ) && false === strpos( $kit, '>webmcp<' ) && false === strpos( $classic, '>webmcp<' ), 'the classic tab paints the same figure; webmcp is not a family on either leaf' );
-ok( false !== strpos( $kit, '125 / 155' ), 'the proved-identity stat is valid/measured (125 valid of 155 measured)' );
-ok( false !== strpos( $kit, '120' ) && false !== strpos( $kit, 'asked for markdown' ), 'the markdown-adoption stat carries the markdown count' );
-
-// ── Evidence column: rights log, unknown agents.
-ok( false !== strpos( $kit, 'external read' ) && false !== strpos( $kit, 'GPTBot/1.0' ), 'the rights log shows the external GPTBot read' );
-ok( false !== strpos( $kit, '&lt;script&gt;' ) && false === strpos( $kit, '<script>' ), 'a hostile user agent in the rights log is escaped, not executed' );
-ok( false !== strpos( $kit, 'our own CI' ), 'our own CI traffic on the rights surfaces is folded away, not dropped' );
-ok( false !== strpos( $kit, 'unclassified user agent' ) && false !== strpos( $kit, 'SomeCrawlerBot' ), 'the unknown-agents review list carries the sampled agent' );
-
-// ── Reference column: folded lookup tables + edge readout + settings.
-ok( false !== strpos( $kit, 'By purpose' ) && false !== strpos( $kit, 'By crawler family' ) && false !== strpos( $kit, 'By machine surface' ), 'the purpose/family/surface folds are present' );
-ok( false !== strpos( $kit, 'Declared-crawler compliance' ) && false !== strpos( $kit, 'AI-training reconciliation' ), 'the compliance and reconciliation folds are present' );
-ok( false !== strpos( $kit, 'Feed fetches' ) && false !== strpos( $kit, 'last 30 days' ), 'the feed-fetches table is present' );
+foreach ( array( 'kit' => $kit, 'classic' => $classic ) as $twin => $h ) {
+	ok( false !== strpos( $h, 'Machine readers in S&amp;N Analytics' ) || false !== strpos( $h, 'Machine readers in S&N Analytics' ), "$twin: a visible-text link to Machine readers in S&N Analytics" );
+	ok( false !== strpos( $h, 'Reader evidence in S&amp;N Analytics' ) || false !== strpos( $h, 'Reader evidence in S&N Analytics' ), "$twin: a visible-text link to Reader evidence in S&N Analytics" );
+	foreach ( array( 'machine reads, 30d', 'top family', 'GPTBot/1.0', 'SomeCrawlerBot', 'By purpose', 'By crawler family', 'Declared-crawler compliance', 'Feed fetches per window', 'Reads (claimed)' ) as $reading ) {
+		ok( false === strpos( $h, $reading ), "$twin: no reading left on the leaf ($reading)" );
+	}
+	ok( false === strpos( $h, 'os-disclosure' ) && false === strpos( $h, 'sn-disclosure' ) && false === strpos( $h, '<details' ), "$twin: nothing folded, the settings form included" );
+	ok( false !== strpos( $h, 'sn_mr_worker_url' ), "$twin: the worker URL form is on the leaf" );
+}
 ok( false !== strpos( $kit, 'sn-rights-signals' ) && false !== strpos( $kit, 'v1.20.0' ), 'the edge-sensor readout names the deployed worker version' );
-ok( false !== strpos( $kit, 'token set' ) && false !== strpos( $kit, '<os-text-field name="sn_mr_worker_url"' ), 'the settings fold snapshot says "token set" and the worker-url field is present' );
-ok( false !== strpos( $kit, 'What machine readers did' ) && false !== strpos( $kit, 'Reference' ), 'both column headings survive' );
-ok( false !== strpos( $kit, 'Reads by purpose, last 30 days.' ) && false !== strpos( $kit, 'Reads by agent and purpose, third parties only.' ) && false !== strpos( $kit, 'Observed vs declared' ) && false !== strpos( $kit, 'Feed fetches per window (RSS and JSON Feed).' ), 'every table caption survives' );
+ok( false !== strpos( $kit, 'token set' ) && false !== strpos( $kit, '<os-text-field name="sn_mr_worker_url"' ), 'the settings section says "token set" and the worker-url field is present' );
 ok( false !== strpos( $kit, '✓ Sensor v1.20.0' ) || false !== strpos( $kit, '! ' ) || false !== strpos( $kit, '? ' ), 'pill state marks (✓/!/?) survive alongside the tone' );
 
 // ── not_configured: no token, sensor unreachable, crawler check unmeasured.
@@ -168,7 +162,6 @@ ok( false !== strpos( $kit, 'Sensor unreachable' ), 'sensor-unreachable pill sho
 ok( false !== strpos( $kit, 'Read token missing' ) && false !== strpos( $kit, 'tone="warning"' ), 'read-token-missing pill shown when no token is configured' );
 ok( false !== strpos( $kit, 'Not configured' ), 'not_configured pill shown when the read fails for lack of a token' );
 ok( false !== strpos( $kit, 'Crawler list unchecked' ), 'crawler-list-unchecked pill shown when the status endpoint fails' );
-ok( false !== strpos( $kit, 'No readership data yet' ), 'the evidence column explains the empty state when the read failed' );
 ok( false !== strpos( $kit, 'not set' ), 'the settings snapshot says "not set" with no token' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'still no wp-admin markup in the empty state' );
 
@@ -178,7 +171,7 @@ $GLOBALS['__mr_fixtures']['aggregate'] = mr_body( $aggregate_rows, true );
 $GLOBALS['__mr_fixtures']['version']   = json_encode( array( 'version' => '1.20.0' ) );
 snt_mr_memo( null ); // a new request: the fetch memoizes per request (#1635 review)
 $kit = snt_leaf_paint( 'monitoring', 'machine-readers' );
-ok( false !== strpos( $kit, 'The edge capped this read at its row limit' ), 'the truncation notice shows when the sensor reports a capped read' );
+ok( false === strpos( $kit, 'The edge capped this read at its row limit' ), 'a capped read is said where the figures are now, in the Machine readers view, not on this leaf' );
 
 // ── #1599: the two Site Health verdicts about machine readers, as one row
 // of two boxes between the hero and the columns. Each box carries its
@@ -199,10 +192,10 @@ unset( $GLOBALS['__options'][ SN_FAMILY_DRIFT_LAST_OPTION ], $GLOBALS['__options
 $GLOBALS['__anomalies'] = array( 'state' => 'unavailable', 'reason' => 'fetch_failed' );
 $kit   = snt_leaf_paint( 'monitoring', 'machine-readers' );
 $drift = mr_leaf_box( $kit, 'Crawler-family drift' );
-$anoms = mr_leaf_box( $kit, 'Reader behaviour' );
-ok( '' !== $drift && '' !== $anoms, 'the drift and reader-behaviour boxes paint under their headings' );
+$anoms = mr_leaf_box( $kit, 'Reader behavior' );
+ok( '' !== $drift && '' !== $anoms, 'the drift and reader-behavior boxes paint under their headings' );
 $row_at = strpos( $kit, snt_leaf_row() );
-ok( false !== $row_at && strpos( $kit, 'heading="Sensor status"' ) < $row_at && $row_at < strpos( $kit, 'heading="Crawler-family drift"' ) && strpos( $kit, 'heading="Crawler-family drift"' ) < strpos( $kit, 'heading="Reader behaviour"' ) && strpos( $kit, 'heading="Reader behaviour"' ) < strpos( $kit, snt_leaf_row( 2, 290, 24 ) ), 'the two share one paired row between the sensor hero and the columns, drift first' );
+ok( false !== $row_at && strpos( $kit, 'heading="Sensor status"' ) < $row_at && $row_at < strpos( $kit, 'heading="Crawler-family drift"' ) && strpos( $kit, 'heading="Crawler-family drift"' ) < strpos( $kit, 'heading="Reader behavior"' ) && strpos( $kit, 'heading="Reader behavior"' ) < strpos( $kit, 'heading="Edge sensor"' ), 'the two share one paired row between the sensor hero and the readout beside the settings, drift first' );
 ok( false !== strpos( $drift, '<os-notice tone="warning"' ) && false !== strpos( $drift, 'The family-drift check has never run' ), 'drift never run: the summary is a warning notice' );
 ok( false !== strpos( $anoms, '<os-notice tone="warning"' ) && false !== strpos( $anoms, 'did not answer (fetch_failed)' ), 'sensor unread: the reason is a warning notice, not a calm box' );
 // (b) Mirror parity failed: critical is a danger notice, not a warning.
@@ -215,15 +208,19 @@ $GLOBALS['__options'][ SN_FAMILY_DRIFT_OK_OPTION ] = array( 'computed_at' => $no
 $GLOBALS['__anomalies'] = array( 'state' => 'ok', 'counts' => array( 'anomalies' => 0, 'silences' => 0, 'families_eligible' => 4, 'families_seen' => 9 ) );
 $kit   = snt_leaf_paint( 'monitoring', 'machine-readers' );
 $drift = mr_leaf_box( $kit, 'Crawler-family drift' );
-$anoms = mr_leaf_box( $kit, 'Reader behaviour' );
+$anoms = mr_leaf_box( $kit, 'Reader behavior' );
 ok( false === strpos( $drift, '<os-notice' ) && false !== strpos( $drift, '<p class="snt-hint">Plugin and deployed worker agree on 12 families (commit abcdef0)' ), 'drift good: the summary is the hint line, no notice' );
-ok( false === strpos( $anoms, '<os-notice' ) && false !== strpos( $anoms, '<p class="snt-hint">4 of 9 crawler families carry enough presence to measure.' ), 'reader behaviour good: the summary is the hint line, no notice' );
+ok( false === strpos( $anoms, '<os-notice' ) && false !== strpos( $anoms, '<p class="snt-hint">4 of 9 crawler families carry enough presence to measure.' ), 'reader behavior good: the summary is the hint line, no notice' );
 // (d) A deviation on a measured family: recommended is a warning naming the count.
 $GLOBALS['__anomalies'] = array( 'state' => 'ok', 'counts' => array( 'anomalies' => 2, 'silences' => 1, 'families_eligible' => 4, 'families_seen' => 9 ) );
 $kit   = snt_leaf_paint( 'monitoring', 'machine-readers' );
-$anoms = mr_leaf_box( $kit, 'Reader behaviour' );
+$anoms = mr_leaf_box( $kit, 'Reader behavior' );
 ok( false !== strpos( $anoms, '<os-notice tone="warning"' ) && false !== strpos( $anoms, '2 deviation(s) from the 30-day norm and 1 family-day(s) of total silence' ), 'a deviation and a silence: a warning notice with both counts' );
 ok( array() === snt_leaf_classic_markers( $kit ) && array( 'machine_readers_save' ) === snt_leaf_actions( $kit ), 'still one action and no wp-admin markup with the two boxes painted' );
+
+// The evidence basis (the split, the impersonations, the anomaly series, the
+// line that tells verified from signed, unmapped purposes) is painted by the
+// S&N Analytics views; tests/analytics-machine-views.php pins it there.
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

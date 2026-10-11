@@ -271,7 +271,8 @@ add_action( 'admin_enqueue_scripts', function() {
 			'rss'          => snt_desktop_admin_url( 'sn-rss' ),
 			'reading_time' => snt_desktop_admin_url( 'sn-reading-time' ),
 			'analytics'    => snt_desktop_admin_url( 'sn-analytics' ),
-			'machine_readers' => snt_desktop_admin_url( 'sn-monitoring', 'machine-readers' ),
+			// The readings live in S&N Analytics since the evidence-basis arc.
+			'machine_readers' => function_exists( 'snt_mr_analytics_view_url' ) ? snt_mr_analytics_view_url( 'machine-readers' ) : snt_desktop_admin_url( 'sn-analytics' ),
 			// 15.8.2: every "Open … →" lands on the LEAF where its reading lives,
 			// not on the Dashboard tab. Uptime and Deploy keep 'dashboard': that
 			// leaf is where those two readings are painted.

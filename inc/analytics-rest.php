@@ -63,7 +63,7 @@ add_action( 'rest_api_init', function () {
 			'type'        => 'string',
 			'enum'        => SN_ANALYTICS_CLASSES,
 			'default'     => 'human',
-			'description' => 'Traffic class the figures are read for.',
+			'description' => 'Traffic class the figures are read for: human (presumed human, not flagged), suspect or bot, inferred at read time.',
 		),
 	);
 

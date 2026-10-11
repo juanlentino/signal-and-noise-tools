@@ -389,8 +389,8 @@ async function run() {
     const parentOf = text => nodes(lroot).find(n => n.children.some(c => 'a' === c.tag && c.text === text));
     const heads = box => box ? box.children.filter(c => 'heading' === c.attrs.role).map(c => c.text).join() : '';
     assert.equal(heads(parentOf('Open Provenance')), 'Provenance', 'Open Provenance sits in the Provenance section');
-    const mrParent = parentOf('Open Machine Readers');
-    assert.match(heads(mrParent), /Machine readers/, 'Open Machine Readers sits in the Machine readers section');
+    const mrParent = parentOf('Machine readers in S&N Analytics');
+    assert.match(heads(mrParent), /Machine readers/, 'the Machine readers link sits in the Machine readers section');
     lstop();
     const n0 = harness(), n0root = new Element('div');
     const n0stop = n0.window.desktopModeWidgets['sn-health'](n0root); await flush();
@@ -637,6 +637,16 @@ async function run() {
     m.stop();
     m = await mount({...base, families: [], total: 0});
     assert.doesNotMatch(m.root.textContent, /Top crawler family/, 'no reads: the row is left out, never 0%');
+    m.stop();
+    // Unreleased: this site's own tools on their own line, never the top family;
+    // the AI-training figure claimed and verified, with a 6px evidence strip.
+    m = await mount({...base, top_family: {family: 'anthropic', share: 13, prior_share: null}, edge_verified: {verified: 4000, unverified: 9000, not_measured: 0, first_party: 23416}, ai_training_by_purpose: 1984, verification: {ai_training_by_purpose: {claimed: 1984, verified: 25, verified_matched: 25, unverified: 1959, unverifiable: 0}}});
+    assert.match(m.root.textContent, /Top crawler family anthropic, 13%/, 'the top family is a reader');
+    assert.match(m.root.textContent, /This site\u2019s own tools, not readership 23,416/, 'this site\'s own tools on their own line, grouped');
+    assert.match(m.root.textContent, /AI-training reads 1,984 claimed \u00b7 25 verified/, 'the AI-training figure says claimed and verified');
+    const strip = nodes(m.root).find(n => n.className === 'snt-evidence');
+    assert.ok(strip && strip.attrs['aria-hidden'] === 'true', 'with a decorative evidence strip');
+    assert.deepEqual(strip.children.map(c => c.attrs['data-part']), ['verified_matched', 'unverified'], 'segments in order, zero parts dropped');
     m.stop();
   }
   // Codex round 2: an anchor read still pending is loading, not an error.

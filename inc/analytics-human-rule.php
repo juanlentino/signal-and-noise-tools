@@ -216,6 +216,10 @@ function sn_analytics_human_rule_reading( $from, $to, $class ) {
 		'days'      => 0,
 		'class'     => (string) $class,
 	);
+	// Unreleased: the beacon's observe-only bot-signal score over the range,
+	// from the nightly per-day store (inc/analytics-likely-automated.php).
+	// Beside the presumed-human totals; nothing is subtracted.
+	$out['likely_automated'] = function_exists( 'sn_analytics_likely_automated' ) ? sn_analytics_likely_automated( $from, $to, $class ) : null;
 	$rows = ( 'human' === $class && function_exists( 'sn_session_rollup_read' ) ) ? sn_session_rollup_read( $from, $to, 'human' ) : null;
 	foreach ( (array) $rows as $r ) {
 		++$out['days'];

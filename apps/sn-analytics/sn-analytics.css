@@ -910,3 +910,46 @@ snt-analytics-table os-table { display: block; width: 100%; }
 .snt-app[data-os-app="sn-analytics"] .sn-an-signal-badge {
 	color: var(--os-ui-info-fg, var(--os-ui-fg));
 }
+
+/* ── How each count is known (inc/evidence-kit.php, inc/evidence-paint-*.php):
+   proof fills, claims outline. Solid = verified for its purpose, half = verified
+   otherwise, hatched = claimed only, dashed outline = before verification was
+   recorded. The strip is aria-hidden; its numbers sit beside it as text. */
+.snt-evidence {
+	display: flex;
+	gap: 2px;
+	width: 100%;
+	min-width: 60px;
+	height: 8px;
+	border-radius: 999px;
+	overflow: hidden;
+	background: var( --os-ui-surface-sunken, rgba( 127, 127, 127, 0.18 ) );
+}
+.snt-evidence[data-size="hero"] { height: 12px; margin: 8px 0; }
+.snt-evidence[data-size="mini"] { height: 6px; }
+.snt-evidence__seg { flex: 0 1 var( --w ); min-width: 3px; }
+.snt-evidence__seg[data-part="verified_matched"] { background: var( --os-ui-accent, #8c5cff ); }
+.snt-evidence__seg[data-part="verified"] { box-sizing: border-box; border: 1px solid var( --os-ui-accent, #8c5cff ); background: color-mix( in srgb, var( --os-ui-accent, #8c5cff ) 50%, transparent ); }
+.snt-evidence__seg[data-part="unverified"] { background: repeating-linear-gradient( 135deg, var( --os-ui-fg-muted, #6b6672 ) 0 2px, transparent 2px 5px ); }
+.snt-evidence__seg[data-part="unverifiable"] { box-sizing: border-box; background: none; border: 1px dashed var( --os-ui-border-strong, #6b6672 ); }
+.snt-evidence-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0; font-size: 12px; color: var( --os-ui-fg-muted, inherit ); }
+.snt-evidence-legend__item { display: inline-flex; align-items: center; gap: 6px; }
+.snt-evidence-legend__swatch { display: inline-block; flex: 0 0 10px; width: 10px; height: 10px; border-radius: 3px; }
+.snt-evidence-none, .snt-ev-muted { font-size: 12px; color: var( --os-ui-fg-muted, inherit ); }
+.snt-ev-muted { margin: 6px 0 0; }
+.snt-ev-hero--band { position: relative; isolation: isolate; overflow: hidden; margin-block-end: 18px; padding: 16px; border: 1px solid var( --os-ui-border, rgba( 127, 127, 127, 0.25 ) ); border-radius: 12px; box-shadow: var( --os-ui-holo-edge, none ); }
+.snt-ev-mesh { position: absolute; z-index: -1; inset: 0; background: var( --os-ui-hero-mesh, none ); }
+.snt-ev-band { display: grid; grid-template-columns: minmax( 140px, 1fr ) 3fr; gap: 12px 24px; padding: 16px 0; border-top: 1px solid var( --os-ui-border, rgba( 127, 127, 127, 0.25 ) ); }
+.snt-ev-band__h { margin: 0; font-size: 13px; font-weight: 600; }
+.snt-ev-band__items { display: grid; grid-template-columns: repeat( 2, minmax( 0, 1fr ) ); gap: 12px 24px; }
+@media ( max-width: 640px ) {
+	.snt-ev-band, .snt-ev-band__items { grid-template-columns: 1fr; }
+}
+.snt-ev-ranks { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.snt-ev-rank { display: grid; grid-template-columns: minmax( 0, 2fr ) minmax( 60px, 3fr ) auto; align-items: center; gap: 8px; font-size: 13px; }
+.snt-ev-bar { height: 6px; overflow: hidden; border-radius: 999px; background: var( --os-ui-surface-sunken, rgba( 127, 127, 127, 0.18 ) ); }
+.snt-ev-bar > span { display: block; width: var( --w ); min-width: 3px; height: 100%; background: var( --os-ui-fg-muted, #6b6672 ); }
+.snt-ev-rank__n { font-variant-numeric: tabular-nums; }
+/* One tile, one grid child: the stat, its basis chip and any strip (inc/evidence-paint-surface.php snt_ev_stat). */
+.snt-ev-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.snt-ev-tile > os-stat, .snt-ev-tile > .snt-evidence { align-self: stretch; }

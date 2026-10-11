@@ -63,6 +63,11 @@ function snt_mr_summary_daily( array $rows, $totals, $days, $now, $has_tax = tru
 		$ai_rows = array();
 		foreach ( $by_day[ $day ]['rows'] as $r ) {
 			$hits = (int) ( $r['hits'] ?? 0 );
+			// A control-token hit counts in the day's total only, as in the
+			// window figures (snt_mr_summary_payload credits it to nothing).
+			if ( function_exists( 'snt_mr_is_impersonation' ) && snt_mr_is_impersonation( $r ) ) {
+				continue;
+			}
 			if ( in_array( (string) ( $r['family'] ?? '' ), $ai_set, true ) ) {
 				$ai       += $hits;
 				$ai_rows[] = $r;

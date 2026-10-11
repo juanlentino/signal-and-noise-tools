@@ -31,13 +31,14 @@ function snt_ml_reader_anomalies_health( $report ) {
 		return array(
 			'status'  => 'recommended',
 			'summary' => sprintf(
-				'The machine-reader sensor did not answer (%s), so reader behaviour is unread for this window. That is unknown, not quiet.',
+				'The machine-reader sensor did not answer (%s), so reader behavior is unread for this window. That is unknown, not quiet.',
 				$reason
 			),
 		);
 	}
 	$anoms    = (int) ( $report['counts']['anomalies'] ?? 0 );
 	$silences = (int) ( $report['counts']['silences'] ?? 0 );
+	$co       = (int) ( $report['counts']['co_movements'] ?? 0 );
 	$eligible = (int) ( $report['counts']['families_eligible'] ?? 0 );
 	$seen     = (int) ( $report['counts']['families_seen'] ?? 0 );
 	if ( 0 === $eligible ) {
@@ -51,7 +52,7 @@ function snt_ml_reader_anomalies_health( $report ) {
 			),
 		);
 	}
-	if ( 0 === $anoms && 0 === $silences ) {
+	if ( 0 === $anoms && 0 === $silences && 0 === $co ) {
 		return array(
 			'status'  => 'good',
 			'summary' => sprintf(
@@ -72,6 +73,11 @@ function snt_ml_reader_anomalies_health( $report ) {
 	if ( $silences > 0 ) {
 		$parts[] = sprintf( '%d family-day(s) of total silence from a reader present on most days', $silences );
 	}
+	if ( $co > 0 ) {
+		// Several families moving the same day on unverified reads from one
+		// network: one finding per network, not one per family.
+		$parts[] = sprintf( '%d co-movement(s) of three or more families on unverified reads from one network', $co );
+	}
 	return array(
 		'status'  => 'recommended',
 		'summary' => sprintf(
@@ -82,10 +88,33 @@ function snt_ml_reader_anomalies_health( $report ) {
 	);
 }
 
+/**
+ * One plain line per co-movement: day, direction, network, families.
+ *
+ * @param array $report Output of snt_ml_reader_anomalies().
+ * @return string[]
+ */
+function snt_ml_reader_co_movement_lines( $report ) {
+	$out = array();
+	foreach ( (array) ( is_array( $report ) ? ( $report['co_movement'] ?? array() ) : array() ) as $c ) {
+		$fams  = (array) ( $c['families'] ?? array() );
+		$out[] = sprintf(
+			/* translators: 1: day, 2: number of families, 3: up, down or mixed, 4: network owner, 5: the families. */
+			__( 'On %1$s, %2$d reader families moved together (%3$s) on unverified reads from %4$s: %5$s. One finding, not %2$d.', 'signal-and-noise-tools' ),
+			(string) ( $c['day'] ?? '' ),
+			count( $fams ),
+			(string) ( $c['direction'] ?? '' ),
+			(string) ( $c['network'] ?? '' ),
+			implode( ', ', $fams )
+		);
+	}
+	return $out;
+}
+
 /** Core Site Health registration (direct test). */
 function snt_ml_reader_anomalies_register_site_health_test( $tests ) {
 	$tests['direct']['snt_ml_reader_anomalies'] = array(
-		'label' => __( 'Signal & Noise machine-reader behaviour', 'signal-and-noise-tools' ),
+		'label' => __( 'Signal & Noise machine-reader behavior', 'signal-and-noise-tools' ),
 		'test'  => 'snt_ml_reader_anomalies_site_health_result',
 	);
 	return $tests;
@@ -96,12 +125,13 @@ if ( function_exists( 'add_filter' ) ) {
 
 /** The rendered result. */
 function snt_ml_reader_anomalies_site_health_result() {
-	$v = snt_ml_reader_anomalies_health( function_exists( 'snt_ml_reader_anomalies' ) ? snt_ml_reader_anomalies() : null );
+	$report = function_exists( 'snt_ml_reader_anomalies' ) ? snt_ml_reader_anomalies() : null;
+	$v      = snt_ml_reader_anomalies_health( $report );
 	return array(
-		'label'       => __( 'Signal & Noise machine-reader behaviour', 'signal-and-noise-tools' ),
+		'label'       => __( 'Signal & Noise machine-reader behavior', 'signal-and-noise-tools' ),
 		'status'      => in_array( $v['status'], array( 'good', 'recommended', 'critical' ), true ) ? $v['status'] : 'recommended',
 		'badge'       => array( 'label' => __( 'Performance', 'signal-and-noise-tools' ), 'color' => 'blue' ),
-		'description' => '<p>' . esc_html( $v['summary'] ) . '</p>',
+		'description' => '<p>' . esc_html( $v['summary'] ) . '</p>' . implode( '', array_map( static fn( $l ) => '<p>' . esc_html( $l ) . '</p>', snt_ml_reader_co_movement_lines( $report ) ) ),
 		'test'        => 'snt_ml_reader_anomalies',
 	);
 }

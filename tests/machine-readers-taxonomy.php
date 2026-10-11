@@ -31,7 +31,7 @@ function _n( $single, $plural, $n, $d = null ) { return 1 === (int) $n ? $single
 require __DIR__ . '/../inc/machine-readers-taxonomy.php';
 require __DIR__ . '/../inc/machine-readers-api.php';
 require __DIR__ . '/../inc/machine-readers-render.php';
-require __DIR__ . '/../inc/machine-readers-render-taxonomy.php';
+require __DIR__ . '/../inc/machine-readers-basis.php'; // Unreleased: unmapped, and the control-token rule.
 
 echo "\nGroup: RULE 1 , the frozen family enum did not move\n";
 $families = snt_mr_valid_families();
@@ -71,79 +71,6 @@ echo "\nGroup: the sampled user agent is sanitized, then escaped again at the si
 $ua = snt_mr_normalize_ua_sample( 'Mozilla/5.0 <script>alert("xss")</script> \'; DROP' );
 ok( false === strpos( $ua, '<' ) && false === strpos( $ua, '"' ) && false === strpos( $ua, "'" ), 'markup and quotes never survive normalization' );
 ok( 96 >= strlen( snt_mr_normalize_ua_sample( str_repeat( 'A', 500 ) ) ), 'a long UA cannot dominate the column' );
-$html = snt_mr_render_unknown_agents( array( array( 'user_agent' => 'Mozilla/5.0 <script>alert(1)</script>', 'hits' => 7 ) ) );
-ok( false === strpos( $html, '<script>' ), 'the renderer emits no script tag' );
-ok( false !== strpos( $html, 'Mozilla/5.0' ), 'while still showing the reviewable part of the string' );
-ok( false !== strpos( $html, 'at most' ), 'and the cap is reported so truncation is never silent' );
-
-echo "\nGroup: RULE 2 , the empty case is honest\n";
-$empty = snt_mr_render_unknown_agents( array() );
-ok( false !== stripos( $empty, 'matched the taxonomy' ), 'nothing to review says so, rather than rendering an empty table' );
-
-echo "\nGroup: first-party monitoring is excluded from readership, and declared\n";
-$rows = snt_mr_normalize_rows( array(
-	array( 'family' => 'uptime', 'surface' => 'html', 'day' => '2026-08-01', 'hits' => 6403, 'vendor' => 'betterstack', 'purpose' => 'ops', 'taxonomy_version' => '1.0.0', 'first_party' => '1' ),
-	array( 'family' => 'openai', 'surface' => 'llms', 'day' => '2026-08-01', 'hits' => 40, 'vendor' => 'openai', 'purpose' => 'train', 'taxonomy_version' => '1.0.0' ),
-) );
-$totals = snt_mr_purpose_totals( $rows );
-ok( 6403 === $totals['first_party'], 'the first-party total is counted separately' );
-ok( ! isset( $totals['purposes']['ops'] ) && 40 === $totals['purposes']['train'], 'and excluded from the purpose totals' );
-$ptable = snt_mr_render_purpose_table( $rows, 30 );
-ok( false !== strpos( $ptable, '6,403' ) && false !== stripos( $ptable, 'own uptime monitoring' ), 'the exclusion is disclosed on the page, not hidden' );
-
-echo "\nGroup: never-measured is not measured-zero\n";
-$note = snt_mr_render_purpose_table( $legacy, 30 );
-ok( false !== stripos( $note, 'predates' ) && false !== stripos( $note, 'not a measured zero' ), 'an older sensor renders a stated absence, not a table of zeroes' );
-
-echo "\nGroup: vendor x purpose keeps one vendor on several rows\n";
-$multi = snt_mr_normalize_rows( array(
-	array( 'family' => 'openai', 'surface' => 'html', 'day' => '2026-08-01', 'hits' => 30, 'vendor' => 'openai', 'purpose' => 'train', 'taxonomy_version' => '1.0.0' ),
-	array( 'family' => 'openai', 'surface' => 'html', 'day' => '2026-08-01', 'hits' => 20, 'vendor' => 'openai', 'purpose' => 'search', 'taxonomy_version' => '1.0.0' ),
-	array( 'family' => 'openai', 'surface' => 'html', 'day' => '2026-08-01', 'hits' => 10, 'vendor' => 'openai', 'purpose' => 'user', 'taxonomy_version' => '1.0.0' ),
-) );
-$vp = snt_mr_render_vendor_purpose_table( $multi );
-ok( 3 === substr_count( $vp, '<tr><td class="column-primary"' ), 'one vendor across three purposes is three rows, not one' );
-ok( false !== strpos( $vp, 'train' ) && false !== strpos( $vp, 'search' ) && false !== strpos( $vp, 'user' ), 'and each purpose is named' );
-
-echo "\nGroup: MR3 , the agent/purpose breakdown folds and its remainder learns the house wording\n";
-// Unlike the two logs, this table ALREADY sliced at 20 — the cap was real.
-// What was wrong was the summary's absence and a remainder line that used
-// softer wording than the rest of the surface, and that still said
-// "vendor/purpose" though v10.80.0 gave the table an Agent column.
-$mr3_rows = array();
-for ( $i = 1; $i <= 21; $i++ ) {
-	$mr3_rows[] = array(
-		'family'           => 'openai',
-		'surface'          => 'html',
-		'day'              => '2026-08-01',
-		'hits'             => 100 - $i, // Descending, so worst-first ordering is observable.
-		'vendor'           => 'vendor' . $i,
-		'agent'            => 'Agent' . $i,
-		'purpose'          => 'train',
-		'taxonomy_version' => '1.1.0',
-	);
-}
-$mr3_html = snt_mr_render_vendor_purpose_table( snt_mr_normalize_rows( $mr3_rows ) );
-ok( false !== strpos( $mr3_html, '<details class="sn-mr-vendor-purpose sn-disclosure">' ), 'the breakdown sits inside its own disclosure' );
-ok( false === strpos( $mr3_html, '<details class="sn-mr-vendor-purpose sn-disclosure" open' ), 'and it is CLOSED by default' );
-$mr3_det = strpos( $mr3_html, '<details class="sn-mr-vendor-purpose' );
-$mr3_sum = substr( $mr3_html, (int) $mr3_det, 200 );
-ok( false !== strpos( $mr3_sum, '21' ), 'the summary names the TRUE pair count (21), not the sliced 20' );
-ok( 20 === substr_count( $mr3_html, '<tr><td class="column-primary"' ), 'the existing worst-first cap of 20 still applies' );
-ok( false !== stripos( $mr3_html, 'capped, not complete' ), 'the remainder line now uses the house wording' );
-ok( false === stripos( $mr3_html, 'are not shown' ), 'and the softer old phrasing is gone' );
-ok( false !== stripos( $mr3_html, 'agent/purpose' ), 'the remainder names AGENT/purpose — the table grew an Agent column in v10.80.0 and the vocabulary follows it' );
-// Worst-first survives the fold: vendor1 (99 hits) leads, vendor21 (79) is cut.
-$mr3_first = strpos( $mr3_html, '<tr><td class="column-primary"' );
-ok( false !== strpos( substr( $mr3_html, (int) $mr3_first, 300 ), 'vendor1<' ), 'the busiest pair still renders first' );
-ok( false === strpos( $mr3_html, 'vendor21<' ), 'and the quietest is the one the cap drops' );
-// Empty and pre-taxonomy both stay '' — never an empty disclosure.
-ok( '' === snt_mr_render_vendor_purpose_table( $legacy ), 'a pre-taxonomy sensor still renders NOTHING at all, not an empty fold' );
-$mr3_first_party_only = snt_mr_normalize_rows( array(
-	array( 'family' => 'uptime', 'surface' => 'html', 'day' => '2026-08-01', 'hits' => 500, 'vendor' => 'betterstack', 'purpose' => 'ops', 'taxonomy_version' => '1.1.0', 'first_party' => '1' ),
-) );
-ok( '' === snt_mr_render_vendor_purpose_table( $mr3_first_party_only ), 'a window with only first-party rows renders nothing, not a fold promising 0 pairs' );
-
 echo "\nGroup: the purpose vocabulary is closed\n";
 $purposes = snt_mr_valid_purposes();
 ok( 13 === count( $purposes ), 'exactly thirteen purposes' );
@@ -174,10 +101,6 @@ $rd_hostile = snt_mr_normalize_rights_rows( array( array(
 ) ) );
 ok( false === strpos( $rd_hostile[0]['observed_at'], '<' ), 'the timestamp is shape-restricted' );
 ok( 'unknown' === $rd_hostile[0]['purpose'] && 'other-bot' === $rd_hostile[0]['family'], 'enums still fail INTO the allowlist' );
-$rhtml = snt_mr_render_rights_detail( $rd_hostile );
-ok( false === strpos( $rhtml, '<script>' ), 'the renderer escapes the un-allowlisted UA (its only defence)' );
-ok( false !== stripos( snt_mr_render_rights_detail( array() ), 'No reads of the rights surfaces' ), 'an empty window says so rather than rendering an empty table' );
-
 echo "\nGroup: #1227 — UA/path caps are mb_-safe, timestamp cap fits milliseconds\n";
 // A multibyte-heavy path/UA must not have its last character split into an
 // invalid byte fragment by the taxonomy normalizer's byte-based cap.
@@ -192,115 +115,7 @@ $rd_mb = snt_mr_normalize_rights_rows( array( array(
 ok( 512 === mb_strlen( $rd_mb[0]['user_agent'] ), 'a >512-char multibyte UA is clipped to exactly 512 CHARACTERS' );
 ok( 1 === preg_match( '//u', $rd_mb[0]['user_agent'] ), 'the clipped UA is valid UTF-8, not a split multibyte tail' );
 
-// The rendered timestamp must fit the full "YYYY-MM-DDTHH:MM:SS.sssZ" shape
-// (24 chars) instead of cutting right after the seconds' dot (20 chars),
-// which left a bare trailing "." with every millisecond digit gone.
-$ts_html = snt_mr_render_rights_detail( $rd_mb );
-ok( false !== strpos( $ts_html, '2026-08-10T09:14:02.511Z' ), 'the full millisecond timestamp renders, not truncated to a trailing dot' );
-ok( false === strpos( $ts_html, '2026-08-10T09:14:02.<' ), 'no bare trailing dot before the closing tag' );
-
-echo "\nGroup: MR1 , the rights log FOLDS (its cap was a caption, not a cap)\n";
-// Before MR1 the $limit argument was PRINTED in the footer and never applied:
-// every row the sensor handed over rendered, fully open, in arrival order. The
-// fold is presentation-only — the sensor envelope, the view, and the row
-// normalizer are untouched.
-$mr1_rows = array();
-for ( $i = 1; $i <= 51; $i++ ) {
-	// Ascending timestamps so the NEWEST row is the last one in input order —
-	// a renderer that merely slices arrival order would drop it, which is the
-	// thing worth catching.
-	$mr1_rows[] = array(
-		'observed_at' => sprintf( '2026-08-%02dT09:00:00Z', ( $i % 28 ) + 1 ),
-		'path'        => '/license.xml',
-		'user_agent'  => 'Mozilla/5.0 (compatible; TestBot/' . $i . ')',
-		'vendor'      => 'anthropic',
-		'purpose'     => 'train',
-		'family'      => 'anthropic',
-		'hits'        => 1,
-	);
-}
-$mr1_html = snt_mr_render_rights_detail( snt_mr_normalize_rights_rows( $mr1_rows ) );
-ok( false !== strpos( $mr1_html, '<details class="sn-mr-rights-log sn-disclosure">' ), 'the rights table sits inside its own disclosure' );
-ok( false === strpos( $mr1_html, '<details class="sn-mr-rights-log sn-disclosure" open' ), 'and it is CLOSED by default' );
-$mr1_det = strpos( $mr1_html, '<details class="sn-mr-rights-log' );
-$mr1_sum = substr( $mr1_html, (int) $mr1_det, 220 );
-ok( false !== strpos( $mr1_sum, '51' ), 'the summary names the TRUE event count (51), not the sliced 50 — a fold may hide the evidence, never THAT there is something inside' );
-ok( 50 === substr_count( $mr1_html, '<tr><td class="column-primary"' ), 'the display cap renders exactly 50 rows' );
-ok( false !== stripos( $mr1_html, 'capped, not complete' ), 'the remainder line uses the house wording' );
-ok( false !== strpos( $mr1_html, '+1 more' ), 'and names how many were cut' );
-ok( false !== stripos( $mr1_html, 'at most 500' ), 'the SENSOR envelope sentence survives — the display cap must not claim the sensor stores less than it does' );
-// Newest-first: the highest timestamp in the fixture is day 28 (i=27), which
-// arrives mid-list. Slicing arrival order would lose it entirely.
-ok( false !== strpos( $mr1_html, 'TestBot/27' ), 'the newest event is shown even though it arrived mid-list (the sort is real, not arrival order)' );
-$mr1_first_row = strpos( $mr1_html, '<tr><td class="column-primary"' );
-ok( false !== strpos( substr( $mr1_html, (int) $mr1_first_row, 400 ), '2026-08-28' ), 'the newest event sorts FIRST' );
-// A row whose timestamp is missing must not be invented a date, and must not
-// float to the top of a newest-first sort by accident.
-$mr1_undated = snt_mr_normalize_rights_rows( array(
-	array( 'observed_at' => '', 'path' => '/license.xml', 'user_agent' => 'UndatedBot', 'vendor' => 'anthropic', 'purpose' => 'train', 'family' => 'anthropic' ),
-	array( 'observed_at' => '2026-08-02T09:00:00Z', 'path' => '/license.xml', 'user_agent' => 'DatedBot', 'vendor' => 'anthropic', 'purpose' => 'train', 'family' => 'anthropic' ),
-) );
-$mr1_u_html = snt_mr_render_rights_detail( $mr1_undated );
-ok( strpos( $mr1_u_html, 'DatedBot' ) < strpos( $mr1_u_html, 'UndatedBot' ), 'a row with no timestamp sorts LAST, never invented a date to lead' );
-ok( false === strpos( $mr1_u_html, '1970' ), 'and no epoch fallback leaks into the page' );
-// The empty window keeps its sentence with NO fold: a closed disclosure
-// reading "0 events" would rhyme with a measured zero.
-$mr1_empty = snt_mr_render_rights_detail( array() );
-ok( false === strpos( $mr1_empty, '<details' ), 'an empty window renders NO disclosure at all' );
-// Report, not findings.
-ok( false === strpos( $mr1_html, 'sn-pill--warn' ), 'rights rows carry no warn pill — they are the evidence a published claim rests on, not defects' );
-// Under the cap: no remainder line, still folded.
-$mr1_small = snt_mr_render_rights_detail( snt_mr_normalize_rights_rows( array_slice( $mr1_rows, 0, 3 ) ) );
-ok( false !== strpos( $mr1_small, '<details class="sn-mr-rights-log' ), 'a short log still folds (consistency beats a size heuristic)' );
-ok( false === stripos( $mr1_small, 'capped, not complete' ), 'but prints no remainder line when nothing was cut' );
-
-echo "\nGroup: MR2 , the unclassified-UA review list folds (source-capped, so no second cap)\n";
-// RULE 2 says the bucket must stay inspectable. Folding the ROWS is fine;
-// folding away THAT the bucket exists is not — so the summary carries the
-// count and an empty window keeps its sentence with no disclosure at all.
-$mr2_rows = array(
-	array( 'user_agent' => 'SomeBot/1.0 (+http://example.test)', 'hits' => 40 ),
-	array( 'user_agent' => 'OtherBot/2.0', 'hits' => 12 ),
-	// A UA that NORMALIZES TO EMPTY: the renderer skips it, so a summary
-	// counting raw rows would promise three and deliver two.
-	array( 'user_agent' => '<<<>>>', 'hits' => 7 ),
-);
-$mr2_html = snt_mr_render_unknown_agents( $mr2_rows );
-ok( false !== strpos( $mr2_html, '<details class="sn-mr-unknown-log sn-disclosure">' ), 'the review list sits inside its own disclosure' );
-ok( false === strpos( $mr2_html, '<details class="sn-mr-unknown-log sn-disclosure" open' ), 'and it is CLOSED by default' );
-$mr2_det = strpos( $mr2_html, '<details class="sn-mr-unknown-log' );
-$mr2_sum = substr( $mr2_html, (int) $mr2_det, 200 );
-ok( false !== strpos( $mr2_sum, '2' ) && false === strpos( $mr2_sum, '3' ), 'the summary counts the rows that SURVIVE normalization (2), not the raw rows (3) — a summary may not promise more than the fold contains' );
-ok( 2 === substr_count( $mr2_html, '<tr><td class="column-primary"' ), 'and exactly those two rows render' );
-ok( false !== stripos( $mr2_html, 'at most 50' ), 'the sensor envelope sentence survives — this tier adds NO second display cap' );
-ok( false !== stripos( $mr2_html, 'not a verbatim log' ), 'and the sampling caveat stays with it' );
-ok( false === strpos( $mr2_html, 'sn-pill--warn' ), 'an unmatched agent is a review item, not a Health finding' );
-// Empty: the measured-clean bucket keeps its sentence, and no empty fold.
-$mr2_empty = snt_mr_render_unknown_agents( array() );
-ok( false !== stripos( $mr2_empty, 'matched the taxonomy' ), 'an empty window keeps its measured-clean sentence' );
-ok( false === strpos( $mr2_empty, '<details' ), 'and renders NO disclosure' );
-// All rows normalizing away is NOT the same as an empty window: the bucket
-// held something the sanitizer could not render, and saying "nothing to
-// review" there would be a measured-clean claim the data does not support.
-$mr2_allblank = snt_mr_render_unknown_agents( array( array( 'user_agent' => '<<<>>>', 'hits' => 3 ) ) );
-ok( false === strpos( $mr2_allblank, '<tr><td class="column-primary"' ), 'a window whose agents all normalize away renders no rows' );
-ok( false === stripos( $mr2_allblank, 'matched the taxonomy' ), 'and does NOT claim the taxonomy matched everything — unrenderable is not clean' );
-ok( false === strpos( $mr2_allblank, '<details' ), 'and does NOT fold: a summary reading "0 unclassified user agents" would rhyme with a measured zero, which is the whole reason the fold is gated on survivors' );
-
-echo "\nGroup: the over-count is SHOWN, not reconciled away\n";
-$recon_rows = snt_mr_normalize_rows( array(
-	// google-ai is inside the frozen AI-training family set, but GoogleOther's
-	// declared purpose is generic. Exactly the live over-count.
-	array( 'family' => 'google-ai', 'surface' => 'html', 'day' => '2026-08-01', 'hits' => 100, 'vendor' => 'google', 'purpose' => 'unknown', 'taxonomy_version' => '1.1.0' ),
-	array( 'family' => 'openai', 'surface' => 'html', 'day' => '2026-08-01', 'hits' => 40, 'vendor' => 'openai', 'purpose' => 'train', 'taxonomy_version' => '1.1.0' ),
-) );
-$recon = snt_mr_render_ai_reconciliation( $recon_rows );
-ok( false !== strpos( $recon, '140' ), 'the frozen family count (140) is reported' );
-ok( false !== strpos( $recon, '>40<' ), 'the purpose count (40) is reported beside it' );
-ok( false !== strpos( $recon, '100' ) && false !== stripos( $recon, 'GoogleOther' ), 'the gap is named and attributed, not silently dropped' );
-ok( false !== stripos( $recon, 'Cite the purpose count' ), 'and the reader is told which number to use' );
-ok( '' === snt_mr_render_ai_reconciliation( $legacy ), 'a pre-taxonomy sensor renders no comparison at all (never a false 0 vs 0)' );
-
+echo "\nGroup: markdown_requested and signed_agent normalize additively\n";
 // v12.16.0: markdown_requested — Worker v1.18.0's blob10, normalized additively.
 $md_on     = snt_mr_normalize_taxonomy_fields( array( 'markdown_requested' => '1' ) );
 $md_off    = snt_mr_normalize_taxonomy_fields( array( 'markdown_requested' => '0' ) );

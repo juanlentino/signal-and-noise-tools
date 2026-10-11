@@ -90,6 +90,11 @@ const SN_ANALYTICS_VIEWS = array(
 	'search'     => 'Search',
 	'events'     => 'Events',
 	'edge'       => 'Traffic & edge',
+	// The machine views sit together after Search and Traffic & edge: who reads
+	// (Machine readers) and how each count is known (Reader evidence). Both
+	// own their chrome, a 7/14/30/90-day window over the edge sensor.
+	'machine-readers' => 'Machine readers',
+	'reader-evidence' => 'Reader evidence',
 	'login-defense' => 'Login defense',
 );
 
@@ -127,7 +132,7 @@ function snt_analytics_resolve_view( $raw ) {
 // the shared header (the v9.67.0 mock owned its chrome only because its static
 // Headline panel would have doubled the real KPI strip — the wired tab drops
 // that panel and lets the shared Overview card be the headline).
-const SN_ANALYTICS_OWNS_CHROME = array( 'login-defense' );
+const SN_ANALYTICS_OWNS_CHROME = array( 'login-defense', 'machine-readers', 'reader-evidence' );
 
 /**
  * True iff $view brings its own chrome, so the shared pageview header (controls +
@@ -138,6 +143,21 @@ const SN_ANALYTICS_OWNS_CHROME = array( 'login-defense' );
  */
 function snt_analytics_view_owns_chrome( $view ) {
 	return in_array( (string) $view, SN_ANALYTICS_OWNS_CHROME, true );
+}
+
+/** Views that read the edge sensor (its own credentials), not Analytics Engine. */
+const SN_ANALYTICS_SENSOR_VIEWS = array( 'machine-readers', 'reader-evidence' );
+
+/**
+ * True iff $view needs Analytics Engine configured. The machine views read the
+ * rights-signals sensor, so the Analytics Engine gate does not hold them back;
+ * every people view stays behind it.
+ *
+ * @param string $view View slug.
+ * @return bool
+ */
+function snt_analytics_view_needs_ae( $view ) {
+	return ! in_array( (string) $view, SN_ANALYTICS_SENSOR_VIEWS, true );
 }
 
 /**
@@ -436,12 +456,14 @@ function snt_analytics_render_dashboard() {
 
 	// Config gate: the tab strip renders regardless (S2 §5 — the dashboard's
 	// shape is visible from day one); only the data below the gate is withheld.
-	// The gate is view-agnostic on purpose: login-defense checks this SAME
+	// The machine views (SN_ANALYTICS_SENSOR_VIEWS) read the edge sensor with its
+	// own credentials and pass the gate. For every other view it is agnostic on
+	// purpose: login-defense checks this SAME
 	// sn_analytics_config() flag (not a separate credential), so routing it to
 	// its own dormant card here would just show an identical message under a
 	// different label — one generic gate for every tab keeps the empty state
 	// coherent while switching tabs pre-configuration.
-	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
+	if ( snt_analytics_view_needs_ae( $view ) && ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) ) {
 		snt_analytics_render_view_tabs( $view, $range, $class, $from, $to );
 		snt_analytics_render_empty();
 		return;

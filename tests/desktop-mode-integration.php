@@ -649,7 +649,7 @@ foreach ( array(
 $sn_views_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' ) );
 ok( false !== strpos( $sn_views_code, "text: deltaText( pct, '%' ) + ' vs. prior 14 days'," ) && false === strpos( $sn_views_code, 'top_mover' ), 'SN Traffic\'s trend rides the one arrow-only formatter, and the top mover is not painted (render pins: tests/desktop-mode-widget-views-delta.php)' );
 $sn_an_raw = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' );
-ok( false !== strpos( $sn_an_raw, "data.pages.machine_readers" ) && false !== strpos( $sn_an_raw, "[ 'Open Machine Readers', readersUrl, rbox ]" ), 'SN Provenance links to the Machine Readers leaf, inside the readers section (2026-10-05; render pin in tests/desktop-status-resilience.cjs)' );
+ok( false !== strpos( $sn_an_raw, "data.pages.machine_readers" ) && false !== strpos( $sn_an_raw, "[ 'Machine readers in S&N Analytics', readersUrl, rbox ]" ), 'SN Provenance links to the Machine readers view in S&N Analytics, inside the readers section (render pin in tests/desktop-status-resilience.cjs)' );
 // Same rule for SN Anchors' Sweep now: the result is a shell toast, the card
 // only refreshes; the in-card note is the fallback.
 $an_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
@@ -1923,11 +1923,13 @@ $act_js = (string) file_get_contents( SNT_PATH . 'assets/desktop-mode-widget-hea
 ok( false === strpos( $act_js, "'full-reset'" ) && false === strpos( $act_js, "'Full reset'" ), 'Quick Actions\' buttons moved without Full reset: a purge of every cache is not one click from the desktop' );
 $mr_js = (string) file_get_contents( SNT_PATH . 'assets/desktop-mode-widget-anchors.js' );
 ok( false !== strpos( $mr_js, 'mr.edge_verified' ) && strpos( $mr_js, "'Verified by Cloudflare'" ) < strpos( $mr_js, "'Named themselves, not verified'" ) && strpos( $mr_js, "'Named themselves, not verified'" ) < strpos( $mr_js, "'Declared AI-training reads'" ), 'SN Provenance\'s machine readers say who the readers are, then the declared AI-training reads' );
-ok( array( 'verified' => 7, 'unverified' => 5, 'not_measured' => 3 ) === snt_desktop_machine_readers_identity( array( array( 'hits' => 7, 'verified_bot' => 'search', 'network' => 'GOOGLE' ), array( 'hits' => 5, 'verified_bot' => '', 'network' => 'GOOGLE' ), array( 'hits' => 3, 'verified_bot' => '', 'network' => '' ), 'junk' ) ), 'identity: verified by the edge, named and not verified, and reads from before the network was recorded' );
+ok( array( 'verified' => 7, 'unverified' => 5, 'not_measured' => 3, 'first_party' => 0 ) === snt_desktop_machine_readers_identity( array( array( 'hits' => 7, 'verified_bot' => 'search', 'network' => 'GOOGLE' ), array( 'hits' => 5, 'verified_bot' => '', 'network' => 'GOOGLE' ), array( 'hits' => 3, 'verified_bot' => '', 'network' => '' ), 'junk' ) ), 'identity: verified by the edge, named and not verified, and reads from before the network was recorded' );
+ok( array( 'verified' => 1, 'unverified' => 0, 'not_measured' => 0, 'first_party' => 9 ) === snt_desktop_machine_readers_identity( array( array( 'day' => '2026-10-01', 'hits' => 6, 'verified_bot' => '', 'network' => 'Microsoft Corporation', 'first_party' => true ), array( 'day' => '2026-10-01', 'hits' => 3, 'verified_bot' => 'Monitoring & Analytics', 'network' => 'Hetzner', 'first_party' => true ), array( 'day' => '2026-10-01', 'hits' => 1, 'verified_bot' => 'search', 'network' => 'GOOGLE' ) ) ), 'identity: this site\'s own tools are a part of their own, whatever Cloudflare says of them' );
+ok( false !== strpos( $mr_js, 'This site\\u2019s own tools' ) && false !== strpos( $mr_js, 'id.first_party' ), 'SN Provenance paints the first-party part beside the other three' );
 if ( ! function_exists( 'sn_rights_evidence_identity_class' ) ) {
 	function sn_rights_evidence_identity_class( $day, $bot ) { return $day < '2026-09-28' ? 'unverifiable' : ( '' !== (string) $bot ? 'verified' : 'unverified' ); }
 }
-ok( array( 'verified' => 7, 'unverified' => 5, 'not_measured' => 3 ) === snt_desktop_machine_readers_identity( array( array( 'day' => '2026-10-01', 'hits' => 7, 'verified_bot' => 'search', 'network' => '' ), array( 'day' => '2026-09-29', 'hits' => 5, 'verified_bot' => '', 'network' => '' ), array( 'day' => '2026-09-20', 'hits' => 3, 'verified_bot' => '', 'network' => 'GOOGLE' ) ) ), 'identity is classed by the row\'s day: an unverified read after verification began is not "not measured" for lacking a network, and a day before it is, whatever it carries' );
+ok( array( 'verified' => 7, 'unverified' => 5, 'not_measured' => 3, 'first_party' => 0 ) === snt_desktop_machine_readers_identity( array( array( 'day' => '2026-10-01', 'hits' => 7, 'verified_bot' => 'search', 'network' => '' ), array( 'day' => '2026-09-29', 'hits' => 5, 'verified_bot' => '', 'network' => '' ), array( 'day' => '2026-09-20', 'hits' => 3, 'verified_bot' => '', 'network' => 'GOOGLE' ) ) ), 'identity is classed by the row\'s day: an unverified read after verification began is not "not measured" for lacking a network, and a day before it is, whatever it carries' );
 $keep_scan = $GLOBALS['__health_scan'];
 $GLOBALS['__health_scan'] = fixture_scan( array( 'missing_alt' => 0, 'broken_links' => 0 ) );
 $GLOBALS['__health_scan']['checks']['broken_links']['skipped'] = 'The AI provider refused the call.';
@@ -1947,7 +1949,7 @@ ok( false !== strpos( $mr_js, '/signal-noise/v1/desktop/machine-readers' ), 'SN 
 ok( false !== strpos( $mr_js, 'readers = null;' ) && false !== strpos( $mr_js, "readers = { ok: false, error: 'unreachable' };" ), 'a refresh clears the last machine-readers reading, and a failed read says the sensor is unreachable rather than painting zeros' );
 $dm_src = dm_integration_src();
 ok( false !== strpos( $dm_src, "'/desktop/machine-readers'" ), 'the desktop route is registered' );
-ok( false !== strpos( $dm_src, "'machine_readers' => snt_desktop_admin_url" ), 'the pages map carries the tab link for the tile footer' );
+ok( false !== strpos( $dm_src, "'machine_readers' => function_exists( 'snt_mr_analytics_view_url' ) ? snt_mr_analytics_view_url( 'machine-readers' )" ), 'the pages map carries the Machine readers view link for the tile footer (the readings moved to S&N Analytics)' );
 
 echo "\n── Machine readers in SN Provenance: crawler drift stays loud ──\n";
 // The families, purposes and per-surface rows stay on the Machine Readers leaf

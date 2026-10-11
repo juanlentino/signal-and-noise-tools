@@ -47,7 +47,7 @@ function snt_analytics_render_bot_breakdown( $bb ) {
 	}
 	echo '</div>';
 	echo '<p class="sn-an-q-legend">';
-	echo '<span class="sn-an-q-key sn-an-q--human"></span> ' . esc_html__( 'Human', 'signal-and-noise-tools' ) . ' ' . esc_html( number_format_i18n( $human ) );
+	echo '<span class="sn-an-q-key sn-an-q--human"></span> ' . esc_html__( 'Presumed human', 'signal-and-noise-tools' ) . ' ' . esc_html( number_format_i18n( $human ) );
 	echo ' · <span class="sn-an-q-key sn-an-q--suspect"></span> ' . esc_html__( 'Suspect', 'signal-and-noise-tools' ) . ' ' . esc_html( number_format_i18n( $suspect ) );
 	echo ' · <span class="sn-an-q-key sn-an-q--bot"></span> ' . esc_html__( 'Bot', 'signal-and-noise-tools' ) . ' ' . esc_html( number_format_i18n( $bot ) );
 	echo '</p>';

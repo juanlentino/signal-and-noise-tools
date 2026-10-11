@@ -175,59 +175,35 @@ function snt_mr_render_tab() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
-	$days   = 30;
-	$result = snt_mr_fetch( $days );
-	$rows   = ! empty( $result['ok'] ) && is_array( $result['rows'] ?? null ) ? $result['rows'] : array();
-
-	// One tracker read serves the hero chip AND the folded feed table (R4: the
-	// feed half of the machine audience; the two counts are never summed).
-	$feed       = function_exists( 'sn_rss_tracker_window_stats_multi' ) ? (array) sn_rss_tracker_window_stats_multi( array( 7, 30 ) ) : array();
-	$feed_total = isset( $feed['windows'][30]['total'] ) ? (int) $feed['windows'][30]['total'] : null;
-
+	// Configuration only: the sensor read serves its pills; every reading is
+	// an S&N Analytics view (inc/analytics-machine-views.php).
+	$result = snt_mr_fetch( 30 );
 	$info   = snt_mr_sensor_info();
 	$status = snt_mr_crawler_list_status();
 
-	// The two extra reads stay gated on the aggregate having succeeded, so a down
-	// sensor still costs exactly one failed request (unchanged from before the
-	// v12.22.0 recomposition).
-	$unknown_rows = null;
-	$rights_rows  = null;
-	$cards        = array();
-	if ( ! empty( $result['ok'] ) ) {
-		$unknown = snt_mr_fetch( $days, 'unknown' );
-		if ( ! empty( $unknown['ok'] ) ) {
-			$unknown_rows = $unknown['rows'] ?? array();
-		}
-		$rights = snt_mr_fetch( $days, 'rights' );
-		if ( ! empty( $rights['ok'] ) ) {
-			$rights_rows = $rights['rows'] ?? array();
-		}
-		// Delta cards come from the SAME fetch — never a second outbound call.
-		if ( function_exists( 'snt_mr_split_windows' ) && function_exists( 'snt_mr_family_delta_cards' ) ) {
-			$win   = snt_mr_split_windows( $rows, 15, gmdate( 'Y-m-d' ) );
-			$cards = snt_mr_family_delta_cards( $win['current'] ?? array(), $win['prior'] ?? array(), 15 );
-		}
-	}
-
-	// The settings form echoes; capture it so the composer stays pure.
+	// The settings fields echo; capture them so the composer stays pure. Open,
+	// never folded: configuration is this leaf's question now.
 	ob_start();
-	snt_mr_render_settings_form();
+	snt_mr_render_settings_fields(
+		defined( 'SN_MR_WORKER_URL' ) && '' !== (string) SN_MR_WORKER_URL,
+		defined( 'SN_MR_READ_TOKEN' ) && '' !== (string) SN_MR_READ_TOKEN,
+		function_exists( 'sn_setting' ) ? (string) sn_setting( 'machine_readers.worker_url', '' ) : '',
+		function_exists( 'sn_setting' ) && '' !== (string) sn_setting( 'machine_readers.read_token', '' ),
+		defined( 'SN_MR_DEFAULT_ENDPOINT' ) ? SN_MR_DEFAULT_ENDPOINT : ''
+	);
 	$settings_html = (string) ob_get_clean();
 
+	$verdicts = array();
+	if ( function_exists( 'sn_family_drift_health' ) && function_exists( 'sn_family_drift_report' ) ) {
+		$verdicts[ __( 'Crawler-family drift', 'signal-and-noise-tools' ) ] = sn_family_drift_health( sn_family_drift_report(), time() );
+	}
+	if ( function_exists( 'snt_ml_reader_anomalies_health' ) ) {
+		$verdicts[ __( 'Reader behavior', 'signal-and-noise-tools' ) ] = snt_ml_reader_anomalies_health( function_exists( 'snt_ml_reader_anomalies' ) ? snt_ml_reader_anomalies() : null );
+	}
+
 	echo snt_mr_compose_tab( array( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure composer; every fragment escapes its own values (fixture-pinned).
-		'days'               => $days,
-		'ok'                 => ! empty( $result['ok'] ),
-		// v13.43.0. The flag has ridden the fetch result since worker v1.23.0
-		// and reached no renderer, so a capped read was invisible on the page.
-		'truncated'          => ! empty( $result['truncated'] ),
-		'rows'               => $rows,
-		'webmcp'             => is_array( $result['webmcp'] ?? null ) ? $result['webmcp'] : array( 'calls' => 0, 'by_tool' => array() ), // 15.5.0
-		'feed'               => $feed,
-		'feed_total'         => $feed_total,
-		'rights_rows'        => $rights_rows,
-		'unknown_rows'       => $unknown_rows,
-		'delta_cards'        => $cards,
 		'sensor_status_html' => snt_mr_render_sensor_status( snt_mr_sensor_pills( $info, $status, $result ) ),
+		'verdicts'           => $verdicts,
 		'edge_readout_html'  => snt_mr_render_edge_readout( $info ),
 		'settings_form_html' => $settings_html,
 	) );
@@ -237,35 +213,6 @@ function snt_mr_render_tab() {
 	}
 }
 
-
-/**
- * The settings sub-form: worker URL override + write-only read token, posted
- * through the house sn_action contract (machine_readers_save, nonce +
- * capability checked by the shared dispatcher). The token field always renders
- * EMPTY: a blank submission keeps the stored value, so the secret never round
- * trips through the page source. wp-config constants win over both fields
- * (snt_mr_config), so locked fields are disabled with a note.
- */
-function snt_mr_render_settings_form() {
-	$url_locked   = defined( 'SN_MR_WORKER_URL' ) && '' !== (string) SN_MR_WORKER_URL;
-	$token_locked = defined( 'SN_MR_READ_TOKEN' ) && '' !== (string) SN_MR_READ_TOKEN;
-	$stored_url   = function_exists( 'sn_setting' ) ? (string) sn_setting( 'machine_readers.worker_url', '' ) : '';
-	$has_token    = function_exists( 'sn_setting' ) && '' !== (string) sn_setting( 'machine_readers.read_token', '' );
-	$default_url  = defined( 'SN_MR_DEFAULT_ENDPOINT' ) ? SN_MR_DEFAULT_ENDPOINT : '';
-
-	// v10.1.1: the Analytics settings-fold idiom — the summary always carries a
-	// one-line snapshot, so collapsing never hides whether it is configured.
-	$snapshot = $token_locked
-		? __( 'token locked by constant', 'signal-and-noise-tools' )
-		: ( $has_token ? __( 'token set', 'signal-and-noise-tools' ) : __( 'no token yet', 'signal-and-noise-tools' ) );
-	if ( function_exists( 'snt_an_settings_fold' ) ) {
-		snt_an_settings_fold( __( 'Sensor settings', 'signal-and-noise-tools' ), $snapshot, ! $has_token && ! $token_locked, function () use ( $url_locked, $token_locked, $stored_url, $has_token, $default_url ) {
-			snt_mr_render_settings_fields( $url_locked, $token_locked, $stored_url, $has_token, $default_url );
-		} );
-		return;
-	}
-	snt_mr_render_settings_fields( $url_locked, $token_locked, $stored_url, $has_token, $default_url );
-}
 
 /**
  * The fields themselves (v10.1.1 extraction, so the Analytics fold can wrap

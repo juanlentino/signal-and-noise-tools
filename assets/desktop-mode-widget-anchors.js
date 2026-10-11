@@ -116,24 +116,32 @@
 		list.appendChild( reads );
 		// A user agent is a claim; only the verified share is vouched for by the edge.
 		var id = mr.edge_verified; // its own key: `identity` is the summary's signature evidence
-		var sum = id ? id.verified + id.unverified + id.not_measured : 0;
+		var sum = id ? id.verified + id.unverified + id.not_measured + ( Number( id.first_party ) || 0 ) : 0;
 		if ( id && sum > 0 ) {
-			// The three parts as a share bar under Machine reads, each row with its
+			// The parts as a share bar under Machine reads, each row with its
 			// segment's dot (assets/desktop-mode-card-kit.js); without the kit, the rows alone.
+			// This site's own tools are a part of their own: not readers at all.
 			var kit   = window.sntCardKit;
-			var parts = [ [ 'Verified by Cloudflare', id.verified ], [ 'Named themselves, not verified', id.unverified ], [ 'Not measured', id.not_measured ] ];
+			var parts = [ [ 'Verified by Cloudflare', id.verified ], [ 'Named themselves, not verified', id.unverified ], [ 'Not measured', id.not_measured ], [ 'This site\u2019s own tools, not readership', Number( id.first_party ) || 0 ] ];
 			var bar   = kit ? kit.bar( parts.map( function( p ) { return 100 * p[1] / sum; } ) ) : null;
 			if ( bar ) { reads.appendChild( bar ); }
 			parts.forEach( function( p, i ) {
-				if ( 2 === i && ! ( p[1] > 0 ) ) { return; }
+				if ( i >= 2 && ! ( p[1] > 0 ) ) { return; }
 				var row = listRow( p[0], grouped( p[1] ) );
 				if ( bar ) { row.firstChild.insertBefore( kit.dot( i ), row.firstChild.firstChild ); }
 				list.appendChild( row );
 			} );
 		}
-		// null means "not measured", never painted as 0.
-		if ( mr.ai_training !== null && typeof mr.ai_training !== 'undefined' ) {
+		// null means "not measured", never painted as 0. Unreleased: the claimed
+		// AI-training figure (by purpose) with the part Cloudflare verified and
+		// a 6px evidence strip; an older payload keeps the legacy family figure.
+		var aiv = mr.verification && mr.verification.ai_training_by_purpose;
+		if ( aiv && typeof mr.ai_training_by_purpose === 'number' ) {
+			list.appendChild( listRow( 'AI-training reads', grouped( aiv.claimed ) + ' claimed \u00b7 ' + grouped( aiv.verified ) + ' verified', false, evidenceStrip( aiv ) ) );
+		} else if ( mr.ai_training !== null && typeof mr.ai_training !== 'undefined' ) {
 			list.appendChild( listRow( 'Declared AI-training reads', grouped( mr.ai_training ) ) );
+		}
+		if ( mr.ai_training !== null && typeof mr.ai_training !== 'undefined' ) {
 			// A crawler that went looking for the declarations on purpose. The
 			// reservation rides every response, so 0 here is healthy, never an alarm.
 			if ( mr.ai_rights !== null && typeof mr.ai_rights !== 'undefined' ) {
@@ -154,6 +162,28 @@
 			box.appendChild( el( 'p', { style: 'margin:2px 0 0;font-size:11px;color:#d29922;', text: 'Crawler list ' + String( mr.crawler_list ) } ) );
 		}
 		return box;
+	}
+
+	/**
+	 * The evidence strip (inc/evidence-kit.php), 6px: verified for its purpose
+	 * solid, verified otherwise outlined over a half fill, claimed only hatched, before verification
+	 * was recorded dashed. Decorative; the numbers are the row's text. Inline
+	 * styles, because the desktop does not load the views' stylesheet.
+	 */
+	function evidenceStrip( s ) {
+		var parts = [ [ 'verified_matched', s.verified_matched, 'background:var(--os-ui-accent, #8c5cff);' ], [ 'verified', ( s.verified || 0 ) - ( s.verified_matched || 0 ), 'box-sizing:border-box;border:1px solid var(--os-ui-accent, #8c5cff);background:color-mix(in srgb, var(--os-ui-accent, #8c5cff) 50%, transparent);' ], [ 'unverified', s.unverified, 'background:repeating-linear-gradient(135deg, var(--os-ui-fg-muted, #8a8494) 0 2px, transparent 2px 5px);' ], [ 'unverifiable', s.unverifiable, 'box-sizing:border-box;border:1px dashed var(--os-ui-border-strong, #6b6672);' ] ];
+		var whole = parts.reduce( function( a, p ) { return a + ( p[1] > 0 ? p[1] : 0 ); }, 0 );
+		var strip = el( 'span', { style: 'display:flex;gap:2px;flex:0 0 100%;height:6px;margin-top:3px;border-radius:999px;overflow:hidden;background:var(--os-ui-surface-sunken, rgba(127,127,127,0.18));' } );
+		strip.className = 'snt-evidence';
+		strip.setAttribute( 'aria-hidden', 'true' );
+		parts.forEach( function( p ) {
+			if ( ! ( p[1] > 0 ) || ! whole ) { return; }
+			var seg = el( 'span', { style: 'flex:0 1 ' + ( 100 * p[1] / whole ) + '%;min-width:3px;' + p[2] } );
+			seg.className = 'snt-evidence__seg';
+			seg.setAttribute( 'data-part', p[0] );
+			strip.appendChild( seg );
+		} );
+		return strip;
 	}
 
 	/** "3d ago" from a UNIX time in seconds, the form SN Systems uses; '' when absent. */
@@ -478,7 +508,7 @@
 			var links = zenLink ? [ zenLink ] : [];
 			// Each link closes the section it opens (owner, 2026-10-05, as SN
 			// Systems does); with no section painted it stays on the action row.
-			[ [ 'Open Provenance', dashboardUrl, pbox ], [ 'Open Machine Readers', readersUrl, rbox ] ].forEach( function( l ) {
+			[ [ 'Open Provenance', dashboardUrl, pbox ], [ 'Machine readers in S&N Analytics', readersUrl, rbox ] ].forEach( function( l ) {
 				if ( ! l[1] ) { return; }
 				var link = linkTo( l[0], l[1] );
 				( l[2] || actions ).appendChild( link );

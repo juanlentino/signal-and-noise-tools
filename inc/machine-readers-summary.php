@@ -85,14 +85,27 @@ function snt_mr_summary_payload( $days, $series = null ) {
 	// reads zero until the bridge ships is not worth a contract bump and a
 	// worker redeploy. It joins in bridge v2 arc two, with a number.
 
-	$totals  = function_exists( 'snt_mr_sum_hits_by' ) ? snt_mr_sum_hits_by( $rows, 'family' ) : array();
+	// Unreleased: a hit presenting a robots.txt control token (Google-Extended,
+	// Applebot-Extended) is never the vendor's crawler, so it is credited to no
+	// family and no purpose; `impersonations` carries it and `total` still
+	// counts it, because it was a read. Every breakdown below reads $credited.
+	$is_imp   = function_exists( 'snt_mr_is_impersonation' ) ? 'snt_mr_is_impersonation' : static fn( $r ) => false;
+	$credited = array_values( array_filter( $rows, static fn( $r ) => ! $is_imp( $r ) ) );
+
+	$totals  = function_exists( 'snt_mr_sum_hits_by' ) ? snt_mr_sum_hits_by( $credited, 'family' ) : array();
 	$ai_set  = function_exists( 'snt_mr_ai_training_families' ) ? snt_mr_ai_training_families() : array();
 	$total   = 0;
 	$ai_hits = 0;
 	$ai_rght = 0;
+	$fp_fam  = array();
 	foreach ( $rows as $row ) {
-		$hits   = (int) ( $row['hits'] ?? 0 );
-		$total += $hits;
+		$total += (int) ( $row['hits'] ?? 0 );
+	}
+	foreach ( $credited as $row ) {
+		$hits = (int) ( $row['hits'] ?? 0 );
+		if ( ! empty( $row['first_party'] ) ) {
+			$fp_fam[ (string) ( $row['family'] ?? '' ) ] = ( $fp_fam[ (string) ( $row['family'] ?? '' ) ] ?? 0 ) + $hits;
+		}
 		if ( in_array( (string) ( $row['family'] ?? '' ), $ai_set, true ) ) {
 			$ai_hits += $hits;
 			// The compliance read: a declared AI-training crawler that fetched
@@ -105,7 +118,10 @@ function snt_mr_summary_payload( $days, $series = null ) {
 
 	$families = array();
 	foreach ( $totals as $family => $hits ) {
-		$families[] = array( 'family' => (string) $family, 'hits' => (int) $hits );
+		// first_party_hits: the part of the family that is this site's own
+		// tools (the sensor's first_party flag), so unclassified-machine's
+		// self-traffic reads apart from the rest of it.
+		$families[] = array( 'family' => (string) $family, 'hits' => (int) $hits, 'first_party_hits' => (int) ( $fp_fam[ (string) $family ] ?? 0 ) );
 		if ( count( $families ) >= SN_MR_TOP_FAMILIES ) {
 			break;
 		}
@@ -121,7 +137,7 @@ function snt_mr_summary_payload( $days, $series = null ) {
 	$ai_surfaces = array();
 	if ( function_exists( 'snt_mr_sum_hits_by' ) ) {
 		$ai_rows = array();
-		foreach ( $rows as $row ) {
+		foreach ( $credited as $row ) {
 			if ( in_array( (string) ( $row['family'] ?? '' ), $ai_set, true ) ) {
 				$ai_rows[] = $row;
 			}
@@ -159,7 +175,7 @@ function snt_mr_summary_payload( $days, $series = null ) {
 	$tax_version = '';
 	$has_tax     = function_exists( 'snt_mr_taxonomy_absent' ) && ! snt_mr_taxonomy_absent( $rows );
 	if ( $has_tax ) {
-		foreach ( $rows as $row ) {
+		foreach ( $credited as $row ) {
 			// Reported from the DATA, never a literal: rows carry the version
 			// they were written under, so a window spanning a definition change
 			// is visibly mixed instead of stamped with today's number.
@@ -228,9 +244,20 @@ function snt_mr_summary_payload( $days, $series = null ) {
 		'sensor_version' => ( is_array( $info ) && isset( $info['version'] ) ) ? (string) $info['version'] : null,
 		'crawler_list'   => $verdict,
 	);
+	// Unreleased: additive. Where each attributed count came from.
+	if ( function_exists( 'snt_mr_evidence' ) ) {
+		$payload += snt_mr_evidence( $rows );
+	}
+	// Unreleased: who reads, ranked without this site's own tools or the
+	// control tokens, so a top family is a reader, never the site's probes.
+	if ( function_exists( 'snt_mr_who_reads' ) ) {
+		$payload['reader_families'] = array_map( static fn( $f ) => array( 'family' => $f['family'], 'hits' => (int) $f['split']['claimed'], 'verified' => (int) $f['split']['verified'] ), array_slice( snt_mr_who_reads( $rows )['rows'], 0, SN_MR_TOP_FAMILIES ) );
+	}
 	// Unreleased: appended, never interleaved, so a call without `series` is
 	// byte-identical to the response before the series existed.
 	if ( 'day' === $series && function_exists( 'snt_mr_summary_daily' ) ) {
+		// The daily breakdowns skip the control-token rows themselves
+		// (snt_mr_summary_daily), so each still sums to its window figure.
 		$payload['daily']             = snt_mr_summary_daily( $rows, null === $exact_total ? null : (array) $totals_read['rows'], $days, time(), $has_tax );
 		$payload['daily_total_exact'] = null !== $exact_total;
 	}

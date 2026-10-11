@@ -17,6 +17,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 class WP_Error { public $code; public $message; public $data; public function __construct( $c = '', $m = '', $d = null ) { $this->code = $c; $this->message = $m; $this->data = $d; } }
 function is_wp_error( $t ) { return $t instanceof WP_Error; }
 function __( $s, $d = null ) { return $s; }
+if ( ! function_exists( '_n' ) ) { function _n( $a, $b, $n, $d = null ) { return 1 === (int) $n ? $a : $b; } } // the readers model's leads pick on the count.
 function add_action( $t, $cb ) { $GLOBALS['__acts'][ $t ][] = $cb; }
 function wp_register_ability( $slug, $args ) { $GLOBALS['__ab'][ $slug ] = $args; }
 
@@ -24,7 +25,8 @@ function wp_register_ability( $slug, $args ) { $GLOBALS['__ab'][ $slug ] = $args
 function snt_mr_fetch( $days = 30, $view = 'aggregate' ) { return 'totals' === $view ? $GLOBALS['__mr_totals'] : $GLOBALS['__mr']; }
 function snt_mr_sensor_info() { return array( 'version' => '1.29.0' ); }
 function snt_mr_crawler_list_status() { return array( 'last_check_ok' => '2026-10-10', 'last_check_drift' => '' ); }
-foreach ( array( 'machine-readers-taxonomy', 'machine-readers-render', 'machine-readers-summary', 'machine-readers-daily', 'abilities-machine-readers' ) as $f ) {
+if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, (int) $d ); } }
+foreach ( array( 'machine-readers-taxonomy', 'machine-readers-render', 'rights-evidence-compose', 'machine-readers-basis', 'machine-readers-basis-fold', 'machine-readers-readers-model', 'machine-readers-summary', 'machine-readers-daily', 'abilities-machine-readers' ) as $f ) {
 	if ( is_file( __DIR__ . "/../inc/$f.php" ) ) { require __DIR__ . "/../inc/$f.php"; }
 }
 foreach ( $GLOBALS['__acts']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(); }
@@ -67,8 +69,20 @@ if ( getenv( 'GEN' ) ) {
 
 echo "\nWithout series, the response is the one captured before the series existed\n";
 $before = json_decode( (string) file_get_contents( $fixture ), true );
+// Unreleased: the evidence-basis fields are additive. Without them (and each
+// family's first_party_hits) the response is still the captured one, byte for
+// byte, so no existing value moved; the fixture stays as captured.
+$legacy = static function ( $json ) {
+	$r = json_decode( $json, true );
+	if ( is_array( $r ) && ! empty( $r['ok'] ) ) {
+		unset( $r['impersonations'], $r['verification'], $r['basis'], $r['reader_families'] );
+		$r['families'] = array_map( static fn( $f ) => array_diff_key( $f, array( 'first_party_hits' => 0 ) ), (array) $r['families'] );
+		ok( array_key_exists( 'verification', json_decode( $json, true ) ), 'the ok response carries the new verification field' );
+	}
+	return json_encode( $r );
+};
 foreach ( array_keys( $scenarios ) as $name ) {
-	ok( ( $before[ $name ] ?? null ) === $now[ $name ], "byte-identical: $name" );
+	ok( ( $before[ $name ] ?? null ) === $legacy( $now[ $name ] ), "byte-identical minus the additive basis fields: $name" );
 }
 
 echo "\nseries refuses anything but \"day\"\n";

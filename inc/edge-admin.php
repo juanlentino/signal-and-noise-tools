@@ -51,7 +51,7 @@ function snt_edge_render_view( $from, $to ) {
 	// KPI headline — the reconciliation (Machine %) is the point of this view.
 	$cards = array(
 		array( 'l' => __( 'Edge requests', 'signal-and-noise-tools' ),   'n' => number_format_i18n( (int) ( $t['requests'] ?? 0 ) ),       'promoted' => true ),
-		array( 'l' => __( 'Human pageviews', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $split['human'] ?? 0 ) ),       'promoted' => true ),
+		array( 'l' => __( 'Presumed human pageviews', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $split['human'] ?? 0 ) ),       'promoted' => true ),
 		array( 'l' => __( 'Machine traffic', 'signal-and-noise-tools' ), 'n' => (int) ( $split['machine_pct'] ?? 0 ) . '%',                 'promoted' => true ),
 		array( 'l' => __( 'Cache hit', 'signal-and-noise-tools' ),       'n' => (int) ( $t['cache_hit_pct'] ?? 0 ) . '%' ),
 		array( 'l' => __( 'Bandwidth', 'signal-and-noise-tools' ),       'n' => snt_edge_fmt_bytes( (int) ( $t['bytes'] ?? 0 ) ) ),
@@ -59,7 +59,7 @@ function snt_edge_render_view( $from, $to ) {
 		array( 'l' => __( 'Threats', 'signal-and-noise-tools' ),         'n' => number_format_i18n( (int) ( $t['threats'] ?? 0 ) ) ),
 	);
 	snt_an_panel_open( __( 'Traffic & edge', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );
-	echo '<p class="sn-an-sep">' . esc_html__( 'Server-side edge totals: every request, including bots / RSS / no-JS clients the front-end beacon never sees. “Machine traffic” is edge pageviews minus the beacon’s human pageviews.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-sep">' . esc_html__( 'Server-side edge totals: every request, including bots / RSS / no-JS clients the front-end beacon never sees. “Machine traffic” is edge pageviews minus the beacon’s presumed-human pageviews.', 'signal-and-noise-tools' ) . '</p>';
 	// Surface the REAL adaptive-dataset retention (discovered from the settings node,
 	// not the old "24h on Free" guess). Omitted entirely until the probe knows it.
 	$ret_days = function_exists( 'sn_edge_adaptive_retention_days' ) ? (int) sn_edge_adaptive_retention_days() : 0;

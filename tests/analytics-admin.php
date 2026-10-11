@@ -367,7 +367,7 @@ echo "\nGroup: v9.68.0: the Overview is the DEFAULT landing (promoted, wired, sh
 // preview machinery is GONE (the experiment graduated).
 ok( 'overview' === array_key_first( SN_ANALYTICS_VIEWS ), 'registry: overview is FIRST' );
 ok( 'Overview' === ( SN_ANALYTICS_VIEWS['overview'] ?? '' ), 'registry: labeled "Overview"' );
-ok( 13 === count( SN_ANALYTICS_VIEWS ), 'registry: 13 views (R6b: +search, the pre-click half with no first-party counterpart)' );
+ok( 15 === count( SN_ANALYTICS_VIEWS ), 'registry: 15 views (R6b: +search; evidence basis: +machine-readers, +reader-evidence)' );
 ok( snt_analytics_views() === SN_ANALYTICS_VIEWS, 'effective registry: identical to the const: no flag branch left' );
 ok( ! function_exists( 'snt_analytics_landing_preview_enabled' ), 'flag: the sn_analytics_landing_preview helper no longer exists' );
 ok( 'overview' === snt_analytics_resolve_view( 'overview' ), 'resolve_view: overview resolves' );
@@ -584,6 +584,18 @@ ok( substr_count( $html, 'Configure analytics' ) === 1, 'dashboard(unconfigured)
 ok( strpos( $html, 'href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=analytics"' ) !== false,
 	'dashboard(unconfigured): CTA points at the analytics settings URL' );
 
+echo "\nGroup: dashboard: unconfigured: the machine views read the edge sensor, not Analytics Engine\n";
+if ( ! function_exists( 'snt_analytics_render_view_machine_readers' ) ) {
+	function snt_analytics_render_view_machine_readers( $range ) { echo '<p>MR-VIEW ' . esc_html( $range ) . '</p>'; }
+}
+$GLOBALS['__aa_config'] = false;
+aa_reset_call_counts();
+$_GET['sn_view'] = 'machine-readers';
+$html = capture( 'snt_analytics_render_dashboard' );
+unset( $_GET['sn_view'] );
+ok( false !== strpos( $html, 'MR-VIEW' ) && false === strpos( $html, 'sn-an-gate' ), 'unconfigured: Machine readers paints its view, not the Analytics Engine gate (the sensor has its own credentials)' );
+ok( 0 === $GLOBALS['__aa_calls']['range_totals'] && 0 === $GLOBALS['__aa_calls']['realtime'], 'unconfigured: and it still reads no Analytics Engine accessor' );
+
 echo "\nGroup: dashboard: unconfigured: tabs lead, ZERO accessor reads (S2 §5, resolves PR #275)\n";
 // The dashboard's SHAPE (which views exist) is now visible before Cloudflare
 // creds are set; only the DATA below the gate stays withheld. $_GET['sn_view']
@@ -599,7 +611,7 @@ foreach ( SN_ANALYTICS_VIEWS as $slug => $label ) {
 	ok( strpos( $html, 'sn_view=' . $slug ) !== false, "unconfigured: tab link to '$slug' present" );
 	++$tab_count;
 }
-ok( 13 === $tab_count, 'unconfigured: sanity: the registry has all 13 views incl. search (test isn\'t vacuous)' );
+ok( 15 === $tab_count, 'unconfigured: sanity: the registry has all 15 views incl. search and the two machine views (test isn\'t vacuous)' );
 // v9.65.0 units-collision fix: the tab LABEL says what its number counts
 // (within-day sessions from the live session engine), while the SLUG stays
 // 'visits' — cache keys, ?sn_view= links, and the dispatch switch all key on

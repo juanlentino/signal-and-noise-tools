@@ -145,7 +145,9 @@ foreach ( snt_test_inc_files() as $f ) {
 	$src = (string) file_get_contents( $f );
 	foreach ( array_keys( $declared ) as $name ) {
 		$i = strpos( $src, "wp_register_ability( '" . $name . "'" );
-		if ( false !== $i ) { $src_by_ability[ $name ] = substr( $src, $i, 9000 ); }
+		// 20,000: the machine-readers summary's registration outgrew 9,000 when
+		// the evidence-basis fields were declared (it ends well inside 20,000).
+		if ( false !== $i ) { $src_by_ability[ $name ] = substr( $src, $i, 20000 ); }
 	}
 }
 foreach ( snt_dwx_boxes() as $box ) {
@@ -181,7 +183,7 @@ $all = implode( '', $html );
 foreach ( array(
 	'tab=monitoring&sub=analytics'       => 'Analytics',
 	'tab=monitoring&sub=rss'             => 'RSS',
-	'tab=monitoring&sub=machine-readers' => 'Machine Readers',
+	'sn_view=machine-readers'            => 'Machine readers in S&N Analytics (the readings moved there)',
 	'tab=tools&sub=provenance'           => 'Provenance',
 	'tab=connections&sub=cron'           => 'Cron',
 ) as $target => $label ) {
@@ -372,6 +374,19 @@ foreach ( snt_dwx_boxes() as $box ) {
 }
 ok( is_array( $core_field ) && 'signal-noise/get-deploy-status' === $core_field['ability'], 'Operations leaf has a Core row from get-deploy-status' );
 ok( is_array( $core_field ) && 'core.offer' === ( $core_field['compare']['path'] ?? '' ) && 'behind (%s)' === ( $core_field['compare']['template'] ?? '' ), 'the Core row says behind (point|major), silent when offer is empty' );
+
+// Unreleased: the machine box keeps this site's own tools apart and says
+// "unmapped" for the purpose the taxonomy could not place.
+echo "\nFirst-party apart, unmapped said as such\n";
+$sn_mbox = array_values( array_filter( snt_dwx_boxes(), static fn( $b ) => 'sn_dash_machines' === $b['id'] ) )[0];
+$sn_lists = array_column( $sn_mbox['lists'], null, 'path' );
+ok( 'verified' === ( $sn_lists['reader_families']['item']['sub'] ?? '' ) && ! isset( $sn_lists['families'] ), 'Top families lists readers (reader_families), each with its verified reads; this site\'s own tools are never the top family' );
+$sn_fields = array_column( $sn_mbox['sections'][0]['fields'], null, 'path' );
+ok( isset( $sn_fields['first_party'] ) && false !== strpos( $sn_fields['first_party']['label'], 'not readership' ), 'this site\'s own tools on a line of their own, not readership' );
+ok( isset( $sn_fields['ai_training_by_purpose'] ) && 'verification.ai_training_by_purpose.verified' === ( $sn_fields['ai_training_by_purpose']['compare']['path'] ?? '' ), 'the AI-training figure is the claimed purpose count with the verified part beside it' );
+ok( array( 'unknown' => 'unmapped' ) === ( $sn_lists['purposes']['item']['label_map'] ?? null ), 'Reads by purpose shows unknown as unmapped' );
+$sn_dwx_js = (string) file_get_contents( __DIR__ . '/../assets/dash-widgets.js' );
+ok( false !== strpos( $sn_dwx_js, 'item.label_map' ) && false !== strpos( $sn_dwx_js, "item.sub_template.replace( '%s', format( entry[ item.sub ] ) )" ), 'the list applies label_map and groups the sub figure' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

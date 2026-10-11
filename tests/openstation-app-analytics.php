@@ -2,7 +2,7 @@
 /**
  * The S&N Analytics native window (apps/sn-analytics): the frame, the picks, the port guard.
  *
- * The thirteen views are the framework's tabs, each a session; a control's
+ * The fifteen views are the framework's tabs, each a session; a control's
  * pick becomes the next query by the classic link rules; the frame paints the
  * chrome pieces in the classic page's order through the painter registry --
  * and, the port-complete guard, every view and every chrome piece has a kit
@@ -48,7 +48,7 @@ namespace {
 	require_once __DIR__ . '/lib/os-leaf-harness.php';
 	define( 'SNT_ANALYTICS_PAGE_SLUG', 'sn-analytics' );
 	// The page's own resolvers, as the real ones answer for these fixtures.
-	function snt_analytics_views() { return array( 'overview' => 'Overview', 'content' => 'Content', 'campaigns' => 'Campaigns', 'posts' => 'Posts', 'technology' => 'Technology', 'geography' => 'Geography', 'engagement' => 'Engagement', 'visits' => 'Sessions', 'quality' => 'Quality', 'search' => 'Search', 'events' => 'Events', 'edge' => 'Traffic & edge', 'login-defense' => 'Login defense' ); }
+	function snt_analytics_views() { return array( 'overview' => 'Overview', 'content' => 'Content', 'campaigns' => 'Campaigns', 'posts' => 'Posts', 'technology' => 'Technology', 'geography' => 'Geography', 'engagement' => 'Engagement', 'visits' => 'Sessions', 'quality' => 'Quality', 'search' => 'Search', 'events' => 'Events', 'edge' => 'Traffic & edge', 'machine-readers' => 'Machine readers', 'reader-evidence' => 'Reader evidence', 'login-defense' => 'Login defense' ); }
 	function snt_analytics_resolve_view( $v ) { return isset( snt_analytics_views()[ $v ] ) ? $v : 'overview'; }
 	function snt_analytics_resolve_class( $c ) { return in_array( $c, array( 'human', 'suspect', 'bot' ), true ) ? $c : 'human'; }
 	function snt_analytics_resolve_compare( $c ) { return in_array( $c, array( 'prev', 'yoy' ), true ) ? $c : 'off'; }
@@ -60,6 +60,8 @@ namespace {
 	function snt_analytics_window_args( $range, $class, $from, $to ) { $a = array( 'sn_range' => (string) $range, 'sn_class' => (string) $class ); if ( 'custom' === (string) $range ) { $a['sn_from'] = (string) $from; $a['sn_to'] = (string) $to; } return $a; }
 	function snt_analytics_view_reset_params() { return array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to', 'sn_drill', 'sn_event_prop', 'sn_lg_range' ); }
 	function snt_analytics_view_owns_chrome( $v ) { return 'login-defense' === $v; }
+	// The real predicate (inc/analytics-admin.php) is pinned in tests/analytics-machine-views.php.
+	function snt_analytics_view_needs_ae( $v ) { return ! in_array( $v, array( 'machine-readers', 'reader-evidence' ), true ); }
 	function sn_analytics_drilldown_parse( $raw ) { $p = explode( ':', (string) $raw, 2 ); return 2 === count( $p ) && '' !== $p[0] && '' !== $p[1] ? array( $p[0], $p[1] ) : null; }
 	function sn_analytics_granularity( $days ) { return $days > 60 ? 'week' : 'day'; }
 	function sn_analytics_config() { return ! empty( $GLOBALS['__configured'] ); }
@@ -176,7 +178,7 @@ namespace {
 	$painted = array();
 	$spy = function ( $key ) use ( &$painted ) { return function ( $ctx ) use ( $key, &$painted ) { $painted[] = $key; return '<i data-piece="' . $key . '"></i>'; }; };
 	add_filter( 'snt_os_analytics_painters', function ( $p ) use ( $spy, &$painted ) {
-		foreach ( array( 'chrome/controls', 'chrome/insights', 'chrome/drilldown', 'chrome/empty', 'chrome/error', 'chrome/login-header', 'view/overview', 'view/posts', 'view/search', 'view/edge', 'view/login-defense' ) as $k ) { $p[ $k ] = $spy( $k ); }
+		foreach ( array( 'chrome/controls', 'chrome/insights', 'chrome/drilldown', 'chrome/empty', 'chrome/error', 'chrome/login-header', 'view/overview', 'view/posts', 'view/search', 'view/edge', 'view/login-defense', 'view/machine-readers', 'view/reader-evidence' ) as $k ) { $p[ $k ] = $spy( $k ); }
 		$p['chrome/header'] = function ( $ctx ) use ( &$painted ) { $painted[] = 'chrome/header'; return array( 'html' => '<i data-piece="chrome/header"></i>', 'totals' => array( 'views' => $GLOBALS['__views'] ?? 5 ) ); };
 		unset( $p['view/content'] );
 		return $p;
@@ -209,6 +211,10 @@ namespace {
 	$GLOBALS['__configured'] = false;
 	$html = $paint( 'overview' );
 	ok( array( 'chrome/empty' ) === $painted && false === strpos( $html, 'data-piece="view/overview"' ), 'unconfigured analytics paint the gate and nothing else' );
+	foreach ( array( 'machine-readers', 'reader-evidence' ) as $sensor_view ) {
+		$paint( $sensor_view );
+		ok( ! in_array( 'chrome/empty', $painted, true ) && in_array( 'view/' . $sensor_view, $painted, true ), $sensor_view . ': reads the edge sensor (its own credentials), so it paints with Analytics Engine unconfigured: ' . implode( ',', $painted ) );
+	}
 	$GLOBALS['__configured'] = true;
 	$html = $paint( 'content' );
 	ok( array() === $painted && false !== strpos( $html, 'class="snt-classic"' ) && false !== strpos( $html, 'classic body' ), 'a view without a painter paints the classic capture as scaffold' );

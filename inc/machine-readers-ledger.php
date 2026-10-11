@@ -35,7 +35,12 @@ const SN_MR_AGENT_NETWORKS_TOP = 5;
  *
  * `days` is the number of distinct days the cell was seen on, `surfaces` the
  * cell's hits per surface class. A cell with purpose `unknown` is an unmapped
- * reader, not a reader with no purpose.
+ * reader, not a reader with no purpose. Unreleased: each cell also splits its
+ * hits by verification (claimed, verified, verified_matched, unverified,
+ * unverifiable; inc/machine-readers-basis.php), says whether it is this site's
+ * own tooling (`first_party_hits`, the exact part, and `first_party`, true when
+ * that part is above zero) or a robots.txt control token no crawler sends
+ * (`impersonation`), and names its `basis`.
  *
  * @param array $rows snt_mr_fetch() aggregate rows.
  * @return array{cells:array<int,array>,total:int,families:int}
@@ -43,6 +48,8 @@ const SN_MR_AGENT_NETWORKS_TOP = 5;
 function snt_mr_crosstab( $rows ) {
 	$cells = array();
 	$days  = array();
+	$split = array();
+	$fp    = array();
 	$total = 0;
 	foreach ( (array) $rows as $row ) {
 		if ( ! is_array( $row ) ) {
@@ -58,8 +65,12 @@ function snt_mr_crosstab( $rows ) {
 		if ( ! isset( $cells[ $key ] ) ) {
 			$cells[ $key ] = array( 'family' => $family, 'purpose' => $purpose, 'agent' => $agent, 'hits' => 0, 'days' => 0, 'surfaces' => array() );
 			$days[ $key ]  = array();
+			$split[ $key ] = function_exists( 'snt_mr_verification_zero' ) ? snt_mr_verification_zero() : null;
+			$fp[ $key ]    = 0;
 		}
 		$cells[ $key ]['hits'] += $hits;
+		$split[ $key ]          = null === $split[ $key ] ? null : snt_mr_verification_add( $split[ $key ], $row );
+		$fp[ $key ]            += empty( $row['first_party'] ) ? 0 : $hits;
 		if ( '' !== $surface ) {
 			$cells[ $key ]['surfaces'][ $surface ] = ( $cells[ $key ]['surfaces'][ $surface ] ?? 0 ) + $hits;
 		}
@@ -71,6 +82,14 @@ function snt_mr_crosstab( $rows ) {
 	foreach ( $cells as $key => &$cell ) {
 		$cell['days'] = count( $days[ $key ] );
 		arsort( $cell['surfaces'] );
+		if ( null !== $split[ $key ] ) {
+			$cell += $split[ $key ] + array(
+				'first_party'      => $fp[ $key ] > 0,
+				'first_party_hits' => $fp[ $key ],
+				'impersonation'    => snt_mr_is_impersonation( $cell ),
+				'basis'            => 'claimed',
+			);
+		}
 	}
 	unset( $cell );
 	usort( $cells, static fn( $a, $b ) => $b['hits'] <=> $a['hits'] ?: strcmp( $a['family'] . $a['purpose'] . $a['agent'], $b['family'] . $b['purpose'] . $b['agent'] ) );
@@ -227,4 +246,58 @@ function snt_mr_ai_rights_pair( $aggregate, $detail ) {
 		return $n;
 	};
 	return array( 'aggregate' => $sum( $aggregate, true ), 'detail' => $sum( $detail, false ) );
+}
+
+/**
+ * The unknown view folded per user-agent sample, cut to $top: {ua_sample,
+ * hits, verified_hits, not_measured, networks (top 5 {network, hits}),
+ * basis}. Rows are folded BEFORE the cut, because the detail=network read
+ * splits one sample over many rows. A read without `detail: network` (a
+ * worker before rights-signals 1.30.0, or the default view) cannot say who
+ * was verified: verified_hits is null and basis unmeasured, never 0.
+ *
+ * Used by the get-machine-readers-crosstab ability (top 20) and both Machine
+ * Readers leaves' review list (top 50).
+ *
+ * @param array $read snt_mr_fetch( $days, 'unknown-network' ) result.
+ * @param int   $top  Samples kept.
+ * @return array<int,array>|null null when every row sanitized away.
+ */
+function snt_mr_unnamed_fold( array $read, $top ) {
+	$measured = 'network' === (string) ( $read['detail'] ?? '' );
+	$by       = array();
+	foreach ( (array) ( $read['rows'] ?? array() ) as $row ) {
+		$ua = is_array( $row ) ? snt_mr_normalize_ua_sample( $row['user_agent'] ?? ( $row['ua_sample'] ?? '' ) ) : '';
+		if ( '' === $ua ) {
+			continue;
+		}
+		$hits = max( 0, (int) ( $row['hits'] ?? 0 ) );
+		$net  = $measured ? (string) ( $row['network'] ?? '' ) : '';
+		$u    = $by[ $ua ] ?? array( 'ua_sample' => $ua, 'hits' => 0, 'verified_hits' => $measured ? 0 : null, 'not_measured' => 0, 'networks' => array(), 'basis' => $measured ? 'claimed' : 'unmeasured' );
+		$u['hits'] += $hits;
+		if ( $measured && '' !== (string) ( $row['verified_bot'] ?? '' ) ) {
+			$u['verified_hits'] += $hits;
+		}
+		if ( '' === $net ) {
+			$u['not_measured'] += $hits;
+		} else {
+			$u['networks'][ $net ] = ( $u['networks'][ $net ] ?? 0 ) + $hits;
+		}
+		$by[ $ua ] = $u;
+	}
+	// Rows that all sanitized away are not "every read matched".
+	if ( array() === $by && array() !== (array) ( $read['rows'] ?? array() ) ) {
+		return null;
+	}
+	$out = array();
+	foreach ( $by as $u ) {
+		arsort( $u['networks'] );
+		$nets = array();
+		foreach ( array_slice( $u['networks'], 0, SN_MR_AGENT_NETWORKS_TOP, true ) as $net => $h ) {
+			$nets[] = array( 'network' => (string) $net, 'hits' => (int) $h );
+		}
+		$out[] = array_merge( $u, array( 'networks' => $nets ) );
+	}
+	usort( $out, static fn( $a, $b ) => $b['hits'] <=> $a['hits'] );
+	return array_slice( $out, 0, max( 1, (int) $top ) );
 }

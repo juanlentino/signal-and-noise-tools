@@ -177,21 +177,6 @@ $fall = snt_mr_family_delta_cards(
 ok( 1 === count( $fall ) && 'down' === (string) ( $fall[0]['direction'] ?? '' ), 'a drop fires with direction down' );
 ok( -160 === (int) ( $fall[0]['delta'] ?? 0 ), 'the signed delta is negative' );
 
-echo "\nGroup: render sink escapes, empty is first-class\n";
-ok( '' === snt_mr_render_delta_cards( array() ), 'no cards renders nothing at all' );
-$html = snt_mr_render_delta_cards( $cards );
-ok( false !== strpos( $html, 'openai' ), 'the rendered list names the family' );
-$hostile = snt_mr_render_delta_cards( array( array(
-	'id'           => 'mr_delta_x',
-	'title'        => '<img src=x onerror=1>',
-	'detail'       => '<script>alert(1)</script>',
-	'action_url'   => 'javascript:alert(1)',
-	'action_label' => '<svg onload=1>',
-) ) );
-ok( false === strpos( $hostile, '<img' ), 'title escaped at the sink' );
-ok( false === strpos( $hostile, '<script' ), 'detail escaped at the sink' );
-ok( false === strpos( $hostile, '<svg' ), 'action label escaped at the sink' );
-
 echo "\nGroup: v10.2.0 — a partially observed prior window cannot fabricate a rise\n";
 // Identical per-day rate on both sides; the prior window was simply observed
 // on 5 of its 30 days (sensor deployed mid-window). The old guard passed this
@@ -224,7 +209,6 @@ for ( $d = 1; $d <= 30; $d++ ) {
 $mr_cards = snt_mr_family_delta_cards( $mr_c, $mr_p, 30 );
 ok( false !== strpos( (string) json_encode( $mr_cards ), 'openai' ), 'a family that went to ZERO still cards (the largest fall used to be the one silence)' );
 
-ok( false === strpos( snt_mr_render_delta_cards( array( array( 'title' => 't', 'detail' => 'd', 'action_label' => 'a', 'action_url' => 'javascript:alert(1)' ) ) ), 'javascript:' ), 'a hostile action_url is stripped at the render sink (the row that used to assert nothing)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
