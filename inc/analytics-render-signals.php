@@ -36,7 +36,7 @@ function snt_analytics_render_bot_signals( $r ) {
 	echo '<div class="sn-an-panel">';
 	echo '<p>' . esc_html( sprintf(
 		/* translators: 1: likely automated count, 2: human visitor-days, 3: window days */
-		__( 'Likely automated: %1$s of %2$s human visitor-days in the last %3$s days. Not subtracted from any count.', 'signal-and-noise-tools' ),
+		__( 'Likely automated: %1$s of %2$s presumed-human visitor-days in the last %3$s days. Not subtracted from any count.', 'signal-and-noise-tools' ),
 		number_format_i18n( (int) ( $h['likely_automated'] ?? 0 ) ),
 		number_format_i18n( (int) ( $h['visitor_days'] ?? 0 ) ),
 		number_format_i18n( (int) ( $r['window_days'] ?? 0 ) )

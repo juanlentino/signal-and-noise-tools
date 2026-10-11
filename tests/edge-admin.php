@@ -79,7 +79,7 @@ ok( strpos( $html, '176' ) !== false, 'kpi: human pageviews (from the beacon)' )
 ok( strpos( $html, '65%' ) !== false, 'kpi: machine-traffic % (the reconciliation headline)' );
 ok( strpos( $html, '80%' ) !== false, 'kpi: cache-hit %' );
 ok( strpos( $html, '7' ) !== false, 'kpi: threats' );
-foreach ( array( 'requests', 'Human', 'Machine', 'Cache', 'Bandwidth', 'Threats' ) as $label_frag ) {
+foreach ( array( 'requests', 'Presumed human', 'Machine', 'Cache', 'Bandwidth', 'Threats' ) as $label_frag ) {
 	ok( stripos( $html, $label_frag ) !== false, "kpi: card label contains '$label_frag'" );
 }
 

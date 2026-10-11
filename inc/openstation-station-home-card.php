@@ -63,7 +63,7 @@ function snt_station_home_analytics_card_data() {
 
 	return array(
 		'value'        => number_format_i18n( (int) $deltas['views']['current'] ),
-		'detail'       => __( 'Human views, last 7 days', 'signal-and-noise-tools' ),
+		'detail'       => __( 'Presumed human views, last 7 days', 'signal-and-noise-tools' ),
 		'url'          => snt_analytics_page_url(),
 		'action_label' => __( 'Open S&N Analytics', 'signal-and-noise-tools' ),
 		'tone'         => 'neutral',

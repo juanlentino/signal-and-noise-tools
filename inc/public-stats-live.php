@@ -43,7 +43,7 @@ function sn_public_stats_live_html() {
 		. '<h2 id="sn-public-stats-live-h" class="sn-public-stats__live-h">' . esc_html__( 'Live', 'signal-and-noise-tools' ) . '</h2>'
 		. '<div class="sn-public-stats__live-row">'
 		. $fig( 'now', __( 'Reading now', 'signal-and-noise-tools' ), __( 'readers active in the last 5 minutes', 'signal-and-noise-tools' ), $hour )
-		. $fig( 'today', __( 'Views today', 'signal-and-noise-tools' ), __( 'human pageviews since midnight, site time', 'signal-and-noise-tools' ) )
+		. $fig( 'today', __( 'Views today', 'signal-and-noise-tools' ), __( 'presumed human pageviews since midnight, site time', 'signal-and-noise-tools' ) )
 		. '</div>'
 		// Being read now: filled by live-now.js; only published public pages.
 		. '<div class="sn-public-stats__live-pages">'

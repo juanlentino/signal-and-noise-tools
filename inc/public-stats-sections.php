@@ -333,7 +333,7 @@ function sn_public_stats_machines_html( $data ) {
 	$max   = max( 1, $views, (int) $m['total'] );
 	$out  .= '<section class="sn-public-stats__col sn-public-stats__machines"><h2>' . esc_html__( 'Humans and machines', 'signal-and-noise-tools' ) . '</h2>'
 		. sn_public_stats_bars_html( array(
-			array( 'label' => __( 'Human views', 'signal-and-noise-tools' ), 'text' => number_format_i18n( $views ), 'pct' => 100 * $views / $max ),
+			array( 'label' => __( 'Presumed human views', 'signal-and-noise-tools' ), 'text' => number_format_i18n( $views ), 'pct' => 100 * $views / $max ),
 			array( 'label' => __( 'Machine reads', 'signal-and-noise-tools' ), 'text' => number_format_i18n( (int) $m['total'] ), 'pct' => 100 * (int) $m['total'] / $max ),
 		) );
 	$split = is_array( $m['split'] ) ? array_filter( $m['split'] ) : array();

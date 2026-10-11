@@ -283,7 +283,7 @@ function sn_public_stats_rhythm_html( $data ) {
 	$out .= '<div class="sn-public-stats__twin" role="region" tabindex="0" aria-labelledby="sn-public-stats-calendar">';
 	$out .= '<table><caption id="sn-public-stats-calendar">' . esc_html( sprintf(
 		/* translators: 1: first day of the window (e.g. "Jul 13"). 2: last day (e.g. "Aug 11"). */
-		__( 'Daily human pageviews, %1$s to %2$s', 'signal-and-noise-tools' ),
+		__( 'Daily presumed human pageviews, %1$s to %2$s', 'signal-and-noise-tools' ),
 		sn_public_stats_day_label( (string) $days_keys[0] ),
 		sn_public_stats_day_label( (string) $days_keys[ $n - 1 ] )
 	) ) . '</caption>';
@@ -409,7 +409,7 @@ function sn_public_stats_html() {
 	$window_label = sprintf( esc_html__( 'Last %d days', 'signal-and-noise-tools' ), (int) $data['days'] );
 
 	$tiles = array(
-		array( $data['views'], __( 'Views', 'signal-and-noise-tools' ), __( 'human pageviews', 'signal-and-noise-tools' ), '' ),
+		array( $data['views'], __( 'Views', 'signal-and-noise-tools' ), __( 'presumed human pageviews (not flagged as automated)', 'signal-and-noise-tools' ), '' ),
 		array( $data['visits'], __( 'Visits', 'signal-and-noise-tools' ), __( 'times a reader came to the site; reading several pages in one sitting counts once', 'signal-and-noise-tools' ) . sn_public_stats_coverage_note( $data ), '' ),
 		array( $data['automated_views'], __( 'Automated', 'signal-and-noise-tools' ), __( 'crawler and bot views, filtered OUT of the numbers to the left', 'signal-and-noise-tools' ), ' sn-public-stats__tile--dim' ),
 	);

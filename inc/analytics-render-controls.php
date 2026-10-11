@@ -194,7 +194,7 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $c
 	echo '</details>';
 
 	// Class pills.
-	$class_labels = array( 'human' => 'Human', 'suspect' => 'Suspect', 'bot' => 'Bot' );
+	$class_labels = array( 'human' => 'Presumed human', 'suspect' => 'Suspect', 'bot' => 'Bot' );
 	echo '<div class="sn-control-group" role="group" aria-label="' . esc_attr__( 'Traffic class', 'signal-and-noise-tools' ) . '">';
 	echo '<span class="sn-control-label">' . esc_html__( 'Class', 'signal-and-noise-tools' ) . '</span>';
 	echo '<span class="button-group">';

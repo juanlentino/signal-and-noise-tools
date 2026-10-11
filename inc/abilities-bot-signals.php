@@ -105,7 +105,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/bot-signals', array(
 		'label'               => 'Beacon Bot Signals',
-		'description'         => 'Observe-only readout of the beacon bot signals over the last 14 days, per visitor-day that carried them: human.visitor_days and human.likely_automated (score = sum of weights of fired bits >= threshold; NOT subtracted from any count), and per cohort (relay, intent, stored_bot, over_cap, hosting) n, fired and rate (percent of that cohort\'s visitor-days) for each signal: webdriver, no_input, ua_mismatch, headless, tz_mismatch. days_present counts UTC days carrying any signal row; truncated means the visitor-day list hit its row limit. measured:false means nothing has been stored yet. Read-only; stored nightly. Read it through sn-status{bot_signals}.',
+		'description'         => 'Observe-only readout of the beacon bot signals over the last 14 days, per visitor-day that carried them: human.visitor_days (presumed human, not flagged) and human.likely_automated (score = sum of weights of fired bits >= threshold; NOT subtracted from any count), and per cohort (relay, intent, stored_bot, over_cap, hosting) n, fired and rate (percent of that cohort\'s visitor-days) for each signal: webdriver, no_input, ua_mismatch, headless, tz_mismatch. days_present counts UTC days carrying any signal row; truncated means the visitor-day list hit its row limit. measured:false means nothing has been stored yet. Read-only; stored nightly. Read it through sn-status{bot_signals}.',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_bot_signals',

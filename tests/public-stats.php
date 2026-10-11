@@ -217,7 +217,7 @@ ok( false !== strpos( $html3, 'aria-hidden="true"' ) && false !== strpos( $html3
 ok( false === strpos( $html3, '<details' ) && false === strpos( $html3, '<summary' ), 'the calendar is VISIBLE: not folded behind a details (owner call)' );
 ok( 1 === preg_match( '/<div class="sn-public-stats__twin"[^>]*><table>/', $html3 ), 'the calendar table sits in a plain scroll wrapper' );
 ok( false === strpos( $html3, 'screen-reader-text' ) && false === strpos( $html3, 'visually-hidden' ), 'and is not visually hidden' );
-ok( false !== strpos( $html3, '<caption id="sn-public-stats-calendar">Daily human pageviews' ), 'the calendar keeps its caption, and the scroll region is named by it' );
+ok( false !== strpos( $html3, '<caption id="sn-public-stats-calendar">Daily presumed human pageviews' ), 'the calendar keeps its caption, and the scroll region is named by it' );
 // The twin is CALENDAR-shaped (owner call after the live 30-row column read
 // as a wall): weeks as rows, weekdays as columns. This is MORE navigable,
 // not merely shorter — a screen reader announces every cell with its row
@@ -296,7 +296,9 @@ ok( false !== strpos( $h, '<dt>Average depth reached</dt><dd>48%</dd>' ) && fals
 ok( false !== strpos( $h, '<dt>One page only</dt>' ), 'one page only, from the session rollup' );
 
 // Humans and machines.
-ok( false !== strpos( $h, '>4,200<' ) && false !== strpos( $h, '>Human views<' ), 'human views against machine reads' );
+ok( false !== strpos( $h, '>4,200<' ) && false !== strpos( $h, '>Presumed human views<' ), 'presumed human views against machine reads' );
+// Unreleased: the human class is presumed (not flagged as automated), and the page says so.
+ok( false !== strpos( $h, 'presumed human pageviews (not flagged as automated)' ), 'the Views tile says what human means' );
 ok( false !== strpos( $h, 'Verified by Cloudflare' ) && false !== strpos( $h, '>50%<' ) && false !== strpos( $h, 'Named themselves, not verified' ) && false !== strpos( $h, '>10%<' ), 'the identity split as shares of machine reads' );
 ok( false !== strpos( $h, 'Automated counts bot pageviews that reached the tracker. Machine reads count every request the edge sensor saw. They are different measures.' ), 'the one line that keeps Automated and machine reads apart' );
 ok( false !== strpos( $h, '<a href="https://github.com/juanlentino/signal-and-noise-provenance">Public ledger</a>' ), 'the public ledger link' );

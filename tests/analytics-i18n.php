@@ -124,8 +124,8 @@ $html = capture( function () {
 		'top_bot_networks' => array( array( 'value' => 'BadNet', 'views' => 2 ) ),
 	) );
 } );
-ok( sn_i18n_seen( 'Human' ) && sn_i18n_seen( 'Suspect' ) && sn_i18n_seen( 'Bot' ), 'quality legend words translatable' );
-ok( false !== strpos( $html, '</span> Human 4' ), 'legend English byte-identical' );
+ok( sn_i18n_seen( 'Presumed human' ) && sn_i18n_seen( 'Suspect' ) && sn_i18n_seen( 'Bot' ), 'quality legend words translatable (Unreleased: the human class reads as presumed human)' );
+ok( false !== strpos( $html, '</span> Presumed human 4' ), 'legend English byte-identical (Unreleased: Human -> Presumed human)' );
 ok( sn_i18n_seen( 'Top bot networks' ) && sn_i18n_seen( 'Network' ), 'bot-networks subhead + header translatable' );
 capture( function () { snt_analytics_render_bot_breakdown( array( 'totals' => array() ) ); } );
 ok( sn_i18n_seen( 'No traffic recorded in this range yet.' ), 'quality empty why translatable' );
