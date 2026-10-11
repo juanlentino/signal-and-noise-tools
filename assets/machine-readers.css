@@ -94,3 +94,5 @@
 .sn-mr-settings .sn-field { margin-bottom: 16px; }
 .sn-mr-settings .sn-field-label { align-items: center; display: flex; gap: 8px; }
 .sn-mr-settings input:disabled { background: #f6f7f7; color: #8c8f94; }
+/* The way from this configuration leaf to the readings, in S&N Analytics. */
+.sn-mr-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }

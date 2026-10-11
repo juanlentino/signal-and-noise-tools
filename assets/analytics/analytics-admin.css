@@ -736,10 +736,10 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .snt-evidence__seg[data-part="unverifiable"] { box-sizing: border-box; background: none; border: 1px dashed var( --os-ui-border-strong, #6b6672 ); }
 .snt-evidence-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0; font-size: 12px; color: var( --os-ui-fg-muted, inherit ); }
 .snt-evidence-legend__item { display: inline-flex; align-items: center; gap: 6px; }
-.snt-evidence-legend__swatch { display: inline-block; flex: 0 0 10px; width: 10px; height: 10px; border-radius: 3px; }
+.snt-evidence-legend__swatch { display: inline-block; flex: 0 0 10px; width: 10px; height: 10px; border-radius: var(--sn-an-radius); }
 .snt-evidence-none, .snt-ev-muted { font-size: 12px; color: var( --os-ui-fg-muted, inherit ); }
 .snt-ev-muted { margin: 6px 0 0; }
-.snt-ev-hero--band { position: relative; isolation: isolate; overflow: hidden; margin-block-end: 18px; padding: 16px; border: 1px solid var( --os-ui-border, rgba( 127, 127, 127, 0.25 ) ); border-radius: 12px; box-shadow: var( --os-ui-holo-edge, none ); }
+.snt-ev-hero--band { position: relative; isolation: isolate; overflow: hidden; margin-block-end: 18px; padding: 16px; border: 1px solid var( --os-ui-border, rgba( 127, 127, 127, 0.25 ) ); border-radius: var(--sn-an-radius); box-shadow: var( --os-ui-holo-edge, none ); }
 .snt-ev-mesh { position: absolute; z-index: -1; inset: 0; background: var( --os-ui-hero-mesh, none ); }
 .snt-ev-band { display: grid; grid-template-columns: minmax( 140px, 1fr ) 3fr; gap: 12px 24px; padding: 16px 0; border-top: 1px solid var( --os-ui-border, rgba( 127, 127, 127, 0.25 ) ); }
 .snt-ev-band__h { margin: 0; font-size: 13px; font-weight: 600; }
@@ -753,6 +753,8 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .snt-ev-bar > span { display: block; width: var( --w ); min-width: 3px; height: 100%; background: var( --os-ui-fg-muted, #6b6672 ); }
 .snt-ev-rank__n { font-variant-numeric: tabular-nums; }
 /* The basis chip, classic twin of os-chip (inc/evidence-kit.php snt_basis_chip). */
-.sn-mr-chip { display: inline-block; padding: 1px 8px; border: 1px solid #c3c4c7; border-radius: 999px; background: #f6f7f7; color: #50575e; font-size: 11px; line-height: 18px; }
-.sn-mr-chip[data-tone="success"] { border-color: #00a32a; background: #edfaef; color: #007017; }
-.sn-mr-chip[data-tone="info"] { border-color: #2271b1; background: #f0f6fc; color: #135e96; }
+.sn-mr-chip { display: inline-block; padding: 1px 8px; border: 1px solid var(--sn-an-hairline); border-radius: 999px; background: #f6f7f7; color: var(--sn-an-muted); font-size: 11px; line-height: 18px; }
+.sn-mr-chip[data-tone="success"] { border-color: var(--sn-an-up); background: #edfaef; color: var(--sn-an-up); }
+.sn-mr-chip[data-tone="info"] { border-color: var(--sn-an-accent); background: #f0f6fc; color: var(--sn-an-accent); }
+/* A stat tile's caption on the classic machine views (inc/evidence-paint-surface.php snt_ev_stat). */
+.sn-kpi-caption { margin: 4px 0 0; font-size: 12px; color: var(--sn-an-muted); }

@@ -98,7 +98,7 @@ function snt_ev_paint_delta_cards( array $cards, $surface = 'kit' ) {
 	$out = '';
 	foreach ( $cards as $c ) {
 		$body = '<b>' . esc_html( (string) ( $c['title'] ?? '' ) ) . '</b>' . ( '' !== (string) ( $c['detail'] ?? '' ) ? ' ' . esc_html( (string) $c['detail'] ) : '' );
-		$out .= 'kit' === $surface ? snt_kit_notice( 'info', $body ) : '<div class="notice notice-info inline"><p>' . $body . '</p></div>';
+		$out .= 'kit' === $surface ? snt_kit_notice( 'info', $body ) : wp_get_admin_notice( $body, array( 'type' => 'info', 'additional_classes' => array( 'inline' ) ) );
 	}
 	return $out;
 }

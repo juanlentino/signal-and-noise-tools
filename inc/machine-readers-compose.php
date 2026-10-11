@@ -55,7 +55,7 @@ function snt_mr_compose_tab( $ctx ) {
 	foreach ( (array) ( $ctx['verdicts'] ?? array() ) as $heading => $v ) {
 		$tone   = 'good' === ( $v['status'] ?? '' ) ? 'success' : ( 'critical' === ( $v['status'] ?? '' ) ? 'error' : 'warning' );
 		$boxes .= '<div class="sn-fieldset"><h3 class="sn-fieldset-h">' . esc_html( (string) $heading ) . '</h3>'
-			. '<div class="notice notice-' . esc_attr( $tone ) . ' inline"><p>' . esc_html( (string) ( $v['summary'] ?? '' ) ) . '</p></div></div>';
+			. wp_get_admin_notice( esc_html( (string) ( $v['summary'] ?? '' ) ), array( 'type' => $tone, 'additional_classes' => array( 'inline' ) ) ) . '</div>';
 	}
 	if ( '' !== $boxes ) {
 		$out .= '<div class="sn-2up sn-mr-2up">' . $boxes . '</div>';

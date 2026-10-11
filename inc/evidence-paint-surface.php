@@ -20,7 +20,7 @@ function snt_ev_box( $surface, $heading, $inner ) {
 	if ( 'kit' === $surface ) {
 		return snt_kit_section( $heading, $inner );
 	}
-	return '<div class="sn-fieldset sn-ev-box"><h3 class="sn-fieldset-h">' . esc_html( $heading ) . '</h3>' . $inner . '</div>';
+	return '<div class="sn-fieldset"><h3 class="sn-fieldset-h">' . esc_html( $heading ) . '</h3>' . $inner . '</div>';
 }
 
 /** The one-sentence finding a box leads with. */
@@ -30,7 +30,7 @@ function snt_ev_lead( $surface, $text ) {
 
 /** A verdict that IS a finding (warning tone), as a notice on either surface. */
 function snt_ev_verdict( $surface, $html ) {
-	return 'kit' === $surface ? snt_kit_notice( 'warn', $html ) : '<div class="notice notice-warning inline"><p>' . $html . '</p></div>';
+	return 'kit' === $surface ? snt_kit_notice( 'warn', $html ) : wp_get_admin_notice( $html, array( 'type' => 'warning', 'additional_classes' => array( 'inline' ) ) );
 }
 
 /** Two boxes on one row (one column when narrow); a lone box stands alone. */
@@ -38,7 +38,7 @@ function snt_ev_pair( $surface, $a, $b ) {
 	if ( '' === (string) $a || '' === (string) $b ) {
 		return (string) $a . (string) $b;
 	}
-	return 'kit' === $surface ? snt_kit_grid( array( $a, $b ) ) : '<div class="sn-2up sn-ev-pair">' . $a . $b . '</div>';
+	return 'kit' === $surface ? snt_kit_grid( array( $a, $b ) ) : '<div class="sn-2up">' . $a . $b . '</div>';
 }
 
 /** A stat tile; $chip is a painted basis chip or ''. */
@@ -77,7 +77,7 @@ function snt_ev_table( $surface, array $columns, array $rows, $more = 0, $captio
 		}
 		return snt_kit_table( $cols, $rows, array( 'stack_on_phone' => true ) ) . $tail;
 	}
-	$out = '<table class="widefat striped sn-an-table sn-ev-table"><caption class="screen-reader-text">' . esc_html( $caption ) . '</caption><thead><tr>';
+	$out = '<table class="widefat striped sn-an-table"><caption class="screen-reader-text">' . esc_html( $caption ) . '</caption><thead><tr>';
 	foreach ( $columns as $label ) {
 		$out .= '<th scope="col">' . esc_html( $label ) . '</th>';
 	}

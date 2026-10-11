@@ -35,8 +35,10 @@ the page, not just here.
 
 | Where | What it shows |
 | --- | --- |
-| **Measurement, Machine Readers** (wp-admin tab) | The MIXED-leaf composition (v12.22.0, `docs/proposals/admin-leaf-composition-2026-08-23.md`), a readout that owns its own settings and therefore the one kind that earns a two-column row. A **full-width hero** first: the Sensor status pipeline (deployed sensor, read token, the read itself, crawler-list check) with the summary stat strip beneath it incl. feed fetches. The strip summarises the whole leaf, so it sits above both columns rather than at the top of one. Then one two-column row. **Left, wide, the evidence:** the rights-surface stream, showing EXTERNAL readers by default with this site's own CI traffic folded beneath it and declared by count (hidden, never dropped, and never subtracted from any figure, because a number that quietly stops counting part of its population makes comparison across the change invalid); then the family delta cards and the unclassified-user-agent review list. **Right, narrow, reference**, every table behind a closed disclosure, since folded reference is what keeps the two columns the same order of height: reads by purpose with the first-party exclusion stated underneath; reads by agent and purpose; reads per family; reads per surface class; the observed vs declared compliance read; AI-training reads counted both ways (frozen family vs declared purpose) with the gap named rather than reconciled; and the feed-fetch windows (fetches are never summed with crawler reads). A section that renders nothing produces no fold at all. Below the folds, the read-only Edge sensor readout over the Sensor settings form. |
-| **SN Provenance** (Desktop Mode tile; SN Machine Readers from v10.1.0, folded into it on 2026-10-04) | A glance under the anchors: machine reads in the window, the identity split, declared AI-training reads, and the crawler-list verdict only when it is not in sync, served by `/wp-json/signal-noise/v1/desktop/machine-readers`. The rest is one link away on the leaf. |
+| **S&N Analytics, Machine readers** (view; native painter `apps/sn-analytics/parts/painters/view-machine-readers.php`, classic body `inc/analytics-view-machine-readers.php`) | Who reads, and for what. Its own 7/14/30/90-day window (a longer page range opens at 90 days and says so). A hero band: the evidence legend, the headline tiles, and one finding built from the payload (training reads claimed, the control-token reads taken out, how many Cloudflare verified and from whose network), linking to Reader evidence. Then the family delta cards; Who reads beside What for (each family and purpose with its evidence strip); Rights files beside Feed fetches; and the reference bands (observed vs declared, AI-training counted both ways, agent by purpose, surfaces), each capped with a "+N more" line. No folds. |
+| **S&N Analytics, Reader evidence** (view; `view-reader-evidence.php`, `inc/analytics-view-reader-evidence.php`) | How each count is known. Claim against proof (two tiles, the strip, the since line); Signed beside Verified, and the line that tells them apart; the split by family and by purpose; control tokens; "Is this crawler real" (named agents with reads Cloudflare did not verify, each with its top network); the unnamed samples with their verified reads and networks; and reader anomalies (a two-series verified and unverified day histogram on the native surface, a day table on the classic one, then the co-movement verdicts). |
+| **Monitoring, Machine Readers** (S&N Dashboard leaf and wp-admin tab) | Configuration only since the evidence-basis arc: the sensor status pills with the two links "Machine readers in S&N Analytics" and "Reader evidence in S&N Analytics", the two Site Health verdicts (crawler-list drift, reader anomalies), the Edge sensor readout beside the Sensor settings form (`sn_action=machine_readers_save`, unchanged), and the monthly rights evidence, which stays here because it posts forms. Before the arc this leaf was the MIXED composition of v12.22.0 (`docs/proposals/admin-leaf-composition-2026-08-23.md`); every reading it carried now lives in one of the two views above. |
+| **SN Provenance** (Desktop Mode tile; SN Machine Readers from v10.1.0, folded into it on 2026-10-04) | A glance under the anchors: machine reads in the window, the identity split (this site’s own tools a part of their own, not readership), AI-training reads as "N claimed · M verified" with a small evidence strip, the top reader family (first-party and control tokens out), and the crawler-list verdict only when it is not in sync, served by `/wp-json/signal-noise/v1/desktop/machine-readers`. Its link opens Machine readers in S&N Analytics. |
 | **Content Health, Rights signals** | A separate drift probe ([`inc/health-check-rights-signals.php`](../inc/health-check-rights-signals.php)) that verifies the rights surfaces themselves are still standing. It is a sibling of this surface, not part of it. |
 
 WordPress stores none of this data. Every number on the tab is a live read of the
@@ -360,6 +362,23 @@ with `verified_hits`, `not_measured` and its top 5 networks. A worker before
 1.30.0 ignores the parameter, sends no `detail` in the envelope, and the list
 reads `verified_hits: null`, `basis: unmeasured`, never 0. The admin review
 list keeps reading the default view (the top 50).
+
+### Where it is painted
+
+The two S&N Analytics views (see the surfaces table) paint the split with one
+primitive, the evidence strip (`snt_evidence_strip()`, `inc/evidence-kit.php`):
+a bar whose parts are verified (solid), unverified (hatched) and unverifiable
+(dashed outline), with the counts as text beside it, so the bar is never the
+only carrier of a number (it is `aria-hidden`). A view states the legend once
+(`snt_evidence_legend()`), and each count that has a basis carries a basis chip
+(`snt_basis_chip()`; `signed` reads as success, `verified` as info, the rest
+plain, `unmeasured` as "not measured"). A null split paints "not measured",
+never a zero bar.
+
+The summary gains `reader_families`: the top 3 third-party families by reads,
+first-party and control tokens out, each `{family, hits, verified}`. The
+desktop tile and the dashboard's Top families list read it, so the top family
+is a reader, not this site's own ledger verifier.
 
 ### Reader anomalies
 

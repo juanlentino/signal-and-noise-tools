@@ -52,7 +52,7 @@ ok( array( '/notes/foo/', '2026-08-07', '2026-09-05' ) === $GLOBALS['__win_args'
 ok( '312' === tile( $b[0], 'Views' )['value'] && '30 days' === tile( $b[0], 'Views' )['window'] && '187' === tile( $b[0], 'Visits' )['value'], 'views and visits, each naming the 30-day window' );
 ok( '120' === tile( $b[0], 'Impressions' )['value'] && '4' === tile( $b[0], 'Clicks' )['value'] && false !== strpos( tile( $b[0], 'Impressions' )['window'], '2026-08-05' ) && false !== strpos( tile( $b[0], 'Clicks' )['note'], '8.4' ), 'Search Console tiles name the SYNC window, not the switch, and carry the position' );
 ok( false !== strpos( $b[0]['door']['url'], 'sn_view=content' ) && false !== strpos( $b[0]['door']['url'], 'sn_range=30' ), 'the door lands on the Analytics content view for the window' );
-ok( 'neutral' === $b[1]['tone'] && false !== strpos( $b[1]['text'], 'Not counted per note' ) && false !== strpos( $b[1]['meta'], '72,597' ) && false !== strpos( $b[1]['door']['url'], 'machine-readers' ), 'machine reads: not counted per note, the site-wide figure named as such, a door to the leaf' );
+ok( 'neutral' === $b[1]['tone'] && false !== strpos( $b[1]['text'], 'Not counted per note' ) && false !== strpos( $b[1]['meta'], '72,597' ) && false !== strpos( $b[1]['door']['url'], 'page=sn-analytics' ) && false !== strpos( $b[1]['door']['url'], 'sn_view=machine-readers' ) && 'Open Machine readers in S&N Analytics' === $b[1]['door']['label'], 'machine reads: not counted per note, the site-wide figure named as such, a door to the Machine readers view in S&N Analytics' );
 
 echo "\nthe honest zeros\n";
 $GLOBALS['__win'] = array( 'views' => 0, 'visits' => 0, 'days' => 0, 'site_rows' => 40 );

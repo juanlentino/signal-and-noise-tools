@@ -151,6 +151,8 @@ namespace {
 		ok( false !== strpos( $ec, $needle ), "evidence classic: $what" );
 	}
 	ok( false !== strpos( $kit['reader-evidence'], '<os-histogram' ) && false !== strpos( $kit['reader-evidence'], 'legend' ), 'the anomalies are a two-series time histogram on the kit' );
+	$cards = snt_ev_paint_delta_cards( array( array( 'title' => 'GPTBot rose', 'detail' => 'by 40%' ) ), 'classic' );
+	ok( false !== strpos( snt_ev_verdict( 'classic', 'capped' ), 'notice notice-warning inline' ) && false !== strpos( $cards, 'notice notice-info inline' ) && false !== strpos( $cards, 'GPTBot rose' ), 'classic verdicts and delta cards are core notices (wp_get_admin_notice)' );
 
 	echo "\nResult: $pass passed, $fail failed.\n";
 	exit( $fail > 0 ? 1 : 0 );
