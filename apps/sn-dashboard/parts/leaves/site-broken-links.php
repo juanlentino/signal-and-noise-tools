@@ -19,10 +19,11 @@
  * same defect wearing different chrome.
  *
  * 2026-10-11 (owner rule: no collapsible sections): the per-path folds and the
- * probe fold became two tiles, one finding, the broken-path ledger with visible
- * row actions (site-broken-links-ledger.php), ONE create region for the path
- * `sn_edit` names (below), and the open probe ledger
- * (site-broken-links-probes.php). Handlers, field names and nonces untouched.
+ * probe fold became two tiles, one finding, the broken-path ledger with one
+ * visible row action each (site-broken-links-ledger.php), ONE region holding
+ * the create and dismiss forms for the path `sn_edit` names (below), and the
+ * open probe ledger (site-broken-links-probes.php). Handlers, field names and
+ * nonces untouched.
  *
  * @package SignalNoiseTools
  * @since 13.109.8
@@ -55,8 +56,9 @@ function broken_links_intro_html() {
 }
 
 /**
- * The ONE create-redirect region, for the path `sn_edit` names: the
- * redirect_add form prefilled with the slug suggestion, and a Cancel.
+ * The ONE region for the path `sn_edit` names, holding every write for it:
+ * the redirect_add form prefilled with the slug suggestion, the
+ * redirect_404_delete Dismiss with one line saying what it does, and a Cancel.
  *
  * @param string              $path      The 404'd path (a key the log holds).
  * @param array<string,mixed> $e         count, last_seen, referer.
@@ -73,8 +75,10 @@ function broken_links_create_html( $path, array $e, $suggested ) {
 	$last   = (int) ( $e['last_seen'] ?? 0 );
 	return \snt_kit_section(
 		/* translators: %s: the broken path. */
-		sprintf( __( 'New redirect for %s', 'signal-and-noise-tools' ), $path ),
+		sprintf( __( 'Fixing %s', 'signal-and-noise-tools' ), $path ),
 		\snt_kit_form( 'redirect_add', $fields, array( 'submit' => __( 'Create redirect', 'signal-and-noise-tools' ) ) )
+			. '<p class="snt-hint">' . \snt_kit_esc( __( 'Dismiss removes the path from the log without a redirect.', 'signal-and-noise-tools' ) ) . '</p>'
+			. \snt_kit_form( 'redirect_404_delete', \snt_kit_field( 'hidden', 'source', '', $path ), array( 'submit' => __( 'Dismiss', 'signal-and-noise-tools' ) ) )
 			. \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'broken-links' ) ) ),
 		sprintf(
 			/* translators: 1: "7 hits", 2: date of the latest hit (Y-m-d), 3: "from <host>" or "no referrer recorded". */
@@ -88,8 +92,8 @@ function broken_links_create_html( $path, array $e, $suggested ) {
 }
 
 /**
- * The leaf, top-down: the reading, the broken-path ledger, the ONE create
- * region (when `sn_edit` names a broken path), the probe ledger, and the
+ * The leaf, top-down: the reading, the broken-path ledger, the ONE region
+ * (when `sn_edit` names a broken path), the probe ledger, and the
  * whole-log clear last.
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.

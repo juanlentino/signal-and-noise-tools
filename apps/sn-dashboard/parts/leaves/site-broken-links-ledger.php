@@ -1,13 +1,13 @@
 <?php
 /**
- * S&N Dashboard, Site → Broken links: the reading, the broken-path ledger and
- * the ONE create-redirect region below it.
+ * S&N Dashboard, Site → Broken links: the reading and the broken-path ledger.
  *
  * 2026-10-11 (owner rule: no collapsible sections). Every broken path used to
  * be a fold holding its own create form and dismiss form, 25 of them live.
- * Now: two tiles, one finding, ONE kit table busiest first with visible row
- * actions (Redirect sets `sn_edit`; Dismiss is a tiny form in the cell), and
- * the create form only for the path `sn_edit` names. Required by
+ * Now: two tiles, one finding, ONE kit table busiest first whose rows carry
+ * ONE visible action (Fix, a `go` that sets `sn_edit`). Every write for that
+ * path, create or dismiss, sits in the ONE region below the table
+ * (site-broken-links.php). No form sits in a table cell. Required by
  * site-broken-links.php.
  *
  * @package SignalNoiseTools
@@ -64,7 +64,7 @@ function broken_links_reading_html( array $data ) {
 }
 
 /**
- * One table row: the path's figures and its two row actions.
+ * One table row: the path's figures and its one row action.
  *
  * @param string              $path      The 404'd path.
  * @param array<string,mixed> $e         count, last_seen, referer.
@@ -72,9 +72,7 @@ function broken_links_reading_html( array $data ) {
  * @return array<string,mixed>
  */
 function broken_links_row( $path, array $e, $suggested ) {
-	$redirect = \snt_kit_button( __( 'Redirect', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'broken-links', 'sn_edit' => $path ) ) );
-	$dismiss  = \snt_kit_form( 'redirect_404_delete', \snt_kit_field( 'hidden', 'source', '', $path ), array( 'submit' => __( 'Dismiss', 'signal-and-noise-tools' ) ) );
-	$last     = (int) ( $e['last_seen'] ?? 0 );
+	$last = (int) ( $e['last_seen'] ?? 0 );
 	return array(
 		'_key'      => $path,
 		'path'      => $path,
@@ -83,7 +81,7 @@ function broken_links_row( $path, array $e, $suggested ) {
 		'referrer'  => broken_links_referrer( $e, __( 'none recorded', 'signal-and-noise-tools' ) ),
 		'suggested' => '' !== $suggested ? $suggested : __( 'no close match', 'signal-and-noise-tools' ),
 		'actions'   => array(
-			'html' => '<os-cluster gap="8">' . $redirect . $dismiss . '</os-cluster>',
+			'html' => \snt_kit_button( __( 'Fix', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'broken-links', 'sn_edit' => $path ) ) ),
 			'text' => '',
 		),
 	);
@@ -130,6 +128,6 @@ function broken_links_paths_html( array $broken ) {
 		'<p class="snt-prose">' . \snt_kit_esc( $finding ) . '</p>'
 			. \snt_kit_table( $columns, $rows, array( 'stack_on_phone' => true ) )
 			. \snt_kit_more( $n - count( $rows ), $more ),
-		__( 'Busiest first. Redirect opens one form below the table; creating the redirect clears the path from this list.', 'signal-and-noise-tools' )
+		__( 'Busiest first. Fix opens the path below the table, to redirect it or dismiss it; either clears it from this list.', 'signal-and-noise-tools' )
 	);
 }

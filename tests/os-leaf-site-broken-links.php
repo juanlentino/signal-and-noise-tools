@@ -46,6 +46,8 @@ function editing( $path ) { return snt_leaf_paint( 'site', 'broken-links', array
 function union( array $a, array $b ) { $u = array_values( array_unique( array_merge( $a, $b ) ) ); sort( $u ); return $u; }
 /** The table whose first column is labelled $first ('Path') and that has $n columns. */
 function table_of( $html, $n ) { foreach ( snt_leaf_tables( $html ) as $t ) { if ( $n === count( $t['columns'] ) ) { return $t; } } return array( 'columns' => array(), 'data' => array(), 'slots' => array() ); }
+/** Every `<os-form` inside a table slot cell: a write belongs in the ONE region below the table, never in a row. */
+function slot_forms( $html ) { $n = 0; foreach ( snt_leaf_tables( $html ) as $t ) { foreach ( $t['slots'] as $slot ) { $n += substr_count( $slot, '<os-form' ); } } return $n; }
 function styled( $html ) { return false !== strpos( (string) preg_replace( '/<os-grid [^>]*>/', '', $html ), ' style="' ); }
 $t0 = 1725000000; $t1 = $t0 + DAY_IN_SECONDS; $d0 = gmdate( 'Y-m-d', $t0 ); $d1 = gmdate( 'Y-m-d', $t1 );
 // The broken-links leaf owns the three 404 actions, plus redirect_add (a
@@ -69,7 +71,8 @@ ok( '' !== $kit && '' !== $kit_ed, 'the kit leaf paints, default and editing' );
 ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_folds( $kit_ed ), 'no fold in the default or the editing paint: ' . implode( ',', array_merge( snt_leaf_folds( $kit ), snt_leaf_folds( $kit_ed ) ) ) );
 ok( snt_leaf_names( $classic ) === union( snt_leaf_names( $kit ), snt_leaf_names( $kit_ed ) ), 'field names match the classic forms across both paints: ' . implode( ',', union( snt_leaf_names( $kit ), snt_leaf_names( $kit_ed ) ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( $all_actions === union( snt_leaf_actions( $kit ), snt_leaf_actions( $kit_ed ) ) && snt_leaf_actions( $classic ) === $all_actions, 'the four actions match the classic leaf across both paints: ' . implode( ',', union( snt_leaf_actions( $kit ), snt_leaf_actions( $kit_ed ) ) ) );
-ok( array( 'redirect_404_clear', 'redirect_404_clear_probes', 'redirect_404_delete' ) === snt_leaf_actions( $kit ) && in_array( 'redirect_add', snt_leaf_actions( $kit_ed ), true ), '...the default paint offers no create form; the editing paint does: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( array( 'redirect_404_clear', 'redirect_404_clear_probes' ) === snt_leaf_actions( $kit ), '...the default paint offers only the two bulk actions: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( in_array( 'redirect_add', snt_leaf_actions( $kit_ed ), true ) && in_array( 'redirect_404_delete', snt_leaf_actions( $kit_ed ), true ), '...the editing paint adds create and dismiss for the open path: ' . implode( ',', snt_leaf_actions( $kit_ed ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ) && ! styled( $kit ) && ! styled( $kit_ed ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
 // The reading: two tiles (broken, with attention; probes, without), then the finding.
@@ -86,21 +89,23 @@ ok( '/notes/desing-tokens' === ( $r0['path'] ?? '' ) && '/contact-us' === ( $r1[
 ok( 7 === ( $r0['hits'] ?? null ) && $d0 === ( $r0['last'] ?? '' ) && 'ref.example' === ( $r0['referrer'] ?? '' ) && '/notes/design-tokens' === ( $r0['suggested'] ?? '' ), 'a row carries hits, last date, referring host and the slug suggestion: ' . wp_json_encode( $r0 ) );
 ok( 2 === ( $r1['hits'] ?? null ) && $d1 === ( $r1['last'] ?? '' ) && 'none recorded' === ( $r1['referrer'] ?? '' ) && '/contact' === ( $r1['suggested'] ?? '' ), '...and a missing referrer reads "none recorded", never blank' );
 $cell = snt_leaf_cell_html( $broken, $r0['actions'] ?? null );
-ok( false !== strpos( $cell, '<os-button variant="ghost" os-action="go" os-arg-sub="broken-links" os-arg-sn_edit="/notes/desing-tokens">Redirect</os-button>' ), 'the row action Redirect is a visible go button naming its path' );
-$dismiss = form_block( $cell, 'Dismiss' );
-ok( '' !== $dismiss && false !== strpos( $dismiss, '<input type="hidden" name="source" value="/notes/desing-tokens"><input type="hidden" name="action" value="sn_redirect_404_delete">' ) && false === strpos( $dismiss, 'os-confirm' ), 'the row Dismiss is a tiny unconfirmed form (redirect_404_delete) carrying its path' );
-ok( false === strpos( $kit, 'submit-label="Create redirect"' ) && false === strpos( $kit, 'quieter paths' ), 'the default paint stacks no create form, and no "+N more" under the cap' );
+ok( '<os-button variant="ghost" os-action="go" os-arg-sub="broken-links" os-arg-sn_edit="/notes/desing-tokens">Fix</os-button>' === $cell, 'a row carries ONE visible action, Fix, a go button naming its path: ' . substr( $cell, 0, 160 ) );
+ok( 0 === slot_forms( $kit ) && 0 === slot_forms( $kit_ed ), 'no table cell holds a form, default or editing: ' . slot_forms( $kit ) . ' / ' . slot_forms( $kit_ed ) );
+ok( false === strpos( $kit, 'submit-label="Create redirect"' ) && false === strpos( $kit, 'submit-label="Dismiss"' ) && false === strpos( $kit, 'name="source"' ) && false === strpos( $kit, 'quieter paths' ), 'the default paint stacks no form at all, and no "+N more" under the cap' );
 
-// The editing paint: ONE create region below the table, prefilled with the suggestion.
-ok( 1 === substr_count( $kit_ed, 'submit-label="Create redirect"' ) && false !== strpos( $kit_ed, 'heading="New redirect for /notes/desing-tokens"' ) && before( $kit_ed, '<os-table', 'heading="New redirect for' ) && before( $kit_ed, 'heading="New redirect for', 'heading="Automated probes"' ), 'editing paints ONE create region, right below the broken table' );
+// The editing paint: ONE region below the table, create (prefilled) and dismiss.
+ok( 1 === substr_count( $kit_ed, 'submit-label="Create redirect"' ) && false !== strpos( $kit_ed, 'heading="Fixing /notes/desing-tokens"' ) && before( $kit_ed, '<os-table', 'heading="Fixing' ) && before( $kit_ed, 'heading="Fixing', 'heading="Automated probes"' ), 'editing paints ONE region, right below the broken table' );
 ok( false !== strpos( $kit_ed, 'description="7 hits, last ' . $d0 . ', from ref.example."' ), '...its description carries the hits, the last date and the referring host' );
 $create = form_block( $kit_ed, 'Create redirect' );
 ok( false !== strpos( $create, '<os-field-row label="Redirect to" hint="Suggested from your published slugs (closest match); review before creating."><os-text-field name="target" type="text" value="/notes/design-tokens"' ), 'the create form is prefilled with the slug suggestion and says so' );
 ok( false !== strpos( $create, '<input type="hidden" name="source" value="/notes/desing-tokens">' ) && false !== strpos( $create, 'name="action" value="sn_redirect_add"' ), '...and posts redirect_add with the path hidden' );
+$dismiss = form_block( $kit_ed, 'Dismiss' );
+ok( '' !== $dismiss && false !== strpos( $dismiss, '<input type="hidden" name="source" value="/notes/desing-tokens"><input type="hidden" name="action" value="sn_redirect_404_delete">' ) && false === strpos( $dismiss, 'os-confirm' ) && before( $kit_ed, 'submit-label="Create redirect"', 'submit-label="Dismiss"' ), 'Dismiss lives in the region too: unconfirmed (redirect_404_delete), carrying the path, after the create form' );
+ok( false !== strpos( $kit_ed, '<p class="snt-hint">Dismiss removes the path from the log without a redirect.</p>' ) && 2 === substr_count( $kit_ed, 'name="source" value="/notes/desing-tokens"' ) && false === strpos( $kit_ed, 'name="source" value="/contact-us"' ), '...said in one line; only the open path is bound, to its create and its dismiss form' );
 ok( false !== strpos( $kit_ed, '<os-button variant="ghost" os-action="go" os-arg-sub="broken-links">Cancel</os-button>' ), 'Cancel is a go that clears the param' );
-ok( false !== strpos( editing( '/contact-us' ), 'description="2 hits, last ' . $d1 . ', no referrer recorded."' ), 'a path with no referrer says so in its create region' );
+ok( false !== strpos( editing( '/contact-us' ), 'description="2 hits, last ' . $d1 . ', no referrer recorded."' ), 'a path with no referrer says so in its region' );
 $unknown = editing( '/nope' );
-ok( false === strpos( $unknown, 'Create redirect' ) && false === strpos( $unknown, 'New redirect for' ) && array() === snt_leaf_folds( $unknown ), 'an unknown sn_edit paints no create region' );
+ok( false === strpos( $unknown, 'Create redirect' ) && false === strpos( $unknown, 'submit-label="Dismiss"' ) && false === strpos( $unknown, 'Fixing' ) && array() === snt_leaf_folds( $unknown ), 'an unknown sn_edit paints no region' );
 
 // The probes: one finding, a capped ledger, the bulk dismiss. Open.
 ok( false !== strpos( $kit, '<p class="snt-prose">30 automated probes made 465 hits on paths that resemble nothing published here: scanner traffic, not broken links, so no action is needed.</p>' ) && false !== strpos( $kit, 'heading="Automated probes"' ), 'the probe section counts the probes and their hits in one sentence' );
@@ -123,7 +128,7 @@ ok( substr_count( $kit, '&lt;script&gt;' ) >= 2, '...they are escaped, not dropp
 // The fixture must REACH the markup for the escaping pins to mean anything:
 // v13.109.9 rejects any path containing a parenthesis, and `alert(1)` has two.
 ok( in_array( '/y"><script>alert1</script>', array_column( table_of( $kit, 2 )['data'], 'path' ), true ) && '/notes/design-tokens"><b>' === ( table_of( $kit, 6 )['data'][0]['path'] ?? '' ), '...and they REACHED the probe and broken tables, so the pins are not vacuous' );
-ok( false !== strpos( $kit_ed, 'heading="New redirect for /notes/design-tokens&quot;&gt;&lt;b&gt;"' ), '...the create heading escapes it' );
+ok( false !== strpos( $kit_ed, 'heading="Fixing /notes/design-tokens&quot;&gt;&lt;b&gt;"' ), '...the region heading escapes it' );
 ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_folds( $kit_ed ) && array() === snt_leaf_classic_markers( $kit ) && ! styled( $kit ), 'no fold and no wp-admin markup (hostile)' );
 
 // ── Empty state: nothing broken, nothing probed: two zero tiles, measured.
@@ -200,7 +205,7 @@ $kit_ed = editing( (string) array_key_first( $data['broken'] ) );
 ok( 31 === count( $data['broken'] ) && 40 === count( $data['probes'] ), 'live-shaped sanity: 31 broken and 40 probes survive the capture filter and the partition -- ' . count( $data['broken'] ) . ' / ' . count( $data['probes'] ) );
 ok( false !== strpos( $kit, '<os-stat value="31" label="Broken paths"' ) && false !== strpos( $kit, '<os-stat value="40" label="Automated probes"' ), 'live-shaped: the tiles read 31 broken and 40 probes' );
 ok( 25 === count( table_of( $kit, 6 )['data'] ) && false !== strpos( $kit, '+6 quieter paths are not listed.' ) && 25 === count( table_of( $kit, 2 )['data'] ) && false !== strpos( $kit, '+15 more probed paths' ), 'live-shaped: both ledgers capped at 25, each with its "+N more"' );
-ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_folds( $kit_ed ) && 1 === substr_count( $kit_ed, 'submit-label="Create redirect"' ), 'live-shaped: fold-free, and editing paints ONE create form' );
+ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_folds( $kit_ed ) && 1 === substr_count( $kit_ed, 'submit-label="Create redirect"' ) && 1 === substr_count( $kit_ed, 'submit-label="Dismiss"' ) && 0 === slot_forms( $kit ), 'live-shaped: fold-free, no form in any row, and editing paints ONE region (create + dismiss)' );
 snt_leaf_preview( 'site-broken-links', $kit );
 snt_leaf_preview( 'site-broken-links-editing', $kit_ed );
 

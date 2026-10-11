@@ -41,6 +41,8 @@ function union( array $a, array $b ) { $u = array_values( array_unique( array_me
 /** The rules table: the first os-table the leaf paints. */
 function rules_table( $html ) { $t = snt_leaf_tables( $html ); return $t[0] ?? array( 'columns' => array(), 'data' => array(), 'slots' => array() ); }
 /** No inline style, except the tile row's item count (snt_kit_grid() paints it; the kit owns that). */
+/** Every `<os-form` inside a table slot cell: a write belongs in the ONE region below the table, never in a row. */
+function slot_forms( $html ) { $n = 0; foreach ( snt_leaf_tables( $html ) as $t ) { foreach ( $t['slots'] as $slot ) { $n += substr_count( $slot, '<os-form' ); } } return $n; }
 function styled( $html ) { return false !== strpos( (string) preg_replace( '/<os-grid [^>]*>/', '', $html ), ' style="' ); }
 $t0 = 1725000000; $t1 = $t0 + DAY_IN_SECONDS; $d0 = gmdate( 'Y-m-d', $t0 ); $d1 = gmdate( 'Y-m-d', $t1 );
 // v13.109.8: the three redirect_404_* actions moved to the broken-links leaf.
@@ -63,8 +65,8 @@ ok( '' !== $kit && '' !== $kit_ed, 'the kit leaf paints, default and editing' );
 ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_folds( $kit_ed ), 'no fold in the default or the editing paint: ' . implode( ',', array_merge( snt_leaf_folds( $kit ), snt_leaf_folds( $kit_ed ) ) ) );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && snt_leaf_names( $classic ) === snt_leaf_names( $kit_ed ), 'field names match the classic forms in both paints: ' . implode( ',', snt_leaf_names( $kit ) ) . ' / ' . implode( ',', snt_leaf_names( $kit_ed ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( $all_actions === union( snt_leaf_actions( $kit ), snt_leaf_actions( $kit_ed ) ) && snt_leaf_actions( $classic ) === union( snt_leaf_actions( $kit ), snt_leaf_actions( $kit_ed ) ), 'the three actions match the classic leaf across both paints: ' . implode( ',', union( snt_leaf_actions( $kit ), snt_leaf_actions( $kit_ed ) ) ) );
-ok( array( 'redirect_add', 'redirect_delete' ) === snt_leaf_actions( $kit ), '...the default paint offers add and per-row delete: ' . implode( ',', snt_leaf_actions( $kit ) ) );
-ok( array( 'redirect_delete', 'redirect_update' ) === snt_leaf_actions( $kit_ed ), '...the editing paint offers update and per-row delete, not add: ' . implode( ',', snt_leaf_actions( $kit_ed ) ) );
+ok( array( 'redirect_add' ) === snt_leaf_actions( $kit ), '...the default paint offers only add: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( array( 'redirect_delete', 'redirect_update' ) === snt_leaf_actions( $kit_ed ), '...the editing paint offers update and delete, not add: ' . implode( ',', snt_leaf_actions( $kit_ed ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ) && ! styled( $kit ) && ! styled( $kit_ed ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, '<p class="snt-prose">' ) && false !== strpos( $kit, '<os-code>/new-page</os-code>' ) && false !== strpos( $kit, '<strong>Site → Broken links</strong>' ) && false === strpos( $kit, 'sidebar' ), 'the intro survives as prose with inline code, and names where the 404 log lives now' );
 
@@ -82,10 +84,9 @@ $row = $table['data'][0] ?? array();
 ok( 'https://example.com/moved' === ( $row['to'] ?? '' ) && '302 temporary' === ( $row['type'] ?? '' ) && $d1 === ( $row['added'] ?? '' ), 'a row carries the target, the type and the added date: ' . wp_json_encode( $row ) );
 ok( '/notes/design-tokens' === ( $table['data'][1]['to'] ?? '' ) && '301 permanent' === ( $table['data'][1]['type'] ?? '' ) && $d0 === ( $table['data'][1]['added'] ?? '' ), '...for every rule' );
 $cell = snt_leaf_cell_html( $table, $row['actions'] ?? null );
-ok( preg_match( '/<os-button variant="ghost" os-action="go" os-arg-sub="redirects" os-arg-sn_edit="\/second">Edit<\/os-button>/', $cell ), 'the row action Edit is a visible go button naming its rule: ' . substr( $cell, 0, 160 ) );
-$delete = form_block( $cell, 'Delete' );
-ok( '' !== $delete && false !== strpos( $delete, '<os-form os-confirm-title="Delete this redirect?" os-confirm-label="Delete" class="snt-form" os-action="post" submit-label="Delete"' ) && false !== strpos( $delete, 'os-confirm="This redirect will stop working immediately." os-confirm-danger>' ) && false !== strpos( $delete, 'name="action" value="sn_redirect_delete"' ) && false !== strpos( $delete, '<input type="hidden" name="source" value="/second">' ), 'the row Delete is a tiny form: it confirms as the classic button did and carries its own source' );
-ok( 1 === substr_count( $kit, '<input type="hidden" name="source" value="/second">' ) && 1 === substr_count( $kit, '<input type="hidden" name="source" value="/first">' ), 'the default paint binds each source once (its delete form): no stack of edit forms' );
+ok( '<os-button variant="ghost" os-action="go" os-arg-sub="redirects" os-arg-sn_edit="/second">Edit</os-button>' === $cell, 'a row carries ONE visible action, Edit, a go button naming its rule: ' . substr( $cell, 0, 160 ) );
+ok( 0 === slot_forms( $kit ) && 0 === slot_forms( $kit_ed ), 'no table cell holds a form, default or editing: ' . slot_forms( $kit ) . ' / ' . slot_forms( $kit_ed ) );
+ok( false === strpos( $kit, 'name="source" value="/second"' ) && false === strpos( $kit, 'name="source" value="/first"' ), 'the default paint binds no rule to any form: no stack of forms' );
 ok( false === strpos( $kit, 'submit-label="Save changes"' ) && false === strpos( $kit, 'snt-more' ), '...no edit form and no "+N more" under the cap' );
 ok( false !== strpos( $kit, 'placeholder="/old-page"' ) && false !== strpos( $kit, 'hint="The path to match, e.g. /old-page. Trailing slash and query string are ignored."' ) && false !== strpos( $kit, 'placeholder="/new-page  or  https://example.com/page"' ) && false !== strpos( $kit, 'submit-label="Add redirect"' ) && false !== strpos( $kit, 'heading="Add a redirect"' ) && before( $kit, '<os-table', 'heading="Add a redirect"' ), 'the add form sits open below the table, with both placeholders, the hint and the Add redirect submit' );
 
@@ -96,9 +97,11 @@ $edit = form_block( $kit_ed, 'Save changes' );
 ok( false !== strpos( $edit, '<input type="hidden" name="source" value="/first">' ) && false !== strpos( $edit, 'name="action" value="sn_redirect_update"' ) && false !== strpos( $edit, '<os-text-field name="target" type="text" value="/notes/design-tokens"' ) && false !== strpos( $edit, '<os-field-row label="Redirects to">' ), 'the edit form posts redirect_update with the source hidden and the current target filled' );
 ok( false !== strpos( $edit, '<os-select name="status" value="301"><os-option value="301">301. Permanent</os-option><os-option value="302">302. Temporary</os-option></os-select>' ), 'the type select offers 301/302 with the current one selected' );
 ok( false !== strpos( $kit_ed, '<os-button variant="ghost" os-action="go" os-arg-sub="redirects">Cancel</os-button>' ), 'Cancel is a go that clears the param' );
-ok( false === strpos( $kit_ed, 'heading="Add a redirect"' ) && 2 === substr_count( $kit_ed, '<input type="hidden" name="source" value="/first">' ), 'while editing the add form steps aside; /first binds its delete and its update form' );
+$delete = form_block( $kit_ed, 'Delete' );
+ok( '' !== $delete && false !== strpos( $delete, '<os-form os-confirm-title="Delete this redirect?" os-confirm-label="Delete" class="snt-form" os-action="post" submit-label="Delete"' ) && false !== strpos( $delete, 'os-confirm="This redirect will stop working immediately." os-confirm-danger>' ) && false !== strpos( $delete, 'name="action" value="sn_redirect_delete"' ) && false !== strpos( $delete, '<input type="hidden" name="source" value="/first">' ) && before( $kit_ed, 'heading="Editing /first"', 'submit-label="Delete"' ), 'Delete lives in the edit region: it confirms as the classic button did (title, label, question, danger) and carries the rule' );
+ok( false === strpos( $kit_ed, 'heading="Add a redirect"' ) && 2 === substr_count( $kit_ed, '<input type="hidden" name="source" value="/first">' ) && false === strpos( $kit_ed, 'name="source" value="/second"' ), 'while editing the add form steps aside; only /first is bound, to its update and its delete form' );
 $unknown = editing( '/nope' );
-ok( false === strpos( $unknown, 'submit-label="Save changes"' ) && false === strpos( $unknown, 'Editing' ) && false !== strpos( $unknown, 'heading="Add a redirect"' ) && array() === snt_leaf_folds( $unknown ), 'an unknown sn_edit paints no edit region and the add form instead' );
+ok( false === strpos( $unknown, 'submit-label="Save changes"' ) && false === strpos( $unknown, 'submit-label="Delete"' ) && false === strpos( $unknown, 'Editing' ) && false !== strpos( $unknown, 'heading="Add a redirect"' ) && array() === snt_leaf_folds( $unknown ), 'an unknown sn_edit paints no edit region and the add form instead' );
 
 // v13.109.8: the 404 log is its own leaf now (tests/os-leaf-site-broken-links.php).
 ok( false === strpos( $kit, 'redirect_404_' ) && false === strpos( $kit_ed, 'redirect_404_' ), 'the redirects leaf paints NO 404 action' );
@@ -135,7 +138,7 @@ $kit     = snt_leaf_paint( 'site', 'redirects' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_redirects_section' );
 $table   = rules_table( $kit );
 ok( 60 === count( $many ), 'sanity: the fixture built 60 redirect rules -- ' . count( $many ) );
-ok( SN_REDIRECT_LIST_CAP === count( $table['data'] ) && SN_REDIRECT_LIST_CAP === substr_count( $kit, 'name="source" value="/rule-' ), 'exactly SN_REDIRECT_LIST_CAP (' . SN_REDIRECT_LIST_CAP . ') rules are listed of 60 -- listed ' . count( $table['data'] ) );
+ok( SN_REDIRECT_LIST_CAP === count( $table['data'] ) && SN_REDIRECT_LIST_CAP === substr_count( $kit, 'os-arg-sn_edit="/rule-' ), 'exactly SN_REDIRECT_LIST_CAP (' . SN_REDIRECT_LIST_CAP . ') rules are listed of 60 -- listed ' . count( $table['data'] ) );
 ok( '/rule-0060' === ( $table['data'][0]['from'] ?? '' ) && ! in_array( '/rule-0001', array_column( $table['data'], 'from' ), true ), '...NEWEST first: the most recent rules are kept, the settled tail is dropped' );
 ok( false !== strpos( $kit, '<p class="snt-hint snt-more">+10 older rules are not listed. Showing the 50 most recent of 60 redirects.</p>' ), '...and the "+N more" line states the true total' );
 ok( false !== strpos( $kit, '<os-stat value="60" label="Rules"' ), '...the tile counts every rule, not the listed ones' );
@@ -174,7 +177,7 @@ $kit    = snt_leaf_paint( 'site', 'redirects' );
 $kit_ed = editing( '/talks/aes-2024' );
 ok( 39 === count( $live ) && 39 === count( rules_table( $kit )['data'] ) && false === strpos( $kit, 'snt-more' ), 'live-shaped: 39 rules, all listed, no "+N more" under the cap' );
 ok( false !== strpos( $kit, '<os-stat value="39" label="Rules"' ) && false !== strpos( $kit, '<os-stat value="29" label="Permanent"' ) && false !== strpos( $kit, '<os-stat value="10" label="Temporary"' ) && false !== strpos( $kit, '6 of the 39 rules send readers to another site' ), 'live-shaped: the tiles and the finding read 39 = 29 + 10, 6 off site' );
-ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_folds( $kit_ed ) && 1 === substr_count( $kit_ed, 'submit-label="Save changes"' ) && false !== strpos( $kit_ed, 'heading="Editing /talks/aes-2024"' ), 'live-shaped: fold-free, and editing paints ONE form' );
+ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_folds( $kit_ed ) && 1 === substr_count( $kit_ed, 'submit-label="Save changes"' ) && false !== strpos( $kit_ed, 'heading="Editing /talks/aes-2024"' ) && 1 === substr_count( $kit_ed, 'submit-label="Delete"' ) && 0 === slot_forms( $kit ), 'live-shaped: fold-free, no form in any row, and editing paints ONE region (update + delete)' );
 snt_leaf_preview( 'site-redirects', $kit );
 snt_leaf_preview( 'site-redirects-editing', $kit_ed );
 

@@ -2,9 +2,10 @@
 /**
  * S&N Dashboard, Site → Redirects: the ONE form region below the rule table.
  *
- * 2026-10-11 (no folds): the rule `sn_edit` names gets its edit form here,
- * headed by the rule, with a Cancel that clears the param; with no rule open,
- * the add form sits here instead. Never one form per rule. Required by
+ * 2026-10-11 (no folds): the rule `sn_edit` names gets every write here,
+ * headed by the rule: its edit form, its confirmed delete, and a Cancel that
+ * clears the param. With no rule open, the add form sits here instead. Never
+ * one form per rule, and never a form in a table cell. Required by
  * site-redirects.php.
  *
  * @package SignalNoiseTools
@@ -17,7 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The edit region for one rule: the redirect_update form and a Cancel.
+ * The edit region for one rule: the redirect_update form, the redirect_delete
+ * form (confirmed as the classic Delete button was), and a Cancel.
  *
  * @param string              $source Source path (a key the store holds).
  * @param array<string,mixed> $r      to, status, created_at.
@@ -29,11 +31,22 @@ function redirects_edit_html( $source, array $r ) {
 	$fields = \snt_kit_field( 'hidden', 'source', '', $source )
 		. \snt_kit_field( 'text', 'target', __( 'Redirects to', 'signal-and-noise-tools' ), $target )
 		. \snt_kit_field( 'select', 'status', __( 'Type', 'signal-and-noise-tools' ), $code, array( 'options' => redirects_status_options() ) );
+	$delete = redirects_form(
+		'redirect_delete',
+		\snt_kit_field( 'hidden', 'source', '', $source ),
+		array(
+			'submit'        => __( 'Delete', 'signal-and-noise-tools' ),
+			'confirm'       => __( 'This redirect will stop working immediately.', 'signal-and-noise-tools' ),
+			'confirm_title' => __( 'Delete this redirect?', 'signal-and-noise-tools' ),
+			'confirm_label' => __( 'Delete', 'signal-and-noise-tools' ),
+			'danger'        => true,
+		)
+	);
 	$cancel = \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'redirects' ) ) );
 	return \snt_kit_section(
 		/* translators: %s: the rule's source path. */
 		sprintf( __( 'Editing %s', 'signal-and-noise-tools' ), $source ),
-		\snt_kit_form( 'redirect_update', $fields, array( 'submit' => __( 'Save changes', 'signal-and-noise-tools' ) ) ) . $cancel,
+		\snt_kit_form( 'redirect_update', $fields, array( 'submit' => __( 'Save changes', 'signal-and-noise-tools' ) ) ) . $delete . $cancel,
 		/* translators: 1: HTTP status (301/302), 2: the current target, 3: the date the rule was added (Y-m-d). */
 		sprintf( __( 'Now a %1$d to %2$s; added %3$s.', 'signal-and-noise-tools' ), $code, $target, redirects_added( $r, __( 'date unknown', 'signal-and-noise-tools' ) ) )
 	);

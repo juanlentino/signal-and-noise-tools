@@ -1,13 +1,15 @@
 <?php
 /**
- * S&N Dashboard, Site → Redirects: the rule ledger and its two forms.
+ * S&N Dashboard, Site → Redirects: the reading and the rule ledger.
  *
  * 2026-10-11 (owner rule: no collapsible sections). Every rule used to be a
  * fold holding its own edit form and delete form, 39 of them live. Now the
- * leaf reads top-down: tiles, one finding, ONE kit table with visible row
- * actions (Edit sets `sn_edit`; Delete is a tiny confirmed form in the cell),
- * then ONE edit region below the table for the rule `sn_edit` names. With no
- * rule open, the add form sits there instead. Required by site-redirects.php.
+ * leaf reads top-down: tiles, one finding, ONE kit table whose rows carry ONE
+ * visible action (Edit, a `go` that sets `sn_edit`), then ONE region below the
+ * table holding every write for that rule (site-redirects-forms.php). No form
+ * sits in a table cell: a hidden-fields-only os-form paints a ruled footer and
+ * a primary submit, which on 39 rows is the stack of forms again, only
+ * smaller. Required by site-redirects.php.
  *
  * @package SignalNoiseTools
  */
@@ -73,25 +75,13 @@ function redirects_reading_html( array $rules ) {
 }
 
 /**
- * One table row: the rule's scannable facts, and its two row actions.
+ * One table row: the rule's scannable facts, and its one row action.
  *
  * @param string              $source Source path.
  * @param array<string,mixed> $r      to, status, created_at.
  * @return array<string,mixed>
  */
 function redirects_rule_row( $source, array $r ) {
-	$delete = redirects_form(
-		'redirect_delete',
-		\snt_kit_field( 'hidden', 'source', '', $source ),
-		array(
-			'submit'        => __( 'Delete', 'signal-and-noise-tools' ),
-			'confirm'       => __( 'This redirect will stop working immediately.', 'signal-and-noise-tools' ),
-			'confirm_title' => __( 'Delete this redirect?', 'signal-and-noise-tools' ),
-			'confirm_label' => __( 'Delete', 'signal-and-noise-tools' ),
-			'danger'        => true,
-		)
-	);
-	$edit   = \snt_kit_button( __( 'Edit', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'redirects', 'sn_edit' => $source ) ) );
 	return array(
 		'_key'    => $source,
 		'from'    => $source,
@@ -99,7 +89,7 @@ function redirects_rule_row( $source, array $r ) {
 		'type'    => 302 === redirects_code( $r ) ? __( '302 temporary', 'signal-and-noise-tools' ) : __( '301 permanent', 'signal-and-noise-tools' ),
 		'added'   => redirects_added( $r, __( 'unknown', 'signal-and-noise-tools' ) ),
 		'actions' => array(
-			'html' => '<os-cluster gap="8">' . $edit . $delete . '</os-cluster>',
+			'html' => \snt_kit_button( __( 'Edit', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'redirects', 'sn_edit' => $source ) ) ),
 			'text' => '',
 		),
 	);
@@ -138,6 +128,6 @@ function redirects_rules_html( array $rules ) {
 		redirects_reading_html( $rules )
 			. \snt_kit_table( $columns, $rows, array( 'stack_on_phone' => true ) )
 			. \snt_kit_more( $total - count( $rows ), $more ),
-		__( 'Newest first. Edit opens the rule in one form below the table.', 'signal-and-noise-tools' )
+		__( 'Newest first. Edit opens the rule below the table, to change it or delete it.', 'signal-and-noise-tools' )
 	);
 }
