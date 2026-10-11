@@ -107,16 +107,6 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_secrets_api',
 		),
-		// 16.8.0 — the General-save guard (16.7.2) is a workaround for WordPress/ai#1048.
-		array(
-			'id'        => 'general_save_guard_ai_1048',
-			'label'     => 'retire the General-save guard (WordPress/ai#1048)',
-			'why'       => 'The AI plugin (1.2.0+) calls register_initial_settings() on wp_abilities_api_init, which puts admin_email into the General allowed group during an admin save; options.php then saves it as NULL and Core rejects it. inc/general-save-guard.php drops the name from the group. Ripe when admin_email stops appearing in the group after the abilities registry has initialised, which is upstream having shipped (or the plugin gone): verify a General save is clean without the guard, then remove the guard and this watch.',
-			'read'      => 'https://github.com/WordPress/ai/issues/1048',
-			'date_only' => false,
-			'due'       => '',
-			'ripe'      => 'snt_watch_ripe_general_save_guard',
-		),
 		// Beacon bot signals: two weeks observe-only before any signal may subtract.
 		array(
 			'id'        => 'bot_signals_validation',
@@ -420,63 +410,6 @@ function snt_watch_ripe_wp_72( $watch, $now, $version = null ) {
 		: array( 'ripe' => false, 'note' => 'WordPress ' . $version . ', before 7.2' );
 }
 
-/** The General-save guard watch's last wp-admin reading: { ripe, at }. */
-const SNT_WATCH_GENERAL_SAVE_SEEN_OPT = 'snt_watch_general_save_seen';
-
-/**
- * Ripe once `admin_email` no longer lands in the "general" allowed group
- * after the Abilities registry has initialised (WordPress/ai#1048 shipped,
- * or the AI plugin is gone). Reads the same global options.php reads.
- *
- * @since 16.8.0
- * @param array $watch The watch row.
- * @param int   $now   Unix time (unused).
- * @param array|null $state Injected for tests: {abilities_init:bool, general:string[]}; null reads the globals.
- * @return array{ripe:bool,note:string}
- */
-function snt_watch_ripe_general_save_guard( $watch, $now, $state = null ) {
-	unset( $watch );
-	$live = null === $state;
-	if ( $live ) {
-		if ( function_exists( 'wp_get_abilities' ) && ! did_action( 'wp_abilities_api_init' ) ) {
-			wp_get_abilities(); // initialise the registry the way an admin request would
-		}
-		$state = array(
-			'abilities_init' => (bool) did_action( 'wp_abilities_api_init' ),
-			// Core puts admin_email into the General group itself, in
-			// register_initial_settings(), hooked on rest_api_init only. So a
-			// REST read always sees it there and can never ripen; only a wp-admin
-			// request (admin_init, no rest_api_init) shows whether something else
-			// still adds it (2026-10-10: the desktop said due, the REST read said
-			// not, and the desktop was the one that could tell).
-			'settings_init'  => did_action( 'admin_init' ) > 0 && 0 === did_action( 'rest_api_init' ),
-			'general'        => (array) ( $GLOBALS['new_allowed_options']['general'] ?? array() ),
-			'seen'           => get_option( SNT_WATCH_GENERAL_SAVE_SEEN_OPT, null ),
-		);
-	}
-	$seen = is_array( $state['seen'] ?? null ) && isset( $state['seen']['ripe'], $state['seen']['at'] ) ? $state['seen'] : null;
-	if ( empty( $state['abilities_init'] ) || ( array_key_exists( 'settings_init', $state ) && empty( $state['settings_init'] ) ) ) {
-		// Not a request that can tell: the last wp-admin reading answers, with
-		// its date, so the REST re-read and the MCP tool agree with the desktop
-		// (23.9.0 showed the line on the page load and lost it on the poll).
-		if ( null !== $seen ) {
-			$on = gmdate( 'Y-m-d', (int) $seen['at'] );
-			return ! empty( $seen['ripe'] )
-				? array( 'ripe' => true, 'note' => 'admin_email no longer lands in the General group (as read on a wp-admin screen since ' . $on . '): verify a save without the guard, then remove inc/general-save-guard.php and this watch' )
-				: array( 'ripe' => false, 'note' => 'admin_email still lands in the General group (as read on a wp-admin screen since ' . $on . '); the guard is still needed' );
-		}
-		return array( 'ripe' => false, 'note' => 'only a wp-admin request can tell (a REST request has Core\'s own admin_email in the group; cron and others run no admin_init), and none has read it yet' );
-	}
-	$ripe = ! in_array( 'admin_email', (array) $state['general'], true );
-	// Remembered on change only, from a real request (never from injected state).
-	if ( $live && ( null === $seen || (bool) $seen['ripe'] !== $ripe ) ) {
-		update_option( SNT_WATCH_GENERAL_SAVE_SEEN_OPT, array( 'ripe' => $ripe, 'at' => (int) $now ), false );
-	}
-	return $ripe
-		? array( 'ripe' => true, 'note' => 'admin_email no longer lands in the General group: verify a save without the guard, then remove inc/general-save-guard.php and this watch' )
-		: array( 'ripe' => false, 'note' => 'admin_email still lands in the General group; the guard is still needed' );
-}
-
 /**
  * Ripe once WordPress/mcp-adapter is active here at SNT_MCP_ADAPTER_MIN or later.
  *
@@ -540,4 +473,15 @@ function snt_watch_ripe_rights_evidence( $watch, $now, $state = null ) {
 	return $parts
 		? array( 'ripe' => true, 'note' => implode( ' | ', $parts ) )
 		: array( 'ripe' => false, 'note' => 'no month waiting, none held by a rule' );
+}
+
+// 2026-10-10: the General-save guard and its watch are retired (WordPress/ai#1048
+// fixed upstream); the watch's stored wp-admin reading goes with them. A missing
+// non-autoloaded option is cached as missing, so this costs nothing once gone.
+if ( function_exists( 'add_action' ) ) {
+	add_action( 'admin_init', static function () {
+		if ( false !== get_option( 'snt_watch_general_save_seen', false ) ) {
+			delete_option( 'snt_watch_general_save_seen' );
+		}
+	} );
 }
