@@ -31,7 +31,8 @@ const SN_CONTENT_QUEUE_PUBLISHED = 3;
 /**
  * Label a scheduled time relative to now, in the given timezone. PURE.
  *
- * "Today 09:38", "Tomorrow 09:38", "Sat 11:38" within the week, then
+ * "Today 9:38 AM", "Tomorrow 9:38 AM", "Sat 11:38 AM" within the week (the
+ * 12-hour clock every other card uses, since 2026-10-11), then
  * "Sep 20" and, past the year, "Dec 27, 2027". A past time (a scheduled post
  * whose cron has not fired yet) labels as "Overdue" so the widget says what
  * the Posts screen would.
@@ -52,13 +53,13 @@ function sn_content_queue_when( $ts, $now, DateTimeZone $tz ) {
 	$today = ( new DateTimeImmutable( '@' . $now ) )->setTimezone( $tz )->setTime( 0, 0, 0 );
 	$days  = (int) $today->diff( $at->setTime( 0, 0, 0 ) )->format( '%r%a' );
 	if ( 0 === $days ) {
-		return 'Today ' . $at->format( 'H:i' );
+		return 'Today ' . $at->format( 'g:i A' );
 	}
 	if ( 1 === $days ) {
-		return 'Tomorrow ' . $at->format( 'H:i' );
+		return 'Tomorrow ' . $at->format( 'g:i A' );
 	}
 	if ( $days < 7 ) {
-		return $at->format( 'D H:i' );
+		return $at->format( 'D g:i A' );
 	}
 	return sn_content_queue_day( $at, $today );
 }
@@ -258,7 +259,7 @@ function snt_abilities_content_queue_register() {
 	);
 	wp_register_ability( 'signal-noise/content-queue', array(
 		'label'               => 'Content queue',
-		'description'         => 'The scheduled queue at a glance: the next four scheduled posts in date order with a site-timezone label ("Tomorrow 09:38", "Sat 11:38", "Dec 27"), the scheduled count and the date the queue runs to, the draft count (null when unreadable), the first hole in the schedule by the publishing-cadence flag\'s own threshold (null when none or when the history is too thin to say), and the last three published posts with a relative age. Read-only; the reading behind the SN Queue desktop widget.',
+		'description'         => 'The scheduled queue at a glance: the next four scheduled posts in date order with a site-timezone label ("Tomorrow 9:38 AM", "Sat 11:38 AM", "Dec 27"), the scheduled count and the date the queue runs to, the draft count (null when unreadable), the first hole in the schedule by the publishing-cadence flag\'s own threshold (null when none or when the history is too thin to say), and the last three published posts with a relative age. Read-only; the reading behind the SN Queue desktop widget.',
 		'category'            => 'content',
 		'permission_callback' => 'snt_ability_perm_edit_posts',
 		'execute_callback'    => 'snt_ability_content_queue',

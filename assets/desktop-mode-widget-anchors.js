@@ -78,6 +78,11 @@
 		return wrap;
 	}
 
+	// A count with thousands separators: 107,882, not 107882.
+	function grouped( v ) {
+		return ( Number( v ) || 0 ).toLocaleString( 'en-US' );
+	}
+
 	/** A label/value row as a listitem; `amber` tones the value; `extra` follows it. */
 	function listRow( label, value, amber, extra ) {
 		var line = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
@@ -107,7 +112,7 @@
 		}
 		var list = el( 'div' );
 		list.setAttribute( 'role', 'list' );
-		var reads = listRow( 'Machine reads', String( Number( mr.total ) || 0 ) );
+		var reads = listRow( 'Machine reads', grouped( mr.total ) );
 		list.appendChild( reads );
 		// A user agent is a claim; only the verified share is vouched for by the edge.
 		var id = mr.edge_verified; // its own key: `identity` is the summary's signature evidence
@@ -121,18 +126,18 @@
 			if ( bar ) { reads.appendChild( bar ); }
 			parts.forEach( function( p, i ) {
 				if ( 2 === i && ! ( p[1] > 0 ) ) { return; }
-				var row = listRow( p[0], String( p[1] ) );
+				var row = listRow( p[0], grouped( p[1] ) );
 				if ( bar ) { row.firstChild.insertBefore( kit.dot( i ), row.firstChild.firstChild ); }
 				list.appendChild( row );
 			} );
 		}
 		// null means "not measured", never painted as 0.
 		if ( mr.ai_training !== null && typeof mr.ai_training !== 'undefined' ) {
-			list.appendChild( listRow( 'Declared AI-training reads', String( mr.ai_training ) ) );
+			list.appendChild( listRow( 'Declared AI-training reads', grouped( mr.ai_training ) ) );
 			// A crawler that went looking for the declarations on purpose. The
 			// reservation rides every response, so 0 here is healthy, never an alarm.
 			if ( mr.ai_rights !== null && typeof mr.ai_rights !== 'undefined' ) {
-				list.appendChild( listRow( 'Fetched the rights files directly', String( mr.ai_rights ) ) );
+				list.appendChild( listRow( 'Fetched the rights files directly', grouped( mr.ai_rights ) ) );
 			}
 		}
 		// The top crawler family's share of the window's reads, with its change

@@ -430,6 +430,13 @@ async function run() {
     const wstop = w.window.desktopModeWidgets['sn-health'](wroot); await flush();
     w.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
     assert.match(wroot.textContent, /Last 24 hours 12 runs recorded/, 'runs recorded');
+    {
+      const r = harness({statusExtra: {systems: {cron: {fires: 2471, failed: 0, failing: []}}, provenance: {}}}), rroot = new Element('div');
+      const rstop = r.window.desktopModeWidgets['sn-health'](rroot); await flush();
+      r.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
+      assert.match(rroot.textContent, /Last 24 hours 2,471 runs recorded/, 'runs recorded are grouped');
+      rstop();
+    }
     assert.doesNotMatch(wroot.textContent, /0 failed/, 'no recorded failure is not painted as "0 failed": a fatal run leaves no row');
     wstop();
     // 2026-10-05: a yellow line names where it is fixed; paused and verifying are not faults.
@@ -643,6 +650,17 @@ async function run() {
     assert.ok(!nodes(root).some(n => n.attrs.role === 'alert'), 'no alert while anchor-status is pending');
     assert.doesNotMatch(root.textContent, /Sweep now|unavailable/, 'no Sweep and no error while pending');
     assert.match(root.textContent, /Machine reads 10/, 'the readers paint meanwhile');
+    // Counts carry thousands separators (2026-10-11: 107882 read as a run of digits).
+    {
+      const big = harness(), broot = new Element('div');
+      const bstop = big.window.desktopModeWidgets['sn-anchors'](broot); await flush();
+      big.calls.find(c => c.opts.path.includes('machine-readers')).resolve({ok: true, days: 30, total: 107882, families: [], edge_verified: {verified: 13447, unverified: 44156, not_measured: 50279}, ai_training: 8351, ai_rights: 1024}); await flush();
+      assert.match(broot.textContent, /Machine reads 107,882/, 'the total is grouped');
+      assert.match(broot.textContent, /Verified by Cloudflare 13,447/, 'the parts are grouped');
+      assert.match(broot.textContent, /Declared AI-training reads 8,351/, 'AI-training reads are grouped');
+      assert.match(broot.textContent, /Fetched the rights files directly 1,024/, 'rights fetches are grouped');
+      bstop();
+    }
     as.reject(new Error('boom')); await flush();
     assert.ok(nodes(root).some(n => n.attrs.role === 'alert' && /boom/.test(n.textContent)), 'the alert only after anchor-status rejects');
     stop();
@@ -718,7 +736,7 @@ async function run() {
   {
     const x = harness({pages: {scheduled: 'https://x.test/scheduled'}}, {kit: true}), root = new Element('div');
     const stop = x.window.desktopModeWidgets['sn-queue'](root); await flush();
-    const payload = gap => ({next: [{title: 'Soon', when: 'Tomorrow 09:38'}], published: [], scheduled_total: 6,
+    const payload = gap => ({next: [{title: 'Soon', when: 'Tomorrow 9:38 AM'}], published: [], scheduled_total: 6,
       runs_to: {label: 'Nov 30'}, drafts: 4, gap});
     x.calls[0].resolve(payload({from: '2026-09-25', to: '2026-10-08', from_label: 'Sep 25', to_label: 'Oct 8'})); await flush();
     const pair = nodes(root).find(n => /border-top/.test(n.attrs.style || '') && n.children.length === 2);

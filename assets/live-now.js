@@ -166,12 +166,17 @@
 			// Admin: the label carries the peak in words, as the public note does.
 			var base = svg.getAttribute( 'data-label' ) || svg.getAttribute( 'aria-label' ) || '';
 			svg.setAttribute( 'data-label', base );
+			var caption = '';
 			if ( peak > 0 ) {
 				var ago = Math.round( ( Number( slots[ n - 1 ].t ) - Number( slots[ at ].t ) ) / 60 );
 				svg.setAttribute( 'aria-label', base + ': peak ' + peak + ( ago > 0 ? ', ' + ago + ' minutes ago' : ', in the current 5 minutes' ) );
+				caption = 'Last hour, per 5 minutes: peak ' + peak.toLocaleString( 'en-US' ) + ', ' + ( ago > 0 ? ago + ' minutes ago' : current ? 'now' : 'in the last 5 minutes' );
 			} else {
 				svg.setAttribute( 'aria-label', base + ': no readers' );
 			}
+			// The card's caption (SN Traffic): a lone bar with no words read as a
+			// stray square. The admin page has no caption element; nothing to write.
+			document.querySelectorAll( '[data-sn-live-hour-note]' ).forEach( function ( el ) { el.textContent = caption; } );
 			return;
 		}
 		var note = String( cfg.hourNone );

@@ -41,11 +41,12 @@ const srText = [];
 ( function walk( n ) { if ( n.className === 'screen-reader-text' ) { srText.push( n.textContent ); } n.children.forEach( walk ); } )( root );
 const link = a ? { text: a._text, name: a.attrs[ 'aria-label' ] || a.textContent, arrowHidden: a.children.length > 0 && a.children.every( ( c ) => c.attrs[ 'aria-hidden' ] === 'true' ) } : null;
 // The live surge line (filled by live-now.js) and the Read at foot, by their attributes.
-let surge = null, readAt = null;
+let surge = null, readAt = null, hourNote = null;
 ( function walk( n ) {
 	if ( 'data-sn-live-surge' in n.attrs ) { surge = { hidden: !! ( n.parentNode && n.parentNode.hidden ), hideEmpty: !! ( n.parentNode && 'data-sn-live-hide-empty' in n.parentNode.attrs ), text: n.textContent, surgeText: n.attrs[ 'data-surge' ] || '', zeroText: n.attrs[ 'data-surge-zero' ] || '', allAttrs: [ 'data-surge', 'data-surge-zero', 'data-usual', 'data-learning' ].every( ( k ) => k in n.attrs ) }; }
 	if ( 'data-sn-read-at' in n.attrs ) { readAt = { text: n.textContent, live: n.attrs[ 'aria-live' ] || '' }; }
+	if ( 'data-sn-live-hour-note' in n.attrs ) { const box = n.parentNode, bars = box ? box.children.find( ( c ) => 'data-sn-live-hour' in c.attrs ) : null; hourNote = { hideEmpty: !! ( box && 'data-sn-live-hide-empty' in box.attrs ), withBars: !! bars, baseline: !! ( bars && /border-bottom:1px solid/.test( bars.attrs.style || '' ) ), text: n.textContent }; }
 	n.children.forEach( walk );
 } )( root );
-process.stdout.write( JSON.stringify( { rows: out, helpers: Object.keys( window.snSiteViewsDelta || {} ), links: links.length, link, roles, srText, bodyRole: roles[ 0 ] || '', surge, readAt } ) );
+process.stdout.write( JSON.stringify( { rows: out, helpers: Object.keys( window.snSiteViewsDelta || {} ), links: links.length, link, roles, srText, bodyRole: roles[ 0 ] || '', surge, readAt, hourNote } ) );
 } );

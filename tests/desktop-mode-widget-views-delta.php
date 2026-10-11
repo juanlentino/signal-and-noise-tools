@@ -126,6 +126,8 @@ if ( '' === $node ) {
 	$sv = $render( array(), true );
 	ok( is_array( $sv['surge'] ) && true === $sv['surge']['hidden'] && true === $sv['surge']['hideEmpty'] && '' === $sv['surge']['text'], 'the surge line is on the card, hidden and empty until a surge is read' );
 	ok( true === ( $sv['surge']['allAttrs'] ?? false ) && false !== strpos( $sv['surge']['surgeText'], '%1$s' ) && false !== strpos( $sv['surge']['zeroText'], '%s' ), 'the surge line carries all four strings live-now.js reads (a missing one would throw in its tick)' );
+	ok( is_array( $sv['hourNote'] ) && $sv['hourNote']['hideEmpty'] && $sv['hourNote']['withBars'] && '' === $sv['hourNote']['text'], 'the last-hour bars carry their caption in the same hide-empty box, empty until live-now.js writes it (2026-10-11)' );
+	ok( true === ( $sv['hourNote']['baseline'] ?? false ), 'and sit on a hairline baseline, so one bar reads as part of a chart' );
 
 	// live-now.js (the real file) shows the line only for a surge verdict.
 	$live = static fn( $a ) => json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/live-now-surge.js' ) . ' ' . escapeshellarg( json_encode( $a ) ) ), true );
@@ -138,6 +140,22 @@ if ( '' === $node ) {
 		ok( true === ( $live( array( 'fetched' => 1, 'surge' => $s ) )['hidden'] ?? false ), "a $state verdict keeps the line hidden" );
 	}
 	ok( true === ( $live( array() )['hidden'] ?? false ), 'nothing read: the line stays hidden' );
+
+	// The last-hour bars carry a caption in the card (2026-10-11: one reader
+	// in one slot drew a lone full-height bar that read as a stray square).
+	$hour = static fn( $a ) => json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/live-now-hour.js' ) . ' ' . escapeshellarg( json_encode( $a ) ) ), true );
+	$t0   = time() - 11 * 300;
+	$slots = array();
+	for ( $i = 0; $i < 12; $i++ ) {
+		$slots[] = array( 't' => $t0 + $i * 300, 'readers' => 6 === $i ? 1 : 0 );
+	}
+	$h = $hour( array( 'fetched' => time(), 'hour' => $slots ) );
+	ok( false === ( $h['hidden'] ?? true ) && 12 === ( $h['bars'] ?? 0 ), 'one reader in the hour shows the twelve bars: ' . json_encode( $h ) );
+	ok( 'Last hour, per 5 minutes: peak 1, 25 minutes ago' === ( $h['note'] ?? '' ), 'and says what they are, in the card: ' . json_encode( $h ) );
+	$slots[11]['readers'] = 3;
+	ok( 'Last hour, per 5 minutes: peak 3, now' === ( $hour( array( 'fetched' => time(), 'hour' => $slots ) )['note'] ?? '' ), 'a peak in the current slot says now' );
+	$stale = array_map( static fn( $s ) => array( 't' => $s['t'] - 600, 'readers' => $s['readers'] ), $slots );
+	ok( 'Last hour, per 5 minutes: peak 3, in the last 5 minutes' === ( $hour( array( 'fetched' => time() - 600, 'hour' => $stale ) )['note'] ?? '' ), 'a cached answer whose last slot is no longer current never says now' );
 
 	// Read at: the payload's own read time, out of the live announcements.
 	$ra = $render( array( 'generated_at' => 1760000000 ), true );

@@ -417,8 +417,13 @@
 				bars.setAttribute( 'preserveAspectRatio', 'none' );
 				bars.setAttribute( 'aria-hidden', 'true' );
 				bars.setAttribute( 'data-sn-live-hour', '' );
-				bars.setAttribute( 'style', 'display:block;width:100%;height:18px;margin:2px 0 4px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' );
+				// A hairline baseline under the twelve slots, so one bar reads as
+				// part of a chart, and the caption live-now.js writes under it.
+				bars.setAttribute( 'style', 'display:block;width:100%;height:18px;margin:2px 0 0;border-bottom:1px solid var(--os-ui-color-border, rgba(255,255,255,0.12));color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' );
 				barsBox.appendChild( bars );
+				var barsNote = el( 'div', { style: 'font-size:11px;margin:2px 0 4px;color:' + MUTED + ';' } );
+				barsNote.setAttribute( 'data-sn-live-hour-note', '' );
+				barsBox.appendChild( barsNote );
 				body.appendChild( barsBox );
 			}
 			var topList = list( [ { label: 'Top now', value: '—' } ] );
