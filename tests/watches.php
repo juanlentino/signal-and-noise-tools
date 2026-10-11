@@ -164,8 +164,11 @@ ok( false === snt_watch_ripe_secrets_api( array(), 0 )['ripe'], 'on this machine
 $gs = static function ( $init, $general ) { return snt_watch_ripe_general_save_guard( array(), 0, array( 'abilities_init' => $init, 'general' => $general ) ); };
 ok( false === $gs( true, array( 'blogname', 'admin_email' ) )['ripe'] && true === $gs( true, array( 'blogname', 'preferred_languages' ) )['ripe'] && false === $gs( false, array() )['ripe'], '16.8.0: the General-save guard watch ripens when admin_email leaves the group after the registry initialised; never when the registry did not initialise' );
 $gss = static fn( $settings, $general ) => snt_watch_ripe_general_save_guard( array(), 0, array( 'abilities_init' => true, 'settings_init' => $settings, 'general' => $general ) );
-ok( false === $gss( false, array() )['ripe'] && false !== strpos( $gss( false, array() )['note'], 'cannot tell' ), '2026-10-10: a request that is not a plain wp-admin one (REST, where Core adds admin_email itself; cron) cannot tell' );
+ok( false === $gss( false, array() )['ripe'] && false !== strpos( $gss( false, array() )['note'], 'only a wp-admin request can tell' ), '2026-10-10: a request that is not a plain wp-admin one (REST, where Core adds admin_email itself; cron) cannot tell' );
 ok( true === $gss( true, array( 'blogname' ) )['ripe'] && false === $gss( true, array( 'admin_email' ) )['ripe'], 'with Core\'s settings registered, the watch still reads the group' );
+$gsr = static fn( $seen ) => snt_watch_ripe_general_save_guard( array(), 0, array( 'abilities_init' => true, 'settings_init' => false, 'general' => array( 'admin_email' ), 'seen' => $seen ) );
+ok( true === $gsr( array( 'ripe' => true, 'at' => 1791676800 ) )['ripe'] && false !== strpos( $gsr( array( 'ripe' => true, 'at' => 1791676800 ) )['note'], 'as read on a wp-admin screen since 2026-10-11' ), '2026-10-10: a request that cannot tell answers with the last wp-admin reading and its date, so the REST re-read keeps a ripe watch (23.9.0 lost it on the poll)' );
+ok( false === $gsr( array( 'ripe' => false, 'at' => 1791676800 ) )['ripe'] && false === $gsr( null )['ripe'] && false !== strpos( $gsr( null )['note'], 'none has read it yet' ), 'a remembered not-ripe stays not ripe; nothing remembered is not ripe and says so' );
 ok( in_array( 'general_save_guard_ai_1048', $ids, true ), 'the guard watch is registered' );
 
 echo "\nGroup: rights evidence review window (Unreleased)\n";

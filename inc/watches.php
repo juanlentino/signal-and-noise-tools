@@ -420,6 +420,9 @@ function snt_watch_ripe_wp_72( $watch, $now, $version = null ) {
 		: array( 'ripe' => false, 'note' => 'WordPress ' . $version . ', before 7.2' );
 }
 
+/** The General-save guard watch's last wp-admin reading: { ripe, at }. */
+const SNT_WATCH_GENERAL_SAVE_SEEN_OPT = 'snt_watch_general_save_seen';
+
 /**
  * Ripe once `admin_email` no longer lands in the "general" allowed group
  * after the Abilities registry has initialised (WordPress/ai#1048 shipped,
@@ -432,8 +435,9 @@ function snt_watch_ripe_wp_72( $watch, $now, $version = null ) {
  * @return array{ripe:bool,note:string}
  */
 function snt_watch_ripe_general_save_guard( $watch, $now, $state = null ) {
-	unset( $watch, $now );
-	if ( null === $state ) {
+	unset( $watch );
+	$live = null === $state;
+	if ( $live ) {
 		if ( function_exists( 'wp_get_abilities' ) && ! did_action( 'wp_abilities_api_init' ) ) {
 			wp_get_abilities(); // initialise the registry the way an admin request would
 		}
@@ -447,17 +451,30 @@ function snt_watch_ripe_general_save_guard( $watch, $now, $state = null ) {
 			// not, and the desktop was the one that could tell).
 			'settings_init'  => did_action( 'admin_init' ) > 0 && 0 === did_action( 'rest_api_init' ),
 			'general'        => (array) ( $GLOBALS['new_allowed_options']['general'] ?? array() ),
+			'seen'           => get_option( SNT_WATCH_GENERAL_SAVE_SEEN_OPT, null ),
 		);
 	}
-	if ( empty( $state['abilities_init'] ) ) {
-		return array( 'ripe' => false, 'note' => 'the abilities registry has not initialised in this request; cannot tell' );
+	$seen = is_array( $state['seen'] ?? null ) && isset( $state['seen']['ripe'], $state['seen']['at'] ) ? $state['seen'] : null;
+	if ( empty( $state['abilities_init'] ) || ( array_key_exists( 'settings_init', $state ) && empty( $state['settings_init'] ) ) ) {
+		// Not a request that can tell: the last wp-admin reading answers, with
+		// its date, so the REST re-read and the MCP tool agree with the desktop
+		// (23.9.0 showed the line on the page load and lost it on the poll).
+		if ( null !== $seen ) {
+			$on = gmdate( 'Y-m-d', (int) $seen['at'] );
+			return ! empty( $seen['ripe'] )
+				? array( 'ripe' => true, 'note' => 'admin_email no longer lands in the General group (as read on a wp-admin screen since ' . $on . '): verify a save without the guard, then remove inc/general-save-guard.php and this watch' )
+				: array( 'ripe' => false, 'note' => 'admin_email still lands in the General group (as read on a wp-admin screen since ' . $on . '); the guard is still needed' );
+		}
+		return array( 'ripe' => false, 'note' => 'only a wp-admin request can tell (a REST request has Core\'s own admin_email in the group; cron and others run no admin_init), and none has read it yet' );
 	}
-	if ( array_key_exists( 'settings_init', $state ) && empty( $state['settings_init'] ) ) {
-		return array( 'ripe' => false, 'note' => 'only a wp-admin request can tell (a REST request has Core\'s own admin_email in the group; cron and others run no admin_init); cannot tell' );
+	$ripe = ! in_array( 'admin_email', (array) $state['general'], true );
+	// Remembered on change only, from a real request (never from injected state).
+	if ( $live && ( null === $seen || (bool) $seen['ripe'] !== $ripe ) ) {
+		update_option( SNT_WATCH_GENERAL_SAVE_SEEN_OPT, array( 'ripe' => $ripe, 'at' => (int) $now ), false );
 	}
-	return in_array( 'admin_email', (array) $state['general'], true )
-		? array( 'ripe' => false, 'note' => 'admin_email still lands in the General group; the guard is still needed' )
-		: array( 'ripe' => true, 'note' => 'admin_email no longer lands in the General group: verify a save without the guard, then remove inc/general-save-guard.php and this watch' );
+	return $ripe
+		? array( 'ripe' => true, 'note' => 'admin_email no longer lands in the General group: verify a save without the guard, then remove inc/general-save-guard.php and this watch' )
+		: array( 'ripe' => false, 'note' => 'admin_email still lands in the General group; the guard is still needed' );
 }
 
 /**
