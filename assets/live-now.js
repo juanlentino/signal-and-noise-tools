@@ -170,7 +170,7 @@
 			if ( peak > 0 ) {
 				var ago = Math.round( ( Number( slots[ n - 1 ].t ) - Number( slots[ at ].t ) ) / 60 );
 				svg.setAttribute( 'aria-label', base + ': peak ' + peak + ( ago > 0 ? ', ' + ago + ' minutes ago' : ', in the current 5 minutes' ) );
-				caption = 'Last hour, per 5 minutes: peak ' + peak.toLocaleString( 'en-US' ) + ', ' + ( ago > 0 ? ago + ' minutes ago' : 'now' );
+				caption = 'Last hour, per 5 minutes: peak ' + peak.toLocaleString( 'en-US' ) + ', ' + ( ago > 0 ? ago + ' minutes ago' : current ? 'now' : 'in the last 5 minutes' );
 			} else {
 				svg.setAttribute( 'aria-label', base + ': no readers' );
 			}

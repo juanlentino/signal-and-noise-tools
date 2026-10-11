@@ -78,12 +78,12 @@
 		return wrap;
 	}
 
-	/** A label/value row as a listitem; `amber` tones the value; `extra` follows it. */
 	// A count with thousands separators: 107,882, not 107882.
 	function grouped( v ) {
 		return ( Number( v ) || 0 ).toLocaleString( 'en-US' );
 	}
 
+	/** A label/value row as a listitem; `amber` tones the value; `extra` follows it. */
 	function listRow( label, value, amber, extra ) {
 		var line = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
 		line.setAttribute( 'role', 'listitem' );
