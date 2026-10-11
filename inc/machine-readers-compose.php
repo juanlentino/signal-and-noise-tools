@@ -44,7 +44,7 @@ function snt_mr_compose_tab( $ctx ) {
 	$ctx = (array) $ctx;
 	$out = '<div class="sn-an-settings-leaf sn-mr-leaf">';
 
-	$out .= '<div class="sn-fieldset sn-fieldset--wide sn-an-pipeline sn-mr-hero">';
+	$out .= '<div class="sn-fieldset sn-fieldset--wide sn-an-pipeline">';
 	$out .= '<h3 class="sn-fieldset-h">' . esc_html__( 'Sensor status', 'signal-and-noise-tools' ) . '</h3>';
 	$out .= '<p class="sn-an-settings-help">' . esc_html__( 'Edge sensor → Analytics Engine → S&N Analytics. Presence checks only, secret values are never shown. Who reads, for what, and how each count is known are read in S&N Analytics.', 'signal-and-noise-tools' ) . '</p>';
 	$out .= (string) ( $ctx['sensor_status_html'] ?? '' );

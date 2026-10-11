@@ -169,7 +169,7 @@ $BASELINE = array(
 	// two rules now paint from var(--void)/var(--bone) and the file has no
 	// ungoverned literal left. The ratchet turns one way; this is that way.
 	'assets/css/prov-verify.css'  => 0,
-	'assets/machine-readers.css'  => 3,
+	'assets/machine-readers.css'  => 2,
 	'assets/provenance-admin.css' => 1,
 );
 

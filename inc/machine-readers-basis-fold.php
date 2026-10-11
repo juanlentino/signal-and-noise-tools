@@ -106,29 +106,6 @@ function snt_mr_basis_display( array $rows ) {
 }
 
 /**
- * The one line both Machine Readers leaves print beside the identity figures.
- *
- * @return string
- */
-function snt_mr_basis_not_signed_line() {
-	return __( 'Verified is not signed: verified is Cloudflare’s verified-bot category on the request; signed (proved identity) is a Web Bot Auth signature the crawler made. Different checks, counted apart.', 'signal-and-noise-tools' );
-}
-
-/**
- * The plain words for the split's columns, shared by both leaves.
- *
- * @param string|null $since SN_RIGHTS_EVIDENCE_VERIFIED_SINCE.
- * @return string
- */
-function snt_mr_basis_legend( $since ) {
-	return sprintf(
-		/* translators: %s: the date and time the sensor began recording Cloudflare's verified-bot category. */
-		__( 'Claimed: what the user agent said (basis claimed). Verified: Cloudflare’s verified-bot category was on the request, recorded since %s (basis verified); verified for its purpose: the category fits the claim (training: AI Crawler). Unverified: claimed and not verified. Unverifiable: days before the category was recorded (basis unmeasured). This site’s own tools are counted apart.', 'signal-and-noise-tools' ),
-		null === $since ? __( 'an unknown date', 'signal-and-noise-tools' ) : gmdate( 'Y-m-d H:i', (int) strtotime( (string) $since ) ) . ' UTC'
-	);
-}
-
-/**
  * A count for display: grouped, or "not measured" for null (never 0).
  *
  * @param int|null $n Count.

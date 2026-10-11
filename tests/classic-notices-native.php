@@ -142,7 +142,10 @@ ok( $call_count >= 34, "at least 34 wp_admin_notice()/wp_get_admin_notice() call
 ok( $type_lines >= 34, "at least 34 calls name a type (vacuity guard for the type walk): $type_lines" );
 ok( array() === $type_spaced, 'type is the one word at every call, and so is every class beside it on the line (core _doing_it_wrong()s a space)' . ( $type_spaced ? ': ' . implode( ', ', $type_spaced ) : '' ) );
 $mr_src = (string) file_get_contents( SNT_PATH . 'inc/machine-readers-render.php' );
-ok( false !== strpos( $mr_src, '<p class="sn-mr-truncated notice notice-warning inline">' ), 'the truncation readout stays a <p>: a paragraph styled as a notice, not a notice div' );
+// The classic truncation readout left with the readings (evidence-basis arc); the
+// Machine readers view says a capped read is a floor in a core notice
+// (snt_ev_verdict(), pinned in tests/analytics-machine-views.php).
+ok( false === strpos( $mr_src, 'sn-mr-truncated' ), 'the old truncation readout is gone from the classic renderers' );
 
 // ═════════════════════════════════════════════════════════════════════════
 echo "\nGroup: the fixture refuses what the runtime refuses\n";

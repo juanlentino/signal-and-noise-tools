@@ -8,18 +8,16 @@
  * sensor's status, the Site Health verdicts, the worker readout, the settings
  * form and the monthly rights evidence, and links to the views.
  *
- * The classic leaf (inc/machine-readers-admin.php, `snt_mr_render_tab()`, plus
- * its composer inc/machine-readers-compose.php and renderers in
- * inc/machine-readers-render.php / -render-taxonomy.php / -insights.php) reads
- * the sensor once, decides the sensor-pipeline pills, and lays out a hero
- * (pills + KPI chips), an evidence column (rights log, delta cards, unknown
- * agents) and a reference column (six folded lookup tables, the feed table,
- * the edge-worker readout, and the settings form). Same reads, same one form
- * (`sn_action=machine_readers_save`), same fields — the kit's parts instead of
- * wp-admin's widefat tables and `.sn-fieldset` cards.
+ * The classic leaf (inc/machine-readers-admin.php, `snt_mr_render_tab()`, with
+ * its composer inc/machine-readers-compose.php and the pills and readout from
+ * inc/machine-readers-render.php) reads the sensor once and paints the same
+ * blocks: a full-width sensor status (pills and the two links), the two Site
+ * Health verdicts, the Edge sensor readout beside the settings form, then the
+ * rights evidence. Same one form (`sn_action=machine_readers_save`), same
+ * fields: the kit's parts instead of wp-admin's `.sn-fieldset` cards.
  *
  * Helpers live in monitoring-machine-readers-parts.php to keep this file (the
- * composition) separate from the presenters (the tables and cards).
+ * composition) separate from the presenters.
  *
  * @package SignalNoiseTools
  * @since 13.106.0

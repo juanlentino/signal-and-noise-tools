@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * deliberately distinct from SN_AUDIT_LOGIN_SUCCESS_CAP (500), which bounds
  * what the store RETAINS and is still named under the table. The list is
  * sorted newest-first, so this cap truncates the OLD end and the remainder
- * line says so. Same shape as SN_MR_RIGHTS_DISPLAY_MAX.
+ * line says so.
  */
 if ( ! defined( 'SN_AUDIT_LOGIN_DISPLAY_MAX' ) ) {
 	define( 'SN_AUDIT_LOGIN_DISPLAY_MAX', 50 );

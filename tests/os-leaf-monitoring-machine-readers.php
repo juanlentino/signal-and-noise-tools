@@ -70,7 +70,6 @@ require SNT_PATH . 'inc/machine-readers-basis.php';
 require SNT_PATH . 'inc/machine-readers-basis-fold.php';
 require SNT_PATH . 'inc/machine-readers-ledger.php';
 require SNT_PATH . 'inc/rights-evidence-compose.php';
-require SNT_PATH . 'inc/machine-readers-render-taxonomy.php';
 require SNT_PATH . 'inc/machine-readers-insights.php';
 require SNT_PATH . 'inc/machine-readers-compose.php';
 require SNT_PATH . 'inc/machine-readers-admin.php';

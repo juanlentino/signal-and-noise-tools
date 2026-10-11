@@ -234,8 +234,15 @@ namespace {
 	$hi  = $gap( array( $r( 'openai', 'train', 'openai-gptbot', 10, 'Google LLC' ), $r( 'openai', 'search', 'openai-searchbot', 5, 'Google LLC' ) ) );
 	$lo  = $gap( array( $r( 'openai', 'train', 'openai-gptbot', 10, 'Google LLC' ), $r( 'other-bot', 'train', 'other-trainer', 4, 'Google LLC' ) ) );
 	ok( false === strpos( $eq, 'count is higher' ), 'counted both ways, equal: no gap sentence' );
+	$tok = $gap( array( $r( 'openai', 'train', 'openai-gptbot', 10, 'Google LLC' ), $r( 'google-ai', 'train', 'google-extended', 170, 'Google LLC' ) ) );
+	ok( false === strpos( $tok, 'count is higher' ) && false === strpos( $tok, '<td>google-ai</td>' ), 'counted both ways: a control token is in neither count, and no family row' );
 	ok( false !== strpos( $hi, 'The family count is higher by 5: the frozen families also hold' ), 'counted both ways, family higher: the gap and its cause' );
 	ok( false !== strpos( $lo, 'The purpose count is higher by 4.' ) && false === strpos( $lo, 'frozen families also hold' ), 'counted both ways, purpose higher: the gap without the family cause' );
+	$hostile_card = array( array( 'id' => 'mr_delta_x', 'title' => '<img src=x onerror=1>', 'detail' => '<script>alert(1)</script>' ) );
+	foreach ( array( 'kit', 'classic' ) as $sf ) {
+		$hc = snt_ev_paint_delta_cards( $hostile_card, $sf );
+		ok( false === strpos( $hc, '<img' ) && false === strpos( $hc, '<script' ) && '' === snt_ev_paint_delta_cards( array(), $sf ), "delta cards ($sf): title and detail escaped at the sink; no cards paints nothing" );
+	}
 	$blank = snt_ev_paint_rights( array( array( 'observed_at' => '2026-10-10T09:00:00Z', 'path' => '/license.xml', 'user_agent' => 'Odd/1.0', 'vendor' => '', 'purpose' => 'unknown', 'family' => 'other-bot', 'hits' => 1 ) ), 'classic' )
 		. snt_ev_paint_reference( array( $r( 'other-bot', 'unknown', '', 3, 'Google LLC', '', array( 'vendor' => 'acme' ) ) ), 'classic' );
 	ok( false === strpos( $blank, '—' ) && false !== strpos( $blank, '<td>none</td>' ), 'a cell with no vendor or no agent says none, never a dash' );

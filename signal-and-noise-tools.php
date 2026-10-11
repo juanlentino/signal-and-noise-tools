@@ -398,7 +398,6 @@ require_once SNT_PATH . 'inc/rights-evidence-retract.php';   // Unreleased: one 
 require_once SNT_PATH . 'inc/rights-evidence-cli.php';     // Unreleased: wp sn rights-evidence dry-run (WP-CLI only).
 require_once SNT_PATH . 'inc/abilities-rights-evidence.php'; // 17.0.0: rights-evidence (read) + rights-evidence-now (rw).
 require_once SNT_PATH . 'inc/machine-readers-render.php';
-require_once SNT_PATH . 'inc/machine-readers-render-taxonomy.php'; // v10.79.0: purpose/vendor tables + the unknown-agent review.
 require_once SNT_PATH . 'inc/machine-readers-compose.php'; // v12.22.0: the leaf's arrangement, pure — see docs/proposals/admin-leaf-composition-2026-08-23.md
 // Crawler-family volume deltas as insight cards (R3). Loads AFTER the render
 // module too: it reuses that lane's one "reads per family" aggregator. Pure
