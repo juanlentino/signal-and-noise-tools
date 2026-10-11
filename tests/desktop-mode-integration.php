@@ -714,7 +714,7 @@ ok( false !== strpos( $sys_js, "'All systems normal'" ) && false !== strpos( $sy
 
 echo "\n── 2026-10-04: the owner's six restored figures, and nothing past them ──\n";
 $six_an = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
-ok( false !== strpos( $six_an, "listRow( 'Fetched the rights files directly', String( mr.ai_rights ) )" ) && strpos( $six_an, "'Declared AI-training reads'" ) < strpos( $six_an, "'Fetched the rights files directly'" ),
+ok( false !== strpos( $six_an, "listRow( 'Fetched the rights files directly', grouped( mr.ai_rights ) )" ) && strpos( $six_an, "'Declared AI-training reads'" ) < strpos( $six_an, "'Fetched the rights files directly'" ),
 	'SN Provenance shows the AI-training reads that fetched the rights files directly, under the AI-training reads' );
 ok( false === strpos( $six_an, 'mr.families' ) && false === strpos( $six_an, 'mr.purposes' ) && false === strpos( $six_an, 'ai_surfaces' ),
 	'not restored: top families, purposes and the other AI-training surfaces stay on the Machine Readers leaf' );
