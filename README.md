@@ -173,7 +173,7 @@ GitHub-poll updater wired into WordPress's native update system
 
 ## Install
 
-Distributed via GitHub tags (each with a draft release). Install/update through **wp-admin → Dashboard → Updates → Update plugin**, powered by the plugin's self-updater (`inc/wp-update-integration.php`).
+Distributed via GitHub tags. Install/update through **wp-admin → Dashboard → Updates → Update plugin**, powered by the plugin's self-updater (`inc/wp-update-integration.php`).
 
 ## License
 
@@ -187,11 +187,12 @@ Distributed via GitHub tags (each with a draft release). Install/update through 
 only; everything older is in [docs/changelog/](docs/changelog/). A pull request
 does not bump `Version` and does not tag — it closes an issue and adds a bullet
 under Unreleased. Cutting a release is a separate, deliberate act:
-`tools/cut-release.sh release|fix "headline"` (add `--dry-run` to see what it
-would touch). Numbers follow the WordPress shape — `X.Y.0` a release, `X.Y.Z` a
-fix, `X` rolling when `Y` would reach 10 — see [docs/VERSIONING.md](docs/VERSIONING.md).
+`tools/cut-release.sh release "headline"` (add `--dry-run` to see what it
+would touch). Numbers are by date, `YYYY.M.N` with N the cut's place in its
+month, since 2026-10-11: one site installs this plugin, so the number only has
+to go up and say how old an install is. See [docs/VERSIONING.md](docs/VERSIONING.md).
 After the cut merges, `gh workflow run release.yml` tags the commit that set the
-version and drafts the release; the self-updater reads tags, so an update
-appears in wp-admin only once that tag exists.
+version; the self-updater reads tags, so an update appears in wp-admin only once
+that tag exists.
 
 <sub>Built for [juanlentino.com](https://juanlentino.com).</sub>

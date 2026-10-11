@@ -1,111 +1,99 @@
 # Versioning
 
-**The WordPress shape, since 2026-09-11.** `X.Y.0` is a release, `X.Y.Z` is a
-fix to it, and `X` rolls by itself when `Y` would reach 10. This is how
-WordPress core numbers (4.9 → 5.0), and how WooCommerce, Jetpack, Yoast and
-ACF number, so a WordPress reader already knows how to read it.
+**By date, since 2026-10-11.** A version is `YYYY.M.N`: the year, the month,
+and the cut's place in that month. `2026.10.1`, `2026.10.2`, then `2026.11.1`.
 
 | Component | Means | Moves when |
 |---|---|---|
-| `X` | the tens digit of the release count | `Y` would become 10: `14.9.0 → 15.0.0` |
-| `Y` | a **release** — one arc of merged work, features or fixes | `tools/cut-release.sh release` |
-| `Z` | a **fix** to a shipped release | `tools/cut-release.sh fix` |
+| `YYYY` | the year of the cut (UTC) | the year changes |
+| `M` | the month of the cut, no leading zero | the month changes |
+| `N` | the cut's place in that month, from 1 | every cut; back to 1 in a new month |
 
-Three components always (`14.0.0`, the WooCommerce/Jetpack form — not core's
-`6.8`): PHP's `version_compare( '14.0', '14.0.0' )` calls the two-part form
-*older*, and every tool in this repo parses three integers.
+## Why by date
 
-## What X is not
+This plugin is private. One site installs it, it is not on WordPress.org and
+never will be. A version number has one reader, that site (and the agents that
+work on it), and it has three jobs: always go up, say at a glance how old an
+install is, and name a point to roll back to. A date does all three.
 
-**`X` is not a breaking-change flag.** It carries the same information as
-the tens digit of a page number. A release that breaks something — removes
-or renames a public hook, changes a settings schema without a migration,
-shifts behaviour so that a site has to act — says **BREAKING** in its
-CHANGELOG headline and release title, on whatever number it happens to get.
-That is where a reader looks; a first digit never told them.
+The two schemes before it assumed a reader who does not exist:
 
-There is no `major` argument. `cut-release.sh major` refuses and says why.
+- **SemVer** (to 2026-09-11) warns API consumers about breakage. There are
+  none: the theme is the only integrator, and both are owned here. `MAJOR`
+  moved once in 215 tags; `MINOR` reached 110.
+- **The WordPress shape** (2026-09-11 to 2026-10-11: `X.Y.0` a release,
+  `X.Y.Z` a fix, `X` rolling when `Y` would reach 10) is how WordPress.org
+  plugins number, so their readers can read it. Cut per merge, it rolled `X`
+  ten times in a month: the tags from v14.0.0 to v24.0.0 are 101 releases and
+  128 fixes.
 
-## Why this replaced SemVer
+The number can no longer run away: its first part is the year. How often to
+cut is now a question about installs (each one is a click, and a cache purge
+when the release changes the public site), not about the number.
 
-The global rule was SemVer with no caps: PATCH for fixes, MINOR for
-user-visible capability, MAJOR for breaking. In practice:
+Three integers always, as before: PHP's `version_compare` orders
+`2026.10.1` above `24.0.0` and `2026.10.12` above `2026.10.9`, the GitHub
+tags API lists the highest version first, and the one hard-coded comparison
+(the purge ledger's theme `>= 15.0.0`) still holds. `cut-release.sh` refuses a
+next version that would not sort above the current one.
 
-- `MAJOR` moved once in 215 tags (17 days, 2026-08-25 → 09-11), because
-  nothing broke. A signal nobody receives.
-- `MINOR` reached **110**. It counted feature releases at a dozen a day and
-  meant nothing to anyone reading `13.110.2`.
-- The one thing SemVer promises — a warning to API consumers — this plugin
-  has no external consumer to warn. The theme is its only integrator, both
-  are owned here, and skew lands at install time, not at build time.
+## Release, fix, BREAKING
 
-The owner's words on 2026-09-11: "I'm not liking the three digits," then
-"I'd go WordPress since it's a WordPress plugin." The research that preceded
-it, with what the kernel, Apple, Ubuntu and CalVer do about a number getting
-big, is in
-[proposals/2026-09-11-versioning-scheme.md](proposals/2026-09-11-versioning-scheme.md).
+The number no longer says whether a cut adds or repairs; the CHANGELOG does.
+`cut-release.sh release` is the only kind (`fix`, `patch` and `minor` are
+accepted and mean the same). A cut that breaks something (removes or renames
+a public hook, changes a settings schema without a migration, needs the site
+to act) says **BREAKING** in its CHANGELOG headline. There is no `major`
+argument; `cut-release.sh major` refuses and says why.
 
-## Cadence — the half that keeps the number small
+## Cadence
 
-The shape bounds each component to two digits only if releases are cut per
-**arc**, not per merged fix. One release when a body of work closes; a fix
-only for something that has to reach sites before the next arc. At two arcs
-a week `X` climbs about one per five weeks; that is the intended rate. Cutting
-after every merge would roll `X` weekly, which is the old problem in a new
-column.
-
-A `tools/`, `docs/`, `.github/`-only merge never gets its own cut; it rides
-the next release.
-
-**Release or fix: ask what the change repairs, not how big it is.** When the
-work repairs something the current release shipped, the cut is a `fix`
-(`X.Y.Z+1`), even if it touches a schema or bumps the remote contract. New
-capability is a `release`. 18.3.0 got this wrong on 2026-09-24: it repaired
-two things 18.2.0 had shipped hours earlier (the phone's uptime figures
-blanking after an update, and 5xx zeros that could not say whether they were
-read) and was cut as a release. It should have been 18.2.1.
+Merge freely. Cut when there is something to install: an arc that closed, a
+regression the site should not keep, or a change the owner wants to see. At
+most once a day unless a regression cannot wait. A `tools/`, `docs/`,
+`.github/`-only merge never gets its own cut; it rides the next one. Show a
+visible change on live data (the widget preview, Playground) before it merges,
+so a problem found after install does not cost a cut.
 
 ## What a cut is
 
-A pull request does not bump `Version` and does not tag — it adds a bullet
+A pull request does not bump `Version` and does not tag; it adds a bullet
 under `## [Unreleased]`. A cut is the separate, deliberate act:
 
 ```bash
-git checkout -b release/vX.Y.Z origin/main
-tools/cut-release.sh release "headline"      # or: fix "headline"
-git add -A && git commit -m "vX.Y.Z: headline"
-git push -u origin release/vX.Y.Z && gh pr create …
-# green → squash-merge → tag the SQUASH commit → push the tag → gh release create --verify-tag
-```
-
-The last three steps are one dispatch since 2026-09-23:
-
-```bash
-gh workflow run release.yml -f version=X.Y.Z
+git checkout -b cut/YYYY.M.N origin/main
+tools/cut-release.sh release "headline" --front-end=no   # --dry-run first; --front-end=yes when the public site changes
+git add -A && git commit -m "vYYYY.M.N: headline"
+git push -u origin cut/YYYY.M.N && gh pr create …
+# green, squash-merge, then:
+gh workflow run release.yml -f version=YYYY.M.N
 ```
 
 `.github/workflows/release.yml` refuses unless main's `Version:` header equals
 the input and the tag does not exist yet. It finds the commit that set the
-header (the squash commit, never main's head), tags it, and drafts the release
-from that version's CHANGELOG section. It exists so a session that can dispatch
-a workflow but cannot push a tag can still finish a release.
+header (the squash commit, never main's head) and tags it. It creates no
+GitHub release: the site's updater reads tags, and nothing reads a release.
 
 The cut is a PR because direct pushes to `main` are refused (ruleset, admin
 bypass is PR-only since 2026-09-11). `cut-release.sh` refuses a dirty tree,
-an empty Unreleased, and a previous release whose section grew after its tag
-(a branch opened before that cut lands its bullet under a released heading —
-the guard names the strays).
+an empty Unreleased, a next version that does not sort above the current one,
+and a previous release whose section grew after its tag (a branch opened
+before that cut lands its bullet under a released heading; the guard names
+the strays).
 
 ## CHANGELOG
 
 `CHANGELOG.md` holds `## [Unreleased]` and the current release; everything
 older is in [changelog/](changelog/). Sections inside a release are
 `### Security`, `### Fixed`, `### Added`, `### Changed`, `### Removed`.
-Headings are `## [X.Y.Z] - YYYY-MM-DD — headline`; a breaking release's
+Headings are `## [YYYY.M.N] - YYYY-MM-DD — headline` (the dash before the
+headline is part of the machine contract CI reads); a breaking release's
 headline starts with `BREAKING:`.
 
 ## See also
 
-- The theme's [docs/VERSIONING.md](https://github.com/juanlentino/signal-and-noise/blob/main/docs/VERSIONING.md) — same shape, same day.
-- `.github/workflows/ci.yml` "CHANGELOG entry present" — rule 1 (a bump needs its heading) and rule 2 (shippable code needs an Unreleased bullet) are unchanged by the shape.
-- `.github/workflows/version-tag-parity.yml` — the header must have a tag on `main`, daily.
+- The theme's [docs/VERSIONING.md](https://github.com/juanlentino/signal-and-noise/blob/main/docs/VERSIONING.md): the same scheme, the same day.
+- [proposals/2026-09-11-versioning-scheme.md](proposals/2026-09-11-versioning-scheme.md): the research behind the WordPress shape, including what CalVer projects do.
+- `.github/workflows/ci.yml` "CHANGELOG entry present": a bump needs its heading, and shippable code needs an Unreleased bullet.
+- `.github/workflows/version-tag-parity.yml`: the header must have a tag on `main`, daily.
+- The workers and the provenance verifier keep SemVer: the verifier is downloaded by strangers, and the workers are versioned in their own repositories.
