@@ -43,6 +43,7 @@ const SN_PUBLIC_STATS_DAYS      = 30;
 const SN_PUBLIC_STATS_TOP_N     = 8;
 
 require_once __DIR__ . '/public-stats-sections.php';
+require_once __DIR__ . '/public-stats-machines.php'; // Humans and machines: readers, AI training claimed against proof.
 require_once __DIR__ . '/public-stats-live.php'; // the live strip, filled client-side
 
 /**
@@ -358,6 +359,7 @@ function sn_public_stats_data() {
 		$assembled['countries'] = sn_public_stats_fold( function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'country', $from, $to, 'human', SN_PUBLIC_STATS_READ_CAP ) : null, 'sn_public_stats_country_label', $assembled['views'] );
 		$assembled['reading']   = sn_public_stats_reading_rows( function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( $from, $to, 'human' ) : null, $dist, $sessions );
 		$assembled['machines']  = sn_public_stats_machines_stored( get_option( SN_PUBLIC_STATS_MACHINES_OPT ), $from, $to );
+		$assembled['likely_automated'] = function_exists( 'sn_analytics_likely_automated' ) ? sn_analytics_likely_automated( $from, $to, 'human' ) : null;
 	}
 
 	set_transient( SN_PUBLIC_STATS_CACHE_KEY, null === $assembled ? array( 'none' => true ) : $assembled, SN_PUBLIC_STATS_CACHE_TTL );
