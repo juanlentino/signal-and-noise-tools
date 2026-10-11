@@ -5,13 +5,15 @@
  * The native twin of inc/admin-forms/workflow-page.php: the same
  * `workflow[...]` names in the same order and the same action
  * (workflow_save, sn_handle_workflow_save()). The page fields sit in compact
- * cards paired two-up, as on Now and Uses. Map and Rules are Resume's
+ * cards paired two-up, as on Now and Uses. Map, Rules and Proof are Resume's
  * repeater (resume_list(), content-resume-parts.php): an <os-repeater> with
- * Add, Remove and reorder, the classic <template> (`__M__`, `__R__`) inert
- * inside it, driven by assets/resume-admin.js; the form posts rows in screen
- * order and sn_workflow_normalize() reindexes them. The "Show on page" checkbox posts
- * nothing when unchecked, and absent means hidden (sn_workflow_normalize()),
- * so a new row is hidden until checked.
+ * Add, Remove and reorder, the classic <template> (`__M__`, `__R__`, `__P__`)
+ * inert inside it, driven by assets/resume-admin.js; the form posts rows in
+ * screen order and sn_workflow_normalize() reindexes them. The "Show on page"
+ * checkbox posts nothing when unchecked, and absent means hidden
+ * (sn_workflow_normalize()), so a new row is hidden until checked. The leaf
+ * itself (one table of the three lists, one edit region, no folds since
+ * 2026-10-11) is content-workflow-lists.php.
  *
  * @package SignalNoiseTools
  */
@@ -24,6 +26,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/content-cards-parts.php';
 require_once __DIR__ . '/content-resume-parts.php';
+require_once __DIR__ . '/content-resume-edit.php';
+require_once __DIR__ . '/content-workflow-lists.php';
 
 /** A compact card around stacked fields, the Now/Uses card. @param string $fields @return string */
 function workflow_card( $fields ) {
@@ -95,38 +99,6 @@ function workflow_top_cards( array $doc ) {
 			\snt_kit_field( 'textarea', 'workflow[sample][body]', __( 'Sample body', 'signal-and-noise-tools' ), $s['body'], array( 'rows' => 16, 'hint' => __( 'Shown exactly as typed, whitespace included, in a monospace block.', 'signal-and-noise-tools' ) ) )
 		),
 	);
-}
-
-/**
- * The leaf.
- *
- * @param array<string,mixed> $ctx tab, sub, state, os.
- * @return string
- */
-function paint_content_workflow( array $ctx ) {
-	unset( $ctx );
-	$doc = function_exists( 'sn_workflow_page_get' ) ? \sn_workflow_page_get() : null;
-	$doc = is_array( $doc ) ? $doc : \sn_workflow_normalize( array() );
-
-	$ns    = __NAMESPACE__;
-	$map   = resume_list( $doc['map'], $ns . '\\workflow_map_row', 'workflow[map]', '__M__', __( '+ Add map step', 'signal-and-noise-tools' ), __( 'map step', 'signal-and-noise-tools' ) );
-	$rules = resume_list( $doc['rules'], $ns . '\\workflow_rule_row', 'workflow[rules]', '__R__', __( '+ Add rule', 'signal-and-noise-tools' ), __( 'rule', 'signal-and-noise-tools' ) );
-	$proof = resume_list( $doc['proof'], $ns . '\\workflow_proof_row', 'workflow[proof]', '__P__', __( '+ Add proof link', 'signal-and-noise-tools' ), __( 'proof link', 'signal-and-noise-tools' ) );
-
-	$intro = '<p class="snt-prose">' . sprintf(
-		/* translators: %s: link to the /workflow page */
-		\snt_kit_esc( __( 'This form is the editor for the %s page. Saving regenerates it; the page does not exist until a save has something to show.', 'signal-and-noise-tools' ) ),
-		\snt_kit_link( '/workflow', home_url( '/workflow' ) )
-	) . '</p>'
-		. '<p class="snt-hint">' . \snt_kit_esc( __( 'A map step appears on the public page only when "Show on page" is checked. Unchecked steps stay here and nowhere else.', 'signal-and-noise-tools' ) ) . '</p>'
-		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Add, remove and reorder map steps and rules with their buttons, or Alt+Arrow keys on a row; the page shows them in this order.', 'signal-and-noise-tools' ) ) . '</p>';
-
-	$cards = snt_pair_cards( workflow_top_cards( $doc ) )
-		. resume_section( __( 'Map', 'signal-and-noise-tools' ), '', count( $doc['map'] ), $map )
-		. resume_section( __( 'Rules', 'signal-and-noise-tools' ), '', count( $doc['rules'] ), $rules )
-		. resume_section( __( 'Proof', 'signal-and-noise-tools' ), __( 'Links to evidence a reader can check. A row shows only when "Show on page" is ticked and its link is a path on this site (/maturity/) or an https URL.', 'signal-and-noise-tools' ), count( $doc['proof'] ), $proof );
-	$form  = \snt_kit_form( 'workflow_save', '<os-stack gap="12">' . $cards . '</os-stack>', array( 'submit' => __( 'Save workflow page', 'signal-and-noise-tools' ) ) );
-	return \snt_kit_section( __( 'Workflow page', 'signal-and-noise-tools' ), $intro . $form );
 }
 
 add_filter(

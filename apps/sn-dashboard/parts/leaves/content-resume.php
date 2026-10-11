@@ -4,13 +4,15 @@
  *
  * The classic leaf (inc/admin-forms/resume-page.php,
  * `sn_admin_render_resume_section()`) is the STRUCTURED editor for /resume:
- * one form (`sn_action=resume_draft_save`: Save stores a draft, see content-resume-draft.php), nine collapsed sections (Hero, Stats,
- * Experience, Earlier career, Education, Affiliations, Publications, Skills,
- * PDF only), plus the Resume PDF form (`sn_action=resume_pdf_generate`)
- * of real fields and repeatable rows, one Save button, and a hard failure
- * state when sn_resume_doc_get() has neither a stored document nor a
+ * one form (`sn_action=resume_draft_save`: Save stores a draft, see
+ * content-resume-draft.php) over nine sections (Hero, Stats, Experience,
+ * Earlier career, Education, Affiliations, Publications, Skills, PDF only),
+ * plus the Resume PDF form (`sn_action=resume_pdf_generate`), and a hard
+ * failure state when sn_resume_doc_get() has neither a stored document nor a
  * readable seed. Same reader, same names, same handler; the kit's parts
- * instead of wp-admin's. Row painters: content-resume-parts.php.
+ * instead of wp-admin's. Here the nine sections are one table and one edit
+ * region (content-resume-ledger.php, content-resume-sections.php, no folds
+ * since 2026-10-11). Row painters: content-resume-parts.php.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -24,6 +26,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/content-resume-parts.php';
 require_once __DIR__ . '/content-resume-draft.php';
+require_once __DIR__ . '/content-resume-edit.php';
+require_once __DIR__ . '/content-resume-sections.php';
+require_once __DIR__ . '/content-resume-ledger.php';
 
 /**
  * The intro: which page this edits, and whether the form has taken it over.
@@ -35,12 +40,12 @@ function resume_intro( array $doc ) {
 	$link = \snt_kit_link( '/resume', home_url( '/resume' ) );
 	if ( '' !== (string) ( $doc['updated'] ?? '' ) ) {
 		return '<p class="snt-prose">'
-			. sprintf( /* translators: %s: the /resume link */ \snt_kit_esc( __( 'This form is the editor for the live %s page. Saving stores a draft; nothing goes live until you publish it.', 'signal-and-noise-tools' ) ), $link )
+			. sprintf( /* translators: %s: the /resume link */ \snt_kit_esc( __( 'This is the editor for the live %s page. Saving stores a draft; nothing goes live until you publish it.', 'signal-and-noise-tools' ) ), $link )
 			. ' ' . \snt_kit_esc( __( 'Last published:', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( (string) $doc['updated'], false ) . '.'
 			. '</p>';
 	}
 	return '<p class="snt-prose">'
-		. sprintf( /* translators: %s: the /resume link */ \snt_kit_esc( __( 'This form is the editor for the live %s page, prefilled from the current published content. Saving stores a draft; the first publish takes over the page body, and from then on this form is the canonical editor.', 'signal-and-noise-tools' ) ), $link )
+		. sprintf( /* translators: %s: the /resume link */ \snt_kit_esc( __( 'This is the editor for the live %s page, prefilled from the current published content. Saving stores a draft; the first publish takes over the page body, and from then on this editor is the canonical one.', 'signal-and-noise-tools' ) ), $link )
 		. '</p>';
 }
 
@@ -110,69 +115,6 @@ function resume_pdf_generate() {
 		// PDF never reaches the reader (content-resume-draft.php).
 		. $private . ( function_exists( 'sn_resume_action_url' ) ? '<p class="snt-prose">' . \snt_kit_door( __( 'Download private copy (with phone)', 'signal-and-noise-tools' ), \sn_resume_action_url( 'resume_pdf_private' ) ) . '</p>' : '' )
 	);
-}
-
-/**
- * The nine sections, in the classic order.
- *
- * @param array $doc The document.
- * @return string
- */
-function resume_sections( array $doc ) {
-	$stats   = (array) ( $doc['stats'] ?? array() );
-	$exp     = (array) ( $doc['experience'] ?? array() );
-	$earlier = (array) ( $doc['earlier'] ?? array() );
-	$entries = (array) ( $earlier['entries'] ?? array() );
-	$edu     = (array) ( $doc['education'] ?? array() );
-	$aff     = (array) ( $doc['affiliations'] ?? array() );
-	$pubs    = (array) ( $doc['publications'] ?? array() );
-	$skills  = (array) ( $doc['skills'] ?? array() );
-	$ns      = __NAMESPACE__;
-
-	$employer = static function ( $prefix, array $entry ) { return resume_employer_card( $prefix, '__R__', $entry, true ); };
-	$early    = static function ( $prefix, array $entry ) { return resume_employer_card( $prefix, '__Y__', $entry, false ); };
-	$blank_employer = array( 'roles' => array( array() ) );
-
-	return resume_section( __( 'Hero', 'signal-and-noise-tools' ), __( 'The opening band: summary, credential chips, contact line, and the PDF download.', 'signal-and-noise-tools' ), -1, resume_hero( (array) ( $doc['hero'] ?? array() ) ) )
-		. resume_section( __( 'Stats', 'signal-and-noise-tools' ), __( 'The numbers strip under the hero.', 'signal-and-noise-tools' ), count( $stats ), resume_list( $stats, $ns . '\resume_stat_row', 'resume[stats]', '__S__', __( '+ Add stat', 'signal-and-noise-tools' ), __( 'stat', 'signal-and-noise-tools' ) ) )
-		. resume_section( __( 'Experience', 'signal-and-noise-tools' ), __( 'One card per employer; each holds one or more roles with their bullets. Bullets may use <strong>, <em>, and links.', 'signal-and-noise-tools' ), count( $exp ), resume_list( $exp, $employer, 'resume[experience]', '__E__', __( '+ Add employer', 'signal-and-noise-tools' ), __( 'employer', 'signal-and-noise-tools' ), $blank_employer ) )
-		. resume_section(
-			__( 'Earlier career (collapsed fold)', 'signal-and-noise-tools' ),
-			__( 'Rendered inside a collapsed "details" fold at the end of Experience.', 'signal-and-noise-tools' ),
-			count( $entries ),
-			resume_text( 'resume[earlier][label]', __( 'Fold label', 'signal-and-noise-tools' ), $earlier['label'] ?? '', 'Earlier career · 1997 - 2015' )
-			. resume_list( $entries, $early, 'resume[earlier][entries]', '__X__', __( '+ Add earlier employer', 'signal-and-noise-tools' ), __( 'employer', 'signal-and-noise-tools' ), $blank_employer )
-		)
-		. resume_section( __( 'Education', 'signal-and-noise-tools' ), '', count( $edu ), resume_list( $edu, $ns . '\resume_titled_lines_row', 'resume[education]', '__D__', __( '+ Add education', 'signal-and-noise-tools' ), __( 'education entry', 'signal-and-noise-tools' ) ) )
-		. resume_section( __( 'Affiliations & Certifications', 'signal-and-noise-tools' ), '', count( $aff ), resume_list( $aff, $ns . '\resume_titled_lines_row', 'resume[affiliations]', '__A__', __( '+ Add affiliation', 'signal-and-noise-tools' ), __( 'affiliation', 'signal-and-noise-tools' ) ) )
-		. resume_section( __( 'Publications', 'signal-and-noise-tools' ), __( 'A new paper is one row: venue line, title, and link.', 'signal-and-noise-tools' ), count( $pubs ), resume_list( $pubs, $ns . '\resume_publication_row', 'resume[publications]', '__P__', __( '+ Add publication', 'signal-and-noise-tools' ), __( 'publication', 'signal-and-noise-tools' ) ) )
-		. resume_section( __( 'Skills', 'signal-and-noise-tools' ), __( 'One table row per category; items is the comma-separated cell.', 'signal-and-noise-tools' ), count( $skills ), resume_list( $skills, $ns . '\resume_skills_row', 'resume[skills]', '__K__', __( '+ Add skills row', 'signal-and-noise-tools' ), __( 'skills row', 'signal-and-noise-tools' ) ) )
-		. resume_section( __( 'PDF only', 'signal-and-noise-tools' ), __( 'Used by the generated PDF, never shown on /resume. Preview PDF shows the draft; Publish rebuilds the public PDF once one exists.', 'signal-and-noise-tools' ), -1, resume_pdf( (array) ( $doc['pdf'] ?? array() ) ) );
-}
-
-/**
- * The leaf.
- *
- * @param array<string,mixed> $ctx tab, sub, state, os.
- * @return string
- */
-function paint_content_resume( array $ctx ) {
-	unset( $ctx );
-	$live = function_exists( 'sn_resume_doc_get' ) ? \sn_resume_doc_get() : null;
-	if ( ! is_array( $live ) ) {
-		return \snt_kit_empty(
-			__( 'Resume page', 'signal-and-noise-tools' ),
-			__( 'The resume editor is unavailable: no stored document and no readable seed.', 'signal-and-noise-tools' ),
-			'media-document'
-		);
-	}
-	// The form paints the draft when there is one: that is what Save stores.
-	$draft = function_exists( 'sn_resume_draft_get' ) ? \sn_resume_draft_get() : null;
-	$doc   = is_array( $draft ) ? $draft : $live;
-	return \snt_kit_section(
-		__( 'Resume page', 'signal-and-noise-tools' ),
-		resume_intro( $live ) . resume_draft_status() . \snt_kit_form( 'resume_draft_save', resume_sections( $doc ), array( 'submit' => __( 'Save draft', 'signal-and-noise-tools' ) ) )
-	) . resume_draft_controls() . resume_pdf_generate();
 }
 
 add_filter(
