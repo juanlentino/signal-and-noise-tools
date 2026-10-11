@@ -61,7 +61,7 @@ function snt_ev_paint_reference( array $rows, $surface = 'kit' ) {
 	$pair_rows = array();
 	foreach ( array_slice( $pairs, 0, SN_EV_PAIRS_ROWS, true ) as $k => $n ) {
 		list( $vendor, $agent, $purpose ) = explode( '|', (string) $k, 3 );
-		$pair_rows[] = array( 'vendor' => $vendor, 'agent' => '' !== $agent ? $agent : '—', 'purpose' => $purpose, 'reads' => number_format_i18n( $n ) );
+		$pair_rows[] = array( 'vendor' => $vendor, 'agent' => '' !== $agent ? $agent : __( 'none', 'signal-and-noise-tools' ), 'purpose' => $purpose, 'reads' => number_format_i18n( $n ) );
 	}
 	$surfaces = array();
 	foreach ( snt_mr_sum_hits_by( $rows, 'surface' ) as $s => $n ) {
@@ -70,11 +70,12 @@ function snt_ev_paint_reference( array $rows, $surface = 'kit' ) {
 	$d       = snt_mr_basis_display( $rows );
 	$by_p    = $d['ai'][0]['claimed'];
 	$by_f    = (int) $d['ai'][1]['claimed'];
-	$gap     = null === $by_p ? '' : sprintf(
+	$delta   = null === $by_p ? 0 : $by_f - (int) $by_p;
+	$gap     = 0 === $delta ? '' : ( $delta > 0
 		/* translators: %s: how much higher the family count is. */
-		__( 'The family count is higher by %s: the frozen families also hold search, user-directed and unmapped agents of the same vendors. A published figure depends on the family field, so it is kept; cite the purpose count.', 'signal-and-noise-tools' ),
-		number_format_i18n( abs( $by_f - (int) $by_p ) )
-	);
+		? sprintf( __( 'The family count is higher by %s: the frozen families also hold search, user-directed and unmapped agents of the same vendors. A published figure depends on the family field, so it is kept; cite the purpose count.', 'signal-and-noise-tools' ), number_format_i18n( $delta ) )
+		/* translators: %s: how much higher the purpose count is. */
+		: sprintf( __( 'The purpose count is higher by %s. Cite the purpose count.', 'signal-and-noise-tools' ), number_format_i18n( -$delta ) ) );
 	$both    = snt_ev_table( $surface, array( 'definition' => __( 'Definition', 'signal-and-noise-tools' ), 'reads' => __( 'Reads (claimed)', 'signal-and-noise-tools' ) ), array(
 		array( 'definition' => __( 'By declared purpose (ai_training_by_purpose)', 'signal-and-noise-tools' ), 'reads' => snt_mr_basis_count( $by_p ) ),
 		array( 'definition' => __( 'By crawler family, LEGACY (ai_training)', 'signal-and-noise-tools' ), 'reads' => number_format_i18n( $by_f ) ),

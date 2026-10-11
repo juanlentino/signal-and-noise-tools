@@ -214,6 +214,33 @@ namespace {
 	$css = (string) file_get_contents( SNT_PATH . 'assets/analytics/analytics-admin.css' );
 	ok( false !== strpos( $classic['machine-readers'], 'class="sn-kpi-row sn-mr-kpi-row sn-mr-kpi-row--wrap sn-mr-kpi-row--odd" style="--sn-kpi-cols:4"' ) && 1 === preg_match( '/\.sn-mr-kpi-row--wrap\.sn-mr-kpi-row--odd > \.sn-kpi:first-child \{ grid-column: span 2; \}/', $css ), 'classic: seven tiles run four across with the first spanning two (8 slots: 4 + 4, or 2 + 2 + 2 + 2 narrow), so no row ends on a lone card' );
 
+	echo "\nGroup I: painters that cut, word and align\n";
+	$ua   = str_repeat( 'a', 199 ) . 'é' . ' tail';
+	$path = '/' . str_repeat( 'p', 118 ) . 'é' . '-x';
+	$mb   = array( array( 'observed_at' => '2026-10-10T09:00:00Z', 'path' => $path, 'user_agent' => $ua, 'vendor' => 'openai', 'purpose' => 'train', 'family' => 'openai', 'hits' => 1 ) );
+	foreach ( array( 'kit', 'classic' ) as $sf ) {
+		$h = html_entity_decode( str_replace( '\\u00e9', 'é', snt_ev_paint_rights( $mb, $sf ) ), ENT_QUOTES, 'UTF-8' );
+		ok( false !== strpos( $h, str_repeat( 'a', 199 ) . 'é' ) && false !== strpos( $h, str_repeat( 'p', 118 ) . 'é' ), "rights ($sf): a multibyte character on the cap is kept whole, so the row still paints" );
+	}
+	$many = array();
+	for ( $i = 0; $i < 17; $i++ ) {
+		$many[] = array( 'observed_at' => sprintf( '2026-10-%02dT09:00:00Z', 1 + $i ), 'path' => '/license.xml', 'user_agent' => 'GPTBot/1.0', 'vendor' => 'openai', 'purpose' => 'train', 'family' => 'openai', 'hits' => 1 );
+	}
+	ok( false !== strpos( snt_ev_paint_rights( $many, 'classic' ), '+2 more, older' ), 'rights: newest first, so the "+N more" line says older, not the quiet end' );
+	$gap = static fn( $rs ) => html_entity_decode( snt_ev_paint_reference( $rs, 'classic' ), ENT_QUOTES );
+	$eq  = $gap( array( $r( 'openai', 'train', 'openai-gptbot', 10, 'Google LLC' ) ) );
+	$hi  = $gap( array( $r( 'openai', 'train', 'openai-gptbot', 10, 'Google LLC' ), $r( 'openai', 'search', 'openai-searchbot', 5, 'Google LLC' ) ) );
+	$lo  = $gap( array( $r( 'openai', 'train', 'openai-gptbot', 10, 'Google LLC' ), $r( 'other-bot', 'train', 'other-trainer', 4, 'Google LLC' ) ) );
+	ok( false === strpos( $eq, 'count is higher' ), 'counted both ways, equal: no gap sentence' );
+	ok( false !== strpos( $hi, 'The family count is higher by 5: the frozen families also hold' ), 'counted both ways, family higher: the gap and its cause' );
+	ok( false !== strpos( $lo, 'The purpose count is higher by 4.' ) && false === strpos( $lo, 'frozen families also hold' ), 'counted both ways, purpose higher: the gap without the family cause' );
+	$blank = snt_ev_paint_rights( array( array( 'observed_at' => '2026-10-10T09:00:00Z', 'path' => '/license.xml', 'user_agent' => 'Odd/1.0', 'vendor' => '', 'purpose' => 'unknown', 'family' => 'other-bot', 'hits' => 1 ) ), 'classic' )
+		. snt_ev_paint_reference( array( $r( 'other-bot', 'unknown', '', 3, 'Google LLC', '', array( 'vendor' => 'acme' ) ) ), 'classic' );
+	ok( false === strpos( $blank, '—' ) && false !== strpos( $blank, '<td>none</td>' ), 'a cell with no vendor or no agent says none, never a dash' );
+	$tiles = snt_ev_paint_hero_tiles( array( 'days' => 7, 'total' => 1, 'readers' => 1, 'first_party' => 0, 'ai' => null, 'identity' => array( 'measured' => 1, 'valid' => 1, 'invalid' => 0, 'unknown_key' => 0, 'markdown' => 0 ), 'feed_total' => null, 'tool_calls' => null ), 'kit' );
+	ok( 1 === substr_count( $tiles, 'not measured' ), 'hero: a null AI-training figure says "not measured" once, not again under it' );
+	ok( 1 === preg_match( '/\{&quot;key&quot;:&quot;hits&quot;,&quot;label&quot;:&quot;[^&]*[^}]*&quot;align&quot;:&quot;end&quot;/', $kit['reader-evidence'] ) || 1 === preg_match( '/"key":"hits"[^}]*"align":"end"/', html_entity_decode( $kit['reader-evidence'], ENT_QUOTES ) ), 'kit tables: a numeric column aligns to the end' );
+
 	echo "\nGroup F: a read before verification was recorded is unverifiable, never unverified\n";
 	// Before SN_RIGHTS_EVIDENCE_VERIFIED_SINCE (2026-09-27 15:49:59 UTC) no read can be verified.
 	$pre = array_merge( $rows, array(

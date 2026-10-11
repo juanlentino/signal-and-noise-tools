@@ -21,10 +21,10 @@ function snt_ev_rights_rows( array $rows ) {
 		$vendor = snt_mr_normalize_vendor( $r['vendor'] ?? '' );
 		$out[]  = array(
 			'when'       => substr( preg_replace( '/[^0-9T:.\-Z]/', '', (string) ( $r['observed_at'] ?? '' ) ), 0, 20 ),
-			'vendor'     => '' !== $vendor ? $vendor : '—',
+			'vendor'     => '' !== $vendor ? $vendor : __( 'none', 'signal-and-noise-tools' ),
 			'purpose'    => snt_mr_purpose_label( (string) ( $r['purpose'] ?? 'unknown' ) ),
-			'document'   => substr( (string) ( $r['path'] ?? '' ), 0, 120 ),
-			'user_agent' => substr( (string) ( $r['user_agent'] ?? '' ), 0, 200 ),
+			'document'   => mb_substr( (string) ( $r['path'] ?? '' ), 0, 120, 'UTF-8' ),
+			'user_agent' => mb_substr( (string) ( $r['user_agent'] ?? '' ), 0, 200, 'UTF-8' ),
 		);
 	}
 	return $out;
@@ -55,11 +55,11 @@ function snt_ev_paint_rights( $rows, $surface = 'kit' ) {
 	);
 	$out = snt_ev_lead( $surface, $lead );
 	if ( array() !== $ext ) {
-		$out .= snt_ev_table( $surface, $cols, snt_ev_rights_rows( array_slice( $ext, 0, SN_EV_RIGHTS_ROWS ) ), max( 0, count( $ext ) - SN_EV_RIGHTS_ROWS ), $title );
+		$out .= snt_ev_table( $surface, $cols, snt_ev_rights_rows( array_slice( $ext, 0, SN_EV_RIGHTS_ROWS ) ), max( 0, count( $ext ) - SN_EV_RIGHTS_ROWS ), $title, 'older' );
 	}
 	if ( array() !== $ours ) {
 		$out .= '<p class="snt-ev-muted">' . esc_html__( 'This site’s own checks (not readership)', 'signal-and-noise-tools' ) . '</p>'
-			. snt_ev_table( $surface, $cols, snt_ev_rights_rows( array_slice( $ours, 0, 5 ) ), max( 0, count( $ours ) - 5 ), __( 'This site’s own checks', 'signal-and-noise-tools' ) );
+			. snt_ev_table( $surface, $cols, snt_ev_rights_rows( array_slice( $ours, 0, 5 ) ), max( 0, count( $ours ) - 5 ), __( 'This site’s own checks', 'signal-and-noise-tools' ), 'older' );
 	}
 	return snt_ev_box( $surface, $title, $out );
 }

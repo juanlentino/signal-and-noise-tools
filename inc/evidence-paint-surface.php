@@ -71,23 +71,32 @@ function snt_ev_tiles( $surface, array $tiles ) {
 
 /**
  * A table. Cells are text, or ['html' => ..., 'text' => ...] for a painted
- * cell (an evidence strip); $more > 0 adds the "+N more" line.
+ * cell (an evidence strip); $more > 0 adds the "+N more" line, which names the
+ * cut end: the quiet end of a list ranked by volume, or the older end of a
+ * list newest first. A kit column of counts aligns to the end.
  *
  * @param string $surface kit|classic.
  * @param array  $columns key => heading.
  * @param array  $rows    Rows keyed like $columns.
  * @param int    $more    Rows not shown.
  * @param string $caption Classic caption (the box heading).
+ * @param string $cut     quiet|older: which end the cap cut.
  * @return string
  */
-function snt_ev_table( $surface, array $columns, array $rows, $more = 0, $caption = '' ) {
+function snt_ev_table( $surface, array $columns, array $rows, $more = 0, $caption = '', $cut = 'quiet' ) {
 	$tail = $more > 0
-		? '<p class="' . ( 'kit' === $surface ? 'snt-hint' : 'description' ) . '">' . esc_html( sprintf( /* translators: %s: rows not shown. */ __( '+%s more, the quiet end: the list is capped, not complete.', 'signal-and-noise-tools' ), number_format_i18n( (int) $more ) ) ) . '</p>'
+		? '<p class="' . ( 'kit' === $surface ? 'snt-hint' : 'description' ) . '">' . esc_html(
+			'older' === $cut
+				/* translators: %s: rows not shown. */
+				? sprintf( __( '+%s more, older: the list is capped, not complete.', 'signal-and-noise-tools' ), number_format_i18n( (int) $more ) )
+				/* translators: %s: rows not shown. */
+				: sprintf( __( '+%s more, the quiet end: the list is capped, not complete.', 'signal-and-noise-tools' ), number_format_i18n( (int) $more ) )
+		) . '</p>'
 		: '';
 	if ( 'kit' === $surface ) {
 		$cols = array();
 		foreach ( $columns as $k => $label ) {
-			$cols[] = array( 'key' => (string) $k, 'label' => (string) $label );
+			$cols[] = array( 'key' => (string) $k, 'label' => (string) $label ) + ( snt_ev_numeric_column( $rows, $k ) ? array( 'align' => 'end' ) : array() );
 		}
 		return snt_kit_table( $cols, $rows, array( 'stack_on_phone' => true ) ) . $tail;
 	}
@@ -105,6 +114,20 @@ function snt_ev_table( $surface, array $columns, array $rows, $more = 0, $captio
 		$out .= '</tr>';
 	}
 	return $out . '</tbody></table>' . $tail;
+}
+
+/** A column of counts: every cell a number (or "not measured"), at least one a number. */
+function snt_ev_numeric_column( array $rows, $key ) {
+	$seen = false;
+	foreach ( $rows as $r ) {
+		$cell = $r[ $key ] ?? '';
+		$none = (string) $cell === __( 'not measured', 'signal-and-noise-tools' );
+		if ( is_array( $cell ) || ( ! $none && 1 !== preg_match( '/^\d[\d,.]*( \/ \d[\d,.]*)?$/', (string) $cell ) ) ) {
+			return false;
+		}
+		$seen = $seen || ! $none;
+	}
+	return $seen;
 }
 
 /** A strip cell for snt_ev_table(): the strip, with its words for search and copy. */
