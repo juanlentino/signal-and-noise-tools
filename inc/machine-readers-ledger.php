@@ -38,7 +38,8 @@ const SN_MR_AGENT_NETWORKS_TOP = 5;
  * reader, not a reader with no purpose. Unreleased: each cell also splits its
  * hits by verification (claimed, verified, verified_matched, unverified,
  * unverifiable; inc/machine-readers-basis.php), says whether it is this site's
- * own tooling (`first_party`) or a robots.txt control token no crawler sends
+ * own tooling (`first_party_hits`, the exact part, and `first_party`, true when
+ * that part is above zero) or a robots.txt control token no crawler sends
  * (`impersonation`), and names its `basis`.
  *
  * @param array $rows snt_mr_fetch() aggregate rows.
@@ -65,11 +66,11 @@ function snt_mr_crosstab( $rows ) {
 			$cells[ $key ] = array( 'family' => $family, 'purpose' => $purpose, 'agent' => $agent, 'hits' => 0, 'days' => 0, 'surfaces' => array() );
 			$days[ $key ]  = array();
 			$split[ $key ] = function_exists( 'snt_mr_verification_zero' ) ? snt_mr_verification_zero() : null;
-			$fp[ $key ]    = false;
+			$fp[ $key ]    = 0;
 		}
 		$cells[ $key ]['hits'] += $hits;
 		$split[ $key ]          = null === $split[ $key ] ? null : snt_mr_verification_add( $split[ $key ], $row );
-		$fp[ $key ]             = $fp[ $key ] || ! empty( $row['first_party'] );
+		$fp[ $key ]            += empty( $row['first_party'] ) ? 0 : $hits;
 		if ( '' !== $surface ) {
 			$cells[ $key ]['surfaces'][ $surface ] = ( $cells[ $key ]['surfaces'][ $surface ] ?? 0 ) + $hits;
 		}
@@ -83,9 +84,10 @@ function snt_mr_crosstab( $rows ) {
 		arsort( $cell['surfaces'] );
 		if ( null !== $split[ $key ] ) {
 			$cell += $split[ $key ] + array(
-				'first_party'   => $fp[ $key ],
-				'impersonation' => snt_mr_is_impersonation( $cell ),
-				'basis'         => 'claimed',
+				'first_party'      => $fp[ $key ] > 0,
+				'first_party_hits' => $fp[ $key ],
+				'impersonation'    => snt_mr_is_impersonation( $cell ),
+				'basis'            => 'claimed',
 			);
 		}
 	}

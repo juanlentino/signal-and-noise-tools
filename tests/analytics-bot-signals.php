@@ -112,5 +112,32 @@ ok( true === sn_bot_signals_refresh() && 2 === count( (array) get_option( SNT_BO
 $GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], null );
 ok( true === sn_bot_signals_refresh() && 2 === count( (array) get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION ) ), 'a failed per-day read keeps the stored days and still stores the readout' );
 
+// The store must outgrow the nightly read: 22 nights of the REAL refresh, each
+// read answering what the SQL asks for (UTC days N-14..N), must keep every day.
+echo "\nGroup: the per-day store grows night over night\n";
+$GLOBALS['__opt'] = array();
+$night0 = strtotime( '2026-09-01 03:00:00 UTC' );
+for ( $n = 0; $n < 22; $n++ ) {
+	$clock = $night0 + $n * 86400;
+	sn_analytics_clock( $clock );
+	$read = array();
+	for ( $k = 14; $k >= 0; $k-- ) {
+		$read[] = array( 'day' => gmdate( 'Y-m-d', $clock - $k * 86400 ), 'vid' => "v{$n}-{$k}", 'views' => 1, 'human' => 1 );
+	}
+	$GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], $read );
+	sn_bot_signals_refresh();
+}
+$store = (array) get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION );
+ok( 36 === count( $store ) && '2026-08-18' === array_key_first( $store ) && '2026-09-22' === array_key_last( $store ), 'after 22 nights the store holds 36 days, 2026-08-18 to 2026-09-22 (' . count( $store ) . ' held), so a 30-day range is measured' );
+$la30 = sn_bot_signals_likely_automated( $store, '2026-08-24', '2026-09-22' );
+ok( 30 === $la30['measured_days'] && 0 === $la30['unmeasured_days'], 'a 30-day range reads 30 measured days, not 15' );
+$GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], array() );
+sn_bot_signals_refresh();
+ok( $store === (array) get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION ), 'an empty but successful read keeps the stored days (it is logged, never a wipe)' );
+$GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], array_fill( 0, SNT_BOT_SIGNAL_LIMIT, $read[0] ) );
+sn_bot_signals_refresh();
+ok( $store === (array) get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION ), 'a capped read is skipped and the stored days are kept' );
+sn_analytics_clock( 0 );
+
 echo "\nResult: {$pass} passed, {$fail} failed.\n";
 exit( $fail > 0 ? 1 : 0 );

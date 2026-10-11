@@ -180,6 +180,37 @@ namespace {
 	$out = html_entity_decode( snt_mr_view_reader_evidence_html( snt_mr_view_data( 7, true ), 'kit', array() ), ENT_QUOTES );
 	ok( false !== strpos( $out, 'At least 60 user agents match no taxonomy entry' ), 'a truncated read is a floor: at least 60' );
 
+	echo "\nGroup F: a read before verification was recorded is unverifiable, never unverified\n";
+	// Before SN_RIGHTS_EVIDENCE_VERIFIED_SINCE (2026-09-27 15:49:59 UTC) no read can be verified.
+	$pre = array_merge( $rows, array(
+		$r( 'other-bot', 'search', 'anthropic-searchbot', 40, 'Anthropic, PBC', '', array( 'day' => '2026-09-20' ) ),
+		$r( 'cohere', 'train', 'cohere-ai', 264, 'Google LLC', '', array( 'day' => '2026-09-20' ) ),
+	) );
+	$ex = snt_mr_agent_exceptions( $pre );
+	ok( '5 named agents read with a user agent Cloudflare did not verify, 4 of them never verified. Verified on every read: 0.' === $ex['lead'], 'agents: a verified agent with one pre-since read is no exception, and no longer verified on every read: ' . $ex['lead'] );
+	ok( ! in_array( 'cohere-ai', array_column( $ex['rows'], 'agent' ), true ) && ! in_array( 'anthropic-searchbot', array_column( $ex['rows'], 'agent' ), true ), 'agents: an agent seen only before the since date is not listed as unverified' );
+	$claude = array_column( $ex['rows'], null, 'agent' )['anthropic-claudebot'] ?? null;
+	ok( null !== $claude && 823 === $claude['split']['claimed'] && 25 === $claude['split']['verified'] && 798 === $claude['split']['unverified'], 'agents: the split is the whole agent (823 = 25 verified + 798 unverified), not its first cell' );
+	$fam = snt_mr_family_exceptions( snt_mr_who_reads( $pre ) );
+	ok( false === strpos( $fam, 'cohere' ) && 0 === strpos( $fam, '4 families were never verified by Cloudflare' ), 'families: a family seen only before the since date is not "never verified": ' . $fam );
+
+	echo "\nGroup G: control tokens and this site's own tools move no delta card\n";
+	$day_rows = array();
+	for ( $k = 0; $k < 14; $k++ ) {
+		$cur = $k < 7;
+		$day = gmdate( 'Y-m-d', time() - $k * 86400 );
+		$day_rows[] = $r( 'anthropic', 'train', 'anthropic-claudebot', 100, 'Google LLC', '', array( 'day' => $day ) );
+		$day_rows[] = $r( 'openai', 'train', 'openai-gptbot', $cur ? 100 : 10, 'Google LLC', '', array( 'day' => $day ) );
+		$day_rows[] = $r( 'google-ai', 'train', 'google-extended', $cur ? 100 : 10, 'Google LLC', '', array( 'day' => $day ) );
+		$day_rows[] = $r( 'uptime', 'ops', 'ops-betterstack', $cur ? 900 : 90, 'Hetzner Online GmbH', '', array( 'day' => $day, 'first_party' => true ) );
+	}
+	$saved                         = $GLOBALS['__fetch']['aggregate'];
+	$GLOBALS['__fetch']['aggregate'] = array( 'ok' => true, 'truncated' => false, 'rows' => $day_rows );
+	$ids                           = array_column( snt_mr_view_data( 14 )['cards'], 'id' );
+	$GLOBALS['__fetch']['aggregate'] = $saved;
+	ok( in_array( 'mr_delta_openai', $ids, true ), 'delta cards: a third-party family that rose tenfold cards (the control works)' );
+	ok( ! in_array( 'mr_delta_google-ai', $ids, true ) && ! in_array( 'mr_delta_uptime', $ids, true ), 'delta cards: Google-Extended (a control token) and uptime (this site\'s own monitor) move no card: ' . implode( ', ', $ids ) );
+
 	echo "\nResult: $pass passed, $fail failed.\n";
 	exit( $fail > 0 ? 1 : 0 );
 }

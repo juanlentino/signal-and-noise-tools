@@ -198,7 +198,7 @@ function snt_mr_render_tab() {
 		$verdicts[ __( 'Crawler-family drift', 'signal-and-noise-tools' ) ] = sn_family_drift_health( sn_family_drift_report(), time() );
 	}
 	if ( function_exists( 'snt_ml_reader_anomalies_health' ) ) {
-		$verdicts[ __( 'Reader behaviour', 'signal-and-noise-tools' ) ] = snt_ml_reader_anomalies_health( function_exists( 'snt_ml_reader_anomalies' ) ? snt_ml_reader_anomalies() : null );
+		$verdicts[ __( 'Reader behavior', 'signal-and-noise-tools' ) ] = snt_ml_reader_anomalies_health( function_exists( 'snt_ml_reader_anomalies' ) ? snt_ml_reader_anomalies() : null );
 	}
 
 	echo snt_mr_compose_tab( array( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure composer; every fragment escapes its own values (fixture-pinned).

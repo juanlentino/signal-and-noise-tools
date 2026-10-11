@@ -67,6 +67,18 @@ ok( ! in_array( 'anomaly:unclassified-machine:2026-10-05', $kinds( $f['unclassif
 ok( ! isset( $f['uptime'] ) && ! isset( $r['excluded']['uptime'] ), 'a family made only of first-party reads (uptime: BetterStack) is not in the reader series at all' );
 ok( true === ( $r['first_party_excluded'] ?? null ), 'the payload says first-party reads were left out' );
 
+echo "\nGroup A2: a control token is no family's reader\n";
+$GLOBALS['__fetch']['rows'] = array_merge(
+	mr_rows( 'google-ai', 7, $NOW, array( 'agent' => 'google-extended', 'network' => 'Google LLC' ), $spike ),
+	mr_rows( 'google-ai', 3, $NOW, array( 'agent' => 'google-other' ) ),
+	mr_rows( 'anthropic', 10, $NOW, $GOOGLE, $spike ),
+	mr_rows( 'openai', 12, $NOW, $GOOGLE, $spike )
+);
+$r = snt_ml_reader_anomalies( $NOW );
+$f = $by_family( $r );
+ok( 90 === ( $f['google-ai']['total'] ?? null ), 'google-ai counts its own agents (30 x 3), not the Google-Extended control token' );
+ok( array() === ( $r['co_movement'] ?? null ), 'a control token spiking beside two families does not make a third mover: no co-movement' );
+
 echo "\nGroup B: co-movement, one finding per network\n";
 $GLOBALS['__fetch']['rows'] = array_merge(
 	mr_rows( 'anthropic', 10, $NOW, $GOOGLE, $spike ),

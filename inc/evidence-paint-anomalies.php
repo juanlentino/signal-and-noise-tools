@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise Tools: reader behaviour, verified apart, and the likely
+ * Signal & Noise Tools: reader behavior, verified apart, and the likely
  * automated tile. Section painters, host-agnostic.
  *
  * @package SignalNoiseTools
@@ -61,7 +61,7 @@ function snt_ev_paint_anomalies( array $daily, $report, $surface = 'kit' ) {
 	if ( '' === $verdicts ) {
 		$verdicts = snt_ev_lead( $surface, is_array( $report ) && 'ok' === ( $report['state'] ?? '' )
 			? __( 'No co-movement: no three families moved together on unverified reads from one network.', 'signal-and-noise-tools' )
-			: __( 'Reader behaviour is not measured: the sensor did not answer.', 'signal-and-noise-tools' ) );
+			: __( 'Reader behavior is not measured: the sensor did not answer.', 'signal-and-noise-tools' ) );
 	}
 	return snt_ev_box( $surface, __( 'Reader anomalies, verified apart', 'signal-and-noise-tools' ), $chart . $verdicts );
 }

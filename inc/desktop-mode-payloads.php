@@ -558,7 +558,8 @@ function snt_desktop_machine_readers_top_family( array $payload, $prior_rows, $d
 	// older payload without the field falls back to families over the total.
 	$readers = isset( $payload['reader_families'] ) && is_array( $payload['reader_families'] );
 	$top     = $readers ? ( $payload['reader_families'][0] ?? null ) : ( $payload['families'][0] ?? null );
-	$total   = (int) ( $payload['total'] ?? 0 ) - ( $readers ? (int) ( $payload['first_party'] ?? 0 ) : 0 );
+	$tokens  = $readers ? array_sum( array_map( static fn( $i ) => (int) ( $i['hits'] ?? 0 ), (array) ( $payload['impersonations'] ?? array() ) ) ) : 0;
+	$total   = (int) ( $payload['total'] ?? 0 ) - ( $readers ? (int) ( $payload['first_party'] ?? 0 ) : 0 ) - $tokens;
 	if ( ! is_array( $top ) || '' === (string) ( $top['family'] ?? '' ) || $total < 1 ) {
 		return null;
 	}

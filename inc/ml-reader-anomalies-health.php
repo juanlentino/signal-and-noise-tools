@@ -31,7 +31,7 @@ function snt_ml_reader_anomalies_health( $report ) {
 		return array(
 			'status'  => 'recommended',
 			'summary' => sprintf(
-				'The machine-reader sensor did not answer (%s), so reader behaviour is unread for this window. That is unknown, not quiet.',
+				'The machine-reader sensor did not answer (%s), so reader behavior is unread for this window. That is unknown, not quiet.',
 				$reason
 			),
 		);
@@ -141,7 +141,7 @@ function snt_ml_reader_split_rows( $report ) {
 /** Core Site Health registration (direct test). */
 function snt_ml_reader_anomalies_register_site_health_test( $tests ) {
 	$tests['direct']['snt_ml_reader_anomalies'] = array(
-		'label' => __( 'Signal & Noise machine-reader behaviour', 'signal-and-noise-tools' ),
+		'label' => __( 'Signal & Noise machine-reader behavior', 'signal-and-noise-tools' ),
 		'test'  => 'snt_ml_reader_anomalies_site_health_result',
 	);
 	return $tests;
@@ -155,7 +155,7 @@ function snt_ml_reader_anomalies_site_health_result() {
 	$report = function_exists( 'snt_ml_reader_anomalies' ) ? snt_ml_reader_anomalies() : null;
 	$v      = snt_ml_reader_anomalies_health( $report );
 	return array(
-		'label'       => __( 'Signal & Noise machine-reader behaviour', 'signal-and-noise-tools' ),
+		'label'       => __( 'Signal & Noise machine-reader behavior', 'signal-and-noise-tools' ),
 		'status'      => in_array( $v['status'], array( 'good', 'recommended', 'critical' ), true ) ? $v['status'] : 'recommended',
 		'badge'       => array( 'label' => __( 'Performance', 'signal-and-noise-tools' ), 'color' => 'blue' ),
 		'description' => '<p>' . esc_html( $v['summary'] ) . '</p>' . implode( '', array_map( static fn( $l ) => '<p>' . esc_html( $l ) . '</p>', snt_ml_reader_co_movement_lines( $report ) ) ),

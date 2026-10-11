@@ -47,6 +47,10 @@ $own = array_map( static fn( $r ) => $r + ( 'unclassified-machine' === $r['famil
 $GLOBALS['__reads'][60] = array( 'ok' => true, 'truncated' => false, 'rows' => $own );
 $p = snt_desktop_machine_readers_payload();
 ok( array( 'family' => 'GPTBot', 'share' => 75, 'prior_share' => 100 ) === ( $p['top_family'] ?? null ), 'the top family is the top reader (60 of 80 reader reads: 75%), never this site\'s own tools; the prior share counts readers only' );
+// Control tokens are no reader either: their hits leave the share's denominator too.
+$GLOBALS['__payload']['impersonations'] = array( array( 'agent' => 'google-extended', 'token' => 'Google-Extended', 'hits' => 20, 'networks' => array(), 'basis' => 'claimed' ) );
+$p = snt_desktop_machine_readers_payload();
+ok( 100 === ( $p['top_family']['share'] ?? null ), 'with 20 control-token hits out, GPTBot is 60 of 60 reader reads: 100%, not 75%' );
 unset( $GLOBALS['__payload'] );
 
 $GLOBALS['__reads'][60] = array( 'ok' => true, 'truncated' => false, 'rows' => prior_rows( 5 ) );

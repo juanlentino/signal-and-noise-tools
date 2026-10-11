@@ -118,14 +118,16 @@ $rows = array(
 	$row( 'google-ai', 'unknown', 'google-other', '2026-10-05', 1, array( 'verified_bot' => 'Search Engine Crawler', 'network' => 'Google LLC' ) ),
 	// First-party: inside unclassified-machine, apart from the rest of it.
 	$row( 'unclassified-machine', 'ops', 'self-ledger', '2026-10-05', 500, array( 'first_party' => '1', 'network' => 'Microsoft Corporation' ) ),
+	// A first-party read that claims training: this site's own probe, never a reader's train.
+	$row( 'unclassified-machine', 'train', 'self-train-probe', '2026-10-05', 7, array( 'first_party' => '1', 'network' => 'Microsoft Corporation' ) ),
 	$row( 'unclassified-machine', 'social', 'meta-facebookexternalhit', '2026-10-05', 20, array( 'verified_bot' => 'Page Preview', 'network' => 'Meta Platforms Ireland Limited' ) ),
 );
 $GLOBALS['__mr'] = array(
 	'aggregate' => array( 'ok' => true, 'truncated' => false, 'rows' => snt_mr_normalize_rows( $rows ) ),
-	'totals'    => array( 'ok' => true, 'rows' => array( array( 'day' => '2026-09-20', 'hits' => 10 ), array( 'day' => '2026-10-05', 'hits' => 1518 ) ) ),
+	'totals'    => array( 'ok' => true, 'rows' => array( array( 'day' => '2026-09-20', 'hits' => 10 ), array( 'day' => '2026-10-05', 'hits' => 1525 ) ) ),
 );
 $s = snt_mr_summary_payload( 30 );
-ok( true === $s['ok'] && 1528 === $s['total'], 'total stays the edge\'s exact count, impersonations included (they were reads)' );
+ok( true === $s['ok'] && 1535 === $s['total'], 'total stays the edge\'s exact count, impersonations included (they were reads)' );
 ok( 833 + 4 + 1 === $s['ai_training'], 'ai_training (legacy, family-based) loses the control-token hits: 833 anthropic + 4 openai + 1 google-other, not +170 google-extended' );
 ok( 1 === ( $s['verification']['families']->{'google-ai'}['claimed'] ?? null ), 'google-ai keeps only google-other\'s hit' );
 $train = array_values( array_filter( (array) $s['purposes'], static fn( $p ) => 'train' === $p['purpose'] ) )[0] ?? array();
@@ -134,12 +136,17 @@ ok( array( array( 'agent' => 'google-extended', 'token' => 'Google-Extended', 'h
 $vt = $s['verification']['purposes']->train ?? null;
 ok( is_array( $vt ) && array( 'claimed' => 837, 'verified' => 29, 'verified_matched' => 25, 'unverified' => 798, 'unverifiable' => 10 ) === $vt, 'train: claimed 837 = verified 29 + unverified 798 + unverifiable 10; 25 verified for training' );
 ok( $s['verification']['ai_training_by_purpose'] === $vt, 'ai_training_by_purpose carries the same split' );
+$pk = array_column( (array) $s['purposes'], 'hits', 'purpose' );
+$vp = (array) $s['verification']['purposes'];
+ksort( $pk );
+ksort( $vp );
+ok( array_keys( $pk ) === array_keys( $vp ) && array() === array_filter( array_keys( $pk ), static fn( $k ) => $vp[ $k ]['claimed'] !== $pk[ $k ] ), 'purposes[] and verification.purposes name the same purposes, and each split\'s claimed equals its purpose\'s hits (first-party reads out of both)' );
 ok( 'cloudflare verified bot category' === $s['verification']['source'] && SN_RIGHTS_EVIDENCE_VERIFIED_SINCE === $s['verification']['since'], 'the source and since are the rights evidence\'s' );
 ok( array( 'claimed' => 'claimed', 'verified' => 'verified', 'verified_matched' => 'verified', 'unverified' => 'claimed', 'unverifiable' => 'unmeasured' ) === $s['verification']['basis'], 'each part of the split names its basis' );
 $vu = $s['verification']['purposes']->unknown ?? array();
 ok( 1 === ( $vu['verified'] ?? null ) && 0 === ( $vu['verified_matched'] ?? null ), 'an unmapped purpose can be verified but is never matched' );
 $fam = array_column( $s['families'], null, 'family' );
-ok( 520 === $fam['unclassified-machine']['hits'] && 500 === $fam['unclassified-machine']['first_party_hits'], 'a family row carries first_party_hits: 500 of unclassified-machine\'s 520 are this site\'s own tools' );
+ok( 527 === $fam['unclassified-machine']['hits'] && 507 === $fam['unclassified-machine']['first_party_hits'], 'a family row carries first_party_hits: 507 of unclassified-machine\'s 527 are this site\'s own tools' );
 ok( 0 === $fam['anthropic']['first_party_hits'], 'a family with none says 0' );
 ok( isset( $s['verification']['families']->anthropic ) && 833 === $s['verification']['families']->anthropic['claimed'], 'verification is keyed by family too' );
 ok( 'claimed' === $s['basis']['families'] && 'claimed' === $s['basis']['purposes'] && 'signed' === $s['basis']['identity'] && 'verified' === $s['basis']['verification'] && 'claimed' === $s['basis']['impersonations'], 'basis names how each attributed count is known' );
@@ -170,7 +177,13 @@ $cb = $cells['anthropic-claudebot'];
 ok( 833 === $cb['claimed'] && 25 === $cb['verified'] && 25 === $cb['verified_matched'] && 798 === $cb['unverified'] && 10 === $cb['unverifiable'], 'a cell splits its hits: claimed = verified + unverified + unverifiable' );
 ok( 'claimed' === $cb['basis'] && false === $cb['impersonation'] && false === $cb['first_party'], 'a cell names its basis and is not an impersonation' );
 ok( true === $cells['google-extended']['impersonation'], 'the control-token cell is flagged impersonation: true' );
-ok( true === $cells['self-ledger']['first_party'], 'a first-party cell says so' );
+ok( true === $cells['self-ledger']['first_party'] && 500 === $cells['self-ledger']['first_party_hits'], 'a first-party cell says so, with its exact first-party hits' );
+ok( 0 === $cb['first_party_hits'], 'a third-party cell carries first_party_hits 0' );
+$mixed = snt_mr_crosstab( snt_mr_normalize_rows( array(
+	$row( 'openai', 'train', 'openai-gptbot', '2026-10-05', 30, array( 'network' => 'Google LLC' ) ),
+	$row( 'openai', 'train', 'openai-gptbot', '2026-10-05', 4, array( 'first_party' => '1', 'network' => 'Microsoft Corporation' ) ),
+) ) )['cells'][0];
+ok( 34 === $mixed['hits'] && 4 === $mixed['first_party_hits'] && true === $mixed['first_party'], 'a cell mixing first- and third-party rows counts the first-party part exactly (4 of 34); the flag is first_party_hits > 0' );
 ok( 4 === $cells['openai-gptbot']['verified'] && 0 === $cells['openai-gptbot']['verified_matched'], 'a cell verified under the wrong category is verified but not matched' );
 
 echo "\nGroup F: the unnamed list, folded by sample\n";
@@ -206,7 +219,7 @@ ok( array( 'label' => 'train', 'claimed' => 837, 'verified' => 29, 'verified_mat
 ok( isset( $dp['unmapped'] ) && ! isset( $dp['unknown'] ), 'purpose unknown is labeled unmapped' );
 ok( 'train' === $disp['purposes'][0]['label'], 'purpose rows run by claimed reads, largest first' );
 $df = array_column( $disp['families'], null, 'label' );
-ok( 500 === $df['unclassified-machine']['first_party'] && 520 === $df['unclassified-machine']['claimed'], 'a family row carries its first-party reads' );
+ok( 507 === $df['unclassified-machine']['first_party'] && 527 === $df['unclassified-machine']['claimed'], 'a family row carries its first-party reads' );
 ok( array( 'AI-training, by purpose', 'AI-training, by family (legacy)' ) === array_column( $disp['ai'], 'label' ) && 837 === $disp['ai'][0]['claimed'] && 838 === $disp['ai'][1]['claimed'], 'the two AI-training figures side by side, the family one marked legacy' );
 ok( 'Google-Extended' === ( $disp['impersonations'][0]['token'] ?? '' ), 'the impersonations ride along' );
 ok( SN_RIGHTS_EVIDENCE_VERIFIED_SINCE === $disp['since'], 'with the since date the split is measured from' );

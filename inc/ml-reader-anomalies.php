@@ -51,7 +51,9 @@ function snt_ml_reader_anomalies( $now = null ) {
 	// own probes, ledger verifier and uptime monitor) are not readership and
 	// leave every series. Live 2026-10-05: unclassified-machine flagged at
 	// 13.1 sigma, and the spike was the site's own ledger verifier.
-	$rows = array_values( array_filter( (array) ( $fetched['rows'] ?? array() ), static fn( $r ) => is_array( $r ) && empty( $r['first_party'] ) ) );
+	// A robots.txt control token (Google-Extended) is no family's reader either:
+	// it would sum into google-ai and could seed a co-movement.
+	$rows = array_values( array_filter( (array) ( $fetched['rows'] ?? array() ), static fn( $r ) => is_array( $r ) && empty( $r['first_party'] ) && ! ( function_exists( 'snt_mr_is_impersonation' ) && snt_mr_is_impersonation( $r ) ) ) );
 
 	$days_by_family = snt_mr_family_days( $rows, $from, $to );
 	$eligible       = snt_mr_eligible_families( $rows, $from, $to );

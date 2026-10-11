@@ -193,10 +193,10 @@ unset( $GLOBALS['__options'][ SN_FAMILY_DRIFT_LAST_OPTION ], $GLOBALS['__options
 $GLOBALS['__anomalies'] = array( 'state' => 'unavailable', 'reason' => 'fetch_failed' );
 $kit   = snt_leaf_paint( 'monitoring', 'machine-readers' );
 $drift = mr_leaf_box( $kit, 'Crawler-family drift' );
-$anoms = mr_leaf_box( $kit, 'Reader behaviour' );
-ok( '' !== $drift && '' !== $anoms, 'the drift and reader-behaviour boxes paint under their headings' );
+$anoms = mr_leaf_box( $kit, 'Reader behavior' );
+ok( '' !== $drift && '' !== $anoms, 'the drift and reader-behavior boxes paint under their headings' );
 $row_at = strpos( $kit, snt_leaf_row() );
-ok( false !== $row_at && strpos( $kit, 'heading="Sensor status"' ) < $row_at && $row_at < strpos( $kit, 'heading="Crawler-family drift"' ) && strpos( $kit, 'heading="Crawler-family drift"' ) < strpos( $kit, 'heading="Reader behaviour"' ) && strpos( $kit, 'heading="Reader behaviour"' ) < strpos( $kit, 'heading="Edge sensor"' ), 'the two share one paired row between the sensor hero and the readout beside the settings, drift first' );
+ok( false !== $row_at && strpos( $kit, 'heading="Sensor status"' ) < $row_at && $row_at < strpos( $kit, 'heading="Crawler-family drift"' ) && strpos( $kit, 'heading="Crawler-family drift"' ) < strpos( $kit, 'heading="Reader behavior"' ) && strpos( $kit, 'heading="Reader behavior"' ) < strpos( $kit, 'heading="Edge sensor"' ), 'the two share one paired row between the sensor hero and the readout beside the settings, drift first' );
 ok( false !== strpos( $drift, '<os-notice tone="warning"' ) && false !== strpos( $drift, 'The family-drift check has never run' ), 'drift never run: the summary is a warning notice' );
 ok( false !== strpos( $anoms, '<os-notice tone="warning"' ) && false !== strpos( $anoms, 'did not answer (fetch_failed)' ), 'sensor unread: the reason is a warning notice, not a calm box' );
 // (b) Mirror parity failed: critical is a danger notice, not a warning.
@@ -209,13 +209,13 @@ $GLOBALS['__options'][ SN_FAMILY_DRIFT_OK_OPTION ] = array( 'computed_at' => $no
 $GLOBALS['__anomalies'] = array( 'state' => 'ok', 'counts' => array( 'anomalies' => 0, 'silences' => 0, 'families_eligible' => 4, 'families_seen' => 9 ) );
 $kit   = snt_leaf_paint( 'monitoring', 'machine-readers' );
 $drift = mr_leaf_box( $kit, 'Crawler-family drift' );
-$anoms = mr_leaf_box( $kit, 'Reader behaviour' );
+$anoms = mr_leaf_box( $kit, 'Reader behavior' );
 ok( false === strpos( $drift, '<os-notice' ) && false !== strpos( $drift, '<p class="snt-hint">Plugin and deployed worker agree on 12 families (commit abcdef0)' ), 'drift good: the summary is the hint line, no notice' );
-ok( false === strpos( $anoms, '<os-notice' ) && false !== strpos( $anoms, '<p class="snt-hint">4 of 9 crawler families carry enough presence to measure.' ), 'reader behaviour good: the summary is the hint line, no notice' );
+ok( false === strpos( $anoms, '<os-notice' ) && false !== strpos( $anoms, '<p class="snt-hint">4 of 9 crawler families carry enough presence to measure.' ), 'reader behavior good: the summary is the hint line, no notice' );
 // (d) A deviation on a measured family: recommended is a warning naming the count.
 $GLOBALS['__anomalies'] = array( 'state' => 'ok', 'counts' => array( 'anomalies' => 2, 'silences' => 1, 'families_eligible' => 4, 'families_seen' => 9 ) );
 $kit   = snt_leaf_paint( 'monitoring', 'machine-readers' );
-$anoms = mr_leaf_box( $kit, 'Reader behaviour' );
+$anoms = mr_leaf_box( $kit, 'Reader behavior' );
 ok( false !== strpos( $anoms, '<os-notice tone="warning"' ) && false !== strpos( $anoms, '2 deviation(s) from the 30-day norm and 1 family-day(s) of total silence' ), 'a deviation and a silence: a warning notice with both counts' );
 ok( array() === snt_leaf_classic_markers( $kit ) && array( 'machine_readers_save' ) === snt_leaf_actions( $kit ), 'still one action and no wp-admin markup with the two boxes painted' );
 

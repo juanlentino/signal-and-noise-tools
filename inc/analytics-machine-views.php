@@ -66,7 +66,8 @@ function snt_mr_view_data( $days, $evidence = false ) {
 	}
 	$feed         = function_exists( 'sn_rss_tracker_window_stats_multi' ) ? (array) sn_rss_tracker_window_stats_multi( array( 7, 30 ) ) : array();
 	$rights       = snt_mr_fetch( $days, 'rights' );
-	$win          = function_exists( 'snt_mr_split_windows' ) ? snt_mr_split_windows( $rows, max( 1, intdiv( $days, 2 ) ), gmdate( 'Y-m-d' ) ) : null;
+	// Cards compare readers: this site's own tools and control tokens move none.
+	$win          = function_exists( 'snt_mr_split_windows' ) ? snt_mr_split_windows( snt_mr_reader_rows( $rows ), max( 1, intdiv( $days, 2 ) ), gmdate( 'Y-m-d' ) ) : null;
 	$d['feed']    = $feed;
 	$d['rights']  = ! empty( $rights['ok'] ) ? (array) $rights['rows'] : null;
 	$d['cards']   = null !== $win && function_exists( 'snt_mr_family_delta_cards' ) ? snt_mr_family_delta_cards( $win['current'] ?? array(), $win['prior'] ?? array(), max( 1, intdiv( $days, 2 ) ) ) : array();
