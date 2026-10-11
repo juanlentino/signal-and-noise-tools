@@ -29,6 +29,8 @@ function wp_count_posts( $t ) { return $GLOBALS['__cq_counts']; }
 function wp_timezone() { return new DateTimeZone( 'Europe/Madrid' ); }
 class WP_Post { public $ID; public $post_title; public $post_date_gmt; public $post_date; public function __construct( $a ) { foreach ( $a as $k => $v ) { $this->$k = $v; } } }
 
+require __DIR__ . '/../inc/ml-kernel.php';
+require __DIR__ . '/../inc/ml-cadence.php';
 require __DIR__ . '/../inc/abilities-content-queue.php';
 
 $pass = 0; $fail = 0;
@@ -69,7 +71,9 @@ $published = array(
 	array( 'id' => 4, 'title' => 'Too old for the card', 'ts' => $NOW - 9 * 86400, 'edit_url' => 'https://x.test/e/4' ),
 );
 $out = sn_content_queue_shape( $future, 26, $published, $NOW, $TZ );
-ok( array( 'next', 'scheduled_total', 'runs_to', 'published' ) === array_keys( $out ), 'the payload carries exactly the four keys' );
+ok( array( 'next', 'scheduled_total', 'runs_to', 'published', 'drafts', 'gap' ) === array_keys( $out ), 'the payload carries exactly the six keys' );
+ok( null === $out['drafts'], 'drafts is null when the caller could not count them, never a guessed 0' );
+ok( 7 === sn_content_queue_shape( $future, 26, $published, $NOW, $TZ, 7 )['drafts'] && 0 === sn_content_queue_shape( $future, 26, $published, $NOW, $TZ, 0 )['drafts'], 'a counted draft total passes through, a real 0 included' );
 ok( 4 === count( $out['next'] ), 'next is capped at four (the headline plus three)' );
 ok( 'Note in 1 days' === $out['next'][0]['title'] && 'Tomorrow 12:00' === $out['next'][0]['when'], 'the first row is the soonest, labelled' );
 ok( 26 === $out['scheduled_total'], 'the total is the site-wide count, not the row count' );
@@ -86,6 +90,40 @@ $junk = sn_content_queue_shape( 'nope', -3, array( 'x', null, array( 'title' => 
 ok( array() === $junk['next'] && 0 === $junk['scheduled_total'], 'non-array rows and a negative total are tolerated, not fatal' );
 ok( 1 === count( $junk['published'] ) && 0 === $junk['published'][0]['id'], 'a partial row survives with defaults; junk rows are dropped' );
 
+echo "\nGroup C2: the gap, by the publishing-cadence flag's own threshold\n";
+// History: a note every 3 days with a day of jitter (std > 0), newest first.
+$hist = array();
+foreach ( array( 0, 3, 7, 10, 12, 15, 19, 22, 24, 27, 31, 34, 36, 39, 43, 46, 48, 51, 55, 58 ) as $d ) {
+	$hist[] = $NOW - ( $d + 1 ) * 86400;
+}
+$dev = snt_ml_cadence_deviation( $hist, $NOW );
+ok( is_array( $dev ) && $dev['std'] > 0, 'the fixture history has a spread, so the cadence flag can speak' );
+$threshold = $dev['ewma'] + SNT_ML_CADENCE_Z_FLAG * $dev['std'];
+ok( $threshold > 4 * 86400 && $threshold < 10 * 86400, 'its late threshold sits between a normal interval and the hole (' . round( $threshold / 86400, 1 ) . ' days)' );
+// Schedule (UTC 10:00): Sep 18, 21, 24, a hole, Oct 9, Oct 12, then a second hole to Nov 30.
+$at    = static function ( $m, $d ) { return gmmktime( 10, 0, 0, $m, $d, 2026 ); };
+$holey = array( $at( 9, 18 ), $at( 9, 21 ), $at( 9, 24 ), $at( 10, 9 ), $at( 10, 12 ), $at( 11, 30 ) );
+$gap   = sn_content_queue_gap( $holey, $hist, $NOW, $TZ );
+ok( is_array( $gap ) && '2026-09-25' === $gap['from'] && '2026-10-08' === $gap['to'], 'the FIRST hole is reported as the whole empty days between the two notes' );
+ok( is_array( $gap ) && 'Sep 25' === $gap['from_label'] && 'Oct 8' === $gap['to_label'], 'the gap labels are calendar days, formatted like the card\'s dates' );
+$as_rows = static function ( $list ) { return array_map( static function ( $t ) { return array( 'id' => 1, 'title' => 't', 'ts' => $t ); }, $list ); };
+$shaped  = sn_content_queue_shape( $as_rows( array_reverse( $holey ) ), 6, $as_rows( $hist ), $NOW, $TZ, 2 );
+ok( is_array( $shaped['gap'] ) && '2026-09-25' === $shaped['gap']['from'], 'the shaper carries the gap from its own rows, in any order' );
+$steady = array( $at( 9, 18 ), $at( 9, 21 ), $at( 9, 24 ), $at( 9, 27 ), $at( 9, 30 ) );
+ok( null === sn_content_queue_gap( $steady, $hist, $NOW, $TZ ), 'a schedule at the site\'s cadence has no gap' );
+ok( null === sn_content_queue_shape( $as_rows( $steady ), 5, $as_rows( $hist ), $NOW, $TZ, 2 )['gap'], 'and the shaper says null for it' );
+ok( null === sn_content_queue_gap( $holey, array_slice( $hist, 0, 4 ), $NOW, $TZ ), 'thin history (under five notes) is an honest unknown: no gap line' );
+$metronome = array();
+for ( $i = 1; $i <= 10; $i++ ) {
+	$metronome[] = $NOW - $i * 3 * 86400;
+}
+ok( null === sn_content_queue_gap( $holey, $metronome, $NOW, $TZ ), 'a zero-spread history is unquantifiable, as in the cadence flag: no gap line' );
+ok( null === sn_content_queue_gap( array( $at( 9, 18 ) ), $hist, $NOW, $TZ ) && null === sn_content_queue_gap( array(), $hist, $NOW, $TZ ), 'one note or none has no pair to measure' );
+// The day boundary is the site's: 23:30Z on Sep 24 is 01:30 Sep 25 in Madrid, so the hole starts a day later.
+$late = array( $at( 9, 18 ), $at( 9, 21 ), gmmktime( 23, 30, 0, 9, 24, 2026 ), $at( 10, 9 ) );
+$mgap = sn_content_queue_gap( $late, $hist, $NOW, new DateTimeZone( 'Europe/Madrid' ) );
+ok( is_array( $mgap ) && '2026-09-26' === $mgap['from'], 'the empty days are counted in the site timezone' );
+
 echo "\nGroup D: registration and the execute path\n";
 foreach ( $GLOBALS['__cq_actions']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(); }
 $ab = $GLOBALS['__cq_abilities']['signal-noise/content-queue'] ?? null;
@@ -98,21 +136,26 @@ ok( 'snt_ability_perm_edit_posts' === ( $ab['permission_callback'] ?? null ) && 
 $mk = static function ( $id, $title, $ts ) { return new WP_Post( array( 'ID' => $id, 'post_title' => $title, 'post_date_gmt' => gmdate( 'Y-m-d H:i:s', $ts ), 'post_date' => gmdate( 'Y-m-d H:i:s', $ts ) ) ); };
 $now = time();
 $GLOBALS['__cq_posts'] = array(
-	'future:ASC'   => array( $mk( 11, 'Soon', $now + 3600 ), $mk( 12, 'Next', $now + 2 * 86400 ), $mk( 13, 'Third', $now + 4 * 86400 ), $mk( 14, 'Fourth', $now + 8 * 86400 ) ),
-	'future:DESC'  => array( $mk( 99, 'Last', $now + 101 * 86400 ) ),
+	'future:ASC'   => array( $mk( 11, 'Soon', $now + 3600 ), $mk( 12, 'Next', $now + 2 * 86400 ), $mk( 13, 'Third', $now + 4 * 86400 ), $mk( 14, 'Fourth', $now + 8 * 86400 ), $mk( 99, 'Last', $now + 101 * 86400 ) ),
 	'publish:DESC' => array( $mk( 5, 'Fresh', $now - 7200 ), $mk( 4, 'Older', $now - 4 * 86400 ), $mk( 3, 'Oldest', $now - 10 * 86400 ) ),
 );
+$GLOBALS['__cq_counts'] = (object) array( 'future' => 26, 'publish' => 60, 'draft' => 4 );
 $res = snt_ability_content_queue( null );
-ok( 3 === count( $GLOBALS['__cq_queries'] ), 'three reads: next four asc, furthest one desc, last three published' );
+// 23.8.0: two reads, not three. The whole queue serves next, runs_to and the
+// gap walk; the published read is the cadence flag's history depth.
+ok( 2 === count( $GLOBALS['__cq_queries'] ), 'two reads: the whole queue asc, the published cadence history' );
 $q = $GLOBALS['__cq_queries'];
-ok( 'future' === $q[0]['post_status'] && 'ASC' === $q[0]['order'] && SN_CONTENT_QUEUE_NEXT === $q[0]['numberposts'], 'the first read is the next four scheduled, soonest first' );
-ok( 'future' === $q[1]['post_status'] && 'DESC' === $q[1]['order'] && 1 === $q[1]['numberposts'], 'the second read is the single furthest scheduled' );
-ok( 'publish' === $q[2]['post_status'] && 'DESC' === $q[2]['order'] && SN_CONTENT_QUEUE_PUBLISHED === $q[2]['numberposts'], 'the third read is the last three published' );
+ok( 'future' === $q[0]['post_status'] && 'ASC' === $q[0]['order'] && -1 === $q[0]['numberposts'], 'the first read is the whole scheduled queue, soonest first' );
+ok( 'publish' === $q[1]['post_status'] && 'DESC' === $q[1]['order'] && SNT_ML_CADENCE_PUBLISH_DEPTH === $q[1]['numberposts'], 'the second read is the cadence flag\'s publish depth' );
 ok( array( 'Soon', 'Next', 'Third', 'Fourth' ) === array_column( $res['next'], 'title' ), 'next carries the four soonest in order (the furthest row does not leak into it)' );
 ok( 99 !== ( $res['next'][3]['id'] ?? 0 ) && 26 === $res['scheduled_total'], 'the total rides wp_count_posts (26), not the row count' );
-ok( is_array( $res['runs_to'] ) && $res['runs_to']['date'] === gmdate( 'c', $now + 101 * 86400 ), 'runs_to is the furthest scheduled post, from the desc read' );
+ok( 4 === $res['drafts'], 'drafts rides wp_count_posts()->draft' );
+ok( is_array( $res['runs_to'] ) && $res['runs_to']['date'] === gmdate( 'c', $now + 101 * 86400 ), 'runs_to is the furthest scheduled post, the last of the asc read' );
 ok( 'https://x.test/wp-admin/post.php?post=11&action=edit' === $res['next'][0]['edit_url'], 'rows carry the edit link the shell opens as a native window' );
 ok( array( 'Fresh', 'Older', 'Oldest' ) === array_column( $res['published'], 'title' ) && '2 hours ago' === $res['published'][0]['when'], 'published rows in order with their age' );
+ok( null === $res['gap'], 'three published notes are too little history to call a gap: null, not a guess' );
+$props = $ab['output_schema']['properties'] ?? array();
+ok( array( 'integer', 'null' ) === ( $props['drafts']['type'] ?? null ) && array( 'object', 'null' ) === ( $props['gap']['type'] ?? null ), 'the output schema declares drafts and gap, both nullable' );
 
 $GLOBALS['__cq_posts'] = array( 'publish:DESC' => array( 'not a post', (object) array( 'ID' => 7 ) ) );
 $GLOBALS['__cq_counts'] = (object) array( 'future' => 0 );
@@ -121,6 +164,7 @@ ok( array() === $res['next'] && null === $res['runs_to'] && 0 === $res['schedule
 $GLOBALS['__cq_counts'] = null;
 $res = snt_ability_content_queue( null );
 ok( 0 === $res['scheduled_total'], 'a wp_count_posts that returns nothing falls back to the row count, not a fatal' );
+ok( null === $res['drafts'], 'and drafts is null then, never a fabricated 0' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

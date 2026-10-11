@@ -78,6 +78,8 @@
 		Cron:   { page: 'cron', text: 'Open Cron' },
 		Edge:   { page: 'cloudflare', text: 'Open Cloudflare' },
 		Cache:  { page: 'cloudflare', text: 'Open Cloudflare' },
+		// 2026-10-10: the analytics 2.0 verdict, read on S&N Analytics.
+		Analytics: { page: 'analytics', text: 'Open Analytics' },
 	};
 	var BILLING = { href: 'https://console.anthropic.com/settings/billing', text: 'Open Anthropic billing' };
 
@@ -232,18 +234,28 @@
 		if ( ! e ) { tally.unknown++; return { empty: 'No complete day in the edge rollup yet.' }; } // not measured is never an all-clear.
 		if ( e.failed ) { tally.unknown++; return { empty: 'The 5xx read for ' + String( e.day || 'the newest day' ) + ' failed.' }; }
 		var total = num( e.total );
-		// In words, not an arrow: a screen reader says the words, not "triangle".
-		var delta = null === e.prior || undefined === e.prior ? '' : ( total === num( e.prior ) ? ' · same as the day before' : ' · ' + Math.abs( total - num( e.prior ) ) + ( total > num( e.prior ) ? ' more' : ' fewer' ) + ' than the day before' );
 		// Every 5xx reaches the headline: most "through a Worker" rows are a
 		// visitor's request the rights Worker forwarded (inc/edge-rollup.php),
 		// so "who asked" cannot separate visitors from the Worker's own calls.
 		if ( total > 0 ) { tally.look++; }
-		var rows = [ { label: '5xx · ' + String( e.day || 'yesterday' ), value: total + delta, tone: total > 0 ? WARN_FG : '' } ];
+		// 2026-10-10: how many a visitor asked for directly, of all. A floor, not
+		// the whole answer: a visitor's request the Worker forwarded counts on
+		// the Worker's side. A day stored before who-asked has no visitor
+		// count, and none is painted (never a 0).
+		// Short rows, so Edge fits beside Cache on one line (2026-10-10): the
+		// count, the visitors among them when there were any, and the day before.
+		var rows = [ { label: '5xx · ' + String( e.day || 'yesterday' ), value: String( total ), tone: total > 0 ? WARN_FG : '' } ];
+		if ( total > 0 && typeof e.visitor === 'number' ) {
+			rows.push( { label: 'Visitors, direct', value: String( Math.min( total, num( e.visitor ) ) ) } );
+		}
+		if ( null !== e.prior && undefined !== e.prior ) {
+			rows.push( { label: 'Day before', value: String( num( e.prior ) ) } );
+		}
 		// Whose (2026-10-05): most of these are this dashboard's own polls, not
 		// a reader's page. Said beside the count, never subtracted from it.
 		if ( total > 0 && typeof e.dashboard === 'number' ) {
 			var dash = Math.min( total, num( e.dashboard ) );
-			rows.push( { label: 'Your dashboard · everything else', value: dash + ' · ' + ( total - dash ) } );
+			rows.push( { label: 'Your dashboard', value: String( dash ) } );
 		}
 		return { rows: rows };
 	}
@@ -274,7 +286,7 @@
 		if ( ! c ) { tally.unknown++; return { empty: 'No purge recorded yet.' }; } // no evidence is not a clean edge.
 		var rows = [];
 		var when = ago( c.last_purge );
-		if ( when ) { rows.push( { label: 'Last full purge', value: when } ); }
+		if ( when ) { rows.push( { label: 'Purged', value: when } ); }
 		// Only a verified fresh edge stays out of the headline: stale is to look
 		// at; pending (a purge still verifying) and unknown are not measured yet.
 		var fresh = String( c.fresh || 'unknown' );
@@ -287,8 +299,49 @@
 		// (Codex on #1925); SKEW_S allows the ordinary browser/server drift.
 		var checking = 'pending' === fresh && since >= -SKEW_S && since < VERIFY_S;
 		if ( 'stale' === fresh ) { tally.look++; } else if ( checking ) { tally.checking++; } else if ( 'fresh' !== fresh ) { tally.unknown++; }
-		rows.push( { label: 'Edge freshness', value: String( c.headline || ( 'unknown' === fresh ? 'not verified yet' : fresh ) ), tone: 'fresh' === fresh || checking ? '' : WARN_FG } );
+		rows.push( { label: 'Freshness', value: String( c.headline || ( 'unknown' === fresh ? 'not verified yet' : fresh ) ), tone: 'fresh' === fresh || checking ? '' : WARN_FG } );
 		return rows.length ? { rows: rows } : { empty: 'No purge recorded yet.' };
+	}
+
+	/**
+	 * The analytics 2.0 verdict the daily check stored (never the live check).
+	 * A reset waiting for an exact day is said, never amber: nothing on the
+	 * site fixes it. Only the legacy write stopping on a bad verdict is.
+	 */
+	function readAnalytics2( a, tally ) {
+		if ( ! a ) { return { rows: [ { label: 'Cutover check', value: 'no verdict stored yet' } ] }; }
+		if ( a.bad ) {
+			tally.look++;
+			return { rows: [ { label: 'Cutover check', value: 'legacy write stopped on a bad verdict', tone: WARN_FG } ] };
+		}
+		var days  = num( a.days );
+		var value = a.ok ? days + ( 1 === days ? ' day' : ' days' ) + ' clean · since ' + String( a.since ) + ( a.frozen ? ' · frozen' : '' )
+			: a.reset ? 'reset ' + String( a.reset ) + ' · no exact day since'
+			: 'not verified yet · no exact day so far';
+		return { rows: [ { label: 'Cutover check', value: value } ] };
+	}
+
+	/** The watches due now (sn-status{watches}): a to-do, not a fault. */
+	function readWatches( list, tally ) {
+		tally.due += list.length;
+		var rows = list.slice( 0, LIST_CAP ).map( function( w ) { return { label: 'Watch due: ' + String( w.label ), value: '' }; } );
+		if ( list.length > LIST_CAP ) { rows.push( { label: '+' + ( list.length - LIST_CAP ) + ' more due', value: '' } ); }
+		return { rows: rows };
+	}
+
+	/** A credential failing, and the Cloudflare token when it is not active or expires soon. */
+	function readCredentials( c, tally ) {
+		var rows = [];
+		var fix  = [];
+		var keys = c.keyring || [];
+		keys.forEach( function( k ) { tally.look++; rows.push( { label: 'Credential ' + String( k.id ), value: String( k.verdict ), tone: WARN_FG } ); } );
+		if ( keys.length ) { fix.push( pageFix( 'credentials', 'Open Credentials' ) ); }
+		if ( c.cloudflare ) {
+			tally.look++;
+			rows.push( { label: 'Cloudflare API token', value: 'active' === c.cloudflare.status && c.cloudflare.expires ? 'expires ' + String( c.cloudflare.expires ) : String( c.cloudflare.status ), tone: WARN_FG } );
+			fix.push( pageFix( 'cloudflare', 'Open Cloudflare' ) );
+		}
+		return { rows: rows, fix: fix.filter( Boolean ) };
 	}
 
 	function readHealth( h, tally ) {
@@ -329,7 +382,9 @@
 		var next    = c.next && typeof c.next === 'object' && c.next.hook ? c.next : null;
 		var lateS   = next ? Math.max( 0, -num( next.in_s ) ) : 0;
 		var late    = lateS > LATE_S;
-		var row     = { label: total + ' scheduled', value: next ? 'next: ' + String( next.hook ).replace( /^snt?_/, '' ) + ( late ? ' · ' + Math.round( lateS / 60 ) + ' min late' : '' ) : '' };
+		// 2026-10-10: the S&N jobs of every WP-cron event, when the count came.
+		var sn      = typeof c.sn_count === 'number' ? 'S&N jobs · ' + c.sn_count + ' of ' : '';
+		var row     = { label: sn + total + ' scheduled', value: next ? 'next: ' + String( next.hook ).replace( /^snt?_/, '' ) + ( late ? ' · ' + Math.round( lateS / 60 ) + ' min late' : '' ) : '' };
 		if ( late ) { row.tone = WARN_FG; tally.look++; }
 		var rows = [ row ].concat( cronDayRows( extra.cron, tally ) );
 		if ( orphans > 0 ) { tally.orphaned += orphans; rows.push( { label: 'Orphaned', value: String( orphans ), tone: WARN_FG } ); }
@@ -353,14 +408,15 @@
 		if ( t.unknown )  { parts.push( t.unknown + ' not measured' ); }
 		if ( t.checking ) { parts.push( t.checking + ' verifying' ); }
 		if ( t.paused )   { parts.push( t.paused + ' paused' ); }
+		if ( t.due )      { parts.push( t.due + ( 1 === t.due ? ' watch due' : ' watches due' ) ); }
 		return parts.join( ' · ' );
 	}
 
 	function newTally() {
-		return { down: 0, look: 0, orphaned: 0, skipped: 0, unknown: 0, checking: 0, paused: 0 };
+		return { down: 0, look: 0, orphaned: 0, skipped: 0, unknown: 0, checking: 0, paused: 0, due: 0 };
 	}
 
-	/** The counts that make the dot amber (or red): everything but checking and paused. */
+	/** The counts that make the dot amber (or red): everything but checking, paused and due. */
 	function faults( t ) {
 		return t.down + t.look + t.orphaned + t.skipped + t.unknown;
 	}
@@ -369,12 +425,18 @@
 	function fixFor( title ) {
 		var f = FIX[ title ];
 		if ( ! f ) { return null; }
-		var href = f.href || ( data.pages && data.pages[ f.page ] ) || '';
-		return href ? { href: href, text: f.text } : null;
+		return f.href ? { href: f.href, text: f.text } : pageFix( f.page, f.text );
 	}
 
-	function section( title, read, first ) {
-		var box  = el( 'div', { style: 'margin-top:' + ( first ? '8px' : '6px' ) + ';padding-top:' + ( first ? '8px' : '6px' ) + ';border-top:1px solid ' + HAIRLINE + ';' } );
+	/** A link to one of window.snDesktopData.pages, or null when that page is not known. */
+	function pageFix( page, text ) {
+		var href = ( data.pages && data.pages[ page ] ) || '';
+		return href ? { href: href, text: text } : null;
+	}
+
+	// bare: a column of the card kit's pair, which draws the one hairline.
+	function section( title, read, first, bare ) {
+		var box  = el( 'div', { style: bare ? '' : 'margin-top:' + ( first ? '8px' : '6px' ) + ';padding-top:' + ( first ? '8px' : '6px' ) + ';border-top:1px solid ' + HAIRLINE + ';' } );
 		var head = el( 'div', { text: title, style: 'font-size:11px;margin-bottom:2px;' + SUBTLE } );
 		head.setAttribute( 'role', 'heading' );
 		head.setAttribute( 'aria-level', '3' );
@@ -554,7 +616,22 @@
 			// Edge and Cache only when the owner payload came: without it (another
 			// role, an older build) there is no source to call unmeasured.
 			if ( data.statusExtra && data.statusExtra.systems ) {
-				reads.push( read( 'Edge', function() { return readEdge( extra.edge, tally ); } ), read( 'Cache', function() { return readCache( extra.cache, tally ); } ) );
+				// Edge beside Cache (2026-10-10): `pair` joins a read to the next.
+				var edge = read( 'Edge', function() { return readEdge( extra.edge, tally ); } );
+				edge.pair = true;
+				reads.push( edge, read( 'Cache', function() { return readCache( extra.cache, tally ); } ) );
+				// An older cached payload without the key paints no line.
+				if ( Object.prototype.hasOwnProperty.call( extra, 'analytics2' ) ) {
+					reads.push( read( 'Analytics', function() { return readAnalytics2( extra.analytics2, tally ); } ) );
+				}
+				// Only when something is due, or wrong.
+				if ( extra.watches && extra.watches.length ) {
+					reads.push( read( 'Watches', function() { return readWatches( extra.watches, tally ); } ) );
+				}
+				var cred = extra.credentials;
+				if ( cred && ( ( cred.keyring && cred.keyring.length ) || cred.cloudflare ) ) {
+					reads.push( read( 'Credentials', function() { return readCredentials( cred, tally ); } ) );
+				}
 			}
 			var words = 'pending' === uptime ? 'Checking…' : ( headlineText( tally ) || 'All systems normal' );
 			if ( verdict.textContent !== words ) { verdict.textContent = words; }
@@ -566,7 +643,17 @@
 			var focused = document.activeElement && detail.contains && detail.contains( document.activeElement ) && 'A' === document.activeElement.tagName ? document.activeElement : null;
 			var key     = focused ? focused.href + '|' + focused.textContent : '';
 			clearChildren( detail );
-			reads.forEach( function( r, i ) { detail.appendChild( section( r[0], r[1], 0 === i ) ); } );
+			var kit = window.sntCardKit;
+			for ( var i = 0; i < reads.length; i++ ) {
+				var r = reads[ i ];
+				// Without the kit (an older shell), the pair stacks.
+				if ( r.pair && kit && reads[ i + 1 ] ) {
+					var next = reads[ ++i ];
+					detail.appendChild( kit.pair( section( r[0], r[1], false, true ), section( next[0], next[1], false, true ) ) );
+				} else {
+					detail.appendChild( section( r[0], r[1], 0 === i ) );
+				}
+			}
 			if ( key ) {
 				var back = Array.prototype.filter.call( detail.querySelectorAll( 'a' ), function( a ) { return a.href + '|' + a.textContent === key; } )[0];
 				if ( back ) { back.focus(); }

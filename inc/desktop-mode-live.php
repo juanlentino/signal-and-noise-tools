@@ -11,8 +11,11 @@
  *                         and a widget re-reads its own data only when its
  *                         stamp moves. One indexed query and two option reads.
  *   GET /desktop/systems  The SN Systems lines that were read once at page
- *                         load (health, cron, edge and cache), so its 2-minute
- *                         poll refreshes them too. Same functions, same caches.
+ *                         load (health, cron, edge and cache; since 2026-10-10
+ *                         also analytics 2.0, watches due and failing
+ *                         credentials, and SN Provenance's rows with their
+ *                         read time), so its 2-minute poll refreshes them
+ *                         too. Same functions, same caches.
  *
  * Why (owner, 2026-10-10): a post scheduled in another window did not reach
  * SN Queue until the PWA was reloaded.

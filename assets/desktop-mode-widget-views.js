@@ -145,6 +145,31 @@
 		return node;
 	}
 
+	/**
+	 * "In 7 days: about 20 views a day (estimate)", from the payload's forecast
+	 * (sn_analytics_forecast_of(): a per-day point at the horizon, already
+	 * withheld when the fit does not beat a same-value baseline). It is said
+	 * as the day's rate it is, never multiplied into a week's total. The
+	 * spread (", ±25%") is added only when the backtest measured the interval
+	 * holding at least 80% of the time (confidence high).
+	 * Null when there is no forecast: the card says nothing rather than guess.
+	 */
+	function forecastLine( f ) {
+		if ( ! f || typeof f.value !== 'number' || ! f.interval ) { return null; }
+		var days = typeof f.horizon === 'number' && f.horizon > 0 ? f.horizon : 7;
+		var perDay = Math.round( f.value );
+		var half = ( Number( f.interval.high ) - Number( f.interval.low ) ) / 2;
+		var spread = f.confidence === 'high' && f.value > 0 && half > 0 ? ', ±' + Math.round( 100 * half / f.value ) + '%' : '';
+		var text = 'In ' + days + ' days: about ' + perDay.toLocaleString() + ( 1 === perDay ? ' view' : ' views' ) + ' a day (estimate' + spread + ')';
+		var node = el( 'div', { text: text, style: 'font-size:11px;margin-top:2px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
+		node.setAttribute( 'data-sn-forecast', '' );
+		return node;
+	}
+
+	function readAt( at ) {
+		return 'Read at ' + new Date( at * 1000 ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } );
+	}
+
 	/** A label/value row for the secondary stats. */
 	function statRow( label, value, valueStyle ) {
 		var row = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
@@ -222,8 +247,8 @@
 	}
 
 	/**
-	 * Engaged readers with their change, DOI downloads and inquiries, the
-	 * owner's pick of Site Views' north star rows (2026-10-04). Additive: an
+	 * Engaged visitor-days (the north star) with their change, DOI downloads and
+	 * inquiries, the owner's pick of Site Views' north star rows (2026-10-04). Additive: an
 	 * absent key (analytics unset, an older cached payload) paints no row, and
 	 * a measured 0 is a number and paints.
 	 */
@@ -231,7 +256,8 @@
 		var rows = [];
 		if ( ! ns || typeof ns.value !== 'number' ) { return rows; }
 		var d = ns.value - ( ns.previous || 0 );
-		rows.push( { label: 'Engaged readers · 7d', value: String( ns.value ) + ( d ? ' ' + deltaText( d ) : '' ), style: d ? 'color:' + deltaColor( d, d, relOf( d, ns.previous || 0 ), false ) + ';' : '' } );
+		// Visitor-days, not views: SN Reading's "of views engaged" is another figure.
+		rows.push( { label: 'Engaged visitor-days · 7d', value: String( ns.value ) + ( d ? ' ' + deltaText( d ) : '' ), style: d ? 'color:' + deltaColor( d, d, relOf( d, ns.previous || 0 ), false ) + ';' : '' } );
 		if ( ns.doi && typeof ns.doi.value === 'number' ) { rows.push( { label: 'DOI downloads · ' + ns.doi.window, value: ns.doi.value } ); }
 		if ( typeof ns.inquiries === 'number' ) { rows.push( { label: 'Inquiries · 7d', value: ns.inquiries } ); }
 		return rows;
@@ -324,7 +350,8 @@
 			// paint here as groups (inc/desktop-mode-audience.php), then the top
 			// pages. Read 2+ pages, downloads outbound, the bot share and the top
 			// mover are not painted (owner's pick, 2026-10-04): they live in S&N
-			// Analytics. Additive: an older cached payload without `groups` paints none.
+			// Analytics, and the payload no longer computes them (2026-10-10).
+			// Additive: an older cached payload without `groups` paints none.
 			var groups = ( payload.groups || [] ).filter( function( g ) { return g && g.title; } );
 			for ( var gi = 0; gi < groups.length; gi++ ) {
 				var g = groups[ gi ];
@@ -340,6 +367,17 @@
 			} );
 			if ( pageRows.length ) {
 				body.appendChild( group( 'Top pages', pageRows ) );
+			}
+
+			// When these figures were read, as a clock time (SN Reading's foot): a
+			// relative age would go stale on a desktop left open. Kept out of the
+			// status region's announcements.
+			var at = Number( payload.generated_at );
+			if ( at > 0 ) {
+				var stamp = el( 'div', { text: readAt( at ), style: 'font-size:11px;margin-top:8px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
+				stamp.setAttribute( 'data-sn-read-at', '' );
+				stamp.setAttribute( 'aria-live', 'off' );
+				body.appendChild( stamp );
 			}
 		}
 
@@ -391,6 +429,20 @@
 				topVal.setAttribute( 'data-sn-live-top', '' );
 			}
 			body.appendChild( topList );
+			// A surge right now, in words (live-now.js, the live route's surge
+			// verdict). Hidden unless the verdict is a surge: the usual and the
+			// learning states write nothing here, so a quiet card adds no line.
+			var surgeBox = el( 'div' );
+			surgeBox.hidden = true;
+			surgeBox.setAttribute( 'data-sn-live-hide-empty', '' );
+			var surge = el( 'div', { style: 'font-size:11px;font-weight:600;padding:2px 0;color:#d29922;' } );
+			surge.setAttribute( 'data-sn-live-surge', '' );
+			surge.setAttribute( 'data-surge', 'Unusual: about %1$s× the usual for this time of day (%2$s readers, usually %3$s).' );
+			surge.setAttribute( 'data-surge-zero', 'Unusual: %s readers at a time of day that is usually empty.' );
+			surge.setAttribute( 'data-usual', '' );
+			surge.setAttribute( 'data-learning', '' );
+			surgeBox.appendChild( surge );
+			body.appendChild( surgeBox );
 			if ( typeof window.CustomEvent === 'function' && document.dispatchEvent ) {
 				document.dispatchEvent( new window.CustomEvent( 'sn-live-refresh' ) );
 			}
@@ -405,6 +457,8 @@
 			body.appendChild( chart );
 
 			body.appendChild( deltaLine( payload.delta_pct, payload.total ) );
+			var next = forecastLine( payload.forecast );
+			if ( next ) { body.appendChild( next ); }
 		}
 
 		function fail() {
@@ -424,8 +478,14 @@
 		// reveal re-arms for what is left of the wait, a failure backs off and
 		// keeps the last good reading, and teardown aborts the read in flight.
 		function repaint( payload ) {
-			var json = JSON.stringify( payload );
-			if ( json === shownJson ) { return; }
+			// The figures decide a repaint, not generated_at: every 15-minute cache
+			// refill moves it. The read time then updates in place.
+			var json = JSON.stringify( Object.assign( {}, payload, { generated_at: 0 } ) );
+			if ( json === shownJson ) {
+				var stamp = body.querySelector ? body.querySelector( '[data-sn-read-at]' ) : null;
+				if ( stamp && Number( payload.generated_at ) > 0 ) { stamp.textContent = readAt( Number( payload.generated_at ) ); }
+				return;
+			}
 			// Keep the reader's place: the card body scrolls, and a rebuild of the
 			// same height must not jump it.
 			var scrollers = [ container, container.parentNode ].filter( function( n ) { return n && typeof n.scrollTop === 'number'; } );

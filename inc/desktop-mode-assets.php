@@ -202,7 +202,7 @@ add_action( 'init', function() {
 			'sn-desktop-mode-widget-' . $sn_widget,
 			plugins_url( 'assets/desktop-mode-widget-' . $sn_widget . '.js', SNT_PATH . 'signal-and-noise-tools.php' ),
 			'health' === $sn_widget
-				? array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run', 'sn-desktop-mode', 'snt-poll-cadence' )
+				? array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run', 'sn-desktop-mode', 'snt-poll-cadence', 'snt-card-kit' ) // Edge and Cache side by side
 				: array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode', 'sn-live-now-admin', 'snt-poll-cadence', 'snt-card-kit' ), // SN Traffic polls every five minutes; its Reading now row is live
 			SNT_VERSION,
 			true
@@ -278,6 +278,10 @@ add_action( 'admin_enqueue_scripts', function() {
 			'health'          => snt_desktop_admin_url( 'sn-monitoring', 'health' ),
 			'provenance'      => snt_desktop_admin_url( 'sn-tools', 'provenance' ),
 			'scheduled'       => snt_desktop_admin_url( 'sn-connections', 'scheduled-content' ),
+			// 2026-10-10: where SN Systems' failing-credential line and SN
+			// Provenance's failed-deposit line are fixed.
+			'credentials'     => snt_desktop_admin_url( 'sn-connections', 'credentials' ),
+			'zenodo'          => snt_desktop_admin_url( 'sn-connections', 'zenodo' ),
 		),
 	);
 	// v4.1.1 (D-08): localize once. Both 'sn-desktop-mode' and

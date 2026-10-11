@@ -247,25 +247,6 @@ function snt_desktop_site_views_payload() {
 		$delta_pct  = snt_desktop_delta_pct( $total, (int) ( $prior['views'] ?? 0 ) );
 	}
 
-	// Bot share across the DISPLAY window, weighted by volume — a plain average
-	// of daily bot_pct would let a 3-view day count as much as a 300-view one.
-	// null (not 0) when there is nothing to divide by: "no data" is not "0% bots".
-	$bot_pct = null;
-	if ( function_exists( 'sn_analytics_class_series' ) ) {
-		$classes = sn_analytics_class_series( $from, $today, 'day' );
-		if ( is_array( $classes ) && $classes ) {
-			$tot = 0;
-			$bot = 0;
-			foreach ( $classes as $row ) {
-				$tot += (int) ( $row['total'] ?? 0 );
-				$bot += (int) ( $row['bot'] ?? 0 );
-			}
-			if ( $tot > 0 ) {
-				$bot_pct = (int) round( ( $bot / $tot ) * 100 );
-			}
-		}
-	}
-
 	$top_path  = null;
 	$top_paths = array();
 	if ( function_exists( 'sn_analytics_top_paths' ) ) {
@@ -288,32 +269,6 @@ function snt_desktop_site_views_payload() {
 			}
 			if ( isset( $top_paths[0] ) ) {
 				$top_path = $top_paths[0];
-			}
-		}
-	}
-
-	// v9.57.0: top sources — the one thing the desktop had NO surface for. The
-	// retired sn-analytics-hud existed largely to show this; the rest of what it
-	// showed (views/visits) this tile already covered, better. Three rows, not
-	// five: a tile is a glance, and the full list is one click away on the
-	// analytics page.
-	//
-	// Row shape is the accessor's OWN: `value` / `views` / `visits` / `hosts`
-	// (inc/analytics-sources.php), sorted by views DESC. NOT `source` — that was
-	// an invented key that cost a release (v9.56.0). We surface `value` + `visits`
-	// to sit beside the tile's existing visits framing.
-	$top_sources = array();
-	if ( function_exists( 'sn_analytics_top_sources' ) ) {
-		$srcs = sn_analytics_top_sources( $from, $today, 'human', 3 );
-		if ( is_array( $srcs ) ) {
-			foreach ( $srcs as $src ) {
-				if ( ! is_array( $src ) || ! isset( $src['value'] ) ) {
-					continue;
-				}
-				$top_sources[] = array(
-					'value'  => (string) $src['value'],
-					'visits' => (int) ( $src['visits'] ?? 0 ),
-				);
 			}
 		}
 	}
@@ -347,12 +302,13 @@ function snt_desktop_site_views_payload() {
 		'days'        => $days,
 		'total'       => $total,
 		'visits'      => $visits,
-		'delta_pct'   => $delta_pct,
-		'bot_pct'     => $bot_pct,
-		'top_path'    => $top_path,
-		'top_paths'   => $top_paths,
-		'top_sources' => $top_sources,
-		'forecast'    => $forecast,
+		'delta_pct'    => $delta_pct,
+		'top_path'     => $top_path,
+		'top_paths'    => $top_paths,
+		'forecast'     => $forecast,
+		// When these figures were read; the card's "Read at" foot. Inside the
+		// 15-minute cache on purpose: it is the time of the reading, not of the request.
+		'generated_at' => time(),
 	);
 
 	// v11.11.4 glance rows — each key is ADDITIVE and OPTIONAL. An older
@@ -398,23 +354,6 @@ function snt_desktop_site_views_payload() {
 				}
 			}
 			$payload['engaged'] = $engaged;
-		}
-	}
-
-	// One strongest PATH mover from sn_analytics_movers( $from, $to, 'human', 1 )
-	// — the rail tile's own producer: rows of { path, views, delta } sorted by
-	// |delta|, behind its OWN 15-min transient (no new query rides this
-	// payload). A path with a signed delta is the glance ("/notes +12");
-	// metric-level baseline movers read too abstract on a tile. Empty/null →
-	// key omitted — zero and null are different answers.
-	if ( function_exists( 'sn_analytics_movers' ) ) {
-		$movers = sn_analytics_movers( $from, $today, 'human', 1 );
-		if ( is_array( $movers ) && isset( $movers[0]['path'], $movers[0]['delta'] ) ) {
-			$payload['top_mover'] = array(
-				'path'  => (string) $movers[0]['path'],
-				'delta' => (int) $movers[0]['delta'],
-				'views' => (int) ( $movers[0]['views'] ?? 0 ),
-			);
 		}
 	}
 

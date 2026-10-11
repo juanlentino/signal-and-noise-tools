@@ -60,10 +60,75 @@ function sn_content_queue_when( $ts, $now, DateTimeZone $tz ) {
 	if ( $days < 7 ) {
 		return $at->format( 'D H:i' );
 	}
-	if ( $at->format( 'Y' ) === $today->format( 'Y' ) ) {
-		return $at->format( 'M j' );
+	return sn_content_queue_day( $at, $today );
+}
+
+/**
+ * A calendar-day label: "Sep 20", or "Dec 27, 2027" past the current year.
+ * PURE. The tail of sn_content_queue_when(), shared with the gap line.
+ *
+ * @since 23.8.0
+ * @param DateTimeImmutable $at    The day, in the site timezone.
+ * @param DateTimeImmutable $today Today, in the site timezone.
+ * @return string
+ */
+function sn_content_queue_day( DateTimeImmutable $at, DateTimeImmutable $today ) {
+	return $at->format( 'Y' ) === $today->format( 'Y' ) ? $at->format( 'M j' ) : $at->format( 'M j, Y' );
+}
+
+/**
+ * The first hole in the schedule, or null. PURE.
+ *
+ * Reuses the publishing-cadence flag's own definition (inc/ml-cadence.php):
+ * snt_ml_cadence_deviation() over the published history gives the expected
+ * gap (EWMA) and its spread, and a gap is late at SNT_ML_CADENCE_Z_FLAG
+ * sigmas. That flag scores only the current quiet spell; here the same test
+ * runs on each pair of consecutive scheduled notes, so the line says where
+ * the cadence flag WOULD fire if nothing new is scheduled. Honest unknowns
+ * carry over: thin history or a zero-spread metronome answers null, never a
+ * guessed threshold. Ceiling: an irregular history widens the spread and
+ * nothing flags; that is the cadence check's posture, kept on purpose.
+ *
+ * The empty stretch is the whole days strictly between the two notes, in
+ * the site timezone; a late pair with no whole empty day between them is
+ * not a hole anyone can schedule into, so the walk moves on.
+ *
+ * @since 23.8.0
+ * @param int[]        $scheduled Scheduled Unix times (any order).
+ * @param int[]        $history   Published Unix times (any order).
+ * @param int          $now       Unix time now.
+ * @param DateTimeZone $tz        Site timezone.
+ * @return array{from:string,to:string,from_label:string,to_label:string}|null
+ */
+function sn_content_queue_gap( $scheduled, $history, $now, DateTimeZone $tz ) {
+	if ( ! function_exists( 'snt_ml_cadence_deviation' ) || ! defined( 'SNT_ML_CADENCE_Z_FLAG' ) ) {
+		return null;
 	}
-	return $at->format( 'M j, Y' );
+	$dev = snt_ml_cadence_deviation( (array) $history, (int) $now );
+	if ( ! is_array( $dev ) || ! ( $dev['std'] > 0.0 ) ) {
+		return null;
+	}
+	$ts = array_map( 'intval', (array) $scheduled );
+	sort( $ts );
+	$today = ( new DateTimeImmutable( '@' . (int) $now ) )->setTimezone( $tz )->setTime( 0, 0, 0 );
+	$count = count( $ts );
+	for ( $i = 1; $i < $count; $i++ ) {
+		if ( ( $ts[ $i ] - $ts[ $i - 1 ] - $dev['ewma'] ) / $dev['std'] < SNT_ML_CADENCE_Z_FLAG ) {
+			continue;
+		}
+		$from = ( new DateTimeImmutable( '@' . $ts[ $i - 1 ] ) )->setTimezone( $tz )->setTime( 0, 0, 0 )->modify( '+1 day' );
+		$to   = ( new DateTimeImmutable( '@' . $ts[ $i ] ) )->setTimezone( $tz )->setTime( 0, 0, 0 )->modify( '-1 day' );
+		if ( $from > $to ) {
+			continue;
+		}
+		return array(
+			'from'       => $from->format( 'Y-m-d' ),
+			'to'         => $to->format( 'Y-m-d' ),
+			'from_label' => sn_content_queue_day( $from, $today ),
+			'to_label'   => sn_content_queue_day( $to, $today ),
+		);
+	}
+	return null;
 }
 
 /**
@@ -95,14 +160,17 @@ function sn_content_queue_ago( $ts, $now ) {
  * A title that is empty paints as "(untitled)" so a row never vanishes.
  *
  * @since 15.8.0
- * @param array        $future    Scheduled rows, soonest first (may be longer than the cap).
+ * @since 23.8.0 $drafts and the gap: every scheduled row and the published
+ *               history ride in so the gap is computed here, purely.
+ * @param array        $future    Scheduled rows, soonest first (the whole queue; the last is runs_to).
  * @param int          $total     Scheduled count site-wide.
- * @param array        $published Published rows, newest first.
+ * @param array        $published Published rows, newest first (the cadence history; three are painted).
  * @param int          $now       Unix time now.
  * @param DateTimeZone $tz        Site timezone.
- * @return array{next:array,scheduled_total:int,runs_to:?array,published:array}
+ * @param int|null     $drafts    Draft count, or null when it could not be read (never a guessed 0).
+ * @return array{next:array,scheduled_total:int,runs_to:?array,published:array,drafts:?int,gap:?array}
  */
-function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone $tz ) {
+function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone $tz, $drafts = null ) {
 	$future    = is_array( $future ) ? array_values( $future ) : array();
 	$published = is_array( $published ) ? array_values( $published ) : array();
 	$now       = (int) $now;
@@ -146,11 +214,23 @@ function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone
 		}
 	}
 
+	$stamps = static function ( $rows ) {
+		$out = array();
+		foreach ( $rows as $r ) {
+			if ( is_array( $r ) && isset( $r['ts'] ) ) {
+				$out[] = (int) $r['ts'];
+			}
+		}
+		return $out;
+	};
+
 	return array(
 		'next'            => $next,
 		'scheduled_total' => max( 0, (int) $total ),
 		'runs_to'         => $runs_to,
 		'published'       => $recent,
+		'drafts'          => null === $drafts ? null : max( 0, (int) $drafts ),
+		'gap'             => sn_content_queue_gap( $stamps( $future ), $stamps( $published ), $now, $tz ),
 	);
 }
 
@@ -175,7 +255,7 @@ function snt_abilities_content_queue_register() {
 	);
 	wp_register_ability( 'signal-noise/content-queue', array(
 		'label'               => 'Content queue',
-		'description'         => 'The scheduled queue at a glance: the next four scheduled posts in date order with a site-timezone label ("Tomorrow 09:38", "Sat 11:38", "Dec 27"), the scheduled count and the date the queue runs to, and the last three published posts with a relative age. Read-only; the reading behind the SN Queue desktop widget.',
+		'description'         => 'The scheduled queue at a glance: the next four scheduled posts in date order with a site-timezone label ("Tomorrow 09:38", "Sat 11:38", "Dec 27"), the scheduled count and the date the queue runs to, the draft count (null when unreadable), the first hole in the schedule by the publishing-cadence flag\'s own threshold (null when none or when the history is too thin to say), and the last three published posts with a relative age. Read-only; the reading behind the SN Queue desktop widget.',
 		'category'            => 'content',
 		'permission_callback' => 'snt_ability_perm_edit_posts',
 		'execute_callback'    => 'snt_ability_content_queue',
@@ -199,6 +279,16 @@ function snt_abilities_content_queue_register() {
 					),
 				),
 				'published'       => array( 'type' => 'array', 'items' => $row_schema ),
+				'drafts'          => array( 'type' => array( 'integer', 'null' ) ),
+				'gap'             => array(
+					'type'       => array( 'object', 'null' ),
+					'properties' => array(
+						'from'       => array( 'type' => 'string' ),
+						'to'         => array( 'type' => 'string' ),
+						'from_label' => array( 'type' => 'string' ),
+						'to_label'   => array( 'type' => 'string' ),
+					),
+				),
 			),
 		),
 		'meta'                => array(
@@ -254,9 +344,11 @@ function sn_content_queue_row( $post ) {
 /**
  * Ability execute callback: signal-noise/content-queue.
  *
- * Three cheap reads: the next few scheduled (asc), the furthest scheduled
- * (desc, one row) for the run-to date, the last few published; the total
- * rides wp_count_posts(), which is cached.
+ * Two reads: the whole scheduled queue (asc; the shaper paints the first
+ * four, labels the last as runs_to and walks all of it for the gap) and the
+ * last SNT_ML_CADENCE_PUBLISH_DEPTH published (the cadence history the gap
+ * is measured against; three are painted). The totals ride wp_count_posts(),
+ * which is cached.
  *
  * @since 15.8.0
  * @param array|null $input Unused.
@@ -268,28 +360,27 @@ function snt_ability_content_queue( $input = null ) {
 		'post_type'        => 'post',
 		'suppress_filters' => false,
 		'orderby'          => 'date',
+		// The whole future queue is read for the gap check: titles and dates
+		// only, so no meta or term caches are primed for every scheduled note.
+		'update_post_meta_cache' => false,
+		'update_post_term_cache' => false,
 	);
 
-	$soon = get_posts( $base + array( 'post_status' => 'future', 'order' => 'ASC', 'numberposts' => SN_CONTENT_QUEUE_NEXT ) );
-	$far  = get_posts( $base + array( 'post_status' => 'future', 'order' => 'DESC', 'numberposts' => 1 ) );
-	$done = get_posts( $base + array( 'post_status' => 'publish', 'order' => 'DESC', 'numberposts' => SN_CONTENT_QUEUE_PUBLISHED ) );
+	$queue = get_posts( $base + array( 'post_status' => 'future', 'order' => 'ASC', 'numberposts' => -1 ) );
+	$done  = get_posts( $base + array( 'post_status' => 'publish', 'order' => 'DESC', 'numberposts' => defined( 'SNT_ML_CADENCE_PUBLISH_DEPTH' ) ? SNT_ML_CADENCE_PUBLISH_DEPTH : 20 ) );
 
-	$future = array_values( array_filter( array_map( 'sn_content_queue_row', is_array( $soon ) ? $soon : array() ) ) );
-	// The shaper reads runs_to from the LAST future row; append the furthest
-	// one so the label is the real end of the queue, not the fourth row.
-	$far_row = is_array( $far ) && isset( $far[0] ) ? sn_content_queue_row( $far[0] ) : null;
-	if ( $far_row ) {
-		$future[] = $far_row;
-	}
+	$future = array_values( array_filter( array_map( 'sn_content_queue_row', is_array( $queue ) ? $queue : array() ) ) );
 
 	$counts = wp_count_posts( 'post' );
 	$total  = is_object( $counts ) && isset( $counts->future ) ? (int) $counts->future : count( $future );
+	$drafts = is_object( $counts ) && isset( $counts->draft ) ? (int) $counts->draft : null;
 
 	return sn_content_queue_shape(
 		$future,
 		$total,
 		array_values( array_filter( array_map( 'sn_content_queue_row', is_array( $done ) ? $done : array() ) ) ),
 		time(),
-		wp_timezone()
+		wp_timezone(),
+		$drafts
 	);
 }

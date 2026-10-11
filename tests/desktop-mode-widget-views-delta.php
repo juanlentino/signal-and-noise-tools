@@ -3,9 +3,10 @@ if ( ! defined( 'SNT_VERSION' ) ) { define( 'SNT_VERSION', '0.0.0-test' ); } // 
 /**
  * SN Traffic (sn-site-views): the arrow carries the direction (no +/- sign),
  * direction color only for a meaningful change; the groups SN Audience and
- * SN RSS Subscribers carried paint under the sparkline; the rows SN Reading
- * already shows (the north star's engaged readers, read 2+ pages, downloads,
- * DOI downloads, inquiries) and the bot share are gone; one Open Analytics link.
+ * SN RSS Subscribers carried paint under the sparkline; read 2+ pages,
+ * downloads outbound, the bot share and the top mover are not painted (nor
+ * computed); the forecast line, the live surge line and the Read at foot; one
+ * Open Analytics link.
  */
 
 define( 'ABSPATH', __DIR__ . '/' );
@@ -76,8 +77,6 @@ if ( '' === $node ) {
 	$full = array(
 		'today'      => 7,
 		'north_star' => array( 'value' => 4, 'previous' => 1, 'deep' => 2, 'actions' => 3, 'doi' => array( 'value' => 5, 'window' => '28d' ), 'inquiries' => 1 ),
-		'bot_pct'    => 61,
-		'top_mover'  => array( 'path' => '/notes', 'delta' => -16, 'views' => 10 ),
 		'top_paths'  => array( array( 'path' => '/a', 'views' => 9 ), array( 'path' => '/b', 'views' => 4 ) ),
 		'groups'     => array(
 			array( 'title' => 'Countries', 'rows' => array( array( 'label' => 'US', 'value' => '30 · 75%' ) ) ),
@@ -91,7 +90,7 @@ if ( '' === $node ) {
 	$text = implode( ' | ', array_keys( $t ) );
 	// Owner's pick, 2026-10-04: three north star rows come back as This week,
 	// under the headline; the rest stays in S&N Analytics.
-	foreach ( array( 'This week', 'Engaged readers · 7d', '4 ▲ 3', 'DOI downloads · 28d', 'Inquiries · 7d' ) as $want ) {
+	foreach ( array( 'This week', 'Engaged visitor-days · 7d', '4 ▲ 3', 'DOI downloads · 28d', 'Inquiries · 7d' ) as $want ) {
 		ok( isset( $t[ $want ] ), "Traffic paints \"$want\" in This week" );
 	}
 	ok( strpos( $text, 'vs. prior 14 days' ) < strpos( $text, 'This week' ) && strpos( $text, 'This week' ) < strpos( $text, 'Countries' ), 'This week sits right under the headline block, before the audience groups' );
@@ -111,6 +110,40 @@ if ( '' === $node ) {
 	$rt0 = implode( ' | ', array_column( $rr0['rows'], 'text' ) );
 	ok( false !== strpos( $rt0, '5 countries' ) && false === strpos( $rt0, '▲' ) && false === strpos( $rt0, '▼' ), 'no prior window read: the counts without a change' );
 	ok( ! isset( $render( array() )['Reach · 14 days'] ), 'no reach in the payload: no row, never 0 countries' );
+	ok( false === strpos( $text, 'Engaged readers' ), 'the north star row no longer says "readers": SN Reading\'s "of views engaged" is another figure' );
+
+	// The forecast: one line under the change line, absent when there is none.
+	$fc = array( 'value' => 20.4, 'interval' => array( 'low' => 15.3, 'high' => 25.5 ), 'confidence' => 'high', 'direction' => 'flat', 'horizon' => 7 );
+	$tf = $render( array( 'delta_pct' => 10, 'forecast' => $fc ) );
+	$tft = implode( ' | ', array_keys( $tf ) );
+	ok( isset( $tf['In 7 days: about 20 views a day (estimate, ±25%)'] ), 'forecast high confidence: "In 7 days: about 20 views a day (estimate, ±25%)": ' . $tft );
+	ok( strpos( $tft, 'vs. prior 14 days' ) < strpos( $tft, 'In 7 days' ), 'the forecast line sits under the change line' );
+	$tl = $render( array( 'forecast' => array( 'confidence' => 'low' ) + $fc ) );
+	ok( isset( $tl['In 7 days: about 20 views a day (estimate)'] ), 'a low-confidence forecast says no spread: "usually" would not be true' );
+	ok( 0 === preg_match( '/Next \d+ days/', implode( ' | ', array_keys( $render( array( 'forecast' => null ) ) ) ) ), 'forecast null: no forecast line, never a guessed number' );
+
+	// The live surge line: present, hidden until live-now.js reads a surge.
+	$sv = $render( array(), true );
+	ok( is_array( $sv['surge'] ) && true === $sv['surge']['hidden'] && true === $sv['surge']['hideEmpty'] && '' === $sv['surge']['text'], 'the surge line is on the card, hidden and empty until a surge is read' );
+	ok( true === ( $sv['surge']['allAttrs'] ?? false ) && false !== strpos( $sv['surge']['surgeText'], '%1$s' ) && false !== strpos( $sv['surge']['zeroText'], '%s' ), 'the surge line carries all four strings live-now.js reads (a missing one would throw in its tick)' );
+
+	// live-now.js (the real file) shows the line only for a surge verdict.
+	$live = static fn( $a ) => json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/live-now-surge.js' ) . ' ' . escapeshellarg( json_encode( $a ) ) ), true );
+	$was = json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/live-now-surge.js' ) . ' ' . escapeshellarg( json_encode( array( 'fetched' => 1760000000 ) ) ) . ' shown' ), true );
+	ok( true === ( $was['hidden'] ?? null ) && '' === ( $was['text'] ?? null ), 'a read with no surge verdict hides the card line that was showing one: it never keeps a stale alert' );
+	$ls   = $live( array( 'fetched' => 1, 'surge' => array( 'state' => 'surge', 'ratio' => 4, 'readers' => 8, 'usual' => 2 ) ) );
+	ok( false === ( $ls['hidden'] ?? true ) && 'Unusual: about 4× the usual for this time of day (8 readers, usually 2).' === ( $ls['text'] ?? '' ), 'a surge verdict shows the line with its words: ' . json_encode( $ls ) );
+	ok( '' === ( $ls['className'] ?? 'x' ), 'the card\'s line never wears the admin panel\'s classes (live-admin.css would restyle it)' );
+	foreach ( array( 'usual' => array( 'state' => 'usual' ), 'learning' => array( 'state' => 'learning', 'days' => 2, 'need' => 4 ) ) as $state => $s ) {
+		ok( true === ( $live( array( 'fetched' => 1, 'surge' => $s ) )['hidden'] ?? false ), "a $state verdict keeps the line hidden" );
+	}
+	ok( true === ( $live( array() )['hidden'] ?? false ), 'nothing read: the line stays hidden' );
+
+	// Read at: the payload's own read time, out of the live announcements.
+	$ra = $render( array( 'generated_at' => 1760000000 ), true );
+	ok( is_array( $ra['readAt'] ) && 0 === strpos( $ra['readAt']['text'], 'Read at ' ) && 'off' === $ra['readAt']['live'], 'a "Read at" foot from generated_at, aria-live off' );
+	ok( null === $render( array(), true )['readAt'], 'no generated_at (an older cached payload): no foot' );
+
 	$out = $render( $full, true );
 	ok( 1 === $out['links'] && 'Open Analytics' === $out['link']['text'] && 'Open Analytics, from the SN Traffic widget' === $out['link']['name'] && true === $out['link']['arrowHidden'], 'exactly one footer link, Open Analytics, its name starting with the visible words and the arrow hidden' );
 	ok( 'status' === $out['bodyRole'] && 4 === count( array_filter( $out['roles'], static fn( $r ) => 'heading' === $r ) ), 'the body is a status region and each group title (This week, two groups, Top pages) is a heading' );

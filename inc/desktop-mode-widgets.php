@@ -153,12 +153,14 @@ add_action( 'init', function() {
 			// each and ~20px a row (3 countries, 4 sources, 1 Hacker News story
 			// at up to two lines, 3 one-line rows for devices, search and feed).
 			// The body scrolls past it; measure live before trimming.
-			// + This week (2026-10-04, the owner's pick: engaged readers, DOI
+			// + This week (2026-10-04, the owner's pick: engaged visitor-days, DOI
 			// downloads, inquiries): a hairline, a heading and three rows, ~96.
 			// A Campaigns group adds ~100 only when a tagged link was followed.
 			// + the reach row (a hairline and one row, ~30).
 			// 21.9.1: +60 for the busiest state (Campaigns: 2 rows and "+N more").
-			'default_height' => 950,
+			// 2026-10-10: +60, the forecast line (up to two lines, ~30), the Read
+			// at foot (~24) and, only during a surge, the surge line.
+			'default_height' => 1010,
 		) ) );
 
 		snt_os_register_widget( 'sn-reading', array_merge( $sn_drag, array(
@@ -177,7 +179,7 @@ add_action( 'init', function() {
 		// the content-queue ability; labels are the site timezone's.
 		snt_os_register_widget( 'sn-queue', array_merge( $sn_drag, array(
 			'label'          => 'SN Queue',
-			'description'    => 'The next scheduled note, how deep the queue runs, and the last three published.',
+			'description'    => 'The next scheduled note, how deep the queue runs, the drafts waiting, any gap in the schedule, and the last three published.',
 			'icon'           => 'dashicons-calendar-alt',
 			'script'         => 'sn-desktop-mode-widget-queue',
 			// Measured 365 (15.8.1, live at the docked width with the real
