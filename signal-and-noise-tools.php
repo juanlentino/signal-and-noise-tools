@@ -375,6 +375,19 @@ require_once SNT_PATH . 'inc/abilities-machine-readers-ledger.php'; // 17.0.0: g
 require_once SNT_PATH . 'inc/rights-evidence-compose.php'; // 17.0.0: one record per crawler family per month, the pure half.
 require_once SNT_PATH . 'inc/machine-readers-basis.php'; // the evidence basis of each attributed count (signed, verified, claimed, inferred, unmeasured).
 require_once SNT_PATH . 'inc/machine-readers-basis-fold.php'; // the evidence fields over a window, for the summary and both leaves.
+require_once SNT_PATH . 'inc/machine-readers-readers-model.php'; // who reads, and for what: the Machine readers view's readings.
+require_once SNT_PATH . 'inc/machine-readers-evidence-model.php'; // how each count is known: the Reader evidence view's readings.
+require_once SNT_PATH . 'inc/evidence-kit.php'; // the evidence strip, its legend, the basis chips.
+require_once SNT_PATH . 'inc/evidence-paint-surface.php'; // the section painters' kit and classic surfaces.
+require_once SNT_PATH . 'inc/evidence-paint-readers.php';
+require_once SNT_PATH . 'inc/evidence-paint-proof.php';
+require_once SNT_PATH . 'inc/evidence-paint-actors.php';
+require_once SNT_PATH . 'inc/evidence-paint-anomalies.php';
+require_once SNT_PATH . 'inc/evidence-paint-reference.php';
+require_once SNT_PATH . 'inc/evidence-paint-rights.php';
+require_once SNT_PATH . 'inc/analytics-machine-views.php'; // S&N Analytics: Machine readers and Reader evidence, composed for both surfaces.
+require_once SNT_PATH . 'inc/analytics-view-machine-readers.php';
+require_once SNT_PATH . 'inc/analytics-view-reader-evidence.php';
 require_once SNT_PATH . 'inc/rights-evidence-ledger.php';  // Unreleased: rights-signal history and record refresh, read-only.
 require_once SNT_PATH . 'inc/rights-evidence-dry-run.php'; // Unreleased: compose from live reads, post nothing (shared with the pass).
 require_once SNT_PATH . 'inc/rights-evidence-review.php';  // Unreleased: the review window and the holds (no fetch, no post).

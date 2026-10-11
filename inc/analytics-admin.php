@@ -90,6 +90,11 @@ const SN_ANALYTICS_VIEWS = array(
 	'search'     => 'Search',
 	'events'     => 'Events',
 	'edge'       => 'Traffic & edge',
+	// The machine views sit together after Search and Traffic & edge: who reads
+	// (Machine readers) and how each count is known (Reader evidence). Both
+	// own their chrome, a 7/14/30/90-day window over the edge sensor.
+	'machine-readers' => 'Machine readers',
+	'reader-evidence' => 'Reader evidence',
 	'login-defense' => 'Login defense',
 );
 
@@ -127,7 +132,7 @@ function snt_analytics_resolve_view( $raw ) {
 // the shared header (the v9.67.0 mock owned its chrome only because its static
 // Headline panel would have doubled the real KPI strip — the wired tab drops
 // that panel and lets the shared Overview card be the headline).
-const SN_ANALYTICS_OWNS_CHROME = array( 'login-defense' );
+const SN_ANALYTICS_OWNS_CHROME = array( 'login-defense', 'machine-readers', 'reader-evidence' );
 
 /**
  * True iff $view brings its own chrome, so the shared pageview header (controls +
