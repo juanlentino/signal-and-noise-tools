@@ -151,7 +151,7 @@ $GLOBALS['__mr'] = array(
 $GLOBALS['__mr_calls'] = array();
 $out = snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) );
 ok( true === $out['ok'] && 7 === $out['days'] && 3 === count( $out['cells'] ) && true === $out['truncated'] && false === $out['taxonomy_absent'] && is_array( $out['agent_networks'] ?? null ), 'crosstab: folds the aggregate rows and carries the truncation flag' );
-ok( array( array( 7, 'aggregate' ), array( 7, 'unknown' ) ) === $GLOBALS['__mr_calls'], 'crosstab reads the aggregate view, then the unknown view, same window, both through the cached fetch' );
+ok( array( array( 7, 'aggregate' ), array( 7, 'unknown-network' ) ) === $GLOBALS['__mr_calls'], 'crosstab reads the aggregate view, then the unknown view split by network (detail=network), same window, both through the cached fetch' );
 ok( array_key_exists( 'unnamed', $out ) && null === $out['unnamed'], 'unnamed: a failed unknown read is null, never an empty list that reads as "all matched"' );
 $sn_un = array();
 for ( $i = 1; $i <= 30; $i++ ) {
@@ -159,7 +159,7 @@ for ( $i = 1; $i <= 30; $i++ ) {
 }
 $sn_un[0] = array( 'user_agent' => "Evil<script>\x00Bot/2.0 (+https://x.example)", 'hits' => '99' );
 $sn_un[1] = array( 'ua_sample' => '<>', 'hits' => 98 );
-$GLOBALS['__mr']['unknown'] = array( 'ok' => true, 'rows' => $sn_un, 'truncated' => false, 'error' => null );
+$GLOBALS['__mr']['unknown-network'] = array( 'ok' => true, 'rows' => $sn_un, 'truncated' => false, 'error' => null );
 $out = snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) );
 ok( SN_MR_UNNAMED_TOP === 20 && 20 === count( $out['unnamed'] ), 'unnamed: bounded to the top 20' );
 // Unreleased: + verified_hits, not_measured, networks, basis. A read with no
@@ -167,10 +167,10 @@ ok( SN_MR_UNNAMED_TOP === 20 && 20 === count( $out['unnamed'] ), 'unnamed: bound
 // is unmeasured: verified_hits null, never 0 (tests/machine-readers-basis.php).
 ok( array( 'ua_sample' => 'Evil script Bot/2.0 +https //x.example', 'hits' => 99, 'verified_hits' => null, 'not_measured' => 99, 'networks' => array(), 'basis' => 'unmeasured' ) === $out['unnamed'][0], 'unnamed: each row is {ua_sample, hits, verified_hits, not_measured, networks, basis}, the sample re-sanitised here and the hits int-cast' );
 ok( 'Bot3/1.0' === $out['unnamed'][1]['ua_sample'], 'unnamed: a sample that sanitises to nothing is dropped, not listed blank' );
-$GLOBALS['__mr']['unknown'] = array( 'ok' => true, 'rows' => array(), 'truncated' => false, 'error' => null );
+$GLOBALS['__mr']['unknown-network'] = array( 'ok' => true, 'rows' => array(), 'truncated' => false, 'error' => null );
 ok( array() === snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) )['unnamed'], 'unnamed: an answered read with no rows is [], every read matched the taxonomy' );
 $GLOBALS['__mr_calls'] = array();
-$GLOBALS['__mr']['unknown'] = array( 'ok' => true, 'rows' => array( array( 'user_agent' => '<>', 'hits' => 3 ) ), 'truncated' => false, 'error' => null );
+$GLOBALS['__mr']['unknown-network'] = array( 'ok' => true, 'rows' => array( array( 'user_agent' => '<>', 'hits' => 3 ) ), 'truncated' => false, 'error' => null );
 ok( '' === snt_mr_normalize_ua_sample( '<>' ) && null === snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) )['unnamed'], 'unnamed: rows that all sanitise away are null (not measured), never the every-read-matched []' );
 $GLOBALS['__mr_calls'] = array();
 $sn_rm = snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ), false );

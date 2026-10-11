@@ -127,7 +127,7 @@ ok(
 	// in snt_mr_summary_payload()'s return since v10.79.0 but undeclared here,
 	// so an agent reading the schema could not know the purpose axis existed.
 	// ADDITIVE and in the payload's own order — nothing renamed, nothing moved.
-	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'identity', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'error', 'daily', 'daily_total_exact' ) === array_keys( $props ),
+	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'identity', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'impersonations', 'verification', 'basis', 'error', 'daily', 'daily_total_exact' ) === array_keys( $props ),
 	'schema pins the DM tile payload fields in response order, with error appended, then the series-only daily and daily_total_exact'
 );
 ok( 'boolean' === ( $props['ok']['type'] ?? null ), 'ok is a boolean' );
@@ -135,7 +135,9 @@ ok( 'integer' === ( $props['days']['type'] ?? null ), 'days is an integer' );
 ok( 'integer' === ( $props['total']['type'] ?? null ), 'total is an integer' );
 ok( 'array' === ( $props['families']['type'] ?? null ), 'families is an array' );
 ok( 'object' === ( $props['families']['items']['type'] ?? null ), 'families items are objects' );
-ok( array( 'family', 'hits' ) === array_keys( $props['families']['items']['properties'] ?? array() ), 'a family row is { family, hits }' );
+ok( array( 'family', 'hits', 'first_party_hits' ) === array_keys( $props['families']['items']['properties'] ?? array() ), 'a family row is { family, hits, first_party_hits }' );
+ok( false !== strpos( (string) ( $props['ai_training']['description'] ?? '' ), 'LEGACY' ) && false !== strpos( (string) ( $props['ai_training']['description'] ?? '' ), 'prefer ai_training_by_purpose' ), 'ai_training is described as the legacy family figure, with the purpose figure preferred' );
+ok( false !== strpos( (string) ( $props['purposes']['description'] ?? '' ), 'UNMAPPED' ) && false !== strpos( (string) ( $props['identity']['description'] ?? '' ), 'Signed is not verified' ), 'unknown reads as unmapped, and signed is told apart from verified' );
 ok( 'array' === ( $props['ai_surfaces']['type'] ?? null ), 'ai_surfaces is an array' );
 ok( 'object' === ( $props['ai_surfaces']['items']['type'] ?? null ), 'ai_surfaces items are objects' );
 ok( array( 'surface', 'hits' ) === array_keys( $props['ai_surfaces']['items']['properties'] ?? array() ), 'an ai_surfaces row is { surface, hits }' );

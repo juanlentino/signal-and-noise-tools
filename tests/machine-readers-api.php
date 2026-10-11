@@ -146,6 +146,25 @@ $fresh_again = snt_mr_fetch( 30 );
 ok( 3 === count( $GLOBALS['__requests'] ) && $fresh_again === $fresh, 'a success is memoized too, with no transient store at all' );
 $GLOBALS['__requests'] = array();
 snt_mr_memo( null );
+echo "\nGroup: the unnamed fold's split read (worker 1.30.0 detail=network)\n";
+// rights-signals 1.30.0: the unknown view stays the old top 50 {user_agent, hits}
+// by default; `&detail=network` adds {verified_bot, network} per row (rows split
+// by them, capped at 10,000) and the envelope echoes `detail: "network"`.
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'detail' => 'network', 'data' => array( array( 'user_agent' => 'GrokBot/1.0', 'verified_bot' => '', 'network' => 'Google LLC', 'hits' => 200 ) ) ) ) );
+$r    = snt_mr_fetch( 7, 'unknown-network' );
+$last = end( $GLOBALS['__requests'] );
+ok( false !== strpos( (string) $last['url'], '&view=unknown&detail=network' ), 'the split read asks for view=unknown&detail=network' );
+ok( true === $r['ok'] && 'network' === $r['detail'] && 'Google LLC' === $r['rows'][0]['network'], 'a 1.30.0 worker answers detail network, and the rows keep their network' );
+snt_mr_fetch( 7, 'unknown' );
+$last = end( $GLOBALS['__requests'] );
+ok( false === strpos( (string) $last['url'], 'detail=' ) && 2 === count( $GLOBALS['__requests'] ), 'the admin review list still reads the default view, a separate read (its top-50 caption holds)' );
+snt_mr_memo( null );
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'data' => array( array( 'user_agent' => 'GrokBot/1.0', 'hits' => 310 ) ) ) ) );
+delete_transient( snt_mr_cache_key( 7, 'unknown-network' ) );
+$r = snt_mr_fetch( 7, 'unknown-network' );
+ok( true === $r['ok'] && '' === $r['detail'], 'a worker before 1.30.0 ignores the parameter: no detail in the envelope, so the fold reads it as unmeasured' );
+$GLOBALS['__requests'] = array();
+snt_mr_memo( null );
 echo "\nGroup: 15.5.0 — the WebMCP bridge's tool calls (family webmcp) split off at the fetch\n";
 $GLOBALS['__response'] = array( 'code' => 200, 'body' => json_encode( array( 'worker' => 'sn-rights-signals', 'days' => 7, 'data' => array(
 	array( 'family' => 'openai', 'surface' => 'llms', 'day' => '2026-07-28', 'hits' => 4 ),

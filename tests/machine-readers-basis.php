@@ -175,9 +175,9 @@ ok( 4 === $cells['openai-gptbot']['verified'] && 0 === $cells['openai-gptbot']['
 echo "\nGroup F: the unnamed list, folded by sample\n";
 $GLOBALS['__mr']['aggregate'] = array( 'ok' => true, 'truncated' => false, 'rows' => snt_mr_normalize_rows( $rows ) );
 // Worker after the unknown-view PR: rows split by verified_bot and network.
-$GLOBALS['__mr']['unknown'] = array(
+$GLOBALS['__mr']['unknown-network'] = array(
 	'ok'      => true,
-	'columns' => array( 'user_agent', 'hits', 'verified_bot', 'network' ),
+	'detail'  => 'network',
 	'rows'    => snt_mr_normalize_rows( array(
 		array( 'user_agent' => 'GrokBot/1.0', 'hits' => 200, 'verified_bot' => '', 'network' => 'Google LLC' ),
 		array( 'user_agent' => 'GrokBot/1.0', 'hits' => 110, 'verified_bot' => 'AI Crawler', 'network' => 'xAI' ),
@@ -189,13 +189,14 @@ ok( 2 === count( $u ) && 'GrokBot/1.0' === $u[0]['ua_sample'] && 310 === $u[0]['
 ok( 110 === $u[0]['verified_hits'] && 0 === $u[0]['not_measured'] && 'claimed' === $u[0]['basis'], 'a measured sample carries verified_hits and basis claimed' );
 ok( array( array( 'network' => 'Google LLC', 'hits' => 200 ), array( 'network' => 'xAI', 'hits' => 110 ) ) === $u[0]['networks'], 'networks: top 5 {network, hits}, descending' );
 ok( 284 === $u[1]['not_measured'] && 0 === $u[1]['verified_hits'] && array() === $u[1]['networks'], 'hits with no network are not_measured' );
-// Worker before that PR: no verification or network columns at all.
-$GLOBALS['__mr']['unknown'] = array( 'ok' => true, 'columns' => array( 'user_agent', 'hits' ), 'rows' => snt_mr_normalize_rows( array( array( 'user_agent' => 'GrokBot/1.0', 'hits' => 310 ) ) ) );
+// Worker before 1.30.0: the parameter is ignored, the old top 50 comes back
+// with no detail in the envelope and no verification or network columns.
+$GLOBALS['__mr']['unknown-network'] = array( 'ok' => true, 'detail' => '', 'rows' => snt_mr_normalize_rows( array( array( 'user_agent' => 'GrokBot/1.0', 'hits' => 310 ) ) ) );
 $u = snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) )['unnamed'];
 ok( null === $u[0]['verified_hits'] && 'unmeasured' === $u[0]['basis'], 'without the columns verified_hits is null and basis unmeasured, never 0' );
 ok( 310 === $u[0]['not_measured'] && array() === $u[0]['networks'], 'and every hit is not_measured' );
-$GLOBALS['__mr']['unknown'] = array( 'ok' => true, 'rows' => snt_mr_normalize_rows( array( array( 'user_agent' => 'GrokBot/1.0', 'hits' => 310 ) ) ) );
-ok( null === snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) )['unnamed'][0]['verified_hits'], 'a cached read from before the columns were reported reads unmeasured too' );
+$GLOBALS['__mr']['unknown-network'] = array( 'ok' => true, 'rows' => snt_mr_normalize_rows( array( array( 'user_agent' => 'GrokBot/1.0', 'verified_bot' => '', 'network' => 'Google LLC', 'hits' => 310 ) ) ) );
+ok( null === snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) )['unnamed'][0]['verified_hits'], 'a read cached before the envelope carried detail reads unmeasured, whatever its rows hold' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

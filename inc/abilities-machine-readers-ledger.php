@@ -32,10 +32,11 @@ add_action( 'wp_abilities_api_init', function () {
 	wp_register_ability( 'signal-noise/get-machine-readers-crosstab', array(
 		'label'               => 'Get Machine Readers Crosstab',
 		'description'         => 'Crawler reads at the edge over a window (days: 1-90, default 30) as family x purpose x agent cells, hits descending: `cells[]` of {family, purpose, agent, hits, days, surfaces}, where `days` is how many distinct days the cell was seen on and `surfaces` its hits per surface class. '
-			. 'Answers "which purpose did each family read for" directly, which the summary\'s per-family and per-purpose totals cannot: a family whose reads split between `train` and `search` shows as two cells. Purpose `unknown` is an UNMAPPED reader, not a reader with no purpose; `taxonomy_absent: true` means the edge sent no taxonomy at all and every purpose is unknown for that reason. '
+			. 'Answers "which purpose did each family read for" directly, which the summary\'s per-family and per-purpose totals cannot: a family whose reads split between `train` and `search` shows as two cells. Purpose `unknown` is an UNMAPPED reader (the taxonomy has no entry for it), not a reader with no purpose; `taxonomy_absent: true` means the edge sent no taxonomy at all and every purpose is unknown for that reason. '
+			. 'Each cell also carries its evidence: `basis` claimed (the family, purpose and agent are what the user agent said), and its hits split as {claimed, verified, verified_matched, unverified, unverifiable} by Cloudflare\'s verified-bot category (the rights evidence\'s source and since date; verified_matched: the category fits the claimed purpose; unverifiable: a day before since). Verified is not signed (Web Bot Auth, in the summary\'s identity). `first_party: true` marks this site\'s own tools; `impersonation: true` marks a robots.txt control token (Google-Extended, Applebot-Extended), which no crawler presents as its own user agent, so the summary credits those hits to no vendor. '
 			. '`truncated: true` means the aggregate read hit the edge\'s row cap and the cells under-count the newest days; `total` sums the cells. User agents are self-reported: observation, never proof of identity. `ok: false` carries the sensor `error` and no cells. '
 			. '`agent_networks[]` answers "is this crawler real": per claimed agent {agent, hits, verified_hits (Cloudflare verified the client), not_measured (hits from before the edge recorded the network), networks[] of the top 5 {network, hits}}. Unverified hits from a network the vendor does not own are an impostor. '
-			. '`unnamed` answers "what is inside agent \'\'": the top 20 of {ua_sample, hits} from the edge\'s own list of user agents that matched no taxonomy entry (a sanitised sample the edge keeps only on a miss), hits descending. null means that list could not be read; [] means every read matched. A sample is what the client sent, not an identity. Read-only.',
+			. '`unnamed` answers "what is inside agent \'\'": the top 20 of {ua_sample, hits, verified_hits, not_measured, networks, basis} from the edge\'s own list of user agents that matched no taxonomy entry (a sanitised sample the edge keeps only on a miss), folded per sample, hits descending; networks is the top 5 {network, hits}. When the edge cannot split that list by verification and network (rights-signals before 1.30.0), verified_hits is null and basis unmeasured, never 0. null means that list could not be read; [] means every read matched. A sample is what the client sent (basis claimed), not an identity. Read-only.',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_machine_readers_crosstab',
@@ -163,22 +164,23 @@ function snt_ability_get_machine_readers_crosstab( $input, $with_unnamed = true 
  * Each sample is sanitised again here; one that sanitises to '' is dropped.
  *
  * Unreleased: each sample also carries verified_hits, not_measured and its top
- * networks, the agent_networks shape. The edge splits the view's rows by
- * verification and network once it reports them, so rows are folded by sample
- * BEFORE the cut. Until the edge sends those columns (the read's `columns`
- * lacks verified_bot), verified_hits is null and basis `unmeasured`: the
- * normalizer writes '' for an absent column, which must not read as
- * "none verified".
+ * networks, the agent_networks shape. The read asks for the unknown view with
+ * detail=network (rights-signals 1.30.0: rows split by verified_bot and
+ * network, capped at 10,000), so rows are folded by sample BEFORE the cut. A
+ * worker before 1.30.0 ignores the parameter and answers the old top 50 with
+ * no `detail` in the envelope: then verified_hits is null and basis
+ * `unmeasured`, because the normalizer writes '' for an absent column, which
+ * must not read as "none verified".
  *
  * @param int $days Window, already clamped.
  * @return array<int,array{ua_sample:string,hits:int,verified_hits:int|null,not_measured:int,networks:array,basis:string}>|null
  */
 function snt_mr_unnamed_agents( $days ) {
-	$read = snt_mr_fetch( $days, 'unknown' );
+	$read = snt_mr_fetch( $days, 'unknown-network' );
 	if ( empty( $read['ok'] ) ) {
 		return null;
 	}
-	$measured = in_array( 'verified_bot', (array) ( $read['columns'] ?? array() ), true );
+	$measured = 'network' === (string) ( $read['detail'] ?? '' );
 	$by       = array();
 	foreach ( (array) ( $read['rows'] ?? array() ) as $row ) {
 		$ua = is_array( $row ) ? snt_mr_normalize_ua_sample( $row['user_agent'] ?? ( $row['ua_sample'] ?? '' ) ) : '';

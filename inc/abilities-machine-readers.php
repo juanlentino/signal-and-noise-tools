@@ -118,19 +118,25 @@ add_action( 'wp_abilities_api_init', function() {
 						. '`measured` is reads carrying a real state; `valid` / `invalid` / `unknown_key` / `unsigned` split it. '
 						. '`by_agent` and `by_surface` list VERIFIED reads only, `{agent|surface, hits}` descending — an agent whose signature failed never appears there, because listing it beside one that passed would read as proof of the opposite. '
 						. 'null, NOT a block of zeros, when no read in the window carried a signature state at all: that is "never measured", which is a different claim from "measured, none verified" (which reports valid 0 with empty leaderboards). '
-						. 'Use by_agent to tell an ecosystem from a single signer, and by_surface to tell genuine adoption from traffic to a newly-served endpoint.',
+						. 'Use by_agent to tell an ecosystem from a single signer, and by_surface to tell genuine adoption from traffic to a newly-served endpoint. '
+						. 'Basis: signed (a Web Bot Auth signature checked out). Signed is not verified: `verification` is Cloudflare\'s verified-bot category, a different source.',
 				),
 				'families'       => array(
-					'type'  => 'array',
-					'items' => array(
+					'type'        => 'array',
+					'description' => 'The top 3 families by reads. Basis claimed: the family is what the user agent said. first_party_hits is the part of a family that is this site\'s own tools (the sensor\'s first_party flag); unclassified-machine is mostly that. Hits presenting a robots.txt control token are credited to no family (see impersonations).',
+					'items'       => array(
 						'type'       => 'object',
 						'properties' => array(
-							'family' => array( 'type' => 'string' ),
-							'hits'   => array( 'type' => 'integer' ),
+							'family'           => array( 'type' => 'string' ),
+							'hits'             => array( 'type' => 'integer' ),
+							'first_party_hits' => array( 'type' => 'integer' ),
 						),
 					),
 				),
-				'ai_training'    => array( 'type' => 'integer' ),
+				'ai_training'    => array(
+					'type'        => 'integer',
+					'description' => 'LEGACY, family-based: reads from the hand-curated AI-training family set (openai, anthropic, google-ai, commoncrawl, bytedance, apple-ai, meta-ai, mistral, cohere, allen-ai) whatever each agent read for, so it counts search, user and unmapped agents inside those families (openai-searchbot, openai-chatgpt-user, mistral-user, cohere-ai, google-other) and misses training agents outside them (amazon-bot). Kept because a published figure used it; prefer ai_training_by_purpose. Control-token hits are not counted. Basis claimed.',
+				),
 				'ai_rights'      => array( 'type' => 'integer' ),
 				'ai_surfaces'    => array(
 					'type'  => 'array',
@@ -149,7 +155,7 @@ add_action( 'wp_abilities_api_init', function() {
 				// them changes no value; it stops the contract understating the payload.
 				'purposes'               => array(
 					'type'        => array( 'array', 'null' ),
-					'description' => 'Reads per declared purpose, highest first. null when the taxonomy is unavailable — never an empty array, which would read as "measured zero".',
+					'description' => 'Reads per declared purpose, highest first, basis claimed. First-party reads and control-token hits are left out. Purpose `unknown` is UNMAPPED: the taxonomy has no entry for the reader (displayed as "unmapped"). null when the taxonomy is unavailable — never an empty array, which would read as "measured zero".',
 					'items'       => array(
 						'type'       => 'object',
 						'properties' => array(
@@ -160,11 +166,11 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'ai_training_by_purpose' => array(
 					'type'        => array( 'integer', 'null' ),
-					'description' => 'AI-training reads counted on the PURPOSE axis. Reported beside ai_training rather than replacing it: the frozen families over-count, and the gap between the two is the over-count made visible.',
+					'description' => 'AI-training reads counted on the PURPOSE axis: purpose train, first-party reads and control-token hits left out, basis claimed. verification.ai_training_by_purpose says how much of it Cloudflare verified. Reported beside ai_training rather than replacing it: the frozen families over-count, and the gap between the two is the over-count made visible.',
 				),
 				'first_party'            => array(
 					'type'        => array( 'integer', 'null' ),
-					'description' => 'Reads from this site\'s own tooling. Not readership; excluded from headline totals.',
+					'description' => 'Reads from this site\'s own tools (the sensor\'s first_party flag, basis claimed). Not readership: left out of purposes and ai_training_by_purpose; counted in total and in families, where first_party_hits shows it.',
 				),
 				'taxonomy'               => array(
 					'type'        => array( 'string', 'null' ),
@@ -172,6 +178,29 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'sensor_version' => array( 'type' => array( 'string', 'null' ) ),
 				'crawler_list'   => array( 'type' => array( 'string', 'null' ) ),
+				// Contract 16: every attributed count says how it is known.
+				'impersonations'         => array(
+					'type'        => array( 'array', 'null' ),
+					'description' => 'Hits presenting a robots.txt control token (Google-Extended, Applebot-Extended), which is never a crawler of its own, so they are credited to no vendor, family or purpose. {agent, token, hits, networks (top 5 {network, hits}), basis: claimed}. They still count in total. null when the taxonomy is unavailable.',
+					'items'       => array( 'type' => 'object' ),
+				),
+				'verification'           => array(
+					'type'        => 'object',
+					'description' => 'Each attributed count split by Cloudflare\'s verified-bot category, the rights evidence\'s source and since date: {claimed, verified, verified_matched, unverified, unverifiable}, where claimed = verified + unverified + unverifiable. verified: the category was set; verified_matched: and it fits the claimed purpose (train: AI Crawler; search: Search Engine Crawler or AI Search; unknown and dev never match); unverifiable: a day before since, or the partial day it began. `families` is keyed by family (the rows `families` counts), `purposes` by purpose and `ai_training_by_purpose` is its train entry (the rows `purposes` counts, null without the taxonomy), `ai_training` the legacy family figure. Verified is not signed (see identity).',
+					'properties'  => array(
+						'source'                 => array( 'type' => 'string' ),
+						'since'                  => array( 'type' => array( 'string', 'null' ) ),
+						'basis'                  => array( 'type' => 'object' ),
+						'families'               => array( 'type' => 'object' ),
+						'purposes'               => array( 'type' => array( 'object', 'null' ) ),
+						'ai_training'            => array( 'type' => 'object' ),
+						'ai_training_by_purpose' => array( 'type' => array( 'object', 'null' ) ),
+					),
+				),
+				'basis'                  => array(
+					'type'        => 'object',
+					'description' => 'The evidence basis of each attributed field: signed (a cryptographic signature checked out), verified (Cloudflare\'s verified-bot category), claimed (the user agent the client sent), inferred (a rule or a score), unmeasured (not recorded).',
+				),
 				'error'          => array( 'type' => array( 'string', 'null' ) ),
 				// Unreleased: present ONLY when the call passed series: "day".
 				'daily'                  => array(
