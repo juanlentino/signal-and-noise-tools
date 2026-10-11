@@ -284,6 +284,92 @@ an empty string, and `hits` to a non negative integer
 response therefore cannot put an arbitrary string on an admin page even before
 escaping gets a turn, and the render lane escapes every cell anyway.
 
+## Evidence basis (Unreleased, remote contract 16)
+
+Every count attributed to an identity (a vendor family, a purpose, a traffic
+class) says how that identity is known, in one of five words
+(`SN_MR_BASIS_VALUES`, `inc/machine-readers-basis.php`):
+
+| Basis | Means |
+| --- | --- |
+| `signed` | A cryptographic signature checked out: Web Bot Auth `valid` (the summary's `identity`), or the provenance ledger's own signature. |
+| `verified` | Cloudflare's verified-bot category was on the request (`verified_bot`), on a day the sensor recorded it. Not a signature. |
+| `claimed` | The client said so: a user agent the taxonomy matched. |
+| `inferred` | A rule or a score decided it: the human, suspect and bot classes; the beacon's likely-automated score. |
+| `unmeasured` | The signal was not recorded for these hits. |
+
+Verified keeps the rights-evidence meaning: a row is classed by
+`sn_rights_evidence_identity_class()` and `SN_RIGHTS_EVIDENCE_VERIFIED_SINCE`,
+called, never copied (`snt_mr_row_verification()`). A row with no valid day is
+unverifiable. Rights evidence schema 2 is unchanged.
+
+### The split
+
+The machine-readers summary carries `verification`: per family, per purpose,
+for `ai_training` and for `ai_training_by_purpose`, a split
+`{claimed, verified, verified_matched, unverified, unverifiable}` where claimed
+is the sum of the last three. `verified_matched` is verified AND the category
+fits the claimed purpose (`SN_MR_PURPOSE_CATEGORIES`):
+
+| Purpose | Categories that fit |
+| --- | --- |
+| `train` | AI Crawler, Training |
+| `search` | Search Engine Crawler, AI Search, Search |
+| `retrieval` | AI Assistant, AI Search, Agent, Search |
+| `user` | AI Assistant, Agent |
+| `archive` | Archiver, Academic Research |
+| `ops` | Monitoring & Analytics, Webhooks, Monitoring & Operations |
+| `seo` | Search Engine Optimization, SEO |
+| `feed` | Feed Fetcher, Aggregator, Feed Fetching |
+| `social` | Page Preview, Social Media Marketing, Social / Link Preview |
+| `security` | Security, Security Testing |
+| `ads` | Advertising & Marketing, Ads Verification |
+| `dev`, `unknown` | none: they never match |
+
+Each row lists Cloudflare's legacy category string and the July 2026 behavior
+name, matched without regard to case, because the strings the edge stores could
+not be read back through any tool when the table was written. Crosstab cells
+carry the same split, plus `first_party`, `impersonation` and `basis`.
+
+### Control tokens are not crawlers
+
+Google-Extended and Applebot-Extended are names a vendor reads in robots.txt,
+not user agents of their own (Google's common-crawlers page; Apple's support
+article 119829). A request presenting one is never the vendor's crawler, so its
+hits are credited to no family and no purpose: they leave `families`,
+`purposes`, `ai_training` and `ai_training_by_purpose`, stay in `total`, and are
+listed in `impersonations` (`{agent, token, hits, networks, basis: claimed}`).
+The list mirrors the taxonomy's `observable: false` entries
+(`SN_MR_CONTROL_TOKENS`). Rights evidence still counts the google-ai family's
+hits, a decision left to the owner.
+
+### First-party apart
+
+The sensor's `first_party` flag (this site's own probes, ledger verifier and
+uptime monitor) decides first-party. `families[].first_party_hits` shows the
+part of a family that is first-party (unclassified-machine is mostly that);
+the desktop and public split of machine reads gains a `first_party` part; the
+reader-anomalies series leave first-party reads out entirely.
+
+### The unnamed list
+
+`get-machine-readers-crosstab`'s `unnamed` reads the unknown view with
+`detail=network` (rights-signals 1.30.0: rows split by `verified_bot` and
+`network`, capped at 10,000), folds them per sample and keeps the top 20, each
+with `verified_hits`, `not_measured` and its top 5 networks. A worker before
+1.30.0 ignores the parameter, sends no `detail` in the envelope, and the list
+reads `verified_hits: null`, `basis: unmeasured`, never 0. The admin review
+list keeps reading the default view (the top 50).
+
+### Reader anomalies
+
+First-party reads leave every series. Each family carries `by_verification`, a
+verified and an unverified series over the days the sensor recorded
+verification, with signals withheld until a series is present on 20 of them.
+Three or more families deviating on the same day, mostly on unverified reads,
+from the same network are one `reader_co_movement` signal naming the network,
+with the per-family signals inside it as `members`.
+
 ## Rights evidence, schema 2 (Worker v1.29.0)
 
 Once a month the plugin composes one signed, anchored record per AI-training
