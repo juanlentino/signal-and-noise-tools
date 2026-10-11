@@ -11,13 +11,16 @@
 # diff. --tag opts into tagging; nothing opts into committing.
 #
 # Usage:
-#   tools/cut-release.sh release|fix "one-line headline"
+#   tools/cut-release.sh release "one-line headline"
 #   tools/cut-release.sh release "the batch door" --dry-run
-#   tools/cut-release.sh fix "envelope fix" --tag
-#   tools/cut-release.sh fix "admin-only fix" --front-end=no   (no public change: updates leave caches warm)
+#   tools/cut-release.sh release "envelope fix" --tag
+#   tools/cut-release.sh release "admin-only fix" --front-end=no   (no public change: updates leave caches warm)
 #
-# Numbering is the WordPress / WooCommerce shape (docs/VERSIONING.md): X.Y.0 is
-# a release, X.Y.Z a fix, and X rolls when Y would reach 10 (14.9.0 -> 15.0.0).
+# Numbering is by date (docs/VERSIONING.md, owner 2026-10-11): YYYY.M.N, N the
+# cut's place in its month (2026.10.1, 2026.10.2, then 2026.11.1). One site
+# installs this plugin and nobody else ever will, so the number only has to go
+# up and say how old an install is. `fix` and `patch` are accepted and mean the
+# same as `release`: the CHANGELOG says what a cut is, the number does not.
 #
 # Refuses: a dirty worktree, an empty Unreleased, an unparseable Version, and
 # a previous cut whose section GREW since its tag (a branch opened before that
@@ -55,16 +58,13 @@ for arg in "$@"; do
   esac
 done
 
-# WordPress shape (owner decision 2026-09-11, docs/VERSIONING.md): X.Y.0 is a
-# RELEASE, X.Y.Z a FIX to it, and X rolls by itself when Y would reach 10.
-# `major` is refused: the first digit is the tens digit of the release count,
-# not a claim about breakage — a breaking release says BREAKING in its
-# headline instead. `minor`/`patch` stay as aliases for muscle memory.
+# By date (owner decision 2026-10-11, docs/VERSIONING.md): every cut is the
+# next number of its month. `major` is refused: the first number is the year,
+# not a claim about breakage; a breaking release says BREAKING in its headline.
 case "$LEVEL" in
-  release|minor) LEVEL=release ;;
-  fix|patch)     LEVEL=fix ;;
-  major) die "there is no 'major' cut: X rolls on its own when Y would reach 10. Cut a release and put BREAKING in the headline if it breaks something." ;;
-  *) die "first argument must be release or fix (got '${LEVEL}')" ;;
+  release|minor|fix|patch) LEVEL=release ;;
+  major) die "there is no 'major' cut: the first number is the year. Cut a release and put BREAKING in the headline if it breaks something." ;;
+  *) die "first argument must be release (got '${LEVEL}')" ;;
 esac
 [ -n "$HEADLINE" ] || die "second argument must be a one-line headline"
 case "$HEADLINE" in
@@ -86,13 +86,18 @@ CURRENT="$(grep -m1 -E '^\s*\*\s*Version:' "$PLUGIN_FILE" | grep -oE '[0-9]+\.[0
 [ -n "$CURRENT" ] || die "could not parse Version: from ${PLUGIN_FILE}"
 
 IFS=. read -r MAJ MIN PAT <<< "$CURRENT"
-case "$LEVEL" in
-  release)
-    if [ "$MIN" -ge 9 ]; then MAJ=$((MAJ + 1)); MIN=0; else MIN=$((MIN + 1)); fi
-    PAT=0 ;;
-  fix) PAT=$((PAT + 1)) ;;
-esac
-NEXT="${MAJ}.${MIN}.${PAT}"
+# YYYY.M.N: the next N in this UTC month, or 1 when the month changed (or the
+# current version is from before the date scheme, like 24.0.0).
+YEAR="${SN_CUT_YEAR:-$(date -u +%Y)}"
+MONTH="${SN_CUT_MONTH:-$(date -u +%-m)}"
+if [ "$MAJ" = "$YEAR" ] && [ "$MIN" = "$MONTH" ]; then
+  NEXT="${YEAR}.${MONTH}.$((PAT + 1))"
+else
+  NEXT="${YEAR}.${MONTH}.1"
+fi
+# Never down: a cut that would not sort above the installed version is refused.
+php -r 'exit(version_compare($argv[1], $argv[2]) > 0 ? 0 : 1);' "$NEXT" "$CURRENT" 2>/dev/null \
+  || die "next version ${NEXT} does not sort above ${CURRENT}; refusing to go down."
 TODAY="$(date -u +%Y-%m-%d)"
 
 # ── Unreleased must have something in it ─────────────────────────────────

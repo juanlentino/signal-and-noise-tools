@@ -32,7 +32,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to tag, X.Y.Z (must equal main''s Version: header)'
+        description: 'Version to tag, YYYY.M.N (must equal main''s Version: header)'
         required: true
         type: string
 
@@ -45,7 +45,7 @@ concurrency:
 
 jobs:
   release:
-    name: Tag and draft release
+    name: Tag the release
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -98,10 +98,10 @@ jobs:
           git tag -a "$TAG" "$SHA" -m "$TAG — $HEADLINE"
           git push origin "refs/tags/$TAG"
 
-          gh release create "$TAG" --draft --verify-tag \
-            --title "$TAG — $HEADLINE" --notes-file "$RUNNER_TEMP/notes.md"
+          # No GitHub release: one site installs this plugin, its updater reads
+          # tags, and nothing reads a release (owner 2026-10-11).
 
           {
             echo "### $TAG — $HEADLINE"
-            echo "Tagged \`${SHA:0:7}\`; release drafted. Install from wp-admin → Dashboard → Updates."
+            echo "Tagged \`${SHA:0:7}\`. Install from wp-admin → Dashboard → Updates."
           } >> "$GITHUB_STEP_SUMMARY"

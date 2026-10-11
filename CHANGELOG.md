@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Versions are by date: `YYYY.M.N`.** The next cut is 2026.10.1, then 2026.10.2, and N starts again each month. One site installs this plugin and nothing else ever will, so the number only has to go up and say how old an install is; the WordPress shape it replaces rolled from 14.0.0 to 24.0.0 in a month. `tools/cut-release.sh` computes the date number (`fix` is accepted and means the same as `release`; `major` is refused) and refuses a version that would not sort above the current one. The release workflow tags the cut and no longer drafts a GitHub release, which nothing read. docs/VERSIONING.md says why.
+
 ## [24.0.0] - 2026-10-11 — the desktop widgets read like the rest of the desktop, and the rollups keep a day they cannot cap
 
 ### Fixed
