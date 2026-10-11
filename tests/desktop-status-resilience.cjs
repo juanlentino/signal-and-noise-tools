@@ -559,6 +559,10 @@ async function run() {
     assert.equal(edgeBox.parentNode, cacheBox.parentNode, 'Edge and Cache share one row');
     assert.match(String(edgeBox.parentNode.attrs.style), /display:flex;flex-wrap:wrap/, 'as the kit\'s pair');
     assert.doesNotMatch(String(edgeBox.attrs.style || ''), /border-top/, 'a paired column draws no hairline of its own');
+    // 2026-10-11: columns share the row equally and wrap their own text; one
+    // long value ("Purge dispatched, verifying") must not stack the pair.
+    assert.equal(edgeBox.style.flex, '1 1 0', 'a column grows from zero, never from its content width');
+    assert.match(String(edgeBox.style.minWidth), /^min\(100%, \d+px\)$/, 'and stacks only below a fixed column width');
     m.stop();
     m = await mount({});
     assert.match(String(boxOf(m.root, 'Edge').attrs.style), /border-top/, 'without the kit each stacks with its own hairline');
