@@ -119,7 +119,7 @@ ok( null === sn_content_queue_gap( $holey, $hist, $NOW, $TZ, array( '2026-09-25|
 $sp = sn_content_queue_shape( $as_rows( $holey ), 6, $as_rows( $hist ), $NOW, $TZ, 2, array( '2026-09-25|2026-10-08' ) );
 ok( is_array( $sp['gap'] ) && '2026-09-25' !== $sp['gap']['from'], 'the shaper passes the planned gaps through' );
 $GLOBALS['__cq_opts'] = array();
-ok( false === sn_content_queue_mark_planned( '2026-10-08', '2026-09-25' ) && false === sn_content_queue_mark_planned( 'x', '2026-09-25' ) && array() === sn_content_queue_planned_gaps(), 'a reversed or malformed range is refused and nothing is stored' );
+ok( false === sn_content_queue_mark_planned( '2026-10-08', '2026-09-25' ) && false === sn_content_queue_mark_planned( 'x', '2026-09-25' ) && false === sn_content_queue_mark_planned( '2026-99-99', '2026-99-99' ) && false === sn_content_queue_mark_planned( "2026-10-08\n", '2026-10-09' ) && array() === sn_content_queue_planned_gaps(), 'a reversed, malformed, impossible or newline-suffixed range is refused and nothing is stored' );
 ok( true === sn_content_queue_mark_planned( '2026-12-20', '2027-01-03' ) && array( '2026-12-20|2027-01-03' ) === sn_content_queue_planned_gaps(), 'a planned gap is stored as from|to' );
 $steady = array( $at( 9, 18 ), $at( 9, 21 ), $at( 9, 24 ), $at( 9, 27 ), $at( 9, 30 ) );
 ok( null === sn_content_queue_gap( $steady, $hist, $NOW, $TZ ), 'a schedule at the site\'s cadence has no gap' );

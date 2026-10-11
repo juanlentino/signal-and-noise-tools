@@ -164,7 +164,7 @@ ok( false === snt_watch_ripe_secrets_api( array(), 0 )['ripe'], 'on this machine
 $gs = static function ( $init, $general ) { return snt_watch_ripe_general_save_guard( array(), 0, array( 'abilities_init' => $init, 'general' => $general ) ); };
 ok( false === $gs( true, array( 'blogname', 'admin_email' ) )['ripe'] && true === $gs( true, array( 'blogname', 'preferred_languages' ) )['ripe'] && false === $gs( false, array() )['ripe'], '16.8.0: the General-save guard watch ripens when admin_email leaves the group after the registry initialised; never when the registry did not initialise' );
 $gss = static fn( $settings, $general ) => snt_watch_ripe_general_save_guard( array(), 0, array( 'abilities_init' => true, 'settings_init' => $settings, 'general' => $general ) );
-ok( false === $gss( false, array() )['ripe'] && false !== strpos( $gss( false, array() )['note'], 'cannot tell' ), '2026-10-10: a request where Core registered no settings (the desktop page load) cannot tell: an empty General group is not admin_email leaving it' );
+ok( false === $gss( false, array() )['ripe'] && false !== strpos( $gss( false, array() )['note'], 'cannot tell' ), '2026-10-10: a request that is not a plain wp-admin one (REST, where Core adds admin_email itself; cron) cannot tell' );
 ok( true === $gss( true, array( 'blogname' ) )['ripe'] && false === $gss( true, array( 'admin_email' ) )['ripe'], 'with Core\'s settings registered, the watch still reads the group' );
 ok( in_array( 'general_save_guard_ai_1048', $ids, true ), 'the guard watch is registered' );
 

@@ -340,7 +340,7 @@ function snt_desktop_zenodo() {
  * analytics_v2_frozen_bad watch's state).
  *
  * @param mixed $v The stored option.
- * @return array{ok:bool,days:int,since:string,reset:string,frozen:bool,bad:bool,why:string}|null Null when no verdict is stored yet.
+ * @return array{ok:bool,days:int,since:string,last:string,reset:string,frozen:bool,bad:bool,why:string}|null Null when no verdict is stored yet.
  */
 function snt_desktop_analytics2_shape( $v ) {
 	if ( ! is_array( $v ) || ! isset( $v['at'] ) ) {

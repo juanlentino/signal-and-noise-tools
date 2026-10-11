@@ -399,7 +399,7 @@ const SN_CONTENT_QUEUE_PLANNED_OPT = 'sn_content_queue_planned_gaps';
  */
 function sn_content_queue_planned_gaps() {
 	$v = get_option( SN_CONTENT_QUEUE_PLANNED_OPT, array() );
-	return array_values( array_filter( (array) $v, static fn( $k ) => is_string( $k ) && 1 === preg_match( '/^\d{4}-\d{2}-\d{2}\|\d{4}-\d{2}-\d{2}$/', $k ) ) );
+	return array_values( array_filter( (array) $v, static fn( $k ) => is_string( $k ) && 1 === preg_match( '/^\d{4}-\d{2}-\d{2}\|\d{4}-\d{2}-\d{2}\z/', $k ) ) );
 }
 
 /**
@@ -412,7 +412,10 @@ function sn_content_queue_planned_gaps() {
 function sn_content_queue_mark_planned( $from, $to ) {
 	$from = (string) $from;
 	$to   = (string) $to;
-	if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) || 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) || $from > $to ) {
+	$day = static function ( $d ) {
+		return 1 === preg_match( '/^(\d{4})-(\d{2})-(\d{2})\z/', $d, $m ) && checkdate( (int) $m[2], (int) $m[3], (int) $m[1] );
+	};
+	if ( ! $day( $from ) || ! $day( $to ) || $from > $to ) {
 		return false;
 	}
 	$keep   = array_values( array_diff( sn_content_queue_planned_gaps(), array( $from . '|' . $to ) ) );
