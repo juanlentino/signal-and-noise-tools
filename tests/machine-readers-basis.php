@@ -203,7 +203,7 @@ echo "\nGroup G: the display rows both Machine Readers leaves paint\n";
 $disp = snt_mr_basis_display( snt_mr_normalize_rows( $rows ) );
 $dp   = array_column( $disp['purposes'], null, 'label' );
 ok( array( 'label' => 'train', 'claimed' => 837, 'verified' => 29, 'verified_matched' => 25, 'unverified' => 798, 'unverifiable' => 10 ) === $dp['train'], 'a purpose row: claimed, verified, verified for its purpose, unverified, unverifiable' );
-ok( isset( $dp['unmapped'] ) && ! isset( $dp['unknown'] ), 'purpose unknown is labelled unmapped' );
+ok( isset( $dp['unmapped'] ) && ! isset( $dp['unknown'] ), 'purpose unknown is labeled unmapped' );
 ok( 'train' === $disp['purposes'][0]['label'], 'purpose rows run by claimed reads, largest first' );
 $df = array_column( $disp['families'], null, 'label' );
 ok( 500 === $df['unclassified-machine']['first_party'] && 520 === $df['unclassified-machine']['claimed'], 'a family row carries its first-party reads' );

@@ -259,7 +259,7 @@ function snt_mr_ai_rights_pair( $aggregate, $detail ) {
  *
  * @param array $read snt_mr_fetch( $days, 'unknown-network' ) result.
  * @param int   $top  Samples kept.
- * @return array<int,array>|null null when every row sanitised away.
+ * @return array<int,array>|null null when every row sanitized away.
  */
 function snt_mr_unnamed_fold( array $read, $top ) {
 	$measured = 'network' === (string) ( $read['detail'] ?? '' );
@@ -283,7 +283,7 @@ function snt_mr_unnamed_fold( array $read, $top ) {
 		}
 		$by[ $ua ] = $u;
 	}
-	// Rows that all sanitised away are not "every read matched".
+	// Rows that all sanitized away are not "every read matched".
 	if ( array() === $by && array() !== (array) ( $read['rows'] ?? array() ) ) {
 		return null;
 	}
