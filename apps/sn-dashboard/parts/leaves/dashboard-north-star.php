@@ -21,41 +21,53 @@ if ( ! defined( 'ABSPATH' ) ) {
 function north_star_labels() {
 	return array(
 		'deep_readers'     => __( 'Deep readers (2+ pages)', 'signal-and-noise-tools' ),
-		'actions'          => __( 'Downloads and outbound clicks', 'signal-and-noise-tools' ),
+		'actions'          => __( 'Downloads, outbound clicks', 'signal-and-noise-tools' ),
 		'career_visits'    => __( 'Resume and contact visits', 'signal-and-noise-tools' ),
 		'resume_downloads' => __( 'Resume PDF downloads', 'signal-and-noise-tools' ),
 		'subscribes'       => __( 'Feed subscribe clicks', 'signal-and-noise-tools' ),
 		'shares'           => __( 'Notes shared', 'signal-and-noise-tools' ),
 		'verifies'         => __( 'Signatures checked', 'signal-and-noise-tools' ),
-		'research_links'   => __( 'Research links followed (SSRN, DOI, Zenodo, ORCID)', 'signal-and-noise-tools' ),
-		'readers_per_note' => __( 'Readers per note published', 'signal-and-noise-tools' ),
+		'research_links'   => __( 'Research links followed', 'signal-and-noise-tools' ),
+		'readers_per_note' => __( 'Readers per note', 'signal-and-noise-tools' ),
 		'doi_downloads'    => __( 'DOI downloads', 'signal-and-noise-tools' ),
 		'inquiries'        => __( 'Inquiries', 'signal-and-noise-tools' ),
 		'notes_published'  => __( 'Notes published', 'signal-and-noise-tools' ),
-		'feed_clicks'      => __( 'Clicked through from a feed', 'signal-and-noise-tools' ),
-		'feed_opens'       => __( 'Opened in a feed reader (at least)', 'signal-and-noise-tools' ),
+		'feed_clicks'      => __( 'Feed click-throughs', 'signal-and-noise-tools' ),
+		'feed_opens'       => __( 'Feed opens (a floor)', 'signal-and-noise-tools' ),
+		'feed_subscribers' => __( 'Feed subscribers (a ceiling)', 'signal-and-noise-tools' ),
 		'rss_readers'      => __( 'RSS readers', 'signal-and-noise-tools' ),
 		'search_clicks'    => __( 'Search clicks', 'signal-and-noise-tools' ),
 	);
 }
 
 /**
- * One layer as a facts list. A null value says why, never zero.
+ * One layer as the Home detail list (the Audience detail's row shape), one
+ * line per signal. A null value reads "not measured", never zero, and its
+ * reason stands under the list.
  *
  * @param array $rows Layer rows.
  * @return string
  */
 function north_star_layer_html( array $rows ) {
 	$labels = north_star_labels();
-	$facts  = array();
+	$list   = array();
+	$why    = array();
 	foreach ( $rows as $key => $row ) {
-		$value   = $row['value'] ?? null;
-		$window  = (string) ( $row['window'] ?? '' );
-		$facts[] = null === $value
-			? array( 'label' => $labels[ $key ] ?? $key, 'value' => (string) ( $row['pending'] ?? __( 'No data yet', 'signal-and-noise-tools' ) ), 'tone' => 'neutral' )
-			: array( 'label' => $labels[ $key ] ?? $key, 'value' => number_format_i18n( $value, is_float( $value ) ? 1 : 0 ) . ( '' !== $window ? ' · ' . $window : '' ) );
+		$label  = $labels[ $key ] ?? $key;
+		$value  = $row['value'] ?? null;
+		// The band's eyebrow says "last 7 days" (the subscriber ceiling is its
+		// busiest day inside them); only another window is marked.
+		$window = (string) ( $row['window'] ?? '' );
+		$window = in_array( $window, array( '7d', 'max_day_7d' ), true ) ? '' : $window;
+		$list[] = null === $value
+			? array( 'label' => $label, 'value' => __( 'not measured', 'signal-and-noise-tools' ), 'tone' => 'neutral' )
+			: array( 'label' => $label, 'value' => number_format_i18n( $value, is_float( $value ) ? 1 : 0 ) . ( '' !== $window ? ' · ' . $window : '' ) );
+		if ( null === $value && isset( $row['pending'] ) ) {
+			/* translators: 1: signal, 2: why it has no reading. */
+			$why[] = sprintf( __( '%1$s: %2$s', 'signal-and-noise-tools' ), $label, (string) $row['pending'] );
+		}
 	}
-	return \snt_kit_kv( $facts );
+	return \snt_kit_list( $list ) . ( $why ? '<p class="snt-hint">' . \snt_kit_esc( implode( ' ', $why ) ) . '</p>' : '' );
 }
 
 /**
@@ -76,8 +88,9 @@ function north_star_key_html( $label, $row ) {
 }
 
 /**
- * The hero: the number Home is for, its four weeks, and the three signals
- * that matter most right now. Every other signal waits behind "All signals".
+ * The hero: the number Home is for, its trend, and the three signals that
+ * matter most right now; under it, every signal as an open band of three
+ * columns (2026-10-11: it folded behind "All signals").
  *
  * @param string $tab Current tab.
  * @return string
@@ -121,19 +134,17 @@ function north_star_html( $tab ) {
 		. north_star_key_html( __( 'Notes shared', 'signal-and-noise-tools' ), $intent['shares'] ?? null )
 		. '</div></div>';
 
-	$cols = array(
-		'<section><h3 class="snt-home__detail-h">' . \snt_kit_esc( __( 'Intent', 'signal-and-noise-tools' ) ) . '</h3>' . north_star_layer_html( $intent ) . '</section>',
-		'<section><h3 class="snt-home__detail-h">' . \snt_kit_esc( __( 'Return', 'signal-and-noise-tools' ) ) . '</h3>' . north_star_layer_html( (array) ( $layers['return'] ?? array() ) ) . '</section>',
-		'<section><h3 class="snt-home__detail-h">' . \snt_kit_esc( __( 'Inputs', 'signal-and-noise-tools' ) ) . '</h3>' . north_star_layer_html( (array) ( $layers['inputs'] ?? array() ) ) . '<p class="snt-hint">' . \snt_kit_esc( __( 'Feed opens: notes opened in a feed reader, counted by an image in the feed. A floor, since many readers block images, and never part of the star.', 'signal-and-noise-tools' ) ) . '</p></section>',
-	);
+	$col  = static fn( $heading, $inner ) => '<section class="snt-home__detail-col"><h3 class="snt-home__detail-h">' . \snt_kit_esc( $heading ) . '</h3>' . $inner . '</section>';
 	$note = __( 'Counted per visitor per day: cookieless, so a reader on two days counts twice.', 'signal-and-noise-tools' )
-		. ( ! empty( $r['capped'] ) ? ' ' . __( 'The event cap was hit; the count is a floor.', 'signal-and-noise-tools' ) : '' );
+		. ( ! empty( $r['capped'] ) ? ' ' . __( 'The event cap was hit; the count is a floor.', 'signal-and-noise-tools' ) : '' )
+		. ' ' . __( 'Feed opens: notes opened in a feed reader, counted by an image in the feed. A floor, since many readers block images, and never part of the star.', 'signal-and-noise-tools' );
 	$edit = \snt_kit_go( __( 'Change what counts', 'signal-and-noise-tools' ), array( 'tab' => 'monitoring', 'sub' => 'analytics', 'current' => $tab ) );
-	$all  = \snt_kit_tag(
-		'os-disclosure',
-		array( 'heading' => __( 'All signals', 'signal-and-noise-tools' ), 'hint' => __( 'intent, return, inputs', 'signal-and-noise-tools' ), 'class' => 'snt-ns-all' ),
-		\snt_kit_grid( $cols, 220, 18 ) . '<p class="snt-hint">' . \snt_kit_esc( $note ) . ' ' . $edit . '</p>'
-	);
+	$all  = '<div class="snt-home__detail-group snt-ns-all"><div class="snt-home__pulse-group-label">' . \snt_kit_esc( __( 'All signals, last 7 days', 'signal-and-noise-tools' ) ) . '</div>'
+		. '<div class="snt-home__detail">'
+		. $col( __( 'Intent', 'signal-and-noise-tools' ), north_star_layer_html( $intent ) )
+		. $col( __( 'Return', 'signal-and-noise-tools' ), north_star_layer_html( (array) ( $layers['return'] ?? array() ) ) )
+		. $col( __( 'Inputs', 'signal-and-noise-tools' ), north_star_layer_html( (array) ( $layers['inputs'] ?? array() ) ) )
+		. '</div><p class="snt-hint">' . \snt_kit_esc( $note ) . ' ' . $edit . '</p></div>';
 
 	return '<section class="snt-home__section snt-north-star" aria-labelledby="snt-home-ns-heading">'
 		. '<div class="snt-home__section-heading"><h2 id="snt-home-ns-heading">' . \snt_kit_esc( __( 'North star', 'signal-and-noise-tools' ) ) . '</h2></div>'
