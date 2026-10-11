@@ -673,6 +673,15 @@ function sn_analytics_run_rollup() {
 	if ( ! sn_analytics_config() ) {
 		return;
 	}
+	// Every table this pass replaces is read under the human rule, and the rule
+	// needs the over-cap list. A list that did not read would store the week with
+	// automated visitor-days counted as readers (2026-10-11: Oct 6 stored 762
+	// human views, not 10, until the next run). Keep the stored days; no fresh
+	// stamp, so the next poke retries.
+	if ( function_exists( 'sn_analytics_overcap_vdays' ) && empty( sn_analytics_overcap_vdays()['ok'] ) ) {
+		error_log( '[sn-analytics] rollup skipped: the over-cap visitor-day list did not read; the stored days are kept' );
+		return;
+	}
 
 	if ( ! sn_analytics_pageviews_run_rollup() ) {
 		return; // the main read failed: no breakdowns, no fresh stamp (as before the split).

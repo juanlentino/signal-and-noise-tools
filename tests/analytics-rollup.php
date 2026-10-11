@@ -55,7 +55,7 @@ function update_option( $key, $value, $autoload = null ) {
 // Transients.
 $GLOBALS['__ar_transients'] = array();
 function get_transient( $key ) {
-	if ( SNT_ANALYTICS_VDAY_CACHE_KEY === $key ) { return array( 'hashes' => array(), 'ok' => true, 'truncated' => false ); } // the human rule's list, primed so call counts stay this module's own
+	if ( SNT_ANALYTICS_VDAY_CACHE_KEY === $key ) { return $GLOBALS['__ar_overcap'] ?? array( 'hashes' => array(), 'ok' => true, 'truncated' => false ); } // the human rule's list, primed so call counts stay this module's own
 	return array_key_exists( $key, $GLOBALS['__ar_transients'] ) ? $GLOBALS['__ar_transients'][ $key ] : false;
 }
 function set_transient( $key, $value, $exp = 0 ) {
@@ -299,6 +299,7 @@ function ar_reset() {
 	$GLOBALS['__ar_config_present']    = true;
 	$GLOBALS['__ar_dbdelta_calls']     = array();
 	$GLOBALS['__ar_query_fail']        = false;
+	$GLOBALS['__ar_overcap']           = array( 'hashes' => array(), 'ok' => true, 'truncated' => false );
 	$GLOBALS['__ar_dims_called']       = 0;
 	$GLOBALS['__ar_last_truncated']    = false;
 	$GLOBALS['wpdb']                   = new AR_Stub_wpdb();
@@ -1019,6 +1020,21 @@ sn_analytics_run_rollup();
 ok( count( $GLOBALS['__ar_query_calls'] ) === 1, 'run_rollup: a configured failure still issued the AE query' );
 ok( count( $GLOBALS['wpdb']->queries ) === 0, 'run_rollup: AE failure (null) → no upsert' );
 ok( get_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY ) === false, 'run_rollup: AE failure (null) → NOT stamped fresh (warmer retries)' );
+
+// 2026-10-11: one run with an over-cap list that missed two visitor-days (368
+// and 406 page views) stored Oct 6 as 762 human views, not 10, until the next
+// run. A list that did not read leaves every stored day as it is.
+ar_reset();
+$GLOBALS['__ar_config_present'] = true;
+$GLOBALS['__ar_query_return']   = array(
+	array( 'day' => '2026-06-11', 'path' => '/', 'views' => 9, 'visits' => 7, 'scroll_avg' => 50, 'time_avg' => 3000 ),
+);
+$GLOBALS['__ar_overcap'] = array( 'hashes' => array(), 'ok' => false, 'truncated' => false );
+sn_analytics_run_rollup();
+ok( array() === $GLOBALS['__ar_query_calls'], 'run_rollup: a failed over-cap list issues no rollup query' );
+ok( array() === $GLOBALS['wpdb']->queries && array() === $GLOBALS['wpdb']->ops, 'run_rollup: a failed over-cap list leaves the stored days untouched' );
+ok( get_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY ) === false, 'run_rollup: a failed over-cap list is not stamped fresh (the next poke retries)' );
+ok( 0 === $GLOBALS['__ar_dims_called'], 'run_rollup: and drives no breakdown roll' );
 
 // ── daily_range read accessor ─────────────────────────────────────────────────
 echo "\nGroup: daily_range\n";

@@ -79,6 +79,7 @@ ok( false !== strpos( $oc, 'GROUP BY vid HAVING views > 50' ), 'groups by the vi
 ok( false === strpos( $oc, 'toDate(' ), 'never splits a visitor-day on the UTC date' );
 ok( 1 === preg_match( '/GROUP BY ([^()]*?) HAVING/', $oc ), 'over-cap GROUP BY holds no function call' );
 ok( array() === $ae_clause_fns( $oc ), 'over-cap GROUP BY / HAVING / ORDER BY are bare identifiers' );
+ok( false !== strpos( $oc, 'HAVING views > 50 ORDER BY views DESC LIMIT ' ), 'heaviest first: a list cut at its size keeps the visitor-days that distort counts most (2026-10-11)' );
 $GLOBALS['__q_ret'] = null;
 $r = sn_analytics_overcap_vdays();
 ok( false === $r['ok'] && array() === $r['hashes'], 'failed read: empty list flagged ok=false' );
