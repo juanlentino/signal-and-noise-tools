@@ -175,9 +175,10 @@ function snt_mr_family_delta_cards( $current_rows, $prior_rows, $days ) {
 		return array();
 	}
 
-	$url   = function_exists( 'admin_url' )
-		? admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=machine-readers' )
-		: '';
+	// The readings live in S&N Analytics (Machine readers) since the evidence-basis arc.
+	$url   = function_exists( 'snt_mr_analytics_view_url' )
+		? snt_mr_analytics_view_url( 'machine-readers' )
+		: ( function_exists( 'admin_url' ) ? admin_url( 'admin.php?page=sn-analytics&sn_view=machine-readers' ) : '' );
 	$cards = array();
 	// v10.2.0 (verifier finding): iterate the UNION, not just the current
 	// window. Iterating $cur_tot alone meant a family that stopped entirely

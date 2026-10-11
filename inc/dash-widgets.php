@@ -203,7 +203,7 @@ function snt_dwx_boxes() {
 				),
 			),
 			'links'    => array(
-				array( 'label' => __( 'Machine Readers', 'signal-and-noise-tools' ), 'url' => $opt . '&tab=monitoring&sub=machine-readers' ),
+				array( 'label' => __( 'Machine readers in S&N Analytics', 'signal-and-noise-tools' ), 'url' => function_exists( 'snt_mr_analytics_view_url' ) ? snt_mr_analytics_view_url( 'machine-readers' ) : admin_url( 'admin.php?page=sn-analytics&sn_view=machine-readers' ) ),
 			),
 		),
 		array(

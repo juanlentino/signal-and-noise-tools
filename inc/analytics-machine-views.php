@@ -13,6 +13,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * The URL of one machine view in S&N Analytics.
+ *
+ * @param string $view machine-readers|reader-evidence.
+ * @return string
+ */
+function snt_mr_analytics_view_url( $view ) {
+	$page = function_exists( 'snt_analytics_page_url' ) ? snt_analytics_page_url() : admin_url( 'admin.php?page=sn-analytics' );
+	return add_query_arg( 'sn_view', (string) $view, $page );
+}
+
 /** The windows the machine views offer; the sensor reads 1 to 90 days. */
 const SN_MR_VIEW_WINDOWS = array( 7, 14, 30, 90 );
 

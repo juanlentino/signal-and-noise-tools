@@ -181,7 +181,7 @@ $all = implode( '', $html );
 foreach ( array(
 	'tab=monitoring&sub=analytics'       => 'Analytics',
 	'tab=monitoring&sub=rss'             => 'RSS',
-	'tab=monitoring&sub=machine-readers' => 'Machine Readers',
+	'sn_view=machine-readers'            => 'Machine readers in S&N Analytics (the readings moved there)',
 	'tab=tools&sub=provenance'           => 'Provenance',
 	'tab=connections&sub=cron'           => 'Cron',
 ) as $target => $label ) {

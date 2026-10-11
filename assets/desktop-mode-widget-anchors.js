@@ -481,7 +481,7 @@
 			var links = zenLink ? [ zenLink ] : [];
 			// Each link closes the section it opens (owner, 2026-10-05, as SN
 			// Systems does); with no section painted it stays on the action row.
-			[ [ 'Open Provenance', dashboardUrl, pbox ], [ 'Open Machine Readers', readersUrl, rbox ] ].forEach( function( l ) {
+			[ [ 'Open Provenance', dashboardUrl, pbox ], [ 'Machine readers in S&N Analytics', readersUrl, rbox ] ].forEach( function( l ) {
 				if ( ! l[1] ) { return; }
 				var link = linkTo( l[0], l[1] );
 				( l[2] || actions ).appendChild( link );

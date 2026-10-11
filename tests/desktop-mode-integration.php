@@ -649,7 +649,7 @@ foreach ( array(
 $sn_views_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' ) );
 ok( false !== strpos( $sn_views_code, "text: deltaText( pct, '%' ) + ' vs. prior 14 days'," ) && false === strpos( $sn_views_code, 'top_mover' ), 'SN Traffic\'s trend rides the one arrow-only formatter, and the top mover is not painted (render pins: tests/desktop-mode-widget-views-delta.php)' );
 $sn_an_raw = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' );
-ok( false !== strpos( $sn_an_raw, "data.pages.machine_readers" ) && false !== strpos( $sn_an_raw, "[ 'Open Machine Readers', readersUrl, rbox ]" ), 'SN Provenance links to the Machine Readers leaf, inside the readers section (2026-10-05; render pin in tests/desktop-status-resilience.cjs)' );
+ok( false !== strpos( $sn_an_raw, "data.pages.machine_readers" ) && false !== strpos( $sn_an_raw, "[ 'Machine readers in S&N Analytics', readersUrl, rbox ]" ), 'SN Provenance links to the Machine readers view in S&N Analytics, inside the readers section (render pin in tests/desktop-status-resilience.cjs)' );
 // Same rule for SN Anchors' Sweep now: the result is a shell toast, the card
 // only refreshes; the in-card note is the fallback.
 $an_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' ) );
@@ -1949,7 +1949,7 @@ ok( false !== strpos( $mr_js, '/signal-noise/v1/desktop/machine-readers' ), 'SN 
 ok( false !== strpos( $mr_js, 'readers = null;' ) && false !== strpos( $mr_js, "readers = { ok: false, error: 'unreachable' };" ), 'a refresh clears the last machine-readers reading, and a failed read says the sensor is unreachable rather than painting zeros' );
 $dm_src = dm_integration_src();
 ok( false !== strpos( $dm_src, "'/desktop/machine-readers'" ), 'the desktop route is registered' );
-ok( false !== strpos( $dm_src, "'machine_readers' => snt_desktop_admin_url" ), 'the pages map carries the tab link for the tile footer' );
+ok( false !== strpos( $dm_src, "'machine_readers' => function_exists( 'snt_mr_analytics_view_url' ) ? snt_mr_analytics_view_url( 'machine-readers' )" ), 'the pages map carries the Machine readers view link for the tile footer (the readings moved to S&N Analytics)' );
 
 echo "\n── Machine readers in SN Provenance: crawler drift stays loud ──\n";
 // The families, purposes and per-surface rows stay on the Machine Readers leaf

@@ -208,10 +208,12 @@ ok( false === strpos( $trunc, '<script' ), 'no raw markup reaches the output' );
 // exists precisely because a flag reached no renderer for two releases. Pin
 // both ends: the composer must call it, and the tab must pass the edge's flag
 // into the composer, or the notice can never fire in production.
-$sn_compose = (string) file_get_contents( __DIR__ . '/../inc/machine-readers-compose.php' );
-ok( false !== strpos( $sn_compose, 'snt_mr_render_truncation_notice(' ), 'the tab composer calls the truncation notice' );
-$sn_admin = (string) file_get_contents( __DIR__ . '/../inc/machine-readers-admin.php' );
-ok( 1 === preg_match( "/'truncated'\s*=>\s*!\s*empty\(\s*\\\$result\['truncated'\]\s*\)/", $sn_admin ), 'and the tab passes the edge\'s truncated flag into it' );
+// Since the evidence-basis arc the figures live in the S&N Analytics Machine
+// readers view; its composer reads the edge's flag and says the figures are a
+// floor (tests/analytics-machine-views.php renders it).
+$sn_views = (string) file_get_contents( __DIR__ . '/../inc/analytics-machine-views.php' );
+ok( false !== strpos( $sn_views, '\'truncated\' => ! empty( $read[\'truncated\'] )' ), 'the Machine readers view carries the edge\'s truncated flag' );
+ok( false !== strpos( $sn_views, 'every figure here is a floor, not a count' ), 'and says a capped read is a floor' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

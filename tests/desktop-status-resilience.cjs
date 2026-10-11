@@ -389,8 +389,8 @@ async function run() {
     const parentOf = text => nodes(lroot).find(n => n.children.some(c => 'a' === c.tag && c.text === text));
     const heads = box => box ? box.children.filter(c => 'heading' === c.attrs.role).map(c => c.text).join() : '';
     assert.equal(heads(parentOf('Open Provenance')), 'Provenance', 'Open Provenance sits in the Provenance section');
-    const mrParent = parentOf('Open Machine Readers');
-    assert.match(heads(mrParent), /Machine readers/, 'Open Machine Readers sits in the Machine readers section');
+    const mrParent = parentOf('Machine readers in S&N Analytics');
+    assert.match(heads(mrParent), /Machine readers/, 'the Machine readers link sits in the Machine readers section');
     lstop();
     const n0 = harness(), n0root = new Element('div');
     const n0stop = n0.window.desktopModeWidgets['sn-health'](n0root); await flush();

@@ -21,7 +21,7 @@
  *   door    Any other admin screen — the "Configure analytics →" gate, the
  *           Measurement → Analytics settings — as its own shell window.
  *   refresh The title-bar button: drop the notice, repaint.
- * Framework tabs (`App::tab()`) declare the thirteen report tabs (Overview is
+ * Framework tabs (`App::tab()`) declare the fifteen report tabs (Overview is
  * main, plus Content, Campaigns, Posts, Technology, Geography, Engagement,
  * Sessions, Quality, Search, Events, Traffic & edge, Login defense). Each tab is
  * its own server session painted by the frame.

@@ -2,7 +2,7 @@
 /**
  * The S&N Analytics native window (apps/sn-analytics): the frame, the picks, the port guard.
  *
- * The thirteen views are the framework's tabs, each a session; a control's
+ * The fifteen views are the framework's tabs, each a session; a control's
  * pick becomes the next query by the classic link rules; the frame paints the
  * chrome pieces in the classic page's order through the painter registry --
  * and, the port-complete guard, every view and every chrome piece has a kit
@@ -48,7 +48,7 @@ namespace {
 	require_once __DIR__ . '/lib/os-leaf-harness.php';
 	define( 'SNT_ANALYTICS_PAGE_SLUG', 'sn-analytics' );
 	// The page's own resolvers, as the real ones answer for these fixtures.
-	function snt_analytics_views() { return array( 'overview' => 'Overview', 'content' => 'Content', 'campaigns' => 'Campaigns', 'posts' => 'Posts', 'technology' => 'Technology', 'geography' => 'Geography', 'engagement' => 'Engagement', 'visits' => 'Sessions', 'quality' => 'Quality', 'search' => 'Search', 'events' => 'Events', 'edge' => 'Traffic & edge', 'login-defense' => 'Login defense' ); }
+	function snt_analytics_views() { return array( 'overview' => 'Overview', 'content' => 'Content', 'campaigns' => 'Campaigns', 'posts' => 'Posts', 'technology' => 'Technology', 'geography' => 'Geography', 'engagement' => 'Engagement', 'visits' => 'Sessions', 'quality' => 'Quality', 'search' => 'Search', 'events' => 'Events', 'edge' => 'Traffic & edge', 'machine-readers' => 'Machine readers', 'reader-evidence' => 'Reader evidence', 'login-defense' => 'Login defense' ); }
 	function snt_analytics_resolve_view( $v ) { return isset( snt_analytics_views()[ $v ] ) ? $v : 'overview'; }
 	function snt_analytics_resolve_class( $c ) { return in_array( $c, array( 'human', 'suspect', 'bot' ), true ) ? $c : 'human'; }
 	function snt_analytics_resolve_compare( $c ) { return in_array( $c, array( 'prev', 'yoy' ), true ) ? $c : 'off'; }

@@ -2,7 +2,7 @@
 /**
  * S&N Analytics — the tab frame: what every view tab paints around its body.
  *
- * The thirteen views are the framework's tabs (Overview is the main view),
+ * The fifteen views are the framework's tabs (Overview is the main view),
  * each its own session holding the page's nine parameters. A tab paints, in
  * the classic page's order: the notice, the AE diagnostic, the insights band,
  * the header region (controls, the Overview panel, the rail), the drill-down

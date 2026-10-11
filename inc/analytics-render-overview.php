@@ -147,6 +147,18 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
 	if ( is_array( $engaged ) && null !== ( $engaged['current'] ?? null ) ) {
 		$cards[] = array( 'l' => 'Engaged', 'n' => (int) $engaged['current'] . '%', 'delta' => ( isset( $engaged['dir'] ) ? $engaged : null ) );
 	}
+	// Unreleased: beside the presumed-human figures, the beacon's likely
+	// automated score (inferred, never subtracted); "not measured", never 0.
+	$la = $totals['likely_automated'] ?? null;
+	if ( is_array( $la ) ) {
+		$span    = (int) $la['measured_days'] + (int) $la['unmeasured_days'];
+		$cards[] = array(
+			'l'   => __( 'Likely automated (inferred)', 'signal-and-noise-tools' ),
+			'n'   => null === $la['visitor_days'] ? __( 'not measured', 'signal-and-noise-tools' ) : number_format_i18n( (int) $la['visitor_days'] ),
+			/* translators: 1: presumed-human visitor-days scored, 2: days measured, 3: days in the range. */
+			'sub' => sprintf( __( 'of %1$s presumed-human visitor-days, never subtracted; measured %2$d of %3$d days', 'signal-and-noise-tools' ), null === $la['scored_visitor_days'] ? '0' : number_format_i18n( (int) $la['scored_visitor_days'] ), (int) $la['measured_days'], $span ),
+		);
+	}
 	// Body-only (no postbox wrapper): render_dashboard fuses this KPI strip and the
 	// trend chart into a single "Overview" panel (v6.5.2) so the sparkline is the
 	// panel's footer rather than a lonely half-empty box.
@@ -216,18 +228,6 @@ function snt_analytics_render_human_rule_note( array $rule ) {
 		}
 	}
 	echo '<p class="sn-an-visitor-note">' . esc_html( $line ) . '</p>';
-	$la = $rule['likely_automated'] ?? null;
-	if ( is_array( $la ) ) {
-		$span = (int) ( $la['measured_days'] ?? 0 ) + (int) ( $la['unmeasured_days'] ?? 0 );
-		/* translators: 1: days not measured, 2: days in the range. */
-		$gap  = sprintf( __( '%1$d of %2$d days not measured', 'signal-and-noise-tools' ), (int) ( $la['unmeasured_days'] ?? 0 ), $span );
-		$auto = null === ( $la['visitor_days'] ?? null )
-			/* translators: %s: days not measured. */
-			? sprintf( __( 'Likely automated (inferred, never subtracted): not measured for this range (%s): the beacon carried no bot signals on those days, or the nightly read has not stored them.', 'signal-and-noise-tools' ), $gap )
-			/* translators: 1: likely automated visitor-days, 2: visitor-days the beacon scored, 3: days not measured. */
-			: sprintf( __( 'Likely automated (inferred, never subtracted): %1$s of %2$s presumed-human visitor-days the beacon scored crossed its bot-signal threshold (%3$s).', 'signal-and-noise-tools' ), number_format_i18n( (int) $la['visitor_days'] ), number_format_i18n( (int) ( $la['scored_visitor_days'] ?? 0 ) ), $gap );
-		echo '<p class="sn-an-visitor-note">' . esc_html( $auto ) . '</p>';
-	}
 }
 
 /**

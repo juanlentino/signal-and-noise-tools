@@ -231,10 +231,7 @@ function sn_ability_get_analytics_summary( $input ) {
 	// Unreleased: beside the totals, never subtracted from them. Read from the
 	// nightly per-day store (inc/analytics-bot-signals-by-day.php): this call
 	// never queries Analytics Engine.
-	$by_day                     = defined( 'SNT_BOT_SIGNAL_BY_DAY_OPTION' ) ? get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION, array() ) : array();
-	$totals['likely_automated'] = ( 'human' === $class && function_exists( 'sn_bot_signals_likely_automated' ) )
-		? sn_bot_signals_likely_automated( is_array( $by_day ) ? $by_day : array(), $from, $to )
-		: null;
+	$totals['likely_automated'] = function_exists( 'sn_analytics_likely_automated' ) ? sn_analytics_likely_automated( $from, $to, $class ) : null;
 	$totals['basis']            = 'inferred';
 	return $totals;
 }

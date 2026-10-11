@@ -123,6 +123,24 @@ function sn_bot_signals_likely_automated( array $by_day, $from, $to ) {
 }
 
 /**
+ * Likely automated over a range, for a traffic class: the stored per-day
+ * reading for class human, null for suspect and bot (the score is a question
+ * about presumed humans). Never queries Analytics Engine.
+ *
+ * @param string $from  YYYY-MM-DD.
+ * @param string $to    YYYY-MM-DD.
+ * @param string $class human|suspect|bot.
+ * @return array|null sn_bot_signals_likely_automated(), or null.
+ */
+function sn_analytics_likely_automated( $from, $to, $class ) {
+	if ( 'human' !== (string) $class ) {
+		return null;
+	}
+	$by_day = function_exists( 'get_option' ) ? get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION, array() ) : array();
+	return sn_bot_signals_likely_automated( is_array( $by_day ) ? $by_day : array(), (string) $from, (string) $to );
+}
+
+/**
  * The likely_automated field's schema, shared by get-analytics-summary and its
  * remote twin so the pair stays byte-identical by construction. It hashes into
  * SN_REMOTE_CONTRACT_VERSION: change it and the contract moves.
