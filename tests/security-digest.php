@@ -145,6 +145,12 @@ ok( false !== strpos( $body, 'Audit log: unavailable' ), 'compose: audit unavail
 ok( false !== strpos( $body, 'Login guard: not configured' ), 'compose: guard unavailable line' );
 ok( false !== strpos( $body, 'status unavailable' ), 'compose: status unavailable line' );
 
+// 2026-10-11: a null count (the worker could not read its list meta) is not reported, never "0 ranges".
+$nullCount = $active;
+$nullCount['status']['denylist_count'] = null;
+$body = snt_security_digest_compose( $nullCount );
+ok( false !== strpos( $body, 'Guard denylist: size not reported by the worker' ) && false === strpos( $body, '0 ranges' ), 'compose: an unreadable list size is not reported, never 0' );
+
 // ── composer: stale guard warns ──
 $staleData = $active;
 $staleData['status']['stale'] = true;

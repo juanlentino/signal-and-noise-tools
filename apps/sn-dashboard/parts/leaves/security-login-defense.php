@@ -52,12 +52,7 @@ function login_defense_status_html( $status ) {
 	}
 	$rows[] = array(
 		'label' => __( 'Denylist', 'signal-and-noise-tools' ),
-		'value' => sprintf(
-			/* translators: 1: number of denylist ranges, 2: ISO timestamp */
-			__( '%1$s ranges, updated %2$s', 'signal-and-noise-tools' ),
-			number_format_i18n( (int) ( $status['denylistCount'] ?? 0 ) ),
-			(string) ( $status['compiledAt'] ?? '?' )
-		),
+		'value' => \sn_login_defense_denylist_text( $status ),
 	);
 	return \snt_kit_kv( $rows );
 }

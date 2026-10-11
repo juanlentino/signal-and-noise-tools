@@ -114,7 +114,7 @@ ok( array( 'security_digest_save' ) === snt_leaf_actions( $kit ) && snt_leaf_act
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
 ok( false !== strpos( $kit, 'sn-login-guard v1.7.0' ) && false !== strpos( $kit, '2026-09-01T00:00:00Z' ), 'the worker version + deploy time are shown' );
-ok( false !== strpos( $kit, '1,234' ) && false !== strpos( $kit, '2026-09-05T00:00:00Z' ), 'the denylist count + refresh time are shown' );
+ok( false !== strpos( $kit, '1,234 ranges, updated 2026-09-05 00:00 UTC' ), 'the denylist count + refresh time are shown' );
 ok( false !== strpos( $kit, 'Spamhaus' ), 'the FireHOL/Spamhaus attribution survives' );
 ok( false !== strpos( $kit, 'os-action="door"' ) && false !== strpos( $kit, 'page=sn-analytics' ) && false !== strpos( $kit, 'sn_view=login-defense' ), 'the analytics link is a door to the other admin screen' );
 preg_match( '/<[^>]*name="sn_digest_enabled"[^>]*>/', $kit, $toggle_tag ); // the tag, not the leaf: the breach box says "N of N checked".
@@ -263,6 +263,18 @@ $kit  = snt_leaf_paint( 'security', 'login-defense' );
 ok( false !== strpos( $text, 'SN_HIBP_SET_DISABLED' ) && false !== strpos( first_notice_after( $kit, strpos( $kit, 'heading="Breached passwords"' ) ), 'SN_HIBP_SET_DISABLED' ) && false === strpos( $kit, 'SN_HIBP_LOGIN_DISABLED' ), 'mode OFF: the box\'s notice names the switched-off mode, as the row does' );
 ok( null !== kv_row( $kit, 'Accounts flagged at login' ) && null !== kv_row( $kit, 'Fail-closed rejections (API unreachable)' ) && null !== kv_row( $kit, 'Breached passwords refused at set-time' ), 'mode OFF: the three facts rows still paint' );
 $GLOBALS['__set_off'] = false;
+
+// 2026-10-11: the worker answers null when its list meta is unreadable; that is
+// unknown, never "0 ranges, updated ?". Both twins say "not reported", and the
+// IPv6 list the worker also reports is counted beside the IPv4 one.
+$GLOBALS['__lg_remote'] = array( 'version' => '1.14.1', 'deployed_at' => '2026-10-01T00:00:00Z', 'denylistCount' => 3922, 'compiledAt' => '2026-10-11T16:07:43.338Z', 'denylist6Count' => 81 );
+$kit     = snt_leaf_paint( 'security', 'login-defense' );
+$classic = snt_leaf_classic_html( 'sn_login_defense_render' );
+ok( false !== strpos( $kit, '3,922 IPv4 and 81 IPv6 ranges, updated 2026-10-11 16:07 UTC' ) && false !== strpos( $classic, '3,922 IPv4 and 81 IPv6 ranges, updated 2026-10-11 16:07 UTC' ), 'both twins count both lists and say when, in UTC' );
+$GLOBALS['__lg_remote'] = array( 'version' => '1.14.1', 'deployed_at' => '2026-10-01T00:00:00Z', 'denylistCount' => null, 'compiledAt' => null );
+$kit     = snt_leaf_paint( 'security', 'login-defense' );
+$classic = snt_leaf_classic_html( 'sn_login_defense_render' );
+ok( false === strpos( $kit, '0 ranges' ) && false === strpos( $kit, 'updated ?' ) && false !== strpos( $kit, 'not reported by the worker' ) && false !== strpos( $classic, 'not reported by the worker' ), 'a null count is not reported, never 0 ranges, updated ?' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

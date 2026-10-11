@@ -228,14 +228,30 @@ function sn_login_defense_render_status( $status ) {
 			)
 		) . '</p>';
 	}
-	echo '<p>' . esc_html(
-		sprintf(
-			/* translators: 1: number of denylist ranges, 2: ISO timestamp */
-			__( 'Denylist: %1$s ranges, updated %2$s.', 'signal-and-noise-tools' ),
-			number_format_i18n( (int) ( $status['denylistCount'] ?? 0 ) ),
-			(string) ( $status['compiledAt'] ?? '?' )
-		)
-	) . '</p>';
+	/* translators: %s: the denylist's size and refresh time. */
+	echo '<p>' . esc_html( sprintf( __( 'Denylist: %s.', 'signal-and-noise-tools' ), sn_login_defense_denylist_text( $status ) ) ) . '</p>';
+}
+
+/**
+ * The denylist line both twins print: "3,922 IPv4 and 81 IPv6 ranges, updated
+ * 2026-10-11 16:07 UTC". The worker answers null when its list meta is
+ * unreadable (sn-login-guard 1.12.1): that is not reported, never a 0.
+ *
+ * @param array $status sn_login_defense_status().
+ * @return string
+ */
+function sn_login_defense_denylist_text( array $status ) {
+	if ( ! is_numeric( $status['denylistCount'] ?? null ) ) {
+		return __( 'size not reported by the worker', 'signal-and-noise-tools' );
+	}
+	$size = is_numeric( $status['denylist6Count'] ?? null )
+		/* translators: 1: IPv4 ranges, 2: IPv6 ranges. */
+		? sprintf( __( '%1$s IPv4 and %2$s IPv6 ranges', 'signal-and-noise-tools' ), number_format_i18n( (int) $status['denylistCount'] ), number_format_i18n( (int) $status['denylist6Count'] ) )
+		/* translators: %s: ranges. */
+		: sprintf( __( '%s ranges', 'signal-and-noise-tools' ), number_format_i18n( (int) $status['denylistCount'] ) );
+	$at = strtotime( (string) ( $status['compiledAt'] ?? '' ) );
+	/* translators: 1: the size, 2: when the list was compiled, UTC. */
+	return false === $at ? $size : sprintf( __( '%1$s, updated %2$s UTC', 'signal-and-noise-tools' ), $size, gmdate( 'Y-m-d H:i', $at ) );
 }
 
 /**

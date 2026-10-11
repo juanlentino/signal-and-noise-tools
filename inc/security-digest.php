@@ -107,7 +107,8 @@ function snt_security_digest_collect() {
 		$status = sn_login_defense_status();
 		if ( is_array( $status ) ) {
 			$data['status'] = array(
-				'denylist_count' => (int) ( $status['denylistCount'] ?? 0 ),
+				// null, not 0: the worker answers null when its list meta is unreadable.
+				'denylist_count' => is_numeric( $status['denylistCount'] ?? null ) ? (int) $status['denylistCount'] : null,
 				'age_hours'      => isset( $status['ageHours'] ) && null !== $status['ageHours'] ? (int) $status['ageHours'] : null,
 				'stale'          => (bool) ( $status['stale'] ?? true ),
 				'version'        => (string) ( $status['version'] ?? '' ),
@@ -201,7 +202,8 @@ function snt_security_digest_compose( $data ) {
 		$lines[] = 'Guard denylist: status unavailable (worker unreachable from this host).';
 	} else {
 		$age     = null === $status['age_hours'] ? 'unknown age' : 'refreshed ' . $status['age_hours'] . 'h ago';
-		$lines[] = 'Guard denylist: ' . number_format_i18n( $status['denylist_count'] ) . ' ranges, ' . $age
+		$size    = null === $status['denylist_count'] ? 'size not reported by the worker' : number_format_i18n( $status['denylist_count'] ) . ' ranges';
+		$lines[] = 'Guard denylist: ' . $size . ', ' . $age
 			. ( $status['stale'] ? '. STALE (older than 48h or empty; check the worker cron)' : '' )
 			. ( '' !== $status['version'] ? ' (worker v' . $status['version'] . ')' : '' );
 	}
