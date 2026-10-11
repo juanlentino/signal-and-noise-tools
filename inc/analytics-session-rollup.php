@@ -169,6 +169,13 @@ function sn_session_rollup_run( $day = '' ) {
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		return;
 	}
+	// The nightly writes yesterday once, with no self-heal window: a failed
+	// over-cap list would store visit quality with automated visitor-days as
+	// readers. Write nothing; the day reads as not measured (2026-10-11).
+	if ( function_exists( 'sn_analytics_overcap_vdays' ) && empty( sn_analytics_overcap_vdays()['ok'] ) ) {
+		error_log( '[sn-analytics] session rollup skipped: the over-cap visitor-day list did not read' );
+		return;
+	}
 	$day     = ( is_string( $day ) && 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) ) ? $day : gmdate( 'Y-m-d', time() - DAY_IN_SECONDS );
 	$strict  = function_exists( 'sn_analytics_strict' ) && sn_analytics_strict()['on'];
 	$allowed = defined( 'SN_ANALYTICS_CLASSES' ) ? SN_ANALYTICS_CLASSES : array( 'human', 'suspect', 'bot' );

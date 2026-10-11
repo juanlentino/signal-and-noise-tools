@@ -57,9 +57,6 @@ function sn_analytics_overcap_sql( $source = '', $range = '' ) {
 		"WHERE blob1 = 'pv' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY){$range}",
 		'GROUP BY vid',
 		"HAVING views > {$cap}",
-		// Heaviest first: a list cut at its size keeps the visitor-days that
-		// distort the counts most, never an arbitrary subset (2026-10-11).
-		'ORDER BY views DESC',
 		"LIMIT {$max}",
 	) );
 }
