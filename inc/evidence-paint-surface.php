@@ -33,9 +33,14 @@ function snt_ev_verdict( $surface, $html ) {
 	return 'kit' === $surface ? snt_kit_notice( 'warn', $html ) : wp_get_admin_notice( $html, array( 'type' => 'warning', 'additional_classes' => array( 'inline' ) ) );
 }
 
-/** Two boxes on one row (one column when narrow); a lone box stands alone. */
-function snt_ev_pair( $surface, $a, $b ) {
-	if ( '' === (string) $a || '' === (string) $b ) {
+/**
+ * Two boxes on one row (one column when narrow); a lone box stands alone. With
+ * $rows (each box's row count), the pair shares a row only when the taller is
+ * within 1.5x of the shorter; otherwise each stacks full width.
+ */
+function snt_ev_pair( $surface, $a, $b, $rows = null ) {
+	$apart = is_array( $rows ) && 1.5 * max( 1, min( $rows ) ) < max( $rows );
+	if ( '' === (string) $a || '' === (string) $b || $apart ) {
 		return (string) $a . (string) $b;
 	}
 	return 'kit' === $surface ? snt_kit_grid( array( $a, $b ) ) : '<div class="sn-2up">' . $a . $b . '</div>';

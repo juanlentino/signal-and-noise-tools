@@ -32,7 +32,7 @@ function paint_view_edge( array $ctx ) {
 	$bytes = function_exists( 'snt_edge_fmt_bytes' ) ? snt_edge_fmt_bytes( (int) ( $t['bytes'] ?? 0 ) ) : num( $t['bytes'] ?? 0 );
 	$cards = array(
 		array( 'l' => __( 'Edge requests', 'signal-and-noise-tools' ), 'n' => num( $t['requests'] ?? 0 ) ),
-		array( 'l' => __( 'Human pageviews', 'signal-and-noise-tools' ), 'n' => num( $split['human'] ?? 0 ) ),
+		array( 'l' => __( 'Presumed human pageviews', 'signal-and-noise-tools' ), 'n' => num( $split['human'] ?? 0 ) ),
 		array( 'l' => __( 'Machine traffic', 'signal-and-noise-tools' ), 'n' => (int) ( $split['machine_pct'] ?? 0 ) . '%' ),
 		array( 'l' => __( 'Cache hit', 'signal-and-noise-tools' ), 'n' => (int) ( $t['cache_hit_pct'] ?? 0 ) . '%' ),
 		array( 'l' => __( 'Bandwidth', 'signal-and-noise-tools' ), 'n' => (string) $bytes ),
@@ -41,7 +41,7 @@ function paint_view_edge( array $ctx ) {
 	);
 	return \snt_kit_section(
 		__( 'Traffic & edge', 'signal-and-noise-tools' ),
-		'<p class="snt-prose">' . \snt_kit_esc( __( 'Server-side edge totals: every request, including bots / RSS / no-JS clients the front-end beacon never sees. “Machine traffic” is edge pageviews minus the beacon’s human pageviews.', 'signal-and-noise-tools' ) ) . '</p>'
+		'<p class="snt-prose">' . \snt_kit_esc( __( 'Server-side edge totals: every request, including bots / RSS / no-JS clients the front-end beacon never sees. “Machine traffic” is edge pageviews minus the beacon’s presumed-human pageviews.', 'signal-and-noise-tools' ) ) . '</p>'
 		. stats( $cards )
 	);
 }

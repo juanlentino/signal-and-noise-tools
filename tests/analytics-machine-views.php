@@ -15,6 +15,7 @@ namespace {
 	function sn_rss_tracker_window_stats_multi( $w ) { return array( 'most_recent' => '2026-10-11 09:00:00', 'windows' => array( 7 => array( 'total' => 40, 'uniques' => 5 ), 30 => array( 'total' => 210, 'uniques' => 9 ) ) ); }
 	$GLOBALS['__report'] = null;
 	function snt_ml_reader_anomalies() { return $GLOBALS['__report']; }
+	function sn_edge_config() { return true; }
 	foreach ( array( 'machine-readers-taxonomy', 'machine-readers-render', 'machine-readers-insights', 'rights-evidence-compose', 'machine-readers-basis', 'machine-readers-basis-fold', 'machine-readers-ledger', 'mr-series', 'ml-reader-anomalies-split', 'machine-readers-readers-model', 'machine-readers-evidence-model', 'evidence-kit', 'evidence-paint-surface', 'evidence-paint-readers', 'evidence-paint-proof', 'evidence-paint-actors', 'evidence-paint-anomalies', 'evidence-paint-reference', 'evidence-paint-rights', 'analytics-machine-views', 'analytics-view-machine-readers', 'analytics-view-reader-evidence', 'analytics-admin', 'analytics-likely-automated' ) as $f ) {
 		require_once SNT_PATH . "inc/$f.php";
 	}
@@ -25,6 +26,7 @@ namespace SignalNoise\OpenStationHost\Analytics\Painters {
 	require_once SNT_PATH . 'apps/sn-analytics/parts/painters/view-machine-readers.php';
 	require_once SNT_PATH . 'apps/sn-analytics/parts/painters/view-reader-evidence.php';
 	require_once SNT_PATH . 'apps/sn-analytics/parts/painters/chrome-header.php';
+	require_once SNT_PATH . 'apps/sn-analytics/parts/painters/view-edge.php';
 }
 namespace {
 	$pass = 0; $fail = 0;
@@ -240,6 +242,25 @@ namespace {
 	$tiles = snt_ev_paint_hero_tiles( array( 'days' => 7, 'total' => 1, 'readers' => 1, 'first_party' => 0, 'ai' => null, 'identity' => array( 'measured' => 1, 'valid' => 1, 'invalid' => 0, 'unknown_key' => 0, 'markdown' => 0 ), 'feed_total' => null, 'tool_calls' => null ), 'kit' );
 	ok( 1 === substr_count( $tiles, 'not measured' ), 'hero: a null AI-training figure says "not measured" once, not again under it' );
 	ok( 1 === preg_match( '/\{&quot;key&quot;:&quot;hits&quot;,&quot;label&quot;:&quot;[^&]*[^}]*&quot;align&quot;:&quot;end&quot;/', $kit['reader-evidence'] ) || 1 === preg_match( '/"key":"hits"[^}]*"align":"end"/', html_entity_decode( $kit['reader-evidence'], ENT_QUOTES ) ), 'kit tables: a numeric column aligns to the end' );
+
+	$edge = html_entity_decode( call_user_func( $P . 'paint_view_edge', array( 'from' => '2026-10-05', 'to' => '2026-10-11' ) ), ENT_QUOTES );
+	ok( false !== strpos( $edge, 'label="Presumed human pageviews"' ) && false !== strpos( $edge, 'minus the beacon’s presumed-human pageviews.' ) && false === strpos( $edge, 'label="Human pageviews"' ), 'native Traffic & edge: presumed human, as the classic view says' );
+
+	echo "\nGroup J: two boxes share a row only within 1.5x of each other\n";
+	foreach ( array( 'kit' => '<os-grid', 'classic' => 'class="sn-2up"' ) as $sf => $row ) {
+		ok( false !== strpos( snt_ev_pair( $sf, '<p>a</p>', '<p>b</p>', array( 6, 4 ) ), $row ), "pair ($sf): 6 rows beside 4 share a row" );
+		ok( false === strpos( snt_ev_pair( $sf, '<p>a</p>', '<p>b</p>', array( 17, 3 ) ), $row ), "pair ($sf): 17 rows beside 3 stack full width" );
+	}
+	$saved_rights                 = $GLOBALS['__fetch']['rights'];
+	$GLOBALS['__fetch']['rights'] = array( 'ok' => true, 'rows' => $many );
+	$tall                         = call_user_func( $P . 'paint_view_machine_readers', array( 'range' => '7' ) );
+	$GLOBALS['__fetch']['rights'] = $saved_rights;
+	$doc = new DOMDocument();
+	libxml_use_internal_errors( true );
+	$doc->loadHTML( '<?xml encoding="utf-8"?><div>' . $tall . '</div>' );
+	libxml_clear_errors();
+	$rights_box = ( new DOMXPath( $doc ) )->query( '//os-section[@heading="Rights-surface reads"]' )->item( 0 );
+	ok( null !== $rights_box && 'os-grid' !== $rights_box->parentNode->nodeName, 'Machine readers: 15 rights rows do not sit beside a two-row feeds box; they stack full width' );
 
 	echo "\nGroup F: a read before verification was recorded is unverifiable, never unverified\n";
 	// Before SN_RIGHTS_EVIDENCE_VERIFIED_SINCE (2026-09-27 15:49:59 UTC) no read can be verified.

@@ -97,10 +97,12 @@ function snt_mr_view_machine_readers_html( array $d, $surface, array $links ) {
 	$cap   = $d['truncated'] ? snt_ev_verdict( $surface, esc_html__( 'The edge capped this read at its row limit, so every figure here is a floor, not a count. Narrow the window to get a complete one.', 'signal-and-noise-tools' ) ) : '';
 	$hero  = '<div class="snt-ev-hero snt-ev-hero--band"><div class="snt-ev-mesh" aria-hidden="true"></div>' . $cap . snt_evidence_legend( $since )
 		. snt_ev_paint_hero_tiles( $d['hero'], $surface ) . snt_ev_paint_finding( snt_mr_ai_finding( $d['rows'] ), $links['evidence'] ?? '', $surface ) . '</div>';
+	$who  = snt_mr_who_reads( $d['rows'] );
+	$what = snt_mr_what_for( $d['rows'] );
 	return $hero
 		. snt_ev_paint_delta_cards( $d['cards'], $surface )
-		. snt_ev_pair( $surface, snt_ev_paint_who_reads( snt_mr_who_reads( $d['rows'] ), $surface ), snt_ev_paint_what_for( snt_mr_what_for( $d['rows'] ), $surface ) )
-		. snt_ev_pair( $surface, snt_ev_paint_rights( $d['rights'], $surface ), snt_ev_paint_feeds( $d['feed'], $surface ) )
+		. snt_ev_pair( $surface, snt_ev_paint_who_reads( $who, $surface ), snt_ev_paint_what_for( $what, $surface ), array( count( $who['rows'] ) + 1, count( (array) $what['rows'] ) ) )
+		. snt_ev_pair( $surface, snt_ev_paint_rights( $d['rights'], $surface ), snt_ev_paint_feeds( $d['feed'], $surface ), array( snt_ev_rights_size( $d['rights'] ), count( (array) ( $d['feed']['windows'] ?? array() ) ) ) )
 		. snt_ev_paint_reference( $d['rows'], $surface );
 }
 
