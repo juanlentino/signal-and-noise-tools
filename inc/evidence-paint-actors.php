@@ -105,5 +105,6 @@ function snt_ev_paint_unnamed( $unnamed, $surface = 'kit', $floor = false ) {
 		$rows[] = array( 'agent' => $u['ua_sample'], 'hits' => number_format_i18n( (int) $u['hits'] ), 'verified' => snt_mr_basis_count( $u['verified_hits'] ?? null ), 'network' => snt_mr_basis_networks( array_merge( $u, array( 'networks' => array_slice( (array) ( $u['networks'] ?? array() ), 0, 1 ) ) ) ) );
 	}
 	$cols = array( 'agent' => __( 'User agent (sampled)', 'signal-and-noise-tools' ), 'hits' => __( 'Reads (claimed)', 'signal-and-noise-tools' ), 'verified' => __( 'Verified', 'signal-and-noise-tools' ), 'network' => __( 'Top network', 'signal-and-noise-tools' ) );
-	return snt_ev_box( $surface, $title, snt_ev_lead( $surface, $lead ) . snt_ev_table( $surface, $cols, $rows, max( 0, count( $unnamed ) - SN_EV_UNNAMED_ROWS ), $title ) );
+	return snt_ev_box( $surface, $title, snt_ev_lead( $surface, $lead ) . snt_ev_table( $surface, $cols, $rows, max( 0, count( $unnamed ) - SN_EV_UNNAMED_ROWS ), $title )
+		. snt_ev_lead( $surface, __( 'Each user agent is a sanitized sample the edge keeps on a miss, not a verbatim log.', 'signal-and-noise-tools' ) ) );
 }

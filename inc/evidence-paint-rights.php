@@ -53,7 +53,7 @@ function snt_ev_paint_rights( $rows, $surface = 'kit' ) {
 		number_format_i18n( count( $ext ) ),
 		number_format_i18n( count( $ours ) )
 	);
-	$out = snt_ev_lead( $surface, $lead );
+	$out = snt_ev_lead( $surface, $lead ) . snt_ev_lead( $surface, __( 'The rights files are the only reads the sensor records in full: a closed set of fixed URLs, so each fetch is listed.', 'signal-and-noise-tools' ) );
 	if ( array() !== $ext ) {
 		$out .= snt_ev_table( $surface, $cols, snt_ev_rights_rows( array_slice( $ext, 0, SN_EV_RIGHTS_ROWS ) ), max( 0, count( $ext ) - SN_EV_RIGHTS_ROWS ), $title, 'older' );
 	}

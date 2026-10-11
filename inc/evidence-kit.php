@@ -5,8 +5,8 @@
  * One visual grammar for "how is this count known", shared by the native
  * leaves (inside the kit) and their classic twins: proof fills, claims
  * outline. The strip is decorative (aria-hidden): the numbers always sit
- * beside it as text. CSS: apps/sn-dashboard/sn-dashboard.css (native) and
- * assets/machine-readers.css (classic), both under `.snt-evidence`.
+ * beside it as text. CSS: apps/sn-analytics/sn-analytics.css (native) and
+ * assets/analytics/analytics-admin.css (classic), both under `.snt-evidence`.
  *
  * @package SignalNoiseTools
  */
@@ -17,8 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * The strip's segments, in paint order: verified for its purpose (solid),
- * verified otherwise (half), claimed only (hatched), before verification was
- * recorded (dashed outline).
+ * verified otherwise (accent outline over a half fill), claimed only
+ * (hatched), before verification was recorded (dashed outline).
  *
  * @param array $split {claimed, verified, verified_matched, unverified, unverifiable}.
  * @return array<string,int> part => hits, zero parts dropped.
@@ -56,8 +56,8 @@ function snt_evidence_strip( $split, array $opts = array() ) {
 }
 
 /**
- * The legend: three swatches in the strip's paint, once per leaf, above the
- * first strip.
+ * The legend: a swatch for each of the four parts the strip paints, once
+ * per view, above the first strip.
  *
  * @param string|null $since SN_RIGHTS_EVIDENCE_VERIFIED_SINCE.
  * @return string
@@ -65,7 +65,8 @@ function snt_evidence_strip( $split, array $opts = array() ) {
 function snt_evidence_legend( $since ) {
 	$when  = null === $since ? __( 'an unknown date', 'signal-and-noise-tools' ) : gmdate( 'Y-m-d', (int) strtotime( (string) $since ) );
 	$items = array(
-		'verified_matched' => __( 'Verified by Cloudflare', 'signal-and-noise-tools' ),
+		'verified_matched' => __( 'Verified by Cloudflare for its claimed purpose', 'signal-and-noise-tools' ),
+		'verified'         => __( 'Verified, not for its claimed purpose', 'signal-and-noise-tools' ),
 		'unverified'       => __( 'Claimed by user agent only', 'signal-and-noise-tools' ),
 		/* translators: %s: the date the sensor began recording Cloudflare's verified-bot category. */
 		'unverifiable'     => sprintf( __( 'Before verification was recorded (since %s)', 'signal-and-noise-tools' ), $when ),

@@ -96,7 +96,7 @@ function snt_mr_who_reads( array $rows ) {
 	$lead = null === $top
 		? __( 'No third-party machine reads in this window.', 'signal-and-noise-tools' )
 		/* translators: 1: families, 2: the top family, 3: its reads, 4: of them verified. */
-		: sprintf( __( '%1$d families; %2$s leads with %3$s reads, %4$s verified.', 'signal-and-noise-tools' ), count( $list ), $top['family'], number_format_i18n( $top['split']['claimed'] ), number_format_i18n( $top['split']['verified'] ) );
+		: sprintf( _n( '%1$d family; %2$s leads with %3$s reads, %4$s verified.', '%1$d families; %2$s leads with %3$s reads, %4$s verified.', count( $list ), 'signal-and-noise-tools' ), count( $list ), $top['family'], number_format_i18n( $top['split']['claimed'] ), number_format_i18n( $top['split']['verified'] ) );
 	return array( 'rows' => $list, 'first_party' => $fp, 'lead' => $lead );
 }
 
@@ -118,7 +118,7 @@ function snt_mr_what_for( array $rows ) {
 		'lead' => null === $top
 			? __( 'No third-party reads carry a purpose in this window.', 'signal-and-noise-tools' )
 			/* translators: 1: purposes, 2: the top purpose, 3: its reads. */
-			: sprintf( __( '%1$d purposes, this site’s own tools and control tokens left out; %2$s leads with %3$s reads.', 'signal-and-noise-tools' ), count( $d['purposes'] ), $top['label'], number_format_i18n( $top['claimed'] ) ),
+			: sprintf( _n( '%1$d purpose, this site’s own tools and control tokens left out; %2$s leads with %3$s reads.', '%1$d purposes, this site’s own tools and control tokens left out; %2$s leads with %3$s reads.', count( $d['purposes'] ), 'signal-and-noise-tools' ), count( $d['purposes'] ), $top['label'], number_format_i18n( $top['claimed'] ) ),
 	);
 }
 

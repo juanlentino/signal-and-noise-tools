@@ -97,6 +97,12 @@ namespace {
 		ok( 1 === preg_match( '/\.snt-evidence__seg\s*\{[^}]*min-width:\s*3px/', $src ), "$css: a non-zero segment is never narrower than 3px" );
 	}
 	ok( '<span class="snt-evidence-none">not measured</span>' === snt_evidence_strip( null ), 'a null split paints no strip, only "not measured"' );
+	$legend = snt_evidence_legend( SN_RIGHTS_EVIDENCE_VERIFIED_SINCE );
+	ok( 4 === preg_match_all( '/data-part="([a-z_]+)"/', $legend, $lm ) && array( 'verified_matched', 'verified', 'unverified', 'unverifiable' ) === $lm[1] && false !== strpos( $legend, 'Verified, not for its claimed purpose' ), 'the legend keys all four parts the strip can paint, the half segment included' );
+	foreach ( array( 'apps/sn-analytics/sn-analytics.css', 'assets/analytics/analytics-admin.css' ) as $css ) {
+		$src = (string) file_get_contents( SNT_PATH . $css );
+		ok( 1 === preg_match( '/\.snt-evidence__seg\[data-part="verified"\]\s*\{([^}]*)\}/', $src, $vm ) && false !== strpos( $vm[1], 'border: 1px solid' ) && false === strpos( $vm[1], 'opacity' ), "$css: verified-not-for-its-purpose differs by an outline, not by opacity alone" );
+	}
 	ok( '<os-chip tone="success">signed</os-chip>' === snt_basis_chip( 'signed' ) && '<os-chip tone="info">verified</os-chip>' === snt_basis_chip( 'verified' ) && '<os-chip>claimed</os-chip>' === snt_basis_chip( 'claimed' ) && '<os-chip>inferred</os-chip>' === snt_basis_chip( 'inferred' ) && '<os-chip>not measured</os-chip>' === snt_basis_chip( 'unmeasured' ), 'chips carry the basis word and the tone table' );
 	ok( false === strpos( implode( '', array_map( 'snt_basis_chip', SN_MR_BASIS_VALUES ) ), 'warning' ) && false === strpos( implode( '', array_map( 'snt_basis_chip', SN_MR_BASIS_VALUES ) ), 'danger' ), 'no basis chip takes a warning or danger tone' );
 
@@ -238,6 +244,11 @@ namespace {
 	ok( false === strpos( $tok, 'count is higher' ) && false === strpos( $tok, '<td>google-ai</td>' ), 'counted both ways: a control token is in neither count, and no family row' );
 	ok( false !== strpos( $hi, 'The family count is higher by 5: the frozen families also hold' ), 'counted both ways, family higher: the gap and its cause' );
 	ok( false !== strpos( $lo, 'The purpose count is higher by 4.' ) && false === strpos( $lo, 'frozen families also hold' ), 'counted both ways, purpose higher: the gap without the family cause' );
+	ok( false !== strpos( html_entity_decode( snt_ev_paint_rights( $many, 'classic' ), ENT_QUOTES ), 'the only reads the sensor records in full: a closed set of fixed URLs' ), 'rights: says why this log is complete when the others are aggregates' );
+	ok( false !== strpos( $ec, 'a sanitized sample the edge keeps on a miss, not a verbatim log' ), 'unnamed: says each user agent is a sanitized sample' );
+	$one = array( $r( 'openai', 'train', 'openai-gptbot', 10, 'Google LLC' ) );
+	ok( 0 === strpos( snt_mr_who_reads( $one )['lead'], '1 family; openai leads' ), 'Who reads: one family is "1 family"' );
+	ok( 0 === strpos( snt_mr_what_for( $one )['lead'], '1 purpose,' ), 'What for: one purpose is "1 purpose"' );
 	$hostile_card = array( array( 'id' => 'mr_delta_x', 'title' => '<img src=x onerror=1>', 'detail' => '<script>alert(1)</script>' ) );
 	foreach ( array( 'kit', 'classic' ) as $sf ) {
 		$hc = snt_ev_paint_delta_cards( $hostile_card, $sf );

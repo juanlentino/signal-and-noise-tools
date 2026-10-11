@@ -929,7 +929,7 @@ snt-analytics-table os-table { display: block; width: 100%; }
 .snt-evidence[data-size="mini"] { height: 6px; }
 .snt-evidence__seg { flex: 0 1 var( --w ); min-width: 3px; }
 .snt-evidence__seg[data-part="verified_matched"] { background: var( --os-ui-accent, #8c5cff ); }
-.snt-evidence__seg[data-part="verified"] { background: var( --os-ui-accent, #8c5cff ); opacity: 0.5; }
+.snt-evidence__seg[data-part="verified"] { box-sizing: border-box; border: 1px solid var( --os-ui-accent, #8c5cff ); background: color-mix( in srgb, var( --os-ui-accent, #8c5cff ) 50%, transparent ); }
 .snt-evidence__seg[data-part="unverified"] { background: repeating-linear-gradient( 135deg, var( --os-ui-fg-muted, #6b6672 ) 0 2px, transparent 2px 5px ); }
 .snt-evidence__seg[data-part="unverifiable"] { box-sizing: border-box; background: none; border: 1px dashed var( --os-ui-border-strong, #6b6672 ); }
 .snt-evidence-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0; font-size: 12px; color: var( --os-ui-fg-muted, inherit ); }

@@ -166,12 +166,12 @@
 
 	/**
 	 * The evidence strip (inc/evidence-kit.php), 6px: verified for its purpose
-	 * solid, verified otherwise half, claimed only hatched, before verification
+	 * solid, verified otherwise outlined over a half fill, claimed only hatched, before verification
 	 * was recorded dashed. Decorative; the numbers are the row's text. Inline
 	 * styles, because the desktop does not load the views' stylesheet.
 	 */
 	function evidenceStrip( s ) {
-		var parts = [ [ 'verified_matched', s.verified_matched, 'background:var(--os-ui-accent, #8c5cff);' ], [ 'verified', ( s.verified || 0 ) - ( s.verified_matched || 0 ), 'background:var(--os-ui-accent, #8c5cff);opacity:0.5;' ], [ 'unverified', s.unverified, 'background:repeating-linear-gradient(135deg, var(--os-ui-fg-muted, #8a8494) 0 2px, transparent 2px 5px);' ], [ 'unverifiable', s.unverifiable, 'box-sizing:border-box;border:1px dashed var(--os-ui-border-strong, #6b6672);' ] ];
+		var parts = [ [ 'verified_matched', s.verified_matched, 'background:var(--os-ui-accent, #8c5cff);' ], [ 'verified', ( s.verified || 0 ) - ( s.verified_matched || 0 ), 'box-sizing:border-box;border:1px solid var(--os-ui-accent, #8c5cff);background:color-mix(in srgb, var(--os-ui-accent, #8c5cff) 50%, transparent);' ], [ 'unverified', s.unverified, 'background:repeating-linear-gradient(135deg, var(--os-ui-fg-muted, #8a8494) 0 2px, transparent 2px 5px);' ], [ 'unverifiable', s.unverifiable, 'box-sizing:border-box;border:1px dashed var(--os-ui-border-strong, #6b6672);' ] ];
 		var whole = parts.reduce( function( a, p ) { return a + ( p[1] > 0 ? p[1] : 0 ); }, 0 );
 		var strip = el( 'span', { style: 'display:flex;gap:2px;flex:0 0 100%;height:6px;margin-top:3px;border-radius:999px;overflow:hidden;background:var(--os-ui-surface-sunken, rgba(127,127,127,0.18));' } );
 		strip.className = 'snt-evidence';
