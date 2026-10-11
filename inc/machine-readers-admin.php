@@ -194,9 +194,11 @@ function snt_mr_render_tab() {
 	$rights_rows  = null;
 	$cards        = array();
 	if ( ! empty( $result['ok'] ) ) {
-		$unknown = snt_mr_fetch( $days, 'unknown' );
+		// Unreleased: the split read (detail=network), folded per sample to the
+		// list's 50, so each sample shows its verified hits and networks.
+		$unknown = snt_mr_fetch( $days, 'unknown-network' );
 		if ( ! empty( $unknown['ok'] ) ) {
-			$unknown_rows = $unknown['rows'] ?? array();
+			$unknown_rows = ( function_exists( 'snt_mr_unnamed_fold' ) ? snt_mr_unnamed_fold( $unknown, 50 ) : null ) ?? ( $unknown['rows'] ?? array() );
 		}
 		$rights = snt_mr_fetch( $days, 'rights' );
 		if ( ! empty( $rights['ok'] ) ) {

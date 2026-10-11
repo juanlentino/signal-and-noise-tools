@@ -67,6 +67,10 @@ require SNT_PATH . 'inc/machine-readers-api.php';
 require SNT_PATH . 'inc/machine-readers-taxonomy.php';
 require SNT_PATH . 'inc/machine-readers-render.php';
 require SNT_PATH . 'inc/machine-readers-basis.php';
+require SNT_PATH . 'inc/machine-readers-basis-fold.php';
+require SNT_PATH . 'inc/machine-readers-ledger.php';
+require SNT_PATH . 'inc/machine-readers-render-basis.php';
+require SNT_PATH . 'inc/rights-evidence-compose.php';
 require SNT_PATH . 'inc/machine-readers-render-taxonomy.php';
 require SNT_PATH . 'inc/machine-readers-insights.php';
 require SNT_PATH . 'inc/machine-readers-compose.php';
@@ -237,6 +241,54 @@ $kit   = snt_leaf_paint( 'monitoring', 'machine-readers' );
 $anoms = mr_leaf_box( $kit, 'Reader behaviour' );
 ok( false !== strpos( $anoms, '<os-notice tone="warning"' ) && false !== strpos( $anoms, '2 deviation(s) from the 30-day norm and 1 family-day(s) of total silence' ), 'a deviation and a silence: a warning notice with both counts' );
 ok( array() === snt_leaf_classic_markers( $kit ) && array( 'machine_readers_save' ) === snt_leaf_actions( $kit ), 'still one action and no wp-admin markup with the two boxes painted' );
+
+// ── Unreleased: the leaves SHOW the evidence basis, on both twins. Live-shaped
+// 7 days to 2026-10-11: claudebot 25 verified (Anthropic) and 798 unverified
+// (Google LLC); Google-Extended 170, credited to no vendor; the site's own
+// ledger verifier; an unmapped reader.
+$GLOBALS['__anomalies'] = array( 'state' => 'ok', 'counts' => array( 'anomalies' => 0, 'silences' => 0, 'co_movements' => 1, 'families_eligible' => 4, 'families_seen' => 9 ),
+	'co_movement' => array( array( 'kind' => 'reader_co_movement', 'network' => 'Google LLC', 'day' => '2026-10-10', 'families' => array( 'amazon-ai', 'anthropic', 'bytedance', 'openai' ), 'direction' => 'up' ) ),
+	'families' => array( array( 'family' => 'anthropic', 'by_verification' => array( 'from' => '2026-09-28', 'to' => '2026-10-10',
+		'verified' => array( 'total' => 26, 'days_present' => 13, 'signals' => array(), 'withheld' => 'present on 13 of 13 verifiable days; signals need 20' ),
+		'unverified' => array( 'total' => 520, 'days_present' => 13, 'signals' => array( array( 'kind' => 'anomaly' ) ) ) ) ) ),
+);
+$basis_rows = array(
+	array( 'family' => 'anthropic', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 25, 'agent' => 'anthropic-claudebot', 'vendor' => 'anthropic', 'purpose' => 'train', 'taxonomy_version' => '1.3.1', 'verified_bot' => 'AI Crawler', 'network' => 'Anthropic, PBC' ),
+	array( 'family' => 'anthropic', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 798, 'agent' => 'anthropic-claudebot', 'vendor' => 'anthropic', 'purpose' => 'train', 'taxonomy_version' => '1.3.1', 'network' => 'Google LLC' ),
+	array( 'family' => 'google-ai', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 170, 'agent' => 'google-extended', 'vendor' => 'google', 'purpose' => 'train', 'taxonomy_version' => '1.3.1', 'network' => 'Google LLC' ),
+	array( 'family' => 'unclassified-machine', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 11868, 'agent' => 'self-ledger', 'vendor' => 'signal-and-noise', 'purpose' => 'ops', 'taxonomy_version' => '1.3.1', 'first_party' => '1', 'network' => 'Microsoft Corporation' ),
+	array( 'family' => 'other-bot', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 3537, 'agent' => '', 'purpose' => 'unknown', 'taxonomy_version' => '1.3.1', 'network' => 'Google LLC' ),
+);
+// rights-signals 1.30.0: the unknown view split by verification and network.
+$GLOBALS['__mr_fixtures']['aggregate'] = mr_body( $basis_rows );
+$GLOBALS['__mr_fixtures']['unknown']   = json_encode( array( 'detail' => 'network', 'data' => array(
+	array( 'user_agent' => 'GrokBot/1.0', 'hits' => 200, 'verified_bot' => '', 'network' => 'Google LLC' ),
+	array( 'user_agent' => 'GrokBot/1.0', 'hits' => 110, 'verified_bot' => 'AI Crawler', 'network' => 'xAI' ),
+) ) );
+snt_mr_memo( null );
+$kit2     = snt_leaf_paint( 'monitoring', 'machine-readers' );
+snt_mr_memo( null );
+$classic2 = snt_leaf_classic_html( 'snt_mr_render_tab' );
+foreach ( array( 'kit' => $kit2, 'classic' => $classic2 ) as $twin => $h ) {
+	ok( false !== strpos( $h, 'How each count is known' ), "$twin: the evidence-basis block paints" );
+	ok( false !== strpos( $h, 'Verified is not signed' ), "$twin: one plain line tells verified (Cloudflare) from signed (Web Bot Auth)" );
+	ok( false !== strpos( $h, 'AI-training, by family (legacy)' ) && false !== strpos( $h, 'AI-training, by purpose' ), "$twin: both AI-training figures, the family one marked legacy" );
+	ok( false !== strpos( $h, '823' ) && false !== strpos( $h, '798' ), "$twin: the train row shows 823 claimed and 798 unverified" );
+	ok( false !== strpos( $h, 'Google-Extended' ) && false !== strpos( $h, 'credited to no vendor' ), "$twin: the impersonations list names the control token" );
+	ok( false !== strpos( $h, '11,868' ), "$twin: the family table shows unclassified-machine's first-party reads" );
+	ok( false !== strpos( $h, 'unmapped' ), "$twin: purpose unknown reads unmapped" );
+	ok( false !== strpos( $h, 'xAI' ) && false !== strpos( $h, '110' ), "$twin: the unnamed list shows verified hits and top networks per sample" );
+}
+$anoms2 = mr_leaf_box( $kit2, 'Reader behaviour' );
+ok( false !== strpos( $anoms2, 'Google LLC' ) && false !== strpos( $anoms2, '2026-10-10' ) && false !== strpos( $anoms2, 'amazon-ai, anthropic, bytedance, openai' ), 'the reader-behaviour box names the co-movement: network, day, families' );
+ok( false !== strpos( $anoms2, 'Verified' ) && false !== strpos( $anoms2, 'Unverified' ) && false !== strpos( $anoms2, 'withheld' ), 'and shows the verified and unverified series apart, with a withheld one said as withheld' );
+// A worker before 1.30.0: the list cannot say who was verified, and says so.
+$GLOBALS['__mr_fixtures']['unknown'] = mr_body( array( array( 'user_agent' => 'GrokBot/1.0', 'hits' => 310 ) ) );
+snt_mr_memo( null );
+$kit3 = snt_leaf_paint( 'monitoring', 'machine-readers' );
+snt_mr_memo( null );
+$classic3 = snt_leaf_classic_html( 'snt_mr_render_tab' );
+ok( false !== strpos( $kit3, 'not measured' ) && false !== strpos( $classic3, 'not measured' ), 'an unsplit unknown view reads not measured on both twins, never 0' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

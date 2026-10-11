@@ -40,9 +40,11 @@ function machine_readers_data() {
 	$rights_rows  = null;
 	$cards        = array();
 	if ( ! empty( $result['ok'] ) ) {
-		$unknown = \snt_mr_fetch( $days, 'unknown' );
+		// Unreleased: the split read (detail=network), folded per sample to the
+		// list's 50, so each sample shows its verified hits and networks.
+		$unknown = \snt_mr_fetch( $days, 'unknown-network' );
 		if ( ! empty( $unknown['ok'] ) ) {
-			$unknown_rows = $unknown['rows'] ?? array();
+			$unknown_rows = \snt_mr_unnamed_fold( $unknown, 50 ) ?? ( $unknown['rows'] ?? array() );
 		}
 		$rights = \snt_mr_fetch( $days, 'rights' );
 		if ( ! empty( $rights['ok'] ) ) {
@@ -278,13 +280,20 @@ function machine_readers_unknown_html( $rows ) {
 			continue;
 		}
 		++$count;
-		$table_rows[] = array( 'agent' => $ua, 'reads' => number_format_i18n( (int) ( $r['hits'] ?? 0 ) ) );
+		$table_rows[] = array(
+			'agent'    => $ua,
+			'reads'    => number_format_i18n( (int) ( $r['hits'] ?? 0 ) ),
+			'verified' => \snt_mr_basis_count( $r['verified_hits'] ?? null ),
+			'networks' => \snt_mr_basis_networks( (array) $r ),
+		);
 	}
 	$table = '<p class="snt-hint">' . \snt_kit_esc( __( 'Unclassified user agents, by volume — review these to extend the taxonomy.', 'signal-and-noise-tools' ) ) . '</p>';
 	$table .= \snt_kit_table(
 		array(
 			array( 'key' => 'agent', 'label' => __( 'User agent (sampled, sanitized)', 'signal-and-noise-tools' ) ),
 			array( 'key' => 'reads', 'label' => __( 'Reads', 'signal-and-noise-tools' ), 'align' => 'end' ),
+			array( 'key' => 'verified', 'label' => __( 'Verified (Cloudflare)', 'signal-and-noise-tools' ), 'align' => 'end' ),
+			array( 'key' => 'networks', 'label' => __( 'Top networks', 'signal-and-noise-tools' ) ),
 		),
 		$table_rows
 	);

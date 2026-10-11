@@ -24,7 +24,7 @@ function wp_register_ability( $slug, $args ) { $GLOBALS['__ab'][ $slug ] = $args
 function snt_mr_fetch( $days = 30, $view = 'aggregate' ) { return 'totals' === $view ? $GLOBALS['__mr_totals'] : $GLOBALS['__mr']; }
 function snt_mr_sensor_info() { return array( 'version' => '1.29.0' ); }
 function snt_mr_crawler_list_status() { return array( 'last_check_ok' => '2026-10-10', 'last_check_drift' => '' ); }
-foreach ( array( 'machine-readers-taxonomy', 'machine-readers-render', 'rights-evidence-compose', 'machine-readers-basis', 'machine-readers-summary', 'machine-readers-daily', 'abilities-machine-readers' ) as $f ) {
+foreach ( array( 'machine-readers-taxonomy', 'machine-readers-render', 'rights-evidence-compose', 'machine-readers-basis', 'machine-readers-basis-fold', 'machine-readers-summary', 'machine-readers-daily', 'abilities-machine-readers' ) as $f ) {
 	if ( is_file( __DIR__ . "/../inc/$f.php" ) ) { require __DIR__ . "/../inc/$f.php"; }
 }
 foreach ( $GLOBALS['__acts']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(); }

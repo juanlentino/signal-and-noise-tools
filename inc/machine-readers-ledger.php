@@ -245,3 +245,57 @@ function snt_mr_ai_rights_pair( $aggregate, $detail ) {
 	};
 	return array( 'aggregate' => $sum( $aggregate, true ), 'detail' => $sum( $detail, false ) );
 }
+
+/**
+ * The unknown view folded per user-agent sample, cut to $top: {ua_sample,
+ * hits, verified_hits, not_measured, networks (top 5 {network, hits}),
+ * basis}. Rows are folded BEFORE the cut, because the detail=network read
+ * splits one sample over many rows. A read without `detail: network` (a
+ * worker before rights-signals 1.30.0, or the default view) cannot say who
+ * was verified: verified_hits is null and basis unmeasured, never 0.
+ *
+ * Used by the get-machine-readers-crosstab ability (top 20) and both Machine
+ * Readers leaves' review list (top 50).
+ *
+ * @param array $read snt_mr_fetch( $days, 'unknown-network' ) result.
+ * @param int   $top  Samples kept.
+ * @return array<int,array>|null null when every row sanitised away.
+ */
+function snt_mr_unnamed_fold( array $read, $top ) {
+	$measured = 'network' === (string) ( $read['detail'] ?? '' );
+	$by       = array();
+	foreach ( (array) ( $read['rows'] ?? array() ) as $row ) {
+		$ua = is_array( $row ) ? snt_mr_normalize_ua_sample( $row['user_agent'] ?? ( $row['ua_sample'] ?? '' ) ) : '';
+		if ( '' === $ua ) {
+			continue;
+		}
+		$hits = max( 0, (int) ( $row['hits'] ?? 0 ) );
+		$net  = $measured ? (string) ( $row['network'] ?? '' ) : '';
+		$u    = $by[ $ua ] ?? array( 'ua_sample' => $ua, 'hits' => 0, 'verified_hits' => $measured ? 0 : null, 'not_measured' => 0, 'networks' => array(), 'basis' => $measured ? 'claimed' : 'unmeasured' );
+		$u['hits'] += $hits;
+		if ( $measured && '' !== (string) ( $row['verified_bot'] ?? '' ) ) {
+			$u['verified_hits'] += $hits;
+		}
+		if ( '' === $net ) {
+			$u['not_measured'] += $hits;
+		} else {
+			$u['networks'][ $net ] = ( $u['networks'][ $net ] ?? 0 ) + $hits;
+		}
+		$by[ $ua ] = $u;
+	}
+	// Rows that all sanitised away are not "every read matched".
+	if ( array() === $by && array() !== (array) ( $read['rows'] ?? array() ) ) {
+		return null;
+	}
+	$out = array();
+	foreach ( $by as $u ) {
+		arsort( $u['networks'] );
+		$nets = array();
+		foreach ( array_slice( $u['networks'], 0, SN_MR_AGENT_NETWORKS_TOP, true ) as $net => $h ) {
+			$nets[] = array( 'network' => (string) $net, 'hits' => (int) $h );
+		}
+		$out[] = array_merge( $u, array( 'networks' => $nets ) );
+	}
+	usort( $out, static fn( $a, $b ) => $b['hits'] <=> $a['hits'] );
+	return array_slice( $out, 0, max( 1, (int) $top ) );
+}

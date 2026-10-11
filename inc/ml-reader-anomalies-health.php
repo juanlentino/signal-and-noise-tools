@@ -88,6 +88,56 @@ function snt_ml_reader_anomalies_health( $report ) {
 	);
 }
 
+/**
+ * One plain line per co-movement: day, direction, network, families.
+ *
+ * @param array $report Output of snt_ml_reader_anomalies().
+ * @return string[]
+ */
+function snt_ml_reader_co_movement_lines( $report ) {
+	$out = array();
+	foreach ( (array) ( is_array( $report ) ? ( $report['co_movement'] ?? array() ) : array() ) as $c ) {
+		$fams  = (array) ( $c['families'] ?? array() );
+		$out[] = sprintf(
+			/* translators: 1: day, 2: number of families, 3: up, down or mixed, 4: network owner, 5: the families. */
+			__( 'On %1$s, %2$d reader families moved together (%3$s) on unverified reads from %4$s: %5$s. One finding, not %2$d.', 'signal-and-noise-tools' ),
+			(string) ( $c['day'] ?? '' ),
+			count( $fams ),
+			(string) ( $c['direction'] ?? '' ),
+			(string) ( $c['network'] ?? '' ),
+			implode( ', ', $fams )
+		);
+	}
+	return $out;
+}
+
+/**
+ * Per family, the verified and the unverified series in words: reads, and the
+ * findings, or why the signals are withheld.
+ *
+ * @param array $report Output of snt_ml_reader_anomalies().
+ * @return array<int,array{family:string,verified:string,unverified:string}>
+ */
+function snt_ml_reader_split_rows( $report ) {
+	$cell = static function ( $s ) {
+		$reads = sprintf( /* translators: %s: reads. */ __( '%s reads', 'signal-and-noise-tools' ), number_format_i18n( (int) ( $s['total'] ?? 0 ) ) );
+		if ( isset( $s['withheld'] ) ) {
+			/* translators: 1: reads, 2: why the signals are withheld. */
+			return sprintf( __( '%1$s, signals withheld (%2$s)', 'signal-and-noise-tools' ), $reads, (string) $s['withheld'] );
+		}
+		$n = count( array_filter( (array) ( $s['signals'] ?? array() ), static fn( $g ) => in_array( $g['kind'] ?? '', array( 'anomaly', 'reader_silent' ), true ) ) );
+		/* translators: 1: reads, 2: deviations and silences. */
+		return sprintf( __( '%1$s, %2$d deviation(s) or silence(s)', 'signal-and-noise-tools' ), $reads, $n );
+	};
+	$out = array();
+	foreach ( (array) ( is_array( $report ) ? ( $report['families'] ?? array() ) : array() ) as $f ) {
+		if ( is_array( $f['by_verification'] ?? null ) ) {
+			$out[] = array( 'family' => (string) ( $f['family'] ?? '' ), 'verified' => $cell( $f['by_verification']['verified'] ?? array() ), 'unverified' => $cell( $f['by_verification']['unverified'] ?? array() ) );
+		}
+	}
+	return $out;
+}
+
 /** Core Site Health registration (direct test). */
 function snt_ml_reader_anomalies_register_site_health_test( $tests ) {
 	$tests['direct']['snt_ml_reader_anomalies'] = array(
@@ -102,12 +152,13 @@ if ( function_exists( 'add_filter' ) ) {
 
 /** The rendered result. */
 function snt_ml_reader_anomalies_site_health_result() {
-	$v = snt_ml_reader_anomalies_health( function_exists( 'snt_ml_reader_anomalies' ) ? snt_ml_reader_anomalies() : null );
+	$report = function_exists( 'snt_ml_reader_anomalies' ) ? snt_ml_reader_anomalies() : null;
+	$v      = snt_ml_reader_anomalies_health( $report );
 	return array(
 		'label'       => __( 'Signal & Noise machine-reader behaviour', 'signal-and-noise-tools' ),
 		'status'      => in_array( $v['status'], array( 'good', 'recommended', 'critical' ), true ) ? $v['status'] : 'recommended',
 		'badge'       => array( 'label' => __( 'Performance', 'signal-and-noise-tools' ), 'color' => 'blue' ),
-		'description' => '<p>' . esc_html( $v['summary'] ) . '</p>',
+		'description' => '<p>' . esc_html( $v['summary'] ) . '</p>' . implode( '', array_map( static fn( $l ) => '<p>' . esc_html( $l ) . '</p>', snt_ml_reader_co_movement_lines( $report ) ) ),
 		'test'        => 'snt_ml_reader_anomalies',
 	);
 }

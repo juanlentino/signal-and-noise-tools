@@ -76,6 +76,7 @@ require __DIR__ . '/../inc/machine-readers-summary.php';
 // are built by the basis module from the rights evidence's own classifier.
 require __DIR__ . '/../inc/rights-evidence-compose.php';
 require __DIR__ . '/../inc/machine-readers-basis.php';
+require __DIR__ . '/../inc/machine-readers-basis-fold.php';
 
 require __DIR__ . '/../inc/abilities-machine-readers.php';
 foreach ( $GLOBALS['__acts']['wp_abilities_api_init'] ?? array() as $cb ) {

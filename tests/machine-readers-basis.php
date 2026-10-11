@@ -47,6 +47,7 @@ require __DIR__ . '/../inc/machine-readers-taxonomy.php';
 require __DIR__ . '/../inc/rights-evidence-compose.php';
 require __DIR__ . '/../inc/machine-readers-render.php';
 require __DIR__ . '/../inc/machine-readers-basis.php';
+require __DIR__ . '/../inc/machine-readers-basis-fold.php';
 require __DIR__ . '/../inc/machine-readers-summary.php';
 require __DIR__ . '/../inc/machine-readers-daily.php';
 require __DIR__ . '/../inc/machine-readers-ledger.php';
@@ -197,6 +198,31 @@ ok( null === $u[0]['verified_hits'] && 'unmeasured' === $u[0]['basis'], 'without
 ok( 310 === $u[0]['not_measured'] && array() === $u[0]['networks'], 'and every hit is not_measured' );
 $GLOBALS['__mr']['unknown-network'] = array( 'ok' => true, 'rows' => snt_mr_normalize_rows( array( array( 'user_agent' => 'GrokBot/1.0', 'verified_bot' => '', 'network' => 'Google LLC', 'hits' => 310 ) ) ) );
 ok( null === snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) )['unnamed'][0]['verified_hits'], 'a read cached before the envelope carried detail reads unmeasured, whatever its rows hold' );
+
+echo "\nGroup G: the display rows both Machine Readers leaves paint\n";
+$disp = snt_mr_basis_display( snt_mr_normalize_rows( $rows ) );
+$dp   = array_column( $disp['purposes'], null, 'label' );
+ok( array( 'label' => 'train', 'claimed' => 837, 'verified' => 29, 'verified_matched' => 25, 'unverified' => 798, 'unverifiable' => 10 ) === $dp['train'], 'a purpose row: claimed, verified, verified for its purpose, unverified, unverifiable' );
+ok( isset( $dp['unmapped'] ) && ! isset( $dp['unknown'] ), 'purpose unknown is labelled unmapped' );
+ok( 'train' === $disp['purposes'][0]['label'], 'purpose rows run by claimed reads, largest first' );
+$df = array_column( $disp['families'], null, 'label' );
+ok( 500 === $df['unclassified-machine']['first_party'] && 520 === $df['unclassified-machine']['claimed'], 'a family row carries its first-party reads' );
+ok( array( 'AI-training, by purpose', 'AI-training, by family (legacy)' ) === array_column( $disp['ai'], 'label' ) && 837 === $disp['ai'][0]['claimed'] && 838 === $disp['ai'][1]['claimed'], 'the two AI-training figures side by side, the family one marked legacy' );
+ok( 'Google-Extended' === ( $disp['impersonations'][0]['token'] ?? '' ), 'the impersonations ride along' );
+ok( SN_RIGHTS_EVIDENCE_VERIFIED_SINCE === $disp['since'], 'with the since date the split is measured from' );
+$GLOBALS['__mr']['aggregate']['rows'] = snt_mr_normalize_rows( array( array( 'family' => 'openai', 'surface' => 'html', 'day' => '2026-10-05', 'hits' => 3 ) ) );
+$nt = snt_mr_basis_display( $GLOBALS['__mr']['aggregate']['rows'] );
+ok( null === $nt['purposes'] && null === $nt['ai'][0]['claimed'], 'without the taxonomy the purpose rows are null (not measured), never zeros' );
+
+echo "\nGroup H: the unnamed fold, at any cut\n";
+$read = array( 'ok' => true, 'detail' => 'network', 'rows' => snt_mr_normalize_rows( array(
+	array( 'user_agent' => 'A/1', 'hits' => 5, 'verified_bot' => '', 'network' => 'N1' ),
+	array( 'user_agent' => 'B/1', 'hits' => 9, 'verified_bot' => 'AI Crawler', 'network' => 'N2' ),
+	array( 'user_agent' => 'A/1', 'hits' => 6, 'verified_bot' => '', 'network' => 'N3' ),
+) ) );
+$f1 = snt_mr_unnamed_fold( $read, 1 );
+ok( 1 === count( $f1 ) && 'A/1' === $f1[0]['ua_sample'] && 11 === $f1[0]['hits'], 'folded before the cut: A/1 (5+6) outranks B/1 (9)' );
+ok( 2 === count( snt_mr_unnamed_fold( $read, 50 ) ), 'the admin list cuts at 50, the ability at 20' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -180,42 +180,7 @@ function snt_mr_unnamed_agents( $days ) {
 	if ( empty( $read['ok'] ) ) {
 		return null;
 	}
-	$measured = 'network' === (string) ( $read['detail'] ?? '' );
-	$by       = array();
-	foreach ( (array) ( $read['rows'] ?? array() ) as $row ) {
-		$ua = is_array( $row ) ? snt_mr_normalize_ua_sample( $row['user_agent'] ?? ( $row['ua_sample'] ?? '' ) ) : '';
-		if ( '' === $ua ) {
-			continue;
-		}
-		$hits = max( 0, (int) ( $row['hits'] ?? 0 ) );
-		$net  = $measured ? (string) ( $row['network'] ?? '' ) : '';
-		$u    = $by[ $ua ] ?? array( 'ua_sample' => $ua, 'hits' => 0, 'verified_hits' => $measured ? 0 : null, 'not_measured' => 0, 'networks' => array(), 'basis' => $measured ? 'claimed' : 'unmeasured' );
-		$u['hits'] += $hits;
-		if ( $measured && '' !== (string) ( $row['verified_bot'] ?? '' ) ) {
-			$u['verified_hits'] += $hits;
-		}
-		if ( '' === $net ) {
-			$u['not_measured'] += $hits;
-		} else {
-			$u['networks'][ $net ] = ( $u['networks'][ $net ] ?? 0 ) + $hits;
-		}
-		$by[ $ua ] = $u;
-	}
-	// Rows that all sanitised away are not "every read matched".
-	if ( array() === $by && array() !== (array) ( $read['rows'] ?? array() ) ) {
-		return null;
-	}
-	$out = array();
-	foreach ( $by as $u ) {
-		arsort( $u['networks'] );
-		$nets = array();
-		foreach ( array_slice( $u['networks'], 0, SN_MR_AGENT_NETWORKS_TOP, true ) as $net => $h ) {
-			$nets[] = array( 'network' => (string) $net, 'hits' => (int) $h );
-		}
-		$out[] = array_merge( $u, array( 'networks' => $nets ) );
-	}
-	usort( $out, static fn( $a, $b ) => $b['hits'] <=> $a['hits'] );
-	return array_slice( $out, 0, SN_MR_UNNAMED_TOP );
+	return snt_mr_unnamed_fold( $read, SN_MR_UNNAMED_TOP );
 }
 
 /**

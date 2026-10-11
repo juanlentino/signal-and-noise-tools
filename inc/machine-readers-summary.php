@@ -174,7 +174,6 @@ function snt_mr_summary_payload( $days, $series = null ) {
 	$first_party = 0;
 	$tax_version = '';
 	$has_tax     = function_exists( 'snt_mr_taxonomy_absent' ) && ! snt_mr_taxonomy_absent( $rows );
-	$third_party = array();
 	if ( $has_tax ) {
 		foreach ( $credited as $row ) {
 			// Reported from the DATA, never a literal: rows carry the version
@@ -189,7 +188,6 @@ function snt_mr_summary_payload( $days, $series = null ) {
 				$first_party += $hits;
 				continue;
 			}
-			$third_party[]  = $row;
 			$p              = (string) ( $row['purpose'] ?? 'unknown' );
 			$purposes[ $p ] = (int) ( $purposes[ $p ] ?? 0 ) + $hits;
 			if ( 'train' === $p ) {
@@ -247,8 +245,8 @@ function snt_mr_summary_payload( $days, $series = null ) {
 		'crawler_list'   => $verdict,
 	);
 	// Unreleased: additive. Where each attributed count came from.
-	if ( function_exists( 'snt_mr_verification_by' ) ) {
-		$payload += snt_mr_summary_basis( $rows, $credited, $third_party, $ai_set, $has_tax );
+	if ( function_exists( 'snt_mr_evidence' ) ) {
+		$payload += snt_mr_evidence( $rows );
 	}
 	// Unreleased: appended, never interleaved, so a call without `series` is
 	// byte-identical to the response before the series existed.
@@ -259,58 +257,6 @@ function snt_mr_summary_payload( $days, $series = null ) {
 		$payload['daily_total_exact'] = null !== $exact_total;
 	}
 	return $payload;
-}
-
-/**
- * The summary's evidence fields: impersonations, the verification split of
- * every attributed count, and the basis of each. PURE.
- *
- * The split reads the same rows its figure reads: `families` the credited rows
- * (first-party included, as in `families`), `purposes` and
- * `ai_training_by_purpose` the credited third-party rows (as in `purposes`),
- * `ai_training` the credited rows of the AI-training family set.
- *
- * @param array $rows        Every aggregate row.
- * @param array $credited    Rows less the control-token hits.
- * @param array $third_party Credited rows less first-party ones (taxonomy windows only).
- * @param array $ai_set      snt_mr_ai_training_families().
- * @param bool  $has_tax     Whether the window carries the taxonomy.
- * @return array{impersonations:array|null,verification:array,basis:array}
- */
-function snt_mr_summary_basis( array $rows, array $credited, array $third_party, array $ai_set, $has_tax ) {
-	$ai = snt_mr_verification_zero();
-	foreach ( $credited as $row ) {
-		if ( in_array( (string) ( $row['family'] ?? '' ), $ai_set, true ) ) {
-			$ai = snt_mr_verification_add( $ai, $row );
-		}
-	}
-	$purposes = $has_tax ? snt_mr_verification_by( $third_party, 'purpose' ) : null;
-	return array(
-		// null, not [], when the taxonomy is absent: rows then carry no agent
-		// id, so no impersonation could have been seen.
-		'impersonations' => $has_tax ? snt_mr_impersonations( $rows ) : null,
-		'verification'   => array(
-			'source'                 => 'cloudflare verified bot category',
-			'since'                  => defined( 'SN_RIGHTS_EVIDENCE_VERIFIED_SINCE' ) ? SN_RIGHTS_EVIDENCE_VERIFIED_SINCE : null,
-			'basis'                  => array( 'claimed' => 'claimed', 'verified' => 'verified', 'verified_matched' => 'verified', 'unverified' => 'claimed', 'unverifiable' => 'unmeasured' ),
-			'families'               => snt_mr_verification_by( $credited, 'family' ),
-			'purposes'               => $purposes,
-			'ai_training'            => $ai,
-			'ai_training_by_purpose' => null === $purposes ? null : ( $purposes->train ?? snt_mr_verification_zero() ),
-		),
-		'basis'          => array(
-			'families'               => 'claimed',
-			'ai_training'            => 'claimed',
-			'ai_rights'              => 'claimed',
-			'ai_surfaces'            => 'claimed',
-			'purposes'               => 'claimed',
-			'ai_training_by_purpose' => 'claimed',
-			'first_party'            => 'claimed',
-			'identity'               => 'signed',
-			'verification'           => 'verified',
-			'impersonations'         => 'claimed',
-		),
-	);
 }
 
 /**

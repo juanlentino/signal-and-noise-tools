@@ -53,9 +53,27 @@ function machine_readers_anomalies_html() {
 	// ponytail: snt_ml_reader_anomalies() runs the per-family series over the same 30-day sensor read the hero already made (the transient when it succeeded, snt_mr_fetch()'s per-request memo when it did not); the ceiling is the eligible-family count, as on Site Health.
 	$report = function_exists( 'snt_ml_reader_anomalies' ) ? \snt_ml_reader_anomalies() : null;
 	$v      = \snt_ml_reader_anomalies_health( $report );
+	$body   = \snt_kit_verdict( is_array( $v ) ? $v : array() );
+	// Unreleased: each co-movement named (one finding per network), and the
+	// verified and unverified series apart, per family.
+	foreach ( \snt_ml_reader_co_movement_lines( $report ) as $line ) {
+		$body .= '<p class="snt-hint">' . \snt_kit_esc( $line ) . '</p>';
+	}
+	$split = \snt_ml_reader_split_rows( $report );
+	if ( array() !== $split ) {
+		$body .= \snt_kit_table(
+			array(
+				array( 'key' => 'family', 'label' => __( 'Family', 'signal-and-noise-tools' ) ),
+				array( 'key' => 'verified', 'label' => __( 'Verified series', 'signal-and-noise-tools' ) ),
+				array( 'key' => 'unverified', 'label' => __( 'Unverified series', 'signal-and-noise-tools' ) ),
+			),
+			$split,
+			array( 'stack_on_phone' => true )
+		);
+	}
 	return \snt_kit_section(
 		__( 'Reader behaviour', 'signal-and-noise-tools' ),
-		\snt_kit_verdict( is_array( $v ) ? $v : array() ),
+		$body,
 		__( 'Whether any measured crawler family deviated from its 30-day norm or went silent in the last 7 days. An instrument, not a gate.', 'signal-and-noise-tools' )
 	);
 }
