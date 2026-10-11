@@ -21,6 +21,9 @@ function __( $s, $d = null ) { return $s; }
 function _n( $a, $b, $n, $d = null ) { return 1 === (int) $n ? $a : $b; }
 function add_action( $h = null, $cb = null, $p = 10, $a = 1 ) {}
 
+// The real skip predicate, never a stub: a skipped trust check must read
+// "not measured" by the same rule Health uses (sn_health_check_is_skipped()).
+require __DIR__ . '/../inc/health-summary.php';
 require __DIR__ . '/../inc/integrity-trust-admin.php';
 
 echo "Integrity → Trust checks (v10.47.0)\n\n";
@@ -76,7 +79,11 @@ ok( 0 === count( $sn['shown'] ) && 0 === $sn['hidden'],
 
 // Source pin: the renderer must go through the helper. A future edit that
 // reintroduces a bare literal cap is exactly the drift this closes.
-$trust_src = (string) file_get_contents( __DIR__ . '/../inc/integrity-trust-admin.php' );
+// 2026-10-11: the classic renderer moved to inc/integrity-trust-render.php
+// (the admin file was over the line cap); the pins read both, so a bare cap
+// reintroduced in either file still fails.
+$trust_src = (string) file_get_contents( __DIR__ . '/../inc/integrity-trust-admin.php' )
+	. (string) @file_get_contents( __DIR__ . '/../inc/integrity-trust-render.php' );
 ok( false !== strpos( $trust_src, 'snt_trust_findings_split(' ),
 	'the renderer uses the shared split rather than slicing inline' );
 ok( 1 === substr_count( $trust_src, 'SNT_TRUST_FINDINGS_CAP =' ),
@@ -104,6 +111,30 @@ ok( 'clear' === $cards[0]['value'] && 'ok' === $cards[0]['pill']['kind'], 'a zer
 ok( '2 findings' === $cards[1]['value'] && 'warn' === $cards[1]['pill']['kind'], 'a check with findings reads its count and pills warn' );
 ok( 'not run' === $cards[3]['value'] && 'warn' === $cards[3]['pill']['kind'],
 	'an ABSENT check reads "not run" and pills warn — never silently omitted, because a gap in a trust surface must not look like a pass' );
+
+// ── Skipped (2026-10-11): unknown is never zero ──
+// The rights checks report a skip as count 0 plus a `skipped` reason
+// (health-check-rights-anchored.php, health-check-rights-signals.php). Reading
+// that 0 as "clear"/"holding" painted a gap in evidence as a pass.
+$reason  = 'Probe skipped: the site host failed the SSRF guard. The check will retry on the next scan.';
+$skipped = snt_trust_cards( array( 'checks' => array(
+	'provenance_integrity' => array( 'count' => 0, 'skipped' => null ),
+	'ledger_ci'            => array( 'count' => 3, 'skipped' => 'partial read' ),
+	'rights_signals'       => array( 'count' => 0, 'skipped' => '' ),
+	'rights_anchored'      => array( 'count' => 0, 'findings' => array(), 'skipped' => $reason ),
+) ) );
+ok( 'not measured' === $skipped[3]['value'] && 'neutral' === $skipped[3]['pill']['kind'] && 'holding' !== $skipped[3]['pill']['text'],
+	'a skipped check reads "not measured", neutral, never clear/holding' );
+ok( $reason === ( $skipped[3]['reason'] ?? '' ), 'a skipped card carries its reason' );
+ok( 'clear' === $skipped[0]['value'] && 'clear' === $skipped[2]['value'],
+	'a null or empty skip is a check that RAN: it still reads clear' );
+ok( '3 findings' === $skipped[1]['value'] && 'warn' === $skipped[1]['pill']['kind'],
+	'evidence outranks absence: a skip note on a check WITH findings still reads its findings' );
+$r = function_exists( 'snt_trust_reading' ) ? snt_trust_reading( array( 'count' => 0, 'skipped' => $reason ) ) : array();
+ok( 'skipped' === ( $r['state'] ?? '' ) && 'not measured' === ( $r['text'] ?? '' ) && $reason === ( $r['reason'] ?? '' ),
+	'snt_trust_reading(): the one reading both trust surfaces share names the skip and its reason' );
+$r = function_exists( 'snt_trust_reading' ) ? snt_trust_reading( null ) : array();
+ok( 'not_run' === ( $r['state'] ?? '' ) && 'not run' === ( $r['text'] ?? '' ), 'snt_trust_reading(): an absent check is "not run"' );
 
 // ── No scan at all ──
 $none = snt_trust_cards( null );

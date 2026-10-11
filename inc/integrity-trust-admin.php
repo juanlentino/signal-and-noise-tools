@@ -71,19 +71,6 @@ function snt_trust_check_keys() {
 }
 
 /**
- * Build the glance cards for the trust checks out of a scan result. PURE — takes
- * the scan, returns card definitions for sn_admin_glance_grid(); no reads, no
- * output, so the card logic is unit-testable without a WP bootstrap.
- *
- * A check absent from the scan yields an explicit "not run" card rather than
- * being skipped: a missing trust check must be visible as missing, never as an
- * empty space that reads like a pass.
- *
- * @since 10.47.0
- * @param array|null $scan sn_health_last_scan() result.
- * @return array<int,array<string,mixed>>
- */
-/**
  * How many finding notes the Trust table prints per check before deferring to
  * the Health tab. Declared ONCE: the slice and the "is anything hidden" test
  * are the same number, and they used to be two separate literals.
@@ -94,7 +81,7 @@ const SNT_TRUST_FINDINGS_CAP = 3;
  * Split a check's findings into the slice shown here and the count deferred to
  * Health.
  *
- * The cap used to be written twice — once as the slice length, once as the
+ * The cap used to be written twice: once as the slice length, once as the
  * threshold in a separate count guard on the "see more" link. Two literals that
  * must agree, with nothing enforcing it: change one and the link either appears
  * with nothing behind it or disappears while rows are still hidden. Deriving
@@ -112,155 +99,75 @@ function snt_trust_findings_split( $findings ) {
 	);
 }
 
-function snt_trust_cards( $scan ) {
-	$checks = is_array( $scan ) && isset( $scan['checks'] ) && is_array( $scan['checks'] ) ? $scan['checks'] : array();
-	$cards  = array();
-
-	foreach ( snt_trust_check_keys() as $key => $meta ) {
-		if ( ! isset( $checks[ $key ] ) || ! is_array( $checks[ $key ] ) ) {
-			$cards[] = array(
-				'label' => $meta['label'],
-				'value' => __( 'not run', 'signal-and-noise-tools' ),
-				'pill'  => array( 'kind' => 'warn', 'text' => __( 'no reading', 'signal-and-noise-tools' ) ),
-			);
-			continue;
-		}
-		$count  = (int) ( $checks[ $key ]['count'] ?? 0 );
-		$cards[] = array(
-			'label' => $meta['label'],
-			'value' => $count > 0
-				/* translators: %d: number of findings for one trust check. */
-				? sprintf( _n( '%d finding', '%d findings', $count, 'signal-and-noise-tools' ), $count )
-				: __( 'clear', 'signal-and-noise-tools' ),
-			'pill'  => array(
-				'kind' => $count > 0 ? 'warn' : 'ok',
-				'text' => $count > 0 ? __( 'needs a look', 'signal-and-noise-tools' ) : __( 'holding', 'signal-and-noise-tools' ),
-			),
-		);
+/**
+ * One trust check's reading, the ONE place both trust surfaces (this classic
+ * leaf and S&N Home's Integrity > Trust checks) get it from, so they cannot
+ * disagree. Four states: not run (absent from the scan), skipped (the check
+ * ran and could not measure), clear, findings.
+ *
+ * 2026-10-11: unknown is never zero. The rights checks report a skip as
+ * count 0 plus a `skipped` reason, and both surfaces read that 0 as "clear"
+ * and "holding": a gap in evidence painted as a pass. The skip test is
+ * Health's own predicate, sn_health_check_is_skipped() (inc/health-summary.php),
+ * so its rule (a skip counts only when there are no findings) is not restated.
+ *
+ * @param mixed $check The packed check, or null when the scan lacks it.
+ * @return array{state:string,count:int,reason:string,text:string}
+ */
+function snt_trust_reading( $check ) {
+	if ( ! is_array( $check ) ) {
+		return array( 'state' => 'not_run', 'count' => 0, 'reason' => '', 'text' => __( 'not run', 'signal-and-noise-tools' ) );
 	}
-
-	return $cards;
+	if ( sn_health_check_is_skipped( $check ) ) {
+		return array( 'state' => 'skipped', 'count' => 0, 'reason' => (string) $check['skipped'], 'text' => __( 'not measured', 'signal-and-noise-tools' ) );
+	}
+	$count = (int) ( $check['count'] ?? 0 );
+	return array(
+		'state'  => $count > 0 ? 'findings' : 'clear',
+		'count'  => $count,
+		'reason' => '',
+		'text'   => $count > 0
+			/* translators: %d: number of findings for one trust check. */
+			? sprintf( _n( '%d finding', '%d findings', $count, 'signal-and-noise-tools' ), $count )
+			: __( 'clear', 'signal-and-noise-tools' ),
+	);
 }
 
 /**
- * Render the Trust checks leaf. Hooked to sn_admin_trust_tab (delegator in
- * inc/admin-render-sections.php), same wiring as every other leaf.
+ * Build the glance cards for the trust checks out of a scan result. PURE: takes
+ * the scan, returns card definitions for sn_admin_glance_grid(); no reads, no
+ * output, so the card logic is unit-testable without a WP bootstrap.
+ *
+ * A check absent from the scan yields an explicit "not run" card rather than
+ * being skipped: a missing trust check must be visible as missing, never as an
+ * empty space that reads like a pass. A skipped check reads "not measured" with
+ * a neutral pill and its reason (the classic grid paints ok/warn/err pills only,
+ * so there the value stands alone and the table row carries the reason).
  *
  * @since 10.47.0
+ * @param array|null $scan sn_health_last_scan() result.
+ * @return array<int,array<string,mixed>>
  */
-add_action( 'sn_admin_trust_tab', 'snt_trust_render_section' );
-
-function snt_trust_render_section() {
-	if ( ! current_user_can( 'manage_options' ) ) {
-		return;
-	}
-
-	$scan       = function_exists( 'sn_health_last_scan' ) ? sn_health_last_scan() : null;
-	$health_url = admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' );
-
-	echo '<section aria-label="' . esc_attr__( 'Trust checks at a glance', 'signal-and-noise-tools' ) . '">';
-	sn_admin_glance_grid( snt_trust_cards( $scan ) );
-	echo '</section>';
-
-	// Provenance state is intentionally NOT duplicated here — the Provenance leaf
-	// beside this one owns the worker/genesis/pending/confirmed hero. This leaf
-	// answers a different question: are the guarantees still verifiable.
-	echo '<div class="sn-fieldset">';
-	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'What these four watch', 'signal-and-noise-tools' ) . '</h2>';
-
-	if ( ! is_array( $scan ) ) {
-		echo '<p class="sn-fieldset-intro">' . sprintf(
-			/* translators: %s: link to the Health leaf, already escaped. */
-			esc_html__( 'No health scan has run yet, so these four have no reading. They ride the same 24-hour cycle as every other check: run one from %s.', 'signal-and-noise-tools' ),
-			'<a href="' . esc_url( $health_url ) . '">' . esc_html__( 'Measurement → Health', 'signal-and-noise-tools' ) . '</a>'
-		) . '</p>';
-	} else {
-		$age = ! empty( $scan['scanned_at'] )
-			? human_time_diff( (int) $scan['scanned_at'], time() )
-			: '';
-		echo '<p class="sn-fieldset-intro">' . sprintf(
-			/* translators: 1: how long ago the scan ran; 2: link to the Health leaf, already escaped. */
-			esc_html__( 'Read from the health scan that ran %1$s ago: this leaf never scans on its own. Re-run from %2$s.', 'signal-and-noise-tools' ),
-			esc_html( $age ),
-			'<a href="' . esc_url( $health_url ) . '">' . esc_html__( 'Measurement → Health', 'signal-and-noise-tools' ) . '</a>'
-		) . '</p>';
-	}
-
-	$checks = is_array( $scan ) && isset( $scan['checks'] ) ? (array) $scan['checks'] : array();
-
-	echo '<div class="snt-scroll-table">';
-	echo '<table class="widefat striped"><thead><tr>';
-	echo '<th scope="col" class="snt-col-20">' . esc_html__( 'Check', 'signal-and-noise-tools' ) . '</th>';
-	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'What it proves', 'signal-and-noise-tools' ) . '</th>';
-	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Latest reading', 'signal-and-noise-tools' ) . '</th>';
-	echo '</tr></thead><tbody>';
-
+function snt_trust_cards( $scan ) {
+	$checks = is_array( $scan ) && isset( $scan['checks'] ) && is_array( $scan['checks'] ) ? $scan['checks'] : array();
+	$pills  = array(
+		'not_run'  => array( 'kind' => 'warn', 'text' => __( 'no reading', 'signal-and-noise-tools' ) ),
+		'skipped'  => array( 'kind' => 'neutral', 'text' => __( 'skipped this scan', 'signal-and-noise-tools' ) ),
+		'clear'    => array( 'kind' => 'ok', 'text' => __( 'holding', 'signal-and-noise-tools' ) ),
+		'findings' => array( 'kind' => 'warn', 'text' => __( 'needs a look', 'signal-and-noise-tools' ) ),
+	);
+	$cards  = array();
 	foreach ( snt_trust_check_keys() as $key => $meta ) {
-		$has   = isset( $checks[ $key ] ) && is_array( $checks[ $key ] );
-		$count = $has ? (int) ( $checks[ $key ]['count'] ?? 0 ) : -1;
-
-		echo '<tr>';
-		echo '<td><strong>' . esc_html( $meta['label'] ) . '</strong></td>';
-		echo '<td>' . wp_kses( $meta['blurb'], array() ) . '</td>';
-		echo '<td>';
-		if ( ! $has ) {
-			echo '<span class="sn-pill sn-pill--warn">' . esc_html__( 'not run', 'signal-and-noise-tools' ) . '</span>';
-		} elseif ( 0 === $count ) {
-			echo '<span class="sn-pill sn-pill--ok">' . esc_html__( 'clear', 'signal-and-noise-tools' ) . '</span>';
-		} else {
-			echo '<span class="sn-pill sn-pill--warn">' . esc_html(
-				/* translators: %d: number of findings. */
-				sprintf( _n( '%d finding', '%d findings', $count, 'signal-and-noise-tools' ), $count )
-			) . '</span>';
-			// The finding NOTES are the whole value when something is wrong — an
-			// integrity failure that only says "1 finding" sends the reader back to
-			// the Health tab to find out which leg broke.
-			$split = snt_trust_findings_split( $checks[ $key ]['findings'] ?? array() );
-			foreach ( $split['shown'] as $finding ) {
-				$note    = (string) ( $finding['note'] ?? '' );
-				$subject = (string) ( $finding['subject_label'] ?? '' );
-				$url     = (string) ( $finding['subject_url'] ?? '' );
-				echo '<div class="sn-trust-finding">';
-				if ( '' !== $subject ) {
-					echo '' !== $url
-						? '<a href="' . esc_url( $url ) . '" target="_blank" rel="noopener"><code>' . esc_html( $subject ) . '</code></a> '
-						: '<code>' . esc_html( $subject ) . '</code> ';
-				}
-				echo esc_html( $note );
-				echo '</div>';
-			}
-			// Name the count rather than just offering the link: "See all" makes
-			// the reader subtract the shown rows from the pill above to learn how
-			// much is behind it. House shape is "+N more".
-			if ( $split['hidden'] > 0 ) {
-				echo '<div class="sn-trust-finding"><a href="' . esc_url( $health_url ) . '">' . esc_html(
-					sprintf(
-						/* translators: %d: findings not shown here. */
-						__( '+%d more on Health →', 'signal-and-noise-tools' ),
-						$split['hidden']
-					)
-				) . '</a></div>';
-			}
-		}
-		echo '</td>';
-		echo '</tr>';
+		$reading = snt_trust_reading( $checks[ $key ] ?? null );
+		$cards[] = array(
+			'label'  => $meta['label'],
+			'value'  => $reading['text'],
+			'pill'   => $pills[ $reading['state'] ],
+			'reason' => $reading['reason'],
+		);
 	}
-
-	echo '</tbody></table>';
-	echo '</div>';
-	echo '</div>'; // .sn-fieldset
-
-	// Public-facing counterparts. These are the surfaces a READER uses to check
-	// the same guarantees without trusting this admin at all, which is the point
-	// of the whole apparatus — so they belong on this leaf rather than in Links.
-	echo '<div class="sn-fieldset">';
-	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'The public side', 'signal-and-noise-tools' ) . '</h2>';
-	echo '<p class="sn-fieldset-intro">' . esc_html__( 'The same guarantees, checkable by anyone without access to this admin.', 'signal-and-noise-tools' ) . '</p>';
-	echo '<ul class="sn-trust-links">';
-	echo '<li><a href="' . esc_url( home_url( '/verify/' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'Verification docket', 'signal-and-noise-tools' ) . '</a>. ' . esc_html__( 'per-note signature, content hash, live match, and anchor, checked in the reader&rsquo;s own browser.', 'signal-and-noise-tools' ) . '</li>';
-	echo '<li><a href="https://github.com/juanlentino/signal-and-noise-provenance" target="_blank" rel="noopener">' . esc_html__( 'Public ledger', 'signal-and-noise-tools' ) . '</a>. ' . esc_html__( 'the signed records and their daily verify workflow.', 'signal-and-noise-tools' ) . '</li>';
-	echo '<li><a href="' . esc_url( home_url( '/tdm-policy/' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'TDM policy', 'signal-and-noise-tools' ) . '</a>. ' . esc_html__( 'the human-readable terms behind the reservation headers.', 'signal-and-noise-tools' ) . '</li>';
-	echo '<li><a href="' . esc_url( home_url( '/license.xml' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'RSL licence', 'signal-and-noise-tools' ) . '</a>. ' . esc_html__( 'machine-readable licensing terms.', 'signal-and-noise-tools' ) . '</li>';
-	echo '</ul>';
-	echo '</div>';
+	return $cards;
 }
+
+// The classic leaf's renderer (moved 2026-10-11, line cap).
+require_once __DIR__ . '/integrity-trust-render.php';
