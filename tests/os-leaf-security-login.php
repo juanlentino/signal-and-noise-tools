@@ -13,11 +13,15 @@ require_once __DIR__ . '/lib/os-leaf-harness.php';
 
 // The leaf's own readers.
 $GLOBALS['__wps_active'] = false;
-function is_plugin_active( $file ) { return ! empty( $GLOBALS['__wps_active'] ); }
+$GLOBALS['__rwl_active'] = false;
+function is_plugin_active( $file ) { return 0 === strpos( $file, 'rename-wp-login' ) ? ! empty( $GLOBALS['__rwl_active'] ) : ! empty( $GLOBALS['__wps_active'] ); }
+function wp_login_url() { return 'https://example.test/wp-login.php'; }
 function sn_setting( $key, $default = '' ) { return $GLOBALS['__slug'] ?? $default; }
 $snt_plugin_dir = sys_get_temp_dir() . '/snt-leaf-login-' . getmypid();
 @mkdir( $snt_plugin_dir . '/wps-hide-login', 0777, true );
 file_put_contents( $snt_plugin_dir . '/wps-hide-login/wps-hide-login.php', '<?php' );
+@mkdir( $snt_plugin_dir . '/rename-wp-login', 0777, true );
+file_put_contents( $snt_plugin_dir . '/rename-wp-login/rename-wp-login.php', '<?php' );
 define( 'WP_PLUGIN_DIR', $snt_plugin_dir );
 
 require SNT_PATH . 'inc/admin-forms/login.php';
@@ -52,25 +56,40 @@ $GLOBALS['__slug'] = 'my-door';
 $GLOBALS['__wps_active'] = true;
 $kit = snt_leaf_paint( 'security', 'login' );
 ok( false !== strpos( $kit, 'Module dormant' ) && false !== strpos( $kit, 'tone="warning"' ), 'the dormant state paints a warning notice' );
+// 2026-10-12 audit: a dormant module's slug 404s, so the URL row gives the one
+// that works, and drops the bookmark line; rename-wp-login stands it down too.
+$classic = snt_leaf_classic_html( 'sn_admin_render_login_section' );
+ok( false !== strpos( $kit, 'https://example.test/wp-login.php' ) && false === strpos( $kit, 'https://example.test/my-door' ) && false === strpos( $kit, 'Bookmark this URL' ) && false !== strpos( $classic, 'https://example.test/wp-login.php' ) && false === strpos( $classic, 'Bookmark this URL' ), 'dormant: both surfaces give the login URL that works, not the slug that 404s' );
 $GLOBALS['__wps_active'] = false;
+$GLOBALS['__rwl_active'] = true;
+$kit     = snt_leaf_paint( 'security', 'login' );
+$classic = snt_leaf_classic_html( 'sn_admin_render_login_section' );
+ok( false !== strpos( $kit, 'Module dormant: conflict with rename-wp-login' ) && false === strpos( $kit, 'Module active' ) && false !== strpos( $classic, 'Module dormant: conflict with rename-wp-login' ) && false !== strpos( $kit, 'https://example.test/wp-login.php' ) && false === strpos( $kit, 'https://example.test/my-door' ), 'rename-wp-login stands the module down on both surfaces, as login-hide.php does, with the URL that works' );
+$GLOBALS['__rwl_active'] = false;
 
 // ── Locked state: the constant overrides the field, and no save is offered.
 define( 'SN_LOGIN_SLUG', 'pinned' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_login_section' );
 $kit     = snt_leaf_paint( 'security', 'login' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'locked: field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
-ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && array( 'save_login' ) === snt_leaf_actions( $kit ), 'locked: save_login still offered, as on the classic leaf' );
-ok( false !== strpos( $kit, 'disabled' ) && false !== strpos( $kit, 'Slug locked' ), 'locked: the field is disabled and the lock is explained' );
+ok( array() === snt_leaf_actions( $kit ) && array() === snt_leaf_actions( $classic ), 'locked: no Save on either surface (a constant decides the slug; the Save posted no slug and failed)' );
+ok( false !== strpos( $kit, 'disabled' ) && 1 === substr_count( $kit, 'SN_LOGIN_SLUG constant in wp-config.php is overriding' ) && false === strpos( $kit, 'Slug locked by' ), 'locked: the field is disabled and the lock is explained once' );
+ok( false !== strpos( $kit, 'value="pinned" disabled' ) && false !== strpos( $classic, 'value="pinned" disabled' ) && false !== strpos( $kit, 'https://example.test/pinned' ), 'locked: both surfaces show the constant\'s slug and its URL, not the saved setting (PR #2015 review)' );
+ok( false !== strpos( $kit, '<div class="snt-form snt-form--rows"><os-field-row label="Slug">' ) && 1 === preg_match( '/\.snt-app \.snt-form--rows \{\s*display: grid;\s*gap: 14px;/', (string) file_get_contents( SNT_PATH . 'assets/os-app.css' ) ), 'locked: the rows keep the form\'s width and its 14px gap without a form' );
 ok( 1 === preg_match( '/<os-field-row label="Slug"><os-text-field type="text" value="[^"]*" disabled><\/os-text-field><\/os-field-row><p class="snt-hint">Locked\./', $kit ) && false !== strpos( $kit, '<os-field-row label="Current login URL"><os-button class="snt-link snt-link--url" variant="link" os-action="door"' ) && false === strpos( $kit, 'snt-field-static' ), '#1600: the locked slug and the login URL are os-field-rows (the music leaf\'s locked-field shape), no hand-rolled .snt-field-static div' );
-ok( false !== strpos( $kit, 'Option 2' ) && false !== strpos( $kit, 'Restores /wp-login.php' ) && false !== strpos( $kit, 'SN_LOGIN_SLUG' ), 'both emergency-unlock options survive, labelled' );
+ok( false !== strpos( $kit, 'Option 2: disable' ) && false !== strpos( $kit, 'Restores /wp-login.php' ) && false !== strpos( $kit, 'SN_LOGIN_SLUG' ), 'both emergency-unlock options survive, labeled' );
 
 // ── Bypassed state (SN_LOGIN_BYPASS constant set — one-way, so it must run last).
 define( 'SN_LOGIN_BYPASS', true );
 $kit = snt_leaf_paint( 'security', 'login' );
 ok( false !== strpos( $kit, 'Module bypassed' ) && false !== strpos( $kit, '>Bypassed<' ) && false !== strpos( $kit, 'tone="warning"' ), 'the bypassed state paints a warning notice with the Bypassed badge' );
+$classicB = snt_leaf_classic_html( 'sn_admin_render_login_section' );
+ok( false !== strpos( $kit, 'https://example.test/wp-login.php' ) && false === strpos( $kit, 'https://example.test/pinned' ) && false !== strpos( $classicB, 'https://example.test/wp-login.php' ) && false === strpos( $classicB, 'Bookmark this URL' ), 'bypassed: both surfaces give /wp-login.php, the URL that works, not the slug (PR #2015 review)' );
 
 unlink( WP_PLUGIN_DIR . '/wps-hide-login/wps-hide-login.php' );
 rmdir( WP_PLUGIN_DIR . '/wps-hide-login' );
+unlink( WP_PLUGIN_DIR . '/rename-wp-login/rename-wp-login.php' );
+rmdir( WP_PLUGIN_DIR . '/rename-wp-login' );
 rmdir( WP_PLUGIN_DIR );
 
 // ── Siblings pair; a stack is for steps. ──
