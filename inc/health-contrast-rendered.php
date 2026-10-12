@@ -175,6 +175,14 @@ function snt_contrast_rendered() {
  * @return string
  */
 function snt_contrast_rendered_html( array $v, $class ) {
+	// The run's day in the site's date format, never the raw ISO date
+	// (2026-10-12). `at` is a UTC calendar day, so it is printed in UTC: a
+	// site zone would move it a day at UTC+12 and later (or behind UTC from
+	// midnight). Noon only keeps a zone-blind wp_date() on the same day.
+	$ts = '' !== $v['at'] ? strtotime( $v['at'] . ' 12:00:00 UTC' ) : false;
+	if ( false !== $ts && function_exists( 'wp_date' ) ) {
+		$v['at'] = (string) wp_date( (string) get_option( 'date_format', 'F j, Y' ), $ts, new DateTimeZone( 'UTC' ) );
+	}
 	$link = static function ( $text ) use ( $v ) {
 		// A new tab: in S&N Home a plain href replaced the whole desktop with
 		// GitHub (2026-10-12 audit); the classic page loses nothing by it.

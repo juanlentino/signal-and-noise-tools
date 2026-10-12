@@ -46,15 +46,16 @@ $elsewhere = array(
 	'apps/sn-dashboard/parts/leaves/ai-agent-tools-doors.php'   => 'the tool list below',
 	'apps/sn-dashboard/parts/leaves/ai-models-budget-parts.php' => 'The figure above',
 	'apps/sn-dashboard/parts/leaves/site-redirects-rules.php'   => 'add the first one below',
-	'apps/sn-dashboard/parts/leaves/tools-provenance.php'       => 'the commitment above',
 );
 // Idioms that are not places, stripped before the scan so the same string can
 // still fail on a positional word: time ("right now"), SQL, what remains (the
 // exact strings: "N days left", "nothing is left", "allowance is left", "left
 // off", "left afterwards"), a measure against a threshold ("below the floor",
-// "below AA", "above its 7-day mean"), "a right tag" (a correct one), and the
-// dashicons class name. "is left" and "are left" alone are places.
-$idioms = '/\bright (now|away)\b|\bLEFT JOIN\b|\bbelow (the floor|its model|body-text AA|AA|%\d\$s:1)|(%\d\$d|\b\d+) days left\b|\b[Nn]othing is left\b|\ballowance is left\b|\bleft (off|afterwards)\b|\babove its 7-day mean\b|\ba right tag\b|arrow-right/';
+// "below AA", "above its 7-day mean"), "a right tag" (a correct one), the
+// dashicons class name, and a PHP file name a leaf requires (batch 5's
+// tools-provenance-rail.php is code, not a sentence). "is left" and "are
+// left" alone are places.
+$idioms = '/\bright (now|away)\b|\bLEFT JOIN\b|\bbelow (the floor|its model|body-text AA|AA|%\d\$s:1)|(%\d\$d|\b\d+) days left\b|\b[Nn]othing is left\b|\ballowance is left\b|\bleft (off|afterwards)\b|\babove its 7-day mean\b|\ba right tag\b|arrow-right|[\w\/-]+\.php\b/';
 $words  = '/\b(above|below|left|right|rail|beside)\b|\bmain column\b/i';
 
 $pass = 0;
@@ -112,7 +113,7 @@ pw_ok( 1 === count( pw_hits( 'apps/sn-dashboard/parts/leaves/site-redirects-rule
 foreach ( array( 'The Save button is left of Cancel', 'The tabs are left of the list' ) as $sentence ) {
 	pw_ok( 1 === preg_match( $words, (string) preg_replace( $idioms, '', $sentence ) ), "\"is left\" and \"are left\" are places unless they name what remains: $sentence" );
 }
-foreach ( array( 'Run it right now', '%5$d days left', '12 days left', 'Nothing is left unverifiable', 'how much of its API allowance is left', 'below body-text AA', 'where you left off' ) as $idiom ) {
+foreach ( array( 'Run it right now', '%5$d days left', '12 days left', 'Nothing is left unverifiable', 'how much of its API allowance is left', 'below body-text AA', 'where you left off', '/tools-provenance-rail.php' ) as $idiom ) {
 	pw_ok( 0 === preg_match( $words, (string) preg_replace( $idioms, '', $idiom ) ), "an idiom is not a place: $idiom" );
 }
 

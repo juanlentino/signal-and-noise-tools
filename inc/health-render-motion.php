@@ -58,7 +58,7 @@ function sn_health_render_motion_report( $report ) {
 	$neutralized = (int) ( $report['neutralized'] ?? 0 );
 
 	if ( 0 === $scanned ) {
-		echo '<p class="sn-field-helper">' . esc_html__( 'No front stylesheets were readable, so no motion was scanned. This tier reads the plugin\'s front-end CSS and the active theme\'s — the same sheet population as the contrast usage tier.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-field-helper">' . esc_html__( 'No front stylesheets were readable, so no motion was scanned. This tier reads the plugin\'s front-end CSS and the active theme\'s, the same sheet population as the contrast usage tier.', 'signal-and-noise-tools' ) . '</p>';
 		return;
 	}
 
@@ -68,7 +68,7 @@ function sn_health_render_motion_report( $report ) {
 	echo '<p class="sn-health-report__headline">';
 	printf(
 		/* translators: 1: uncovered count, 2: total motion declarations, 3: gated count, 4: neutralized count, 5: stylesheet count */
-		esc_html__( '%1$d of %2$d declared motions have no reduced-motion counterpart — %3$d gated behind no-preference, %4$d neutralized under reduce, across %5$d stylesheets.', 'signal-and-noise-tools' ),
+		esc_html__( '%1$d of %2$d declared motions have no reduced-motion counterpart: %3$d gated behind no-preference, %4$d neutralized under reduce, across %5$d stylesheets.', 'signal-and-noise-tools' ),
 		count( $uncovered ),
 		(int) $total,
 		(int) $gated,
@@ -80,7 +80,7 @@ function sn_health_render_motion_report( $report ) {
 	if ( empty( $uncovered ) ) {
 		// Covered, in the declared tier's own words — "the site shows no
 		// motion" would claim what a stylesheet reader cannot see.
-		echo '<p class="sn-field-helper">' . esc_html__( 'Every declared motion has a reduced-motion counterpart — gated behind no-preference or set to none under reduce. Script-driven motion stays outside this tier, as the coverage line says.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-field-helper">' . esc_html__( 'Every declared motion has a reduced-motion counterpart: gated behind no-preference or set to none under reduce. Script-driven motion stays outside this tier, as the coverage line says.', 'signal-and-noise-tools' ) . '</p>';
 		return;
 	}
 
@@ -118,7 +118,7 @@ function sn_health_render_motion_report( $report ) {
 		echo '<p class="sn-field-helper">';
 		printf(
 			/* translators: %d: hidden row count */
-			esc_html__( '+%d more uncovered declarations — the list is capped, not complete.', 'signal-and-noise-tools' ),
+			esc_html__( '+%d more uncovered declarations; the list is capped, not complete.', 'signal-and-noise-tools' ),
 			(int) $hidden
 		);
 		echo '</p>';

@@ -162,6 +162,16 @@ ok( false !== strpos( $classic, 'aria-describedby="sn-cit-forget-hint"' ) && fal
 foreach ( array( 'classic' => $classic, 'kit' => $kit ) as $which => $html ) {
 	ok( false !== strpos( $html, 'gone.example/x, cites /notes/prov (asserted)' ) && false !== strpos( $html, 'unreachable.example/y, cites /notes/other (unverified)' ) && false === strpos( $html, 'blog.example/2026/post, cites' ), "$which: the form offers the two claims shown to nobody and never the verified one" );
 }
+// 2026-10-12: nothing is preselected and the field is required on both: the
+// newest forgettable claim was preselected and the confirm cannot name it.
+ok( 1 === preg_match( '/<os-field-row[^>]*label="Forget a claim"[^>]*required[^>]*>\s*<os-select[^>]*value=""[^>]*placeholder="Choose a claim"/', $kit ), 'kit: the forget picker starts empty on "Choose a claim" and is required' );
+// 2026-10-12 live check: `required` on the row alone enforced nothing. os-form
+// validates `[name][required]` hosts, and os-field-row (OpenStation 1.1.13)
+// mirrors `required` only onto a light-DOM input/select/[os-field-control],
+// which <os-select> is not. The control itself carries it, for every type.
+ok( 1 === preg_match( '/<os-select name="claim"[^>]*\brequired\b[^>]*>/', $kit ), 'kit: the os-select itself carries required, the attribute os-form validates' );
+ok( 1 === preg_match( '/<os-text-field[^>]*\brequired\b/', \snt_kit_field( 'text', 'x', 'X', '', array( 'required' => true ) ) ) && 0 === preg_match( '/<os-text-field[^>]*\brequired\b/', \snt_kit_field( 'text', 'x', 'X' ) ), 'snt_kit_field: any control asked to be required carries it, and only then' );
+ok( 1 === preg_match( '/<select name="claim" required[^>]*>\s*<option value="" disabled selected>Choose a claim<\/option>/', $classic ), 'classic: the same, a disabled empty first option on a required select' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'rich fixture: no wp-admin markup: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
 ok( false !== strpos( $kit, '<os-stat value="3" label="verified"' ), 'rich fixture: verified glance card reads 3' );
@@ -200,6 +210,10 @@ $cit_saved_counts   = $wpdb->counts_rows;
 $wpdb->counts_rows  = array( snt_cit_test_count_row( 'verified', 60 ), snt_cit_test_count_row( 'unattributed', 17 ), snt_cit_test_count_row( 'asserted', 40 ), snt_cit_test_count_row( 'unverified', 20 ) );
 $kit137             = snt_leaf_paint( 'tools', 'citations' );
 ok( false !== strpos( $kit137, '+37 older claims are not listed; the newest 100 are.' ) && false === strpos( $kit137, 'The newest 100 claims are listed' ), '137 claims, 100 listed: the "+37 more" line counts the cut' );
+$cl137 = snt_leaf_classic_html( 'sn_admin_render_citations_section' );
+ok( false !== strpos( $cl137, '+37 older claims are not listed; the newest 100 are.' ) && false === strpos( $cl137, 'The newest 100 claims are listed' ), '2026-10-12: the classic page counts the same cut in the same words' );
+// 2026-10-12: one heading, open on both surfaces (classic was a closed fold, "What the four tiers mean").
+ok( false !== strpos( $cl137, '<h3>What the tiers mean</h3>' ) && false === strpos( $cl137, '<details' ) && false === strpos( $cl137, 'four tiers' ) && false === strpos( $cl137, '</strong> —' ), 'classic: the tier key is open under the kit\'s heading, with no em dash' );
 $wpdb->counts_rows  = $cit_saved_counts;
 
 // ── Links: every href the classic table offers survives in the kit output
