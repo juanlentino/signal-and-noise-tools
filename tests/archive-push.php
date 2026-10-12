@@ -158,6 +158,9 @@ ok( $w['ripe'] && false !== strpos( $w['note'], 'post 7' ), 'keys removed after 
 $w = snt_watch_ripe_archive_push( array(), $now, array( 'configured' => true, 'last' => array( 'post_id' => 7, 'requested_at' => $now, 'state' => 'requested', 'job_id' => 'spn2-x', 'failures' => array() ) ) );
 ok( ! $w['ripe'] && false !== strpos( $w['note'], 'requested, job spn2-x' ) && false !== strpos( $w['note'], 'not confirmed' ) && false === stripos( $w['note'], 'captured' ) && false === stripos( $w['note'], 'success' ), 'an accepted request is quiet and says requested, not confirmed: never captured' );
 
+$w = snt_watch_ripe_archive_push( array(), $now, array( 'configured' => true, 'last' => array( 'failures' => array( 9 => array( 'requested_at' => $now - 60, 'status' => 0, 'reason' => 'timeout' ) ) ) ) );
+ok( $w['ripe'] && false !== strpos( $w['note'], 'post 9' ) && false !== strpos( $w['note'], 'no response' ) && false === strpos( $w['note'], 'HTTP 0' ), '2026-10-12: a push that got no response says "no response", never "HTTP 0" (unknown is not zero)' );
+
 echo "\nRegistration\n";
 $src = static fn( $f ) => (string) file_get_contents( __DIR__ . '/../' . $f );
 ok( false !== strpos( $src( 'inc/watches.php' ), "'ripe'      => 'snt_watch_ripe_archive_push'" ), 'the watch is registered' );

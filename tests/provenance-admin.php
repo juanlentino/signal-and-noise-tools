@@ -12,6 +12,9 @@ if ( ! defined( 'SNT_PATH' ) ) {
 if ( ! defined( 'SNT_VERSION' ) ) {
 	define( 'SNT_VERSION', 'test' );
 }
+// 2026-10-12: provenance times print through wp_date() in the site's zone
+// (Settings > General is America/New_York on the live site).
+require_once __DIR__ . '/lib/site-timezone-stub.php';
 
 $GLOBALS['__pv_meta']    = array();
 $GLOBALS['__pv_options'] = array();
@@ -273,6 +276,10 @@ if ( ! function_exists( 'get_current_user_id' ) ) {
 if ( ! function_exists( '_n' ) ) {
 	function _n( $single, $plural, $number, $domain = null ) {
 		return 1 === (int) $number ? $single : $plural; }
+}
+if ( ! function_exists( 'wp_kses_post' ) ) {
+	function wp_kses_post( $s ) {
+		return (string) $s; }
 }
 if ( ! function_exists( 'wp_json_encode' ) ) {
 	function wp_json_encode( $d, $f = 0, $depth = 512 ) {
@@ -721,33 +728,51 @@ $h_unsent = ob_get_clean();
 ad_true( false !== strpos( $h_unsent, 'value="sn_prov_reanchor"' ), 'unsent genesis still renders the re-anchor form' );
 ad_true( false === strpos( $h_unsent, 'Already anchored' ), 'unsent genesis → no "already anchored" hint (button active)' );
 
-echo "\nTask 14: last-contact timestamps render in ET, not raw UTC ISO\n";
-// A summer instant (EDT, UTC-4): 19:31:58Z → 3:31 PM EDT.
-ad_eq( 'Jul 9, 2026 3:31 PM EDT', sn_prov_admin_format_ts( '2026-07-09T19:31:58Z' ), 'summer UTC instant → ET with EDT abbreviation' );
-// A winter instant (EST, UTC-5) proves it's DST-aware, not a fixed offset.
-ad_eq( 'Jan 15, 2026 2:31 PM EST', sn_prov_admin_format_ts( '2026-01-15T19:31:58Z' ), 'winter UTC instant → ET with EST abbreviation' );
-// A calendar date (genesis 'date' = YYYY-MM-DD) has no clock — reformat as-is,
-// with NO tz shift (converting midnight across zones would roll it a day back).
-ad_eq( 'Jul 9, 2026', sn_prov_admin_format_ts( '2026-07-09' ), 'date-only genesis date → date, no time, no day-shift' );
-// Degrade gracefully: empty stays empty, unparseable shows verbatim.
-ad_eq( '', sn_prov_admin_format_ts( '' ), 'empty last_contact → empty string' );
-ad_eq( 'not-a-date', sn_prov_admin_format_ts( 'not-a-date' ), 'unparseable timestamp → returned verbatim' );
+echo "\nTask 14: provenance times print in the site's zone and its own formats, never raw UTC ISO\n";
+// 2026-10-12: one readable format, the site's date and time formats (WordPress
+// defaults here, F j, Y and g:i a) in the site's zone. It was a hard-coded
+// America/New_York "M j, Y g:i A T", a fifth date format on the desktop.
+ad_eq( 'July 9, 2026 3:31 pm EDT', sn_prov_admin_format_ts( '2026-07-09T19:31:58Z' ), 'summer UTC instant: site zone, EDT' );
+ad_eq( 'January 15, 2026 2:31 pm EST', sn_prov_admin_format_ts( '2026-01-15T19:31:58Z' ), 'winter UTC instant: site zone, EST (DST-aware, not a fixed offset)' );
+ad_eq( 'July 9, 2026 3:31 pm EDT', sn_prov_admin_format_ts( 1783625518 ), 'a Unix time prints the same way, so the leaf has one format' );
+$GLOBALS['__pv_options']['date_format'] = 'Y-m-d';
+$GLOBALS['__pv_options']['time_format'] = 'H:i';
+ad_eq( '2026-07-09 15:31 EDT', sn_prov_admin_format_ts( '2026-07-09T19:31:58Z' ), 'the site\'s own formats are read, not a hard-coded one' );
+unset( $GLOBALS['__pv_options']['date_format'], $GLOBALS['__pv_options']['time_format'] );
+// A calendar date (genesis 'date' = YYYY-MM-DD) has no clock: date-only, with
+// NO tz shift (converting midnight across zones would roll it a day back).
+ad_eq( 'July 9, 2026', sn_prov_admin_format_ts( '2026-07-09' ), 'date-only genesis date: date, no time, no day-shift' );
+ad_eq( '', sn_prov_admin_format_ts( '' ), 'empty last_contact: empty string' );
+ad_eq( 'not-a-date', sn_prov_admin_format_ts( 'not-a-date' ), 'unparseable timestamp: returned verbatim' );
 
-// Integration: the Worker glance card shows the ET-formatted contact, never raw ISO.
-$et_sys   = array(
+// The tiles: each says what it counts, from the population the table lists.
+$card_by = static function ( array $cards ) {
+	$out = array();
+	foreach ( $cards as $c ) {
+		$out[ $c['key'] ?? '' ] = $c;
+	}
+	return $out;
+};
+$et_sys = array(
 	'worker'  => array( 'reachable' => true, 'last_contact' => '2026-07-09T19:31:58Z' ),
 	'genesis' => array(),
-	'counts'  => array( 'pending' => 0, 'confirmed' => 0 ),
+	'counts'  => array( 'pending' => 0, 'confirmed' => 0, 'unanchored' => 0 ),
 );
-$et_cards = sn_prov_admin_glance_cards( $et_sys );
-$worker_card = '';
-foreach ( $et_cards as $c ) {
-	if ( isset( $c['label'] ) && 'Worker' === $c['label'] ) {
-		$worker_card = (string) $c['value'];
-	}
-}
-ad_true( false !== strpos( $worker_card, 'Reachable · Jul 9, 2026 3:31 PM EDT' ), 'Worker card renders "Reachable · <ET time>"' );
-ad_true( false === strpos( $worker_card, '2026-07-09T19:31:58Z' ), 'Worker card no longer leaks the raw UTC ISO string' );
+$cards = $card_by( sn_prov_admin_glance_cards( $et_sys ) );
+ad_eq( array( 'worker', 'genesis', 'pending', 'unanchored', 'confirmed' ), array_keys( $cards ), 'five tiles, each with a stable key the leaf matches on (never the translated label)' );
+ad_eq( 'Answered', $cards['worker']['value'], 'the Worker tile\'s figure is short ("Answered"), so it sits beside four numeric tiles without wrapping' );
+ad_eq( 'last answered July 9, 2026 3:31 pm EDT', $cards['worker']['caption'], '...and its caption dates the last answer in the site format, never "online" (reachability is inferred, not pinged)' );
+ad_true( false === strpos( wp_json_encode( $cards ), 'online' ) && false === strpos( wp_json_encode( $cards ), 'Reachable' ), 'no tile says online or Reachable' );
+ad_true( ! isset( $cards['confirmed']['pill'] ) && '' === $cards['confirmed']['caption'], 'Confirmed 0 carries no green "anchored" pill' );
+$et_sys['counts']['unanchored'] = 2;
+$et_sys['counts']['confirmed']  = 4;
+$cards = $card_by( sn_prov_admin_glance_cards( $et_sys ) );
+ad_true( '2' === $cards['unanchored']['value'] && 'warn' === $cards['unanchored']['pill']['kind'], 'the unanchored count is painted, amber: it was computed and never shown' );
+ad_true( 'warn' === $cards['worker']['pill']['kind'] && 'last answered July 9, 2026 3:31 pm EDT; 2 proofs not sent' === $cards['worker']['caption'], 'the Worker tile turns amber while proofs wait to be sent, and says how many' );
+ad_true( 'ok' === $cards['confirmed']['pill']['kind'] && 'anchored on Bitcoin' === $cards['confirmed']['caption'], 'Confirmed above zero says what it counts' );
+ad_eq( 3, sn_prov_admin_unlisted( array( 'counts' => array( 'pending' => 4, 'unanchored' => 2 ) ), 3 ), 'the table\'s cut is the tiles\' waiting total minus the rows listed' );
+ad_eq( 0, sn_prov_admin_unlisted( array( 'counts' => array( 'pending' => 1 ) ), 3 ), '...never negative' );
+ad_eq( '', sn_prov_admin_unlisted_line( 0 ), 'no cut, no line' );
 
 echo "\nTask 4z: v12.8.0 — the commits panel can see a signed page\n";
 

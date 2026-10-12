@@ -108,6 +108,17 @@ function sn_health_contrast_would_fail( array $pairs ) {
 }
 
 /**
+ * What the usage tier cannot see, said beside its count on both surfaces.
+ * The method is named in plain words: the reader has no use for the repo path
+ * of the hand-run script (2026-10-12 audit).
+ *
+ * @return string
+ */
+function sn_health_contrast_usage_limits() {
+	return __( 'Reads stylesheet declarations at rest. Hover and focus states, colors inlined in block markup, and the computed cascade are invisible to it; those are measured by hand, with a scan that renders the pages in a real browser, and what it finds is pinned as a test rather than counted here. A clean count here means nothing declared in CSS fails at rest, not that the site passes.', 'signal-and-noise-tools' );
+}
+
+/**
  * The contrast report: the usage tier leads the card, and the arithmetic pair
  * table sits COLLAPSED beneath it (owner decision, 2026-08-11, made after the
  * arithmetic count misled as a headline three separate times).
@@ -218,7 +229,7 @@ function sn_health_render_contrast_report( $report ) {
 		echo '<p class="sn-field-helper">';
 		printf(
 			/* translators: 1: hidden row count, 2: the lowest ratio still shown */
-			esc_html__( '+%1$d more pairs, every one of them at %2$s:1 or better — the table is sorted worst-first, so the tail is the safe end.', 'signal-and-noise-tools' ),
+			esc_html__( '+%1$d more pairs, every one of them at %2$s:1 or better; the table is sorted worst-first, so the tail is the safe end.', 'signal-and-noise-tools' ),
 			(int) $hidden,
 			esc_html( number_format( $floor, 2 ) )
 		);
@@ -269,7 +280,7 @@ function sn_health_render_contrast_usage( $usage ) {
 	$scanned  = (int) ( $usage['scanned'] ?? 0 );
 	$declared = (int) ( $usage['pairings'] ?? 0 );
 
-	echo '<h4 class="sn-health-report__subhead">' . esc_html__( 'Usage tier — pairings actually declared in stylesheets', 'signal-and-noise-tools' ) . '</h4>';
+	echo '<h4 class="sn-health-report__subhead">' . esc_html__( 'Usage tier: pairings actually declared in stylesheets', 'signal-and-noise-tools' ) . '</h4>';
 
 	if ( 0 === $scanned ) {
 		echo '<p class="sn-field-helper">' . esc_html__( 'No stylesheets were readable, so nothing was scored. This tier reads the plugin\'s front-end CSS and the active theme\'s.', 'signal-and-noise-tools' ) . '</p>';
@@ -301,7 +312,7 @@ function sn_health_render_contrast_usage( $usage ) {
 		echo '<p class="sn-field-helper">';
 		printf(
 			/* translators: %s: comma-separated palette names */
-			esc_html__( 'Scored under: %s. The served palette is listed first — a pairing that passes at root and fails under a variation is still a live defect for whoever is being shown that variation.', 'signal-and-noise-tools' ),
+			esc_html__( 'Scored under: %s. The served palette is listed first: a pairing that passes at root and fails under a variation is still a live defect for whoever is being shown that variation.', 'signal-and-noise-tools' ),
 			esc_html( implode( ', ', array_map( 'strval', $palettes ) ) )
 		);
 		echo '</p>';
@@ -310,9 +321,7 @@ function sn_health_render_contrast_usage( $usage ) {
 	// The limits belong beside the headline, not only in the card's coverage
 	// sentence — a reader who trusts a "0 failing" headline is exactly the
 	// reader who did not scroll up to read the caveat.
-	echo '<p class="sn-field-helper">';
-	esc_html_e( 'Reads stylesheet declarations at rest. Hover and focus states, colours inlined in block markup, and the computed cascade are invisible to it — those are measured by hand with tools/contrast-render-scan.mjs, and what it finds is pinned as a test rather than counted here. A clean count here means nothing declared in CSS fails at rest, not that the site passes.', 'signal-and-noise-tools' );
-	echo '</p>';
+	echo '<p class="sn-field-helper">' . esc_html( sn_health_contrast_usage_limits() ) . '</p>';
 
 	sn_health_render_contrast_conditional( isset( $usage['conditional'] ) && is_array( $usage['conditional'] ) ? $usage['conditional'] : array() );
 
@@ -366,7 +375,7 @@ function sn_health_render_contrast_usage( $usage ) {
 		echo '<p class="sn-field-helper">';
 		printf(
 			/* translators: %d: hidden row count */
-			esc_html__( '+%d more failing pairings, sorted worst-first — the tail is the safe end.', 'signal-and-noise-tools' ),
+			esc_html__( '+%d more failing pairings, sorted worst-first; the tail is the safe end.', 'signal-and-noise-tools' ),
 			(int) $hidden
 		);
 		echo '</p>';

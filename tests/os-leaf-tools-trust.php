@@ -83,11 +83,11 @@ $GLOBALS['__scan'] = array(
 $classic = snt_leaf_classic_html( 'snt_trust_render_section' );
 $kit     = trust_paint();
 ok( 4 === substr_count( $classic, 'sn-pill--ok">clear' ) && array( 'clear' ) === array_values( array_unique( trust_readings( $kit ) ) ) && 4 === count( trust_readings( $kit ) ), 'clear state: classic and kit both read "clear" on all four rows' );
-ok( false === strpos( $kit, 'heading="Provenance triangle"' ) && false === strpos( $kit, 'need a look.' ), 'clear state: no check gets a findings section when nothing needs a look' );
+ok( false === strpos( $kit, 'heading="Provenance integrity"' ) && false === strpos( $kit, 'need a look.' ), 'clear state: no check gets a findings section when nothing needs a look' );
 
 // ── Check labels and blurbs: neither renderer may drop a check's identity or
 // what it proves — a refuter mutation showed these were never pinned.
-foreach ( array( 'Provenance triangle', 'Ledger CI', 'Rights signals', 'Rights anchoring' ) as $label ) {
+foreach ( array( 'Provenance integrity', 'Ledger CI', 'Rights signals', 'Rights anchoring' ) as $label ) {
 	ok( false !== strpos( $classic, $label ) && false !== strpos( $kit, $label ), "check label $label printed by both" );
 }
 ok(
@@ -125,11 +125,15 @@ ok( false !== strpos( $classic, '+2 more on Health' ) && false !== strpos( $kit,
 // check with findings is an open section now: its count as the finding, the
 // shown findings as a ledger (subject, note), the rest deferred to Health.
 $readings = trust_readings( $kit );
-ok( '5 findings' === ( $readings['Provenance triangle'] ?? '' ) && '1 finding' === ( $readings['Rights signals'] ?? '' ) && 'clear' === ( $readings['Ledger CI'] ?? '' ) && 'not run' === ( $readings['Rights anchoring'] ?? '' ), 'rich fixture: the checks table reads 5 findings / clear / 1 finding / not run' );
+ok( '5 findings' === ( $readings['Provenance integrity'] ?? '' ) && '1 finding' === ( $readings['Rights signals'] ?? '' ) && 'clear' === ( $readings['Ledger CI'] ?? '' ) && 'not run' === ( $readings['Rights anchoring'] ?? '' ), 'rich fixture: the checks table reads 5 findings / clear / 1 finding / not run' );
 $at_pub  = strpos( $kit, 'heading="The public side"' );
-$at_prov = strpos( $kit, 'heading="Provenance triangle"' );
+$at_prov = strpos( $kit, 'heading="Provenance integrity"' );
 $at_sig  = strpos( $kit, 'heading="Rights signals"' );
 ok( false !== $at_pub && false !== $at_prov && false !== $at_sig && $at_pub < $at_prov && $at_prov < $at_sig, 'rich fixture: each check with findings is an open section under the paired row, in check order' );
+// 2026-10-12: the per-check sections share a row instead of stacking at full
+// width (each is capped at three findings; a skipped one is a sentence).
+$tail = substr( $kit, (int) strrpos( $kit, 'heading="The public side"' ) );
+ok( 1 === preg_match( '/<os-grid[^>]*>\s*<os-section[^>]*heading="Provenance integrity".*heading="Rights signals"/s', $tail ), 'rich fixture: the two findings sections sit side by side in one grid' );
 ok( false !== strpos( $kit, '5 findings need a look.' ) && false !== strpos( $kit, '1 finding needs a look.' ), 'rich fixture: each findings section states its count as the finding' );
 ok( false === strpos( $kit, 'heading="Ledger CI"' ) && false === strpos( $kit, 'heading="Rights anchoring"' ), 'rich fixture: a clear check and a not-run check get no findings section' );
 $ledger = array();
