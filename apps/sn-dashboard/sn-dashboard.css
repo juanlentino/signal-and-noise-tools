@@ -1057,9 +1057,6 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 	gap: 18px;
 	min-width: 0;
 }
-.snt-provenance os-stat {
-	--os-ui-stat-value-color: var( --os-ui-fg );
-}
 .snt-provenance os-stat::part( value ) {
 	overflow-wrap: anywhere;
 }
@@ -1082,15 +1079,8 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 	text-underline-offset: 3px;
 }
 
-/* MCP Clients: the door tiles carry words ("Bound to snwrite", "Bridge
-   ready"), and the stat default is the admin theme color, red here, which
-   made four ready doors read as four alarms. The words take the foreground,
-   as on Provenance; a door that is not ready keeps its toned swatch. The
-   footer's one external link reads like the door links beside it, not as a
-   monospace URL. */
-.snt-leaf[data-snt-leaf="mcp-connect"] os-stat {
-	--os-ui-stat-value-color: var( --os-ui-fg );
-}
+/* MCP Clients: the footer's one external link reads like the door links
+   beside it, not as a monospace URL. */
 .snt-leaf[data-snt-leaf="mcp-connect"] .snt-link {
 	color: var( --os-ui-accent );
 	font-family: inherit;

@@ -381,8 +381,8 @@ $mcp = \SignalNoise\OpenStationHost\Dashboard\Leaves\paint_ai_mcp_connect( array
 preg_match_all( '/<os-stat\b[^>]*\bcaption="([^"]*)"/', $mcp, $caps );
 ok( 4 === count( $caps[1] ) && array() === preg_grep( '/\b(?:used|calls?)\b/i', $caps[1] ), 'no door tile carries a usage line: usage lives once, in the section that controls the door' );
 ok( 1 === preg_match( '/<os-section\b[^>]*heading="Remote door"[^>]*description="([^"]*)"/', $mcp, $rd ) && 1 === preg_match( '/<os-stat\b[^>]*value="([^"]*)"[^>]*label="Remote door"/', $mcp, $rt ) && $rt[1] !== $rd[1] && '' !== $rd[1], 'the Remote door section says what its switch decides, not the state its tile already shows' );
-$css = (string) file_get_contents( dirname( __DIR__ ) . '/apps/sn-dashboard/sn-dashboard.css' );
-ok( 1 === preg_match( '/\.snt-leaf\[data-snt-leaf="mcp-connect"\] os-stat \{\s*--os-ui-stat-value-color: var\( --os-ui-fg \);/', $css ), 'the door tiles take the foreground color, not the admin accent' );
+$css = (string) file_get_contents( dirname( __DIR__ ) . '/assets/os-app.css' );
+ok( 1 === preg_match( '/\.snt-app os-stat \{\s*--os-ui-stat-value-color: var\( --os-ui-fg \);/', $css ), 'every S&N tile takes the foreground color, not the admin accent (red here: "0 findings" read as an alarm)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
