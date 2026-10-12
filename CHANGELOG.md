@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The SN Queue card fits its content (seen live on 2026.10.7 at about 265 wide).** Its default height goes from 780 to 590 (a figure changed): 780 was budgeted for the busiest state and left about 200px empty under Open Scheduled on an ordinary day. 590 is measured on the live desk with the real queue (26 scheduled, six week rows, the next-up box with a three-line title, the counts row, three published and the link): 573 at 265 wide and 549 at 312, plus about 10px of slack. The busiest state (an overdue line, the gap line, three drafts and three Later rows, about 180px more) now scrolls inside the card. A card you already placed keeps its saved size, so drag yours shorter once, or remove and re-add it. "26 scheduled · to Jan 25, 2027" no longer breaks over two lines beside "0 drafts": each stays on one line, side by side when both fit (312 wide) and one under the other when they do not (265 wide). "Open Scheduled→" reads "Open Scheduled →", spaced like Open Analytics (a trailing space inside a flex link is dropped, so the space is now the link's gap). Pinned by tests/desktop-status-resilience.cjs and tests/desktop-mode-integration.php.
+
 ## [2026.10.8] - 2026-10-12 — field vitals, the bot split, and pages that say when they changed
 
 ### Fixed

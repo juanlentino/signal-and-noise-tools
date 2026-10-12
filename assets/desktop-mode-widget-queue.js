@@ -185,6 +185,14 @@
 		var kit = window.sntCardKit;
 		if ( drafts && kit && typeof kit.pair === 'function' ) {
 			wrap.appendChild( kit.pair( depth, drafts ) );
+			// 2026-10-12, seen live at about 265 wide: the pair's equal columns
+			// broke "26 scheduled · to Jan 25, 2027" over two lines beside
+			// "0 drafts". Each group now stays on one line at its own width:
+			// both on one row when they fit, else drafts drops to its own line.
+			depth.style.flex = '1 1 auto';
+			drafts.style.flex = '0 0 auto';
+			depth.style.whiteSpace = drafts.style.whiteSpace = 'nowrap';
+			depth.style.minWidth = drafts.style.minWidth = '0';
 		} else {
 			depth.style.marginTop = '8px';
 			wrap.appendChild( depth );
@@ -254,8 +262,10 @@
 		if ( scheduledUrl ) {
 			var open = el( 'a', {
 				href:  scheduledUrl,
-				text:  'Open Scheduled ',
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:10px;font-size:11px;color:var(--snt-link, var(--os-ui-accent-strong, var(--os-ui-color-accent, #4a9eff)));text-decoration:none;',
+				text:  'Open Scheduled',
+				// The space before the arrow is the flex gap, as on Open
+				// Analytics: a trailing space in a flex item's text is dropped.
+				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;margin-top:10px;font-size:11px;color:var(--snt-link, var(--os-ui-accent-strong, var(--os-ui-color-accent, #4a9eff)));text-decoration:none;',
 			} );
 			// The arrow is decoration, as on every other card: not read aloud.
 			var arrow = el( 'span', { text: '→' } );

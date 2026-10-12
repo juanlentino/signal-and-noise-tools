@@ -54,9 +54,14 @@ Planned button above, which stores a pair of dates and nothing else.
 
 ### Size
 
-Default 312 × 780, measured live (2026-10-12) for the busiest state: a missed
-note, the gap line, three drafts with "+N more" and three Later rows (774). An
-ordinary day needs 594. The grid's
+Default 312 × 590, fit to the ordinary card and measured live (2026-10-12)
+with the real queue: 573 at 265 wide and 549 at 312, chrome included, plus
+about 10px of slack. The
+busiest state (a missed note, the gap line, three drafts with "+N more" and
+three Later rows, about 180px more) scrolls inside the card. It was 780, sized
+for that busiest state, which left about 200px empty on an ordinary day. The
+scheduled count and the drafts count share one row when both fit on a line
+each, and stack otherwise; neither breaks mid-phrase. The grid's
 seven columns are equal shares of the card's width, so they fit any width the
 desktop allows (at the 240 minimum a column is about 23px, targets 25px apart);
 rows grow a little with the card's width. A card the owner resized keeps its

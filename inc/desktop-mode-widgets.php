@@ -182,18 +182,18 @@ add_action( 'init', function() {
 			'description'    => 'The coming six weeks as a calendar with a dot per scheduled note, the selected day\'s notes (the next up first), how deep the queue runs, the drafts by title, any gap in the schedule, and the last three published.',
 			'icon'           => 'dashicons-calendar-alt',
 			'script'         => 'sn-desktop-mode-widget-queue',
-			// 2026-10-12, the calendar: MEASURED live on the owner's desk at
-			// the default 312 width, sized for the BUSIEST state (review on
-			// #2031): 774 with a missed note named before the grid (~22), the
-			// gap line with Planned (24), three drafts and "+2 more" (~85), and
-			// three Later rows (~68), over the real queue's 594 (a weekday
-			// row, six weeks at 26px with the 1st's week at 39, the day box
-			// with a two-line title, "+N more", the pair, three published and
-			// the link). 780 shows the busiest card with no scrollbar; an
-			// ordinary day leaves ~186px under the link. Before: 380, and the
-			// old card measured 418 at this width, so it already scrolled 38px.
-			// A SAVED layout keeps its own height.
-			'default_height' => 780,
+			// 2026-10-12, fit to content (the owner, seen live at about 265
+			// wide: ~200px empty under the link at 780). MEASURED on the live
+			// desk with the real queue (26 scheduled, six week rows, the
+			// next-up box with a three-line title, the stats row, three
+			// published and the link), chrome included: 573 at 265 wide (the
+			// stats row stacks there) and 549 at 312 (one line now, ~15 less);
+			// + ~10 of slack, rounded up to the next 10, as every card. The
+			// busiest state (an overdue line, the gap line, three drafts and
+			// three Later rows, ~180px more) scrolls inside the card. Before:
+			// 780, budgeted for that busiest state. A SAVED layout keeps its
+			// own height.
+			'default_height' => 590,
 		) ) );
 
 		snt_os_register_widget( 'sn-health', array_merge( $sn_drag, array(
