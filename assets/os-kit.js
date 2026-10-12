@@ -255,6 +255,8 @@
 		} );
 	}
 
+	var pending = new WeakSet();
+
 	function reassignProps( el ) {
 		Array.prototype.forEach.call( el.attributes, function ( attr ) {
 			var prop = 0 === attr.name.indexOf( 'os-prop-' ) ? propName( attr.name ) : '';
@@ -263,7 +265,12 @@
 			}
 			var value = el[ prop ];
 			delete el[ prop ];
-			el[ prop ] = value;
+			try {
+				el[ prop ] = value;
+			} catch ( e ) {
+				// A getter-only prop: keep the value rather than lose it.
+				Object.defineProperty( el, prop, { value: value, writable: true, configurable: true } );
+			}
 		} );
 	}
 
@@ -280,11 +287,19 @@
 			if ( ! fed ) {
 				return;
 			}
+			if ( el.localName.indexOf( '-' ) < 1 ) {
+				return; // Not a custom element name: whenDefined would reject.
+			}
 			if ( registry.get( el.localName ) ) {
 				reassignProps( el );
 				return;
 			}
+			if ( pending.has( el ) ) {
+				return; // One wait per element, however many paints pass.
+			}
+			pending.add( el );
 			registry.whenDefined( el.localName ).then( function () {
+				pending.delete( el );
 				reassignProps( el );
 			} );
 		} );
