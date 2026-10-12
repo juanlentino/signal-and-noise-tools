@@ -224,6 +224,16 @@ ok( false !== strpos( $ip_ed, '>Editing</os-badge>' ), 'edit in place: the open 
 ok( 1 === preg_match( '/os-arg-anchor="(snt-row-[0-9a-f]{12})"[^>]*>Cancel/', $ip_ed, $ip_m ) && false !== strpos( $ip_def, 'id="' . $ip_m[1] . '" data-snt-focus' ), 'edit in place: Cancel lands back on the open row\'s own button' );
 ok( false !== strpos( $ip_table['attrs'], 'class="snt-table-full"' ), 'edit in place: the list is not boxed in an inner scroller (the app caps os-table at 440px)' );
 ok( false !== strpos( $ip_ed, '+6 quieter paths are not listed.' ) && 25 === count( snt_leaf_tables( $ip_ed )[0]['data'] ) + count( snt_leaf_tables( $ip_ed )[1]['data'] ), 'edit in place: the halves hold the same 25 paths and the "+6" line still counts the rest' );
+// 2026-10-12 (measured live, foreground window): Broken paths 578px and
+// Automated probes 644px stacked full width, 1.11x, so they pair on one row.
+// With a path open its editor and the resumed table make that side far
+// taller than the probes (past 1.5x), so the editing paint stacks them.
+$pair_open = snt_leaf_row();
+$pair_at   = strpos( $kit, $pair_open );
+$pair_end  = false !== $pair_at ? strpos( $kit, '</os-grid>', $pair_at ) : false;
+$pair      = false !== $pair_end ? substr( $kit, $pair_at, $pair_end - $pair_at ) : '';
+ok( false !== strpos( $pair, 'heading="Broken paths"' ) && false !== strpos( $pair, 'heading="Automated probes"' ), 'Broken paths and Automated probes share one row (heights within 1.5x)' );
+ok( false === strpos( $ip_ed, $pair_open ) && strpos( $ip_ed, 'heading="Automated probes"' ) > strpos( $ip_ed, 'id="snt-edit-region"' ), 'with a path open they stack: the editor under its row at full width, the probes after the list' );
 
 // Review on #2005: each Fix names its path for a screen reader, its visible word first.
 ok( false !== strpos( $kit, 'aria-label="Fix /' ), 'each Fix button is named "Fix /path" (label in name: the visible word first)' );

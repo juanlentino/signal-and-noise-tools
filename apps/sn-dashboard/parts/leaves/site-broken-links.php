@@ -110,10 +110,14 @@ function paint_site_broken_links( array $ctx ) {
 	$path   = redirects_editing( $ctx, array_keys( $broken ) );
 	// 2026-10-12: the editor opens under its row (snt_kit_edit_list()).
 	$editor = '' !== $path ? broken_links_create_html( $path, (array) $broken[ $path ]['entry'], (string) $broken[ $path ]['suggested'] ) : '';
-	$out    = broken_links_reading_html( $data ) . broken_links_paths_html( $broken, $path, $editor );
-	if ( ! empty( $data['probes'] ) ) {
-		$out .= broken_links_probes_html( (array) $data['probes'], (int) $data['probe_hits'] );
-	}
+	$paths  = broken_links_paths_html( $broken, $path, $editor );
+	$probes = ! empty( $data['probes'] ) ? broken_links_probes_html( (array) $data['probes'], (int) $data['probe_hits'] ) : '';
+	// 2026-10-12, measured live: Broken paths 578px beside Automated probes
+	// 644px (1.11x) share a row. With a path open its editor and the resumed
+	// table run that side far past 1.5x, and with no broken path it is one
+	// sentence, so then they stack (snt_kit_grid() returns a lone box bare).
+	$pair   = '' === $editor && array() !== $broken;
+	$out    = broken_links_reading_html( $data ) . ( $pair ? \snt_kit_grid( array( $paths, $probes ) ) : $paths . $probes );
 	if ( array() !== $broken ) {
 		$out .= \snt_kit_action_button(
 			__( 'Clear 404 log', 'signal-and-noise-tools' ),
@@ -124,8 +128,8 @@ function paint_site_broken_links( array $ctx ) {
 			)
 		);
 	}
-	// Full width, no wrapping grid: a pair grid would re-create the two-column
-	// shell this split exists to leave behind.
+	// No grid around the whole leaf: that would re-create the two-column shell
+	// this split exists to leave behind (only the two ledgers above pair).
 	return broken_links_intro_html() . \snt_kit_tag( 'os-stack', array( 'gap' => '12' ), $out );
 }
 
