@@ -34,7 +34,7 @@ const SN_MACHINE_MATURITY_STATUSES = array( 'live', 'planned', 'never' );
 function sn_machine_maturity_layers() {
 	return array(
 		'indexed'    => array( __( 'Indexed', 'signal-and-noise-tools' ), __( 'Can machines find it?', 'signal-and-noise-tools' ), __( 'Sitemaps, feeds, and an AI-crawler manifest at the site root name what exists and what matters, in formats built for readers that are not people', 'signal-and-noise-tools' ) ),
-		'reserved'   => array( __( 'Reserved', 'signal-and-noise-tools' ), __( 'Can machines know the terms?', 'signal-and-noise-tools' ), __( 'A machine-readable reservation rides every response and the crawler manifest carries the same signal, both pointing at one versioned policy that states the conditions in plain language, as a licence file, and as linked data for a machine that asks. The site counts who reads them, and so far no declared AI-training crawler has', 'signal-and-noise-tools' ) ),
+		'reserved'   => array( __( 'Reserved', 'signal-and-noise-tools' ), __( 'Can machines know the terms?', 'signal-and-noise-tools' ), __( 'A machine-readable reservation rides every response and the crawler manifest carries the same signal, both pointing at one versioned policy that states the conditions in plain language, as a license file, and as linked data for a machine that asks. The site counts who reads them, and so far no declared AI-training crawler has', 'signal-and-noise-tools' ) ),
 		'structured' => array( __( 'Structured', 'signal-and-noise-tools' ), __( 'Can machines parse it?', 'signal-and-noise-tools' ), __( 'Structured data rides every meaningful page - articles, the music catalog, route metadata - so a machine parses what the page says instead of guessing at it', 'signal-and-noise-tools' ) ),
 		'summarized' => array( __( 'Summarized', 'signal-and-noise-tools' ), __( 'Can machines answer from it?', 'signal-and-noise-tools' ), __( 'The manifest carries the site\'s own machine-readable summary and its recent notes, so an answer engine can quote this site\'s framing rather than reconstruct it', 'signal-and-noise-tools' ) ),
 		'stamped'    => array( __( 'Stamped', 'signal-and-noise-tools' ), __( 'Can machines trust what they took?', 'signal-and-noise-tools' ), __( 'Artifacts that leave the site keep a way home: share-card images carry an embedded provenance stamp, and notes carry signed records any reader can verify', 'signal-and-noise-tools' ) ),
@@ -46,10 +46,10 @@ function sn_machine_maturity_layers() {
 function sn_machine_maturity_scope() {
 	$scope = array(
 		'manifest'    => array( __( 'AI-crawler manifest', 'signal-and-noise-tools' ), 'live' ),
-		'behaviour'   => array( __( 'Behavioural deviation detection', 'signal-and-noise-tools' ), 'live' ),
+		'behaviour'   => array( __( 'Behavioral deviation detection', 'signal-and-noise-tools' ), 'live' ),
 		'reservation' => array( __( 'TDM reservation', 'signal-and-noise-tools' ), 'live' ),
 		'signal'      => array( __( 'Content signal', 'signal-and-noise-tools' ), 'live' ),
-		'licence'     => array( __( 'Licence file', 'signal-and-noise-tools' ), 'live' ),
+		'licence'     => array( __( 'License file', 'signal-and-noise-tools' ), 'live' ),
 		'policy'      => array( __( 'Rights policy', 'signal-and-noise-tools' ), 'live' ),
 		// v10.71.2: the policy's machine representation declares a locally
 		// defined `sn:` prefix and uses ten terms from it. Those terms resolve
