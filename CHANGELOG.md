@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Colophon › Interop is one short sentence.** It now reads "the site's admin runs inside OpenStation, a WordPress plugin that turns it into a desktop; Daniel López Sánchez, one of its maintainers, contributed to the integration." Removed: "free", "with windows and a dock", "which readers of the public site never see", and the repeated "OpenStation". Both links and the credit stay. The theme's humans.txt follows, since it reads the same facts. Owner's yes, 2026-10-12.
+
 ## [2026.10.5] - 2026-10-12 — the audit finished: every screen says what it measured, widget links land, and a Signal through noise desktop theme
 
 ### Added
