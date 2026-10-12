@@ -3,11 +3,11 @@
  * Signal & Noise Tools: the live strip at the top of [sn_public_stats].
  *
  * /stats is edge-cached HTML, so this paints only the shell: both figures
- * read "—" until assets/live-now.js fills them from the public live route
- * (inc/analytics-live.php). A number baked into a page the edge keeps for
- * hours would be wrong for most of that time. Without JavaScript the strip
- * says the live figures need it; a figure that cannot be read stays "—",
- * never 0.
+ * read "not read" until assets/live-now.js fills them from the public live
+ * route (inc/analytics-live.php). A number baked into a page the edge keeps
+ * for hours would be wrong for most of that time. Without JavaScript the
+ * strip says the live figures need it; a figure that cannot be read stays
+ * "not read" (an em dash until 2026-10-12), never 0.
  *
  * @package SignalNoiseTools
  */
@@ -28,7 +28,7 @@ function sn_public_stats_live_html() {
 			$attrs .= ' ' . esc_attr( $k ) . '="' . esc_attr( $v ) . '"';
 		}
 		return '<div class="sn-public-stats__live-fig">'
-			. '<span class="sn-public-stats__live-n"' . $attrs . '>—</span>'
+			. '<span class="sn-public-stats__live-n"' . $attrs . '>' . esc_html__( 'not read', 'signal-and-noise-tools' ) . '</span>'
 			. '<span class="sn-public-stats__live-l">' . esc_html( $label ) . '</span>'
 			. '<span class="sn-public-stats__sub">' . esc_html( $sub ) . '</span>'
 			. $extra
@@ -48,7 +48,7 @@ function sn_public_stats_live_html() {
 		// Being read now: filled by live-now.js; only published public pages.
 		. '<div class="sn-public-stats__live-pages">'
 		. '<h3 id="sn-public-stats-live-pages-h">' . esc_html__( 'Being read now', 'signal-and-noise-tools' ) . '</h3>'
-		. '<ol class="sn-public-stats__top" aria-labelledby="sn-public-stats-live-pages-h" data-sn-live-pages><li class="sn-public-stats__live-empty">—</li></ol>'
+		. '<ol class="sn-public-stats__top" aria-labelledby="sn-public-stats-live-pages-h" data-sn-live-pages><li class="sn-public-stats__live-empty">' . esc_html__( 'not read', 'signal-and-noise-tools' ) . '</li></ol>'
 		. '</div>'
 		. '<p class="sn-public-stats__live-meta" data-sn-live-meta>' . esc_html__( 'The live figures need JavaScript.', 'signal-and-noise-tools' ) . '</p>'
 		. '</section>';

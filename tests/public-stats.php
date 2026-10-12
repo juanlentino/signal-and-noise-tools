@@ -240,7 +240,10 @@ ok( 30 === $bar_count, 'one bar per window day — 30 bars (got ' . $bar_count .
 $day_cells = substr_count( $html3, 'sn-public-stats__twin-day' );
 ok( 30 === $day_cells, 'one twin day-cell per window day (got ' . $day_cells . ')' );
 $out_cells = substr_count( $html3, 'sn-public-stats__twin-out' );
-ok( $week_rows * 7 - 30 === $out_cells, 'every calendar slot outside the window is an explicit em-dash cell, never a missing one — the grid stays rectangular for the screen reader (got ' . $out_cells . ')' );
+ok( $week_rows * 7 - 30 === $out_cells, 'every calendar slot outside the window is an explicit cell, never a missing one — the grid stays rectangular for the screen reader (got ' . $out_cells . ')' );
+// 2026-10-12, owner: "Yes, say 'not read'". A slot before the window says
+// not read, one after its last day not yet; never an em dash.
+ok( $out_cells === substr_count( $html3, 'twin-out">not read</td>' ) + substr_count( $html3, 'twin-out">not yet</td>' ) && false === strpos( $html3, 'twin-out">—' ), 'each slot outside the window says not read (before it) or not yet (after it), in words' );
 
 echo "\nGroup: render — the rhythm section is absent when it would be filler\n";
 delete_transient( SN_PUBLIC_STATS_CACHE_KEY );

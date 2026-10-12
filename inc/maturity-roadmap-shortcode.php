@@ -698,7 +698,9 @@ function sn_maturity_roadmap_html() {
 			$rows = isset( $columns[ $status ] ) && is_array( $columns[ $status ] ) ? $columns[ $status ] : array();
 			$out .= '<td class="sn-maturity-roadmap-board__cell sn-maturity-roadmap-board__cell--' . esc_attr( $status ) . '" data-label="' . esc_attr( $headings[ $status ] ) . '">';
 			if ( empty( $rows ) ) {
-				$out .= '<span class="sn-maturity-roadmap-board__empty" aria-label="' . esc_attr__( 'nothing here', 'signal-and-noise-tools' ) . '">&mdash;</span>';
+				// An empty column is known, so it says so (an em dash with a
+				// hidden "nothing here" until 2026-10-12).
+				$out .= '<span class="sn-maturity-roadmap-board__empty">' . esc_html__( 'none', 'signal-and-noise-tools' ) . '</span>';
 			} else {
 				$list = '<ul>';
 				foreach ( $rows as $row ) {
