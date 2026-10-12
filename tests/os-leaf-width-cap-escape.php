@@ -135,7 +135,7 @@ ok(
 // ── The two that were actually broken, pinned by name so a revert is loud,
 // and the os-grid hatch (#1622) that took the .snt-cols and .snt-2up class
 // hatches' place at type weight. ──
-foreach ( array( 'os-table', 'os-row', 'os-grid' ) as $type_hatch ) {
+foreach ( array( 'os-table', 'os-row', 'os-grid', 'os-form' ) as $type_hatch ) {
 	$found = array_values( array_filter( $escapes, function ( $s ) use ( $type_hatch ) {
 		return false !== strpos( $s, ':has( ' . $type_hatch . ' )' ) || false !== strpos( $s, ':has(' . $type_hatch . ')' );
 	} ) );
@@ -180,28 +180,34 @@ foreach ( $resets as $reset ) {
 }
 
 
-// ── The form-measure override must stay SCOPED. ──
-// OpenStation caps `os-form` at 760px and that is the right measure for
-// labelled inputs: the empty space beside site/identity-and-seo or
-// security/login is the price of legibility, not a defect. Only a form that has
-// actually paired sibling cards earns the width, via `:has( os-grid )`.
-// Unscoped, this rule would stretch every field in the app to 1,700px.
-$form_rules = array();
-foreach ( $rules as $r ) {
-	foreach ( explode( ',', $r[1] ) as $sel ) {
-		$sel = trim( $sel );
-		if ( false === strpos( $sel, 'os-form' ) ) { continue; }
-		if ( ! preg_match( '/max-width/', $r[2] ) ) { continue; }
-		$form_rules[] = $sel;
+// ── A form is not capped at 760px (2026-10-12 audit, cross-cutting #3). ──
+// The comment that defended the cap said "OpenStation caps os-form at 760px".
+// It does not: 760 is os-form's three-column breakpoint, and the cap was our
+// own `.snt-form`. Content › Now Page, Uses Page, Site › Front-End and
+// Identity & SEO painted one 760px column with about 480px empty beside it.
+// A kit form now fills its leaf and pairs its fields (os-form goes two-up at a
+// 480px container); the leaf releases on :has( os-form ), pinned above; and
+// only the native rows and stack forms, which have no column engine, keep the
+// 760px measure.
+$app_css   = preg_replace( '#/\*.*?\*/#s', '', (string) file_get_contents( dirname( __DIR__ ) . '/assets/os-app.css' ) );
+$form_caps = array();
+foreach ( array( $css, $app_css ) as $sheet ) {
+	preg_match_all( '/([^{}]+)\{([^{}]*)\}/s', $sheet, $sheet_rules, PREG_SET_ORDER );
+	foreach ( $sheet_rules as $r ) {
+		if ( ! preg_match( '/max-width:\s*\d+px/', $r[2] ) ) { continue; }
+		foreach ( explode( ',', $r[1] ) as $sel ) {
+			$sel = trim( $sel );
+			if ( false !== strpos( $sel, 'os-form' ) || 1 === preg_match( '/\.snt-form(?![-\w])/', $sel ) ) {
+				$form_caps[] = $sel;
+			}
+		}
 	}
 }
-ok( array() !== $form_rules, 'a max-width rule on os-form exists to check' );
-foreach ( $form_rules as $sel ) {
-	ok(
-		false !== strpos( $sel, ':has( os-grid )' ) || false !== strpos( $sel, ':has(os-grid)' ),
-		'os-form max-width rule is scoped to :has( os-grid ), never bare -- ' . $sel
-	);
-}
+ok( array() === $form_caps, 'no rule caps a kit form at a pixel width' . ( $form_caps ? ' -- ' . implode( ', ', $form_caps ) : '' ) );
+ok( 1 === preg_match( '/\.snt-app \.snt-form--rows,\s*\.snt-app \.snt-form--stack \{[^}]*max-width: 760px/', $app_css ), 'the native rows and stack forms (no column engine) keep the 760px measure' );
+ok( 1 === preg_match( '/\.snt-app os-form > :not\( os-field-row \),\s*\.snt-app os-form > os-field-row:has\( os-textarea \),\s*\.snt-app os-form > os-field-row:has\( \+ \.snt-hint \) \{\s*grid-column: 1 \/ -1;/', $app_css ), 'only a labelled field shares a row: a textarea, a field with its hint after it, and anything that is not a field span the form' );
+$raw = (string) file_get_contents( $css_path );
+ok( false === strpos( $raw, 'OpenStation caps' ) && false === strpos( $raw, 'os-form:has( os-grid )' ), 'the false comment is gone with the rule it defended (a form that paired its cards had to opt out of a cap that no longer exists)' );
 
 // 17.9.0 (#1624): Block Migrations and Health are os-tables, whose own header
 // stands down on a phone (stacked), so no leaf paints a hand-rolled

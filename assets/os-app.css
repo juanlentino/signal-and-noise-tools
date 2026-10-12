@@ -183,8 +183,35 @@ a.snt-list__label:hover { text-decoration: underline; }
 	background: var( --os-ui-success, #7bd88f );
 }
 
-.snt-dot--err { background: var( --os-ui-danger, #ff5a5a ); }
-.snt-dot--unknown { background: var( --os-ui-fg-faint, #66636b ); }
+/* Status never by color alone (2026-10-12 audit): each state has its own
+   shape, and snt_kit_dot() gives the dot its word for a screen reader. */
+.snt-dot--warn {
+	width: 9px;
+	height: 8px;
+	border-radius: 0;
+	clip-path: polygon( 50% 0, 100% 100%, 0 100% );
+	background: var( --os-ui-warning-fg, #f8f2b6 );
+}
+.snt-dot--err {
+	border-radius: 1px;
+	background: var( --os-ui-danger, #ff5a5a );
+}
+.snt-dot--unknown {
+	background: transparent;
+	box-shadow: inset 0 0 0 1.5px var( --os-ui-fg-muted, #b3afb5 );
+}
+
+/* A sub-heading inside a box (`<h4 class="snt-h">`): the column-heading face.
+   Without it, wp-admin's h4 (13px, 1.33em margins) took S&N Home. */
+:is( .snt-leaf, .snt-view ) .snt-h {
+	margin: 0;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.3;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
 
 /* The Suggest / Apply feedback the shared script mints inside a kit leaf
  * (health-suggest-actions.js): the verdict headline and the after-Apply cell
@@ -301,8 +328,27 @@ a.snt-link {
 .snt-empty-note { margin-top: 8px; }
 
 /* ── Form controls ───────────────────────────────────────────────────── */
+/* A kit form fills its leaf (2026-10-12 audit). It was capped at 760px here,
+   which left about 480px empty beside every lone form in a 1,300px window;
+   os-form has no cap of its own (760 is its three-column breakpoint) and
+   pairs its fields from a 480px form up. Only a labelled field shares a row:
+   a textarea, a field whose hint paragraph follows it, and anything that is
+   not a field (a section, a notice, a switch, a hint) take the whole row. A
+   rule here reaches the slotted children and outranks the shadow's
+   ::slotted( [full-width] ). The native rows and stack forms have no column
+   engine, so they keep the measure. */
 .snt-form {
 	width: 100%;
+}
+
+.snt-app os-form > :not( os-field-row ),
+.snt-app os-form > os-field-row:has( os-textarea ),
+.snt-app os-form > os-field-row:has( + .snt-hint ) {
+	grid-column: 1 / -1;
+}
+
+.snt-app .snt-form--rows,
+.snt-app .snt-form--stack {
 	max-width: 760px;
 }
 

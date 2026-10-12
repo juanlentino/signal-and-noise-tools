@@ -94,7 +94,7 @@ fw_opts( $GLOBALS['__options'] + array( SN_CF_POSTURE_OPT => $posture ) );
 $classic = snt_leaf_classic_html( 'sn_admin_render_firewall_section' );
 $kit     = snt_leaf_paint( 'security', 'firewall' );
 ok( false !== strpos( $kit, '>SSL mode<' ) && false !== strpos( $kit, '>Full (strict)<' ) && false !== strpos( $kit, '>TLS 1.2<' ) && false !== strpos( $kit, 'snt-dot--ok' ), 'judged settings in words with an ok dot' );
-ok( false !== strpos( $kit, '>Development mode<' ) && 2 === substr_count( $kit, 'snt-dot--err' ) && 4 === substr_count( $kit, 'snt-dot--ok' ), 'two err dots (development mode on, the disabled rule) against four ok (three settings, the enabled rule)' );
+ok( false !== strpos( $kit, '>Development mode<' ) && 2 === substr_count( $kit, 'snt-dot--warn' ) && 0 === substr_count( $kit, 'snt-dot--err' ) && 4 === substr_count( $kit, 'snt-dot--ok' ), 'two warn dots (development mode on, the disabled rule), matching their amber values, against four ok (three settings, the enabled rule)' );
 ok( false !== strpos( $kit, 'Also set: Security level medium · Browser integrity check on.' ), 'the readings are one quiet line' );
 ok( false !== strpos( $kit, 'The token lacks Zone › DNS › Read' ) && false !== strpos( $kit, '<os-notice tone="warning"' ), 'the refused DNSSEC read is a warning notice naming the scope' );
 ok( false !== strpos( $kit, '>Custom rules</h4>' ) && false !== strpos( $kit, '>Old guard<' ) && false !== strpos( $kit, '>disabled<' ) && strpos( $kit, '>Custom rules</h4>' ) > strpos( $kit, 'heading="Edge posture"' ), 'custom rules by name; a disabled one says so' );

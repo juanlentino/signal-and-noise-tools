@@ -122,9 +122,28 @@ function snt_kit_histogram( array $series, array $columns, array $opts = array()
 }
 
 /**
+ * A status dot that says its state without color (2026-10-12 audit): a shape
+ * per state in os-app.css (a circle, a triangle, a square, a ring) and the
+ * word for a screen reader. Any kind snt_kit_tone() knows: ok, warn, err, or
+ * anything else as not read.
+ *
+ * @param string $kind Status kind.
+ * @return string
+ */
+function snt_kit_dot( $kind ) {
+	$states = array(
+		'success' => array( 'ok', __( 'OK', 'signal-and-noise-tools' ) ),
+		'warning' => array( 'warn', __( 'Needs a look', 'signal-and-noise-tools' ) ),
+		'danger'  => array( 'err', __( 'Problem', 'signal-and-noise-tools' ) ),
+	);
+	$state = $states[ snt_kit_tone( $kind ) ] ?? array( 'unknown', __( 'Not read', 'signal-and-noise-tools' ) );
+	return snt_kit_tag( 'span', array( 'class' => 'snt-dot snt-dot--' . $state[0], 'role' => 'img', 'aria-label' => $state[1] ) );
+}
+
+/**
  * A label/value list, the ops-wall row: `label`, `value`, optional `href`
- * (external link), `dot` (a status dot: err|unknown|ok), `go` (a `snt_kit_go()`
- * target array: tab, sub, anchor) and `tone`.
+ * (external link), `dot` (a status dot: ok|warn|err|unknown, snt_kit_dot()),
+ * `go` (a `snt_kit_go()` target array: tab, sub, anchor) and `tone`.
  *
  * @param array<int,array<string,mixed>> $rows Rows.
  * @param array<string,mixed>            $opts class, empty.
@@ -141,7 +160,7 @@ function snt_kit_list( array $rows, array $opts = array() ) {
 		}
 		$label = snt_kit_esc( (string) ( $row['label'] ?? '' ) );
 		$dot   = (string) ( $row['dot'] ?? '' );
-		$inner = '' !== $dot ? snt_kit_tag( 'span', array( 'class' => 'snt-dot snt-dot--' . $dot, 'aria-hidden' => 'true' ) ) : '';
+		$inner = '' !== $dot ? snt_kit_dot( $dot ) : '';
 		if ( isset( $row['go'] ) && is_array( $row['go'] ) && function_exists( 'snt_kit_go' ) ) {
 			$inner .= snt_kit_go( (string) ( $row['label'] ?? '' ), $row['go'], array( 'class' => 'snt-list__label', 'variant' => 'link' ) );
 		} elseif ( '' !== (string) ( $row['href'] ?? '' ) ) {

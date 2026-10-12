@@ -54,7 +54,7 @@ $rows = rows_of( $kit );
 ok( array( 'verify-page', 'get-rights-terms', 'related-notes', 'get-site-map', 'get-citation' ) === array_column( $rows, 'tool' ), 'the five registered tools have rows in registration order, with zero calls' );
 ok( '0' === $rows[0]['calls'] && '0' === $rows[0]['ok'], 'zero calls read as zero, not as missing rows' );
 ok( false !== strpos( $kit, 'Reported by browsers' ) && false !== strpos( $classic, 'Reported by browsers' ), 'the caption says what the figure is, on both leaves' );
-ok( false !== strpos( $kit, 'not built yet' ) && false !== strpos( $kit, 'snt-dot--err' ) && false !== strpos( $classic, '<strong>missing</strong>' ), 'no site map: the document reads not built with a red dot; classic says missing' );
+ok( false !== strpos( $kit, 'not built yet' ) && false !== strpos( $kit, 'snt-dot--warn' ) && false !== strpos( $classic, '<strong>missing</strong>' ), 'no site map: the document reads not built with a warn dot (it agreed with the amber value only since 2026-10-12; it was red); classic says missing' );
 ok( false !== strpos( $kit, 'no published note to carry one' ), 'no note: the related manifest says so' );
 ok( false !== strpos( $kit, 'served bytes match the anchored record' ), 'no drift remembered: the bridge reads anchored' );
 // 2026-10-11 (owner rule, no collapsible sections): the four doors were one

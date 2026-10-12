@@ -203,7 +203,8 @@ $an_pair = strpos( $kit, '</os-grid><os-grid' );
 ok( false !== $an_right && strpos( $kit, 'heading="Collector endpoint"' ) < $an_right && strpos( $kit, 'heading="Identity salt window"' ) > $an_right && strpos( $kit, 'heading="Session funnels"' ) > strpos( $kit, 'heading="Identity salt window"' ) && false !== $an_pair && strpos( $kit, 'heading="Exclude my own visits"' ) > $an_pair && strpos( $kit, 'heading="Engine tuning"' ) > strpos( $kit, 'heading="Exclude my own visits"' ), 'the left column ends with Collector endpoint; exclusion and tuning share a row under both columns' );
 // columns="auto": os-form goes two-up once the FORM is 480px wide and stays one
 // column below that (a forced "2" would squeeze two selects into a 290px column).
-ok( 2 === substr_count( $kit, 'columns="auto"' ) && 3 === substr_count( $kit, '<p class="snt-hint" full-width>' ), 'the two short-field forms (exclusion, tuning) go two-up when wide enough; their notes span the row' );
+// Since 2026-10-12 auto is the kit's default for every form (cross-cutting #3).
+ok( 0 === substr_count( $kit, 'columns="1"' ) && substr_count( $kit, 'columns="auto"' ) === substr_count( $kit, '<os-form ' ) && 3 === substr_count( $kit, '<p class="snt-hint" full-width>' ), 'the two short-field forms (exclusion, tuning) go two-up when wide enough, as every form here does; their notes span the row' );
 
 
 // A shared `sn_exclude_roles[]` name per checkbox is silent-by-construction
@@ -379,7 +380,7 @@ $kit = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( array() === snt_leaf_folds( $kit ), 'north star: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
 ok( false !== strpos( $kit, '<os-section heading="North star" description="Counts Notes, Provenance; a read is 60% scroll or 45 s on the page." stack>' ), 'north star: an open section whose description is the current definition (was the "60% or 45 s" fold hint)' );
 ok( strpos( $kit, 'heading="North star"' ) > strpos( $kit, 'heading="Identity salt window"' ) && strpos( $kit, 'heading="North star"' ) < strpos( $kit, 'heading="Session funnels"' ), 'north star: in the right column, above Session funnels, the two definitions together' );
-ok( in_array( 'north_star_save', snt_leaf_actions( $kit ), true ) && array() === array_diff( array( 'sn_nsm_sections[0]', 'sn_nsm_sections[3]', 'sn_nsm_scroll', 'sn_nsm_dwell_s' ), snt_leaf_names( $kit ) ) && 3 === substr_count( $kit, 'columns="auto"' ), 'north star: the form keeps its action and fields, two-up when wide enough' );
+ok( in_array( 'north_star_save', snt_leaf_actions( $kit ), true ) && array() === array_diff( array( 'sn_nsm_sections[0]', 'sn_nsm_sections[3]', 'sn_nsm_scroll', 'sn_nsm_dwell_s' ), snt_leaf_names( $kit ) ) && 0 === substr_count( $kit, 'columns="1"' ), 'north star: the form keeps its action and fields, two-up when wide enough' );
 
 // ── Live-shaped previews, in a child run of this file (SNT_AN_PREVIEW_CHILD):
 // the locked-credentials pins above define SN_CF_ANALYTICS_TOKEN and

@@ -187,7 +187,7 @@ function cloudflare_posture_html() {
 	if ( array() !== $m['checks'] ) {
 		$rows = array();
 		foreach ( $m['checks'] as $c ) {
-			$rows[] = array( 'label' => $c['label'], 'value' => $c['value'], 'dot' => $c['ok'] ? 'ok' : 'err', 'tone' => $c['ok'] ? '' : 'warn' );
+			$rows[] = array( 'label' => $c['label'], 'value' => $c['value'], 'dot' => $c['ok'] ? 'ok' : 'warn', 'tone' => $c['ok'] ? '' : 'warn' );
 		}
 		$inner .= \snt_kit_list( $rows );
 	}
@@ -201,7 +201,7 @@ function cloudflare_posture_html() {
 	if ( array() !== $m['rules'] ) {
 		$rows = array();
 		foreach ( $m['rules'] as $r ) {
-			$rows[] = array( 'label' => $r['name'], 'value' => $r['enabled'] ? $r['action'] : __( 'disabled', 'signal-and-noise-tools' ), 'dot' => $r['enabled'] ? 'ok' : 'err', 'tone' => $r['enabled'] ? '' : 'warn' );
+			$rows[] = array( 'label' => $r['name'], 'value' => $r['enabled'] ? $r['action'] : __( 'disabled', 'signal-and-noise-tools' ), 'dot' => $r['enabled'] ? 'ok' : 'warn', 'tone' => $r['enabled'] ? '' : 'warn' );
 		}
 		$inner .= '<h4 class="snt-h">' . \snt_kit_esc( __( 'Custom rules', 'signal-and-noise-tools' ) ) . '</h4>' . \snt_kit_list( $rows );
 	}

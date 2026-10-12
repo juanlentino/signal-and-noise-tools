@@ -36,6 +36,15 @@ function snt_kit_stat( $value, $label, $caption = '', $kind = '', array $attrs =
 	if ( '' !== (string) $kind && 'success' !== $tone ) {
 		$base['swatch']    = true;
 		$base['data-tone'] = $tone;
+		// The swatch is a color in the shell's shadow with no word (2026-10-12
+		// audit): a toned tile that does not say why says its tone.
+		$words = array(
+			'warning' => __( 'needs a look', 'signal-and-noise-tools' ),
+			'danger'  => __( 'a problem', 'signal-and-noise-tools' ),
+		);
+		if ( null === $base['caption'] && isset( $words[ $tone ] ) ) {
+			$base['caption'] = $words[ $tone ];
+		}
 	}
 	return snt_kit_tag( 'os-stat', array_merge( $base, $attrs ) );
 }
@@ -276,10 +285,20 @@ function snt_kit_empty( $heading, $description = '', $icon = '' ) {
 function snt_kit_tabs( $active, array $items, $bind = 'sub', $label = '', array $attrs = array() ) {
 	$segments = '';
 	$options  = '';
+	$needs    = 0;
 	foreach ( $items as $value => $text ) {
 		$segments .= snt_kit_tag( 'os-segment', array( 'value' => (string) $value ), snt_kit_esc( $text ) );
 		$options  .= snt_kit_tag( 'os-option', array( 'value' => (string) $value ), snt_kit_esc( $text ) );
+		// ponytail: estimated, 7px a character and 32px a pill (Connections'
+		// nine pills: 76 characters, 819px measured); a label set much wider
+		// than the estimate scrolls until its bucket's switch.
+		$needs += 7 * strlen( (string) $text ) + 32;
 	}
+	// 2026-10-12 audit: a bar wider than a narrow desk window clipped its
+	// trailing pills with no scrollbar to reach them. The bar names the
+	// container width it needs (sn-dashboard.css switches to the select twin
+	// under it); one that fits any desk window names none.
+	$fit = $needs > 880 ? '1080' : ( $needs > 720 ? '920' : ( $needs > 560 ? '760' : null ) );
 	$label = '' !== (string) $label ? (string) $label : null;
 	$desk  = snt_kit_tag(
 		'os-segmented',
@@ -296,7 +315,7 @@ function snt_kit_tabs( $active, array $items, $bind = 'sub', $label = '', array 
 	);
 	return snt_kit_tag(
 		'header',
-		array_merge( array( 'class' => 'os-app-list__toolbar snt-subbar' ), $attrs ),
+		array_merge( array( 'class' => 'os-app-list__toolbar snt-subbar', 'data-snt-fit' => $fit ), $attrs ),
 		snt_kit_tag( 'div', array( 'class' => 'os-app-list__toolbar-left' ), $desk . $phone )
 	);
 }

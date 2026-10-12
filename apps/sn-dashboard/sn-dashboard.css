@@ -23,13 +23,38 @@
    twins ship from the server (a paint cannot read the shell's mode); the
    phone select shows only under the shell's mobile stamp, the segmented only
    off it, mirroring `statusControl()` in the runtime's list-ui.ts. One rule
-   per twin, hiding: the select keeps its own :host display when shown. */
-html:not([data-os-mode="mobile"]) .snt-subbar__phone {
+   per twin, hiding: the select keeps its own :host display when shown.
+
+   2026-10-12 audit: a bar wider than the window (Connections' nine pills
+   need about 819px) clipped its trailing leaves, and with the scrollbar
+   hidden a mouse could not reach them. snt_kit_tabs() names the container
+   width such a bar needs (data-snt-fit), and under that width the desk
+   shows the select twin too. */
+html:not([data-os-mode="mobile"]) .snt-subbar:not([data-snt-fit]) .snt-subbar__phone {
 	display: none;
 }
 
 html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmented {
 	display: none;
+}
+
+@container snt-dashboard ( min-width: 761px ) {
+	html:not([data-os-mode="mobile"]) .snt-subbar[data-snt-fit="760"] .snt-subbar__phone { display: none; }
+}
+@container snt-dashboard ( max-width: 760px ) {
+	.snt-subbar[data-snt-fit="760"] > .os-app-list__toolbar-left > os-segmented { display: none; }
+}
+@container snt-dashboard ( min-width: 921px ) {
+	html:not([data-os-mode="mobile"]) .snt-subbar[data-snt-fit="920"] .snt-subbar__phone { display: none; }
+}
+@container snt-dashboard ( max-width: 920px ) {
+	.snt-subbar[data-snt-fit="920"] > .os-app-list__toolbar-left > os-segmented { display: none; }
+}
+@container snt-dashboard ( min-width: 1081px ) {
+	html:not([data-os-mode="mobile"]) .snt-subbar[data-snt-fit="1080"] .snt-subbar__phone { display: none; }
+}
+@container snt-dashboard ( max-width: 1080px ) {
+	.snt-subbar[data-snt-fit="1080"] > .os-app-list__toolbar-left > os-segmented { display: none; }
 }
 
 /* Nine pills need 819px and the toolbar-left keeps min-width:auto, so a
@@ -89,6 +114,7 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( .snt-table-wrap ),
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( os-row ),
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( os-grid ),
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( os-form ),
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( .snt-report-columns ),
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="analytics"],
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="machine-readers"],
@@ -168,20 +194,6 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 	margin-block-start: 0;
 }
 
-/* A form that PAIRS its cards earns the width; a form of fields does not.
-   OpenStation caps `os-form` at 760px, which is the right measure for labelled
-   inputs -- the empty space beside site/identity-and-seo or security/login is
-   the price of legibility, not a defect, and this must not touch them.
-   `:has( os-grid )` is the whole condition: only a form that has actually
-   paired sibling cards opts in.
-
-   Measured live 2026-09-10 on Content -> Now Page: without this, pairing inside
-   the 760px form merely split the cap and cards fell to 355px -- shorter but
-   less readable, a bad trade. With it: leaf 1,386px -> 831px and cards
-   728px -> 826px, so every field is WIDER than before rather than narrower. */
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf os-form:has( os-grid ) {
-	max-width: 100%;
-}
 /* The body's flex column is the kit's `stack` attribute (snt_kit_section()
    passes it); only the gap and the box are ours. */
 .snt-app[data-os-app="sn-dashboard"] .snt-leaf os-section {

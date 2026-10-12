@@ -495,7 +495,7 @@ namespace {
 	// 17.4.3: the leaf bar is the native list toolbar's status control, both
 	// twins bound to sub; the os-tabs strip (the kit's rose underline beside
 	// the chrome's bold white) is gone from this level.
-	ok( false !== strpos( $html, '<header class="os-app-list__toolbar snt-subbar" slot="toolbar"><div class="os-app-list__toolbar-left"><os-segmented class="os-app-list__status" value="health" os-bind="sub" label="Sections">' )
+	ok( 1 === preg_match( '#<header class="os-app-list__toolbar snt-subbar"( data-snt-fit="\d+")? slot="toolbar"><div class="os-app-list__toolbar-left"><os-segmented class="os-app-list__status" value="health" os-bind="sub" label="Sections">#', $html )
 		&& false !== strpos( $html, '<os-segment value="health">' )
 		&& false !== strpos( $html, '<os-select class="os-app-list__status snt-subbar__phone" os-key="subbar-phone" value="health" os-bind="sub" aria-label="Sections">' )
 		&& false !== strpos( $html, '<os-option value="health">' ),
@@ -510,10 +510,20 @@ namespace {
 	$css = (string) preg_replace( '#/\\*.*?\\*/#s', '', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) );
 	$css = (string) preg_replace( '/\\s+/', ' ', $css );
 	$rule = static fn( $sel, $body ) => (bool) preg_match( '/(?:^|\\}) ?' . preg_quote( $sel, '/' ) . ' \\{ ' . preg_quote( $body, '/' ) . ' \\}/', $css );
-	ok( $rule( 'html:not([data-os-mode="mobile"]) .snt-subbar__phone', 'display: none;' )
+	ok( $rule( 'html:not([data-os-mode="mobile"]) .snt-subbar:not([data-snt-fit]) .snt-subbar__phone', 'display: none;' )
 		&& $rule( 'html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmented', 'display: none;' )
 		&& ! $rule( '.snt-subbar__phone', 'display: none;' ),
 		'   ...the phone twin hides only off the shell`s mobile stamp and the desk twin only under it, each by its own rule' );
+	// 2026-10-12 audit (cross-cutting #8): nine Connections pills need about
+	// 819px, and the hidden scrollbar left Cron and Scheduled out of reach in a
+	// half-screen window. A bar the kit measured as wide (data-snt-fit, the
+	// container width it needs) switches to the select twin below that width.
+	foreach ( array( '760', '920', '1080' ) as $fit ) {
+		$at = (int) $fit + 1;
+		ok( 1 === preg_match( '/@container snt-dashboard \( min-width: ' . $at . 'px \) \{ html:not\(\[data-os-mode="mobile"\]\) \.snt-subbar\[data-snt-fit="' . $fit . '"\] \.snt-subbar__phone \{ display: none; \} \}/', $css )
+			&& 1 === preg_match( '/@container snt-dashboard \( max-width: ' . $fit . 'px \) \{ \.snt-subbar\[data-snt-fit="' . $fit . '"\] > \.os-app-list__toolbar-left > os-segmented \{ display: none; \} \}/', $css ),
+			"   ...a bar that needs {$fit}px shows the select twin in a window narrower than that, the pills in a wider one" );
+	}
 	ok( $rule( '.snt-subbar > .os-app-list__toolbar-left', 'min-width: 0; overflow-x: auto; scrollbar-width: none;' )
 		&& $rule( '.snt-subbar os-segment', 'flex: 0 0 auto;' ),
 		'   ...and the pill row scrolls sideways in a window narrower than its pills, the parent scrolling and the segments unshrinkable' );

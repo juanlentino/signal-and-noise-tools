@@ -70,7 +70,9 @@ function snt_kit_form( $sn_action, $inner, array $opts = array() ) {
 			'os-arg-pipeline'   => isset( $opts['pipeline'] ) ? (string) $opts['pipeline'] : null,
 			'submit-label'      => (string) ( $opts['submit'] ?? __( 'Save', 'signal-and-noise-tools' ) ),
 			'show-reset'        => 'false',
-			'columns'           => (string) ( $opts['columns'] ?? '1' ),
+			// 2026-10-12 audit: auto, so a form of fields pairs them (two-up at a
+			// 480px form) instead of one 760px column beside an empty half.
+			'columns'           => (string) ( $opts['columns'] ?? 'auto' ),
 			'os-confirm'        => isset( $opts['confirm'] ) ? (string) $opts['confirm'] : null,
 			'os-confirm-danger' => ! empty( $opts['danger'] ),
 		),

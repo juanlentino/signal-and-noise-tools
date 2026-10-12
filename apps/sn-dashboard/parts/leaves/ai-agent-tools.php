@@ -59,7 +59,7 @@ function agent_tools_bridge_html( array $m ) {
 		. '<p class="snt-hint">' . \snt_kit_esc( $m['caption'] ) . '</p>';
 	$docs = array();
 	foreach ( $m['documents'] as $d ) {
-		$docs[] = array( 'label' => $d['label'], 'value' => $d['value'], 'dot' => $d['ok'] ? 'ok' : 'err', 'tone' => $d['ok'] ? '' : 'warn' );
+		$docs[] = array( 'label' => $d['label'], 'value' => $d['value'], 'dot' => $d['ok'] ? 'ok' : 'warn', 'tone' => $d['ok'] ? '' : 'warn' );
 	}
 	$right = \snt_kit_list( $docs );
 	return \snt_kit_grid(
