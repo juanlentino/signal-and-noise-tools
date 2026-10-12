@@ -561,10 +561,17 @@ function sn_analytics_forecast_of( $subject, $label, $series, $from, $to, $opts 
 			'value'         => null,
 			'confidence'    => 'none',
 			'window'        => array( 'from' => (string) $from, 'to' => (string) $to, 'baseline_days' => count( $ys ) ),
-			'plain_label'   => sprintf(
-				'%s: no forecast: neither the %d-day median nor a Holt trend beats a same-value baseline on this history (best skill %.2f over %d checks)',
-				(string) $label, SN_ANALYTICS_FORECAST_WINDOW, max( (float) $skill, (float) ( $by_hol['skill'] ?? $skill ) ), (int) $backtest['checks']
-			),
+			// Both scores, as measured: Holt can beat the baseline and still not
+			// clear the lead it needs over the median, so "neither" would be false.
+			'plain_label'   => null !== ( $by_hol['skill'] ?? null )
+				? sprintf(
+					'%s: no forecast: against a same-value baseline the %d-day median scores %.2f and a Holt trend %.2f over %d checks; a forecast needs a score above 0, and Holt a lead of %.1f over the median',
+					(string) $label, SN_ANALYTICS_FORECAST_WINDOW, (float) $by_med['skill'], (float) $by_hol['skill'], (int) $backtest['checks'], SN_ANALYTICS_FORECAST_HOLT_MARGIN
+				)
+				: sprintf(
+					'%s: no forecast: the %d-day median does not beat a same-value baseline on this history (skill %.2f over %d checks)',
+					(string) $label, SN_ANALYTICS_FORECAST_WINDOW, (float) $skill, (int) $backtest['checks']
+				),
 			'severity'      => 0,
 		);
 	}

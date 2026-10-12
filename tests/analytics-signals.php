@@ -175,6 +175,30 @@ ok( is_array( $sn_ok ) && 'forecast' === $sn_ok['kind'], 'a skillful series stil
 $sn_t = sn_analytics_forecast_of( 'x', 'Trend', $sn_series( $sn_lin ), '2026-08-01', '2026-08-30', array() );
 ok( is_array( $sn_t ) && 'forecast' === $sn_t['kind'] && 'holt_linear' === $sn_t['stat'] && 'up' === $sn_t['direction'], 'a steady climb picks Holt (it beats the median by the margin) and states its direction' );
 ok( false !== strpos( $sn_t['plain_label'], 'Holt trend' ), 'and the label names the model it used' );
+// What a Holt pick shows is Holt's own: its point 7 days out, clamped at 0, its
+// band from its own misses, its confidence from its own coverage.
+$holt_shows = static function ( array $ys, $sig ) {
+	$fit   = sn_analytics_stat_holt( $ys );
+	$point = max( 0.0, $fit['level'] + 7 * $fit['trend'] );
+	$bt    = sn_analytics_forecast_backtest( $ys, 7, min( SN_ANALYTICS_FORECAST_WINDOW, max( 3, (int) floor( count( $ys ) / 2 ) ) ), 'holt' );
+	return round( $point, 1 ) === $sig['value']
+		&& round( max( 0.0, $point + sn_analytics_stat_quantile( $bt['errors'], 0.1 ) ), 1 ) === $sig['interval']['low']
+		&& round( max( 0.0, $point + sn_analytics_stat_quantile( $bt['errors'], 0.9 ) ), 1 ) === $sig['interval']['high']
+		&& sn_analytics_forecast_confidence( $bt['coverage'], (int) $bt['band_checks'] ) === $sig['confidence'];
+};
+ok( $holt_shows( $sn_lin, $sn_t ), 'a Holt pick shows Holt\'s 7-day point, its own band and its own confidence' );
+// The backtest clamps Holt at 0 as the live forecast does: a fall below zero scores against 0.
+$fall = array(); for ( $i = 0; $i < 30; $i++ ) { $fall[] = max( 0, 60 - 3 * $i ); }
+$fb   = sn_analytics_forecast_backtest( $fall, 7, 14, 'holt' );
+$ref  = 0.0; $nref = 0;
+for ( $c = 14; $c < 30; $c++ ) { $ft = sn_analytics_stat_holt( array_slice( $fall, 0, $c ) ); for ( $h = 1; $h <= min( 7, 30 - $c ); $h++ ) { $ref += abs( $fall[ $c + $h - 1 ] - max( 0.0, $ft['level'] + $h * $ft['trend'] ) ); $nref++; } }
+ok( abs( $fb['mae'] - $ref / $nref ) < 1e-9, 'the Holt backtest scores the clamped point, as the live forecast shows it' );
+// Holt about 0.13 ahead clears the 0.1 lead and is picked; a rigid series keeps the median.
+$sn_ahead = array(); for ( $i = 0; $i < 40; $i++ ) { $sn_ahead[] = 50 + 0.4 * $i + ( ( ( $i * 7 ) % 5 ) - 2 ) * 2.5; }
+$ah = sn_analytics_forecast_of( 'x', 'Ahead', $sn_series( $sn_ahead ), '2026-08-01', '2026-08-30', array() );
+ok( 'holt_linear' === ( $ah['stat'] ?? '' ) && 'forecast' === $ah['kind'] && $holt_shows( $sn_ahead, $ah ), 'Holt 0.13 ahead of a median that does not beat the baseline: picked, and shown as Holt' );
+$rg = sn_analytics_forecast_of( 'x', 'Rigid', $sn_series( array_fill( 0, 30, 12 ) ), '2026-08-01', '2026-08-30', array() );
+ok( 'rolling_median' === ( $rg['stat'] ?? '' ), 'a rigid series (both skills undefined) keeps the median' );
 // Holt by less than the margin is noise, not a win: the median stays (a
 // margin of 0 let picking score below the median alone on the real crawler series).
 $sn_near = array(); for ( $i = 0; $i < 40; $i++ ) { $sn_near[] = 50 + 0.3 * $i + ( ( ( $i * 7 ) % 5 ) - 2 ) * 2; }
@@ -190,8 +214,14 @@ ok( 'predictive' === $sn_w['tier'], 'it stays in the predictive tier — the tie
 ok( null === $sn_w['value'] && 'none' === $sn_w['confidence'], 'no value, no confidence' );
 ok( ! isset( $sn_w['direction'] ), 'and NO direction: nothing is rising or falling' );
 ok( 0 === $sn_w['severity'], 'severity 0 so it never outranks a real finding' );
-ok( false !== strpos( $sn_w['plain_label'], 'beats a same-value baseline' ) && false !== strpos( $sn_w['plain_label'], 'neither' ), 'the label states WHY (neither model beats the baseline)' );
-ok( false !== strpos( $sn_w['plain_label'], 'skill' ), 'and names the skill score, so the refusal is checkable' );
+ok( false !== strpos( $sn_w['plain_label'], 'same-value baseline' ) && false !== strpos( $sn_w['plain_label'], 'median scores' ) && false !== strpos( $sn_w['plain_label'], 'Holt trend' ), 'the label states WHY, with both models\' scores' );
+// PR #2016 review: Holt can beat the baseline and still not clear its lead.
+// A real 30-day crawler window: median -0.03, Holt +0.06. Withheld under the
+// margin, and the label must not say "neither" beats the baseline.
+$real_w = json_decode( (string) file_get_contents( __DIR__ . '/fixtures/forecast-real-series.json' ), true );
+$sn_lag = sn_analytics_forecast_of( 'x', 'AI training', $sn_series( array_slice( $real_w['crawler_ai_training'], 20, 30 ) ), '2026-08-01', '2026-08-30', array() );
+ok( 'forecast_withheld' === ( $sn_lag['kind'] ?? '' ) && false === strpos( $sn_lag['plain_label'], 'neither' ) && false !== strpos( $sn_lag['plain_label'], 'median scores -0.03 and a Holt trend 0.06' ) && false !== strpos( $sn_lag['plain_label'], 'a lead of 0.1' ), 'Holt beats the baseline but not the lead: withheld, and the label gives both scores and the rule' );
+ok( 1 === preg_match( '/median scores -?\d+\.\d\d and a Holt trend -?\d+\.\d\d over \d+ checks/', $sn_w['plain_label'] ), 'and names both scores and the check count, so the refusal is checkable' );
 
 // NULL skill must NOT suppress — undefined is not failure.
 $sn_f = sn_analytics_forecast_of( 'x', 'Flat', $sn_series( $sn_flat ), '2026-08-01', '2026-08-30', array() );
