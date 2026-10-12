@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" preserveAspectRatio="xMidYMid slice">
 	<title>Signal</title>
-	<style>@keyframes draw{from{stroke-dashoffset:1}}@media (prefers-reduced-motion: no-preference){.signal{stroke-dasharray:1;animation:draw 2.8s cubic-bezier(.22,.9,.28,1) .4s backwards}}</style>
+	<style>path{vector-effect:non-scaling-stroke}@keyframes draw{from{stroke-dashoffset:1}}@media (prefers-reduced-motion: no-preference){.signal{stroke-dasharray:1;animation:draw 2.8s cubic-bezier(.22,.9,.28,1) .4s backwards}}</style>
 	<rect width="1920" height="1080" fill="#0a0a0a"/>
 	<g fill="none" stroke="#ffffff" stroke-width="1.25" stroke-linejoin="round">
 		<path d="M0 196l16 -1l16 2l16 -1l16 0l16 1l16 -1l16 0l16 0l16 -1l16 1l16 -2l16 -1l16 0l16 0l16 0l16 2l16 -4l16 -3l16 10l16 -7l16 2l16 -1l16 1l16 1l16 -1l16 1l16 0l16 3l16 -1l16 0l16 -1l16 3l16 -1l16 1l16 -1l16 0l16 -1l16 0l16 0l16 -1l16 0l16 3l16 -4l16 3l16 0l16 -1l16 0l16 0l16 0l16 2l16 -1l16 2l16 0l16 0l16 -1l16 1l16 0l16 -1l16 0l16 -1l16 1l16 -1l16 0l16 2l16 -2l16 1l16 -1l16 -2l16 1l16 -2l16 0l16 0l16 0l16 1l16 -1l16 0l16 0l16 1l16 1l16 -1l16 0l16 0l16 2l16 -1l16 1l16 -3l16 2l16 -1l16 0l16 -1l16 1l16 0l16 -2l16 0l16 0l16 1l16 -2l16 0l16 2l16 0l16 -1l16 2l16 1l16 -1l16 1l16 1l16 -1l16 1l16 1l16 -1l16 0l16 2l16 0l16 0l16 -2l16 -1l16 3l16 -2l16 -1l16 2" stroke-opacity="0.044"/>

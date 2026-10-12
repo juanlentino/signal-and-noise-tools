@@ -454,6 +454,10 @@ foreach ( $walls as $wid => $wall ) {
 	$svg = strtolower( (string) @file_get_contents( snt_dt_path( $wall['path'] ?? '' ) ) );
 	ok( false !== strpos( $svg, '#0a0a0a' ), "the $wid wallpaper sits on #0a0a0a" );
 	ok( ( 'signal' === $wid ) === ( false !== strpos( $svg, '#ff4c47' ) ), "the $wid wallpaper " . ( 'signal' === $wid ? 'carries the one red line' : 'is noise only' ) );
+	// 2026.10.6: drawn at 1920 wide, a 2.25 stroke was a fifth of a pixel in a
+	// picker tile, so the tile read black and the red line vanished. Every
+	// stroke keeps its width in screen pixels, the same at full size.
+	ok( false !== strpos( preg_replace( '/\s+/', '', $svg ), 'path{vector-effect:non-scaling-stroke}' ), "the $wid wallpaper's strokes keep their width at tile size (non-scaling-stroke)" );
 }
 ok( isset( $walls['signal']['path'] ) && ( $args['preview'] ?? '' ) === $walls['signal']['path'], 'the theme preview is the Signal wallpaper, not another file' );
 $sig = strtolower( (string) @file_get_contents( snt_dt_path( $walls['signal']['path'] ?? '' ) ) );

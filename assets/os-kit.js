@@ -234,4 +234,59 @@
 			win.activateTab( view );
 		}
 	} );
+
+	/*
+	 * A kit property assigned before its tag was defined (2026.10.6). The
+	 * runtime assigns `os-prop-*` and only then loads a kit tag the page has
+	 * not defined yet (openstation src/app-runtime/session.ts finishRender()).
+	 * On a cold open the assignment lands as an own property of a plain
+	 * element, and after the upgrade it shadows the class setter: an
+	 * <os-table> kept its rows on the element and painted "Nothing to show."
+	 * (Connections > Credentials, all three tables). After every paint, each
+	 * such own property is deleted and assigned again, through the setter,
+	 * once the tag is defined. An element fed after its upgrade has no own
+	 * property and is left alone.
+	 */
+	var hasOwn = Object.prototype.hasOwnProperty;
+
+	function propName( attr ) {
+		return attr.slice( 'os-prop-'.length ).replace( /-([a-z])/g, function ( m, c ) {
+			return c.toUpperCase();
+		} );
+	}
+
+	function reassignProps( el ) {
+		Array.prototype.forEach.call( el.attributes, function ( attr ) {
+			var prop = 0 === attr.name.indexOf( 'os-prop-' ) ? propName( attr.name ) : '';
+			if ( ! prop || ! hasOwn.call( el, prop ) ) {
+				return;
+			}
+			var value = el[ prop ];
+			delete el[ prop ];
+			el[ prop ] = value;
+		} );
+	}
+
+	document.addEventListener( 'snt:paint', function ( event ) {
+		var root = event.detail && event.detail.root;
+		var registry = window.customElements;
+		if ( ! root || ! root.querySelectorAll || ! registry ) {
+			return;
+		}
+		Array.prototype.forEach.call( root.querySelectorAll( '*' ), function ( el ) {
+			var fed = Array.prototype.some.call( el.attributes, function ( attr ) {
+				return 0 === attr.name.indexOf( 'os-prop-' );
+			} );
+			if ( ! fed ) {
+				return;
+			}
+			if ( registry.get( el.localName ) ) {
+				reassignProps( el );
+				return;
+			}
+			registry.whenDefined( el.localName ).then( function () {
+				reassignProps( el );
+			} );
+		} );
+	} );
 } )();
