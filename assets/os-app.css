@@ -349,6 +349,13 @@ a.snt-link {
 	}
 }
 
+/* Field rows painted without an os-form (Login URL's locked slug): the form's
+ * width from .snt-form, and the gap os-form keeps in its shadow. */
+.snt-app .snt-form--rows {
+	display: grid;
+	gap: 14px;
+}
+
 /* A native <form os-action> (Webhooks, Tags: repeated-name checkbox groups a
  * kit form cannot carry) ends in a real <button> and ticks real checkboxes;
  * neither is form-associated in the kit, so the look is borrowed (#1595).

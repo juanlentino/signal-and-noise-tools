@@ -60,7 +60,7 @@ function paint_security_login( array $ctx ) {
 	);
 	// Locked: no form. A constant decides the slug, so a Save could only fail
 	// (it posted no slug and answered "Login slug cannot be empty").
-	$form = $s['locked'] ? \snt_kit_tag( 'div', array( 'class' => 'snt-form' ), $slug_row . $url_row ) : \snt_kit_form( 'save_login', $slug_row . $url_row, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
+	$form = $s['locked'] ? \snt_kit_tag( 'div', array( 'class' => 'snt-form snt-form--rows' ), $slug_row . $url_row ) : \snt_kit_form( 'save_login', $slug_row . $url_row, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
 	// Siblings: both are how the login surface is reached -- one sets the door,
 	// the other is the way back in when you lose it. Paired, the leaf also trips
 	// the width-cap escape, so each gets ~850px instead of a 760px form column.

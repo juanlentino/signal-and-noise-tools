@@ -40,6 +40,16 @@ $found = preg_match( '/@supports \( color: color\( from red srgb-linear .*?\) \)
 ok( 1 === $found, 'the accent ink is computed from the fill in linear sRGB, gated on the same expression' );
 $threshold  = $found ? (float) $m[1] : 0.0;
 $multiplier = $found ? (float) $m[2] : 0.0;
+// PR #2015 re-review: the listed fills alone let 0.19, 0.20 and a 1e7
+// multiplier through (232,220 to 578,420 of 16.7M fills wrong). Pin them:
+// black and white tie at luminance 0.17913, and below 1e8 a gray band opens.
+ok( abs( $threshold - 0.17913 ) <= 5e-5, sprintf( 'the ink switches at the black/white tie, luminance 0.17913 (rule: %s)', $threshold ) );
+ok( $multiplier >= 1e8, sprintf( 'the step is hard enough that no 8-bit fill gets a gray ink (multiplier %.0e, needs 1e8)', $multiplier ) );
+$g0   = strpos( $app, '@supports ( color: ' );
+$gate = false !== $g0 ? substr( $app, $g0 + 19, (int) strpos( $app, ' ) {', $g0 ) - $g0 - 19 ) : '';
+$r0   = strpos( $app, '--os-ui-accent-ink: color( from var( --wp-admin-theme-color, var( --os-ui-accent, #2271b1 ) ) ' );
+$rule = false !== $r0 ? substr( $app, $r0 + 94, (int) strpos( $app, ' );', $r0 ) - $r0 - 94 ) : '';
+ok( '' !== $rule && 'color( from red ' . $rule . ' )' === $gate, 'the @supports gate tests the rule\'s own expression' );
 
 function lin( $c ) { $c /= 255; return $c <= 0.04045 ? $c / 12.92 : ( ( $c + 0.055 ) / 1.055 ) ** 2.4; }
 function lum( $hex ) { list( $r, $g, $b ) = array_map( static fn( $p ) => lin( hexdec( $p ) ), str_split( ltrim( $hex, '#' ), 2 ) ); return 0.2126 * $r + 0.7152 * $g + 0.0722 * $b; }
