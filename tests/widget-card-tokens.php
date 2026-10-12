@@ -42,7 +42,8 @@ function strip_js( $js ) {
 }
 
 $root  = dirname( __DIR__ );
-$files = glob( $root . '/assets/desktop-mode-widget*.js' );
+// + the queue card's calendar (2026-10-12): a helper, not a widget, held to the same tokens.
+$files = array_merge( glob( $root . '/assets/desktop-mode-widget*.js' ), array( $root . '/assets/desktop-mode-queue-calendar.js' ) );
 // Six since the cards folded twelve to six (2026-10-04): views, groups, queue,
 // health, the deploy card, anchors.
 ok( count( $files ) >= 6, 'the widget scan found every widget script (' . count( $files ) . ', floor 6)' );
@@ -136,7 +137,8 @@ foreach ( array( 'desktop-mode-widget.js', 'desktop-mode-widget-health.js', 'des
 ok( false !== strpos( $code['desktop-mode-widget.js'], 'nextAt = lastAt + Math.max( lastDelay, cadence( REFRESH_MS ) );' ), 'the deploy card: a failure backoff still wins when longer than the cadence' );
 $assets_php = (string) file_get_contents( dirname( __DIR__ ) . '/inc/desktop-mode-assets.php' );
 ok( 7 === preg_match_all( "/array\\([^)]*'snt-poll-cadence'/", $assets_php ), 'the six pollers (deploy, queue, systems, traffic, reading, provenance) and the pulse declare the cadence as a dependency' );
-ok( 4 === preg_match_all( "/array\\([^)]*'snt-card-kit'/", $assets_php ), 'the four cards that use the kit (traffic, reading and provenance draw share bars and pairs; systems pairs Edge and Cache, 2026-10-10) declare it as a dependency' );
+ok( 5 === preg_match_all( "/array\\([^)]*'snt-card-kit'/", $assets_php ), 'the five cards that use the kit (traffic, reading and provenance draw share bars and pairs; systems pairs Edge and Cache, 2026-10-10; the queue pairs Scheduled and Drafts) declare it as a dependency' );
+ok( 1 === preg_match( "/'sn-desktop-mode-widget-queue',[^;]*array\\([^)]*'snt-queue-calendar'/", $assets_php ), 'SN Queue declares its calendar, or the card falls back to the Then list' );
 ok( 1 === preg_match( "/'health' === \\\$sn_widget\s*\\?\s*array\\([^)]*'snt-card-kit'/", $assets_php ), 'SN Systems itself declares the kit, or its pair silently stacks' );
 
 // 6. Negative control: the status colours have no widget token and stay literal.

@@ -9,8 +9,9 @@
  * scheduled queue, so the depth line is the reading.
  *
  * Data: the signal-noise/content-queue ability (readonly, GET run-path). Every
- * label is computed server-side in the site timezone; this file paints
- * strings and never does date arithmetic.
+ * label and every day is computed server-side in the site timezone; this
+ * file paints strings. The calendar (desktop-mode-queue-calendar.js,
+ * 2026-10-12) counts days forward from the server's week_start, and only that.
  *
  * Refresh: every 60s while the tab is visible, and at once on reveal when
  * the last run is older than that (Recipe 2, #1603), so a note scheduled in
@@ -132,9 +133,10 @@
 		} );
 	}
 
-	function renderCard( container, data ) {
+	function renderCard( container, data, state ) {
 		clearChildren( container );
-		data = data && typeof data === 'object' ? data : {};
+		data  = data && typeof data === 'object' ? data : {};
+		state = state || {};
 
 		var wrap  = el( 'div', { style: 'padding:14px 16px;color:inherit;' } );
 		var next  = asList( data.next );
@@ -142,8 +144,22 @@
 		// A payload without the count paints it as not read, never as 0.
 		var total = typeof data.scheduled_total === 'number' ? data.scheduled_total : null;
 
-		// Headline: the next note, or the honest empty state.
-		if ( next.length ) {
+		// 2026-10-12, the owner's redesign: the coming weeks as a calendar,
+		// the selected day's notes in a box under it (the next-up day first,
+		// so the old headline lives there). Without the calendar script or
+		// the payload's week_start, the headline and the Then list as before.
+		var cal = window.sntQueueCalendar && typeof window.sntQueueCalendar.render === 'function'
+			? window.sntQueueCalendar.render( data, { selected: state.day, onSelect: function( day ) { state.day = day; } } )
+			: null;
+		if ( cal ) {
+			wrap.appendChild( cal.node );
+			// A "Then" note past the grid stays reachable by name.
+			var later = next.slice( 1 ).filter( function( item ) { return item && typeof item.day === 'string' && item.day > cal.lastDay; } );
+			if ( later.length ) {
+				wrap.appendChild( heading( 'Later' ) );
+				later.forEach( function( item ) { wrap.appendChild( row( item, false ) ); } );
+			}
+		} else if ( next.length ) {
 			var first = next[0];
 			wrap.appendChild( el( 'p', { style: 'margin:0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.5));', text: 'Next up' } ) );
 			var head = first && first.edit_url
@@ -211,7 +227,18 @@
 			wrap.appendChild( gapLine );
 		}
 
-		if ( next.length > 1 ) {
+		// The drafts by title, each a link to its editor; the count is the
+		// pair's, so a longer list says how many it left out.
+		var draftList = asList( data.draft_list );
+		if ( draftList.length ) {
+			wrap.appendChild( heading( 'Drafts' ) );
+			draftList.forEach( function( item ) { wrap.appendChild( row( item, false ) ); } );
+			if ( typeof data.drafts === 'number' && data.drafts > draftList.length ) {
+				wrap.appendChild( el( 'p', { style: 'margin:0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));', text: '+' + ( data.drafts - draftList.length ) + ' more' } ) );
+			}
+		}
+
+		if ( ! cal && next.length > 1 ) {
 			wrap.appendChild( heading( 'Then' ) );
 			next.slice( 1 ).forEach( function( item ) { wrap.appendChild( row( item, false ) ); } );
 		}
@@ -247,6 +274,10 @@
 		// card and says how old it is, as the other cards do (2026-10-12 audit).
 		var lastData = null;
 		var lastReadMs = 0;
+		var lastJson = '';
+		// The selected calendar day, kept across the 60s repaints so a tap
+		// is not reset by the next poll.
+		var state = {};
 		renderLoading( container );
 
 		function fail( message ) {
@@ -254,7 +285,8 @@
 				renderError( container, message );
 				return;
 			}
-			renderCard( container, lastData );
+			renderCard( container, lastData, state );
+			lastJson = '';
 			container.appendChild( el( 'p', {
 				style: 'margin:0;padding:0 16px 12px;font-size:11px;color:#d29922;',
 				text:  'Couldn\u2019t read the queue: ' + message + '; showing the ' + clock( lastReadMs ) + ' reading.',
@@ -285,7 +317,18 @@
 					if ( data && typeof data === 'object' && ( Array.isArray( data.next ) || Array.isArray( data.published ) ) ) {
 						lastData   = data;
 						lastReadMs = Date.now();
-						renderCard( container, data );
+						// The same reading is not repainted: a keyboard user's
+						// place in the calendar survives every quiet poll.
+						var json = JSON.stringify( data );
+						if ( json === lastJson ) { return; }
+						lastJson = json;
+						var active = document.activeElement;
+						var hadFocus = !! ( active && container.contains && container.contains( active ) && 'gridcell' === active.getAttribute( 'role' ) );
+						renderCard( container, data, state );
+						if ( hadFocus && container.querySelector ) {
+							var back = container.querySelector( '[role="gridcell"][tabindex="0"]' );
+							if ( back && back.focus ) { back.focus(); }
+						}
 					} else {
 						fail( 'the site sent no queue' );
 					}

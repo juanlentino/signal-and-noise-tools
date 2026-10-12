@@ -73,7 +73,7 @@ $published = array(
 	array( 'id' => 4, 'title' => 'Too old for the card', 'ts' => $NOW - 9 * 86400, 'edit_url' => 'https://x.test/e/4' ),
 );
 $out = sn_content_queue_shape( $future, 26, $published, $NOW, $TZ );
-ok( array( 'next', 'scheduled_total', 'runs_to', 'published', 'drafts', 'gap' ) === array_keys( $out ), 'the payload carries exactly the six keys' );
+ok( array( 'next', 'scheduled_total', 'runs_to', 'published', 'drafts', 'gap', 'scheduled', 'today', 'week_start', 'planned', 'draft_list' ) === array_keys( $out ), 'the payload carries exactly the eleven keys (the six it had, and the calendar\'s five)' );
 ok( null === $out['drafts'], 'drafts is null when the caller could not count them, never a guessed 0' );
 ok( 7 === sn_content_queue_shape( $future, 26, $published, $NOW, $TZ, 7 )['drafts'] && 0 === sn_content_queue_shape( $future, 26, $published, $NOW, $TZ, 0 )['drafts'], 'a counted draft total passes through, a real 0 included' );
 ok( 4 === count( $out['next'] ), 'next is capped at four (the headline plus three)' );
@@ -86,7 +86,27 @@ ok( '' === $out['published'][1]['edit_url'], 'a missing link stays empty (the wi
 ok( '1 day ago' === $out['published'][0]['when'] && '7 days ago' === $out['published'][2]['when'], 'published rows carry their age' );
 ok( '2026-09-18T12:00:00+00:00' === $out['next'][0]['date'], 'date is ISO 8601 UTC for anyone who wants to do their own arithmetic' );
 
+
+echo "\nGroup C1: the calendar's data (2026-10-12)\n";
+// The sketch plotted only `next` (four notes) and left real notes off the grid.
+ok( 6 === count( $out['scheduled'] ) && array_column( $future, 'title' ) === array_column( $out['scheduled'], 'title' ), 'scheduled carries EVERY scheduled note, not the four of next' );
+ok( '2026-12-27' === $out['scheduled'][5]['day'] && '12:00 PM' === $out['scheduled'][5]['time'], 'each row carries its day (Y-m-d) and time in the site timezone' );
+ok( '2026-09-18' === $out['next'][0]['day'], 'the next rows carry the day too, so the card can tint the next-up day' );
+ok( '2026-09-17' === $out['today'] && '2026-09-14' === $out['week_start'], 'today and the Monday of this week (Thu Sep 17 → Mon Sep 14)' );
+$sun = sn_content_queue_shape( array(), 0, array(), gmmktime( 12, 0, 0, 9, 20, 2026 ), $TZ );
+ok( '2026-09-14' === $sun['week_start'], 'on a Sunday the week still starts the Monday before (Sun Sep 20 → Mon Sep 14), never the next Monday' );
+$mon = sn_content_queue_shape( array(), 0, array(), gmmktime( 0, 30, 0, 9, 21, 2026 ), $TZ );
+ok( '2026-09-21' === $mon['week_start'], 'on a Monday the week starts that day' );
+// 22:30Z on Sun Sep 20 is 00:30 Mon Sep 21 in Madrid: the site's week has turned.
+$mad = sn_content_queue_shape( array( array( 'id' => 1, 'title' => 'Late', 'ts' => gmmktime( 22, 30, 0, 9, 20, 2026 ) ) ), 1, array(), gmmktime( 22, 30, 0, 9, 20, 2026 ), new DateTimeZone( 'Europe/Madrid' ) );
+ok( '2026-09-21' === $mad['today'] && '2026-09-21' === $mad['week_start'] && '2026-09-21' === $mad['scheduled'][0]['day'] && '12:30 AM' === $mad['scheduled'][0]['time'], 'today, the week and each day are the site timezone\'s, not UTC\'s' );
+$pl = sn_content_queue_shape( array(), 0, array(), $NOW, $TZ, null, array( '2026-12-20|2027-01-03' ) );
+ok( array( array( 'from' => '2026-12-20', 'to' => '2027-01-03' ) ) === $pl['planned'], 'the planned gaps ride as ranges for the calendar\'s quiet mark' );
+$dl = sn_content_queue_shape( array(), 0, array(), $NOW, $TZ, 2, array(), array( array( 'id' => 8, 'title' => 'A draft', 'ts' => $NOW - 60, 'edit_url' => 'https://x.test/e/8' ), array( 'id' => 9, 'title' => '', 'ts' => 0 ), 'junk' ) );
+ok( array( array( 'id' => 8, 'title' => 'A draft', 'edit_url' => 'https://x.test/e/8' ), array( 'id' => 9, 'title' => '(untitled)', 'edit_url' => '' ) ) === $dl['draft_list'], 'drafts ride by title and edit link only (no date, no body); an empty title is (untitled); junk is dropped' );
+
 $empty = sn_content_queue_shape( array(), 0, array(), $NOW, $TZ );
+ok( array() === $empty['scheduled'] && array() === $empty['planned'] && array() === $empty['draft_list'], 'an empty site has empty calendar lists' );
 ok( array() === $empty['next'] && null === $empty['runs_to'] && 0 === $empty['scheduled_total'] && array() === $empty['published'], 'an empty site shapes to empty lists and a null runs_to' );
 $junk = sn_content_queue_shape( 'nope', -3, array( 'x', null, array( 'title' => 'only a title' ) ), $NOW, $TZ );
 ok( array() === $junk['next'] && 0 === $junk['scheduled_total'], 'non-array rows and a negative total are tolerated, not fatal' );
@@ -150,15 +170,20 @@ $now = time();
 $GLOBALS['__cq_posts'] = array(
 	'future:ASC'   => array( $mk( 11, 'Soon', $now + 3600 ), $mk( 12, 'Next', $now + 2 * 86400 ), $mk( 13, 'Third', $now + 4 * 86400 ), $mk( 14, 'Fourth', $now + 8 * 86400 ), $mk( 99, 'Last', $now + 101 * 86400 ) ),
 	'publish:DESC' => array( $mk( 5, 'Fresh', $now - 7200 ), $mk( 4, 'Older', $now - 4 * 86400 ), $mk( 3, 'Oldest', $now - 10 * 86400 ) ),
+	'draft:DESC'   => array( $mk( 21, 'Idea', $now - 600 ) ),
 );
 $GLOBALS['__cq_counts'] = (object) array( 'future' => 26, 'publish' => 60, 'draft' => 4 );
 $res = snt_ability_content_queue( null );
-// 23.8.0: two reads, not three. The whole queue serves next, runs_to and the
-// gap walk; the published read is the cadence flag's history depth.
-ok( 2 === count( $GLOBALS['__cq_queries'] ), 'two reads: the whole queue asc, the published cadence history' );
+// 23.8.0: the whole queue serves next, runs_to, the gap walk and (2026-10-12)
+// the calendar; the published read is the cadence flag's history depth; the
+// third read lists the drafts by title.
+ok( 3 === count( $GLOBALS['__cq_queries'] ), 'three reads: the whole queue asc, the published cadence history, the newest drafts' );
 $q = $GLOBALS['__cq_queries'];
 ok( 'future' === $q[0]['post_status'] && 'ASC' === $q[0]['order'] && -1 === $q[0]['numberposts'], 'the first read is the whole scheduled queue, soonest first' );
 ok( 'publish' === $q[1]['post_status'] && 'DESC' === $q[1]['order'] && SNT_ML_CADENCE_PUBLISH_DEPTH === $q[1]['numberposts'], 'the second read is the cadence flag\'s publish depth' );
+ok( 'draft' === $q[2]['post_status'] && 'modified' === $q[2]['orderby'] && 3 === $q[2]['numberposts'] && false === $q[2]['update_post_meta_cache'], 'the third read is the three newest-edited drafts, with no meta cache primed' );
+ok( array( 'Idea' ) === array_column( $res['draft_list'], 'title' ) && 'https://x.test/wp-admin/post.php?post=21&action=edit' === $res['draft_list'][0]['edit_url'], 'the drafts list carries each title and its wp-admin edit link' );
+ok( 5 === count( $res['scheduled'] ) && 'Last' === $res['scheduled'][4]['title'], 'the calendar gets the whole queue from the same read (five here, not four)' );
 ok( array( 'Soon', 'Next', 'Third', 'Fourth' ) === array_column( $res['next'], 'title' ), 'next carries the four soonest in order (the furthest row does not leak into it)' );
 ok( 99 !== ( $res['next'][3]['id'] ?? 0 ) && 26 === $res['scheduled_total'], 'the total rides wp_count_posts (26), not the row count' );
 ok( 4 === $res['drafts'], 'drafts rides wp_count_posts()->draft' );
@@ -168,6 +193,7 @@ ok( array( 'Fresh', 'Older', 'Oldest' ) === array_column( $res['published'], 'ti
 ok( null === $res['gap'], 'three published notes are too little history to call a gap: null, not a guess' );
 $props = $ab['output_schema']['properties'] ?? array();
 ok( array( 'integer', 'null' ) === ( $props['drafts']['type'] ?? null ) && array( 'object', 'null' ) === ( $props['gap']['type'] ?? null ), 'the output schema declares drafts and gap, both nullable' );
+ok( isset( $props['scheduled'], $props['today'], $props['week_start'], $props['planned'], $props['draft_list'] ) && isset( $props['scheduled']['items']['properties']['day'], $props['scheduled']['items']['properties']['time'] ), 'the output schema declares the calendar\'s keys and the rows\' day and time' );
 
 $GLOBALS['__cq_posts'] = array( 'publish:DESC' => array( 'not a post', (object) array( 'ID' => 7 ) ) );
 $GLOBALS['__cq_counts'] = (object) array( 'future' => 0 );

@@ -179,14 +179,18 @@ add_action( 'init', function() {
 		// the content-queue ability; labels are the site timezone's.
 		snt_os_register_widget( 'sn-queue', array_merge( $sn_drag, array(
 			'label'          => 'SN Queue',
-			'description'    => 'The next scheduled note, how deep the queue runs, the drafts waiting, any gap in the schedule, and the last three published.',
+			'description'    => 'The coming six weeks as a calendar with a dot per scheduled note, the selected day\'s notes (the next up first), how deep the queue runs, the drafts by title, any gap in the schedule, and the last three published.',
 			'icon'           => 'dashicons-calendar-alt',
 			'script'         => 'sn-desktop-mode-widget-queue',
-			// Measured 365 (15.8.1, live at the docked width with the real
-			// queue: a two-line headline, the depth line, two headings, six
-			// rows), rounded up to the next 10 with slack. The 15.8.0 budget
-			// of 300 undershot the two-line title.
-			'default_height' => 380,
+			// 2026-10-12, the calendar: MEASURED live on the owner's desk at
+			// the default 312 width with the real queue: 594 (a weekday row,
+			// six weeks at 26px with the 1st's week at 39, the day box with a
+			// two-line title, "+N more", the Scheduled and Drafts pair, one
+			// draft, three published, the link). 600 shows it all with no
+			// scrollbar; a gap line (~28) or a longer drafts list scrolls.
+			// Before: 380, and the old card measured 418 at this width, so it
+			// already scrolled 38px. A SAVED layout keeps its own height.
+			'default_height' => 600,
 		) ) );
 
 		snt_os_register_widget( 'sn-health', array_merge( $sn_drag, array(
