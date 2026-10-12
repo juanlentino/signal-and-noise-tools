@@ -102,7 +102,7 @@ snt_indexnow_fixture( false, '', array() );
 $classic = snt_leaf_classic_html( 'sn_admin_render_indexnow_section' );
 $kit     = snt_leaf_paint( 'connections', 'indexnow' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'disabled: names and actions still match the classic leaf' );
-ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, '<b>Disabled</b>' ) && false !== strpos( $kit, '<os-badge tone="warning">Off</os-badge>' ) && false !== strpos( $kit, 'Enable it in the main column' ), 'the disabled state paints a warning notice with the Off pill' );
+ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, '<b>Disabled</b>' ) && false !== strpos( $kit, '<os-badge tone="warning">Off</os-badge>' ) && false !== strpos( $kit, 'Enable it under IndexNow' ), 'the disabled state paints a warning notice with the Off pill' );
 ok( false !== strpos( $kit, '<os-checkbox-label name="indexnow_enabled" value="1" label="Notify search engines when content changes">' ), 'disabled: the toggle is unchecked' );
 ok( false !== strpos( $kit, '<em>not generated yet</em>' ) && false === strpos( $kit, '.txt' ), 'disabled with no key: Key file reads not generated yet, no link' );
 ok( false === strpos( $kit, 'Last submission' ), 'disabled with no result: no Last submission row' );

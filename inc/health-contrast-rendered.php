@@ -176,7 +176,9 @@ function snt_contrast_rendered() {
  */
 function snt_contrast_rendered_html( array $v, $class ) {
 	$link = static function ( $text ) use ( $v ) {
-		return '' !== $v['url'] ? '<a href="' . esc_url( $v['url'] ) . '">' . esc_html( $text ) . '</a>' : esc_html( $text );
+		// A new tab: in S&N Home a plain href replaced the whole desktop with
+		// GitHub (2026-10-12 audit); the classic page loses nothing by it.
+		return '' !== $v['url'] ? '<a class="snt-link" href="' . esc_url( $v['url'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $text ) . '</a>' : esc_html( $text );
 	};
 	switch ( $v['state'] ) {
 		case 'ok':
@@ -185,7 +187,7 @@ function snt_contrast_rendered_html( array $v, $class ) {
 				? sprintf( __( 'every text pair at AA and every color-only link at 3:1 on %1$d pages (%2$d pairs, %3$d links), light and dark', 'signal-and-noise-tools' ), $v['pages'], $v['checked'], $v['links'] )
 				: __( 'every text pair at AA and every color-only link at 3:1, light and dark', 'signal-and-noise-tools' );
 			/* translators: 1: what passed, 2: date of the run, linked */
-			$text = sprintf( esc_html__( 'Rendered on the live site: %1$s (%2$s). The counts below are what a stylesheet alone can say; this is what the pages show.', 'signal-and-noise-tools' ), esc_html( $scope ), $link( $v['at'] ) );
+			$text = sprintf( esc_html__( 'Rendered on the live site: %1$s (%2$s). The stylesheet counts are what a stylesheet alone can say; this is what the pages show.', 'signal-and-noise-tools' ), esc_html( $scope ), $link( $v['at'] ) );
 			break;
 		case 'red':
 			/* translators: 1: failure count, linked to the run that names each */

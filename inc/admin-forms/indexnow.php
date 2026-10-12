@@ -53,7 +53,7 @@ function sn_admin_render_indexnow_section() {
 
 	// ── STATUS ──
 	if ( ! $enabled ) {
-		echo '<div class="sn-status-box sn-status-box--warn"><div><p class="sn-status-box-title">Disabled</p><p class="sn-status-box-body">Enable it in the main column to start notifying search engines.</p></div><span class="sn-pill sn-pill--warn">Off</span></div>';
+		echo '<div class="sn-status-box sn-status-box--warn"><div><p class="sn-status-box-title">Disabled</p><p class="sn-status-box-body">Enable it under IndexNow to start notifying search engines.</p></div><span class="sn-pill sn-pill--warn">Off</span></div>';
 	} elseif ( ! empty( $result['error'] ) ) {
 		echo '<div class="sn-status-box sn-status-box--err"><div><p class="sn-status-box-title">Last submission failed</p><p class="sn-status-box-body"><code>' . esc_html( (string) $result['error'] ) . '</code></p></div><span class="sn-pill sn-pill--err">Error</span></div>';
 	} else {

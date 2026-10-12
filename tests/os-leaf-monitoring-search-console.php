@@ -105,7 +105,7 @@ ok( array( 'gsc_credential_save', 'gsc_test' ) === snt_leaf_actions( $kit ) && s
 ok( array() === snt_leaf_classic_markers( $kit ), 'configured: no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, 'svc@project.iam.gserviceaccount.com' ) && false !== strpos( $kit, 'project-123' ) && false !== strpos( $kit, 'sha256:deadbeef0000' ), 'configured: the identity card carries the service account, project and fingerprint' );
 ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, 'openssl available' ), 'configured: signing-ready paints a success badge' );
-ok( false !== strpos( $kit, 'Run Test connection above' ), 'configured: the Property section nudges toward Test connection (no sites yet)' );
+ok( false !== strpos( $kit, 'Run Test connection to list the properties' ) && false === strpos( $kit, 'Test connection above' ), 'configured: the Property section nudges toward Test connection (no sites yet)' );
 $row = strpos( $kit, snt_leaf_row() );
 ok( 1 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, 'snt-2up' ) && $row < strpos( $kit, 'heading="Search Console credential"' ) && strpos( $kit, 'heading="Search Console credential"' ) < strpos( $kit, 'heading="Property"' ) && strpos( $kit, 'heading="Property"' ) < strrpos( $kit, '</os-grid>' ) && strrpos( $kit, '</os-grid>' ) < strpos( $kit, 'heading="Set the credential"' ), '17.4.1: one .snt-cols row pairs the credential readout with Property; the form box stands alone after the row (#1573)' );
 $form = strpos( $kit, 'heading="Set the credential"' );

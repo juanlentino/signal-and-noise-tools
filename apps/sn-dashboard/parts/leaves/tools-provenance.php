@@ -156,7 +156,7 @@ function provenance_data( array $ctx ) {
  * @return string
  */
 function provenance_commits_empty_copy() {
-	$copy  = __( 'No pending proofs; press Refresh after minting to see new ones here.', 'signal-and-noise-tools' );
+	$copy  = __( 'No pending proofs; a new one appears here within 30 seconds of minting.', 'signal-and-noise-tools' );
 	$state = function_exists( 'sn_prov_integrity_state' ) ? sn_prov_integrity_state() : null;
 	if ( is_array( $state ) && (int) ( $state['failed'] ?? 0 ) > 0 ) {
 		$when  = (int) ( $state['swept_at'] ?? 0 );
