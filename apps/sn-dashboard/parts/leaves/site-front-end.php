@@ -4,7 +4,7 @@
  *
  * The classic leaf (inc/admin-forms/front-end.php, `sn_admin_render_front_end_form()`)
  * paints one form (`sn_action=save_theme` → `sn_handle_save_theme()`) of the eight
- * render knobs the companion theme reads via filters: six bounded numbers, the
+ * render settings the companion theme reads: six bounded numbers, the
  * allowlisted note-reply alias (a select, deliberately not a text field) and
  * the ⌘K palette checkbox. Same readers (`sn_setting()`, `sn_note_reply_aliases()`),
  * same field names, same bounds, same handler, same copy; the kit's parts
@@ -75,11 +75,11 @@ function front_end_fields_html( array $s ) {
 		'os-field-row',
 		array(
 			'label' => __( 'Reader command palette', 'signal-and-noise-tools' ),
-			'hint'  => __( 'Turning this off hides the trigger and skips the palette’s JS/CSS entirely.', 'signal-and-noise-tools' ),
+			'hint'  => __( 'Turning this off hides the trigger and skips loading the palette’s scripts and styles.', 'signal-and-noise-tools' ),
 		),
 		\snt_kit_field( 'checkbox', 'theme_palette_enabled', __( 'Enable the ⌘K command palette and its footer trigger', 'signal-and-noise-tools' ), $s['penab'] )
 	);
-	return front_end_number( 'theme_related_count', __( 'Related notes shown', 'signal-and-noise-tools' ), $s['related'], 1, 12, __( 'How many related notes appear under a single note (1–12).', 'signal-and-noise-tools' ) )
+	return front_end_number( 'theme_related_count', __( 'Related notes shown', 'signal-and-noise-tools' ), $s['related'], 1, 12, __( 'How many related notes appear under a single note (1 to 12).', 'signal-and-noise-tools' ) )
 		. \snt_kit_field(
 			'select',
 			'theme_note_reply_alias',
@@ -87,15 +87,15 @@ function front_end_fields_html( array $s ) {
 			$s['ralias'],
 			array(
 				'options' => $options,
-				'hint'    => __( 'Which existing alias the Reply row on a note writes to. Only aliases the mailbox already filters are offered — a new local part would arrive unfiltered.', 'signal-and-noise-tools' ),
+				'hint'    => __( 'Which existing alias the Reply row on a note writes to. Only aliases the mailbox already filters are offered; a new address would arrive unfiltered.', 'signal-and-noise-tools' ),
 			)
 		)
-		. front_end_number( 'theme_palette_recent_count', __( 'Command-palette recent notes', 'signal-and-noise-tools' ), $s['precent'], 0, 20, __( 'Recent notes listed in the ⌘K reader palette (0–20).', 'signal-and-noise-tools' ) )
+		. front_end_number( 'theme_palette_recent_count', __( 'Command-palette recent notes', 'signal-and-noise-tools' ), $s['precent'], 0, 20, __( 'Recent notes listed in the ⌘K reader palette (0 to 20).', 'signal-and-noise-tools' ) )
 		. $palette
-		. front_end_number( 'theme_json_feed_items', __( 'JSON feed items', 'signal-and-noise-tools' ), $s['jfeed'], 1, 50, __( 'Number of notes in the JSON feed (1–50).', 'signal-and-noise-tools' ) )
-		. front_end_number( 'theme_updated_threshold_days', __( '“Updated” badge after (days)', 'signal-and-noise-tools' ), $s['uthr'], 1, 90, __( 'Show the “Updated” badge when a note was revised this many days after publishing (1–90).', 'signal-and-noise-tools' ) )
-		. front_end_number( 'theme_reading_wpm', __( 'Reading speed (words/min)', 'signal-and-noise-tools' ), $s['wpm'], 100, 400, __( 'Words per minute used to estimate reading time (100–400).', 'signal-and-noise-tools' ) )
-		. front_end_number( 'theme_notes_per_page', __( 'Notes per page', 'signal-and-noise-tools' ), $s['nperp'], 1, 100, __( 'How many notes per page on the /notes index (1–100). Pagination appears once published notes exceed this.', 'signal-and-noise-tools' ) );
+		. front_end_number( 'theme_json_feed_items', __( 'JSON feed items', 'signal-and-noise-tools' ), $s['jfeed'], 1, 50, __( 'Number of notes in the JSON feed (1 to 50).', 'signal-and-noise-tools' ) )
+		. front_end_number( 'theme_updated_threshold_days', __( '“Updated” badge after (days)', 'signal-and-noise-tools' ), $s['uthr'], 1, 90, __( 'Show the “Updated” badge when a note was revised this many days after publishing (1 to 90).', 'signal-and-noise-tools' ) )
+		. front_end_number( 'theme_reading_wpm', __( 'Reading speed (words/min)', 'signal-and-noise-tools' ), $s['wpm'], 100, 400, __( 'Words per minute used to estimate reading time (100 to 400).', 'signal-and-noise-tools' ) )
+		. front_end_number( 'theme_notes_per_page', __( 'Notes per page', 'signal-and-noise-tools' ), $s['nperp'], 1, 100, __( 'How many notes per page on the /notes index (1 to 100). Pagination appears once published notes exceed this.', 'signal-and-noise-tools' ) );
 }
 
 /**
@@ -112,16 +112,18 @@ function paint_site_front_end( array $ctx ) {
 	$form = \snt_kit_form(
 		'save_theme',
 		front_end_fields_html( $s )
-		. '<p class="snt-hint" slot="footer-leading">' . \snt_kit_esc( __( 'Changes apply on the next front-end request. Live site re-renders automatically.', 'signal-and-noise-tools' ) ) . '</p>',
+		. '<p class="snt-hint" slot="footer-leading">' . \snt_kit_esc( __( 'Saving a change refreshes the site’s cached pages, so the live site shows it the next time a page loads.', 'signal-and-noise-tools' ) ) . '</p>',
 		array(
 			'submit'  => __( 'Save front-end settings', 'signal-and-noise-tools' ),
 			'columns' => 'auto',
+			// The window's width for the auto columns (sn-dashboard.css), as the classic wide leaf.
+			'class'   => 'snt-site-form',
 		)
 	);
 	return \snt_kit_section(
 		__( 'Front-End', 'signal-and-noise-tools' ),
 		$form,
-		__( 'Render knobs the companion theme reads via filters. Defaults match the theme’s own hardcoded values, so changes apply only once you save here. Each takes effect on the next front-end request.', 'signal-and-noise-tools' )
+		__( 'How the site’s pages render; the companion theme reads these values. The defaults are the theme’s own, so nothing changes until you save here.', 'signal-and-noise-tools' )
 	);
 }
 

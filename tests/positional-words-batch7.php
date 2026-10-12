@@ -36,14 +36,8 @@ $files = array_merge(
 		'inc/north-star-settings.php',
 	)
 );
-// Positional phrases in OTHER batches' leaves, listed in PR #2025 for their
-// owners and left as they are: file => the exact phrase. Only that phrase is
-// removed before the scan, so any other positional word, in the same string
-// or elsewhere, fails. Delete an entry once its owner's fix is on main; the
-// goal is none.
-$elsewhere = array(
-	'apps/sn-dashboard/parts/leaves/site-redirects-rules.php'   => 'add the first one below',
-);
+// No exemptions: every other batch's positional phrase is fixed on main
+// (#2018, #2019, #2020, #2022), so any positional string fails.
 // Idioms that are not places, stripped before the scan so the same string can
 // still fail on a positional word: time ("right now"), SQL, what remains (the
 // exact strings: "N days left", "limit is left", "left off", "left
@@ -69,21 +63,20 @@ function pw_ok( $c, $m ) {
 
 /**
  * The positional strings in one file's source: each string literal, minus an
- * exempt phrase listed for that file and minus the idioms, scanned for a word.
+ * minus the idioms, scanned for a word.
  *
- * @param string $rel Repo-relative path (the $elsewhere key).
+ * @param string $rel Repo-relative path.
  * @param string $src PHP source.
  * @return string[]
  */
 function pw_hits( $rel, $src ) {
-	global $elsewhere, $idioms, $words;
+	global $idioms, $words;
 	$hits = array();
 	foreach ( token_get_all( (string) $src ) as $tok ) {
 		if ( ! is_array( $tok ) || ! in_array( $tok[0], array( T_CONSTANT_ENCAPSED_STRING, T_ENCAPSED_AND_WHITESPACE, T_INLINE_HTML ), true ) ) {
 			continue;
 		}
-		// An exempt phrase is removed, not the whole string: the rest is scanned.
-		$text = isset( $elsewhere[ $rel ] ) ? str_replace( $elsewhere[ $rel ], '', $tok[1] ) : $tok[1];
+		$text = $tok[1];
 		if ( preg_match( $words, (string) preg_replace( $idioms, '', $text ) ) ) {
 			$hits[] = $rel . ':' . $tok[2] . ' ' . substr( $tok[1], 0, 90 );
 		}
@@ -104,9 +97,8 @@ pw_ok( array() === $hits, 'no painter string points at a position: ' . implode( 
 foreach ( array( 'Enabled: deliveries fire on the events below', 'Set them in the main column', 'Nothing is left; the box on the left' ) as $sentence ) {
 	pw_ok( 1 === preg_match( $words, (string) preg_replace( $idioms, '', $sentence ) ), "the scan catches a positional sentence (it is not vacuous): $sentence" );
 }
-// Re-review: an exemption removes only its own phrase, so a positional word
-// elsewhere in the same string still fails.
-pw_ok( 1 === count( pw_hits( 'apps/sn-dashboard/parts/leaves/site-redirects-rules.php', "<?php echo 'No redirect rules yet; add the first one below, in the rail on the left';" ) ), 'an exempt phrase hides only itself: the rest of its string is still scanned' );
+// The scan itself, over a source string: a positional sentence is a hit.
+pw_ok( 1 === count( pw_hits( 'probe.php', "<?php echo 'No redirect rules yet; add the first one below, in the rail on the left';" ) ), 'pw_hits() finds a positional sentence in a source string' );
 foreach ( array( 'The Save button is left of Cancel', 'The tabs are left of the list' ) as $sentence ) {
 	pw_ok( 1 === preg_match( $words, (string) preg_replace( $idioms, '', $sentence ) ), "\"is left\" and \"are left\" are places unless they name what remains: $sentence" );
 }

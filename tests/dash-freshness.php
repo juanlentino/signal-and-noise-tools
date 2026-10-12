@@ -117,22 +117,29 @@ $GLOBALS['__fired'] = array();
 $GLOBALS['__analytics_on'] = true;
 function snt_cron_last_fired_for( $hook ) { return $GLOBALS['__fired'][ $hook ] ?? null; }
 function sn_analytics_config() { return $GLOBALS['__analytics_on']; }
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return '/wp-admin/' . $p; } }
 
 $GLOBALS['__fired'] = array( 'sn_analytics_rollup_daily' => $now - 13 * HOUR_IN_SECONDS, 'snt_deploy_workers_warm' => $now - 60 );
 $r = sn_dash_freshness_readings();
 $labels = array_column( $r, 'label' );
-ok( in_array( 'Analytics', $labels, true ) && in_array( 'Fleet', $labels, true ), 'the collector returns both tracked sources' );
+ok( in_array( 'Analytics rollup', $labels, true ) && in_array( 'Fleet probes', $labels, true ), 'the collector returns both tracked sources' );
+// 2026.10.4 audit (batch 4): "Analytics" was also the worker's card and "Fleet"
+// read as a system; each now names its reading, and carries the screen to fix it.
+ok( ! in_array( 'Analytics', $labels, true ) && ! in_array( 'Fleet', $labels, true ), 'neither reading borrows a system name: "Analytics rollup" and "Fleet probes"' );
 $by = array();
 foreach ( $r as $one ) { $by[ $one['label'] ] = $one; }
-ok( $by['Fleet']['stale_after'] < $by['Analytics']['stale_after'], 'THE BUDGETS DIFFER BY SOURCE — a 5-minute probe is late long before a daily rollup is' );
-ok( $now - 13 * HOUR_IN_SECONDS === $by['Analytics']['measured_at'], 'the timestamp comes from the REAL cron record, not a constant' );
+ok( $by['Fleet probes']['stale_after'] < $by['Analytics rollup']['stale_after'], 'THE BUDGETS DIFFER BY SOURCE: a 5-minute probe is late long before a daily rollup is' );
+ok( '/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=analytics' === $by['Analytics rollup']['href'] && '/wp-admin/admin.php?page=sn-theme-options&tab=connections&sub=cron' === $by['Fleet probes']['href'], 'each reading carries the leaf that shows it' );
+$late = sn_dash_freshness_cards( sn_dash_freshness( array( $by['Analytics rollup'] ), $now + 3 * DAY_IN_SECONDS ) );
+ok( '/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=analytics' === ( $late[0]['href'] ?? '' ), 'an overdue reading becomes a card that links its leaf, so Needs attention never defaults it to Health' );
+ok( $now - 13 * HOUR_IN_SECONDS === $by['Analytics rollup']['measured_at'], 'the timestamp comes from the REAL cron record, not a constant' );
 
 // Analytics is not a source at all when it is not configured — listing it
 // would report an unmeasured reading for a subsystem that is switched off.
 $GLOBALS['__analytics_on'] = false;
 $off = array_column( sn_dash_freshness_readings(), 'label' );
-ok( ! in_array( 'Analytics', $off, true ), 'an UNCONFIGURED subsystem is not a reading — it is not late, it is absent' );
-ok( in_array( 'Fleet', $off, true ), 'and the fleet is still collected' );
+ok( ! in_array( 'Analytics rollup', $off, true ), 'an UNCONFIGURED subsystem is not a reading; it is not late, it is absent' );
+ok( in_array( 'Fleet probes', $off, true ), 'and the fleet is still collected' );
 $GLOBALS['__analytics_on'] = true;
 
 // A never-tracked hook stays null all the way through the collector.

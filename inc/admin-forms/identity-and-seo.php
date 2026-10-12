@@ -165,8 +165,8 @@ function sn_admin_render_identity_and_seo_form() {
 	// Sticky save bar — saves Identity / Social / OG / SEO Copy (the 4 above).
 	// Cloudflare's save is separate (its own form on its own sub-tab now).
 	echo '<div class="sn-savebar">';
-	echo '<p class="sn-savebar-hint">Changes apply immediately on Save. Live site re-renders on next request.</p>';
-	echo '<button type="submit" class="button button-primary">Save Identity Settings</button>';
+	echo '<p class="sn-savebar-hint">Saving a change refreshes the site&rsquo;s cached pages, so the live site shows it the next time a page loads.</p>';
+	echo '<button type="submit" class="button button-primary">Save identity and SEO</button>';
 	echo '</div>';
 	echo '</form>';
 }

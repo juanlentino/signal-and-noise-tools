@@ -405,6 +405,11 @@ $sn_dashboard = App::define( APP_ID )
 				return;
 			}
 			$state->set( 'notice', null )->set( 'flash', '' );
+			// 2026.10.4 audit: on Home, Refresh re-reads the north star; its
+			// reading caches for an hour, so the repaint would show the old one.
+			if ( 'dashboard' === current_tab( $os ) && defined( 'SNT_NSM_CACHE_KEY' ) && function_exists( 'delete_transient' ) ) {
+				delete_transient( SNT_NSM_CACHE_KEY );
+			}
 			$os->badge( badge_count() );
 		}
 	)

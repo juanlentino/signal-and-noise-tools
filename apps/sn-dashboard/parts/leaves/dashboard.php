@@ -4,11 +4,12 @@
  *
  * Implements the executive site-level home surface:
  * 1. Stable left rail cross-app launcher (Analytics, S&N, Posts, Pages, Media, Classic).
- * 2. Time-aware greeting and live situation-dependent orientation.
- * 3. Compact Site Pulse (Audience, Publishing, Trust & Operations).
- * 4. Actionable Needs Attention queue with All Clear fallback.
- * 5. Continue Working recent work rows.
- * 6. Subordinate fleet systems & maintenance operations.
+ * 2. Time-aware greeting and the line under it: how many things need
+ *    attention (dashboard-attention.php).
+ * 3. Site pulse: the audience tiles and detail (dashboard-pulse.php).
+ * 4. Needs attention beside Continue working (dashboard-attention.php,
+ *    dashboard-work.php).
+ * 5. Operations: the systems and the overrides (dashboard-operations.php).
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -21,6 +22,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/dashboard-operations.php'; // Operations: the named systems and the overrides (2026-10-11).
+require_once __DIR__ . '/dashboard-pulse.php'; // Site pulse: the audience tiles and detail (2026.10.4).
+require_once __DIR__ . '/dashboard-attention.php'; // the headline and Needs attention (2026.10.4).
+require_once __DIR__ . '/dashboard-work.php'; // Continue working (2026.10.4).
 
 /**
  * A classic admin URL into our own pages, as a `go` target — tab, sub, anchor.
@@ -73,89 +77,33 @@ function home_greeting() {
 }
 
 /**
- * Resolve live situation orientation.
+ * A link's `go` wiring: an `os-action="go"` within this tab, the kit's
+ * `.snt-go` across tabs, nothing for a URL that is not ours (the host routes
+ * those). One helper for the pulse tiles and the attention rows.
  *
- * Urgent conditions override growth and operations-under-control.
- *
- * @param array<string,mixed> $data Dashboard data bundle.
- * @return array{state:string,text:string}
+ * @param array<string,string> $attrs The link's attributes.
+ * @param string               $href  Its URL.
+ * @param string               $tab   The painting tab.
+ * @return array<string,string>
  */
-function home_orientation_info( array $data ) {
-	$runs       = (array) ( $data['runs'] ?? array() );
-	$checks     = (array) ( $data['checks'] ?? array() );
-	$components = (array) ( $data['components'] ?? array() );
-	$attention  = (array) ( $data['attention'] ?? array() );
-
-	$urgent_items = array();
-
-	// 1. Failed recent deploy.
-	foreach ( $runs as $run ) {
-		$status     = (string) ( $run['status'] ?? '' );
-		$conclusion = (string) ( $run['conclusion'] ?? '' );
-		if ( 'completed' === $status && '' !== $conclusion
-			&& ! in_array( $conclusion, array( 'success', 'cancelled', 'skipped' ), true ) ) {
-			$urgent_items[] = __( 'A deployment needs attention', 'signal-and-noise-tools' );
-			break;
+function go_attrs( array $attrs, $href, $tab ) {
+	$go = go_target( (string) $href );
+	if ( null === $go ) {
+		return $attrs;
+	}
+	$same = '' === $go['tab'] || $go['tab'] === (string) $tab;
+	if ( ! $same ) {
+		$attrs['class']       .= ' snt-go';
+		$attrs['data-snt-tab'] = $go['tab'];
+	} else {
+		$attrs['os-action'] = 'go';
+	}
+	foreach ( array( 'sub', 'anchor' ) as $key ) {
+		if ( '' !== $go[ $key ] ) {
+			$attrs[ $same ? 'os-arg-' . $key : 'data-snt-' . $key ] = $go[ $key ];
 		}
 	}
-
-	// 2. Urgent checks or components with err.
-	foreach ( array_merge( $checks, $components ) as $item ) {
-		if ( ! is_array( $item ) ) {
-			continue;
-		}
-		$kind = (string) ( $item['pill']['kind'] ?? '' );
-		if ( 'err' === $kind ) {
-			$label = (string) ( $item['label'] ?? '' );
-			if ( false !== stripos( $label, 'security' ) || false !== stripos( $label, 'login' ) ) {
-				$urgent_items[] = __( 'A security alert needs attention', 'signal-and-noise-tools' );
-			} elseif ( false !== stripos( $label, 'provenance' ) || false !== stripos( $label, 'anchor' ) ) {
-				$urgent_items[] = __( 'Content provenance needs attention', 'signal-and-noise-tools' );
-			} elseif ( false !== stripos( $label, 'health' ) ) {
-				$urgent_items[] = __( 'A health check needs attention', 'signal-and-noise-tools' );
-			} else {
-				/* translators: %s: component label */
-				$urgent_items[] = sprintf( __( '%s needs attention', 'signal-and-noise-tools' ), $label );
-			}
-		}
-	}
-
-	$urgent_count = count( $urgent_items );
-	if ( 1 === $urgent_count ) {
-		return array(
-			'state' => 'err',
-			'text'  => $urgent_items[0] . '.',
-		);
-	}
-	if ( $urgent_count > 1 ) {
-		return array(
-			'state' => 'err',
-			/* translators: %d: number of urgent items */
-			'text'  => sprintf( __( '%d things need attention.', 'signal-and-noise-tools' ), $urgent_count ),
-		);
-	}
-
-	// Non-urgent attention items (decision needed).
-	if ( ! empty( $attention ) ) {
-		$site_name = function_exists( 'get_bloginfo' ) ? get_bloginfo( 'name' ) : '';
-		return array(
-			'state' => 'warn',
-			'text'  => '' !== $site_name
-				/* translators: %s: site name */
-				? sprintf( __( 'A decision needs attention on %s.', 'signal-and-noise-tools' ), $site_name )
-				: __( 'A decision needs attention.', 'signal-and-noise-tools' ),
-		);
-	}
-
-	// Healthy and growing.
-	$site_name = function_exists( 'get_bloginfo' ) ? get_bloginfo( 'name' ) : '';
-	return array(
-		'state' => 'ok',
-		'text'  => '' !== $site_name
-			/* translators: %s: site name */
-			? sprintf( __( 'Pick up where you left off on %s. The site is healthy and growing.', 'signal-and-noise-tools' ), $site_name )
-			: __( 'Pick up where you left off. The site is healthy and growing.', 'signal-and-noise-tools' ),
-	);
+	return $attrs;
 }
 
 /**
@@ -240,492 +188,6 @@ function home_rail_html() {
 }
 
 /**
- * Render a single Site Pulse metric cell.
- *
- * @param string $label Label.
- * @param string $icon  Dashicon class.
- * @param string $value Primary value.
- * @param string $delta Comparison delta.
- * @param string $href  Target URL.
- * @param string $tab   Current tab.
- * @return string
- */
-function pulse_item_html( $label, $icon, $value, $delta, $href, $tab = 'dashboard' ) {
-	$go         = go_target( $href );
-	$delta_html = '' !== $delta ? '<span class="snt-home__metric-delta">' . esc_html( $delta ) . '</span>' : '';
-	$body       = '<div class="snt-home__metric-label">'
-		. '<span class="dashicons ' . esc_attr( $icon ) . '" aria-hidden="true"></span>'
-		. '<span>' . esc_html( $label ) . '</span>'
-		. '</div>'
-		. '<strong>' . esc_html( $value ) . '</strong>'
-		. $delta_html;
-
-	$attrs = array(
-		'class' => 'snt-home__metric',
-		'href'  => (string) $href,
-	);
-
-	if ( null !== $go ) {
-		$target_tab = (string) ( $go['tab'] ?? '' );
-		if ( '' === $target_tab || $target_tab === $tab ) {
-			$attrs['os-action'] = 'go';
-			if ( ! empty( $go['sub'] ) ) {
-				$attrs['os-arg-sub'] = (string) $go['sub'];
-			}
-			if ( ! empty( $go['anchor'] ) ) {
-				$attrs['os-arg-anchor'] = (string) $go['anchor'];
-			}
-		} else {
-			$attrs['class']       .= ' snt-go';
-			$attrs['data-snt-tab'] = $target_tab;
-			if ( ! empty( $go['sub'] ) ) {
-				$attrs['data-snt-sub'] = (string) $go['sub'];
-			}
-			if ( ! empty( $go['anchor'] ) ) {
-				$attrs['data-snt-anchor'] = (string) $go['anchor'];
-			}
-		}
-	}
-
-	return \snt_kit_tag( 'a', $attrs, $body );
-}
-
-/**
- * Render the Site Pulse grouped metric strip.
- *
- * @param array<string,mixed> $data Dashboard data bundle.
- * @param string              $tab  Current tab.
- * @return string
- */
-/** Below this many in the previous week, a percentage change is noise. */
-const SNT_HOME_DELTA_MIN_BASE = 50;
-
-/**
- * A tile's change line: a signed percentage, or the plain previous count
- * when the previous week is too small for a percentage to mean anything
- * (37 views to 317 read as +757%).
- *
- * @param array $d {current, previous, pct}.
- * @return string
- */
-function home_delta_text( array $d ) {
-	if ( ! isset( $d['pct'] ) || null === $d['pct'] ) {
-		return '';
-	}
-	if ( isset( $d['previous'] ) && (int) $d['previous'] < SNT_HOME_DELTA_MIN_BASE ) {
-		return sprintf( /* translators: %s previous week's count */ __( 'prev %s', 'signal-and-noise-tools' ), number_format_i18n( (int) $d['previous'] ) );
-	}
-	return ( $d['pct'] >= 0 ? '+' : '' ) . $d['pct'] . '%';
-}
-
-function home_pulse_html( array $data, $tab ) {
-	$measurement = function_exists( 'snt_dashboard_measurement_data' ) ? snt_dashboard_measurement_data() : array();
-
-	// 1. Audience 7-day deltas.
-	$from   = gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS );
-	$to     = gmdate( 'Y-m-d', time() );
-	$deltas = function_exists( 'sn_analytics_period_deltas' ) ? sn_analytics_period_deltas( $from, $to, 'human' ) : array();
-
-	$views_curr = isset( $deltas['views']['current'] )
-		? number_format_i18n( (int) $deltas['views']['current'] )
-		: ( isset( $measurement['views_7d'] ) ? number_format_i18n( (int) $measurement['views_7d'] ) : '—' );
-	$views_pct  = home_delta_text( $deltas['views'] ?? array() );
-
-	$visits_curr = isset( $deltas['visits']['current'] )
-		? number_format_i18n( (int) $deltas['visits']['current'] )
-		: '—';
-	$visits_pct  = home_delta_text( $deltas['visits'] ?? array() );
-
-	$engaged_val = '—';
-	$engaged_pct = '';
-	if ( isset( $deltas['views']['current'] ) && $deltas['views']['current'] > 0 && isset( $deltas['visits']['current'] ) && $deltas['visits']['current'] > 0 ) {
-		$rate        = round( ( (int) $deltas['views']['current'] / max( 1, (int) $deltas['visits']['current'] ) ), 1 );
-		$engaged_val = number_format_i18n( $rate, 1 );
-
-		// The tile is a RATIO (views per visit); its delta must be the ratio's
-		// own move, not the views delta — views and visits can move together
-		// (ratio unchanged) or apart (ratio moves opposite either input).
-		$prior_views  = (int) ( $deltas['views']['previous'] ?? 0 );
-		$prior_visits = (int) ( $deltas['visits']['previous'] ?? 0 );
-		if ( $prior_views > 0 && $prior_visits > 0 && function_exists( 'sn_analytics_delta' ) ) {
-			$prior_rate = $prior_views / $prior_visits;
-			$rate_delta = sn_analytics_delta( $rate, $prior_rate );
-			if ( null !== $rate_delta['pct'] ) {
-				// The ratio moves with BOTH inputs: a tiny week of either is noise.
-				$engaged_pct = min( $prior_views, $prior_visits ) < SNT_HOME_DELTA_MIN_BASE
-					? sprintf( /* translators: %s previous week's ratio */ __( 'prev %s', 'signal-and-noise-tools' ), number_format_i18n( $prior_rate, 1 ) )
-					: ( $rate_delta['pct'] >= 0 ? '+' : '' ) . $rate_delta['pct'] . '%';
-			}
-		}
-	}
-
-	$search_clicks = isset( $measurement['search_clicks'] ) ? number_format_i18n( (int) $measurement['search_clicks'] ) : '—';
-	$search_detail = isset( $measurement['search_clicks_days'] ) ? sprintf( __( '%dd window', 'signal-and-noise-tools' ), $measurement['search_clicks_days'] ) : '';
-
-	// 2. Publishing.
-	$post_counts = function_exists( 'wp_count_posts' ) ? wp_count_posts( 'post' ) : null;
-	$published   = is_object( $post_counts ) && isset( $post_counts->publish ) ? number_format_i18n( (int) $post_counts->publish ) : '—';
-	$scheduled   = is_object( $post_counts ) && isset( $post_counts->future ) ? number_format_i18n( (int) $post_counts->future ) : '—';
-
-	// 3. Trust & Operations.
-	$plugin_status = function_exists( 'snt_deploy_status_for' ) ? snt_deploy_status_for( 'plugin' ) : array();
-	$deploy_val    = (string) ( $plugin_status['version'] ?? 'Current' );
-
-	$anchored_str = '—';
-	if ( isset( $measurement['anchored'] ) ) {
-		$anchored_str = isset( $measurement['anchored_total'] )
-			? sprintf( '%d / %d', $measurement['anchored'], $measurement['anchored_total'] )
-			: (string) $measurement['anchored'];
-	}
-
-	$health_val = __( 'Healthy', 'signal-and-noise-tools' );
-	$verdict    = (array) ( $data['verdict'] ?? array() );
-	if ( 'err' === ( $verdict['state'] ?? '' ) ) {
-		$health_val = __( 'Attention', 'signal-and-noise-tools' );
-	} elseif ( 'warn' === ( $verdict['state'] ?? '' ) ) {
-		$health_val = __( 'Warning', 'signal-and-noise-tools' );
-	}
-
-
-	$out = '<section class="snt-home__section" aria-labelledby="snt-home-pulse-heading">'
-		. '<div class="snt-home__section-heading">'
-		. '<h2 id="snt-home-pulse-heading">' . esc_html__( 'Site pulse', 'signal-and-noise-tools' ) . '</h2>'
-		. '<span class="snt-home__timestamp">' . sprintf( esc_html__( 'Updated %s', 'signal-and-noise-tools' ), \snt_kit_relative_time( time(), __( 'just now', 'signal-and-noise-tools' ) ) ) . '</span>'
-		. '</div>';
-
-	// Group 1: Audience.
-	$out .= '<div class="snt-home__pulse-group">'
-		. '<div class="snt-home__pulse-group-label">' . esc_html__( 'Audience (7 days)', 'signal-and-noise-tools' ) . '</div>'
-		. '<div class="snt-home__pulse">'
-		. pulse_item_html( __( 'Views', 'signal-and-noise-tools' ), 'dashicons-visibility', $views_curr, $views_pct, admin_url( 'admin.php?page=sn-analytics&sn_range=7d' ) )
-		. pulse_item_html( __( 'Visits', 'signal-and-noise-tools' ), 'dashicons-groups', $visits_curr, $visits_pct, admin_url( 'admin.php?page=sn-analytics&sn_view=visits&sn_range=7d' ) )
-		. pulse_item_html( __( 'Pages per visit', 'signal-and-noise-tools' ), 'dashicons-performance', $engaged_val, $engaged_pct, admin_url( 'admin.php?page=sn-analytics&sn_range=7d' ) )
-		. pulse_item_html( __( 'Search clicks', 'signal-and-noise-tools' ), 'dashicons-search', $search_clicks, $search_detail, admin_url( 'admin.php?page=sn-analytics&sn_view=search' ) )
-		. '</div>'
-		// 15.3.2: the audience lists (top pages, sources, queries) belong here,
-		// under the numbers they explain, not under Operations.
-		. detail_html( (array) ( $data['panels'] ?? array() ), 'audience', __( 'Audience detail, 7 days', 'signal-and-noise-tools' ) )
-		. '</div>';
-
-	$out .= '</section>';
-	return $out;
-}
-
-/**
- * Render the Needs Attention section.
- *
- * @param array<string,mixed> $data Dashboard data bundle.
- * @param string              $tab  Current tab.
- * @return string
- */
-function home_attention_html( array $data, $tab ) {
-	$runs       = (array) ( $data['runs'] ?? array() );
-	$checks     = (array) ( $data['checks'] ?? array() );
-	$components = (array) ( $data['components'] ?? array() );
-	$attention  = (array) ( $data['attention'] ?? array() );
-
-	$rows = array();
-
-	// 1. Deploys non-success.
-	foreach ( $runs as $run ) {
-		$status     = (string) ( $run['status'] ?? '' );
-		$conclusion = (string) ( $run['conclusion'] ?? '' );
-		if ( 'completed' === $status && '' !== $conclusion
-			&& ! in_array( $conclusion, array( 'success', 'cancelled', 'skipped' ), true ) ) {
-			$rows[] = array(
-				'severity'     => 'err',
-				'icon'         => 'dashicons-warning',
-				'label'        => __( 'Deployment failed', 'signal-and-noise-tools' ),
-				'description'  => sprintf( __( 'Workflow concluded with %s. Review logs.', 'signal-and-noise-tools' ), $conclusion ),
-				'action_label' => __( 'Fix deployment', 'signal-and-noise-tools' ),
-				'href'         => admin_url( 'admin.php?page=sn-theme-options&tab=dashboard' ),
-			);
-			break;
-		}
-	}
-
-	// 2. Checks/Components with err or warn.
-	foreach ( array_merge( $checks, $components ) as $item ) {
-		if ( ! is_array( $item ) ) {
-			continue;
-		}
-		$kind = (string) ( $item['pill']['kind'] ?? '' );
-		if ( 'err' === $kind || ( 'warn' === $kind && \sn_admin_card_wants_attention( $item ) ) ) {
-			$is_err = 'err' === $kind;
-			$label  = (string) ( $item['label'] ?? '' );
-			$val    = (string) ( $item['value'] ?? '' );
-			$rows[] = array(
-				'severity'     => $is_err ? 'err' : 'warn',
-				'icon'         => $is_err ? 'dashicons-warning' : 'dashicons-info',
-				'label'        => $label,
-				'description'  => '' !== $val ? $val : __( 'Requires review and verification.', 'signal-and-noise-tools' ),
-				'action_label' => $is_err ? __( 'Review now', 'signal-and-noise-tools' ) : __( 'Inspect', 'signal-and-noise-tools' ),
-				'href'         => (string) ( $item['href'] ?? admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ) ),
-			);
-		}
-	}
-
-	// 3. Existing attention items (e.g. DB overrides, orphans, health findings).
-	foreach ( $attention as $item ) {
-		if ( ! is_array( $item ) ) {
-			continue;
-		}
-		$text = (string) ( $item['text'] ?? '' );
-		$href = (string) ( $item['href'] ?? '' );
-		$already = false;
-		foreach ( $rows as $r ) {
-			if ( $r['label'] === $text ) {
-				$already = true;
-				break;
-			}
-		}
-		if ( ! $already ) {
-			$rows[] = array(
-				'severity'     => 'warn',
-				'icon'         => 'dashicons-info',
-				'label'        => $text,
-				'description'  => __( 'Operational item pending review.', 'signal-and-noise-tools' ),
-				'action_label' => __( 'Review', 'signal-and-noise-tools' ),
-				'href'         => $href,
-			);
-		}
-	}
-
-	usort(
-		$rows,
-		static function ( $a, $b ) {
-			if ( $a['severity'] === $b['severity'] ) {
-				return 0;
-			}
-			return 'err' === $a['severity'] ? -1 : 1;
-		}
-	);
-
-	// Nothing needs you: no section at all. The greeting's state line already
-	// says the site is healthy; an "All clear" block restated it.
-	if ( array() === $rows ) {
-		return '';
-	}
-	$total_count  = count( $rows );
-	$visible_rows = array_slice( $rows, 0, 5 );
-
-	$out = '<section class="snt-home__section" aria-labelledby="snt-home-attention-heading">'
-		. '<div class="snt-home__section-heading">'
-		. '<h2 id="snt-home-attention-heading">' . esc_html__( 'Needs attention', 'signal-and-noise-tools' ) . '</h2>';
-
-	if ( $total_count > 5 ) {
-		$view_all_url = admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' );
-		$go           = go_target( $view_all_url );
-		$view_all_btn = null !== $go
-			? \snt_kit_go( sprintf( __( 'View all (%d)', 'signal-and-noise-tools' ), $total_count ), $go + array( 'current' => $tab ), array( 'class' => 'snt-home__view-all' ) )
-			: '<a class="snt-home__view-all" href="' . esc_url( $view_all_url ) . '">' . sprintf( esc_html__( 'View all (%d)', 'signal-and-noise-tools' ), $total_count ) . '</a>';
-		$out         .= $view_all_btn;
-	}
-
-	$out .= '</div><div class="snt-home__attention">';
-
-	if ( empty( $rows ) ) {
-		$out .= '<div class="snt-home__all-clear">'
-			. '<span class="dashicons dashicons-yes-alt" aria-hidden="true"></span>'
-			. '<span>'
-			. '<strong>' . esc_html__( 'All clear', 'signal-and-noise-tools' ) . '</strong>'
-			. '<span>' . esc_html__( 'Nothing needs your attention right now.', 'signal-and-noise-tools' ) . '</span>'
-			. '</span>'
-			. '</div>';
-	} else {
-		foreach ( $visible_rows as $row ) {
-			$go       = go_target( $row['href'] );
-			$row_body = '<span class="snt-home__attention-badge snt-home__attention-badge--' . esc_attr( $row['severity'] ) . '">'
-				. '<span class="dashicons ' . esc_attr( $row['icon'] ) . '" aria-hidden="true"></span>'
-				. '</span>'
-				. '<span class="snt-home__attention-copy">'
-				. '<strong>' . esc_html( $row['label'] ) . '</strong>'
-				. '<span>' . esc_html( $row['description'] ) . '</span>'
-				. '</span>'
-				. '<span class="snt-home__attention-action">'
-				. esc_html( $row['action_label'] ) . ' '
-				. '<span class="dashicons dashicons-arrow-right-alt2" aria-hidden="true"></span>'
-				. '</span>';
-
-			$attrs = array(
-				'class' => 'snt-home__attention-row snt-home__attention-row--' . esc_attr( $row['severity'] ),
-				'href'  => (string) $row['href'],
-			);
-
-			if ( null !== $go ) {
-				$target_tab = (string) ( $go['tab'] ?? '' );
-				if ( '' === $target_tab || $target_tab === $tab ) {
-					$attrs['os-action'] = 'go';
-					if ( ! empty( $go['sub'] ) ) {
-						$attrs['os-arg-sub'] = (string) $go['sub'];
-					}
-					if ( ! empty( $go['anchor'] ) ) {
-						$attrs['os-arg-anchor'] = (string) $go['anchor'];
-					}
-				} else {
-					$attrs['class']       .= ' snt-go';
-					$attrs['data-snt-tab'] = $target_tab;
-					if ( ! empty( $go['sub'] ) ) {
-						$attrs['data-snt-sub'] = (string) $go['sub'];
-					}
-					if ( ! empty( $go['anchor'] ) ) {
-						$attrs['data-snt-anchor'] = (string) $go['anchor'];
-					}
-				}
-			}
-
-			$out .= \snt_kit_tag( 'a', $attrs, $row_body );
-		}
-	}
-
-	$out .= '</div></section>';
-	return $out;
-}
-
-/**
- * Render the Continue Working recent items section.
- *
- * @param string $tab Current tab.
- * @return string
- */
-function home_continue_working_html( $tab ) {
-	unset( $tab );
-	$items       = array();
-	$found_posts = 0;
-
-	if ( class_exists( 'WP_Query' ) ) {
-		$query = new \WP_Query(
-			array(
-				'post_type'              => array( 'post', 'page' ),
-				'post_status'            => array( 'draft', 'pending', 'future', 'private', 'publish' ),
-				'posts_per_page'         => 3,
-				'orderby'                => 'modified',
-				'order'                  => 'DESC',
-				'ignore_sticky_posts'    => true,
-				'no_found_rows'          => false,
-				'update_post_meta_cache' => false,
-				'update_post_term_cache' => false,
-			)
-		);
-		$found_posts = (int) $query->found_posts;
-
-		if ( ! empty( $query->posts ) ) {
-			foreach ( $query->posts as $p ) {
-				$edit_url = function_exists( 'get_edit_post_link' ) ? get_edit_post_link( $p->ID, 'raw' ) : admin_url( 'post.php?post=' . $p->ID . '&action=edit' );
-				if ( ! is_string( $edit_url ) || '' === $edit_url ) {
-					continue;
-				}
-				$type_obj   = function_exists( 'get_post_type_object' ) ? get_post_type_object( $p->post_type ) : null;
-				$status_obj = function_exists( 'get_post_status_object' ) ? get_post_status_object( $p->post_status ) : null;
-				$title      = function_exists( 'get_the_title' ) ? get_the_title( $p ) : $p->post_title;
-
-				$modified_time = strtotime( (string) $p->post_modified_gmt . ' UTC' );
-				$time_str      = false !== $modified_time ? \snt_kit_relative_time( $modified_time ) : '';
-
-				$items[] = array(
-					'id'         => $p->ID,
-					'title'      => '' !== trim( (string) $title ) ? (string) $title : __( '(Untitled)', 'signal-and-noise-tools' ),
-					'type'       => $type_obj ? $type_obj->labels->singular_name : __( 'Post', 'signal-and-noise-tools' ),
-					'icon'       => 'page' === $p->post_type ? 'dashicons-admin-page' : 'dashicons-admin-post',
-					'status'     => $p->post_status,
-					'status_lbl' => $status_obj ? $status_obj->label : $p->post_status,
-					'time_ago'   => $time_str,
-					'edit_url'   => $edit_url,
-				);
-			}
-		}
-	}
-
-	// found_posts is the query's real total (paid for via no_found_rows=false);
-	// count( $items ) is only the 6-row display window and undercounts once
-	// more than 6 posts exist. Fall back to the window for a stub WP_Query
-	// (or no WP_Query at all) that never set found_posts.
-	$total_count  = $found_posts > 0 ? $found_posts : count( $items );
-	$visible_work = array_slice( $items, 0, 5 );
-
-	$out = '<section class="snt-home__section" aria-labelledby="snt-home-work-heading">'
-		. '<div class="snt-home__section-heading">'
-		. '<h2 id="snt-home-work-heading">' . esc_html__( 'Continue working', 'signal-and-noise-tools' ) . '</h2>';
-
-	if ( $total_count > 5 ) {
-		$out .= '<a class="snt-home__view-all" href="' . esc_url( admin_url( 'edit.php' ) ) . '">' . sprintf( esc_html__( 'View all (%d)', 'signal-and-noise-tools' ), $total_count ) . '</a>';
-	}
-
-	$out .= '</div><div class="snt-home__work">';
-
-	if ( empty( $items ) ) {
-		// The kit's empty state, as Station Home paints this section
-		// (apps/station-home/parts/view.php); Needs attention keeps its
-		// all-clear row, as Station Home does (#1593).
-		$out .= \snt_kit_empty(
-			__( 'Your desk is clear', 'signal-and-noise-tools' ),
-			__( 'Start something new and it will be waiting here when you return.', 'signal-and-noise-tools' ),
-			'welcome-write-blog'
-		);
-	} else {
-		foreach ( $visible_work as $item ) {
-			$status_tone = 'publish' === $item['status'] ? 'success' : ( in_array( $item['status'], array( 'future', 'pending' ), true ) ? 'warning' : 'neutral' );
-
-			$out .= '<a class="snt-home__work-row" href="' . esc_url( $item['edit_url'] ) . '">'
-				. '<span class="snt-home__row-icon"><span class="dashicons ' . esc_attr( $item['icon'] ) . '" aria-hidden="true"></span></span>'
-				. '<span class="snt-home__row-copy">'
-				. '<span class="snt-home__row-title">' . esc_html( $item['title'] ) . '</span>'
-				. '<span class="snt-home__row-meta">' . esc_html( $item['type'] ) . '</span>'
-				. '</span>'
-				. '<os-badge tone="' . esc_attr( $status_tone ) . '">' . esc_html( $item['status_lbl'] ) . '</os-badge>'
-				. ( '' !== $item['time_ago'] ? '<span class="snt-home__row-time">' . $item['time_ago'] . '</span>' : '' )
-				. '<span class="dashicons dashicons-arrow-right-alt2" aria-hidden="true"></span>'
-				. '</a>';
-		}
-	}
-
-	$out .= '</div></section>';
-	return $out;
-}
-
-/**
- * Ops panels: deploys, pages, sources, queries, API rate limits.
- *
- * @param array<int,array<string,mixed>> $panels Panels.
- * @return string
- */
-function detail_html( array $panels, $group = 'ops', $heading = null ) {
-	// 15.3.2: one painter, two homes. The audience panels (pages, sources,
-	// queries) paint under Site pulse; the ops panels (deploys, API limits)
-	// stay under Operations. A reading lives where its question is asked.
-	// 15.3.3: flat columns under an eyebrow, one column per panel, no box in
-	// a box: the panels used to be shaded cards inside a section inside the
-	// pulse, three of them in a two-column grid with an orphan.
-	$cols  = '';
-	$count = 0;
-	foreach ( $panels as $panel ) {
-		if ( ! is_array( $panel ) || (string) ( $panel['group'] ?? 'ops' ) !== $group ) {
-			continue;
-		}
-		$rows  = array_key_exists( 'rows', $panel ) ? $panel['rows'] : null;
-		if ( 'audience' === $group && is_array( $rows ) ) {
-			// A query that brought no clicks is noise on Home; an all-zero
-			// panel falls to its own empty message, never an empty column.
-			$rows = array_values( array_filter( $rows, static fn( $r ) => '0' !== (string) ( $r['value'] ?? '' ) ) );
-		}
-		$inner = null === $rows
-			? '<p class="snt-list__empty">' . \snt_kit_esc( (string) ( $panel['unmeasured'] ?? '' ) ) . '</p>'
-			: \snt_kit_list( (array) $rows, array( 'empty' => (string) ( $panel['empty'] ?? '' ) ) );
-		$title = (string) ( $panel['title'] ?? '' ) . ( '' !== (string) ( $panel['caption'] ?? '' ) ? ' · ' . (string) $panel['caption'] : '' );
-		$cols .= '<section class="snt-home__detail-col"><h3 class="snt-home__detail-h">' . \snt_kit_esc( $title ) . '</h3>' . $inner . '</section>';
-		++$count;
-	}
-	if ( '' === $cols ) {
-		return '';
-	}
-	$label = null === $heading ? __( 'Operations detail', 'signal-and-noise-tools' ) : (string) $heading;
-	return '<div class="snt-home__detail-group">'
-		. '<div class="snt-home__pulse-group-label">' . \snt_kit_esc( $label ) . '</div>'
-		. '<div class="snt-home__detail" style="--snt-detail-cols:' . (int) $count . '">' . $cols . '</div>'
-		. '</div>';
-}
-
-/**
  * The Dashboard tab painter (S&N Home).
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
@@ -757,8 +219,7 @@ function paint_dashboard( array $ctx ) {
 	$main_content = $intro_html
 		. north_star_html( $tab )
 		. home_pulse_html( $data, $tab )
-		. home_attention_html( $data, $tab )
-		. home_continue_working_html( $tab )
+		. home_desk_html( $data, $tab )
 		. home_operations_html( $data, $tab );
 
 	return '<div class="snt-home__layout" data-snt-home="true">'

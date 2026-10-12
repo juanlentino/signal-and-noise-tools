@@ -128,7 +128,7 @@ function sn_admin_top_tabs() {
 			// the tab. KEY unchanged — only the label moved.
 			'label'    => 'Site',
 			'title'    => 'Signal & Noise — Site',
-			'subtitle' => 'How the site itself behaves: identity and SEO, front-end render knobs, performance, and redirects.',
+			'subtitle' => 'How the site itself behaves: identity and SEO, how pages render, performance, redirects, and broken links.',
 			'sub_tabs' => array(
 				// One composite leaf: 4 tightly-coupled form sections under one save
 				// button, navigated by the internal TOC. Cloudflare moved to Connections

@@ -65,6 +65,7 @@ function sn_theme_ai_vision_models() {
  * @return string Flash code.
  */
 function sn_handle_save_theme( $post ) {
+	$before = sn_settings_snapshot();
 	$ok  = sn_setting_update( 'theme.related_count', max( 1, min( 12, (int) ( $post['theme_related_count'] ?? 3 ) ) ) );
 	$ok &= sn_setting_update( 'theme.palette_recent_count', max( 0, min( 20, (int) ( $post['theme_palette_recent_count'] ?? 8 ) ) ) );
 	$ok &= sn_setting_update( 'theme.palette_enabled', ! empty( $post['theme_palette_enabled'] ) );
@@ -81,6 +82,8 @@ function sn_handle_save_theme( $post ) {
 		$alias = 'research';
 	}
 	$ok &= sn_setting_update( 'theme.note_reply_alias', $alias );
+	// The pages render these: refresh the cache when one changed (2026.10.4).
+	sn_settings_purge_if_changed( $before );
 
 	// v10.46.0: theme.ai_model / theme.ai_alt_model / theme.ai_monthly_budget
 	// moved to sn_handle_ai_settings_save() below. They MUST NOT be read here any

@@ -148,11 +148,12 @@ fixture( $rich );
 $classic_strip = snt_leaf_classic_html( static function () { sn_admin_render_section_tabs( 'site', 'identity-and-seo' ); } );
 $classic       = snt_leaf_classic_html( 'sn_admin_render_identity_and_seo_form' );
 $kit           = snt_leaf_paint( 'site', 'identity-and-seo' );
+snt_leaf_preview( 'site-identity-and-seo', $kit );
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === names_folded( snt_leaf_names( $kit ) ), 'field names match the classic form (sameAs rows indexed, folded): kit ' . implode( ',', snt_leaf_names( $kit ) ) . ' | classic ' . implode( ',', snt_leaf_names( $classic ) ) );
 ok( array( 'save_identity' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is save_identity, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ) && false === strpos( $kit, '<noscript' ) && false === strpos( $kit, 'sn-add-row-btn' ), 'no wp-admin markup, no noscript, no dead add-row button survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( 1 === substr_count( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false !== strpos( $kit, 'submit-label="Save Identity Settings"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'ONE os-form dispatching post, labelled as the classic save bar, on the admin-post pipeline (no pipeline declared: an action field is admin-post)' );
+ok( 1 === substr_count( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false !== strpos( $kit, 'submit-label="Save identity and SEO"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'ONE os-form dispatching post, labelled as the classic save bar, on the admin-post pipeline (no pipeline declared: an action field is admin-post)' );
 ok( false !== strpos( $kit, 'name="action" value="sn_save_identity"' ) && false !== strpos( $kit, 'name="_wpnonce" value="nonce-sn_save_identity"' ), 'the action and the nonce minted for it ride as hidden fields (#1614)' );
 
 // ── The section strip: the classic anchors as tabs + panels, first open.
@@ -163,7 +164,23 @@ foreach ( $cs as $s ) {
 }
 ok( $strip_ok, 'the four classic sections are os-tab + os-tabpanel pairs keyed by the classic #sn-sec-<slug> anchors' );
 ok( false !== strpos( $kit, '<os-tabs class="snt-subtabs" value="identity" label="Identity &amp; SEO sections">' ) && false === strpos( $kit, 'os-bind' ), 'the strip opens on Identity (the classic is-active) and is not bound to state (client-side swap)' );
-ok( false !== strpos( $kit, '<p slot="footer-leading" class="snt-hint">Changes apply immediately on Save. Live site re-renders on next request.</p>' ), 'the save-bar hint sits beside the submit button' );
+ok( false !== strpos( $kit, '<p slot="footer-leading" class="snt-hint">Saving a change refreshes the site’s cached pages, so the live site shows it the next time a page loads.</p>' ), 'the save-bar hint sits beside the submit button' );
+// 2026.10.4 audit (batch 4): the one button saves all four sections, in the
+// sentence case of its siblings, and the hint keeps its promise (a changed
+// save purges the page cache); the classic twin says the same.
+ok( false === strpos( $kit, 'Save Identity Settings' ) && false === strpos( $kit, 're-renders' ), 'no "Save Identity Settings" over four sections, no "re-renders" promise' );
+// The visual pass: one narrow column of fields left two thirds of the window empty.
+ok( 4 === substr_count( $kit, '<div class="snt-site-fields">' ) && false !== strpos( $kit, 'class="snt-form snt-site-form"' ) && false !== strpos( $kit, '<div class="snt-site-field"><os-field-row label="Job title"' ), 'each section sets its fields in the two-up grid, each field a cell with its hint, the form uncapped' );
+// 2026.10.4 live check: a tall item beside a short one left a hole. Knows about
+// is last and spans the row, so Availability pairs with Locale; the sameAs list
+// spans the row under the handle.
+$ident = substr( $kit, (int) strpos( $kit, 'id="sn-sec-identity"' ), (int) strpos( $kit, 'id="sn-sec-social"' ) - (int) strpos( $kit, 'id="sn-sec-identity"' ) );
+ok( 1 === preg_match( '/<div class="snt-site-field snt-site-field--wide"><os-field-row label="Knows about"/', $ident ) && strpos( $ident, 'label="Locale"' ) < strpos( $ident, 'label="Knows about"' ) && strpos( $ident, 'label="Availability line"' ) < strpos( $ident, 'label="Locale"' ), 'Knows about comes last and spans the row; Availability and Locale pair above it' );
+ok( 1 === substr_count( $ident, 'snt-site-field--wide' ), '...and only Knows about spans in Identity' );
+ok( false !== strpos( $kit, '<div class="snt-field-static snt-site-field--wide">' ), 'the sameAs list spans the row under the Twitter / X handle' );
+ok( false !== strpos( $kit, '<os-stack gap="8" padding="0">' ) && 1 === preg_match( '/\.snt-site-fields > \.snt-field-static os-stack\s*\{\s*--os-ui-stack-padding:\s*0;/', preg_replace( '#/\*.*?\*/#s', '', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) ) ), '...flush under its label: the stack carries no inherited padding (about 12px live)' );
+$css_site = preg_replace( '#/\*.*?\*/#s', '', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) );
+ok( 1 === preg_match( '/\.snt-site-fields > \.snt-site-field--wide\s*\{\s*grid-column:\s*1 \/ -1;/', $css_site ), 'the sheet spans a wide cell across the grid, scoped to .snt-site-fields' );
 
 // ── Every readout: per-field value parity with the classic, then the prose.
 $classic_values = folded_values( field_values( $classic, false ) );
@@ -172,6 +189,10 @@ ok( $classic_values === $kit_values, 'every field carries the classic value (' .
 ok( array( 'https://a.example/juan', 'https://b.example/juan', '' ) === $kit_values['social_same_as'] && false !== strpos( $kit, 'name="social_same_as[2]" type="url" value=""' ), 'the stored sameAs rows paint plus ONE empty row (the classic noscript shape)' );
 $classic_bound = bound_attrs( $classic, false );
 $kit_bound     = bound_attrs( $kit, true );
+// Bound per field, in any order: the kit sets Knows about last so the short
+// fields pair (2026.10.4 live check); the classic keeps its column order.
+ksort( $classic_bound );
+ksort( $kit_bound );
 ok(
 	count( $kit_bound ) >= 15 && $classic_bound === $kit_bound,
 	'every field\'s label, type, placeholder, min/max and rows are bound to THAT field, not just present somewhere (' . count( $kit_bound ) . ' fields); diff: ' . json_encode(
@@ -224,6 +245,10 @@ ok( false !== strpos( $again, 'value="Renamed"' ) && false !== strpos( $again, '
 fixture( array( 'identity' => array( 'site_name' => '"><script>x</script>', 'knows_about' => array( '<b>bold</b>' ) ), 'social' => array( 'same_as' => array( 'javascript:alert(1)"><img src=x>' ) ) ) );
 $kit = snt_leaf_paint( 'site', 'identity-and-seo' );
 ok( false === strpos( $kit, '<script>' ) && false !== strpos( $kit, '&quot;&gt;&lt;script&gt;x&lt;/script&gt;' ) && false === strpos( $kit, '<img' ) && false !== strpos( $kit, '&lt;b&gt;bold&lt;/b&gt;' ), 'hostile site name, sameAs row and knowsAbout line are escaped' );
+
+// 2026.10.4 audit (batch 4): Knows about is tall enough for every topic and one more (it scrolled inside itself).
+fixture( array( 'identity' => array( 'knows_about' => array( 'A', 'B', 'C', 'D', 'E', 'F', 'G' ) ) ) );
+ok( 1 === preg_match( '/<os-textarea name="identity_knows_about"[^>]* rows="8"/', snt_leaf_paint( 'site', 'identity-and-seo' ) ), 'seven topics: the Knows about box is eight rows tall' );
 
 // ── The defaults state: an empty option paints the classic defaults.
 fixture( array() );

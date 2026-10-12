@@ -82,10 +82,10 @@ function broken_links_create_html( $path, array $e, $suggested ) {
 			. '<p class="snt-hint">' . \snt_kit_esc( __( 'Dismiss removes the path from the log without a redirect.', 'signal-and-noise-tools' ) ) . '</p>'
 			. \snt_kit_form( 'redirect_404_delete', \snt_kit_field( 'hidden', 'source', '', $path ), array( 'submit' => __( 'Dismiss', 'signal-and-noise-tools' ) ) ),
 		sprintf(
-			/* translators: 1: "7 hits", 2: date of the latest hit (Y-m-d), 3: "from <host>" or "no referrer recorded". */
+			/* translators: 1: "7 hits", 2: date of the latest hit (the site's date format), 3: "from <host>" or "no referrer recorded". */
 			__( '%1$s, last %2$s, %3$s.', 'signal-and-noise-tools' ),
 			broken_links_hits( (int) ( $e['count'] ?? 0 ) ),
-			$last > 0 ? wp_date( 'Y-m-d', $last ) : __( 'unknown', 'signal-and-noise-tools' ),
+			\sn_404_date( $last ),
 			/* translators: %s: the referring host. */
 			'' !== $host ? sprintf( __( 'from %s', 'signal-and-noise-tools' ), $host ) : __( 'no referrer recorded', 'signal-and-noise-tools' )
 		),

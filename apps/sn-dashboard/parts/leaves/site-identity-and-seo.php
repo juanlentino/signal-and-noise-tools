@@ -127,8 +127,8 @@ function paint_site_identity_and_seo( array $ctx ) {
 			$inner .= call_user_func( $painter );
 		}
 	}
-	$inner .= '<p slot="footer-leading" class="snt-hint">' . \snt_kit_esc( __( 'Changes apply immediately on Save. Live site re-renders on next request.', 'signal-and-noise-tools' ) ) . '</p>';
-	return \snt_kit_form( 'save_identity', $inner, array( 'submit' => __( 'Save Identity Settings', 'signal-and-noise-tools' ) ) );
+	$inner .= '<p slot="footer-leading" class="snt-hint">' . \snt_kit_esc( __( 'Saving a change refreshes the site’s cached pages, so the live site shows it the next time a page loads.', 'signal-and-noise-tools' ) ) . '</p>';
+	return \snt_kit_form( 'save_identity', $inner, array( 'submit' => __( 'Save identity and SEO', 'signal-and-noise-tools' ), 'class' => 'snt-site-form' ) );
 }
 
 add_filter(

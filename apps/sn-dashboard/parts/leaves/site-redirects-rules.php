@@ -44,9 +44,10 @@ function redirects_added( array $r, $unknown ) {
 }
 
 /**
- * The reading (rules, permanent, temporary) and the finding (how many leave
- * the site). The store keeps no hit count, and a rule's source leaves the 404
- * log when the rule is made, so no traffic figure is offered.
+ * The reading (permanent, temporary) and the finding (how many rules, how
+ * many leave the site), the classic's sentence (inc/redirects-copy.php).
+ * 2026.10.4 audit: a "Rules" tile beside Permanent and Temporary repeated
+ * their sum (Rules 20, Permanent 20); the total is in the finding now.
  *
  * @param array<string,array<string,mixed>> $rules Every rule, newest first.
  * @return string
@@ -54,25 +55,15 @@ function redirects_added( array $r, $unknown ) {
 function redirects_reading_html( array $rules ) {
 	$total = count( $rules );
 	$temp  = count( array_filter( $rules, static function ( $r ) { return 302 === redirects_code( (array) $r ); } ) );
-	$off   = count( array_filter( $rules, static function ( $r ) { return (bool) preg_match( '#^https?://#i', (string) ( $r['to'] ?? '' ) ); } ) );
 	$tiles = \snt_kit_grid(
 		array(
-			\snt_kit_stat( number_format_i18n( $total ), _n( 'Rule', 'Rules', $total, 'signal-and-noise-tools' ) ),
 			\snt_kit_stat( number_format_i18n( $total - $temp ), __( 'Permanent', 'signal-and-noise-tools' ), '301' ),
 			\snt_kit_stat( number_format_i18n( $temp ), __( 'Temporary', 'signal-and-noise-tools' ), '302' ),
 		),
 		160,
 		10
 	);
-	if ( 0 === $off ) {
-		$finding = __( 'Every rule sends readers to a path on this site.', 'signal-and-noise-tools' );
-	} elseif ( $off === $total ) {
-		$finding = __( 'Every rule sends readers to another site.', 'signal-and-noise-tools' );
-	} else {
-		/* translators: 1: rules with an off-site target, 2: rules in total. */
-		$finding = sprintf( _n( '%1$s of the %2$s rules sends readers to another site; the rest stay on this one.', '%1$s of the %2$s rules send readers to another site; the rest stay on this one.', $off, 'signal-and-noise-tools' ), number_format_i18n( $off ), number_format_i18n( $total ) );
-	}
-	return $tiles . '<p class="snt-prose">' . \snt_kit_esc( $finding ) . '</p>';
+	return $tiles . '<p class="snt-prose">' . \snt_kit_esc( \sn_redirects_finding( $rules ) ) . '</p>';
 }
 
 /**
@@ -116,7 +107,7 @@ function redirects_rules_html( array $rules, $editing = '', $editor = '' ) {
 	$heading = __( 'Redirect rules', 'signal-and-noise-tools' );
 	$total   = count( $rules );
 	if ( 0 === $total ) {
-		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'No redirect rules yet; add the first one below.', 'signal-and-noise-tools' ) ) . '</p>' );
+		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( \sn_redirects_finding( array() ) ) . '</p>' );
 	}
 	$rows = array();
 	$at   = -1;
