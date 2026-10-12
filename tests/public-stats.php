@@ -41,7 +41,9 @@ function delete_transient( $k ) { unset( $GLOBALS['__transients'][ $k ] ); retur
 // Path→title resolution: only /notes/alpha/ resolves; everything else falls
 // back to the raw path (the "never a dead guess" contract).
 function url_to_postid( $url ) { return false !== strpos( (string) $url, '/notes/alpha/' ) ? 77 : 0; }
-function get_the_title( $id ) { return 77 === (int) $id ? 'Alpha & the <Signal>' : ''; }
+function get_the_title( $id ) { return 77 === (int) $id ? 'Alpha & the <Signal>' : ( 12 === (int) $id ? 'Notes' : '' ); }
+function get_permalink( $id ) { return 12 === (int) $id ? 'https://example.com/notes/' : ''; }
+if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
 
 // The rollup read layer — counting stubs, fixture-driven.
 $GLOBALS['__ct_calls'] = 0; $GLOBALS['__ct_return'] = array();
@@ -166,6 +168,10 @@ ok( in_array( 'sn-public-stats-front', $GLOBALS['__enq'], true ), 'enqueues its 
 ok( false !== strpos( $html, '>900<' ) && false !== strpos( $html, '>640<' ) && false === strpos( $html, '>1,100<' ) && false === strpos( $html, '>999<' ), 'tiles render views and site-wide sessions, never the rollup visits or pageview_visits' );
 ok( false !== strpos( $html, '>100<' ), 'the automated tile renders — the filtered class is shown, not hidden' );
 ok( false !== strpos( $html, 'Alpha &amp; the &lt;Signal&gt;' ), 'a resolved title renders ESCAPED' );
+$GLOBALS['__options']['page_for_posts'] = 12;
+ok( 'Notes' === sn_public_stats_path_label( '/notes/' ), 'the posts page (which url_to_postid does not resolve) reads by its title in Most read, not as a raw path (live audit P2-7)' );
+ok( '/gone/' === sn_public_stats_path_label( '/gone/' ), 'an unresolved path still reads as itself' );
+unset( $GLOBALS['__options']['page_for_posts'] );
 ok( false !== strpos( $html, '/notes/beta/' ), 'an unresolvable path falls back to the path itself' );
 ok( false !== strpos( $html, 'Home' ), 'the homepage path renders as Home' );
 ok( false === strpos( $html, 'wp-admin' ), 'no admin path anywhere in the public render' );

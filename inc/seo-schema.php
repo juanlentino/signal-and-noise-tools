@@ -511,6 +511,9 @@ function sn_schema_professional_service() {
  * Added in v2.0.0 (Phase 13 TSF cutover).
  */
 function sn_schema_collection_page() {
+	if ( function_exists( 'sn_seo_is_tag_view' ) && sn_seo_is_tag_view() ) {
+		return sn_schema_tag_collection_page();
+	}
 	if ( ! is_home() && ! is_page( 'notes' ) ) {
 		return null;
 	}
@@ -580,6 +583,32 @@ function sn_schema_collection_page() {
 }
 
 /**
+ * The CollectionPage for a tag view (/notes/tags/ or /tag/<slug>/), at the
+ * view's canonical, named by the page's own title (2026.10 live audit, P2-5).
+ *
+ * @return array|null
+ */
+function sn_schema_tag_collection_page() {
+	list( , $description, $url ) = sn_seo_meta_for_current_view();
+	if ( '' === (string) $url ) {
+		return null;
+	}
+	$schema = array(
+		'@type'      => 'CollectionPage',
+		'@id'        => $url,
+		'url'        => $url,
+		'name'       => function_exists( 'wp_get_document_title' ) ? (string) wp_get_document_title() : '',
+		'inLanguage' => str_replace( '_', '-', sn_setting( 'identity.locale', 'en_US' ) ),
+		'isPartOf'   => array( '@id' => home_url( '/' ) . '#/schema/WebSite' ),
+		'breadcrumb' => array( '@id' => $url . '#breadcrumb' ),
+	);
+	if ( '' !== (string) $description ) {
+		$schema['description'] = (string) $description;
+	}
+	return $schema;
+}
+
+/**
  * Build the BreadcrumbList schema for the current view.
  * Returns null on the front page (no useful trail).
  *
@@ -644,6 +673,23 @@ function sn_schema_breadcrumb_list() {
 			'item'     => $base_id,
 			'name'     => sn_setting( 'seo_copy.notes_title', 'Notes' ),
 		);
+	} elseif ( function_exists( 'sn_seo_is_tag_view' ) && sn_seo_is_tag_view() ) {
+		list( , , $base_id ) = sn_seo_meta_for_current_view();
+		if ( '' === (string) $base_id ) {
+			return null;
+		}
+		$items[] = array(
+			'@type'    => 'ListItem',
+			'position' => $position++,
+			'item'     => home_url( '/notes/' ),
+			'name'     => sn_setting( 'seo_copy.notes_title', 'Notes' ),
+		);
+		$items[] = array(
+			'@type'    => 'ListItem',
+			'position' => $position,
+			'item'     => $base_id,
+			'name'     => is_tag() ? (string) single_term_title( '', false ) : 'Tags',
+		);
 	} else {
 		return null;
 	}
@@ -663,9 +709,8 @@ function sn_schema_breadcrumb_list() {
  * disjoint scripts).
  */
 add_action( 'wp_head', function() {
-	// Only emit on front page, /notes, /provenance, any singular content, and
-	// v10.0.0: virtual-route seam retired; real Pages are is_singular().
-	if ( ! is_front_page() && ! is_home() && ! is_singular() ) {
+	// Front page, /notes, any singular, and the tag views (sn_seo_head_view_wanted()).
+	if ( ! sn_seo_head_view_wanted() ) {
 		return;
 	}
 

@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/seo-validators.php'; // 2026.10 live audit: the dates the page and feed validators send.
+
 /**
  * SEO: Suppress The SEO Framework's Open Graph / Facebook / Twitter emission.
  *
@@ -636,6 +638,28 @@ function sn_seo_image_dimensions( $url ) {
 }
 
 /**
+ * A tag view: the /notes/tags/ glossary (a theme route) or a /tag/<slug>/
+ * archive. Both are collections with a canonical and a description.
+ *
+ * @return bool
+ */
+function sn_seo_is_tag_view() {
+	return ( function_exists( 'sn_notes_is_tags_request' ) && sn_notes_is_tags_request() )
+		|| ( function_exists( 'is_tag' ) && is_tag() );
+}
+
+/**
+ * The views that carry Open Graph and JSON-LD: the front page, the notes
+ * index, every singular and (2026.10 live audit, P2-5) the tag views. One
+ * gate for both emitters (here and inc/seo-schema.php).
+ *
+ * @return bool
+ */
+function sn_seo_head_view_wanted() {
+	return is_front_page() || is_home() || is_singular() || sn_seo_is_tag_view();
+}
+
+/**
  * Open Graph + Twitter card meta.
  *
  * Emitted on the front page and any singular post/page (including the
@@ -645,14 +669,16 @@ function sn_seo_image_dimensions( $url ) {
  * touching theme code.
  */
 add_action( 'wp_head', function() {
-	// v10.0.0: the sn_seo_route_meta virtual-route seam is retired — the
-	// pages-to-CMS flip made every former virtual route a real Page, so
-	// is_singular() covers them.
-	if ( ! is_front_page() && ! is_home() && ! is_singular() ) {
+	if ( ! sn_seo_head_view_wanted() ) {
 		return;
 	}
 
 	list( $title, $description, $url ) = sn_seo_meta_for_current_view();
+	// The tag views leave the view title empty so WordPress (or the theme, for
+	// /notes/tags/) owns the <title>; the card takes that same title.
+	if ( ! $title && sn_seo_is_tag_view() && function_exists( 'wp_get_document_title' ) ) {
+		$title = (string) wp_get_document_title();
+	}
 	if ( ! $title && ! $description ) {
 		return;
 	}
@@ -871,7 +897,9 @@ add_action( 'template_redirect', function() {
 		return;
 	}
 
-	$modified_gmt = sn_seo_singular_last_modified_gmt( $post );
+	// The later of the content date and the last render change, or no
+	// validator at all on a computed page (2026.10 live audit, P1-1).
+	$modified_gmt = sn_seo_singular_validator_gmt( sn_seo_singular_last_modified_gmt( $post ), sn_seo_render_changed_gmt(), sn_seo_is_computed_content( (string) $post->post_content ) );
 	if ( ! $modified_gmt ) {
 		return;
 	}
