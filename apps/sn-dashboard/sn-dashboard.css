@@ -99,7 +99,12 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="search-console"],
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="reports"],
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="audit-log"],
-.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="tags"] {
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="tags"],
+/* 2026.10.4 audit: Site › Front-End and Identity & SEO use the window's width
+   (their forms lift the 760px cap below; the leaf's 820px held them anyway). */
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( .snt-site-form ),
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="front-end"],
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="identity-and-seo"] {
 	max-width: 100%;
 }
 
@@ -230,6 +235,11 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 	margin: 0;
 }
 .snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-links-nowrap {
+	white-space: nowrap;
+}
+
+/* A date that must not break across lines (Broken links' Last seen, 2026.10.4). */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-nowrap {
 	white-space: nowrap;
 }
 

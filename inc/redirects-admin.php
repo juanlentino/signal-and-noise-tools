@@ -205,7 +205,7 @@ function sn_redirects_render_broken_links_tab() {
 			echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'redirect_add' ) ) . '"><div class="sn-fieldset">';
 			echo '<input type="hidden" name="source" value="' . esc_attr( $path ) . '">';
 			echo '<h2 class="sn-fieldset-h sn-mono">' . esc_html( $path ) . '</h2>';
-			echo '<p class="sn-fieldset-intro">' . esc_html( (int) ( $e['count'] ?? 0 ) ) . ' hit' . ( 1 === (int) ( $e['count'] ?? 0 ) ? '' : 's' ) . ' · last ' . esc_html( wp_date( 'Y-m-d', (int) ( $e['last_seen'] ?? 0 ) ) );
+			echo '<p class="sn-fieldset-intro">' . esc_html( (int) ( $e['count'] ?? 0 ) ) . ' hit' . ( 1 === (int) ( $e['count'] ?? 0 ) ? '' : 's' ) . ' · last <span class="sn-nowrap">' . esc_html( sn_404_date( (int) ( $e['last_seen'] ?? 0 ) ) ) . '</span>';
 			if ( ! empty( $e['referer'] ) ) {
 				echo ' · from <code>' . esc_html( (string) wp_parse_url( (string) $e['referer'], PHP_URL_HOST ) ) . '</code>';
 			}

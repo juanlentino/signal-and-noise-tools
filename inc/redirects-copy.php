@@ -27,6 +27,18 @@ function sn_404_hits( $n ) {
 }
 
 /**
+ * When a logged 404 was last hit, in the site's own date format (2026.10.4
+ * live check: a raw Y-m-d wrapped as "2026-10-" over "10" in a half-width
+ * table). "unknown" when the log holds no date.
+ *
+ * @param int $ts Unix time.
+ * @return string
+ */
+function sn_404_date( $ts ) {
+	return (int) $ts > 0 ? (string) wp_date( (string) get_option( 'date_format', 'F j, Y' ), (int) $ts ) : __( 'unknown', 'signal-and-noise-tools' );
+}
+
+/**
  * The redirects finding: how many rules there are and how many leave the
  * site. The store keeps no hit count, so no traffic figure is offered.
  *

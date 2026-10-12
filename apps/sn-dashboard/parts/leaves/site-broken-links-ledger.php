@@ -81,7 +81,11 @@ function broken_links_row( $path, array $e, $suggested, $open = false ) {
 		'_key'      => $path,
 		'path'      => $path,
 		'hits'      => (int) ( $e['count'] ?? 0 ),
-		'last'      => $last > 0 ? wp_date( 'Y-m-d', $last ) : __( 'unknown', 'signal-and-noise-tools' ),
+		// The site's date format, on one line (a slotted cell, so the sheet reaches it).
+		'last'      => array(
+			'html' => '<span class="snt-nowrap">' . \snt_kit_esc( \sn_404_date( $last ) ) . '</span>',
+			'text' => \sn_404_date( $last ),
+		),
 		'referrer'  => broken_links_referrer( $e, __( 'none recorded', 'signal-and-noise-tools' ) ),
 		'suggested' => '' !== $suggested ? $suggested : __( 'no close match', 'signal-and-noise-tools' ),
 		'actions'   => array(

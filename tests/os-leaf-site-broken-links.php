@@ -49,7 +49,9 @@ function table_of( $html, $n ) { foreach ( snt_leaf_tables( $html ) as $t ) { if
 /** Every `<os-form` inside a table slot cell: a write belongs in the ONE region below the table, never in a row. */
 function slot_forms( $html ) { $n = 0; foreach ( snt_leaf_tables( $html ) as $t ) { foreach ( $t['slots'] as $slot ) { $n += substr_count( $slot, '<os-form' ); } } return $n; }
 function styled( $html ) { return false !== strpos( (string) preg_replace( '/<os-grid [^>]*>/', '', $html ), ' style="' ); }
-$t0 = 1725000000; $t1 = $t0 + DAY_IN_SECONDS; $d0 = gmdate( 'Y-m-d', $t0 ); $d1 = gmdate( 'Y-m-d', $t1 );
+// 2026.10.4 live check of #2020: dates in the site's own date format, never a raw Y-m-d.
+$GLOBALS['__options']['date_format'] = 'F j, Y';
+$t0 = 1725000000; $t1 = $t0 + DAY_IN_SECONDS; $d0 = gmdate( 'F j, Y', $t0 ); $d1 = gmdate( 'F j, Y', $t1 );
 // The broken-links leaf owns the three 404 actions, plus redirect_add (a
 // suggestion accepted IS a redirect created).
 $all_actions = array( 'redirect_404_clear', 'redirect_404_clear_probes', 'redirect_404_delete', 'redirect_add' );
@@ -87,8 +89,14 @@ $broken = table_of( $kit, 6 );
 ok( array( 'Path', 'Hits', 'Last seen', 'Referrer', 'Suggested target', 'Actions' ) === array_column( $broken['columns'], 'label' ), 'the broken table has labelled columns: ' . implode( ',', array_column( $broken['columns'], 'label' ) ) );
 $r0 = $broken['data'][0] ?? array(); $r1 = $broken['data'][1] ?? array();
 ok( '/notes/desing-tokens' === ( $r0['path'] ?? '' ) && '/contact-us' === ( $r1['path'] ?? '' ), 'broken paths paint busiest first' );
-ok( 7 === ( $r0['hits'] ?? null ) && $d0 === ( $r0['last'] ?? '' ) && 'ref.example' === ( $r0['referrer'] ?? '' ) && '/notes/design-tokens' === ( $r0['suggested'] ?? '' ), 'a row carries hits, last date, referring host and the slug suggestion: ' . wp_json_encode( $r0 ) );
-ok( 2 === ( $r1['hits'] ?? null ) && $d1 === ( $r1['last'] ?? '' ) && 'none recorded' === ( $r1['referrer'] ?? '' ) && '/contact' === ( $r1['suggested'] ?? '' ), '...and a missing referrer reads "none recorded", never blank' );
+// The Last seen cell never wraps ("2026-10-" over "10" when the lists pair): a nowrap span in a slotted cell.
+ok( '<span class="snt-nowrap">' . $d0 . '</span>' === snt_leaf_cell_html( $broken, $r0['last'] ?? null ) && $d0 === ( $r0['last']['text'] ?? '' ), 'Last seen is the site\'s date format ("' . $d0 . '"), in a cell that does not wrap' );
+$css_nowrap = preg_replace( '#/\*.*?\*/#s', '', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) );
+ok( 1 === preg_match( '/\.snt-nowrap\s*\{\s*white-space:\s*nowrap;/', $css_nowrap ), 'the sheet keeps .snt-nowrap on one line' );
+ok( false !== strpos( $classic, 'last <span class="sn-nowrap">' . $d0 . '</span>' ) && false === strpos( $classic, gmdate( 'Y-m-d', $t0 ) ), 'the classic twin says the same date, in the site\'s format, unwrapped' );
+ok( 1 === preg_match( '/\.sn-nowrap\s*\{\s*white-space:\s*nowrap;/', (string) file_get_contents( SNT_PATH . 'assets/admin.css' ) ), '...and the classic sheet keeps it on one line' );
+ok( 7 === ( $r0['hits'] ?? null ) && 'ref.example' === ( $r0['referrer'] ?? '' ) && '/notes/design-tokens' === ( $r0['suggested'] ?? '' ), 'a row carries hits, last date, referring host and the slug suggestion: ' . wp_json_encode( $r0 ) );
+ok( 2 === ( $r1['hits'] ?? null ) && $d1 === ( $r1['last']['text'] ?? '' ) && 'none recorded' === ( $r1['referrer'] ?? '' ) && '/contact' === ( $r1['suggested'] ?? '' ), '...and a missing referrer reads "none recorded", never blank' );
 $cell = snt_leaf_cell_html( $broken, $r0['actions'] ?? null );
 ok( '<span id="snt-row-' . substr( md5( '/notes/desing-tokens' ), 0, 12 ) . '" data-snt-focus><os-button variant="ghost" os-action="go" aria-label="Fix /notes/desing-tokens" os-arg-sub="broken-links" os-arg-sn_edit="/notes/desing-tokens" os-arg-anchor="snt-edit-region">Fix</os-button></span>' === $cell, 'a row carries ONE visible action, Fix, a go button naming its path, in its row anchor: ' . substr( $cell, 0, 200 ) );
 ok( 0 === slot_forms( $kit ) && 0 === slot_forms( $kit_ed ), 'no table cell holds a form, default or editing: ' . slot_forms( $kit ) . ' / ' . slot_forms( $kit_ed ) );

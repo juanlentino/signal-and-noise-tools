@@ -1356,6 +1356,11 @@
 
 /* ─── Override details (Dashboard diagnostics) ───────────────────────────
    Tightened from the previous inline-styled <details> block. */
+/* A date that must not break across lines (Broken links' last hit, 2026.10.4). */
+.sn-nowrap {
+	white-space: nowrap;
+}
+
 /* The override names, open under their heading (2026.10.4 audit: the fold
    said "click to expand" on a box that was already open). */
 .sn-override-list {
