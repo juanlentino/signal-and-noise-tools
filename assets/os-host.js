@@ -315,7 +315,7 @@
 	var DRAFT_FIELDS = 'os-text-field[name], os-textarea[name], os-number-field[name], os-select[name], textarea[name], select[name], input[name]';
 	var DRAFT_SKIP = { hidden: 1, checkbox: 1, radio: 1, submit: 1, button: 1, reset: 1, image: 1, file: 1, password: 1 };
 	var drafts = new WeakMap();
-	var submitted = new WeakMap(); // root -> the last submitted form's scope, until a paint answers it
+	var submitted = new WeakMap(); // root -> [ { scope, action } ] submitted and not yet answered
 
 	function formOf( el ) {
 		return el && el.closest ? el.closest( 'form, os-form' ) : null;
@@ -394,22 +394,36 @@
 		}
 		var scope = formKeys( root ).get( form );
 		if ( scope ) {
-			// The latest submit is the one the next answer is about (a confirm
-			// the reader cancelled sent nothing; a new submit supersedes it).
-			submitted.set( root, scope );
+			// Every submit waits for the answer that names its action; two
+			// quick submits queue, and a confirm the reader cancelled is
+			// never answered, so its drafts stay.
+			var list = submitted.get( root ) || [];
+			list.push( { scope: scope, action: formAction( form ) } );
+			submitted.set( root, list );
 		}
 	}
 
-	function restoreDrafts( root, refused, saved ) {
+	function restoreDrafts( root, refused, saved, answered ) {
 		var memo = drafts.get( root );
 		var leaf = leafOf( root );
 		var same = !! memo && memo.leaf === leaf;
-		// Only an answer ends a submit: `saved` drops its form's drafts,
-		// `refused` keeps them; a paint with neither (a watch tick, a
-		// cancelled confirm, a request that failed) leaves it pending.
-		var sent = saved ? submitted.get( root ) || '' : '';
-		if ( saved || refused ) {
-			submitted.delete( root );
+		// Only the answer that names a form's action ends that form's submit:
+		// `saved` drops its drafts, `refused` keeps them; any other paint (a
+		// watch tick, another form's answer, a one-click action) leaves it
+		// pending.
+		var pending = submitted.get( root ) || [];
+		var dropped = [];
+		if ( answered && ( saved || refused ) ) {
+			pending = pending.filter( function ( p ) {
+				if ( p.action !== answered ) {
+					return true;
+				}
+				if ( saved ) {
+					dropped.push( p.scope );
+				}
+				return false;
+			} );
+			submitted.set( root, pending );
 		}
 		var next = { leaf: leaf, base: {}, typed: {} };
 		var active = document.activeElement;
@@ -418,7 +432,7 @@
 			var key = fields[ i ].key;
 			var el = fields[ i ].el;
 			// A save that took ends its form's drafts; a refused one keeps them.
-			var had = same && Object.prototype.hasOwnProperty.call( memo.typed, key ) && sent !== fields[ i ].scope;
+			var had = same && Object.prototype.hasOwnProperty.call( memo.typed, key ) && -1 === dropped.indexOf( fields[ i ].scope );
 			if ( active && ( el === active || ( el.contains && el.contains( active ) ) ) ) {
 				// The morph left the reader's field alone: so does this.
 				next.base[ key ] = same && Object.prototype.hasOwnProperty.call( memo.base, key ) ? memo.base[ key ] : paintedValue( el );
@@ -465,7 +479,7 @@
 			return;
 		}
 		restoreFolds( root );
-		restoreDrafts( root, !! effect.refused, !! effect.saved );
+		restoreDrafts( root, !! effect.refused, !! effect.saved, String( effect.answered || '' ) );
 		schedule( root, String( effect.anchor || '' ) );
 	}
 

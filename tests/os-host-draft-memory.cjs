@@ -55,9 +55,10 @@ const dispatch = (type, event, during) => {
   if (during) during();
   (listeners.bubble[type] || []).forEach((fn) => fn(event));
 };
-const paint = (values, answer) => {
+// `answer` is 'saved' or 'refused'; `action` names the form it answers (the server's `answered`).
+const paint = (values, answer, action) => {
   fields.forEach((f, i) => f.morph(values[i]));
-  dispatch('os-app-effect', { target: root, detail: { effect: { type: 'snt-paint', refused: answer === 'refused', saved: answer === 'saved' } } });
+  dispatch('os-app-effect', { target: root, detail: { effect: { type: 'snt-paint', refused: answer === 'refused', saved: answer === 'saved', answered: action || '' } } });
 };
 // A keystroke: a native field has its value before the event; a kit field sets it in its own handler.
 const type = (f, v) => {
@@ -106,24 +107,41 @@ assert.equal(to.value, '/new-page', 'an editor opening above the add form leaves
 submit(add);
 paint(P());
 assert.equal(from.value, '/old-page', 'a paint that does not answer the submit keeps the drafts (PR #2014 re-review)');
-paint(P(), 'refused');
+paint(P(), 'refused', 'sn_redirect_add');
 assert.equal(from.value, '/old-page', 'a refused save keeps what was typed');
 submit(add);
 paint(P());
-paint(P(), 'saved');
+paint(P(), 'saved', 'sn_redirect_add');
 assert.equal(from.value, '', 'the answer that says saved drops the add form\'s drafts, though it repaints blank');
 assert.equal(kind.value, '301', 'every field of the submitted form');
 assert.equal(note.value, 'Typed note', 'another form\'s draft is untouched by that save');
 paint(P());
 assert.equal(from.value, '', 'and the dropped draft never comes back');
 
-// A confirm cancelled on one form, then a save on another: only the latest submit is answered.
+// A confirm cancelled on one form, then a save on another: the answer names its form.
 type(from, '/kept');
 submit(add);          // cancelled: nothing is sent, nothing paints
 submit(note.form);    // a native form's submit
-paint(P(), 'saved');
+paint(P(), 'saved', 'sn_note_save');
 assert.equal(note.value, 'Old note', 'a native form\'s save drops its draft');
 assert.equal(from.value, '/kept', 'the cancelled form keeps its draft');
+// A one-click action's save answers no form, so it drops nothing (PR #2014 third pass, case 12).
+paint(P(), 'saved', 'sn_indexnow_ping_now');
+assert.equal(from.value, '/kept', 'a one-click action\'s answer leaves a pending form alone');
+// Two quick submits, answered in either order (cases 10 and 11).
+type(note, 'B typed');
+submit(note.form);    // A (the add form) is still pending from above
+paint(P(), 'saved', 'sn_redirect_add');
+assert.equal(from.value, '', 'A\'s save drops A\'s drafts');
+assert.equal(note.value, 'B typed', 'and not B\'s, still waiting for its own answer');
+paint(P(), 'refused', 'sn_note_save');
+assert.equal(note.value, 'B typed', 'B\'s refusal keeps B\'s text');
+type(from, '/again');
+submit(add);
+paint(P(), 'refused', 'sn_redirect_add');
+paint(P(), 'saved', 'sn_redirect_add');
+assert.equal(from.value, '/again', 'a refusal ends its submit: a later save answer for the same action finds nothing pending');
+paint(P('Old note'));
 
 // A new stored value wins; a field that leaves the leaf drops its draft.
 type(note, 'Typed again');

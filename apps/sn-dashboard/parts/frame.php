@@ -115,17 +115,19 @@ function notice_html( $notice ) {
  * paint carries an error notice (the host keeps the form's typed text),
  * `saved` on the ONE paint after a save that took (the host lets it go). A
  * paint carrying neither (a watch tick, a cancelled confirm, a request that
- * never answered) leaves a pending submit pending.
+ * never answered) leaves a pending submit pending. `answered` names the
+ * action the answer is about, so it ends only that form's pending submit.
  *
  * @param Os     $os      Host handle.
  * @param string $anchor  Element id to land on, or ''.
  * @param bool   $refused The paint reports a refusal (an error notice).
- * @param bool   $saved   The paint answers a save that took.
+ * @param bool   $saved    The paint answers a save that took.
+ * @param string $answered The action (a form's `action`/`sn_action`) answered, or ''.
  * @return void
  */
-function paint_effect( Os $os, $anchor, $refused = false, $saved = false ) {
+function paint_effect( Os $os, $anchor, $refused = false, $saved = false, $answered = '' ) {
 	if ( isset( $os->effects ) && method_exists( $os->effects, 'add' ) ) {
-		$os->effects->add( 'snt-paint', array( 'anchor' => $anchor, 'refused' => (bool) $refused, 'saved' => (bool) $saved ) );
+		$os->effects->add( 'snt-paint', array( 'anchor' => $anchor, 'refused' => (bool) $refused, 'saved' => (bool) $saved, 'answered' => (string) $answered ) );
 	}
 }
 
@@ -141,9 +143,9 @@ function tab_view( $tab ) {
 		$leaves = leaves_for( $tab );
 		$notice  = $state->get( 'notice' );
 		$refused = is_array( $notice ) && 'error' === (string) ( $notice[0] ?? '' );
-		paint_effect( $os, (string) $state->get( 'anchor' ), $refused, ! $refused && (bool) $state->get( 'saved' ) );
-		// Like the anchor, `saved` answers one paint only.
-		$state->set( 'saved', false );
+		paint_effect( $os, (string) $state->get( 'anchor' ), $refused, ! $refused && (bool) $state->get( 'saved' ), (string) $state->get( 'answered' ) );
+		// Like the anchor, the answer rides one paint only.
+		$state->set( 'saved', false )->set( 'answered', '' );
 		// The anchor rides this one paint and no later one: the runtime echoes
 		// state after render, so clearing it here keeps a Refresh or an inline
 		// post from scrolling to the same section again.

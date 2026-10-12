@@ -291,6 +291,7 @@ $sn_dashboard = App::define( APP_ID )
 			'post'   => array(),     // ONE paint's $_POST, for the form its own leaf handles.
 			'filter' => '',          // A leaf's text filter (the Cron leaf's #sn-cron-filter twin, #1604), written by os-bind through the built-in `set`.
 			'saved'  => false,       // 2026-10-12: a save went through; rides ONE paint (paint_effect()), so the host drops that form's drafts.
+			'answered' => '',        // 2026-10-12: the action that save or refusal answers (a form's `action`/`sn_action`); rides the same ONE paint.
 		)
 	)
 	->title_bar_button(
@@ -328,6 +329,9 @@ $sn_dashboard = App::define( APP_ID )
 				return;
 			}
 			$values = posted_values( $args );
+			// The answer names its form: the host keeps every form's drafts but
+			// the one this save or refusal is about (two quick submits queue).
+			$state->set( 'answered', (string) ( $values['action'] ?? $values['sn_action'] ?? '' ) );
 			$pipeline = isset( $args['pipeline'] ) && is_scalar( $args['pipeline'] ) ? (string) $args['pipeline'] : '';
 			$tab      = current_tab( $os );
 			$params   = $state->get( 'params' );
