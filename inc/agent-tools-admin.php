@@ -21,11 +21,11 @@ function sn_admin_render_agent_tools_section() {
 	echo '<div class="sn-fieldset sn-fieldset--wide"><h2 class="sn-fieldset-h">' . esc_html( sprintf( 'On the page, %s days', number_format_i18n( $m['days'] ) ) ) . '</h2>';
 	echo '<p class="sn-field-helper">The WebMCP bridge every HTML page carries; the reader\'s own agent calls these.</p>';
 	if ( ! $m['ok'] ) {
-		wp_admin_notice( esc_html( 'The sensor could not be read (' . $m['error'] . '); the counts below are from no data.' ), array( 'type' => 'warning', 'additional_classes' => array( 'inline' ) ) );
+		wp_admin_notice( esc_html( sprintf( /* translators: %s: reason. */ __( 'The sensor could not be read (%s), so no call counts are shown.', 'signal-and-noise-tools' ), $m['error'] ) ), array( 'type' => 'warning', 'additional_classes' => array( 'inline' ) ) );
 	}
 	echo '<table class="widefat striped"><thead><tr><th>Tool</th><th>Answers</th><th>Calls</th><th>ok</th><th>absent</th><th>error</th></tr></thead><tbody>';
 	foreach ( $m['rows'] as $r ) {
-		echo '<tr><td class="sn-mono">' . esc_html( $r['tool'] . ( $r['registered'] ? '' : ' *' ) ) . '</td><td>' . esc_html( $r['what'] ) . '</td><td>' . esc_html( number_format_i18n( $r['calls'] ) ) . '</td><td>' . esc_html( number_format_i18n( $r['ok'] ) ) . '</td><td>' . esc_html( number_format_i18n( $r['absent'] ) ) . '</td><td>' . esc_html( number_format_i18n( $r['error'] ) ) . '</td></tr>';
+		echo '<tr><td class="sn-mono">' . esc_html( $r['tool'] . ( $r['registered'] ? '' : ' *' ) ) . '</td><td>' . esc_html( $r['what'] ) . '</td><td>' . esc_html( sn_agent_tools_count( $r['calls'] ) ) . '</td><td>' . esc_html( sn_agent_tools_count( $r['ok'] ) ) . '</td><td>' . esc_html( sn_agent_tools_count( $r['absent'] ) ) . '</td><td>' . esc_html( sn_agent_tools_count( $r['error'] ) ) . '</td></tr>';
 	}
 	echo '</tbody></table>';
 	echo '<p class="sn-field-helper">' . esc_html( $m['caption'] ) . '</p>';

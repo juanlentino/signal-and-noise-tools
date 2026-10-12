@@ -326,7 +326,24 @@ a.snt-link {
 .snt-app select:focus {
 	outline: none;
 	border-color: var( --os-ui-accent, #ec9bff );
-	box-shadow: 0 0 0 2px var( --os-ui-focus-ring, rgba( 236, 155, 255, 0.35 ) );
+	box-shadow: var( --os-ui-focus-ring-field, 0 0 0 1px #f252fc, 0 0 0 4px #f252fc29 );
+}
+
+/* The shell's focus tokens are whole box-shadow lists (two rings, and a halo
+ * for fields), so a rule uses one as the value; `0 0 0 2px var( --os-ui-focus-ring )`
+ * is invalid, computes to none, and with `outline: none` left a focused
+ * control with no ring at all (2026-10-12 audit). */
+
+/* A primary button's label (os-button primary, .snt-submit, a picked option)
+ * is --os-ui-accent-ink, which the accent picker keeps white until the accent
+ * is very light: white on this site's red is 3.9:1, under AA. The ink here is
+ * black or white from the fill's own lightness, whichever reads (black on red
+ * 5.25:1; white on WordPress blue about 5:1). A browser without relative color
+ * keeps the picker's ink. */
+@supports ( color: oklch( from red l c h ) ) {
+	.snt-app[data-os-app] {
+		--os-ui-accent-ink: oklch( from var( --wp-admin-theme-color, var( --os-ui-accent, #2271b1 ) ) clamp( 0, ( 0.57 - l ) * 1000, 1 ) 0 0 );
+	}
 }
 
 /* A native <form os-action> (Webhooks, Tags: repeated-name checkbox groups a
@@ -361,7 +378,7 @@ a.snt-link {
 
 .snt-app .snt-submit:focus-visible {
 	outline: none;
-	box-shadow: 0 0 0 2px var( --os-ui-focus-ring, rgba( 236, 155, 255, 0.35 ) );
+	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px #0c0b0f, 0 0 0 4px #f252fc );
 }
 
 .snt-app input[type="checkbox"],

@@ -37,10 +37,10 @@ function agent_tools_bridge_html( array $m ) {
 		$rows[] = array(
 			'tool'   => $r['tool'] . ( $r['registered'] ? '' : ' *' ),
 			'what'   => $r['what'],
-			'calls'  => number_format_i18n( $r['calls'] ),
-			'ok'     => number_format_i18n( $r['ok'] ),
-			'absent' => number_format_i18n( $r['absent'] ),
-			'error'  => number_format_i18n( $r['error'] ),
+			'calls'  => \sn_agent_tools_count( $r['calls'] ),
+			'ok'     => \sn_agent_tools_count( $r['ok'] ),
+			'absent' => \sn_agent_tools_count( $r['absent'] ),
+			'error'  => \sn_agent_tools_count( $r['error'] ),
 		);
 	}
 	$table = \snt_kit_table(
@@ -54,7 +54,7 @@ function agent_tools_bridge_html( array $m ) {
 		),
 		$rows
 	);
-	$left = ( $m['ok'] ? '' : \snt_kit_notice( 'warning', \snt_kit_esc( sprintf( /* translators: %s: reason. */ __( 'The sensor could not be read (%s); the counts below are from no data.', 'signal-and-noise-tools' ), $m['error'] ) ) ) )
+	$left = ( $m['ok'] ? '' : \snt_kit_notice( 'warning', \snt_kit_esc( sprintf( /* translators: %s: reason. */ __( 'The sensor could not be read (%s), so no call counts are shown.', 'signal-and-noise-tools' ), $m['error'] ) ) ) )
 		. $table
 		. '<p class="snt-hint">' . \snt_kit_esc( $m['caption'] ) . '</p>';
 	$docs = array();

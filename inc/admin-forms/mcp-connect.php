@@ -133,7 +133,7 @@ function sn_admin_render_mcp_door_native_write() {
 	echo '<p class="sn-callout-h">' . esc_html__( 'Write door: the same server, read-write', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p>' . sprintf(
 		/* translators: %s: the WordPress capability slug, wrapped in <code>. */
-		esc_html__( 'The exact same JSON-RPC 2.0 server, the same %s capability, and the same Application Password as the read door: there is no separate write-only credential. What changes is the surface: most tools here can modify your content (posts, postmeta, taxonomy terms, scheduled cron events, cached files) or spend the AI budget configured on this site; a couple are read-only login-audit exports carrying plaintext usernames, gated behind this higher bar instead of the read door.', 'signal-and-noise-tools' ),
+		esc_html__( 'The exact same JSON-RPC 2.0 server, the same %s capability, and the same Application Password as the read door: there is no separate write-only credential. What changes is the surface: most tools here can modify your content (posts, postmeta, taxonomy terms, scheduled cron events, cached files); some spend the AI budget configured on this site, and the Jev passes spend TypeSafe credit.', 'signal-and-noise-tools' ),
 		'<code>manage_options</code>'
 	) . '</p>';
 	echo '<p><code>POST ' . esc_url( $url ) . '</code> <span class="sn-badge">' . esc_html__( 'read-write', 'signal-and-noise-tools' ) . '</span></p>';

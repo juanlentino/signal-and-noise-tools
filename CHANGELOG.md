@@ -12,6 +12,14 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Every control shows focus, and every primary button's label reads on its fill (2026.10.3 audit, batch 3).**
+  - **Focus rings were invisible.** The shell's focus token is a whole box-shadow list, so `0 0 0 2px var( --os-ui-focus-ring )` was invalid and computed to none; beside `outline: none`, a focused native field or submit (Webhooks, Tags, S&N Analytics' date field and export buttons, the Explorer's crumbs) showed no ring. Each rule now uses the token as the value: the field ring for fields, the full ring for buttons.
+  - **White on red was 3.9:1.** A primary label takes the accent ink, which the accent picker keeps white until the accent is very light; on this site's red that is under AA. Inside S&N windows the ink is now black or white from the fill's own lightness: black on red (5.25:1), white on WordPress blue (about 5:1). The threshold is checked against every WordPress admin color scheme.
+- **Security › Login URL tells the truth about the module.** It checked only the bypass and wps-hide-login, so a site running rename-wp-login read "Module active" while the module stood down, and every dormant state offered the custom slug's URL, which 404s while the module is off, with "Bookmark this URL". Both surfaces now read the module's state the way `inc/login-hide.php` decides it, give the login URL that works in each state, and, when `SN_LOGIN_SLUG` locks the slug, offer no Save (it posted no slug and answered "Login slug cannot be empty") and say so once.
+- **The write door stops claiming audit-log exports.** Its description still said "a couple are read-only login-audit exports carrying plaintext usernames", a year after those tools left the door, above a list without them. It now says some tools spend the AI budget and the Jev passes spend TypeSafe credit, on both surfaces.
+- **Agent tools does not paint an unread sensor as zero calls.** When the browser-call sensor could not be read, the bridge table filled with 0s under a note saying they came from no data. Every count cell now says "not read", on both surfaces.
+
 ## [2026.10.3] - 2026-10-12 — MCP Clients redesigned, boxes share rows, folds are earned, Edit opens under its row, links read as links
 
 ### Changed

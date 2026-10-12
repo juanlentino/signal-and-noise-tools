@@ -121,19 +121,37 @@ function sn_agent_tools_documents() {
  * caption every painter carries. Reads the sensor through the same fetch the
  * Machine Readers leaf uses (cached 15 minutes), never a second call.
  *
- * @return array{days:int,ok:bool,calls:int,rows:array<int,array<string,mixed>>,documents:array<int,array<string,mixed>>,caption:string,error:string}
+ * @return array{days:int,ok:bool,calls:?int,rows:array<int,array<string,mixed>>,documents:array<int,array<string,mixed>>,caption:string,error:string}
  */
 function sn_agent_tools_bridge_model() {
 	$days   = SN_AGENT_TOOLS_DAYS;
 	$result = function_exists( 'snt_mr_fetch' ) ? snt_mr_fetch( $days ) : array( 'ok' => false, 'error' => 'sensor module not loaded' );
-	$webmcp = ! empty( $result['ok'] ) && is_array( $result['webmcp'] ?? null ) ? $result['webmcp'] : array( 'calls' => 0, 'by_tool' => array(), 'outcomes' => array() );
+	$read   = ! empty( $result['ok'] );
+	$webmcp = $read && is_array( $result['webmcp'] ?? null ) ? $result['webmcp'] : array( 'calls' => 0, 'by_tool' => array(), 'outcomes' => array() );
+	$rows   = sn_agent_tools_bridge_rows( $webmcp );
+	if ( ! $read ) {
+		// 2026-10-12 audit: an unread sensor is not zero calls. The tools stay
+		// listed (what each answers); their counts are null, painted "not read".
+		$rows = array_map( static fn( $r ) => array_merge( $r, array( 'calls' => null, 'ok' => null, 'absent' => null, 'error' => null ) ), $rows );
+	}
 	return array(
 		'days'      => $days,
-		'ok'        => ! empty( $result['ok'] ),
-		'calls'     => (int) ( $webmcp['calls'] ?? 0 ),
-		'rows'      => sn_agent_tools_bridge_rows( $webmcp ),
+		'ok'        => $read,
+		'calls'     => $read ? (int) ( $webmcp['calls'] ?? 0 ) : null,
+		'rows'      => $rows,
 		'documents' => sn_agent_tools_documents(),
 		'caption'   => __( 'Reported by browsers: each call is one beacon from the page that made it, rate-limited per IP at the edge. A signal for decisions, never an audit.', 'signal-and-noise-tools' ),
 		'error'     => empty( $result['ok'] ) ? (string) ( $result['error'] ?? '' ) : '',
 	);
+}
+
+/**
+ * A bridge count as painted: the number, or "not read" when the sensor was
+ * not read (null), never a 0 that was not measured.
+ *
+ * @param int|null $n The count.
+ * @return string
+ */
+function sn_agent_tools_count( $n ) {
+	return null === $n ? __( 'not read', 'signal-and-noise-tools' ) : number_format_i18n( (int) $n );
 }
