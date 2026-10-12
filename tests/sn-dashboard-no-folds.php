@@ -25,6 +25,7 @@ $pass = 0; $fail = 0;
 // file => the reason the fold is earned. One call per file listed.
 $earned = array(
 	'apps/sn-dashboard/parts/leaves/ai-mcp-connect-steps.php' => 'Connect a client: setup, done once per client; the summary names the clients; open while the user has no Application Password',
+	'apps/sn-dashboard/parts/leaves/connections-cron.php'     => 'Scheduled events: a reference list (91 events, 5,473px open); the summary counts events, overdue and unhandled; open when one is overdue or unhandled, when overdue cannot be read, or while a filter is typed',
 );
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
@@ -72,6 +73,7 @@ require_once $root . '/inc/openstation-kit.php';
 require_once $root . '/inc/openstation-kit-display.php';
 $closed = snt_kit_fold( 'Setup', 'Two steps, both done', '<p>x</p>' );
 ok( 0 === strpos( $closed, '<os-disclosure heading="Setup" hint="Two steps, both done"' ) && 0 === preg_match( '/\sopen[\s=>]/', $closed ), 'a fold paints its summary and starts closed' );
+ok( false !== strpos( $closed, 'data-snt-fold="setup"' ) && false !== strpos( snt_kit_fold( 'Connect a client', 'x', 'y' ), 'data-snt-fold="connect-a-client"' ), 'a fold carries the key the host remembers the reader\'s toggle under (tests/os-host-fold-memory.cjs)' );
 ok( false !== strpos( $closed, '<os-stack gap="12"><p>x</p></os-stack></os-disclosure>' ), 'a fold stacks its content with the gap an open section gives it' );
 ok( 1 === preg_match( '/<os-disclosure[^>]*\sopen[\s=>]/', snt_kit_fold( 'Setup', 'One step left', '<p>x</p>', true ) ), 'a fold that needs the reader paints open' );
 ok( false === strpos( snt_kit_fold( 'Setup', ' ', '<p>x</p>' ), 'os-disclosure' ), 'a fold with no summary paints its content open, as a section: closing may hide detail, never the only statement of a fact' );

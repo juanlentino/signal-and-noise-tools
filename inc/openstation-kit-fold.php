@@ -40,9 +40,12 @@ function snt_kit_fold( $heading, $summary, $inner, $open = false ) {
 	return snt_kit_tag(
 		'os-disclosure',
 		array(
-			'heading' => (string) $heading,
-			'hint'    => (string) $summary,
-			'open'    => (bool) $open,
+			'heading'       => (string) $heading,
+			'hint'          => (string) $summary,
+			'open'          => (bool) $open,
+			// The key assets/os-host.js remembers the reader's toggle under: the
+			// morph strips an `open` the reader set on every repaint otherwise.
+			'data-snt-fold' => trim( strtolower( (string) preg_replace( '/[^a-z0-9]+/i', '-', (string) $heading ) ), '-' ),
 		),
 		// The same rhythm an open section's `stack` gives its children.
 		snt_kit_stack( (string) $inner, 12 )

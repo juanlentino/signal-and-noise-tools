@@ -235,11 +235,35 @@ function cron_table_html( array $rows ) {
 			. '<span class="snt-list__value">' . $cells['unschedule'] . '</span>'
 			. '</li>';
 	}
-	return \snt_kit_section(
-		__( 'Scheduled events', 'signal-and-noise-tools' ),
-		'<div class="snt-ledger"><ul class="snt-list snt-list--ledger">' . $out . '</ul></div>',
-		__( 'Scheduled cron events with next run time, recurrence, last-fired timestamp, arguments, and per-event actions.', 'signal-and-noise-tools' )
+	// The classic table's caption, for a screen reader, as it is there.
+	return '<p class="screen-reader-text">' . \snt_kit_esc( __( 'Scheduled cron events with next run time, recurrence, last-fired timestamp, arguments, and per-event actions.', 'signal-and-noise-tools' ) ) . '</p>'
+		. '<div class="snt-ledger"><ul class="snt-list snt-list--ledger">' . $out . '</ul></div>';
+}
+
+/**
+ * The events as an earned fold (inc/openstation-kit-fold.php, 2026-10-12):
+ * a reference list of every scheduled event (91 here, 5,473px open), read
+ * when something is wrong. Closed, it says the counts that matter; it opens
+ * itself when an event is overdue or has no handler, when the overdue count
+ * cannot be read (unknown is not zero), and while a filter is typed.
+ *
+ * @param array<int,array<string,mixed>> $rows   From snt_cron_get_events_impl().
+ * @param string                         $filter The filter text.
+ * @param string                         $hint   The count line above the filter.
+ * @return string
+ */
+function cron_events_fold_html( array $rows, $filter, $hint ) {
+	$orphans = count( array_filter( $rows, static fn( $r ) => empty( $r['has_handler'] ) ) );
+	$overdue = function_exists( 'snt_cron_health_summary_impl' ) ? count( (array) ( \snt_cron_health_summary_impl()['overdue'] ?? array() ) ) : null;
+	$summary = sprintf(
+		/* translators: 1: event count, 2: the overdue reading, 3: the handler reading. */
+		__( '%1$s events: %2$s, %3$s', 'signal-and-noise-tools' ),
+		number_format_i18n( count( $rows ) ),
+		null === $overdue ? __( 'overdue not read', 'signal-and-noise-tools' ) : ( $overdue > 0 ? sprintf( /* translators: %d: overdue events. */ _n( '%d overdue', '%d overdue', $overdue, 'signal-and-noise-tools' ), $overdue ) : __( 'none overdue', 'signal-and-noise-tools' ) ),
+		$orphans > 0 ? sprintf( /* translators: %d: events with no handler. */ _n( '%d with no handler', '%d with no handler', $orphans, 'signal-and-noise-tools' ), $orphans ) : __( 'every one handled', 'signal-and-noise-tools' )
 	);
+	$open = null === $overdue || $overdue > 0 || $orphans > 0 || '' !== trim( (string) $filter );
+	return \snt_kit_fold( __( 'Scheduled events', 'signal-and-noise-tools' ), $summary, $hint . cron_filter_html( $filter ) . cron_table_html( cron_filter_rows( $rows, $filter ) ), $open );
 }
 
 /**
@@ -363,15 +387,13 @@ function paint_connections_cron( array $ctx ) {
 		return $out . $settings;
 	}
 
-	$count = count( $rows );
-	$out   = $refresh . cron_glance_html( $rows );
-	$out  .= '<p class="snt-hint">' . sprintf(
+	$count  = count( $rows );
+	$hint   = '<p class="snt-hint">' . sprintf(
 		\snt_kit_esc( _n( '%s scheduled event. Signal & Noise–owned events pinned at top.', '%s scheduled events. Signal & Noise–owned events pinned at top.', $count, 'signal-and-noise-tools' ) ),
 		\snt_kit_esc( number_format_i18n( $count ) )
 	) . '</p>';
 	$filter = isset( $ctx['state'] ) && is_object( $ctx['state'] ) ? (string) $ctx['state']->get( 'filter' ) : '';
-	$out   .= cron_filter_html( $filter ) . cron_table_html( cron_filter_rows( $rows, $filter ) );
-	return $out . $settings;
+	return $refresh . cron_glance_html( $rows ) . cron_events_fold_html( $rows, $filter, $hint ) . $settings;
 }
 
 add_filter(
