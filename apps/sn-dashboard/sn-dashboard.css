@@ -1185,6 +1185,10 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 	flex: none;
 	max-width: none;
 }
+/* Re-measure: a label wraps rather than lose its last word (241 against 237px at 640). */
+.snt-edge-list .snt-list__label {
+	white-space: normal;
+}
 
 /* Search Console (re-measure 2026-10-12): the row's boxes stretch to its
    height ("Set the credential" ended 116px above its neighbors), the
@@ -1198,7 +1202,18 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 	flex: 1 1 auto;
 }
 .snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="search-console"] os-grid > os-stack {
-	padding-top: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+}
+/* Sync takes the rest of the row's height (its card ended 28px short). */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="search-console"] os-grid > os-stack > os-section:last-child {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+}
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="search-console"] os-grid > os-stack > os-section::part( body ) {
+	flex: 1 1 auto;
 }
 
 /* Cloudways' tile captions are sentences, not values: the systems tile's mono

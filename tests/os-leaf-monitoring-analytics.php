@@ -433,6 +433,7 @@ snt_leaf_preview( 'monitoring-analytics-edge', $kit );
 // window ("3…"); the label ellipsizes, the count never does.
 $an_css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
 ok( 1 === preg_match( '/\.snt-edge-list \.snt-list__value\s*\{[^}]*flex:\s*none;[^}]*max-width:\s*none;/', $an_css ), 'an Edge list count takes its own width (flex none, no 60% cap); only the label ellipsizes' );
+ok( 1 === preg_match( '/\.snt-edge-list \.snt-list__label\s*\{[^}]*white-space:\s*normal;/', $an_css ), 'a responder label wraps instead of ellipsizing (241 against 237px at 640)' );
 // Re-measure (2026-10-12): every Who answered label was cut ("(us…") and two
 // pairs carried the same words. Rows that read the same are one row (their
 // counts summed); the parentheticals are a one-line legend under the list.

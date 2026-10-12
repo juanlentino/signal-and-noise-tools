@@ -144,6 +144,7 @@ snt_leaf_preview( 'monitoring-search-console-chosen', $kit );
 $gsc_css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
 ok( 1 === preg_match( '/\[data-snt-leaf="search-console"\] os-grid > os-section\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/', $gsc_css ) && 1 === preg_match( '/\[data-snt-leaf="search-console"\] os-grid > os-section::part\( body \)\s*\{[^}]*flex:\s*1 1 auto;/', $gsc_css ), 'the row\'s boxes stretch to its height, as on login-defense and mcp-connect' );
 ok( 1 === preg_match( '/\[data-snt-leaf="search-console"\] os-grid > os-stack\s*\{[^}]*padding-top:\s*0;/', $gsc_css ), 'the Property and Sync column starts level with its row' );
+ok( 1 === preg_match( '/\[data-snt-leaf="search-console"\] os-grid > os-stack\s*\{[^}]*padding:\s*0;[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/', $gsc_css ) && 1 === preg_match( '/\[data-snt-leaf="search-console"\] os-grid > os-stack > os-section:last-child\s*\{[^}]*flex:\s*1 1 auto;/', $gsc_css ) && 1 === preg_match( '/\[data-snt-leaf="search-console"\] os-grid > os-stack > os-section::part\( body \)/', $gsc_css ), 'the column has no inset, and Sync takes the rest of the row\'s height' );
 
 // ── State: Test connection returned a property list (snt_gsc_last_test transient
 // populated, ok=true) — the field and action the leaf exists to offer.
