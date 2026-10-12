@@ -264,9 +264,10 @@ owner decision 2026-08-27 after six field iterations — the shell's brand
 carries 219 color-bearing tokens and a ~60-token reskin loses by coverage.
 See CHANGELOG 13.8.0. Do not re-propose without a full-coverage plan.
 The 2026.10.5 theme is not that reskin: it sets no surface, text or accent
-token at all, only the 22 constants that do not follow the accent (every one
-of them, measured at v1.1.13) plus the title font, and calls
-`openstation_register_desktop_theme()` directly.)
+token at all, only the brand constants that do not follow the accent (22 at
+v1.1.13; it answers the 20 that paint, and leaves the two that are `none`)
+plus the title font, and calls `openstation_register_desktop_theme()`
+directly.)
 
 Worth recording alongside it: the v1.1.2 verification pass on 2026-08-21
 reported 19/19 seams clean, and it was correct — it checks NAMES. Station Home

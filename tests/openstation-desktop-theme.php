@@ -97,7 +97,7 @@ function snt_dt_fixture_value( $entry ) {
 }
 
 /**
- * Every colour a value paints that is NOT the theme's: anything but a grey
+ * Every color a value paints that is NOT the theme's: anything but a gray
  * (r = g = b, any alpha) or the one red, #ff4c47. A `var()` alias counts as
  * foreign, because it paints whatever the brand points it at.
  *
@@ -127,7 +127,7 @@ function snt_dt_foreign_colors( $value ) {
 			$bad[] = $m[0] . ')';
 		}
 	}
-	// No colour by keyword: every word must be grammar, never a name.
+	// No color by keyword: every word must be grammar, never a name.
 	$grammar = array( 'linear', 'radial', 'gradient', 'calc', 'rgb', 'rgba', 'deg', 'px', 'ellipse', 'circle', 'at', 'to', 'transparent', 'none' );
 	preg_match_all( '/[a-z]+/', preg_replace( '/#[0-9a-f]+/', '', $v ), $words );
 	foreach ( array_unique( $words[0] ) as $w ) {
@@ -139,7 +139,7 @@ function snt_dt_foreign_colors( $value ) {
 }
 
 // A guard that cannot fail is worse than none: the detector must flag every
-// non-`none` upstream value, the purple, the pinks and the tinted greys alike.
+// non-`none` upstream value, the purple, the pinks and the tinted grays alike.
 $blind = array();
 foreach ( $constants as $name => $entry ) {
 	$upstream = snt_dt_fixture_value( $entry );
@@ -147,7 +147,7 @@ foreach ( $constants as $name => $entry ) {
 		$blind[] = $name;
 	}
 }
-ok( array() === $blind, 'the colour check flags every upstream value it replaces' . ( $blind ? ' (blind to: ' . implode( ', ', $blind ) . ')' : '' ) );
+ok( array() === $blind, 'the color check flags every upstream value it replaces' . ( $blind ? ' (blind to: ' . implode( ', ', $blind ) . ')' : '' ) );
 
 // ── Shape and registration ──────────────────────────────────────────────
 ok( function_exists( 'snt_desktop_theme_manifest' ), 'snt_desktop_theme_manifest() is defined' );
@@ -223,7 +223,7 @@ foreach ( $tokens as $name => $value ) {
 		$foreign[] = $name . ' [' . implode( ' ', $bad ) . ']';
 	}
 }
-ok( array() === $foreign, 'every colour in the theme is a grey or #ff4c47: nothing is left purple' . ( $foreign ? ' (' . implode( '; ', $foreign ) . ')' : '' ) );
+ok( array() === $foreign, 'every color in the theme is a gray or #ff4c47: nothing is left purple' . ( $foreign ? ' (' . implode( '; ', $foreign ) . ')' : '' ) );
 
 // ── Tokens: the deny list (the owner's "settings or components") ───────
 $deny = array(
@@ -266,7 +266,7 @@ foreach ( array_keys( $tokens ) as $name ) {
 		$hit[] = $name;
 	}
 }
-ok( array() === $hit, 'no setting-owned, accent-derived, toolbar, geometry, surface or text-colour token' . ( $hit ? ' (found: ' . implode( ', ', $hit ) . ')' : '' ) );
+ok( array() === $hit, 'no setting-owned, accent-derived, toolbar, geometry, surface or text-color token' . ( $hit ? ' (found: ' . implode( ', ', $hit ) . ')' : '' ) );
 
 // ── Tokens: upstream's value grammar, mirrored (manifest.php:76-111) ────
 $rejected = array();
@@ -304,7 +304,15 @@ foreach ( $image_slots as $name ) {
 		$not_image[] = $name;
 	}
 }
-ok( array() === $not_image, 'tokens painted as background-image are gradients, not bare colours' );
+ok( array() === $not_image, 'tokens painted as background-image are gradients, not bare colors' );
+
+// MIO's chat paints its primary button label in --os-ui-holo-ink on the
+// owner's accent (variables.css at 1.1.13, `.os-mio-chat os-button[variant="primary"]`):
+// a light ink there is white on #ff0000, 4.0:1. So the ink stays dark and the
+// fill it labels stays light.
+$ink = strtolower( (string) ( $tokens['--os-ui-holo-ink'] ?? '' ) );
+ok( 1 === preg_match( '/^#(0[0-9a-f]|1[0-9a-f])\1\1$/', $ink ), 'the holo ink stays a dark gray, because MIO also paints it on the accent (got ' . $ink . ')' );
+ok( false !== strpos( (string) ( $tokens['--os-ui-holo-fill'] ?? '' ), 'linear-gradient(#e8e8e8, #e8e8e8)' ), 'the holo fill that ink labels stays light' );
 
 ok( '"Bebas Neue", "Geist", system-ui, sans-serif' === ( $tokens['--os-titlebar-font'] ?? '' ), 'window titles read Bebas Neue, falling back to the shell\'s own face' );
 ok( ! isset( $tokens['--os-ui-font-mono'] ) && ! isset( $tokens['--os-font'] ) && ! isset( $tokens['--os-ui-font'] ), 'body and mono type stay as they are' );
@@ -363,7 +371,10 @@ foreach ( $walls as $wid => $wall ) {
 }
 ok( isset( $walls['signal']['path'] ) && ( $args['preview'] ?? '' ) === $walls['signal']['path'], 'the theme preview is the Signal wallpaper, not another file' );
 $sig = strtolower( (string) @file_get_contents( snt_dt_path( $walls['signal']['path'] ?? '' ) ) );
-ok( false === strpos( $sig, '@keyframes' ) || false !== strpos( $sig, 'prefers-reduced-motion: no-preference' ), 'the Signal line moves only when the reader has not asked for reduced motion' );
+// Every `animation` must sit inside the no-preference block: strip that block
+// and none may be left.
+$outside = preg_replace( '/@media \(prefers-reduced-motion: no-preference\)\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/', '', $sig );
+ok( false !== strpos( $sig, 'animation:' ) && false === strpos( (string) $outside, 'animation:' ), 'the Signal line moves only inside prefers-reduced-motion: no-preference' );
 
 $fonts = isset( $args['fonts'] ) && is_array( $args['fonts'] ) ? $args['fonts'] : array();
 ok( 1 === count( $fonts ) && 'Bebas Neue' === ( $fonts[0]['family'] ?? '' ), 'one face is loaded: Bebas Neue' );

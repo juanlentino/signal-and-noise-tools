@@ -25,8 +25,9 @@
  *
  * Where a constant cannot be charcoal, the reason is a fixed upstream ink:
  * step chips, ribbons and count badges carry #0c0b0f text this theme may not
- * set, so they take a light gray (16:1) or the red (6:1). The off-state track
- * edge keeps the 3:1 boundary WCAG 1.4.11 asks of a control.
+ * set, so they take a light gray (16:1) or the red (6:1); the holo fill stays
+ * light because its ink is also MIO's primary label on the accent. The
+ * off-state track edge keeps the 3:1 boundary WCAG 1.4.11 asks of a control.
  *
  * Bebas Neue (Ryoichi Tsunekawa, SIL Open Font License 1.1) is the Latin
  * subset the site's theme serves, copied here so the desktop does not depend
@@ -61,17 +62,22 @@ function snt_desktop_theme_manifest() {
 			'description' => 'One red signal line through gray noise: S&N app icons, charcoal for the purple meshes, Bebas Neue window titles, and two wallpapers to pick.',
 			'preview'     => $signal,
 			'tokens'      => array(
-				// Fields and fills: flat charcoal. Gradients, not hex, because
-				// consumers paint them as background-image layers.
+				// Fields: flat charcoal. Gradients, not hex, because consumers
+				// paint them as background-image layers.
 				'--os-mesh-holo'          => $charcoal,
 				'--os-mesh-pulse'         => $charcoal,
 				'--os-mesh-auro'          => $charcoal,
 				'--os-mesh-star'          => $charcoal,
 				'--os-mesh-mio'           => $charcoal,
-				// A lit row, unsized (the dock's submenu flyout): a 2px red marker on charcoal.
-				'--os-ui-holo-fill'       => 'linear-gradient(90deg, #ff4c47 0 2px, transparent 2px), ' . $charcoal,
-				'--os-ui-holo-ink'        => '#ffffff',
-				// Station Home's and S&N Home's rail: charcoal, the trace along its edge.
+				// A lit control stays LIGHT with dark ink, as upstream's is: MIO's
+				// chat paints its primary label in --os-ui-holo-ink on the accent
+				// (variables.css, .os-mio-chat), where white on #ff0000 is 4.0:1 and
+				// #0a0a0a is 4.9:1. A hovered dock-submenu row (unsized) also shows
+				// a 2px red marker; the 200 to 220% sized fills never reach it.
+				'--os-ui-holo-fill'       => 'linear-gradient(90deg, #ff4c47 0 2px, transparent 2px), linear-gradient(#e8e8e8, #e8e8e8)',
+				'--os-ui-holo-ink'        => '#0a0a0a',
+				// Station Home's and S&N Home's rail (and OS Settings' About card):
+				// charcoal, with the red trace at its inline end.
 				'--os-ui-hero-mesh'       => 'linear-gradient(90deg, transparent calc(100% - 1px), #ff4c47 calc(100% - 1px)), ' . $charcoal,
 				// Edges: red when lit or hovered, a gray hairline at rest.
 				'--os-ui-holo-edge'       => 'linear-gradient(#ff4c47, #ff4c47)',
@@ -80,8 +86,8 @@ function snt_desktop_theme_manifest() {
 				// The off state's well and its 3:1 boundary (#6b6b6b on #1a1721 is 3.3:1).
 				'--os-ui-holo-track'      => 'rgba(255, 255, 255, 0.16)',
 				'--os-ui-holo-track-edge' => '#6b6b6b',
-				// Under fixed #0c0b0f ink: light gray (16:1). Not red: a danger
-				// progress bar is red, and the default must stay distinct from it.
+				// Painted with a fixed #0c0b0f ink: light gray (16:1). Not red: a
+				// danger progress bar is red, and the default must stay distinct.
 				'--os-ui-step-chip-bg'    => '#e8e8e8',
 				'--os-ui-ribbon-bg'       => '#e8e8e8',
 				'--os-ui-progress-fill'   => '#e8e8e8',
@@ -89,7 +95,7 @@ function snt_desktop_theme_manifest() {
 				// A count asking for attention is the signal (#0c0b0f on it: 6:1).
 				'--os-dock-badge-bg'      => '#ff4c47',
 				'--os-icon-badge-bg'      => '#ff4c47',
-				// The active classic tab is white under #0c0b0f text: lose the lavender only.
+				// The active classic tab is white with #0c0b0f text: lose the lavender only.
 				'--os-tabs-active-frost'  => 'linear-gradient(180deg, #f4f4f4 0%, #ffffff 58%)',
 				'--os-titlebar-font'      => '"Bebas Neue", "Geist", system-ui, sans-serif',
 			),
