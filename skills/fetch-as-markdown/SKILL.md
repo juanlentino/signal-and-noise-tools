@@ -12,8 +12,14 @@ GET https://juanlentino.com/notes/ HTTP/1.1
 Accept: text/markdown
 ```
 
-The response is `text/markdown`. Without the header you get the normal HTML —
-the URL does not change, and there is no `.md` suffix to append.
+The response is `text/markdown`. Without the header you get the normal HTML,
+and the URL does not change.
+
+A note also has its Markdown at its own URL, for clients that cannot set a
+header: append `.md` to the note URL (`/notes/<slug>/` becomes
+`/notes/<slug>.md`). It is the same Markdown, and each note page links it as
+`<link rel="alternate" type="text/markdown">`. Other pages answer `.md` with
+a 404; use the header there.
 
 ## Notes
 
