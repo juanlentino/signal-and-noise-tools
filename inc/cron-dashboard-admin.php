@@ -72,7 +72,7 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
  * @return string
  */
 function snt_cron_last_fired_none( $single ) {
-	return $single ? __( 'Not yet: runs once', 'signal-and-noise-tools' ) : __( 'Not recorded yet', 'signal-and-noise-tools' );
+	return $single ? __( 'not yet: runs once', 'signal-and-noise-tools' ) : __( 'not recorded yet', 'signal-and-noise-tools' );
 }
 
 /**

@@ -85,7 +85,7 @@ function analytics_worker_setup_html() {
 			sprintf( \snt_kit_esc( __( 'Read token (set under Connections › Credentials): Cloudflare dashboard → My Profile → API Tokens → create a token with %1$s. The Account ID is in the dashboard URL: %2$s.', 'signal-and-noise-tools' ) ), '<os-code>Account · Analytics · Read</os-code>', '<os-code>dash.cloudflare.com/&lt;account_id&gt;</os-code>' ),
 			\snt_kit_esc( __( 'Deploy the edge Worker + its secrets (from the analytics-worker repo: this can’t be done from WordPress):', 'signal-and-noise-tools' ) ) . \snt_kit_code( "wrangler secret put SN_PX_TOKEN\nwrangler secret put SN_PX_SALT_SEED\nwrangler deploy" ),
 			\snt_kit_esc( __( 'Theme beacon: set SN_BEACON_TOKEN in wp-config.php to the SAME value as the Worker’s SN_PX_TOKEN so the front-end beacon is accepted.', 'signal-and-noise-tools' ) ),
-			\snt_kit_esc( __( 'Press Test connection in Pipeline once the token and Account ID are set, to confirm the read side works. Pageview data appears within about 15 minutes.', 'signal-and-noise-tools' ) ),
+			\snt_kit_esc( __( 'Press Test connection once the token and Account ID are set, to confirm the read side works. Pageview data appears within about 15 minutes.', 'signal-and-noise-tools' ) ),
 		)
 	);
 	return \snt_kit_section( __( 'Cloudflare Worker setup', 'signal-and-noise-tools' ), $steps, __( 'Manual and one-time: shown until every pipeline stage reads ok.', 'signal-and-noise-tools' ) );

@@ -102,7 +102,8 @@ $kit     = snt_leaf_paint( 'monitoring', 'insights' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && in_array( 'force', snt_leaf_names( $kit ), true ), 'empty-recs state: field names match, force included: ' . names_line( $classic, $kit ) );
 ok( false !== strpos( $kit, 'No angle worth a note right now' ), 'empty-recs state: the "no angle" card is painted' );
 ok( false !== strpos( $kit, '<os-badge tone="info">All caught up</os-badge>' ) && false !== strpos( $kit, '0 questions: 0 open, 0 done, 0 dismissed, 0 snoozed.' ), 'empty-recs state: the status box reads all caught up, as information, not a warning (2026-10-12 audit)' );
-ok( false !== strpos( $classic, '0 questions: 0 open, 0 done, 0 dismissed, 0 snoozed.' ) && false !== strpos( $classic, '<span class="sn-pill sn-pill--ok">All caught up</span>' ), 'empty-recs state: the classic box says the same, in the ok tone' );
+ok( false !== strpos( $classic, '0 questions: 0 open, 0 done, 0 dismissed, 0 snoozed.' ) && false !== strpos( $classic, '<span class="sn-pill sn-pill--info">All caught up</span>' ), 'empty-recs state: the classic box says the same, in the info tone the native badge uses (PR #2025 review)' );
+ok( 1 === preg_match( '/\.sn-pill--info\s*\{[^}]*background:\s*rgba\(34,113,177,0\.10\)/', (string) file_get_contents( SNT_PATH . 'assets/admin.css' ) ) && 1 === preg_match( '/\.sn-pill--info::before\s*\{[^}]*var\(--sn-link\)/', (string) file_get_contents( SNT_PATH . 'assets/admin.css' ) ), 'the classic stylesheet defines the info pill, so the tone is painted, not an unstyled class' );
 ok( false === strpos( $kit, 'Plausible' ) && false === strpos( $classic, 'Plausible' ) && false !== strpos( $kit, 'reads your first-party analytics' ), 'the intro names first-party analytics, on both surfaces' );
 
 // ── State 4: recommendations exist, but every one is dismissed. ──
@@ -205,6 +206,11 @@ ok( false === strpos( $kit, '&lt;os-' ) && false === strpos( $kit, '&lt;code' ),
 ok( false !== strpos( $kit, '2,000 tokens' ), 'cache probe: the per-model largest-prefix reading keeps its token figure alongside the byte count' );
 ok( false !== strpos( $kit, 'ai-provider-for-anthropic' ), 'cache probe: the upstream tracking-issue link survives' );
 ok( false !== strpos( $kit, 'Zero here means' ), 'cache probe: the cache-token footnote keeps its closing sentence' );
+// PR #2025 review: the minor models' sample times, in the site's format on both surfaces (the classic printed Y-m-d H:i:s T).
+$GLOBALS['__cache']['models'][] = array( 'model' => 'claude-y', 'calls' => 2, 'repeatable' => 0, 'max_prefix_bytes' => 100, 'max_prefix_tokens' => 20, 'floor' => 1024, 'may_clear_floor' => false, 'samples' => array( array( 'ts' => 1789500000, 'tools_count' => 1, 'sys_bytes' => 10, 'msg_count' => 2 ) ) );
+$kit     = snt_leaf_paint( 'monitoring', 'insights' );
+$classic = snt_leaf_classic_html( 'snt_insights_render_cache_probe_section' );
+ok( false !== strpos( $kit, gmdate( 'F j, Y g:i a', 1789500000 ) ) && false !== strpos( $classic, gmdate( 'F j, Y g:i a', 1789500000 ) ) && false === strpos( $classic, gmdate( 'Y-m-d H:i:s', 1789500000 ) ), 'a minor model\'s sample time prints in the site\'s date and time format on both surfaces' );
 $GLOBALS['__cache'] = array( 'state' => 'no_data', 'summary' => array(), 'best' => array(), 'models' => array() );
 $kit = snt_leaf_paint( 'monitoring', 'insights' );
 ok( false !== strpos( $kit, 'Nothing measured yet' ), 'cache probe: no_data state is painted when nothing has run' );

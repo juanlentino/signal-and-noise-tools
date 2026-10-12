@@ -71,9 +71,9 @@ function sn_admin_top_tabs() {
 	// guarded for the isolated harnesses that load this data file alone.
 	// snt_mr_admin_register() APPENDS, so Machine Readers lands after RSS.
 	$monitoring_sub_tabs = array(
-		// Analytics SETTINGS-ONLY sub-tab (creds + Test connection + Worker
-		// setup); the read-only dashboard lives under the native WP Dashboard
-		// menu. Its forms post on the page=sn-theme-options route
+		// Analytics sub-tab: settings (Test connection + Worker setup) plus
+		// the compact Edge, 7 days report (15.3.0; placement decided in the
+		// PR #2025 review); the full read-only dashboard is S&N Analytics. Its forms post on the page=sn-theme-options route
 		// (sn_admin_render_sub_tabs hardcodes that slug) so sn_handle_admin_post()
 		// accepts analytics_save/_test unchanged. Now first leaf (v6.18.0).
 		// 'wide' (v6.44.0): lays out as an open-and-wide .sn-2up two-column grid

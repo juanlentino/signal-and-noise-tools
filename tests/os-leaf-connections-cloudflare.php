@@ -32,6 +32,7 @@ require SNT_PATH . 'inc/cloudflare-purge.php';
 require SNT_PATH . 'inc/cloudflare-monitor.php'; // 14.9.0: the monitor section + its Refresh action, on both leaves
 require SNT_PATH . 'inc/cloudflare-firewall-events.php'; // 15.1.0: the event log's tops paint under the firewall reading
 require SNT_PATH . 'inc/cloudflare-credentials.php'; // 14.10.0: the account id + grant list
+require SNT_PATH . 'inc/cloudflare-readings-admin.php'; // PR #2025 review: the classic Refresh form's sentence
 if ( ! function_exists( 'sn_keyring' ) ) { require SNT_PATH . 'inc/keyring.php'; } // 2026-10-12: the cf_token row's monitor flush
 define( 'SN_ADMIN_CLOUDWAYS_TEST', true );
 require SNT_PATH . 'inc/admin-forms/cloudways.php'; // 2026-10-12: the Cloudways verdict both leaves share
@@ -70,6 +71,18 @@ ok( false !== strpos( $kit, 'heading="Token"' ) && false !== strpos( $kit, 'The 
 // 17.4.1 (#1573): boxes on rows of comparable height. Credentials beside
 // Cache; Token under them, alone at full width when there is no probes ledger.
 ok( 1 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, 'snt-2up' ) && 1 === preg_match( '/' . preg_quote( snt_leaf_row(), '/' ) . '<os-section heading="Credentials".*?<\/os-section><os-section heading="Cache".*?<\/os-section><\/os-grid><os-section heading="Token"/s', $kit ), '17.4.1: one paired row, Credentials beside Cache, then Token alone at full width; no snt-2up columns' );
+
+// PR #2025 review: Refresh is disabled until the token and zone ID are set, so
+// no box says "press Refresh" then; it says what Refresh waits for.
+$GLOBALS['__options'][ SN_CF_MONITOR_OPT ] = array( 'fetched_at' => time(), 'configured' => true, 'token' => array( 'verified' => false, 'status' => 'changed', 'expires_on' => '', 'error' => '', 'kind' => '' ), 'zone' => null, 'firewall' => null );
+$no_zone = snt_leaf_paint( 'connections', 'cloudflare' );
+ok( false === strpos( $no_zone, 'Press Refresh' ) && false !== strpos( $no_zone, 'The token changed after the last read. Refresh reads it once the API token and zone ID are set under Credentials.' ), 'PR #2025 review: with Refresh disabled (no zone ID), the box never says "Press Refresh"; it says what Refresh waits for' );
+unset( $GLOBALS['__options'][ SN_CF_MONITOR_OPT ] );
+$never = snt_leaf_paint( 'connections', 'cloudflare' );
+ok( false === strpos( $never, 'press Refresh' ) && false !== strpos( $never, 'The monitor has not run yet. Refresh reads it once the API token and zone ID are set under Credentials.' ), 'nor before the first run' );
+$classic_never = snt_leaf_classic_html( static function () { sn_cf_readings_refresh_form( null ); } );
+ok( false !== strpos( $classic_never, 'The monitor has not run yet. Refresh reads it once the API token and zone ID are set under Credentials.' ), 'the classic Refresh form says the same' );
+cf_opts( array() );
 
 // ── Configured, with a full-zone purge an hour ago.
 cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef', 'sn_cf_last_purge' => array( 'time' => time() - 3600, 'kind' => 'all' ) ) );
@@ -201,9 +214,13 @@ ok( false === strpos( $with_log, 'rate-limit headers' ) && false === strpos( $wi
 // 2026-10-12 audit: saving a new token left the old token's status and expiry
 // on the Token box until the daily run; the keyring's flush marks it changed.
 ok( 'sn_cf_monitor_forget_token' === ( sn_keyring()['cf_token']['flush_fn'] ?? '' ), 'the keyring flushes the monitor\'s token reading when the Cloudflare token is saved' );
-sn_cf_monitor_forget_token();
+// PR #2025 review: the flush verifies the new token (tests/cloudflare-monitor.php);
+// "changed" is what it stores when Cloudflare cannot be reached.
+$GLOBALS['__options'][ SN_CF_MONITOR_OPT ]['token'] = array( 'verified' => false, 'status' => 'changed', 'expires_on' => '', 'error' => 'cURL error 28', 'kind' => '' );
+$GLOBALS['__options'][ SN_CF_TOKEN_OPT ]            = 'tok-new';
+$GLOBALS['__options'][ SN_CF_ZONE_OPT ]             = 'zone123';
 $changed = snt_leaf_paint( 'connections', 'cloudflare' );
-ok( false !== strpos( $changed, 'The token changed after the last read. Press Refresh now to read the new one.' ) && false === strpos( $changed, 'active · user' ) && true === ( $GLOBALS['__options'][ SN_CF_MONITOR_OPT ]['firewall']['available'] ?? null ), 'after a new token: the Token box says it changed, not the old status; the zone and firewall readings stay' );
+ok( false !== strpos( $changed, 'The token changed after the last read. Press Refresh now to read the new one.' ) && false === strpos( $changed, 'active · user' ) && false === strpos( $changed, 'os-arg-action="sn_cf_monitor_refresh" disabled' ) && 1 === preg_match( '/<os-button[^>]*os-arg-action="sn_cf_monitor_refresh"(?![^>]*\bdisabled)/', $changed ), 'after a new token: the Token box says it changed, not the old status, and its Refresh is live' );
 $GLOBALS['__options'] = $opts_before;
 ok( false !== strpos( $kit, '>locked by SN_CLOUDFLARE_ZONE_ID</span></os-fact>' ) && false === strpos( $kit, 'zoneconst0123456789' ), 'both locked: the zone reads as locked and its constant value is not painted' );
 define( 'SN_CF_ACCOUNT_ID', 'acctconst0123456789' );

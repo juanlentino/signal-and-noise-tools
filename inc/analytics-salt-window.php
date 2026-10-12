@@ -291,6 +291,13 @@ function sn_salt_window_lines( $result ) {
 		/* translators: %s: number of salt keys currently at the edge. */
 		$lines[] = sprintf( _n( '%s salt key at the edge.', '%s salt keys at the edge.', (int) $w['key_count'], 'signal-and-noise-tools' ), number_format_i18n( (int) $w['key_count'] ) );
 	}
+	// The salt has its own probe and cache (sn_salt_window_get()), so it says
+	// when it was read (PR #2025 review: the merged Pipeline box had dropped it).
+	$fetched_at = (int) ( $result['fetched_at'] ?? 0 );
+	if ( $fetched_at > 0 ) {
+		/* translators: %s: human-readable time interval, e.g. "2 minutes" */
+		$lines[] = sprintf( __( 'Checked %s ago.', 'signal-and-noise-tools' ), human_time_diff( $fetched_at, time() ) );
+	}
 	return array( 'ok' => true, 'lines' => $lines );
 }
 
@@ -327,15 +334,12 @@ function sn_salt_window_render_card() {
 		return;
 	}
 
-	$body = '';
-	foreach ( $said['lines'] as $line ) {
-		$body .= '<p>' . esc_html( $line ) . '</p>';
-	}
-
-	$fetched_at = isset( $result['fetched_at'] ) ? (int) $result['fetched_at'] : 0;
-	if ( $fetched_at > 0 ) {
-		/* translators: %s: human-readable time interval, e.g. "2 minutes" */
-		$body .= '<p class="sn-an-empty">' . esc_html( sprintf( __( 'Checked %s ago.', 'signal-and-noise-tools' ), human_time_diff( $fetched_at, time() ) ) ) . '</p>';
+	// The last line is "Checked … ago." when the probe time is known; muted, as before.
+	$body  = '';
+	$last  = count( $said['lines'] ) - 1;
+	$timed = (int) ( $result['fetched_at'] ?? 0 ) > 0;
+	foreach ( $said['lines'] as $i => $line ) {
+		$body .= ( $timed && $i === $last ? '<p class="sn-an-empty">' : '<p>' ) . esc_html( $line ) . '</p>';
 	}
 
 	wp_admin_notice( $body, array( 'type' => 'info', 'additional_classes' => array( 'notice-alt', 'inline' ), 'paragraph_wrap' => false ) );

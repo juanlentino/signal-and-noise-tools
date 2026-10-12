@@ -2,13 +2,18 @@
 /**
  * Signal & Noise — the "Traffic & edge" analytics view (edge-analytics presenter).
  *
- * Renders the edge GraphQL rollup as a native wp-admin view inside the WP
- * the S&N Analytics dashboard (its own top-level menu since v12.10.0;
- * snt_analytics_page_url()) — NOT the
- * Monitoring tab, whose Analytics leaf is settings-only: a KPI headline (incl. the beacon-reconciliation — what the JS beacon
- * never saw), the daily request trend (reusing the shared trend chart), an error/
- * status breakdown, and per-colo / per-country / threat tables. Reuses the existing
- * .sn-kpi-row / postbox / widefat treatments — no new visual vocabulary.
+ * Renders the edge GraphQL rollup as a native wp-admin view inside the S&N
+ * Analytics dashboard (its own top-level menu since v12.10.0;
+ * snt_analytics_page_url()): a KPI headline (incl. the beacon-reconciliation,
+ * what the JS beacon never saw), the daily request trend (reusing the shared
+ * trend chart), an error/status breakdown, and per-colo / per-country / threat
+ * tables. Reuses the existing .sn-kpi-row / postbox / widefat treatments; no
+ * new visual vocabulary.
+ *
+ * The Measurement › Analytics settings leaf is not settings-only: since 15.3.0
+ * it also carries the Cloudflare monitor's compact "Edge, 7 days" report (the
+ * five figures and the 5xx lists), and that placement is decided (PR #2025
+ * review). This view is the full traffic report; that box is the glance.
  *
  * @package SignalNoiseTools
  * @since 6.26.0

@@ -22,6 +22,9 @@ if ( ! function_exists( 'wp_http_validate_url' ) ) {
 if ( ! function_exists( 'set_transient' ) ) {
 	function set_transient( $k, $v, $e = 0 ) { return true; }
 }
+if ( ! function_exists( 'wp_verify_nonce' ) ) {
+	function wp_verify_nonce( $n, $a = -1 ) { return 'nonce-' . $a === $n ? 1 : false; }
+}
 // 2026-10-12: Re-read now drops the sensor's cached version reading first.
 $GLOBALS['__deleted_transients'] = array();
 if ( ! function_exists( 'delete_transient' ) ) {
@@ -159,9 +162,33 @@ ok( false !== strpos( $kit, 'sn-rights-signals' ) && false !== strpos( $kit, 'v1
 // format; "purge caches to read it now" promised what no purge does.
 ok( false !== strpos( $kit, '<os-fact label="Worker"><span class="snt-kv__v">sn-rights-signals v1.20.0</span></os-fact>' ) && false !== strpos( $kit, '<os-fact label="Deployed"><span class="snt-kv__v">September 1, 2026 12:00 am</span></os-fact>' ) && false !== strpos( $classic, '<strong>Deployed:</strong> September 1, 2026 12:00 am' ), 'the edge readout is facts rows, the deploy time in the site\'s format, the same on both surfaces' );
 ok( false === strpos( $kit, 'purge caches' ) && false === strpos( $classic, 'purge caches' ) && false !== strpos( $kit, '<os-button variant="secondary" os-action="go" os-arg-sub="machine-readers" os-arg-sn_mr_reread="1">Re-read now</os-button>' ), 'Re-read now replaces the purge sentence; it is a go back to this leaf' );
+// PR #2025 review: the native box said "Re-read now asks it again" and the
+// classic box had no such button. Both have it now, in the same words.
+ok( false !== strpos( $classic, 'so a fresh deploy can take that long to appear here; Re-read now asks it again.' ) && 1 === preg_match( '#<a class="button" href="[^"]*sn_mr_reread=1[^"]*_wpnonce=nonce-sn_mr_reread">Re-read now</a>#', $classic ), 'the classic Edge sensor box has Re-read now too (a nonce link), and says so in the same words' );
 $GLOBALS['__deleted_transients'] = array();
-snt_leaf_paint( 'monitoring', 'machine-readers', array( 'params' => array( 'sn_mr_reread' => '1' ) ) );
+$_GET = array( 'sn_mr_reread' => '1', '_wpnonce' => 'nonce-sn_mr_reread' );
+snt_leaf_classic_html( 'snt_mr_render_tab' );
+ok( array( 'sn_mr_sensor_info' ) === $GLOBALS['__deleted_transients'], 'the classic Re-read drops the cached reading when its nonce verifies' );
+$GLOBALS['__deleted_transients'] = array();
+$_GET = array( 'sn_mr_reread' => '1', '_wpnonce' => 'forged' );
+snt_leaf_classic_html( 'snt_mr_render_tab' );
+ok( array() === $GLOBALS['__deleted_transients'], 'and keeps it when the nonce does not verify' );
+$_GET = array();
+$GLOBALS['__deleted_transients'] = array();
+// PR #2025 review: the flag rode the leaf's state, so every later Refresh
+// re-read live. One state across two paints: the first re-reads, the second
+// reads the cache, and the flag is gone from the params.
+$mr_state = new class( array( 'params' => array( 'sn_mr_reread' => '1', 'other' => 'kept' ) ) ) {
+	private $v;
+	public function __construct( array $v ) { $this->v = $v; }
+	public function get( $k ) { return $this->v[ $k ] ?? null; }
+	public function set( $k, $x ) { $this->v[ $k ] = $x; return $this; }
+};
+$mr_paint = \SignalNoise\OpenStationHost\Dashboard\painters()['monitoring/machine-readers'];
+$mr_paint( array( 'tab' => 'monitoring', 'sub' => 'machine-readers', 'state' => $mr_state, 'os' => null ) );
 ok( array( 'sn_mr_sensor_info' ) === $GLOBALS['__deleted_transients'], 'Re-read now drops the cached version reading before it reads' );
+$mr_paint( array( 'tab' => 'monitoring', 'sub' => 'machine-readers', 'state' => $mr_state, 'os' => null ) );
+ok( array( 'sn_mr_sensor_info' ) === $GLOBALS['__deleted_transients'] && array( 'other' => 'kept' ) === $mr_state->get( 'params' ), 'PR #2025 review: the re-read happens once; the next paint (a Refresh) reads the cache, and only the flag left the params' );
 $GLOBALS['__deleted_transients'] = array();
 snt_leaf_paint( 'monitoring', 'machine-readers' );
 ok( array() === $GLOBALS['__deleted_transients'], 'an ordinary paint keeps the cache' );

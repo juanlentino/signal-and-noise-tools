@@ -196,7 +196,7 @@ function sn_admin_render_zenodo_section() {
 	$d = sn_zenodo_leaf_data();
 	sn_admin_shell_open();
 
-	echo '<p class="sn-prose">Every signed document (the notes, the pillar essays) gets a DOI on <strong>Zenodo</strong> once its anchor is confirmed, with the Markdown, the signed record and the Bitcoin proof filed beside it. The papers stay with SSRN. Sandbox DOIs are test DOIs and never reach a public surface.</p>';
+	echo '<p class="sn-prose">Every signed document (the notes, the pillar essays) gets a DOI on <strong>Zenodo</strong> once its anchor is confirmed, with the Markdown, the signed record and the Bitcoin proof filed with it. The papers stay with SSRN. Sandbox DOIs are test DOIs and never reach a public surface.</p>';
 
 	echo '<div class="sn-2up">';
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="zenodo">';

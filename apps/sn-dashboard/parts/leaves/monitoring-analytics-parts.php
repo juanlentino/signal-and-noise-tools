@@ -31,8 +31,8 @@ require_once dirname( __DIR__, 4 ) . '/inc/ai-model-catalog.php'; // the model d
  * to the classic page, which opened wp-admin in another window and never
  * re-read this one). Capability is checked by the `go` action itself.
  *
- * ponytail: the param rides the leaf's state until the next go or save, so a
- * repaint in between probes again; a cheap HTTP read, fine while nothing polls this leaf.
+ * The flag is taken on the paint that reads it (PR #2025 review): left in the
+ * state, every later Refresh of this leaf probed the Worker live.
  *
  * @param array<string,mixed> $ctx Leaf context.
  * @return bool
@@ -40,7 +40,14 @@ require_once dirname( __DIR__, 4 ) . '/inc/ai-model-catalog.php'; // the model d
 function analytics_recheck_requested( array $ctx ) {
 	$state  = $ctx['state'] ?? null;
 	$params = ( is_object( $state ) && method_exists( $state, 'get' ) ) ? (array) $state->get( 'params' ) : array();
-	return ! empty( $params['sn_worker_recheck'] );
+	if ( empty( $params['sn_worker_recheck'] ) ) {
+		return false;
+	}
+	if ( method_exists( $state, 'set' ) ) {
+		unset( $params['sn_worker_recheck'] );
+		$state->set( 'params', $params );
+	}
+	return true;
 }
 
 /**

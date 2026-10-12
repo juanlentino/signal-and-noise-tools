@@ -1,17 +1,19 @@
 <?php
 /**
- * No position words in the Connections and Measurement painters (2026-10-12
- * audit, batch 7; the coordinator's scope add for Discography, Search
- * Console, Webhooks and the Health advisories).
+ * No position words in the native leaves (2026-10-12 audit, batch 7; the
+ * coordinator's scope add for Discography, Search Console, Webhooks and the
+ * Health advisories).
  *
  * Owner rule: UI text names the box or the button ("under Credentials",
  * "press Sync now"), never a position ("above", "below", "left", "right",
- * "rail", "beside"): boxes move between rows and widths, and a sentence that
- * points at a place points at nothing once they do. This reads every string
- * literal in the painters of those tabs, on both surfaces (comments are not
- * read; variable names are not strings), and fails on any of the six words.
- * A word used for something other than a place is listed by its exact
- * string, so a new positional sentence cannot hide behind it.
+ * "rail", "beside", "main column"): boxes move between rows and widths, and a
+ * sentence that points at a place points at nothing once they do. This reads
+ * every string literal in every native leaf, the classic twins of this
+ * batch's tabs and the keyring's row text (comments are not read; variable
+ * names are not strings), and fails on any of those words.
+ *
+ * PR #2025 review: the scan globs every leaf instead of a fixed list, so a new
+ * leaf is read without editing this file, and "main column" is a position too.
  *
  * Run: php tests/positional-words-batch7.php
  *
@@ -19,50 +21,39 @@
  */
 
 $root  = dirname( __DIR__ );
-$files = array(
-	// Discography.
-	'apps/sn-dashboard/parts/leaves/connections-music.php',
-	'apps/sn-dashboard/parts/leaves/connections-music-parts.php',
-	'inc/admin-forms/music.php',
-	// Search Console.
-	'apps/sn-dashboard/parts/leaves/monitoring-search-console.php',
-	'inc/search-console-admin.php',
-	// Webhooks.
-	'apps/sn-dashboard/parts/leaves/connections-webhooks.php',
-	'apps/sn-dashboard/parts/leaves/connections-webhooks-parts.php',
-	'apps/sn-dashboard/parts/leaves/connections-webhooks-log.php',
-	'inc/webhooks-admin.php',
-	// Health, with its advisories.
-	'apps/sn-dashboard/parts/leaves/monitoring-health.php',
-	'apps/sn-dashboard/parts/leaves/monitoring-health-parts.php',
-	'apps/sn-dashboard/parts/leaves/monitoring-health-rows.php',
-	'apps/sn-dashboard/parts/leaves/monitoring-health-sections.php',
-	'inc/health-checks-admin.php',
-	'inc/health-render-findings.php',
-	'inc/health-check-stale-posts.php',
-	// The rest of the batch's leaves, where the audit found the same words.
-	'apps/sn-dashboard/parts/leaves/connections-keyring.php',
-	'apps/sn-dashboard/parts/leaves/connections-indexnow.php',
-	'apps/sn-dashboard/parts/leaves/monitoring-analytics.php',
-	'apps/sn-dashboard/parts/leaves/monitoring-analytics-parts.php',
-	'apps/sn-dashboard/parts/leaves/monitoring-analytics-settings.php',
-	'apps/sn-dashboard/parts/leaves/monitoring-analytics-tuning.php',
-	'apps/sn-dashboard/parts/leaves/monitoring-machine-readers.php',
-	'apps/sn-dashboard/parts/leaves/monitoring-machine-readers-parts.php',
-	'apps/sn-dashboard/parts/leaves/monitoring-insights.php',
-	'apps/sn-dashboard/parts/leaves/monitoring-insights-parts.php',
-	'apps/sn-dashboard/parts/leaves/monitoring-rss-parts.php',
-	'inc/analytics-render-settings.php',
-	'inc/machine-readers-render.php',
-	'inc/north-star-settings.php',
+$files = array_merge(
+	array_map( static fn( $f ) => substr( $f, strlen( $root ) + 1 ), (array) glob( $root . '/apps/sn-dashboard/parts/leaves/*.php' ) ),
+	array(
+		'inc/keyring.php',
+		'inc/admin-forms/music.php',
+		'inc/search-console-admin.php',
+		'inc/webhooks-admin.php',
+		'inc/health-checks-admin.php',
+		'inc/health-render-findings.php',
+		'inc/health-check-stale-posts.php',
+		'inc/analytics-render-settings.php',
+		'inc/machine-readers-render.php',
+		'inc/north-star-settings.php',
+	)
 );
-// Exact strings that use one of the words for something other than a place
-// (none today).
-$allowed = array();
-// Idioms that are not places: time ("right now"), SQL, and a measure under a
-// threshold ("below the floor", "below its model's minimum"). Stripped before
-// the scan, so the same string can still fail on a positional word.
-$idioms = '/\bright (now|away)\b|\bLEFT JOIN\b|\bbelow (the floor|its model)/';
+// Positional sentences in OTHER batches' leaves, listed in PR #2025 for their
+// owners and left as they are: file => a fragment of the one string. Any other
+// positional string anywhere in the scan fails.
+$elsewhere = array(
+	'apps/sn-dashboard/parts/leaves/ai-agent-tools-adapter.php' => 'at the address below',
+	'apps/sn-dashboard/parts/leaves/ai-agent-tools-doors.php'   => 'the tool list below',
+	'apps/sn-dashboard/parts/leaves/ai-models-budget-parts.php' => 'The figure above',
+	'apps/sn-dashboard/parts/leaves/content-now.php'            => 'Add sections below',
+	'apps/sn-dashboard/parts/leaves/site-redirects-rules.php'   => 'add the first one below',
+	'apps/sn-dashboard/parts/leaves/tools-provenance.php'       => 'the commitment above',
+);
+// Idioms that are not places, stripped before the scan so the same string can
+// still fail on a positional word: time ("right now"), SQL, what remains ("is
+// left", "days left", "left off"), a measure against a threshold ("below the
+// floor", "below AA", "above its 7-day mean"), "a right tag" (a correct one),
+// and the dashicons class name.
+$idioms = '/\bright (now|away)\b|\bLEFT JOIN\b|\bbelow (the floor|its model|body-text AA|AA|%\d\$s:1)|\b(is|are|days) left\b|\bleft (off|unverifiable|afterwards)\b|\babove its 7-day mean\b|\ba right tag\b|arrow-right/';
+$words  = '/\b(above|below|left|right|rail|beside)\b|\bmain column\b/i';
 
 $pass = 0;
 $fail = 0;
@@ -84,19 +75,24 @@ foreach ( $files as $rel ) {
 		if ( ! is_array( $tok ) || ! in_array( $tok[0], array( T_CONSTANT_ENCAPSED_STRING, T_ENCAPSED_AND_WHITESPACE, T_INLINE_HTML ), true ) ) {
 			continue;
 		}
-		if ( in_array( $tok[1], $allowed, true ) ) {
+		if ( isset( $elsewhere[ $rel ] ) && false !== strpos( $tok[1], $elsewhere[ $rel ] ) ) {
 			continue;
 		}
-		if ( preg_match( '/\b(above|below|left|right|rail|beside)\b/i', (string) preg_replace( $idioms, '', $tok[1] ) ) ) {
+		if ( preg_match( $words, (string) preg_replace( $idioms, '', $tok[1] ) ) ) {
 			$hits[] = $rel . ':' . $tok[2] . ' ' . substr( $tok[1], 0, 90 );
 		}
 	}
 }
-pw_ok( array() === $hits, 'no painter string in these tabs points at a position: ' . implode( ' | ', $hits ) );
+pw_ok( count( $files ) > 100, 'the glob reads every leaf (' . count( $files ) . ' files)' );
+pw_ok( array() === $hits, 'no painter string points at a position: ' . implode( ' | ', $hits ) );
 
-// The guard can fail: the sentence the audit found on Webhooks, fed through the same scan.
-$probe = array_filter( token_get_all( "<?php echo 'Enabled: deliveries fire on the events below';" ), static fn( $t ) => is_array( $t ) && T_CONSTANT_ENCAPSED_STRING === $t[0] && preg_match( '/\b(above|below|left|right|rail|beside)\b/i', $t[1] ) );
-pw_ok( 1 === count( $probe ), 'the scan catches a positional sentence (it is not vacuous)' );
+// The guard can fail: positional sentences the audits found, through the same scan.
+foreach ( array( 'Enabled: deliveries fire on the events below', 'Set them in the main column', 'Nothing is left; the box on the left' ) as $sentence ) {
+	pw_ok( 1 === preg_match( $words, (string) preg_replace( $idioms, '', $sentence ) ), "the scan catches a positional sentence (it is not vacuous): $sentence" );
+}
+foreach ( array( 'Run it right now', '%5$d days left', 'below body-text AA', 'where you left off' ) as $idiom ) {
+	pw_ok( 0 === preg_match( $words, (string) preg_replace( $idioms, '', $idiom ) ), "an idiom is not a place: $idiom" );
+}
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

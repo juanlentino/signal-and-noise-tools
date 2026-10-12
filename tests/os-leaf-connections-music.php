@@ -78,9 +78,9 @@ ok( false !== strpos( $kit, '<p class="snt-hint">Sync now runs the full Muso →
 // 2026-10-12 audit: the form stood alone at 760px beside 540px of nothing and
 // Sync now was an empty box. Two rows of paired boxes: Status (Sync now at its
 // foot) beside Spotify, then the profile beside the featured release.
-$row1 = strpos( $kit, '<os-grid min-item-width="290" gap="18" style="--snt-grid-items:2" role="complementary" aria-label="Sync status">' );
+$row1 = strpos( $kit, '<os-grid min-item-width="290" gap="18" style="--snt-grid-items:2"><os-section heading="Status" stack role="complementary" aria-label="Sync status">' );
 $row2 = strpos( $kit, snt_leaf_row( 2 ), (int) $row1 + 1 );
-ok( false !== $row1 && false !== $row2 && 2 === substr_count( $kit, '<os-grid' ) && 0 === substr_count( $kit, '<os-card' ), 'two rows of paired boxes, the first carrying the landmark name' );
+ok( false !== $row1 && false !== $row2 && 2 === substr_count( $kit, '<os-grid' ) && 0 === substr_count( $kit, '<os-card' ), 'two rows of paired boxes; the "Sync status" landmark is the Status box alone, not the row that also holds the Featured release form (PR #2025 review)' );
 $order = array( strpos( $kit, '<p class="snt-prose">' ), strpos( $kit, '<os-notice' ), $row1, strpos( $kit, 'heading="Status"' ), strpos( $kit, 'value="sn_music_sync"' ), strpos( $kit, 'heading="Featured release"' ), $row2, strpos( $kit, 'heading="Muso.AI profile"' ), strpos( $kit, 'heading="Spotify (optional)"' ) );
 $sorted = $order;
 sort( $sorted );

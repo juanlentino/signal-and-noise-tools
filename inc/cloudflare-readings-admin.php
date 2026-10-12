@@ -38,7 +38,7 @@ function sn_cf_readings_refresh_form( $record ) {
 	if ( is_array( $record ) && ! empty( $record['configured'] ) ) {
 		echo '<p class="sn-field-helper">' . esc_html( sprintf( 'Read %s. Refresh reads the token, the edge and the firewall again.', wp_date( get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i a' ), (int) $record['fetched_at'] ) ) ) . '</p>';
 	} else {
-		echo '<p class="sn-field-helper">The monitor has not run yet. It runs daily; press Refresh to run it now.</p>';
+		echo '<p class="sn-field-helper">' . esc_html( sn_cf_monitor_refresh_sentence( 'never_run', $configured ) ) . '</p>';
 	}
 	echo '<button type="submit" name="action" value="sn_cf_monitor_refresh" class="button"' . ( $configured ? '' : ' disabled' ) . '>Refresh now</button>';
 	echo '</form>';

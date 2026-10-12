@@ -181,7 +181,8 @@ function music_rail_status_html( array $s ) {
 	if ( '' !== $s['last_error'] ) {
 		$rows[] = array( 'label' => __( 'Last error', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_code( $s['last_error'], false ) );
 	}
-	return \snt_kit_section( __( 'Status', 'signal-and-noise-tools' ), \snt_kit_kv( $rows ) . music_sync_html() );
+	// The "Sync status" landmark is this box alone, not the row it shares.
+	return \snt_kit_section( __( 'Status', 'signal-and-noise-tools' ), \snt_kit_kv( $rows ) . music_sync_html(), '', array( 'role' => 'complementary', 'aria-label' => __( 'Sync status', 'signal-and-noise-tools' ) ) );
 }
 
 /**

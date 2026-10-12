@@ -35,6 +35,21 @@ function cloudflare_monitor_record() {
 }
 
 /**
+ * sn_cf_monitor_refresh_sentence(), or its configured wording when the
+ * monitor is not loaded.
+ *
+ * @param string              $when 'never_run' or 'changed'.
+ * @param array<string,mixed> $d    From cloudflare_data().
+ * @return string
+ */
+function cloudflare_refresh_sentence( $when, array $d ) {
+	if ( function_exists( 'sn_cf_monitor_refresh_sentence' ) ) {
+		return sn_cf_monitor_refresh_sentence( $when, ! empty( $d['is_configured'] ) );
+	}
+	return __( 'The monitor has not run yet. It runs daily; press Refresh to run it now.', 'signal-and-noise-tools' );
+}
+
+/**
  * When the record was read, in the site's timezone.
  *
  * @param array<string,mixed> $record
@@ -56,7 +71,7 @@ function cloudflare_token_html( array $d = array() ) {
 	// 15.3.0: the monitor's Refresh lives here now (it reads the token first);
 	// before the first run the section says so and offers it.
 	if ( ! is_array( $record ) ) {
-		return \snt_kit_section( __( 'Token', 'signal-and-noise-tools' ), '<p class="snt-hint">' . \snt_kit_esc( __( 'The monitor has not run yet. It runs daily; press Refresh to run it now.', 'signal-and-noise-tools' ) ) . '</p>' . cloudflare_monitor_footer_html( $d, null ), __( 'As Cloudflare reports it, read daily with the monitor.', 'signal-and-noise-tools' ) );
+		return \snt_kit_section( __( 'Token', 'signal-and-noise-tools' ), '<p class="snt-hint">' . \snt_kit_esc( cloudflare_refresh_sentence( 'never_run', $d ) ) . '</p>' . cloudflare_monitor_footer_html( $d, null ), __( 'As Cloudflare reports it, read daily with the monitor.', 'signal-and-noise-tools' ) );
 	}
 	if ( empty( $record['configured'] ) ) {
 		return '';
@@ -84,7 +99,7 @@ function cloudflare_token_html( array $d = array() ) {
 		) );
 	} elseif ( 'changed' === (string) ( $t['status'] ?? '' ) ) {
 		// The keyring saved a new token after this reading (sn_cf_monitor_forget_token()).
-		$inner .= \snt_kit_notice( 'warning', \snt_kit_esc( __( 'The token changed after the last read. Press Refresh now to read the new one.', 'signal-and-noise-tools' ) ) );
+		$inner .= \snt_kit_notice( 'warning', \snt_kit_esc( cloudflare_refresh_sentence( 'changed', $d ) ) );
 	} else {
 		$inner .= \snt_kit_notice( 'error', \snt_kit_esc( sprintf( /* translators: %s: reason. */ __( 'Token could not be verified: %s', 'signal-and-noise-tools' ), (string) ( $t['error'] ?: $t['status'] ) ) ) );
 	}
@@ -105,7 +120,7 @@ function cloudflare_edge_html( array $d ) {
 	$record = cloudflare_monitor_record();
 	$inner  = '';
 	if ( ! is_array( $record ) ) {
-		$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'The monitor has not run yet. It runs daily; press Refresh to run it now.', 'signal-and-noise-tools' ) ) . '</p>' . cloudflare_monitor_footer_html( $d, null );
+		$inner .= '<p class="snt-hint">' . \snt_kit_esc( cloudflare_refresh_sentence( 'never_run', $d ) ) . '</p>' . cloudflare_monitor_footer_html( $d, null );
 		return \snt_kit_section( __( 'Edge, 7 days', 'signal-and-noise-tools' ), $inner );
 	}
 	if ( empty( $record['configured'] ) ) {

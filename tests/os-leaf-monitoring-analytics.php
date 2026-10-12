@@ -152,6 +152,8 @@ function an_live_previews() {
 	$kit = snt_leaf_paint( 'monitoring', 'analytics' );
 	ok( array() === snt_leaf_folds( $kit ) && 1 === substr_count( $kit, 'heading="Cloudflare Worker setup"' ) && 4 === substr_count( $kit, '<os-step>' ), 'live-shaped setup: no fold; the four setup steps show, open, while the pipeline is incomplete' );
 	snt_leaf_preview( 'monitoring-analytics-setup', $kit );
+	// PR #2025 review: the classic page has no Pipeline box, so the step names the button alone, the same on both.
+	ok( false !== strpos( $kit, 'Press Test connection once the token and Account ID are set, to confirm the read side works.' ) && false === strpos( $kit, 'in Pipeline' ), 'the last setup step reads as the classic one: "Press Test connection once …", no box the classic page lacks' );
 }
 
 if ( getenv( 'SNT_AN_PREVIEW_CHILD' ) ) {
@@ -182,6 +184,17 @@ ok( false !== strpos( $kit, '<os-fact label="Worker"><span class="snt-kv__v">sn-
 ok( false !== strpos( $kit, '<os-button variant="secondary" os-action="go" os-arg-sub="analytics" os-arg-sn_worker_recheck="1">Re-check now</os-button>' ) && false === strpos( $kit, 'sn_worker_recheck=1' ), 'Re-check now is a go back to this leaf, not a door to the classic page' );
 $an_state = static fn( array $v ) => new class( $v ) { private $v; public function __construct( array $v ) { $this->v = $v; } public function get( $k ) { return $this->v[ $k ] ?? null; } };
 ok( \SignalNoise\OpenStationHost\Dashboard\Leaves\analytics_recheck_requested( array( 'state' => $an_state( array( 'params' => array( 'sn_worker_recheck' => '1' ) ) ) ) ) && ! \SignalNoise\OpenStationHost\Dashboard\Leaves\analytics_recheck_requested( array( 'state' => $an_state( array() ) ) ), 'the leaf reads the re-check from its own params' );
+// PR #2025 review: the flag rode the leaf's state, so every later Refresh
+// probed live. It is taken on the paint that reads it.
+$an_live = new class( array( 'params' => array( 'sn_worker_recheck' => '1', 'other' => 'kept' ) ) ) {
+	private $v;
+	public function __construct( array $v ) { $this->v = $v; }
+	public function get( $k ) { return $this->v[ $k ] ?? null; }
+	public function set( $k, $x ) { $this->v[ $k ] = $x; return $this; }
+};
+$an_first  = \SignalNoise\OpenStationHost\Dashboard\Leaves\analytics_recheck_requested( array( 'state' => $an_live ) );
+$an_second = \SignalNoise\OpenStationHost\Dashboard\Leaves\analytics_recheck_requested( array( 'state' => $an_live ) );
+ok( $an_first && ! $an_second && array( 'other' => 'kept' ) === $an_live->get( 'params' ), 'the re-check runs on one paint; the next (a Refresh) reads the stored probe, and only the flag left the params' );
 
 // 17.4.4 (#1602): __configured is false here, so sn_analytics_pipeline_complete()
 // reads false (the read-credentials pill is not ok, the same seam
@@ -271,6 +284,7 @@ ok( false === strpos( $kit, 'name="sn_cf_account_id"' ) && false !== strpos( $ki
 ok( false !== strpos( $kit, 'zone-abc123' ), 'the Zone ID mirror shows the live zone' );
 ok( false !== strpos( $kit, 'sn-analytics' ) && false !== strpos( $kit, 'v1.14.2' ), 'the edge-worker card shows the live worker + version' );
 ok( false !== strpos( $kit, '2 salt keys at the edge' ), 'the salt-window card shows the live key count' );
+ok( false !== strpos( $kit, '2 salt keys at the edge. Checked 1 hour ago.</span>' ) && false !== strpos( $classic, 'Checked 1 hour ago.' ), 'PR #2025 review: the salt window keeps its own probe time on the Pipeline box, as the classic card prints it (the harness human_time_diff() reads "1 hour")' );
 ok( false !== strpos( $kit, 'Claude Sonnet 5' ) && false !== strpos( $kit, 'no monthly budget cap' ), 'the AI-model mirror shows the model and the no-budget note' );
 ok( false !== strpos( $kit, 'Home flow' ), 'the funnels textarea is prefilled from the current setting' );
 ok( false !== strpos( $kit, '<os-select name="sn_anomaly_sensitivity"' ), 'anomaly sensitivity is offered (mapped to a kit select, not a radio group)' );
@@ -411,13 +425,13 @@ for ( $i = 1; $i <= 7; $i++ ) {
 }
 if ( ! function_exists( 'sn_edge_errors_reading' ) ) { function sn_edge_errors_reading( $days = 7 ) { return $GLOBALS['__edge_errors']; } }
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( false !== strpos( $kit, 'These lists cover the UTC days October 5, 2026 to October 11, 2026, from the daily edge rollup; the five figures are the zone' ) && false !== strpos( $kit, '<h4 class="snt-h">Who answered with the error</h4>' ) && false !== strpos( $kit, '<h4 class="snt-h">Which paths failed</h4>' ), 'the 5xx lists say their own window and sit under real headings' );
+ok( false !== strpos( $kit, 'Who answered with the error and Which paths failed cover the UTC days October 5, 2026 to October 11, 2026, from the daily edge rollup; the five figures and 5xx by status code are the zone’s own seven days to its last read.' ) && false === strpos( $kit, 'These lists cover' ) && false !== strpos( $kit, '<h4 class="snt-h">Who answered with the error</h4>' ) && false !== strpos( $kit, '<h4 class="snt-h">Which paths failed</h4>' ), 'PR #2025 review: the window sentence names the two rollup lists; the status codes come from the zone record, with the five figures' );
 ok( false !== strpos( $kit, 'responder 5' ) && false === strpos( $kit, 'responder 6' ) && false !== strpos( $kit, '/p5' ) && false === strpos( $kit, '/p6' ) && 2 === substr_count( $kit, '+2 more; the list is capped, not complete.' ), 'each list stops at five with "+2 more"' );
-ok( false !== strpos( $kit, snt_leaf_row( 3, 240, 18 ) . '<div class="snt-edge-list"><h4 class="snt-h">5xx by status code</h4>' ) && strpos( $kit, '<h4 class="snt-h">Which paths failed</h4>' ) < strpos( $kit, 'These lists cover the UTC days' ), 'the status codes, who answered and which paths share one row, the window under them' );
+ok( false !== strpos( $kit, snt_leaf_row( 3, 240, 18 ) . '<div class="snt-edge-list"><h4 class="snt-h">5xx by status code</h4>' ) && strpos( $kit, '<h4 class="snt-h">Which paths failed</h4>' ) < strpos( $kit, 'Which paths failed cover the UTC days' ), 'the status codes, who answered and which paths share one row, the window under them' );
 snt_leaf_preview( 'monitoring-analytics-edge', $kit );
 $GLOBALS['__edge_errors']['query']['error'] = 'GraphQL: rate limited';
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( false !== strpos( $kit, 'Paths and responders not read: GraphQL: rate limited' ) && false === strpos( $kit, 'responder 1' ), 'a failed errors query says not read, never an empty list under the 4,473 tile' );
+ok( false !== strpos( $kit, 'Who answered and which paths for October 11, 2026 were not read: GraphQL: rate limited. The lists hold the days that were read.' ) && false !== strpos( $kit, 'responder 1' ) && false !== strpos( $kit, '/p1' ), 'PR #2025 review: a failed errors query names the day it missed and still paints the six days that were read' );
 unset( $GLOBALS['__options'][ SN_CF_MONITOR_OPT ] );
 
 // ── The North star form (inc/north-star-settings.php) paints on this leaf only

@@ -67,7 +67,8 @@ ok( false !== strpos( $kit, 'href="https://example.test/' . $key . '.txt"' ) && 
 ok( false !== strpos( $kit, 'Last submission' ) && false !== strpos( $kit, '<os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>: HTTP 200, 12 URLs' ), '#1596: the last submission is an os-relative-time, then HTTP code and URL count' );
 // 2026-10-12 audit: the IndexNow box was one checkbox and a button in a
 // mostly empty box. Two paired boxes now: IndexNow (status + toggle) | Status.
-ok( false !== strpos( $kit, '<os-grid min-item-width="290" gap="18" style="--snt-grid-items:2" aria-label="IndexNow status"><os-section heading="IndexNow" stack><os-notice' ) && false !== strpos( $kit, '<os-section heading="Status" stack>' ), 'the IndexNow box (status notice first, then the toggle) beside the Status box, one row' );
+ok( false !== strpos( $kit, '<os-grid min-item-width="290" gap="18" style="--snt-grid-items:2"><os-section heading="IndexNow" stack><os-notice' ) && false !== strpos( $kit, '<os-section heading="Status" stack role="region" aria-label="IndexNow status">' ), 'the IndexNow box (status notice first, then the toggle) beside the Status box, one row' );
+ok( false === strpos( $kit, '<os-grid min-item-width="290" gap="18" style="--snt-grid-items:2" aria-label' ), 'PR #2025 review: the "IndexNow status" name sits on a landmark (the Status box, role="region"), not on a bare os-grid' );
 ok( false === strpos( $kit, '<os-row' ) && false === strpos( $kit, 'col="4"' ) && strpos( $kit, '<os-form' ) < strpos( $kit, 'heading="Status"' ) && strpos( $kit, 'heading="Status"' ) < strpos( $kit, 'os-arg-action="sn_indexnow_ping_now"' ), 'no rail: the toggle sits in the IndexNow box, the two maintenance actions in Status' );
 snt_leaf_preview( 'connections-indexnow', $kit );
 

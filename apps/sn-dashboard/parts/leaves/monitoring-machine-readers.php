@@ -69,7 +69,13 @@ function machine_readers_hero_html( array $d ) {
 function paint_monitoring_machine_readers( array $ctx ) {
 	$state  = $ctx['state'] ?? null;
 	$params = ( is_object( $state ) && method_exists( $state, 'get' ) ) ? (array) $state->get( 'params' ) : array();
-	$d      = machine_readers_data( ! empty( $params['sn_mr_reread'] ) );
+	$reread = ! empty( $params['sn_mr_reread'] );
+	if ( $reread && method_exists( $state, 'set' ) ) {
+		// Taken on this paint (PR #2025 review): left in the state, every later Refresh re-read live.
+		unset( $params['sn_mr_reread'] );
+		$state->set( 'params', $params );
+	}
+	$d      = machine_readers_data( $reread );
 	$edge   = \snt_kit_section(
 		__( 'Edge sensor', 'signal-and-noise-tools' ),
 		machine_readers_edge_readout_html( $d['info'] ),

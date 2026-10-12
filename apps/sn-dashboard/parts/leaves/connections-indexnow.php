@@ -131,9 +131,12 @@ function indexnow_status_box_html( array $d ) {
 		\snt_kit_action_button( __( 'Submit recent content now', 'signal-and-noise-tools' ), 'indexnow_ping_now' )
 		. \snt_kit_action_button( __( 'Regenerate key', 'signal-and-noise-tools' ), 'indexnow_regenerate', array( 'confirm' => __( 'Regenerate the IndexNow key? The old key file stops answering at once; search engines verify the new key on the next submission.', 'signal-and-noise-tools' ), 'confirm_title' => __( 'Regenerate key', 'signal-and-noise-tools' ), 'confirm_label' => __( 'Regenerate', 'signal-and-noise-tools' ) ) )
 	);
+	// The "IndexNow status" landmark (it was an aside before 2026-10-12).
 	return \snt_kit_section(
 		__( 'Status', 'signal-and-noise-tools' ),
-		\snt_kit_kv( $rows ) . '<p class="snt-hint">' . \snt_kit_esc( \sn_indexnow_maintenance_sentence() ) . '</p>' . $actions
+		\snt_kit_kv( $rows ) . '<p class="snt-hint">' . \snt_kit_esc( \sn_indexnow_maintenance_sentence() ) . '</p>' . $actions,
+		'',
+		array( 'role' => 'region', 'aria-label' => __( 'IndexNow status', 'signal-and-noise-tools' ) )
 	);
 }
 
@@ -157,7 +160,7 @@ function paint_connections_indexnow( array $ctx ) {
 		\snt_kit_esc( \sn_indexnow_intro_sentence() ),
 		'<strong>IndexNow</strong>'
 	) . '</p>'
-		. \snt_kit_grid( array( indexnow_enable_html( $d ), indexnow_status_box_html( $d ) ), 290, 18, array( 'aria-label' => __( 'IndexNow status', 'signal-and-noise-tools' ) ) );
+		. \snt_kit_grid( array( indexnow_enable_html( $d ), indexnow_status_box_html( $d ) ), 290, 18 );
 }
 
 add_filter(

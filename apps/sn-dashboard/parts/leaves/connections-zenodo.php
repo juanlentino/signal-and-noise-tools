@@ -151,7 +151,7 @@ function paint_connections_zenodo( array $ctx ) {
 		return \snt_kit_empty( __( 'Zenodo is not available.', 'signal-and-noise-tools' ) );
 	}
 	$d   = \sn_zenodo_leaf_data();
-	$out = '<p class="snt-prose">' . \snt_kit_esc( __( 'Every signed document (the notes, the pillar essays) gets a DOI on Zenodo once its anchor is confirmed, with the Markdown, the signed record and the Bitcoin proof filed beside it. The papers stay with SSRN. Sandbox DOIs are test DOIs and never reach a public surface.', 'signal-and-noise-tools' ) ) . '</p>';
+	$out = '<p class="snt-prose">' . \snt_kit_esc( __( 'Every signed document (the notes, the pillar essays) gets a DOI on Zenodo once its anchor is confirmed, with the Markdown, the signed record and the Bitcoin proof filed with it. The papers stay with SSRN. Sandbox DOIs are test DOIs and never reach a public surface.', 'signal-and-noise-tools' ) ) . '</p>';
 	$out .= \snt_kit_tag(
 		'os-row',
 		array( 'gap' => '16' ),

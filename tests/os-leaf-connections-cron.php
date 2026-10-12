@@ -286,11 +286,11 @@ ok( 3 === substr_count( $kit, '>in 1 hour</os-relative-time>)' ) && 3 === preg_m
 ok( false !== strpos( $kit, '>1 hour ago</os-relative-time>)' ), 'last fired prints an os-relative-time for fired rows' );
 // 2026-10-12 audit: the last fire is stored per hook, so every pending one-shot
 // (25 scheduled posts) printed the same "Last fired" of another event.
-ok( false !== strpos( $kit, 'Not yet: runs once' ) && false !== strpos( $classic, 'Not yet: runs once' ), 'a pending single event says it has not run, on both surfaces, never its hook\'s time' );
+ok( false !== strpos( $kit, 'not yet: runs once' ) && false !== strpos( $classic, 'not yet: runs once' ), 'a pending single event says it has not run, on both surfaces, never its hook\'s time' );
 $one_shot = \SignalNoise\OpenStationHost\Dashboard\Leaves\cron_row_data( array( 'hook' => 'publish_future_post', 'schedule' => false, 'args' => array( 7 ), 'next_run_ts' => time() + 3600, 'last_fired_ts' => time() - 600 ) );
-ok( 'Not yet: runs once' === $one_shot['last_fired'], 'a one-shot whose hook fired 10 minutes ago for another post still reads "Not yet: runs once"' );
+ok( 'not yet: runs once' === $one_shot['last_fired'], 'a one-shot whose hook fired 10 minutes ago for another post still reads "not yet: runs once" (lowercase, as in the #2023 cells)' );
 $recurring = \SignalNoise\OpenStationHost\Dashboard\Leaves\cron_row_data( array( 'hook' => 'wp_version_check', 'schedule' => 'twicedaily', 'args' => array(), 'next_run_ts' => time() + 3600, 'last_fired_ts' => 0 ) );
-ok( 'Not recorded yet' === $recurring['last_fired'] && 'none' === $recurring['args'], 'a recurring hook with no record says "Not recorded yet", never an em dash; empty args read "none"' );
+ok( 'not recorded yet' === $recurring['last_fired'] && 'none' === $recurring['args'], 'a recurring hook with no record says "not recorded yet", never an em dash; empty args read "none"' );
 ok( false === strpos( $kit, '—</span>' ) && false === strpos( $classic, '&mdash;' ), 'no ledger cell is an em dash, on either surface' );
 
 // 8e) #1596: a next_run_ts already behind now paints the same os-relative-time
