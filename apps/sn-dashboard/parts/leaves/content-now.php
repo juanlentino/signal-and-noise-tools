@@ -101,7 +101,7 @@ function now_intro_html( array $s ) {
 	}
 	return '<p class="snt-prose">' . $intro . '</p>'
 		. '<p class="snt-hint">' . \snt_kit_esc( __( "Each card is one section on /now: a label, then its items one per line. Incomplete cards are refused at save (items need a label; a label needs at least one item). Removing every card clears the override: the page falls back to the theme's built-in content (it is never silently blanked).", 'signal-and-noise-tools' ) ) . '</p>'
-		. '<p class="snt-hint">' . \snt_kit_esc( __( 'The empty cards at the end are new sections: fill one in to add it. To remove a section, clear its label and its items; to reorder, move the text between cards.', 'signal-and-noise-tools' ) ) . '</p>';
+		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Each empty card at the end is a new section: fill one in to add it. To remove a section, clear its label and its items; to reorder, move the text between cards.', 'signal-and-noise-tools' ) ) . '</p>';
 }
 
 

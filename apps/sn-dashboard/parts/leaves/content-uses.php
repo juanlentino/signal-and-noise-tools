@@ -152,7 +152,7 @@ function paint_content_uses( array $ctx ) {
 
 	$inner = uses_intro_html( $data )
 		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Each card is one gear group: a label plus name | note rows (the note after | is optional). Incomplete cards are refused at save (rows need a label, a label needs at least one row, and a note needs a name). Removing every card clears the override: the page falls back to the theme\'s built-in list (it is never silently blanked).', 'signal-and-noise-tools' ) ) . '</p>'
-		. '<p class="snt-hint">' . \snt_kit_esc( __( 'The empty cards at the end are spares: fill one in to add a group. To remove a group, clear its label and items; blank cards are dropped at save. To reorder groups, move the text between cards.', 'signal-and-noise-tools' ) ) . '</p>'
+		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Each empty card at the end is a spare: fill one in to add a group. To remove a group, clear its label and items; blank cards are dropped at save. To reorder groups, move the text between cards.', 'signal-and-noise-tools' ) ) . '</p>'
 		. \snt_kit_form(
 			'uses_save',
 			'<os-stack gap="12">' . $cards . '</os-stack>',
