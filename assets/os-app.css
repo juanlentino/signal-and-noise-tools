@@ -336,11 +336,11 @@ a.snt-link {
    under about 660px, so a box in a paired row stays one column). Only a
    labelled field shares a row: a textarea, a field whose hint paragraph
    follows it, and anything that is not a field (a section, a notice, a
-   switch, a hint) take the whole row, and a one-line field that spans for
-   its hint keeps a field's measure. A rule here reaches the slotted children
-   and outranks the shadow's ::slotted( [full-width] ) and the section's
-   `stack` column. The native rows and stack forms have no column engine, so
-   they keep the measure. */
+   switch, a hint) take the whole row, and a one-line field is never wider
+   than a field's measure (720px), whatever box it sits in. A rule here
+   reaches the slotted children and outranks the shadow's
+   ::slotted( [full-width] ) and the section's `stack` column. The native
+   rows and stack forms have no column engine, so they keep the measure. */
 .snt-form {
 	width: 100%;
 }
@@ -361,7 +361,7 @@ a.snt-link {
 	grid-column: 1 / -1;
 }
 
-.snt-app os-form os-field-row:has( + .snt-hint ):not( :has( os-textarea ) ) {
+.snt-app os-form os-field-row:not( :has( os-textarea ) ) {
 	max-width: 720px;
 }
 

@@ -50,6 +50,20 @@ ok( false !== strpos( $warn, 'caption="needs a look"' ), 'a warning stat with no
 ok( false !== strpos( $err, 'caption="a problem"' ), 'a danger stat with no caption says "a problem"' );
 ok( false !== strpos( snt_kit_stat( '1', 'Broken path', 'one hit; needs a look', 'warn' ), 'caption="one hit; needs a look"' ), 'a stat that already says why keeps its caption' );
 ok( false === strpos( snt_kit_stat( '0', 'Threats' ), 'caption=' ), 'an untoned stat gets no caption' );
+// The classic Edge, 7 days card says the same words on its 5xx tile.
+if ( ! function_exists( 'sn_cf_monitor_read' ) ) {
+	function sn_cf_monitor_read() { return $GLOBALS['__cf_record']; }
+}
+if ( ! function_exists( 'size_format' ) ) { function size_format( $b ) { return $b . ' B'; } }
+require_once SNT_PATH . 'inc/admin-glance.php';
+require_once SNT_PATH . 'inc/cloudflare-readings-admin.php';
+foreach ( array( 83 => true, 0 => false ) as $n => $want ) {
+	$GLOBALS['__cf_record'] = array( 'configured' => true, 'zone' => array( 'available' => true, 'totals' => array( 'requests' => 10, 'cache_share' => null, 'bytes' => 1, 'threats' => 0, 'status_5xx' => $n ) ) );
+	ob_start();
+	sn_cf_edge_card_render();
+	$card = (string) ob_get_clean();
+	ok( $want === ( false !== strpos( $card, '<span class="sn-pill sn-pill--warn">needs a look</span>' ) ) && false !== strpos( $card, 'not read' ), "the classic 5xx tile at $n " . ( $want ? 'says needs a look, as the native tile does' : 'says nothing more' ) . ', and an unread cache share says not read' );
+}
 
 // #10: the sub-heading inside a box.
 $h = $rule( ':is( .snt-leaf, .snt-view ) .snt-h' );

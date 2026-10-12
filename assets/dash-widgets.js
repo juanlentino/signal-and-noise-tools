@@ -186,7 +186,7 @@
 					sub = item.sub_template.replace( '%s', format( entry[ item.sub ] ) );
 				}
 			}
-			body.appendChild( row( label || 'not read', value, sub ) );
+			body.appendChild( row( label || '(unnamed)', value, sub ) );
 		} );
 	}
 
