@@ -18,15 +18,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Every door, open, in order: read, write, then the adapter beside the
- * resources and prompts both native doors serve.
+ * Every door, open, in order: read beside write, then the adapter beside
+ * the resources and prompts both native doors serve.
  *
  * @return string
  */
 function agent_tools_doors_html() {
 	$slugs = mcp_connect_door_slugs();
-	return agent_tools_door_native_html( $slugs['read'] )
-		. agent_tools_door_native_write_html( $slugs['rw'], $slugs['read'] )
+	// 2026-10-12, measured live: the read door (494px) and the write door
+	// (709px) stacked full width; side by side they are 1.4x of each other.
+	return \snt_kit_grid( array( agent_tools_door_native_html( $slugs['read'] ), agent_tools_door_native_write_html( $slugs['rw'], $slugs['read'] ) ) )
 		. \snt_kit_grid( array( agent_tools_door_adapter_html(), agent_tools_resources_prompts_html() ) );
 }
 

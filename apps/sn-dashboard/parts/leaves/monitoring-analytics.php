@@ -61,11 +61,13 @@ function paint_monitoring_analytics( array $ctx ) {
 	}
 	// 15.3.1: the Edge, 7 days section heads the LEFT column, above the settings;
 	// as a full-width band it left five short folds over an empty half.
+	// 2026-10-12 (owner: "some of the settings became a scroll page"): measured
+	// live, the left column ran 3,094px against the right's 2,059px. Exclusion
+	// (550px) and tuning (372px) leave it for a row of their own under both
+	// columns, side by side, so the columns end within a box of each other.
 	$left  = $intro . $edge;
 	$left .= analytics_credentials_html();
 	$left .= analytics_collector_html();
-	$left .= analytics_exclusion_html();
-	$left .= analytics_tuning_html();
 
 	$right  = analytics_worker_html();
 	$right .= analytics_salt_html();
@@ -76,7 +78,8 @@ function paint_monitoring_analytics( array $ctx ) {
 	$right .= analytics_worker_setup_html();
 
 	return analytics_pipeline_html()
-		. \snt_kit_grid( array( \snt_kit_stack( $left ), \snt_kit_stack( $right ) ), 290, 24 );
+		. \snt_kit_grid( array( \snt_kit_stack( $left ), \snt_kit_stack( $right ) ), 290, 24 )
+		. \snt_kit_grid( array( analytics_exclusion_html(), analytics_tuning_html() ), 290, 24 );
 }
 
 add_filter(

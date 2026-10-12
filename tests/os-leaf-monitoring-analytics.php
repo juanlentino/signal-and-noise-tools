@@ -196,7 +196,11 @@ ok( false !== strpos( $kit, '<os-section heading="Session funnels" description="
 // Open forms made the left column three times the right: the two definitions
 // (North star, Session funnels) moved to the right column, under the readings.
 $an_right = strpos( $kit, '<os-stack gap="18">', (int) strpos( $kit, '<os-stack gap="18">' ) + 1 );
-ok( false !== $an_right && strpos( $kit, 'heading="Engine tuning"' ) < $an_right && strpos( $kit, 'heading="Identity salt window"' ) > $an_right && strpos( $kit, 'heading="Session funnels"' ) > strpos( $kit, 'heading="Identity salt window"' ) && strpos( $kit, 'heading="Session funnels"' ) < strpos( $kit, 'heading="Configured elsewhere"' ), 'the left column ends with Engine tuning; Session funnels sits in the right column between the readings and the mirrors' );
+// 2026-10-12, measured live: the left column ran 3,094px against the right's
+// 2,059px. Exclusion and tuning leave it for a row of their own under both
+// columns, side by side (550px and 372px, within 1.5x).
+$an_pair = strpos( $kit, '</os-grid><os-grid' );
+ok( false !== $an_right && strpos( $kit, 'heading="Collector endpoint"' ) < $an_right && strpos( $kit, 'heading="Identity salt window"' ) > $an_right && strpos( $kit, 'heading="Session funnels"' ) > strpos( $kit, 'heading="Identity salt window"' ) && false !== $an_pair && strpos( $kit, 'heading="Exclude my own visits"' ) > $an_pair && strpos( $kit, 'heading="Engine tuning"' ) > strpos( $kit, 'heading="Exclude my own visits"' ), 'the left column ends with Collector endpoint; exclusion and tuning share a row under both columns' );
 // columns="auto": os-form goes two-up once the FORM is 480px wide and stays one
 // column below that (a forced "2" would squeeze two selects into a 290px column).
 ok( 2 === substr_count( $kit, 'columns="auto"' ) && 3 === substr_count( $kit, '<p class="snt-hint" full-width>' ), 'the two short-field forms (exclusion, tuning) go two-up when wide enough; their notes span the row' );

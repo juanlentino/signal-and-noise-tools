@@ -127,9 +127,11 @@ function paint_monitoring_health( array $ctx ) {
 	$out .= health_findings_html( (array) $data['faults'], (array) $data['advisories'], (bool) $data['ai_available'] );
 	$out .= health_reports_html( (array) $data['reports'] );
 	// The checks that could not run read before the passing ones: an unknown is a gap to close, a pass asks nothing.
-	$out .= health_skipped_html( (array) $data['skipped'] );
+	// 2026-10-12, measured live: "Could not run" (180px) and "Also scanned,
+	// shown elsewhere" (213px) are two short lists; they share a row, and the
+	// passing checks keep the width their chips need.
+	$out .= \snt_kit_grid( array( health_skipped_html( (array) $data['skipped'] ), health_elsewhere_html( (array) $data['elsewhere'] ) ) );
 	$out .= health_passing_html( (array) $data['passing'], (int) $data['check_total'], (int) $data['report_count'] );
-	$out .= health_elsewhere_html( (array) $data['elsewhere'] );
 	return $out;
 }
 
