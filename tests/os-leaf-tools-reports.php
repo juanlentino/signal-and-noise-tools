@@ -436,12 +436,18 @@ unset( $live['checks']['unknown_report'] );
 $live['checks']['contrast_tokens']['label']                     = 'Contrast (token arithmetic, report only)';
 $live['checks']['contrast_tokens']['report']['tokens']          = $tokens;
 $live['checks']['contrast_tokens']['report']['pairs']           = $pairs;
-$live['checks']['contrast_tokens']['report']['would_fail_body'] = 60;
+$live['checks']['contrast_tokens']['report']['would_fail_body'] = 38; // a stale cache, as live on 2026.10.3
 $live['checks']['contrast_tokens']['report']['usage']           = array( 'scanned' => 14, 'pairings' => 1268, 'palettes' => $palettes, 'failures' => $failures, 'conditional' => $conditional );
 $live['checks']['motion_scan']['label']                         = 'Motion asks first (reduced-motion, report only)';
 $live['checks']['motion_scan']['report']                        = array( 'coverage' => 'Reads declared motion in the front stylesheets.', 'scanned' => 14, 'motion_total' => 212, 'gated' => 118, 'neutralized' => 24, 'uncovered' => $uncovered );
 $GLOBALS['__scan'] = $live;
 $kit = reports_paint();
+// 2026-10-12, live on 2026.10.3: the stored would_fail_body (a pre-fix cache
+// summed every palette) printed "38 of 21". The sentence counts the pairs it
+// is printed against, whatever the cache says (here the cache says 38).
+$__fail = count( array_filter( $pairs, static fn( $r ) => empty( $r['aa_body'] ) ) );
+ok( false !== strpos( $kit, $__fail . ' of ' . count( $pairs ) . ' token pairs would fall below' ) && false === strpos( $kit, '38 of ' . count( $pairs ) . ' token pairs' ) && $__fail <= count( $pairs ), 'the arithmetic count is read from the printed pairs (' . $__fail . ' of ' . count( $pairs ) . '), never the stored figure (38)' );
+ok( 1 === preg_match( '/<os-stat value="' . $__fail . '" label="Would fail if paired" caption="of ' . count( $pairs ) . ' token pairs/', $kit ), 'the arithmetic tile counts the printed pairs too, not the stored figure' );
 ok( false !== strpos( $kit, '451 pairings pass on the page background' ) && false !== strpos( $kit, '+426 more placement-dependent pairings' ), 'live-shaped: 451 placement-dependent pairings, 25 shown, "+426 more"' );
 ok( false !== strpos( $kit, '40 of 1,268 declared pairings fall below body-text AA' ) && false !== strpos( $kit, '+15 more failing pairings' ), 'live-shaped: 40 failing pairings, 25 shown, "+15 more"' );
 ok( false !== strpos( $kit, '60 of 300 token pairs would fall below 4.5:1' ) && false !== strpos( $kit, '+240 more pairs, every one of them at' ), 'live-shaped: 300 token pairs, 60 shown, "+240 more", the hedge kept' );

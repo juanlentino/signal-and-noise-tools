@@ -340,6 +340,18 @@ ok( false !== $usage_at && false !== $details_at && $usage_at < $details_at, 'us
 ok( false !== $table_at && $table_at > $details_at && $table_at < strpos( $html, '</details>' ), 'the arithmetic pair table is inside the <details> wrapper' );
 ok( 1 === preg_match( '/<summary>[^<]*1[^<]*2[^<]*<\/summary>/s', $html ), 'the summary carries the tripwire count (1 of 2) without expanding' );
 
+// 2026-10-12 (PR #2013 review): both classic sentences count the pairs they
+// sit beside, never the stored figure: a stale cache of 38 against 60 failing
+// pairs of 300 reads 60 of 300 twice. Red when either reads would_fail_body.
+$stale_pairs = array();
+for ( $i = 0; $i < 300; $i++ ) {
+	$stale_pairs[] = array( 'pair' => "t$i / u$i", 'ratio' => $i < 60 ? 2.0 : 9.0, 'aa_body' => $i >= 60, 'aa_large' => true );
+}
+ob_start();
+sn_health_render_contrast_report( array( 'pairs' => $stale_pairs, 'tokens' => array(), 'thresholds' => array( 'aa_body' => 4.5, 'aa_large' => 3.0 ), 'would_fail_body' => 38, 'usage' => $report['usage'] ) );
+$stale_html = (string) ob_get_clean();
+ok( false !== strpos( $stale_html, 'Arithmetic tier: 60 of 300 token pairs' ) && false !== strpos( $stale_html, '60 of 300 token pairs would fall below' ) && false === strpos( $stale_html, '38 of' ), 'a stale stored count (38) never paints: both classic sentences read 60 of 300' );
+
 // Empty-palette degradation: the usage tier must not be held hostage by an
 // unreadable arithmetic palette — it renders first, then arithmetic bails.
 ob_start();

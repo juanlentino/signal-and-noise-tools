@@ -219,7 +219,7 @@ function sn_webhooks_render_admin_tab() {
 		echo '<div class="sn-status-box sn-status-box--warn">';
 		echo '<div>';
 		echo '<p class="sn-status-box-title">No webhooks configured</p>';
-		echo '<p class="sn-status-box-body">Add one in the main column to start receiving signed post-publish notifications at your own endpoint.</p>';
+		echo '<p class="sn-status-box-body">Add one under Add a webhook to start receiving signed post-publish notifications at your own endpoint.</p>';
 		echo '</div>';
 		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
 		echo '</div>';

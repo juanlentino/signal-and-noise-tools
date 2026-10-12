@@ -143,7 +143,7 @@ function paint_connections_webhooks( array $ctx ) {
 	}
 	$main .= ( $watching ? '' : webhooks_add_html() ) . webhooks_monitoring_html();
 
-	$rail = webhooks_status_html( count( $webhooks ), $enabled );
+	$rail = webhooks_status_html( count( $webhooks ), $enabled, $watching );
 	if ( function_exists( 'sn_uptime_status_configured' ) && \sn_uptime_status_configured() && function_exists( 'sn_uptime_status_mount_html' ) ) {
 		// The same mount the classic paints; the shell ships assets/uptime-status.js, which fills it on `snt:paint`.
 		$rail .= \snt_kit_section( __( 'Better Stack status', 'signal-and-noise-tools' ), \sn_uptime_status_mount_html() );

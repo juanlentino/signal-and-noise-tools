@@ -201,7 +201,7 @@
 			wrap.appendChild( el( 'a', {
 				href:  scheduledUrl,
 				text:  'Open Scheduled →',
-				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:10px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;',
+				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:10px;font-size:11px;color:var(--os-ui-accent-strong, var(--os-ui-color-accent, #4a9eff));text-decoration:none;',
 			} ) );
 		}
 

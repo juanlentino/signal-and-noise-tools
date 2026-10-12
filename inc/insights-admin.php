@@ -104,7 +104,7 @@ function snt_insights_render_status_section( $last ) {
 		echo '<div class="sn-status-box sn-status-box--warn">';
 		echo '<div>';
 		echo '<p class="sn-status-box-title">No scan run yet</p>';
-		echo '<p class="sn-status-box-body">Click <strong>Run Analysis</strong> in the main column to populate recommendations. ~$0.01 per scan; 7-day cache.</p>';
+		echo '<p class="sn-status-box-body">Click <strong>Run Analysis</strong> to populate recommendations. ~$0.01 per scan; 7-day cache.</p>';
 		echo '</div>';
 		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
 		echo '</div>';

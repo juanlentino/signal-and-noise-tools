@@ -53,7 +53,7 @@ ok( 'snt_contrast_rendered_v2' === SN_CONTRAST_RENDERED_CACHE, 'the cache key mo
 
 echo "\nGroup: the line\n";
 $h = snt_contrast_rendered_html( snt_contrast_rendered_evaluate( $run( 'success' ), array( $summary ) ), 'snt-hint' );
-ok( false !== strpos( $h, 'on 40 pages (1300 pairs, 95 links)' ) && false !== strpos( $h, '<a href="https://github.com/juanlentino/signal-and-noise/actions/runs/1">2026-10-07</a>' ), 'ok names its scope and links the run by its date' );
+ok( false !== strpos( $h, 'on 40 pages (1300 pairs, 95 links)' ) && false !== strpos( $h, '<a class="snt-link" href="https://github.com/juanlentino/signal-and-noise/actions/runs/1" target="_blank" rel="noopener noreferrer">2026-10-07</a>' ), 'ok names its scope and links the run by its date' );
 $h = snt_contrast_rendered_html( snt_contrast_rendered_evaluate( $run( 'failure' ), array( array( 'annotation_level' => 'failure' ) ) ), 'snt-hint' );
 ok( false !== strpos( $h, '>1 failure</a>' ), 'red links its failure count to the run that names each (an amber line links to its fix)' );
 $h = snt_contrast_rendered_html( snt_contrast_rendered_evaluate( null, null ), 'snt-hint' );
@@ -61,6 +61,11 @@ ok( false !== strpos( $h, 'unknown right now' ) && false === strpos( $h, 'every 
 
 echo "\nGroup: fetch guard\n";
 ok( null === snt_contrast_rendered_get( 'https://example.com/x' ), 'only api.github.com URLs are fetched (a URL read from a response cannot point elsewhere)' );
+
+// 2026-10-12 audit: in S&N Home a plain href replaced the whole desktop with
+// GitHub. The run opens in a new tab, as a link that reads like the others.
+$hl = snt_contrast_rendered_html( snt_contrast_rendered_evaluate( $run( 'success' ), array( $summary ) ), 'snt-hint' );
+ok( 1 === preg_match( '/<a class="snt-link" href="[^"]+" target="_blank" rel="noopener noreferrer">/', $hl ) && false === strpos( $hl, 'counts below' ), 'the run link opens a new tab (never the desktop itself), and the line names the stylesheet counts instead of pointing below' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

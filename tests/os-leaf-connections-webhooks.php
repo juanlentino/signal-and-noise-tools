@@ -65,7 +65,9 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match th
 ok( array( 'webhook_add', 'webhook_delete', 'webhook_update' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '15.2.0: three actions, as on the classic leaf; monitoring_save is gone with its fields: ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( 2 === substr_count( $kit, '<os-form class="snt-form" os-action="post"' ), 'two os-forms dispatch post: two webhooks x delete (update and add are native forms; 15.2.0: no monitoring form)' );
-ok( 3 === substr_count( $kit, '<form class="snt-form snt-form--native" method="post" os-action="post">' ), 'three native forms dispatch post: two webhook_update editors plus webhook_add' );
+ok( 3 === substr_count( $kit, '<form class="snt-form snt-form--native snt-form--stack" method="post" os-action="post">' ), 'three native forms dispatch post: two webhook_update editors plus webhook_add' );
+$app_css = (string) file_get_contents( dirname( __DIR__ ) . '/assets/os-app.css' );
+ok( 1 === preg_match( '/\.snt-app \.snt-form--stack \{\s*display: grid;\s*gap: 12px;/', $app_css ) && 1 === preg_match( '/\.snt-app \.snt-form--stack > \.snt-submit \{\s*justify-self: end;/', $app_css ), 'the stack class is styled: its fields stack and its button sits at the end, as an os-form footer does (PR #2013 review: the class alone pinned nothing)' );
 ok( false !== strpos( $kit, '<os-field-row label="Signing secret"><os-code copy>' ) && false === strpos( $kit, 'snt-field-static' ), '#1600: the reveal-once secret is an os-field-row around the copyable os-code, the hint its sibling paragraph; no hand-rolled .snt-field-static div' );
 ok( false !== strpos( $kit, 'heading="Alpha flow"' ) && false !== strpos( $kit, 'heading="Beta flow"' ), 'each webhook is a section headed by its name' );
 ok( false !== strpos( $kit, '<os-code>wh_alpha</os-code>: created ' . gmdate( 'Y-m-d', 1756684800 ) ), 'the id and creation date are shown' );
@@ -205,6 +207,10 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_webhooks_section' );
 $kit     = snt_leaf_paint( 'connections', 'webhooks' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'webhook_add' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'empty: names and the one remaining action match the classic leaf' );
 ok( false !== strpos( $kit, '<os-notice tone="warning" not-dismissible><b>No webhooks configured</b> <os-badge tone="warning">Inactive</os-badge>' ) && array() === snt_leaf_folds( $kit ), 'empty: the rail paints the warning status box with an Inactive pill; no fold' );
+// PR #2013 review: watching hides Add a webhook, so the empty notice names the
+// step before it rather than pointing at a box that is not there.
+$kitWE = snt_leaf_paint( 'connections', 'webhooks', array( 'params' => array( 'sn_watch' => '1' ) ) );
+ok( false !== strpos( $kit, 'Add one under Add a webhook' ) && false !== strpos( $kitWE, 'Stop watching, then add one under Add a webhook' ) && false === strpos( $kitWE, 'heading="Add a webhook"' ), 'empty: the notice points at Add a webhook only when it is on the page' );
 
 // ── All disabled: configured but inactive.
 fixture( array( 'sn_webhooks' => array( array( 'id' => 'wh_off', 'name' => 'Off', 'url' => 'https://h.example.test/off', 'secret' => 'S', 'enabled' => false, 'created_at' => 1 ) ) ) );

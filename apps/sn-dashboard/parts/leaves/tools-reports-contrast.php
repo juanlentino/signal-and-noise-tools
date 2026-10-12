@@ -42,7 +42,9 @@ function tools_reports_render_contrast( array $report ) {
 	$usage = isset( $report['usage'] ) && is_array( $report['usage'] ) ? $report['usage'] : array();
 	$pairs = isset( $report['pairs'] ) && is_array( $report['pairs'] ) ? $report['pairs'] : array();
 
-	$card  = tools_reports_contrast_tiles( $usage, $pairs, (int) ( $report['would_fail_body'] ?? 0 ) );
+	// The tile counts the pairs too, never the stored figure (a pre-2026.10.3
+	// cache summed every palette and read "38 of 21").
+	$card  = tools_reports_contrast_tiles( $usage, $pairs, \sn_health_contrast_would_fail( $pairs ) );
 	$card .= function_exists( 'snt_contrast_rendered' ) ? snt_contrast_rendered_html( snt_contrast_rendered(), 'snt-hint' ) : '';
 
 	return array(
@@ -130,7 +132,10 @@ function tools_reports_contrast_arithmetic( array $report, array $pairs ) {
 		sprintf(
 			/* translators: 1: failing pair count, 2: total pair count, 3: body AA ratio, 4: token count */
 			__( '%1$d of %2$d token pairs would fall below %3$s:1 (body-text AA) if rendered together, across %4$d palette tokens.', 'signal-and-noise-tools' ),
-			(int) ( $report['would_fail_body'] ?? 0 ),
+			// Counted from the pairs it is printed against, never the stored
+			// figure: a report cached before 2026.10.3 summed every palette and
+			// read "38 of 21" until the next scan.
+			\sn_health_contrast_would_fail( $pairs ),
 			count( $pairs ),
 			$body,
 			count( $tokens )
