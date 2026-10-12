@@ -206,6 +206,33 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 	--os-ui-table-max-height: 440px;
 }
 
+/* Integrity > Reports (2026-10-12): a paired row of report boxes reads as
+   one height. os-grid stretches each os-section host to the row, but the
+   painted card is its body part, which kept its own height (live: 304 vs
+   160px). The host becomes a column and the body takes the rest. */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf os-grid.snt-reports-pair > os-section {
+	display: flex;
+	flex-direction: column;
+}
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf os-grid.snt-reports-pair > os-section::part( body ) {
+	flex: 1 1 auto;
+}
+
+/* Integrity > Links (2026-10-12): one title block per card header, stacked
+   (group, title, host), and the ↗ kept on the line with the host. */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-links-card {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-links-card > * {
+	margin: 0;
+}
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-links-nowrap {
+	white-space: nowrap;
+}
+
 /* 2026-10-12: a list whose rows open an editor in place (Redirects, Broken
    links, Resume, Workflow) shows every row it lists, never an inner scroller;
    its length is already capped, and counted, by the leaf. */

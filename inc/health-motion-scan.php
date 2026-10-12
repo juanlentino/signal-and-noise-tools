@@ -43,6 +43,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/health-report-coverage.php';
+
 /**
  * Which motion kinds a rule body declares. `none` (with or without
  * !important) is a reset, not motion.
@@ -196,11 +198,11 @@ function sn_health_check_motion_scan() {
 	$packed = sn_health_pack_check(
 		__( 'Motion asks first (reduced-motion, report only)', 'signal-and-noise-tools' ),
 		array(), // Report-first: findings are the report's job, fixes a later step.
-		__( 'Report only — no action from this check. Each uncovered row is a declared animation or transition with no reduced-motion counterpart; fixes land as a later, separate step.', 'signal-and-noise-tools' ), null
+		__( 'Report only: no action from this check. Each uncovered row is a declared animation or transition with no reduced-motion counterpart; fixes land as a later, separate step.', 'signal-and-noise-tools' ), null
 	);
 
 	$packed['report'] = array_merge( $report, array(
-		'coverage' => __( 'Declared tier: every animation and transition in the scanned front stylesheets, checked for a reduced-motion counterpart — gated behind no-preference, or set to none under reduce (same sheet or a global reset; the kinds are separate claims). Script-driven motion (JS class toggles, Web Animations, scroll handlers) is invisible to a stylesheet reader, so a clean sweep here is not proof a reduced-motion visitor sees no motion.', 'signal-and-noise-tools' ),
+		'coverage' => sn_health_report_coverage( 'motion_scan' ), // One copy: inc/health-report-coverage.php.
 	) );
 
 	return $packed;

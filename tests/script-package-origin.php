@@ -35,6 +35,7 @@ $fail = 0;
 // ─── WP seams ────────────────────────────────────────────────────────
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
+if ( ! function_exists( '_n' ) ) { function _n( $a, $b, $n, $d = null ) { return 1 === (int) $n ? $a : $b; } }
 if ( ! function_exists( 'content_url' ) ) { function content_url( $p = '' ) { return 'https://example.test/wp-content' . $p; } }
 if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
 

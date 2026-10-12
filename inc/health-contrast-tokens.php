@@ -33,6 +33,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/health-report-coverage.php';
+
 const SN_HEALTH_CONTRAST_AA_BODY  = 4.5;
 const SN_HEALTH_CONTRAST_AA_LARGE = 3.0;
 
@@ -292,14 +294,16 @@ function sn_health_check_contrast_tokens() {
 	$packed = sn_health_pack_check(
 		'Contrast (token arithmetic, report only)',
 		array(), // report-only: findings land in R3, with the rendered-pair tier.
-		'Report only — no action from this check. Fixes are a later, separate step, taken against pairs a reader actually sees.', null
+		'Report only: no action from this check. Fixes are a later, separate step, taken against pairs a reader actually sees.', null
 	);
 
 	$packed['report'] = array(
 		// The coverage sentence IS the contract. It used to end "until that tier
 		// exists a clean sweep here is not a clean site" — half of that tier now
 		// exists, below, so the sentence says which half and what is still missing.
-		'coverage'        => 'Arithmetic tier: every theme-token pair scored as WOULD-fail/pass if rendered together — a red row here is a "would fail", not a live defect, because nothing here knows which pairs meet on screen. The usage tier below answers that for pairings declared in stylesheets. Colours inlined in block markup and the computed cascade still need a real render, so a clean sweep across both tiers is still not proof of a clean site.',
+		// 2026-10-12: one copy, inc/health-report-coverage.php, which the
+		// renderers also read by key, so a stale stored sentence never paints.
+		'coverage'        => sn_health_report_coverage( 'contrast_tokens' ),
 		'thresholds'      => array( 'aa_body' => SN_HEALTH_CONTRAST_AA_BODY, 'aa_large' => SN_HEALTH_CONTRAST_AA_LARGE ),
 		'tokens'          => $named,
 		'pairs'           => $pairs,

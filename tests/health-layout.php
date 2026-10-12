@@ -208,7 +208,11 @@ sn_health_render_reports_section( sn_health_report_checks( $GLOBALS['__scan'] ) 
 $reports_html = ob_get_clean();
 he_assert( false !== strpos( $reports_html, '<h2 class="sn-section-h">Reports</h2>' ), 'Reports section heading present' );
 he_assert( false !== strpos( $reports_html, 'sn-health-report__coverage' ), 'the coverage sentence renders — it is the honesty contract, not preamble' );
-he_assert( false !== strpos( $reports_html, 'Arithmetic tier only' ), 'the coverage TEXT is the report payload\'s own, verbatim' );
+// 2026-10-12: a known report's sentence is looked up by key at paint time
+// (inc/health-report-coverage.php), never the copy a past scan froze: the
+// stored one said "the usage tier below", "Colours" and used em dashes.
+he_assert( false === strpos( $reports_html, 'Arithmetic tier only' ) && false !== strpos( $reports_html, 'Arithmetic tier: every theme-token pair scored as if rendered together.' ), 'the coverage TEXT of a known report is the current sentence, not the one stored in the scan' );
+he_assert( false === strpos( $reports_html, 'Colours' ) && false === strpos( $reports_html, 'tier below' ), '...so it reads "colors" and points nowhere by position' );
 he_assert( false !== strpos( $reports_html, '1 of 3 token pairs would fall below 4.5:1' ), 'the headline states the would-fail count as a proportion' );
 he_assert( false !== strpos( $reports_html, 'would fall below' ), 'wording is WOULD-fail — this tier scores pairs, it does not observe renders' );
 he_assert( false !== strpos( $reports_html, '<code>rust / ink</code>' ), 'the worst pair appears in the table' );
@@ -288,8 +292,8 @@ he_assert( is_int( $l_at ) && $l_at < $d_at, 'the limits sentence renders before
 // reachable from the panel that reports the gap.
 he_assert( false === strpos( $html3, 'headless render tier' ),
 	'the limits sentence no longer defers to a render TIER that was decided against (find-then-pin, not a coming surface)' );
-he_assert( false !== strpos( $html3, 'contrast-render-scan' ),
-	'…and names the hand-run instrument instead, so the reader knows what closes the gap' );
+he_assert( false !== strpos( $html3, 'measured by hand, with a scan that renders the pages in a real browser' ) && false === strpos( $html3, 'contrast-render-scan' ),
+	'…and names the hand-run method instead, in plain words, never the repo path (2026-10-12), so the reader knows what closes the gap' );
 $sum = substr( $html3, $d_at, 300 );
 he_assert( false !== strpos( $sum, '2' ) && false !== strpos( $sum, 'failing' ), 'the summary names the failing count — a closed fold may never hide THAT there is something inside' );
 $t_at = strpos( $html3, '.sn-x' );

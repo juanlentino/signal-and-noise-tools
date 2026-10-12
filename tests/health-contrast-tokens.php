@@ -16,6 +16,7 @@ define( 'ABSPATH', '/' );
 
 // The named-palette reader consumes wp_get_global_settings; fixture-driven.
 $GLOBALS['__palette'] = null;
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return (string) $s; } } // 2026-10-12: the coverage sentence is a translated string (inc/health-report-coverage.php).
 function wp_get_global_settings( $path = array() ) { return $GLOBALS['__palette']; }
 function sn_health_normalize_hex( $color ) {
 	$c = strtolower( trim( (string) $color ) );
