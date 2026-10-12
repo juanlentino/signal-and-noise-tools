@@ -255,7 +255,6 @@ function sn_health_check_contrast_tokens() {
 	// across palettes never co-occurs on screen. See sn_health_theme_palettes().
 	$palettes   = sn_health_theme_palettes();
 	$by_palette = array();
-	$would_fail = 0;
 
 	foreach ( $palettes as $palette_id => $palette ) {
 		$scheme_named = isset( $palette['colors'] ) ? $palette['colors'] : array();
@@ -273,7 +272,6 @@ function sn_health_check_contrast_tokens() {
 			'pairs'           => $scheme_pairs,
 			'would_fail_body' => $scheme_fail,
 		);
-		$would_fail += $scheme_fail;
 	}
 
 	// Top-level `tokens`/`pairs` follow the SERVED palette — the one a reader
@@ -286,6 +284,10 @@ function sn_health_check_contrast_tokens() {
 		: (string) array_key_first( $by_palette );
 	$named = isset( $by_palette[ $primary ]['tokens'] ) ? $by_palette[ $primary ]['tokens'] : array();
 	$pairs = isset( $by_palette[ $primary ]['pairs'] ) ? $by_palette[ $primary ]['pairs'] : array();
+	// The count follows the same palette as `pairs`: every surface prints it as
+	// "N of count(pairs)". Summed across palettes it read "38 of 21" live
+	// (2026-10-12); each palette's own count stays in by_palette.
+	$would_fail = (int) ( $by_palette[ $primary ]['would_fail_body'] ?? 0 );
 
 	$packed = sn_health_pack_check(
 		'Contrast (token arithmetic, report only)',

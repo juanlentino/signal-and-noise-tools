@@ -128,9 +128,15 @@ function tools_reports_scan_html( array $ctx ) {
 			? (array) call_user_func( $renderers[ $key ], $report )
 			: array( '<p class="snt-hint">' . \snt_kit_esc( __( 'This report has no detail view yet; its payload is available through the health-scan ability.', 'signal-and-noise-tools' ) ) . '</p>' );
 
-		// Full width, one report under the next: with every tier open, a
-		// report's height follows its data, so no two pair reliably.
-		$out .= \snt_kit_section( $label, $body . array_shift( $parts ) ) . implode( '', $parts );
+		// One report under the next. 2026-10-12, measured live: the contrast
+		// report's placement-dependent (653px) and arithmetic (620px) tiers
+		// stacked full width; side by side they are within a box of each other.
+		$first = array_shift( $parts );
+		if ( 'contrast_tokens' === $key && count( $parts ) >= 2 ) {
+			$pair  = array_splice( $parts, -2 );
+			$parts[] = \snt_kit_grid( $pair );
+		}
+		$out .= \snt_kit_section( $label, $body . $first ) . implode( '', $parts );
 	}
 
 	return $out;

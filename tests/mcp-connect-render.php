@@ -267,11 +267,11 @@ ok( stripos( $html, 'Connector Approvals' ) !== false && stripos( $html, 'OUTBOU
 ok( stripos( $html, 'Application Password' ) !== false, 'disambiguation points to the Application Password as the real inbound grant' );
 
 // ── i18n recording pins on headings/steps ──
-ok( sn_i18n_seen( 'Door 1: the native MCP server' ), 'Door 1 heading translatable' );
-ok( sn_i18n_seen( 'Door 2: the Abilities-registry adapter' ), 'Door 2 heading translatable' );
+ok( sn_i18n_seen( 'Read door: the native MCP server' ), 'read door heading translatable' );
+ok( sn_i18n_seen( 'Core MCP adapter: the Abilities-registry door' ), 'adapter heading translatable' );
 ok( sn_i18n_seen( 'Connect a client' ), 'owner-steps heading translatable' );
 ok( sn_i18n_seen( 'Create an %s under your own WordPress user. MCP clients authenticate as you, over Basic auth, never with your normal password.' ), 'step 1 is a translatable sprintf msgid' );
-ok( sn_i18n_seen( 'Copy the endpoint URL for whichever door you’re using. Door 1 above for the read-only tool allowlist, Door 2 for abilities that opt in to the adapter (that is Door 1’s read allowlist).' ), 'step 2 translatable' );
+ok( sn_i18n_seen( 'Use the read door’s address for a client that only reads, and the write door’s for one you trust to change things.' ), 'step 2 translatable (2026-10-12: it named a "Door 1" and "Door 2" no card shows)' );
 ok( sn_i18n_seen( 'Paste the client config below, swapping in your WordPress username and the Application Password you just created.' ), 'step 3 translatable' );
 ok( sn_i18n_seen( 'More' ), 'deep-links heading translatable' );
 
@@ -302,7 +302,7 @@ $rw_url = 'https://example.test/wp-json/signal-noise/v1/mcp-rw';
 ok( in_array( $rw_url, $GLOBALS['__esc_url_calls'], true ), 'write door URL passed through esc_url()' );
 ok( false !== strpos( $html, $rw_url ), 'write door URL rendered' );
 ok( false !== strpos( $html, 'read-write' ), 'write door carries a read-write badge, not read-only' );
-ok( sn_i18n_seen( 'Door 1b: the native write door' ), 'write door heading translatable' );
+ok( sn_i18n_seen( 'Write door: the same server, read-write' ), 'write door heading translatable' );
 
 // ── Write-door honesty: same credentials, content mutation, AI budget ──
 ok( stripos( $html, 'same Application Password' ) !== false, 'write door states it uses the SAME Application Password as the read door' );

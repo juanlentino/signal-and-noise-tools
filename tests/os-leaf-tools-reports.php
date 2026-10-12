@@ -448,5 +448,11 @@ ok( false !== strpos( $kit, '60 of 300 token pairs would fall below 4.5:1' ) && 
 ok( false !== strpos( $kit, '70 of 212 declared motions' ) && false !== strpos( $kit, '+20 more uncovered declarations' ), 'live-shaped: 70 uncovered declarations, 50 shown, "+20 more"' );
 snt_leaf_preview( 'tools-reports', $kit );
 
+// 2026-10-12, measured live (653px and 620px): the placement-dependent and
+// arithmetic tiers share a row; usage and the card keep the full width.
+$__rk = snt_leaf_paint( 'tools', 'reports' );
+$__pl = strpos( $__rk, 'heading="Placement-dependent pairings"' );
+ok( false !== $__pl && strrpos( substr( $__rk, 0, $__pl ), snt_leaf_row() ) > strrpos( substr( $__rk, 0, $__pl ), 'heading="Usage tier"' ) && strpos( $__rk, 'heading="Arithmetic tier"' ) > $__pl, 'the placement-dependent and arithmetic tiers share one row, after the usage tier' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

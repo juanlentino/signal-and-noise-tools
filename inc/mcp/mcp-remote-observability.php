@@ -545,12 +545,22 @@ function sn_mcp_remote_log_summary_text() {
 	$last = ( null === $view['last_used'] )
 		? __( 'never', 'signal-and-noise-tools' )
 		: $view['last_used'];
+	// The stamp is site-local "Y-m-d H:i:s" (sn_mcp_remote_log_now()); said as a
+	// time ago where WordPress can read it, the raw stamp only where it cannot.
+	if ( null !== $view['last_used'] && function_exists( 'wp_timezone' ) && function_exists( 'human_time_diff' ) ) {
+		$at = date_create_immutable( (string) $view['last_used'], wp_timezone() );
+		if ( false !== $at ) {
+			/* translators: %s: a span of time, e.g. "2 hours". */
+			$last = sprintf( __( '%s ago', 'signal-and-noise-tools' ), human_time_diff( $at->getTimestamp(), time() ) );
+		}
+	}
+	$calls = (int) $view['today']['dispatched'];
 
 	return sprintf(
-		/* translators: 1: last-used timestamp or "never", 2: dispatch count, 3: refusal count. */
-		__( 'Last used %1$s · %2$d calls today · %3$d refused', 'signal-and-noise-tools' ),
+		/* translators: 1: when the door was last used, 2: dispatch count, 3: refusal count. */
+		_n( 'Last used %1$s · %2$d call today · %3$d refused', 'Last used %1$s · %2$d calls today · %3$d refused', $calls, 'signal-and-noise-tools' ),
 		$last,
-		(int) $view['today']['dispatched'],
+		$calls,
 		(int) $view['today_refused']
 	);
 }
