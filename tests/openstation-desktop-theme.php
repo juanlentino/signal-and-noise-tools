@@ -10,19 +10,25 @@
  * token, the toolbar, and the recommendations block that would write into
  * the owner's settings.
  *
- * THE 22 BRAND CONSTANTS are measured from OpenStation v1.1.13 (the version
- * the live site runs), `assets/css/variables.css`, base block
- * `body.os-active`: every token whose value is a gradient or whose name is
- * mesh, holo, crown or sheen, less `--os-bg` (the wallpaper owns it) and less
- * the six the accent derives (`--os-ui-holo-glow`, `-glow-strong`,
- * `--os-ui-tab-edge`, `-wash`, `-bloom`, `--os-tabs-rail`), plus the three
- * `var(--os-mesh-holo)` aliases that paint fills. Read with
- * `git show v1.1.13:assets/css/variables.css`; the line and the value
- * (shortened) are recorded below because this repo cannot read OpenStation
- * at test time. When upstream adds a constant, add it here, and the
- * "every constant is answered" check fails until the theme maps it.
+ * THE BRAND CONSTANTS are measured from OpenStation v1.1.13 (the version the
+ * live site runs) with the rule in tests/lib/openstation-brand-constants.php:
+ * in `assets/css/variables.css`, base block `body.os-active`, every
+ * color-bearing token whose value is a gradient or whose name is mesh, holo,
+ * crown or sheen (and its plain `var()` aliases), and every token whose value
+ * carries a pink or purple literal; less what a setting writes and what
+ * reaches it through `var()`; plus the undeclared tokens the shell and app CSS
+ * read with a pink or purple fallback. 36 at v1.1.13. The line (or
+ * "undeclared") and the value, shortened, are recorded below because CI
+ * cannot read OpenStation. Each is either answered by the theme or listed in
+ * $left_alone with its reason.
+ *
+ * With SNT_OPENSTATION_SRC pointing at an OpenStation checkout, the suite
+ * re-derives the set from that tree and fails on any constant the theme
+ * neither answers nor lists, so an upgrade that adds a purple token turns it
+ * red. Without the variable that part is skipped with a notice.
  *
  * Run: php tests/openstation-desktop-theme.php
+ *      SNT_OPENSTATION_SRC=/path/to/openstation php tests/openstation-desktop-theme.php
  *
  * @since 2026.10.5
  */
@@ -64,7 +70,7 @@ if ( ! is_file( $module ) ) {
 }
 require_once $module;
 
-// ── The 22 constants at v1.1.13: name => line: value (shortened). ────────
+// ── The constants at v1.1.13: name => line (or "undeclared"): value. ─────
 $constants = array(
 	'--os-mesh-holo'                => '613: radial-gradient(ellipse 21.7% 39.6% at 96.5% 13.5%, rgba(159, 214, 255, 0.6) 0%',
 	'--os-mesh-pulse'               => '628: radial-gradient(ellipse 39.1% 48.6% at 92% 94.5%, rgba(255, 253, 255, 0.95) 0%',
@@ -88,8 +94,35 @@ $constants = array(
 	'--os-icon-badge-bg'            => '1367: linear-gradient(180deg, #f97dff 0%, #f252fc 100%)',
 	'--os-tabs-active-frost'        => '1762: linear-gradient( 180deg, #f4eff9 0%, #ffffff 58% )',
 	'--os-tabs-active-crown'        => '1774: none',
+	// The pink and purple literals the gradient rule does not reach.
+	'--os-titlebar-btn-focused-outline' => '365: #f252fc',
+	'--os-ui-selection-bg'              => '531: rgba(159, 152, 255, 0.6)',
+	'--os-ui-accent-strong'             => '546: #ec9bff',
+	'--os-ui-tag-input-input-border'    => '1109: #f252fc',
+	'--os-ui-avatar-halo'               => '1158: #f252fc',
+	'--os-cn-row-fill'                  => '1577: var(--os-ui-holo-fill)',
+	'--os-cn-row-ink'                   => '1578: var(--os-ui-holo-ink)',
+	'--os-accent'                       => '1597: #f252fc',
+	'--os-link'                         => '1598: #ec9bff',
+	'--os-selected'                     => '1602: rgba(242, 82, 252, 0.18)',
+	'--os-window-link-glow'             => '1918: rgba(242, 82, 252, 0.45)',
+	'--os-ui-accent-soft-fg'            => 'undeclared at 1.1.13: falls back to #ec9bff (Station Home icons, sn-dashboard.css)',
+	'--os-cn-head-icon-fill'            => 'undeclared at 1.1.13: falls back through --os-cn-row-fill to linear-gradient(124deg, #afa2e8, #c3b8ef)',
+	'--os-workspace-accent'             => 'undeclared at 1.1.13: falls back to #f252fc (window-overview.css)',
 );
-ok( 22 === count( $constants ), 'the fixture lists the 22 brand constants measured at v1.1.13' );
+ok( 36 === count( $constants ), 'the fixture lists the 36 brand constants measured at v1.1.13' );
+
+// What the theme deliberately does not set, and why. Nothing else may be unset.
+$left_alone = array(
+	'--os-tabs-active-crown'        => 'none at 1.1.13',
+	'--os-ui-segmented-hover-sheen' => 'none at 1.1.13',
+	'--os-ui-accent-strong'         => 'a text color, out of bounds for this theme',
+	'--os-link'                     => 'a text color, out of bounds for this theme',
+	'--os-selected'                 => 'no consumer reads it',
+	'--os-cn-row-fill'              => 'follows --os-ui-holo-fill through var() at body scope',
+	'--os-cn-row-ink'               => 'follows --os-ui-holo-ink through var() at body scope',
+	'--os-workspace-accent'         => 'written inline per workspace from its own color (src/window-manager/overview.ts)',
+);
 
 /** The value half of a fixture entry. */
 function snt_dt_fixture_value( $entry ) {
@@ -99,12 +132,14 @@ function snt_dt_fixture_value( $entry ) {
 /**
  * Every color a value paints that is NOT the theme's: anything but a gray
  * (r = g = b, any alpha) or the one red, #ff4c47. A `var()` alias counts as
- * foreign, because it paints whatever the brand points it at.
+ * foreign, because it paints whatever the brand points it at. The site's fill
+ * red, #e00404, is allowed only where asked for: under white text.
  *
- * @param string $value CSS value.
+ * @param string $value    CSS value.
+ * @param bool   $fill_red Whether #e00404 is allowed.
  * @return string[] The offending literals; empty when the value is ours.
  */
-function snt_dt_foreign_colors( $value ) {
+function snt_dt_foreign_colors( $value, $fill_red = false ) {
 	$bad = array();
 	$v   = strtolower( $value );
 	if ( false !== strpos( $v, 'var(' ) ) {
@@ -116,7 +151,8 @@ function snt_dt_foreign_colors( $value ) {
 			$h = $h[0] . $h[0] . $h[1] . $h[1] . $h[2] . $h[2];
 		}
 		$rgb = array( hexdec( substr( $h, 0, 2 ) ), hexdec( substr( $h, 2, 2 ) ), hexdec( substr( $h, 4, 2 ) ) );
-		if ( 'ff4c47' !== substr( $h, 0, 6 ) && ! ( $rgb[0] === $rgb[1] && $rgb[1] === $rgb[2] ) ) {
+		$ours = 'ff4c47' === substr( $h, 0, 6 ) || ( $fill_red && 'e00404' === substr( $h, 0, 6 ) );
+		if ( ! $ours && ! ( $rgb[0] === $rgb[1] && $rgb[1] === $rgb[2] ) ) {
 			$bad[] = '#' . $h;
 		}
 	}
@@ -172,7 +208,11 @@ foreach ( $GLOBALS['snt_dt_actions'] as $a ) {
 		$hooked[] = (int) $a[2];
 	}
 }
-ok( 1 === count( $hooked ) && $hooked[0] >= 10, 'registers on init at priority 10 or later, after OpenStation\'s Legacy (5)' );
+// Upstream turns every registered theme's wallpapers into picks on init at 20
+// (includes/desktop-themes/wallpapers.php at 1.1.13). desktop-mode sorts before
+// signal-and-noise-tools in active_plugins, so at 20 its registrar runs first
+// and the theme's wallpapers never reach the picker. 5 is Legacy's own slot.
+ok( 1 === count( $hooked ) && $hooked[0] >= 10 && $hooked[0] < 20, 'registers on init from 10 to 19: after Legacy (5), before upstream turns theme wallpapers into picks (20)' . ( $hooked ? ' (got ' . $hooked[0] . ')' : '' ) );
 
 $text = (string) file_get_contents( $module );
 ok( false !== strpos( $text, "function_exists( 'openstation_register_desktop_theme' )" ), 'registration is guarded with function_exists' );
@@ -204,26 +244,35 @@ $allowed = array_merge( array_keys( $constants ), array( '--os-titlebar-font' ) 
 $extra   = array_values( array_diff( array_keys( $tokens ), $allowed ) );
 ok( array() === $extra, 'every token is a brand constant or the title font' . ( $extra ? ' (also: ' . implode( ', ', $extra ) . ')' : '' ) );
 
-$unanswered = array();
-foreach ( $constants as $name => $entry ) {
-	if ( ! isset( $tokens[ $name ] ) && 'none' !== snt_dt_fixture_value( $entry ) ) {
-		$unanswered[] = $name;
-	}
+$unanswered = array_values( array_diff( array_keys( $constants ), array_keys( $tokens ), array_keys( $left_alone ) ) );
+ok( array() === $unanswered, 'every constant at v1.1.13 is answered or listed as left alone' . ( $unanswered ? ' (left purple: ' . implode( ', ', $unanswered ) . ')' : '' ) );
+$both = array_values( array_intersect( array_keys( $tokens ), array_keys( $left_alone ) ) );
+ok( array() === $both, 'nothing listed as left alone is set anyway' . ( $both ? ' (' . implode( ', ', $both ) . ')' : '' ) );
+ok( array() === array_diff( array_keys( $left_alone ), array_keys( $constants ) ), 'the left-alone list names only measured constants' );
+
+// The upgrade guard: re-derive the set from a real OpenStation tree.
+$os_src = (string) getenv( 'SNT_OPENSTATION_SRC' );
+if ( '' !== $os_src ) {
+	require_once __DIR__ . '/lib/openstation-brand-constants.php';
+	$derived = snt_osbc_derive( $os_src );
+	ok( is_array( $derived ) && count( $derived ) > 0, 'SNT_OPENSTATION_SRC is an OpenStation tree with assets/css/variables.css' );
+	$uncovered = array_values( array_diff( (array) $derived, array_keys( $tokens ), array_keys( $left_alone ) ) );
+	ok( array() === $uncovered, 'every brand constant in that tree is answered or left alone on purpose' . ( $uncovered ? ' (unanswered: ' . implode( ', ', $uncovered ) . ')' : ' (' . count( (array) $derived ) . ' constants)' ) );
+} else {
+	echo "  SKIP - upstream re-derivation: set SNT_OPENSTATION_SRC to an OpenStation checkout to check its brand constants\n";
 }
-ok( array() === $unanswered, 'every constant that paints at v1.1.13 is answered; only the two that are none are left' . ( $unanswered ? ' (left purple: ' . implode( ', ', $unanswered ) . ')' : '' ) );
-ok( ! isset( $tokens['--os-tabs-active-crown'] ), '--os-tabs-active-crown is none at v1.1.13 and stays unset' );
 
 $foreign = array();
 foreach ( $tokens as $name => $value ) {
 	if ( '--os-titlebar-font' === $name ) {
 		continue;
 	}
-	$bad = snt_dt_foreign_colors( (string) $value );
+	$bad = snt_dt_foreign_colors( (string) $value, '--os-accent' === $name );
 	if ( $bad ) {
 		$foreign[] = $name . ' [' . implode( ' ', $bad ) . ']';
 	}
 }
-ok( array() === $foreign, 'every color in the theme is a gray or #ff4c47: nothing is left purple' . ( $foreign ? ' (' . implode( '; ', $foreign ) . ')' : '' ) );
+ok( array() === $foreign, 'every color in the theme is a gray or #ff4c47 (#e00404 only on --os-accent, under white text): nothing is left purple' . ( $foreign ? ' (' . implode( '; ', $foreign ) . ')' : '' ) );
 
 // ── Tokens: the deny list (the owner's "settings or components") ───────
 $deny = array(
@@ -262,7 +311,7 @@ $deny = array(
 ok( 99 === count( array_unique( $deny ) ), 'the deny list carries all 99 owned tokens (got ' . count( array_unique( $deny ) ) . ')' );
 $hit = array_values( array_intersect( $deny, array_keys( $tokens ) ) );
 foreach ( array_keys( $tokens ) as $name ) {
-	if ( preg_match( '/^--os-toolbar-|radius|corner|^--os-window-bg$|^--os-ui-(surface|bg|fg|text|color-)/', $name ) ) {
+	if ( preg_match( '/^--os-toolbar-|radius|corner|^--os-window-bg$|^--os-ui-(surface|bg|fg|text|color-|modal-)|^--os-fg(-|$)|^--os-titlebar-(bg|color)/', $name ) ) {
 		$hit[] = $name;
 	}
 }
@@ -313,6 +362,36 @@ ok( array() === $not_image, 'tokens painted as background-image are gradients, n
 $ink = strtolower( (string) ( $tokens['--os-ui-holo-ink'] ?? '' ) );
 ok( 1 === preg_match( '/^#(0[0-9a-f]|1[0-9a-f])\1\1$/', $ink ), 'the holo ink stays a dark gray, because MIO also paints it on the accent (got ' . $ink . ')' );
 ok( false !== strpos( (string) ( $tokens['--os-ui-holo-fill'] ?? '' ), 'linear-gradient(#e8e8e8, #e8e8e8)' ), 'the holo fill that ink labels stays light' );
+
+// ── Contrast, against the 1.1.13 surfaces each token lands on ─────────────
+/** WCAG relative luminance of #rrggbb. */
+function snt_dt_lum( $hex ) {
+	$c = array_map(
+		static function ( $v ) {
+			$v /= 255;
+			return $v <= 0.04045 ? $v / 12.92 : pow( ( $v + 0.055 ) / 1.055, 2.4 );
+		},
+		array_map( 'hexdec', str_split( ltrim( (string) $hex, '#' ), 2 ) )
+	);
+	return 0.2126 * $c[0] + 0.7152 * $c[1] + 0.0722 * $c[2];
+}
+/** WCAG contrast ratio of two #rrggbb colors. */
+function snt_dt_ratio( $a, $b ) {
+	$l = array( snt_dt_lum( $a ), snt_dt_lum( $b ) );
+	return ( max( $l ) + 0.05 ) / ( min( $l ) + 0.05 );
+}
+// Obsidian #1a1721 (window and surface), the raised wash rgba(255, 251, 255, 0.06)
+// over it (#28252e), elevated #33303a, the unfocused title bar #0c0b0f.
+$edge = (string) ( $tokens['--os-ui-holo-track-edge'] ?? '' );
+ok( 0 === strpos( $edge, '#' ) && min( snt_dt_ratio( $edge, '#1a1721' ), snt_dt_ratio( $edge, '#28252e' ), snt_dt_ratio( $edge, '#33303a' ) ) >= 3, 'the off-state edge (os-switch, os-range-field, an unticked checkbox) is 3:1 on base, raised and elevated surfaces (WCAG 1.4.11)' );
+$focus = (string) ( $tokens['--os-titlebar-btn-focused-outline'] ?? '' );
+ok( 0 === strpos( $focus, '#' ) && min( snt_dt_ratio( $focus, '#1a1721' ), snt_dt_ratio( $focus, '#0c0b0f' ) ) >= 3, 'the title-bar focus outline is 3:1 on the focused and unfocused title bar' );
+$accent = (string) ( $tokens['--os-accent'] ?? '' );
+ok( 0 === strpos( $accent, '#' ) && snt_dt_ratio( $accent, '#ffffff' ) >= 4.5, 'white text on --os-accent (the agents chat\'s own message bubble) is 4.5:1' );
+$tag = (string) ( $tokens['--os-ui-tag-input-input-border'] ?? '' );
+ok( 0 === strpos( $tag, '#' ) && snt_dt_ratio( $tag, '#33303a' ) >= 3, 'the tag input\'s field border is 3:1 on the field' );
+$soft = (string) ( $tokens['--os-ui-accent-soft-fg'] ?? '' );
+ok( 0 === strpos( $soft, '#' ) && snt_dt_ratio( $soft, '#1a1721' ) >= 3 && false === stripos( $soft, 'ff4c47' ), 'Station Home\'s icons are a 3:1 gray, not red (red would read as the danger card tone)' );
 
 ok( '"Bebas Neue", "Geist", system-ui, sans-serif' === ( $tokens['--os-titlebar-font'] ?? '' ), 'window titles read Bebas Neue, falling back to the shell\'s own face' );
 ok( ! isset( $tokens['--os-ui-font-mono'] ) && ! isset( $tokens['--os-font'] ) && ! isset( $tokens['--os-ui-font'] ), 'body and mono type stay as they are' );
@@ -380,6 +459,8 @@ $fonts = isset( $args['fonts'] ) && is_array( $args['fonts'] ) ? $args['fonts'] 
 ok( 1 === count( $fonts ) && 'Bebas Neue' === ( $fonts[0]['family'] ?? '' ), 'one face is loaded: Bebas Neue' );
 $woff = snt_dt_path( $fonts[0]['src'][0] ?? '' );
 ok( is_file( $woff ) && 'wOF2' === (string) file_get_contents( $woff, false, null, 0, 4 ), 'the Bebas Neue source is a WOFF2 file the plugin ships' );
+$ofl = (string) @file_get_contents( dirname( $woff ) . '/OFL.txt' );
+ok( false !== strpos( $ofl, 'Copyright 2019 The Bebas Neue Project Authors' ) && false !== strpos( $ofl, 'SIL OPEN FONT LICENSE Version 1.1' ), 'the font ships beside its OFL 1.1 license and its own copyright line' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

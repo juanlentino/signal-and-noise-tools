@@ -8,10 +8,12 @@
  *
  *   1. Icons. The three S&N apps wear one family (white strokes on charcoal,
  *      one #ff4c47 mark each) through their `APP:<slug>` slots.
- *   2. The brand constants. The purple meshes, holo films and edges that do
- *      not follow the accent become flat charcoal and neutral grays, with the
- *      red where a line or an edge reads (the holo edge, the rail of Station
- *      Home and S&N Home, the marker on a hovered dock-submenu row).
+ *   2. The brand constants. The purple and pink tokens no setting writes
+ *      become flat charcoal and neutral grays, with the red where a line, an
+ *      edge or a signal reads (the holo edge, the rail of Station Home and
+ *      S&N Home, the marker on a lit dock-submenu row, focus outlines,
+ *      selections, glows, count badges). Pink TEXT colors stay: text colors
+ *      are out of bounds (`--os-ui-accent-strong`, `--os-link`).
  *   3. Two wallpapers, Signal and Quiet, OFFERED in the picker. A theme
  *      wallpaper is a pick; the owner's starfield stays until they choose.
  *   4. Bebas Neue for window titles. Body text and the clock stay as they are.
@@ -20,8 +22,10 @@
  * components"), pinned by tests/openstation-desktop-theme.php: the accent and
  * everything derived from it, the toolbar, window corners, dock size, the
  * wallpaper, surfaces and text colors, and the `recommendedOsSettings` block,
- * which would write into the owner's settings. Activation is per browser, in
- * OS Settings, Appearance; registering changes nothing until then.
+ * which would write into the owner's settings. Activation is per user (the
+ * `desktopTheme` key of the `desktop_mode_os_settings` user meta, synced over
+ * REST; localStorage is only a cache), in OS Settings, Appearance;
+ * registering changes nothing until then.
  *
  * Where a constant cannot be charcoal, the reason is a fixed upstream ink:
  * step chips, ribbons and count badges carry #0c0b0f text this theme may not
@@ -29,9 +33,10 @@
  * light because its ink is also MIO's primary label on the accent. The
  * off-state track edge keeps the 3:1 boundary WCAG 1.4.11 asks of a control.
  *
- * Bebas Neue (Ryoichi Tsunekawa, SIL Open Font License 1.1) is the Latin
- * subset the site's theme serves, copied here so the desktop does not depend
- * on the theme's file paths.
+ * Bebas Neue: "Copyright 2019 The Bebas Neue Project Authors
+ * (https://github.com/dharmatype/Bebas-Neue)", SIL Open Font License 1.1
+ * (assets/desktop-theme/fonts/OFL.txt). The Latin subset the site's theme
+ * serves, copied here so the desktop does not depend on the theme's paths.
  *
  * @package SignalNoiseTools
  * @since 2026.10.5
@@ -76,16 +81,23 @@ function snt_desktop_theme_manifest() {
 				// a 2px red marker; the 200 to 220% sized fills never reach it.
 				'--os-ui-holo-fill'       => 'linear-gradient(90deg, #ff4c47 0 2px, transparent 2px), linear-gradient(#e8e8e8, #e8e8e8)',
 				'--os-ui-holo-ink'        => '#0a0a0a',
-				// Station Home's and S&N Home's rail (and OS Settings' About card):
-				// charcoal, with the red trace at its inline end.
+				// The submenu's head icon wears the fill at all times; give it the
+				// plain light fill so the marker keeps meaning "this row is lit".
+				'--os-cn-head-icon-fill'  => 'linear-gradient(#e8e8e8, #e8e8e8)',
+				// Station Home's and S&N Home's rail (and OS Settings' About card,
+				// the taskbar menu banner): charcoal, with a 1px red trace on the
+				// physical right edge. That is the rail's inner edge in a
+				// left-to-right desk; in right-to-left, and on the banner (rotated
+				// 180 degrees), it lands on the outer edge.
 				'--os-ui-hero-mesh'       => 'linear-gradient(90deg, transparent calc(100% - 1px), #ff4c47 calc(100% - 1px)), ' . $charcoal,
 				// Edges: red when lit or hovered, a gray hairline at rest.
 				'--os-ui-holo-edge'       => 'linear-gradient(#ff4c47, #ff4c47)',
 				'--os-ui-holo-edge-quiet' => 'linear-gradient(rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.24))',
 				'--os-ui-holo-sheen'      => 'linear-gradient(124deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.1) 58%, rgba(255, 255, 255, 0.04) 100%)',
-				// The off state's well and its 3:1 boundary (#6b6b6b on #1a1721 is 3.3:1).
+				// The off state's well and its boundary, 4.47:1 on #1a1721, 3.81:1
+				// raised, 3.27:1 on elevated #33303a (WCAG 1.4.11 asks 3:1).
 				'--os-ui-holo-track'      => 'rgba(255, 255, 255, 0.16)',
-				'--os-ui-holo-track-edge' => '#6b6b6b',
+				'--os-ui-holo-track-edge' => '#808080',
 				// Painted with a fixed #0c0b0f ink: light gray (16:1). Not red: a
 				// danger progress bar is red, and the default must stay distinct.
 				'--os-ui-step-chip-bg'    => '#e8e8e8',
@@ -97,6 +109,24 @@ function snt_desktop_theme_manifest() {
 				'--os-icon-badge-bg'      => '#ff4c47',
 				// The active classic tab is white with #0c0b0f text: lose the lavender only.
 				'--os-tabs-active-frost'  => 'linear-gradient(180deg, #f4f4f4 0%, #ffffff 58%)',
+				// Pink literals no setting writes, where they are not text.
+				// Title-bar focus outline: 5.37:1 focused, 5.96:1 unfocused.
+				'--os-titlebar-btn-focused-outline' => '#ff4c47',
+				// Selected text (#fffbff) on this wash over #1a1721: 10.3:1.
+				'--os-ui-selection-bg'              => 'rgba(255, 76, 71, 0.35)',
+				// The tag input's field border: 3.93:1 on the #33303a field.
+				'--os-ui-tag-input-input-border'    => '#ff4c47',
+				// Decorative glows (an avatar on hover, a linked window).
+				'--os-ui-avatar-halo'               => '#ff4c47',
+				'--os-window-link-glow'             => 'rgba(255, 76, 71, 0.45)',
+				// The dock-peek border and glow, and the agents chat's own bubble,
+				// which carries white text: #e00404 holds it at 5.01:1 where
+				// #ff4c47 would be 3.29:1 (upstream's pink was 2.84:1).
+				'--os-accent'                       => '#e00404',
+				// Station Home's and S&N Home's row and card icons (undeclared
+				// upstream, so it fell back to pink). Gray, 7.0:1: red would read
+				// as the danger card tone.
+				'--os-ui-accent-soft-fg'            => '#a3a3a3',
 				'--os-titlebar-font'      => '"Bebas Neue", "Geist", system-ui, sans-serif',
 			),
 			'icons'       => array(
@@ -159,4 +189,9 @@ function snt_desktop_theme_register() {
 	$theme = snt_desktop_theme_manifest();
 	return openstation_register_desktop_theme( $theme['id'], $theme['args'] );
 }
-add_action( 'init', 'snt_desktop_theme_register', 20 );
+// 10: after OpenStation registers Legacy (5) and BEFORE it turns every
+// registered theme's wallpapers into picks (init at 20,
+// includes/desktop-themes/wallpapers.php). At 20 that registrar runs first,
+// since desktop-mode sorts ahead of this plugin, and Signal and Quiet never
+// reach the picker.
+add_action( 'init', 'snt_desktop_theme_register', 10 );
