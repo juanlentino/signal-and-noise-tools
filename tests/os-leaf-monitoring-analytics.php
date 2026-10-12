@@ -429,6 +429,10 @@ ok( false !== strpos( $kit, 'Who answered with the error and Which paths failed 
 ok( false !== strpos( $kit, 'responder 5' ) && false === strpos( $kit, 'responder 6' ) && false !== strpos( $kit, '/p5' ) && false === strpos( $kit, '/p6' ) && 2 === substr_count( $kit, '+2 more; the list is capped, not complete.' ), 'each list stops at five with "+2 more"' );
 ok( false !== strpos( $kit, snt_leaf_row( 3, 240, 18 ) . '<div class="snt-edge-list"><h4 class="snt-h">5xx by status code</h4>' ) && strpos( $kit, '<h4 class="snt-h">Which paths failed</h4>' ) < strpos( $kit, 'Which paths failed cover the UTC days' ), 'the status codes, who answered and which paths share one row, the window under them' );
 snt_leaf_preview( 'monitoring-analytics-edge', $kit );
+// Live check (2026-10-12): the counts in Who answered clipped at a 1,300px
+// window ("3…"); the label ellipsizes, the count never does.
+$an_css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
+ok( 1 === preg_match( '/\.snt-edge-list \.snt-list__value\s*\{[^}]*flex:\s*none;[^}]*max-width:\s*none;/', $an_css ), 'an Edge list count takes its own width (flex none, no 60% cap); only the label ellipsizes' );
 $GLOBALS['__edge_errors']['query']['error'] = 'GraphQL: rate limited';
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( false !== strpos( $kit, 'Who answered and which paths for October 11, 2026 were not read: GraphQL: rate limited. The lists hold the days that were read.' ) && false !== strpos( $kit, 'responder 1' ) && false !== strpos( $kit, '/p1' ), 'PR #2025 review: a failed errors query names the day it missed and still paints the six days that were read' );

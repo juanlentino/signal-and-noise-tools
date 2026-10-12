@@ -402,7 +402,7 @@ function sn_admin_render_schedule_op_button( $row_id, $action, $label ) {
 
 /**
  * Build the "from -> until" window cell HTML, converting the stored UTC
- * boundaries to the site timezone. Inline markup (a small arrow + open-ended
+ * boundaries to the site timezone. Inline markup (an arrow entity + open-ended
  * labels) so the caller runs it through wp_kses_post.
  *
  * @param mixed $starts_at Stored UTC starts_at ('Y-m-d H:i:s'), or null/''.
@@ -413,8 +413,9 @@ function sn_admin_schedule_window_html( $starts_at, $ends_at ) {
 	$from = sn_admin_schedule_fmt_gmt( $starts_at );
 	$to   = sn_admin_schedule_fmt_gmt( $ends_at );
 
-	$from_label = '' !== $from ? esc_html( $from ) : '<small>' . esc_html__( 'always', 'signal-and-noise-tools' ) . '</small>';
-	$to_label   = '' !== $to ? esc_html( $to ) : '<small>' . esc_html__( 'never', 'signal-and-noise-tools' ) . '</small>';
+	// Plain words at the row's size (live check 2026-10-12: a <small> computed to 10px).
+	$from_label = '' !== $from ? esc_html( $from ) : esc_html__( 'always', 'signal-and-noise-tools' );
+	$to_label   = '' !== $to ? esc_html( $to ) : esc_html__( 'never', 'signal-and-noise-tools' );
 
 	return $from_label . ' &rarr; ' . $to_label;
 }

@@ -1135,6 +1135,20 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 	width: max-content;
 }
 
+/* Live check (2026-10-12): a ledger's one-button form carried the form's
+   empty header and fields margins (18px each; the header's collapses through
+   the form's top edge) and its footer rule and padding (15px), so the actions
+   cell stood 83px tall against 18px rows and its buttons sat 20px under their
+   row's text. A ledger form is its button. */
+.snt-list--ledger os-form::part( header ),
+.snt-list--ledger os-form::part( fields ) {
+	margin: 0;
+}
+.snt-list--ledger os-form::part( footer ) {
+	border-top: 0;
+	padding-top: 0;
+}
+
 /* A schedule's window ("always → 2026-11-16 22:13") is read whole: it wraps
    instead of ending in an ellipsis. */
 .snt-ledger--wrap .snt-list__value {
@@ -1144,6 +1158,20 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 .snt-list--ledger.snt-list--ledger-5 {
 	grid-template-columns: minmax( 8em, 2fr ) repeat( 2, minmax( 4em, 1fr ) ) max-content max-content;
 	min-width: 40em;
+}
+
+/* Edge, 7 days (live check 2026-10-12): the counts in Who answered clipped
+   at a 1,300px window ("3…"), since a list value may shrink to 60%. Here the
+   count takes its own width and only the label (which already ellipsizes)
+   gives way. */
+.snt-edge-list .snt-list__value {
+	flex: none;
+	max-width: none;
+}
+
+/* Zenodo: a DOI read "10.5281/zen" / "odo.42" in the 149px column. */
+.snt-zenodo-doi {
+	white-space: nowrap;
 }
 
 /* Cloudways' tile captions are sentences, not values: the systems tile's mono

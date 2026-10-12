@@ -329,7 +329,8 @@ namespace {
 	ok( false !== strpos( $insights_src, 'snt_kit_grid( array( $left, $right ) )' ) && false === strpos( $insights_src, 'snt_kit_stack' ), 'monitoring/insights paints paired rows, not a two-up column pair (#1573)' );
 
 	$gsc_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-search-console.php' );
-	ok( false !== strpos( $gsc_src, 'snt_kit_grid( array( $left, $right ) )' ) && false === strpos( $gsc_src, 'snt_kit_stack' ), 'monitoring/search-console pairs its readouts on one row (17.4.1, #1573), no two-up columns' );
+	// Live check 2026-10-12: the boxes share ONE row (readout, form, then Property over Sync as one cell), still no two-up columns.
+	ok( false !== strpos( $gsc_src, '\\snt_kit_grid( $row )' ) && false === strpos( $gsc_src, 'snt_kit_stack' ), 'monitoring/search-console lays its boxes on one row (17.4.1, #1573), no two-up columns' );
 
 	ok( false !== strpos( $css, '.snt-leaf os-row' ) && false !== strpos( $css, 'flex-direction: column' ), 'sn-dashboard.css collapses os-row under responsive containers' );
 

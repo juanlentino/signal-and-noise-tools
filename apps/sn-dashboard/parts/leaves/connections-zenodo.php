@@ -96,8 +96,9 @@ function zenodo_ledger_html( array $d ) {
 			'title' => array( 'html' => \snt_kit_link( (string) $r['title'], admin_url( 'post.php?post=' . (int) ( $r['id'] ?? 0 ) . '&action=edit' ) ), 'text' => (string) $r['title'] ),
 			'kind'  => (string) $r['kind'],
 			'state' => \sn_zenodo_state_label( $r['state'] ),
-			// A sandbox DOI resolves nowhere public, by design: text, not a link.
-			'doi'   => '' === $doi ? __( 'none yet', 'signal-and-noise-tools' ) : ( 'minted' === (string) $r['state'] ? array( 'html' => \snt_kit_link( $doi, 'https://doi.org/' . rawurlencode( $doi ) ), 'text' => $doi ) : $doi ),
+			// A sandbox DOI resolves nowhere public, by design: text, not a
+			// link. Either way it reads whole (it broke mid-number at 149px).
+			'doi'   => '' === $doi ? __( 'none yet', 'signal-and-noise-tools' ) : array( 'html' => '<span class="snt-zenodo-doi">' . ( 'minted' === (string) $r['state'] ? \snt_kit_link( $doi, 'https://doi.org/' . rawurlencode( $doi ) ) : \snt_kit_esc( $doi ) ) . '</span>', 'text' => $doi ),
 			'at'    => \sn_zenodo_deposited_text( (string) $r['at'] ),
 		);
 		if ( $errors ) {

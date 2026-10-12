@@ -114,18 +114,6 @@ function search_console_credential_form_html( array $s ) {
 }
 
 /**
- * Two boxes on one row; a side that paints nothing leaves the other at full
- * width (the tags_pair() shape, content-tags-parts.php).
- *
- * @param string $left  Section markup or ''.
- * @param string $right Section markup or ''.
- * @return string
- */
-function search_console_pair( $left, $right ) {
-	return \snt_kit_grid( array( $left, $right ) );
-}
-
-/**
  * The property picker: the last Test connection's site list, or a nudge to
  * run it; the current property when one is set.
  *
@@ -213,27 +201,31 @@ function search_console_sync_html( array $s ) {
 /**
  * The leaf (2026-10-12 audit: "Set the credential" stood alone at full width
  * holding one 760px form, and Sync was an uppercase sub-label inside
- * Property). Two rows of paired boxes: the credential readout beside the form
- * that sets it; then, once the credential parses, Property beside Sync (Sync
- * once a property is chosen).
+ * Property). The credential readout beside the form that sets it; once the
+ * credential parses, Property, and once a property is chosen, Property over
+ * Sync in one column beside the form (live check: Property beside Sync was
+ * 97 against 194px, 2.0x; the two short boxes stacked match the form's
+ * height). Before a property is chosen, Property stands under the row.
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
  */
 function paint_monitoring_search_console( array $ctx ) {
 	unset( $ctx );
-	$s   = search_console_state();
-	$out = search_console_pair(
+	$s    = search_console_state();
+	$row  = array(
 		\snt_kit_section( __( 'Search Console credential', 'signal-and-noise-tools' ), search_console_credential_html( $s ) ),
-		\snt_kit_section( __( 'Set the credential', 'signal-and-noise-tools' ), search_console_credential_form_html( $s ) )
+		\snt_kit_section( __( 'Set the credential', 'signal-and-noise-tools' ), search_console_credential_form_html( $s ) ),
 	);
-	if ( null !== $s['identity'] ) {
-		$out .= search_console_pair(
-			\snt_kit_section( __( 'Property', 'signal-and-noise-tools' ), search_console_property_html( $s ) ),
-			'' !== $s['current'] ? \snt_kit_section( __( 'Sync', 'signal-and-noise-tools' ), search_console_sync_html( $s ) ) : ''
-		);
+	if ( null === $s['identity'] ) {
+		return \snt_kit_grid( $row );
 	}
-	return $out;
+	$property = \snt_kit_section( __( 'Property', 'signal-and-noise-tools' ), search_console_property_html( $s ) );
+	if ( '' === $s['current'] ) {
+		return \snt_kit_grid( $row ) . $property;
+	}
+	$row[] = \snt_kit_tag( 'os-stack', array( 'gap' => '18' ), $property . \snt_kit_section( __( 'Sync', 'signal-and-noise-tools' ), search_console_sync_html( $s ) ) );
+	return \snt_kit_grid( $row );
 }
 
 add_filter(

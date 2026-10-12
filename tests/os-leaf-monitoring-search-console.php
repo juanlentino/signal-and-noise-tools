@@ -134,7 +134,11 @@ ok( false !== strpos( $kit, 'Currently reading:' ) && false !== strpos( $kit, 'h
 ok( false !== strpos( $kit, 'Never synced.' ), 'property-chosen: the sync status reads Never synced' );
 ok( false !== strpos( $kit, 'No scheduled sync' ), 'property-chosen: no cron scheduled yet reads honestly' );
 // 2026-10-12 audit: Sync was an 11px uppercase sub-label inside Property.
-ok( 2 === substr_count( $kit, snt_leaf_row() ) && false !== strpos( $kit, '<os-section heading="Sync" stack>' ) && strpos( $kit, 'heading="Property"' ) < strpos( $kit, 'heading="Sync"' ) && false === strpos( $kit, 'snt-col__h' ), 'property-chosen: Sync is its own box beside Property' );
+ok( false !== strpos( $kit, '<os-section heading="Sync" stack>' ) && strpos( $kit, 'heading="Property"' ) < strpos( $kit, 'heading="Sync"' ) && false === strpos( $kit, 'snt-col__h' ), 'property-chosen: Sync is its own box, after Property' );
+// Live check (2026-10-12): Property beside Sync read 97 against 194px (2.0x).
+// Property over Sync is one column beside the form, on the credential's row.
+ok( 1 === substr_count( $kit, '<os-grid' ) && false !== strpos( $kit, snt_leaf_row( 3 ) ) && 1 === preg_match( '#heading="Set the credential".*?</os-section><os-stack gap="18"><os-section heading="Property".*?</os-section><os-section heading="Sync"#s', $kit ), 'property-chosen: one row, the readout, the form, then Property over Sync in one column' );
+snt_leaf_preview( 'monitoring-search-console-chosen', $kit );
 
 // ── State: Test connection returned a property list (snt_gsc_last_test transient
 // populated, ok=true) — the field and action the leaf exists to offer.

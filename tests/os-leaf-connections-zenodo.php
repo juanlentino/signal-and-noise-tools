@@ -59,6 +59,8 @@ ok( is_array( $zdata ) && 'The pen is not the notary' === $zdata[0]['title']['te
 ok( false !== strpos( $kit, 'href="https://doi.org/10.5281%2Fzenodo.42"' ) && false !== strpos( $kit, 'os-arg-url="https://example.test/wp-admin/post.php?post=7&amp;action=edit"' ), 'a minted DOI opens doi.org in a new tab; the document opens its editor in a window' );
 ok( 'September 18, 2026 1:00 am' === $zdata[2]['at'] && 'not deposited' === $zdata[0]['at'] && false === strpos( $kit, '2026-09-18T01:00:00' ) && false !== strpos( $classic, 'September 18, 2026 1:00 am' ) && false === strpos( $classic, '2026-09-18T01:00:00' ), 'Deposited reads in the site\'s format on both surfaces, never the raw ISO stamp; a row not deposited says so' );
 ok( false !== strpos( $kit, '&quot;key&quot;:&quot;error&quot;' ), 'a row with an error keeps the Last error column' );
+// Live check (2026-10-12): DOIs broke mid-number in the 149px column.
+ok( false !== strpos( $kit, '<span class="snt-zenodo-doi"><a ' ) && 1 === preg_match( '/\.snt-zenodo-doi\s*\{[^}]*white-space:\s*nowrap;/', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) ), 'a DOI reads whole: its cell does not wrap' );
 $GLOBALS['__zl']['rows'] = array();
 for ( $i = 1; $i <= 13; $i++ ) {
 	$GLOBALS['__zl']['rows'][] = array( 'id' => 100 + $i, 'title' => 'Note ' . $i, 'kind' => 'note', 'state' => 13 === $i ? 'ready' : 'minted', 'doi' => 13 === $i ? '' : '10.5281/zenodo.' . $i, 'env' => 'production', 'at' => 13 === $i ? '' : '2026-09-18T01:00:00+00:00', 'error' => '' );
