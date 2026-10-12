@@ -563,7 +563,16 @@ function snt_desktop_machine_readers_top_family( array $payload, $prior_rows, $d
 	// own tools and control tokens left out), its share of reader reads. An
 	// older payload without the field falls back to families over the total.
 	$readers = isset( $payload['reader_families'] ) && is_array( $payload['reader_families'] );
-	$top     = $readers ? ( $payload['reader_families'][0] ?? null ) : ( $payload['families'][0] ?? null );
+	// 2026-10-11: other-bot and unclassified-machine are the buckets for bots
+	// the taxonomy cannot name, not families; the row names the top identified
+	// reader, or is left out when only buckets read. reader_families is the
+	// top SN_MR_TOP_FAMILIES (3) before this filter, so with two buckets
+	// skipped one named family survives whenever three or more read; a third
+	// bucket here, or a smaller slice, would break that. The pre-reader_families
+	// fallback keeps its old answer (dead on a live install, which always sets
+	// the field).
+	$named   = $readers ? array_values( array_filter( $payload['reader_families'], static fn( $f ) => is_array( $f ) && ! in_array( (string) ( $f['family'] ?? '' ), array( 'other-bot', 'unclassified-machine' ), true ) ) ) : array();
+	$top     = $readers ? ( $named[0] ?? null ) : ( $payload['families'][0] ?? null );
 	$tokens  = $readers ? array_sum( array_map( static fn( $i ) => (int) ( $i['hits'] ?? 0 ), (array) ( $payload['impersonations'] ?? array() ) ) ) : 0;
 	$total   = (int) ( $payload['total'] ?? 0 ) - ( $readers ? (int) ( $payload['first_party'] ?? 0 ) : 0 ) - $tokens;
 	if ( ! is_array( $top ) || '' === (string) ( $top['family'] ?? '' ) || $total < 1 ) {

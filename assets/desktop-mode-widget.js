@@ -220,18 +220,26 @@
 		var workers = Array.isArray( status.workers ) ? status.workers : [];
 		if ( workers.length ) {
 			var fleet = section( 'Workers' );
+			var skews = [];
 			workers.forEach( function( w ) {
 				if ( ! w || typeof w !== 'object' ) { return; }
-				// 2026-10-11: a worker with a versioned contract (Remote MCP)
-				// says it; a mismatch is amber and names both sides. Absence
-				// stays absence: no contract is not a matching one.
+				// 2026-10-11: a worker with a versioned contract (Remote MCP).
+				// The row stays the version alone; a match lives in the check's
+				// title, and only a mismatch says the contract, as one amber line
+				// under the group naming both sides. Absence stays absence: no
+				// contract is not a matching one.
 				var hasContract = typeof w.contract_match === 'boolean';
 				var mismatch    = hasContract && ! w.contract_match;
-				var contract    = ! hasContract ? '' : ' · contract ' + ( w.contract_live || '?' ) + ( mismatch ? ', plugin expects ' + ( w.contract_expected || '?' ) : '' );
+				if ( mismatch ) {
+					skews.push( ( w.label || w.id || 'worker' ) + ' contract ' + ( w.contract_live || '?' ) + '; this plugin expects ' + ( w.contract_expected || '?' ) + '.' );
+				}
 				versionRow( fleet.grid, w.label || w.id || 'worker',
-					( ( w.live && w.live !== 'unprobeable' ) ? w.live : '—' ) + contract,
+					( w.live && w.live !== 'unprobeable' ) ? w.live : '—',
 					stateGlyph( stale ? 'unknown' : ( mismatch ? 'behind' : ( w.state || 'unknown' ) ) ),
-					w.reason || ( mismatch ? 'The worker and this plugin disagree on the remote contract; deploy the side that is behind.' : '' ) || ( w.live === 'unprobeable' ? 'no version route to probe' : '' ) );
+					w.reason || ( mismatch ? 'The worker and this plugin disagree on the remote contract; deploy the side that is behind.' : '' ) || ( hasContract ? 'contract ' + w.contract_live + ' matches this plugin' : '' ) || ( w.live === 'unprobeable' ? 'no version route to probe' : '' ) );
+			} );
+			skews.forEach( function( text ) {
+				fleet.box.appendChild( el( 'p', { style: 'margin:6px 0 0;font-size:11px;line-height:1.4;color:#d29922;', text: text } ) );
 			} );
 			// The workers' own last deploy: when the five-minute version probe
 			// first read a new version (inc/deploy-workers-seen.php). Until one
