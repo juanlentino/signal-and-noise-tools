@@ -272,11 +272,12 @@ ok( false !== strpos( $kit, '>1 hour ago</os-relative-time>)' ) && false !== str
 // 8e) #1596: a next_run_ts already behind now paints the same os-relative-time
 // with a "%s ago" fallback; the #1222 "overdue" reversal lives in the
 // component's signed output, not in the leaf. Against 17.4.3 the leaf paints
-// "1 hour overdue" and no os-relative-time.
+// "1 hour overdue" and no os-relative-time. (The events fold's summary counts
+// overdue events by name, "none overdue"; the pin is the per-row phrase.)
 $saved_rows            = $GLOBALS['__cron_rows'];
 $GLOBALS['__cron_rows'] = array( array( 'hook' => 'sn_stalled', 'args_signature' => 'sig-s', 'next_run_ts' => time() - 7200, 'schedule' => 'hourly', 'interval_s' => 3600, 'args' => array(), 'last_fired_ts' => 0, 'has_handler' => true, 'is_sn_owned' => true ) );
 $kit                    = snt_leaf_paint( 'connections', 'cron' );
-ok( false !== strpos( $kit, '(<os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>)' ) && false === strpos( $kit, 'overdue' ) && false === strpos( $kit, 'in 1 hour' ), '#1596: a past next run is an os-relative-time with a "1 hour ago" fallback; neither "1 hour overdue" nor "in 1 hour" in the leaf' );
+ok( false !== strpos( $kit, '(<os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>)' ) && false === strpos( $kit, 'hour overdue' ) && false === strpos( $kit, 'in 1 hour' ), '#1596: a past next run is an os-relative-time with a "1 hour ago" fallback; neither "1 hour overdue" nor "in 1 hour" in the leaf' );
 $GLOBALS['__cron_rows'] = $saved_rows;
 $kit                    = snt_leaf_paint( 'connections', 'cron' );
 
@@ -518,6 +519,30 @@ $GLOBALS['wpdb']        = $db;
 $kit_empty = snt_leaf_paint( 'connections', 'cron', array() );
 ok( false !== strpos( $kit_empty, 'heading="Action Scheduler backlog"' ) && strpos( $kit_empty, 'No scheduled events.' ) < strpos( $kit_empty, 'heading="Action Scheduler backlog"' ), 'empty cron: the box still paints, after the empty state' );
 $GLOBALS['wpdb'] = null;
+
+// 2026-10-12 (owner: "Some places earn it, other don't"): the events list is
+// an earned fold. Closed it states the counts; it opens itself when an event
+// is past due or unhandled, or under a filter. Past due is read from EVERY
+// row's next run (review of #2010: the health reading covers only this
+// plugin's jobs, so a stalled core hook read "none overdue" behind a fold).
+$fold_open = static fn( $html ) => 1 === preg_match( '/<os-disclosure heading="Scheduled events"[^>]*\sopen[\s=>]/', $html );
+$GLOBALS['__cron_rows'] = array(
+	array( 'hook' => 'sn_a', 'args_signature' => 'a', 'next_run_ts' => time() + 600, 'schedule' => 'hourly', 'interval_s' => 3600, 'args' => array(), 'last_fired_ts' => 0, 'has_handler' => true, 'is_sn_owned' => true ),
+	array( 'hook' => 'wp_b', 'args_signature' => 'b', 'next_run_ts' => time() - 300, 'schedule' => 'daily', 'interval_s' => 86400, 'args' => array(), 'last_fired_ts' => 0, 'has_handler' => true, 'is_sn_owned' => false ),
+);
+$kit = snt_leaf_paint( 'connections', 'cron' );
+ok( ! $fold_open( $kit ) && false !== strpos( $kit, 'hint="2 events: none past due, every one handled"' ) && false !== strpos( $kit, 'data-snt-open="0"' ) && false !== strpos( $kit, 'os-key="sn_a|a"' ), 'all well (a core hook 5 minutes behind is within the runner\'s grace): the fold is closed, says the counts, and the rows are inside it' );
+$GLOBALS['__cron_rows'][1]['next_run_ts'] = time() - 7200;
+$kit = snt_leaf_paint( 'connections', 'cron' );
+ok( $fold_open( $kit ) && false !== strpos( $kit, '2 events: 1 past due, every one handled' ) && false !== strpos( $kit, 'data-snt-open="1"' ), 'a core hook two hours past its next run opens the fold and is counted, whatever the plugin\'s own health reading says' );
+$GLOBALS['__cron_rows'][1]['next_run_ts'] = time() + 900;
+$GLOBALS['__cron_rows'][1]['has_handler'] = false;
+$kit = snt_leaf_paint( 'connections', 'cron' );
+ok( $fold_open( $kit ) && false !== strpos( $kit, '2 events: none past due, 1 with no handler' ), 'an event with no handler opens the fold' );
+$GLOBALS['__cron_rows'][1]['has_handler'] = true;
+ok( $fold_open( snt_leaf_paint( 'connections', 'cron', array( 'filter' => 'sn_' ) ) ), 'a typed filter keeps the fold open' );
+$GLOBALS['__cron_rows'] = array( $GLOBALS['__cron_rows'][0] );
+ok( false !== strpos( snt_leaf_paint( 'connections', 'cron' ), 'hint="1 event: none past due' ), 'one event reads "1 event", not "1 events"' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
