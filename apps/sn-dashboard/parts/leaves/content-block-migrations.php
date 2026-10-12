@@ -32,6 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/content-block-migrations-queue.php';
+require_once __DIR__ . '/content-scan-parts.php';
 
 /**
  * The cached scan envelope, read the way the classic leaf reads it.
@@ -51,14 +52,7 @@ function block_migrations_last_scan() {
  */
 function block_migrations_count_badge( array $last_scan ) {
 	$total = (int) ( $last_scan['counts']['heading_hierarchy_skip'] ?? 0 );
-	return \snt_kit_badge(
-		$total > 0 ? 'warn' : 'ok',
-		sprintf(
-			/* translators: %d is the count of block-migration candidates found */
-			_n( '%d candidate', '%d candidates', $total, 'signal-and-noise-tools' ),
-			$total
-		)
-	);
+	return \snt_kit_badge( $total > 0 ? 'warn' : 'ok', \snt_content_scan_count( $total ) );
 }
 
 /**
@@ -74,23 +68,26 @@ function paint_content_block_migrations( array $ctx ) {
 	}
 	$last_scan = block_migrations_last_scan();
 	// Classic: inc/block-migrations-admin.php tests truthiness (`if ( $last_scan )`),
-	// not is_array() — a transient holding array() must read as "never scanned".
-	$scanned   = ! empty( $last_scan );
-	$inner     = $scanned ? block_migrations_count_badge( $last_scan ) : '';
-	$inner    .= '<p class="snt-prose">' . \snt_kit_esc( __( 'Scans published and scheduled posts for structural issues like heading-hierarchy skips (an h3 or h4 subhead with no preceding h2, WCAG 1.3.1). Pure structural detection: no AI. Each candidate is reviewed and applied per-row.', 'signal-and-noise-tools' ) ) . '</p>';
+	// not is_array(): a transient holding array() must read as "never scanned".
+	$scanned = ! empty( $last_scan );
+	$result  = '';
 	if ( $scanned ) {
 		$candidates = (array) ( $last_scan['candidates'] ?? array() );
-		$inner     .= empty( $candidates )
-			? \snt_kit_empty( __( 'No migrations needed. All headings have valid hierarchy.', 'signal-and-noise-tools' ) )
-			: block_migrations_queue_html( $candidates );
+		$result     = empty( $candidates ) ? \snt_kit_empty( \snt_block_migrations_clean() ) : block_migrations_queue_html( $candidates );
 	}
-	// The scan is the section's action: last, under the queue it refills.
-	$inner .= \snt_kit_form(
+	$form = \snt_kit_form(
 		'block_migrations_scan',
 		'',
 		array( 'submit' => $scanned ? __( 'Re-scan', 'signal-and-noise-tools' ) : __( 'Scan for migrations', 'signal-and-noise-tools' ) )
 	);
-	return \snt_kit_section( __( 'Block migrations', 'signal-and-noise-tools' ), $inner );
+	return content_scan_layout(
+		__( 'Block migrations', 'signal-and-noise-tools' ),
+		$scanned ? $last_scan : null,
+		$scanned ? block_migrations_count_badge( $last_scan ) : '',
+		$form,
+		\snt_kit_esc( \snt_block_migrations_intro() ),
+		$result
+	);
 }
 
 add_filter(

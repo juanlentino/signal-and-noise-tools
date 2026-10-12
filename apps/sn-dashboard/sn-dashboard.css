@@ -182,6 +182,14 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 .snt-app[data-os-app="sn-dashboard"] .snt-leaf os-form:has( os-grid ) {
 	max-width: 100%;
 }
+
+/* Content > Workflow (2026-10-12): ONE form whose Saves sit beside their
+   fields (`[data-snt-form-submit]`, assets/os-kit.js), one under the page
+   fields and one with Cancel under the open list. The footer's own Save would
+   be a third, at the foot of the ledger, far from both. */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf os-form.snt-form--saves-inline::part( footer ) {
+	display: none;
+}
 /* The body's flex column is the kit's `stack` attribute (snt_kit_section()
    passes it); only the gap and the box are ours. */
 .snt-app[data-os-app="sn-dashboard"] .snt-leaf os-section {

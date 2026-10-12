@@ -27,6 +27,11 @@ require SNT_PATH . 'inc/admin-forms/workflow-page.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/content-workflow.php';
 require_once SNT_PATH . 'inc/openstation-host-pipelines.php'; // snt_os_host_expand(): the host's own expansion of a posted bag.
 
+// The Page at /workflow (2026-10-12 audit: the leaf counted rows "on the page"
+// whether or not the page was live). Published by default; the suite flips it.
+$GLOBALS['__wf_page'] = (object) array( 'ID' => 12, 'post_status' => 'publish', 'post_modified_gmt' => '2026-10-11 18:30:00' );
+function get_page_by_path( $path, $output = 'OBJECT', $post_type = 'page' ) { return 'workflow' === $path ? $GLOBALS['__wf_page'] : null; }
+
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
@@ -70,6 +75,17 @@ $posted = static function ( $html ) use ( $strip_tpl ) {
 	}
 	return snt_os_host_expand( $values );
 };
+// Checked boxes: tags whose own attributes (values stripped) say checked; a
+// hint that SAYS "checked" is not a box.
+$checked = static function ( $html ) {
+	preg_match_all( '/<(?:os-checkbox-label|os-checkbox|input)\b[^>]*>/', (string) $html, $tags );
+	return count( preg_grep( '/\schecked\b/', preg_replace( '/="[^"]*"/', '', $tags[0] ) ) );
+};
+// The os-forms of a paint, in order (none nests).
+$forms = static function ( $html ) {
+	preg_match_all( '#<os-form\b.*?</os-form>#s', (string) $html, $m );
+	return $m[0];
+};
 $folds_in = static function ( array $all ) {
 	$found = array();
 	foreach ( $all as $state => $html ) {
@@ -97,7 +113,7 @@ foreach ( $all as $state => $html ) {
 }
 ok( array() === $bad && array( 'workflow_save' ) === snt_leaf_actions( $classic ), 'empty: every paint posts every live classic name through the one action, workflow_save, as on the classic form: ' . implode( ',', $bad ) );
 ok( array() === snt_leaf_classic_markers( $kit_all ), 'no wp-admin markup in the kit leaf: ' . implode( ',', snt_leaf_classic_markers( $kit_all ) ) );
-ok( 0 === preg_match_all( '/ checked[ =>]/', $kit_all ) && 0 === preg_match_all( '/ checked[ =>]/', $classic ), 'empty: no "Show on page" box is checked, on either form' );
+ok( 0 === $checked( $kit_all ) && 0 === $checked( $classic ), 'empty: no "Show on page" box is checked, on either form' );
 $t = snt_leaf_tables( $kit )[0] ?? array( 'columns' => array(), 'data' => array(), 'slots' => array() );
 ok( array( 'Map steps', 'Rules', 'Proof links' ) === array_column( $t['data'], 'list' ) && array( '0', '0', '0' ) === array_column( $t['data'], 'rows' ), 'empty: the ledger lists the three lists, 0 rows each (a stored count, measured)' );
 ok( false !== strpos( $kit, '<p class="snt-prose">No map steps, rules or proof links yet.</p>' ), 'empty: the finding says the lists are empty' );
@@ -134,11 +150,12 @@ foreach ( $all as $state => $html ) {
 }
 ok( array() === $bad, 'stored: every paint carries every live classic name, the unchecked box of a list not being edited excepted: ' . implode( ',', $bad ) );
 ok( in_array( 'workflow[map][1][show]', $names, true ) && in_array( 'workflow[map][__M__][show]', $names, true ) && in_array( 'workflow[rules][__R__][explanation]', $names, true ), 'each row and each spare carries its fields' );
-ok( 1 === preg_match_all( '/ checked[ =>]/', $all['map'] ) && 1 === preg_match_all( '/ checked[ =>]/', $classic ), 'editing the map: only the shown row is checked, on both forms' );
+ok( 1 === $checked( $all['map'] ) && 1 === $checked( $classic ), 'editing the map: only the shown row is checked, on both forms' );
 ok( 1 === preg_match( '/name="workflow\[map\]\[0\]\[show\]"[^>]*checked/', $all['map'] ) && 1 === preg_match( '/name="workflow\[map\]\[0\]\[show\]"[^>]*checked/', $classic ), '...and it is row 0' );
 ok( false !== strpos( $kit, '<input type="hidden" name="workflow[map][0][show]" value="1">' ) && false === strpos( $kit, 'name="workflow[map][1][show]"' ) && false === strpos( $all['rules'], 'name="workflow[map][1][show]"' ), 'a list not being edited carries a shown row as show=1 and a hidden row as NO show field, the way a browser posts an unchecked box' );
 ok( false !== strpos( $kit, 'value="  &lt;b&gt;x&lt;/b&gt;' ) && false !== strpos( $classic, "&lt;b&gt;x&lt;/b&gt;\n\tindent\n</textarea>" ), 'the body is escaped and keeps its whitespace in both editors' );
-ok( false !== strpos( $classic, "class=\"large-text code\">\n  &lt;b&gt;" ), 'the classic body textarea is monospace and protects a leading newline' );
+ok( 1 === preg_match( '#class="large-text code"[^>]*>\n  &lt;b&gt;#', $classic ), 'the classic body textarea is monospace and protects a leading newline' );
+ok( false !== strpos( $classic, '>Sample body</span>' ) && false !== strpos( $classic, '>Page title</span>' ) && false !== strpos( $classic, '>Map steps</h3>' ) && false !== strpos( $classic, '>Proof links</h3>' ) && false !== strpos( $classic, '+ Add map step' ) && false !== strpos( $classic, '>Map step</span>' ) && false !== strpos( $classic, 'Each heading shows only over rows that are on the page.' ) && false !== strpos( $classic, 'Shown exactly as typed, whitespace included, in a monospace block.' ) && false === strpos( $classic, 'ticked' ), 'twins: the classic names the fields and lists in the window\'s words, with both of its hints, and says "checked"' );
 preg_match_all( '/<os-repeater [^>]*>/', $kit_all, $reps );
 ok( 3 === count( $reps[0] ) && 3 === count( preg_grep( '/ reorderable /', $reps[0] ) ) && 3 === count( preg_grep( '/ os-prop-keys="/', $reps[0] ) ), 'Map, Rules and Proof are each a reorderable <os-repeater> with its keys, as on Resume (one per editing paint)' );
 ok( false === strpos( $kit, '<os-repeater' ) && 1 === substr_count( $all['map'], '<os-repeater' ) && 1 === substr_count( $all['rules'], '<os-repeater' ) && 1 === substr_count( $all['proof'], '<os-repeater' ), 'the default paint holds no repeater; an editing paint holds exactly its own list' );
@@ -161,7 +178,7 @@ ok( false !== strpos( $classic, 'aria-describedby="sn-hint-workflow-proof-__P__-
 // ── The ledger: one table, a finding over it, a visible Edit per row.
 $t = snt_leaf_tables( $kit )[0] ?? array( 'columns' => array(), 'data' => array(), 'slots' => array() );
 ok( 1 === count( snt_leaf_tables( $kit ) ) && array( 'Map steps', 'Rules', 'Proof links' ) === array_column( $t['data'], 'list' ), 'one table, one row per list' );
-ok( array( '2', '1', '0' ) === array_column( $t['data'], 'rows' ) && array( '1', '1', '0' ) === array_column( $t['data'], 'shown' ), 'the fold counts (2 / 1 / 0) are the Rows cells, and On the page reads the public view (1 of 2 map steps; every rule)' );
+ok( array( '2', '1', '0' ) === array_column( $t['data'], 'rows' ) && array( '1', '1', '0' ) === array_column( $t['data'], 'shown' ), 'the fold counts (2 / 1 / 0) are the Rows cells, and Shows when live reads the public view (1 of 2 map steps; every rule)' );
 ok( array( 'Shown', 'Read first', '' ) === array_column( $t['data'], 'first' ), 'each row names the list\'s first entry' );
 ok( count( $t['columns'] ) === count( array_filter( array_column( $t['columns'], 'label' ) ) ), 'every column carries a header label' );
 $edit_ok = 3 === count( $t['data'] );
@@ -172,8 +189,8 @@ ok( $edit_ok, 'every row carries a visible Edit button: a go to this leaf with s
 ok( false !== strpos( $kit, '<p class="snt-prose">1 of 2 map steps, 1 of 1 rule and no proof links show on the page.</p>' ), 'the finding states what reaches the page, from the data' );
 ok( false === strpos( $kit, 'snt-ledger-more' ), 'three lists: never capped, so no "+N more" line' );
 ok( 1 === preg_match( '#</os-table>.*<os-section heading="Map steps" description="[^"]*Show on page[^"]*"#s', $all['map'] ) && 1 === substr_count( $all['map'], '<os-section heading="Map steps"' ), 'editing the map paints ONE region below the table, named for the list, its helper line as the description' );
-ok( 1 === preg_match( '#<os-section heading="Proof links" description="Links to evidence a reader can check\\. A row shows only when &quot;Show on page&quot; is ticked and its link is a path on this site \\(/maturity/\\) or an https URL\\.#', $all['proof'] ) && false !== strpos( $all['rules'], '<os-section heading="Rules" description="Add, remove and reorder rows with their buttons, or Alt+Arrow keys on a row; the page shows them in this order."' ) && false !== strpos( $all['map'], 'Unchecked steps stay here and nowhere else.' ), 'the fold\'s and the intro\'s helper lines are the regions\' descriptions (the Proof link rule, the Show on page rule, the reorder keys)' );
-ok( 1 === preg_match( '#<span slot="footer-leading"><os-button variant="ghost" os-action="go" os-arg-sub="workflow" os-arg-anchor="snt-row-' . substr( md5( 'map' ), 0, 12 ) . '">Cancel</os-button></span>#', $all['map'] ) && false === strpos( $kit, '>Cancel</os-button>' ), 'the region has a Cancel beside Save (a go that clears sn_edit); the default paint has none' );
+ok( 1 === preg_match( '#<os-section heading="Proof links" description="Links to evidence a reader can check\\. A row shows only when &quot;Show on page&quot; is checked and its link is a path on this site \\(/maturity/\\) or an https URL\\.#', $all['proof'] ) && false !== strpos( $all['rules'], '<os-section heading="Rules" description="Add, remove and reorder rows with their buttons, or Alt+Arrow keys on a row; the page shows them in this order."' ) && false !== strpos( $all['map'], 'Unchecked steps stay here and nowhere else.' ), 'the fold\'s and the intro\'s helper lines are the regions\' descriptions (the Proof link rule, the Show on page rule, the reorder keys)' );
+ok( 1 === preg_match( '#</os-repeater><os-cluster class="snt-save-row" gap="8" justify="end"><os-button variant="ghost" os-action="go" os-arg-sub="workflow" os-arg-anchor="snt-row-' . substr( md5( 'map' ), 0, 12 ) . '">Cancel</os-button><os-button variant="primary" data-snt-form-submit>Save workflow page</os-button></os-cluster></os-section>#', $all['map'] ) && false === strpos( $kit, '>Cancel</os-button>' ), 'the region ends with its Cancel (a go that clears sn_edit) and a Save of the one form, under the list; the default paint has no Cancel' );
 ok( false !== strpos( $kit, 'name="workflow[title]"' ) && false !== strpos( $all['proof'], 'name="workflow[sample][body]" value=' ), 'the page fields stay open on every paint' );
 ok( snt_leaf_paint( 'content', 'workflow', array( 'params' => array( 'sn_edit' => 'bogus' ) ) ) === $kit, 'an unknown sn_edit paints the default view' );
 
@@ -216,8 +233,44 @@ $bare_post = $posted( preg_replace( '#<input type="hidden" name="workflow\[(?:ma
 $wiped     = sn_workflow_normalize( $bare_post['workflow'] ?? array() );
 ok( $wiped !== $rich && array() === $wiped['map'] && array() === $wiped['proof'] && $wiped['rules'] === $rich['rules'], 'negative control: without the carriers, saving the rules would wipe the map and the proof (the round trip above discriminates)' );
 $t = snt_leaf_tables( $all[''] )[0] ?? array( 'data' => array() );
-ok( array( '6', '8', '5' ) === array_column( $t['data'], 'rows' ) && array( '4', '8', '3' ) === array_column( $t['data'], 'shown' ), 'On the page counts what sn_workflow_public_data() lets through: 4 of 6 steps, all 8 rules, 3 of 5 proof links (the unchecked row and the javascript: link stay off)' );
+ok( array( '6', '8', '5' ) === array_column( $t['data'], 'rows' ) && array( '4', '8', '3' ) === array_column( $t['data'], 'shown' ), 'Shows when live counts what sn_workflow_public_data() lets through, not the checked boxes: 4 of 6 steps, all 8 rules, 3 of 5 proof links (the unchecked row and the checked javascript: link stay off)' );
 ok( false !== strpos( $all[''], '<p class="snt-prose">4 of 6 map steps, 8 of 8 rules and 3 of 5 proof links show on the page.</p>' ), 'the finding counts the public view' );
+
+// ── 2026-10-12 audit (#8) and its review: ONE form, a Save beside each group
+// of fields. Two forms each carried the other's STORED values, so "Save map
+// steps" posted the stored Dek over a typed one, and "Save workflow page"
+// posted the stored map over typed list edits (checkboxes and added rows are
+// never kept as drafts). One form posts everything typed.
+$f_def = $forms( $all[''] );
+$f_map = $forms( $all['map'] );
+ok( 1 === count( $f_def ) && 1 === count( $f_map ) && 1 === count( $forms( $all['rules'] ) ) && 1 === count( $forms( $all['proof'] ) ), 'one form on every paint, editing or not' );
+ok( 1 === preg_match( '#^<os-form class="snt-form snt-form--saves-inline" os-action="post" submit-label="Save workflow page"#', $all['map'] ) && 1 === preg_match( '#</os-form>$#', $all['map'] ), 'the form is the whole leaf, its footer hidden for the inline Saves (sn-dashboard.css)' );
+ok( 1 === preg_match( '#name="workflow\[sample\]\[body\]".*?</os-grid><os-cluster class="snt-save-row" gap="8" justify="end"><os-button variant="primary" data-snt-form-submit>Save workflow page</os-button></os-cluster></os-section>#s', $all[''] ) && 2 === substr_count( $all['map'], 'data-snt-form-submit' ) && 1 === substr_count( $all[''], 'data-snt-form-submit' ), 'a Save sits under the page fields; editing a list adds the one under the list (two Saves, one form)' );
+$typed = preg_replace( '#(name="workflow\[dek\]" value=")[^"]*"#', '$1TYPED DEK"', $all['map'] );
+$typed = preg_replace( '#(name="workflow\[map\]\[0\]\[title\]" type="text" value=")[^"]*"#', '$1TYPED STEP"', $typed );
+$typed = preg_replace( '#(<os-checkbox-label name="workflow\[map\]\[5\]\[show\]"[^>]*)>#', '$1 checked>', $typed );
+$back  = sn_workflow_normalize( $posted( $forms( $typed )[0] ?? '' )['workflow'] ?? array() );
+ok( 'TYPED DEK' === $back['dek'] && 'TYPED STEP' === $back['map'][0]['title'] && true === $back['map'][5]['show'] && $back['rules'] === $rich['rules'], 'nothing typed is lost: a typed Dek, a typed map step and a newly checked box all post together from either Save' );
+ok( 1 === preg_match( '#data-snt-form-submit#', (string) file_get_contents( SNT_PATH . 'assets/os-kit.js' ) ) && 1 === preg_match( '#os-form\.snt-form--saves-inline::part\( footer \) \{\s*display: none;#', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) ), 'the kit submits the form around a data-snt-form-submit button (tests/os-kit-form-submit.php drives it), and the footer it replaces is hidden' );
+ok( 2 === substr_count( $classic, 'value="sn_workflow_save" class="button button-primary">Save workflow page</button>' ) && 1 === preg_match( '#name="workflow\[sample\]\[body\]".*?</textarea>.*?>Save workflow page</button>.*?<h3>Map steps</h3>#s', $classic ), 'classic twin: the same two Saves of one form, one under the page fields and one under the lists' );
+
+// ── 2026-10-12 audit: "On the page" only when /workflow is live.
+$t = snt_leaf_tables( $all[''] )[0] ?? array( 'columns' => array() );
+ok( in_array( 'Shows when live', array_column( $t['columns'], 'label' ), true ) && ! in_array( 'On the page', array_column( $t['columns'], 'label' ), true ) && ! in_array( 'Set to show', array_column( $t['columns'], 'label' ), true ), 'the count column says Shows when live: what the page publishes once it is live (4 checked proof links with one refused read 3, which "Set to show" misstated)' );
+ok( false !== strpos( $all[''], '/workflow is live. Last saved October 11, 2026 at 6:30 pm.' ) && 1 === preg_match( '#editor for the <(?:a|os-button) class="snt-link[^"]*"[^>]*>/workflow<#', $all[''] ), 'live: the intro links /workflow and gives the last save in the site format' );
+$GLOBALS['__wf_page'] = (object) array( 'ID' => 12, 'post_status' => 'draft', 'post_modified_gmt' => '2026-10-11 18:30:00' );
+$draft   = $paint();
+$classic = snt_leaf_classic_html( 'sn_admin_render_workflow_section' );
+ok( false !== strpos( $draft, '<p class="snt-prose">4 of 6 map steps, 8 of 8 rules and 3 of 5 proof links show when /workflow is live; until then none reach a reader.</p>' ) && false === strpos( $draft, 'show on the page' ) && false === strpos( $draft, 'set to show' ), 'draft: the finding says what shows when the page is live, never that it is on the page' );
+ok( false !== strpos( $draft, '/workflow is offline (draft): readers cannot see it. Last saved October 11, 2026 at 6:30 pm.' ) && false !== strpos( $classic, '/workflow is offline (draft): readers cannot see it. Last saved October 11, 2026 at 6:30 pm.' ), 'draft: both surfaces say /workflow is offline and when it was saved' );
+ok( false === strpos( $draft, 'class="snt-link' ) && false !== strpos( $draft, '<os-code>/workflow</os-code>' ) && false === strpos( $classic, 'href="https://example.test/workflow"' ), 'draft: /workflow is not linked on either surface (it would open a 404)' );
+$GLOBALS['__wf_page'] = null;
+$none    = $paint();
+$classic = snt_leaf_classic_html( 'sn_admin_render_workflow_section' );
+ok( false !== strpos( $none, '/workflow does not exist yet: the first save with something to show creates it.' ) && false !== strpos( $classic, '/workflow does not exist yet: the first save with something to show creates it.' ) && false !== strpos( $none, 'show when /workflow is live; until then none reach a reader.' ), 'no page: both surfaces say /workflow does not exist yet, and the finding says what shows once it is live' );
+$GLOBALS['__wf_page'] = (object) array( 'ID' => 12, 'post_status' => 'publish', 'post_modified_gmt' => '2026-10-11 18:30:00' );
+$classic = snt_leaf_classic_html( 'sn_admin_render_workflow_section' );
+ok( false !== strpos( $classic, '/workflow is live. Last saved October 11, 2026 at 6:30 pm.' ) && false !== strpos( $classic, 'href="https://example.test/workflow"' ), 'live: the classic says the same sentence and links /workflow' );
 
 // ── Live-shaped preview: ~6 map steps, ~8 rules, ~5 proof links (the fixture above).
 ok( array() === $folds_in( $all ) && false === strpos( $all[''], 'snt-ledger-more' ), 'live-shaped: fold-free on every paint, the three-row ledger never capped' );
