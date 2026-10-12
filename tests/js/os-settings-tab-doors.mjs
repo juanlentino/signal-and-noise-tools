@@ -66,9 +66,10 @@ function bootKit( storage = new Map() ) {
 	} );
 	const ctx = {
 		console,
-		// The tab's sessionStorage, which a reload keeps; `null` stands for one
-		// that throws (a private window, blocked site data).
-		sessionStorage: null === storage
+		// The site's localStorage, which a reload, a new browser tab and a
+		// restart of the installed app all keep; `null` stands for one that
+		// throws (a private window, blocked site data).
+		localStorage: null === storage
 			? { getItem() { throw new Error( 'blocked' ); }, setItem() { throw new Error( 'blocked' ); } }
 			: { getItem: ( k ) => ( storage.has( k ) ? storage.get( k ) : null ), setItem: ( k, v ) => { storage.set( k, String( v ) ); } },
 		document: { addEventListener: ( type, cb ) => { ( listeners[ type ] = listeners[ type ] || [] ).push( cb ); } },
@@ -206,16 +207,28 @@ scenario( 'an analytics landing does not carry the old view over the link', () =
 	return { pass: JSON.stringify( shown ) === JSON.stringify( [ [ 'sn-analytics', 'machine-readers' ] ] ) && dispatched.length === 0, detail: JSON.stringify( { shown, dispatched } ) };
 } );
 
-scenario( 'a reload does not re-land: a stamp already shown in this tab shows nothing, a new one does', () => {
+scenario( 'a reload or a restart does not re-land: a stamp already shown shows nothing, a new one does', () => {
 	const storage = new Map();
 	const first = bootKit( storage );
 	first.land( 'sn-dashboard', 'monitoring', 'snt-land', 's1' );
-	const reload = bootKit( storage ); // same tab, page reloaded: the shell restores the window with the same params
+	const reload = bootKit( storage ); // a reload, or the installed app restarted: the shell restores the window with the same params
 	reload.land( 'sn-dashboard', 'monitoring', 'snt-land', 's1' );
 	reload.land( 'sn-dashboard', 'connections', 'snt-land', 's2' );
 	const ok = JSON.stringify( first.shown ) === JSON.stringify( [ [ 'sn-dashboard', 'monitoring' ] ] )
 		&& JSON.stringify( reload.shown ) === JSON.stringify( [ [ 'sn-dashboard', 'connections' ] ] );
 	return { pass: ok, detail: JSON.stringify( { first: first.shown, reload: reload.shown } ) };
+} );
+
+scenario( 'the memory is one key per window: links to both windows leave two keys', () => {
+	const storage = new Map();
+	const { land } = bootKit( storage );
+	land( 'sn-dashboard', 'monitoring', 'snt-land', 's1' );
+	land( 'sn-dashboard', 'connections', 'snt-land', 's2' );
+	land( 'sn-analytics', 'machine-readers', 'snt-land', 's3' );
+	land( 'sn-analytics', 'main', 'snt-land', 's4' );
+	const keys = [ ...storage.keys() ].sort();
+	const ok = JSON.stringify( keys ) === JSON.stringify( [ 'snt-land:sn-analytics', 'snt-land:sn-dashboard' ] ) && 's2' === storage.get( 'snt-land:sn-dashboard' ) && 's4' === storage.get( 'snt-land:sn-analytics' );
+	return { pass: ok, detail: JSON.stringify( [ ...storage ] ) };
 } );
 
 scenario( 'storage that throws still lands the link', () => {

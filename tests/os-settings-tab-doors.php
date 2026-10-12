@@ -56,7 +56,8 @@ $expected = array(
 	'snt-land shows the tab whose session landed, in that window',
 	'any other effect, or another app, shows nothing',
 	'an analytics landing does not carry the old view over the link',
-	'a reload does not re-land: a stamp already shown in this tab shows nothing, a new one does',
+	'a reload or a restart does not re-land: a stamp already shown shows nothing, a new one does',
+	'the memory is one key per window: links to both windows leave two keys',
 	'storage that throws still lands the link',
 );
 foreach ( $expected as $name ) {
