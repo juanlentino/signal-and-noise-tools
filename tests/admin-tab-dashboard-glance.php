@@ -407,6 +407,13 @@ dg_assert( 1 === count( $items ) && 'Deploys' === $items[0]['label'] && 'The new
 dg_assert( 'https://github.com/' . $plug . '/actions/runs/1' === $items[0]['href'], 'it links the failed run, never back to the Dashboard' );
 $install = snt_dashboard_attention_items( array( array( 'repo' => $plug, 'status' => 'completed', 'conclusion' => 'timed_out' ) ), 0 );
 dg_assert( 'https://github.com/' . $plug . '/actions' === $install[0]['href'] && 'The newest plugin deploy did not succeed: timed out.' === $install[0]['text'], 'a run with no page links its repo\'s Actions list, and says how it ended in words' );
+// Review on #2020 (P3-3): a cancelled or skipped newest run fixed nothing; the failure under it stands.
+$cancelled = array( 'repo' => $plug, 'status' => 'completed', 'conclusion' => 'cancelled', 'created_at' => '2026-10-11T12:00:00Z' );
+$skipped   = array( 'repo' => $plug, 'status' => 'completed', 'conclusion' => 'skipped', 'created_at' => '2026-10-11T12:00:00Z' );
+dg_assert( 1 === count( snt_dashboard_attention_items( array( $cancelled, $fail_run ), 0 ) ) && 1 === count( snt_dashboard_attention_items( array( $skipped, $cancelled, $fail_run ), 0 ) ), 'a cancelled or skipped newest run keeps the failure under it: only a success or a failure decides' );
+dg_assert( array() === snt_dashboard_attention_items( array( $cancelled, $ok_run, $fail_run ), 0 ), '...and a success under a cancelled run still clears it' );
+dg_assert( array() === snt_dashboard_attention_items( array( array( 'repo' => $plug, 'status' => 'in_progress', 'conclusion' => '' ), $fail_run ), 0 ), 'a run still going raises nothing yet (unchanged)' );
+dg_assert( 'err' === ( $items[0]['severity'] ?? '' ), 'a failed deploy item carries its own error severity (review on #2020, P2-1)' );
 $theme_fail = $fail_run;
 $theme_fail['repo'] = 'juanlentino/signal-and-noise';
 dg_assert( 2 === count( snt_dashboard_attention_items( array( $theme_fail, $fail_run ), 0 ) ), 'two repos whose newest run failed: two items' );
@@ -437,9 +444,10 @@ echo "\naudience detail window\n";
 if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $c ) { return true; } }
 function sn_analytics_top_paths( $from, $to, $class, $n ) { $GLOBALS['__top_from'] = $from; return array(); }
 function sn_analytics_top_sources( $from, $to, $class, $n ) { $GLOBALS['__src_from'] = $from; return array(); }
+// Review on #2020 (P3-5): the Analytics app's 7d, site-zone days (stubbed here; tests/dashboard-home-week.php pins the zone).
+function snt_analytics_range_dates( $range, $now = null ) { return 7 === (int) $range ? array( '2026-10-05', '2026-10-11' ) : array( '', '' ); }
 snt_dashboard_tab_data();
-$week = gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS );
-dg_assert( $week === ( $GLOBALS['__top_from'] ?? '' ) && $week === ( $GLOBALS['__src_from'] ?? '' ), 'Top pages and Top sources read the same seven days as the Audience tiles (was thirty)' );
+dg_assert( '2026-10-05' === ( $GLOBALS['__top_from'] ?? '' ) && '2026-10-05' === ( $GLOBALS['__src_from'] ?? '' ), 'Top pages and Top sources read the same seven days as the Audience tiles (was thirty), the app\'s 7d window' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

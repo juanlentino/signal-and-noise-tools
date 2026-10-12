@@ -18,6 +18,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Home's seven days: the Analytics app's 7d window, the site's days (review
+ * on #2020: UTC days put Home's Visits a day off the app's 7d Visits it links
+ * to). UTC days only where the app's resolver is not loaded.
+ *
+ * @param int|null $now Unix time; defaults to now.
+ * @return array{0:string,1:string} From and to, inclusive, Y-m-d.
+ */
+function snt_dashboard_week( $now = null ) {
+	if ( function_exists( 'snt_analytics_range_dates' ) ) {
+		return snt_analytics_range_dates( 7, $now );
+	}
+	$now = null === $now ? time() : (int) $now;
+	return array( gmdate( 'Y-m-d', $now - 6 * DAY_IN_SECONDS ), gmdate( 'Y-m-d', $now ) );
+}
+
+/**
  * Gather the measurement figures from the accessors that exist.
  *
  * An accessor that is not present contributes NO KEY, which consumers
@@ -38,8 +54,7 @@ function snt_dashboard_measurement_data() {
 
 	if ( function_exists( 'sn_analytics_config' ) && sn_analytics_config()
 		&& function_exists( 'sn_analytics_period_deltas' ) ) {
-		$from   = gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS );
-		$to     = gmdate( 'Y-m-d', time() );
+		list( $from, $to ) = snt_dashboard_week();
 		$deltas = sn_analytics_period_deltas( $from, $to, 'human' );
 		if ( is_array( $deltas ) && isset( $deltas['views'] ) ) {
 			$data['views_7d'] = (int) ( $deltas['views']['current'] ?? 0 );

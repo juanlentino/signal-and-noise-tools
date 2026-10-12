@@ -66,13 +66,17 @@ function home_attention_rows( array $data ) {
 			'href'        => (string) ( $card['href'] ?? ( $mine[0]['href'] ?? '' ) ),
 		);
 	}
+	// An item with no card is a row of its own: two failed repos are two
+	// problems with two runs to open (review on #2020).
 	foreach ( $items as $label => $list ) {
-		$rows[] = array(
-			'severity'    => 'Deploys' === $label ? 'err' : 'warn',
-			'label'       => (string) $label,
-			'description' => implode( ' ', array_column( $list, 'text' ) ),
-			'href'        => (string) ( $list[0]['href'] ?? '' ),
-		);
+		foreach ( $list as $item ) {
+			$rows[] = array(
+				'severity'    => 'err' === (string) ( $item['severity'] ?? '' ) ? 'err' : 'warn',
+				'label'       => (string) $label,
+				'description' => (string) ( $item['text'] ?? '' ),
+				'href'        => (string) ( $item['href'] ?? '' ),
+			);
+		}
 	}
 	usort( $rows, static fn( $a, $b ) => ( 'err' === $b['severity'] ) <=> ( 'err' === $a['severity'] ) );
 	return $rows;

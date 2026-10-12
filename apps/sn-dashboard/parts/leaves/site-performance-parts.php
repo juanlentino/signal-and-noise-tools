@@ -25,10 +25,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * The log, read and reduced: every call across the visible entries as a
- * row {screen, host, ms, when}, slowest first, capped at the module's
+ * row {screen, host, ms, status, when}, failed first, then slowest, capped at the module's
  * per-entry ceiling; plus the counts the notices need.
  *
- * @return array{rows:array,total:int,failed:int,failed_host:string,uncaptured:int,hidden:int,entries:int}
+ * @return array{rows:array,total:int,failed:int,failed_host:string,uncaptured:int,hidden:int,entries:int} Rows failed first, then slowest first.
  */
 function performance_slow_calls() {
 	$log     = get_option( 'snt_httpdiag_log' );
@@ -69,17 +69,26 @@ function performance_slow_calls() {
 					'text' => $failed ? ( $code >= 400 ? (string) $code : __( 'failed', 'signal-and-noise-tools' ) ) : (string) $code,
 				),
 				'when'   => \sn_httpdiag_format_age( $entry['t'] ?? null, $now ),
+				'_fail'  => $failed,
 			);
 		}
 	}
+	// Failed calls first, then slowest first: the cap never hides a failure
+	// the warning counts (review on #2020).
 	usort(
 		$out['rows'],
 		static function ( $a, $b ) {
-			return $b['ms'] <=> $a['ms'];
+			return array( $b['_fail'], $b['ms'] ) <=> array( $a['_fail'], $a['ms'] );
 		}
 	);
 	$out['total'] = count( $out['rows'] );
-	$out['rows']  = array_slice( $out['rows'], 0, SN_HTTPDIAG_HTTP_MAX );
+	$out['rows']  = array_map(
+		static function ( $row ) {
+			unset( $row['_fail'] );
+			return $row;
+		},
+		array_slice( $out['rows'], 0, SN_HTTPDIAG_HTTP_MAX )
+	);
 	return $out;
 }
 
@@ -170,8 +179,9 @@ function performance_slow_calls_html() {
 		$d['rows'],
 		array( 'empty' => $empty )
 	);
+	$hidden  = $d['total'] - count( $d['rows'] );
 	/* translators: %s: calls not listed. */
-	$caption = \snt_kit_more( $d['total'] - count( $d['rows'] ), __( '+%s quicker calls are not listed; the list is capped, not complete.', 'signal-and-noise-tools' ) );
+	$caption = \snt_kit_more( $hidden, _n( '+%s quicker call is not listed; the list is capped, not complete.', '+%s quicker calls are not listed; the list is capped, not complete.', max( 1, $hidden ), 'signal-and-noise-tools' ) );
 	if ( $d['hidden'] > 0 ) {
 		$caption .= '<p class="snt-hint">' . \snt_kit_esc( sprintf(
 			/* translators: 1: number of entries older than the retention window, 2: the window in days */
@@ -183,6 +193,6 @@ function performance_slow_calls_html() {
 	return \snt_kit_section(
 		$heading,
 		$top . $table . $caption,
-		__( 'Every outbound HTTP call made while a wp-admin page loads, slowest first; the Site Health Info panel reads the same log.', 'signal-and-noise-tools' )
+		__( 'Every outbound HTTP call made while a wp-admin page loads, failed calls first, then the slowest; the Site Health Info panel reads the same log.', 'signal-and-noise-tools' )
 	);
 }

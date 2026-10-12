@@ -139,6 +139,14 @@ for ( $i = 1; $i <= 23; $i++ ) { $many[] = array( 'url' => 'https://h' . $i . '.
 $GLOBALS['__options']['snt_httpdiag_log'] = array( array( 't' => $now - 10, 'screen' => 'index.php', 'wall_s' => 1.0, 'http' => array_slice( $many, 0, 20 ) ), array( 't' => $now - 20, 'screen' => 'edit.php', 'wall_s' => 1.0, 'http' => array_slice( $many, 20 ) ) );
 $kit = snt_leaf_paint( 'site', 'performance' );
 ok( false !== strpos( $kit, '<p class="snt-hint snt-ledger-more">+3 quicker calls are not listed; the list is capped, not complete.</p>' ), 'twenty-three calls: the twenty slowest, then "+3 quicker calls are not listed", never a silent cut' );
+// Review on #2020 (P2-2): a fast failed call the cap would cut stays listed, so the warning's count has its row.
+$calls   = array_slice( $many, 0, 19 );
+$calls[] = array( 'url' => 'https://fast404.example.com/x', 'ms' => 5, 'code' => 404, 'error' => false );
+$calls[] = array( 'url' => 'https://slowok.example.com/x', 'ms' => 3000, 'code' => 200, 'error' => false );
+$GLOBALS['__options']['snt_httpdiag_log'] = array( array( 't' => $now - 10, 'screen' => 'index.php', 'wall_s' => 1.0, 'http' => $calls ) );
+$kit = snt_leaf_paint( 'site', 'performance' );
+ok( false !== strpos( $kit, '1 failed call; the slowest was fast404.example.com.' ) && false !== strpos( $kit, '<os-badge tone="danger">404</os-badge>' ) && false !== strpos( $kit, 'fast404.example.com' ), 'a 5 ms 404 among twenty-one calls: the warning counts it AND its row is listed, badge and all' );
+ok( false !== strpos( $kit, '<p class="snt-hint snt-ledger-more">+1 quicker call is not listed; the list is capped, not complete.</p>' ), 'one call cut: "+1 quicker call is not listed", singular' );
 unset( $GLOBALS['__options']['snt_httpdiag_log'] );
 
 echo "\nResult: $pass passed, $fail failed.\n";

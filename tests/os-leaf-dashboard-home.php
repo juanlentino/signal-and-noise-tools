@@ -46,11 +46,22 @@ ok( 'Nothing has reported in, so nothing is measured.' === ( $L . 'home_orientat
 
 echo "\nA failed deploy links its run\n";
 $broke = snt_home_fixture( true );
-$broke['attention'] = array( array( 'label' => 'Deploys', 'text' => 'The newest plugin deploy failed.', 'href' => 'https://github.com/juanlentino/signal-and-noise-tools/actions/runs/7' ) );
+$broke['attention'] = array( array( 'label' => 'Deploys', 'severity' => 'err', 'text' => 'The newest plugin deploy failed.', 'href' => 'https://github.com/juanlentino/signal-and-noise-tools/actions/runs/7' ) );
 $o2 = ( $L . 'home_orientation_info' )( $broke );
 $a2 = ( $L . 'home_attention_html' )( $broke, 'dashboard' );
 ok( 'err' === $o2['state'] && '1 thing needs attention.' === $o2['text'], 'a failed deploy is an error, counted once' );
 ok( false !== strpos( $a2, 'href="https://github.com/juanlentino/signal-and-noise-tools/actions/runs/7" target="_blank" rel="noopener noreferrer"' ) && false !== strpos( $a2, 'Open the run' ) && false !== strpos( $a2, 'aria-label="Error"' ) && false === strpos( $a2, 'tab=dashboard' ), 'it opens the failed run on GitHub, never Home again' );
+// Review on #2020 (P2-1): a theme and a plugin failure are two problems, two rows, two links.
+$both = snt_home_fixture( true );
+$both['attention'] = array(
+	array( 'label' => 'Deploys', 'severity' => 'err', 'text' => 'The newest theme deploy failed.', 'href' => 'https://github.com/juanlentino/signal-and-noise/actions/runs/9' ),
+	array( 'label' => 'Deploys', 'severity' => 'err', 'text' => 'The newest plugin deploy failed.', 'href' => 'https://github.com/juanlentino/signal-and-noise-tools/actions/runs/7' ),
+);
+$a4 = ( $L . 'home_attention_html' )( $both, 'dashboard' );
+ok( '2 things need attention.' === ( $L . 'home_orientation_info' )( $both )['text'] && 2 === substr_count( $a4, 'class="snt-home__attention-row ' ) && false !== strpos( $a4, 'actions/runs/9"' ) && false !== strpos( $a4, 'actions/runs/7"' ), 'two failed repos: two rows, each linking its own run, and the headline counts two (the classic strip lists two)' );
+$sev = snt_home_fixture( true );
+$sev['attention'] = array( array( 'label' => 'Anything', 'severity' => 'err', 'text' => 'Broke.', 'href' => '' ) );
+ok( 'err' === ( $L . 'home_attention_rows' )( $sev )[0]['severity'], 'a row\'s severity is the item\'s own, not a test of the word "Deploys"' );
 $skew = snt_home_fixture( true );
 $skew['components'][5] = array( 'label' => 'Remote door', 'value' => '1.4.0; contract skew: live 15, expected 16', 'measured' => true, 'attention' => true );
 $a3 = ( $L . 'home_attention_html' )( $skew, 'dashboard' );
@@ -64,7 +75,11 @@ for ( $i = 1; $i <= 2; $i++ ) { $many['attention'][] = array( 'label' => 'Extra 
 ok( false === strpos( ( $L . 'home_desk_html' )( $many, 'dashboard' ), '<os-grid' ), 'five problems take the width; Continue working follows' );
 
 echo "\nSite pulse: the gated Visits, and never 0 for a missing reading\n";
+// Review on #2020 (P3-5): the tiles read the Analytics app's 7d (site-zone days), not UTC days.
+function snt_analytics_range_dates( $range, $now = null ) { return 7 === (int) $range ? array( '2026-10-05', '2026-10-11' ) : array( '', '' ); }
+$GLOBALS['__home_window'] = array();
 $p = ( $L . 'home_pulse_html' )( $data, 'dashboard' );
+ok( array( '2026-10-05', '2026-10-11' ) === $GLOBALS['__home_window'], 'the tiles read snt_analytics_range_dates( 7 ), the window the Analytics app\'s 7d reads' );
 ok( false !== strpos( $p, '<span>Visits</span></div><strong>812</strong>' ) && false === strpos( $p, '1,270' ), 'Visits is pageview_visits (812), the Analytics app\'s Visits, never the ungated 1,270' );
 ok( false !== strpos( $p, '<span>Views per visit</span></div><strong>2.4</strong>' ) && false === strpos( $p, 'Pages per visit' ), 'views per visit is 1,914 / 812 = 2.4, named as the desktop widget names it' );
 ok( false !== strpos( $p, '<span class="snt-home__metric-delta">last 28 days</span>' ) && false === strpos( $p, '28d' ), 'Search clicks says its window in words: "last 28 days"' );

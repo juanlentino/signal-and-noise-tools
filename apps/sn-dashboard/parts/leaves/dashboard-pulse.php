@@ -68,9 +68,14 @@ function pulse_item_html( $label, $icon, $value, $delta, $href, $tab = 'dashboar
  * @return array<string,array{0:string,1:string,2:bool}> views, visits, ratio, search: value, line, none.
  */
 function home_pulse_reading() {
-	$on     = function_exists( 'sn_analytics_config' ) && \sn_analytics_config();
+	$on   = function_exists( 'sn_analytics_config' ) && \sn_analytics_config();
+	// The Analytics app's 7d, the site's days (review on #2020), so Visits
+	// here is the app's 7d Visits it links to.
+	$week = function_exists( 'snt_analytics_range_dates' )
+		? \snt_analytics_range_dates( 7 )
+		: array( gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS ), gmdate( 'Y-m-d', time() ) );
 	$deltas = $on && function_exists( 'sn_analytics_period_deltas' )
-		? (array) \sn_analytics_period_deltas( gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS ), gmdate( 'Y-m-d', time() ), 'human' )
+		? (array) \sn_analytics_period_deltas( $week[0], $week[1], 'human' )
 		: array();
 	$pv     = (array) ( $deltas['pageview_visits'] ?? array() );
 	$out    = array();

@@ -113,6 +113,7 @@ function snt_nsm_reading() {
 // `visits` is the deprecated ungated count (every visitor-day); Home reads the
 // gated `pageview_visits`, the Analytics app's Visits (2026.10.4 audit).
 function sn_analytics_period_deltas( $from, $to, $class = 'human' ) {
+	$GLOBALS['__home_window'] = array( $from, $to );
 	return $GLOBALS['__home_deltas'] ?? array(
 		'views'           => array( 'current' => 1914, 'previous' => 1702, 'pct' => 12 ),
 		'visits'          => array( 'current' => 1270, 'previous' => 1180, 'pct' => 8 ),

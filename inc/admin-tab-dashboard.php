@@ -246,8 +246,7 @@ function snt_dashboard_tab_data() {
 	// 2026.10.4 audit: the same seven days as the Audience tiles and the
 	// "Audience detail, 7 days" eyebrow; a 30-day top page could outnumber the
 	// site's 7-day views painted over it.
-	$from = gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS );
-	$to   = gmdate( 'Y-m-d', time() );
+	list( $from, $to ) = snt_dashboard_week();
 	$ops_data = array( 'deploys' => is_array( $runs ) ? array_slice( $runs, 0, 6 ) : null );
 
 	if ( $analytics_on && function_exists( 'sn_analytics_top_paths' ) ) {
@@ -430,8 +429,7 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 	// do NOT recompute). ──
 	if ( function_exists( 'sn_analytics_config' ) && sn_analytics_config()
 		&& function_exists( 'sn_analytics_period_deltas' ) ) {
-		$from   = gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS );
-		$to     = gmdate( 'Y-m-d', time() );
+		list( $from, $to ) = snt_dashboard_week();
 		$deltas = sn_analytics_period_deltas( $from, $to, 'human' );
 		if ( is_array( $deltas ) && isset( $deltas['views'] ) ) {
 			$views = (int) ( $deltas['views']['current'] ?? 0 );

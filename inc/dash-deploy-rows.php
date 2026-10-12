@@ -50,7 +50,8 @@ function snt_dashboard_count_recent_runs( $runs, $window ) {
  * The repos whose NEWEST run failed, one entry each. Only the newest run per
  * repo counts, so a failure a later success fixed clears at once (2026.10.4
  * audit: any failure among the last six runs held Home red until six more
- * deploys landed), and a run still going raises nothing yet. The link is the
+ * deploys landed), a cancelled or skipped run decides nothing, and a run still
+ * going raises nothing yet. The link is the
  * run's own page; a wp-admin install row has none, so its repo's Actions list
  * stands in.
  *
@@ -64,13 +65,16 @@ function snt_dashboard_failed_deploys( $runs ) {
 		if ( ! is_array( $run ) ) {
 			continue;
 		}
-		$repo = (string) ( $run['repo'] ?? '' );
-		if ( isset( $seen[ $repo ] ) ) {
+		$repo       = (string) ( $run['repo'] ?? '' );
+		$conclusion = (string) ( $run['conclusion'] ?? '' );
+		// A cancelled or skipped run fixed nothing: it does not decide, the
+		// run under it does (review on #2020). A run still going does decide:
+		// nothing is raised until it ends.
+		if ( isset( $seen[ $repo ] ) || in_array( $conclusion, array( 'cancelled', 'skipped' ), true ) ) {
 			continue;
 		}
 		$seen[ $repo ] = true;
-		$conclusion    = (string) ( $run['conclusion'] ?? '' );
-		if ( 'completed' !== (string) ( $run['status'] ?? '' ) || '' === $conclusion || in_array( $conclusion, array( 'success', 'cancelled', 'skipped' ), true ) ) {
+		if ( 'completed' !== (string) ( $run['status'] ?? '' ) || '' === $conclusion || 'success' === $conclusion ) {
 			continue;
 		}
 		$url   = (string) ( $run['html_url'] ?? '' );

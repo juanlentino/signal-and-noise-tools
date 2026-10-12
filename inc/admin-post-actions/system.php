@@ -74,7 +74,21 @@ function sn_settings_purge_if_changed( $before ) {
 	if ( null === $before || $before === sn_settings_snapshot() || ! function_exists( 'has_filter' ) || ! has_filter( 'sn_purge_all_caches_result' ) ) {
 		return false;
 	}
-	apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false, 'object_cache' => false, 'trigger' => 'settings' ) );
+	// Page caches only (review on #2020): the theme's chain also defaults to
+	// emptying every transient, deleting the update checks and a blocking
+	// repopulate call to api.wordpress.org, none of which a setting changes.
+	apply_filters(
+		'sn_purge_all_caches_result',
+		0,
+		array(
+			'template_overrides' => false,
+			'object_cache'       => false,
+			'sn_transients'      => false,
+			'package_caches'     => false,
+			'repopulate'         => false,
+			'trigger'            => 'settings',
+		)
+	);
 	return true;
 }
 

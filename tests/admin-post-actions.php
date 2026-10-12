@@ -168,7 +168,7 @@ $GLOBALS['__applied'] = array();
 sn_handle_save_identity( array( 'identity_site_name' => 'Acme' ) );
 $p = $purges();
 pa_eq( 1, count( $p ), 'a save that changed the identity purges the cached pages once' );
-pa_eq( array( 'template_overrides' => false, 'object_cache' => false, 'trigger' => 'settings' ), $p[0][1][0] ?? null, '...through the theme chain, named "settings" in the purge ledger, never the overrides' );
+pa_eq( array( 'template_overrides' => false, 'object_cache' => false, 'sn_transients' => false, 'package_caches' => false, 'repopulate' => false, 'trigger' => 'settings' ), $p[0][1][0] ?? null, '...through the theme chain, named "settings" in the purge ledger: page caches only, never the overrides, the transients, the update checks or a blocking repopulate (review on #2020, P3-4)' );
 $GLOBALS['__applied'] = array();
 sn_handle_save_identity( array( 'identity_site_name' => 'Acme' ) );
 pa_eq( 0, count( $purges() ), 'an unchanged save purges nothing' );

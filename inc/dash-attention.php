@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @param array $runs           Merged deploy runs, newest first.
  * @param int   $override_count DB template/navigation override count.
- * @return array<int,array{label:string,text:string,href:string}>
+ * @return array<int,array{label:string,text:string,href:string,severity?:string}>
  */
 function snt_dashboard_attention_items( $runs, $override_count ) {
 	$items  = array();
@@ -73,8 +73,9 @@ function snt_dashboard_attention_items( $runs, $override_count ) {
 		$what = snt_dashboard_short_repo( $failed['repo'] );
 		$what = '' !== $what ? $what . ' ' : '';
 		$items[] = array(
-			'label' => 'Deploys',
-			'text'  => 'failure' === $failed['conclusion']
+			'label'    => 'Deploys',
+			'severity' => 'err', // a failed deploy is an error on Home, not a warning
+			'text'     => 'failure' === $failed['conclusion']
 				/* translators: %s: "plugin " or "theme " (with its space), or nothing. */
 				? sprintf( __( 'The newest %sdeploy failed.', 'signal-and-noise-tools' ), $what )
 				/* translators: 1: "plugin " or "theme " (with its space), or nothing, 2: how it ended ("timed out"). */
