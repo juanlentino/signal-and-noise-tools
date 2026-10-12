@@ -30,6 +30,14 @@ require_once __DIR__ . '/tools-reports-motion.php';
 require_once __DIR__ . '/tools-reports-facts.php';
 
 /**
+ * Rows a report's ledger shows before its counted "+N more" line. Every
+ * ledger here is sorted worst-first, so ten is the end that matters; at the
+ * shared classic caps (25, 60, 50) the leaf was about 120 open rows
+ * (2026-10-12 audit). The classic page keeps its caps inside its folds.
+ */
+const TOOLS_REPORTS_ROWS = 10;
+
+/**
  * The leaf's data: which of the three states, and the reports to paint.
  *
  * Mirrors `sn_admin_render_health_reports_section()` line for line — same
@@ -83,33 +91,47 @@ function tools_reports_renderers() {
 }
 
 /**
- * The leaf: the reports, then the environment facts box (#1599) under them
- * at full width in every state, since the facts do not depend on a scan.
+ * The leaf: the reports, then the environment facts box (#1599), which does
+ * not depend on a scan. When the motion report closes the list, the two share
+ * a row (measured live 2026-10-12: about 290px and 218px, stacked full width).
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
  */
 function paint_tools_reports( array $ctx ) {
-	return tools_reports_scan_html( $ctx ) . tools_reports_facts_html();
+	$blocks = tools_reports_scan_blocks( $ctx );
+	$facts  = tools_reports_facts_html();
+	if ( '' !== $facts && 'motion_scan' === array_key_last( $blocks ) ) {
+		$blocks['motion_scan'] = \snt_kit_grid( array( $blocks['motion_scan'], $facts ) );
+		$facts                 = '';
+	}
+	return implode( '', $blocks ) . $facts;
 }
 
 /**
- * The scan's reports, or the sentence that says why there are none.
+ * The scan's reports, one block per report keyed by check, or the sentence
+ * that says why there are none.
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
- * @return string
+ * @return array<string,string>
  */
-function tools_reports_scan_html( array $ctx ) {
-	unset( $ctx );
+function tools_reports_scan_blocks( array $ctx ) {
 	$data = tools_reports_data();
 	if ( 'no_scan' === $data['state'] ) {
-		return '<p class="snt-prose">' . \snt_kit_esc( __( 'No scan yet — run one from Measurement → Health.', 'signal-and-noise-tools' ) ) . '</p>';
+		// A link, as Trust checks has it (2026-10-12): plain text sent the reader hunting.
+		return array(
+			'none' => '<p class="snt-prose">' . sprintf(
+				/* translators: %s: link to the Health leaf, already escaped HTML. */
+				esc_html__( 'No scan yet: run one from %s.', 'signal-and-noise-tools' ),
+				\snt_kit_go( __( 'Measurement → Health', 'signal-and-noise-tools' ), array( 'tab' => 'monitoring', 'sub' => 'health', 'current' => (string) ( $ctx['tab'] ?? 'tools' ) ) )
+			) . '</p>',
+		);
 	}
 	if ( 'no_reports' === $data['state'] ) {
-		return '<p class="snt-prose">' . \snt_kit_esc( __( 'The last scan produced no reports.', 'signal-and-noise-tools' ) ) . '</p>';
+		return array( 'none' => '<p class="snt-prose">' . \snt_kit_esc( __( 'The last scan produced no reports.', 'signal-and-noise-tools' ) ) . '</p>' );
 	}
 
-	$out = '<p class="snt-prose">' . \snt_kit_esc( __( 'Checks that measure and publish rather than flag. Nothing here is a defect list — read the coverage line before reading the numbers.', 'signal-and-noise-tools' ) ) . '</p>';
+	$out = array( 'intro' => '<p class="snt-prose">' . \snt_kit_esc( __( 'Checks that measure and publish rather than flag. Nothing here is a defect list: read the coverage line before reading the numbers.', 'signal-and-noise-tools' ) ) . '</p>' );
 
 	$renderers = tools_reports_renderers();
 	foreach ( (array) $data['reports'] as $key => $check ) {
@@ -121,8 +143,10 @@ function tools_reports_scan_html( array $ctx ) {
 		// attribute, no inner markup), so the pill moves to the top of the
 		// body instead of sitting beside the title.
 		$body = \snt_kit_badge( '', __( 'Report', 'signal-and-noise-tools' ) );
-		if ( ! empty( $report['coverage'] ) ) {
-			$body .= '<p class="snt-prose"><b>' . \snt_kit_esc( __( 'What this covers:', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( (string) $report['coverage'] ) . '</p>';
+		// Looked up by key at paint time, never the sentence the scan froze.
+		$coverage = function_exists( 'sn_health_report_coverage' ) ? \sn_health_report_coverage( (string) $key, $report ) : (string) ( $report['coverage'] ?? '' );
+		if ( '' !== $coverage ) {
+			$body .= '<p class="snt-prose"><b>' . \snt_kit_esc( __( 'What this covers:', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( $coverage ) . '</p>';
 		}
 		$parts = isset( $renderers[ $key ] ) && is_callable( $renderers[ $key ] )
 			? (array) call_user_func( $renderers[ $key ], $report )
@@ -133,10 +157,10 @@ function tools_reports_scan_html( array $ctx ) {
 		// stacked full width; side by side they are within a box of each other.
 		$first = array_shift( $parts );
 		if ( 'contrast_tokens' === $key && count( $parts ) >= 2 ) {
-			$pair  = array_splice( $parts, -2 );
+			$pair    = array_splice( $parts, -2 );
 			$parts[] = \snt_kit_grid( $pair );
 		}
-		$out .= \snt_kit_section( $label, $body . $first ) . implode( '', $parts );
+		$out[ (string) $key ] = \snt_kit_section( $label, $body . $first ) . implode( '', $parts );
 	}
 
 	return $out;

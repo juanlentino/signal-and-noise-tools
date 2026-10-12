@@ -102,7 +102,12 @@ function sn_admin_render_trust_section() {
 function sn_admin_render_health_reports_section() {
 	$scan = function_exists( 'sn_health_last_scan' ) ? sn_health_last_scan() : null;
 	if ( ! is_array( $scan ) ) {
-		echo '<div class="sn-fieldset"><p class="sn-fieldset-intro">' . esc_html__( 'No scan yet — run one from Measurement → Health.', 'signal-and-noise-tools' ) . '</p></div>';
+		// The words Trust checks uses, the leaf name a link (2026-10-12).
+		echo '<div class="sn-fieldset"><p class="sn-fieldset-intro">' . sprintf(
+			/* translators: %s: link to the Health leaf, already escaped HTML. */
+			esc_html__( 'No scan yet: run one from %s.', 'signal-and-noise-tools' ),
+			'<a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ) ) . '">' . esc_html__( 'Measurement → Health', 'signal-and-noise-tools' ) . '</a>'
+		) . '</p></div>';
 		return;
 	}
 	$integrity = sn_health_checks_for_surface( $scan, 'integrity' );

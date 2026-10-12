@@ -12,6 +12,22 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The Integrity tab says what happened and what each number counts (2026.10.3 audit, batch 5: Provenance, Trust checks, Reports, Citations, Links, on both surfaces).**
+  - **Key rotation shows its result.** Publishing a commitment or rotating now paints "Commitment published", "Rotated to key" and the new key's id, or "Nothing changed" with the reason (the Worker did not answer, the key it returned does not hash to the commitment, the ledger did not record it, and the rest). A successful rotation used to look exactly like nothing happened, and a refusal left no reason.
+  - **The Provenance tiles and the Commits table count the same proofs.** A new **Not sent** tile counts the proofs the Worker never took (computed before, never painted); the Worker tile reads "Answered", captioned with the time it last answered, and turns amber while any proof waits to be sent; under the table, "+N older proofs waiting are not listed" counts what its newest-100 cut leaves out. **Figures that change:** the Worker tile no longer says "Reachable" or "online" (it was inferred from any past success, and still is: the Worker has no route to ping); Confirmed carries no green pill at zero; the tile labels are translated.
+  - **Provenance times use the site's own date and time format** in its timezone: the Worker tile, the integrity line and the key commitment's date (they were a hard-coded Eastern "Oct 11, 2026 12:35 PM EDT", "2026-09-14 04:00 EDT" and a raw ISO date).
+  - **The Commits table's Ledger column is a link** ("v1 on the ledger"), or says "No ledger record"; it was a long URL as plain text, or a dash. The classic table says the same, and its empty state now reads like the S&N Home one.
+  - **The Internet Archive box says "not configured" once, in a neutral notice**, not green and then again as the "Older notes" line. A push that got no answer says "no response", never "HTTP 0".
+  - **The Ledger backfill names what it counts:** "Import or repair N notes and pages from the ledger" (it said "Repair N Notes"), in plain words instead of "a provenance UID with no local commit chain (the July ledger backfill...)".
+  - **One check, one name: Provenance integrity**, on Health, Trust checks and the Provenance empty line (it was also "Provenance triangle" and "the integrity sweep").
+  - **Trust checks' per-check boxes share a row** instead of stacking at full width.
+  - **Reports reads its coverage sentences fresh.** "What this covers" is looked up when the page paints, so a stored scan no longer prints "the usage tier below", "Colours" or em dashes; the usage limits name the method ("a scan that renders the pages in a real browser") instead of a repo path. The no-scan line links Measurement › Health, the run date reads in the site's date format, and the WordPress JS packages row reads "plugin:gutenberg, 1 handle (wp-components)".
+  - **Reports opens at most 10 rows per table on S&N Home** (sorted worst-first; the counted "+N more" line keeps every total). **Figures that change:** the usage, placement-dependent, arithmetic and motion tables showed up to 25, 25, 60 and 50 rows, about 120 open rows live; the classic page keeps its caps inside its folds. The motion report and the Plugin environment box share a row.
+  - **Citations' Forget a claim starts on "Choose a claim"** and must be chosen; it preselected the newest claim, which the confirm could not name. The classic tier key is open under the same heading as S&N Home ("What the tiers mean"), and counts claims past the newest 100 the same way.
+  - **Links is one box of six cards, three across**, each saying its name once; the classic cards drop the hidden second link with the same words. **Figure that changes:** the three section headings (Source code, Releases, Infrastructure) go; each card keeps its group as its label.
+  - The em dashes left in these screens' sentences are colons, semicolons or periods, the same string on both surfaces.
+
 ## [2026.10.4] - 2026-10-12 — the 2026.10.3 audit fixed: nothing typed is lost, focus and contrast pass, forecasts that measure
 
 ### Changed

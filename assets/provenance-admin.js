@@ -110,13 +110,15 @@
     // payload that predates the field.
     var href = p.ledger_url || ledgerUrl(live, full);
     if (href) {
-      var a = el('a', null, 'Ledger');
+      // The kit leaf's words: the link names its record, and a missing one
+      // says so instead of a dash a screen reader skips (WCAG 1.3.1).
+      var a = el('a', null, 'v' + Number(p.version) + ' on the ledger');
       a.href = href;
       a.target = '_blank';
       a.rel = 'noopener';
       tdLedger.appendChild(a);
     } else {
-      tdLedger.appendChild(document.createTextNode('—'));
+      tdLedger.appendChild(document.createTextNode('No ledger record'));
     }
     tr.appendChild(tdLedger);
 
@@ -140,7 +142,10 @@
 
     var pending = d.pending || [];
     if (!pending.length) {
-      live.appendChild(messageRow('All commits anchored'));
+      // What this table measures (pending proofs), the kit leaf's sentence:
+      // the old "every commit anchored" line read as "all is well" beside
+      // integrity failures, which this table does not measure.
+      live.appendChild(messageRow('No pending proofs; a new one appears here within 30 seconds of minting.'));
       return;
     }
     pending.forEach(function (p) {
@@ -150,7 +155,7 @@
 
   function renderError(live, e) {
     clear(live);
-    var msg = 'Status check failed — reload the page to re-check.';
+    var msg = 'Status check failed: reload the page to check again.';
     if (e && e.message) msg += ' (' + e.message + ')';
     live.appendChild(messageRow(msg, 'sn-prov-error'));
   }

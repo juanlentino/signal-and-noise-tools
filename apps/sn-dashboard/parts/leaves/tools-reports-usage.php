@@ -92,7 +92,7 @@ function tools_reports_contrast_usage( array $usage ) {
 
 	// The limits sit beside the headline: a reader who trusts a "0 failing"
 	// count is exactly the reader who did not scroll up to the caveat.
-	$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Reads stylesheet declarations at rest. Hover and focus states, colors inlined in block markup, and the computed cascade are invisible to it; those are measured by hand with tools/contrast-render-scan.mjs, and what it finds is pinned as a test rather than counted here. A clean count here means nothing declared in CSS fails at rest, not that the site passes.', 'signal-and-noise-tools' ) ) . '</p>';
+	$inner .= '<p class="snt-hint">' . \snt_kit_esc( \sn_health_contrast_usage_limits() ) . '</p>';
 
 	if ( ! empty( $failures ) ) {
 		$rows = array();
@@ -115,7 +115,7 @@ function tools_reports_contrast_usage( array $usage ) {
 			'',
 			tools_reports_usage_columns( __( 'Pairing', 'signal-and-noise-tools' ) ),
 			$rows,
-			defined( 'SN_HEALTH_CONTRAST_USAGE_MAX_ROWS' ) ? SN_HEALTH_CONTRAST_USAGE_MAX_ROWS : 25,
+			TOOLS_REPORTS_ROWS,
 			/* translators: %s: failing pairings not listed. */
 			array( 'more' => __( '+%s more failing pairings, sorted worst-first; the tail is the safe end.', 'signal-and-noise-tools' ) )
 		);

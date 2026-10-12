@@ -36,7 +36,7 @@ function sn_cit_summary_sentence( $counts ) {
 		$total += (int) ( $counts[ $t ] ?? 0 );
 	}
 	if ( 0 === $total ) {
-		return __( 'No citations recorded. Nobody has sent one — this is a measured zero, not an unread inbox.', 'signal-and-noise-tools' );
+		return __( 'No citations recorded. Nobody has sent one: this is a measured zero, not an unread inbox.', 'signal-and-noise-tools' );
 	}
 	$parts = array();
 	foreach ( SN_CIT_TIERS as $t ) {
@@ -229,11 +229,13 @@ function sn_admin_render_citations_section() {
 	echo '<p class="sn-fieldset-intro">' . esc_html__( 'A webmention is a claim that someone cited you. Each claim is re-fetched and sorted by what can be checked: verified and unattributed citations appear on the site; a claim whose link has gone, or that could not be reached, is kept here and shown to nobody else.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Inbox:', 'signal-and-noise-tools' ) . ' <code>' . esc_html( sn_cit_endpoint_url() ) . '</code></p>';
 
-	echo '<details><summary>' . esc_html__( 'What the four tiers mean', 'signal-and-noise-tools' ) . '</summary><ul>';
+	// Open, under the leaf's own heading (2026-10-12): it was a closed fold
+	// titled "What the four tiers mean" while the S&N Home twin is open.
+	echo '<h3>' . esc_html__( 'What the tiers mean', 'signal-and-noise-tools' ) . '</h3><ul>';
 	foreach ( SN_CIT_TIERS as $tier ) {
-		echo '<li><strong>' . esc_html( $tier ) . '</strong> — ' . esc_html( sn_cit_tier_sentence( $tier ) ) . '</li>';
+		echo '<li><strong>' . esc_html( $tier ) . '</strong>: ' . esc_html( sn_cit_tier_sentence( $tier ) ) . '</li>';
 	}
-	echo '</ul></details>';
+	echo '</ul>';
 
 	if ( empty( $rows ) ) {
 		echo '<p class="sn-fieldset-intro">' . esc_html__( 'Nothing to list yet.', 'signal-and-noise-tools' ) . '</p></div>';
@@ -253,7 +255,14 @@ function sn_admin_render_citations_section() {
 	}
 	echo '</tbody></table></div>';
 	if ( 100 === count( $rows ) ) {
-		echo '<p class="description">' . esc_html__( 'The newest 100 claims are listed.', 'signal-and-noise-tools' ) . '</p>';
+		// Never a silent cap: past 100 the cut is counted, as on S&N Home.
+		$total = (int) array_sum( array_intersect_key( $counts, array_flip( SN_CIT_TIERS ) ) );
+		echo '<p class="description">' . esc_html(
+			$total > 100
+				/* translators: %s: claims not listed. */
+				? sprintf( __( '+%s older claims are not listed; the newest 100 are.', 'signal-and-noise-tools' ), number_format_i18n( $total - 100 ) )
+				: __( 'The newest 100 claims are listed.', 'signal-and-noise-tools' )
+		) . '</p>';
 	}
 	// One small form: forget a claim that is shown to nobody (a test, a link
 	// that never existed). A citation the site displays is not offered.
@@ -261,7 +270,10 @@ function sn_admin_render_citations_section() {
 	if ( $forgettable && function_exists( 'sn_admin_post_url' ) ) {
 		echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'citation_forget' ) ) . '">';
 		echo '<input type="hidden" name="action" value="sn_citation_forget" />';
-		echo '<p><label>' . esc_html__( 'Forget a claim', 'signal-and-noise-tools' ) . ' <select name="claim" aria-describedby="sn-cit-forget-hint">';
+		// No claim is preselected (2026-10-12): the newest one was, and the
+		// confirm cannot name it, so a press could forget a claim nobody chose.
+		echo '<p><label>' . esc_html__( 'Forget a claim', 'signal-and-noise-tools' ) . ' <select name="claim" required aria-describedby="sn-cit-forget-hint">';
+		echo '<option value="" disabled selected>' . esc_html__( 'Choose a claim', 'signal-and-noise-tools' ) . '</option>';
 		foreach ( $forgettable as $id => $label ) {
 			echo '<option value="' . esc_attr( (string) $id ) . '">' . esc_html( $label ) . '</option>';
 		}

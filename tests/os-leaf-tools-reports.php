@@ -103,6 +103,11 @@ $GLOBALS['__scan'] = null;
 $classic            = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
 $kit                = reports_paint();
 ok( false !== strpos( $classic, 'No scan yet' ) && false !== strpos( $kit, 'No scan yet' ), 'no-scan state: both leaves say to run one from Measurement → Health' );
+// 2026-10-12: "Measurement → Health" is a way there on both surfaces (Trust
+// checks already linked the same words), and the sentence carries no em dash.
+ok( 1 === preg_match( '/<os-button[^>]*data-snt-tab="monitoring"[^>]*data-snt-sub="health"[^>]*>Measurement → Health<\/os-button>/', $kit ), 'no-scan state: the kit names Health as a go button to that leaf' );
+ok( 1 === preg_match( '/<a href="[^"]*tab=monitoring&(amp;)?sub=health"[^>]*>Measurement → Health<\/a>/', $classic ), 'no-scan state: the classic page links the same words' );
+ok( false === strpos( $kit, '—' ) && false === strpos( $classic, '—' ), 'no-scan state: no em dash on either surface' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no-scan state: no wp-admin markup' );
 
 // ── State 2: a scan with no report-carrying checks.
@@ -222,7 +227,16 @@ ok( array() === snt_leaf_actions( $classic ) && array() === snt_leaf_actions( $k
 ok( array() === snt_leaf_classic_markers( $kit ), 'reports state: no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
 ok( false !== strpos( $kit, 'Contrast tokens' ) && false !== strpos( $kit, 'Link isolation' ) && false !== strpos( $kit, 'Motion coverage' ) && false !== strpos( $kit, 'Unknown report' ), 'all four report cards are painted, including the unknown-key one' );
-ok( false !== strpos( $kit, 'Reads theme.json palette tokens and stylesheet declarations.' ) && false !== strpos( $kit, 'Reads inbound links across every published note.' ) && false !== strpos( $kit, 'Reads declared motion in stylesheets.' ), 'every coverage sentence is printed' );
+// 2026-10-12: a known report's coverage sentence is looked up by key at paint
+// time; a stored copy froze "the usage tier below", "Colours" and em dashes
+// into every scan. An unknown key keeps its own stored sentence.
+ok( false !== strpos( $kit, 'Arithmetic tier: every theme-token pair scored as if rendered together.' ) && false !== strpos( $kit, 'Declared tier: every animation and transition' ) && false !== strpos( $kit, 'Reads inbound links across every published note.' ) && false !== strpos( $kit, 'Some future coverage.' ), 'every coverage sentence is printed: the current one for a known report, the stored one otherwise' );
+ok( false === strpos( $kit, 'Reads theme.json palette tokens and stylesheet declarations.' ) && false === strpos( $kit, 'Reads declared motion in stylesheets.' ), '...and a known report\'s stored sentence is never painted' );
+$__cl_rich = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
+ok( false !== strpos( $__cl_rich, 'Arithmetic tier: every theme-token pair scored as if rendered together.' ) && false === strpos( $__cl_rich, 'Reads theme.json palette tokens' ), 'the classic page reads the same sentence by key' );
+ok( false === strpos( $kit, 'contrast-render-scan' ) && false === strpos( $__cl_rich, 'contrast-render-scan' ) && false === strpos( $__cl_rich, 'colours' ) && false !== strpos( $kit, 'a scan that renders the pages in a real browser' ), 'the usage limits name the method in plain words on both surfaces, never the repo path, and say "colors"' );
+ok( false === strpos( $kit, '—' ) && false === strpos( $kit, '&#8212;' ), 'no em dash anywhere in the rich kit leaf' );
+ok( false === strpos( $__cl_rich, ' — ' ), 'no em dash in the classic reports either' );
 ok( false !== strpos( $kit, 'This report has no detail view yet' ), 'the unknown report key falls back to the degrading message, as the classic registry does' );
 
 // Contrast: usage tier + arithmetic tier.
@@ -283,7 +297,7 @@ ok( false !== strpos( $kit, '<os-stat value="1" label="Would fail if paired" cap
 
 // ── Escaping: a hostile field value never reaches the markup raw.
 $GLOBALS['__scan']['checks']['link_isolation']['report']['isolated'][0]['title'] = '"><script>x</script>';
-$GLOBALS['__scan']['checks']['contrast_tokens']['report']['coverage']           = '<img src=x onerror=alert(1)>';
+$GLOBALS['__scan']['checks']['link_isolation']['report']['coverage']            = '<img src=x onerror=alert(1)>'; // a stored sentence still paints for this key
 $kit = reports_paint();
 ok( false === strpos( $kit, '<script>' ) && false !== strpos( $kit, '&lt;script&gt;' ), 'a hostile isolated-note title is escaped' );
 ok( false === strpos( $kit, '<img src=x' ) && false !== strpos( $kit, '&lt;img' ), 'a hostile coverage sentence is escaped' );
@@ -366,7 +380,7 @@ $GLOBALS['__scan'] = $rich_scan;
 $kit = reports_paint();
 $box = reports_leaf_facts_box( $kit );
 ok( '' !== $box && strrpos( $kit, 'class="snt-cols"' ) < strpos( $kit, 'heading="Plugin environment"' ), 'the environment box paints under the last report row' );
-ok( false !== strpos( $box, '<os-fact label="WordPress JS packages served by"><span class="snt-kv__v">plugin:gutenberg' ) && false !== strpos( $box, '1 handles (wp-components)' ), 'the JS-package row names the plugin that serves the wp-* handles, as the Info panel does' );
+ok( false !== strpos( $box, '<os-fact label="WordPress JS packages served by"><span class="snt-kv__v">plugin:gutenberg' ) && false !== strpos( $box, 'plugin:gutenberg, 1 handle (wp-components)' ), 'the JS-package row names the plugin that serves the wp-* handles, as the Info panel does' );
 ok( false !== strpos( $box, '<os-fact label="Database template/navigation overrides"><span class="snt-kv__v">3</span></os-fact>' ), 'the override-count row carries the count' );
 ok( (bool) preg_match( '#<os-fact label="Total plugin-directory size"><span class="snt-kv__v">[0-9.,]+ (B|KB|MB|GB)#', $box ), 'the footprint total is a formatted size' );
 ok( false !== strpos( $box, '<os-fact label="Last janitor sweep"><span class="snt-kv__v">freed 121 KB on v9.9.9</span></os-fact>' ), 'the sweep row is the Info panel\'s sentence from the same option' );
@@ -388,21 +402,27 @@ $box = reports_leaf_facts_box( $kit );
 ok( '' !== $box && false === strpos( $box, 'Last janitor sweep' ) && strpos( $kit, 'No scan yet' ) < strpos( $kit, 'heading="Plugin environment"' ), 'no scan and no sweep: the box paints under the no-scan sentence without a sweep row' );
 
 // ── 2026-10-11: the caps are counted out loud, never silent. At the cap the
-// "+N more" line is absent; one row past it, it counts the one. The
-// placement-dependent table used to cap at 25 with no line at all.
+// "+N more" line is absent; one row past it, it counts the one. 2026-10-12:
+// the kit caps every report ledger at 10 rows (sorted worst-first; about 120
+// open rows live before); the classic keeps its 25 inside its folds.
 $edge = $rich_scan;
 $row  = $rich_scan['checks']['contrast_tokens']['report']['usage']['conditional'][0];
+$edge['checks']['contrast_tokens']['report']['usage']['conditional'] = array_fill( 0, 10, $row );
+$GLOBALS['__scan'] = $edge;
+$kit     = reports_paint();
+ok( false === strpos( $kit, 'more placement-dependent pairings' ), 'kit, placement-dependent at its cap (10): no "+N more" line' );
+$edge['checks']['contrast_tokens']['report']['usage']['conditional'] = array_fill( 0, 11, $row );
+$GLOBALS['__scan'] = $edge;
+$kit     = reports_paint();
+ok( false !== strpos( $kit, '+1 more placement-dependent pairings, sorted worst-first; the tail is the safe end.' ), 'kit, one past its cap (11): "+1 more" says the list is cut' );
 $edge['checks']['contrast_tokens']['report']['usage']['conditional'] = array_fill( 0, 25, $row );
 $GLOBALS['__scan'] = $edge;
-$kit     = reports_paint();
 $classic = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
-ok( false === strpos( $kit, 'more placement-dependent pairings' ) && false === strpos( $classic, 'more placement-dependent pairings' ), 'placement-dependent at the cap (25): no "+N more" line on either leaf' );
+ok( false === strpos( $classic, 'more placement-dependent pairings' ), 'classic, placement-dependent at its cap (25): no "+N more" line' );
 $edge['checks']['contrast_tokens']['report']['usage']['conditional'] = array_fill( 0, 26, $row );
 $GLOBALS['__scan'] = $edge;
-$kit     = reports_paint();
 $classic = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
-ok( false !== strpos( $kit, '+1 more placement-dependent pairings, sorted worst-first; the tail is the safe end.' ), 'placement-dependent one past the cap (26): "+1 more" says the list is cut' );
-ok( false !== strpos( $classic, '+1 more placement-dependent pairings, sorted worst-first; the tail is the safe end.' ) && false !== strpos( $classic, 'assets/provenance.css' ), 'classic twin, one past the cap: the same "+1 more" line, and each row names its stylesheet' );
+ok( false !== strpos( $classic, '+1 more placement-dependent pairings, sorted worst-first; the tail is the safe end.' ) && false !== strpos( $classic, 'assets/provenance.css' ), 'classic twin, one past its cap: the same "+1 more" line, and each row names its stylesheet' );
 
 // ── Live-shaped preview: the volumes the live site carries (451
 // placement-dependent pairings, ~40 failing pairings over 3 palettes, ~300
@@ -448,10 +468,15 @@ $kit = reports_paint();
 $__fail = count( array_filter( $pairs, static fn( $r ) => empty( $r['aa_body'] ) ) );
 ok( false !== strpos( $kit, $__fail . ' of ' . count( $pairs ) . ' token pairs would fall below' ) && false === strpos( $kit, '38 of ' . count( $pairs ) . ' token pairs' ) && $__fail <= count( $pairs ), 'the arithmetic count is read from the printed pairs (' . $__fail . ' of ' . count( $pairs ) . '), never the stored figure (38)' );
 ok( 1 === preg_match( '/<os-stat value="' . $__fail . '" label="Would fail if paired" caption="of ' . count( $pairs ) . ' token pairs/', $kit ), 'the arithmetic tile counts the printed pairs too, not the stored figure' );
-ok( false !== strpos( $kit, '451 pairings pass on the page background' ) && false !== strpos( $kit, '+426 more placement-dependent pairings' ), 'live-shaped: 451 placement-dependent pairings, 25 shown, "+426 more"' );
-ok( false !== strpos( $kit, '40 of 1,268 declared pairings fall below body-text AA' ) && false !== strpos( $kit, '+15 more failing pairings' ), 'live-shaped: 40 failing pairings, 25 shown, "+15 more"' );
-ok( false !== strpos( $kit, '60 of 300 token pairs would fall below 4.5:1' ) && false !== strpos( $kit, '+240 more pairs, every one of them at' ), 'live-shaped: 300 token pairs, 60 shown, "+240 more", the hedge kept' );
-ok( false !== strpos( $kit, '70 of 212 declared motions' ) && false !== strpos( $kit, '+20 more uncovered declarations' ), 'live-shaped: 70 uncovered declarations, 50 shown, "+20 more"' );
+ok( false !== strpos( $kit, '451 pairings pass on the page background' ) && false !== strpos( $kit, '+441 more placement-dependent pairings' ), 'live-shaped: 451 placement-dependent pairings, 10 shown, "+441 more"' );
+ok( false !== strpos( $kit, '40 of 1,268 declared pairings fall below body-text AA' ) && false !== strpos( $kit, '+30 more failing pairings' ), 'live-shaped: 40 failing pairings, 10 shown, "+30 more"' );
+ok( false !== strpos( $kit, '60 of 300 token pairs would fall below 4.5:1' ) && false !== strpos( $kit, '+290 more pairs, every one of them at ' . number_format( (float) $pairs[9]['ratio'], 2 ) . ':1 or better' ), 'live-shaped: 300 token pairs, 10 shown, "+290 more", the floor named from the tenth row' );
+ok( false !== strpos( $kit, '70 of 212 declared motions' ) && false !== strpos( $kit, '+60 more uncovered declarations' ), 'live-shaped: 70 uncovered declarations, 10 shown, "+60 more"' );
+$__rows = 0;
+foreach ( snt_leaf_tables( $kit ) as $__t ) {
+	$__rows += count( (array) ( $__t['data'] ?? array() ) );
+}
+ok( $__rows <= 45, 'live-shaped: the whole leaf opens at most about 40 rows (it was about 120): ' . $__rows );
 snt_leaf_preview( 'tools-reports', $kit );
 
 // 2026-10-12, measured live (653px and 620px): the placement-dependent and
@@ -459,6 +484,12 @@ snt_leaf_preview( 'tools-reports', $kit );
 $__rk = snt_leaf_paint( 'tools', 'reports' );
 $__pl = strpos( $__rk, 'heading="Placement-dependent pairings"' );
 ok( false !== $__pl && strrpos( substr( $__rk, 0, $__pl ), snt_leaf_row() ) > strrpos( substr( $__rk, 0, $__pl ), 'heading="Usage tier"' ) && strpos( $__rk, 'heading="Arithmetic tier"' ) > $__pl, 'the placement-dependent and arithmetic tiers share one row, after the usage tier' );
+
+// 2026-10-12, measured live (290px and 218px): when the motion report closes
+// the list, it and the Plugin environment box share a row.
+$__mo = strpos( $__rk, 'heading="Motion asks first' );
+$__pe = strpos( $__rk, 'heading="Plugin environment"' );
+ok( false !== $__mo && false !== $__pe && $__mo < $__pe && 1 === preg_match( '/<os-grid[^>]*>\s*<os-section[^>]*heading="Motion asks first[^"]*".*heading="Plugin environment"/s', substr( $__rk, (int) strrpos( substr( $__rk, 0, $__mo ), '<os-grid' ) ) ), 'the motion report and the Plugin environment box share one row' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

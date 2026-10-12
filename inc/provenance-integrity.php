@@ -653,7 +653,7 @@ function sn_prov_integrity_findings( $state ) {
 			'note'          => in_array( 'no_signed_commit', $failures, true )
 				? sprintf( 'No provenance triangle to check: %s.', implode( '; ', $named ) )
 				: sprintf(
-					'Provenance triangle check failed for v%d: %s.',
+					'Provenance integrity check failed for v%d: %s.',
 					(int) ( $row['version'] ?? 0 ),
 					implode( '; ', $named )
 				),

@@ -1368,8 +1368,8 @@
 
 /* ─── Link cards (Links tab) ─────────────────────────────────────────────
    Upgrades from the 4-row .form-table to a card grid of external links.
-   Each card has a label, the URL host, and the clickable link as the
-   whole-card target via overlay. */
+   Each card has a label, the title as the link (the whole-card target via
+   its ::after), and the URL host. */
 .sn-link-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -1408,11 +1408,16 @@
 	color: var(--sn-link, #2271b1);
 	font-size: 0.82rem;
 }
-.sn-link-card__link {
+/* 2026-10-12: the title IS the link (it was a second, hidden overlay link
+   with the same words, read twice by a screen reader); its ::after keeps the
+   whole card as the target. */
+a.sn-link-card__title {
+	text-decoration: none;
+}
+a.sn-link-card__title::after {
+	content: "";
 	position: absolute;
 	inset: 0;
-	text-indent: -9999px;
-	overflow: hidden;
 	z-index: 1;
 }
 

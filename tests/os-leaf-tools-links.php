@@ -37,8 +37,11 @@ ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && array() === snt
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
 // ── Every readout the classic loop prints: three group labels, six titles, their hosts, their hrefs.
+// 2026-10-12: one section, one grid of six cards; the group names ride each
+// card's eyebrow (as the classic card's label), never a section heading too.
+ok( 1 === substr_count( $kit, '<os-section' ) && false !== strpos( $kit, 'heading="External shortcuts"' ), 'one section holds all six cards' );
 foreach ( array( 'Source code', 'Releases', 'Infrastructure' ) as $label ) {
-	ok( false !== strpos( $kit, 'heading="' . $label . '"' ), "group label '$label' is painted as a section heading" );
+	ok( false === strpos( $kit, 'heading="' . $label . '"' ), "group label '$label' is no longer a second heading over cards that already carry it" );
 }
 
 // ── The classic loop repeats the group label on EVERY card
@@ -67,7 +70,8 @@ $hrefs_ok  = true;
 $hosts_ok  = true;
 foreach ( $expected_links as $l ) {
 	list( $title, $href, $host ) = $l;
-	if ( false === strpos( $kit, '<h3>' . $title . '</h3>' ) ) {
+	// The title IS the link, said once (it was a heading, then the same words as the link).
+	if ( 1 !== preg_match( '#<h3><a [^>]*href="' . preg_quote( $href, '#' ) . '"[^>]*>' . preg_quote( $title, '#' ) . '</a></h3>#', $kit ) || 1 !== substr_count( $kit, '>' . $title . '<' ) ) {
 		$titles_ok = false;
 	}
 	if ( false === strpos( $kit, 'href="' . $href . '"' ) ) {
@@ -77,11 +81,13 @@ foreach ( $expected_links as $l ) {
 		$hosts_ok = false;
 	}
 }
-ok( $titles_ok, 'all six link titles are painted' );
+ok( $titles_ok, 'all six link titles are painted once each, as the link itself' );
+preg_match_all( '#<a [^>]*class="sn-link-card__title"[^>]*>([^<]*)</a>#', $classic, $cl_titles );
+ok( 6 === count( $cl_titles[1] ) && false === strpos( $classic, 'sn-link-card__link' ) && false === strpos( $classic, '<span class="sn-link-card__title">' ), 'classic: the title is the link too, with no hidden second link of the same words' );
 ok( $hrefs_ok, 'all six hrefs are painted, unmodified from the classic array' );
 ok( $hosts_ok, 'all six hosts (wp_parse_url( $href, PHP_URL_HOST )) are painted, matching the classic loop' );
 ok( substr_count( $kit, '<os-card' ) === 6, 'six link cards are painted, one per classic link' );
-ok( substr_count( $kit, '<os-grid columns="2"' ) === 3, 'each group is a two-column kit grid, not an invented div class' );
+ok( 1 === substr_count( $kit, '<os-grid' ) && false !== strpos( $kit, 'min-item-width="360"' ), 'the six cards share one kit grid at a 360px minimum: three columns of about 400px at a 1,300px window, the width the URLs were measured to need' );
 ok( substr_count( $kit, 'target="_blank"' ) === 6 && substr_count( $kit, 'rel="noopener noreferrer"' ) === 6, 'every link opens in a new tab, as the classic anchor does' );
 
 // ── Escaping: a hostile title and href, built directly with the leaf's own
@@ -103,21 +109,10 @@ ok(
 ok( array() === snt_leaf_classic_markers( $hostile ), 'hostile fixture: no wp-admin markup survives either' );
 
 
-// ── NOT paired, deliberately, and pinned so it stays that way. ──
-// These three groups ARE siblings, and v13.109.12 wrapped them in
-// `.snt-systems` on that reading. It was wrong for a mechanical reason: each
-// group already lays out its own cards horizontally, so a horizontal wrapper
-// divides an already-divided width. Measured live 2026-09-10: groups at 265px
-// (575px with the leaf released), cards at ~230px, every URL truncated --
-// `dash.cloudfl...`, `platform.cloudways...`. Stacked, each group takes the
-// full 820px and its two cards sit at ~390px with the URLs readable.
-//
-// The pass rule -- siblings take a grid -- assumes single-column siblings.
+// ── 2026-10-12: the old "NOT paired" reason (three stacked groups, each
+// already two columns wide) no longer applies: one grid replaces the three
+// sections, so there is no row of sections to divide an already-divided width.
 $kitP = snt_leaf_paint( 'tools', 'links' );
-ok(
-	false === strpos( $kitP, 'snt-systems' ) && false === strpos( $kitP, snt_leaf_row() ),
-	'the link groups are NOT wrapped in a row: they already use the width themselves'
-);
-ok( substr_count( $kitP, '<os-section' ) >= 3, '...and all three groups still paint -- ' . substr_count( $kitP, '<os-section' ) );
+ok( false === strpos( $kitP, 'snt-systems' ) && 0 === substr_count( $kitP, '<os-grid columns="2"' ), 'no nested two-column grids inside a row of sections' );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

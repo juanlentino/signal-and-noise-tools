@@ -45,10 +45,11 @@ function sn_admin_render_links_section() {
 		foreach ( $group['links'] as $link ) {
 			$host = (string) wp_parse_url( $link['href'], PHP_URL_HOST );
 			echo '<div class="sn-link-card">';
+			// Each said once (2026-10-12): the title was a span and then the same
+			// words again as the link. The title IS the link now, as on S&N Home.
 			echo '<span class="sn-link-card__label">' . esc_html( $group['label'] ) . '</span>';
-			echo '<span class="sn-link-card__title">' . esc_html( $link['title'] ) . '</span>';
-			echo '<span class="sn-link-card__host">' . esc_html( $host ) . ' &#x2197;</span>';
-			echo '<a class="sn-link-card__link" href="' . esc_url( $link['href'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $link['title'] ) . '</a>';
+			echo '<a class="sn-link-card__title" href="' . esc_url( $link['href'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $link['title'] ) . '</a>';
+			echo '<span class="sn-link-card__host">' . esc_html( $host ) . ' <span aria-hidden="true">&#x2197;</span></span>';
 			echo '</div>';
 		}
 	}

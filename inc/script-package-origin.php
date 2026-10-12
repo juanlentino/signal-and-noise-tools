@@ -159,7 +159,7 @@ function snt_script_package_overrides() {
 function snt_script_package_override_summary( $max = 3 ) {
 	$overrides = snt_script_package_overrides();
 	if ( ! $overrides ) {
-		return __( 'core — no plugin overrides WordPress JS packages', 'signal-and-noise-tools' );
+		return __( 'core; no plugin overrides WordPress JS packages', 'signal-and-noise-tools' );
 	}
 
 	$parts = array();
@@ -170,7 +170,7 @@ function snt_script_package_override_summary( $max = 3 ) {
 
 		$parts[] = sprintf(
 			/* translators: 1: owner token e.g. plugin:gutenberg, 2: handle count, 3: comma-separated handles. */
-			__( '%1$s — %2$d handles (%3$s)', 'signal-and-noise-tools' ),
+			_n( '%1$s, %2$d handle (%3$s)', '%1$s, %2$d handles (%3$s)', $total, 'signal-and-noise-tools' ),
 			$origin,
 			$total,
 			implode( ', ', $shown ) . ( $more > 0 ? sprintf( ', +%d more', $more ) : '' )

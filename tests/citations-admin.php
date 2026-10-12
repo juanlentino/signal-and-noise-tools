@@ -108,7 +108,7 @@ $verified_card = substr( $html, strpos( $html, '__label">verified' ), 400 );
 ok( false === strpos( substr( $verified_card, 0, strpos( $verified_card, '</div>' ) ), 'sn-pill' ), 'a verified card carries no pill -- nothing to act on' );
 ok( false !== strpos( $html, '3 claims: 1 verified · 0 unattributed · 1 asserted · 1 unverified. 1 has never been checked.' ), 'the summary sentence still accounts for the whole table' );
 ok( 6 === substr_count( $html, '<th scope="col">' ), 'six columns: tier, source, cites, first seen, last checked, HTTP' );
-ok( false !== strpos( $html, '<details><summary>What the four tiers mean</summary>' ), 'the legend folds into a details block' );
+ok( false !== strpos( $html, '<h3>What the tiers mean</h3>' ) && false === strpos( $html, '<details' ), '2026-10-12: the legend is open under the S&N Home twin\'s heading, not a fold' );
 foreach ( SN_CIT_TIERS as $t ) {
 	ok( false !== strpos( $html, esc_html( sn_cit_tier_sentence( $t ) ) ), "the legend keeps the $t sentence" );
 }

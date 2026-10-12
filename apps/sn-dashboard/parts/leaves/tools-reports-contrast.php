@@ -111,7 +111,7 @@ function tools_reports_contrast_arithmetic( array $report, array $pairs ) {
 	$thresholds = isset( $report['thresholds'] ) && is_array( $report['thresholds'] ) ? $report['thresholds'] : array();
 	$body       = tools_reports_threshold_label( isset( $thresholds['aa_body'] ) ? (float) $thresholds['aa_body'] : 4.5 );
 	$large      = tools_reports_threshold_label( isset( $thresholds['aa_large'] ) ? (float) $thresholds['aa_large'] : 3.0 );
-	$cap        = defined( 'SN_HEALTH_CONTRAST_MAX_ROWS' ) ? SN_HEALTH_CONTRAST_MAX_ROWS : 60;
+	$cap        = TOOLS_REPORTS_ROWS;
 
 	$rows = array();
 	foreach ( $pairs as $row ) {

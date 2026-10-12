@@ -175,6 +175,12 @@ function snt_contrast_rendered() {
  * @return string
  */
 function snt_contrast_rendered_html( array $v, $class ) {
+	// The run's day in the site's date format, never the raw ISO date
+	// (2026-10-12). Noon UTC keeps the calendar day in any site zone.
+	$ts = '' !== $v['at'] ? strtotime( $v['at'] . ' 12:00:00 UTC' ) : false;
+	if ( false !== $ts && function_exists( 'wp_date' ) ) {
+		$v['at'] = (string) wp_date( (string) get_option( 'date_format', 'F j, Y' ), $ts );
+	}
 	$link = static function ( $text ) use ( $v ) {
 		// A new tab: in S&N Home a plain href replaced the whole desktop with
 		// GitHub (2026-10-12 audit); the classic page loses nothing by it.

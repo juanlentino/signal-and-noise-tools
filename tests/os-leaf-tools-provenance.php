@@ -83,7 +83,12 @@ function sn_prov_key_config_source( $const, $option ) { return $GLOBALS['__prov_
 function sn_prov_worker_version() { return $GLOBALS['__prov_worker_ver'] ?? ''; }
 function sn_prov_next_key_commitment() { return $GLOBALS['__prov_commitment'] ?? null; }
 if ( ! function_exists( 'get_posts' ) ) {
-	function get_posts( $args = array() ) { return $GLOBALS['__prov_ids']; }
+	// numberposts honored: the Commits table reads the newest 100 subjects,
+	// the tiles read every one (2026-10-12: the cut is counted, not silent).
+	function get_posts( $args = array() ) {
+		$n = (int) ( $args['numberposts'] ?? -1 );
+		return $n > 0 ? array_slice( $GLOBALS['__prov_ids'], 0, $n ) : $GLOBALS['__prov_ids'];
+	}
 }
 
 // ── The classic-renderer dependencies that live outside the plugin's own
@@ -145,7 +150,8 @@ ok(
 	'baseline actions match the classic forms (no candidates yet, so no backfill action): ' . implode( ',', prov_actions( $kit ) )
 );
 ok( false !== strpos( $kit, 'os-arg-pipeline="admin-post"' ), 'every admin-post form declares the admin-post pipeline' );
-ok( false !== strpos( $kit, 'No contact yet' ) && false !== strpos( $kit, 'Not anchored' ), 'the glance hero shows an unreached Worker and an unanchored genesis' );
+ok( false !== strpos( $kit, 'No answer yet' ) && false !== strpos( $kit, 'Not anchored' ), 'the glance hero shows an unreached Worker and an unanchored genesis' );
+ok( false !== strpos( $kit, 'label="Not sent"' ) && false !== strpos( $kit, 'nothing has been sent' ), '2026-10-12: a Not sent tile, and a Worker that was never asked says so instead of a warn "idle"' );
 // 14.7.2: a window has no poller, so its empty table is a STATE (nothing
 // pending), never a wait. The classic pre-hydration copy read as a stall the
 // first time the queue drained.
@@ -157,8 +163,9 @@ ok( false === strpos( $kit, 'Every commit is anchored' ), '14.7.3: and claims no
 if ( ! function_exists( 'sn_prov_integrity_state' ) ) { function sn_prov_integrity_state() { return $GLOBALS['__prov_integrity'] ?? null; } }
 $GLOBALS['__prov_integrity'] = array( 'failed' => 3, 'swept_at' => 1789372828 );
 $kit_failing = prov_paint();
-ok( false !== strpos( $kit_failing, 'reports 3 subjects failing' ) && false !== strpos( $kit_failing, '2026-09-14 04:00 EDT' ) && false !== strpos( $kit_failing, 'Trust checks' ),
-	'with 3 failing in the last sweep, the empty table names the count, dates the reading in the SITE timezone (08:00 UTC → 04:00 EDT) and points at Trust checks' );
+ok( false !== strpos( $kit_failing, 'reports 3 subjects failing' ) && false !== strpos( $kit_failing, 'September 14, 2026 4:00 am EDT' ) && false !== strpos( $kit_failing, 'Trust checks' ),
+	'with 3 failing in the last sweep, the empty table names the count, dates the reading in the SITE timezone and its date format (08:00 UTC, 4:00 am EDT) and points at Trust checks' );
+ok( false !== strpos( $kit_failing, 'The Provenance integrity check' ) && false === strpos( $kit_failing, 'integrity sweep' ), '2026-10-12: the check goes by the one name Health and Trust checks use' );
 $GLOBALS['__prov_integrity'] = array( 'failed' => 0, 'swept_at' => 1789372828 );
 ok( false === strpos( prov_paint(), 'failing' ), 'a clean sweep adds nothing: the sentence stays about pending proofs' );
 $GLOBALS['__prov_integrity'] = null;
@@ -184,6 +191,7 @@ $GLOBALS['__prov_kind'][101]   = 'note';
 $GLOBALS['__prov_kind'][102]   = 'note';
 $GLOBALS['__prov_kind'][103]   = ''; // v13.69.1: an unresolved subject is never a candidate.
 $GLOBALS['__prov_chains'][101] = array( array( 'version' => 1, 'status' => 'pending', 'committed_at' => '2026-09-04T10:00:00Z' ) );
+$GLOBALS['__prov_uid'][101]    = 'uid-101'; // 2026-10-12: a row with a ledger record, so the link cell is exercised.
 $GLOBALS['__prov_chains'][102] = array( array( 'version' => 1, 'status' => 'confirmed', 'confirmed_at' => '2026-09-01T10:00:00Z' ) );
 $GLOBALS['__prov_chains'][103] = array();
 
@@ -212,13 +220,21 @@ ok(
 ok( false !== strpos( $kit, '✓ Configured' ), 'configured Worker URL/HMAC/pubkey read as configured' );
 ok( false !== strpos( $kit, '1.9.0' ), 'the Worker version is shown' );
 ok( false !== strpos( $kit, 'key-2026-09' ) && false !== strpos( $kit, 'site option' ), 'the signing key id and its source are shown' );
-ok( false !== strpos( $kit, 'Reachable' ), 'a pending/confirmed commit makes the Worker read reachable' );
+ok( 1 === preg_match( '/<os-stat value="Answered" label="Worker" caption="last answered September 4, 2026 6:00 am EDT"/', $kit ) && false === strpos( $kit, 'Reachable' ) && false === strpos( $kit, 'online' ), 'a pending/confirmed commit makes the Worker read "Answered", its caption dating the last answer in the site format; it never says "online" (inferred, not pinged)' );
 ok( false !== strpos( $kit, 'Pending' ) && false !== strpos( $kit, 'Confirmed' ), 'the genesis pill reads Pending' );
 ok( false !== strpos( $kit, 'Already anchored: nothing to re-anchor.' ) && false === strpos( $kit, 'name="action" value="sn_prov_reanchor"' ), 'a pending genesis omits the re-anchor form' );
 ok( false !== strpos( $kit, 'cdcdcdcdcdcdcdcd…' ), 'the published commitment is truncated the same way the classic root is' );
+ok( false !== strpos( $kit, 'committed September 5, 2026' ) && false !== strpos( $classic, 'committed September 5, 2026' ) && false === strpos( $kit, 'committed 2026-09-05' ), '2026-10-12: the commitment date reads in the site\'s date format on both surfaces, never the raw ISO date' );
 ok( false !== strpos( $kit, 'Rotate to the committed key' ) && false === strpos( $kit, 'Publish a commitment to the staged key' ), 'a published commitment switches to the rotate-key button' );
-ok( false !== strpos( $kit, '2 published subjects' ) || false !== strpos( $kit, sprintf( '%s published subjects', number_format_i18n( 2 ) ) ), 'exactly the 2 resolved-kind candidates are counted (the unresolved-kind post is excluded)' );
-ok( false !== strpos( $kit, 'https://ledger.test/notes/' ) || false !== strpos( $kit, '&#8212;' ) || false !== strpos( $kit, '—' ), 'the commits table carries a ledger reference per row' );
+ok( false !== strpos( $kit, '2 published notes and pages cannot be verified yet' ), 'exactly the 2 resolved-kind candidates are counted (the unresolved-kind post is excluded)' );
+// 2026-10-12: one name for what the count counts, and no jargon.
+ok( false !== strpos( $kit, 'Import or repair 2 notes and pages from the ledger' ) && false === strpos( $kit, 'Repair 2 Notes' ) && false === strpos( $kit, 'July ledger backfill' ), 'the button names the same notes and pages the sentence counts, with no "July ledger backfill" jargon' );
+ok( false !== strpos( $classic, 'Import or repair 2 notes and pages from the ledger' ) && false !== strpos( $classic, '2 published notes and pages cannot be verified yet' ), '...and the classic box says the same sentences' );
+// 2026-10-12: the Ledger cell is a link that names its record, never a URL as text or a dash.
+ok( 1 === preg_match( '/<a [^>]*href="https:\/\/ledger\.test\/notes\/[^"]*"[^>]*>v1 on the ledger<\/a>/', $kit ), 'the commits table\'s Ledger cell is a link reading "v1 on the ledger"' );
+ok( false === strpos( $kit, '—' ) && false === strpos( $kit, '&#8212;' ), 'no em dash anywhere in the leaf' );
+$prov_js = (string) file_get_contents( SNT_PATH . 'assets/provenance-admin.js' );
+ok( false !== strpos( $prov_js, "' on the ledger'" ) && false !== strpos( $prov_js, "'No ledger record'" ) && false === strpos( $prov_js, "createTextNode('—')" ) && false === strpos( $prov_js, 'All commits anchored' ), 'the classic poller says the same: the record linked by name, "No ledger record", and the kit\'s empty sentence' );
 
 // ────────────────────────────────────────────────────────────────────────
 // 4. Escaping: a hostile signing-key id and a hostile genesis root never
@@ -301,6 +317,69 @@ ok( array() === $GLOBALS['__transients'], '...and spends the one-shot transient,
 ok( false !== strpos( $second, 'Ledger backfill' ) && false !== strpos( $second, 'Imported 3 confirmed anchors from the ledger, and repaired 1 missing signatures.' ), 'the SECOND paint of the same session (a poll tick within 30 s) still paints the notice and the section: the result rode params instead of being re-read from a spent transient' );
 ok( array( 'sn_prov_backfill_result' => array( 'imported' => 3, 'repaired' => 1, 'skipped' => array(), 'remaining' => 0, 'stopped' => '' ) ) === $prov_state->get( 'params' ), 'the stash is a sn_* key in params, so it leaves on the next go or post' );
 ok( false === strpos( prov_paint(), 'Ledger backfill' ), 'a fresh state with no transient and no candidates paints no section: the stash never leaked past its state object' );
+
+// ────────────────────────────────────────────────────────────────────────
+// 6b. 2026-10-12: the rotation result is painted on both surfaces. The
+// handlers redirect with sn_prov_rotate=staged|rotated|e-<code>, and nothing
+// read it: a rotation consumed its commitment and the box looked untouched.
+$rot = array(
+	'staged'            => array( 'Commitment published', 'hash of the key the Worker has staged is now public' ),
+	'rotated'           => array( 'Rotated to key key-2026-09', 'previous key is in the published history' ),
+	'e-reveal-mismatch' => array( 'Nothing changed', 'does not hash to the published commitment' ),
+	'e-ledger-write-failed' => array( 'Nothing changed', 'public ledger did not record the rotation' ),
+	'e-surprise'        => array( 'Nothing changed', 'refused with the code &quot;surprise&quot;' ),
+);
+foreach ( $rot as $flag => $want ) {
+	$kit_r = prov_paint( array( 'sn_prov_rotate' => $flag ) );
+	$_GET['sn_prov_rotate'] = $flag;
+	$cl_r = snt_leaf_classic_html( 'sn_admin_render_provenance_section' );
+	unset( $_GET['sn_prov_rotate'] );
+	$kit_ok = false !== strpos( $kit_r, $want[0] ) && false !== strpos( $kit_r, $want[1] ) && false !== strpos( $kit_r, 0 === strpos( $flag, 'e-' ) ? 'tone="danger"' : 'tone="success"' );
+	ok( $kit_ok && false !== strpos( $cl_r, $want[0] ) && false !== strpos( $cl_r, $want[1] ), "sn_prov_rotate=$flag paints \"{$want[0]}\" with its reason on the kit leaf and the classic page" );
+}
+ok( false === strpos( prov_paint(), 'Nothing changed' ) && false === strpos( prov_paint( array( 'sn_prov_rotate' => 'e-' ) ), 'Nothing changed' ), 'no flag (or an empty code) paints no rotation notice' );
+ok( false === strpos( prov_paint(), 'commitment above' ), 'the rotate hint names the commitment, not its position' );
+
+// ── 6c. The tiles and the table count the same population: the table reads
+// the newest 100 subjects, so the cut is counted under it on both surfaces.
+$GLOBALS['__prov_ids'] = range( 1001, 1102 );
+foreach ( $GLOBALS['__prov_ids'] as $i ) {
+	$GLOBALS['__prov_kind'][ $i ]   = 'note';
+	$GLOBALS['__prov_uid'][ $i ]    = 'u' . $i;
+	$GLOBALS['__prov_chains'][ $i ] = array( array( 'version' => 1, 'status' => $i > 1100 ? 'unanchored' : 'pending', 'committed_at' => '2026-09-04T10:00:00Z' ) );
+}
+$kit_cut = prov_paint();
+$cl_cut  = snt_leaf_classic_html( 'sn_admin_render_provenance_section' );
+ok( false !== strpos( $kit_cut, '+2 older proofs waiting are not listed; the table reads the newest 100 subjects.' ), '102 waiting, 100 listed: the kit says what the table leaves out' );
+ok( false !== strpos( $cl_cut, '+2 older proofs waiting are not listed; the table reads the newest 100 subjects.' ), '...and the classic page says the same under its table' );
+ok( 1 === preg_match( '/<os-stat[^>]*value="100"[^>]*label="Pending"/', $kit_cut ) && 1 === preg_match( '/<os-stat[^>]*value="2"[^>]*label="Not sent"[^>]*tone="warning"|<os-stat[^>]*tone="warning"[^>]*value="2"[^>]*label="Not sent"/', $kit_cut ), 'the tiles count every subject: Pending 100, Not sent 2 (amber)' );
+foreach ( $GLOBALS['__prov_ids'] as $i ) {
+	unset( $GLOBALS['__prov_chains'][ $i ], $GLOBALS['__prov_kind'][ $i ], $GLOBALS['__prov_uid'][ $i ] );
+}
+$GLOBALS['__prov_ids'] = array();
+
+// ── 6d. The Internet Archive box: "not configured" is neutral and said once;
+// a push that got no response says so, never "HTTP 0".
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+define( 'SN_ARCHIVE_PUSH_LAST_OPT', 'sn_archive_push_last' );
+define( 'SN_ARCHIVE_EXISTING_OPT', 'sn_archive_existing' );
+function sn_archive_push_keys() { return $GLOBALS['__arch_keys'] ?? null; }
+function sn_archive_existing_pending( $limit = 0 ) { return array( 7 ); }
+function sn_archive_existing_status_line() { return null === sn_archive_push_keys() ? 'Not configured: add SN_ARCHIVE_ACCESS_KEY and SN_ARCHIVE_SECRET_KEY to wp-config.' : '1 published notes have never been pushed.'; }
+require SNT_PATH . 'inc/archive-push-status.php';
+require SNT_PATH . 'inc/archive-push-admin.php';
+require_once SNT_PATH . 'apps/sn-dashboard/parts/leaves/tools-provenance-archive.php';
+$arch_kit = \SignalNoise\OpenStationHost\Dashboard\Leaves\provenance_archive_html();
+$arch_cl  = snt_leaf_classic_html( 'sn_archive_existing_render_fieldset' );
+ok( false !== strpos( $arch_kit, 'tone="info"' ) && false === strpos( $arch_kit, 'tone="success"' ), 'unconfigured: the kit notice is neutral, not a green pass' );
+ok( 1 === substr_count( strtolower( $arch_kit ), 'not configured' ) && false === strpos( $arch_kit, 'Older notes:' ), '...and says "not configured" once: no "Older notes" line repeating it' );
+ok( 1 === substr_count( strtolower( $arch_cl ), 'not configured' ) && false === strpos( $arch_cl, 'Older notes:' ), 'the classic box says it once too' );
+$GLOBALS['__arch_keys'] = array( 'a', 'b' );
+$GLOBALS['__options']['sn_archive_push_last'] = array( 'post_id' => 7, 'requested_at' => time() - 60, 'state' => 'failed', 'failures' => array( 7 => array( 'requested_at' => time() - 60, 'status' => 0, 'state' => 'failed', 'reason' => 'timeout' ) ) );
+$arch_kit = \SignalNoise\OpenStationHost\Dashboard\Leaves\provenance_archive_html();
+ok( false !== strpos( $arch_kit, 'no response' ) && false === strpos( $arch_kit, 'HTTP 0' ) && false !== strpos( $arch_kit, 'tone="warning"' ), 'a failed push with no response reads "no response", never "HTTP 0", in an amber notice' );
+ok( false !== strpos( $arch_kit, 'Older notes:' ), 'configured: the older-notes line is back' );
+unset( $GLOBALS['__options']['sn_archive_push_last'], $GLOBALS['__arch_keys'] );
 
 // ────────────────────────────────────────────────────────────────────────
 // 7. Unreached Worker + unconfigured constants: the reanchor failure copy

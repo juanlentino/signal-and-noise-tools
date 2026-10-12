@@ -14,6 +14,10 @@ function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_url( $s ) { return (string) $s; }
 function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function _n( $one, $many, $n, $d = null ) { return 1 === (int) $n ? $one : $many; }
+// 2026-10-12: the run date prints through wp_date() in the site's date format
+// (WordPress's default here) and zone (America/New_York, behind UTC).
+function get_option( $k, $d = false ) { return $d; }
+function wp_date( $format, $ts = null, $tz = null ) { $d = new DateTime( '@' . (int) $ts ); $d->setTimezone( new DateTimeZone( 'America/New_York' ) ); return $d->format( $format ); }
 require dirname( __DIR__ ) . '/inc/health-contrast-rendered.php';
 
 $pass = 0; $fail = 0;
@@ -53,7 +57,7 @@ ok( 'snt_contrast_rendered_v2' === SN_CONTRAST_RENDERED_CACHE, 'the cache key mo
 
 echo "\nGroup: the line\n";
 $h = snt_contrast_rendered_html( snt_contrast_rendered_evaluate( $run( 'success' ), array( $summary ) ), 'snt-hint' );
-ok( false !== strpos( $h, 'on 40 pages (1300 pairs, 95 links)' ) && false !== strpos( $h, '<a class="snt-link" href="https://github.com/juanlentino/signal-and-noise/actions/runs/1" target="_blank" rel="noopener noreferrer">2026-10-07</a>' ), 'ok names its scope and links the run by its date' );
+ok( false !== strpos( $h, 'on 40 pages (1300 pairs, 95 links)' ) && false !== strpos( $h, '<a class="snt-link" href="https://github.com/juanlentino/signal-and-noise/actions/runs/1" target="_blank" rel="noopener noreferrer">October 7, 2026</a>' ) && false === strpos( $h, '2026-10-07' ), 'ok names its scope and links the run by its date, in the site\'s date format (never the raw ISO date), keeping its day in a zone behind UTC' );
 $h = snt_contrast_rendered_html( snt_contrast_rendered_evaluate( $run( 'failure' ), array( array( 'annotation_level' => 'failure' ) ) ), 'snt-hint' );
 ok( false !== strpos( $h, '>1 failure</a>' ), 'red links its failure count to the run that names each (an amber line links to its fix)' );
 $h = snt_contrast_rendered_html( snt_contrast_rendered_evaluate( null, null ), 'snt-hint' );

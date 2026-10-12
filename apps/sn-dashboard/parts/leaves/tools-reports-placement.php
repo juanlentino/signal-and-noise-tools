@@ -54,7 +54,7 @@ function tools_reports_contrast_conditional( array $conditional ) {
 			$finding,
 			tools_reports_usage_columns( __( 'Would be', 'signal-and-noise-tools' ) ),
 			$rows,
-			defined( 'SN_HEALTH_CONTRAST_USAGE_MAX_ROWS' ) ? SN_HEALTH_CONTRAST_USAGE_MAX_ROWS : 25,
+			TOOLS_REPORTS_ROWS,
 			/* translators: %s: placement-dependent pairings not listed. */
 			array( 'more' => __( '+%s more placement-dependent pairings, sorted worst-first; the tail is the safe end.', 'signal-and-noise-tools' ) )
 		),

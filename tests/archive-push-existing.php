@@ -95,6 +95,8 @@ $GLOBALS['posts'][9] = $note( 9 ); sn_archive_existing_start(); $drop(); $GLOBAL
 $t = sn_archive_existing_tick();
 ok( 'halted' === $t['state'] && ! sn_archive_existing_booked( SN_ARCHIVE_EXISTING_HOOK ), 'keys removed mid-run: the tick halts instead of picking the same note forever' );
 
+ok( 'no response timeout' === sn_archive_existing_next( array( 'state' => 'failed', 'status' => 0, 'reason' => 'timeout' ), 3, true )['reason'] && 'HTTP 401 refused' === sn_archive_existing_next( array( 'state' => 'failed', 'status' => 401, 'reason' => 'refused' ), 3, true )['reason'], '2026-10-12: a halt with no response says so, never "HTTP 0"; a real status keeps its code' );
+
 echo "\nRegistration\n";
 $src = static fn( $f ) => (string) file_get_contents( __DIR__ . '/../' . $f );
 ok( false !== strpos( $src( 'inc/cron-lifecycle.php' ), 'SN_ARCHIVE_EXISTING_HOOK,' ), 'the tick is in the deactivation list' );

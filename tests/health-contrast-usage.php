@@ -313,6 +313,7 @@ ok( ! sn_health_contrast_usage_contains( '.cardboard', '.card-' ), 'a different 
 // palette-drift tripwire. This group pins the ORDER and the WRAPPER, because
 // nothing else does — the scanner tests above cannot see presentation.
 echo "\nGroup 9: renderer — usage tier leads, arithmetic tier collapses\n";
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return (string) $s; } } // 2026-10-12: the coverage sentence is a translated string (inc/health-report-coverage.php).
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }

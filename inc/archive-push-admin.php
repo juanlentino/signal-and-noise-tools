@@ -27,8 +27,12 @@ function sn_archive_existing_render_fieldset() {
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Internet Archive', 'signal-and-noise-tools' ) . '</h2>';
 	echo '<p class="sn-fieldset-intro">' . esc_html__( 'A note is pushed to the Internet Archive on its first publish, so a dated outside copy exists from day one. An accepted request is not a confirmed capture; the crawl runs later.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p>' . esc_html( ucfirst( $watch['note'] ) ) . '</p>';
-	echo '<p><strong>' . esc_html__( 'Older notes:', 'signal-and-noise-tools' ) . '</strong> ' . esc_html( sn_archive_existing_status_line() ) . '</p>';
-	if ( $pending > 0 && 'running' !== ( $run['state'] ?? '' ) && null !== sn_archive_push_keys() ) {
+	// Not configured is said once, by the line above; the run line would repeat it.
+	$configured = null !== sn_archive_push_keys();
+	if ( $configured ) {
+		echo '<p><strong>' . esc_html__( 'Older notes:', 'signal-and-noise-tools' ) . '</strong> ' . esc_html( sn_archive_existing_status_line() ) . '</p>';
+	}
+	if ( $pending > 0 && 'running' !== ( $run['state'] ?? '' ) && $configured ) {
 		echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'archive_push_existing' ) ) . '">';
 		echo '<input type="hidden" name="action" value="sn_archive_push_existing" />';
 		echo '<button type="submit" class="button button-primary">' . esc_html(

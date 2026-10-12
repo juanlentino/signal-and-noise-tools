@@ -9,6 +9,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/provenance-admin-glance.php';
+
 /**
  * Build the admin live-status payload: every commit still pending/unanchored,
  * plus genesis anchor status.
@@ -283,7 +285,7 @@ function sn_admin_render_provenance_section() {
 	// compact System + Genesis readouts stacked in the rail. Between open() and
 	// close() no early return may occur (would unbalance the wrapper divs).
 	sn_admin_shell_open();
-	sn_prov_admin_render_commits_fieldset( $note_base );
+	sn_prov_admin_render_commits_fieldset( $note_base, $sys );
 	// v10.3.0: the one-shot ledger backfill (renders only while candidates
 	// exist — after a clean import the section disappears).
 	if ( function_exists( 'sn_prov_backfill_render_fieldset' ) ) {
@@ -319,96 +321,6 @@ function sn_prov_admin_status_label( $status ) {
 	);
 	$status = (string) $status;
 	return $labels[ $status ] ?? ucfirst( $status );
-}
-
-/**
- * Format a provenance timestamp for admin display in Eastern Time — the site's
- * operating timezone — instead of the raw UTC ISO-8601 the Worker/ledger store.
- * A full instant (e.g. "2026-07-09T19:31:58Z") becomes "Jul 9, 2026 3:31 PM EDT"
- * (DST-aware: EDT in summer, EST in winter). A bare calendar date (the genesis
- * "date", "YYYY-MM-DD") is reformatted date-only with NO timezone shift — moving
- * its implicit midnight across zones would roll it to the previous day. Empty in
- * → empty out; an unparseable value is returned verbatim rather than swallowed.
- *
- * @param string $iso UTC ISO-8601 instant or a YYYY-MM-DD date.
- * @return string Human ET string, or the input unchanged if it can't be parsed.
- */
-function sn_prov_admin_format_ts( $iso ) {
-	$iso = trim( (string) $iso );
-	if ( '' === $iso ) {
-		return '';
-	}
-	try {
-		$dt = new DateTimeImmutable( $iso );
-	} catch ( Exception $e ) {
-		return $iso; // not a date we recognize — show it as-is, don't lie
-	}
-	// Date-only input carries no clock; reformat as written (no zone conversion).
-	if ( false === strpos( $iso, 'T' ) && false === strpos( $iso, ':' ) ) {
-		return $dt->format( 'M j, Y' );
-	}
-	return $dt->setTimezone( new DateTimeZone( 'America/New_York' ) )->format( 'M j, Y g:i A T' );
-}
-
-/**
- * First-glance hero cards for the Provenance panel: Worker reachability, the
- * genesis anchor status, and the pending/confirmed commit tallies. Pure — takes
- * the sn_prov_admin_system_status() view-model, returns the card array for
- * sn_admin_glance_grid(). Mirrors snt_tags_glance_cards().
- *
- * @param array $sys sn_prov_admin_system_status() view-model.
- * @return array<int,array<string,mixed>>
- */
-function sn_prov_admin_glance_cards( array $sys ) {
-	$reachable    = ! empty( $sys['worker']['reachable'] );
-	$last_contact = (string) ( $sys['worker']['last_contact'] ?? '' );
-	$worker_value = $reachable
-		? __( 'Reachable', 'signal-and-noise-tools' )
-		: __( 'No contact yet', 'signal-and-noise-tools' );
-	if ( $reachable && '' !== $last_contact ) {
-		$worker_value .= ' · ' . sn_prov_admin_format_ts( $last_contact );
-	}
-
-	$genesis  = is_array( $sys['genesis'] ) ? $sys['genesis'] : array();
-	$g_status = (string) ( $genesis['status'] ?? '' );
-	$g_pills  = array(
-		'confirmed' => array( 'kind' => 'ok', 'text' => 'anchored' ),
-		'pending'   => array( 'kind' => 'warn', 'text' => 'awaiting' ),
-		'unsent'    => array( 'kind' => 'err', 'text' => 'unsent' ),
-	);
-	$genesis_card = array(
-		'label' => 'Genesis',
-		'value' => '' !== $g_status ? sn_prov_admin_status_label( $g_status ) : __( 'Not anchored', 'signal-and-noise-tools' ),
-	);
-	if ( isset( $g_pills[ $g_status ] ) ) {
-		$genesis_card['pill'] = $g_pills[ $g_status ];
-	}
-
-	$pending   = (int) ( $sys['counts']['pending'] ?? 0 );
-	$confirmed = (int) ( $sys['counts']['confirmed'] ?? 0 );
-
-	return array(
-		array(
-			'label' => 'Worker',
-			'value' => $worker_value,
-			'pill'  => $reachable
-				? array( 'kind' => 'ok', 'text' => 'online' )
-				: array( 'kind' => 'warn', 'text' => 'idle' ),
-		),
-		$genesis_card,
-		array(
-			'label' => 'Pending',
-			'value' => number_format_i18n( $pending ),
-			'pill'  => $pending > 0
-				? array( 'kind' => 'warn', 'text' => 'in flight' )
-				: array( 'kind' => 'ok', 'text' => 'clear' ),
-		),
-		array(
-			'label' => 'Confirmed',
-			'value' => number_format_i18n( $confirmed ),
-			'pill'  => array( 'kind' => 'ok', 'text' => 'anchored' ),
-		),
-	);
 }
 
 /**
@@ -584,7 +496,7 @@ function sn_prov_admin_key_row( $label, $value, $source ) {
 		'constant'       => array( __( 'wp-config.php constant', 'signal-and-noise-tools' ), 'sn-pill--ok' ),
 		'option'         => array( __( 'site option', 'signal-and-noise-tools' ), 'sn-pill--ok' ),
 		'default'        => array( __( 'shipped default', 'signal-and-noise-tools' ), 'sn-pill--muted' ),
-		'blank-constant' => array( __( 'shipped default — a BLANK wp-config constant is shadowing the option', 'signal-and-noise-tools' ), 'sn-pill--warn' ),
+		'blank-constant' => array( __( 'shipped default: a BLANK wp-config constant is shadowing the option', 'signal-and-noise-tools' ), 'sn-pill--warn' ),
 	);
 	$known = $sources[ $source ] ?? array( $source, 'sn-pill--muted' );
 	echo '<tr><td>' . esc_html( $label ) . '</td>'
@@ -655,8 +567,9 @@ function sn_prov_admin_render_genesis_fieldset( array $sys ) {
  * tbody carries the data-endpoint/data-nonce/data-ledger the poller reads.
  *
  * @param string $note_base Per-Note ledger URL base (empty when unconfigured).
+ * @param array  $sys       sn_prov_admin_system_status() view-model (the "+N" line).
  */
-function sn_prov_admin_render_commits_fieldset( $note_base ) {
+function sn_prov_admin_render_commits_fieldset( $note_base, array $sys = array() ) {
 	echo '<div class="sn-fieldset sn-fieldset--wide"><h2 class="sn-fieldset-h">' . esc_html__( 'Commits', 'signal-and-noise-tools' ) . '</h2>';
 
 	// On-demand sweep: the last result flash + the trigger. Lets the owner flip
@@ -681,6 +594,11 @@ function sn_prov_admin_render_commits_fieldset( $note_base ) {
 		. ' data-ledger="' . esc_attr( esc_url_raw( (string) $note_base ) ) . '">';
 	echo '<tr><td colspan="4">' . esc_html__( 'Loading anchor status…', 'signal-and-noise-tools' ) . '</td></tr>';
 	echo '</tbody></table>';
+	// Outside the tbody the poller rewrites: the cut is counted once per load.
+	$line = array() !== $sys ? sn_prov_admin_unlisted_line( sn_prov_admin_unlisted( $sys, count( sn_prov_admin_status()['pending'] ) ) ) : '';
+	if ( '' !== $line ) {
+		echo '<p class="sn-field-helper">' . esc_html( $line ) . '</p>';
+	}
 	echo '</div>';
 }
 
