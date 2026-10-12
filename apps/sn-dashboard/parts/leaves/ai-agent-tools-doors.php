@@ -171,7 +171,14 @@ function agent_tools_door_native_write_html( $slugs, $read_slugs, $usage = null 
 		. ( null === $slugs ? '<p class="snt-prose">' . \snt_kit_esc( __( 'The write-door allowlist is not readable here (its reader is not loaded), so this door’s tools are not listed.', 'signal-and-noise-tools' ) ) . '</p>' : '' );
 	$after  = ( null === $read_slugs ? '' : '<p class="snt-hint">' . sprintf( /* translators: %d: live read-door tool count. */ \snt_kit_esc( __( 'This door’s tools/list does not repeat the read door’s %d read-only tools: if you only want to look, connect to the read door instead.', 'signal-and-noise-tools' ) ), count( $read_slugs ) ) . '</p>' )
 		. agent_tools_withheld_html();
-	return agent_tools_door_fold( __( 'Write door: the same server, read-write', 'signal-and-noise-tools' ), $before, null === $slugs ? array() : agent_tools_door_band( $slugs, __( 'read-write', 'signal-and-noise-tools' ), $usage ), $after );
+	$band = null === $slugs ? array() : agent_tools_door_band( $slugs, __( 'read-write', 'signal-and-noise-tools' ), $usage );
+	// Review on #2022: the withheld table is inside the fold, so its count rides the closed summary, as on the classic page.
+	$held = function_exists( 'sn_admin_mcp_withheld_slug_data' ) ? count( sn_admin_mcp_withheld_slug_data() ) : 0;
+	if ( array() !== $band && $held > 0 ) {
+		/* translators: %s: abilities withheld from the write door. */
+		$band['summary'] .= ' ' . sprintf( _n( '%s ability withheld from this door.', '%s abilities withheld from this door.', $held, 'signal-and-noise-tools' ), number_format_i18n( $held ) );
+	}
+	return agent_tools_door_fold( __( 'Write door: the same server, read-write', 'signal-and-noise-tools' ), $before, $band, $after );
 }
 
 /**

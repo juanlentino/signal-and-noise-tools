@@ -24,6 +24,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/cloudflare-posture-words.php'; // a drift and a firewall action in words (2026-10-12).
+
 const SN_CF_POSTURE_OPT = 'sn_cf_posture';
 
 /**
@@ -258,42 +260,6 @@ function sn_cf_posture_findings( array $record ) {
 		$out[] = array( 'key' => 'dnssec', 'label' => 'dnssec', 'value' => (string) $record['dnssec']['status'], 'why' => sprintf( 'DNSSEC is "%s", not active.', (string) $record['dnssec']['status'] ) );
 	}
 	return $out;
-}
-
-/**
- * A judged check as both painters say it: the value, and when it drifted,
- * what was expected ("Flexible, expected Full (strict)").
- *
- * @param array{value:string,ok:bool,expected?:string} $check One `checks` row of sn_cf_posture_model().
- * @return string
- */
-function sn_cf_posture_check_text( array $check ) {
-	if ( ! empty( $check['ok'] ) || '' === (string) ( $check['expected'] ?? '' ) ) {
-		return (string) $check['value'];
-	}
-	/* translators: 1: the setting's value, 2: the value the check expects. */
-	return sprintf( __( '%1$s, expected %2$s', 'signal-and-noise-tools' ), (string) $check['value'], (string) $check['expected'] );
-}
-
-/**
- * A firewall action key as words (2026-10-12 audit: `managed_challenge` and
- * `jschallenge` were painted as the API spells them). An unknown key is kept.
- *
- * @param string $action The API's action key.
- * @return string
- */
-function sn_cf_action_word( $action ) {
-	$words = array(
-		'block'             => __( 'blocked', 'signal-and-noise-tools' ),
-		'managed_challenge' => __( 'managed challenge', 'signal-and-noise-tools' ),
-		'challenge'         => __( 'interactive challenge', 'signal-and-noise-tools' ),
-		'jschallenge'       => __( 'JavaScript challenge', 'signal-and-noise-tools' ),
-		'log'               => __( 'logged only', 'signal-and-noise-tools' ),
-		'skip'              => __( 'skipped', 'signal-and-noise-tools' ),
-		'allow'             => __( 'allowed', 'signal-and-noise-tools' ),
-		'bypass'            => __( 'bypassed', 'signal-and-noise-tools' ),
-	);
-	return $words[ (string) $action ] ?? (string) $action;
 }
 
 /**

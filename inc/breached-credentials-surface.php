@@ -186,7 +186,14 @@ add_filter( 'site_status_tests', 'sn_hibp_register_site_health_test' );
 
 /** The Site Health row. */
 function sn_hibp_site_health_result() {
-	$verdict = sn_hibp_health( sn_hibp_surface_data(), time() );
+	$data    = sn_hibp_surface_data();
+	$verdict = sn_hibp_health( $data, time() );
+	// Review on #2022: the good sentence stopped carrying the set-time counts
+	// (the leaf prints them as rows), so the row lists the same three figures.
+	$facts = '';
+	foreach ( sn_hibp_surface_rows( $data, $verdict ) as $fact ) {
+		$facts .= '<li>' . esc_html( $fact['label'] . ': ' . $fact['value'] ) . '</li>';
+	}
 	return array(
 		'label'       => __( 'Signal & Noise breached-password check', 'signal-and-noise-tools' ),
 		'status'      => 'good' === $verdict['status'] ? 'good' : 'recommended',
@@ -194,7 +201,7 @@ function sn_hibp_site_health_result() {
 			'label' => __( 'Security', 'signal-and-noise-tools' ),
 			'color' => 'blue',
 		),
-		'description' => '<p>' . esc_html( $verdict['summary'] ) . '</p>',
+		'description' => '<p>' . esc_html( $verdict['summary'] ) . '</p><ul>' . $facts . '</ul>',
 		'test'        => 'sn_hibp_breach_check',
 	);
 }

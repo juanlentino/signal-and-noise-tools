@@ -404,7 +404,7 @@ ok( false !== strpos( $bound_html, 'Last used 3 days ago' ), 'bound state: shows
 ok( false !== strpos( $bound_html, 'selected="selected"' ), 'bound state: the matching <option> carries selected="selected"' );
 ok( false !== strpos( $bound_html, 'Rotate this Application Password' ), 'bound state: carries the rotation reminder' );
 ok( false === strpos( $bound_html, '<option value="">' ), 'bound state: the select lists the credentials only, no empty option to unbind by accident' );
-ok( 1 === preg_match( '#<input type="hidden" name="sn_mcp_rw_uuid" value=""><button type="submit" class="button button-link-delete" data-snt-confirm="Unbind the write-door credential\? Every write-door call is denied until you bind one again\." data-snt-confirm-danger="1">Unbind</button>#', $bound_html ), 'bound state: unbinding is its own button, posting an empty credential, behind a confirm' );
+ok( 1 === preg_match( '#<input type="hidden" name="sn_mcp_rw_uuid" value=""><input type="hidden" name="sn_mcp_rw_unbind" value="1"><button type="submit" class="button button-link-delete" data-snt-confirm="Unbind the write-door credential\? Every write-door call is denied until you bind one again\." data-snt-confirm-danger="1">Unbind</button>#', $bound_html ), 'bound state: unbinding is its own button, posting an empty credential that says it means to unbind, behind a confirm' );
 
 // ── Bound but NEVER used (last_used null): "Never used yet", no crash ──
 ok( sn_mcp_set_rw_bound_uuid( $uuid_b ), 'sanity: binding the second (never-used) fixture UUID succeeds' );
@@ -421,6 +421,8 @@ sn_admin_render_mcp_rw_binding();
 $unresolvable_html = ob_get_clean();
 ok( stripos( $unresolvable_html, 'INACTIVE' ) === false, 'unresolvable state is NOT rendered as the unbound/INACTIVE case' );
 ok( stripos( $unresolvable_html, 'no longer matches any of your own Application Passwords' ) !== false, 'unresolvable state: explains the UUID no longer matches an owned Application Password' );
+// Review on #2022: the unresolvable state's resting option no longer overclaims.
+ok( false !== strpos( $unresolvable_html, 'Bound to a credential this screen can’t find (revoked, or another user’s)' ) && false === strpos( $unresolvable_html, 'no longer exists' ), 'unresolvable: the picker says this screen cannot find the credential, not that it no longer exists' );
 
 // ── No Application Passwords at all: points at the profile screen, renders no <select> ──
 $GLOBALS['__opts']          = array();

@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/mcp-connect-parts.php'; // the write door's off reason and picker, the remote door, the adapter sentence (2026-10-12).
+
 /**
  * PURE: three glance cards from injected state. Unknown counts stay unknown
  * (null → "allowlist unavailable", never "0 tools"). No WP reads.
@@ -196,56 +198,6 @@ function sn_admin_mcp_status_cards( array $state ) {
 	);
 
 	return array( $read_card, $rw_card, $adapter_card, $remote_card );
-}
-
-/**
- * Why the write door is off, the same words on its card and in its
- * credential box ('' unless the state is constant_killed or option_off).
- * Escaped HTML: the constant or the option as code.
- *
- * @param array $state The status state.
- * @return string
- */
-function sn_admin_mcp_status_off_reason( array $state ) {
-	switch ( (string) ( $state['rw_state'] ?? '' ) ) {
-		case 'constant_killed':
-			/* translators: %s: SN_MCP_RW_DISABLED wrapped in <code>. */
-			return sprintf( esc_html__( 'The %s constant is set in wp-config.php, and only removing it reopens this door.', 'signal-and-noise-tools' ), '<code>SN_MCP_RW_DISABLED</code>' );
-		case 'option_off':
-			/* translators: %s: sn_mcp_rw_enabled wrapped in <code>. */
-			return sprintf( esc_html__( 'The write door’s switch is off (the %s option).', 'signal-and-noise-tools' ), '<code>sn_mcp_rw_enabled</code>' );
-	}
-	return '';
-}
-
-/**
- * The write-door credential picker's options, the same on both twins: the
- * resting value says the state ("Not bound", or a credential that no longer
- * exists) and is never the action of unbinding, which is its own confirmed
- * button (2026-10-12 audit).
- *
- * @param array  $passwords  The user's Application Passwords.
- * @param string $bound_uuid The bound UUID ('' when none).
- * @param bool   $resolved   Whether the bound UUID matches one of $passwords.
- * @return array<string,string> uuid => label.
- */
-function sn_admin_mcp_rw_options( array $passwords, $bound_uuid, $resolved ) {
-	$options = array();
-	if ( ! $resolved ) {
-		$options[''] = '' === (string) $bound_uuid ? __( 'Not bound', 'signal-and-noise-tools' ) : __( 'Bound to a credential that no longer exists', 'signal-and-noise-tools' );
-	}
-	foreach ( $passwords as $pw ) {
-		if ( ! is_array( $pw ) || empty( $pw['uuid'] ) ) {
-			continue;
-		}
-		$label = isset( $pw['name'] ) ? (string) $pw['name'] : '';
-		if ( ! empty( $pw['created'] ) && function_exists( 'human_time_diff' ) ) {
-			/* translators: 1: Application Password name, 2: relative time. */
-			$label = sprintf( __( '%1$s, created %2$s ago', 'signal-and-noise-tools' ), $label, human_time_diff( (int) $pw['created'], time() ) );
-		}
-		$options[ (string) $pw['uuid'] ] = $label;
-	}
-	return $options;
 }
 
 /**

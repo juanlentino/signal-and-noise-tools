@@ -181,6 +181,10 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names still ma
 // oracle for the words and the numbers is the Site Health row, the same
 // sn_hibp_health() read; the memo's oracle is the classic banner's sentence.
 
+/** The Site Health row's sentence: its first paragraph (the figures follow it as a list since the review on #2022). */
+function hibp_sentence( $html ) {
+	return strip_tags( preg_replace( '#<ul>.*</ul>#s', '', (string) $html ) );
+}
 /** The `<dd>` of the facts row labelled $label: [inner, attrs] or null. */
 function kv_row( $html, $label ) {
 	if ( ! preg_match( '#<os-fact label="' . preg_quote( $label, '#' ) . '"><span class="snt-kv__v"([^>]*)>([^<]*)</span></os-fact>#', $html, $m ) ) {
@@ -205,7 +209,7 @@ $profile_url = 'https://example.test/wp-admin/profile.php#password';
 $GLOBALS['__users']     = array( 1 => array( 'digest' => 'a', 'verdict' => 'not_breached', 'count' => 0, 'checked_at' => time() ), 2 => array( 'digest' => 'b', 'verdict' => 'breached', 'count' => 1234, 'checked_at' => time() ), 3 => null );
 $GLOBALS['__set_stats'] = array( 'breached_count' => 4, 'unavailable_count' => 2, 'last_breached_at' => 0, 'last_unavailable_at' => time() - 3600 );
 $row     = sn_hibp_site_health_result();
-$text    = strip_tags( $row['description'] );
+$text    = hibp_sentence( $row['description'] );
 $classic = snt_leaf_classic_html( 'sn_login_defense_render' );
 $kit     = snt_leaf_paint( 'security', 'login-defense' );
 $cols_at = strpos( $kit, snt_leaf_row() );
@@ -231,7 +235,7 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup in the box
 // (B) the viewer's own password is breached: the memo wins the notice slot, the same words as the classic banner, the link a door.
 $GLOBALS['__users'][1] = array( 'digest' => 'a', 'verdict' => 'breached', 'count' => 1234, 'checked_at' => time() );
 $row  = sn_hibp_site_health_result();
-$text = strip_tags( $row['description'] );
+$text = hibp_sentence( $row['description'] );
 $kit  = snt_leaf_paint( 'security', 'login-defense' );
 $box_at = strpos( $kit, 'heading="Breached passwords"' );
 $memo   = first_notice_after( $kit, $box_at );
@@ -250,7 +254,7 @@ $GLOBALS['__users'][1] = array( 'digest' => 'a', 'verdict' => 'not_breached', 'c
 $GLOBALS['__users'][2] = array( 'digest' => 'b', 'verdict' => 'not_breached', 'count' => 0, 'checked_at' => time() );
 $GLOBALS['__set_stats']['last_unavailable_at'] = time() - 8 * DAY_IN_SECONDS;
 $row  = sn_hibp_site_health_result();
-$text = strip_tags( $row['description'] );
+$text = hibp_sentence( $row['description'] );
 $kit  = snt_leaf_paint( 'security', 'login-defense' );
 // 2026-10-12 audit: the good sentence said "2 of 3 account(s) checked" beside a
 // row saying "0 of 2 checked": two X of Y counting different things. The
@@ -264,7 +268,7 @@ ok( false === strpos( kv_row( $kit, 'Flagged at login' )[1] ?? 'absent', 'data-t
 
 // (D) set-time mode switched OFF: the row says so, so does the box; the rows still paint.
 $GLOBALS['__set_off'] = true;
-$text = strip_tags( sn_hibp_site_health_result()['description'] );
+$text = hibp_sentence( sn_hibp_site_health_result()['description'] );
 $kit  = snt_leaf_paint( 'security', 'login-defense' );
 ok( false !== strpos( $text, 'switched off in wp-config.php for new passwords' ) && false !== strpos( first_notice_after( $kit, strpos( $kit, 'heading="Breached passwords"' ) ), 'switched off in wp-config.php for new passwords' ) && false === strpos( $kit, 'below this line' ) && false === strpos( $kit, 'SN_HIBP' ), 'mode OFF: the box\'s notice names the switched-off check in plain words, as the row does' );
 ok( '0 of 2 checked accounts' === ( kv_row( $kit, 'Flagged at login' )[0] ?? '' ) && 'not measured (switched off)' === ( kv_row( $kit, 'Refused because the breach service was unreachable' )[0] ?? '' ) && 'not measured (switched off)' === ( kv_row( $kit, 'Breached passwords refused when set' )[0] ?? '' ), 'mode OFF: its rows say not measured instead of a count; the login row keeps its figure' );

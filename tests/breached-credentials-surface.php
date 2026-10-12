@@ -94,6 +94,9 @@ ok( 'sn_hibp_site_health_result' === ( $tests['direct']['sn_hibp_breach_check'][
 $row = sn_hibp_site_health_result();
 ok( 'recommended' === $row['status'] && 'sn_hibp_breach_check' === $row['test'] && false !== strpos( $row['description'], '1 of 1' ), 'the row reads the same verdict (one flagged of one checked) and is HTML-escaped' );
 ok( 'Security' === ( $row['badge']['label'] ?? '' ), 'Security badge, beside the SSRF pinning row' );
+// Review on #2022: the good sentence no longer repeats the set-time counts, so
+// the Site Health row lists the three figures itself, as the leaf does.
+ok( false !== strpos( $row['description'], '<li>Flagged at login: 1 of 1 checked accounts</li>' ) && false !== strpos( $row['description'], '<li>Breached passwords refused when set: 0</li>' ) && false !== strpos( $row['description'], '<li>Refused because the breach service was unreachable: 0</li>' ), 'the Site Health row carries the flagged, refused-when-set and unreachable figures' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -84,6 +84,7 @@ if ( ! function_exists( 'wp_get_ability' ) ) {
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
 require __DIR__ . '/../inc/mcp/mcp-remote-guard.php';
 require __DIR__ . '/../inc/mcp/mcp-rw-guard.php';
+require __DIR__ . '/../inc/mcp/mcp-read-guard.php';
 require __DIR__ . '/../inc/mcp/mcp-telemetry.php';
 require __DIR__ . '/../inc/mcp/mcp-tools.php';
 require __DIR__ . '/../inc/mcp/mcp-telemetry-read.php';
@@ -179,8 +180,8 @@ $wpdb->rows = array( sn_test_row( $first_tool, 1, $ago( 3 ), $ago( 1 ) ) );
 $__z        = array_column( sn_mcp_telemetry_usage( 90 )['zero_call'], null, 'slug' );
 $__twin     = sn_mcp_remote_slugs()[1];
 $__writer   = sn_mcp_rw_allowlist()[0];
-ok( 'not_measured' === $__z[ $__twin ]['verdict'] && 'the remote door is off' === $__z[ $__twin ]['reason'], 'remote door off: an uncalled twin is not measured, "the remote door is off", never a retirement candidate' );
-ok( 'not_measured' === $__z[ $__writer ]['verdict'] && 'the write door is unbound' === $__z[ $__writer ]['reason'], 'write door unbound: an uncalled write tool is not measured, "the write door is unbound"' );
+ok( 'not_measured' === $__z[ $__twin ]['verdict'] && 'the remote door is off now' === $__z[ $__twin ]['reason'], 'remote door off: an uncalled twin is not measured, "the remote door is off now" (the state now, not over the window), never a retirement candidate' );
+ok( 'not_measured' === $__z[ $__writer ]['verdict'] && 'the write door is unbound now' === $__z[ $__writer ]['reason'], 'write door unbound: an uncalled write tool is not measured, "the write door is unbound now"' );
 ok( 'unused' === $__z[ sn_mcp_allowlist()[1] ]['verdict'] && '' === $__z[ sn_mcp_allowlist()[1] ]['reason'], 'the read door is open: an uncalled read tool is still a retirement candidate' );
 $GLOBALS['__opts'][ SN_MCP_REMOTE_ENABLED_OPTION ] = true;
 $GLOBALS['__opts'][ SN_MCP_RW_BOUND_UUID_OPTION ]  = 'uuid-bound';
@@ -188,7 +189,12 @@ $__z = array_column( sn_mcp_telemetry_usage( 90 )['zero_call'], null, 'slug' );
 ok( 'unused' === $__z[ $__twin ]['verdict'] && 'unused' === $__z[ $__writer ]['verdict'], 'doors open (remote switched on, write door bound): the same zeros are retirement candidates again' );
 $GLOBALS['__opts'][ SN_MCP_RW_ENABLED_OPTION ] = false;
 $__z = array_column( sn_mcp_telemetry_usage( 90 )['zero_call'], null, 'slug' );
-ok( 'not_measured' === $__z[ $__writer ]['verdict'] && 'the write door is off' === $__z[ $__writer ]['reason'], 'write door switched off, though bound: not measured, "the write door is off"' );
+ok( 'not_measured' === $__z[ $__writer ]['verdict'] && 'the write door is off now' === $__z[ $__writer ]['reason'], 'write door switched off, though bound: not measured, "the write door is off now"' );
+// Review on #2022: the read door has a switch too; while it is off, its up to
+// 51 uncalled tools read as retirement candidates.
+$GLOBALS['__opts'][ SN_MCP_READ_ENABLED_OPTION ] = false;
+$__z = array_column( sn_mcp_telemetry_usage( 90 )['zero_call'], null, 'slug' );
+ok( 'not_measured' === $__z[ sn_mcp_allowlist()[1] ]['verdict'] && 'the read door is off now' === $__z[ sn_mcp_allowlist()[1] ]['reason'], 'read door switched off: an uncalled read tool is not measured, "the read door is off now", never a retirement candidate' );
 $GLOBALS['__opts'] = array();
 
 echo "\nGroup: MIN(ts) is taken across ALL groups, not the first row\n";

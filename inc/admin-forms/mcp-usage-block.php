@@ -116,7 +116,9 @@ function sn_admin_mcp_usage_partial( $usage ) {
 
 /**
  * The door split, one paragraph: every door by its screen name, the
- * plugin's own polling, and the door calls to tools no door lists today.
+ * plugin's own polling, and the door calls to tools no door lists today
+ * (retired, or reached only by Desktop Mode agents, which can call any
+ * signal-noise/ ability).
  *
  * @param array $usage From sn_mcp_telemetry_usage().
  * @return string
@@ -129,8 +131,10 @@ function sn_admin_mcp_usage_door_split( $usage ) {
 	$retired = array_filter( (array) ( $usage['by_tool'] ?? array() ), static fn( $r ) => empty( $r['allowlisted'] ?? true ) && (int) ( $r['door_calls'] ?? 0 ) > 0 );
 	if ( $retired ) {
 		$calls = array_sum( array_map( static fn( $r ) => (int) $r['door_calls'], $retired ) );
+		// Review on #2022: Desktop Mode agents reach any signal-noise/ ability,
+		// listed on a door or not, so "retired" alone overclaimed.
 		/* translators: 1: door calls, 2: tools. */
-		$out  .= ' ' . sprintf( _n( '%1$s door call reached tools no door lists today (%2$s), so the ledger leaves it out.', '%1$s door calls reached tools no door lists today (%2$s), so the ledger leaves them out.', $calls, 'signal-and-noise-tools' ), number_format_i18n( $calls ), implode( ', ', array_map( 'sn_admin_mcp_tool_short', array_keys( $retired ) ) ) );
+		$out  .= ' ' . sprintf( _n( '%1$s door call reached tools no door lists today (retired, or reached only by Desktop Mode agents: %2$s), so the ledger leaves it out.', '%1$s door calls reached tools no door lists today (retired, or reached only by Desktop Mode agents: %2$s), so the ledger leaves them out.', $calls, 'signal-and-noise-tools' ), number_format_i18n( $calls ), implode( ', ', array_map( 'sn_admin_mcp_tool_short', array_keys( $retired ) ) ) );
 	}
 	return $out;
 }

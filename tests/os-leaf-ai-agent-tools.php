@@ -94,7 +94,7 @@ ok( '6' === $by['verify-page']['calls'] && '1' === $by['verify-page']['error'], 
 ok( isset( $by['search-notes *'] ) && '2' === $by['search-notes *']['calls'] && false !== strpos( $by['search-notes *']['what'], 'Not in the registered list' ), 'a tool seen in the rows but not registered is painted, starred, and says so' );
 ok( 6 === count( $rows ) && '0' === $by['get-citation']['calls'], 'six rows: the five registered plus the seen one; the quiet ones stay at zero' );
 ok( false !== strpos( $kit, '55 notes, 12 pages, built 1 hour ago' /* the harness stubs human_time_diff */ ) && false !== strpos( $kit, 'on the latest note, 2 related' ), 'documents: the site map with its counts and age; the manifest on the latest note' );
-ok( false !== strpos( $kit, 'have not matched their anchor for 1 hour' ) && false !== strpos( $kit, 'checked 1 hour ago' ), 'a drift past the grace window reads as a drift with its age, and says when it was checked' );
+ok( false !== strpos( $kit, 'had not matched their anchor for 1 hour at the last check' ) && false !== strpos( $kit, 'checked 1 hour ago' ), 'a drift past the grace window at the last check reads as a drift with its age then, and says when it was checked' );
 ok( false !== strpos( $classic, '<td class="sn-mono">related-notes</td><td>The notes the kernel ranks closest to this one</td><td>9</td><td>7</td><td>2</td><td>0</td>' ), 'the classic table paints the same row' );
 ok( false !== strpos( $kit, '<strong>19</strong> calls across <strong>2</strong> tools since January 1, 1970' ) && false !== strpos( $classic, '<strong>19</strong> calls across <strong>2</strong> tools since January 1, 1970' ), 'Through Copilot: the ranked summary (19 calls across 2 tools) says since when the all-time counts run, on both leaves' );
 ok( false === strpos( $kit . $classic, 'v9.60.0' ), 'Through Copilot: no version stamp on either leaf' );
@@ -110,7 +110,18 @@ ok( null === $b['ok'] && false !== strpos( $b['value'], 'not compared at the las
 $GLOBALS['__options']['snt_rights_anchor_checked']['compared'] = array( 'webmcp-bridge' );
 $GLOBALS['__options']['snt_rights_anchor_drift'] = array( 'webmcp-bridge' => array( 'hash' => 'x', 'first_seen' => time() - 600 ) );
 $b = $__bridge();
-ok( true === $b['ok'] && false !== strpos( $b['value'], 'served bytes changed 1 hour ago; the hourly sweep anchors them' ), 'a drift inside the grace window is not red: the health check calls it fine too' );
+ok( true === $b['ok'] && false !== strpos( $b['value'], 'served bytes had just changed at the last check' ), 'a drift inside the grace window is not red: the health check calls it fine too' );
+// Review on #2022: judged against the page view, a change first seen AT the
+// daily scan (first_seen = at) turned red two hours later and stayed red all
+// day while Health said fine. Judged as of the check, it stays green.
+$GLOBALS['__options']['snt_rights_anchor_checked']['at'] = time() - 3 * 3600;
+$GLOBALS['__options']['snt_rights_anchor_drift'] = array( 'webmcp-bridge' => array( 'hash' => 'x', 'first_seen' => time() - 3 * 3600 ) );
+$b = $__bridge();
+ok( true === $b['ok'] && 'ok' === $b['flag'], 'a change first seen at the last check, three hours ago, is not red: the check judged it inside the window' );
+$GLOBALS['__options']['snt_rights_anchor_drift'] = array( 'webmcp-bridge' => array( 'hash' => 'x', 'first_seen' => time() - 6 * 3600 ) );
+$b = $__bridge();
+ok( false === $b['ok'] && 'drifted' === $b['flag'] && false !== strpos( $b['value'], 'at the last check' ), 'a change seen three hours before that check is a drift, said as of the check' );
+$GLOBALS['__options']['snt_rights_anchor_checked']['at'] = time() - 600;
 $GLOBALS['__options']['snt_rights_anchor_drift'] = array( 'webmcp-bridge' => array( 'hash' => 'x', 'first_seen' => time() - 3 * 3600 ) );
 
 // 2026-10-12 audit: the Copilot list was uncapped and kept every retired tool.
@@ -187,6 +198,7 @@ $__remote = $__fold( 'Remote door: through the Cloudflare Worker' );
 preg_match_all( '/<os-disclosure heading="([^"]+)"/', $kit, $__folds );
 ok( array( 'Read door: the native MCP server', 'Write door: the same server, read-write', 'Remote door: through the Cloudflare Worker' ) === $__folds[1] && array( '<os-disclosure' ) === snt_leaf_folds( $kit ), 'live-shaped preview: the three doors are the leaf\'s only folds, all through the kit: ' . implode( ',', $__folds[1] ) );
 ok( null !== $__read && 0 === strpos( $__read['hint'], '51 read-only tools across 3 categories; Diagnostics holds 40 of them. In this window 20 called through a door, 31 not. 1 cannot be projected, a bug.' ) && $__read['open'], 'the read door\'s closed summary states its count, its largest category and its calls, and it opens itself: a tool there cannot be projected' );
+ok( null !== $__write && false !== strpos( $__write['hint'], '4 abilities withheld from this door.' ), 'the write door\'s closed summary carries the withheld count, as the classic summary does (review on #2022)' );
 ok( null !== $__write && false === $__write['open'] && false !== strpos( $__write['hint'], '18 read-write tools across 4 categories' ) && null !== $__remote && false === $__remote['open'] && false !== strpos( $__remote['hint'], '18 read-only tools' ) && false !== strpos( $__remote['hint'], 'In this window 2 called through a door, 16 not.' ), 'the write and remote doors start closed, each summary carrying its count and its calls' );
 $__chip = static fn( $short, $text ) => false !== strpos( $kit, '>' . $short . ' · ' . $text . '</os-chip>' );
 ok( $__chip( 'sn-status', '96' ) && $__chip( substr( $live['remote'][0], 13 ), '40' ) && $__chip( 'get-deploy-status', 'plugin only, 28,689' ), 'every door tool is a chip carrying its calls through a door: sn-status 96, the busiest remote twin 40, the plugin-only tool its 28,689 polls' );
@@ -197,7 +209,7 @@ ok( false === strpos( $kit, 'heading="No calls in this window"' ) && false !== s
 $__ledger = array_values( array_filter( snt_leaf_tables( $kit ), static fn( $t ) => in_array( 'Last seen', array_column( $t['columns'], 'label' ), true ) ) )[0] ?? array( 'data' => array() );
 $__tools  = array_column( $__ledger['data'], 'tool' );
 ok( 10 === count( $__tools ) && 'sn-status' === $__tools[0] && false !== strpos( $kit, '+17 more tools, busiest first; each door&#039;s list carries every tool&#039;s count.' ), 'the ledger is the ten busiest door tools, the other 17 counted out loud (25 read and write, 2 remote)' );
-ok( ! in_array( 'cadence-flags', $__tools, true ) && ! in_array( 'content-queue', $__tools, true ) && false !== strpos( html_entity_decode( $kit, ENT_QUOTES ), '9 door calls reached tools no door lists today (cadence-flags), so the ledger leaves them out.' ), 'a retired tool and the plugin\'s own polling stay out of the ledger; the retired one is a sentence' );
+ok( ! in_array( 'cadence-flags', $__tools, true ) && ! in_array( 'content-queue', $__tools, true ) && false !== strpos( html_entity_decode( $kit, ENT_QUOTES ), '9 door calls reached tools no door lists today (retired, or reached only by Desktop Mode agents: cadence-flags), so the ledger leaves them out.' ), 'a retired tool and the plugin\'s own polling stay out of the ledger; the retired one is a sentence' );
 ok( in_array( 'October 12, 2026 2:38 am', array_column( $__ledger['data'], 'last_seen' ), true ) && ! in_array( 'not recorded', array_column( $__ledger['data'], 'last_seen' ), true ), 'the log\'s fractional-second UTC time (2026-10-12 02:38:43.798) reads as a date and time, never "not recorded"' );
 ok( array() === preg_grep( '/^\d{4}-\d{2}-\d{2}/', array_column( $__ledger['data'], 'last_seen' ) ) && array() === array_diff( array_unique( explode( ', ', implode( ', ', array_column( $__ledger['data'], 'doors' ) ) ) ), array( 'read door', 'write door', 'remote door', 'Desktop Mode agents', 'the plugin itself' ) ), 'Last seen reads in the site\'s format, never a raw SQL time; Doors names the doors as the screen does, never rw/agent/direct' );
 ok( false !== strpos( $kit, '467 calls came through a door since August 1, 2026; sn-status took 21% of them.' ) && false !== strpos( $kit, 'value="467" label="Calls through a door"' ) && false !== strpos( $kit, 'value="27" label="Tools called through a door"' ), 'the finding and the tiles count door calls to listed tools only (397 read and write, 70 remote; the retired tool\'s 9 left out), since the window\'s first day in the site\'s date format' );
@@ -212,14 +224,14 @@ snt_leaf_preview( 'ai-agent-tools', $kit );
 // The chips, the door's closed summary, the count and the classic list say so
 // in plain words; none of them reads "no calls" or "retirement candidate".
 $__quiet = array_slice( $live['remote'], 2 );
-$GLOBALS['__usage']['zero_call'] = array_merge( $zero, array_map( static fn( $slug ) => array( 'slug' => $slug, 'verdict' => 'not_measured', 'reason' => 'the remote door is off', 'calls' => 0 ), $__quiet ) );
+$GLOBALS['__usage']['zero_call'] = array_merge( $zero, array_map( static fn( $slug ) => array( 'slug' => $slug, 'verdict' => 'not_measured', 'reason' => 'the remote door is off now', 'calls' => 0 ), $__quiet ) );
 $kit     = snt_leaf_paint( 'ai', 'agent-tools' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_agent_tools_section' );
 preg_match( '/<os-disclosure heading="Remote door: through the Cloudflare Worker" hint="([^"]*)"/', $kit, $__rh );
 ok( 16 === preg_match_all( '/<os-chip tone="neutral">[^<]+ · not measured<\/os-chip>/', $kit ) && 0 === preg_match_all( '/<os-chip[^>]*>remote-[^<]+ · no calls<\/os-chip>/', $kit ), 'remote door off: its 16 uncalled twins read "not measured" on neutral chips, never "no calls"' );
-ok( false !== strpos( html_entity_decode( $__rh[1] ?? '', ENT_QUOTES ), 'In this window 2 called through a door, 0 not. Not measured: the remote door is off (16 tools).' ), 'the remote door\'s closed summary says, in plain words, why its zeros are not measured' );
+ok( false !== strpos( html_entity_decode( $__rh[1] ?? '', ENT_QUOTES ), 'In this window 2 called through a door, 0 not. Not measured: the remote door is off now (16 tools).' ), 'the remote door\'s closed summary says, in plain words, why its zeros are not measured' );
 ok( false !== strpos( $kit, '60 allowlisted tools had no call through a door: 1 cannot be projected; 1 with reachability unknown; 16 not measured, their door closed; 41 retirement candidates; 1 called only by the plugin itself.' ), 'the count keeps the not-measured tools apart from the retirement candidates' );
-ok( false !== strpos( $classic, '<code>' . $__quiet[0] . '</code>: not measured, the remote door is off</li>' ), 'classic: the same words beside each twin' );
+ok( false !== strpos( $classic, '<code>' . $__quiet[0] . '</code>: not measured, the remote door is off now</li>' ), 'classic: the same words beside each twin' );
 $GLOBALS['__usage']['zero_call'] = $zero;
 
 // 2026-10-12 audit: an unread sensor is not zero calls. Both surfaces list

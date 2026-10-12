@@ -25,21 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * Does the telemetry table physically exist?
- *
- * Absent table and empty table are different answers and must stay that way:
- * "the sensor is not installed" is not "the sensor recorded nothing", and
- * neither is "these tools went unused".
- *
- * @return bool
- */
-function sn_mcp_telemetry_table_exists() {
-	global $wpdb;
-	$table = $wpdb->prefix . SN_MCP_TELEMETRY_TABLE;
-	$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
-	return (string) $found === $table;
-}
+require_once __DIR__ . '/mcp-telemetry-read-parts.php'; // the table's first row and the closed-door gate (2026-10-12).
 
 /**
  * Can this slug still be projected onto the wire?
@@ -90,6 +76,28 @@ function sn_mcp_telemetry_door_for_slug( $slug ) {
 }
 
 /**
+ * The door a slug is listed on: read, remote or rw ('' when on none). For
+ * the closed-door gate (mcp-telemetry-read-parts.php); projection keeps
+ * sn_mcp_telemetry_door_for_slug().
+ *
+ * @param string $slug Ability slug.
+ * @return string
+ */
+function sn_mcp_telemetry_slug_door( $slug ) {
+	$lists = array(
+		'read'   => function_exists( 'sn_mcp_allowlist' ) ? sn_mcp_allowlist() : array(),
+		'remote' => function_exists( 'sn_mcp_remote_slugs' ) ? sn_mcp_remote_slugs() : array(),
+		'rw'     => function_exists( 'sn_mcp_rw_allowlist' ) ? sn_mcp_rw_allowlist() : array(),
+	);
+	foreach ( $lists as $door => $slugs ) {
+		if ( in_array( $slug, $slugs, true ) ) {
+			return $door;
+		}
+	}
+	return '';
+}
+
+/**
  * Every slug that SHOULD have been callable, across the three doors: read,
  * write and remote (2026-10-12: the remote twins were on no list, so their
  * calls read as plugin polling and the door was invisible on Agent tools).
@@ -119,25 +127,6 @@ function sn_mcp_telemetry_expected_tools() {
 			: str_replace( '/', '__', (string) $slug );
 	}
 	return $map;
-}
-
-/**
- * One allowlisted ability, one name, at READ time (the log is append-only
- * evidence, never rewritten): the MCP doors' `signal-noise__x`, the direct
- * door's slug `signal-noise/x` and a bare `x` fold onto the projected name.
- * Only EXPECTED tools fold; a theme tool or a blank stays as recorded.
- *
- * @param string               $name     tool_name as recorded.
- * @param array<string,string> $expected slug => projected name.
- * @return string
- */
-function sn_mcp_telemetry_canonical_tool( $name, $expected ) {
-	foreach ( $expected as $slug => $projected ) {
-		if ( in_array( (string) $name, array( $projected, (string) $slug, substr( (string) strrchr( '/' . $slug, '/' ), 1 ) ), true ) ) {
-			return $projected;
-		}
-	}
-	return (string) $name;
 }
 
 /**
@@ -282,55 +271,6 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
 }
 
 /**
- * The table's first row (`MIN(ts)` with no window), or `$fallback` when that
- * read fails or answers nothing a date can be parsed from.
- *
- * @param string $table    Prefixed table name.
- * @param string $fallback The earliest row inside the window.
- * @return string
- */
-function sn_mcp_telemetry_first_ts( $table, $fallback ) {
-	global $wpdb;
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery -- $table is $wpdb->prefix + a plugin constant; no value is bound.
-	$first = $wpdb->get_var( "SELECT MIN(ts) FROM {$table}" );
-	return ( is_string( $first ) && false !== strtotime( $first . ' UTC' ) && $first < $fallback ) ? $first : $fallback;
-}
-
-/**
- * Why no caller could reach this slug's door now, in plain words, or '' when
- * the door is open or its state cannot be read here (2026-10-12 audit ruling:
- * unknown is never painted as a verdict). A remote twin cannot be called
- * while the remote door is switched off or has no bridge secret; a write-door
- * tool while the write door is off or unbound. Zero calls behind a closed
- * door is "not measured", never a retirement candidate.
- *
- * @param string $slug Ability slug.
- * @return string
- */
-function sn_mcp_telemetry_door_closed( $slug ) {
-	$remote = function_exists( 'sn_mcp_remote_slugs' ) ? sn_mcp_remote_slugs() : array();
-	if ( in_array( $slug, $remote, true ) ) {
-		if ( function_exists( 'sn_mcp_remote_kill_switch_engaged' ) && sn_mcp_remote_kill_switch_engaged() ) {
-			return __( 'the remote door is off', 'signal-and-noise-tools' );
-		}
-		if ( function_exists( 'sn_bridge_secret' ) && '' === sn_bridge_secret() ) {
-			return __( 'the remote door has no bridge secret', 'signal-and-noise-tools' );
-		}
-		return '';
-	}
-	$rw = function_exists( 'sn_mcp_rw_allowlist' ) ? sn_mcp_rw_allowlist() : array();
-	if ( in_array( $slug, $rw, true ) ) {
-		if ( function_exists( 'sn_mcp_rw_kill_switch_engaged' ) && sn_mcp_rw_kill_switch_engaged() ) {
-			return __( 'the write door is off', 'signal-and-noise-tools' );
-		}
-		if ( function_exists( 'sn_mcp_rw_bound_uuid' ) && '' === sn_mcp_rw_bound_uuid() ) {
-			return __( 'the write door is unbound', 'signal-and-noise-tools' );
-		}
-	}
-	return '';
-}
-
-/**
  * Allowlisted tools with no rows, each carrying WHY it might have none.
  *
  * Zero rows is not "unused". A tool the proxy refuses on schema grounds never
@@ -357,7 +297,7 @@ function sn_mcp_telemetry_zero_call( $by_tool ) {
 		}
 		$direct    = (int) ( $by_tool[ $tool_name ]['direct_calls'] ?? 0 );
 		$reachable = sn_mcp_telemetry_slug_reachable( $slug );
-		$closed    = sn_mcp_telemetry_door_closed( $slug );
+		$closed    = sn_mcp_telemetry_door_closed( sn_mcp_telemetry_slug_door( $slug ) );
 		if ( false === $reachable ) {
 			$verdict = 'unreachable'; // A bug outranks a quiet door: the direct calls prove nothing about projection.
 		} elseif ( null === $reachable ) {

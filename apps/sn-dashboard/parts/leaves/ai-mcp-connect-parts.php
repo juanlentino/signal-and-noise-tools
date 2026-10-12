@@ -88,7 +88,7 @@ function mcp_connect_rw_binding_html( $rw_state = '', $explain = '' ) {
 		'',
 		array(
 			'submit'  => __( 'Unbind', 'signal-and-noise-tools' ),
-			'hidden'  => array( 'sn_mcp_rw_uuid' => '' ),
+			'hidden'  => array( 'sn_mcp_rw_uuid' => '', 'sn_mcp_rw_unbind' => '1' ),
 			'confirm' => __( 'Unbind the write-door credential? Every write-door call is denied until you bind one again.', 'signal-and-noise-tools' ),
 			'danger'  => true,
 		)

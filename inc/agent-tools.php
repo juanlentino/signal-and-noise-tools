@@ -138,14 +138,20 @@ function sn_agent_tools_bridge_anchoring( $now ) {
 		/* translators: %s: "checked 3 hours ago". */
 		return array( 'label' => $label, 'value' => sprintf( __( 'served bytes match the anchored record (%s)', 'signal-and-noise-tools' ), $when ), 'ok' => true, 'flag' => __( 'ok', 'signal-and-noise-tools' ) );
 	}
-	$age   = human_time_diff( (int) ( $drift['first_seen'] ?? $now ), $now );
+	// Judged as of the check, never as of this page view: the drift entry is
+	// written only by the daily scan, so a change first seen at that scan is
+	// inside the grace window for as long as the scan's verdict stands (review
+	// on #2022: judged against now, it turned red two hours after a green scan
+	// and stayed red for the rest of the day).
+	$at    = (int) $checked['at'];
+	$first = (int) ( $drift['first_seen'] ?? $at );
 	$grace = (int) ( $checked['grace'] ?? ( defined( 'SN_RIGHTS_ANCHOR_GRACE' ) ? SN_RIGHTS_ANCHOR_GRACE : 7200 ) );
-	if ( $now - (int) ( $drift['first_seen'] ?? $now ) < $grace ) {
-		/* translators: 1: how long ago the bytes changed, 2: "checked 3 hours ago". */
-		return array( 'label' => $label, 'value' => sprintf( __( 'served bytes changed %1$s ago; the hourly sweep anchors them (%2$s)', 'signal-and-noise-tools' ), $age, $when ), 'ok' => true, 'flag' => __( 'ok', 'signal-and-noise-tools' ) );
+	if ( $at - $first < $grace ) {
+		/* translators: %s: "checked 3 hours ago". */
+		return array( 'label' => $label, 'value' => sprintf( __( 'served bytes had just changed at the last check, inside the sweep\'s two-hour window; the hourly sweep anchors them (%s)', 'signal-and-noise-tools' ), $when ), 'ok' => true, 'flag' => __( 'ok', 'signal-and-noise-tools' ) );
 	}
 	/* translators: 1: how long, 2: "checked 3 hours ago". */
-	return array( 'label' => $label, 'value' => sprintf( __( 'served bytes have not matched their anchor for %1$s; the sweep anchors hourly (%2$s)', 'signal-and-noise-tools' ), $age, $when ), 'ok' => false, 'flag' => __( 'drifted', 'signal-and-noise-tools' ) );
+	return array( 'label' => $label, 'value' => sprintf( __( 'served bytes had not matched their anchor for %1$s at the last check; the sweep anchors hourly (%2$s)', 'signal-and-noise-tools' ), human_time_diff( $first, $at ), $when ), 'ok' => false, 'flag' => __( 'drifted', 'signal-and-noise-tools' ) );
 }
 
 /**
