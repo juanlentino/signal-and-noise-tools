@@ -34,7 +34,10 @@ function sn_resume_prev_get() { return $GLOBALS['__resume_prev']; }
 // A stored draft normalize refuses reads null above but still EXISTS.
 $GLOBALS['__resume_draft_unreadable'] = false;
 function sn_resume_draft_exists() { return null !== $GLOBALS['__resume_draft'] || $GLOBALS['__resume_draft_unreadable']; }
-function sn_resume_draft_status() { return null === $GLOBALS['__resume_draft'] ? 'No draft; showing the live résumé.' : 'Draft saved 2026-09-30; differs from live.'; }
+function sn_resume_draft_status() { return null === $GLOBALS['__resume_draft'] ? 'No draft; showing the live resume.' : 'Draft saved 2026-09-30; differs from live.'; }
+// The generated PDF's readers (inc/resume-pdf/generate.php).
+function sn_resume_pdf_when( $meta ) { return 'October 11, 2026 at 6:30 pm'; }
+function sn_resume_pdf_link( $v ) { return 'https://example.test/wp-content/uploads/resume.pdf'; }
 
 require SNT_PATH . 'inc/admin-forms/resume-page.php';
 require SNT_PATH . 'inc/admin-forms/resume-draft.php';
@@ -223,9 +226,22 @@ foreach ( $edits as $k => $h ) {
 }
 ok( array() === $act_bad && snt_leaf_actions( $classic ) === array( 'resume_draft_save', 'resume_pdf_generate' ), 'every editing paint posts resume_draft_save plus the separate resume_pdf_generate, as on the classic leaf (the private copy is a door or link, not a form): ' . implode( ',', $act_bad ) );
 ok( false === strpos( $kit . $kit_all . $classic, 'resume_save"' ) && false === strpos( $kit . $kit_all . $classic, 'nonce-sn_resume_save' ), 'neither surface posts the old direct-publish resume_save any more' );
-ok( false !== strpos( $kit, 'No draft; showing the live résumé.' ) && false !== strpos( $classic, 'No draft; showing the live résumé.' ), 'no draft: both surfaces say the form shows the live resume' );
+ok( false !== strpos( $kit, 'No draft; showing the live resume.' ) && false !== strpos( $classic, 'No draft; showing the live resume.' ), 'no draft: both surfaces say the form shows the live resume' );
+// 2026-10-12 audit: the status line sits in the Draft box, which is always
+// painted and shares a row with Resume PDF (both stacked full width; the
+// status was nine rows from Publish).
+ok( 1 === preg_match( '#' . preg_quote( snt_leaf_row(), '#' ) . '<os-section heading="Draft" stack><p class="snt-prose">No draft; showing the live resume\.</p><p class="snt-prose">Save draft stores a draft; its previews, Publish and Discard then appear here\.</p></os-section><os-section heading="Resume PDF" stack>.*</os-grid>$#s', $kit ) && 1 === substr_count( $kit, 'No draft; showing the live resume.' ), 'no draft: the Draft box holds the status and what makes a draft, and pairs with Resume PDF; the status is not in the editor lead' );
+ok( 1 === preg_match( '#<h2 class="sn-fieldset-h">Draft</h2><p class="sn-fieldset-intro">No draft; showing the live resume\.</p><p class="description">Save draft stores a draft; its previews, Publish and Discard then appear here\.</p></div>#', $classic ) && 1 === substr_count( $classic, 'No draft; showing the live resume.' ), 'no draft: the classic Draft box is painted too, the status in it' );
+ok( false === strpos( $classic, 'collapsed fold)' ) && false === strpos( $classic, 'set above' ) && false === strpos( $classic, 'copy below' ) && false !== strpos( $classic, 'still uses the PDF URL. Generating' ) && false !== strpos( $classic, 'only the private copy carries it.' ), 'the classic says what the window says: no positional words, "Earlier career" without "(collapsed fold)"' );
+$GLOBALS['__options']['sn_resume_pdf'] = array( 'url' => 'https://example.test/wp-content/uploads/resume.pdf', 'pages' => 1, 'bytes' => 2048, 'sha256' => 'abcdef0123456789abcdef', 'generated' => '2026-10-11T18:30:00Z' );
+$pdf_kit     = snt_leaf_paint( 'content', 'resume' );
+$pdf_classic = snt_leaf_classic_html( 'sn_admin_render_resume_section' );
+ok( false !== strpos( $pdf_kit, 'Generated October 11, 2026 at 6:30 pm: 1 page, 2048 B, SHA-256 <os-code>abcdef012345</os-code>. ' ) && false !== strpos( $pdf_kit, '>Open the PDF</' ) && false !== strpos( $pdf_kit, '. The /resume Download link points here.</p>' ), 'a generated PDF: the window states its size, its SHA-256 prefix and where the Download link points, one page singular' );
+ok( false !== strpos( $pdf_classic, 'Generated October 11, 2026 at 6:30 pm: 1 page, 2048 B, SHA-256 <code>abcdef012345</code>. ' ) && false !== strpos( $pdf_classic, 'The /resume Download link points here.' ), 'a generated PDF: the classic says the same' );
+unset( $GLOBALS['__options']['sn_resume_pdf'] );
 ok( array() === snt_leaf_classic_markers( $kit . $kit_all ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit . $kit_all ) ) );
-ok( ! preg_match( '/\sstyle="/', $kit . $kit_all ), 'no inline style= survives' );
+// The kit grid's own track count (snt_kit_grid(): style="--snt-grid-items:N") is the kit's, not a hand-rolled style.
+ok( ! preg_match( '/\sstyle="/', preg_replace( '/ style="--snt-grid-items:\d+"/', '', $kit . $kit_all ) ), 'no inline style= survives (the kit grid\'s own track count aside)' );
 ok( (bool) preg_match( '/\sstyle="/', $kit . '<p style="x">' ), 'the inline-style guard above discriminates (fails on a planted style=)' );
 ok( 1 === substr_count( $kit, '<os-form' ) && 2 === substr_count( $edits['stats'], '<os-form' ) && false !== strpos( $kit, 'submit-label="Generate PDF"' ) && false !== strpos( $edits['stats'], 'os-action="post"' ) && false !== strpos( $edits['stats'], 'submit-label="Save draft"' ) && false === strpos( $kit_all, 'os-arg-pipeline' ), 'editing: two os-forms (Save draft, Generate PDF) dispatching post through the admin-post pipeline; the default paint holds only Generate PDF' );
 // The private copy streams a PDF and exits; a window replays a form's handler

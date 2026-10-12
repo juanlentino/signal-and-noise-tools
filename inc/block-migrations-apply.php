@@ -74,6 +74,12 @@ function snt_block_migrations_apply_impl( $post_id, $block_fingerprint, $replace
 		return $result;
 	}
 
+	// 2026-10-12 audit: drop the applied row from the cached scan (a staged
+	// revision leaves the live post, and so the row, as they were).
+	if ( null === $write_callback && function_exists( 'snt_block_fp_cache_drop' ) ) {
+		snt_block_fp_cache_drop( 'snt_block_migrations_candidates_' . (int) get_current_user_id(), $post_id, 'migration_type', $migration_type, (string) $block_fingerprint, defined( 'SNT_BLOCK_MIGRATIONS_TRANSIENT_TTL' ) ? SNT_BLOCK_MIGRATIONS_TRANSIENT_TTL : HOUR_IN_SECONDS );
+	}
+
 	return array(
 		'ok'             => true,
 		'post_id'        => $post_id,

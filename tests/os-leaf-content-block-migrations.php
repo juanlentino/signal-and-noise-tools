@@ -92,7 +92,11 @@ $GLOBALS['__last_scan'] = bm_envelope( array() );
 $kit = snt_leaf_paint( 'content', 'block-migrations' );
 ok( false !== strpos( $kit, '<os-badge tone="success">0 candidates</os-badge>' ), 'clean scan: the count pill says 0 candidates in the ok tone' );
 ok( false !== strpos( $kit, 'submit-label="Re-scan"' ), 'clean scan: the button says Re-scan' );
-ok( false !== strpos( $kit, '<os-empty-state heading="No migrations needed. All headings have valid hierarchy."' ) && false === strpos( $kit, '<os-table' ), 'clean scan: the empty note is the kit empty state and no queue is painted' );
+ok( false !== strpos( $kit, '<os-empty-state heading="No heading skips found: no post has an h3 or h4 before its first h2."' ) && false === strpos( $kit, '<os-table' ), 'clean scan: the empty note says what the detector checks (2026-10-12: "All headings have valid hierarchy" claimed more), and no queue is painted' );
+$classic = snt_leaf_classic_html( 'sn_admin_render_block_migrations_section' );
+ok( false !== strpos( $classic, 'No heading skips found: no post has an h3 or h4 before its first h2.' ) && false === strpos( $classic, 'valid hierarchy' ), 'clean scan: the classic twin says the same' );
+ok( false !== strpos( $kit, '<p class="snt-prose">Scanned <os-relative-time datetime="2025-09-06T08:00:00Z">1 hour ago</os-relative-time>. A scan&#039;s list is kept for an hour; Re-scan lists what is left.</p>' ) && false !== strpos( $classic, 'Scanned 1 hour ago. A scan&#039;s list is kept for an hour; Re-scan lists what is left.' ), 'a scan says when it ran and how long its list is kept, on both surfaces' );
+ok( 0 === strpos( $kit, snt_leaf_row() . '<os-section heading="Block migrations" stack>' ) && false !== strpos( $kit, '<os-section heading="What it looks for" stack><p class="snt-prose">Scans published and scheduled posts' ) && 1 === preg_match( '#</os-grid><os-section heading="Candidates" stack><os-empty-state#', $kit ), 'layout: the status box pairs with What it looks for; the clean note sits under the pair' );
 
 // ── Candidates: the pill in the warn tone, the collapsed queue, every row's readouts.
 $GLOBALS['__last_scan'] = $rich;
@@ -101,8 +105,8 @@ $kit     = snt_leaf_paint( 'content', 'block-migrations' );
 ok( false !== strpos( $kit, '<os-badge tone="warning">2 candidates</os-badge>' ), 'candidates: the count pill says 2 candidates in the warn tone' );
 // 2026-10-11 (owner rule, no folds): the queue is open; the count its closed
 // "Review 2 candidates" heading carried is the finding sentence over the table.
-ok( false !== strpos( $kit, '<p class="snt-prose">2 candidates in 2 posts: 1 h3 → h2, 1 h4 → h2.</p>' ) && false !== strpos( $classic, 'Review 2 candidates' ), 'candidates: the finding counts the candidates, the posts and each heading jump, from the rows' );
-ok( false === strpos( $kit, 'snt-ledger-more' ) && false !== strpos( $kit, '<os-table' ) && strpos( $kit, '<os-table' ) < strpos( $kit, 'submit-label="Re-scan"' ), 'candidates: under the cap, no "+N more"; the Re-scan action comes after the ledger' );
+ok( false !== strpos( $kit, '<p class="snt-prose">2 candidates in 2 posts: 1 h3 → h2, 1 h4 → h2.</p>' ) && false !== strpos( $classic, '2 candidates in 2 posts: 1 h3 → h2, 1 h4 → h2.' ) && false === strpos( $classic, '<details' ), 'candidates: the finding counts the candidates, the posts and each heading jump, on both surfaces; the classic no longer folds the queue' );
+ok( false === strpos( $kit, 'snt-ledger-more' ) && false !== strpos( $kit, '<os-table' ) && strpos( $kit, 'submit-label="Re-scan"' ) < strpos( $kit, '<os-section heading="Candidates"' ), 'candidates: under the cap, no "+N more"; Re-scan sits with the count, the queue follows at full width' );
 // 17.9.0 (#1624): an os-table. Its header is the component's own, so the
 // hand-rolled role=columnheader row is gone (the issue's inverted pin).
 $bm_tables = snt_leaf_tables( $kit );
@@ -129,7 +133,7 @@ ok( false === strpos( $kit, 'Suggest opens its editor inside the classic table c
 $GLOBALS['__last_scan'] = bm_envelope( $rich['candidates'], 5 );
 $classic = snt_leaf_classic_html( 'sn_admin_render_block_migrations_section' );
 $kit     = snt_leaf_paint( 'content', 'block-migrations' );
-ok( false !== strpos( $classic, '5 candidates' ) && false !== strpos( $classic, 'Review 2 candidates' ) && false !== strpos( $kit, '>5 candidates<' ) && false !== strpos( $kit, '<p class="snt-prose">2 candidates in 2 posts' ), 'the pill counts from counts.heading_hierarchy_skip and the queue finding from the rows, same two sources as the classic leaf' );
+ok( false !== strpos( $classic, '5 candidates' ) && false !== strpos( $classic, '2 candidates in 2 posts' ) && false !== strpos( $kit, '>5 candidates<' ) && false !== strpos( $kit, '<p class="snt-prose">2 candidates in 2 posts' ), 'the pill counts from counts.heading_hierarchy_skip and the queue finding from the rows, same two sources as the classic leaf' );
 ok( array() === snt_leaf_folds( $kit ), 'two-sources paint: no fold' );
 
 // ── Escaping: a hostile candidate never reaches the markup raw.
@@ -161,6 +165,8 @@ $GLOBALS['__last_scan'] = bm_many( 30 );
 $kit = snt_leaf_paint( 'content', 'block-migrations' );
 ok( 25 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && 25 === substr_count( $kit, 'data-snt-suggest="1"' ) && false !== strpos( $kit, '<p class="snt-hint snt-ledger-more">+5 more candidates; the list is capped, not complete. Work these, then re-scan to list the rest.</p>' ), '30 candidates: 25 rows, each with its Suggest, and "+5 more" said out loud' );
 ok( false !== strpos( $kit, '30 candidates in 15 posts: 15 h3 → h2, 15 h4 → h2.' ) && array() === snt_leaf_folds( $kit ), '30 candidates: the finding counts all 30, not the 25 painted; no fold' );
+$classic = snt_leaf_classic_html( 'sn_admin_render_block_migrations_section' );
+ok( 25 === substr_count( $classic, 'data-snt-suggest="1"' ) && false !== strpos( $classic, '+5 more candidates; the list is capped, not complete. Work these, then re-scan to list the rest.' ) && false !== strpos( $classic, '30 candidates in 15 posts' ), 'classic twin: the same finding, 25 rows and the same "+5 more" line' );
 
 // ── Live-shaped preview: ~20 heading skips over a dozen posts.
 $GLOBALS['__last_scan'] = bm_many( 20 );

@@ -110,11 +110,11 @@ function sn_resume_doc_same( $a, $b ) {
 function sn_resume_draft_status() {
 	$draft = sn_resume_draft_get();
 	if ( null === $draft ) {
-		return sn_resume_draft_exists() ? 'Draft could not be read; discard it.' : 'No draft; showing the live résumé.';
+		return sn_resume_draft_exists() ? 'Draft could not be read; discard it.' : 'No draft; showing the live resume.';
 	}
 	$when = '' !== $draft['updated'] ? ' ' . $draft['updated'] : '';
 	return sn_resume_doc_same( $draft, sn_resume_doc_get() )
-		? 'Draft saved' . $when . '; it matches the live résumé.'
+		? 'Draft saved' . $when . '; it matches the live resume.'
 		: 'Draft saved' . $when . '; differs from live.';
 }
 
