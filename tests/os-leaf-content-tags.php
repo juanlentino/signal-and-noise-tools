@@ -270,6 +270,22 @@ ok( false !== strpos( $kit, 'name="sn_tag_from" value="10,11"' ) && false !== st
 ok( false !== strpos( $kit, 'os-action="go" os-arg-sub="tags">Cancel</os-button>' ), 'confirm: Cancel is an in-window go back to the Tags leaf' );
 ok( false === strpos( $kit, 'Tags total' ) && false === strpos( $kit, 'Duplicate tags' ), 'confirm: the panel stays focused: no glance, no clusters' );
 
+// ── 2026-10-12 review: stored names ("R&amp;B") read "R&B" in the confirm
+// sentence and in both "Jev: by tag" readings, not only in the list view.
+$rb_preview           = $GLOBALS['__preview'];
+$GLOBALS['__preview'] = array( 'from' => array( array( 'id' => 40, 'name' => 'R&amp;B', 'slug' => 'rb', 'count' => 3 ) ), 'into' => array( 'id' => 42, 'name' => 'Soul &amp; Funk', 'slug' => 'soul-funk' ), 'posts_affected' => 3 );
+$kit = kit_tags( array( 'params' => $params ) );
+ok( false === strpos( $kit, '&amp;amp;' ) && false !== strpos( $kit, 'This moves 3 posts from R&amp;B into &quot;Soul &amp; Funk&quot;' ), 'confirm: a stored "R&amp;B" reads "R&B" in the dry-run sentence' );
+$GLOBALS['__preview'] = $rb_preview;
+unset( $_GET['sn_tag_preview'] );
+$GLOBALS['__jev'] = true;
+$GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 2, 'notes' => array( 7 => array( 'title' => 'N', 'attached' => array( array( 'id' => 40, 'name' => 'R&amp;B', 'score' => 0.4, 'confidence' => 0.9 ) ) ) ), 'usage' => array(), 'last_error' => '' );
+$kit   = kit_tags();
+$bytag = ledger_rows( $kit, 'Jev: by tag' );
+ok( false === strpos( $kit, '&amp;amp;' ) && false !== strpos( $kit, '1 carries notes that only touch it: R&amp;B.' ) && 'R&B' === ( $bytag[0]['tag'] ?? '' ), 'Jev: by tag: a stored "R&amp;B" reads "R&B" in the summary and in the Tag column' );
+unset( $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] );
+$_GET['sn_tag_preview'] = '1';
+
 // ── The preview that no longer resolves.
 $GLOBALS['__preview'] = null;
 $kit = kit_tags( array( 'params' => $params ) );

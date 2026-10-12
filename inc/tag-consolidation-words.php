@@ -76,14 +76,14 @@ function sn_tag_name( $name ) {
 function sn_tag_merge_sentence( array $pv ) {
 	$names = array();
 	foreach ( (array) ( $pv['from'] ?? array() ) as $f ) {
-		$names[] = (string) ( $f['name'] ?? '' );
+		$names[] = sn_tag_name( $f['name'] ?? '' );
 	}
 	$posts = (int) ( $pv['posts_affected'] ?? 0 );
 	return sprintf(
 		/* translators: 1: source tag names, 2: canonical tag name, 3: post count */
 		_n( 'This moves %3$s post from %1$s into "%2$s", then deletes the source tags. Links to the old tag archives redirect permanently to "%2$s".', 'This moves %3$s posts from %1$s into "%2$s", then deletes the source tags. Links to the old tag archives redirect permanently to "%2$s".', $posts, 'signal-and-noise-tools' ),
 		implode( ', ', $names ),
-		(string) ( $pv['into']['name'] ?? '' ),
+		sn_tag_name( $pv['into']['name'] ?? '' ),
 		number_format_i18n( $posts )
 	);
 }
@@ -146,7 +146,7 @@ function sn_tag_by_tag_summary( array $rows, array $wide ) {
 		sprintf( _n( '%s tag in the last pass', '%s tags in the last pass', $n, 'signal-and-noise-tools' ), number_format_i18n( $n ) ),
 		/* translators: %s: tags carrying notes that only touch them. */
 		sprintf( _n( '%s carries notes that only touch it', '%s carry notes that only touch them', $w, 'signal-and-noise-tools' ), number_format_i18n( $w ) ),
-		$wide ? implode( ', ', array_column( $wide, 'name' ) ) : __( 'none', 'signal-and-noise-tools' )
+		$wide ? implode( ', ', array_map( 'sn_tag_name', array_column( $wide, 'name' ) ) ) : __( 'none', 'signal-and-noise-tools' )
 	);
 }
 
