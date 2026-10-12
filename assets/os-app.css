@@ -338,7 +338,8 @@ a.snt-link {
    lone field, 720px, so a form is never half-width fields beside
    full-width ones at random. A textarea, a field whose hint paragraph
    follows it (so the hint sits under its own field; a checkbox's is the
-   group's), and anything that is not a field (a section, a notice, a
+   group's, and one moved into the form's footer slot is the form's), and
+   anything that is not a field (a section, a notice, a
    switch, a hint) take the whole row. A grid
    placed fields by position and left a field before a spanning item alone
    at half width (Identity & SEO, Front-End; review on #2023). A rule here
@@ -367,10 +368,10 @@ a.snt-link {
 
 .snt-app os-form > :not( os-field-row ),
 .snt-app os-form > os-field-row:has( os-textarea ),
-.snt-app os-form > os-field-row:has( + .snt-hint ):not( :has( os-checkbox-label ) ),
+.snt-app os-form > os-field-row:has( + .snt-hint:not( [slot] ) ):not( :has( os-checkbox-label ) ),
 .snt-app os-form os-section:has( > os-field-row ) > :not( os-field-row ),
 .snt-app os-form os-section:has( > os-field-row ) > os-field-row:has( os-textarea ),
-.snt-app os-form os-section:has( > os-field-row ) > os-field-row:has( + .snt-hint ):not( :has( os-checkbox-label ) ) {
+.snt-app os-form os-section:has( > os-field-row ) > os-field-row:has( + .snt-hint:not( [slot] ) ):not( :has( os-checkbox-label ) ) {
 	flex: 0 0 100%;
 	grid-column: 1 / -1;
 }

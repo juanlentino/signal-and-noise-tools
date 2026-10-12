@@ -220,9 +220,13 @@ foreach ( preg_split( '/\}/', $app_css ) as $chunk ) {
 	if ( false !== strpos( $chunk, 'flex: 0 0 100%' ) && false !== strpos( $chunk, 'os-form' ) ) { $span = $chunk; }
 }
 foreach ( array( 'os-form >', 'os-form os-section:has( > os-field-row ) >' ) as $parent ) {
-	ok( false !== strpos( $span, '.snt-app ' . $parent . ' :not( os-field-row )' ) && false !== strpos( $span, '.snt-app ' . $parent . ' os-field-row:has( os-textarea )' ) && false !== strpos( $span, '.snt-app ' . $parent . ' os-field-row:has( + .snt-hint ):not( :has( os-checkbox-label ) )' ), "a textarea, a field with its own hint after it, and anything that is not a field take a whole row ($parent)" );
+	ok( false !== strpos( $span, '.snt-app ' . $parent . ' :not( os-field-row )' ) && false !== strpos( $span, '.snt-app ' . $parent . ' os-field-row:has( os-textarea )' ) && false !== strpos( $span, '.snt-app ' . $parent . ' os-field-row:has( + .snt-hint:not( [slot] ) ):not( :has( os-checkbox-label ) )' ), "a textarea, a field with its own hint after it, and anything that is not a field take a whole row ($parent)" );
 }
 ok( false === strpos( $app_css, 'grid-template-columns: repeat( auto-fit, minmax( min( 100%, max( 320px' ), 'no positional grid for fields is left to strand one at half width' );
+// Review on #2023: a hint moved into the form's footer (slot="footer-leading")
+// is not the last field's own, so it must not push that field onto a row of
+// its own (Front-End's Reading speed and Notes per page each took 720px).
+ok( 0 === preg_match( '/os-field-row:has\( \+ \.snt-hint \)/', $app_css ), 'no rule counts a slotted footer hint as the field\'s own' );
 ok( 1 === preg_match( '/\.snt-app os-form os-field-row:not\( :has\( os-textarea \) \) \{\s*max-width: 720px;/', $app_css ), 'a one-line field is never wider than a field\'s measure, whatever box in the form it sits in' );
 $raw = (string) file_get_contents( $css_path );
 ok( false === strpos( $css, '.snt-leaf:has( os-form ),' ) && false === strpos( $css, '.snt-leaf:has( os-form ) {' ), 'no hatch releases a leaf for a form with no fields' );
