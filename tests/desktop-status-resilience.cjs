@@ -484,6 +484,14 @@ async function run() {
     const hp = nodes(fxroot).find(n => n.children.some(c => 'a' === c.tag && c.text === 'Open Health'));
     assert.ok(hp && hp.children.some(c => 'heading' === c.attrs.role && 'Health' === c.text), 'and it closes the Health section');
     assert.match(ft, /opens in a new tab/, 'an off-site link says it opens a new tab');
+    // 2026-10-12 (batch 10): measured live, an off-site link opened a new browser tab and every S&N link
+    // was taken by the shell's link interceptor into the native window. Both halves hold only while the
+    // anchors stay this shape: target=_blank + noopener off-site, and no target on an S&N link (a
+    // same-origin new tab relaunches the installed app instead of opening a window).
+    const anchors = nodes(fxroot).filter(e => 'a' === e.tag);
+    const offsite = anchors.filter(e => /^https?:/.test(e.href));
+    assert.ok(offsite.length > 0 && offsite.every(a => '_blank' === a.target && /\bnoopener\b/.test(a.rel || '')), 'every off-site link opens a new tab, with noopener');
+    assert.ok(anchors.length > offsite.length && anchors.filter(a => !offsite.includes(a)).every(a => !a.target), 'an S&N link carries no target, so the shell opens it as the native window');
     // Codex on #1927: a keyboard user on a section link keeps focus through the two-minute repaint.
     const fl0 = nodes(fxroot).find(n => 'a' === n.tag && n.text === 'Open Cloudflare');
     fl0.tagName = 'A';

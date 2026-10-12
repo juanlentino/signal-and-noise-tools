@@ -114,11 +114,31 @@ function incoming( array $args ) {
  * URL's own names (`sn_view`, `sn_range`, …): one vocabulary for a link, a
  * form and a deep link, so no surface has to guess which spelling to use.
  *
- * @param State $state Window state.
- * @param Os    $os    Host handle.
+ * The session of the view the link names says so with the `snt-land` effect,
+ * carrying the link's stamp (assets/os-kit.js shows that tab once per stamp;
+ * a server action cannot switch tabs). On a reopen only
+ * that session moves, and only for params it has not read yet: a dock or icon
+ * click reopens with none and the shell hands back the last ones, which used
+ * to reset the range and class the reader had picked (the same guard as the
+ * S&N Home window's read_params()).
+ *
+ * @param State $state  Window state.
+ * @param Os    $os     Host handle.
+ * @param bool  $reopen True for `reopen`.
  * @return void
  */
-function read_params( State $state, Os $os ) {
+function read_params( State $state, Os $os, $reopen = false ) {
+	$read = (string) json_encode( is_array( $os->params ) ? $os->params : array() );
+	if ( $reopen && $read === (string) $state->get( 'landed' ) ) {
+		return;
+	}
+	$state->set( 'landed', $read );
+	$named = (string) \snt_os_host_last( $os->param( 'sn_view', '' ) );
+	$named = function_exists( 'snt_analytics_resolve_view' ) ? \snt_analytics_resolve_view( $named ) : ( '' === $named ? 'overview' : $named );
+	$here  = view_slug( $os, $state );
+	if ( $reopen && $named !== $here ) {
+		return;
+	}
 	$args = array();
 	foreach ( array_keys( \snt_os_analytics_get( $state ) ) as $key ) {
 		if ( 'page' === $key ) {
@@ -135,6 +155,9 @@ function read_params( State $state, Os $os ) {
 		$state->set( $key, $value );
 	}
 	\snt_os_analytics_apply( $state, $args );
+	if ( $named === $here && isset( $os->effects ) && method_exists( $os->effects, 'add' ) ) {
+		$os->effects->add( 'snt-land', array( 'land' => (string) $os->param( 'land', '' ) ) );
+	}
 }
 
 /**
@@ -191,7 +214,8 @@ $sn_analytics = App::define( APP_ID )
 	->min_size( 360, 360 )
 	->placement( 'dock' )
 	->capabilities( 'manage_options' )
-	->state( \snt_os_analytics_defaults() )
+	// `landed`: the open-time params read_params() last read (2026-10-12).
+	->state( \snt_os_analytics_defaults() + array( 'landed' => '' ) )
 	->title_bar_button(
 		'refresh',
 		array(
@@ -328,7 +352,7 @@ $sn_analytics = App::define( APP_ID )
 			if ( ! may_manage() ) {
 				return;
 			}
-			read_params( $state, $os );
+			read_params( $state, $os, true );
 			$state->set( 'view', view_slug( $os, $state ) );
 		}
 	);

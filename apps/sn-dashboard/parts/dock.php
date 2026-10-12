@@ -33,29 +33,79 @@ function badge_count() {
 }
 
 /**
+ * The tab a deep link names, as the classic page reads it: no `tab`, or one
+ * the window does not have, is the Dashboard, and a legacy tab or a moved leaf
+ * resolves through the same map the 301 uses.
+ *
+ * @param Os $os Host handle.
+ * @return array{0:string,1:string,2:string} Tab, leaf, anchor.
+ */
+function landing( Os $os ) {
+	$tab    = (string) $os->param( 'tab', '' );
+	$sub    = (string) $os->param( 'sub', '' );
+	$anchor = (string) $os->param( 'anchor', '' );
+	$tab    = '' === $tab ? 'dashboard' : $tab;
+	$dest   = function_exists( 'sn_admin_canonical_destination' ) ? \sn_admin_canonical_destination( $tab, $sub ) : null;
+	if ( is_array( $dest ) ) {
+		$tab    = (string) $dest['tab'];
+		$sub    = (string) ( $dest['sub'] ?? '' );
+		$anchor = ( '' === $anchor && ! empty( $dest['anchor'] ) ) ? 'sn-sec-' . $dest['anchor'] : $anchor;
+	}
+	// A tab the window does not have is the Dashboard, the classic page's fallback.
+	if ( function_exists( 'sn_admin_top_tabs' ) && ! in_array( $tab, array_column( \sn_admin_top_tabs(), 'tab' ), true ) ) {
+		$tab = 'dashboard';
+	}
+	return array( $tab, $sub, $anchor );
+}
+
+/**
  * Read the open-time params onto the state: `tab`, `sub`, `anchor`.
  *
- * Shared by `mount` and `reopen` — a deep link that lands on a window already
- * open must retarget it, and the shell writes the new params before it
- * dispatches `reopen`, so the two reads are the same read.
+ * Shared by `mount` and `reopen`. Each tab is its own session and every one
+ * of them receives the params, so only the session of the tab the link names
+ * lands, and says so with the `snt-land` effect, carrying the link's stamp
+ * (assets/os-kit.js shows that tab once per stamp: a server action cannot
+ * switch the window's tabs, and a reload keeps the params but not the tab, so
+ * the same stamp must not pull the window back). The others open on
+ * their first leaf, or keep the leaf they are on when the window was already
+ * open.
  *
- * @param State $state Window state.
- * @param Os    $os    Host handle.
+ * ONCE PER LINK. A dock or icon click reopens the window with NO params, and
+ * the shell then hands back the last ones it had: re-reading them snapped
+ * every tab back to the last deep link's leaf (measured 2026-10-12). So a
+ * reopen whose params are the ones this session already read changes nothing;
+ * a link always differs, because assets/os-settings-tab.js stamps each one.
+ *
+ * @param State $state  Window state.
+ * @param Os    $os     Host handle.
+ * @param bool  $reopen True for `reopen`.
  * @return void
  */
-function read_params( State $state, Os $os ) {
-	$tab    = current_tab( $os );
-	$sub    = \snt_os_host_resolve_sub( $tab, (string) $os->param( 'sub', '' ) );
+function read_params( State $state, Os $os, $reopen = false ) {
+	$read = (string) json_encode( is_array( $os->params ) ? $os->params : array() );
+	if ( $reopen && $read === (string) $state->get( 'landed' ) ) {
+		return;
+	}
+	$state->set( 'landed', $read );
+	$tab = current_tab( $os );
+	list( $to, $sub, $anchor ) = landing( $os );
+	if ( $to !== $tab ) {
+		if ( ! $reopen ) {
+			$state->set( 'sub', \snt_os_host_resolve_sub( $tab, '' ) );
+		}
+		return;
+	}
 	// The anchor param IS the element id (a door names `sn-sec-<slug>` or any
 	// id); the section_anchor() prefixing is for handler targets, not params.
-	$anchor = (string) $os->param( 'anchor', '' );
-	$params = is_array( $os->params ) ? \snt_os_host_params( $os->params ) : array();
-	$state->set( 'sub', $sub )
+	$state->set( 'sub', \snt_os_host_resolve_sub( $tab, $sub ) )
 		->set( 'anchor', $anchor )
-		->set( 'params', $params )
+		->set( 'params', is_array( $os->params ) ? \snt_os_host_params( $os->params ) : array() )
 		->set( 'flash', '' )
 		->set( 'post', array() )
 		->set( 'notice', null );
+	if ( isset( $os->effects ) && method_exists( $os->effects, 'add' ) ) {
+		$os->effects->add( 'snt-land', array( 'land' => (string) $os->param( 'land', '' ) ) );
+	}
 }
 
 /**
