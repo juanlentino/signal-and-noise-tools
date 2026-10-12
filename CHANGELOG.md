@@ -20,6 +20,8 @@ adds a bullet below. A release is a separate, deliberate act:
 - **Boxes that fit side by side share a row** (owner: "some of the settings became a scroll page"). Measured live with the grid refit a visible window runs: Measurement › Analytics' left column ran 3,094px against 2,059px, so exclusion and tuning move to a row of their own under both columns; Agent tools pairs the read door with the write door; Health pairs "Could not run" with "Also scanned"; Reports pairs the placement-dependent and arithmetic tiers. Every pair is within 1.5x height.
 
 ### Fixed
+- **Deploy Status's Remote MCP row is its version again.** 2026.10.2 painted "2.2.0 · contract 16", which wrapped in the narrow column and said nothing when the contract matched. A match now lives in the check's title ("contract 16 matches this plugin"); only a mismatch says the contract, as one amber line under Workers naming both sides ("Remote MCP contract 15; this plugin expects 16.").
+- **SN Provenance names the top identified crawler family.** It read "Top crawler family: other-bot, 49%", the bucket for bots the taxonomy cannot name. other-bot and unclassified-machine are skipped (live: search, 15% of reader reads); with only buckets reading, the row is left out.
 - **Integrity › Reports no longer says "38 of 21 token pairs would fall below 4.5:1".** The 21 pairs are the served palette; the 38 summed the failures of every palette the theme ships. The count now follows the same palette as the pairs it is printed against, on both surfaces; each palette's own count stays in the report.
 
 ## [2026.10.2] - 2026-10-12 — the readership evidence reaches /stats, and S&N Home folds nothing
