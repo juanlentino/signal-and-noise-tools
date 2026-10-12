@@ -225,3 +225,54 @@ function sn_workflow_page_save( array $doc ) {
 	false === $want ? delete_option( SN_WORKFLOW_PAGE_OPTION ) : update_option( SN_WORKFLOW_PAGE_OPTION, $doc, false );
 	return get_option( SN_WORKFLOW_PAGE_OPTION ) === $want ? true : null;
 }
+
+/**
+ * Where /workflow stands, for both editors: the Page's status ('' when no
+ * Page holds the slug) and when it was last written (0 when unknown). Every
+ * save with something public rewrites the Page, so its modified time is the
+ * last save's (2026-10-12 audit: the leaf counted rows "on the page" while
+ * /workflow was a draft or did not exist, and carried no saved stamp).
+ *
+ * @return array{status:string,modified:int}
+ */
+function sn_workflow_page_state() {
+	$page = function_exists( 'get_page_by_path' ) ? get_page_by_path( SN_WORKFLOW_SLUG ) : null;
+	if ( ! is_object( $page ) ) {
+		return array( 'status' => '', 'modified' => 0 );
+	}
+	$gmt = (string) ( $page->post_modified_gmt ?? '' );
+	$ts  = '' !== $gmt && 0 !== strpos( $gmt, '0000' ) ? strtotime( $gmt . ' UTC' ) : false;
+	return array( 'status' => (string) ( $page->post_status ?? '' ), 'modified' => false === $ts ? 0 : (int) $ts );
+}
+
+/**
+ * One sentence on whether /workflow is public and when it was saved, the
+ * same on both editors.
+ *
+ * @param array{status:string,modified:int} $state From sn_workflow_page_state().
+ * @return string
+ */
+function sn_workflow_state_line( array $state ) {
+	$status = (string) ( $state['status'] ?? '' );
+	if ( '' === $status ) {
+		return __( '/workflow does not exist yet: the first save with something to show creates it.', 'signal-and-noise-tools' );
+	}
+	$ts   = (int) ( $state['modified'] ?? 0 );
+	$when = $ts > 0 ? (string) wp_date( get_option( 'date_format', 'F j, Y' ) . ' \a\t ' . get_option( 'time_format', 'g:i a' ), $ts ) : '';
+	if ( 'publish' === $status ) {
+		/* translators: %s: date and time of the last save. */
+		return '' !== $when ? sprintf( __( '/workflow is live. Last saved %s.', 'signal-and-noise-tools' ), $when ) : __( '/workflow is live.', 'signal-and-noise-tools' );
+	}
+	$names = array(
+		'draft'   => __( 'draft', 'signal-and-noise-tools' ),
+		'private' => __( 'private', 'signal-and-noise-tools' ),
+		'pending' => __( 'pending review', 'signal-and-noise-tools' ),
+		'future'  => __( 'scheduled', 'signal-and-noise-tools' ),
+	);
+	$name = $names[ $status ] ?? $status;
+	return '' !== $when
+		/* translators: 1: page status ("draft"), 2: date and time of the last save. */
+		? sprintf( __( '/workflow is offline (%1$s): readers cannot see it. Last saved %2$s.', 'signal-and-noise-tools' ), $name, $when )
+		/* translators: %s: page status ("draft"). */
+		: sprintf( __( '/workflow is offline (%s): readers cannot see it.', 'signal-and-noise-tools' ), $name );
+}

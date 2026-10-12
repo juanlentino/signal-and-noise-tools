@@ -85,6 +85,14 @@ function snt_ai_pattern_adoption_apply_impl( $post_id, $block_fingerprint, $repl
 		return $result;
 	}
 
+	// 2026-10-12 audit: an applied block left its row in the cached scan, with
+	// Suggest and Dismiss that then failed on a block no longer there. A live
+	// write drops it; a staged revision (a write callback) leaves the post, and
+	// so the row, as they were.
+	if ( null === $write_callback && function_exists( 'snt_block_fp_cache_drop' ) ) {
+		snt_block_fp_cache_drop( 'snt_pattern_adoption_candidates_' . (int) get_current_user_id(), $post_id, 'pattern_type', $pattern_type, (string) $block_fingerprint, defined( 'SNT_PATTERN_ADOPTION_TRANSIENT_TTL' ) ? SNT_PATTERN_ADOPTION_TRANSIENT_TTL : HOUR_IN_SECONDS );
+	}
+
 	return array(
 		'ok'                    => true,
 		'post_id'               => $post_id,

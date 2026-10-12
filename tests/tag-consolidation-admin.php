@@ -128,7 +128,7 @@ ok( strpos( $h, 'Install Connector for TypeSafe Jev' ) !== false && strpos( $h, 
 
 $GLOBALS['__ai'] = true; $GLOBALS['__jev'] = true; $GLOBALS['__fit'] = false;
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
-ok( strpos( $h, 'Read tags now' ) !== false && strpos( $h, 'value="sn_tag_fit_run"' ) !== false && strpos( $h, 'under a cent' ) !== false, 'Jev: a key and no pass: the explainer and Read tags now' );
+ok( strpos( $h, 'Read tags now' ) !== false && strpos( $h, 'value="sn_tag_fit_run"' ) !== false && strpos( $h, 'is listed for removal. One request per note that carries a tag' ) !== false && strpos( $h, 'seventy' ) === false, 'Jev: a key and no pass: the explainer (no hard-coded request count) and Read tags now' );
 
 $GLOBALS['__fit'] = array( 'synced_at' => 1, 'tags' => 3, 'notes' => array( 7 => array( 'title' => 'Untagged Note', 'attached' => array( array( 'id' => 9, 'name' => 'Empty', 'score' => 0.3, 'confidence' => 0.7 ) ), 'missing' => array( array( 'id' => 2, 'name' => 'Jazz', 'noul' => 0.8 ) ) ) ), 'usage' => array(), 'last_error' => '' );
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
@@ -145,7 +145,7 @@ ok( strpos( $h, 'No unused tags' ) !== false, 'Unused: empty state' );
 
 // --- 17.2.0: Groups on /notes/tags without the theme: says so, no form ------------
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
-ok( strpos( $h, 'Groups on /notes/tags' ) !== false && strpos( $h, 'not available' ) !== false && strpos( $h, 'value="sn_tag_group_apply"' ) === false, 'Groups: without the theme functions the section says so and offers no form' );
+ok( strpos( $h, 'Groups on /notes/tags' ) !== false && strpos( $h, 'The tag groups are not available: the active theme does not provide them.' ) !== false && strpos( $h, '13.4.0' ) === false && strpos( $h, 'value="sn_tag_group_apply"' ) === false, 'Groups: without the theme functions the section says so, with no theme version stamp, and offers no form' );
 
 // --- 16.9.3: no ceiling section (the rule is the description; the gate nudges) ---
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();

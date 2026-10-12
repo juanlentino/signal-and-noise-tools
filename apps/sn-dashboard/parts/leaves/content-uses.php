@@ -89,12 +89,13 @@ function uses_group_card( $index, array $group ) {
 		. \snt_kit_field(
 			'textarea',
 			$prefix . '[items]',
-			__( 'Items — one per line, name | note', 'signal-and-noise-tools' ),
+			__( 'Items: one per line, name | note', 'signal-and-noise-tools' ),
 			uses_group_lines( $group ),
+			// 2026-10-12 audit: the per-card hint ("The note after | is
+			// optional...") repeated under every card; the leaf's hint says it once.
 			array(
 				'rows'        => 5,
 				'placeholder' => "SSL UF8 | Advanced DAW controller\nAnother thing",
-				'hint'        => __( 'The note after | is optional. A note with no name is refused at save rather than filed under a blank entry.', 'signal-and-noise-tools' ),
 			)
 		);
 	// <os-card compact>: the kit's card, default slot = body (kit-help "Card").
@@ -139,16 +140,19 @@ function paint_content_uses( array $ctx ) {
 	foreach ( $data['groups'] as $i => $group ) {
 		$card_list[] = uses_group_card( (string) $i, $group );
 	}
-	// The spare card: what the classic template cloned on "+ Add group". It
-	// keeps the template's index; a blank row is pruned at save, a filled one
-	// is a new group (sn_uses_rows_to_text() never reads the keys).
-	$card_list[] = uses_group_card( '__U__', array( 'items' => array( array() ) ) );
+	// The spare cards: what the classic template cloned on "+ Add group". The
+	// first keeps the template's index, a second fills the row after an even
+	// count; a blank row is pruned at save, a filled one is a new group
+	// (sn_uses_rows_to_text() never reads the keys).
+	foreach ( snt_spare_keys( count( $card_list ), '__U__', '__V__' ) as $key ) {
+		$card_list[] = uses_group_card( $key, array( 'items' => array( array() ) ) );
+	}
 	// Siblings, so a grid: see snt_pair_cards() in content-now.php.
 	$cards = snt_pair_cards( $card_list );
 
 	$inner = uses_intro_html( $data )
-		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Each card is one gear group: a label plus name/note rows (the note is optional). Incomplete cards are refused at save (rows need a label, a label needs at least one row, and a note needs a name). Removing every card clears the override: the page falls back to the theme\'s built-in list (it is never silently blanked).', 'signal-and-noise-tools' ) ) . '</p>'
-		. '<p class="snt-hint">' . \snt_kit_esc( __( 'The last card is a spare: fill it in to add a group. To remove a group, clear its label and items — blank cards are dropped at save. To reorder groups, move the text between cards.', 'signal-and-noise-tools' ) ) . '</p>'
+		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Each card is one gear group: a label plus name | note rows (the note after | is optional). Incomplete cards are refused at save (rows need a label, a label needs at least one row, and a note needs a name). Removing every card clears the override: the page falls back to the theme\'s built-in list (it is never silently blanked).', 'signal-and-noise-tools' ) ) . '</p>'
+		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Each empty card at the end is a spare: fill one in to add a group. To remove a group, clear its label and items; blank cards are dropped at save. To reorder groups, move the text between cards.', 'signal-and-noise-tools' ) ) . '</p>'
 		. \snt_kit_form(
 			'uses_save',
 			'<os-stack gap="12">' . $cards . '</os-stack>',

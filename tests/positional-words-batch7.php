@@ -43,7 +43,6 @@ $elsewhere = array(
 	'apps/sn-dashboard/parts/leaves/ai-agent-tools-adapter.php' => 'at the address below',
 	'apps/sn-dashboard/parts/leaves/ai-agent-tools-doors.php'   => 'the tool list below',
 	'apps/sn-dashboard/parts/leaves/ai-models-budget-parts.php' => 'The figure above',
-	'apps/sn-dashboard/parts/leaves/content-now.php'            => 'Add sections below',
 	'apps/sn-dashboard/parts/leaves/site-redirects-rules.php'   => 'add the first one below',
 	'apps/sn-dashboard/parts/leaves/tools-provenance.php'       => 'the commitment above',
 );
