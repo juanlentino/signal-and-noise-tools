@@ -45,7 +45,9 @@ function snt_watch_ripe_archive_push( $watch, $now, $state = null ) {
 	$open = array();
 	foreach ( (array) ( $last['failures'] ?? array() ) as $id => $f ) {
 		if ( (int) ( $f['requested_at'] ?? 0 ) > (int) $now - 7 * DAY_IN_SECONDS ) {
-			$open[] = sprintf( 'post %d, %s UTC, HTTP %d, attempt %d%s', (int) $id, gmdate( 'Y-m-d H:i', (int) $f['requested_at'] ), (int) ( $f['status'] ?? 0 ), (int) ( $f['attempt'] ?? 1 ), '' !== (string) ( $f['reason'] ?? '' ) ? ' (' . $f['reason'] . ')' : '' );
+			// Status 0 is no response at all, never "HTTP 0" (unknown is not zero).
+			$status = (int) ( $f['status'] ?? 0 );
+			$open[] = sprintf( 'post %d, %s UTC, %s, attempt %d%s', (int) $id, gmdate( 'Y-m-d H:i', (int) $f['requested_at'] ), $status > 0 ? 'HTTP ' . $status : 'no response', (int) ( $f['attempt'] ?? 1 ), '' !== (string) ( $f['reason'] ?? '' ) ? ' (' . $f['reason'] . ')' : '' );
 		}
 	}
 	if ( $open ) {

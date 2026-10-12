@@ -123,7 +123,10 @@ function citations_forget_form( array $rows ) {
 	foreach ( $options as $id => $label ) {
 		$opts[ (string) $id ] = $label;
 	}
-	$inner = \snt_kit_field( 'select', 'claim', __( 'Forget a claim', 'signal-and-noise-tools' ), (string) array_key_first( $opts ), array( 'options' => $opts, 'hint' => __( 'Only claims shown to nobody can be forgotten. If the source sends its webmention again, it is a new claim.', 'signal-and-noise-tools' ) ) )
+	// Nothing preselected, and the field is required (2026-10-12): the newest
+	// claim was preselected and the confirm cannot name it, so a press could
+	// forget a claim nobody chose. The Tags merge picker's shape.
+	$inner = \snt_kit_field( 'select', 'claim', __( 'Forget a claim', 'signal-and-noise-tools' ), '', array( 'options' => $opts, 'placeholder' => __( 'Choose a claim', 'signal-and-noise-tools' ), 'required' => true, 'hint' => __( 'Only claims shown to nobody can be forgotten. If the source sends its webmention again, it is a new claim.', 'signal-and-noise-tools' ) ) )
 		. \snt_kit_field( 'hidden', 'action', '', \snt_kit_hook_action( 'citation_forget' ) )
 		. \snt_kit_field( 'hidden', '_wpnonce', '', \snt_kit_nonce( 'citation_forget' ) );
 	return \snt_kit_tag(

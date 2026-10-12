@@ -215,6 +215,24 @@ $r = sn_prov_perform_rotation_with( '2026-09-15', static function () use ( &$tou
 ok( false === $r['ok'] && 'reveal-mismatch' === $r['code'], 'a mismatched reveal is refused' );
 ok( false === $touched, 'and the LEDGER WAS NEVER CALLED — a rotation the site would refuse is never published' );
 
+// 2026-10-12 review: no active key to retire is refused BEFORE the ledger too.
+// sn_prov_rotate_to() refused it only after the ledger had recorded the
+// handover, so the notice's "Nothing changed" was untrue.
+$GLOBALS['__options'] = array();
+$saved_pub        = $GLOBALS['__pub'];
+$GLOBALS['__pub'] = '';
+sn_prov_commit_next_key( $NEXT_B64, '2026-09-01' );
+$GLOBALS['__resp'] = array( 'code' => 200, 'body' => json_encode( array(
+	'ok' => true, 'configured' => true, 'public_key_base64' => $NEXT_B64, 'sha256_commitment' => $NEXT_HASH,
+) ) );
+$touched = false;
+$r = sn_prov_perform_rotation_with( '2026-09-15', static function () use ( &$touched ) {
+	$touched = true;
+	return array( 'ok' => true, 'code' => '' );
+} );
+ok( false === $r['ok'] && 'no-active-key' === $r['code'] && false === $touched, 'no active key: refused with no-active-key, and the ledger is never called' );
+$GLOBALS['__pub'] = $saved_pub;
+
 /* ── LAST, AND IT MUST BE: define() IS IRREVERSIBLE ─────────────────
  * This group defines SN_PROV_PUBKEY_B64 to prove the constant-shadow guard.
  * A PHP constant cannot be un-defined, so every test after it would run with

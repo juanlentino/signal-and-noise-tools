@@ -57,7 +57,9 @@ function sn_archive_existing_pending( $limit = -1 ) {
  */
 function sn_archive_existing_next( $record, $remaining, $booked ) {
 	if ( is_array( $record ) && 'failed' === ( $record['state'] ?? '' ) ) {
-		return array( 'state' => 'halted', 'reason' => trim( sprintf( 'HTTP %d %s', (int) ( $record['status'] ?? 0 ), (string) ( $record['reason'] ?? '' ) ) ) );
+		// Status 0 is no response at all, never "HTTP 0" (unknown is not zero).
+		$status = (int) ( $record['status'] ?? 0 );
+		return array( 'state' => 'halted', 'reason' => trim( ( $status > 0 ? 'HTTP ' . $status : 'no response' ) . ' ' . (string) ( $record['reason'] ?? '' ) ) );
 	}
 	if ( (int) $remaining <= 0 ) {
 		return array( 'state' => 'done', 'reason' => '' );

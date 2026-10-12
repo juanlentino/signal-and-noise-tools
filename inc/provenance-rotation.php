@@ -33,6 +33,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/provenance-rotation-notice.php';
+
 /**
  * Can a rotation actually take effect right now?
  *
@@ -373,6 +375,12 @@ function sn_prov_perform_rotation_with( $when, $publisher ) {
 	if ( ! sn_prov_rotation_reveal_matches( $fetched['public_key_base64'], $commitment['value'] ) ) {
 		return $fail( 'reveal-mismatch' );
 	}
+	// The last refusal sn_prov_rotate_to() can make, made here too: with no
+	// active key to retire, the ledger would record a handover the site then
+	// refuses, and the result notice's "Nothing changed" would be untrue.
+	if ( '' === trim( (string) sn_prov_pubkey_b64() ) || '' === trim( (string) sn_prov_key_id() ) ) {
+		return $fail( 'no-active-key' );
+	}
 
 	$published = call_user_func( $publisher, $key_id, $when );
 	if ( empty( $published['ok'] ) ) {
@@ -462,6 +470,7 @@ function sn_prov_admin_render_rotation_fieldset() {
 	$commitment = sn_prov_next_key_commitment();
 
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Key rotation', 'signal-and-noise-tools' ) . '</h2>';
+	sn_prov_admin_render_rotation_notice();
 
 	echo '<table class="widefat striped sn-prov-config"><tbody><tr><td>'
 		. esc_html__( 'Commitment to the next key', 'signal-and-noise-tools' ) . '</td><td>';
@@ -470,9 +479,9 @@ function sn_prov_admin_render_rotation_fieldset() {
 	} else {
 		echo '<code>' . esc_html( substr( $commitment['value'], 0, 16 ) ) . '…</code> '
 			. '<span class="sn-pill sn-pill--ok">' . esc_html( sprintf(
-				/* translators: %s: ISO date. */
+				/* translators: %s: the date, in the site's format. */
 				__( 'committed %s', 'signal-and-noise-tools' ),
-				$commitment['committed_at']
+				function_exists( 'sn_prov_admin_format_ts' ) ? sn_prov_admin_format_ts( (string) $commitment['committed_at'] ) : $commitment['committed_at']
 			) ) . '</span>';
 	}
 	echo '</td></tr></tbody></table>';
@@ -487,13 +496,13 @@ function sn_prov_admin_render_rotation_fieldset() {
 		sn_prov_admin_rotation_button(
 			'sn_prov_stage_key',
 			__( 'Publish a commitment to the staged key', 'signal-and-noise-tools' ),
-			__( 'Asks the Worker for the successor key it holds, hashes it here, and publishes that hash — so the key that later appears can be checked against the one promised.', 'signal-and-noise-tools' )
+			sn_prov_rotation_hint( 'stage' )
 		);
 	} else {
 		sn_prov_admin_rotation_button(
 			'sn_prov_rotate_key',
 			__( 'Rotate to the committed key', 'signal-and-noise-tools' ),
-			__( 'Retires the current key into the published history with a closed validity window, then promotes the committed successor. Refused unless the key the Worker returns hashes to the commitment above.', 'signal-and-noise-tools' )
+			sn_prov_rotation_hint( 'rotate' )
 		);
 	}
 	echo '</div>';

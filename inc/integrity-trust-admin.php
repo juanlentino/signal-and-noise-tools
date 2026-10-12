@@ -52,7 +52,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 function snt_trust_check_keys() {
 	return array(
 		'provenance_integrity' => array(
-			'label' => __( 'Provenance triangle', 'signal-and-noise-tools' ),
+			// The Health check's own name (inc/provenance-integrity.php), so the
+			// Provenance leaf's pointer here names the row it lands on (2026-10-12).
+			'label' => __( 'Provenance integrity', 'signal-and-noise-tools' ),
 			'blurb' => __( 'Payload hash, the live .json twin, and the public ledger record plus its key file still agree.', 'signal-and-noise-tools' ),
 		),
 		'ledger_ci'            => array(
