@@ -40,7 +40,8 @@ $registrations = array(
 );
 foreach ( $registrations as $file => $svg ) {
 	$src = (string) file_get_contents( "$root/$file" );
-	ok( false !== strpos( $src, "SNT_URL . 'assets/icons/$svg'" ), "$file registers assets/icons/$svg as its icon" );
+	// Versioned, so a redraw is not served from a stale cache.
+	ok( false !== strpos( $src, "SNT_URL . 'assets/icons/$svg?ver=' . SNT_VERSION" ), "$file registers assets/icons/$svg?ver=<plugin version> as its icon" );
 	ok( ! preg_match( "/->icon\(\s*'dashicons-|'icon'\s*=>\s*'dashicons-(shield-alt|megaphone|chart-area)'/", $src ), "$file no longer registers the stock dashicon" );
 }
 

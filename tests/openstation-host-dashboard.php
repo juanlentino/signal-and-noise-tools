@@ -293,7 +293,7 @@ namespace {
 	echo "\nGroup 1: the definition\n";
 	ok( $app instanceof \OpenStation\App && 'sn-dashboard' === $app->id,
 		'the file returns an App under the id the dock item used to carry -- one id, one thing' );
-	ok( 'S&N Home' === $app->title && SNT_URL . 'assets/icons/sn-home.svg' === $app->icon && 'dock' === $app->placement,
+	ok( 'S&N Home' === $app->title && SNT_URL . 'assets/icons/sn-home.svg?ver=' . SNT_VERSION === $app->icon && 'dock' === $app->placement,
 		'the same title and dock placement the manual item had, wearing its own S&N Home icon (assets/icons, not a theme slot)' );
 	ok( array( 'manage_options' ) === $app->caps, 'gated on manage_options, the capability the classic page wp_die()s without' );
 	ok( array( 1180, 820 ) === $app->size && array( 360, 360 ) === $app->min, 'keeps the desktop opening size while allowing narrow and short 360x360 windows' );

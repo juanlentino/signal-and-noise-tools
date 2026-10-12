@@ -77,7 +77,7 @@ require_once SNT_PATH . 'inc/openstation-station-home-card.php';
 require_once SNT_PATH . 'inc/openstation-preferences.php';
 require_once SNT_PATH . 'inc/openstation-mio.php';          // 14.8.0: MIO in this plugin's windows -- callouts, help, read tools, the brand look (prefs in the line above).
 require_once SNT_PATH . 'inc/openstation-pwa-icons.php';  // v13.96.4 (#1017): the Site-Icon-derived manifest declared 192x192 on a 300x300 RGBA file; iOS composited the alpha to black behind dark ink
-require_once SNT_PATH . 'inc/openstation-desktop-theme.php'; // 2026.10.5: the "Signal through noise" desktop theme (S&N icons, charcoal for the purple constants, two wallpaper picks, Bebas titles); activated per browser in OS Settings.
+require_once SNT_PATH . 'inc/openstation-desktop-theme.php'; // 2026.10.5: the "Signal through noise" desktop theme (charcoal for the purple constants, two wallpaper picks, Bebas titles); activated per browser in OS Settings.
 require_once SNT_PATH . 'inc/openstation-app.php';       // v13.98.0: the Signal & Noise window on the App Framework (apps/signal-noise), successor to the WP Explorer folder that 1.1.6 retired.
 require_once SNT_PATH . 'inc/openstation-host.php';      // #1074: the HOST seams -- capture, rewrite, replay, assets -- that let the classic admin page paint inside a window unchanged (apps/sn-dashboard).
 require_once SNT_PATH . 'inc/openstation-agent-output-budget.php'; // #1613: adaptive thinking + effort (Claude 5) and ceiling headroom on agent-run generations, on openstation_ai_model_config; inert while the agents feature is off

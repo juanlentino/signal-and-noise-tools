@@ -213,7 +213,7 @@ namespace {
 	echo "openstation-app -- the client-view build (#1049)\n\nGroup 1: the framework finds the app, its client view and its stylesheet\n";
 	ok( array( '/os/apps', rtrim( SNT_PATH, '/' ) . '/apps' ) === apply_filters( 'openstation_apps_directories', array( '/os/apps' ) ), 'openstation_apps_directories gains this plugin\'s apps/' );
 	ok( $app instanceof \OpenStation\App && 'signal-noise' === $app->id, 'the file returns an App with id signal-noise' );
-	ok( SNT_URL . 'assets/icons/signal-noise.svg' === $app->icon, 'the app registers its own pulse icon, a plugin asset (not a theme slot), so the phone and every theme show it' );
+	ok( SNT_URL . 'assets/icons/signal-noise.svg?ver=' . SNT_VERSION === $app->icon, 'the app registers its own pulse icon, a plugin asset (not a theme slot), so the phone and every theme show it' );
 	ok( is_file( (string) $app->client ) && basename( $app->client ) === 'signal-noise-client.js', 'client() names the companion script beside the entry (a client-view app: no view())' );
 	ok( null === $app->view && is_callable( $app->data ), 'no server view; data() is the contract' );
 	$js = (string) file_get_contents( $app->client );

@@ -239,7 +239,7 @@ add_action( 'init', function() {
 	// icon keeps its id so its position and the attention badge survive.
 	$dashboard_icon = array(
 		'title' => 'S&N Home',
-		'icon'  => SNT_URL . 'assets/icons/sn-home.svg', // The window's own faders.
+		'icon'  => SNT_URL . 'assets/icons/sn-home.svg?ver=' . SNT_VERSION, // The window's own faders.
 	);
 	if ( ! function_exists( 'snt_os_native_window_enabled' ) || snt_os_native_window_enabled( 'dashboard' ) ) {
 		$dashboard_icon['window'] = 'sn-dashboard';

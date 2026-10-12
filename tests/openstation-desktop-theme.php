@@ -199,7 +199,7 @@ $flat = preg_replace( '/[^a-z0-9_\-]/', '', strtolower( str_replace( '/', '-', $
 ok( 'sn-signal-through-noise' === $flat, 'the id flattens to the activation slug sn-signal-through-noise (got ' . $flat . ')' );
 ok( 'Signal through noise' === ( $args['name'] ?? '' ), 'the theme is named "Signal through noise"' );
 ok( ! array_key_exists( 'recommendedOsSettings', $args ), 'no recommendedOsSettings: the owner\'s layout, accent and wallpaper are not this file\'s to recommend' );
-ok( ! array_key_exists( 'iconColor', $args ), 'no iconColor: a tint would mask the icons and erase their red mark' );
+ok( ! array_key_exists( 'iconColor', $args ), 'no iconColor: a tint would mask every icon, the S&N apps\' own included, to one color and erase their red marks' );
 ok( ! array_key_exists( 'textures', $args ), 'no textures: component art stays upstream\'s' );
 
 $hooked = array();
