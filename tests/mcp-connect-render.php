@@ -320,7 +320,10 @@ ok( stripos( $html, 'spend the AI budget' ) !== false, 'write door states it can
 foreach ( array( 'signal-noise/get-audit-log', 'signal-noise/export-audit-log' ) as $pii ) {
 	ok( ! in_array( $pii, $rw_slugs, true ), "v11.34.0: the PII-flagged $pii is off the write door" );
 }
-ok( stripos( $html, 'plaintext usernames' ) !== false, 'write door discloses the plaintext-username audit-log exception honestly' );
+// 2026-10-12 audit: the copy still named "read-only login-audit exports" a
+// year after v11.34.0 took them off this door, above a tool list without them.
+ok( stripos( $html, 'plaintext usernames' ) === false && stripos( $html, 'login-audit exports' ) === false, 'write door no longer claims audit-log exports it does not carry' );
+ok( stripos( $html, 'the Jev passes spend TypeSafe credit' ) !== false, 'write door names what the Jev passes spend (TypeSafe credit, not the AI budget)' );
 ok( stripos( $html, 'every tool here can modify' ) === false, 'write door does not overclaim that EVERY rw tool mutates or spends budget' );
 
 // ── The write door does not duplicate read-door tools; points readers back ──
