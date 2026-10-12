@@ -70,7 +70,6 @@ const SN_ORPHAN_CLASS_BASELINE = array(
 	'sn-geo', 'sn-health-advisory', 'sn-health-contrast-arithmetic', 'sn-health-contrast-conditional',
 	'sn-health-contrast-usage', 'sn-health-elsewhere', 'sn-health-motion-uncovered', 'sn-health-skipped',
 	'sn-machine-maturity-reads', 'sn-mcp-tools',
-	'sn-mcp-usage', 'sn-mcp-usage-zero',
 	'sn-mr-leaf', 'sn-now-dek',
 	'sn-now-eyebrow', 'sn-now-headline', 'sn-now-hero', 'sn-now-item',
 	'sn-now-item-text', 'sn-now-meta', 'sn-prov-paper-blurb',

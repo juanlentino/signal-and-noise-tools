@@ -19,6 +19,7 @@ const ORIGIN = 'https://example.test';
 function boot( prefs, openReturns = true ) {
 	const clicks = [];
 	const opened = [];
+	const remaps = [];
 	const ctx = {
 		console,
 		URL,
@@ -36,7 +37,7 @@ function boot( prefs, openReturns = true ) {
 			i18n: { __: ( s ) => s },
 			os: {
 				openWindow: ( id, opts ) => { opened.push( [ id, opts ] ); return openReturns; },
-				registerNativeUrlRemap: () => () => {},
+				registerNativeUrlRemap: ( entry ) => { remaps.push( entry ); return () => {}; },
 				registerSettingsTab: () => {},
 			},
 		},
@@ -45,7 +46,46 @@ function boot( prefs, openReturns = true ) {
 	ctx.self = ctx;
 	vm.createContext( ctx );
 	vm.runInContext( SRC, ctx );
-	return { ctx, clicks, opened };
+	return { ctx, clicks, opened, remaps };
+}
+
+/**
+ * assets/os-kit.js in a fake shell: one window per id whose activateTab()
+ * fires the strip's own os-window-tab-change, as the shell's does.
+ */
+function bootKit( storage = new Map() ) {
+	const listeners = {};
+	const shown = [];
+	const dispatched = [];
+	const windows = {};
+	const fire = ( type, event ) => ( listeners[ type ] || [] ).forEach( ( cb ) => cb( event ) );
+	const windowFor = ( id ) => windows[ id ] || ( windows[ id ] = {
+		getAttribute: ( n ) => ( 'data-window-id' === n ? id : null ),
+		querySelector: () => null,
+		activateTab: ( value ) => { shown.push( [ id, value ] ); fire( 'os-window-tab-change', { target: windowFor( id ), detail: { value } } ); },
+	} );
+	const ctx = {
+		console,
+		// The site's localStorage, which a reload, a new browser tab and a
+		// restart of the installed app all keep; `null` stands for one that
+		// throws (a private window, blocked site data).
+		localStorage: null === storage
+			? { getItem() { throw new Error( 'blocked' ); }, setItem() { throw new Error( 'blocked' ); } }
+			: { getItem: ( k ) => ( storage.has( k ) ? storage.get( k ) : null ), setItem: ( k, v ) => { storage.set( k, String( v ) ); } },
+		document: { addEventListener: ( type, cb ) => { ( listeners[ type ] = listeners[ type ] || [] ).push( cb ); } },
+		wp: { os: {
+			windowManager: { getById: windowFor, getAll: () => Object.values( windows ) },
+			apps: {
+				dispatch: ( id, action, args, view ) => { dispatched.push( [ id, action, view ] ); return Promise.resolve( true ); },
+				session: () => ( { state: { range: '30', class: 'human', compare: 'off' } } ),
+			},
+		} },
+	};
+	ctx.window = ctx;
+	vm.createContext( ctx );
+	vm.runInContext( readFileSync( join( HERE, '../../assets/os-kit.js' ), 'utf8' ), ctx );
+	const land = ( appId, view, type = 'snt-land', stamp = '' ) => fire( 'os-app-effect', { detail: { appId, windowId: appId, view, effect: { type, land: stamp } } } );
+	return { land, shown, dispatched };
 }
 
 const results = [];
@@ -124,6 +164,77 @@ scenario( 'a modified click (cmd/ctrl/middle) is never claimed', () => {
 	handler.cb( { target, button: 0, metaKey: true, defaultPrevented: false, preventDefault: () => {}, stopImmediatePropagation: () => {} } );
 	handler.cb( { target, button: 1, defaultPrevented: false, preventDefault: () => {}, stopImmediatePropagation: () => {} } );
 	return { pass: opened.length === 0, detail: JSON.stringify( opened ) };
+} );
+
+scenario( 'every link is stamped, once, outside sn_*: two links to one leaf differ', () => {
+	const { ctx, opened, remaps } = boot( { dashboard: true, analytics: true } );
+	const url = ORIGIN + '/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=health';
+	ctx.sntOpenStationPreferences.tryNativeRemap( url );
+	ctx.sntOpenStationPreferences.tryNativeRemap( url );
+	const a = ( opened[ 0 ] || [] )[ 1 ] || {};
+	const b = ( opened[ 1 ] || [] )[ 1 ] || {};
+	const viaShell = remaps.map( ( r ) => r.params( url, new URL( url ) ) );
+	const stamped = ( p ) => p && typeof p.land === 'string' && p.land !== '';
+	const ok = stamped( a.params ) && stamped( b.params ) && a.params.land !== b.params.land
+		&& viaShell.length === 2 && viaShell.every( stamped ) && viaShell[ 0 ].land !== a.params.land;
+	return { pass: ok, detail: JSON.stringify( { a, b, viaShell } ) };
+} );
+
+scenario( 'a #fragment rides as the anchor the classic page scrolls to', () => {
+	const { ctx, opened } = boot( { dashboard: true, analytics: true } );
+	ctx.sntOpenStationPreferences.tryNativeRemap( ORIGIN + '/wp-admin/admin.php?page=sn-theme-options&tab=site&sub=identity-and-seo#sn-sec-identity' );
+	const p = ( ( opened[ 0 ] || [] )[ 1 ] || {} ).params || {};
+	return { pass: p.tab === 'site' && p.sub === 'identity-and-seo' && p.anchor === 'sn-sec-identity', detail: JSON.stringify( p ) };
+} );
+
+scenario( 'snt-land shows the tab whose session landed, in that window', () => {
+	const { land, shown } = bootKit();
+	land( 'sn-dashboard', 'monitoring' );
+	land( 'sn-dashboard', 'main' );
+	return { pass: JSON.stringify( shown ) === JSON.stringify( [ [ 'sn-dashboard', 'monitoring' ], [ 'sn-dashboard', 'main' ] ] ), detail: JSON.stringify( shown ) };
+} );
+
+scenario( 'any other effect, or another app, shows nothing', () => {
+	const { land, shown } = bootKit();
+	land( 'sn-dashboard', 'monitoring', 'snt-paint' );
+	land( 'other-app', 'monitoring' );
+	return { pass: shown.length === 0, detail: JSON.stringify( shown ) };
+} );
+
+scenario( 'an analytics landing does not carry the old view over the link', () => {
+	const { land, shown, dispatched } = bootKit();
+	land( 'sn-analytics', 'machine-readers' );
+	return { pass: JSON.stringify( shown ) === JSON.stringify( [ [ 'sn-analytics', 'machine-readers' ] ] ) && dispatched.length === 0, detail: JSON.stringify( { shown, dispatched } ) };
+} );
+
+scenario( 'a reload or a restart does not re-land: a stamp already shown shows nothing, a new one does', () => {
+	const storage = new Map();
+	const first = bootKit( storage );
+	first.land( 'sn-dashboard', 'monitoring', 'snt-land', 's1' );
+	const reload = bootKit( storage ); // a reload, or the installed app restarted: the shell restores the window with the same params
+	reload.land( 'sn-dashboard', 'monitoring', 'snt-land', 's1' );
+	reload.land( 'sn-dashboard', 'connections', 'snt-land', 's2' );
+	const ok = JSON.stringify( first.shown ) === JSON.stringify( [ [ 'sn-dashboard', 'monitoring' ] ] )
+		&& JSON.stringify( reload.shown ) === JSON.stringify( [ [ 'sn-dashboard', 'connections' ] ] );
+	return { pass: ok, detail: JSON.stringify( { first: first.shown, reload: reload.shown } ) };
+} );
+
+scenario( 'the memory is one key per window: links to both windows leave two keys', () => {
+	const storage = new Map();
+	const { land } = bootKit( storage );
+	land( 'sn-dashboard', 'monitoring', 'snt-land', 's1' );
+	land( 'sn-dashboard', 'connections', 'snt-land', 's2' );
+	land( 'sn-analytics', 'machine-readers', 'snt-land', 's3' );
+	land( 'sn-analytics', 'main', 'snt-land', 's4' );
+	const keys = [ ...storage.keys() ].sort();
+	const ok = JSON.stringify( keys ) === JSON.stringify( [ 'snt-land:sn-analytics', 'snt-land:sn-dashboard' ] ) && 's2' === storage.get( 'snt-land:sn-dashboard' ) && 's4' === storage.get( 'snt-land:sn-analytics' );
+	return { pass: ok, detail: JSON.stringify( [ ...storage ] ) };
+} );
+
+scenario( 'storage that throws still lands the link', () => {
+	const { land, shown } = bootKit( null );
+	land( 'sn-analytics', 'machine-readers', 'snt-land', 's1' );
+	return { pass: JSON.stringify( shown ) === JSON.stringify( [ [ 'sn-analytics', 'machine-readers' ] ] ), detail: JSON.stringify( shown ) };
 } );
 
 process.stdout.write( JSON.stringify( { results } ) + '\n' );

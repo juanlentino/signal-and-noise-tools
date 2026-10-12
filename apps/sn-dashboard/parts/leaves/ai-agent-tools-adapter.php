@@ -3,10 +3,11 @@
  * S&N Dashboard: AI › Agent tools, the adapter door and the resources, and
  * the doors in leaf order.
  *
- * The two native doors stand alone at full width (their tool lists are tall,
+ * The three doors are folds at full width (their tool lists are tall,
  * ai-agent-tools-doors.php); the adapter and the resources are two short prose
- * boxes of matching height, so they share a row. Moved from
- * ai-mcp-connect-parts.php on 2026-10-11, the words unchanged.
+ * boxes of matching height, so they share a row. The adapter's words are the
+ * classic page's (sn_admin_mcp_adapter_sentence(), two sentences since the
+ * 2026-10-12 audit).
  *
  * @package SignalNoiseTools
  */
@@ -18,16 +19,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Every door, open, in order: read beside write, then the adapter beside
- * the resources and prompts both native doors serve.
+ * Every door in order: the read, write and remote doors as earned folds, one
+ * under the other (closed, each is one summary line; open, its chips want the
+ * full width), then the adapter beside the resources and prompts both native
+ * doors serve.
  *
+ * @param array|null $usage From sn_mcp_telemetry_usage(), read once per paint.
  * @return string
  */
-function agent_tools_doors_html() {
+function agent_tools_doors_html( $usage = null ) {
 	$slugs = mcp_connect_door_slugs();
-	// 2026-10-12, measured live: the read door (494px) and the write door
-	// (709px) stacked full width; side by side they are 1.4x of each other.
-	return \snt_kit_grid( array( agent_tools_door_native_html( $slugs['read'] ), agent_tools_door_native_write_html( $slugs['rw'], $slugs['read'] ) ) )
+	return agent_tools_door_native_html( $slugs['read'], $usage )
+		. agent_tools_door_native_write_html( $slugs['rw'], $slugs['read'], $usage )
+		. agent_tools_door_remote_html( $slugs['remote'], $usage )
 		. \snt_kit_grid( array( agent_tools_door_adapter_html(), agent_tools_resources_prompts_html() ) );
 }
 
@@ -52,9 +56,7 @@ function agent_tools_door_adapter_html() {
 	$active = class_exists( 'WP\\MCP\\Core\\McpAdapter' );
 	$url    = function_exists( 'rest_url' ) ? (string) rest_url( 'mcp/mcp-adapter-default-server' ) : '';
 
-	$body = $active
-		? '<p class="snt-prose">' . \snt_kit_esc( __( 'The WordPress MCP Adapter plugin is active on this site. Since adapter 0.6.0 its default server carries only abilities that opt in through meta.mcp.public (falling back to meta.public); the abilities on the read door’s allowlist opt in and every other registration states meta.mcp.public false, so this door carries the same read set the read door does. Each exposed ability is still gated by its own capability check. The adapter is its own plugin: the wp.org “AI” plugin does not bundle it.', 'signal-and-noise-tools' ) ) . '</p>'
-		: '<p class="snt-prose">' . \snt_kit_esc( __( 'No MCP Adapter is installed on this site, so the read and write doors are the only MCP endpoints it serves. The adapter is a separate WordPress plugin (wordpress.org/plugins/mcp-adapter, listed there since 0.7.0 and still pre-1.0), and the wp.org “AI” plugin does not bundle it: that plugin lists MCP as coming soon. If the adapter is ever installed, its default server would answer at the address below, and since adapter 0.6.0 it would carry only abilities that opt in through meta.mcp.public; the abilities on the read door’s allowlist opt in and every other registration states false, so it would carry the same read set the read door does.', 'signal-and-noise-tools' ) ) . '</p>';
+	$body = '<p class="snt-prose">' . \snt_kit_esc( function_exists( 'sn_admin_mcp_adapter_sentence' ) ? sn_admin_mcp_adapter_sentence( $active ) : '' ) . '</p>';
 	$body .= '<p>' . \snt_kit_code( $url, false ) . '</p>';
 
 	return \snt_kit_section( __( 'Core MCP adapter: the Abilities-registry door', 'signal-and-noise-tools' ), $body );

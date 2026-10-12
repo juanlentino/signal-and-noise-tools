@@ -235,6 +235,15 @@ ok( 'direct' === $row['door'], 'observer: direct executions carry door=direct (M
 ok( 'ok' === $row['outcome'] && 2 === $row['result_count'], 'observer: ok outcome with raw result_count' );
 ok( is_int( $row['latency_ms'] ) && $row['latency_ms'] >= 0, 'observer: latency measured from wp_pre_execute_ability' );
 ok( array() === $GLOBALS['__audit_rows'], 'observer: read-class direct execution writes no rw audit row' );
+// 2026-10-12 audit: the remote bridge dispatches through execute() too, and its
+// calls were filed as door=direct (the plugin's own polling). A caller that is
+// a door names it, and the next execution is direct again once it resets.
+sn_ability_guard_door( 'remote' );
+sn_ability_guard_filter_execute_result( array(), 'signal-noise/remote-get-insights', array(), null );
+sn_ability_guard_door( '' );
+sn_ability_guard_filter_execute_result( array(), 'signal-noise/sn-scan', array(), null );
+ok( 'remote' === $GLOBALS['__telemetry_rows'][1]['door'] && 'direct' === $GLOBALS['__telemetry_rows'][2]['door'], 'observer: a door the caller names (the remote bridge) is the door recorded, and a reset files the next one as direct' );
+$GLOBALS['__telemetry_rows'] = array_slice( $GLOBALS['__telemetry_rows'], 0, 1 );
 
 // ---------------------------------------------------------------------------
 // 6b. wp_pre_execute_ability is a SHORT-CIRCUIT filter. Two properties, both

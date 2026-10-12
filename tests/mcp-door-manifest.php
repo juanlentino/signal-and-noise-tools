@@ -48,15 +48,20 @@ $open  = (string) ( $m[1] ?? '' );
 $is    = static fn( $path ) => '' !== $open && 1 === preg_match( '#' . $open . '#', $path );
 $shut  = array( 'inc/mcp/mcp-capabilities.php', 'inc/forms-spam-sweep.php', 'assets/desktop-mode.js', 'data/family-drift/pinned.json', 'skills/query-site-analytics/SKILL.md', 'tests/run.sh', 'tools/cut-release.sh', '.gitattributes', '.github/workflows/ci.yml', 'signal-and-noise-tools.php', 'docs.php', 'inc/docs/x.md' );
 ok( $is( 'docs/VERSIONING.md' ) && $is( 'CHANGELOG.md' ) && array() === array_filter( $shut, $is ), 'the door-owner check opens docs/ and the top-level Markdown files, and nothing that runs or is served' );
-$root  = dirname( __DIR__ );
-$it    = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ) );
+$root    = dirname( __DIR__ );
+$it      = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ) );
+$scanned = 0;
 foreach ( $it as $f ) {
-	$p = $f->getPathname();
-	if ( 'php' !== $f->getExtension() || preg_match( '#/(vendor|node_modules|tests|\.git|\.claude)/#', $p ) ) {
+	$p   = $f->getPathname();
+	$rel = substr( $p, strlen( $root ) + 1 );
+	// Matched against the path RELATIVE to the repo root (review on #2022): an
+	// absolute match skipped every file of a checkout that itself lives under
+	// .claude/worktrees/, and the guard passed with nothing read.
+	if ( 'php' !== $f->getExtension() || preg_match( '#(^|/)(vendor|node_modules|tests|\.git|\.claude)/#', $rel ) ) {
 		continue;
 	}
 	$src = (string) file_get_contents( $p );
-	$rel = substr( $p, strlen( $root ) + 1 );
+	++$scanned;
 	// The filter's NAME as a string, anywhere: a hook can be spelled with
 	// whitespace, named arguments or a variable callback, so the call is not
 	// what is matched. The files that already name it (they ask whether the
@@ -67,6 +72,7 @@ foreach ( $it as $f ) {
 		$hooks[] = $rel;
 	}
 }
+ok( $scanned > 300, 'vacuity: the scan read the plugin\'s own PHP (' . $scanned . ' files), wherever the checkout lives' );
 ok( array() === $hooks, 'no new file names the door-list filters' . ( $hooks ? ': ' . implode( ', ', $hooks ) : '' ) );
 
 echo "\nResult: $pass passed, $fail failed.\n";

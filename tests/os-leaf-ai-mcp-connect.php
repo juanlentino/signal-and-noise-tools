@@ -56,8 +56,10 @@ require SNT_PATH . 'apps/sn-dashboard/parts/leaves/ai-agent-tools.php';
 // leaves is checked for a fold, and the tally is asserted at the end.
 // 2026-10-12 (owner: "Some places earn it, other don't"): Connect a client
 // is the one earned fold on these leaves; any other fold is a finding.
+// 2026-10-12 audit: Agent tools' three door lists are earned too (reference;
+// the summary states the count and the calls; tests/sn-dashboard-no-folds.php).
 function ai_unearned_folds( $html ) {
-	return snt_leaf_folds( str_replace( '<os-disclosure heading="Connect a client"', '<os-section heading="Connect a client"', (string) $html ) );
+	return snt_leaf_folds( preg_replace( '/<os-disclosure heading="(Connect a client|Read door: the native MCP server|Write door: the same server, read-write|Remote door: through the Cloudflare Worker)"/', '<os-section heading="$1"', (string) $html ) );
 }
 function ai_leaf_both() {
 	$html                    = snt_leaf_paint( 'ai', 'mcp-connect' ) . snt_leaf_paint( 'ai', 'agent-tools' );
@@ -114,6 +116,15 @@ ok( false !== strpos( $kit, 'Bridge ready' ), 'the remote-door card reads Bridge
 ok( false !== strpos( $kit, 'Not installed' ), 'the adapter door reads Not installed (no adapter class declared)' );
 ok( false !== strpos( $kit, '<os-select' ) && false !== strpos( $kit, 'name="sn_mcp_rw_uuid"' ), 'the credential picker is a kit select carrying the bound uuid selection' );
 ok( false !== strpos( $kit, '<os-checkbox-label' ) && false !== strpos( $kit, 'name="sn_remote_enabled"' ), 'the remote toggle is a kit checkbox' );
+// Live check on #2022: Unbind was an empty-bodied form under Save (a blank
+// band) styled exactly like Save. Both now sit in one row: Save primary,
+// Unbind outlined danger, each its own form's data-snt-form-submit button;
+// Unbind's form holds only the empty credential and sn_mcp_rw_unbind.
+$__bind = preg_match( '#<div class="snt-bind-row">(<os-form .*?</os-form>)(<os-form .*?</os-form>)</div>#s', $kit, $__bm ) ? $__bm : array( '', '', '' );
+ok( false !== strpos( $__bm[1] ?? '', 'snt-form--saves-inline' ) && false !== strpos( $__bm[1] ?? '', '<os-cluster class="snt-save-row" gap="8"><os-button variant="primary" data-snt-form-submit>Save write-door credential</os-button></os-cluster>' ) && false !== strpos( $__bm[1] ?? '', 'name="sn_mcp_rw_uuid"' ) && false === strpos( $__bm[1] ?? '', 'sn_mcp_rw_unbind' ), 'bound: the Save form holds the picker and its own Save, in the row' );
+$__css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
+ok( 1 === preg_match( '/\.snt-bind-row > os-form:first-child \{\s*flex: 1 1 16rem;\s*min-width: 0;\s*\}/', $__css ) && 1 === preg_match( '/\.snt-bind-row > os-form:last-child \{\s*flex: 0 0 auto;\s*width: auto;\s*min-width: 5\.5rem;\s*\}/', $__css ) && 1 === preg_match( '/\.snt-bind-row \{\s*display: flex;\s*flex-wrap: wrap;\s*align-items: flex-end;/', $__css ), 'the Save form grows and the Unbind form keeps its button\'s width, so both buttons share one line (live re-measure: Unbind wrapped under Save at 542px), and the Unbind form has a floor because os-form is a size container that its button cannot widen (live: at 0px the button overflowed the card)' );
+ok( 1 === preg_match( '#^<os-form class="snt-form snt-form--saves-inline"[^>]*os-confirm="Unbind the write-door credential\? Every write-door call is denied until you bind one again\."[^>]*os-confirm-danger><os-button variant="danger" data-snt-form-submit>Unbind</os-button><input type="hidden" name="action"[^>]*><input type="hidden" name="_wpnonce"[^>]*><input type="hidden" name="sn_mcp_rw_uuid" value=""><input type="hidden" name="sn_mcp_rw_unbind" value="1"></os-form>$#', $__bm[2] ?? '' ), 'bound: Unbind is beside Save, outlined danger, its own confirmed form with no visible body but the button' );
 ok( false !== strpos( $kit, 'claude mcp add --transport http' ) && false !== strpos( $kit, '@automattic/mcp-wordpress-remote' ), 'both client configs (Claude Code one-liner, proxy JSON) survive' );
 
 // ── Escaping: a hostile Application Password name never reaches the markup raw.
@@ -185,16 +196,21 @@ $classic = ai_classic_both();
 $kit     = ai_leaf_both();
 // 2026-10-11 (no folds): the classic summary line becomes a tile row and two
 // findings on the kit leaf; every figure it carried is still painted.
-ok( false !== strpos( $kit, '20 days of a 30-day window' ) && false !== strpos( $kit, '3 allowlisted tools had no call through a door: 1 cannot be projected; 1 retirement candidate; 1 called only by the plugin itself.' ) && false !== strpos( $classic, '3 tools with no calls through a door' ), 'usage state: the measured window (20 of 30 days) and the tools with no calls THROUGH A DOOR (3, split by verdict) are painted' );
+$zero_finding = '3 allowlisted tools had no call through a door: 1 cannot be projected; 1 retirement candidate; 1 called only by the plugin itself.';
+ok( false !== strpos( $kit, '20 days of a 30-day window' ) && false !== strpos( $classic, '20 days of a 30-day window' ) && false !== strpos( $kit, $zero_finding ) && false !== strpos( $classic, $zero_finding ), 'usage state: the measured window (20 of 30 days) and the tools with no calls THROUGH A DOOR (3, split by verdict) are painted, in the same words on both surfaces' );
 ok( 3 === substr_count( substr( $kit, (int) strpos( $kit, 'heading="Through MCP"' ) ), '<os-stat ' ) && false !== strpos( $kit, 'value="43" label="Calls through a door"' ) && false !== strpos( $kit, 'value="2" label="Tools called through a door"' ) && false !== strpos( $kit, 'value="3" label="Tools with no door calls"' ), 'usage state: three tiles read the door calls (43), the tools called (2) and the tools with none (3)' );
-ok( false !== strpos( $kit, '43 calls came through a door since 2026-01-01; sn-status took 98% of them.' ), 'usage state: the call-log finding is a lead sentence built from the data, not a fold hint' );
+ok( false !== strpos( $kit, '43 calls came through a door since January 1, 2026; sn-status took 98% of them.' ) && false !== strpos( $classic, '43 calls came through a door since January 1, 2026; sn-status took 98% of them.' ), 'usage state: the call-log finding is a lead sentence built from the data, its date in the site\'s format, on both surfaces' );
 ok( false === strpos( $kit, 'more tools, busiest first' ) && false === strpos( $kit, 'more tools with no door calls' ), 'usage state: 2 called and 3 uncalled tools sit under both caps, so neither ledger says "+N more"' );
 ok( false !== strpos( $kit, 'sn-status' ) && false !== strpos( $kit, '42' ) && false !== strpos( $kit, 'sn-apply' ) && false !== strpos( $kit, '1 (30,000 direct)' ) && false !== strpos( $classic, '1 (30,000 direct)' ), 'usage state: the Calls cell is door calls with the direct count in parentheses, on both surfaces' );
-$door_split = '75,874 calls: 72,182 first-party (direct), 1,446 read door, 1,042 rw, 1,204 agent';
+// 2026-10-12 audit: the doors by the names the screen gives them, never rw/agent/direct.
+$door_split = '75,874 calls in all: 1,446 through the read door, 1,042 the write door, 0 the remote door, 1,204 from Desktop Mode agents, and 72,182 by the plugin&#039;s own surfaces.';
 ok( false !== strpos( $kit, $door_split ) && false !== strpos( $classic, $door_split ), 'usage state: the door-split sentence paints with the same words on both surfaces' );
 $first_party = "the plugin's own surfaces called it 28,689 times";
 ok( false !== strpos( html_entity_decode( $kit, ENT_QUOTES, 'UTF-8' ), $first_party ) && false !== strpos( html_entity_decode( $classic, ENT_QUOTES, 'UTF-8' ), $first_party ) && false !== strpos( $kit, 'only for the door allowlist' ), 'usage state: a first-party-only tool is labelled with its direct count and as an allowlist (not code) candidate, on both surfaces' );
-ok( false !== strpos( $kit, '<os-section heading="No calls in this window"' ), 'usage state: the zero-call list is its own open section under the call log' );
+// 2026-10-12 audit: the uncalled tools are marked on their own chips in the
+// door lists; no second section repeats every slug (the count stays a sentence).
+$__mcp_at = (int) strpos( $kit, '<os-section heading="Through MCP"' );
+ok( false === strpos( $kit, 'heading="No calls in this window"' ) && strpos( $kit, $zero_finding ) > $__mcp_at && strpos( $kit, $zero_finding ) < (int) strpos( $kit, '</os-section>', $__mcp_at ), 'usage state: the zero-call count is a sentence inside Through MCP, not a section of its own' );
 ok( false !== strpos( $kit, 'predate the sensor' ), 'usage state: the partial-window caveat keeps its interpretive sentence' );
 ok( false !== strpos( $kit, 'retirement candidate' ) && false !== strpos( $kit, 'evidence for removal' ), 'usage state: the zero-call trailing paragraph survives' );
 
@@ -227,7 +243,8 @@ function ai_mcp_connect_normalize_text( $html ) {
 	return trim( (string) $text );
 }
 function ai_mcp_connect_split_sentences( $html ) {
-	preg_match_all( '/<[a-z-]+[^>]*\b(?:heading|hint|description|label)="([^"]+)"/i', (string) $html, $attr_m );
+	// A tile's caption is painted text too (2026-10-12: the call log's tiles are on both surfaces).
+	preg_match_all( '/<[a-z-]+[^>]*\b(?:heading|hint|description|label|caption)="([^"]+)"/i', (string) $html, $attr_m );
 	$attrs = array_map( 'ai_mcp_connect_normalize_text', array_filter( $attr_m[1] ) );
 	$body  = ai_mcp_connect_normalize_text( $html );
 	$parts = preg_split( '/(?<=[.!?])\s+/', $body );
@@ -249,10 +266,8 @@ $missing  = '';
 $classic_prose = preg_replace( array( '#<table.*?</table>#s', '#<summary>.*?</summary>#s', '#<ul class="sn-mcp-tool-list">.*?</ul>#s', '#<ul class="sn-mcp-usage-zero">.*?</ul>#s' ), '', $classic );
 $reworded      = array(
 	'Four abilities never reach this door' => '4 abilities never reach this door: 1 permanently, 3 pending an explicit future opt-in.',
-	'Install Node.js if the machine does not have it' => 'Install Node.js if the machine does not have it: the config runs through npx.',
-	// 2026-10-12: the kit paints the config beside the desktop steps; no step says where.
-	'Paste the proxy config above into that file' => 'Paste the config into that file (merge into an existing "mcpServers" object if one is there), with your real username and Application Password swapped in.',
-	'Paste the client config below, swapping in your WordPress username' => 'Swap in your WordPress username and the Application Password you just created.',
+	// 2026-10-12 audit: the classic steps say the kit's words now (no "config
+	// below" or "above"), so the oracle below holds them to it directly.
 );
 foreach ( $reworded as $new ) {
 	ok( false !== strpos( $kit_norm, $new ), 'the kit paints its reworded sentence: ' . $new );
@@ -289,9 +304,10 @@ $kit = ai_leaf_both();
 // share a row (1.4x); the adapter and the resources stay paired. MCP Clients
 // paints no pair of the leaf-row shape (its grids are its tiles, its two
 // controls and the two clients), so both rows are Agent tools'.
-ok( 2 === substr_count( $kit, snt_leaf_row() ), 'two paired rows are painted across the two leaves, both on Agent tools -- ' . substr_count( $kit, snt_leaf_row() ) );
+// 2026-10-12 audit: the three door lists are folds one under the other
+// (closed, one summary line each); the adapter and the resources stay paired.
+ok( 1 === substr_count( $kit, snt_leaf_row() ), 'one paired row is painted across the two leaves, on Agent tools -- ' . substr_count( $kit, snt_leaf_row() ) );
 $pairs = array(
-	array( 'Read door: the native MCP server', 'Write door: the same server, read-write' ),
 	array( 'Core MCP adapter: the Abilities-registry door', 'Resources &amp; prompts' ),
 );
 foreach ( $pairs as $i => $pair ) {

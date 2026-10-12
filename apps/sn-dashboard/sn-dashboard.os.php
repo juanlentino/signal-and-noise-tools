@@ -292,6 +292,7 @@ $sn_dashboard = App::define( APP_ID )
 			'filter' => '',          // A leaf's text filter (the Cron leaf's #sn-cron-filter twin, #1604), written by os-bind through the built-in `set`.
 			'saved'  => false,       // 2026-10-12: a save went through; rides ONE paint (paint_effect()), so the host drops that form's drafts.
 			'answered' => '',        // 2026-10-12: the action that save or refusal answers (a form's `action`/`sn_action`); rides the same ONE paint.
+			'landed' => '',          // 2026-10-12: the open-time params this session last read (read_params()), so a dock click is not read as a link.
 		)
 	)
 	->title_bar_button(
@@ -419,7 +420,7 @@ $sn_dashboard = App::define( APP_ID )
 			if ( ! may_manage() ) {
 				return;
 			}
-			read_params( $state, $os );
+			read_params( $state, $os, true );
 			$os->badge( badge_count() );
 		}
 	)

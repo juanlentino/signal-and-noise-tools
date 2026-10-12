@@ -107,30 +107,72 @@ function sn_hibp_health( $d, $now ) {
 
 	$base = array( 'flagged' => $flagged, 'checked' => $checked, 'unavailable_recent' => $recent );
 
+	// 2026-10-12 audit: the sentences are translated, in plain words, and name
+	// no constant; the good one no longer repeats the figures the screens print
+	// beside it, only how many accounts have been checked at all.
 	if ( empty( $d['set_enabled'] ) || empty( $d['login_enabled'] ) ) {
 		$off = array();
-		if ( empty( $d['set_enabled'] ) ) { $off[] = 'set-time (SN_HIBP_SET_DISABLED)'; }
-		if ( empty( $d['login_enabled'] ) ) { $off[] = 'login-time (SN_HIBP_LOGIN_DISABLED)'; }
+		if ( empty( $d['set_enabled'] ) ) { $off[] = __( 'new passwords', 'signal-and-noise-tools' ); }
+		if ( empty( $d['login_enabled'] ) ) { $off[] = __( 'logins', 'signal-and-noise-tools' ); }
 		return $base + array(
 			'status'  => 'recommended',
-			'summary' => sprintf( 'The breached-password check is switched OFF for: %s. Nothing below this line is being measured for that mode.', implode( ' and ', $off ) ),
+			/* translators: %s: "new passwords", "logins", or both joined by "and". */
+			'summary' => sprintf( __( 'The breached-password check is switched off in wp-config.php for %s, so nothing is measured there.', 'signal-and-noise-tools' ), implode( __( ' and ', 'signal-and-noise-tools' ), $off ) ),
 		);
 	}
 	if ( $flagged > 0 ) {
 		return $base + array(
 			'status'  => 'recommended',
-			'summary' => sprintf( '%d of %d checked account(s) is using a password that appears in known data breaches. It still works (the login check is advisory); that user saw a notice and should change it.', $flagged, $checked ),
+			/* translators: 1: accounts flagged, 2: accounts checked. */
+			'summary' => sprintf( _n( '%1$s of %2$s checked accounts uses a password that appears in known data breaches. It still works (the login check is advisory); that user saw a notice and should change it.', '%1$s of %2$s checked accounts use passwords that appear in known data breaches. They still work (the login check is advisory); those users saw a notice and should change them.', $flagged, 'signal-and-noise-tools' ), number_format_i18n( $flagged ), number_format_i18n( $checked ) ),
 		);
 	}
 	if ( $recent ) {
 		return $base + array(
 			'status'  => 'recommended',
-			'summary' => sprintf( 'The breach API was unreachable when a password was being set (%d fail-closed rejection(s), last within 7 days). Those password changes were refused, by design. If this count keeps climbing, the API is degrading and the site is quietly refusing legitimate changes.', $unavail ),
+			/* translators: %s: refusals. */
+			'summary' => sprintf( _n( 'The breach service could not be reached while a password was being set (%s refusal, the last within 7 days), so that change was refused, by design. If this count keeps climbing, the service is failing and the site is quietly refusing legitimate changes.', 'The breach service could not be reached while passwords were being set (%s refusals, the last within 7 days), so those changes were refused, by design. If this count keeps climbing, the service is failing and the site is quietly refusing legitimate changes.', $unavail, 'signal-and-noise-tools' ), number_format_i18n( $unavail ) ),
 		);
 	}
 	return $base + array(
 		'status'  => 'good',
-		'summary' => sprintf( 'Both modes are on. %d of %d account(s) checked at login, none breached; %d breached password(s) refused at set-time; %d fail-closed rejection(s) ever, none recent.', $checked, $users, (int) ( $set['breached_count'] ?? 0 ), $unavail ),
+		/* translators: 1: accounts checked at login, 2: all accounts. */
+		'summary' => sprintf( __( 'Both checks are on and no checked account uses a breached password; %1$s of %2$s accounts have been checked at login so far.', 'signal-and-noise-tools' ), number_format_i18n( $checked ), number_format_i18n( $users ) ),
+	);
+}
+
+/**
+ * The three figures both screens print beside the verdict, each saying what
+ * it counts (2026-10-12 audit: "0 of 3 checked" beside a hint's "3 of 3
+ * account(s) checked" were two different X of Y; a mode switched off still
+ * printed its counts as if measured). Short labels (live check on #2022: a
+ * 295px label left its value 29px, broken across six lines); the verdict
+ * sentence the screens print with them says what "service down" refuses.
+ *
+ * @param array $d  sn_hibp_surface_data().
+ * @param array $hv sn_hibp_health() over $d.
+ * @return array<int,array{label:string,value:string,tone:?string}>
+ */
+function sn_hibp_surface_rows( array $d, array $hv ) {
+	$set    = is_array( $d['set'] ?? null ) ? $d['set'] : array();
+	$off    = __( 'not measured (switched off)', 'signal-and-noise-tools' );
+	$recent = ! empty( $hv['unavailable_recent'] );
+	return array(
+		array(
+			'label' => __( 'Flagged at login', 'signal-and-noise-tools' ),
+			/* translators: 1: accounts flagged, 2: accounts checked. */
+			'value' => empty( $d['login_enabled'] ) ? $off : sprintf( __( '%1$s of %2$s checked accounts', 'signal-and-noise-tools' ), number_format_i18n( (int) $hv['flagged'] ), number_format_i18n( (int) $hv['checked'] ) ),
+			'tone'  => ! empty( $d['login_enabled'] ) && (int) $hv['flagged'] > 0 ? 'warn' : null,
+		),
+		array(
+			'label' => __( 'Refused when set', 'signal-and-noise-tools' ),
+			'value' => empty( $d['set_enabled'] ) ? $off : number_format_i18n( (int) ( $set['breached_count'] ?? 0 ) ),
+		),
+		array(
+			'label' => __( 'Refused, service down', 'signal-and-noise-tools' ),
+			'value' => empty( $d['set_enabled'] ) ? $off : number_format_i18n( (int) ( $set['unavailable_count'] ?? 0 ) ) . ( $recent ? __( ', recent: the service may be failing', 'signal-and-noise-tools' ) : '' ),
+			'tone'  => ! empty( $d['set_enabled'] ) && $recent ? 'warn' : null,
+		),
 	);
 }
 
@@ -146,7 +188,14 @@ add_filter( 'site_status_tests', 'sn_hibp_register_site_health_test' );
 
 /** The Site Health row. */
 function sn_hibp_site_health_result() {
-	$verdict = sn_hibp_health( sn_hibp_surface_data(), time() );
+	$data    = sn_hibp_surface_data();
+	$verdict = sn_hibp_health( $data, time() );
+	// Review on #2022: the good sentence stopped carrying the set-time counts
+	// (the leaf prints them as rows), so the row lists the same three figures.
+	$facts = '';
+	foreach ( sn_hibp_surface_rows( $data, $verdict ) as $fact ) {
+		$facts .= '<li>' . esc_html( $fact['label'] . ': ' . $fact['value'] ) . '</li>';
+	}
 	return array(
 		'label'       => __( 'Signal & Noise breached-password check', 'signal-and-noise-tools' ),
 		'status'      => 'good' === $verdict['status'] ? 'good' : 'recommended',
@@ -154,7 +203,7 @@ function sn_hibp_site_health_result() {
 			'label' => __( 'Security', 'signal-and-noise-tools' ),
 			'color' => 'blue',
 		),
-		'description' => '<p>' . esc_html( $verdict['summary'] ) . '</p>',
+		'description' => '<p>' . esc_html( $verdict['summary'] ) . '</p><ul>' . $facts . '</ul>',
 		'test'        => 'sn_hibp_breach_check',
 	);
 }

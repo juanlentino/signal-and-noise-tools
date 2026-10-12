@@ -144,16 +144,22 @@ echo "\n-- unbind: an explicit empty string clears the bound credential --\n";
 reset_state();
 sn_mcp_set_rw_bound_uuid( $uuid_owned );
 ok( $uuid_owned === sn_mcp_rw_bound_uuid(), 'sanity: something is bound before the unbind call' );
-$flash = sn_handle_bind_mcp_rw_credential( array( 'sn_mcp_rw_uuid' => '' ) );
-ok( 'mcp_rw_unbound' === $flash, 'posting an empty string returns mcp_rw_unbound' );
+$flash = sn_handle_bind_mcp_rw_credential( array( 'sn_mcp_rw_uuid' => '', 'sn_mcp_rw_unbind' => '1' ) );
+ok( 'mcp_rw_unbound' === $flash, 'the Unbind button (an empty credential and sn_mcp_rw_unbind) returns mcp_rw_unbound' );
 ok( '' === sn_mcp_rw_bound_uuid(), 'the option reads back empty after unbind' );
 
-echo "\n-- unbind: a MISSING field (no sn_mcp_rw_uuid key at all) also unbinds ('' default) --\n";
+// Review on #2022: Save in the unresolvable state posted '' from the resting
+// picker and unbound with no confirm. Only the confirmed Unbind button unbinds.
+echo "\n-- a Save that posts no credential while one is bound is refused, never an unbind --\n";
 reset_state();
 sn_mcp_set_rw_bound_uuid( $uuid_owned );
+$flash = sn_handle_bind_mcp_rw_credential( array( 'sn_mcp_rw_uuid' => '' ) );
+ok( 'mcp_rw_bind_choose' === $flash && $uuid_owned === sn_mcp_rw_bound_uuid(), 'an empty credential without sn_mcp_rw_unbind is refused (mcp_rw_bind_choose) and the binding stays' );
 $flash = sn_handle_bind_mcp_rw_credential( array() );
-ok( 'mcp_rw_unbound' === $flash, 'an absent field defaults to the empty-string unbind path' );
-ok( '' === sn_mcp_rw_bound_uuid(), 'the option reads back empty' );
+ok( 'mcp_rw_bind_choose' === $flash && $uuid_owned === sn_mcp_rw_bound_uuid(), 'an absent field while bound is refused the same way' );
+reset_state();
+$flash = sn_handle_bind_mcp_rw_credential( array( 'sn_mcp_rw_uuid' => '' ) );
+ok( 'mcp_rw_unbound' === $flash && '' === sn_mcp_rw_bound_uuid(), 'with nothing bound, an empty Save changes nothing it could lose (mcp_rw_unbound, still unbound)' );
 
 // ============================================================
 // wp_unslash() is actually applied to the posted field

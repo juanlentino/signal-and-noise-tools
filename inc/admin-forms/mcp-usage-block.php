@@ -1,11 +1,18 @@
 <?php
 /**
- * MCP Clients → tool usage readout.
+ * AI › Agent tools: the MCP call log, in the words both twins say.
  *
  * The readout half of inc/mcp/mcp-telemetry-read.php. The table it reads had
- * an install path, an insert path and a prune path, and no SELECT — evidence
+ * an install path, an insert path and a prune path, and no SELECT: evidence
  * accrued for the retirement gate and was deleted at 90 days unread. Shipping
  * the accessor without this block would have reproduced that exact shape.
+ *
+ * Every sentence the native leaf paints (ai-agent-tools-usage.php) comes from
+ * a helper here, so the classic block and the leaf cannot drift. 2026-10-12
+ * audit: the ledger counts only the tools on a door's list today (a retired
+ * tool and the plugin's own polling are one sentence), names the doors as the
+ * screen does, prints times in the site's format, and caps at ten rows; every
+ * door tool's count is on its own entry in the door lists.
  *
  * @package Signal_And_Noise_Tools
  */
@@ -14,95 +21,127 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/** Ledger rows painted before the "+N more" line, on both twins. */
+const SN_MCP_USAGE_LEDGER_CAP = 10;
+
 /**
- * Folded usage block. Headline carries the MEASURED window and the zero-call
- * count, because those are the two numbers a retirement decision rests on and
- * both are easy to assume wrongly.
+ * A door key as the screen names it.
+ *
+ * @param string $door read, rw, remote, agent or direct.
+ * @return string
  */
-function sn_admin_render_mcp_usage() {
-	if ( ! function_exists( 'sn_mcp_telemetry_usage' ) ) {
-		return;
-	}
-	$usage = sn_mcp_telemetry_usage();
-
-	echo '<h3>' . esc_html__( 'Tool usage', 'signal-and-noise-tools' ) . '</h3>';
-
-	if ( null === $usage ) {
-		// Three ways to have no report, and they are different problems. The
-		// accessor returns null for two of them, so ask the cheaper question
-		// again here rather than printing one message for both.
-		$installed = function_exists( 'sn_mcp_telemetry_table_exists' ) && sn_mcp_telemetry_table_exists();
-		echo '<p class="description">' . esc_html(
-			$installed
-				? __( 'The call log exists but could not be read — a database error, not an absence of calls. Nothing here should be treated as usage evidence.', 'signal-and-noise-tools' )
-				: __( 'The call log table is not installed yet. It is created on the first MCP call; until then there is no usage evidence either way.', 'signal-and-noise-tools' )
-		) . '</p>';
-		return;
-	}
-
-	$zero  = $usage['zero_call'];
-	$since = $usage['measured_since'];
-
-	if ( null === $since ) {
-		echo '<p class="description">' . esc_html__( 'The call log is installed and has recorded nothing. That is not the same as these tools going unused — no call has been made through either door yet.', 'signal-and-noise-tools' ) . '</p>';
-		return;
-	}
-
-	$summary = sprintf(
-		/* translators: 1: measured days, 2: window days, 3: count of tools with no calls through a door. */
-		__( 'Measured over %1$d days of a %2$d-day window · %3$d tools with no calls through a door', 'signal-and-noise-tools' ),
-		(int) $usage['measured_days'],
-		(int) $usage['window_days'],
-		count( $zero )
+function sn_admin_mcp_door_name( $door ) {
+	$names = array(
+		'read'   => __( 'read door', 'signal-and-noise-tools' ),
+		'rw'     => __( 'write door', 'signal-and-noise-tools' ),
+		'remote' => __( 'remote door', 'signal-and-noise-tools' ),
+		'agent'  => __( 'Desktop Mode agents', 'signal-and-noise-tools' ),
+		'direct' => __( 'the plugin itself', 'signal-and-noise-tools' ),
 	);
-
-	echo '<details class="sn-mcp-usage">';
-	echo '<summary>' . esc_html( $summary ) . '</summary>';
-
-	if ( ! $usage['complete'] ) {
-		echo '<p class="description"><strong>' . esc_html__( 'Partial window.', 'signal-and-noise-tools' ) . '</strong> ';
-		echo esc_html(
-			sprintf(
-				/* translators: 1: first recorded date, 2: window days. */
-				__( 'Recording began %1$s, so this covers less than the full %2$d days asked for. A tool with no calls here may simply predate the sensor.', 'signal-and-noise-tools' ),
-				$since,
-				(int) $usage['window_days']
-			)
-		) . '</p>';
-	}
-
-	sn_admin_render_mcp_usage_table( $usage['by_tool'] );
-	sn_admin_render_mcp_usage_zero( $zero );
-
-	echo '<p class="description">' . esc_html( sn_admin_mcp_usage_door_split( $usage ) ) . '</p>';
-	echo '</details>';
+	return $names[ (string) $door ] ?? (string) $door;
 }
 
 /**
- * The door split, one sentence. First-party is the plugin's own surfaces
- * polling through the lifecycle guard; the three doors are the callers a
- * retirement reading is about. Same words on the native leaf.
+ * A logged UTC timestamp in the site's time zone and formats.
+ *
+ * @param string|null $sql_ts `Y-m-d H:i:s[.u]` in UTC, as the log stores it.
+ * @param bool        $time   Include the time of day.
+ * @return string
+ */
+function sn_admin_mcp_usage_when( $sql_ts, $time = true ) {
+	$ts = ( is_string( $sql_ts ) && '' !== $sql_ts ) ? strtotime( $sql_ts . ' UTC' ) : false;
+	if ( false === $ts ) {
+		return __( 'not recorded', 'signal-and-noise-tools' );
+	}
+	$format = (string) get_option( 'date_format', 'F j, Y' ) . ( $time ? ' ' . (string) get_option( 'time_format', 'g:i a' ) : '' );
+	return (string) wp_date( $format, $ts );
+}
+
+/**
+ * A tool's name without the plugin's prefix.
+ *
+ * @param string $name Projected name or slug.
+ * @return string
+ */
+function sn_admin_mcp_tool_short( $name ) {
+	return (string) preg_replace( '#^signal-noise(__|/)#', '', (string) $name );
+}
+
+/**
+ * The tools a door lists today that a call reached through a door, busiest
+ * first (a retired tool keeps its calls in the log, never in the ledger).
+ *
+ * @param array $usage From sn_mcp_telemetry_usage().
+ * @return array<string,array> Projected name => by_tool entry.
+ */
+function sn_admin_mcp_usage_listed( $usage ) {
+	$rows = array_filter( (array) ( $usage['by_tool'] ?? array() ), static fn( $r ) => ! empty( $r['allowlisted'] ?? true ) && (int) ( $r['door_calls'] ?? 0 ) > 0 );
+	uasort( $rows, static fn( $a, $b ) => ( (int) ( $b['door_calls'] ?? 0 ) <=> (int) ( $a['door_calls'] ?? 0 ) ) ?: ( (int) ( $b['calls'] ?? 0 ) <=> (int) ( $a['calls'] ?? 0 ) ) );
+	return $rows;
+}
+
+/**
+ * The finding over the ledger: door calls since the window's first day, and
+ * the busiest tool's share.
+ *
+ * @param array $usage From sn_mcp_telemetry_usage().
+ * @return string
+ */
+function sn_admin_mcp_usage_finding( $usage ) {
+	$rows  = sn_admin_mcp_usage_listed( $usage );
+	$calls = array_sum( array_map( static fn( $r ) => (int) ( $r['door_calls'] ?? 0 ), $rows ) );
+	$since = sn_admin_mcp_usage_when( $usage['since'] ?? $usage['measured_since'] ?? null, false );
+	if ( $calls <= 0 ) {
+		/* translators: %s: the first day the window covers. */
+		return sprintf( __( 'No call came through a door since %s.', 'signal-and-noise-tools' ), $since );
+	}
+	$top = (string) array_key_first( $rows );
+	/* translators: 1: door calls, 2: the first day the window covers, 3: busiest tool, 4: its share in percent. */
+	return sprintf( _n( '%1$s call came through a door since %2$s; %3$s took %4$s%% of them.', '%1$s calls came through a door since %2$s; %3$s took %4$s%% of them.', $calls, 'signal-and-noise-tools' ), number_format_i18n( $calls ), $since, sn_admin_mcp_tool_short( $top ), number_format_i18n( round( 100 * (int) $rows[ $top ]['door_calls'] / $calls ) ) );
+}
+
+/**
+ * The partial-window sentence, '' when the window is complete.
+ *
+ * @param array $usage From sn_mcp_telemetry_usage().
+ * @return string
+ */
+function sn_admin_mcp_usage_partial( $usage ) {
+	if ( ! empty( $usage['complete'] ) ) {
+		return '';
+	}
+	/* translators: 1: when recording began, 2: days measured, 3: window days. */
+	return sprintf( __( 'Partial window. Recording began %1$s, so this covers %2$s of the %3$s days asked for. A tool with no calls here may simply predate the sensor.', 'signal-and-noise-tools' ), sn_admin_mcp_usage_when( $usage['recording_began'] ?? $usage['measured_since'] ?? null, false ), number_format_i18n( (int) ( $usage['measured_days'] ?? 0 ) ), number_format_i18n( (int) ( $usage['window_days'] ?? 0 ) ) );
+}
+
+/**
+ * The door split, one paragraph: every door by its screen name, the
+ * plugin's own polling, and the door calls to tools no door lists today
+ * (retired, or reached only by Desktop Mode agents, which can call any
+ * signal-noise/ ability).
  *
  * @param array $usage From sn_mcp_telemetry_usage().
  * @return string
  */
 function sn_admin_mcp_usage_door_split( $usage ) {
 	$by_door = (array) ( $usage['by_door'] ?? array() );
-	return sprintf(
-		/* translators: 1: total calls, 2: direct (first-party) calls, 3: read-door calls, 4: rw-door calls, 5: agent-door calls. */
-		__( '%1$s calls: %2$s first-party (direct), %3$s read door, %4$s rw, %5$s agent. The total includes calls that never resolved to a tool.', 'signal-and-noise-tools' ),
-		number_format_i18n( (int) ( $usage['total_rows'] ?? 0 ) ),
-		number_format_i18n( (int) ( $by_door['direct'] ?? 0 ) ),
-		number_format_i18n( (int) ( $by_door['read'] ?? 0 ) ),
-		number_format_i18n( (int) ( $by_door['rw'] ?? 0 ) ),
-		number_format_i18n( (int) ( $by_door['agent'] ?? 0 ) )
-	);
+	$n       = static fn( $k ) => number_format_i18n( (int) ( $by_door[ $k ] ?? 0 ) );
+	/* translators: 1: total calls, 2: read door, 3: write door, 4: remote door, 5: Desktop Mode agents, 6: the plugin's own surfaces. */
+	$out     = sprintf( __( '%1$s calls in all: %2$s through the read door, %3$s the write door, %4$s the remote door, %5$s from Desktop Mode agents, and %6$s by the plugin\'s own surfaces. The total includes calls that never resolved to a tool.', 'signal-and-noise-tools' ), number_format_i18n( (int) ( $usage['total_rows'] ?? 0 ) ), $n( 'read' ), $n( 'rw' ), $n( 'remote' ), $n( 'agent' ), $n( 'direct' ) );
+	$retired = array_filter( (array) ( $usage['by_tool'] ?? array() ), static fn( $r ) => empty( $r['allowlisted'] ?? true ) && (int) ( $r['door_calls'] ?? 0 ) > 0 );
+	if ( $retired ) {
+		$calls = array_sum( array_map( static fn( $r ) => (int) $r['door_calls'], $retired ) );
+		// Review on #2022: Desktop Mode agents reach any signal-noise/ ability,
+		// listed on a door or not, so "retired" alone overclaimed.
+		/* translators: 1: door calls, 2: tools. */
+		$out  .= ' ' . sprintf( _n( '%1$s door call reached tools no door lists today (retired, or reached only by Desktop Mode agents: %2$s), so the ledger leaves it out.', '%1$s door calls reached tools no door lists today (retired, or reached only by Desktop Mode agents: %2$s), so the ledger leaves them out.', $calls, 'signal-and-noise-tools' ), number_format_i18n( $calls ), implode( ', ', array_map( 'sn_admin_mcp_tool_short', array_keys( $retired ) ) ) );
+	}
+	return $out;
 }
 
 /**
  * The Calls cell: door calls, with the direct count in parentheses when there
- * is one. Parentheses over a fifth column because both tables keep their
- * shape and the kit table needs no new key. Same words on the native leaf.
+ * is one. Same words on the native leaf.
  *
  * @param array $row One by_tool entry.
  * @return string
@@ -118,74 +157,22 @@ function sn_admin_mcp_usage_calls_cell( $row ) {
 }
 
 /**
- * Per-tool call counts, busiest first.
+ * The ledger rows both twins paint: tool, calls, last seen, doors by name.
  *
- * @param array $by_tool Keyed by projected tool name.
+ * @param array $usage From sn_mcp_telemetry_usage().
+ * @return array<int,array<string,string>>
  */
-function sn_admin_render_mcp_usage_table( $by_tool ) {
-	if ( empty( $by_tool ) ) {
-		return;
+function sn_admin_mcp_usage_rows( $usage ) {
+	$out = array();
+	foreach ( sn_admin_mcp_usage_listed( $usage ) as $name => $row ) {
+		$out[] = array(
+			'tool'      => sn_admin_mcp_tool_short( (string) $name ),
+			'calls'     => sn_admin_mcp_usage_calls_cell( $row ),
+			'last_seen' => sn_admin_mcp_usage_when( $row['last_seen'] ?? null ),
+			'doors'     => implode( ', ', array_map( 'sn_admin_mcp_door_name', (array) ( $row['doors'] ?? array() ) ) ),
+		);
 	}
-	// Door calls lead, since that is the column; the polls only break ties.
-	uasort( $by_tool, function ( $a, $b ) { return ( ( $b['door_calls'] ?? 0 ) <=> ( $a['door_calls'] ?? 0 ) ) ?: ( $b['calls'] <=> $a['calls'] ); } );
-
-	echo '<table class="widefat striped"><thead><tr>';
-	echo '<th>' . esc_html__( 'Tool', 'signal-and-noise-tools' ) . '</th>';
-	echo '<th>' . esc_html__( 'Calls', 'signal-and-noise-tools' ) . '</th>';
-	echo '<th>' . esc_html__( 'Last seen', 'signal-and-noise-tools' ) . '</th>';
-	echo '<th>' . esc_html__( 'Doors', 'signal-and-noise-tools' ) . '</th>';
-	echo '</tr></thead><tbody>';
-	foreach ( $by_tool as $name => $row ) {
-		echo '<tr>';
-		echo '<td><code>' . esc_html( (string) $name ) . '</code></td>';
-		echo '<td>' . esc_html( sn_admin_mcp_usage_calls_cell( $row ) ) . '</td>';
-		echo '<td>' . esc_html( (string) ( $row['last_seen'] ?? '—' ) ) . '</td>';
-		echo '<td>' . esc_html( implode( ', ', (array) $row['doors'] ) ) . '</td>';
-		echo '</tr>';
-	}
-	echo '</tbody></table>';
+	return $out;
 }
 
-/**
- * Tools with no calls, split by WHY.
- *
- * The split is the point. Zero rows means either nobody used it or nobody
- * could — opposite conclusions from identical evidence — so the verdict is
- * printed beside every entry and never inferred by the reader of this page.
- *
- * @param array $zero Entries from sn_mcp_telemetry_zero_call().
- */
-function sn_admin_render_mcp_usage_zero( $zero ) {
-	if ( empty( $zero ) ) {
-		echo '<p class="description">' . esc_html__( 'Every allowlisted tool was called at least once in this window.', 'signal-and-noise-tools' ) . '</p>';
-		return;
-	}
-
-	$labels = array(
-		'unused'       => __( 'no calls — retirement candidate', 'signal-and-noise-tools' ),
-		'unreachable'  => __( 'cannot be projected — this is a BUG, not a retirement candidate', 'signal-and-noise-tools' ),
-		'undetermined' => __( 'reachability unknown — no judgement possible', 'signal-and-noise-tools' ),
-	);
-
-	echo '<h4>' . esc_html__( 'No calls in this window', 'signal-and-noise-tools' ) . '</h4>';
-	echo '<ul class="sn-mcp-usage-zero">';
-	foreach ( $zero as $entry ) {
-		$verdict = (string) $entry['verdict'];
-		echo '<li><code>' . esc_html( (string) $entry['slug'] ) . '</code> — ';
-		echo esc_html( 'first_party_only' === $verdict ? sn_admin_mcp_usage_first_party_label( $entry ) : ( $labels[ $verdict ] ?? $verdict ) );
-		echo '</li>';
-	}
-	echo '</ul>';
-	echo '<p class="description">' . esc_html__( 'Only “retirement candidate” entries are evidence for removal. A tool that cannot be projected has no calls because it cannot be called — retiring it would delete the evidence of the defect. Reachability is checked from inside the plugin, so it cannot see a client proxy rejecting a schema; treat it as necessary, not sufficient.', 'signal-and-noise-tools' ) . '</p>';
-}
-
-/**
- * The first-party-only verdict carries its count. Same words on the native leaf.
- *
- * @param array $entry One zero_call entry.
- * @return string
- */
-function sn_admin_mcp_usage_first_party_label( $entry ) {
-	/* translators: %s: direct (first-party) call count. */
-	return sprintf( __( 'no caller through a door; the plugin\'s own surfaces called it %s times. Not a retirement candidate for the code, only for the door allowlist', 'signal-and-noise-tools' ), number_format_i18n( (int) ( $entry['calls'] ?? 0 ) ) );
-}
+require_once __DIR__ . '/mcp-usage-block-parts.php'; // the zero-call words, the per-tool reading, the classic block.

@@ -37,6 +37,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once dirname( __DIR__ ) . '/ai-model-catalog.php'; // the model defaults and lists (21.0.0).
+require_once __DIR__ . '/ai-settings-parts.php'; // the embeddings sentence and the Copilot row both twins print (2026-10-12).
 
 /**
  * Render the AI settings form. Used as the sn_admin_render_section() callback
@@ -63,7 +64,7 @@ function sn_admin_render_ai_settings_form() {
 	echo '<div class="sn-fieldset">';
 
 	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'Models &amp; budget', 'signal-and-noise-tools' ) . '</h2>';
-	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Which models this plugin calls, and the ceiling on what they may cost. Every AI feature here (drafts, insights, meta descriptions, alt text) draws on the same monthly budget.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Which models this plugin calls, and the ceiling on what they may cost. Every AI feature here except Copilot (drafts, insights, meta descriptions, alt text) draws on the same monthly budget.', 'signal-and-noise-tools' ) . '</p>';
 
 	echo '<div class="sn-field sn-field-w-md">';
 	echo '<label class="sn-field-label" for="sn_theme_ai_model">' . esc_html__( 'Prose model', 'signal-and-noise-tools' ) . '</label>';
@@ -96,6 +97,7 @@ function sn_admin_render_ai_settings_form() {
 	echo '<div class="sn-field sn-field-w-xs">';
 	echo '<label class="sn-field-label" for="sn_theme_ai_monthly_budget">' . esc_html__( 'Monthly budget (USD)', 'signal-and-noise-tools' ) . '</label>';
 	echo '<input type="number" min="0" step="0.5" id="sn_theme_ai_monthly_budget" name="theme_ai_monthly_budget" value="' . esc_attr( number_format( $budget, 2, '.', '' ) ) . '">';
+	echo '<p class="sn-field-helper">' . esc_html__( 'Set 0 to remove the cap.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
 	// 16.6.0: the Jev credit and its cycle day, the same two fields the native leaf carries.
 	echo '<div class="sn-field sn-field-w-xs">';
@@ -120,7 +122,7 @@ function sn_admin_render_ai_settings_form() {
 		) . '</p>';
 		echo '<span class="sn-an-mirror-meter"><span style="width:' . esc_attr( (string) $pct_width ) . '%"></span></span>';
 		if ( $spent >= $budget ) {
-			echo '<p class="sn-field-helper"><strong>' . esc_html__( 'The cap is reached. AI features are paused until the next calendar month, or until you raise this number.', 'signal-and-noise-tools' ) . '</strong></p>';
+			echo '<p class="sn-field-helper"><strong>' . esc_html__( 'The cap is reached. AI features except Copilot are paused until the next calendar month, or until you raise this number.', 'signal-and-noise-tools' ) . '</strong></p>';
 		}
 	} else {
 		echo '<p class="sn-field-helper">' . sprintf(
@@ -129,13 +131,8 @@ function sn_admin_render_ai_settings_form() {
 			esc_html( number_format_i18n( $spent, 2 ) )
 		) . '</p>';
 	}
-	// v10.47.0: the unconditional "Set 0 for no limit…" line used to print directly
-	// under the no-cap branch, which already says exactly that — the field told the
-	// same fact twice in consecutive sentences. It now appears only in the branch
-	// that has not already made the point.
-	if ( $budget > 0 ) {
-		echo '<p class="sn-field-helper">' . esc_html__( 'Set 0 to remove the cap.', 'signal-and-noise-tools' ) . '</p>';
-	}
+	// 2026-10-12 audit: "Set 0 to remove the cap." is the budget field's own
+	// hint now, beside the number it explains, on both twins.
 	echo '</div>';
 
 	// v13.21.0: the same estimated month, itemized by the feature label every
@@ -161,6 +158,7 @@ function sn_admin_render_ai_settings_form() {
 		echo '</ul>';
 		echo '</div>';
 	}
+	sn_admin_ai_copilot_row();
 
 	// item 8: the Workers AI token for SHADOW semantic embeddings. 15.3.1: a
 	// keyring row (Connections › Credentials); this form reads it and says so.
@@ -169,12 +167,11 @@ function sn_admin_render_ai_settings_form() {
 	$embed_token = function_exists( 'snt_ml_embed_token' ) ? snt_ml_embed_token() : '';
 	echo '<p class="sn-field-helper">' . ( '' !== $embed_token ? '<span class="sn-pill sn-pill--ok">' . esc_html__( 'set', 'signal-and-noise-tools' ) . '</span>' : '<span class="sn-pill sn-pill--warn">' . esc_html__( 'not set', 'signal-and-noise-tools' ) . '</span>' ) . ' ' . esc_html__( 'Set under', 'signal-and-noise-tools' ) . ' <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=connections&sub=credentials' ) ) . '">Connections › Credentials</a>.</p>';
 	if ( function_exists( 'snt_ml_embed_configured' ) ) {
+		$embed_text = sn_admin_ai_embed_sentence( snt_ml_embed_configured(), function_exists( 'snt_ml_embed_account_id' ) ? (string) snt_ml_embed_account_id() : '' );
 		if ( snt_ml_embed_configured() ) {
-			echo '<p class="sn-field-helper"><span class="sn-pill sn-pill--ok">' . esc_html__( 'Configured', 'signal-and-noise-tools' ) . '</span> ' . esc_html__( 'Embeddings run in SHADOW mode: they are computed and compared, never shown to a reader.', 'signal-and-noise-tools' ) . '</p>';
-		} elseif ( '' === ( function_exists( 'snt_ml_embed_account_id' ) ? snt_ml_embed_account_id() : '' ) ) {
-			echo '<p class="sn-field-helper"><span class="sn-pill sn-pill--warn">' . esc_html__( 'No Cloudflare account ID — set it under Connections › Credentials first.', 'signal-and-noise-tools' ) . '</span></p>';
+			echo '<p class="sn-field-helper"><span class="sn-pill sn-pill--ok">' . esc_html__( 'Configured', 'signal-and-noise-tools' ) . '</span> ' . esc_html( $embed_text ) . '</p>';
 		} else {
-			echo '<p class="sn-field-helper"><span class="sn-pill">' . esc_html__( 'Not configured.', 'signal-and-noise-tools' ) . '</span></p>';
+			echo '<p class="sn-field-helper"><strong>' . esc_html__( 'Semantic embeddings', 'signal-and-noise-tools' ) . ':</strong> ' . esc_html( $embed_text ) . ' <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=connections&sub=credentials' ) ) . '">' . esc_html__( 'Connections › Credentials', 'signal-and-noise-tools' ) . '</a>.</p>';
 		}
 	}
 	echo '</div>';
@@ -195,7 +192,7 @@ function sn_admin_render_ai_settings_form() {
 				echo '<p class="sn-field-helper">';
 				printf(
 					/* translators: 1: embedded total, 2: scored sources, 3: scheduled notes. */
-					esc_html__( '%1$d notes embedded (%2$d published and scored; %3$d scheduled, counted in the centroid only — a scheduled note has no baseline artifact to diverge from).', 'signal-and-noise-tools' ),
+					esc_html__( '%1$d notes embedded (%2$d published and scored; %3$d scheduled, counted in the centroid only, since a scheduled note has no baseline artifact to diverge from).', 'signal-and-noise-tools' ),
 					(int) ( $scope['embedded_total'] ?? 0 ),
 					(int) ( $scope['scored_sources'] ?? 0 ),
 					(int) ( $scope['scheduled_in_centroid'] ?? 0 )
@@ -204,8 +201,8 @@ function sn_admin_render_ai_settings_form() {
 			}
 			$labels = array(
 				'raw'             => __( 'Raw cosine', 'signal-and-noise-tools' ),
-				'centered'        => __( 'Centred', 'signal-and-noise-tools' ),
-				'centered_mutual' => __( 'Centred + mutual', 'signal-and-noise-tools' ),
+				'centered'        => __( 'Centered', 'signal-and-noise-tools' ),
+				'centered_mutual' => __( 'Centered + mutual', 'signal-and-noise-tools' ),
 			);
 			echo '<div class="snt-scroll-table"><table class="widefat striped"><thead><tr>';
 			echo '<th scope="col">' . esc_html__( 'Variant', 'signal-and-noise-tools' ) . '</th>';

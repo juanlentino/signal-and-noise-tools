@@ -90,7 +90,7 @@ namespace {
 
 	echo "Group 1: the window\n";
 	ok( 'sn-dashboard' === $app->id && 'S&N Home' === $app->title && 'dashicons-shield-alt' === $app->icon && 'dock' === $app->placement, 'the stable id keeps placement while the native surface is named S&N Home' );
-	ok( array( 'sub', 'anchor', 'flash', 'notice', 'params', 'post', 'filter', 'saved', 'answered' ) === array_keys( $app->state ) && '' === $app->state['filter'] && false === $app->state['saved'] && '' === $app->state['answered'], 'state has NO tab: the tab is the session (the framework`s), only the leaf, the anchor, the last write and a leaf`s text filter (#1604, written by os-bind through the built-in set) are state' );
+	ok( array( 'sub', 'anchor', 'flash', 'notice', 'params', 'post', 'filter', 'saved', 'answered', 'landed' ) === array_keys( $app->state ) && '' === $app->state['filter'] && false === $app->state['saved'] && '' === $app->state['answered'] && '' === $app->state['landed'], 'state has NO tab: the tab is the session (the framework`s), only the leaf, the anchor, the last write, a leaf`s text filter (#1604, written by os-bind through the built-in set) and the params last read (2026-10-12) are state' );
 	ok( array( 'go', 'post', 'door', 'refresh', 'reopen', 'poll', 'cron_run', 'cron_unschedule' ) === array_keys( $app->actions ), 'eight actions: go, post, door, refresh, reopen, poll, cron_run, cron_unschedule (#1604)' );
 	$tabs = array();
 	foreach ( sn_admin_top_tabs() as $t ) { if ( 'dashboard' !== $t['tab'] ) { $tabs[ $t['tab'] ] = $t['label']; } }
@@ -151,7 +151,7 @@ namespace {
 	$app->actions['door']( $st, $os2, array( 'url' => 'https://example.test/wp-admin/update-core.php' ) );
 	$app->actions['door']( $st, $os2, array( 'url' => 'https://evil.test/x' ) );
 	ok( array( 'https://example.test/wp-admin/update-core.php' ) === $os2->opened, 'a door opens an admin URL and refuses anything else' );
-	$os3 = new \OpenStation\App\Os(); $os3->view = 'monitoring'; $os3->params = array( 'sub' => 'health', 'anchor' => 'sn-sec-y' );
+	$os3 = new \OpenStation\App\Os(); $os3->view = 'monitoring'; $os3->params = array( 'tab' => 'monitoring', 'sub' => 'health', 'anchor' => 'sn-sec-y' );
 	$st3 = new \OpenStation\App\State( $app->state );
 	$app->actions['reopen']( $st3, $os3, array() );
 	ok( 'health' === $st3->get( 'sub' ) && 'sn-sec-y' === $st3->get( 'anchor' ), 'reopen reads the leaf and the anchor (an element id, as given) from the window params on this tab' );

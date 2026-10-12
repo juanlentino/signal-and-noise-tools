@@ -163,6 +163,7 @@ function esc_url( $s ) { return (string) $s; }
 function admin_url( $p ) { return '/wp-admin/' . $p; }
 function __( $s, $d = null ) { return (string) $s; }
 function number_format_i18n( $n ) { return (string) $n; }
+function human_time_diff( $from, $to = 0 ) { return (string) max( 0, (int) floor( ( (int) $to - (int) $from ) / 86400 ) ) . ' days'; }
 function wp_http_validate_url( $u ) { return false; } // -> status null, no network call
 ob_start();
 sn_login_defense_render();
@@ -180,7 +181,7 @@ ok( strpos( $panel, 'postbox' ) === false && strpos( $panel, 'style=' ) === fals
 ob_start();
 sn_login_defense_render_status( array( 'version' => '1.0.1', 'denylistCount' => 4553, 'compiledAt' => '2026-06-22T16:07Z', 'deployed_at' => '2026-06-22T17:15Z' ) );
 $st = ob_get_clean();
-ok( strpos( $st, 'v1.0.1' ) !== false && strpos( $st, '17:15' ) !== false, 'status renders the worker version + deployed-at' );
+ok( strpos( $st, 'v1.0.1, deployed ' ) !== false && strpos( $st, ' days ago' ) !== false && strpos( $st, '17:15' ) === false, 'status renders the worker version + how long ago it was deployed (2026-10-12 audit: never the raw ISO time)' );
 ok( strpos( $st, 'Denylist: 4553' ) !== false, 'status keeps the denylist line' );
 ob_start();
 sn_login_defense_render_status( null );
