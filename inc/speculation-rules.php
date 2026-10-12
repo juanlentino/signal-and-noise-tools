@@ -71,7 +71,7 @@ function sn_speculation_href_exclude_paths( $paths, $mode ) {
 	// does not return early (the SN_LOGIN_BYPASS constant, or wps-hide-login
 	// / rename-wp-login still active) — an unguarded call fatals every
 	// front-end render whenever perf.speculative_loading is on. Mirrors the
-	// existing guard in inc/admin-forms/login.php:33.
+	// existing guard in sn_login_module_state() (inc/admin-forms/login.php).
 	$slug = function_exists( 'sn_login_get_slug' ) ? sn_login_get_slug() : (string) sn_setting( 'login.slug', 'sn-login' );
 	$slug = ltrim( $slug, '/' );
 	// The bare '/sn-login' (no trailing segment) is what wp_login_url()

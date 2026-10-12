@@ -149,5 +149,20 @@ ok( false !== strpos( $kit, '51 read-only tools across 3 categories; Diagnostics
 ok( 69 === substr_count( $kit, '<os-chip>' ) - substr_count( $__zero, '<os-chip>' ) && false !== strpos( $kit, '<os-fact label="Diagnostics (40)">' ), 'live-shaped preview: all 69 tools are chips in their door bands, by category' );
 snt_leaf_preview( 'ai-agent-tools', $kit );
 
+// 2026-10-12 audit: an unread sensor is not zero calls. Both surfaces list
+// the bridge's tools with "not read" in every count cell, never a 0.
+$GLOBALS['__mr'] = array( 'ok' => false, 'error' => 'HTTP 502' );
+$down_kit     = snt_leaf_paint( 'ai', 'agent-tools' );
+$down_classic = snt_leaf_classic_html( 'sn_admin_render_agent_tools_section' );
+$down_table   = array_values( array_filter( snt_leaf_tables( $down_kit ), static fn( $t ) => in_array( 'Answers', array_column( $t['columns'], 'label' ), true ) ) );
+$cells        = array();
+foreach ( $down_table[0]['data'] ?? array() as $row ) {
+	foreach ( array( 'calls', 'ok', 'absent', 'error' ) as $k ) {
+		$cells[] = is_array( $row[ $k ] ?? null ) ? ( $row[ $k ]['text'] ?? '' ) : (string) ( $row[ $k ] ?? '' );
+	}
+}
+ok( array() !== $cells && array( 'not read' ) === array_values( array_unique( $cells ) ), 'sensor unread: every bridge count cell says not read (' . implode( ',', array_unique( $cells ) ) . ')' );
+ok( false !== strpos( $down_kit, 'The sensor could not be read (HTTP 502), so no call counts are shown.' ) && false !== strpos( $down_classic, 'The sensor could not be read (HTTP 502), so no call counts are shown.' ) && false === strpos( $down_classic, '<td>0</td>' ) && false !== strpos( $down_classic, '<td>not read</td>' ), 'sensor unread: both surfaces say so in the same words, and the classic table paints no 0' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

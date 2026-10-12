@@ -310,7 +310,7 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-analytics"] textarea
 .snt-custom-panel input[type="date"]:focus {
 	outline: none;
 	border-color: var( --os-ui-accent, #ec9bff );
-	box-shadow: 0 0 0 2px var( --os-ui-focus-ring, rgba( 236, 155, 255, 0.35 ) );
+	box-shadow: var( --os-ui-focus-ring-field, 0 0 0 1px #f252fc, 0 0 0 4px #f252fc29 );
 }
 
 .snt-export button {
@@ -334,7 +334,7 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-analytics"] textarea
 .snt-export button:focus-visible {
 	outline: none;
 	border-color: var( --os-ui-accent, #ec9bff );
-	box-shadow: 0 0 0 2px var( --os-ui-focus-ring, rgba( 236, 155, 255, 0.35 ) );
+	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px #0c0b0f, 0 0 0 4px #f252fc );
 }
 
 .snt-report-columns {
