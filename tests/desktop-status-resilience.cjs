@@ -851,6 +851,10 @@ async function run() {
     assert.ok(pair, 'Scheduled and Drafts share one card-kit row');
     assert.equal(pair.children[0].textContent, '6 scheduled · to Nov 30');
     assert.equal(pair.children[1].textContent, '4 drafts');
+    // 2026-10-12, seen live at about 265 wide: each group keeps to one line
+    // at its own width (one row when both fit, else a clean stack).
+    assert.deepEqual([pair.children[0].style.whiteSpace, pair.children[0].style.flex, pair.children[1].style.whiteSpace, pair.children[1].style.flex],
+      ['nowrap', '1 1 auto', 'nowrap', '0 0 auto'], 'the depth line never breaks beside the drafts count');
     const gapLine = nodes(root).find(n => /^Gap: /.test(n.text));
     assert.ok(gapLine, 'a gap paints its line');
     assert.equal(gapLine.text, 'Gap: no note Sep 25 to Oct 8');
@@ -879,7 +883,7 @@ async function run() {
     // 2026-10-12 audit: a failed poll keeps the last reading and says when it
     // was read; a missing count is not read, never 0; the arrow is not read out.
     const open = nodes(root).find(n => 'a' === n.tag && /^Open Scheduled/.test(n.textContent));
-    assert.ok(open && open.text === 'Open Scheduled ' && open.children.some(c => '→' === c.text && 'true' === c.attrs['aria-hidden']), 'the arrow after Open Scheduled is hidden from a screen reader');
+    assert.ok(open && open.text === 'Open Scheduled' && /gap:4px/.test(open.attrs.style) && open.children.some(c => '→' === c.text && 'true' === c.attrs['aria-hidden']), 'Open Scheduled is spaced from its arrow by the flex gap (a trailing space is dropped in a flex item), and the arrow is hidden from a screen reader');
     await x.tick(60000);
     x.calls[4].reject(new Error('Failed to fetch')); await flush();
     assert.match(root.textContent, /Soon/, 'a failed poll keeps the last good card');
