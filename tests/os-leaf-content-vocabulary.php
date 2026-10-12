@@ -106,7 +106,7 @@ $moved = substr( $kit, strpos( $kit, 'heading="2024 → 2025"' ) );
 foreach ( array( 'Rose', 'Fell', 'Entered', 'Went silent' ) as $col ) {
 	ok( false !== strpos( $moved, '<h4 class="snt-col__h">' . $col . '</h4>' ), 'the measured pair paints the ' . $col . ' column' );
 }
-ok( 3 === substr_count( $moved, '<os-table' ) && 1 === substr_count( $moved, '<p class="snt-list__empty">—</p>' ), 'three lists are tables, the empty one (Fell) is the em-dash' );
+ok( 3 === substr_count( $moved, '<os-table' ) && 1 === substr_count( $moved, '<p class="snt-list__empty">None.</p>' ), 'three lists are tables, the empty one (Fell) says None.' );
 $decoded = html_entity_decode( $moved, ENT_QUOTES, 'UTF-8' );
 ok( false !== strpos( $decoded, '{"term":"provenance","share":"+25%"}' ) && false !== strpos( $decoded, '{"term":"agent","share":"40%"}' ) && false !== strpos( $decoded, '{"term":"roadmap","share":"30%"}' ), 'rows carry the term and the share exactly as the classic prints them (+25%, 40%, 30%)' );
 ok( false !== strpos( $classic, '+25%' ) && false !== strpos( $classic, '>40%<' ) && false !== strpos( $classic, '>30%<' ), 'oracle check: the classic leaf really prints +25%, 40% and 30%' );

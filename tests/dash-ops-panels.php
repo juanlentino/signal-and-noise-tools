@@ -92,7 +92,7 @@ ok( false === strpos( $dep['rows'][1]['label'], 'signal-and-noise' ), 'the bare 
 // "a source that is absent still gets its panel, saying it is not measured" —
 // so it survives the deletion, at the display layer where it belongs.
 $norepo = sn_dash_ops_panels( array( 'deploys' => array( array( 'ref' => 'main', 'conclusion' => 'success' ) ) ) );
-ok( 0 === strpos( by_title( $norepo, 'Recent deploys' )['rows'][0]['label'], "\xe2\x80\x94" ), 'AN ABSENT REPO STILL SAYS SO — em dash, never a silent gap' );
+ok( 0 === strpos( by_title( $norepo, 'Recent deploys' )['rows'][0]['label'], 'repo not read' ), 'AN ABSENT REPO STILL SAYS SO, in words (an em dash until 2026-10-12), never a silent gap' );
 
 // THE GAP THAT LET THE BUG SHIP. This suite asserted the DEPLOYS rows and the
 // PAGES rows and never once asserted a source or a query label — so changing

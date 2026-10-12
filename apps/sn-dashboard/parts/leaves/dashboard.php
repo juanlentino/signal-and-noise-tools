@@ -328,15 +328,15 @@ function home_pulse_html( array $data, $tab ) {
 
 	$views_curr = isset( $deltas['views']['current'] )
 		? number_format_i18n( (int) $deltas['views']['current'] )
-		: ( isset( $measurement['views_7d'] ) ? number_format_i18n( (int) $measurement['views_7d'] ) : '—' );
+		: ( isset( $measurement['views_7d'] ) ? number_format_i18n( (int) $measurement['views_7d'] ) : \snt_kit_unread() );
 	$views_pct  = home_delta_text( $deltas['views'] ?? array() );
 
 	$visits_curr = isset( $deltas['visits']['current'] )
 		? number_format_i18n( (int) $deltas['visits']['current'] )
-		: '—';
+		: \snt_kit_unread();
 	$visits_pct  = home_delta_text( $deltas['visits'] ?? array() );
 
-	$engaged_val = '—';
+	$engaged_val = \snt_kit_unread();
 	$engaged_pct = '';
 	if ( isset( $deltas['views']['current'] ) && $deltas['views']['current'] > 0 && isset( $deltas['visits']['current'] ) && $deltas['visits']['current'] > 0 ) {
 		$rate        = round( ( (int) $deltas['views']['current'] / max( 1, (int) $deltas['visits']['current'] ) ), 1 );
@@ -359,19 +359,19 @@ function home_pulse_html( array $data, $tab ) {
 		}
 	}
 
-	$search_clicks = isset( $measurement['search_clicks'] ) ? number_format_i18n( (int) $measurement['search_clicks'] ) : '—';
+	$search_clicks = isset( $measurement['search_clicks'] ) ? number_format_i18n( (int) $measurement['search_clicks'] ) : \snt_kit_unread();
 	$search_detail = isset( $measurement['search_clicks_days'] ) ? sprintf( __( '%dd window', 'signal-and-noise-tools' ), $measurement['search_clicks_days'] ) : '';
 
 	// 2. Publishing.
 	$post_counts = function_exists( 'wp_count_posts' ) ? wp_count_posts( 'post' ) : null;
-	$published   = is_object( $post_counts ) && isset( $post_counts->publish ) ? number_format_i18n( (int) $post_counts->publish ) : '—';
-	$scheduled   = is_object( $post_counts ) && isset( $post_counts->future ) ? number_format_i18n( (int) $post_counts->future ) : '—';
+	$published   = is_object( $post_counts ) && isset( $post_counts->publish ) ? number_format_i18n( (int) $post_counts->publish ) : \snt_kit_unread();
+	$scheduled   = is_object( $post_counts ) && isset( $post_counts->future ) ? number_format_i18n( (int) $post_counts->future ) : \snt_kit_unread();
 
 	// 3. Trust & Operations.
 	$plugin_status = function_exists( 'snt_deploy_status_for' ) ? snt_deploy_status_for( 'plugin' ) : array();
-	$deploy_val    = (string) ( $plugin_status['version'] ?? 'Current' );
+	$deploy_val    = (string) ( $plugin_status['version'] ?? \snt_kit_unread() );
 
-	$anchored_str = '—';
+	$anchored_str = \snt_kit_unread();
 	if ( isset( $measurement['anchored'] ) ) {
 		$anchored_str = isset( $measurement['anchored_total'] )
 			? sprintf( '%d / %d', $measurement['anchored'], $measurement['anchored_total'] )

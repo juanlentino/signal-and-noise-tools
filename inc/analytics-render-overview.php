@@ -136,14 +136,14 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
 	);
 	$cards[] = $known( 'pageview_visits' )
 		? array( 'l' => 'Visits', 'n' => number_format_i18n( (int) $totals['pageview_visits'] ), 'delta' => $deltas['pageview_visits'] ?? null, 'promoted' => true )
-		: array( 'l' => 'Visits', 'n' => '—', 'sub' => $caveat, 'promoted' => true );
-	$cards[] = array( 'l' => 'Now', 'n' => ( null === $now ? '—' : number_format_i18n( (int) $now ) ), 'live' => true, 'attrs' => function_exists( 'sn_analytics_live_attrs' ) ? sn_analytics_live_attrs( 'now', $class ) : array() );
+		: array( 'l' => 'Visits', 'n' => __( 'not read', 'signal-and-noise-tools' ), 'sub' => $caveat, 'promoted' => true );
+	$cards[] = array( 'l' => 'Now', 'n' => ( null === $now ? __( 'not read', 'signal-and-noise-tools' ) : number_format_i18n( (int) $now ) ), 'live' => true, 'attrs' => function_exists( 'sn_analytics_live_attrs' ) ? sn_analytics_live_attrs( 'now', $class ) : array() );
 	$cards[] = $known( 'scroll_avg_per_view' )
 		? array( 'l' => 'Scroll / view', 'n' => (int) round( (float) $totals['scroll_avg_per_view'] ) . '%', 'delta' => $deltas['scroll_avg_per_view'] ?? null )
-		: array( 'l' => 'Scroll / view', 'n' => '—', 'sub' => $caveat );
+		: array( 'l' => 'Scroll / view', 'n' => __( 'not read', 'signal-and-noise-tools' ), 'sub' => $caveat );
 	$cards[] = $known( 'time_avg_per_view' )
 		? array( 'l' => 'Time / view', 'n' => snt_analytics_fmt_time( (float) $totals['time_avg_per_view'] ), 'delta' => $deltas['time_avg_per_view'] ?? null )
-		: array( 'l' => 'Time / view', 'n' => '—', 'sub' => $caveat );
+		: array( 'l' => 'Time / view', 'n' => __( 'not read', 'signal-and-noise-tools' ), 'sub' => $caveat );
 	if ( is_array( $engaged ) && null !== ( $engaged['current'] ?? null ) ) {
 		$cards[] = array( 'l' => 'Engaged', 'n' => (int) $engaged['current'] . '%', 'delta' => ( isset( $engaged['dir'] ) ? $engaged : null ) );
 	}

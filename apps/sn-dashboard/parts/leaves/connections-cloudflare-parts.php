@@ -43,11 +43,11 @@ function cloudflare_probe_row( array $row ) {
 	$path = '' !== $url ? (string) wp_parse_url( $url, PHP_URL_PATH ) : '';
 	if ( '' === $path ) {
 		// A manual zone purge names no single page; say which purge it was.
-		$path = '' !== (string) ( $row['source'] ?? '' ) ? (string) $row['source'] : '—';
+		$path = '' !== (string) ( $row['source'] ?? '' ) ? (string) $row['source'] : __( 'not recorded', 'signal-and-noise-tools' );
 	}
 	return array(
 		/* translators: %s: how long ago */
-		'when'   => $time ? sprintf( __( '%s ago', 'signal-and-noise-tools' ), human_time_diff( $time, time() ) ) : '—',
+		'when'   => $time ? sprintf( __( '%s ago', 'signal-and-noise-tools' ), human_time_diff( $time, time() ) ) : __( 'not recorded', 'signal-and-noise-tools' ),
 		'result' => $label,
 		'page'   => $path,
 	);

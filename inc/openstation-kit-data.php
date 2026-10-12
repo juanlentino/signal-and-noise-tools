@@ -18,6 +18,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/openstation-kit-ledger.php'; // the no-fold list: finding, capped table, "+N more"
 
 /**
+ * What an empty table or list says (2026-10-12 audit, cross-cutting #15).
+ * The caller's `empty` sentence says what "none" means there; without one,
+ * an empty table read "Nothing to show." and an empty list painted a blank
+ * paragraph, which cannot tell none from not read. The kit's sentence stays
+ * as the fallback, and painting it logs the caller, so the gap is found and
+ * fixed rather than shown. A call that never paints empty needs no sentence.
+ *
+ * @param array<string,mixed> $opts  The helper's options.
+ * @param bool                $empty Whether the empty state is painted now.
+ * @param string              $kind  The helper's name, for the log.
+ * @return string
+ */
+function snt_kit_empty_text( array $opts, $empty, $kind ) {
+	if ( isset( $opts['empty'] ) && '' !== (string) $opts['empty'] ) {
+		return (string) $opts['empty'];
+	}
+	if ( $empty ) {
+		$at = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 2 )[1] ?? array(); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace -- names the caller to fix.
+		error_log( sprintf( '[signal-and-noise-tools] %s painted empty without `empty` at %s:%d; say what none means there.', $kind, basename( (string) ( $at['file'] ?? '?' ) ), (int) ( $at['line'] ?? 0 ) ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- a developer gap, logged once per paint.
+	}
+	return __( 'Nothing to show.', 'signal-and-noise-tools' );
+}
+
+/**
  * `<os-table>` fed from markup. A column is `key` plus optional `label`,
  * `align` (start|center|end), `filter` (text|select), `sortable`, `stack`.
  *
@@ -89,7 +113,7 @@ function snt_kit_table( array $columns, array $rows, array $opts = array() ) {
 			'bordered'        => (bool) ( $opts['bordered'] ?? false ),
 			'sticky-header'   => (bool) ( $opts['sticky_header'] ?? false ),
 			'selectable'      => $opts['selectable'] ?? null,
-			'empty'           => (string) ( $opts['empty'] ?? __( 'Nothing to show.', 'signal-and-noise-tools' ) ),
+			'empty'           => snt_kit_empty_text( $opts, array() === $rows, 'snt_kit_table' ),
 			'data-snt-stack-on-phone' => empty( $opts['stack_on_phone'] ) ? null : true,
 		),
 		$slotted
@@ -151,7 +175,7 @@ function snt_kit_dot( $kind ) {
  */
 function snt_kit_list( array $rows, array $opts = array() ) {
 	if ( empty( $rows ) ) {
-		return snt_kit_tag( 'p', array( 'class' => 'snt-list__empty' ), snt_kit_esc( (string) ( $opts['empty'] ?? '' ) ) );
+		return snt_kit_tag( 'p', array( 'class' => 'snt-list__empty' ), snt_kit_esc( snt_kit_empty_text( $opts, true, 'snt_kit_list' ) ) );
 	}
 	$items = '';
 	foreach ( $rows as $row ) {

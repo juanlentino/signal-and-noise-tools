@@ -294,7 +294,7 @@ function insights_cache_probe_html() {
 					'calls'    => number_format_i18n( (int) ( $m['calls'] ?? 0 ) ),
 					'repeated' => number_format_i18n( (int) ( $m['repeatable'] ?? 0 ) ),
 					'prefix'   => number_format_i18n( (int) ( $m['max_prefix_bytes'] ?? 0 ) ) . ' bytes (≤ ' . number_format_i18n( (int) ( $m['max_prefix_tokens'] ?? 0 ) ) . ' tokens)',
-					'floor'    => null === $floor ? '—' : number_format_i18n( (int) $floor ) . ' tokens',
+					'floor'    => null === $floor ? __( 'not known', 'signal-and-noise-tools' ) : number_format_i18n( (int) $floor ) . ' tokens',
 					'verdict'  => $verdict,
 				);
 			}
@@ -317,7 +317,7 @@ function insights_cache_probe_html() {
 					foreach ( (array) ( $m['samples'] ?? array() ) as $s ) {
 						$srows[] = array(
 							'model'   => '' !== (string) ( $m['model'] ?? '' ) ? (string) $m['model'] : 'unknown',
-							'when'    => (int) ( $s['ts'] ?? 0 ) > 0 ? wp_date( 'Y-m-d H:i:s T', (int) $s['ts'] ) : '—',
+							'when'    => (int) ( $s['ts'] ?? 0 ) > 0 ? wp_date( 'Y-m-d H:i:s T', (int) $s['ts'] ) : __( 'not recorded', 'signal-and-noise-tools' ),
 							'tools'   => number_format_i18n( (int) ( $s['tools_count'] ?? 0 ) ),
 							'sys'     => number_format_i18n( (int) ( $s['sys_bytes'] ?? 0 ) ) . ' bytes',
 							'msgs'    => number_format_i18n( (int) ( $s['msg_count'] ?? 0 ) ),

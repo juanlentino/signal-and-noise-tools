@@ -186,9 +186,9 @@ function cron_row_data( array $row ) {
 	}
 
 	$last_ts = (int) ( $row['last_fired_ts'] ?? 0 );
-	$last    = $last_ts ? \snt_kit_esc( wp_date( 'Y-m-d H:i:s', $last_ts ) ) . ' (' . \snt_kit_relative_time( $last_ts ) . ')' : '—';
+	$last    = $last_ts ? \snt_kit_esc( wp_date( 'Y-m-d H:i:s', $last_ts ) ) . ' (' . \snt_kit_relative_time( $last_ts ) . ')' : __( 'not recorded', 'signal-and-noise-tools' );
 
-	$args = ! empty( $row['args'] ) ? cron_args_summary( $row['args'] ) : '—';
+	$args = ! empty( $row['args'] ) ? cron_args_summary( $row['args'] ) : __( 'none', 'signal-and-noise-tools' );
 
 	return array(
 		'hook'       => $hook,

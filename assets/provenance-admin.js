@@ -116,7 +116,7 @@
       a.rel = 'noopener';
       tdLedger.appendChild(a);
     } else {
-      tdLedger.appendChild(document.createTextNode('—'));
+      tdLedger.appendChild(document.createTextNode('none yet'));
     }
     tr.appendChild(tdLedger);
 

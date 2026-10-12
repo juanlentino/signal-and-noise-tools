@@ -563,10 +563,10 @@ function snt_analytics_render_overview_rightnow( $now, $today, $class = 'human' 
 	) );
 	$cards   = array();
 	$cards[] = ( null === $now )
-		? array( 'l' => __( 'Active visitors', 'signal-and-noise-tools' ), 'n' => '—', 'sub' => __( 'warming: no cron sample yet', 'signal-and-noise-tools' ), 'attrs' => $live( 'now' ) )
+		? array( 'l' => __( 'Active visitors', 'signal-and-noise-tools' ), 'n' => __( 'not read', 'signal-and-noise-tools' ), 'sub' => __( 'warming: no cron sample yet', 'signal-and-noise-tools' ), 'attrs' => $live( 'now' ) )
 		: array( 'l' => __( 'Active visitors', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $now ), 'sub' => __( '5-minute window', 'signal-and-noise-tools' ), 'attrs' => $live( 'now' ) );
 	$cards[] = ( null === $today )
-		? array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => '—', 'sub' => __( 'warming: no sample for today yet', 'signal-and-noise-tools' ), 'attrs' => $live( 'today' ) )
+		? array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => __( 'not read', 'signal-and-noise-tools' ), 'sub' => __( 'warming: no sample for today yet', 'signal-and-noise-tools' ), 'attrs' => $live( 'today' ) )
 		: array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $today ), 'sub' => __( 'human pageviews · site-local day', 'signal-and-noise-tools' ), 'attrs' => $live( 'today' ) );
 	snt_an_kpi_row( $cards, array( 'empty_slot' => 'omit' ) );
 	// The last hour, Being read now and Arrived from, filled live (inc/analytics-live-admin.php).

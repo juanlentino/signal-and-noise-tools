@@ -195,7 +195,7 @@ function snt_dwx_cell( $label, $value, $compare = '', $dir = '', array $hydrate 
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every interpolated part of $attrs is esc_attr'd above.
 	echo '<div class="sn-dw__sig"' . $attrs . '>';
 	echo '<span class="sn-dw__k">' . esc_html( $label ) . '</span>';
-	echo '<span class="sn-dw__n">' . ( '' === $value ? '&mdash;' : esc_html( $value ) ) . '</span>';
+	echo '<span class="sn-dw__n">' . esc_html( '' === $value ? __( 'not read', 'signal-and-noise-tools' ) : $value ) . '</span>';
 	$cls = 'sn-dw__c' . ( ( 'up' === $dir || 'down' === $dir ) ? ' sn-dw__c--' . $dir : '' );
 	echo '<span class="' . esc_attr( $cls ) . '">' . esc_html( $compare ) . '</span>';
 	echo '</div>';

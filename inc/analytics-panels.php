@@ -361,7 +361,7 @@ function snt_an_delta_badge( $delta, $opts = array() ) {
 	$arrow = 'up' === $dir ? '▲' : ( 'down' === $dir ? '▼' : '■' );
 	$pct   = $delta['pct'] ?? null;
 	$text  = ( null === $pct )
-		? ( 'up' === $dir ? 'new' : '—' )
+		? ( 'up' === $dir ? 'new' : __( 'none before', 'signal-and-noise-tools' ) )
 		: ( ( $pct > 0 ? '+' : '' ) . (int) $pct . '%' );
 	if ( 'kpi' === ( $opts['variant'] ?? 'inline' ) ) {
 		$cls = 'up' === $dir ? 'sn-delta-up' : ( 'down' === $dir ? 'sn-delta-down' : 'sn-delta-flat' );

@@ -103,7 +103,7 @@ ok( false !== strpos( $kit, 'active → queued' ), 'the version-swap pair shows 
 ok( false !== strpos( $kit, 'Run swap now' ) && false !== strpos( $kit, 'name="hide_id" value="301"' ) && false !== strpos( $kit, 'name="show_id" value="302"' ), 'the swap row carries the same hide_id/show_id the classic op posts' );
 
 ok( false !== strpos( $kit, 'in 1 hour' ), 'a pending boundary reads as a relative "in …" time (fixture-fed human_time_diff)' );
-ok( false !== strpos( $kit, '&mdash;' ), 'a row with no pending boundary (both past) falls back to the dash placeholder' );
+ok( false !== strpos( $kit, '>none<' ) && false === strpos( $kit, '&mdash;' ), 'a row with no pending boundary (both past) says none, not a dash placeholder' );
 
 ok( false !== strpos( $kit, 'name="row_id" value="201"' ) && false !== strpos( $kit, 'value="sn_schedule_run_now"' ) && false !== strpos( $kit, 'value="sn_schedule_repurge"' ), 'the fragment row carries its own row_id into both ops' );
 // 2026-10-12 audit: Run now and Run swap now change the public site at once

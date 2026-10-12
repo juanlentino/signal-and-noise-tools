@@ -64,5 +64,22 @@ $connections = array( 'credentials' => 'Credentials', 'cloudflare' => 'Cloudflar
 ok( false !== strpos( snt_kit_tabs( 'cron', $connections, 'sub', 'Sections' ), 'data-snt-fit="920"' ), 'nine Connections pills (819px measured) ask for the select twin under a 920px window' );
 ok( false === strpos( snt_kit_tabs( 'login', array( 'login' => 'Login URL', 'login-defense' => 'Login defense', 'firewall' => 'Firewall' ), 'sub', 'Sections' ), 'data-snt-fit' ), 'three short pills fit any desk window and keep the segmented control' );
 
+// #15: an empty table or list says what none means, or the kit says who forgot.
+$log = tempnam( sys_get_temp_dir(), 'snt-kit-empty' );
+ini_set( 'error_log', $log );
+$said  = snt_kit_list( array(), array( 'empty' => 'No custom rules.' ) );
+$quiet = (string) file_get_contents( $log );
+$bare  = snt_kit_list( array() );
+$table = snt_kit_table( array( 'a' ), array() );
+$after = (string) file_get_contents( $log );
+ini_restore( 'error_log' );
+@unlink( $log );
+ok( false !== strpos( $said, 'No custom rules.' ) && '' === $quiet, 'a list that says what none means paints it, and logs nothing' );
+ok( false !== strpos( $bare, '>Nothing to show.</p>' ), 'a list with no sentence of its own paints the kit\'s, never a blank paragraph' );
+ok( 2 === substr_count( $after, 'without `empty`' ) && false !== strpos( $after, 'kit-cross-cutting.php' ), 'an empty table or list painted without its own sentence logs the caller to fix' );
+ok( false !== strpos( $table, 'empty="Nothing to show."' ), 'the table keeps the kit sentence as its fallback' );
+$rows = snt_kit_list( array( array( 'label' => 'a', 'value' => 'b' ) ) );
+ok( '' === (string) @file_get_contents( $log ), 'a list with rows needs no empty sentence and logs nothing' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

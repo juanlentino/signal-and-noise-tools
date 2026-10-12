@@ -107,7 +107,7 @@ function cloudflare_edge_html( array $d ) {
 		$inner .= \snt_kit_grid(
 			array(
 				\snt_kit_stat( number_format_i18n( (int) $tt['requests'] ), __( 'Requests, 7 days', 'signal-and-noise-tools' ) ),
-				\snt_kit_stat( null === ( $tt['cache_share'] ?? null ) ? '—' : number_format_i18n( (float) $tt['cache_share'], 1 ) . '%', __( 'Served from cache', 'signal-and-noise-tools' ) ),
+				\snt_kit_stat( null === ( $tt['cache_share'] ?? null ) ? \snt_kit_unread() : number_format_i18n( (float) $tt['cache_share'], 1 ) . '%', __( 'Served from cache', 'signal-and-noise-tools' ) ),
 				\snt_kit_stat( size_format( (int) $tt['bytes'] ), __( 'Bytes', 'signal-and-noise-tools' ) ),
 				\snt_kit_stat( number_format_i18n( (int) $tt['threats'] ), __( 'Threats', 'signal-and-noise-tools' ) ),
 				\snt_kit_stat( number_format_i18n( (int) $tt['status_5xx'] ), __( '5xx at the edge', 'signal-and-noise-tools' ), '', (int) $tt['status_5xx'] > 0 ? 'warn' : '' ),

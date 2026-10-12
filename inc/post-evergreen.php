@@ -73,7 +73,8 @@ function sn_evergreen_render_column( $column, $post_id ) {
 add_action( 'manage_post_posts_custom_column', 'sn_evergreen_render_column', 10, 2 );
 
 /**
- * The cell markup: an "Evergreen" pill when flagged, a muted dash otherwise.
+ * The cell markup: an "Evergreen" pill when flagged, a muted "no" otherwise
+ * (a hidden em dash until 2026-10-12, which said nothing to anyone).
  *
  * @param bool $is_evergreen Flag state.
  * @return string Escaped HTML.
@@ -82,5 +83,5 @@ function sn_evergreen_column_html( $is_evergreen ) {
 	if ( $is_evergreen ) {
 		return '<span class="sn-pill sn-pill--ok">' . esc_html__( 'Evergreen', 'signal-and-noise-tools' ) . '</span>';
 	}
-	return '<span class="sn-an-muted" aria-hidden="true">&mdash;</span>';
+	return '<span class="sn-an-muted">' . esc_html__( 'no', 'signal-and-noise-tools' ) . '</span>';
 }

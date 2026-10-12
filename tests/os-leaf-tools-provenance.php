@@ -218,7 +218,7 @@ ok( false !== strpos( $kit, 'Already anchored: nothing to re-anchor.' ) && false
 ok( false !== strpos( $kit, 'cdcdcdcdcdcdcdcd…' ), 'the published commitment is truncated the same way the classic root is' );
 ok( false !== strpos( $kit, 'Rotate to the committed key' ) && false === strpos( $kit, 'Publish a commitment to the staged key' ), 'a published commitment switches to the rotate-key button' );
 ok( false !== strpos( $kit, '2 published subjects' ) || false !== strpos( $kit, sprintf( '%s published subjects', number_format_i18n( 2 ) ) ), 'exactly the 2 resolved-kind candidates are counted (the unresolved-kind post is excluded)' );
-ok( false !== strpos( $kit, 'https://ledger.test/notes/' ) || false !== strpos( $kit, '&#8212;' ) || false !== strpos( $kit, '—' ), 'the commits table carries a ledger reference per row' );
+ok( false !== strpos( $kit, 'https://ledger.test/notes/' ) || false !== strpos( $kit, 'none yet' ), 'the commits table carries a ledger reference per row (or says none yet)' );
 
 // ────────────────────────────────────────────────────────────────────────
 // 4. Escaping: a hostile signing-key id and a hostile genesis root never

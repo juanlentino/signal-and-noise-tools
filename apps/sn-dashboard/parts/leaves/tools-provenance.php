@@ -444,7 +444,7 @@ function provenance_commits_html( array $data ) {
 			// os-table cells are plain values (no documented HTML/link cell
 			// slot), so the classic clickable ledger link becomes the URL
 			// itself as text — still the same information, not clickable.
-			'ledger'  => '' !== $ledger ? $ledger : '—',
+			'ledger'  => '' !== $ledger ? $ledger : __( 'none yet', 'signal-and-noise-tools' ),
 		);
 	}
 	$table = \snt_kit_table(

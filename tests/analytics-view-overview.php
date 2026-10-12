@@ -473,8 +473,8 @@ $GLOBALS['__ov']['realtime']    = null;
 $GLOBALS['__ov']['views_today'] = null;
 $html_warm = capture( function () { snt_analytics_render_view_overview( '2026-07-11', '2026-07-17', 'human' ); } );
 ok( strpos( $html_warm, 'warming' ) !== false, 'warming: a null realtime says "warming" (cron-warmed, never a blocking query)' );
-ok( preg_match( '/Active visitors<\/p>\s*<p class="sn-kpi-value">—<\/p>/', $html_warm ) === 1, 'warming: active visitors renders an em-dash, not 0' );
-ok( preg_match( '/Views today<\/p>\s*<p class="sn-kpi-value">—<\/p>/', $html_warm ) === 1, 'warming: views today renders an em-dash, not 0' );
+ok( preg_match( '/Active visitors<\/p>\s*<p class="sn-kpi-value">not read<\/p>/', $html_warm ) === 1, 'warming: active visitors renders not read, not 0' );
+ok( preg_match( '/Views today<\/p>\s*<p class="sn-kpi-value">not read<\/p>/', $html_warm ) === 1, 'warming: views today renders not read, not 0' );
 // A warmed 0 is a REAL 0 (zero ≠ null, both directions).
 $GLOBALS['__ov']['realtime']    = 0;
 $GLOBALS['__ov']['views_today'] = 0;

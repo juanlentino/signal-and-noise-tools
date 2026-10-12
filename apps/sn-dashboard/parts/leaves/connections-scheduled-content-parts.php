@@ -171,7 +171,7 @@ function scheduled_content_fragment_row_html( array $row ) {
 	$window = function_exists( 'sn_admin_schedule_window_html' ) ? \sn_admin_schedule_window_html( $row['starts_at'] ?? null, $row['ends_at'] ?? null ) : '';
 	$next   = function_exists( 'sn_admin_schedule_next_transition' ) ? \sn_admin_schedule_next_transition( $row['starts_at'] ?? null, $row['ends_at'] ?? null ) : '';
 
-	$actions = '<span class="snt-hint">&mdash;</span>';
+	$actions = '<span class="snt-hint">' . \snt_kit_esc( __( 'none', 'signal-and-noise-tools' ) ) . '</span>';
 	if ( $row_id > 0 ) {
 		$actions = '<os-cluster gap="8">'
 			. scheduled_content_op_form( $row_id, 'schedule_run_now', __( 'Run now', 'signal-and-noise-tools' ) )
@@ -185,7 +185,7 @@ function scheduled_content_fragment_row_html( array $row ) {
 		$action,
 		$window,
 		$status,
-		'' !== $next ? \snt_kit_esc( $next ) : '&mdash;',
+		\snt_kit_esc( '' !== $next ? $next : __( 'none', 'signal-and-noise-tools' ) ),
 		$actions
 	);
 }
@@ -205,7 +205,7 @@ function scheduled_content_post_table_row( array $post ) {
 		'title'     => html_entity_decode( (string) ( $post['title'] ?? '' ), ENT_QUOTES, 'UTF-8' ),
 		'type'      => 'page' === ( $post['post_type'] ?? '' ) ? __( 'Page', 'signal-and-noise-tools' ) : __( 'Post', 'signal-and-noise-tools' ),
 		'publishes' => function_exists( 'sn_admin_schedule_fmt_gmt' ) ? (string) \sn_admin_schedule_fmt_gmt( $gmt ) : $gmt,
-		'in'        => '' !== $next ? $next : '—',
+		'in'        => '' !== $next ? $next : __( 'none', 'signal-and-noise-tools' ),
 		'id'        => (string) (int) ( $post['id'] ?? 0 ),
 	);
 }
@@ -230,7 +230,7 @@ function scheduled_content_swap_row_html( array $pair ) {
 	$status = \snt_kit_esc( (string) ( $hide['status'] ?? 'queued' ) . ' → ' . (string) ( $show['status'] ?? 'queued' ) );
 	$next   = function_exists( 'sn_admin_schedule_next_transition' ) ? \sn_admin_schedule_next_transition( $swap_at, null ) : '';
 
-	$actions = '<span class="snt-hint">&mdash;</span>';
+	$actions = '<span class="snt-hint">' . \snt_kit_esc( __( 'none', 'signal-and-noise-tools' ) ) . '</span>';
 	if ( $hide_id > 0 && $show_id > 0 ) {
 		$actions = \snt_kit_form(
 			'schedule_swap_run_now',
@@ -247,7 +247,7 @@ function scheduled_content_swap_row_html( array $pair ) {
 		. '<span class="snt-list__label">' . $target . '</span>'
 		. '<span class="snt-list__value">' . $window . '</span>'
 		. '<span class="snt-list__value">' . $status . '</span>'
-		. '<span class="snt-list__value">' . ( '' !== $next ? \snt_kit_esc( $next ) : '&mdash;' ) . '</span>'
+		. '<span class="snt-list__value">' . \snt_kit_esc( '' !== $next ? $next : __( 'none', 'signal-and-noise-tools' ) ) . '</span>'
 		. '<span class="snt-list__value">' . $actions . '</span>'
 		. '</li>';
 }

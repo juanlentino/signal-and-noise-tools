@@ -39,8 +39,9 @@ function sn_admin_drift_render_list( $title, array $rows, $kind ) {
 	echo '<h4>' . esc_html( $title ) . '</h4>';
 	if ( array() === $rows ) {
 		// An empty list is a real answer here (the pair spoke; this direction
-		// had nothing) — the em-dash idiom, not a fabricated row.
-		echo '<p class="sn-drift-none">&#8212;</p></div>';
+		// had nothing): it says None., not a fabricated row (an em dash until
+		// 2026-10-12, which said nothing in words).
+		echo '<p class="sn-drift-none">' . esc_html__( 'None.', 'signal-and-noise-tools' ) . '</p></div>';
 		return;
 	}
 	echo '<table class="widefat striped sn-drift-table"><tbody>';

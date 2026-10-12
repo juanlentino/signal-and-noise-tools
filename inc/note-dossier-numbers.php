@@ -32,7 +32,7 @@ function sn_note_dossier_numbers( $post_id, $days ) {
 		return array();
 	}
 	$days  = sn_note_dossier_days( $days );
-	$dash  = '—';
+	$dash  = __( 'not read', 'signal-and-noise-tools' );
 	$tiles = array();
 	$wl    = sprintf( /* translators: %d: days. */ _n( '%d day', '%d days', $days, 'signal-and-noise-tools' ), $days );
 

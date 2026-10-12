@@ -139,7 +139,7 @@ function sn_admin_render_mcp_usage_table( $by_tool ) {
 		echo '<tr>';
 		echo '<td><code>' . esc_html( (string) $name ) . '</code></td>';
 		echo '<td>' . esc_html( sn_admin_mcp_usage_calls_cell( $row ) ) . '</td>';
-		echo '<td>' . esc_html( (string) ( $row['last_seen'] ?? '—' ) ) . '</td>';
+		echo '<td>' . esc_html( (string) ( $row['last_seen'] ?? __( 'not recorded', 'signal-and-noise-tools' ) ) ) . '</td>';
 		echo '<td>' . esc_html( implode( ', ', (array) $row['doors'] ) ) . '</td>';
 		echo '</tr>';
 	}

@@ -175,7 +175,7 @@
 			} else {
 				value = format( entry[ item.value ] );
 				if ( null === value ) {
-					value = '\u2014';
+					value = 'not read';
 				}
 			}
 			var sub = '';
@@ -186,7 +186,7 @@
 					sub = item.sub_template.replace( '%s', format( entry[ item.sub ] ) );
 				}
 			}
-			body.appendChild( row( label || '\u2014', value, sub ) );
+			body.appendChild( row( label || 'not read', value, sub ) );
 		} );
 	}
 

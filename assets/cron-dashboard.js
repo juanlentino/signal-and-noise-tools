@@ -272,13 +272,13 @@
 			// fired_at is server-side UTC; convert client-side for display.
 			// fired_at_ts is also server-provided as unix seconds.
 			var dt = r.fired_at_ts ? new Date( r.fired_at_ts * 1000 ) : null;
-			tdTime.textContent = dt ? dt.toLocaleString() : ( r.fired_at || '—' );
+			tdTime.textContent = dt ? dt.toLocaleString() : ( r.fired_at || __( 'not recorded' ) );
 			tdTime.style.padding = '2px 6px';
 			trEl.appendChild( tdTime );
 
 			var tdMs = document.createElement( 'td' );
 			tdMs.textContent = ( r.elapsed_ms === null || typeof r.elapsed_ms === 'undefined' )
-				? '—'
+				? __( 'not recorded' )
 				/* translators: %d is the elapsed time in milliseconds */
 				: sprintf( __( '%dms' ), r.elapsed_ms );
 			tdMs.style.padding = '2px 6px';

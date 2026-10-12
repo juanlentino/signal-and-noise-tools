@@ -210,7 +210,7 @@ function snt_cron_render_admin_tab() {
 			echo '<div class="sn-cron-history-panel" hidden></div>';
 			echo '</td>';
 		} else {
-			echo '<td class="sn-cron-last-fired">&mdash;';
+			echo '<td class="sn-cron-last-fired">' . esc_html__( 'not recorded', 'signal-and-noise-tools' );
 			// v3.2.0: still allow the toggle — history can exist even
 			// without a last-fired record (manual one-shot dispatches
 			// land in history without updating the last-fired option
@@ -224,7 +224,7 @@ function snt_cron_render_admin_tab() {
 		if ( ! empty( $row['args'] ) ) {
 			echo '<td><code>' . esc_html( wp_json_encode( $row['args'] ) ) . '</code></td>';
 		} else {
-			echo '<td><small>&mdash;</small></td>';
+			echo '<td><small>' . esc_html__( 'none', 'signal-and-noise-tools' ) . '</small></td>';
 		}
 
 		// Actions — aria-label disambiguates which hook each button targets

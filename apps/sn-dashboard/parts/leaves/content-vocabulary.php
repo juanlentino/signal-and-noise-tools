@@ -48,7 +48,7 @@ function vocabulary_years_html( array $years ) {
  */
 function vocabulary_list_html( $title, array $rows, $kind ) {
 	if ( array() === $rows ) {
-		$inner = '<p class="snt-list__empty">' . \snt_kit_esc( '—' ) . '</p>';
+		$inner = '<p class="snt-list__empty">' . \snt_kit_esc( __( 'None.', 'signal-and-noise-tools' ) ) . '</p>';
 	} else {
 		$data = array();
 		foreach ( $rows as $row ) {

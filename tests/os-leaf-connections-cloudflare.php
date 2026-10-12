@@ -101,7 +101,7 @@ ok( false !== strpos( $kit, '<os-table' ) && is_array( $rows ) && 4 === count( $
 ok( is_array( $rows ) && array( 'when' => '1 hour ago', 'result' => 'stale → zone purge', 'page' => '/notes/foo/' ) === $rows[0], 'an escalated stale probe reads stale → zone purge with its path' );
 ok( is_array( $rows ) && 'fresh' === $rows[1]['result'] && '/about/' === $rows[1]['page'], 'a fresh probe reads fresh with its path' );
 ok( is_array( $rows ) && 'stale · retired detector' === $rows[2]['result'], 'a pre-fix verdict is marked as from the retired detector' );
-ok( is_array( $rows ) && array( 'when' => '—', 'result' => 'unknown', 'page' => 'manual' ) === $rows[3], 'a manual zone purge names its source, an empty verdict reads unknown, no time reads —' );
+ok( is_array( $rows ) && array( 'when' => 'not recorded', 'result' => 'unknown', 'page' => 'manual' ) === $rows[3], 'a manual zone purge names its source, an empty verdict reads unknown, no time reads not recorded' );
 ok( is_array( $columns ) && array( 'When', 'Result', 'Page' ) === array_column( $columns, 'label' ), 'the three classic columns survive, in order' );
 
 array_unshift( $log, array( 'time' => time() - 10, 'result' => 'fresh', 'algo' => 2, 'url' => 'https://example.test/new/' ) );

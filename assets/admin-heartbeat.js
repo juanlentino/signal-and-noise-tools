@@ -82,7 +82,7 @@
 			if ( ! cell ) {
 				return;
 			}
-			var text = entry && entry.formatted ? entry.formatted : '—';
+			var text = entry && entry.formatted ? entry.formatted : 'not recorded';
 			// Find the first text node; replace its value (or insert one).
 			var firstText = null;
 			for ( var i = 0; i < cell.childNodes.length; i++ ) {

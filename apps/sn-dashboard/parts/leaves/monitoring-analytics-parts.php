@@ -152,7 +152,7 @@ function analytics_salt_html() {
 function analytics_salt_window_html( array $result ) {
 	$w  = (array) $result['window'];
 	$tz = '' !== (string) ( $w['rotate_tz'] ?? '' ) ? (string) $w['rotate_tz'] : 'UTC';
-	$today_day = '' !== (string) ( $w['today_day'] ?? '' ) ? (string) $w['today_day'] : '—';
+	$today_day = '' !== (string) ( $w['today_day'] ?? '' ) ? (string) $w['today_day'] : \snt_kit_unread();
 
 	$lines   = array();
 	$lines[] = false === ( $w['today_present'] ?? null )
@@ -163,7 +163,7 @@ function analytics_salt_window_html( array $result ) {
 
 	if ( false === ( $w['prev_present'] ?? null ) ) {
 		/* translators: %s: yesterday's salt day. */
-		$lines[] = sprintf( __( 'Yesterday’s salt (%s) has already expired: forward secrecy holding.', 'signal-and-noise-tools' ), '' !== (string) ( $w['prev_day'] ?? '' ) ? $w['prev_day'] : '—' );
+		$lines[] = sprintf( __( 'Yesterday’s salt (%s) has already expired: forward secrecy holding.', 'signal-and-noise-tools' ), '' !== (string) ( $w['prev_day'] ?? '' ) ? $w['prev_day'] : \snt_kit_unread() );
 	} elseif ( true === ( $w['prev_present'] ?? null ) ) {
 		if ( null !== ( $w['prev_expires_at'] ?? null ) ) {
 			$expiry  = function_exists( '\sn_salt_window_format_expiry' ) ? \sn_salt_window_format_expiry( $w['prev_expires_at'] ) : (string) $w['prev_expires_at'];

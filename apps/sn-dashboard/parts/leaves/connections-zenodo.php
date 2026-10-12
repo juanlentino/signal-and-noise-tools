@@ -84,8 +84,8 @@ function zenodo_ledger_html( array $d ) {
 			'title' => (string) $r['title'],
 			'kind'  => (string) $r['kind'],
 			'state' => \sn_zenodo_state_label( $r['state'] ),
-			'doi'   => '' !== $r['doi'] ? (string) $r['doi'] : '—',
-			'at'    => '' !== $r['at'] ? (string) $r['at'] : '—',
+			'doi'   => '' !== $r['doi'] ? (string) $r['doi'] : __( 'none yet', 'signal-and-noise-tools' ),
+			'at'    => '' !== $r['at'] ? (string) $r['at'] : __( 'not yet', 'signal-and-noise-tools' ),
 			'error' => (string) $r['error'],
 		);
 	}

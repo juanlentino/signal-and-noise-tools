@@ -297,7 +297,7 @@ function sn_salt_window_render_card() {
 
 	// Today's salt day + when it rotates. The not-minted parenthetical renders
 	// only on an explicit false — a null (absent upstream) presence stays quiet.
-	$today_day = '' !== $w['today_day'] ? $w['today_day'] : '—';
+	$today_day = '' !== $w['today_day'] ? $w['today_day'] : __( 'not read', 'signal-and-noise-tools' );
 	if ( false === $w['today_present'] ) {
 		/* translators: 1: today's salt day (YYYY-MM-DD), 2: the worker's rotation timezone */
 		$body .= '<p>' . esc_html( sprintf( __( 'Today’s salt: %1$s (not minted yet (it appears with the first visit of the day)) rotates at midnight (%2$s).', 'signal-and-noise-tools' ), $today_day, $tz ) ) . '</p>';
@@ -310,7 +310,7 @@ function sn_salt_window_render_card() {
 	// presence (absent upstream) skips the line — nothing is invented.
 	if ( false === $w['prev_present'] ) {
 		/* translators: %s: yesterday's salt day (YYYY-MM-DD) */
-		$body .= '<p>' . esc_html( sprintf( __( 'Yesterday’s salt (%s) has already expired: forward secrecy holding.', 'signal-and-noise-tools' ), '' !== $w['prev_day'] ? $w['prev_day'] : '—' ) ) . '</p>';
+		$body .= '<p>' . esc_html( sprintf( __( 'Yesterday’s salt (%s) has already expired: forward secrecy holding.', 'signal-and-noise-tools' ), '' !== $w['prev_day'] ? $w['prev_day'] : __( 'not read', 'signal-and-noise-tools' ) ) ) . '</p>';
 	} elseif ( true === $w['prev_present'] ) {
 		if ( null !== $w['prev_expires_at'] ) {
 			/* translators: 1: yesterday's salt day (YYYY-MM-DD), 2: site-local expiry time with a relative phrase */

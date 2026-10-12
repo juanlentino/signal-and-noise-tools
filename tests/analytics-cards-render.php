@@ -110,10 +110,10 @@ $legacy_range = array(
 	'exact_metrics_since'       => '2026-04-18',
 );
 ob_start(); snt_analytics_render_cards( null, $legacy_range, array(), null ); $hl = ob_get_clean();
-ok( strpos( $hl, '<p class="sn-kpi-label">Visits</p><p class="sn-kpi-value">—</p>' ) !== false, 'null pageview_visits → em-dash, never the ungated 131 and never a fabricated 0' );
+ok( strpos( $hl, '<p class="sn-kpi-label">Visits</p><p class="sn-kpi-value">not read</p>' ) !== false, 'null pageview_visits → not read (an em dash until 2026-10-12), never the ungated 131 and never a fabricated 0' );
 ok( strpos( $hl, 'exact since 2026-04-18' ) !== false, 'the exact_metrics_since caveat names the discontinuity date' );
-ok( strpos( $hl, '<p class="sn-kpi-label">Scroll / view</p><p class="sn-kpi-value">—</p>' ) !== false, 'null scroll depth → em-dash' );
-ok( strpos( $hl, '<p class="sn-kpi-label">Time / view</p><p class="sn-kpi-value">—</p>' ) !== false, 'null time per view → em-dash' );
+ok( strpos( $hl, '<p class="sn-kpi-label">Scroll / view</p><p class="sn-kpi-value">not read</p>' ) !== false, 'null scroll depth → not read' );
+ok( strpos( $hl, '<p class="sn-kpi-label">Time / view</p><p class="sn-kpi-value">not read</p>' ) !== false, 'null time per view → not read' );
 ok( strpos( $hl, '0%' ) === false && strpos( $hl, '>0s<' ) === false, 'no fabricated 0% / 0s anywhere on the null range' );
 ok( strpos( $hl, '131 visitor-days' ) !== false, 'visitor-day line still renders (visits is known even pre-backfill)' );
 ok( strpos( $hl, 'viewless' ) === false, 'null viewless_visits → the viewless clause is omitted, not zeroed' );
@@ -124,7 +124,7 @@ set_error_handler( function ( $errno, $errstr ) use ( &$notices ) { ++$notices; 
 ob_start(); snt_analytics_render_cards( 3, $totals, array(), null ); $ha = ob_get_clean();
 restore_error_handler();
 ok( 0 === $notices, 'absent derived keys raise no notices (array_key_exists discipline)' );
-ok( strpos( $ha, '<p class="sn-kpi-label">Visits</p><p class="sn-kpi-value">—</p>' ) !== false, 'absent pageview_visits behaves exactly like null (em-dash)' );
+ok( strpos( $ha, '<p class="sn-kpi-label">Visits</p><p class="sn-kpi-value">not read</p>' ) !== false, 'absent pageview_visits behaves exactly like null (not read)' );
 ok( strpos( $ha, 'no exact data yet' ) !== false, 'no since marker → the caveat says so instead of inventing a date' );
 ok( strpos( $ha, 'sn-an-visitor-note' ) === false, 'absent unique_visitor_days → no visitor-day line (nothing fabricated)' );
 

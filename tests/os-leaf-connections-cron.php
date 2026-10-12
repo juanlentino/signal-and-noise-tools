@@ -280,7 +280,7 @@ ok( 1 === preg_match( '/\.snt-ledger\s*\{([^}]*)\}/', $sheet, $m ) && false !== 
 // negative-control mutation that deleted both columns from the painter
 // passed this suite before these two assertions existed.
 ok( 3 === substr_count( $kit, '>in 1 hour</os-relative-time>)' ) && 3 === preg_match_all( '#\d\d:\d\d:\d\d \(<os-relative-time datetime="\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ">in 1 hour#', $kit ), '#1596: every row prints a next-run os-relative-time, the signed server reading as its fallback' );
-ok( false !== strpos( $kit, '>1 hour ago</os-relative-time>)' ) && false !== strpos( $kit, '—' ), 'last fired prints an os-relative-time for fired rows and the em dash for the never-fired row' );
+ok( false !== strpos( $kit, '>1 hour ago</os-relative-time>)' ) && false !== strpos( $kit, 'not recorded' ), 'last fired prints an os-relative-time for fired rows and "not recorded" for the never-fired row' );
 
 // 8e) #1596: a next_run_ts already behind now paints the same os-relative-time
 // with a "%s ago" fallback; the #1222 "overdue" reversal lives in the

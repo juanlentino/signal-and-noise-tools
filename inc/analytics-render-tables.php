@@ -53,9 +53,9 @@ function snt_analytics_render_paths_table( $paths ) {
 		if ( $gsc ) {
 			$m = snt_gsc_metrics_for_path( (string) $r['path'] );
 			// NULL means Google never showed this page; 0 would claim it showed it
-			// and nobody looked. An em-dash says "no reading", which is the truth.
-			$impr = null === $m ? '—' : number_format_i18n( (int) $m['impressions'] );
-			$pos  = null === $m ? '—' : number_format_i18n( (float) $m['position'], 1 );
+			// and nobody looked. "not shown" says so in words (2026-10-12: it was an em dash).
+			$impr = null === $m ? __( 'not shown', 'signal-and-noise-tools' ) : number_format_i18n( (int) $m['impressions'] );
+			$pos  = null === $m ? __( 'not shown', 'signal-and-noise-tools' ) : number_format_i18n( (float) $m['position'], 1 );
 		}
 		echo '<tr>'
 			. '<td class="column-primary"><strong>' . esc_html( (string) $r['path'] ) . '</strong></td>'
