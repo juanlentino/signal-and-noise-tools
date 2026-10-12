@@ -35,7 +35,13 @@ function sn_login_module_state() {
 	} elseif ( $genuine( 'rename-wp-login/rename-wp-login.php' ) ) {
 		$state = 'rename-wp-login';
 	}
-	$slug = (string) ( function_exists( 'sn_login_get_slug' ) ? sn_login_get_slug() : sn_setting( 'login.slug', 'sn-login' ) );
+	// The constant first, as sn_login_get_slug() reads it: that function is
+	// not declared when login-hide.php stood down.
+	if ( defined( 'SN_LOGIN_SLUG' ) && SN_LOGIN_SLUG ) {
+		$slug = trim( (string) SN_LOGIN_SLUG, '/' );
+	} else {
+		$slug = (string) ( function_exists( 'sn_login_get_slug' ) ? sn_login_get_slug() : sn_setting( 'login.slug', 'sn-login' ) );
+	}
 	return array(
 		'state'     => $state,
 		'slug'      => $slug,

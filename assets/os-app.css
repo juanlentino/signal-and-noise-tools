@@ -336,13 +336,16 @@ a.snt-link {
 
 /* A primary button's label (os-button primary, .snt-submit, a picked option)
  * is --os-ui-accent-ink, which the accent picker keeps white until the accent
- * is very light: white on this site's red is 3.9:1, under AA. The ink here is
- * black or white from the fill's own lightness, whichever reads (black on red
- * 5.25:1; white on WordPress blue about 5:1). A browser without relative color
- * keeps the picker's ink. */
-@supports ( color: oklch( from red l c h ) ) {
+ * is very light: white on red is 3.9:1, under AA. Inside S&N Home and S&N
+ * Analytics the ink is black or white, decided at the exact WCAG crossover
+ * (relative luminance 0.1791, where black and white tie) from the fill
+ * itself, in linear sRGB: black on red (5.25:1), white on Rose and WordPress
+ * blue. The multiplier makes the step hard, so no fill gets a gray ink. The
+ * @supports test is the expression itself, so a browser that cannot compute
+ * it keeps the picker's ink rather than an unset one. */
+@supports ( color: color( from red srgb-linear clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) ) ) {
 	.snt-app[data-os-app] {
-		--os-ui-accent-ink: oklch( from var( --wp-admin-theme-color, var( --os-ui-accent, #2271b1 ) ) clamp( 0, ( 0.57 - l ) * 1000, 1 ) 0 0 );
+		--os-ui-accent-ink: color( from var( --wp-admin-theme-color, var( --os-ui-accent, #2271b1 ) ) srgb-linear clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) );
 	}
 }
 

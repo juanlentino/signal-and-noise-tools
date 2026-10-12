@@ -3,10 +3,11 @@
  * S&N Dashboard — Security → Login URL, painted from the kit.
  *
  * The classic leaf (inc/admin-forms/login.php, `sn_admin_render_login_section()`)
- * paints a module status, one form (`sn_action=save_login`, field `login_slug`,
- * locked by the `SN_LOGIN_SLUG` constant), the current login URL, and the
- * emergency-unlock callout. Same readings, same form, same field, same
- * handler; the kit's parts instead of wp-admin's.
+ * paints a module status, one form (`sn_action=save_login`, field `login_slug`;
+ * no form at all when the `SN_LOGIN_SLUG` constant locks the slug), the
+ * current login URL, and the emergency-unlock callout. Same readings
+ * (sn_login_module_state()), same sentences (sn_login_status_copy()), same
+ * field, same handler; the kit's parts instead of wp-admin's.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -59,7 +60,7 @@ function paint_security_login( array $ctx ) {
 	);
 	// Locked: no form. A constant decides the slug, so a Save could only fail
 	// (it posted no slug and answered "Login slug cannot be empty").
-	$form = $s['locked'] ? $slug_row . $url_row : \snt_kit_form( 'save_login', $slug_row . $url_row, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
+	$form = $s['locked'] ? \snt_kit_tag( 'div', array( 'class' => 'snt-form' ), $slug_row . $url_row ) : \snt_kit_form( 'save_login', $slug_row . $url_row, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
 	// Siblings: both are how the login surface is reached -- one sets the door,
 	// the other is the way back in when you lose it. Paired, the leaf also trips
 	// the width-cap escape, so each gets ~850px instead of a 760px form column.
