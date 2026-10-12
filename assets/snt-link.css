@@ -9,10 +9,12 @@
  * sRGB, each channel moves toward white by the one factor that brings the
  * pick's WCAG luminance to 0.32, which holds AA (4.5:1) on every dark surface
  * OpenStation declares, the elevated #33303a included. Mixing light keeps the
- * hue: red stays red (#ff6868), WordPress Blue stays blue, Nebula is untouched.
+ * hue: red stays red (#ff6767), WordPress Blue stays blue, Nebula is untouched.
  * On the light Legacy theme the same pick is darkened toward black to a
  * luminance of 0.15 (4.5:1 on its #eef0f1, the darkest of its window
- * surfaces). tests/links-follow-accent.php evaluates both for every swatch.
+ * surfaces). The widget cards stay dark glass under Legacy, so they keep the
+ * lift (declared on the card itself, which beats the shell's inherited value).
+ * tests/links-follow-accent.php evaluates both for every swatch.
  *
  * Declared on <body> and again on the shell, where the picker also writes the
  * accent (a desktop theme declares its own there). Without relative color,
@@ -22,7 +24,8 @@
  */
 @supports ( color: color( from red srgb-linear calc( 1 - ( 1 - r ) * min( 1, 0.68 / max( 0.001, 1 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) ) ) g b ) ) {
 	body,
-	.os-shell {
+	.os-shell,
+	.os-shell[data-os-desktop-theme="desktop-mode-legacy"] .os-widgets__card {
 		--snt-link: color( from var( --os-ui-accent, #f252fc ) srgb-linear calc( 1 - ( 1 - r ) * min( 1, 0.68 / max( 0.001, 1 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) ) ) calc( 1 - ( 1 - g ) * min( 1, 0.68 / max( 0.001, 1 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) ) ) calc( 1 - ( 1 - b ) * min( 1, 0.68 / max( 0.001, 1 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) ) ) );
 	}
 

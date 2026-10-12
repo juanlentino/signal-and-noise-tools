@@ -292,7 +292,7 @@ a.snt-list__label:hover { text-decoration: underline; }
 /* A link in a sentence reads as one (2026-10-12, owner: "Fix the link style
    too"): the sentence's own font and size, an underline, and the link color,
    --snt-link: the owner's accent pick, lifted only as far as AA for text needs
-   (assets/snt-link.css; pure red becomes #ff6868). A link whose text IS an
+   (assets/snt-link.css; pure red becomes #ff6767). A link whose text IS an
    address (snt_kit_link_is_address()) keeps the code face. */
 .snt-link {
 	color: var( --snt-link, var( --os-ui-accent-strong, #ec9bff ) );

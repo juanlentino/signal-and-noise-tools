@@ -36,9 +36,16 @@ $assets = (string) file_get_contents( $root . '/inc/desktop-mode-assets.php' );
 ok( false !== strpos( $assets, "'assets/snt-link.css'" ), 'the sheet is enqueued with the desktop commands, so widget cards get it with no S&N window open' );
 
 // The dark rule lifts toward white: 1 - (1 - c) * min(1, (1 - T) / max(0.001, 1 - Y)).
-preg_match( '/body,\s*\.os-shell\s*\{\s*--snt-link:\s*color\(\s*from var\(\s*--os-ui-accent,\s*#[0-9a-f]{6}\s*\)\s*srgb-linear\s+calc\(\s*1 - \(\s*1 - r\s*\)\s*\*\s*min\(\s*1,\s*([0-9.]+)\s*\//', $code, $dark );
+// Each channel carries its own constant; all three are captured and must agree.
+$ch_dark  = 'calc\(\s*1 - \(\s*1 - %s\s*\)\s*\*\s*min\(\s*1,\s*([0-9.]+)\s*\/\s*max\(\s*0\.001,\s*1 - \(\s*0\.2126 \* r \+ 0\.7152 \* g \+ 0\.0722 \* b\s*\)\s*\)\s*\)\s*\)';
+$ch_light = 'calc\(\s*%s \* min\(\s*1,\s*([0-9.]+)\s*\/\s*max\(\s*0\.001,\s*\(\s*0\.2126 \* r \+ 0\.7152 \* g \+ 0\.0722 \* b\s*\)\s*\)\s*\)\s*\)';
+$rgb = function ( $ch ) { return sprintf( $ch, 'r' ) . '\s*' . sprintf( $ch, 'g' ) . '\s*' . sprintf( $ch, 'b' ); };
+preg_match( '/body,\s*\.os-shell,\s*\.os-shell\[data-os-desktop-theme="desktop-mode-legacy"\] \.os-widgets__card\s*\{\s*--snt-link:\s*color\(\s*from var\(\s*--os-ui-accent,\s*#[0-9a-f]{6}\s*\)\s*srgb-linear\s+' . $rgb( $ch_dark ) . '\s*\)/', $code, $dark );
+ok( isset( $dark[3] ) && $dark[1] === $dark[2] && $dark[2] === $dark[3], 'the dark rule lifts r, g and b by the same constant' . ( isset( $dark[3] ) ? " ({$dark[1]}, {$dark[2]}, {$dark[3]})" : '' ) );
+ok( isset( $dark[0] ), 'the widget cards keep the dark rule under Legacy (they stay dark glass there)' );
 // The Legacy rule darkens toward black: c * min(1, T / max(0.001, Y)).
-preg_match( '/\.os-shell\[data-os-desktop-theme="desktop-mode-legacy"\]\s*\{\s*--snt-link:\s*color\(\s*from var\(\s*--os-ui-accent,\s*#[0-9a-f]{6}\s*\)\s*srgb-linear\s+calc\(\s*r \* min\(\s*1,\s*([0-9.]+)\s*\//', $code, $light );
+preg_match( '/\.os-shell\[data-os-desktop-theme="desktop-mode-legacy"\]\s*\{\s*--snt-link:\s*color\(\s*from var\(\s*--os-ui-accent,\s*#[0-9a-f]{6}\s*\)\s*srgb-linear\s+' . $rgb( $ch_light ) . '\s*\)/', $code, $light );
+ok( isset( $light[3] ) && $light[1] === $light[2] && $light[2] === $light[3], 'the Legacy rule darkens r, g and b by the same constant' . ( isset( $light[3] ) ? " ({$light[1]}, {$light[2]}, {$light[3]})" : '' ) );
 ok( isset( $dark[1] ), 'the dark rule on body and the shell derives --snt-link from --os-ui-accent (lift toward white)' );
 ok( isset( $light[1] ), 'the light Legacy theme derives it from the accent too (darken toward black)' );
 $y_expr = '( 0.2126 * r + 0.7152 * g + 0.0722 * b )';
@@ -73,11 +80,12 @@ $swatches = array(
 );
 // Dark: sunken, window, raised (6% Starlight over the window), elevated, and
 // a widget card (rgba(20,20,22,0.55)) over a mid-gray wallpaper.
-$dark_bgs = array( '#0c0b0f', '#1a1721', over( '#fffbff', 0.06, '#1a1721' ), '#33303a', over( '#141416', 0.55, '#3a3a3a' ) );
+// and the same card under Legacy, over its #1d2327 backstop.
+$dark_bgs = array( '#0c0b0f', '#1a1721', over( '#fffbff', 0.06, '#1a1721' ), '#33303a', over( '#141416', 0.55, '#3a3a3a' ), over( '#141416', 0.55, '#1d2327' ) );
 // Legacy: window, elevated, sunken.
 $light_bgs = array( '#ffffff', '#f6f7f7', '#eef0f1' );
 
-if ( isset( $dark[1], $light[1] ) ) {
+if ( isset( $dark[3], $light[3] ) ) {
 	$worst = array( 99, '' );
 	foreach ( $swatches as $name => $hex ) {
 		$y = y( link_dark( $hex, (float) $dark[1] ) );
