@@ -102,7 +102,7 @@ function workflow_top_cards( array $doc ) {
 }
 
 /**
- * The finding: how many rows of each list are set to show, and whether they
+ * The finding: how many rows of each list the page publishes, and whether they
  * reach anyone. Only a published /workflow puts them "on the page"; a draft
  * or a missing page shows nobody (2026-10-12 audit).
  *
@@ -119,15 +119,15 @@ function workflow_finding( array $lists, $live = true ) {
 	}
 	return sprintf(
 		/* translators: 1: map steps ("4 of 6 map steps"), 2: rules ("8 of 8 rules"), 3: proof links ("3 of 5 proof links") */
-		$live ? __( '%1$s, %2$s and %3$s show on the page.', 'signal-and-noise-tools' ) : __( '%1$s, %2$s and %3$s are set to show; none reach a reader until /workflow is live.', 'signal-and-noise-tools' ),
+		$live ? __( '%1$s, %2$s and %3$s show on the page.', 'signal-and-noise-tools' ) : __( '%1$s, %2$s and %3$s show when /workflow is live; until then none reach a reader.', 'signal-and-noise-tools' ),
 		0 === $map['rows'] ? __( 'no map steps', 'signal-and-noise-tools' )
-			/* translators: 1: map steps set to show, 2: map steps in all */
+			/* translators: 1: map steps the page publishes, 2: map steps in all */
 			: sprintf( _n( '%1$s of %2$s map step', '%1$s of %2$s map steps', $map['rows'], 'signal-and-noise-tools' ), number_format_i18n( $map['shown'] ), number_format_i18n( $map['rows'] ) ),
 		0 === $rules['rows'] ? __( 'no rules', 'signal-and-noise-tools' )
-			/* translators: 1: rules set to show, 2: rules in all */
+			/* translators: 1: rules the page publishes, 2: rules in all */
 			: sprintf( _n( '%1$s of %2$s rule', '%1$s of %2$s rules', $rules['rows'], 'signal-and-noise-tools' ), number_format_i18n( $rules['shown'] ), number_format_i18n( $rules['rows'] ) ),
 		0 === $proof['rows'] ? __( 'no proof links', 'signal-and-noise-tools' )
-			/* translators: 1: proof links set to show, 2: proof links in all */
+			/* translators: 1: proof links the page publishes, 2: proof links in all */
 			: sprintf( _n( '%1$s of %2$s proof link', '%1$s of %2$s proof links', $proof['rows'], 'signal-and-noise-tools' ), number_format_i18n( $proof['shown'] ), number_format_i18n( $proof['rows'] ) )
 	);
 }

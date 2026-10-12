@@ -102,6 +102,9 @@ function sn_admin_render_workflow_section() {
 	sn_wf_textarea( 'workflow[sample][intro]', $s['intro'], 'Intro', 3 );
 	sn_wf_textarea( 'workflow[sample][outcome]', $s['outcome'], 'Outcome (optional)', 3, '', 'Shown before the Body. Write it to stand on its own.' );
 	sn_wf_textarea( 'workflow[sample][body]', $s['body'], 'Sample body', 14, 'code', 'Shown exactly as typed, whitespace included, in a monospace block.' );
+	// A Save under the page fields as well as under the lists, as on the native
+	// leaf (2026-10-12 audit): both submit this one form, so either posts it all.
+	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_workflow_save" class="button button-primary">Save workflow page</button></div>';
 
 	echo '<h3>Map steps</h3>';
 	echo '<p class="sn-field-helper">A map step appears on the public page only when "Show on page" is checked. Unchecked steps stay here and nowhere else. ' . esc_html( $reorder ) . '</p>';

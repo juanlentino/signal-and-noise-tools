@@ -99,6 +99,26 @@
 	}, true );
 
 	/*
+	 * A second Save of one <os-form> (2026-10-12). The form's own submit sits
+	 * in its shadow footer, at the foot of everything; a long form (Content >
+	 * Workflow) puts a Save beside each group of fields instead. Such a button
+	 * is `data-snt-form-submit` with no os-action, so the runtime ignores it,
+	 * and this submits its enclosing form down the same path as the footer
+	 * button: required-field checks, then `os-form-submit`, which the runtime
+	 * dispatches. One form, so every save posts everything typed.
+	 */
+	document.addEventListener( 'click', function ( event ) {
+		var target = event.target;
+		var button = target && target.closest ? target.closest( '[data-snt-form-submit]' ) : null;
+		var form = button ? button.closest( 'os-form' ) : null;
+		if ( ! form || typeof form.submit !== 'function' || button.hasAttribute( 'disabled' ) ) {
+			return;
+		}
+		event.preventDefault();
+		form.submit();
+	} );
+
+	/*
 	 * Enter/Space on a link the host un-hrefed. snt_os_host_unhref() gives
 	 * every rewritten anchor `tabindex="0" role="link"`, which makes it
 	 * focusable and announces it -- but an `<a>` with no href does not fire a

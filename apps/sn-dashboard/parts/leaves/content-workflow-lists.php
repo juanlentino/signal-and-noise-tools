@@ -10,13 +10,16 @@
  * repeater as the one editor, under its row (2026-10-12). The page fields are
  * a short settings form and stay open.
  *
- * Two workflow_save forms, as on Resume (2026-10-12 audit): the page fields'
- * form with its Save under them, and the open list's editor with its own Save
- * and Cancel under the list. sn_workflow_normalize() rebuilds the whole
- * document from the post, so each form carries what it does not show as
- * hidden inputs (content-resume-edit.php): the page form carries the three
- * lists, the editor carries the page fields and the other two lists. One form
- * holding both put Save far from either and reset typed page fields on Edit.
+ * ONE workflow_save form, so every save posts everything typed: the page
+ * fields and the open list together, the lists not being edited riding along
+ * as hidden carriers (content-resume-edit.php), because
+ * sn_workflow_normalize() rebuilds the whole document from the post. Two
+ * forms each carried the other's STORED values, so a save from either one
+ * dropped what was typed in the other (2026-10-12 review of the audit fix).
+ * The form's own footer is hidden; its Save sits where the fields are
+ * instead: one under the page fields, one with Cancel under the open list
+ * (2026-10-12 audit: Save and Cancel sat at the foot of everything). Both are
+ * the same form's submit (workflow_save_row(), assets/os-kit.js).
  *
  * @package SignalNoiseTools
  */
@@ -90,7 +93,7 @@ function workflow_ledger( array $lists, $editing = '', $live = true ) {
 		'columns' => array(
 			array( 'key' => 'list', 'label' => __( 'List', 'signal-and-noise-tools' ), 'stack' => 'title' ),
 			array( 'key' => 'rows', 'label' => __( 'Rows', 'signal-and-noise-tools' ), 'align' => 'end' ),
-			array( 'key' => 'shown', 'label' => __( 'Set to show', 'signal-and-noise-tools' ), 'align' => 'end' ),
+			array( 'key' => 'shown', 'label' => __( 'Shows when live', 'signal-and-noise-tools' ), 'align' => 'end' ),
 			array( 'key' => 'first', 'label' => __( 'Opens with', 'signal-and-noise-tools' ) ),
 			array( 'key' => 'edit', 'label' => __( 'Edit', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
 		),
@@ -102,31 +105,46 @@ function workflow_ledger( array $lists, $editing = '', $live = true ) {
 }
 
 /**
- * The open list's editor: its own workflow_save form, its Save and Cancel
- * under the list, the page fields and the other lists as hidden carriers.
+ * A Save where the fields are: a submit of the ONE enclosing workflow_save
+ * form (assets/os-kit.js submits the os-form around a `data-snt-form-submit`
+ * button), and, under an open list, its Cancel (a `go` that clears sn_edit).
  *
- * @param array  $doc   Normalized document.
+ * @param string $cancel The open list, '' for no Cancel.
+ * @return string
+ */
+function workflow_save_row( $cancel = '' ) {
+	$cancel_html = '' !== (string) $cancel
+		? \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'workflow', 'anchor' => \snt_kit_row_anchor( (string) $cancel ) ) ) )
+		: '';
+	return \snt_kit_tag(
+		'os-cluster',
+		array( 'class' => 'snt-save-row', 'gap' => '8', 'justify' => 'end' ),
+		$cancel_html . \snt_kit_tag( 'os-button', array( 'variant' => 'primary', 'data-snt-form-submit' => true ), \snt_kit_esc( __( 'Save workflow page', 'signal-and-noise-tools' ) ) )
+	);
+}
+
+/**
+ * The open list's editor, under its row: the list's repeater, then its Save
+ * and Cancel. Its fields belong to the leaf's one form.
+ *
  * @param array  $lists workflow_list_map().
  * @param string $key   The list being edited.
  * @return string
  */
-function workflow_edit_region( array $doc, array $lists, $key ) {
+function workflow_edit_region( array $lists, $key ) {
 	$list = $lists[ $key ];
-	$form = \snt_kit_form(
-		'workflow_save',
-		(string) call_user_func( $list['paint'] ) . resume_edit_cancel( 'workflow', $key ),
-		array(
-			/* translators: %s: the list ("map steps") */
-			'submit' => sprintf( __( 'Save %s', 'signal-and-noise-tools' ), function_exists( 'mb_strtolower' ) ? mb_strtolower( $list['title'] ) : strtolower( $list['title'] ) ),
-			'hidden' => resume_carry( implode( '', workflow_top_cards( $doc ) ) ) + resume_carry_others( $lists, $key ),
-		)
+	return \snt_kit_section(
+		$list['title'],
+		(string) call_user_func( $list['paint'] ) . workflow_save_row( $key ),
+		$list['hint'],
+		array( 'id' => 'snt-edit-region', 'tabindex' => '-1', 'data-snt-focus' => true )
 	);
-	return \snt_kit_section( $list['title'], $form, $list['hint'], array( 'id' => 'snt-edit-region', 'tabindex' => '-1', 'data-snt-focus' => true ) );
 }
 
 /**
- * The leaf: the page fields in their own form, the lists ledger, and, when a
- * list is being edited, its editor under its row.
+ * The leaf: ONE workflow_save form holding the page fields (their Save under
+ * them), the lists ledger and, when a list is being edited, its editor under
+ * its row (its Save and Cancel under it).
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
@@ -137,16 +155,19 @@ function paint_content_workflow( array $ctx ) {
 	$lists   = workflow_list_map( $doc );
 	$editing = resume_edit_key( $ctx, array_keys( $lists ) );
 	$state   = \sn_workflow_page_state();
-	$page    = \snt_kit_form(
+	// 2026-10-12: the list's editor opens under its row (snt_kit_edit_list()).
+	$editor = '' !== $editing ? workflow_edit_region( $lists, $editing ) : '';
+	$inner  = \snt_kit_section( __( 'Workflow page', 'signal-and-noise-tools' ), workflow_intro( $state ) . snt_pair_cards( workflow_top_cards( $doc ) ) . workflow_save_row() )
+		. \snt_kit_edit_list( workflow_ledger( $lists, $editing, 'publish' === $state['status'] ), $editor );
+	return \snt_kit_form(
 		'workflow_save',
-		snt_pair_cards( workflow_top_cards( $doc ) ),
+		\snt_kit_stack( $inner, 18 ),
 		array(
+			// The footer's Save would sit under the ledger, far from both field
+			// groups; each has its own Save (sn-dashboard.css hides the footer).
+			'class'  => 'snt-form--saves-inline',
 			'submit' => __( 'Save workflow page', 'signal-and-noise-tools' ),
-			'hidden' => resume_carry_others( $lists, '' ),
+			'hidden' => resume_carry_others( $lists, $editing ),
 		)
 	);
-	// 2026-10-12: the list's editor opens under its row (snt_kit_edit_list()).
-	$editor = '' !== $editing ? workflow_edit_region( $doc, $lists, $editing ) : '';
-	return \snt_kit_section( __( 'Workflow page', 'signal-and-noise-tools' ), workflow_intro( $state ) . $page )
-		. \snt_kit_edit_list( workflow_ledger( $lists, $editing, 'publish' === $state['status'] ), $editor );
 }

@@ -229,6 +229,15 @@ $seed = array(
 );
 $key = 'snt_block_migrations_candidates_7';
 $GLOBALS['__transients'][ $key ] = $seed;
+// 2026-10-12 review: the cache is edited only after a write that took. A
+// stale fingerprint (409) must leave it byte-identical.
+$stale = snt_block_migrations_apply_impl( 407, str_repeat( 'f', 32 ), $replacement_markup, 'heading-hierarchy-skip' );
+bma_true( is_wp_error( $stale ) && 'snt_block_migration_conflict' === $stale->get_error_code() && serialize( $GLOBALS['__transients'][ $key ] ) === serialize( $seed ), 'Test 8.0: a refused apply (409, stale fingerprint) leaves the cached scan byte-identical' );
+$stale_key = array_merge( $seed, array( 'candidates' => array( array( 'post_id' => 407, 'migration_type' => 'heading-hierarchy-skip', 'block_fingerprint' => str_repeat( 'f', 32 ) ) ) ) );
+$GLOBALS['__transients'][ $key ] = $stale_key;
+snt_block_migrations_apply_impl( 407, str_repeat( 'f', 32 ), $replacement_markup, 'heading-hierarchy-skip' );
+bma_true( serialize( $GLOBALS['__transients'][ $key ] ) === serialize( $stale_key ), 'Test 8.0b: even when the cache lists that very fingerprint, a refused apply keeps its row (it is still there to fix)' );
+$GLOBALS['__transients'][ $key ] = $seed;
 $staged = snt_block_migrations_apply_impl( 407, $fp, $replacement_markup, 'heading-hierarchy-skip', static function () { return 1; } );
 bma_true( is_array( $staged ) && $GLOBALS['__transients'][ $key ] === $seed, 'Test 8.1: a staged revision (write callback) leaves the cached scan as it was' );
 $result = snt_block_migrations_apply_impl( 407, $fp, $replacement_markup, 'heading-hierarchy-skip' );

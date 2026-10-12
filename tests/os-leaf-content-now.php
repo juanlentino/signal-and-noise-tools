@@ -108,7 +108,8 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_now_section' );
 $kit     = snt_leaf_paint( 'content', 'now' );
 ok( snt_leaf_names( $classic ) === now_names_but_second_spare( $kit ), 'empty: field names match the classic form, the second spare aside: ' . implode( ',', snt_leaf_names( $kit ) ) );
 ok( array( 'now_save' ) === snt_leaf_actions( $kit ), 'empty: the save is still offered' );
-ok( false !== strpos( $kit, 'Fill in a card and save to publish it.' ) && false !== strpos( $classic, 'Fill in a card and save to publish it.' ) && false === strpos( $kit . $classic, 'below' ) && false === strpos( $kit, 'Last saved' ) && false === strpos( $kit, 'editor for the live' ), 'empty: the intro is the unpublished one, with no stamp and no positional word, on both surfaces' );
+// The classic paints no card until + Add section is pressed, so it says so (2026-10-12 review).
+ok( false !== strpos( $kit, 'Fill in a card and save to publish it.' ) && false !== strpos( $classic, 'Press + Add section, fill in the card, and save to publish it.' ) && false === strpos( $classic, 'Fill in a card' ) && false === strpos( $kit . $classic, 'below' ) && false === strpos( $kit, 'Last saved' ) && false === strpos( $kit, 'editor for the live' ), 'empty: the intro is the unpublished one, with no stamp and no positional word, on both surfaces' );
 ok( 2 === now_cards( $kit ) && 1 === substr_count( $kit, snt_leaf_row() ) && false !== strpos( $kit, 'name="now[groups][__G__][label]"' ), 'empty: only the two new cards are painted, side by side' );
 ok( '' === sn_now_rows_to_text( now_groups_from( snt_os_host_expand( now_posted_from( $kit ) ) ) ), 'empty: saving the untouched form serializes to nothing (the clear path), never a refusal' );
 

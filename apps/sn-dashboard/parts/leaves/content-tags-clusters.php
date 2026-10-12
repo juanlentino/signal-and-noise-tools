@@ -52,7 +52,7 @@ function tags_cluster_html( array $c ) {
 	foreach ( (array) ( $c['terms'] ?? array() ) as $t ) {
 		$id     = (int) ( $t['term_id'] ?? 0 );
 		$is_sug = $id === (int) ( $c['suggested'] ?? 0 );
-		$name   = (string) ( $t['name'] ?? '' );
+		$name   = \sn_tag_name( $t['name'] ?? '' ); // stored escaped; the kit escapes once.
 		$labels = \sn_tag_cluster_control_labels( $name );
 		$rows[] = array(
 			'_key'      => 'term-' . $id,

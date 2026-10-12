@@ -127,7 +127,7 @@ function tags_picker_html() {
 	$options = array();
 	foreach ( (array) $tags as $t ) {
 		if ( is_object( $t ) && isset( $t->term_id ) ) {
-			$options[ (string) $t->term_id ] = (string) $t->name . ' (' . (int) $t->count . ')';
+			$options[ (string) $t->term_id ] = \sn_tag_name( $t->name ) . ' (' . (int) $t->count . ')';
 		}
 	}
 	// Both start unchosen: preselecting the first tag on both sides made the
@@ -204,7 +204,7 @@ function tags_unused_html( array $unused ) {
 	}
 	$rows = '';
 	foreach ( $unused as $t ) {
-		$rows .= tags_check_row( 'sn_tag_unused[]', (int) ( $t['term_id'] ?? 0 ), '<strong>' . \snt_kit_esc( (string) ( $t['name'] ?? '' ) ) . '</strong> ' . \snt_kit_code( (string) ( $t['slug'] ?? '' ), false ) );
+		$rows .= tags_check_row( 'sn_tag_unused[]', (int) ( $t['term_id'] ?? 0 ), '<strong>' . \snt_kit_esc( \sn_tag_name( $t['name'] ?? '' ) ) . '</strong> ' . \snt_kit_code( (string) ( $t['slug'] ?? '' ), false ) );
 	}
 	return \snt_kit_section(
 		$heading,

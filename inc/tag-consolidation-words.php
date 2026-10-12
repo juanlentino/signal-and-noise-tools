@@ -28,7 +28,7 @@ function sn_tag_cluster_heading( array $c ) {
 	$name  = '';
 	foreach ( $terms as $t ) {
 		if ( (int) ( $t['term_id'] ?? 0 ) === (int) ( $c['suggested'] ?? 0 ) ) {
-			$name = (string) ( $t['name'] ?? '' );
+			$name = sn_tag_name( $t['name'] ?? '' );
 		}
 	}
 	$others = max( 0, count( $terms ) - 1 );
@@ -44,12 +44,27 @@ function sn_tag_cluster_heading( array $c ) {
  * @return array{0:string,1:string} Canonical radio, Merge checkbox.
  */
 function sn_tag_cluster_control_labels( $name ) {
+	$name = sn_tag_name( $name );
 	return array(
 		/* translators: %s: tag name. */
-		sprintf( __( 'Keep %s as canonical', 'signal-and-noise-tools' ), (string) $name ),
+		sprintf( __( 'Keep %s as canonical', 'signal-and-noise-tools' ), $name ),
 		/* translators: %s: tag name. */
-		sprintf( __( 'Merge %s', 'signal-and-noise-tools' ), (string) $name ),
+		sprintf( __( 'Merge %s', 'signal-and-noise-tools' ), $name ),
 	);
+}
+
+/**
+ * A tag name as text. WordPress stores term names already HTML-escaped
+ * ("R&amp;B"), and the kit escapes what it paints, so an undecoded name read
+ * "R&amp;B" on screen (2026-10-12 review). Decoded once here; every surface
+ * escapes it once when it paints it (esc_html() would not double-escape, the
+ * kit's htmlspecialchars() does).
+ *
+ * @param mixed $name The stored name.
+ * @return string
+ */
+function sn_tag_name( $name ) {
+	return html_entity_decode( (string) $name, ENT_QUOTES, 'UTF-8' );
 }
 
 /**

@@ -49,7 +49,7 @@ function tags_fit_html() {
 	foreach ( $rows as $pid => $row ) {
 		$boxes = '';
 		foreach ( $row['remove'] as $t ) {
-			$boxes .= tags_check_row( 'remove[' . (int) $pid . '][]', (int) $t['id'], \snt_kit_esc( sprintf( /* translators: 1: tag, 2: score */ __( 'Remove "%1$s" (attached for reach, %2$s of 2)', 'signal-and-noise-tools' ), (string) $t['name'], number_format_i18n( (float) $t['score'], 2 ) ) ), false );
+			$boxes .= tags_check_row( 'remove[' . (int) $pid . '][]', (int) $t['id'], \snt_kit_esc( sprintf( /* translators: 1: tag, 2: score */ __( 'Remove "%1$s" (attached for reach, %2$s of 2)', 'signal-and-noise-tools' ), \sn_tag_name( $t['name'] ), number_format_i18n( (float) $t['score'], 2 ) ) ), false );
 		}
 		// The note is a sub-heading, and its link a door (2026-10-12 audit: a
 		// raw href left the S&N Home desktop for the classic editor).
@@ -168,11 +168,12 @@ function tags_groups_ledger() {
 			continue;
 		}
 		$gid    = (string) \sn_notes_tag_group_effective( $t );
-		$tags[] = array( 'id' => (int) $t->term_id, 'name' => (string) $t->name, 'group' => $gid );
+		$name   = \sn_tag_name( $t->name );
+		$tags[] = array( 'id' => (int) $t->term_id, 'name' => $name, 'group' => $gid );
 		if ( isset( $groups[ $gid ] ) ) {
-			$groups[ $gid ]['names'][] = (string) $t->name;
+			$groups[ $gid ]['names'][] = $name;
 		} else {
-			$unfiled[] = (string) $t->name;
+			$unfiled[] = $name;
 		}
 	}
 	usort( $tags, static fn( $a, $b ) => strcasecmp( $a['name'], $b['name'] ) );

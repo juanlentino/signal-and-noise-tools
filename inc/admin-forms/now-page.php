@@ -82,7 +82,7 @@ function sn_admin_render_now_section() {
 	if ( ! empty( $sections ) ) {
 		echo '<p class="sn-fieldset-intro">This form is the editor for the live <a href="' . esc_url( home_url( '/now' ) ) . '" target="_blank" rel="noopener">/now</a> page. Saving here regenerates it. Last saved: <code>' . esc_html( (string) $page['updated'] ) . '</code>.</p>';
 	} else {
-		echo '<p class="sn-fieldset-intro">This form is the editor for the <a href="' . esc_url( home_url( '/now' ) ) . '" target="_blank" rel="noopener">/now</a> page. Fill in a card and save to publish it.</p>';
+		echo '<p class="sn-fieldset-intro">This form is the editor for the <a href="' . esc_url( home_url( '/now' ) ) . '" target="_blank" rel="noopener">/now</a> page. Press + Add section, fill in the card, and save to publish it.</p>';
 	}
 	echo '<p class="sn-field-helper">Each card is one section on /now: a label, then its items one per line. Incomplete cards are refused at save (items need a label; a label needs at least one item). Removing every card clears the override: the page falls back to the theme\'s built-in content (it is never silently blanked).</p>';
 

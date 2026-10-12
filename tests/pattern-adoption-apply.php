@@ -332,6 +332,12 @@ $seed = array(
 );
 $key = 'snt_pattern_adoption_candidates_7';
 $GLOBALS['__transients'][ $key ] = $seed;
+// 2026-10-12 review: the cache is edited only after a write that took.
+$stale_seed = array_merge( $seed, array( 'candidates' => array_merge( $seed['candidates'], array( array( 'post_id' => 309, 'pattern_type' => 'pull-quote', 'block_fingerprint' => str_repeat( 'f', 32 ) ) ) ) ) );
+$GLOBALS['__transients'][ $key ] = $stale_seed;
+$stale = snt_ai_pattern_adoption_apply_impl( 309, str_repeat( 'f', 32 ), $replacement, 'pull-quote' );
+pa_true( is_wp_error( $stale ) && 'snt_pattern_adoption_conflict' === $stale->get_error_code() && serialize( $GLOBALS['__transients'][ $key ] ) === serialize( $stale_seed ), 'Test 9.0: a refused apply (409, stale fingerprint) leaves the cached scan byte-identical, its own row included' );
+$GLOBALS['__transients'][ $key ] = $seed;
 $staged = snt_ai_pattern_adoption_apply_impl( 309, $fp, $replacement, 'pull-quote', static function () { return 1; } );
 pa_true( is_array( $staged ) && $GLOBALS['__transients'][ $key ] === $seed, 'Test 9.1: a staged revision (write callback) leaves the cached scan as it was' );
 $result = snt_ai_pattern_adoption_apply_impl( 309, $fp, $replacement, 'pull-quote' );

@@ -159,6 +159,18 @@ ok( 1 === substr_count( $kit, 'heading="Duplicate tags"' ) && 2 === preg_match_a
 ok( 1 === substr_count( $classic, '>Duplicate tags</h2>' ) && 2 === substr_count( $classic, '<h3>&quot;' ) && false === strpos( $classic, 'Possible duplicates' ), 'two clusters: the classic twin paints one Duplicate tags box with a subheading per cluster' );
 array_pop( $GLOBALS['__clusters'] );
 
+// ── 2026-10-12 review: WordPress stores term names escaped ("R&amp;B"); the
+// window escaped them again and painted "R&amp;B". Decoded once, escaped once.
+$GLOBALS['__clusters'][] = array( 'key' => 'rb', 'terms' => array( array( 'term_id' => 40, 'name' => 'R&amp;B', 'slug' => 'rb', 'count' => 3 ), array( 'term_id' => 41, 'name' => 'R&amp;B.', 'slug' => 'rb-2', 'count' => 1 ) ), 'suggested' => 40 );
+$GLOBALS['__alltags'][]  = tag_obj( 40, 'R&amp;B', 'rb', 3 );
+$GLOBALS['__unused'][]   = array( 'term_id' => 42, 'name' => 'Soul &amp; Funk', 'slug' => 'soul-funk', 'count' => 0 );
+$kit     = kit_tags();
+// The classic prints through esc_html(), which in WordPress does not
+// double-escape (this harness's stub does), so the pin is the window's.
+ok( false === strpos( $kit, '&amp;amp;' ), 'a stored "R&amp;B" is never double-escaped in the window' );
+ok( false !== strpos( $kit, '<h4 class="snt-h">&quot;R&amp;B&quot; and 1 near-duplicate</h4>' ) && false !== strpos( $kit, 'aria-label="Keep R&amp;B as canonical"' ) && false !== strpos( $kit, '<strong>R&amp;B</strong>' ) && false !== strpos( $kit, '<strong>Soul &amp; Funk</strong>' ) && false !== strpos( $kit, '>R&amp;B (3)</os-option>' ), 'R&B reads "R&B" in the cluster heading, its controls\' names, its row, the picker and the unused list' );
+array_pop( $GLOBALS['__clusters'] ); array_pop( $GLOBALS['__alltags'] ); array_pop( $GLOBALS['__unused'] );
+
 // ── The empty list view: no clusters, no unused, no AI provider, no history.
 $GLOBALS['__clusters'] = array(); $GLOBALS['__unused'] = array(); $GLOBALS['__ai'] = false; $GLOBALS['__jev'] = false; $GLOBALS['__options']['sn_tag_merge_history'] = array();
 $classic = classic_tags();
