@@ -29,6 +29,8 @@ ok( false !== stripos( $s, 'measured zero' ), 'and states it is a MEASURED zero,
 $c = array( 'verified' => 2, 'unattributed' => 1, 'asserted' => 1, 'unverified' => 3, 'never_checked' => 3 );
 $s = sn_cit_summary_sentence( $c );
 ok( false !== strpos( $s, '7 claims' ), 'the total counts every tier, including the ones a fraction would hide' );
+$one = sn_cit_summary_sentence( array( 'verified' => 1, 'unattributed' => 0, 'asserted' => 0, 'unverified' => 0, 'never_checked' => 0 ) );
+ok( 0 === strpos( $one, '1 claim: ' ) && false === strpos( $one, '1 claims' ), '2026-10-12: one claim reads "1 claim:", never "1 claims" (_n, both surfaces share this sentence)' );
 foreach ( SN_CIT_TIERS as $t ) {
 	ok( false !== strpos( $s, $t ), "the readout names the $t tier explicitly" );
 }
@@ -108,7 +110,7 @@ $verified_card = substr( $html, strpos( $html, '__label">verified' ), 400 );
 ok( false === strpos( substr( $verified_card, 0, strpos( $verified_card, '</div>' ) ), 'sn-pill' ), 'a verified card carries no pill -- nothing to act on' );
 ok( false !== strpos( $html, '3 claims: 1 verified · 0 unattributed · 1 asserted · 1 unverified. 1 has never been checked.' ), 'the summary sentence still accounts for the whole table' );
 ok( 6 === substr_count( $html, '<th scope="col">' ), 'six columns: tier, source, cites, first seen, last checked, HTTP' );
-ok( false !== strpos( $html, '<details><summary>What the four tiers mean</summary>' ), 'the legend folds into a details block' );
+ok( false !== strpos( $html, '<h3>What the tiers mean</h3>' ) && false === strpos( $html, '<details' ), '2026-10-12: the legend is open under the S&N Home twin\'s heading, not a fold' );
 foreach ( SN_CIT_TIERS as $t ) {
 	ok( false !== strpos( $html, esc_html( sn_cit_tier_sentence( $t ) ) ), "the legend keeps the $t sentence" );
 }
