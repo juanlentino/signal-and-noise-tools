@@ -2,15 +2,17 @@
 // 2026-10-12: an earned fold keeps the reader's toggle across repaints. The
 // real assets/os-host.js runs in a VM against a fake document: the reader
 // opens a fold, the morph strips the attribute, the paint's os-app-effect
-// puts it back; a fold the reader closed stays closed when the paint says
-// open; a fold nobody touched follows the paint.
+// puts it back; a fold the reader closed stays closed while the page's
+// verdict (data-snt-open) is unchanged, and reopens when it changes; a fold
+// nobody touched follows the paint.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 
 class Fold {
-  constructor(id, open) { this.attrs = { 'data-snt-fold': id }; if (open) this.attrs.open = ''; }
+  constructor(id, open) { this.attrs = { 'data-snt-fold': id, 'data-snt-open': open ? '1' : '0' }; if (open) this.attrs.open = ''; }
+  verdict(open) { this.attrs['data-snt-open'] = open ? '1' : '0'; if (open) this.attrs.open = ''; else delete this.attrs.open; } // a paint that changes its answer
   getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; }
   hasAttribute(n) { return n in this.attrs; }
   toggleAttribute(n, on) { if (on) this.attrs[n] = ''; else delete this.attrs[n]; return on; }
@@ -45,9 +47,15 @@ paint();
 assert.ok(connect.hasAttribute('open'), 'a fold the reader opened is open again after the repaint');
 
 toggle(events, false);
-events.attrs.open = ''; // the morph: the paint says open (needs the reader)
+events.attrs.open = ''; // the morph: the paint still says open, the same verdict
 paint();
-assert.ok(!events.hasAttribute('open'), 'a fold the reader closed stays closed, even when the paint says open');
+assert.ok(!events.hasAttribute('open'), 'a fold the reader closed stays closed while the page says the same thing');
+events.verdict(false); // the late event is fixed: the page now paints it closed
+paint();
+assert.ok(!events.hasAttribute('open'), 'the page changed its answer: the fold follows the paint (closed)');
+events.verdict(true); // a new late event: the page asks for the reader again
+paint();
+assert.ok(events.hasAttribute('open'), 'a new reason to look reopens a fold the reader once closed');
 
 untouched.attrs.open = '';
 paint();

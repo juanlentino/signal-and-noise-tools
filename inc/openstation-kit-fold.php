@@ -43,11 +43,25 @@ function snt_kit_fold( $heading, $summary, $inner, $open = false ) {
 			'heading'       => (string) $heading,
 			'hint'          => (string) $summary,
 			'open'          => (bool) $open,
-			// The key assets/os-host.js remembers the reader's toggle under: the
-			// morph strips an `open` the reader set on every repaint otherwise.
-			'data-snt-fold' => trim( strtolower( (string) preg_replace( '/[^a-z0-9]+/i', '-', (string) $heading ) ), '-' ),
+			// The key assets/os-host.js remembers the reader's toggle under (the
+			// morph strips an `open` the reader set on every repaint otherwise),
+			// and the page's own verdict: the reader's choice holds until it changes.
+			'data-snt-fold' => snt_kit_fold_key( $heading ),
+			'data-snt-open' => $open ? '1' : '0',
 		),
 		// The same rhythm an open section's `stack` gives its children.
 		snt_kit_stack( (string) $inner, 12 )
 	);
+}
+
+/**
+ * The fold's key: its heading as a slug, or a hash of it when the heading
+ * has no Latin letters to slug (a translation), so memory never goes silent.
+ *
+ * @param string $heading The fold's heading.
+ * @return string
+ */
+function snt_kit_fold_key( $heading ) {
+	$slug = trim( strtolower( (string) preg_replace( '/[^a-z0-9]+/i', '-', (string) $heading ) ), '-' );
+	return '' !== $slug ? $slug : 'f-' . substr( md5( (string) $heading ), 0, 10 );
 }

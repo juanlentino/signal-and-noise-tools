@@ -522,30 +522,27 @@ $GLOBALS['wpdb'] = null;
 
 // 2026-10-12 (owner: "Some places earn it, other don't"): the events list is
 // an earned fold. Closed it states the counts; it opens itself when an event
-// is overdue or unhandled, when overdue cannot be read, or under a filter.
+// is past due or unhandled, or under a filter. Past due is read from EVERY
+// row's next run (review of #2010: the health reading covers only this
+// plugin's jobs, so a stalled core hook read "none overdue" behind a fold).
 $fold_open = static fn( $html ) => 1 === preg_match( '/<os-disclosure heading="Scheduled events"[^>]*\sopen[\s=>]/', $html );
 $GLOBALS['__cron_rows'] = array(
 	array( 'hook' => 'sn_a', 'args_signature' => 'a', 'next_run_ts' => time() + 600, 'schedule' => 'hourly', 'interval_s' => 3600, 'args' => array(), 'last_fired_ts' => 0, 'has_handler' => true, 'is_sn_owned' => true ),
-	array( 'hook' => 'wp_b', 'args_signature' => 'b', 'next_run_ts' => time() + 900, 'schedule' => 'daily', 'interval_s' => 86400, 'args' => array(), 'last_fired_ts' => 0, 'has_handler' => true, 'is_sn_owned' => false ),
+	array( 'hook' => 'wp_b', 'args_signature' => 'b', 'next_run_ts' => time() - 300, 'schedule' => 'daily', 'interval_s' => 86400, 'args' => array(), 'last_fired_ts' => 0, 'has_handler' => true, 'is_sn_owned' => false ),
 );
 $kit = snt_leaf_paint( 'connections', 'cron' );
-ok( $fold_open( $kit ) && false !== strpos( $kit, 'hint="2 events: overdue not read, every one handled"' ), 'no health reader: the fold says overdue was not read and stays open (unknown is not zero)' );
-// Declared in a block so PHP defines it HERE, not hoisted above the earlier groups.
-if ( ! function_exists( 'snt_cron_health_summary_impl' ) ) {
-	function snt_cron_health_summary_impl() { return $GLOBALS['__cron_health']; }
-}
-$GLOBALS['__cron_health'] = array( 'overdue' => array() );
+ok( ! $fold_open( $kit ) && false !== strpos( $kit, 'hint="2 events: none past due, every one handled"' ) && false !== strpos( $kit, 'data-snt-open="0"' ) && false !== strpos( $kit, 'os-key="sn_a|a"' ), 'all well (a core hook 5 minutes behind is within the runner\'s grace): the fold is closed, says the counts, and the rows are inside it' );
+$GLOBALS['__cron_rows'][1]['next_run_ts'] = time() - 7200;
 $kit = snt_leaf_paint( 'connections', 'cron' );
-ok( ! $fold_open( $kit ) && false !== strpos( $kit, 'hint="2 events: none overdue, every one handled"' ) && false !== strpos( $kit, 'os-key="sn_a|a"' ), 'all well: the fold is closed, its summary states the counts, and the rows are still painted inside it' );
-$GLOBALS['__cron_health'] = array( 'overdue' => array( 'sn_a' ) );
-$kit = snt_leaf_paint( 'connections', 'cron' );
-ok( $fold_open( $kit ) && false !== strpos( $kit, '2 events: 1 overdue, every one handled' ), 'an overdue event opens the fold, and the summary names it' );
-$GLOBALS['__cron_health'] = array( 'overdue' => array() );
+ok( $fold_open( $kit ) && false !== strpos( $kit, '2 events: 1 past due, every one handled' ) && false !== strpos( $kit, 'data-snt-open="1"' ), 'a core hook two hours past its next run opens the fold and is counted, whatever the plugin\'s own health reading says' );
+$GLOBALS['__cron_rows'][1]['next_run_ts'] = time() + 900;
 $GLOBALS['__cron_rows'][1]['has_handler'] = false;
 $kit = snt_leaf_paint( 'connections', 'cron' );
-ok( $fold_open( $kit ) && false !== strpos( $kit, '2 events: none overdue, 1 with no handler' ), 'an event with no handler opens the fold' );
+ok( $fold_open( $kit ) && false !== strpos( $kit, '2 events: none past due, 1 with no handler' ), 'an event with no handler opens the fold' );
 $GLOBALS['__cron_rows'][1]['has_handler'] = true;
 ok( $fold_open( snt_leaf_paint( 'connections', 'cron', array( 'filter' => 'sn_' ) ) ), 'a typed filter keeps the fold open' );
+$GLOBALS['__cron_rows'] = array( $GLOBALS['__cron_rows'][0] );
+ok( false !== strpos( snt_leaf_paint( 'connections', 'cron' ), 'hint="1 event: none past due' ), 'one event reads "1 event", not "1 events"' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

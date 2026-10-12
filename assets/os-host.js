@@ -262,23 +262,33 @@
 	// watch tick, a save); os-disclosure reports each click as
 	// `os-disclosure-toggle`, and the choice goes back on the paint's own
 	// effect, in the task that morphed, so the fold never flickers shut.
-	// Setting the attribute from code emits nothing, so this cannot loop.
+	// The choice holds only while the page's own verdict (`data-snt-open`)
+	// is the one the reader answered: an event that turns late reopens a fold
+	// the reader closed. Setting the attribute from code emits nothing.
 	var folds = {};
 
 	function rememberFold( event ) {
 		var el = event.target;
 		var id = el && el.getAttribute ? el.getAttribute( 'data-snt-fold' ) : null;
 		if ( id ) {
-			folds[ id ] = !! ( event.detail && event.detail.open );
+			folds[ id ] = { open: !! ( event.detail && event.detail.open ), verdict: el.getAttribute( 'data-snt-open' ) };
 		}
 	}
 
 	function restoreFolds( root ) {
 		var list = root.querySelectorAll( 'os-disclosure[data-snt-fold]' );
 		for ( var i = 0; i < list.length; i++ ) {
-			var id = list[ i ].getAttribute( 'data-snt-fold' );
-			if ( Object.prototype.hasOwnProperty.call( folds, id ) && folds[ id ] !== list[ i ].hasAttribute( 'open' ) ) {
-				list[ i ].toggleAttribute( 'open', folds[ id ] );
+			var id   = list[ i ].getAttribute( 'data-snt-fold' );
+			var memo = Object.prototype.hasOwnProperty.call( folds, id ) ? folds[ id ] : null;
+			if ( ! memo ) {
+				continue;
+			}
+			if ( memo.verdict !== list[ i ].getAttribute( 'data-snt-open' ) ) {
+				delete folds[ id ]; // the page changed its answer; follow the paint
+				continue;
+			}
+			if ( memo.open !== list[ i ].hasAttribute( 'open' ) ) {
+				list[ i ].toggleAttribute( 'open', memo.open );
 			}
 		}
 	}

@@ -50,6 +50,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+// ponytail: a fixed 15-minute grace (three ticks of a 5-minute system cron); read the runner's real cadence if it ever runs slower.
+const CRON_LATE_GRACE = 900;
+
 require_once __DIR__ . '/connections-cron-parts.php';
 
 /**
@@ -253,16 +256,22 @@ function cron_table_html( array $rows ) {
  * @return string
  */
 function cron_events_fold_html( array $rows, $filter, $hint ) {
+	// Late is read from every row's own next run, the moment the row's "Next
+	// run" cell turns to "N ago" (#1222), past a grace of a few runner ticks:
+	// the system cron fires on a schedule, so a due event sits a few minutes
+	// behind routinely. The health reading's `overdue` covers only this
+	// plugin's jobs, by last fire, so it cannot speak for all of them.
+	$late    = count( array_filter( $rows, static fn( $r ) => (int) ( $r['next_run_ts'] ?? 0 ) > 0 && (int) $r['next_run_ts'] < time() - CRON_LATE_GRACE ) );
 	$orphans = count( array_filter( $rows, static fn( $r ) => empty( $r['has_handler'] ) ) );
-	$overdue = function_exists( 'snt_cron_health_summary_impl' ) ? count( (array) ( \snt_cron_health_summary_impl()['overdue'] ?? array() ) ) : null;
+	$n       = count( $rows );
 	$summary = sprintf(
-		/* translators: 1: event count, 2: the overdue reading, 3: the handler reading. */
-		__( '%1$s events: %2$s, %3$s', 'signal-and-noise-tools' ),
-		number_format_i18n( count( $rows ) ),
-		null === $overdue ? __( 'overdue not read', 'signal-and-noise-tools' ) : ( $overdue > 0 ? sprintf( /* translators: %d: overdue events. */ _n( '%d overdue', '%d overdue', $overdue, 'signal-and-noise-tools' ), $overdue ) : __( 'none overdue', 'signal-and-noise-tools' ) ),
+		/* translators: 1: "86 events", 2: the lateness reading, 3: the handler reading. */
+		__( '%1$s: %2$s, %3$s', 'signal-and-noise-tools' ),
+		sprintf( /* translators: %s: event count. */ _n( '%s event', '%s events', $n, 'signal-and-noise-tools' ), number_format_i18n( $n ) ),
+		$late > 0 ? sprintf( /* translators: %d: events past their next run. */ _n( '%d past due', '%d past due', $late, 'signal-and-noise-tools' ), $late ) : __( 'none past due', 'signal-and-noise-tools' ),
 		$orphans > 0 ? sprintf( /* translators: %d: events with no handler. */ _n( '%d with no handler', '%d with no handler', $orphans, 'signal-and-noise-tools' ), $orphans ) : __( 'every one handled', 'signal-and-noise-tools' )
 	);
-	$open = null === $overdue || $overdue > 0 || $orphans > 0 || '' !== trim( (string) $filter );
+	$open = $late > 0 || $orphans > 0 || '' !== trim( (string) $filter );
 	return \snt_kit_fold( __( 'Scheduled events', 'signal-and-noise-tools' ), $summary, $hint . cron_filter_html( $filter ) . cron_table_html( cron_filter_rows( $rows, $filter ) ), $open );
 }
 
