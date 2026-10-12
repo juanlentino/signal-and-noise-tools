@@ -124,60 +124,89 @@ $all = sn_analytics_signals( '2026-06-14', '2026-06-20', 'human' );
 ok( count( $all ) >= 2 && $all[0]['severity'] >= $all[ count( $all ) - 1 ]['severity'], 'aggregate: merged + sorted by severity desc' );
 $GLOBALS['__daily'] = array(); $GLOBALS['__paths'] = array(); $GLOBALS['__pathseries'] = array();
 
-echo "\nGroup: Holt fit\n";
-// Perfect line y=2t: level tracks the last point, trend locks to 2, residuals vanish.
-$hf = sn_analytics_stat_holt( array( 0, 2, 4, 6, 8 ) );
-ok( is_array( $hf ) && abs( $hf['level'] - 8.0 ) < 1e-9 && abs( $hf['trend'] - 2.0 ) < 1e-9, 'holt: exact level+trend on a perfect line' );
-ok( count( $hf['residuals'] ) === 4 && max( array_map( 'abs', $hf['residuals'] ) ) < 1e-9, 'holt: one-step residuals vanish on a perfect line' );
-ok( abs( sn_analytics_stat_holt_point( $hf, 7 ) - 22.0 ) < 1e-9, 'holt: 7-step point continues the line (8 + 7×2)' );
-ok( null === sn_analytics_stat_holt( array( 1, 2 ) ), 'holt: <3 points → null' );
+echo "\nGroup: forecast point (2026-10-12: the trailing median replaced Holt)\n";
+$ramp = array(); for ( $i = 1; $i <= 20; $i++ ) { $ramp[] = $i; }
+ok( 13.5 === sn_analytics_forecast_point( $ramp ), 'point: the median of the last 14 days (7..20 → 13.5), not a projected trend' );
+ok( null === sn_analytics_forecast_point( array() ), 'point: no history → null' );
+ok( 1.0 === sn_analytics_stat_quantile( array( 5, 1, 3, 2, 4 ), 0.0 ) && 5.0 === sn_analytics_stat_quantile( array( 5, 1, 3, 2, 4 ), 1.0 ) && 3.0 === sn_analytics_stat_quantile( array( 5, 1, 3, 2, 4 ), 0.5 ), 'quantile: nearest rank on the sorted list' );
+ok( null === sn_analytics_stat_quantile( array(), 0.5 ), 'quantile: empty → null' );
+ok( 3.0 === sn_analytics_stat_quantile( range( 1, 20 ), 0.1 ), 'quantile: q=0.1 of 20 items is index round(1.9) = 2 (nearest rank, not floor)' );
 
 echo "\nGroup: backtest harness\n";
-// Perfect 25-point line: forecasts are exact, so MAE ~0 and every check lands inside.
-$line25 = array(); for ( $i = 0; $i < 25; $i++ ) { $line25[] = 10 + 2 * $i; }
-$bt = sn_analytics_forecast_backtest( $line25, 7, 14 );
-ok( is_array( $bt ) && $bt['mae'] < 1e-9, 'backtest: perfect line → MAE ~0' );
-ok( 1.0 === $bt['coverage'], 'backtest: perfect line → 100% interval coverage' );
-ok( 56 === $bt['checks'], 'backtest: 11 rolling folds × capped horizon = 56 checks' );
+// A stationary noisy series: the median beats "tomorrow equals today".
+$stat30 = array(); for ( $i = 0; $i < 30; $i++ ) { $stat30[] = 20 + ( ( $i * 7 ) % 11 ) - 5; }
+$bt = sn_analytics_forecast_backtest( $stat30, 7, 14 );
+ok( is_array( $bt ) && $bt['skill'] > 0.2, 'backtest: on stationary noise the median beats persistence (skill ' . round( (float) $bt['skill'], 3 ) . ')' );
+ok( abs( $bt['skill'] - ( 1.0 - $bt['mae'] / $bt['mae_naive'] ) ) < 1e-9, 'skill is exactly 1 - mae/mae_naive' );
+ok( 91 === $bt['checks'] && count( $bt['errors'] ) === $bt['checks'], 'backtest: 16 rolling folds × capped horizon = 91 checks, each with its signed miss' );
+ok( null !== $bt['coverage'] && $bt['band_checks'] > 0 && $bt['band_checks'] < $bt['checks'], 'backtest: band coverage is measured out of sample, only once enough misses are known' );
 ok( null === sn_analytics_forecast_backtest( array( 1, 2, 3 ), 7, 14 ), 'backtest: too short for one fold → null (insufficient)' );
-// Deterministic noise ±2 around a slope-2 line: intervals must absorb the noise.
-$noisy = array(); for ( $i = 0; $i < 30; $i++ ) { $noisy[] = 10 + 2 * $i + ( ( $i % 2 ) ? 2 : -2 ); }
+$short = sn_analytics_forecast_backtest( array_slice( $stat30, 0, 18 ), 7, 14 );
+ok( is_array( $short ) && null === $short['coverage'] && 0 === $short['band_checks'], 'backtest: too few known misses → coverage NULL (unmeasured), never 0' );
+// Out of sample: a jump the history never saw is outside a band built before it.
+$jump = array_merge( array_fill( 0, 40, 10 ), array( 10, 11, 9, 10, 11, 9, 10, 11, 9, 10 ), array( 90, 90, 90 ) );
+$bj   = sn_analytics_forecast_backtest( $jump, 7, 14 );
+ok( null !== $bj['coverage'] && $bj['coverage'] < 1.0, 'backtest: the band never grades itself, so a jump it could not have seen is a miss (coverage ' . round( (float) $bj['coverage'], 3 ) . ')' );
+
 // ── v13.75.0: forecast SKILL, and suppression that states its reason ────────
-// The backtest measured MAE and compared it to nothing, so the panel could
-// report an average error while being worse than assuming tomorrow equals
-// today. skill = 1 - mae/mae_naive over the SAME folds and the same held-out
-// actuals; <= 0 withholds the forecast.
-//
-// Measured, not assumed: the gate does NOT fire on thin noisy traffic (Holt's
-// smoothed level legitimately beats persistence on a stationary series). It
-// fires on STRUCTURAL MISFIT — a trend that reverses, or a cycle Holt cannot
-// represent. Naive is only a strong baseline for random-walk-shaped data.
+// skill = 1 - mae/mae_naive over the SAME folds and the same held-out actuals;
+// <= 0 withholds the forecast. A median states a level, so a STEADY TREND is
+// the case it loses to persistence: it lags the line.
 $sn_lin  = array(); for ( $i = 0; $i < 22; $i++ ) { $sn_lin[] = 10 + 2 * $i; }
-$sn_rev  = array( 10,14,18,22,26,30,34,38,42,46,50,46,42,38,34,30,26,22,18,14,10,6 );
 $sn_flat = array_fill( 0, 22, 7 );
 $sn_series = static function ( $ys ) { return array_map( static function ( $v ) { return array( 'views' => $v ); }, $ys ); };
 
 $sn_b = sn_analytics_forecast_backtest( $sn_lin, 7, 11 );
 ok( isset( $sn_b['mae_naive'], $sn_b['skill'] ), 'the backtest reports a naive baseline and a skill score' );
-ok( abs( $sn_b['skill'] - ( 1.0 - $sn_b['mae'] / $sn_b['mae_naive'] ) ) < 1e-9, 'skill is exactly 1 - mae/mae_naive' );
-ok( $sn_b['skill'] > 0.9, 'a clean linear trend scores near-perfect skill (' . round( $sn_b['skill'], 3 ) . ')' );
-// The baseline must be PERSISTENCE (last observed), not any other anchor. Skill
-// is meaningless otherwise, and every assertion above survives a swapped anchor
-// — measured: changing it to the series mean left them all green. On this
-// slope-2 line the persistence error at step h is exactly 2h, and the truncated
-// tail folds pull the mean to exactly 7.0; a mean anchor gives 20.75.
+// The baseline must be PERSISTENCE (last observed), not any other anchor. On
+// this slope-2 line the persistence error at step h is exactly 2h, and the
+// truncated tail folds pull the mean to exactly 7.0; a mean anchor gives 20.75.
 ok( abs( $sn_b['mae_naive'] - 7.0 ) < 1e-9, 'the naive baseline is persistence: mae_naive is exactly 7.0 on a slope-2 line' );
-
-$sn_br = sn_analytics_forecast_backtest( $sn_rev, 7, 11 );
-ok( $sn_br['skill'] < 0.0, 'a trend that REVERSES scores negative skill — Holt extrapolates a dead trend (' . round( $sn_br['skill'], 3 ) . ')' );
+ok( $sn_b['skill'] < 0.0, 'a steady trend scores negative skill: the median lags the line (' . round( $sn_b['skill'], 3 ) . ')' );
 
 $sn_bf = sn_analytics_forecast_backtest( $sn_flat, 7, 11 );
 ok( null === $sn_bf['skill'], 'a rigid series yields NULL skill: persistence is perfect, so the comparison is undefined' );
 
 // The gate, end to end.
-$sn_ok = sn_analytics_forecast_of( 'x', 'Linear', $sn_series( $sn_lin ), '2026-08-01', '2026-08-30', array() );
+$sn_ok = sn_analytics_forecast_of( 'x', 'Steady', $sn_series( $stat30 ), '2026-08-01', '2026-08-30', array() );
 ok( is_array( $sn_ok ) && 'forecast' === $sn_ok['kind'], 'a skillful series still forecasts' );
 
+// A steady trend the median lags is where Holt earns its place: picked by its measured skill.
+$sn_t = sn_analytics_forecast_of( 'x', 'Trend', $sn_series( $sn_lin ), '2026-08-01', '2026-08-30', array() );
+ok( is_array( $sn_t ) && 'forecast' === $sn_t['kind'] && 'holt_linear' === $sn_t['stat'] && 'up' === $sn_t['direction'], 'a steady climb picks Holt (it beats the median by the margin) and states its direction' );
+ok( false !== strpos( $sn_t['plain_label'], 'Holt trend' ), 'and the label names the model it used' );
+// What a Holt pick shows is Holt's own: its point 7 days out, clamped at 0, its
+// band from its own misses, its confidence from its own coverage.
+$holt_shows = static function ( array $ys, $sig ) {
+	$fit   = sn_analytics_stat_holt( $ys );
+	$point = max( 0.0, $fit['level'] + 7 * $fit['trend'] );
+	$bt    = sn_analytics_forecast_backtest( $ys, 7, min( SN_ANALYTICS_FORECAST_WINDOW, max( 3, (int) floor( count( $ys ) / 2 ) ) ), 'holt' );
+	return round( $point, 1 ) === $sig['value']
+		&& round( max( 0.0, $point + sn_analytics_stat_quantile( $bt['errors'], 0.1 ) ), 1 ) === $sig['interval']['low']
+		&& round( max( 0.0, $point + sn_analytics_stat_quantile( $bt['errors'], 0.9 ) ), 1 ) === $sig['interval']['high']
+		&& sn_analytics_forecast_confidence( $bt['coverage'], (int) $bt['band_checks'] ) === $sig['confidence'];
+};
+ok( $holt_shows( $sn_lin, $sn_t ), 'a Holt pick shows Holt\'s 7-day point, its own band and its own confidence' );
+// The backtest clamps Holt at 0 as the live forecast does: a fall below zero scores against 0.
+$fall = array(); for ( $i = 0; $i < 30; $i++ ) { $fall[] = max( 0, 60 - 3 * $i ); }
+$fb   = sn_analytics_forecast_backtest( $fall, 7, 14, 'holt' );
+$ref  = 0.0; $nref = 0;
+for ( $c = 14; $c < 30; $c++ ) { $ft = sn_analytics_stat_holt( array_slice( $fall, 0, $c ) ); for ( $h = 1; $h <= min( 7, 30 - $c ); $h++ ) { $ref += abs( $fall[ $c + $h - 1 ] - max( 0.0, $ft['level'] + $h * $ft['trend'] ) ); $nref++; } }
+ok( abs( $fb['mae'] - $ref / $nref ) < 1e-9, 'the Holt backtest scores the clamped point, as the live forecast shows it' );
+// Holt about 0.13 ahead clears the 0.1 lead and is picked; a rigid series keeps the median.
+$sn_ahead = array(); for ( $i = 0; $i < 40; $i++ ) { $sn_ahead[] = 50 + 0.4 * $i + ( ( ( $i * 7 ) % 5 ) - 2 ) * 2.5; }
+$ah = sn_analytics_forecast_of( 'x', 'Ahead', $sn_series( $sn_ahead ), '2026-08-01', '2026-08-30', array() );
+ok( 'holt_linear' === ( $ah['stat'] ?? '' ) && 'forecast' === $ah['kind'] && $holt_shows( $sn_ahead, $ah ), 'Holt 0.13 ahead of a median that does not beat the baseline: picked, and shown as Holt' );
+$rg = sn_analytics_forecast_of( 'x', 'Rigid', $sn_series( array_fill( 0, 30, 12 ) ), '2026-08-01', '2026-08-30', array() );
+ok( 'rolling_median' === ( $rg['stat'] ?? '' ), 'a rigid series (both skills undefined) keeps the median' );
+// Holt by less than the margin is noise, not a win: the median stays (a
+// margin of 0 let picking score below the median alone on the real crawler series).
+$sn_near = array(); for ( $i = 0; $i < 40; $i++ ) { $sn_near[] = 50 + 0.3 * $i + ( ( ( $i * 7 ) % 5 ) - 2 ) * 2; }
+$nm = sn_analytics_forecast_backtest( $sn_near, 7, 14, 'median' ); $nh = sn_analytics_forecast_backtest( $sn_near, 7, 14, 'holt' );
+$sn_n = sn_analytics_forecast_of( 'x', 'Near', $sn_series( $sn_near ), '2026-08-01', '2026-08-30', array() );
+ok( $nh['skill'] > $nm['skill'] && $nh['skill'] < $nm['skill'] + 0.1 && 'rolling_median' === ( $sn_n['stat'] ?? '' ), sprintf( 'Holt ahead by %.3f, under the 0.1 margin: the median stays', $nh['skill'] - $nm['skill'] ) );
+// Neither model beats persistence on a trend that reverses: withheld, with the reason.
+$sn_rev = array( 10,14,18,22,26,30,34,38,42,46,50,46,42,38,34,30,26,22,18,14,10,6 );
 $sn_w = sn_analytics_forecast_of( 'x', 'Reversal', $sn_series( $sn_rev ), '2026-08-01', '2026-08-30', array() );
 ok( is_array( $sn_w ), 'an unskillful series is SUPPRESSED WITH A REASON, not returned as null' );
 ok( 'forecast_withheld' === $sn_w['kind'], 'the withheld signal has its own kind' );
@@ -185,71 +214,92 @@ ok( 'predictive' === $sn_w['tier'], 'it stays in the predictive tier — the tie
 ok( null === $sn_w['value'] && 'none' === $sn_w['confidence'], 'no value, no confidence' );
 ok( ! isset( $sn_w['direction'] ), 'and NO direction: nothing is rising or falling' );
 ok( 0 === $sn_w['severity'], 'severity 0 so it never outranks a real finding' );
-ok( false !== strpos( $sn_w['plain_label'], 'does not beat' ), 'the label states WHY' );
-ok( false !== strpos( $sn_w['plain_label'], 'skill' ), 'and names the skill score, so the refusal is checkable' );
+ok( false !== strpos( $sn_w['plain_label'], 'same-value baseline' ) && false !== strpos( $sn_w['plain_label'], 'median scores' ) && false !== strpos( $sn_w['plain_label'], 'Holt trend' ), 'the label states WHY, with both models\' scores' );
+// PR #2016 review: Holt can beat the baseline and still not clear its lead.
+// A real 30-day crawler window: median -0.03, Holt +0.06. Withheld under the
+// margin, and the label must not say "neither" beats the baseline.
+$real_w = json_decode( (string) file_get_contents( __DIR__ . '/fixtures/forecast-real-series.json' ), true );
+$sn_lag = sn_analytics_forecast_of( 'x', 'AI training', $sn_series( array_slice( $real_w['crawler_ai_training'], 20, 30 ) ), '2026-08-01', '2026-08-30', array() );
+ok( 'forecast_withheld' === ( $sn_lag['kind'] ?? '' ) && false === strpos( $sn_lag['plain_label'], 'neither' ) && false !== strpos( $sn_lag['plain_label'], 'median scores -0.03 and a Holt trend 0.06' ) && false !== strpos( $sn_lag['plain_label'], 'a lead of 0.1' ), 'Holt beats the baseline but not the lead: withheld, and the label gives both scores and the rule' );
+ok( 1 === preg_match( '/median scores -?\d+\.\d\d and a Holt trend -?\d+\.\d\d over \d+ checks/', $sn_w['plain_label'] ), 'and names both scores and the check count, so the refusal is checkable' );
 
 // NULL skill must NOT suppress — undefined is not failure.
 $sn_f = sn_analytics_forecast_of( 'x', 'Flat', $sn_series( $sn_flat ), '2026-08-01', '2026-08-30', array() );
 ok( null === $sn_f || 'forecast' === $sn_f['kind'], 'a rigid series is not withheld on undefined skill' );
 
 // ── v13.78.0: the skill DENOMINATOR needs a relative floor ──────────────────
-// v13.75.0 guarded mae_naive > 0, which catches a PERFECTLY rigid series and
-// misses a NEARLY rigid one. Live crawler data 2026-09-02: the `uptime` family
-// (median 480, MAD 0) produced skill -6.89 and had its forecast withheld — a
-// series that is trivially forecastable. "Is the denominator exactly zero" is
-// not the question; "is it large enough for the ratio to mean anything" is.
 $sn_hi = array(); $sn_lo = array();
 for ( $i = 0; $i < 30; $i++ ) { $sn_hi[] = 480 + ( $i % 3 ); $sn_lo[] = 10 + ( $i % 3 ); }
 $sn_bh = sn_analytics_forecast_backtest( $sn_hi, 7, 15 );
 $sn_bl = sn_analytics_forecast_backtest( $sn_lo, 7, 15 );
-
 ok( null === $sn_bh['skill'], 'a NEARLY rigid series yields undefined skill, not a huge negative' );
-
-// RELATIVITY is the property, and it is what an absolute floor would fail.
-// Identical absolute jitter at two levels: noise at 480, real signal at 10.
 ok( abs( $sn_bh['mae_naive'] - $sn_bl['mae_naive'] ) < 1e-9, 'both series carry the SAME absolute naive error (' . round( $sn_bh['mae_naive'], 3 ) . ')' );
 ok( null !== $sn_bl['skill'], 'yet at level 10 the same jitter IS a real comparison — the floor scales with the series' );
 ok( null === $sn_bh['skill'] && null !== $sn_bl['skill'], 'so an ABSOLUTE floor could not have separated these two' );
-
-// Still undefined when persistence is exactly perfect.
 ok( null === sn_analytics_forecast_backtest( array_fill( 0, 30, 480 ), 7, 15 )['skill'], 'a perfectly rigid series stays undefined' );
-
-// And a series with real spread still gets a real verdict — the floor must not
-// swallow the gate it was added to protect.
 $sn_spread = array(); for ( $i = 0; $i < 30; $i++ ) { $sn_spread[] = 480 + ( $i % 7 ) * 5; }
 ok( null !== sn_analytics_forecast_backtest( $sn_spread, 7, 15 )['skill'], 'a series with real spread still produces a skill score' );
-
-// Undefined must NOT withhold: a rigid series is trivially forecastable.
 $sn_sr = array_map( static function ( $v ) { return array( 'views' => $v ); }, $sn_hi );
 $sn_fc = sn_analytics_forecast_of( 'x', 'Rigid', $sn_sr, '2026-08-01', '2026-08-30', array() );
 ok( null === $sn_fc || 'forecast' === $sn_fc['kind'], 'undefined skill does not withhold the forecast' );
 
-$btn = sn_analytics_forecast_backtest( $noisy, 7, 14 );
-ok( is_array( $btn ) && $btn['coverage'] >= 0.8 && 91 === $btn['checks'], 'backtest: noisy line → high measured coverage over 91 checks' );
-ok( $btn['mae'] < 4.0, 'backtest: noisy line → MAE bounded by the noise scale' );
+echo "\nGroup: the site's own series (the 2026-10-12 backtest, as a pin)\n";
+// The swap was measured on this site's real daily traffic: Holt scored -0.13
+// to -0.28 against persistence; the median +0.18 to +0.30. A regression to a
+// worse model turns this red.
+$real = json_decode( (string) file_get_contents( __DIR__ . '/fixtures/forecast-real-series.json' ), true );
+foreach ( array( 'human_views' => 0.25, 'human_visits' => 0.25, 'crawler_total' => 0.15, 'crawler_ai_training' => 0.15 ) as $name => $floor ) {
+	$rb = sn_analytics_forecast_backtest( $real[ $name ], 7, 30 );
+	ok( is_array( $rb ) && $rb['skill'] > $floor, sprintf( '%s: the forecaster beats persistence by %.3f (floor %.2f) over %d checks', $name, (float) $rb['skill'], $floor, (int) $rb['checks'] ) );
+	ok( null !== $rb['coverage'] && $rb['coverage'] >= 0.5, sprintf( '%s: its 80%% band held on %.0f%% of out-of-sample checks', $name, 100 * (float) $rb['coverage'] ) );
+	// 2026-10-12 review: exact values from an independent brute-force version;
+	// an in-sample band (0.815) or a day of lookahead (798 checks) moves them.
+	$want = array( 'human_views' => array( 791, 0.781290 ), 'crawler_ai_training' => array( 259, 0.509653 ) );
+	if ( isset( $want[ $name ] ) ) {
+		ok( $want[ $name ][0] === $rb['band_checks'] && abs( $rb['coverage'] - $want[ $name ][1] ) < 1e-6, sprintf( '%s: out-of-sample band, exactly %d checks at %.6f', $name, $want[ $name ][0], $want[ $name ][1] ) );
+	}
+	$hb = sn_analytics_forecast_backtest( $real[ $name ], 7, 30, 'holt' );
+	ok( $hb['skill'] < $rb['skill'], sprintf( '%s: Holt alone scores %.3f here, below the median: the reason the median is the default', $name, (float) $hb['skill'] ) );
+	$picked = sn_analytics_forecast_of( 'x', $name, array_map( static function ( $v ) { return array( 'views' => $v ); }, array_slice( $real[ $name ], -90 ) ), 'a', 'b' );
+	ok( 'rolling_median' === ( $picked['stat'] ?? '' ) && ! isset( $picked['direction'] ), sprintf( '%s: the per-series pick is the median, with no direction', $name ) );
+}
+
+// Confidence against the band's own 80% target: a band that held 78% of 791
+// checks is high; one that held 71% is medium (the old cutoffs, built for a
+// 95% interval, made high unreachable: 63 of 63 real windows read medium).
+$conf_of = static function ( $name ) use ( $real ) {
+	return sn_analytics_forecast_of( 'x', $name, array_map( static function ( $v ) { return array( 'views' => $v ); }, $real[ $name ] ), 'a', 'b', array( 'min_points' => 21 ) );
+};
+ok( 'high' === sn_analytics_forecast_confidence( 0.781290, 791 ), 'a band that held 78% of 791 checks (real views) is high' );
+ok( 'medium' === sn_analytics_forecast_confidence( 0.71, 791 ) && 'medium' === sn_analytics_forecast_confidence( 0.78, 30 ), '71% is medium, and so is 78% over only 30 checks' );
+ok( 'low' === sn_analytics_forecast_confidence( null, 0 ) && 'low' === sn_analytics_forecast_confidence( 0.4, 500 ), 'unmeasured or under half is low' );
 
 echo "\nGroup: forecast signal composer\n";
-$noisy_rows = array_map( static function ( $v ) { return array( 'views' => $v ); }, $noisy );
-$fs = sn_analytics_forecast_of( 'views', 'Views', $noisy_rows, '2026-06-13', '2026-07-12' );
-ok( is_array( $fs ) && 'forecast' === $fs['kind'] && 'holt_linear' === $fs['stat'] && 'predictive' === $fs['tier'] && 'forecast:views:2026-07-12+7d' === $fs['id'], 'forecast: kind/stat/tier/id shaped per §5.1' );
-ok( 'up' === $fs['direction'] && 'high' === $fs['confidence'], 'forecast: rising fixture → up, backtest-calibrated high confidence' );
-ok( is_array( $fs['interval'] ) && $fs['interval']['low'] < $fs['value'] && $fs['value'] < $fs['interval']['high'], 'forecast: ALWAYS carries an interval that brackets the point' );
-ok( false !== strpos( $fs['plain_label'], 'backtest' ) && false !== strpos( $fs['plain_label'], 'in-interval' ), 'forecast: plain_label carries the calibration note' );
+$stat_rows = array_map( static function ( $v ) { return array( 'views' => $v ); }, $stat30 );
+$fs = sn_analytics_forecast_of( 'views', 'Views', $stat_rows, '2026-06-13', '2026-07-12' );
+ok( is_array( $fs ) && 'forecast' === $fs['kind'] && 'rolling_median' === $fs['stat'] && 'predictive' === $fs['tier'] && 'forecast:views:2026-07-12+7d' === $fs['id'], 'forecast: kind/stat/tier/id shaped per §5.1' );
+ok( ! array_key_exists( 'direction', $fs ) && 1 === $fs['severity'], 'forecast: a level, never a direction (the trend tier says which way)' );
+ok( (float) sn_analytics_forecast_point( $stat30 ) === $fs['value'], 'forecast: the value is the trailing 14-day median' );
+ok( is_array( $fs['interval'] ) && $fs['interval']['low'] <= $fs['value'] && $fs['value'] <= $fs['interval']['high'] && $fs['interval']['high'] > $fs['interval']['low'], 'forecast: ALWAYS carries a band of real width around the point' );
+ok( false !== strpos( $fs['plain_label'], '80% band' ) && false !== strpos( $fs['plain_label'], 'held on' ) && false === strpos( $fs['plain_label'], '–' ), 'forecast: plain_label names the band and how often it held (and no en dash)' );
+$f21 = sn_analytics_forecast_of( 'views', 'Views', array_slice( $stat_rows, 0, 21 ), '2026-06-13', '2026-07-03', array( 'horizon' => 1 ) );
+ok( is_array( $f21 ) && 'low' === $f21['confidence'] && false !== strpos( $f21['plain_label'], 'band not yet measured' ), 'forecast: an unmeasured band says so and is low confidence, never "0% held"' );
 $flat_rows = array_fill( 0, 30, array( 'views' => 50 ) );
 $ff = sn_analytics_forecast_of( 'visits', 'Visits', $flat_rows, '2026-06-13', '2026-07-12' );
-ok( is_array( $ff ) && 'flat' === $ff['direction'] && 50.0 === $ff['value'], 'forecast: flat series → flat direction, level point' );
-$dec_rows = array(); for ( $i = 0; $i < 30; $i++ ) { $dec_rows[] = array( 'views' => 70 - 2 * $i + ( ( $i % 2 ) ? 1 : -1 ) ); }
-$fd = sn_analytics_forecast_of( 'path:/notes/x', '/notes/x', $dec_rows, '2026-06-13', '2026-07-12' );
-ok( is_array( $fd ) && 'down' === $fd['direction'] && 2 === $fd['severity'], 'forecast: decaying fixture → down, severity 2' );
-ok( 0.0 === $fd['value'] && 0.0 === $fd['interval']['low'], 'forecast: sub-zero projection clamps to 0 (views cannot go negative)' );
+ok( is_array( $ff ) && 50.0 === $ff['value'], 'forecast: flat series → its level' );
+// A fading series: past misses run below the current level, so the band's floor would be negative.
+$drop_rows = array(); for ( $i = 0; $i < 90; $i++ ) { $drop_rows[] = array( 'views' => max( 0, 2 - 2 * $i / 120 + 2 * ( ( ( $i * 7 ) % 11 ) - 5 ) / 5 ) ); }
+$fl = sn_analytics_forecast_of( 'path:/notes/x', '/notes/x', $drop_rows, '2026-04-14', '2026-07-12' );
+ok( is_array( $fl ) && 'forecast' === $fl['kind'] && 0.0 === $fl['interval']['low'], 'forecast: a band below zero clamps to 0 (views cannot go negative)' );
 ok( null === sn_analytics_forecast_of( 'visits', 'Visits', array_fill( 0, 30, array( 'views' => 0 ) ), '2026-06-13', '2026-07-12' ), 'forecast: all-zero series → suppressed (nothing to forecast honestly)' );
-ok( null === sn_analytics_forecast_of( 'views', 'Views', array_slice( $noisy_rows, 0, 10 ), '2026-07-03', '2026-07-12' ), 'forecast: below min-sample floor → suppressed' );
+ok( null === sn_analytics_forecast_of( 'views', 'Views', array_slice( $stat_rows, 0, 10 ), '2026-07-03', '2026-07-12' ), 'forecast: below min-sample floor → suppressed' );
+$dec_rows = array(); for ( $i = 0; $i < 30; $i++ ) { $dec_rows[] = array( 'views' => 70 - 2 * $i + ( ( $i % 2 ) ? 1 : -1 ) ); }
 
 echo "\nGroup: forecast producer\n";
-$daily30 = array(); for ( $i = 0; $i < 30; $i++ ) { $daily30[] = array( 'day' => sprintf( '2026-06-%02d', $i + 1 ), 'views' => $noisy[ $i ], 'visits' => 50 ); }
+$daily30 = array(); for ( $i = 0; $i < 30; $i++ ) { $daily30[] = array( 'day' => sprintf( '2026-06-%02d', $i + 1 ), 'views' => $stat30[ $i ], 'visits' => 50 ); }
 $GLOBALS['__daily'] = $daily30;
 $GLOBALS['__camps'] = array( array( 'value' => 'launch', 'views' => 900 ) );
-$GLOBALS['__campseries'] = array( 'launch' => array_map( static function ( $v ) { return array( 'views' => $v ); }, $noisy ) );
+$GLOBALS['__campseries'] = array( 'launch' => array_map( static function ( $v ) { return array( 'views' => $v ); }, $stat30 ) );
 $GLOBALS['__lifecycle'] = array( 'rows' => array(
 	array( 'permalink' => 'https://juanlentino.com/notes/x', 'refresh_candidate' => true ),
 	array( 'permalink' => 'https://juanlentino.com/notes/keep', 'refresh_candidate' => false ),
@@ -261,8 +311,8 @@ ok( count( $fc ) === 4, 'producer: site views+visits, campaign, decay path → 4
 ok( in_array( 'views', $fsub, true ) && in_array( 'visits', $fsub, true ) && in_array( 'campaign:launch', $fsub, true ) && in_array( 'path:/notes/x', $fsub, true ), 'producer: all four subjects present' );
 ok( ! in_array( 'path:/notes/keep', $fsub, true ), 'producer: non-candidate lifecycle rows skipped' );
 $by = array(); foreach ( $fc as $s ) { $by[ $s['subject'] ] = $s; }
-ok( 'up' === $by['views']['direction'] && 'flat' === $by['visits']['direction'] && 'down' === $by['path:/notes/x']['direction'] && 2 === $by['path:/notes/x']['severity'], 'producer: per-subject directions + decay severity' );
-$GLOBALS['__campseries'] = array( 'launch' => array_map( static function ( $v ) { return array( 'views' => $v ); }, array_slice( $noisy, 0, 10 ) ) );
+ok( 'rolling_median' === $by['views']['stat'] && 'forecast' === $by['visits']['kind'] && 'holt_linear' === $by['path:/notes/x']['stat'] && 'down' === $by['path:/notes/x']['direction'] && 2 === $by['path:/notes/x']['severity'], 'producer: steady subjects take the median; the decaying path takes Holt, says down, and ranks first' );
+$GLOBALS['__campseries'] = array( 'launch' => array_map( static function ( $v ) { return array( 'views' => $v ); }, array_slice( $stat30, 0, 10 ) ) );
 ok( count( sn_analytics_signal_forecasts( '2026-07-06', '2026-07-12', 'human' ) ) === 3, 'producer: short campaign history → that forecast suppressed' );
 $GLOBALS['__daily'] = array(); $GLOBALS['__camps'] = array(); $GLOBALS['__campseries'] = array(); $GLOBALS['__lifecycle'] = null; $GLOBALS['__pathseries'] = array();
 
@@ -271,13 +321,13 @@ echo "\nGroup: aggregate includes forecasts\n";
 // anomaly engine stays quiet and the aggregate exercises forecasts + sorting only.
 $GLOBALS['__daily'] = $daily30;
 $GLOBALS['__camps'] = array( array( 'value' => 'launch', 'views' => 900 ) );
-$GLOBALS['__campseries'] = array( 'launch' => array_map( static function ( $v ) { return array( 'views' => $v ); }, $noisy ) );
+$GLOBALS['__campseries'] = array( 'launch' => array_map( static function ( $v ) { return array( 'views' => $v ); }, $stat30 ) );
 $GLOBALS['__lifecycle'] = array( 'rows' => array( array( 'permalink' => 'https://juanlentino.com/notes/x', 'refresh_candidate' => true ) ), 'summary' => array() );
 $GLOBALS['__pathseries'] = array( '/notes/x' => $dec_rows );
 $agg = sn_analytics_signals( '2026-07-06', '2026-07-12', 'human' );
-$fkinds = array_values( array_filter( $agg, static function ( $s ) { return 'forecast' === $s['kind']; } ) );
-ok( count( $fkinds ) === 4, 'aggregate: sn_analytics_signals() now carries the 4 forecasts' );
-ok( $agg[0]['severity'] >= $agg[ count( $agg ) - 1 ]['severity'] && 2 === $fkinds[0]['severity'], 'aggregate: still severity-sorted; the down-forecast leads the forecasts' );
+$fkinds = array_values( array_filter( $agg, static function ( $s ) { return in_array( $s['kind'], array( 'forecast', 'forecast_withheld' ), true ); } ) );
+ok( count( $fkinds ) === 4, 'aggregate: sn_analytics_signals() carries the 4 forecast verdicts' );
+ok( $agg[0]['severity'] >= $agg[ count( $agg ) - 1 ]['severity'] && 2 === $fkinds[0]['severity'], 'aggregate: still severity-sorted; the falling Holt forecast leads the forecasts' );
 $GLOBALS['__daily'] = array(); $GLOBALS['__camps'] = array(); $GLOBALS['__campseries'] = array(); $GLOBALS['__lifecycle'] = null; $GLOBALS['__pathseries'] = array();
 
 echo "\nGroup: display range never changes the stats (I5 invariant)\n";

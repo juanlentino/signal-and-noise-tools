@@ -162,20 +162,22 @@
 	}
 
 	/**
-	 * "In 7 days: about 20 views a day (estimate)", from the payload's forecast
-	 * (sn_analytics_forecast_of(): a per-day point at the horizon, already
-	 * withheld when the fit does not beat a same-value baseline). It is said
-	 * as the day's rate it is, never multiplied into a week's total. The
-	 * spread (", ±25%") is added only when the backtest measured the interval
-	 * holding at least 80% of the time (confidence high).
+	 * "In 7 days: about 13 views a day (estimate, 5 to 39)", from the payload's
+	 * forecast (sn_analytics_forecast_of(): a per-day level, or a Holt point
+	 * where Holt measured better, already withheld when neither beats a
+	 * same-value baseline). It is said as the day's rate it is, never
+	 * multiplied into a week's total. The band's own ends (", 5 to 39") are
+	 * added only when it held near its 80% target out of sample (confidence
+	 * high); the band is not symmetric, so it is never a ±%.
 	 * Null when there is no forecast: the card says nothing rather than guess.
 	 */
 	function forecastLine( f ) {
 		if ( ! f || typeof f.value !== 'number' || ! f.interval ) { return null; }
 		var days = typeof f.horizon === 'number' && f.horizon > 0 ? f.horizon : 7;
 		var perDay = Math.round( f.value );
-		var half = ( Number( f.interval.high ) - Number( f.interval.low ) ) / 2;
-		var spread = f.confidence === 'high' && f.value > 0 && half > 0 ? ', ±' + Math.round( 100 * half / f.value ) + '%' : '';
+		var lo = Math.round( Number( f.interval.low ) );
+		var hi = Math.round( Number( f.interval.high ) );
+		var spread = f.confidence === 'high' && hi > lo ? ', ' + lo.toLocaleString() + ' to ' + hi.toLocaleString() : '';
 		var text = 'In ' + days + ' days: about ' + perDay.toLocaleString() + ( 1 === perDay ? ' view' : ' views' ) + ' a day (estimate' + spread + ')';
 		var node = el( 'div', { text: text, style: 'font-size:11px;margin-top:2px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
 		node.setAttribute( 'data-sn-forecast', '' );

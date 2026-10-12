@@ -143,7 +143,7 @@ function sn_analytics_narrate_ai_prompt( $signals ) {
 	$system = 'You are an analytics narrator. Narrate ONLY the signals given as bullet facts. NEVER invent or estimate a number that is not present.'
 		. ' In these signals "visits" counts unique visitor-days (any beacon day, including feed readers with zero pageviews), not pageview-gated visits; visitor-days exceeding views is structural, never an anomaly.'
 		. ' 2-3 short plain-English sentences: what happened, why it may matter, one concrete next step. State numbers plainly.'
-		. ' NO statistical jargon in prose: never write sigma, σ, backtest, interval, robust, confidence, or point estimate.'
+		. ' NO statistical jargon in prose: never write sigma, σ, backtest, interval, band, checks, robust, confidence, or point estimate.'
 		. ' Plain prose only: NO markdown: no asterisks, no underscores, no headings, no bullet lists, no emojis.';
 	$prompt = "Signals:\n" . implode( "\n", $facts ) . "\n\nWrite the brief.";
 	return array( $prompt, $system );
@@ -300,7 +300,7 @@ function sn_analytics_digest_ai_prompt( $summary, $signals, $top_action = '' ) {
 		. ' When a Structural note fact is present, visitor-days exceeding views is fully explained by the viewless count: give that explanation in one short clause; NEVER describe the gap as unusual, unexplained, or an anomaly.'
 		. ' The ONLY genuine anomaly is a DATA INTEGRITY ANOMALY fact; when present, flag it in at most one plain sentence.'
 		. ' Voice: at most 4-5 short plain-English sentences, plus optionally one final line starting "Worth a look:". State numbers plainly (47 views, 40 visits).'
-		. ' NO statistical jargon in prose: never write sigma, σ, backtest, interval, robust, confidence, or point estimate: the signal chips and transparency footer under this digest already carry that machinery.'
+		. ' NO statistical jargon in prose: never write sigma, σ, backtest, interval, band, checks, robust, confidence, or point estimate: the signal chips and transparency footer under this digest already carry that machinery.'
 		. ' Mention a forecast only when it is actionable, in plain words ("expect a quiet week") — never as numbers with intervals.'
 		. ' Plain prose only: NO markdown: no asterisks, no underscores, no headings, no bullet lists, no emojis.';
 	$prompt = "Facts:\n" . implode( "\n", $facts ) . "\n\nWrite the weekly digest.";

@@ -367,11 +367,10 @@ function sn_analytics_bucket_expr( $granularity ) {
 /**
  * Per-day (or per-week) views/visits for one class, ascending — the trend strip.
  *
- * Request-scope memo (D5 §5 perf): sn_analytics_signal_anomalies() and
- * sn_analytics_signal_forecasts() (inc/analytics-signals.php) both pull the
- * SAME [$from,$to,$class,'day'] trailing-baseline window once per page load
- * (QM: 2 reads per page) — cache it per request so that costs one read, not
- * two. $refresh is the re-prime seam (the D2 sn_analytics_recommendations( true )
+ * Request-scope memo (D5 §5 perf): a window read twice in one page load
+ * (QM: 2 reads per page) costs one read, not two. Since 2026-10-12 the
+ * anomaly baseline (30 days) and the forecast history (90 days) are
+ * different windows, so Insights makes two reads. $refresh is the re-prime seam (the D2 sn_analytics_recommendations( true )
  * idiom, mirrored in sn_analytics_range_totals()) for callers that must force
  * a fresh read within the same request (e.g. CLI/tests).
  *

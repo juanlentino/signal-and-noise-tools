@@ -124,7 +124,7 @@ function snt_analytics_render_insights_band( $from, $to, $class, $granularity ) 
 		}
 		echo '</div>';
 	}
-	echo '<p class="sn-an-methods-note">' . esc_html__( 'Transparent statistics over first-party rollups: robust median/MAD anomalies, Theil-Sen trends, backtested Holt forecasts with intervals. Signals need ~2 weeks of history - nothing is shown the data cannot support.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-methods-note">' . esc_html__( 'Transparent statistics over first-party rollups: robust median/MAD anomalies, Theil-Sen trends, backtested forecasts (a 14-day median, or a Holt trend where it measures better) with 80% bands. Signals need ~2 weeks of history - nothing is shown the data cannot support.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
 	echo '</details>';
 }
