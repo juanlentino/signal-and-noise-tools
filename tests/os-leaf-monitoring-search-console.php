@@ -139,6 +139,11 @@ ok( false !== strpos( $kit, '<os-section heading="Sync" stack>' ) && strpos( $ki
 // Property over Sync is one column beside the form, on the credential's row.
 ok( 1 === substr_count( $kit, '<os-grid' ) && false !== strpos( $kit, snt_leaf_row( 3 ) ) && 1 === preg_match( '#heading="Set the credential".*?</os-section><os-stack gap="18"><os-section heading="Property".*?</os-section><os-section heading="Sync"#s', $kit ), 'property-chosen: one row, the readout, the form, then Property over Sync in one column' );
 snt_leaf_preview( 'monitoring-search-console-chosen', $kit );
+// Re-measure (2026-10-12): "Set the credential" ended 116px above its
+// neighbors, and the Property heading sat 16px low in its column.
+$gsc_css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
+ok( 1 === preg_match( '/\[data-snt-leaf="search-console"\] os-grid > os-section\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/', $gsc_css ) && 1 === preg_match( '/\[data-snt-leaf="search-console"\] os-grid > os-section::part\( body \)\s*\{[^}]*flex:\s*1 1 auto;/', $gsc_css ), 'the row\'s boxes stretch to its height, as on login-defense and mcp-connect' );
+ok( 1 === preg_match( '/\[data-snt-leaf="search-console"\] os-grid > os-stack\s*\{[^}]*padding-top:\s*0;/', $gsc_css ), 'the Property and Sync column starts level with its row' );
 
 // ── State: Test connection returned a property list (snt_gsc_last_test transient
 // populated, ok=true) — the field and action the leaf exists to offer.

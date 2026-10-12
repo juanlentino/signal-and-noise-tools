@@ -433,6 +433,26 @@ snt_leaf_preview( 'monitoring-analytics-edge', $kit );
 // window ("3…"); the label ellipsizes, the count never does.
 $an_css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
 ok( 1 === preg_match( '/\.snt-edge-list \.snt-list__value\s*\{[^}]*flex:\s*none;[^}]*max-width:\s*none;/', $an_css ), 'an Edge list count takes its own width (flex none, no 60% cap); only the label ellipsizes' );
+// Re-measure (2026-10-12): every Who answered label was cut ("(us…") and two
+// pairs carried the same words. Rows that read the same are one row (their
+// counts summed); the parentheticals are a one-line legend under the list.
+if ( file_exists( SNT_PATH . 'inc/edge-error-labels.php' ) ) { require_once SNT_PATH . 'inc/edge-error-labels.php'; }
+$an_sources_before = $GLOBALS['__edge_errors']['sources'];
+$GLOBALS['__edge_errors']['sources'] = array(
+	array( 'value' => 'src=edgeWorkerFetch edge=503 origin=503 cache=miss', 'label' => 'x', 'requests' => 38 ),
+	array( 'value' => 'edge=503 origin=- cache=miss', 'label' => 'x', 'requests' => 25 ),
+	array( 'value' => 'edge=503 origin=- cache=dynamic', 'label' => 'x', 'requests' => 16 ),
+	array( 'value' => 'src=edgeWorkerFetch edge=503 origin=503 cache=dynamic', 'label' => 'x', 'requests' => 15 ),
+	array( 'value' => 'src=eyeball edge=520 origin=- cache=dynamic', 'label' => 'x', 'requests' => 9 ),
+);
+$kit = snt_leaf_paint( 'monitoring', 'analytics' );
+preg_match( '#<h4 class="snt-h">Who answered with the error</h4>(.*?)</div>#s', $kit, $an_who );
+$an_who = $an_who[1] ?? '';
+ok( 3 === substr_count( $an_who, 'class="snt-list__row"' ) && false !== strpos( $an_who, '503 from the origin, through a Worker' ) && false !== strpos( $an_who, '503 from Cloudflare itself' ) && false !== strpos( $an_who, '520 from Cloudflare itself, asked by a visitor' ) && false === strpos( $an_who, '(' ), 'rows that read the same are one row; no label carries a parenthetical' );
+ok( 1 === preg_match( '#503 from the origin, through a Worker</span><span class="snt-list__value"[^>]*>53<#', $an_who ) && 1 === preg_match( '#503 from Cloudflare itself</span><span class="snt-list__value"[^>]*>41<#', $an_who ) && strpos( $an_who, '>53<' ) < strpos( $an_who, '>41<' ), 'merged rows sum their counts (38 + 15, 25 + 16), largest first' );
+ok( false !== strpos( $an_who, '<p class="snt-hint">From Cloudflare itself: the origin never answered. Through a Worker: usually a visitor’s request it forwarded.</p>' ), 'the parentheticals are one legend line under the list' );
+snt_leaf_preview( 'monitoring-analytics-edge-merged', $kit );
+$GLOBALS['__edge_errors']['sources'] = $an_sources_before;
 $GLOBALS['__edge_errors']['query']['error'] = 'GraphQL: rate limited';
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( false !== strpos( $kit, 'Who answered and which paths for October 11, 2026 were not read: GraphQL: rate limited. The lists hold the days that were read.' ) && false !== strpos( $kit, 'responder 1' ) && false !== strpos( $kit, '/p1' ), 'PR #2025 review: a failed errors query names the day it missed and still paints the six days that were read' );

@@ -93,13 +93,14 @@ function zenodo_ledger_html( array $d ) {
 		$doi = (string) $r['doi'];
 		$row = array(
 			'_key'  => 'zenodo-' . (int) ( $r['id'] ?? 0 ),
-			'title' => array( 'html' => \snt_kit_link( (string) $r['title'], admin_url( 'post.php?post=' . (int) ( $r['id'] ?? 0 ) . '&action=edit' ) ), 'text' => (string) $r['title'] ),
+			'title' => array( 'html' => '<span class="snt-zenodo-title">' . \snt_kit_link( (string) $r['title'], admin_url( 'post.php?post=' . (int) ( $r['id'] ?? 0 ) . '&action=edit' ) ) . '</span>', 'text' => (string) $r['title'] ),
 			'kind'  => (string) $r['kind'],
 			'state' => \sn_zenodo_state_label( $r['state'] ),
 			// A sandbox DOI resolves nowhere public, by design: text, not a
 			// link. Either way it reads whole (it broke mid-number at 149px).
-			'doi'   => '' === $doi ? __( 'none yet', 'signal-and-noise-tools' ) : array( 'html' => '<span class="snt-zenodo-doi">' . ( 'minted' === (string) $r['state'] ? \snt_kit_link( $doi, 'https://doi.org/' . rawurlencode( $doi ) ) : \snt_kit_esc( $doi ) ) . '</span>', 'text' => $doi ),
-			'at'    => \sn_zenodo_deposited_text( (string) $r['at'] ),
+			'doi'   => '' === $doi ? __( 'none yet', 'signal-and-noise-tools' ) : array( 'html' => '<span class="sn-nowrap">' . ( 'minted' === (string) $r['state'] ? \snt_kit_link( $doi, 'https://doi.org/' . rawurlencode( $doi ) ) : \snt_kit_esc( $doi ) ) . '</span>', 'text' => $doi ),
+			// One line ("6:33 pm" broke across two).
+			'at'    => array( 'html' => '<span class="sn-nowrap">' . \snt_kit_esc( \sn_zenodo_deposited_text( (string) $r['at'] ) ) . '</span>', 'text' => \sn_zenodo_deposited_text( (string) $r['at'] ) ),
 		);
 		if ( $errors ) {
 			$row['error'] = (string) $r['error'];
@@ -108,7 +109,7 @@ function zenodo_ledger_html( array $d ) {
 	}
 	return \snt_kit_section(
 		__( 'Ledger', 'signal-and-noise-tools' ),
-		\snt_kit_ledger( \sn_zenodo_ledger_finding( $d['rows'] ), $columns, $rows, ZENODO_LEDGER_ROWS, array( 'empty' => __( 'No signed documents yet.', 'signal-and-noise-tools' ), 'stack_on_phone' => true ) ),
+		\snt_kit_ledger( \sn_zenodo_ledger_finding( $d['rows'] ), $columns, $rows, ZENODO_LEDGER_ROWS, array( 'empty' => __( 'No signed documents yet.', 'signal-and-noise-tools' ), 'stack_on_phone' => true, 'class' => 'snt-table-full' ) ),
 		__( 'Every signed document with its DOI state. A minted DOI resolves at doi.org; a sandbox DOI does not, by design.', 'signal-and-noise-tools' )
 	);
 }

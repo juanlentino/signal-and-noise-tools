@@ -57,10 +57,15 @@ preg_match( '/os-prop-data="([^"]*)"/', $kit, $dm );
 $zdata = json_decode( html_entity_decode( $dm[1] ?? '', ENT_QUOTES, 'UTF-8' ), true );
 ok( is_array( $zdata ) && 'The pen is not the notary' === $zdata[0]['title']['text'] && 'Two kinds of provenance' === $zdata[2]['title']['text'], 'the rows still waiting come first, the minted after' );
 ok( false !== strpos( $kit, 'href="https://doi.org/10.5281%2Fzenodo.42"' ) && false !== strpos( $kit, 'os-arg-url="https://example.test/wp-admin/post.php?post=7&amp;action=edit"' ), 'a minted DOI opens doi.org in a new tab; the document opens its editor in a window' );
-ok( 'September 18, 2026 1:00 am' === $zdata[2]['at'] && 'not deposited' === $zdata[0]['at'] && false === strpos( $kit, '2026-09-18T01:00:00' ) && false !== strpos( $classic, 'September 18, 2026 1:00 am' ) && false === strpos( $classic, '2026-09-18T01:00:00' ), 'Deposited reads in the site\'s format on both surfaces, never the raw ISO stamp; a row not deposited says so' );
+ok( 'September 18, 2026 1:00 am' === ( $zdata[2]['at']['text'] ?? $zdata[2]['at'] ) && 'not deposited' === ( $zdata[0]['at']['text'] ?? $zdata[0]['at'] ) && false === strpos( $kit, '2026-09-18T01:00:00' ) && false !== strpos( $classic, 'September 18, 2026 1:00 am' ) && false === strpos( $classic, '2026-09-18T01:00:00' ), 'Deposited reads in the site\'s format on both surfaces, never the raw ISO stamp; a row not deposited says so' );
 ok( false !== strpos( $kit, '&quot;key&quot;:&quot;error&quot;' ), 'a row with an error keeps the Last error column' );
 // Live check (2026-10-12): DOIs broke mid-number in the 149px column.
-ok( false !== strpos( $kit, '<span class="snt-zenodo-doi"><a ' ) && 1 === preg_match( '/\.snt-zenodo-doi\s*\{[^}]*white-space:\s*nowrap;/', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) ), 'a DOI reads whole: its cell does not wrap' );
+ok( false !== strpos( $kit, '<span class="sn-nowrap"><a ' ) && 1 === preg_match( '/\.sn-nowrap\s*\{\s*white-space:\s*nowrap;/', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) ), 'a DOI reads whole: its cell does not wrap' );
+// Re-measure (2026-10-12): the capped ledger scrolled inside a 440px box,
+// hiding rows 9 and 10; wrapped titles centered; "6:33 pm" broke.
+ok( 1 === preg_match( '/<os-table[^>]*class="snt-table-full"/', $kit ), 'the ledger shows every row it lists, no inner scroller' );
+ok( false !== strpos( $kit, '<span class="snt-zenodo-title"><os-button' ) && 1 === preg_match( '/\.snt-zenodo-title os-button::part\( button \)\s*\{[^}]*justify-content:\s*flex-start;[^}]*text-align:\s*start;/', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) ), 'a wrapped document title is left-aligned' );
+ok( 1 === preg_match( '#<span class="sn-nowrap">September 18, 2026 1:00 am</span>#', $kit ), 'a deposit time stays on one line' );
 $GLOBALS['__zl']['rows'] = array();
 for ( $i = 1; $i <= 13; $i++ ) {
 	$GLOBALS['__zl']['rows'][] = array( 'id' => 100 + $i, 'title' => 'Note ' . $i, 'kind' => 'note', 'state' => 13 === $i ? 'ready' : 'minted', 'doi' => 13 === $i ? '' : '10.5281/zenodo.' . $i, 'env' => 'production', 'at' => 13 === $i ? '' : '2026-09-18T01:00:00+00:00', 'error' => '' );

@@ -43,16 +43,48 @@ function cloudflare_edge_errors_window( $from, $to ) {
 }
 
 /**
- * One capped list under its heading.
+ * One capped list under its heading, with an optional legend line.
  *
  * @param string                         $heading The list's heading.
  * @param array<int,array<string,mixed>> $rows    snt_kit_list() rows.
+ * @param string                         $legend  One line under the list ('' for none).
  * @return string
  */
-function cloudflare_edge_errors_list( $heading, array $rows ) {
+function cloudflare_edge_errors_list( $heading, array $rows, $legend = '' ) {
 	return '<div class="snt-edge-list"><h4 class="snt-h">' . \snt_kit_esc( $heading ) . '</h4>'
 		. \snt_kit_list( array_slice( $rows, 0, CF_EDGE_ERRORS_ROWS ) )
-		. \snt_kit_more( count( $rows ) - CF_EDGE_ERRORS_ROWS ) . '</div>';
+		. \snt_kit_more( count( $rows ) - CF_EDGE_ERRORS_ROWS )
+		. ( '' !== $legend ? '<p class="snt-hint">' . \snt_kit_esc( $legend ) . '</p>' : '' ) . '</div>';
+}
+
+/**
+ * Who answered, as rows that each read differently (2026-10-12 re-measure:
+ * every label ran past its column, "(the origin neve…", and two pairs read
+ * the same words, since the stored value also carries the cache status). The
+ * short label leaves the parentheticals out; rows that read the same are one
+ * row with their counts summed, largest first; the parentheticals are one
+ * legend line, each said once.
+ *
+ * @param array<int,array<string,mixed>> $sources sn_edge_errors_reading()['sources'].
+ * @return array{0:array<int,array<string,mixed>>,1:string} snt_kit_list() rows, the legend.
+ */
+function cloudflare_edge_errors_responders( array $sources ) {
+	$counts = array();
+	$notes  = array();
+	foreach ( $sources as $row ) {
+		$value = (string) ( $row['value'] ?? '' );
+		$label = '' !== $value && function_exists( 'sn_edge_error_source_label' ) ? \sn_edge_error_source_label( $value, true ) : (string) ( $row['label'] ?? '' );
+		if ( '' !== $value && function_exists( 'sn_edge_error_source_notes' ) ) {
+			$notes += \sn_edge_error_source_notes( $value );
+		}
+		$counts[ $label ] = ( $counts[ $label ] ?? 0 ) + (int) ( $row['requests'] ?? 0 );
+	}
+	arsort( $counts );
+	$rows = array();
+	foreach ( $counts as $label => $n ) {
+		$rows[] = array( 'label' => (string) $label, 'value' => number_format_i18n( $n ), 'tone' => 'warn' );
+	}
+	return array( $rows, implode( ' ', array_filter( array( $notes['cf'] ?? '', $notes['worker'] ?? '' ) ) ) );
 }
 
 /**
@@ -89,10 +121,7 @@ function cloudflare_edge_errors_html( $code_list = '' ) {
 	if ( 0 === (int) $reading['total'] ) {
 		return $code_list . $missed;
 	}
-	$sources = array();
-	foreach ( $reading['sources'] as $row ) {
-		$sources[] = array( 'label' => $row['label'], 'value' => number_format_i18n( $row['requests'] ), 'tone' => 'warn' );
-	}
+	list( $sources, $legend ) = cloudflare_edge_errors_responders( (array) $reading['sources'] );
 	$paths = array();
 	foreach ( $reading['paths'] as $row ) {
 		$paths[] = array( 'label' => $row['value'], 'value' => number_format_i18n( $row['requests'] ) );
@@ -100,7 +129,7 @@ function cloudflare_edge_errors_html( $code_list = '' ) {
 	return \snt_kit_grid(
 		array(
 			(string) $code_list,
-			cloudflare_edge_errors_list( __( 'Who answered with the error', 'signal-and-noise-tools' ), $sources ),
+			cloudflare_edge_errors_list( __( 'Who answered with the error', 'signal-and-noise-tools' ), $sources, $legend ),
 			cloudflare_edge_errors_list( __( 'Which paths failed', 'signal-and-noise-tools' ), $paths ),
 		),
 		240,

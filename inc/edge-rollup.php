@@ -23,6 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/edge-error-labels.php'; // The 5xx responder rows in words (short labels and their legend).
+
 const SN_EDGE_DAILY_TABLE      = 'sn_edge_daily';
 const SN_EDGE_DIMS_TABLE       = 'sn_edge_dims';
 const SN_EDGE_DB_VERSION       = '1';
@@ -831,64 +833,6 @@ function sn_edge_errors_days( $from, $to ) {
 		'err_source'
 	), ARRAY_A );
 	return sn_edge_errors_days_shape( (array) $rows, $from, $to );
-}
-
-/**
- * Who asked, in words (18.7.0). `edgeWorkerFetch` is not "a Worker" in the
- * sense a reader takes it: sn-rights-signals sits on `juanlentino.com/*` and
- * passes every page through with fetch(request), so most of those rows are a
- * visitor's request the Worker forwarded (47 of 93 "worker" 5xx on
- * 2026-09-23). A Worker's own calls to the origin read the same, so the
- * label names the path, not a guess at the person. `edgeWorkerCacheAPI` is a
- * cache lookup that made no request; the query drops it from 18.7.0, and the
- * label only reads rows stored before that.
- *
- * @param string $source Cloudflare requestSource.
- * @return string
- */
-function sn_edge_error_asker_label( $source ) {
-	$source = (string) $source;
-	if ( 'eyeball' === $source ) {
-		return __( 'asked by a visitor', 'signal-and-noise-tools' );
-	}
-	if ( 'edgeWorkerCacheAPI' === $source ) {
-		return __( 'a Worker\'s cache lookup, no request made', 'signal-and-noise-tools' );
-	}
-	if ( 0 === strpos( $source, 'edgeWorker' ) ) {
-		return __( 'through a Worker (usually a visitor\'s request it forwarded)', 'signal-and-noise-tools' );
-	}
-	/* translators: %s: Cloudflare request source. */
-	return sprintf( __( 'asked by %s', 'signal-and-noise-tools' ), $source );
-}
-
-/**
- * `edge=503 origin=503 cache=miss` in words. The distinction is the one
- * #1002 could not get from outside: an origin status means the origin (or
- * the cache in front of it) failed; `origin=-` means nothing upstream
- * answered, so Cloudflare or a Worker produced the error by itself.
- *
- * @param string $value A stored err_source value.
- * @return string
- */
-function sn_edge_error_source_label( $value ) {
-	$who = '';
-	if ( preg_match( '/^src=(\S+) /', (string) $value, $s ) ) {
-		$who   = ', ' . sn_edge_error_asker_label( $s[1] );
-		$value = substr( (string) $value, strlen( $s[0] ) );
-	}
-	if ( ! preg_match( '/^edge=(\d+) origin=(\d+|-)/', (string) $value, $m ) ) {
-		return (string) $value . $who;
-	}
-	if ( '-' === $m[2] ) {
-		/* translators: %s: HTTP status Cloudflare returned. */
-		return sprintf( __( '%s from Cloudflare itself (the origin never answered)', 'signal-and-noise-tools' ), $m[1] ) . $who;
-	}
-	if ( $m[1] === $m[2] ) {
-		/* translators: %s: HTTP status the origin returned. */
-		return sprintf( __( '%s from the origin', 'signal-and-noise-tools' ), $m[2] ) . $who;
-	}
-	/* translators: 1: status Cloudflare returned, 2: status the origin returned. */
-	return sprintf( __( '%1$s at the edge, origin said %2$s', 'signal-and-noise-tools' ), $m[1], $m[2] ) . $who;
 }
 
 /**

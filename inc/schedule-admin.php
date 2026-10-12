@@ -413,11 +413,13 @@ function sn_admin_schedule_window_html( $starts_at, $ends_at ) {
 	$from = sn_admin_schedule_fmt_gmt( $starts_at );
 	$to   = sn_admin_schedule_fmt_gmt( $ends_at );
 
-	// Plain words at the row's size (live check 2026-10-12: a <small> computed to 10px).
+	// Plain words at the row's size (live check 2026-10-12: a <small> computed
+	// to 10px), each end one unbreakable span, so a narrow column breaks the
+	// line at the arrow, never inside a date ("2026-11-" / "01 00:00").
 	$from_label = '' !== $from ? esc_html( $from ) : esc_html__( 'always', 'signal-and-noise-tools' );
 	$to_label   = '' !== $to ? esc_html( $to ) : esc_html__( 'never', 'signal-and-noise-tools' );
 
-	return $from_label . ' &rarr; ' . $to_label;
+	return '<span class="sn-nowrap">' . $from_label . '</span> &rarr; <span class="sn-nowrap">' . $to_label . '</span>';
 }
 
 /**

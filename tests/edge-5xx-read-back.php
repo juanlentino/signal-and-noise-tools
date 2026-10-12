@@ -53,8 +53,9 @@ function e5r_extract( $src, $name ) {
 	return '';
 }
 
-$roll = (string) file_get_contents( $root . '/inc/edge-rollup.php' );
-foreach ( array( 'sn_edge_errors_dims', 'sn_edge_errors_reading', 'sn_edge_errors_range', 'sn_edge_error_source_label', 'sn_edge_error_asker_label', 'sn_edge_error_asker', 'sn_edge_errors_days_shape', 'sn_edge_errors_asked_by_totals', 'sn_edge_errors_days_annotate', 'sn_edge_errors_paths_by_day_shape', 'sn_edge_errors_paths_by_day' ) as $name ) {
+// 2026-10-12 re-measure: the two label functions live in inc/edge-error-labels.php.
+$roll = (string) file_get_contents( $root . '/inc/edge-rollup.php' ) . (string) file_get_contents( $root . '/inc/edge-error-labels.php' );
+foreach ( array( 'sn_edge_errors_dims', 'sn_edge_errors_reading', 'sn_edge_errors_range', 'sn_edge_error_source_label', 'sn_edge_error_asker_label', 'sn_edge_error_source_notes', 'sn_edge_error_asker', 'sn_edge_errors_days_shape', 'sn_edge_errors_asked_by_totals', 'sn_edge_errors_days_annotate', 'sn_edge_errors_paths_by_day_shape', 'sn_edge_errors_paths_by_day' ) as $name ) {
 	$fn = e5r_extract( $roll, $name );
 	ok( '' !== $fn, "$name() was extracted; if empty, every assertion below is vacuous" );
 	eval( $fn ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- test-only extraction.
@@ -188,5 +189,11 @@ ok( isset( $r6['days'][0]['read'] ), 'the reading stamps every day row' );
 $roll6 = (string) file_get_contents( $root . '/inc/edge-rollup.php' );
 ok( 1 === substr_count( $roll6, 'sn_edge_errors_mark_read( $snap, (string) $err_q );' ), 'the rollup marks the day it read, on every run, success or refusal' );
 
+// 2026-10-12 re-measure: the Measurement leaf reads SHORT labels (no
+// parenthetical) and says the parentheticals once, as a legend; the full
+// labels the abilities read are unchanged.
+ok( '503 from Cloudflare itself' === sn_edge_error_source_label( 'edge=503 origin=- cache=miss', true ) && '503 from Cloudflare itself (the origin never answered)' === sn_edge_error_source_label( 'edge=503 origin=- cache=miss' ), 'short: "from Cloudflare itself" without its parenthetical; the full label keeps it' );
+ok( '503 from the origin, through a Worker' === sn_edge_error_source_label( 'src=edgeWorkerFetch edge=503 origin=503 cache=miss', true ) && false !== strpos( sn_edge_error_source_label( 'src=edgeWorkerFetch edge=503 origin=503 cache=miss' ), '(usually a visitor\'s request it forwarded)' ), 'short: "through a Worker" without its parenthetical' );
+ok( array( 'cf' => 'From Cloudflare itself: the origin never answered.', 'worker' => 'Through a Worker: usually a visitor’s request it forwarded.' ) === sn_edge_error_source_notes( 'src=edgeWorkerFetch edge=503 origin=- cache=miss' ) && array() === sn_edge_error_source_notes( 'src=edgeWorkerCacheAPI edge=503 origin=503 cache=hit' ) && array() === sn_edge_error_source_notes( 'src=eyeball edge=503 origin=503' ), 'the notes name only what a row leaves out: a Worker cache lookup and an origin answer need none' );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

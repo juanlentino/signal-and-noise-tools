@@ -112,11 +112,18 @@ ok( 1 === preg_match( '#<os-section heading="Scheduled fragments" stack><p class
 ok( 1 === preg_match( '/\.snt-list--ledger os-form\s*\{\s*container-type:\s*normal;\s*width:\s*max-content;/', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) ), 'a ledger form sizes to its button: an os-form is an inline-size container with no intrinsic width, and its buttons piled up and clipped (seen in the preview)' );
 ok( false !== strpos( $kit, '<div class="snt-ledger snt-ledger--wrap"><ul class="snt-list snt-list--ledger snt-list--ledger-5"><li class="snt-list__row"><span class="snt-list__label">Target</span><span class="snt-list__value">Swap at</span>' ), 'the swaps list is a five-track ledger grid' );
 $css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
+// Re-measure (2026-10-12): a window's dates broke at the hyphen
+// ("2026-11-" / "01 00:00"); each date is one unbreakable span, so the line
+// breaks only at the arrow, on both surfaces.
+ok( 1 === preg_match( '#<span class="sn-nowrap">[^<]+</span> &rarr; <span class="sn-nowrap">[^<]+</span>#', $kit ), 'each end of a window is one nowrap span; the line breaks only at the arrow' );
 // Live check (2026-10-12): "always" / "never" in a <small> computed to 10px,
 // under the 11px floor; and a ledger form's empty fields margin and footer
 // rule made the actions cell 83px tall, its buttons 20px under their row.
-ok( false === strpos( $kit, '<small>' ) && false !== strpos( $kit, 'always &rarr; ' ), 'the open-ended window words are the row\'s own size, not a 10px <small>' );
+ok( false === strpos( $kit, '<small>' ) && false !== strpos( $kit, 'always</span> &rarr; ' ), 'the open-ended window words are the row\'s own size, not a 10px <small>' );
 ok( 1 === preg_match( '/\.snt-list--ledger os-form::part\( header \),\s*\.snt-list--ledger os-form::part\( fields \)\s*\{[^}]*margin:\s*0;/', $css ) && 1 === preg_match( '/\.snt-list--ledger os-form::part\( footer \)\s*\{[^}]*border-top:\s*0;[^}]*padding-top:\s*0;/', $css ), 'a ledger form is its button: no header or fields margin, no footer rule or padding' );
+ok( 1 === preg_match( '/\.sn-nowrap\s*\{\s*white-space:\s*nowrap;/', $css ) && 1 === preg_match( '/\.sn-nowrap\s*\{\s*white-space:\s*nowrap;/', (string) file_get_contents( SNT_PATH . 'assets/admin.css' ) ), 'the nowrap span is styled on both stylesheets' );
+ok( 1 === preg_match( '/\.snt-ledger--wrap \.snt-list__label\s*\{[^}]*white-space:\s*normal;/', $css ) && 1 === preg_match( '/\.snt-ledger--wrap \.snt-list__label os-button::part\( button \)[^{]*\{[^}]*justify-content:\s*flex-start;[^}]*text-align:\s*start;/', $css ), 'a long target title wraps, left-aligned, so its #ID shows (it was clipped with no ellipsis)' );
+ok( 1 === preg_match( '/\.snt-list--ledger os-form\s*\{[^}]*font-family:\s*var\( --os-ui-font/', $css ), 'a ledger button takes the UI face, not the value column\'s mono' );
 ok( 1 === preg_match( '/\.snt-list--ledger\.snt-list--ledger-5\s*\{[^}]*grid-template-columns:\s*minmax\( 8em, 2fr \) repeat\( 2, minmax\( 4em, 1fr \) \) max-content max-content/', $css ), 'the five-track variant is defined' );
 
 ok( false !== strpos( $kit, 'name="row_id" value="201"' ) && false !== strpos( $kit, 'value="sn_schedule_run_now"' ) && false !== strpos( $kit, 'value="sn_schedule_repurge"' ), 'the fragment row carries its own row_id into both ops' );

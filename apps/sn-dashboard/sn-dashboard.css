@@ -1133,6 +1133,8 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 .snt-list--ledger os-form {
 	container-type: normal;
 	width: max-content;
+	/* Re-measure (2026-10-12): the buttons took the value column's mono. */
+	font-family: var( --os-ui-font, system-ui, sans-serif );
 }
 
 /* Live check (2026-10-12): a ledger's one-button form carried the form's
@@ -1150,9 +1152,24 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 }
 
 /* A schedule's window ("always → 2026-11-16 22:13") is read whole: it wraps
-   instead of ending in an ellipsis. */
+   instead of ending in an ellipsis, at the arrow only (each end is one
+   .sn-nowrap run, sn_admin_schedule_window_html()). */
 .snt-ledger--wrap .snt-list__value {
 	white-space: normal;
+}
+.sn-nowrap {
+	white-space: nowrap;
+}
+
+/* A long target title wraps, left-aligned, so its #ID shows (re-measure: it
+   was clipped with no ellipsis; the door's button centered a wrapped line). */
+.snt-ledger--wrap .snt-list__label {
+	white-space: normal;
+}
+.snt-ledger--wrap .snt-list__label os-button::part( button ),
+.snt-zenodo-title os-button::part( button ) {
+	justify-content: flex-start;
+	text-align: start;
 }
 
 .snt-list--ledger.snt-list--ledger-5 {
@@ -1169,9 +1186,19 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 	max-width: none;
 }
 
-/* Zenodo: a DOI read "10.5281/zen" / "odo.42" in the 149px column. */
-.snt-zenodo-doi {
-	white-space: nowrap;
+/* Search Console (re-measure 2026-10-12): the row's boxes stretch to its
+   height ("Set the credential" ended 116px above its neighbors), the
+   login-defense and mcp-connect rule; the Property and Sync column starts
+   level with the row (its heading sat 16px low). */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="search-console"] os-grid > os-section {
+	display: flex;
+	flex-direction: column;
+}
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="search-console"] os-grid > os-section::part( body ) {
+	flex: 1 1 auto;
+}
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="search-console"] os-grid > os-stack {
+	padding-top: 0;
 }
 
 /* Cloudways' tile captions are sentences, not values: the systems tile's mono
