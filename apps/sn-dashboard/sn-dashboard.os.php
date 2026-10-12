@@ -111,8 +111,12 @@ function incoming( array $args ) {
  * EVERY LINE NAMES WHAT WAS MEASURED. The first cut said "the form expired.
  * Reopen the tab and try again." to every refusal, including eight forms whose
  * nonce was never the shared one and which reopening could never fix. An
- * expiry was not measured; a token that did not verify against the action it
- * was checked against was, and that is what this says.
+ * expiry was not measured; a security check that did not pass for the action
+ * it was checked against was, and that is what this says. 2026-10-12 audit:
+ * in plain words (the developer's names, a nonce, a pipeline, ride in
+ * parentheses for a bug report), and each says what to do next: the repaint
+ * after a refusal keeps the typing (assets/os-host.js) and mints a fresh
+ * check, so Save again is the answer when the check went stale.
  *
  * @param string $reason From `snt_os_host_replay()`.
  * @param string $detail The particular the gate closed on (an action, a nonce action, a die's own words).
@@ -122,26 +126,26 @@ function refusal_text( $reason, $detail = '' ) {
 	$detail = (string) $detail;
 	switch ( (string) $reason ) {
 		case 'capability':
-			return __( 'Nothing was saved: this account cannot manage options.', 'signal-and-noise-tools' );
+			return __( 'Nothing was saved: your account is not allowed to change these settings.', 'signal-and-noise-tools' );
 		case 'nonce':
 			return sprintf(
-				/* translators: %s: the nonce action the submitted token was verified against. */
-				__( 'Nothing was saved: the security token did not verify against %s.', 'signal-and-noise-tools' ),
+				/* translators: %s: the nonce action the submitted security check was verified against. */
+				__( 'Nothing was saved: the form\'s security check did not pass (%s). What you typed is still in the form, except any password; press Save again.', 'signal-and-noise-tools' ),
 				$detail
 			);
 		case 'page':
-			return __( 'Nothing was saved: this window does not own that page.', 'signal-and-noise-tools' );
+			return __( 'Nothing was saved: that form belongs to another screen, so this window cannot save it.', 'signal-and-noise-tools' );
 		case 'died':
 			// The handler's own words. A window that paraphrased them would be
 			// reporting a cause it did not measure.
-			return '' !== $detail ? $detail : __( 'Nothing was saved: the action refused, without saying why.', 'signal-and-noise-tools' );
+			return '' !== $detail ? $detail : __( 'Nothing was saved: the save stopped without saying why.', 'signal-and-noise-tools' );
 		case 'unknown':
 			if ( '' === $detail ) {
-				return __( 'Nothing was saved: the form carried no action.', 'signal-and-noise-tools' );
+				return __( 'Nothing was saved: the form did not say what to save.', 'signal-and-noise-tools' );
 			}
 			return sprintf(
 				/* translators: %s: the action name the form submitted. */
-				__( 'Nothing was saved: no pipeline in this window handles the action %s.', 'signal-and-noise-tools' ),
+				__( 'Nothing was saved: nothing in this window saves that form (%s).', 'signal-and-noise-tools' ),
 				$detail
 			);
 		default:

@@ -242,6 +242,36 @@
 		} );
 	}, true ); // capture phase — intercept before form-submit handlers
 
+	// 2026-10-12 audit. The shell's confirm dialog (<os-confirm-dialog>, which
+	// wp.os.confirm and every kit `os-confirm` trigger open) paints its primary
+	// label in the accent picker's ink, white until the accent is very light
+	// (white on red is 3.9:1), and its danger label white on #ff5a5a (3.0:1).
+	// assets/os-app.css gives a dialog marked `data-snt-dialog` the S&N
+	// windows' own ink rule. The shell appends the dialog to <body> and names
+	// no opener, and Safari does not focus a clicked button, so the mark
+	// follows the reader: the dialog is S&N's when the last press or key
+	// landed in an S&N window. Read on capture, before a handler can stop it.
+	var lastInSnt = false;
+	function noteInteraction( e ) {
+		var t = e.target;
+		lastInSnt = !! ( t && t.closest && t.closest( '.snt-app[data-os-app]' ) );
+	}
+	function markDialogs( records ) {
+		for ( var i = 0; i < records.length; i++ ) {
+			var added = records[ i ].addedNodes || [];
+			for ( var j = 0; j < added.length; j++ ) {
+				if ( lastInSnt && 'OS-CONFIRM-DIALOG' === added[ j ].nodeName ) {
+					added[ j ].setAttribute( 'data-snt-dialog', '' );
+				}
+			}
+		}
+	}
+	document.addEventListener( 'pointerdown', noteInteraction, true );
+	document.addEventListener( 'keydown', noteInteraction, true );
+	if ( typeof MutationObserver === 'function' && document.body ) {
+		new MutationObserver( markDialogs ).observe( document.body, { childList: true } );
+	}
+
 	// Expose imperative API.
 	window.sntConfirm = sntConfirm;
 } )();

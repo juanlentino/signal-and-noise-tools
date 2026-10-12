@@ -75,6 +75,20 @@ foreach ( $fills as $name => $hex ) {
 foreach ( array( -5e-4, -5e-5, -5e-6, -5e-7, 5e-7, 5e-6, 5e-5, 5e-4 ) as $d ) {
 	$check( sprintf( 'a fill at luminance 0.1791%+.0e', $d ), 0.1791 + $d );
 }
+// The shell's confirm dialog, when an S&N window opened it (assets/snt-confirm.js
+// marks it): the same rule, in the same block, for its primary label, and for
+// its danger label, which the shell paints white on #ff5a5a (3.0:1).
+$mark = preg_match( "/setAttribute\\( '(data-snt-[a-z-]+)', '' \\)/", (string) file_get_contents( $root . '/assets/snt-confirm.js' ), $mm ) ? $mm[1] : '';
+ok( '' !== $mark, 'snt-confirm.js marks the shell confirm dialog an S&N window opened' );
+$block = false !== $g0 ? substr( $app, $g0, (int) strpos( $app, "\n}\n", $g0 ) - $g0 ) : '';
+$d0    = '' !== $mark ? strpos( $block, "os-confirm-dialog[$mark] {" ) : false;
+$dlg   = false !== $d0 ? substr( $block, $d0, (int) strpos( $block, '}', $d0 ) - $d0 ) : '';
+ok( '' !== $rule && str_contains( $dlg, '--os-ui-accent-ink: color( from var( --wp-admin-theme-color, var( --os-ui-accent, #2271b1 ) ) ' . $rule . ' );' ), 'the marked dialog\'s primary label takes the window\'s ink rule, inside the same @supports gate' );
+ok( '' !== $rule && str_contains( $dlg, '--os-ui-fg-on-accent: color( from var( --os-ui-danger, #d63638 ) ' . $rule . ' );' ), 'the marked dialog\'s danger label takes the same rule from the danger fill it sits on' );
+foreach ( array( 'shell danger' => '#ff5a5a', 'danger fallback' => '#d63638' ) as $name => $hex ) {
+	$check( "$name $hex", lum( $hex ) );
+}
+ok( ratio_y( $ink_y( lum( '#ff5a5a' ) ), lum( '#ff5a5a' ) ) >= 4.5 && ratio_y( 1.0, lum( '#ff5a5a' ) ) < 3.1, 'the shell danger fill takes black ink (6.9:1); its white was 3.0:1' );
 ok( lum( '#ff0000' ) > $threshold && ratio_y( 0.0, lum( '#ff0000' ) ) >= 4.5, 'red takes black ink, which passes AA (5.25:1); the picker\'s white was 4.0:1' );
 ok( lum( '#e11d48' ) < $threshold && ratio_y( 1.0, lum( '#e11d48' ) ) >= 4.5, 'Rose takes white ink (4.70:1): the review\'s case, black there was 4.47:1' );
 
