@@ -149,13 +149,13 @@
     clear(live);
 
     var pending = d.pending || [];
+    var cut = Number(live.getAttribute('data-unlisted')) > 0;
     if (!pending.length) {
       // What this table measures (pending proofs), the kit leaf's sentence:
       // the old "every commit anchored" line read as "all is well" beside
       // integrity failures, which this table does not measure. When the
       // newest-100 cut leaves proofs out (data-unlisted), it says where they
       // are instead of "No pending proofs" beside a Pending tile above 0.
-      var cut = Number(live.getAttribute('data-unlisted')) > 0;
       live.appendChild(messageRow(cut
         ? text(live, 'empty-cut', 'None of the newest 100 subjects has a proof waiting.')
         : text(live, 'empty', 'No pending proofs; a new one appears here within 30 seconds of minting.')));
@@ -164,6 +164,12 @@
     pending.forEach(function (p) {
       live.appendChild(commitRow(live, p));
     });
+    // The proofs past the newest-100 cut, said under the rows the poll lists:
+    // a proof minted under an empty table must not leave the cut unsaid.
+    var cutText = cut ? text(live, 'cut', '') : '';
+    if (cutText) {
+      live.appendChild(messageRow(cutText, 'sn-field-helper'));
+    }
   }
 
   function renderError(live, e) {

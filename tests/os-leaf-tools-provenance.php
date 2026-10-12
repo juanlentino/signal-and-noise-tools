@@ -357,7 +357,10 @@ foreach ( $GLOBALS['__prov_ids'] as $i ) {
 $kit_cut = prov_paint();
 $cl_cut  = snt_leaf_classic_html( 'sn_admin_render_provenance_section' );
 ok( false !== strpos( $kit_cut, '+2 older proofs waiting are not listed; the table reads the newest 100 subjects.' ), '102 waiting, 100 listed: the kit says what the table leaves out' );
-ok( false !== strpos( $cl_cut, '+2 older proofs waiting are not listed; the table reads the newest 100 subjects.' ), '...and the classic page says the same under its table' );
+// 2026-10-12 re-review: the classic page says the cut in ONE place, inside the
+// table the poller paints (a static line printed at load went unsaid once a
+// proof minted under an empty table). The tbody carries the sentence.
+ok( false !== strpos( $cl_cut, 'data-text-cut="+2 older proofs waiting are not listed; the table reads the newest 100 subjects."' ) && false === strpos( $cl_cut, '<p class="sn-field-helper">+2 older' ), '...and the classic tbody hands the poller the same sentence, with no static line beside the table' );
 ok( 1 === preg_match( '/<os-stat[^>]*value="100"[^>]*label="Pending"/', $kit_cut ) && 1 === preg_match( '/<os-stat[^>]*value="2"[^>]*label="Not sent"[^>]*tone="warning"|<os-stat[^>]*tone="warning"[^>]*value="2"[^>]*label="Not sent"/', $kit_cut ), 'the tiles count every subject: Pending 100, Not sent 2 (amber)' );
 // 2026-10-12 review: the newest 100 subjects all confirmed, the 2 oldest
 // pending. The Pending tile reads 2, so the empty table must not say "No
@@ -369,9 +372,32 @@ $kit_old = prov_paint();
 $cl_old  = snt_leaf_classic_html( 'sn_admin_render_provenance_section' );
 ok( 1 === preg_match( '/<os-stat value="2" label="Pending"/', $kit_old ) && false !== strpos( $kit_old, 'None of the newest 100 subjects has a proof waiting; 2 older ones do.' ) && false === strpos( $kit_old, 'No pending proofs' ), 'kit: Pending 2 with an empty table says "None of the newest 100 subjects has a proof waiting; 2 older ones do.", never "No pending proofs"' );
 ok( false === strpos( $kit_old, 'older proofs waiting are not listed' ), '...and says it once: no "+2 older" line under an empty table' );
-ok( false !== strpos( $cl_old, 'data-unlisted="2"' ) && false !== strpos( $cl_old, 'data-text-empty-cut="None of the newest 100 subjects has a proof waiting; 2 older ones do."' ) && false === strpos( $cl_old, 'older proofs waiting are not listed' ), 'classic: the tbody hands the poller the cut and that sentence, and no "+2" line repeats it' );
+ok( false !== strpos( $cl_old, 'data-unlisted="2"' ) && false !== strpos( $cl_old, 'data-text-empty-cut="None of the newest 100 subjects has a proof waiting; 2 older ones do."' ) && false === strpos( $cl_old, '<p class="sn-field-helper">+2 older' ), 'classic: the tbody hands the poller the cut and that sentence, and no static "+2" line repeats it' );
 $prov_js = (string) file_get_contents( SNT_PATH . 'assets/provenance-admin.js' );
 ok( false !== strpos( $prov_js, "Number(live.getAttribute('data-unlisted')) > 0" ) && false !== strpos( $prov_js, "text(live, 'empty-cut'," ), 'the poller picks the cut sentence from data-unlisted' );
+// The poller itself, run on node against a fake DOM (tests/js/provenance-poller-render.js).
+$node = trim( (string) shell_exec( 'command -v node' ) );
+if ( '' === $node ) {
+	echo "SKIP: node not on PATH, poller render pins not run\n";
+} else {
+	$poll = static function ( array $attrs, array $pending ) use ( $node ) {
+		return json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/provenance-poller-render.js' ) . ' ' . escapeshellarg( json_encode( array( 'attrs' => $attrs + array( 'data-endpoint' => 'x' ), 'payload' => array( 'pending' => $pending ) ) ) ) ), true );
+	};
+	$cut_attrs = array(
+		'data-unlisted'       => '2',
+		'data-text-cut'       => sn_prov_admin_unlisted_line( 2 ),
+		'data-text-empty-cut' => sn_prov_admin_empty_line( 2 ),
+		'data-text-ledger'    => 'v%s on the ledger',
+	);
+	$minted = array( array( 'note_uid' => 'u-new', 'version' => 1, 'status' => 'pending', 'ledger_url' => 'https://ledger.test/notes/u-new' ) );
+	$rows   = (array) $poll( $cut_attrs, $minted );
+	ok( 2 === count( $rows ) && false !== strpos( (string) ( $rows[0]['text'] ?? '' ), 'u-new' ) && '+2 older proofs waiting are not listed; the table reads the newest 100 subjects.' === ( $rows[1]['text'] ?? '' ), 'poller: a proof minted under an empty table is listed, and the cut is said in a row under it, not left unsaid until a reload' );
+	$rows = (array) $poll( $cut_attrs, array() );
+	ok( 1 === count( $rows ) && 'None of the newest 100 subjects has a proof waiting; 2 older ones do.' === ( $rows[0]['text'] ?? '' ), 'poller: an empty poll says the cut once, as the empty sentence' );
+	$rows = (array) $poll( array( 'data-unlisted' => '0', 'data-text-cut' => '' ), $minted );
+	ok( 1 === count( $rows ), 'poller: with nothing cut, no cut row' );
+}
+
 // One older proof: the singular, on both lines.
 $GLOBALS['__prov_ids'] = range( 1001, 1101 );
 $kit_one = prov_paint();
