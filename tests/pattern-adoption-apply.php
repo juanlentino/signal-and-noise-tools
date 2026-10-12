@@ -114,6 +114,14 @@ function _taa_post( $id, $blocks_array ) {
 	$GLOBALS['__test_posts'][ $id ] = $post;
 }
 
+// 2026-10-12: a live apply drops its row from the user's cached scan.
+$GLOBALS['__transients'] = array();
+if ( ! function_exists( 'get_current_user_id' ) ) { function get_current_user_id() { return 7; } }
+if ( ! function_exists( 'get_transient' ) ) { function get_transient( $transient ) { return $GLOBALS['__transients'][ $transient ] ?? false; } }
+if ( ! function_exists( 'set_transient' ) ) { function set_transient( $transient, $value, $expiration = 0 ) { $GLOBALS['__transients'][ $transient ] = $value; return true; } }
+if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $transient ) { unset( $GLOBALS['__transients'][ $transient ] ); return true; } }
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
+
 require_once __DIR__ . '/../inc/block-fingerprint-engine.php'; // v7.7.1 shared engine
 require_once __DIR__ . '/../inc/pattern-adoption-apply.php';
 
@@ -307,6 +315,36 @@ pa_true( is_array( $result ), 'Test 10.1: nested apply succeeds' );
 $new_content = $GLOBALS['__test_wp_updates'][0]['post_content'];
 pa_true( false === strpos( $new_content, 'steal()' ), 'Test 10.2: nested <script> payload stripped' );
 pa_true( false !== strpos( $new_content, 'ok' ), 'Test 10.3: nested legitimate text preserved' );
+
+// ─── 2026-10-12: a live apply drops its row from the cached scan ─────
+echo "\nTest 9: the applied candidate leaves the cached scan; a staged revision does not\n";
+$GLOBALS['__test_posts'] = array();
+$GLOBALS['__test_wp_updates'] = array();
+_taa_post( 309, array( $source_block ) );
+$fp   = snt_block_fp_fingerprint( $source_block, 309, '0/0' );
+$seed = array(
+	'candidates' => array(
+		array( 'post_id' => 309, 'pattern_type' => 'pull-quote', 'block_fingerprint' => $fp ),
+		array( 'post_id' => 309, 'pattern_type' => 'steps-enumerated', 'block_fingerprint' => 'list' ),
+	),
+	'counts'     => array( 'pull_quote' => 1, 'steps_enumerated' => 1, 'posts_affected' => 1 ),
+	'scanned_at' => time() - 60,
+);
+$key = 'snt_pattern_adoption_candidates_7';
+$GLOBALS['__transients'][ $key ] = $seed;
+// 2026-10-12 review: the cache is edited only after a write that took.
+$stale_seed = array_merge( $seed, array( 'candidates' => array_merge( $seed['candidates'], array( array( 'post_id' => 309, 'pattern_type' => 'pull-quote', 'block_fingerprint' => str_repeat( 'f', 32 ) ) ) ) ) );
+$GLOBALS['__transients'][ $key ] = $stale_seed;
+$stale = snt_ai_pattern_adoption_apply_impl( 309, str_repeat( 'f', 32 ), $replacement, 'pull-quote' );
+pa_true( is_wp_error( $stale ) && 'snt_pattern_adoption_conflict' === $stale->get_error_code() && serialize( $GLOBALS['__transients'][ $key ] ) === serialize( $stale_seed ), 'Test 9.0: a refused apply (409, stale fingerprint) leaves the cached scan byte-identical, its own row included' );
+$GLOBALS['__transients'][ $key ] = $seed;
+$staged = snt_ai_pattern_adoption_apply_impl( 309, $fp, $replacement, 'pull-quote', static function () { return 1; } );
+pa_true( is_array( $staged ) && $GLOBALS['__transients'][ $key ] === $seed, 'Test 9.1: a staged revision (write callback) leaves the cached scan as it was' );
+$result = snt_ai_pattern_adoption_apply_impl( 309, $fp, $replacement, 'pull-quote' );
+$left   = $GLOBALS['__transients'][ $key ] ?? null;
+pa_true( is_array( $result ) && ! empty( $result['ok'] ), 'Test 9.2: the live apply succeeds' );
+pa_eq( array( 'list' ), array_column( (array) ( $left['candidates'] ?? array() ), 'block_fingerprint' ), 'Test 9.3: only the applied row left the cache' );
+pa_eq( array( 'pull_quote' => 0, 'steps_enumerated' => 1, 'posts_affected' => 1 ), $left['counts'] ?? null, 'Test 9.4: its count follows; the post keeps its other row' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

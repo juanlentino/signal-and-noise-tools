@@ -68,7 +68,7 @@ $live_a = $seed + array( 'updated' => '2020-01-01' ); // the stored shape: sn_re
 echo "\nTest: the draft slot\n";
 fresh();
 ok( null === sn_resume_draft_get(), 'no draft: draft get is null (never the seed)' );
-ok( 'No draft; showing the live résumé.' === sn_resume_draft_status(), 'no draft: the status line says the form shows the live resume' );
+ok( 'No draft; showing the live resume.' === sn_resume_draft_status(), 'no draft: the status line says the form shows the live resume' );
 ok( false === sn_resume_draft_save( array( 'hero' => array( 'summary' => 'no anchor' ) ) ) && ! isset( $GLOBALS['__options'][ SN_RESUME_DRAFT_OPTION ] ), 'a refused draft is not stored' );
 
 fresh( array( SN_RESUME_DOC_OPTION => $live_a ) );
@@ -106,7 +106,7 @@ ok( 'DRAFTED PRACTICE' === $GLOBALS['__options'][ SN_RESUME_DOC_OPTION ]['experi
 echo "\nTest: identical publish is a no-op\n";
 fresh( array( SN_RESUME_DOC_OPTION => $live_a, 'sn_resume_pdf' => array( 'sha256' => 'old' ) ) );
 sn_resume_draft_save( $seed );
-ok( 'Draft saved 1999-12-31; it matches the live résumé.' === sn_resume_draft_status(), 'status: a draft equal to live says so' );
+ok( 'Draft saved 1999-12-31; it matches the live resume.' === sn_resume_draft_status(), 'status: a draft equal to live says so' );
 ok( 'identical' === sn_resume_draft_publish(), 'publish reports identical' );
 ok( $live_a === $GLOBALS['__options'][ SN_RESUME_DOC_OPTION ] && ! isset( $GLOBALS['__options'][ SN_RESUME_PREV_OPTION ] ), 'live untouched (its old date kept), no snapshot' );
 ok( 0 === calls( 'sync' ) && 0 === calls( 'pdf' ) && 0 === calls( 'purge:/resume' ) && ! isset( $GLOBALS['__options'][ SN_RESUME_DRAFT_OPTION ] ), 'no sync, no PDF, no purge; the draft is deleted' );

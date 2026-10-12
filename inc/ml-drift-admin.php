@@ -27,11 +27,69 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * The words both Vocabulary surfaces print (2026-10-12 audit: em dashes in
+ * the copy, an empty list painted as a lone dash a screen reader announces
+ * as "em dash", and the change printed as a percent when it is a difference of
+ * shares: 10% to 22% of notes read "+12%").
+ *
+ * @param string $which intro | empty | one_year | still.
+ * @return string
+ */
+function snt_ml_drift_copy( $which ) {
+	$copy = array(
+		'intro'    => __( 'How the published corpus\'s vocabulary moved between years: the share of notes each term appears in, compared per adjacent-year pair. Pure corpus statistics (no AI call, no reader data), shown only here: this mirror faces the writer, never a model.', 'signal-and-noise-tools' ),
+		'empty'    => __( 'No published notes yet: the mirror has nothing to reflect.', 'signal-and-noise-tools' ),
+		'one_year' => __( 'Only one year holds published notes so far; drift needs two to compare.', 'signal-and-noise-tools' ),
+		'still'    => __( 'The vocabulary held still across this pair.', 'signal-and-noise-tools' ),
+		'none'     => __( 'None', 'signal-and-noise-tools' ),
+	);
+	return $copy[ (string) $which ] ?? '';
+}
+
+/**
+ * The thin pair's sentence: both sizes and the floor.
+ *
+ * @param array $pair The kernel's pair envelope.
+ * @return string
+ */
+function snt_ml_drift_thin_text( array $pair ) {
+	return sprintf(
+		/* translators: 1: earlier-year note count, 2: later-year note count, 3: minimum. */
+		__( 'Too few notes to speak (%1$d and %2$d; the mirror needs %3$d on each side). Not the same as "no drift": this pair was not measured.', 'signal-and-noise-tools' ),
+		(int) ( $pair['docs']['before'] ?? 0 ),
+		(int) ( $pair['docs']['after'] ?? 0 ),
+		defined( 'SNT_ML_DRIFT_MIN_DOCS' ) ? (int) SNT_ML_DRIFT_MIN_DOCS : 0
+	);
+}
+
+/**
+ * One row's share as both surfaces print it: a moved term as its two shares
+ * ("10% → 22%", to one decimal when whole percents would read the same), an
+ * entered or silenced term as its one share ("40%").
+ *
+ * @param array  $row  Kernel row ({term, before, after, delta}|{term, after}|{term, before}).
+ * @param string $kind 'delta' | 'after' | 'before'.
+ * @return string
+ */
+function snt_ml_drift_share_text( array $row, $kind ) {
+	$pct = static fn( $share, $dec ) => number_format( (float) $share * 100, $dec ) . '%';
+	if ( 'delta' !== $kind ) {
+		return $pct( $row[ $kind ] ?? 0, 0 );
+	}
+	if ( ! isset( $row['before'], $row['after'] ) ) {
+		// A row without its two shares: the difference, in points.
+		return sprintf( '%+.0f pts', (float) ( $row['delta'] ?? 0 ) * 100 );
+	}
+	$dec = round( (float) $row['before'] * 100 ) === round( (float) $row['after'] * 100 ) ? 1 : 0;
+	return $pct( $row['before'], $dec ) . ' → ' . $pct( $row['after'], $dec );
+}
+
+/**
  * Render one movement list as a compact table column.
  *
  * @param string $title Column heading (already translated).
  * @param array  $rows  Kernel rows ({term, delta}|{term, after}|{term, before}).
- * @param string $kind  'delta' | 'after' | 'before' — which share to print.
+ * @param string $kind  'delta' | 'after' | 'before': which share to print.
  * @return void
  */
 function sn_admin_drift_render_list( $title, array $rows, $kind ) {
@@ -39,18 +97,14 @@ function sn_admin_drift_render_list( $title, array $rows, $kind ) {
 	echo '<h4>' . esc_html( $title ) . '</h4>';
 	if ( array() === $rows ) {
 		// An empty list is a real answer here (the pair spoke; this direction
-		// had nothing) — the em-dash idiom, not a fabricated row.
-		echo '<p class="sn-drift-none">&#8212;</p></div>';
+		// had nothing), said in a word, not a fabricated row.
+		echo '<p class="sn-drift-none">' . esc_html( snt_ml_drift_copy( 'none' ) ) . '</p></div>';
 		return;
 	}
 	echo '<table class="widefat striped sn-drift-table"><tbody>';
 	foreach ( $rows as $row ) {
-		$share = 'delta' === $kind ? (float) $row['delta'] : (float) $row[ $kind ];
-		$text  = 'delta' === $kind
-			? sprintf( '%+.0f%%', $share * 100 )
-			: sprintf( '%.0f%%', $share * 100 );
 		echo '<tr><td>' . esc_html( (string) $row['term'] ) . '</td>';
-		echo '<td class="sn-drift-share">' . esc_html( $text ) . '</td></tr>';
+		echo '<td class="sn-drift-share">' . esc_html( snt_ml_drift_share_text( (array) $row, $kind ) ) . '</td></tr>';
 	}
 	echo '</tbody></table></div>';
 }
@@ -64,7 +118,7 @@ function sn_admin_drift_render_list( $title, array $rows, $kind ) {
 function snt_ml_drift_render_section() {
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'Vocabulary drift', 'signal-and-noise-tools' ) . '</h2>';
-	echo '<p class="sn-fieldset-intro">' . esc_html__( 'How the published corpus\'s vocabulary moved between years: the share of notes each term appears in, compared per adjacent-year pair. Pure corpus statistics — no AI call, no reader data, and shown only here: this mirror faces the writer, never a model.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-fieldset-intro">' . esc_html( snt_ml_drift_copy( 'intro' ) ) . '</p>';
 
 	if ( ! function_exists( 'snt_ml_drift_report' ) ) {
 		echo '<p>' . esc_html__( 'The drift module is not loaded.', 'signal-and-noise-tools' ) . '</p></div>';
@@ -73,7 +127,7 @@ function snt_ml_drift_render_section() {
 	$report = snt_ml_drift_report();
 
 	if ( array() === $report['years'] ) {
-		echo '<p>' . esc_html__( 'No published notes yet — the mirror has nothing to reflect.', 'signal-and-noise-tools' ) . '</p></div>';
+		echo '<p>' . esc_html( snt_ml_drift_copy( 'empty' ) ) . '</p></div>';
 		return;
 	}
 
@@ -88,7 +142,7 @@ function snt_ml_drift_render_section() {
 	echo '</p>';
 
 	if ( array() === $report['pairs'] ) {
-		echo '<p>' . esc_html__( 'Only one year holds published notes so far — drift needs two to compare.', 'signal-and-noise-tools' ) . '</p></div>';
+		echo '<p>' . esc_html( snt_ml_drift_copy( 'one_year' ) ) . '</p></div>';
 		return;
 	}
 
@@ -100,20 +154,14 @@ function snt_ml_drift_render_section() {
 			// A distinct state, never "no movement": one side was too small to
 			// speak. Name the sizes so the writer sees WHY, and the floor so
 			// the refusal is legible rather than mysterious.
-			echo '<p class="sn-drift-thin">' . esc_html( sprintf(
-				/* translators: 1: earlier-year note count, 2: later-year note count, 3: minimum. */
-				__( 'Too few notes to speak (%1$d and %2$d; the mirror needs %3$d on each side). Not the same as "no drift" — this pair was not measured.', 'signal-and-noise-tools' ),
-				(int) $pair['docs']['before'],
-				(int) $pair['docs']['after'],
-				SNT_ML_DRIFT_MIN_DOCS
-			) ) . '</p></div>';
+			echo '<p class="sn-drift-thin">' . esc_html( snt_ml_drift_thin_text( $pair ) ) . '</p></div>';
 			continue;
 		}
 
 		$still = array() === $pair['risen'] && array() === $pair['fallen']
 			&& array() === $pair['entered'] && array() === $pair['silenced'];
 		if ( $still ) {
-			echo '<p>' . esc_html__( 'The vocabulary held still across this pair.', 'signal-and-noise-tools' ) . '</p></div>';
+			echo '<p>' . esc_html( snt_ml_drift_copy( 'still' ) ) . '</p></div>';
 			continue;
 		}
 

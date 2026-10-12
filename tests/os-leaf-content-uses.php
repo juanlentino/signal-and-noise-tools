@@ -28,6 +28,8 @@ $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 function uses_stored( $raw, $updated = '2026-07-10' ) { $GLOBALS['__options']['sn_uses_page'] = array( 'raw' => $raw, 'updated' => $updated ); }
 function uses_unstored() { unset( $GLOBALS['__options']['sn_uses_page'] ); }
+/** The kit's names less the second spare (`__V__`): the classic adds rows client-side. */
+function uses_names_but_second_spare( $html ) { return array_values( array_filter( snt_leaf_names( $html ), static fn( $n ) => false === strpos( $n, '[__V__]' ) ) ); }
 
 ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['content/uses'] ), 'the painter is registered under content/uses' );
 
@@ -36,7 +38,7 @@ uses_stored( "## Interface\n- SSL UF8 | Advanced DAW controller\n\n## Audio\n- N
 $classic = snt_leaf_classic_html( 'sn_admin_render_uses_section' );
 $kit     = snt_leaf_paint( 'content', 'uses' );
 ok( '' !== $kit, 'the kit leaf paints' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
+ok( snt_leaf_names( $classic ) === uses_names_but_second_spare( $kit ), 'field names match the classic form, the second spare aside: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( array( 'uses_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is uses_save, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the form is an os-form dispatching post through the admin-post pipeline (no pipeline declared: an action field is admin-post)' );
@@ -47,12 +49,14 @@ ok( false !== strpos( $kit, 'the live ' ) && false !== strpos( $kit, 'Last saved
 ok( false !== strpos( $kit, 'name="uses[groups][0][label]" type="text" value="Interface"' ) && false !== strpos( $kit, 'name="uses[groups][1][label]" type="text" value="Audio"' ), 'both group labels are prefilled, indexed' );
 ok( false !== strpos( $kit, 'name="uses[groups][0][items]" value="SSL UF8 | Advanced DAW controller"' ), 'the first group\'s items collapse to one "name | note" line' );
 ok( false !== strpos( $kit, "name=\"uses[groups][1][items]\" value=\"Neumann U87 | Vocal mic\nCables\"" ), 'the second group\'s items are one line each, a note-less item without a pipe' );
-ok( 3 === substr_count( $kit, '<os-card compact>' ) && 3 === substr_count( $classic, 'data-rsm-row' ) && 1 === substr_count( $classic, '<template' ), 'one card per group plus the spare: three, as the classic paints two rows plus the template\'s row' );
+ok( 4 === substr_count( $kit, '<os-card compact>' ) && 3 === substr_count( $classic, 'data-rsm-row' ) && 1 === substr_count( $classic, '<template' ), 'one card per group plus two spares after an even count (2026-10-12: one spare stood alone across the window); the classic paints two rows plus the template\'s row' );
+ok( false !== strpos( $kit, 'name="uses[groups][__V__][label]" type="text" value=""' ) && strpos( $kit, 'uses[groups][__U__][label]' ) < strpos( $kit, 'uses[groups][__V__][label]' ), 'the second spare is blank and follows the first' );
 ok( strpos( $kit, 'uses[groups][1][items]' ) < strpos( $kit, 'uses[groups][__U__][label]' ) && 1 === substr_count( $kit, 'uses[groups][__U__][label]' ), 'the spare card is painted once, after the groups, under the template\'s own index' );
 ok( false !== strpos( $kit, 'name="uses[groups][__U__][label]" type="text" value=""' ) && false !== strpos( $kit, 'name="uses[groups][__U__][items]" value=""' ), 'the spare card is blank' );
 ok( false !== strpos( $kit, 'label="Group label"' ) && false !== strpos( $kit, 'placeholder="Interface"' ), 'the label field keeps its label and placeholder' );
-ok( false !== strpos( $kit, 'label="Items — one per line, name | note"' ) && false !== strpos( $kit, 'rows="5"' ) && false !== strpos( $kit, "placeholder=\"SSL UF8 | Advanced DAW controller\nAnother thing\"" ), 'the items textarea keeps its label, rows and placeholder' );
-ok( false !== strpos( $kit, 'hint="The note after | is optional. A note with no name is refused at save rather than filed under a blank entry."' ), 'the per-card helper survives as the field hint' );
+ok( false !== strpos( $kit, 'label="Items: one per line, name | note"' ) && false !== strpos( $classic, '>Items: one per line, <code>name | note</code></label>' ) && false !== strpos( $kit, 'rows="5"' ) && false !== strpos( $kit, "placeholder=\"SSL UF8 | Advanced DAW controller\nAnother thing\"" ), 'the items textarea keeps its label, rows and placeholder' );
+ok( false === strpos( $kit, 'hint="The note after' ) && false === strpos( $classic, 'The note after' ) && 1 === substr_count( $kit, 'the note after | is optional' ) && 1 === substr_count( $classic, 'the note after | is optional' ), 'the note rule is said once, in the section helper, on both surfaces (2026-10-12: repeated under every card)' );
+ok( false === strpos( $kit, '—' ) && false === strpos( $classic, '&mdash;' ), 'no em dash on either surface' );
 ok( false !== strpos( $kit, 'Each card is one gear group' ) && false !== strpos( $kit, 'never silently blanked' ), 'the form-level helper survives as a hint' );
 ok( false !== strpos( $kit, 'name="action" value="sn_uses_save"' ) && false !== strpos( $kit, 'name="_wpnonce"' ), 'the action and the nonce ride as hidden fields' );
 ok( false === strpos( $kit, '__I__' ) && false === strpos( $kit, 'data-rsm' ), 'no JS-template plumbing leaks into the kit markup' );
@@ -67,7 +71,7 @@ ok( false === strpos( $kit, '<i>note' ) && false !== strpos( $kit, '&lt;tags&gt;
 uses_unstored();
 $classic = snt_leaf_classic_html( 'sn_admin_render_uses_section' );
 $kit     = snt_leaf_paint( 'content', 'uses' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'prefilled: field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) );
+ok( snt_leaf_names( $classic ) === uses_names_but_second_spare( $kit ), 'prefilled: field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) );
 ok( false !== strpos( $kit, 'prefilled from the current live list' ) && false === strpos( $kit, 'Last saved' ), 'prefilled: the intro says so and shows no save stamp' );
 ok( false !== strpos( $kit, 'name="uses[groups][0][label]" type="text" value="Interface"' ) && false !== strpos( $kit, 'value="SSL UF8 | Advanced DAW controller"' ), 'prefilled: the theme\'s group is in the form' );
 
@@ -75,15 +79,15 @@ ok( false !== strpos( $kit, 'name="uses[groups][0][label]" type="text" value="In
 uses_stored( "no headers here\n- orphan item\n" );
 $classic = snt_leaf_classic_html( 'sn_admin_render_uses_section' );
 $kit     = snt_leaf_paint( 'content', 'uses' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && false !== strpos( $kit, 'prefilled from the current live list' ) && false !== strpos( $kit, 'value="Interface"' ), 'unparseable store: prefilled from the theme, like the classic' );
+ok( snt_leaf_names( $classic ) === uses_names_but_second_spare( $kit ) && false !== strpos( $kit, 'prefilled from the current live list' ) && false !== strpos( $kit, 'value="Interface"' ), 'unparseable store: prefilled from the theme, like the classic' );
 
 // ── Empty state: nothing stored and no theme groups — only the spare card.
 uses_unstored();
 $GLOBALS['__theme_groups'] = array();
 $classic = snt_leaf_classic_html( 'sn_admin_render_uses_section' );
 $kit     = snt_leaf_paint( 'content', 'uses' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'empty: field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) );
-ok( 1 === substr_count( $kit, '<os-card compact>' ) && false === strpos( $kit, 'uses[groups][0]' ), 'empty: only the spare card is painted' );
+ok( snt_leaf_names( $classic ) === uses_names_but_second_spare( $kit ), 'empty: field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) );
+ok( 2 === substr_count( $kit, '<os-card compact>' ) && false === strpos( $kit, 'uses[groups][0]' ), 'empty: only the two spare cards are painted' );
 ok( array( 'uses_save' ) === snt_leaf_actions( $kit ), 'empty: the save is still offered (zero rows clears the override)' );
 
 // ── Reorder instruction: the hint names the only owner-side way to reorder groups.
@@ -96,7 +100,7 @@ $GLOBALS['__theme_groups'] = array( 'oops', array( 'label' => 'Audio', 'items' =
 uses_unstored();
 $classic = snt_leaf_classic_html( 'sn_admin_render_uses_section' );
 $kit     = snt_leaf_paint( 'content', 'uses' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'malformed theme groups: field names match the classic form even with a non-array entry: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
+ok( snt_leaf_names( $classic ) === uses_names_but_second_spare( $kit ), 'malformed theme groups: field names match the classic form even with a non-array entry: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 
 
 // ── The cards are SIBLINGS, so they pair. ──
@@ -109,7 +113,7 @@ $kit = snt_leaf_paint( 'content', 'uses' );
 $rows  = substr_count( $kit, snt_leaf_row() );
 $cards = substr_count( $kit, '<os-card' );
 ok( $rows > 0, 'the cards are painted in two-up rows -- ' . $rows . ' row(s) for ' . $cards . ' card(s)' );
-ok( $rows === (int) floor( $cards / 2 ), '...one row per PAIR; an odd count leaves the spare bare at full width, never dropped and never a one-track grid (#1622)' );
+ok( $rows === (int) floor( $cards / 2 ) && 0 === $cards % 2, '...one row per PAIR; the spares make the count even, so no card stands alone (2026-10-12), never dropped and never a one-track grid (#1622)' );
 ok( $cards >= 2, 'sanity: there are cards to pair -- ' . $cards );
 
 // Every card still reaches the markup: pairing must not drop the spare.

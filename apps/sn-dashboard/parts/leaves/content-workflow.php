@@ -102,12 +102,15 @@ function workflow_top_cards( array $doc ) {
 }
 
 /**
- * The finding (moved here from content-workflow-lists.php, 2026-10-12): how many rows of each list reach the page.
+ * The finding: how many rows of each list the page publishes, and whether they
+ * reach anyone. Only a published /workflow puts them "on the page"; a draft
+ * or a missing page shows nobody (2026-10-12 audit).
  *
  * @param array $lists workflow_list_map().
+ * @param bool  $live  Whether /workflow is published.
  * @return string
  */
-function workflow_finding( array $lists ) {
+function workflow_finding( array $lists, $live = true ) {
 	$map   = $lists['map'];
 	$rules = $lists['rules'];
 	$proof = $lists['proof'];
@@ -116,17 +119,33 @@ function workflow_finding( array $lists ) {
 	}
 	return sprintf(
 		/* translators: 1: map steps ("4 of 6 map steps"), 2: rules ("8 of 8 rules"), 3: proof links ("3 of 5 proof links") */
-		__( '%1$s, %2$s and %3$s show on the page.', 'signal-and-noise-tools' ),
+		$live ? __( '%1$s, %2$s and %3$s show on the page.', 'signal-and-noise-tools' ) : __( '%1$s, %2$s and %3$s show when /workflow is live; until then none reach a reader.', 'signal-and-noise-tools' ),
 		0 === $map['rows'] ? __( 'no map steps', 'signal-and-noise-tools' )
-			/* translators: 1: map steps on the page, 2: map steps in all */
+			/* translators: 1: map steps the page publishes, 2: map steps in all */
 			: sprintf( _n( '%1$s of %2$s map step', '%1$s of %2$s map steps', $map['rows'], 'signal-and-noise-tools' ), number_format_i18n( $map['shown'] ), number_format_i18n( $map['rows'] ) ),
 		0 === $rules['rows'] ? __( 'no rules', 'signal-and-noise-tools' )
-			/* translators: 1: rules on the page, 2: rules in all */
+			/* translators: 1: rules the page publishes, 2: rules in all */
 			: sprintf( _n( '%1$s of %2$s rule', '%1$s of %2$s rules', $rules['rows'], 'signal-and-noise-tools' ), number_format_i18n( $rules['shown'] ), number_format_i18n( $rules['rows'] ) ),
 		0 === $proof['rows'] ? __( 'no proof links', 'signal-and-noise-tools' )
-			/* translators: 1: proof links on the page, 2: proof links in all */
+			/* translators: 1: proof links the page publishes, 2: proof links in all */
 			: sprintf( _n( '%1$s of %2$s proof link', '%1$s of %2$s proof links', $proof['rows'], 'signal-and-noise-tools' ), number_format_i18n( $proof['shown'] ), number_format_i18n( $proof['rows'] ) )
 	);
+}
+
+/**
+ * The intro: which page this edits, and whether it is live (a draft or a
+ * missing /workflow is named, and not linked: the link would open a 404).
+ *
+ * @param array{status:string,modified:int} $state sn_workflow_page_state().
+ * @return string
+ */
+function workflow_intro( array $state ) {
+	$where = 'publish' === $state['status'] ? \snt_kit_link( '/workflow', home_url( '/workflow' ) ) : \snt_kit_code( '/workflow', false );
+	return '<p class="snt-prose">' . sprintf(
+		/* translators: %s: the /workflow page (a link when it is live) */
+		\snt_kit_esc( __( 'This form is the editor for the %s page. Saving regenerates it; the page does not exist until a save has something to show.', 'signal-and-noise-tools' ) ),
+		$where
+	) . ' ' . \snt_kit_esc( \sn_workflow_state_line( $state ) ) . '</p>';
 }
 
 add_filter(

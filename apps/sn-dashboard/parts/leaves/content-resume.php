@@ -99,8 +99,12 @@ function resume_pdf( array $pdf ) {
 function resume_pdf_generate() {
 	$meta = get_option( defined( 'SN_RESUME_PDF_OPTION' ) ? SN_RESUME_PDF_OPTION : 'sn_resume_pdf' );
 	if ( is_array( $meta ) && ! empty( $meta['url'] ) ) {
-		$status = '<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: 1: timestamp, 2: pages */ __( 'Generated %1$s: %2$d pages.', 'signal-and-noise-tools' ), \sn_resume_pdf_when( $meta ), (int) $meta['pages'] ) )
-			. ' ' . \snt_kit_link( __( 'Open the PDF', 'signal-and-noise-tools' ), \sn_resume_pdf_link( '' ) ) . '</p>';
+		// 2026-10-12 audit: the classic's facts (size, SHA-256, where the
+		// Download link points) restored; "1 pages" made singular.
+		$pages  = (int) ( $meta['pages'] ?? 0 );
+		$status = '<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: 1: timestamp, 2: pages, 3: file size */ _n( 'Generated %1$s: %2$s page, %3$s, SHA-256', 'Generated %1$s: %2$s pages, %3$s, SHA-256', $pages, 'signal-and-noise-tools' ), \sn_resume_pdf_when( $meta ), number_format_i18n( $pages ), size_format( (int) ( $meta['bytes'] ?? 0 ) ) ) )
+			. ' ' . \snt_kit_code( substr( (string) ( $meta['sha256'] ?? '' ), 0, 12 ), false ) . '. '
+			. \snt_kit_link( __( 'Open the PDF', 'signal-and-noise-tools' ), \sn_resume_pdf_link( '' ) ) . '. ' . \snt_kit_esc( __( 'The /resume Download link points here.', 'signal-and-noise-tools' ) ) . '</p>';
 	} else {
 		$status = '<p class="snt-prose">' . \snt_kit_esc( __( 'Not generated yet: the /resume Download link still uses the PDF URL. Generating builds the PDF from the published resume and switches the link to it.', 'signal-and-noise-tools' ) ) . '</p>';
 	}

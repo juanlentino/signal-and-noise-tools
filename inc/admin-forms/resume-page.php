@@ -210,10 +210,6 @@ function sn_admin_render_resume_section() {
 	} else {
 		echo '<p class="sn-fieldset-intro">This form is the editor for the live <a href="' . esc_url( home_url( '/resume' ) ) . '" target="_blank" rel="noopener">/resume</a> page, prefilled from the current published content. Saving stores a draft; the first publish takes over the page body, and from then on this form is the canonical editor.</p>';
 	}
-	if ( function_exists( 'sn_resume_draft_status' ) ) {
-		echo '<p class="sn-fieldset-intro">' . esc_html( sn_resume_draft_status() ) . '</p>';
-	}
-
 	// ── Hero ──
 	sn_rsm_section_open( 'Hero', 'The opening band: summary, credential chips, contact line, and the PDF download.' );
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Summary</span><textarea rows="3" class="large-text" name="resume[hero][summary]">' . esc_textarea( $doc['hero']['summary'] ) . '</textarea></label>';
@@ -266,7 +262,7 @@ function sn_admin_render_resume_section() {
 	echo '</details>';
 
 	// ── Earlier career ──
-	sn_rsm_section_open( 'Earlier career (collapsed fold)', 'Rendered inside a collapsed "details" fold at the end of Experience.', count( $doc['earlier']['entries'] ) );
+	sn_rsm_section_open( 'Earlier career', 'Rendered inside a collapsed "details" fold at the end of Experience.', count( $doc['earlier']['entries'] ) );
 	sn_rsm_input( 'resume[earlier][label]', $doc['earlier']['label'], 'Fold label', 'Earlier career · 1997 - 2015' );
 	echo '<div class="sn-rsm-list" data-rsm-list="earlier">';
 	$i = 0;
@@ -369,7 +365,7 @@ function sn_admin_render_resume_section() {
 	sn_rsm_input( 'resume[pdf][location]', (string) ( $pdf['location'] ?? '' ), 'Location', 'Orlando, FL' );
 	sn_rsm_input( 'resume[pdf][phone]', (string) ( $pdf['phone'] ?? '' ), 'Phone', '(000) 000-0000' );
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">' . esc_html( 'Include the phone in the public PDF' ) . '</span><input type="checkbox" name="resume[pdf][phone_public]" value="1"' . ( ! empty( $pdf['phone_public'] ) ? ' checked="checked"' : '' ) . '></label>';
-	echo '<p class="description">Off: the public PDF (the /resume Download link) leaves the phone out, and only the private copy below carries it. The web page never shows it either way.</p>';
+	echo '<p class="description">Off: the public PDF (the /resume Download link) leaves the phone out, and only the private copy carries it. The web page never shows it either way.</p>';
 	sn_rsm_input( 'resume[pdf][email]', (string) ( $pdf['email'] ?? '' ), 'Email', 'name@example.com' );
 	sn_rsm_input( 'resume[pdf][website]', (string) ( $pdf['website'] ?? '' ), 'Website', 'https://juanlentino.com (blank: this site)' );
 	sn_rsm_lines( 'resume[pdf][competencies]', (array) ( $pdf['competencies'] ?? array() ), 'Core competencies: one per line', 'Strategic Partnerships & Deal Negotiation', 6 );
@@ -399,11 +395,13 @@ function sn_admin_render_resume_pdf_generate() {
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Resume PDF</h2>';
 	if ( is_array( $meta ) && ! empty( $meta['url'] ) ) {
-		echo '<p class="sn-fieldset-intro">Generated ' . esc_html( sn_resume_pdf_when( $meta ) ) . ': '
-			. esc_html( (string) (int) $meta['pages'] ) . ' pages, ' . esc_html( size_format( (int) $meta['bytes'] ) ) . ', SHA-256 <code>' . esc_html( substr( (string) $meta['sha256'], 0, 12 ) ) . '</code>. '
+		$pages = (int) ( $meta['pages'] ?? 0 );
+		/* translators: 1: timestamp, 2: pages, 3: file size */
+		echo '<p class="sn-fieldset-intro">' . esc_html( sprintf( _n( 'Generated %1$s: %2$s page, %3$s, SHA-256', 'Generated %1$s: %2$s pages, %3$s, SHA-256', $pages, 'signal-and-noise-tools' ), sn_resume_pdf_when( $meta ), number_format_i18n( $pages ), size_format( (int) ( $meta['bytes'] ?? 0 ) ) ) )
+			. ' <code>' . esc_html( substr( (string) ( $meta['sha256'] ?? '' ), 0, 12 ) ) . '</code>. '
 			. '<a href="' . esc_url( sn_resume_pdf_link( '' ) ) . '" target="_blank" rel="noopener">Open the PDF</a>. The /resume Download link points here.</p>';
 	} else {
-		echo '<p class="sn-fieldset-intro">Not generated yet: the /resume Download link still uses the PDF URL set above. Generating builds the PDF from the published resume and switches the link to it.</p>';
+		echo '<p class="sn-fieldset-intro">Not generated yet: the /resume Download link still uses the PDF URL. Generating builds the PDF from the published resume and switches the link to it.</p>';
 	}
 	if ( function_exists( 'snt_pdf_engine_status_line' ) ) {
 		echo '<p class="description">' . esc_html( snt_pdf_engine_status_line() ) . '</p>';
