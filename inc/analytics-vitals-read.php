@@ -32,16 +32,41 @@ function sn_analytics_vitals_rows( $dim, $from, $to, $class, array $paths = arra
 		substr( $lo, 0, 10 ),
 		$hi
 	);
-	$cap = defined( 'SN_ANALYTICS_AE_ROW_CAP' ) ? SN_ANALYTICS_AE_ROW_CAP : 10000;
-	if ( null === $sets || array() !== array_filter( $sets, static fn( $s ) => count( $s ) >= $cap ) ) {
+	$cap  = defined( 'SN_ANALYTICS_AE_ROW_CAP' ) ? SN_ANALYTICS_AE_ROW_CAP : 10000;
+	$what = 'path' === $dim ? 'the by-path read' : 'the by-device read';
+	if ( null === $sets ) {
+		$err = function_exists( 'sn_analytics_last_error' ) ? sn_analytics_last_error() : null;
+		// The code and the body excerpt only: the URL carries the account id.
+		$why = is_array( $err ) ? ' (Analytics Engine said HTTP ' . (int) $err['code'] . ': ' . (string) $err['message'] . ')' : '';
+		sn_analytics_vitals_failure( $what . ' failed' . $why );
+		return null;
+	}
+	if ( array() !== array_filter( $sets, static fn( $s ) => count( $s ) >= $cap ) ) {
+		sn_analytics_vitals_failure( $what . ' reached the row cap, so its distribution would be partial' );
 		return null;
 	}
 	return array_merge( ...$sets );
 }
 
 /**
+ * Why the last vitals read failed, in words: which leg, and the reason that
+ * leg gave. '' after a read that answered.
+ *
+ * @param string|null $set Internal: record a reason. Callers pass nothing.
+ * @return string
+ */
+function sn_analytics_vitals_failure( $set = null ) {
+	static $why = '';
+	if ( null !== $set ) {
+		$why = (string) $set;
+	}
+	return $why;
+}
+
+/**
  * The vitals payload for a window: thresholds, site-wide, per device, and per
- * top path. Cached 15 minutes (a failure 5). Null when a read failed.
+ * top path. Cached 15 minutes (a failure 5, as its reason). Null when a
+ * read failed; sn_analytics_vitals_failure() then says which leg and why.
  * $limit 0 is the devices-only read the Engagement twins use: no top-paths
  * query and no path query, so a path read cannot blank the device rows.
  *
@@ -56,14 +81,19 @@ function sn_analytics_vitals( $from, $to, $class = 'human', $limit = 10 ) {
 	list( $lo, $hi ) = sn_analytics_local_day_bounds_utc( $from, $to );
 	$key    = 'sn_vitals_' . md5( $from . '|' . $to . '|' . $class . '|' . $limit . sn_analytics_read_key( substr( $lo, 0, 10 ), $hi ) );
 	$cached = get_transient( $key );
+	sn_analytics_vitals_failure( '' );
 	if ( false !== $cached ) {
-		return is_array( $cached ) ? $cached : null;
+		if ( ! is_array( $cached ) ) {
+			sn_analytics_vitals_failure( '' !== (string) $cached ? (string) $cached : 'an earlier read failed' );
+			return null;
+		}
+		return $cached;
 	}
 	$paths   = $limit > 0 ? sn_analytics_vitals_top_paths( $from, $to, $class, $limit ) : array();
 	$devices = null === $paths ? null : sn_analytics_vitals_rows( 'device', $from, $to, $class );
 	$by_path = null === $devices ? null : sn_analytics_vitals_rows( 'path', $from, $to, $class, $paths );
 	if ( null === $by_path ) {
-		set_transient( $key, '', 5 * MINUTE_IN_SECONDS );
+		set_transient( $key, sn_analytics_vitals_failure(), 5 * MINUTE_IN_SECONDS );
 		return null;
 	}
 	$thresholds = array();
@@ -101,6 +131,7 @@ function sn_analytics_vitals( $from, $to, $class = 'human', $limit = 10 ) {
 function sn_analytics_vitals_top_paths( $from, $to, $class, $limit ) {
 	$top = sn_analytics_top_paths( $from, $to, $class, $limit );
 	if ( isset( $GLOBALS['wpdb'] ) && '' !== (string) ( $GLOBALS['wpdb']->last_error ?? '' ) ) {
+		sn_analytics_vitals_failure( 'the top-paths read (the daily analytics table) failed: ' . substr( (string) $GLOBALS['wpdb']->last_error, 0, 200 ) );
 		return null;
 	}
 	$paths = array_map( static fn( $r ) => sn_analytics_canonical_path( (string) $r['path'] ), (array) $top );
@@ -116,7 +147,7 @@ function snt_ability_get_analytics_vitals( $input ) {
 	list( $win, $class, $limit ) = $a;
 	$v = sn_analytics_vitals( $win['from'], $win['to'], $class, min( 50, $limit ) );
 	if ( null === $v ) {
-		return new WP_Error( 'snt_metrics_read', 'The Core Web Vitals read failed.' );
+		return new WP_Error( 'snt_metrics_read', 'The Core Web Vitals read failed: ' . sn_analytics_vitals_failure() . '.' );
 	}
 	return $win + array( 'class' => $class ) + $v;
 }

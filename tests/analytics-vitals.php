@@ -24,6 +24,8 @@ $GLOBALS['__q'] = array();
 function sn_analytics_query( $sql ) { $GLOBALS['__q'][] = $sql; return false !== strpos( $sql, 'blob2 IN' ) ? $GLOBALS['__path_rows'] : $GLOBALS['__dev_rows']; }
 $GLOBALS['__top_calls'] = 0;
 function sn_analytics_top_paths( $from, $to, $class, $limit ) { ++$GLOBALS['__top_calls']; return array( array( 'path' => '/notes/a/' ), array( 'path' => '/' ), array( 'path' => "/x') OR 1=1 --" ) ); }
+$GLOBALS['__ae_err'] = null;
+function sn_analytics_last_error() { return $GLOBALS['__ae_err']; }
 function sn_analytics_canonical_path( $p ) { $t = rtrim( (string) $p, '/' ); return '' === $t ? '/' : $t; }
 
 require_once __DIR__ . '/../inc/analytics-vitals.php';
@@ -35,7 +37,12 @@ echo "Field Core Web Vitals read\n\n";
 
 echo "Group: the SQL\n";
 $sql = sn_analytics_vitals_sql( 'device', '2026-09-14', '2026-10-11', 'human', array(), 'sn_pageviews' );
-ok( false !== strpos( $sql, "SELECT blob1 AS e, blob5 AS k, if(blob1 = 'vc', double7, ceil(double7 / 10) * 10) AS v, sum(_sample_interval) AS w" ), 'device: event, device, value, weight; LCP and INP grouped in 10 ms steps (rounded up), CLS as stored' );
+ok( false !== strpos( $sql, "SELECT blob1 AS e, blob5 AS k, ceil(double7 / if(blob1 = 'vc', 1, 10)) * if(blob1 = 'vc', 1, 10) AS v, sum(_sample_interval) AS w" ), 'device: event, device, value, weight; LCP and INP grouped in 10 ms steps, CLS in steps of 0.001 (x1000 stored), rounded up' );
+// The live 2026.10.8 failure: AE answered HTTP 422, "the 2nd and 3rd arguments
+// to IF() function must have the same type but instead had Double and Integer".
+// Every if() in the statement must have two branches of one type: integer literals.
+preg_match_all( '/\bif\(([^()]*)\)/', $sql, $ifs );
+ok( array() !== $ifs[1] && array() === array_filter( $ifs[1], static fn( $a ) => 1 !== preg_match( "/^blob1 = 'vc', \d+, \d+$/", $a ) ), 'every if() picks between two integer literals (AE refuses Double and Integer branches)' );
 ok( false !== strpos( $sql, "blob1 IN ('vl','vi','vc')" ), 'one query for all three vitals' );
 ok( false !== strpos( $sql, 'GROUP BY e, k, v' ) && 1 !== preg_match( '/GROUP BY[^\n]*\(/', $sql ), 'GROUP BY takes aliases only (AE refuses a function there)' );
 ok( false !== strpos( $sql, "toDateTime('2026-09-14 00:00:00')" ) && false !== strpos( $sql, "toDateTime('2026-10-11 23:59:59')" ), 'explicit window bounds' );
@@ -108,14 +115,33 @@ $GLOBALS['__path_rows'] = $saved;
 $GLOBALS['__t'] = array();
 $GLOBALS['wpdb'] = (object) array( 'last_error' => 'Table is marked as crashed' );
 ok( null === sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 ), 'a top-paths read that failed in the database is no answer, not an empty list' );
+ok( 0 === strpos( sn_analytics_vitals_failure(), 'the top-paths read' ) && false !== strpos( sn_analytics_vitals_failure(), 'marked as crashed' ), 'the reason names the top-paths leg and the database error' );
 unset( $GLOBALS['wpdb'] );
 
 $GLOBALS['__t'] = array();
 $GLOBALS['__dev_rows'] = null;
+$GLOBALS['__ae_err'] = array( 'url' => 'https://api.cloudflare.com/client/v4/accounts/SECRETACCT/analytics_engine/sql', 'code' => 422, 'message' => 'Input was invalid', 'when' => 0 );
 ok( null === sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 ), 'a failed read is null, never zeros' );
+$why = sn_analytics_vitals_failure();
+ok( 0 === strpos( $why, 'the by-device read failed' ) && false !== strpos( $why, 'HTTP 422: Input was invalid' ), 'the reason names the by-device leg and what Analytics Engine said' );
+ok( false === strpos( $why, 'SECRETACCT' ), 'the reason never carries the request URL (it holds the account id)' );
+sn_analytics_vitals_failure( '' );
+ok( null === sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 ) && $why === sn_analytics_vitals_failure(), 'a cached failure still says why, for its 5 minutes' );
+$GLOBALS['__ae_err'] = null;
 $GLOBALS['__t'] = array();
 $GLOBALS['__dev_rows'] = array_fill( 0, 50, $rows[0] );
 ok( null === sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 ), 'a read at the row cap is a partial distribution: null' );
+ok( false !== strpos( sn_analytics_vitals_failure(), 'row cap' ), 'the reason says the row cap, not a failure' );
+
+echo "\nGroup: the ability says which leg failed\n";
+class WP_Error { public $m; function __construct( $c, $m ) { $this->m = $m; } }
+function is_wp_error( $x ) { return $x instanceof WP_Error; }
+function snt_metrics_args( $i ) { return array( array( 'from' => '2026-09-14', 'to' => '2026-10-11' ), 'human', 5 ); }
+$GLOBALS['__t'] = array();
+$GLOBALS['__dev_rows'] = null;
+$GLOBALS['__ae_err'] = array( 'url' => 'u', 'code' => 422, 'message' => 'bad', 'when' => 0 );
+$e = snt_ability_get_analytics_vitals( array() );
+ok( $e instanceof WP_Error && 'The Core Web Vitals read failed: the by-device read failed (Analytics Engine said HTTP 422: bad).' === $e->m, 'the ability error names the leg and the reason' );
 
 echo "\nGroup: the two Engagement twins say the same sentences\n";
 $classic = (string) file_get_contents( __DIR__ . '/../inc/analytics-render-distribution.php' );

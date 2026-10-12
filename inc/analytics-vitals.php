@@ -77,10 +77,14 @@ function sn_analytics_vitals_sql( $dim, $from, $to, $class, array $paths, $sourc
 	list( $lo, $hi ) = sn_analytics_local_day_bounds_utc( $from, $to );
 	return implode( ' ', array(
 		// LCP and INP arrive as whole ms, so a raw value per row runs into the
-		// row cap; they group into 10 ms steps, rounded up so a value lands in
-		// the same good / poor band it would raw (every threshold is a multiple
-		// of 10). p75 reads under 10 ms high. CLS keeps its stored x1000 value.
-		"SELECT blob1 AS e, {$col} AS k, if(blob1 = 'vc', double7, ceil(double7 / 10) * 10) AS v, sum(_sample_interval) AS w",
+		// row cap; they group into 10 ms steps, CLS (stored x1000) into steps of
+		// 1, i.e. 0.001. Rounded up, so a value lands in the same good / poor
+		// band it would raw (every threshold is a multiple of its step); p75
+		// reads under one step high. One expression with the step chosen by
+		// if() over two integer literals: AE refuses an if() whose branches
+		// differ in type, and ceil() is an Integer while double7 is a Double
+		// (HTTP 422 on 2026.10.8, every vitals read failed).
+		"SELECT blob1 AS e, {$col} AS k, ceil(double7 / if(blob1 = 'vc', 1, 10)) * if(blob1 = 'vc', 1, 10) AS v, sum(_sample_interval) AS w",
 		'FROM ' . $source,
 		"WHERE blob1 IN ({$events}) AND " . sn_analytics_class_where( $class ) . $in,
 		"AND timestamp >= toDateTime('{$lo}')",
