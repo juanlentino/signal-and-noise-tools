@@ -17,7 +17,7 @@ function _n( $one, $many, $n, $d = null ) { return 1 === (int) $n ? $one : $many
 // 2026-10-12: the run date prints through wp_date() in the site's date format
 // (WordPress's default here) and zone (America/New_York, behind UTC).
 function get_option( $k, $d = false ) { return $d; }
-function wp_date( $format, $ts = null, $tz = null ) { $d = new DateTime( '@' . (int) $ts ); $d->setTimezone( new DateTimeZone( 'America/New_York' ) ); return $d->format( $format ); }
+function wp_date( $format, $ts = null, $tz = null ) { $d = new DateTime( '@' . (int) $ts ); $d->setTimezone( $tz instanceof DateTimeZone ? $tz : new DateTimeZone( $GLOBALS['__site_tz'] ?? 'America/New_York' ) ); return $d->format( $format ); }
 require dirname( __DIR__ ) . '/inc/health-contrast-rendered.php';
 
 $pass = 0; $fail = 0;
@@ -58,6 +58,12 @@ ok( 'snt_contrast_rendered_v2' === SN_CONTRAST_RENDERED_CACHE, 'the cache key mo
 echo "\nGroup: the line\n";
 $h = snt_contrast_rendered_html( snt_contrast_rendered_evaluate( $run( 'success' ), array( $summary ) ), 'snt-hint' );
 ok( false !== strpos( $h, 'on 40 pages (1300 pairs, 95 links)' ) && false !== strpos( $h, '<a class="snt-link" href="https://github.com/juanlentino/signal-and-noise/actions/runs/1" target="_blank" rel="noopener noreferrer">October 7, 2026</a>' ) && false === strpos( $h, '2026-10-07' ), 'ok names its scope and links the run by its date, in the site\'s date format (never the raw ISO date), keeping its day in a zone behind UTC' );
+// 2026-10-12 review: a site at UTC+13 (noon UTC is 1 am the next day there)
+// still reads the run's own UTC day.
+$GLOBALS['__site_tz'] = 'Pacific/Tongatapu';
+$h13 = snt_contrast_rendered_html( snt_contrast_rendered_evaluate( $run( 'success' ), array( $summary ) ), 'snt-hint' );
+unset( $GLOBALS['__site_tz'] );
+ok( false !== strpos( $h13, '>October 7, 2026</a>' ) && false === strpos( $h13, 'October 8' ), 'at UTC+13 the run date is still its own day, not shifted to the next' );
 $h = snt_contrast_rendered_html( snt_contrast_rendered_evaluate( $run( 'failure' ), array( array( 'annotation_level' => 'failure' ) ) ), 'snt-hint' );
 ok( false !== strpos( $h, '>1 failure</a>' ), 'red links its failure count to the run that names each (an amber line links to its fix)' );
 $h = snt_contrast_rendered_html( snt_contrast_rendered_evaluate( null, null ), 'snt-hint' );

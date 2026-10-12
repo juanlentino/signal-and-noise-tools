@@ -6,7 +6,7 @@
  * paints nothing but a static grid of external shortcuts: three groups (Source
  * code, Releases, Infrastructure) of two links each, each link shown with its
  * group label, its title as the link, and its host (derived per-link via
- * `wp_parse_url( $href, PHP_URL_HOST )`, purely for display). No DB/option reads, no `$_GET`, no forms, no nonces — the simplest
+ * `wp_parse_url( $href, PHP_URL_HOST )`, purely for display). No DB/option reads, no `$_GET`, no forms, no nonces: the simplest
  * leaf in the tab. Same three groups, same six links, same hosts, one grid;
  * the kit's parts instead of wp-admin's `.sn-link-grid` / `.sn-link-card`.
  *

@@ -375,6 +375,12 @@ function sn_prov_perform_rotation_with( $when, $publisher ) {
 	if ( ! sn_prov_rotation_reveal_matches( $fetched['public_key_base64'], $commitment['value'] ) ) {
 		return $fail( 'reveal-mismatch' );
 	}
+	// The last refusal sn_prov_rotate_to() can make, made here too: with no
+	// active key to retire, the ledger would record a handover the site then
+	// refuses, and the result notice's "Nothing changed" would be untrue.
+	if ( '' === trim( (string) sn_prov_pubkey_b64() ) || '' === trim( (string) sn_prov_key_id() ) ) {
+		return $fail( 'no-active-key' );
+	}
 
 	$published = call_user_func( $publisher, $key_id, $when );
 	if ( empty( $published['ok'] ) ) {

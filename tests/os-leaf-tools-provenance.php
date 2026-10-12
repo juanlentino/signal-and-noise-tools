@@ -234,7 +234,13 @@ ok( false !== strpos( $classic, 'Import or repair 2 notes and pages from the led
 ok( 1 === preg_match( '/<a [^>]*href="https:\/\/ledger\.test\/notes\/[^"]*"[^>]*>v1 on the ledger<\/a>/', $kit ), 'the commits table\'s Ledger cell is a link reading "v1 on the ledger"' );
 ok( false === strpos( $kit, '—' ) && false === strpos( $kit, '&#8212;' ), 'no em dash anywhere in the leaf' );
 $prov_js = (string) file_get_contents( SNT_PATH . 'assets/provenance-admin.js' );
-ok( false !== strpos( $prov_js, "' on the ledger'" ) && false !== strpos( $prov_js, "'No ledger record'" ) && false === strpos( $prov_js, "createTextNode('—')" ) && false === strpos( $prov_js, 'All commits anchored' ), 'the classic poller says the same: the record linked by name, "No ledger record", and the kit\'s empty sentence' );
+ok( false === strpos( $prov_js, "createTextNode('—')" ) && false === strpos( $prov_js, 'All commits anchored' ), 'the classic poller paints no dash and no "All commits anchored"' );
+// 2026-10-12 review: the poller's words come translated from the tbody the
+// server paints, the kit's own strings, never English hard-coded in the script.
+foreach ( array( 'data-text-ledger="v%s on the ledger"', 'data-text-no-ledger="No ledger record"', 'data-text-empty="No pending proofs; a new one appears here within 30 seconds of minting."', 'data-text-error="Status check failed: reload the page to check again."' ) as $attr ) {
+	ok( false !== strpos( $classic, $attr ), "classic tbody carries $attr" );
+}
+ok( false !== strpos( $prov_js, "text(live, 'ledger'," ) && false !== strpos( $prov_js, "text(live, 'no-ledger'," ) && false !== strpos( $prov_js, "text(live, 'empty'," ) && false !== strpos( $prov_js, "text(live, 'error'," ), 'and the poller reads each one from there' );
 
 // ────────────────────────────────────────────────────────────────────────
 // 4. Escaping: a hostile signing-key id and a hostile genesis root never
@@ -353,10 +359,30 @@ $cl_cut  = snt_leaf_classic_html( 'sn_admin_render_provenance_section' );
 ok( false !== strpos( $kit_cut, '+2 older proofs waiting are not listed; the table reads the newest 100 subjects.' ), '102 waiting, 100 listed: the kit says what the table leaves out' );
 ok( false !== strpos( $cl_cut, '+2 older proofs waiting are not listed; the table reads the newest 100 subjects.' ), '...and the classic page says the same under its table' );
 ok( 1 === preg_match( '/<os-stat[^>]*value="100"[^>]*label="Pending"/', $kit_cut ) && 1 === preg_match( '/<os-stat[^>]*value="2"[^>]*label="Not sent"[^>]*tone="warning"|<os-stat[^>]*tone="warning"[^>]*value="2"[^>]*label="Not sent"/', $kit_cut ), 'the tiles count every subject: Pending 100, Not sent 2 (amber)' );
+// 2026-10-12 review: the newest 100 subjects all confirmed, the 2 oldest
+// pending. The Pending tile reads 2, so the empty table must not say "No
+// pending proofs": it says where they are, once, on both surfaces.
+foreach ( $GLOBALS['__prov_ids'] as $n => $i ) {
+	$GLOBALS['__prov_chains'][ $i ] = array( array( 'version' => 1, 'status' => $n < 100 ? 'confirmed' : 'pending', 'committed_at' => '2026-09-04T10:00:00Z' ) );
+}
+$kit_old = prov_paint();
+$cl_old  = snt_leaf_classic_html( 'sn_admin_render_provenance_section' );
+ok( 1 === preg_match( '/<os-stat value="2" label="Pending"/', $kit_old ) && false !== strpos( $kit_old, 'None of the newest 100 subjects has a proof waiting; 2 older ones do.' ) && false === strpos( $kit_old, 'No pending proofs' ), 'kit: Pending 2 with an empty table says "None of the newest 100 subjects has a proof waiting; 2 older ones do.", never "No pending proofs"' );
+ok( false === strpos( $kit_old, 'older proofs waiting are not listed' ), '...and says it once: no "+2 older" line under an empty table' );
+ok( false !== strpos( $cl_old, 'data-unlisted="2"' ) && false !== strpos( $cl_old, 'data-text-empty-cut="None of the newest 100 subjects has a proof waiting; 2 older ones do."' ) && false === strpos( $cl_old, 'older proofs waiting are not listed' ), 'classic: the tbody hands the poller the cut and that sentence, and no "+2" line repeats it' );
+$prov_js = (string) file_get_contents( SNT_PATH . 'assets/provenance-admin.js' );
+ok( false !== strpos( $prov_js, "Number(live.getAttribute('data-unlisted')) > 0" ) && false !== strpos( $prov_js, "text(live, 'empty-cut'," ), 'the poller picks the cut sentence from data-unlisted' );
+// One older proof: the singular, on both lines.
+$GLOBALS['__prov_ids'] = range( 1001, 1101 );
+$kit_one = prov_paint();
+ok( false !== strpos( $kit_one, 'None of the newest 100 subjects has a proof waiting; 1 older one does.' ), 'one older proof: "1 older one does" (_n)' );
+ok( '+1 older proof waiting is not listed; the table reads the newest 100 subjects.' === sn_prov_admin_unlisted_line( 1 ), 'and the cut line is singular at 1' );
+$GLOBALS['__prov_ids'] = range( 1001, 1102 );
 foreach ( $GLOBALS['__prov_ids'] as $i ) {
 	unset( $GLOBALS['__prov_chains'][ $i ], $GLOBALS['__prov_kind'][ $i ], $GLOBALS['__prov_uid'][ $i ] );
 }
 $GLOBALS['__prov_ids'] = array();
+ok( '1 published note or page cannot be verified yet.' === substr( sn_prov_backfill_copy( 'intro', 1 ), 0, 48 ) && 'Import or repair 1 note or page from the ledger' === sn_prov_backfill_copy( 'button', 1 ), 'the backfill copy is singular at 1 (_n)' );
 
 // ── 6d. The Internet Archive box: "not configured" is neutral and said once;
 // a push that got no response says so, never "HTTP 0".
@@ -379,6 +405,14 @@ $GLOBALS['__options']['sn_archive_push_last'] = array( 'post_id' => 7, 'requeste
 $arch_kit = \SignalNoise\OpenStationHost\Dashboard\Leaves\provenance_archive_html();
 ok( false !== strpos( $arch_kit, 'no response' ) && false === strpos( $arch_kit, 'HTTP 0' ) && false !== strpos( $arch_kit, 'tone="warning"' ), 'a failed push with no response reads "no response", never "HTTP 0", in an amber notice' );
 ok( false !== strpos( $arch_kit, 'Older notes:' ), 'configured: the older-notes line is back' );
+// 2026-10-12 review: keys removed within a week of a failed push. The notice
+// reports the failure, so the run line is the only one left to say the keys
+// are gone: it stays on both surfaces.
+unset( $GLOBALS['__arch_keys'] );
+$arch_kit = \SignalNoise\OpenStationHost\Dashboard\Leaves\provenance_archive_html();
+$arch_cl  = snt_leaf_classic_html( 'sn_archive_existing_render_fieldset' );
+ok( false !== strpos( $arch_kit, 'Push FAILED' ) && false !== strpos( $arch_kit, 'Older notes:</strong> Not configured' ), 'keys removed after a failed push: the kit still says "not configured" beside the failure' );
+ok( false !== strpos( $arch_cl, 'Push FAILED' ) && false !== strpos( $arch_cl, 'Older notes:</strong> Not configured' ), '...and so does the classic box' );
 unset( $GLOBALS['__options']['sn_archive_push_last'], $GLOBALS['__arch_keys'] );
 
 // ────────────────────────────────────────────────────────────────────────

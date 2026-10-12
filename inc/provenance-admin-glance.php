@@ -149,6 +149,25 @@ function sn_prov_admin_unlisted( array $sys, $listed ) {
 function sn_prov_admin_unlisted_line( $hidden ) {
 	return (int) $hidden > 0
 		/* translators: %s: proofs waiting that the table does not list. */
-		? sprintf( __( '+%s older proofs waiting are not listed; the table reads the newest 100 subjects.', 'signal-and-noise-tools' ), number_format_i18n( (int) $hidden ) )
+		? sprintf( _n( '+%s older proof waiting is not listed; the table reads the newest 100 subjects.', '+%s older proofs waiting are not listed; the table reads the newest 100 subjects.', (int) $hidden, 'signal-and-noise-tools' ), number_format_i18n( (int) $hidden ) )
 		: '';
+}
+
+/**
+ * The Commits table's empty sentence on both surfaces. With nothing cut it
+ * says no proof is pending; when older subjects past the newest-100 cut hold
+ * proofs waiting, "No pending proofs" beside a Pending tile above 0 was
+ * untrue (2026-10-12 review), so it says where they are.
+ *
+ * @param int $hidden From sn_prov_admin_unlisted().
+ * @return string
+ */
+function sn_prov_admin_empty_line( $hidden ) {
+	return (int) $hidden > 0
+		? sprintf(
+			/* translators: %s: proofs waiting among subjects older than the newest 100. */
+			_n( 'None of the newest 100 subjects has a proof waiting; %s older one does.', 'None of the newest 100 subjects has a proof waiting; %s older ones do.', (int) $hidden, 'signal-and-noise-tools' ),
+			number_format_i18n( (int) $hidden )
+		)
+		: __( 'No pending proofs; a new one appears here within 30 seconds of minting.', 'signal-and-noise-tools' );
 }

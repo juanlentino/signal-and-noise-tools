@@ -28,12 +28,17 @@ function sn_prov_backfill_copy( $part, $detail ) {
 		case 'intro':
 			return sprintf(
 				/* translators: %s: number of candidate subjects (notes and opted-in pages). */
-				__( '%s published notes and pages cannot be verified yet. Each has a proof on the public ledger but none on this site, or the one here is missing its signature, so /verify tells a reader no proof exists. Importing reads each record from the ledger and checks it against its own hash first; a repair only fills in the missing signature.', 'signal-and-noise-tools' ),
+				_n(
+					'%s published note or page cannot be verified yet. It has a proof on the public ledger but none on this site, or the one here is missing its signature, so /verify tells a reader no proof exists. Importing reads the record from the ledger and checks it against its own hash first; a repair only fills in the missing signature.',
+					'%s published notes and pages cannot be verified yet. Each has a proof on the public ledger but none on this site, or the one here is missing its signature, so /verify tells a reader no proof exists. Importing reads each record from the ledger and checks it against its own hash first; a repair only fills in the missing signature.',
+					(int) $detail,
+					'signal-and-noise-tools'
+				),
 				number_format_i18n( (int) $detail )
 			);
 		case 'button':
 			/* translators: %s: number of candidate notes and pages. */
-			return sprintf( __( 'Import or repair %s notes and pages from the ledger', 'signal-and-noise-tools' ), number_format_i18n( (int) $detail ) );
+			return sprintf( _n( 'Import or repair %s note or page from the ledger', 'Import or repair %s notes and pages from the ledger', (int) $detail, 'signal-and-noise-tools' ), number_format_i18n( (int) $detail ) );
 		case 'hint':
 			return sprintf(
 				/* translators: %s: the per-run time budget in seconds. */
@@ -100,7 +105,7 @@ function sn_prov_backfill_render_fieldset() {
 }
 
 /**
- * admin_post handler — the sn_prov_runsweep pattern: nonce + manage_options,
+ * admin_post handler, the sn_prov_runsweep pattern: nonce + manage_options,
  * result in a short per-user transient, redirect back to the Provenance sub-tab.
  */
 function sn_prov_backfill_handler() {

@@ -27,9 +27,11 @@ function sn_archive_existing_render_fieldset() {
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Internet Archive', 'signal-and-noise-tools' ) . '</h2>';
 	echo '<p class="sn-fieldset-intro">' . esc_html__( 'A note is pushed to the Internet Archive on its first publish, so a dated outside copy exists from day one. An accepted request is not a confirmed capture; the crawl runs later.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p>' . esc_html( ucfirst( $watch['note'] ) ) . '</p>';
-	// Not configured is said once, by the line above; the run line would repeat it.
+	// Not configured is said once, by the watch line; the run line would repeat
+	// it. A failed push outranks it there, so then the run line stays: it is
+	// the only place that says the keys are gone.
 	$configured = null !== sn_archive_push_keys();
-	if ( $configured ) {
+	if ( $configured || $watch['ripe'] ) {
 		echo '<p><strong>' . esc_html__( 'Older notes:', 'signal-and-noise-tools' ) . '</strong> ' . esc_html( sn_archive_existing_status_line() ) . '</p>';
 	}
 	if ( $pending > 0 && 'running' !== ( $run['state'] ?? '' ) && $configured ) {

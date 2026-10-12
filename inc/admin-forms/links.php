@@ -40,6 +40,8 @@ function sn_admin_render_links_section() {
 			),
 		),
 	);
+	// The S&N Home twin's heading (2026-10-12): one box, all six cards.
+	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'External shortcuts', 'signal-and-noise-tools' ) . '</h2>';
 	echo '<div class="sn-link-grid">';
 	foreach ( $link_groups as $group ) {
 		foreach ( $group['links'] as $link ) {

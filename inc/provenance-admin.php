@@ -588,14 +588,26 @@ function sn_prov_admin_render_commits_fieldset( $note_base, array $sys = array()
 		. '<th>' . esc_html__( 'Status', 'signal-and-noise-tools' ) . '</th>'
 		. '<th>' . esc_html__( 'Ledger', 'signal-and-noise-tools' ) . '</th>'
 		. '</tr></thead>';
+	// The cut (proofs waiting past the newest 100 subjects), counted once per
+	// load. The poller reads it, and every sentence it paints, from the tbody:
+	// translated here, never English hard-coded in the script (2026-10-12).
+	$listed = array() !== $sys ? count( sn_prov_admin_status()['pending'] ) : 0;
+	$hidden = array() !== $sys ? sn_prov_admin_unlisted( $sys, $listed ) : 0;
 	echo '<tbody class="sn-prov-live" aria-live="polite"'
 		. ' data-endpoint="' . esc_attr( esc_url_raw( rest_url( 'sn-prov/v1/status' ) ) ) . '"'
 		. ' data-nonce="' . esc_attr( wp_create_nonce( 'wp_rest' ) ) . '"'
-		. ' data-ledger="' . esc_attr( esc_url_raw( (string) $note_base ) ) . '">';
+		. ' data-ledger="' . esc_attr( esc_url_raw( (string) $note_base ) ) . '"'
+		. ' data-unlisted="' . esc_attr( (string) $hidden ) . '"'
+		. ' data-text-empty="' . esc_attr( sn_prov_admin_empty_line( 0 ) ) . '"'
+		. ' data-text-empty-cut="' . esc_attr( sn_prov_admin_empty_line( $hidden ) ) . '"'
+		/* translators: %s: commit version number. */
+		. ' data-text-ledger="' . esc_attr( __( 'v%s on the ledger', 'signal-and-noise-tools' ) ) . '"'
+		. ' data-text-no-ledger="' . esc_attr( __( 'No ledger record', 'signal-and-noise-tools' ) ) . '"'
+		. ' data-text-error="' . esc_attr( __( 'Status check failed: reload the page to check again.', 'signal-and-noise-tools' ) ) . '">';
 	echo '<tr><td colspan="4">' . esc_html__( 'Loading anchor status…', 'signal-and-noise-tools' ) . '</td></tr>';
 	echo '</tbody></table>';
-	// Outside the tbody the poller rewrites: the cut is counted once per load.
-	$line = array() !== $sys ? sn_prov_admin_unlisted_line( sn_prov_admin_unlisted( $sys, count( sn_prov_admin_status()['pending'] ) ) ) : '';
+	// Said once: under listed rows, or by the empty sentence when none are.
+	$line = $listed > 0 ? sn_prov_admin_unlisted_line( $hidden ) : '';
 	if ( '' !== $line ) {
 		echo '<p class="sn-field-helper">' . esc_html( $line ) . '</p>';
 	}

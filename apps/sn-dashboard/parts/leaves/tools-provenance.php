@@ -152,15 +152,18 @@ function provenance_data( array $ctx ) {
 
 /**
  * The empty-table sentence: pending proofs are this table's whole subject,
- * so it says there are none, and then defers to the Provenance integrity
- * check's LAST READING (the name Health and Trust checks use) when that reading disagrees with "all is well". Anchored (the
- * proof landed) and intact (the twin still matches) are different questions;
- * the sweep answers the second and this table never does.
+ * so it says there are none (or, when the newest-100 cut leaves some out,
+ * where they are: sn_prov_admin_empty_line(), the classic poller's words
+ * too), and then defers to the Provenance integrity check's LAST READING
+ * when that reading disagrees with "all is well". Anchored (the proof landed)
+ * and intact (the twin still matches) are different questions; the sweep
+ * answers the second and this table never does.
  *
+ * @param int $hidden Proofs waiting past the table's cut.
  * @return string
  */
-function provenance_commits_empty_copy() {
-	$copy  = __( 'No pending proofs; a new one appears here within 30 seconds of minting.', 'signal-and-noise-tools' );
+function provenance_commits_empty_copy( $hidden = 0 ) {
+	$copy  = function_exists( 'sn_prov_admin_empty_line' ) ? sn_prov_admin_empty_line( (int) $hidden ) : __( 'No pending proofs; a new one appears here within 30 seconds of minting.', 'signal-and-noise-tools' );
 	$state = function_exists( 'sn_prov_integrity_state' ) ? sn_prov_integrity_state() : null;
 	if ( is_array( $state ) && (int) ( $state['failed'] ?? 0 ) > 0 ) {
 		$when  = (int) ( $state['swept_at'] ?? 0 );
@@ -263,8 +266,10 @@ function provenance_commits_html( array $data ) {
 				: __( 'No ledger record', 'signal-and-noise-tools' ),
 		);
 	}
-	// The tiles count every subject; this table reads the newest 100. The cut is said.
-	$cut = function_exists( 'sn_prov_admin_unlisted_line' ) ? sn_prov_admin_unlisted_line( sn_prov_admin_unlisted( $data['sys'], count( $rows ) ) ) : '';
+	// The tiles count every subject; this table reads the newest 100. The cut
+	// is said once: under the rows, or by the empty sentence when none are listed.
+	$hidden = function_exists( 'sn_prov_admin_unlisted' ) ? sn_prov_admin_unlisted( $data['sys'], count( $rows ) ) : 0;
+	$cut    = array() !== $rows && function_exists( 'sn_prov_admin_unlisted_line' ) ? sn_prov_admin_unlisted_line( $hidden ) : '';
 	$table = \snt_kit_table(
 		array(
 			array( 'key' => 'uid', 'label' => __( 'UID', 'signal-and-noise-tools' ) ),
@@ -281,7 +286,7 @@ function provenance_commits_html( array $data ) {
 		// (pending proofs) and hands the integrity verdict to the sweep that
 		// owns it; "every commit is anchored" read as "all is well" beside an
 		// Attention queue listing three twin-drift failures (2026-09-14).
-		array( 'empty' => provenance_commits_empty_copy() )
+		array( 'empty' => provenance_commits_empty_copy( $hidden ) )
 	);
 
 	$inner = '';

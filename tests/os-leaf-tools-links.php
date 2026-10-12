@@ -83,6 +83,7 @@ foreach ( $expected_links as $l ) {
 }
 ok( $titles_ok, 'all six link titles are painted once each, as the link itself' );
 preg_match_all( '#<a [^>]*class="sn-link-card__title"[^>]*>([^<]*)</a>#', $classic, $cl_titles );
+ok( false !== strpos( $classic, '<h2 class="sn-fieldset-h">External shortcuts</h2>' ), 'classic: the same "External shortcuts" heading as the kit twin' );
 ok( 6 === count( $cl_titles[1] ) && false === strpos( $classic, 'sn-link-card__link' ) && false === strpos( $classic, '<span class="sn-link-card__title">' ), 'classic: the title is the link too, with no hidden second link of the same words' );
 ok( $hrefs_ok, 'all six hrefs are painted, unmodified from the classic array' );
 ok( $hosts_ok, 'all six hosts (wp_parse_url( $href, PHP_URL_HOST )) are painted, matching the classic loop' );

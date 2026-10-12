@@ -651,7 +651,7 @@ function sn_prov_integrity_findings( $state ) {
 			'subject_label' => (string) ( '' !== (string) ( $row['title'] ?? '' ) ? $row['title'] : ( $row['uid'] ?? '' ) ),
 			'edit_url'      => '',
 			'note'          => in_array( 'no_signed_commit', $failures, true )
-				? sprintf( 'No provenance triangle to check: %s.', implode( '; ', $named ) )
+				? sprintf( 'Provenance integrity cannot be checked: %s.', implode( '; ', $named ) )
 				: sprintf(
 					'Provenance integrity check failed for v%d: %s.',
 					(int) ( $row['version'] ?? 0 ),
