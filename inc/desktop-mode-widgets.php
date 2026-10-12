@@ -183,14 +183,17 @@ add_action( 'init', function() {
 			'icon'           => 'dashicons-calendar-alt',
 			'script'         => 'sn-desktop-mode-widget-queue',
 			// 2026-10-12, the calendar: MEASURED live on the owner's desk at
-			// the default 312 width with the real queue: 594 (a weekday row,
-			// six weeks at 26px with the 1st's week at 39, the day box with a
-			// two-line title, "+N more", the Scheduled and Drafts pair, one
-			// draft, three published, the link). 600 shows it all with no
-			// scrollbar; a gap line (~28) or a longer drafts list scrolls.
-			// Before: 380, and the old card measured 418 at this width, so it
-			// already scrolled 38px. A SAVED layout keeps its own height.
-			'default_height' => 600,
+			// the default 312 width, sized for the BUSIEST state (review on
+			// #2031): 774 with a missed note named before the grid (~22), the
+			// gap line with Planned (24), three drafts and "+2 more" (~85), and
+			// three Later rows (~68), over the real queue's 594 (a weekday
+			// row, six weeks at 26px with the 1st's week at 39, the day box
+			// with a two-line title, "+N more", the pair, three published and
+			// the link). 780 shows the busiest card with no scrollbar; an
+			// ordinary day leaves ~186px under the link. Before: 380, and the
+			// old card measured 418 at this width, so it already scrolled 38px.
+			// A SAVED layout keeps its own height.
+			'default_height' => 780,
 		) ) );
 
 		snt_os_register_widget( 'sn-health', array_merge( $sn_drag, array(

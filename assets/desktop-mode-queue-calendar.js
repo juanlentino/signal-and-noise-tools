@@ -41,6 +41,7 @@
 	// the card, so the selection outline and the dots hold 3:1 under any pick.
 	var ACCENT   = 'var(--snt-link, var(--os-ui-color-accent, #4a9eff))';
 	var SUBTLE   = 'var(--os-ui-color-text-subtle, rgba(255,255,255,.7))';
+	var AMBER    = '#d29922'; // the card's gap line: a schedule that needs you
 
 	function el( tag, style, text ) {
 		var n = document.createElement( tag );
@@ -68,6 +69,25 @@
 	function titleOf( r ) {
 		var t = r && typeof r.title === 'string' ? r.title.trim() : '';
 		return t || '(untitled)';
+	}
+
+	/** A note's time, or "Overdue" when its schedule passed unpublished. */
+	function timeOf( r ) {
+		if ( r && 'Overdue' === r.when ) { return 'Overdue'; }
+		return r && typeof r.time === 'string' ? r.time : '';
+	}
+
+	/** "Title at 1:01 PM" or "Title, overdue", for a day's accessible name. */
+	function spoken( r ) {
+		var t = timeOf( r );
+		return titleOf( r ) + ( 'Overdue' === t ? ', overdue' : t ? ' at ' + t : '' );
+	}
+
+	/** A linked title (plain text without a link) in the given style. */
+	function titleNode( r, style ) {
+		var n = r && r.edit_url ? el( 'a', style + 'color:inherit;text-decoration:none;min-width:0;', titleOf( r ) ) : el( 'span', style + 'min-width:0;', titleOf( r ) );
+		if ( r && r.edit_url ) { n.href = r.edit_url; }
+		return n;
 	}
 
 	/** The scheduled rows grouped by their site-timezone day. */
@@ -107,18 +127,20 @@
 		notes.forEach( function( r ) {
 			var big  = flags.next ? 'font-size:14px;font-weight:600;line-height:1.3;' : 'font-size:12px;line-height:1.4;';
 			var line = el( 'div', 'display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:2px;' );
-			var name = r && r.edit_url ? el( 'a', big + 'color:inherit;text-decoration:none;min-width:0;', titleOf( r ) ) : el( 'span', big + 'min-width:0;', titleOf( r ) );
-			if ( r && r.edit_url ) { name.href = r.edit_url; }
-			line.appendChild( name );
-			line.appendChild( el( 'span', 'flex:none;font-size:11px;font-variant-numeric:tabular-nums;color:' + SUBTLE + ';', r && typeof r.time === 'string' ? r.time : '' ) );
+			line.appendChild( titleNode( r, big ) );
+			var t = timeOf( r );
+			line.appendChild( el( 'span', 'flex:none;font-size:11px;font-variant-numeric:tabular-nums;color:' + ( 'Overdue' === t ? AMBER : SUBTLE ) + ';', t ) );
 			box.appendChild( line );
 		} );
 	}
 
 	/**
-	 * Build the calendar. data: the content-queue payload. opts.selected: the
-	 * day to keep selected across repaints; opts.onSelect(day): told on every
-	 * selection. Null when the payload carries no week_start (an older site).
+	 * Build the calendar. data: the content-queue payload. opts.selected: a
+	 * day the user picked, kept across repaints while it is on the grid;
+	 * opts.onSelect(day): told only when the user picks (a click, a key, a
+	 * focus), never for the default, so an untouched card follows the next-up
+	 * day as notes publish (review on #2031). Null when the payload carries no
+	 * week_start (an older site).
 	 */
 	function render( data, opts ) {
 		var start = ms( data && data.week_start );
@@ -133,6 +155,18 @@
 		var box     = el( 'div', 'margin-top:8px;min-height:36px;' );
 		box.setAttribute( 'aria-live', 'polite' );
 
+		// A note whose schedule passed before this week is off the grid: said
+		// first, by title, so a missed note is never lost (review on #2031).
+		var early = ( Array.isArray( data.scheduled ) ? data.scheduled : [] ).filter( function( r ) { return r && typeof r.day === 'string' && r.day < ymd( start ); } );
+		if ( early.length ) {
+			var miss = el( 'p', 'margin:0 0 6px;font-size:11px;line-height:1.4;color:' + AMBER + ';', early.length + ' overdue: ' );
+			early.forEach( function( r, j ) {
+				if ( j ) { miss.appendChild( el( 'span', '', '; ' ) ); }
+				miss.appendChild( titleNode( r, 'font-size:11px;' ) );
+			} );
+			root.appendChild( miss );
+		}
+
 		var head = el( 'div', 'display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;margin-bottom:2px;' );
 		head.setAttribute( 'aria-hidden', 'true' );
 		WEEKDAYS.forEach( function( w ) { head.appendChild( el( 'span', 'text-align:center;font-size:11px;color:' + SUBTLE + ';', w.charAt( 0 ) ) ); } );
@@ -142,7 +176,7 @@
 		grid.setAttribute( 'role', 'grid' );
 		grid.setAttribute( 'aria-label', 'Scheduled notes, ' + WEEKS + ' weeks from ' + dayLabel( ymd( start ) ) );
 
-		function select( i, focus ) {
+		function select( i, focus, user ) {
 			cells.forEach( function( c, j ) {
 				c.node.setAttribute( 'tabindex', i === j ? '0' : '-1' );
 				c.node.setAttribute( 'aria-selected', i === j ? 'true' : 'false' );
@@ -151,7 +185,7 @@
 			var c = cells[ i ];
 			paintDetail( box, c.day, c.notes, c.flags );
 			if ( focus && c.node.focus ) { c.node.focus(); }
-			if ( typeof opts.onSelect === 'function' ) { opts.onSelect( c.day ); }
+			if ( user && typeof opts.onSelect === 'function' ) { opts.onSelect( c.day ); }
 		}
 
 		for ( var w = 0; w < WEEKS; w++ ) {
@@ -167,7 +201,7 @@
 			var list  = notes[ day ] || [];
 			var flags = { today: day === today, next: day === first, planned: plannedOn( day, data.planned ) };
 			var dom   = +day.slice( 8 );
-			var style = 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;min-height:clamp(26px, 10cqi, 34px);'
+			var style = 'position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;min-height:clamp(26px, 10cqi, 34px);'
 				+ 'padding:2px 0;margin:0;font:inherit;font-size:11px;line-height:1.1;font-variant-numeric:tabular-nums;cursor:pointer;border-radius:5px;outline-offset:-2px;'
 				+ 'border:1px ' + ( flags.today ? 'solid currentColor' : flags.planned ? 'dashed ' + SUBTLE : 'solid transparent' ) + ';'
 				+ 'background:' + ( flags.next ? 'color-mix(in srgb, ' + ACCENT + ' 24%, transparent)' : 'transparent' ) + ';'
@@ -183,19 +217,30 @@
 			// Today's number is also underlined: text decoration keeps its shape
 			// in forced colors even where every border is repainted alike.
 			node.appendChild( el( 'span', flags.today ? 'text-decoration:underline;text-underline-offset:2px;' : '', String( dom ) ) );
-			var dots = el( 'span', 'display:flex;gap:2px;height:5px;' );
+			// Up to three dots; past three, two dots and "+N" for the rest, so
+			// a busy day never reads as three notes.
+			var dots = el( 'span', 'display:flex;align-items:center;gap:2px;min-height:5px;' );
 			dots.setAttribute( 'aria-hidden', 'true' );
-			list.slice( 0, 3 ).forEach( function() { dots.appendChild( dot() ); } );
+			list.slice( 0, list.length > 3 ? 2 : 3 ).forEach( function() { dots.appendChild( dot() ); } );
+			if ( list.length > 3 ) { dots.appendChild( el( 'span', 'font-size:11px;line-height:1;font-weight:400;', '+' + ( list.length - 2 ) ) ); }
 			node.appendChild( dots );
+			// The next-up day's own shape: a small square in the corner, drawn
+			// with a border so forced colors keeps it once another day is
+			// selected (the tint is color only).
+			if ( flags.next ) {
+				var tick = el( 'span', 'position:absolute;top:2px;right:2px;width:0;height:0;border:2px solid ' + ACCENT + ';' );
+				tick.setAttribute( 'aria-hidden', 'true' );
+				node.appendChild( tick );
+			}
 			var name = [ dayLabel( day ) ];
 			if ( flags.today ) { name.push( 'today' ); }
 			if ( flags.next ) { name.push( 'next up' ); }
 			if ( flags.planned ) { name.push( 'planned gap' ); }
-			name.push( list.length ? list.length + ( 1 === list.length ? ' note: ' : ' notes: ' ) + list.map( function( r ) { return titleOf( r ) + ( r.time ? ' at ' + r.time : '' ); } ).join( '; ' ) : 'nothing scheduled' );
+			name.push( list.length ? list.length + ( 1 === list.length ? ' note: ' : ' notes: ' ) + list.map( spoken ).join( '; ' ) : 'nothing scheduled' );
 			node.setAttribute( 'aria-label', name.join( ', ' ) );
 			node.setAttribute( 'tabindex', '-1' );
-			node.addEventListener( 'click', function() { select( i, false ); } );
-			node.addEventListener( 'focus', function() { if ( 'true' !== node.getAttribute( 'aria-selected' ) ) { select( i, false ); } } );
+			node.addEventListener( 'click', function() { select( i, false, true ); } );
+			node.addEventListener( 'focus', function() { if ( 'true' !== node.getAttribute( 'aria-selected' ) ) { select( i, false, true ); } } );
 			cells.push( { node: node, day: day, notes: list, flags: flags } );
 			return node;
 		}
@@ -207,18 +252,20 @@
 			var to = { ArrowLeft: at - 1, ArrowRight: at + 1, ArrowUp: at - 7, ArrowDown: at + 7, Home: at - at % 7, End: at - at % 7 + 6 }[ e.key ];
 			if ( to === undefined || to < 0 || to >= cells.length || to === at ) { return; }
 			e.preventDefault();
-			select( to, true );
+			select( to, true, true );
 		} );
 		root.appendChild( grid );
 
-		// The day to show: the one kept across repaints, else the next-up day,
-		// else today. A day off the grid (an overdue note, a far next-up)
-		// still shows in the box; no cell is selected then.
-		var want = [ opts.selected, first, today ].filter( function( day ) { return day && ( notes[ day ] || day === today ); } )[0] || today;
+		// The day to show: the user's pick while it is on the grid (empty or
+		// not), else the next-up day, else today. A next-up off the grid (an
+		// overdue note, a far one) still shows in the box; no cell is
+		// selected then.
+		var onGrid = function( day ) { return typeof day === 'string' && day >= ymd( start ) && day <= lastDay; };
+		var want   = onGrid( opts.selected ) ? opts.selected : first || today;
 		var idx  = -1;
 		cells.forEach( function( c, j ) { if ( c.day === want ) { idx = j; } } );
 		if ( idx >= 0 ) {
-			select( idx, false );
+			select( idx, false, false );
 		} else {
 			cells[0].node.setAttribute( 'tabindex', '0' );
 			if ( want ) { paintDetail( box, want, notes[ want ] || [], { next: want === first, today: want === today, planned: plannedOn( want, data.planned ) } ); }

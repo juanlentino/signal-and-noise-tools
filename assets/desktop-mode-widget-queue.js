@@ -227,14 +227,15 @@
 			wrap.appendChild( gapLine );
 		}
 
-		// The drafts by title, each a link to its editor; the count is the
-		// pair's, so a longer list says how many it left out.
+		// The drafts this user can edit, by title, each a link to its editor.
+		// "+N more" only when the site counted them for this user (draft_more
+		// is null for someone who sees only their own).
 		var draftList = asList( data.draft_list );
 		if ( draftList.length ) {
 			wrap.appendChild( heading( 'Drafts' ) );
 			draftList.forEach( function( item ) { wrap.appendChild( row( item, false ) ); } );
-			if ( typeof data.drafts === 'number' && data.drafts > draftList.length ) {
-				wrap.appendChild( el( 'p', { style: 'margin:0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));', text: '+' + ( data.drafts - draftList.length ) + ' more' } ) );
+			if ( typeof data.draft_more === 'number' && data.draft_more > 0 ) {
+				wrap.appendChild( el( 'p', { style: 'margin:0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));', text: '+' + data.draft_more + ' more' } ) );
 			}
 		}
 
@@ -280,12 +281,22 @@
 		var state = {};
 		renderLoading( container );
 
+		// Repaint, and hand focus back to the calendar when it was there: a
+		// keyboard user's place survives a changed reading or a failure line.
+		function paint( data ) {
+			var active   = document.activeElement;
+			var hadFocus = !! ( active && container.contains && container.contains( active ) && active.getAttribute && 'gridcell' === active.getAttribute( 'role' ) );
+			renderCard( container, data, state );
+			var back = hadFocus && container.querySelector ? container.querySelector( '[role="gridcell"][tabindex="0"]' ) : null;
+			if ( back && back.focus ) { back.focus(); }
+		}
+
 		function fail( message ) {
 			if ( ! lastData ) {
 				renderError( container, message );
 				return;
 			}
-			renderCard( container, lastData, state );
+			paint( lastData );
 			lastJson = '';
 			container.appendChild( el( 'p', {
 				style: 'margin:0;padding:0 16px 12px;font-size:11px;color:#d29922;',
@@ -322,13 +333,7 @@
 						var json = JSON.stringify( data );
 						if ( json === lastJson ) { return; }
 						lastJson = json;
-						var active = document.activeElement;
-						var hadFocus = !! ( active && container.contains && container.contains( active ) && 'gridcell' === active.getAttribute( 'role' ) );
-						renderCard( container, data, state );
-						if ( hadFocus && container.querySelector ) {
-							var back = container.querySelector( '[role="gridcell"][tabindex="0"]' );
-							if ( back && back.focus ) { back.focus(); }
-						}
+						paint( data );
 					} else {
 						fail( 'the site sent no queue' );
 					}

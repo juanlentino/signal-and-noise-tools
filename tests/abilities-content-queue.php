@@ -16,7 +16,16 @@ function update_option( $k, $v, $a = null ) { $GLOBALS['__cq_opts'][ $k ] = $v; 
 function add_action( $tag, $cb = null ) { $GLOBALS['__cq_actions'][ $tag ][] = $cb; return true; }
 $GLOBALS['__cq_abilities'] = array();
 function wp_register_ability( $slug, $args ) { $GLOBALS['__cq_abilities'][ $slug ] = $args; return true; }
-function current_user_can( $cap ) { return 'edit_posts' === $cap; }
+// The caps the fixture user holds; edit_post is granted per post id.
+$GLOBALS['__cq_caps'] = array( 'edit_posts', 'edit_others_posts' );
+$GLOBALS['__cq_can_edit'] = null; // null = every post
+function current_user_can( $cap, ...$args ) {
+	if ( 'edit_post' === $cap ) { return null === $GLOBALS['__cq_can_edit'] || in_array( (int) ( $args[0] ?? 0 ), $GLOBALS['__cq_can_edit'], true ); }
+	return in_array( $cap, $GLOBALS['__cq_caps'], true );
+}
+function get_current_user_id() { return 7; }
+// WordPress keeps http(s) and the like; a script scheme comes back empty.
+function esc_url_raw( $url, $protocols = null ) { return preg_match( '#^(https?:)?//#i', (string) $url ) || '' === (string) $url || '/' === substr( (string) $url, 0, 1 ) ? (string) $url : ''; }
 $GLOBALS['__cq_posts'] = array(); // keyed "status:order"
 $GLOBALS['__cq_queries'] = array();
 function get_posts( $args ) {
@@ -24,7 +33,7 @@ function get_posts( $args ) {
 	return $GLOBALS['__cq_posts'][ $args['post_status'] . ':' . $args['order'] ] ?? array();
 }
 function get_the_title( $p ) { return $p->post_title; }
-function get_edit_post_link( $p, $ctx = 'display' ) { return 'https://x.test/wp-admin/post.php?post=' . $p->ID . '&action=edit'; }
+function get_edit_post_link( $p, $ctx = 'display' ) { return 666 === $p->ID ? 'javascript:alert(1)' : 'https://x.test/wp-admin/post.php?post=' . $p->ID . '&action=edit'; }
 function get_post_time( $f, $gmt, $p ) { return 0; }
 $GLOBALS['__cq_counts'] = (object) array( 'future' => 26, 'publish' => 60 );
 function wp_count_posts( $t ) { return $GLOBALS['__cq_counts']; }
@@ -73,7 +82,7 @@ $published = array(
 	array( 'id' => 4, 'title' => 'Too old for the card', 'ts' => $NOW - 9 * 86400, 'edit_url' => 'https://x.test/e/4' ),
 );
 $out = sn_content_queue_shape( $future, 26, $published, $NOW, $TZ );
-ok( array( 'next', 'scheduled_total', 'runs_to', 'published', 'drafts', 'gap', 'scheduled', 'today', 'week_start', 'planned', 'draft_list' ) === array_keys( $out ), 'the payload carries exactly the eleven keys (the six it had, and the calendar\'s five)' );
+ok( array( 'next', 'scheduled_total', 'runs_to', 'published', 'drafts', 'gap', 'scheduled', 'today', 'week_start', 'planned', 'draft_list', 'draft_more' ) === array_keys( $out ), 'the payload carries exactly the twelve keys (the six it had, and the calendar\'s six)' );
 ok( null === $out['drafts'], 'drafts is null when the caller could not count them, never a guessed 0' );
 ok( 7 === sn_content_queue_shape( $future, 26, $published, $NOW, $TZ, 7 )['drafts'] && 0 === sn_content_queue_shape( $future, 26, $published, $NOW, $TZ, 0 )['drafts'], 'a counted draft total passes through, a real 0 included' );
 ok( 4 === count( $out['next'] ), 'next is capped at four (the headline plus three)' );
@@ -184,6 +193,8 @@ ok( 'publish' === $q[1]['post_status'] && 'DESC' === $q[1]['order'] && SNT_ML_CA
 ok( 'draft' === $q[2]['post_status'] && 'modified' === $q[2]['orderby'] && 3 === $q[2]['numberposts'] && false === $q[2]['update_post_meta_cache'], 'the third read is the three newest-edited drafts, with no meta cache primed' );
 ok( array( 'Idea' ) === array_column( $res['draft_list'], 'title' ) && 'https://x.test/wp-admin/post.php?post=21&action=edit' === $res['draft_list'][0]['edit_url'], 'the drafts list carries each title and its wp-admin edit link' );
 ok( 5 === count( $res['scheduled'] ) && 'Last' === $res['scheduled'][4]['title'], 'the calendar gets the whole queue from the same read (five here, not four)' );
+ok( 3 === $res['draft_more'], 'an editor who sees every draft is told how many the list left out (4 less 1)' );
+ok( ! isset( $q[2]['author'] ), 'and their draft read is not narrowed to one author' );
 ok( array( 'Soon', 'Next', 'Third', 'Fourth' ) === array_column( $res['next'], 'title' ), 'next carries the four soonest in order (the furthest row does not leak into it)' );
 ok( 99 !== ( $res['next'][3]['id'] ?? 0 ) && 26 === $res['scheduled_total'], 'the total rides wp_count_posts (26), not the row count' );
 ok( 4 === $res['drafts'], 'drafts rides wp_count_posts()->draft' );
@@ -194,6 +205,20 @@ ok( null === $res['gap'], 'three published notes are too little history to call 
 $props = $ab['output_schema']['properties'] ?? array();
 ok( array( 'integer', 'null' ) === ( $props['drafts']['type'] ?? null ) && array( 'object', 'null' ) === ( $props['gap']['type'] ?? null ), 'the output schema declares drafts and gap, both nullable' );
 ok( isset( $props['scheduled'], $props['today'], $props['week_start'], $props['planned'], $props['draft_list'] ) && isset( $props['scheduled']['items']['properties']['day'], $props['scheduled']['items']['properties']['time'] ), 'the output schema declares the calendar\'s keys and the rows\' day and time' );
+
+// Review on #2031: a contributor lists only their own drafts, and an escaped link.
+$GLOBALS['__cq_caps']     = array( 'edit_posts' );
+$GLOBALS['__cq_can_edit'] = array( 21, 666 );
+$GLOBALS['__cq_queries']  = array();
+$GLOBALS['__cq_posts']['draft:DESC'] = array( $mk( 21, 'Mine', $now - 60 ), $mk( 22, 'A colleague\'s', $now - 120 ), $mk( 666, 'Bent link', $now - 180 ) );
+$res = snt_ability_content_queue( null );
+$q   = $GLOBALS['__cq_queries'];
+ok( 7 === ( $q[2]['author'] ?? null ), 'a user who cannot edit others\' posts reads only their own drafts' );
+ok( array( 'Mine', 'Bent link' ) === array_column( $res['draft_list'], 'title' ), 'and a draft they cannot edit is never listed, even if the read returned it' );
+ok( null === $res['draft_more'], 'the site-wide draft count is not turned into "+N more" for them: not read' );
+ok( '' === $res['draft_list'][1]['edit_url'], 'an edit link a filter bent to a script scheme is emptied by esc_url_raw' );
+$GLOBALS['__cq_caps'] = array( 'edit_posts', 'edit_others_posts' );
+$GLOBALS['__cq_can_edit'] = null;
 
 $GLOBALS['__cq_posts'] = array( 'publish:DESC' => array( 'not a post', (object) array( 'ID' => 7 ) ) );
 $GLOBALS['__cq_counts'] = (object) array( 'future' => 0 );

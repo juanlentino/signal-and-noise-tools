@@ -484,7 +484,7 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 $expected_height = array(
 	'sn-site-views'       => 1010, // SN Traffic, BUDGETED (+60 busiest state, 21.9.1): 760 + This week (~96) + the reach row (~30); +60 (2026-10-10): forecast line, Read at foot, surge line
 	'sn-reading'          => 575, // BUDGETED: 555 + the opening figure and age line, less the two rows it replaced
-	'sn-queue'            => 600, // 2026-10-12, the calendar: measured 594 live at the default 312 width (six weeks, the box, drafts, Just published); the old 380 measured 418 and already scrolled
+	'sn-queue'            => 780, // 2026-10-12, the calendar, BUDGETED for the busiest state and measured live at 312 wide: 774 (overdue line, gap line, three drafts + "+N more", three Later rows) over the ordinary 594; the old 380 measured 418 and already scrolled
 	'sn-health'           => 580, // SN Systems, +140 (2026-10-05: Edge and Cache sections, cron-day row, incidents and slowest); BUDGETED (+60 busiest state, 21.9.1): the verdict line, three one-row sections (~52 each), the uptime row's second line (~20), the button (~44), the link
 	'sn-deploy-status'    => 470, // v11.11.2 budgeted 310 + the Check for updates button (~40); 23.3.1 + groups and the workers' deploy line (~110, measured ~450)
 	'sn-anchors'          => 620, // SN Provenance, +100 (2026-10-05: signatures, rights evidence, last posted, DOIs); BUDGETED (+60 busiest state, 21.9.1): 250 + the machine readers (~136) + the rights-files and top-family rows (~40) + the wrapped action row (~28)
