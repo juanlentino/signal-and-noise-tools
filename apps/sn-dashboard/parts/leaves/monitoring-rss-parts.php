@@ -216,6 +216,6 @@ function rss_maintenance_html( array $settings ) {
 	$table  = isset( $GLOBALS['wpdb'] ) && defined( 'SN_RSS_TRACKER_TABLE' ) ? $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE : '';
 	return \snt_kit_section(
 		__( 'Maintenance', 'signal-and-noise-tools' ),
-		'<p class="snt-hint">' . \snt_kit_esc( __( 'Delete rows older than the threshold below. First-party collector events are unaffected: only the local', 'signal-and-noise-tools' ) ) . ' <os-code>' . \snt_kit_esc( $table ) . '</os-code> ' . \snt_kit_esc( __( 'table is touched. The daily cron runs the same query against the configured retention setting.', 'signal-and-noise-tools' ) ) . '</p>' . $form
+		'<p class="snt-hint">' . \snt_kit_esc( __( 'Delete rows older than the number of days you enter. First-party collector events are unaffected: only the local', 'signal-and-noise-tools' ) ) . ' <os-code>' . \snt_kit_esc( $table ) . '</os-code> ' . \snt_kit_esc( __( 'table is touched. The daily cron runs the same query against the configured retention setting.', 'signal-and-noise-tools' ) ) . '</p>' . $form
 	);
 }

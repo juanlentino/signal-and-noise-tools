@@ -128,6 +128,12 @@ $GLOBALS['__can'] = true;
 // result from before the fix reads right too.
 ok( '' === sn_indexnow_result_problem( array( 'time' => 1, 'code' => 202, 'error' => '' ) ) && '' === sn_indexnow_result_problem( array( 'time' => 1, 'code' => 200, 'error' => '' ) ), '200 and 202 are accepted' );
 ok( false !== strpos( sn_indexnow_result_problem( array( 'time' => 1, 'code' => 403, 'error' => '' ) ), 'HTTP 403' ) && false !== strpos( sn_indexnow_result_problem( array( 'time' => 1, 'code' => 0, 'error' => '' ) ), 'no HTTP response' ), 'a 403 is a refusal, and code 0 says no response, never "HTTP 0"' );
+// A result stored BEFORE the fix (code 403, no error) reads as a refusal at
+// render time, on both surfaces; PR #2014 review: this was unpinned.
+snt_indexnow_fixture( true, $key, array( 'time' => time() - 3600, 'code' => 403, 'count' => 2 ) );
+$kit403     = snt_leaf_paint( 'connections', 'indexnow' );
+$classic403 = snt_leaf_classic_html( 'sn_admin_render_indexnow_section' );
+ok( false !== strpos( $kit403, 'IndexNow refused the submission (HTTP 403).' ) && false !== strpos( $classic403, 'IndexNow refused the submission (HTTP 403).' ), 'an old stored 403 paints as a refusal on both surfaces' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

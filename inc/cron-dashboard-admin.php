@@ -255,7 +255,7 @@ function snt_cron_render_admin_tab() {
 			// the sn_ prefix before): they fire on their own schedule and
 			// have dedicated abilities. Disable + explain instead of letting the click resolve to
 			// a refusal toast, mirroring the Unschedule gate below.
-			echo '<button class="button button-small" type="button" disabled aria-label="' . esc_attr( $run_aria ) . '" title="' . ( esc_attr__( 'Signal & Noise–internal event: dispatched on its own schedule, not manually runnable here', 'signal-and-noise-tools' ) ) . '">' . esc_html__( 'Run now', 'signal-and-noise-tools' ) . '</button>';
+			echo '<button class="button button-small" type="button" disabled aria-label="' . esc_attr( $run_aria ) . '" title="' . ( esc_attr__( 'Not runnable here: dispatched on its own schedule', 'signal-and-noise-tools' ) ) . '">' . esc_html__( 'Run now', 'signal-and-noise-tools' ) . '</button>';
 		} else {
 			echo '<button class="button button-small sn-cron-run-now" type="button" aria-label="' . esc_attr( $run_aria ) . '">' . esc_html__( 'Run now', 'signal-and-noise-tools' ) . '</button>';
 		}

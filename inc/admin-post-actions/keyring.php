@@ -72,11 +72,12 @@ function sn_handle_keyring_save( $post ) {
 	// "ok", a fixed one kept its refusal (2026-10-12 audit). The row reads
 	// unverified until Verify all runs; probing here would call services
 	// (Zenodo's creates a draft) on every save.
+	// Rotating the site secret changes every row derived from it, too.
+	$stale        = 'site_secret' === $id ? array_merge( array( $id ), $site_rows ) : array( $id );
 	$verdicts_opt = defined( 'SN_KEYRING_VERDICTS_OPT' ) ? SN_KEYRING_VERDICTS_OPT : 'sn_keyring_verdicts';
 	$verdicts     = get_option( $verdicts_opt, array() );
-	if ( is_array( $verdicts ) && isset( $verdicts[ $id ] ) ) {
-		unset( $verdicts[ $id ] );
-		update_option( $verdicts_opt, $verdicts, false );
+	if ( is_array( $verdicts ) && array() !== array_intersect_key( $verdicts, array_flip( $stale ) ) ) {
+		update_option( $verdicts_opt, array_diff_key( $verdicts, array_flip( $stale ) ), false );
 	}
 	if ( function_exists( 'sn_setting_reset_cache' ) ) {
 		sn_setting_reset_cache();

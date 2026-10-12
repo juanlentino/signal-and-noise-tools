@@ -200,6 +200,8 @@ function snt_pattern_adoption_dismiss_impl( $post_id, $pattern_type, $fingerprin
 	}
 	$key = $pattern_type . ':' . $fingerprint;
 	if ( in_array( $key, $existing, true ) ) {
+		// A cache built before the first dismiss can still list it; drop it there too.
+		snt_block_fp_cache_drop( 'snt_pattern_adoption_candidates_' . (int) get_current_user_id(), $post_id, 'pattern_type', $pattern_type, $fingerprint, SNT_PATTERN_ADOPTION_TRANSIENT_TTL );
 		return array( 'ok' => true, 'message' => 'Already dismissed (no-op).' );
 	}
 	$existing[] = $key;

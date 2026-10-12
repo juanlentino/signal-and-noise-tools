@@ -111,13 +111,18 @@ function notice_html( $notice ) {
  * assets/os-host.js listens for `snt-paint` there; the method_exists guard
  * names that seam.
  *
- * @param Os     $os     Host handle.
- * @param string $anchor Element id to land on, or ''.
+ * `refused` (2026-10-12) is true when the paint carries an error notice:
+ * the host keeps a submitted form's typed text after a refused save and lets
+ * it go after one that took.
+ *
+ * @param Os     $os      Host handle.
+ * @param string $anchor  Element id to land on, or ''.
+ * @param bool   $refused The paint reports a refusal (an error notice).
  * @return void
  */
-function paint_effect( Os $os, $anchor ) {
+function paint_effect( Os $os, $anchor, $refused = false ) {
 	if ( isset( $os->effects ) && method_exists( $os->effects, 'add' ) ) {
-		$os->effects->add( 'snt-paint', array( 'anchor' => $anchor ) );
+		$os->effects->add( 'snt-paint', array( 'anchor' => $anchor, 'refused' => (bool) $refused ) );
 	}
 }
 
@@ -131,7 +136,8 @@ function tab_view( $tab ) {
 	return static function ( State $state, Os $os ) use ( $tab ) {
 		$sub    = active_sub( $tab, $state );
 		$leaves = leaves_for( $tab );
-		paint_effect( $os, (string) $state->get( 'anchor' ) );
+		$notice = $state->get( 'notice' );
+		paint_effect( $os, (string) $state->get( 'anchor' ), is_array( $notice ) && 'error' === (string) ( $notice[0] ?? '' ) );
 		// The anchor rides this one paint and no later one: the runtime echoes
 		// state after render, so clearing it here keeps a Refresh or an inline
 		// post from scrolling to the same section again.

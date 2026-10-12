@@ -337,8 +337,10 @@ $sn_dashboard = App::define( APP_ID )
 			if ( empty( $result['ok'] ) ) {
 				$reason = (string) $result['reason'];
 				$detail = (string) $result['detail'];
-				$died = 'died' === $reason && '' !== $detail;
-				$state->set( 'notice', $died ? array( 'error', $detail ) : null )
+				// 2026-10-12 audit: every refusal stays on the page, not only in a
+				// 3.5-second toast, and its error tone tells the host to keep what
+				// was typed (paint_effect()'s `refused`).
+				$state->set( 'notice', array( 'error', \snt_kit_esc( refusal_text( $reason, $detail ) ) ) )
 					->set( 'flash', '' )
 					->set( 'post', array() );
 				$os->toast( refusal_text( $reason, $detail ) );

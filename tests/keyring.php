@@ -94,6 +94,12 @@ ok( in_array( 'sn_uptime_status_snapshot', $GLOBALS['__flushed'], true ) && in_a
 $GLOBALS['__opt']['sn_keyring_verdicts'] = array( 'cf_token' => array( 'status' => 'ok', 'detail' => '', 'at' => 1 ), 'cf_zone' => array( 'status' => 'ok', 'detail' => '', 'at' => 1 ) );
 $save( 'cf_token', 'clear' );
 ok( ! isset( $GLOBALS['__opt']['sn_keyring_verdicts']['cf_token'] ) && isset( $GLOBALS['__opt']['sn_keyring_verdicts']['cf_zone'] ), 'a saved or cleared row drops its stale verdict and keeps every other row\'s' );
+// PR #2014 review: the rows derived from the site secret were probed against the old one.
+$GLOBALS['__opt'][ SN_KEYRING_SITE_ROWS ] = array( 'srv_token', 'bridge_token' );
+$GLOBALS['__opt']['sn_keyring_verdicts']  = array( 'site_secret' => array( 'status' => 'ok' ), 'srv_token' => array( 'status' => 'ok' ), 'bridge_token' => array( 'status' => 'ok' ), 'cf_zone' => array( 'status' => 'ok' ) );
+$save( 'site_secret', 'ss-rotated-2' );
+ok( array( 'cf_zone' ) === array_keys( $GLOBALS['__opt']['sn_keyring_verdicts'] ), 'rotating the site secret drops its verdict and every derived row\'s, and keeps the rest' );
+$GLOBALS['__opt'][ SN_KEYRING_SITE_ROWS ] = array();
 $GLOBALS['__flushed'] = array();
 $save( 'bridge_token', 'site' );
 ok( array() === $GLOBALS['__flushed'], 'a row with nothing to flush flushes nothing' );

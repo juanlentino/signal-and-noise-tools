@@ -60,6 +60,20 @@ foreach ( $cases as $name => list( $key, $field, $a, $b, $counts, $dismiss ) ) {
 	ok( isset( $GLOBALS['ttl'][ $key ] ) && $GLOBALS['ttl'][ $key ] <= 3000 && $GLOBALS['ttl'][ $key ] > 2900, "$name: the cache keeps its original expiry, not a fresh hour" );
 }
 
+// PR #2014 review: corpus integrity can raise two checks on one block (same
+// post, same fingerprint); dismissing one must leave the other.
+$GLOBALS['tr']['snt_corpus_integrity_candidates_7'] = array(
+	'candidates' => array(
+		array( 'post_id' => 20, 'check' => 'splice_artifact', 'block_fingerprint' => 'fpX' ),
+		array( 'post_id' => 20, 'check' => 'date_coherence', 'block_fingerprint' => 'fpX' ),
+	),
+	'counts'     => array( 'intra_post_duplication' => 0, 'splice_artifact' => 1, 'date_coherence' => 1, 'posts_affected' => 1, 'corrections' => 0 ),
+	'scanned_at' => time(),
+);
+snt_corpus_integrity_dismiss_impl( 20, 'fpX', 'splice_artifact' );
+$same = $GLOBALS['tr']['snt_corpus_integrity_candidates_7'];
+ok( array( 'date_coherence' ) === array_column( $same['candidates'], 'check' ) && 1 === $same['counts']['date_coherence'] && 1 === $same['counts']['posts_affected'], 'two checks on one block: dismissing one keeps the other (the match reads the type too)' );
+
 $GLOBALS['tr']['snt_pattern_adoption_candidates_7'] = array( 'stale' => true );
 snt_pattern_adoption_dismiss_impl( 10, 'pull-quote', 'fp9' );
 ok( ! isset( $GLOBALS['tr']['snt_pattern_adoption_candidates_7'] ), 'a cache that is not a scan envelope is still dropped' );

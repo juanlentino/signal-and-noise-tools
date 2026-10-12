@@ -48,7 +48,7 @@ ok( false !== strpos( $kit, '<os-select' ) && false !== strpos( $kit, 'name="zen
 ok( false !== strpos( $kit, 'os-arg-action="sn_zenodo_deposit_batch"' ) && false !== strpos( $kit, '>Deposit the next batch</os-button>' ), 'Deposit the next batch is a one-click write' );
 ok( 1 === preg_match( '/<os-table[^>]*os-prop-columns=/', $kit ) && false !== strpos( $kit, '&quot;key&quot;:&quot;doi&quot;' ) && false !== strpos( $kit, '10.5281/zenodo.42' ) && false !== strpos( $kit, 'publish: down' ), 'the ledger is the house table with a DOI column, the minted DOI and the failed row\'s error' );
 ok( false !== strpos( $kit, 'Anchor pending' ) && false !== strpos( $kit, 'Sandbox' ) && false !== strpos( $kit, '1 minted of 3 documents.' ), 'the rail names the environment and the minted count; states are labelled' );
-ok( false !== strpos( $kit, '1 published, 1 failed, of 2' ), 'the last pass is reported' );
+ok( false !== strpos( $kit, '1 published, 1 failed, of 2 attempted' ) && false !== strpos( $classic, '1 published, 1 failed, of 2 attempted' ), 'the last pass is reported, in the same words on both surfaces' );
 ok( false !== strpos( $kit, 'The papers stay with SSRN' ) && false !== strpos( $kit, 'never reach a public surface' ), 'the prose says what is deposited and what a sandbox DOI is' );
 ok( false !== strpos( $kit, 'col="4" aria-label="Zenodo status"' ) && false !== strpos( $kit, '<os-row gap="16"' ), 'the rail keeps its landmark; the two-column shell survives' );
 // 16.2.2: the tile reads the keyring's verdict. A stored token the keyring REFUSED is not On.

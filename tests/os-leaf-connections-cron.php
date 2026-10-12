@@ -228,6 +228,8 @@ $GLOBALS['__cron_rows'] = array(
 $own = snt_leaf_paint( 'connections', 'cron', array() );
 ok( 1 === preg_match( '/<os-button[^>]*os-action="cron_run"[^>]*os-arg-hook="snt_ml_rebuild"[^>]*>/', $own, $m ) && false !== strpos( $m[0], ' disabled' ), 'an owned hook without the sn_ prefix: Run now is disabled, as the ability refuses it' );
 ok( 1 === preg_match( '/<os-button[^>]*os-action="cron_run"[^>]*os-arg-hook="sn_not_ours"[^>]*>/', $own, $m ) && false === strpos( $m[0], 'disabled' ), 'an sn_ hook the plugin does not own: Run now is enabled, as the ability runs it' );
+$own_classic = snt_leaf_classic_html( 'sn_admin_render_cron_section' );
+ok( 1 === preg_match( '/<button[^>]*disabled aria-label="Run cron event snt_ml_rebuild now" title="Not runnable here: dispatched on its own schedule"/', $own_classic ) && 1 === preg_match( '/<button class="button button-small sn-cron-run-now" type="button" aria-label="Run cron event sn_not_ours now"/', $own_classic ), 'classic: the same gate, with the native page\'s sentence (PR #2014 review: only the native gate was pinned)' );
 $GLOBALS['__cron_rows'] = $rich_rows;
 ok( 3 === substr_count( $kit, 'os-confirm-danger' ) && 6 === substr_count( $kit, 'os-confirm="' ), 'every Unschedule is danger-confirmed and every control asks before dispatching' );
 ok( false === strpos( $kit, '<os-table' ) && 4 === substr_count( $kit, '<li class="snt-list__row"' ) && 3 === substr_count( $kit, ' os-key="' ), 'the ledger is a list of rows (a control cannot ride an os-table cell, upstream #862): one header row, three keyed rows the poll morph moves rather than rebuilds' );

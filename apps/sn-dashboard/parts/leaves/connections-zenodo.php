@@ -111,7 +111,7 @@ function zenodo_rail_html( array $d ) {
 		$rows[] = array( 'label' => \sn_zenodo_state_label( $state ), 'value' => (string) (int) $n );
 	}
 	if ( ! empty( $d['batch'] ) ) {
-		$rows[] = array( 'label' => __( 'Last pass', 'signal-and-noise-tools' ), 'value' => sprintf( '%1$d published, %2$d failed, of %3$d', (int) ( $d['batch']['published'] ?? 0 ), (int) ( $d['batch']['failed'] ?? 0 ), (int) ( $d['batch']['attempted'] ?? 0 ) ) );
+		$rows[] = array( 'label' => __( 'Last pass', 'signal-and-noise-tools' ), 'value' => sprintf( /* translators: 1: published, 2: failed, 3: attempted */ __( '%1$d published, %2$d failed, of %3$d attempted', 'signal-and-noise-tools' ), (int) ( $d['batch']['published'] ?? 0 ), (int) ( $d['batch']['failed'] ?? 0 ), (int) ( $d['batch']['attempted'] ?? 0 ) ) );
 	}
 	return \snt_kit_tag(
 		'aside',

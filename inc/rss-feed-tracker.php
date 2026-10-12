@@ -620,7 +620,7 @@ function sn_rss_tracker_render_maintenance_form( $settings ) {
 	echo '<h2 class="sn-section-h">Maintenance</h2>';
 	echo '<form method="post">';
 	wp_nonce_field( SN_RSS_TRACKER_NONCE );
-	echo '<p class="sn-field-helper">Delete rows older than the threshold below. First-party collector events are unaffected: only the local <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code> table is touched. The daily cron runs the same query against the configured retention setting.</p>';
+	echo '<p class="sn-field-helper">Delete rows older than the number of days you enter. First-party collector events are unaffected: only the local <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code> table is touched. The daily cron runs the same query against the configured retention setting.</p>';
 	echo '<div class="sn-field sn-field-w-xs">';
 	echo '<label class="sn-field-label" for="sn_rss_purge_days">Older than (days)</label>';
 	echo '<input type="number" id="sn_rss_purge_days" name="purge_days" class="small-text" min="7" max="365" value="' . esc_attr( (int) $settings['log_retention_days'] ) . '">';
