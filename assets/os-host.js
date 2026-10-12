@@ -154,8 +154,17 @@
 		// 2026-10-11: a target that asks (`data-snt-focus`, with tabindex -1)
 		// takes focus too: a row's Edit opens one region below a long table,
 		// and the keyboard must land there, not stay on the row (WCAG 2.4.3).
-		if ( target && target.hasAttribute( 'data-snt-focus' ) && typeof target.focus === 'function' ) {
-			target.focus( { preventScroll: true } );
+		if ( target && target.hasAttribute( 'data-snt-focus' ) ) {
+			// A region (tabindex -1) takes focus itself; a row's anchor wraps the
+			// row's own os-button, whose focusable <button> is in its shadow root
+			// (2026-10-12: Cancel lands back on the row it left).
+			var focusable = target.hasAttribute( 'tabindex' ) ? target : target.querySelector( 'os-button' );
+			if ( focusable && focusable.shadowRoot && focusable.shadowRoot.querySelector( 'button' ) ) {
+				focusable = focusable.shadowRoot.querySelector( 'button' );
+			}
+			if ( focusable && typeof focusable.focus === 'function' ) {
+				focusable.focus( { preventScroll: true } );
+			}
 		}
 	}
 

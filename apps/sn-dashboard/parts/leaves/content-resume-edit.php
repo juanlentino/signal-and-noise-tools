@@ -36,14 +36,21 @@ function resume_edit_key( array $ctx, array $keys ) {
 }
 
 /**
- * A row's Edit button: a `go` back to this leaf with `sn_edit` set.
+ * A row's one action, in its row anchor: Edit, a `go` back to this leaf with
+ * `sn_edit` set, or, on the row whose editor is open under it, "Editing".
  *
- * @param string $sub The leaf.
- * @param string $key The section.
+ * @param string $sub  The leaf.
+ * @param string $key  The section.
+ * @param bool   $open Whether this row's editor is open.
  * @return string
  */
-function resume_edit_button( $sub, $key ) {
-	return \snt_kit_button( __( 'Edit', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => (string) $sub, 'sn_edit' => (string) $key, 'anchor' => 'snt-edit-region' ) ) );
+function resume_edit_button( $sub, $key, $open = false ) {
+	return \snt_kit_row_action(
+		(string) $key,
+		$open
+			? \snt_kit_badge( 'info', __( 'Editing', 'signal-and-noise-tools' ) )
+			: \snt_kit_button( __( 'Edit', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => (string) $sub, 'sn_edit' => (string) $key, 'anchor' => 'snt-edit-region' ) ) )
+	);
 }
 
 /**
@@ -52,10 +59,11 @@ function resume_edit_button( $sub, $key ) {
  * the Identity & SEO leaf's slot). It must be a direct child of the form.
  *
  * @param string $sub The leaf.
+ * @param string $key The open section: Cancel lands back on its row's Edit.
  * @return string
  */
-function resume_edit_cancel( $sub ) {
-	return \snt_kit_tag( 'span', array( 'slot' => 'footer-leading' ), \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => (string) $sub, 'anchor' => 'snt-edit-list' ) ) ) );
+function resume_edit_cancel( $sub, $key ) {
+	return \snt_kit_tag( 'span', array( 'slot' => 'footer-leading' ), \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => (string) $sub, 'anchor' => \snt_kit_row_anchor( (string) $key ) ) ) ) );
 }
 
 /**

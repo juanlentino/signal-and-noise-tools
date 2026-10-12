@@ -38,6 +38,84 @@ function snt_kit_more( $more, $format = '' ) {
 }
 
 /**
+ * The id a row's own action carries, so a Cancel can land focus back on it.
+ *
+ * @param string $key The row's identity (a path, a section key).
+ * @return string
+ */
+function snt_kit_row_anchor( $key ) {
+	return 'snt-row-' . substr( md5( (string) $key ), 0, 12 );
+}
+
+/**
+ * A row's one action, wrapped in its anchor: the wrapper carries the row's
+ * id and `data-snt-focus`, and assets/os-host.js focuses the button inside
+ * when a `go` anchors there (a Cancel returning to the row it left).
+ *
+ * @param string $key         The row's identity.
+ * @param string $action_html The painted button (or the badge an open row shows).
+ * @return string
+ */
+function snt_kit_row_action( $key, $action_html ) {
+	return snt_kit_tag( 'span', array( 'id' => snt_kit_row_anchor( $key ), 'data-snt-focus' => true ), (string) $action_html );
+}
+
+/**
+ * A kit table split at the row being edited, so its editor opens UNDER the
+ * row (2026-10-12, owner: "it's weird to click in 'edit' and something else
+ * opens"): the head holds rows 0..$at with row $at marked selected (os-table's
+ * own `is-selected`: a tint and an accent bar down its leading edge), the
+ * tail the rows after it under a repeated header ('' when none). An $at
+ * outside the rows returns the whole table as the head.
+ *
+ * @param array<int,array<string,mixed>> $columns As snt_kit_table().
+ * @param array<int,array<string,mixed>> $rows    The rows, in display order.
+ * @param int                            $at      The edited row's index, -1 for none.
+ * @param array<string,mixed>            $opts    As snt_kit_table().
+ * @return array{0:string,1:string} Head and tail.
+ */
+function snt_kit_table_split( array $columns, array $rows, $at, array $opts = array() ) {
+	$rows = array_values( $rows );
+	$at   = (int) $at;
+	// The selection rides on every table this paints, `[]` when no row is open.
+	// The runtime reuses a table across paints and assigns only the os-prop-*
+	// attributes present, so an absent one left the last Edit's row lit after
+	// Cancel, Save or Delete (review of #2008, read from morph/bindings/os-table).
+	$mark = static fn( $html, array $sel ) => substr_replace( $html, snt_kit_attr( array( 'os-prop-selection' => $sel ) ), strlen( '<os-table' ), 0 );
+	if ( $at < 0 || $at >= count( $rows ) ) {
+		return array( $mark( snt_kit_table( $columns, $rows, $opts ), array() ), '' );
+	}
+	$head = $mark( snt_kit_table( $columns, array_slice( $rows, 0, $at + 1 ), $opts ), array( $at ) );
+	$tail = array_slice( $rows, $at + 1 );
+	return array( $head, array() === $tail ? '' : $mark( snt_kit_table( $columns, $tail, $opts ), array() ) );
+}
+
+/**
+ * A list whose rows open an editor in place: the section (its heading, its
+ * lead, the rows down to the open one), then the editor, then the rest of the
+ * rows and the "+N more" line in a section of their own. With no row open
+ * (or the open one not listed) it is one section, and any editor follows it.
+ * Every table shows all its rows (`snt-table-full`: no inner scroller).
+ *
+ * @param array<string,mixed> $list   heading, lead (HTML), columns, rows, at (the open row's index), more (HTML), description, attrs, table (snt_kit_table() options).
+ * @param string              $editor The open row's editor, '' when none.
+ * @return string
+ */
+function snt_kit_edit_list( array $list, $editor ) {
+	$rows = array_values( (array) ( $list['rows'] ?? array() ) );
+	$at   = '' !== (string) $editor ? (int) ( $list['at'] ?? -1 ) : -1;
+	$open = $at >= 0 && $at < count( $rows );
+	$more = (string) ( $list['more'] ?? '' );
+	$opts = array_merge( array( 'stack_on_phone' => true, 'class' => 'snt-table-full' ), (array) ( $list['table'] ?? array() ) );
+	list( $head, $tail ) = snt_kit_table_split( (array) ( $list['columns'] ?? array() ), $rows, $open ? $at : -1, $opts );
+	$out = snt_kit_section( (string) ( $list['heading'] ?? '' ), (string) ( $list['lead'] ?? '' ) . $head . ( $open ? '' : $more ), (string) ( $list['description'] ?? '' ), (array) ( $list['attrs'] ?? array() ) );
+	if ( ! $open ) {
+		return $out . (string) $editor;
+	}
+	return $out . $editor . ( '' !== $tail . $more ? snt_kit_section( '', $tail . $more ) : '' );
+}
+
+/**
  * A finding sentence, the first `$cap` rows as a kit table, and the "+N more"
  * line for the rest.
  *

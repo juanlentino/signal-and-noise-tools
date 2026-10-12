@@ -20,8 +20,9 @@
  *
  * 2026-10-11 (owner rule: no collapsible sections): the per-path folds and the
  * probe fold became two tiles, one finding, the broken-path ledger with one
- * visible row action each (site-broken-links-ledger.php), ONE region holding
- * the create and dismiss forms for the path `sn_edit` names (below), and the
+ * visible row action each (site-broken-links-ledger.php), ONE editor holding
+ * the create and dismiss forms for the path `sn_edit` names (below, painted
+ * under its row since 2026-10-12), and the
  * open probe ledger (site-broken-links-probes.php). Handlers, field names and
  * nonces untouched.
  *
@@ -56,7 +57,7 @@ function broken_links_intro_html() {
 }
 
 /**
- * The ONE region for the path `sn_edit` names, holding every write for it:
+ * The ONE editor for the path `sn_edit` names, under its row, holding every write for it:
  * the redirect_add form prefilled with the slug suggestion, the
  * redirect_404_delete Dismiss with one line saying what it does, and a Cancel.
  *
@@ -76,10 +77,10 @@ function broken_links_create_html( $path, array $e, $suggested ) {
 	return \snt_kit_section(
 		/* translators: %s: the broken path. */
 		sprintf( __( 'Fixing %s', 'signal-and-noise-tools' ), $path ),
-		\snt_kit_form( 'redirect_add', $fields, array( 'submit' => __( 'Create redirect', 'signal-and-noise-tools' ) ) )
+		// Cancel sits beside Create in the form's own action row (os-form footer-leading, as on Résumé).
+		\snt_kit_form( 'redirect_add', $fields . \snt_kit_tag( 'span', array( 'slot' => 'footer-leading' ), \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'broken-links', 'anchor' => \snt_kit_row_anchor( $path ) ) ) ) ), array( 'submit' => __( 'Create redirect', 'signal-and-noise-tools' ) ) )
 			. '<p class="snt-hint">' . \snt_kit_esc( __( 'Dismiss removes the path from the log without a redirect.', 'signal-and-noise-tools' ) ) . '</p>'
-			. \snt_kit_form( 'redirect_404_delete', \snt_kit_field( 'hidden', 'source', '', $path ), array( 'submit' => __( 'Dismiss', 'signal-and-noise-tools' ) ) )
-			. \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'broken-links', 'anchor' => 'snt-edit-list' ) ) ),
+			. \snt_kit_form( 'redirect_404_delete', \snt_kit_field( 'hidden', 'source', '', $path ), array( 'submit' => __( 'Dismiss', 'signal-and-noise-tools' ) ) ),
 		sprintf(
 			/* translators: 1: "7 hits", 2: date of the latest hit (Y-m-d), 3: "from <host>" or "no referrer recorded". */
 			__( '%1$s, last %2$s, %3$s.', 'signal-and-noise-tools' ),
@@ -93,8 +94,8 @@ function broken_links_create_html( $path, array $e, $suggested ) {
 }
 
 /**
- * The leaf, top-down: the reading, the broken-path ledger, the ONE region
- * (when `sn_edit` names a broken path), the probe ledger, and the
+ * The leaf, top-down: the reading, the broken-path ledger with the ONE editor
+ * under its row (when `sn_edit` names a broken path), the probe ledger, and the
  * whole-log clear last.
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
@@ -107,13 +108,16 @@ function paint_site_broken_links( array $ctx ) {
 	$data   = redirects_data();
 	$broken = (array) $data['broken'];
 	$path   = redirects_editing( $ctx, array_keys( $broken ) );
-	$out    = broken_links_reading_html( $data ) . broken_links_paths_html( $broken );
-	if ( '' !== $path && isset( $broken[ $path ] ) ) {
-		$out .= broken_links_create_html( $path, (array) $broken[ $path ]['entry'], (string) $broken[ $path ]['suggested'] );
-	}
-	if ( ! empty( $data['probes'] ) ) {
-		$out .= broken_links_probes_html( (array) $data['probes'], (int) $data['probe_hits'] );
-	}
+	// 2026-10-12: the editor opens under its row (snt_kit_edit_list()).
+	$editor = '' !== $path ? broken_links_create_html( $path, (array) $broken[ $path ]['entry'], (string) $broken[ $path ]['suggested'] ) : '';
+	$paths  = broken_links_paths_html( $broken, $path, $editor );
+	$probes = ! empty( $data['probes'] ) ? broken_links_probes_html( (array) $data['probes'], (int) $data['probe_hits'] ) : '';
+	// 2026-10-12, measured live with every row shown in both lists: Broken
+	// paths 1,153px beside Automated probes 910px (1.27x) share a row. With a path open its editor and the resumed
+	// table run that side far past 1.5x, and with no broken path it is one
+	// sentence, so then they stack (snt_kit_grid() returns a lone box bare).
+	$pair   = '' === $editor && array() !== $broken;
+	$out    = broken_links_reading_html( $data ) . ( $pair ? \snt_kit_grid( array( $paths, $probes ) ) : $paths . $probes );
 	if ( array() !== $broken ) {
 		$out .= \snt_kit_action_button(
 			__( 'Clear 404 log', 'signal-and-noise-tools' ),
@@ -124,8 +128,8 @@ function paint_site_broken_links( array $ctx ) {
 			)
 		);
 	}
-	// Full width, no wrapping grid: a pair grid would re-create the two-column
-	// shell this split exists to leave behind.
+	// No grid around the whole leaf: that would re-create the two-column shell
+	// this split exists to leave behind (only the two ledgers above pair).
 	return broken_links_intro_html() . \snt_kit_tag( 'os-stack', array( 'gap' => '12' ), $out );
 }
 

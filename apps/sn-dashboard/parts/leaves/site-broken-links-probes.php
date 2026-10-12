@@ -50,8 +50,10 @@ function broken_links_probes_html( array $probes, $hits ) {
 		),
 		$rows,
 		REDIRECTS_PROBE_LIST_MAX,
+		// All its rows, no inner scroller, like the Broken paths list beside it:
+		// measured live, a scrolled probes box was 644px against 1,153px (1.79x).
 		/* translators: %s: probed paths not listed. */
-		array( 'more' => __( '+%s more probed paths, the quietest; the list is capped, not complete.', 'signal-and-noise-tools' ) )
+		array( 'class' => 'snt-table-full', 'more' => __( '+%s more probed paths, the quietest; the list is capped, not complete.', 'signal-and-noise-tools' ) )
 	);
 	$dismiss = \snt_kit_action_button(
 		__( 'Dismiss all probes', 'signal-and-noise-tools' ),
